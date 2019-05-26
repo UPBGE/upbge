@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/sculpt_paint/paint_intern.h
@@ -33,29 +26,29 @@
 #define __PAINT_INTERN_H__
 
 struct ARegion;
-struct bContext;
 struct Brush;
-struct ImagePool;
-struct ColorSpace;
 struct ColorManagedDisplay;
+struct ColorSpace;
+struct DMCoNo;
+struct ImagePool;
 struct ListBase;
 struct MTex;
 struct Object;
-struct PaintStroke;
 struct Paint;
 struct PaintCurve;
+struct PaintStroke;
 struct PointerRNA;
-struct rcti;
-struct Scene;
 struct RegionView3D;
+struct Scene;
+struct UndoStep;
 struct VPaint;
 struct ViewContext;
+struct bContext;
+struct rcti;
 struct wmEvent;
 struct wmOperator;
 struct wmOperatorType;
 struct wmWindowManager;
-struct DMCoNo;
-struct UndoStep;
 enum ePaintMode;
 
 /* paint_stroke.c */

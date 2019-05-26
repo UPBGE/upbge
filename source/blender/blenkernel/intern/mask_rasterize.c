@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/mask_rasterize.c
@@ -35,9 +28,7 @@
  * - free the handle.
  *
  * This file is admittedly a bit confusticated, in quite few areas speed was chosen over readability,
- * though it is commented - so shouldn't be so hard to see whats going on.
- *
- *
+ * though it is commented - so shouldn't be so hard to see what's going on.
  * Implementation:
  *
  * To rasterize the mask its converted into geometry that use a ray-cast for each pixel lookup.
@@ -57,8 +48,6 @@
  * - initializing the spacial structure doesn't need to be as optimized as pixel lookups are.
  * - mask lookups need not be pixel aligned so any sub-pixel values from x/y (0 - 1), can be found.
  *   (perhaps masks can be used as a vector texture in 3D later on)
- *
- *
  * Currently, to build the spacial structure we have to calculate the total number of faces ahead of time.
  *
  * This is getting a bit complicated with the addition of unfilled splines and end capping -
@@ -486,7 +475,7 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
 					unsigned int xi_max = (unsigned int) ((xmax - layer->bounds.xmin) * layer->buckets_xy_scalar[0]);
 					unsigned int yi_min = (unsigned int) ((ymin - layer->bounds.ymin) * layer->buckets_xy_scalar[1]);
 					unsigned int yi_max = (unsigned int) ((ymax - layer->bounds.ymin) * layer->buckets_xy_scalar[1]);
-					void *face_index_void = SET_UINT_IN_POINTER(face_index);
+					void *face_index_void = POINTER_FROM_UINT(face_index);
 
 					unsigned int xi, yi;
 
@@ -538,7 +527,7 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
 					buckets_face[bucket_index] = bucket;
 
 					for (bucket_node = bucketstore[bucket_index]; bucket_node; bucket_node = bucket_node->next) {
-						*bucket = GET_UINT_FROM_POINTER(bucket_node->link);
+						*bucket = POINTER_AS_UINT(bucket_node->link);
 						bucket++;
 					}
 					*bucket = TRI_TERMINATOR_ID;

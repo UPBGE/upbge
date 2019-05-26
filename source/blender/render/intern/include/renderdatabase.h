@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/include/renderdatabase.h
@@ -37,21 +29,21 @@
 extern "C" {
 #endif
 
-struct Object;
-struct VlakRen;
-struct VertRen;
+struct CustomData;
 struct HaloRen;
-struct Main;
-struct Material;
-struct Render;
+struct Isect;
 struct MCol;
 struct MTFace;
-struct CustomData;
-struct StrandBuffer;
-struct StrandRen;
+struct Main;
+struct Material;
+struct Object;
 struct ObjectInstanceRen;
 struct RadFace;
-struct Isect;
+struct Render;
+struct StrandBuffer;
+struct StrandRen;
+struct VertRen;
+struct VlakRen;
 
 #define RE_QUAD_MASK	0x7FFFFFF
 #define RE_QUAD_OFFS	0x8000000

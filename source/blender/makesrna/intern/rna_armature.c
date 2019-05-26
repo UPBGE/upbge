@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008), Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_armature.c
@@ -886,7 +880,7 @@ static void rna_def_edit_bone(BlenderRNA *brna)
 
 	/* calculated and read only, not actual data access */
 	prop = RNA_def_property(srna, "matrix", PROP_FLOAT, PROP_MATRIX);
-	/*RNA_def_property_float_sdna(prop, NULL, "");  *//* doesnt access any real data */
+	/*RNA_def_property_float_sdna(prop, NULL, "");  *//* doesn't access any real data */
 	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);
 	//RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_flag(prop, PROP_THICK_WRAP); /* no reference to original data */

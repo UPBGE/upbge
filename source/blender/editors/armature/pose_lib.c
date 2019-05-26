@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007, Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/armature/pose_lib.c
@@ -89,19 +83,19 @@ static void action_set_activemarker(void *UNUSED(a), void *UNUSED(b), void *UNUS
  *  It acts as a kind of "glorified clipboard for poses", allowing for naming of poses.
  *
  * Features:
- *	- PoseLibs are simply normal Actions
- *	- Each "pose" is simply a set of keyframes that occur on a particular frame
- *		-> a set of TimeMarkers that belong to each Action, help 'label' where a 'pose' can be
- *		   found in the Action
- *	- The Scrollwheel or PageUp/Down buttons when used in a special mode or after pressing/holding
- *	  [a modifier] key, cycles through the poses available for the active pose's poselib, allowing the
- *	  animator to preview what action best suits that pose
+ * - PoseLibs are simply normal Actions
+ * - Each "pose" is simply a set of keyframes that occur on a particular frame
+ *   -> a set of TimeMarkers that belong to each Action, help 'label' where a 'pose' can be
+ *      found in the Action
+ * - The Scrollwheel or PageUp/Down buttons when used in a special mode or after pressing/holding
+ *   [a modifier] key, cycles through the poses available for the active pose's poselib, allowing the
+ *   animator to preview what action best suits that pose
  */
 /* ************************************************************* */
 
 
 /* gets the first available frame in poselib to store a pose on
- *	- frames start from 1, and a pose should occur on every frame... 0 is error!
+ * - frames start from 1, and a pose should occur on every frame... 0 is error!
  */
 static int poselib_get_free_index(bAction *act)
 {
@@ -476,8 +470,8 @@ static int poselib_add_exec(bContext *C, wmOperator *op)
 	RNA_string_get(op->ptr, "name", name);
 
 	/* add pose to poselib - replaces any existing pose there
-	 *	- for the 'replace' option, this should end up finding the appropriate marker,
-	 *	  so no new one will be added
+	 * - for the 'replace' option, this should end up finding the appropriate marker,
+	 *   so no new one will be added
 	 */
 	for (marker = act->markers.first; marker; marker = marker->next) {
 		if (marker->frame == frame) {
@@ -498,7 +492,10 @@ static int poselib_add_exec(bContext *C, wmOperator *op)
 	BLI_uniquename(&act->markers, marker, DATA_("Pose"), '.', offsetof(TimeMarker, name), sizeof(marker->name));
 
 	/* use Keying Set to determine what to store for the pose */
-	ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_WHOLE_CHARACTER_SELECTED_ID); /* this includes custom props :)*/
+
+	/* this includes custom props :)*/
+	ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_WHOLE_CHARACTER_SELECTED_ID);
+
 	ANIM_apply_keyingset(C, NULL, act, ks, MODIFYKEY_MODE_INSERT, (float)frame);
 
 	/* store new 'active' pose number */
@@ -728,7 +725,8 @@ void POSELIB_OT_pose_rename(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	/* NOTE: name not pose is the operator's "main" property, so that it will get activated in the popup for easy renaming */
+	/* NOTE: name not pose is the operator's "main" property,
+	 * so that it will get activated in the popup for easy renaming */
 	ot->prop = RNA_def_string(ot->srna, "name", "RenamedPose", 64, "New Pose Name", "New name for pose");
 	prop = RNA_def_enum(ot->srna, "pose", DummyRNA_NULL_items, 0, "Pose", "The pose to rename");
 	RNA_def_enum_funcs(prop, poselib_stored_pose_itemf);
@@ -942,7 +940,8 @@ static void poselib_backup_restore(tPoseLib_PreviewData *pld)
 		if (plb->oldprops)
 			IDP_SyncGroupValues(plb->pchan->prop, plb->oldprops);
 
-		/* TODO: constraints settings aren't restored yet, even though these could change (though not that likely) */
+		/* TODO: constraints settings aren't restored yet,
+		 * even though these could change (though not that likely) */
 	}
 }
 
@@ -968,9 +967,9 @@ static void poselib_backup_free_data(tPoseLib_PreviewData *pld)
 /* ---------------------------- */
 
 /* Applies the appropriate stored pose from the pose-library to the current pose
- *	- assumes that a valid object, with a poselib has been supplied
- *	- gets the string to print in the header
- *  - this code is based on the code for extract_pose_from_action in blenkernel/action.c
+ * - assumes that a valid object, with a poselib has been supplied
+ * - gets the string to print in the header
+ * - this code is based on the code for extract_pose_from_action in blenkernel/action.c
  */
 static void poselib_apply_pose(tPoseLib_PreviewData *pld)
 {
@@ -1100,7 +1099,7 @@ static void poselib_preview_apply(bContext *C, wmOperator *op)
 			RNA_int_set(op->ptr, "pose_index", -2);  /* -2 means don't apply any pose */
 
 		/* old optimize trick... this enforces to bypass the depgraph
-		 *	- note: code copied from transform_generics.c -> recalcData()
+		 * - note: code copied from transform_generics.c -> recalcData()
 		 */
 		// FIXME: shouldn't this use the builtin stuff?
 		if ((pld->arm->flag & ARM_DELAYDEFORM) == 0)
@@ -1182,8 +1181,8 @@ static void poselib_preview_get_next(tPoseLib_PreviewData *pld, int step)
 			/* generate a new list of search matches */
 			for (marker = pld->act->markers.first; marker; marker = marker->next) {
 				/* does the name partially match?
-				 *  - don't worry about case, to make it easier for users to quickly input a name (or
-				 *	  part of one), which is the whole point of this feature
+				 * - don't worry about case, to make it easier for users to quickly input a name (or
+				 *   part of one), which is the whole point of this feature
 				 */
 				if (BLI_strcasestr(marker->name, pld->searchstr)) {
 					/* make link-data to store reference to it */
@@ -1326,7 +1325,7 @@ static int poselib_preview_handle_event(bContext *UNUSED(C), wmOperator *op, con
 	}
 
 	/* backup stuff that needs to occur before every operation
-	 *	- make a copy of searchstr, so that we know if cache needs to be rebuilt
+	 * - make a copy of searchstr, so that we know if cache needs to be rebuilt
 	 */
 	BLI_strncpy(pld->searchold, pld->searchstr, sizeof(pld->searchold));
 
@@ -1609,7 +1608,7 @@ static void poselib_preview_cleanup(bContext *C, wmOperator *op)
 		poselib_backup_restore(pld);
 
 		/* old optimize trick... this enforces to bypass the depgraph
-		 *	- note: code copied from transform_generics.c -> recalcData()
+		 * - note: code copied from transform_generics.c -> recalcData()
 		 */
 		if ((arm->flag & ARM_DELAYDEFORM) == 0)
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);  /* sets recalc flags */
@@ -1765,7 +1764,11 @@ void POSELIB_OT_browse_interactive(wmOperatorType *ot)
 
 	// XXX: percentage vs factor?
 	/* not used yet */
-	/* RNA_def_float_factor(ot->srna, "blend_factor", 1.0f, 0.0f, 1.0f, "Blend Factor", "Amount that the pose is applied on top of the existing poses", 0.0f, 1.0f); */
+#if 0
+	RNA_def_float_factor(
+	        ot->srna, "blend_factor", 1.0f, 0.0f, 1.0f, "Blend Factor",
+	        "Amount that the pose is applied on top of the existing poses", 0.0f, 1.0f);
+#endif
 }
 
 void POSELIB_OT_apply_pose(wmOperatorType *ot)

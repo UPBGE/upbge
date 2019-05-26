@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_SystemWin32.cpp
@@ -1333,9 +1325,9 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					break;
 				case WM_DPICHANGED:
 					/* The WM_DPICHANGED message is sent when the effective dots per inch (dpi) for a window has changed.
-					* The DPI is the scale factor for a window. There are multiple events that can cause the DPI to
-					* change such as when the window is moved to a monitor with a different DPI.
-					*/
+					 * The DPI is the scale factor for a window. There are multiple events that can cause the DPI to
+					 * change such as when the window is moved to a monitor with a different DPI.
+					 */
 					{
 						WORD newYAxisDPI = HIWORD(wParam);
 						WORD newXAxisDPI = LOWORD(wParam);

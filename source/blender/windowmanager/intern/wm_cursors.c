@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005-2007 Blender Foundation
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Matt Ebb
- *
- * ***** END GPL/BL DUAL LICENSE BLOCK *****
  */
 
 /** \file blender/windowmanager/intern/wm_cursors.c
@@ -191,7 +183,7 @@ void WM_cursor_wait(bool val)
 }
 
 /**
- * \param bounds can be NULL
+ * \param bounds: can be NULL
  */
 void WM_cursor_grab_enable(wmWindow *win, bool wrap, bool hide, int bounds[4])
 {
@@ -274,7 +266,7 @@ bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event)
 }
 
 
-/* afer this you can call restore too */
+/* after this you can call restore too */
 void WM_cursor_time(wmWindow *win, int nr)
 {
 	/* 10 8x8 digits */

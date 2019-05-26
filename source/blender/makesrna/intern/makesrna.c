@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/makesrna.c
@@ -49,8 +43,8 @@
 /**
  * Variable to control debug output of makesrna.
  * debugSRNA:
- *  - 0 = no output, except errors
- *  - 1 = detail actions
+ * - 0 = no output, except errors
+ * - 1 = detail actions
  */
 static int debugSRNA = 0;
 
@@ -3562,6 +3556,7 @@ static void rna_generate_header(BlenderRNA *UNUSED(brna), FILE *f)
 
 static const char *cpp_classes = ""
 "\n"
+"#include <stdlib.h> /* for malloc */\n"
 "#include <string>\n"
 "#include <string.h> /* for memcpy */\n"
 "\n"
@@ -4014,7 +4009,10 @@ static void rna_generate_header_cpp(BlenderRNA *UNUSED(brna), FILE *f)
 static void make_bad_file(const char *file, int line)
 {
 	FILE *fp = fopen(file, "w");
-	fprintf(fp, "#error \"Error! can't make correct RNA file from %s:%d, STUPID!\"\n", __FILE__, line);
+	fprintf(fp,
+	       "#error \"Error! can't make correct RNA file from %s:%d, "
+	       "check DNA properties.\"\n",
+	       __FILE__, line);
 	fclose(fp);
 }
 

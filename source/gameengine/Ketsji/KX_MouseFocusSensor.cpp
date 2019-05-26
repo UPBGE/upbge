@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  * KX_MouseFocusSensor determines mouse in/out/over events.
  */
 
@@ -304,11 +296,11 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 	 * _should_ be wrong! - see from point Z values */
 
 
-	/*	build the from and to point in normalized device coordinates
-	 *	Normalized device coordinates are [-1,1] in x, y, z
+	/* build the from and to point in normalized device coordinates
+	 * Normalized device coordinates are [-1,1] in x, y, z
 	 *
-	 *	The actual z coordinates used don't have to be exact just infront and
-	 *	behind of the near and far clip planes.
+	 * The actual z coordinates used don't have to be exact just infront and
+	 * behind of the near and far clip planes.
 	 */
 	mt::vec3 frompoint((2 * (m_x - x_lb) / maxx) - 1.0f, 1.0f - (2 * (m_y_inv - y_lb) / maxy), -1.0f);
 	mt::vec3 topoint((2 * (m_x - x_lb) / maxx) - 1.0f, 1.0f - (2 * (m_y_inv - y_lb) / maxy), 1.0f);

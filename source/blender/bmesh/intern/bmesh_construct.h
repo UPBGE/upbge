@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Joseph Eagar.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BMESH_CONSTRUCT_H__
@@ -55,7 +49,7 @@ BMFace *BM_face_create_ngon_verts(
 
 void BM_elem_attrs_copy_ex(
         BMesh *bm_src, BMesh *bm_dst, const void *ele_src_v, void *ele_dst_v,
-        const char hflag_mask);
+        const char hflag_mask, const uint64_t cd_mask);
 void BM_elem_attrs_copy(BMesh *bm_src, BMesh *bm_dst, const void *ele_src_v, void *ele_dst_v);
 void BM_elem_select_copy(BMesh *bm_dst, void *ele_dst_v, const void *ele_src_v);
 

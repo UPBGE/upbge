@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Chingiz Dyussenov, Arystanbek Dyussenov, Nathan Letwory.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/collada/DocumentImporter.cpp
@@ -703,8 +697,10 @@ finally:
 	return root_objects;
 }
 
-/** When this method is called, the writer must write the entire visual scene.
- *  Return The writer should return true, if writing succeeded, false otherwise. */
+/**
+ * When this method is called, the writer must write the entire visual scene.
+ * Return The writer should return true, if writing succeeded, false otherwise.
+ */
 bool DocumentImporter::writeVisualScene(const COLLADAFW::VisualScene *visualScene)
 {
 	if (mImportStage != General)
@@ -1346,6 +1342,19 @@ bool DocumentImporter::writeAnimationList(const COLLADAFW::AnimationList *animat
 	// return true;
 	return anim_importer.write_animation_list(animationList);
 }
+
+#if WITH_OPENCOLLADA_ANIMATION_CLIP
+// Since opencollada 1.6.68
+// called on post-process stage after writeVisualScenes
+bool DocumentImporter::writeAnimationClip(const COLLADAFW::AnimationClip *animationClip)
+{
+	if (mImportStage != General)
+		return true;
+
+	return true;
+	//return animation_clip_importer.write_animation_clip(animationClip); // TODO: implement import of AnimationClips
+}
+#endif
 
 /** When this method is called, the writer must write the skin controller data.
  * \return The writer should return true, if writing succeeded, false otherwise.*/

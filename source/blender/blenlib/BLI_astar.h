@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Bastien Montagne.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BLI_ASTAR_H__
@@ -54,9 +46,13 @@ typedef struct BLI_AStarGNode {
 
 typedef struct BLI_AStarSolution {
 	/* Final 'most useful' data. */
-	int steps;  /* Number of steps (i.e. walked links) in path (nodes num, including start and end, is steps + 1). */
-	int *prev_nodes;  /* Store the path, in reversed order (from destination to source node), as indices. */
-	BLI_AStarGNLink **prev_links;  /* Indices are nodes' ones, as prev_nodes, but they map to relevant link. */
+	/** Number of steps (i.e. walked links) in path
+	 * (nodes num, including start and end, is steps + 1). */
+	int steps;
+	/** Store the path, in reversed order (from destination to source node), as indices. */
+	int *prev_nodes;
+	/** Indices are nodes' ones, as prev_nodes, but they map to relevant link. */
+	BLI_AStarGNLink **prev_links;
 
 	void *custom_data;
 
@@ -90,10 +86,10 @@ void BLI_astar_solution_free(BLI_AStarSolution *as_solution);
  * Callback computing the current cost (distance) to next node, and the estimated overall cost to destination node
  * (A* expects this estimation to always be less or equal than actual shortest path from next node to destination one).
  *
- * \param link the graph link between current node and next one.
- * \param node_idx_curr current node index.
- * \param node_idx_next next node index.
- * \param node_idx_dst destination node index.
+ * \param link: the graph link between current node and next one.
+ * \param node_idx_curr: current node index.
+ * \param node_idx_next: next node index.
+ * \param node_idx_dst: destination node index.
  */
 typedef float (*astar_f_cost)(BLI_AStarGraph *as_graph, BLI_AStarSolution *as_solution, BLI_AStarGNLink *link,
                               const int node_idx_curr, const int node_idx_next, const int node_idx_dst);

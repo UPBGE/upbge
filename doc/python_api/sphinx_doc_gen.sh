@@ -58,7 +58,10 @@ SPHINX_WORKDIR="$(mktemp --directory --suffix=.sphinx)"
 # Generate reStructuredText (blender/python only)
 
 if $DO_EXE_BLENDER ; then
-	# dont delete existing docs, now partial updates are used for quick builds.
+	# Don't delete existing docs, now partial updates are used for quick builds.
+	#
+	# Disable ASAN error halt since it results in nonzero exit code on any minor issue.
+	ASAN_OPTIONS=halt_on_error=0 \
 	$BLENDER_BIN \
 		--background \
 		-noaudio \
@@ -89,7 +92,7 @@ if $DO_OUT_HTML ; then
 	# and zip up there, for now this is OK
 	rm -rf sphinx-out/.doctrees
 
-	# incase we have a zip already
+	# in case we have a zip already
 	rm -f blender_python_reference_$BLENDER_VERSION.zip
 
 	# ------------------------------------------------------------------------

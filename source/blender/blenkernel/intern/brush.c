@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/brush.c
@@ -181,7 +175,7 @@ struct Brush *BKE_brush_first_search(struct Main *bmain, const eObjectMode ob_mo
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_brush_copy_data(Main *UNUSED(bmain), Brush *brush_dst, const Brush *brush_src, const int flag)
 {
@@ -461,7 +455,7 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
  * region space mouse coordinates, or 3d world coordinates for 3D mapping.
  *
  * rgba outputs straight alpha. */
-float BKE_brush_sample_tex_3D(const Scene *scene, const Brush *br,
+float BKE_brush_sample_tex_3d(const Scene *scene, const Brush *br,
                               const float point[3],
                               float rgba[4], const int thread,
                               struct ImagePool *pool)
@@ -954,7 +948,7 @@ unsigned int *BKE_brush_gen_texture_cache(Brush *br, int half_side, bool use_sec
 
 		texcache = MEM_callocN(sizeof(int) * side * side, "Brush texture cache");
 
-		/* do normalized cannonical view coords for texture */
+		/* do normalized canonical view coords for texture */
 		for (y = -1.0, iy = 0; iy < side; iy++, y += step) {
 			for (x = -1.0, ix = 0; ix < side; ix++, x += step) {
 				co[0] = x;
@@ -962,7 +956,7 @@ unsigned int *BKE_brush_gen_texture_cache(Brush *br, int half_side, bool use_sec
 				co[2] = 0.0f;
 
 				/* This is copied from displace modifier code */
-				/* TODO(sergey): brush are always cacheing with CM enabled for now. */
+				/* TODO(sergey): brush are always caching with CM enabled for now. */
 				externtex(mtex, co, &intensity,
 				          rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL, false, false);
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/operators/bmo_fill_grid.c
@@ -216,7 +210,7 @@ static void barycentric_weights_v2_grid_cache(
 /**
  * This may be useful outside the bmesh operator.
  *
- * \param v_grid  2d array of verts, all boundary verts must be set, we fill in the middle.
+ * \param v_grid: 2d array of verts, all boundary verts must be set, we fill in the middle.
  */
 static void bm_grid_fill_array(
         BMesh *bm, BMVert **v_grid, const uint xtot, unsigned const int ytot,

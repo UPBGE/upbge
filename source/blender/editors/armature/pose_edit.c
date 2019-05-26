@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Ton Roosendaal, Blender Foundation '05, full recode.
- *                 Joshua Leung
- *                 Reevan McKay (original NaN code)
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Pose Mode API's and Operators for Pose Mode armatures
  */
 
@@ -801,8 +792,8 @@ static int pose_armature_layers_showall_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	/* use RNA to set the layers
-	 *  although it would be faster to just set directly using bitflags, we still
-	 *	need to setup a RNA pointer so that we get the "update" callbacks for free...
+	 * although it would be faster to just set directly using bitflags, we still
+	 * need to setup a RNA pointer so that we get the "update" callbacks for free...
 	 */
 	RNA_id_pointer_create(&arm->id, &ptr);
 
@@ -1124,7 +1115,7 @@ void POSE_OT_hide(wmOperatorType *ot)
 
 static int show_pose_bone_cb(Object *ob, Bone *bone, void *data)
 {
-	const bool select = GET_INT_FROM_POINTER(data);
+	const bool select = POINTER_AS_INT(data);
 
 	bArmature *arm = ob->data;
 
@@ -1147,7 +1138,7 @@ static int pose_reveal_exec(bContext *C, wmOperator *op)
 	bArmature *arm = ob->data;
 	const bool select = RNA_boolean_get(op->ptr, "select");
 
-	bone_looper(ob, arm->bonebase.first, SET_INT_IN_POINTER(select), show_pose_bone_cb);
+	bone_looper(ob, arm->bonebase.first, POINTER_FROM_INT(select), show_pose_bone_cb);
 
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);

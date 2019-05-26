@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Full recode, Ton Roosendaal, Crete 2005
- *				 Full recode, Joshua Leung, 2009
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_ACTION_H__
@@ -38,14 +31,14 @@
 #include "DNA_listBase.h"
 
 /* The following structures are defined in DNA_action_types.h, and DNA_anim_types.h */
-struct bAction;
-struct bActionGroup;
 struct FCurve;
-struct bPose;
-struct bItasc;
-struct bPoseChannel;
 struct Main;
 struct Object;
+struct bAction;
+struct bActionGroup;
+struct bItasc;
+struct bPose;
+struct bPoseChannel;
 
 /* Kernel prototypes */
 #ifdef __cplusplus
@@ -70,7 +63,7 @@ void BKE_action_make_local(struct Main *bmain, struct bAction *act, const bool l
 /* Action API ----------------- */
 
 /* types of transforms applied to the given item
- *  - these are the return falgs for action_get_item_transforms()
+ * - these are the return flags for action_get_item_transforms()
  */
 typedef enum eAction_TransformFlags {
 	/* location */
@@ -90,12 +83,12 @@ typedef enum eAction_TransformFlags {
 
 	/* all flags */
 	ACT_TRANS_ONLY  = (ACT_TRANS_LOC | ACT_TRANS_ROT | ACT_TRANS_SCALE),
-	ACT_TRANS_ALL   = (ACT_TRANS_ONLY | ACT_TRANS_PROP)
+	ACT_TRANS_ALL   = (ACT_TRANS_ONLY | ACT_TRANS_PROP),
 } eAction_TransformFlags;
 
 /* Return flags indicating which transforms the given object/posechannel has
- *	- if 'curves' is provided, a list of links to these curves are also returned
- *	  whose nodes WILL NEED FREEING
+ * - if 'curves' is provided, a list of links to these curves are also returned
+ *   whose nodes WILL NEED FREEING
  */
 short action_get_item_transforms(struct bAction *act, struct Object *ob, struct bPoseChannel *pchan, ListBase *curves);
 

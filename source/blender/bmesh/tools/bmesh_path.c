@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,15 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/tools/bmesh_path.c
  *  \ingroup bmesh
  *
  * Find a path between 2 elements.
- *
  */
 
 #include "MEM_guardedalloc.h"
@@ -215,7 +210,7 @@ static float edgetag_cut_cost_face(BMEdge *e_a, BMEdge *e_b, BMFace *f)
 	mid_v3_v3v3(e_a_cent, e_a->v1->co, e_a->v1->co);
 	mid_v3_v3v3(e_b_cent, e_b->v1->co, e_b->v1->co);
 
-	BM_face_calc_center_mean_weighted(f, f_cent);
+	BM_face_calc_center_median_weighted(f, f_cent);
 
 	return step_cost_3_v3(e_a_cent, e_b_cent, f_cent);
 }
@@ -380,8 +375,8 @@ static float facetag_cut_cost_edge(BMFace *f_a, BMFace *f_b, BMEdge *e, const vo
 	float f_b_cent[3];
 	float e_cent[3];
 
-	BM_face_calc_center_mean_weighted(f_a, f_a_cent);
-	BM_face_calc_center_mean_weighted(f_b, f_b_cent);
+	BM_face_calc_center_median_weighted(f_a, f_a_cent);
+	BM_face_calc_center_median_weighted(f_b, f_b_cent);
 #if 0
 	mid_v3_v3v3(e_cent, e->v1->co, e->v2->co);
 #else
@@ -412,8 +407,8 @@ static float facetag_cut_cost_vert(BMFace *f_a, BMFace *f_b, BMVert *v, const vo
 	float f_a_cent[3];
 	float f_b_cent[3];
 
-	BM_face_calc_center_mean_weighted(f_a, f_a_cent);
-	BM_face_calc_center_mean_weighted(f_b, f_b_cent);
+	BM_face_calc_center_median_weighted(f_a, f_a_cent);
+	BM_face_calc_center_median_weighted(f_b, f_b_cent);
 
 	return step_cost_3_v3_ex(
 	        f_a_cent, v->co, f_b_cent,

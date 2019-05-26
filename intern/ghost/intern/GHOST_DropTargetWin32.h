@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_DropTargetWin32.h
@@ -60,7 +52,7 @@ public:
 	 *  - Determining the effect of the drop on the target application.
 	 *  - Incorporating any valid dropped data when the drop occurs.
 	 *  - Communicating target feedback to the source so the source application
-	 *	  can provide appropriate visual feedback such as setting the cursor.
+	 *    can provide appropriate visual feedback such as setting the cursor.
 	 *  - Implementing drag scrolling.
 	 *  - Registering and revoking its application windows as drop targets.
 	 *

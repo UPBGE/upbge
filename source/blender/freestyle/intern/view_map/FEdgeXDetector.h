@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __FREESTYLE_FEDGE_X_DETECTOR_H__
@@ -93,7 +89,7 @@ public:
 	virtual void ProcessCreaseEdge(WXEdge *iEdge);
 
 	/*! Sets the minimum angle for detecting crease edges
-	 *  \param angle
+	 *  \param angle:
 	 *    The angular threshold in degrees (between 0 and 180) for detecting crease edges. An edge is considered
 	 *    a crease edge if the angle between two faces sharing the edge is smaller than the given threshold.
 	 */
@@ -125,7 +121,7 @@ public:
 	virtual void postProcessSuggestiveContourShape(WXShape *iShape);
 	virtual void postProcessSuggestiveContourFace(WXFace *iFace);
 	/*! Sets the minimal derivative of the radial curvature for suggestive contours
-	 *  \param dkr
+	 *  \param dkr:
 	 *    The minimal derivative of the radial curvature
 	 */
 	inline void setSuggestiveContourKrDerivativeEpsilon(float dkr)
@@ -190,7 +186,7 @@ public:
 	}
 
 	/*! Sets the radius of the geodesic sphere around each vertex (for the curvature computation)
-	 *  \param r
+	 *  \param r:
 	 *    The radius of the sphere expressed as a ratio of the mean edge size
 	 */
 	inline void setSphereRadius(float r)

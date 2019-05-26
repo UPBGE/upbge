@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Nathan Letwory.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/nodes/intern/node_exec.h
@@ -43,9 +35,9 @@
 
 #include "RNA_types.h"
 
-struct bNodeTree;
 struct bNode;
 struct bNodeStack;
+struct bNodeTree;
 
 /* Node execution data */
 typedef struct bNodeExec {

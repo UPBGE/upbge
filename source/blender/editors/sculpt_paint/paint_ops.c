@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/sculpt_paint/paint_ops.c
@@ -205,11 +201,11 @@ static int palette_color_add_exec(bContext *C, wmOperator *UNUSED(op))
 	color = BKE_palette_color_add(palette);
 	palette->active_color = BLI_listbase_count(&palette->colors) - 1;
 
-	if (ELEM(mode, ePaintTextureProjective, ePaintTexture2D, ePaintVertex)) {
+	if (ELEM(mode, PAINT_MODE_TEXTURE_3D, PAINT_MODE_TEXTURE_2D, PAINT_MODE_VERTEX)) {
 		copy_v3_v3(color->rgb, BKE_brush_color_get(scene, brush));
 		color->value = 0.0;
 	}
-	else if (mode == ePaintWeight) {
+	else if (mode == PAINT_MODE_WEIGHT) {
 		zero_v3(color->rgb);
 		color->value = brush->weight;
 	}
@@ -566,13 +562,13 @@ typedef enum {
 
 typedef enum {
 	STENCIL_PRIMARY = 0,
-	STENCIL_SECONDARY = 1
+	STENCIL_SECONDARY = 1,
 } StencilTextureMode;
 
 
 typedef enum {
 	STENCIL_CONSTRAINT_X = 1,
-	STENCIL_CONSTRAINT_Y = 2
+	STENCIL_CONSTRAINT_Y = 2,
 } StencilConstraint;
 
 typedef struct {

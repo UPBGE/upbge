@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation (2008).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/report.c
@@ -140,7 +134,7 @@ void BKE_reportf(ReportList *reports, ReportType type, const char *_format, ...)
 		va_start(args, _format);
 		vprintf(format, args);
 		va_end(args);
-		fprintf(stdout, "\n"); /* otherise each report needs to include a \n */
+		fprintf(stdout, "\n"); /* otherwise each report needs to include a \n */
 		fflush(stdout); /* this ensures the message is printed before a crash */
 	}
 

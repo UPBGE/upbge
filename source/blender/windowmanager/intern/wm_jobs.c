@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/windowmanager/intern/wm_jobs.c
@@ -64,16 +57,15 @@
  *   - add timer notifier to handle progress
  *
  * Stop job
- *   - signal job to end
- *  on end, job will tag itself as sleeping
+ * - signal job to end
+ * on end, job will tag itself as sleeping
  *
  * Remove job
  * - signal job to end
- *  on end, job will remove itself
+ * on end, job will remove itself
  *
  * When job is done:
  * - it puts timer to sleep (or removes?)
- *
  */
 
 struct wmJob {
@@ -175,7 +167,7 @@ static wmJob *wm_job_find(wmWindowManager *wm, void *owner, const int job_type)
 /* ******************* public API ***************** */
 
 /**
- * \return current job or adds new job, but doesnt run it.
+ * \return current job or adds new job, but doesn't run it.
  *
  * \note every owner only gets a single job,
  * adding a new one will stop running job and when stopped it starts the new one.
@@ -334,6 +326,7 @@ static void *do_job_thread(void *job_v)
 {
 	wmJob *wm_job = job_v;
 
+	BLI_thread_put_thread_on_fast_node();
 	wm_job->startjob(wm_job->run_customdata, &wm_job->stop, &wm_job->do_update, &wm_job->progress);
 	wm_job->ready = true;
 

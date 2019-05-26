@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributors: 2004/2005/2006 Blender Foundation, full recode
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/source/envmap.c
@@ -500,7 +494,7 @@ static void render_envmap(Render *re, EnvMap *env)
 
 			if (envre->result->do_exr_tile) {
 				BLI_rw_mutex_lock(&envre->resultmutex, THREAD_LOCK_WRITE);
-				render_result_exr_file_end(envre);
+				render_result_exr_file_end(envre, NULL);
 				BLI_rw_mutex_unlock(&envre->resultmutex);
 			}
 

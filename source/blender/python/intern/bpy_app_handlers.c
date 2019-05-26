@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/intern/bpy_app_handlers.c
@@ -241,7 +235,7 @@ PyObject *BPY_app_handlers_struct(void)
 			funcstore = &funcstore_array[pos];
 			funcstore->func = bpy_app_generic_callback;
 			funcstore->alloc = 0;
-			funcstore->arg = SET_INT_IN_POINTER(pos);
+			funcstore->arg = POINTER_FROM_INT(pos);
 			BLI_callback_add(funcstore, pos);
 		}
 	}
@@ -300,7 +294,7 @@ void BPY_app_handlers_reset(const short do_all)
 /* the actual callback - not necessarily called from py */
 void bpy_app_generic_callback(struct Main *UNUSED(main), struct ID *id, void *arg)
 {
-	PyObject *cb_list = py_cb_array[GET_INT_FROM_POINTER(arg)];
+	PyObject *cb_list = py_cb_array[POINTER_AS_INT(arg)];
 	if (PyList_GET_SIZE(cb_list) > 0) {
 		PyGILState_STATE gilstate = PyGILState_Ensure();
 

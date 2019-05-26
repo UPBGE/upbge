@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_outliner/outliner_draw.c
@@ -967,7 +959,7 @@ static void outliner_buttons(const bContext *C, uiBlock *block, ARegion *ar, Tre
 	if (false == UI_but_active_only(C, ar, block, bt)) {
 		tselem->flag &= ~TSE_TEXTBUT;
 
-		/* bad! (notifier within draw) without this, we don't get a refesh */
+		/* bad! (notifier within draw) without this, we don't get a refresh */
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 	}
 }
@@ -1460,8 +1452,8 @@ static void outliner_draw_tree_element(
 		glEnable(GL_BLEND);
 
 		/* start by highlighting search matches
-		 *	we don't expand items when searching in the datablocks but we
-		 *	still want to highlight any filter matches.
+		 * we don't expand items when searching in the datablocks but we
+		 * still want to highlight any filter matches.
 		 */
 		if ((SEARCHING_OUTLINER(soops) || (soops->outlinevis == SO_DATABLOCKS && soops->search_string[0] != 0)) &&
 		    (tselem->flag & TSE_SEARCHMATCH))
@@ -1845,9 +1837,9 @@ void draw_outliner(const bContext *C)
 
 	if (ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF)) {
 		/* RNA has two columns:
-		 *  - column 1 is (max_width + OL_RNA_COL_SPACEX) or
-		 *				 (OL_RNA_COL_X), whichever is wider...
-		 *	- column 2 is fixed at OL_RNA_COL_SIZEX
+		 * - column 1 is (max_width + OL_RNA_COL_SPACEX) or
+		 *   (OL_RNA_COL_X), whichever is wider...
+		 * - column 2 is fixed at OL_RNA_COL_SIZEX
 		 *
 		 *  (*) XXX max width for now is a fixed factor of (UI_UNIT_X * (max_indention + 100))
 		 */
@@ -1860,7 +1852,8 @@ void draw_outliner(const bContext *C)
 		sizex = sizex_rna + OL_RNA_COL_SIZEX + 50;
 	}
 	else {
-		/* width must take into account restriction columns (if visible) so that entries will still be visible */
+		/* width must take into account restriction columns (if visible)
+		 * so that entries will still be visible */
 		//outliner_width(soops, &soops->tree, &sizex);
 		// XXX should use outliner_width instead when te->xend will be set correctly...
 		outliner_rna_width(soops, &soops->tree, &sizex, 0);

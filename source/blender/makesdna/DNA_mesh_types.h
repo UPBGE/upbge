@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_mesh_types.h
@@ -231,6 +223,9 @@ enum {
 
 /* this is so we can save bmesh files that load in trunk, ignoring NGons
  * will eventually be removed */
+
+#define USE_BMESH_SAVE_AS_COMPAT
+#define USE_BMESH_SAVE_WITHOUT_MFACE
 
 /* enable this so meshes get tessfaces calculated by default */
 /* #define USE_TESSFACE_DEFAULT */

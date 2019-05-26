@@ -2,12 +2,12 @@
 	path = release/scripts/addons
 	url = https://github.com/UPBGE/blender-addons.git
 	ignore = all
-	branch = master
+	branch = blender2.7
 [submodule "release/scripts/addons_contrib"]
 	path = release/scripts/addons_contrib
 	url = git://git.blender.org/blender-addons-contrib.git
 	ignore = all
-	branch = master
+	branch = blender2.7
 [submodule "release/datafiles/locale"]
 	path = release/datafiles/locale
 	url = git://git.blender.org/blender-translations.git

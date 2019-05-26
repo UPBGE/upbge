@@ -20,6 +20,7 @@
 #include "render/graph.h"
 #include "graph/node.h"
 
+#include "util/util_array.h"
 #include "util/util_string.h"
 
 CCL_NAMESPACE_BEGIN
@@ -266,6 +267,8 @@ public:
 
 	bool has_spatial_varying() { return true; }
 	bool has_object_dependency() { return true; }
+
+	void add_image();
 
 	ustring filename;
 	NodeTexVoxelSpace space;
@@ -665,6 +668,7 @@ public:
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
 	bool has_attribute_dependency() { return true; }
 	bool has_spatial_varying() { return true; }
+	int get_group();
 
 	float3 normal_osl;
 };
@@ -1028,6 +1032,7 @@ public:
 	float3 value;
 
 protected:
+	using ShaderNode::constant_fold;
 	void constant_fold(const ConstantFolder& folder, ShaderInput *value_in);
 	void compile(SVMCompiler& compiler, int type, ShaderInput *value_in, ShaderOutput *value_out);
 	void compile(OSLCompiler& compiler, const char *name);
@@ -1161,4 +1166,4 @@ public:
 
 CCL_NAMESPACE_END
 
-#endif /* __NODES_H__ */
+#endif  /* __NODES_H__ */

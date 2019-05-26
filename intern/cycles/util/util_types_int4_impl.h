@@ -43,12 +43,12 @@ __forceinline int4::int4(const __m128i& a)
 {
 }
 
-__forceinline int4::operator const __m128i&(void) const
+__forceinline int4::operator const __m128i&() const
 {
 	return m128;
 }
 
-__forceinline int4::operator __m128i&(void)
+__forceinline int4::operator __m128i&()
 {
 	return m128;
 }
@@ -95,6 +95,16 @@ ccl_device_inline int4 make_int4(int x, int y, int z, int w)
 }
 
 ccl_device_inline int4 make_int4(const float3& f)
+{
+#ifdef __KERNEL_SSE__
+	int4 a(_mm_cvtps_epi32(f.m128));
+#else
+	int4 a = {(int)f.x, (int)f.y, (int)f.z, (int)f.w};
+#endif
+	return a;
+}
+
+ccl_device_inline int4 make_int4(const float4& f)
 {
 #ifdef __KERNEL_SSE__
 	int4 a(_mm_cvtps_epi32(f.m128));

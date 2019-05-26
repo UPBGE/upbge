@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __FREESTYLE_CURVE_H__
@@ -204,21 +200,21 @@ public:
 	CurvePoint();
 
 	/*! Builds a CurvePoint from two SVertex and an interpolation parameter.
-	 *  \param iA
+	 *  \param iA:
 	 *    The first SVertex
-	 *  \param iB
+	 *  \param iB:
 	 *    The second SVertex
-	 *  \param t2d
+	 *  \param t2d:
 	 *    A 2D interpolation parameter used to linearly interpolate \a iA and \a iB
 	 */
 	CurvePoint(SVertex *iA, SVertex *iB, float t2d);
 
 	/*! Builds a CurvePoint from two CurvePoint and an interpolation parameter.
-	 *  \param iA
+	 *  \param iA:
 	 *    The first CurvePoint
-	 *  \param iB
+	 *  \param iB:
 	 *    The second CurvePoint
-	 *  \param t2d
+	 *  \param t2d:
 	 *    The 2D interpolation parameter used to linearly interpolate \a iA and \a iB.
 	 */
 	CurvePoint(CurvePoint *iA, CurvePoint *iB, float t2d);

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,8 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/view3d_utils.c
@@ -76,7 +72,8 @@ float *ED_view3d_cursor3d_get(Scene *scene, View3D *v3d)
 
 Camera *ED_view3d_camera_data_get(View3D *v3d, RegionView3D *rv3d)
 {
-	/* establish the camera object, so we can default to view mapping if anything is wrong with it */
+	/* establish the camera object,
+	 * so we can default to view mapping if anything is wrong with it */
 	if ((rv3d->persp == RV3D_CAMOB) && v3d->camera && (v3d->camera->type == OB_CAMERA)) {
 		return v3d->camera->data;
 	}
@@ -411,7 +408,8 @@ bool ED_view3d_persp_ensure(struct View3D *v3d, ARegion *ar)
 
 	if (rv3d->persp != RV3D_PERSP) {
 		if (rv3d->persp == RV3D_CAMOB) {
-			/* If autopersp and previous view was an axis one, switch back to PERSP mode, else reuse previous mode. */
+			/* If autopersp and previous view was an axis one,
+			 * switch back to PERSP mode, else reuse previous mode. */
 			char persp = (autopersp && RV3D_VIEW_IS_AXIS(rv3d->lview)) ? RV3D_PERSP : rv3d->lpersp;
 			ED_view3d_persp_switch_from_camera(v3d, rv3d, persp);
 		}
@@ -1059,10 +1057,10 @@ float ED_view3d_radius_to_dist_ortho(const float lens, const float radius)
  *           +
  * </pre>
  *
- * \param ar  Can be NULL if \a use_aspect is false.
- * \param persp  Allow the caller to tell what kind of perspective to use (ortho/view/camera)
- * \param use_aspect  Increase the distance to account for non 1:1 view aspect.
- * \param radius  The radius will be fitted exactly, typically pre-scaled by a margin (#VIEW3D_MARGIN).
+ * \param ar: Can be NULL if \a use_aspect is false.
+ * \param persp: Allow the caller to tell what kind of perspective to use (ortho/view/camera)
+ * \param use_aspect: Increase the distance to account for non 1:1 view aspect.
+ * \param radius: The radius will be fitted exactly, typically pre-scaled by a margin (#VIEW3D_MARGIN).
  */
 float ED_view3d_radius_to_dist(
         const View3D *v3d, const ARegion *ar,
@@ -1102,7 +1100,8 @@ float ED_view3d_radius_to_dist(
 
 		angle = focallength_to_fov(lens, sensor_size);
 
-		/* zoom influences lens, correct this by scaling the angle as a distance (by the zoom-level) */
+		/* zoom influences lens, correct this by scaling the angle as a distance
+		 * (by the zoom-level) */
 		angle = atanf(tanf(angle / 2.0f) * zoom) * 2.0f;
 
 		dist = ED_view3d_radius_to_dist_persp(angle, radius);
@@ -1271,10 +1270,10 @@ bool ED_view3d_lock(RegionView3D *rv3d)
 /**
  * Set the view transformation from a 4x4 matrix.
  *
- * \param mat The view 4x4 transformation matrix to assign.
- * \param ofs The view offset, normally from RegionView3D.ofs.
- * \param quat The view rotation, quaternion normally from RegionView3D.viewquat.
- * \param dist The view distance from ofs, normally from RegionView3D.dist.
+ * \param mat: The view 4x4 transformation matrix to assign.
+ * \param ofs: The view offset, normally from RegionView3D.ofs.
+ * \param quat: The view rotation, quaternion normally from RegionView3D.viewquat.
+ * \param dist: The view distance from ofs, normally from RegionView3D.dist.
  */
 void ED_view3d_from_m4(float mat[4][4], float ofs[3], float quat[4], float *dist)
 {
@@ -1304,10 +1303,10 @@ void ED_view3d_from_m4(float mat[4][4], float ofs[3], float quat[4], float *dist
 /**
  * Calculate the view transformation matrix from RegionView3D input.
  * The resulting matrix is equivalent to RegionView3D.viewinv
- * \param mat The view 4x4 transformation matrix to calculate.
- * \param ofs The view offset, normally from RegionView3D.ofs.
- * \param quat The view rotation, quaternion normally from RegionView3D.viewquat.
- * \param dist The view distance from ofs, normally from RegionView3D.dist.
+ * \param mat: The view 4x4 transformation matrix to calculate.
+ * \param ofs: The view offset, normally from RegionView3D.ofs.
+ * \param quat: The view rotation, quaternion normally from RegionView3D.viewquat.
+ * \param dist: The view distance from ofs, normally from RegionView3D.dist.
  */
 void ED_view3d_to_m4(float mat[4][4], const float ofs[3], const float quat[4], const float dist)
 {
@@ -1321,11 +1320,11 @@ void ED_view3d_to_m4(float mat[4][4], const float ofs[3], const float quat[4], c
 
 /**
  * Set the RegionView3D members from an objects transformation and optionally lens.
- * \param ob The object to set the view to.
- * \param ofs The view offset to be set, normally from RegionView3D.ofs.
- * \param quat The view rotation to be set, quaternion normally from RegionView3D.viewquat.
- * \param dist The view distance from ofs to be set, normally from RegionView3D.dist.
- * \param lens The view lens angle set for cameras and lamps, normally from View3D.lens.
+ * \param ob: The object to set the view to.
+ * \param ofs: The view offset to be set, normally from RegionView3D.ofs.
+ * \param quat: The view rotation to be set, quaternion normally from RegionView3D.viewquat.
+ * \param dist: The view distance from ofs to be set, normally from RegionView3D.dist.
+ * \param lens: The view lens angle set for cameras and lamps, normally from View3D.lens.
  */
 void ED_view3d_from_object(Object *ob, float ofs[3], float quat[4], float *dist, float *lens)
 {
@@ -1342,10 +1341,10 @@ void ED_view3d_from_object(Object *ob, float ofs[3], float quat[4], float *dist,
 
 /**
  * Set the object transformation from RegionView3D members.
- * \param ob The object which has the transformation assigned.
- * \param ofs The view offset, normally from RegionView3D.ofs.
- * \param quat The view rotation, quaternion normally from RegionView3D.viewquat.
- * \param dist The view distance from ofs, normally from RegionView3D.dist.
+ * \param ob: The object which has the transformation assigned.
+ * \param ofs: The view offset, normally from RegionView3D.ofs.
+ * \param quat: The view rotation, quaternion normally from RegionView3D.viewquat.
+ * \param dist: The view distance from ofs, normally from RegionView3D.dist.
  */
 void ED_view3d_to_object(Object *ob, const float ofs[3], const float quat[4], const float dist)
 {

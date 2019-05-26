@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2008 full recode
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/object/object_add.c
@@ -534,7 +528,7 @@ static int effector_add_exec(bContext *C, wmOperator *op)
 			ob->empty_drawtype = OB_SINGLE_ARROW;
 	}
 
-	ob->pd = object_add_collision_fields(type);
+	ob->pd = BKE_partdeflect_new(type);
 
 	DAG_relations_tag_update(CTX_data_main(C));
 
@@ -1404,8 +1398,9 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 		BLI_ghash_insert(dupli_gh, dob, ob_dst);
 		if (parent_gh) {
 			void **val;
-			/* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as 'the same',
-			 * this avoids trying to insert same key several time and raise asserts in debug builds... */
+			/* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as
+			 * 'the same', this avoids trying to insert same key several time and
+			 * raise asserts in debug builds... */
 			if (!BLI_ghash_ensure_p(parent_gh, dob, &val)) {
 				*val = ob_dst;
 			}
@@ -1668,9 +1663,9 @@ static int convert_exec(bContext *C, wmOperator *op)
 			Base *base = link->ptr.data;
 			ob = base->object;
 
-			/* The way object type conversion works currently (enforcing conversion of *all* objetcs using converted
-			 * obdata, even some un-selected/hidden/inother scene ones, sounds totally bad to me.
-			 * However, changing this is more design than bugfix, not to mention convoluted code below,
+			/* The way object type conversion works currently (enforcing conversion of *all* objects using converted
+			 * object-data, even some un-selected/hidden/another scene ones, sounds totally bad to me.
+			 * However, changing this is more design than bug-fix, not to mention convoluted code below,
 			 * so that will be for later.
 			 * But at the very least, do not do that with linked IDs! */
 			if ((ID_IS_LINKED(ob) || (ob->data && ID_IS_LINKED(ob->data))) && !keep_original) {

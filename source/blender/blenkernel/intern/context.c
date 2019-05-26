@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/context.c
@@ -206,7 +200,7 @@ void CTX_store_free_list(ListBase *contexts)
 	}
 }
 
-/* is python initialied? */
+/* is python initialized? */
 
 int CTX_py_init_get(bContext *C)
 {
@@ -467,10 +461,10 @@ static void data_dir_add(ListBase *lb, const char *member, const bool use_all)
 }
 
 /**
- * \param C Context
- * \param use_store Use 'C->wm.store'
- * \param use_rna Use Include the properties from 'RNA_Context'
- * \param use_all Don't skip values (currently only "scene")
+ * \param C: Context
+ * \param use_store: Use 'C->wm.store'
+ * \param use_rna: Use Include the properties from 'RNA_Context'
+ * \param use_all: Don't skip values (currently only "scene")
  */
 ListBase CTX_data_dir_get_ex(const bContext *C, const bool use_store, const bool use_rna, const bool use_all)
 {

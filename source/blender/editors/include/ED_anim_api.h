@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_anim_api.h
@@ -31,27 +24,27 @@
 #ifndef __ED_ANIM_API_H__
 #define __ED_ANIM_API_H__
 
+struct AnimData;
 struct ID;
 struct ListBase;
-struct AnimData;
 
-struct bContext;
+struct ARegion;
 struct Main;
-struct wmKeyConfig;
 struct ReportList;
 struct ScrArea;
 struct SpaceLink;
-struct ARegion;
 struct View2D;
+struct bContext;
+struct wmKeyConfig;
 
-struct Scene;
 struct Object;
+struct Scene;
 
 struct bDopeSheet;
 
-struct bAction;
 struct FCurve;
 struct FModifier;
+struct bAction;
 
 struct uiBlock;
 struct uiLayout;
@@ -114,37 +107,51 @@ typedef enum eAnimCont_Types {
 typedef struct bAnimListElem {
 	struct bAnimListElem *next, *prev;
 
-	void    *data;          /* source data this elem represents */
-	int     type;           /* (eAnim_ChannelType) one of the ANIMTYPE_* values */
-	int     flag;           /* copy of elem's flags for quick access */
-	int     index;          /* for un-named data, the index of the data in its collection */
+	/** source data this elem represents */
+	void    *data;
+	/** (eAnim_ChannelType) one of the ANIMTYPE_* values */
+	int     type;
+	/** copy of elem's flags for quick access */
+	int     flag;
+	/** for un-named data, the index of the data in its collection */
+	int     index;
 
-	char    update;         /* (eAnim_Update_Flags)  tag the element for updating */
-	char    tag;            /* tag the included data. Temporary always */
+	/** (eAnim_Update_Flags)  tag the element for updating */
+	char    update;
+	/** tag the included data. Temporary always */
+	char    tag;
 
-	short   datatype;       /* (eAnim_KeyType) type of motion data to expect */
-	void   *key_data;       /* motion data - mostly F-Curves, but can be other types too */
+	/** (eAnim_KeyType) type of motion data to expect */
+	short   datatype;
+	/** motion data - mostly F-Curves, but can be other types too */
+	void   *key_data;
 
 
-	/* NOTE: id here is the "IdAdtTemplate"-style datablock (e.g. Object, Material, Texture, NodeTree)
-	 *       from which evaluation of the RNA-paths takes place. It's used to figure out how deep
-	 *       channels should be nested (e.g. for Textures/NodeTrees) in the tree, and allows property
-	 *       lookups (e.g. for sliders and for inserting keyframes) to work. If we had instead used
-	 *       bAction or something similar, none of this would be possible: although it's trivial
-	 *       to use an IdAdtTemplate type to find the source action a channel (e.g. F-Curve) comes from
-	 *       (i.e. in the AnimEditors, it *must* be the active action, as only that can be edited),
-	 *       it's impossible to go the other way (i.e. one action may be used in multiple places).
+	/**
+	 * \note
+	 * id here is the "IdAdtTemplate"-style datablock (e.g. Object, Material, Texture, NodeTree)
+	 * from which evaluation of the RNA-paths takes place. It's used to figure out how deep
+	 * channels should be nested (e.g. for Textures/NodeTrees) in the tree, and allows property
+	 * lookups (e.g. for sliders and for inserting keyframes) to work. If we had instead used
+	 * bAction or something similar, none of this would be possible: although it's trivial
+	 * to use an IdAdtTemplate type to find the source action a channel (e.g. F-Curve) comes from
+	 * (i.e. in the AnimEditors, it *must* be the active action, as only that can be edited),
+	 * it's impossible to go the other way (i.e. one action may be used in multiple places).
 	 */
-	struct ID *id;          /* ID block that channel is attached to */
-	struct AnimData *adt;   /* source of the animation data attached to ID block (for convenience) */
+	/** ID block that channel is attached to */
+	struct ID *id;
+	/** source of the animation data attached to ID block (for convenience) */
+	struct AnimData *adt;
 
 	void   *owner;          /* for per-element F-Curves (e.g. NLA Control Curves), the element that this represents (e.g. NlaStrip) */
 } bAnimListElem;
 
 
-/* Some types for easier type-testing
- * NOTE: need to keep the order of these synchronized with the channels define code
- *      which is used for drawing and handling channel lists for
+/**
+ * Some types for easier type-testing
+ *
+ * \note need to keep the order of these synchronized with the channels define code
+ * which is used for drawing and handling channel lists for.
  */
 typedef enum eAnim_ChannelType {
 	ANIMTYPE_NONE = 0,
@@ -231,43 +238,47 @@ typedef enum eAnim_Update_Flags {
 
 /* filtering flags  - under what circumstances should a channel be returned */
 typedef enum eAnimFilter_Flags {
-	/* data which channel represents is fits the dopesheet filters (i.e. scene visibility criteria) */
+	/** data which channel represents is fits the dopesheet filters
+	 * (i.e. scene visibility criteria) */
 	// XXX: it's hard to think of any examples where this *ISN'T* the case... perhaps becomes implicit?
 	ANIMFILTER_DATA_VISIBLE   = (1 << 0),
-	/* channel is visible within the channel-list hierarchy (i.e. F-Curves within Groups in ActEdit) */
+	/** channel is visible within the channel-list hierarchy
+	 * (i.e. F-Curves within Groups in ActEdit) */
 	ANIMFILTER_LIST_VISIBLE   = (1 << 1),
-	/* channel has specifically been tagged as visible in Graph Editor (* Graph Editor Only) */
+	/** channel has specifically been tagged as visible in Graph Editor (* Graph Editor Only) */
 	ANIMFILTER_CURVE_VISIBLE  = (1 << 2),
 
-	/* include summary channels and "expanders" (for drawing/mouse-selection in channel list) */
+	/** include summary channels and "expanders" (for drawing/mouse-selection in channel list) */
 	ANIMFILTER_LIST_CHANNELS  = (1 << 3),
 
-	/* for its type, channel should be "active" one */
+	/** for its type, channel should be "active" one */
 	ANIMFILTER_ACTIVE         = (1 << 4),
-	/* channel is a child of the active group (* Actions speciality) */
+	/** channel is a child of the active group (* Actions speciality) */
 	ANIMFILTER_ACTGROUPED     = (1 << 5),
 
-	/* channel must be selected/not-selected, but both must not be set together */
+	/** channel must be selected/not-selected, but both must not be set together */
 	ANIMFILTER_SEL            = (1 << 6),
 	ANIMFILTER_UNSEL          = (1 << 7),
 
-	/* editability status - must be editable to be included */
+	/** editability status - must be editable to be included */
 	ANIMFILTER_FOREDIT        = (1 << 8),
-	/* only selected animchannels should be considerable as editable - mainly for Graph Editor's option for keys on select curves only */
+	/** only selected animchannels should be considerable as editable - mainly
+	 * for Graph Editor's option for keys on select curves only */
 	ANIMFILTER_SELEDIT        = (1 << 9),
 
-	/* flags used to enforce certain data types */
-	// NOTE: the ones for curves and NLA tracks were redundant and have been removed for now...
+	/** flags used to enforce certain data types
+	 * \node the ones for curves and NLA tracks were redundant and have been removed for now...
+	 */
 	ANIMFILTER_ANIMDATA       = (1 << 10),
 
-	/* duplicate entries for animation data attached to multi-user blocks must not occur */
+	/** duplicate entries for animation data attached to multi-user blocks must not occur */
 	ANIMFILTER_NODUPLIS       = (1 << 11),
 
-	/* for checking if we should keep some collapsed channel around (internal use only!) */
+	/** for checking if we should keep some collapsed channel around (internal use only!) */
 	ANIMFILTER_TMP_PEEK       = (1 << 30),
 
-	/* ignore ONLYSEL flag from filterflag, (internal use only!) */
-	ANIMFILTER_TMP_IGNORE_ONLYSEL = (1u << 31)
+	/** ignore ONLYSEL flag from filterflag, (internal use only!) */
+	ANIMFILTER_TMP_IGNORE_ONLYSEL = (1u << 31),
 } eAnimFilter_Flags;
 
 /* ---------- Flag Checking Macros ------------ */
@@ -409,30 +420,42 @@ void ANIM_animdata_freelist(ListBase *anim_data);
 
 /* role or level of animchannel in the hierarchy */
 typedef enum eAnimChannel_Role {
-	ACHANNEL_ROLE_EXPANDER = -1,    /* datablock expander - a "composite" channel type */
-	ACHANNEL_ROLE_SPECIAL  = 0,     /* special purposes - not generally for hierarchy processing */
-	ACHANNEL_ROLE_CHANNEL  = 1      /* data channel - a channel representing one of the actual building blocks of channels */
+	/** datablock expander - a "composite" channel type */
+	ACHANNEL_ROLE_EXPANDER = -1,
+	/** special purposes - not generally for hierarchy processing */
+	ACHANNEL_ROLE_SPECIAL  = 0,
+	/** data channel - a channel representing one of the actual building blocks of channels */
+	ACHANNEL_ROLE_CHANNEL  = 1,
 } eAnimChannel_Role;
 
 /* flag-setting behavior */
 typedef enum eAnimChannels_SetFlag {
-	ACHANNEL_SETFLAG_CLEAR  = 0,     /* turn off */
-	ACHANNEL_SETFLAG_ADD    = 1,     /* turn on */
-	ACHANNEL_SETFLAG_INVERT = 2,     /* on->off, off->on */
-	ACHANNEL_SETFLAG_TOGGLE = 3      /* some on -> all off // all on */
+	/** turn off */
+	ACHANNEL_SETFLAG_CLEAR  = 0,
+	/** turn on */
+	ACHANNEL_SETFLAG_ADD    = 1,
+	/** on->off, off->on */
+	ACHANNEL_SETFLAG_INVERT = 2,
+	/** some on -> all off // all on */
+	ACHANNEL_SETFLAG_TOGGLE = 3,
 } eAnimChannels_SetFlag;
 
 /* types of settings for AnimChannels */
 typedef enum eAnimChannel_Settings {
 	ACHANNEL_SETTING_SELECT   = 0,
-	ACHANNEL_SETTING_PROTECT  = 1, /* warning: for drawing UI's, need to check if this is off (maybe inverse this later) */
+	/** warning: for drawing UI's, need to check if this is off (maybe inverse this later) */
+	ACHANNEL_SETTING_PROTECT  = 1,
 	ACHANNEL_SETTING_MUTE     = 2,
 	ACHANNEL_SETTING_EXPAND   = 3,
-	ACHANNEL_SETTING_VISIBLE  = 4,  /* only for Graph Editor */
-	ACHANNEL_SETTING_SOLO     = 5,  /* only for NLA Tracks */
-	ACHANNEL_SETTING_PINNED   = 6,  /* only for NLA Actions */
+	/** only for Graph Editor */
+	ACHANNEL_SETTING_VISIBLE  = 4,
+	/** only for NLA Tracks */
+	ACHANNEL_SETTING_SOLO     = 5,
+	/** only for NLA Actions */
+	ACHANNEL_SETTING_PINNED   = 6,
 	ACHANNEL_SETTING_MOD_OFF  = 7,
-	ACHANNEL_SETTING_ALWAYS_VISIBLE = 8,  /* channel is pinned and always visible */
+	/** channel is pinned and always visible */
+	ACHANNEL_SETTING_ALWAYS_VISIBLE = 8,
 } eAnimChannel_Settings;
 
 
@@ -468,7 +491,7 @@ typedef struct bAnimChannelType {
 	int (*setting_flag)(bAnimContext *ac, eAnimChannel_Settings setting, bool *neg);
 	/* get the pointer to int/short where data is stored,
 	 * with type being  sizeof(ptr_data) which should be fine for runtime use...
-	 *	- assume that setting has been checked to be valid for current context
+	 * - assume that setting has been checked to be valid for current context
 	 */
 	void *(*setting_ptr)(bAnimListElem *ale, eAnimChannel_Settings setting, short *type);
 } bAnimChannelType;
@@ -492,25 +515,25 @@ void ANIM_channel_draw_widgets(const struct bContext *C, bAnimContext *ac, bAnim
 /* Check if some setting for a channel is enabled
  * Returns: 1 = On, 0 = Off, -1 = Invalid
  *
- *  - setting: eAnimChannel_Settings
+ * - setting: eAnimChannel_Settings
  */
 short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, eAnimChannel_Settings setting);
 
 /* Change value of some setting for a channel
- *	- setting: eAnimChannel_Settings
- *	- mode: eAnimChannels_SetFlag
+ * - setting: eAnimChannel_Settings
+ * - mode: eAnimChannels_SetFlag
  */
 void ANIM_channel_setting_set(bAnimContext *ac, bAnimListElem *ale, eAnimChannel_Settings setting, eAnimChannels_SetFlag mode);
 
 
 /* Flush visibility (for Graph Editor) changes up/down hierarchy for changes in the given setting
- *	- anim_data: list of the all the anim channels that can be chosen
- *		-> filtered using ANIMFILTER_CHANNELS only, since if we took VISIBLE too,
- *		  then the channels under closed expanders get ignored...
- *	- ale_setting: the anim channel (not in the anim_data list directly, though occurring there)
- *		with the new state of the setting that we want flushed up/down the hierarchy
- *	- setting: type of setting to set
- *	- on: whether the visibility setting has been enabled or disabled
+ * - anim_data: list of the all the anim channels that can be chosen
+ *   -> filtered using ANIMFILTER_CHANNELS only, since if we took VISIBLE too,
+ *      then the channels under closed expanders get ignored...
+ * - ale_setting: the anim channel (not in the anim_data list directly, though occurring there)
+ *   with the new state of the setting that we want flushed up/down the hierarchy
+ * - setting: type of setting to set
+ * - on: whether the visibility setting has been enabled or disabled
  */
 void ANIM_flush_setting_anim_channels(bAnimContext *ac, ListBase *anim_data, bAnimListElem *ale_setting, eAnimChannel_Settings setting, eAnimChannels_SetFlag mode);
 
@@ -522,7 +545,8 @@ void ANIM_deselect_anim_channels(bAnimContext *ac, void *data, eAnimCont_Types d
 void ANIM_set_active_channel(bAnimContext *ac, void *data, eAnimCont_Types datatype, eAnimFilter_Flags filter, void *channel_data, eAnim_ChannelType channel_type);
 
 
-/* Delete the F-Curve from the given AnimData block (if possible), as appropriate according to animation context */
+/* Delete the F-Curve from the given AnimData block (if possible),
+ * as appropriate according to animation context */
 void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, struct AnimData *adt, struct FCurve *fcu);
 
 /* ************************************************ */
@@ -540,7 +564,7 @@ enum eAnimEditDraw_CurrentFrame {
 	/* time indication in seconds or frames */
 	DRAWCFRA_UNIT_SECONDS   = (1 << 1),
 	/* draw indicator extra wide (for timeline) */
-	DRAWCFRA_WIDE           = (1 << 2)
+	DRAWCFRA_WIDE           = (1 << 2),
 };
 
 /* main call to draw current-frame indicator in an Animation Editor */
@@ -567,12 +591,12 @@ void ANIM_fmodifiers_copybuf_free(void);
 
 /* copy the given F-Modifiers to the buffer, returning whether anything was copied or not
  * assuming that the buffer has been cleared already with ANIM_fmodifiers_copybuf_free()
- *	- active: only copy the active modifier
+ * - active: only copy the active modifier
  */
 bool ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, bool active);
 
 /* 'Paste' the F-Modifier(s) from the buffer to the specified list
- *	- replace: free all the existing modifiers to leave only the pasted ones
+ * - replace: free all the existing modifiers to leave only the pasted ones
  */
 bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace, struct FCurve *curve);
 
@@ -647,9 +671,9 @@ float ANIM_unit_mapping_get_factor(struct Scene *scene, struct ID *id, struct FC
 #define BEZKEYTYPE(bezt) ((bezt)->hide)
 
 /* set/clear/toggle macro
- *	- channel - channel with a 'flag' member that we're setting
- *	- smode - 0=clear, 1=set, 2=invert
- *	- sflag - bitflag to set
+ * - channel - channel with a 'flag' member that we're setting
+ * - smode - 0=clear, 1=set, 2=invert
+ * - sflag - bitflag to set
  */
 #define ACHANNEL_SET_FLAG(channel, smode, sflag) \
 	{ \
@@ -659,9 +683,9 @@ float ANIM_unit_mapping_get_factor(struct Scene *scene, struct ID *id, struct FC
 	}
 
 /* set/clear/toggle macro, where the flag is negative
- *	- channel - channel with a 'flag' member that we're setting
- *	- smode - 0=clear, 1=set, 2=invert
- *	- sflag - bitflag to set
+ * - channel - channel with a 'flag' member that we're setting
+ * - smode - 0=clear, 1=set, 2=invert
+ * - sflag - bitflag to set
  */
 #define ACHANNEL_SET_FLAG_NEG(channel, smode, sflag) \
 	{ \

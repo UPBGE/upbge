@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,19 +12,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
+
+#ifndef __BLI_ENDIAN_SWITCH_INLINE_H__
+#define __BLI_ENDIAN_SWITCH_INLINE_H__
 
 /* only include from header */
 #ifndef __BLI_ENDIAN_SWITCH_H__
 #  error "this file isnt to be directly included"
 #endif
-
-#ifndef __BLI_ENDIAN_SWITCH_INLINE_H__
-#define __BLI_ENDIAN_SWITCH_INLINE_H__
 
 /** \file blender/blenlib/BLI_endian_switch_inline.h
  *  \ingroup bli

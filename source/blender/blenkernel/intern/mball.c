@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Jiri Hnidek <jiri.hnidek@vslib.cz>.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * MetaBalls are created from a single Object (with a name without number in it),
  * here the DispList and BoundBox also is located.
  * All objects with the same name (but with a number in it) are added to this.
@@ -109,7 +102,7 @@ MetaBall *BKE_mball_add(Main *bmain, const char *name)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_mball_copy_data(Main *UNUSED(bmain), MetaBall *mb_dst, const MetaBall *mb_src, const int UNUSED(flag))
 {

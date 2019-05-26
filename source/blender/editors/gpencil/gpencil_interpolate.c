@@ -1,5 +1,4 @@
 ﻿/*
- * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -17,11 +16,6 @@
  *
  * The Original Code is Copyright (C) 2016, Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Antonio Vazquez, Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Operators for interpolating new Grease Pencil frames from existing strokes
  */
 
@@ -1073,7 +1067,8 @@ static int gpencil_interpolate_reverse_exec(bContext *C, wmOperator *UNUSED(op))
 				gpf = gpf->prev;
 			}
 			else {
-				/* Not a breakdown (may be a key, or an extreme, or something else that wasn't generated)... stop */
+				/* Not a breakdown (may be a key, or an extreme,
+				 * or something else that wasn't generated)... stop */
 				break;
 			}
 		}

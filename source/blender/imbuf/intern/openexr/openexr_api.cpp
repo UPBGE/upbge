@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPLLICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * Copyright by Gernot Ziegler <gz@lysator.liu.se>.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Austin Benesh, Ton Roosendaal (float, half, speedup, cleanup...).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/imbuf/intern/openexr/openexr_api.cpp
@@ -302,7 +294,7 @@ extern "C"
 
 /**
  * Test presence of OpenEXR file.
- * \param mem pointer to loaded OpenEXR bitstream
+ * \param mem: pointer to loaded OpenEXR bitstream
  */
 int imb_is_a_openexr(const unsigned char *mem)
 {
@@ -1021,7 +1013,7 @@ void IMB_exr_write_channels(void *handle)
 		}
 
 		for (echan = (ExrChannel *)data->channels.first; echan; echan = echan->next) {
-			/* Writting starts from last scanline, stride negative. */
+			/* Writing starts from last scanline, stride negative. */
 			if (echan->use_half_float) {
 				float *rect = echan->rect;
 				half *cur = current_rect_half;
@@ -1919,6 +1911,14 @@ void imb_initopenexr(void)
 	int num_threads = BLI_system_thread_count();
 
 	setGlobalThreadCount(num_threads);
+}
+
+void imb_exitopenexr(void)
+{
+	/* Tells OpenEXR to free thread pool, also ensures there is no running
+	 * tasks.
+	 */
+	setGlobalThreadCount(0);
 }
 
 } // export "C"

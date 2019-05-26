@@ -53,7 +53,7 @@ Here are some characteristics ID Data-Blocks share.
 Simple Data Access
 ------------------
 
-Lets start with a simple case, say you want a python script to adjust the objects location.
+Lets start with a simple case, say you want a python script to adjust the object's location.
 
 Start by finding this setting in the interface ``Properties Window -> Object -> Transform -> Location``
 
@@ -298,4 +298,3 @@ then copied :kbd:`Control-C`, usually to paste in the text editor or python cons
    zooming the view for example isn't so useful to repeat so its excluded from the output.
 
    To display *every* operator that runs see :ref:`Show All Operators <info_show_all_operators>`
-

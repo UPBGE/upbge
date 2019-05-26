@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/blender_undo.c
@@ -55,6 +51,7 @@
 #include "BKE_main.h"
 
 #include "BLO_undofile.h"
+#include "BLO_readfile.h"
 #include "BLO_writefile.h"
 
 /* -------------------------------------------------------------------- */
@@ -79,7 +76,10 @@ bool BKE_memfile_undo_decode(MemFileUndoData *mfu, bContext *C)
 		success = (BKE_blendfile_read(C, mfu->filename, NULL, 0) != BKE_BLENDFILE_READ_FAIL);
 	}
 	else {
-		success = BKE_blendfile_read_from_memfile(C, &mfu->memfile, NULL, 0);
+		success = BKE_blendfile_read_from_memfile(
+		        C, &mfu->memfile,
+		        &(const struct BlendFileReadParams){0},
+		        NULL);
 	}
 
 	/* Restore, bmain has been re-allocated. */

@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
  */
 
 #include <stdlib.h>
@@ -28,7 +24,6 @@
 #include "MEM_guardedalloc.h"
 
 // this part has been copied from the double edge mask
-// Contributor(s): Peter Larabell.
 static void do_adjacentKeepBorders(unsigned int t, unsigned int rw, unsigned int *limask, unsigned int *lomask, unsigned int *lres, float *res, unsigned int *rsize)
 {
 	int x;

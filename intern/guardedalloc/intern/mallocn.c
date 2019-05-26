@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,12 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Brecht Van Lommel
- *                 Campbell Barton
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file guardedalloc/intern/mallocn.c
@@ -36,6 +28,13 @@
 #include <assert.h>
 
 #include "mallocn_intern.h"
+
+#ifdef WITH_JEMALLOC_CONF
+/* If jemalloc is used, it reads this global variable and enables background
+ * threads to purge dirty pages. Otherwise we release memory too slowly or not
+ * at all if the thread that did the allocation stays inactive. */
+const char *malloc_conf = "background_thread:true,dirty_decay_ms:4000";
+#endif
 
 size_t (*MEM_allocN_len)(const void *vmemh) = MEM_lockfree_allocN_len;
 void (*MEM_freeN)(void *vmemh) = MEM_lockfree_freeN;

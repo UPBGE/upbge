@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/view3d_snap.c
@@ -579,7 +571,7 @@ static bool snap_curs_to_sel_ex(bContext *C, float cursor[3])
 			minmax_v3v3_v3(min, max, vec);
 		}
 
-		if (v3d->around == V3D_AROUND_CENTER_MEAN) {
+		if (v3d->around == V3D_AROUND_CENTER_MEDIAN) {
 			mul_v3_fl(centroid, 1.0f / (float)tvs.transverts_tot);
 			copy_v3_v3(cursor, centroid);
 		}
@@ -631,7 +623,7 @@ static bool snap_curs_to_sel_ex(bContext *C, float cursor[3])
 			return false;
 		}
 
-		if (v3d->around == V3D_AROUND_CENTER_MEAN) {
+		if (v3d->around == V3D_AROUND_CENTER_MEDIAN) {
 			mul_v3_fl(centroid, 1.0f / (float)count);
 			copy_v3_v3(cursor, centroid);
 		}

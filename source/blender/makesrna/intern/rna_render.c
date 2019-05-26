@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2009)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_render.c
@@ -801,7 +795,7 @@ static void rna_def_render_result(BlenderRNA *brna)
 	RNA_def_function_ui_description(func, "Add engine-specific stamp data to the result");
 	parm = RNA_def_string(func, "field", NULL, 1024, "Field", "Name of the stamp field to add");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
-	parm = RNA_def_string(func, "value", NULL, 1024, "Value", "Value of the stamp data");
+	parm = RNA_def_string(func, "value", NULL, 0, "Value", "Value of the stamp data");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 
 	RNA_define_verify_sdna(0);

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/windowmanager/intern/wm.c
@@ -123,8 +116,8 @@ void WM_operator_free_all_after(wmWindowManager *wm, struct wmOperator *op)
  * Use with extreme care!,
  * properties, customdata etc - must be compatible.
  *
- * \param op  Operator to assign the type to.
- * \param ot  OperatorType to assign.
+ * \param op: Operator to assign the type to.
+ * \param ot: OperatorType to assign.
  */
 void WM_operator_type_set(wmOperator *op, wmOperatorType *ot)
 {

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributors: Amorilia (amorilia@users.sourceforge.net)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/imbuf/intern/dds/DirectDrawSurface.cpp
@@ -792,7 +786,7 @@ void DDSHeader::setUserVersion(int version)
 	this->reserved[8] = version;
 }
 
-/*
+#if 0
 void DDSHeader::swapBytes()
 {
 	this->fourcc = POSH_LittleU32(this->fourcc);
@@ -828,7 +822,7 @@ void DDSHeader::swapBytes()
 	this->header10.arraySize = POSH_LittleU32(this->header10.arraySize);
 	this->header10.reserved = POSH_LittleU32(this->header10.reserved);
 }
-*/
+#endif
 
 bool DDSHeader::hasDX10Header() const
 {
@@ -909,11 +903,11 @@ bool DirectDrawSurface::isValid() const
 	}
 
 	/* in some files DDSCAPS_TEXTURE is missing: silently ignore */
-	/*
-	if ( !(header.caps.caps1 & DDSCAPS_TEXTURE) ) {
+#if 0
+	if (!(header.caps.caps1 & DDSCAPS_TEXTURE)) {
 		return false;
 	}
-	*/
+#endif
 
 	return true;
 }
@@ -1394,7 +1388,7 @@ uint DirectDrawSurface::mipmapSize(uint mipmap) const
 	}
 	else if (header.pf.flags & DDPF_RGB || (header.pf.flags & DDPF_LUMINANCE))
 	{
-		uint pitch = computePitch(w, header.pf.bitcount, 8); // Asuming 8 bit alignment, which is the same D3DX expects.
+		uint pitch = computePitch(w, header.pf.bitcount, 8); // Assuming 8 bit alignment, which is the same D3DX expects.
 
 		return pitch * h * d;
 	}

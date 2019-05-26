@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,15 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 by the Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Daniel Dunbar
- *                 Ton Roosendaal,
- *                 Ben Batt,
- *                 Brecht Van Lommel,
- *                 Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/modifiers/intern/MOD_fluidsim_util.c
@@ -481,8 +470,8 @@ static DerivedMesh *fluidsim_read_cache(
 		const char *strEnvName2 = "BLENDER_ELBEEMBOBJABORT"; // from blendercall.cpp
 
 		if (G.background == 1) {
-			if (getenv(strEnvName2)) {
-				int elevel = atoi(getenv(strEnvName2));
+			if (BLI_getenv(strEnvName2)) {
+				int elevel = atoi(BLI_getenv(strEnvName2));
 				if (elevel > 0) {
 					printf("Env. var %s set, fluid sim mesh '%s' not found, aborting render...\n",
 					       strEnvName2, targetFile);

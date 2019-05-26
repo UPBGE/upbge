@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_region_menu_popup.c
@@ -235,6 +229,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 
 		uiBut *but_activate = NULL;
 		UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_NUMSELECT);
+		UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 		UI_block_direction_set(block, direction);
 
 		/* offset the mouse position, possibly based on earlier selection */
@@ -387,7 +382,8 @@ uiPopupMenu *UI_popup_menu_begin_ex(bContext *C, const char *title, const char *
 	pup->layout = UI_block_layout(pup->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_MENU, 0, 0, 200, 0, MENU_PADDING, style);
 
 	/* note, this intentionally differs from the menu & submenu default because many operators
-	 * use popups like this to select one of their options - where having invoke doesn't make sense */
+	 * use popups like this to select one of their options -
+	 * where having invoke doesn't make sense */
 	uiLayoutSetOperatorContext(pup->layout, WM_OP_EXEC_REGION_WIN);
 
 	/* create in advance so we can let buttons point to retval already */

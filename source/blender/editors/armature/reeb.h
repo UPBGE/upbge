@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Martin Poirier
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/armature/reeb.h
@@ -34,8 +28,8 @@
 
 #include "BLI_graph.h"
 
-struct GHash;
 struct EdgeHash;
+struct GHash;
 struct ReebArc;
 struct ReebEdge;
 struct ReebNode;
@@ -141,8 +135,8 @@ typedef struct ReebArcIterator {
 } ReebArcIterator;
 
 #if 0
-struct EditMesh;
 struct EdgeIndex;
+struct EditMesh;
 
 int weightToHarmonic(struct EditMesh *em, struct EdgeIndex *indexed_edges);
 int weightFromDistance(struct EditMesh *em, struct EdgeIndex *indexed_edges);

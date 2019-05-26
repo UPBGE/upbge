@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributors: Hos, Robert Wenzlaff.
- * Contributors: 2004/2005/2006 Blender Foundation, full recode
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/source/rendercore.c
@@ -314,7 +307,7 @@ static void halo_tile(RenderPart *pa, RenderLayer *rl)
 								if ((zz> har->zs) || (har->mat && (har->mat->mode & MA_HALO_SOFT))) {
 									if (shadeHaloFloat(har, col, zz, dist, xn, yn, har->flarec)) {
 										for (sample=0; sample<totsample; sample++) {
-											float * rect= RE_RenderLayerGetPass(rlpp[sample], RE_PASSNAME_COMBINED, R.viewname);
+											float *rect = RE_RenderLayerGetPass(rlpp[sample], RE_PASSNAME_COMBINED, R.viewname);
 											addalphaAddfacFloat(rect + od*4, col, har->add);
 										}
 									}

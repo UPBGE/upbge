@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,13 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008).
- *
  * Adaptive time step
  * Copyright 2011 AutoCRC
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_particle.c
@@ -1229,7 +1222,7 @@ static PointerRNA rna_Particle_field1_get(PointerRNA *ptr)
 
 	/* weak */
 	if (!part->pd)
-		part->pd = object_add_collision_fields(0);
+		part->pd = BKE_partdeflect_new(0);
 
 	return rna_pointer_inherit_refine(ptr, &RNA_FieldSettings, part->pd);
 }
@@ -1240,7 +1233,7 @@ static PointerRNA rna_Particle_field2_get(PointerRNA *ptr)
 
 	/* weak */
 	if (!part->pd2)
-		part->pd2 = object_add_collision_fields(0);
+		part->pd2 = BKE_partdeflect_new(0);
 
 	return rna_pointer_inherit_refine(ptr, &RNA_FieldSettings, part->pd2);
 }
@@ -1528,7 +1521,7 @@ static void rna_def_particle(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Keyed States", "");
 /* */
 /*	float fuv[4], foffset;	 *//* coordinates on face/edge number "num" and depth along*/
-/*							 *//* face normal for volume emission						*/
+/*							 *//* face normal for volume emission */
 
 	prop = RNA_def_property(srna, "birth_time", PROP_FLOAT, PROP_TIME);
 	RNA_def_property_float_sdna(prop, NULL, "time");

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Lukas Toenne
- * Contributor(s): None Yet
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/builder/deg_builder_relations.h
@@ -49,44 +42,43 @@
 #include "intern/nodes/deg_node_operation.h"
 
 struct Base;
-struct bGPdata;
 struct CacheFile;
-struct ListBase;
-struct GHash;
-struct ID;
+struct EffectorWeights;
 struct FCurve;
+struct GHash;
 struct Group;
+struct ID;
 struct Key;
+struct ListBase;
+struct MTex;
 struct Main;
 struct Mask;
 struct Material;
-struct MTex;
 struct ModifierData;
 struct MovieClip;
-struct bNodeTree;
 struct Object;
-struct bPoseChannel;
-struct bConstraint;
 struct ParticleSystem;
 struct Scene;
 struct Tex;
 struct World;
-struct EffectorWeights;
+struct bConstraint;
+struct bGPdata;
+struct bNodeTree;
+struct bPoseChannel;
 
 struct PropertyRNA;
 
 namespace DEG {
 
-struct Depsgraph;
+struct ComponentDepsNode;
 struct DepsNode;
 struct DepsNodeHandle;
 struct DepsRelation;
-struct RootDepsNode;
+struct Depsgraph;
 struct IDDepsNode;
-struct TimeSourceDepsNode;
-struct ComponentDepsNode;
 struct OperationDepsNode;
 struct RootPChanMap;
+struct TimeSourceDepsNode;
 
 struct TimeSourceKey
 {
@@ -290,7 +282,7 @@ protected:
 
 	/* TODO(sergey): All those is_same* functions are to be generalized. */
 
-	/* Check whether two keys correponds to the same bone from same armature.
+	/* Check whether two keys corresponds to the same bone from same armature.
 	 *
 	 * This is used by drivers relations builder to avoid possible fake
 	 * dependency cycle when one bone property drives another property of the

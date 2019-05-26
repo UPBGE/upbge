@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_fileselect.h
@@ -123,8 +116,10 @@ typedef enum FSMenuCategory {
 typedef enum FSMenuInsert {
 	FS_INSERT_SORTED = (1 << 0),
 	FS_INSERT_SAVE   = (1 << 1),
-	FS_INSERT_FIRST  = (1 << 2),  /* moves the item to the front of the list when its not already there */
-	FS_INSERT_LAST   = (1 << 3),  /* just append to preseve delivered order */
+	/** moves the item to the front of the list when its not already there */
+	FS_INSERT_FIRST  = (1 << 2),
+	/** just append to preseve delivered order */
+	FS_INSERT_LAST   = (1 << 3),
 } FSMenuInsert;
 
 struct FSMenu;

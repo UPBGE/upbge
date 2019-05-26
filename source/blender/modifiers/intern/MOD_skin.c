@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,11 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software  Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Nicholas Bishop
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/modifiers/intern/MOD_skin.c
@@ -92,7 +85,7 @@ typedef enum {
 	CAP_START = 1,
 	CAP_END = 2,
 	SEAM_FRAME = 4,
-	ROOT = 8
+	ROOT = 8,
 } SkinNodeFlag;
 
 typedef struct Frame {
@@ -1217,7 +1210,7 @@ static BMFace *skin_hole_target_face(BMesh *bm, Frame *frame)
 		}
 
 		/* Nearest test */
-		BM_face_calc_center_mean(f, poly_center);
+		BM_face_calc_center_median(f, poly_center);
 		dist = len_v3v3(frame_center, poly_center);
 		if (dist < best_center_dist) {
 			center_target_face = f;

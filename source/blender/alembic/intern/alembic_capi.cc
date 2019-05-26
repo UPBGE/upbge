@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Esteban Tovagliari, Cedric Paille, Kevin Dietrich
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #include "../ABC_alembic.h"
@@ -293,7 +287,7 @@ static void export_endjob(void *customdata)
 
 	if (!data->settings.logger.empty()) {
 		std::cerr << data->settings.logger;
-		WM_report(RPT_ERROR, "Errors occured during the export, look in the console to know more...");
+		WM_report(RPT_ERROR, "Errors occurred during the export, look in the console to know more...");
 	}
 
 	G.is_rendering = false;
@@ -318,7 +312,7 @@ bool ABC_export(
 	 * ExportJobData contains an ExportSettings containing a SimpleLogger.
 	 *
 	 * Since ExportJobData is a C-style struct dynamically allocated with
-	 * MEM_mallocN (see above), its construtor is never called, therefore the
+	 * MEM_mallocN (see above), its constructor is never called, therefore the
 	 * ExportSettings constructor is not called which implies that the
 	 * SimpleLogger one is not called either. SimpleLogger in turn does not call
 	 * the constructor of its data members which ultimately means that its
@@ -395,11 +389,11 @@ bool ABC_export(
 /**
  * Generates an AbcObjectReader for this Alembic object and its children.
  *
- * \param object The Alembic IObject to visit.
- * \param readers The created AbcObjectReader * will be appended to this vector.
- * \param settings Import settings, not used directly but passed to the
+ * \param object: The Alembic IObject to visit.
+ * \param readers: The created AbcObjectReader * will be appended to this vector.
+ * \param settings: Import settings, not used directly but passed to the
  *                 AbcObjectReader subclass constructors.
- * \param r_assign_as_parent Return parameter, contains a list of reader
+ * \param r_assign_as_parent: Return parameter, contains a list of reader
  *                 pointers, whose parent pointer should still be set.
  *                 This is filled when this call to visit_object() didn't create
  *                 a reader that should be the parent.
@@ -797,7 +791,7 @@ static void import_endjob(void *user_data)
 		for (iter = data->readers.begin(); iter != data->readers.end(); ++iter) {
 			Object *ob = (*iter)->object();
 
-			/* It's possible that cancellation occured between the creation of
+			/* It's possible that cancellation occurred between the creation of
 			 * the reader and the creation of the Blender object. */
 			if (ob == NULL) continue;
 

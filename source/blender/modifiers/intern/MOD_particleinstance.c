@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,15 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 by the Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Daniel Dunbar
- *                 Ton Roosendaal,
- *                 Ben Batt,
- *                 Brecht Van Lommel,
- *                 Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/modifiers/intern/MOD_particleinstance.c
@@ -511,7 +500,7 @@ static DerivedMesh *applyModifier(
 					const int ml_index = (ml - mloop);
 					if (mloopcols_index != NULL) {
 						const int part_index = vert_part_index[ml->v];
-						store_float_in_vcol(&mloopcols_index[ml_index], (float)part_index / psys->totpart);
+						store_float_in_vcol(&mloopcols_index[ml_index], (float)part_index / (float)(psys->totpart-1));
 					}
 					if (mloopcols_value != NULL) {
 						const float part_value = vert_part_value[ml->v];

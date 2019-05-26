@@ -194,13 +194,13 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         cls.samples = IntProperty(
             name="Samples",
             description="Number of samples to render for each pixel",
-            min=1, max=2147483647,
+            min=1, max=(1 << 24),
             default=128,
         )
         cls.preview_samples = IntProperty(
             name="Preview Samples",
             description="Number of samples to render in the viewport, unlimited if 0",
-            min=0, max=2147483647,
+            min=0, max=(1 << 24),
             default=32,
         )
         cls.preview_pause = BoolProperty(
@@ -547,6 +547,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
             description="Use special type BVH optimized for hair (uses more ram but renders faster)",
             default=True,
         )
+        cls.use_bvh_embree = BoolProperty(
+            name="Use Embree",
+            description="Use Embree as ray accelerator",
+            default=False,
+        )
         cls.debug_bvh_time_steps = IntProperty(
             name="BVH Time Steps",
             description="Split BVH primitives by this number of time steps to speed up render time in cost of memory",
@@ -719,12 +724,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
             update=devices_update_callback
         )
 
-        cls.debug_opencl_kernel_single_program = BoolProperty(
-            name="Single Program",
-            default=True,
-            update=devices_update_callback,
-        )
-
         cls.debug_use_opencl_debug = BoolProperty(name="Debug OpenCL", default=False)
 
         cls.debug_opencl_mem_limit = IntProperty(name="Memory limit", default=0,
@@ -887,7 +886,7 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
             name="Displacement Method",
             description="Method to use for the displacement",
             items=enum_displacement_methods,
-            default='DISPLACEMENT',
+            default='BUMP',
         )
 
     @classmethod
@@ -1339,7 +1338,42 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
             default=False,
             update=update_render_passes,
         )
-
+        denoising_neighbor_frames: IntProperty(
+            name="Neighbor Frames",
+            description="Number of neighboring frames to use for denoising animations (more frames produce smoother results at the cost of performance)",
+            min=0, max=7,
+            default=0,
+        )
+        cls.use_pass_crypto_object = BoolProperty(
+                name="Cryptomatte Object",
+                description="Render cryptomatte object pass, for isolating objects in compositing",
+                default=False,
+                update=update_render_passes,
+                )
+        cls.use_pass_crypto_material = BoolProperty(
+                name="Cryptomatte Material",
+                description="Render cryptomatte material pass, for isolating materials in compositing",
+                default=False,
+                update=update_render_passes,
+                )
+        cls.use_pass_crypto_asset = BoolProperty(
+                name="Cryptomatte Asset",
+                description="Render cryptomatte asset pass, for isolating groups of objects with the same parent",
+                default=False,
+                update=update_render_passes,
+                )
+        cls.pass_crypto_depth = IntProperty(
+                name="Cryptomatte Levels",
+                description="Sets how many unique objects can be distinguished per pixel",
+                default=6, min=2, max=16, step=2,
+                update=update_render_passes,
+                )
+        cls.pass_crypto_accurate = BoolProperty(
+                name="Cryptomatte Accurate",
+                description="Gerenate a more accurate Cryptomatte pass. CPU only, may render slower and use more memory",
+                default=True,
+                update=update_render_passes,
+                )
     @classmethod
     def unregister(cls):
         del bpy.types.SceneRenderLayer.cycles
@@ -1441,10 +1475,11 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 # Update name in case it changed
                 entry.name = device[0]
 
-    def get_devices(self):
+    # Gets all devices types by default.
+    def get_devices(self, compute_device_type=''):
         import _cycles
         # Layout of the device tuples: (Name, Type, Persistent ID)
-        device_list = _cycles.available_devices()
+        device_list = _cycles.available_devices(compute_device_type)
         # Make sure device entries are up to date and not referenced before
         # we know we don't add new devices. This way we guarantee to not
         # hold pointers to a resized array.
@@ -1468,7 +1503,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
     def get_num_gpu_devices(self):
         import _cycles
-        device_list = _cycles.available_devices()
+        device_list = _cycles.available_devices(self.compute_device_type)
         num = 0
         for device in device_list:
             if device[1] != self.compute_device_type:
@@ -1481,22 +1516,32 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     def has_active_device(self):
         return self.get_num_gpu_devices() > 0
 
+    def _draw_devices(self, layout, device_type, devices):
+        box = layout.box()
+
+        found_device = False
+        for device in devices:
+            if device.type == device_type:
+                found_device = True
+                break
+
+        if not found_device:
+            box.label(text="No compatible GPUs found", icon='INFO')
+            return
+
+        for device in devices:
+            box.prop(device, "use", text=device.name)
+
     def draw_impl(self, layout, context):
-        layout.label(text="Cycles Compute Device:")
-        layout.row().prop(self, "compute_device_type", expand=True)
-
-        cuda_devices, opencl_devices = self.get_devices()
         row = layout.row()
+        row.prop(self, "compute_device_type", expand=True)
 
-        if self.compute_device_type == 'CUDA' and cuda_devices:
-            box = row.box()
-            for device in cuda_devices:
-                box.prop(device, "use", text=device.name)
-
-        if self.compute_device_type == 'OPENCL' and opencl_devices:
-            box = row.box()
-            for device in opencl_devices:
-                box.prop(device, "use", text=device.name)
+        cuda_devices, opencl_devices = self.get_devices(self.compute_device_type)
+        row = layout.row()
+        if self.compute_device_type == 'CUDA':
+            self._draw_devices(row, 'CUDA', cuda_devices)
+        elif self.compute_device_type == 'OPENCL':
+            self._draw_devices(row, 'OPENCL', opencl_devices)
 
     def draw(self, context):
         self.draw_impl(self.layout, context)

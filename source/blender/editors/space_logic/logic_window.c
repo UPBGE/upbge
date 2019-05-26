@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_logic/logic_window.c
@@ -964,7 +957,7 @@ static void draw_sensor_collision(uiLayout *layout, PointerRNA *ptr, bContext *C
 	uiItemR(row, ptr, "use_pulse", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 	uiItemR(row, ptr, "use_material", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-	switch (RNA_boolean_get(ptr, "use_material")) {
+	switch (RNA_enum_get(ptr, "use_material")) {
 		case SENS_COLLISION_PROPERTY:
 			uiItemR(split, ptr, "property", 0, NULL, ICON_NONE);
 			break;

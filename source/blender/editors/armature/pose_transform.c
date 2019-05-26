@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2009 full recode.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/armature/pose_transform.c
@@ -104,7 +98,7 @@ static int apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
 	if (ob->type != OB_ARMATURE)
 		return OPERATOR_CANCELLED;
 	if (BKE_object_obdata_is_libdata(ob)) {
-		BKE_report(op->reports, RPT_ERROR, "Cannot apply pose to lib-linked armature"); /* error_libdata(); */
+		BKE_report(op->reports, RPT_ERROR, "Cannot apply pose to lib-linked armature");
 		return OPERATOR_CANCELLED;
 	}
 
@@ -129,8 +123,8 @@ static int apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
 		copy_v3_v3(curbone->tail, pchan->pose_tail);
 
 		/* fix roll:
-		 *	1. find auto-calculated roll value for this bone now
-		 *	2. remove this from the 'visual' y-rotation
+		 * 1. find auto-calculated roll value for this bone now
+		 * 2. remove this from the 'visual' y-rotation
 		 */
 		{
 			float premat[3][3], imat[3][3], pmat[3][3], tmat[3][3];
@@ -296,10 +290,10 @@ static void set_pose_keys(Object *ob)
 /**
  * Perform paste pose, for a single bone.
  *
- * \param ob Object where bone to paste to lives
- * \param chan Bone that pose to paste comes from
- * \param selOnly Only paste on selected bones
- * \param flip Flip on x-axis
+ * \param ob: Object where bone to paste to lives
+ * \param chan: Bone that pose to paste comes from
+ * \param selOnly: Only paste on selected bones
+ * \param flip: Flip on x-axis
  * \return Whether the bone that we pasted to if we succeeded
  */
 static bPoseChannel *pose_bone_do_paste(Object *ob, bPoseChannel *chan, const bool selOnly, const bool flip)
@@ -328,7 +322,7 @@ static bPoseChannel *pose_bone_do_paste(Object *ob, bPoseChannel *chan, const bo
 	/* continue? */
 	if (paste_ok) {
 		/* only loc rot size
-		 *	- only copies transform info for the pose
+		 * - only copies transform info for the pose
 		 */
 		copy_v3_v3(pchan->loc, chan->loc);
 		copy_v3_v3(pchan->size, chan->size);
@@ -731,7 +725,8 @@ static void pchan_clear_rot(bPoseChannel *pchan)
 		}
 	}
 
-	/* Clear also Bendy Bone stuff - Roll is obvious, but Curve X/Y stuff is also kindof rotational in nature... */
+	/* Clear also Bendy Bone stuff - Roll is obvious,
+	 * but Curve X/Y stuff is also kindof rotational in nature... */
 	pchan->roll1 = 0.0f;
 	pchan->roll2 = 0.0f;
 

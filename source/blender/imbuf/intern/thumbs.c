@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Andrea Weikert.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/imbuf/intern/thumbs.c
@@ -99,10 +91,10 @@ static bool get_thumb_dir(char *dir, ThumbSize size)
 	s += strlen(dir);
 #else
 #if defined(USE_FREEDESKTOP)
-	const char *home_cache = getenv("XDG_CACHE_HOME");
-	const char *home = home_cache ? home_cache : getenv("HOME");
+	const char *home_cache = BLI_getenv("XDG_CACHE_HOME");
+	const char *home = home_cache ? home_cache : BLI_getenv("HOME");
 #else
-	const char *home = getenv("HOME");
+	const char *home = BLI_getenv("HOME");
 #endif
 	if (!home) return 0;
 	s += BLI_strncpy_rlen(s, home, FILE_MAX);
@@ -362,7 +354,7 @@ static ImBuf *thumb_create_ex(
 		}
 		else {
 			if (ELEM(source, THB_SOURCE_IMAGE, THB_SOURCE_BLEND, THB_SOURCE_FONT)) {
-				/* only load if we didnt give an image */
+				/* only load if we didn't give an image */
 				if (img == NULL) {
 					switch (source) {
 						case THB_SOURCE_IMAGE:

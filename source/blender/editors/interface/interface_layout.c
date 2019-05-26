@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation 2009.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_layout.c
@@ -370,7 +364,7 @@ static void ui_layer_but_cb(bContext *C, void *arg_but, void *arg_index)
 	uiBut *but = arg_but, *cbut;
 	PointerRNA *ptr = &but->rnapoin;
 	PropertyRNA *prop = but->rnaprop;
-	int i, index = GET_INT_FROM_POINTER(arg_index);
+	int i, index = POINTER_AS_INT(arg_index);
 	int shift = win->eventstate->shift;
 	int len = RNA_property_array_length(ptr, prop);
 
@@ -399,7 +393,7 @@ static void ui_item_array(
 	PropertyType type;
 	PropertySubType subtype;
 	uiLayout *sub;
-	unsigned int a, b;
+	uint a, b;
 
 	/* retrieve type and subtype */
 	type = RNA_property_type(prop);
@@ -417,9 +411,9 @@ static void ui_item_array(
 		/* special check for layer layout */
 		int butw, buth, unit;
 		int cols = (len >= 20) ? 2 : 1;
-		const unsigned int colbuts = len / (2 * cols);
-		unsigned int layer_used = 0;
-		unsigned int layer_active = 0;
+		const uint colbuts = len / (2 * cols);
+		uint layer_used = 0;
+		uint layer_active = 0;
 
 		UI_block_layout_set_current(block, uiLayoutAbsolute(layout, false));
 
@@ -449,7 +443,7 @@ static void ui_item_array(
 
 			for (a = 0; a < colbuts; a++) {
 				const int layer_num  = a + b * colbuts;
-				const unsigned int layer_flag = (1u << layer_num);
+				const uint layer_flag = (1u << layer_num);
 
 				if (layer_used & layer_flag) {
 					if (layer_active & layer_flag)
@@ -463,11 +457,11 @@ static void ui_item_array(
 
 				but = uiDefAutoButR(block, ptr, prop, layer_num, "", icon, x + butw * a, y + buth, butw, buth);
 				if (subtype == PROP_LAYER_MEMBER)
-					UI_but_func_set(but, ui_layer_but_cb, but, SET_INT_IN_POINTER(layer_num));
+					UI_but_func_set(but, ui_layer_but_cb, but, POINTER_FROM_INT(layer_num));
 			}
 			for (a = 0; a < colbuts; a++) {
 				const int layer_num  = a + len / 2 + b * colbuts;
-				const unsigned int layer_flag = (1u << layer_num);
+				const uint layer_flag = (1u << layer_num);
 
 				if (layer_used & layer_flag) {
 					if (layer_active & layer_flag)
@@ -481,7 +475,7 @@ static void ui_item_array(
 
 				but = uiDefAutoButR(block, ptr, prop, layer_num, "", icon, x + butw * a, y, butw, buth);
 				if (subtype == PROP_LAYER_MEMBER)
-					UI_but_func_set(but, ui_layer_but_cb, but, SET_INT_IN_POINTER(layer_num));
+					UI_but_func_set(but, ui_layer_but_cb, but, POINTER_FROM_INT(layer_num));
 			}
 			UI_block_align_end(block);
 
@@ -567,7 +561,7 @@ static void ui_item_enum_expand_handle(bContext *C, void *arg1, void *arg2)
 
 	if (!win->eventstate->shift) {
 		uiBut *but = (uiBut *)arg1;
-		int enum_value = GET_INT_FROM_POINTER(arg2);
+		int enum_value = POINTER_AS_INT(arg2);
 
 		int current_value = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
 		if (!(current_value & enum_value)) {
@@ -645,7 +639,7 @@ static void ui_item_enum_expand(
 			but = uiDefButR_prop(block, UI_BTYPE_ROW, 0, name, 0, 0, itemw, h, ptr, prop, -1, 0, value, -1, -1, NULL);
 
 		if (RNA_property_flag(prop) & PROP_ENUM_FLAG) {
-			UI_but_func_set(but, ui_item_enum_expand_handle, but, SET_INT_IN_POINTER(value));
+			UI_but_func_set(but, ui_item_enum_expand_handle, but, POINTER_FROM_INT(value));
 		}
 
 		if (ui_layout_local_dir(layout) != UI_LAYOUT_HORIZONTAL)
@@ -1086,7 +1080,8 @@ void uiItemsFullEnumO_items(
 					but = block->buttons.last;
 				}
 				else {
-					/* Do not use uiItemL here, as our root layout is a menu one, it will add a fake blank icon! */
+					/* Do not use uiItemL here, as our root layout is a menu one,
+					 * it will add a fake blank icon! */
 					but = uiDefBut(
 					        block, UI_BTYPE_LABEL, 0, item->name, 0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL,
 					        0.0, 0.0, 0, 0, "");
@@ -1095,11 +1090,12 @@ void uiItemsFullEnumO_items(
 			}
 			else {
 				if (radial) {
-					/* invisible dummy button to ensure all items are always at the same position */
+					/* invisible dummy button to ensure all items are
+					 * always at the same position */
 					uiItemS(target);
 				}
 				else {
-					/* XXX bug here, colums draw bottom item badly */
+					/* XXX bug here, columns draw bottom item badly */
 					uiItemS(target);
 				}
 			}
@@ -1741,7 +1737,7 @@ static void rna_search_cb(const struct bContext *C, void *arg_but, const char *s
 
 	/* add search items from temporary list */
 	for (cis = items_list->first; cis; cis = cis->next) {
-		if (false == UI_search_item_add(items, cis->name, SET_INT_IN_POINTER(cis->index), cis->iconid)) {
+		if (false == UI_search_item_add(items, cis->name, POINTER_FROM_INT(cis->index), cis->iconid)) {
 			break;
 		}
 	}
@@ -1812,7 +1808,8 @@ void ui_but_add_search(uiBut *but, PointerRNA *ptr, PropertyRNA *prop, PointerRN
 		UI_but_func_search_set(but, ui_searchbox_create_generic, rna_search_cb, but, NULL, NULL);
 	}
 	else if (but->type == UI_BTYPE_SEARCH_MENU) {
-		/* In case we fail to find proper searchprop, so other code might have already set but->type to search menu... */
+		/* In case we fail to find proper searchprop,
+		 * so other code might have already set but->type to search menu... */
 		but->flag |= UI_BUT_DISABLED;
 	}
 }
@@ -1941,8 +1938,11 @@ static uiBut *ui_item_menu(
 	else
 		but = uiDefMenuBut(block, func, arg, name, 0, 0, w, h, tip);
 
-	if (argN) { /* ugly .. */
-		but->poin = (char *)but;
+	if (argN) {
+		/* ugly .. */
+		if (arg != argN) {
+			but->poin = (char *)but;
+		}
 		but->func_argN = argN;
 	}
 
@@ -1950,7 +1950,8 @@ static uiBut *ui_item_menu(
 		UI_block_emboss_set(block, UI_EMBOSS);
 	}
 	if (ELEM(layout->root->type, UI_LAYOUT_PANEL, UI_LAYOUT_TOOLBAR) ||
-	    (force_menu && layout->root->type != UI_LAYOUT_MENU))  /* We never want a dropdown in menu! */
+	    /* We never want a dropdown in menu! */
+	    (force_menu && layout->root->type != UI_LAYOUT_MENU))
 	{
 		UI_but_type_set_menu_from_pulldown(but);
 	}
@@ -1976,7 +1977,9 @@ void uiItemM(uiLayout *layout, const char *menuname, const char *name, int icon)
 	if (layout->root->type == UI_LAYOUT_MENU && !icon)
 		icon = ICON_BLANK1;
 
-	ui_item_menu(layout, name, icon, ui_item_menutype_func, mt, NULL, TIP_(mt->description), false);
+	ui_item_menu(
+	        layout, name, icon, ui_item_menutype_func, mt, NULL,
+	        mt->description ? TIP_(mt->description) : "", false);
 }
 
 /* label item */
@@ -2076,6 +2079,18 @@ void uiItemMenuF(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc 
 		return;
 
 	ui_item_menu(layout, name, icon, func, arg, NULL, "", false);
+}
+
+/**
+ * Version of #uiItemMenuF that free's `argN`.
+ */
+void uiItemMenuFN(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *argN)
+{
+	if (!func)
+		return;
+
+	/* Second 'argN' only ensures it gets freed. */
+	ui_item_menu(layout, name, icon, func, argN, argN, "", false);
 }
 
 typedef struct MenuItemLevel {

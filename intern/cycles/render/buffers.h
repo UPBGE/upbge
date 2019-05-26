@@ -50,10 +50,14 @@ public:
 	int full_height;
 
 	/* passes */
-	array<Pass> passes;
+	vector<Pass> passes;
 	bool denoising_data_pass;
 	/* If only some light path types should be denoised, an additional pass is needed. */
 	bool denoising_clean_pass;
+	/* When we're prefiltering the passes during rendering, we need to keep both the
+	 * original and the prefiltered data around because neighboring tiles might still
+	 * need the original data. */
+	bool denoising_prefiltered_pass;
 
 	/* functions */
 	BufferParams();
@@ -63,6 +67,7 @@ public:
 	void add_pass(PassType type);
 	int get_passes_size();
 	int get_denoising_offset();
+	int get_denoising_prefiltered_offset();
 };
 
 /* Render Buffers */
@@ -84,7 +89,7 @@ public:
 	void zero();
 
 	bool copy_from_device();
-	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
+	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels, const string &name);
 	bool get_denoising_pass_rect(int offset, float exposure, int sample, int components, float *pixels);
 };
 
@@ -146,4 +151,4 @@ public:
 
 CCL_NAMESPACE_END
 
-#endif /* __BUFFERS_H__ */
+#endif  /* __BUFFERS_H__ */

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) Blender Foundation
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Lukas Toenne
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __EIGEN_UTILS_H__
@@ -67,7 +59,7 @@ public:
 			coeffRef(k) = v[k];
 	}
 
-	Vector3& operator = (const ctype &v)
+	Vector3& operator =(const ctype &v)
 	{
 		for (int k = 0; k < 3; ++k)
 			coeffRef(k) = v[k];
@@ -98,7 +90,7 @@ public:
 				coeffRef(l, k) = v[k][l];
 	}
 
-	Matrix3& operator = (const ctype &v)
+	Matrix3& operator =(const ctype &v)
 	{
 		for (int k = 0; k < 3; ++k)
 			for (int l = 0; l < 3; ++l)
@@ -126,18 +118,18 @@ public:
 	}
 
 	template <typename T>
-	lVector3f& operator = (T rhs)
+	lVector3f& operator =(T rhs)
 	{
 		base_t::operator=(rhs);
 		return *this;
 	}
 
-	float* v3(int vertex)
+	float *v3(int vertex)
 	{
 		return &coeffRef(3 * vertex);
 	}
 
-	const float* v3(int vertex) const
+	const float *v3(int vertex) const
 	{
 		return &coeffRef(3 * vertex);
 	}

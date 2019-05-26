@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_text/text_undo.c
@@ -121,12 +117,18 @@ static void text_undosys_step_decode(struct bContext *C, UndoStep *us_p, int dir
 
 	if (dir < 0) {
 		TextUndoBuf data = us->data;
-		txt_do_undo(text, &data);
+		while (data.pos > -1) {
+			txt_do_undo(text, &data);
+		}
+		BLI_assert(data.pos == -1);
 	}
 	else {
 		TextUndoBuf data = us->data;
 		data.pos = -1;
-		txt_do_redo(text, &data);
+		while (data.pos < us->data.pos) {
+			txt_do_redo(text, &data);
+		}
+		BLI_assert(data.pos == us->data.pos);
 	}
 
 	text_update_edited(text);

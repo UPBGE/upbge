@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Bob Holcomb.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_NODE_H__
@@ -32,12 +24,12 @@
  *  \ingroup bke
  */
 
-#include "BLI_utildefines.h"
+#include "BLI_compiler_compat.h"
 #include "BLI_ghash.h"
 
 #include "DNA_listBase.h"
 
-/* for FOREACH_NODETREE */
+/* for FOREACH_NODETREE_BEGIN */
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
@@ -51,34 +43,34 @@
 /* not very important, but the stack solver likes to know a maximum */
 #define MAX_SOCKET	512
 
-struct bContext;
-struct bNode;
-struct bNodeLink;
-struct bNodeSocket;
-struct bNodeStack;
-struct bNodeTree;
-struct bNodeTreeType;
-struct bNodeTreeExec;
-struct bNodeExecContext;
-struct bNodeExecData;
+struct ARegion;
+struct ColorManagedDisplaySettings;
+struct ColorManagedViewSettings;
 struct GPUMaterial;
 struct GPUNodeStack;
 struct ID;
 struct ImBuf;
 struct ImageFormatData;
 struct ListBase;
-struct Main;
-struct uiLayout;
 struct MTex;
+struct Main;
 struct PointerRNA;
 struct RenderData;
 struct Scene;
-struct Tex;
 struct SpaceNode;
-struct ARegion;
-struct ColorManagedViewSettings;
-struct ColorManagedDisplaySettings;
+struct Tex;
+struct bContext;
+struct bNode;
+struct bNodeExecContext;
+struct bNodeExecData;
 struct bNodeInstanceHash;
+struct bNodeLink;
+struct bNodeSocket;
+struct bNodeStack;
+struct bNodeTree;
+struct bNodeTreeExec;
+struct bNodeTreeType;
+struct uiLayout;
 
 /* -------------------------------------------------------------------- */
 /** \name Node Type Definitions
@@ -413,7 +405,7 @@ struct GHashIterator *nodeTypeGetIterator(void);
 #define NODE_TYPES_END \
 	} \
 	BLI_ghashIterator_free(__node_type_iter__); \
-}
+} ((void)0)
 
 struct bNodeSocketType *nodeSocketTypeFind(const char *idname);
 void			nodeRegisterSocketType(struct bNodeSocketType *stype);
@@ -643,17 +635,17 @@ void BKE_node_tree_unlink_id(ID *id, struct bNodeTree *ntree);
  * Examples:
  *
  * \code{.c}
- * FOREACH_NODETREE(bmain, nodetree, id) {
+ * FOREACH_NODETREE_BEGIN(bmain, nodetree, id) {
  *     if (id == nodetree)
  *         printf("This is a linkable node tree");
- * } FOREACH_NODETREE_END
+ * } FOREACH_NODETREE_END;
  *
- * FOREACH_NODETREE(bmain, nodetree, id) {
+ * FOREACH_NODETREE_BEGIN(bmain, nodetree, id) {
  *     if (nodetree->idname == "ShaderNodeTree")
  *         printf("This is a shader node tree);
  *     if (GS(id) == ID_MA)
  *         printf(" and it's owned by a material");
- * } FOREACH_NODETREE_END
+ * } FOREACH_NODETREE_END;
  * \endcode
  *
  * \{
@@ -674,7 +666,7 @@ void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *b
 bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
                              struct bNodeTree **r_nodetree, struct ID **r_id);
 
-#define FOREACH_NODETREE(bmain, _nodetree, _id) \
+#define FOREACH_NODETREE_BEGIN(bmain, _nodetree, _id) \
 { \
 	struct NodeTreeIterStore _nstore; \
 	bNodeTree *_nodetree; \
@@ -687,7 +679,7 @@ bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
 #define FOREACH_NODETREE_END \
 		} \
 	} \
-}
+} ((void)0)
 /** \} */
 
 /* -------------------------------------------------------------------- */

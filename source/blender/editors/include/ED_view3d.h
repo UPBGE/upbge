@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_view3d.h
@@ -41,6 +34,9 @@ struct Base;
 struct BezTriple;
 struct BoundBox;
 struct EditBone;
+struct GPUFX;
+struct GPUFXSettings;
+struct GPUOffScreen;
 struct ImBuf;
 struct MVert;
 struct Main;
@@ -63,9 +59,6 @@ struct wmOperator;
 struct wmOperatorType;
 struct wmWindow;
 struct wmWindowManager;
-struct GPUFX;
-struct GPUOffScreen;
-struct GPUFXSettings;
 enum eGPUFXFlags;
 
 /* for derivedmesh drawing callbacks, for view3d_select, .... */
@@ -123,11 +116,16 @@ void  ED_view3d_depth_tag_update(struct RegionView3D *rv3d);
 /* return values for ED_view3d_project_...() */
 typedef enum {
 	V3D_PROJ_RET_OK   = 0,
-	V3D_PROJ_RET_CLIP_NEAR = 1,  /* can't avoid this when in perspective mode, (can't avoid) */
-	V3D_PROJ_RET_CLIP_ZERO = 2,  /* so close to zero we can't apply a perspective matrix usefully */
-	V3D_PROJ_RET_CLIP_BB   = 3,  /* bounding box clip - RV3D_CLIPPING */
-	V3D_PROJ_RET_CLIP_WIN  = 4,  /* outside window bounds */
-	V3D_PROJ_RET_OVERFLOW  = 5   /* outside range (mainly for short), (can't avoid) */
+	/** can't avoid this when in perspective mode, (can't avoid) */
+	V3D_PROJ_RET_CLIP_NEAR = 1,
+	/** so close to zero we can't apply a perspective matrix usefully */
+	V3D_PROJ_RET_CLIP_ZERO = 2,
+	/** bounding box clip - RV3D_CLIPPING */
+	V3D_PROJ_RET_CLIP_BB   = 3,
+	/** outside window bounds */
+	V3D_PROJ_RET_CLIP_WIN  = 4,
+	/** outside range (mainly for short), (can't avoid) */
+	V3D_PROJ_RET_OVERFLOW  = 5,
 } eV3DProjStatus;
 
 /* some clipping tests are optional */
@@ -136,7 +134,7 @@ typedef enum {
 	V3D_PROJ_TEST_CLIP_BB    = (1 << 0),
 	V3D_PROJ_TEST_CLIP_WIN   = (1 << 1),
 	V3D_PROJ_TEST_CLIP_NEAR  = (1 << 2),
-	V3D_PROJ_TEST_CLIP_ZERO  = (1 << 3)
+	V3D_PROJ_TEST_CLIP_ZERO  = (1 << 3),
 } eV3DProjTest;
 
 #define V3D_PROJ_TEST_CLIP_DEFAULT \
@@ -221,12 +219,15 @@ float ED_view3d_pixel_size_no_ui_scale(const struct RegionView3D *rv3d, const fl
 
 float ED_view3d_calc_zfac(const struct RegionView3D *rv3d, const float co[3], bool *r_flip);
 bool ED_view3d_clip_segment(const struct RegionView3D *rv3d, float ray_start[3], float ray_end[3]);
-bool ED_view3d_win_to_ray(
+bool ED_view3d_win_to_ray_clipped(
         const struct ARegion *ar, const struct View3D *v3d, const float mval[2],
         float ray_start[3], float ray_normal[3], const bool do_clip);
-bool ED_view3d_win_to_ray_ex(
+bool ED_view3d_win_to_ray_clipped_ex(
         const struct ARegion *ar, const struct View3D *v3d, const float mval[2],
         float r_ray_co[3], float r_ray_normal[3], float r_ray_start[3], bool do_clip);
+void ED_view3d_win_to_ray(
+        const struct ARegion *ar, const float mval[2],
+        float r_ray_start[3], float r_ray_normal[3]);
 void ED_view3d_global_to_vector(const struct RegionView3D *rv3d, const float coord[3], float vec[3]);
 void ED_view3d_win_to_3d(
         const struct View3D *v3d, const struct ARegion *ar,
@@ -236,11 +237,20 @@ void ED_view3d_win_to_3d_int(
         const struct View3D *v3d, const struct ARegion *ar,
         const float depth_pt[3], const int mval[2],
         float r_out[3]);
+bool ED_view3d_win_to_3d_on_plane(
+        const struct ARegion *ar,
+        const float plane[4], const float mval[2], const bool do_clip,
+        float r_out[3]);
+bool ED_view3d_win_to_3d_on_plane_int(
+        const struct ARegion *ar,
+        const float plane[4], const int mval[2], const bool do_clip,
+        float r_out[3]);
 void ED_view3d_win_to_delta(const struct ARegion *ar, const float mval[2], float out[3], const float zfac);
 void ED_view3d_win_to_origin(const struct ARegion *ar, const float mval[2], float out[3]);
 void ED_view3d_win_to_vector(const struct ARegion *ar, const float mval[2], float out[3]);
-bool ED_view3d_win_to_segment(const struct ARegion *ar, struct View3D *v3d, const float mval[2],
-                              float r_ray_start[3], float r_ray_end[3], const bool do_clip);
+bool ED_view3d_win_to_segment_clipped(
+        const struct ARegion *ar, struct View3D *v3d, const float mval[2],
+        float r_ray_start[3], float r_ray_end[3], const bool do_clip);
 void ED_view3d_ob_project_mat_get(const struct RegionView3D *v3d, struct Object *ob, float pmat[4][4]);
 void ED_view3d_ob_project_mat_get_from_obmat(const struct RegionView3D *rv3d, float obmat[4][4], float pmat[4][4]);
 void ED_view3d_unproject(struct bglMats *mats, float out[3], const float x, const float y, const float z);

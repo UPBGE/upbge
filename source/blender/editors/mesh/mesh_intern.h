@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mesh/mesh_intern.h
@@ -35,15 +27,15 @@
 #define __MESH_INTERN_H__
 
 struct BMEditMesh;
-struct BMOperator;
 struct BMElem;
+struct BMOperator;
 struct EnumPropertyItem;
+struct LinkNode;
 struct bContext;
 struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperator;
 struct wmOperatorType;
-struct LinkNode;
 
 /* *** editmesh_utils.c *** */
 

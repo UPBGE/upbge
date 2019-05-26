@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file creator/creator_args.c
@@ -449,10 +445,7 @@ static void arg_py_context_restore(
  *
  * \{ */
 
-static const char arg_handle_print_version_doc[] =
-"\n\tPrint Blender version and exit."
-;
-static int arg_handle_print_version(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+static void print_version_full(void)
 {
 	printf(BLEND_VERSION_STRING_FMT);
 #ifdef BUILD_DATE
@@ -468,8 +461,27 @@ static int arg_handle_print_version(int UNUSED(argc), const char **UNUSED(argv),
 	printf("\tbuild link flags: %s\n", build_linkflags);
 	printf("\tbuild system: %s\n", build_system);
 #endif
-	exit(0);
+}
 
+static void print_version_short(void)
+{
+#ifdef BUILD_DATE
+	/* NOTE: We include built time since sometimes we need to tell broken from
+	 * working built of the same hash. */
+	printf(BLEND_VERSION_FMT " (hash %s built %s %s)\n",
+	       BLEND_VERSION_ARG, build_hash, build_date, build_time);
+#else
+	printf(BLEND_VERSION_STRING_FMT);
+#endif
+}
+
+static const char arg_handle_print_version_doc[] =
+"\n\tPrint Blender version and exit."
+;
+static int arg_handle_print_version(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+{
+	print_version_full();
+	exit(0);
 	return 0;
 }
 
@@ -514,6 +526,7 @@ static int arg_handle_print_help(int UNUSED(argc), const char **UNUSED(argv), vo
 	BLI_argsPrintArgDoc(ba, "--window-geometry");
 	BLI_argsPrintArgDoc(ba, "--start-console");
 	BLI_argsPrintArgDoc(ba, "--no-native-pixels");
+	BLI_argsPrintArgDoc(ba, "--no-window-focus");
 
 
 	printf("\n");
@@ -714,6 +727,7 @@ static const char arg_handle_background_mode_set_doc[] =
 ;
 static int arg_handle_background_mode_set(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
+	print_version_short();
 	G.background = 1;
 	return 0;
 }
@@ -902,7 +916,7 @@ static const char arg_handle_debug_mode_generic_set_doc_gpumem[] =
 
 static int arg_handle_debug_mode_generic_set(int UNUSED(argc), const char **UNUSED(argv), void *data)
 {
-	G.debug |= GET_INT_FROM_POINTER(data);
+	G.debug |= POINTER_AS_INT(data);
 	return 0;
 }
 
@@ -1131,6 +1145,15 @@ static const char arg_handle_without_borders_doc[] =
 static int arg_handle_without_borders(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	WM_init_state_fullscreen_set();
+	return 0;
+}
+
+static const char arg_handle_no_window_focus_doc[] =
+"\n\tOpen behind other windows and without taking focus."
+;
+static int arg_handle_no_window_focus(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+{
+	WM_init_window_focus_set(false);
 	return 0;
 }
 
@@ -1805,7 +1828,7 @@ static int arg_handle_python_expr_run(int argc, const char **argv, void *data)
 	/* workaround for scripts not getting a bpy.context.scene, causes internal errors elsewhere */
 	if (argc > 1) {
 		bool ok;
-		BPY_CTX_SETUP(ok = BPY_execute_string_ex(C, argv[1], false));
+		BPY_CTX_SETUP(ok = BPY_execute_string_ex(C, NULL, argv[1], false));
 		if (!ok && app_state.exit_code_on_error.python) {
 			printf("\nError: script failed, expr: '%s', exiting.\n", argv[1]);
 			exit(app_state.exit_code_on_error.python);
@@ -1831,7 +1854,7 @@ static int arg_handle_python_console_run(int UNUSED(argc), const char **argv, vo
 #ifdef WITH_PYTHON
 	bContext *C = data;
 
-	BPY_CTX_SETUP(BPY_execute_string(C, "__import__('code').interact()"));
+	BPY_CTX_SETUP(BPY_execute_string(C, (const char *[]){"code", NULL}, "code.interact()"));
 
 	return 0;
 #else
@@ -1887,7 +1910,7 @@ static int arg_handle_addons_set(int argc, const char **argv, void *data)
 		BLI_snprintf(str, slen, script_str, argv[1]);
 
 		BLI_assert(strlen(str) + 1 == slen);
-		BPY_CTX_SETUP(BPY_execute_string_ex(C, str, false));
+		BPY_CTX_SETUP(BPY_execute_string_ex(C, NULL, str, false));
 		free(str);
 #else
 		UNUSED_VARS(argv, data);
@@ -1942,7 +1965,8 @@ static int arg_handle_load_file(int UNUSED(argc), const char **argv, void *data)
 		}
 
 		if (BLO_has_bfile_extension(filename)) {
-			/* Just pretend a file was loaded, so the user can press Save and it'll save at the filename from the CLI. */
+			/* Just pretend a file was loaded, so the user can press Save and it'll
+			 * save at the filename from the CLI. */
 			BLI_strncpy(G_MAIN->name, filename, FILE_MAX);
 			G.relbase_valid = true;
 			G.save_over = true;
@@ -2072,6 +2096,7 @@ void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	BLI_argsAdd(ba, 2, "-p", "--window-geometry", CB(arg_handle_window_geometry), NULL);
 	BLI_argsAdd(ba, 2, "-w", "--window-border", CB(arg_handle_with_borders), NULL);
 	BLI_argsAdd(ba, 2, "-W", "--window-fullscreen", CB(arg_handle_without_borders), NULL);
+	BLI_argsAdd(ba, 2, NULL, "--no-window-focus", CB(arg_handle_no_window_focus), NULL);
 	BLI_argsAdd(ba, 2, "-con", "--start-console", CB(arg_handle_start_with_console), NULL);
 	BLI_argsAdd(ba, 2, "-R", NULL, CB(arg_handle_register_extension), NULL);
 	BLI_argsAdd(ba, 2, "-r", NULL, CB_EX(arg_handle_register_extension, silent), ba);

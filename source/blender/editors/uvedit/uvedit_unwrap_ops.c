@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/uvedit/uvedit_unwrap_ops.c
@@ -254,7 +246,7 @@ static void construct_param_handle_face_add(ParamHandle *handle, Scene *scene,
 		select[i] = uvedit_uv_select_test(scene, l, cd_loop_uv_offset);
 	}
 
-	param_face_add(handle, key, i, vkeys, co, uv, pin, select, efa->no);
+	param_face_add(handle, key, i, vkeys, co, uv, pin, select);
 }
 
 static ParamHandle *construct_param_handle(Scene *scene, Object *ob, BMesh *bm,
@@ -377,7 +369,8 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *ob, B
 	/* number of vertices and faces for subsurfed mesh*/
 	int numOfEdges, numOfFaces;
 
-	/* holds a map to editfaces for every subsurfed MFace. These will be used to get hidden/ selected flags etc. */
+	/* holds a map to editfaces for every subsurfed MFace.
+	 * These will be used to get hidden/ selected flags etc. */
 	BMFace **faceMap;
 	/* similar to the above, we need a way to map edges to their original ones */
 	BMEdge **edgeMap;
@@ -478,7 +471,7 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *ob, B
 		texface_from_original_index(origFace, origVertIndices[mloop[2].v], &uv[2], &pin[2], &select[2], scene, cd_loop_uv_offset);
 		texface_from_original_index(origFace, origVertIndices[mloop[3].v], &uv[3], &pin[3], &select[3], scene, cd_loop_uv_offset);
 
-		param_face_add(handle, key, 4, vkeys, co, uv, pin, select, NULL);
+		param_face_add(handle, key, 4, vkeys, co, uv, pin, select);
 	}
 
 	/* these are calculated from original mesh too */
@@ -889,7 +882,7 @@ static void uv_map_transform_calc_center_median(BMEditMesh *em, float r_center[3
 	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 		if (BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
 			float center[3];
-			BM_face_calc_center_mean(efa, center);
+			BM_face_calc_center_median(efa, center);
 			add_v3_v3(r_center, center);
 			center_accum_num += 1;
 		}
@@ -917,7 +910,7 @@ static void uv_map_transform_center(
 			mid_v3_v3v3(r_center, bounds[0], bounds[1]);
 			break;
 		}
-		case V3D_AROUND_CENTER_MEAN:
+		case V3D_AROUND_CENTER_MEDIAN:
 		{
 			uv_map_transform_calc_center_median(em, r_center);
 			break;
@@ -1241,7 +1234,7 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 	else
 		RNA_enum_set(op->ptr, "method", scene->toolsettings->unwrapper);
 
-	/* remember packing marging */
+	/* remember packing margin */
 	if (RNA_struct_property_is_set(op->ptr, "margin"))
 		scene->toolsettings->uvcalc_margin = RNA_float_get(op->ptr, "margin");
 	else

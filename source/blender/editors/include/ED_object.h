@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_object.h
@@ -37,10 +30,13 @@ extern "C" {
 
 struct Base;
 struct EnumPropertyItem;
+struct EnumPropertyItem;
 struct ID;
 struct Main;
 struct ModifierData;
 struct Object;
+struct PointerRNA;
+struct PropertyRNA;
 struct ReportList;
 struct Scene;
 struct bConstraint;
@@ -50,9 +46,6 @@ struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperator;
 struct wmOperatorType;
-struct PointerRNA;
-struct PropertyRNA;
-struct EnumPropertyItem;
 struct wmWindowManager;
 
 #include "DNA_object_enums.h"
@@ -158,7 +151,8 @@ float ED_object_new_primitive_matrix(
         const float loc[3], const float rot[3], float primmat[4][4]);
 
 
-/* Avoid allowing too much insane values even by typing (typos can hang/crash Blender otherwise). */
+/* Avoid allowing too much insane values even by typing
+ * (typos can hang/crash Blender otherwise). */
 #define OBJECT_ADD_SIZE_MAXF 1.0e12f
 
 void ED_object_add_unit_props(struct wmOperatorType *ot);

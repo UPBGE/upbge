@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Joseph Eagar.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BMESH_MARKING_H__
@@ -113,6 +107,9 @@ void BM_select_history_validate(BMesh *bm);
 void BM_select_history_clear(BMesh *bm);
 bool BM_select_history_active_get(BMesh *bm, struct BMEditSelection *ese);
 struct GHash *BM_select_history_map_create(BMesh *bm);
+
+void BM_select_history_merge_from_targetmap(
+        BMesh *bm, GHash *vert_map, GHash *edge_map, GHash *face_map, const bool use_chain);
 
 #define BM_SELECT_HISTORY_BACKUP(bm) { \
 	ListBase _bm_prev_selected = (bm)->selected; BLI_listbase_clear(&(bm)->selected)

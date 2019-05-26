@@ -21,7 +21,7 @@ set(ZLIB_URI https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz)
 set(ZLIB_HASH 1c9f62f0778697a09d36121ead88e08e)
 
 set(OPENAL_VERSION 1.18.2)
-set(OPENAL_URI http://kcat.strangesoft.net/openal-releases/openal-soft-${OPENAL_VERSION}.tar.bz2)
+set(OPENAL_URI http://openal-soft.org/openal-releases/openal-soft-${OPENAL_VERSION}.tar.bz2)
 set(OPENAL_HASH d4eeb0889812e2fdeaa1843523d76190)
 
 set(PNG_VERSION 1.6.35)
@@ -41,9 +41,9 @@ set(BLOSC_VERSION 1.14.4)
 set(BLOSC_URI https://github.com/Blosc/c-blosc/archive/v${BLOSC_VERSION}.tar.gz)
 set(BLOSC_HASH e80dfc71e4cba03b8d01ed0876547ffe)
 
-set(PTHREADS_VERSION 2-9-1)
-set(PTHREADS_URI ftp://sourceware.org/pub/pthreads-win32/pthreads-w32-${PTHREADS_VERSION}-release.tar.gz)
-set(PTHREADS_SHA512 9c06e85310766834370c3dceb83faafd397da18a32411ca7645c8eb6b9495fea54ca2872f4a3e8d83cb5fdc5dea7f3f0464be5bb9af3222a6534574a184bd551)
+set(PTHREADS_VERSION 3.0.0)
+set(PTHREADS_URI http://sourceforge.mirrorservice.org/p/pt/pthreads4w/pthreads4w-code-v${PTHREADS_VERSION}.zip)
+set(PTHREADS_HASH f3bf81bb395840b3446197bcf4ecd653)
 
 set(ILMBASE_VERSION 2.3.0)
 if (WIN32)
@@ -113,9 +113,9 @@ set(SDL_VERSION 2.0.8)
 set(SDL_URI https://www.libsdl.org/release/SDL2-${SDL_VERSION}.tar.gz)
 set(SDL_HASH 3800d705cef742c6a634f202c37f263f)
 
-set(OPENCOLLADA_VERSION v1.6.63)
+set(OPENCOLLADA_VERSION v1.6.68)
 set(OPENCOLLADA_URI https://github.com/KhronosGroup/OpenCOLLADA/archive/${OPENCOLLADA_VERSION}.tar.gz)
-set(OPENCOLLADA_HASH e937c3897b86fc0da53cde97257f5156)
+set(OPENCOLLADA_HASH ee7dae874019fea7be11613d07567493)
 
 set(OPENCOLORIO_VERSION 1.1.0)
 set(OPENCOLORIO_URI https://github.com/imageworks/OpenColorIO/archive/v${OPENCOLORIO_VERSION}.tar.gz)
@@ -251,7 +251,7 @@ set(JEMALLOC_URI https://github.com/jemalloc/jemalloc/releases/download/${JEMALL
 set(JEMALLOC_HASH 507f7b6b882d868730d644510491d18f)
 
 set(XML2_VERSION 2.9.4)
-set(XML2_URI ftp://xmlsoft.org/libxml2/libxml2-${XML2_VERSION}.tar.gz)
+set(XML2_URI http://xmlsoft.org/sources/libxml2-${XML2_VERSION}.tar.gz)
 set(XML2_HASH ae249165c173b1ff386ee8ad676815f5)
 
 set(TINYXML_VERSION 2_6_2)
@@ -284,7 +284,7 @@ set(BZIP2_URI http://http.debian.net/debian/pool/main/b/bzip2/bzip2_${BZIP2_VERS
 set(BZIP2_HASH d70a9ccd8bdf47e302d96c69fecd54925f45d9c7b966bb4ef5f56b770960afa7)
 
 set(FFI_VERSION 3.2.1)
-set(FFI_URI ftp://sourceware.org/pub/libffi/libffi-${FFI_VERSION}.tar.gz)
+set(FFI_URI https://sourceware.org/pub/libffi/libffi-${FFI_VERSION}.tar.gz)
 set(FFI_HASH d06ebb8e1d9a22d19e38d63fdb83954253f39bedc5d46232a05645685722ca37)
 
 set(LZMA_VERSION 5.2.4)
@@ -298,3 +298,7 @@ set(SSL_HASH ebbfc844a8c8cc0ea5dc10b86c9ce97f401837f3fa08c17b2cdadc118253cf99)
 set(SQLITE_VERSION 3.24.0)
 set(SQLITE_URI https://www.sqlite.org/2018/sqlite-src-3240000.zip)
 set(SQLITE_HASH fb558c49ee21a837713c4f1e7e413309aabdd9c7)
+
+set(EMBREE_VERSION 3.2.4)
+set(EMBREE_URI https://github.com/embree/embree/archive/v${EMBREE_VERSION}.zip)
+set(EMBREE_HASH 3d4a1147002ff43939d45140aa9d6fb8)

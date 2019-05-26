@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): (c) 2006 Blender Foundation, full refactor
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/include/render_types.h
@@ -53,18 +47,18 @@
 #include "BLI_sys_types.h" // for intptr_t support
 
 struct EvaluationContext;
-struct Object;
-struct MemArena;
-struct VertTableNode;
-struct VlakTableNode;
 struct GHash;
+struct ImagePool;
+struct Main;
+struct MemArena;
+struct Object;
 struct ObjectInstanceRen;
-struct RayObject;
 struct RayFace;
+struct RayObject;
 struct RenderEngine;
 struct ReportList;
-struct Main;
-struct ImagePool;
+struct VertTableNode;
+struct VlakTableNode;
 
 #define TABLEINITSIZE 1024
 
@@ -119,7 +113,7 @@ enum {
 	PART_STATUS_NONE        = 0,
 	PART_STATUS_IN_PROGRESS = 1,
 	PART_STATUS_RENDERED    = 2,
-	PART_STATUS_MERGED      = 3
+	PART_STATUS_MERGED      = 3,
 };
 
 /* controls state of render, everything that's read-only during render stage */
@@ -407,8 +401,8 @@ struct halosort {
 };
 
 /* ------------------------------------------------------------------------- */
-struct Material;
 struct ImagePool;
+struct Material;
 
 typedef struct RadFace {
 	float unshot[3], totrad[3];

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/tools/bmesh_wireframe.c
@@ -28,7 +22,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_object_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "BLI_math.h"
@@ -270,7 +263,7 @@ void BM_mesh_wireframe(
 
 			if (verts_relfac) {
 				if (use_relative_offset) {
-					verts_relfac[i] = BM_vert_calc_mean_tagged_edge_length(v_src);
+					verts_relfac[i] = BM_vert_calc_median_tagged_edge_length(v_src);
 				}
 				else {
 					verts_relfac[i] = 1.0f;
@@ -316,7 +309,7 @@ void BM_mesh_wireframe(
 			verts_pos[i] = NULL;
 		}
 
-		/* conflicts with BM_vert_calc_mean_tagged_edge_length */
+		/* conflicts with BM_vert_calc_median_tagged_edge_length */
 		if (use_relative_offset == false) {
 			BM_elem_flag_disable(v_src, BM_ELEM_TAG);
 		}

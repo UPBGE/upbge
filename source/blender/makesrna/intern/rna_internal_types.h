@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_internal_types.h
@@ -33,17 +27,17 @@
 #include "RNA_types.h"
 
 struct BlenderRNA;
-struct ContainerRNA;
-struct StructRNA;
-struct PropertyRNA;
-struct PointerRNA;
-struct FunctionRNA;
 struct CollectionPropertyIterator;
-struct bContext;
-struct IDProperty;
+struct ContainerRNA;
+struct FunctionRNA;
 struct GHash;
+struct IDProperty;
 struct Main;
+struct PointerRNA;
+struct PropertyRNA;
 struct Scene;
+struct StructRNA;
+struct bContext;
 
 #ifdef UNIT_TEST
 #define RNA_MAX_ARRAY_LENGTH 64

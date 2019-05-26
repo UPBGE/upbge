@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2009 full recode.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Armature EditMode tools - transforms, chain based editing, and other settings
  */
 
@@ -85,7 +78,7 @@ void ED_armature_transform_apply(Main *bmain, Object *ob, float mat[4][4], const
 void ED_armature_transform_bones(struct bArmature *arm, float mat[4][4], const bool do_props)
 {
 	EditBone *ebone;
-	float scale = mat4_to_scale(mat);   /* store the scale of the matrix here to use on envelopes */
+	float scale = mat4_to_scale(mat);  /* store the scale of the matrix here to use on envelopes */
 	float mat3[3][3];
 
 	copy_m3_m4(mat3, mat);
@@ -159,7 +152,7 @@ void ED_armature_origin_set(Main *bmain, Scene *scene, Object *ob, float cursor[
 		mul_m4_v3(ob->imat, cent);
 	}
 	else {
-		if (around == V3D_AROUND_CENTER_MEAN) {
+		if (around == V3D_AROUND_CENTER_MEDIAN) {
 			int total = 0;
 			zero_v3(cent);
 			for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
@@ -242,7 +235,7 @@ float ED_armature_ebone_roll_to_vector(const EditBone *bone, const float align_a
 	return roll;
 }
 
-/* note, ranges arithmatic is used below */
+/* note, ranges arithmetic is used below */
 typedef enum eCalcRollTypes {
 	/* pos */
 	CALC_ROLL_POS_X = 0,
@@ -822,9 +815,9 @@ static void bones_merge(Object *obedit, EditBone *start, EditBone *end, EditBone
 	}
 
 	/* step 1: add a new bone
-	 *	- head = head/tail of start (default head)
-	 *	- tail = head/tail of end (default tail)
-	 *	- parent = parent of start
+	 * - head = head/tail of start (default head)
+	 * - tail = head/tail of end (default tail)
+	 * - parent = parent of start
 	 */
 	if ((start->flag & BONE_TIPSEL) && (start->flag & BONE_SELECTED) == 0) {
 		copy_v3_v3(head, start->tail);
@@ -846,7 +839,7 @@ static void bones_merge(Object *obedit, EditBone *start, EditBone *end, EditBone
 	                               BONE_NO_CYCLICOFFSET | BONE_NO_LOCAL_LOCATION | BONE_DONE);
 
 	/* step 2a: reparent any side chains which may be parented to any bone in the chain of bones to merge
-	 *	- potentially several tips for side chains leading to some tree exist...
+	 * - potentially several tips for side chains leading to some tree exist...
 	 */
 	for (chain = chains->first; chain; chain = chain->next) {
 		/* traverse down chain until we hit the bottom or if we run into the tip of the chain of bones we're
@@ -936,7 +929,7 @@ static int armature_merge_exec(bContext *C, wmOperator *op)
 						bstart = ebo;
 				}
 				else {
-					/* chain is broken... merge any continous segments then clear */
+					/* chain is broken... merge any continuous segments then clear */
 					if (bstart && bend)
 						bones_merge(obedit, bstart, bend, bchild, &chains);
 
@@ -1035,8 +1028,8 @@ static int armature_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 		/* loop over bones in chain */
 		for (ebo = chain->data; ebo; ebo = parent) {
 			/* parent is this bone's original parent
-			 *	- we store this, as the next bone that is checked is this one
-			 *	  but the value of ebo->parent may change here...
+			 * - we store this, as the next bone that is checked is this one
+			 *   but the value of ebo->parent may change here...
 			 */
 			parent = ebo->parent;
 
@@ -1048,8 +1041,8 @@ static int armature_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 					swap_v3_v3(ebo->head, ebo->tail);
 
 					/* do parent swapping:
-					 *	- use 'child' as new parent
-					 *	- connected flag is only set if points are coincidental
+					 * - use 'child' as new parent
+					 * - connected flag is only set if points are coincidental
 					 */
 					ebo->parent = child;
 					if ((child) && equals_v3v3(ebo->head, child->tail))
@@ -1058,7 +1051,7 @@ static int armature_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 						ebo->flag &= ~BONE_CONNECTED;
 
 					/* get next bones
-					 *	- child will become the new parent of next bone
+					 * - child will become the new parent of next bone
 					 */
 					child = ebo;
 				}
@@ -1072,8 +1065,8 @@ static int armature_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 					}
 
 					/* get next bones
-					 *	- child will become new parent of next bone (not swapping occurred,
-					 *	  so set to NULL to prevent infinite-loop)
+					 * - child will become new parent of next bone (not swapping occurred,
+					 *   so set to NULL to prevent infinite-loop)
 					 */
 					child = NULL;
 				}

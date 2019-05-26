@@ -22,6 +22,7 @@
 #include "device/device.h"
 #include "render/graph.h"
 #include "render/integrator.h"
+#include "render/light.h"
 #include "render/mesh.h"
 #include "render/object.h"
 #include "render/scene.h"
@@ -47,13 +48,14 @@ Session::Session(const SessionParams& params_)
   tile_manager(params.progressive, params.samples, params.tile_size, params.start_resolution,
        params.background == false || params.progressive_refine, params.background, params.tile_order,
        max(params.device.multi_devices.size(), 1), params.pixel_size),
-  stats()
+  stats(),
+  profiler()
 {
 	device_use_gl = ((params.device.type != DEVICE_CPU) && !params.background);
 
 	TaskScheduler::init(params.threads);
 
-	device = Device::create(params.device, stats, params.background);
+	device = Device::create(params.device, stats, profiler, params.background);
 
 	if(params.background && !params.write_render_cb) {
 		buffers = NULL;
@@ -128,7 +130,9 @@ Session::~Session()
 
 void Session::start()
 {
-	session_thread = new thread(function_bind(&Session::run, this));
+	if (!session_thread) {
+		session_thread = new thread(function_bind(&Session::run, this));
+	}
 }
 
 bool Session::ready_to_reset()
@@ -208,6 +212,11 @@ void Session::run_gpu()
 		/* advance to next tile */
 		bool no_tiles = !tile_manager.next();
 
+		DeviceKernelStatus kernel_state = DEVICE_KERNEL_UNKNOWN;
+		if (no_tiles) {
+			kernel_state = device->get_active_kernel_switch_state();
+		}
+
 		if(params.background) {
 			/* if no work left and in background mode, we can stop immediately */
 			if(no_tiles) {
@@ -215,6 +224,16 @@ void Session::run_gpu()
 				break;
 			}
 		}
+
+		/* Don't go in pause mode when image was rendered with preview kernels
+		 * When feature kernels become available the session will be resetted. */
+		else if (no_tiles && kernel_state == DEVICE_KERNEL_WAITING_FOR_FEATURE_KERNEL) {
+			time_sleep(0.1);
+		}
+		else if (no_tiles && kernel_state == DEVICE_KERNEL_FEATURE_KERNEL_AVAILABLE) {
+			reset_gpu(tile_manager.params, params.samples);
+		}
+
 		else {
 			/* if in interactive mode, and we are either paused or done for now,
 			 * wait for pause condition notify to wake up again */
@@ -250,7 +269,9 @@ void Session::run_gpu()
 		if(!no_tiles) {
 			/* update scene */
 			scoped_timer update_timer;
-			update_scene();
+			if(update_scene()) {
+				profiler.reset(scene->shaders.size(), scene->objects.size());
+			}
 			progress.add_skip_time(update_timer, params.background);
 
 			if(!device->error_message().empty())
@@ -534,6 +555,11 @@ void Session::run_cpu()
 		bool no_tiles = !tile_manager.next();
 		bool need_tonemap = false;
 
+		DeviceKernelStatus kernel_state = DEVICE_KERNEL_UNKNOWN;
+		if (no_tiles) {
+			kernel_state = device->get_active_kernel_switch_state();
+		}
+
 		if(params.background) {
 			/* if no work left and in background mode, we can stop immediately */
 			if(no_tiles) {
@@ -541,6 +567,16 @@ void Session::run_cpu()
 				break;
 			}
 		}
+
+		/* Don't go in pause mode when preview kernels are used
+		 * When feature kernels become available the session will be resetted. */
+		else if (no_tiles && kernel_state == DEVICE_KERNEL_WAITING_FOR_FEATURE_KERNEL) {
+			time_sleep(0.1);
+		}
+		else if (no_tiles && kernel_state == DEVICE_KERNEL_FEATURE_KERNEL_AVAILABLE) {
+			reset_cpu(tile_manager.params, params.samples);
+		}
+
 		else {
 			/* if in interactive mode, and we are either paused or done for now,
 			 * wait for pause condition notify to wake up again */
@@ -585,7 +621,9 @@ void Session::run_cpu()
 
 			/* update scene */
 			scoped_timer update_timer;
-			update_scene();
+			if(update_scene()) {
+				profiler.reset(scene->shaders.size(), scene->objects.size());
+			}
 			progress.add_skip_time(update_timer, params.background);
 
 			if(!device->error_message().empty())
@@ -650,25 +688,23 @@ DeviceRequestedFeatures Session::get_requested_device_features()
 	scene->shader_manager->get_requested_features(
 	        scene,
 	        &requested_features);
-	if(!params.background) {
-		/* Avoid too much re-compilations for viewport render. */
-		requested_features.max_nodes_group = NODE_GROUP_LEVEL_MAX;
-		requested_features.nodes_features = NODE_FEATURE_ALL;
-	}
 
 	/* This features are not being tweaked as often as shaders,
 	 * so could be done selective magic for the viewport as well.
 	 */
+	bool use_motion = scene->need_motion() == Scene::MotionType::MOTION_BLUR;
 	requested_features.use_hair = false;
 	requested_features.use_object_motion = false;
-	requested_features.use_camera_motion = scene->camera->use_motion();
+	requested_features.use_camera_motion = use_motion && scene->camera->use_motion();
 	foreach(Object *object, scene->objects) {
 		Mesh *mesh = object->mesh;
 		if(mesh->num_curves()) {
 			requested_features.use_hair = true;
 		}
-		requested_features.use_object_motion |= object->use_motion() | mesh->use_motion_blur;
-		requested_features.use_camera_motion |= mesh->use_motion_blur;
+		if (use_motion) {
+			requested_features.use_object_motion |= object->use_motion() | mesh->use_motion_blur;
+			requested_features.use_camera_motion |= mesh->use_motion_blur;
+		}
 #ifdef WITH_OPENSUBDIV
 		if(mesh->subdivision_type != Mesh::SUBDIVISION_NONE) {
 			requested_features.use_patch_evaluation = true;
@@ -677,17 +713,23 @@ DeviceRequestedFeatures Session::get_requested_device_features()
 		if(object->is_shadow_catcher) {
 			requested_features.use_shadow_tricks = true;
 		}
+		requested_features.use_true_displacement |= mesh->has_true_displacement();
 	}
+
+	requested_features.use_background_light = scene->light_manager->has_background_light(scene);
 
 	BakeManager *bake_manager = scene->bake_manager;
 	requested_features.use_baking = bake_manager->get_baking();
 	requested_features.use_integrator_branched = (scene->integrator->method == Integrator::BRANCHED_PATH);
-	requested_features.use_denoising = params.use_denoising;
+	if(params.run_denoising) {
+		requested_features.use_denoising = true;
+		requested_features.use_shadow_tricks = true;
+	}
 
 	return requested_features;
 }
 
-void Session::load_kernels(bool lock_scene)
+bool Session::load_kernels(bool lock_scene)
 {
 	thread_scoped_lock scene_lock;
 	if(lock_scene) {
@@ -710,7 +752,7 @@ void Session::load_kernels(bool lock_scene)
 			progress.set_error(message);
 			progress.set_status("Error", message);
 			progress.set_update();
-			return;
+			return false;
 		}
 
 		progress.add_skip_time(timer, false);
@@ -718,13 +760,16 @@ void Session::load_kernels(bool lock_scene)
 
 		kernels_loaded = true;
 		loaded_kernel_features = requested_features;
+		return true;
 	}
+	return false;
 }
 
 void Session::run()
 {
-	/* load kernels */
-	load_kernels();
+	if(params.use_profiling && (params.device.type == DEVICE_CPU)) {
+		profiler.start();
+	}
 
 	/* session thread loop */
 	progress.set_status("Waiting for render to start");
@@ -739,6 +784,8 @@ void Session::run()
 		else
 			run_cpu();
 	}
+
+	profiler.stop();
 
 	/* progress update */
 	if(progress.get_cancel())
@@ -816,13 +863,15 @@ void Session::set_pause(bool pause_)
 
 void Session::wait()
 {
-	session_thread->join();
-	delete session_thread;
+	if (session_thread) {
+		session_thread->join();
+		delete session_thread;
+	}
 
 	session_thread = NULL;
 }
 
-void Session::update_scene()
+bool Session::update_scene()
 {
 	thread_scoped_lock scene_lock(scene->mutex);
 
@@ -859,7 +908,7 @@ void Session::update_scene()
 
 	/* update scene */
 	if(scene->need_update()) {
-		load_kernels(false);
+		bool new_kernels_needed = load_kernels(false);
 
 		/* Update max_closures. */
 		KernelIntegrator *kintegrator = &scene->dscene.data.integrator;
@@ -868,12 +917,30 @@ void Session::update_scene()
 		}
 		else {
 			/* Currently viewport render is faster with higher max_closures, needs investigating. */
-			kintegrator->max_closures = 64;
+			kintegrator->max_closures = MAX_CLOSURE;
 		}
 
 		progress.set_status("Updating Scene");
 		MEM_GUARDED_CALL(&progress, scene->device_update, device, progress);
+
+		DeviceKernelStatus kernel_switch_status = device->get_active_kernel_switch_state();
+		bool kernel_switch_needed = kernel_switch_status == DEVICE_KERNEL_FEATURE_KERNEL_AVAILABLE ||
+		                            kernel_switch_status == DEVICE_KERNEL_FEATURE_KERNEL_INVALID;
+		if (kernel_switch_status == DEVICE_KERNEL_WAITING_FOR_FEATURE_KERNEL) {
+			progress.set_kernel_status("Compiling render kernels");
+		}
+		if (new_kernels_needed || kernel_switch_needed) {
+			progress.set_kernel_status("Compiling render kernels");
+			device->wait_for_availability(loaded_kernel_features);
+			progress.set_kernel_status("");
+		}
+
+		if (kernel_switch_needed) {
+			reset(tile_manager.params, params.samples);
+		}
+		return true;
 	}
+	return false;
 }
 
 void Session::update_status_time(bool show_pause, bool show_done)
@@ -906,8 +973,11 @@ void Session::update_status_time(bool show_pause, bool show_done)
 			 */
 			substatus += string_printf(", Sample %d/%d", progress.get_current_sample(), num_samples);
 		}
-		if(params.use_denoising) {
+		if(params.full_denoising) {
 			substatus += string_printf(", Denoised %d tiles", progress.get_denoised_tiles());
+		}
+		else if(params.run_denoising) {
+			substatus += string_printf(", Prefiltered %d tiles", progress.get_denoised_tiles());
 		}
 	}
 	else if(tile_manager.num_samples == INT_MAX)
@@ -954,16 +1024,18 @@ void Session::render()
 	task.requested_tile_size = params.tile_size;
 	task.passes_size = tile_manager.params.get_passes_size();
 
-	if(params.use_denoising) {
-		task.denoising_radius = params.denoising_radius;
-		task.denoising_strength = params.denoising_strength;
-		task.denoising_feature_strength = params.denoising_feature_strength;
-		task.denoising_relative_pca = params.denoising_relative_pca;
+	if(params.run_denoising) {
+		task.denoising = params.denoising;
 
 		assert(!scene->film->need_update);
 		task.pass_stride = scene->film->pass_stride;
+		task.target_pass_stride = task.pass_stride;
 		task.pass_denoising_data = scene->film->denoising_data_offset;
 		task.pass_denoising_clean = scene->film->denoising_clean_offset;
+
+		task.denoising_from_render = true;
+		task.denoising_do_filter = params.full_denoising;
+		task.denoising_write_passes = params.write_denoising_passes;
 	}
 
 	device->task_add(task);
@@ -1049,14 +1121,42 @@ void Session::device_free()
 	 */
 }
 
+void Session::collect_statistics(RenderStats *render_stats)
+{
+	scene->collect_statistics(render_stats);
+	if(params.use_profiling && (params.device.type == DEVICE_CPU)) {
+		render_stats->collect_profiling(scene, profiler);
+	}
+}
+
 int Session::get_max_closure_count()
 {
+	if (scene->shader_manager->use_osl()) {
+		/* OSL always needs the maximum as we can't predict the
+		 * number of closures a shader might generate. */
+		return MAX_CLOSURE;
+	}
+
 	int max_closures = 0;
 	for(int i = 0; i < scene->shaders.size(); i++) {
 		int num_closures = scene->shaders[i]->graph->get_num_closures();
 		max_closures = max(max_closures, num_closures);
 	}
 	max_closure_global = max(max_closure_global, max_closures);
+
+	if (max_closure_global > MAX_CLOSURE) {
+		/* This is usually harmless as more complex shader tend to get many
+		 * closures discarded due to mixing or low weights. We need to limit
+		 * to MAX_CLOSURE as this is hardcoded in CPU/mega kernels, and it
+		 * avoids excessive memory usage for split kernels. */
+		VLOG(2) << "Maximum number of closures exceeded: "
+				<< max_closure_global
+				<< " > "
+				<< MAX_CLOSURE;
+
+		max_closure_global = MAX_CLOSURE;
+	}
+
 	return max_closure_global;
 }
 

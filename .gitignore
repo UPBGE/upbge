@@ -12,6 +12,10 @@ __pycache__/
 *.kdev4
 *#
 
+# Indexes for emacs, vi & others
+TAGS
+tags
+
 # QtCreator
 CMakeLists.txt.user
 *.config

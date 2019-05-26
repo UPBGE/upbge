@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/sound/sound_ops.c
@@ -267,8 +260,7 @@ static void sound_update_animation_flags(Scene *scene)
 	SEQ_BEGIN(scene->ed, seq)
 	{
 		BKE_sequencer_recursive_apply(seq, sound_update_animation_flags_cb, scene);
-	}
-	SEQ_END
+	} SEQ_END;
 
 	fcu = id_data_find_fcurve(&scene->id, scene, &RNA_Scene, "audio_volume", 0, &driven);
 	if (fcu || driven)
@@ -815,7 +807,8 @@ static void SOUND_OT_unpack(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_enum(ot->srna, "method", rna_enum_unpack_method_items, PF_USE_LOCAL, "Method", "How to unpack");
-	RNA_def_string(ot->srna, "id", NULL, MAX_ID_NAME - 2, "Sound Name", "Sound data-block name to unpack"); /* XXX, weark!, will fail with library, name collisions */
+	/* XXX, weark!, will fail with library, name collisions */
+	RNA_def_string(ot->srna, "id", NULL, MAX_ID_NAME - 2, "Sound Name", "Sound data-block name to unpack");
 }
 
 /* ******************************************************* */

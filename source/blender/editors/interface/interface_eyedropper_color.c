@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,8 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_eyedropper_color.c
@@ -103,7 +99,7 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
 		display_device = scene->display_settings.display_device;
 		eye->display = IMB_colormanagement_display_get_named(display_device);
 
-		/* store inital color */
+		/* store initial color */
 		RNA_property_float_get_array(&eye->ptr, eye->prop, col);
 		if (eye->display) {
 			IMB_colormanagement_display_to_scene_linear_v3(col, eye->display);

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation, Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/animation/anim_deps.c
@@ -120,8 +113,8 @@ void ANIM_id_update(Scene *UNUSED(scene), ID *id)
 
 /* **************************** animation data <-> data syncing ******************************** */
 /* This code here is used to synchronize the
- *	- selection (to find selected data easier)
- *	- ... (insert other relevant items here later)
+ * - selection (to find selected data easier)
+ * - ... (insert other relevant items here later)
  * status in relevant Blender data with the status stored in animation channels.
  *
  * This should be called in the refresh() callbacks for various editors in

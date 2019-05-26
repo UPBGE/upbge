@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation.
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung, Antonio Vazquez
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_gpencil_types.h
@@ -38,9 +32,9 @@ struct AnimData;
 struct CurveMapping;
 
 /* Grease-Pencil Annotations - 'Stroke Point'
- *	-> Coordinates may either be 2d or 3d depending on settings at the time
- * 	-> Coordinates of point on stroke, in proportions of window size
- *	   This assumes that the bottom-left corner is (0,0)
+ * -> Coordinates may either be 2d or 3d depending on settings at the time
+ * -> Coordinates of point on stroke, in proportions of window size
+ *    This assumes that the bottom-left corner is (0,0)
  */
 typedef struct bGPDspoint {
 	float x, y, z;			/* co-ordinates of point (usually 2d, but can be 3d as well) */
@@ -105,7 +99,7 @@ typedef enum eGPDbrush_Flag {
 	/* brush use random for pressure */
 	GP_BRUSH_USE_RANDOM_PRESSURE = (1 << 4),
 	/* brush use random for strength */
-	GP_BRUSH_USE_RANDOM_STRENGTH = (1 << 5)
+	GP_BRUSH_USE_RANDOM_STRENGTH = (1 << 5),
 } eGPDbrush_Flag;
 
 /* color of palettes */
@@ -131,7 +125,7 @@ typedef enum eGPDpalettecolor_Flag {
 	/* "volumetric" strokes (i.e. GLU Quadric discs in 3D) */
 	PC_COLOR_VOLUMETRIC = (1 << 4),
 	/* Use High quality fill */
-	PC_COLOR_HQ_FILL = (1 << 5)
+	PC_COLOR_HQ_FILL = (1 << 5),
 } eGPDpalettecolor_Flag;
 
 /* palette of colors */
@@ -149,18 +143,18 @@ typedef struct bGPDpalette {
 /* bGPDpalette->flag */
 typedef enum eGPDpalette_Flag {
 	/* palette is active */
-	PL_PALETTE_ACTIVE = (1 << 0)
+A,	PL_PALETTE_ACTIVE = (1 << 0)
 } eGPDpalette_Flag;
 
 /* Grease-Pencil Annotations - 'Stroke'
- * 	-> A stroke represents a (simplified version) of the curve
- *	   drawn by the user in one 'mousedown'->'mouseup' operation
+ * -> A stroke represents a (simplified version) of the curve
+ *    drawn by the user in one 'mousedown'->'mouseup' operation
  */
 typedef struct bGPDstroke {
 	struct bGPDstroke *next, *prev;
 
 	bGPDspoint *points;		/* array of data-points for stroke */
-	bGPDtriangle *triangles;/* tesselated triangles for GP Fill */
+	bGPDtriangle *triangles;/* tessellated triangles for GP Fill */
 	int totpoints;          /* number of data-points in array */
 	int tot_triangles;      /* number of triangles in array */
 
@@ -195,11 +189,11 @@ typedef enum eGPDstroke_Flag {
 	/* Flag used to indicate that stroke is closed and draw edge between last and first point */
 	GP_STROKE_CYCLIC = (1 << 7),
 	/* only for use with stroke-buffer (while drawing eraser) */
-	GP_STROKE_ERASER		= (1 << 15)
+	GP_STROKE_ERASER		= (1 << 15),
 } eGPDstroke_Flag;
 
 /* Grease-Pencil Annotations - 'Frame'
- *	-> Acts as storage for the 'image' formed by strokes
+ * -> Acts as storage for the 'image' formed by strokes
  */
 typedef struct bGPDframe {
 	struct bGPDframe *next, *prev;
@@ -217,7 +211,7 @@ typedef enum eGPDframe_Flag {
 	/* frame is being painted on */
 	GP_FRAME_PAINT		= (1 << 0),
 	/* for editing in Action Editor */
-	GP_FRAME_SELECT		= (1 << 1)
+	GP_FRAME_SELECT		= (1 << 1),
 } eGPDframe_Flag;
 
 /* Grease-Pencil Annotations - 'Layer' */
@@ -293,8 +287,8 @@ typedef struct bGPdata {
 	int flag;				/* settings for this datablock */
 
 	/* not-saved stroke buffer data (only used during paint-session)
-	 * 	- buffer must be initialized before use, but freed after
-	 *	  whole paint operation is over
+	 * - buffer must be initialized before use, but freed after
+	 *   whole paint operation is over
 	 */
 	short sbuffer_size;			/* number of elements currently in cache */
 	short sbuffer_sflag;		/* flags for stroke that cache represents */
@@ -335,13 +329,14 @@ typedef enum eGPdata_Flag {
 	GP_DATA_DEPTH_STROKE_ENDPOINTS = (1 << 7),
 /* ------------------------------------------------ DEPRECATED */
 
-	/* Stroke Editing Mode - Toggle to enable alternative keymap for easier editing of stroke points */
+	/* Stroke Editing Mode - Toggle to enable alternative keymap
+	 * for easier editing of stroke points */
 	GP_DATA_STROKE_EDITMODE	= (1 << 8),
 
 	/* Convenience/cache flag to make it easier to quickly toggle onion skinning on/off */
 	GP_DATA_SHOW_ONIONSKINS = (1 << 9),
 	/* Draw a green and red point to indicate start and end of the stroke */
-	GP_DATA_SHOW_DIRECTION = (1 << 10)
+	GP_DATA_SHOW_DIRECTION = (1 << 10),
 } eGPdata_Flag;
 
 #endif /*  __DNA_GPENCIL_TYPES_H__ */

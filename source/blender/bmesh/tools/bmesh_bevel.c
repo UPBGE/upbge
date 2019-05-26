@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,14 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s):
- *         Joseph Eagar,
- *         Aleksandr Mokhov,
- *         Howard Trickey,
- *         Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/tools/bmesh_bevel.c
@@ -32,7 +22,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_object_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "BLI_array.h"
@@ -1963,7 +1952,7 @@ static void print_adjust_stats(BoundVert *vstart)
  * residual in terms of that one degree of freedom.
  * Unfortunately, the results are in some cases worse than the general least squares solution
  * for the combined (with weights) problem, so this code is not used.
- * But keep it here for a while in case peformance issues demand that it be used sometimes. */
+ * But keep it here for a while in case performance issues demand that it be used sometimes. */
 static bool adjust_the_cycle_or_chain_fast(BoundVert *vstart, int np, bool iscycle)
 {
 	BoundVert *v;
@@ -2113,7 +2102,7 @@ static void adjust_the_cycle_or_chain(BoundVert *vstart, bool iscycle)
 
 			/* residue np + 2*i (if cycle) else np - 1 + 2*i:
 			 * right offset for parm i matches its spec; weighted */
-			row = iscycle ? np + 2 * i : np - 1 + 2 *  i;
+			row = iscycle ? np + 2 * i : np - 1 + 2 * i;
 			EIG_linear_solver_matrix_add(solver, row, i, weight);
 			EIG_linear_solver_right_hand_side_add(solver, 0, row, weight * eright->offset_r);
 #ifdef DEBUG_ADJUST
@@ -2192,7 +2181,7 @@ static void adjust_the_cycle_or_chain(BoundVert *vstart, bool iscycle)
 
 /* Adjust the offsets to try to make them, as much as possible,
  * have even-width bevels with offsets that match their specs.
- * The problem that we can try to amelieroate is that when loop slide
+ * The problem that we can try to ameliorate is that when loop slide
  * is active, the meet point will probably not be the one that makes
  * both sides have their specified width. And because both ends may be
  * on loop slide edges, the widths at each end could be different.

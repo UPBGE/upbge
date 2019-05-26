@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
  */
 
 #ifndef __COM_TONEMAPOPERATION_H__
@@ -26,8 +22,8 @@
 #include "DNA_node_types.h"
 
 /**
- * @brief temporarily storage during execution of Tonemap
- * @ingroup operation
+ * \brief temporarily storage during execution of Tonemap
+ * \ingroup operation
  */
 typedef struct AvgLogLum {
 	float al;
@@ -38,23 +34,23 @@ typedef struct AvgLogLum {
 } AvgLogLum;
 
 /**
- * @brief base class of tonemap, implementing the simple tonemap
- * @ingroup operation
+ * \brief base class of tonemap, implementing the simple tonemap
+ * \ingroup operation
  */
 class TonemapOperation : public NodeOperation {
 protected:
 	/**
-	 * @brief Cached reference to the reader
+	 * \brief Cached reference to the reader
 	 */
 	SocketReader *m_imageReader;
 
 	/**
-	 * @brief settings of the Tonemap
+	 * \brief settings of the Tonemap
 	 */
 	NodeTonemap *m_data;
 
 	/**
-	 * @brief temporarily cache of the execution storage
+	 * \brief temporarily cache of the execution storage
 	 */
 	AvgLogLum *m_cachedInstance;
 
@@ -85,9 +81,9 @@ public:
 };
 
 /**
- * @brief class of tonemap, implementing the photoreceptor tonemap
+ * \brief class of tonemap, implementing the photoreceptor tonemap
  * most parts have already been done in TonemapOperation
- * @ingroup operation
+ * \ingroup operation
  */
 
 class PhotoreceptorTonemapOperation : public TonemapOperation {

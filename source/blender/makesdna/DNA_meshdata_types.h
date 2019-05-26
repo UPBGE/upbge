@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_meshdata_types.h
@@ -286,8 +278,11 @@ typedef struct MDisps {
 	int level;
 	float (*disps)[3];
 
-	/* Used for hiding parts of a multires mesh. Essentially the multires equivalent of MVert.flag's ME_HIDE bit.
-	 * NOTE: This is a bitmap, keep in sync with type used in BLI_bitmap.h
+	/**
+	 * Used for hiding parts of a multires mesh.
+	 * Essentially the multires equivalent of MVert.flag's ME_HIDE bit.
+	 *
+	 * \note This is a bitmap, keep in sync with type used in BLI_bitmap.h
 	 */
 	unsigned int *hidden;
 } MDisps;
@@ -357,19 +352,20 @@ typedef struct GridPaintMask {
 } GridPaintMask;
 
 typedef enum eMVertSkinFlag {
-	/* Marks a vertex as the edge-graph root, used for calculating rotations for all connected edges (recursively).
-	 * Also used to choose a root when generating an armature.
+	/** Marks a vertex as the edge-graph root, used for calculating rotations for all connected
+	 * edges (recursively). Also used to choose a root when generating an armature.
 	 */
 	MVERT_SKIN_ROOT = 1,
 
-	/* Marks a branch vertex (vertex with more than two connected edges), so that it's neighbors are
-	 * directly hulled together, rather than the default of generating intermediate frames.
+	/** Marks a branch vertex (vertex with more than two connected edges), so that it's neighbors
+	 * are directly hulled together, rather than the default of generating intermediate frames.
 	 */
 	MVERT_SKIN_LOOSE = 2,
 } eMVertSkinFlag;
 
 typedef struct MVertSkin {
-	/* Radii of the skin, define how big the generated frames are. Currently only the first two elements are used. */
+	/* Radii of the skin, define how big the generated frames are.
+	 * Currently only the first two elements are used. */
 	float radius[3];
 
 	/* eMVertSkinFlag */

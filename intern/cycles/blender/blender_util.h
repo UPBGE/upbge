@@ -20,6 +20,7 @@
 #include "render/mesh.h"
 
 #include "util/util_algorithm.h"
+#include "util/util_array.h"
 #include "util/util_map.h"
 #include "util/util_path.h"
 #include "util/util_set.h"
@@ -31,7 +32,6 @@
  * todo: clean this up ... */
 
 extern "C" {
-size_t BLI_timecode_string_from_time_simple(char *str, size_t maxlen, double time_seconds);
 void BKE_image_user_frame_calc(void *iuser, int cfra, int fieldnr);
 void BKE_image_user_file_path(void *iuser, void *ima, char *path);
 unsigned char *BKE_image_get_pixels_for_frame(void *image, int frame);
@@ -242,6 +242,12 @@ static inline float *image_get_float_pixels_for_frame(BL::Image& image,
 {
 	return BKE_image_get_float_pixels_for_frame(image.ptr.data, frame);
 }
+
+static inline void render_add_metadata(BL::RenderResult& b_rr, string name, string value)
+{
+	b_rr.stamp_data_add_field(name.c_str(), value.c_str());
+}
+
 
 /* Utilities */
 
@@ -638,6 +644,11 @@ public:
 		b_recalc.insert(id.ptr.data);
 	}
 
+	void set_recalc(void *id_ptr)
+	{
+		b_recalc.insert(id_ptr);
+	}
+
 	bool has_recalc()
 	{
 		return !(b_recalc.empty());
@@ -731,6 +742,11 @@ public:
 		b_map = new_map;
 
 		return deleted;
+	}
+
+	const map<K, T*>& key_to_scene_data()
+	{
+		return b_map;
 	}
 
 protected:
@@ -832,4 +848,4 @@ protected:
 
 CCL_NAMESPACE_END
 
-#endif /* __BLENDER_UTIL_H__ */
+#endif  /* __BLENDER_UTIL_H__ */

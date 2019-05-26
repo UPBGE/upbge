@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_UNIT_H__
@@ -51,7 +45,7 @@ double bUnit_BaseScalar(int system, int type);
 /* return true is the unit system exists */
 bool bUnit_IsValid(int system, int type);
 
-/* loop over scales, coudl add names later */
+/* loop over scales, could add names later */
 //double bUnit_Iter(void **unit, char **name, int system, int type);
 
 void        bUnit_GetSystem(int system, int type, void const **r_usys_pt, int *r_len);

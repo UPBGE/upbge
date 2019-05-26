@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Brecht Van Lommel.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file GPU_texture.h
@@ -49,10 +41,10 @@ typedef struct GPUTexture GPUTexture;
  *   graphics card capabilities the texture may actually be stored in a
  *   larger texture with power of two dimensions.
  * - can use reference counting:
- *     - reference counter after GPU_texture_create is 1
- *     - GPU_texture_ref increases by one
- *     - GPU_texture_free decreases by one, and frees if 0
- *  - if created with from_blender, will not free the texture
+ *   - reference counter after GPU_texture_create is 1
+ *   - GPU_texture_ref increases by one
+ *   - GPU_texture_free decreases by one, and frees if 0
+ * - if created with from_blender, will not free the texture
  */
 
 typedef enum GPUHDRType {

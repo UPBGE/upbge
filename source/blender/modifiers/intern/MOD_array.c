@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,16 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 by the Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Daniel Dunbar
- *                 Ton Roosendaal,
- *                 Ben Batt,
- *                 Brecht Van Lommel,
- *                 Campbell Barton,
- *                 Patrice Bertrand
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/modifiers/intern/MOD_array.c
@@ -551,7 +539,7 @@ static DerivedMesh *arrayModifier_doArray(
 	DM_copy_loop_data(dm, result, 0, 0, chunk_nloops);
 	DM_copy_poly_data(dm, result, 0, 0, chunk_npolys);
 
-	/* Subsurf for eg wont have mesh data in the custom data arrays.
+	/* Subsurf for eg won't have mesh data in the custom data arrays.
 	 * now add mvert/medge/mpoly layers. */
 
 	if (!CustomData_has_layer(&dm->vertData, CD_MVERT)) {

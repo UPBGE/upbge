@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_info/textview.c
@@ -55,13 +49,16 @@ typedef struct ConsoleDrawContext {
 	int font_id;
 	int cwidth;
 	int lheight;
-	int lofs; /* text vertical offset */
-	int console_width; /* number of characters that fit into the width of the console (fixed width) */
+	/** text vertical offset */
+	int lofs;
+	/** number of characters that fit into the width of the console (fixed width) */
+	int console_width;
 	int winx;
 	int ymin, ymax;
 	int *xy; // [2]
 	int *sel; // [2]
-	int *pos_pick; // bottom of view == 0, top of file == combine chars, end of line is lower then start.
+	/* bottom of view == 0, top of file == combine chars, end of line is lower then start. */
+	int *pos_pick;
 	const int *mval; // [2]
 	int draw;
 } ConsoleDrawContext;

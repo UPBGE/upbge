@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation 2002-2008, full recode.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface.c
@@ -150,7 +144,8 @@ void ui_block_to_window_rctf(const ARegion *ar, uiBlock *block, rctf *rct_dst, c
 	ui_block_to_window_fl(ar, block, &rct_dst->xmax, &rct_dst->ymax);
 }
 
-void ui_window_to_block_fl(const ARegion *ar, uiBlock *block, float *x, float *y)   /* for mouse cursor */
+/* for mouse cursor */
+void ui_window_to_block_fl(const ARegion *ar, uiBlock *block, float *x, float *y)
 {
 	float a, b, c, d, e, f, px, py;
 	int sx, sy, getsizex, getsizey;
@@ -413,7 +408,8 @@ static void ui_block_bounds_calc_popup(
 	ui_block_bounds_calc(block);
 
 	/* If given, adjust input coordinates such that they would generate real final popup position.
-	 * Needed to handle correctly floating panels once they have been dragged around, see T52999. */
+	 * Needed to handle correctly floating panels once they have been dragged around,
+	 * see T52999. */
 	if (r_xy) {
 		r_xy[0] = xy[0] + block->rect.xmin - raw_x;
 		r_xy[1] = xy[1] + block->rect.ymin - raw_y;
@@ -867,8 +863,8 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
 {
 	uiBut *but;
 
-	unsigned int menu_key_mask = 0;
-	unsigned char menu_key;
+	uint menu_key_mask = 0;
+	uchar menu_key;
 	const char *str_pt;
 	int pass;
 	int tot_missing = 0;
@@ -1950,7 +1946,8 @@ void ui_but_value_set(uiBut *but, double value)
 				case PROP_ENUM:
 					if (RNA_property_flag(prop) & PROP_ENUM_FLAG) {
 						int ivalue = (int)value;
-						ivalue ^= RNA_property_enum_get(&but->rnapoin, prop); /* toggle for enum/flag buttons */
+						/* toggle for enum/flag buttons */
+						ivalue ^= RNA_property_enum_get(&but->rnapoin, prop);
 						RNA_property_enum_set(&but->rnapoin, prop, ivalue);
 					}
 					else {
@@ -2124,7 +2121,7 @@ void ui_but_convert_to_unit_alt_name(uiBut *but, char *str, size_t maxlen)
 }
 
 /**
- * \param float_precision  Override the button precision.
+ * \param float_precision: Override the button precision.
  */
 static void ui_get_but_string_unit(uiBut *but, char *str, int len_max, double value, bool pad, int float_precision)
 {
@@ -2155,7 +2152,8 @@ static float ui_get_but_step_unit(uiBut *but, float step_default)
 {
 	int unit_type = RNA_SUBTYPE_UNIT_VALUE(UI_but_unit_type_get(but));
 	const double step_orig = step_default * UI_PRECISION_FLOAT_SCALE;
-	/* Scaling up 'step_origg ' here is a bit arbitrary, its just giving better scales from user POV */
+	/* Scaling up 'step_origg ' here is a bit arbitrary,
+	 * its just giving better scales from user POV */
 	const double scale_step = ui_get_but_scale_unit(but, step_orig * 10);
 	const double step = bUnit_ClosestScalar(scale_step, but->block->unit->system, unit_type);
 
@@ -2187,8 +2185,8 @@ static float ui_get_but_step_unit(uiBut *but, float step_default)
 }
 
 /**
- * \param float_precision  For number buttons the precision to use or -1 to fallback to the button default.
- * \param use_exp_float  Use exponent representation of floats when out of reasonable range (outside of 1e3/1e-3).
+ * \param float_precision: For number buttons the precision to use or -1 to fallback to the button default.
+ * \param use_exp_float: Use exponent representation of floats when out of reasonable range (outside of 1e3/1e-3).
  */
 void ui_but_string_get_ex(uiBut *but, char *str, const size_t maxlen, const int float_precision, const bool use_exp_float, bool *r_use_exp_float)
 {
@@ -2369,7 +2367,7 @@ static bool ui_set_but_string_eval_num_unit(bContext *C, uiBut *but, const char 
 	        str_unit_convert, sizeof(str_unit_convert), but->drawstr,
 	        ui_get_but_scale_unit(but, 1.0), but->block->unit->system, RNA_SUBTYPE_UNIT_VALUE(unit_type));
 
-	return BPY_execute_string_as_number(C, str_unit_convert, true, r_value);
+	return BPY_execute_string_as_number(C, NULL, str_unit_convert, true, r_value);
 }
 
 #endif /* WITH_PYTHON */
@@ -2384,8 +2382,9 @@ bool ui_but_string_set_eval_num(bContext *C, uiBut *but, const char *str, double
 	if (str[0] != '\0') {
 		bool is_unit_but = (ui_but_is_float(but) && ui_but_is_unit(but));
 		/* only enable verbose if we won't run again with units */
-		if (BPY_execute_string_as_number(C, str, is_unit_but == false, r_value)) {
-			/* if the value parsed ok without unit conversion this button may still need a unit multiplier */
+		if (BPY_execute_string_as_number(C, NULL, str, is_unit_but == false, r_value)) {
+			/* if the value parsed ok without unit conversion
+			 * this button may still need a unit multiplier */
 			if (is_unit_but) {
 				char str_new[128];
 
@@ -2879,12 +2878,17 @@ void UI_block_emboss_set(uiBlock *block, char dt)
 	block->dt = dt;
 }
 
+void UI_block_theme_style_set(uiBlock *block, char theme_style)
+{
+	block->theme_style = theme_style;
+}
+
 /**
  * \param but: Button to update.
  * \param validate: When set, this function may change the button value.
  * Otherwise treat the button value as read-only.
  */
-void ui_but_update_ex(uiBut *but, const bool validate)
+static void ui_but_update_ex(uiBut *but, const bool validate)
 {
 	/* if something changed in the button */
 	double value = UI_BUT_VALUE_UNSET;
@@ -2893,7 +2897,7 @@ void ui_but_update_ex(uiBut *but, const bool validate)
 	ui_but_update_select_flag(but, &value);
 
 	/* only update soft range while not editing */
-	if (!(but->editval || but->editstr || but->editvec)) {
+	if (!ui_but_is_editing(but)) {
 		if ((but->rnaprop != NULL) ||
 		    (but->poin && (but->pointype & UI_BUT_POIN_TYPES)))
 		{
@@ -3410,7 +3414,8 @@ static void ui_def_but_rna__menu(bContext *UNUSED(C), uiLayout *layout, void *bu
 					uiItemL(column, item->name, item->icon);
 				}
 				else {
-					/* Do not use uiItemL here, as our root layout is a menu one, it will add a fake blank icon! */
+					/* Do not use uiItemL here, as our root layout is a menu one,
+					 * it will add a fake blank icon! */
 					uiDefBut(block, UI_BTYPE_LABEL, 0, item->name, 0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
 				}
 			}
@@ -3575,8 +3580,16 @@ static uiBut *ui_def_but_rna(
 		ui_def_but_icon(but, icon, UI_HAS_ICON);
 	}
 
-	if ((type == UI_BTYPE_MENU) && (but->dt == UI_EMBOSS_PULLDOWN)) {
-		but->flag |= UI_BUT_ICON_SUBMENU;
+	if (type == UI_BTYPE_MENU) {
+		if (but->dt == UI_EMBOSS_PULLDOWN) {
+			but->flag |= UI_BUT_ICON_SUBMENU;
+		}
+	}
+	else if (type == UI_BTYPE_SEARCH_MENU) {
+		if (proptype == PROP_POINTER) {
+			/* Search buttons normally don't get undo, see: T54580. */
+			but->flag |= UI_BUT_UNDO;
+		}
 	}
 
 	const char *info;
@@ -3664,7 +3677,7 @@ uiBut *uiDefBut(uiBlock *block, int type, int retval, const char *str, int x, in
  *     ((1 << findBitIndex(x)) == x);
  * \endcode
  */
-static int findBitIndex(unsigned int x)
+static int findBitIndex(uint x)
 {
 	if (!x || !is_power_of_2_i(x)) { /* is_power_of_2_i(x) strips lowest bit */
 		return -1;
@@ -4159,7 +4172,7 @@ void UI_but_drag_set_value(uiBut *but)
 void UI_but_drag_set_image(uiBut *but, const char *path, int icon, struct ImBuf *imb, float scale, const bool use_free)
 {
 	but->dragtype = WM_DRAG_PATH;
-	ui_def_but_icon(but, icon, 0);  /* no flag UI_HAS_ICON, so icon doesnt draw in button */
+	ui_def_but_icon(but, icon, 0);  /* no flag UI_HAS_ICON, so icon doesn't draw in button */
 	if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
 		MEM_SAFE_FREE(but->dragpoin);
 		but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
@@ -4184,7 +4197,7 @@ PointerRNA *UI_but_operator_ptr_get(uiBut *but)
 
 void UI_but_unit_type_set(uiBut *but, const int unit_type)
 {
-	but->unit_type = (unsigned char)(RNA_SUBTYPE_UNIT_VALUE(unit_type));
+	but->unit_type = (uchar)(RNA_SUBTYPE_UNIT_VALUE(unit_type));
 }
 
 int UI_but_unit_type_get(const uiBut *but)
@@ -4428,7 +4441,8 @@ void UI_but_func_search_set(
         uiButSearchFunc search_func, void *arg,
         uiButHandleFunc bfunc, void *active)
 {
-	/* needed since callers don't have access to internal functions (as an alternative we could expose it) */
+	/* needed since callers don't have access to internal functions
+	 * (as an alternative we could expose it) */
 	if (search_create_func == NULL) {
 		search_create_func = ui_searchbox_create_generic;
 	}
@@ -4477,9 +4491,10 @@ static void operator_enum_search_cb(const struct bContext *C, void *but, const c
 		RNA_property_enum_items_gettexted((bContext *)C, ptr, prop, &item_array, NULL, &do_free);
 
 		for (item = item_array; item->identifier; item++) {
-			/* note: need to give the index rather than the identifier because the enum can be freed */
+			/* note: need to give the index rather than the
+			 * identifier because the enum can be freed */
 			if (BLI_strcasestr(item->name, str)) {
-				if (false == UI_search_item_add(items, item->name, SET_INT_IN_POINTER(item->value), 0))
+				if (false == UI_search_item_add(items, item->name, POINTER_FROM_INT(item->value), 0))
 					break;
 			}
 		}
@@ -4497,7 +4512,7 @@ static void operator_enum_call_cb(struct bContext *UNUSED(C), void *but, void *a
 
 	if (ot) {
 		if (ot->prop) {
-			RNA_property_enum_set(opptr, ot->prop, GET_INT_FROM_POINTER(arg2));
+			RNA_property_enum_set(opptr, ot->prop, POINTER_AS_INT(arg2));
 			/* We do not call op from here, will be called by button code.
 			 * ui_apply_but_funcs_after() (in interface_handlers.c) called this func before checking operators,
 			 * because one of its parameters is the button itself!

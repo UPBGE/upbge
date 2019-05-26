@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Esteban Tovagliari, Cedric Paille, Kevin Dietrich
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #include "abc_nurbs.h"
@@ -103,7 +97,7 @@ static void get_knots(std::vector<float> &knots, const int num_knots, float *nu_
 		return;
 	}
 
-	/* Add an extra knot at the beggining and end of the array since most apps
+	/* Add an extra knot at the beginning and end of the array since most apps
 	 * require/expect them. */
 	knots.reserve(num_knots + 2);
 
@@ -167,7 +161,7 @@ void AbcNurbsWriter::do_write()
 		sample.setNu(nu->pntsu);
 		sample.setNv(nu->pntsv);
 
-		/* TODO(kevin): to accomodate other software we should duplicate control
+		/* TODO(kevin): to accommodate other software we should duplicate control
 		 * points to indicate that a NURBS is cyclic. */
 		OCompoundProperty user_props = m_nurbs_schema[count].getUserProperties();
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): 2004-2006, Blender Foundation, full recode
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/source/pixelshading.c
@@ -243,7 +237,7 @@ static void render_lighting_halo(HaloRen *har, float col_r[3])
 
 /**
  * Converts a halo z-buffer value to distance from the camera's near plane
- * \param z The z-buffer value to convert
+ * \param z: The z-buffer value to convert
  * \return a distance from the camera's near plane in blender units
  */
 static float haloZtoDist(int z)
@@ -262,13 +256,13 @@ static float haloZtoDist(int z)
 }
 
 /**
- * \param col (float[4]) Store the rgb color here (with alpha)
+ * \param col: (float[4]) Store the rgb color here (with alpha)
  * The alpha is used to blend the color to the background
  * color_new = (1-alpha)*color_background + color
- * \param zz The current zbuffer value at the place of this pixel
- * \param dist Distance of the pixel from the center of the halo squared. Given in pixels
- * \param xn The x coordinate of the pixel relaticve to the center of the halo. given in pixels
- * \param yn The y coordinate of the pixel relaticve to the center of the halo. given in pixels
+ * \param zz: The current zbuffer value at the place of this pixel
+ * \param dist: Distance of the pixel from the center of the halo squared. Given in pixels
+ * \param xn: The x coordinate of the pixel relaticve to the center of the halo. given in pixels
+ * \param yn: The y coordinate of the pixel relaticve to the center of the halo. given in pixels
  */
 int shadeHaloFloat(HaloRen *har, float col[4], int zz,
                    float dist, float xn,  float yn, short flarec)

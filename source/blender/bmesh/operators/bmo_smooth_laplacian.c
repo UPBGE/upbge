@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Alexander Pinzon
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/operators/bmo_smooth_laplacian.c
@@ -153,9 +147,12 @@ static LaplacianSystem *init_laplacian_system(int a_numEdges, int a_numFaces, in
 	return sys;
 }
 
-/* Compute weight between vertice v_i and all your neighbors
+/**
+ * Compute weight between vertice v_i and all your neighbors
  * weight between v_i and v_neighbor
+ * <pre>
  * Wij = cot(alpha) + cot(beta) / (4.0 * total area of all faces  * sum all weight)
+ *
  *        v_i *
  *          / | \
  *         /  |  \
@@ -163,6 +160,7 @@ static LaplacianSystem *init_laplacian_system(int a_numEdges, int a_numFaces, in
  *         \  |  /
  *          \ | /
  *            * v_neighbor
+ * </pre>
  */
 
 static void init_laplacian_matrix(LaplacianSystem *sys)

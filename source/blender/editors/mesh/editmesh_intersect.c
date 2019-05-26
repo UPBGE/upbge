@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mesh/editmesh_intersect.c
@@ -610,8 +606,9 @@ static BMEdge *bm_face_split_edge_find(
 					ok = false;
 				}
 				else if (found_other_face) {
-					/* double check that _all_ the faces used by v_pivot's edges are attached to this edge
-					 * otherwise don't attempt the split since it will give non-deterministic results */
+					/* double check that _all_ the faces used by v_pivot's edges are attached
+					 * to this edge otherwise don't attempt the split since it will give
+					 * non-deterministic results */
 					BMLoop *l_radial_iter = l_iter->radial_next;
 					int other_face_shared = 0;
 					if (l_radial_iter != l_iter) {

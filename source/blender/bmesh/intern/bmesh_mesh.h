@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Geoffrey Bantle, Levi Schooley.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BMESH_MESH_H__
@@ -48,9 +42,10 @@ void   BM_mesh_clear(BMesh *bm);
 void BM_mesh_normals_update(BMesh *bm);
 void BM_verts_calc_normal_vcos(BMesh *bm, const float (*fnos)[3], const float (*vcos)[3], float (*vnos)[3]);
 void BM_loops_calc_normal_vcos(
-        BMesh *bm, const float (*vcos)[3], const float (*vnos)[3], const float (*pnos)[3],
-        const bool use_split_normals, const float split_angle, float (*r_lnos)[3],
-        struct MLoopNorSpaceArray *r_lnors_spacearr, short (*clnors_data)[2], const int cd_loop_clnors_offset);
+        BMesh *bm, const float(*vcos)[3], const float(*vnos)[3], const float(*pnos)[3],
+        const bool use_split_normals, const float split_angle, float(*r_lnos)[3],
+        struct MLoopNorSpaceArray *r_lnors_spacearr, short (*clnors_data)[2],
+        const int cd_loop_clnors_offset);
 
 bool BM_loop_check_cyclic_smooth_fan(BMLoop *l_curr);
 
@@ -75,9 +70,24 @@ void           BM_mesh_elem_table_ensure(BMesh *bm, const char htype);
 void           BM_mesh_elem_table_init(BMesh *bm, const char htype);
 void           BM_mesh_elem_table_free(BMesh *bm, const char htype);
 
-BMVert *BM_vert_at_index(BMesh *bm, const int index);
-BMEdge *BM_edge_at_index(BMesh *bm, const int index);
-BMFace *BM_face_at_index(BMesh *bm, const int index);
+BLI_INLINE BMVert *BM_vert_at_index(BMesh *bm, const int index)
+{
+	BLI_assert((index >= 0) && (index < bm->totvert));
+	BLI_assert((bm->elem_table_dirty & BM_VERT) == 0);
+	return bm->vtable[index];
+}
+BLI_INLINE BMEdge *BM_edge_at_index(BMesh *bm, const int index)
+{
+	BLI_assert((index >= 0) && (index < bm->totedge));
+	BLI_assert((bm->elem_table_dirty & BM_EDGE) == 0);
+	return bm->etable[index];
+}
+BLI_INLINE BMFace *BM_face_at_index(BMesh *bm, const int index)
+{
+	BLI_assert((index >= 0) && (index < bm->totface));
+	BLI_assert((bm->elem_table_dirty & BM_FACE) == 0);
+	return bm->ftable[index];
+}
 
 BMVert *BM_vert_at_index_find(BMesh *bm, const int index);
 BMEdge *BM_edge_at_index_find(BMesh *bm, const int index);

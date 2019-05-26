@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation, Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/animation/anim_ops.c
@@ -299,8 +292,8 @@ static int previewrange_define_exec(bContext *C, wmOperator *op)
 	efra = UI_view2d_region_to_view_x(&ar->v2d, rect.xmax);
 
 	/* set start/end frames for preview-range
-	 *	- must clamp within allowable limits
-	 *	- end must not be before start (though this won't occur most of the time)
+	 * - must clamp within allowable limits
+	 * - end must not be before start (though this won't occur most of the time)
 	 */
 	FRAMENUMBER_MIN_CLAMP(sfra);
 	FRAMENUMBER_MIN_CLAMP(efra);

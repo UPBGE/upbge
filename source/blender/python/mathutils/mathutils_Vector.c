@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Willian P. Germano, Joseph Gilbert, Ken Hughes, Alex Fraser, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/mathutils/mathutils_Vector.c
@@ -847,7 +841,7 @@ static PyObject *Vector_orthogonal(VectorObject *self)
 /**
  * Vector.reflect(mirror): return a reflected vector on the mirror normal.
  * <pre>
- *  vec - ((2 * dot(vec, mirror)) * mirror)
+ * vec - ((2 * dot(vec, mirror)) * mirror)
  * </pre>
  */
 PyDoc_STRVAR(Vector_reflect_doc,
@@ -1650,7 +1644,7 @@ static PyObject *Vector_isub(PyObject *v1, PyObject *v2)
 
 
 /**
- *  column vector multiplication (Matrix * Vector)
+ * Column vector multiplication (Matrix * Vector).
  * <pre>
  * [1][4][7]   [a]
  * [2][5][8] * [b]
@@ -2132,12 +2126,12 @@ PyDoc_STRVAR(Vector_axis_w_doc, "Vector W axis (4D Vectors only).\n\n:type: floa
 
 static PyObject *Vector_axis_get(VectorObject *self, void *type)
 {
-	return vector_item_internal(self, GET_INT_FROM_POINTER(type), true);
+	return vector_item_internal(self, POINTER_AS_INT(type), true);
 }
 
 static int Vector_axis_set(VectorObject *self, PyObject *value, void *type)
 {
-	return vector_ass_item_internal(self, GET_INT_FROM_POINTER(type), value, true);
+	return vector_ass_item_internal(self, POINTER_AS_INT(type), value, true);
 }
 
 /* vector.length */
@@ -2246,8 +2240,6 @@ static PyObject *Vector_length_squared_get(VectorObject *self, void *UNUSED(clos
  *                                 (axis_0_pos, axis_1_pos, axis_2_pos, axis_3_pos))
  *
  *     axises = axises[:-1]
- *
- *
  * items = list(axis_dict.items())
  * items.sort(key=lambda a: a[0].replace('x', '0').replace('y', '1').replace('z', '2').replace('w', '3'))
  *
@@ -2280,7 +2272,7 @@ static PyObject *Vector_swizzle_get(VectorObject *self, void *closure)
 
 	/* Unpack the axes from the closure into an array. */
 	axis_to = 0;
-	swizzleClosure = GET_INT_FROM_POINTER(closure);
+	swizzleClosure = POINTER_AS_INT(closure);
 	while (swizzleClosure & SWIZZLE_VALID_AXIS) {
 		axis_from = swizzleClosure & SWIZZLE_AXIS;
 		if (axis_from >= self->size) {
@@ -2299,7 +2291,7 @@ static PyObject *Vector_swizzle_get(VectorObject *self, void *closure)
 }
 
 /**
- *  Set the items of this vector using a swizzle.
+ * Set the items of this vector using a swizzle.
  * - If value is a vector or list this operates like an array copy, except that
  *   the destination is effectively re-ordered as defined by the swizzle. At
  *   most min(len(source), len(dest)) values will be copied.
@@ -2327,7 +2319,7 @@ static int Vector_swizzle_set(VectorObject *self, PyObject *value, void *closure
 
 	/* Check that the closure can be used with this vector: even 2D vectors have
 	 * swizzles defined for axes z and w, but they would be invalid. */
-	swizzleClosure = GET_INT_FROM_POINTER(closure);
+	swizzleClosure = POINTER_AS_INT(closure);
 	axis_from = 0;
 
 	while (swizzleClosure & SWIZZLE_VALID_AXIS) {
@@ -2366,7 +2358,7 @@ static int Vector_swizzle_set(VectorObject *self, PyObject *value, void *closure
 
 	/* Copy vector contents onto swizzled axes. */
 	axis_from = 0;
-	swizzleClosure = GET_INT_FROM_POINTER(closure);
+	swizzleClosure = POINTER_AS_INT(closure);
 
 	/* We must first copy current vec into tvec, else some org values may be lost.
 	 * See [#31760].
@@ -2396,9 +2388,9 @@ static int Vector_swizzle_set(VectorObject *self, PyObject *value, void *closure
 #define _SWIZZLE3(a, b, c)    (_SWIZZLE2(a, b)    | (((c) | SWIZZLE_VALID_AXIS) << (SWIZZLE_BITS_PER_AXIS * 2)))
 #define _SWIZZLE4(a, b, c, d) (_SWIZZLE3(a, b, c) | (((d) | SWIZZLE_VALID_AXIS) << (SWIZZLE_BITS_PER_AXIS * 3)))
 
-#define SWIZZLE2(a, b)       SET_INT_IN_POINTER(_SWIZZLE2(a, b))
-#define SWIZZLE3(a, b, c)    SET_INT_IN_POINTER(_SWIZZLE3(a, b, c))
-#define SWIZZLE4(a, b, c, d) SET_INT_IN_POINTER(_SWIZZLE4(a, b, c, d))
+#define SWIZZLE2(a, b)       POINTER_FROM_INT(_SWIZZLE2(a, b))
+#define SWIZZLE3(a, b, c)    POINTER_FROM_INT(_SWIZZLE3(a, b, c))
+#define SWIZZLE4(a, b, c, d) POINTER_FROM_INT(_SWIZZLE4(a, b, c, d))
 
 /*****************************************************************************/
 /* Python attributes get/set structure:                                      */

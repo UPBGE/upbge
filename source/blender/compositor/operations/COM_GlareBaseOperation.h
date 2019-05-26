@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
  */
 
 #ifndef __COM_GLAREBASEOPERATION_H__
@@ -39,12 +35,12 @@ typedef float fRGB[4];
 class GlareBaseOperation : public SingleThreadedOperation {
 private:
 	/**
-	 * @brief Cached reference to the inputProgram
+	 * \brief Cached reference to the inputProgram
 	 */
 	SocketReader *m_inputProgram;
 
 	/**
-	 * @brief settings of the glare node.
+	 * \brief settings of the glare node.
 	 */
 	NodeGlare *m_settings;
 public:

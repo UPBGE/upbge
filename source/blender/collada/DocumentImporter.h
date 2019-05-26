@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Chingiz Dyussenov, Arystanbek Dyussenov.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DocumentImporter.h
@@ -48,8 +42,6 @@
 #include "ControllerExporter.h"
 #include "MeshImporter.h"
 #include "ImportSettings.h"
-
-
 
 struct bContext;
 
@@ -85,7 +77,7 @@ public:
 	/**
 	 * This method will be called if an error in the loading process occurred and the loader cannot
 	 * continue to load. The writer should undo all operations that have been performed.
-	 * \param errorMessage A message containing informations about the error that occurred.
+	 * \param errorMessage: A message containing information about the error that occurred.
 	 */
 	void cancel(const COLLADAFW::String& errorMessage);
 
@@ -107,6 +99,11 @@ public:
 	bool writeAnimation(const COLLADAFW::Animation*);
 
 	bool writeAnimationList(const COLLADAFW::AnimationList*);
+
+#if WITH_OPENCOLLADA_ANIMATION_CLIP
+	// Please enable this when building with Collada 1.6.65 or newer (also in DocumentImporter.cpp)
+	bool writeAnimationClip(const COLLADAFW::AnimationClip *animationClip);
+#endif
 
 	bool writeGeometry(const COLLADAFW::Geometry*);
 

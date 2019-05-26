@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
  */
 
 #ifndef __COM_CONVERTCOLORPROFILEOPERATION_H__
@@ -37,17 +33,17 @@ private:
 	SocketReader *m_inputOperation;
 
 	/**
-	 * @brief color profile where to convert from
+	 * \brief color profile where to convert from
 	 */
 	int m_fromProfile;
 
 	/**
-	 * @brief color profile where to convert to
+	 * \brief color profile where to convert to
 	 */
 	int m_toProfile;
 
 	/**
-	 * @brief is color predivided
+	 * \brief is color predivided
 	 */
 	bool m_predivided;
 public:

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 1990-1998 NeoGeo BV.
  * All rights reserved.
- *
- * Contributors: 2004/2005 Blender Foundation, full recode
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/source/rayshade.c
@@ -88,7 +82,7 @@ static void RE_rayobject_config_control(RayObject *r, Render *re)
 
 RayObject *RE_rayobject_create(int type, int size, int octree_resolution)
 {
-	RayObject * res = NULL;
+	RayObject *res = NULL;
 
 	if (type == R_RAYSTRUCTURE_AUTO) {
 		/* TODO */
@@ -124,7 +118,7 @@ RayObject *RE_rayobject_create(int type, int size, int octree_resolution)
 
 static RayObject* rayobject_create(Render *re, int type, int size)
 {
-	RayObject * res = NULL;
+	RayObject *res = NULL;
 
 	res = RE_rayobject_create(type, size, re->r.ocres);
 

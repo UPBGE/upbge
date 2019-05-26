@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __IMB_IMBUF_TYPES_H__
@@ -63,11 +55,10 @@ typedef struct DDSData {
  * imbuf operations.
  *
  * Also; add new variables to the end to save pain!
- *
  */
 
 /* ibuf->ftype flag, main image types */
-/* Warning: Keep explicit value assignements here, this file is included in areas where not all format defines
+/* Warning: Keep explicit value assignments here, this file is included in areas where not all format defines
  *          are set (e.g. intern/dds only get WITH_DDS, even if TIFF, HDR etc are also defined). See T46524. */
 enum eImbTypes {
 	IMB_FTYPE_PNG       = 1,
@@ -254,7 +245,7 @@ typedef struct ImBuf {
 #define IB_tilecache		(1 << 11)
 #define IB_alphamode_premul	(1 << 12)  /* indicates whether image on disk have premul alpha */
 #define IB_alphamode_detect	(1 << 13)  /* if this flag is set, alpha mode would be guessed from file */
-#define IB_ignore_alpha		(1 << 14)  /* ignore alpha on load and substitude it with 1.0f */
+#define IB_ignore_alpha		(1 << 14)  /* ignore alpha on load and substitute it with 1.0f */
 #define IB_thumbnail		(1 << 15)
 #define IB_multiview		(1 << 16)
 
@@ -308,7 +299,7 @@ extern const char *imb_ext_image_filepath_only[];
  * \{ */
 
 enum {
-	IMB_COLORMANAGE_IS_DATA = (1 << 0)
+	IMB_COLORMANAGE_IS_DATA = (1 << 0),
 };
 
 /** \} */

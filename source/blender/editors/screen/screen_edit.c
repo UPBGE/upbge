@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,9 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/screen/screen_edit.c
@@ -572,7 +567,7 @@ int area_getorientation(ScrArea *sa, ScrArea *sb)
 }
 
 /* Helper function to join 2 areas, it has a return value, 0=failed 1=success
- *  used by the split, join operators
+ * used by the split, join operators
  */
 int screen_area_join(bContext *C, bScreen *scr, ScrArea *sa1, ScrArea *sa2)
 {
@@ -1200,10 +1195,9 @@ bool ED_screen_set(bContext *C, bScreen *sc)
 		return true;
 	}
 
-	if (ELEM(sc->state, SCREENMAXIMIZED, SCREENFULL)) {
-		/* find associated full */
-		bScreen *sc1;
-		for (sc1 = bmain->screen.first; sc1; sc1 = sc1->id.next) {
+	/* find associated full */
+	for (bScreen *sc1 = bmain->screen.first; sc1; sc1 = sc1->id.next) {
+		if ((sc1 != sc) && ELEM(sc1->state, SCREENMAXIMIZED, SCREENFULL)) {
 			ScrArea *sa = sc1->areabase.first;
 			if (sa->full == sc) {
 				sc = sc1;
@@ -1532,7 +1526,8 @@ void ED_screen_restore_temp_type(bContext *C, ScrArea *sa)
 
 	if (sa->flag & AREA_FLAG_TEMP_TYPE) {
 		ED_area_prevspace(C, sa);
-		sa->flag &= ~AREA_FLAG_TEMP_TYPE;
+		/* Flag should be cleared now. */
+		BLI_assert((sa->flag & AREA_FLAG_TEMP_TYPE) == 0);
 	}
 
 	if (sa->full) {

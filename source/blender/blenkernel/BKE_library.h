@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __BKE_LIBRARY_H__
 #define __BKE_LIBRARY_H__
@@ -40,15 +32,15 @@ extern "C" {
 
 struct BlendThumbnail;
 struct GHash;
-struct ListBase;
 struct ID;
 struct ImBuf;
-struct Main;
 struct Library;
-struct wmWindowManager;
-struct bContext;
+struct ListBase;
+struct Main;
 struct PointerRNA;
 struct PropertyRNA;
+struct bContext;
+struct wmWindowManager;
 
 size_t BKE_libblock_get_alloc_info(short type, const char **name);
 void *BKE_libblock_alloc_notest(short type) ATTR_WARN_UNUSED_RESULT;
@@ -174,8 +166,10 @@ struct BlendThumbnail *BKE_main_thumbnail_from_imbuf(struct Main *bmain, struct 
 struct ImBuf *BKE_main_thumbnail_to_imbuf(struct Main *bmain, struct BlendThumbnail *data);
 void BKE_main_thumbnail_create(struct Main *bmain);
 
-const char *BKE_main_blendfile_path(const struct Main *bmain) ATTR_NONNULL();
-const char *BKE_main_blendfile_path_from_global(void);
+const char *BKE_main_blendfile_path(const struct Main *bmain)
+	ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT ATTR_RETURNS_NONNULL;
+const char *BKE_main_blendfile_path_from_global(void)
+	ATTR_WARN_UNUSED_RESULT ATTR_RETURNS_NONNULL;
 
 void BKE_main_id_tag_idcode(struct Main *mainvar, const short type, const int tag, const bool value);
 void BKE_main_id_tag_listbase(struct ListBase *lb, const int tag, const bool value);
@@ -185,6 +179,8 @@ void BKE_main_id_flag_listbase(struct ListBase *lb, const int flag, const bool v
 void BKE_main_id_flag_all(struct Main *bmain, const int flag, const bool value);
 
 void BKE_main_id_clear_newpoins(struct Main *bmain);
+
+void BLE_main_id_refcount_recompute(struct Main *bmain, const bool do_linked_only);
 
 void BKE_main_lib_objects_recalc_all(struct Main *bmain);
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_genfile.h
@@ -62,18 +54,21 @@ typedef enum eSDNA_Type {
 /* define so switch statements don't complain */
 #define SDNA_TYPE_VOID 9
 	SDNA_TYPE_INT64    = 10,
-	SDNA_TYPE_UINT64   = 11
+	SDNA_TYPE_UINT64   = 11,
 } eSDNA_Type;
 
 /**
  * For use with #DNA_struct_reconstruct & #DNA_struct_get_compareflags
  */
 enum eSDNA_StructCompare {
-	/* Struct has disappeared (values of this struct type will not be loaded by the current Blender) */
+	/* Struct has disappeared
+	 * (values of this struct type will not be loaded by the current Blender) */
 	SDNA_CMP_REMOVED    = 0,
-	/* Struct is the same (can be loaded with straight memory copy after any necessary endian conversion) */
+	/* Struct is the same
+	 * (can be loaded with straight memory copy after any necessary endian conversion) */
 	SDNA_CMP_EQUAL      = 1,
-	/* Struct is different in some way (needs to be copied/converted field by field) */
+	/* Struct is different in some way
+	 * (needs to be copied/converted field by field) */
 	SDNA_CMP_NOT_EQUAL  = 2,
 };
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): David Millan Escriva, Juho Vepsäläinen, Nathan Letwory
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_node/node_relationships.c
@@ -1161,7 +1153,7 @@ static void node_join_attach_recursive(bNode *node, bNode *frame)
 		if (node->parent->done & NODE_JOIN_IS_DESCENDANT)
 			node->done |= NODE_JOIN_IS_DESCENDANT;
 		else if (node->flag & NODE_TEST) {
-			/* if parent is not an decendant of the frame, reattach the node */
+			/* if parent is not an descendant of the frame, reattach the node */
 			nodeDetachNode(node);
 			nodeAttachNode(node, frame);
 			node->done |= NODE_JOIN_IS_DESCENDANT;
@@ -1179,7 +1171,8 @@ static int node_join_exec(bContext *C, wmOperator *UNUSED(op))
 	bNodeTree *ntree = snode->edittree;
 	bNode *node, *frame;
 
-	/* XXX save selection: node_add_node call below sets the new frame as single active+selected node */
+	/* XXX save selection: node_add_node call below sets the new frame as single
+	 * active+selected node */
 	for (node = ntree->nodes.first; node; node = node->next) {
 		if (node->flag & NODE_SELECT)
 			node->flag |= NODE_TEST;
@@ -1327,7 +1320,7 @@ static void node_detach_recursive(bNode *node)
 		if (node->parent->done & NODE_DETACH_IS_DESCENDANT)
 			node->done |= NODE_DETACH_IS_DESCENDANT;
 		else if (node->flag & NODE_SELECT) {
-			/* if parent is not a decendant of a selected node, detach */
+			/* if parent is not a descendant of a selected node, detach */
 			nodeDetachNode(node);
 			node->done |= NODE_DETACH_IS_DESCENDANT;
 		}
@@ -1455,11 +1448,13 @@ void ED_node_link_intersect_test(ScrArea *sa, int test)
 			float dist = FLT_MAX;
 			int i;
 
-			/* loop over link coords to find shortest dist to upper left node edge of a intersected line segment */
+			/* loop over link coords to find shortest dist to
+			 * upper left node edge of a intersected line segment */
 			for (i = 0; i < NODE_LINK_RESOL; i++) {
 				/* check if the node rect intersetcts the line from this point to next one */
 				if (BLI_rctf_isect_segment(&select->totr, coord_array[i], coord_array[i + 1])) {
-					/* store the shortest distance to the upper left edge of all intersetctions found so far */
+					/* store the shortest distance to the upper left edge
+					 * of all intersetctions found so far */
 					const float node_xy[] = {select->totr.xmin, select->totr.ymax};
 
 					/* to be precise coord_array should be clipped by select->totr,
@@ -1590,7 +1585,7 @@ static void node_link_insert_offset_frame_chains(
 
 /**
  * Callback that applies NodeInsertOfsData.offset_x to a node or its parent,
- * considering the logic needed for offseting nodes after link insert
+ * considering the logic needed for offsetting nodes after link insert
  */
 static bool node_link_insert_offset_chain_cb(
         bNode *fromnode, bNode *tonode,
@@ -1645,10 +1640,12 @@ static void node_link_insert_offset_ntree(
 	/* NODE_TEST will be used later, so disable for all nodes */
 	ntreeNodeFlagSet(ntree, NODE_TEST, false);
 
-	/* insert->totr isn't updated yet, so totr_insert is used to get the correct worldspace coords */
+	/* insert->totr isn't updated yet,
+	 * so totr_insert is used to get the correct worldspace coords */
 	node_to_updated_rect(insert, &totr_insert);
 
-	/* frame attachement was't handled yet so we search the frame that the node will be attached to later */
+	/* frame attachment wasn't handled yet
+	 * so we search the frame that the node will be attached to later */
 	insert->parent = node_find_frame_to_attach(ar, ntree, mouse_xy);
 
 	/* this makes sure nodes are also correctly offset when inserting a node on top of a frame

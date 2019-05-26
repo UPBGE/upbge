@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Francisco De La Cruz
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/operators/bmo_poke.c
@@ -57,14 +51,14 @@ void bmo_poke_exec(BMesh *bm, BMOperator *op)
 	void (*bm_face_calc_center_fn)(const BMFace *f, float r_cent[3]);
 
 	switch (center_mode) {
-		case BMOP_POKE_MEAN_WEIGHTED:
-			bm_face_calc_center_fn = BM_face_calc_center_mean_weighted;
+		case BMOP_POKE_MEDIAN_WEIGHTED:
+			bm_face_calc_center_fn = BM_face_calc_center_median_weighted;
 			break;
 		case BMOP_POKE_BOUNDS:
 			bm_face_calc_center_fn = BM_face_calc_center_bounds;
 			break;
-		case BMOP_POKE_MEAN:
-			bm_face_calc_center_fn = BM_face_calc_center_mean;
+		case BMOP_POKE_MEDIAN:
+			bm_face_calc_center_fn = BM_face_calc_center_median;
 			break;
 		default:
 			BLI_assert(0);
@@ -90,11 +84,11 @@ void bmo_poke_exec(BMesh *bm, BMOperator *op)
 		BMO_vert_flag_enable(bm, v_center, ELE_NEW);
 
 		if (cd_loop_mdisp_offset != -1) {
-			if (center_mode == BMOP_POKE_MEAN) {
+			if (center_mode == BMOP_POKE_MEDIAN) {
 				copy_v3_v3(f_center_mean, f_center);
 			}
 			else {
-				BM_face_calc_center_mean(f, f_center_mean);
+				BM_face_calc_center_median(f, f_center_mean);
 			}
 		}
 
@@ -132,7 +126,7 @@ void bmo_poke_exec(BMesh *bm, BMOperator *op)
 
 			if (cd_loop_mdisp_offset != -1) {
 				float f_new_center[3];
-				BM_face_calc_center_mean(f_new, f_new_center);
+				BM_face_calc_center_median(f_new, f_new_center);
 				BM_face_interp_multires_ex(bm, f_new, f, f_new_center, f_center, cd_loop_mdisp_offset);
 			}
 

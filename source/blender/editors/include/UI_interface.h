@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file UI_interface.h
@@ -38,46 +30,46 @@
 
 /* Struct Declarations */
 
+struct ARegion;
+struct AutoComplete;
 struct ID;
 struct IDProperty;
+struct ImBuf;
+struct Image;
+struct ImageUser;
 struct ListBase;
-struct ARegion;
-struct ScrArea;
-struct bScreen;
-struct wmEvent;
-struct wmWindow;
-struct wmOperator;
-struct AutoComplete;
-struct bContext;
-struct bContextStore;
+struct MTex;
 struct Panel;
 struct PanelType;
 struct PointerRNA;
 struct PropertyRNA;
 struct ReportList;
-struct rcti;
-struct uiList;
-struct uiStyle;
-struct uiFontStyle;
-struct uiWidgetColors;
-struct Image;
-struct ImageUser;
-struct wmKeyConfig;
-struct wmOperatorType;
-struct uiWidgetColors;
-struct MTex;
-struct ImBuf;
-struct bNodeTree;
+struct ScrArea;
+struct bContext;
+struct bContextStore;
 struct bNode;
 struct bNodeSocket;
-struct wmDropBox;
+struct bNodeTree;
+struct bScreen;
+struct rcti;
+struct uiFontStyle;
+struct uiList;
+struct uiStyle;
+struct uiWidgetColors;
+struct uiWidgetColors;
 struct wmDrag;
+struct wmDropBox;
 struct wmEvent;
+struct wmEvent;
+struct wmKeyConfig;
+struct wmOperator;
+struct wmOperatorType;
+struct wmWindow;
 
-typedef struct uiBut uiBut;
 typedef struct uiBlock uiBlock;
-typedef struct uiPopupBlockHandle uiPopupBlockHandle;
+typedef struct uiBut uiBut;
 typedef struct uiLayout uiLayout;
+typedef struct uiPopupBlockHandle uiPopupBlockHandle;
 
 /* Defines */
 
@@ -439,7 +431,9 @@ typedef void (*uiBlockCancelFunc)(struct bContext *C, void *arg1);
 void UI_popup_block_invoke(struct bContext *C, uiBlockCreateFunc func, void *arg);
 void UI_popup_block_invoke_ex(struct bContext *C, uiBlockCreateFunc func, void *arg, const char *opname, int opcontext);
 void UI_popup_block_ex(struct bContext *C, uiBlockCreateFunc func, uiBlockHandleFunc popup_func, uiBlockCancelFunc cancel_func, void *arg, struct wmOperator *op);
-/* void uiPupBlockOperator(struct bContext *C, uiBlockCreateFunc func, struct wmOperator *op, int opcontext); */ /* UNUSED */
+#if 0  /* UNUSED */
+void uiPupBlockOperator(struct bContext *C, uiBlockCreateFunc func, struct wmOperator *op, int opcontext);
+#endif
 
 void UI_popup_block_close(struct bContext *C, struct wmWindow *win, uiBlock *block);
 
@@ -462,6 +456,11 @@ void UI_block_update_from_old(const struct bContext *C, struct uiBlock *block);
 
 uiBlock *UI_block_find_in_region(const char *name, struct ARegion *ar);
 
+enum {
+	UI_BLOCK_THEME_STYLE_REGULAR = 0,
+	UI_BLOCK_THEME_STYLE_POPUP = 1,
+};
+void UI_block_theme_style_set(uiBlock *block, char theme_style);
 void UI_block_emboss_set(uiBlock *block, char dt);
 
 void UI_block_free(const struct bContext *C, uiBlock *block);
@@ -887,7 +886,7 @@ enum {
 	UI_CNR_BOTTOM_LEFT  = (1 << 3),
 	/* just for convenience */
 	UI_CNR_NONE         = 0,
-	UI_CNR_ALL          = (UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT)
+	UI_CNR_ALL          = (UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT),
 };
 
 /* not apart of the corner flags but mixed in some functions  */
@@ -1071,6 +1070,7 @@ void uiItemV(uiLayout *layout, const char *name, int icon, int argval); /* value
 void uiItemS(uiLayout *layout); /* separator */
 
 void uiItemMenuF(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *arg);
+void uiItemMenuFN(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *argN);
 void uiItemMenuEnumO_ptr(uiLayout *layout, struct bContext *C, struct wmOperatorType *ot, const char *propname, const char *name, int icon);
 void uiItemMenuEnumO(uiLayout *layout, struct bContext *C, const char *opname, const char *propname, const char *name, int icon);
 void uiItemMenuEnumR_prop(uiLayout *layout, struct PointerRNA *ptr, PropertyRNA *prop, const char *name, int icon);

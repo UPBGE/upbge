@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Benoit Bolsee.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/intern/gpu.c
@@ -62,7 +54,7 @@ static struct PyModuleDef gpumodule = {
 	"gpu",     /* name of module */
 	M_gpu_doc, /* module documentation */
 	-1,        /* size of per-interpreter state of the module,
-	            *  or -1 if the module keeps state in global variables. */
+	            * or -1 if the module keeps state in global variables. */
 	NULL, NULL, NULL, NULL, NULL
 };
 
@@ -345,7 +337,7 @@ PyObject *GPU_initPython(void)
 {
 	PyObject *module;
 	PyObject *submodule;
-	PyObject *sys_modules = PyThreadState_GET()->interp->modules;
+	PyObject *sys_modules = PyImport_GetModuleDict();
 
 	module = PyInit_gpu();
 
@@ -356,6 +348,6 @@ PyObject *GPU_initPython(void)
 	PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
 	Py_INCREF(submodule);
 
-	PyDict_SetItem(PyImport_GetModuleDict(), PyModule_GetNameObject(module), module);
+	PyDict_SetItem(sys_modules, PyModule_GetNameObject(module), module);
 	return module;
 }

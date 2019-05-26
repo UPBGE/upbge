@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Brecht Van Lommel.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/gpu/intern/gpu_codegen.h
@@ -38,17 +30,17 @@
 #include "GPU_material.h"
 #include "GPU_glew.h"
 
-struct ListBase;
-struct GPUShader;
-struct GPUOutput;
 struct GPUNode;
+struct GPUOutput;
+struct GPUShader;
 struct GPUVertexAttribs;
+struct ListBase;
 struct PreviewImage;
 
 /* Pass Generation
- *  - Takes a list of nodes and a desired output, and makes a pass. This
- *    will take ownership of the nodes and free them early if unused or
- *    at the end if used.
+ * - Takes a list of nodes and a desired output, and makes a pass. This
+ *   will take ownership of the nodes and free them early if unused or
+ *   at the end if used.
  */
 
 typedef enum GPUDataSource {
@@ -64,7 +56,7 @@ typedef enum {
 	GPU_NODE_LINK_IMAGE_NONE = 0,
 	GPU_NODE_LINK_IMAGE_BLENDER = 1,
 	GPU_NODE_LINK_IMAGE_PREVIEW = 2,
-	GPU_NODE_LINK_IMAGE_CUBE_MAP = 3
+	GPU_NODE_LINK_IMAGE_CUBE_MAP = 3,
 } GPUNodeLinkImage;
 
 struct GPUNode {

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation (2008).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_CONTEXT_H__
@@ -38,36 +32,36 @@ extern "C" {
 #endif
 
 struct ARegion;
-struct bScreen;
 struct CacheFile;
+struct EditBone;
+struct ID;
+struct Image;
 struct ListBase;
 struct Main;
 struct Object;
 struct PointerRNA;
+struct RegionView3D;
 struct ReportList;
 struct Scene;
 struct ScrArea;
+struct SpaceClip;
+struct SpaceImage;
 struct SpaceLink;
-struct View3D;
-struct RegionView3D;
+struct SpaceText;
 struct StructRNA;
-struct ToolSettings;
-struct Image;
 struct Text;
-struct EditBone;
-struct bPoseChannel;
-struct bGPdata;
-struct bGPDlayer;
+struct ToolSettings;
+struct View3D;
+struct bGPDbrush;
 struct bGPDframe;
+struct bGPDlayer;
 struct bGPDpalette;
 struct bGPDpalettecolor;
-struct bGPDbrush;
+struct bGPdata;
+struct bPoseChannel;
+struct bScreen;
 struct wmWindow;
 struct wmWindowManager;
-struct SpaceText;
-struct SpaceImage;
-struct SpaceClip;
-struct ID;
 
 /* Structs */
 

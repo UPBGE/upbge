@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation, 2010.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/imbuf/intern/filetype.c
@@ -74,7 +68,7 @@ const ImFileType IMB_FILE_TYPES[] = {
 	{NULL, NULL, imb_is_a_hdr, NULL, imb_ftype_default, imb_loadhdr, NULL, imb_savehdr, NULL, IM_FTYPE_FLOAT, IMB_FTYPE_RADHDR, COLOR_ROLE_DEFAULT_FLOAT},
 #endif
 #ifdef WITH_OPENEXR
-	{imb_initopenexr, NULL, imb_is_a_openexr, NULL, imb_ftype_default, imb_load_openexr, NULL, imb_save_openexr, NULL, IM_FTYPE_FLOAT, IMB_FTYPE_OPENEXR, COLOR_ROLE_DEFAULT_FLOAT},
+	{imb_initopenexr, imb_exitopenexr, imb_is_a_openexr, NULL, imb_ftype_default, imb_load_openexr, NULL, imb_save_openexr, NULL, IM_FTYPE_FLOAT, IMB_FTYPE_OPENEXR, COLOR_ROLE_DEFAULT_FLOAT},
 #endif
 #ifdef WITH_OPENJPEG
 	{NULL, NULL, imb_is_a_jp2, NULL, imb_ftype_default, imb_load_jp2, NULL, imb_save_jp2, NULL, IM_FTYPE_FLOAT, IMB_FTYPE_JP2, COLOR_ROLE_DEFAULT_BYTE},

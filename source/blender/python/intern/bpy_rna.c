@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/intern/bpy_rna.c
@@ -90,7 +84,7 @@ static PyObject *pyrna_prop_collection_values(BPy_PropertyRNA *self);
 #define BPY_DOC_ID_PROP_TYPE_NOTE                                             \
 "   .. note::\n"                                                              \
 "\n"                                                                          \
-"      Only :class:`bpy.types.ID`, :class:`bpy.types.Bone` and \n"            \
+"      Only :class:`bpy.types.ID`, :class:`bpy.types.Bone` and\n"             \
 "      :class:`bpy.types.PoseBone` classes support custom properties.\n"
 
 
@@ -1206,7 +1200,7 @@ static int pyrna_string_to_enum(
 		if (!RNA_property_enum_value(BPy_GetContext(), ptr, prop, param, r_value)) {
 			const char *enum_str = pyrna_enum_as_string(ptr, prop);
 			PyErr_Format(PyExc_TypeError,
-			             "%.200s enum \"%.200s\" not found in (%.200s)",
+			             "%.200s enum \"%.200s\" not found in (%s)",
 			             error_prefix, param, enum_str);
 			MEM_freeN((void *)enum_str);
 			return -1;
@@ -2351,7 +2345,7 @@ static int pyrna_prop_collection_subscript_str_lib_pair_ptr(
 		}
 		else {
 			PyErr_Format(PyExc_KeyError,
-			             "%s: lib must be a sting or None, not %.200s",
+			             "%s: lib must be a string or None, not %.200s",
 			             err_prefix, Py_TYPE(keylib)->tp_name);
 			return -1;
 		}
@@ -4091,7 +4085,7 @@ static PyObject *pyrna_struct_meta_idprop_getattro(PyObject *cls, PyObject *attr
 	 * <bpy_struct, BoolProperty("foo")>
 	 * ...rather than returning the deferred class register tuple as checked by pyrna_is_deferred_prop()
 	 *
-	 * Disable for now, this is faking internal behavior in a way thats too tricky to maintain well. */
+	 * Disable for now, this is faking internal behavior in a way that's too tricky to maintain well. */
 #if 0
 	if (ret == NULL) { // || pyrna_is_deferred_prop(ret)
 		StructRNA *srna = srna_from_self(cls, "StructRNA.__getattr__");
@@ -7309,7 +7303,7 @@ static int deferred_register_prop(StructRNA *srna, PyObject *key, PyObject *item
 				    RNA_struct_idprops_contains_datablock(type_srna))
 				{
 					PyErr_Format(PyExc_ValueError,
-					             "bpy_struct \"%.200s\" doesn't support datablock properties \n",
+					             "bpy_struct \"%.200s\" doesn't support datablock properties\n",
 					             RNA_struct_identifier(srna));
 					return -1;
 				}

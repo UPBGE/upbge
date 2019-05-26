@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -20,7 +18,6 @@
  *
  * The Original Code is: some of this file.
  *
- * ***** END GPL LICENSE BLOCK *****
  * */
 
 /** \file blender/blenlib/intern/math_geom.c
@@ -361,9 +358,9 @@ void closest_to_line_segment_v3(float r_close[3], const float p[3], const float 
 /**
  * Find the closest point on a plane.
  *
- * \param r_close  Return coordinate
- * \param plane  The plane to test against.
- * \param pt  The point to find the nearest of
+ * \param r_close: Return coordinate
+ * \param plane: The plane to test against.
+ * \param pt: The point to find the nearest of
  *
  * \note non-unit-length planes are supported.
  */
@@ -486,7 +483,7 @@ float dist_to_line_v3(const float p[3], const float l1[3], const float l2[3])
  * Check if \a p is inside the 2x planes defined by ``(v1, v2, v3)``
  * where the 3x points define 2x planes.
  *
- * \param axis_ref used when v1,v2,v3 form a line and to check if the corner is concave/convex.
+ * \param axis_ref: used when v1,v2,v3 form a line and to check if the corner is concave/convex.
  *
  * \note the distance from \a v1 & \a v3 to \a v2 doesnt matter
  * (it just defines the planes).
@@ -909,6 +906,70 @@ int isect_seg_seg_v2(const float v1[2], const float v2[2], const float v3[2], co
 		return ISECT_LINE_LINE_CROSS;
 	}
 	return ISECT_LINE_LINE_NONE;
+}
+
+/* Returns a point on each segment that is closest to the other. */
+void isect_seg_seg_v3(
+        const float a0[3], const float a1[3],
+        const float b0[3], const float b1[3],
+        float r_a[3], float r_b[3])
+{
+	float fac_a, fac_b;
+	float a_dir[3], b_dir[3], a0b0[3], crs_ab[3];
+	sub_v3_v3v3(a_dir, a1, a0);
+	sub_v3_v3v3(b_dir, b1, b0);
+	sub_v3_v3v3(a0b0, b0, a0);
+	cross_v3_v3v3(crs_ab, b_dir, a_dir);
+	const float nlen = len_squared_v3(crs_ab);
+
+	if (nlen == 0.0f) {
+		/* Parallel Lines */
+		/* In this case return any point that
+		 * is between the closest segments. */
+		float a0b1[3], a1b0[3], len_a, len_b, fac1, fac2;
+		sub_v3_v3v3(a0b1, b1, a0);
+		sub_v3_v3v3(a1b0, b0, a1);
+		len_a = len_squared_v3(a_dir);
+		len_b = len_squared_v3(b_dir);
+
+		if (len_a) {
+			fac1 = dot_v3v3(a0b0, a_dir);
+			fac2 = dot_v3v3(a0b1, a_dir);
+			CLAMP(fac1, 0.0f, len_a);
+			CLAMP(fac2, 0.0f, len_a);
+			fac_a = (fac1 + fac2) / (2 * len_a);
+		}
+		else {
+			fac_a = 0.0f;
+		}
+
+		if (len_b) {
+			fac1 = -dot_v3v3(a0b0, b_dir);
+			fac2 = -dot_v3v3(a1b0, b_dir);
+			CLAMP(fac1, 0.0f, len_b);
+			CLAMP(fac2, 0.0f, len_b);
+			fac_b = (fac1 + fac2) / (2 * len_b);
+		}
+		else {
+			fac_b = 0.0f;
+		}
+	}
+	else {
+		float c[3], cray[3];
+		sub_v3_v3v3(c, crs_ab, a0b0);
+
+		cross_v3_v3v3(cray, c, b_dir);
+		fac_a = dot_v3v3(cray, crs_ab) / nlen;
+
+		cross_v3_v3v3(cray, c, a_dir);
+		fac_b = dot_v3v3(cray, crs_ab) / nlen;
+
+		CLAMP(fac_a, 0.0f, 1.0f);
+		CLAMP(fac_b, 0.0f, 1.0f);
+	}
+
+	madd_v3_v3v3fl(r_a, a0, a_dir, fac_a);
+	madd_v3_v3v3fl(r_b, b0, b_dir, fac_b);
 }
 
 /**
@@ -1788,11 +1849,11 @@ bool isect_point_planes_v3(float (*planes)[4], int totplane, const float p[3])
 /**
  * Intersect line/plane.
  *
- * \param r_isect_co The intersection point.
- * \param l1 The first point of the line.
- * \param l2 The second point of the line.
- * \param plane_co A point on the plane to intersect with.
- * \param plane_no The direction of the plane (does not need to be normalized).
+ * \param r_isect_co: The intersection point.
+ * \param l1: The first point of the line.
+ * \param l2: The second point of the line.
+ * \param plane_co: A point on the plane to intersect with.
+ * \param plane_no: The direction of the plane (does not need to be normalized).
  *
  * \note #line_plane_factor_v3() shares logic.
  */
@@ -1862,8 +1923,6 @@ bool isect_plane_plane_plane_v3(
 /**
  * Intersect two planes, return a point on the intersection and a vector
  * that runs on the direction of the intersection.
- *
- *
  * \note this is a slightly reduced version of #isect_plane_plane_plane_v3
  *
  * \param plane_a, plane_b: Planes.
@@ -1968,7 +2027,8 @@ bool isect_tri_tri_epsilon_v3(
 				/* ignore collinear lines, they are either an edge shared between 2 tri's
 				 * (which runs along [co_proj, plane_no], but can be safely ignored).
 				 *
-				 * or a collinear edge placed away from the ray - which we don't intersect with & can ignore. */
+				 * or a collinear edge placed away from the ray -
+				 * which we don't intersect with & can ignore. */
 				if (UNLIKELY(edge_fac == -1.0f)) {
 					/* pass */
 				}
@@ -2618,8 +2678,9 @@ float line_plane_factor_v3(const float plane_co[3], const float plane_no[3],
 	return (dot != 0.0f) ? -dot_v3v3(plane_no, h) / dot : 0.0f;
 }
 
-/** Ensure the distance between these points is no greater than 'dist'.
- *  If it is, scale then both into the center.
+/**
+ * Ensure the distance between these points is no greater than 'dist'.
+ * If it is, scale then both into the center.
  */
 void limit_dist_v3(float v1[3], float v2[3], const float dist)
 {
@@ -2864,8 +2925,8 @@ bool clip_segment_v3_plane_n(
  * This matrix can be applied to vectors so their 'z' axis runs along \a normal.
  * In practice it means you can use x,y as 2d coords. \see
  *
- * \param r_mat The matrix to return.
- * \param normal A unit length vector.
+ * \param r_mat: The matrix to return.
+ * \param normal: A unit length vector.
  */
 void axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3])
 {
@@ -3180,9 +3241,10 @@ void transform_point_by_tri_v3(
 {
 	/* this works by moving the source triangle so its normal is pointing on the Z
 	 * axis where its barycentric weights can be calculated in 2D and its Z offset can
-	 *  be re-applied. The weights are applied directly to the targets 3D points and the
-	 *  z-depth is used to scale the targets normal as an offset.
-	 * This saves transforming the target into its Z-Up orientation and back (which could also work) */
+	 * be re-applied. The weights are applied directly to the targets 3D points and the
+	 * z-depth is used to scale the targets normal as an offset.
+	 * This saves transforming the target into its Z-Up orientation and back
+	 * (which could also work) */
 	float no_tar[3], no_src[3];
 	float mat_src[3][3];
 	float pt_src_xy[3];
@@ -3389,7 +3451,8 @@ void interp_weights_poly_v3(float *w, float v[][3], const int n, const float co[
 
 	while (i_next < n) {
 		/* Mark Mayer et al algorithm that is used here does not operate well if vertex is close
-		 * to borders of face. In that case, do simple linear interpolation between the two edge vertices */
+		 * to borders of face.
+		 * In that case, do simple linear interpolation between the two edge vertices */
 
 		/* 'd_next.len' is infact 'd_curr.len', just avoid copy to begin with */
 		if (UNLIKELY(d_next.len < eps)) {
@@ -3462,7 +3525,8 @@ void interp_weights_poly_v2(float *w, float v[][2], const int n, const float co[
 
 	while (i_next < n) {
 		/* Mark Mayer et al algorithm that is used here does not operate well if vertex is close
-		 * to borders of face. In that case, do simple linear interpolation between the two edge vertices */
+		 * to borders of face. In that case,
+		 * do simple linear interpolation between the two edge vertices */
 
 		/* 'd_next.len' is infact 'd_curr.len', just avoid copy to begin with */
 		if (UNLIKELY(d_next.len < eps)) {
@@ -3544,7 +3608,8 @@ void interp_cubic_v3(float x[3], float v[3], const float x1[3], const float v1[3
 	v[2] = 3 * a[2] * t2 + 2 * b[2] * t + v1[2];
 }
 
-/* unfortunately internal calculations have to be done at double precision to achieve correct/stable results. */
+/* unfortunately internal calculations have to be done at double precision
+ * to achieve correct/stable results. */
 
 #define IS_ZERO(x) ((x > (-DBL_EPSILON) && x < DBL_EPSILON) ? 1 : 0)
 
@@ -3814,7 +3879,8 @@ void perspective_m4(float mat[4][4], const float left, const float right, const 
 
 }
 
-/* translate a matrix created by orthographic_m4 or perspective_m4 in XY coords (used to jitter the view) */
+/* translate a matrix created by orthographic_m4 or perspective_m4 in XY coords
+ * (used to jitter the view) */
 void window_translate_m4(float winmat[4][4], float perspmat[4][4], const float x, const float y)
 {
 	if (winmat[2][3] == -1.0f) {
@@ -4308,7 +4374,8 @@ void vcloud_estimate_transform_v3(
 		if (lloc) copy_v3_v3(lloc, accu_com);
 		if (rloc) copy_v3_v3(rloc, accu_rcom);
 		if (lrot || lscale) { /* caller does not want rot nor scale, strange but legal */
-			/*so now do some reverse engineering and see if we can split rotation from scale ->Polardecompose*/
+			/* so now do some reverse engineering and see if we can
+			 * split rotation from scale -> Polardecompose */
 			/* build 'projection' matrix */
 			float m[3][3], mr[3][3], q[3][3], qi[3][3];
 			float va[3], vb[3], stunt[3];

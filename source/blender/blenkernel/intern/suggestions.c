@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Ian Thompson.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/suggestions.c
@@ -246,12 +238,12 @@ void texttool_docs_show(const char *docs)
 	/* Ensure documentation ends with a '\n' */
 	if (docs[len - 1] != '\n') {
 		documentation = MEM_mallocN(len + 2, "Documentation");
-		BLI_strncpy(documentation, docs, len);
+		memcpy(documentation, docs, len);
 		documentation[len++] = '\n';
 	}
 	else {
 		documentation = MEM_mallocN(len + 1, "Documentation");
-		BLI_strncpy(documentation, docs, len);
+		memcpy(documentation, docs, len);
 	}
 	documentation[len] = '\0';
 }

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,15 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 by Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Xavier Thomas,
- *                 Lukas Toenne,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 #ifndef __IMB_COLORMANAGEMENT_H__
@@ -41,18 +30,18 @@
 #define BCM_CONFIG_FILE "config.ocio"
 
 
-struct bContext;
 struct ColorManagedColorspaceSettings;
 struct ColorManagedDisplaySettings;
 struct ColorManagedViewSettings;
 struct ColormanageProcessor;
 struct EnumPropertyItem;
 struct ImBuf;
-struct Main;
 struct ImageFormatData;
+struct Main;
+struct bContext;
 
-struct ColorSpace;
 struct ColorManagedDisplay;
+struct ColorSpace;
 
 /* ** Generic functions ** */
 
@@ -143,6 +132,8 @@ const char *IMB_colormanagement_display_get_indexed_name(int index);
 const char *IMB_colormanagement_display_get_default_name(void);
 struct ColorManagedDisplay *IMB_colormanagement_display_get_named(const char *name);
 const char *IMB_colormanagement_display_get_none_name(void);
+const char *IMB_colormanagement_display_get_default_view_transform_name(
+        struct ColorManagedDisplay *display);
 
 /* ** View funcrions ** */
 int IMB_colormanagement_view_get_named_index(const char *name);

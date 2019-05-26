@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): David Millan Escriva, Juho Vepsäläinen, Nathan Letwory
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_node/node_edit.c
@@ -83,7 +75,7 @@
 
 enum {
 	COM_RECALC_COMPOSITE = 1,
-	COM_RECALC_VIEWER    = 2
+	COM_RECALC_VIEWER    = 2,
 };
 
 typedef struct CompoJob {
@@ -257,7 +249,7 @@ static void compo_startjob(void *cjv, short *stop, short *do_update, float *prog
 }
 
 /**
- * \param scene_owner is the owner of the job,
+ * \param scene_owner: is the owner of the job,
  * we don't use it for anything else currently so could also be a void pointer,
  * but for now keep it an 'Scene' for consistency.
  *
@@ -329,10 +321,10 @@ void snode_dag_update(bContext *C, SpaceNode *snode)
 
 	/* for groups, update all ID's using this */
 	if (snode->edittree != snode->nodetree) {
-		FOREACH_NODETREE(bmain, tntree, id) {
+		FOREACH_NODETREE_BEGIN(bmain, tntree, id) {
 			if (ntreeHasTree(tntree, snode->edittree))
 				DAG_id_tag_update(id, 0);
-		} FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END;
 	}
 
 	DAG_id_tag_update(snode->id, 0);
@@ -2009,7 +2001,8 @@ static int node_clipboard_copy_exec(bContext *C, wmOperator *UNUSED(op))
 
 			/* ensure valid pointers */
 			if (new_node->parent) {
-				/* parent pointer must be redirected to new node or detached if parent is not copied */
+				/* parent pointer must be redirected to new node or detached if parent is
+				 * not copied */
 				if (new_node->parent->flag & NODE_SELECT) {
 					new_node->parent = new_node->parent->new_node;
 				}
@@ -2452,17 +2445,17 @@ static int node_shader_script_update_exec(bContext *C, wmOperator *op)
 
 		if (text) {
 			/* clear flags for recursion check */
-			FOREACH_NODETREE(bmain, ntree, id) {
+			FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 				if (ntree->type == NTREE_SHADER)
 					ntree->done = false;
-			} FOREACH_NODETREE_END
+			} FOREACH_NODETREE_END;
 
-			FOREACH_NODETREE(bmain, ntree, id) {
+			FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 				if (ntree->type == NTREE_SHADER) {
 					if (!ntree->done)
 						found |= node_shader_script_update_text_recursive(engine, type, ntree, text);
 				}
-			} FOREACH_NODETREE_END
+			} FOREACH_NODETREE_END;
 
 			if (!found)
 				BKE_report(op->reports, RPT_INFO, "Text not used by any node, no update done");

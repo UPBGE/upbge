@@ -48,8 +48,11 @@ protected:
 	friend class BVH;
 	BVH2(const BVHParams& params, const vector<Object*>& objects);
 
+	/* Building process. */
+	virtual BVHNode *widen_children_nodes(const BVHNode *root) override;
+
 	/* pack */
-	void pack_nodes(const BVHNode *root);
+	void pack_nodes(const BVHNode *root) override;
 
 	void pack_leaf(const BVHStackEntry& e,
 	               const LeafNode *leaf);
@@ -78,10 +81,10 @@ protected:
 	                         uint visibility0, uint visibility1);
 
 	/* refit */
-	void refit_nodes();
+	void refit_nodes() override;
 	void refit_node(int idx, bool leaf, BoundBox& bbox, uint& visibility);
 };
 
 CCL_NAMESPACE_END
 
-#endif /* __BVH2_H__ */
+#endif  /* __BVH2_H__ */

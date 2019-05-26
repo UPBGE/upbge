@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 by Blender Foundation
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s):
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/object/object_bake_api.c
@@ -195,7 +187,7 @@ static bool write_internal_bake_pixels(
 		RE_bake_mask_fill(pixel_array, num_pixels, mask_buffer);
 	}
 
-	is_float = (ibuf->flags & IB_rectfloat);
+	is_float = (ibuf->rect_float != NULL);
 
 	/* colormanagement conversions */
 	if (!is_noncolor) {

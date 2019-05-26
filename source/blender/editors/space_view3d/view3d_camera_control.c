@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/view3d_camera_control.c
@@ -27,8 +21,6 @@
  * (mainly \a ofs and \a viewquat) for the purpose of view navigation
  * without having to worry about positioning the camera, its parent...
  * or other details.
- *
- *
  * Typical view-control usage:
  *
  * - acquire a view-control (#ED_view3d_cameracontrol_acquire).
@@ -87,7 +79,7 @@ typedef struct View3DCameraControl {
 
 
 	/* -------------------------------------------------------------------- */
-	/* intial values */
+	/* initial values */
 
 	/* root most parent */
 	Object *root_parent;
@@ -216,7 +208,8 @@ void ED_view3d_cameracontrol_update(
         const bool use_autokey,
         struct bContext *C, const bool do_rotate, const bool do_translate)
 {
-	/* we are in camera view so apply the view ofs and quat to the view matrix and set the camera to the view */
+	/* we are in camera view so apply the view ofs and quat to the view matrix and set the camera
+	 * to the view */
 
 	Scene *scene       = vctrl->ctx_scene;
 	View3D *v3d        = vctrl->ctx_v3d;
@@ -281,7 +274,7 @@ void ED_view3d_cameracontrol_update(
 /**
  * Release view control.
  *
- * \param restore  Sets the view state to the values that were set
+ * \param restore: Sets the view state to the values that were set
  *                 before #ED_view3d_control_acquire was called.
  */
 void ED_view3d_cameracontrol_release(

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Joseph Gilbert
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/mathutils/mathutils_Euler.c
@@ -161,7 +155,7 @@ PyDoc_STRVAR(Euler_to_matrix_doc,
 "\n"
 "   Return a matrix representation of the euler.\n"
 "\n"
-"   :return: A 3x3 roation matrix representation of the euler.\n"
+"   :return: A 3x3 rotation matrix representation of the euler.\n"
 "   :rtype: :class:`Matrix`\n"
 );
 static PyObject *Euler_to_matrix(EulerObject *self)
@@ -612,12 +606,12 @@ PyDoc_STRVAR(Euler_axis_doc,
 );
 static PyObject *Euler_axis_get(EulerObject *self, void *type)
 {
-	return Euler_item(self, GET_INT_FROM_POINTER(type));
+	return Euler_item(self, POINTER_AS_INT(type));
 }
 
 static int Euler_axis_set(EulerObject *self, PyObject *value, void *type)
 {
-	return Euler_ass_item(self, GET_INT_FROM_POINTER(type), value);
+	return Euler_ass_item(self, POINTER_AS_INT(type), value);
 }
 
 /* rotation order */

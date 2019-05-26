@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
- *
- *
- * Contributor(s): Joshua Leung (major recode)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_nla/nla_channels.c
@@ -64,14 +57,15 @@
 #include "nla_intern.h" // own include
 
 /* *********************************************** */
-/* Operators for NLA channels-list which need to be different from the standard Animation Editor ones */
+/* Operators for NLA channels-list which need to be different
+ * from the standard Animation Editor ones */
 
 /* ******************** Mouse-Click Operator *********************** */
 /* Depending on the channel that was clicked on, the mouse click will activate whichever
  * part of the channel is relevant.
  *
  * NOTE: eventually, this should probably be phased out when many of these things are replaced with buttons
- *	--> Most channels are now selection only...
+ * --> Most channels are now selection only...
  */
 
 static int mouse_nla_channels(bContext *C, bAnimContext *ac, float x, int channel_index, short selectmode)
@@ -256,7 +250,8 @@ static int mouse_nla_channels(bContext *C, bAnimContext *ac, float x, int channe
 					nlt->flag |= NLATRACK_SELECTED;
 				}
 
-				/* if NLA-Track is selected now, make NLA-Track the 'active' one in the visible list */
+				/* if NLA-Track is selected now,
+				 * make NLA-Track the 'active' one in the visible list */
 				if (nlt->flag & NLATRACK_SELECTED)
 					ANIM_set_active_channel(ac, ac->data, ac->datatype, filter, nlt, ANIMTYPE_NLATRACK);
 
@@ -274,7 +269,8 @@ static int mouse_nla_channels(bContext *C, bAnimContext *ac, float x, int channe
 				if (nlaedit_is_tweakmode_on(ac) == 0) {
 					/* 'push-down' action - only usable when not in TweakMode */
 					/* TODO: make this use the operator instead of calling the function directly
-					 *  however, calling the operator requires that we supply the args, and that works with proper buttons only */
+					 * however, calling the operator requires that we supply the args,
+					 * and that works with proper buttons only */
 					BKE_nla_action_pushdown(adt);
 				}
 				else {
@@ -367,8 +363,8 @@ static int nlachannels_mouseclick_invoke(bContext *C, wmOperator *op, const wmEv
 
 	/* figure out which channel user clicked in
 	 * Note: although channels technically start at y= NLACHANNEL_FIRST, we need to adjust by half a channel's height
-	 *		so that the tops of channels get caught ok. Since NLACHANNEL_FIRST is really NLACHANNEL_HEIGHT, we simply use
-	 *		NLACHANNEL_HEIGHT_HALF.
+	 *      so that the tops of channels get caught ok. Since NLACHANNEL_FIRST is really NLACHANNEL_HEIGHT, we simply use
+	 *      NLACHANNEL_HEIGHT_HALF.
 	 */
 	UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, &y);
 	UI_view2d_listview_view_to_cell(v2d, NLACHANNEL_NAMEWIDTH, NLACHANNEL_STEP(snla), 0, (float)NLACHANNEL_HEIGHT_HALF(snla), x, y, NULL, &channel_index);
@@ -600,7 +596,8 @@ bool nlaedit_add_tracks_existing(bAnimContext *ac, bool above_sel)
 				added = true;
 			}
 			else if ((lastAdt == NULL) || (adt != lastAdt)) {
-				/* add one track to the top of the owning AnimData's stack, then don't add anymore to this stack */
+				/* add one track to the top of the owning AnimData's stack,
+				 * then don't add anymore to this stack */
 				BKE_nlatrack_add(adt, NULL);
 				lastAdt = adt;
 				added = true;

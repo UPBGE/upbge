@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  * meshlaplacian.c: Algorithms using the mesh laplacian.
  */
 
@@ -898,9 +892,10 @@ static void harmonic_ray_callback(void *userdata, int index, const BVHTreeRay *r
 	face[1] = mdb->cagecos[mloop[lt->tri[1]].v];
 	face[2] = mdb->cagecos[mloop[lt->tri[2]].v];
 
-	if (!isect_ray_tri_watertight_v3(
-	        ray->origin, ray->isect_precalc, UNPACK3(face), &dist, NULL))
-	{
+	bool isect_ray_tri = isect_ray_tri_watertight_v3(
+	        ray->origin, ray->isect_precalc, UNPACK3(face), &dist, NULL);
+
+	if (!isect_ray_tri || dist > isec->vec_length) {
 		return;
 	}
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_world_types.h
@@ -36,9 +28,9 @@
 #include "DNA_ID.h"
 
 struct AnimData;
-struct bNodeTree;
 struct Ipo;
 struct MTex;
+struct bNodeTree;
 
 #ifndef MAX_MTEX
 #define MAX_MTEX	18
@@ -134,22 +126,22 @@ typedef struct World {
 /* **************** WORLD ********************* */
 
 /* skytype */
-#define WO_SKYBLEND		1
-#define WO_SKYREAL		2
-#define WO_SKYPAPER		4
+#define WO_SKYBLEND     (1 << 0)
+#define WO_SKYREAL      (1 << 1)
+#define WO_SKYPAPER     (1 << 2)
 /* while render: */
-#define WO_SKYTEX		8
-#define WO_ZENUP		16
+#define WO_SKYTEX       (1 << 3)
+#define WO_ZENUP        (1 << 4)
 
 /* mode */
-#define WO_MIST	               1
-//#define WO_STARS               2 /* deprecated */
-/*#define WO_DOF                 4*/
-#define WO_ACTIVITY_CULLING	   8
-#define WO_ENV_LIGHT   		  16
-#define WO_DBVT_CULLING		  32
-#define WO_AMB_OCC   		  64
-#define WO_INDIRECT_LIGHT	  128
+#define WO_MIST                (1 << 0)
+//#define WO_STARS               (1 << 1) /* deprecated */
+/*#define WO_DOF                 (1 << 2) */
+#define WO_ACTIVITY_CULLING    (1 << 3)
+#define WO_ENV_LIGHT          (1 << 4)
+#define WO_DBVT_CULLING       (1 << 5)
+#define WO_AMB_OCC            (1 << 6)
+#define WO_INDIRECT_LIGHT     (1 << 7)
 
 /* aomix */
 enum {
@@ -167,9 +159,9 @@ enum {
 #define WO_AOSAMP_HAMMERSLEY		2
 
 /* aomode (use distances & random sampling modes) */
-#define WO_AODIST		1
-#define WO_AORNDSMP		2
-#define WO_AOCACHE		4
+#define WO_AODIST       (1 << 0)
+#define WO_AORNDSMP     (1 << 1)
+#define WO_AOCACHE      (1 << 2)
 
 /* aocolor */
 #define WO_AOPLAIN	0
@@ -181,17 +173,17 @@ enum {
 #define WO_AOGATHER_APPROX		1
 
 /* texco (also in DNA_material_types.h) */
-#define TEXCO_ANGMAP	64
-#define TEXCO_H_SPHEREMAP	256
-#define TEXCO_H_TUBEMAP	1024
-#define TEXCO_EQUIRECTMAP 2048
+#define TEXCO_ANGMAP      (1 << 6)
+#define TEXCO_H_SPHEREMAP (1 << 8)
+#define TEXCO_H_TUBEMAP   (1 << 10)
+#define TEXCO_EQUIRECTMAP (1 << 11)
 
 /* mapto */
-#define WOMAP_BLEND		1
-#define WOMAP_HORIZ		2
-#define WOMAP_ZENUP		4
-#define WOMAP_ZENDOWN	8
-// #define WOMAP_MIST		16 /* Deprecated */
+#define WOMAP_BLEND     (1 << 0)
+#define WOMAP_HORIZ     (1 << 1)
+#define WOMAP_ZENUP     (1 << 2)
+#define WOMAP_ZENDOWN   (1 << 3)
+// #define WOMAP_MIST   (1 << 4) /* Deprecated */
 
 /* flag */
 #define WO_DS_EXPAND	(1<<0)

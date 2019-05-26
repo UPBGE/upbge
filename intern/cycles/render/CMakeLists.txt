@@ -15,11 +15,14 @@ set(SRC
 	buffers.cpp
 	camera.cpp
 	constant_fold.cpp
+	coverage.cpp
+	denoising.cpp
 	film.cpp
 	graph.cpp
 	image.cpp
 	integrator.cpp
 	light.cpp
+	merge.cpp
 	mesh.cpp
 	mesh_displace.cpp
 	mesh_subdivision.cpp
@@ -46,11 +49,14 @@ set(SRC_HEADERS
 	buffers.h
 	camera.h
 	constant_fold.h
+	coverage.h
+	denoising.h
 	film.h
 	graph.h
 	image.h
 	integrator.h
 	light.h
+	merge.h
 	mesh.h
 	nodes.h
 	object.h

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Esteban Tovagliari, Cedric Paille, Kevin Dietrich
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __ABC_UTIL_H__
@@ -167,7 +161,7 @@ typedef enum {
 } AbcAxisSwapMode;
 
 /* Create a rotation matrix for each axis from euler angles.
- * Euler angles are swaped to change coordinate system. */
+ * Euler angles are swapped to change coordinate system. */
 void create_swapped_rotation_matrix(
         float rot_x_mat[3][3], float rot_y_mat[3][3],
         float rot_z_mat[3][3], const float euler[3],
@@ -197,7 +191,7 @@ public:
 /* *************************** */
 
 /**
- * Utility class whose purpose is to more easily log related informations. An
+ * Utility class whose purpose is to more easily log related information. An
  * instance of the SimpleLogger can be created in any context, and will hold a
  * copy of all the strings passed to its output stream.
  *

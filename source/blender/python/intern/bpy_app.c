@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/intern/bpy_app.c
@@ -237,13 +231,13 @@ PyDoc_STRVAR(bpy_app_debug_doc,
 );
 static PyObject *bpy_app_debug_get(PyObject *UNUSED(self), void *closure)
 {
-	const int flag = GET_INT_FROM_POINTER(closure);
+	const int flag = POINTER_AS_INT(closure);
 	return PyBool_FromLong(G.debug & flag);
 }
 
 static int bpy_app_debug_set(PyObject *UNUSED(self), PyObject *value, void *closure)
 {
-	const int flag = GET_INT_FROM_POINTER(closure);
+	const int flag = POINTER_AS_INT(closure);
 	const int param = PyObject_IsTrue(value);
 
 	if (param == -1) {
@@ -314,7 +308,7 @@ static int bpy_app_debug_value_set(PyObject *UNUSED(self), PyObject *value, void
 
 static PyObject *bpy_app_global_flag_get(PyObject *UNUSED(self), void *closure)
 {
-	const int flag = GET_INT_FROM_POINTER(closure);
+	const int flag = POINTER_AS_INT(closure);
 	return PyBool_FromLong(G.f & flag);
 }
 
@@ -346,7 +340,7 @@ PyDoc_STRVAR(bpy_app_preview_render_size_doc,
 );
 static PyObject *bpy_app_preview_render_size_get(PyObject *UNUSED(self), void *closure)
 {
-	return PyLong_FromLong((long)UI_preview_render_size(GET_INT_FROM_POINTER(closure)));
+	return PyLong_FromLong((long)UI_preview_render_size(POINTER_AS_INT(closure)));
 }
 
 static PyObject *bpy_app_autoexec_fail_message_get(PyObject *UNUSED(self), void *UNUSED(closure))
@@ -371,6 +365,7 @@ static PyGetSetDef bpy_app_getsets[] = {
 	{(char *)"debug_depsgraph_pretty", bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_DEPSGRAPH_PRETTY},
 	{(char *)"debug_simdata",   bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_SIMDATA},
 	{(char *)"debug_gpumem",    bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_GPU_MEM},
+	{(char *)"debug_io",        bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_IO},
 
 	{(char *)"binary_path_python", bpy_app_binary_path_python_get, NULL, (char *)bpy_app_binary_path_python_doc, NULL},
 

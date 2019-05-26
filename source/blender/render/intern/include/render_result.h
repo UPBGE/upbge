@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/include/render_result.h
@@ -40,16 +32,17 @@
 #define RR_ALL_LAYERS	NULL
 #define RR_ALL_VIEWS	NULL
 
+struct ColorManagedDisplaySettings;
+struct ColorManagedViewSettings;
 struct ImBuf;
 struct ListBase;
 struct Render;
 struct RenderData;
+struct RenderEngine;
 struct RenderLayer;
 struct RenderResult;
 struct Scene;
 struct rcti;
-struct ColorManagedDisplaySettings;
-struct ColorManagedViewSettings;
 
 /* New */
 
@@ -85,8 +78,8 @@ void render_result_single_layer_end(struct Render *re);
 /* EXR Tile File Render */
 
 void render_result_save_empty_result_tiles(struct Render *re);
-void render_result_exr_file_begin(struct Render *re);
-void render_result_exr_file_end(struct Render *re);
+void render_result_exr_file_begin(struct Render *re, struct RenderEngine *engine);
+void render_result_exr_file_end(struct Render *re, struct RenderEngine *engine);
 
 /* render pass wrapper for gpencil */
 struct RenderPass *gp_add_pass(struct RenderResult *rr, struct RenderLayer *rl, int channels, const char *name, const char *viewname);
@@ -94,7 +87,7 @@ struct RenderPass *gp_add_pass(struct RenderResult *rr, struct RenderLayer *rl, 
 void render_result_exr_file_merge(struct RenderResult *rr, struct RenderResult *rrpart, const char *viewname);
 
 void render_result_exr_file_path(struct Scene *scene, const char *layname, int sample, char *filepath);
-int render_result_exr_file_read_sample(struct Render *re, int sample);
+int render_result_exr_file_read_sample(struct Render *re, int sample, struct RenderEngine *engine);
 int render_result_exr_file_read_path(struct RenderResult *rr, struct RenderLayer *rl_single, const char *filepath);
 
 /* EXR cache */

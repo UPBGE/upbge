@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __FREESTYLE_ADVANCED_PREDICATES_1D_H__
@@ -52,10 +48,10 @@ class DensityLowerThanUP1D : public UnaryPredicate1D
 {
 public:
 	/*! Builds the functor.
-	 *  \param threshold
+	 *  \param threshold:
 	 *    The value of the threshold density.
 	 *    Any Interface1D having a density lower than this threshold will match.
-	 *  \param sigma
+	 *  \param sigma:
 	 *    The sigma value defining the density evaluation window size used in the DensityF0D functor.
 	 */
 	DensityLowerThanUP1D(double threshold, double sigma = 2)

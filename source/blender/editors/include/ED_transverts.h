@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_transverts.h
@@ -61,9 +54,12 @@ enum {
 
 /* mode flags: */
 enum {
-	TM_ALL_JOINTS      = (1 << 0),  /* all joints (for bones only) */
-	TM_SKIP_HANDLES    = (1 << 1),  /* skip handles when control point is selected (for curves only) */
-	TM_CALC_NORMALS    = (1 << 2),  /* fill in normals when available */
+	/** all joints (for bones only) */
+	TM_ALL_JOINTS      = (1 << 0),
+	/** skip handles when control point is selected (for curves only) */
+	TM_SKIP_HANDLES    = (1 << 1),
+	/** fill in normals when available */
+	TM_CALC_NORMALS    = (1 << 2),
 };
 
 enum {

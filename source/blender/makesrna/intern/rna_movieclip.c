@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,11 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_movieclip.c
@@ -70,6 +63,12 @@ static void rna_MovieClip_size_get(PointerRNA *ptr, int *values)
 
 	values[0] = clip->lastsize[0];
 	values[1] = clip->lastsize[1];
+}
+
+static float rna_MovieClip_fps_get(PointerRNA *ptr)
+{
+	MovieClip *clip = (MovieClip *)ptr->id.data;
+	return BKE_movieclip_get_fps(clip);
 }
 
 static void rna_MovieClipUser_proxy_render_settings_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
@@ -361,6 +360,12 @@ static void rna_def_movieclip(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_sdna(prop, NULL, "len");
 	RNA_def_property_ui_text(prop, "Duration", "Detected duration of movie clip in frames");
+
+	/* FPS */
+	prop = RNA_def_property(srna, "fps", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_float_funcs(prop, "rna_MovieClip_fps_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Frame Rate", "Detected frame rate of the movie clip in frames per second");
 
 	/* color management */
 	prop = RNA_def_property(srna, "colorspace_settings", PROP_POINTER, PROP_NONE);

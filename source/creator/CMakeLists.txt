@@ -761,6 +761,19 @@ elseif(WIN32)
 				DESTINATION ${BLENDER_VERSION}/python/bin
 				CONFIGURATIONS Debug
 			)
+			if(WINDOWS_PYTHON_DEBUG)
+				install(
+					FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.pdb
+					DESTINATION "."
+					CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+				)
+
+				install(
+					FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.pdb
+					DESTINATION "."
+					CONFIGURATIONS Debug
+				)
+			endif()
 		endif()
 
 		unset(_PYTHON_VERSION_NO_DOTS)
@@ -776,13 +789,6 @@ elseif(WIN32)
 				install(FILES "${D3DCOMPILER_DLL}" DESTINATION ".")
 			endif()
 		endif()
-	endif()
-
-	if(MSVC)
-		install(
-			FILES ${LIBDIR}/pthreads/lib/pthreadVC2.dll
-			DESTINATION "."
-		)
 	endif()
 
 	if(WITH_CODEC_FFMPEG)
@@ -909,6 +915,13 @@ elseif(APPLE)
 		blender.app/Contents/
 	)
 
+	if(WITH_OPENMP AND OPENMP_CUSTOM)
+		install(
+			FILES ${LIBDIR}/openmp/lib/libomp.dylib
+			DESTINATION blender.app/Contents/Resources/lib
+		)
+	endif()
+
 	if(WITH_LLVM AND NOT LLVM_STATIC)
 		install(
 			FILES ${LIBDIR}/llvm/lib/libLLVM-3.4.dylib
@@ -967,13 +980,12 @@ elseif(APPLE)
 			blenderplayer.app/Contents/
 		)
 
-		if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
+		if(WITH_OPENMP AND OPENMP_CUSTOM)
 			install(
-				FILES ${LIBDIR}/openmp/lib/libiomp5.dylib
-				DESTINATION blenderplayer.app/Contents/Resources/lib/
+				FILES ${LIBDIR}/openmp/lib/libomp.dylib
+				DESTINATION blenderplayer.app/Contents/Resources/lib
 			)
 		endif()
-
 
 		# python
 		if(WITH_PYTHON AND NOT WITH_PYTHON_FRAMEWORK)
@@ -1038,5 +1050,10 @@ if(WIN32 AND NOT WITH_PYTHON_MODULE)
 		TARGETS blender
 		COMPONENT Blender
 		DESTINATION "."
+	)
+	set_target_properties(
+		blender
+		PROPERTIES
+			VS_USER_PROPS "blender.Cpp.user.props"
 	)
 endif()

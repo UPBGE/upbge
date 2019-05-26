@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_curve_types.h
@@ -39,15 +31,15 @@
 
 #define MAXTEXTBOX 256  /* used in readfile.c and editfont.c */
 
+struct AnimData;
 struct BoundBox;
-struct Object;
+struct EditFont;
+struct GHash;
 struct Ipo;
 struct Key;
 struct Material;
+struct Object;
 struct VFont;
-struct AnimData;
-struct EditFont;
-struct GHash;
 
 /* These two Lines with # tell makesdna this struct can be excluded. */
 #
@@ -297,10 +289,14 @@ enum {
 	CU_FAST               = 1 << 9,  /* Font: no filling inside editmode */
 	/* CU_RETOPO          = 1 << 10, */  /* DEPRECATED */
 	CU_DS_EXPAND          = 1 << 11,
-	CU_PATH_RADIUS        = 1 << 12,  /* make use of the path radius if this is enabled (default for new curves) */
-	CU_DEFORM_FILL        = 1 << 13,  /* fill 2d curve after deformation */
-	CU_FILL_CAPS          = 1 << 14,  /* fill bevel caps */
-	CU_MAP_TAPER          = 1 << 15,  /* map taper object to beveled area */
+	/** make use of the path radius if this is enabled (default for new curves) */
+	CU_PATH_RADIUS        = 1 << 12,
+	/** fill 2d curve after deformation */
+	CU_DEFORM_FILL        = 1 << 13,
+	/** fill bevel caps */
+	CU_FILL_CAPS          = 1 << 14,
+	/** map taper object to beveled area */
+	CU_MAP_TAPER          = 1 << 15,
 };
 
 /* Curve.twist_mode */
@@ -397,7 +393,7 @@ typedef enum eBezTriple_Handle {
 /* f5 (beztriple) */
 typedef enum eBezTriple_Auto_Type {
 	HD_AUTOTYPE_NORMAL = 0,
-	HD_AUTOTYPE_SPECIAL = 1
+	HD_AUTOTYPE_SPECIAL = 1,
 } eBezTriple_Auto_Type;
 
 /* interpolation modes (used only for BezTriple->ipo) */
@@ -457,7 +453,8 @@ enum {
 	CU_CHINFO_BOLD            = 1 << 0,
 	CU_CHINFO_ITALIC          = 1 << 1,
 	CU_CHINFO_UNDERLINE       = 1 << 2,
-	CU_CHINFO_WRAP            = 1 << 3,  /* wordwrap occurred here */
+	/** wordwrap occurred here */
+	CU_CHINFO_WRAP            = 1 << 3,
 	CU_CHINFO_SMALLCAPS       = 1 << 4,
 	CU_CHINFO_SMALLCAPS_CHECK = 1 << 5,  /* set at runtime, checks if case switching is needed */
 };

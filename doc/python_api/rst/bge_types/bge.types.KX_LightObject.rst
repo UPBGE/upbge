@@ -155,7 +155,7 @@ base class --- :class:`KX_GameObject`
       :type: float in [0 - 1]
 
       .. note::
-         
+
          Higher values result in a more focused light source.
 
    .. attribute:: staticShadow

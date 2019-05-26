@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __WM_API_H__
 #define __WM_API_H__
@@ -29,12 +22,12 @@
 /** \file blender/windowmanager/WM_api.h
  *  \ingroup wm
  *
- *  \page wmpage windowmanager
- *  \section wmabout About windowmanager
- *  \ref wm handles events received from \ref GHOST and manages
- *  the screens, areas and input for Blender
- *  \section wmnote NOTE
- *  \todo document
+ * \page wmpage windowmanager
+ * \section wmabout About windowmanager
+ * \ref wm handles events received from \ref GHOST and manages
+ * the screens, areas and input for Blender
+ * \section wmnote NOTE
+ * \todo document
  */
 
 /* dna-savable wmStructs here */
@@ -46,24 +39,25 @@
 extern "C" {
 #endif
 
-struct bContext;
+struct ARegion;
 struct GHashIterator;
 struct IDProperty;
+struct ImBuf;
+struct ImageFormatData;
+struct MenuType;
+struct PointerRNA;
+struct PropertyRNA;
+struct bContext;
+struct rcti;
+struct wmDrag;
+struct wmDropBox;
 struct wmEvent;
 struct wmEventHandler;
 struct wmGesture;
 struct wmJob;
-struct wmOperatorType;
 struct wmOperator;
-struct rcti;
-struct PointerRNA;
-struct PropertyRNA;
-struct MenuType;
-struct wmDropBox;
-struct wmDrag;
-struct ImBuf;
-struct ImageFormatData;
-struct ARegion;
+struct wmOperatorType;
+struct wmPaintCursor;
 
 #ifdef WITH_INPUT_NDOF
 struct wmNDOFMotionData;
@@ -78,6 +72,7 @@ const char *WM_init_state_app_template_get(void);
 void		WM_init_state_size_set		(int stax, int stay, int sizx, int sizy);
 void		WM_init_state_fullscreen_set(void);
 void		WM_init_state_normal_set(void);
+void		WM_init_window_focus_set(bool do_it);
 void		WM_init_native_pixels(bool do_it);
 
 void		WM_init				(struct bContext *C, int argc, const char **argv);
@@ -132,14 +127,16 @@ void		WM_cursor_grab_enable(struct wmWindow *win, bool wrap, bool hide, int boun
 void		WM_cursor_grab_disable(struct wmWindow *win, const int mouse_ungrab_xy[2]);
 void		WM_cursor_time		(struct wmWindow *win, int nr);
 
-void *WM_paint_cursor_activate(
+struct wmPaintCursor *WM_paint_cursor_activate(
         struct wmWindowManager *wm,
         bool (*poll)(struct bContext *C),
         void (*draw)(struct bContext *C, int, int, void *customdata),
         void *customdata);
 
-void		WM_paint_cursor_end(struct wmWindowManager *wm, void *handle);
+bool		WM_paint_cursor_end(struct wmWindowManager *wm, struct wmPaintCursor *handle);
+void       *WM_paint_cursor_customdata_get(struct wmPaintCursor *pc);
 void		WM_paint_cursor_tag_redraw(struct wmWindow *win, struct ARegion *ar);
+
 
 void		WM_cursor_warp		(struct wmWindow *win, int x, int y);
 void		WM_cursor_compatible_xy(wmWindow *win, int *x, int *y);
@@ -444,7 +441,7 @@ enum {
 	WM_JOB_PRIORITY     = (1 << 0),
 	WM_JOB_EXCL_RENDER  = (1 << 1),
 	WM_JOB_PROGRESS     = (1 << 2),
-	WM_JOB_SUSPEND      = (1 << 3)
+	WM_JOB_SUSPEND      = (1 << 3),
 };
 
 /* identifying jobs by owner alone is unreliable, this isnt saved, order can change (keep 0 for 'any') */

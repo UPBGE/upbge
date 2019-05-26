@@ -1520,6 +1520,19 @@ void PointDensityTextureNode::attributes(Shader *shader,
 	ShaderNode::attributes(shader, attributes);
 }
 
+void PointDensityTextureNode::add_image()
+{
+	if(slot == -1) {
+		ImageMetaData metadata;
+		slot = image_manager->add_image(filename.string(), builtin_data,
+		                                false, 0,
+		                                interpolation,
+		                                EXTENSION_CLIP,
+		                                true,
+		                                metadata);
+	}
+}
+
 void PointDensityTextureNode::compile(SVMCompiler& compiler)
 {
 	ShaderInput *vector_in = input("Vector");
@@ -1532,15 +1545,7 @@ void PointDensityTextureNode::compile(SVMCompiler& compiler)
 	image_manager = compiler.image_manager;
 
 	if(use_density || use_color) {
-		if(slot == -1) {
-			ImageMetaData metadata;
-			slot = image_manager->add_image(filename.string(), builtin_data,
-			                                false, 0,
-			                                interpolation,
-			                                EXTENSION_CLIP,
-			                                true,
-			                                metadata);
-		}
+		add_image();
 
 		if(slot != -1) {
 			compiler.stack_assign(vector_in);
@@ -1583,15 +1588,7 @@ void PointDensityTextureNode::compile(OSLCompiler& compiler)
 	image_manager = compiler.image_manager;
 
 	if(use_density || use_color) {
-		if(slot == -1) {
-			ImageMetaData metadata;
-			slot = image_manager->add_image(filename.string(), builtin_data,
-			                                false, 0,
-			                                interpolation,
-			                                EXTENSION_CLIP,
-			                                true,
-			                                metadata);
-		}
+		add_image();
 
 		if(slot != -1) {
 			compiler.parameter("filename", string_printf("@i%d", slot).c_str());
@@ -1713,9 +1710,9 @@ void RGBToBWNode::constant_fold(const ConstantFolder& folder)
 void RGBToBWNode::compile(SVMCompiler& compiler)
 {
 	compiler.add_node(NODE_CONVERT,
-	                 NODE_CONVERT_CF,
-	                 compiler.stack_assign(inputs[0]),
-	                 compiler.stack_assign(outputs[0]));
+	                  NODE_CONVERT_CF,
+	                  compiler.stack_assign(inputs[0]),
+	                  compiler.stack_assign(outputs[0]));
 }
 
 void RGBToBWNode::compile(OSLCompiler& compiler)
@@ -3384,6 +3381,20 @@ void GeometryNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_geometry");
 }
 
+int GeometryNode::get_group()
+{
+	ShaderOutput *out;
+	int result = ShaderNode::get_group();
+
+	/* Backfacing uses NODE_LIGHT_PATH */
+	out = output("Backfacing");
+	if (!out->links.empty()) {
+		result = max(result, NODE_GROUP_LEVEL_1);
+	}
+
+	return result;
+}
+
 /* TextureCoordinate */
 
 NODE_DEFINE(TextureCoordinateNode)
@@ -3533,7 +3544,7 @@ void TextureCoordinateNode::compile(OSLCompiler& compiler)
 	if(compiler.output_type() == SHADER_TYPE_VOLUME)
 		compiler.parameter("is_volume", true);
 	compiler.parameter(this, "use_transform");
-	Transform ob_itfm = transform_transposed_inverse(ob_tfm);
+	Transform ob_itfm = transform_inverse(ob_tfm);
 	compiler.parameter("object_itfm", ob_itfm);
 
 	compiler.parameter(this, "from_dupli");
@@ -3735,7 +3746,7 @@ void LightPathNode::compile(OSLCompiler& compiler)
 
 NODE_DEFINE(LightFalloffNode)
 {
-	NodeType* type = NodeType::add("light_fallof", create, NodeType::SHADER);
+	NodeType* type = NodeType::add("light_falloff", create, NodeType::SHADER);
 
 	SOCKET_IN_FLOAT(strength, "Strength", 100.0f);
 	SOCKET_IN_FLOAT(smooth, "Smooth", 0.0f);
@@ -5843,7 +5854,7 @@ NODE_DEFINE(NormalMapNode)
 	space_enum.insert("world", NODE_NORMAL_MAP_WORLD);
 	space_enum.insert("blender_object", NODE_NORMAL_MAP_BLENDER_OBJECT);
 	space_enum.insert("blender_world", NODE_NORMAL_MAP_BLENDER_WORLD);
-	SOCKET_ENUM(space, "Space", space_enum, NODE_TANGENT_RADIAL);
+	SOCKET_ENUM(space, "Space", space_enum, NODE_NORMAL_MAP_TANGENT);
 
 	SOCKET_STRING(attribute, "Attribute", ustring());
 
@@ -6054,7 +6065,7 @@ NODE_DEFINE(DisplacementNode)
 	space_enum.insert("object", NODE_NORMAL_MAP_OBJECT);
 	space_enum.insert("world", NODE_NORMAL_MAP_WORLD);
 
-	SOCKET_ENUM(space, "Space", space_enum, NODE_NORMAL_MAP_TANGENT);
+	SOCKET_ENUM(space, "Space", space_enum, NODE_NORMAL_MAP_OBJECT);
 
 	SOCKET_IN_FLOAT(height, "Height", 0.0f);
 	SOCKET_IN_FLOAT(midlevel, "Midlevel", 0.5f);

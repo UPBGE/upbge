@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_eyedropper.c
@@ -136,8 +130,8 @@ void eyedropper_draw_cursor_text(const struct bContext *C, const ARegion *ar, co
 	wmWindow *win = CTX_wm_window(C);
 	int x = win->eventstate->x;
 	int y = win->eventstate->y;
-	const unsigned char fg[4] = {255, 255, 255, 255};
-	const unsigned char bg[4] = {0, 0, 0, 50};
+	const uchar fg[4] = {255, 255, 255, 255};
+	const uchar bg[4] = {0, 0, 0, 50};
 
 
 	if ((name[0] == '\0') ||

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_main_api.c
@@ -1864,7 +1857,8 @@ void RNA_def_main_masks(BlenderRNA *brna, PropertyRNA *cprop)
 	/* new func */
 	func = RNA_def_function(srna, "new", "rna_Main_mask_new");
 	RNA_def_function_ui_description(func, "Add a new mask with a given name to the main database");
-	RNA_def_string_file_path(func, "name", NULL, MAX_ID_NAME - 2, "Mask", "Name of new mask data-block");
+	parm = RNA_def_string(func, "name", NULL, MAX_ID_NAME - 2, "Mask", "Name of new mask data-block");
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	/* return type */
 	parm = RNA_def_pointer(func, "mask", "Mask", "", "New mask data-block");
 	RNA_def_function_return(func, parm);

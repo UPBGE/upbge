@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,9 +15,6 @@
  *
  * The Original Code is Copyright (C) 2016 Kévin Dietrich.
  * All rights reserved.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 #include "abc_curves.h"
@@ -154,7 +149,7 @@ void AbcCurveWriter::do_write()
 		if (nurbs->knotsu != NULL) {
 			const size_t num_knots = KNOTSU(nurbs);
 
-			/* Add an extra knot at the beggining and end of the array since most apps
+			/* Add an extra knot at the beginning and end of the array since most apps
 			 * require/expect them. */
 			knots.resize(num_knots + 2);
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -19,11 +17,6 @@
  * Code from gutf8.c Copyright (C) 1999 Tom Tromey
  *                   Copyright (C) 2000 Red Hat, Inc.
  * All rights reserved.
- *
- * Contributor(s): Campbell Barton.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
  /** \file blender/blenlib/intern/string_utf8.c
@@ -48,7 +41,8 @@
 // #define DEBUG_STRSIZE
 
 /* array copied from glib's gutf8.c, */
-/* Note: last two values (0xfe and 0xff) are forbidden in utf-8, so they are considered 1 byte length too. */
+/* Note: last two values (0xfe and 0xff) are forbidden in utf-8,
+ * so they are considered 1 byte length too. */
 static const size_t utf8_skip_data[256] = {
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -90,8 +84,8 @@ ptrdiff_t BLI_utf8_invalid_byte(const char *str, size_t length)
 		if ((c & 0xc0) != 0xc0)
 			goto utf8_error;
 
-		/* Note that since we always increase p (and decrease length) by one byte in main loop, we only add/subtract
-		 * extra utf8 bytes in code below
+		/* Note that since we always increase p (and decrease length) by one byte in main loop,
+		 * we only add/subtract extra utf8 bytes in code below
 		 * (ab number, aka number of bytes remaining in the utf8 sequence after the initial one). */
 		ab = (int)utf8_skip_data[c] - 1;
 		if (length <= ab) {
@@ -272,7 +266,8 @@ char *BLI_strncat_utf8(char *__restrict dst, const char *__restrict src, size_t 
 size_t BLI_strncpy_wchar_as_utf8(char *__restrict dst, const wchar_t *__restrict src, const size_t maxncpy)
 {
 	const size_t maxlen = maxncpy - 1;
-	const int64_t maxlen_secured = (int64_t)maxlen - 6;  /* 6 is max utf8 length of an unicode char. */
+	/* 6 is max utf8 length of an unicode char. */
+	const int64_t maxlen_secured = (int64_t)maxlen - 6;
 	size_t len = 0;
 
 	BLI_assert(maxncpy != 0);
@@ -285,8 +280,8 @@ size_t BLI_strncpy_wchar_as_utf8(char *__restrict dst, const wchar_t *__restrict
 		len += BLI_str_utf8_from_unicode((uint)*src++, dst + len);
 	}
 
-	/* We have to be more careful for the last six bytes, to avoid buffer overflow in case utf8-encoded char
-	 * would be too long for our dst buffer. */
+	/* We have to be more careful for the last six bytes,
+	 * to avoid buffer overflow in case utf8-encoded char would be too long for our dst buffer. */
 	while (*src) {
 		char t[6];
 		size_t l = BLI_str_utf8_from_unicode((uint)*src++, t);
@@ -515,7 +510,7 @@ int BLI_str_utf8_size_safe(const char *p)
 /* was g_utf8_get_char */
 /**
  * BLI_str_utf8_as_unicode:
- * \param p a pointer to Unicode character encoded as UTF-8
+ * \param p: a pointer to Unicode character encoded as UTF-8
  *
  * Converts a sequence of bytes encoded as UTF-8 to a Unicode character.
  * If \a p does not point to a valid UTF-8 encoded character, results are
@@ -677,8 +672,8 @@ size_t BLI_str_utf8_from_unicode(uint c, char *outbuf)
 /* was g_utf8_find_prev_char */
 /**
  * BLI_str_find_prev_char_utf8:
- * \param str pointer to the beginning of a UTF-8 encoded string
- * \param p pointer to some position within \a str
+ * \param str: pointer to the beginning of a UTF-8 encoded string
+ * \param p: pointer to some position within \a str
  *
  * Given a position \a p with a UTF-8 encoded string \a str, find the start
  * of the previous UTF-8 character starting before. \a p Returns %NULL if no
@@ -703,8 +698,8 @@ char *BLI_str_find_prev_char_utf8(const char *str, const char *p)
 /* was g_utf8_find_next_char */
 /**
  * BLI_str_find_next_char_utf8:
- * \param p a pointer to a position within a UTF-8 encoded string
- * \param end a pointer to the byte following the end of the string,
+ * \param p: a pointer to a position within a UTF-8 encoded string
+ * \param end: a pointer to the byte following the end of the string,
  * or %NULL to indicate that the string is nul-terminated.
  *
  * Finds the start of the next UTF-8 character in the string after \a p
@@ -735,7 +730,7 @@ char *BLI_str_find_next_char_utf8(const char *p, const char *end)
 /* was g_utf8_prev_char */
 /**
  * BLI_str_prev_char_utf8:
- * \param p a pointer to a position within a UTF-8 encoded string
+ * \param p: a pointer to a position within a UTF-8 encoded string
  *
  * Finds the previous UTF-8 character in the string before \a p
  *

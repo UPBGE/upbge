@@ -20,7 +20,6 @@
  * other parts of the scene.
  *
  * BVH_MOTION: motion blur rendering
- *
  */
 
 #if BVH_FEATURE(BVH_HAIR)
@@ -81,12 +80,6 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 #endif
 		object = local_object;
 	}
-
-#ifndef __KERNEL_SSE41__
-	if(!isfinite(P.x)) {
-		return false;
-	}
-#endif
 
 	ssef tnear(0.0f), tfar(isect_t);
 #if BVH_FEATURE(BVH_HAIR)

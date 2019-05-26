@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/depsgraph.cc
@@ -142,7 +135,7 @@ static bool pointer_to_component_node_criteria(
 	else if (ptr->type == &RNA_Bone) {
 		Bone *bone = (Bone *)ptr->data;
 		/* armature-level bone, but it ends up going to bone component anyway */
-		// NOTE: the ID in thise case will end up being bArmature.
+		// NOTE: the ID in this case will end up being bArmature.
 		*type = DEG_NODE_TYPE_BONE;
 		*subdata = bone->name;
 		return true;

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,15 +15,7 @@
  *
  * The Original Code is Copyright (C) 2006 by Nicholas Bishop
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Jason Wilkins, Tom Musgrove.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Implements the Sculpt Mode tools
- *
  */
 
 /** \file blender/editors/sculpt_paint/sculpt.c
@@ -106,7 +96,8 @@
  *
  * \{ */
 
-/* Check if there are any active modifiers in stack (used for flushing updates at enter/exit sculpt mode) */
+/* Check if there are any active modifiers in stack
+ * (used for flushing updates at enter/exit sculpt mode) */
 static bool sculpt_has_active_modifiers(Scene *scene, Object *ob)
 {
 	ModifierData *md;
@@ -168,7 +159,7 @@ static bool sculpt_brush_needs_rake_rotation(const Brush *brush)
 typedef enum StrokeFlags {
 	CLIP_X = 1,
 	CLIP_Y = 2,
-	CLIP_Z = 4
+	CLIP_Z = 4,
 } StrokeFlags;
 
 /************** Access to original unmodified vertex data *************/
@@ -323,7 +314,7 @@ typedef struct SculptProjectVector {
 } SculptProjectVector;
 
 /**
- * \param plane  Direction, can be any length.
+ * \param plane: Direction, can be any length.
  */
 static void sculpt_project_v3_cache_init(
         SculptProjectVector *spvc, const float plane[3])
@@ -720,7 +711,6 @@ static bool sculpt_brush_test_cyl(SculptBrushTest *test, float co[3], float loca
 #endif
 
 /* ===== Sculpting =====
- *
  */
 static void flip_v3(float v[3], const char symm)
 {
@@ -1212,7 +1202,7 @@ float tex_strength(SculptSession *ss, const Brush *br,
 	else if (mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
 		/* Get strength by feeding the vertex
 		 * location directly into a texture */
-		avg = BKE_brush_sample_tex_3D(scene, br, point, rgba, 0, ss->tex_pool);
+		avg = BKE_brush_sample_tex_3d(scene, br, point, rgba, 0, ss->tex_pool);
 	}
 	else if (ss->texcache) {
 		float symm_point[3], point_2d[2];
@@ -1253,7 +1243,7 @@ float tex_strength(SculptSession *ss, const Brush *br,
 		}
 		else {
 			const float point_3d[3] = {point_2d[0], point_2d[1], 0.0f};
-			avg = BKE_brush_sample_tex_3D(scene, br, point_3d, rgba, 0, ss->tex_pool);
+			avg = BKE_brush_sample_tex_3d(scene, br, point_3d, rgba, 0, ss->tex_pool);
 		}
 	}
 
@@ -2453,7 +2443,8 @@ static void do_snake_hook_brush_task_cb_ex(
 					project_plane_v3_v3v3(delta_pinch, delta_pinch, ss->cache->true_view_normal);
 				}
 
-				/* important to calculate based on the grabbed location (intentionally ignore fade here). */
+				/* important to calculate based on the grabbed location
+				 * (intentionally ignore fade here). */
 				add_v3_v3(delta_pinch, grab_delta);
 
 				sculpt_project_v3(spvc, delta_pinch, delta_pinch);
@@ -3951,7 +3942,8 @@ static void do_tiled(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSettings 
 	const float *step = sd->paint.tile_offset;
 	int dim;
 
-	/* These are integer locations, for real location: multiply with step and add orgLoc. So 0,0,0 is at orgLoc. */
+	/* These are integer locations, for real location: multiply with step and add orgLoc.
+	 * So 0,0,0 is at orgLoc. */
 	int start[3];
 	int end[3];
 	int cur[3];
@@ -4343,7 +4335,8 @@ static void sculpt_update_cache_invariants(
 
 		if (ss->bm) {
 			/* Free any remaining layer displacements from nodes. If not and topology changes
-			 * from using another tool, then next layer toolstroke can access past disp array bounds */
+			 * from using another tool, then next layer toolstroke
+			 * can access past disp array bounds */
 			BKE_pbvh_free_layer_disp(ss->pbvh);
 		}
 	}
@@ -4526,7 +4519,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 	 *      brush coord/pressure/etc.
 	 *      It's more an events design issue, which doesn't split coordinate/pressure/angle
 	 *      changing events. We should avoid this after events system re-design */
-	if (paint_supports_dynamic_size(brush, ePaintSculpt) || cache->first_time) {
+	if (paint_supports_dynamic_size(brush, PAINT_MODE_SCULPT) || cache->first_time) {
 		cache->pressure = RNA_float_get(ptr, "pressure");
 	}
 
@@ -4543,7 +4536,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 		}
 	}
 
-	if (BKE_brush_use_size_pressure(scene, brush) && paint_supports_dynamic_size(brush, ePaintSculpt)) {
+	if (BKE_brush_use_size_pressure(scene, brush) && paint_supports_dynamic_size(brush, PAINT_MODE_SCULPT)) {
 		cache->radius = cache->initial_radius * cache->pressure;
 	}
 	else {
@@ -4688,7 +4681,7 @@ static float sculpt_raycast_init(
 	RegionView3D *rv3d = vc->ar->regiondata;
 
 	/* TODO: what if the segment is totally clipped? (return == 0) */
-	ED_view3d_win_to_segment(vc->ar, vc->v3d, mouse, ray_start, ray_end, true);
+	ED_view3d_win_to_segment_clipped(vc->ar, vc->v3d, mouse, ray_start, ray_end, true);
 
 	invert_m4_m4(obimat, ob->obmat);
 	mul_m4_v3(obimat, ray_start);
@@ -4795,8 +4788,10 @@ static void sculpt_brush_init_tex(const Scene *scene, Sculpt *sd, SculptSession 
 	MTex *mtex = &brush->mtex;
 
 	/* init mtex nodes */
-	if (mtex->tex && mtex->tex->nodetree)
-		ntreeTexBeginExecTree(mtex->tex->nodetree);  /* has internal flag to detect it only does it once */
+	if (mtex->tex && mtex->tex->nodetree) {
+		/* has internal flag to detect it only does it once */
+		ntreeTexBeginExecTree(mtex->tex->nodetree);
+	}
 
 	/* TODO: Shouldn't really have to do this at the start of every
 	 * stroke, but sculpt would need some sort of notification when
@@ -4914,7 +4909,8 @@ static bool sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
 {
 	/* Don't start the stroke until mouse goes over the mesh.
 	 * note: mouse will only be null when re-executing the saved stroke.
-	 * We have exception for 'exec' strokes since they may not set 'mouse', only 'location', see: T52195. */
+	 * We have exception for 'exec' strokes since they may not set 'mouse',
+	 * only 'location', see: T52195. */
 	if (((op->flag & OP_IS_INVOKE) == 0) ||
 	    (mouse == NULL) || over_mesh(C, op, mouse[0], mouse[1]))
 	{
@@ -5159,7 +5155,7 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 	                "Clicks on the background do not start the stroke");
 }
 
-/**** Reset the copy of the mesh that is being sculpted on (currently just for the layer brush) ****/
+/* Reset the copy of the mesh that is being sculpted on (currently just for the layer brush) */
 
 static int sculpt_set_persistent_base_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -5571,7 +5567,7 @@ static int sculpt_symmetrize_exec(bContext *C, wmOperator *UNUSED(op))
 	BM_mesh_toolflags_set(ss->bm, true);
 
 	/* Symmetrize and re-triangulate */
-	BMO_op_callf(ss->bm, BMO_FLAG_DEFAULTS,
+	BMO_op_callf(ss->bm, (BMO_FLAG_DEFAULTS & ~BMO_FLAG_RESPECT_HIDE),
 	             "symmetrize input=%avef direction=%i  dist=%f",
 	             sd->symmetrize_direction, 0.00001f);
 	sculpt_dynamic_topology_triangulate(ss->bm);
@@ -5667,8 +5663,8 @@ void ED_object_sculptmode_enter_ex(
 		           "Object has negative scale, sculpting may be unpredictable");
 	}
 
-	Paint *paint = BKE_paint_get_active_from_paintmode(scene, ePaintSculpt);
-	BKE_paint_init(bmain, scene, ePaintSculpt, PAINT_CURSOR_SCULPT);
+	Paint *paint = BKE_paint_get_active_from_paintmode(scene, PAINT_MODE_SCULPT);
+	BKE_paint_init(bmain, scene, PAINT_MODE_SCULPT, PAINT_CURSOR_SCULPT);
 
 	paint_cursor_start_explicit(paint, bmain->wm.first, sculpt_poll_view3d);
 
@@ -5728,7 +5724,7 @@ void ED_object_sculptmode_enter(struct bContext *C, ReportList *reports)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	Object *ob = CTX_data_active_object(C);
+	Object *ob = OBACT;
 	ED_object_sculptmode_enter_ex(bmain, scene, ob, reports);
 }
 
@@ -5781,7 +5777,7 @@ void ED_object_sculptmode_exit_ex(
 void ED_object_sculptmode_exit(bContext *C)
 {
 	Scene *scene = CTX_data_scene(C);
-	Object *ob = CTX_data_active_object(C);
+	Object *ob = OBACT;
 	ED_object_sculptmode_exit_ex(scene, ob);
 }
 
@@ -5789,7 +5785,7 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	Object *ob = CTX_data_active_object(C);
+	Object *ob = OBACT;
 	const int mode_flag = OB_MODE_SCULPT;
 	const bool is_mode_set = (ob->mode & mode_flag) != 0;
 

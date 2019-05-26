@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2011 by Bastien Montagne.
  * All rights reserved.
- *
- * Contributor(s): None yet.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/modifiers/intern/MOD_weightvgproximity.c
@@ -81,7 +74,7 @@ typedef struct Vert2GeomData {
 	float *dist[3];
 } Vert2GeomData;
 
-/* Data which is localized to each computed chunk (i.e. thread-safe, and with continous subset of index range). */
+/* Data which is localized to each computed chunk (i.e. thread-safe, and with continuous subset of index range). */
 typedef struct Vert2GeomDataChunk {
 	/* Read-only data */
 	float last_hit_co[3][3];

@@ -123,14 +123,8 @@ public:
 		/* Requested device type. */
 		DeviceType device_type;
 
-		/* Requested kernel type. */
-		KernelType kernel_type;
-
 		/* Use debug version of the kernel. */
 		bool debug;
-
-		/* Use single program */
-		bool single_program;
 
 		/* TODO(mai): Currently this is only for OpenCL, but we should have it implemented for all devices. */
 		/* Artificial memory limit in bytes (0 if disabled). */
@@ -182,4 +176,4 @@ std::ostream& operator <<(std::ostream &os,
 
 CCL_NAMESPACE_END
 
-#endif /* __UTIL_DEBUG_H__ */
+#endif  /* __UTIL_DEBUG_H__ */

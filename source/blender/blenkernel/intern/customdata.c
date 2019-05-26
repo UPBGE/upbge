@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,17 +15,9 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Ben Batt <benbatt@gmail.com>
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Implementation of CustomData.
  *
  * BKE_customdata.h contains the function prototypes for this file.
- *
  */
 
 /** \file blender/blenkernel/intern/customdata.c
@@ -2321,7 +2311,7 @@ void CustomData_interp(const CustomData *source, CustomData *dest,
  * This only applies to item types that may store several sub-item data (e.g. corner data [UVs, VCol, ...] of
  * tessellated faces).
  *
- * \param corner_indices A mapping 'new_index -> old_index' of sub-item data.
+ * \param corner_indices: A mapping 'new_index -> old_index' of sub-item data.
  */
 void CustomData_swap_corners(struct CustomData *data, int index, const int *corner_indices)
 {
@@ -2890,7 +2880,7 @@ void CustomData_bmesh_copy_data(const CustomData *source, CustomData *dest,
 	}
 }
 
-/*Bmesh Custom Data Functions. Should replace editmesh ones with these as well, due to more effecient memory alloc*/
+/*Bmesh Custom Data Functions. Should replace editmesh ones with these as well, due to more efficient memory alloc*/
 void *CustomData_bmesh_get(const CustomData *data, void *block, int type)
 {
 	int layer_index;
@@ -3191,7 +3181,7 @@ void CustomData_bmesh_set_default(CustomData *data, void **block)
 }
 
 /**
- * \param use_default_init initializes data which can't be copied,
+ * \param use_default_init: initializes data which can't be copied,
  * typically you'll want to use this if the BM_xxx create function
  * is called with BM_CREATE_SKIP_CD flag
  */
@@ -3303,11 +3293,11 @@ void CustomData_file_write_info(int type, const char **r_struct_name, int *r_str
 /**
  * Prepare given custom data for file writing.
  *
- * \param data the customdata to tweak for .blend file writing (modified in place).
- * \param r_write_layers contains a reduced set of layers to be written to file, use it with writestruct_at_address()
+ * \param data: the customdata to tweak for .blend file writing (modified in place).
+ * \param r_write_layers: contains a reduced set of layers to be written to file, use it with writestruct_at_address()
  *                       (caller must free it if != \a write_layers_buff).
- * \param write_layers_buff an optional buffer for r_write_layers (to avoid allocating it).
- * \param write_layers_size the size of pre-allocated \a write_layer_buff.
+ * \param write_layers_buff: an optional buffer for r_write_layers (to avoid allocating it).
+ * \param write_layers_size: the size of pre-allocated \a write_layer_buff.
  *
  * \warning After this func has ran, given custom data is no more valid from Blender PoV (its totlayer is invalid).
  *          This func shall always be called with localized data (as it is in write_meshes()).

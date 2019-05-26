@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Daniel Dunbar, Joseph Eagar
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/edgehash.c
@@ -475,7 +469,7 @@ void *BLI_edgehash_lookup_default(EdgeHash *eh, uint v0, uint v1, void *val_defa
  * Remove \a key (v0, v1) from \a eh, or return false if the key wasn't found.
  *
  * \param v0, v1: The key to remove.
- * \param valfreefp  Optional callback to free the value.
+ * \param valfreefp: Optional callback to free the value.
  * \return true if \a key was removed from \a eh.
  */
 bool BLI_edgehash_remove(EdgeHash *eh, uint v0, uint v1, EdgeHashFreeFP valfreefp)
@@ -613,8 +607,8 @@ EdgeHashIterator *BLI_edgehashIterator_new(EdgeHash *eh)
  * be mutated while the iterator is in use, and the iterator will
  * step exactly BLI_edgehash_len(eh) times before becoming done.
  *
- * \param ehi The EdgeHashIterator to initialize.
- * \param eh The EdgeHash to iterate over.
+ * \param ehi: The EdgeHashIterator to initialize.
+ * \param eh: The EdgeHash to iterate over.
  */
 void BLI_edgehashIterator_init(EdgeHashIterator *ehi, EdgeHash *eh)
 {

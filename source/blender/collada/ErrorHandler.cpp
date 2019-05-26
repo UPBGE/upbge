@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Nathan Letwory.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/collada/ErrorHandler.cpp
@@ -50,8 +44,8 @@ ErrorHandler::~ErrorHandler()
 bool ErrorHandler::handleError(const COLLADASaxFWL::IError *error)
 {
 	/* This method must return true when Collada should continue.
-	   See https://github.com/KhronosGroup/OpenCOLLADA/issues/442
-	*/
+	 * See https://github.com/KhronosGroup/OpenCOLLADA/issues/442
+	 */
 	bool isWarning = false;
 
 	if (error->getErrorClass() == COLLADASaxFWL::IError::ERROR_SAXPARSER) {

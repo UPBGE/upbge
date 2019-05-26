@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __FREESTYLE_SILHOUETTE_H__
@@ -949,7 +945,7 @@ public:
 	/*! Returns an iterator over the FEdge points, pointing to the first point. The difference with verticesBegin()
 	 *  is that here we can iterate over points of the FEdge at a any given sampling.
 	 *  Indeed, for each iteration, a virtual point is created.
-	 *  \param t
+	 *  \param t:
 	 *    The sampling with which we want to iterate over points of this FEdge.
 	 */
 	virtual inline Interface0DIterator pointsBegin(float t = 0.0f);
@@ -957,7 +953,7 @@ public:
 	/*! Returns an iterator over the FEdge points, pointing after the last point. The difference with verticesEnd()
 	 * is that here we can iterate over points of the FEdge at a any given sampling.
 	 *  Indeed, for each iteration, a virtual point is created.
-	 *  \param t
+	 *  \param t:
 	 *    The sampling with which we want to iterate over points of this FEdge.
 	 */
 	virtual inline Interface0DIterator pointsEnd(float t = 0.0f);

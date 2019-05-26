@@ -20,7 +20,6 @@
  *
  * BVH_INSTANCING: object instancing
  * BVH_MOTION: motion blur rendering
- *
  */
 
 #if BVH_FEATURE(BVH_HAIR)
@@ -56,12 +55,6 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 #if BVH_FEATURE(BVH_MOTION)
 	Transform ob_itfm;
-#endif
-
-#ifndef __KERNEL_SSE41__
-	if(!isfinite(P.x)) {
-		return false;
-	}
 #endif
 
 	isect->t = ray->t;

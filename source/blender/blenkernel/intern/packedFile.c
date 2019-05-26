@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/packedFile.c
@@ -268,7 +260,7 @@ void packAll(Main *bmain, ReportList *reports, bool verbose)
 #if 0
 
 // attempt to create a function that generates an unique filename
-// this will work when all funtions in fileops.c understand relative filenames...
+// this will work when all functions in fileops.c understand relative filenames...
 
 static char *find_new_name(char *name)
 {
@@ -362,7 +354,7 @@ int writePackedFile(
  *
  * - PF_EQUAL:     the packed file and original file are identical
  * - PF_DIFFERENT: the packed file and original file differ
- * - PF_NOFILE:    the original file doens't exist
+ * - PF_NOFILE:    the original file doesn't exist
  */
 int checkPackedFile(const char *ref_file_name, const char *filename, PackedFile *pf)
 {

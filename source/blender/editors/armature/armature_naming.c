@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2009 full recode.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Operators and API's for renaming bones both in and out of Edit Mode
  */
 
@@ -135,7 +128,7 @@ static void constraint_bone_name_fix(Object *ob, ListBase *conlist, const char *
 
 /* called by UI for renaming a bone */
 /* warning: make sure the original bone was not renamed yet! */
-/* seems messy, but thats what you get with not using pointers but channel names :) */
+/* seems messy, but that's what you get with not using pointers but channel names :) */
 void ED_armature_bone_rename(Main *bmain, bArmature *arm, const char *oldnamep, const char *newnamep)
 {
 	Object *ob;

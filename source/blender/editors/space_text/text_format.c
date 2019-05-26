@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -16,12 +14,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_text/text_format.c
@@ -144,7 +136,7 @@ int text_check_format_len(TextLine *line, unsigned int len)
  * Fill the string with formatting constant,
  * advancing \a str_p and \a fmt_p
  *
- * \param len length in bytes of \a fmt_p to fill.
+ * \param len: length in bytes of \a fmt_p to fill.
  */
 void text_format_fill(const char **str_p, char **fmt_p, const char type, const int len)
 {

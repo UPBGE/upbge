@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/displist.c
@@ -451,9 +443,9 @@ static void curve_to_displist(Curve *cu, ListBase *nubase, ListBase *dispbase,
 }
 
 /**
- * \param normal_proj  Optional normal thats used to project the scanfill verts into 2d coords.
+ * \param normal_proj: Optional normal thats used to project the scanfill verts into 2d coords.
  * Pass this along if known since it saves time calculating the normal.
- * \param flipnormal  Flip the normal (same as passing \a normal_proj negated)
+ * \param flipnormal: Flip the normal (same as passing \a normal_proj negated)
  */
 void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj[3], const bool flipnormal)
 {

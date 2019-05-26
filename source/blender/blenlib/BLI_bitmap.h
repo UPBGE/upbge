@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 by Nicholas Bishop
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BLI_BITMAP_H__
@@ -49,8 +43,7 @@ typedef unsigned int BLI_bitmap;
 #define BLI_BITMAP_SIZE(_tot) \
 	((size_t)(_BITMAP_NUM_BLOCKS(_tot)) * sizeof(BLI_bitmap))
 
-/* allocate memory for a bitmap with '_tot' bits; free
- *  with MEM_freeN() */
+/* allocate memory for a bitmap with '_tot' bits; free with MEM_freeN() */
 #define BLI_BITMAP_NEW(_tot, _alloc_string) \
 	((BLI_bitmap *)MEM_callocN(BLI_BITMAP_SIZE(_tot), \
 	                         _alloc_string))

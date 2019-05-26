@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung
- *                 Bastien Montagne
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Operator for converting Grease Pencil data to geometry
  */
 
@@ -141,7 +133,7 @@ static const EnumPropertyItem *rna_GPConvert_mode_items(bContext *UNUSED(C), Poi
 /* --- */
 
 /* convert the coordinates from the given stroke point into 3d-coordinates
- *	- assumes that the active space is the 3D-View
+ * - assumes that the active space is the 3D-View
  */
 static void gp_strokepoint_convertcoords(
         bContext *C, bGPDlayer *gpl, bGPDstroke *gps, bGPDspoint *source_pt,
@@ -1150,7 +1142,7 @@ static void gp_layer_to_curve(bContext *C, ReportList *reports, bGPdata *gpd, bG
 	}
 
 	/* init the curve object (remove rotation and get curve data from it)
-	 *	- must clear transforms set on object, as those skew our results
+	 * - must clear transforms set on object, as those skew our results
 	 */
 	ob = BKE_object_add_only_object(bmain, OB_CURVE, gpl->info);
 	cu = ob->data = BKE_curve_add(bmain, gpl->info, OB_CURVE);
@@ -1165,7 +1157,8 @@ static void gp_layer_to_curve(bContext *C, ReportList *reports, bGPdata *gpd, bG
 		const bool add_start_point = (link_strokes && !(prev_gps));
 		const bool add_end_point = (link_strokes && !(gps->next));
 
-		/* Detect new strokes created because of GP_STROKE_BUFFER_MAX reached, and stitch them to previous one. */
+		/* Detect new strokes created because of GP_STROKE_BUFFER_MAX reached,
+		 * and stitch them to previous one. */
 		bool stitch = false;
 		if (prev_gps) {
 			bGPDspoint *pt1 = &prev_gps->points[prev_gps->totpoints - 1];

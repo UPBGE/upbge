@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is written by Rob Haarsma (phase)
  * All rights reserved.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * This code parses the Freetype font outline data to chains of Blender's beziertriples.
  * Additional information can be found at the bottom of this file.
  *
@@ -99,7 +92,7 @@ static VChar *freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *
 		che->index = charcode;
 		che->width = glyph->advance.x * scale;
 
-		BLI_ghash_insert(vfd->characters, SET_UINT_IN_POINTER(che->index), che);
+		BLI_ghash_insert(vfd->characters, POINTER_FROM_UINT(che->index), che);
 
 		/* Start converting the FT data */
 		onpoints = (int *)MEM_callocN((ftoutline.n_contours) * sizeof(int), "onpoints");
@@ -453,7 +446,7 @@ static int check_freetypefont(PackedFile *pf)
  * Construct a new VFontData structure from
  * Freetype font data in a PackedFile.
  *
- * \param pf The font data.
+ * \param pf: The font data.
  * \retval A new VFontData structure, or NULL
  * if unable to load.
  */
@@ -520,7 +513,8 @@ VChar *BLI_vfontchar_from_freetypefont(VFont *vfont, unsigned long character)
 }
 
 /* Yeah, this is very bad... But why is this in BLI in the first place, since it uses Nurb data?
- * Anyway, do not feel like duplicating whole Nurb copy code here, so unless someone has a better idea... */
+ * Anyway, do not feel like duplicating whole Nurb copy code here,
+ * so unless someone has a better idea... */
 #include "../../blenkernel/BKE_curve.h"
 
 VChar *BLI_vfontchar_copy(const VChar *vchar_src, const int UNUSED(flag))
@@ -563,8 +557,6 @@ typedef struct  FT_Outline_ {
  *
  * Each arc is described through a series of start, end and control points. Each point of the outline
  * has a specific tag which indicates whether it is used to describe a line segment or an arc.
- *
- *
  * The following rules are applied to decompose the contour's points into segments and arcs :
  *
  * # two successive "on" points indicate a line segment joining them.
@@ -595,9 +587,6 @@ typedef struct  FT_Outline_ {
  *                            Two "on" points
  *    Two "on" points       and one "conic" point
  *                             between them
- *
- *
- *
  *                 *
  *   #            __      Two "on" points with two "conic"
  *    \          -  -     points between them. The point
@@ -607,10 +596,6 @@ typedef struct  FT_Outline_ {
  *         --             It does not appear in the point
  *                        list.
  *         *
- *
- *
- *
- *
  *         *                # on
  *                    *     * off
  *          __---__
@@ -622,8 +607,6 @@ typedef struct  FT_Outline_ {
  *      Two "on" points
  *    and two "cubic" point
  *       between them
- *
- *
  * Each glyph's original outline points are located on a grid of indivisible units. The points are stored
  * in the font file as 16-bit integer grid coordinates, with the grid origin's being at (0, 0); they thus
  * range from -16384 to 16383.
@@ -635,5 +618,4 @@ typedef struct  FT_Outline_ {
  * B1=(P0+2*P1)/3
  * B2=(P2+2*P1)/3
  * B3=P2
- *
  */

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file RE_engine.h
@@ -37,8 +29,9 @@
 #include "RNA_types.h"
 #include "RE_bake.h"
 
-struct bNode;
-struct bNodeTree;
+#include "BLI_threads.h"
+
+struct BakePixel;
 struct Object;
 struct Render;
 struct RenderData;
@@ -48,7 +41,8 @@ struct RenderLayer;
 struct RenderResult;
 struct ReportList;
 struct Scene;
-struct BakePixel;
+struct bNode;
+struct bNodeTree;
 
 /* External Engine */
 
@@ -102,6 +96,9 @@ typedef struct RenderEngineType {
 	ExtensionRNA ext;
 } RenderEngineType;
 
+typedef void (*update_render_passes_cb_t)(void *userdata, struct Scene *scene, struct SceneRenderLayer *srl,
+                                          const char *name, int channels, const char *chanid, int type);
+
 typedef struct RenderEngine {
 	RenderEngineType *type;
 	void *py_instance;
@@ -124,6 +121,11 @@ typedef struct RenderEngine {
 	/* for blender internal only */
 	int update_flag;
 	int job_update_flag;
+
+	/* callback for render pass query */
+	ThreadMutex update_render_passes_mutex;
+	update_render_passes_cb_t update_render_passes_cb;
+	void *update_render_passes_data;
 
 	rctf last_viewplane;
 	rcti last_disprect;
@@ -163,6 +165,8 @@ bool RE_engine_is_external(struct Render *re);
 
 void RE_engine_frame_set(struct RenderEngine *engine, int frame, float subframe);
 
+void RE_engine_update_render_passes(struct RenderEngine *engine, struct Scene *scene, struct SceneRenderLayer *srl,
+                                    update_render_passes_cb_t callback, void *callback_data);
 void RE_engine_register_pass(struct RenderEngine *engine, struct Scene *scene, struct SceneRenderLayer *srl,
                              const char *name, int channels, const char *chanid, int type);
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/bmesh/bmesh_py_api.c
@@ -115,7 +109,7 @@ static PyObject *bpy_bm_from_edit_mesh(PyObject *UNUSED(self), PyObject *value)
 PyDoc_STRVAR(bpy_bm_update_edit_mesh_doc,
 ".. method:: update_edit_mesh(mesh, tessface=True, destructive=True)\n"
 "\n"
-"   Update the mesh after changes to the BMesh in editmode, \n"
+"   Update the mesh after changes to the BMesh in editmode,\n"
 "   optionally recalculating n-gon tessellation.\n"
 "\n"
 "   :arg mesh: The editmode mesh.\n"
@@ -196,7 +190,7 @@ PyObject *BPyInit_bmesh(void)
 {
 	PyObject *mod;
 	PyObject *submodule;
-	PyObject *sys_modules = PyThreadState_GET()->interp->modules;
+	PyObject *sys_modules = PyImport_GetModuleDict();
 
 	BPy_BM_init_types();
 	BPy_BM_init_types_select();

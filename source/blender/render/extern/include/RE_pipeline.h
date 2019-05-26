@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file RE_pipeline.h
@@ -35,8 +27,7 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
-struct bMovieHandle;
-struct bNodeTree;
+struct EnvMap;
 struct Image;
 struct ImageFormatData;
 struct Main;
@@ -47,8 +38,9 @@ struct RenderResult;
 struct ReportList;
 struct Scene;
 struct SceneRenderLayer;
-struct EnvMap;
 struct StampData;
+struct bMovieHandle;
+struct bNodeTree;
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is what is exposed of render to outside world */
@@ -379,7 +371,7 @@ bool RE_allow_render_generic_object(struct Object *ob);
 /* RE_updateRenderInstances flag */
 enum {
 	RE_OBJECT_INSTANCES_UPDATE_VIEW  = (1 << 0),
-	RE_OBJECT_INSTANCES_UPDATE_OBMAT = (1 << 1)
+	RE_OBJECT_INSTANCES_UPDATE_OBMAT = (1 << 1),
 };
 void RE_updateRenderInstances(Render *re, int flag);
 

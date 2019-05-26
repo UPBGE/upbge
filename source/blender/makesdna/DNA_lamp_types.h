@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_lamp_types.h
@@ -40,10 +32,10 @@
 #endif
 
 struct AnimData;
-struct bNodeTree;
 struct CurveMapping;
 struct Ipo;
 struct MTex;
+struct bNodeTree;
 
 typedef struct Lamp {
 	ID id;
@@ -120,11 +112,11 @@ typedef struct Lamp {
 /* **************** LAMP ********************* */
 
 /* flag */
-#define LA_DS_EXPAND	1
+#define LA_DS_EXPAND    (1 << 0)
 	/* NOTE: this must have the same value as MA_DS_SHOW_TEXS,
 	 * otherwise anim-editors will not read correctly
 	 */
-#define LA_DS_SHOW_TEXS	4
+#define LA_DS_SHOW_TEXS (1 << 2)
 
 /* type */
 #define LA_LOCAL		0
@@ -169,8 +161,8 @@ typedef struct Lamp {
 #define LA_LAYER_SHADOW_RECEIVE	2
 
 /* sun effect type*/
-#define LA_SUN_EFFECT_SKY			1
-#define LA_SUN_EFFECT_AP			2
+#define LA_SUN_EFFECT_SKY           (1 << 0)
+#define LA_SUN_EFFECT_AP            (1 << 1)
 
 /* falloff_type */
 #define LA_FALLOFF_CONSTANT			0
@@ -188,8 +180,8 @@ typedef struct Lamp {
 #define LA_SHADBUF_DEEP			3
 
 /* bufflag, auto clipping */
-#define LA_SHADBUF_AUTO_START	1
-#define LA_SHADBUF_AUTO_END		2
+#define LA_SHADBUF_AUTO_START   (1 << 0)
+#define LA_SHADBUF_AUTO_END     (1 << 1)
 
 /* filtertype */
 #define LA_SHADBUF_BOX		0
@@ -209,14 +201,14 @@ typedef struct Lamp {
 
 
 /* ray_samp_type */
-// #define LA_SAMP_ROUND	1  // UNUSED
-#define LA_SAMP_UMBRA	2
-#define LA_SAMP_DITHER	4
-#define LA_SAMP_JITTER	8
+// #define LA_SAMP_ROUND    (1 << 0)  // UNUSED
+#define LA_SAMP_UMBRA   (1 << 1)
+#define LA_SAMP_DITHER  (1 << 2)
+#define LA_SAMP_JITTER  (1 << 3)
 
 /* mapto */
-#define LAMAP_COL		1
-#define LAMAP_SHAD		2
+#define LAMAP_COL       (1 << 0)
+#define LAMAP_SHAD      (1 << 1)
 
 /* shadowmap_type */
 #define LA_SHADMAP_SIMPLE	0

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_outliner/outliner_edit.c
@@ -434,7 +426,8 @@ static int outliner_id_remap_exec(bContext *C, wmOperator *op)
 	/* recreate dependency graph to include new objects */
 	DAG_scene_relations_rebuild(bmain, scene);
 
-	/* free gpu materials, some materials depend on existing objects, such as lamps so freeing correctly refreshes */
+	/* free gpu materials, some materials depend on existing objects,
+	 * such as lamps so freeing correctly refreshes */
 	GPU_materials_free(bmain);
 
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
@@ -509,7 +502,6 @@ void OUTLINER_OT_id_remap(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Outliner ID data Remap";
 	ot->idname = "OUTLINER_OT_id_remap";
-	ot->description = "";
 
 	/* callbacks */
 	ot->invoke = outliner_id_remap_invoke;
@@ -654,7 +646,8 @@ void OUTLINER_OT_lib_relocate(wmOperatorType *ot)
 }
 
 /* XXX This does not work with several items
- *     (it is only called once in the end, due to the 'deferred' filebrowser invocation through event system...). */
+ * (it is only called once in the end, due to the 'deferred'
+ * filebrowser invocation through event system...). */
 void lib_relocate_cb(
         bContext *C, ReportList *UNUSED(reports), Scene *UNUSED(scene), TreeElement *te,
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
@@ -1466,18 +1459,18 @@ static void tree_element_to_path(TreeElement *te, TreeStoreElem *tselem,
 	char *newpath = NULL;
 
 	/* optimize tricks:
-	 *	- Don't do anything if the selected item is a 'struct', but arrays are allowed
+	 * - Don't do anything if the selected item is a 'struct', but arrays are allowed
 	 */
 	if (tselem->type == TSE_RNA_STRUCT)
 		return;
 
 	/* Overview of Algorithm:
-	 *  1. Go up the chain of parents until we find the 'root', taking note of the
-	 *	   levels encountered in reverse-order (i.e. items are added to the start of the list
-	 *      for more convenient looping later)
-	 *  2. Walk down the chain, adding from the first ID encountered
-	 *	   (which will become the 'ID' for the KeyingSet Path), and build a
-	 *      path as we step through the chain
+	 * 1. Go up the chain of parents until we find the 'root', taking note of the
+	 *    levels encountered in reverse-order (i.e. items are added to the start of the list
+	 *    for more convenient looping later)
+	 * 2. Walk down the chain, adding from the first ID encountered
+	 *    (which will become the 'ID' for the KeyingSet Path), and build a
+	 *    path as we step through the chain
 	 */
 
 	/* step 1: flatten out hierarchy of parents into a flat chain */

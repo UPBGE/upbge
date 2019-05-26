@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008), Juho Veps�l�inen
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_brush.c
@@ -526,7 +520,7 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA
 	Brush *me = (Brush *)(ptr->data);
 
 	switch (mode) {
-		case ePaintSculpt:
+		case PAINT_MODE_SCULPT:
 			switch (me->sculpt_tool) {
 				case SCULPT_TOOL_DRAW:
 				case SCULPT_TOOL_CREASE:
@@ -567,8 +561,8 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA
 					return prop_default_items;
 			}
 
-		case ePaintTexture2D:
-		case ePaintTextureProjective:
+		case PAINT_MODE_TEXTURE_2D:
+		case PAINT_MODE_TEXTURE_3D:
 			switch (me->imagepaint_tool) {
 				case PAINT_TOOL_SOFTEN:
 					return prop_soften_sharpen_items;
@@ -597,9 +591,9 @@ static const EnumPropertyItem *rna_Brush_stroke_itemf(bContext *C, PointerRNA *U
 	};
 
 	switch (mode) {
-		case ePaintSculpt:
-		case ePaintTexture2D:
-		case ePaintTextureProjective:
+		case PAINT_MODE_SCULPT:
+		case PAINT_MODE_TEXTURE_2D:
+		case PAINT_MODE_TEXTURE_3D:
 			return sculpt_stroke_method_items;
 
 		default:
@@ -1461,16 +1455,16 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Image Painting Capabilities", "Brush's capabilities in image paint mode");
 }
 
-
-/* A brush stroke is a list of changes to the brush that
+/**
+ * A brush stroke is a list of changes to the brush that
  * can occur during a stroke
  *
- *  o 3D location of the brush
- *  o 2D mouse location
- *  o Tablet pressure
- *  o Direction flip
- *  o Tool switch
- *  o Time
+ * - 3D location of the brush
+ * - 2D mouse location
+ * - Tablet pressure
+ * - Direction flip
+ * - Tool switch
+ * - Time
  */
 static void rna_def_operator_stroke_element(BlenderRNA *brna)
 {

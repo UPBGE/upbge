@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *                 Keir Mierle
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/tracking.c
@@ -1606,7 +1598,7 @@ MovieTrackingPlaneMarker *BKE_tracking_plane_marker_insert(MovieTrackingPlaneTra
 		int a = plane_track->markersnr;
 
 		/* Find position in array where to add new marker. */
-		/* TODO(sergey): we coud use bisect to speed things up. */
+		/* TODO(sergey): we could use bisect to speed things up. */
 		while (a--) {
 			if (plane_track->markers[a].framenr < plane_marker->framenr) {
 				break;
@@ -1992,10 +1984,10 @@ void BKE_tracking_camera_to_blender(MovieTracking *tracking, Scene *scene, Camer
 	camera->sensor_fit = CAMERA_SENSOR_FIT_AUTO;
 	camera->lens = focal * camera->sensor_x / width;
 
-	scene->r.xsch = width * tracking->camera.pixel_aspect;
+	scene->r.xsch = width;
 	scene->r.ysch = height;
 
-	scene->r.xasp = 1.0f;
+	scene->r.xasp = tracking->camera.pixel_aspect;
 	scene->r.yasp = 1.0f;
 
 	BKE_tracking_camera_shift_get(tracking, width, height, &camera->shiftx, &camera->shifty);

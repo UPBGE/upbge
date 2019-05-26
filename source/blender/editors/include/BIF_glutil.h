@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation 2002-2008
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file BIF_glutil.h
@@ -30,13 +24,13 @@
 #ifndef __BIF_GLUTIL_H__
 #define __BIF_GLUTIL_H__
 
-struct rcti;
 struct rctf;
+struct rcti;
 
+struct ColorManagedDisplaySettings;
+struct ColorManagedViewSettings;
 struct ImBuf;
 struct bContext;
-struct ColorManagedViewSettings;
-struct ColorManagedDisplaySettings;
 
 void fdrawbezier(float vec[4][3]);
 void fdrawline(float x1, float y1, float x2, float y2);
@@ -69,10 +63,10 @@ extern const unsigned char stipple_checker_8px[128];
  * through \a angle. The arc is centered at the origin
  * and drawn in the XY plane.
  *
- * \param start The initial angle (in radians).
- * \param angle The length of the arc (in radians).
- * \param radius The arc radius.
- * \param nsegments The number of segments to use in drawing the arc.
+ * \param start: The initial angle (in radians).
+ * \param angle: The length of the arc (in radians).
+ * \param radius: The arc radius.
+ * \param nsegments: The number of segments to use in drawing the arc.
  */
 void glutil_draw_lined_arc(float start, float angle, float radius, int nsegments);
 
@@ -82,10 +76,10 @@ void glutil_draw_lined_arc(float start, float angle, float radius, int nsegments
  * \a angle. The arc is centered at the origin
  * and drawn in the XY plane.
  *
- * \param start The initial angle (in radians).
- * \param angle The length of the arc (in radians).
- * \param radius The arc radius.
- * \param nsegments The number of segments to use in drawing the arc.
+ * \param start: The initial angle (in radians).
+ * \param angle: The length of the arc (in radians).
+ * \param radius: The arc radius.
+ * \param nsegments: The number of segments to use in drawing the arc.
  */
 void glutil_draw_filled_arc(float start, float angle, float radius, int nsegments);
 
@@ -172,7 +166,7 @@ void glaDrawPixelsTexScaled_clipping(float x, float y, int img_w, int img_h, int
  * thus no reason to +-0.5 the coordinates or perform other silly
  * tricks.
  *
- * \param screen_rect The screen rectangle to be defined for 2D drawing.
+ * \param screen_rect: The screen rectangle to be defined for 2D drawing.
  */
 void glaDefine2DArea(struct rcti *screen_rect);
 

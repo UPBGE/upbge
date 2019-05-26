@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/blendfile.c
@@ -111,11 +107,12 @@ static bool wm_scene_is_visible(wmWindowManager *wm, Scene *scene)
  */
 static void setup_app_data(
         bContext *C, BlendFileData *bfd,
-        const char *filepath, ReportList *reports)
+        const char *filepath,
+        const bool is_startup,
+        ReportList *reports)
 {
 	Main *bmain = G_MAIN;
 	Scene *curscene = NULL;
-	const bool is_startup = (bfd->filename[0] == '\0');
 	const bool recover = (G.fileflags & G_FILE_RECOVER) != 0;
 	enum {
 		LOAD_UI = 1,
@@ -248,9 +245,6 @@ static void setup_app_data(
 		CTX_data_scene_set(C, curscene);
 	}
 	else {
-		/* Keep state from preferences. */
-		const int fileflags_skip = G_FILE_FLAGS_RUNTIME;
-		G.fileflags = (G.fileflags & fileflags_skip) | (bfd->fileflags & ~fileflags_skip);
 		CTX_wm_manager_set(C, bmain->wm.first);
 		CTX_wm_screen_set(C, bfd->curscreen);
 		CTX_data_scene_set(C, bfd->curscene);
@@ -259,6 +253,10 @@ static void setup_app_data(
 		CTX_wm_menu_set(C, NULL);
 		curscene = bfd->curscene;
 	}
+
+	/* Keep state from preferences. */
+	const int fileflags_skip = G_FILE_FLAGS_RUNTIME;
+	G.fileflags = (G.fileflags & fileflags_skip) | (bfd->fileflags & ~fileflags_skip);
 
 	/* this can happen when active scene was lib-linked, and doesn't exist anymore */
 	if (CTX_data_scene(C) == NULL) {
@@ -296,7 +294,7 @@ static void setup_app_data(
 	bmain->recovered = 0;
 
 	/* startup.blend or recovered startup */
-	if (bfd->filename[0] == 0) {
+	if (is_startup) {
 		bmain->name[0] = '\0';
 	}
 	else if (recover && G.relbase_valid) {
@@ -351,7 +349,8 @@ static int handle_subversion_warning(Main *main, ReportList *reports)
 
 int BKE_blendfile_read(
         bContext *C, const char *filepath,
-        ReportList *reports, int skip_flags)
+        const struct BlendFileReadParams *params,
+        ReportList *reports)
 {
 	BlendFileData *bfd;
 	int retval = BKE_BLENDFILE_READ_OK;
@@ -361,7 +360,7 @@ int BKE_blendfile_read(
 		printf("Read blend: %s\n", filepath);
 	}
 
-	bfd = BLO_read_from_file(filepath, reports, skip_flags);
+	bfd = BLO_read_from_file(filepath, params->skip_flags, reports);
 	if (bfd) {
 		if (bfd->user) {
 			retval = BKE_BLENDFILE_READ_OK_USERPREFS;
@@ -374,7 +373,7 @@ int BKE_blendfile_read(
 			retval = BKE_BLENDFILE_READ_FAIL;
 		}
 		else {
-			setup_app_data(C, bfd, filepath, reports);
+			setup_app_data(C, bfd, filepath, params->is_startup, reports);
 		}
 	}
 	else
@@ -384,16 +383,17 @@ int BKE_blendfile_read(
 }
 
 bool BKE_blendfile_read_from_memory(
-        bContext *C, const void *filebuf, int filelength,
-        ReportList *reports, int skip_flags, bool update_defaults)
+        bContext *C, const void *filebuf, int filelength, bool update_defaults,
+        const struct BlendFileReadParams *params,
+        ReportList *reports)
 {
 	BlendFileData *bfd;
 
-	bfd = BLO_read_from_memory(filebuf, filelength, reports, skip_flags);
+	bfd = BLO_read_from_memory(filebuf, filelength, params->skip_flags, reports);
 	if (bfd) {
 		if (update_defaults)
 			BLO_update_defaults_startup_blend(bfd->main);
-		setup_app_data(C, bfd, "<memory2>", reports);
+		setup_app_data(C, bfd, "<memory2>", params->is_startup, reports);
 	}
 	else {
 		BKE_reports_prepend(reports, "Loading failed: ");
@@ -405,12 +405,13 @@ bool BKE_blendfile_read_from_memory(
 /* memfile is the undo buffer */
 bool BKE_blendfile_read_from_memfile(
         bContext *C, struct MemFile *memfile,
-        ReportList *reports, int skip_flags)
+        const struct BlendFileReadParams *params,
+        ReportList *reports)
 {
 	Main *bmain = CTX_data_main(C);
 	BlendFileData *bfd;
 
-	bfd = BLO_read_from_memfile(bmain, BKE_main_blendfile_path(bmain), memfile, reports, skip_flags);
+	bfd = BLO_read_from_memfile(bmain, BKE_main_blendfile_path(bmain), memfile, params->skip_flags, reports);
 	if (bfd) {
 		/* remove the unused screens and wm */
 		while (bfd->main->wm.first)
@@ -418,7 +419,7 @@ bool BKE_blendfile_read_from_memfile(
 		while (bfd->main->screen.first)
 			BKE_libblock_free(bfd->main, bfd->main->screen.first);
 
-		setup_app_data(C, bfd, "<memory1>", reports);
+		setup_app_data(C, bfd, "<memory1>", params->is_startup, reports);
 	}
 	else {
 		BKE_reports_prepend(reports, "Loading failed: ");
@@ -459,7 +460,7 @@ UserDef *BKE_blendfile_userdef_read(const char *filepath, ReportList *reports)
 	BlendFileData *bfd;
 	UserDef *userdef = NULL;
 
-	bfd = BLO_read_from_file(filepath, reports, BLO_READ_SKIP_ALL & ~BLO_READ_SKIP_USERDEF);
+	bfd = BLO_read_from_file(filepath, BLO_READ_SKIP_ALL & ~BLO_READ_SKIP_USERDEF, reports);
 	if (bfd) {
 		if (bfd->user) {
 			userdef = bfd->user;
@@ -479,7 +480,10 @@ UserDef *BKE_blendfile_userdef_read_from_memory(
 	BlendFileData *bfd;
 	UserDef *userdef = NULL;
 
-	bfd = BLO_read_from_memory(filebuf, filelength, reports, BLO_READ_SKIP_ALL & ~BLO_READ_SKIP_USERDEF);
+	bfd = BLO_read_from_memory(
+	        filebuf, filelength,
+	        BLO_READ_SKIP_ALL & ~BLO_READ_SKIP_USERDEF,
+	        reports);
 	if (bfd) {
 		if (bfd->user) {
 			userdef = bfd->user;
@@ -590,10 +594,6 @@ bool BKE_blendfile_write_partial(
 	 * (otherwise main->name will not be set at read time). */
 	BLI_strncpy(bmain_dst->name, bmain_src->name, sizeof(bmain_dst->name));
 
-	if (write_flags & G_FILE_RELATIVE_REMAP) {
-		path_list_backup = BKE_bpath_list_backup(bmain_src, path_list_flag);
-	}
-
 	BLO_main_expander(blendfile_write_partial_cb);
 	BLO_expand_main(NULL, bmain_src);
 
@@ -613,9 +613,26 @@ bool BKE_blendfile_write_partial(
 		}
 	}
 
+	/* Backup paths because remap relative will overwrite them.
+	 *
+	 * NOTE: we do this only on the list of datablocks that we are writing
+	 * because the restored full list is not guaranteed to be in the same
+	 * order as before, as expected by BKE_bpath_list_restore.
+	 *
+	 * This happens because id_sort_by_name does not take into account
+	 * string case or the library name, so the order is not strictly
+	 * defined for two linked datablocks with the same name! */
+	if (write_flags & G_FILE_RELATIVE_REMAP) {
+		path_list_backup = BKE_bpath_list_backup(bmain_dst, path_list_flag);
+	}
 
 	/* save the buffer */
 	retval = BLO_write_file(bmain_dst, filepath, write_flags, reports, NULL);
+
+	if (path_list_backup) {
+		BKE_bpath_list_restore(bmain_dst, path_list_flag, path_list_backup);
+		BKE_bpath_list_free(path_list_backup);
+	}
 
 	/* move back the main, now sorted again */
 	set_listbasepointers(bmain_src, lbarray_dst);
@@ -631,11 +648,6 @@ bool BKE_blendfile_write_partial(
 	}
 
 	MEM_freeN(bmain_dst);
-
-	if (path_list_backup) {
-		BKE_bpath_list_restore(bmain_src, path_list_flag, path_list_backup);
-		BKE_bpath_list_free(path_list_backup);
-	}
 
 	return retval;
 }

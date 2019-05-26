@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/bmesh/bmesh_py_ops_call.c
@@ -65,10 +59,10 @@ static int bpy_bm_op_as_py_error(BMesh *bm)
 /**
  * \brief Utility function to check BMVert/BMEdge/BMFace's
  *
- * \param value
- * \param bm Check the \a value against this.
- * \param htype Test \a value matches this type.
- * \param descr Description text.
+ * \param value:
+ * \param bm: Check the \a value against this.
+ * \param htype: Test \a value matches this type.
+ * \param descr: Description text.
  */
 static int bpy_slot_from_py_elem_check(
         BPy_BMElem *value, BMesh *bm, const char htype,
@@ -103,11 +97,11 @@ static int bpy_slot_from_py_elem_check(
 /**
  * \brief Utility function to check BMVertSeq/BMEdgeSeq/BMFaceSeq's
  *
- * \param value Caller must check its a BMeshSeq
- * \param bm Check the \a value against this.
- * \param htype_py The type(s) of \a value.
- * \param htype_bmo The type(s) supported by the target slot.
- * \param descr Description text.
+ * \param value: Caller must check its a BMeshSeq
+ * \param bm: Check the \a value against this.
+ * \param htype_py: The type(s) of \a value.
+ * \param htype_bmo: The type(s) supported by the target slot.
+ * \param descr: Description text.
  */
 static int bpy_slot_from_py_elemseq_check(
         BPy_BMGeneric *value, BMesh *bm,
@@ -510,7 +504,7 @@ static int bpy_slot_from_py(
 }
 
 /**
- * Use for getting return values from an operator thats already executed.
+ * Use for getting return values from an operator that's already executed.
  *
  * \note Don't throw any exceptions and should always return a valid (PyObject *).
  */

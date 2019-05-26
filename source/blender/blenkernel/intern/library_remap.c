@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/library_remap.c
@@ -245,6 +241,13 @@ static int foreach_libblock_remap_callback(void *user_data, ID *id_self, ID **id
 			if (!is_indirect || is_obj_proxy) {
 				id_remap_data->status |= ID_REMAP_IS_LINKED_DIRECT;
 			}
+			/* We need to remap proxy_from pointer of remapped proxy... sigh. */
+			if (is_obj_proxy && new_id != NULL) {
+				Object *ob = (Object *)id;
+				if (ob->proxy == (Object *)new_id) {
+					ob->proxy->proxy_from = ob;
+				}
+			}
 		}
 	}
 
@@ -406,10 +409,10 @@ static void libblock_remap_data_postprocess_nodetree_update(Main *bmain, ID *new
 	ntreeVerifyNodes(bmain, new_id);
 
 	/* Update node trees as necessary. */
-	FOREACH_NODETREE(bmain, ntree, id) {
+	FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 		/* make an update call for the tree */
 		ntreeUpdateTree(bmain, ntree);
-	} FOREACH_NODETREE_END
+	} FOREACH_NODETREE_END;
 }
 
 /**
@@ -499,7 +502,7 @@ ATTR_NONNULL(1) static void libblock_remap_data(
 	}
 
 #ifdef DEBUG_PRINT
-	printf("%s: %d occurences skipped (%d direct and %d indirect ones)\n", __func__,
+	printf("%s: %d occurrences skipped (%d direct and %d indirect ones)\n", __func__,
 	       r_id_remap_data->skipped_direct + r_id_remap_data->skipped_indirect,
 	       r_id_remap_data->skipped_direct, r_id_remap_data->skipped_indirect);
 #endif

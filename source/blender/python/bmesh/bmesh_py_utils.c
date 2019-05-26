@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/bmesh/bmesh_py_utils.c
@@ -438,7 +432,7 @@ PyDoc_STRVAR(bpy_bm_utils_face_split_doc,
 "   :type vert_a: :class:`bmesh.types.BMVert`\n"
 "   :arg vert_b: Second vertex to cut in the face (face must contain the vert).\n"
 "   :type vert_b: :class:`bmesh.types.BMVert`\n"
-"   :arg coords: Optional argument to define points inbetween *vert_a* and *vert_b*.\n"
+"   :arg coords: Optional argument to define points in between *vert_a* and *vert_b*.\n"
 "   :type coords: sequence of float triplets\n"
 "   :arg use_exist: .Use an existing edge if it exists (Only used when *coords* argument is empty or omitted)\n"
 "   :type use_exist: boolean\n"

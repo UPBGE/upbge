@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 by Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joseph Eagar
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mesh/editmesh_utils.c
@@ -433,14 +425,14 @@ void EDBM_selectmode_flush(BMEditMesh *em)
 
 void EDBM_deselect_flush(BMEditMesh *em)
 {
-	/* function below doesnt use. just do this to keep the values in sync */
+	/* function below doesn't use. just do this to keep the values in sync */
 	em->bm->selectmode = em->selectmode;
 	BM_mesh_deselect_flush(em->bm);
 }
 
 void EDBM_select_flush(BMEditMesh *em)
 {
-	/* function below doesnt use. just do this to keep the values in sync */
+	/* function below doesn't use. just do this to keep the values in sync */
 	em->bm->selectmode = em->selectmode;
 	BM_mesh_select_flush(em->bm);
 }
@@ -801,7 +793,8 @@ UvElementMap *BM_uv_element_map_create(
 		island_number = MEM_mallocN(sizeof(*island_number) * totfaces, "uv_island_number_face");
 		copy_vn_i(island_number, totfaces, INVALID_ISLAND);
 
-		/* at this point, every UvElement in vert points to a UvElement sharing the same vertex. Now we should sort uv's in islands. */
+		/* at this point, every UvElement in vert points to a UvElement sharing the same vertex.
+		 * Now we should sort uv's in islands. */
 		for (i = 0; i < totuv; i++) {
 			if (element_map->buf[i].island == INVALID_ISLAND) {
 				element_map->buf[i].island = nislands;
@@ -820,7 +813,8 @@ UvElementMap *BM_uv_element_map_create(
 								initelement = element;
 
 							if (element->l->f == efa) {
-								/* found the uv corresponding to our face and vertex. Now fill it to the buffer */
+								/* found the uv corresponding to our face and vertex.
+								 * Now fill it to the buffer */
 								element->island = nislands;
 								map[element - element_map->buf] = islandbufsize;
 								islandbuf[islandbufsize].l = element->l;
@@ -993,12 +987,12 @@ static BMVert *cache_mirr_intptr_as_bmvert(intptr_t *index_lookup, int index)
 #define BM_SEARCH_MAXDIST_MIRR 0.00002f
 #define BM_CD_LAYER_ID "__mirror_index"
 /**
- * \param em  Editmesh.
- * \param use_self  Allow a vertex to point to its self (middle verts).
- * \param use_select  Restrict to selected verts.
- * \param use_topology  Use topology mirror.
- * \param maxdist  Distance for close point test.
- * \param r_index  Optional array to write into, as an alternative to a customdata layer (length of total verts).
+ * \param em: Editmesh.
+ * \param use_self: Allow a vertex to point to its self (middle verts).
+ * \param use_select: Restrict to selected verts.
+ * \param use_topology: Use topology mirror.
+ * \param maxdist: Distance for close point test.
+ * \param r_index: Optional array to write into, as an alternative to a customdata layer (length of total verts).
  */
 void EDBM_verts_mirror_cache_begin_ex(
         BMEditMesh *em, const int axis, const bool use_self, const bool use_select,
@@ -1230,7 +1224,8 @@ void EDBM_mesh_hide(BMEditMesh *em, bool swap)
 	EDBM_selectmode_flush(em);
 
 	/* original hide flushing comment (OUTDATED):
-	 * hide happens on least dominant select mode, and flushes up, not down! (helps preventing errors in subsurf) */
+	 * hide happens on least dominant select mode, and flushes up, not down!
+	 * (helps preventing errors in subsurf) */
 	/* - vertex hidden, always means edge is hidden too
 	 * - edge hidden, always means face is hidden too
 	 * - face hidden, only set face hide
@@ -1499,7 +1494,7 @@ bool BMBVH_EdgeVisible(struct BMBVHTree *tree, BMEdge *e, ARegion *ar, View3D *v
 		ar->winy / 2.0f,
 	};
 
-	ED_view3d_win_to_segment(ar, v3d, mval_f, origin, end, false);
+	ED_view3d_win_to_segment_clipped(ar, v3d, mval_f, origin, end, false);
 
 	invert_m4_m4(invmat, obedit->obmat);
 	mul_m4_v3(invmat, origin);

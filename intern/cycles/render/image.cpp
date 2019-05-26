@@ -24,6 +24,7 @@
 #include "util/util_path.h"
 #include "util/util_progress.h"
 #include "util/util_texture.h"
+#include "util/util_unique_ptr.h"
 
 #ifdef WITH_OSL
 #include <OSL/oslexec.h>
@@ -194,7 +195,7 @@ bool ImageManager::get_image_metadata(const string& filename,
 		return false;
 	}
 
-	ImageInput *in = ImageInput::create(filename);
+	unique_ptr<ImageInput> in(ImageInput::create(filename));
 
 	if(!in) {
 		return false;
@@ -202,7 +203,6 @@ bool ImageManager::get_image_metadata(const string& filename,
 
 	ImageSpec spec;
 	if(!in->open(filename, spec)) {
-		delete in;
 		return false;
 	}
 
@@ -270,7 +270,6 @@ bool ImageManager::get_image_metadata(const string& filename,
 	}
 
 	in->close();
-	delete in;
 
 	return true;
 }
@@ -332,6 +331,10 @@ int ImageManager::add_image(const string& filename,
 			}
 			if(img->use_alpha != use_alpha) {
 				img->use_alpha = use_alpha;
+				img->need_load = true;
+			}
+			if(!(img->metadata == metadata)) {
+				img->metadata = metadata;
 				img->need_load = true;
 			}
 			img->users++;
@@ -455,7 +458,7 @@ void ImageManager::tag_reload_image(const string& filename,
 }
 
 bool ImageManager::file_load_image_generic(Image *img,
-                                           ImageInput **in)
+                                           unique_ptr<ImageInput> *in)
 {
 	if(img->filename == "")
 		return false;
@@ -467,7 +470,7 @@ bool ImageManager::file_load_image_generic(Image *img,
 		}
 
 		/* load image from file through OIIO */
-		*in = ImageInput::create(img->filename);
+		*in = unique_ptr<ImageInput>(ImageInput::create(img->filename));
 
 		if(!*in)
 			return false;
@@ -479,8 +482,6 @@ bool ImageManager::file_load_image_generic(Image *img,
 			config.attribute("oiio:UnassociatedAlpha", 1);
 
 		if(!(*in)->open(img->filename, spec, config)) {
-			delete *in;
-			*in = NULL;
 			return false;
 		}
 	}
@@ -494,10 +495,7 @@ bool ImageManager::file_load_image_generic(Image *img,
 	if(!(img->metadata.channels >= 1 && img->metadata.channels <= 4)) {
 		if(*in) {
 			(*in)->close();
-			delete *in;
-			*in = NULL;
 		}
-
 		return false;
 	}
 
@@ -512,7 +510,7 @@ bool ImageManager::file_load_image(Image *img,
                                    int texture_limit,
                                    device_vector<DeviceType>& tex_img)
 {
-	ImageInput *in = NULL;
+	unique_ptr<ImageInput> in = NULL;
 	if(!file_load_image_generic(img, &in)) {
 		return false;
 	}
@@ -575,7 +573,6 @@ bool ImageManager::file_load_image(Image *img,
 		}
 		cmyk = strcmp(in->format_name(), "jpeg") == 0 && components == 4;
 		in->close();
-		delete in;
 	}
 	else {
 		if(FileFormat == TypeDesc::FLOAT) {
@@ -1021,6 +1018,39 @@ void ImageManager::device_update_slot(Device *device,
 			                  slot,
 			                  progress);
 	}
+}
+
+void ImageManager::device_load_builtin(Device *device,
+                                       Scene *scene,
+                                       Progress& progress)
+{
+	/* Load only builtin images, Blender needs this to load evaluated
+	 * scene data from depsgraph before it is freed. */
+	if(!need_update) {
+		return;
+	}
+
+	TaskPool pool;
+	for(int type = 0; type < IMAGE_DATA_NUM_TYPES; type++) {
+		for(size_t slot = 0; slot < images[type].size(); slot++) {
+			if(!images[type][slot])
+				continue;
+
+			if(images[type][slot]->need_load) {
+				if(images[type][slot]->builtin_data) {
+					pool.push(function_bind(&ImageManager::device_load_image,
+					                        this,
+					                        device,
+					                        scene,
+					                        (ImageDataType)type,
+					                        slot,
+					                        &progress));
+				}
+			}
+		}
+	}
+
+	pool.wait_work();
 }
 
 void ImageManager::device_free_builtin(Device *device)

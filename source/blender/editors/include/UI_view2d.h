@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,14 +15,8 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation, Joshua Leung
- *
- *
  * Generic 2d view with should allow drawing grids,
  * panning, zooming, scrolling, ..
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file UI_view2d.h
@@ -46,8 +38,8 @@
 
 /* Common View2D view types
  * NOTE: only define a type here if it completely sets all (+/- a few) of the relevant flags
- *	    and settings for a View2D region, and that set of settings is used in more
- *	    than one specific place
+ *       and settings for a View2D region, and that set of settings is used in more
+ *       than one specific place
  */
 enum eView2D_CommonViewTypes {
 	/* custom view type (region has defined all necessary flags already) */
@@ -118,7 +110,7 @@ enum eView2D_Gridlines {
 
 
 /* ------------------------------------------ */
-/* Macros:								*/
+/* Macros:                                    */
 
 /* test if mouse in a scrollbar (assume that scroller availability has been tested) */
 #define IN_2D_VERT_SCROLL(v2d, co)   (BLI_rcti_isect_pt_v(&v2d->vert, co))
@@ -131,13 +123,13 @@ struct View2D;
 struct View2DGrid;
 struct View2DScrollers;
 
-struct wmKeyConfig;
-struct bScreen;
+struct ARegion;
 struct Scene;
 struct ScrArea;
-struct ARegion;
 struct bContext;
+struct bScreen;
 struct rctf;
+struct wmKeyConfig;
 
 typedef struct View2DGrid View2DGrid;
 typedef struct View2DScrollers View2DScrollers;

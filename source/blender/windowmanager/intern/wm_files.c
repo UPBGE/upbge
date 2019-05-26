@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation 2007
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/windowmanager/intern/wm_files.c
@@ -64,6 +58,7 @@
 
 #include "BLF_api.h"
 
+#include "DNA_mesh_types.h" /* only for USE_BMESH_SAVE_AS_COMPAT */
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -473,10 +468,14 @@ static void wm_file_read_post(bContext *C, const bool is_startup_file, const boo
 			if (use_userdef) {
 				/* Only run when we have a template path found. */
 				if (BKE_appdir_app_template_any()) {
-					BPY_execute_string(C, "__import__('bl_app_template_utils').reset()");
+					BPY_execute_string(
+					        C, (const char *[]){"bl_app_template_utils", NULL},
+					        "bl_app_template_utils.reset()");
 				}
 				/* sync addons, these may have changed from the defaults */
-				BPY_execute_string(C, "__import__('addon_utils').reset_all()");
+				BPY_execute_string(
+				        C, (const char *[]){"addon_utils", NULL},
+				        "addon_utils.reset_all()");
 			}
 			BPY_python_reset(C);
 			addons_loaded = true;
@@ -565,13 +564,16 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 
 		/* confusing this global... */
 		G.relbase_valid = 1;
-		retval = BKE_blendfile_read(C, filepath, reports, 0);
+		retval = BKE_blendfile_read(
+		        C, filepath,
+		        &(const struct BlendFileReadParams){0},
+		        reports);
 
 		/* BKE_file_read sets new Main into context. */
 		Main *bmain = CTX_data_main(C);
 
 		/* when loading startup.blend's, we can be left with a blank path */
-		if (BKE_main_blendfile_path(bmain)) {
+		if (BKE_main_blendfile_path(bmain)[0] != '\0') {
 			G.save_over = 1;
 		}
 		else {
@@ -638,10 +640,10 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 
 }
 
-struct {
+static struct {
 	char app_template[64];
 	bool override;
-} wm_init_state_app_template = {0};
+} wm_init_state_app_template = {{0}};
 
 /**
  * Used for setting app-template from the command line:
@@ -678,7 +680,7 @@ const char *WM_init_state_app_template_get(void)
  * \param app_template_override: Template to use instead of the template defined in user-preferences.
  * When not-null, this is written into the user preferences.
  */
-int wm_homefile_read(
+void wm_homefile_read(
         bContext *C, ReportList *reports,
         bool use_factory_settings, bool use_empty_data, bool use_userdef,
         const char *filepath_startup_override, const char *app_template_override)
@@ -800,7 +802,13 @@ int wm_homefile_read(
 
 	if (!use_factory_settings || (filepath_startup[0] != '\0')) {
 		if (BLI_access(filepath_startup, R_OK) == 0) {
-			success = (BKE_blendfile_read(C, filepath_startup, NULL, skip_flags) != BKE_BLENDFILE_READ_FAIL);
+			success = BKE_blendfile_read(
+			        C, filepath_startup,
+			        &(const struct BlendFileReadParams){
+			            .is_startup = true,
+			            .skip_flags = skip_flags,
+			        },
+			        NULL) != BKE_BLENDFILE_READ_FAIL;
 		}
 		if (BLI_listbase_is_empty(&U.themes)) {
 			if (G.debug & G_DEBUG)
@@ -816,8 +824,12 @@ int wm_homefile_read(
 
 	if (success == false) {
 		success = BKE_blendfile_read_from_memory(
-		        C, datatoc_startup_blend, datatoc_startup_blend_size,
-		        NULL, skip_flags, true);
+		        C, datatoc_startup_blend, datatoc_startup_blend_size, true,
+		        &(const struct BlendFileReadParams){
+		            .is_startup = true,
+		            .skip_flags = skip_flags,
+		        },
+		        NULL);
 		if (success) {
 			if (use_userdef) {
 				if ((skip_flags & BLO_READ_SKIP_USERDEF) == 0) {
@@ -904,8 +916,6 @@ int wm_homefile_read(
 	G.fileflags &= ~G_FILE_AUTOPLAY;
 
 	wm_file_read_post(C, true, use_userdef);
-
-	return true;
 }
 
 /** \name WM History File API
@@ -964,7 +974,7 @@ static RecentFile *wm_file_history_find(const char *filepath)
 
 /**
  * Write #BLENDER_HISTORY_FILE as-is, without checking the environment
- * (thats handled by #wm_history_file_update).
+ * (that's handled by #wm_history_file_update).
  */
 static void wm_history_file_write(void)
 {
@@ -1128,12 +1138,12 @@ bool write_crash_blend(void)
 /**
  * \see #wm_homefile_write_exec wraps #BLO_write_file in a similar way.
  */
-static int wm_file_write(bContext *C, const char *filepath, int fileflags, ReportList *reports)
+static bool wm_file_write(bContext *C, const char *filepath, int fileflags, ReportList *reports)
 {
 	Main *bmain = CTX_data_main(C);
 	Library *li;
 	int len;
-	int ret = -1;
+	int ok = false;
 	BlendThumbnail *thumb, *main_thumb;
 	ImBuf *ibuf_thumb = NULL;
 
@@ -1141,18 +1151,18 @@ static int wm_file_write(bContext *C, const char *filepath, int fileflags, Repor
 
 	if (len == 0) {
 		BKE_report(reports, RPT_ERROR, "Path is empty, cannot save");
-		return ret;
+		return ok;
 	}
 
 	if (len >= FILE_MAX) {
 		BKE_report(reports, RPT_ERROR, "Path too long, cannot save");
-		return ret;
+		return ok;
 	}
 
 	/* Check if file write permission is ok */
 	if (BLI_exists(filepath) && !BLI_file_is_writable(filepath)) {
 		BKE_reportf(reports, RPT_ERROR, "Cannot save blend file, path '%s' is not writable", filepath);
-		return ret;
+		return ok;
 	}
 
 	/* note: used to replace the file extension (to ensure '.blend'),
@@ -1163,7 +1173,7 @@ static int wm_file_write(bContext *C, const char *filepath, int fileflags, Repor
 	for (li = bmain->library.first; li; li = li->id.next) {
 		if (BLI_path_cmp(li->filepath, filepath) == 0) {
 			BKE_reportf(reports, RPT_ERROR, "Cannot overwrite used library '%.240s'", filepath);
-			return ret;
+			return ok;
 		}
 	}
 
@@ -1226,7 +1236,8 @@ static int wm_file_write(bContext *C, const char *filepath, int fileflags, Repor
 			ibuf_thumb = IMB_thumb_create(filepath, THB_LARGE, THB_SOURCE_BLEND, ibuf_thumb);
 		}
 
-		ret = 0;  /* Success. */
+		/* Success. */
+		ok = true;
 	}
 
 	if (ibuf_thumb) {
@@ -1238,7 +1249,7 @@ static int wm_file_write(bContext *C, const char *filepath, int fileflags, Repor
 
 	WM_cursor_wait(0);
 
-	return ret;
+	return ok;
 }
 
 /************************ autosave ****************************/
@@ -1415,6 +1426,7 @@ void WM_file_tag_modified(void)
 
 /**
  * \see #wm_file_write wraps #BLO_write_file in a similar way.
+ * \return success.
  */
 static int wm_homefile_write_exec(bContext *C, wmOperator *op)
 {
@@ -1653,15 +1665,11 @@ static int wm_homefile_read_exec(bContext *C, wmOperator *op)
 		app_template = WM_init_state_app_template_get();
 	}
 
-	if (wm_homefile_read(C, op->reports, use_factory_settings, use_empty_data, use_userdef, filepath, app_template)) {
-		if (use_splash) {
-			WM_init_splash(C);
-		}
-		return OPERATOR_FINISHED;
+	wm_homefile_read(C, op->reports, use_factory_settings, use_empty_data, use_userdef, filepath, app_template);
+	if (use_splash) {
+		WM_init_splash(C);
 	}
-	else {
-		return OPERATOR_CANCELLED;
-	}
+	return OPERATOR_FINISHED;
 }
 
 void WM_OT_read_homefile(wmOperatorType *ot)
@@ -2092,7 +2100,7 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	char path[FILE_MAX];
-	int fileflags;
+	const bool is_save_as = (op->type->invoke == wm_save_as_mainfile_invoke);
 
 	save_set_compress(op);
 
@@ -2104,7 +2112,8 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 		wm_filepath_default(path);
 	}
 
-	fileflags = G.fileflags & ~G_FILE_USERPREFS;
+	const int fileflags_orig = G.fileflags;
+	int fileflags = G.fileflags & ~G_FILE_USERPREFS;
 
 	/* set compression flag */
 	SET_FLAG_FROM_TEST(
@@ -2119,12 +2128,32 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 	         RNA_boolean_get(op->ptr, "copy")),
 	        G_FILE_SAVE_COPY);
 
-	if (wm_file_write(C, path, fileflags, op->reports) != 0)
+#ifdef USE_BMESH_SAVE_AS_COMPAT
+	SET_FLAG_FROM_TEST(
+	        fileflags,
+	        (RNA_struct_find_property(op->ptr, "use_mesh_compat") &&
+	         RNA_boolean_get(op->ptr, "use_mesh_compat")),
+	        G_FILE_MESH_COMPAT);
+#else
+#  error "don't remove by accident"
+#endif
+
+	const bool ok = wm_file_write(C, path, fileflags, op->reports);
+
+	if ((op->flag & OP_IS_INVOKE) == 0) {
+		/* OP_IS_INVOKE is set when the operator is called from the GUI.
+		 * If it is not set, the operator is called from a script and
+		 * shouldn't influence G.fileflags. */
+		G.fileflags = fileflags_orig;
+	}
+
+	if (ok == false) {
 		return OPERATOR_CANCELLED;
+	}
 
 	WM_event_add_notifier(C, NC_WM | ND_FILESAVE, NULL);
 
-	if (RNA_boolean_get(op->ptr, "exit")) {
+	if (!is_save_as && RNA_boolean_get(op->ptr, "exit")) {
 		wm_exit_schedule_delayed(C);
 	}
 
@@ -2168,6 +2197,11 @@ void WM_OT_save_as_mainfile(wmOperatorType *ot)
 	prop = RNA_def_boolean(ot->srna, "copy", false, "Save Copy",
 	                "Save a copy of the actual working state but does not make saved file active");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+#ifdef USE_BMESH_SAVE_AS_COMPAT
+	RNA_def_boolean(ot->srna, "use_mesh_compat", false, "Legacy Mesh Format",
+	                "Save using legacy mesh format (no ngons) - WARNING: only saves tris and quads, other ngons will "
+	                "be lost (no implicit triangulation)");
+#endif
 }
 
 static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))

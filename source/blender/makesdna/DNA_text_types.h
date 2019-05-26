@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 /** \file DNA_text_types.h
  *  \ingroup DNA
@@ -69,12 +61,12 @@ typedef struct Text {
 #define TXT_MAX_UNDO	(TXT_INIT_UNDO*TXT_INIT_UNDO)
 
 /* text flags */
-#define TXT_ISDIRTY             0x0001
-#define TXT_ISMEM               0x0004
-#define TXT_ISEXT               0x0008
-#define TXT_ISSCRIPT            0x0010 /* used by space handler scriptlinks */
-// #define TXT_READONLY            0x0100
-// #define TXT_FOLLOW              0x0200 /* always follow cursor (console) */
-#define TXT_TABSTOSPACES        0x0400 /* use space instead of tabs */
+#define TXT_ISDIRTY             (1 << 0)
+#define TXT_ISMEM               (1 << 2)
+#define TXT_ISEXT               (1 << 3)
+#define TXT_ISSCRIPT            (1 << 4) /* used by space handler scriptlinks */
+// #define TXT_READONLY            (1 << 8)
+// #define TXT_FOLLOW              (1 << 9) /* always follow cursor (console) */
+#define TXT_TABSTOSPACES        (1 << 10) /* use space instead of tabs */
 
 #endif  /* __DNA_TEXT_TYPES_H__ */

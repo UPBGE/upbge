@@ -51,6 +51,7 @@ public:
 	float sizeu;
 	float3 axisv;
 	float sizev;
+	bool round;
 
 	Transform tfm;
 
@@ -109,7 +110,7 @@ protected:
 	 * which doesn't contribute to the scene or which is only used for MIS
 	 * and scene doesn't need MIS.
 	 */
-	void disable_ineffective_light(Device *device, Scene *scene);
+	void disable_ineffective_light(Scene *scene);
 
 	void device_update_points(Device *device,
 	                          DeviceScene *dscene,
@@ -139,4 +140,4 @@ protected:
 
 CCL_NAMESPACE_END
 
-#endif /* __LIGHT_H__ */
+#endif  /* __LIGHT_H__ */

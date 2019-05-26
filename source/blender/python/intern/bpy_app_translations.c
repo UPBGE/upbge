@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Bastien Montagne
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/intern/bpy_app_translations.c
@@ -289,12 +283,12 @@ PyDoc_STRVAR(app_translations_py_messages_register_doc,
 "   Registers an addon's UI translations.\n"
 "\n"
 "   .. note::\n"
-"       Does nothing when Blender is built without internationalization support.\n"
+"      Does nothing when Blender is built without internationalization support.\n"
 "\n"
 "   :arg module_name: The name identifying the addon.\n"
 "   :type module_name: string\n"
 "   :arg translations_dict: A dictionary built like that:\n"
-"       ``{locale: {msg_key: msg_translation, ...}, ...}``\n"
+"      ``{locale: {msg_key: msg_translation, ...}, ...}``\n"
 "   :type translations_dict: dict\n"
 "\n"
 );
@@ -337,7 +331,7 @@ PyDoc_STRVAR(app_translations_py_messages_unregister_doc,
 "   Unregisters an addon's UI translations.\n"
 "\n"
 "   .. note::\n"
-"       Does nothing when Blender is built without internationalization support.\n"
+"      Does nothing when Blender is built without internationalization support.\n"
 "\n"
 "   :arg module_name: The name identifying the addon.\n"
 "   :type module_name: string\n"
@@ -425,8 +419,8 @@ PyDoc_STRVAR(app_translations_contexts_doc,
 "A named tuple containing all pre-defined translation contexts.\n"
 "\n"
 ".. warning::\n"
-"    Never use a (new) context starting with \"" BLT_I18NCONTEXT_DEFAULT_BPYRNA "\", it would be internally \n"
-"    assimilated as the default one!\n"
+"   Never use a (new) context starting with \"" BLT_I18NCONTEXT_DEFAULT_BPYRNA "\", it would be internally\n"
+"   assimilated as the default one!\n"
 );
 
 PyDoc_STRVAR(app_translations_contexts_C_to_py_doc,
@@ -522,16 +516,16 @@ PyDoc_STRVAR(app_translations_pgettext_doc,
 "   Try to translate the given msgid (with optional msgctxt).\n"
 "\n"
 "   .. note::\n"
-"       The ``(msgid, msgctxt)`` parameters order has been switched compared to gettext function, to allow\n"
-"       single-parameter calls (context then defaults to BLT_I18NCONTEXT_DEFAULT).\n"
+"      The ``(msgid, msgctxt)`` parameters order has been switched compared to gettext function, to allow\n"
+"      single-parameter calls (context then defaults to BLT_I18NCONTEXT_DEFAULT).\n"
 "\n"
 "   .. note::\n"
-"       You should really rarely need to use this function in regular addon code, as all translation should be\n"
-"       handled by Blender internal code. The only exception are string containing formatting (like \"File: %r\"),\n"
-"       but you should rather use :func:`pgettext_iface`/:func:`pgettext_tip` in those cases!\n"
+"      You should really rarely need to use this function in regular addon code, as all translation should be\n"
+"      handled by Blender internal code. The only exception are string containing formatting (like \"File: %r\"),\n"
+"      but you should rather use :func:`pgettext_iface`/:func:`pgettext_tip` in those cases!\n"
 "\n"
 "   .. note::\n"
-"       Does nothing when Blender is built without internationalization support (hence always returns ``msgid``).\n"
+"      Does nothing when Blender is built without internationalization support (hence always returns ``msgid``).\n"
 "\n"
 "   :arg msgid: The string to translate.\n"
 "   :type msgid: string\n"
@@ -551,7 +545,7 @@ PyDoc_STRVAR(app_translations_pgettext_iface_doc,
 "   Try to translate the given msgid (with optional msgctxt), if labels' translation is enabled.\n"
 "\n"
 "   .. note::\n"
-"       See :func:`pgettext` notes.\n"
+"      See :func:`pgettext` notes.\n"
 "\n"
 "   :arg msgid: The string to translate.\n"
 "   :type msgid: string\n"
@@ -571,7 +565,7 @@ PyDoc_STRVAR(app_translations_pgettext_tip_doc,
 "   Try to translate the given msgid (with optional msgctxt), if tooltips' translation is enabled.\n"
 "\n"
 "   .. note::\n"
-"       See :func:`pgettext` notes.\n"
+"      See :func:`pgettext` notes.\n"
 "\n"
 "   :arg msgid: The string to translate.\n"
 "   :type msgid: string\n"
@@ -591,7 +585,7 @@ PyDoc_STRVAR(app_translations_pgettext_data_doc,
 "   Try to translate the given msgid (with optional msgctxt), if new data name's translation is enabled.\n"
 "\n"
 "   .. note::\n"
-"       See :func:`pgettext` notes.\n"
+"      See :func:`pgettext` notes.\n"
 "\n"
 "   :arg msgid: The string to translate.\n"
 "   :type msgid: string\n"

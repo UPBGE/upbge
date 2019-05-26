@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_clip/clip_ops.c
@@ -113,12 +105,16 @@ static void sclip_zoom_set(const bContext *C, float zoom, float location[2])
 	}
 
 	if ((U.uiflag & USER_ZOOM_TO_MOUSEPOS) && location) {
-		float dx, dy;
+		float aspx, aspy, w, h, dx, dy;
 
 		ED_space_clip_get_size(sc, &width, &height);
+		ED_space_clip_get_aspect(sc, &aspx, &aspy);
 
-		dx = ((location[0] - 0.5f) * width - sc->xof) * (sc->zoom - oldzoom) / sc->zoom;
-		dy = ((location[1] - 0.5f) * height - sc->yof) * (sc->zoom - oldzoom) / sc->zoom;
+		w = width * aspx;
+		h = height * aspy;
+
+		dx = ((location[0] - 0.5f) * w - sc->xof) * (sc->zoom - oldzoom) / sc->zoom;
+		dy = ((location[1] - 0.5f) * h - sc->yof) * (sc->zoom - oldzoom) / sc->zoom;
 
 		if (sc->flag & SC_LOCK_SELECTION) {
 			sc->xlockof += dx;
@@ -1585,7 +1581,7 @@ void CLIP_OT_cursor_set(wmOperatorType *ot)
 	                     "Cursor location in normalized clip coordinates", -10.0f, 10.0f);
 }
 
-/********************** macroses *********************/
+/********************** macros *********************/
 
 void ED_operatormacros_clip(void)
 {

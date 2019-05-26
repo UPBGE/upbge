@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_clip/space_clip.c
@@ -850,9 +842,12 @@ static int clip_context(const bContext *C, const char *member, bContextDataResul
 /* dropboxes */
 static bool clip_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
-	if (drag->type == WM_DRAG_PATH)
-		if (ELEM(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_MOVIE, ICON_FILE_BLANK)) /* rule might not work? */
+	if (drag->type == WM_DRAG_PATH) {
+		/* rule might not work? */
+		if (ELEM(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_MOVIE, ICON_FILE_BLANK)) {
 			return true;
+		}
+	}
 
 	return false;
 }
@@ -1185,6 +1180,9 @@ static void clip_main_region_draw(const bContext *C, ARegion *ar)
 	/* data... */
 	movieclip_main_area_set_view2d(C, ar);
 
+	/* callback */
+	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
+
 	clip_draw_main(C, sc, ar);
 
 	/* TODO(sergey): would be nice to find a way to de-duplicate all this space conversions */
@@ -1229,6 +1227,9 @@ static void clip_main_region_draw(const bContext *C, ARegion *ar)
 		/* Grease Pencil */
 		clip_draw_grease_pencil((bContext *)C, true);
 	}
+
+	/* callback */
+	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
 
 	/* reset view matrix */
 	UI_view2d_view_restore(C);

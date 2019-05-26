@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/view3d_ruler.c
@@ -67,7 +61,7 @@
 /* Ruler Item (we can have many) */
 enum {
 	RULERITEM_USE_ANGLE = (1 << 0),  /* use protractor */
-	RULERITEM_USE_RAYCAST = (1 << 1)
+	RULERITEM_USE_RAYCAST = (1 << 1),
 };
 
 enum {
@@ -485,7 +479,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				float quat[4];
 				float axis[3];
 				float angle;
-				const float px_scale = (ED_view3d_pixel_size(rv3d, ruler_item->co[1]) *
+				const float px_scale = (ED_view3d_pixel_size_no_ui_scale(rv3d, ruler_item->co[1]) *
 				                        min_fff(arc_size,
 				                                len_v2v2(co_ss[0], co_ss[1]) / 2.0f,
 				                                len_v2v2(co_ss[2], co_ss[1]) / 2.0f));

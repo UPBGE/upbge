@@ -40,8 +40,8 @@ struct avxf
 	__forceinline avxf(const __m256 a) : m256(a) {}
 	__forceinline avxf(const __m256i a) : m256(_mm256_castsi256_ps (a)) {}
 
-	__forceinline operator const __m256&(void) const { return m256; }
-	__forceinline operator       __m256&(void)       { return m256; }
+	__forceinline operator const __m256&() const { return m256; }
+	__forceinline operator       __m256&()       { return m256; }
 
 	__forceinline avxf          (float a) : m256(_mm256_set1_ps(a)) {}
 
@@ -214,17 +214,19 @@ __forceinline const avxf nmadd(const avxf& a, const avxf& b, const avxf& c) {
 #endif
 }
 __forceinline const avxf msub(const avxf& a, const avxf& b, const avxf& c) {
+#ifdef __KERNEL_AVX2__
 	return _mm256_fmsub_ps(a, b, c);
+#else
+	return (a*b) - c;
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Comparison Operators
 ////////////////////////////////////////////////////////////////////////////////
-#ifdef __KERNEL_AVX2__
 __forceinline const avxb operator <=(const avxf& a, const avxf& b) {
 	return _mm256_cmp_ps(a.m256, b.m256, _CMP_LE_OS);
 }
-#endif
 
 #endif
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  * Sensor for keyboard input
  */
 
@@ -181,10 +173,10 @@ bool SCA_KeyboardSensor::Evaluate()
 		 * note, this will only change the results if key modifiers are set.
 		 *
 		 * When all modifiers and keys are positive
-		 *  - pulse true
+		 * - pulse true
 		 *
 		 * When ANY of the modifiers or main key become inactive,
-		 *  - pulse false
+		 * - pulse false
 		 */
 
 		// One of the third keys value from last logic frame changed.

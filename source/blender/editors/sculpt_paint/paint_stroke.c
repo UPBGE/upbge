@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 by Nicholas Bishop
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Jason Wilkins, Tom Musgrove.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/editors/sculpt_paint/paint_stroke.c
@@ -197,7 +188,7 @@ static void paint_draw_line_cursor(bContext *C, int x, int y, void *customdata)
 static bool paint_tool_require_location(Brush *brush, ePaintMode mode)
 {
 	switch (mode) {
-		case ePaintSculpt:
+		case PAINT_MODE_SCULPT:
 			if (ELEM(brush->sculpt_tool,
 			         SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
 			         SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB))
@@ -426,7 +417,7 @@ static bool paint_stroke_use_jitter(ePaintMode mode, Brush *brush, bool invert)
 	/* jitter-ed brush gives weird and unpredictable result for this
 	 * kinds of stroke, so manually disable jitter usage (sergey) */
 	use_jitter &= (brush->flag & (BRUSH_DRAG_DOT | BRUSH_ANCHORED)) == 0;
-	use_jitter &= (!ELEM(mode, ePaintTexture2D, ePaintTextureProjective) ||
+	use_jitter &= (!ELEM(mode, PAINT_MODE_TEXTURE_2D, PAINT_MODE_TEXTURE_3D) ||
 	               !(invert && brush->imagepaint_tool == PAINT_TOOL_CLONE));
 
 
@@ -461,8 +452,11 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float
 	}
 
 	/* This can be removed once fixed properly in
-	 * BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos, double time, float pressure, void *user)
-	 * at zero pressure we should do nothing 1/2^12 is 0.0002 which is the sensitivity of the most sensitive pen tablet available */
+	 * BKE_brush_painter_paint(
+	 *     BrushPainter *painter, BrushFunc func,
+	 *     float *pos, double time, float pressure, void *user);
+	 * at zero pressure we should do nothing 1/2^12 is 0.0002
+	 * which is the sensitivity of the most sensitive pen tablet available */
 	if (tablet && (pressure < 0.0002f) &&
 	    ((pop->s.brush->flag & BRUSH_SPACING_PRESSURE) ||
 	     BKE_brush_use_alpha_pressure(scene, pop->s.brush) ||
@@ -819,13 +813,13 @@ bool paint_supports_dynamic_size(Brush *br, ePaintMode mode)
 		return false;
 
 	switch (mode) {
-		case ePaintSculpt:
+		case PAINT_MODE_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
 			break;
 
-		case ePaintTexture2D: /* fall through */
-		case ePaintTextureProjective:
+		case PAINT_MODE_TEXTURE_2D: /* fall through */
+		case PAINT_MODE_TEXTURE_3D:
 			if ((br->imagepaint_tool == PAINT_TOOL_FILL) &&
 			    (br->flag & BRUSH_USE_GRADIENT))
 			{
@@ -848,7 +842,7 @@ bool paint_supports_smooth_stroke(Brush *br, ePaintMode mode)
 	}
 
 	switch (mode) {
-		case ePaintSculpt:
+		case PAINT_MODE_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
 			break;
@@ -861,7 +855,7 @@ bool paint_supports_smooth_stroke(Brush *br, ePaintMode mode)
 bool paint_supports_texture(ePaintMode mode)
 {
 	/* omit: PAINT_WEIGHT, PAINT_SCULPT_UV, PAINT_INVALID */
-	return ELEM(mode, ePaintSculpt, ePaintVertex, ePaintTextureProjective, ePaintTexture2D);
+	return ELEM(mode, PAINT_MODE_SCULPT, PAINT_MODE_VERTEX, PAINT_MODE_TEXTURE_3D, PAINT_MODE_TEXTURE_2D);
 }
 
 /* return true if the brush size can change during paint (normally used for pressure) */
@@ -871,7 +865,7 @@ bool paint_supports_dynamic_tex_coords(Brush *br, ePaintMode mode)
 		return false;
 
 	switch (mode) {
-		case ePaintSculpt:
+		case PAINT_MODE_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
 			break;
@@ -947,7 +941,7 @@ static void paint_stroke_sample_average(
 	mul_v2_fl(average->mouse, 1.0f / stroke->num_samples);
 	average->pressure /= stroke->num_samples;
 
-	/*printf("avg=(%f, %f), num=%d\n", average->mouse[0], average->mouse[1], stroke->num_samples);*/
+	// printf("avg=(%f, %f), num=%d\n", average->mouse[0], average->mouse[1], stroke->num_samples);
 }
 
 /**

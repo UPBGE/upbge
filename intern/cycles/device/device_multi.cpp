@@ -45,11 +45,11 @@ public:
 	list<SubDevice> devices;
 	device_ptr unique_key;
 
-	MultiDevice(DeviceInfo& info, Stats &stats, bool background_)
-	: Device(info, stats, background_), unique_key(1)
+	MultiDevice(DeviceInfo& info, Stats &stats, Profiler &profiler, bool background_)
+	: Device(info, stats, profiler, background_), unique_key(1)
 	{
 		foreach(DeviceInfo& subinfo, info.multi_devices) {
-			Device *device = Device::create(subinfo, sub_stats_, background);
+			Device *device = Device::create(subinfo, sub_stats_, profiler, background);
 
 			/* Always add CPU devices at the back since GPU devices can change
 			 * host memory pointers, which CPU uses as device pointer. */
@@ -69,7 +69,7 @@ public:
 		vector<string> servers = discovery.get_server_list();
 
 		foreach(string& server, servers) {
-			Device *device = device_network_create(info, stats, server.c_str());
+			Device *device = device_network_create(info, stats, profiler, server.c_str());
 			if(device)
 				devices.push_back(SubDevice(device));
 		}
@@ -103,6 +103,14 @@ public:
 		return devices.front().device->show_samples();
 	}
 
+	virtual BVHLayoutMask get_bvh_layout_mask() const {
+		BVHLayoutMask bvh_layout_mask = BVH_LAYOUT_ALL;
+		foreach(const SubDevice& sub_device, devices) {
+			bvh_layout_mask &= sub_device.device->get_bvh_layout_mask();
+		}
+		return bvh_layout_mask;
+	}
+
 	bool load_kernels(const DeviceRequestedFeatures& requested_features)
 	{
 		foreach(SubDevice& sub, devices)
@@ -110,6 +118,38 @@ public:
 				return false;
 
 		return true;
+	}
+
+	bool wait_for_availability(const DeviceRequestedFeatures& requested_features)
+	{
+		foreach(SubDevice& sub, devices)
+			if(!sub.device->wait_for_availability(requested_features))
+				return false;
+
+		return true;
+	}
+
+	DeviceKernelStatus get_active_kernel_switch_state()
+	{
+		DeviceKernelStatus result = DEVICE_KERNEL_USING_FEATURE_KERNEL;
+
+		foreach(SubDevice& sub, devices) {
+			DeviceKernelStatus subresult = sub.device->get_active_kernel_switch_state();
+			switch (subresult) {
+				case DEVICE_KERNEL_WAITING_FOR_FEATURE_KERNEL:
+					result = subresult;
+					break;
+
+				case DEVICE_KERNEL_FEATURE_KERNEL_INVALID:
+				case DEVICE_KERNEL_FEATURE_KERNEL_AVAILABLE:
+					return subresult;
+
+				case DEVICE_KERNEL_USING_FEATURE_KERNEL:
+				case DEVICE_KERNEL_UNKNOWN:
+					break;
+			}
+		}
+		return result;
 	}
 
 	void mem_alloc(device_memory& mem)
@@ -370,9 +410,9 @@ protected:
 	Stats sub_stats_;
 };
 
-Device *device_multi_create(DeviceInfo& info, Stats &stats, bool background)
+Device *device_multi_create(DeviceInfo& info, Stats &stats, Profiler& profiler, bool background)
 {
-	return new MultiDevice(info, stats, background);
+	return new MultiDevice(info, stats, profiler, background);
 }
 
 CCL_NAMESPACE_END

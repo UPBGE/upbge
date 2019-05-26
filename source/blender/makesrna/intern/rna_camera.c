@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_camera.c
@@ -44,6 +38,18 @@
 #include "BKE_sequencer.h"
 
 #include "WM_api.h"
+
+static float rna_Camera_draw_size_get(PointerRNA *ptr)
+{
+	Camera *cam = ptr->id.data;
+	return cam->drawsize * 2.0f;
+}
+
+static void rna_Camera_draw_size_set(PointerRNA *ptr, float value)
+{
+	Camera *cam = ptr->id.data;
+	cam->drawsize = value / 2.0f;
+}
 
 static float rna_Camera_angle_get(PointerRNA *ptr)
 {
@@ -338,7 +344,11 @@ void RNA_def_camera(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
 	prop = RNA_def_property(srna, "draw_size", PROP_FLOAT, PROP_DISTANCE);
+#if 0
 	RNA_def_property_float_sdna(prop, NULL, "drawsize");
+#else
+	RNA_def_property_float_funcs(prop, "rna_Camera_draw_size_get", "rna_Camera_draw_size_set", NULL);
+#endif
 	RNA_def_property_range(prop, 0.01f, 1000.0f);
 	RNA_def_property_ui_range(prop, 0.01, 100, 1, 2);
 	RNA_def_property_ui_text(prop, "Draw Size", "Apparent size of the Camera object in the 3D View");

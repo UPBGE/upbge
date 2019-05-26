@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): 2007 - Joshua Leung (major recode)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_CONSTRAINT_H__
@@ -34,11 +26,11 @@
  */
 
 struct ID;
-struct bConstraint;
-struct bConstraintTarget;
 struct ListBase;
 struct Object;
 struct Scene;
+struct bConstraint;
+struct bConstraintTarget;
 struct bPoseChannel;
 
 /* ---------------------------------------------------------------------------- */
@@ -66,16 +58,18 @@ typedef void (*ConstraintIDFunc)(struct bConstraint *con, struct ID **idpoin, bo
 
 /* ....... */
 
-/* Constraint Type-Info (shorthand in code = cti):
- *  This struct provides function pointers for runtime, so that functions can be
- *  written more generally (with fewer/no special exceptions for various constraints).
+/**
+ * Constraint Type-Info (shorthand in code = cti):
+ * This struct provides function pointers for runtime, so that functions can be
+ * written more generally (with fewer/no special exceptions for various constraints).
  *
- *  Callers of these functions must check that they actually point to something useful,
- *  as some constraints don't define some of these.
+ * Callers of these functions must check that they actually point to something useful,
+ * as some constraints don't define some of these.
  *
- *  Warning: it is not too advisable to reorder order of members of this struct,
- *			as you'll have to edit quite a few ($NUM_CONSTRAINT_TYPES) of these
- *			structs.
+ * Warning:
+ * it is not too advisable to reorder order of members of this struct,
+ * as you'll have to edit quite a few #NUM_CONSTRAINT_TYPES of these
+ * structs.
  */
 typedef struct bConstraintTypeInfo {
 	/* admin/ident */

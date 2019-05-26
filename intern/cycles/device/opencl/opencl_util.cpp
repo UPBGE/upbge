@@ -17,12 +17,14 @@
 #ifdef WITH_OPENCL
 
 #include "device/opencl/opencl.h"
+#include "device/device_intern.h"
 
 #include "util/util_debug.h"
 #include "util/util_logging.h"
 #include "util/util_md5.h"
 #include "util/util_path.h"
 #include "util/util_time.h"
+#include "util/util_system.h"
 
 using std::cerr;
 using std::endl;
@@ -106,7 +108,7 @@ cl_context OpenCLCache::get_context(cl_platform_id platform,
 
 	cl_int ciErr = clRetainContext(slot.context);
 	assert(ciErr == CL_SUCCESS);
-	(void)ciErr;
+	(void) ciErr;
 
 	return slot.context;
 }
@@ -153,7 +155,7 @@ cl_program OpenCLCache::get_program(cl_platform_id platform,
 
 	cl_int ciErr = clRetainProgram(entry.program);
 	assert(ciErr == CL_SUCCESS);
-	(void)ciErr;
+	(void) ciErr;
 
 	return entry.program;
 }
@@ -188,7 +190,7 @@ void OpenCLCache::store_context(cl_platform_id platform,
 	 * The caller is going to release the object when done with it. */
 	cl_int ciErr = clRetainContext(context);
 	assert(ciErr == CL_SUCCESS);
-	(void)ciErr;
+	(void) ciErr;
 }
 
 void OpenCLCache::store_program(cl_platform_id platform,
@@ -227,7 +229,7 @@ void OpenCLCache::store_program(cl_platform_id platform,
 	 */
 	cl_int ciErr = clRetainProgram(program);
 	assert(ciErr == CL_SUCCESS);
-	(void)ciErr;
+	(void) ciErr;
 }
 
 string OpenCLCache::get_kernel_md5()
@@ -241,7 +243,19 @@ string OpenCLCache::get_kernel_md5()
 	return self.kernel_md5;
 }
 
-OpenCLDeviceBase::OpenCLProgram::OpenCLProgram(OpenCLDeviceBase *device,
+static string get_program_source(const string& kernel_file)
+{
+	string source = "#include \"kernel/kernels/opencl/" + kernel_file + "\"\n";
+	/* We compile kernels consisting of many files. unfortunately OpenCL
+	 * kernel caches do not seem to recognize changes in included files.
+	 * so we force recompile on changes by adding the md5 hash of all files.
+	 */
+	source = path_source_replace_includes(source, path_get("source"));
+	source += "\n// " + util_md5_string(source) + "\n";
+	return source;
+}
+
+OpenCLDevice::OpenCLProgram::OpenCLProgram(OpenCLDevice *device,
                                                const string& program_name,
                                                const string& kernel_file,
                                                const string& kernel_build_options,
@@ -253,15 +267,16 @@ OpenCLDeviceBase::OpenCLProgram::OpenCLProgram(OpenCLDeviceBase *device,
    use_stdout(use_stdout)
 {
 	loaded = false;
+	needs_compiling = true;
 	program = NULL;
 }
 
-OpenCLDeviceBase::OpenCLProgram::~OpenCLProgram()
+OpenCLDevice::OpenCLProgram::~OpenCLProgram()
 {
 	release();
 }
 
-void OpenCLDeviceBase::OpenCLProgram::release()
+void OpenCLDevice::OpenCLProgram::release()
 {
 	for(map<ustring, cl_kernel>::iterator kernel = kernels.begin(); kernel != kernels.end(); ++kernel) {
 		if(kernel->second) {
@@ -275,7 +290,7 @@ void OpenCLDeviceBase::OpenCLProgram::release()
 	}
 }
 
-void OpenCLDeviceBase::OpenCLProgram::add_log(const string& msg, bool debug)
+void OpenCLDevice::OpenCLProgram::add_log(const string& msg, bool debug)
 {
 	if(!use_stdout) {
 		log += msg + "\n";
@@ -289,7 +304,7 @@ void OpenCLDeviceBase::OpenCLProgram::add_log(const string& msg, bool debug)
 	}
 }
 
-void OpenCLDeviceBase::OpenCLProgram::add_error(const string& msg)
+void OpenCLDevice::OpenCLProgram::add_error(const string& msg)
 {
 	if(use_stdout) {
 		fprintf(stderr, "%s\n", msg.c_str());
@@ -300,14 +315,14 @@ void OpenCLDeviceBase::OpenCLProgram::add_error(const string& msg)
 	error_msg += msg;
 }
 
-void OpenCLDeviceBase::OpenCLProgram::add_kernel(ustring name)
+void OpenCLDevice::OpenCLProgram::add_kernel(ustring name)
 {
 	if(!kernels.count(name)) {
 		kernels[name] = NULL;
 	}
 }
 
-bool OpenCLDeviceBase::OpenCLProgram::build_kernel(const string *debug_src)
+bool OpenCLDevice::OpenCLProgram::build_kernel(const string *debug_src)
 {
 	string build_options;
 	build_options = device->kernel_build_options(debug_src) + kernel_build_options;
@@ -339,15 +354,9 @@ bool OpenCLDeviceBase::OpenCLProgram::build_kernel(const string *debug_src)
 	return (ciErr == CL_SUCCESS);
 }
 
-bool OpenCLDeviceBase::OpenCLProgram::compile_kernel(const string *debug_src)
+bool OpenCLDevice::OpenCLProgram::compile_kernel(const string *debug_src)
 {
-	string source = "#include \"kernel/kernels/opencl/" + kernel_file + "\"\n";
-	/* We compile kernels consisting of many files. unfortunately OpenCL
-	 * kernel caches do not seem to recognize changes in included files.
-	 * so we force recompile on changes by adding the md5 hash of all files.
-	 */
-	source = path_source_replace_includes(source, path_get("source"));
-	source += "\n// " + util_md5_string(source) + "\n";
+	string source = get_program_source(kernel_file);
 
 	if(debug_src) {
 		path_write_text(*debug_src, source);
@@ -369,18 +378,136 @@ bool OpenCLDeviceBase::OpenCLProgram::compile_kernel(const string *debug_src)
 	}
 
 	double starttime = time_dt();
-	add_log(string("Compiling OpenCL program ") + program_name.c_str(), false);
+	add_log(string("Cycles: compiling OpenCL program ") + program_name + "...", false);
 	add_log(string("Build flags: ") + kernel_build_options, true);
 
 	if(!build_kernel(debug_src))
 		return false;
 
-	add_log(string("Kernel compilation of ") + program_name + " finished in " + string_printf("%.2lfs.\n", time_dt() - starttime), false);
+	double elapsed = time_dt() - starttime;
+	add_log(string_printf("Kernel compilation of %s finished in %.2lfs.", program_name.c_str(), elapsed), false);
 
 	return true;
 }
 
-bool OpenCLDeviceBase::OpenCLProgram::load_binary(const string& clbin,
+static void escape_python_string(string& str)
+{
+	/* Escape string to be passed as a Python raw string with '' quotes'. */
+	string_replace(str, "'", "\'");
+}
+
+bool OpenCLDevice::OpenCLProgram::compile_separate(const string& clbin)
+{
+	vector<string> args;
+	args.push_back("--background");
+	args.push_back("--factory-startup");
+	args.push_back("--python-expr");
+
+	int device_platform_id = device->device_num;
+	string device_name = device->device_name;
+	string platform_name = device->platform_name;
+	string build_options = device->kernel_build_options(NULL) + kernel_build_options;
+	string kernel_file_escaped = kernel_file;
+	string clbin_escaped = clbin;
+
+	escape_python_string(device_name);
+	escape_python_string(platform_name);
+	escape_python_string(build_options);
+	escape_python_string(kernel_file_escaped);
+	escape_python_string(clbin_escaped);
+
+	args.push_back(
+		string_printf(
+			"import _cycles; _cycles.opencl_compile(r'%d', r'%s', r'%s', r'%s', r'%s', r'%s')",
+			device_platform_id,
+			device_name.c_str(),
+			platform_name.c_str(),
+			build_options.c_str(),
+			kernel_file_escaped.c_str(),
+			clbin_escaped.c_str()));
+
+	double starttime = time_dt();
+	add_log(string("Cycles: compiling OpenCL program ") + program_name + "...", false);
+	add_log(string("Build flags: ") + kernel_build_options, true);
+	if(!system_call_self(args) || !path_exists(clbin)) {
+		return false;
+	}
+
+	double elapsed = time_dt() - starttime;
+	add_log(string_printf("Kernel compilation of %s finished in %.2lfs.", program_name.c_str(), elapsed), false);
+
+	return load_binary(clbin);
+}
+
+/* Compile opencl kernel. This method is called from the _cycles Python
+ * module compile kernels. Parameters must match function above. */
+bool device_opencl_compile_kernel(const vector<string>& parameters)
+{
+	int device_platform_id = std::stoi(parameters[0]);
+	const string& device_name = parameters[1];
+	const string& platform_name = parameters[2];
+	const string& build_options = parameters[3];
+	const string& kernel_file = parameters[4];
+	const string& binary_path = parameters[5];
+
+	if(clewInit() != CLEW_SUCCESS) {
+		return false;
+	}
+
+	vector<OpenCLPlatformDevice> usable_devices;
+	OpenCLInfo::get_usable_devices(&usable_devices);
+	if(device_platform_id >= usable_devices.size()) {
+		return false;
+	}
+
+	OpenCLPlatformDevice& platform_device = usable_devices[device_platform_id];
+	if(platform_device.platform_name != platform_name ||
+	   platform_device.device_name != device_name)
+	{
+		return false;
+	}
+
+	cl_platform_id platform = platform_device.platform_id;
+	cl_device_id device = platform_device.device_id;
+	const cl_context_properties context_props[] = {
+		CL_CONTEXT_PLATFORM, (cl_context_properties) platform,
+		0, 0
+	};
+
+	cl_int err;
+	cl_context context = clCreateContext(context_props, 1, &device, NULL, NULL, &err);
+	if(err != CL_SUCCESS) {
+		return false;
+	}
+
+	string source = get_program_source(kernel_file);
+	size_t source_len = source.size();
+	const char *source_str = source.c_str();
+	cl_program program = clCreateProgramWithSource(context, 1, &source_str, &source_len, &err);
+	bool result = false;
+
+	if(err == CL_SUCCESS) {
+		err = clBuildProgram(program, 0, NULL, build_options.c_str(), NULL, NULL);
+
+		if(err == CL_SUCCESS) {
+			size_t size = 0;
+			clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &size, NULL);
+			if(size > 0) {
+				vector<uint8_t> binary(size);
+				uint8_t *bytes = &binary[0];
+				clGetProgramInfo(program, CL_PROGRAM_BINARIES, sizeof(uint8_t*), &bytes, NULL);
+				result = path_write_binary(binary_path, binary);
+			}
+		}
+		clReleaseProgram(program);
+	}
+
+	clReleaseContext(context);
+
+	return result;
+}
+
+bool OpenCLDevice::OpenCLProgram::load_binary(const string& clbin,
                                                   const string *debug_src)
 {
 	/* read binary into memory */
@@ -411,7 +538,7 @@ bool OpenCLDeviceBase::OpenCLProgram::load_binary(const string& clbin,
 	return true;
 }
 
-bool OpenCLDeviceBase::OpenCLProgram::save_binary(const string& clbin)
+bool OpenCLDevice::OpenCLProgram::save_binary(const string& clbin)
 {
 	size_t size = 0;
 	clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &size, NULL);
@@ -427,11 +554,54 @@ bool OpenCLDeviceBase::OpenCLProgram::save_binary(const string& clbin)
 	return path_write_binary(clbin, binary);
 }
 
-void OpenCLDeviceBase::OpenCLProgram::load()
+bool OpenCLDevice::OpenCLProgram::load()
+{
+	loaded = false;
+	string device_md5 = device->device_md5_hash(kernel_build_options);
+
+	/* Try to use cached kernel. */
+	thread_scoped_lock cache_locker;
+	ustring cache_key(program_name + device_md5);
+	program = device->load_cached_kernel(cache_key,
+	                                     cache_locker);
+	if (!program) {
+		add_log(string("OpenCL program ") + program_name + " not found in cache.", true);
+
+		/* need to create source to get md5 */
+		string source = get_program_source(kernel_file);
+
+		string basename = "cycles_kernel_" + program_name + "_" + device_md5 + "_" + util_md5_string(source);
+		basename = path_cache_get(path_join("kernels", basename));
+		string clbin = basename + ".clbin";
+
+		/* If binary kernel exists already, try use it. */
+		if(path_exists(clbin) && load_binary(clbin)) {
+			/* Kernel loaded from binary, nothing to do. */
+			add_log(string("Loaded program from ") + clbin + ".", true);
+
+			/* Cache the program. */
+			device->store_cached_kernel(program,
+			                            cache_key,
+			                            cache_locker);
+		}
+		else {
+			add_log(string("OpenCL program ") + program_name + " not found on disk.", true);
+			cache_locker.unlock();
+		}
+	}
+
+	if (program) {
+		create_kernels();
+		loaded = true;
+		needs_compiling = false;
+	}
+
+	return loaded;
+}
+
+void OpenCLDevice::OpenCLProgram::compile()
 {
 	assert(device);
-
-	loaded = false;
 
 	string device_md5 = device->device_md5_hash(kernel_build_options);
 
@@ -441,12 +611,13 @@ void OpenCLDeviceBase::OpenCLProgram::load()
 	program = device->load_cached_kernel(cache_key,
 	                                     cache_locker);
 
-	if(!program) {
+	if (!program)
+	{
+
 		add_log(string("OpenCL program ") + program_name + " not found in cache.", true);
 
 		/* need to create source to get md5 */
-		string source = "#include \"kernel/kernels/opencl/" + kernel_file + "\"\n";
-		source = path_source_replace_includes(source, path_get("source"));
+		string source = get_program_source(kernel_file);
 
 		string basename = "cycles_kernel_" + program_name + "_" + device_md5 + "_" + util_md5_string(source);
 		basename = path_cache_get(path_join("kernels", basename));
@@ -461,15 +632,16 @@ void OpenCLDeviceBase::OpenCLProgram::load()
 		}
 
 		/* If binary kernel exists already, try use it. */
-		if(path_exists(clbin) && load_binary(clbin)) {
-			/* Kernel loaded from binary, nothing to do. */
-			add_log(string("Loaded program from ") + clbin + ".", true);
+		if(compile_separate(clbin)) {
+			add_log(string("Built and loaded program from ") + clbin + ".", true);
+			loaded = true;
 		}
 		else {
-			add_log(string("Kernel file ") + clbin + " either doesn't exist or failed to be loaded by driver.", true);
+			add_log(string("Separate-process building of ") + clbin + " failed, will fall back to regular building.", true);
 
 			/* If does not exist or loading binary failed, compile kernel. */
 			if(!compile_kernel(debug_src)) {
+				needs_compiling = false;
 				return;
 			}
 
@@ -481,13 +653,17 @@ void OpenCLDeviceBase::OpenCLProgram::load()
 
 		/* Cache the program. */
 		device->store_cached_kernel(program,
-		                            cache_key,
-		                            cache_locker);
-	}
-	else {
-		add_log(string("Found cached OpenCL program ") + program_name + ".", true);
+									cache_key,
+									cache_locker);
 	}
 
+	create_kernels();
+	needs_compiling = false;
+	loaded = true;
+}
+
+void OpenCLDevice::OpenCLProgram::create_kernels()
+{
 	for(map<ustring, cl_kernel>::iterator kernel = kernels.begin(); kernel != kernels.end(); ++kernel) {
 		assert(kernel->second == NULL);
 		cl_int ciErr;
@@ -498,11 +674,18 @@ void OpenCLDeviceBase::OpenCLProgram::load()
 			return;
 		}
 	}
-
-	loaded = true;
 }
 
-void OpenCLDeviceBase::OpenCLProgram::report_error()
+bool OpenCLDevice::OpenCLProgram::wait_for_availability()
+{
+	add_log(string("Waiting for availability of ") + program_name + ".", true);
+	while (needs_compiling) {
+		time_sleep(0.1);
+	}
+	return loaded;
+}
+
+void OpenCLDevice::OpenCLProgram::report_error()
 {
 	/* If loaded is true, there was no error. */
 	if(loaded) return;
@@ -516,13 +699,13 @@ void OpenCLDeviceBase::OpenCLProgram::report_error()
 	}
 }
 
-cl_kernel OpenCLDeviceBase::OpenCLProgram::operator()()
+cl_kernel OpenCLDevice::OpenCLProgram::operator()()
 {
 	assert(kernels.size() == 1);
 	return kernels.begin()->second;
 }
 
-cl_kernel OpenCLDeviceBase::OpenCLProgram::operator()(ustring name)
+cl_kernel OpenCLDevice::OpenCLProgram::operator()(ustring name)
 {
 	assert(kernels.count(name));
 	return kernels[name];
@@ -552,50 +735,6 @@ cl_device_type OpenCLInfo::device_type()
 bool OpenCLInfo::use_debug()
 {
 	return DebugFlags().opencl.debug;
-}
-
-bool OpenCLInfo::use_single_program()
-{
-	return DebugFlags().opencl.single_program;
-}
-
-bool OpenCLInfo::kernel_use_advanced_shading(const string& platform)
-{
-	/* keep this in sync with kernel_types.h! */
-	if(platform == "NVIDIA CUDA")
-		return true;
-	else if(platform == "Apple")
-		return true;
-	else if(platform == "AMD Accelerated Parallel Processing")
-		return true;
-	else if(platform == "Intel(R) OpenCL")
-		return true;
-	/* Make sure officially unsupported OpenCL platforms
-	 * does not set up to use advanced shading.
-	 */
-	return false;
-}
-
-bool OpenCLInfo::kernel_use_split(const string& platform_name,
-                                  const cl_device_type device_type)
-{
-	if(DebugFlags().opencl.kernel_type == DebugFlags::OpenCL::KERNEL_SPLIT) {
-		VLOG(1) << "Forcing split kernel to use.";
-		return true;
-	}
-	if(DebugFlags().opencl.kernel_type == DebugFlags::OpenCL::KERNEL_MEGA) {
-		VLOG(1) << "Forcing mega kernel to use.";
-		return false;
-	}
-	/* TODO(sergey): Replace string lookups with more enum-like API,
-	 * similar to device/vendor checks blender's gpu.
-	 */
-	if(platform_name == "AMD Accelerated Parallel Processing" &&
-	   device_type == CL_DEVICE_TYPE_GPU)
-	{
-		return true;
-	}
-	return false;
 }
 
 bool OpenCLInfo::device_supported(const string& platform_name,
@@ -645,7 +784,7 @@ bool OpenCLInfo::device_supported(const string& platform_name,
 		return true;
 	}
 	if(platform_name == "Apple" && device_type == CL_DEVICE_TYPE_GPU) {
-		return true;
+		return false;
 	}
 	return false;
 }
@@ -738,8 +877,6 @@ string OpenCLInfo::get_hardware_id(const string& platform_name, cl_device_id dev
 void OpenCLInfo::get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices,
                                     bool force_all)
 {
-	const bool force_all_platforms = force_all ||
-		(DebugFlags().opencl.kernel_type != DebugFlags::OpenCL::KERNEL_DEFAULT);
 	const cl_device_type device_type = OpenCLInfo::device_type();
 	static bool first_time = true;
 #define FIRST_VLOG(severity) if(first_time) VLOG(severity)
@@ -812,7 +949,7 @@ void OpenCLInfo::get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices
 				              << " due to old compiler version.";
 				continue;
 			}
-			if(force_all_platforms ||
+			if(force_all ||
 			   device_supported(platform_name, device_id))
 			{
 				cl_device_type device_type;

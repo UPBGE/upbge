@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blentranslation/intern/blt_translation.c
@@ -41,6 +34,7 @@
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
+#include "BLI_threads.h"
 
 #include "DNA_userdef_types.h" /* For user settings. */
 
@@ -91,7 +85,7 @@ const char *BLT_pgettext(const char *msgctxt, const char *msgid)
 bool BLT_translate(void)
 {
 #ifdef WITH_INTERNATIONAL
-	return (U.transopts & USER_DOTRANSLATE) != 0;
+	return BLI_thread_is_main() && (U.transopts & USER_DOTRANSLATE);
 #else
 	return false;
 #endif
@@ -100,7 +94,7 @@ bool BLT_translate(void)
 bool BLT_translate_iface(void)
 {
 #ifdef WITH_INTERNATIONAL
-	return (U.transopts & USER_DOTRANSLATE) && (U.transopts & USER_TR_IFACE);
+	return BLT_translate() && (U.transopts & USER_TR_IFACE);
 #else
 	return false;
 #endif
@@ -109,7 +103,7 @@ bool BLT_translate_iface(void)
 bool BLT_translate_tooltips(void)
 {
 #ifdef WITH_INTERNATIONAL
-	return (U.transopts & USER_DOTRANSLATE) && (U.transopts & USER_TR_TOOLTIPS);
+	return BLT_translate() && (U.transopts & USER_TR_TOOLTIPS);
 #else
 	return false;
 #endif
@@ -118,7 +112,7 @@ bool BLT_translate_tooltips(void)
 bool BLT_translate_new_dataname(void)
 {
 #ifdef WITH_INTERNATIONAL
-	return (U.transopts & USER_DOTRANSLATE) && (U.transopts & USER_TR_NEWDATANAME);
+	return BLT_translate() && (U.transopts & USER_TR_NEWDATANAME);
 #else
 	return false;
 #endif

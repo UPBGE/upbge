@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/tools/bmesh_bisect_plane.c
@@ -26,7 +20,7 @@
  * Cut the geometry in half using a plane.
  *
  * \par Implementation
- * This simply works by splitting tagged edges whos verts span either side of
+ * This simply works by splitting tagged edges who's verts span either side of
  * the plane, then splitting faces along their dividing verts.
  * The only complex case is when a ngon spans the axis multiple times,
  * in this case we need to do some extra checks to correctly bisect the ngon.
@@ -302,9 +296,9 @@ finally:
 /* Main logic */
 
 /**
- * \param use_snap_center  Snap verts onto the plane.
- * \param use_tag  Only bisect tagged edges and faces.
- * \param oflag_center  Operator flag, enabled for geometry on the axis (existing and created)
+ * \param use_snap_center: Snap verts onto the plane.
+ * \param use_tag: Only bisect tagged edges and faces.
+ * \param oflag_center: Operator flag, enabled for geometry on the axis (existing and created)
  */
 void BM_mesh_bisect_plane(
         BMesh *bm, const float plane[4],

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/imbuf/intern/iris.c
@@ -124,8 +116,7 @@ static int compressrow(uchar *lbuf, uchar *rlebuf, int z, int cnt);
 static void lumrow(uchar *rgbptr, uchar *lumptr, int n);
 
 /*
- *	byte order independent read/write of shorts and ints.
- *
+ * byte order independent read/write of shorts and ints.
  */
 
 static ushort getshort(MFileOffset *inf)
@@ -245,10 +236,9 @@ int imb_is_a_iris(const uchar *mem)
 }
 
 /*
- *	longimagedata -
- *		read in a B/W RGB or RGBA iris image file and return a
- *	pointer to an array of ints.
- *
+ * longimagedata -
+ * read in a B/W RGB or RGBA iris image file and return a
+ * pointer to an array of ints.
  */
 
 struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
@@ -765,17 +755,16 @@ fail:
 	return DIRTY_FLAG_ENCODING;
 }
 
-/*
- *	output_iris -
- *		copy an array of ints to an iris image file.  Each int
- *	represents one pixel.  xsize and ysize specify the dimensions of
- *	the pixel array.  zsize specifies what kind of image file to
- *	write out.  if zsize is 1, the luminance of the pixels are
- *	calculated, and a single channel black and white image is saved.
- *	If zsize is 3, an RGB image file is saved.  If zsize is 4, an
- *	RGBA image file is saved.
+/**
+ * Copy an array of ints to an iris image file.
+ * Each int represents one pixel.  xsize and ysize specify the dimensions of
+ * the pixel array.  zsize specifies what kind of image file to
+ * write out.  if zsize is 1, the luminance of the pixels are
+ * calculated, and a single channel black and white image is saved.
+ * If zsize is 3, an RGB image file is saved.  If zsize is 4, an
+ * RGBA image file is saved.
  *
- *  Added: zbuf write
+ * Added: zbuf write
  */
 
 static int output_iris(uint *lptr, int xsize, int ysize, int zsize, const char *name, int *zptr)

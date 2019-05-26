@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,12 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s):
- *
  * Partial Copyright (c) 2006 Peter Schlaile
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/writeffmpeg.c
@@ -735,6 +728,26 @@ static AVStream *alloc_audio_stream(FFMpegContext *context, RenderData *rd, int 
 	c->bit_rate = context->ffmpeg_audio_bitrate * 1000;
 	c->sample_fmt = AV_SAMPLE_FMT_S16;
 	c->channels = rd->ffcodecdata.audio_channels;
+
+#ifdef FFMPEG_HAVE_FRAME_CHANNEL_LAYOUT
+	switch (rd->ffcodecdata.audio_channels) {
+		case FFM_CHANNELS_MONO:
+			c->channel_layout = AV_CH_LAYOUT_MONO;
+			break;
+		case FFM_CHANNELS_STEREO:
+			c->channel_layout = AV_CH_LAYOUT_STEREO;
+			break;
+		case FFM_CHANNELS_SURROUND4:
+			c->channel_layout = AV_CH_LAYOUT_QUAD;
+			break;
+		case FFM_CHANNELS_SURROUND51:
+			c->channel_layout = AV_CH_LAYOUT_5POINT1_BACK;
+			break;
+		case FFM_CHANNELS_SURROUND71:
+			c->channel_layout = AV_CH_LAYOUT_7POINT1;
+			break;
+	}
+#endif
 
 	if (request_float_audio_buffer(codec_id)) {
 		/* mainly for AAC codec which is experimental */

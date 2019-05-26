@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): None Yet
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/DEG_depsgraph.h
@@ -37,8 +30,6 @@
  * to determine the set of operations need to ensure that all data has been
  * correctly evaluated in response to changes, based on dependencies and visibility
  * of affected data.
- *
- *
  * Evaluation Engine
  * =================
  *
@@ -210,9 +201,9 @@ void DEG_editors_update_pre(struct Main *bmain, struct Scene *scene, bool time);
 
 /* Evaluation Debug ------------------------------ */
 
-void DEG_debug_print_eval(const char* function_name,
-                          const char* object_name,
-                          const void* object_address);
+void DEG_debug_print_eval(const char *function_name,
+                          const char *object_name,
+                          const void *object_address);
 
 void DEG_debug_print_eval_subdata(const char *function_name,
                                   const char *object_name,
@@ -229,9 +220,9 @@ void DEG_debug_print_eval_subdata_index(const char *function_name,
                                         const void *subdata_address,
                                         const int subdata_index);
 
-void DEG_debug_print_eval_time(const char* function_name,
-                               const char* object_name,
-                               const void* object_address,
+void DEG_debug_print_eval_time(const char *function_name,
+                               const char *object_name,
+                               const void *object_address,
                                float time);
 
 #ifdef __cplusplus

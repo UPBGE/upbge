@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009, Blender Foundation, Joshua Leung
  * This is a new part of Blender (with some old code)
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/animation/anim_intern.h
@@ -39,15 +33,15 @@ extern ListBase builtin_keyingsets;
 /* Operator Define Prototypes ------------------- */
 
 /* Main Keyframe Management operators:
- *	These handle keyframes management from various spaces. They only make use of
- *  Keying Sets.
+ * These handle keyframes management from various spaces. They only make use of
+ * Keying Sets.
  */
 void ANIM_OT_keyframe_insert(struct wmOperatorType *ot);
 void ANIM_OT_keyframe_delete(struct wmOperatorType *ot);
 
 /* Main Keyframe Management operators:
- *	These handle keyframes management from various spaces. They will handle the menus
- *  required for each space.
+ * These handle keyframes management from various spaces. They will handle the menus
+ * required for each space.
  */
 void ANIM_OT_keyframe_insert_menu(struct wmOperatorType *ot);
 

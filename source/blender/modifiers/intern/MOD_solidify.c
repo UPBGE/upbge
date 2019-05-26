@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 by the Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Campbell Barton
- *                 Shinsuke Irie
- *                 Martin Felke
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/modifiers/intern/MOD_solidify.c
@@ -69,9 +60,9 @@ BLI_INLINE bool edgeref_is_init(const EdgeFaceRef *edge_ref)
 }
 
 /**
- * \param dm  Mesh to calculate normals for.
- * \param face_nors  Precalculated face normals.
- * \param r_vert_nors  Return vert normals.
+ * \param dm: Mesh to calculate normals for.
+ * \param face_nors: Precalculated face normals.
+ * \param r_vert_nors: Return vert normals.
  */
 static void dm_calc_normal(DerivedMesh *dm, float (*face_nors)[3], float (*r_vert_nors)[3])
 {
@@ -813,7 +804,7 @@ static DerivedMesh *applyModifier(
 			mp->flag = mpoly[fidx].flag;
 
 			/* notice we use 'mp->totloop' which is later overwritten,
-			 * we could lookup the original face but theres no point since this is a copy
+			 * we could lookup the original face but there's no point since this is a copy
 			 * and will have the same value, just take care when changing order of assignment */
 			k1 = mpoly[fidx].loopstart + (((edge_order[eidx] - 1) + mp->totloop) % mp->totloop);  /* prev loop */
 			k2 = mpoly[fidx].loopstart +   (edge_order[eidx]);

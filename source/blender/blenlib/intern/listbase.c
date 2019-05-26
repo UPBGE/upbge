@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/blenlib/intern/listbase.c
@@ -795,7 +786,7 @@ void BLI_listbase_reverse(ListBase *lb)
 }
 
 /**
- * \param vlink Link to make first.
+ * \param vlink: Link to make first.
  */
 void BLI_listbase_rotate_first(ListBase *lb, void *vlink)
 {
@@ -811,7 +802,7 @@ void BLI_listbase_rotate_first(ListBase *lb, void *vlink)
 }
 
 /**
- * \param vlink Link to make last.
+ * \param vlink: Link to make last.
  */
 void BLI_listbase_rotate_last(ListBase *lb, void *vlink)
 {

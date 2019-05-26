@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/source/external_engine.c
@@ -146,6 +138,8 @@ RenderEngine *RE_engine_create_ex(RenderEngineType *type, bool use_for_viewport)
 		BLI_threaded_malloc_begin();
 	}
 
+	BLI_mutex_init(&engine->update_render_passes_mutex);
+
 	return engine;
 }
 
@@ -160,6 +154,8 @@ void RE_engine_free(RenderEngine *engine)
 	if (engine->flag & RE_ENGINE_USED_FOR_VIEWPORT) {
 		BLI_threaded_malloc_end();
 	}
+
+	BLI_mutex_end(&engine->update_render_passes_mutex);
 
 	MEM_freeN(engine);
 }
@@ -453,7 +449,7 @@ rcti* RE_engine_get_current_tiles(Render *re, int *r_total_tiles, bool *r_needs_
 		if (pa->status == PART_STATUS_IN_PROGRESS) {
 			if (total_tiles >= allocation_size) {
 				/* Just in case we're using crazy network rendering with more
-				 * slaves as BLENDER_MAX_THREADS.
+				 * workers than BLENDER_MAX_THREADS.
 				 */
 				allocation_size += allocation_step;
 				if (tiles == tiles_static) {
@@ -724,7 +720,7 @@ int RE_engine_render(Render *re, int do_all)
 	engine->tile_y = re->party;
 
 	if (re->result->do_exr_tile)
-		render_result_exr_file_begin(re);
+		render_result_exr_file_begin(re, engine);
 
 	if (type->update)
 		type->update(engine, re->main, re->scene);
@@ -745,17 +741,14 @@ int RE_engine_render(Render *re, int do_all)
 
 	BLI_rw_mutex_lock(&re->partsmutex, THREAD_LOCK_WRITE);
 
+	if (re->result->do_exr_tile) {
+		render_result_exr_file_end(re, engine);
+	}
+
 	/* re->engine becomes zero if user changed active render engine during render */
 	if (!persistent_data || !re->engine) {
 		RE_engine_free(engine);
 		re->engine = NULL;
-	}
-
-	if (re->result->do_exr_tile) {
-		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-		render_result_save_empty_result_tiles(re);
-		render_result_exr_file_end(re);
-		BLI_rw_mutex_unlock(&re->resultmutex);
 	}
 
 	if (re->r.scemode & R_EXR_CACHE_FILE) {
@@ -778,23 +771,30 @@ int RE_engine_render(Render *re, int do_all)
 	return 1;
 }
 
-void RE_engine_register_pass(struct RenderEngine *engine, struct Scene *scene, struct SceneRenderLayer *srl,
-                             const char *name, int UNUSED(channels), const char *UNUSED(chanid), int type)
+void RE_engine_update_render_passes(struct RenderEngine *engine, struct Scene *scene, struct SceneRenderLayer *srl,
+                                    update_render_passes_cb_t callback, void *callback_data)
 {
-	/* The channel information is currently not used, but is part of the API in case it's needed in the future. */
-
-	if (!(scene && srl && engine)) {
+	if (!(scene && srl && engine && callback && engine->type->update_render_passes)) {
 		return;
 	}
 
-	/* Register the pass in all scenes that have a render layer node for this layer.
-	 * Since multiple scenes can be used in the compositor, the code must loop over all scenes
-	 * and check whether their nodetree has a node that needs to be updated. */
-	/* NOTE: using G_MAIN seems valid here,
-	 * unless we want to register that for every other temp Main we could generate??? */
-	for (Scene *sce = G_MAIN->scene.first; sce; sce = sce->id.next) {
-		if (sce->nodetree) {
-			ntreeCompositRegisterPass(sce->nodetree, scene, srl, name, type);
-		}
+	BLI_mutex_lock(&engine->update_render_passes_mutex);
+
+	engine->update_render_passes_cb = callback;
+	engine->update_render_passes_data = callback_data;
+	engine->type->update_render_passes(engine, scene, srl);
+	engine->update_render_passes_cb = NULL;
+	engine->update_render_passes_data = NULL;
+
+	BLI_mutex_unlock(&engine->update_render_passes_mutex);
+}
+
+void RE_engine_register_pass(struct RenderEngine *engine, struct Scene *scene, struct SceneRenderLayer *srl,
+                             const char *name, int channels, const char *chanid, int type)
+{
+	if (!(scene && srl && engine && engine->update_render_passes_cb)) {
+		return;
 	}
+
+	engine->update_render_passes_cb(engine->update_render_passes_data, scene, srl, name, channels, chanid, type);
 }

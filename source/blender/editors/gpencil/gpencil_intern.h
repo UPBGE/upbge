@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/gpencil/gpencil_intern.h
@@ -36,9 +29,9 @@
 
 
 /* internal exports only */
-struct bGPdata;
-struct bGPDstroke;
 struct bGPDspoint;
+struct bGPDstroke;
+struct bGPdata;
 
 struct GHash;
 
@@ -46,9 +39,9 @@ struct ARegion;
 struct View2D;
 struct wmOperatorType;
 
+struct EnumPropertyItem;
 struct PointerRNA;
 struct PropertyRNA;
-struct EnumPropertyItem;
 
 
 /* ***************************************************** */
@@ -222,7 +215,7 @@ void GPENCIL_OT_convert(struct wmOperatorType *ot);
 
 enum {
 	GP_STROKE_JOIN = -1,
-	GP_STROKE_JOINCOPY = 1
+	GP_STROKE_JOINCOPY = 1,
 };
 
 void GPENCIL_OT_stroke_arrange(struct wmOperatorType *ot);
@@ -319,15 +312,15 @@ typedef enum ACTCONT_TYPES {
 /* Stroke Iteration Utilities */
 
 /**
-* Iterate over all editable strokes in the current context,
-* stopping on each usable layer + stroke pair (i.e. gpl and gps)
-* to perform some operations on the stroke.
-*
-* \param gpl  The identifier to use for the layer of the stroke being processed.
-*                    Choose a suitable value to avoid name clashes.
-* \param gps The identifier to use for current stroke being processed.
-*                    Choose a suitable value to avoid name clashes.
-*/
+ * Iterate over all editable strokes in the current context,
+ * stopping on each usable layer + stroke pair (i.e. gpl and gps)
+ * to perform some operations on the stroke.
+ *
+ * \param gpl: The identifier to use for the layer of the stroke being processed.
+ *                    Choose a suitable value to avoid name clashes.
+ * \param gps: The identifier to use for current stroke being processed.
+ *                    Choose a suitable value to avoid name clashes.
+ */
 #define GP_EDITABLE_STROKES_BEGIN(C, gpl, gps)                                          \
 {                                                                                       \
 	CTX_DATA_BEGIN(C, bGPDlayer*, gpl, editable_gpencil_layers)                         \

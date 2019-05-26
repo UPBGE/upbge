@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Brecht Van Lommel.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/gpu/intern/gpu_codegen.c
@@ -67,10 +59,10 @@ static char *glsl_material_library = NULL;
 /* type definitions and constants */
 
 enum {
-	MAX_FUNCTION_NAME = 64
+	MAX_FUNCTION_NAME = 64,
 };
 enum {
-	MAX_PARAMETER = 32
+	MAX_PARAMETER = 32,
 };
 
 typedef enum {
@@ -450,14 +442,14 @@ static void codegen_set_texid(GHash *bindhash, GPUInput *input, int *texid, void
 {
 	if (BLI_ghash_haskey(bindhash, key)) {
 		/* Reuse existing texid */
-		input->texid = GET_INT_FROM_POINTER(BLI_ghash_lookup(bindhash, key));
+		input->texid = POINTER_AS_INT(BLI_ghash_lookup(bindhash, key));
 	}
 	else {
 		/* Allocate new texid */
 		input->texid = *texid;
 		(*texid)++;
 		input->bindtex = true;
-		BLI_ghash_insert(bindhash, key, SET_INT_IN_POINTER(input->texid));
+		BLI_ghash_insert(bindhash, key, POINTER_FROM_INT(input->texid));
 	}
 }
 
@@ -511,13 +503,13 @@ static void codegen_set_unique_ids(ListBase *nodes)
 					if (input->ima) {
 						if (!BLI_ghash_haskey(definehash, input->ima)) {
 							input->definetex = true;
-							BLI_ghash_insert(definehash, input->ima, SET_INT_IN_POINTER(input->texid));
+							BLI_ghash_insert(definehash, input->ima, POINTER_FROM_INT(input->texid));
 						}
 					}
 					else {
 						if (!BLI_ghash_haskey(definehash, input->link)) {
 							input->definetex = true;
-							BLI_ghash_insert(definehash, input->link, SET_INT_IN_POINTER(input->texid));
+							BLI_ghash_insert(definehash, input->link, POINTER_FROM_INT(input->texid));
 						}
 					}
 				}

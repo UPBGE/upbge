@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,14 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributors: Maarten Gribnau 05/2001
- *               Damien Plisson 09/2009
- *               Jens Verwiebe   10/2014
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #import <Cocoa/Cocoa.h>
@@ -304,11 +294,13 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[FIRSTFILEBUFLG])
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
-	// raise application to front, convenient when starting from the terminal
-	// and important for launching the animation player. we call this after the
-	// application finishes launching, as doing it earlier can make us end up
-	// with a frontmost window but an inactive application
-	[NSApp activateIgnoringOtherApps:YES];
+	if (systemCocoa->m_windowFocus) {
+		// Raise application to front, convenient when starting from the terminal
+		// and important for launching the animation player. we call this after the
+		// application finishes launching, as doing it earlier can make us end up
+		// with a frontmost window but an inactive application.
+		[NSApp activateIgnoringOtherApps:YES];
+	}
 }
 
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename

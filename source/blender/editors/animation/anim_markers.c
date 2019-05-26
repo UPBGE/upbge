@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/animation/anim_markers.c
@@ -120,12 +113,12 @@ ListBase *ED_animcontext_get_markers(const bAnimContext *ac)
 /**
  * Apply some transformation to markers after the fact
  *
- * \param markers List of markers to affect - this may or may not be the scene markers list, so don't assume anything
- * \param scene Current scene (for getting current frame)
- * \param mode (TfmMode) transform mode that this transform is for
- * \param value From the transform code, this is ``t->vec[0]``
+ * \param markers: List of markers to affect - this may or may not be the scene markers list, so don't assume anything
+ * \param scene: Current scene (for getting current frame)
+ * \param mode: (TfmMode) transform mode that this transform is for
+ * \param value: From the transform code, this is ``t->vec[0]``
  * (which is delta transform for grab/extend, and scale factor for scale)
- * \param side (B/L/R) for 'extend' functionality, which side of current frame to use
+ * \param side: (B/L/R) for 'extend' functionality, which side of current frame to use
  */
 int ED_markers_post_apply_transform(ListBase *markers, Scene *scene, int mode, float value, char side)
 {
@@ -545,7 +538,7 @@ static bool ed_markers_poll_markers_exist(bContext *C)
  * "custom"/third-tier invoke() callback supplied as the last arg (which would normally
  * be the operator's invoke() callback elsewhere)
  *
- * \param invoke_func "standard" invoke function that operator would otherwise have used.
+ * \param invoke_func: "standard" invoke function that operator would otherwise have used.
  * If NULL, the operator's standard exec()
  * callback will be called instead in the appropriate places.
  */
@@ -588,7 +581,7 @@ static int ed_markers_opwrap_invoke(bContext *C, wmOperator *op, const wmEvent *
 
 /* ************************** add markers *************************** */
 
-/* add TimeMarker at curent frame */
+/* add TimeMarker at current frame */
 static int ed_marker_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ListBase *markers = ED_context_get_markers(C);
@@ -659,7 +652,6 @@ static void MARKER_OT_add(wmOperatorType *ot)
  *     invoke() calls init, adds modal handler
  *
  *     modal()    accept modal events while doing it, ends with apply and exit, or cancel
- *
  */
 
 typedef struct MarkerMove {
@@ -816,7 +808,7 @@ static int ed_marker_move_invoke_wrapper(bContext *C, wmOperator *op, const wmEv
 	return ed_markers_opwrap_invoke_custom(C, op, event, ed_marker_move_invoke);
 }
 
-/* note, init has to be called succesfully */
+/* note, init has to be called successfully */
 static void ed_marker_move_apply(bContext *C, wmOperator *op)
 {
 #ifdef DURIAN_CAMERA_SWITCH

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Jason Wilkins
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_ContextCGL.mm
@@ -123,7 +115,7 @@ GHOST_TSuccess GHOST_ContextCGL::getSwapInterval(int &intervalOut)
 
 		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
-		[m_openGLContext setValues:&interval forParameter:NSOpenGLCPSwapInterval];
+		[m_openGLContext getValues:&interval forParameter:NSOpenGLCPSwapInterval];
 
 		[pool drain];
 

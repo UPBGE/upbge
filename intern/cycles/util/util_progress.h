@@ -46,6 +46,7 @@ public:
 		substatus = "";
 		sync_status = "";
 		sync_substatus = "";
+		kernel_status = "";
 		update_cb = function_null;
 		cancel = false;
 		cancel_message = "";
@@ -86,6 +87,7 @@ public:
 		substatus = "";
 		sync_status = "";
 		sync_substatus = "";
+		kernel_status = "";
 		cancel = false;
 		cancel_message = "";
 		error = false;
@@ -114,7 +116,7 @@ public:
 		return cancel_message;
 	}
 
-	void set_cancel_callback(function<void(void)> function)
+	void set_cancel_callback(function<void()> function)
 	{
 		cancel_cb = function;
 	}
@@ -313,6 +315,25 @@ public:
 		}
 	}
 
+
+	/* kernel status */
+
+	void set_kernel_status(const string &kernel_status_)
+	{
+		{
+			thread_scoped_lock lock(progress_mutex);
+			kernel_status = kernel_status_;
+		}
+
+		set_update();
+	}
+
+	void get_kernel_status(string &kernel_status_)
+	{
+		thread_scoped_lock lock(progress_mutex);
+		kernel_status_ = kernel_status;
+	}
+
 	/* callback */
 
 	void set_update()
@@ -323,7 +344,7 @@ public:
 		}
 	}
 
-	void set_update_callback(function<void(void)> function)
+	void set_update_callback(function<void()> function)
 	{
 		update_cb = function;
 	}
@@ -331,8 +352,8 @@ public:
 protected:
 	thread_mutex progress_mutex;
 	thread_mutex update_mutex;
-	function<void(void)> update_cb;
-	function<void(void)> cancel_cb;
+	function<void()> update_cb;
+	function<void()> cancel_cb;
 
 	/* pixel_samples counts how many samples have been rendered over all pixel, not just per pixel.
 	 * This makes the progress estimate more accurate when tiles with different sizes are used.
@@ -356,6 +377,8 @@ protected:
 	string sync_status;
 	string sync_substatus;
 
+	string kernel_status;
+
 	volatile bool cancel;
 	string cancel_message;
 
@@ -365,4 +388,4 @@ protected:
 
 CCL_NAMESPACE_END
 
-#endif /* __UTIL_PROGRESS_H__ */
+#endif  /* __UTIL_PROGRESS_H__ */

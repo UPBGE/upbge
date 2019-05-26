@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2009
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_image/image_buttons.c
@@ -182,7 +176,8 @@ void image_preview_event(int event)
 
 		BIF_store_spare();
 
-		ntreeCompositExecTree(scene->nodetree, &scene->r, 1, &scene->view_settings, &scene->display_settings);   /* 1 is do_previews */
+		/* 1 is do_previews */
+		ntreeCompositExecTree(scene->nodetree, &scene->r, 1, &scene->view_settings, &scene->display_settings);
 
 		G.scene->nodetree->timecursor = NULL;
 		G.scene->nodetree->test_break = NULL;
@@ -964,7 +959,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 			uiItemR(col, &imaptr, "use_view_as_render", 0, NULL, ICON_NONE);
 
 			if (ima->source != IMA_SRC_GENERATED) {
-				if (compact == 0) { /* background image view doesnt need these */
+				if (compact == 0) { /* background image view doesn't need these */
 					ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, NULL);
 					bool has_alpha = true;
 

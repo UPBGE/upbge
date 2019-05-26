@@ -55,6 +55,10 @@ public:
 	float sample_clamp_indirect;
 	bool motion_blur;
 
+	/* Maximum number of samples, beyond which we are likely to run into
+	 * precision issues for sampling patterns. */
+	static const int MAX_SAMPLES = (1 << 24);
+
 	int aa_samples;
 	int diffuse_samples;
 	int glossy_samples;
@@ -94,4 +98,4 @@ public:
 
 CCL_NAMESPACE_END
 
-#endif /* __INTEGRATOR_H__ */
+#endif  /* __INTEGRATOR_H__ */

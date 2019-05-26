@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/curve.c
@@ -196,7 +188,7 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_curve_copy_data(Main *bmain, Curve *cu_dst, const Curve *cu_src, const int flag)
 {
@@ -275,7 +267,7 @@ void BKE_curve_curve_dimension_update(Curve *cu)
 	else {
 		for (; nu; nu = nu->next) {
 			nu->flag |= CU_2D;
-			BKE_nurb_test2D(nu);
+			BKE_nurb_test_2d(nu);
 
 			/* since the handles are moved they need to be auto-located again */
 			if (nu->type == CU_BEZIER)
@@ -547,7 +539,7 @@ void BKE_nurbList_duplicate(ListBase *lb1, const ListBase *lb2)
 	}
 }
 
-void BKE_nurb_test2D(Nurb *nu)
+void BKE_nurb_test_2d(Nurb *nu)
 {
 	BezTriple *bezt;
 	BPoint *bp;
@@ -1356,9 +1348,9 @@ void BKE_nurb_makeFaces(const Nurb *nu, float *coord_array, int rowstride, int r
 }
 
 /**
- * \param coord_array Has to be 3 * 4 * pntsu * resolu in size and zero-ed
- * \param tilt_array   set when non-NULL
- * \param radius_array set when non-NULL
+ * \param coord_array: Has to be 3 * 4 * pntsu * resolu in size and zero-ed
+ * \param tilt_array: set when non-NULL
+ * \param radius_array: set when non-NULL
  */
 void BKE_nurb_makeCurve(
         const Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, float *weight_array,
@@ -2077,7 +2069,7 @@ static bool bevelinside(BevList *bl1, BevList *bl2)
 	copy_v3_v3(hvec2, hvec1);
 	hvec2[0] += 1000;
 
-	/* test it with all edges of potential surounding poly */
+	/* test it with all edges of potential surrounding poly */
 	/* count number of transitions left-right  */
 
 	bevp = bl1->bevpoints;
@@ -2640,7 +2632,7 @@ static void make_bevel_list_segment_2D(BevList *bl)
 static void make_bevel_list_2D(BevList *bl)
 {
 	/* note: bevp->dir and bevp->quat are not needed for beveling but are
-	 * used when making a path from a 2D curve, therefor they need to be set - Campbell */
+	 * used when making a path from a 2D curve, therefore they need to be set - Campbell */
 
 	BevPoint *bevp0, *bevp1, *bevp2;
 	int nr;
@@ -3727,8 +3719,6 @@ static bool tridiagonal_solve_with_limits(float *a, float *b, float *c, float *d
  * |    |      |          |            |        |
  * |    |      |          |            |        |
  * |-------t1---------t2--------- ~ --------tN-------------------> time (co 0)
- *
- *
  * Mathematical basis:
  *
  *   1. Handle lengths on either side of each point are connected by a factor
@@ -3938,7 +3928,7 @@ static void bezier_handle_calc_smooth_fcurve(BezTriple *bezt, int total, int sta
 	float first_handle_adj = 0.0f, last_handle_adj = 0.0f;
 
 	if (full_cycle) {
-		/* reduce the number of uknowns by one */
+		/* reduce the number of unknowns by one */
 		int i = solve_count = count - 1;
 
 		dx[0] = dx[i];

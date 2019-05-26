@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Brecht Van Lommel.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file GPU_material.h
@@ -41,28 +33,28 @@
 extern "C" {
 #endif
 
+struct GPULamp;
+struct GPUMaterial;
+struct GPUNode;
+struct GPUNodeLink;
+struct GPUNodeStack;
+struct GPUTexture;
+struct GPUVertexAttribs;
+struct Image;
 struct Image;
 struct ImageUser;
 struct Main;
 struct Material;
 struct Object;
-struct Image;
+struct PreviewImage;
 struct Scene;
 struct SceneRenderLayer;
-struct GPUVertexAttribs;
-struct GPUNode;
-struct GPUNodeLink;
-struct GPUNodeStack;
-struct GPUMaterial;
-struct GPUTexture;
-struct GPULamp;
-struct PreviewImage;
 struct World;
 
+typedef struct GPULamp GPULamp;
+typedef struct GPUMaterial GPUMaterial;
 typedef struct GPUNode GPUNode;
 typedef struct GPUNodeLink GPUNodeLink;
-typedef struct GPUMaterial GPUMaterial;
-typedef struct GPULamp GPULamp;
 typedef struct GPUParticleInfo GPUParticleInfo;
 
 /* Functions to create GPU Materials nodes */
@@ -84,7 +76,7 @@ typedef enum GPUType {
 	GPU_TEX2D = 1002,
 	GPU_SHADOW2D = 1003,
 	GPU_TEXCUBE = 1004,
-	GPU_ATTRIB = 3001
+	GPU_ATTRIB = 3001,
 } GPUType;
 
 typedef enum GPUBuiltin {
@@ -135,7 +127,7 @@ typedef enum GPUBlendMode {
 	GPU_BLEND_ALPHA = 2,
 	GPU_BLEND_CLIP = 4,
 	GPU_BLEND_ALPHA_SORT = 8,
-	GPU_BLEND_ALPHA_TO_COVERAGE = 16
+	GPU_BLEND_ALPHA_TO_COVERAGE = 16,
 } GPUBlendMode;
 
 typedef struct GPUNodeStack {

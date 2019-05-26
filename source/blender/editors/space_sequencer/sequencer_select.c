@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2003-2009, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_sequencer/sequencer_select.c
@@ -350,7 +344,8 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, const wmEvent *e
 				marker->flag |= SELECT;
 		}
 		else {
-			/* deselect_markers(0, 0); */ /* XXX, in 2.4x, seq selection used to deselect all, need to re-thnik this for 2.5 */
+			/* XXX, in 2.4x, seq selection used to deselect all, need to re-thnik this for 2.5 */
+			/* deselect_markers(0, 0); */
 			marker->flag |= SELECT;
 		}
 
@@ -381,8 +376,8 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, const wmEvent *e
 				seq->flag |= SELECT;
 				recurs_sel_seq(seq);
 			}
-		}
-		SEQ_END
+		} SEQ_END;
+
 		{
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
 			if (sseq && sseq->flag & SEQ_MARKER_TRANS) {
@@ -1150,7 +1145,7 @@ static bool select_grouped_effect_link(Editing *ed, Sequence *actseq, const int 
 	}
 	SEQ_END;
 
-	actseq->tmp = SET_INT_IN_POINTER(true);
+	actseq->tmp = POINTER_FROM_INT(true);
 
 	for (BKE_sequence_iterator_begin(ed, &iter, true); iter.valid; BKE_sequence_iterator_next(&iter)) {
 		seq = iter.seq;
@@ -1166,7 +1161,7 @@ static bool select_grouped_effect_link(Editing *ed, Sequence *actseq, const int 
 			continue;
 		}
 
-		/* If the seq is an effect one, we need extra cheking! */
+		/* If the seq is an effect one, we need extra checking! */
 		if (SEQ_IS_EFFECT(seq) && ((seq->seq1 && seq->seq1->tmp) ||
 		                           (seq->seq2 && seq->seq2->tmp) ||
 		                           (seq->seq3 && seq->seq3->tmp)))
@@ -1175,7 +1170,7 @@ static bool select_grouped_effect_link(Editing *ed, Sequence *actseq, const int 
 			if (enddisp < seq->enddisp) enddisp = seq->enddisp;
 			if (machine < seq->machine) machine = seq->machine;
 
-			seq->tmp = SET_INT_IN_POINTER(true);
+			seq->tmp = POINTER_FROM_INT(true);
 
 			seq->flag |= SELECT;
 			changed = true;
@@ -1185,7 +1180,7 @@ static bool select_grouped_effect_link(Editing *ed, Sequence *actseq, const int 
 			BKE_sequence_iterator_begin(ed, &iter, true);
 		}
 
-		/* Video strips bellow active one, or any strip for audio (order do no matters here!). */
+		/* Video strips below active one, or any strip for audio (order do no matters here!). */
 		else if (seq->machine < machine || is_audio) {
 			seq->flag |= SELECT;
 			changed = true;

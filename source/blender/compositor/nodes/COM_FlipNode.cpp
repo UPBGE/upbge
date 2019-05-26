@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
  */
 
 #include "COM_FlipNode.h"
@@ -36,7 +32,7 @@ void FlipNode::convertToOperations(NodeConverter &converter, const CompositorCon
 	NodeOutput *outputSocket = this->getOutputSocket(0);
 	FlipOperation *operation = new FlipOperation();
 	switch (this->getbNode()->custom1) {
-		case 0: /// @TODO: I didn't find any constants in the old implementation, should I introduce them.
+		case 0: /// \TODO: I didn't find any constants in the old implementation, should I introduce them.
 			operation->setFlipX(true);
 			operation->setFlipY(false);
 			break;

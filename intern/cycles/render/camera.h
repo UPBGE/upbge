@@ -21,6 +21,7 @@
 
 #include "graph/node.h"
 
+#include "util/util_array.h"
 #include "util/util_boundbox.h"
 #include "util/util_projection.h"
 #include "util/util_transform.h"
@@ -159,6 +160,8 @@ public:
 	ProjectionTransform rastertocamera;
 	ProjectionTransform cameratoraster;
 
+	ProjectionTransform full_rastertocamera;
+
 	float3 dx;
 	float3 dy;
 
@@ -212,4 +215,4 @@ private:
 
 CCL_NAMESPACE_END
 
-#endif /* __CAMERA_H__ */
+#endif  /* __CAMERA_H__ */

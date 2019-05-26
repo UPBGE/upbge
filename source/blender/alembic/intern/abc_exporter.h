@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Esteban Tovagliari, Cedric Paille, Kevin Dietrich
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __ABC_EXPORTER_H__
@@ -114,7 +108,7 @@ private:
 	Alembic::Abc::TimeSamplingPtr createTimeSampling(double step);
 
 	void createTransformWritersHierarchy(EvaluationContext *eval_ctx);
-	AbcTransformWriter * createTransformWriter(Object *ob,  Object *parent, Object *dupliObParent);
+	AbcTransformWriter *createTransformWriter(Object *ob,  Object *parent, Object *dupliObParent);
 	void exploreTransform(EvaluationContext *eval_ctx, Object *ob, Object *parent, Object *dupliObParent = NULL);
 	void exploreObject(EvaluationContext *eval_ctx, Object *ob, Object *dupliObParent);
 	void createShapeWriters(EvaluationContext *eval_ctx);

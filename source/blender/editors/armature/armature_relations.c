@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2009 full recode.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Operators for relations between bones and for transferring bones between armature objects
  */
 
@@ -141,7 +134,8 @@ static void joined_armature_fix_animdata_cb(ID *id, FCurve *fcu, void *user_data
 			const char *old_name = BLI_ghashIterator_getKey(&gh_iter);
 			const char *new_name = BLI_ghashIterator_getValue(&gh_iter);
 
-			/* only remap if changed; this still means there will be some waste if there aren't many drivers/keys */
+			/* only remap if changed; this still means there will be some
+			 * waste if there aren't many drivers/keys */
 			if (!STREQ(old_name, new_name) && strstr(fcu->rna_path, old_name)) {
 				fcu->rna_path = BKE_animsys_fix_rna_path_rename(id, fcu->rna_path, "pose.bones",
 				                                                old_name, new_name, 0, 0, false);
@@ -163,7 +157,7 @@ static void joined_armature_fix_animdata_cb(ID *id, FCurve *fcu, void *user_data
 		/* Fix driver references to invalid ID's */
 		for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
 			/* only change the used targets, since the others will need fixing manually anyway */
-			DRIVER_TARGETS_USED_LOOPER(dvar)
+			DRIVER_TARGETS_USED_LOOPER_BEGIN(dvar)
 			{
 				/* change the ID's used... */
 				if (dtar->id == src_id) {
@@ -196,7 +190,7 @@ static void joined_armature_fix_animdata_cb(ID *id, FCurve *fcu, void *user_data
 					}
 				}
 			}
-			DRIVER_TARGETS_LOOPER_END
+			DRIVER_TARGETS_LOOPER_END;
 		}
 	}
 }
@@ -252,7 +246,7 @@ int join_armature_exec(bContext *C, wmOperator *op)
 	float mat[4][4], oimat[4][4];
 	bool ok = false;
 
-	/*	Ensure we're not in editmode and that the active object is an armature*/
+	/* Ensure we're not in editmode and that the active object is an armature. */
 	if (!ob || ob->type != OB_ARMATURE)
 		return OPERATOR_CANCELLED;
 	if (!arm || arm->edbo)
@@ -435,8 +429,8 @@ static void separated_armature_fix_links(Main *bmain, Object *origArm, Object *n
 
 						for (ct = targets.first; ct; ct = ct->next) {
 							/* any targets which point to original armature are redirected to the new one only if:
-							 *	- the target isn't origArm/newArm itself
-							 *	- the target is one that can be found in newArm/origArm
+							 * - the target isn't origArm/newArm itself
+							 * - the target is one that can be found in newArm/origArm
 							 */
 							if (ct->subtarget[0] != 0) {
 								if (ct->tar == origArm) {
@@ -473,8 +467,8 @@ static void separated_armature_fix_links(Main *bmain, Object *origArm, Object *n
 
 					for (ct = targets.first; ct; ct = ct->next) {
 						/* any targets which point to original armature are redirected to the new one only if:
-						 *	- the target isn't origArm/newArm itself
-						 *	- the target is one that can be found in newArm/origArm
+						 * - the target isn't origArm/newArm itself
+						 * - the target is one that can be found in newArm/origArm
 						 */
 						if (ct->subtarget[0] != '\0') {
 							if (ct->tar == origArm) {
@@ -510,8 +504,8 @@ static void separated_armature_fix_links(Main *bmain, Object *origArm, Object *n
 }
 
 /* Helper function for armature separating - remove certain bones from the given armature
- *	sel: remove selected bones from the armature, otherwise the unselected bones are removed
- *  (ob is not in editmode)
+ * sel: remove selected bones from the armature, otherwise the unselected bones are removed
+ * (ob is not in editmode)
  */
 static void separate_armature_bones(Main *bmain, Object *ob, short sel)
 {
@@ -538,7 +532,8 @@ static void separate_armature_bones(Main *bmain, Object *ob, short sel)
 			for (ebo = arm->edbo->first; ebo; ebo = ebo->next) {
 				if (ebo->parent == curbone) {
 					ebo->parent = NULL;
-					ebo->temp.p = NULL; /* this is needed to prevent random crashes with in ED_armature_from_edit */
+					/* this is needed to prevent random crashes with in ED_armature_from_edit */
+					ebo->temp.p = NULL;
 					ebo->flag &= ~BONE_CONNECTED;
 				}
 			}
@@ -581,11 +576,11 @@ static int separate_armature_exec(bContext *C, wmOperator *op)
 	WM_cursor_wait(1);
 
 	/* we are going to do this as follows (unlike every other instance of separate):
-	 *	1. exit editmode +posemode for active armature/base. Take note of what this is.
-	 *	2. duplicate base - BASACT is the new one now
-	 *	3. for each of the two armatures, enter editmode -> remove appropriate bones -> exit editmode + recalc
-	 *	4. fix constraint links
-	 *	5. make original armature active and enter editmode
+	 * 1. exit editmode +posemode for active armature/base. Take note of what this is.
+	 * 2. duplicate base - BASACT is the new one now
+	 * 3. for each of the two armatures, enter editmode -> remove appropriate bones -> exit editmode + recalc
+	 * 4. fix constraint links
+	 * 5. make original armature active and enter editmode
 	 */
 
 	/* 1) only edit-base selected */
@@ -776,8 +771,8 @@ static int armature_parent_set_exec(bContext *C, wmOperator *op)
 		 * - the context iterator contains both selected bones and their mirrored copies,
 		 *   so we assume that unselected bones are mirrored copies of some selected bone
 		 * - since the active one (and/or its mirror) will also be selected, we also need
-		 *  to check that we are not trying to operate on them, since such an operation
-		 *	would cause errors
+		 *   to check that we are not trying to operate on them, since such an operation
+		 *   would cause errors
 		 */
 
 		/* parent selected bones to the active one */

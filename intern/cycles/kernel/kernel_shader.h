@@ -21,7 +21,6 @@
  * Execute for surface, volume or displacement.
  * Evaluate one or more closures.
  * Release.
- *
  */
 
 #include "kernel/closure/alloc.h"
@@ -54,8 +53,10 @@ ccl_device_noinline void shader_setup_from_ray(KernelGlobals *kg,
                                                const Intersection *isect,
                                                const Ray *ray)
 {
+	PROFILING_INIT(kg, PROFILING_SHADER_SETUP);
+
 #ifdef __INSTANCING__
-	sd->object = (isect->object == PRIM_NONE)? kernel_tex_fetch(__prim_object, isect->prim): isect->object;
+	sd->object = (isect->object == OBJECT_NONE)? kernel_tex_fetch(__prim_object, isect->prim): isect->object;
 #endif
 	sd->lamp = LAMP_NONE;
 
@@ -147,6 +148,9 @@ ccl_device_noinline void shader_setup_from_ray(KernelGlobals *kg,
 	differential_incoming(&sd->dI, ray->dD);
 	differential_dudv(&sd->du, &sd->dv, sd->dPdu, sd->dPdv, sd->dP, sd->Ng);
 #endif
+
+	PROFILING_SHADER(sd->shader);
+	PROFILING_OBJECT(sd->object);
 }
 
 /* ShaderData setup from BSSRDF scatter */
@@ -163,6 +167,8 @@ void shader_setup_from_subsurface(
         const Intersection *isect,
         const Ray *ray)
 {
+	PROFILING_INIT(kg, PROFILING_SHADER_SETUP);
+
 	const bool backfacing = sd->flag & SD_BACKFACING;
 
 	/* object, matrices, time, ray_length stay the same */
@@ -233,6 +239,8 @@ void shader_setup_from_subsurface(
 	differential_dudv(&sd->du, &sd->dv, sd->dPdu, sd->dPdv, sd->dP, sd->Ng);
 	/* don't modify dP and dI */
 #  endif
+
+	PROFILING_SHADER(sd->shader);
 }
 #endif
 
@@ -249,6 +257,8 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals *kg,
                                                 bool object_space,
                                                 int lamp)
 {
+	PROFILING_INIT(kg, PROFILING_SHADER_SETUP);
+
 	/* vectors */
 	sd->P = P;
 	sd->N = Ng;
@@ -288,6 +298,10 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals *kg,
 	else if(lamp != LAMP_NONE) {
 		sd->ob_tfm  = lamp_fetch_transform(kg, lamp, false);
 		sd->ob_itfm = lamp_fetch_transform(kg, lamp, true);
+		sd->lamp = lamp;
+#else
+	}
+	else if(lamp != LAMP_NONE) {
 		sd->lamp = lamp;
 #endif
 	}
@@ -353,6 +367,9 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals *kg,
 	sd->du = differential_zero();
 	sd->dv = differential_zero();
 #endif
+
+	PROFILING_SHADER(sd->shader);
+	PROFILING_OBJECT(sd->object);
 }
 
 /* ShaderData setup for displacement */
@@ -380,6 +397,8 @@ ccl_device void shader_setup_from_displace(KernelGlobals *kg, ShaderData *sd,
 
 ccl_device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderData *sd, const Ray *ray)
 {
+	PROFILING_INIT(kg, PROFILING_SHADER_SETUP);
+
 	/* vectors */
 	sd->P = ray->D;
 	sd->N = -ray->D;
@@ -392,7 +411,7 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderDat
 	sd->ray_length = 0.0f;
 
 #ifdef __INSTANCING__
-	sd->object = PRIM_NONE;
+	sd->object = OBJECT_NONE;
 #endif
 	sd->lamp = LAMP_NONE;
 	sd->prim = PRIM_NONE;
@@ -414,6 +433,9 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderDat
 	sd->du = differential_zero();
 	sd->dv = differential_zero();
 #endif
+
+	PROFILING_SHADER(sd->shader);
+	PROFILING_OBJECT(sd->object);
 }
 
 /* ShaderData setup from point inside volume */
@@ -421,6 +443,8 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderDat
 #ifdef __VOLUME__
 ccl_device_inline void shader_setup_from_volume(KernelGlobals *kg, ShaderData *sd, const Ray *ray)
 {
+	PROFILING_INIT(kg, PROFILING_SHADER_SETUP);
+
 	/* vectors */
 	sd->P = ray->P;
 	sd->N = -ray->D;
@@ -433,7 +457,7 @@ ccl_device_inline void shader_setup_from_volume(KernelGlobals *kg, ShaderData *s
 	sd->ray_length = 0.0f; /* todo: can we set this to some useful value? */
 
 #  ifdef __INSTANCING__
-	sd->object = PRIM_NONE; /* todo: fill this for texture coordinates */
+	sd->object = OBJECT_NONE; /* todo: fill this for texture coordinates */
 #  endif
 	sd->lamp = LAMP_NONE;
 	sd->prim = PRIM_NONE;
@@ -461,6 +485,9 @@ ccl_device_inline void shader_setup_from_volume(KernelGlobals *kg, ShaderData *s
 	/* for NDC coordinates */
 	sd->ray_P = ray->P;
 	sd->ray_dP = ray->dP;
+
+	PROFILING_SHADER(sd->shader);
+	PROFILING_OBJECT(sd->object);
 }
 #endif  /* __VOLUME__ */
 
@@ -591,6 +618,8 @@ void shader_bsdf_eval(KernelGlobals *kg,
                       float light_pdf,
                       bool use_mis)
 {
+	PROFILING_INIT(kg, PROFILING_CLOSURE_EVAL);
+
 	bsdf_eval_init(eval, NBUILTIN_CLOSURES, make_float3(0.0f, 0.0f, 0.0f), kernel_data.film.use_light_pass);
 
 #ifdef __BRANCHED_PATH__
@@ -720,6 +749,8 @@ ccl_device_inline int shader_bsdf_sample(KernelGlobals *kg,
                                          differential3 *domega_in,
                                          float *pdf)
 {
+	PROFILING_INIT(kg, PROFILING_CLOSURE_SAMPLE);
+
 	const ShaderClosure *sc = shader_bsdf_pick(sd, &randu);
 	if(sc == NULL) {
 		*pdf = 0.0f;
@@ -751,6 +782,8 @@ ccl_device int shader_bsdf_sample_closure(KernelGlobals *kg, ShaderData *sd,
 	const ShaderClosure *sc, float randu, float randv, BsdfEval *bsdf_eval,
 	float3 *omega_in, differential3 *domega_in, float *pdf)
 {
+	PROFILING_INIT(kg, PROFILING_CLOSURE_SAMPLE);
+
 	int label;
 	float3 eval;
 
@@ -951,9 +984,40 @@ ccl_device float3 shader_bssrdf_sum(ShaderData *sd, float3 *N_, float *texture_b
 }
 #endif  /* __SUBSURFACE__ */
 
+/* Constant emission optimization */
+
+ccl_device bool shader_constant_emission_eval(KernelGlobals *kg, int shader, float3 *eval)
+{
+	int shader_index = shader & SHADER_MASK;
+	int shader_flag = kernel_tex_fetch(__shaders, shader_index).flags;
+
+	if (shader_flag & SD_HAS_CONSTANT_EMISSION) {
+		*eval = make_float3(
+			kernel_tex_fetch(__shaders, shader_index).constant_emission[0],
+			kernel_tex_fetch(__shaders, shader_index).constant_emission[1],
+			kernel_tex_fetch(__shaders, shader_index).constant_emission[2]);
+
+		return true;
+	}
+
+	return false;
+}
+
+/* Background */
+
+ccl_device float3 shader_background_eval(ShaderData *sd)
+{
+	if(sd->flag & SD_EMISSION) {
+		return sd->closure_emission_background;
+	}
+	else {
+		return make_float3(0.0f, 0.0f, 0.0f);
+	}
+}
+
 /* Emission */
 
-ccl_device float3 shader_emissive_eval(KernelGlobals *kg, ShaderData *sd)
+ccl_device float3 shader_emissive_eval(ShaderData *sd)
 {
 	if(sd->flag & SD_EMISSION) {
 		return emissive_simple_eval(sd->Ng, sd->I) * sd->closure_emission_background;
@@ -984,6 +1048,8 @@ ccl_device float3 shader_holdout_eval(KernelGlobals *kg, ShaderData *sd)
 ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd,
 	ccl_addr_space PathState *state, int path_flag)
 {
+	PROFILING_INIT(kg, PROFILING_SHADER_EVAL);
+
 	/* If path is being terminated, we are tracing a shadow ray or evaluating
 	 * emission, then we don't need to store closures. The emission and shadow
 	 * shader data also do not have a closure array to save GPU memory. */
@@ -999,20 +1065,32 @@ ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd,
 	sd->num_closure_left = max_closures;
 
 #ifdef __OSL__
-	if(kg->osl)
-		OSLShader::eval_surface(kg, sd, state, path_flag);
+	if(kg->osl) {
+		if (sd->object == OBJECT_NONE) {
+			OSLShader::eval_background(kg, sd, state, path_flag);
+		}
+		else {
+			OSLShader::eval_surface(kg, sd, state, path_flag);
+		}
+	}
 	else
 #endif
 	{
 #ifdef __SVM__
 		svm_eval_nodes(kg, sd, state, SHADER_TYPE_SURFACE, path_flag);
 #else
-		DiffuseBsdf *bsdf = (DiffuseBsdf*)bsdf_alloc(sd,
-		                                             sizeof(DiffuseBsdf),
-		                                             make_float3(0.8f, 0.8f, 0.8f));
-		if(bsdf != NULL) {
-			bsdf->N = sd->N;
-			sd->flag |= bsdf_diffuse_setup(bsdf);
+		if(sd->object == OBJECT_NONE) {
+			sd->closure_emission_background = make_float3(0.8f, 0.8f, 0.8f);
+			sd->flag |= SD_EMISSION;
+		}
+		else {
+			DiffuseBsdf *bsdf = (DiffuseBsdf*)bsdf_alloc(sd,
+			                                             sizeof(DiffuseBsdf),
+			                                             make_float3(0.8f, 0.8f, 0.8f));
+			if(bsdf != NULL) {
+				bsdf->N = sd->N;
+				sd->flag |= bsdf_diffuse_setup(bsdf);
+			}
 		}
 #endif
 	}
@@ -1020,36 +1098,6 @@ ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd,
 	if(sd->flag & SD_BSDF_NEEDS_LCG) {
 		sd->lcg_state = lcg_state_init_addrspace(state, 0xb4bc3953);
 	}
-}
-
-/* Background Evaluation */
-
-ccl_device float3 shader_eval_background(KernelGlobals *kg, ShaderData *sd,
-	ccl_addr_space PathState *state, int path_flag)
-{
-	sd->num_closure = 0;
-	sd->num_closure_left = 0;
-
-#ifdef __SVM__
-#  ifdef __OSL__
-	if(kg->osl) {
-		OSLShader::eval_background(kg, sd, state, path_flag);
-	}
-	else
-#  endif  /* __OSL__ */
-	{
-		svm_eval_nodes(kg, sd, state, SHADER_TYPE_SURFACE, path_flag);
-	}
-
-	if(sd->flag & SD_EMISSION) {
-		return sd->closure_emission_background;
-	}
-	else {
-		return make_float3(0.0f, 0.0f, 0.0f);
-	}
-#else  /* __SVM__ */
-	return make_float3(0.8f, 0.8f, 0.8f);
-#endif  /* __SVM__ */
 }
 
 /* Volume */
@@ -1084,6 +1132,8 @@ ccl_device_inline void _shader_volume_phase_multi_eval(const ShaderData *sd, con
 ccl_device void shader_volume_phase_eval(KernelGlobals *kg, const ShaderData *sd,
 	const float3 omega_in, BsdfEval *eval, float *pdf)
 {
+	PROFILING_INIT(kg, PROFILING_CLOSURE_VOLUME_EVAL);
+
 	bsdf_eval_init(eval, NBUILTIN_CLOSURES, make_float3(0.0f, 0.0f, 0.0f), kernel_data.film.use_light_pass);
 
 	_shader_volume_phase_multi_eval(sd, omega_in, pdf, -1, eval, 0.0f, 0.0f);
@@ -1093,6 +1143,8 @@ ccl_device int shader_volume_phase_sample(KernelGlobals *kg, const ShaderData *s
 	float randu, float randv, BsdfEval *phase_eval,
 	float3 *omega_in, differential3 *domega_in, float *pdf)
 {
+	PROFILING_INIT(kg, PROFILING_CLOSURE_VOLUME_SAMPLE);
+
 	int sampled = 0;
 
 	if(sd->num_closure > 1) {
@@ -1151,6 +1203,8 @@ ccl_device int shader_phase_sample_closure(KernelGlobals *kg, const ShaderData *
 	const ShaderClosure *sc, float randu, float randv, BsdfEval *phase_eval,
 	float3 *omega_in, differential3 *domega_in, float *pdf)
 {
+	PROFILING_INIT(kg, PROFILING_CLOSURE_VOLUME_SAMPLE);
+
 	int label;
 	float3 eval;
 
@@ -1275,5 +1329,10 @@ ccl_device bool shader_transparent_shadow(KernelGlobals *kg, Intersection *isect
 	return (flag & SD_HAS_TRANSPARENT_SHADOW) != 0;
 }
 #endif  /* __TRANSPARENT_SHADOWS__ */
+
+ccl_device float shader_cryptomatte_id(KernelGlobals *kg, int shader)
+{
+	return kernel_tex_fetch(__shaders, (shader & SHADER_MASK)).cryptomatte_id;
+}
 
 CCL_NAMESPACE_END

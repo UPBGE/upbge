@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 by Janne Karhu.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/boids.c
@@ -1282,8 +1274,8 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
 
 	/* integrate new location & velocity */
 
-	/* by regarding the acceleration as a force at this stage we*/
-	/* can get better control allthough it's a bit unphysical	*/
+	/* by regarding the acceleration as a force at this stage we
+	 * can get better control although it's a bit unphysical */
 	mul_v3_fl(acc, 1.0f/pa_mass);
 
 	copy_v3_v3(dvec, acc);

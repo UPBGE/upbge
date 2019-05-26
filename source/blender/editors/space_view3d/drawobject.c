@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, full recode and added functions
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/drawobject.c
@@ -121,7 +115,7 @@
 typedef enum eWireDrawMode {
 	OBDRAW_WIRE_OFF = 0,
 	OBDRAW_WIRE_ON = 1,
-	OBDRAW_WIRE_ON_DEPTH = 2
+	OBDRAW_WIRE_ON_DEPTH = 2,
 } eWireDrawMode;
 
 typedef struct drawDMVerts_userData {
@@ -411,7 +405,7 @@ static const float cosval[CIRCLE_RESOL] = {
 };
 
 /**
- * \param viewmat_local_unit is typically the 'rv3d->viewmatob'
+ * \param viewmat_local_unit: is typically the 'rv3d->viewmatob'
  * copied into a 3x3 matrix and normalized.
  */
 static void draw_xyz_wire(const float viewmat_local_unit[3][3], const float c[3], float size, int axis)
@@ -3666,7 +3660,7 @@ static void draw_em_indices(BMEditMesh *em)
 		UI_GetThemeColor3ubv(TH_DRAWEXTRA_FACEAREA, col);
 		BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
 			if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-				BM_face_calc_center_mean(f, pos);
+				BM_face_calc_center_median(f, pos);
 				numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), "%d", i);
 				view3d_cached_text_draw_add(pos, numstr, numstr_len, 0, txt_flag, col);
 			}
@@ -4368,7 +4362,7 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 
 
 /**
- * \param dl_type_mask Only draw types matching this mask.
+ * \param dl_type_mask: Only draw types matching this mask.
  * \return true when nothing was drawn
  */
 static bool drawDispListwire_ex(ListBase *dlbase, unsigned int dl_type_mask)
@@ -7486,7 +7480,7 @@ static void draw_rigidbody_shape(Object *ob)
 
 /**
  * main object drawing function, draws in selection
- * \param dflag (draw flag) can be DRAW_PICKING and/or DRAW_CONSTCOLOR, DRAW_SCENESET
+ * \param dflag: (draw flag) can be DRAW_PICKING and/or DRAW_CONSTCOLOR, DRAW_SCENESET
  */
 void draw_object(Main *bmain, Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short dflag)
 {

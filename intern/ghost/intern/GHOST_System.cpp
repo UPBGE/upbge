@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_System.cpp
@@ -48,6 +40,7 @@
 
 GHOST_System::GHOST_System()
     : m_nativePixel(false),
+      m_windowFocus(true),
       m_displayManager(NULL),
       m_timerManager(NULL),
       m_windowManager(NULL),
@@ -389,4 +382,9 @@ bool GHOST_System::useNativePixel(void)
 {
 	m_nativePixel = true;
 	return 1;
+}
+
+void GHOST_System::useWindowFocus(const bool use_focus)
+{
+	m_windowFocus = use_focus;
 }

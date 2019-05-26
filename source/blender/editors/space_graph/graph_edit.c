@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_graph/graph_edit.c
@@ -277,7 +269,8 @@ void GRAPH_OT_view_all(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = graphkeys_viewall_exec;
-	ot->poll = ED_operator_graphedit_active; /* XXX: unchecked poll to get fsamples working too, but makes modifier damage trickier... */
+	/* XXX: unchecked poll to get fsamples working too, but makes modifier damage trickier... */
+	ot->poll = ED_operator_graphedit_active;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -296,7 +289,8 @@ void GRAPH_OT_view_selected(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = graphkeys_view_selected_exec;
-	ot->poll = ED_operator_graphedit_active; /* XXX: unchecked poll to get fsamples working too, but makes modifier damage trickier... */
+	/* XXX: unchecked poll to get fsamples working too, but makes modifier damage trickier... */
+	ot->poll = ED_operator_graphedit_active;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -344,7 +338,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 	int filter;
 
 	/* free existing ghost curves */
-	free_fcurves(&sipo->ghostCurves);
+	free_fcurves(&sipo->runtime.ghost_curves);
 
 	/* sanity check */
 	if (start >= end) {
@@ -374,7 +368,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 		unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag, &offset);
 
 		/* create samples, but store them in a new curve
-		 *	- we cannot use fcurve_store_samples() as that will only overwrite the original curve
+		 * - we cannot use fcurve_store_samples() as that will only overwrite the original curve
 		 */
 		gcu->fpt = fpt = MEM_callocN(sizeof(FPoint) * (end - start + 1), "Ghost FPoint Samples");
 		gcu->totvert = end - start + 1;
@@ -388,14 +382,14 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 		}
 
 		/* set color of ghost curve
-		 *	- make the color slightly darker
+		 * - make the color slightly darker
 		 */
 		gcu->color[0] = fcu->color[0] - 0.07f;
 		gcu->color[1] = fcu->color[1] - 0.07f;
 		gcu->color[2] = fcu->color[2] - 0.07f;
 
 		/* store new ghost curve */
-		BLI_addtail(&sipo->ghostCurves, gcu);
+		BLI_addtail(&sipo->runtime.ghost_curves, gcu);
 
 		/* restore driver */
 		fcu->driver = driver;
@@ -462,11 +456,11 @@ static int graphkeys_clear_ghostcurves_exec(bContext *C, wmOperator *UNUSED(op))
 	sipo = (SpaceIpo *)ac.sl;
 
 	/* if no ghost curves, don't do anything */
-	if (BLI_listbase_is_empty(&sipo->ghostCurves))
+	if (BLI_listbase_is_empty(&sipo->runtime.ghost_curves)) {
 		return OPERATOR_CANCELLED;
-
+	}
 	/* free ghost curves */
-	free_fcurves(&sipo->ghostCurves);
+	free_fcurves(&sipo->runtime.ghost_curves);
 
 	/* update this editor only */
 	ED_area_tag_redraw(CTX_wm_area(C));
@@ -1796,9 +1790,12 @@ void GRAPH_OT_handle_type(wmOperatorType *ot)
 typedef struct tEulerFilter {
 	struct tEulerFilter *next, *prev;
 
-	ID *id;                         /* ID-block which owns the channels */
-	FCurve *(fcurves[3]);           /* 3 Pointers to F-Curves */
-	const char *rna_path;           /* Pointer to one of the RNA Path's used by one of the F-Curves */
+	/** ID-block which owns the channels */
+	ID *id;
+	/** 3 Pointers to F-Curves */
+	FCurve *(fcurves[3]);
+	/** Pointer to one of the RNA Path's used by one of the F-Curves */
+	const char *rna_path;
 } tEulerFilter;
 
 static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
@@ -1818,10 +1815,10 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	/* The process is done in two passes:
-	 *   1) Sets of three related rotation curves are identified from the selected channels,
-	 *		and are stored as a single 'operation unit' for the next step
-	 *	 2) Each set of three F-Curves is processed for each keyframe, with the values being
-	 *      processed as necessary
+	 * 1) Sets of three related rotation curves are identified from the selected channels,
+	 *    and are stored as a single 'operation unit' for the next step
+	 * 2) Each set of three F-Curves is processed for each keyframe, with the values being
+	 *    processed as necessary
 	 */
 
 	/* step 1: extract only the rotation f-curves */
@@ -1832,8 +1829,8 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 		FCurve *fcu = (FCurve *)ale->data;
 
 		/* check if this is an appropriate F-Curve
-		 *	- only rotation curves
-		 *	- for pchan curves, make sure we're only using the euler curves
+		 * - only rotation curves
+		 * - for pchan curves, make sure we're only using the euler curves
 		 */
 		if (strstr(fcu->rna_path, "rotation_euler") == NULL)
 			continue;
@@ -1859,7 +1856,8 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 			groups++;
 
 			euf->id = ale->id;
-			euf->rna_path = fcu->rna_path; /* this should be safe, since we're only using it for a short time */
+			/* this should be safe, since we're only using it for a short time */
+			euf->rna_path = fcu->rna_path;
 			euf->fcurves[fcu->array_index] = fcu;
 		}
 
@@ -1873,13 +1871,14 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 	}
 
 	/* step 2: go through each set of curves, processing the values at each keyframe
-	 *	- it is assumed that there must be a full set of keyframes at each keyframe position
+	 * - it is assumed that there must be a full set of keyframes at each keyframe position
 	 */
 	for (euf = eulers.first; euf; euf = euf->next) {
 		int f;
 
 		/* sanity check: ensure that there are enough F-Curves to work on in this group */
-		/* TODO: also enforce assumption that there be a full set of keyframes at each position by ensuring that totvert counts are same? */
+		/* TODO: also enforce assumption that there be a full set of keyframes
+		 * at each position by ensuring that totvert counts are same? */
 		if (ELEM(NULL, euf->fcurves[0], euf->fcurves[1], euf->fcurves[2])) {
 			/* report which components are missing */
 			BKE_reportf(op->reports, RPT_WARNING,
@@ -1912,7 +1911,8 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 
 				/* > 180 degree flip? */
 				if ((sign * (prev->vec[1][1] - bezt->vec[1][1])) >= (float)M_PI) {
-					/* 360 degrees to add/subtract frame value until difference is acceptably small that there's no more flip */
+					/* 360 degrees to add/subtract frame value until difference
+					 * is acceptably small that there's no more flip */
 					const float fac = sign * 2.0f * (float)M_PI;
 
 					while ((sign * (prev->vec[1][1] - bezt->vec[1][1])) >= (float)M_PI) {

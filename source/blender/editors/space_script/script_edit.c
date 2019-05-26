@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_script/script_edit.c
@@ -125,7 +118,7 @@ static int script_reload_exec(bContext *C, wmOperator *op)
 	/* TODO, this crashes on netrender and keying sets, need to look into why
 	 * disable for now unless running in debug mode */
 	WM_cursor_wait(1);
-	BPY_execute_string(C, "__import__('bpy').utils.load_scripts(reload_scripts=True)");
+	BPY_execute_string(C, (const char *[]){"bpy", NULL}, "bpy.utils.load_scripts(reload_scripts=True)");
 	WM_cursor_wait(0);
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 	return OPERATOR_FINISHED;

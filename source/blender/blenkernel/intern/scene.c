@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/scene.c
@@ -228,7 +220,7 @@ void BKE_toolsettings_free(ToolSettings *toolsettings)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_scene_copy_data(Main *bmain, Scene *sce_dst, const Scene *sce_src, const int flag)
 {
@@ -404,6 +396,7 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 			for (SceneRenderLayer *srl_dst = sce_copy->r.layers.first; srl_dst; srl_dst = srl_dst->next) {
 				for (FreestyleLineSet *lineset = srl_dst->freestyleConfig.linesets.first; lineset; lineset = lineset->next) {
 					if (lineset->linestyle) {
+						id_us_min(&lineset->linestyle->id);
 						/* XXX Not copying anim/actions here? */
 						BKE_id_copy_ex(bmain, (ID *)lineset->linestyle, (ID **)&lineset->linestyle, 0, false);
 					}
@@ -412,12 +405,14 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 
 			/* Full copy of world (included animations) */
 			if (sce_copy->world) {
+				id_us_min(&sce_copy->world->id);
 				BKE_id_copy_ex(bmain, (ID *)sce_copy->world, (ID **)&sce_copy->world, LIB_ID_COPY_ACTIONS, false);
 			}
 
 			/* Full copy of GreasePencil. */
 			/* XXX Not copying anim/actions here? */
 			if (sce_copy->gpd) {
+				id_us_min(&sce_copy->gpd->id);
 				BKE_id_copy_ex(bmain, (ID *)sce_copy->gpd, (ID **)&sce_copy->gpd, 0, false);
 			}
 		}
@@ -432,6 +427,7 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 		 * are done outside of blenkernel with ED_objects_single_users! */
 
 		/*  camera */
+		/* XXX This is most certainly useless? Object have not yet been duplicated... */
 		if (ELEM(type, SCE_COPY_LINK_DATA, SCE_COPY_FULL)) {
 			ID_NEW_REMAP(sce_copy->camera);
 		}
@@ -802,7 +798,8 @@ void BKE_scene_init(Scene *sce)
 	colorspace_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_SEQUENCER);
 
 	BKE_color_managed_display_settings_init(&sce->display_settings);
-	BKE_color_managed_view_settings_init(&sce->view_settings);
+	BKE_color_managed_view_settings_init(&sce->view_settings,
+	                                     &sce->display_settings);
 	BLI_strncpy(sce->sequencer_colorspace_settings.name, colorspace_name,
 	            sizeof(sce->sequencer_colorspace_settings.name));
 
@@ -1309,10 +1306,10 @@ void BKE_scene_frame_set(struct Scene *scene, double cfra)
 
 #ifdef WITH_LEGACY_DEPSGRAPH
 /* drivers support/hacks
- *  - this method is called from scene_update_tagged_recursive(), so gets included in viewport + render
- *	- these are always run since the depsgraph can't handle non-object data
- *	- these happen after objects are all done so that we can read in their final transform values,
- *	  though this means that objects can't refer to scene info for guidance...
+ * - this method is called from scene_update_tagged_recursive(), so gets included in viewport + render
+ * - these are always run since the depsgraph can't handle non-object data
+ * - these happen after objects are all done so that we can read in their final transform values,
+ *   though this means that objects can't refer to scene info for guidance...
  */
 static void scene_update_drivers(Main *UNUSED(bmain), Scene *scene)
 {
@@ -1935,13 +1932,13 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	if (!use_new_eval && DAG_id_type_tagged(bmain, ID_NT)) {
 		float ctime = BKE_scene_frame_get(scene);
 
-		FOREACH_NODETREE(bmain, ntree, id)
+		FOREACH_NODETREE_BEGIN(bmain, ntree, id)
 		{
 			AnimData *adt = BKE_animdata_from_id(&ntree->id);
 			if (adt && (adt->recalc & ADT_RECALC_ANIM))
 				BKE_animsys_evaluate_animdata(scene, &ntree->id, adt, ctime, 0);
 		}
-		FOREACH_NODETREE_END
+		FOREACH_NODETREE_END;
 	}
 #endif
 

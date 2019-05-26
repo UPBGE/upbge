@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_text/text_format.h
@@ -84,16 +77,26 @@ typedef struct TextFormatType {
 } TextFormatType;
 
 enum {
-	FMT_TYPE_WHITESPACE = '_',  /* Whitespace */
-	FMT_TYPE_COMMENT    = '#',  /* Comment text */
-	FMT_TYPE_SYMBOL     = '!',  /* Punctuation and other symbols */
-	FMT_TYPE_NUMERAL    = 'n',  /* Numerals */
-	FMT_TYPE_STRING     = 'l',  /* String letters */
-	FMT_TYPE_DIRECTIVE  = 'd',  /* Decorator / Preprocessor directive */
-	FMT_TYPE_SPECIAL    = 'v',  /* Special variables (class, def) */
-	FMT_TYPE_RESERVED   = 'r',  /* Reserved keywords (OSL -> switch e.g.) */
-	FMT_TYPE_KEYWORD    = 'b',  /* Built-in names (return, for, etc.) */
-	FMT_TYPE_DEFAULT    = 'q',  /* Regular text (identifiers, etc.) */
+	/** Whitespace */
+	FMT_TYPE_WHITESPACE = '_',
+	/** Comment text */
+	FMT_TYPE_COMMENT    = '#',
+	/** Punctuation and other symbols */
+	FMT_TYPE_SYMBOL     = '!',
+	/** Numerals */
+	FMT_TYPE_NUMERAL    = 'n',
+	/** String letters */
+	FMT_TYPE_STRING     = 'l',
+	/** Decorator / Preprocessor directive */
+	FMT_TYPE_DIRECTIVE  = 'd',
+	/** Special variables (class, def) */
+	FMT_TYPE_SPECIAL    = 'v',
+	/** Reserved keywords currently not in use, but still prohibited (OSL -> switch e.g.) */
+	FMT_TYPE_RESERVED   = 'r',
+	/** Built-in names (return, for, etc.) */
+	FMT_TYPE_KEYWORD    = 'b',
+	/** Regular text (identifiers, etc.) */
+	FMT_TYPE_DEFAULT    = 'q',
 };
 
 TextFormatType *ED_text_format_get(Text *text);

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/tools/bmesh_decimate_unsubdivide.c
@@ -168,7 +162,7 @@ static bool bm_vert_dissolve_fan(BMesh *bm, BMVert *v)
 enum {
 	VERT_INDEX_DO_COLLAPSE  = -1,
 	VERT_INDEX_INIT         =  0,
-	VERT_INDEX_IGNORE       =  1
+	VERT_INDEX_IGNORE       =  1,
 };
 
 // #define USE_WALKER  /* gives uneven results, disable for now */
@@ -178,7 +172,7 @@ enum {
  */
 
 /**
- * \param tag_only so we can call this from an operator */
+ * \param tag_only: so we can call this from an operator */
 void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool tag_only)
 {
 #ifdef USE_WALKER

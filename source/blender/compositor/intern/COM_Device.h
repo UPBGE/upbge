@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
  */
 
 #ifndef __COM_DEVICE_H__
@@ -26,7 +22,7 @@
 #include "COM_WorkPackage.h"
 
 /**
- * @brief Abstract class for device implementations to be used by the Compositor.
+ * \brief Abstract class for device implementations to be used by the Compositor.
  * devices are queried, initialized and used by the WorkScheduler.
  * work are packaged as a WorkPackage instance.
  */
@@ -34,24 +30,24 @@ class Device {
 
 public:
 	/**
-	 * @brief Declaration of the virtual destructor
-	 * @note resolve warning gcc 4.7
+	 * \brief Declaration of the virtual destructor
+	 * \note resolve warning gcc 4.7
 	 */
 	virtual ~Device() {}
 
 	/**
-	 * @brief initialize the device
+	 * \brief initialize the device
 	 */
 	virtual bool initialize() { return true; }
 
 	/**
-	 * @brief deinitialize the device
+	 * \brief deinitialize the device
 	 */
 	virtual void deinitialize() {}
 
 	/**
-	 * @brief execute a WorkPackage
-	 * @param work the WorkPackage to execute
+	 * \brief execute a WorkPackage
+	 * \param work: the WorkPackage to execute
 	 */
 	virtual void execute(WorkPackage *work) = 0;
 

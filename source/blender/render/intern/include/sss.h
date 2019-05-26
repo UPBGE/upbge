@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/include/sss.h
@@ -53,8 +45,8 @@ void scatter_tree_free(ScatterTree *tree);
 
 /* Internal renderer API */
 
-struct Render;
 struct Material;
+struct Render;
 
 void make_sss_tree(struct Render *re);
 void sss_add_points(Render *re, float (*co)[3], float (*color)[3], float *area, int totpoint);

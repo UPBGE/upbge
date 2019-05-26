@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/source/pipeline.c
@@ -127,7 +119,6 @@
  *
  * 5) Image Files
  * - save file or append in movie
- *
  */
 
 
@@ -1350,7 +1341,7 @@ static void main_render_result_end(Render *re)
 {
 	if (re->result->do_exr_tile) {
 		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-		render_result_exr_file_end(re);
+		render_result_exr_file_end(re, NULL);
 		BLI_rw_mutex_unlock(&re->resultmutex);
 	}
 
@@ -1382,7 +1373,7 @@ static void main_render_result_new(Render *re)
 
 	if (re->result) {
 		if (re->result->do_exr_tile) {
-			render_result_exr_file_begin(re);
+			render_result_exr_file_begin(re, NULL);
 		}
 	}
 }
@@ -1899,6 +1890,7 @@ static void render_result_uncrop(Render *re)
 			render_result_disprect_to_full_resolution(re);
 
 			rres = render_result_new(re, &re->disprect, 0, RR_USE_MEM, RR_ALL_LAYERS, RR_ALL_VIEWS);
+			rres->stamp_data = BKE_stamp_data_copy(re->result->stamp_data);
 
 			render_result_clone_passes(re, rres, NULL);
 
@@ -2347,7 +2339,7 @@ static void composite_freestyle_renders(Render *re, int sample)
 
 				/* may be NULL in case of empty render layer */
 				if (freestyle_render) {
-					render_result_exr_file_read_sample(freestyle_render, sample);
+					render_result_exr_file_read_sample(freestyle_render, sample, NULL);
 					FRS_composite_result(re, srl, freestyle_render);
 					RE_FreeRenderResult(freestyle_render->result);
 					freestyle_render->result = NULL;
@@ -2446,7 +2438,7 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 				if (re1 && (re1->r.scemode & R_FULL_SAMPLE)) {
 					if (sample) {
 						BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-						render_result_exr_file_read_sample(re1, sample);
+						render_result_exr_file_read_sample(re1, sample, NULL);
 #ifdef WITH_FREESTYLE
 						if (re1->r.mode & R_EDGE_FRS)
 							composite_freestyle_renders(re1, sample);
@@ -2454,6 +2446,13 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 						BLI_rw_mutex_unlock(&re->resultmutex);
 						render_result_uncrop(re1);
 					}
+#ifdef WITH_FREESTYLE
+					else if (re1->r.mode & R_EDGE_FRS) {
+						BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+						composite_freestyle_renders(re1, 0);
+						BLI_rw_mutex_unlock(&re->resultmutex);
+					}
+#endif
 					ntreeCompositTagRender(re1->scene); /* ensure node gets exec to put buffers on stack */
 				}
 			}
@@ -3416,6 +3415,8 @@ bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scen
 
 					ImBuf *ibuf = render_result_rect_to_ibuf(rr, rd, view_id);
 					ibuf->planes = 24;
+					IMB_colormanagement_imbuf_for_write(ibuf, true, false, &scene->view_settings,
+					                                    &scene->display_settings, &imf);
 
 					ok = render_imbuf_write_stamp_test(reports, scene, rr, ibuf, name, &imf, stamp);
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_action/action_draw.c
@@ -321,15 +313,15 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 			}
 		}
 
-		/*	Increment the step */
+		/* Increment the step */
 		y -= ACHANNEL_STEP(ac);
 	}
 	glDisable(GL_BLEND);
 
 	/* Draw keyframes
-	 *	1) Only channels that are visible in the Action Editor get drawn/evaluated.
-	 *	   This is to try to optimize this for heavier data sets
-	 *	2) Keyframes which are out of view horizontally are disregarded
+	 * 1) Only channels that are visible in the Action Editor get drawn/evaluated.
+	 *    This is to try to optimize this for heavier data sets
+	 * 2) Keyframes which are out of view horizontally are disregarded
 	 */
 	y = (float)(-ACHANNEL_HEIGHT(ac));
 

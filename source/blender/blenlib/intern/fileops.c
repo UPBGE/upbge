@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/fileops.c
@@ -550,12 +542,12 @@ static char *strip_last_slash(const char *dir)
  * prefixing it with startto, recursively scanning subdirectories, and invoking the specified
  * callbacks for files and subdirectories found as appropriate.
  *
- * \param startfrom  Top-level source path.
- * \param startto  Top-level destination path.
- * \param callback_dir_pre  Optional, to be invoked before entering a subdirectory, can return
+ * \param startfrom: Top-level source path.
+ * \param startto: Top-level destination path.
+ * \param callback_dir_pre: Optional, to be invoked before entering a subdirectory, can return
  *                          RecursiveOp_Callback_StopRecurs to skip the subdirectory.
- * \param callback_file  Optional, to be invoked on each file found.
- * \param callback_dir_post  optional, to be invoked after leaving a subdirectory.
+ * \param callback_file: Optional, to be invoked on each file found.
+ * \param callback_dir_post: optional, to be invoked after leaving a subdirectory.
  * \return
  */
 static int recursive_operation(const char *startfrom, const char *startto,

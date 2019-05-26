@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_key.c
@@ -519,7 +513,7 @@ static KeyBlock *rna_ShapeKeyData_find_keyblock(Key *key, float *point)
 			}
 
 			/* determine where end of array is
-			 *	- elemsize is in bytes, so use (char *) cast to get array in terms of bytes
+			 * - elemsize is in bytes, so use (char *) cast to get array in terms of bytes
 			 */
 			end = (float *)((char *)start + (key->elemsize * kb->totelem));
 

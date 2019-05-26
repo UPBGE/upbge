@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Brecht Van Lommel.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file GPU_draw.h
@@ -36,16 +28,16 @@
 extern "C" {
 #endif
 
+struct DupliObject;
 struct ImBuf;
 struct Image;
 struct ImageUser;
 struct MTexPoly;
 struct Object;
-struct Scene;
-struct View3D;
 struct RegionView3D;
+struct Scene;
 struct SmokeModifierData;
-struct DupliObject;
+struct View3D;
 
 /* OpenGL drawing functions related to shading. These are also
  * shared with the game engine, where there were previously

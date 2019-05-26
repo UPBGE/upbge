@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_DropTargetWin32.cpp
@@ -60,7 +52,7 @@ GHOST_DropTargetWin32::~GHOST_DropTargetWin32()
 
 
 /*
- *  IUnknown::QueryInterface
+ * IUnknown::QueryInterface
  */
 HRESULT __stdcall GHOST_DropTargetWin32::QueryInterface(REFIID riid, void **ppvObj)
 {
@@ -82,7 +74,7 @@ HRESULT __stdcall GHOST_DropTargetWin32::QueryInterface(REFIID riid, void **ppvO
 
 
 /*
- *	IUnknown::AddRef
+ * IUnknown::AddRef
  */
 
 ULONG __stdcall GHOST_DropTargetWin32::AddRef(void)

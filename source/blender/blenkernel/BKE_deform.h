@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_DEFORM_H__
@@ -35,13 +27,13 @@
  *  \brief support for deformation groups and hooks.
  */
 
-struct Object;
 struct ListBase;
-struct bDeformGroup;
 struct MDeformVert;
 struct MEdge;
 struct MLoop;
 struct MPoly;
+struct Object;
+struct bDeformGroup;
 
 struct bDeformGroup *BKE_defgroup_new(struct Object *ob, const char *name);
 void                 defgroup_copy_list(struct ListBase *lb1, const struct ListBase *lb2);

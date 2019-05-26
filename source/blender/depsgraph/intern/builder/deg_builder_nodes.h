@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Lukas Toenne
- * Contributor(s): None Yet
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/builder/deg_builder_nodes.h
@@ -35,37 +28,37 @@
 
 struct Base;
 struct CacheFile;
-struct bGPdata;
-struct ListBase;
+struct FCurve;
 struct GHash;
+struct Group;
 struct ID;
 struct Image;
-struct FCurve;
-struct Group;
 struct Key;
-struct Main;
-struct Material;
-struct Mask;
+struct ListBase;
 struct MTex;
+struct Main;
+struct Mask;
+struct Material;
 struct MovieClip;
-struct bNodeTree;
 struct Object;
-struct bPoseChannel;
-struct bConstraint;
 struct Scene;
 struct Tex;
 struct World;
+struct bConstraint;
+struct bGPdata;
+struct bNodeTree;
+struct bPoseChannel;
 
 struct PropertyRNA;
 
 namespace DEG {
 
-struct Depsgraph;
-struct DepsNode;
-struct IDDepsNode;
-struct TimeSourceDepsNode;
 struct ComponentDepsNode;
+struct DepsNode;
+struct Depsgraph;
+struct IDDepsNode;
 struct OperationDepsNode;
+struct TimeSourceDepsNode;
 
 struct DepsgraphNodeBuilder {
 	DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph);

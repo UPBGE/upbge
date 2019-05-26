@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Daniel Genrich (Genscher)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_smoke_types.h
@@ -113,7 +105,7 @@ enum {
 #define SM_HRES_LINEAR		1
 #define SM_HRES_FULLSAMPLE	2
 
-/* smoke data fileds (active_fields) */
+/* smoke data fields (active_fields) */
 #define SM_ACTIVE_HEAT		(1<<0)
 #define SM_ACTIVE_FIRE		(1<<1)
 #define SM_ACTIVE_COLORS	(1<<2)

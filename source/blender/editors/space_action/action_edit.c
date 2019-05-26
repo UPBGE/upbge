@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_action/action_edit.c
@@ -88,10 +80,10 @@
 /* *************************** Localise Markers ***************************** */
 
 /* ensure that there is:
- *  1) an active action editor
- *  2) that the mode will have an active action available
- *  3) that the set of markers being shown are the scene markers, not the list we're merging
- *	4) that there are some selected markers
+ * 1) an active action editor
+ * 2) that the mode will have an active action available
+ * 3) that the set of markers being shown are the scene markers, not the list we're merging
+ * 4) that there are some selected markers
  */
 static bool act_markers_make_local_poll(bContext *C)
 {
@@ -325,7 +317,8 @@ static bool actkeys_channels_get_selected_extents(bAnimContext *ac, float *min, 
 	bAnimListElem *ale;
 	int filter;
 
-	short found = 0; /* NOTE: not bool, since we want prioritise individual channels over expanders */
+	/* NOTE: not bool, since we want prioritise individual channels over expanders */
+	short found = 0;
 	float y;
 
 	/* get all items - we need to do it this way */
@@ -535,8 +528,9 @@ static short paste_action_keys(bAnimContext *ac,
 	 */
 	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
 
-	if (ANIM_animdata_filter(ac, &anim_data, filter | ANIMFILTER_SEL, ac->data, ac->datatype) == 0)
+	if (ANIM_animdata_filter(ac, &anim_data, filter | ANIMFILTER_SEL, ac->data, ac->datatype) == 0) {
 		ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+	}
 
 	/* paste keyframes */
 	ok = paste_animedit_keys(ac, &anim_data, offset_mode, merge_mode, flip);
@@ -681,8 +675,12 @@ static void insert_action_keys(bAnimContext *ac, short mode)
 
 	/* filter data */
 	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
-	if (mode == 2) filter |= ANIMFILTER_SEL;
-	else if (mode == 3) filter |= ANIMFILTER_ACTGROUPED;
+	if (mode == 2) {
+		filter |= ANIMFILTER_SEL;
+	}
+	else if (mode == 3) {
+		filter |= ANIMFILTER_ACTGROUPED;
+	}
 
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
@@ -819,10 +817,12 @@ static void duplicate_action_keys(bAnimContext *ac)
 	int filter;
 
 	/* filter data */
-	if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+	if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
 		filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
-	else
+	}
+	else {
 		filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+	}
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
 	/* loop through filtered data and delete selected keys */
@@ -887,10 +887,12 @@ static bool delete_action_keys(bAnimContext *ac)
 	bool changed_final = false;
 
 	/* filter data */
-	if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+	if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
 		filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
-	else
+	}
+	else {
 		filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+	}
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
 	/* loop through filtered data and delete selected keys */
@@ -1574,10 +1576,12 @@ static void snap_action_keys(bAnimContext *ac, short mode)
 	KeyframeEditFunc edit_cb;
 
 	/* filter data */
-	if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+	if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
 		filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT);
-	else
+	}
+	else {
 		filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+	}
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
 	/* get beztriple editing callbacks */
@@ -1697,10 +1701,12 @@ static void mirror_action_keys(bAnimContext *ac, short mode)
 	}
 
 	/* filter data */
-	if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+	if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
 		filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
-	else
+	}
+	else {
 		filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+	}
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
 	/* mirror keyframes */

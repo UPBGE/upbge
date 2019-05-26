@@ -22,7 +22,6 @@
  * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied. See the Apache License for the specific
  * language governing permissions and limitations under the Apache License.
- *
  */
 
 CCL_NAMESPACE_BEGIN
@@ -276,6 +275,33 @@ ccl_device float patch_eval_float(KernelGlobals *kg, const ShaderData *sd, int o
 
 	for(int i = 0; i < num_control; i++) {
 		float v = kernel_tex_fetch(__attributes_float, offset + indices[i]);
+
+		val += v * weights[i];
+		if(du) *du += v * weights_du[i];
+		if(dv) *dv += v * weights_dv[i];
+	}
+
+	return val;
+}
+
+ccl_device float2 patch_eval_float2(KernelGlobals *kg, const ShaderData *sd, int offset,
+                                    int patch, float u, float v, int channel,
+                                    float2 *du, float2 *dv)
+{
+	int indices[PATCH_MAX_CONTROL_VERTS];
+	float weights[PATCH_MAX_CONTROL_VERTS];
+	float weights_du[PATCH_MAX_CONTROL_VERTS];
+	float weights_dv[PATCH_MAX_CONTROL_VERTS];
+
+	int num_control = patch_eval_control_verts(kg, sd->object, patch, u, v, channel,
+	                                           indices, weights, weights_du, weights_dv);
+
+	float2 val = make_float2(0.0f, 0.0f);
+	if(du) *du = make_float2(0.0f, 0.0f);
+	if(dv) *dv = make_float2(0.0f, 0.0f);
+
+	for(int i = 0; i < num_control; i++) {
+		float2 v = kernel_tex_fetch(__attributes_float2, offset + indices[i]);
 
 		val += v * weights[i];
 		if(du) *du += v * weights_du[i];

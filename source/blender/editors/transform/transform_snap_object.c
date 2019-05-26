@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/transform/transform_snap_object.c
@@ -467,7 +463,7 @@ static bool raycastDerivedMesh(
 		}
 	}
 	/* You need to make sure that ray_start is really far away,
-	 * because even in the Orthografic view, in some cases,
+	 * because even in the orthographic view, in some cases,
 	 * the ray can start inside the object (see T50486) */
 	if (len_diff > 400.0f) {
 		/* We pass a temp ray_start, set from object's boundbox, to avoid precision issues with
@@ -804,7 +800,6 @@ static void raycast_obj_cb(SnapObjectContext *sctx, bool is_obedit, Object *ob, 
  * \param r_ob: Hit object.
  * \param r_obmat: Object matrix (may not be #Object.obmat with dupli-instances).
  * \param r_hit_list: List of #SnapObjectHitDepth (caller must free).
- *
  */
 static bool raycastObjects(
         SnapObjectContext *sctx,
@@ -2039,7 +2034,6 @@ static void sanp_obj_cb(SnapObjectContext *sctx, bool is_obedit, Object *ob, flo
  * (currently only set to the polygon index when when using ``snap_to == SCE_SNAP_MODE_FACE``).
  * \param r_ob: Hit object.
  * \param r_obmat: Object matrix (may not be #Object.obmat with dupli-instances).
- *
  */
 static bool snapObjectsRay(
         SnapObjectContext *sctx, SnapData *snapdata,
@@ -2425,7 +2419,7 @@ bool ED_transform_snap_object_project_all_view3d_ex(
 {
 	float ray_start[3], ray_normal[3];
 
-	if (!ED_view3d_win_to_ray_ex(
+	if (!ED_view3d_win_to_ray_clipped_ex(
 	        sctx->v3d_data.ar, sctx->v3d_data.v3d,
 	        mval, NULL, ray_normal, ray_start, true))
 	{

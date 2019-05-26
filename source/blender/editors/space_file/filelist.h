@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_file/filelist.h
@@ -47,21 +39,21 @@ struct FileDirEntry;
 typedef enum FileSelType {
 	FILE_SEL_REMOVE = 0,
 	FILE_SEL_ADD    = 1,
-	FILE_SEL_TOGGLE = 2
+	FILE_SEL_TOGGLE = 2,
 } FileSelType;
 
 typedef enum FileCheckType {
 	CHECK_DIRS = 1,
 	CHECK_FILES = 2,
-	CHECK_ALL = 3
+	CHECK_ALL = 3,
 } FileCheckType;
 
-struct ListBase *   folderlist_new(void);
+struct ListBase    *folderlist_new(void);
 void                folderlist_free(struct ListBase *folderlist);
-struct ListBase *   folderlist_duplicate(ListBase *folderlist);
+struct ListBase    *folderlist_duplicate(ListBase *folderlist);
 void                folderlist_popdir(struct ListBase *folderlist, char *dir);
 void                folderlist_pushdir(struct ListBase *folderlist, const char *dir);
-const char *        folderlist_peeklastdir(struct ListBase *folderdist);
+const char         *folderlist_peeklastdir(struct ListBase *folderdist);
 int                 folderlist_clear_next(struct SpaceFile *sfile);
 
 
@@ -77,24 +69,24 @@ void                filelist_filter(struct FileList *filelist);
 void                filelist_init_icons(void);
 void                filelist_free_icons(void);
 void                filelist_imgsize(struct FileList *filelist, short w, short h);
-struct ImBuf *      filelist_getimage(struct FileList *filelist, const int index);
-struct ImBuf *      filelist_geticon_image(struct FileList *filelist, const int index);
+struct ImBuf       *filelist_getimage(struct FileList *filelist, const int index);
+struct ImBuf       *filelist_geticon_image(struct FileList *filelist, const int index);
 int                 filelist_geticon(struct FileList *filelist, const int index, const bool is_main);
 
-struct FileList *   filelist_new(short type);
+struct FileList    *filelist_new(short type);
 void                filelist_clear(struct FileList *filelist);
 void                filelist_clear_ex(struct FileList *filelist, const bool do_cache, const bool do_selection);
 void                filelist_free(struct FileList *filelist);
 
-const char *        filelist_dir(struct FileList *filelist);
+const char         *filelist_dir(struct FileList *filelist);
 bool                filelist_is_dir(struct FileList *filelist, const char *path);
 void                filelist_setdir(struct FileList *filelist, char *r_dir);
 
 int                 filelist_files_ensure(struct FileList *filelist);
 int                 filelist_empty(struct FileList *filelist);
-FileDirEntry *      filelist_file(struct FileList *filelist, int index);
+FileDirEntry       *filelist_file(struct FileList *filelist, int index);
 int                 filelist_file_findpath(struct FileList *filelist, const char *file);
-FileDirEntry *      filelist_entry_find_uuid(struct FileList *filelist, const int uuid[4]);
+FileDirEntry       *filelist_entry_find_uuid(struct FileList *filelist, const int uuid[4]);
 void                filelist_file_cache_slidingwindow_set(struct FileList *filelist, size_t window_size);
 bool                filelist_file_cache_block(struct FileList *filelist, const int index);
 

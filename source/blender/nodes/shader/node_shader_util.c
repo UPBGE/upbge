@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/nodes/shader/node_shader_util.c
@@ -143,7 +135,7 @@ void node_gpu_stack_from_data(struct GPUNodeStack *gs, int type, bNodeStack *ns)
 	memset(gs, 0, sizeof(*gs));
 
 	if (ns == NULL) {
-		/* node_get_stack() will generate NULL bNodeStack pointers for unknown/unsuported types of sockets... */
+		/* node_get_stack() will generate NULL bNodeStack pointers for unknown/unsupported types of sockets... */
 		zero_v4(gs->vec);
 		gs->link = NULL;
 		gs->type = GPU_NONE;

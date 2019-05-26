@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation, Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/animation/fmodifier_ui.c
@@ -349,9 +342,11 @@ static void fmod_envelope_addpoint_cb(bContext *C, void *fcm_dv, void *UNUSED(ar
 		bool exists;
 		int i = BKE_fcm_envelope_find_index(env->data, (float)(scene->r.cfra), env->totvert, &exists);
 
-		/* binarysearch_...() will set exists by default to 0, so if it is non-zero, that means that the point exists already */
-		if (exists)
+		/* binarysearch_...() will set exists by default to 0,
+		 * so if it is non-zero, that means that the point exists already */
+		if (exists) {
 			return;
+		}
 
 		/* add new */
 		fedn = MEM_callocN((env->totvert + 1) * sizeof(FCM_EnvelopeData), "FCM_EnvelopeData");
@@ -387,7 +382,7 @@ static void fmod_envelope_deletepoint_cb(bContext *UNUSED(C), void *fcm_dv, void
 {
 	FMod_Envelope *env = (FMod_Envelope *)fcm_dv;
 	FCM_EnvelopeData *fedn;
-	int index = GET_INT_FROM_POINTER(ind_v);
+	int index = POINTER_AS_INT(ind_v);
 
 	/* check that no data exists for the current frame... */
 	if (env->totvert > 1) {
@@ -465,7 +460,7 @@ static void draw_modifier__envelope(uiLayout *layout, ID *id, FModifier *fcm, sh
 
 		but = uiDefIconBut(block, UI_BTYPE_BUT, B_FMODIFIER_REDRAW, ICON_X, 0, 0, 0.9 * UI_UNIT_X, UI_UNIT_Y,
 		                   NULL, 0.0, 0.0, 0.0, 0.0, TIP_("Delete envelope control point"));
-		UI_but_func_set(but, fmod_envelope_deletepoint_cb, env, SET_INT_IN_POINTER(i));
+		UI_but_func_set(but, fmod_envelope_deletepoint_cb, env, POINTER_FROM_INT(i));
 		UI_block_align_begin(block);
 	}
 }
@@ -705,7 +700,7 @@ void ANIM_fmodifiers_copybuf_free(void)
 
 /* copy the given F-Modifiers to the buffer, returning whether anything was copied or not
  * assuming that the buffer has been cleared already with ANIM_fmodifiers_copybuf_free()
- *	- active: only copy the active modifier
+ * - active: only copy the active modifier
  */
 bool ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, bool active)
 {
@@ -734,7 +729,7 @@ bool ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, bool active)
 }
 
 /* 'Paste' the F-Modifier(s) from the buffer to the specified list
- *	- replace: free all the existing modifiers to leave only the pasted ones
+ * - replace: free all the existing modifiers to leave only the pasted ones
  */
 bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace, FCurve *curve)
 {

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/transform/transform.h
@@ -41,25 +33,25 @@
 
 /* ************************** Types ***************************** */
 
-struct TransInfo;
-struct TransData;
-struct TransformOrientation;
-struct TransSnap;
+struct ARegion;
+struct EditBone;
 struct NumInput;
 struct Object;
-struct View3D;
-struct ScrArea;
+struct ReportList;
 struct Scene;
+struct ScrArea;
+struct SnapObjectContext;
+struct TransData;
+struct TransInfo;
+struct TransSnap;
+struct TransformOrientation;
+struct View3D;
 struct bConstraint;
-struct wmKeyMap;
-struct wmKeyConfig;
 struct bContext;
 struct wmEvent;
+struct wmKeyConfig;
+struct wmKeyMap;
 struct wmTimer;
-struct ARegion;
-struct ReportList;
-struct EditBone;
-struct SnapObjectContext;
 
 /* transinfo->redraw */
 typedef enum {
@@ -150,7 +142,7 @@ typedef struct TransDataExtension {
 	float  r_mtx[3][3];  /* The rotscale matrix of pose bone, to allow using snap-align in translation mode,
 	                      * when td->mtx is the loc pose bone matrix (and hence can't be used to apply rotation in some cases,
 	                      * namely when a bone is in "NoLocal" or "Hinge" mode)... */
-	float  r_smtx[3][3]; /* Invers of previous one. */
+	float  r_smtx[3][3]; /* Inverse of previous one. */
 	int    rotOrder;	/* rotation mode,  as defined in eRotationModes (DNA_action_types.h) */
 	float oloc[3], orot[3], oquat[4], orotAxis[3], orotAngle; /* Original object transformation used for rigid bodies */
 } TransDataExtension;
@@ -163,7 +155,7 @@ typedef struct TransData2D {
 	float ih1[2], ih2[2];
 } TransData2D;
 
-/* we need to store 2 handles for each transdata in case the other handle wasnt selected */
+/* we need to store 2 handles for each transdata in case the other handle wasn't selected */
 typedef struct TransDataCurveHandleFlags {
 	char ih1, ih2;
 	char *h1, *h2;
@@ -202,8 +194,8 @@ typedef struct TransDataNla {
 	int handle;					/* handle-index: 0 for dummy entry, -1 for start, 1 for end, 2 for both ends */
 } TransDataNla;
 
-struct LinkNode;
 struct GHash;
+struct LinkNode;
 
 /* header of TransDataEdgeSlideVert, TransDataEdgeSlideEdge */
 typedef struct TransDataGenericSlideVert {
@@ -507,7 +499,7 @@ typedef struct TransInfo {
 
 #define T_PROP_EDIT			(1 << 11)
 #define T_PROP_CONNECTED	(1 << 12)
-#define T_PROP_PROJECTED	(1 << 25)
+#define T_PROP_PROJECTED	(1 << 13)
 #define T_PROP_EDIT_ALL		(T_PROP_EDIT | T_PROP_CONNECTED | T_PROP_PROJECTED)
 
 #define T_V3D_ALIGN			(1 << 14)
@@ -522,7 +514,7 @@ typedef struct TransInfo {
 
 #define T_AUTOVALUES		(1 << 20)
 
-	/* to specificy if we save back settings at the end */
+	/* to specify if we save back settings at the end */
 #define	T_MODAL				(1 << 21)
 
 	/* no retopo */
@@ -687,7 +679,7 @@ void setNearestAxis(TransInfo *t);
 typedef enum {
 	NO_GEARS 	= 0,
 	BIG_GEARS	= 1,
-	SMALL_GEARS	= 2
+	SMALL_GEARS	= 2,
 } GearsType;
 
 void snapGridIncrement(TransInfo *t, float *val);
@@ -796,6 +788,8 @@ bool applyTransformOrientation(const struct bContext *C, float mat[3][3], char r
 #define ORIENTATION_VERT	2
 #define ORIENTATION_EDGE	3
 #define ORIENTATION_FACE	4
+#define ORIENTATION_USE_PLANE(ty) \
+	ELEM(ty, ORIENTATION_NORMAL, ORIENTATION_EDGE, ORIENTATION_FACE)
 
 int getTransformOrientation_ex(const struct bContext *C, float normal[3], float plane[3], const short around);
 int getTransformOrientation(const struct bContext *C, float normal[3], float plane[3]);

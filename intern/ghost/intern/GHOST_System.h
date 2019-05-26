@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_System.h
@@ -177,6 +169,12 @@ public:
 	bool useNativePixel(void);
 	bool m_nativePixel;
 
+	/**
+	 * Focus window after opening, or put them in the background.
+	 */
+	void useWindowFocus(const bool use_focus);
+	bool m_windowFocus;
+
 	/***************************************************************************************
 	 * Event management functionality
 	 ***************************************************************************************/
@@ -184,7 +182,7 @@ public:
 	/**
 	 * Inherited from GHOST_ISystem but left pure virtual
 	 *
-	 *  virtual bool processEvents(bool waitForEvent) = 0;
+	 * virtual bool processEvents(bool waitForEvent) = 0;
 	 */
 
 
@@ -213,9 +211,12 @@ public:
 	 * Cursor management functionality
 	 ***************************************************************************************/
 
-	/** Inherited from GHOST_ISystem but left pure virtual
-	 *	GHOST_TSuccess getCursorPosition(GHOST_TInt32& x, GHOST_TInt32& y) const = 0;
-	 *  GHOST_TSuccess setCursorPosition(GHOST_TInt32 x, GHOST_TInt32 y)
+	/**
+	 * Inherited from GHOST_ISystem but left pure virtual
+	 * <pre>
+	 * GHOST_TSuccess getCursorPosition(GHOST_TInt32& x, GHOST_TInt32& y) const = 0;
+	 * GHOST_TSuccess setCursorPosition(GHOST_TInt32 x, GHOST_TInt32 y)
+	 * </pre>
 	 */
 
 	/***************************************************************************************

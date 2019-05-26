@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/imbuf/intern/jpeg.c
@@ -367,7 +359,7 @@ static ImBuf *ibJpegImageFromCinfo(struct jpeg_decompress_struct *cinfo, int fla
 				 * Because JPEG format don't support the
 				 * pair "key/value" like PNG, we store the
 				 * stampinfo in a single "encode" string:
-				 *	"Blender:key:value"
+				 * "Blender:key:value"
 				 *
 				 * That is why we need split it to the
 				 * common key/value here.
@@ -493,7 +485,7 @@ static void write_jpeg(struct jpeg_compress_struct *cinfo, struct ImBuf *ibuf)
 				 * The JPEG format don't support a pair "key/value"
 				 * like PNG, so we "encode" the stamp in a
 				 * single string:
-				 *	"Blender:key:value"
+				 * "Blender:key:value"
 				 *
 				 * The first "Blender" is a simple identify to help
 				 * in the read process.

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/depsgraph_private.h
@@ -34,10 +28,10 @@
 #include "DNA_constraint_types.h"
 #include "BKE_constraint.h"
 
-struct Scene;
-struct Group;
 struct EffectorWeights;
+struct Group;
 struct ModifierData;
+struct Scene;
 
 /* **** DAG relation types *** */
 
@@ -66,7 +60,7 @@ struct ModifierData;
 enum {
 	DAG_WHITE = 0,
 	DAG_GRAY = 1,
-	DAG_BLACK = 2
+	DAG_BLACK = 2,
 };
 
 typedef struct DagAdjList {

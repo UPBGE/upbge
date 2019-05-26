@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/object_dupli.c
@@ -254,7 +246,7 @@ static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChild
 
 				/* mballs have a different dupli handling */
 				if (ob->type != OB_MBALL)
-					ob->flag |= OB_DONE;  /* doesnt render */
+					ob->flag |= OB_DONE;  /* doesn't render */
 
 				make_child_duplis_cb(&pctx, userdata, ob);
 			}
@@ -373,8 +365,8 @@ static void make_duplis_frames(const DupliContext *ctx)
 
 	/* make a copy of the object's original data (before any dupli-data overwrites it)
 	 * as we'll need this to keep track of unkeyed data
-	 *	- this doesn't take into account other data that can be reached from the object,
-	 *	  for example it's shapekeys or bones, hence the need for an update flush at the end
+	 * - this doesn't take into account other data that can be reached from the object,
+	 *   for example it's shapekeys or bones, hence the need for an update flush at the end
 	 */
 	copyob = *ob;
 
@@ -585,7 +577,7 @@ static Object *find_family_object(Main *bmain, const char *family, size_t family
 {
 	Object **ob_pt;
 	Object *ob;
-	void *ch_key = SET_UINT_IN_POINTER(ch);
+	void *ch_key = POINTER_FROM_UINT(ch);
 
 	if ((ob_pt = (Object **)BLI_ghash_lookup_p(family_gh, ch_key))) {
 		ob = *ob_pt;

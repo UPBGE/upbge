@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,9 +15,6 @@
  *
  * The Original Code is Copyright (C) 2016 Kévin Dietrich.
  * All rights reserved.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 #include "abc_points.h"
@@ -60,10 +55,10 @@ using Alembic::AbcGeom::OPointsSchema;
 
 AbcPointsWriter::AbcPointsWriter(Scene *scene,
                                  Object *ob,
-	                             AbcTransformWriter *parent,
-	                             uint32_t time_sampling,
-	                             ExportSettings &settings,
-	                             ParticleSystem *psys)
+                                 AbcTransformWriter *parent,
+                                 uint32_t time_sampling,
+                                 ExportSettings &settings,
+                                 ParticleSystem *psys)
     : AbcObjectWriter(scene, ob, time_sampling, settings, parent)
 {
 	m_psys = psys;

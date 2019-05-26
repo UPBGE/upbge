@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_handlers.c
@@ -160,7 +154,7 @@ typedef enum uiHandleButtonState {
 
 #ifdef USE_ALLSELECT
 
-/* Unfortunately theres no good way handle more generally:
+/* Unfortunately there's no good way handle more generally:
  * (propagate single clicks on layer buttons to other objects) */
 #define USE_ALLSELECT_LAYER_HACK
 
@@ -232,10 +226,14 @@ typedef struct uiButMultiState {
 
 typedef struct uiHandleButtonMulti {
 	enum {
-		BUTTON_MULTI_INIT_UNSET = 0,    /* gesture direction unknown, wait until mouse has moved enough... */
-		BUTTON_MULTI_INIT_SETUP,        /* vertical gesture detected, flag buttons interactively (UI_BUT_DRAG_MULTI) */
-		BUTTON_MULTI_INIT_ENABLE,       /* flag buttons finished, apply horizontal motion to active and flagged */
-		BUTTON_MULTI_INIT_DISABLE,      /* vertical gesture _not_ detected, take no further action */
+		/** gesture direction unknown, wait until mouse has moved enough... */
+		BUTTON_MULTI_INIT_UNSET = 0,
+		/** vertical gesture detected, flag buttons interactively (UI_BUT_DRAG_MULTI) */
+		BUTTON_MULTI_INIT_SETUP,
+		/** flag buttons finished, apply horizontal motion to active and flagged */
+		BUTTON_MULTI_INIT_ENABLE,
+		/** vertical gesture _not_ detected, take no further action */
+		BUTTON_MULTI_INIT_DISABLE,
 	} init;
 
 	bool has_mbuts;  /* any buttons flagged UI_BUT_DRAG_MULTI */
@@ -244,11 +242,12 @@ typedef struct uiHandleButtonMulti {
 
 	bool is_proportional;
 
-	/* In some cases we directly apply the changes to multiple buttons, so we don't want to do it twice. */
+	/* In some cases we directly apply the changes to multiple buttons,
+	 * so we don't want to do it twice. */
 	bool skip;
 
-	/* before activating, we need to check gesture direction
-	 * accumulate signed cursor movement here so we can tell if this is a vertical motion or not. */
+	/* before activating, we need to check gesture direction accumulate signed cursor movement
+	 * here so we can tell if this is a vertical motion or not. */
 	float drag_dir[2];
 
 	/* values copied direct from event->x,y
@@ -290,7 +289,7 @@ typedef struct uiHandleButtonData {
 	ColorBand *coba;
 
 	/* tooltip */
-	unsigned int tooltip_force : 1;
+	uint tooltip_force : 1;
 
 	/* auto open */
 	bool used_mouse;
@@ -325,8 +324,10 @@ typedef struct uiHandleButtonData {
 	CBData *dragcbd;
 
 #ifdef USE_CONT_MOUSE_CORRECT
-	/* when ungrabbing buttons which are #ui_but_is_cursor_warp(), we may want to position them
-	 * FLT_MAX signifies do-nothing, use #ui_block_to_window_fl() to get this into a usable space  */
+	/* when ungrabbing buttons which are #ui_but_is_cursor_warp(),
+	 * we may want to position them.
+	 * FLT_MAX signifies do-nothing, use #ui_block_to_window_fl()
+	 * to get this into a usable space. */
 	float ungrab_mval[2];
 #endif
 
@@ -1319,7 +1320,8 @@ static void ui_drag_toggle_set(bContext *C, uiDragToggleHandle *drag_info, const
 					BLI_rctf_cent_y(&but->rect),
 				};
 
-				/* check if this is a different button, chances are high the button wont move about :) */
+				/* check if this is a different button,
+				 * chances are high the button wont move about :) */
 				if (len_manhattan_v2v2(drag_info->but_cent_start, but_cent_new) > 1.0f) {
 					if (fabsf(drag_info->but_cent_start[0] - but_cent_new[0]) <
 					    fabsf(drag_info->but_cent_start[1] - but_cent_new[1]))
@@ -1580,18 +1582,22 @@ static void ui_selectcontext_apply(
 			RNA_property_int_range(&but->rnapoin, prop, &min.i, &max.i);
 		}
 		else if (rna_type == PROP_ENUM) {
-			delta.i = RNA_property_enum_get(&but->rnapoin, prop);  /* not a delta infact */
+			/* not a delta infact */
+			delta.i = RNA_property_enum_get(&but->rnapoin, prop);
 		}
 		else if (rna_type == PROP_BOOLEAN) {
 			if (is_array) {
-				delta.b = RNA_property_boolean_get_index(&but->rnapoin, prop, index);  /* not a delta infact */
+				/* not a delta infact */
+				delta.b = RNA_property_boolean_get_index(&but->rnapoin, prop, index);
 			}
 			else {
-				delta.b = RNA_property_boolean_get(&but->rnapoin, prop);  /* not a delta infact */
+				/* not a delta infact */
+				delta.b = RNA_property_boolean_get(&but->rnapoin, prop);
 			}
 		}
 		else if (rna_type == PROP_POINTER) {
-			delta.p = RNA_property_pointer_get(&but->rnapoin, prop);  /* not a delta infact */
+			/* not a delta infact */
+			delta.p = RNA_property_pointer_get(&but->rnapoin, prop);
 		}
 
 #ifdef USE_ALLSELECT_LAYER_HACK
@@ -2529,8 +2535,7 @@ static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data,
  * It converts every UTF-8 character to an asterisk, and also remaps
  * the cursor position and selection start/end.
  *
- * \note: remaping is used, because password could contain UTF-8 characters.
- *
+ * \note: remapping is used, because password could contain UTF-8 characters.
  */
 
 static int ui_text_position_from_hidden(uiBut *but, int pos)
@@ -2646,7 +2651,7 @@ static bool ui_textedit_delete_selection(uiBut *but, uiHandleButtonData *data)
 }
 
 /**
- * \param x  Screen space cursor location - #wmEvent.x
+ * \param x: Screen space cursor location - #wmEvent.x
  *
  * \note ``but->block->aspect`` is used here, so drawing button style is getting scaled too.
  */
@@ -2793,7 +2798,7 @@ static bool ui_textedit_insert_buf(
 
 		if ((len + step >= data->maxlen) && (data->maxlen - (len + 1) > 0)) {
 			if (ui_but_is_utf8(but)) {
-				/* shorten 'step' to a utf8 algined size that fits  */
+				/* shorten 'step' to a utf8 aligned size that fits  */
 				BLI_strnlen_utf8_ex(buf, data->maxlen - (len + 1), &step);
 			}
 			else {
@@ -2818,7 +2823,7 @@ static bool ui_textedit_insert_ascii(uiBut *but, uiHandleButtonData *data, char 
 
 	if (ui_but_is_utf8(but) && (BLI_str_utf8_size(buf) == -1)) {
 		printf("%s: entering invalid ascii char into an ascii key (%d)\n",
-		       __func__, (int)(unsigned char)ascii);
+		       __func__, (int)(uchar)ascii);
 
 		return false;
 	}
@@ -3302,7 +3307,8 @@ static void ui_do_but_textedit(
 		{
 			bool had_selection = but->selsta != but->selend;
 
-			/* exit on LMB only on RELEASE for searchbox, to mimic other popups, and allow multiple menu levels */
+			/* exit on LMB only on RELEASE for searchbox, to mimic other popups,
+			 * and allow multiple menu levels */
 			if (data->searchbox)
 				inbox = ui_searchbox_inside(data->searchbox, event->x, event->y);
 
@@ -3340,7 +3346,8 @@ static void ui_do_but_textedit(
 				changed = true;
 			}
 			else if (inbox) {
-				/* if we allow activation on key press, it gives problems launching operators [#35713] */
+				/* if we allow activation on key press,
+				 * it gives problems launching operators T35713. */
 				if (event->val == KM_RELEASE) {
 					button_activate_state(C, but, BUTTON_STATE_EXIT);
 					retval = WM_UI_HANDLER_BREAK;
@@ -3788,7 +3795,8 @@ static bool ui_do_but_ANY_drag_toggle(
 		}
 	}
 	else if (data->state == BUTTON_STATE_WAIT_DRAG) {
-		/* note: the 'BUTTON_STATE_WAIT_DRAG' part of 'ui_do_but_EXIT' could be refactored into its own function */
+		/* note: the 'BUTTON_STATE_WAIT_DRAG' part of 'ui_do_but_EXIT' could be refactored into
+		 * its own function */
 		data->applied = false;
 		*r_retval = ui_do_but_EXIT(C, but, data, event);
 		return true;
@@ -3859,7 +3867,7 @@ static int ui_do_but_HOTKEYEVT(
 		if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
 			/* only cancel if click outside the button */
 			if (ui_but_contains_point_px(but->active->region, but, event->x, event->y) == 0) {
-				/* data->cancel doesnt work, this button opens immediate */
+				/* data->cancel doesn't work, this button opens immediate */
 				if (but->flag & UI_BUT_IMMEDIATE)
 					ui_but_value_set(but, 0);
 				else
@@ -4304,7 +4312,8 @@ static bool ui_numedit_but_NUM(
 		float non_linear_pixel_map;
 		float non_linear_scale;
 
-		/* Use a non-linear mapping of the mouse drag especially for large floats (normal behavior) */
+		/* Use a non-linear mapping of the mouse drag especially for large floats
+		 * (normal behavior) */
 		deler = 500;
 		if (is_float) {
 			/* not needed for smaller float buttons */
@@ -4397,8 +4406,10 @@ static int ui_do_but_NUM(
 		}
 
 		/* XXX hardcoded keymap check.... */
-		if (type == MOUSEPAN && event->alt)
-			retval = WM_UI_HANDLER_BREAK; /* allow accumulating values, otherwise scrolling gets preference */
+		if (type == MOUSEPAN && event->alt) {
+			/* allow accumulating values, otherwise scrolling gets preference */
+			retval = WM_UI_HANDLER_BREAK;
+		}
 		else if (type == WHEELDOWNMOUSE && event->ctrl) {
 			mx = but->rect.xmin;
 			click = 1;
@@ -4444,7 +4455,7 @@ static int ui_do_but_NUM(
 		else if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
 			if (data->dragchange) {
 #ifdef USE_DRAG_MULTINUM
-				/* if we started multibutton but didnt drag, then edit */
+				/* if we started multibutton but didn't drag, then edit */
 				if (data->multi_data.init == BUTTON_MULTI_INIT_SETUP) {
 					click = 1;
 				}
@@ -4698,8 +4709,10 @@ static int ui_do_but_SLI(
 		}
 
 		/* XXX hardcoded keymap check.... */
-		if (type == MOUSEPAN && event->alt)
-			retval = WM_UI_HANDLER_BREAK; /* allow accumulating values, otherwise scrolling gets preference */
+		if (type == MOUSEPAN && event->alt) {
+			/* allow accumulating values, otherwise scrolling gets preference */
+			retval = WM_UI_HANDLER_BREAK;
+		}
 		else if (type == WHEELDOWNMOUSE && event->ctrl) {
 			mx = but->rect.xmin;
 			click = 2;
@@ -4714,7 +4727,8 @@ static int ui_do_but_SLI(
 				retval = WM_UI_HANDLER_BREAK;
 			}
 #ifndef USE_ALLSELECT
-			/* alt-click on sides to get "arrows" like in UI_BTYPE_NUM buttons, and match wheel usage above */
+			/* alt-click on sides to get "arrows" like in UI_BTYPE_NUM buttons,
+			 * and match wheel usage above */
 			else if (event->type == LEFTMOUSE && event->alt) {
 				int halfpos = BLI_rctf_cent_x(&but->rect);
 				click = 2;
@@ -4755,7 +4769,7 @@ static int ui_do_but_SLI(
 		else if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
 			if (data->dragchange) {
 #ifdef USE_DRAG_MULTINUM
-				/* if we started multibutton but didnt drag, then edit */
+				/* if we started multibutton but didn't drag, then edit */
 				if (data->multi_data.init == BUTTON_MULTI_INIT_SETUP) {
 					click = 1;
 				}
@@ -4819,7 +4833,8 @@ static int ui_do_but_SLI(
 
 #if 0
 			if (but->type == SLI) {
-				f = (float)(mx - but->rect.xmin) / (BLI_rctf_size_x(&but->rect)); /* same as below */
+				/* same as below */
+				f = (float)(mx - but->rect.xmin) / (BLI_rctf_size_x(&but->rect));
 			}
 			else
 #endif
@@ -6075,7 +6090,8 @@ static bool ui_numedit_but_CURVE(
 	int a;
 	bool changed = false;
 
-	/* evtx evty and drag coords are absolute mousecoords, prevents errors when editing when layout changes */
+	/* evtx evty and drag coords are absolute mousecoords,
+	 * prevents errors when editing when layout changes */
 	mx = evtx;
 	my = evty;
 	ui_window_to_block(data->region, block, &mx, &my);
@@ -6243,7 +6259,8 @@ static int ui_do_but_CURVE(
 
 						changed = true;
 
-						/* reset cmp back to the curve points again, rather than drawing segments */
+						/* reset cmp back to the curve points again,
+						 * rather than drawing segments */
 						cmp = cuma->curve;
 
 						/* find newly added point and make it 'sel' */
@@ -6872,7 +6889,7 @@ static bool ui_but_find_select_in_enum__cmp(const uiBut *but_a, const uiBut *but
 /**
  * Finds the pressed button in an aligned row (typically an expanded enum).
  *
- * \param direction  Use when there may be multiple buttons pressed.
+ * \param direction: Use when there may be multiple buttons pressed.
  */
 uiBut *ui_but_find_select_in_enum(uiBut *but, int direction)
 {
@@ -6915,6 +6932,12 @@ uiBut *ui_but_find_active_in_region(ARegion *ar)
 bool ui_but_is_active(ARegion *ar)
 {
 	return (ui_but_find_active_in_region(ar) != NULL);
+}
+
+bool ui_but_is_editing(uiBut *but)
+{
+	uiHandleButtonData *data = but->active;
+	return (data && ELEM(data->state, BUTTON_STATE_TEXT_EDITING, BUTTON_STATE_NUM_EDITING));
 }
 
 /* is called by notifier */
@@ -7173,7 +7196,8 @@ void UI_but_tooltip_refresh(bContext *C, uiBut *but)
 	}
 }
 
-/* removes tooltip timer from active but (meaning tooltip is disabled until it's reenabled again) */
+/* removes tooltip timer from active but
+ * (meaning tooltip is disabled until it's reenabled again) */
 void UI_but_tooltip_timer_remove(bContext *C, uiBut *but)
 {
 	uiHandleButtonData *data;
@@ -7916,7 +7940,8 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 				uiBut *but_other = ui_but_find_mouse_over(ar, event);
 				bool exit = false;
 
-				/* always deactivate button for pie menus, else moving to blank space will leave activated */
+				/* always deactivate button for pie menus,
+				 * else moving to blank space will leave activated */
 				if ((!ui_block_is_menu(block) || ui_block_is_pie_menu(block)) &&
 				    !ui_but_contains_point_px(ar, but, event->x, event->y))
 				{
@@ -7952,7 +7977,8 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 				retval = WM_UI_HANDLER_CONTINUE;
 				break;
 			}
-			/* XXX hardcoded keymap check... but anyway, while view changes, tooltips should be removed */
+			/* XXX hardcoded keymap check... but anyway,
+			 * while view changes, tooltips should be removed */
 			case WHEELUPMOUSE:
 			case WHEELDOWNMOUSE:
 			case MIDDLEMOUSE:
@@ -8182,7 +8208,8 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar, 
 			}
 
 			if (dyn_data->items_filter_neworder || dyn_data->items_filter_flags) {
-				/* If we have a display order different from collection order, we have some work! */
+				/* If we have a display order different from
+				 * collection order, we have some work! */
 				int *org_order = MEM_mallocN(dyn_data->items_shown * sizeof(int), __func__);
 				const int *new_order = dyn_data->items_filter_neworder;
 				int i, org_idx = -1, len = dyn_data->items_len;
@@ -8327,7 +8354,7 @@ static void ui_handle_button_return_submenu(bContext *C, const wmEvent *event, u
 /* ************************* menu handling *******************************/
 
 /**
- * Function used to prevent loosing the open menu when using nested pulldowns,
+ * Function used to prevent losing the open menu when using nested pulldowns,
  * when moving mouse towards the pulldown menu over other buttons that could
  * steal the highlight from the current button, only checks:
  *
@@ -8547,7 +8574,7 @@ static int ui_menu_scroll(ARegion *ar, uiBlock *block, int my, uiBut *to_bt)
  * let the parent menu get the event.
  *
  * This allows a menu to be open,
- * but send key events to the parent if theres no active buttons.
+ * but send key events to the parent if there's no active buttons.
  *
  * Without this keyboard navigation from menu's wont work.
  */
@@ -8970,7 +8997,8 @@ static int ui_handle_menu_event(
 						}
 					}
 					else if (ELEM(event->val, KM_RELEASE, KM_CLICK)) {
-						/* For buttons that use a hold function, exit when mouse-up outside the menu. */
+						/* For buttons that use a hold function,
+						 * exit when mouse-up outside the menu. */
 						if (block->flag & UI_BLOCK_POPUP_HOLD) {
 							/* Note, we could check the cursor is over the parent button. */
 							menu->menuretval = UI_RETURN_CANCEL;
@@ -9214,7 +9242,8 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 	bool is_click_style;
 	float dist;
 
-	/* we block all events, this is modal interaction, except for drop events which is described below */
+	/* we block all events, this is modal interaction,
+	 * except for drop events which is described below */
 	int retval = WM_UI_HANDLER_BREAK;
 
 	if (event->type == EVT_DROP) {
@@ -9361,7 +9390,8 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 							block->pie_data.flags |= UI_PIE_DRAG_STYLE;
 						}
 
-						/* here instead, we use the offset location to account for the initial direction timeout */
+						/* here instead, we use the offset location to account for the initial
+						 * direction timeout */
 						if ((U.pie_menu_confirm > 0) &&
 						    (dist >= U.pie_menu_threshold + U.pie_menu_confirm))
 						{
@@ -9479,7 +9509,8 @@ static int ui_handle_menus_recursive(
 		uiBlock *block = menu->region->uiblocks.first;
 		const bool is_menu = ui_block_is_menu(block);
 		bool inside = false;
-		/* root pie menus accept the key that spawned them as double click to improve responsiveness */
+		/* root pie menus accept the key that spawned
+		 * them as double click to improve responsiveness */
 		bool do_recursion = (!(block->flag & UI_BLOCK_RADIAL) || event->type != block->pie_data.event);
 
 		if (do_recursion) {
@@ -9743,7 +9774,8 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
 {
 	uiPopupBlockHandle *menu = userdata;
 	struct ARegion *menu_region;
-	/* we block all events, this is modal interaction, except for drop events which is described below */
+	/* we block all events, this is modal interaction,
+	 * except for drop events which is described below */
 	int retval = WM_UI_HANDLER_BREAK;
 	bool reset_pie = false;
 

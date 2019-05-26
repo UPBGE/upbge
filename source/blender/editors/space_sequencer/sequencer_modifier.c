@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 
@@ -247,8 +240,7 @@ static int strip_modifier_copy_exec(bContext *C, wmOperator *op)
 
 			BKE_sequence_modifier_list_copy(seq_iter, seq);
 		}
-	}
-	SEQ_END
+	} SEQ_END;
 
 	BKE_sequence_invalidate_cache(scene, seq);
 	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);

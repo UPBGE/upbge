@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,8 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation
  * All rights reserved.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/include/shading.h
@@ -26,16 +22,16 @@
  */
 
 
+struct Isect;
+struct LampRen;
+struct ObjectInstanceRen;
+struct PixStr;
+struct RenderLayer;
+struct RenderPart;
 struct ShadeInput;
 struct ShadeResult;
-struct RenderPart;
-struct RenderLayer;
-struct PixStr;
-struct LampRen;
-struct VlakRen;
 struct StrandPoint;
-struct ObjectInstanceRen;
-struct Isect;
+struct VlakRen;
 
 /* shadeinput.c */
 

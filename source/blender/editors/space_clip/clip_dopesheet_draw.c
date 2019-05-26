@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_clip/clip_dopesheet_draw.c
@@ -303,7 +295,8 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 		v2d->tot.ymin = (float)(-height);
 	}
 
-	/* need to do a view-sync here, so that the keys area doesn't jump around (it must copy this) */
+	/* need to do a view-sync here, so that the keys area doesn't jump around
+	 * (it must copy this) */
 	UI_view2d_sync(NULL, sa, v2d, V2D_LOCK_COPY);
 
 	/* loop through channels, and set up drawing depending on their type

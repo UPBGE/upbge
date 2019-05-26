@@ -38,7 +38,7 @@ IF(NOT PYTHON_ROOT_DIR AND NOT $ENV{PYTHON_ROOT_DIR} STREQUAL "")
   SET(PYTHON_ROOT_DIR $ENV{PYTHON_ROOT_DIR})
 ENDIF()
 
-SET(PYTHON_VERSION 3.6 CACHE STRING "Python Version (major and minor only)")
+SET(PYTHON_VERSION 3.7 CACHE STRING "Python Version (major and minor only)")
 MARK_AS_ADVANCED(PYTHON_VERSION)
 
 
@@ -75,7 +75,7 @@ SET(_python_SEARCH_DIRS
   "/opt/lib/python-${PYTHON_VERSION}"
 )
 
-# only search for the dirs if we havn't already
+# only search for the dirs if we haven't already
 IF((NOT _IS_INC_DEF) OR (NOT _IS_INC_CONF_DEF) OR (NOT _IS_LIB_DEF) OR (NOT _IS_LIB_PATH_DEF))
   SET(_PYTHON_ABI_FLAGS_TEST
     "m;mu;u; "    # release

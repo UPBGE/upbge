@@ -36,7 +36,6 @@
  * other parts of the scene.
  *
  * BVH_MOTION: motion blur rendering
- *
  */
 
 #ifndef __KERNEL_GPU__
@@ -136,7 +135,7 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 				                               node_addr,
 				                               PATH_RAY_ALL_VISIBILITY,
 				                               dist);
-#else // __KERNEL_SSE2__
+#else  // __KERNEL_SSE2__
 				traverse_mask = NODE_INTERSECT(kg,
 				                               P,
 				                               dir,
@@ -151,7 +150,7 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 				                               node_addr,
 				                               PATH_RAY_ALL_VISIBILITY,
 				                               dist);
-#endif // __KERNEL_SSE2__
+#endif  // __KERNEL_SSE2__
 
 				node_addr = __float_as_int(cnodes.z);
 				node_addr_child1 = __float_as_int(cnodes.w);

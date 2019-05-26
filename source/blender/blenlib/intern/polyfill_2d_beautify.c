@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/polyfill_2d_beautify.c
@@ -221,8 +217,9 @@ static void polyedge_beauty_cost_update_single(
 	const uint i = e->base_index;
 	/* recalculate edge */
 	const float cost = polyedge_rotate_beauty_calc(coords, edges, e);
-	/* We can get cases where both choices generate very small negative costs, which leads to infinite loop.
-	 * Anyway, costs above that are not worth recomputing, maybe we could even optimize it to a smaller limit?
+	/* We can get cases where both choices generate very small negative costs,
+	 * which leads to infinite loop. Anyway, costs above that are not worth recomputing,
+	 * maybe we could even optimize it to a smaller limit?
 	 * Actually, FLT_EPSILON is too small in some cases, 1e-6f seems to work OK hopefully?
 	 * See T43578, T49478. */
 	if (cost < -1e-6f) {
@@ -309,8 +306,6 @@ static void polyedge_rotate(
 
 /**
  * The intention is that this calculates the output of #BLI_polyfill_calc
- *
- *
  * \note assumes the \a coords form a boundary,
  * so any edges running along contiguous (wrapped) indices,
  * are ignored since the edges wont share 2 faces.

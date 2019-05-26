@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2009), Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_fcurve.c
@@ -111,8 +105,10 @@ static StructRNA *rna_FModifierType_refine(struct PointerRNA *ptr)
 			return &RNA_FModifierCycles;
 		case FMODIFIER_TYPE_NOISE:
 			return &RNA_FModifierNoise;
-		/*case FMODIFIER_TYPE_FILTER: */
-		/*	return &RNA_FModifierFilter; */
+#if 0
+		case FMODIFIER_TYPE_FILTER:
+			return &RNA_FModifierFilter;
+#endif
 		case FMODIFIER_TYPE_PYTHON:
 			return &RNA_FModifierPython;
 		case FMODIFIER_TYPE_LIMITS:
@@ -1026,8 +1022,8 @@ static void rna_def_fmodifier_envelope_ctrl(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "FCM_EnvelopeData");
 
 	/* min/max extents
-	 *	- for now, these are allowed to go past each other, so that we can have inverted action
-	 *	- technically, the range is limited by the settings in the envelope-modifier data, not here...
+	 * - for now, these are allowed to go past each other, so that we can have inverted action
+	 * - technically, the range is limited by the settings in the envelope-modifier data, not here...
 	 */
 	prop = RNA_def_property(srna, "min", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "min");
@@ -1046,7 +1042,7 @@ static void rna_def_fmodifier_envelope_ctrl(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 
 	/* TODO: */
-	/*	- selection flags (not implemented in UI yet though) */
+	/* - selection flags (not implemented in UI yet though) */
 }
 
 static void rna_def_fmodifier_envelope_control_points(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1569,7 +1565,7 @@ static void rna_def_drivervar(BlenderRNA *brna)
 static void rna_def_channeldriver_variables(BlenderRNA *brna, PropertyRNA *cprop)
 {
 	StructRNA *srna;
-/*	PropertyRNA *prop; */
+	/* PropertyRNA *prop; */
 
 	FunctionRNA *func;
 	PropertyRNA *parm;

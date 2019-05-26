@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/depsgraph.c
@@ -343,7 +337,7 @@ static void dag_add_driver_relation(AnimData *adt, DagForest *dag, DagNode *node
 		/* loop over variables to get the target relationships */
 		for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
 			/* only used targets */
-			DRIVER_TARGETS_USED_LOOPER(dvar)
+			DRIVER_TARGETS_USED_LOOPER_BEGIN(dvar)
 			{
 				if (dtar->id) {
 					/* FIXME: other data types need to be added here so that they can work! */
@@ -369,7 +363,7 @@ static void dag_add_driver_relation(AnimData *adt, DagForest *dag, DagNode *node
 					}
 				}
 			}
-			DRIVER_TARGETS_LOOPER_END
+			DRIVER_TARGETS_LOOPER_END;
 		}
 	}
 }
@@ -2792,7 +2786,7 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 		 * could be with the current depsgraph design/
 		 */
 		if (idtype == ID_IM) {
-			FOREACH_NODETREE(bmain, ntree, parent_id) {
+			FOREACH_NODETREE_BEGIN(bmain, ntree, parent_id) {
 				if (ntree->type == NTREE_SHADER) {
 					bNode *node;
 					for (node = ntree->nodes.first; node; node = node->next) {
@@ -2802,7 +2796,7 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 						}
 					}
 				}
-			} FOREACH_NODETREE_END
+			} FOREACH_NODETREE_END;
 		}
 
 		if (idtype == ID_MSK) {

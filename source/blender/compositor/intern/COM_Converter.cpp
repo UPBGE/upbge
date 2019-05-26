@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
  */
 
 #include <string.h>
@@ -394,7 +390,7 @@ Node *Converter::convert(bNode *b_node)
 		case CMP_NODE_TRACKPOS:
 			node = new TrackPositionNode(b_node);
 			break;
-		/* not inplemented yet */
+		/* not implemented yet */
 		case CMP_NODE_PIXELATE:
 			node = new PixelateNode(b_node);
 			break;

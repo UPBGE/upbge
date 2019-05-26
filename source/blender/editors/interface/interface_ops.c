@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_ops.c
@@ -461,7 +455,8 @@ bool UI_context_copy_to_selected_list(
 		}
 		else if (GS(id->name) == ID_SCE) {
 			/* Sequencer's ID is scene :/ */
-			/* Try to recursively find an RNA_Sequence ancestor, to handle situations like T41062... */
+			/* Try to recursively find an RNA_Sequence ancestor,
+			 * to handle situations like T41062... */
 			if ((*r_path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Sequence)) != NULL) {
 				*r_lb = CTX_data_collection_get(C, "selected_editable_sequences");
 			}
@@ -605,8 +600,8 @@ static int reports_to_text_exec(bContext *C, wmOperator *UNUSED(op))
 	txt = BKE_text_add(bmain, "Recent Reports");
 
 	/* convert entire list to a display string, and add this to the text-block
-	 *	- if commandline debug option enabled, show debug reports too
-	 *	- otherwise, up to info (which is what users normally see)
+	 * - if commandline debug option enabled, show debug reports too
+	 * - otherwise, up to info (which is what users normally see)
 	 */
 	str = BKE_reports_string(reports, (G.debug & G_DEBUG) ? RPT_DEBUG : RPT_INFO);
 
@@ -936,7 +931,7 @@ static int edittranslation_exec(bContext *C, wmOperator *op)
 		}
 		/* Try to find a valid po file for current language... */
 		edittranslation_find_po_file(root, uilng, popath, FILE_MAX);
-/*		printf("po path: %s\n", popath);*/
+		/* printf("po path: %s\n", popath); */
 		if (popath[0] == '\0') {
 			BKE_reportf(op->reports, RPT_ERROR, "No valid po found for language '%s' under %s", uilng, root);
 			return OPERATOR_CANCELLED;

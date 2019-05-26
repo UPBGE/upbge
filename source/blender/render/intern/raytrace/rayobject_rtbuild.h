@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): André Pinto.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/raytrace/rayobject_rtbuild.h
@@ -40,10 +32,10 @@ extern "C" {
 
 
 /*
- * Ray Tree Builder
- *	this structs helps building any type of tree
- *	it contains several methods to organize/split nodes
- *	allowing to create a given tree on the fly.
+ * Ray Tree Builder:
+ * this structs helps building any type of tree
+ * it contains several methods to organize/split nodes
+ * allowing to create a given tree on the fly.
  *
  * Idea is that other trees BVH, BIH can use this code to
  * generate with simple calls, and then convert to the theirs

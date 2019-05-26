@@ -38,22 +38,22 @@ import bpy
 # The languages defined in Blender.
 LANGUAGES_CATEGORIES = (
     # Min completeness level, UI english label.
-    ( 0.95, "Complete"),
-    ( 0.33, "In Progress"),
-    ( -1.0, "Starting"),
+    (0.95, "Complete"),
+    (0.33, "In Progress"),
+    (-1.0, "Starting"),
 )
 LANGUAGES = (
     # ID, UI english label, ISO code.
-    ( 0, "Default (Default)", "DEFAULT"),
-    ( 1, "English (English)", "en_US"),
-    ( 2, "Japanese (日本語)", "ja_JP"),
-    ( 3, "Dutch (Nederlandse taal)", "nl_NL"),
-    ( 4, "Italian (Italiano)", "it_IT"),
-    ( 5, "German (Deutsch)", "de_DE"),
-    ( 6, "Finnish (Suomi)", "fi_FI"),
-    ( 7, "Swedish (Svenska)", "sv_SE"),
-    ( 8, "French (Français)", "fr_FR"),
-    ( 9, "Spanish (Español)", "es"),
+    (0, "Default (Default)", "DEFAULT"),
+    (1, "English (English)", "en_US"),
+    (2, "Japanese (日本語)", "ja_JP"),
+    (3, "Dutch (Nederlandse taal)", "nl_NL"),
+    (4, "Italian (Italiano)", "it_IT"),
+    (5, "German (Deutsch)", "de_DE"),
+    (6, "Finnish (Suomi)", "fi_FI"),
+    (7, "Swedish (Svenska)", "sv_SE"),
+    (8, "French (Français)", "fr_FR"),
+    (9, "Spanish (Español)", "es"),
     (10, "Catalan (Català)", "ca_AD"),
     (11, "Czech (Český)", "cs_CZ"),
     (12, "Portuguese (Português)", "pt_PT"),
@@ -262,7 +262,7 @@ PYGETTEXT_KEYWORDS = (() +
 
 # Check printf mismatches between msgid and msgstr.
 CHECK_PRINTF_FORMAT = (
-    r"(?!<%)(?:%%)*%"          # Begining, with handling for crazy things like '%%%%%s'
+    r"(?!<%)(?:%%)*%"          # Beginning, with handling for crazy things like '%%%%%s'
     r"[-+#0]?"                 # Flags (note: do not add the ' ' (space) flag here, generates too much false positives!)
     r"(?:\*|[0-9]+)?"          # Width
     r"(?:\.(?:\*|[0-9]+))?"    # Precision
@@ -514,6 +514,7 @@ def _do_set(ref, path):
 def _gen_get_set_path(ref, name):
     def _get(self):
         return _do_get(getattr(self, ref), getattr(self, name))
+
     def _set(self, value):
         setattr(self, name, _do_set(getattr(self, ref), value))
     return _get, _set
@@ -579,6 +580,7 @@ class I18nSettings:
 
     def _get_py_sys_paths(self):
         return self.INTERN_PY_SYS_PATHS
+
     def _set_py_sys_paths(self, val):
         old_paths = set(self.INTERN_PY_SYS_PATHS.split(";")) - {""}
         new_paths = set(val.split(";")) - {""}

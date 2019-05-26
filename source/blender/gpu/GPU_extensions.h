@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Brecht Van Lommel.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file GPU_extensions.h
@@ -69,21 +61,21 @@ typedef enum GPUDeviceType {
 	GPU_DEVICE_INTEL =      (1 << 2),
 	GPU_DEVICE_SOFTWARE =   (1 << 3),
 	GPU_DEVICE_UNKNOWN =    (1 << 4),
-	GPU_DEVICE_ANY =        (0xff)
+	GPU_DEVICE_ANY =        (0xff),
 } GPUDeviceType;
 
 typedef enum GPUOSType {
 	GPU_OS_WIN =            (1 << 8),
 	GPU_OS_MAC =            (1 << 9),
 	GPU_OS_UNIX =           (1 << 10),
-	GPU_OS_ANY =            (0xff00)
+	GPU_OS_ANY =            (0xff00),
 } GPUOSType;
 
 typedef enum GPUDriverType {
 	GPU_DRIVER_OFFICIAL =   (1 << 16),
 	GPU_DRIVER_OPENSOURCE = (1 << 17),
 	GPU_DRIVER_SOFTWARE =   (1 << 18),
-	GPU_DRIVER_ANY =        (0xff0000)
+	GPU_DRIVER_ANY =        (0xff0000),
 } GPUDriverType;
 
 bool GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver);

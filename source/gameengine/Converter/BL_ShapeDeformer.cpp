@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file gameengine/Converter/BL_ShapeDeformer.cpp
@@ -98,7 +90,7 @@ bool BL_ShapeDeformer::LoadShapeDrivers(KX_GameObject *parent)
 
 			DriverVar *dvar;
 			for (dvar = (DriverVar *)fcu->driver->variables.first; dvar; dvar = (DriverVar *)dvar->next) {
-				DRIVER_TARGETS_USED_LOOPER(dvar)
+				DRIVER_TARGETS_USED_LOOPER_BEGIN(dvar)
 				{
 					if (dtar->id) {
 						if ((Object *)dtar->id == m_armobj->GetOrigArmatureObject()) {
@@ -106,7 +98,7 @@ bool BL_ShapeDeformer::LoadShapeDrivers(KX_GameObject *parent)
 						}
 					}
 				}
-				DRIVER_TARGETS_LOOPER_END
+				DRIVER_TARGETS_LOOPER_END;
 			}
 		}
 	}

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Martin Poirier
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/transform/transform_snap.c
@@ -611,7 +603,7 @@ static void initSnappingMode(TransInfo *t)
 			        (bool (*)(BMVert *, void *))BM_elem_cb_check_hflag_disabled,
 			        bm_edge_is_snap_target,
 			        bm_face_is_snap_target,
-			        SET_UINT_IN_POINTER((BM_ELEM_SELECT | BM_ELEM_HIDDEN)));
+			        POINTER_FROM_UINT((BM_ELEM_SELECT | BM_ELEM_HIDDEN)));
 		}
 	}
 }
@@ -1522,7 +1514,7 @@ static void applyGridIncrement(TransInfo *t, float *val, int max_index, const fl
 		 * this isn't useful as a global center for absolute grid snapping
 		 * since its not based on the position of the selection. */
 		if (t->around == V3D_AROUND_CURSOR) {
-			const TransCenterData *cd = transformCenter_from_type(t, V3D_AROUND_CENTER_MEAN);
+			const TransCenterData *cd = transformCenter_from_type(t, V3D_AROUND_CENTER_MEDIAN);
 			center_global = cd->global;
 		}
 

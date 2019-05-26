@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
  */
 
 #include "COM_RenderLayersNode.h"
@@ -78,8 +74,8 @@ void RenderLayersNode::testRenderLink(NodeConverter &converter,
 	const int num_outputs = this->getNumberOfOutputSockets();
 	for (int i = 0; i < num_outputs; i++) {
 		NodeOutput *output = this->getOutputSocket(i);
-		NodeImageLayer *storage = (NodeImageLayer*) output->getbNodeSocket()->storage;
-		RenderPass *rpass = (RenderPass*) BLI_findstring(
+		NodeImageLayer *storage = (NodeImageLayer *)output->getbNodeSocket()->storage;
+		RenderPass *rpass = (RenderPass *)BLI_findstring(
 		        &rl->passes,
 		        storage->pass_name,
 		        offsetof(RenderPass, name));

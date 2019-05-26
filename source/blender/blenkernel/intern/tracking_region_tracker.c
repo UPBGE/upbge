@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *                 Keir Mierle
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/tracking_region_tracker.c
@@ -149,7 +141,7 @@ static ImBuf *tracking_context_get_keyframed_ibuf(MovieClip *clip, MovieClipUser
 	return tracking_context_get_frame_ibuf(clip, user, clip_flag, keyed_framenr);
 }
 
-/* Get image buffer which si used as referece for track. */
+/* Get image buffer which si used as reference for track. */
 static ImBuf *tracking_context_get_reference_ibuf(MovieClip *clip, MovieClipUser *user, int clip_flag,
                                                   MovieTrackingTrack *track, int curfra, bool backwards,
                                                   MovieTrackingMarker **reference_marker)

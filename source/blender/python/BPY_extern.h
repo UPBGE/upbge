@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,13 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Michel Selten,
- *                 Willian P. Germano,
- *                 Chris Keith,
- *                 Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file BPY_extern.h
@@ -32,19 +23,19 @@
 #ifndef __BPY_EXTERN_H__
 #define __BPY_EXTERN_H__
 
-struct PathResolvedRNA;
-struct Text; /* defined in DNA_text_types.h */
-struct ID; /* DNA_ID.h */
-struct Object; /* DNA_object_types.h */
 struct ChannelDriver; /* DNA_anim_types.h */
+struct ID; /* DNA_ID.h */
 struct ListBase; /* DNA_listBase.h */
+struct Object; /* DNA_object_types.h */
+struct PathResolvedRNA;
+struct ReportList;
+struct Text; /* defined in DNA_text_types.h */
 struct bConstraint; /* DNA_constraint_types.h */
-struct bPythonConstraint; /* DNA_constraint_types.h */
 struct bConstraintOb; /* DNA_constraint_types.h */
 struct bConstraintTarget; /* DNA_constraint_types.h*/
 struct bContext;
 struct bContextDataResult;
-struct ReportList;
+struct bPythonConstraint; /* DNA_constraint_types.h */
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,11 +66,13 @@ void BPY_thread_restore(BPy_ThreadStatePtr tstate);
 
 bool	BPY_execute_filepath(struct bContext *C, const char *filepath, struct ReportList *reports);
 bool	BPY_execute_text(struct bContext *C, struct Text *text, struct ReportList *reports, const bool do_jump);
-bool	BPY_execute_string_as_number(struct bContext *C, const char *expr, const bool verbose, double *r_value);
-bool	BPY_execute_string_as_intptr(struct bContext *C, const char *expr, const bool verbose, intptr_t *r_value);
-bool	BPY_execute_string_as_string(struct bContext *C, const char *expr, const bool verbose, char **r_value);
-bool	BPY_execute_string_ex(struct bContext *C, const char *expr, bool use_eval);
-bool	BPY_execute_string(struct bContext *C, const char *expr);
+
+bool	BPY_execute_string_as_number(struct bContext *C, const char *imports[], const char *expr, const bool verbose, double *r_value);
+bool	BPY_execute_string_as_intptr(struct bContext *C, const char *imports[], const char *expr, const bool verbose, intptr_t *r_value);
+bool	BPY_execute_string_as_string(struct bContext *C, const char *imports[], const char *expr, const bool verbose, char **r_value);
+
+bool	BPY_execute_string_ex(struct bContext *C, const char *imports[], const char *expr, bool use_eval);
+bool	BPY_execute_string(struct bContext *C, const char *imports[], const char *expr);
 
 void	BPY_text_free_code(struct Text *text);
 void	BPY_modules_update(struct bContext *C); // XXX - annoying, need this for pointers that get out of date

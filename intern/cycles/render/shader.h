@@ -99,6 +99,7 @@ public:
 	/* synchronization */
 	bool need_update;
 	bool need_update_mesh;
+	bool need_sync_object;
 
 	/* If the shader has only volume components, the surface is assumed to
 	 * be transparent.
@@ -197,6 +198,8 @@ public:
 
 	float linear_rgb_to_gray(float3 c);
 
+	string get_cryptomatte_materials(Scene *scene);
+
 protected:
 	ShaderManager();
 
@@ -222,4 +225,4 @@ protected:
 
 CCL_NAMESPACE_END
 
-#endif /* __SHADER_H__ */
+#endif  /* __SHADER_H__ */

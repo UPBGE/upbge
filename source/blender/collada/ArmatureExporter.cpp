@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,11 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Chingiz Dyussenov, Arystanbek Dyussenov, Jan Diederich, Tod Liverseed,
- *                 Nathan Letwory
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/collada/ArmatureExporter.cpp
@@ -69,7 +62,7 @@ void ArmatureExporter::add_armature_bones(bContext *C, Object *ob_arm, Scene *sc
 	Main *bmain = CTX_data_main(C);
 	// write bone nodes
 
-	bArmature * armature = (bArmature *)ob_arm->data;
+	bArmature *armature = (bArmature *)ob_arm->data;
 	bool is_edited = armature->edbo != NULL;
 
 	if (!is_edited)

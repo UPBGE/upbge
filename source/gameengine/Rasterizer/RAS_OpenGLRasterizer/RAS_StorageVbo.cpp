@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,132 +15,205 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "RAS_StorageVbo.h"
-#include "RAS_DisplayArray.h"
+#include "RAS_StorageVBO.h"
+#include "RAS_MeshObject.h"
 
-RAS_StorageVbo::RAS_StorageVbo(RAS_DisplayArray *array)
-	:m_array(array),
-	m_indices(0),
-	m_mode(m_array->GetOpenGLPrimitiveType())
+#include "GPU_glew.h"
+
+VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 {
-	glGenBuffers(1, &m_ibo);
-	glGenBuffers(1, &m_vbo);
+	this->data = data;
+	this->size = data->m_vertex.size();
+	this->indices = indices;
+	this->stride = sizeof(RAS_TexVert);
+
+	//	Determine drawmode
+	if (data->m_type == data->QUAD)
+		this->mode = GL_QUADS;
+	else if (data->m_type == data->TRIANGLE)
+		this->mode = GL_TRIANGLES;
+	else
+		this->mode = GL_LINE;
+
+	// Generate Buffers
+	glGenBuffersARB(1, &this->ibo);
+	glGenBuffersARB(1, &this->vbo_id);
+
+	// Fill the buffers with initial data
+	UpdateIndices();
+	UpdateData();
+
+	// Establish offsets
+	this->vertex_offset = (void*)(((RAS_TexVert*)0)->getXYZ());
+	this->normal_offset = (void*)(((RAS_TexVert*)0)->getNormal());
+	this->tangent_offset = (void*)(((RAS_TexVert*)0)->getTangent());
+	this->color_offset = (void*)(((RAS_TexVert*)0)->getRGBA());
+	this->uv_offset = (void*)(((RAS_TexVert*)0)->getUV(0));
 }
 
-RAS_StorageVbo::~RAS_StorageVbo()
+VBO::~VBO()
 {
-	glDeleteBuffers(1, &m_ibo);
-	glDeleteBuffers(1, &m_vbo);
+	glDeleteBuffersARB(1, &this->ibo);
+	glDeleteBuffersARB(1, &this->vbo_id);
 }
 
-void RAS_StorageVbo::BindVertexBuffer()
+void VBO::UpdateData()
 {
-	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
+	glBufferData(GL_ARRAY_BUFFER, this->stride*this->size, &this->data->m_vertex[0], GL_STATIC_DRAW);
 }
 
-void RAS_StorageVbo::UnbindVertexBuffer()
+void VBO::UpdateIndices()
 {
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, this->ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, data->m_index.size() * sizeof(GLushort),
+					&data->m_index[0], GL_STATIC_DRAW);
 }
 
-void RAS_StorageVbo::BindIndexBuffer()
+void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, RAS_IRasterizer::TexCoGen* attrib, int *attrib_layer)
 {
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
-}
+	int unit;
 
-void RAS_StorageVbo::UnbindIndexBuffer()
-{
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-}
+	// Bind buffers
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, this->ibo);
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
 
-template <class Item>
-static void copySubData(intptr_t offset, const std::vector<Item>& data)
-{
-	const unsigned int size = sizeof(Item) * data.size();
-	glBufferSubData(GL_ARRAY_BUFFER, offset, size, data.data());
-}
+	// Vertexes
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, this->stride, this->vertex_offset);
 
-void RAS_StorageVbo::CopyVertexData(const RAS_DisplayArrayLayout& layout, unsigned int modifiedFlag)
-{
-	const RAS_DisplayArray::Format& format = m_array->GetFormat();
-	const RAS_DisplayArray::VertexData& data = m_array->m_vertexData;
+	// Normals
+	glEnableClientState(GL_NORMAL_ARRAY);
+	glNormalPointer(GL_FLOAT, this->stride, this->normal_offset);
 
-	if (modifiedFlag & RAS_DisplayArray::POSITION_MODIFIED) {
-		copySubData(layout.position, data.positions);
+	// Colors
+	glEnableClientState(GL_COLOR_ARRAY);
+	glColorPointer(4, GL_UNSIGNED_BYTE, this->stride, this->color_offset);
+
+	for (unit = 0; unit < texco_num; ++unit)
+	{
+		glClientActiveTexture(GL_TEXTURE0_ARB + unit);
+		switch (texco[unit]) {
+			case RAS_IRasterizer::RAS_TEXCO_ORCO:
+			case RAS_IRasterizer::RAS_TEXCO_GLOB:
+				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				glTexCoordPointer(3, GL_FLOAT, this->stride, this->vertex_offset);
+				break;
+			case RAS_IRasterizer::RAS_TEXCO_UV:
+				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				glTexCoordPointer(2, GL_FLOAT, this->stride, (void*)((intptr_t)this->uv_offset+(sizeof(GLfloat)*2*unit)));
+				break;
+			case RAS_IRasterizer::RAS_TEXCO_NORM:
+				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				glTexCoordPointer(3, GL_FLOAT, this->stride, this->normal_offset);
+				break;
+			case RAS_IRasterizer::RAS_TEXTANGENT:
+				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				glTexCoordPointer(4, GL_FLOAT, this->stride, this->tangent_offset);
+				break;
+			default:
+				break;
+		}
 	}
-	if (modifiedFlag & RAS_DisplayArray::NORMAL_MODIFIED) {
-		copySubData(layout.normal, data.normals);
-	}
-	if (modifiedFlag & RAS_DisplayArray::TANGENT_MODIFIED) {
-		copySubData(layout.tangent, data.tangents);
-	}
+	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
-	if (modifiedFlag & RAS_DisplayArray::UVS_MODIFIED) {
-		for (unsigned short i = 0; i < format.uvSize; ++i) {
-			copySubData(layout.uvs[i], data.uvs[i]);
+	if (GLEW_ARB_vertex_program)
+	{
+		for (unit = 0; unit < attrib_num; ++unit)
+		{
+			switch (attrib[unit]) {
+				case RAS_IRasterizer::RAS_TEXCO_ORCO:
+				case RAS_IRasterizer::RAS_TEXCO_GLOB:
+					glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, this->stride, this->vertex_offset);
+					glEnableVertexAttribArrayARB(unit);
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_UV:
+					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, this->stride, (void*)((intptr_t)this->uv_offset+attrib_layer[unit]*sizeof(GLfloat)*2));
+					glEnableVertexAttribArrayARB(unit);
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_NORM:
+					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, stride, this->normal_offset);
+					glEnableVertexAttribArrayARB(unit);
+					break;
+				case RAS_IRasterizer::RAS_TEXTANGENT:
+					glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, this->stride, this->tangent_offset);
+					glEnableVertexAttribArrayARB(unit);
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_VCOL:
+					glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, this->stride, this->color_offset);
+					glEnableVertexAttribArrayARB(unit);
+				default:
+					break;
+			}
 		}
 	}
 
-	if (modifiedFlag & RAS_DisplayArray::COLORS_MODIFIED) {
-		for (unsigned short i = 0; i < format.colorSize; ++i) {
-			copySubData(layout.colors[i], data.colors[i]);
-		}
+	glDrawElements(this->mode, this->indices, GL_UNSIGNED_SHORT, 0);
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	if (GLEW_ARB_vertex_program)
+	{
+		for (int i = 0; i < attrib_num; ++i)
+			glDisableVertexAttribArrayARB(i);
 	}
+
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
-void RAS_StorageVbo::UpdateVertexData(unsigned int modifiedFlag)
+RAS_StorageVBO::RAS_StorageVBO(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer):
+	m_drawingmode(RAS_IRasterizer::KX_TEXTURED),
+	m_texco_num(texco_num),
+	m_attrib_num(attrib_num),
+	m_texco(texco),
+	m_attrib(attrib),
+	m_attrib_layer(attrib_layer)
 {
-	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-	CopyVertexData(m_array->GetLayout(), modifiedFlag);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void RAS_StorageVbo::UpdateSize()
+RAS_StorageVBO::~RAS_StorageVBO()
 {
-	m_indices = m_array->GetPrimitiveIndexCount();
-
-	const RAS_DisplayArrayLayout layout = m_array->GetLayout();
-	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-	glBufferData(GL_ARRAY_BUFFER, layout.size, nullptr, GL_DYNAMIC_DRAW);
-	CopyVertexData(layout, RAS_DisplayArray::MESH_MODIFIED);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices * sizeof(GLuint), m_array->m_primitiveIndices.data(), GL_DYNAMIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-unsigned int *RAS_StorageVbo::GetIndexMap()
+bool RAS_StorageVBO::Init()
 {
-	void *buffer = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, m_indices * sizeof(GLuint), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
-
-	return (unsigned int *)buffer;
+	return true;
 }
 
-void RAS_StorageVbo::FlushIndexMap()
+void RAS_StorageVBO::Exit()
 {
-	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+	VBOMap::iterator it = m_vbo_lookup.begin();
+	while (it != m_vbo_lookup.end()) {
+		delete it->second;
+		++it;
+	}
+	m_vbo_lookup.clear();
 }
 
-void RAS_StorageVbo::IndexPrimitives()
+void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot& ms)
 {
-	glDrawElements(m_mode, m_indices, GL_UNSIGNED_INT, 0);
-}
+	RAS_MeshSlot::iterator it;
+	VBO *vbo;
 
-void RAS_StorageVbo::IndexPrimitivesInstancing(unsigned int numinstance)
-{
-	glDrawElementsInstancedARB(m_mode, m_indices, GL_UNSIGNED_INT, 0, numinstance);
-}
+	for (ms.begin(it); !ms.end(it); ms.next(it))
+	{
+		vbo = m_vbo_lookup[it.array];
 
-void RAS_StorageVbo::IndexPrimitivesBatching(const std::vector<intptr_t>& indices, const std::vector<int>& counts)
-{
-	glMultiDrawElements(m_mode, counts.data(), GL_UNSIGNED_INT, (const void **)indices.data(), counts.size());
+		if (vbo == 0)
+			m_vbo_lookup[it.array] = vbo = new VBO(it.array, it.totindex);
+
+		// Update the vbo
+		if (ms.m_mesh->MeshModified())
+		{
+			vbo->UpdateData();
+		}
+
+		vbo->Draw(*m_texco_num, m_texco, *m_attrib_num, m_attrib, m_attrib_layer);
+	}
 }

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_MATERIAL_H__
@@ -36,9 +28,9 @@
 extern "C" {
 #endif
 
+struct ID;
 struct Main;
 struct Material;
-struct ID;
 struct Object;
 struct Scene;
 
@@ -78,7 +70,8 @@ enum {
 	BKE_MAT_ASSIGN_OBJECT
 };
 
-struct Material *give_current_material(struct Object *ob, short act);
+struct Material **give_current_material_p(struct Object *ob, short act);
+struct Material  *give_current_material(struct Object *ob, short act);
 void assign_material_id(struct Main *bmain, struct ID *id, struct Material *ma, short act);
 void assign_material(struct Main *bmain, struct Object *ob, struct Material *ma, short act, int assign_type);
 void assign_matarar(struct Main *bmain, struct Object *ob, struct Material ***matar, short totcol);

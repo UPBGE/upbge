@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 by Nicholas Bishop
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_PAINT_H__
@@ -32,31 +24,31 @@
  *  \ingroup bke
  */
 
-struct bContext;
-struct BMesh;
 struct BMFace;
+struct BMesh;
 struct Brush;
 struct CurveMapping;
-struct MeshElemMap;
 struct GridPaintMask;
-struct Main;
+struct ImagePool;
+struct MFace;
 struct MLoop;
 struct MLoopTri;
-struct MFace;
 struct MVert;
+struct Main;
+struct MeshElemMap;
 struct Object;
+struct PBVH;
 struct Paint;
 struct PaintCurve;
 struct Palette;
 struct PaletteColor;
-struct PBVH;
 struct ReportList;
 struct Scene;
 struct Sculpt;
 struct StrokeCache;
 struct Tex;
-struct ImagePool;
 struct UnifiedPaintSettings;
+struct bContext;
 
 enum eOverlayFlags;
 
@@ -68,28 +60,34 @@ extern const char PAINT_CURSOR_WEIGHT_PAINT[3];
 extern const char PAINT_CURSOR_TEXTURE_PAINT[3];
 
 typedef enum ePaintMode {
-	ePaintSculpt = 0,
-	ePaintVertex = 1,
-	ePaintWeight = 2,
-	ePaintTextureProjective = 3,
-	ePaintTexture2D = 4,
-	ePaintSculptUV = 5,
-	ePaintInvalid = 6
+	PAINT_MODE_SCULPT = 0,
+	/** Vertex color. */
+	PAINT_MODE_VERTEX = 1,
+	PAINT_MODE_WEIGHT = 2,
+	/** 3D view (projection painting). */
+	PAINT_MODE_TEXTURE_3D = 3,
+	/** Image space (2D painting). */
+	PAINT_MODE_TEXTURE_2D = 4,
+	PAINT_MODE_SCULPT_UV = 5,
+
+	/** Keep last. */
+	PAINT_MODE_INVALID = 6,
 } ePaintMode;
 
 /* overlay invalidation */
 typedef enum eOverlayControlFlags {
-	PAINT_INVALID_OVERLAY_TEXTURE_PRIMARY = 1,
-	PAINT_INVALID_OVERLAY_TEXTURE_SECONDARY = (1 << 2),
-	PAINT_INVALID_OVERLAY_CURVE = (1 << 3),
+	PAINT_OVERLAY_INVALID_TEXTURE_PRIMARY = 1,
+	PAINT_OVERLAY_INVALID_TEXTURE_SECONDARY = (1 << 2),
+	PAINT_OVERLAY_INVALID_CURVE = (1 << 3),
 	PAINT_OVERLAY_OVERRIDE_CURSOR = (1 << 4),
 	PAINT_OVERLAY_OVERRIDE_PRIMARY = (1 << 5),
-	PAINT_OVERLAY_OVERRIDE_SECONDARY = (1 << 6)
+	PAINT_OVERLAY_OVERRIDE_SECONDARY = (1 << 6),
 } eOverlayControlFlags;
 
-#define PAINT_OVERRIDE_MASK (PAINT_OVERLAY_OVERRIDE_SECONDARY | \
-						     PAINT_OVERLAY_OVERRIDE_PRIMARY | \
-						     PAINT_OVERLAY_OVERRIDE_CURSOR)
+#define PAINT_OVERRIDE_MASK \
+	(PAINT_OVERLAY_OVERRIDE_SECONDARY | \
+	 PAINT_OVERLAY_OVERRIDE_PRIMARY | \
+	 PAINT_OVERLAY_OVERRIDE_CURSOR)
 
 void BKE_paint_invalidate_overlay_tex(struct Scene *scene, const struct Tex *tex);
 void BKE_paint_invalidate_cursor_overlay(struct Scene *scene, struct CurveMapping *curve);
@@ -257,6 +255,6 @@ void BKE_sculpt_toolsettings_data_ensure(struct Scene *scene);
 
 enum {
 	SCULPT_MASK_LAYER_CALC_VERT = (1 << 0),
-	SCULPT_MASK_LAYER_CALC_LOOP = (1 << 1)
+	SCULPT_MASK_LAYER_CALC_LOOP = (1 << 1),
 };
 #endif

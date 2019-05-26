@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenloader/intern/writefile.c
@@ -58,8 +51,6 @@
  * Almost all data in Blender are structures. Each struct saved
  * gets a BHead header.  With BHead the struct can be linked again
  * and compared with StructDNA .
- *
- *
  * WRITE
  * =====
  *
@@ -342,6 +333,10 @@ typedef struct {
 	 * Will be NULL for UNDO.
 	 */
 	WriteWrap *ww;
+
+#ifdef USE_BMESH_SAVE_AS_COMPAT
+	bool use_mesh_compat; /* option to save with older mesh format */
+#endif
 } WriteData;
 
 static WriteData *writedata_new(WriteWrap *ww)
@@ -404,8 +399,8 @@ static void mywrite_flush(WriteData *wd)
 
 /**
  * Low level WRITE(2) wrapper that buffers data
- * \param adr Pointer to new chunk of data
- * \param len Length of new chunk of data
+ * \param adr: Pointer to new chunk of data
+ * \param len: Length of new chunk of data
  */
 static void mywrite(WriteData *wd, const void *adr, int len)
 {
@@ -454,8 +449,8 @@ static void mywrite(WriteData *wd, const void *adr, int len)
 /**
  * BeGiN initializer for mywrite
  * \param ww: File write wrapper.
- * \param compare Previous memory file (can be NULL).
- * \param current The current memory file (can be NULL).
+ * \param compare: Previous memory file (can be NULL).
+ * \param current: The current memory file (can be NULL).
  * \warning Talks to other functions with global parameters
  */
 static WriteData *mywrite_begin(WriteWrap *ww, MemFile *compare, MemFile *current)
@@ -728,10 +723,10 @@ static void write_previews(WriteData *wd, const PreviewImage *prv_orig)
 		}
 		writestruct_at_address(wd, DATA, PreviewImage, 1, prv_orig, &prv);
 		if (prv.rect[0]) {
-			writedata(wd, DATA, prv.w[0] * prv.h[0] * sizeof(unsigned int), prv.rect[0]);
+			writedata(wd, DATA, prv.w[0] * prv.h[0] * sizeof(uint), prv.rect[0]);
 		}
 		if (prv.rect[1]) {
-			writedata(wd, DATA, prv.w[1] * prv.h[1] * sizeof(unsigned int), prv.rect[1]);
+			writedata(wd, DATA, prv.w[1] * prv.h[1] * sizeof(uint), prv.rect[1]);
 		}
 	}
 }
@@ -819,13 +814,13 @@ static void write_fcurves(WriteData *wd, ListBase *fcurves)
 			/* variables */
 			writelist(wd, DATA, DriverVar, &driver->variables);
 			for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
-				DRIVER_TARGETS_USED_LOOPER(dvar)
+				DRIVER_TARGETS_USED_LOOPER_BEGIN(dvar)
 				{
 					if (dtar->rna_path) {
 						writedata(wd, DATA, strlen(dtar->rna_path) + 1, dtar->rna_path);
 					}
 				}
-				DRIVER_TARGETS_LOOPER_END
+				DRIVER_TARGETS_LOOPER_END;
 			}
 		}
 
@@ -2227,6 +2222,12 @@ static void write_customdata(
 
 static void write_mesh(WriteData *wd, Mesh *mesh)
 {
+#ifdef USE_BMESH_SAVE_AS_COMPAT
+	const bool save_for_old_blender = wd->use_mesh_compat;  /* option to save with older mesh format */
+#else
+	const bool save_for_old_blender = false;
+#endif
+
 	CustomDataLayer *vlayers = NULL, vlayers_buff[CD_TEMP_CHUNK_SIZE];
 	CustomDataLayer *elayers = NULL, elayers_buff[CD_TEMP_CHUNK_SIZE];
 	CustomDataLayer *flayers = NULL, flayers_buff[CD_TEMP_CHUNK_SIZE];
@@ -2235,17 +2236,19 @@ static void write_mesh(WriteData *wd, Mesh *mesh)
 
 	if (mesh->id.us > 0 || wd->use_memfile) {
 		/* write LibData */
-		{
+		if (!save_for_old_blender) {
 			/* write a copy of the mesh, don't modify in place because it is
 			 * not thread safe for threaded renders that are reading this */
 			Mesh *old_mesh = mesh;
 			Mesh copy_mesh = *mesh;
 			mesh = &copy_mesh;
 
+#ifdef USE_BMESH_SAVE_WITHOUT_MFACE
 			/* cache only - don't write */
 			mesh->mface = NULL;
 			mesh->totface = 0;
 			memset(&mesh->fdata, 0, sizeof(mesh->fdata));
+#endif /* USE_BMESH_SAVE_WITHOUT_MFACE */
 
 			/**
 			 * Those calls:
@@ -2256,7 +2259,11 @@ static void write_mesh(WriteData *wd, Mesh *mesh)
 			 */
 			CustomData_file_write_prepare(&mesh->vdata, &vlayers, vlayers_buff, ARRAY_SIZE(vlayers_buff));
 			CustomData_file_write_prepare(&mesh->edata, &elayers, elayers_buff, ARRAY_SIZE(elayers_buff));
+#ifndef USE_BMESH_SAVE_WITHOUT_MFACE  /* Do not copy org fdata in this case!!! */
+			CustomData_file_write_prepare(&mesh->fdata, &flayers, flayers_buff, ARRAY_SIZE(flayers_buff));
+#else
 			flayers = flayers_buff;
+#endif
 			CustomData_file_write_prepare(&mesh->ldata, &llayers, llayers_buff, ARRAY_SIZE(llayers_buff));
 			CustomData_file_write_prepare(&mesh->pdata, &players, players_buff, ARRAY_SIZE(players_buff));
 
@@ -2280,6 +2287,73 @@ static void write_mesh(WriteData *wd, Mesh *mesh)
 
 			/* restore pointer */
 			mesh = old_mesh;
+		}
+		else {
+
+#ifdef USE_BMESH_SAVE_AS_COMPAT
+			/* write a copy of the mesh, don't modify in place because it is
+			 * not thread safe for threaded renders that are reading this */
+			Mesh *old_mesh = mesh;
+			Mesh copy_mesh = *mesh;
+			mesh = &copy_mesh;
+
+			mesh->mpoly = NULL;
+			mesh->mface = NULL;
+			mesh->totface = 0;
+			mesh->totpoly = 0;
+			mesh->totloop = 0;
+			CustomData_reset(&mesh->fdata);
+			CustomData_reset(&mesh->pdata);
+			CustomData_reset(&mesh->ldata);
+			mesh->edit_btmesh = NULL;
+
+			/* now fill in polys to mfaces */
+			/* XXX This breaks writing design, by using temp allocated memory, which will likely generate
+			 *     duplicates in stored 'old' addresses.
+			 *     This is very bad, but do not see easy way to avoid this, aside from generating those data
+			 *     outside of save process itself.
+			 *     Maybe we can live with this, though?
+			 */
+			mesh->totface = BKE_mesh_mpoly_to_mface(
+			        &mesh->fdata, &old_mesh->ldata, &old_mesh->pdata,
+			        mesh->totface, old_mesh->totloop, old_mesh->totpoly);
+
+			BKE_mesh_update_customdata_pointers(mesh, false);
+
+			CustomData_file_write_prepare(&mesh->vdata, &vlayers, vlayers_buff, ARRAY_SIZE(vlayers_buff));
+			CustomData_file_write_prepare(&mesh->edata, &elayers, elayers_buff, ARRAY_SIZE(elayers_buff));
+			CustomData_file_write_prepare(&mesh->fdata, &flayers, flayers_buff, ARRAY_SIZE(flayers_buff));
+#if 0
+			CustomData_file_write_prepare(&mesh->ldata, &llayers, llayers_buff, ARRAY_SIZE(llayers_buff));
+			CustomData_file_write_prepare(&mesh->pdata, &players, players_buff, ARRAY_SIZE(players_buff));
+#endif
+
+			writestruct_at_address(wd, ID_ME, Mesh, 1, old_mesh, mesh);
+			write_iddata(wd, &mesh->id);
+
+			/* direct data */
+			if (mesh->adt) {
+				write_animdata(wd, mesh->adt);
+			}
+
+			writedata(wd, DATA, sizeof(void *) * mesh->totcol, mesh->mat);
+			/* writedata(wd, DATA, sizeof(MSelect) * mesh->totselect, mesh->mselect); */ /* pre-bmesh NULL's */
+
+			write_customdata(wd, &mesh->id, mesh->totvert, &mesh->vdata, vlayers, -1, 0);
+			write_customdata(wd, &mesh->id, mesh->totedge, &mesh->edata, elayers, -1, 0);
+			write_customdata(wd, &mesh->id, mesh->totface, &mesh->fdata, flayers, -1, 0);
+			/* harmless for older blender versioins but _not_ writing these keeps file size down */
+#if 0
+			write_customdata(wd, &mesh->id, mesh->totloop, &mesh->ldata, llayers, -1, 0);
+			write_customdata(wd, &mesh->id, mesh->totpoly, &mesh->pdata, players, -1, 0);
+#endif
+
+			CustomData_free(&mesh->fdata, mesh->totface);
+			flayers = NULL;
+
+			/* restore pointer */
+			mesh = old_mesh;
+#endif /* USE_BMESH_SAVE_AS_COMPAT */
 		}
 	}
 
@@ -2602,8 +2676,7 @@ static void write_scene(WriteData *wd, Scene *sce)
 				seq->strip->done = false;
 			}
 			writestruct(wd, DATA, Sequence, 1, seq);
-		}
-		SEQ_END
+		} SEQ_END;
 
 		SEQ_BEGIN(ed, seq)
 		{
@@ -2669,8 +2742,7 @@ static void write_scene(WriteData *wd, Scene *sce)
 			}
 
 			write_sequence_modifiers(wd, &seq->modifiers);
-		}
-		SEQ_END
+		} SEQ_END;
 
 		/* new; meta stack too, even when its nasty restore code */
 		for (MetaStack *ms = ed->metastack.first; ms; ms = ms->next) {
@@ -2936,10 +3008,10 @@ static void write_screen(WriteData *wd, bScreen *sc)
 			}
 			else if (sl->spacetype == SPACE_IPO) {
 				SpaceIpo *sipo = (SpaceIpo *)sl;
-				ListBase tmpGhosts = sipo->ghostCurves;
+				ListBase tmpGhosts = sipo->runtime.ghost_curves;
 
 				/* temporarily disable ghost curves when saving */
-				sipo->ghostCurves.first = sipo->ghostCurves.last = NULL;
+				BLI_listbase_clear(&sipo->runtime.ghost_curves);
 
 				writestruct(wd, DATA, SpaceIpo, 1, sl);
 				if (sipo->ads) {
@@ -2947,7 +3019,7 @@ static void write_screen(WriteData *wd, bScreen *sc)
 				}
 
 				/* reenable ghost curves */
-				sipo->ghostCurves = tmpGhosts;
+				sipo->runtime.ghost_curves = tmpGhosts;
 			}
 			else if (sl->spacetype == SPACE_BUTS) {
 				writestruct(wd, DATA, SpaceButs, 1, sl);
@@ -3150,7 +3222,7 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 #ifdef USE_NODE_COMPAT_CUSTOMNODES
 static void customnodes_add_deprecated_data(Main *mainvar)
 {
-	FOREACH_NODETREE(mainvar, ntree, id) {
+	FOREACH_NODETREE_BEGIN(mainvar, ntree, id) {
 		bNodeLink *link, *last_link = ntree->links.last;
 
 		/* only do this for node groups */
@@ -3197,13 +3269,12 @@ static void customnodes_add_deprecated_data(Main *mainvar)
 				break;
 			}
 		}
-	}
-	FOREACH_NODETREE_END
+	} FOREACH_NODETREE_END;
 }
 
 static void customnodes_free_deprecated_data(Main *mainvar)
 {
-	FOREACH_NODETREE(mainvar, ntree, id) {
+	FOREACH_NODETREE_BEGIN(mainvar, ntree, id) {
 		bNodeLink *link, *next_link;
 
 		for (link = ntree->links.first; link; link = next_link) {
@@ -3212,8 +3283,7 @@ static void customnodes_free_deprecated_data(Main *mainvar)
 				nodeRemLink(ntree, link);
 			}
 		}
-	}
-	FOREACH_NODETREE_END
+	} FOREACH_NODETREE_END;
 }
 #endif
 
@@ -3776,7 +3846,7 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 }
 
 /* preview image, first 2 values are width and height
- * second are an RGBA image (unsigned char)
+ * second are an RGBA image (uchar)
  * note, this uses 'TEST' since new types will segfault on file load for older blender versions.
  */
 static void write_thumb(WriteData *wd, const BlendThumbnail *thumb)
@@ -3807,6 +3877,10 @@ static bool write_file_handle(
 	blo_split_main(&mainlist, mainvar);
 
 	wd = mywrite_begin(ww, compare, current);
+
+#ifdef USE_BMESH_SAVE_AS_COMPAT
+	wd->use_mesh_compat = (write_flags & G_FILE_MESH_COMPAT) != 0;
+#endif
 
 #ifdef USE_NODE_COMPAT_CUSTOMNODES
 	/* don't write compatibility data on undo */

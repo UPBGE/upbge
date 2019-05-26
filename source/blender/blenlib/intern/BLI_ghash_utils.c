@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/BLI_ghash_utils.c
@@ -54,14 +46,16 @@ uint BLI_ghashutil_ptrhash(const void *key)
 	return (uint)(intptr_t)key;
 }
 #else
-/* based python3.3's pointer hashing function */
+/* Based Python3.7's pointer hashing function. */
 uint BLI_ghashutil_ptrhash(const void *key)
 {
 	size_t y = (size_t)key;
 	/* bottom 3 or 4 bits are likely to be 0; rotate y by 4 to avoid
 	 * excessive hash collisions for dicts and sets */
-	y = (y >> 4) | (y << (8 * sizeof(void *) - 4));
-	return (uint)y;
+
+	/* Note: Unlike Python 'sizeof(uint)' is used instead of 'sizeof(void *)',
+	 * Otherwise casting to 'uint' ignores the upper bits on 64bit platforms. */
+	return (uint)(y >> 4) | ((uint)y << (8 * sizeof(uint) - 4));
 }
 #endif
 bool BLI_ghashutil_ptrcmp(const void *a, const void *b)
@@ -126,7 +120,7 @@ uint BLI_ghashutil_inthash_p_murmur(const void *ptr)
 
 uint BLI_ghashutil_inthash_p_simple(const void *ptr)
 {
-	return GET_UINT_FROM_POINTER(ptr);
+	return POINTER_AS_UINT(ptr);
 }
 
 bool BLI_ghashutil_intcmp(const void *a, const void *b)

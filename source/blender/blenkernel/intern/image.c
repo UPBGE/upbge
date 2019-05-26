@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2006, full recode
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/image.c
@@ -452,7 +446,7 @@ static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_image_copy_data(Main *UNUSED(bmain), Image *ima_dst, const Image *ima_src, const int flag)
 {
@@ -1488,7 +1482,8 @@ void BKE_imformat_defaults(ImageFormatData *im_format)
 	im_format->compress = 15;
 
 	BKE_color_managed_display_settings_init(&im_format->display_settings);
-	BKE_color_managed_view_settings_init(&im_format->view_settings);
+	BKE_color_managed_view_settings_init(&im_format->view_settings,
+	                                     &im_format->display_settings);
 }
 
 void BKE_imbuf_to_image_format(struct ImageFormatData *im_format, const ImBuf *imbuf)
@@ -1612,7 +1607,7 @@ typedef struct StampDataCustomField {
 	struct StampDataCustomField *next, *prev;
 	/* TODO(sergey): Think of better size here, maybe dynamically allocated even. */
 	char key[512];
-	char value[512];
+	char *value;
 	/* TODO(sergey): Support non-string values. */
 } StampDataCustomField;
 
@@ -2177,12 +2172,9 @@ void BKE_stamp_info_callback(void *data, struct StampData *stamp_data, StampCall
 	CALL(rendertime, "RenderTime");
 	CALL(memory, "Memory");
 
-	for (StampDataCustomField *custom_field = stamp_data->custom_fields.first;
-	     custom_field != NULL;
-	     custom_field = custom_field->next)
-	{
+	LISTBASE_FOREACH(StampDataCustomField *, custom_field, &stamp_data->custom_fields) {
 		if (noskip || custom_field->value[0]) {
-			callback(data, custom_field->key, custom_field->value, sizeof(custom_field->value));
+			callback(data, custom_field->key, custom_field->value, strlen(custom_field->value) + 1);
 		}
 	}
 
@@ -2199,14 +2191,33 @@ void BKE_render_result_stamp_data(RenderResult *rr, const char *key, const char 
 	StampDataCustomField *field = MEM_mallocN(sizeof(StampDataCustomField),
 	                                          "StampData Custom Field");
 	STRNCPY(field->key, key);
-	STRNCPY(field->value, value);
+	field->value = BLI_strdup(value);
 	BLI_addtail(&stamp_data->custom_fields, field);
 }
 
-void BKE_stamp_data_free(struct StampData *stamp_data)
+StampData *BKE_stamp_data_copy(const StampData *stamp_data)
+{
+	if (stamp_data == NULL) {
+		return NULL;
+	}
+
+	StampData *stamp_datan = MEM_dupallocN(stamp_data);
+	BLI_duplicatelist(&stamp_datan->custom_fields, &stamp_data->custom_fields);
+
+	LISTBASE_FOREACH(StampDataCustomField *, custom_fieldn, &stamp_datan->custom_fields) {
+		custom_fieldn->value = MEM_dupallocN(custom_fieldn->value);
+	}
+
+	return stamp_datan;
+}
+
+void BKE_stamp_data_free(StampData *stamp_data)
 {
 	if (stamp_data == NULL) {
 		return;
+	}
+	LISTBASE_FOREACH(StampDataCustomField *, custom_field, &stamp_data->custom_fields) {
+		MEM_freeN(custom_field->value);
 	}
 	BLI_freelistN(&stamp_data->custom_fields);
 	MEM_freeN(stamp_data);
@@ -2898,7 +2909,7 @@ static RenderPass *image_render_pass_get(RenderLayer *rl, const int pass, const 
 }
 
 /* if layer or pass changes, we need an index for the imbufs list */
-/* note it is called for rendered results, but it doesnt use the index! */
+/* note it is called for rendered results, but it doesn't use the index! */
 /* and because rendered results use fake layer/passes, don't correct for wrong indices here */
 RenderPass *BKE_image_multilayer_index(RenderResult *rr, ImageUser *iuser)
 {
@@ -2950,7 +2961,7 @@ void BKE_image_multiview_index(Image *ima, ImageUser *iuser)
 }
 
 /* if layer or pass changes, we need an index for the imbufs list */
-/* note it is called for rendered results, but it doesnt use the index! */
+/* note it is called for rendered results, but it doesn't use the index! */
 /* and because rendered results use fake layer/passes, don't correct for wrong indices here */
 bool BKE_image_is_multilayer(Image *ima)
 {
@@ -3784,7 +3795,7 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **r_loc
 	 *
 	 * This is mainly to make it so color management treats byte buffer
 	 * from render result with Save Buffers enabled as final display buffer
-	 * and doesnt' apply any color management on it.
+	 * and doesn't apply any color management on it.
 	 *
 	 * For other cases we need to be sure it stays to default byte buffer space.
 	 */

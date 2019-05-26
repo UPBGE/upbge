@@ -14,9 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Dalai Felinto
  */
 
 #ifndef __COM_COLORMATTENODE_H__
@@ -25,8 +22,8 @@
 #include "COM_Node.h"
 
 /**
- * @brief ColorMatteNode
- * @ingroup Node
+ * \brief ColorMatteNode
+ * \ingroup Node
  */
 class ColorMatteNode : public Node {
 public:

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/transform/transform_manipulator.c
@@ -1679,7 +1671,7 @@ void BIF_draw_manipulator(const bContext *C)
 				break;
 			}
 			case V3D_AROUND_LOCAL_ORIGINS:
-			case V3D_AROUND_CENTER_MEAN:
+			case V3D_AROUND_CENTER_MEDIAN:
 				copy_v3_v3(rv3d->twmat[3], tbounds.center);
 				break;
 			case V3D_AROUND_CURSOR:

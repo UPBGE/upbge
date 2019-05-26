@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/blenlib/intern/noise.c
@@ -288,7 +279,9 @@ static float newPerlin(float x, float y, float z)
 {
 	int A, AA, AB, B, BA, BB;
 	float u = floor(x), v = floor(y), w = floor(z);
-	int X = ((int)u) & 255, Y = ((int)v) & 255, Z = ((int)w) & 255;   /* FIND UNIT CUBE THAT CONTAINS POINT */
+	int X = ((int)u) & 255,
+		Y = ((int)v) & 255,
+		Z = ((int)w) & 255;   /* FIND UNIT CUBE THAT CONTAINS POINT */
 	x -= u;             /* FIND RELATIVE X,Y,Z */
 	y -= v;             /* OF POINT IN CUBE. */
 	z -= w;
@@ -1337,7 +1330,8 @@ static float voronoi_Cr(float x, float y, float z)
 }
 
 
-/* Signed version of all 6 of the above, just 2x-1, not really correct though (range is potentially (0, sqrt(6)).
+/* Signed version of all 6 of the above, just 2x-1, not really correct though
+ * (range is potentially (0, sqrt(6)).
  * Used in the musgrave functions */
 static float voronoi_F1S(float x, float y, float z)
 {

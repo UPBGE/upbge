@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_outliner/outliner_tools.c
@@ -275,7 +267,7 @@ static void outliner_do_libdata_operation(
 
 /* ******************************************** */
 typedef enum eOutliner_PropSceneOps {
-	OL_SCENE_OP_DELETE = 1
+	OL_SCENE_OP_DELETE = 1,
 } eOutliner_PropSceneOps;
 
 static const EnumPropertyItem prop_scene_op_types[] = {
@@ -773,7 +765,10 @@ static void constraint_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tsel
 		if (BKE_constraint_remove_ex(lb, ob, constraint, true)) {
 			/* there's no active constraint now, so make sure this is the case */
 			BKE_constraints_active_set(&ob->constraints, NULL);
-			ED_object_constraint_update(bmain, ob); /* needed to set the flags on posebones correctly */
+
+			/* needed to set the flags on posebones correctly */
+			ED_object_constraint_update(bmain, ob);
+
 			WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
 			te->store_elem->flag &= ~TSE_SELECTED;
 		}
@@ -1025,7 +1020,6 @@ void OUTLINER_OT_object_operation(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Outliner Object Operation";
 	ot->idname = "OUTLINER_OT_object_operation";
-	ot->description = "";
 
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
@@ -1128,7 +1122,6 @@ void OUTLINER_OT_group_operation(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Outliner Group Operation";
 	ot->idname = "OUTLINER_OT_group_operation";
-	ot->description = "";
 
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
@@ -1323,7 +1316,6 @@ void OUTLINER_OT_id_operation(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Outliner ID data Operation";
 	ot->idname = "OUTLINER_OT_id_operation";
-	ot->description = "";
 
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
@@ -1418,7 +1410,6 @@ void OUTLINER_OT_lib_operation(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Outliner Library Operation";
 	ot->idname = "OUTLINER_OT_lib_operation";
-	ot->description = "";
 
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
@@ -1642,7 +1633,6 @@ void OUTLINER_OT_animdata_operation(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Outliner Animation Data Operation";
 	ot->idname = "OUTLINER_OT_animdata_operation";
-	ot->description = "";
 
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
@@ -1688,7 +1678,6 @@ void OUTLINER_OT_constraint_operation(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Outliner Constraint Operation";
 	ot->idname = "OUTLINER_OT_constraint_operation";
-	ot->description = "";
 
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
@@ -1734,7 +1723,6 @@ void OUTLINER_OT_modifier_operation(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Outliner Modifier Operation";
 	ot->idname = "OUTLINER_OT_modifier_operation";
-	ot->description = "";
 
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
@@ -1832,7 +1820,6 @@ void OUTLINER_OT_data_operation(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Outliner Data Operation";
 	ot->idname = "OUTLINER_OT_data_operation";
-	ot->description = "";
 
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;

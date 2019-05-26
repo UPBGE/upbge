@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/mask/mask_editaction.c
@@ -51,9 +45,9 @@
 
 /* ***************************************** */
 /* NOTE ABOUT THIS FILE:
- *  This file contains code for editing Mask data in the Action Editor
- *  as a 'keyframes', so that a user can adjust the timing of Mask shapekeys.
- *  Therefore, this file mostly contains functions for selecting Mask frames (shapekeys).
+ * This file contains code for editing Mask data in the Action Editor
+ * as a 'keyframes', so that a user can adjust the timing of Mask shapekeys.
+ * Therefore, this file mostly contains functions for selecting Mask frames (shapekeys).
  */
 /* ***************************************** */
 /* Generics - Loopers */

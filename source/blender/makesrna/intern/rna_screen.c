@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008), Nathan Letwory
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_screen.c
@@ -209,11 +203,21 @@ static void rna_def_area_spaces(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_ui_text(prop, "Active Space", "Space currently being displayed in this area");
 }
 
+static void rna_def_area_api(StructRNA *srna)
+{
+	FunctionRNA *func;
+
+	RNA_def_function(srna, "tag_redraw", "ED_area_tag_redraw");
+
+	func = RNA_def_function(srna, "header_text_set", "ED_area_headerprint");
+	RNA_def_function_ui_description(func, "Set the header text");
+	RNA_def_string(func, "text", NULL, 0, "Text", "New string for the header, no argument clears the text");
+}
+
 static void rna_def_area(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	FunctionRNA *func;
 
 	srna = RNA_def_struct(brna, "Area", NULL);
 	RNA_def_struct_ui_text(srna, "Area", "Area in a subdivided screen, containing an editor");
@@ -267,11 +271,7 @@ static void rna_def_area(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Height", "Area height");
 
-	RNA_def_function(srna, "tag_redraw", "ED_area_tag_redraw");
-
-	func = RNA_def_function(srna, "header_text_set", "ED_area_headerprint");
-	RNA_def_function_ui_description(func, "Set the header text");
-	RNA_def_string(func, "text", NULL, 0, "Text", "New string for the header, no argument clears the text");
+	rna_def_area_api(srna);
 }
 
 static void rna_def_view2d_api(StructRNA *srna)

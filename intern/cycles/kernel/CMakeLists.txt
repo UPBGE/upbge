@@ -36,9 +36,12 @@ set(SRC_CUDA_KERNELS
 )
 
 set(SRC_OPENCL_KERNELS
-	kernels/opencl/kernel.cl
+	kernels/opencl/kernel_bake.cl
+	kernels/opencl/kernel_base.cl
+	kernels/opencl/kernel_displace.cl
+	kernels/opencl/kernel_background.cl
 	kernels/opencl/kernel_state_buffer_size.cl
-	kernels/opencl/kernel_split.cl
+	kernels/opencl/kernel_split_bundle.cl
 	kernels/opencl/kernel_data_init.cl
 	kernels/opencl/kernel_path_init.cl
 	kernels/opencl/kernel_queue_enqueue.cl
@@ -82,6 +85,7 @@ set(SRC_BVH_HEADERS
 	bvh/obvh_traversal.h
 	bvh/obvh_volume.h
 	bvh/obvh_volume_all.h
+	bvh/bvh_embree.h
 )
 
 set(SRC_HEADERS
@@ -96,6 +100,7 @@ set(SRC_HEADERS
 	kernel_emission.h
 	kernel_film.h
 	kernel_globals.h
+	kernel_id_passes.h
 	kernel_jitter.h
 	kernel_light.h
 	kernel_math.h
@@ -108,6 +113,7 @@ set(SRC_HEADERS
 	kernel_path_surface.h
 	kernel_path_subsurface.h
 	kernel_path_volume.h
+	kernel_profiling.h
 	kernel_projection.h
 	kernel_queues.h
 	kernel_random.h
@@ -340,11 +346,11 @@ if(WITH_CYCLES_CUDA_BINARIES)
 	set(CUDA_VERSION "${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}")
 
 	# warn for other versions
-	if(CUDA_VERSION MATCHES "80" OR CUDA_VERSION MATCHES "90")
+	if(CUDA_VERSION MATCHES "101")
 	else()
 		message(WARNING
 			"CUDA version ${CUDA_VERSION_MAJOR}.${CUDA_VERSION_MINOR} detected, "
-			"build may succeed but only CUDA 8.0 is officially supported")
+			"build may succeed but only CUDA 10.1 is officially supported")
 	endif()
 
 	# build for each arch
@@ -439,6 +445,8 @@ if(WITH_CYCLES_CUDA_BINARIES)
 	foreach(arch ${CYCLES_CUDA_BINARIES_ARCH})
 		if(${arch} MATCHES "sm_2.")
 			message(STATUS "CUDA binaries for ${arch} are no longer supported, skipped.")
+		elseif(${arch} MATCHES "sm_7." AND ${CUDA_VERSION} LESS 100)
+			message(STATUS "CUDA binaries for ${arch} require CUDA 10.0+, skipped.")
 		else()
 			# Compile regular kernel
 			CYCLES_CUDA_KERNEL_ADD(${arch} ${prev_arch} filter "" "${cuda_filter_sources}" FALSE)

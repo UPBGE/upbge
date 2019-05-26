@@ -24,9 +24,6 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -45,8 +42,6 @@
  * All rights reserved.
  *
  * The Original Code is: adapted from jemalloc.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __ATOMIC_OPS_UTILS_H__
@@ -66,14 +61,12 @@
 #  define ATOMIC_INLINE static inline __attribute__((always_inline))
 #endif
 
-#ifndef LIKELY
-#  ifdef __GNUC__
-#    define LIKELY(x)       __builtin_expect(!!(x), 1)
-#    define UNLIKELY(x)     __builtin_expect(!!(x), 0)
-#  else
-#    define LIKELY(x)       (x)
-#    define UNLIKELY(x)     (x)
-#  endif
+#ifdef __GNUC__
+#  define _ATOMIC_LIKELY(x)       __builtin_expect(!!(x), 1)
+#  define _ATOMIC_UNLIKELY(x)     __builtin_expect(!!(x), 0)
+#else
+#  define _ATOMIC_LIKELY(x)       (x)
+#  define _ATOMIC_UNLIKELY(x)     (x)
 #endif
 
 #if defined(__SIZEOF_POINTER__)

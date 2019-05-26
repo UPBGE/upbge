@@ -220,8 +220,14 @@ ccl_device_inline float2 interp(const float2& a, const float2& b, float t)
 {
 	return a + t*(b - a);
 }
+
+ccl_device_inline float2 mix(const float2& a, const float2& b, float t)
+{
+	return a + t*(b - a);
+}
+
 #endif  /* !__KERNEL_OPENCL__ */
 
 CCL_NAMESPACE_END
 
-#endif /* __UTIL_MATH_FLOAT2_H__ */
+#endif  /* __UTIL_MATH_FLOAT2_H__ */

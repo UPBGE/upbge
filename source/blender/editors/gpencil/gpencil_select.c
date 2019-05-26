@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2014, Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/gpencil/gpencil_select.c
@@ -109,10 +103,10 @@ static int gpencil_select_all_exec(bContext *C, wmOperator *op)
 	}
 
 	/* if deselecting, we need to deselect strokes across all frames
-	 *  - Currently, an exception is only given for deselection
-	 *    Selecting and toggling should only affect what's visible,
-	 *    while deselecting helps clean up unintended/forgotten
-	 *    stuff on other frames
+	 * - Currently, an exception is only given for deselection
+	 *   Selecting and toggling should only affect what's visible,
+	 *   while deselecting helps clean up unintended/forgotten
+	 *   stuff on other frames
 	 */
 	if (action == SEL_DESELECT) {
 		/* deselect strokes across editable layers
@@ -702,7 +696,7 @@ static bool gp_stroke_do_circle_sel(
 	}
 	else {
 		/* Loop over the points in the stroke, checking for intersections
-		 *  - an intersection means that we touched the stroke
+		 * - an intersection means that we touched the stroke
 		 */
 		for (i = 0; (i + 1) < gps->totpoints; i++) {
 			/* get points to work with */
@@ -730,12 +724,12 @@ static bool gp_stroke_do_circle_sel(
 
 				/* check if point segment of stroke had anything to do with
 				 * eraser region  (either within stroke painted, or on its lines)
-				 *  - this assumes that linewidth is irrelevant
+				 * - this assumes that linewidth is irrelevant
 				 */
 				if (gp_stroke_inside_circle(mval, mvalo, radius, x0, y0, x1, y1)) {
 					/* change selection of stroke, and then of both points
 					 * (as the last point otherwise wouldn't get selected
-					 *  as we only do n-1 loops through)
+					 * as we only do n-1 loops through).
 					 */
 					if (select) {
 						pt1->flag |= GP_SPOINT_SELECT;
@@ -772,7 +766,8 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	bool select = !RNA_boolean_get(op->ptr, "deselect");
 
 	GP_SpaceConversion gsc = {NULL};
-	rcti rect = {0};            /* for bounding rect around circle (for quicky intersection testing) */
+	/* for bounding rect around circle (for quicky intersection testing) */
+	rcti rect = {0};
 
 	bool changed = false;
 

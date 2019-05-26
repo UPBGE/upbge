@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Bob Holcomb, Xavier Thomas
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_node_types.h
@@ -38,17 +30,17 @@
 #include "DNA_texture_types.h"
 #include "DNA_scene_types.h"
 
-struct ID;
-struct ListBase;
-struct bNodeLink;
-struct bNodeType;
-struct bNodeTreeExec;
-struct bNodePreview;
-struct bNodeInstanceHash;
 struct AnimData;
-struct bGPdata;
-struct uiBlock;
+struct ID;
 struct Image;
+struct ListBase;
+struct bGPdata;
+struct bNodeInstanceHash;
+struct bNodeLink;
+struct bNodePreview;
+struct bNodeTreeExec;
+struct bNodeType;
+struct uiBlock;
 
 /* In writefile.c: write deprecated DNA data,
  * to ensure forward compatibility in 2.6x versions.
@@ -121,7 +113,8 @@ typedef struct bNodeSocket {
 	int own_index  DNA_DEPRECATED;	/* group socket identifiers, to find matching pairs after reading files */
 	/* XXX deprecated, only used for restoring old group node links */
 	int to_index  DNA_DEPRECATED;
-	/* XXX deprecated, still forward compatible since verification restores pointer from matching own_index. */
+	/* XXX deprecated, still forward compatible since verification
+	 * restores pointer from matching own_index. */
 	struct bNodeSocket *groupsock  DNA_DEPRECATED;
 
 	struct bNodeLink *link;		/* a link pointer, set in ntreeUpdateTree */
@@ -140,33 +133,41 @@ typedef enum eNodeSocketDatatype {
 	SOCK_BOOLEAN		= 4,
 	__SOCK_MESH			= 5,	/* deprecated */
 	SOCK_INT			= 6,
-	SOCK_STRING			= 7
+	SOCK_STRING			= 7,
 } eNodeSocketDatatype;
 
 /* socket shape */
 typedef enum eNodeSocketDrawShape {
 	SOCK_DRAW_SHAPE_CIRCLE = 0,
 	SOCK_DRAW_SHAPE_SQUARE = 1,
-	SOCK_DRAW_SHAPE_DIAMOND = 2
+	SOCK_DRAW_SHAPE_DIAMOND = 2,
 } eNodeSocketDrawShape;
 
 /* socket side (input/output) */
 typedef enum eNodeSocketInOut {
 	SOCK_IN = 1,
-	SOCK_OUT = 2
+	SOCK_OUT = 2,
 } eNodeSocketInOut;
 
 /* sock->flag, first bit is select */
 typedef enum eNodeSocketFlag {
-	SOCK_HIDDEN = 2,					/* hidden is user defined, to hide unused */
-	SOCK_IN_USE = 4,					/* for quick check if socket is linked */
-	SOCK_UNAVAIL = 8,					/* unavailable is for dynamic sockets */
-	// SOCK_DYNAMIC = 16,				/* DEPRECATED  dynamic socket (can be modified by user) */
-	// SOCK_INTERNAL = 32,				/* DEPRECATED  group socket should not be exposed */
-	SOCK_COLLAPSED = 64,				/* socket collapsed in UI */
-	SOCK_HIDE_VALUE = 128,				/* hide socket value, if it gets auto default */
-	SOCK_AUTO_HIDDEN__DEPRECATED = 256,	/* socket hidden automatically, to distinguish from manually hidden */
-	SOCK_NO_INTERNAL_LINK = 512
+	/** hidden is user defined, to hide unused */
+	SOCK_HIDDEN = (1 << 1),
+	/** for quick check if socket is linked */
+	SOCK_IN_USE = (1 << 2),
+	/** unavailable is for dynamic sockets */
+	SOCK_UNAVAIL = (1 << 3),
+	// /** DEPRECATED  dynamic socket (can be modified by user) */
+	// SOCK_DYNAMIC = (1 << 4),
+	// /** DEPRECATED  group socket should not be exposed */
+	// SOCK_INTERNAL = (1 << 5),
+	/** socket collapsed in UI */
+	SOCK_COLLAPSED = (1 << 6),
+	/** hide socket value, if it gets auto default */
+	SOCK_HIDE_VALUE = (1 << 7),
+	/** socket hidden automatically, to distinguish from manually hidden */
+	SOCK_AUTO_HIDDEN__DEPRECATED = (1 << 8),
+	SOCK_NO_INTERNAL_LINK = (1 << 9),
 } eNodeSocketFlag;
 
 /* limit data in bNode to what we want to see saved? */
@@ -314,9 +315,9 @@ typedef struct bNodeLink {
 } bNodeLink;
 
 /* link->flag */
-#define NODE_LINKFLAG_HILITE	1		/* link has been successfully validated */
-#define NODE_LINK_VALID			2
-#define NODE_LINK_TEST			4		/* free test flag, undefined */
+#define NODE_LINKFLAG_HILITE	(1 << 0)		/* link has been successfully validated */
+#define NODE_LINK_VALID			(1 << 1)
+#define NODE_LINK_TEST			(1 << 2)		/* free test flag, undefined */
 
 /* tree->edit_quality/tree->render_quality */
 #define NTREE_QUALITY_HIGH    0
@@ -332,7 +333,8 @@ typedef struct bNodeLink {
 #define NTREE_CHUNCKSIZE_1024 1024
 
 /* the basis for a Node tree, all links and nodes reside internal here */
-/* only re-usable node trees are in the library though, materials and textures allocate own tree struct */
+/* only re-usable node trees are in the library though,
+ * materials and textures allocate own tree struct */
 typedef struct bNodeTree {
 	ID id;
 	struct AnimData *adt;		/* animation data (must be immediately after id for utilities to use it) */
@@ -411,28 +413,33 @@ typedef struct bNodeTree {
 #define NTREE_TYPE_INIT		1
 
 /* ntree->flag */
-#define NTREE_DS_EXPAND				1	/* for animation editors */
-#define NTREE_COM_OPENCL			2	/* use opencl */
-#define NTREE_TWO_PASS				4	/* two pass */
-#define NTREE_COM_GROUPNODE_BUFFER	8	/* use groupnode buffers */
-#define NTREE_VIEWER_BORDER			16	/* use a border for viewer nodes */
-#define NTREE_IS_LOCALIZED			32	/* tree is localized copy, free when deleting node groups */
+#define NTREE_DS_EXPAND             (1 << 0)    /* for animation editors */
+#define NTREE_COM_OPENCL            (1 << 1)    /* use opencl */
+#define NTREE_TWO_PASS              (1 << 2)    /* two pass */
+#define NTREE_COM_GROUPNODE_BUFFER  (1 << 3)    /* use groupnode buffers */
+#define NTREE_VIEWER_BORDER         (1 << 4)    /* use a border for viewer nodes */
+#define NTREE_IS_LOCALIZED          (1 << 5)    /* tree is localized copy, free when deleting node groups */
 
 /* XXX not nice, but needed as a temporary flags
  * for group updates after library linking.
  */
-#define NTREE_DO_VERSIONS_GROUP_EXPOSE_2_56_2	1024	/* changes from r35033 */
-#define NTREE_DO_VERSIONS_CUSTOMNODES_GROUP		2048	/* custom_nodes branch: remove links to node tree sockets */
-#define NTREE_DO_VERSIONS_CUSTOMNODES_GROUP_CREATE_INTERFACE	4096	/* custom_nodes branch: create group input/output nodes */
+
+/* changes from r35033 */
+#define NTREE_DO_VERSIONS_GROUP_EXPOSE_2_56_2   (1 << 10)
+/* custom_nodes branch: remove links to node tree sockets */
+#define NTREE_DO_VERSIONS_CUSTOMNODES_GROUP     (1 << 11)
+/* custom_nodes branch: create group input/output nodes */
+#define NTREE_DO_VERSIONS_CUSTOMNODES_GROUP_CREATE_INTERFACE    (1 << 12)
 
 /* ntree->update */
 typedef enum eNodeTreeUpdate {
 	NTREE_UPDATE            = 0xFFFF,	/* generic update flag (includes all others) */
-	NTREE_UPDATE_LINKS      = 1,		/* links have been added or removed */
-	NTREE_UPDATE_NODES      = 2,		/* nodes or sockets have been added or removed */
-	NTREE_UPDATE_GROUP_IN   = 16,		/* group inputs have changed */
-	NTREE_UPDATE_GROUP_OUT  = 32,		/* group outputs have changed */
-	NTREE_UPDATE_GROUP      = 48		/* group has changed (generic flag including all other group flags) */
+	NTREE_UPDATE_LINKS      = (1 << 0),		/* links have been added or removed */
+	NTREE_UPDATE_NODES      = (1 << 1),		/* nodes or sockets have been added or removed */
+	NTREE_UPDATE_GROUP_IN   = (1 << 4),		/* group inputs have changed */
+	NTREE_UPDATE_GROUP_OUT  = (1 << 5),		/* group outputs have changed */
+	/* group has changed (generic flag including all other group flags) */
+	NTREE_UPDATE_GROUP      = (NTREE_UPDATE_GROUP_IN | NTREE_UPDATE_GROUP_OUT),
 } eNodeTreeUpdate;
 
 
@@ -478,35 +485,35 @@ enum {
 	CMP_NODE_MASKTYPE_ADD         = 0,
 	CMP_NODE_MASKTYPE_SUBTRACT    = 1,
 	CMP_NODE_MASKTYPE_MULTIPLY    = 2,
-	CMP_NODE_MASKTYPE_NOT         = 3
+	CMP_NODE_MASKTYPE_NOT         = 3,
 };
 
 enum {
-	CMP_NODE_LENSFLARE_GHOST   = 1,
-	CMP_NODE_LENSFLARE_GLOW    = 2,
-	CMP_NODE_LENSFLARE_CIRCLE  = 4,
-	CMP_NODE_LENSFLARE_STREAKS = 8
+	CMP_NODE_LENSFLARE_GHOST   = (1 << 0),
+	CMP_NODE_LENSFLARE_GLOW    = (1 << 1),
+	CMP_NODE_LENSFLARE_CIRCLE  = (1 << 2),
+	CMP_NODE_LENSFLARE_STREAKS = (1 << 3),
 };
 
 enum {
 	CMP_NODE_DILATEERODE_STEP             = 0,
 	CMP_NODE_DILATEERODE_DISTANCE_THRESH  = 1,
 	CMP_NODE_DILATEERODE_DISTANCE         = 2,
-	CMP_NODE_DILATEERODE_DISTANCE_FEATHER = 3
+	CMP_NODE_DILATEERODE_DISTANCE_FEATHER = 3,
 };
 
 enum {
-	CMP_NODE_INPAINT_SIMPLE               = 0
+	CMP_NODE_INPAINT_SIMPLE               = 0,
 };
 
 enum {
-	CMP_NODEFLAG_MASK_AA          = (1 << 0),
+	/* CMP_NODEFLAG_MASK_AA          = (1 << 0), */  /* DEPRECATED */
 	CMP_NODEFLAG_MASK_NO_FEATHER  = (1 << 1),
 	CMP_NODEFLAG_MASK_MOTION_BLUR = (1 << 2),
 
 	/* we may want multiple aspect options, exposed as an rna enum */
 	CMP_NODEFLAG_MASK_FIXED       = (1 << 8),
-	CMP_NODEFLAG_MASK_FIXED_SCENE = (1 << 9)
+	CMP_NODEFLAG_MASK_FIXED_SCENE = (1 << 9),
 };
 
 enum {
@@ -675,7 +682,8 @@ typedef struct NodeScriptDict {
 /* qdn: glare node */
 typedef struct NodeGlare {
 	char quality, type, iter;
-	/* XXX angle is only kept for backward/forward compatibility, was used for two different things, see T50736. */
+	/* XXX angle is only kept for backward/forward compatibility,
+	 * was used for two different things, see T50736. */
 	char angle DNA_DEPRECATED, pad_c1, size, star_45, streaks;
 	float colmod, mix, threshold, fade;
 	float angle_ofs, pad_f1;

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/font.c
@@ -244,7 +236,6 @@ VFont *BKE_vfont_load(Main *bmain, const char *filepath)
 	char filename[FILE_MAXFILE];
 	VFont *vfont = NULL;
 	PackedFile *pf;
-	PackedFile *temp_pf = NULL;
 	bool is_builtin;
 
 	if (STREQ(filepath, FO_BUILTIN_NAME)) {
@@ -256,7 +247,6 @@ VFont *BKE_vfont_load(Main *bmain, const char *filepath)
 	else {
 		BLI_split_file_part(filepath, filename, sizeof(filename));
 		pf = newPackedFile(NULL, filepath, BKE_main_blendfile_path(bmain));
-		temp_pf = newPackedFile(NULL, filepath, BKE_main_blendfile_path(bmain));
 
 		is_builtin = false;
 	}
@@ -282,7 +272,7 @@ VFont *BKE_vfont_load(Main *bmain, const char *filepath)
 
 			/* Do not add FO_BUILTIN_NAME to temporary listbase */
 			if (!STREQ(filename, FO_BUILTIN_NAME)) {
-				vfont->temp_pf = temp_pf;
+				vfont->temp_pf = newPackedFile(NULL, filepath, BKE_main_blendfile_path(bmain));
 			}
 		}
 
@@ -360,7 +350,7 @@ VFont *BKE_vfont_builtin_get(void)
 
 static VChar *find_vfont_char(VFontData *vfd, unsigned int character)
 {
-	return BLI_ghash_lookup(vfd->characters, SET_UINT_IN_POINTER(character));
+	return BLI_ghash_lookup(vfd->characters, POINTER_FROM_UINT(character));
 }
 
 static void build_underline(Curve *cu, ListBase *nubase, const rctf *rect,
@@ -605,7 +595,7 @@ void BKE_vfont_select_clamp(Object *ob)
 
 static float char_width(Curve *cu, VChar *che, CharInfo *info)
 {
-	/* The character wasn't found, propably ascii = 0, then the width shall be 0 as well */
+	/* The character wasn't found, probably ascii = 0, then the width shall be 0 as well */
 	if (che == NULL) {
 		return 0.0f;
 	}
@@ -1132,7 +1122,7 @@ makebreak:
 			timeofs += distfac * cu->xof;  /* not cyclic */
 
 			ct = chartransdata;
-			for (i = 0; i < slen; i++, ct++) {
+			for (i = 0; i <= slen; i++, ct++) {
 				float ctime, dtime, vec[4], tvec[4], rotvec[3];
 				float si, co;
 
@@ -1174,9 +1164,8 @@ makebreak:
 					sb = &selboxes[i - selstart];
 					sb->rot = -ct->rot;
 				}
+				
 			}
-			/* null character is always zero width, no need to iterate over it */
-			chartransdata[slen] = chartransdata[slen - 1];
 		}
 	}
 

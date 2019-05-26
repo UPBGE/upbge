@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Matt Ebb, Raul Fernandez Hernandez (Farsthary).
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/voxel.c
@@ -63,7 +55,8 @@ BLI_INLINE int FLOORI(float x)
 	return ((x >= 0.f) || (float)r == x) ? r : (r - 1);
 }
 
-/* clamp function, cannot use the CLAMPIS macro, it sometimes returns unwanted results apparently related to
+/* clamp function, cannot use the CLAMPIS macro,
+ * it sometimes returns unwanted results apparently related to
  * gcc optimization flag -fstrict-overflow which is enabled at -O2
  *
  * this causes the test (x + 2) < 0 with int x == 2147483647 to return false (x being an integer,

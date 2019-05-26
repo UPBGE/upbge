@@ -20,6 +20,7 @@
 #include "render/graph.h"
 #include "render/scene.h"
 #include "render/nodes.h"
+#include "util/util_array.h"
 #include "util/util_logging.h"
 #include "util/util_string.h"
 #include "util/util_vector.h"
@@ -160,6 +161,7 @@ class RenderGraph : public testing::Test
 protected:
 	ScopedMockLog log;
 	Stats stats;
+	Profiler profiler;
 	DeviceInfo device_info;
 	Device *device_cpu;
 	SceneParams scene_params;
@@ -178,7 +180,7 @@ protected:
 		util_logging_start();
 		util_logging_verbosity_set(1);
 
-		device_cpu = Device::create(device_info, stats, true);
+		device_cpu = Device::create(device_info, stats, profiler, true);
 		scene = new Scene(scene_params, device_cpu);
 	}
 

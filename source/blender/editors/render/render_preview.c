@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/render/render_preview.c
@@ -196,7 +188,7 @@ static Main *load_main_from_memory(const void *blend, int blend_size)
 	BlendFileData *bfd;
 
 	G.fileflags |= G_FILE_NO_UI;
-	bfd = BLO_read_from_memory(blend, blend_size, NULL, BLO_READ_SKIP_NONE);
+	bfd = BLO_read_from_memory(blend, blend_size, BLO_READ_SKIP_NONE, NULL);
 	if (bfd) {
 		bmain = bfd->main;
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/windowmanager/wm_files.h
@@ -35,8 +28,8 @@ struct Main;
 struct wmOperatorType;
 
 /* wm_files.c */
-void		wm_history_file_read(void);
-int			wm_homefile_read(
+void wm_history_file_read(void);
+void wm_homefile_read(
         struct bContext *C, struct ReportList *reports,
         bool use_factory_settings, bool use_empty_data, bool use_userdef,
         const char *filepath_startup_override, const char *app_template_override);

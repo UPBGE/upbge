@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_WindowX11.cpp
@@ -517,7 +509,7 @@ GHOST_WindowX11(GHOST_SystemX11 *system,
 			natom++;
 		}
 
-		if (m_system->m_atom.WM_TAKE_FOCUS) {
+		if (m_system->m_atom.WM_TAKE_FOCUS && m_system->m_windowFocus) {
 			atoms[natom] = m_system->m_atom.WM_TAKE_FOCUS;
 			natom++;
 		}
@@ -532,7 +524,7 @@ GHOST_WindowX11(GHOST_SystemX11 *system,
 	{
 		XWMHints *xwmhints = XAllocWMHints();
 		xwmhints->initial_state = NormalState;
-		xwmhints->input = True;
+		xwmhints->input = (m_system->m_windowFocus) ? True : False;
 		xwmhints->flags = InputHint | StateHint;
 		XSetWMHints(display, m_window, xwmhints);
 		XFree(xwmhints);
@@ -586,11 +578,15 @@ GHOST_WindowX11(GHOST_SystemX11 *system,
 
 	setTitle(title);
 
-	if (exclusive) {
+	if (exclusive && system->m_windowFocus) {
 		XMapRaised(m_display, m_window);
 	}
 	else {
 		XMapWindow(m_display, m_window);
+
+		if (!system->m_windowFocus) {
+			XLowerWindow(m_display, m_window);
+		}
 	}
 	GHOST_PRINT("Mapped window\n");
 
@@ -644,37 +640,26 @@ bool GHOST_WindowX11::createX11_XIC()
 void GHOST_WindowX11::refreshXInputDevices()
 {
 	if (m_system->m_xinput_version.present) {
-		GHOST_SystemX11::GHOST_TabletX11 &xtablet = m_system->GetXTablet();
-		XEventClass xevents[8], ev;
-		int dcount = 0;
+		std::vector<XEventClass> xevents;
 
-		/* With modern XInput (xlib 1.6.2 at least and/or evdev 2.9.0) and some 'no-name' tablets
-		 * like 'UC-LOGIC Tablet WP5540U', we also need to 'select' ButtonPress for motion event,
-		 * otherwise we do not get any tablet motion event once pen is pressed... See T43367.
-		 */
+		for (GHOST_SystemX11::GHOST_TabletX11& xtablet: m_system->GetXTablets()) {
+			/* With modern XInput (xlib 1.6.2 at least and/or evdev 2.9.0) and some 'no-name' tablets
+			 * like 'UC-LOGIC Tablet WP5540U', we also need to 'select' ButtonPress for motion event,
+			 * otherwise we do not get any tablet motion event once pen is pressed... See T43367.
+			 */
+			XEventClass ev;
 
-		if (xtablet.StylusDevice) {
-			DeviceMotionNotify(xtablet.StylusDevice, xtablet.MotionEvent, ev);
-			if (ev) xevents[dcount++] = ev;
-			DeviceButtonPress(xtablet.StylusDevice, xtablet.PressEvent, ev);
-			if (ev) xevents[dcount++] = ev;
-			ProximityIn(xtablet.StylusDevice, xtablet.ProxInEvent, ev);
-			if (ev) xevents[dcount++] = ev;
-			ProximityOut(xtablet.StylusDevice, xtablet.ProxOutEvent, ev);
-			if (ev) xevents[dcount++] = ev;
-		}
-		if (xtablet.EraserDevice) {
-			DeviceMotionNotify(xtablet.EraserDevice, xtablet.MotionEventEraser, ev);
-			if (ev) xevents[dcount++] = ev;
-			DeviceButtonPress(xtablet.EraserDevice, xtablet.PressEventEraser, ev);
-			if (ev) xevents[dcount++] = ev;
-			ProximityIn(xtablet.EraserDevice, xtablet.ProxInEventEraser, ev);
-			if (ev) xevents[dcount++] = ev;
-			ProximityOut(xtablet.EraserDevice, xtablet.ProxOutEventEraser, ev);
-			if (ev) xevents[dcount++] = ev;
+			DeviceMotionNotify(xtablet.Device, xtablet.MotionEvent, ev);
+			if (ev) xevents.push_back(ev);
+			DeviceButtonPress(xtablet.Device, xtablet.PressEvent, ev);
+			if (ev) xevents.push_back(ev);
+			ProximityIn(xtablet.Device, xtablet.ProxInEvent, ev);
+			if (ev) xevents.push_back(ev);
+			ProximityOut(xtablet.Device, xtablet.ProxOutEvent, ev);
+			if (ev) xevents.push_back(ev);
 		}
 
-		XSelectExtensionEvent(m_display, m_window, xevents, dcount);
+		XSelectExtensionEvent(m_display, m_window, xevents.data(), (int)xevents.size());
 	}
 }
 
@@ -1536,7 +1521,7 @@ setWindowCursorGrab(
 			 * blender gets can be outside the screen causing menus not to show
 			 * properly unless the user moves the mouse */
 
-#ifdef WITH_X11_XINPUT
+#if defined(WITH_X11_XINPUT) && defined(USE_X11_XINPUT_WARP)
 			if ((m_system->m_xinput_version.present) &&
 			    (m_system->m_xinput_version.major_version >= 2))
 			{

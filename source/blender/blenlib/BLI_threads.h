@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BLI_THREADS_H__
@@ -203,6 +195,12 @@ void BLI_thread_queue_nowait(ThreadQueue *queue);
 #  define BLI_thread_local_get(name) name
 #  define BLI_thread_local_set(name, value) name = value
 #endif  /* defined(__APPLE__) */
+
+/* **** Special functions to help performance on crazy NUMA setups. **** */
+
+/* Make sure process/thread is using NUMA node with fast memory access. */
+void BLI_thread_put_process_on_fast_node(void);
+void BLI_thread_put_thread_on_fast_node(void);
 
 #ifdef __cplusplus
 }

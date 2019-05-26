@@ -17,6 +17,12 @@
 #ifndef __KERNEL_TYPES_H__
 #define __KERNEL_TYPES_H__
 
+#if !defined(__KERNEL_GPU__) && defined(WITH_EMBREE)
+#  include <embree3/rtcore.h>
+#  include <embree3/rtcore_scene.h>
+#  define __EMBREE__
+#endif
+
 #include "kernel/kernel_math.h"
 #include "kernel/svm/svm_types.h"
 #include "util/util_static_assert.h"
@@ -53,6 +59,7 @@ CCL_NAMESPACE_BEGIN
 #define OBJECT_NONE				(~0)
 #define PRIM_NONE				(~0)
 #define LAMP_NONE				(~0)
+#define ID_NONE					(0.0f)
 
 #define VOLUME_STACK_SIZE		32
 
@@ -76,92 +83,6 @@ CCL_NAMESPACE_BEGIN
 #  define SHADER_SORT_LOCAL_SIZE 1
 #endif
 
-
-/* Device capabilities */
-#ifdef __KERNEL_CPU__
-#  ifdef __KERNEL_SSE2__
-#    define __QBVH__
-#  endif
-#  define __KERNEL_SHADING__
-#  define __KERNEL_ADV_SHADING__
-#  define __BRANCHED_PATH__
-#  ifdef WITH_OSL
-#    define __OSL__
-#  endif
-#  define __PRINCIPLED__
-#  define __SUBSURFACE__
-#  define __CMJ__
-#  define __VOLUME__
-#  define __VOLUME_SCATTER__
-#  define __SHADOW_RECORD_ALL__
-#  define __VOLUME_DECOUPLED__
-#  define __VOLUME_RECORD_ALL__
-#endif  /* __KERNEL_CPU__ */
-
-#ifdef __KERNEL_CUDA__
-#  define __KERNEL_SHADING__
-#  define __KERNEL_ADV_SHADING__
-#  define __VOLUME__
-#  define __VOLUME_SCATTER__
-#  define __SUBSURFACE__
-#  define __PRINCIPLED__
-#  define __SHADOW_RECORD_ALL__
-#  define __CMJ__
-#  ifndef __SPLIT_KERNEL__
-#    define __BRANCHED_PATH__
-#  endif
-#endif  /* __KERNEL_CUDA__ */
-
-#ifdef __KERNEL_OPENCL__
-
-/* keep __KERNEL_ADV_SHADING__ in sync with opencl_kernel_use_advanced_shading! */
-
-#  ifdef __KERNEL_OPENCL_NVIDIA__
-#    define __KERNEL_SHADING__
-#    define __KERNEL_ADV_SHADING__
-#    define __SUBSURFACE__
-#    define __PRINCIPLED__
-#    define __VOLUME__
-#    define __VOLUME_SCATTER__
-#    define __SHADOW_RECORD_ALL__
-#    define __CMJ__
-#    define __BRANCHED_PATH__
-#  endif  /* __KERNEL_OPENCL_NVIDIA__ */
-
-#  ifdef __KERNEL_OPENCL_APPLE__
-#    define __KERNEL_SHADING__
-#    define __KERNEL_ADV_SHADING__
-#    define __PRINCIPLED__
-#    define __CMJ__
-/* TODO(sergey): Currently experimental section is ignored here,
- * this is because megakernel in device_opencl does not support
- * custom cflags depending on the scene features.
- */
-#  endif  /* __KERNEL_OPENCL_APPLE__ */
-
-#  ifdef __KERNEL_OPENCL_AMD__
-#    define __CL_USE_NATIVE__
-#    define __KERNEL_SHADING__
-#    define __KERNEL_ADV_SHADING__
-#    define __SUBSURFACE__
-#    define __PRINCIPLED__
-#    define __VOLUME__
-#    define __VOLUME_SCATTER__
-#    define __SHADOW_RECORD_ALL__
-#    define __CMJ__
-#    define __BRANCHED_PATH__
-#  endif  /* __KERNEL_OPENCL_AMD__ */
-
-#  ifdef __KERNEL_OPENCL_INTEL_CPU__
-#    define __CL_USE_NATIVE__
-#    define __KERNEL_SHADING__
-#    define __KERNEL_ADV_SHADING__
-#    define __PRINCIPLED__
-#    define __CMJ__
-#  endif  /* __KERNEL_OPENCL_INTEL_CPU__ */
-
-#endif  /* __KERNEL_OPENCL__ */
-
 /* Kernel features */
 #define __SOBOL__
 #define __INSTANCING__
@@ -178,27 +99,54 @@ CCL_NAMESPACE_BEGIN
 #define __SHADOW_TRICKS__
 #define __DENOISING_FEATURES__
 #define __SHADER_RAYTRACE__
+#define __AO__
+#define __PASSES__
+#define __HAIR__
 
-#ifdef __KERNEL_SHADING__
+/* Without these we get an AO render, used by OpenCL preview kernel. */
+#ifndef __KERNEL_AO_PREVIEW__
 #  define __SVM__
 #  define __EMISSION__
 #  define __TEXTURES__
 #  define __EXTRA_NODES__
 #  define __HOLDOUT__
-#endif
-
-#ifdef __KERNEL_ADV_SHADING__
 #  define __MULTI_CLOSURE__
 #  define __TRANSPARENT_SHADOWS__
-#  define __PASSES__
 #  define __BACKGROUND_MIS__
 #  define __LAMP_MIS__
-#  define __AO__
 #  define __CAMERA_MOTION__
 #  define __OBJECT_MOTION__
 #  define __HAIR__
 #  define __BAKING__
+#  define __PRINCIPLED__
+#  define __SUBSURFACE__
+#  define __VOLUME__
+#  define __VOLUME_SCATTER__
+#  define __CMJ__
+#  define __SHADOW_RECORD_ALL__
+#  define __BRANCHED_PATH__
 #endif
+
+/* Device specific features */
+#ifdef __KERNEL_CPU__
+#  ifdef __KERNEL_SSE2__
+#    define __QBVH__
+#  endif
+#  ifdef WITH_OSL
+#    define __OSL__
+#  endif
+#  define __VOLUME_DECOUPLED__
+#  define __VOLUME_RECORD_ALL__
+#endif  /* __KERNEL_CPU__ */
+
+#ifdef __KERNEL_CUDA__
+#  ifdef __SPLIT_KERNEL__
+#    undef __BRANCHED_PATH__
+#  endif
+#endif  /* __KERNEL_CUDA__ */
+
+#ifdef __KERNEL_OPENCL__
+#endif  /* __KERNEL_OPENCL__ */
 
 /* Scene-based selective features compilation. */
 #ifdef __NO_CAMERA_MOTION__
@@ -415,6 +363,7 @@ typedef enum PassType {
 	PASS_RAY_BOUNCES,
 #endif
 	PASS_RENDER_TIME,
+	PASS_CRYPTOMATTE,
 	PASS_CATEGORY_MAIN_END = 31,
 
 	PASS_MIST = 32,
@@ -443,6 +392,14 @@ typedef enum PassType {
 
 #define PASS_ANY (~0)
 
+typedef enum CryptomatteType {
+	CRYPT_NONE = 0,
+	CRYPT_OBJECT = (1 << 0),
+	CRYPT_MATERIAL = (1 << 1),
+	CRYPT_ASSET = (1 << 2),
+	CRYPT_ACCURATE = (1 << 3),
+} CryptomatteType;
+
 typedef enum DenoisingPassOffsets {
 	DENOISING_PASS_NORMAL             = 0,
 	DENOISING_PASS_NORMAL_VAR         = 3,
@@ -456,8 +413,17 @@ typedef enum DenoisingPassOffsets {
 	DENOISING_PASS_COLOR_VAR          = 23,
 	DENOISING_PASS_CLEAN              = 26,
 
+	DENOISING_PASS_PREFILTERED_DEPTH     = 0,
+	DENOISING_PASS_PREFILTERED_NORMAL    = 1,
+	DENOISING_PASS_PREFILTERED_SHADOWING = 4,
+	DENOISING_PASS_PREFILTERED_ALBEDO    = 5,
+	DENOISING_PASS_PREFILTERED_COLOR     = 8,
+	DENOISING_PASS_PREFILTERED_VARIANCE  = 11,
+	DENOISING_PASS_PREFILTERED_INTENSITY = 14,
+
 	DENOISING_PASS_SIZE_BASE          = 26,
 	DENOISING_PASS_SIZE_CLEAN         = 3,
+	DENOISING_PASS_SIZE_PREFILTERED   = 15,
 } DenoisingPassOffsets;
 
 typedef enum eBakePassFilter {
@@ -599,7 +565,7 @@ typedef ccl_addr_space struct PathRadiance {
 
 #ifdef __KERNEL_DEBUG__
 	DebugData debug_data;
-#endif /* __KERNEL_DEBUG__ */
+#endif  /* __KERNEL_DEBUG__ */
 } PathRadiance;
 
 typedef struct BsdfEval {
@@ -712,6 +678,9 @@ typedef struct Ray {
 /* Intersection */
 
 typedef struct Intersection {
+#ifdef __EMBREE__
+	float3 Ng;
+#endif
 	float t, u, v;
 	int prim;
 	int object;
@@ -1260,6 +1229,9 @@ typedef struct KernelFilm {
 	int pass_shadow;
 	float pass_shadow_scale;
 	int filter_table_offset;
+	int cryptomatte_passes;
+	int cryptomatte_depth;
+	int pass_cryptomatte;
 
 	int pass_mist;
 	float mist_start;
@@ -1269,8 +1241,6 @@ typedef struct KernelFilm {
 	int pass_denoising_data;
 	int pass_denoising_clean;
 	int denoising_flags;
-
-	int pad1, pad2, pad3;
 
 	/* XYZ to rendering color space transform. float4 instead of float3 to
 	 * ensure consistent padding/alignment across devices. */
@@ -1385,20 +1355,29 @@ typedef enum KernelBVHLayout {
 	BVH_LAYOUT_BVH2 = (1 << 0),
 	BVH_LAYOUT_BVH4 = (1 << 1),
 	BVH_LAYOUT_BVH8 = (1 << 2),
-
+	BVH_LAYOUT_EMBREE = (1 << 3),
 	BVH_LAYOUT_DEFAULT = BVH_LAYOUT_BVH8,
 	BVH_LAYOUT_ALL = (unsigned int)(-1),
 } KernelBVHLayout;
 
 typedef struct KernelBVH {
-	/* root node */
+	/* Own BVH */
 	int root;
 	int have_motion;
 	int have_curves;
 	int have_instancing;
 	int bvh_layout;
 	int use_bvh_steps;
+
+	/* Embree */
+#ifdef __EMBREE__
+	RTCScene scene;
+#  ifndef __KERNEL_64_BIT__
+	int pad1;
+#  endif
+#else
 	int pad1, pad2;
+#endif
 } KernelBVH;
 static_assert_align(KernelBVH, 16);
 
@@ -1460,7 +1439,11 @@ typedef struct KernelObject {
 	uint patch_map_offset;
 	uint attribute_map_offset;
 	uint motion_offset;
-	uint pad;
+	uint pad1;
+
+	float cryptomatte_object;
+	float cryptomatte_asset;
+	float pad2, pad3;
 } KernelObject;
 static_assert_align(KernelObject, 16);
 
@@ -1540,7 +1523,7 @@ static_assert_align(KernelParticle, 16);
 
 typedef struct KernelShader {
 	float constant_emission[3];
-	float pad1;
+	float cryptomatte_id;
 	int flags;
 	int pass_id;
 	int pad2, pad3;
@@ -1672,4 +1655,4 @@ typedef struct WorkTile {
 
 CCL_NAMESPACE_END
 
-#endif /*  __KERNEL_TYPES_H__ */
+#endif  /*  __KERNEL_TYPES_H__ */

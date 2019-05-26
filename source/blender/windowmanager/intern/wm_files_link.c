@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/windowmanager/intern/wm_files_link.c
@@ -361,7 +354,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 				}
 
 				if (!BLI_ghash_haskey(libraries, libname)) {
-					BLI_ghash_insert(libraries, BLI_strdup(libname), SET_INT_IN_POINTER(lib_idx));
+					BLI_ghash_insert(libraries, BLI_strdup(libname), POINTER_FROM_INT(lib_idx));
 					lib_idx++;
 					wm_link_append_data_library_add(lapp_data, libname);
 				}
@@ -382,7 +375,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 					continue;
 				}
 
-				lib_idx = GET_INT_FROM_POINTER(BLI_ghash_lookup(libraries, libname));
+				lib_idx = POINTER_AS_INT(BLI_ghash_lookup(libraries, libname));
 
 				item = wm_link_append_data_item_add(lapp_data, name, BKE_idcode_from_name(group), NULL);
 				BLI_BITMAP_ENABLE(item->libraries, lib_idx);
@@ -602,7 +595,7 @@ static void lib_relocate_do(
 
 	BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, true);
 
-	/* We do not want any instanciation here! */
+	/* We do not want any instantiation here! */
 	wm_link_do(lapp_data, reports, bmain, NULL, NULL);
 
 	BKE_main_lock(bmain);

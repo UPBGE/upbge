@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *                 Keir Mierle
- *                 Ichthyostega
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/tracking_stabilize.c
@@ -992,7 +983,7 @@ static void initialize_all_tracks(StabContext *ctx, float aspect)
 	 * By definition, offset contribution is zero there.
 	 */
 	int reference_frame = tracking->stabilization.anchor_frame;
-	float average_angle=0, average_scale_step=0;
+	float average_angle = 0, average_scale_step = 0;
 	float average_translation[2], average_pos[2], pivot[2];
 	zero_v2(average_translation);
 	zero_v2(pivot);

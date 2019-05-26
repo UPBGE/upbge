@@ -1,5 +1,4 @@
 ﻿/*
- * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -17,10 +16,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Daniel Genrich
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/drawvolume.c
@@ -297,7 +292,7 @@ static int create_view_aligned_slices(VolumeSlicer *slicer,
 	float plane_dist = min_dist;
 	float plane_dist_inc = (max_dist - min_dist) / (float)num_slices;
 
-	/* for all egdes */
+	/* for all edges */
 	for (int i = 0; i < 12; i++) {
 		copy_v3_v3(vec_start[i], vertices[edges[edge_list[max_index][i]][0]]);
 		copy_v3_v3(vec_dir[i],   vertices[edges[edge_list[max_index][i]][1]]);

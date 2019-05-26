@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/library.c
@@ -286,7 +278,7 @@ static int id_expand_local_callback(
 		return IDWALK_RET_NOP;
 	}
 
-	/* Can hapen that we get unlinkable ID here, e.g. with shapekey referring to itself (through drivers)...
+	/* Can happen that we get unlinkable ID here, e.g. with shapekey referring to itself (through drivers)...
 	 * Just skip it, shape key can only be either indirectly linked, or fully local, period.
 	 * And let's curse one more time that stupid useless shapekey ID type! */
 	if (*id_pointer && *id_pointer != id_self && BKE_idcode_is_linkable(GS((*id_pointer)->name))) {
@@ -370,7 +362,7 @@ void BKE_id_make_local_generic(Main *bmain, ID *id, const bool id_in_mainlist, c
  *
  * \note Always set ID->newid pointer in case it gets duplicated...
  *
- * \param lib_local Special flag used when making a whole library's content local, it needs specific handling.
+ * \param lib_local: Special flag used when making a whole library's content local, it needs specific handling.
  *
  * \return true if the block can be made local.
  */
@@ -515,11 +507,11 @@ static int id_copy_libmanagement_cb(void *user_data, ID *UNUSED(id_self), ID **i
  *
  * \note Usercount of new copy is always set to 1.
  *
- * \param bmain Main database, may be NULL only if LIB_ID_CREATE_NO_MAIN is specified.
- * \param id Source datablock.
- * \param r_newid Pointer to new (copied) ID pointer.
- * \param flag Set of copy options, see DNA_ID.h enum for details (leave to zero for default, full copy).
- * \param test If set, do not do any copy, just test whether copy is supported.
+ * \param bmain: Main database, may be NULL only if LIB_ID_CREATE_NO_MAIN is specified.
+ * \param id: Source datablock.
+ * \param r_newid: Pointer to new (copied) ID pointer.
+ * \param flag: Set of copy options, see DNA_ID.h enum for details (leave to zero for default, full copy).
+ * \param test: If set, do not do any copy, just test whether copy is supported.
  * \return False when copying that ID type is not supported, true otherwise.
  */
 /* XXX TODO remove test thing, *all* IDs should be copyable that way! */
@@ -1529,8 +1521,8 @@ void BKE_main_relations_free(Main *bmain)
 /**
  * Generates a raw .blend file thumbnail data from given image.
  *
- * \param bmain If not NULL, also store generated data in this Main.
- * \param img ImBuf image to generate thumbnail data from.
+ * \param bmain: If not NULL, also store generated data in this Main.
+ * \param img: ImBuf image to generate thumbnail data from.
  * \return The generated .blend file raw thumbnail data.
  */
 BlendThumbnail *BKE_main_thumbnail_from_imbuf(Main *bmain, ImBuf *img)
@@ -1560,8 +1552,8 @@ BlendThumbnail *BKE_main_thumbnail_from_imbuf(Main *bmain, ImBuf *img)
 /**
  * Generates an image from raw .blend file thumbnail \a data.
  *
- * \param bmain Use this bmain->blen_thumb data if given \a data is NULL.
- * \param data Raw .blend file thumbnail data.
+ * \param bmain: Use this bmain->blen_thumb data if given \a data is NULL.
+ * \param data: Raw .blend file thumbnail data.
  * \return An ImBuf from given data, or NULL if invalid.
  */
 ImBuf *BKE_main_thumbnail_to_imbuf(Main *bmain, BlendThumbnail *data)
@@ -1891,6 +1883,62 @@ void BKE_main_id_clear_newpoins(Main *bmain)
 }
 
 
+static int id_refcount_recompute_callback(
+        void *user_data, struct ID *UNUSED(id_self), struct ID **id_pointer, int cb_flag)
+{
+	const bool do_linked_only = (bool)POINTER_AS_INT(user_data);
+
+	if (*id_pointer == NULL) {
+		return IDWALK_RET_NOP;
+	}
+	if (do_linked_only && !ID_IS_LINKED(*id_pointer)) {
+		return IDWALK_RET_NOP;
+	}
+
+	if (cb_flag & IDWALK_CB_USER) {
+		/* Do not touch to direct/indirect linked status here... */
+		id_us_plus_no_lib(*id_pointer);
+	}
+	if (cb_flag & IDWALK_CB_USER_ONE) {
+		id_us_ensure_real(*id_pointer);
+	}
+
+	return IDWALK_RET_NOP;
+}
+
+void BLE_main_id_refcount_recompute(struct Main *bmain, const bool do_linked_only)
+{
+	ListBase *lbarray[MAX_LIBARRAY];
+	ID *id;
+	int a;
+
+	/* Reset usercount of all affected IDs. */
+	const int nbr_lb = a = set_listbasepointers(bmain, lbarray);
+	while (a--) {
+		for(id = lbarray[a]->first; id != NULL; id = id->next) {
+			if (!ID_IS_LINKED(id) && do_linked_only) {
+				continue;
+			}
+			id->us = ID_FAKE_USERS(id);
+			/* Note that we keep EXTRAUSER tag here, since some UI users may define it too... */
+			if (id->tag & LIB_TAG_EXTRAUSER) {
+				id->tag &= ~(LIB_TAG_EXTRAUSER | LIB_TAG_EXTRAUSER_SET);
+				id_us_ensure_real(id);
+			}
+		}
+	}
+
+	/* Go over whole Main database to re-generate proper usercounts... */
+	a = nbr_lb;
+	while (a--) {
+		for(id = lbarray[a]->first; id != NULL; id = id->next) {
+			BKE_library_foreach_ID_link(
+			            bmain, id, id_refcount_recompute_callback, POINTER_FROM_INT((int)do_linked_only), IDWALK_READONLY);
+		}
+	}
+}
+
+
 static void library_make_local_copying_check(ID *id, GSet *loop_tags, MainIDRelations *id_relations, GSet *done_ids)
 {
 	if (BLI_gset_haskey(done_ids, id)) {
@@ -1948,10 +1996,10 @@ static void library_make_local_copying_check(ID *id, GSet *loop_tags, MainIDRela
 
 /** Make linked datablocks local.
  *
- * \param bmain Almost certainly global main.
- * \param lib If not NULL, only make local datablocks from this library.
- * \param untagged_only If true, only make local datablocks not tagged with LIB_TAG_PRE_EXISTING.
- * \param set_fake If true, set fake user on all localized datablocks (except group and objects ones).
+ * \param bmain: Almost certainly global main.
+ * \param lib: If not NULL, only make local datablocks from this library.
+ * \param untagged_only: If true, only make local datablocks not tagged with LIB_TAG_PRE_EXISTING.
+ * \param set_fake: If true, set fake user on all localized datablocks (except group and objects ones).
  */
 /* Note: Old (2.77) version was simply making (tagging) datablocks as local, without actually making any check whether
  * they were also indirectly used or not...

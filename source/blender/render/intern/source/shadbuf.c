@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): 2004-2006, Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/render/intern/source/shadbuf.c
@@ -1086,7 +1080,7 @@ static float readshadowbuf(ShadBuf *shb, ShadSampleBuf *shsample, int bias, int 
 	else {
 		/* got warning on this for 64 bits.... */
 		/* but it's working code! in this case rz is not a pointer but zvalue (ton) */
-		zsamp= GET_INT_FROM_POINTER(rz);
+		zsamp= POINTER_AS_INT(rz);
 	}
 
 	/* tricky stuff here; we use ints which can overflow easily with bias values */
@@ -1270,7 +1264,7 @@ static float readshadowbuf_halo(ShadBuf *shb, ShadSampleBuf *shsample, int xs, i
 	else {
 		/* same as before */
 		/* still working code! (ton) */
-		zsamp= GET_INT_FROM_POINTER(rz);
+		zsamp= POINTER_AS_INT(rz);
 	}
 
 	/* NO schadow when sampled at 'eternal' distance */

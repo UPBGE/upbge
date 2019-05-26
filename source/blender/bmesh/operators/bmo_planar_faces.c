@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/operators/bmo_planar_faces.c
@@ -67,7 +63,7 @@ void bmo_planar_faces_exec(BMesh *bm, BMOperator *op)
 			continue;
 		}
 
-		BM_face_calc_center_mean_weighted(f, faces_center[i]);
+		BM_face_calc_center_median_weighted(f, faces_center[i]);
 
 		l_iter = l_first = BM_FACE_FIRST_LOOP(f);
 		do {
@@ -101,7 +97,7 @@ void bmo_planar_faces_exec(BMesh *bm, BMOperator *op)
 			/* keep original face data (else we 'move' the face) */
 #if 0
 			BM_face_normal_update(f);
-			BM_face_calc_center_mean_weighted(f, f_center);
+			BM_face_calc_center_median_weighted(f, f_center);
 #endif
 
 			plane_from_point_normal_v3(plane, faces_center[i], f->no);

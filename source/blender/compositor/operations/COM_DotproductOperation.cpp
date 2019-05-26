@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
  */
 
 #include "COM_DotproductOperation.h"
@@ -43,7 +39,7 @@ void DotproductOperation::deinitExecution()
 	this->m_input2Operation = NULL;
 }
 
-/** @todo: current implementation is the inverse of a dotproduct. not 'logically' correct
+/** \todo: current implementation is the inverse of a dotproduct. not 'logically' correct
  */
 void DotproductOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {

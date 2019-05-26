@@ -22,7 +22,6 @@
  * BVH_HAIR: hair curve rendering
  * BVH_HAIR_MINIMUM_WIDTH: hair curve rendering with minimum width
  * BVH_MOTION: motion blur rendering
- *
  */
 
 #if BVH_FEATURE(BVH_HAIR)
@@ -71,12 +70,6 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	Transform ob_itfm;
 #endif
 
-#ifndef __KERNEL_SSE41__
-	if(!isfinite(P.x)) {
-		return false;
-	}
-#endif
-
 	isect->t = ray->t;
 	isect->u = 0.0f;
 	isect->v = 0.0f;
@@ -112,7 +105,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 			/* Traverse internal nodes. */
 			while(node_addr >= 0 && node_addr != ENTRYPOINT_SENTINEL) {
 				float4 inodes = kernel_tex_fetch(__bvh_nodes, node_addr+0);
-				(void)inodes;
+				(void) inodes;
 
 				if(UNLIKELY(node_dist > isect->t)
 #if BVH_FEATURE(BVH_MOTION)
@@ -188,7 +181,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 					float4 cnodes;
 					/* TODO(sergey): Investigate whether moving cnodes upwards
 					 * gives a speedup (will be different cache pattern but will
-					 * avoid extra check here),
+					 * avoid extra check here).
 					 */
 #if BVH_FEATURE(BVH_HAIR)
 					if(__float_as_uint(inodes.x) & PATH_RAY_NODE_UNALIGNED) {

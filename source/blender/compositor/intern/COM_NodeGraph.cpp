@@ -14,9 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Lukas Toenne
  */
 
 #include <cstring>
@@ -176,7 +173,7 @@ NodeOutput *NodeGraph::find_output(const NodeRange &node_range, bNodeSocket *b_s
 
 void NodeGraph::add_bNodeLink(const NodeRange &node_range, bNodeLink *b_nodelink)
 {
-	/// @note: ignore invalid links
+	/// \note: ignore invalid links
 	if (!(b_nodelink->flag & NODE_LINK_VALID))
 		return;
 	if ((b_nodelink->fromsock->flag & SOCK_UNAVAIL) || (b_nodelink->tosock->flag & SOCK_UNAVAIL))

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/physics/dynamicpaint_ops.c
@@ -316,7 +312,7 @@ static void dpaint_bake_endjob(void *customdata)
 	WM_set_locked_interface(G_MAIN->wm.first, false);
 
 	/* Bake was successful:
-	 *  Report for ended bake and how long it took */
+	 * Report for ended bake and how long it took */
 	if (job->success) {
 		/* Show bake info */
 		WM_reportf(RPT_INFO, "DynamicPaint: Bake complete! (%.2f)", PIL_check_seconds_timer() - job->start);

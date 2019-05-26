@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 by the Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/drawanimviz.c
@@ -150,8 +142,8 @@ static void set_motion_path_color(Scene *scene, bMotionPath *mpath, int i, short
 }
 
 /* Draw the given motion path for an Object or a Bone
- *  - assumes that the viewport has already been initialized properly
- *    i.e. draw_motion_paths_init() has been called
+ * - assumes that the viewport has already been initialized properly
+ *   i.e. draw_motion_paths_init() has been called
  */
 void draw_motion_path_instance(Scene *scene,
                                Object *ob, bPoseChannel *pchan, bAnimVizSettings *avs, bMotionPath *mpath)

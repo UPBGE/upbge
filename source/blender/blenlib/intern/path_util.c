@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * various string, file, list operations.
  */
 
@@ -80,10 +71,10 @@ static bool BLI_path_is_abs(const char *name);
  * Looks for a sequence of decimal digits in string, preceding any filename extension,
  * returning the integer value if found, or 0 if not.
  *
- * \param string  String to scan.
- * \param head  Optional area to return copy of part of string prior to digits, or before dot if no digits.
- * \param tail  Optional area to return copy of part of string following digits, or from dot if no digits.
- * \param numlen  Optional to return number of digits found.
+ * \param string: String to scan.
+ * \param head: Optional area to return copy of part of string prior to digits, or before dot if no digits.
+ * \param tail: Optional area to return copy of part of string following digits, or from dot if no digits.
+ * \param numlen: Optional to return number of digits found.
  */
 int BLI_stringdec(const char *string, char *head, char *tail, ushort *r_num_len)
 {
@@ -342,14 +333,16 @@ bool BLI_filename_make_safe(char *fname)
 			changed = true;
 		}
 
-		/* Check for forbidden names - not we have to check all combination of upper and lower cases, hence the usage
-		 * of lower_fname (more efficient than using BLI_strcasestr repeatedly). */
+		/* Check for forbidden names - not we have to check all combination
+		 * of upper and lower cases, hence the usage of lower_fname
+		 * (more efficient than using BLI_strcasestr repeatedly). */
 		BLI_str_tolower_ascii(lower_fname, len);
 		for (iname = invalid_names; *iname; iname++) {
 			if (strstr(lower_fname, *iname) == lower_fname) {
 				const size_t iname_len = strlen(*iname);
-				/* Only invalid if the whole name is made of the invalid chunk, or it has an (assumed extension) dot
-				 * just after. This means it will also catch 'valid' names like 'aux.foo.bar', but should be
+				/* Only invalid if the whole name is made of the invalid chunk, or it has an
+				 * (assumed extension) dot just after. This means it will also catch 'valid'
+				 * names like 'aux.foo.bar', but should be
 				 * good enough for us! */
 				if ((iname_len == len) || (lower_fname[iname_len] == '.')) {
 					*fname = '_';
@@ -652,10 +645,10 @@ void BLI_path_rel(char *file, const char *relfile)
  * string = Foo.png, suffix = 123, separator = _
  * Foo.png -> Foo_123.png
  *
- * \param string  original (and final) string
- * \param maxlen  Maximum length of string
- * \param suffix  String to append to the original string
- * \param sep Optional separator character
+ * \param string: original (and final) string
+ * \param maxlen: Maximum length of string
+ * \param suffix: String to append to the original string
+ * \param sep: Optional separator character
  * \return  true if succeeded
  */
 bool BLI_path_suffix(char *string, size_t maxlen, const char *suffix, const char *sep)
@@ -1006,7 +999,8 @@ bool BLI_path_abs(char *path, const char *basepath)
 		BLI_str_replace_char(base + BLI_path_unc_prefix_len(base), '\\', '/');
 
 		if (lslash) {
-			const int baselen = (int) (lslash - base) + 1;  /* length up to and including last "/" */
+			/* length up to and including last "/" */
+			const int baselen = (int) (lslash - base) + 1;
 			/* use path for temp storage here, we copy back over it right away */
 			BLI_strncpy(path, tmp + 2, FILE_MAX);  /* strip "//" */
 
@@ -1095,7 +1089,7 @@ bool BLI_path_program_extensions_add_win32(char *name, const size_t maxlen)
 	if ((type == 0) || S_ISDIR(type)) {
 		/* typically 3-5, ".EXE", ".BAT"... etc */
 		const int ext_max = 12;
-		const char *ext = getenv("PATHEXT");
+		const char *ext = BLI_getenv("PATHEXT");
 		if (ext) {
 			const int name_len = strlen(name);
 			char *filename = alloca(name_len + ext_max);
@@ -1152,7 +1146,7 @@ bool BLI_path_program_search(
 	const char separator = ':';
 #endif
 
-	path = getenv("PATH");
+	path = BLI_getenv("PATH");
 	if (path) {
 		char filename[FILE_MAX];
 		const char *temp;
@@ -1160,12 +1154,12 @@ bool BLI_path_program_search(
 		do {
 			temp = strchr(path, separator);
 			if (temp) {
-				strncpy(filename, path, temp - path);
+				memcpy(filename, path, temp - path);
 				filename[temp - path] = 0;
 				path = temp + 1;
 			}
 			else {
-				strncpy(filename, path, sizeof(filename));
+				BLI_strncpy(filename, path, sizeof(filename));
 			}
 
 			BLI_path_append(filename, maxlen, name);
@@ -1220,9 +1214,26 @@ void BLI_setenv(const char *env, const char *val)
  */
 void BLI_setenv_if_new(const char *env, const char *val)
 {
-	if (getenv(env) == NULL)
+	if (BLI_getenv(env) == NULL)
 		BLI_setenv(env, val);
 }
+
+/**
+* get an env var, result has to be used immediately
+*/
+const char *BLI_getenv(const char *env)
+{
+#ifdef _MSC_VER
+	static char buffer[32767]; /* 32767 is the total size of the environment block on windows*/
+	if (GetEnvironmentVariableA(env, buffer, sizeof(buffer)))
+		return buffer;
+	else
+		return NULL;
+#else
+	return getenv(env);
+#endif
+}
+
 
 /**
  * Strips off nonexistent (or non-accessible) subdirectories from the end of *dir, leaving the path of
@@ -1265,8 +1276,8 @@ bool BLI_make_existing_file(const char *name)
  * separators, including ensuring there is exactly one between the copies of *dir and *file,
  * and between the copies of *relabase and *dir.
  *
- * \param relabase  Optional prefix to substitute for "//" on front of *dir
- * \param string  Area to return result
+ * \param relabase: Optional prefix to substitute for "//" on front of *dir
+ * \param string: Area to return result
  */
 void BLI_make_file_string(const char *relabase, char *string, const char *dir, const char *file)
 {
@@ -1452,7 +1463,8 @@ bool BLI_path_extension_glob_validate(char *ext_fnmatch)
 
 	for (size_t i = strlen(ext_fnmatch); i-- > 0; ) {
 		if (ext_fnmatch[i] == ';') {
-			/* Group separator, we truncate here if we only had wildcards so far. Otherwise, all is sound and fine. */
+			/* Group separator, we truncate here if we only had wildcards so far.
+			 * Otherwise, all is sound and fine. */
 			if (only_wildcards) {
 				ext_fnmatch[i] = '\0';
 				return true;
@@ -1466,7 +1478,8 @@ bool BLI_path_extension_glob_validate(char *ext_fnmatch)
 		/* So far, only wildcards in last group of the pattern... */
 		only_wildcards = true;
 	}
-	/* Only one group in the pattern, so even if its only made of wildcard(s), it is assumed vaid. */
+	/* Only one group in the pattern, so even if its only made of wildcard(s),
+	 * it is assumed vaid. */
 	return false;
 }
 
@@ -1564,7 +1577,8 @@ void BLI_split_dirfile(const char *string, char *dir, char *file, const size_t d
 
 	if (dir) {
 		if (lslash) {
-			BLI_strncpy(dir, string, MIN2(dirlen, lslash + 1)); /* +1 to include the slash and the last char */
+			/* +1 to include the slash and the last char */
+			BLI_strncpy(dir, string, MIN2(dirlen, lslash + 1));
 		}
 		else {
 			dir[0] = '\0';

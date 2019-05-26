@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2009 full recode.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/armature/pose_select.c
@@ -63,8 +57,8 @@
 #include "armature_intern.h"
 
 /* utility macros for storing a temp int in the bone (selection flag) */
-#define PBONE_PREV_FLAG_GET(pchan) ((void)0, (GET_INT_FROM_POINTER((pchan)->temp)))
-#define PBONE_PREV_FLAG_SET(pchan, val) ((pchan)->temp = SET_INT_IN_POINTER(val))
+#define PBONE_PREV_FLAG_GET(pchan) ((void)0, (POINTER_AS_INT((pchan)->temp)))
+#define PBONE_PREV_FLAG_SET(pchan, val) ((pchan)->temp = POINTER_FROM_INT(val))
 
 
 /* ***************** Pose Select Utilities ********************* */
@@ -641,8 +635,8 @@ static bool pose_select_same_group(bContext *C, Object *ob, bool extend)
 		return 0;
 
 	/* alloc a small array to keep track of the groups to use
-	 *  - each cell stores on/off state for whether group should be used
-	 *	- size is (numGroups + 1), since (index = 0) is used for no-group
+	 * - each cell stores on/off state for whether group should be used
+	 * - size is (numGroups + 1), since (index = 0) is used for no-group
 	 */
 	group_flags = MEM_callocN(numGroups + 1, "pose_select_same_group");
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -13,8 +11,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_text/text_format_osl.c
@@ -66,7 +62,7 @@ static int txtfmt_osl_find_builtinfunc(const char *string)
 	else if (STR_LITERAL_STARTSWITH(string, "while",        len)) i = len;
 	else                                                          i = 0;
 
-	/* If next source char is an identifier (eg. 'i' in "definate") no match */
+	/* If next source char is an identifier (eg. 'i' in "definite") no match */
 	if (i == 0 || text_check_identifier(string[i]))
 		return -1;
 	return i;
@@ -116,7 +112,7 @@ static int txtfmt_osl_find_reserved(const char *string)
 	else if (STR_LITERAL_STARTSWITH(string, "volatile",     len)) i = len;
 	else                                                          i = 0;
 
-	/* If next source char is an identifier (eg. 'i' in "definate") no match */
+	/* If next source char is an identifier (eg. 'i' in "definite") no match */
 	if (i == 0 || text_check_identifier(string[i]))
 		return -1;
 	return i;
@@ -140,7 +136,7 @@ static int txtfmt_osl_find_specialvar(const char *string)
 	else if (STR_LITERAL_STARTSWITH(string, "displacement", len)) i = len;
 	else                                                    i = 0;
 
-	/* If next source char is an identifier (eg. 'i' in "definate") no match */
+	/* If next source char is an identifier (eg. 'i' in "definite") no match */
 	if (i == 0 || text_check_identifier(string[i]))
 		return -1;
 	return i;

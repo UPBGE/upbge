@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
  */
 
 
@@ -36,7 +32,7 @@ extern "C" {
 /**
  * Base class for all renderlayeroperations
  *
- * @todo: rename to operation.
+ * \todo: rename to operation.
  */
 class RenderLayersProg : public NodeOperation {
 protected:
@@ -68,7 +64,7 @@ protected:
 	int m_elementsize;
 
 	/**
-	 * @brief render data used for active rendering
+	 * \brief render data used for active rendering
 	 */
 	const RenderData *m_rd;
 
@@ -90,7 +86,7 @@ public:
 	RenderLayersProg(const char *passName, DataType type, int elementsize);
 	/**
 	 * setter for the scene field. Will be called from
-	 * @see RenderLayerNode to set the actual scene where
+	 * \see RenderLayerNode to set the actual scene where
 	 * the data will be retrieved from.
 	 */
 	void setScene(Scene *scene) { this->m_scene = scene; }

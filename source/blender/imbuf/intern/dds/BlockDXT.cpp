@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributors: Amorilia (amorilia@users.sourceforge.net)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/imbuf/intern/dds/BlockDXT.cpp
@@ -430,7 +424,7 @@ void AlphaBlockDXT5::decodeBlock(ColorBlock *block) const
 
 void AlphaBlockDXT5::flip4()
 {
-	uint64 * b = (uint64 *)this;
+	uint64 *b = (uint64 *)this;
 
 	// @@ The masks might have to be byte swapped.
 	uint64 tmp = (*b & (uint64)(0x000000000000FFFFLL));
@@ -444,7 +438,7 @@ void AlphaBlockDXT5::flip4()
 
 void AlphaBlockDXT5::flip2()
 {
-	uint * b = (uint *)this;
+	uint *b = (uint *)this;
 
 	// @@ The masks might have to be byte swapped.
 	uint tmp = (*b & 0xFF000000);

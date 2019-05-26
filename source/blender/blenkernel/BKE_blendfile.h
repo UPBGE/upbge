@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __BKE_BLENDFILE_H__
 #define __BKE_BLENDFILE_H__
@@ -28,12 +24,13 @@
 extern "C" {
 #endif
 
-struct bContext;
+struct BlendFileReadParams;
 struct ID;
 struct Main;
 struct MemFile;
 struct ReportList;
 struct UserDef;
+struct bContext;
 
 enum {
 	BKE_BLENDFILE_READ_FAIL             = 0, /* no load */
@@ -43,13 +40,16 @@ enum {
 
 int BKE_blendfile_read(
         struct bContext *C, const char *filepath,
-        struct ReportList *reports, int skip_flag);
+        const struct BlendFileReadParams *params,
+        struct ReportList *reports);
 bool BKE_blendfile_read_from_memory(
-        struct bContext *C, const void *filebuf, int filelength,
-        struct ReportList *reports, int skip_flag, bool update_defaults);
+        struct bContext *C, const void *filebuf, int filelength, bool update_defaults,
+        const struct BlendFileReadParams *params,
+        struct ReportList *reports);
 bool BKE_blendfile_read_from_memfile(
         struct bContext *C, struct MemFile *memfile,
-        struct ReportList *reports, int skip_flag);
+        const struct BlendFileReadParams *params,
+        struct ReportList *reports);
 void BKE_blendfile_read_make_empty(struct bContext *C);
 
 struct UserDef *BKE_blendfile_userdef_read(

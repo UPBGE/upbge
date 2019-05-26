@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): 04-10-2000 frank.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/blenkernel/intern/bmfont.c
@@ -85,7 +76,7 @@ void readBitmapFontVersion0(ImBuf *ibuf, unsigned char *rect, int step)
 {
 	int glyphcount, bytes, i, index, linelength, ysize;
 	unsigned char *buffer;
-	bmFont * bmfont;
+	bmFont *bmfont;
 
 	linelength = ibuf->x * step;
 

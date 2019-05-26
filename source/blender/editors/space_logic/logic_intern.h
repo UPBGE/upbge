@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_logic/logic_intern.h
@@ -33,9 +26,9 @@
 #define __LOGIC_INTERN_H__
 
 /* internal exports only */
-struct bContext;
 struct ARegion;
 struct ScrArea;
+struct bContext;
 struct wmOperatorType;
 
 /* space_logic.c */

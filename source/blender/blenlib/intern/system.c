@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/system.c
@@ -27,6 +23,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_system.h"
+#include "BLI_string.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -34,6 +31,7 @@
 #if defined(__linux__) || defined(__APPLE__)
 #  include <execinfo.h>
 #elif defined(WIN32)
+#  include <intrin.h>
 #  include <windows.h>
 #  include <dbghelp.h>
 #endif
@@ -138,3 +136,40 @@ void BLI_system_backtrace(FILE *fp)
 
 }
 /* end BLI_system_backtrace */
+
+/* NOTE: The code for CPU brand string is adopted from Cycles. */
+
+#if !defined(_WIN32) || defined(FREE_WINDOWS)
+static void __cpuid(int data[4], int selector)
+{
+#if defined(__x86_64__)
+	asm("cpuid" : "=a" (data[0]), "=b" (data[1]), "=c" (data[2]), "=d" (data[3]) : "a"(selector));
+#elif defined(__i386__)
+	asm("pushl %%ebx    \n\t"
+		"cpuid          \n\t"
+		"movl %%ebx, %1 \n\t"
+		"popl %%ebx     \n\t"
+		: "=a" (data[0]), "=r" (data[1]), "=c" (data[2]), "=d" (data[3])
+		: "a"(selector)
+		: "ebx");
+#else
+	data[0] = data[1] = data[2] = data[3] = 0;
+#endif
+}
+#endif
+
+char *BLI_cpu_brand_string(void)
+{
+	char buf[48] = { 0 };
+	int result[4] = { 0 };
+	__cpuid(result, 0x80000000);
+	if (result[0] >= (int)0x80000004) {
+		__cpuid((int *)(buf + 0), 0x80000002);
+		__cpuid((int *)(buf + 16), 0x80000003);
+		__cpuid((int *)(buf + 32), 0x80000004);
+		char *brand = BLI_strdup(buf);
+		/* TODO(sergey): Make it a bit more presentable by removing trademark. */
+		return brand;
+	}
+	return NULL;
+}

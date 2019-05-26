@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation
  * This is a new part of Blender (with some old code)
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_keyframing.h
@@ -34,25 +28,25 @@
 extern "C" {
 #endif
 
-struct Main;
-struct ListBase;
 struct ID;
+struct ListBase;
+struct Main;
 struct Scene;
 
 struct KeyingSet;
 
-struct bAction;
-struct FCurve;
 struct BezTriple;
+struct FCurve;
+struct bAction;
 
 struct bPoseChannel;
 
-struct bContext;
 struct ReportList;
+struct bContext;
 
+struct EnumPropertyItem;
 struct PointerRNA;
 struct PropertyRNA;
-struct EnumPropertyItem;
 
 #include "DNA_anim_types.h"
 #include "RNA_types.h"
@@ -60,7 +54,7 @@ struct EnumPropertyItem;
 /* ************ Keyframing Management **************** */
 
 /* Get the active settings for keyframing settings from context (specifically the given scene)
- *	- incl_mode: include settings from keyframing mode in the result (i.e. replace only)
+ * - incl_mode: include settings from keyframing mode in the result (i.e. replace only)
  */
 short ANIM_get_keyframing_flags(struct Scene *scene, short incl_mode);
 
@@ -104,16 +98,16 @@ int insert_vert_fcurve(struct FCurve *fcu, float x, float y, eBezTriple_Keyframe
 /* -------- */
 
 /* Secondary Keyframing API calls:
- *	Use this to insert a keyframe using the current value being keyframed, in the
- *	nominated F-Curve (no creation of animation data performed). Returns success.
+ * Use this to insert a keyframe using the current value being keyframed, in the
+ * nominated F-Curve (no creation of animation data performed). Returns success.
  */
 bool insert_keyframe_direct(struct ReportList *reports, struct PointerRNA ptr, struct PropertyRNA *prop, struct FCurve *fcu, float cfra, eBezTriple_KeyframeType keytype, eInsertKeyFlags flag);
 
 /* -------- */
 
 /* Main Keyframing API calls:
- *	Use this to create any necessary animation data, and then insert a keyframe
- *	using the current value being keyframed, in the relevant place. Returns success.
+ * Use this to create any necessary animation data, and then insert a keyframe
+ * using the current value being keyframed, in the relevant place. Returns success.
  */
 short insert_keyframe(
         struct Main *bmain, struct ReportList *reports, struct ID *id, struct bAction *act,
@@ -127,8 +121,8 @@ short delete_keyframe(struct ReportList *reports, struct ID *id, struct bAction 
 /* ************ Keying Sets ********************** */
 
 /* forward decl. for this struct which is declared a bit later... */
-struct KeyingSetInfo;
 struct ExtensionRNA;
+struct KeyingSetInfo;
 
 /* Polling Callback for KeyingSets */
 typedef bool (*cbKeyingSet_Poll)(struct KeyingSetInfo *ksi, struct bContext *C);
@@ -158,8 +152,8 @@ typedef struct KeyingSetInfo {
 
 	/* generate callbacks */
 	/* iterator to use to go through collections of data in context
-	 *  - this callback is separate from the 'adding' stage, allowing
-	 *    BuiltIn KeyingSets to be manually specified to use
+	 * - this callback is separate from the 'adding' stage, allowing
+	 *   BuiltIn KeyingSets to be manually specified to use
 	 */
 	cbKeyingSet_Iterator iter;
 	/* generator to use to add properties based on the data found by iterator */
@@ -189,7 +183,8 @@ typedef enum eModifyKey_Returns {
 	MODIFYKEY_MISSING_TYPEINFO = -2,
 } eModifyKey_Returns;
 
-/* poll the current KeyingSet, updating it's set of paths (if "builtin"/"relative") for context changes */
+/* poll the current KeyingSet, updating it's set of paths
+ * (if "builtin"/"relative") for context changes */
 short ANIM_validate_keyingset(struct bContext *C, ListBase *dsources, struct KeyingSet *ks);
 
 /* use the specified KeyingSet to add/remove various Keyframes on the specified frame */
@@ -197,7 +192,8 @@ int ANIM_apply_keyingset(struct bContext *C, ListBase *dsources, struct bAction 
 
 /* -------- */
 
-/* Get the first builtin KeyingSet with the given name, which occurs after the given one (or start of list if none given) */
+/* Get the first builtin KeyingSet with the given name, which occurs after the given one
+ * (or start of list if none given) */
 struct KeyingSet *ANIM_builtin_keyingset_get_named(struct KeyingSet *prevKS, const char name[]);
 
 /* Find KeyingSet type info given a name */
@@ -234,18 +230,27 @@ bool ANIM_keyingset_context_ok_poll(struct bContext *C, struct KeyingSet *ks);
 
 /* Flags for use by driver creation calls */
 typedef enum eCreateDriverFlags {
-	CREATEDRIVER_WITH_DEFAULT_DVAR  = (1 << 0),   /* create drivers with a default variable for nicer UI */
-	CREATEDRIVER_WITH_FMODIFIER     = (1 << 1),   /* create drivers with Generator FModifier (for backwards compat) */
+	/** create drivers with a default variable for nicer UI */
+	CREATEDRIVER_WITH_DEFAULT_DVAR  = (1 << 0),
+	/** create drivers with Generator FModifier (for backwards compat) */
+	CREATEDRIVER_WITH_FMODIFIER     = (1 << 1),
 } eCreateDriverFlags;
 
 /* Heuristic to use for connecting target properties to driven ones */
 typedef enum eCreateDriver_MappingTypes {
-	CREATEDRIVER_MAPPING_1_N        = 0,           /* 1 to Many - Use the specified index, and drive all elements with it */
-	CREATEDRIVER_MAPPING_1_1        = 1,           /* 1 to 1 - Only for the specified index on each side */
-	CREATEDRIVER_MAPPING_N_N        = 2,           /* Many to Many - Match up the indices one by one (only for drivers on vectors/arrays) */
+	/** 1 to Many - Use the specified index, and drive all elements with it */
+	CREATEDRIVER_MAPPING_1_N        = 0,
+	/** 1 to 1 - Only for the specified index on each side */
+	CREATEDRIVER_MAPPING_1_1        = 1,
+	/** Many to Many - Match up the indices one by one (only for drivers on vectors/arrays) */
+	CREATEDRIVER_MAPPING_N_N        = 2,
 
-	CREATEDRIVER_MAPPING_NONE       = 3,           /* None (Single Prop)    - Do not create driver with any targets; these will get added later instead */
-	CREATEDRIVER_MAPPING_NONE_ALL   = 4,           /* None (All Properties) - Do not create driver with any targets; these will get added later instead */
+	/** None (Single Prop):
+	 * Do not create driver with any targets; these will get added later instead */
+	CREATEDRIVER_MAPPING_NONE       = 3,
+	/** None (All Properties):
+	 * Do not create driver with any targets; these will get added later instead */
+	CREATEDRIVER_MAPPING_NONE_ALL   = 4,
 } eCreateDriver_MappingTypes;
 
 /* RNA Enum of eCreateDriver_MappingTypes, for use by the appropriate operators */
@@ -308,8 +313,8 @@ bool ANIM_driver_can_paste(void);
 bool ANIM_copy_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag);
 
 /* Main Driver Management API calls:
- *  Add a new driver for the specified property on the given ID block or replace an existing one
- *	with the driver + driver-curve data from the buffer
+ * Add a new driver for the specified property on the given ID block or replace an existing one
+ * with the driver + driver-curve data from the buffer
  */
 bool ANIM_paste_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag);
 
@@ -327,11 +332,11 @@ bool ANIM_driver_vars_paste(struct ReportList *reports, struct FCurve *fcu, bool
 /* ************ Auto-Keyframing ********************** */
 /* Notes:
  * - All the defines for this (User-Pref settings and Per-Scene settings)
- *  are defined in DNA_userdef_types.h
+ *   are defined in DNA_userdef_types.h
  * - Scene settings take precedence over those for userprefs, with old files
- *  inheriting userpref settings for the scene settings
+ *   inheriting userpref settings for the scene settings
  * - "On/Off + Mode" are stored per Scene, but "settings" are currently stored
- *  as userprefs
+ *   as userprefs
  */
 
 /* Auto-Keying macros for use by various tools */
@@ -352,22 +357,22 @@ bool autokeyframe_cfra_can_key(struct Scene *scene, struct ID *id);
 /* ************ Keyframe Checking ******************** */
 
 /* Lesser Keyframe Checking API call:
- *	- Used for the buttons to check for keyframes...
+ * - Used for the buttons to check for keyframes...
  */
 bool fcurve_frame_has_keyframe(struct FCurve *fcu, float frame, short filter);
 
 /* Main Keyframe Checking API call:
  * Checks whether a keyframe exists for the given ID-block one the given frame.
- *  - It is recommended to call this method over the other keyframe-checkers directly,
- *    in case some detail of the implementation changes...
- *	- frame: the value of this is quite often result of BKE_scene_frame_get()
+ * - It is recommended to call this method over the other keyframe-checkers directly,
+ *   in case some detail of the implementation changes...
+ * - frame: the value of this is quite often result of BKE_scene_frame_get()
  */
 bool id_frame_has_keyframe(struct ID *id, float frame, short filter);
 
 /* filter flags for id_cfra_has_keyframe
  *
  * WARNING: do not alter order of these, as also stored in files
- *	(for v3d->keyflags)
+ * (for v3d->keyflags)
  */
 typedef enum eAnimFilterFlags {
 	/* general */

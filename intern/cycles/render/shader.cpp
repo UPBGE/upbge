@@ -30,6 +30,7 @@
 #include "render/tables.h"
 
 #include "util/util_foreach.h"
+#include "util/util_murmurhash.h"
 
 #ifdef WITH_OCIO
 #  include <OpenColorIO/OpenColorIO.h>
@@ -207,6 +208,7 @@ Shader::Shader()
 
 	need_update = true;
 	need_update_mesh = true;
+	need_sync_object = false;
 }
 
 Shader::~Shader()
@@ -218,20 +220,37 @@ bool Shader::is_constant_emission(float3 *emission)
 {
 	ShaderInput *surf = graph->output()->input("Surface");
 
-	if(!surf->link || surf->link->parent->type != EmissionNode::node_type) {
+	if(surf->link == NULL) {
 		return false;
 	}
 
-	EmissionNode *node = (EmissionNode*) surf->link->parent;
+	if(surf->link->parent->type == EmissionNode::node_type) {
+		EmissionNode *node = (EmissionNode*) surf->link->parent;
 
-	assert(node->input("Color"));
-	assert(node->input("Strength"));
+		assert(node->input("Color"));
+		assert(node->input("Strength"));
 
-	if(node->input("Color")->link || node->input("Strength")->link) {
+		if(node->input("Color")->link || node->input("Strength")->link) {
+			return false;
+		}
+
+		*emission = node->color*node->strength;
+	}
+	else if(surf->link->parent->type == BackgroundNode::node_type) {
+		BackgroundNode *node = (BackgroundNode*) surf->link->parent;
+
+		assert(node->input("Color"));
+		assert(node->input("Strength"));
+
+		if(node->input("Color")->link || node->input("Strength")->link) {
+			return false;
+		}
+
+		*emission = node->color*node->strength;
+	}
+	else {
 		return false;
 	}
-
-	*emission = node->color*node->strength;
 
 	return true;
 }
@@ -387,7 +406,7 @@ ShaderManager *ShaderManager::create(Scene *scene, int shadingsystem)
 {
 	ShaderManager *manager;
 
-	(void)shadingsystem;  /* Ignored when built without OSL. */
+	(void) shadingsystem;  /* Ignored when built without OSL. */
 
 #ifdef WITH_OSL
 	if(shadingsystem == SHADINGSYSTEM_OSL) {
@@ -523,12 +542,15 @@ void ShaderManager::device_update_common(Device *device,
 		if(shader->is_constant_emission(&constant_emission))
 			flag |= SD_HAS_CONSTANT_EMISSION;
 
+		uint32_t cryptomatte_id = util_murmur_hash3(shader->name.c_str(), shader->name.length(), 0);
+
 		/* regular shader */
 		kshader->flags = flag;
 		kshader->pass_id = shader->pass_id;
 		kshader->constant_emission[0] = constant_emission.x;
 		kshader->constant_emission[1] = constant_emission.y;
 		kshader->constant_emission[2] = constant_emission.z;
+		kshader->cryptomatte_id = util_hash_to_float(cryptomatte_id);
 		kshader++;
 
 		has_transparent_shadow |= (flag & SD_HAS_TRANSPARENT_SHADOW) != 0;
@@ -642,7 +664,7 @@ void ShaderManager::get_requested_graph_features(ShaderGraph *graph,
 		                                          node->get_group());
 		requested_features->nodes_features |= node->get_feature();
 		if(node->special_type == SHADER_SPECIAL_TYPE_CLOSURE) {
-			BsdfNode *bsdf_node = static_cast<BsdfNode*>(node);
+			BsdfBaseNode *bsdf_node = static_cast<BsdfBaseNode*>(node);
 			if(CLOSURE_IS_VOLUME(bsdf_node->closure)) {
 				requested_features->nodes_features |= NODE_FEATURE_VOLUME;
 			}
@@ -688,11 +710,31 @@ void ShaderManager::get_requested_features(Scene *scene,
 void ShaderManager::free_memory()
 {
 	beckmann_table.free_memory();
+
+#ifdef WITH_OSL
+	OSLShaderManager::free_memory();
+#endif
 }
 
 float ShaderManager::linear_rgb_to_gray(float3 c)
 {
 	return dot(c, rgb_to_y);
+}
+
+string ShaderManager::get_cryptomatte_materials(Scene *scene)
+{
+	string manifest = "{";
+	unordered_set<ustring, ustringHash> materials;
+	foreach(Shader *shader, scene->shaders) {
+		if(materials.count(shader->name)) {
+			continue;
+		}
+		materials.insert(shader->name);
+		uint32_t cryptomatte_id = util_murmur_hash3(shader->name.c_str(), shader->name.length(), 0);
+		manifest += string_printf("\"%s\":\"%08x\",", shader->name.c_str(), cryptomatte_id);
+	}
+	manifest[manifest.size()-1] = '}';
+	return manifest;
 }
 
 CCL_NAMESPACE_END

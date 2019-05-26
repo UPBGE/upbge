@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __CCGSUBSURF_H__
@@ -30,10 +26,10 @@ typedef void* CCGVertHDL;
 typedef void* CCGEdgeHDL;
 typedef void* CCGFaceHDL;
 
-typedef struct CCGSubSurf CCGSubSurf;
-typedef struct CCGVert CCGVert;
 typedef struct CCGEdge CCGEdge;
 typedef struct CCGFace CCGFace;
+typedef struct CCGSubSurf CCGSubSurf;
+typedef struct CCGVert CCGVert;
 
 typedef struct CCGMeshIFC {
 	int			vertUserSize, edgeUserSize, faceUserSize;
@@ -176,9 +172,9 @@ int			ccgSubSurf_getNumFinalFaces		(const CCGSubSurf *ss);
 
 /***/
 
-typedef struct _EHashIterator CCGVertIterator;
 typedef struct _EHashIterator CCGEdgeIterator;
 typedef struct _EHashIterator CCGFaceIterator;
+typedef struct _EHashIterator CCGVertIterator;
 
 void		ccgSubSurf_initVertIterator(CCGSubSurf *ss, CCGVertIterator *viter);
 void		ccgSubSurf_initEdgeIterator(CCGSubSurf *ss, CCGEdgeIterator *eiter);

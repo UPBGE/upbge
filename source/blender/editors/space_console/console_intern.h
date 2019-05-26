@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_console/console_intern.h
@@ -30,12 +24,13 @@
 /* internal exports only */
 
 struct ConsoleLine;
-struct wmOperatorType;
 struct bContext;
+struct wmOperatorType;
 
 /* console_draw.c */
 void console_textview_main(struct SpaceConsole *sc, struct ARegion *ar);
-int console_textview_height(struct SpaceConsole *sc, struct ARegion *ar); /* needed to calculate the scrollbar */
+/* needed to calculate the scrollbar */
+int console_textview_height(struct SpaceConsole *sc, struct ARegion *ar);
 int console_char_pick(struct SpaceConsole *sc, struct ARegion *ar, const int mval[2]);
 
 void console_scrollback_prompt_begin(struct SpaceConsole *sc, ConsoleLine *cl_dummy);

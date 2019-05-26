@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __FREESTYLE_ADVANCED_FUNCTIONS_1D_H__
@@ -54,11 +50,11 @@ private:
 
 public:
 	/*! Builds the functor.
-	 *  \param sigma
+	 *  \param sigma:
 	 *    Thesigma used in DensityF0D and determining the window size used in each density query.
-	 *  \param iType
+	 *  \param iType:
 	 *    The integration method used to compute a single value from a set of values.
-	 *  \param sampling
+	 *  \param sampling:
 	 *    The resolution used to sample the chain: the corresponding 0D function is evaluated at each sample point and
 	 *    the result is obtained by combining the resulting values into a single one, following the method specified
 	 *    by iType.
@@ -98,9 +94,9 @@ class LocalAverageDepthF1D : public UnaryFunction1D<double>
 {
 public:
 	/*! Builds the functor.
-	 *  \param sigma
+	 *  \param sigma:
 	 *    The sigma used in DensityF0D and determining the window size used in each density query.
-	 *  \param iType
+	 *  \param iType:
 	 *    The integration method used to compute a single value from a set of values.
 	 */
 	LocalAverageDepthF1D(real sigma, IntegrationType iType = MEAN)
@@ -134,13 +130,13 @@ class GetCompleteViewMapDensityF1D : public UnaryFunction1D<double>
 {
 public:
 	/*! Builds the functor.
-	 *  \param level
+	 *  \param level:
 	 *    The level of the pyramid from which
 	 *    the pixel must be read.
-	 *  \param iType
+	 *  \param iType:
 	 *    The integration method used to compute
 	 *    a single value from a set of values.
-	 *  \param sampling
+	 *  \param sampling:
 	 *    The resolution used to sample the chain: the corresponding 0D function
 	 *    is evaluated at each sample point and the result is obtained by
 	 *    combining the resulting values into a single one, following the
@@ -176,13 +172,13 @@ class GetDirectionalViewMapDensityF1D : public UnaryFunction1D<double>
 {
 public:
 	/*! Builds the functor.
-	 *  \param iOrientation
+	 *  \param iOrientation:
 	 *    The number of the directional map we must work with.
-	 *  \param level
+	 *  \param level:
 	 *    The level of the pyramid from which the pixel must be read.
-	 *  \param iType
+	 *  \param iType:
 	 *    The integration method used to compute a single value from a set of values.
-	 *  \param sampling
+	 *  \param sampling:
 	 *    The resolution used to sample the chain: the corresponding 0D function is evaluated at each sample point and
 	 *    the result is obtained by combining the resulting values into a single one, following the method specified
 	 *    by iType.
@@ -220,11 +216,11 @@ private:
 
 public:
 	/*! Builds the functor from the level of the pyramid from which the pixel must be read.
-	 *  \param level
+	 *  \param level:
 	 *    The level of the pyramid from which the pixel must be read.
-	 *  \param iType
+	 *  \param iType:
 	 *    The integration method used to compute a single value from a set of values.
-	 *  \param sampling
+	 *  \param sampling:
 	 *    The resolution used to sample the chain: the corresponding 0D function is evaluated at each sample point and
 	 *    the result is obtained by combining the resulting values into a single one, following the method specified
 	 *    by iType.
@@ -262,11 +258,11 @@ private:
 
 public:
 	/*! Builds the functor from the level of the pyramid from which the pixel must be read.
-	 *  \param level
+	 *  \param level:
 	 *    The level of the pyramid from which the pixel must be read.
-	 *  \param iType
+	 *  \param iType:
 	 *    The integration method used to compute a single value from a set of values.
-	 *  \param sampling
+	 *  \param sampling:
 	 *    The resolution used to sample the chain: the corresponding 0D function is evaluated at each sample point and
 	 *    the result is obtained by combining the resulting values into a single one, following the method specified
 	 *    by iType.

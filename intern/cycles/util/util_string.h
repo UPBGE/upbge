@@ -58,7 +58,6 @@ string to_string(const char *str);
  *
  * Please note that strings are expected to be in UTF-8 codepage, and
  * if ANSI is needed then explicit conversion required.
- *
  */
 #ifdef _WIN32
 using std::wstring;
@@ -74,4 +73,4 @@ string string_human_readable_number(size_t num);
 
 CCL_NAMESPACE_END
 
-#endif /* __UTIL_STRING_H__ */
+#endif  /* __UTIL_STRING_H__ */

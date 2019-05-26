@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Joseph Eagar, Geoffrey Bantle, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/intern/bmesh_marking.c
@@ -42,6 +36,9 @@
 
 #include "bmesh.h"
 #include "bmesh_structure.h"
+
+/* For '_FLAG_OVERLAP'. */
+#include "bmesh_private.h"
 
 static void recount_totsels(BMesh *bm)
 {
@@ -828,7 +825,7 @@ void BM_editselection_center(BMEditSelection *ese, float r_center[3])
 	}
 	else if (ese->htype == BM_FACE) {
 		BMFace *efa = (BMFace *)ese->ele;
-		BM_face_calc_center_mean(efa, r_center);
+		BM_face_calc_center_median(efa, r_center);
 	}
 }
 
@@ -863,7 +860,7 @@ void BM_editselection_normal(BMEditSelection *ese, float r_normal[3])
 
 /* Calculate a plane that is rightangles to the edge/vert/faces normal
  * also make the plane run along an axis that is related to the geometry,
- * because this is used for the manipulators Y axis. */
+ * because this is used for the gizmos Y axis. */
 void BM_editselection_plane(BMEditSelection *ese, float r_plane[3])
 {
 	if (ese->htype == BM_VERT) {
@@ -895,7 +892,7 @@ void BM_editselection_plane(BMEditSelection *ese, float r_plane[3])
 		else {
 			/* the plane is simple, it runs along the edge
 			 * however selecting different edges can swap the direction of the y axis.
-			 * this makes it less likely for the y axis of the manipulator
+			 * this makes it less likely for the y axis of the gizmo
 			 * (running along the edge).. to flip less often.
 			 * at least its more predictable */
 			if (eed->v2->co[1] > eed->v1->co[1]) {  /* check which to do first */
@@ -1058,6 +1055,68 @@ GHash *BM_select_history_map_create(BMesh *bm)
 	return map;
 }
 
+/**
+ * Map arguments may all be the same pointer.
+ */
+void BM_select_history_merge_from_targetmap(
+        BMesh *bm,
+        GHash *vert_map,
+        GHash *edge_map,
+        GHash *face_map,
+        const bool use_chain)
+{
+
+#ifdef DEBUG
+	for (BMEditSelection *ese = bm->selected.first; ese; ese = ese->next) {
+		BLI_assert(BM_ELEM_API_FLAG_TEST(ese->ele, _FLAG_OVERLAP) == 0);
+	}
+#endif
+
+	for (BMEditSelection *ese = bm->selected.first; ese; ese = ese->next) {
+		BM_ELEM_API_FLAG_ENABLE(ese->ele, _FLAG_OVERLAP);
+
+		/* Only loop when (use_chain == true). */
+		GHash *map = NULL;
+		switch (ese->ele->head.htype) {
+			case BM_VERT: map = vert_map; break;
+			case BM_EDGE: map = edge_map; break;
+			case BM_FACE: map = face_map; break;
+			default: BMESH_ASSERT(0);     break;
+		}
+		if (map != NULL) {
+			BMElem *ele_dst = ese->ele;
+			while (true) {
+				BMElem *ele_dst_next = BLI_ghash_lookup(map, ele_dst);
+				BLI_assert(ele_dst != ele_dst_next);
+				if (ele_dst_next == NULL) {
+					break;
+				}
+				ele_dst = ele_dst_next;
+				/* Break loop on circular reference (should never happen). */
+				if (UNLIKELY(ele_dst == ese->ele)) {
+					BLI_assert(0);
+					break;
+				}
+				if (use_chain == false) {
+					break;
+				}
+			}
+			ese->ele = ele_dst;
+		}
+	}
+
+	/* Remove overlapping duplicates. */
+	for (BMEditSelection *ese = bm->selected.first, *ese_next; ese; ese = ese_next) {
+		ese_next = ese->next;
+		if (BM_ELEM_API_FLAG_TEST(ese->ele, _FLAG_OVERLAP)) {
+			BM_ELEM_API_FLAG_DISABLE(ese->ele, _FLAG_OVERLAP);
+		}
+		else {
+			BLI_freelinkN(&bm->selected, ese);
+		}
+	}
+}
+
 void BM_mesh_elem_hflag_disable_test(
         BMesh *bm, const char htype, const char hflag,
         const bool respecthide, const bool overwrite, const char hflag_test)
@@ -1148,10 +1207,6 @@ void BM_mesh_elem_hflag_enable_test(
 	int i;
 
 	BLI_assert((htype & ~BM_ALL_NOLOOP) == 0);
-
-	if (hflag & BM_ELEM_SELECT) {
-		BM_select_history_clear(bm);
-	}
 
 	/* note, better not attempt a fast path for selection as done with de-select
 	 * because hidden geometry and different selection modes can give different results,

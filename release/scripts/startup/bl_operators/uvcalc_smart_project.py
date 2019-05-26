@@ -143,9 +143,9 @@ def island2Edge(island):
     unique_points = {}
 
     for f in island:
-        f_uvkey = map(tuple, f.uv)
+        f_uvkey = list(map(tuple, f.uv))
 
-        for vIdx, edkey in enumerate(f.edge_keys):
+        for vIdx in range(len(f_uvkey)):
             unique_points[f_uvkey[vIdx]] = f.uv[vIdx]
 
             if f.v[vIdx].index > f.v[vIdx - 1].index:
@@ -158,18 +158,14 @@ def island2Edge(island):
             try:
                 edges[f_uvkey[i1], f_uvkey[i2]] *= 0  # sets any edge with more than 1 user to 0 are not returned.
             except:
-                edges[f_uvkey[i1], f_uvkey[i2]] = (f.uv[i1] - f.uv[i2]).length,
+                edges[f_uvkey[i1], f_uvkey[i2]] = (f.uv[i1] - f.uv[i2]).length
 
     # If 2 are the same then they will be together, but full [a,b] order is not correct.
 
     # Sort by length
-
     length_sorted_edges = [(Vector(key[0]), Vector(key[1]), value) for key, value in edges.items() if value != 0]
 
-    try:
-        length_sorted_edges.sort(key=lambda A: -A[2])  # largest first
-    except:
-        length_sorted_edges.sort(lambda A, B: cmp(B[2], A[2]))
+    length_sorted_edges.sort(key=lambda a: -a[2])  # largest first
 
     # Its okay to leave the length in there.
     # for e in length_sorted_edges:
@@ -271,7 +267,7 @@ def optiRotateUvIsland(faces):
     # orient them vertically (could be an option)
     minx, miny, maxx, maxy = boundsIsland(faces)
     w, h = maxx - minx, maxy - miny
-    # use epsilon so we dont randomly rotate (almost) perfect squares.
+    # use epsilon so we don't randomly rotate (almost) perfect squares.
     if h + 0.00001 < w:
         from math import pi
         angle = pi / 2.0
@@ -357,7 +353,7 @@ def mergeUvIslands(islandList):
                     BREAK = True
                     break
 
-                # Now we have 2 islands, if the efficiency of the islands lowers theres an
+                # Now we have 2 islands, if the efficiency of the islands lowers there's an
                 # increasing likely hood that we can fit merge into the bigger UV island.
                 # this ensures a tight fit.
 
@@ -625,7 +621,7 @@ def packIslands(islandList):
             h = SMALL_NUM
 
         """Save the offset to be applied later,
-        we could apply to the UVs now and allign them to the bottom left hand area
+        we could apply to the UVs now and align them to the bottom left hand area
         of the UV coords like the box packer imagines they are
         but, its quicker just to remember their offset and
         apply the packing and offset in 1 pass """
@@ -873,7 +869,7 @@ def main(context,
 
         # This while only gathers projection vecs, faces are assigned later on.
         while 1:
-            # If theres none there then start with the largest face
+            # If there's none there then start with the largest face
 
             # add all the faces that are close.
             for fIdx in range(len(tempMeshFaces) - 1, -1, -1):
@@ -898,7 +894,7 @@ def main(context,
                 projectVecs.append(averageVec.normalized())
 
             # Get the next vec!
-            # Pick the face thats most different to all existing angles :)
+            # Pick the face that's most different to all existing angles :)
             mostUniqueAngle = 1.0  # 1.0 is 0d. no difference.
             mostUniqueIndex = 0  # dummy
 
@@ -1064,7 +1060,6 @@ class SmartProject(Operator):
     island_margin = FloatProperty(
         name="Island Margin",
         description="Margin to reduce bleed from adjacent islands",
-        unit='LENGTH', subtype='DISTANCE',
         min=0.0, max=1.0,
         default=0.0,
     )

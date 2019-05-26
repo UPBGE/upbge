@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Brecht Van Lommel.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file GPU_basic_shader.h
@@ -53,7 +45,7 @@ typedef enum GPUBasicShaderOption {
 	GPU_SHADER_LINE =             (1 << 7),   /* draw lines */
 	GPU_SHADER_FLAT_NORMAL =      (1 << 8),   /* use flat normals */
 	GPU_SHADER_OPTIONS_NUM = 9,
-	GPU_SHADER_OPTION_COMBINATIONS = (1 << GPU_SHADER_OPTIONS_NUM)
+	GPU_SHADER_OPTION_COMBINATIONS = (1 << GPU_SHADER_OPTIONS_NUM),
 } GPUBasicShaderOption;
 
 /* Keep these in sync with gpu_shader_basic_frag.glsl */
@@ -69,7 +61,7 @@ typedef enum GPUBasicShaderStipple {
 	GPU_SHADER_STIPPLE_S3D_INTERLACE_COLUMN            = 8,
 	GPU_SHADER_STIPPLE_S3D_INTERLACE_COLUMN_SWAP       = 9,
 	GPU_SHADER_STIPPLE_S3D_INTERLACE_CHECKER           = 10,
-	GPU_SHADER_STIPPLE_S3D_INTERLACE_CHECKER_SWAP      = 11
+	GPU_SHADER_STIPPLE_S3D_INTERLACE_CHECKER_SWAP      = 11,
 } GPUBasicShaderStipple;
 
 void GPU_basic_shaders_init(void);

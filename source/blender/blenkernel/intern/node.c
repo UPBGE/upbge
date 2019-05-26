@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Bob Holcomb.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/node.c
@@ -226,7 +218,7 @@ static void update_typeinfo(Main *bmain, const struct bContext *C, bNodeTreeType
 	if (!bmain)
 		return;
 
-	FOREACH_NODETREE(bmain, ntree, id) {
+	FOREACH_NODETREE_BEGIN(bmain, ntree, id) {
 		bNode *node;
 		bNodeSocket *sock;
 
@@ -257,7 +249,7 @@ static void update_typeinfo(Main *bmain, const struct bContext *C, bNodeTreeType
 			if (socktype && STREQ(sock->idname, socktype->idname))
 				node_socket_set_typeinfo(ntree, sock, unregister ? NULL : socktype);
 	}
-	FOREACH_NODETREE_END
+	FOREACH_NODETREE_END;
 }
 
 /* Try to initialize all typeinfo in a node tree.
@@ -720,10 +712,10 @@ bNodeSocket *nodeInsertStaticSocket(bNodeTree *ntree, bNode *node, int in_out, i
 	return sock;
 }
 
-static void node_socket_free(bNodeTree *UNUSED(ntree), bNodeSocket *sock, bNode *UNUSED(node))
+static void node_socket_free(bNodeTree *UNUSED(ntree), bNodeSocket *sock, bNode *UNUSED(node), const bool do_id_user)
 {
 	if (sock->prop) {
-		IDP_FreeProperty(sock->prop);
+		IDP_FreeProperty_ex(sock->prop, do_id_user);
 		MEM_freeN(sock->prop);
 	}
 
@@ -746,7 +738,7 @@ void nodeRemoveSocket(bNodeTree *ntree, bNode *node, bNodeSocket *sock)
 	BLI_remlink(&node->inputs, sock);
 	BLI_remlink(&node->outputs, sock);
 
-	node_socket_free(ntree, sock, node);
+	node_socket_free(ntree, sock, node, true);
 	MEM_freeN(sock);
 
 	node->update |= NODE_UPDATE;
@@ -766,14 +758,14 @@ void nodeRemoveAllSockets(bNodeTree *ntree, bNode *node)
 
 	for (sock = node->inputs.first; sock; sock = sock_next) {
 		sock_next = sock->next;
-		node_socket_free(ntree, sock, node);
+		node_socket_free(ntree, sock, node, true);
 		MEM_freeN(sock);
 	}
 	BLI_listbase_clear(&node->inputs);
 
 	for (sock = node->outputs.first; sock; sock = sock_next) {
 		sock_next = sock->next;
-		node_socket_free(ntree, sock, node);
+		node_socket_free(ntree, sock, node, true);
 		MEM_freeN(sock);
 	}
 	BLI_listbase_clear(&node->outputs);
@@ -847,7 +839,7 @@ bool nodeIsChildOf(const bNode *parent, const bNode *child)
  * Iterate over a chain of nodes, starting with \a node_start, executing
  * \a callback for each node (which can return false to end iterator).
  *
- * \param reversed for backwards iteration
+ * \param reversed: for backwards iteration
  * \note Recursive
  */
 void nodeChainIter(
@@ -918,7 +910,7 @@ bNode *nodeAddStaticNode(const struct bContext *C, bNodeTree *ntree, int type)
 {
 	const char *idname = NULL;
 
-	NODE_TYPES_BEGIN(ntype)
+	NODE_TYPES_BEGIN(ntype) {
 		/* do an extra poll here, because some int types are used
 		 * for multiple node types, this helps find the desired type
 		 */
@@ -926,7 +918,7 @@ bNode *nodeAddStaticNode(const struct bContext *C, bNodeTree *ntree, int type)
 			idname = ntype->idname;
 			break;
 		}
-	NODE_TYPES_END
+	} NODE_TYPES_END;
 	if (!idname) {
 		printf("Error: static node type %d undefined\n", type);
 		return NULL;
@@ -1249,7 +1241,7 @@ bNodeTree *ntreeAddTree(Main *bmain, const char *name, const char *idname)
  *
  * WARNING! This function will not handle ID user count!
  *
- * \param flag  Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
+ * \param flag: Copying options (see BKE_library.h's LIB_ID_COPY_... flags for more).
  */
 void BKE_node_tree_copy_data(Main *UNUSED(bmain), bNodeTree *ntree_dst, const bNodeTree *ntree_src, const int flag)
 {
@@ -1737,12 +1729,14 @@ static void node_free_node_ex(bNodeTree *ntree, bNode *node, bool remove_animdat
 
 	for (sock = node->inputs.first; sock; sock = nextsock) {
 		nextsock = sock->next;
-		node_socket_free(ntree, sock, node);
+		/* Remember, no ID user refcount management here! */
+		node_socket_free(ntree, sock, node, false);
 		MEM_freeN(sock);
 	}
 	for (sock = node->outputs.first; sock; sock = nextsock) {
 		nextsock = sock->next;
-		node_socket_free(ntree, sock, node);
+		/* Remember, no ID user refcount management here! */
+		node_socket_free(ntree, sock, node, false);
 		MEM_freeN(sock);
 	}
 
@@ -2067,7 +2061,7 @@ bNodeTree *ntreeLocalize(bNodeTree *ntree)
 
 /* sync local composite with real tree */
 /* local tree is supposed to be running, be careful moving previews! */
-/* is called by jobs manager, outside threads, so it doesnt happen during draw */
+/* is called by jobs manager, outside threads, so it doesn't happen during draw */
 void ntreeLocalSync(bNodeTree *localtree, bNodeTree *ntree)
 {
 	if (localtree && ntree) {
@@ -2998,13 +2992,13 @@ static void ntree_validate_links(bNodeTree *ntree)
 
 void ntreeVerifyNodes(struct Main *main, struct ID *id)
 {
-	FOREACH_NODETREE(main, ntree, owner_id) {
+	FOREACH_NODETREE_BEGIN(main, ntree, owner_id) {
 		bNode *node;
 
 		for (node = ntree->nodes.first; node; node = node->next)
 			if (node->typeinfo->verifyfunc)
 				node->typeinfo->verifyfunc(ntree, node, id);
-	} FOREACH_NODETREE_END
+	} FOREACH_NODETREE_END;
 }
 
 void ntreeUpdateTree(Main *bmain, bNodeTree *ntree)
@@ -3735,23 +3729,23 @@ void init_nodesystem(void)
 void free_nodesystem(void)
 {
 	if (nodetypes_hash) {
-		NODE_TYPES_BEGIN(nt)
+		NODE_TYPES_BEGIN(nt) {
 			if (nt->ext.free) {
 				nt->ext.free(nt->ext.data);
 			}
-		NODE_TYPES_END
+		} NODE_TYPES_END;
 
 		BLI_ghash_free(nodetypes_hash, NULL, node_free_type);
 		nodetypes_hash = NULL;
 	}
 
 	if (nodesockettypes_hash) {
-		NODE_SOCKET_TYPES_BEGIN(st)
+		NODE_SOCKET_TYPES_BEGIN(st) {
 			if (st->ext_socket.free)
 				st->ext_socket.free(st->ext_socket.data);
 			if (st->ext_interface.free)
 				st->ext_interface.free(st->ext_interface.data);
-		NODE_SOCKET_TYPES_END
+		} NODE_SOCKET_TYPES_END;
 
 		BLI_ghash_free(nodesockettypes_hash, NULL, node_free_socket_type);
 		nodesockettypes_hash = NULL;
@@ -3773,7 +3767,7 @@ void free_nodesystem(void)
 
 
 /* -------------------------------------------------------------------- */
-/* NodeTree Iterator Helpers (FOREACH_NODETREE) */
+/* NodeTree Iterator Helpers (FOREACH_NODETREE_BEGIN) */
 
 void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *bmain)
 {

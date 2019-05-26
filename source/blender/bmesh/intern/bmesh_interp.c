@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Geoffrey Bantle.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/intern/bmesh_interp.c
@@ -253,7 +245,7 @@ static int compute_mdisp_quad(
 	{
 		float cent[3];
 		/* computer center */
-		BM_face_calc_center_mean(l->f, cent);
+		BM_face_calc_center_median(l->f, cent);
 		BLI_assert(equals_v3v3(cent, l_f_center));
 	}
 #endif
@@ -527,8 +519,8 @@ void BM_loop_interp_multires(BMesh *bm, BMLoop *l_dst, const BMFace *f_src)
 		float f_dst_center[3];
 		float f_src_center[3];
 
-		BM_face_calc_center_mean(l_dst->f, f_dst_center);
-		BM_face_calc_center_mean(f_src,    f_src_center);
+		BM_face_calc_center_median(l_dst->f, f_dst_center);
+		BM_face_calc_center_median(f_src,    f_src_center);
 
 		BM_loop_interp_multires_ex(bm, l_dst, f_src, f_dst_center, f_src_center, cd_loop_mdisp_offset);
 	}
@@ -555,8 +547,8 @@ void BM_face_interp_multires(BMesh *bm, BMFace *f_dst, const BMFace *f_src)
 		float f_dst_center[3];
 		float f_src_center[3];
 
-		BM_face_calc_center_mean(f_dst, f_dst_center);
-		BM_face_calc_center_mean(f_src, f_src_center);
+		BM_face_calc_center_median(f_dst, f_dst_center);
+		BM_face_calc_center_median(f_src, f_src_center);
 
 		BM_face_interp_multires_ex(bm, f_dst, f_src, f_dst_center, f_src_center, cd_loop_mdisp_offset);
 	}
@@ -583,18 +575,19 @@ void BM_face_multires_bounds_smooth(BMesh *bm, BMFace *f)
 		int sides;
 		int y;
 
-		/*
-		 *  mdisps is a grid of displacements, ordered thus:
-		 *
-		 *                     v4/next
-		 *                       |
-		 *   |      v1/cent-----mid2 ---> x
-		 *   |         |         |
-		 *   |         |         |
-		 *  v2/prev---mid1-----v3/cur
-		 *             |
-		 *             V
-		 *             y
+		/**
+		 * mdisps is a grid of displacements, ordered thus:
+		 * <pre>
+		 *                    v4/next
+		 *                      |
+		 *  |      v1/cent-----mid2 ---> x
+		 *  |         |         |
+		 *  |         |         |
+		 * v2/prev---mid1-----v3/cur
+		 *            |
+		 *            V
+		 *            y
+		 * </pre>
 		 */
 
 		sides = (int)sqrt(mdp->totdisp);
@@ -613,18 +606,19 @@ void BM_face_multires_bounds_smooth(BMesh *bm, BMFace *f)
 		int sides;
 		int y;
 
-		/*
-		 *  mdisps is a grid of displacements, ordered thus:
-		 *
-		 *                     v4/next
-		 *                       |
-		 *   |      v1/cent-----mid2 ---> x
-		 *   |         |         |
-		 *   |         |         |
-		 *  v2/prev---mid1-----v3/cur
-		 *             |
-		 *             V
-		 *             y
+		/**
+		 * mdisps is a grid of displacements, ordered thus:
+		 * <pre>
+		 *                    v4/next
+		 *                      |
+		 *  |      v1/cent-----mid2 ---> x
+		 *  |         |         |
+		 *  |         |         |
+		 * v2/prev---mid1-----v3/cur
+		 *            |
+		 *            V
+		 *            y
+		 * </pre>
 		 */
 
 		if (l->radial_next == l)

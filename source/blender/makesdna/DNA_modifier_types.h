@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_modifier_types.h
@@ -192,8 +188,9 @@ typedef struct MaskModifierData {
 	struct Object *ob_arm;  /* armature to use to in place of hardcoded vgroup */
 	char vgroup[64];        /* name of vertex group to use to mask, MAX_VGROUP_NAME */
 
-	int mode;               /* using armature or hardcoded vgroup */
-	int flag;               /* flags for various things */
+	short mode;               /* using armature or hardcoded vgroup */
+	short flag;               /* flags for various things */
+	float threshold;
 } MaskModifierData;
 
 /* Mask Modifier -> mode */
@@ -323,7 +320,8 @@ typedef struct BevelModifierData {
 	float profile;        /* controls profile shape (0->1, .5 is round) */
 	/* if the MOD_BEVEL_ANGLE is set, this will be how "sharp" an edge must be before it gets beveled */
 	float bevel_angle;
-	/* if the MOD_BEVEL_VWEIGHT option is set, this will be the name of the vert group, MAX_VGROUP_NAME */
+	/** if the MOD_BEVEL_VWEIGHT option is set,
+	 * this will be the name of the vert group, MAX_VGROUP_NAME */
 	char defgrp_name[64];
 } BevelModifierData;
 
@@ -820,8 +818,8 @@ typedef struct ShrinkwrapModifierData {
 	float projLimit;          /* limit the projection ray cast */
 	char  projAxis;           /* axis to project over */
 
-	/* If using projection over vertex normal this controls the level of subsurface that must be done
-	 * before getting the vertex coordinates and normal
+	/** If using projection over vertex normal this controls the level of subsurface that must be
+	 * done before getting the vertex coordinates and normal
 	 */
 	char subsurfLevels;
 
@@ -837,14 +835,14 @@ enum {
 
 /* Shrinkwrap->shrinkOpts */
 enum {
-	/* allow shrinkwrap to move the vertex in the positive direction of axis */
+	/** allow shrinkwrap to move the vertex in the positive direction of axis */
 	MOD_SHRINKWRAP_PROJECT_ALLOW_POS_DIR = (1 << 0),
-	/* allow shrinkwrap to move the vertex in the negative direction of axis */
+	/** allow shrinkwrap to move the vertex in the negative direction of axis */
 	MOD_SHRINKWRAP_PROJECT_ALLOW_NEG_DIR = (1 << 1),
 
-	/* ignore vertex moves if a vertex ends projected on a front face of the target */
+	/** ignore vertex moves if a vertex ends projected on a front face of the target */
 	MOD_SHRINKWRAP_CULL_TARGET_FRONTFACE = (1 << 3),
-	/* ignore vertex moves if a vertex ends projected on a back face of the target */
+	/** ignore vertex moves if a vertex ends projected on a back face of the target */
 	MOD_SHRINKWRAP_CULL_TARGET_BACKFACE  = (1 << 4),
 
 	MOD_SHRINKWRAP_KEEP_ABOVE_SURFACE    = (1 << 5),  /* distance is measure to the front face of the target */
@@ -854,7 +852,8 @@ enum {
 
 /* Shrinkwrap->projAxis */
 enum {
-	MOD_SHRINKWRAP_PROJECT_OVER_NORMAL   = 0,        /* projection over normal is used if no axis is selected */
+	/** projection over normal is used if no axis is selected */
+	MOD_SHRINKWRAP_PROJECT_OVER_NORMAL   = 0,
 	MOD_SHRINKWRAP_PROJECT_OVER_X_AXIS   = (1 << 0),
 	MOD_SHRINKWRAP_PROJECT_OVER_Y_AXIS   = (1 << 1),
 	MOD_SHRINKWRAP_PROJECT_OVER_Z_AXIS   = (1 << 2),
@@ -870,7 +869,7 @@ typedef struct SimpleDeformModifierData {
 	float limit[2];         /* lower and upper limit */
 
 	char mode;              /* deform function */
-	char axis;              /* lock axis (for taper and strech) */
+	char axis;              /* lock axis (for taper and stretch) */
 	char deform_axis;       /* axis to perform the deform on (default is X, but can be overridden by origin */
 	char flag;
 
@@ -1232,8 +1231,8 @@ enum {
 
 /* Remesh modifier */
 typedef enum eRemeshModifierFlags {
-	MOD_REMESH_FLOOD_FILL     = 1,
-	MOD_REMESH_SMOOTH_SHADING = 2,
+	MOD_REMESH_FLOOD_FILL     = (1 << 0),
+	MOD_REMESH_SMOOTH_SHADING = (1 << 1),
 } RemeshModifierFlags;
 
 typedef enum eRemeshModifierMode {

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2012 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/bmesh/bmesh_py_types_customdata.c
@@ -131,7 +125,7 @@ PyDoc_STRVAR(bpy_bmlayeraccess_collection__freestyle_face_doc,
 
 static PyObject *bpy_bmlayeraccess_collection_get(BPy_BMLayerAccess *self, void *flag)
 {
-	const int type = (int)GET_INT_FROM_POINTER(flag);
+	const int type = (int)POINTER_AS_INT(flag);
 
 	BPY_BM_CHECK_OBJ(self);
 

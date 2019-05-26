@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2015, Blender Foundation
  * This is a new part of Blender
- *
- * Contributor(s): Joshua Leung, Antonio Vazquez
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * Brush based operators for editing Grease Pencil strokes
  */
 
@@ -539,9 +532,9 @@ static bool gp_brush_pinch_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 	float vec[3];
 
 	/* Scale down standard influence value to get it more manageable...
-	 *  - No damping = Unmanageable at > 0.5 strength
-	 *  - Div 10     = Not enough effect
-	 *  - Div 5      = Happy medium... (by trial and error)
+	 * - No damping = Unmanageable at > 0.5 strength
+	 * - Div 10     = Not enough effect
+	 * - Div 5      = Happy medium... (by trial and error)
 	 */
 	inf = gp_brush_influence_calc(gso, radius, co) / 5.0f;
 
@@ -607,7 +600,8 @@ static bool gp_brush_twist_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 		axis_angle_normalized_to_mat3(rmat, axis, angle);
 
 		/* Rotate point (no matrix-space transforms needed, as GP points are in world space) */
-		sub_v3_v3v3(vec, &pt->x, gso->dvec); /* make relative to center (center is stored in dvec) */
+		sub_v3_v3v3(vec, &pt->x, gso->dvec); /* make relative to center
+		                                      * (center is stored in dvec) */
 		mul_m3_v3(rmat, vec);
 		add_v3_v3v3(&pt->x, vec, gso->dvec); /* restore */
 	}
@@ -956,7 +950,7 @@ static bool gpsculpt_brush_apply_clone(bContext *C, tGP_BrushEditData *gso)
 		gp_brush_clone_add(C, gso);
 	}
 	else {
-		/* Stamp or Continous Mode */
+		/* Stamp or Continuous Mode */
 		if (1 /*gso->brush->mode == GP_EDITBRUSH_CLONE_MODE_STAMP*/) {
 			/* Stamp - Proceed to translate the newly added strokes */
 			gp_brush_clone_adjust(gso);
@@ -1253,7 +1247,7 @@ static bool gpsculpt_brush_do_stroke(
 	}
 	else {
 		/* Loop over the points in the stroke, checking for intersections
-		 *  - an intersection means that we touched the stroke
+		 * - an intersection means that we touched the stroke
 		 */
 		for (i = 0; (i + 1) < gps->totpoints; i++) {
 			/* Get points to work with */
@@ -1287,7 +1281,7 @@ static bool gpsculpt_brush_do_stroke(
 			{
 				/* Check if point segment of stroke had anything to do with
 				 * brush region  (either within stroke painted, or on its lines)
-				 *  - this assumes that linewidth is irrelevant
+				 * - this assumes that linewidth is irrelevant
 				 */
 				if (gp_stroke_inside_circle(gso->mval, gso->mval_prev, radius, pc1[0], pc1[1], pc2[0], pc2[1])) {
 					/* Apply operation to these points */

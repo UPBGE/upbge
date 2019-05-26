@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2009 full recode.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  * API's for creating vertex groups from bones
  * - Interfaces with heat weighting in meshlaplacian
  */
@@ -322,7 +315,7 @@ static void add_verts_to_dgroups(ReportList *reports, Scene *scene, Object *ob, 
 				if ((par->pose) && (pchan = BKE_pose_channel_find_name(par->pose, bone->name))) {
 					if (bone->segments > 1) {
 						segments = bone->segments;
-						b_bone_spline_setup(pchan, 1, bbone_array);
+						BKE_pchan_bbone_spline_setup(pchan, 1, bbone_array);
 						bbone = bbone_array;
 					}
 				}

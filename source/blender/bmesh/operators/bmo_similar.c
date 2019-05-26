@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Joseph Eagar, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/operators/bmo_similar.c
@@ -155,7 +149,7 @@ void bmo_similar_faces_exec(BMesh *bm, BMOperator *op)
 
 				case SIMFACE_COPLANAR:
 					/* compute the center of the polygon */
-					BM_face_calc_center_mean(f_ext[i].f, f_ext[i].c);
+					BM_face_calc_center_median(f_ext[i].f, f_ext[i].c);
 
 					/* compute the plane distance */
 					f_ext[i].d = dot_v3v3(f_ext[i].f->no, f_ext[i].c);

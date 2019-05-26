@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/sculpt_paint/paint_vertex_weight_ops.c
@@ -210,7 +206,8 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 			const int vgroup_active = vc.obact->actdef - 1;
 			float vgroup_weight = defvert_find_weight(&me->dvert[v_idx_best], vgroup_active);
 
-			/* use combined weight in multipaint mode, since that's what is displayed to the user in the colors */
+			/* use combined weight in multipaint mode,
+			 * since that's what is displayed to the user in the colors */
 			if (ts->multipaint) {
 				int defbase_tot_sel;
 				const int defbase_tot = BLI_listbase_count(&vc.obact->defbase);
@@ -225,7 +222,8 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 					vgroup_weight = BKE_defvert_multipaint_collective_weight(
 					        &me->dvert[v_idx_best], defbase_tot, defbase_sel, defbase_tot_sel, ts->auto_normalize);
 
-					/* if autonormalize is enabled, but weights are not normalized, the value can exceed 1 */
+					/* if autonormalize is enabled, but weights are not normalized,
+					 * the value can exceed 1 */
 					CLAMP(vgroup_weight, 0.0f, 1.0f);
 				}
 
@@ -238,7 +236,7 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	}
 
 	if (changed) {
-		/* not really correct since the brush didnt change, but redraws the toolbar */
+		/* not really correct since the brush didn't change, but redraws the toolbar */
 		WM_main_add_notifier(NC_BRUSH | NA_EDITED, NULL); /* ts->wpaint->paint.brush */
 
 		return OPERATOR_FINISHED;
@@ -372,7 +370,8 @@ static int weight_sample_group_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-/* TODO, we could make this a menu into OBJECT_OT_vertex_group_set_active rather than its own operator */
+/* TODO, we could make this a menu into OBJECT_OT_vertex_group_set_active
+ * rather than its own operator */
 void PAINT_OT_weight_sample_group(wmOperatorType *ot)
 {
 	PropertyRNA *prop = NULL;
@@ -537,7 +536,7 @@ typedef struct DMGradient_vertStore {
 	float weight_orig;
 	enum {
 		VGRAD_STORE_NOP      = 0,
-		VGRAD_STORE_DW_EXIST = (1 << 0)
+		VGRAD_STORE_DW_EXIST = (1 << 0),
 	} flag;
 } DMGradient_vertStore;
 
@@ -687,13 +686,15 @@ static int paint_weight_gradient_modal(bContext *C, wmOperator *op, const wmEven
 
 	if (ret & OPERATOR_CANCELLED) {
 		Object *ob = CTX_data_active_object(C);
-		Mesh *me = ob->data;
-		if (vert_cache->wpp.wpaint_prev) {
-			BKE_defvert_array_free_elems(me->dvert, me->totvert);
-			BKE_defvert_array_copy(me->dvert, vert_cache->wpp.wpaint_prev, me->totvert);
-			wpaint_prev_destroy(&vert_cache->wpp);
+		if (vert_cache != NULL) {
+			Mesh *me = ob->data;
+			if (vert_cache->wpp.wpaint_prev) {
+				BKE_defvert_array_free_elems(me->dvert, me->totvert);
+				BKE_defvert_array_copy(me->dvert, vert_cache->wpp.wpaint_prev, me->totvert);
+				wpaint_prev_destroy(&vert_cache->wpp);
+			}
+			MEM_freeN(vert_cache);
 		}
-		MEM_freeN(vert_cache);
 
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);

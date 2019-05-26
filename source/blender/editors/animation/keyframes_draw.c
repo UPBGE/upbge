@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung (full recode)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/animation/keyframes_draw.c
@@ -324,8 +316,8 @@ static void add_bezt_to_keyblocks_list(DLRBT_Tree *blocks, BezTriple *first_bezt
 	}
 	else {
 		/* Check for same values...
-		 *  - Handles must have same central value as each other
-		 *  - Handles which control that section of the curve must be constant
+		 * - Handles must have same central value as each other
+		 * - Handles which control that section of the curve must be constant
 		 */
 		if (IS_EQF(beztn->vec[1][1], prev->vec[1][1]) == 0) return;
 
@@ -348,9 +340,9 @@ static void add_bezt_to_keyblocks_list(DLRBT_Tree *blocks, BezTriple *first_bezt
 		 *      an A ___ B |---| B situation
 		 */
 		// FIXME: here there is a bug where we are trying to get the summary for the following channels
-		//		A|--------------|A ______________ B|--------------|B
-		//		A|------------------------------------------------|A
-		//		A|----|A|---|A|-----------------------------------|A
+		//      A|--------------|A ______________ B|--------------|B
+		//      A|------------------------------------------------|A
+		//      A|----|A|---|A|-----------------------------------|A
 		for (ab = blocks->root; ab; ab = abn) {
 			/* check if this is a match, or whether we go left or right
 			 * NOTE: we now use a float threshold to prevent precision errors causing problems with summaries
@@ -674,7 +666,7 @@ static void draw_keylist(View2D *v2d, DLRBT_Tree *keys, DLRBT_Tree *blocks, floa
 	if (keys) {
 		for (ak = keys->first; ak; ak = ak->next) {
 			/* optimization: if keyframe doesn't appear within 5 units (screenspace) in visible area, don't draw
-			 *	- this might give some improvements, since we current have to flip between view/region matrices
+			 * - this might give some improvements, since we current have to flip between view/region matrices
 			 */
 			if (IN_RANGE_INCL(ak->cfra, v2d->cur.xmin, v2d->cur.xmax) == 0)
 				continue;
@@ -873,9 +865,10 @@ void summary_to_keylist(bAnimContext *ac, DLRBT_Tree *keys, DLRBT_Tree *blocks)
 		/* loop through each F-Curve, grabbing the keyframes */
 		for (ale = anim_data.first; ale; ale = ale->next) {
 			/* Why not use all #eAnim_KeyType here?
-			 * All of the other key types are actually "summaries" themselves, and will just end up duplicating stuff
-			 * that comes up through standard filtering of just F-Curves.
-			 * Given the way that these work, there isn't really any benefit at all from including them. - Aligorith */
+			 * All of the other key types are actually "summaries" themselves,
+			 * and will just end up duplicating stuff that comes up through
+			 * standard filtering of just F-Curves. Given the way that these work,
+			 * there isn't really any benefit at all from including them. - Aligorith */
 
 			switch (ale->datatype) {
 				case ALE_FCURVE:

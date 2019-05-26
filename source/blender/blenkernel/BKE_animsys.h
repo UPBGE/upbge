@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
- *
- * Contributor(s): Joshua Leung (original author)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_ANIMSYS_H__
@@ -31,22 +25,22 @@
  *  \author Joshua Leung
  */
 
-struct ID;
-struct ListBase;
-struct Main;
 struct AnimData;
 struct FCurve;
-struct KeyingSet;
+struct ID;
 struct KS_Path;
+struct KeyingSet;
+struct ListBase;
+struct Main;
 struct PathResolvedRNA;
 struct bContext;
 
+struct AnimMapper;
 struct PointerRNA;
 struct PropertyRNA;
 struct ReportList;
 struct bAction;
 struct bActionGroup;
-struct AnimMapper;
 
 /* ************************************* */
 /* AnimData API */
@@ -85,7 +79,7 @@ typedef enum eAnimData_MergeCopy_Modes {
 	ADT_MERGECOPY_SRC_COPY = 1,
 
 	/* Use src action (but just reference the existing version) */
-	ADT_MERGECOPY_SRC_REF  = 2
+	ADT_MERGECOPY_SRC_REF  = 2,
 } eAnimData_MergeCopy_Modes;
 
 void BKE_animdata_merge_copy(
@@ -190,7 +184,7 @@ bool BKE_animsys_execute_fcurve(struct PointerRNA *ptr, struct AnimMapper *remap
  * for standard animation evaluation UNDER ANY CIRCUMSTANCES!
  *
  * i.e. Pose Library (PoseLib) uses some of these for selectively applying poses, but
- *	    Particles/Sequencer performing funky time manipulation is not ok.
+ *      Particles/Sequencer performing funky time manipulation is not ok.
  */
 
 /* Evaluate Action (F-Curve Bag) */

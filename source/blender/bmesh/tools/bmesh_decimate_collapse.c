@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/tools/bmesh_decimate_collapse.c
@@ -76,7 +70,7 @@
 typedef enum CD_UseFlag {
 	CD_DO_VERT = (1 << 0),
 	CD_DO_EDGE = (1 << 1),
-	CD_DO_LOOP = (1 << 2)
+	CD_DO_LOOP = (1 << 2),
 } CD_UseFlag;
 
 
@@ -84,7 +78,7 @@ typedef enum CD_UseFlag {
  * ********************** */
 
 /**
- * \param vquadrics must be calloc'd
+ * \param vquadrics: must be calloc'd
  */
 static void bm_decim_build_quadrics(BMesh *bm, Quadric *vquadrics)
 {
@@ -100,7 +94,7 @@ static void bm_decim_build_quadrics(BMesh *bm, Quadric *vquadrics)
 		double plane_db[4];
 		Quadric q;
 
-		BM_face_calc_center_mean(f, center);
+		BM_face_calc_center_median(f, center);
 		copy_v3db_v3fl(plane_db, f->no);
 		plane_db[3] = -dot_v3db_v3fl(plane_db, center);
 
@@ -1281,9 +1275,9 @@ static bool bm_decim_edge_collapse(
 
 /**
  * \brief BM_mesh_decimate
- * \param bm The mesh
- * \param factor face count multiplier [0 - 1]
- * \param vweights Optional array of vertex  aligned weights [0 - 1],
+ * \param bm: The mesh
+ * \param factor: face count multiplier [0 - 1]
+ * \param vweights: Optional array of vertex  aligned weights [0 - 1],
  *        a vertex group is the usual source for this.
  * \param symmetry_axis: Axis of symmetry, -1 to disable mirror decimate.
  * \param symmetry_eps: Threshold when matching mirror verts.

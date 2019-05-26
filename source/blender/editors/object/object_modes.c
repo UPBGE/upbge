@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation, 2002-2008 full recode
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/object/object_modes.c
@@ -150,7 +144,8 @@ void ED_object_mode_set(bContext *C, eObjectMode mode)
 	WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &ptr);
 	WM_operator_properties_free(&ptr);
 #else
-	Object *ob = CTX_data_active_object(C);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = OBACT;
 	if (ob == NULL) {
 		return;
 	}

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -19,8 +17,6 @@
  * All rights reserved.
  *
  * The Original Code is: some of this file.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/math_matrix.c
@@ -822,12 +818,11 @@ bool invert_m4(float m[4][4])
 }
 
 /*
- * invertmat -
- *      computes the inverse of mat and puts it in inverse.  Returns
- *  true on success (i.e. can always find a pivot) and false on failure.
- *  Uses Gaussian Elimination with partial (maximal column) pivoting.
+ * Computes the inverse of mat and puts it in inverse.
+ * Returns true on success (i.e. can always find a pivot) and false on failure.
+ * Uses Gaussian Elimination with partial (maximal column) pivoting.
  *
- *					Mark Segal - 1992
+ * Mark Segal - 1992
  */
 
 bool invert_m4_m4(float inverse[4][4], float mat[4][4])
@@ -1764,11 +1759,13 @@ void blend_m4_m4m4(float out[4][4], float dst[4][4], float src[4][4], const floa
  */
 void interp_m3_m3m3(float R[3][3], float A[3][3], float B[3][3], const float t)
 {
-	/* 'Rotation' component ('U' part of polar decomposition, the closest orthogonal matrix to M3 rot/scale
+	/* 'Rotation' component ('U' part of polar decomposition,
+	 * the closest orthogonal matrix to M3 rot/scale
 	 * transformation matrix), spherically interpolated. */
 	float U_A[3][3], U_B[3][3], U[3][3];
 	float quat_A[4], quat_B[4], quat[4];
-	/* 'Scaling' component ('P' part of polar decomposition, i.e. scaling in U-defined space), linearly interpolated. */
+	/* 'Scaling' component ('P' part of polar decomposition, i.e. scaling in U-defined space),
+	 * linearly interpolated. */
 	float P_A[3][3], P_B[3][3], P[3][3];
 
 	int i;
@@ -2188,11 +2185,11 @@ void svd_m4(float U[4][4], float s[4], float V[4][4], float A_[4][4])
 		 * negligible elements in the s and e arrays.  On
 		 * completion the variables kase and k are set as follows.
 		 *
-		 * kase = 1	  if s(p) and e[k - 1] are negligible and k<p
-		 * kase = 2	  if s(k) is negligible and k<p
-		 * kase = 3	  if e[k - 1] is negligible, k<p, and
-		 *               s(k), ..., s(p) are not negligible (qr step).
-		 * kase = 4	  if e(p - 1) is negligible (convergence). */
+		 * kase = 1: if s(p) and e[k - 1] are negligible and k<p
+		 * kase = 2: if s(k) is negligible and k<p
+		 * kase = 3: if e[k - 1] is negligible, k<p, and
+		 *              s(k), ..., s(p) are not negligible (qr step).
+		 * kase = 4: if e(p - 1) is negligible (convergence). */
 
 		for (k = p - 2; k >= -1; k--) {
 			if (k == -1) {
@@ -2482,7 +2479,6 @@ void invert_m4_m4_safe(float Ainv[4][4], float A[4][4])
  * (and not translated at all!):
  *   BLI_space_transform_apply_normal(&data, no);
  *   BLI_space_transform_invert_normal(&data, no);
- *
  */
 
 /**

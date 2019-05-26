@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/depsgraph.h
@@ -40,19 +33,19 @@
 
 #include "intern/depsgraph_types.h"
 
-struct ID;
 struct GHash;
 struct GSet;
+struct ID;
 struct PointerRNA;
 struct PropertyRNA;
 
 namespace DEG {
 
-struct DepsNode;
-struct TimeSourceDepsNode;
-struct IDDepsNode;
 struct ComponentDepsNode;
+struct DepsNode;
+struct IDDepsNode;
 struct OperationDepsNode;
+struct TimeSourceDepsNode;
 
 /* *************************** */
 /* Relationships Between Nodes */

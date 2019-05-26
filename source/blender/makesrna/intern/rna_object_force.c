@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2008), Thomas Dinges
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_object_force.c
@@ -916,7 +910,7 @@ static void rna_def_pointcache_active(BlenderRNA *brna)
 	/* This first-level RNA pointer also has list of all caches from owning ID.
 	 * Those caches items have exact same content as 'active' one, except for that collection,
 	 * to prevent ugly recursive layout pattern.
-	 * Note: This shall probably be redone from scratch in a proper way at some poitn, but for now that will do,
+	 * Note: This shall probably be redone from scratch in a proper way at some point, but for now that will do,
 	 *       and shall not break anything in the API. */
 	prop = RNA_def_property(srna, "point_caches", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_funcs(prop, "rna_Cache_list_begin", "rna_iterator_listbase_next",

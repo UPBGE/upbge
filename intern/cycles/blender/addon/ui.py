@@ -17,11 +17,11 @@
 # <pep8 compliant>
 
 import bpy
+import _cycles
 
 from bpy.types import (
     Panel,
     Menu,
-    Operator,
 )
 
 
@@ -430,11 +430,18 @@ class CYCLES_RENDER_PT_performance(CyclesButtonsPanel, Panel):
         col.separator()
 
         col.label(text="Acceleration structure:")
+        if _cycles.with_embree:
+            row = col.row()
+            row.active = use_cpu(context)
+            row.prop(cscene, "use_bvh_embree")
+        row = col.row()
         col.prop(cscene, "debug_use_spatial_splits")
-        col.prop(cscene, "debug_use_hair_bvh")
+        row = col.row()
+        row.active = not cscene.use_bvh_embree or not _cycles.with_embree
+        row.prop(cscene, "debug_use_hair_bvh")
 
         row = col.row()
-        row.active = not cscene.debug_use_spatial_splits
+        row.active = not cscene.debug_use_spatial_splits and not cscene.use_bvh_embree
         row.prop(cscene, "debug_bvh_time_steps")
 
         col = layout.column()
@@ -491,8 +498,6 @@ class CYCLES_RENDER_PT_layer_passes(CyclesButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
-        import _cycles
-
         layout = self.layout
 
         scene = context.scene
@@ -516,6 +521,8 @@ class CYCLES_RENDER_PT_layer_passes(CyclesButtonsPanel, Panel):
         col.separator()
         col.prop(rl, "use_pass_shadow")
         col.prop(rl, "use_pass_ambient_occlusion")
+        col.separator()
+        col.prop(crl, "denoising_store_passes", text="Denoising Data")
         col.separator()
         col.prop(rl, "pass_alpha_threshold")
 
@@ -549,12 +556,6 @@ class CYCLES_RENDER_PT_layer_passes(CyclesButtonsPanel, Panel):
         col.prop(rl, "use_pass_emit", text="Emission")
         col.prop(rl, "use_pass_environment")
 
-        if context.scene.cycles.feature_set == 'EXPERIMENTAL':
-            col.separator()
-            sub = col.column()
-            sub.active = crl.use_denoising
-            sub.prop(crl, "denoising_store_passes", text="Denoising")
-
         col = layout.column()
         col.prop(crl, "pass_debug_render_time")
         if _cycles.with_cycles_debug:
@@ -563,6 +564,17 @@ class CYCLES_RENDER_PT_layer_passes(CyclesButtonsPanel, Panel):
             col.prop(crl, "pass_debug_bvh_intersections")
             col.prop(crl, "pass_debug_ray_bounces")
 
+        crl = rl.cycles
+        layout.label("Cryptomatte:")
+        row = layout.row(align=True)
+        row.prop(crl, "use_pass_crypto_object", text="Object", toggle=True)
+        row.prop(crl, "use_pass_crypto_material", text="Material", toggle=True)
+        row.prop(crl, "use_pass_crypto_asset", text="Asset", toggle=True)
+        row = layout.row(align=True)
+        row.prop(crl, "pass_crypto_depth")
+        row = layout.row(align=True)
+        row.active = use_cpu(context)
+        row.prop(crl, "pass_crypto_accurate", text="Accurate Mode")
 
 class CYCLES_RENDER_PT_views(CyclesButtonsPanel, Panel):
     bl_label = "Views"
@@ -630,9 +642,8 @@ class CYCLES_RENDER_PT_denoising(CyclesButtonsPanel, Panel):
         rl = rd.layers.active
         crl = rl.cycles
 
-        layout.active = crl.use_denoising
-
         split = layout.split()
+        split.active = crl.use_denoising
 
         col = split.column()
         sub = col.column(align=True)
@@ -647,24 +658,28 @@ class CYCLES_RENDER_PT_denoising(CyclesButtonsPanel, Panel):
         layout.separator()
 
         row = layout.row()
+        row.active = crl.use_denoising or crl.denoising_store_passes
         row.label(text="Diffuse:")
         sub = row.row(align=True)
         sub.prop(crl, "denoising_diffuse_direct", text="Direct", toggle=True)
         sub.prop(crl, "denoising_diffuse_indirect", text="Indirect", toggle=True)
 
         row = layout.row()
+        row.active = crl.use_denoising or crl.denoising_store_passes
         row.label(text="Glossy:")
         sub = row.row(align=True)
         sub.prop(crl, "denoising_glossy_direct", text="Direct", toggle=True)
         sub.prop(crl, "denoising_glossy_indirect", text="Indirect", toggle=True)
 
         row = layout.row()
+        row.active = crl.use_denoising or crl.denoising_store_passes
         row.label(text="Transmission:")
         sub = row.row(align=True)
         sub.prop(crl, "denoising_transmission_direct", text="Direct", toggle=True)
         sub.prop(crl, "denoising_transmission_indirect", text="Indirect", toggle=True)
 
         row = layout.row()
+        row.active = crl.use_denoising or crl.denoising_store_passes
         row.label(text="Subsurface:")
         sub = row.row(align=True)
         sub.prop(crl, "denoising_subsurface_direct", text="Direct", toggle=True)
@@ -894,27 +909,6 @@ class CYCLES_OBJECT_PT_cycles_settings(CyclesButtonsPanel, Panel):
         sub = row.row()
         sub.active = scene.render.use_simplify and cscene.use_distance_cull
         sub.prop(cob, "use_distance_cull")
-
-
-class CYCLES_OT_use_shading_nodes(Operator):
-    """Enable nodes on a material, world or lamp"""
-    bl_idname = "cycles.use_shading_nodes"
-    bl_label = "Use Nodes"
-
-    @classmethod
-    def poll(cls, context):
-        return (getattr(context, "material", False) or getattr(context, "world", False) or
-                getattr(context, "lamp", False))
-
-    def execute(self, context):
-        if context.material:
-            context.material.use_nodes = True
-        elif context.world:
-            context.world.use_nodes = True
-        elif context.lamp:
-            context.lamp.use_nodes = True
-
-        return {'FINISHED'}
 
 
 def find_node(material, nodetype):
@@ -1640,9 +1634,7 @@ class CYCLES_RENDER_PT_debug(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         col.label('OpenCL Flags:')
-        col.prop(cscene, "debug_opencl_kernel_type", text="Kernel")
         col.prop(cscene, "debug_opencl_device_type", text="Device")
-        col.prop(cscene, "debug_opencl_kernel_single_program", text="Single Program")
         col.prop(cscene, "debug_use_opencl_debug", text="Debug")
         col.prop(cscene, "debug_opencl_mem_limit")
 
@@ -1854,7 +1846,6 @@ classes = (
     CYCLES_PT_context_material,
     CYCLES_OBJECT_PT_motion_blur,
     CYCLES_OBJECT_PT_cycles_settings,
-    CYCLES_OT_use_shading_nodes,
     CYCLES_LAMP_PT_preview,
     CYCLES_LAMP_PT_lamp,
     CYCLES_LAMP_PT_nodes,

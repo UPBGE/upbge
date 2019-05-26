@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributors: Amorilia (amorilia@users.sourceforge.net)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/imbuf/intern/dds/ColorBlock.cpp
@@ -170,7 +164,7 @@ bool ColorBlock::isSingleColor(Color32 mask/*= Color32(0xFF, 0xFF, 0xFF, 0x00)*/
 	return true;
 }
 
-/*
+#if 0
 /// Returns true if the block has a single color, ignoring transparent pixels.
 bool ColorBlock::isSingleColorNoAlpha() const
 {
@@ -194,10 +188,11 @@ bool ColorBlock::isSingleColorNoAlpha() const
 
 	return true;
 }
-*/
+#endif
 
+#if 0
 /// Count number of unique colors in this color block.
-/*uint ColorBlock::countUniqueColors() const
+uint ColorBlock::countUniqueColors() const
 {
 	uint count = 0;
 
@@ -217,9 +212,11 @@ bool ColorBlock::isSingleColorNoAlpha() const
 	}
 
 	return count;
-}*/
+}
+#endif
 
-/*/// Get average color of the block.
+#if 0
+/// Get average color of the block.
 Color32 ColorBlock::averageColor() const
 {
 	uint r, g, b, a;
@@ -233,7 +230,8 @@ Color32 ColorBlock::averageColor() const
 	}
 
 	return Color32(uint8(r / 16), uint8(g / 16), uint8(b / 16), uint8(a / 16));
-}*/
+}
+#endif
 
 /// Return true if the block is not fully opaque.
 bool ColorBlock::hasAlpha() const
@@ -367,7 +365,8 @@ void ColorBlock::boundsRangeAlpha(Color32 *start, Color32 *end) const
 }
 #endif
 
-/*/// Sort colors by abosolute value in their 16 bit representation.
+#if 0
+/// Sort colors by abosolute value in their 16 bit representation.
 void ColorBlock::sortColorsByAbsoluteValue()
 {
 	// Dummy selection sort.
@@ -385,10 +384,11 @@ void ColorBlock::sortColorsByAbsoluteValue()
 		}
 		swap( m_color[a], m_color[max] );
 	}
-}*/
+}
+#endif
 
-
-/*/// Find extreme colors in the given axis.
+#if 0
+/// Find extreme colors in the given axis.
 void ColorBlock::computeRange(Vector3::Arg axis, Color32 *start, Color32 *end) const
 {
 
@@ -415,10 +415,11 @@ void ColorBlock::computeRange(Vector3::Arg axis, Color32 *start, Color32 *end) c
 
 	*start = m_color[mini];
 	*end = m_color[maxi];
-}*/
+}
+#endif
 
-
-/*/// Sort colors in the given axis.
+#if 0
+/// Sort colors in the given axis.
 void ColorBlock::sortColors(const Vector3 & axis)
 {
 	float luma_array[16];
@@ -439,10 +440,11 @@ void ColorBlock::sortColors(const Vector3 & axis)
 		swap( luma_array[a], luma_array[min] );
 		swap( m_color[a], m_color[min] );
 	}
-}*/
+}
+#endif
 
-
-/*/// Get the volume of the color block.
+#if 0
+/// Get the volume of the color block.
 float ColorBlock::volume() const
 {
 	Box bounds;
@@ -455,4 +457,4 @@ float ColorBlock::volume() const
 
 	return bounds.volume();
 }
-*/
+#endif

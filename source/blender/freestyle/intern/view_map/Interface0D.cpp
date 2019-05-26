@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/freestyle/intern/view_map/Interface0D.cpp
@@ -78,7 +74,7 @@ Geometry::Vec2r Interface0D::getPoint2D() const
 	return 0;
 }
 
-FEdge * Interface0D::getFEdge(Interface0D&)
+FEdge *Interface0D::getFEdge(Interface0D&)
 {
 	PyErr_SetString(PyExc_TypeError, "method getFEdge() not properly overridden");
 	return 0;
@@ -96,25 +92,25 @@ Nature::VertexNature Interface0D::getNature() const
 	return Nature::POINT;
 }
 
-SVertex * Interface0D::castToSVertex()
+SVertex *Interface0D::castToSVertex()
 {
 	PyErr_SetString(PyExc_TypeError, "method castToSVertex() not properly overridden");
 	return 0;
 }
 
-ViewVertex * Interface0D::castToViewVertex()
+ViewVertex *Interface0D::castToViewVertex()
 {
 	PyErr_SetString(PyExc_TypeError, "method castToViewVertex() not properly overridden");
 	return 0;
 }
 
-NonTVertex * Interface0D::castToNonTVertex()
+NonTVertex *Interface0D::castToNonTVertex()
 {
 	PyErr_SetString(PyExc_TypeError, "method castToNonTVertex() not properly overridden");
 	return 0;
 }
 
-TVertex * Interface0D::castToTVertex()
+TVertex *Interface0D::castToTVertex()
 {
 	PyErr_SetString(PyExc_TypeError, "method castToTVertex() not properly overridden");
 	return 0;

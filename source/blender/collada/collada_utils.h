@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Chingiz Dyussenov, Arystanbek Dyussenov, Nathan Letwory.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file collada_utils.h
@@ -191,16 +185,16 @@ public:
 };
 
 /* a map to store bone extension maps
-| std:string     : an armature name
-| BoneExtended * : a map that contains extra data for bones
-*/
+ * std:string     : an armature name
+ * BoneExtended * : a map that contains extra data for bones
+ */
 typedef std::map<std::string, BoneExtended *> BoneExtensionMap;
 
 /*
-| A class to organise bone extendion data for multiple Armatures.
-| this is needed for the case where a Collada file contains 2 or more
-| separate armatures.
-*/
+ * A class to organise bone extendion data for multiple Armatures.
+ * this is needed for the case where a Collada file contains 2 or more
+ * separate armatures.
+ */
 class BoneExtensionManager {
 private:
 	std::map<std::string, BoneExtensionMap *> extended_bone_maps;

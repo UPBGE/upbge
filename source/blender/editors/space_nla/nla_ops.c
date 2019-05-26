@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
- *
- *
- * Contributor(s): Joshua Leung (major recode)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_nla/nla_ops.c
@@ -57,11 +50,11 @@ bool nlaop_poll_tweakmode_off(bContext *C)
 	Scene *scene;
 
 	/* for now, we check 2 things:
-	 *  1) active editor must be NLA
-	 *	2) tweakmode is currently set as a 'per-scene' flag
-	 *	   so that it will affect entire NLA data-sets,
-	 *	   but not all AnimData blocks will be in tweakmode for
-	 *	   various reasons
+	 * 1) active editor must be NLA
+	 * 2) tweakmode is currently set as a 'per-scene' flag
+	 *    so that it will affect entire NLA data-sets,
+	 *    but not all AnimData blocks will be in tweakmode for
+	 *    various reasons
 	 */
 	if (ED_operator_nla_active(C) == 0)
 		return 0;
@@ -79,11 +72,11 @@ bool nlaop_poll_tweakmode_on(bContext *C)
 	Scene *scene;
 
 	/* for now, we check 2 things:
-	 *  1) active editor must be NLA
-	 *	2) tweakmode is currently set as a 'per-scene' flag
-	 *	   so that it will affect entire NLA data-sets,
-	 *	   but not all AnimData blocks will be in tweakmode for
-	 *	   various reasons
+	 * 1) active editor must be NLA
+	 * 2) tweakmode is currently set as a 'per-scene' flag
+	 *    so that it will affect entire NLA data-sets,
+	 *    but not all AnimData blocks will be in tweakmode for
+	 *    various reasons
 	 */
 	if (ED_operator_nla_active(C) == 0)
 		return 0;
@@ -319,8 +312,8 @@ void nla_keymap(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "NLA_OT_properties", NKEY, KM_PRESS, 0, 0);
 
 	/* tweakmode
-	 *	- enter and exit are separate operators with the same hotkey...
-	 *	  This works as they use different poll()'s
+	 * - enter and exit are separate operators with the same hotkey...
+	 *   This works as they use different poll()'s
 	 */
 	WM_keymap_add_item(keymap, "NLA_OT_tweakmode_enter", TABKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "NLA_OT_tweakmode_exit", TABKEY, KM_PRESS, 0, 0);
@@ -340,10 +333,11 @@ void nla_keymap(wmKeyConfig *keyconf)
 
 	/* channels ---------------------------------------------------------- */
 	/* Channels are not directly handled by the NLA Editor module, but are inherited from the Animation module.
-	 * Most of the relevant operations, keymaps, drawing, etc. can therefore all be found in that module instead, as there
-	 * are many similarities with the other Animation Editors.
+	 * Most of the relevant operations, keymaps, drawing, etc. can therefore all
+	 * be found in that module instead, as there are many similarities with the other Animation Editors.
 	 *
-	 * However, those operations which involve clicking on channels and/or the placement of them in the view are implemented here instead
+	 * However, those operations which involve clicking on channels and/or
+	 * the placement of them in the view are implemented here instead
 	 */
 	keymap = WM_keymap_ensure(keyconf, "NLA Channels", SPACE_NLA, 0);
 	nla_keymap_channels(keymap);

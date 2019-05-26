@@ -20,88 +20,129 @@
 #include "util/util_types.h"
 #include "util/util_string.h"
 
+#include <numaapi.h>
+
+#include <OpenImageIO/sysutil.h>
+OIIO_NAMESPACE_USING
+
 #ifdef _WIN32
 #  if(!defined(FREE_WINDOWS))
 #    include <intrin.h>
 #  endif
 #  include "util_windows.h"
 #elif defined(__APPLE__)
+#  include <sys/ioctl.h>
 #  include <sys/sysctl.h>
 #  include <sys/types.h>
 #else
 #  include <unistd.h>
+#  include <sys/ioctl.h>
 #endif
 
 CCL_NAMESPACE_BEGIN
 
-int system_cpu_group_count()
+bool system_cpu_ensure_initialized()
 {
-#ifdef _WIN32
-	util_windows_init_numa_groups();
-	return GetActiveProcessorGroupCount();
-#else
-	/* TODO(sergey): Need to adopt for other platforms. */
-	return 1;
-#endif
+	static bool is_initialized = false;
+	static bool result = false;
+	if(is_initialized) {
+		return result;
+	}
+	is_initialized = true;
+	const NUMAAPI_Result numa_result = numaAPI_Initialize();
+	result = (numa_result == NUMAAPI_SUCCESS);
+	return result;
 }
 
-int system_cpu_group_thread_count(int group)
+/* Fallback solution, which doesn't use NUMA/CPU groups. */
+static int system_cpu_thread_count_fallback()
 {
-	/* TODO(sergey): Need make other platforms aware of groups. */
 #ifdef _WIN32
-	util_windows_init_numa_groups();
-	return GetActiveProcessorCount(group);
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	return info.dwNumberOfProcessors;
 #elif defined(__APPLE__)
-	(void)group;
 	int count;
 	size_t len = sizeof(count);
 	int mib[2] = { CTL_HW, HW_NCPU };
 	sysctl(mib, 2, &count, &len, NULL, 0);
 	return count;
 #else
-	(void)group;
 	return sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 }
 
 int system_cpu_thread_count()
 {
-	static uint count = 0;
-
-	if(count > 0) {
-		return count;
+	const int num_nodes = system_cpu_num_numa_nodes();
+	int num_threads = 0;
+	for(int node = 0; node < num_nodes; ++node) {
+		if(!system_cpu_is_numa_node_available(node)) {
+			continue;
+		}
+		num_threads += system_cpu_num_numa_node_processors(node);
 	}
-
-	int max_group = system_cpu_group_count();
-	VLOG(1) << "Detected " << max_group << " CPU groups.";
-	for(int group = 0; group < max_group; ++group) {
-		int num_threads = system_cpu_group_thread_count(group);
-		VLOG(1) << "Group " << group
-		        << " has " << num_threads << " threads.";
-		count += num_threads;
-	}
-
-	if(count < 1) {
-		count = 1;
-	}
-
-	return count;
+	return num_threads;
 }
 
-unsigned short system_cpu_process_groups(unsigned short max_groups,
-                                         unsigned short *groups)
+int system_cpu_num_numa_nodes()
 {
-#ifdef _WIN32
-	unsigned short group_count = max_groups;
-	if(!GetProcessGroupAffinity(GetCurrentProcess(), &group_count, groups)) {
-		return 0;
+	if(!system_cpu_ensure_initialized()) {
+		/* Fallback to a single node with all the threads. */
+		return 1;
 	}
-	return group_count;
+	return numaAPI_GetNumNodes();
+}
+
+bool system_cpu_is_numa_node_available(int node)
+{
+	if(!system_cpu_ensure_initialized()) {
+		return true;
+	}
+	return numaAPI_IsNodeAvailable(node);
+}
+
+int system_cpu_num_numa_node_processors(int node)
+{
+	if(!system_cpu_ensure_initialized()) {
+		return system_cpu_thread_count_fallback();
+	}
+	return numaAPI_GetNumNodeProcessors(node);
+}
+
+bool system_cpu_run_thread_on_node(int node)
+{
+	if(!system_cpu_ensure_initialized()) {
+		return true;
+	}
+	return numaAPI_RunThreadOnNode(node);
+}
+
+int system_console_width()
+{
+	int columns = 0;
+
+#ifdef _WIN32
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	if(GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
+		columns = csbi.dwSize.X;
+	}
 #else
-	(void) max_groups;
-	(void) groups;
-	return 0;
+	struct winsize w;
+	if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0) {
+		columns = w.ws_col;
+	}
 #endif
+
+	return (columns > 0) ? columns : 80;
+}
+
+int system_cpu_num_active_group_processors()
+{
+	if(!system_cpu_ensure_initialized()) {
+		return system_cpu_thread_count_fallback();
+	}
+	return numaAPI_GetNumCurrentNodesProcessors();
 }
 
 #if !defined(_WIN32) || defined(FREE_WINDOWS)
@@ -290,6 +331,26 @@ bool system_cpu_support_avx2()
 }
 
 #endif
+
+bool system_call_self(const vector<string>& args)
+{
+	/* Escape program and arguments in case they contain spaces. */
+	string cmd = "\"" + Sysutil::this_program_path() + "\"";
+
+	for(int i = 0; i < args.size(); i++) {
+		cmd += " \"" + args[i] + "\"";
+	}
+
+#ifdef _WIN32
+	/* Use cmd /S to avoid issues with spaces in arguments. */
+	cmd = "cmd /S /C \"" + cmd + " > nul \"";
+#else
+	/* Quiet output. */
+	cmd += " > /dev/null";
+#endif
+
+	return (system(cmd.c_str()) == 0);
+}
 
 size_t system_physical_ram()
 {

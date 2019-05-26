@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2005 by the Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Alexander Pinzon
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/modifiers/intern/MOD_laplaciansmooth.c
@@ -60,8 +53,8 @@ struct BLaplacianSystem {
 	int numLoops;           /* Number of edges*/
 	int numPolys;           /* Number of faces*/
 	int numVerts;           /* Number of verts*/
-	short *numNeFa;         /* Number of neighboors faces around vertice*/
-	short *numNeEd;         /* Number of neighboors Edges around vertice*/
+	short *numNeFa;         /* Number of neighbors faces around vertice*/
+	short *numNeEd;         /* Number of neighbors Edges around vertice*/
 	short *zerola;          /* Is zero area or length*/
 
 	/* Pointers to data*/
@@ -268,7 +261,7 @@ static void init_laplacian_matrix(LaplacianSystem *sys)
 	for (i = 0; i < sys->numEdges; i++) {
 		idv1 = sys->medges[i].v1;
 		idv2 = sys->medges[i].v2;
-		/* if is boundary, apply scale-dependent umbrella operator only with neighboors in boundary */
+		/* if is boundary, apply scale-dependent umbrella operator only with neighbors in boundary */
 		if (sys->numNeEd[idv1] != sys->numNeFa[idv1] && sys->numNeEd[idv2] != sys->numNeFa[idv2]) {
 			sys->vlengths[idv1] += sys->eweights[i];
 			sys->vlengths[idv2] += sys->eweights[i];

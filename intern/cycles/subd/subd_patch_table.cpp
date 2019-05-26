@@ -22,7 +22,6 @@
  * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied. See the Apache License for the specific
  * language governing permissions and limitations under the Apache License.
- *
  */
 
 #include "subd/subd_patch_table.h"
@@ -252,8 +251,8 @@ void PackedPatchTable::pack(Far::PatchTable* patch_table, int offset)
 
 	build_patch_map(*this, patch_table, offset);
 #else
-	(void)patch_table;
-	(void)offset;
+	(void) patch_table;
+	(void) offset;
 #endif
 }
 

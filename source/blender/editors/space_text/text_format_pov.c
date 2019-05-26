@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -13,8 +11,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_text/text_format_pov.c
@@ -83,7 +79,7 @@ static int txtfmt_pov_find_keyword(const char *string)
 	else if (STR_LITERAL_STARTSWITH(string, "if",          len)) i = len;
 	else                                                         i = 0;
 
-	/* If next source char is an identifier (eg. 'i' in "definate") no match */
+	/* If next source char is an identifier (eg. 'i' in "definite") no match */
 	return (i == 0 || text_check_identifier(string[i])) ? -1 : i;
 }
 
@@ -236,7 +232,7 @@ static int txtfmt_pov_find_reserved_keywords(const char *string)
 	else if (STR_LITERAL_STARTSWITH(string, "str",                len)) i = len;
 	else                                                                i = 0;
 
-	/* If next source char is an identifier (eg. 'i' in "definate") no match */
+	/* If next source char is an identifier (eg. 'i' in "definite") no match */
 	return (i == 0 || text_check_identifier(string[i])) ? -1 : i;
 }
 
@@ -466,7 +462,7 @@ static int txtfmt_pov_find_reserved_builtins(const char *string)
 	else if (STR_LITERAL_STARTSWITH(string, "z",                   len)) i = len;
 	else                                                                 i = 0;
 
-	/* If next source char is an identifier (eg. 'i' in "definate") no match */
+	/* If next source char is an identifier (eg. 'i' in "definite") no match */
 	return (i == 0 || text_check_identifier(string[i])) ? -1 : i;
 }
 
@@ -683,7 +679,7 @@ static int txtfmt_pov_find_specialvar(const char *string)
 	else if (STR_LITERAL_STARTSWITH(string, "gall",                     len)) i = len;
 	else                                                                i = 0;
 
-	/* If next source char is an identifier (eg. 'i' in "definate") no match */
+	/* If next source char is an identifier (eg. 'i' in "definite") no match */
 	return (i == 0 || text_check_identifier(string[i])) ? -1 : i;
 }
 

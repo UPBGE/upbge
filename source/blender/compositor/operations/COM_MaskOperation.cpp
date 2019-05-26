@@ -14,11 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
- *		Sergey Sharybin
  */
 
 #include "COM_MaskOperation.h"
@@ -54,7 +49,7 @@ void MaskOperation::initExecution()
 
 			BKE_maskrasterize_handle_init(this->m_rasterMaskHandles[0], this->m_mask,
 			        this->m_maskWidth, this->m_maskHeight,
-			        true, this->m_do_smooth, this->m_do_feather);
+			        true, true, this->m_do_feather);
 		}
 		else {
 			/* make a throw away copy of the mask */
@@ -88,7 +83,7 @@ void MaskOperation::initExecution()
 
 				BKE_maskrasterize_handle_init(this->m_rasterMaskHandles[i], mask_temp,
 				                              this->m_maskWidth, this->m_maskHeight,
-				                              true, this->m_do_smooth, this->m_do_feather);
+				                              true, true, this->m_do_feather);
 
 				frame_iter += frame_step;
 			}

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/GHOST_ISystem.h
@@ -305,6 +297,11 @@ public:
 	 * Native pixel size support (MacBook 'retina').
 	 */
 	virtual bool useNativePixel(void) = 0;
+
+	/**
+	 * Focus window after opening, or put them in the background.
+	 */
+	virtual void useWindowFocus(const bool use_focus) = 0;
 
 	/***************************************************************************************
 	 * Event management functionality

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_regions_intern.h
@@ -30,7 +26,7 @@
 #define MENU_PADDING (int)(0.2f * UI_UNIT_Y)
 
 /* interface_region_menu_popup.c */
-unsigned int ui_popup_menu_hash(const char *str);
+uint ui_popup_menu_hash(const char *str);
 
 /* interface_regions_intern.h */
 ARegion *ui_region_temp_add(bScreen *sc);

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/intern/bmesh_polygon_edgenet.c
@@ -1066,7 +1062,6 @@ static bool test_tagged_and_notface(BMEdge *e, void *fptr)
  *
  * \note All edges and vertices must have their #BM_ELEM_INTERNAL_TAG flag enabled.
  * This function leaves all the flags set as well.
- *
  */
 static BMVert *bm_face_split_edgenet_partial_connect(BMesh *bm, BMVert *v_delimit, BMFace *f)
 {
@@ -1162,7 +1157,16 @@ static BMVert *bm_face_split_edgenet_partial_connect(BMesh *bm, BMVert *v_delimi
 		BM_elem_flag_enable(v_split, VERT_NOT_IN_STACK);
 
 		BLI_assert(v_delimit->e != NULL);
+
+		/* Degenerate, avoid eternal loop, see: T59074. */
+#if 0
 		BLI_assert(v_split->e != NULL);
+#else
+		if (UNLIKELY(v_split->e == NULL)) {
+			BM_vert_kill(bm, v_split);
+			v_split = NULL;
+		}
+#endif
 	}
 
 	/* Restore flags */

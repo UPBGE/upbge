@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Martin Poirier
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/transform/transform_orientations.c
@@ -662,7 +656,7 @@ int getTransformOrientation_ex(const bContext *C, float normal[3], float plane[3
 						}
 
 						if (em->bm->totedgesel >= 1) {
-							/* find an edge thats apart of v_tri (no need to search all edges) */
+							/* find an edge that's apart of v_tri (no need to search all edges) */
 							float e_length;
 							int j;
 
@@ -796,12 +790,7 @@ int getTransformOrientation_ex(const bContext *C, float normal[3], float plane[3
 						}
 					}
 
-					if (is_zero_v3(plane)) {
-						result = ORIENTATION_VERT;
-					}
-					else {
-						result = ORIENTATION_EDGE;
-					}
+					result = is_zero_v3(plane) ? ORIENTATION_VERT : ORIENTATION_EDGE;
 				}
 				else if (em->bm->totvertsel > 3) {
 					BMIter iter;
@@ -1103,6 +1092,11 @@ void ED_getTransformOrientationMatrix(const bContext *C, float orientation_mat[3
 	int type;
 
 	type = getTransformOrientation_ex(C, normal, plane, around);
+
+	/* Fallback, when the plane can't be calculated. */
+	if (ORIENTATION_USE_PLANE(type) && is_zero_v3(plane)) {
+		type = ORIENTATION_VERT;
+	}
 
 	switch (type) {
 		case ORIENTATION_NORMAL:

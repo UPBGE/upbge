@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,11 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/blenloader/intern/versioning_defaults.c
@@ -199,7 +192,7 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 
 			for (space_link = area->spacedata.first; space_link; space_link = space_link->next) {
 				if (space_link->spacetype == SPACE_CLIP) {
-					SpaceClip *space_clip = (SpaceClip *) space_link;
+					SpaceClip *space_clip = (SpaceClip *)space_link;
 					space_clip->flag &= ~SC_MANUAL_CALIBRATION;
 				}
 			}

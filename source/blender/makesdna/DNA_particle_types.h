@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 by Janne Karhu.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_particle_types.h
@@ -106,15 +98,15 @@ typedef struct ParticleData {
 
 	int totkey;				/* amount of hair or keyed keys*/
 
-	float time, lifetime;	/* dietime is not nescessarily time+lifetime as	*/
-	float dietime;			/* particles can die unnaturally (collision)	*/
+	float time, lifetime;	/* dietime is not necessarily time+lifetime as */
+	float dietime;			/* particles can die unnaturally (collision). */
 
 	/* WARNING! Those two indices, when not affected to vertices, are for !!! TESSELLATED FACES !!!, not POLYGONS! */
 	int num;				/* index to vert/edge/face */
 	int num_dmcache;		/* index to derived mesh data (face) to avoid slow lookups */
 
 	float fuv[4], foffset;	/* coordinates on face/edge number "num" and depth along*/
-							/* face normal for volume emission						*/
+							/* face normal for volume emission. */
 
 	float size;				/* size and multiplier so that we can update size when ever */
 
@@ -268,8 +260,11 @@ typedef struct ParticleSettings {
 } ParticleSettings;
 
 typedef struct ParticleSystem {
-	/* note1: make sure all (runtime) are NULL's in 'copy_particlesystem' XXX, this function is no more! - need to invstigate */
-	/* note2: make sure any uses of this struct in DNA are accounted for in 'BKE_object_copy_particlesystems' */
+	/* note1: make sure all (runtime) are NULL's in 'copy_particlesystem' XXX,
+	 * this function is no more! - need to invstigate */
+
+	/* note2: make sure any uses of this struct in DNA are
+	 * accounted for in 'BKE_object_copy_particlesystems' */
 
 	struct ParticleSystem *next, *prev;
 
@@ -355,7 +350,7 @@ typedef enum eParticleDrawFlag {
 } eParticleDrawFlag;
 
 /* part->type */
-/* hair is allways baked static in object/geometry space */
+/* hair is always baked static in object/geometry space */
 /* other types (normal particles) are in global space and not static baked */
 #define PART_EMITTER		0
 //#define PART_REACTOR		1

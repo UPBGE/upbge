@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Joseph Eagar, Geoffrey Bantle, Levi Schooley.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/bmesh/intern/bmesh_walkers.c
@@ -190,10 +184,10 @@ void *BMW_current_state(BMWalker *walker)
 	if (currentstate) {
 		/* Automatic update of depth. For most walkers that
 		 * follow the standard "Step" pattern of:
-		 *  - read current state
-		 *  - remove current state
-		 *  - push new states
-		 *  - return walk result from just-removed current state
+		 * - read current state
+		 * - remove current state
+		 * - push new states
+		 * - return walk result from just-removed current state
 		 * this simple automatic update should keep track of depth
 		 * just fine. Walkers that deviate from that pattern may
 		 * need to manually update the depth if they care about

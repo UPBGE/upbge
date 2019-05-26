@@ -445,8 +445,9 @@ update: .FORCE
 	fi
 	git pull --rebase
 	git submodule update --init --recursive
-	git submodule foreach git checkout master
-	git submodule foreach git pull --rebase origin master
+	# Use blender2.7 branch for submodules that have it.
+	git submodule foreach "git checkout blender2.7 || git checkout master"
+	git submodule foreach git pull --rebase origin
 
 
 # -----------------------------------------------------------------------------
@@ -455,6 +456,7 @@ update: .FORCE
 
 # Simple version of ./doc/python_api/sphinx_doc_gen.sh with no PDF generation.
 doc_py: .FORCE
+	ASAN_OPTIONS=halt_on_error=0 \
 	$(BLENDER_BIN) --background -noaudio --factory-startup \
 		--python doc/python_api/sphinx_doc_gen.py
 	cd doc/python_api ; sphinx-build -b html sphinx-in sphinx-out
@@ -473,15 +475,7 @@ doc_man: .FORCE
 	$(PYTHON) doc/manpage/blender.1.py $(BLENDER_BIN) blender.1
 
 help_features: .FORCE
-	@$(PYTHON) -c \
-		"import re; \
-		print('\n'.join([ \
-		w for l in open('"$(BLENDER_DIR)"/CMakeLists.txt', 'r').readlines() \
-		if not l.lstrip().startswith('#') \
-		for w in (re.sub(\
-		    r'.*\boption\s*\(\s*(WITH_[a-zA-Z0-9_]+)\s+(\".*\")\s*.*', r'\g<1> - \g<2>', l).strip('() \n'),) \
-		if w.startswith('WITH_')]))" | uniq
-
+	@$(PYTHON) "$(BLENDER_DIR)/build_files/cmake/cmake_print_build_options.py" $(BLENDER_DIR)"/CMakeLists.txt"
 
 clean: .FORCE
 	$(MAKE) -C "$(BUILD_DIR)" clean

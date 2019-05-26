@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 by Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Geoffery Bantle
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/BLI_mempool.c
@@ -187,7 +179,6 @@ BLI_INLINE BLI_mempool_chunk *mempool_chunk_find(BLI_mempool_chunk *head, uint i
  *
  * \note for small pools 1 is a good default, the elements need to be initialized,
  * adding overhead on creation which is redundant if they aren't used.
- *
  */
 BLI_INLINE uint mempool_maxchunks(const uint totelem, const uint pchunk)
 {
@@ -210,9 +201,9 @@ static BLI_mempool_chunk *mempool_chunk_alloc(BLI_mempool *pool)
 /**
  * Initialize a chunk and add into \a pool->chunks
  *
- * \param pool  The pool to add the chunk into.
- * \param mpchunk  The new uninitialized chunk (can be malloc'd)
- * \param lasttail  The last element of the previous chunk
+ * \param pool: The pool to add the chunk into.
+ * \param mpchunk: The new uninitialized chunk (can be malloc'd)
+ * \param lasttail: The last element of the previous chunk
  * (used when building free chunks initially)
  * \return The last chunk,
  */
@@ -501,8 +492,8 @@ void *BLI_mempool_findelem(BLI_mempool *pool, uint index)
  * Fill in \a data with pointers to each element of the mempool,
  * to create lookup table.
  *
- * \param pool Pool to create a table from.
- * \param data array of pointers at least the size of 'pool->totused'
+ * \param pool: Pool to create a table from.
+ * \param data: array of pointers at least the size of 'pool->totused'
  */
 void BLI_mempool_as_table(BLI_mempool *pool, void **data)
 {
@@ -702,8 +693,8 @@ void *BLI_mempool_iterstep(BLI_mempool_iter *iter)
 /**
  * Empty the pool, as if it were just created.
  *
- * \param pool The pool to clear.
- * \param totelem_reserve  Optionally reserve how many items should be kept from clearing.
+ * \param pool: The pool to clear.
+ * \param totelem_reserve: Optionally reserve how many items should be kept from clearing.
  */
 void BLI_mempool_clear_ex(BLI_mempool *pool, const int totelem_reserve)
 {

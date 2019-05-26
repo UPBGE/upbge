@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /**  \file makesdna.c
@@ -141,22 +133,28 @@ static int maxdata = 500000, maxnr = 50000;
 static int nr_names = 0;
 static int nr_types = 0;
 static int nr_structs = 0;
-static char **names, *namedata;      /* at address names[a] is string a */
-static char **types, *typedata;      /* at address types[a] is string a */
-static short *typelens_native;       /* at typelens[a] is the length of type 'a' on this systems bitness (32 or 64) */
-static short *typelens_32;           /* contains sizes as they are calculated on 32 bit systems */
-static short *typelens_64;           /* contains sizes as they are calculated on 64 bit systems */
-static short **structs, *structdata; /* at sp = structs[a] is the first address of a struct definition
-                                      * sp[0] is type number
-                                      * sp[1] is amount of elements
-                                      * sp[2] sp[3] is typenr,  namenr (etc) */
+/** at address names[a] is string a */
+static char **names, *namedata;
+/** at address types[a] is string a */
+static char **types, *typedata;
+/** at typelens[a] is the length of type 'a' on this systems bitness (32 or 64) */
+static short *typelens_native;
+/** contains sizes as they are calculated on 32 bit systems */
+static short *typelens_32;
+/** contains sizes as they are calculated on 64 bit systems */
+static short *typelens_64;
+/** at sp = structs[a] is the first address of a struct definition
+ * sp[0] is type number
+ * sp[1] is amount of elements
+ * sp[2] sp[3] is typenr,  namenr (etc) */
+static short **structs, *structdata;
 /**
  * Variable to control debug output of makesdna.
  * debugSDNA:
- *  - 0 = no output, except errors
- *  - 1 = detail actions
- *  - 2 = full trace, tell which names and types were found
- *  - 4 = full trace, plus all gritty details
+ * - 0 = no output, except errors
+ * - 1 = detail actions
+ * - 2 = full trace, tell which names and types were found
+ * - 4 = full trace, plus all gritty details
  */
 static int debugSDNA = 0;
 static int additional_slen_offset;
@@ -167,14 +165,14 @@ static int additional_slen_offset;
 
 /**
  * Add type \c str to struct indexed by \c len, if it was not yet found.
- * \param str char
- * \param len int
+ * \param str: char
+ * \param len: int
  */
 static int add_type(const char *str, int len);
 
 /**
  * Add variable \c str to
- * \param str
+ * \param str:
  */
 static int add_name(const char *str);
 
@@ -815,7 +813,8 @@ static int calculate_structlens(int firststruct)
 
 					}
 					else if (cp[0] == '[') {
-						/* parsing can cause names "var" and "[3]" to be found for "float var [3]" ... */
+						/* parsing can cause names "var" and "[3]"
+						 * to be found for "float var [3]" */
 						fprintf(stderr, "Parse error in struct, invalid member name: %s %s\n",
 						        types[structtype], cp);
 						dna_error = 1;
@@ -985,7 +984,7 @@ static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offs
 		printf("Running makesdna at debug level %d\n", debugSDNA);
 	}
 
-	/* the longest known struct is 50k, so we assume 100k is sufficent! */
+	/* the longest known struct is 50k, so we assume 100k is sufficient! */
 	namedata = MEM_callocN(maxdata, "namedata");
 	typedata = MEM_callocN(maxdata, "typedata");
 	structdata = MEM_callocN(maxdata, "structdata");
@@ -1196,7 +1195,9 @@ static int make_structDNA(const char *baseDirectory, FILE *file, FILE *file_offs
 static void make_bad_file(const char *file, int line)
 {
 	FILE *fp = fopen(file, "w");
-	fprintf(fp, "#error \"Error! can't make correct DNA.c file from %s:%d, STUPID!\"\n", __FILE__, line);
+	fprintf(fp,
+	       "#error \"Error! can't make correct DNA.c file from %s:%d, check alignment.\"\n",
+	       __FILE__, line);
 	fclose(fp);
 }
 
@@ -1259,7 +1260,7 @@ int main(int argc, char **argv)
 	return(return_status);
 }
 
-/* handy but fails on struct bounds which makesdna doesnt care about
+/* handy but fails on struct bounds which makesdna doesn't care about
  * with quite the same strictness as GCC does */
 #if 0
 /* include files for automatic dependencies */

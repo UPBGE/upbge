@@ -98,7 +98,7 @@ def operator_path_is_undo(context, data_path):
     # note that if we have data paths that use strings this could fail
     # luckily we don't do this!
     #
-    # When we cant find the data owner assume no undo is needed.
+    # When we can't find the data owner assume no undo is needed.
     data_path_head = data_path.rpartition(".")[0]
 
     if not data_path_head:
@@ -171,10 +171,10 @@ class BRUSH_OT_active_index_set(Operator):
         if attr is None:
             return {'CANCELLED'}
 
-        toolsettings = context.tool_settings
+        tool_settings = context.tool_settings
         for i, brush in enumerate((cur for cur in bpy.data.brushes if getattr(cur, attr))):
             if i == self.index:
-                getattr(toolsettings, self.mode).brush = brush
+                getattr(tool_settings, self.mode).brush = brush
                 return {'FINISHED'}
 
         return {'CANCELLED'}
@@ -612,7 +612,7 @@ class WM_OT_operator_pie_enum(Operator):
         del op_mod_str, ob_id_str
 
         try:
-            op_rna = op.get_rna()
+            op_rna = op.get_rna_type()
         except KeyError:
             self.report({'ERROR'}, "Operator not found: bpy.ops.%s" % data_path)
             return {'CANCELLED'}
@@ -622,7 +622,7 @@ class WM_OT_operator_pie_enum(Operator):
             pie = layout.menu_pie()
             pie.operator_enum(data_path, prop_string)
 
-        wm.popup_menu_pie(draw_func=draw_cb, title=op_rna.bl_rna.name, event=event)
+        wm.popup_menu_pie(draw_func=draw_cb, title=op_rna.name, event=event)
 
         return {'FINISHED'}
 
@@ -1039,9 +1039,9 @@ class WM_OT_doc_view(Operator):
 
     doc_id = doc_id
     if bpy.app.version_cycle == "release":
-        _prefix = ("https://docs.blender.org/api/blender_python_api_current")
+        _prefix = ("https://docs.blender.org/api/current")
     else:
-        _prefix = ("https://docs.blender.org/api/blender_python_api_master")
+        _prefix = ("https://docs.blender.org/api/blender2.7")
 
     def execute(self, context):
         url = _wm_doc_get_id(self.doc_id, do_url=True, url_prefix=self._prefix)
@@ -1417,10 +1417,10 @@ class WM_OT_appconfig_activate(Operator):
 
     def execute(self, context):
         import os
-        bpy.utils.keyconfig_set(self.filepath)
-
-        filepath = self.filepath.replace("keyconfig", "interaction")
-
+        filepath = self.filepath
+        bpy.utils.keyconfig_set(filepath)
+        dirname, filename = os.path.split(filepath)
+        filepath = os.path.normpath(os.path.join(dirname, os.pardir, "interaction", filename))
         if os.path.exists(filepath):
             bpy.ops.script.execute_preset(
                 filepath=filepath,
@@ -2266,7 +2266,6 @@ class WM_OT_app_template_install(Operator):
     def execute(self, context):
         import traceback
         import zipfile
-        import shutil
         import os
 
         filepath = self.filepath

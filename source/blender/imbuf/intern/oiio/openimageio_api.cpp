@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Dalai Felinto and Brecht van Lommel
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/imbuf/intern/oiio/openimageio_api.cpp
@@ -34,6 +26,11 @@
 #if defined(WIN32)
 #include "utfconv.h"
 #endif
+
+// NOTE: Keep first, BLI_path_util conflicts with OIIO's format.
+#include <memory>
+#include <openimageio_api.h>
+#include <OpenImageIO/imageio.h>
 
 extern "C"
 {
@@ -48,12 +45,10 @@ extern "C"
 #include "IMB_colormanagement_intern.h"
 }
 
-#include <openimageio_api.h>
-#include <OpenImageIO/imageio.h>
-
 OIIO_NAMESPACE_USING
 
 using std::string;
+using std::unique_ptr;
 
 typedef unsigned char uchar;
 
@@ -197,11 +192,9 @@ int imb_save_photoshop(struct ImBuf *ibuf, const char * /*name*/, int flags)
 
 struct ImBuf *imb_load_photoshop(const char *filename, int flags, char colorspace[IM_MAX_SPACE])
 {
-	ImageInput *in = NULL;
 	struct ImBuf *ibuf = NULL;
 	int width, height, components;
 	bool is_float, is_alpha;
-	TypeDesc typedesc;
 	int basesize;
 	char file_colorspace[IM_MAX_SPACE];
 
@@ -210,7 +203,7 @@ struct ImBuf *imb_load_photoshop(const char *filename, int flags, char colorspac
 
 	colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
 
-	in = ImageInput::create(filename);
+	unique_ptr<ImageInput> in(ImageInput::create(filename));
 	if (!in) {
 		std::cerr << __func__ << ": ImageInput::create() failed:" << std::endl
 		          << OIIO_NAMESPACE::geterror() << std::endl;
@@ -223,7 +216,6 @@ struct ImBuf *imb_load_photoshop(const char *filename, int flags, char colorspac
 	if (!in->open(filename, spec, config)) {
 		std::cerr << __func__ << ": ImageInput::open() failed:" << std::endl
 		          << in->geterror() << std::endl;
-		delete in;
 		return NULL;
 	}
 
@@ -249,19 +241,17 @@ struct ImBuf *imb_load_photoshop(const char *filename, int flags, char colorspac
 	if (!(components >= 1 && components <= 4)) {
 		if (in) {
 			in->close();
-			delete in;
 		}
 		return NULL;
 	}
 
 	if (is_float)
-		ibuf = imb_oiio_load_image_float(in, width, height, components, flags, is_alpha);
+		ibuf = imb_oiio_load_image_float(in.get(), width, height, components, flags, is_alpha);
 	else
-		ibuf = imb_oiio_load_image(in, width, height, components, flags, is_alpha);
+		ibuf = imb_oiio_load_image(in.get(), width, height, components, flags, is_alpha);
 
 	if (in) {
 		in->close();
-		delete in;
 	}
 
 	if (!ibuf)

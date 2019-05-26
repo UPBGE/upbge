@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Joseph Eagar.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_EDITMESH_H__
@@ -27,19 +21,19 @@
  *  \ingroup bke
  *
  * The \link edmesh EDBM module\endlink is for editmode bmesh stuff.
- * In contrast, the this module is for code shared with blenkernel thats
+ * In contrast, this module is for code shared with blenkernel that's
  * only concerned with low level operations on the #BMEditMesh structure.
  */
 
 #include "BKE_customdata.h"
 #include "bmesh.h"
 
-struct BMesh;
 struct BMLoop;
-struct Mesh;
-struct Scene;
+struct BMesh;
 struct DerivedMesh;
+struct Mesh;
 struct MeshStatVis;
+struct Scene;
 
 /**
  * This structure is used for mesh edit-mode.

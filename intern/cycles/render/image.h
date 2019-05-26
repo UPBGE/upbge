@@ -23,6 +23,7 @@
 #include "util/util_image.h"
 #include "util/util_string.h"
 #include "util/util_thread.h"
+#include "util/util_unique_ptr.h"
 #include "util/util_vector.h"
 
 CCL_NAMESPACE_BEGIN
@@ -43,6 +44,18 @@ public:
 	/* Automatically set. */
 	ImageDataType type;
 	bool is_linear;
+
+	bool operator==(const ImageMetaData& other) const
+	{
+		return is_float == other.is_float &&
+		       is_half == other.is_half &&
+		       channels == other.channels &&
+		       width == other.width &&
+		       height == other.height &&
+		       depth == other.depth &&
+		       type == other.type &&
+		       is_linear == other.is_linear;
+	}
 };
 
 class ImageManager {
@@ -83,6 +96,10 @@ public:
 	                        int flat_slot,
 	                        Progress *progress);
 	void device_free(Device *device);
+
+	void device_load_builtin(Device *device,
+	                         Scene *scene,
+	                         Progress& progress);
 	void device_free_builtin(Device *device);
 
 	void set_osl_texture_system(void *texture_system);
@@ -141,8 +158,7 @@ private:
 	vector<Image*> images[IMAGE_DATA_NUM_TYPES];
 	void *osl_texture_system;
 
-	bool file_load_image_generic(Image *img,
-	                             ImageInput **in);
+	bool file_load_image_generic(Image *img, unique_ptr<ImageInput> *in);
 
 	template<TypeDesc::BASETYPE FileFormat,
 	         typename StorageType,
@@ -164,4 +180,4 @@ private:
 
 CCL_NAMESPACE_END
 
-#endif /* __IMAGE_H__ */
+#endif  /* __IMAGE_H__ */

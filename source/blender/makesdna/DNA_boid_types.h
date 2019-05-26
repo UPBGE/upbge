@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 by Janne Karhu.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_boid_types.h
@@ -36,33 +28,47 @@
 
 typedef enum eBoidRuleType {
 	eBoidRuleType_None = 0,
-	eBoidRuleType_Goal = 1,             /* go to goal assigned object or loudest assigned signal source */
-	eBoidRuleType_Avoid = 2,            /* get away from assigned object or loudest assigned signal source */
-	eBoidRuleType_AvoidCollision = 3,   /* manoeuver to avoid collisions with other boids and deflector object in near future */
-	eBoidRuleType_Separate = 4,         /* keep from going through other boids */
-	eBoidRuleType_Flock = 5,            /* move to center of neighbors and match their velocity */
-	eBoidRuleType_FollowLeader = 6,     /* follow a boid or assigned object */
-	eBoidRuleType_AverageSpeed = 7,     /* maintain speed, flight level or wander*/
-	eBoidRuleType_Fight = 8,            /* go to closest enemy and attack when in range */
-	//eBoidRuleType_Protect = 9,        /* go to enemy closest to target and attack when in range */
-	//eBoidRuleType_Hide = 10,          /* find a deflector move to it's other side from closest enemy */
-	//eBoidRuleType_FollowPath = 11,    /* move along a assigned curve or closest curve in a group */
-	//eBoidRuleType_FollowWall = 12,    /* move next to a deflector object's in direction of it's tangent */
+	/** go to goal assigned object or loudest assigned signal source */
+	eBoidRuleType_Goal = 1,
+	/** get away from assigned object or loudest assigned signal source */
+	eBoidRuleType_Avoid = 2,
+	/** manoeuver to avoid collisions with other boids and deflector object in near future */
+	eBoidRuleType_AvoidCollision = 3,
+	/** keep from going through other boids */
+	eBoidRuleType_Separate = 4,
+	/** move to center of neighbors and match their velocity */
+	eBoidRuleType_Flock = 5,
+	/** follow a boid or assigned object */
+	eBoidRuleType_FollowLeader = 6,
+	/** maintain speed, flight level or wander*/
+	eBoidRuleType_AverageSpeed = 7,
+	/** go to closest enemy and attack when in range */
+	eBoidRuleType_Fight = 8,
+#if 0
+	/** go to enemy closest to target and attack when in range */
+	eBoidRuleType_Protect = 9,
+	/** find a deflector move to it's other side from closest enemy */
+	eBoidRuleType_Hide = 10,
+	/** move along a assigned curve or closest curve in a group */
+	eBoidRuleType_FollowPath = 11,
+	/** move next to a deflector object's in direction of it's tangent */
+	eBoidRuleType_FollowWall = 12,
+#endif
 	NUM_BOID_RULE_TYPES
 } eBoidRuleType;
 
 /* boidrule->flag */
-#define BOIDRULE_CURRENT		1
-#define BOIDRULE_IN_AIR			4
-#define BOIDRULE_ON_LAND		8
+#define BOIDRULE_CURRENT        (1 << 0)
+#define BOIDRULE_IN_AIR         (1 << 2)
+#define BOIDRULE_ON_LAND        (1 << 3)
 typedef struct BoidRule {
 	struct BoidRule *next, *prev;
 	int type, flag;
 	char name[32];
 } BoidRule;
-#define BRULE_GOAL_AVOID_PREDICT	1
-#define BRULE_GOAL_AVOID_ARRIVE		2
-#define BRULE_GOAL_AVOID_SIGNAL		4
+#define BRULE_GOAL_AVOID_PREDICT    (1 << 0)
+#define BRULE_GOAL_AVOID_ARRIVE     (1 << 1)
+#define BRULE_GOAL_AVOID_SIGNAL     (1 << 2)
 typedef struct BoidRuleGoalAvoid {
 	BoidRule rule;
 	struct Object *ob;
@@ -72,14 +78,14 @@ typedef struct BoidRuleGoalAvoid {
 	/* signals */
 	int signal_id, channels;
 } BoidRuleGoalAvoid;
-#define BRULE_ACOLL_WITH_BOIDS		1
-#define BRULE_ACOLL_WITH_DEFLECTORS	2
+#define BRULE_ACOLL_WITH_BOIDS      (1 << 0)
+#define BRULE_ACOLL_WITH_DEFLECTORS (1 << 1)
 typedef struct BoidRuleAvoidCollision {
 	BoidRule rule;
 	int options;
 	float look_ahead;
 } BoidRuleAvoidCollision;
-#define BRULE_LEADER_IN_LINE		1
+#define BRULE_LEADER_IN_LINE        (1 << 0)
 typedef struct BoidRuleFollowLeader {
 	BoidRule rule;
 	struct Object *ob;
@@ -210,16 +216,16 @@ typedef struct BoidSettings {
 } BoidSettings;
 
 /* boidsettings->options */
-#define BOID_ALLOW_FLIGHT	1
-#define BOID_ALLOW_LAND		2
-#define BOID_ALLOW_CLIMB	4
+#define BOID_ALLOW_FLIGHT   (1 << 0)
+#define BOID_ALLOW_LAND     (1 << 1)
+#define BOID_ALLOW_CLIMB    (1 << 2)
 
 /* boidrule->options */
-//#define BOID_RULE_FOLLOW_LINE	1		/* follow leader */
-//#define BOID_RULE_PREDICT		2		/* goal/avoid */
-//#define BOID_RULE_ARRIVAL		4		/* goal */
-//#define BOID_RULE_LAND			8		/* goal */
-//#define BOID_RULE_WITH_BOIDS	16		/* avoid collision */
-//#define BOID_RULE_WITH_DEFLECTORS	32	/* avoid collision */
+//#define BOID_RULE_FOLLOW_LINE     (1 << 0)        /* follow leader */
+//#define BOID_RULE_PREDICT         (1 << 1)        /* goal/avoid */
+//#define BOID_RULE_ARRIVAL         (1 << 2)        /* goal */
+//#define BOID_RULE_LAND            (1 << 3)        /* goal */
+//#define BOID_RULE_WITH_BOIDS      (1 << 4)        /* avoid collision */
+//#define BOID_RULE_WITH_DEFLECTORS (1 << 5)    /* avoid collision */
 
 #endif

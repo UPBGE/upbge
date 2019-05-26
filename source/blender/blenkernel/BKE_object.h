@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,12 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_OBJECT_H__
@@ -36,18 +28,18 @@ extern "C" {
 #include "BLI_compiler_attrs.h"
 
 struct Base;
-struct EvaluationContext;
-struct Scene;
-struct Object;
 struct BoundBox;
-struct View3D;
-struct SoftBody;
 struct BulletSoftBody;
-struct MovieClip;
-struct Main;
-struct RigidBodyWorld;
+struct EvaluationContext;
 struct HookModifierData;
+struct Main;
 struct ModifierData;
+struct MovieClip;
+struct Object;
+struct RigidBodyWorld;
+struct Scene;
+struct SoftBody;
+struct View3D;
 
 void BKE_object_workob_clear(struct Object *workob);
 void BKE_object_workob_calc_parent(struct Scene *scene, struct Object *ob, struct Object *workob);

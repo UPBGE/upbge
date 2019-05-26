@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ghost/intern/GHOST_WindowWin32.h
@@ -58,6 +50,9 @@ typedef BOOL (API * GHOST_WIN32_WTClose)(HCTX);
 typedef BOOL (API * GHOST_WIN32_WTPacket)(HCTX, UINT, LPVOID);
 typedef BOOL (API * GHOST_WIN32_WTEnable)(HCTX, BOOL);
 typedef BOOL (API * GHOST_WIN32_WTOverlap)(HCTX, BOOL);
+
+// typedef to user32 functions to disable gestures on windows
+typedef BOOL(API * GHOST_WIN32_RegisterTouchWindow)(HWND hwnd, ULONG ulFlags);
 
 // typedefs for user32 functions to allow dynamic loading of Windows 10 DPI scaling functions
 typedef UINT(API * GHOST_WIN32_GetDpiForWindow)(HWND);
@@ -225,10 +220,10 @@ public:
 	 * capturing).
 	 *
 	 * \param press
-	 *		0 - mouse pressed
-	 *		1 - mouse released
-	 *		2 - operator grab
-	 *		3 - operator ungrab
+	 *      0 - mouse pressed
+	 *      1 - mouse released
+	 *      2 - operator grab
+	 *      3 - operator ungrab
 	 */
 	void registerMouseClickEvent(int press);
 
@@ -247,7 +242,7 @@ public:
 
 	const GHOST_TabletData *GetTabletData()
 	{
-		return m_tabletData;
+		return &m_tabletData;
 	}
 
 	void processWin32TabletActivateEvent(WORD state);
@@ -265,7 +260,7 @@ public:
 	bool m_inLiveResize;
 
 #ifdef WITH_INPUT_IME
-	GHOST_ImeWin32 *getImeInput() {return &m_imeImput;}
+	GHOST_ImeWin32 *getImeInput() {return &m_imeInput;}
 
 	void beginIME(
 	        GHOST_TInt32 x, GHOST_TInt32 y,
@@ -348,16 +343,27 @@ private:
 	static const wchar_t *s_windowClassName;
 	static const int s_maxTitleLength;
 
-	/** WinTab dll handle */
-	HMODULE m_wintab;
-
 	/** Tablet data for GHOST */
-	GHOST_TabletData *m_tabletData;
+	GHOST_TabletData m_tabletData;
 
-	/** Stores the Tablet context if detected Tablet features using WinTab.dll */
-	HCTX m_tablet;
-	LONG m_maxPressure;
-	LONG m_maxAzimuth, m_maxAltitude;
+	/* Wintab API */
+	struct {
+		/** WinTab dll handle */
+		HMODULE handle;
+
+		/** API functions */
+		GHOST_WIN32_WTInfo info;
+		GHOST_WIN32_WTOpen open;
+		GHOST_WIN32_WTClose close;
+		GHOST_WIN32_WTPacket packet;
+		GHOST_WIN32_WTEnable enable;
+		GHOST_WIN32_WTOverlap overlap;
+
+		/** Stores the Tablet context if detected Tablet features using WinTab.dll */
+		HCTX tablet;
+		LONG maxPressure;
+		LONG maxAzimuth, maxAltitude;
+	} m_wintab;
 
 	GHOST_TWindowState m_normal_state;
 
@@ -369,7 +375,7 @@ private:
 
 #ifdef WITH_INPUT_IME
 	/** Handle input method editors event */
-	GHOST_ImeWin32 m_imeImput;
+	GHOST_ImeWin32 m_imeInput;
 #endif
 	bool m_debug_context;
 };

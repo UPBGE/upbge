@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Lukas Toenne, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/mathutils/mathutils_bvhtree.c
@@ -579,7 +573,7 @@ PyDoc_STRVAR(py_bvhtree_overlap_doc,
 "\n"
 "   Find overlapping indices between 2 trees.\n"
 "\n"
-"   :arg other_tree: Other tree to preform overlap test on.\n"
+"   :arg other_tree: Other tree to perform overlap test on.\n"
 "   :type other_tree: :class:`BVHTree`\n"
 "   :return: Returns a list of unique index pairs,"
 "      the first index referencing this tree, the second referencing the **other_tree**.\n"

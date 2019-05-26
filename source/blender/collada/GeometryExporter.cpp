@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,11 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Chingiz Dyussenov, Arystanbek Dyussenov, Jan Diederich, Tod Liverseed,
- *                 Nathan Letwory
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/collada/GeometryExporter.cpp
@@ -166,9 +159,9 @@ void GeometryExporter::operator()(Object *ob)
 	closeGeometry();
 
 	if (this->export_settings->include_shapekeys) {
-		Key * key = BKE_key_from_object(ob);
+		Key *key = BKE_key_from_object(ob);
 		if (key) {
-			KeyBlock * kb = (KeyBlock *)key->block.first;
+			KeyBlock *kb = (KeyBlock *)key->block.first;
 			//skip the basis
 			kb = kb->next;
 			for (; kb; kb = kb->next) {

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,11 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- *
- * Contributor(s): Joseph Eagar, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/python/generic/idprop_py_api.c
@@ -944,7 +937,7 @@ PyObject *BPy_Wrap_GetKeys(IDProperty *prop)
 		/* pass */
 	}
 
-	if (i != prop->len) { /* if the loop didnt finish, we know the length is wrong */
+	if (i != prop->len) { /* if the loop didn't finish, we know the length is wrong */
 		BPy_IDGroup_CorrectListLen(prop, list, i, __func__);
 		Py_DECREF(list); /*free the list*/
 		/*call self again*/
@@ -1795,7 +1788,7 @@ PyObject *BPyInit_idprop(void)
 {
 	PyObject *mod;
 	PyObject *submodule;
-	PyObject *sys_modules = PyThreadState_GET()->interp->modules;
+	PyObject *sys_modules = PyImport_GetModuleDict();
 
 	mod = PyModule_Create(&IDProp_module_def);
 

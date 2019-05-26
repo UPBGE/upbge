@@ -40,13 +40,31 @@ class RenderTile;
 /* Device Types */
 
 enum DeviceType {
-	DEVICE_NONE,
+	DEVICE_NONE = 0,
 	DEVICE_CPU,
 	DEVICE_OPENCL,
 	DEVICE_CUDA,
 	DEVICE_NETWORK,
 	DEVICE_MULTI
 };
+
+enum DeviceTypeMask {
+	DEVICE_MASK_CPU = (1 << DEVICE_CPU),
+	DEVICE_MASK_OPENCL = (1 << DEVICE_OPENCL),
+	DEVICE_MASK_CUDA = (1 << DEVICE_CUDA),
+	DEVICE_MASK_NETWORK = (1 << DEVICE_NETWORK),
+	DEVICE_MASK_ALL = ~0
+};
+
+enum DeviceKernelStatus {
+	DEVICE_KERNEL_WAITING_FOR_FEATURE_KERNEL = 0,
+	DEVICE_KERNEL_FEATURE_KERNEL_AVAILABLE,
+	DEVICE_KERNEL_USING_FEATURE_KERNEL,
+	DEVICE_KERNEL_FEATURE_KERNEL_INVALID,
+	DEVICE_KERNEL_UNKNOWN,
+};
+
+#define DEVICE_MASK(type) (DeviceTypeMask)(1 << type)
 
 class DeviceInfo {
 public:
@@ -55,12 +73,11 @@ public:
 	string id; /* used for user preferences, should stay fixed with changing hardware config */
 	int num;
 	bool display_device;            /* GPU is used as a display device. */
-	bool advanced_shading;          /* Supports full shading system. */
 	bool has_half_images;           /* Support half-float textures. */
 	bool has_volume_decoupled;      /* Decoupled volume shading. */
-	BVHLayoutMask bvh_layout_mask;  /* Bitmask of supported BVH layouts. */
 	bool has_osl;                   /* Support Open Shading Language. */
 	bool use_split_kernel;          /* Use split or mega kernel. */
+	bool has_profiling;             /* Supports runtime collection of profiling info. */
 	int cpu_threads;
 	vector<DeviceInfo> multi_devices;
 
@@ -71,12 +88,11 @@ public:
 		num = 0;
 		cpu_threads = 0;
 		display_device = false;
-		advanced_shading = true;
 		has_half_images = false;
 		has_volume_decoupled = false;
-		bvh_layout_mask = BVH_LAYOUT_NONE;
 		has_osl = false;
 		use_split_kernel = false;
+		has_profiling = false;
 	}
 
 	bool operator==(const DeviceInfo &info) {
@@ -139,6 +155,12 @@ public:
 	/* Use raytracing in shaders. */
 	bool use_shader_raytrace;
 
+	/* Use true displacement */
+	bool use_true_displacement;
+
+	/* Use background lights */
+	bool use_background_light;
+
 	DeviceRequestedFeatures()
 	{
 		/* TODO(sergey): Find more meaningful defaults. */
@@ -158,6 +180,8 @@ public:
 		use_principled = false;
 		use_denoising = false;
 		use_shader_raytrace = false;
+		use_true_displacement = false;
+		use_background_light = false;
 	}
 
 	bool modified(const DeviceRequestedFeatures& requested_features)
@@ -177,13 +201,15 @@ public:
 		         use_shadow_tricks == requested_features.use_shadow_tricks &&
 		         use_principled == requested_features.use_principled &&
 		         use_denoising == requested_features.use_denoising &&
-		         use_shader_raytrace == requested_features.use_shader_raytrace);
+		         use_shader_raytrace == requested_features.use_shader_raytrace &&
+		         use_true_displacement == requested_features.use_true_displacement &&
+		         use_background_light == requested_features.use_background_light);
 	}
 
 	/* Convert the requested features structure to a build options,
 	 * which could then be passed to compilers.
 	 */
-	string get_build_options(void) const
+	string get_build_options() const
 	{
 		string build_options = "";
 		if(experimental) {
@@ -242,14 +268,14 @@ std::ostream& operator <<(std::ostream &os,
 /* Device */
 
 struct DeviceDrawParams {
-	function<void(void)> bind_display_space_shader_cb;
-	function<void(void)> unbind_display_space_shader_cb;
+	function<void()> bind_display_space_shader_cb;
+	function<void()> unbind_display_space_shader_cb;
 };
 
 class Device {
 	friend class device_sub_ptr;
 protected:
-	Device(DeviceInfo& info_, Stats &stats_, bool background) : background(background), vertex_buffer(0), info(info_), stats(stats_) {}
+	Device(DeviceInfo& info_, Stats &stats_, Profiler &profiler_, bool background) : background(background), vertex_buffer(0), info(info_), stats(stats_), profiler(profiler_) {}
 
 	bool background;
 	string error_msg;
@@ -281,9 +307,11 @@ public:
 		fflush(stderr);
 	}
 	virtual bool show_samples() const { return false; }
+	virtual BVHLayoutMask get_bvh_layout_mask() const = 0;
 
 	/* statistics */
 	Stats &stats;
+	Profiler &profiler;
 
 	/* memory alignment */
 	virtual int mem_sub_ptr_alignment() { return MIN_ALIGNMENT_CPU_DATA_TYPES; }
@@ -298,6 +326,20 @@ public:
 	virtual bool load_kernels(
 	        const DeviceRequestedFeatures& /*requested_features*/)
 	{ return true; }
+
+	/* Wait for device to become available to upload data and receive tasks
+	 * This method is used by the OpenCL device to load the
+	 * optimized kernels or when not (yet) available load the
+	 * generic kernels (only during foreground rendering) */
+	virtual bool wait_for_availability(
+	        const DeviceRequestedFeatures& /*requested_features*/)
+	{ return true; }
+	/* Check if there are 'better' kernels available to be used
+	 * We can switch over to these kernels
+	 * This method is used to determine if we can switch the preview kernels
+	 * to regular kernels */
+	virtual DeviceKernelStatus get_active_kernel_switch_state()
+	{ return DEVICE_KERNEL_USING_FEATURE_KERNEL; }
 
 	/* tasks */
 	virtual int get_split_task_count(DeviceTask& task) = 0;
@@ -322,13 +364,13 @@ public:
 	virtual void unmap_neighbor_tiles(Device * /*sub_device*/, RenderTile * /*tiles*/) {}
 
 	/* static */
-	static Device *create(DeviceInfo& info, Stats &stats, bool background = true);
+	static Device *create(DeviceInfo& info, Stats &stats, Profiler& profiler, bool background = true);
 
 	static DeviceType type_from_string(const char *name);
 	static string string_from_type(DeviceType type);
-	static vector<DeviceType>& available_types();
-	static vector<DeviceInfo>& available_devices();
-	static string device_capabilities();
+	static vector<DeviceType> available_types();
+	static vector<DeviceInfo> available_devices(uint device_type_mask = DEVICE_MASK_ALL);
+	static string device_capabilities(uint device_type_mask = DEVICE_MASK_ALL);
 	static DeviceInfo get_multi_device(const vector<DeviceInfo>& subdevices,
 	                                   int threads,
 	                                   bool background);
@@ -355,10 +397,13 @@ private:
 	/* Indicted whether device types and devices lists were initialized. */
 	static bool need_types_update, need_devices_update;
 	static thread_mutex device_mutex;
-	static vector<DeviceType> types;
-	static vector<DeviceInfo> devices;
+	static vector<DeviceInfo> cuda_devices;
+	static vector<DeviceInfo> opencl_devices;
+	static vector<DeviceInfo> cpu_devices;
+	static vector<DeviceInfo> network_devices;
+	static uint devices_initialized_mask;
 };
 
 CCL_NAMESPACE_END
 
-#endif /* __DEVICE_H__ */
+#endif  /* __DEVICE_H__ */

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Bastien Montagne
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/BKE_data_transfer.h
@@ -39,9 +31,9 @@ extern "C" {
 #include "BKE_customdata.h"
 
 struct Object;
+struct ReportList;
 struct Scene;
 struct SpaceTransform;
-struct ReportList;
 
 /* Warning, those def are stored in files (TransferData modifier), *DO NOT* modify those values. */
 enum {

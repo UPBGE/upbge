@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Blender Foundation (2009), Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/makesrna/intern/rna_nla.c
@@ -136,11 +130,11 @@ static void rna_NlaStrip_start_frame_set(PointerRNA *ptr, float value)
 	NlaStrip *data = (NlaStrip *)ptr->data;
 
 	/* clamp value to lie within valid limits
-	 *	- cannot start past the end of the strip + some flexibility threshold
-	 *	- cannot start before the previous strip (if present) ends
-	 *		-> but if it was a transition, we could go up to the start of the strip + some flexibility threshold
-	 *		as long as we re-adjust the transition afterwards
-	 *	- minimum frame is -MAXFRAME so that we don't get clipping on frame 0
+	 * - cannot start past the end of the strip + some flexibility threshold
+	 * - cannot start before the previous strip (if present) ends
+	 *   -> but if it was a transition, we could go up to the start of the strip + some flexibility threshold
+	 *   as long as we re-adjust the transition afterwards
+	 * - minimum frame is -MAXFRAME so that we don't get clipping on frame 0
 	 */
 	if (data->prev) {
 		if (data->prev->type == NLASTRIP_TYPE_TRANSITION) {
@@ -164,11 +158,11 @@ static void rna_NlaStrip_end_frame_set(PointerRNA *ptr, float value)
 	NlaStrip *data = (NlaStrip *)ptr->data;
 
 	/* clamp value to lie within valid limits
-	 *	- must not have zero or negative length strip, so cannot start before the first frame
-	 *	  + some minimum-strip-length threshold
-	 *	- cannot end later than the start of the next strip (if present)
-	 *		-> but if it was a transition, we could go up to the start of the end - some flexibility threshold
-	 *		as long as we re-adjust the transition afterwards
+	 * - must not have zero or negative length strip, so cannot start before the first frame
+	 *   + some minimum-strip-length threshold
+	 * - cannot end later than the start of the next strip (if present)
+	 *   -> but if it was a transition, we could go up to the start of the end - some flexibility threshold
+	 *   as long as we re-adjust the transition afterwards
 	 */
 	if (data->next) {
 		if (data->next->type == NLASTRIP_TYPE_TRANSITION) {
@@ -390,7 +384,7 @@ static NlaStrip *rna_NlaStrip_new(NlaTrack *track, bContext *C, ReportList *repo
 
 	/* create dummy AnimData block so that BKE_nlastrip_validate_name()
 	 * can be used to ensure a valid name, as we don't have one here...
-	 *  - only the nla_tracks list is needed there, which we aim to reverse engineer here...
+	 * - only the nla_tracks list is needed there, which we aim to reverse engineer here...
 	 */
 	{
 		AnimData adt = {NULL};

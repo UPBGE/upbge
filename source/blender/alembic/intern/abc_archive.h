@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,9 +15,6 @@
  *
  * The Original Code is Copyright (C) 2016 Kévin Dietrich.
  * All rights reserved.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 #ifndef __ABC_ARCHIVE_H__
@@ -53,7 +48,7 @@ public:
 
 	/**
 	 * Returns true when either Blender is compiled with HDF5 support and
-	 * the archive was succesfully opened (valid() will also return true),
+	 * the archive was successfully opened (valid() will also return true),
 	 * or when Blender was built without HDF5 support but a HDF5 file was
 	 * detected (valid() will return false).
 	 */

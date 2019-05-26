@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -18,10 +16,6 @@
  * All rights reserved.
  *
  * The Original Code is: some of this file.
- *
- * Contributor(s): Jens Ole Wund (bjornmose), Campbell Barton (ideasman42)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/sculpt_paint/paint_image_proj.c
@@ -169,7 +163,8 @@ BLI_INLINE unsigned char f_to_char(const float val)
 #define PROJ_SRC_VIEW_FILL  4
 
 #define PROJ_VIEW_DATA_ID "view_data"
-#define PROJ_VIEW_DATA_SIZE (4 * 4 + 4 * 4 + 3) /* viewmat + winmat + clipsta + clipend + is_ortho */
+/* viewmat + winmat + clipsta + clipend + is_ortho */
+#define PROJ_VIEW_DATA_SIZE (4 * 4 + 4 * 4 + 3)
 
 #define PROJ_BUCKET_NULL        0
 #define PROJ_BUCKET_INIT        (1 << 0)
@@ -183,7 +178,7 @@ BLI_INLINE unsigned char f_to_char(const float val)
 #define PROJ_VERT_CULL 1
 
 /* to avoid locking in tile initialization */
-#define TILE_PENDING SET_INT_IN_POINTER(-1)
+#define TILE_PENDING POINTER_FROM_INT(-1)
 
 /* This is mainly a convenience struct used so we can keep an array of images we use -
  * their imbufs, etc, in 1 array, When using threads this array is copied for each thread
@@ -407,7 +402,8 @@ typedef struct ProjPixel {
 	 * new mask value is lower then mask_accum */
 	unsigned short *mask_accum;
 
-	/* horrible hack, store tile valid flag pointer here to re-validate tiles used for anchored and drag-dot strokes */
+	/* horrible hack, store tile valid flag pointer here to re-validate tiles
+	 * used for anchored and drag-dot strokes */
 	bool *valid;
 
 	PixelPointer origColor;
@@ -566,7 +562,7 @@ static float VecZDepthPersp(
 	}
 	else /* dummy values for zero area face */
 		w_tmp[0] = w_tmp[1] = w_tmp[2] = 1.0f / 3.0f;
-	/* done mimicing barycentric_weights_v2() */
+	/* done mimicking barycentric_weights_v2() */
 
 	return (v1[2] * w_tmp[0]) + (v2[2] * w_tmp[1]) + (v3[2] * w_tmp[2]);
 }
@@ -593,7 +589,7 @@ static int project_paint_PickFace(
 	 * that the point its testing is only every originated from an existing face */
 
 	for (node = ps->bucketFaces[bucket_index]; node; node = node->next) {
-		const int tri_index = GET_INT_FROM_POINTER(node->link);
+		const int tri_index = POINTER_AS_INT(node->link);
 		const MLoopTri *lt = &ps->dm_mlooptri[tri_index];
 		const float *vtri_ss[3] = {
 		    ps->screenCoords[ps->dm_mloop[lt->tri[0]].v],
@@ -635,7 +631,8 @@ static void uvco_to_wrapped_pxco(const float uv[2], int ibuf_x, int ibuf_y, floa
 	*y = *y * ibuf_y - 0.5f;
 }
 
-/* Set the top-most face color that the screen space coord 'pt' touches (or return 0 if none touch) */
+/* Set the top-most face color that the screen space coord 'pt' touches
+ * (or return 0 if none touch) */
 static bool project_paint_PickColor(
         const ProjPaintState *ps, const float pt[2],
         float *rgba_fp, unsigned char *rgba, const bool interp)
@@ -795,7 +792,8 @@ static int project_paint_occlude_ptv_clip(
 
 /* Check if a screenspace location is occluded by any other faces
  * check, pixelScreenCo must be in screenspace, its Z-Depth only needs to be used for comparison
- * and doesn't need to be correct in relation to X and Y coords (this is the case in perspective view) */
+ * and doesn't need to be correct in relation to X and Y coords
+ * (this is the case in perspective view) */
 static bool project_bucket_point_occluded(
         const ProjPaintState *ps, LinkNode *bucketFace,
         const int orig_face, const float pixelScreenCo[4])
@@ -807,7 +805,7 @@ static bool project_bucket_point_occluded(
 	 * that the point its testing is only every originated from an existing face */
 
 	for (; bucketFace; bucketFace = bucketFace->next) {
-		const int tri_index = GET_INT_FROM_POINTER(bucketFace->link);
+		const int tri_index = POINTER_AS_INT(bucketFace->link);
 
 		if (orig_face != tri_index) {
 			const MLoopTri *lt = &ps->dm_mlooptri[tri_index];
@@ -1028,7 +1026,7 @@ static bool check_seam(
 	int i1_fidx = -1, i2_fidx = -1; /* index in face */
 
 	for (node = ps->vertFaces[i1]; node; node = node->next) {
-		const int tri_index = GET_INT_FROM_POINTER(node->link);
+		const int tri_index = POINTER_AS_INT(node->link);
 
 		if (tri_index != orig_face) {
 			const MLoopTri *lt = &ps->dm_mlooptri[tri_index];
@@ -1366,8 +1364,10 @@ static float project_paint_uvpixel_mask(
 
 			BKE_image_release_ibuf(other_tpage, ibuf_other, NULL);
 
-			if (!ps->do_layer_stencil_inv) /* matching the gimps layer mask black/white rules, white==full opacity */
+			if (!ps->do_layer_stencil_inv) {
+				/* matching the gimps layer mask black/white rules, white==full opacity */
 				mask = (1.0f - mask);
+			}
 
 			if (mask == 0.0f) {
 				return 0.0f;
@@ -1690,7 +1690,7 @@ static ProjPixel *project_paint_uvpixel_init(
 	if (ibuf->rect_float) projPixel->pixel.f_pt[0] = 0;
 	else                  projPixel->pixel.ch_pt[0] = 0;
 #endif
-	/* pointer arithmetics */
+	/* pointer arithmetic */
 	projPixel->image_index = projima - ps->projImages;
 
 	return projPixel;
@@ -1715,7 +1715,8 @@ static bool line_clip_rect2f(
 		}
 
 
-		if (fabsf(l1[0] - l2[0]) < PROJ_PIXEL_TOLERANCE) { /* this is a single point  (or close to)*/
+		/* this is a single point  (or close to)*/
+		if (fabsf(l1[0] - l2[0]) < PROJ_PIXEL_TOLERANCE) {
 			if (BLI_rctf_isect_pt_v(rect, l1)) {
 				copy_v2_v2(l1_clip, l1);
 				copy_v2_v2(l2_clip, l2);
@@ -1743,7 +1744,8 @@ static bool line_clip_rect2f(
 			return 0;
 		}
 
-		if (fabsf(l1[1] - l2[1]) < PROJ_PIXEL_TOLERANCE) { /* this is a single point  (or close to)*/
+		/* this is a single point  (or close to)*/
+		if (fabsf(l1[1] - l2[1]) < PROJ_PIXEL_TOLERANCE) {
 			if (BLI_rctf_isect_pt_v(rect, l1)) {
 				copy_v2_v2(l1_clip, l1);
 				copy_v2_v2(l2_clip, l2);
@@ -2120,7 +2122,8 @@ static void project_bucket_clip_face(
 	float bucket_bounds_ss[4][2];
 
 	/* detect pathological case where face the three vertices are almost collinear in screen space.
-	 * mostly those will be culled but when flood filling or with smooth shading it's a possibility */
+	 * mostly those will be culled but when flood filling or with
+	 * smooth shading it's a possibility */
 	if (min_fff(dist_squared_to_line_v2(v1coSS, v2coSS, v3coSS),
 	            dist_squared_to_line_v2(v2coSS, v3coSS, v1coSS),
 	            dist_squared_to_line_v2(v3coSS, v1coSS, v2coSS)) < PROJ_PIXEL_TOLERANCE)
@@ -2154,7 +2157,8 @@ static void project_bucket_clip_face(
 		*tot = 3;
 		return;
 	}
-	/* handle pathological case here, no need for further intersections below since tringle area is almost zero */
+	/* handle pathological case here,
+	 * no need for further intersections below since tringle area is almost zero */
 	if (collinear) {
 		int flag;
 
@@ -2202,7 +2206,8 @@ static void project_bucket_clip_face(
 	}
 
 	/* get the UV space bounding box */
-	/* use IsectPT2Df_limit here so we catch points are are touching the tri edge (or a small fraction over) */
+	/* use IsectPT2Df_limit here so we catch points are are touching the tri edge
+	 * (or a small fraction over) */
 	bucket_bounds_ss[0][0] = bucket_bounds->xmax;
 	bucket_bounds_ss[0][1] = bucket_bounds->ymin;
 	inside_face_flag |= (IsectPT2Df_limit(bucket_bounds_ss[0], v1coSS, v2coSS, v3coSS, 1 + PROJ_GEOM_TOLERANCE) ? ISECT_1 : 0);
@@ -2582,7 +2587,7 @@ static void project_paint_face_init(
 		v2coSS = ps->screenCoords[lt_vtri[1]];
 		v3coSS = ps->screenCoords[lt_vtri[2]];
 
-		/* This funtion gives is a concave polyline in UV space from the clipped tri*/
+		/* This function gives is a concave polyline in UV space from the clipped tri*/
 		project_bucket_clip_face(
 		        is_ortho, is_flip_object,
 		        clip_rect, bucket_bounds,
@@ -2627,7 +2632,7 @@ static void project_paint_face_init(
 					//uv[0] = (((float)x) + 0.5f) / ibuf->x;
 					uv[0] = (float)x / ibuf_xf; /* use pixel offset UV coords instead */
 
-					/* Note about IsectPoly2Df_twoside, checking the face or uv flipping doesnt work,
+					/* Note about IsectPoly2Df_twoside, checking the face or uv flipping doesn't work,
 					 * could check the poly direction but better to do this */
 					if ((do_backfacecull == true  && IsectPoly2Df(uv, uv_clip, uv_clip_tot)) ||
 					    (do_backfacecull == false && IsectPoly2Df_twoside(uv, uv_clip, uv_clip_tot)))
@@ -2680,7 +2685,8 @@ static void project_paint_face_init(
 
 
 #if 0           /* TODO - investigate why this dosnt work sometimes! it should! */
-				/* no intersection for this entire row, after some intersection above means we can quit now */
+				/* no intersection for this entire row,
+				 * after some intersection above means we can quit now */
 				if (has_x_isect == 0 && has_isect) {
 					break;
 				}
@@ -2720,7 +2726,7 @@ static void project_paint_face_init(
 
 			/* Now create new UV's for the seam face */
 			float (*outset_uv)[2] = ps->faceSeamUVs[tri_index];
-			float insetCos[3][3]; /* inset face coords.  NOTE!!! ScreenSace for ortho, Worldspace in prespective view */
+			float insetCos[3][3]; /* inset face coords.  NOTE!!! ScreenSace for ortho, Worldspace in perspective view */
 
 			const float *vCoSS[3]; /* vertex screenspace coords */
 
@@ -2799,15 +2805,17 @@ static void project_paint_face_init(
 										float fac;
 
 										/* We need to find the closest point along the face edge,
-										 * getting the screen_px_from_*** wont work because our actual location
-										 * is not relevant, since we are outside the face, Use VecLerpf to find
-										 * our location on the side of the face's UV */
+										 * getting the screen_px_from_*** wont work because our
+										 * actual location is not relevant, since we are outside
+										 * the face, Use VecLerpf to find our location on the side
+										 * of the face's UV */
 #if 0
 										if (is_ortho) screen_px_from_ortho(ps, uv, v1co, v2co, v3co, uv1co, uv2co, uv3co, pixelScreenCo);
 										else          screen_px_from_persp(ps, uv, v1co, v2co, v3co, uv1co, uv2co, uv3co, pixelScreenCo);
 #endif
 
-										/* Since this is a seam we need to work out where on the line this pixel is */
+										/* Since this is a seam we need to work out where on
+										 * the line this pixel is */
 										//fac = line_point_factor_v2(uv, uv_seam_quad[0], uv_seam_quad[1]);
 										fac = resolve_quad_u_v2(uv, UNPACK4(seam_subsection));
 										interp_v3_v3v3(pixelScreenCo, edge_verts_inset_clip[0], edge_verts_inset_clip[1], fac);
@@ -2827,20 +2835,23 @@ static void project_paint_face_init(
 											if (ps->do_mask_normal || ps->dm_mloopuv_clone) {
 												const float uv_fac = fac1 + (fac * (fac2 - fac1));
 #if 0
-												/* get the UV on the line since we want to copy the pixels from there for bleeding */
+												/* get the UV on the line since we want to copy the
+												 * pixels from there for bleeding */
 												float uv_close[2];
 												interp_v2_v2v2(uv_close, lt_uv_pxoffset[fidx1], lt_uv_pxoffset[fidx2], uv_fac);
 												barycentric_weights_v2(lt_uv_pxoffset[0], lt_uv_pxoffset[1], lt_uv_pxoffset[2], uv_close, w);
 #else
 
-												/* Cheat, we know where we are along the edge so work out the weights from that */
+												/* Cheat, we know where we are along the edge
+												 * so work out the weights from that */
 												w[0] = w[1] = w[2] = 0.0;
 												w[fidx1] = 1.0f - uv_fac;
 												w[fidx2] = uv_fac;
 #endif
 											}
 
-											/* a pity we need to get the worldspace pixel location here */
+											/* a pity we need to get the worldspace
+											 * pixel location here */
 											if (do_clip || do_3d_mapping) {
 												interp_v3_v3v3v3(wco, vCo[0], vCo[1], vCo[2], w);
 
@@ -2863,13 +2874,15 @@ static void project_paint_face_init(
 										}
 									}
 									else if (has_x_isect) {
-										/* assuming the face is not a bow-tie - we know we cant intersect again on the X */
+										/* assuming the face is not a bow-tie - we know
+										 * we cant intersect again on the X */
 										break;
 									}
 								}
 
 #if 0                           /* TODO - investigate why this dosnt work sometimes! it should! */
-								/* no intersection for this entire row, after some intersection above means we can quit now */
+								/* no intersection for this entire row,
+								 * after some intersection above means we can quit now */
 								if (has_x_isect == 0 && has_isect) {
 									break;
 								}
@@ -2937,7 +2950,7 @@ static void project_bucket_init(
 
 		for (node = ps->bucketFaces[bucket_index]; node; node = node->next) {
 			project_paint_face_init(
-			        ps, thread_index, bucket_index, GET_INT_FROM_POINTER(node->link), 0,
+			        ps, thread_index, bucket_index, POINTER_AS_INT(node->link), 0,
 			        clip_rect, bucket_bounds, ibuf, &tmpibuf,
 			        (ima->tpageflag & IMA_CLAMP_U) != 0, (ima->tpageflag & IMA_CLAMP_V) != 0);
 		}
@@ -2946,7 +2959,7 @@ static void project_bucket_init(
 
 		/* More complicated loop, switch between images */
 		for (node = ps->bucketFaces[bucket_index]; node; node = node->next) {
-			tri_index = GET_INT_FROM_POINTER(node->link);
+			tri_index = POINTER_AS_INT(node->link);
 
 			/* Image context switching */
 			tpage = project_paint_face_paint_image(ps, tri_index);
@@ -2979,13 +2992,14 @@ static void project_bucket_init(
 
 /* We want to know if a bucket and a face overlap in screen-space
  *
- * Note, if this ever returns false positives its not that bad, since a face in the bounding area will have its pixels
- * calculated when it might not be needed later, (at the moment at least)
+ * Note, if this ever returns false positives its not that bad, since a face in the bounding area
+ * will have its pixels calculated when it might not be needed later, (at the moment at least)
  * obviously it shouldn't have bugs though */
 
 static bool project_bucket_face_isect(ProjPaintState *ps, int bucket_x, int bucket_y, const MLoopTri *lt)
 {
-	/* TODO - replace this with a tricker method that uses sideofline for all screenCoords's edges against the closest bucket corner */
+	/* TODO - replace this with a tricker method that uses sideofline for all
+	 * screenCoords's edges against the closest bucket corner */
 	const int lt_vtri[3] = { PS_LOOPTRI_AS_VERT_INDEX_3(ps, lt) };
 	rctf bucket_bounds;
 	float p1[2], p2[2], p3[2], p4[2];
@@ -3057,7 +3071,7 @@ static void project_paint_delayed_face_init(ProjPaintState *ps, const MLoopTri *
 				int bucket_index = bucket_x + (bucket_y * ps->buckets_x);
 				BLI_linklist_prepend_arena(
 				        &ps->bucketFaces[bucket_index],
-				        SET_INT_IN_POINTER(tri_index), /* cast to a pointer to shut up the compiler */
+				        POINTER_FROM_INT(tri_index), /* cast to a pointer to shut up the compiler */
 				        arena
 				        );
 
@@ -3069,7 +3083,8 @@ static void project_paint_delayed_face_init(ProjPaintState *ps, const MLoopTri *
 			}
 		}
 
-		/* no intersection for this entire row, after some intersection above means we can quit now */
+		/* no intersection for this entire row,
+		 * after some intersection above means we can quit now */
 		if (has_x_isect == 0 && has_isect) {
 			break;
 		}
@@ -3385,7 +3400,8 @@ static void proj_paint_state_vert_flags_init(ProjPaintState *ps)
 			}
 
 			if (ps->is_ortho) {
-				if (dot_v3v3(ps->viewDir, no) <= ps->normal_angle__cos) { /* 1 vert of this face is towards us */
+				if (dot_v3v3(ps->viewDir, no) <= ps->normal_angle__cos) {
+					/* 1 vert of this face is towards us */
 					ps->vertFlags[a] |= PROJ_VERT_CULL;
 				}
 			}
@@ -3395,7 +3411,8 @@ static void proj_paint_state_vert_flags_init(ProjPaintState *ps)
 				if (UNLIKELY(ps->is_flip_object)) {
 					negate_v3(viewDirPersp);
 				}
-				if (dot_v3v3(viewDirPersp, no) <= ps->normal_angle__cos) { /* 1 vert of this face is towards us */
+				if (dot_v3v3(viewDirPersp, no) <= ps->normal_angle__cos) {
+					/* 1 vert of this face is towards us */
 					ps->vertFlags[a] |= PROJ_VERT_CULL;
 				}
 			}
@@ -3415,7 +3432,7 @@ static void project_paint_bleed_add_face_user(
 	/* annoying but we need to add all faces even ones we never use elsewhere */
 	if (ps->seam_bleed_px > 0.0f) {
 		const int lt_vtri[3] = { PS_LOOPTRI_AS_VERT_INDEX_3(ps, lt) };
-		void *tri_index_p = SET_INT_IN_POINTER(tri_index);
+		void *tri_index_p = POINTER_FROM_INT(tri_index);
 		BLI_linklist_prepend_arena(&ps->vertFaces[lt_vtri[0]], tri_index_p, arena);
 		BLI_linklist_prepend_arena(&ps->vertFaces[lt_vtri[1]], tri_index_p, arena);
 		BLI_linklist_prepend_arena(&ps->vertFaces[lt_vtri[2]], tri_index_p, arena);
@@ -3786,7 +3803,8 @@ static void project_paint_prepare_all_faces(
 
 				image_index = BLI_linklist_index(image_LinkList.list, tpage);
 
-				if (image_index == -1 && BKE_image_has_ibuf(tpage, NULL)) { /* MemArena dosnt have an append func */
+				if (image_index == -1 && BKE_image_has_ibuf(tpage, NULL)) {
+					/* MemArena dosnt have an append func */
 					BLI_linklist_append(&image_LinkList, tpage);
 					image_index = ps->image_tot;
 					ps->image_tot++;
@@ -4519,7 +4537,8 @@ static void *do_projectpaint_thread(void *ph_v)
 		softenArena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), "paint soften arena");
 	}
 
-	/* printf("brush bounds %d %d %d %d\n", bucketMin[0], bucketMin[1], bucketMax[0], bucketMax[1]); */
+	/* printf("brush bounds %d %d %d %d\n",
+	 *        bucketMin[0], bucketMin[1], bucketMax[0], bucketMax[1]); */
 
 	while (project_bucket_iter_next(ps, &bucket_index, &bucket_bounds, pos)) {
 
@@ -4758,7 +4777,7 @@ static void *do_projectpaint_thread(void *ph_v)
 							}
 
 							/* note, for clone and smear, we only use the alpha, could be a special function */
-							BKE_brush_sample_tex_3D(ps->scene, brush, samplecos, texrgba, thread_index, pool);
+							BKE_brush_sample_tex_3d(ps->scene, brush, samplecos, texrgba, thread_index, pool);
 
 							copy_v3_v3(texrgb, texrgba);
 							mask *= texrgba[3];
@@ -5069,7 +5088,8 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 		Brush *brush = ps->brush;
 		ps->tool = brush->imagepaint_tool;
 		ps->blend = brush->blend;
-		/* only check for inversion for the soften tool, elsewhere, a resident brush inversion flag can cause issues */
+		/* only check for inversion for the soften tool, elsewhere,
+		 * a resident brush inversion flag can cause issues */
 		if (brush->imagepaint_tool == PAINT_TOOL_SOFTEN) {
 			ps->mode = (((ps->mode == BRUSH_STROKE_INVERT) ^ ((brush->flag & BRUSH_DIR_IN) != 0)) ?
 			            BRUSH_STROKE_INVERT : BRUSH_STROKE_NORMAL);
@@ -5546,7 +5566,8 @@ void BKE_paint_data_warning(struct ReportList *reports, bool uvs, bool mat, bool
 	);
 }
 
-/* Make sure that active object has a material, and assign UVs and image layers if they do not exist */
+/* Make sure that active object has a material,
+ * and assign UVs and image layers if they do not exist */
 bool BKE_paint_proj_mesh_data_check(Scene *scene, Object *ob, bool *uvs, bool *mat, bool *tex, bool *stencil)
 {
 	Mesh *me;

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Martin Poirier
- *
- * ***** END GPL LICENSE BLOCK *****
  * autoarmature.c: Interface for automagically manipulating armature (retarget, created, ...)
  */
 
@@ -70,13 +64,13 @@ typedef enum  {
 
 typedef enum {
 	METHOD_BRUTE_FORCE = 0,
-	METHOD_MEMOIZE = 1
+	METHOD_MEMOIZE = 1,
 } RetargetMethod;
 
 typedef enum {
 	ARC_FREE = 0,
 	ARC_TAKEN = 1,
-	ARC_USED = 2
+	ARC_USED = 2,
 } ArcUsageFlags;
 
 static RigGraph *GLOBAL_RIGG = NULL;
@@ -665,7 +659,7 @@ static int RIG_parentControl(RigControl *ctrl, EditBone *link)
 		}
 
 		/* if there's already a link
-		 *  overwrite only if new link is higher in the chain */
+		 * overwrite only if new link is higher in the chain */
 		if (ctrl->link && flag == ctrl->flag) {
 			EditBone *bone = NULL;
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Dalai Felinto, Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_view3d/view3d_walk.c
@@ -60,7 +54,7 @@
 
 #ifdef WITH_INPUT_NDOF
 //#  define NDOF_WALK_DEBUG
-//#  define NDOF_WALK_DRAW_TOOMUCH  /* is this needed for ndof? - commented so redraw doesnt thrash - campbell */
+//#  define NDOF_WALK_DRAW_TOOMUCH  /* is this needed for ndof? - commented so redraw doesn't thrash - campbell */
 #endif
 
 #define USE_TABLET_SUPPORT
@@ -327,7 +321,7 @@ static void drawWalkPixel(const struct bContext *UNUSED(C), ARegion *ar, void *a
 	int xoff, yoff;
 	rctf viewborder;
 
-	if (walk->scene->camera) {
+	if (ED_view3d_cameracontrol_object_get(walk->v3d_camera_control)) {
 		ED_view3d_calc_camera_border(walk->scene, ar, walk->v3d, walk->rv3d, &viewborder, false);
 		xoff = viewborder.xmin + BLI_rctf_size_x(&viewborder) * 0.5f;
 		yoff = viewborder.ymin + BLI_rctf_size_y(&viewborder) * 0.5f;
@@ -407,7 +401,7 @@ static void walk_navigation_mode_set(bContext *C, wmOperator *op, WalkInfo *walk
 }
 
 /**
- * \param r_distance  Distance to the hit point
+ * \param r_distance: Distance to the hit point
  */
 static bool walk_floor_distance_get(
         RegionView3D *rv3d, WalkInfo *walk, const float dvec[3],
@@ -435,15 +429,15 @@ static bool walk_floor_distance_get(
 	        ray_start, ray_normal, r_distance,
 	        r_location, r_normal_dummy);
 
-	/* artifically scale the distance to the scene size */
+	/* artificially scale the distance to the scene size */
 	*r_distance /= walk->grid;
 	return ret;
 }
 
 /**
- * \param ray_distance  Distance to the hit point
- * \param r_location  Location of the hit point
- * \param r_normal  Normal of the hit surface, transformed to always face the camera
+ * \param ray_distance: Distance to the hit point
+ * \param r_location: Location of the hit point
+ * \param r_normal: Normal of the hit surface, transformed to always face the camera
  */
 static bool walk_ray_cast(
         RegionView3D *rv3d, WalkInfo *walk,
@@ -474,7 +468,7 @@ static bool walk_ray_cast(
 		negate_v3(r_normal);
 	}
 
-	/* artifically scale the distance to the scene size */
+	/* artificially scale the distance to the scene size */
 	*ray_distance /= walk->grid;
 
 	return ret;
@@ -981,8 +975,10 @@ static int walkApply(bContext *C, wmOperator *op, WalkInfo *walk)
 	RegionView3D *rv3d = walk->rv3d;
 	ARegion *ar = walk->ar;
 
-	float mat[3][3]; /* 3x3 copy of the view matrix so we can move along the view axis */
-	float dvec[3] = {0.0f, 0.0f, 0.0f}; /* this is the direction that's added to the view offset per redraw */
+	/* 3x3 copy of the view matrix so we can move along the view axis */
+	float mat[3][3];
+	/* this is the direction that's added to the view offset per redraw */
+	float dvec[3] = {0.0f, 0.0f, 0.0f};
 
 	int moffset[2]; /* mouse offset from the views center */
 	float tmp_quat[4]; /* used for rotating the view */
@@ -1052,7 +1048,7 @@ static int walkApply(bContext *C, wmOperator *op, WalkInfo *walk)
 					/* speed factor */
 					y *= WALK_ROTATE_FAC;
 
-					/* user adjustement factor */
+					/* user adjustment factor */
 					y *= walk->mouse_speed;
 
 					/* clamp the angle limits */
@@ -1090,7 +1086,7 @@ static int walkApply(bContext *C, wmOperator *op, WalkInfo *walk)
 					/* speed factor */
 					x *= WALK_ROTATE_FAC;
 
-					/* user adjustement factor */
+					/* user adjustment factor */
 					x *= walk->mouse_speed;
 
 					/* Rotate about the relative up vec */

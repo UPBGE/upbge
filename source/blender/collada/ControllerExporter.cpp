@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,11 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Chingiz Dyussenov, Arystanbek Dyussenov, Jan Diederich, Tod Liverseed,
- *                 Nathan Letwory, Sukhitha Jayathilake
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/collada/ControllerExporter.cpp
@@ -398,13 +391,13 @@ std::string ControllerExporter::add_morph_weights(Key *key, Object *ob)
 	return source_id;
 }
 
-//Added to implemente support for animations.
+//Added to implement support for animations.
 void ControllerExporter::add_weight_extras(Key *key)
 {
 	// can also try the base element and param alternative
 	COLLADASW::BaseExtraTechnique extra;
 
-	KeyBlock * kb = (KeyBlock *)key->block.first;
+	KeyBlock *kb = (KeyBlock *)key->block.first;
 	//skip the basis
 	kb = kb->next;
 	for (; kb; kb = kb->next) {

@@ -141,6 +141,7 @@ typedef enum ShaderNodeType {
 
 typedef enum NodeAttributeType {
 	NODE_ATTR_FLOAT = 0,
+	NODE_ATTR_FLOAT2,
 	NODE_ATTR_FLOAT3,
 	NODE_ATTR_MATRIX
 } NodeAttributeType;
@@ -531,4 +532,4 @@ typedef enum ClosureType {
 
 CCL_NAMESPACE_END
 
-#endif /*  __SVM_TYPES_H__ */
+#endif  /*  __SVM_TYPES_H__ */

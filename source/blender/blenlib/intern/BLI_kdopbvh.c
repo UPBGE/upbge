@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2006 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Daniel Genrich, Andre Pinto
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/BLI_kdopbvh.c
@@ -675,13 +667,16 @@ static void bvhtree_verify(BVHTree *tree)
  * This code can be easily reduced
  * (basicly this is only method to calculate pow(k, n) in O(1).. and stuff like that) */
 typedef struct BVHBuildHelper {
-	int tree_type;              /* */
-	int totleafs;               /* */
+	int tree_type;
+	int totleafs;
 
-	int leafs_per_child[32];    /* Min number of leafs that are archievable from a node at depth N */
-	int branches_on_level[32];  /* Number of nodes at depth N (tree_type^N) */
+	/** Min number of leafs that are archievable from a node at depth N */
+	int leafs_per_child[32];
+	/** Number of nodes at depth N (tree_type^N) */
+	int branches_on_level[32];
 
-	int remain_leafs;           /* Number of leafs that are placed on the level that is not 100% filled */
+	/** Number of leafs that are placed on the level that is not 100% filled */
+	int remain_leafs;
 
 } BVHBuildHelper;
 
@@ -738,11 +733,9 @@ static int implicit_leafs_index(const BVHBuildHelper *data, const int depth, con
  * All tree types >= 2 are supported.
  *
  * Advantages of the used trees include:
- *  - No need to store child/parent relations (they are implicit);
- *  - Any node child always has an index greater than the parent;
- *  - Brother nodes are sequential in memory;
- *
- *
+ * - No need to store child/parent relations (they are implicit);
+ * - Any node child always has an index greater than the parent;
+ * - Brother nodes are sequential in memory;
  * Some math relations derived for general implicit trees:
  *
  *   K = tree_type, ( 2 <= K )
@@ -764,9 +757,9 @@ static int implicit_needed_branches(int tree_type, int leafs)
  * This function handles the problem of "sorting" the leafs (along the split_axis).
  *
  * It arranges the elements in the given partitions such that:
- *  - any element in partition N is less or equal to any element in partition N+1.
- *  - if all elements are different all partition will get the same subset of elements
- *    as if the array was sorted.
+ * - any element in partition N is less or equal to any element in partition N+1.
+ * - if all elements are different all partition will get the same subset of elements
+ *   as if the array was sorted.
  *
  * partition P is described as the elements in the range ( nth[P], nth[P+1] ]
  *
@@ -830,17 +823,20 @@ static void non_recursive_bvh_div_nodes_task_cb(
 	nth_positions[data->tree_type] = parent_leafs_end;
 	for (k = 1; k < data->tree_type; k++) {
 		const int child_index = j * data->tree_type + data->tree_offset + k;
-		const int child_level_index = child_index - data->first_of_next_level; /* child level index */
+		/* child level index */
+		const int child_level_index = child_index - data->first_of_next_level;
 		nth_positions[k] = implicit_leafs_index(data->data, data->depth + 1, child_level_index);
 	}
 
 	split_leafs(data->leafs_array, nth_positions, data->tree_type, split_axis);
 
 	/* Setup children and totnode counters
-	 * Not really needed but currently most of BVH code relies on having an explicit children structure */
+	 * Not really needed but currently most of BVH code
+	 * relies on having an explicit children structure */
 	for (k = 0; k < data->tree_type; k++) {
 		const int child_index = j * data->tree_type + data->tree_offset + k;
-		const int child_level_index = child_index - data->first_of_next_level; /* child level index */
+		/* child level index */
+		const int child_level_index = child_index - data->first_of_next_level;
 
 		const int child_leafs_begin = implicit_leafs_index(data->data, data->depth + 1, child_level_index);
 		const int child_leafs_end   = implicit_leafs_index(data->data, data->depth + 1, child_level_index + 1);
@@ -863,9 +859,9 @@ static void non_recursive_bvh_div_nodes_task_cb(
 /**
  * This functions builds an optimal implicit tree from the given leafs.
  * Where optimal stands for:
- *  - The resulting tree will have the smallest number of branches;
- *  - At most only one branch will have NULL childs;
- *  - All leafs will be stored at level N or N+1.
+ * - The resulting tree will have the smallest number of branches;
+ * - At most only one branch will have NULL childs;
+ * - All leafs will be stored at level N or N+1.
  *
  * This function creates an implicit tree on branches_array, the leafs are given on the leafs_array.
  *
@@ -882,7 +878,9 @@ static void non_recursive_bvh_div_nodes(
 	int i;
 
 	const int tree_type   = tree->tree_type;
-	const int tree_offset = 2 - tree->tree_type; /* this value is 0 (on binary trees) and negative on the others */
+	/* this value is 0 (on binary trees) and negative on the others */
+	const int tree_offset = 2 - tree->tree_type;
+
 	const int num_branches = implicit_needed_branches(tree_type, num_leafs);
 
 	BVHBuildHelper data;
@@ -916,7 +914,8 @@ static void non_recursive_bvh_div_nodes(
 	/* Loop tree levels (log N) loops */
 	for (i = 1, depth = 1; i <= num_branches; i = i * tree_type + tree_offset, depth++) {
 		const int first_of_next_level = i * tree_type + tree_offset;
-		const int i_stop = min_ii(first_of_next_level, num_branches + 1);  /* index of last branch on this level */
+		/* index of last branch on this level */
+		const int i_stop = min_ii(first_of_next_level, num_branches + 1);
 
 		/* Loop all branches on this level */
 		cb_data.first_of_next_level = first_of_next_level;
@@ -965,7 +964,8 @@ BVHTree *BLI_bvhtree_new(int maxsize, float epsilon, char tree_type, char axis)
 
 	/* tree epsilon must be >= FLT_EPSILON
 	 * so that tangent rays can still hit a bounding volume..
-	 * this bug would show up when casting a ray aligned with a kdop-axis and with an edge of 2 faces */
+	 * this bug would show up when casting a ray aligned with a kdop-axis
+	 * and with an edge of 2 faces */
 	epsilon = max_ff(FLT_EPSILON, epsilon);
 
 	if (tree) {
@@ -1390,7 +1390,8 @@ BVHTreeOverlap *BLI_bvhtree_overlap(
 /** \name BLI_bvhtree_find_nearest
  * \{ */
 
-/* Determines the nearest point of the given node BV. Returns the squared distance to that point. */
+/* Determines the nearest point of the given node BV.
+ * Returns the squared distance to that point. */
 static float calc_nearest_point_squared(const float proj[3], BVHNode *node, float nearest[3])
 {
 	int i;
@@ -1958,7 +1959,8 @@ static void dfs_range_query(RangeQueryData *data, BVHNode *node)
 {
 	if (node->totnode == 0) {
 #if 0   /*UNUSED*/
-		/* Calculate the node min-coords (if the node was a point then this is the point coordinates) */
+		/* Calculate the node min-coords
+		 * (if the node was a point then this is the point coordinates) */
 		float co[3];
 		co[0] = node->bv[0];
 		co[1] = node->bv[2];

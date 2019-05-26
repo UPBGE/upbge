@@ -14,10 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
  */
 
 #include "COM_VariableSizeBokehBlurOperation.h"
@@ -288,7 +284,7 @@ void InverseSearchRadiusOperation::initExecution()
 
 void *InverseSearchRadiusOperation::initializeTileData(rcti *rect)
 {
-	MemoryBuffer * data = new MemoryBuffer(COM_DT_COLOR, rect);
+	MemoryBuffer *data = new MemoryBuffer(COM_DT_COLOR, rect);
 	float *buffer = data->getBuffer();
 	int x, y;
 	int width = this->m_inputRadius->getWidth();

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): Based on original depsgraph.c code - Blender Foundation (2005-2013)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/depsgraph/intern/builder/deg_builder_relations.cc
@@ -804,11 +797,11 @@ void DepsgraphRelationBuilder::build_constraints(ID *id,
 					/* Standard object relation. */
 					// TODO: loc vs rot vs scale?
 					if (&ct->tar->id == id) {
-						/* Constraint targetting own object:
+						/* Constraint targeting own object:
 						 * - This case is fine IFF we're dealing with a bone
 						 *   constraint pointing to its own armature. In that
 						 *   case, it's just transform -> bone.
-						 * - If however it is a real self targetting case, just
+						 * - If however it is a real self targeting case, just
 						 *   make it depend on the previous constraint (or the
 						 *   pre-constraint state).
 						 */
@@ -1139,7 +1132,7 @@ void DepsgraphRelationBuilder::build_driver_variables(ID *id, FCurve *fcu)
 
 	LISTBASE_FOREACH (DriverVar *, dvar, &driver->variables) {
 		/* Only used targets. */
-		DRIVER_TARGETS_USED_LOOPER(dvar)
+		DRIVER_TARGETS_USED_LOOPER_BEGIN(dvar)
 		{
 			if (dtar->id == NULL) {
 				continue;
@@ -1206,7 +1199,7 @@ void DepsgraphRelationBuilder::build_driver_variables(ID *id, FCurve *fcu)
 				add_relation(target_key, driver_key, "RNA Target -> Driver");
 			}
 		}
-		DRIVER_TARGETS_LOOPER_END
+		DRIVER_TARGETS_LOOPER_END;
 	}
 }
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/avi/intern/avi.c
@@ -64,7 +55,7 @@ char *tcc_to_char(unsigned int tcc);
 
 
 
-/* implemetation */
+/* implementation */
 
 unsigned int GET_FCC(FILE *fp)
 {
@@ -286,7 +277,7 @@ bool AVI_is_avi(const char *name)
 	fseek(movie.fp, movie.header->size - 14 * 4, SEEK_CUR);
 
 	/* Limit number of streams to some reasonable amount to prevent
-	 * buffer oveflow vulnerabilities. */
+	 * buffer overflow vulnerabilities. */
 	if (movie.header->Streams < 1 || movie.header->Streams > 65536) {
 		DEBUG_PRINT("Number of streams should be in range 1-65536\n");
 		fclose(movie.fp);
@@ -489,7 +480,7 @@ AviError AVI_open_movie(const char *name, AviMovie *movie)
 	fseek(movie->fp, movie->header->size - 14 * 4, SEEK_CUR);
 
 	/* Limit number of streams to some reasonable amount to prevent
-	 * buffer oveflow vulnerabilities. */
+	 * buffer overflow vulnerabilities. */
 	if (movie->header->Streams < 1 || movie->header->Streams > 65536) {
 		DEBUG_PRINT("Number of streams should be in range 1-65536\n");
 		return AVI_ERROR_FORMAT;
@@ -687,7 +678,7 @@ AviError AVI_open_movie(const char *name, AviMovie *movie)
 			movie->read_offset = 4;
 	}
 
-	DEBUG_PRINT("movie succesfully opened\n");
+	DEBUG_PRINT("movie successfully opened\n");
 	return AVI_ERROR_NONE;
 }
 
@@ -806,7 +797,7 @@ AviError AVI_open_compress(char *name, AviMovie *movie, int streams, ...)
 	movie->header->Reserved[3] = 0;
 
 	/* Limit number of streams to some reasonable amount to prevent
-	 * buffer oveflow vulnerabilities. */
+	 * buffer overflow vulnerabilities. */
 	if (movie->header->Streams < 0 || movie->header->Streams > 65536) {
 		DEBUG_PRINT("Number of streams should be in range 0-65536\n");
 		return AVI_ERROR_FORMAT;

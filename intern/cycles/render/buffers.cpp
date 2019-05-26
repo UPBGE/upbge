@@ -42,6 +42,7 @@ BufferParams::BufferParams()
 
 	denoising_data_pass = false;
 	denoising_clean_pass = false;
+	denoising_prefiltered_pass = false;
 
 	Pass::add(PASS_COMBINED, passes);
 }
@@ -73,6 +74,7 @@ int BufferParams::get_passes_size()
 	if(denoising_data_pass) {
 		size += DENOISING_PASS_SIZE_BASE;
 		if(denoising_clean_pass) size += DENOISING_PASS_SIZE_CLEAN;
+		if(denoising_prefiltered_pass) size += DENOISING_PASS_SIZE_PREFILTERED;
 	}
 
 	return align_up(size, 4);
@@ -84,6 +86,20 @@ int BufferParams::get_denoising_offset()
 
 	for(size_t i = 0; i < passes.size(); i++)
 		offset += passes[i].components;
+
+	return offset;
+}
+
+int BufferParams::get_denoising_prefiltered_offset()
+{
+	assert(denoising_prefiltered_pass);
+
+	int offset = get_denoising_offset();
+
+	offset += DENOISING_PASS_SIZE_BASE;
+	if(denoising_clean_pass) {
+		offset += DENOISING_PASS_SIZE_CLEAN;
+	}
 
 	return offset;
 }
@@ -147,78 +163,75 @@ bool RenderBuffers::copy_from_device()
 	return true;
 }
 
-bool RenderBuffers::get_denoising_pass_rect(int offset, float exposure, int sample, int components, float *pixels)
+bool RenderBuffers::get_denoising_pass_rect(int type, float exposure, int sample, int components, float *pixels)
 {
 	if(buffer.data() == NULL) {
 		return false;
 	}
 
-	float invsample = 1.0f/sample;
-	float scale = invsample;
-	bool variance = (offset == DENOISING_PASS_NORMAL_VAR) ||
-	                (offset == DENOISING_PASS_ALBEDO_VAR) ||
-	                (offset == DENOISING_PASS_DEPTH_VAR) ||
-	                (offset == DENOISING_PASS_COLOR_VAR);
-
-	if(offset == DENOISING_PASS_COLOR || offset == DENOISING_PASS_CLEAN) {
+	float scale = 1.0f;
+	float alpha_scale = 1.0f/sample;
+	if(type == DENOISING_PASS_PREFILTERED_COLOR ||
+	   type == DENOISING_PASS_CLEAN ||
+	   type == DENOISING_PASS_PREFILTERED_INTENSITY) {
 		scale *= exposure;
 	}
-	else if(offset == DENOISING_PASS_COLOR_VAR) {
-		scale *= exposure*exposure;
+	else if(type == DENOISING_PASS_PREFILTERED_VARIANCE) {
+		scale *= exposure*exposure * (sample - 1);
 	}
 
-	offset += params.get_denoising_offset();
+	int offset;
+	if(type == DENOISING_PASS_CLEAN) {
+		/* The clean pass isn't changed by prefiltering, so we use the original one there. */
+		offset = type + params.get_denoising_offset();
+		scale /= sample;
+	}
+	else if (type == DENOISING_PASS_PREFILTERED_COLOR && !params.denoising_prefiltered_pass) {
+		/* If we're not saving the prefiltering result, return the original noisy pass. */
+		offset = params.get_denoising_offset() + DENOISING_PASS_COLOR;
+		scale /= sample;
+	}
+	else {
+		offset = type + params.get_denoising_prefiltered_offset();
+	}
+
 	int pass_stride = params.get_passes_size();
 	int size = params.width*params.height;
 
-	if(variance) {
-		/* Approximate variance as E[x^2] - 1/N * (E[x])^2, since online variance
-		 * update does not work efficiently with atomics in the kernel. */
-		int mean_offset = offset - components;
-		float *mean = buffer.data() + mean_offset;
-		float *var = buffer.data() + offset;
-		assert(mean_offset >= 0);
+	float *in = buffer.data() + offset;
 
-		if(components == 1) {
-			for(int i = 0; i < size; i++, mean += pass_stride, var += pass_stride, pixels++) {
-				pixels[0] = max(0.0f, var[0] - mean[0]*mean[0]*invsample)*scale;
-			}
+	if(components == 1) {
+		for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+			pixels[0] = in[0]*scale;
 		}
-		else if(components == 3) {
-			for(int i = 0; i < size; i++, mean += pass_stride, var += pass_stride, pixels += 3) {
-				pixels[0] = max(0.0f, var[0] - mean[0]*mean[0]*invsample)*scale;
-				pixels[1] = max(0.0f, var[1] - mean[1]*mean[1]*invsample)*scale;
-				pixels[2] = max(0.0f, var[2] - mean[2]*mean[2]*invsample)*scale;
-			}
+	}
+	else if(components == 3) {
+		for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
+			pixels[0] = in[0]*scale;
+			pixels[1] = in[1]*scale;
+			pixels[2] = in[2]*scale;
 		}
-		else {
-			return false;
+	}
+	else if(components == 4) {
+		/* Since the alpha channel is not involved in denoising, output the Combined alpha channel. */
+		assert(params.passes[0].type == PASS_COMBINED);
+		float *in_combined = buffer.data();
+
+		for(int i = 0; i < size; i++, in += pass_stride, in_combined += pass_stride, pixels += 4) {
+			pixels[0] = in[0]*scale;
+			pixels[1] = in[1]*scale;
+			pixels[2] = in[2]*scale;
+			pixels[3] = saturate(in_combined[3]*alpha_scale);
 		}
 	}
 	else {
-		float *in = buffer.data() + offset;
-
-		if(components == 1) {
-			for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
-				pixels[0] = in[0]*scale;
-			}
-		}
-		else if(components == 3) {
-			for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
-				pixels[0] = in[0]*scale;
-				pixels[1] = in[1]*scale;
-				pixels[2] = in[2]*scale;
-			}
-		}
-		else {
-			return false;
-		}
+		return false;
 	}
 
 	return true;
 }
 
-bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels)
+bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels, const string &name)
 {
 	if(buffer.data() == NULL) {
 		return false;
@@ -232,6 +245,14 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 		if(pass.type != type) {
 			pass_offset += pass.components;
 			continue;
+		}
+
+		/* Tell Cryptomatte passes apart by their name. */
+		if(pass.type == PASS_CRYPTOMATTE) {
+			if(pass.name != name) {
+				pass_offset += pass.components;
+				continue;
+			}
 		}
 
 		float *in = buffer.data() + pass_offset;
@@ -368,6 +389,17 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 					pixels[1] = f.y*invw;
 					pixels[2] = f.z*invw;
 					pixels[3] = f.w*invw;
+				}
+			}
+			else if(type == PASS_CRYPTOMATTE) {
+				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
+					float4 f = make_float4(in[0], in[1], in[2], in[3]);
+					/* x and z contain integer IDs, don't rescale them.
+					   y and w contain matte weights, they get scaled. */
+					pixels[0] = f.x;
+					pixels[1] = f.y * scale;
+					pixels[2] = f.z;
+					pixels[3] = f.w * scale;
 				}
 			}
 			else {

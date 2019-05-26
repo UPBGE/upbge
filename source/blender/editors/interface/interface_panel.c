@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2003-2009 full recode.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_panel.c
@@ -28,7 +22,8 @@
  */
 
 
-/* a full doc with API notes can be found in bf-blender/trunk/blender/doc/guides/interface_API.txt */
+/* a full doc with API notes can be found in
+ * bf-blender/trunk/blender/doc/guides/interface_API.txt */
 
 #include <math.h>
 #include <stdlib.h>
@@ -492,7 +487,7 @@ static void ui_draw_panel_scalewidget(const rcti *rect)
 }
 static void ui_draw_panel_dragwidget(const rctf *rect)
 {
-	unsigned char col_back[3], col_high[3], col_dark[3];
+	uchar col_back[3], col_high[3], col_dark[3];
 	const int col_tint = 84;
 
 	const int px = (int)U.pixelsize;
@@ -1247,7 +1242,7 @@ static void ui_panel_drag_collapse(bContext *C, uiPanelDragCollapseHandle *dragc
 /**
  * Panel drag-collapse (modal handler)
  * Clicking and dragging over panels toggles their collapse state based on the panel that was first
- * dragged over. If it was open all affected panels incl the initial one are closed and vise versa.
+ * dragged over. If it was open all affected panels incl the initial one are closed and vice versa.
  */
 static int ui_panel_drag_collapse_handler(bContext *C, const wmEvent *event, void *userdata)
 {
@@ -1519,7 +1514,7 @@ static void ui_panel_category_draw_tab(
         int mode, float minx, float miny, float maxx, float maxy, float rad,
         int roundboxtype,
         const bool use_highlight, const bool use_shadow,
-        const unsigned char highlight_fade[3])
+        const uchar highlight_fade[3])
 {
 	float vec[4][2] = {
 	    {0.195, 0.02},
@@ -1619,8 +1614,10 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 	const int px = max_ii(1, round_fl_to_int(U.pixelsize));
 	const int category_tabs_width = round_fl_to_int(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
 	const float dpi_fac = UI_DPI_FAC;
-	const int tab_v_pad_text = round_fl_to_int((2 + ((px * 3) * dpi_fac)) * zoom);  /* pading of tabs around text */
-	const int tab_v_pad = round_fl_to_int((4 + (2 * px * dpi_fac)) * zoom);  /* padding between tabs */
+	/* padding of tabs around text */
+	const int tab_v_pad_text = round_fl_to_int((2 + ((px * 3) * dpi_fac)) * zoom);
+	/* padding between tabs */
+	const int tab_v_pad = round_fl_to_int((4 + (2 * px * dpi_fac)) * zoom);
 	const float tab_curve_radius = ((px * 3) * dpi_fac) * zoom;
 	const int roundboxtype = UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT;
 	bool is_alpha;
@@ -1637,20 +1634,20 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 	int y_ofs = tab_v_pad;
 
 	/* Primary theme colors */
-	unsigned char theme_col_back[4];
-	unsigned char theme_col_text[3];
-	unsigned char theme_col_text_hi[3];
+	uchar theme_col_back[4];
+	uchar theme_col_text[3];
+	uchar theme_col_text_hi[3];
 
 	/* Tab colors */
-	unsigned char theme_col_tab_bg[4];
-	unsigned char theme_col_tab_active[3];
-	unsigned char theme_col_tab_inactive[3];
+	uchar theme_col_tab_bg[4];
+	uchar theme_col_tab_active[3];
+	uchar theme_col_tab_inactive[3];
 
 	/* Secondary theme colors */
-	unsigned char theme_col_tab_outline[3];
-	unsigned char theme_col_tab_divider[3];  /* line that divides tabs from the main region */
-	unsigned char theme_col_tab_highlight[3];
-	unsigned char theme_col_tab_highlight_inactive[3];
+	uchar theme_col_tab_outline[3];
+	uchar theme_col_tab_divider[3];  /* line that divides tabs from the main region */
+	uchar theme_col_tab_highlight[3];
+	uchar theme_col_tab_highlight_inactive[3];
 
 
 
@@ -1873,7 +1870,8 @@ static int ui_handle_panel_category_cycling(const wmEvent *event, ARegion *ar, c
 					const bool backwards = event->shift;
 					pc_dyn = backwards ? pc_dyn->prev : pc_dyn->next;
 					if (!pc_dyn) {
-						/* proper cyclic behavior, back to first/last category (only used for ctrl+tab) */
+						/* proper cyclic behavior,
+						 * back to first/last category (only used for ctrl+tab) */
 						pc_dyn = backwards ? ar->panels_category.last : ar->panels_category.first;
 					}
 				}
@@ -1940,10 +1938,13 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar, cons
 		/* checks for mouse position inside */
 		pa = block->panel;
 
-		if (!pa || pa->paneltab != NULL)
+		if (!pa || pa->paneltab != NULL) {
 			continue;
-		if (pa->type && pa->type->flag & PNL_NO_HEADER)  /* XXX - accessed freed panels when scripts reload, need to fix. */
+		}
+		/* XXX - accessed freed panels when scripts reload, need to fix. */
+		if (pa->type && pa->type->flag & PNL_NO_HEADER) {
 			continue;
+		}
 
 		mouse_state = ui_panel_mouse_state_get(block, pa, mx, my);
 
@@ -2105,9 +2106,9 @@ static void panel_activate_state(const bContext *C, Panel *pa, uiHandlePanelStat
 	if (state == PANEL_STATE_EXIT || state == PANEL_STATE_ANIMATION) {
 		if (data && data->state != PANEL_STATE_ANIMATION) {
 			/* XXX:
-			 *	- the panel tabbing function call below (test_add_new_tabs()) has been commented out
-			 *	  "It is too easy to do by accident when reordering panels,
-			 *     is very hard to control and use, and has no real benefit." - BillRey
+			 * - the panel tabbing function call below (test_add_new_tabs()) has been commented out
+			 *   "It is too easy to do by accident when reordering panels,
+			 *   is very hard to control and use, and has no real benefit." - BillRey
 			 * Aligorith, 2009Sep
 			 */
 			//test_add_new_tabs(ar);   // also copies locations of tabs in dragged panel

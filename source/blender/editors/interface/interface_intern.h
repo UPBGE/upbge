@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/interface/interface_intern.h
@@ -39,19 +31,19 @@
 #include "DNA_listBase.h"
 
 struct ARegion;
+struct ID;
+struct ImBuf;
+struct Scene;
 struct bContext;
+struct bContextStore;
 struct uiHandleButtonData;
+struct uiLayout;
+struct uiStyle;
+struct uiWidgetColors;
 struct wmEvent;
 struct wmKeyConfig;
 struct wmOperatorType;
 struct wmTimer;
-struct uiStyle;
-struct uiWidgetColors;
-struct uiLayout;
-struct bContextStore;
-struct Scene;
-struct ID;
-struct ImBuf;
 
 /* ****************** general defines ************** */
 
@@ -173,13 +165,20 @@ extern const short ui_radial_dir_to_angle[8];
 
 /* PieMenuData->flags */
 enum {
-	UI_PIE_DEGREES_RANGE_LARGE  = (1 << 0),  /* pie menu item collision is detected at 90 degrees */
-	UI_PIE_INITIAL_DIRECTION    = (1 << 1),  /* use initial center of pie menu to calculate direction */
-	UI_PIE_DRAG_STYLE           = (1 << 2),  /* pie menu is drag style */
-	UI_PIE_INVALID_DIR          = (1 << 3),  /* mouse not far enough from center position  */
-	UI_PIE_CLICK_STYLE          = (1 << 4),  /* pie menu changed to click style, click to confirm  */
-	UI_PIE_ANIMATION_FINISHED   = (1 << 5),  /* pie animation finished, do not calculate any more motion  */
-	UI_PIE_GESTURE_END_WAIT     = (1 << 6),  /* pie gesture selection has been done, now wait for mouse motion to end */
+	/** pie menu item collision is detected at 90 degrees */
+	UI_PIE_DEGREES_RANGE_LARGE  = (1 << 0),
+	/** use initial center of pie menu to calculate direction */
+	UI_PIE_INITIAL_DIRECTION    = (1 << 1),
+	/** pie menu is drag style */
+	UI_PIE_DRAG_STYLE           = (1 << 2),
+	/** mouse not far enough from center position  */
+	UI_PIE_INVALID_DIR          = (1 << 3),
+	/** pie menu changed to click style, click to confirm  */
+	UI_PIE_CLICK_STYLE          = (1 << 4),
+	/** pie animation finished, do not calculate any more motion  */
+	UI_PIE_ANIMATION_FINISHED   = (1 << 5),
+	/** pie gesture selection has been done, now wait for mouse motion to end */
+	UI_PIE_GESTURE_END_WAIT     = (1 << 6),
 };
 
 #define PIE_CLICK_THRESHOLD_SQ 50.0f
@@ -242,7 +241,7 @@ struct uiBut {
 	 */
 	float a2;
 
-	unsigned char col[4];
+	uchar col[4];
 
 	uiButHandleFunc func;
 	void *func_arg1;
@@ -264,7 +263,7 @@ struct uiBut {
 	void *rename_arg1;
 	void *rename_orig;
 
-	/* Run an action when holding the button down. */
+	/** Run an action when holding the button down. */
 	uiButHandleHoldFunc hold_func;
 	void *hold_argN;
 
@@ -275,14 +274,14 @@ struct uiBut {
 	uiButToolTipFunc tip_func;
 	void *tip_argN;
 
-	/* info on why button is disabled, displayed in tooltip */
+	/** info on why button is disabled, displayed in tooltip */
 	const char *disabled_info;
 
 	BIFIconID icon;
 	char dt; /* drawtype: UI_EMBOSS, UI_EMBOSS_NONE ... etc, copied from the block */
 	signed char pie_dir; /* direction in a pie menu, used for collision detection (RadialDirection) */
 	char changed; /* could be made into a single flag */
-	unsigned char unit_type; /* so buttons can support unit systems which are not RNA */
+	uchar unit_type; /* so buttons can support unit systems which are not RNA */
 	short modifier_key;
 	short iconadd;
 
@@ -306,7 +305,7 @@ struct uiBut {
 	struct wmOperatorType *optype;
 	struct PointerRNA *opptr;
 	short opcontext;
-	unsigned char menu_key; /* 'a'-'z', always lower case */
+	uchar menu_key; /* 'a'-'z', always lower case */
 
 	/* Draggable data, type is WM_DRAG_... */
 	char dragtype;
@@ -342,7 +341,7 @@ typedef struct ColorPickerData {
 } ColorPickerData;
 
 struct PieMenuData {
-	/* store title and icon to allow access when pie levels are created */
+	/** store title and icon to allow access when pie levels are created */
 	const char *title;
 	int icon;
 
@@ -352,7 +351,8 @@ struct PieMenuData {
 	float last_pos[2];
 	double duration_gesture;
 	int flags;
-	int event; /* initial event used to fire the pie menu, store here so we can query for release */
+	/** initial event used to fire the pie menu, store here so we can query for release */
+	int event;
 	float alphafac;
 };
 
@@ -377,7 +377,7 @@ struct uiBlock {
 	rctf rect;
 	float aspect;
 
-	unsigned int puphash;  /* popup menu hash for memory */
+	uint puphash;  /* popup menu hash for memory */
 
 	uiButHandleFunc func;
 	void *func_arg1;
@@ -404,40 +404,57 @@ struct uiBlock {
 	short alignnr;
 
 	char direction;
-	char dt; /* drawtype: UI_EMBOSS, UI_EMBOSS_NONE ... etc, copied to buttons */
+	/** UI_BLOCK_THEME_STYLE_* */
+	char theme_style;
+	/** drawtype: UI_EMBOSS, UI_EMBOSS_NONE ... etc, copied to buttons */
+	char dt;
 	bool auto_open;
-	char _pad[7];
+	char _pad[6];
 	double auto_open_last;
 
 	const char *lockstr;
 
 	char lock;
-	char active;                /* to keep blocks while drawing and free them afterwards */
-	char tooltipdisabled;       /* to avoid tooltip after click */
-	char endblock;              /* UI_block_end done? */
+	/** to keep blocks while drawing and free them afterwards */
+	char active;
+	/** to avoid tooltip after click */
+	char tooltipdisabled;
+	/** UI_block_end done? */
+	char endblock;
 
-	eBlockBoundsCalc bounds_type;  /* for doing delayed */
+	/** for doing delayed */
+	eBlockBoundsCalc bounds_type;
 	int mx, my;
-	int bounds, minbounds;      /* for doing delayed */
+	/** for doing delayed */
+	int bounds, minbounds;
 
-	rctf safety;                /* pulldowns, to detect outside, can differ per case how it is created */
-	ListBase saferct;           /* uiSafetyRct list */
+	/** pulldowns, to detect outside, can differ per case how it is created */
+	rctf safety;
+	/** uiSafetyRct list */
+	ListBase saferct;
 
 	uiPopupBlockHandle *handle; /* handle */
 
-	struct wmOperator *ui_operator; /* use so presets can find the operator, */
-	                                /* across menus and from nested popups which fail for operator context. */
+	/** use so presets can find the operator,
+	 * across menus and from nested popups which fail for operator context. */
+	struct wmOperator *ui_operator;
 
-	void *evil_C;               /* XXX hack for dynamic operator enums */
+	/** XXX hack for dynamic operator enums */
+	void *evil_C;
 
-	struct UnitSettings *unit;  /* unit system, used a lot for numeric buttons so include here rather then fetching through the scene every time. */
-	ColorPickerData color_pickers; /* XXX, only accessed by color picker templates */
+	/** unit system, used a lot for numeric buttons so include here
+	 * rather then fetching through the scene every time. */
+	struct UnitSettings *unit;
+	/** \note only accessed by color picker templates. */
+	ColorPickerData color_pickers;
 
 	bool color_profile;         /* color profile for correcting linear colors for display */
 
-	char display_device[64]; /* display device name used to display this block,
-	                          * used by color widgets to transform colors from/to scene linear
-	                          */
+	/** display device name used to display this block,
+	 * used by color widgets to transform colors from/to scene linear
+	 */
+	char display_device[64];
+
 	struct PieMenuData pie_data;
 };
 
@@ -491,7 +508,6 @@ extern uiButExtraIconType ui_but_icon_extra_get(uiBut *but);
 
 extern void ui_but_default_set(struct bContext *C, const bool all, const bool use_afterfunc);
 
-extern void ui_but_update_ex(uiBut *but, const bool validate);
 extern void ui_but_update(uiBut *but);
 extern void ui_but_update_edited(uiBut *but);
 extern bool ui_but_is_float(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
@@ -670,6 +686,7 @@ extern void ui_but_execute_begin(struct bContext *C, struct ARegion *ar, uiBut *
 extern void ui_but_execute_end(struct bContext *C, struct ARegion *ar, uiBut *but, void *active_back);
 extern void ui_but_active_free(const struct bContext *C, uiBut *but);
 extern bool ui_but_is_active(struct ARegion *ar) ATTR_WARN_UNUSED_RESULT;
+extern bool ui_but_is_editing(uiBut *but);
 extern int ui_but_menu_direction(uiBut *but);
 extern void ui_but_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but, const bool restore);
 extern uiBut *ui_but_find_select_in_enum(uiBut *but, int direction);

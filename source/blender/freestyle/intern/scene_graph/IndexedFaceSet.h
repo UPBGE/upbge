@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __FREESTYLE_INDEXED_FACE_SET_H__
@@ -113,7 +109,7 @@ public:
 	 *      0 : the arrays are not copied. The pointers passed as arguments are used. IndexedFaceSet takes these
 	 *          arrays desallocation in charge.
 	 *      1 : the arrays are copied. The caller is in charge of the arrays, passed as arguments desallocation.
-	*/
+	 */
 	IndexedFaceSet(float *iVertices, unsigned iVSize, float *iNormals, unsigned iNSize, FrsMaterial **iMaterials,
 	               unsigned iMSize, float *iTexCoords, unsigned iTSize, unsigned iNumFaces, unsigned *iNumVertexPerFace,
 	               TRIANGLES_STYLE *iFaceStyle, FaceEdgeMark *iFaceEdgeMarks, unsigned *iVIndices, unsigned iVISize,

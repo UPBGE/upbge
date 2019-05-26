@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation, Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_graph/graph_buttons.c
@@ -234,14 +227,14 @@ static short get_active_fcurve_keyframe_edit(FCurve *fcu, BezTriple **bezt, BezT
 		return 0;
 
 	/* find first selected keyframe for now, and call it the active one
-	 *	- this is a reasonable assumption, given that whenever anyone
-	 *	  wants to edit numerically, there is likely to only be 1 vert selected
+	 * - this is a reasonable assumption, given that whenever anyone
+	 *   wants to edit numerically, there is likely to only be 1 vert selected
 	 */
 	for (i = 0, b = fcu->bezt; i < fcu->totvert; i++, b++) {
 		if (BEZT_ISSEL_ANY(b)) {
 			/* found
-			 *	- 'previous' is either the one before, of the keyframe itself (which is still fine)
-			 *		XXX: we can just make this null instead if needed
+			 * - 'previous' is either the one before, of the keyframe itself (which is still fine)
+			 *   XXX: we can just make this null instead if needed
 			 */
 			*prevbezt = (i > 0) ? b - 1 : b;
 			*bezt = b;
@@ -393,8 +386,8 @@ static void graph_panel_key_properties(const bContext *C, Panel *pa)
 		}
 
 		/* numerical coordinate editing
-		 *  - we use the button-versions of the calls so that we can attach special update handlers
-		 *    and unit conversion magic that cannot be achieved using a purely RNA-approach
+		 * - we use the button-versions of the calls so that we can attach special update handlers
+		 *   and unit conversion magic that cannot be achieved using a purely RNA-approach
 		 */
 		col = uiLayoutColumn(layout, true);
 		/* keyframe itself */
@@ -681,7 +674,9 @@ static void graph_panel_driverVar__locDiff(uiLayout *layout, ID *id, DriverVar *
 		uiItemPointerR(col, &dtar_ptr, "bone_target", &tar_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
 	}
 
-	uiLayoutSetRedAlert(col, false); /* we can clear it again now - it's only needed when creating the ID/Bone fields */
+	/* we can clear it again now - it's only needed when creating the ID/Bone fields */
+	uiLayoutSetRedAlert(col, false);
+
 	uiItemR(col, &dtar_ptr, "transform_space", 0, NULL, ICON_NONE);
 
 	/* Object 2 */
@@ -696,7 +691,9 @@ static void graph_panel_driverVar__locDiff(uiLayout *layout, ID *id, DriverVar *
 		uiItemPointerR(col, &dtar2_ptr, "bone_target", &tar_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
 	}
 
-	uiLayoutSetRedAlert(col, false); /* we can clear it again now - it's only needed when creating the ID/Bone fields */
+	/* we can clear it again now - it's only needed when creating the ID/Bone fields */
+	uiLayoutSetRedAlert(col, false);
+
 	uiItemR(col, &dtar2_ptr, "transform_space", 0, NULL, ICON_NONE);
 }
 
@@ -883,14 +880,22 @@ static void graph_panel_drivers(const bContext *C, Panel *pa)
 		subrow = uiLayoutRow(row, true);
 
 		/* 1.1.1) variable type */
-		sub = uiLayoutRow(subrow, true);                     /* HACK: special group just for the enum, otherwise we */
-		uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);  /*       we get ugly layout with text included too...  */
+
+		/* HACK: special group just for the enum,
+		 * otherwise we get ugly layout with text included too... */
+		sub = uiLayoutRow(subrow, true);
+
+		uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
 
 		uiItemR(sub, &dvar_ptr, "type", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
 		/* 1.1.2) variable name */
-		sub = uiLayoutRow(subrow, true);                       /* HACK: special group to counteract the effects of the previous */
-		uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_EXPAND);  /*       enum, which now pushes everything too far right         */
+
+		/* HACK: special group to counteract the effects of the previous enum,
+		 * which now pushes everything too far right */
+		sub = uiLayoutRow(subrow, true);
+
+		uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_EXPAND);
 
 		uiItemR(sub, &dvar_ptr, "name", 0, "", ICON_NONE);
 

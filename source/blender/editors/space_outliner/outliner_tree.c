@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Joshua Leung
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_outliner/outliner_tree.c
@@ -930,7 +922,7 @@ static TreeElement *outliner_add_element(SpaceOops *soops, ListBase *lb, void *i
 		tselem->flag |= TSE_CHILDSEARCH;
 
 	te->parent = parent;
-	te->index = index;   // for data arays
+	te->index = index;   // for data arrays
 	if (ELEM(type, TSE_SEQUENCE, TSE_SEQ_STRIP, TSE_SEQUENCE_DUP)) {
 		/* pass */
 	}
@@ -988,7 +980,7 @@ static TreeElement *outliner_add_element(SpaceOops *soops, ListBase *lb, void *i
 
 					for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
 						/* loop over all targets used here */
-						DRIVER_TARGETS_USED_LOOPER(dvar)
+						DRIVER_TARGETS_USED_LOOPER_BEGIN(dvar)
 						{
 							if (lastadded != dtar->id) {
 								// XXX this lastadded check is rather lame, and also fails quite badly...
@@ -996,7 +988,7 @@ static TreeElement *outliner_add_element(SpaceOops *soops, ListBase *lb, void *i
 								lastadded = dtar->id;
 							}
 						}
-						DRIVER_TARGETS_LOOPER_END
+						DRIVER_TARGETS_LOOPER_END;
 					}
 				}
 			}
@@ -1090,7 +1082,7 @@ static TreeElement *outliner_add_element(SpaceOops *soops, ListBase *lb, void *i
 
 		int a, tot;
 
-		/* we do lazy build, for speed and to avoid infinite recusion */
+		/* we do lazy build, for speed and to avoid infinite recursion */
 
 		if (ptr->data == NULL) {
 			te->name = IFACE_("(empty)");
@@ -1458,7 +1450,7 @@ static int treesort_alpha(const void *v1, const void *v2)
 }
 
 
-/* this is nice option for later? doesnt look too useful... */
+/* this is nice option for later? doesn't look too useful... */
 #if 0
 static int treesort_obtype_alpha(const void *v1, const void *v2)
 {
@@ -1592,10 +1584,10 @@ static int outliner_filter_tree(SpaceOops *soops, ListBase *lb)
 
 		if (!outliner_filter_has_name(te, search_string, soops->search_flags)) {
 			/* item isn't something we're looking for, but...
-			 *  - if the subtree is expanded, check if there are any matches that can be easily found
-			 *		so that searching for "cu" in the default scene will still match the Cube
-			 *	- otherwise, we can't see within the subtree and the item doesn't match,
-			 *		so these can be safely ignored (i.e. the subtree can get freed)
+			 * - if the subtree is expanded, check if there are any matches that can be easily found
+			 *     so that searching for "cu" in the default scene will still match the Cube
+			 * - otherwise, we can't see within the subtree and the item doesn't match,
+			 *     so these can be safely ignored (i.e. the subtree can get freed)
 			 */
 			tselem = TREESTORE(te);
 
@@ -1635,7 +1627,8 @@ void outliner_build_tree(Main *mainvar, Scene *scene, SpaceOops *soops)
 	Base *base;
 	TreeElement *te = NULL, *ten;
 	TreeStoreElem *tselem;
-	int show_opened = !soops->treestore || !BLI_mempool_len(soops->treestore); /* on first view, we open scenes */
+	/* on first view, we open scenes */
+	int show_opened = !soops->treestore || !BLI_mempool_len(soops->treestore);
 
 	/* Are we looking for something - we want to tag parents to filter child matches
 	 * - NOT in datablocks view - searching all datablocks takes way too long to be useful

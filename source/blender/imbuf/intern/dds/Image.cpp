@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributors: Amorilia (amorilia@users.sourceforge.net)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/imbuf/intern/dds/Image.cpp
@@ -82,7 +76,7 @@ const Color32 * Image::scanline(uint h) const
 	return m_data + h * m_width;
 }
 
-Color32 * Image::scanline(uint h)
+Color32 *Image::scanline(uint h)
 {
 	if (h >= m_height) {
 		printf("DDS: scanline beyond dimensions of image\n");
@@ -91,12 +85,12 @@ Color32 * Image::scanline(uint h)
 	return m_data + h * m_width;
 }
 
-const Color32 * Image::pixels() const
+const Color32 *Image::pixels() const
 {
 	return m_data;
 }
 
-Color32 * Image::pixels()
+Color32 *Image::pixels()
 {
 	return m_data;
 }

@@ -125,7 +125,9 @@
 #define fmodf(x, y) fmod((float)(x), (float)(y))
 #define sinhf(x) sinh(((float)(x)))
 
-#ifndef __CL_USE_NATIVE__
+/* Use native functions with possibly lower precision for performance,
+ * no issues found so far. */
+#if 1
 #  define sinf(x) native_sin(((float)(x)))
 #  define cosf(x) native_cos(((float)(x)))
 #  define tanf(x) native_tan(((float)(x)))
@@ -140,7 +142,7 @@
 #  define expf(x) exp(((float)(x)))
 #  define sqrtf(x) sqrt(((float)(x)))
 #  define logf(x) log(((float)(x)))
-#  define rcp(x)  recip(x))
+#  define rcp(x)  recip(x)
 #endif
 
 /* data lookup defines */
@@ -159,4 +161,4 @@
 #include "util/util_half.h"
 #include "util/util_types.h"
 
-#endif /* __KERNEL_COMPAT_OPENCL_H__ */
+#endif  /* __KERNEL_COMPAT_OPENCL_H__ */

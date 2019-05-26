@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  * Making screendumps.
  */
 
@@ -279,7 +273,8 @@ static bool screenshot_poll(bContext *C)
 
 void SCREEN_OT_screenshot(wmOperatorType *ot)
 {
-	ot->name = "Save Screenshot"; /* weak: opname starting with 'save' makes filewindow give save-over */
+	/* weak: opname starting with 'save' makes filewindow give save-over */
+	ot->name = "Save Screenshot";
 	ot->idname = "SCREEN_OT_screenshot";
 	ot->description = "Capture a picture of the active area or whole Blender window";
 

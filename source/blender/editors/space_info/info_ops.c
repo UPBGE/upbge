@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/editors/space_info/info_ops.c
@@ -70,7 +63,7 @@
 
 #include "info_intern.h"
 
-/********************* pack blend file libaries operator *********************/
+/********************* pack blend file libraries operator *********************/
 
 static int pack_libraries_exec(bContext *C, wmOperator *op)
 {
@@ -124,7 +117,7 @@ void FILE_OT_unpack_libraries(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/********************* toogle auto-pack operator *********************/
+/********************* toggle auto-pack operator *********************/
 
 static int autopack_toggle_exec(bContext *C, wmOperator *op)
 {

@@ -1,5 +1,6 @@
 if "%BUILD_VS_YEAR%"=="2015" set BUILD_VS_LIBDIRPOST=vc14
 if "%BUILD_VS_YEAR%"=="2017" set BUILD_VS_LIBDIRPOST=vc14
+if "%BUILD_VS_YEAR%"=="2019" set BUILD_VS_LIBDIRPOST=vc14
 
 if "%BUILD_ARCH%"=="x64" (
 	set BUILD_VS_SVNDIR=win64_%BUILD_VS_LIBDIRPOST%
@@ -26,7 +27,7 @@ if NOT EXIST %BUILD_VS_LIBDIR% (
 :RETRY			
 			"%SVN%" checkout https://svn.blender.org/svnroot/bf-blender/trunk/lib/%BUILD_VS_SVNDIR% %BUILD_VS_LIBDIR%
 			if errorlevel 1 (
-				set /p LibRetry= "Error during donwload, retry? y/n"
+				set /p LibRetry= "Error during download, retry? y/n"
 				if /I "!LibRetry!"=="Y" (
 					cd %BUILD_VS_LIBDIR%
 					"%SVN%" cleanup 

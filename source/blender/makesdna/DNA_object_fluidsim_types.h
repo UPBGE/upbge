@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2004-2005 by Blender Foundation
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file DNA_object_fluidsim_types.h
@@ -39,8 +31,8 @@
 extern "C" {
 #endif
 
-struct Mesh;
 struct Ipo;
+struct Mesh;
 
 typedef struct FluidVertexVelocity {
 	float vel[3];
@@ -102,7 +94,7 @@ typedef struct FluidsimSettings {
 	/* additional flags depending on the type, lower short contains flags
 	 * to check validity, higher short additional flags */
 	short typeFlags;
-	/* switch off velocity genration, volume init type for fluid/obstacles (volume=1, shell=2, both=3) */
+	/* switch off velocity generation, volume init type for fluid/obstacles (volume=1, shell=2, both=3) */
 	char  domainNovecgen, volumeInitType;
 
 	/* boundary "stickiness" for part slip values */
@@ -161,7 +153,8 @@ typedef struct FluidsimSettings {
 #define OB_FSBND_FREESLIP       (1<<(OB_TYPEFLAG_START+4))
 #define OB_FSINFLOW_LOCALCOORD  (1<<(OB_TYPEFLAG_START+5))
 
-/* surface generation flag (part of enabling chapter 6 of "Free Surface Flows with Moving and Deforming Objects for LBM") */
+/* surface generation flag (part of enabling chapter 6 of
+ * "Free Surface Flows with Moving and Deforming Objects for LBM") */
 #define OB_FSSG_NOOBS			(1<<(OB_TYPEFLAG_START+6))
 
 // guiDisplayMode particle flags

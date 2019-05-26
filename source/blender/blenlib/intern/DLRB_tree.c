@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,10 +15,6 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
- *
- * Contributor(s): Joshua Leung (original author)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenlib/intern/DLRB_tree.c
@@ -102,8 +96,8 @@ static void linkedlist_sync_add_node(DLRBT_Tree *tree, DLRBT_Node *node)
 	linkedlist_sync_add_node(tree, node->left);
 
 	/* now add self
-	 *	- must remove detach from other links first
-	 *	  (for now, only clear own pointers)
+	 * - must remove detach from other links first
+	 *   (for now, only clear own pointers)
 	 */
 	node->prev = node->next = NULL;
 	BLI_addtail((ListBase *)tree, (Link *)node);
@@ -443,7 +437,8 @@ static void insert_check_3(DLRBT_Tree *tree, DLRBT_Node *node)
 {
 	DLRBT_Node *gp = get_grandparent(node);
 
-	/* check that grandparent and node->parent exist (jut in case... really shouldn't happen on a good tree) */
+	/* check that grandparent and node->parent exist
+	 * (jut in case... really shouldn't happen on a good tree) */
 	if (node && node->parent && gp) {
 		/* a left rotation will switch the roles of node and its parent, assuming that
 		 * the parent is the left child of the grandparent... otherwise, rotation direction
@@ -466,13 +461,13 @@ static void insert_check_3(DLRBT_Tree *tree, DLRBT_Node *node)
 			/* get 'new' grandparent (i.e. grandparent for old-parent (node)) */
 			gp = get_grandparent(node);
 
-			/* modify the coloring of the grandparent and parent so that they still satisfy the constraints */
+			/* modify the coloring of the grandparent and parent
+			 * so that they still satisfy the constraints */
 			node->parent->tree_col = DLRBT_BLACK;
 			gp->tree_col = DLRBT_RED;
 
-			/* if there are several nodes that all form a left chain, do a right rotation to correct this
-			 * (or a rotation in the opposite direction if they all form a right chain)
-			 */
+			/* if there are several nodes that all form a left chain, do a right rotation to correct
+			 * this (or a rotation in the opposite direction if they all form a right chain) */
 			if ((node == node->parent->left) && (node->parent == gp->left))
 				rotate_right(tree, gp);
 			else //if ((node == node->parent->right) && (node->parent == gp->right))
@@ -502,7 +497,8 @@ void BLI_dlrbTree_insert(DLRBT_Tree *tree, DLRBT_Node *node)
 /* ----- */
 
 /* Add the given data to the tree, and return the node added */
-/* NOTE: for duplicates, the update_cb is called (if available), and the existing node is returned */
+/* NOTE: for duplicates, the update_cb is called (if available),
+ * and the existing node is returned */
 DLRBT_Node *BLI_dlrbTree_add(DLRBT_Tree *tree, DLRBT_Comparator_FP cmp_cb,
                              DLRBT_NAlloc_FP new_cb, DLRBT_NUpdate_FP update_cb, void *data)
 {
@@ -572,7 +568,7 @@ DLRBT_Node *BLI_dlrbTree_add(DLRBT_Tree *tree, DLRBT_Comparator_FP cmp_cb,
 		node->tree_col = DLRBT_RED;
 
 		/* perform BST balancing steps:
-		 *  start from case 1, an trek through the tail-recursive insertion checks
+		 * start from case 1, an trek through the tail-recursive insertion checks
 		 */
 		insert_check_1(tree, node);
 	}

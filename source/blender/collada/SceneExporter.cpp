@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Chingiz Dyussenov, Arystanbek Dyussenov, Jan Diederich, Tod Liverseed.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/collada/SceneExporter.cpp
@@ -59,7 +53,7 @@ void SceneExporter::exportHierarchy(bContext *C, Scene *sce)
 		ob->id.tag |= LIB_TAG_DOIT;
 	}
 
-	// Now find all exportable base ojects (highest in export hierarchy)
+	// Now find all exportable base objects (highest in export hierarchy)
 	for (node = this->export_settings->export_set; node; node = node->next) {
 		Object *ob = (Object *) node->link;
 		if (bc_is_base_node(this->export_settings->export_set, ob)) {

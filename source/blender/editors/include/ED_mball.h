@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file ED_mball.h
@@ -31,10 +24,10 @@
 #ifndef __ED_MBALL_H__
 #define __ED_MBALL_H__
 
-struct bContext;
 struct Object;
-struct wmKeyConfig;
 struct UndoType;
+struct bContext;
+struct wmKeyConfig;
 
 void ED_operatortypes_metaball(void);
 void ED_operatormacros_metaball(void);

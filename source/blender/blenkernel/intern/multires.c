@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2007 by Nicholas Bishop
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file blender/blenkernel/intern/multires.c
@@ -578,7 +570,7 @@ static void multires_copy_dm_grid(CCGElem *gridA, CCGElem *gridB, CCGKey *keyA, 
 			for (x = 0; x < keyB->grid_size; x++, j++)
 				memcpy(CCG_elem_offset_co(keyA, gridA, y * skip * keyA->grid_size + x * skip),
 				       CCG_elem_offset_co(keyB, gridB, j),
-				       sizeof(float) * keyA->num_layers);
+				       keyA->elem_size);
 	}
 	else {
 		skip = (keyB->grid_size - 1) / (keyA->grid_size - 1);
@@ -587,7 +579,7 @@ static void multires_copy_dm_grid(CCGElem *gridA, CCGElem *gridB, CCGKey *keyA, 
 			for (x = 0; x < keyA->grid_size; x++, j++)
 				memcpy(CCG_elem_offset_co(keyA, gridA, j),
 				       CCG_elem_offset_co(keyB, gridB, y * skip * keyB->grid_size + x * skip),
-				       sizeof(float) * keyA->num_layers);
+				       keyA->elem_size);
 	}
 }
 

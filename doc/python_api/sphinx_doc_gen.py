@@ -491,7 +491,7 @@ if ARGS.sphinx_build_pdf:
 
 # --------------------------------API DUMP--------------------------------------
 
-# lame, python wont give some access
+# lame, python won't give some access
 ClassMethodDescriptorType = type(dict.__dict__['fromkeys'])
 MethodDescriptorType = type(dict.get)
 GetSetDescriptorType = type(int.real)
@@ -685,12 +685,12 @@ def pyfunc2sphinx(ident, fw, module_name, type_name, identifier, py_func, is_cla
     if type(py_func) == MethodType:
         return
 
-    arg_str = inspect.formatargspec(*inspect.getfullargspec(py_func))
+    arg_str = str(inspect.signature(py_func))
 
     if not is_class:
         func_type = "function"
 
-        # ther rest are class methods
+        # the rest are class methods
     elif arg_str.startswith("(self, ") or arg_str == "(self)":
         arg_str = "()" if (arg_str == "(self)") else ("(" + arg_str[7:])
         func_type = "method"
@@ -824,7 +824,7 @@ def pymodule2sphinx(basepath, module_name, module, title):
     fw(".. module:: %s\n\n" % module_name)
 
     if module.__doc__:
-        # Note, may contain sphinx syntax, dont mangle!
+        # Note, may contain sphinx syntax, don't mangle!
         fw(module.__doc__.strip())
         fw("\n\n")
 
@@ -1077,7 +1077,7 @@ context_type_map = {
     "selected_bones": ("EditBone", True),
     "selected_editable_bases": ("ObjectBase", True),
     "selected_editable_bones": ("EditBone", True),
-    "selected_editable_fcurves": ("FCurce", True),
+    "selected_editable_fcurves": ("FCurve", True),
     "selected_editable_objects": ("Object", True),
     "selected_editable_sequences": ("Sequence", True),
     "selected_nodes": ("Node", True),
@@ -1120,7 +1120,7 @@ def pycontext2sphinx(basepath):
     def write_contex_cls():
 
         fw(title_string("Global Context", "-"))
-        fw("These properties are avilable in any contexts.\n\n")
+        fw("These properties are available in any contexts.\n\n")
 
         # very silly. could make these global and only access once.
         # structs, funcs, ops, props = rna_info.BuildRNAInfo()
@@ -1144,7 +1144,7 @@ def pycontext2sphinx(basepath):
             if prop.description:
                 fw("   %s\n\n" % prop.description)
 
-            # special exception, cant use genric code here for enums
+            # special exception, can't use generic code here for enums
             if prop.type == "enum":
                 enum_text = pyrna_enum2sphinx(prop)
                 if enum_text:
@@ -1266,7 +1266,7 @@ def pyrna2sphinx(basepath):
             if prop.name or prop.description:
                 fw(ident + "   " + ", ".join(val for val in (prop.name, prop.description) if val) + "\n\n")
 
-            # special exception, cant use genric code here for enums
+            # special exception, can't use generic code here for enums
             if enum_text:
                 write_indented_lines(ident + "   ", fw, enum_text)
                 fw("\n")
@@ -1365,7 +1365,7 @@ def pyrna2sphinx(basepath):
             if prop.description:
                 fw("      %s\n\n" % prop.description)
 
-            # special exception, cant use genric code here for enums
+            # special exception, can't use generic code here for enums
             if prop.type == "enum":
                 enum_text = pyrna_enum2sphinx(prop)
                 if enum_text:
@@ -1398,7 +1398,7 @@ def pyrna2sphinx(basepath):
             elif func.return_values:  # multiple return values
                 fw("      :return (%s):\n" % ", ".join(prop.identifier for prop in func.return_values))
                 for prop in func.return_values:
-                    # TODO, pyrna_enum2sphinx for multiple return values... actually dont
+                    # TODO, pyrna_enum2sphinx for multiple return values... actually don't
                     # think we even use this but still!!!
                     type_descr = prop.get_type_description(
                         as_ret=True, class_fmt=":class:`%s`", collection_id=_BPY_PROP_COLLECTION_ID)

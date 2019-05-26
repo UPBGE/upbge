@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Campbell Barton
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BLI_COMPILER_ATTRS_H__
@@ -93,10 +84,12 @@
 #endif
 
 /* Use to suppress '-Wimplicit-fallthrough' (in place of 'break'). */
-#if defined(__GNUC__) && (__GNUC__ >= 7)  /* gcc7.0+ only */
-#  define ATTR_FALLTHROUGH __attribute__((fallthrough))
-#else
-#  define ATTR_FALLTHROUGH ((void)0)
+#ifndef ATTR_FALLTHROUGH
+#  if defined(__GNUC__) && (__GNUC__ >= 7)  /* gcc7.0+ only */
+#    define ATTR_FALLTHROUGH __attribute__((fallthrough))
+#  else
+#    define ATTR_FALLTHROUGH ((void)0)
+#  endif
 #endif
 
 /* Declare the memory alignment in Bytes. */

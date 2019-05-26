@@ -36,7 +36,7 @@ if(WITH_CYCLES_OSL)
 endif()
 
 if(NOT CYCLES_STANDALONE_REPOSITORY)
-	list(APPEND LIBRARIES bf_intern_glew_mx bf_intern_guardedalloc)
+	list(APPEND LIBRARIES bf_intern_glew_mx bf_intern_guardedalloc bf_intern_numaapi)
 endif()
 
 if(WITH_CYCLES_LOGGING)
@@ -58,7 +58,12 @@ link_directories(${OPENIMAGEIO_LIBPATH}
                  ${JPEG_LIBPATH}
                  ${ZLIB_LIBPATH}
                  ${TIFF_LIBPATH}
-                 ${OPENEXR_LIBPATH})
+                 ${OPENEXR_LIBPATH}
+                 ${OPENJPEG_LIBPATH})
+
+if(WITH_OPENCOLORIO)
+	link_directories(${OPENCOLORIO_LIBPATH})
+endif()
 
 add_definitions(${GL_DEFINITIONS})
 
@@ -77,17 +82,20 @@ macro(cycles_target_link_libraries target)
 	if(WITH_CYCLES_OSL)
 		target_link_libraries(${target} ${OSL_LIBRARIES} ${LLVM_LIBRARIES})
 	endif()
-	if(WITH_CYCLES_OPENSUBDIV)
+	if(WITH_CYCLES_EMBREE)
+		target_link_libraries(${target} ${EMBREE_LIBRARIES})
+	endif()
+	if(WITH_OPENSUBDIV)
 		target_link_libraries(${target} ${OPENSUBDIV_LIBRARIES})
 	endif()
 	if(WITH_OPENCOLORIO)
-		link_directories(${OPENCOLORIO_LIBPATH})
 		target_link_libraries(${target} ${OPENCOLORIO_LIBRARIES})
 	endif()
 	target_link_libraries(
 		${target}
 		${OPENIMAGEIO_LIBRARIES}
 		${OPENEXR_LIBRARIES}
+		${OPENJPEG_LIBRARIES}
 		${PUGIXML_LIBRARIES}
 		${BOOST_LIBRARIES}
 		${CMAKE_DL_LIBS}
@@ -131,7 +139,7 @@ if(WITH_CYCLES_CUBIN_COMPILER)
 	# to be build to compile the cubins.
 	if(MSVC AND NOT CMAKE_CL_64)
 		message("Building with CUDA not supported on 32 bit, skipped")
-		set(WITH_CYCLES_CUDA_BINARIES OFF)
+		set(WITH_CYCLES_CUDA_BINARIES OFF CACHE BOOL "" FORCE)
 	else()
 		set(SRC
 			cycles_cubin_cc.cpp
@@ -144,6 +152,10 @@ if(WITH_CYCLES_CUBIN_COMPILER)
 		target_link_libraries(cycles_cubin_cc
 			extern_cuew
 			${OPENIMAGEIO_LIBRARIES}
+			${OPENEXR_LIBRARIES}
+			${OPENJPEG_LIBRARIES}
+			${PUGIXML_LIBRARIES}
+			${BOOST_LIBRARIES}
 			${PLATFORM_LINKLIBS}
 		)
 		if(NOT CYCLES_STANDALONE_REPOSITORY)

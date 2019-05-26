@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,13 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 #ifndef __BLI_NOISE_H__
@@ -42,7 +33,8 @@ float BLI_hnoise(float noisesize, float x, float y, float z);
 float BLI_hnoisep(float noisesize, float x, float y, float z);
 float BLI_turbulence(float noisesize, float x, float y, float z, int nr);
 float BLI_turbulence1(float noisesize, float x, float y, float z, int nr);
-/* newnoise: generic noise & turbulence functions to replace the above BLI_hnoise/p & BLI_turbulence/1.
+/* newnoise: generic noise & turbulence functions
+ * to replace the above BLI_hnoise/p & BLI_turbulence/1.
  * This is done so different noise basis functions can be used */
 float BLI_gNoise(float noisesize, float x, float y, float z, int hard, int noisebasis);
 float BLI_gTurbulence(float noisesize, float x, float y, float z, int oct, int hard, int noisebasis);
