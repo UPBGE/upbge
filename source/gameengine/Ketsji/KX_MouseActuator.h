@@ -41,12 +41,14 @@ private:
 	SCA_IInputDevice* m_mouse;
 	RAS_ICanvas* m_canvas;
 	int m_type;
-	bool m_initialSkipping;
 
 	bool m_visible;
 
 	bool m_use_axis[2]; /* 0 for calculate axis, 1 for ignore axis */
 	mt::vec2 m_threshold;
+
+	bool m_initialSkipping;
+
 	bool m_reset[2]; /* 0=reset, 1=free */
 	int m_object_axis[2]; /* 0=x, 1=y, 2=z */
 	bool m_local[2]; /* 0=local, 1=global*/

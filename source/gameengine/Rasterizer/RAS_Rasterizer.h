@@ -322,8 +322,8 @@ private:
 
 	/// States to reduce OpenGL calls.
 	struct {
-		char frontFace;
-		char cullFace;
+		bool frontFace;
+		bool cullFace;
 		float polyOffset[2];
 	} m_state;
 

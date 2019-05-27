@@ -50,8 +50,8 @@ KX_MouseActuator::KX_MouseActuator(SCA_IObject* gameobj, KX_KetsjiEngine* ketsji
 	m_type(acttype),
 	m_visible(visible),
 	m_threshold(threshold),
-	m_sensitivity(sensitivity),
 	m_initialSkipping(true),
+	m_sensitivity(sensitivity),
 	m_oldPosition(mt::zero2),
 	m_angle(mt::zero2)
 {
