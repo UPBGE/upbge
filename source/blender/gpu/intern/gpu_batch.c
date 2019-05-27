@@ -56,7 +56,7 @@ void GPU_batch_vao_cache_clear(GPUBatch *batch)
             (GPUShaderInterface *)batch->dynamic_vaos.interfaces[i], batch);
       }
     }
-    MEM_freeN(batch->dynamic_vaos.interfaces);
+    MEM_freeN((void *)batch->dynamic_vaos.interfaces);
     MEM_freeN(batch->dynamic_vaos.vao_ids);
   }
   else {
@@ -285,7 +285,7 @@ static GLuint batch_vao_get(GPUBatch *batch)
       /* Not enough place, realloc the array. */
       i = batch->dynamic_vaos.count;
       batch->dynamic_vaos.count += GPU_BATCH_VAO_DYN_ALLOC_COUNT;
-      batch->dynamic_vaos.interfaces = MEM_recallocN(batch->dynamic_vaos.interfaces,
+      batch->dynamic_vaos.interfaces = MEM_recallocN((void *)batch->dynamic_vaos.interfaces,
                                                      sizeof(GPUShaderInterface *) *
                                                          batch->dynamic_vaos.count);
       batch->dynamic_vaos.vao_ids = MEM_recallocN(batch->dynamic_vaos.vao_ids,
@@ -621,7 +621,7 @@ void GPU_batch_draw_advanced(GPUBatch *batch, int v_first, int v_count, int i_fi
       /* If using offset drawing with instancing, we must
        * use the default VAO and redo bindings. */
       glBindVertexArray(GPU_vao_default());
-      batch_update_program_bindings(batch, v_first);
+      batch_update_program_bindings(batch, i_first);
     }
     else {
       /* Previous call could have bind the default vao

@@ -874,6 +874,7 @@ static void drw_shgroup_init(DRWShadingGroup *shgroup, GPUShader *shader)
     drw_shgroup_builtin_uniform(shgroup, GPU_UNIFORM_VIEWPROJECTION_INV, storage->persinv, 16, 1);
     drw_shgroup_builtin_uniform(shgroup, GPU_UNIFORM_PROJECTION, storage->winmat, 16, 1);
     drw_shgroup_builtin_uniform(shgroup, GPU_UNIFORM_PROJECTION_INV, storage->wininv, 16, 1);
+    drw_shgroup_builtin_uniform(shgroup, GPU_UNIFORM_CLIPPLANES, storage->clipplanes, 4, 6);
   }
 
   /* Not supported. */
@@ -1048,7 +1049,6 @@ bool DRW_shgroup_is_empty(DRWShadingGroup *shgroup)
 
 DRWShadingGroup *DRW_shgroup_create_sub(DRWShadingGroup *shgroup)
 {
-  /* Remove this assertion if needed but implement the other cases first! */
   DRWShadingGroup *shgroup_new = BLI_memblock_alloc(DST.vmempool->shgroups);
 
   *shgroup_new = *shgroup;

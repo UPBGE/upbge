@@ -196,6 +196,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
             /* grease pencil settings */
             v3d->vertex_opacity = 1.0f;
             v3d->gp_flag |= V3D_GP_SHOW_EDIT_LINES;
+            /* Remove dither pattern in wireframe mode. */
+            v3d->shading.xray_alpha_wire = 0.0f;
             /* Skip startups that use the viewport color by default. */
             if (v3d->shading.background_type != V3D_SHADING_BACKGROUND_VIEWPORT) {
               copy_v3_fl(v3d->shading.background_color, 0.05f);
@@ -456,6 +458,9 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     copy_v3_v3(scene->display.light_direction, (float[3]){M_SQRT1_3, M_SQRT1_3, M_SQRT1_3});
     copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
     copy_v2_fl2(scene->safe_areas.action, 0.035f, 0.035f);
+
+    /* Change default cubemap quality. */
+    scene->eevee.gi_filter_quality = 3.0f;
   }
 
   if (app_template == NULL) {
