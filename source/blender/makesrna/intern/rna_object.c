@@ -3003,6 +3003,21 @@ static void rna_def_object(BlenderRNA *brna)
       prop, "Parent Bone", "Name of parent bone in case of a bone parenting relation");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
 
+  /* slow parenting */
+  /* XXX: evil old crap */
+  prop = RNA_def_property(srna, "use_slow_parent", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "partype", PARSLOW);
+  RNA_def_property_ui_text(prop, "Slow Parent",
+                           "Create a delay in the parent relationship (beware: this isn't renderfarm "
+                           "safe and may be invalid after jumping around the timeline)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update");
+
+  prop = RNA_def_property(srna, "slow_parent_offset", PROP_FLOAT, PROP_NONE | PROP_UNIT_TIME);
+  RNA_def_property_float_sdna(prop, NULL, "sf");
+  RNA_def_property_range(prop, MINAFRAMEF, MAXFRAMEF);
+  RNA_def_property_ui_text(prop, "Slow Parent Offset", "Delay in the parent relationship");
+  RNA_def_property_update(prop, NC_OBJECT | ND_TRANSFORM, "rna_Object_internal_update");
+
   /* Track and Up flags */
   /* XXX: these have been saved here for a bit longer (after old track was removed),
    *      since some other tools still refer to this */
