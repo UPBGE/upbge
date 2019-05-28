@@ -1970,9 +1970,6 @@ static void single_mat_users(
           if (ma->id.us > 1) {
             man = BKE_material_copy(bmain, ma);
             BKE_animdata_copy_id_action(bmain, &man->id, false);
-            if (man->nodetree != NULL) {
-              BKE_animdata_copy_id_action(bmain, &man->nodetree->id, false);
-            }
 
             man->id.us = 0;
             assign_material(bmain, ob, man, a, BKE_MAT_ASSIGN_USERPREF);

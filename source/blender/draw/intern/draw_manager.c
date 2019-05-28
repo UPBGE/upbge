@@ -385,7 +385,7 @@ void DRW_transform_none(GPUTexture *tex)
  */
 void DRW_multisamples_resolve(GPUTexture *src_depth, GPUTexture *src_color, bool use_depth)
 {
-  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_PREMUL;
+  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA_PREMUL;
 
   if (use_depth) {
     state |= DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL;
@@ -2822,7 +2822,7 @@ void DRW_framebuffer_select_id_setup(ARegion *ar, const bool clear)
   glDisable(GL_DITHER);
 
   GPU_depth_test(true);
-  GPU_disable_program_point_size();
+  GPU_program_point_size(false);
 
   if (clear) {
     GPU_framebuffer_clear_color_depth(

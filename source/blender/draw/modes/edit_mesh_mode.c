@@ -397,8 +397,8 @@ static void edit_mesh_create_overlay_passes(float face_alpha,
   }
 
   /* Verts */
-  passes->verts = DRW_pass_create("Edit Mesh Verts",
-                                  (DRW_STATE_WRITE_COLOR | statemod) & ~DRW_STATE_BLEND);
+  DRWState state = (DRW_STATE_WRITE_COLOR | statemod) & ~DRW_STATE_BLEND_ALPHA;
+  passes->verts = DRW_pass_create("Edit Mesh Verts", state);
   if (select_vert) {
     grp = shgrps->verts = DRW_shgroup_create(vert_sh, passes->verts);
     DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
@@ -488,8 +488,7 @@ static void EDIT_MESH_cache_init(void *vedata)
 
     g_data->fweights_shgrp = DRW_shgroup_create(sh_data->weight_face, psl->weight_faces);
 
-    static float alpha = 1.0f;
-    DRW_shgroup_uniform_float(g_data->fweights_shgrp, "opacity", &alpha, 1);
+    DRW_shgroup_uniform_float_copy(g_data->fweights_shgrp, "opacity", 1.0);
     DRW_shgroup_uniform_texture(g_data->fweights_shgrp, "colorramp", G_draw.weight_ramp);
     DRW_shgroup_uniform_block(g_data->fweights_shgrp, "globalsBlock", G_draw.block_ubo);
     if (rv3d->rflag & RV3D_CLIPPING) {
@@ -524,21 +523,21 @@ static void EDIT_MESH_cache_init(void *vedata)
                                        DRW_STATE_DEPTH_LESS_EQUAL);
 
     g_data->fnormals_shgrp = DRW_shgroup_create(sh_data->normals_face, psl->normals);
-    DRW_shgroup_uniform_float(g_data->fnormals_shgrp, "normalSize", &size_normal, 1);
+    DRW_shgroup_uniform_float_copy(g_data->fnormals_shgrp, "normalSize", size_normal);
     DRW_shgroup_uniform_vec4(g_data->fnormals_shgrp, "color", G_draw.block.colorNormal, 1);
     if (rv3d->rflag & RV3D_CLIPPING) {
       DRW_shgroup_state_enable(g_data->fnormals_shgrp, DRW_STATE_CLIP_PLANES);
     }
 
     g_data->vnormals_shgrp = DRW_shgroup_create(sh_data->normals, psl->normals);
-    DRW_shgroup_uniform_float(g_data->vnormals_shgrp, "normalSize", &size_normal, 1);
+    DRW_shgroup_uniform_float_copy(g_data->vnormals_shgrp, "normalSize", size_normal);
     DRW_shgroup_uniform_vec4(g_data->vnormals_shgrp, "color", G_draw.block.colorVNormal, 1);
     if (rv3d->rflag & RV3D_CLIPPING) {
       DRW_shgroup_state_enable(g_data->vnormals_shgrp, DRW_STATE_CLIP_PLANES);
     }
 
     g_data->lnormals_shgrp = DRW_shgroup_create(sh_data->normals_loop, psl->normals);
-    DRW_shgroup_uniform_float(g_data->lnormals_shgrp, "normalSize", &size_normal, 1);
+    DRW_shgroup_uniform_float_copy(g_data->lnormals_shgrp, "normalSize", size_normal);
     DRW_shgroup_uniform_vec4(g_data->lnormals_shgrp, "color", G_draw.block.colorLNormal, 1);
     if (rv3d->rflag & RV3D_CLIPPING) {
       DRW_shgroup_state_enable(g_data->lnormals_shgrp, DRW_STATE_CLIP_PLANES);
@@ -547,7 +546,7 @@ static void EDIT_MESH_cache_init(void *vedata)
 
   {
     /* Mesh Analysis Pass */
-    DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND;
+    DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA;
     psl->mesh_analysis_pass = DRW_pass_create("Mesh Analysis", state);
     const bool is_vertex_color = scene->toolsettings->statvis.type == SCE_STATVIS_SHARP;
     g_data->mesh_analysis_shgrp = DRW_shgroup_create(
@@ -561,7 +560,7 @@ static void EDIT_MESH_cache_init(void *vedata)
   edit_mesh_create_overlay_passes(face_mod,
                                   g_data->data_mask,
                                   g_data->do_edges,
-                                  DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND,
+                                  DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA,
                                   &psl->edit_passes_in_front,
                                   &g_data->edit_in_front_shgrps);
 
@@ -569,7 +568,7 @@ static void EDIT_MESH_cache_init(void *vedata)
     edit_mesh_create_overlay_passes(face_mod,
                                     g_data->data_mask,
                                     g_data->do_edges,
-                                    DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND,
+                                    DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA,
                                     &psl->edit_passes,
                                     &g_data->edit_shgrps);
   }
@@ -583,7 +582,7 @@ static void EDIT_MESH_cache_init(void *vedata)
                                     &psl->edit_passes,
                                     &g_data->edit_shgrps);
 
-    DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND;
+    DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA;
     psl->facefill_occlude = DRW_pass_create("Front Face Color", state);
     psl->facefill_occlude_cage = DRW_pass_create("Front Face Cage Color", state);
 
@@ -616,7 +615,7 @@ static void EDIT_MESH_cache_init(void *vedata)
     struct GPUBatch *quad = DRW_cache_fullscreen_quad_get();
 
     psl->mix_occlude = DRW_pass_create("Mix Occluded Wires",
-                                       DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND);
+                                       DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
     DRWShadingGroup *mix_shgrp = DRW_shgroup_create(sh_data->overlay_mix, psl->mix_occlude);
     DRW_shgroup_call(mix_shgrp, quad, NULL);
     DRW_shgroup_uniform_float_copy(mix_shgrp, "alpha", backwire_opacity);
@@ -702,7 +701,7 @@ static void EDIT_MESH_cache_populate(void *vedata, Object *ob)
         DRW_shgroup_call(g_data->fweights_shgrp, geom, ob->obmat);
       }
 
-      if (do_show_mesh_analysis) {
+      if (do_show_mesh_analysis && !XRAY_ACTIVE(v3d)) {
         Mesh *me = (Mesh *)ob->data;
         BMEditMesh *embm = me->edit_mesh;
         const bool is_original = embm->mesh_eval_final &&

@@ -1306,7 +1306,7 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
     [GPU_SHADER_DRAW_FRAME_BUFFER] =
         {
             .vert = datatoc_gpu_shader_frame_buffer_vert_glsl,
-    	    .frag = datatoc_gpu_shader_frame_buffer_frag_glsl,
+            .frag = datatoc_gpu_shader_frame_buffer_frag_glsl,
         },
     [GPU_SHADER_BLACK] =
         {

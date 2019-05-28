@@ -183,26 +183,27 @@ void drw_state_set(DRWState state)
   /* Blending (all buffer) */
   {
     int test;
-    if (CHANGED_ANY_STORE_VAR(DRW_STATE_BLEND | DRW_STATE_BLEND_PREMUL | DRW_STATE_ADDITIVE |
-                                  DRW_STATE_MULTIPLY | DRW_STATE_ADDITIVE_FULL |
-                                  DRW_STATE_BLEND_OIT | DRW_STATE_BLEND_PREMUL_UNDER,
+    if (CHANGED_ANY_STORE_VAR(DRW_STATE_BLEND_ALPHA | DRW_STATE_BLEND_ALPHA_PREMUL |
+                                  DRW_STATE_BLEND_ADD | DRW_STATE_BLEND_MUL |
+                                  DRW_STATE_BLEND_ADD_FULL | DRW_STATE_BLEND_OIT |
+                                  DRW_STATE_BLEND_ALPHA_UNDER_PREMUL,
                               test)) {
       if (test) {
         glEnable(GL_BLEND);
 
-        if ((state & DRW_STATE_BLEND) != 0) {
+        if ((state & DRW_STATE_BLEND_ALPHA) != 0) {
           glBlendFuncSeparate(GL_SRC_ALPHA,
                               GL_ONE_MINUS_SRC_ALPHA, /* RGB */
                               GL_ONE,
                               GL_ONE_MINUS_SRC_ALPHA); /* Alpha */
         }
-        else if ((state & DRW_STATE_BLEND_PREMUL_UNDER) != 0) {
+        else if ((state & DRW_STATE_BLEND_ALPHA_UNDER_PREMUL) != 0) {
           glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_ONE);
         }
-        else if ((state & DRW_STATE_BLEND_PREMUL) != 0) {
+        else if ((state & DRW_STATE_BLEND_ALPHA_PREMUL) != 0) {
           glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         }
-        else if ((state & DRW_STATE_MULTIPLY) != 0) {
+        else if ((state & DRW_STATE_BLEND_MUL) != 0) {
           glBlendFunc(GL_DST_COLOR, GL_ZERO);
         }
         else if ((state & DRW_STATE_BLEND_OIT) != 0) {
@@ -211,14 +212,14 @@ void drw_state_set(DRWState state)
                               GL_ZERO,
                               GL_ONE_MINUS_SRC_ALPHA); /* Alpha */
         }
-        else if ((state & DRW_STATE_ADDITIVE) != 0) {
+        else if ((state & DRW_STATE_BLEND_ADD) != 0) {
           /* Do not let alpha accumulate but premult the source RGB by it. */
           glBlendFuncSeparate(GL_SRC_ALPHA,
                               GL_ONE, /* RGB */
                               GL_ZERO,
                               GL_ONE); /* Alpha */
         }
-        else if ((state & DRW_STATE_ADDITIVE_FULL) != 0) {
+        else if ((state & DRW_STATE_BLEND_ADD_FULL) != 0) {
           /* Let alpha accumulate. */
           glBlendFunc(GL_ONE, GL_ONE);
         }
@@ -246,6 +247,19 @@ void drw_state_set(DRWState state)
         for (int i = 0; i < MAX_CLIP_PLANES; ++i) {
           glDisable(GL_CLIP_DISTANCE0 + i);
         }
+      }
+    }
+  }
+
+  /* Program Points Size */
+  {
+    int test;
+    if ((test = CHANGED_TO(DRW_STATE_PROGRAM_POINT_SIZE))) {
+      if (test == 1) {
+        GPU_program_point_size(true);
+      }
+      else {
+        GPU_program_point_size(false);
       }
     }
   }
@@ -354,7 +368,6 @@ void DRW_state_reset(void)
   DRW_state_reset_ex(DRW_STATE_DEFAULT);
 
   GPU_point_size(5);
-  GPU_enable_program_point_size();
 
   /* Reset blending function */
   glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
