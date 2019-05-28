@@ -683,6 +683,15 @@ wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
   BLI_buffer_declare_static(wmGizmo *, visible_3d_gizmos, BLI_BUFFER_NOP, 128);
   bool do_step[WM_GIZMOMAP_DRAWSTEP_MAX];
 
+  int mval[2] = {UNPACK2(event->mval)};
+
+  /* Ensure for drag events we use the location where the user clicked.
+   * Without this click-dragging on a gizmo can accidentally act on the wrong gizmo. */
+  if (ISTWEAK(event->type) || (event->val == KM_CLICK_DRAG)) {
+    mval[0] += event->x - event->prevclickx;
+    mval[1] += event->y - event->prevclicky;
+  }
+
   for (int i = 0; i < ARRAY_SIZE(do_step); i++) {
     do_step[i] = WM_gizmo_context_check_drawstep(C, i);
   }
@@ -715,7 +724,7 @@ wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
           wm_gizmogroup_intersectable_gizmos_to_list(gzgroup, &visible_3d_gizmos);
         }
         else if (step == WM_GIZMOMAP_DRAWSTEP_2D) {
-          if ((gz = wm_gizmogroup_find_intersected_gizmo(gzgroup, C, event, r_part))) {
+          if ((gz = wm_gizmogroup_find_intersected_gizmo(gzgroup, C, mval, r_part))) {
             break;
           }
         }
@@ -727,7 +736,7 @@ wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
     /* 2D gizmos get priority. */
     if (gz == NULL) {
       gz = gizmo_find_intersected_3d(
-          C, event->mval, visible_3d_gizmos.data, visible_3d_gizmos.count, r_part);
+          C, mval, visible_3d_gizmos.data, visible_3d_gizmos.count, r_part);
     }
   }
   BLI_buffer_free(&visible_3d_gizmos);
@@ -1007,11 +1016,6 @@ void wm_gizmomap_modal_set(
     wmWindow *win = CTX_wm_window(C);
 
     WM_tooltip_clear(C, win);
-
-    /* Use even if we don't have invoke, so we can setup data before an operator runs. */
-    if (gz->parent_gzgroup->type->invoke_prepare) {
-      gz->parent_gzgroup->type->invoke_prepare(C, gz->parent_gzgroup, gz, event);
-    }
 
     if (gz->type->invoke && (gz->type->modal || gz->custom_modal)) {
       const int retval = gz->type->invoke(C, gz, event);
