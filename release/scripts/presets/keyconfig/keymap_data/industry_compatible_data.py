@@ -110,22 +110,6 @@ def _template_items_animation():
     ]
 
 
-def _template_items_gizmo_tweak_modal():
-    return [
-        ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
-        ("CANCEL", {"type": 'RIGHTMOUSE', "value": 'PRESS', "any": True}, None),
-        ("CONFIRM", {"type": 'RET', "value": 'PRESS', "any": True}, None),
-        ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "any": True}, None),
-        ("PRECISION_ON", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
-        ("PRECISION_OFF", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
-        ("PRECISION_ON", {"type": 'LEFT_SHIFT', "value": 'PRESS', "any": True}, None),
-        ("PRECISION_OFF", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
-        ("SNAP_ON", {"type": 'RIGHT_CTRL', "value": 'PRESS', "any": True}, None),
-        ("SNAP_OFF", {"type": 'RIGHT_CTRL', "value": 'RELEASE', "any": True}, None),
-        ("SNAP_ON", {"type": 'LEFT_CTRL', "value": 'PRESS', "any": True}, None),
-        ("SNAP_OFF", {"type": 'LEFT_CTRL', "value": 'RELEASE', "any": True}, None),
-    ]
-
 # Tool System Templates
 
 def _template_items_basic_tools(*, connected=False):
@@ -3535,9 +3519,9 @@ def km_transform_modal_map(_params):
 # Gizmo System Keymaps
 
 # Fallback for gizmos that don't have custom a custom key-map.
-def km_generic_gizmos(_params):
+def km_generic_gizmo(_params):
     keymap = (
-        "Generic Gizmos",
+        "Generic Gizmo",
         {"space_type": 'EMPTY', "region_type": 'WINDOW'},
         {"items": _template_items_gizmo_tweak_value()},
     )
@@ -3545,18 +3529,9 @@ def km_generic_gizmos(_params):
     return keymap
 
 
-def km_generic_gizmos_tweak_modal_map(_params):
+def km_generic_gizmo_select(_params):
     keymap = (
-        "Generic Gizmos Tweak Modal Map",
-        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
-        {"items": _template_items_gizmo_tweak_modal()},
-    )
-    return keymap
-
-
-def km_generic_gizmos_select(_params):
-    keymap = (
-        "Generic Gizmos Select",
+        "Generic Gizmo Select",
         {"space_type": 'EMPTY', "region_type": 'WINDOW'},
         # TODO, currently in C code.
         {"items": _template_items_gizmo_tweak_value()},
@@ -3565,11 +3540,24 @@ def km_generic_gizmos_select(_params):
     return keymap
 
 
-def km_generic_gizmos_select_tweak_modal_map(_params):
+def km_generic_gizmo_tweak_modal_map(_params):
     keymap = (
-        "Generic Gizmos Select Tweak Modal Map",
+        "Generic Gizmo Tweak Modal Map",
         {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
-        {"items": _template_items_gizmo_tweak_modal()},
+        {"items": [
+            ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
+            ("CANCEL", {"type": 'RIGHTMOUSE', "value": 'PRESS', "any": True}, None),
+            ("CONFIRM", {"type": 'RET', "value": 'PRESS', "any": True}, None),
+            ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "any": True}, None),
+            ("PRECISION_ON", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
+            ("PRECISION_OFF", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
+            ("PRECISION_ON", {"type": 'LEFT_SHIFT', "value": 'PRESS', "any": True}, None),
+            ("PRECISION_OFF", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
+            ("SNAP_ON", {"type": 'RIGHT_CTRL', "value": 'PRESS', "any": True}, None),
+            ("SNAP_OFF", {"type": 'RIGHT_CTRL', "value": 'RELEASE', "any": True}, None),
+            ("SNAP_ON", {"type": 'LEFT_CTRL', "value": 'PRESS', "any": True}, None),
+            ("SNAP_OFF", {"type": 'LEFT_CTRL', "value": 'RELEASE', "any": True}, None),
+        ]},
     )
     return keymap
 
@@ -3785,10 +3773,9 @@ def generate_keymaps(params=None):
         km_transform_modal_map(params),
 
         # Gizmos.
-        km_generic_gizmos(params),
-        km_generic_gizmos_tweak_modal_map(params),
-        km_generic_gizmos_select(params),
-        km_generic_gizmos_select_tweak_modal_map(params),
+        km_generic_gizmo(params),
+        km_generic_gizmo_select(params),
+        km_generic_gizmo_tweak_modal_map(params),
 
         # Tool System.
         km_3d_view_tool_transform(params),

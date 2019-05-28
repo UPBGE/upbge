@@ -107,6 +107,7 @@ typedef enum {
   UI_WTYPE_SCROLL,
   UI_WTYPE_LISTITEM,
   UI_WTYPE_PROGRESSBAR,
+  UI_WTYPE_NODESOCKET,
 } uiWidgetTypeEnum;
 
 /* Button state argument shares bits with 'uiBut.flag'.
@@ -3435,56 +3436,56 @@ static void widget_numbut_embossn(
 
 bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol)
 {
-	float dist, vec[4][2];
+  float dist, vec[4][2];
 
-	vec[0][0] = rect->xmin;
-	vec[0][1] = rect->ymin;
-	vec[3][0] = rect->xmax;
-	vec[3][1] = rect->ymax;
-	
-	dist = 0.5f * fabsf(vec[0][0] - vec[3][0]);
-	
-	vec[1][0] = vec[0][0] + dist;
-	vec[1][1] = vec[0][1];
-	
-	vec[2][0] = vec[3][0] - dist;
-	vec[2][1] = vec[3][1];
-	
-	BKE_curve_forward_diff_bezier(vec[0][0], vec[1][0], vec[2][0], vec[3][0], &coord_array[0][0], resol, sizeof(float[2]));
-	BKE_curve_forward_diff_bezier(vec[0][1], vec[1][1], vec[2][1], vec[3][1], &coord_array[0][1], resol, sizeof(float[2]));
+  vec[0][0] = rect->xmin;
+  vec[0][1] = rect->ymin;
+  vec[3][0] = rect->xmax;
+  vec[3][1] = rect->ymax;
 
-	/* TODO: why return anything if always true? */
-	return true;
+  dist = 0.5f * fabsf(vec[0][0] - vec[3][0]);
+
+  vec[1][0] = vec[0][0] + dist;
+  vec[1][1] = vec[0][1];
+
+  vec[2][0] = vec[3][0] - dist;
+  vec[2][1] = vec[3][1];
+
+  BKE_curve_forward_diff_bezier(vec[0][0], vec[1][0], vec[2][0], vec[3][0], &coord_array[0][0], resol, sizeof(float[2]));
+  BKE_curve_forward_diff_bezier(vec[0][1], vec[1][1], vec[2][1], vec[3][1], &coord_array[0][1], resol, sizeof(float[2]));
+
+  /* TODO: why return anything if always true? */
+  return true;
 }
 
 #define LINK_RESOL  24
 void ui_draw_link_bezier(const rcti *rect, const float color[4])
 {
-	float coord_array[LINK_RESOL + 1][2];
+  float coord_array[LINK_RESOL + 1][2];
 
-	if (ui_link_bezier_points(rect, coord_array, LINK_RESOL)) {
-		unsigned int pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+  if (ui_link_bezier_points(rect, coord_array, LINK_RESOL)) {
+    unsigned int pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
 #if 0 /* unused */
-		/* we can reuse the dist variable here to increment the GL curve eval amount*/
-		const float dist = 1.0f / (float)LINK_RESOL;
+    /* we can reuse the dist variable here to increment the GL curve eval amount*/
+    const float dist = 1.0f / (float)LINK_RESOL;
 #endif
-		glEnable(GL_BLEND);
-		glEnable(GL_LINE_SMOOTH);
+    glEnable(GL_BLEND);
+    glEnable(GL_LINE_SMOOTH);
 
-		immUniformColor4fv(color);
+    immUniformColor4fv(color);
 
-		immBegin(GPU_PRIM_LINE_STRIP, LINK_RESOL + 1);
-		for (int i = 0; i <= LINK_RESOL; ++i)
-			immVertex2fv(pos, coord_array[i]);
-		immEnd();
+    immBegin(GPU_PRIM_LINE_STRIP, LINK_RESOL + 1);
+    for (int i = 0; i <= LINK_RESOL; ++i)
+      immVertex2fv(pos, coord_array[i]);
+    immEnd();
 
-		glDisable(GL_BLEND);
-		glDisable(GL_LINE_SMOOTH);
+    glDisable(GL_BLEND);
+    glDisable(GL_LINE_SMOOTH);
 
-		immUnbindProgram();
-	}
+    immUnbindProgram();
+  }
 }
 
 /* function in use for buttons and for view2d sliders */
@@ -3681,23 +3682,58 @@ static void widget_progressbar(
 
 static void widget_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
-	
-	if (but->flag & UI_SELECT) {
-		rcti rectlink;
-		float color[4];
-		
-		UI_GetThemeColor4fv(TH_TEXT_HI, color);
-		
-		rectlink.xmin = BLI_rcti_cent_x(rect);
-		rectlink.ymin = BLI_rcti_cent_y(rect);
-		rectlink.xmax = but->linkto[0];
-		rectlink.ymax = but->linkto[1];
-		
-		ui_draw_link_bezier(&rectlink, color);
-	}
+  if (but->flag & UI_SELECT) {
+    rcti rectlink;
+    float color[4];
+
+    UI_GetThemeColor4fv(TH_TEXT_HI, color);
+
+    rectlink.xmin = BLI_rcti_cent_x(rect);
+    rectlink.ymin = BLI_rcti_cent_y(rect);
+    rectlink.xmax = but->linkto[0];
+    rectlink.ymax = but->linkto[1];
+
+    ui_draw_link_bezier(&rectlink, color);
+  }
 }
 
-static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+static void widget_nodesocket(
+    uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+{
+  uiWidgetBase wtb;
+  int radi = 5;
+  char old_inner[3], old_outline[3];
+
+  widget_init(&wtb);
+
+  copy_v3_v3_char(old_inner, wcol->inner);
+  copy_v3_v3_char(old_outline, wcol->outline);
+
+  wcol->inner[0] = but->col[0];
+  wcol->inner[1] = but->col[1];
+  wcol->inner[2] = but->col[2];
+  wcol->outline[0] = 0;
+  wcol->outline[1] = 0;
+  wcol->outline[2] = 0;
+  wcol->outline[3] = 150;
+
+  int cent_x = BLI_rcti_cent_x(rect);
+  int cent_y = BLI_rcti_cent_y(rect);
+  rect->xmin = cent_x - radi;
+  rect->xmax = cent_x + radi;
+  rect->ymin = cent_y - radi;
+  rect->ymax = cent_y + radi;
+
+  wtb.draw_outline = true;
+  round_box_edges(&wtb, UI_CNR_ALL, rect, (float)radi);
+  widgetbase_draw(&wtb, wcol);
+
+  copy_v3_v3_char(wcol->inner, old_inner);
+  copy_v3_v3_char(wcol->outline, old_outline);
+}
+
+static void widget_numslider(
+    uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
   uiWidgetBase wtb, wtb1;
   rcti rect1;
@@ -4448,6 +4484,10 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
       wt.custom = widget_progressbar;
       break;
 
+    case UI_WTYPE_NODESOCKET:
+      wt.custom = widget_nodesocket;
+      break;
+
     case UI_WTYPE_MENU_ITEM_RADIAL:
       wt.wcol_theme = &btheme->tui.wcol_pie_menu;
       wt.custom = widget_menu_radial_itembut;
@@ -4776,7 +4816,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
         break;
 
       case UI_BTYPE_NODE_SOCKET:
-        ui_draw_but_NODESOCKET(ar, but, &tui->wcol_regular, rect);
+        wt = widget_type(UI_WTYPE_NODESOCKET);
         break;
 
       default:
