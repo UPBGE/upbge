@@ -105,6 +105,10 @@ RAS_ICanvas::SwapControl RAS_ICanvas::GetSwapControl() const
 
 void RAS_ICanvas::SetSamples(int samples)
 {
+	if (samples == 1) {
+		m_samples = 0;
+		return;
+	}
 	m_samples = samples;
 }
 

@@ -30,7 +30,8 @@
 
 #include "CM_Message.h"
 
-KX_2DFilterManager::KX_2DFilterManager()
+KX_2DFilterManager::KX_2DFilterManager(bool useFxaa):
+	RAS_2DFilterManager(useFxaa)
 {
 }
 

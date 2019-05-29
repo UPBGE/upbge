@@ -56,10 +56,11 @@ public:
 		FILTER_SEPIA,
 		FILTER_INVERT,
 		FILTER_CUSTOMFILTER,
+		FILTER_FXAA,
 		FILTER_NUMBER_OF_FILTERS
 	};
 
-	RAS_2DFilterManager();
+	RAS_2DFilterManager(bool useFxaa);
 	virtual ~RAS_2DFilterManager();
 
 	/** Applies the filters to the scene.

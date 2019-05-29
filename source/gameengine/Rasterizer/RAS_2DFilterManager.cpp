@@ -39,6 +39,7 @@ extern char datatoc_RAS_Blur2DFilter_glsl[];
 extern char datatoc_RAS_Sharpen2DFilter_glsl[];
 extern char datatoc_RAS_Dilation2DFilter_glsl[];
 extern char datatoc_RAS_Erosion2DFilter_glsl[];
+extern char datatoc_RAS_Fxaa2DFilter_glsl[];
 extern char datatoc_RAS_Laplacian2DFilter_glsl[];
 extern char datatoc_RAS_Sobel2DFilter_glsl[];
 extern char datatoc_RAS_Prewitt2DFilter_glsl[];
@@ -47,8 +48,21 @@ extern char datatoc_RAS_Sepia2DFilter_glsl[];
 extern char datatoc_RAS_Invert2DFilter_glsl[];
 }
 
-RAS_2DFilterManager::RAS_2DFilterManager()
+RAS_2DFilterManager::RAS_2DFilterManager(bool useFxaa)
 {
+	if (useFxaa) {
+		RAS_2DFilterData fxaaData;
+		fxaaData.filterMode = FILTER_MODE::FILTER_FXAA;
+		fxaaData.filterPassIndex = -1;
+		fxaaData.gameObject = nullptr;
+		fxaaData.mipmap = false;
+		fxaaData.propertyNames = {};
+		fxaaData.shaderText = datatoc_RAS_Fxaa2DFilter_glsl;
+		RAS_2DFilter *fxaaFilter = new RAS_2DFilter(fxaaData);
+		m_filters[fxaaData.filterPassIndex] = fxaaFilter;
+		// By default enable the filter.
+		fxaaFilter->SetEnabled(true);
+	}
 }
 
 RAS_2DFilterManager::~RAS_2DFilterManager()

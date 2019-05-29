@@ -34,7 +34,7 @@ class KX_2DFilterManager : public RAS_2DFilterManager, public EXP_PyObjectPlus
 {
 	Py_Header
 public:
-	KX_2DFilterManager();
+	KX_2DFilterManager(bool useFxaa);
 	virtual ~KX_2DFilterManager();
 
 	virtual RAS_2DFilter *NewFilter(RAS_2DFilterData& filterData);

@@ -4461,6 +4461,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
 	static const EnumPropertyItem aasamples_items[] = {
 		{0, "SAMPLES_0", 0, "Off", ""},
+		{1, "FXAA", 0, "FXAA", ""},
 		{2, "SAMPLES_2", 0, "2x", ""},
 		{4, "SAMPLES_4", 0, "4x", ""},
 		{8, "SAMPLES_8", 0, "8x", ""},

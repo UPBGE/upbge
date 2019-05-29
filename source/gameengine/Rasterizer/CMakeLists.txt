@@ -130,6 +130,7 @@ set(SRC
 data_to_c_simple(RAS_OpenGLFilters/RAS_Blur2DFilter.glsl SRC)
 data_to_c_simple(RAS_OpenGLFilters/RAS_Dilation2DFilter.glsl SRC)
 data_to_c_simple(RAS_OpenGLFilters/RAS_Erosion2DFilter.glsl SRC)
+data_to_c_simple(RAS_OpenGLFilters/RAS_Fxaa2DFilter.glsl SRC)
 data_to_c_simple(RAS_OpenGLFilters/RAS_GrayScale2DFilter.glsl SRC)
 data_to_c_simple(RAS_OpenGLFilters/RAS_Invert2DFilter.glsl SRC)
 data_to_c_simple(RAS_OpenGLFilters/RAS_Laplacian2DFilter.glsl SRC)

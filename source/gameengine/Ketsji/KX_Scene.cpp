@@ -167,7 +167,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_cameralist = new EXP_ListValue<KX_Camera>();
 	m_fontlist = new EXP_ListValue<KX_FontObject>();
 
-	m_filterManager = new KX_2DFilterManager();
+	bool useFxaa = (scene->gm.aasamples == 1);
+	m_filterManager = new KX_2DFilterManager(useFxaa);
 	m_logicmgr = new SCA_LogicManager();
 
 	m_timemgr = new SCA_TimeEventManager(m_logicmgr);

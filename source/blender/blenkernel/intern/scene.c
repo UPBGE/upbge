@@ -743,6 +743,7 @@ void BKE_scene_init(Scene *sce)
 	BLI_strncpy(srv->suffix, STEREO_RIGHT_SUFFIX, sizeof(srv->suffix));
 
 	/* game data */
+	sce->gm.aasamples = 4;
 	sce->gm.stereoflag = STEREO_NOSTEREO;
 	sce->gm.stereomode = STEREO_ANAGLYPH;
 	sce->gm.eyeseparation = 0.10;
