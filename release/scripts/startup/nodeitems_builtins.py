@@ -174,6 +174,16 @@ shader_node_categories = [
         NodeItem("ShaderNodeHueSaturation"),
         NodeItem("ShaderNodeGamma"),
     ]),
+    ShaderOldNodeCategory("SH_PROC_TEXTURE", "Patterns", items=[
+        NodeItem("ShaderNodeTexNoise"),
+        NodeItem("ShaderNodeTexWave"),
+        NodeItem("ShaderNodeTexVoronoi"),
+        NodeItem("ShaderNodeTexMusgrave"),
+        NodeItem("ShaderNodeTexGradient"),
+        NodeItem("ShaderNodeTexMagic"),
+        NodeItem("ShaderNodeTexChecker"),
+        NodeItem("ShaderNodeTexBrick"),
+    ]),
     ShaderOldNodeCategory("SH_OP_VECTOR", "Vector", items=[
         NodeItem("ShaderNodeNormal"),
         NodeItem("ShaderNodeMapping"),
