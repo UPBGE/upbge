@@ -244,9 +244,6 @@ void GPENCIL_engine_init(void *vedata)
   /* init storage */
   if (!stl->storage) {
     stl->storage = MEM_callocN(sizeof(GPENCIL_Storage), "GPENCIL_Storage");
-
-    /* unit matrix */
-    unit_m4(stl->storage->unit_matrix);
     stl->storage->shade_render[0] = OB_RENDER;
     stl->storage->shade_render[1] = 0;
   }
@@ -683,7 +680,7 @@ void GPENCIL_cache_populate(void *vedata, Object *ob)
         copy_v3_v3(grid_matrix[3], ob->obmat[3]);
       }
 
-      DRW_shgroup_call(stl->g_data->shgrps_grid, e_data.batch_grid, grid_matrix);
+      DRW_shgroup_call_obmat(stl->g_data->shgrps_grid, e_data.batch_grid, grid_matrix);
     }
   }
 }
@@ -950,7 +947,7 @@ void GPENCIL_draw_scene(void *ved)
             bool is_last = (e == cache_ob->tot_layers - 1) ? true : false;
             array_elm = &cache_ob->shgrp_array[e];
 
-            if (((array_elm->mode == eGplBlendMode_Normal) && (!use_blend) &&
+            if (((array_elm->mode == eGplBlendMode_Regular) && (!use_blend) &&
                  (!array_elm->clamp_layer)) ||
                 (e == 0)) {
               if (init_shgrp == NULL) {

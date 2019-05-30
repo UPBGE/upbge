@@ -549,10 +549,13 @@ struct DRWCallBuffer *buffer_instance_empty_axes(DRWPass *pass,
   return DRW_shgroup_call_buffer_instance(grp, g_formats.instance_sized, geom);
 }
 
-struct DRWCallBuffer *buffer_instance_outline(DRWPass *pass, struct GPUBatch *geom, int *baseid)
+struct DRWCallBuffer *buffer_instance_outline(DRWPass *pass,
+                                              struct GPUBatch *geom,
+                                              const int *baseid,
+                                              eGPUShaderConfig sh_cfg)
 {
-  GPUShader *sh_inst = GPU_shader_get_builtin_shader(
-      GPU_SHADER_INSTANCE_VARIYING_ID_VARIYING_SIZE);
+  GPUShader *sh_inst = GPU_shader_get_builtin_shader_with_config(
+      GPU_SHADER_INSTANCE_VARIYING_ID_VARIYING_SIZE, sh_cfg);
 
   DRW_shgroup_instance_format(g_formats.instance_outline,
                               {
@@ -564,6 +567,9 @@ struct DRWCallBuffer *buffer_instance_outline(DRWPass *pass, struct GPUBatch *ge
   DRWShadingGroup *grp = DRW_shgroup_create(sh_inst, pass);
   DRW_shgroup_uniform_int(grp, "baseId", baseid, 1);
 
+  if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
+    DRW_shgroup_state_enable(grp, DRW_STATE_CLIP_PLANES);
+  }
   return DRW_shgroup_call_buffer_instance(grp, g_formats.instance_outline, geom);
 }
 
@@ -1199,7 +1205,7 @@ float *DRW_color_background_blend_get(int theme_id)
   return ret;
 }
 
-bool DRW_object_is_flat(Object *ob, int *axis)
+bool DRW_object_is_flat(Object *ob, int *r_axis)
 {
   float dim[3];
 
@@ -1210,15 +1216,15 @@ bool DRW_object_is_flat(Object *ob, int *axis)
 
   BKE_object_dimensions_get(ob, dim);
   if (dim[0] == 0.0f) {
-    *axis = 0;
+    *r_axis = 0;
     return true;
   }
   else if (dim[1] == 0.0f) {
-    *axis = 1;
+    *r_axis = 1;
     return true;
   }
   else if (dim[2] == 0.0f) {
-    *axis = 2;
+    *r_axis = 2;
     return true;
   }
   return false;

@@ -14,7 +14,7 @@ uniform int tonemapping;
 #define ON 1
 #define OFF 0
 
-#define MODE_NORMAL 0
+#define MODE_REGULAR 0
 #define MODE_OVERLAY 1
 #define MODE_ADD 2
 #define MODE_SUB 3
@@ -111,19 +111,11 @@ void main()
   vec4 mix_color = texelFetch(blendColor, uv, 0).rgba;
   float mix_depth = texelFetch(blendDepth, uv, 0).r;
 
-  /* premult alpha factor to remove double blend effects */
-  if (stroke_color.a > 0) {
-    stroke_color = vec4(vec3(stroke_color.rgb / stroke_color.a), stroke_color.a);
-  }
-  if (mix_color.a > 0) {
-    mix_color = vec4(vec3(mix_color.rgb / mix_color.a), mix_color.a);
-  }
-
-  /* Normal mode */
-  if (mode == MODE_NORMAL) {
+  /* Default mode */
+  if (mode == MODE_REGULAR) {
     if (stroke_color.a > 0) {
       if (mix_color.a > 0) {
-        FragColor = vec4(mix(stroke_color.rgb, mix_color.rgb, mix_color.a), stroke_color.a);
+        FragColor = vec4(mix(stroke_color.rgb, mix_color.rgb, mix_color.a * blend_opacity), stroke_color.a);
         gl_FragDepth = mix_depth;
       }
       else {
