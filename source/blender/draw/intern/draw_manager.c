@@ -44,6 +44,7 @@
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_paint.h"
+#include "BKE_pbvh.h"
 #include "BKE_pointcache.h"
 
 #include "draw_manager.h"
@@ -216,9 +217,26 @@ bool DRW_object_use_hide_faces(const struct Object *ob)
   return false;
 }
 
+/* Should we use PBVH drawing or regular mesh drawing
+ * PBVH drawing should be used for
+ *  - Multires
+ *  - Dyntopo
+ *  - Normal sculpt without any active modifiers
+ */
 bool DRW_object_use_pbvh_drawing(const struct Object *ob)
 {
-  return ob->sculpt && (ob->sculpt->mode_type == OB_MODE_SCULPT);
+  SculptSession *ss = ob->sculpt;
+  if (ss == NULL || ss->pbvh == NULL || ob->sculpt->mode_type != OB_MODE_SCULPT) {
+    return false;
+  }
+
+  if (BKE_pbvh_type(ss->pbvh) == PBVH_FACES) {
+    return !(ss->kb || ss->modifiers_active);
+  }
+  else {
+    /* Multires/Dyntopo */
+    return true;
+  }
 }
 
 bool DRW_object_is_visible_psys_in_active_context(const Object *object, const ParticleSystem *psys)
@@ -270,80 +288,80 @@ struct DupliObject *DRW_object_get_dupli(const Object *UNUSED(ob))
 /* Use color management profile to draw texture to framebuffer */
 void DRW_transform_to_display(GPUTexture *tex, bool use_view_transform, bool use_render_settings)
 {
-	drw_state_set(DRW_STATE_WRITE_COLOR);
+  drw_state_set(DRW_STATE_WRITE_COLOR);
 
-	GPUVertFormat *vert_format = immVertexFormat();
-	uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-	uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  GPUVertFormat *vert_format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-	const float dither = 1.0f;
+  const float dither = 1.0f;
 
-	bool use_ocio = false;
+  bool use_ocio = false;
 
-	/* View transform is already applied for offscreen, don't apply again, see: T52046 */
-	if (!(DST.options.is_image_render && !DST.options.is_scene_render) && !(DST.draw_ctx.scene->flag & SCE_INTERACTIVE)) {
-		Scene *scene = DST.draw_ctx.scene;
-		ColorManagedDisplaySettings *display_settings = &scene->display_settings;
-		ColorManagedViewSettings view_settings;
-		if (use_render_settings) {
-			/* Use full render settings, for renders with scene lighting. */
-			view_settings = scene->view_settings;
-		}
-		else if (use_view_transform) {
-			/* Use only view transform + look and nothing else for lookdev without
-			 * scene lighting, as exposure depends on scene light intensity. */
-			BKE_color_managed_view_settings_init_render(&view_settings, display_settings, NULL);
-			STRNCPY(view_settings.view_transform, scene->view_settings.view_transform);
-			STRNCPY(view_settings.look, scene->view_settings.look);
-		}
-		else {
-			/* For workbench use only default view transform in configuration,
-			 * using no scene settings. */
-			BKE_color_managed_view_settings_init_render(&view_settings, display_settings, NULL);
-		}
+  /* Should we apply the view transform */
+  if (DRW_state_do_color_management() && !(DST.draw_ctx.scene->flag & SCE_INTERACTIVE)) {
+    Scene *scene = DST.draw_ctx.scene;
+    ColorManagedDisplaySettings *display_settings = &scene->display_settings;
+    ColorManagedViewSettings view_settings;
+    if (use_render_settings) {
+      /* Use full render settings, for renders with scene lighting. */
+      view_settings = scene->view_settings;
+    }
+    else if (use_view_transform) {
+      /* Use only view transform + look and nothing else for lookdev without
+       * scene lighting, as exposure depends on scene light intensity. */
+      BKE_color_managed_view_settings_init_render(&view_settings, display_settings, NULL);
+      STRNCPY(view_settings.view_transform, scene->view_settings.view_transform);
+      STRNCPY(view_settings.look, scene->view_settings.look);
+    }
+    else {
+      /* For workbench use only default view transform in configuration,
+       * using no scene settings. */
+      BKE_color_managed_view_settings_init_render(&view_settings, display_settings, NULL);
+    }
 
-		use_ocio = IMB_colormanagement_setup_glsl_draw_from_space(
-		        &view_settings, display_settings, NULL, dither, false);
-	}
+    use_ocio = IMB_colormanagement_setup_glsl_draw_from_space(
+        &view_settings, display_settings, NULL, dither, false);
+  }
 
-	if (!use_ocio) {
-		/* View transform is already applied for offscreen, don't apply again, see: T52046 */
-		if (DST.options.is_image_render && !DST.options.is_scene_render) {
-			immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
-			immUniformColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-		}
-		else {
-			immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB);
-		}
-		immUniform1i("image", 0);
-	}
+  if (!use_ocio) {
+    /* View transform is already applied for offscreen, don't apply again, see: T52046 */
+    if (DST.options.is_image_render && !DST.options.is_scene_render) {
+      immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
+      immUniformColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+    else {
+      immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB);
+    }
+    immUniform1i("image", 0);
+  }
 
-	GPU_texture_bind(tex, 0); /* OCIO texture bind point is 0 */
+  GPU_texture_bind(tex, 0); /* OCIO texture bind point is 0 */
 
-	float mat[4][4];
-	unit_m4(mat);
-	immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
+  float mat[4][4];
+  unit_m4(mat);
+  immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
 
-	/* Full screen triangle */
-	immBegin(GPU_PRIM_TRIS, 3);
-	immAttr2f(texco, 0.0f, 0.0f);
-	immVertex2f(pos, -1.0f, -1.0f);
+  /* Full screen triangle */
+  immBegin(GPU_PRIM_TRIS, 3);
+  immAttr2f(texco, 0.0f, 0.0f);
+  immVertex2f(pos, -1.0f, -1.0f);
 
-	immAttr2f(texco, 2.0f, 0.0f);
-	immVertex2f(pos, 3.0f, -1.0f);
+  immAttr2f(texco, 2.0f, 0.0f);
+  immVertex2f(pos, 3.0f, -1.0f);
 
-	immAttr2f(texco, 0.0f, 2.0f);
-	immVertex2f(pos, -1.0f, 3.0f);
-	immEnd();
+  immAttr2f(texco, 0.0f, 2.0f);
+  immVertex2f(pos, -1.0f, 3.0f);
+  immEnd();
 
-	GPU_texture_unbind(tex);
+  GPU_texture_unbind(tex);
 
-	if (use_ocio) {
-		IMB_colormanagement_finish_glsl_draw();
-	}
-	else {
-		immUnbindProgram();
-	}
+  if (use_ocio) {
+    IMB_colormanagement_finish_glsl_draw();
+  }
+  else {
+    immUnbindProgram();
+  }
 }
 
 /* Draw texture to framebuffer without any color transforms */
@@ -1540,6 +1558,7 @@ void DRW_draw_view(const bContext *C)
                            (v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) != 0);
   DST.options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
                                 (v3d->shading.type != OB_RENDER);
+  DST.options.do_color_management = true;
   DRW_draw_render_loop_ex(depsgraph, engine_type, ar, v3d, viewport, C);
 }
 
@@ -1801,9 +1820,8 @@ void DRW_draw_render_loop_offscreen(struct Depsgraph *depsgraph,
 
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
-  /* WATCH: Force color management to output CManaged byte buffer by
-   * forcing is_image_render to false. */
-  DST.options.is_image_render = !do_color_management;
+  DST.options.is_image_render = true;
+  DST.options.do_color_management = do_color_management;
   DST.options.draw_background = draw_background;
   DRW_draw_render_loop_ex(depsgraph, engine_type, ar, v3d, render_viewport, NULL);
 
@@ -2966,6 +2984,14 @@ bool DRW_state_is_depth(void)
 bool DRW_state_is_image_render(void)
 {
   return DST.options.is_image_render;
+}
+
+/**
+ * Whether the view transform should be applied.
+ */
+bool DRW_state_do_color_management(void)
+{
+  return DST.options.do_color_management;
 }
 
 /**
