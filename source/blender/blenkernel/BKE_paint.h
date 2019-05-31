@@ -54,6 +54,7 @@ struct SubdivCCG;
 struct Tex;
 struct ToolSettings;
 struct UnifiedPaintSettings;
+struct View3D;
 struct ViewLayer;
 struct bContext;
 struct bToolRef;
@@ -250,9 +251,6 @@ typedef struct SculptSession {
   float (*deform_cos)[3];      /* coords of deformed mesh but without stroke displacement */
   float (*deform_imats)[3][3]; /* crazyspace deformation matrices */
 
-  /* Partial redraw */
-  bool partial_redraw;
-
   /* Used to cache the render of the active texture */
   unsigned int texcache_side, *texcache, texcache_actual;
   struct ImagePool *tex_pool;
@@ -294,12 +292,14 @@ void BKE_sculptsession_free_deformMats(struct SculptSession *ss);
 void BKE_sculptsession_free_vwpaint_data(struct SculptSession *ss);
 void BKE_sculptsession_bm_to_me(struct Object *ob, bool reorder);
 void BKE_sculptsession_bm_to_me_for_render(struct Object *object);
-void BKE_sculpt_update_mesh_elements(struct Depsgraph *depsgraph,
-                                     struct Scene *scene,
-                                     struct Sculpt *sd,
-                                     struct Object *ob,
-                                     bool need_pmap,
-                                     bool need_mask);
+
+void BKE_sculpt_update_object_for_edit(struct Depsgraph *depsgraph,
+                                       struct Object *ob_orig,
+                                       bool need_pmap,
+                                       bool need_mask);
+void BKE_sculpt_update_object_before_eval(struct Object *ob_eval);
+void BKE_sculpt_update_object_after_eval(struct Depsgraph *depsgraph, struct Object *ob_eval);
+
 struct MultiresModifierData *BKE_sculpt_multires_active(struct Scene *scene, struct Object *ob);
 int BKE_sculpt_mask_layers_ensure(struct Object *ob, struct MultiresModifierData *mmd);
 void BKE_sculpt_toolsettings_data_ensure(struct Scene *scene);
@@ -307,6 +307,8 @@ void BKE_sculpt_toolsettings_data_ensure(struct Scene *scene);
 struct PBVH *BKE_sculpt_object_pbvh_ensure(struct Depsgraph *depsgraph, struct Object *ob);
 
 void BKE_sculpt_bvh_update_from_ccg(struct PBVH *pbvh, struct SubdivCCG *subdiv_ccg);
+
+bool BKE_sculptsession_use_pbvh_draw(const struct Object *ob, const struct View3D *v3d);
 
 enum {
   SCULPT_MASK_LAYER_CALC_VERT = (1 << 0),

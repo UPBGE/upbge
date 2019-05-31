@@ -3505,6 +3505,14 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
   {
     /* Versioning code until next subversion bump goes here. */
+
+    for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      if (scene->master_collection != NULL) {
+        scene->master_collection->flag &= ~(COLLECTION_RESTRICT_VIEWPORT |
+                                            COLLECTION_RESTRICT_SELECT |
+                                            COLLECTION_RESTRICT_RENDER);
+      }
+    }
   }
 
   /* Game engine hack to force defaults in files saved in normal blender2.8 */

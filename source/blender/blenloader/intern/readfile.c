@@ -7440,8 +7440,9 @@ static void direct_link_area(FileData *fd, ScrArea *area)
        * committed: r28002 */
 #if 0
       sima->gpd = newdataadr(fd, sima->gpd);
-      if (sima->gpd)
+      if (sima->gpd) {
         direct_link_gpencil(fd, sima->gpd);
+      }
 #endif
     }
     else if (sl->spacetype == SPACE_NODE) {
@@ -9762,6 +9763,7 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
 
   /* Clear runtime data. */
   user->runtime.is_dirty = false;
+  user->edit_studio_light = 0;
 
   /* free fd->datamap again */
   oldnewmap_free_unused(fd->datamap);
@@ -10014,8 +10016,9 @@ static BHead *find_bhead(FileData *fd, void *old)
 
 #if 0
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
-    if (bhead->old == old)
+    if (bhead->old == old) {
       return bhead;
+    }
   }
 #endif
 
