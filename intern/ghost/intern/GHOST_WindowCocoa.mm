@@ -29,6 +29,8 @@
 #endif
 
 #include <Cocoa/Cocoa.h>
+#include <QuartzCore/QuartzCore.h>
+#include <Metal/Metal.h>
 
 #include <sys/sysctl.h>
 
@@ -262,261 +264,18 @@
 
 @end
 
-#pragma mark NSOpenGLView subclass
-//We need to subclass it in order to give Cocoa the feeling key events are trapped
-@interface CocoaOpenGLView : NSOpenGLView <NSTextInput>
-{
-  GHOST_SystemCocoa *systemCocoa;
-  GHOST_WindowCocoa *associatedWindow;
+/* NSView for handling input and drawing. */
+#define COCOA_VIEW_CLASS CocoaOpenGLView
+#define COCOA_VIEW_BASE_CLASS NSOpenGLView
+#include "GHOST_WindowViewCocoa.h"
+#undef COCOA_VIEW_CLASS
+#undef COCOA_VIEW_BASE_CLASS
 
-  bool composing;
-  NSString *composing_text;
-
-  bool immediate_draw;
-}
-- (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa
-                    windowCocoa:(GHOST_WindowCocoa *)winCocoa;
-@end
-
-@implementation CocoaOpenGLView
-
-- (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa
-                    windowCocoa:(GHOST_WindowCocoa *)winCocoa
-{
-  systemCocoa = sysCocoa;
-  associatedWindow = winCocoa;
-
-  composing = false;
-  composing_text = nil;
-
-  immediate_draw = false;
-}
-
-- (BOOL)acceptsFirstResponder
-{
-  return YES;
-}
-
-// The trick to prevent Cocoa from complaining (beeping)
-- (void)keyDown:(NSEvent *)event
-{
-  systemCocoa->handleKeyEvent(event);
-
-  /* Start or continue composing? */
-  if ([[event characters] length] == 0 || [[event charactersIgnoringModifiers] length] == 0 ||
-      composing) {
-    composing = YES;
-
-    // interpret event to call insertText
-    NSMutableArray *events;
-    events = [[NSMutableArray alloc] initWithCapacity:1];
-    [events addObject:event];
-    [self interpretKeyEvents:events];  // calls insertText
-    [events removeObject:event];
-    [events release];
-    return;
-  }
-}
-
-- (void)keyUp:(NSEvent *)event
-{
-  systemCocoa->handleKeyEvent(event);
-}
-
-- (void)flagsChanged:(NSEvent *)event
-{
-  systemCocoa->handleKeyEvent(event);
-}
-
-- (void)mouseDown:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)mouseUp:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)rightMouseDown:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)rightMouseUp:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)mouseMoved:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)mouseDragged:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)rightMouseDragged:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)scrollWheel:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)otherMouseDown:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)otherMouseUp:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)otherMouseDragged:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)magnifyWithEvent:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)rotateWithEvent:(NSEvent *)event
-{
-  systemCocoa->handleMouseEvent(event);
-}
-
-- (void)tabletPoint:(NSEvent *)event
-{
-  systemCocoa->handleTabletEvent(event, [event type]);
-}
-
-- (void)tabletProximity:(NSEvent *)event
-{
-  systemCocoa->handleTabletEvent(event, [event type]);
-}
-
-- (BOOL)isOpaque
-{
-  return YES;
-}
-
-- (void)drawRect:(NSRect)rect
-{
-  if ([self inLiveResize]) {
-    /* Don't redraw while in live resize */
-  }
-  else {
-    [super drawRect:rect];
-    systemCocoa->handleWindowEvent(GHOST_kEventWindowUpdate, associatedWindow);
-
-    /* For some cases like entering fullscreen we need to redraw immediately
-     * so our window does not show blank during the animation */
-    if (associatedWindow->getImmediateDraw())
-      systemCocoa->dispatchEvents();
-  }
-}
-
-// Text input
-
-- (void)composing_free
-{
-  composing = NO;
-
-  if (composing_text) {
-    [composing_text release];
-    composing_text = nil;
-  }
-}
-
-- (void)insertText:(id)chars
-{
-  [self composing_free];
-}
-
-- (void)setMarkedText:(id)chars selectedRange:(NSRange)range
-{
-  [self composing_free];
-  if ([chars length] == 0)
-    return;
-
-  // start composing
-  composing = YES;
-  composing_text = [chars copy];
-
-  // if empty, cancel
-  if ([composing_text length] == 0)
-    [self composing_free];
-}
-
-- (void)unmarkText
-{
-  [self composing_free];
-}
-
-- (BOOL)hasMarkedText
-{
-  return (composing) ? YES : NO;
-}
-
-- (void)doCommandBySelector:(SEL)selector
-{
-}
-
-- (BOOL)isComposing
-{
-  return composing;
-}
-
-- (NSInteger)conversationIdentifier
-{
-  return (NSInteger)self;
-}
-
-- (NSAttributedString *)attributedSubstringFromRange:(NSRange)range
-{
-  return [NSAttributedString new];  // XXX does this leak?
-}
-
-- (NSRange)markedRange
-{
-  unsigned int length = (composing_text) ? [composing_text length] : 0;
-
-  if (composing)
-    return NSMakeRange(0, length);
-
-  return NSMakeRange(NSNotFound, 0);
-}
-
-- (NSRange)selectedRange
-{
-  unsigned int length = (composing_text) ? [composing_text length] : 0;
-  return NSMakeRange(0, length);
-}
-
-- (NSRect)firstRectForCharacterRange:(NSRange)range
-{
-  return NSZeroRect;
-}
-
-- (NSUInteger)characterIndexForPoint:(NSPoint)point
-{
-  return NSNotFound;
-}
-
-- (NSArray *)validAttributesForMarkedText
-{
-  return [NSArray array];  // XXX does this leak?
-}
-
-@end
+#define COCOA_VIEW_CLASS CocoaMetalView
+#define COCOA_VIEW_BASE_CLASS NSView
+#include "GHOST_WindowViewCocoa.h"
+#undef COCOA_VIEW_CLASS
+#undef COCOA_VIEW_BASE_CLASS
 
 #pragma mark initialization / finalization
 
@@ -533,12 +292,15 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
                                      const bool stereoVisual,
                                      bool is_debug)
     : GHOST_Window(width, height, state, stereoVisual, false),
+      m_openGLView(nil),
+      m_metalView(nil),
+      m_metalLayer(nil),
+      m_systemCocoa(systemCocoa),
       m_customCursor(0),
+      m_immediateDraw(false),
       m_debug_context(is_debug)
 {
-  m_systemCocoa = systemCocoa;
   m_fullScreen = false;
-  m_immediateDraw = false;
 
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
@@ -570,21 +332,44 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
   minSize.height = 240;
   [m_window setContentMinSize:minSize];
 
-  // Creates the OpenGL View inside the window
-  m_openGLView = [[CocoaOpenGLView alloc] initWithFrame:rect];
+  // Create NSView inside the window
+  id<MTLDevice> metalDevice = MTLCreateSystemDefaultDevice();
+  NSView *view;
+
+  if (metalDevice) {
+    // Create metal layer and view if supported
+    m_metalLayer = [[CAMetalLayer alloc] init];
+    [m_metalLayer setEdgeAntialiasingMask:0];
+    [m_metalLayer setMasksToBounds:NO];
+    [m_metalLayer setOpaque:YES];
+    [m_metalLayer setFramebufferOnly:YES];
+    [m_metalLayer setPresentsWithTransaction:NO];
+    [m_metalLayer removeAllAnimations];
+    [m_metalLayer setDevice:metalDevice];
+
+    m_metalView = [[CocoaMetalView alloc] initWithFrame:rect];
+    [m_metalView setWantsLayer:YES];
+    [m_metalView setLayer:m_metalLayer];
+    [m_metalView setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
+    view = m_metalView;
+  }
+  else {
+    // Fallback to OpenGL view if there is no Metal support
+    m_openGLView = [[CocoaOpenGLView alloc] initWithFrame:rect];
+    [m_openGLView setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
+    view = m_openGLView;
+  }
 
   if (m_systemCocoa->m_nativePixel) {
     // Needs to happen early when building with the 10.14 SDK, otherwise
     // has no effect until resizeing the window.
-    if ([m_openGLView respondsToSelector:@selector(setWantsBestResolutionOpenGLSurface:)]) {
-      [m_openGLView setWantsBestResolutionOpenGLSurface:YES];
+    if ([view respondsToSelector:@selector(setWantsBestResolutionOpenGLSurface:)]) {
+      [view setWantsBestResolutionOpenGLSurface:YES];
     }
   }
 
-  [m_openGLView setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
-
-  [m_window setContentView:m_openGLView];
-  [m_window setInitialFirstResponder:m_openGLView];
+  [m_window setContentView:view];
+  [m_window setInitialFirstResponder:view];
 
   [m_window makeKeyAndOrderFront:nil];
 
@@ -602,8 +387,8 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
 
   [m_window setAcceptsMouseMovedEvents:YES];
 
-  NSView *view = [m_window contentView];
-  [view setAcceptsTouchEvents:YES];
+  NSView *contentview = [m_window contentView];
+  [contentview setAcceptsTouchEvents:YES];
 
   [m_window registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType,
                                                               NSStringPboardType,
@@ -633,7 +418,18 @@ GHOST_WindowCocoa::~GHOST_WindowCocoa()
 
   releaseNativeHandles();
 
-  [m_openGLView release];
+  if (m_openGLView) {
+    [m_openGLView release];
+    m_openGLView = nil;
+  }
+  if (m_metalView) {
+    [m_metalView release];
+    m_metalView = nil;
+  }
+  if (m_metalLayer) {
+    [m_metalLayer release];
+    m_metalLayer = nil;
+  }
 
   if (m_window) {
     [m_window close];
@@ -657,7 +453,8 @@ GHOST_WindowCocoa::~GHOST_WindowCocoa()
 
 bool GHOST_WindowCocoa::getValid() const
 {
-  return GHOST_Window::getValid() && m_window != NULL && m_openGLView != NULL;
+  NSView *view = (m_openGLView) ? m_openGLView : m_metalView;
+  return GHOST_Window::getValid() && m_window != NULL && view != NULL;
 }
 
 void *GHOST_WindowCocoa::getOSWindow() const
@@ -921,7 +718,8 @@ NSScreen *GHOST_WindowCocoa::getScreen()
 /* called for event, when window leaves monitor to another */
 void GHOST_WindowCocoa::setNativePixelSize(void)
 {
-  NSRect backingBounds = [m_openGLView convertRectToBacking:[m_openGLView bounds]];
+  NSView *view = (m_openGLView) ? m_openGLView : m_metalView;
+  NSRect backingBounds = [view convertRectToBacking:[view bounds]];
 
   GHOST_Rect rect;
   getClientBounds(rect);
@@ -1015,7 +813,8 @@ GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 {
   if (type == GHOST_kDrawingContextTypeOpenGL) {
 
-    GHOST_Context *context = new GHOST_ContextCGL(m_wantStereoVisual, m_openGLView);
+    GHOST_Context *context = new GHOST_ContextCGL(
+        m_wantStereoVisual, m_metalView, m_metalLayer, m_openGLView);
 
     if (context->initializeDrawingContext())
       return context;
@@ -1032,7 +831,8 @@ GHOST_TSuccess GHOST_WindowCocoa::invalidate()
 {
   GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::invalidate(): window invalid");
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-  [m_openGLView setNeedsDisplay:YES];
+  NSView *view = (m_openGLView) ? m_openGLView : m_metalView;
+  [view setNeedsDisplay:YES];
   [pool drain];
   return GHOST_kSuccess;
 }
