@@ -25,6 +25,8 @@
 #include <algorithm>
 
 #include "ExportSettings.h"
+#include "BCSampleData.h"
+#include "BCMath.h"
 
 extern "C" {
 #include "BKE_object.h"

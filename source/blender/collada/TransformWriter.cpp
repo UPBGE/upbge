@@ -65,8 +65,6 @@ void TransformWriter::add_node_transform_ob(COLLADASW::Node &node,
                                             Object *ob,
                                             BCExportSettings &export_settings)
 {
-  BC_export_transformation_type transformation_type =
-      export_settings.get_object_transformation_type();
   bool limit_precision = export_settings.get_limit_precision();
 
   /* Export the local Matrix (relative to the object parent,
@@ -81,13 +79,14 @@ void TransformWriter::add_node_transform_ob(COLLADASW::Node &node,
     bc_add_global_transform(f_obmat, export_settings.get_global_transform());
   }
 
-  switch (transformation_type) {
+  switch (export_settings.get_object_transformation_type()) {
     case BC_TRANSFORMATION_TYPE_MATRIX: {
       UnitConverter converter;
       double d_obmat[4][4];
       converter.mat4_to_dae_double(d_obmat, f_obmat);
+
       if (limit_precision) {
-        bc_sanitize_mat(d_obmat, LIMITTED_PRECISION);
+        BCMatrix::sanitize(d_obmat, LIMITTED_PRECISION);
       }
       node.addMatrix("transform", d_obmat);
       break;
@@ -134,14 +133,9 @@ void TransformWriter::add_transform(COLLADASW::Node &node,
                                     float rot[3],
                                     float scale[3])
 {
-#if 0
-  node.addRotateZ("rotationZ", COLLADABU::Math::Utils::radToDegF(rot[2]));
-  node.addRotateY("rotationY", COLLADABU::Math::Utils::radToDegF(rot[1]));
-  node.addRotateX("rotationX", COLLADABU::Math::Utils::radToDegF(rot[0]));
-#endif
-  node.addTranslate("location", loc[0], loc[1], loc[2]);
+  node.addScale("scale", scale[0], scale[1], scale[2]);
   node.addRotateZ("rotationZ", RAD2DEGF(rot[2]));
   node.addRotateY("rotationY", RAD2DEGF(rot[1]));
   node.addRotateX("rotationX", RAD2DEGF(rot[0]));
-  node.addScale("scale", scale[0], scale[1], scale[2]);
+  node.addTranslate("location", loc[0], loc[1], loc[2]);
 }
