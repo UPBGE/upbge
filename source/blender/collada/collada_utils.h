@@ -188,8 +188,9 @@ inline bool bc_startswith(std::string const &value, std::string const &starting)
 
 inline bool bc_endswith(const std::string &value, const std::string &ending)
 {
-  if (ending.size() > value.size())
+  if (ending.size() > value.size()) {
     return false;
+  }
 
   return value.compare(value.size() - ending.size(), ending.size(), ending) == 0;
 }
@@ -384,9 +385,15 @@ class BoneExtensionManager {
 void bc_add_default_shader(bContext *C, Material *ma);
 bNode *bc_get_master_shader(Material *ma);
 COLLADASW::ColorOrTexture bc_get_cot(float r, float g, float b, float a);
-COLLADASW::ColorOrTexture bc_get_base_color(bNode *shader);
-bool bc_get_reflectivity(bNode *shader, double &reflectivity);
-double bc_get_reflectivity(Material *ma);
+
 COLLADASW::ColorOrTexture bc_get_base_color(Material *ma);
+COLLADASW::ColorOrTexture bc_get_base_color(bNode *shader);
+COLLADASW::ColorOrTexture bc_get_emission(Material *ma);
+COLLADASW::ColorOrTexture bc_get_emission(bNode *shader);
+
+double bc_get_reflectivity(Material *ma);
+bool bc_get_reflectivity(bNode *shader, double &emission);
+double bc_get_alpha(Material *ma);
+bool bc_get_alpha(bNode *shader, double &alpha);
 
 #endif

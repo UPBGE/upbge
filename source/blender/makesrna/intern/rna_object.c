@@ -740,10 +740,12 @@ void rna_object_vgroup_name_index_get(PointerRNA *ptr, char *value, int index)
 
   dg = BLI_findlink(&ob->defbase, index - 1);
 
-  if (dg)
+  if (dg) {
     BLI_strncpy(value, dg->name, sizeof(dg->name));
-  else
+  }
+  else {
     value[0] = '\0';
+  }
 }
 
 int rna_object_vgroup_name_index_length(PointerRNA *ptr, int index)
@@ -823,10 +825,12 @@ void rna_object_BKE_object_facemap_name_index_get(PointerRNA *ptr, char *value, 
 
   fmap = BLI_findlink(&ob->fmaps, index - 1);
 
-  if (fmap)
+  if (fmap) {
     BLI_strncpy(value, fmap->name, sizeof(fmap->name));
-  else
+  }
+  else {
     value[0] = '\0';
+  }
 }
 
 int rna_object_BKE_object_facemap_name_index_length(PointerRNA *ptr, int index)
@@ -917,8 +921,9 @@ static void rna_Object_active_material_index_set(PointerRNA *ptr, int value)
   if (ob->type == OB_MESH) {
     Mesh *me = ob->data;
 
-    if (me->edit_mesh)
+    if (me->edit_mesh) {
       me->edit_mesh->mat_nr = value;
+    }
   }
 }
 
@@ -1055,14 +1060,18 @@ static int rna_Object_location_editable(PointerRNA *ptr, int index)
   Object *ob = (Object *)ptr->data;
 
   /* only if the axis in question is locked, not editable... */
-  if ((index == 0) && (ob->protectflag & OB_LOCK_LOCX))
+  if ((index == 0) && (ob->protectflag & OB_LOCK_LOCX)) {
     return 0;
-  else if ((index == 1) && (ob->protectflag & OB_LOCK_LOCY))
+  }
+  else if ((index == 1) && (ob->protectflag & OB_LOCK_LOCY)) {
     return 0;
-  else if ((index == 2) && (ob->protectflag & OB_LOCK_LOCZ))
+  }
+  else if ((index == 2) && (ob->protectflag & OB_LOCK_LOCZ)) {
     return 0;
-  else
+  }
+  else {
     return PROP_EDITABLE;
+  }
 }
 
 static int rna_Object_scale_editable(PointerRNA *ptr, int index)
@@ -1070,14 +1079,18 @@ static int rna_Object_scale_editable(PointerRNA *ptr, int index)
   Object *ob = (Object *)ptr->data;
 
   /* only if the axis in question is locked, not editable... */
-  if ((index == 0) && (ob->protectflag & OB_LOCK_SCALEX))
+  if ((index == 0) && (ob->protectflag & OB_LOCK_SCALEX)) {
     return 0;
-  else if ((index == 1) && (ob->protectflag & OB_LOCK_SCALEY))
+  }
+  else if ((index == 1) && (ob->protectflag & OB_LOCK_SCALEY)) {
     return 0;
-  else if ((index == 2) && (ob->protectflag & OB_LOCK_SCALEZ))
+  }
+  else if ((index == 2) && (ob->protectflag & OB_LOCK_SCALEZ)) {
     return 0;
-  else
+  }
+  else {
     return PROP_EDITABLE;
+  }
 }
 
 static int rna_Object_rotation_euler_editable(PointerRNA *ptr, int index)
@@ -1085,14 +1098,18 @@ static int rna_Object_rotation_euler_editable(PointerRNA *ptr, int index)
   Object *ob = (Object *)ptr->data;
 
   /* only if the axis in question is locked, not editable... */
-  if ((index == 0) && (ob->protectflag & OB_LOCK_ROTX))
+  if ((index == 0) && (ob->protectflag & OB_LOCK_ROTX)) {
     return 0;
-  else if ((index == 1) && (ob->protectflag & OB_LOCK_ROTY))
+  }
+  else if ((index == 1) && (ob->protectflag & OB_LOCK_ROTY)) {
     return 0;
-  else if ((index == 2) && (ob->protectflag & OB_LOCK_ROTZ))
+  }
+  else if ((index == 2) && (ob->protectflag & OB_LOCK_ROTZ)) {
     return 0;
-  else
+  }
+  else {
     return PROP_EDITABLE;
+  }
 }
 
 static int rna_Object_rotation_4d_editable(PointerRNA *ptr, int index)
@@ -1102,14 +1119,18 @@ static int rna_Object_rotation_4d_editable(PointerRNA *ptr, int index)
   /* only consider locks if locking components individually... */
   if (ob->protectflag & OB_LOCK_ROT4D) {
     /* only if the axis in question is locked, not editable... */
-    if ((index == 0) && (ob->protectflag & OB_LOCK_ROTW))
+    if ((index == 0) && (ob->protectflag & OB_LOCK_ROTW)) {
       return 0;
-    else if ((index == 1) && (ob->protectflag & OB_LOCK_ROTX))
+    }
+    else if ((index == 1) && (ob->protectflag & OB_LOCK_ROTX)) {
       return 0;
-    else if ((index == 2) && (ob->protectflag & OB_LOCK_ROTY))
+    }
+    else if ((index == 2) && (ob->protectflag & OB_LOCK_ROTY)) {
       return 0;
-    else if ((index == 3) && (ob->protectflag & OB_LOCK_ROTZ))
+    }
+    else if ((index == 3) && (ob->protectflag & OB_LOCK_ROTZ)) {
       return 0;
+    }
   }
 
   return PROP_EDITABLE;
@@ -1199,8 +1220,9 @@ static int rna_MaterialSlot_name_length(PointerRNA *ptr)
 
   ma = give_current_material(ob, index + 1);
 
-  if (ma)
+  if (ma) {
     return strlen(ma->id.name + 2);
+  }
 
   return 0;
 }
@@ -1213,10 +1235,12 @@ static void rna_MaterialSlot_name_get(PointerRNA *ptr, char *str)
 
   ma = give_current_material(ob, index + 1);
 
-  if (ma)
+  if (ma) {
     strcpy(str, ma->id.name + 2);
-  else
+  }
+  else {
     str[0] = '\0';
+  }
 }
 
 static void rna_MaterialSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -1495,8 +1519,9 @@ static void rna_Object_active_shape_key_index_range(
   *min = 0;
   if (key) {
     *max = BLI_listbase_count(&key->block) - 1;
-    if (*max < 0)
+    if (*max < 0) {
       *max = 0;
+    }
   }
   else {
     *max = 0;
@@ -1524,8 +1549,9 @@ static PointerRNA rna_Object_active_shape_key_get(PointerRNA *ptr)
   KeyBlock *kb;
   PointerRNA keyptr;
 
-  if (key == NULL)
+  if (key == NULL) {
     return PointerRNA_NULL;
+  }
 
   kb = BLI_findlink(&key->block, ob->shapenr - 1);
   RNA_pointer_create((ID *)key, &RNA_ShapeKey, kb, &keyptr);
@@ -1537,8 +1563,9 @@ static PointerRNA rna_Object_field_get(PointerRNA *ptr)
   Object *ob = (Object *)ptr->id.data;
 
   /* weak */
-  if (!ob->pd)
+  if (!ob->pd) {
     ob->pd = BKE_partdeflect_new(0);
+  }
 
   return rna_pointer_inherit_refine(ptr, &RNA_FieldSettings, ob->pd);
 }
@@ -1547,12 +1574,14 @@ static PointerRNA rna_Object_collision_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->id.data;
 
-  if (ob->type != OB_MESH)
+  if (ob->type != OB_MESH) {
     return PointerRNA_NULL;
+  }
 
   /* weak */
-  if (!ob->pd)
+  if (!ob->pd) {
     ob->pd = BKE_partdeflect_new(0);
+  }
 
   return rna_pointer_inherit_refine(ptr, &RNA_CollisionSettings, ob->pd);
 }
@@ -1890,9 +1919,10 @@ static void rna_VertexGroup_vertex_add(ID *id,
     return;
   }
 
-  while (index_len--)
+  while (index_len--) {
     ED_vgroup_vert_add(
         ob, def, *index++, weight, assignmode); /* XXX, not efficient calling within loop*/
+  }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, (ID *)ob->data);
@@ -1909,8 +1939,9 @@ static void rna_VertexGroup_vertex_remove(
     return;
   }
 
-  while (index_len--)
+  while (index_len--) {
     ED_vgroup_vert_remove(ob, dg, *index++);
+  }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, (ID *)ob->data);
@@ -1967,8 +1998,9 @@ static void rna_FaceMap_face_add(
     return;
   }
 
-  while (index_len--)
+  while (index_len--) {
     ED_object_facemap_face_add(ob, fmap, *index++);
+  }
 
   WM_main_add_notifier(NC_GEOM | ND_DATA, (ID *)ob->data);
 }
@@ -1983,8 +2015,9 @@ static void rna_FaceMap_face_remove(
     return;
   }
 
-  while (index_len--)
+  while (index_len--) {
     ED_object_facemap_face_remove(ob, fmap, *index++);
+  }
 
   WM_main_add_notifier(NC_GEOM | ND_DATA, (ID *)ob->data);
 }

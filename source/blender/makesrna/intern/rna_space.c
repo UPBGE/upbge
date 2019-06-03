@@ -873,8 +873,9 @@ static void rna_RegionView3D_quadview_update(Main *UNUSED(main),
   ARegion *ar;
 
   rna_area_region_from_regiondata(ptr, &sa, &ar);
-  if (sa && ar && ar->alignment == RGN_ALIGN_QSPLIT)
+  if (sa && ar && ar->alignment == RGN_ALIGN_QSPLIT) {
     ED_view3d_quadview_update(sa, ar, false);
+  }
 }
 
 /* same as above but call clip==true */
@@ -886,8 +887,9 @@ static void rna_RegionView3D_quadview_clip_update(Main *UNUSED(main),
   ARegion *ar;
 
   rna_area_region_from_regiondata(ptr, &sa, &ar);
-  if (sa && ar && ar->alignment == RGN_ALIGN_QSPLIT)
+  if (sa && ar && ar->alignment == RGN_ALIGN_QSPLIT) {
     ED_view3d_quadview_update(sa, ar, true);
+  }
 }
 
 static void rna_RegionView3D_view_location_get(PointerRNA *ptr, float *values)
@@ -1224,10 +1226,12 @@ static const EnumPropertyItem *rna_SpaceView3D_stereo3d_camera_itemf(bContext *C
 {
   Scene *scene = CTX_data_scene(C);
 
-  if (scene->r.views_format == SCE_VIEWS_FORMAT_MULTIVIEW)
+  if (scene->r.views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
     return multiview_camera_items;
-  else
+  }
+  else {
     return stereo3d_camera_items;
+  }
 }
 
 static int rna_SpaceView3D_icon_from_show_object_viewport_get(PointerRNA *ptr)
@@ -1272,10 +1276,12 @@ static void rna_SpaceImageEditor_show_stereo_set(PointerRNA *ptr, int value)
 {
   SpaceImage *sima = (SpaceImage *)(ptr->data);
 
-  if (value)
+  if (value) {
     sima->iuser.flag |= IMA_SHOW_STEREO;
-  else
+  }
+  else {
     sima->iuser.flag &= ~IMA_SHOW_STEREO;
+  }
 }
 
 static bool rna_SpaceImageEditor_show_stereo_get(PointerRNA *ptr)
@@ -1371,8 +1377,9 @@ static const EnumPropertyItem *rna_SpaceImageEditor_display_channels_itemf(
 
   ED_space_image_release_buffer(sima, ibuf, lock);
 
-  if (alpha && zbuf)
+  if (alpha && zbuf) {
     return display_channels_items;
+  }
 
   if (alpha) {
     RNA_enum_items_add_value(&item, &totitem, display_channels_items, SI_USE_ALPHA);
@@ -1498,10 +1505,12 @@ static const EnumPropertyItem *rna_SpaceImageEditor_pivot_itemf(bContext *UNUSED
 
   SpaceImage *sima = (SpaceImage *)ptr->data;
 
-  if (sima->mode == SI_MODE_PAINT)
+  if (sima->mode == SI_MODE_PAINT) {
     return rna_enum_transform_pivot_items_full;
-  else
+  }
+  else {
     return pivot_items;
+  }
 }
 
 /* Space Text Editor */
@@ -1531,8 +1540,9 @@ static void rna_SpaceTextEditor_updateEdited(Main *UNUSED(bmain),
 {
   SpaceText *st = (SpaceText *)ptr->data;
 
-  if (st->text)
+  if (st->text) {
     WM_main_add_notifier(NC_TEXT | NA_EDITED, st->text);
+  }
 }
 
 /* Space Properties */
@@ -1550,8 +1560,9 @@ static StructRNA *rna_SpaceProperties_pin_id_typef(PointerRNA *ptr)
 {
   SpaceProperties *sbuts = (SpaceProperties *)(ptr->data);
 
-  if (sbuts->pinid)
+  if (sbuts->pinid) {
     return ID_code_to_RNA_type(GS(sbuts->pinid->name));
+  }
 
   return &RNA_ID;
 }
@@ -1727,8 +1738,10 @@ static void rna_ConsoleLine_body_set(PointerRNA *ptr, const char *value)
   memcpy(ci->line, value, len + 1);
   ci->len = len;
 
-  if (ci->cursor > len) /* clamp the cursor */
+  if (ci->cursor > len) {
+    /* clamp the cursor */
     ci->cursor = len;
+  }
 }
 
 static void rna_ConsoleLine_cursor_index_range(
@@ -1757,23 +1770,27 @@ static void rna_SpaceDopeSheetEditor_action_set(PointerRNA *ptr,
     /* action to set must strictly meet the mode criteria... */
     if (saction->mode == SACTCONT_ACTION) {
       /* currently, this is "object-level" only, until we have some way of specifying this */
-      if (act->idroot == ID_OB)
+      if (act->idroot == ID_OB) {
         saction->action = act;
-      else
+      }
+      else {
         printf(
             "ERROR: cannot assign Action '%s' to Action Editor, as action is not object-level "
             "animation\n",
             act->id.name + 2);
+      }
     }
     else if (saction->mode == SACTCONT_SHAPEKEY) {
       /* as the name says, "shapekey-level" only... */
-      if (act->idroot == ID_KE)
+      if (act->idroot == ID_KE) {
         saction->action = act;
-      else
+      }
+      else {
         printf(
             "ERROR: cannot assign Action '%s' to Shape Key Editor, as action doesn't animate "
             "Shape Keys\n",
             act->id.name + 2);
+      }
     }
     else {
       printf(
@@ -1800,8 +1817,9 @@ static void rna_SpaceDopeSheetEditor_action_update(bContext *C, PointerRNA *ptr)
     }
     else if (saction->mode == SACTCONT_SHAPEKEY) {
       Key *key = BKE_key_from_object(obact);
-      if (key)
+      if (key) {
         adt = BKE_animdata_add_id(&key->id); /* this only adds if non-existent */
+      }
     }
 
     /* set action */
@@ -1873,10 +1891,12 @@ static void rna_SpaceDopeSheetEditor_mode_update(bContext *C, PointerRNA *ptr)
     Key *key = BKE_key_from_object(obact);
 
     /* 1) update the action stored for the editor */
-    if (key)
+    if (key) {
       saction->action = (key->adt) ? key->adt->action : NULL;
-    else
+    }
+    else {
       saction->action = NULL;
+    }
 
     /* 2) enable 'show sliders' by default, since one of the main
      *    points of the ShapeKey Editor is to provide a one-stop shop
@@ -1888,10 +1908,12 @@ static void rna_SpaceDopeSheetEditor_mode_update(bContext *C, PointerRNA *ptr)
   else if (saction->mode == SACTCONT_ACTION) {
     /* 1) update the action stored for the editor */
     /* TODO: context selector could help decide this with more control? */
-    if (obact)
+    if (obact) {
       saction->action = (obact->adt) ? obact->adt->action : NULL;
-    else
+    }
+    else {
       saction->action = NULL;
+    }
   }
 
   /* Collapse (and show) summary channel and hide channel list for timeline */
@@ -2001,10 +2023,12 @@ static void rna_SpaceNodeEditor_tree_type_set(PointerRNA *ptr, int value)
 static bool rna_SpaceNodeEditor_tree_type_poll(void *Cv, bNodeTreeType *type)
 {
   bContext *C = (bContext *)Cv;
-  if (type->poll)
+  if (type->poll) {
     return type->poll(C, type);
-  else
+  }
+  else {
     return true;
+  }
 }
 
 const EnumPropertyItem *RNA_enum_node_tree_types_itemf_impl(bContext *C, bool *r_free)

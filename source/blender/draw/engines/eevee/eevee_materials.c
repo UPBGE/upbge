@@ -225,26 +225,34 @@ static struct GPUTexture *create_ggx_refraction_lut_texture(int w, int h)
     fprintf(f, "\t{\n\t\t");
     for (int i = 0; i < w * h * 3; i += 3) {
       fprintf(f, "%ff,", data[i]);
-      if (((i / 3) + 1) % 12 == 0)
+      if (((i / 3) + 1) % 12 == 0) {
         fprintf(f, "\n\t\t");
-      else
+      }
+      else {
         fprintf(f, " ");
+      }
     }
     fprintf(f, "\n\t},\n");
 #  else
     for (int i = 0; i < w * h * 3; i += 3) {
-      if (data[i] < 0.01)
+      if (data[i] < 0.01) {
         printf(" ");
-      else if (data[i] < 0.3)
+      }
+      else if (data[i] < 0.3) {
         printf(".");
-      else if (data[i] < 0.6)
+      }
+      else if (data[i] < 0.6) {
         printf("+");
-      else if (data[i] < 0.9)
+      }
+      else if (data[i] < 0.9) {
         printf("%%");
-      else
+      }
+      else {
         printf("#");
-      if ((i / 3 + 1) % 64 == 0)
+      }
+      if ((i / 3 + 1) % 64 == 0) {
         printf("\n");
+      }
     }
 #  endif
 
@@ -1407,10 +1415,10 @@ static void material_transparent(Material *ma,
   const bool do_cull = (ma->blend_flag & MA_BL_CULL_BACKFACE) != 0;
   const bool use_ssrefract = (((ma->blend_flag & MA_BL_SS_REFRACTION) != 0) &&
                               ((stl->effects->enabled_effects & EFFECT_REFRACT) != 0));
-  float *color_p = &ma->r;
-  float *metal_p = &ma->metallic;
-  float *spec_p = &ma->spec;
-  float *rough_p = &ma->roughness;
+  const float *color_p = &ma->r;
+  const float *metal_p = &ma->metallic;
+  const float *spec_p = &ma->spec;
+  const float *rough_p = &ma->roughness;
 
   if (ma->use_nodes && ma->nodetree) {
     static float error_col[3] = {1.0f, 0.0f, 1.0f};
