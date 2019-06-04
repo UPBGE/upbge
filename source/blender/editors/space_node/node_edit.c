@@ -42,6 +42,8 @@
 #include "BKE_scene.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph_query.h"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -79,14 +81,19 @@ enum {
 };
 
 typedef struct CompoJob {
+  /* Input parameters. */
   Main *bmain;
   Scene *scene;
+  ViewLayer *view_layer;
   bNodeTree *ntree;
+  int recalc_flags;
+  /* Evaluated state/ */
+  Depsgraph *compositor_depsgraph;
   bNodeTree *localtree;
+  /* Jon system integration. */
   const short *stop;
   short *do_update;
   float *progress;
-  int recalc_flags;
 } CompoJob;
 
 static void compo_tag_output_nodes(bNodeTree *nodetree, int recalc_flags)
@@ -182,6 +189,9 @@ static void compo_freejob(void *cjv)
   if (cj->localtree) {
     ntreeLocalMerge(cj->bmain, cj->localtree, cj->ntree);
   }
+  if (cj->compositor_depsgraph != NULL) {
+    DEG_graph_free(cj->compositor_depsgraph);
+  }
   MEM_freeN(cj);
 }
 
@@ -190,8 +200,19 @@ static void compo_freejob(void *cjv)
 static void compo_initjob(void *cjv)
 {
   CompoJob *cj = cjv;
+  Main *bmain = cj->bmain;
+  Scene *scene = cj->scene;
+  ViewLayer *view_layer = cj->view_layer;
 
-  cj->localtree = ntreeLocalize(cj->ntree);
+  cj->compositor_depsgraph = DEG_graph_new(scene, view_layer, DAG_EVAL_RENDER);
+  DEG_graph_build_for_compositor_preview(
+      cj->compositor_depsgraph, bmain, scene, view_layer, cj->ntree);
+  DEG_evaluate_on_framechange(bmain, cj->compositor_depsgraph, CFRA);
+
+  bNodeTree *ntree_eval = (bNodeTree *)DEG_get_evaluated_id(cj->compositor_depsgraph,
+                                                            &cj->ntree->id);
+
+  cj->localtree = ntreeLocalize(ntree_eval);
 
   if (cj->recalc_flags) {
     compo_tag_output_nodes(cj->localtree, cj->recalc_flags);
@@ -283,6 +304,7 @@ void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, Scene 
   CompoJob *cj;
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   /* to fix bug: [#32272] */
   if (G.is_rendering) {
@@ -307,6 +329,7 @@ void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, Scene 
   /* customdata for preview thread */
   cj->bmain = bmain;
   cj->scene = scene;
+  cj->view_layer = view_layer;
   cj->ntree = nodetree;
   cj->recalc_flags = compo_get_recalc_flags(C);
 
@@ -1182,7 +1205,7 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
   lastnode = ntree->nodes.last;
   for (node = ntree->nodes.first; node; node = node->next) {
     if (node->flag & SELECT) {
-      newnode = BKE_node_copy_ex(ntree, node, LIB_ID_COPY_DEFAULT);
+      newnode = BKE_node_copy_store_new_pointers(ntree, node, LIB_ID_COPY_DEFAULT);
 
       /* to ensure redraws or rerenders happen */
       ED_node_tag_update_id(snode->id);
@@ -2037,7 +2060,8 @@ static int node_clipboard_copy_exec(bContext *C, wmOperator *UNUSED(op))
     if (node->flag & SELECT) {
       /* No ID refcounting, this node is virtual,
        * detached from any actual Blender data currently. */
-      bNode *new_node = BKE_node_copy_ex(NULL, node, LIB_ID_CREATE_NO_USER_REFCOUNT);
+      bNode *new_node = BKE_node_copy_store_new_pointers(
+          NULL, node, LIB_ID_CREATE_NO_USER_REFCOUNT);
       BKE_node_clipboard_add_node(new_node);
     }
   }
@@ -2163,7 +2187,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   /* copy nodes from clipboard */
   for (node = clipboard_nodes_lb->first; node; node = node->next) {
-    bNode *new_node = BKE_node_copy_ex(ntree, node, LIB_ID_COPY_DEFAULT);
+    bNode *new_node = BKE_node_copy_store_new_pointers(ntree, node, LIB_ID_COPY_DEFAULT);
 
     /* pasted nodes are selected */
     nodeSetSelected(new_node, true);

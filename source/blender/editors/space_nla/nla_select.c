@@ -233,7 +233,6 @@ static void box_select_nla_strips(bAnimContext *ac, rcti rect, short mode, short
   SpaceNla *snla = (SpaceNla *)ac->sl;
   View2D *v2d = &ac->ar->v2d;
   rctf rectf;
-  float ymin /* =(float)(-NLACHANNEL_HEIGHT(snla)) */ /* UNUSED */, ymax = 0;
 
   /* convert border-region to view coordinates */
   UI_view2d_region_to_view(v2d, rect.xmin, rect.ymin + 2, &rectf.xmin, &rectf.ymin);
@@ -247,8 +246,9 @@ static void box_select_nla_strips(bAnimContext *ac, rcti rect, short mode, short
   selectmode = selmodes_to_flagmodes(selectmode);
 
   /* loop over data, doing box select */
-  for (ale = anim_data.first; ale; ale = ale->next) {
-    ymin = ymax - NLACHANNEL_STEP(snla);
+  float ymax = NLACHANNEL_FIRST_TOP(ac);
+  for (ale = anim_data.first; ale; ale = ale->next, ymax -= NLACHANNEL_STEP(snla)) {
+    float ymin = ymax - NLACHANNEL_HEIGHT(snla);
 
     /* perform vertical suitability check (if applicable) */
     if ((mode == NLA_BOXSEL_FRAMERANGE) || !((ymax < rectf.ymin) || (ymin > rectf.ymax))) {
@@ -270,9 +270,6 @@ static void box_select_nla_strips(bAnimContext *ac, rcti rect, short mode, short
         }
       }
     }
-
-    /* set minimum extent to be the maximum of the next channel */
-    ymax = ymin;
   }
 
   /* cleanup */
@@ -280,6 +277,78 @@ static void box_select_nla_strips(bAnimContext *ac, rcti rect, short mode, short
 }
 
 /* ------------------- */
+
+static void nlaedit_strip_at_region_position(
+    bAnimContext *ac, float region_x, float region_y, bAnimListElem **r_ale, NlaStrip **r_strip)
+{
+  *r_ale = NULL;
+  *r_strip = NULL;
+
+  SpaceNla *snla = (SpaceNla *)ac->sl;
+  View2D *v2d = &ac->ar->v2d;
+
+  float view_x, view_y;
+  int channel_index;
+  UI_view2d_region_to_view(v2d, region_x, region_y, &view_x, &view_y);
+  UI_view2d_listview_view_to_cell(
+      0, NLACHANNEL_STEP(snla), 0, NLACHANNEL_FIRST_TOP(ac), view_x, view_y, NULL, &channel_index);
+
+  ListBase anim_data = {NULL, NULL};
+  int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
+  ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+
+  /* x-range to check is +/- 7 (in screen/region-space) on either side of mouse click
+   * (that is the size of keyframe icons, so user should be expecting similar tolerances)
+   */
+  float xmin = UI_view2d_region_to_view_x(v2d, region_x - 7);
+  float xmax = UI_view2d_region_to_view_x(v2d, region_x + 7);
+
+  bAnimListElem *ale = BLI_findlink(&anim_data, channel_index);
+  if (ale != NULL) {
+    if (ale->type == ANIMTYPE_NLATRACK) {
+      NlaTrack *nlt = (NlaTrack *)ale->data;
+
+      for (NlaStrip *strip = nlt->strips.first; strip; strip = strip->next) {
+        if (BKE_nlastrip_within_bounds(strip, xmin, xmax)) {
+          *r_ale = ale;
+          *r_strip = strip;
+
+          BLI_remlink(&anim_data, ale);
+        }
+      }
+    }
+  }
+
+  ANIM_animdata_freelist(&anim_data);
+}
+
+static bool nlaedit_mouse_is_over_strip(bAnimContext *ac, const int mval[2])
+{
+  bAnimListElem *ale;
+  NlaStrip *strip;
+  nlaedit_strip_at_region_position(ac, mval[0], mval[1], &ale, &strip);
+
+  if (ale != NULL) {
+    BLI_assert(strip != NULL);
+    MEM_freeN(ale);
+    return true;
+  }
+  return false;
+}
+
+static int nlaedit_box_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  bAnimContext ac;
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bool tweak = RNA_boolean_get(op->ptr, "tweak");
+  if (tweak && nlaedit_mouse_is_over_strip(&ac, event->mval)) {
+    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
+  }
+  return WM_gesture_box_invoke(C, op, event);
+}
 
 static int nlaedit_box_select_exec(bContext *C, wmOperator *op)
 {
@@ -338,7 +407,7 @@ void NLA_OT_select_box(wmOperatorType *ot)
   ot->description = "Use box selection to grab NLA-Strips";
 
   /* api callbacks */
-  ot->invoke = WM_gesture_box_invoke;
+  ot->invoke = nlaedit_box_select_invoke;
   ot->exec = nlaedit_box_select_exec;
   ot->modal = WM_gesture_box_modal;
   ot->cancel = WM_gesture_box_cancel;
@@ -350,6 +419,10 @@ void NLA_OT_select_box(wmOperatorType *ot)
 
   /* properties */
   RNA_def_boolean(ot->srna, "axis_range", 0, "Axis Range", "");
+
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna, "tweak", 0, "Tweak", "Operator has been activated using a tweak event");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   WM_operator_properties_gesture_box(ot);
   WM_operator_properties_select_operation_simple(ot);
@@ -527,57 +600,11 @@ void NLA_OT_select_leftright(wmOperatorType *ot)
 static void mouse_nla_strips(
     bContext *C, bAnimContext *ac, const int mval[2], short select_mode, const bool deselect_all)
 {
-  ListBase anim_data = {NULL, NULL};
-  bAnimListElem *ale = NULL;
-  int filter;
-
-  SpaceNla *snla = (SpaceNla *)ac->sl;
-  View2D *v2d = &ac->ar->v2d;
   Scene *scene = ac->scene;
+
+  bAnimListElem *ale = NULL;
   NlaStrip *strip = NULL;
-  int channel_index;
-  float xmin, xmax;
-  float x, y;
-
-  /* use View2D to determine the index of the channel
-   * (i.e a row in the list) where keyframe was */
-  UI_view2d_region_to_view(v2d, mval[0], mval[1], &x, &y);
-  UI_view2d_listview_view_to_cell(
-      0, NLACHANNEL_STEP(snla), 0, NLACHANNEL_FIRST_TOP(ac), x, y, NULL, &channel_index);
-
-  /* x-range to check is +/- 7 (in screen/region-space) on either side of mouse click
-   * (that is the size of keyframe icons, so user should be expecting similar tolerances)
-   */
-  xmin = UI_view2d_region_to_view_x(v2d, mval[0] - 7);
-  xmax = UI_view2d_region_to_view_x(v2d, mval[0] + 7);
-
-  /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
-  ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
-
-  /* try to get channel */
-  ale = BLI_findlink(&anim_data, channel_index);
-  if (ale != NULL) {
-    /* found some channel - we only really should do something when its an Nla-Track */
-    if (ale->type == ANIMTYPE_NLATRACK) {
-      NlaTrack *nlt = (NlaTrack *)ale->data;
-
-      /* loop over NLA-strips in this track,
-       * trying to find one which occurs in the necessary bounds */
-      for (strip = nlt->strips.first; strip; strip = strip->next) {
-        if (BKE_nlastrip_within_bounds(strip, xmin, xmax)) {
-          break;
-        }
-      }
-    }
-
-    /* remove active channel from list of channels for separate treatment
-     * (since it's needed later on) */
-    BLI_remlink(&anim_data, ale);
-  }
-
-  /* free list of channels, since it's not used anymore */
-  ANIM_animdata_freelist(&anim_data);
+  nlaedit_strip_at_region_position(ac, mval[0], mval[1], &ale, &strip);
 
   /* if currently in tweakmode, exit tweakmode before changing selection states
    * now that we've found our target...
@@ -621,6 +648,8 @@ static void mouse_nla_strips(
           NlaTrack *nlt = (NlaTrack *)ale->data;
 
           nlt->flag |= NLATRACK_SELECTED;
+          int filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
+                       ANIMFILTER_LIST_CHANNELS;
           ANIM_set_active_channel(ac, ac->data, ac->datatype, filter, nlt, ANIMTYPE_NLATRACK);
         }
       }
