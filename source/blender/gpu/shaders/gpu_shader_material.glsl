@@ -1797,14 +1797,12 @@ void node_wireframe_screenspace(float size, vec2 barycentric, out float fac)
 
 void node_emission(vec4 color, float strength, vec3 vN, out Closure result)
 {
-#ifndef VOLUMETRICS
-  color *= strength;
   result = CLOSURE_DEFAULT;
-  result.radiance = color.rgb;
-  result.opacity = color.a;
+#ifndef VOLUMETRICS
+  result.radiance = color.rgb * strength;
   result.ssr_normal = normal_encode(vN, viewCameraVec);
 #else
-  result = Closure(vec3(0.0), vec3(0.0), color.rgb * strength, 0.0);
+  result.emission = color.rgb * strength;
 #endif
 }
 
@@ -3405,7 +3403,7 @@ void node_hair_info(out float is_strand,
   is_strand = 1.0;
   intercept = hairTime;
   thickness = hairThickness;
-  tangent = normalize(hairTangent);
+  tangent = normalize(worldNormal);
   random = wang_hash_noise(
       uint(hairStrandID)); /* TODO: could be precomputed per strand instead. */
 #else

@@ -2309,7 +2309,7 @@ void uiTemplateOperatorRedoProperties(uiLayout *layout, const bContext *C)
   /* Repeat button with operator name as text. */
   uiItemFullO(layout,
               "SCREEN_OT_repeat_last",
-              RNA_struct_ui_name(op->type->srna),
+              WM_operatortype_name(op->type, op->ptr),
               ICON_NONE,
               NULL,
               WM_OP_INVOKE_DEFAULT,
@@ -2395,24 +2395,12 @@ static uiLayout *draw_constraint(uiLayout *layout, Object *ob, bConstraint *con)
 
   /* open/close */
   UI_block_emboss_set(block, UI_EMBOSS_NONE);
-  uiItemR(row, &ptr, "show_expanded", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+  uiItemR(row, &ptr, "show_expanded", 0, "", ICON_NONE);
+
+  /* constraint-type icon */
+  uiItemL(row, "", RNA_struct_ui_icon(ptr.type));
   UI_block_emboss_set(block, UI_EMBOSS);
 
-  /* name */
-  uiDefBut(block,
-           UI_BTYPE_LABEL,
-           0,
-           typestr,
-           xco + 0.5f * UI_UNIT_X,
-           yco,
-           5 * UI_UNIT_X,
-           0.9f * UI_UNIT_Y,
-           NULL,
-           0.0,
-           0.0,
-           0.0,
-           0.0,
-           "");
 
   if (con->flag & CONSTRAINT_DISABLE) {
     uiLayoutSetRedAlert(row, true);
@@ -5953,7 +5941,7 @@ eAutoPropButsReturn uiTemplateOperatorPropertyButs(const bContext *C,
   }
 
   if (flag & UI_TEMPLATE_OP_PROPS_SHOW_TITLE) {
-    uiItemL(layout, RNA_struct_ui_name(op->type->srna), ICON_NONE);
+    uiItemL(layout, WM_operatortype_name(op->type, op->ptr), ICON_NONE);
   }
 
   /* menu */
