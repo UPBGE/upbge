@@ -58,6 +58,10 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
                                 const char **tf_names,
                                 const int tf_count,
                                 const char *shader_name);
+GPUShader *GPU_shader_load_from_binary(const char *binary,
+                                       const int binary_format,
+                                       const int binary_len,
+                                       const char *shname);
 struct GPU_ShaderCreateFromArray_Params {
   const char **vert, **geom, **frag, **defs;
 };
@@ -95,13 +99,7 @@ void GPU_shader_uniform_int(GPUShader *shader, int location, int value);
 
 int GPU_shader_get_attribute(GPUShader *shader, const char *name);
 
-/******************************************Game engine*****************************************/
-char *GPU_shader_validate(GPUShader *shader);
-void GPU_shader_uniform_float(GPUShader *shader, int location, float value);
-void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len);
-// GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2 bgl_TextureCoordinateOffset[9];
-int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name);
-/****************************************End of Game engine************************************/
+char *GPU_shader_get_binary(GPUShader *shader, int *r_binary_format, int *r_binary_len);
 
 /* Builtin/Non-generated shaders */
 typedef enum eGPUBuiltinShader {
@@ -419,6 +417,14 @@ typedef struct GPUVertAttrLayers {
 
   int totlayer;
 } GPUVertAttrLayers;
+
+/******************************************Game engine*****************************************/
+char *GPU_shader_validate(GPUShader *shader);
+void GPU_shader_uniform_float(GPUShader *shader, int location, float value);
+void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len);
+// GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2 bgl_TextureCoordinateOffset[9];
+int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name);
+/****************************************End of Game engine************************************/
 
 #ifdef __cplusplus
 }

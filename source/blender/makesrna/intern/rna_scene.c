@@ -669,7 +669,6 @@ const EnumPropertyItem rna_enum_transform_orientation_items[] = {
 #  include "BKE_pointcache.h"
 #  include "BKE_scene.h"
 #  include "BKE_mesh.h"
-#  include "BKE_sound.h"
 #  include "BKE_screen.h"
 #  include "BKE_sequencer.h"
 #  include "BKE_animsys.h"
@@ -815,27 +814,22 @@ static void rna_Scene_camera_update(Main *bmain, Scene *UNUSED(scene_unused), Po
 
   WM_windows_scene_data_sync(&wm->windows, scene);
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_relations_tag_update(bmain);
 }
 
 static void rna_Scene_fps_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
 {
-  BKE_sound_update_fps(scene);
-  BKE_sequencer_update_sound_bounds_all(scene);
+  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_FPS | ID_RECALC_SEQUENCER_STRIPS);
 }
 
 static void rna_Scene_listener_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
 {
-  BKE_sound_update_scene_listener(scene);
+  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_LISTENER);
 }
 
-static void rna_Scene_volume_set(PointerRNA *ptr, float value)
+static void rna_Scene_volume_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
 {
-  Scene *scene = (Scene *)(ptr->data);
-
-  scene->audio.volume = value;
-  if (scene->sound_scene) {
-    BKE_sound_set_scene_volume(scene, value);
-  }
+  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_VOLUME);
 }
 
 static const char *rna_Scene_statistics_string_get(Scene *scene,
@@ -962,10 +956,12 @@ static void rna_Scene_show_subframe_update(Main *UNUSED(bmain),
   scene->r.subframe = 0.0f;
 }
 
-static void rna_Scene_frame_update(Main *bmain, Scene *UNUSED(current_scene), PointerRNA *ptr)
+static void rna_Scene_frame_update(Main *UNUSED(bmain),
+                                   Scene *UNUSED(current_scene),
+                                   PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->id.data;
-  BKE_sound_seek_scene(bmain, scene);
+  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_SEEK);
   WM_main_add_notifier(NC_SCENE | ND_FRAME, scene);
 }
 
@@ -1825,8 +1821,11 @@ static void rna_Scene_use_audio_set(PointerRNA *ptr, bool value)
   else {
     scene->audio.flag &= ~AUDIO_MUTE;
   }
+}
 
-  BKE_sound_mute_scene(scene, value);
+static void rna_Scene_use_audio_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
+{
+  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_MUTE);
 }
 
 static int rna_Scene_sync_mode_get(PointerRNA *ptr)
@@ -7769,8 +7768,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Use Preview Range",
-      "Use an alternative start/end frame range for animation playback and "
-      "OpenGL renders instead of the Render properties start/end frame range");
+      "Use an alternative start/end frame range for animation playback and view renders");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, NULL);
   RNA_def_property_ui_icon(prop, ICON_PREVIEW_RANGE, 0);
 
@@ -7968,7 +7966,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, "rna_Scene_use_audio_get", "rna_Scene_use_audio_set");
   RNA_def_property_ui_text(
       prop, "Audio Muted", "Play back of audio from Sequence Editor will be muted");
-  RNA_def_property_update(prop, NC_SCENE, NULL);
+  RNA_def_property_update(prop, NC_SCENE, "rna_Scene_use_audio_update");
 
 #  if 0 /* XXX: Is this actually needed? */
   prop = RNA_def_property(srna, "use_audio_sync", PROP_BOOLEAN, PROP_NONE);
@@ -8015,7 +8013,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Volume", "Audio volume");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SOUND);
   RNA_def_property_update(prop, NC_SCENE, NULL);
-  RNA_def_property_float_funcs(prop, NULL, "rna_Scene_volume_set", NULL);
+  RNA_def_property_update(prop, NC_SCENE, "rna_Scene_volume_update");
 
   /* Statistics */
   func = RNA_def_function(srna, "statistics", "rna_Scene_statistics_string_get");
