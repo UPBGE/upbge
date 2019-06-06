@@ -51,15 +51,14 @@ struct bNodeTree;
 /* External Engine */
 
 /* RenderEngineType.flag */
-#define RE_INTERNAL				1
-#define RE_GAME					2
-#define RE_USE_PREVIEW			4
-#define RE_USE_POSTPROCESS		8
-#define RE_USE_SHADING_NODES	16
-#define RE_USE_EXCLUDE_LAYERS	32
-#define RE_USE_SAVE_BUFFERS		64
-#define RE_USE_SHADING_NODES_CUSTOM 	256
-#define RE_USE_SPHERICAL_STEREO 512
+#define RE_INTERNAL 1
+/* #define RE_FLAG_DEPRECATED   2 */
+#define RE_USE_PREVIEW 4
+#define RE_USE_POSTPROCESS 8
+#define RE_USE_EEVEE_VIEWPORT 16
+#define RE_USE_SAVE_BUFFERS 32
+#define RE_USE_SHADING_NODES_CUSTOM 64
+#define RE_USE_SPHERICAL_STEREO 128
 
 /* RenderEngine.flag */
 #define RE_ENGINE_ANIMATION 1

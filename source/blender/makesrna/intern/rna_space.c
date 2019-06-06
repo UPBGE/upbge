@@ -939,8 +939,7 @@ static void rna_3DViewShading_type_update(Main *bmain, Scene *scene, PointerRNA 
 
   View3DShading *shading = ptr->data;
   if (shading->type == OB_MATERIAL ||
-      (shading->type == OB_RENDER &&
-       STR_ELEM(scene->r.engine, RE_engine_id_BLENDER_EEVEE, RE_engine_id_CYCLES))) {
+      (shading->type == OB_RENDER && !STREQ(scene->r.engine, RE_engine_id_BLENDER_WORKBENCH))) {
     /* When switching from workbench to render or material mode the geometry of any
      * active sculpt session needs to be recalculated. */
     for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
@@ -3859,10 +3858,9 @@ static void rna_def_space_view3d(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_local_camera", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "scenelock", 1);
   RNA_def_property_boolean_funcs(prop, NULL, "rna_SpaceView3D_use_local_camera_set");
-  RNA_def_property_ui_text(
-      prop,
-      "Use Local Camera",
-      "Use a local camera in this view, rather than scene's active camera camera");
+  RNA_def_property_ui_text(prop,
+                           "Use Local Camera",
+                           "Use a local camera in this view, rather than scene's active camera");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
   prop = RNA_def_property(srna, "region_3d", PROP_POINTER, PROP_NONE);
