@@ -740,12 +740,9 @@ static int gp_frame_clean_loose_exec(bContext *C, wmOperator *op)
   const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
 
   CTX_DATA_BEGIN (C, bGPDlayer *, gpl, editable_gpencil_layers) {
-    bGPDframe *init_gpf = gpl->actframe;
+    bGPDframe *init_gpf = (is_multiedit) ? gpl->frames.first : gpl->actframe;
     bGPDstroke *gps = NULL;
     bGPDstroke *gpsn = NULL;
-    if (is_multiedit) {
-      init_gpf = gpl->frames.first;
-    }
 
     for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {
       if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
@@ -1274,100 +1271,109 @@ static int gp_stroke_arrange_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  bGPDlayer *gpl = BKE_gpencil_layer_getactive(gpd);
-  bGPDstroke *gps;
+  bGPDlayer *gpl_act = BKE_gpencil_layer_getactive(gpd);
 
   /* sanity checks */
-  if (ELEM(NULL, gpd, gpl, gpl->actframe)) {
+  if (ELEM(NULL, gpd, gpl_act, gpl_act->actframe)) {
     return OPERATOR_CANCELLED;
   }
 
   const int direction = RNA_enum_get(op->ptr, "direction");
+  const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
 
-  for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-    /* temp listbase to store selected strokes by layer */
+  CTX_DATA_BEGIN (C, bGPDlayer *, gpl, editable_gpencil_layers) {
+    /* temp listbase to store selected strokes */
     ListBase selected = {NULL};
-    bGPDframe *gpf = gpl->actframe;
-    if (gpl->flag & GP_LAYER_LOCKED) {
-      continue;
-    }
 
-    if (gpf == NULL) {
-      continue;
-    }
-    bool gpf_lock = false;
-    /* verify if any selected stroke is in the extreme of the stack and select to move */
-    for (gps = gpf->strokes.first; gps; gps = gps->next) {
-      /* only if selected */
-      if (gps->flag & GP_STROKE_SELECT) {
-        /* skip strokes that are invalid for current view */
-        if (ED_gpencil_stroke_can_use(C, gps) == false) {
+    bGPDframe *init_gpf = (is_multiedit) ? gpl->frames.first : gpl->actframe;
+    bGPDstroke *gps = NULL;
+
+    for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {
+      if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
+        if (gpf == NULL) {
           continue;
         }
-        /* check if the color is editable */
-        if (ED_gpencil_stroke_color_use(ob, gpl, gps) == false) {
-          continue;
-        }
-        /* some stroke is already at front*/
-        if ((direction == GP_STROKE_MOVE_TOP) || (direction == GP_STROKE_MOVE_UP)) {
-          if (gps == gpf->strokes.last) {
-            gpf_lock = true;
-            continue;
+        bool gpf_lock = false;
+        /* verify if any selected stroke is in the extreme of the stack and select to move */
+        for (gps = gpf->strokes.first; gps; gps = gps->next) {
+          /* only if selected */
+          if (gps->flag & GP_STROKE_SELECT) {
+            /* skip strokes that are invalid for current view */
+            if (ED_gpencil_stroke_can_use(C, gps) == false) {
+              continue;
+            }
+            /* check if the color is editable */
+            if (ED_gpencil_stroke_color_use(ob, gpl, gps) == false) {
+              continue;
+            }
+            /* some stroke is already at front*/
+            if ((direction == GP_STROKE_MOVE_TOP) || (direction == GP_STROKE_MOVE_UP)) {
+              if (gps == gpf->strokes.last) {
+                gpf_lock = true;
+                continue;
+              }
+            }
+            /* some stroke is already at botom */
+            if ((direction == GP_STROKE_MOVE_BOTTOM) || (direction == GP_STROKE_MOVE_DOWN)) {
+              if (gps == gpf->strokes.first) {
+                gpf_lock = true;
+                continue;
+              }
+            }
+            /* add to list (if not locked) */
+            if (!gpf_lock) {
+              BLI_addtail(&selected, BLI_genericNodeN(gps));
+            }
           }
         }
-        /* some stroke is already at botom */
-        if ((direction == GP_STROKE_MOVE_BOTTOM) || (direction == GP_STROKE_MOVE_DOWN)) {
-          if (gps == gpf->strokes.first) {
-            gpf_lock = true;
-            continue;
-          }
-        }
-        /* add to list (if not locked) */
+        /* Now do the movement of the stroke */
         if (!gpf_lock) {
-          BLI_addtail(&selected, BLI_genericNodeN(gps));
+          switch (direction) {
+            /* Bring to Front */
+            case GP_STROKE_MOVE_TOP:
+              for (LinkData *link = selected.first; link; link = link->next) {
+                gps = link->data;
+                BLI_remlink(&gpf->strokes, gps);
+                BLI_addtail(&gpf->strokes, gps);
+              }
+              break;
+            /* Bring Forward */
+            case GP_STROKE_MOVE_UP:
+              for (LinkData *link = selected.last; link; link = link->prev) {
+                gps = link->data;
+                BLI_listbase_link_move(&gpf->strokes, gps, 1);
+              }
+              break;
+            /* Send Backward */
+            case GP_STROKE_MOVE_DOWN:
+              for (LinkData *link = selected.first; link; link = link->next) {
+                gps = link->data;
+                BLI_listbase_link_move(&gpf->strokes, gps, -1);
+              }
+              break;
+            /* Send to Back */
+            case GP_STROKE_MOVE_BOTTOM:
+              for (LinkData *link = selected.last; link; link = link->prev) {
+                gps = link->data;
+                BLI_remlink(&gpf->strokes, gps);
+                BLI_addhead(&gpf->strokes, gps);
+              }
+              break;
+            default:
+              BLI_assert(0);
+              break;
+          }
         }
+        BLI_freelistN(&selected);
+      }
+
+      /* if not multiedit, exit loop*/
+      if (!is_multiedit) {
+        break;
       }
     }
-    /* Now do the movement of the stroke */
-    if (!gpf_lock) {
-      switch (direction) {
-        /* Bring to Front */
-        case GP_STROKE_MOVE_TOP:
-          for (LinkData *link = selected.first; link; link = link->next) {
-            gps = link->data;
-            BLI_remlink(&gpf->strokes, gps);
-            BLI_addtail(&gpf->strokes, gps);
-          }
-          break;
-        /* Bring Forward */
-        case GP_STROKE_MOVE_UP:
-          for (LinkData *link = selected.last; link; link = link->prev) {
-            gps = link->data;
-            BLI_listbase_link_move(&gpf->strokes, gps, 1);
-          }
-          break;
-        /* Send Backward */
-        case GP_STROKE_MOVE_DOWN:
-          for (LinkData *link = selected.first; link; link = link->next) {
-            gps = link->data;
-            BLI_listbase_link_move(&gpf->strokes, gps, -1);
-          }
-          break;
-        /* Send to Back */
-        case GP_STROKE_MOVE_BOTTOM:
-          for (LinkData *link = selected.last; link; link = link->prev) {
-            gps = link->data;
-            BLI_remlink(&gpf->strokes, gps);
-            BLI_addhead(&gpf->strokes, gps);
-          }
-          break;
-        default:
-          BLI_assert(0);
-          break;
-      }
-    }
-    BLI_freelistN(&selected);
   }
+  CTX_DATA_END;
 
   /* notifiers */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
@@ -1439,10 +1445,7 @@ static int gp_stroke_change_color_exec(bContext *C, wmOperator *op)
 
   /* loop all strokes */
   CTX_DATA_BEGIN (C, bGPDlayer *, gpl, editable_gpencil_layers) {
-    bGPDframe *init_gpf = gpl->actframe;
-    if (is_multiedit) {
-      init_gpf = gpl->frames.first;
-    }
+    bGPDframe *init_gpf = (is_multiedit) ? gpl->frames.first : gpl->actframe;
 
     for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {
       if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
@@ -2818,10 +2821,8 @@ static int gpencil_color_select_exec(bContext *C, wmOperator *op)
 
   /* read all strokes and select*/
   CTX_DATA_BEGIN (C, bGPDlayer *, gpl, editable_gpencil_layers) {
-    bGPDframe *init_gpf = gpl->actframe;
-    if (is_multiedit) {
-      init_gpf = gpl->frames.first;
-    }
+    bGPDframe *init_gpf = (is_multiedit) ? gpl->frames.first : gpl->actframe;
+
     for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {
       if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
 

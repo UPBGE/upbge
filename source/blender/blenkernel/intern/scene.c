@@ -1574,7 +1574,7 @@ static void scene_update_sound(Depsgraph *depsgraph, Main *bmain)
   if (recalc & ID_RECALC_AUDIO_LISTENER) {
     BKE_sound_update_scene_listener(scene);
   }
-  BKE_sound_update_scene(bmain, scene);
+  BKE_sound_update_scene(depsgraph, scene);
 }
 
 /* TODO(sergey): This actually should become view_layer_graph or so.
@@ -2501,8 +2501,16 @@ void BKE_scene_eval_sequencer_sequences(Depsgraph *depsgraph, Scene *scene)
   BKE_sound_ensure_scene(scene);
   Sequence *seq;
   SEQ_BEGIN (scene->ed, seq) {
-    if (seq->sound != NULL && seq->scene_sound == NULL) {
-      seq->scene_sound = BKE_sound_add_scene_sound_defaults(scene, seq);
+    if (seq->scene_sound == NULL) {
+      if (seq->sound != NULL) {
+        seq->scene_sound = BKE_sound_add_scene_sound_defaults(scene, seq);
+      }
+      else if (seq->type == SEQ_TYPE_SCENE) {
+        if (seq->scene != NULL) {
+          BKE_sound_ensure_scene(seq->scene);
+          seq->scene_sound = BKE_sound_scene_add_scene_sound_defaults(scene, seq);
+        }
+      }
     }
     if (seq->scene_sound) {
       BKE_sound_set_scene_sound_volume(

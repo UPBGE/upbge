@@ -5236,7 +5236,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 
   /* tweak tablet & mouse preset */
   prop = RNA_def_property(srna, "drag_threshold_mouse", PROP_INT, PROP_PIXEL);
-  RNA_def_property_range(prop, 3, 255);
+  RNA_def_property_range(prop, 1, 255);
   RNA_def_property_ui_text(prop,
                            "Mouse Drag Threshold",
                            "Number of pixels to drag before a tweak/drag event is triggered "
@@ -5244,7 +5244,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
                            "(otherwise click events are detected)");
 
   prop = RNA_def_property(srna, "drag_threshold_tablet", PROP_INT, PROP_PIXEL);
-  RNA_def_property_range(prop, 3, 255);
+  RNA_def_property_range(prop, 1, 255);
   RNA_def_property_ui_text(prop,
                            "Tablet Drag Threshold",
                            "Number of pixels to drag before a tweak/drag event is triggered "
@@ -5252,7 +5252,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
                            "(otherwise click events are detected)");
 
   prop = RNA_def_property(srna, "drag_threshold", PROP_INT, PROP_PIXEL);
-  RNA_def_property_range(prop, 3, 255);
+  RNA_def_property_range(prop, 1, 255);
   RNA_def_property_ui_text(prop,
                            "Drag Threshold",
                            "Number of pixels to drag before a drag event is triggered "

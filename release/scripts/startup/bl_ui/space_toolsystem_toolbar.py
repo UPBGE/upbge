@@ -60,6 +60,7 @@ def generate_from_enum_ex(
                     idname=idname_prefix + name,
                     label=name,
                     icon=icon_prefix + idname.lower(),
+					cursor='PAINT_CROSSHAIR',
                     data_block=idname,
                     **tooldef_keywords,
                 )
@@ -199,7 +200,7 @@ class _defs_annotate:
             idname="builtin.annotate_line",
             label="Annotate Line",
             icon="ops.gpencil.draw.line",
-            cursor='CROSSHAIR',
+            cursor='PAINT_CROSSHAIR',
             keymap="Generic Tool: Annotate Line",
             draw_settings=draw_settings,
         )
@@ -210,7 +211,7 @@ class _defs_annotate:
             idname="builtin.annotate_polygon",
             label="Annotate Polygon",
             icon="ops.gpencil.draw.poly",
-            cursor='CROSSHAIR',
+            cursor='PAINT_CROSSHAIR',
             keymap="Generic Tool: Annotate Polygon",
             draw_settings=draw_settings,
         )
@@ -225,7 +226,7 @@ class _defs_annotate:
             idname="builtin.annotate_eraser",
             label="Annotate Eraser",
             icon="ops.gpencil.draw.eraser",
-            cursor='CROSSHAIR',  # XXX: Always show brush circle when enabled
+            cursor='PAINT_CROSSHAIR',  # XXX: Always show brush circle when enabled
             keymap="Generic Tool: Annotate Eraser",
             draw_settings=draw_settings,
         )
@@ -971,6 +972,16 @@ class _defs_sculpt:
             keymap=(),
         )
 
+    @ToolDef.from_fn
+    def mask_lasso():
+        return dict(
+            idname="builtin.lasso_mask",
+            label="Lasso Mask",
+            icon="ops.sculpt.lasso_mask",
+            widget=None,
+            keymap=(),
+        )
+
 
 class _defs_vertex_paint:
 
@@ -1276,7 +1287,7 @@ class _defs_gpencil_paint:
             idname="builtin.line",
             label="Line",
             icon="ops.gpencil.primitive_line",
-            cursor='CROSSHAIR',
+            cursor='PAINT_CROSSHAIR',
             widget=None,
             keymap=(),
         )
@@ -1287,7 +1298,7 @@ class _defs_gpencil_paint:
             idname="builtin.box",
             label="Box",
             icon="ops.gpencil.primitive_box",
-            cursor='CROSSHAIR',
+            cursor='PAINT_CROSSHAIR',
             widget=None,
             keymap=(),
         )
@@ -1298,7 +1309,7 @@ class _defs_gpencil_paint:
             idname="builtin.circle",
             label="Circle",
             icon="ops.gpencil.primitive_circle",
-            cursor='CROSSHAIR',
+            cursor='PAINT_CROSSHAIR',
             widget=None,
             keymap=(),
         )
@@ -1309,7 +1320,7 @@ class _defs_gpencil_paint:
             idname="builtin.arc",
             label="Arc",
             icon="ops.gpencil.primitive_arc",
-            cursor='CROSSHAIR',
+            cursor='PAINT_CROSSHAIR',
             widget=None,
             keymap=(),
         )
@@ -1320,7 +1331,7 @@ class _defs_gpencil_paint:
             idname="builtin.curve",
             label="Curve",
             icon="ops.gpencil.primitive_curve",
-            cursor='CROSSHAIR',
+            cursor='PAINT_CROSSHAIR',
             widget=None,
             keymap=(),
         )
@@ -1897,8 +1908,11 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
         'SCULPT': [
             _defs_sculpt.generate_from_brushes,
             None,
+            (
+                _defs_sculpt.mask_border,
+                _defs_sculpt.mask_lasso,
+            ),
             _defs_sculpt.hide_border,
-            _defs_sculpt.mask_border,
             None,
             *_tools_annotate,
         ],
