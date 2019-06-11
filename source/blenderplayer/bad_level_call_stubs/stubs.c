@@ -481,6 +481,7 @@ bool WM_event_is_tablet(const struct wmEvent *event) RET_ZERO
 void object_test_constraints(struct Main *bmain, struct Object *ob) RET_NONE
 void ED_armature_ebone_to_mat4(struct EditBone *ebone, float mat[4][4]) RET_NONE
 void ED_armature_ebone_from_mat4(EditBone *ebone, float mat[4][4]) RET_NONE
+void ED_armature_ebone_transform_mirror_update(struct bArmature *arm, struct EditBone *ebo, bool check_select) RET_NONE
 void ED_object_parent(struct Object *ob, struct Object *par, const int type, const char *substr) RET_NONE
 void ED_object_constraint_set_active(struct Object *ob, struct bConstraint *con) RET_NONE
 void ED_object_facemap_face_add(struct Object *ob, struct bFaceMap *fmap, int facenum) RET_NONE
