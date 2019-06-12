@@ -1359,10 +1359,12 @@ def km_graph_editor(params):
          {"properties": [("extend", False), ("column", False), ("curves", True)]}),
         ("graph.clickselect", {"type": params.select_mouse, "value": 'PRESS', "shift": True, "ctrl": True, "alt": True},
          {"properties": [("extend", True), ("column", False), ("curves", True)]}),
-        *(("graph.select_leftright",
-           {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "shift": extend, "alt": not params.legacy},
-           {"properties": [("mode", 'CHECK'), ("extend", extend)]}
-        ) for extend in (False, True)),
+        ("graph.select_leftright",
+         {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "alt": not params.legacy},
+         {"properties": [("mode", 'CHECK'), ("extend", False)]}),
+        ("graph.select_leftright",
+         {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "shift": True, "alt": not params.legacy},
+         {"properties": [("mode", 'CHECK'), ("extend", True)]}),
         ("graph.select_leftright", {"type": 'LEFT_BRACKET', "value": 'PRESS'},
          {"properties": [("mode", 'LEFT'), ("extend", False)]}),
         ("graph.select_leftright", {"type": 'RIGHT_BRACKET', "value": 'PRESS'},
@@ -1380,6 +1382,8 @@ def km_graph_editor(params):
          {"properties": [("tweak", True), ("mode", 'SET')]}),
         ("graph.select_box", {"type": params.select_tweak, "value": 'ANY', "shift": True},
          {"properties": [("tweak", True), ("mode", 'ADD')]}),
+        ("graph.select_box", {"type": params.select_tweak, "value": 'ANY', "ctrl": True},
+         {"properties": [("tweak", True), ("mode", 'SUB')]}),
         ("graph.select_lasso", {"type": params.action_tweak, "value": 'ANY', "ctrl": True},
          {"properties": [("mode", 'ADD')]}),
         ("graph.select_lasso", {"type": params.action_tweak, "value": 'ANY', "shift": True, "ctrl": True},
@@ -1443,7 +1447,6 @@ def km_graph_editor(params):
     if params.select_mouse == 'LEFTMOUSE' and not params.legacy:
         items.extend([
             ("graph.cursor_set", {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True}, None),
-            ("graph.cursor_set", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True}, None),
         ])
     else:
         items.extend([
@@ -1889,10 +1892,12 @@ def km_dopesheet(params):
          {"properties": [("extend", False), ("column", False), ("channel", True)]}),
         ("action.clickselect", {"type": params.select_mouse, "value": 'PRESS', "shift": True, "ctrl": True, "alt": True},
          {"properties": [("extend", True), ("column", False), ("channel", True)]}),
-        *(("action.select_leftright",
-           {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "shift": extend, "alt": not params.legacy},
-           {"properties": [("mode", 'CHECK'), ("extend", extend)]}
-        ) for extend in (False, True)),
+        ("action.select_leftright",
+         {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "alt": not params.legacy},
+         {"properties": [("mode", 'CHECK'), ("extend", False)]}),
+        ("action.select_leftright",
+         {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "shift": True, "alt": not params.legacy},
+         {"properties": [("mode", 'CHECK'), ("extend", True)]}),
         ("action.select_leftright", {"type": 'LEFT_BRACKET', "value": 'PRESS'},
          {"properties": [("mode", 'LEFT'), ("extend", False)]}),
         ("action.select_leftright", {"type": 'RIGHT_BRACKET', "value": 'PRESS'},
@@ -1906,6 +1911,8 @@ def km_dopesheet(params):
          {"properties": [("tweak", True), ("mode", 'SET')]}),
         ("action.select_box", {"type": params.select_tweak, "value": 'ANY', "shift": True},
          {"properties": [("tweak", True), ("mode", 'ADD')]}),
+        ("action.select_box", {"type": params.select_tweak, "value": 'ANY', "ctrl": True},
+         {"properties": [("tweak", True), ("mode", 'SUB')]}),
         ("action.select_lasso", {"type": params.action_tweak, "value": 'ANY', "ctrl": True},
          {"properties": [("mode", 'ADD')]}),
         ("action.select_lasso", {"type": params.action_tweak, "value": 'ANY', "shift": True, "ctrl": True},
@@ -2028,10 +2035,12 @@ def km_nla_editor(params):
          {"properties": [("extend", False), ("deselect_all", not params.legacy)]}),
         ("nla.click_select", {"type": params.select_mouse, "value": 'PRESS', "shift": True},
          {"properties": [("extend", True)]}),
-        *(("nla.select_leftright",
-           {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "shift": extend, "alt": not params.legacy},
-           {"properties": [("mode", 'CHECK'), ("extend", extend)]}
-        ) for extend in (False, True)),
+        ("nla.select_leftright",
+         {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "alt": not params.legacy},
+         {"properties": [("mode", 'CHECK'), ("extend", False)]}),
+        ("nla.select_leftright",
+         {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "shift": True, "alt": not params.legacy},
+         {"properties": [("mode", 'CHECK'), ("extend", True)]}),
         ("nla.select_leftright", {"type": 'LEFT_BRACKET', "value": 'PRESS'},
          {"properties": [("mode", 'LEFT'), ("extend", False)]}),
         ("nla.select_leftright", {"type": 'RIGHT_BRACKET', "value": 'PRESS'},
@@ -2045,6 +2054,8 @@ def km_nla_editor(params):
          {"properties": [("tweak", True), ("mode", 'SET')]}),
         ("nla.select_box", {"type": params.select_tweak, "value": 'ANY', "shift": True},
          {"properties": [("tweak", True), ("mode", 'ADD')]}),
+        ("nla.select_box", {"type": params.select_tweak, "value": 'ANY', "ctrl": True},
+         {"properties": [("tweak", True), ("mode", 'SUB')]}),
         ("nla.previewrange_set", {"type": 'P', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("nla.view_all", {"type": 'HOME', "value": 'PRESS'}, None),
         ("nla.view_all", {"type": 'NDOF_BUTTON_FIT', "value": 'PRESS'}, None),
@@ -2346,10 +2357,12 @@ def km_sequencer(params):
          {"properties": [("extend", False), ("linked_handle", True), ("left_right", 'NONE'), ("linked_time", False)]}),
         ("sequencer.select", {"type": params.select_mouse, "value": 'PRESS', "shift": True, "alt": True},
          {"properties": [("extend", True), ("linked_handle", True), ("left_right", 'NONE'), ("linked_time", False)]}),
-        *(("sequencer.select",
-           {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "shift": extend, "alt": not params.legacy},
-           {"properties": [("linked_handle", False), ("left_right", 'MOUSE'), ("linked_time", True), ("extend", extend)]}
-        ) for extend in (False, True)),
+        ("sequencer.select",
+         {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "alt": not params.legacy},
+         {"properties": [("linked_handle", False), ("left_right", 'MOUSE'), ("linked_time", True), ("extend", False)]}),
+        ("sequencer.select",
+         {"type": params.select_mouse, "value": 'PRESS', "ctrl": True, "shift": True, "alt": not params.legacy},
+         {"properties": [("linked_handle", False), ("left_right", 'MOUSE'), ("linked_time", True), ("extend", True)]}),
         ("sequencer.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True}, None),
         ("sequencer.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True}, None),
         ("sequencer.select_linked_pick", {"type": 'L', "value": 'PRESS'},
@@ -2784,7 +2797,6 @@ def km_animation(params):
     if params.select_mouse == 'LEFTMOUSE' and not params.legacy:
         items.extend([
             ("anim.change_frame", {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True}, None),
-            ("anim.change_frame", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True}, None),
         ])
     else:
         items.extend([

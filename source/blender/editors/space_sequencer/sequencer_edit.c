@@ -1613,10 +1613,10 @@ static void sequencer_slip_update_header(Scene *scene, ScrArea *sa, SlipData *da
     if (hasNumInput(&data->num_input)) {
       char num_str[NUM_STR_REP_LEN];
       outputNumInput(&data->num_input, num_str, &scene->unit);
-      BLI_snprintf(msg, sizeof(msg), IFACE_("Trim offset: %s"), num_str);
+      BLI_snprintf(msg, sizeof(msg), TIP_("Trim offset: %s"), num_str);
     }
     else {
-      BLI_snprintf(msg, sizeof(msg), IFACE_("Trim offset: %d"), offset);
+      BLI_snprintf(msg, sizeof(msg), TIP_("Trim offset: %d"), offset);
     }
   }
 
@@ -3390,7 +3390,7 @@ static int sequencer_copy_exec(bContext *C, wmOperator *op)
   }
 
   /* Replace datablock pointers with copies, to keep things working in case
-   * datablocks get deleted or another .blend file is opened. */
+   * data-blocks get deleted or another .blend file is opened. */
   BKE_sequencer_base_clipboard_pointers_store(bmain, &seqbase_clipboard);
 
   return OPERATOR_FINISHED;
@@ -3424,9 +3424,9 @@ static int sequencer_paste_exec(bContext *C, wmOperator *UNUSED(op))
   ED_sequencer_deselect_all(scene);
   ofs = scene->r.cfra - seqbase_clipboard_frame;
 
-  /* Copy strips, temporarily restoring pointers to actual datablocks. This
+  /* Copy strips, temporarily restoring pointers to actual data-blocks. This
    * must happen on the clipboard itself, so that copying does user counting
-   * on the actual datablocks. */
+   * on the actual data-blocks. */
   BKE_sequencer_base_clipboard_pointers_restore(&seqbase_clipboard, bmain);
   BKE_sequence_base_dupli_recursive(
       scene, scene, &nseqbase, &seqbase_clipboard, SEQ_DUPE_UNIQUE_NAME, 0);

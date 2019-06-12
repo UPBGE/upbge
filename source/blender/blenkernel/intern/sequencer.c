@@ -347,7 +347,7 @@ void BKE_sequencer_free_clipboard(void)
  * note that these pointers should _never_ be access in the sequencer,
  * they are only for storage while in the clipboard
  * notice 'newid' is used for temp pointer storage here, validate on access (this is safe usage,
- * since those datablocks are fully out of Main lists).
+ * since those data-blocks are fully out of Main lists).
  */
 #define ID_PT (*id_pt)
 static void seqclipboard_ptr_free(Main *UNUSED(bmain), ID **id_pt)
@@ -406,7 +406,7 @@ static void seqclipboard_ptr_restore(Main *bmain, ID **id_pt)
       }
     }
 
-    /* Replace with pointer to actual datablock. */
+    /* Replace with pointer to actual data-block. */
     seqclipboard_ptr_free(bmain, id_pt);
     ID_PT = id_restore;
   }
@@ -1057,6 +1057,7 @@ void BKE_sequence_reload_new_file(Main *bmain, Scene *scene, Sequence *seq, cons
         seq->len = 0;
       }
 #else
+      UNUSED_VARS(bmain);
       return;
 #endif
       break;
@@ -4962,7 +4963,7 @@ void BKE_sequencer_refresh_sound_length(Main *bmain, Scene *scene)
     sequencer_refresh_sound_length_recursive(bmain, scene, &scene->ed->seqbase);
   }
 #else
-  (void)scene;
+  UNUSED_VARS(bmain, scene);
 #endif
 }
 

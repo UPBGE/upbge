@@ -2794,8 +2794,11 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
           int part = -1;
           gz = wm_gizmomap_highlight_find(gzmap, C, event, &part);
 
-          if ((gz == NULL) || (prev.gz != gz) || (prev.part != part)) {
-            WM_tooltip_clear(C, CTX_wm_window(C));
+          /* If no gizmos are/were active, don't clear tool-tips. */
+          if (gz || prev.gz) {
+            if ((prev.gz != gz) || (prev.part != part)) {
+              WM_tooltip_clear(C, CTX_wm_window(C));
+            }
           }
 
           if (wm_gizmomap_highlight_set(gzmap, C, gz, part)) {
@@ -3485,7 +3488,7 @@ void WM_event_fileselect_event(wmWindowManager *wm, void *ophandle, int eventval
 
 /**
  * The idea here is to keep a handler alive on window queue, owning the operator.
- * The filewindow can send event to make it execute, thus ensuring
+ * The file window can send event to make it execute, thus ensuring
  * executing happens outside of lower level queues, with UI refreshed.
  * Should also allow multiwin solutions
  */
