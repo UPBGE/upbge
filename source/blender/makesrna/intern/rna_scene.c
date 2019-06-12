@@ -1149,12 +1149,12 @@ static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
 {
   ImageFormatData *imf = (ImageFormatData *)ptr->data;
   ID *id = ptr->id.data;
+  imf->imtype = value;
+
   const bool is_render = (id && GS(id->name) == ID_SCE);
   /* see note below on why this is */
   const char chan_flag = BKE_imtype_valid_channels(imf->imtype, true) |
                          (is_render ? IMA_CHAN_FLAG_BW : 0);
-
-  imf->imtype = value;
 
   /* ensure depth and color settings match */
   if (((imf->planes == R_IMF_PLANES_BW) && !(chan_flag & IMA_CHAN_FLAG_BW)) ||
@@ -3227,12 +3227,12 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem brush_size_unit_items[] = {
-      {0, "VIEW", 0, "View", "Measure brush size relateve to the view"},
+      {0, "VIEW", 0, "View", "Measure brush size relative to the view"},
       {UNIFIED_PAINT_BRUSH_LOCK_SIZE,
        "SCENE",
        0,
        "Scene",
-       "Measure brush size relateve to the scene"},
+       "Measure brush size relative to the scene"},
       {0, NULL, 0, NULL, NULL},
   };
 
