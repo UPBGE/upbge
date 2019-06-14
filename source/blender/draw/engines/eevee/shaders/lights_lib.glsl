@@ -227,11 +227,12 @@ float light_visibility(LightData ld,
 
       vec3 ray_ori = viewPosition;
 
-      // vN = (gl_FrontFacing) ? vN : -vN;
+      /* Fix translucency shadowed by contact shadows. */
+      vN = (gl_FrontFacing) ? vN : -vN;
 
-      // if (dot(vN, ray_dir) <= 0.0) {
-      //   return vis;
-      // }
+      if (dot(vN, ray_dir) <= 0.0) {
+        return vis;
+      }
 
       float bias = 0.5;                    /* Constant Bias */
       bias += 1.0 - abs(dot(vN, ray_dir)); /* Angle dependent bias */
