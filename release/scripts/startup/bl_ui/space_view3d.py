@@ -5571,6 +5571,10 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         row.prop(overlay, "show_edge_bevel_weight", text="Bevel", toggle=True)
         row.prop(overlay, "show_edge_seams", text="Seams", toggle=True)
 
+        if context.preferences.view.show_developer_ui:
+            col.label(text="Developer")
+            col.prop(overlay, "show_extra_indices", text="Indices")
+
 
 class VIEW3D_PT_overlay_edit_mesh_shading(Panel):
     bl_space_type = 'VIEW_3D'
@@ -5729,29 +5733,6 @@ class VIEW3D_PT_overlay_edit_mesh_freestyle(Panel):
         row = col.row()
         row.prop(overlay, "show_freestyle_edge_marks", text="Edge Marks")
         row.prop(overlay, "show_freestyle_face_marks", text="Face Marks")
-
-
-class VIEW3D_PT_overlay_edit_mesh_developer(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'HEADER'
-    bl_parent_id = 'VIEW3D_PT_overlay_edit_mesh'
-    bl_label = "Developer"
-
-    @classmethod
-    def poll(cls, context):
-        return context.mode == 'EDIT_MESH' and context.preferences.view.show_developer_ui
-
-    def draw(self, context):
-        layout = self.layout
-
-        view = context.space_data
-        overlay = view.overlay
-        display_all = overlay.show_overlays
-
-        col = layout.column()
-        col.active = display_all
-
-        col.prop(overlay, "show_extra_indices", text="Indices")
 
 
 class VIEW3D_PT_overlay_edit_curve(Panel):
@@ -6712,7 +6693,6 @@ classes = (
     VIEW3D_PT_overlay_edit_mesh_measurement,
     VIEW3D_PT_overlay_edit_mesh_normals,
     VIEW3D_PT_overlay_edit_mesh_freestyle,
-    VIEW3D_PT_overlay_edit_mesh_developer,
     VIEW3D_PT_overlay_edit_curve,
     VIEW3D_PT_overlay_paint,
     VIEW3D_PT_overlay_pose,
