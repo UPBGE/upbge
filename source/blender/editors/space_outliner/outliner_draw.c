@@ -2152,7 +2152,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         break;
       }
       case TSE_GP_LAYER: {
-        data.icon = ICON_GREASEPENCIL;
+        data.icon = ICON_OUTLINER_DATA_GP_LAYER;
         break;
       }
       default:
@@ -2810,13 +2810,12 @@ static void outliner_draw_tree_element(bContext *C,
         active = OL_DRAWSEL_ACTIVE;
       }
     }
-    else
-      {
-        active = tree_element_type_active(
-            C, scene, view_layer, soops, te, tselem, OL_SETSEL_NONE, false);
-        /* active collection*/
-        icon_bgcolor[3] = 0.2f;
-      }
+    else {
+      active = tree_element_type_active(
+          C, scene, view_layer, soops, te, tselem, OL_SETSEL_NONE, false);
+      /* active collection*/
+      icon_bgcolor[3] = 0.2f;
+    }
 
     /* Checkbox to enable collections. */
     if ((tselem->type == TSE_LAYER_COLLECTION) &&
@@ -2904,7 +2903,7 @@ static void outliner_draw_tree_element(bContext *C,
       }
       offsx += UI_UNIT_X + 4 * ufac;
     }
-    else if (ELEM(tselem->type, 0, TSE_LAYER_COLLECTION) && ID_IS_STATIC_OVERRIDE(tselem->id)) {
+    else if (ELEM(tselem->type, 0, TSE_LAYER_COLLECTION) && ID_IS_OVERRIDE_LIBRARY(tselem->id)) {
       UI_icon_draw_alpha((float)startx + offsx + 2 * ufac,
                          (float)*starty + 2 * ufac,
                          ICON_LIBRARY_DATA_OVERRIDE,
