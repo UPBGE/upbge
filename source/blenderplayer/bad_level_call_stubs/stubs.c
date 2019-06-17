@@ -658,9 +658,14 @@ struct ScrArea *ED_screen_area_find_with_spacedata(const bScreen *screen, const 
 float ED_view3d_pixel_size(const struct RegionView3D *rv3d, const float co[3]) RET_ZERO
 
 struct RenderEngineType *ED_view3d_engine_type(struct Scene *scene, int drawtype) RET_NULL
-void ED_view3d_update_viewmat(
-	struct Depsgraph *depsgraph, struct Scene *scene, struct View3D *v3d, struct ARegion *ar,
-	float viewmat[4][4], float winmat[4][4], const struct rcti *rect) RET_NONE
+void ED_view3d_update_viewmat(struct Depsgraph *depsgraph,
+                              struct Scene *scene,
+                              struct View3D *v3d,
+                              struct ARegion *ar,
+                              float viewmat[4][4],
+                              float winmat[4][4],
+                              const struct rcti *rect,
+                              bool offscreen) RET_NONE
 float ED_view3d_grid_scale(struct Scene *scene, struct View3D *v3d, const char **grid_unit) RET_ZERO
 void ED_view3d_shade_update(struct Main *bmain, struct View3D *v3d, struct ScrArea *sa) RET_NONE
 void ED_view3d_clipping_calc_from_boundbox(float clip[6][4], const struct BoundBox *clipbb, const bool is_flip) RET_NONE

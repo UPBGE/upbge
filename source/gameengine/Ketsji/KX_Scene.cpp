@@ -474,20 +474,20 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, GPUTexture *fin
     gameobj->TagForUpdate();
   }
 
-  bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
+  //bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
   m_resetTaaSamples = false;
   m_staticObjects.clear();
 
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-  Scene *scene = GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
+  //Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  //Scene *scene = GetBlenderScene();
+  //ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+  //Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
 
   //// Normally cam matrices are already set in ImageRender
   // ViewPortMatrices m = rasty->Get;
   // DRW_viewport_matrix_get_all(&state);
 
-  int viewportsize[2] = {v[2], v[3]};
+  //int viewportsize[2] = {v[2], v[3]};
 
   // finaltex = DRW_game_render_loop(bmain, scene, maincam, viewportsize, state, v, false,
   // reset_taa_samples);
