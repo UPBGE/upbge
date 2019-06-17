@@ -1553,7 +1553,7 @@ static void prepare_mesh_for_viewport_render(Main *bmain, const ViewLayer *view_
   }
 }
 
-static void scene_update_sound(Depsgraph *depsgraph, Main *bmain)
+void BKE_scene_update_sound(Depsgraph *depsgraph, Main *bmain)
 {
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   const int recalc = scene->id.recalc;
@@ -1613,7 +1613,7 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
    */
   DEG_evaluate_on_refresh(depsgraph);
   /* Update sound system. */
-  scene_update_sound(depsgraph, bmain);
+  BKE_scene_update_sound(depsgraph, bmain);
   /* Notify python about depsgraph update. */
   if (run_callbacks) {
     BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_DEPSGRAPH_UPDATE_POST);
@@ -1660,7 +1660,7 @@ void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph, Main *bmain)
    */
   DEG_evaluate_on_framechange(bmain, depsgraph, ctime);
   /* Update sound system animation. */
-  scene_update_sound(depsgraph, bmain);
+  BKE_scene_update_sound(depsgraph, bmain);
   /* Notify editors and python about recalc. */
   BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_FRAME_CHANGE_POST);
   /* Inform editors about possible changes. */
@@ -2503,7 +2503,9 @@ void BKE_scene_eval_sequencer_sequences(Depsgraph *depsgraph, Scene *scene)
   SEQ_BEGIN (scene->ed, seq) {
     if (seq->scene_sound == NULL) {
       if (seq->sound != NULL) {
-        seq->scene_sound = BKE_sound_add_scene_sound_defaults(scene, seq);
+        if (seq->scene_sound == NULL) {
+          seq->scene_sound = BKE_sound_add_scene_sound_defaults(scene, seq);
+        }
       }
       else if (seq->type == SEQ_TYPE_SCENE) {
         if (seq->scene != NULL) {
@@ -2513,6 +2515,9 @@ void BKE_scene_eval_sequencer_sequences(Depsgraph *depsgraph, Scene *scene)
       }
     }
     if (seq->scene_sound) {
+      if (scene->id.recalc & ID_RECALC_AUDIO || seq->sound->id.recalc & ID_RECALC_AUDIO) {
+        BKE_sound_update_scene_sound(seq->scene_sound, seq->sound);
+      }
       BKE_sound_set_scene_sound_volume(
           seq->scene_sound, seq->volume, (seq->flag & SEQ_AUDIO_VOLUME_ANIMATED) != 0);
       BKE_sound_set_scene_sound_pitch(
