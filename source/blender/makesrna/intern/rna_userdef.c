@@ -5461,7 +5461,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_hidden_files_datablocks", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_HIDE_DOT);
   RNA_def_property_ui_text(prop,
-                           "Hide Dot Files/Libraries",
+                           "Hide Dot Files/Data-blocks",
                            "Hide files and data-blocks if their name start with a dot (.*)");
 
   prop = RNA_def_property(srna, "use_filter_files", PROP_BOOLEAN, PROP_NONE);
@@ -5592,8 +5592,8 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_AUTOSAVE);
   RNA_def_property_ui_text(prop,
                            "Auto Save Temporary Files",
-                           "Automatic saving of temporary files in temp directory, uses process "
-                           "ID (Sculpt or edit mode data won't be saved!')");
+                           "Automatic saving of temporary files in temp directory, "
+                           "uses process ID (sculpt & edit-mode data won't be saved!)");
   RNA_def_property_update(prop, 0, "rna_userdef_autosave_update");
 
   prop = RNA_def_property(srna, "auto_save_time", PROP_INT, PROP_NONE);
