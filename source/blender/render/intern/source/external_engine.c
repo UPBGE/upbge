@@ -240,6 +240,7 @@ void RE_engine_update_result(RenderEngine *engine, RenderResult *result)
   Render *re = engine->re;
 
   if (result) {
+    render_result_merge(re->result, result);
     result->renlay = result->layers.first; /* weak, draws first layer always */
     re->display_update(re->duh, result, NULL);
   }
@@ -288,6 +289,7 @@ void RE_engine_end_result(
     if (re->result->do_exr_tile) {
       if (!cancel && merge_results) {
         render_result_exr_file_merge(re->result, result, re->viewname);
+        render_result_merge(re->result, result);
       }
     }
     else if (!(re->test_break(re->tbh) && (re->r.scemode & R_BUTS_PREVIEW))) {
