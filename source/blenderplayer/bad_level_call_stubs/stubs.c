@@ -657,6 +657,14 @@ struct ScrArea *ED_screen_area_find_with_spacedata(const bScreen *screen, const 
 
 float ED_view3d_pixel_size(const struct RegionView3D *rv3d, const float co[3]) RET_ZERO
 
+void ED_view3d_calc_camera_border(const struct Scene *scene,
+                                  struct Depsgraph *depsgraph,
+                                  const struct ARegion *ar,
+                                  const struct View3D *v3d,
+                                  const struct RegionView3D *rv3d,
+                                  struct rctf *r_viewborder,
+                                  const bool no_shift) RET_NONE
+
 struct RenderEngineType *ED_view3d_engine_type(struct Scene *scene, int drawtype) RET_NULL
 void ED_view3d_update_viewmat(struct Depsgraph *depsgraph,
                               struct Scene *scene,
