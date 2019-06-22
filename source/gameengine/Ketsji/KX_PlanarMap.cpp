@@ -31,6 +31,8 @@
 #include "RAS_Rasterizer.h"
 #include "RAS_Texture.h"
 
+#include "DNA_texture_types.h"
+
 KX_PlanarMap::KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint)
 	:KX_TextureRenderer(env, viewpoint),
 	m_normal(mt::axisZ3)
@@ -55,7 +57,7 @@ KX_PlanarMap::~KX_PlanarMap()
 {
 }
 
-std::string KX_PlanarMap::GetName()
+std::string KX_PlanarMap::GetName() const
 {
 	return "KX_PlanarMap";
 }

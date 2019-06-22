@@ -27,6 +27,7 @@ set(INC
 	.
 	composite
 	intern
+	logic
 	shader
 	texture
 	../blenkernel
@@ -130,7 +131,10 @@ set(SRC
 	composite/node_composite_tree.c
 	composite/node_composite_util.c
 
-	shader/nodes/node_shader_add_shader.c
+	logic/nodes/node_logic_root.c
+	logic/nodes/node_logic_function.c
+	logic/node_logic_tree.c
+	logic/node_logic_util.c	shader/nodes/node_shader_add_shader.c
 	shader/nodes/node_shader_ambient_occlusion.c
 	shader/nodes/node_shader_attribute.c
 	shader/nodes/node_shader_background.c
@@ -254,6 +258,7 @@ set(SRC
 	intern/node_util.c
 
 	composite/node_composite_util.h
+	logic/node_logic_util.h
 	shader/node_shader_util.h
 	texture/node_texture_util.h
 

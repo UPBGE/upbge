@@ -37,6 +37,7 @@
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 #include "DNA_linestyle_types.h"
+#include "DNA_object_types.h"
 
 #include "RNA_types.h"
 
@@ -54,6 +55,7 @@ struct ImageFormatData;
 struct ListBase;
 struct MTex;
 struct Main;
+struct Object;
 struct PointerRNA;
 struct RenderData;
 struct Scene;
@@ -660,6 +662,7 @@ struct NodeTreeIterStore {
 	Lamp *lamp;
 	World *world;
 	FreestyleLineStyle *linestyle;
+	Object *object;
 };
 
 void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *bmain);
@@ -1047,6 +1050,9 @@ int ntreeTexExecTree(struct bNodeTree *ntree, struct TexResult *target,
                      float coord[3], float dxt[3], float dyt[3], int osatex, const short thread,
                      struct Tex *tex, short which_output, int cfra, int preview, struct ShadeInput *shi, struct MTex *mtex);
 /** \} */
+
+#define LOGIC_NODE_ROOT     1500
+#define LOGIC_NODE_FUNCTION 1501
 
 void init_nodesystem(void);
 void free_nodesystem(void);

@@ -67,7 +67,7 @@ public:
 	virtual ~BL_Texture();
 
 	// stuff for cvalue related things
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	virtual bool Ok() const;
 	virtual bool IsCubeMap() const;

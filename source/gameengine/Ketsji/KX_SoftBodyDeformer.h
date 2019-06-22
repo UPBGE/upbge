@@ -32,10 +32,6 @@
 #ifndef __KX_SOFTBODYDEFORMER_H__
 #define __KX_SOFTBODYDEFORMER_H__
 
-#ifdef _MSC_VER
-#  pragma warning (disable:4786)  /* get rid of stupid stl-visual compiler debug warning */
-#endif
-
 #include "RAS_Deformer.h"
 
 class KX_GameObject;

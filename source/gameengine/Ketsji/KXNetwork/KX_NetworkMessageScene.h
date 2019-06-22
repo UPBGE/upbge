@@ -43,7 +43,7 @@ conflicts with KX_NetworkMessageScene::SendMessage */
 #include <map>
 #include <vector>
 
-class SCA_IObject;
+class KX_GameObject;
 
 class KX_NetworkMessageScene
 {
@@ -61,7 +61,7 @@ public:
 	 * \param subject The message subject, used as filter for receiver object(s).
 	 * \param message The body of the message.
 	 */
-	void SendMessage(std::string to, SCA_IObject *from, std::string subject, std::string body);
+	void SendMessage(std::string to, KX_GameObject *from, std::string subject, std::string body);
 
 	/** Get all messages for a given receiver object name and message subject.
 	 * \param to The object(s) name.

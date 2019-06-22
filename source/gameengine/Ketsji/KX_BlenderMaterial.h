@@ -49,8 +49,7 @@ public:
 	virtual Material *GetBlenderMaterial() const;
 	virtual bool UsesLighting() const;
 	virtual void GetRGBAColor(unsigned char *rgba) const;
-	virtual Scene *GetBlenderScene() const;
-	virtual SCA_IScene *GetScene() const;
+	KX_Scene *GetScene() const;
 	virtual void ReloadMaterial();
 
 	void InitTextures();
@@ -67,7 +66,7 @@ public:
 	virtual RAS_InstancingBuffer::Attrib GetInstancingAttribs() const;
 
 	// Stuff for cvalue related things.
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 #ifdef WITH_PYTHON
 
@@ -130,9 +129,5 @@ private:
 	void SetBlenderShaderData(RAS_Rasterizer *ras);
 	void SetShaderData(RAS_Rasterizer *ras);
 };
-
-#ifdef WITH_PYTHON
-bool ConvertPythonToMaterial(PyObject *value, KX_BlenderMaterial **material, bool py_none_ok, const char *error_prefix);
-#endif  // WITH_PYTHON
 
 #endif

@@ -365,6 +365,8 @@ extern StructRNA RNA_LineStyleThicknessModifier_Material;
 extern StructRNA RNA_LineStyleThicknessModifier_Noise;
 extern StructRNA RNA_LineStyleThicknessModifier_Tangent;
 extern StructRNA RNA_LockedTrackConstraint;
+extern StructRNA RNA_LogicNode;
+extern StructRNA RNA_LogicNodeTree;
 extern StructRNA RNA_Macro;
 extern StructRNA RNA_MagicTexture;
 extern StructRNA RNA_MarbleTexture;

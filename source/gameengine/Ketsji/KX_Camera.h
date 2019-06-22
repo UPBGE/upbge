@@ -40,11 +40,6 @@
 #include "RAS_CameraData.h"
 #include "RAS_Rasterizer.h"
 
-#ifdef WITH_PYTHON
-/* utility conversion function */
-bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object, bool py_none_ok, const char *error_prefix);
-#endif
-
 class KX_Camera : public KX_GameObject
 {
 	Py_Header
@@ -206,7 +201,7 @@ public:
 	 */
 	const RAS_Rect& GetViewport() const;
 	
-	virtual int GetGameObjectType() const { return OBJ_CAMERA; }
+	virtual ObjectTypes GetObjectType() const { return OBJECT_TYPE_CAMERA; }
 
 #ifdef WITH_PYTHON
 	EXP_PYMETHOD_DOC_VARARGS(KX_Camera, sphereInsideFrustum);

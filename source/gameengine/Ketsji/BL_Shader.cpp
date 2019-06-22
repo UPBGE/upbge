@@ -34,12 +34,11 @@
 #include "KX_GameObject.h"
 
 #include "DNA_material_types.h"
+#include "DNA_texture_types.h"
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
 #endif  // WITH_PYTHON
-
-#include <boost/format.hpp>
 
 #include "CM_Message.h"
 
@@ -74,15 +73,14 @@ bool BL_Shader::LinkProgram()
 	return RAS_Shader::LinkProgram();
 }
 
-std::string BL_Shader::GetName()
+std::string BL_Shader::GetName() const
 {
 	return "BL_Shader";
 }
 
-std::string BL_Shader::GetText()
+std::string BL_Shader::GetText() const
 {
-	return (boost::format("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n") %
-	        m_progs[VERTEX_PROGRAM] % m_progs[FRAGMENT_PROGRAM]).str();
+	return "BL_Shader\n\tvertex shader:" + m_progs[VERTEX_PROGRAM] + "\n\n\tfragment shader" + m_progs[FRAGMENT_PROGRAM] + "\n\n";
 }
 
 

@@ -86,8 +86,7 @@ public:
 		mt::vec3 zenithColor;
 	} m_savedData;
 
-	virtual std::string GetName();
-	bool hasWorld();
+	virtual std::string GetName() const;	bool hasWorld();
 	void setMistStart(float d);
 	void setMistDistance(float d);
 	void setMistIntensity(float intensity);

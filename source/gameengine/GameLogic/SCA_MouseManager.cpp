@@ -40,10 +40,10 @@
 #  pragma warning( disable:4786 )
 #endif
 
-#include "EXP_BoolValue.h"
+#include "EXP_PropBool.h"
 #include "SCA_MouseManager.h"
 #include "SCA_MouseSensor.h"
-#include "EXP_IntValue.h"
+#include "EXP_PropInt.h"
 
 
 SCA_MouseManager::SCA_MouseManager(SCA_LogicManager *logicmgr,

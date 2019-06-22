@@ -46,7 +46,7 @@ SCA_InputEvent::SCA_InputEvent(int type)
 	m_values.push_back(0);
 }
 
-std::string SCA_InputEvent::GetName()
+std::string SCA_InputEvent::GetName() const
 {
 	return "SCA_InputEvent";
 }

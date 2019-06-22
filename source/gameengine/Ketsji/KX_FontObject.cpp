@@ -37,7 +37,7 @@
 #include "KX_PythonInit.h"
 #include "KX_PyMath.h"
 #include "BLI_math.h"
-#include "EXP_StringValue.h"
+#include "EXP_PropString.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_BucketManager.h"
 #include "RAS_MaterialBucket.h"
@@ -50,6 +50,8 @@
 #include "BKE_font.h"
 #include "BKE_main.h"
 #include "DNA_packedFile_types.h"
+#include "DNA_vfont_types.h"
+#include "DNA_object_types.h"
 
 extern "C" {
 #include "BLF_api.h"
@@ -128,7 +130,7 @@ void KX_FontObject::ProcessReplica()
 
 void KX_FontObject::AddMeshUser()
 {
-	m_meshUser = new RAS_TextUser(&m_clientInfo, m_boundingBox);
+	m_meshUser.reset(new RAS_TextUser(&m_clientInfo, m_boundingBox));
 
 	RAS_BucketManager *bucketManager = GetScene()->GetBucketManager();
 	RAS_DisplayArrayBucket *arrayBucket = bucketManager->GetTextDisplayArrayBucket();
@@ -141,7 +143,7 @@ void KX_FontObject::AddMeshUser()
 
 void KX_FontObject::UpdateBuckets()
 {
-	RAS_TextUser *textUser = static_cast<RAS_TextUser *>(m_meshUser);
+	RAS_TextUser *textUser = static_cast<RAS_TextUser *>(m_meshUser.get());
 
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
 	if (m_sgNode->IsDirty(SG_Node::DIRTY_RENDER)) {
@@ -170,7 +172,6 @@ void KX_FontObject::UpdateBuckets()
 	// Orient the spacing vector
 	mt::vec3 spacing = NodeGetWorldOrientation() * mt::vec3(0.0f, m_fsize * m_line_spacing, 0.0f) * NodeGetWorldScaling()[1];
 
-	textUser->SetLayer(m_layer);
 	textUser->SetColor(mt::vec4(color));
 	textUser->SetFontId(m_fontid);
 	textUser->SetSize(size);
@@ -196,9 +197,12 @@ void KX_FontObject::SetText(const std::string& text)
 void KX_FontObject::UpdateTextFromProperty()
 {
 	// Allow for some logic brick control
-	EXP_Value *prop = GetProperty("Text");
-	if (prop && prop->GetText() != m_text) {
-		SetText(prop->GetText());
+	EXP_PropValue *prop = GetProperty("Text"); // TODO deprecate.
+	if (prop) {
+		const std::string text = prop->GetText();
+		if (text != m_text) {
+			SetText(text);
+		}
 	}
 }
 
@@ -351,14 +355,12 @@ int KX_FontObject::pyattr_set_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBU
 	const char *chars = _PyUnicode_AsString(value);
 
 	/* Allow for some logic brick control */
-	EXP_Value *tprop = self->GetProperty("Text");
-	if (tprop) {
-		EXP_Value *newstringprop = new EXP_StringValue(std::string(chars), "Text");
-		self->SetProperty("Text", newstringprop);
-		newstringprop->Release();
+	EXP_PropValue *tprop = self->GetProperty("Text"); // TODO deprecate
+	if (tprop && tprop->GetValueType() == EXP_PropValue::TYPE_STRING) {
+		static_cast<EXP_PropString *>(tprop)->SetValue(std::string(chars));
 	}
 	else {
-		self->SetText(std::string(chars));
+		self->SetText(std::string(chars)); // TODO: Check unicode support
 	}
 
 	return PY_SET_ATTR_SUCCESS;

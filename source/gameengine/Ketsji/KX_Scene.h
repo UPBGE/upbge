@@ -35,32 +35,25 @@
 
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_TextureRendererManager.h" // For KX_TextureRendererManager::RendererCategory.
-#include "KX_PythonComponentManager.h"
+#include "KX_LogicManager.h"
 #include "KX_KetsjiEngine.h" // For KX_DebugOption.
+
+#include "BL_ResourceCollection.h"
 
 #include "SG_Node.h"
 #include "SG_Frustum.h"
-#include "SCA_IScene.h"
 
 #include "RAS_Rasterizer.h" // For RAS_Rasterizer::DrawType.
 #include "RAS_DebugDraw.h"
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"
 
-#include "EXP_PyObjectPlus.h"
-#include "EXP_Value.h"
+#include "EXP_Dictionary.h"
+#include "EXP_ListValue.h"
 
 #include <set>
 
-template <class T>
-class EXP_ListValue;
-class EXP_Value;
-class SCA_LogicManager;
-class SCA_KeyboardManager;
-class SCA_TimeEventManager;
-class SCA_MouseManager;
 class SCA_IInputDevice;
-class SCA_JoystickManager;
 class KX_NetworkMessageScene;
 class KX_NetworkMessageManager;
 class KX_2DFilterManager;
@@ -86,7 +79,7 @@ class RAS_2DFilterManager;
 struct Scene;
 struct TaskPool;
 
-class KX_Scene : public EXP_Value, public SCA_IScene
+class KX_Scene : public EXP_Dictionary
 {
 public:
 	enum DrawingCallbackType {
@@ -106,12 +99,6 @@ public:
 private:
 	Py_Header
 
-#ifdef WITH_PYTHON
-	PyObject *m_attrDict;
-	PyObject *m_removeCallbacks;
-	PyObject *m_drawCallbacks[MAX_DRAW_CALLBACK];
-#endif
-
 	struct CullingInfo
 	{
 		int m_layer;
@@ -123,6 +110,17 @@ private:
 		{
 		}
 	};
+
+	struct DebugProp
+	{
+		KX_GameObject *m_obj;
+		std::string m_name;
+	};
+
+#ifdef WITH_PYTHON
+	PyObject *m_removeCallbacks;
+	PyObject *m_drawCallbacks[MAX_DRAW_CALLBACK];
+#endif
 
 	KX_TextureRendererManager *m_rendererManager;
 	RAS_BucketManager *m_bucketmanager;
@@ -139,19 +137,21 @@ private:
 	 */
 	std::vector<KX_GameObject *> m_euthanasyobjects;
 
-	EXP_ListValue<KX_GameObject> *m_objectlist;
+	EXP_ListValue<KX_GameObject> m_objectlist;
 	/// All 'root' parents.
-	EXP_ListValue<KX_GameObject> *m_parentlist;
-	EXP_ListValue<KX_LightObject> *m_lightlist;
+	EXP_ListValue<KX_GameObject> m_parentlist;
+	EXP_ListValue<KX_LightObject> m_lightlist;
 	/// All objects that are not in the active layer.
-	EXP_ListValue<KX_GameObject> *m_inactivelist;
+	EXP_ListValue<KX_GameObject> m_inactivelist;
 	/// All animated objects, no need of EXP_ListValue because the list isn't exposed in python.
 	std::vector<KX_GameObject *> m_animatedlist;
 
 	/// The list of cameras for this scene.
-	EXP_ListValue<KX_Camera> *m_cameralist;
+	EXP_ListValue<KX_Camera> m_cameralist;
 	/// The list of fonts for this scene.
-	EXP_ListValue<KX_FontObject> *m_fontlist;
+	EXP_ListValue<KX_FontObject> m_fontlist;
+
+	std::vector<DebugProp> m_debugList;
 
 	/**
 	 * List of nodes that needs scenegraph update
@@ -161,22 +161,16 @@ private:
 	 */
 	SG_QList m_sghead;
 
-	/// Various SCA managers used by the scene
-	SCA_LogicManager *m_logicmgr;
-	SCA_KeyboardManager *m_keyboardmgr;
-	SCA_MouseManager *m_mousemgr;
-	SCA_TimeEventManager *m_timemgr;
-
-	KX_PythonComponentManager m_componentManager;
+	KX_LogicManager m_logicManager;
 
 	/// Physics engine abstraction.
 	PHY_IPhysicsEnvironment *m_physicsEnvironment;
 
 	/// The name of the scene.
-	std::string m_sceneName;
+	std::string m_name;
 
 	/// Stores the world-settings for a scene.
-	KX_WorldInfo *m_worldinfo;
+	std::unique_ptr<KX_WorldInfo> m_worldinfo;
 
 	/// Network scene.
 	KX_NetworkMessageScene *m_networkScene;
@@ -185,13 +179,6 @@ private:
 	KX_Camera *m_activeCamera;
 	/// The active camera for scene culling.
 	KX_Camera *m_overrideCullingCamera;
-
-	/**
-	 * Another temporary variable outstaying its welcome
-	 * used in AddReplicaObject to map game objects to their
-	 * replicas so pointers can be updated.
-	 */
-	std::map<SCA_IObject *, SCA_IObject *> m_map_gameobject_to_replica;
 
 	/**
 	 * Another temporary variable outstaying its welcome
@@ -210,9 +197,6 @@ private:
 	 * means don't care.
 	 */
 	std::set<KX_GameObject *> m_groupGameObjects;
-
-	/// The execution priority of replicated object actuators.
-	int m_ueberExecutionPriority;
 
 	/**
 	 * Activity 'bubble' settings :
@@ -259,10 +243,12 @@ private:
 	bool m_isActivedHysteresis;
 	int m_lodHysteresisValue;
 
+	BL_ResourceCollection m_resssources;
+
 	void RemoveNodeDestructObject(KX_GameObject *gameobj);
 	void RemoveObject(KX_GameObject *gameobj);
 	void RemoveDupliGroup(KX_GameObject *gameobj);
-	bool NewRemoveObject(KX_GameObject *gameobj);
+	void NewRemoveObject(KX_GameObject *gameobj);
 
 public:
 	KX_Scene(SCA_IInputDevice *inputDevice,
@@ -271,6 +257,9 @@ public:
 			 RAS_ICanvas *canvas,
 			 KX_NetworkMessageManager *messageManager);
 	virtual ~KX_Scene();
+
+	BL_ResourceCollection& GetResources();
+	void SetResources(BL_ResourceCollection&& ressources);
 
 	RAS_BucketManager *GetBucketManager() const;
 	KX_TextureRendererManager *GetTextureRendererManager() const;
@@ -299,6 +288,13 @@ public:
 
 	void AddAnimatedObject(KX_GameObject *gameobj);
 
+	bool PropertyInDebugList(KX_GameObject *gameobj, const std::string &name);
+	bool ObjectInDebugList(KX_GameObject *gameobj);
+	void RemoveAllDebugProperties();
+	void AddDebugProperty(KX_GameObject *gameobj, const std::string &name);
+	void RemoveDebugProperty(KX_GameObject *gameobj, const std::string &name);
+	void RemoveObjectDebugProperties(KX_GameObject *gameobj);
+
 	/**
 	 * \section Logic stuff
 	 * Initiate an update of the logic system.
@@ -309,16 +305,14 @@ public:
 
 	void LogicEndFrame();
 
-	EXP_ListValue<KX_GameObject> *GetObjectList() const;
-	EXP_ListValue<KX_GameObject> *GetInactiveList() const;
-	EXP_ListValue<KX_GameObject> *GetRootParentList() const;
-	EXP_ListValue<KX_LightObject> *GetLightList() const;
-	EXP_ListValue<KX_Camera> *GetCameraList() const;
-	EXP_ListValue<KX_FontObject> *GetFontList() const;
+	EXP_ListValue<KX_GameObject>& GetObjectList();
+	EXP_ListValue<KX_GameObject>& GetInactiveList();
+	EXP_ListValue<KX_GameObject>& GetRootParentList();
+	EXP_ListValue<KX_LightObject>& GetLightList();
+	EXP_ListValue<KX_Camera>& GetCameraList();
+	EXP_ListValue<KX_FontObject>& GetFontList();
 
-	SCA_LogicManager *GetLogicManager() const;
-	SCA_TimeEventManager *GetTimeEventManager() const;
-	KX_PythonComponentManager& GetPythonComponentManager();
+	KX_LogicManager& GetLogicManager();
 
 	/// Return the currently active camera.
 	KX_Camera *GetActiveCamera();
@@ -367,9 +361,6 @@ public:
 			KX_DebugOption showBoundingBox, KX_DebugOption showArmatures);
 	void RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax);
 	void FlushDebugDraw(RAS_Rasterizer *rasty, RAS_ICanvas *canvas);
-
-	/// Replicate the logic bricks associated to this object.
-	void ReplicateLogic(KX_GameObject *newobj);
 
 	// Suspend the entire scene.
 	void Suspend();
@@ -421,7 +412,7 @@ public:
 	/// Returns the Blender scene this was made from.
 	Scene *GetBlenderScene() const;
 
-	bool MergeScene(KX_Scene *other);
+	bool Merge(KX_Scene *other);
 
 	/// 2D Filters.
 	KX_2DFilterManager *Get2DFilterManager() const;
@@ -430,7 +421,7 @@ public:
 	KX_ObstacleSimulation *GetObstacleSimulation();
 	void SetObstacleSimulation(KX_ObstacleSimulation *obstacleSimulation);
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 	virtual void SetName(const std::string& name);
 
 #ifdef WITH_PYTHON
@@ -441,11 +432,9 @@ public:
 	EXP_PYMETHOD_DOC(KX_Scene, replace);
 	EXP_PYMETHOD_DOC(KX_Scene, suspend);
 	EXP_PYMETHOD_DOC(KX_Scene, resume);
-	EXP_PYMETHOD_DOC(KX_Scene, get);
 	EXP_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
 
 	// Attributes.
-	static PyObject *pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_objects_inactive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_lights(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
@@ -464,10 +453,6 @@ public:
 	static PyObject *pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	// getitem/setitem
-	static PyMappingMethods Mapping;
-	static PySequenceMethods Sequence;
-
 	/// Run the registered python drawing functions.
 	void RunDrawingCallbacks(DrawingCallbackType callbackType, KX_Camera *camera);
 
@@ -475,9 +460,5 @@ public:
 	void RunOnRemoveCallbacks();
 #endif
 };
-
-#ifdef WITH_PYTHON
-bool ConvertPythonToScene(PyObject *value, KX_Scene **scene, bool py_none_ok, const char *error_prefix);
-#endif
 
 #endif  // __KX_SCENE_H__

@@ -41,6 +41,7 @@
 #include "GPU_glew.h"
 
 #include "KX_Globals.h"
+#include "KX_PythonConvert.h"
 #include "KX_Mesh.h"
 #include "DNA_scene_types.h"
 #include "RAS_OffScreen.h"
@@ -119,6 +120,7 @@ ImageRender::ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width,
 // destructor
 ImageRender::~ImageRender(void)
 {
+
 #ifdef WITH_GAMEENGINE_GPU_SYNC
 	if (m_sync) {
 		delete m_sync;
@@ -236,14 +238,14 @@ bool ImageRender::Render()
 	if (m_mirror) {
 		// mirror mode, compute camera frustum, position and orientation
 		// convert mirror position and normal in world space
-		const mt::mat3 & mirrorObjWorldOri = m_mirror->GetNode()->GetWorldOrientation();
-		const mt::vec3 & mirrorObjWorldPos = m_mirror->GetNode()->GetWorldPosition();
-		const mt::vec3 & mirrorObjWorldScale = m_mirror->GetNode()->GetWorldScaling();
+		const mt::mat3 & mirrorObjWorldOri = m_mirror->NodeGetWorldOrientation();
+		const mt::vec3 & mirrorObjWorldPos = m_mirror->NodeGetWorldPosition();
+		const mt::vec3 & mirrorObjWorldScale = m_mirror->NodeGetWorldScaling();
 		mt::vec3 mirrorWorldPos =
 			mirrorObjWorldPos + mirrorObjWorldScale * (mirrorObjWorldOri * m_mirrorPos);
 		mt::vec3 mirrorWorldZ = mirrorObjWorldOri * m_mirrorZ;
 		// get observer world position
-		const mt::vec3 & observerWorldPos = m_observer->GetNode()->GetWorldPosition();
+		const mt::vec3 & observerWorldPos = m_observer->NodeGetWorldPosition();
 		// get plane D term = mirrorPos . normal
 		float mirrorPlaneDTerm = mt::dot(mirrorWorldPos, mirrorWorldZ);
 		// compute distance of observer to mirror = D - observerPos . normal
@@ -254,6 +256,7 @@ bool ImageRender::Render()
 		}
 		// set camera world position = observerPos + normal * 2 * distance
 		mt::vec3 cameraWorldPos = observerWorldPos + (2.0f * observerDistance) * mirrorWorldZ;
+		m_camera->NodeSetLocalPosition(cameraWorldPos);
 		// set camera orientation: z=normal, y=mirror_up in world space, x= y x z
 		mt::vec3 mirrorWorldY = mirrorObjWorldOri * m_mirrorY;
 		mt::vec3 mirrorWorldX = mirrorObjWorldOri * m_mirrorX;
@@ -261,8 +264,8 @@ bool ImageRender::Render()
 			mirrorWorldX[0], mirrorWorldY[0], mirrorWorldZ[0],
 			mirrorWorldX[1], mirrorWorldY[1], mirrorWorldZ[1],
 			mirrorWorldX[2], mirrorWorldY[2], mirrorWorldZ[2]);
-
-		camtrans = mt::mat3x4(cameraWorldOri, cameraWorldPos).Inverse();
+		m_camera->NodeSetLocalOrientation(cameraWorldOri);
+		m_camera->NodeUpdate();
 		// compute camera frustum:
 		//   get position of mirror relative to camera: offset = mirrorPos-cameraPos
 		mt::vec3 mirrorOffset = mirrorWorldPos - cameraWorldPos;
@@ -489,7 +492,7 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 		// get camera pointer
 		KX_Camera *cameraPtr(nullptr);
-		if (!ConvertPythonToCamera(scenePtr, camera, &cameraPtr, false, "")) {
+		if (!ConvertFromPython(scenePtr, camera, cameraPtr, false, "")) {
 			THRWEXCP(CameraInvalid, S_OK);
 		}
 
@@ -762,7 +765,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 		// get observer pointer
 		KX_GameObject *observerPtr(nullptr);
-		if (!ConvertPythonToGameObject(scenePtr->GetLogicManager(), observer, &observerPtr, false, "")) {
+		if (!ConvertFromPython(scenePtr, observer, observerPtr, false, "")) {
 			THRWEXCP(ObserverInvalid, S_OK);
 		}
 
@@ -772,7 +775,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 		// get mirror pointer
 		KX_GameObject *mirrorPtr(nullptr);
-		if (!ConvertPythonToGameObject(scenePtr->GetLogicManager(), mirror, &mirrorPtr, false, "")) {
+		if (!ConvertFromPython(scenePtr, mirror, mirrorPtr, false, "")) {
 			THRWEXCP(MirrorInvalid, S_OK);
 		}
 

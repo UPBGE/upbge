@@ -33,6 +33,7 @@ set(INC
 	../../Expressions
 	../../GameLogic
 	../../Ketsji
+	../../Logic
 	../../Physics/Common
 	# >>>
 	../../SceneGraph

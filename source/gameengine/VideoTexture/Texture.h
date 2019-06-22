@@ -87,7 +87,7 @@ public:
 	Texture();
 	virtual ~Texture();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	void Close();
 	void SetSource(PyImage *source);

@@ -37,7 +37,7 @@ public:
 	KX_2DFilterOffScreen(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdr);
 	virtual ~KX_2DFilterOffScreen();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 #ifdef WITH_PYTHON
 

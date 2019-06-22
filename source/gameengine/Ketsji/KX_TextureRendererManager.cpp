@@ -55,7 +55,7 @@ KX_TextureRendererManager::~KX_TextureRendererManager()
 		}
 	}
 
-	m_camera->Release();
+	delete m_camera;
 }
 
 void KX_TextureRendererManager::InvalidateViewpoint(KX_GameObject *gameobj)

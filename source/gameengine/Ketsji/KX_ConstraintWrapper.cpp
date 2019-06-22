@@ -41,7 +41,7 @@ KX_ConstraintWrapper::~KX_ConstraintWrapper()
 {
 }
 
-std::string KX_ConstraintWrapper::GetName()
+std::string KX_ConstraintWrapper::GetName() const
 {
 	return "KX_ConstraintWrapper";
 }

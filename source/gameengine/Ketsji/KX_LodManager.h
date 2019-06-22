@@ -28,6 +28,9 @@
 #define __KX_LOD_MANAGER_H__
 
 #include "EXP_Value.h"
+
+#include "CM_RefCount.h"
+
 #include <vector>
 
 class KX_Scene;
@@ -35,7 +38,7 @@ class BL_SceneConverter;
 class KX_LodLevel;
 struct Object;
 
-class KX_LodManager : public EXP_Value
+class KX_LodManager : public EXP_Value, public CM_RefCount<KX_LodManager>
 {
 	Py_Header
 
@@ -81,7 +84,7 @@ public:
 	KX_LodManager(Object *ob, KX_Scene *scene, BL_SceneConverter& converter);
 	virtual ~KX_LodManager();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	/// Return number of lod levels.
 	unsigned int GetLevelCount() const;
@@ -109,12 +112,5 @@ public:
 
 #endif //WITH_PYTHON
 };
-
-#ifdef WITH_PYTHON
-
-/// Utility python conversion function.
-bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix);
-
-#endif  // WITH_PYTHON
 
 #endif  // __KX_LOD_MANAGER_H__

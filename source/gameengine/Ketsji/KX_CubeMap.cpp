@@ -82,7 +82,7 @@ KX_CubeMap::~KX_CubeMap()
 {
 }
 
-std::string KX_CubeMap::GetName()
+std::string KX_CubeMap::GetName() const
 {
 	return "KX_CubeMap";
 }

@@ -31,6 +31,7 @@ set(INC
 	../Converter
 	../Expressions
 	../Ketsji
+	../Logic
 	../Physics/Common
 	../SceneGraph
 	../GameLogic

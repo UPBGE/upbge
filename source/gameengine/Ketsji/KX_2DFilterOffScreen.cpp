@@ -38,7 +38,7 @@ KX_2DFilterOffScreen::~KX_2DFilterOffScreen()
 {
 }
 
-std::string KX_2DFilterOffScreen::GetName()
+std::string KX_2DFilterOffScreen::GetName() const
 {
 	return "KX_2DFilterOffScreen";
 }

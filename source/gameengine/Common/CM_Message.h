@@ -30,8 +30,6 @@
 #include <iostream>
 #include <string>
 
-class SCA_ILogicBrick;
-
 std::ostream& _CM_PrefixWarning(std::ostream& stream);
 std::ostream& _CM_PrefixError(std::ostream& stream);
 std::ostream& _CM_PrefixDebug(std::ostream& stream);
@@ -69,20 +67,6 @@ public:
 std::ostream& operator<<(std::ostream& stream, const _CM_PythonFunctionPrefix& prefix);
 
 #endif  // WITH_PYTHON
-
-class _CM_LogicBrickPrefix
-{
-private:
-	std::string m_brickName;
-	std::string m_objectName;
-
-public:
-	_CM_LogicBrickPrefix(SCA_ILogicBrick *brick);
-
-	friend std::ostream& operator<<(std::ostream& stream, const _CM_LogicBrickPrefix& prefix);
-};
-
-std::ostream& operator<<(std::ostream& stream, const _CM_LogicBrickPrefix& prefix);
 
 class _CM_FunctionPrefix
 {
@@ -189,21 +173,5 @@ std::ostream& operator<<(std::ostream& stream, const _CM_FunctionPrefix& prefix)
 #define CM_PythonFunctionError(class, function, msg) _CM_PythonFunctionMsg(_CM_PrefixError, class, function, msg)
 
 #endif  // WITH_PYTHON
-
-
-/** Format message:
- * prefix: brick(object), msg
- */
-#define _CM_LogicBrickMsg(prefix, brick, msg) std::cout << prefix << _CM_LogicBrickPrefix(brick) << msg << std::endl;
-
-/** Format message:
- * Warning: brick(object), msg
- */
-#define CM_LogicBrickWarning(brick, msg) _CM_LogicBrickMsg(_CM_PrefixWarning, brick, msg)
-
-/** Format message:
- * Error: brick(object), msg
- */
-#define CM_LogicBrickError(brick, msg) _CM_LogicBrickMsg(_CM_PrefixError, brick, msg)
 
 #endif  // __CM_MESSAGE_H__

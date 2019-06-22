@@ -20,7 +20,7 @@
 #define __EXP_LISTVALUE_H__
 
 #include "EXP_BaseListValue.h"
-#include "EXP_BoolValue.h"
+#include "EXP_PropBool.h"
 
 #include <functional>
 
@@ -74,9 +74,8 @@ public:
 
 		replica->ProcessReplica();
 
-		replica->m_bReleaseContents = true; // For copy, complete array is copied for now...
 		// Copy all values.
-		const int numelements = m_valueArray.size();
+		const unsigned int numelements = m_valueArray.size();
 		replica->m_valueArray.resize(numelements);
 		for (unsigned int i = 0; i < numelements; i++) {
 			replica->m_valueArray[i] = m_valueArray[i]->GetReplica();
@@ -106,20 +105,9 @@ public:
 		return nullptr;
 	}
 
-	void MergeList(EXP_ListValue<ItemType> *otherlist)
+	void MergeList(EXP_ListValue<ItemType>& other)
 	{
-		const unsigned int numelements = GetCount();
-		const unsigned int numotherelements = otherlist->GetCount();
-
-		Resize(numelements + numotherelements);
-
-		for (int i = 0; i < numotherelements; i++) {
-			SetValue(i + numelements, CM_AddRef(otherlist->GetValue(i)));
-		}
-	}
-	bool CheckEqual(ItemType *first, ItemType *second)
-	{
-		return EXP_BaseListValue::CheckEqual(first, second);
+		EXP_BaseListValue::MergeList(other);
 	}
 
 	bool SearchValue(ItemType *val) const
@@ -131,11 +119,7 @@ public:
 		return static_cast<ItemType *>(EXP_BaseListValue::FindValue(name));
 	}
 
-	/** \note Allow to remove by base class pointer as an upcast from this class type
-	 * to the item type could failed if the pointer is dangling, in example when it was
-	 * just deleted.
-	 */
-	bool RemoveValue(EXP_Value *val)
+	bool RemoveValue(ItemType *val)
 	{
 		return EXP_BaseListValue::RemoveValue(val);
 	}
@@ -144,16 +128,16 @@ public:
 	{
 		EXP_BaseListValue::SetValue(i, val);
 	}
-	ItemType *GetValue(int i)
+	ItemType *GetValue(int i) const
 	{
 		return static_cast<ItemType *>(EXP_BaseListValue::GetValue(i));
 	}
 
-	ItemType *GetFront()
+	ItemType *GetFront() const
 	{
 		return static_cast<ItemType *>(m_valueArray.front());
 	}
-	ItemType *GetBack()
+	ItemType *GetBack() const
 	{
 		return static_cast<ItemType *>(m_valueArray.back());
 	}
@@ -176,6 +160,18 @@ typename EXP_ListValue<ItemType>::const_iterator begin(EXP_ListValue<ItemType> *
 
 template<class ItemType>
 typename EXP_ListValue<ItemType>::const_iterator end(EXP_ListValue<ItemType> *list)
+{
+	return list->end();
+}
+
+template<class ItemType>
+typename EXP_ListValue<ItemType>::const_iterator begin(std::unique_ptr<EXP_ListValue<ItemType> >& list)
+{
+	return list->begin();
+}
+
+template<class ItemType>
+typename EXP_ListValue<ItemType>::const_iterator end(std::unique_ptr<EXP_ListValue<ItemType> >& list)
 {
 	return list->end();
 }

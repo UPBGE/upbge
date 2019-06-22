@@ -52,7 +52,7 @@ public:
 	KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint);
 	virtual ~KX_PlanarMap();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	void ComputeClipPlane(const mt::vec3& mirrorObjWorldPos, const mt::mat3& mirrorObjWorldOri);
 

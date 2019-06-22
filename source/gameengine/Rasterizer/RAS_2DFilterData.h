@@ -26,7 +26,7 @@
 #include <vector>
 #include <string>
 
-class EXP_Value;
+class EXP_Dictionary;
 
 /** This type is used to pack data received from a 2D Filter actuator and send it to
 the RAS_2DFilterManager::AddFilter method, because the number of parameters needed by
@@ -42,7 +42,7 @@ public:
 	/// The names of the properties of the game object that the shader may want to use as uniforms.
 	std::vector<std::string> propertyNames;
 	/// The KX_GameObject (or something else?) that provides the values for the uniforms named above.
-	EXP_Value *gameObject;
+	EXP_Dictionary *gameObject;
 	/// Enable/Disable mipmap in for rendered texture.
 	bool mipmap;
 	/// Should be a SCA_2DFilterActuator.FILTER_MODE value.

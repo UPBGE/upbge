@@ -28,9 +28,13 @@
 #include "RAS_OffScreen.h"
 #include "RAS_Rect.h"
 
-#include "EXP_Value.h"
+#include "EXP_Dictionary.h"
+#include "EXP_PropInt.h"
+#include "EXP_PropFloat.h"
 
 #include "GPU_glew.h"
+
+#include "BLI_utildefines.h"
 
 extern "C" {
 extern char datatoc_RAS_VertexShader2DFilter_glsl[];
@@ -267,21 +271,21 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 		const std::string& prop = m_properties[i];
 		unsigned int uniformLoc = m_propertiesLoc[i];
 
-		EXP_Value *property = m_gameObject->GetProperty(prop);
+		EXP_PropValue *property = m_gameObject->GetProperty(prop);
 
 		if (!property) {
 			continue;
 		}
 
 		switch (property->GetValueType()) {
-			case VALUE_INT_TYPE:
+			case EXP_PropValue::TYPE_INT:
 			{
-				SetUniform(uniformLoc, (int)property->GetNumber());
+				SetUniform(uniformLoc, (int)static_cast<EXP_PropInt *>(property)->GetValue());
 				break;
 			}
-			case VALUE_FLOAT_TYPE:
+			case EXP_PropValue::TYPE_FLOAT:
 			{
-				SetUniform(uniformLoc, (float)property->GetNumber());
+				SetUniform(uniformLoc, (float)static_cast<EXP_PropFloat *>(property)->GetValue());
 				break;
 			}
 			default:

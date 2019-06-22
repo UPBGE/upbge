@@ -45,8 +45,6 @@ public:
 	virtual ~SCA_TimeEventManager();
 
 	virtual void	NextFrame(double curtime, double fixedtime);
-	virtual bool	RegisterSensor(class SCA_ISensor* sensor);
-	virtual bool	RemoveSensor(class SCA_ISensor* sensor);
 	void			AddTimeProperty(EXP_Value* timeval);
 	void			RemoveTimeProperty(EXP_Value* timeval);
 

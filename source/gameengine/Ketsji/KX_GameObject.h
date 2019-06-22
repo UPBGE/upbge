@@ -40,22 +40,18 @@
 
 #include <stddef.h>
 
-#include "EXP_ListValue.h"
-#include "SCA_IObject.h"
+#include "EXP_Dictionary.h"
 #include "SG_Node.h"
 #include "SG_CullingNode.h"
-#include "mathfu.h"
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
 #include "KX_ClientObjectInfo.h"
-#include "DNA_constraint_types.h" /* for constraint replication */
-#include "DNA_object_types.h"
-#include "SCA_LogicManager.h" /* for ConvertPythonToGameObject to search object names */
 #include "BL_Resource.h" // For BL_Resource::Library.
+#include "LOG_Object.h"
+#include "mathfu.h"
 
 class KX_RayCast;
 class KX_LodManager;
-class KX_PythonComponent;
 class KX_Mesh;
 class RAS_MeshUser;
 class RAS_Deformer;
@@ -64,15 +60,10 @@ class PHY_IPhysicsEnvironment;
 class PHY_IPhysicsController;
 class BL_ActionManager;
 class BL_ConvertObjectInfo;
-struct Object;
 class KX_ObstacleSimulation;
 class KX_CollisionContactPointList;
-struct bAction;
-
-#ifdef WITH_PYTHON
-/* utility conversion function */
-bool ConvertPythonToGameObject(SCA_LogicManager *logicmgr, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix);
-#endif
+struct Object;
+struct bRigidBodyJointConstraint;
 
 #ifdef USE_MATHUTILS
 void KX_GameObject_Mathutils_Callback_Init(void);
@@ -81,7 +72,7 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
-class KX_GameObject : public SCA_IObject, public mt::SimdClassAllocator
+class KX_GameObject : public LOG_Object, public mt::SimdClassAllocator
 {
 	Py_Header
 public:
@@ -101,16 +92,27 @@ public:
 		float m_logicRadius;
 	};
 
+	enum ObjectTypes
+	{
+		OBJECT_TYPE_OBJECT,
+		OBJECT_TYPE_ARMATURE,
+		OBJECT_TYPE_CAMERA,
+		OBJECT_TYPE_LIGHT,
+		OBJECT_TYPE_TEXT,
+		OBJECT_TYPE_NAVMESH
+	};
+
 protected:
 
 	KX_ClientObjectInfo m_clientInfo;
+	bool m_suspended;
 	std::string							m_name;
 	int									m_layer;
 	short m_passIndex;
 	std::vector<KX_Mesh *>		m_meshes;
 	KX_LodManager						*m_lodManager;
 	short								m_currentLodLevel;
-	RAS_MeshUser						*m_meshUser;
+	std::unique_ptr<RAS_MeshUser> m_meshUser;
 	/// Info about blender object convert from.
 	BL_ConvertObjectInfo *m_convertInfo;
 
@@ -132,9 +134,7 @@ protected:
 	SG_CullingNode m_cullingNode;
 	std::unique_ptr<SG_Node> m_sgNode;
 
-	EXP_ListValue<KX_PythonComponent> *m_components;
-
-	EXP_ListValue<KX_GameObject> *m_instanceObjects;
+	std::unique_ptr<EXP_ListValue<KX_GameObject> > m_instanceObjects;
 	KX_GameObject*						m_dupliGroupObject;
 
 	// The action manager is used to play/stop/update actions
@@ -165,44 +165,14 @@ public:
 	static KX_GameObject* GetClientObject(KX_ClientObjectInfo* info);
 
 #ifdef WITH_PYTHON
-	// Python attributes that wont convert into EXP_Value
-	//
-	// there are 2 places attributes can be stored, in the EXP_Value,
-	// where attributes are converted into BGE's EXP_Value types
-	// these can be used with property actuators
-	//
-	// For the python API, For types that cannot be converted into EXP_Values (lists, dicts, GameObjects)
-	// these will be put into "m_attr_dict", logic bricks cannot access them.
-	//
-	// rules for setting attributes.
-	//
-	// * there should NEVER be a EXP_Value and a m_attr_dict attribute with matching names. get/sets make sure of this.
-	// * if EXP_Value conversion fails, use a PyObject in "m_attr_dict"
-	// * when assigning a value, first see if it can be a EXP_Value, if it can remove the "m_attr_dict" and set the EXP_Value
-	//
-	PyObject*							m_attr_dict;
 	PyObject*							m_collisionCallbacks;
 #endif
-
-	virtual void	/* This function should be virtual - derived classed override it */
-	Relink(
-		std::map<SCA_IObject *, SCA_IObject *>& map
-	);
-
-	/**
-	 * Update the blender object obmat field from the object world position
-	 * if blendobj is nullptr, update the object pointed by m_blenderObject
-	 * The user must take action to restore the matrix before leaving the GE.
-	 * Used in Armature evaluation
-	 */
-		void
-	UpdateBlenderObjectMatrix(Object* blendobj=nullptr);
 
 	/**
 	 * Used for constraint replication for group instances.
 	 * The list of constraints is filled during data conversion.
 	 */
-	const std::vector<bRigidBodyJointConstraint*>& GetConstraints();
+	const std::vector<bRigidBodyJointConstraint *>& GetConstraints();
 
 	void ReplicateConstraints(PHY_IPhysicsEnvironment *physEnv, const std::vector<KX_GameObject *>& constobj);
 
@@ -222,7 +192,7 @@ public:
 	/** 
 	 * Sets the parent of this object to a game object
 	 */
-	void SetParent(KX_GameObject *obj, bool addToCompound=true, bool ghost=true);
+	void SetParent(KX_GameObject *obj, bool addToCompound, bool ghost);
 
 	/** 
 	 * Removes the parent of this object to a game object
@@ -291,11 +261,6 @@ public:
 	void SetActionFrame(short layer, float frame);
 
 	/**
-	 * Gets the currently running action on the given layer
-	 */
-	std::string GetCurrentActionName(short layer);
-
-	/**
 	 * Sets play mode of the action on the given layer
 	 */
 	void SetPlayMode(short layer, short mode);
@@ -352,7 +317,7 @@ public:
 	/**
 	 * Inherited from EXP_Value -- returns the name of this object.
 	 */
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	/**
 	 * Inherited from EXP_Value -- set the name of this object.
@@ -522,10 +487,12 @@ public:
 
 	bool IsDupliGroup()
 	{ 
-		Object *blenderobj = GetBlenderObject();
+		// TODO: store in BL_ConvertObjectInfo.
+		/*Object *blenderobj = GetBlenderObject();
 		return (blenderobj &&
 				(blenderobj->transflag & OB_DUPLIGROUP) &&
-				blenderobj->dup_group != nullptr) ? true : false;
+				blenderobj->dup_group != nullptr) ? true : false;*/
+		return false;
 	}
 
 	/**
@@ -801,15 +768,14 @@ public:
 	void RegisterCollisionCallbacks();
 	void UnregisterCollisionCallbacks();
 	void RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionContactPointList& contactPointList);
-	/**
-	 * Stop making progress
-	 */
-	void Suspend(void);
 
-	/**
-	 * Resume making progress
-	 */
-	void Resume(void);
+	/// Suspend all progress.
+	void SuspendLogic();
+
+	/// Resume progress.
+	void ResumeLogic();
+
+	virtual ObjectTypes GetObjectType() const;
 
 	/**
 	 * add debug object to the debuglist.
@@ -820,14 +786,6 @@ public:
 	
 	std::vector<KX_GameObject *> GetChildren() const;
 	std::vector<KX_GameObject *> GetChildrenRecursive() const;
-
-	/// Returns the component list.
-	EXP_ListValue<KX_PythonComponent> *GetComponents() const;
-	/// Add a components.
-	void SetComponents(EXP_ListValue<KX_PythonComponent> *components);
-
-	/// Updates the components.
-	void UpdateComponents();
 
 	KX_Scene*	GetScene();
 
@@ -854,8 +812,6 @@ public:
 	EXP_PYMETHOD_NOARGS(KX_GameObject,GetVisible);
 	EXP_PYMETHOD_VARARGS(KX_GameObject,SetVisible);
 	EXP_PYMETHOD_VARARGS(KX_GameObject,SetOcclusion);
-	EXP_PYMETHOD_NOARGS(KX_GameObject,GetState);
-	EXP_PYMETHOD_O(KX_GameObject,SetState);
 	EXP_PYMETHOD(KX_GameObject,AlignAxisToVect);
 	EXP_PYMETHOD_O(KX_GameObject,GetAxisVect);
 	EXP_PYMETHOD_VARARGS(KX_GameObject,SuspendPhysics);
@@ -874,7 +830,6 @@ public:
 	EXP_PYMETHOD_NOARGS(KX_GameObject,GetChildrenRecursive);
 	EXP_PYMETHOD_VARARGS(KX_GameObject,GetMesh);
 	EXP_PYMETHOD_NOARGS(KX_GameObject,GetPhysicsId);
-	EXP_PYMETHOD_NOARGS(KX_GameObject,GetPropertyNames);
 	EXP_PYMETHOD(KX_GameObject,ReplaceMesh);
 	EXP_PYMETHOD_NOARGS(KX_GameObject,EndObject);
 	EXP_PYMETHOD_DOC(KX_GameObject,rayCastTo);
@@ -893,11 +848,7 @@ public:
 	EXP_PYMETHOD_DOC(KX_GameObject, setActionFrame);
 	EXP_PYMETHOD_DOC(KX_GameObject, isPlayingAction);
 	
-	/* Dict access */
-	EXP_PYMETHOD_VARARGS(KX_GameObject,get);
-	
 	/* attributes */
-	static PyObject*	pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_parent(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
@@ -961,16 +912,12 @@ public:
 	static int			pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_timeOffset(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_timeOffset(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_state(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_state(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_meshes(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_batchGroup(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_children(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_children_recursive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_attrDict(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_obcolor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_obcolor(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_components(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_collisionCallbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_collisionCallbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_collisionGroup(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
@@ -987,26 +934,6 @@ public:
 	static int			pyattr_set_angularDamping(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_lodManager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_lodManager(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-
-	static PyObject*	pyattr_get_sensors(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_controllers(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_actuators(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-
-	unsigned int py_get_sensors_size();
-	PyObject *py_get_sensors_item(unsigned int index);
-	std::string py_get_sensors_item_name(unsigned int index);
-
-	unsigned int py_get_controllers_size();
-	PyObject *py_get_controllers_item(unsigned int index);
-	std::string py_get_controllers_item_name(unsigned int index);
-
-	unsigned int py_get_actuators_size();
-	PyObject *py_get_actuators_item(unsigned int index);
-	std::string py_get_actuators_item_name(unsigned int index);
-
-	/* getitem/setitem */
-	static PyMappingMethods	Mapping;
-	static PySequenceMethods	Sequence;
 #endif
 };
 

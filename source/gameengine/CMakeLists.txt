@@ -58,6 +58,7 @@ if(WITH_BULLET)
 endif()
 
 if(WITH_PYTHON)
+	add_subdirectory(Logic)
 	add_subdirectory(VideoTexture)
 endif()
 

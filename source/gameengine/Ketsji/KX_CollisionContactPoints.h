@@ -46,7 +46,7 @@ public:
 	virtual ~KX_CollisionContactPoint();
 
 	// stuff for cvalue related things
-	std::string GetName();
+	virtual std::string GetName() const;
 
 #ifdef WITH_PYTHON
 
@@ -77,7 +77,7 @@ public:
 	KX_CollisionContactPointList(const PHY_ICollData *collData, bool firstObject);
 	virtual ~KX_CollisionContactPointList();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	KX_CollisionContactPoint *GetCollisionContactPoint(unsigned int index);
 	unsigned int GetNumCollisionContactPoint();

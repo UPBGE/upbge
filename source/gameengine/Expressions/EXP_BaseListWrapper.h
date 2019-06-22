@@ -74,17 +74,16 @@ public:
 	/// \section Python Interface
 	static bool CheckValid(EXP_BaseListWrapper *list);
 	unsigned int GetSize() const;
-	PyObject *GetItem(int index) const;
-	std::string GetItemName(int index) const;
+	PyObject *GetItem(unsigned int index) const;
+	std::string GetItemName(unsigned int index) const;
 	bool SetItem(int index, PyObject *item);
 	bool AllowSetItem() const;
 	bool AllowGetItemByName() const;
 	bool AllowFindValue() const;
 
 	/// \section EXP_Value Inherited Functions.
-	virtual std::string GetName();
-	virtual std::string GetText();
-	virtual int GetValueType();
+	virtual std::string GetName() const;
+	virtual std::string GetText() const;
 
 	// Python list operators.
 	static PySequenceMethods py_as_sequence;

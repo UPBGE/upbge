@@ -47,8 +47,8 @@ public:
 	BL_Shader(CM_UpdateServer<RAS_IMaterial> *materialUpdateServer);
 	virtual ~BL_Shader();
 
-	virtual std::string GetName();
-	virtual std::string GetText();
+	virtual std::string GetName() const;
+	virtual std::string GetText() const;
 
 #ifdef WITH_PYTHON
 	PyObject *GetCallbacks(CallbacksType type);

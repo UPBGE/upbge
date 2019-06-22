@@ -181,12 +181,7 @@ Material *KX_BlenderMaterial::GetBlenderMaterial() const
 	return m_material;
 }
 
-Scene *KX_BlenderMaterial::GetBlenderScene() const
-{
-	return m_scene->GetBlenderScene();
-}
-
-SCA_IScene *KX_BlenderMaterial::GetScene() const
+KX_Scene *KX_BlenderMaterial::GetScene() const
 {
 	return m_scene;
 }
@@ -450,7 +445,7 @@ RAS_InstancingBuffer::Attrib KX_BlenderMaterial::GetInstancingAttribs() const
 	return RAS_InstancingBuffer::DEFAULT_ATTRIBS;
 }
 
-std::string KX_BlenderMaterial::GetName()
+std::string KX_BlenderMaterial::GetName() const
 {
 	return m_name;
 }
@@ -960,51 +955,6 @@ EXP_PYMETHODDEF_DOC(KX_BlenderMaterial, getTextureBindcode, "getTextureBindcode(
 	}
 	PyErr_SetString(PyExc_ValueError, "material.getTextureBindcode(texslot): KX_BlenderMaterial, invalid texture slot.");
 	return nullptr;
-}
-
-bool ConvertPythonToMaterial(PyObject *value, KX_BlenderMaterial **material, bool py_none_ok, const char *error_prefix)
-{
-	if (value == nullptr) {
-		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
-		*material = nullptr;
-		return false;
-	}
-
-	if (value == Py_None) {
-		*material = nullptr;
-
-		if (py_none_ok) {
-			return true;
-		}
-		else {
-			PyErr_Format(PyExc_TypeError, "%s, expected KX_BlenderMaterial or a KX_BlenderMaterial name, None is invalid", error_prefix);
-			return false;
-		}
-	}
-
-	if (PyObject_TypeCheck(value, &KX_BlenderMaterial::Type)) {
-		KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *>EXP_PROXY_REF(value);
-
-		/* sets the error */
-		if (mat == nullptr) {
-			PyErr_Format(PyExc_SystemError, "%s, " EXP_PROXY_ERROR_MSG, error_prefix);
-			return false;
-		}
-
-		*material = mat;
-		return true;
-	}
-
-	*material = nullptr;
-
-	if (py_none_ok) {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_BlenderMaterial, a string or None", error_prefix);
-	}
-	else {
-		PyErr_Format(PyExc_TypeError, "%s, expect a KX_BlenderMaterial or a string", error_prefix);
-	}
-
-	return false;
 }
 
 #endif // WITH_PYTHON

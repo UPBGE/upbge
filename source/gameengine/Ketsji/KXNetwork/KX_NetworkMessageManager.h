@@ -39,7 +39,7 @@ conflicts with KX_NetworkMessageManager::SendMessage */
 #include <map>
 #include <vector>
 
-class SCA_IObject;
+class KX_GameObject;
 
 class KX_NetworkMessageManager
 {
@@ -49,7 +49,7 @@ public:
 		/// Receiver object(s) name.
 		std::string to;
 		/// Sender game object.
-		SCA_IObject *from;
+		KX_GameObject *from;
 		/// Message subject, used as filter.
 		std::string subject;
 		/// Message body.

@@ -33,10 +33,10 @@
  */
 
 
-#include "EXP_BoolValue.h"
+#include "EXP_PropBool.h"
 #include "SCA_KeyboardManager.h"
 #include "SCA_KeyboardSensor.h"
-#include "EXP_IntValue.h"
+#include "EXP_PropInt.h"
 #include <vector>
 
 SCA_KeyboardManager::SCA_KeyboardManager(SCA_LogicManager *logicmgr,

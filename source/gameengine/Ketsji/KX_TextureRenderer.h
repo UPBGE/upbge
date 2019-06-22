@@ -71,7 +71,7 @@ public:
 	KX_TextureRenderer(EnvMap *env, KX_GameObject *viewpoint);
 	virtual ~KX_TextureRenderer();
 
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 
 	KX_GameObject *GetViewpointObject() const;
 	void SetViewpointObject(KX_GameObject *gameobj);

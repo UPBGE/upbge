@@ -123,7 +123,7 @@ public:
 	int GetDrawingMode() const;
 	int GetAlphaBlend() const;
 	float GetZOffset() const;
-	virtual std::string GetName();
+	virtual std::string GetName() const;
 	unsigned int GetFlag() const;
 	bool IsAlphaShadow() const;
 	bool CastsShadows() const;
@@ -133,8 +133,6 @@ public:
 
 	virtual const std::string GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;
-	virtual Scene *GetBlenderScene() const = 0;
-	virtual SCA_IScene *GetScene() const = 0;
 	virtual bool UseInstancing() const = 0;
 	virtual void ReloadMaterial() = 0;
 	virtual void GetRGBAColor(unsigned char *rgba) const;

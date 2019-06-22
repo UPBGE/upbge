@@ -34,6 +34,7 @@ set(INC
 	../../Expressions
 	../../GameLogic
 	../../Ketsji
+	../../Logic
 	../../Rasterizer
 	../../Rasterizer/Node
 	../../SceneGraph

@@ -39,7 +39,7 @@ KX_CharacterWrapper::~KX_CharacterWrapper()
 {
 }
 
-std::string KX_CharacterWrapper::GetName()
+std::string KX_CharacterWrapper::GetName() const
 {
 	return "KX_CharacterWrapper";
 }

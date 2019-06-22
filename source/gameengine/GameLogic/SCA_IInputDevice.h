@@ -218,7 +218,7 @@ protected:
 	static std::map<SCA_EnumInputs, std::pair<char, char> > m_keyToChar;
 
 public:
-	virtual SCA_InputEvent& GetInput(SCA_IInputDevice::SCA_EnumInputs inputcode);
+	SCA_InputEvent& GetInput(SCA_IInputDevice::SCA_EnumInputs inputcode);
 
 	void SetHookExitKey(bool hook);
 	bool GetHookExitKey() const;
@@ -228,12 +228,12 @@ public:
 	 *     - Clear queue
 	 *     - Clear values and copy last value to first value.
 	 */
-	virtual void ClearInputs();
+	void ClearInputs();
 
 	/** Manage move event like mouse by releasing if possible.
 	 * These kind of events are precise of one frame.
 	 */
-	virtual void ReleaseMoveEvent();
+	void ReleaseMoveEvent();
 
 	/// Return typed unicode text during a frame.
 	const std::wstring& GetText() const;

@@ -115,7 +115,7 @@ SCA_IInputDevice::SCA_IInputDevice()
 	:m_hookExitKey(false)
 {
 	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
-		m_inputsTable[i] = SCA_InputEvent(i);
+		m_inputsTable[i] = std::move(SCA_InputEvent(i));
 	}
 }
 

@@ -101,6 +101,7 @@ endif()
 		ge_logic_ketsji
 		ge_phys_bullet
 		ge_phys_dummy
+		ge_game_logic
 		ge_logic
 		ge_device
 		ge_rasterizer

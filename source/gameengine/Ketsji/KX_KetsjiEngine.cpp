@@ -43,9 +43,9 @@
 #include "KX_KetsjiEngine.h"
 
 #include "EXP_ListValue.h"
-#include "EXP_IntValue.h"
-#include "EXP_BoolValue.h"
-#include "EXP_FloatValue.h"
+#include "EXP_PropInt.h"
+#include "EXP_PropBool.h"
+#include "EXP_PropFloat.h"
 
 #include "RAS_BucketManager.h"
 #include "RAS_Rasterizer.h"
@@ -84,30 +84,35 @@ KX_ExitInfo::KX_ExitInfo()
 }
 
 KX_KetsjiEngine::CameraRenderData::CameraRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area,
-                                                    const RAS_Rect& viewport, RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye)
+                                                    const RAS_Rect& viewport, RAS_Rasterizer::StereoMode stereoMode, RAS_Rasterizer::StereoEye eye, bool ownCamera)
 	:m_renderCamera(rendercam),
 	m_cullingCamera(cullingcam),
 	m_area(area),
 	m_viewport(viewport),
 	m_stereoMode(stereoMode),
-	m_eye(eye)
-{
-	m_renderCamera->AddRef();
-}
-
-KX_KetsjiEngine::CameraRenderData::CameraRenderData(const CameraRenderData& other)
-	:m_renderCamera(CM_AddRef(other.m_renderCamera)),
-	m_cullingCamera(other.m_cullingCamera),
-	m_area(other.m_area),
-	m_viewport(other.m_viewport),
-	m_stereoMode(other.m_stereoMode),
-	m_eye(other.m_eye)
+	m_eye(eye),
+	m_ownCamera(ownCamera)
 {
 }
 
 KX_KetsjiEngine::CameraRenderData::~CameraRenderData()
 {
-	m_renderCamera->Release();
+	if (m_ownCamera) {
+		delete m_renderCamera;
+	}
+}
+
+KX_KetsjiEngine::CameraRenderData::CameraRenderData(KX_KetsjiEngine::CameraRenderData&& other)
+	:m_renderCamera(other.m_renderCamera),
+	m_cullingCamera(other.m_cullingCamera),
+	m_area(other.m_area),
+	m_viewport(other.m_viewport),
+	m_stereoMode(other.m_stereoMode),
+	m_eye(other.m_eye),
+	m_ownCamera(other.m_ownCamera)
+{
+	// Stall the owning of the camera to avoid double free.
+	other.m_ownCamera = false;
 }
 
 KX_KetsjiEngine::SceneRenderData::SceneRenderData(KX_Scene *scene)
@@ -158,8 +163,6 @@ KX_KetsjiEngine::KX_KetsjiEngine()
 	m_pyprofiledict(PyDict_New()),
 #endif
 	m_inputDevice(nullptr),
-	m_scenes(new EXP_ListValue<KX_Scene>()),
-	m_bInitialized(false),
 	m_flags(AUTO_ADD_DEBUG_PROPERTIES),
 	m_frameTime(0.0f),
 	m_clockTime(0.0f),
@@ -201,8 +204,6 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 	if (m_taskscheduler) {
 		BLI_task_scheduler_free(m_taskscheduler);
 	}
-
-	m_scenes->Release();
 }
 
 void KX_KetsjiEngine::SetInputDevice(SCA_IInputDevice *inputDevice)
@@ -245,8 +246,6 @@ void KX_KetsjiEngine::SetConverter(BL_Converter *converter)
 void KX_KetsjiEngine::StartEngine()
 {
 	m_previousRealTime = m_clock.GetTimeSecond();
-
-	m_bInitialized = true;
 }
 
 void KX_KetsjiEngine::BeginFrame()
@@ -423,24 +422,12 @@ bool KX_KetsjiEngine::NextFrame()
 				// set Python hooks for each scene
 				KX_SetActiveScene(scene);
 
-				// Process sensors, and controllers
 				m_logger.StartLog(tc_logic);
 				scene->LogicBeginFrame(m_frameTime, framestep);
-
-				// Scenegraph needs to be updated again, because Logic Controllers
-				// can affect the local matrices.
-				m_logger.StartLog(tc_scenegraph);
-				scene->UpdateParents();
-
-				// Process actuators
-
 				// Do some cleanup work for this logic frame
-				m_logger.StartLog(tc_logic);
 				scene->LogicUpdateFrame(m_frameTime);
-
 				scene->LogicEndFrame();
 
-				// Actuators can affect the scenegraph
 				m_logger.StartLog(tc_scenegraph);
 				scene->UpdateParents();
 
@@ -524,11 +511,7 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(KX_Scene 
 	// Compute the camera matrices: modelview and projection.
 	rendercam->UpdateView(m_rasterizer, scene, stereoMode, eye, viewport, area);
 
-	CameraRenderData cameraData(rendercam, cullingcam, area, viewport, stereoMode, eye);
-
-	if (usestereo) {
-		rendercam->Release();
-	}
+	CameraRenderData cameraData(rendercam, cullingcam, area, viewport, stereoMode, eye, usestereo);
 
 	return cameraData;
 }
@@ -641,7 +624,7 @@ void KX_KetsjiEngine::Render()
 	m_rasterizer->SetViewport(0, 0, width, height);
 	m_rasterizer->SetScissor(0, 0, width, height);
 
-	KX_Scene *firstscene = m_scenes->GetFront();
+	KX_Scene *firstscene = m_scenes.GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 	// Use the framing bar color set in the Blender scenes
 	m_rasterizer->SetClearColor(framesettings.BarRed(), framesettings.BarGreen(), framesettings.BarBlue(), 1.0f);
@@ -775,7 +758,7 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
-	EXP_ListValue<KX_LightObject> *lightlist = scene->GetLightList();
+	EXP_ListValue<KX_LightObject>& lightlist = scene->GetLightList();
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
 
@@ -810,7 +793,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 				/* unbind framebuffer object, restore drawmode, free camera */
 				raslight->UnbindShadowBuffer();
-				cam->Release();
+				delete cam;
 			}
 		}
 	}
@@ -926,26 +909,25 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 
 void KX_KetsjiEngine::StopEngine()
 {
-	if (m_bInitialized) {
-		m_converter->FinalizeAsyncLoads();
+	m_converter->FinalizeAsyncLoads();
 
-		while (m_scenes->GetCount() > 0) {
-			KX_Scene *scene = m_scenes->GetFront();
-			DestructScene(scene);
-			// WARNING: here the scene is a dangling pointer.
-			m_scenes->Remove(0);
-		}
-
-		// cleanup all the stuff
-		m_rasterizer->Exit();
+	while (!m_scenes.Empty()) {
+		KX_Scene *scene = m_scenes.GetFront();
+		DestructScene(scene);
+		// WARNING: here the scene is a dangling pointer.
+		m_scenes.Remove(0);
 	}
+	m_scenes.Clear();
+
+	// cleanup all the stuff
+	m_rasterizer->Exit();
 }
 
 // Scene Management is able to switch between scenes
 // and have several scenes running in parallel
 void KX_KetsjiEngine::AddScene(KX_Scene *scene)
 {
-	m_scenes->Add(CM_AddRef(scene));
+	m_scenes.Add(scene);
 	PostProcessScene(scene);
 }
 
@@ -973,12 +955,10 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 
 		activecam->NodeUpdate();
 
-		scene->GetCameraList()->Add(CM_AddRef(activecam));
+		scene->GetCameraList().Add(activecam);
 		scene->SetActiveCamera(activecam);
-		scene->GetObjectList()->Add(CM_AddRef(activecam));
-		scene->GetRootParentList()->Add(CM_AddRef(activecam));
-		// done with activecam
-		activecam->Release();
+		scene->GetObjectList().Add(activecam);
+		scene->GetRootParentList().Add(activecam);
 	}
 
 	scene->UpdateParents();
@@ -1126,14 +1106,14 @@ void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene)
 	}
 }
 
-EXP_ListValue<KX_Scene> *KX_KetsjiEngine::CurrentScenes()
+EXP_ListValue<KX_Scene>& KX_KetsjiEngine::GetScenes()
 {
 	return m_scenes;
 }
 
 KX_Scene *KX_KetsjiEngine::FindScene(const std::string& scenename)
 {
-	return m_scenes->FindValue(scenename);
+	return m_scenes.FindValue(scenename);
 }
 
 void KX_KetsjiEngine::ConvertAndAddScene(const std::string& scenename, bool overlay)
@@ -1171,8 +1151,8 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 
 			KX_Scene *scene = FindScene(scenename);
 			if (scene) {
+				m_scenes.RemoveValue(scene);
 				DestructScene(scene);
-				m_scenes->RemoveValue(scene);
 			}
 		}
 		m_removingScenes.clear();
@@ -1208,9 +1188,8 @@ void KX_KetsjiEngine::AddScheduledScenes()
 
 			if (tmpscene) {
 				m_converter->ConvertScene(tmpscene);
-				m_scenes->Add(CM_AddRef(tmpscene));
+				m_scenes.Add(tmpscene);
 				PostProcessScene(tmpscene);
-				tmpscene->Release();
 			}
 			else {
 				CM_Warning("scene " << scenename << " could not be found, not added!");
@@ -1225,9 +1204,8 @@ void KX_KetsjiEngine::AddScheduledScenes()
 
 			if (tmpscene) {
 				m_converter->ConvertScene(tmpscene);
-				m_scenes->Insert(0, CM_AddRef(tmpscene));
+				m_scenes.Insert(0, tmpscene);
 				PostProcessScene(tmpscene);
-				tmpscene->Release();
 			}
 			else {
 				CM_Warning("scene " << scenename << " could not be found, not added!");
@@ -1262,15 +1240,12 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 	if (!m_replace_scenes.empty()) {
 		std::vector<std::pair<std::string, std::string> >::iterator scenenameit;
 
-		for (scenenameit = m_replace_scenes.begin();
-		     scenenameit != m_replace_scenes.end();
-		     scenenameit++)
-		{
-			std::string oldscenename = (*scenenameit).first;
-			std::string newscenename = (*scenenameit).second;
-			/* Scenes are not supposed to be included twice... I think */
-			for (unsigned int sce_idx = 0; sce_idx < m_scenes->GetCount(); ++sce_idx) {
-				KX_Scene *scene = m_scenes->GetValue(sce_idx);
+		for (const auto& pair : m_replace_scenes) {
+			const std::string& oldscenename = pair.first;
+			const std::string& newscenename = pair.second;
+
+			for (unsigned int sce_idx = 0; sce_idx < m_scenes.GetCount(); ++sce_idx) {
+				KX_Scene *scene = m_scenes.GetValue(sce_idx);
 				if (scene->GetName() == oldscenename) {
 					// avoid crash if the new scene doesn't exist, just do nothing
 					Scene *blScene = m_converter->GetBlenderSceneForName(newscenename);
@@ -1280,9 +1255,8 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 						KX_Scene *tmpscene = CreateScene(blScene);
 						m_converter->ConvertScene(tmpscene);
 
-						m_scenes->SetValue(sce_idx, CM_AddRef(tmpscene));
+						m_scenes.SetValue(sce_idx, tmpscene);
 						PostProcessScene(tmpscene);
-						tmpscene->Release();
 					}
 					else {
 						CM_Warning("scene " << newscenename << " could not be found, not replaced!");
@@ -1313,7 +1287,7 @@ void KX_KetsjiEngine::ResumeScene(const std::string& scenename)
 void KX_KetsjiEngine::DestructScene(KX_Scene *scene)
 {
 	scene->RunOnRemoveCallbacks();
-	m_converter->RemoveScene(scene);
+	delete scene;
 }
 
 double KX_KetsjiEngine::GetTicRate()
@@ -1437,7 +1411,7 @@ void KX_KetsjiEngine::ProcessScheduledScenes()
 		AddScheduledScenes();
 	}
 
-	if (m_scenes->Empty()) {
+	if (m_scenes.Empty()) {
 		RequestExit(KX_ExitInfo::NO_SCENES_LEFT);
 	}
 }
@@ -1485,7 +1459,7 @@ KX_DebugOption KX_KetsjiEngine::GetShowShadowFrustum() const
 void KX_KetsjiEngine::Resize()
 {
 	/* extended mode needs to recalculate camera frusta when */
-	KX_Scene *firstscene = m_scenes->GetFront();
+	KX_Scene *firstscene = m_scenes.GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 
 	if (framesettings.FrameType() == RAS_FrameSettings::e_frame_extend) {

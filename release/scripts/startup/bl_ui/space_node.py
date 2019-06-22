@@ -109,6 +109,10 @@ class NODE_HT_header(Header):
                 row.prop(snode, "backdrop_channels", text="", expand=True)
             layout.prop(snode, "use_auto_render")
 
+        elif snode.tree_type == 'LogicNodeTree':
+            if snode_id:
+                layout.prop(snode_id.game, "use_logic_nodes")
+
         else:
             # Custom node tree is edited as independent ID block
             layout.template_ID(snode, "node_tree", new="node.new_node_tree")

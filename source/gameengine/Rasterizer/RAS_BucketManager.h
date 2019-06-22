@@ -37,7 +37,6 @@
 #include <vector>
 
 class RAS_OffScreen;
-class SCA_IScene;
 
 class RAS_BucketManager : public mt::SimdClassAllocator
 {
@@ -116,7 +115,7 @@ public:
 	void RemoveMaterial(RAS_IMaterial *mat);
 
 	// for merging
-	void Merge(RAS_BucketManager *other, SCA_IScene *scene);
+	void Merge(RAS_BucketManager *other);
 
 private:
 	void PrepareBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
