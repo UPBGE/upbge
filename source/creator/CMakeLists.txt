@@ -347,7 +347,7 @@ elseif(APPLE)
   if(WITH_PYTHON_MODULE)
     set(TARGETDIR_VER ${BLENDER_VERSION})
   else()
-    set(TARGETDIR_VER blender.app/Contents/Resources/${BLENDER_VERSION})
+    set(TARGETDIR_VER Blender.app/Contents/Resources/${BLENDER_VERSION})
   endif()
   # Skip relinking on cpack / install
   set_target_properties(blender PROPERTIES BUILD_WITH_INSTALL_RPATH true)
@@ -875,162 +875,165 @@ elseif(WIN32)
     )
   endif()
 elseif(APPLE)
+  # Uppercase name for app bundle
+  set_target_properties(blender PROPERTIES OUTPUT_NAME Blender)
 
-	# handy install macro to exclude files, we use \$ escape for the "to"
-	# argument when calling so ${BUILD_TYPE} does not get expanded
-	macro(install_dir from to)
-		install(
-			DIRECTORY ${from}
-			DESTINATION ${to}
-			PATTERN ".git" EXCLUDE
-			PATTERN ".svn" EXCLUDE
-			PATTERN "*.pyc" EXCLUDE
-			PATTERN "*.pyo" EXCLUDE
-			PATTERN "*.orig" EXCLUDE
-			PATTERN "*.rej" EXCLUDE
-			PATTERN "__pycache__" EXCLUDE
-			PATTERN "__MACOSX" EXCLUDE
-			PATTERN ".DS_Store" EXCLUDE
-			PATTERN "config-${PYTHON_VERSION}m/*.a" EXCLUDE  # static lib
-			PATTERN "lib2to3" EXCLUDE                   # ./lib2to3
-			PATTERN "tkinter" EXCLUDE                   # ./tkinter
-			PATTERN "lib-dynload/_tkinter.*" EXCLUDE    # ./lib-dynload/_tkinter.co
-			PATTERN "idlelib" EXCLUDE                   # ./idlelib
-			PATTERN "test" EXCLUDE                      # ./test
-			PATTERN "turtledemo" EXCLUDE                # ./turtledemo
-			PATTERN "turtle.py" EXCLUDE                 # ./turtle.py
-		)
-	endmacro()
+  # handy install macro to exclude files, we use \$ escape for the "to"
+  # argument when calling so ${BUILD_TYPE} does not get expanded
+  macro(install_dir from to)
+    install(
+      DIRECTORY ${from}
+      DESTINATION ${to}
+      PATTERN ".git" EXCLUDE
+      PATTERN ".svn" EXCLUDE
+      PATTERN "*.pyc" EXCLUDE
+      PATTERN "*.pyo" EXCLUDE
+      PATTERN "*.orig" EXCLUDE
+      PATTERN "*.rej" EXCLUDE
+      PATTERN "__pycache__" EXCLUDE
+      PATTERN "__MACOSX" EXCLUDE
+      PATTERN ".DS_Store" EXCLUDE
+      PATTERN "config-${PYTHON_VERSION}m/*.a" EXCLUDE  # static lib
+      PATTERN "lib2to3" EXCLUDE                   # ./lib2to3
+      PATTERN "tkinter" EXCLUDE                   # ./tkinter
+      PATTERN "lib-dynload/_tkinter.*" EXCLUDE    # ./lib-dynload/_tkinter.co
+      PATTERN "idlelib" EXCLUDE                   # ./idlelib
+      PATTERN "test" EXCLUDE                      # ./test
+      PATTERN "turtledemo" EXCLUDE                # ./turtledemo
+      PATTERN "turtle.py" EXCLUDE                 # ./turtle.py
+    )
+  endmacro()
 
-	set(OSX_APP_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blender.app)
+  set(OSX_APP_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/Blender.app)
 
-	# setup Info.plist
-	execute_process(COMMAND date "+%Y-%m-%d"
-	                OUTPUT_VARIABLE BLENDER_DATE
-	                OUTPUT_STRIP_TRAILING_WHITESPACE)
+  # setup Info.plist
+  execute_process(COMMAND date "+%Y-%m-%d"
+                  OUTPUT_VARIABLE BLENDER_DATE
+                  OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-	set_target_properties(blender PROPERTIES
-		MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_SOURCEDIR}/Contents/Info.plist
-		MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR}"
-		MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR} ${BLENDER_DATE}")
+  set_target_properties(blender PROPERTIES
+    MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_SOURCEDIR}/Contents/Info.plist
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR}"
+    MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR} ${BLENDER_DATE}")
 
-	# Gather the date in finder-style
-	execute_process(COMMAND date "+%m/%d/%Y/%H:%M"
-	OUTPUT_VARIABLE SETFILE_DATE
-	OUTPUT_STRIP_TRAILING_WHITESPACE)
+  # Gather the date in finder-style
+  execute_process(COMMAND date "+%m/%d/%Y/%H:%M"
+  OUTPUT_VARIABLE SETFILE_DATE
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-	# Give the bundle actual creation/modification date
-	execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE}
-	                ${EXECUTABLE_OUTPUT_PATH}/blender.app)
+  # Give the bundle actual creation/modification date
+  execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE}
+                  ${EXECUTABLE_OUTPUT_PATH}/Blender.app)
 
-	install(
-		TARGETS blender
-		DESTINATION "."
-	)
+  install(
+    TARGETS blender
+    DESTINATION "."
+  )
 
-	# install release and app files
-	set(BLENDER_TEXT_FILES_DESTINATION ".")
+  # install release and app files
+  set(BLENDER_TEXT_FILES_DESTINATION Blender.app/Contents/Resources/text)
 
-	install(
-		FILES ${OSX_APP_SOURCEDIR}/Contents/PkgInfo
-		DESTINATION blender.app/Contents
-	)
+  install(
+    FILES ${OSX_APP_SOURCEDIR}/Contents/PkgInfo
+    DESTINATION Blender.app/Contents
+  )
 
-	install_dir(
-		${OSX_APP_SOURCEDIR}/Contents/Resources
-		blender.app/Contents/
-	)
+  install_dir(
+    ${OSX_APP_SOURCEDIR}/Contents/Resources
+    Blender.app/Contents/
+  )
 
-	if(WITH_OPENMP AND OPENMP_CUSTOM)
-		install(
-			FILES ${LIBDIR}/openmp/lib/libomp.dylib
-			DESTINATION blender.app/Contents/Resources/lib
-		)
-	endif()
+  if(WITH_OPENMP AND OPENMP_CUSTOM)
+    install(
+      FILES ${LIBDIR}/openmp/lib/libomp.dylib
+      DESTINATION Blender.app/Contents/Resources/lib
+    )
+  endif()
 
-	if(WITH_LLVM AND NOT LLVM_STATIC)
-		install(
-			FILES ${LIBDIR}/llvm/lib/libLLVM-3.4.dylib
-			DESTINATION blender.app/Contents/MacOS
-		)
-	endif()
+  if(WITH_LLVM AND NOT LLVM_STATIC)
+    install(
+      FILES ${LIBDIR}/llvm/lib/libLLVM-3.4.dylib
+      DESTINATION Blender.app/Contents/MacOS
+    )
+  endif()
 
-	# python
-	if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
-		# Copy the python libs into the install directory
-		install_dir(
-			${PYTHON_LIBPATH}
-			${TARGETDIR_VER}/python/lib
-		)
+  # python
+  if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
+    # Copy the python libs into the install directory
+    install_dir(
+      ${PYTHON_LIBPATH}
+      ${TARGETDIR_VER}/python/lib
+    )
 
-		install(DIRECTORY ${LIBDIR}/python/bin
-			DESTINATION ${TARGETDIR_VER}/python
-			USE_SOURCE_PERMISSIONS
-		)
+    install(DIRECTORY ${LIBDIR}/python/bin
+      DESTINATION ${TARGETDIR_VER}/python
+      USE_SOURCE_PERMISSIONS
+    )
 
-		# Needed for distutils/pip
-		# get the last part of the include dir, will be 'python{version}{abiflag}',
-		get_filename_component(_py_inc_suffix ${PYTHON_INCLUDE_DIR} NAME)
-		install(
-			FILES ${PYTHON_INCLUDE_DIR}/pyconfig.h
-			DESTINATION ${TARGETDIR_VER}/python/include/${_py_inc_suffix}
-		)
-		unset(_py_inc_suffix)
-	endif()
-	
-	# install blenderplayer bundle - copy of blender.app above. re-using macros et al
-	# note we are using OSX Bundle as base and copying Blender dummy bundle on top of it
-	if(WITH_GAMEENGINE AND WITH_PLAYER)
-		set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blenderplayer.app)
-		set(PLAYER_SOURCEINFO ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist)
-		set(PLAYER_TARGETDIR_VER blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
+    # Needed for distutils/pip
+    # get the last part of the include dir, will be 'python{version}{abiflag}',
+    get_filename_component(_py_inc_suffix ${PYTHON_INCLUDE_DIR} NAME)
+    install(
+      FILES ${PYTHON_INCLUDE_DIR}/pyconfig.h
+      DESTINATION ${TARGETDIR_VER}/python/include/${_py_inc_suffix}
+    )
+    unset(_py_inc_suffix)
+  endif()
 
-
-		# important to make a clean  install each time else old scripts get loaded.
-		install(
-			CODE
-			"file(REMOVE_RECURSE ${PLAYER_TARGETDIR_VER})"
-		)
-
-		# Give the bundle actual creation/modification date
-		execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE}
-		                ${EXECUTABLE_OUTPUT_PATH}/blenderplayer.app)
-
-		install(
-			FILES ${OSX_APP_PLAYER_SOURCEDIR}/Contents/PkgInfo
-			DESTINATION blenderplayer.app/Contents
-		)
-
-		install_dir(
-			${OSX_APP_PLAYER_SOURCEDIR}/Contents/Resources
-			blenderplayer.app/Contents/
-		)
-
-		if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
-			install(
-				FILES ${LIBDIR}/openmp/lib/libiomp5.dylib
-				DESTINATION blenderplayer.app/Contents/Resources/lib/
-			)
-		endif()
+  # install blenderplayer bundle - copy of blender.app above. re-using macros et al
+  # note we are using OSX Bundle as base and copying Blender dummy bundle on top of it
+  if(WITH_GAMEENGINE AND WITH_PLAYER)
+    set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blenderplayer.app)
+    set(PLAYER_SOURCEINFO ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist)
+    set(PLAYER_TARGETDIR_VER blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
 
 
-		# python
-		if(WITH_PYTHON AND NOT WITH_PYTHON_FRAMEWORK)
-			# Copy the python libs into the install directory
-			install_dir(
-				${PYTHON_LIBPATH}
-				${PLAYER_TARGETDIR_VER}/python/lib
-			)
-		endif()
+  # important to make a clean  install each time else old scripts get loaded.
+    install(
+      CODE
+      "file(REMOVE_RECURSE ${PLAYER_TARGETDIR_VER})"
+    )
 
-	endif()
+    # Give the bundle actual creation/modification date
+    execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE}
+                    ${EXECUTABLE_OUTPUT_PATH}/blenderplayer.app)
 
-	if(WITH_DRACO)
-		install(
-			PROGRAMS $<TARGET_FILE:extern_draco>
-			DESTINATION ${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
-		)
-	endif()
+    install(
+      FILES ${OSX_APP_PLAYER_SOURCEDIR}/Contents/PkgInfo
+      DESTINATION blenderplayer.app/Contents
+    )
+
+    install_dir(
+      ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Resources
+      blenderplayer.app/Contents/
+    )
+
+    if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
+      install(
+        FILES ${LIBDIR}/openmp/lib/libiomp5.dylib
+        DESTINATION blenderplayer.app/Contents/Resources/lib/
+      )
+    endif()
+
+
+    # python
+    if(WITH_PYTHON AND NOT WITH_PYTHON_FRAMEWORK)
+      # Copy the python libs into the install directory
+      install_dir(
+        ${PYTHON_LIBPATH}
+        ${PLAYER_TARGETDIR_VER}/python/lib
+      )
+    endif()
+
+  endif()
+
+
+  if(WITH_DRACO)
+    install(
+      PROGRAMS $<TARGET_FILE:extern_draco>
+      DESTINATION ${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages
+    )
+  endif()
 endif()
 
 # -----------------------------------------------------------------------------
