@@ -33,7 +33,7 @@
 #include "node_logic_util.h"
 
 
-int logic_node_poll_default(bNodeType *UNUSED(ntype), bNodeTree *ntree)
+bool logic_node_poll_default(bNodeType *UNUSED(ntype), bNodeTree *ntree)
 {
 	return STREQ(ntree->idname, "LogicNodeTree");
 }

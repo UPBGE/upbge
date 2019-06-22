@@ -60,11 +60,14 @@ void KX_LibLoadStatus::RunFinishCallback()
 {
 #ifdef WITH_PYTHON
 	if (m_finish_cb) {
-		PyObject *args[] = {GetProxy()};
+		PyObject *args = Py_BuildValue("(O)", GetProxy());
 
-		EXP_RunPythonCallback(m_finish_cb, args, 0, 1);
+		if (!PyObject_Call(m_finish_cb, args, nullptr)) {
+			PyErr_Print();
+			PyErr_Clear();
+		}
 
-		Py_DECREF(args[0]);
+		Py_DECREF(args);
 	}
 #endif
 }

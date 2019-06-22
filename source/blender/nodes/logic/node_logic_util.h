@@ -38,7 +38,7 @@
 
 #define CMP_SCALE_MAX	12000
 
-int logic_node_poll_default(struct bNodeType *ntype, struct bNodeTree *ntree);
+bool logic_node_poll_default(struct bNodeType *ntype, struct bNodeTree *ntree);
 void logic_node_update_default(struct bNodeTree *UNUSED(ntree), struct bNode *node);
 void logic_node_type_base(struct bNodeType *ntype, int type, const char *name, short nclass, short flag);
 
