@@ -134,7 +134,8 @@ set(SRC
 	logic/nodes/node_logic_root.c
 	logic/nodes/node_logic_function.c
 	logic/node_logic_tree.c
-	logic/node_logic_util.c	shader/nodes/node_shader_add_shader.c
+	logic/node_logic_util.c
+
 	shader/nodes/node_shader_ambient_occlusion.c
 	shader/nodes/node_shader_attribute.c
 	shader/nodes/node_shader_background.c

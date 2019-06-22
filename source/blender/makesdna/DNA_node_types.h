@@ -134,7 +134,8 @@ typedef enum eNodeSocketDatatype {
 	__SOCK_MESH			= 5,	/* deprecated */
 	SOCK_INT			= 6,
 	SOCK_STRING			= 7,
-	SOCK_LOGIC			= 8} eNodeSocketDatatype;
+	SOCK_LOGIC			= 8
+} eNodeSocketDatatype;
 
 /* socket shape */
 typedef enum eNodeSocketDrawShape {

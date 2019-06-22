@@ -26,15 +26,14 @@
 
 struct ID;
 struct Main;
-struct Scene;
+struct Object;
 struct Scene;
 struct ScrArea;
 struct Tex;
 struct View2D;
-struct Object;struct bContext;
+struct bContext;
 struct bNode;
 struct bNodeSocketType;
-struct bNodeTree;
 struct bNodeTree;
 struct bNodeTreeType;
 struct bNodeType;
