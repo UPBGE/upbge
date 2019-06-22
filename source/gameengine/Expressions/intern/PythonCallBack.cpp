@@ -84,20 +84,29 @@ static PyObject *CreatePythonTuple(unsigned int argcount, PyObject **arglist)
 	return tuple;
 }
 
-void EXP_RunPythonCallback(PyObject *value, PyObject **arglist, unsigned int minargcount, unsigned int maxargcount)
+void EXP_RunPythonCallBackList(PyObject *functionlist, PyObject **arglist, unsigned int minargcount, unsigned int maxargcount)
 {
+	unsigned int size = PyList_Size(functionlist);
+	PyObject **argTuples = (PyObject **)BLI_array_alloca(argTuples, maxargcount - minargcount + 1);
+	memset(argTuples, 0, sizeof(PyObject *) * (maxargcount - minargcount + 1));
+
+	for (unsigned int i = 0; i < size; ++i) {
 		unsigned int funcargcount = 0;
 
-		PyObject *func = CheckPythonFunction(value, minargcount, maxargcount, funcargcount);
-		// This value fails the check.
+		PyObject *item = PyList_GET_ITEM(functionlist, i);
+		PyObject *func = CheckPythonFunction(item, minargcount, maxargcount, funcargcount);
+		// This item fails the check.
 		if (!func) {
 			PyErr_Print();
 			PyErr_Clear();
-			return;
+			continue;
 		}
 
 		// Get correct argument tuple.
-		PyObject *tuple = CreatePythonTuple(funcargcount, arglist);
+		PyObject *tuple = argTuples[funcargcount - minargcount];
+		if (!tuple) {
+			argTuples[funcargcount - minargcount] = tuple = CreatePythonTuple(funcargcount, arglist);
+		}
 
 		PyObject *ret = PyObject_Call(func, tuple, nullptr);
 		if (!ret) { // If ret is nullptr this seems that the function doesn't work.
@@ -107,14 +116,9 @@ void EXP_RunPythonCallback(PyObject *value, PyObject **arglist, unsigned int min
 		else {
 			Py_DECREF(ret);
 		}
-}
+	}
 
-void EXP_RunPythonCallBackList(PyObject *functionlist, PyObject **arglist, unsigned int minargcount, unsigned int maxargcount)
-{
-	const unsigned int size = PyList_Size(functionlist);
-
-	for (unsigned int i = 0; i < size; ++i) {
-		PyObject *item = PyList_GET_ITEM(functionlist, i);
-		EXP_RunPythonCallback(item, arglist, minargcount, maxargcount);
+	for (unsigned int i = 0; i <= (maxargcount - minargcount); ++i) {
+		Py_XDECREF(argTuples[i]);
 	}
 }
