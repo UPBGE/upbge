@@ -303,7 +303,7 @@ typedef struct wmOperatorTypeMacro {
   struct PointerRNA *ptr;
 } wmOperatorTypeMacro;
 
-/* partial copy of the event, for matching by eventhandler */
+/* Partial copy of the event, for matching by event handler. */
 typedef struct wmKeyMapItem {
   struct wmKeyMapItem *next, *prev;
 
@@ -342,7 +342,7 @@ typedef struct wmKeyMapItem {
   struct PointerRNA *ptr;
 } wmKeyMapItem;
 
-/* used instead of wmKeyMapItem for diff keymaps */
+/** Used instead of wmKeyMapItem for diff keymaps. */
 typedef struct wmKeyMapDiffItem {
   struct wmKeyMapDiffItem *next, *prev;
 
@@ -350,7 +350,7 @@ typedef struct wmKeyMapDiffItem {
   wmKeyMapItem *add_item;
 } wmKeyMapDiffItem;
 
-/* wmKeyMapItem.flag */
+/** #wmKeyMapItem.flag */
 enum {
   KMI_INACTIVE = (1 << 0),
   KMI_EXPANDED = (1 << 1),
@@ -358,7 +358,7 @@ enum {
   KMI_UPDATE = (1 << 3),
 };
 
-/* wmKeyMapItem.maptype */
+/** #wmKeyMapItem.maptype */
 enum {
   KMI_TYPE_KEYBOARD = 0,
   KMI_TYPE_MOUSE = 1,
@@ -398,7 +398,7 @@ typedef struct wmKeyMap {
   const void *modal_items;
 } wmKeyMap;
 
-/* wmKeyMap.flag */
+/** #wmKeyMap.flag */
 enum {
   KEYMAP_MODAL = (1 << 0), /* modal map, not using operatornames */
   KEYMAP_USER = (1 << 1),  /* user keymap */
@@ -438,14 +438,16 @@ typedef struct wmKeyConfig {
   char _pad0[2];
 } wmKeyConfig;
 
-/* wmKeyConfig.flag */
+/** #wmKeyConfig.flag */
 enum {
   KEYCONF_USER = (1 << 1),         /* And what about (1 << 0)? */
   KEYCONF_INIT_DEFAULT = (1 << 2), /* Has default keymap been initialized? */
 };
 
-/* this one is the operator itself, stored in files for macros etc */
-/* operator + operatortype should be able to redo entirely, but for different contextes */
+/**
+ * This one is the operator itself, stored in files for macros etc.
+ * operator + operator-type should be able to redo entirely, but for different context's.
+ */
 typedef struct wmOperator {
   struct wmOperator *next, *prev;
 
@@ -478,7 +480,9 @@ typedef struct wmOperator {
   char _pad[6];
 } wmOperator;
 
-/* operator type return flags: exec(), invoke() modal(), return values */
+/**
+ * Operator type return flags: exec(), invoke() modal(), return values.
+ */
 enum {
   OPERATOR_RUNNING_MODAL = (1 << 0),
   OPERATOR_CANCELLED = (1 << 1),
@@ -499,14 +503,23 @@ enum {
 #define OPERATOR_RETVAL_CHECK(ret) \
   (void)ret, BLI_assert(ret != 0 && (ret & OPERATOR_FLAGS_ALL) == ret)
 
-/* wmOperator flag */
+/** #wmOperator.flag */
 enum {
   /** low level flag so exec() operators can tell if they were invoked, use with care.
    * Typically this shouldn't make any difference, but it rare cases its needed
    * (see smooth-view) */
   OP_IS_INVOKE = (1 << 0),
-  /** So we can detect if an operators exec() call is activated from an interactive repeat. */
+  /** So we can detect if an operators exec() call is activated by adjusting the last action. */
   OP_IS_REPEAT = (1 << 1),
+  /**
+   * So we can detect if an operators exec() call is activated from #SCREEN_OT_repeat_last.
+   *
+   * This difference can be important because previous settings may be used,
+   * even with #PROP_SKIP_SAVE the repeat last operator will use the previous settings.
+   * Unlike #OP_IS_REPEAT the selection (and context generally) may be be different each time.
+   * See T60777 for an example of when this is needed.
+   */
+  OP_IS_REPEAT_LAST = (1 << 1),
 
   /** When the cursor is grabbed */
   OP_IS_MODAL_GRAB_CURSOR = (1 << 2),

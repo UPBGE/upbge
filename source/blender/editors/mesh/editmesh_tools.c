@@ -4590,7 +4590,7 @@ static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
 
       /* Only reuse on redo because these settings need to match the current selection.
        * We never want to use them on other geometry, repeat last for eg, see: T60777. */
-      if ((op->flag & OP_IS_REPEAT) && RNA_property_is_set(op->ptr, prop_span)) {
+      if ((op->flag & OP_IS_REPEAT_LAST) == 0 && RNA_property_is_set(op->ptr, prop_span)) {
         span = RNA_property_int_get(op->ptr, prop_span);
         span = min_ii(span, (clamp / 2) - 1);
         calc_span = false;
@@ -8570,6 +8570,10 @@ static int edbm_normals_tools_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
+
+  if (bm->totloop == 0) {
+    return OPERATOR_CANCELLED;
+  }
 
   const int mode = RNA_enum_get(op->ptr, "mode");
   const bool absolute = RNA_boolean_get(op->ptr, "absolute");
