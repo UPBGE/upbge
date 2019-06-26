@@ -180,7 +180,7 @@ static void panel_draw_header_preset(const bContext *C, Panel *pnl)
   RNA_parameter_list_free(&list);
 }
 
-static void rna_Panel_unregister(Main *UNUSED(bmain), StructRNA *type)
+static void rna_Panel_unregister(Main *bmain, StructRNA *type)
 {
   ARegionType *art;
   PanelType *pt = RNA_struct_blender_type_get(type);
@@ -207,8 +207,28 @@ static void rna_Panel_unregister(Main *UNUSED(bmain), StructRNA *type)
     child_pt->parent = NULL;
   }
 
+  const char space_type = pt->space_type;
   BLI_freelistN(&pt->children);
   BLI_freelinkN(&art->paneltypes, pt);
+
+  for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+    for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+      for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+        if (sl->spacetype == space_type) {
+          ListBase *regionbase = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+          for (ARegion *region = regionbase->first; region; region = region->next) {
+            if (region->type == art) {
+              for (Panel *pa = region->panels.first; pa; pa = pa->next) {
+                if (pa->type == pt) {
+                  pa->type = NULL;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 
   /* update while blender is running */
   WM_main_add_notifier(NC_WINDOW, NULL);

@@ -106,10 +106,6 @@ class SEQUENCER_HT_header(Header):
 
         layout.separator_spacer()
 
-        if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
-            layout.separator()
-            layout.operator("sequencer.refresh_all", icon='FILE_REFRESH', text="")
-
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.prop(st, "display_mode", text="", icon_only=True)
 
@@ -224,6 +220,10 @@ class SEQUENCER_MT_view(Menu):
             layout.operator_context = 'INVOKE_DEFAULT'
             layout.menu("SEQUENCER_MT_navigation")
             layout.menu("SEQUENCER_MT_range")
+
+            layout.separator()
+
+            layout.operator("sequencer.refresh_all", icon='FILE_REFRESH', text="Refresh All")
 
             layout.separator()
 
@@ -632,7 +632,6 @@ class SEQUENCER_MT_strip_movie(Menu):
         layout = self.layout
 
         layout.operator("sequencer.rendersize")
-        layout.operator("sequencer.images_separate")
         layout.operator("sequencer.deinterlace_selected_movies")
 
 
@@ -1052,8 +1051,8 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
             rowsub.active = strip.use_shadow
             rowsub.prop(strip, "shadow_color", text="")
 
-            col.prop(strip, "align_x")
-            col.prop(strip, "align_y", text="Y")
+            col.prop(strip, "align_x", text="Horizontal")
+            col.prop(strip, "align_y", text="Vertical")
             row = col.row(align=True)
             row.prop(strip, "location", text="Location")
             col.prop(strip, "wrap_width")
@@ -1254,7 +1253,7 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
         if scene:
             layout.prop(scene, "audio_volume", text="Volume")
 
-        if strip.scene_input == '3D_CAMERA':
+        if strip.scene_input == 'CAMERA':
             layout.alignment = 'RIGHT'
             sub = layout.column(align=True)
             split = sub.split(factor=0.5, align=True)
