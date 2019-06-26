@@ -186,7 +186,6 @@ typedef struct GPENCIL_Storage {
   float mix_stroke_factor;
 
   /* Render Matrices and data */
-  DRWView *view;
   float view_vecs[2][4]; /* vec4[2] */
 
   int shade_render[2];
@@ -514,7 +513,8 @@ void GPENCIL_render_to_image(void *vedata,
     if ((lvl > 0) && (fbl->multisample_fb != NULL) && (DRW_state_is_fbo())) { \
       DRW_stats_query_start("GP Multisample Blit"); \
       GPU_framebuffer_bind(fbl->multisample_fb); \
-      GPU_framebuffer_clear_color_depth(fbl->multisample_fb, (const float[4]){0.0f}, 1.0f); \
+      GPU_framebuffer_clear_color_depth_stencil( \
+          fbl->multisample_fb, (const float[4]){0.0f}, 1.0f, 0x0); \
       DRW_stats_query_end(); \
     } \
   } \
