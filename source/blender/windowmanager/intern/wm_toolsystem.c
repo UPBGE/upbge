@@ -128,11 +128,16 @@ bool WM_toolsystem_ref_ensure(struct WorkSpace *workspace, const bToolKey *tkey,
 
 /** \} */
 
-static void toolsystem_unlink_ref(bContext *C, WorkSpace *workspace, bToolRef *tref)
+/**
+ * \param do_gizmo: Make removing the gizmo optional because it complicates multi-window support
+ * since the tool might be used in another window. The gizmos poll function must handle this,
+ * since this is needed for switching workspaces anyway.
+ */
+static void toolsystem_unlink_ref(bContext *C, WorkSpace *workspace, bToolRef *tref, bool do_gizmo)
 {
   bToolRef_Runtime *tref_rt = tref->runtime;
 
-  if (tref_rt->gizmo_group[0]) {
+  if (do_gizmo && tref_rt->gizmo_group[0]) {
     wmGizmoGroupType *gzgt = WM_gizmogrouptype_find(tref_rt->gizmo_group, false);
     if (gzgt != NULL) {
       bool found = false;
@@ -165,13 +170,10 @@ void WM_toolsystem_unlink(bContext *C, WorkSpace *workspace, const bToolKey *tke
 {
   bToolRef *tref = WM_toolsystem_ref_find(workspace, tkey);
   if (tref && tref->runtime) {
-    toolsystem_unlink_ref(C, workspace, tref);
+    toolsystem_unlink_ref(C, workspace, tref, false);
   }
 }
 
-/**
- * \see #toolsystem_ref_link
- */
 static void toolsystem_ref_link(bContext *C, WorkSpace *workspace, bToolRef *tref)
 {
   bToolRef_Runtime *tref_rt = tref->runtime;
@@ -180,7 +182,12 @@ static void toolsystem_ref_link(bContext *C, WorkSpace *workspace, bToolRef *tre
     wmGizmoGroupType *gzgt = WM_gizmogrouptype_find(idname, false);
     if (gzgt != NULL) {
       if ((gzgt->flag & WM_GIZMOGROUPTYPE_TOOL_INIT) == 0) {
-        WM_gizmo_group_type_ensure_ptr(gzgt);
+        if (!WM_gizmo_group_type_ensure_ptr(gzgt)) {
+          /* Even if the group-type was has been linked, it's possible the space types
+           * were not previously using it. (happens with multiple windows.) */
+          wmGizmoMapType *gzmap_type = WM_gizmomaptype_ensure(&gzgt->gzmap_params);
+          WM_gizmoconfig_update_tag_group_type_init(gzmap_type, gzgt);
+        }
       }
     }
     else {
@@ -310,7 +317,7 @@ void WM_toolsystem_unlink_all(struct bContext *C, struct WorkSpace *workspace)
   LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
     if (tref->runtime) {
       if (tref->tag == 0) {
-        toolsystem_unlink_ref(C, workspace, tref);
+        toolsystem_unlink_ref(C, workspace, tref, true);
         tref->tag = 1;
       }
     }
@@ -357,7 +364,7 @@ void WM_toolsystem_ref_set_from_runtime(struct bContext *C,
   Main *bmain = CTX_data_main(C);
 
   if (tref->runtime) {
-    toolsystem_unlink_ref(C, workspace, tref);
+    toolsystem_unlink_ref(C, workspace, tref, false);
   }
 
   STRNCPY(tref->idname, idname);
@@ -663,15 +670,6 @@ bToolRef *WM_toolsystem_ref_set_by_id(
   PointerRNA op_props;
   WM_operator_properties_create_ptr(&op_props, ot);
   RNA_string_set(&op_props, "name", name);
-
-  /* Will get from context if not set. */
-  bToolKey tkey_from_context;
-  if (tkey == NULL) {
-    ViewLayer *view_layer = CTX_data_view_layer(C);
-    ScrArea *sa = CTX_wm_area(C);
-    WM_toolsystem_key_from_context(view_layer, sa, &tkey_from_context);
-    tkey = &tkey_from_context;
-  }
 
   BLI_assert((1 << tkey->space_type) & WM_TOOLSYSTEM_SPACE_MASK);
 
