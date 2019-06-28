@@ -61,6 +61,8 @@ struct wmGizmoGroup *wm_gizmogroup_new_from_type(struct wmGizmoMap *gzmap,
                                                  struct wmGizmoGroupType *gzgt);
 void wm_gizmogroup_free(bContext *C, struct wmGizmoGroup *gzgroup);
 void wm_gizmogroup_gizmo_register(struct wmGizmoGroup *gzgroup, struct wmGizmo *gz);
+struct wmGizmoGroup *wm_gizmogroup_find_by_type(const struct wmGizmoMap *gzmap,
+                                                const struct wmGizmoGroupType *gzgt);
 struct wmGizmo *wm_gizmogroup_find_intersected_gizmo(wmWindowManager *wm,
                                                      const struct wmGizmoGroup *gzgroup,
                                                      struct bContext *C,
@@ -96,6 +98,9 @@ struct wmGizmoMap {
 
   /** Private, true when not yet used. */
   bool is_init;
+
+  /** When set, one of of the items in 'groups' has #wmGizmoGroup.tag_remove set. */
+  bool tag_remove_group;
 
   /**
    * \brief Gizmo map runtime context
