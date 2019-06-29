@@ -208,6 +208,7 @@ Shader::Shader()
 
 	need_update = true;
 	need_update_mesh = true;
+	need_sync_object = false;
 }
 
 Shader::~Shader()
@@ -219,20 +220,37 @@ bool Shader::is_constant_emission(float3 *emission)
 {
 	ShaderInput *surf = graph->output()->input("Surface");
 
-	if(!surf->link || surf->link->parent->type != EmissionNode::node_type) {
+	if(surf->link == NULL) {
 		return false;
 	}
 
-	EmissionNode *node = (EmissionNode*) surf->link->parent;
+	if(surf->link->parent->type == EmissionNode::node_type) {
+		EmissionNode *node = (EmissionNode*) surf->link->parent;
 
-	assert(node->input("Color"));
-	assert(node->input("Strength"));
+		assert(node->input("Color"));
+		assert(node->input("Strength"));
 
-	if(node->input("Color")->link || node->input("Strength")->link) {
+		if(node->input("Color")->link || node->input("Strength")->link) {
+			return false;
+		}
+
+		*emission = node->color*node->strength;
+	}
+	else if(surf->link->parent->type == BackgroundNode::node_type) {
+		BackgroundNode *node = (BackgroundNode*) surf->link->parent;
+
+		assert(node->input("Color"));
+		assert(node->input("Strength"));
+
+		if(node->input("Color")->link || node->input("Strength")->link) {
+			return false;
+		}
+
+		*emission = node->color*node->strength;
+	}
+	else {
 		return false;
 	}
-
-	*emission = node->color*node->strength;
 
 	return true;
 }
@@ -692,6 +710,10 @@ void ShaderManager::get_requested_features(Scene *scene,
 void ShaderManager::free_memory()
 {
 	beckmann_table.free_memory();
+
+#ifdef WITH_OSL
+	OSLShaderManager::free_memory();
+#endif
 }
 
 float ShaderManager::linear_rgb_to_gray(float3 c)

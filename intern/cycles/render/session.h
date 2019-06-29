@@ -84,7 +84,7 @@ public:
 
 		progressive = false;
 		experimental = false;
-		samples = INT_MAX;
+		samples = 1024;
 		tile_size = make_int2(64, 64);
 		start_resolution = INT_MAX;
 		pixel_size = 1;
@@ -162,7 +162,7 @@ public:
 	void set_pause(bool pause);
 
 	bool update_scene();
-	void load_kernels(bool lock_scene=true);
+	bool load_kernels(bool lock_scene=true);
 
 	void device_free();
 

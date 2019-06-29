@@ -433,7 +433,7 @@ void BlenderSession::render()
 		BL::RenderLayer b_rlay = *b_single_rlay;
 
 		/* add passes */
-		vector<Pass> passes = sync->sync_render_passes(b_rlay, *b_layer_iter, session_params);
+		vector<Pass> passes = sync->sync_render_passes(b_rlay, *b_layer_iter);
 		buffer_params.passes = passes;
 
 		PointerRNA crl = RNA_pointer_get(&b_layer_iter->ptr, "cycles");
@@ -933,6 +933,11 @@ void BlenderSession::get_status(string& status, string& substatus)
 	session->progress.get_status(status, substatus);
 }
 
+void BlenderSession::get_kernel_status(string& kernel_status)
+{
+	session->progress.get_kernel_status(kernel_status);
+}
+
 void BlenderSession::get_progress(float& progress, double& total_time, double& render_time)
 {
 	session->progress.get_time(total_time, render_time);
@@ -951,15 +956,15 @@ void BlenderSession::update_bake_progress()
 
 void BlenderSession::update_status_progress()
 {
-	string timestatus, status, substatus;
+	string timestatus, status, substatus, kernel_status;
 	string scene = "";
 	float progress;
 	double total_time, remaining_time = 0, render_time;
-	char time_str[128];
 	float mem_used = (float)session->stats.mem_used / 1024.0f / 1024.0f;
 	float mem_peak = (float)session->stats.mem_peak / 1024.0f / 1024.0f;
 
 	get_status(status, substatus);
+	get_kernel_status(kernel_status);
 	get_progress(progress, total_time, render_time);
 
 	if(progress > 0)
@@ -974,13 +979,11 @@ void BlenderSession::update_status_progress()
 			scene += ", " + b_rview_name;
 	}
 	else {
-		BLI_timecode_string_from_time_simple(time_str, sizeof(time_str), total_time);
-		timestatus = "Time:" + string(time_str) + " | ";
+		timestatus = "Time:" + time_human_readable_from_seconds(total_time) + " | ";
 	}
 
 	if(remaining_time > 0) {
-		BLI_timecode_string_from_time_simple(time_str, sizeof(time_str), remaining_time);
-		timestatus += "Remaining:" + string(time_str) + " | ";
+		timestatus += "Remaining:" + time_human_readable_from_seconds(remaining_time) + " | ";
 	}
 
 	timestatus += string_printf("Mem:%.2fM, Peak:%.2fM", (double)mem_used, (double)mem_peak);
@@ -989,6 +992,8 @@ void BlenderSession::update_status_progress()
 		status = " | " + status;
 	if(substatus.size() > 0)
 		status += " | " + substatus;
+	if(kernel_status.size() > 0)
+		status += " | " + kernel_status;
 
 	double current_time = time_dt();
 	/* When rendering in a window, redraw the status at least once per second to keep the elapsed and remaining time up-to-date.

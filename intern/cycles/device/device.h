@@ -56,6 +56,14 @@ enum DeviceTypeMask {
 	DEVICE_MASK_ALL = ~0
 };
 
+enum DeviceKernelStatus {
+	DEVICE_KERNEL_WAITING_FOR_FEATURE_KERNEL = 0,
+	DEVICE_KERNEL_FEATURE_KERNEL_AVAILABLE,
+	DEVICE_KERNEL_USING_FEATURE_KERNEL,
+	DEVICE_KERNEL_FEATURE_KERNEL_INVALID,
+	DEVICE_KERNEL_UNKNOWN,
+};
+
 #define DEVICE_MASK(type) (DeviceTypeMask)(1 << type)
 
 class DeviceInfo {
@@ -65,7 +73,6 @@ public:
 	string id; /* used for user preferences, should stay fixed with changing hardware config */
 	int num;
 	bool display_device;            /* GPU is used as a display device. */
-	bool advanced_shading;          /* Supports full shading system. */
 	bool has_half_images;           /* Support half-float textures. */
 	bool has_volume_decoupled;      /* Decoupled volume shading. */
 	bool has_osl;                   /* Support Open Shading Language. */
@@ -81,7 +88,6 @@ public:
 		num = 0;
 		cpu_threads = 0;
 		display_device = false;
-		advanced_shading = true;
 		has_half_images = false;
 		has_volume_decoupled = false;
 		has_osl = false;
@@ -320,6 +326,20 @@ public:
 	virtual bool load_kernels(
 	        const DeviceRequestedFeatures& /*requested_features*/)
 	{ return true; }
+
+	/* Wait for device to become available to upload data and receive tasks
+	 * This method is used by the OpenCL device to load the
+	 * optimized kernels or when not (yet) available load the
+	 * generic kernels (only during foreground rendering) */
+	virtual bool wait_for_availability(
+	        const DeviceRequestedFeatures& /*requested_features*/)
+	{ return true; }
+	/* Check if there are 'better' kernels available to be used
+	 * We can switch over to these kernels
+	 * This method is used to determine if we can switch the preview kernels
+	 * to regular kernels */
+	virtual DeviceKernelStatus get_active_kernel_switch_state()
+	{ return DEVICE_KERNEL_USING_FEATURE_KERNEL; }
 
 	/* tasks */
 	virtual int get_split_task_count(DeviceTask& task) = 0;

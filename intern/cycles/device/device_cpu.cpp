@@ -968,6 +968,7 @@ protected:
 			kg.decoupled_volume_steps[i] = NULL;
 		}
 		kg.decoupled_volume_steps_index = 0;
+		kg.coverage_asset = kg.coverage_object = kg.coverage_material = NULL;
 #ifdef WITH_OSL
 		OSLShader::thread_init(&kg, &kernel_globals, &osl_globals);
 #endif
@@ -1122,7 +1123,6 @@ void device_cpu_info(vector<DeviceInfo>& devices)
 	info.description = system_cpu_brand_string();
 	info.id = "CPU";
 	info.num = 0;
-	info.advanced_shading = true;
 	info.has_volume_decoupled = true;
 	info.has_osl = true;
 	info.has_half_images = true;

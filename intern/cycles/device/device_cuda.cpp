@@ -400,9 +400,9 @@ public:
 			       major, minor);
 			return false;
 		}
-		else if(cuda_version != 80) {
+		else if(cuda_version != 101) {
 			printf("CUDA version %d.%d detected, build may succeed but only "
-			       "CUDA 8.0 is officially supported.\n",
+			       "CUDA 10.1 is officially supported.\n",
 			       major, minor);
 		}
 		return true;
@@ -2512,7 +2512,6 @@ void device_cuda_info(vector<DeviceInfo>& devices)
 		info.description = string(name);
 		info.num = num;
 
-		info.advanced_shading = (major >= 3);
 		info.has_half_images = (major >= 3);
 		info.has_volume_decoupled = false;
 

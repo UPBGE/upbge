@@ -1169,15 +1169,9 @@ void bmesh_edit_end(BMesh *bm, BMOpTypeFlag type_flag)
 
 void BM_mesh_elem_index_ensure(BMesh *bm, const char htype)
 {
-	const char htype_needed = bm->elem_index_dirty & htype;
-
 #ifdef DEBUG
 	BM_ELEM_INDEX_VALIDATE(bm, "Should Never Fail!", __func__);
 #endif
-
-	if (0 && htype_needed == 0) {
-		goto finally;
-	}
 
 	if (htype & BM_VERT) {
 		if (bm->elem_index_dirty & BM_VERT) {
@@ -1247,7 +1241,6 @@ void BM_mesh_elem_index_ensure(BMesh *bm, const char htype)
 		}
 	}
 
-finally:
 	bm->elem_index_dirty &= ~htype;
 }
 
