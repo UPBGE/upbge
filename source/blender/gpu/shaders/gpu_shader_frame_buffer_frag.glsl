@@ -38,9 +38,9 @@ void main()
 		}
 	}
 #elif defined(ANAGLYPH)
-	gl_FragColor = vec4(texture2D(lefteyetex, co).r, texture2D(righteyetex, co).gb, 1.0);
+	gl_FragData[0] = vec4(texture2D(lefteyetex, co).r, texture2D(righteyetex, co).gb, 1.0);
 #else
-	gl_FragColor = texture2D(colortex, co);
+	gl_FragData[0] = texture2D(colortex, co);
 #  ifdef DEPTH
 	gl_FragDepth = texture2D(depthtex, co).x;
 #  endif

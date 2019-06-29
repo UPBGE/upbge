@@ -67,7 +67,7 @@ static int gpu_shader_output(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecDat
 #endif
 
 	GPU_stack_link(mat, "output_node", in, out, &outlink);
-	GPU_material_output_link(mat, outlink);
+	GPU_material_output_link(mat, outlink, 0);
 
 	return 1;
 }

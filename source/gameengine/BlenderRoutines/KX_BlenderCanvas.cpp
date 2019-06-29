@@ -53,13 +53,15 @@ extern "C" {
 #  include "wm_window.h"
 }
 
-KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, RAS_Rect &rect)
-	:RAS_ICanvas(rasty),
+KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments,
+		wmWindowManager *wm, wmWindow *win, RAS_Rect &rect)
+	:RAS_ICanvas(attachments),
 	m_wm(wm),
-	m_win(win),
-	m_area_rect(rect) // initialize area so that it's available for game logic on frame 1 (ImageViewport)
+	m_win(win)
 {
-	m_rasterizer->GetViewport(m_viewport);
+	m_area = rect;
+	rasty->GetViewport(m_viewport);
+	UpdateOffScreens();
 }
 
 KX_BlenderCanvas::~KX_BlenderCanvas()
@@ -127,60 +129,25 @@ void KX_BlenderCanvas::EndFrame()
 {
 }
 
-int KX_BlenderCanvas::GetWidth() const
-{
-	return m_area_rect.GetWidth();
-}
-
-int KX_BlenderCanvas::GetHeight() const
-{
-	return m_area_rect.GetHeight();
-}
-
-int KX_BlenderCanvas::GetMaxX() const
-{
-	return m_area_rect.GetMaxX();
-}
-
-int KX_BlenderCanvas::GetMaxY() const
-{
-	return m_area_rect.GetMaxY();
-}
-
 void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen)
 {
 	if (screen) {
 		wm_cursor_position_from_ghost(m_win, &x, &y);
 	}
 
-	r_x = x - m_area_rect.GetLeft();
-	r_y = -y + m_area_rect.GetTop();
-}
-
-float KX_BlenderCanvas::GetMouseNormalizedX(int x)
-{
-	return float(x) / GetMaxX();
-}
-
-float KX_BlenderCanvas::GetMouseNormalizedY(int y)
-{
-	return float(y) / GetMaxY();
-}
-
-RAS_Rect &KX_BlenderCanvas::GetWindowArea()
-{
-	return m_area_rect;
+	r_x = x - m_area.GetLeft();
+	r_y = -y + m_area.GetTop();
 }
 
 void KX_BlenderCanvas::SetViewPort(int x, int y, int width, int height)
 {
-	int minx = m_area_rect.GetLeft();
-	int miny = m_area_rect.GetBottom();
+	int minx = m_area.GetLeft();
+	int miny = m_area.GetBottom();
 
-	m_area_rect.SetLeft(minx + x);
-	m_area_rect.SetBottom(miny + y);
-	m_area_rect.SetRight(minx + x + width - 1);
-	m_area_rect.SetTop(miny + y + height - 1);
+	m_area.SetLeft(minx + x);
+	m_area.SetBottom(miny + y);
+	m_area.SetRight(minx + x + width - 1);
+	m_area.SetTop(miny + y + height - 1);
 
 	m_viewport[0] = minx + x;
 	m_viewport[1] = miny + y;
@@ -194,11 +161,6 @@ void KX_BlenderCanvas::UpdateViewPort(int x, int y, int width, int height)
 	m_viewport[1] = y;
 	m_viewport[2] = width;
 	m_viewport[3] = height;
-}
-
-const int *KX_BlenderCanvas::GetViewPort()
-{
-	return m_viewport;
 }
 
 void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
@@ -229,9 +191,9 @@ void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
 
 void KX_BlenderCanvas::SetMousePosition(int x, int y)
 {
-	int winX = m_area_rect.GetLeft();
-	int winY = m_area_rect.GetBottom();
-	int winMaxY = m_area_rect.GetMaxY();
+	int winX = m_area.GetLeft();
+	int winY = m_area.GetBottom();
+	int winMaxY = m_area.GetMaxY();
 
 	WM_cursor_warp(m_win, winX + x, winY + (winMaxY - y));
 }
@@ -240,10 +202,10 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string& filename)
 {
 	bScreen *screen = m_win->screen;
 
-	int x = m_area_rect.GetLeft();
-	int y = m_area_rect.GetBottom();
-	int width = m_area_rect.GetWidth();
-	int height = m_area_rect.GetHeight();
+	int x = m_area.GetLeft();
+	int y = m_area.GetBottom();
+	int width = m_area.GetWidth();
+	int height = m_area.GetHeight();
 
 	/* initialize image file format data */
 	Scene *scene = (screen) ? screen->scene : nullptr;

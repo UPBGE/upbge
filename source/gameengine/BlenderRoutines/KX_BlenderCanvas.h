@@ -50,14 +50,12 @@ struct wmWindowManager;
 class KX_BlenderCanvas : public RAS_ICanvas
 {
 private:
-	int m_viewport[4];
-
 	wmWindowManager *m_wm;
 	wmWindow *m_win;
-	RAS_Rect m_area_rect;
 
 public:
-	KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, RAS_Rect &rect);
+	KX_BlenderCanvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments,
+			wmWindowManager *wm, wmWindow *win, RAS_Rect &rect);
 	virtual ~KX_BlenderCanvas();
 
 	virtual void Init();
@@ -75,21 +73,10 @@ public:
 	virtual void BeginFrame();
 	virtual void EndFrame();
 
-	virtual int GetWidth() const;
-	virtual int GetHeight() const;
-	virtual int GetMaxX() const;
-	virtual int GetMaxY() const;
-
 	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
-
-	virtual float GetMouseNormalizedX(int x);
-	virtual float GetMouseNormalizedY(int y);
-
-	virtual RAS_Rect &GetWindowArea();
 
 	virtual void SetViewPort(int x, int y, int width, int height);
 	virtual void UpdateViewPort(int x, int y, int width, int height);
-	virtual const int *GetViewPort();
 
 	virtual void SetMouseState(RAS_MouseState mousestate);
 	virtual void SetMousePosition(int x, int y);
