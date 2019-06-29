@@ -26,100 +26,196 @@
 
 #include "RAS_OffScreen.h"
 
+#include "GPU_framebuffer.h"
+
+#include "BLI_utildefines.h"
+
 RAS_OffScreen *RAS_OffScreen::lastOffScreen = nullptr;
 
-RAS_OffScreen::RAS_OffScreen(unsigned int width, unsigned int height, int samples, GPUHDRType hdrType, GPUOffScreenMode mode, char errOut[256],
-                             RAS_Rasterizer::OffScreenType type)
-	:m_offScreen(GPU_offscreen_create(width, height, samples, hdrType, mode, errOut)),
+RAS_OffScreen::Slot::Slot()
+	:m_rb(nullptr)
+{
+}
+
+RAS_OffScreen::RAS_OffScreen(unsigned int width, unsigned int height, unsigned short samples,
+		const AttachmentList& attachments, Type type)
+	:m_width(width),
+	m_height(height),
+	m_samples(samples),
+	m_numColorSlots(attachments.size()),
+	m_frameBuffer(GPU_framebuffer_create()),
 	m_type(type)
 {
+	bool error = false;
+	for (unsigned short i = 0; i < m_numColorSlots; ++i) {
+		const Attachment& attach = attachments[i];
+
+		// WARNING: Always respect the order from RAS_Rasterizer::HdrType.
+		static const GPUHDRType hdrEnums[] = {
+			GPU_HDR_NONE, // RAS_HDR_NONE
+			GPU_HDR_HALF_FLOAT, // RAS_HDR_HALF_FLOAT
+			GPU_HDR_FULL_FLOAT // RAS_HDR_FULL_FLOAT
+		};
+
+		GPUHDRType hdr = hdrEnums[attach.hdr];
+		if (m_samples > 0) {
+			GPURenderBuffer *rb = GPU_renderbuffer_create(m_width, m_height, m_samples, hdr, GPU_RENDERBUFFER_COLOR, nullptr);
+			if (!GPU_framebuffer_renderbuffer_attach(m_frameBuffer, rb, i, nullptr)) {
+				GPU_renderbuffer_free(rb);
+				error = true;
+			}
+			m_colorSlots[i].m_rb = rb;
+		}
+		else {
+			GPUTexture *tex = GPU_texture_create_2D(m_width, m_height, nullptr, hdr, nullptr);
+			if (!GPU_framebuffer_texture_attach(m_frameBuffer, tex, i, nullptr)) {
+				GPU_texture_free(tex);
+				error = true;
+			}
+			m_colorSlots[i].m_tex = tex;
+		}
+	}
+
+	if (m_samples > 0) {
+		GPURenderBuffer *rb = GPU_renderbuffer_create(m_width, m_height, m_samples, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, nullptr);
+		if (!GPU_framebuffer_renderbuffer_attach(m_frameBuffer, rb, 0, nullptr)) {
+			GPU_renderbuffer_free(rb);
+			error = true;
+		}
+		m_depthSlot.m_rb = rb;
+	}
+	else {
+		GPUTexture *tex = GPU_texture_create_depth(m_width, m_height, false, nullptr);
+		if (!GPU_framebuffer_texture_attach(m_frameBuffer, tex, 0, nullptr)) {
+			GPU_texture_free(tex);
+			error = true;
+		}
+		m_depthSlot.m_tex = tex;
+	}
+
+	if (error) {
+		GPU_framebuffer_free(m_frameBuffer);
+		m_frameBuffer = nullptr;
+	}
 }
 
 RAS_OffScreen::~RAS_OffScreen()
 {
 	if (GetValid()) {
-		GPU_offscreen_free(m_offScreen);
+		GPU_framebuffer_free(m_frameBuffer);
+
+		for (unsigned short i = 0; i < NUM_COLOR_SLOTS; ++i) {
+			if (m_samples > 0) {
+				if (m_colorSlots[i].m_rb) {
+					GPU_renderbuffer_free(m_colorSlots[i].m_rb);
+				}
+			}
+			else {
+				if (m_colorSlots[i].m_tex) {
+					GPU_texture_free(m_colorSlots[i].m_tex);
+				}
+			}
+		}
+
+		if (m_samples > 0) {
+			if (m_depthSlot.m_rb) {
+				GPU_renderbuffer_free(m_depthSlot.m_rb);
+			}
+		}
+		else {
+			if (m_depthSlot.m_tex) {
+				GPU_texture_free(m_depthSlot.m_tex);
+			}
+		}
 	}
 }
 
 bool RAS_OffScreen::GetValid() const
 {
-	return (m_offScreen != nullptr);
+	return (m_frameBuffer != nullptr);
 }
 
 void RAS_OffScreen::Bind()
 {
-	GPU_offscreen_bind_simple(m_offScreen);
+	GPU_framebuffer_bind_all_attachments(m_frameBuffer, m_numColorSlots);
 	lastOffScreen = this;
 }
 
-RAS_OffScreen *RAS_OffScreen::Blit(RAS_OffScreen *dstOffScreen, bool color, bool depth)
+RAS_OffScreen *RAS_OffScreen::Blit(RAS_OffScreen *dstOffScreen, bool depth)
 {
-	GPU_offscreen_blit(m_offScreen, dstOffScreen->m_offScreen, color, depth);
-
+	GPU_framebuffer_blit(m_frameBuffer, dstOffScreen->m_frameBuffer, m_width, m_height, m_numColorSlots, depth);
 	return dstOffScreen;
 }
 
-void RAS_OffScreen::BindColorTexture(unsigned short slot)
+void RAS_OffScreen::BindColorTexture(unsigned short slot, unsigned short unit)
 {
-	GPU_texture_bind(GPU_offscreen_texture(m_offScreen), slot);
+	GPU_texture_bind(m_colorSlots[slot].m_tex, unit);
 }
 
-void RAS_OffScreen::BindDepthTexture(unsigned short slot)
+void RAS_OffScreen::BindDepthTexture(unsigned short unit)
 {
-	GPU_texture_bind(GPU_offscreen_depth_texture(m_offScreen), slot);
+	GPU_texture_bind(m_depthSlot.m_tex, unit);
 }
 
-void RAS_OffScreen::UnbindColorTexture()
+void RAS_OffScreen::UnbindColorTexture(unsigned short slot)
 {
-	GPU_texture_unbind(GPU_offscreen_texture(m_offScreen));
+	GPU_texture_unbind(m_colorSlots[slot].m_tex);
 }
 
 void RAS_OffScreen::UnbindDepthTexture()
 {
-	GPU_texture_unbind(GPU_offscreen_depth_texture(m_offScreen));
+	GPU_texture_unbind(m_depthSlot.m_tex);
 }
 
-void RAS_OffScreen::MipmapTexture()
+void RAS_OffScreen::MipmapTextures()
 {
-	GPUTexture *tex = GPU_offscreen_texture(m_offScreen);
-	GPU_texture_filter_mode(tex, false, true, true);
-	GPU_texture_generate_mipmap(tex);
+	for (unsigned short i = 0; i < m_numColorSlots; ++i) {
+		GPUTexture *tex = m_colorSlots[i].m_tex;
+		GPU_texture_filter_mode(tex, false, true, true);
+		GPU_texture_generate_mipmap(tex);
+	}
 }
 
-void RAS_OffScreen::UnmipmapTexture()
+void RAS_OffScreen::UnmipmapTextures()
 {
-	GPU_texture_filter_mode(GPU_offscreen_texture(m_offScreen), false, true, false);
+	for (unsigned short i = 0; i < m_numColorSlots; ++i) {
+		GPU_texture_filter_mode(m_colorSlots[i].m_tex, false, true, false);
+	}
 }
 
 int RAS_OffScreen::GetColorBindCode() const
 {
-	return GPU_offscreen_color_texture(m_offScreen);
+	return GPU_texture_opengl_bindcode(m_colorSlots[0].m_tex);
 }
 
-int RAS_OffScreen::GetSamples() const
+unsigned short RAS_OffScreen::GetSamples() const
 {
-	return GPU_offscreen_samples(m_offScreen);
+	return m_samples;
 }
 
 unsigned int RAS_OffScreen::GetWidth() const
 {
-	return GPU_offscreen_width(m_offScreen);
+	return m_width;
 }
 
 unsigned int RAS_OffScreen::GetHeight() const
 {
-	return GPU_offscreen_height(m_offScreen);
+	return m_height;
 }
 
-RAS_Rasterizer::OffScreenType RAS_OffScreen::GetType() const
+RAS_OffScreen::Type RAS_OffScreen::GetType() const
 {
 	return m_type;
 }
 
+unsigned short RAS_OffScreen::GetNumColorSlot() const
+{
+	return m_numColorSlots;
+}
+
 GPUTexture *RAS_OffScreen::GetDepthTexture()
 {
-	return GPU_offscreen_depth_texture(m_offScreen);
+	return m_depthSlot.m_tex;
 }
 
 RAS_OffScreen *RAS_OffScreen::GetLastOffScreen()
@@ -131,4 +227,48 @@ void RAS_OffScreen::RestoreScreen()
 {
 	GPU_framebuffer_restore();
 	lastOffScreen = nullptr;
+}
+
+RAS_OffScreen::Type RAS_OffScreen::NextFilterOffScreen(Type index)
+{
+	switch (index) {
+		case RAS_OFFSCREEN_FILTER0:
+		{
+			return RAS_OFFSCREEN_FILTER1;
+		}
+		case RAS_OFFSCREEN_FILTER1:
+		// Passing a non-filter frame buffer is allowed.
+		default:
+		{
+			return RAS_OFFSCREEN_FILTER0;
+		}
+	}
+}
+
+RAS_OffScreen::Type RAS_OffScreen::NextRenderOffScreen(Type index)
+{
+	switch (index) {
+		case RAS_OFFSCREEN_EYE_LEFT0:
+		{
+			return RAS_OFFSCREEN_EYE_LEFT1;
+		}
+		case RAS_OFFSCREEN_EYE_LEFT1:
+		{
+			return RAS_OFFSCREEN_EYE_LEFT0;
+		}
+		case RAS_OFFSCREEN_EYE_RIGHT0:
+		{
+			return RAS_OFFSCREEN_EYE_RIGHT1;
+		}
+		case RAS_OFFSCREEN_EYE_RIGHT1:
+		{
+			return RAS_OFFSCREEN_EYE_RIGHT0;
+		}
+		// Passing a non-eye frame buffer is disallowed.
+		default:
+		{
+			BLI_assert(false);
+			return RAS_OFFSCREEN_EYE_LEFT0;
+		}
+	}
 }

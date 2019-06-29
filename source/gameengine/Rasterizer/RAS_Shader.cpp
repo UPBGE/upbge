@@ -206,7 +206,7 @@ RAS_Shader::RAS_Uniform *RAS_Shader::FindUniform(const int location)
 	return nullptr;
 }
 
-void RAS_Shader::SetUniformfv(int location, int type, float *param, int size, unsigned int count, bool transpose)
+void RAS_Shader::SetUniformfv(int location, int type, const float *param, int size, unsigned int count, bool transpose)
 {
 #ifdef SORT_UNIFORMS
 	RAS_Uniform *uni = FindUniform(location);
@@ -226,7 +226,7 @@ void RAS_Shader::SetUniformfv(int location, int type, float *param, int size, un
 #endif
 }
 
-void RAS_Shader::SetUniformiv(int location, int type, int *param, int size, unsigned int count, bool transpose)
+void RAS_Shader::SetUniformiv(int location, int type, const int *param, int size, unsigned int count, bool transpose)
 {
 #ifdef SORT_UNIFORMS
 	RAS_Uniform *uni = FindUniform(location);
@@ -237,9 +237,9 @@ void RAS_Shader::SetUniformiv(int location, int type, int *param, int size, unsi
 	}
 	else {
 		uni = new RAS_Uniform(size);
+		m_uniforms.push_back(uni);
 		memcpy(uni->GetData(), param, size);
 		uni->SetData(location, type, count, transpose);
-		m_uniforms.push_back(uni);
 	}
 
 	m_dirty = true;

@@ -48,30 +48,15 @@ class GPG_Canvas : public RAS_ICanvas
 protected:
 	/// GHOST window.
 	GHOST_IWindow *m_window;
-	/// Width of the context.
-	int m_width;
-	/// Height of the context.
-	int m_height;
-	/** Rect that defines the area used for rendering,
-	 * relative to the context.
-	 */
-	RAS_Rect m_area;
-
-	int m_viewport[4];
 
 public:
-	GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window);
+	GPG_Canvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments, GHOST_IWindow *window);
 	virtual ~GPG_Canvas();
 
 	/**
 	 * \section Methods inherited from abstract base class RAS_ICanvas.
 	 */
 
-	virtual int GetWidth() const;
-	virtual int GetHeight() const;
-	virtual int GetMaxX() const;
-	virtual int GetMaxY() const;
-	virtual RAS_Rect &GetWindowArea();
 	virtual void BeginFrame();
 
 	/// Draws overlay banners and progress bars.
@@ -79,7 +64,6 @@ public:
 
 	virtual void SetViewPort(int x, int y, int width, int height);
 	virtual void UpdateViewPort(int x, int y, int width, int height);
-	virtual const int *GetViewPort();
 
 	virtual void MakeScreenShot(const std::string& filename);
 
@@ -90,8 +74,6 @@ public:
 	virtual void SetSwapControl(SwapControl control);
 
 	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
-	virtual float GetMouseNormalizedX(int x);
-	virtual float GetMouseNormalizedY(int y);
 
 	virtual void GetDisplayDimensions(int &width, int &height);
 

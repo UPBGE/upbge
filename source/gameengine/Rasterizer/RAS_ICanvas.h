@@ -32,7 +32,7 @@
 #ifndef __RAS_ICANVAS_H__
 #define __RAS_ICANVAS_H__
 
-#include "RAS_Rasterizer.h" // for RAS_Rasterizer::HdrType
+#include "RAS_OffScreen.h" // For RAS_OffScreen::Type
 
 class RAS_Rect;
 struct TaskScheduler;
@@ -60,7 +60,7 @@ public:
 		SWAP_CONTROL_MAX
 	};
 
-	RAS_ICanvas(RAS_Rasterizer *rasty);
+	RAS_ICanvas(const RAS_OffScreen::AttachmentList& attachments);
 	virtual ~RAS_ICanvas();
 
 	virtual void Init() = 0;
@@ -91,13 +91,10 @@ public:
 	void SetSamples(int samples);
 	int GetSamples() const;
 
-	void SetHdrType(RAS_Rasterizer::HdrType type);
-	RAS_Rasterizer::HdrType GetHdrType() const;
-
-	virtual int GetWidth() const = 0;
-	virtual int GetHeight() const = 0;
-	virtual int GetMaxX() const = 0;
-	virtual int GetMaxY() const = 0;
+	int GetWidth() const;
+	int GetHeight() const;
+	int GetMaxX() const;
+	int GetMaxY() const;
 
 	/** Convert mouse coordinates from screen or client window to render area coordinates.
 	 * \param x The input X coordinate.
@@ -108,13 +105,13 @@ public:
 	 */
 	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen) = 0;
 
-	virtual float GetMouseNormalizedX(int x) = 0;
-	virtual float GetMouseNormalizedY(int y) = 0;
+	float GetMouseNormalizedX(int x) const;
+	float GetMouseNormalizedY(int y) const;
 
 	/**
 	 * Used to get canvas area within blender.
 	 */
-	virtual RAS_Rect &GetWindowArea() = 0;
+	const RAS_Rect &GetArea() const;
 
 	/**
 	 * Set the visible view-port
@@ -130,7 +127,7 @@ public:
 	/**
 	 * Get the visible viewport
 	 */
-	virtual const int *GetViewPort() = 0;
+	const int *GetViewPort() const;
 
 	virtual void SetMouseState(RAS_MouseState mousestate) = 0;
 	virtual void SetMousePosition(int x, int y) = 0;
@@ -142,7 +139,7 @@ public:
 
 	virtual void MakeScreenShot(const std::string& filename) = 0;
 	/// Proceed the actual screenshot at the frame end.
-	void FlushScreenshots();
+	void FlushScreenshots(RAS_Rasterizer *rasty);
 
 	virtual void GetDisplayDimensions(int &width, int &height) = 0;
 
@@ -154,10 +151,10 @@ public:
 	virtual void SetFullScreen(bool enable) = 0;
 	virtual bool GetFullScreen() = 0;
 
-	RAS_Rasterizer *GetRasterizer()
-	{
-		return m_rasterizer;
-	}
+	/** Return the corresponding off screen to off screen type.
+	 * \param type The off screen type to return.
+	 */
+	RAS_OffScreen *GetOffScreen(RAS_OffScreen::Type type);
 
 protected:
 	/// Swap interval value of each swap control mode.
@@ -173,18 +170,23 @@ protected:
 		ImageFormatData *format;
 	};
 
-	std::vector<Screenshot> m_screenshots;
 
+	std::unique_ptr<RAS_OffScreen> m_offScreens[RAS_OffScreen::RAS_OFFSCREEN_MAX];
 	int m_samples;
-	RAS_Rasterizer::HdrType m_hdrType;
+	RAS_OffScreen::AttachmentList m_attachments;
+
+	/// Rect that defines the area used for rendering,
+	RAS_Rect m_area;
+	int m_viewport[4];
 
 	SwapControl m_swapControl;
 	RAS_MouseState m_mousestate;
+
+	std::vector<Screenshot> m_screenshots;
 	/// frame number for screenshots.
 	int m_frame;
 	TaskScheduler *m_taskscheduler;
 	TaskPool *m_taskpool;
-	RAS_Rasterizer *m_rasterizer;
 
 	/** Delay the screenshot to the frame end to use a valid buffer and avoid copy from an invalid buffer
 	 * at the frame begin after the buffer swap. The screenshot are proceeded in \see FlushScreenshots.
@@ -195,7 +197,10 @@ protected:
 	 * Saves screenshot data to a file. The actual compression and disk I/O is performed in
 	 * a separate thread.
 	 */
-	void SaveScreeshot(const Screenshot& screenshot);
+	void SaveScreeshot(const Screenshot& screenshot, RAS_Rasterizer *rasty);
+
+	/// Update dimensions of all off screens.
+	void UpdateOffScreens();
 };
 
 #endif  // __RAS_ICANVAS_H__

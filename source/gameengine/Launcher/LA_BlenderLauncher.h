@@ -57,7 +57,7 @@ protected:
 
 	virtual void RenderEngine();
 
-	virtual RAS_ICanvas *CreateCanvas(RAS_Rasterizer *rasty);
+	virtual RAS_ICanvas *CreateCanvas(RAS_Rasterizer *rasty, const RAS_OffScreen::AttachmentList& attachments);
 	virtual RAS_Rasterizer::DrawType GetRasterizerDrawMode();
 	virtual void InitCamera();
 

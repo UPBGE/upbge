@@ -131,7 +131,7 @@ bool RAS_2DFilterOffScreen::Update(RAS_ICanvas *canvas)
 
 void RAS_2DFilterOffScreen::Bind(RAS_Rasterizer *rasty)
 {
-	GPU_framebuffer_bind_all_attachments(m_frameBuffer);
+	GPU_framebuffer_bind_all_attachments(m_frameBuffer, m_colorSlots);
 
 	if (!(m_flag & RAS_VIEWPORT_SIZE)) {
 		rasty->SetViewport(0, 0, m_width, m_height);
