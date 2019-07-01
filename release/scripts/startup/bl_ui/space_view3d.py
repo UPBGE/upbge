@@ -3896,10 +3896,10 @@ class VIEW3D_MT_edit_mesh_normals(Menu):
         layout.operator("mesh.set_normals_from_faces", text="Set From Faces")
 
         layout.operator_context = 'INVOKE_DEFAULT'
-        layout.operator("transform.rotate_normal", text="Rotate")
+        layout.operator("transform.rotate_normal", text="Rotate...")
+        layout.operator("mesh.point_normals", text="Point to Target...")
         layout.operator_context = 'EXEC_DEFAULT'
 
-        layout.operator("mesh.point_normals", text="Point to Target")
         layout.operator("mesh.merge_normals", text="Merge")
         layout.operator("mesh.split_normals", text="Split")
         layout.menu("VIEW3D_MT_edit_mesh_normals_average", text="Average")
@@ -4567,6 +4567,9 @@ class VIEW3D_MT_edit_gpencil(Menu):
         layout.operator_menu_enum("gpencil.stroke_separate", "mode", text="Separate...")
         layout.operator("gpencil.stroke_split", text="Split")
         layout.operator("gpencil.stroke_merge", text="Merge")
+        op = layout.operator("gpencil.stroke_cyclical_set", text="Close")
+        op.type = 'CLOSE'
+        op.geometry = True
         layout.operator_menu_enum("gpencil.stroke_join", "type", text="Join...")
         layout.operator("gpencil.stroke_flip", text="Flip Direction")
 
@@ -6320,6 +6323,9 @@ class VIEW3D_MT_gpencil_edit_context_menu(Menu):
         layout.operator("gpencil.stroke_join", text="Join & Copy").type = 'JOINCOPY'
         layout.menu("GPENCIL_MT_separate", text="Separate")
         layout.operator("gpencil.stroke_split", text="Split")
+        op = layout.operator("gpencil.stroke_cyclical_set", text="Close")
+        op.type = 'CLOSE'
+        op.geometry = True
 
         layout.separator()
 

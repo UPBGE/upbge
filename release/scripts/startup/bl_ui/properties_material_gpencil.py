@@ -145,7 +145,7 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
                 if gpcolor.mode == 'LINE':
                     col.prop(gpcolor, "pixel_size", text="UV Factor")
 
-                col.prop(gpcolor, "use_stroke_pattern", text="Use As Pattern")
+                col.prop(gpcolor, "use_stroke_pattern", text="Use As Stencil Mask")
                 if gpcolor.use_stroke_pattern is False:
                     col.prop(gpcolor, "use_stroke_texture_mix", text="Mix Color")
                     if gpcolor.use_stroke_texture_mix is True:
@@ -215,7 +215,7 @@ class MATERIAL_PT_gpencil_fillcolor(GPMaterialButtonsPanel, Panel):
             col.template_ID(gpcolor, "fill_image", open="image.open")
 
             if gpcolor.fill_style == 'TEXTURE':
-                col.prop(gpcolor, "use_fill_pattern", text="Use As Pattern")
+                col.prop(gpcolor, "use_fill_pattern", text="Use As Stencil Mask")
                 if gpcolor.use_fill_pattern is True:
                     col.prop(gpcolor, "fill_color", text="Color")
 
