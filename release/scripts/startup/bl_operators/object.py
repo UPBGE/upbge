@@ -315,7 +315,7 @@ class SubdivisionSet(Operator):
 class ShapeTransfer(Operator):
     """Copy the active shape key of another selected object to this one"""
 
-    bl_idname = "object.shape_key_transfer_active"
+    bl_idname = "object.shape_key_transfer"
     bl_label = "Transfer Shape Key"
     bl_options = {'REGISTER', 'UNDO'}
 

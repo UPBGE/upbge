@@ -378,6 +378,7 @@ void WM_opengl_context_activate(void *context) RET_NONE
 void WM_opengl_context_release(void *context) RET_NONE
 bool WM_jobs_test(struct wmWindowManager *wm, void *owner, int job_type) RET_ZERO
 void *WM_jobs_customdata_get(struct wmJob *jobs) RET_NULL
+void WM_jobs_delay_start(struct wmJob *j, double delay_time) RET_NONE
 void RE_GetViewPlane(struct Render *re, rctf *r_viewplane, rcti *r_disprect) RET_NONE
 void RE_GetCameraWindow(struct Render *re, struct Object *camera, int frame, float mat[4][4]) RET_NONE
 void RE_GetCameraModelMatrix(struct Render *re, struct Object *camera, float r_mat[4][4]) RET_NONE
