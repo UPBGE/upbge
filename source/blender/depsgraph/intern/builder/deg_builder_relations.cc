@@ -200,6 +200,11 @@ static OperationCode bone_target_opcode(ID *target,
   return OperationCode::BONE_DONE;
 }
 
+static bool object_have_geometry_component(const Object *object)
+{
+  return ELEM(object->type, OB_MESH, OB_CURVE, OB_FONT, OB_SURF, OB_MBALL, OB_LATTICE, OB_GPENCIL);
+}
+
 /* **** General purpose functions ****  */
 
 DepsgraphRelationBuilder::DepsgraphRelationBuilder(Main *bmain,
@@ -745,6 +750,12 @@ void DepsgraphRelationBuilder::build_object_data(Object *object)
     ComponentKey key_key(&key->id, NodeType::GEOMETRY);
     add_relation(key_key, geometry_key, "Shapekeys");
     build_nested_shapekey(&object->id, key);
+  }
+  /* Materials. */
+  Material ***materials_ptr = give_matarar(object);
+  if (materials_ptr != NULL) {
+    short *num_materials_ptr = give_totcolp(object);
+    build_materials(*materials_ptr, *num_materials_ptr);
   }
 }
 
@@ -1929,14 +1940,7 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
     }
   }
   /* Materials. */
-  if (object->totcol) {
-    for (int a = 1; a <= object->totcol; a++) {
-      Material *ma = give_current_material(object, a);
-      if (ma != NULL) {
-        build_material(ma);
-      }
-    }
-  }
+  build_materials(object->mat, object->totcol);
   /* Geometry collision. */
   if (ELEM(object->type, OB_MESH, OB_CURVE, OB_LATTICE)) {
     // add geometry collider relations
@@ -1998,6 +2002,8 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
   OperationKey object_select_key(
       &object->id, NodeType::BATCH_CACHE, OperationCode::GEOMETRY_SELECT_UPDATE);
   add_relation(object_data_select_key, object_select_key, "Data Selection -> Object Selection");
+  add_relation(
+      geom_key, object_select_key, "Object Geometry -> Select Update", RELATION_FLAG_NO_FLUSH);
 }
 
 void DepsgraphRelationBuilder::build_object_data_geometry_datablock(ID *obdata)
@@ -2155,9 +2161,11 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
     else if (id_type == ID_OB) {
       build_object(NULL, (Object *)id);
       ComponentKey object_transform_key(id, NodeType::TRANSFORM);
-      ComponentKey object_geometry_key(id, NodeType::GEOMETRY);
       add_relation(object_transform_key, shading_key, "Object Transform -> Node");
-      add_relation(object_geometry_key, shading_key, "Object Geometry -> Node");
+      if (object_have_geometry_component(reinterpret_cast<Object *>(id))) {
+        ComponentKey object_geometry_key(id, NodeType::GEOMETRY);
+        add_relation(object_geometry_key, shading_key, "Object Geometry -> Node");
+      }
     }
     else if (id_type == ID_SCE) {
       Scene *node_scene = (Scene *)id;
@@ -2224,6 +2232,16 @@ void DepsgraphRelationBuilder::build_material(Material *material)
     OperationKey material_key(&material->id, NodeType::SHADING, OperationCode::MATERIAL_UPDATE);
     add_relation(ntree_key, material_key, "Material's NTree");
     build_nested_nodetree(&material->id, material->nodetree);
+  }
+}
+
+void DepsgraphRelationBuilder::build_materials(Material **materials, int num_materials)
+{
+  for (int i = 0; i < num_materials; ++i) {
+    if (materials[i] == NULL) {
+      continue;
+    }
+    build_material(materials[i]);
   }
 }
 

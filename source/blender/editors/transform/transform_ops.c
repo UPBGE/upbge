@@ -33,6 +33,7 @@
 #include "BKE_global.h"
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
+#include "BKE_layer.h"
 #include "BKE_scene.h"
 
 #include "RNA_access.h"
@@ -754,16 +755,6 @@ static void TRANSFORM_OT_resize(struct wmOperatorType *ot)
                            P_OPTIONS | P_GPENCIL_EDIT | P_CENTER);
 }
 
-static bool skin_resize_poll(bContext *C)
-{
-  struct Object *obedit = CTX_data_edit_object(C);
-  if (obedit && obedit->type == OB_MESH) {
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    return (em && CustomData_has_layer(&em->bm->vdata, CD_MVERT_SKIN));
-  }
-  return 0;
-}
-
 static void TRANSFORM_OT_skin_resize(struct wmOperatorType *ot)
 {
   /* identifiers */
@@ -777,7 +768,7 @@ static void TRANSFORM_OT_skin_resize(struct wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = skin_resize_poll;
+  ot->poll = ED_operator_editmesh;
   ot->poll_property = transform_poll_property;
 
   RNA_def_float_vector(
