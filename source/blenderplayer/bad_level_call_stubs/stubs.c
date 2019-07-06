@@ -704,6 +704,7 @@ struct bScreen *ED_screen_animation_no_scrub(const struct wmWindowManager *wm) R
 struct Scene *ED_screen_scene_find(const struct bScreen *screen, const struct wmWindowManager *wm) RET_NULL
 bool ED_scene_view_layer_delete(struct Main *bmain, Scene *scene, ViewLayer *layer, ReportList *reports) RET_ZERO
 void ED_object_base_select(struct Base *base, eObjectSelect_Mode mode) RET_NONE
+void ED_object_base_active_refresh(struct Main *bmain, struct Scene *scene, struct ViewLayer *view_layer) RET_NONE
 bool ED_object_modifier_remove(struct ReportList *reports, struct Main *bmain, struct Object *ob, struct ModifierData *md) RET_ZERO
 struct ModifierData *ED_object_modifier_add(struct ReportList *reports, struct Main *bmain, struct Scene *scene, struct Object *ob, const char *name, int type) RET_ZERO
 void ED_object_modifier_clear(struct Main *bmain, struct Object *ob) RET_NONE

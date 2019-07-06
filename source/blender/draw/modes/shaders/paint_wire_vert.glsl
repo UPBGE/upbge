@@ -32,17 +32,21 @@ void main()
 
 #ifdef USE_SELECT
   finalColor = (is_select) ? colSel : colorWire;
+  finalColor.a = nor.w;
 #else
 #  ifdef VERTEX_MODE
-  finalColor = colorWire;
+  finalColor.xyz = colorWire.xyz;
+  finalColor.a = 1.0;
 #  else
   /* Weight paint needs a light color to contrasts with dark weights. */
-  finalColor.xyz = vec3(0.8, 0.8, 0.8);
+  finalColor = vec4(1, 1, 1, 0.2);
 #  endif
 #endif
 
-  finalColor.a = nor.w;
+  /* Needed for Radeon (TM) RX 480 Graphics. */
+#if defined(GPU_ATI)
   gl_PointSize = sizeVertex * 2.0;
+#endif
 
 #ifdef USE_WORLD_CLIP_PLANES
   world_clip_planes_calc_clip_distance(world_pos);
