@@ -593,8 +593,8 @@ void WM_OT_collada_export(wmOperatorType *ot)
                   "apply_global_orientation",
                   false,
                   "Apply Global Orientation",
-                  "enabled: Rotate all root objects to match the global orientation "
-                  "settings.\ndisabled: set global orientation in Collada assets");
+                  "Rotate all root objects to match the global orientation settings "
+                  "otherwise set the global orientation per Collada asset");
 
   RNA_def_boolean(func, "selected", false, "Selection Only", "Export only selected elements");
 
@@ -726,8 +726,8 @@ void WM_OT_collada_export(wmOperatorType *ot)
               INT_MIN,
               INT_MAX,
               "Transform",
-              "Transformation type for translation, scale and rotation\n"
-              "Note: The Animation transformation type in the Anim Tab\n"
+              "Transformation type for translation, scale and rotation. "
+              "Note: The Animation transformation type in the Anim Tab "
               "is always equal to the Object transformation type in the Geom tab",
               INT_MIN,
               INT_MAX);
@@ -737,8 +737,8 @@ void WM_OT_collada_export(wmOperatorType *ot)
                prop_bc_export_transformation_type,
                0,
                "Transform",
-               "Transformation type for translation, scale and rotation\n"
-               "Note: The Animation transformation type in the Anim Tab\n"
+               "Transformation type for translation, scale and rotation. "
+               "Note: The Animation transformation type in the Anim Tab "
                "is always equal to the Object transformation type in the Geom tab");
 
   RNA_def_boolean(func,
