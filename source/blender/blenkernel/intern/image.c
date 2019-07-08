@@ -198,7 +198,7 @@ static void image_free_packedfiles(Image *ima)
   while (ima->packedfiles.last) {
     ImagePackedFile *imapf = ima->packedfiles.last;
     if (imapf->packedfile) {
-      freePackedFile(imapf->packedfile);
+      BKE_packedfile_free(imapf->packedfile);
     }
     BLI_remlink(&ima->packedfiles, imapf);
     MEM_freeN(imapf);
@@ -377,7 +377,7 @@ static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src)
     STRNCPY(imapf_dst->filepath, imapf_src->filepath);
 
     if (imapf_src->packedfile) {
-      imapf_dst->packedfile = dupPackedFile(imapf_src->packedfile);
+      imapf_dst->packedfile = BKE_packedfile_duplicate(imapf_src->packedfile);
     }
 
     BLI_addtail(lb_dst, imapf_dst);
@@ -617,6 +617,7 @@ static ImBuf *add_ibuf_size(unsigned int width,
   ImBuf *ibuf;
   unsigned char *rect = NULL;
   float *rect_float = NULL;
+  float fill_color[4];
 
   if (floatbuf) {
     ibuf = IMB_allocImBuf(width, height, depth, IB_rectfloat);
@@ -631,6 +632,15 @@ static ImBuf *add_ibuf_size(unsigned int width,
     if (ibuf != NULL) {
       rect_float = ibuf->rect_float;
       IMB_colormanagement_check_is_data(ibuf, colorspace_settings->name);
+    }
+
+    if (IMB_colormanagement_space_name_is_data(colorspace_settings->name)) {
+      copy_v4_v4(fill_color, color);
+    }
+    else {
+      /* The input color here should ideally be linear already, but for now
+       * we just convert and postpone breaking the API for later. */
+      srgb_to_linearrgb_v4(fill_color, color);
     }
   }
   else {
@@ -647,6 +657,8 @@ static ImBuf *add_ibuf_size(unsigned int width,
       rect = (unsigned char *)ibuf->rect;
       IMB_colormanagement_assign_rect_colorspace(ibuf, colorspace_settings->name);
     }
+
+    copy_v4_v4(fill_color, color);
   }
 
   if (!ibuf) {
@@ -663,7 +675,7 @@ static ImBuf *add_ibuf_size(unsigned int width,
       BKE_image_buf_fill_checker_color(rect, rect_float, width, height);
       break;
     default:
-      BKE_image_buf_fill_color(rect, rect_float, width, height, color);
+      BKE_image_buf_fill_color(rect, rect_float, width, height, fill_color);
       break;
   }
 
@@ -838,7 +850,7 @@ void BKE_image_packfiles(ReportList *reports, Image *ima, const char *basepath)
   if (totfiles == 1) {
     ImagePackedFile *imapf = MEM_mallocN(sizeof(ImagePackedFile), "Image packed file");
     BLI_addtail(&ima->packedfiles, imapf);
-    imapf->packedfile = newPackedFile(reports, ima->name, basepath);
+    imapf->packedfile = BKE_packedfile_new(reports, ima->name, basepath);
     if (imapf->packedfile) {
       STRNCPY(imapf->filepath, ima->name);
     }
@@ -852,7 +864,7 @@ void BKE_image_packfiles(ReportList *reports, Image *ima, const char *basepath)
       ImagePackedFile *imapf = MEM_mallocN(sizeof(ImagePackedFile), "Image packed file");
       BLI_addtail(&ima->packedfiles, imapf);
 
-      imapf->packedfile = newPackedFile(reports, iv->filepath, basepath);
+      imapf->packedfile = BKE_packedfile_new(reports, iv->filepath, basepath);
       if (imapf->packedfile) {
         STRNCPY(imapf->filepath, iv->filepath);
       }
@@ -876,7 +888,7 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
   else {
     ImagePackedFile *imapf = MEM_mallocN(sizeof(ImagePackedFile), __func__);
     BLI_addtail(&ima->packedfiles, imapf);
-    imapf->packedfile = newPackedFileMemory(data, data_len);
+    imapf->packedfile = BKE_packedfile_new_from_memory(data, data_len);
     STRNCPY(imapf->filepath, ima->name);
   }
 }
@@ -3241,9 +3253,9 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
           ImagePackedFile *imapf;
           for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next) {
             PackedFile *pf;
-            pf = newPackedFile(NULL, imapf->filepath, ID_BLEND_PATH(bmain, &ima->id));
+            pf = BKE_packedfile_new(NULL, imapf->filepath, ID_BLEND_PATH(bmain, &ima->id));
             if (pf) {
-              freePackedFile(imapf->packedfile);
+              BKE_packedfile_free(imapf->packedfile);
               imapf->packedfile = pf;
             }
             else {
@@ -4014,7 +4026,8 @@ static ImBuf *load_image_single(Image *ima,
         BLI_addtail(&ima->packedfiles, imapf);
 
         STRNCPY(imapf->filepath, filepath);
-        imapf->packedfile = newPackedFile(NULL, filepath, ID_BLEND_PATH_FROM_GLOBAL(&ima->id));
+        imapf->packedfile = BKE_packedfile_new(
+            NULL, filepath, ID_BLEND_PATH_FROM_GLOBAL(&ima->id));
       }
     }
   }

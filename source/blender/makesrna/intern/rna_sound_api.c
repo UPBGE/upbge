@@ -26,15 +26,15 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
+#include "BKE_packedFile.h"
+
 #include "rna_internal.h"
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_packedFile.h"
-
 static void rna_Sound_pack(bSound *sound, Main *bmain, ReportList *reports)
 {
-  sound->packedfile = newPackedFile(reports, sound->name, ID_BLEND_PATH(bmain, &sound->id));
+  sound->packedfile = BKE_packedfile_new(reports, sound->name, ID_BLEND_PATH(bmain, &sound->id));
 }
 
 static void rna_Sound_unpack(bSound *sound, Main *bmain, ReportList *reports, int method)
@@ -44,7 +44,7 @@ static void rna_Sound_unpack(bSound *sound, Main *bmain, ReportList *reports, in
   }
   else {
     /* reports its own error on failure */
-    unpackSound(bmain, reports, sound, method);
+    BKE_packedfile_unpack_sound(bmain, reports, sound, method);
   }
 }
 
