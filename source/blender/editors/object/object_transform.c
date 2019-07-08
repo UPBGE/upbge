@@ -465,6 +465,7 @@ static void ignore_parent_tx(Main *bmain, Depsgraph *depsgraph, Scene *scene, Ob
 {
   Object workob;
   Object *ob_child;
+  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
   /* a change was made, adjust the children to compensate */
   for (ob_child = bmain->objects.first; ob_child; ob_child = ob_child->id.next) {
@@ -475,6 +476,10 @@ static void ignore_parent_tx(Main *bmain, Depsgraph *depsgraph, Scene *scene, Ob
       invert_m4_m4(ob_child->parentinv, workob.obmat);
       /* Copy result of BKE_object_apply_mat4(). */
       BKE_object_transform_copy(ob_child, ob_child_eval);
+      /* Make sure evaluated object is in a consistent state with the original one.
+       * It might be needed for applying transform on its children. */
+      copy_m4_m4(ob_child_eval->parentinv, ob_child->parentinv);
+      BKE_object_eval_transform_all(depsgraph, scene_eval, ob_child_eval);
       /* Tag for update.
        * This is because parent matrix did change, so in theory the child object might now be
        * evaluated to a different location in another editing context. */
@@ -1221,8 +1226,10 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
           arm->id.tag |= LIB_TAG_DOIT;
           /* do_inverse_offset = true; */ /* docenter_armature() handles this */
 
-          BKE_object_where_is_calc(depsgraph, scene, ob);
-          BKE_pose_where_is(depsgraph, scene, ob); /* needed for bone parents */
+          Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+          BKE_object_transform_copy(ob_eval, ob);
+          BKE_object_where_is_calc(depsgraph, scene, ob_eval);
+          BKE_pose_where_is(depsgraph, scene, ob_eval); /* needed for bone parents */
 
           ignore_parent_tx(bmain, depsgraph, scene, ob);
 
@@ -1357,9 +1364,12 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
         add_v3_v3(ob->loc, centn);
 
-        BKE_object_where_is_calc(depsgraph, scene, ob);
+        Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+        BKE_object_transform_copy(ob_eval, ob);
+        BKE_object_where_is_calc(depsgraph, scene, ob_eval);
         if (ob->type == OB_ARMATURE) {
-          BKE_pose_where_is(depsgraph, scene, ob); /* needed for bone parents */
+          /* needed for bone parents */
+          BKE_pose_where_is(depsgraph, scene, ob_eval);
         }
 
         ignore_parent_tx(bmain, depsgraph, scene, ob);
@@ -1382,10 +1392,12 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
             mul_v3_mat3_m4v3(centn, ob_other->obmat, cent); /* omit translation part */
             add_v3_v3(ob_other->loc, centn);
 
-            BKE_object_where_is_calc(depsgraph, scene, ob_other);
+            Object *ob_other_eval = DEG_get_evaluated_object(depsgraph, ob_other);
+            BKE_object_transform_copy(ob_other_eval, ob_other);
+            BKE_object_where_is_calc(depsgraph, scene, ob_other_eval);
             if (ob_other->type == OB_ARMATURE) {
               /* needed for bone parents */
-              BKE_pose_where_is(depsgraph, scene, ob_other);
+              BKE_pose_where_is(depsgraph, scene, ob_other_eval);
             }
             ignore_parent_tx(bmain, depsgraph, scene, ob_other);
           }
