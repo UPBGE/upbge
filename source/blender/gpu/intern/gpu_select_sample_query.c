@@ -40,6 +40,8 @@
 
 #include "PIL_time.h"
 
+#include "BKE_global.h"
+
 #include "gpu_select_private.h"
 
 /* Ad hoc number of queries to allocate to skip doing many glGenQueries */
@@ -173,15 +175,8 @@ uint gpu_select_query_end(void)
 
   for (i = 0; i < g_query_state.active_query; i++) {
     uint result = 0;
-    /* Wait until the result is available. */
-    while (result == 0) {
-      glGetQueryObjectuiv(g_query_state.queries[i], GL_QUERY_RESULT_AVAILABLE, &result);
-      if (result == 0) {
-        /* (fclem) Not sure if this is better than calling
-         * glGetQueryObjectuiv() indefinitely. */
-        PIL_sleep_ms(1);
-      }
-    }
+    /* We are not using GL_QUERY_RESULT_AVAILABLE and sleep to wait for results,
+     * because it causes lagging on Windows/NVIDIA, see T61474. */
     glGetQueryObjectuiv(g_query_state.queries[i], GL_QUERY_RESULT, &result);
     if (result > 0) {
       if (g_query_state.mode != GPU_SELECT_NEAREST_SECOND_PASS) {
