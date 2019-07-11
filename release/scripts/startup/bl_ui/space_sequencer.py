@@ -222,10 +222,11 @@ class SEQUENCER_MT_view(Menu):
             layout.menu("SEQUENCER_MT_range")
 
             layout.separator()
-
+            layout.operator_context = 'INVOKE_REGION_WIN'
             layout.operator("sequencer.refresh_all", icon='FILE_REFRESH', text="Refresh All")
 
             layout.separator()
+            layout.operator_context = 'INVOKE_DEFAULT'
 
         if is_preview:
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
@@ -557,7 +558,7 @@ class SEQUENCER_MT_strip_transform(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("transform.transform", text="Move").mode = 'TRANSLATION'
+        layout.operator("transform.seq_slide", text="Move")
         layout.operator("transform.transform", text="Move/Extend from Playhead").mode = 'TIME_EXTEND'
         layout.operator("sequencer.slip", text="Slip Strip Contents")
 
@@ -1337,15 +1338,26 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
         frame_current = scene.frame_current
         strip = act_strip(context)
 
+        is_effect = isinstance(strip, bpy.types.EffectSequence)
+
+        # Get once.
+        frame_start = strip.frame_start
+        frame_final_start = strip.frame_final_start
+        frame_final_end = strip.frame_final_end
+        frame_final_duration = strip.frame_final_duration
+        frame_offset_start = strip.frame_offset_start
+        frame_offset_end = strip.frame_offset_end
+
+
         length_list = (
-            str(strip.frame_start),
-            str(strip.frame_final_end),
-            str(strip.frame_final_duration),
-            str(strip.frame_offset_start),
-            str(strip.frame_offset_end),
+            str(frame_start),
+            str(frame_final_end),
+            str(frame_final_duration),
+            str(frame_offset_start),
+            str(frame_offset_end),
         )
 
-        if not isinstance(strip, bpy.types.EffectSequence):
+        if not is_effect:
             length_list = length_list + (
                 str(strip.animation_offset_start),
                 str(strip.animation_offset_end),
@@ -1360,26 +1372,31 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
         sub = layout.row(align=True)
         split = sub.split(factor=0.5 + max_factor)
         split.alignment = 'RIGHT'
-        split.label(text='Channel')
+        split.label(text="Channel")
         split.prop(strip, "channel", text="")
 
         sub = layout.column(align=True)
         split = sub.split(factor=0.5 + max_factor, align=True)
         split.alignment = 'RIGHT'
         split.label(text="Start")
-        split.prop(strip, "frame_final_start", text=smpte_from_frame(strip.frame_final_start))
-
-        split = sub.split(factor=0.5 + max_factor, align=True)
-        split.alignment = 'RIGHT'
-        split.label(text="End")
-        split.prop(strip, "frame_final_end", text=smpte_from_frame(strip.frame_final_end))
+        split.prop(strip, "frame_start", text=smpte_from_frame(frame_start))
 
         split = sub.split(factor=0.5 + max_factor, align=True)
         split.alignment = 'RIGHT'
         split.label(text="Duration")
-        split.prop(strip, "frame_final_duration", text=smpte_from_frame(strip.frame_final_duration))
+        split.prop(strip, "frame_final_duration", text=smpte_from_frame(frame_final_duration))
 
-        if not isinstance(strip, bpy.types.EffectSequence):
+        # Use label, editing this value from the UI allows negative values,
+        # users can adjust duration.
+        split = sub.split(factor=0.5 + max_factor, align=True)
+        split.alignment = 'RIGHT'
+        split.label(text="End")
+        split = split.split(factor=0.8 + max_factor, align=True)
+        split.label(text="{:>14}".format(smpte_from_frame(frame_final_end) + ":"))
+        split.alignment = 'RIGHT'
+        split.label(text=str(frame_final_end) + " ")
+
+        if not is_effect:
 
             layout.alignment = 'RIGHT'
             sub = layout.column(align=True)
@@ -1387,12 +1404,12 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
             split = sub.split(factor=0.5 + max_factor, align=True)
             split.alignment = 'RIGHT'
             split.label(text="Strip Offset Start")
-            split.prop(strip, "frame_offset_start", text=smpte_from_frame(strip.frame_offset_start))
+            split.prop(strip, "frame_offset_start", text=smpte_from_frame(frame_offset_start))
 
             split = sub.split(factor=0.5 + max_factor, align=True)
             split.alignment = 'RIGHT'
-            split.label(text='End')
-            split.prop(strip, "frame_offset_end", text=smpte_from_frame(strip.frame_offset_end))
+            split.label(text="End")
+            split.prop(strip, "frame_offset_end", text=smpte_from_frame(frame_offset_end))
 
             layout.alignment = 'RIGHT'
             sub = layout.column(align=True)
@@ -1404,22 +1421,22 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
 
             split = sub.split(factor=0.5 + max_factor, align=True)
             split.alignment = 'RIGHT'
-            split.label(text='End')
+            split.label(text="End")
             split.prop(strip, "animation_offset_end", text=smpte_from_frame(strip.animation_offset_end))
 
         col = layout.column(align=True)
         col = col.box()
         col.active = (
-            (frame_current >= strip.frame_final_start) and
-            (frame_current <= strip.frame_final_start + strip.frame_final_duration)
+            (frame_current >= frame_final_start) and
+            (frame_current <= frame_final_start + frame_final_duration)
         )
 
         split = col.split(factor=0.5 + max_factor, align=True)
         split.alignment = 'RIGHT'
         split.label(text="Playhead")
         split = split.split(factor=0.8 + max_factor, align=True)
-        playhead = frame_current - strip.frame_final_start
-        split.label(text='{:>14}'.format(smpte_from_frame(playhead) + ":"))
+        playhead = frame_current - frame_final_start
+        split.label(text="{:>14}".format(smpte_from_frame(playhead) + ":"))
         split.alignment = 'RIGHT'
         split.label(text=str(playhead) + " ")
 

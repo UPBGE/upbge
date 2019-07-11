@@ -409,6 +409,7 @@ void AbcGenericMeshWriter::writeMesh(struct Mesh *mesh)
 {
   std::vector<Imath::V3f> points, normals;
   std::vector<int32_t> poly_verts, loop_counts;
+  std::vector<Imath::V3f> velocities;
 
   bool smooth_normal = false;
 
@@ -458,9 +459,7 @@ void AbcGenericMeshWriter::writeMesh(struct Mesh *mesh)
   }
 
   if (m_is_liquid) {
-    std::vector<Imath::V3f> velocities;
     getVelocities(mesh, velocities);
-
     m_mesh_sample.setVelocities(V3fArraySample(velocities));
   }
 
@@ -1123,7 +1122,9 @@ Mesh *AbcMeshReader::read_mesh(Mesh *existing_mesh,
     sample = m_schema.getValue(sample_sel);
   }
   catch (Alembic::Util::Exception &ex) {
-    *err_str = "Error reading mesh sample; more detail on the console";
+    if (err_str != nullptr) {
+      *err_str = "Error reading mesh sample; more detail on the console";
+    }
     printf("Alembic: error reading mesh sample for '%s/%s' at time %f: %s\n",
            m_iobject.getFullName().c_str(),
            m_schema.getName().c_str(),
@@ -1418,7 +1419,9 @@ Mesh *AbcSubDReader::read_mesh(Mesh *existing_mesh,
     sample = m_schema.getValue(sample_sel);
   }
   catch (Alembic::Util::Exception &ex) {
-    *err_str = "Error reading mesh sample; more detail on the console";
+    if (err_str != nullptr) {
+      *err_str = "Error reading mesh sample; more detail on the console";
+    }
     printf("Alembic: error reading mesh sample for '%s/%s' at time %f: %s\n",
            m_iobject.getFullName().c_str(),
            m_schema.getName().c_str(),
