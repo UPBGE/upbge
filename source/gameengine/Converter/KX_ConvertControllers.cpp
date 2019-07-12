@@ -163,7 +163,7 @@ void BL_ConvertControllers(
 					{
 						char *buf;
 						// this is some blender specific code
-						buf= txt_to_buf(pycont->text);
+						buf= txt_to_buf(pycont->text, nullptr);
 						if (buf)
 						{
 							pyctrl->SetScriptText(std::string(buf));
