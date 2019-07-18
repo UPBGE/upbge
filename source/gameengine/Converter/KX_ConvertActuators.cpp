@@ -36,6 +36,11 @@
 
 #include <math.h>
 
+extern "C" {
+#include "BKE_global.h"
+#include "BKE_sound.h"
+}
+
 #include "MEM_guardedalloc.h"
 
 #include "KX_BlenderSceneConverter.h"
@@ -354,6 +359,7 @@ void BL_ConvertActuators(const char* maggiename,
 					else
 					{
 #ifdef WITH_AUDASPACE
+						BKE_sound_load(G_MAIN, sound);
 						snd_sound = sound->playback_handle;
 
 						// if sound shall be 3D but isn't mono, we have to make it mono!
