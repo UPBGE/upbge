@@ -1259,7 +1259,9 @@ static void draw_view_matrix_state_update(DRWViewUboStorage *storage,
    * By convention, the winmat is negative because
    * looking through the -Z axis. So this inverse the
    * changes the test for the winmat. */
-  BLI_assert(is_negative_m4(viewmat) == !is_negative_m4(winmat));
+  if (!(DST.draw_ctx.scene->flag & SCE_INTERACTIVE)) {
+    BLI_assert(is_negative_m4(viewmat) == !is_negative_m4(winmat));
+  }
 
   copy_m4_m4(storage->viewmat, viewmat);
   invert_m4_m4(storage->viewinv, storage->viewmat);
