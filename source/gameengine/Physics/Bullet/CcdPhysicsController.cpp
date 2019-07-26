@@ -50,6 +50,9 @@
 extern "C" {
 	#include "BLI_utildefines.h"
 	#include "BKE_cdderivedmesh.h"
+    #include "BKE_mesh_runtime.h"
+    #include "BKE_layer.h"
+    #include "BKE_scene.h"
 }
 
 
@@ -1643,6 +1646,20 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, R
 	return true;
 }
 
+bool CcdPhysicsController::ReinstancePhysicsShape2(RAS_MeshObject *meshobj, Object *ob)
+{
+  if (m_shapeInfo->m_shapeType != PHY_SHAPE_MESH)
+    return false;
+
+  /* updates the arrays used for making the new bullet mesh */
+  m_shapeInfo->SetMesh2(meshobj, ob);
+
+  /* create the new bullet mesh */
+  GetPhysicsEnvironment()->UpdateCcdPhysicsControllerShape(m_shapeInfo);
+
+  return true;
+}
+
 void CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
 {
 	CcdShapeConstructionInfo *shapeInfo = ((CcdPhysicsController *)phyctrl)->GetShapeInfo();
@@ -2056,6 +2073,241 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 
 	// sharing only on static mesh at present, if you change that, you must also change in FindMesh
 	if (!polytope && !dm) {
+		// triangle shape can be shared, store the mesh object in the map
+		m_meshShapeMap.insert(std::pair<RAS_MeshObject *, CcdShapeConstructionInfo *>(meshobj, this));
+	}
+	return true;
+
+cleanup_empty_mesh:
+	m_shapeType = PHY_SHAPE_NONE;
+	m_meshObject = nullptr;
+	m_vertexArray.clear();
+	m_polygonIndexArray.clear();
+	m_triFaceArray.clear();
+	m_triFaceUVcoArray.clear();
+	if (free_dm) {
+		dm->release(dm);
+	}
+	return false;
+}
+
+bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob)
+{
+  int numpolys, numverts;
+
+  // assume no shape information
+  // no support for dynamic change of shape yet
+  BLI_assert(IsUnused());
+  m_shapeType = PHY_SHAPE_NONE;
+  m_meshObject = nullptr;
+  bool free_dm = false;
+
+  // No mesh object or mesh has no polys
+  if (!meshobj || !meshobj->HasColliderPolygon()) {
+    m_vertexArray.clear();
+    m_polygonIndexArray.clear();
+	m_triFaceArray.clear();
+	m_triFaceUVcoArray.clear();
+	return false;
+  }
+  free_dm = true;
+  Scene *scene = KX_GetActiveScene()->GetBlenderScene();
+  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
+
+  DerivedMesh *dm = mesh_get_derived_final(depsgraph, scene, ob, &CD_MASK_MESH);
+
+	// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
+	DM_ensure_tessface(dm);
+
+	MVert *mvert = dm->getVertArray(dm);
+	MFace *mface = dm->getTessFaceArray(dm);
+	numpolys = dm->getNumTessFaces(dm);
+	numverts = dm->getNumVerts(dm);
+	MTFace *tface = (MTFace *)dm->getTessFaceDataArray(dm, CD_MTFACE);
+
+	/* double lookup */
+	const int *index_mf_to_mpoly = (const int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
+	const int *index_mp_to_orig  = (const int *)dm->getPolyDataArray(dm, CD_ORIGINDEX);
+	if (!index_mf_to_mpoly) {
+		index_mp_to_orig = nullptr;
+	}
+
+	m_shapeType = PHY_SHAPE_MESH;
+
+	// Convert blender geometry into bullet mesh, need these vars for mapping
+	std::vector<bool> vert_tag_array(numverts, false);
+	unsigned int tot_bt_verts = 0;
+
+	if (1) {
+		unsigned int tot_bt_tris = 0;
+		std::vector<int> vert_remap_array(numverts, 0);
+
+		// Tag verts we're using
+		for (int p2 = 0; p2 < numpolys; p2++) {
+			MFace *mf = &mface[p2];
+			const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) : p2;
+			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
+
+			// only add polygons that have the collision flag set
+			if (poly && poly->IsCollider()) {
+				if (!vert_tag_array[mf->v1]) {
+					vert_tag_array[mf->v1] = true;
+					vert_remap_array[mf->v1] = tot_bt_verts;
+					tot_bt_verts++;
+				}
+				if (!vert_tag_array[mf->v2]) {
+					vert_tag_array[mf->v2] = true;
+					vert_remap_array[mf->v2] = tot_bt_verts;
+					tot_bt_verts++;
+				}
+				if (!vert_tag_array[mf->v3]) {
+					vert_tag_array[mf->v3] = true;
+					vert_remap_array[mf->v3] = tot_bt_verts;
+					tot_bt_verts++;
+				}
+				if (mf->v4 && !vert_tag_array[mf->v4]) {
+					vert_tag_array[mf->v4] = true;
+					vert_remap_array[mf->v4] = tot_bt_verts;
+					tot_bt_verts++;
+				}
+				tot_bt_tris += (mf->v4 ? 2 : 1); /* a quad or a tri */
+			}
+		}
+
+		/* Can happen with ngons */
+		if (!tot_bt_verts) {
+			goto cleanup_empty_mesh;
+		}
+
+		m_vertexArray.resize(tot_bt_verts * 3);
+		m_polygonIndexArray.resize(tot_bt_tris);
+		m_triFaceArray.resize(tot_bt_tris * 3);
+		btScalar *bt = &m_vertexArray[0];
+		int *poly_index_pt = &m_polygonIndexArray[0];
+		int *tri_pt = &m_triFaceArray[0];
+
+		UVco *uv_pt = nullptr;
+		if (tface) {
+			m_triFaceUVcoArray.resize(tot_bt_tris * 3);
+			uv_pt = &m_triFaceUVcoArray[0];
+		}
+		else
+			m_triFaceUVcoArray.clear();
+
+		for (int p2 = 0; p2 < numpolys; p2++) {
+			MFace *mf = &mface[p2];
+			MTFace *tf = (tface) ? &tface[p2] : nullptr;
+			const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) : p2;
+			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
+
+			// only add polygons that have the collisionflag set
+			if (poly && poly->IsCollider()) {
+				MVert *v1 = &mvert[mf->v1];
+				MVert *v2 = &mvert[mf->v2];
+				MVert *v3 = &mvert[mf->v3];
+
+				// the face indices
+				tri_pt[0] = vert_remap_array[mf->v1];
+				tri_pt[1] = vert_remap_array[mf->v2];
+				tri_pt[2] = vert_remap_array[mf->v3];
+				tri_pt = tri_pt + 3;
+				if (tf) {
+					uv_pt[0].uv[0] = tf->uv[0][0];
+					uv_pt[0].uv[1] = tf->uv[0][1];
+					uv_pt[1].uv[0] = tf->uv[1][0];
+					uv_pt[1].uv[1] = tf->uv[1][1];
+					uv_pt[2].uv[0] = tf->uv[2][0];
+					uv_pt[2].uv[1] = tf->uv[2][1];
+					uv_pt += 3;
+				}
+
+				// m_polygonIndexArray
+				*poly_index_pt = origi;
+				poly_index_pt++;
+
+				// the vertex location
+				if (vert_tag_array[mf->v1]) { /* *** v1 *** */
+					vert_tag_array[mf->v1] = false;
+					*bt++ = v1->co[0];
+					*bt++ = v1->co[1];
+					*bt++ = v1->co[2];
+				}
+				if (vert_tag_array[mf->v2]) { /* *** v2 *** */
+					vert_tag_array[mf->v2] = false;
+					*bt++ = v2->co[0];
+					*bt++ = v2->co[1];
+					*bt++ = v2->co[2];
+				}
+				if (vert_tag_array[mf->v3]) { /* *** v3 *** */
+					vert_tag_array[mf->v3] = false;
+					*bt++ = v3->co[0];
+					*bt++ = v3->co[1];
+					*bt++ = v3->co[2];
+				}
+
+				if (mf->v4) {
+					MVert *v4 = &mvert[mf->v4];
+
+					tri_pt[0] = vert_remap_array[mf->v1];
+					tri_pt[1] = vert_remap_array[mf->v3];
+					tri_pt[2] = vert_remap_array[mf->v4];
+					tri_pt = tri_pt + 3;
+					if (tf) {
+						uv_pt[0].uv[0] = tf->uv[0][0];
+						uv_pt[0].uv[1] = tf->uv[0][1];
+						uv_pt[1].uv[0] = tf->uv[2][0];
+						uv_pt[1].uv[1] = tf->uv[2][1];
+						uv_pt[2].uv[0] = tf->uv[3][0];
+						uv_pt[2].uv[1] = tf->uv[3][1];
+						uv_pt += 3;
+					}
+
+					// m_polygonIndexArray
+					*poly_index_pt = origi;
+					poly_index_pt++;
+
+					// the vertex location
+					if (vert_tag_array[mf->v4]) { // *** v4 ***
+						vert_tag_array[mf->v4] = false;
+						*bt++ = v4->co[0];
+						*bt++ = v4->co[1];
+						*bt++ = v4->co[2];
+					}
+				}
+			}
+		}
+
+	// If this ever gets confusing, print out an OBJ file for debugging
+#if 0
+		CM_Debug("# vert count " << m_vertexArray.size());
+		for (i = 0; i < m_vertexArray.size(); i += 1) {
+			CM_Debug("v " << m_vertexArray[i].x() << " " << m_vertexArray[i].y() << " " << m_vertexArray[i].z());
+		}
+
+		CM_Debug("# face count " << m_triFaceArray.size());
+		for (i = 0; i < m_triFaceArray.size(); i += 3) {
+			CM_Debug("f " << m_triFaceArray[i] + 1 << " " <<  m_triFaceArray[i + 1] + 1 << " " <<  m_triFaceArray[i + 2] + 1);
+		}
+#endif
+	}
+
+#if 0
+	if (validpolys == false) {
+		// should not happen
+		m_shapeType = PHY_SHAPE_NONE;
+		return false;
+	}
+#endif
+
+	m_meshObject = meshobj;
+	if (free_dm) {
+		dm->release(dm);
+		dm = nullptr;
+	}
+
+	// sharing only on static mesh at present, if you change that, you must also change in FindMesh
+	if (!dm) {
 		// triangle shape can be shared, store the mesh object in the map
 		m_meshShapeMap.insert(std::pair<RAS_MeshObject *, CcdShapeConstructionInfo *>(meshobj, this));
 	}

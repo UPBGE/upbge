@@ -3030,3 +3030,94 @@ MFace *DM_get_tessface_array(DerivedMesh *dm, bool *r_allocated)
 
 	return mface;
 }
+
+/* Game engine transition */
+static void mesh_build_derived_data(struct Depsgraph *depsgraph,
+                            Scene *scene,
+                            Object *ob,
+                            const CustomData_MeshMasks *dataMask,
+                            const bool need_mapping)
+{
+  BLI_assert(ob->type == OB_MESH);
+
+  /* Evaluated meshes aren't supposed to be created on original instances. If you do,
+   * they aren't cleaned up properly on mode switch, causing crashes, e.g T58150. */
+  BLI_assert(ob->id.tag & LIB_TAG_COPIED_ON_WRITE);
+
+  BKE_object_free_derived_caches2(ob);
+  if (DEG_is_active(depsgraph)) {
+    BKE_sculpt_update_object_before_eval(ob);
+  }
+
+#if 0 /* XXX This is already taken care of in mesh_calc_modifiers()... */
+  if (need_mapping) {
+    /* Also add the flag so that it is recorded in lastDataMask. */
+    dataMask->vmask |= CD_MASK_ORIGINDEX;
+    dataMask->emask |= CD_MASK_ORIGINDEX;
+    dataMask->pmask |= CD_MASK_ORIGINDEX;
+  }
+#endif
+
+  mesh_calc_modifiers(depsgraph,
+                      scene,
+                      ob,
+                      1,
+                      need_mapping,
+                      dataMask,
+                      -1,
+                      true,
+                      true,
+                      &ob->runtime.mesh_deform_eval,
+                      &ob->runtime.mesh_eval);
+
+  ob->derivedDeform = CDDM_from_mesh_ex(ob->runtime.mesh_deform_eval, CD_REFERENCE, &CD_MASK_MESH);
+	ob->derivedFinal = CDDM_from_mesh_ex(ob->runtime.mesh_eval, CD_REFERENCE, &CD_MASK_MESH);
+
+  BKE_object_boundbox_calc_from_mesh(ob, ob->runtime.mesh_eval);
+  /* Only copy texspace from orig mesh if some modifier (hint: smoke sim, see T58492)
+   * did not re-enable that flag (which always get disabled for eval mesh as a start). */
+  if (!(ob->runtime.mesh_eval->texflag & ME_AUTOSPACE)) {
+    BKE_mesh_texspace_copy_from_object(ob->runtime.mesh_eval, ob);
+  }
+
+  assign_object_mesh_eval(ob);
+
+  ob->runtime.last_data_mask = *dataMask;
+  ob->runtime.last_need_mapping = need_mapping;
+
+  if ((ob->mode & OB_MODE_ALL_SCULPT) && ob->sculpt) {
+    if (DEG_is_active(depsgraph)) {
+      BKE_sculpt_update_object_after_eval(depsgraph, ob);
+    }
+  }
+
+  if (ob->runtime.mesh_eval != NULL) {
+    mesh_runtime_check_normals_valid(ob->runtime.mesh_eval);
+  }
+  mesh_build_extra_data(depsgraph, ob);
+}
+
+DerivedMesh *mesh_get_derived_final(
+  struct Depsgraph *depsgraph, Scene *scene, Object *ob, const CustomData_MeshMasks *dataMask)
+{
+   /* This function isn't thread-safe and can't be used during evaluation. */
+  BLI_assert(DEG_debug_is_evaluating(depsgraph) == false);
+
+  /* Evaluated meshes aren't supposed to be created on original instances. If you do,
+   * they aren't cleaned up properly on mode switch, causing crashes, e.g T58150. */
+  BLI_assert(ob->id.tag & LIB_TAG_COPIED_ON_WRITE);
+
+  /* if there's no evaluated mesh or the last data mask used doesn't include
+   * the data we need, rebuild the derived mesh
+   */
+  bool need_mapping;
+  CustomData_MeshMasks cddata_masks = *dataMask;
+  object_get_datamask(depsgraph, ob, &cddata_masks, &need_mapping);
+  CustomData_MeshMasks_update(&cddata_masks, &ob->runtime.last_data_mask);
+  mesh_build_derived_data(
+      depsgraph, scene, ob, &cddata_masks, need_mapping || ob->runtime.last_need_mapping);
+
+  return ob->derivedFinal;
+}
+
+/* End of Game engine transition */

@@ -4550,3 +4550,56 @@ void BKE_object_to_mesh_clear(Object *object)
   BKE_id_free(NULL, object->runtime.object_as_temp_mesh);
   object->runtime.object_as_temp_mesh = NULL;
 }
+
+/* Game engine transition */
+
+void BKE_object_free_derived_caches2(Object *ob)
+{
+  MEM_SAFE_FREE(ob->runtime.bb);
+
+  object_update_from_subsurf_ccg(ob);
+  //BKE_object_free_derived_mesh_caches(ob);
+
+  if (ob->derivedFinal) {
+    ob->derivedFinal->needsFree = 1;
+    //ob->derivedFinal->release(ob->derivedFinal);
+    ob->derivedFinal = NULL;
+  }
+  if (ob->derivedDeform) {
+    ob->derivedDeform->needsFree = 1;
+    ob->derivedDeform->release(ob->derivedDeform);
+    ob->derivedDeform = NULL;
+  }
+
+  /* Restore initial pointer. */
+  if (ob->runtime.mesh_orig != NULL) {
+    ob->data = ob->runtime.mesh_orig;
+  }
+
+  if (ob->runtime.mesh_eval != NULL) {
+    if (ob->runtime.is_mesh_eval_owned) {
+      Mesh *mesh_eval = ob->runtime.mesh_eval;
+      /* Evaluated mesh points to edit mesh, but does not own it. */
+      mesh_eval->edit_mesh = NULL;
+      BKE_mesh_free(mesh_eval);
+      BKE_libblock_free_data(&mesh_eval->id, false);
+      MEM_freeN(mesh_eval);
+    }
+    ob->runtime.mesh_eval = NULL;
+  }
+  if (ob->runtime.mesh_deform_eval != NULL) {
+    Mesh *mesh_deform_eval = ob->runtime.mesh_deform_eval;
+    BKE_mesh_free(mesh_deform_eval);
+    BKE_libblock_free_data(&mesh_deform_eval->id, false);
+    MEM_freeN(mesh_deform_eval);
+    ob->runtime.mesh_deform_eval = NULL;
+  }
+
+  BKE_object_to_mesh_clear(ob);
+  BKE_object_free_curve_cache(ob);
+
+  /* clear grease pencil data */
+  DRW_gpencil_freecache(ob);
+}
+
+/* End of Game engine transition */

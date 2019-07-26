@@ -1727,6 +1727,7 @@ PyMethodDef KX_GameObject::Methods[] = {
     {"endObject", (PyCFunction)KX_GameObject::sPyEndObject, METH_NOARGS},
     {"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh, METH_VARARGS},
     {"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_O},
+    {"updatePhysicsShape", (PyCFunction)KX_GameObject::sPyUpdatePhysicsShape, METH_NOARGS},
 
     KX_PYMETHODTABLE(KX_GameObject, rayCastTo),
     KX_PYMETHODTABLE(KX_GameObject, rayCast),
@@ -1911,6 +1912,16 @@ PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
   }
 
   GetPhysicsController()->ReplacePhysicsShape(gameobj->GetPhysicsController());
+  Py_RETURN_NONE;
+}
+
+PyObject *KX_GameObject::PyUpdatePhysicsShape()
+{
+  if (GetPhysicsController()) {
+
+    GetPhysicsController()->ReinstancePhysicsShape2(GetMesh(0), GetBlenderObject());
+	Py_RETURN_NONE;
+  }
   Py_RETURN_NONE;
 }
 
