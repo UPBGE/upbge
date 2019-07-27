@@ -229,6 +229,9 @@ void depsgraph_tag_to_component_opcode(const ID *id,
     case ID_RECALC_PARAMETERS:
       *component_type = NodeType::PARAMETERS;
       break;
+    case ID_RECALC_TIME:
+      BLI_assert(!"Should be handled outside of this function");
+      break;
     case ID_RECALC_ALL:
     case ID_RECALC_PSYS_ALL:
       BLI_assert(!"Should not happen");
@@ -360,6 +363,12 @@ static void graph_id_tag_update_single_flag(Main *bmain,
     }
     return;
   }
+  else if (tag == ID_RECALC_TIME) {
+    if (graph != NULL) {
+      graph->need_update_time = true;
+    }
+    return;
+  }
   /* Get description of what is to be tagged. */
   NodeType component_type;
   OperationCode operation_code;
@@ -438,6 +447,24 @@ const char *update_source_as_string(eUpdateSource source)
   return "UNKNOWN";
 }
 
+int deg_recalc_flags_for_legacy_zero()
+{
+  return ID_RECALC_ALL & ~(ID_RECALC_PSYS_ALL | ID_RECALC_ANIMATION);
+}
+
+int deg_recalc_flags_effective(Depsgraph *graph, int flags)
+{
+  if (graph != NULL) {
+    if (!graph->is_active) {
+      return 0;
+    }
+  }
+  if (flags == 0) {
+    return deg_recalc_flags_for_legacy_zero();
+  }
+  return flags;
+}
+
 /* Special tag function which tags all components which needs to be tagged
  * for update flag=0.
  *
@@ -453,7 +480,7 @@ void deg_graph_node_tag_zero(Main *bmain,
   }
   ID *id = id_node->id_orig;
   /* TODO(sergey): Which recalc flags to set here? */
-  id_node->id_cow->recalc |= ID_RECALC_ALL & ~(ID_RECALC_PSYS_ALL | ID_RECALC_ANIMATION);
+  id_node->id_cow->recalc |= deg_recalc_flags_for_legacy_zero();
   GHASH_FOREACH_BEGIN (ComponentNode *, comp_node, id_node->components) {
     if (comp_node->type == NodeType::ANIMATION) {
       continue;
@@ -598,6 +625,16 @@ void graph_id_tag_update(
   if (id_node != NULL) {
     id_node->id_cow->recalc |= flag;
   }
+  /* When ID is tagged for update based on an user edits store the recalc flags in the original ID.
+   * This way IDs in the undo steps will have this flag preserved, making it possible to restore
+   * all needed tags when new dependency graph is created on redo.
+   * This is the only way to ensure modifications to animation data (such as keyframes i.e.)
+   * properly triggers animation update for the newely constructed dependency graph on redo (while
+   * usually newly created dependency graph skips animation update to avoid loss of unkeyed
+   * changes). */
+  if (update_source == DEG_UPDATE_SOURCE_USER_EDIT) {
+    id->recalc |= deg_recalc_flags_effective(graph, flag);
+  }
   int current_flag = flag;
   while (current_flag != 0) {
     IDRecalcFlag tag = (IDRecalcFlag)(1 << bitscan_forward_clear_i(&current_flag));
@@ -664,6 +701,8 @@ const char *DEG_update_tag_as_string(IDRecalcFlag flag)
       return "AUDIO";
     case ID_RECALC_PARAMETERS:
       return "PARAMETERS";
+    case ID_RECALC_TIME:
+      return "TIME";
     case ID_RECALC_ALL:
       return "ALL";
   }
@@ -768,6 +807,16 @@ void DEG_ids_check_recalc(
   DEG::deg_editors_scene_update(&update_ctx, updated);
 }
 
+static void deg_graph_clear_id_recalc_flags(ID *id)
+{
+  id->recalc &= ~ID_RECALC_ALL;
+  bNodeTree *ntree = ntreeFromID(id);
+  /* Clear embedded node trees too. */
+  if (ntree) {
+    ntree->id.recalc &= ~ID_RECALC_ALL;
+  }
+}
+
 static void deg_graph_clear_id_node_func(void *__restrict data_v,
                                          const int i,
                                          const ParallelRangeTLS *__restrict /*tls*/)
@@ -779,12 +828,10 @@ static void deg_graph_clear_id_node_func(void *__restrict data_v,
   DEG::IDNode *id_node = deg_graph->id_nodes[i];
 
   id_node->is_user_modified = false;
-  id_node->id_cow->recalc &= ~ID_RECALC_ALL;
 
-  /* Clear embedded node trees too. */
-  bNodeTree *ntree_cow = ntreeFromID(id_node->id_cow);
-  if (ntree_cow) {
-    ntree_cow->id.recalc &= ~ID_RECALC_ALL;
+  deg_graph_clear_id_recalc_flags(id_node->id_cow);
+  if (deg_graph->is_active) {
+    deg_graph_clear_id_recalc_flags(id_node->id_orig);
   }
 }
 
