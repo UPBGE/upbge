@@ -27,6 +27,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
+#include "BLI_math.h"
 
 #include "BKE_animsys.h"
 #include "BKE_context.h"
@@ -52,18 +53,28 @@
 
 #include "clip_intern.h"  // own include
 
-void clip_graph_tracking_values_iterate_track(
+bool clip_graph_value_visible(SpaceClip *sc, eClipCurveValueSource value_source)
+{
+  if (ELEM(value_source, CLIP_VALUE_SOURCE_SPEED_X, CLIP_VALUE_SOURCE_SPEED_Y)) {
+    if ((sc->flag & SC_SHOW_GRAPH_TRACKS_MOTION) == 0) {
+      return false;
+    }
+  }
+  else if (value_source == CLIP_VALUE_SOURCE_REPROJECTION_ERROR) {
+    if ((sc->flag & SC_SHOW_GRAPH_TRACKS_ERROR) == 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static void clip_graph_tracking_values_iterate_track_speed_values(
     SpaceClip *sc,
     MovieTrackingTrack *track,
     void *userdata,
-    void (*func)(void *userdata,
-                 MovieTrackingTrack *track,
-                 MovieTrackingMarker *marker,
-                 int coord,
-                 int scene_framenr,
-                 float val),
-    void (*segment_start)(void *userdata, MovieTrackingTrack *track, int coord, bool is_point),
-    void (*segment_end)(void *userdata, int coord))
+    ClipTrackValueCallback func,
+    ClipTrackValueSegmentStartCallback segment_start,
+    ClipTrackValueSegmentEndCallback segment_end)
 {
   MovieClip *clip = ED_space_clip_get_clip(sc);
   int width, height, coord;
@@ -71,6 +82,8 @@ void clip_graph_tracking_values_iterate_track(
   BKE_movieclip_get_size(clip, &sc->user, &width, &height);
 
   for (coord = 0; coord < 2; coord++) {
+    eClipCurveValueSource value_source = (coord == 0) ? CLIP_VALUE_SOURCE_SPEED_X :
+                                                        CLIP_VALUE_SOURCE_SPEED_Y;
     int i, prevfra = track->markers[0].framenr;
     bool open = false;
     float prevval = 0.0f;
@@ -82,7 +95,7 @@ void clip_graph_tracking_values_iterate_track(
       if (marker->flag & MARKER_DISABLED) {
         if (open) {
           if (segment_end) {
-            segment_end(userdata, coord);
+            segment_end(userdata, value_source);
           }
 
           open = false;
@@ -94,10 +107,11 @@ void clip_graph_tracking_values_iterate_track(
       if (!open) {
         if (segment_start) {
           if ((i + 1) == track->markersnr) {
-            segment_start(userdata, track, coord, true);
+            segment_start(userdata, track, value_source, true);
           }
           else {
-            segment_start(userdata, track, coord, (track->markers[i + 1].flag & MARKER_DISABLED));
+            segment_start(
+                userdata, track, value_source, (track->markers[i + 1].flag & MARKER_DISABLED));
           }
         }
 
@@ -112,7 +126,7 @@ void clip_graph_tracking_values_iterate_track(
       if (func) {
         int scene_framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, marker->framenr);
 
-        func(userdata, track, marker, coord, scene_framenr, val);
+        func(userdata, track, marker, value_source, scene_framenr, val);
       }
 
       prevval = marker->pos[coord];
@@ -121,25 +135,139 @@ void clip_graph_tracking_values_iterate_track(
 
     if (open) {
       if (segment_end) {
-        segment_end(userdata, coord);
+        segment_end(userdata, value_source);
       }
     }
   }
 }
 
-void clip_graph_tracking_values_iterate(
+static float calculate_reprojection_error_at_marker(MovieClip *clip,
+                                                    MovieTracking *tracking,
+                                                    MovieTrackingObject *tracking_object,
+                                                    MovieTrackingTrack *track,
+                                                    MovieTrackingMarker *marker,
+                                                    const int clip_width,
+                                                    const int clip_height,
+                                                    const int scene_framenr)
+{
+  float reprojected_position[4], bundle_position[4], marker_position[2], delta[2];
+  float weight = BKE_tracking_track_get_weight_for_marker(clip, track, marker);
+  const float aspy = 1.0f / tracking->camera.pixel_aspect;
+
+  float projection_matrix[4][4];
+  BKE_tracking_get_projection_matrix(
+      tracking, tracking_object, scene_framenr, clip_width, clip_height, projection_matrix);
+
+  copy_v3_v3(bundle_position, track->bundle_pos);
+  bundle_position[3] = 1;
+
+  mul_v4_m4v4(reprojected_position, projection_matrix, bundle_position);
+  reprojected_position[0] = (reprojected_position[0] / (reprojected_position[3] * 2.0f) + 0.5f) *
+                            clip_width;
+  reprojected_position[1] = (reprojected_position[1] / (reprojected_position[3] * 2.0f) + 0.5f) *
+                            clip_height * aspy;
+
+  BKE_tracking_distort_v2(tracking, reprojected_position, reprojected_position);
+
+  marker_position[0] = (marker->pos[0] + track->offset[0]) * clip_width;
+  marker_position[1] = (marker->pos[1] + track->offset[1]) * clip_height * aspy;
+
+  sub_v2_v2v2(delta, reprojected_position, marker_position);
+  return len_v2(delta) * weight;
+}
+
+static void clip_graph_tracking_values_iterate_track_reprojection_error_values(
     SpaceClip *sc,
-    bool selected_only,
-    bool include_hidden,
+    MovieTrackingTrack *track,
     void *userdata,
-    void (*func)(void *userdata,
-                 MovieTrackingTrack *track,
-                 MovieTrackingMarker *marker,
-                 int coord,
-                 int scene_framenr,
-                 float val),
-    void (*segment_start)(void *userdata, MovieTrackingTrack *track, int coord, bool is_point),
-    void (*segment_end)(void *userdata, int coord))
+    ClipTrackValueCallback func,
+    ClipTrackValueSegmentStartCallback segment_start,
+    ClipTrackValueSegmentEndCallback segment_end)
+{
+  /* Tracks without bundle can not have any reprojection error curve. */
+  if ((track->flag & TRACK_HAS_BUNDLE) == 0) {
+    return;
+  }
+
+  MovieClip *clip = ED_space_clip_get_clip(sc);
+  MovieTracking *tracking = &clip->tracking;
+  MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
+
+  int clip_width, clip_height;
+  BKE_movieclip_get_size(clip, &sc->user, &clip_width, &clip_height);
+
+  /* Iterate over segments. */
+  bool is_segment_open = false;
+  for (int marker_index = 0; marker_index < track->markersnr; marker_index++) {
+    MovieTrackingMarker *marker = &track->markers[marker_index];
+
+    /* End of tracked segment, no reprojection error can be calculated here since the ground truth
+     * 2D position is not known. */
+    if (marker->flag & MARKER_DISABLED) {
+      if (is_segment_open) {
+        if (segment_end != NULL) {
+          segment_end(userdata, CLIP_VALUE_SOURCE_REPROJECTION_ERROR);
+        }
+        is_segment_open = false;
+      }
+      continue;
+    }
+
+    /* Begin new segment if it is not open yet. */
+    if (!is_segment_open) {
+      if (segment_start != NULL) {
+        if ((marker_index + 1) == track->markersnr) {
+          segment_start(userdata, track, CLIP_VALUE_SOURCE_REPROJECTION_ERROR, true);
+        }
+        else {
+          segment_start(userdata,
+                        track,
+                        CLIP_VALUE_SOURCE_REPROJECTION_ERROR,
+                        (track->markers[marker_index + 1].flag & MARKER_DISABLED));
+        }
+      }
+      is_segment_open = true;
+    }
+
+    if (func != NULL) {
+      const int scene_framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, marker->framenr);
+      const float reprojection_error = calculate_reprojection_error_at_marker(
+          clip, tracking, tracking_object, track, marker, clip_width, clip_height, scene_framenr);
+      func(userdata,
+           track,
+           marker,
+           CLIP_VALUE_SOURCE_REPROJECTION_ERROR,
+           scene_framenr,
+           reprojection_error);
+    }
+  }
+
+  if (is_segment_open && segment_end != NULL) {
+    segment_end(userdata, CLIP_VALUE_SOURCE_REPROJECTION_ERROR);
+  }
+}
+
+void clip_graph_tracking_values_iterate_track(SpaceClip *sc,
+                                              MovieTrackingTrack *track,
+                                              void *userdata,
+                                              ClipTrackValueCallback func,
+                                              ClipTrackValueSegmentStartCallback segment_start,
+                                              ClipTrackValueSegmentEndCallback segment_end)
+{
+  clip_graph_tracking_values_iterate_track_speed_values(
+      sc, track, userdata, func, segment_start, segment_end);
+
+  clip_graph_tracking_values_iterate_track_reprojection_error_values(
+      sc, track, userdata, func, segment_start, segment_end);
+}
+
+void clip_graph_tracking_values_iterate(SpaceClip *sc,
+                                        bool selected_only,
+                                        bool include_hidden,
+                                        void *userdata,
+                                        ClipTrackValueCallback func,
+                                        ClipTrackValueSegmentStartCallback segment_start,
+                                        ClipTrackValueSegmentEndCallback segment_end)
 {
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;

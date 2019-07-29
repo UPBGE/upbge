@@ -1238,7 +1238,6 @@ static int gp_strokes_paste_exec(bContext *C, wmOperator *op)
   bGPdata *gpd = ED_gpencil_data_get_active(C);
   bGPDlayer *gpl = CTX_data_active_gpencil_layer(C); /* only use active for copy merge */
   Scene *scene = CTX_data_scene(C);
-  int cfra_eval = CFRA;
   bGPDframe *gpf;
 
   eGP_PasteMode type = RNA_enum_get(op->ptr, "type");
@@ -1329,7 +1328,7 @@ static int gp_strokes_paste_exec(bContext *C, wmOperator *op)
        *       we are obliged to add a new frame if one
        *       doesn't exist already
        */
-      gpf = BKE_gpencil_layer_getframe(gpl, cfra_eval, GP_GETFRAME_ADD_NEW);
+      gpf = BKE_gpencil_layer_getframe(gpl, CFRA, GP_GETFRAME_ADD_NEW);
       if (gpf) {
         /* Create new stroke */
         bGPDstroke *new_stroke = MEM_dupallocN(gps);
@@ -1409,7 +1408,6 @@ static int gp_move_to_layer_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = CTX_data_gpencil_data(C);
   Scene *scene = CTX_data_scene(C);
-  int cfra_eval = CFRA;
   bGPDlayer *target_layer = NULL;
   ListBase strokes = {NULL, NULL};
   int layer_num = RNA_enum_get(op->ptr, "layer");
@@ -1482,7 +1480,7 @@ static int gp_move_to_layer_exec(bContext *C, wmOperator *op)
 
   /* Paste them all in one go */
   if (strokes.first) {
-    bGPDframe *gpf = BKE_gpencil_layer_getframe(target_layer, cfra_eval, GP_GETFRAME_ADD_NEW);
+    bGPDframe *gpf = BKE_gpencil_layer_getframe(target_layer, CFRA, GP_GETFRAME_ADD_NEW);
 
     BLI_movelisttolist(&gpf->strokes, &strokes);
     BLI_assert((strokes.first == strokes.last) && (strokes.first == NULL));
@@ -1546,7 +1544,7 @@ static int gp_blank_frame_add_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
   Scene *scene = CTX_data_scene(C);
-  int cfra_eval = CFRA;
+  int cfra = CFRA;
 
   bGPDlayer *active_gpl = BKE_gpencil_layer_getactive(gpd);
 
@@ -1568,7 +1566,7 @@ static int gp_blank_frame_add_exec(bContext *C, wmOperator *op)
     }
 
     /* 1) Check for an existing frame on the current frame */
-    bGPDframe *gpf = BKE_gpencil_layer_find_frame(gpl, cfra_eval);
+    bGPDframe *gpf = BKE_gpencil_layer_find_frame(gpl, cfra);
     if (gpf) {
       /* Shunt all frames after (and including) the existing one later by 1-frame */
       for (; gpf; gpf = gpf->next) {
@@ -1577,7 +1575,7 @@ static int gp_blank_frame_add_exec(bContext *C, wmOperator *op)
     }
 
     /* 2) Now add a new frame, with nothing in it */
-    gpl->actframe = BKE_gpencil_layer_getframe(gpl, cfra_eval, GP_GETFRAME_ADD_NEW);
+    gpl->actframe = BKE_gpencil_layer_getframe(gpl, cfra, GP_GETFRAME_ADD_NEW);
   }
   CTX_DATA_END;
 
@@ -1628,9 +1626,8 @@ static int gp_actframe_delete_exec(bContext *C, wmOperator *op)
   bGPDlayer *gpl = BKE_gpencil_layer_getactive(gpd);
 
   Scene *scene = CTX_data_scene(C);
-  int cfra_eval = CFRA;
 
-  bGPDframe *gpf = BKE_gpencil_layer_getframe(gpl, cfra_eval, GP_GETFRAME_USE_PREV);
+  bGPDframe *gpf = BKE_gpencil_layer_getframe(gpl, CFRA, GP_GETFRAME_USE_PREV);
 
   /* if there's no existing Grease-Pencil data there, add some */
   if (gpd == NULL) {
@@ -1682,13 +1679,12 @@ static int gp_actframe_delete_all_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
   Scene *scene = CTX_data_scene(C);
-  int cfra_eval = CFRA;
 
   bool success = false;
 
   CTX_DATA_BEGIN (C, bGPDlayer *, gpl, editable_gpencil_layers) {
     /* try to get the "active" frame - but only if it actually occurs on this frame */
-    bGPDframe *gpf = BKE_gpencil_layer_getframe(gpl, cfra_eval, GP_GETFRAME_USE_PREV);
+    bGPDframe *gpf = BKE_gpencil_layer_getframe(gpl, CFRA, GP_GETFRAME_USE_PREV);
 
     if (gpf == NULL) {
       continue;
@@ -1940,8 +1936,10 @@ static int gp_dissolve_selected_points(bContext *C, eGP_DissolveMode mode)
                         *ndvert = *dvert;
                         ndvert->dw = MEM_dupallocN(dvert->dw);
                         ndvert++;
-                        dvert++;
                       }
+                    }
+                    if (gps->dvert != NULL) {
+                      dvert++;
                     }
                   }
                   break;
@@ -1970,8 +1968,10 @@ static int gp_dissolve_selected_points(bContext *C, eGP_DissolveMode mode)
                         *ndvert = *dvert;
                         ndvert->dw = MEM_dupallocN(dvert->dw);
                         ndvert++;
-                        dvert++;
                       }
+                    }
+                    if (gps->dvert != NULL) {
+                      dvert++;
                     }
                   }
                   /* copy last segment */
@@ -2001,8 +2001,10 @@ static int gp_dissolve_selected_points(bContext *C, eGP_DissolveMode mode)
                         *ndvert = *dvert;
                         ndvert->dw = MEM_dupallocN(dvert->dw);
                         ndvert++;
-                        dvert++;
                       }
+                    }
+                    if (gps->dvert != NULL) {
+                      dvert++;
                     }
                   }
                   break;
@@ -3401,12 +3403,6 @@ static int gp_strokes_reproject_exec(bContext *C, wmOperator *op)
     if (gps->flag & GP_STROKE_SELECT) {
       bGPDspoint *pt;
       int i;
-      float inverse_diff_mat[4][4];
-
-      /* Compute inverse matrix for unapplying parenting once instead of doing per-point */
-      /* TODO: add this bit to the iteration macro? */
-      invert_m4_m4(inverse_diff_mat, gpstroke_iter.diff_mat);
-
       /* Adjust each point */
       for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
         float xy[2];
@@ -3493,7 +3489,7 @@ static int gp_strokes_reproject_exec(bContext *C, wmOperator *op)
 
         /* Unapply parent corrections */
         if (!ELEM(mode, GP_REPROJECT_FRONT, GP_REPROJECT_SIDE, GP_REPROJECT_TOP)) {
-          mul_m4_v3(inverse_diff_mat, &pt->x);
+          mul_m4_v3(gpstroke_iter.inverse_diff_mat, &pt->x);
         }
       }
     }
