@@ -46,6 +46,8 @@ extern "C" {
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -122,7 +124,7 @@ static void get_vertices(struct Mesh *mesh, std::vector<Imath::V3f> &points)
 static void get_topology(struct Mesh *mesh,
                          std::vector<int32_t> &poly_verts,
                          std::vector<int32_t> &loop_counts,
-                         bool &smooth_normal)
+                         bool &r_export_loop_normals)
 {
   const int num_poly = mesh->totpoly;
   const int num_loops = mesh->totloop;
@@ -139,7 +141,7 @@ static void get_topology(struct Mesh *mesh,
     MPoly &poly = mpoly[i];
     loop_counts.push_back(poly.totloop);
 
-    smooth_normal |= ((poly.flag & ME_SMOOTH) != 0);
+    r_export_loop_normals |= (poly.flag & ME_SMOOTH) != 0;
 
     MLoop *loop = mloop + poly.loopstart + (poly.totloop - 1);
 
@@ -203,17 +205,14 @@ static void get_loop_normals(struct Mesh *mesh, std::vector<Imath::V3f> &normals
   normals.clear();
   normals.resize(mesh->totloop);
 
-  unsigned loop_index = 0;
-
   /* NOTE: data needs to be written in the reverse order. */
+  int abc_index = 0;
 
   if (lnors) {
     for (int i = 0, e = mesh->totpoly; i < e; ++i, ++mp) {
-      ml = mloop + mp->loopstart + (mp->totloop - 1);
-
-      for (int j = 0; j < mp->totloop; --ml, ++j, ++loop_index) {
-        const int index = ml->v;
-        copy_yup_from_zup(normals[loop_index].getValue(), lnors[index]);
+      for (int j = mp->totloop - 1; j >= 0; --j, ++abc_index) {
+        int blender_index = mp->loopstart + j;
+        copy_yup_from_zup(normals[abc_index].getValue(), lnors[blender_index]);
       }
     }
   }
@@ -227,15 +226,15 @@ static void get_loop_normals(struct Mesh *mesh, std::vector<Imath::V3f> &normals
       if ((mp->flag & ME_SMOOTH) == 0) {
         BKE_mesh_calc_poly_normal(mp, ml - (mp->totloop - 1), verts, no);
 
-        for (int j = 0; j < mp->totloop; --ml, ++j, ++loop_index) {
-          copy_yup_from_zup(normals[loop_index].getValue(), no);
+        for (int j = 0; j < mp->totloop; --ml, ++j, ++abc_index) {
+          copy_yup_from_zup(normals[abc_index].getValue(), no);
         }
       }
       else {
         /* Smooth shaded, use individual vert normals. */
-        for (int j = 0; j < mp->totloop; --ml, ++j, ++loop_index) {
+        for (int j = 0; j < mp->totloop; --ml, ++j, ++abc_index) {
           normal_short_to_float_v3(no, verts[ml->v].no);
-          copy_yup_from_zup(normals[loop_index].getValue(), no);
+          copy_yup_from_zup(normals[abc_index].getValue(), no);
         }
       }
     }
@@ -411,10 +410,10 @@ void AbcGenericMeshWriter::writeMesh(struct Mesh *mesh)
   std::vector<int32_t> poly_verts, loop_counts;
   std::vector<Imath::V3f> velocities;
 
-  bool smooth_normal = false;
+  bool export_loop_normals = (mesh->flag & ME_AUTOSMOOTH) != 0;
 
   get_vertices(mesh, points);
-  get_topology(mesh, poly_verts, loop_counts, smooth_normal);
+  get_topology(mesh, poly_verts, loop_counts, export_loop_normals);
 
   if (m_first_frame && m_settings.export_face_sets) {
     writeFaceSets(mesh, m_mesh_schema);
@@ -442,7 +441,7 @@ void AbcGenericMeshWriter::writeMesh(struct Mesh *mesh)
   }
 
   if (m_settings.export_normals) {
-    if (smooth_normal) {
+    if (export_loop_normals) {
       get_loop_normals(mesh, normals);
     }
     else {
@@ -451,7 +450,7 @@ void AbcGenericMeshWriter::writeMesh(struct Mesh *mesh)
 
     ON3fGeomParam::Sample normals_sample;
     if (!normals.empty()) {
-      normals_sample.setScope((smooth_normal) ? kFacevaryingScope : kVertexScope);
+      normals_sample.setScope(export_loop_normals ? kFacevaryingScope : kVertexScope);
       normals_sample.setVals(V3fArraySample(normals));
     }
 
@@ -477,10 +476,10 @@ void AbcGenericMeshWriter::writeSubD(struct Mesh *mesh)
   std::vector<int32_t> poly_verts, loop_counts;
   std::vector<int32_t> crease_indices, crease_lengths;
 
-  bool smooth_normal = false;
+  bool export_loop_normals = false;
 
   get_vertices(mesh, points);
-  get_topology(mesh, poly_verts, loop_counts, smooth_normal);
+  get_topology(mesh, poly_verts, loop_counts, export_loop_normals);
   get_creases(mesh, crease_indices, crease_lengths, crease_sharpness);
 
   if (m_first_frame && m_settings.export_face_sets) {
@@ -758,7 +757,8 @@ struct AbcMeshData {
   P3fArraySamplePtr ceil_positions;
 
   N3fArraySamplePtr vertex_normals;
-  N3fArraySamplePtr face_normals;
+  N3fArraySamplePtr loop_normals;
+  bool poly_flag_smooth;
 
   V2fArraySamplePtr uvs;
   UInt32ArraySamplePtr uvs_indices;
@@ -832,7 +832,6 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
   const size_t uvs_size = uvs == nullptr ? 0 : uvs->size();
 
   const UInt32ArraySamplePtr &uvs_indices = mesh_data.uvs_indices;
-  const N3fArraySamplePtr &normals = mesh_data.face_normals;
 
   const bool do_uvs = (mloopuvs && uvs && uvs_indices) &&
                       (uvs_indices->size() == face_indices->size());
@@ -847,8 +846,11 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
     poly.loopstart = loop_index;
     poly.totloop = face_size;
 
-    if (normals != NULL) {
+    if (mesh_data.poly_flag_smooth) {
       poly.flag |= ME_SMOOTH;
+    }
+    else {
+      poly.flag &= ~ME_SMOOTH;
     }
 
     /* NOTE: Alembic data is stored in the reverse order. */
@@ -873,6 +875,40 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
       }
     }
   }
+
+  BKE_mesh_calc_edges(config.mesh, false, false);
+}
+
+static void process_normals(CDStreamConfig &config, const AbcMeshData &mesh_data)
+{
+  Mesh *mesh = config.mesh;
+
+  if (!mesh_data.loop_normals) {
+    BKE_mesh_calc_normals(config.mesh);
+    config.mesh->flag &= ~ME_AUTOSMOOTH;
+    return;
+  }
+
+  config.mesh->flag |= ME_AUTOSMOOTH;
+
+  const Alembic::AbcGeom::N3fArraySample &loop_normals = *mesh_data.loop_normals;
+  long int loop_count = loop_normals.size();
+
+  float(*lnors)[3] = static_cast<float(*)[3]>(
+      MEM_malloc_arrayN(loop_count, sizeof(float[3]), "ABC::FaceNormals"));
+
+  MPoly *mpoly = mesh->mpoly;
+  int abc_index = 0;
+  for (int i = 0, e = mesh->totpoly; i < e; ++i, ++mpoly) {
+    /* As usual, ABC orders the loops in reverse. */
+    for (int j = mpoly->totloop - 1; j >= 0; --j, ++abc_index) {
+      int blender_index = mpoly->loopstart + j;
+      copy_zup_from_yup(lnors[blender_index], loop_normals[abc_index].getValue());
+    }
+  }
+  BKE_mesh_set_custom_normals(config.mesh, lnors);
+
+  MEM_freeN(lnors);
 }
 
 ABC_INLINE void read_uvs_params(CDStreamConfig &config,
@@ -900,15 +936,11 @@ ABC_INLINE void read_uvs_params(CDStreamConfig &config,
       name = uv.getName();
     }
 
-    void *cd_ptr = config.add_customdata_cb(config.user_data, name.c_str(), CD_MLOOPUV);
+    void *cd_ptr = config.add_customdata_cb(config.mesh, name.c_str(), CD_MLOOPUV);
     config.mloopuv = static_cast<MLoopUV *>(cd_ptr);
   }
 }
 
-/* TODO(kevin): normals from Alembic files are not read in anymore, this is due
- * to the fact that there are many issues that are not so easy to solve, mainly
- * regarding the way normals are handled in Blender (MPoly.flag vs loop normals).
- */
 ABC_INLINE void read_normals_params(AbcMeshData &abc_data,
                                     const IN3fGeomParam &normals,
                                     const ISampleSelector &selector)
@@ -919,42 +951,26 @@ ABC_INLINE void read_normals_params(AbcMeshData &abc_data,
 
   IN3fGeomParam::Sample normsamp = normals.getExpandedValue(selector);
 
-  if (normals.getScope() == kFacevaryingScope) {
-    abc_data.face_normals = normsamp.getVals();
-  }
-  else if ((normals.getScope() == kVertexScope) || (normals.getScope() == kVaryingScope)) {
-    abc_data.vertex_normals = N3fArraySamplePtr();
-  }
-}
-
-static bool check_smooth_poly_flag(Mesh *mesh)
-{
-  MPoly *mpolys = mesh->mpoly;
-
-  for (int i = 0, e = mesh->totpoly; i < e; ++i) {
-    MPoly &poly = mpolys[i];
-
-    if ((poly.flag & ME_SMOOTH) != 0) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-static void set_smooth_poly_flag(Mesh *mesh)
-{
-  MPoly *mpolys = mesh->mpoly;
-
-  for (int i = 0, e = mesh->totpoly; i < e; ++i) {
-    MPoly &poly = mpolys[i];
-    poly.flag |= ME_SMOOTH;
+  Alembic::AbcGeom::GeometryScope scope = normals.getScope();
+  switch (scope) {
+    case Alembic::AbcGeom::kFacevaryingScope:
+      abc_data.loop_normals = normsamp.getVals();
+      break;
+    case Alembic::AbcGeom::kVertexScope:
+    case Alembic::AbcGeom::kVaryingScope:
+      /* Vertex normals from ABC aren't handled for now. */
+      abc_data.poly_flag_smooth = true;
+      abc_data.vertex_normals = N3fArraySamplePtr();
+      break;
+    case Alembic::AbcGeom::kConstantScope:
+    case Alembic::AbcGeom::kUniformScope:
+    case Alembic::AbcGeom::kUnknownScope:
+      break;
   }
 }
 
-static void *add_customdata_cb(void *user_data, const char *name, int data_type)
+static void *add_customdata_cb(Mesh *mesh, const char *name, int data_type)
 {
-  Mesh *mesh = static_cast<Mesh *>(user_data);
   CustomDataType cd_data_type = static_cast<CustomDataType>(data_type);
   void *cd_ptr;
   CustomData *loopdata;
@@ -994,8 +1010,7 @@ static void read_mesh_sample(const std::string &iobject_full_name,
                              ImportSettings *settings,
                              const IPolyMeshSchema &schema,
                              const ISampleSelector &selector,
-                             CDStreamConfig &config,
-                             bool &do_normals)
+                             CDStreamConfig &config)
 {
   const IPolyMeshSchema::Sample sample = schema.getValue(selector);
 
@@ -1003,10 +1018,9 @@ static void read_mesh_sample(const std::string &iobject_full_name,
   abc_mesh_data.face_counts = sample.getFaceCounts();
   abc_mesh_data.face_indices = sample.getFaceIndices();
   abc_mesh_data.positions = sample.getPositions();
+  abc_mesh_data.poly_flag_smooth = false;
 
   read_normals_params(abc_mesh_data, schema.getNormalsParam(), selector);
-
-  do_normals = (abc_mesh_data.face_normals != NULL);
 
   get_weight_and_index(config, schema.getTimeSampling(), schema.getNumSamples());
 
@@ -1026,6 +1040,7 @@ static void read_mesh_sample(const std::string &iobject_full_name,
 
   if ((settings->read_flag & MOD_MESHSEQ_READ_POLY) != 0) {
     read_mpolys(config, abc_mesh_data);
+    process_normals(config, abc_mesh_data);
   }
 
   if ((settings->read_flag & (MOD_MESHSEQ_READ_UV | MOD_MESHSEQ_READ_COLOR)) != 0) {
@@ -1039,7 +1054,7 @@ CDStreamConfig get_config(Mesh *mesh)
 
   BLI_assert(mesh->mvert || mesh->totvert == 0);
 
-  config.user_data = mesh;
+  config.mesh = mesh;
   config.mvert = mesh->mvert;
   config.mloop = mesh->mloop;
   config.mpoly = mesh->mpoly;
@@ -1079,13 +1094,16 @@ void AbcMeshReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
   Mesh *read_mesh = this->read_mesh(mesh, sample_sel, MOD_MESHSEQ_READ_ALL, NULL);
   if (read_mesh != mesh) {
     BKE_mesh_nomain_to_mesh(read_mesh, mesh, m_object, &CD_MASK_MESH, true);
+
+    /* XXX fixme after 2.80; mesh->flag isn't copied by BKE_mesh_nomain_to_mesh() */
+    mesh->flag |= (read_mesh->flag & ME_AUTOSMOOTH);
   }
 
   if (m_settings->validate_meshes) {
     BKE_mesh_validate(mesh, false, false);
   }
 
-  readFaceSetsSample(bmain, mesh, 0, sample_sel);
+  readFaceSetsSample(bmain, mesh, sample_sel);
 
   if (has_animations(m_schema, m_settings)) {
     addCacheModifier();
@@ -1151,6 +1169,8 @@ Mesh *AbcMeshReader::read_mesh(Mesh *existing_mesh,
         existing_mesh, positions->size(), 0, 0, face_indices->size(), face_counts->size());
 
     settings.read_flag |= MOD_MESHSEQ_READ_ALL;
+    /* XXX fixme after 2.80; mesh->flag isn't copied by BKE_mesh_new_nomain_from_template() */
+    new_mesh->flag |= (existing_mesh->flag & ME_AUTOSMOOTH);
   }
   else {
     /* If the face count changed (e.g. by triangulation), only read points.
@@ -1171,39 +1191,25 @@ Mesh *AbcMeshReader::read_mesh(Mesh *existing_mesh,
   CDStreamConfig config = get_config(new_mesh ? new_mesh : existing_mesh);
   config.time = sample_sel.getRequestedTime();
 
-  bool do_normals = false;
-  read_mesh_sample(m_iobject.getFullName(), &settings, m_schema, sample_sel, config, do_normals);
+  read_mesh_sample(m_iobject.getFullName(), &settings, m_schema, sample_sel, config);
 
   if (new_mesh) {
-    /* Check if we had ME_SMOOTH flag set to restore it. */
-    if (!do_normals && check_smooth_poly_flag(existing_mesh)) {
-      set_smooth_poly_flag(new_mesh);
-    }
-
-    BKE_mesh_calc_normals(new_mesh);
-    BKE_mesh_calc_edges(new_mesh, false, false);
-
     /* Here we assume that the number of materials doesn't change, i.e. that
      * the material slots that were created when the object was loaded from
      * Alembic are still valid now. */
     size_t num_polys = new_mesh->totpoly;
     if (num_polys > 0) {
       std::map<std::string, int> mat_map;
-      assign_facesets_to_mpoly(sample_sel, 0, new_mesh->mpoly, num_polys, mat_map);
+      assign_facesets_to_mpoly(sample_sel, new_mesh->mpoly, num_polys, mat_map);
     }
 
     return new_mesh;
-  }
-
-  if (do_normals) {
-    BKE_mesh_calc_normals(existing_mesh);
   }
 
   return existing_mesh;
 }
 
 void AbcMeshReader::assign_facesets_to_mpoly(const ISampleSelector &sample_sel,
-                                             size_t poly_start,
                                              MPoly *mpoly,
                                              int totpoly,
                                              std::map<std::string, int> &r_mat_map)
@@ -1239,7 +1245,7 @@ void AbcMeshReader::assign_facesets_to_mpoly(const ISampleSelector &sample_sel,
     const size_t num_group_faces = group_faces->size();
 
     for (size_t l = 0; l < num_group_faces; l++) {
-      size_t pos = (*group_faces)[l] + poly_start;
+      size_t pos = (*group_faces)[l];
 
       if (pos >= totpoly) {
         std::cerr << "Faceset overflow on " << faceset.getName() << '\n';
@@ -1252,13 +1258,10 @@ void AbcMeshReader::assign_facesets_to_mpoly(const ISampleSelector &sample_sel,
   }
 }
 
-void AbcMeshReader::readFaceSetsSample(Main *bmain,
-                                       Mesh *mesh,
-                                       size_t poly_start,
-                                       const ISampleSelector &sample_sel)
+void AbcMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const ISampleSelector &sample_sel)
 {
   std::map<std::string, int> mat_map;
-  assign_facesets_to_mpoly(sample_sel, poly_start, mesh->mpoly, mesh->totpoly, mat_map);
+  assign_facesets_to_mpoly(sample_sel, mesh->mpoly, mesh->totpoly, mat_map);
   utils::assign_materials(bmain, m_object, mat_map);
 }
 
@@ -1289,7 +1292,7 @@ static void read_subd_sample(const std::string &iobject_full_name,
   abc_mesh_data.face_counts = sample.getFaceCounts();
   abc_mesh_data.face_indices = sample.getFaceIndices();
   abc_mesh_data.vertex_normals = N3fArraySamplePtr();
-  abc_mesh_data.face_normals = N3fArraySamplePtr();
+  abc_mesh_data.loop_normals = N3fArraySamplePtr();
   abc_mesh_data.positions = sample.getPositions();
 
   get_weight_and_index(config, schema.getTimeSampling(), schema.getNumSamples());
@@ -1309,7 +1312,14 @@ static void read_subd_sample(const std::string &iobject_full_name,
   }
 
   if ((settings->read_flag & MOD_MESHSEQ_READ_POLY) != 0) {
+    /* Alembic's 'SubD' scheme is used to store subdivision surfaces, i.e. the pre-subdivision
+     * mesh. Currently we don't add a subdivison modifier when we load such data. This code is
+     * assuming that the subdivided surface should be smooth, and sets a flag that will eventually
+     * mark all polygons as such. */
+    abc_mesh_data.poly_flag_smooth = true;
+
     read_mpolys(config, abc_mesh_data);
+    process_normals(config, abc_mesh_data);
   }
 
   if ((settings->read_flag & (MOD_MESHSEQ_READ_UV | MOD_MESHSEQ_READ_COLOR)) != 0) {
@@ -1397,9 +1407,6 @@ void AbcSubDReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
     mesh->cd_flag |= ME_CDFLAG_EDGE_CREASE;
   }
 
-  BKE_mesh_calc_normals(mesh);
-  BKE_mesh_calc_edges(mesh, false, false);
-
   if (m_settings->validate_meshes) {
     BKE_mesh_validate(mesh, false, false);
   }
@@ -1466,17 +1473,5 @@ Mesh *AbcSubDReader::read_mesh(Mesh *existing_mesh,
   config.time = sample_sel.getRequestedTime();
   read_subd_sample(m_iobject.getFullName(), &settings, m_schema, sample_sel, config);
 
-  if (new_mesh) {
-    /* Check if we had ME_SMOOTH flag set to restore it. */
-    if (check_smooth_poly_flag(existing_mesh)) {
-      set_smooth_poly_flag(new_mesh);
-    }
-
-    BKE_mesh_calc_normals(new_mesh);
-    BKE_mesh_calc_edges(new_mesh, false, false);
-
-    return new_mesh;
-  }
-
-  return existing_mesh;
+  return config.mesh;
 }

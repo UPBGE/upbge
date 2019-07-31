@@ -1105,11 +1105,16 @@ add_dependencies(blender makesdna)
 
 setup_blender_sorted_libs()
 target_link_libraries(blender ${BLENDER_SORTED_LIBS})
-
+unset(LIB)
 
 setup_liblinks(blender)
 
-unset(LIB)
+# vcpkg substitutes our libs with theirs, which will cause issues when you
+# you run these builds on other systems due to missing dlls. So we opt out
+# the use of vcpkg
+if (WIN32)
+  set_target_properties(blender PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
+endif()
 
 # -----------------------------------------------------------------------------
 # Setup launcher

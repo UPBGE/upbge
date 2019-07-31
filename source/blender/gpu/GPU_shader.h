@@ -354,9 +354,6 @@ typedef enum eGPUBuiltinShader {
   GPU_SHADER_2D_UV_EDGES_SMOOTH,
   GPU_SHADER_2D_UV_FACES,
   GPU_SHADER_2D_UV_FACES_STRETCH_AREA,
-  GPU_SHADER_2D_UV_FACES_STRETCH_ANGLE,
-  /* Selection */
-  GPU_SHADER_3D_FLAT_SELECT_ID,
   /**********Game engine***********/
   GPU_SHADER_DRAW_FRAME_BUFFER,
   GPU_SHADER_BLACK,
@@ -364,9 +361,9 @@ typedef enum eGPUBuiltinShader {
   GPU_SHADER_STEREO_STIPPLE,
   GPU_SHADER_STEREO_ANAGLYPH,
   /*******End of Game engine*******/
-  GPU_SHADER_3D_UNIFORM_SELECT_ID,
+  GPU_SHADER_2D_UV_FACES_STRETCH_ANGLE,
 } eGPUBuiltinShader;
-#define GPU_SHADER_BUILTIN_LEN (GPU_SHADER_3D_UNIFORM_SELECT_ID + 1)
+#define GPU_SHADER_BUILTIN_LEN (GPU_SHADER_2D_UV_FACES_STRETCH_ANGLE + 1)
 
 /** Support multiple configurations. */
 typedef enum eGPUShaderConfig {
