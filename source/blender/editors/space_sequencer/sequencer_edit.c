@@ -181,7 +181,7 @@ static void seq_proxy_build_job(const bContext *C)
 {
   wmJob *wm_job;
   ProxyJob *pj;
-  struct Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  struct Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
   Editing *ed = BKE_sequencer_editing_get(scene, false);
   ScrArea *sa = CTX_wm_area(C);
@@ -2886,7 +2886,7 @@ static int sequencer_view_all_preview_exec(bContext *C, wmOperator *UNUSED(op))
   imgwidth = (scene->r.size * scene->r.xsch) / 100;
   imgheight = (scene->r.size * scene->r.ysch) / 100;
 
-  /* Apply aspect, dosnt need to be that accurate */
+  /* Apply aspect, doesn't need to be that accurate */
   imgwidth = (int)(imgwidth * (scene->r.xasp / scene->r.yasp));
 
   if (((imgwidth >= width) || (imgheight >= height)) && ((width > 0) && (height > 0))) {
@@ -3612,7 +3612,7 @@ static int sequencer_rebuild_proxy_invoke(bContext *C,
 static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Main *bmain = CTX_data_main(C);
-  struct Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  struct Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   Editing *ed = BKE_sequencer_editing_get(scene, false);
   Sequence *seq;

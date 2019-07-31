@@ -171,14 +171,6 @@ void ED_object_mode_toggle(bContext *C, eObjectMode mode)
 
     if (opstring) {
       wmOperatorType *ot = WM_operatortype_find(opstring, false);
-      if (ot->flag & OPTYPE_USE_EVAL_DATA) {
-        /* We need to force refresh of depsgraph after undo step,
-         * redoing the operator *may* rely on some valid evaluated data. */
-        struct Main *bmain = CTX_data_main(C);
-        Scene *scene = CTX_data_scene(C);
-        ViewLayer *view_layer = CTX_data_view_layer(C);
-        BKE_scene_view_layer_graph_evaluated_ensure(bmain, scene, view_layer);
-      }
       WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_REGION_WIN, NULL);
     }
   }
@@ -192,20 +184,6 @@ void ED_object_mode_set(bContext *C, eObjectMode mode)
   /* needed so we don't do undo pushes. */
   ED_object_mode_generic_enter(C, mode);
   wm->op_undo_depth--;
-}
-
-void ED_object_mode_exit(bContext *C)
-{
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
-  struct Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  FOREACH_OBJECT_BEGIN (view_layer, ob) {
-    if (ob->mode & OB_MODE_ALL_MODE_DATA) {
-      ED_object_mode_generic_exit(bmain, depsgraph, scene, ob);
-    }
-  }
-  FOREACH_OBJECT_END;
 }
 
 /** \} */

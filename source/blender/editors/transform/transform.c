@@ -1595,11 +1595,8 @@ int transformEvent(TransInfo *t, const wmEvent *event)
     }
 
     /* confirm transform if launch key is released after mouse move */
-    if (t->flag & T_RELEASE_CONFIRM) {
-      /* XXX Keyrepeat bug in Xorg messes this up, will test when fixed */
-      if ((event->type == t->launch_event) && ISMOUSE(t->launch_event)) {
-        t->state = TRANS_CONFIRM;
-      }
+    if ((t->flag & T_RELEASE_CONFIRM) && event->type == t->launch_event) {
+      t->state = TRANS_CONFIRM;
     }
   }
 
@@ -4640,8 +4637,13 @@ static void applyRotationValue(TransInfo *t,
        * Note that this is only needed when doing 'absolute' rotation
        * (i.e. from initial rotation again, typically when using numinput).
        * regular incremental rotation (from mouse/widget/...) will be called often enough,
-       * hence steps are small enough to be properly handled without that complicated trick. */
-      if (is_large_rotation) {
+       * hence steps are small enough to be properly handled without that complicated trick.
+       * Note that we can only do that kind of stepped rotation if we have initial rotation values
+       * (and access to some actual rotation value storage).
+       * Otherwise, just assume it's useless (e.g. in case of mesh/UV/etc. editing).
+       * Also need to be in Euler rotation mode, the others never allow more than one turn anyway.
+       */
+      if (is_large_rotation && td->ext != NULL && td->ext->rotOrder == ROT_MODE_EUL) {
         copy_v3_v3(td->ext->rot, td->ext->irot);
         for (float angle_progress = angle_step; fabsf(angle_progress) < fabsf(angle_final);
              angle_progress += angle_step) {

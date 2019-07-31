@@ -6631,7 +6631,6 @@ void autokeyframe_object(bContext *C, Scene *scene, ViewLayer *view_layer, Objec
 
   // TODO: this should probably be done per channel instead...
   if (autokeyframe_cfra_can_key(scene, id)) {
-    Depsgraph *depsgraph = CTX_data_depsgraph(C);
     ReportList *reports = CTX_wm_reports(C);
     ToolSettings *ts = scene->toolsettings;
     KeyingSet *active_ks = ANIM_scene_get_active_keyingset(scene);
@@ -6658,11 +6657,9 @@ void autokeyframe_object(bContext *C, Scene *scene, ViewLayer *view_layer, Objec
       /* only key on available channels */
       if (adt && adt->action) {
         ListBase nla_cache = {NULL, NULL};
-
         for (fcu = adt->action->curves.first; fcu; fcu = fcu->next) {
           fcu->flag &= ~FCURVE_SELECTED;
           insert_keyframe(bmain,
-                          depsgraph,
                           reports,
                           id,
                           adt->action,
@@ -6777,7 +6774,6 @@ void autokeyframe_pose(bContext *C, Scene *scene, Object *ob, int tmode, short t
 
   // TODO: this should probably be done per channel instead...
   if (autokeyframe_cfra_can_key(scene, id)) {
-    Depsgraph *depsgraph = CTX_data_depsgraph(C);
     ReportList *reports = CTX_wm_reports(C);
     ToolSettings *ts = scene->toolsettings;
     KeyingSet *active_ks = ANIM_scene_get_active_keyingset(scene);
@@ -6825,7 +6821,6 @@ void autokeyframe_pose(bContext *C, Scene *scene, Object *ob, int tmode, short t
                  */
                 if (pchanName && STREQ(pchanName, pchan->name)) {
                   insert_keyframe(bmain,
-                                  depsgraph,
                                   reports,
                                   id,
                                   act,
@@ -9020,7 +9015,7 @@ static void createTransGPencil_center_get(bGPDstroke *gps, float r_center[3])
 
 static void createTransGPencil(bContext *C, TransInfo *t)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   bGPdata *gpd = ED_gpencil_data_get_active(C);
   ToolSettings *ts = CTX_data_tool_settings(C);
 

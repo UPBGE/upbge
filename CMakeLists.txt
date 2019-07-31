@@ -156,18 +156,18 @@ endmacro()
 
 # values to initialize WITH_****
 option_defaults_init(
-	_init_BUILDINFO
-	_init_CODEC_FFMPEG
-	_init_CYCLES_OSL
-	_init_IMAGE_OPENEXR
-	_init_INPUT_NDOF
-	_init_JACK
-	_init_OPENCOLLADA
-	_init_OPENCOLORIO
-	_init_SDL
-	_init_FFTW3
-	_init_GAMEENGINE
-	_init_OPENSUBDIV
+  _init_BUILDINFO
+  _init_CODEC_FFMPEG
+  _init_CYCLES_OSL
+  _init_IMAGE_OPENEXR
+  _init_INPUT_NDOF
+  _init_JACK
+  _init_OPENCOLLADA
+  _init_OPENCOLORIO
+  _init_SDL
+  _init_FFTW3
+  _init_GAMEENGINE
+  _init_OPENSUBDIV
 )
 
 # customize...
@@ -880,57 +880,61 @@ endif()
 #Platform specifics
 
 if(WITH_X11)
-	find_package(X11 REQUIRED)
+  find_package(X11 REQUIRED)
 
-	find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
-	mark_as_advanced(X11_XF86keysym_INCLUDE_PATH)
+  find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
+  mark_as_advanced(X11_XF86keysym_INCLUDE_PATH)
 
 	list(APPEND PLATFORM_LINKLIBS ${X11_X11_LIB})
 
-	if(WITH_X11_XINPUT)
-		if(X11_Xinput_LIB)
-			list(APPEND PLATFORM_LINKLIBS ${X11_Xinput_LIB})
-		else()
-			set(WITH_X11_XINPUT OFF)
-		endif()
-	endif()
+  if(WITH_X11_XINPUT)
+    if(X11_Xinput_LIB)
+      list(APPEND PLATFORM_LINKLIBS ${X11_Xinput_LIB})
+    else()
+      message(FATAL_ERROR "LibXi not found. Disable WITH_X11_XINPUT if you
+      want to build without tablet support")
+    endif()
+  endif()
 
-	if(WITH_X11_XINERAMA)
-		if(X11_Xinerama_LIB)
-			list(APPEND PLATFORM_LINKLIBS ${X11_Xinerama_LIB})
-		else()
-			set(WITH_X11_XINERAMA OFF)
-		endif()
-	endif()
+  if(WITH_X11_XINERAMA)
+    if(X11_Xinerama_LIB)
+      list(APPEND PLATFORM_LINKLIBS ${X11_Xinerama_LIB})
+    else()
+      set(WITH_X11_XINERAMA OFF)
+    endif()
+  endif()
 
-	if(WITH_X11_XF86VMODE)
-		# XXX, why doesn't cmake make this available?
-		find_library(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
-		mark_as_advanced(X11_Xxf86vmode_LIB)
-		if(X11_Xxf86vmode_LIB)
-			list(APPEND PLATFORM_LINKLIBS ${X11_Xxf86vmode_LIB})
-		else()
-			set(WITH_X11_XF86VMODE OFF)
-		endif()
-	endif()
+  if(WITH_X11_XF86VMODE)
+    # XXX, why doesn't cmake make this available?
+    find_library(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
+    mark_as_advanced(X11_Xxf86vmode_LIB)
+    if(X11_Xxf86vmode_LIB)
+      list(APPEND PLATFORM_LINKLIBS ${X11_Xxf86vmode_LIB})
+    else()
+      message(FATAL_ERROR "libXxf86vm not found. Disable WITH_X11_XF86VMODE if you
+      want to build without")
+    endif()
+  endif()
 
-	if(WITH_X11_XFIXES)
-		if(X11_Xfixes_LIB)
-			list(APPEND PLATFORM_LINKLIBS ${X11_Xfixes_LIB})
-		else()
-			set(WITH_X11_XFIXES OFF)
-		endif()
-	endif()
+  if(WITH_X11_XFIXES)
+    if(X11_Xfixes_LIB)
+      list(APPEND PLATFORM_LINKLIBS ${X11_Xfixes_LIB})
+    else()
+      message(FATAL_ERROR "libXfixes not found. Disable WITH_X11_XFIXES if you
+      want to build without")
+    endif()
+  endif()
 
-	if(WITH_X11_ALPHA)
-		find_library(X11_Xrender_LIB Xrender  ${X11_LIB_SEARCH_PATH})
-		mark_as_advanced(X11_Xrender_LIB)
-		if(X11_Xrender_LIB)
-			list(APPEND PLATFORM_LINKLIBS ${X11_Xrender_LIB})
-		else()
-			set(WITH_X11_ALPHA OFF)
-		endif()
-	endif()
+  if(WITH_X11_ALPHA)
+    find_library(X11_Xrender_LIB Xrender  ${X11_LIB_SEARCH_PATH})
+    mark_as_advanced(X11_Xrender_LIB)
+    if(X11_Xrender_LIB)
+      list(APPEND PLATFORM_LINKLIBS ${X11_Xrender_LIB})
+    else()
+      message(FATAL_ERROR "libXrender not found. Disable WITH_X11_ALPHA if you
+      want to build without")
+    endif()
+  endif()
 
 endif()
 

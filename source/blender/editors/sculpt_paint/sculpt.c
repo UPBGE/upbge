@@ -1262,7 +1262,6 @@ float tex_strength(SculptSession *ss,
 
   /* Falloff curve */
   avg *= BKE_brush_curve_strength(br, len, cache->radius);
-
   avg *= frontface(br, cache->view_normal, vno, fno);
 
   /* Paint mask */
@@ -4923,7 +4922,7 @@ static void sculpt_stroke_modifiers_check(const bContext *C, Object *ob, const B
   SculptSession *ss = ob->sculpt;
 
   if (ss->kb || ss->modifiers_active) {
-    Depsgraph *depsgraph = CTX_data_depsgraph(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     bool need_pmap = sculpt_any_smooth_mode(brush, ss->cache, 0);
     BKE_sculpt_update_object_for_edit(depsgraph, ob, need_pmap, false);
   }
@@ -5136,7 +5135,7 @@ static void sculpt_brush_init_tex(const Scene *scene, Sculpt *sd, SculptSession 
 
 static void sculpt_brush_stroke_init(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
@@ -5184,7 +5183,7 @@ void sculpt_update_object_bounding_box(Object *ob)
 
 static void sculpt_flush_update_step(bContext *C)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Object *ob = CTX_data_active_object(C);
   SculptSession *ss = ob->sculpt;
   ARegion *ar = CTX_wm_region(C);
@@ -5753,7 +5752,7 @@ static void sculpt_dynamic_topology_disable_ex(
 void sculpt_dynamic_topology_disable(bContext *C, SculptUndoNode *unode)
 {
   Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
   sculpt_dynamic_topology_disable_ex(bmain, depsgraph, scene, ob, unode);
@@ -5790,7 +5789,7 @@ static void sculpt_dynamic_topology_enable_with_undo(Main *bmain,
 static int sculpt_dynamic_topology_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
   SculptSession *ss = ob->sculpt;
@@ -6153,16 +6152,6 @@ void ED_object_sculptmode_enter_ex(Main *bmain,
   DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
 }
 
-void ED_object_sculptmode_enter(struct bContext *C, ReportList *reports)
-{
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *ob = OBACT(view_layer);
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
-  ED_object_sculptmode_enter_ex(bmain, depsgraph, scene, ob, false, reports);
-}
-
 void ED_object_sculptmode_exit_ex(Main *bmain, Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
   const int mode_flag = OB_MODE_SCULPT;
@@ -6207,16 +6196,6 @@ void ED_object_sculptmode_exit_ex(Main *bmain, Depsgraph *depsgraph, Scene *scen
 
   /* Flush object mode. */
   DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
-}
-
-void ED_object_sculptmode_exit(bContext *C)
-{
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *ob = OBACT(view_layer);
-  ED_object_sculptmode_exit_ex(bmain, depsgraph, scene, ob);
 }
 
 static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
@@ -6265,7 +6244,7 @@ static void SCULPT_OT_sculptmode_toggle(wmOperatorType *ot)
   ot->exec = sculpt_mode_toggle_exec;
   ot->poll = ED_operator_object_active_editable_mesh;
 
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_USE_EVAL_DATA;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 static bool sculpt_and_constant_or_manual_detail_poll(bContext *C)

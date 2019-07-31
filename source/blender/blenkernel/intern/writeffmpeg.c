@@ -319,6 +319,10 @@ static const char **get_file_extensions(int format)
       static const char *rv[] = {".ogv", ".ogg", NULL};
       return rv;
     }
+    case FFMPEG_WEBM: {
+      static const char *rv[] = {".webm", NULL};
+      return rv;
+    }
     default:
       return NULL;
   }
@@ -699,6 +703,12 @@ static AVStream *alloc_video_stream(FFMpegContext *context,
     /* Always write to ARGB. The default pixel format of QTRLE is RGB24, which uses 3 bytes per
      * pixels, which breaks the export. */
     c->pix_fmt = AV_PIX_FMT_ARGB;
+  }
+
+  if (codec_id == AV_CODEC_ID_VP9) {
+    if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
+      c->pix_fmt = AV_PIX_FMT_YUVA420P;
+    }
   }
 
   if (codec_id == AV_CODEC_ID_PNG) {
@@ -1836,25 +1846,14 @@ bool BKE_ffmpeg_alpha_channel_is_supported(RenderData *rd)
 {
   int codec = rd->ffcodecdata.codec;
 
-  if (codec == AV_CODEC_ID_QTRLE) {
-    return true;
-  }
-
-  if (codec == AV_CODEC_ID_PNG) {
-    return true;
-  }
-
-  if (codec == AV_CODEC_ID_HUFFYUV) {
-    return true;
-  }
-
 #  ifdef FFMPEG_FFV1_ALPHA_SUPPORTED
+  /* Visual Studio 2019 doesn't like #ifdef within ELEM(). */
   if (codec == AV_CODEC_ID_FFV1) {
     return true;
   }
 #  endif
 
-  return false;
+  return ELEM(codec, AV_CODEC_ID_QTRLE, AV_CODEC_ID_PNG, AV_CODEC_ID_VP9, AV_CODEC_ID_HUFFYUV);
 }
 
 void *BKE_ffmpeg_context_create(void)

@@ -32,25 +32,30 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_system.h"
 #include "BLI_path_util.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_colormanagement.h"
 
+#include "BKE_addon.h"
 #include "BKE_appdir.h"
 #include "BKE_blender.h"
 #include "BKE_blender_version.h"
 #include "BKE_blendfile.h"
 #include "BKE_bpath.h"
+#include "BKE_colorband.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_ipo.h"
+#include "BKE_keyconfig.h"
 #include "BKE_layer.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
+#include "BKE_studiolight.h"
 #include "BKE_workspace.h"
 
 #include "BLO_readfile.h"
@@ -548,6 +553,61 @@ UserDef *BKE_blendfile_userdef_read_from_memory(const void *filebuf,
   else {
     BKE_reports_prepend(reports, "Loading failed: ");
   }
+
+  return userdef;
+}
+
+UserDef *BKE_blendfile_userdef_from_defaults(void)
+{
+  UserDef *userdef = MEM_mallocN(sizeof(*userdef), __func__);
+
+  memcpy(userdef, &U_default, sizeof(UserDef));
+
+  /* Add-ons. */
+  {
+    const char *addons[] = {
+        "io_anim_bvh",
+        "io_curve_svg",
+        "io_mesh_ply",
+        "io_mesh_stl",
+        "io_mesh_uv_layout",
+        "io_scene_fbx",
+        "io_scene_gltf2",
+        "io_scene_obj",
+        "io_scene_x3d",
+    };
+    for (int i = 0; i < ARRAY_SIZE(addons); i++) {
+      bAddon *addon = BKE_addon_new();
+      STRNCPY(addon->module, addons[i]);
+      BLI_addtail(&userdef->addons, addon);
+    }
+  }
+
+  /* default so DPI is detected automatically */
+  userdef->dpi = 0;
+  userdef->ui_scale = 1.0f;
+
+#ifdef WITH_PYTHON_SECURITY
+  /* use alternative setting for security nuts
+   * otherwise we'd need to patch the binary blob - startup.blend.c */
+  userdef->flag |= USER_SCRIPT_AUTOEXEC_DISABLE;
+#else
+  userdef->flag &= ~USER_SCRIPT_AUTOEXEC_DISABLE;
+#endif
+
+  /* System-specific fonts directory. */
+  BKE_appdir_font_folder_default(userdef->fontdir);
+
+  userdef->memcachelimit = min_ii(BLI_system_memory_max_in_megabytes_int() / 2, 4096);
+
+  /* Init weight paint range. */
+  BKE_colorband_init(&userdef->coba_weight, true);
+
+  /* Default to left click select. */
+  BKE_keyconfig_pref_set_select_mouse(userdef, 0, true);
+
+  /* Default studio light. */
+  BKE_studiolight_default(userdef->light_param, userdef->light_ambient);
 
   return userdef;
 }

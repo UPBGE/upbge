@@ -286,12 +286,11 @@ void ui_but_anim_autokey(bContext *C, uiBut *but, Scene *scene, float cfra)
   if (special) {
     /* NLA Strip property */
     if (IS_AUTOKEY_ON(scene)) {
-      Depsgraph *depsgraph = CTX_data_depsgraph(C);
       ReportList *reports = CTX_wm_reports(C);
       ToolSettings *ts = scene->toolsettings;
 
       insert_keyframe_direct(
-          depsgraph, reports, but->rnapoin, but->rnaprop, fcu, cfra, ts->keyframe_type, NULL, 0);
+          reports, but->rnapoin, but->rnaprop, fcu, cfra, ts->keyframe_type, NULL, 0);
       WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
     }
   }
@@ -300,12 +299,10 @@ void ui_but_anim_autokey(bContext *C, uiBut *but, Scene *scene, float cfra)
      * making it easier to set up corrective drivers
      */
     if (IS_AUTOKEY_ON(scene)) {
-      Depsgraph *depsgraph = CTX_data_depsgraph(C);
       ReportList *reports = CTX_wm_reports(C);
       ToolSettings *ts = scene->toolsettings;
 
-      insert_keyframe_direct(depsgraph,
-                             reports,
+      insert_keyframe_direct(reports,
                              but->rnapoin,
                              but->rnaprop,
                              fcu,
@@ -321,7 +318,6 @@ void ui_but_anim_autokey(bContext *C, uiBut *but, Scene *scene, float cfra)
 
     /* TODO: this should probably respect the keyingset only option for anim */
     if (autokeyframe_cfra_can_key(scene, id)) {
-      Depsgraph *depsgraph = CTX_data_depsgraph(C);
       ReportList *reports = CTX_wm_reports(C);
       ToolSettings *ts = scene->toolsettings;
       short flag = ANIM_get_keyframing_flags(scene, 1);
@@ -333,7 +329,6 @@ void ui_but_anim_autokey(bContext *C, uiBut *but, Scene *scene, float cfra)
        *       E.g., color wheels (see T42567). */
       BLI_assert((fcu->array_index == but->rnaindex) || (but->rnaindex == -1));
       insert_keyframe(bmain,
-                      depsgraph,
                       reports,
                       id,
                       action,

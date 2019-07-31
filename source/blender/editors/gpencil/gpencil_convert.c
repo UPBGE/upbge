@@ -162,7 +162,10 @@ static void gp_strokepoint_convertcoords(bContext *C,
   Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
   ARegion *ar = CTX_wm_region(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  /* TODO(sergey): This function might be called from a loop, but no tagging is happening in it,
+   * so it's not that expensive to ensure evaluated depsgraph  here. However, ideally all the
+   * parameters are to wrapped into a context style struct and queried from Context once.*/
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *obact = CTX_data_active_object(C);
   bGPDspoint mypt, *pt;
 
@@ -387,8 +390,7 @@ static void gp_stroke_path_animation_preprocess_gaps(tGpTimingData *gtd,
   }
 }
 
-static void gp_stroke_path_animation_add_keyframes(Depsgraph *depsgraph,
-                                                   ReportList *reports,
+static void gp_stroke_path_animation_add_keyframes(ReportList *reports,
                                                    PointerRNA ptr,
                                                    PropertyRNA *prop,
                                                    FCurve *fcu,
@@ -446,7 +448,7 @@ static void gp_stroke_path_animation_add_keyframes(Depsgraph *depsgraph,
           cfra = last_valid_time + MIN_TIME_DELTA;
         }
         insert_keyframe_direct(
-            depsgraph, reports, ptr, prop, fcu, cfra, BEZT_KEYTYPE_KEYFRAME, NULL, INSERTKEY_FAST);
+            reports, ptr, prop, fcu, cfra, BEZT_KEYTYPE_KEYFRAME, NULL, INSERTKEY_FAST);
         last_valid_time = cfra;
       }
       else if (G.debug & G_DEBUG) {
@@ -459,7 +461,7 @@ static void gp_stroke_path_animation_add_keyframes(Depsgraph *depsgraph,
         cfra = last_valid_time + MIN_TIME_DELTA;
       }
       insert_keyframe_direct(
-          depsgraph, reports, ptr, prop, fcu, cfra, BEZT_KEYTYPE_KEYFRAME, NULL, INSERTKEY_FAST);
+          reports, ptr, prop, fcu, cfra, BEZT_KEYTYPE_KEYFRAME, NULL, INSERTKEY_FAST);
       last_valid_time = cfra;
     }
     else {
@@ -467,15 +469,8 @@ static void gp_stroke_path_animation_add_keyframes(Depsgraph *depsgraph,
        * and also far enough from (not yet added!) end_stroke keyframe!
        */
       if ((cfra - last_valid_time) > MIN_TIME_DELTA && (end_stroke_time - cfra) > MIN_TIME_DELTA) {
-        insert_keyframe_direct(depsgraph,
-                               reports,
-                               ptr,
-                               prop,
-                               fcu,
-                               cfra,
-                               BEZT_KEYTYPE_BREAKDOWN,
-                               NULL,
-                               INSERTKEY_FAST);
+        insert_keyframe_direct(
+            reports, ptr, prop, fcu, cfra, BEZT_KEYTYPE_BREAKDOWN, NULL, INSERTKEY_FAST);
         last_valid_time = cfra;
       }
       else if (G.debug & G_DEBUG) {
@@ -493,7 +488,6 @@ static void gp_stroke_path_animation(bContext *C,
                                      Curve *cu,
                                      tGpTimingData *gtd)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   bAction *act;
@@ -538,7 +532,7 @@ static void gp_stroke_path_animation(bContext *C,
     cu->ctime = 0.0f;
     cfra = (float)gtd->start_frame;
     insert_keyframe_direct(
-        depsgraph, reports, ptr, prop, fcu, cfra, BEZT_KEYTYPE_KEYFRAME, NULL, INSERTKEY_FAST);
+        reports, ptr, prop, fcu, cfra, BEZT_KEYTYPE_KEYFRAME, NULL, INSERTKEY_FAST);
 
     cu->ctime = cu->pathlen;
     if (gtd->realtime) {
@@ -548,7 +542,7 @@ static void gp_stroke_path_animation(bContext *C,
       cfra = (float)gtd->end_frame;
     }
     insert_keyframe_direct(
-        depsgraph, reports, ptr, prop, fcu, cfra, BEZT_KEYTYPE_KEYFRAME, NULL, INSERTKEY_FAST);
+        reports, ptr, prop, fcu, cfra, BEZT_KEYTYPE_KEYFRAME, NULL, INSERTKEY_FAST);
   }
   else {
     /* Use actual recorded timing! */
@@ -575,7 +569,7 @@ static void gp_stroke_path_animation(bContext *C,
     }
 
     gp_stroke_path_animation_add_keyframes(
-        depsgraph, reports, ptr, prop, fcu, cu, gtd, rng, time_range, nbr_gaps, tot_gaps_time);
+        reports, ptr, prop, fcu, cu, gtd, rng, time_range, nbr_gaps, tot_gaps_time);
 
     BLI_rng_free(rng);
   }
@@ -1250,7 +1244,7 @@ static int gp_camera_view_subrect(bContext *C, rctf *subrect)
     /* for camera view set the subrect */
     if (rv3d->persp == RV3D_CAMOB) {
       Scene *scene = CTX_data_scene(C);
-      Depsgraph *depsgraph = CTX_data_depsgraph(C);
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
       ED_view3d_calc_camera_border(scene, depsgraph, ar, v3d, rv3d, subrect, true);
       return 1;
     }

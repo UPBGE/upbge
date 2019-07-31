@@ -313,7 +313,7 @@ void ED_view3d_smooth_view(bContext *C,
                            const int smooth_viewtx,
                            const struct V3D_SmoothParams *sview)
 {
-  const Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   ScrArea *sa = CTX_wm_area(C);
@@ -324,7 +324,6 @@ void ED_view3d_smooth_view(bContext *C,
 /* only meant for timer usage */
 static void view3d_smoothview_apply(bContext *C, View3D *v3d, ARegion *ar, bool sync_boxview)
 {
-  const Depsgraph *depsgraph = CTX_data_depsgraph(C);
   RegionView3D *rv3d = ar->regiondata;
   struct SmoothView3DStore *sms = rv3d->sms;
   float step, step_inv;
@@ -345,6 +344,8 @@ static void view3d_smoothview_apply(bContext *C, View3D *v3d, ARegion *ar, bool 
       view3d_smooth_view_state_restore(&sms->org, v3d, rv3d);
     }
     else {
+      const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+
       view3d_smooth_view_state_restore(&sms->dst, v3d, rv3d);
 
       ED_view3d_camera_lock_sync(depsgraph, v3d, rv3d);
@@ -381,6 +382,7 @@ static void view3d_smoothview_apply(bContext *C, View3D *v3d, ARegion *ar, bool 
     rv3d->dist = sms->dst.dist * step + sms->src.dist * step_inv;
     v3d->lens = sms->dst.lens * step + sms->src.lens * step_inv;
 
+    const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     ED_view3d_camera_lock_sync(depsgraph, v3d, rv3d);
     if (ED_screen_animation_playing(CTX_wm_manager(C))) {
       ED_view3d_camera_lock_autokey(v3d, rv3d, C, true, true);
@@ -437,7 +439,7 @@ void ED_view3d_smooth_view_force_finish(bContext *C, View3D *v3d, ARegion *ar)
 
     /* force update of view matrix so tools that run immediately after
      * can use them without redrawing first */
-    Depsgraph *depsgraph = CTX_data_depsgraph(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     Scene *scene = CTX_data_scene(C);
     ED_view3d_update_viewmat(depsgraph, scene, v3d, ar, NULL, NULL, NULL, false);
   }
@@ -466,7 +468,7 @@ void VIEW3D_OT_smoothview(wmOperatorType *ot)
 
 static int view3d_camera_to_view_exec(bContext *C, wmOperator *UNUSED(op))
 {
-  const Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   View3D *v3d;
   ARegion *ar;
   RegionView3D *rv3d;
@@ -536,7 +538,7 @@ void VIEW3D_OT_camera_to_view(wmOperatorType *ot)
  * meant to take into account vertex/bone selection for eg. */
 static int view3d_camera_to_view_selected_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C); /* can be NULL */
   Object *camera_ob = v3d ? v3d->camera : scene->camera;
@@ -1422,7 +1424,7 @@ static void view3d_localview_exit(const Depsgraph *depsgraph,
 
 static int localview_exec(bContext *C, wmOperator *op)
 {
-  const Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
@@ -1682,7 +1684,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	if ((rv3d->persp == RV3D_CAMOB) &&
 	    (startscene->gm.framing.type == SCE_GAMEFRAMING_BARS))
 	{
-		Depsgraph *depsgraph = CTX_data_depsgraph(C);
+		Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 		/* Letterbox */
 		rctf cam_framef;
 		ED_view3d_calc_camera_border(startscene, depsgraph, ar, CTX_wm_view3d(C), rv3d, &cam_framef, false);

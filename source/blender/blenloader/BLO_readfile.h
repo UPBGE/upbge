@@ -167,7 +167,6 @@ void BLO_main_expander(BLOExpandDoitCallback expand_doit_func);
 void BLO_expand_main(void *fdhandle, struct Main *mainvar);
 
 /* Update defaults in startup.blend & userprefs.blend, without having to save and embed it */
-void BLO_update_defaults_userpref_blend(void);
 void BLO_update_defaults_startup_blend(struct Main *mainvar, const char *app_template);
 void BLO_update_defaults_workspace(struct WorkSpace *workspace, const char *app_template);
 
@@ -178,6 +177,7 @@ struct BlendThumbnail *BLO_thumbnail_from_file(const char *filepath);
 
 /* datafiles (generated theme) */
 extern const struct bTheme U_theme_default;
+extern const struct UserDef U_default;
 
 #ifdef __cplusplus
 }
