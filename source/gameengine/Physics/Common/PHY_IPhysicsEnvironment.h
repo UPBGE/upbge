@@ -61,17 +61,6 @@ struct PHY_RayCastResult {
 	int m_polygon; // index of the polygon hit by the ray, only if m_meshObject != nullptr
 	int m_hitUVOK; // !=0 if UV coordinate in m_hitUV is valid
 	mt::vec2 m_hitUV; // UV coordinates of hit point
-
-	PHY_RayCastResult()
-		:m_controller(nullptr),
-		m_hitPoint(mt::zero3),
-		m_hitNormal(mt::zero3),
-		m_meshObject(nullptr),
-		m_polygon(0),
-		m_hitUVOK(0),
-		m_hitUV(mt::zero2)
-	{
-	}
 };
 
 /**

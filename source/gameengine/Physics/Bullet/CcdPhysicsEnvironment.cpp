@@ -1200,6 +1200,7 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::RayTest(PHY_IRayCastFilterCallbac
 	FilterClosestRayResultCallback rayCallback(filterCallback, rayFrom, rayTo);
 
 	PHY_RayCastResult result;
+	memset(&result, 0, sizeof(result));
 
 	// don't collision with sensor object
 	rayCallback.m_collisionFilterMask = CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::SensorFilter;
@@ -2185,6 +2186,7 @@ PHY_ICharacter *CcdPhysicsEnvironment::GetCharacterController(KX_GameObject *ob)
 PHY_IPhysicsController *CcdPhysicsEnvironment::CreateSphereController(float radius, const mt::vec3& position)
 {
 	CcdConstructionInfo cinfo;
+	memset(&cinfo, 0, sizeof(cinfo)); // avoid uninitialized values
 	cinfo.m_collisionShape = new btSphereShape(radius); // memory leak! The shape is not deleted by Bullet and we cannot add it to the KX_Scene.m_shapes list
 	cinfo.m_MotionState = nullptr;
 	cinfo.m_physicsEnv = this;
@@ -2535,6 +2537,7 @@ PHY_IVehicle *CcdPhysicsEnvironment::CreateVehicle(PHY_IPhysicsController *ctrl)
 PHY_IPhysicsController *CcdPhysicsEnvironment::CreateConeController(float coneradius, float coneheight)
 {
 	CcdConstructionInfo cinfo;
+	//don't memset cinfo: this is C++ and values should be set in the constructor!
 
 	// we don't need a CcdShapeConstructionInfo for this shape:
 	// it is simple enough for the standard copy constructor (see CcdPhysicsController::GetReplica)
