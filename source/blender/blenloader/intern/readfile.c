@@ -2424,7 +2424,7 @@ static void IDP_DirectLinkIDPArray(IDProperty *prop, int switch_endian, FileData
   array = (IDProperty *)prop->data.pointer;
 
   /* note!, idp-arrays didn't exist in 2.4x, so the pointer will be cleared
-   * theres not really anything we can do to correct this, at least don't crash */
+   * there's not really anything we can do to correct this, at least don't crash */
   if (array == NULL) {
     prop->len = 0;
     prop->totallen = 0;
@@ -6567,12 +6567,22 @@ static void lib_link_scene(FileData *fd, Main *main)
       sce->set = newlibadr(fd, sce->id.lib, sce->set);
       sce->gpd = newlibadr_us(fd, sce->id.lib, sce->gpd);
 
-      link_paint(fd, sce, &sce->toolsettings->sculpt->paint);
-      link_paint(fd, sce, &sce->toolsettings->vpaint->paint);
-      link_paint(fd, sce, &sce->toolsettings->wpaint->paint);
       link_paint(fd, sce, &sce->toolsettings->imapaint.paint);
-      link_paint(fd, sce, &sce->toolsettings->uvsculpt->paint);
-      link_paint(fd, sce, &sce->toolsettings->gp_paint->paint);
+      if (sce->toolsettings->sculpt) {
+        link_paint(fd, sce, &sce->toolsettings->sculpt->paint);
+      }
+      if (sce->toolsettings->vpaint) {
+        link_paint(fd, sce, &sce->toolsettings->vpaint->paint);
+      }
+      if (sce->toolsettings->wpaint) {
+        link_paint(fd, sce, &sce->toolsettings->wpaint->paint);
+      }
+      if (sce->toolsettings->uvsculpt) {
+        link_paint(fd, sce, &sce->toolsettings->uvsculpt->paint);
+      }
+      if (sce->toolsettings->gp_paint) {
+        link_paint(fd, sce, &sce->toolsettings->gp_paint->paint);
+      }
 
       if (sce->toolsettings->sculpt) {
         sce->toolsettings->sculpt->gravity_object = newlibadr(
@@ -7281,7 +7291,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
   link_list(fd, &ar->ui_previews);
 
   if (spacetype == SPACE_EMPTY) {
-    /* unkown space type, don't leak regiondata */
+    /* unknown space type, don't leak regiondata */
     ar->regiondata = NULL;
   }
   else if (ar->flag & RGN_FLAG_TEMP_REGIONDATA) {

@@ -967,7 +967,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
         bPoseChannel *pchan;
 
         for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-          /* just need to initalise rotation axis properly... */
+          /* just need to initialise rotation axis properly... */
           pchan->rotAxis[1] = 1.0f;
         }
       }

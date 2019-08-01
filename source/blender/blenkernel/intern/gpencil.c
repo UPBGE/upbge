@@ -414,7 +414,7 @@ bGPdata *BKE_gpencil_data_addnew(Main *bmain, const char name[])
   /* general flags */
   gpd->flag |= GP_DATA_VIEWALIGN;
   gpd->flag |= GP_DATA_STROKE_FORCE_RECALC;
-  /* always enable object onion skin swith */
+  /* always enable object onion skin switch */
   gpd->flag |= GP_DATA_SHOW_ONIONSKINS;
   /* GP object specific settings */
   ARRAY_SET_ITEMS(gpd->line_color, 0.6f, 0.6f, 0.6f, 0.5f);
@@ -1660,6 +1660,22 @@ void BKE_gpencil_material_index_reassign(bGPdata *gpd, int totcol, int index)
       }
     }
   }
+}
+
+/* remove strokes using a material */
+bool BKE_gpencil_material_index_used(bGPdata *gpd, int index)
+{
+  for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+    for (bGPDframe *gpf = gpl->frames.first; gpf; gpf = gpf->next) {
+      for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+        if (gps->mat_nr == index) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
 }
 
 void BKE_gpencil_material_remap(struct bGPdata *gpd,

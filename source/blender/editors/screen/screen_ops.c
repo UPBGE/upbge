@@ -1064,7 +1064,7 @@ static int actionzone_modal(bContext *C, wmOperator *op, const wmEvent *event)
             is_gesture = (delta_max > split_threshold);
           }
           else {
-            /* Different area, so posible join. */
+            /* Different area, so possible join. */
             if (sad->gesture_dir == 'n') {
               WM_cursor_set(win, BC_N_ARROWCURSOR);
             }

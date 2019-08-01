@@ -1132,7 +1132,7 @@ static void drw_engines_cache_populate(Object *ob)
     drw_batch_cache_generate_requested(ob);
   }
 
-  /* ... and clearing it here too because theses draw data are
+  /* ... and clearing it here too because this draw data is
    * from a mempool and must not be free individually by depsgraph. */
   drw_drawdata_unlink_dupli((ID *)ob);
 }
@@ -2563,7 +2563,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph,
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
-  DRW_select_context_create(depsgraph, bases, bases_len, select_mode);
+  DRW_select_context_create(bases, bases_len, select_mode);
 
   DRW_opengl_context_enable();
 

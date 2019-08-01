@@ -366,6 +366,26 @@ static void material_data_index_remove_id(ID *id, short index)
   }
 }
 
+bool BKE_object_material_slot_used(ID *id, short actcol)
+{
+  /* ensure we don't try get materials from non-obdata */
+  BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+
+  switch (GS(id->name)) {
+    case ID_ME:
+      return BKE_mesh_material_index_used((Mesh *)id, actcol - 1);
+    case ID_CU:
+      return BKE_curve_material_index_used((Curve *)id, actcol - 1);
+    case ID_MB:
+      /* meta-elems don't have materials atm */
+      return false;
+    case ID_GD:
+      return BKE_gpencil_material_index_used((bGPdata *)id, actcol - 1);
+    default:
+      return false;
+  }
+}
+
 static void material_data_index_clear_id(ID *id)
 {
   /* ensure we don't try get materials from non-obdata */
@@ -1108,7 +1128,7 @@ static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
   return true;
 }
 
-static bool count_texture_nodes_cb(bNode *node, void *userdata)
+static bool count_texture_nodes_cb(bNode *UNUSED(node), void *userdata)
 {
   (*((int *)userdata))++;
   return true;
