@@ -3533,6 +3533,22 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_ATLEAST(bmain, 281, 1)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
+        if (md->type == eModifierType_DataTransfer) {
+          /* Now datatransfer's mix factor is multiplied with weights when any,
+           * instead of being ignored,
+           * we need to take care of that to keep 'old' files compatible. */
+          DataTransferModifierData *dtmd = (DataTransferModifierData *)md;
+          if (dtmd->defgrp_name[0] != '\0') {
+            dtmd->mix_factor = 1.0f;
+          }
+        }
+      }
+    }
+  }
+
   /* Game engine hack to force defaults in files saved in normal blender2.8 */
   if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
     for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {

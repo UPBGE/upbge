@@ -560,8 +560,7 @@ UserDef *BKE_blendfile_userdef_read_from_memory(const void *filebuf,
 UserDef *BKE_blendfile_userdef_from_defaults(void)
 {
   UserDef *userdef = MEM_mallocN(sizeof(*userdef), __func__);
-
-  memcpy(userdef, &U_default, sizeof(UserDef));
+  memcpy(userdef, &U_default, sizeof(*userdef));
 
   /* Add-ons. */
   {
@@ -583,6 +582,14 @@ UserDef *BKE_blendfile_userdef_from_defaults(void)
     }
   }
 
+  /* Theme. */
+  {
+    bTheme *btheme = MEM_mallocN(sizeof(*btheme), __func__);
+    memcpy(btheme, &U_theme_default, sizeof(*btheme));
+
+    BLI_addtail(&userdef->themes, btheme);
+  }
+
 #ifdef WITH_PYTHON_SECURITY
   /* use alternative setting for security nuts
    * otherwise we'd need to patch the binary blob - startup.blend.c */
@@ -599,9 +606,6 @@ UserDef *BKE_blendfile_userdef_from_defaults(void)
 
   /* Init weight paint range. */
   BKE_colorband_init(&userdef->coba_weight, true);
-
-  /* Default to left click select. */
-  BKE_keyconfig_pref_set_select_mouse(userdef, 0, true);
 
   /* Default studio light. */
   BKE_studiolight_default(userdef->light_param, userdef->light_ambient);
