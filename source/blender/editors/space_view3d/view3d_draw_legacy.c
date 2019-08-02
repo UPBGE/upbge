@@ -155,12 +155,8 @@ void ED_view3d_clipping_enable(void)
 /**
  * \note Only use in object mode.
  */
-static void validate_object_select_id(struct Depsgraph *depsgraph,
-                                      Scene *scene,
-                                      ViewLayer *view_layer,
-                                      ARegion *ar,
-                                      View3D *v3d,
-                                      Object *obact)
+static void validate_object_select_id(
+    struct Depsgraph *depsgraph, ViewLayer *view_layer, ARegion *ar, View3D *v3d, Object *obact)
 {
   Object *obact_eval = DEG_get_evaluated_object(depsgraph, obact);
 
@@ -188,8 +184,7 @@ static void validate_object_select_id(struct Depsgraph *depsgraph,
   }
 
   if (obact_eval && ((obact_eval->base_flag & BASE_VISIBLE) != 0)) {
-    DRW_draw_select_id_object(
-        depsgraph, view_layer, ar, v3d, obact, scene->toolsettings->selectmode);
+    DRW_draw_select_id_object(depsgraph, view_layer, ar, v3d, obact, -1);
   }
 
   /* TODO: Create a flag in `DRW_manager` because the drawing is no longer
@@ -224,8 +219,7 @@ void ED_view3d_select_id_validate(ViewContext *vc)
   /* TODO: Create a flag in `DRW_manager` because the drawing is no longer
    *       made on the backbuffer in this case. */
   if (vc->v3d->flag & V3D_INVALID_BACKBUF) {
-    validate_object_select_id(
-        vc->depsgraph, vc->scene, vc->view_layer, vc->ar, vc->v3d, vc->obact);
+    validate_object_select_id(vc->depsgraph, vc->view_layer, vc->ar, vc->v3d, vc->obact);
   }
 }
 
