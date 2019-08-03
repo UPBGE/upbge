@@ -42,7 +42,7 @@ add_subdirectory(wcwidth)
 
 if(WITH_BULLET)
 	if(NOT WITH_SYSTEM_BULLET)
-		add_subdirectory(bullet)
+		add_subdirectory(bullet2)
 	endif()
 endif()
 

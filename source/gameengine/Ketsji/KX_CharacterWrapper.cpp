@@ -91,18 +91,20 @@ PyObject *KX_CharacterWrapper::pyattr_get_gravity(EXP_PyObjectPlus *self_v, cons
 {
 	KX_CharacterWrapper *self = static_cast<KX_CharacterWrapper *>(self_v);
 
-	return PyObjectFrom(self->m_character->GetGravity());
+	return PyFloat_FromDouble(self->m_character->GetGravity());
 }
 
 int KX_CharacterWrapper::pyattr_set_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CharacterWrapper *self = static_cast<KX_CharacterWrapper *>(self_v);
-	mt::vec3 gravity;
-	if (!PyVecTo(value, gravity)) {
+	double param = PyFloat_AsDouble(value);
+
+	if (param == -1) {
+		PyErr_SetString(PyExc_ValueError, "KX_CharacterWrapper.gravity: expected a float");
 		return PY_SET_ATTR_FAIL;
 	}
 
-	self->m_character->SetGravity(gravity);
+	self->m_character->SetGravity((float)param);
 	return PY_SET_ATTR_SUCCESS;
 }
 

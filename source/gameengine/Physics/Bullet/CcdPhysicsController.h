@@ -479,13 +479,13 @@ public:
 	{
 		return onGround();
 	}
-	virtual mt::vec3 GetGravity()
+	virtual float GetGravity()
 	{
-		return ToMt(getGravity());
+		return getGravity();
 	}
-	virtual void SetGravity(const mt::vec3& gravity)
+	virtual void SetGravity(float gravity)
 	{
-		setGravity(ToBullet(gravity));
+		setGravity(gravity);
 	}
 	virtual unsigned char GetMaxJumps()
 	{

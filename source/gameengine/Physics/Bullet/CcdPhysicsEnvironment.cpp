@@ -27,12 +27,10 @@
 #include "LinearMath/btIDebugDraw.h"
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/CollisionDispatch/btSimulationIslandManager.h"
-#include "BulletCollision/CollisionDispatch/btCollisionDispatcherMt.h"
-#include "BulletSoftBody/btSoftRigidDynamicsWorldMt.h"
+#include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/NarrowPhaseCollision/btRaycastCallback.h"
-#include "BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolverMt.h"
 #include "BulletDynamics/ConstraintSolver/btNNCGConstraintSolver.h"
 #include "BulletDynamics/MLCPSolvers/btMLCPSolver.h"
 #include "BulletDynamics/MLCPSolvers/btDantzigSolver.h"
@@ -394,14 +392,8 @@ void CcdPhysicsEnvironment::SetDebugDrawer(btIDebugDraw *debugDrawer)
 
 CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling)
 	:m_debugDrawer(nullptr),
-	m_collisionConfiguration(new btSoftBodyRigidBodyCollisionConfiguration()),
-	m_broadphase(new btDbvtBroadphase()),
 	m_cullingCache(nullptr),
 	m_cullingTree(nullptr),
-	m_solverMt(new btSequentialImpulseConstraintSolverMt()),
-	m_filterCallback(new CcdOverlapFilterCallBack(this)),
-	m_ghostPairCallback(new btGhostPairCallback()),
-	m_dispatcher(new btCollisionDispatcherMt(m_collisionConfiguration.get())),
 	m_numIterations(10),
 	m_numTimeSubSteps(1),
 	m_ccdMode(0),
@@ -409,36 +401,37 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool use
 	m_deactivationTime(2.0f),
 	m_linearDeactivationThreshold(0.8f),
 	m_angularDeactivationThreshold(1.0f),
-	m_contactBreakingThreshold(0.02f)
+	m_contactBreakingThreshold(0.02f),
+	m_solver(nullptr),
+	m_filterCallback(nullptr),
+	m_ghostPairCallback(nullptr),
+	m_ownDispatcher(nullptr)
 {
-	// Initialize the task scheduler used for bullet parallelization.
-	btITaskScheduler *scheduler = btGetTBBTaskScheduler();
-	const int numThread = scheduler->getMaxNumThreads();
-	if (btGetTaskScheduler() != scheduler) {
-		scheduler->setNumThreads(numThread);
-		btSetTaskScheduler(scheduler);
-	}
-
 	for (int i = 0; i < PHY_NUM_RESPONSE; i++) {
 		m_triggerCallbacks[i] = nullptr;
 	}
 
-	btGImpactCollisionAlgorithm::registerAlgorithm(m_dispatcher.get());
+	m_collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration();
 
+	btCollisionDispatcher *dispatcher = new btCollisionDispatcher(m_collisionConfiguration);
+	btGImpactCollisionAlgorithm::registerAlgorithm(dispatcher);
+	m_ownDispatcher = dispatcher;
+
+	m_broadphase = new btDbvtBroadphase();
 	// avoid any collision in the culling tree
 	if (useDbvtCulling) {
-		m_cullingCache.reset(new btNullPairCache());
-		m_cullingTree.reset(new btDbvtBroadphase(m_cullingCache.get()));
+		m_cullingCache = new btNullPairCache();
+		m_cullingTree = new btDbvtBroadphase(m_cullingCache);
 	}
 
-	m_broadphase->getOverlappingPairCache()->setOverlapFilterCallback(m_filterCallback.get());
-	m_broadphase->getOverlappingPairCache()->setInternalGhostPairCallback(m_ghostPairCallback.get());
+	m_filterCallback = new CcdOverlapFilterCallBack(this);
+	m_ghostPairCallback = new btGhostPairCallback();
+	m_broadphase->getOverlappingPairCache()->setOverlapFilterCallback(m_filterCallback);
+	m_broadphase->getOverlappingPairCache()->setInternalGhostPairCallback(m_ghostPairCallback);
 
-	m_solvers.resize(numThread);
 	SetSolverType(solverType);
-	
-    m_solverPool.reset(new btConstraintSolverPoolMt(m_solvers.data(), numThread));
-	m_dynamicsWorld.reset(new btSoftRigidDynamicsWorldMt(m_dispatcher.get(), m_broadphase.get(), m_solverPool.get(), m_solverMt.get(), m_collisionConfiguration.get()));
+
+	m_dynamicsWorld = new btSoftRigidDynamicsWorld(dispatcher, m_broadphase, m_solver, m_collisionConfiguration);
 	m_dynamicsWorld->setInternalTickCallback(&CcdPhysicsEnvironment::StaticSimulationSubtickCallback, this);
 
 	SetGravity(0.0f, 0.0f, -9.81f);
@@ -685,8 +678,8 @@ void CcdPhysicsEnvironment::AddCcdGraphicController(CcdGraphicController *ctrl)
 									  ctrl,
 									  0, // this object does not collision with anything
 									  0,
-									  nullptr // dispatcher => this parameter is not used
-									  ));
+									  nullptr, // dispatcher => this parameter is not used
+									  0));
 
 		BLI_assert(ctrl->GetBroadphaseHandle());
 	}
@@ -1008,35 +1001,33 @@ void CcdPhysicsEnvironment::SetSolverType(PHY_SolverType solverType)
 		return;
 	}
 
-	for (unsigned short i = 0, size = m_solvers.size(); i < size; ++i) {
-		switch (solverType) {
-			case PHY_SOLVER_SEQUENTIAL:
-			{
-				m_solvers[i] = new btSequentialImpulseConstraintSolver();
-				break;
-			}
-			case PHY_SOLVER_NNCG:
-			{
-				m_solvers[i] = new btNNCGConstraintSolver();
-				break;
-			}
-			case PHY_SOLVER_MLCP_DANTZIG:
-			{
-				m_solvers[i] = new btMLCPSolver(new btDantzigSolver());
-				break;
-			}
-			case PHY_SOLVER_MLCP_LEMKE:
-			{
-				m_solvers[i] = new btMLCPSolver(new btLemkeSolver());
-				break;
-			}
-			default:
-			{
-				BLI_assert(false);
-			}
+	switch (solverType) {
+		case PHY_SOLVER_SEQUENTIAL:
+		{
+			m_solver = new btSequentialImpulseConstraintSolver();
+			break;
+		}
+		case PHY_SOLVER_NNCG:
+		{
+			m_solver = new btNNCGConstraintSolver();
+			break;
+		}
+		case PHY_SOLVER_MLCP_DANTZIG:
+		{
+			m_solver = new btMLCPSolver(new btDantzigSolver());
+			break;
+		}
+		case PHY_SOLVER_MLCP_LEMKE:
+		{
+			m_solver = new btMLCPSolver(new btLemkeSolver());
+			break;
+		}
+		default:
+		{
+			BLI_assert(false);
 		}
 	}
-
+	;
 	m_solverType = solverType;
 }
 
@@ -1974,8 +1965,48 @@ CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
 {
 	m_wrapperVehicles.clear();
 
-	// First delete scene, then dispatcher, because pairs have to release manifolds on the dispatcher.
-	m_dynamicsWorld.reset(nullptr);
+	//m_broadphase->DestroyScene();
+	//delete broadphase ? release reference on broadphase ?
+
+	//first delete scene, then dispatcher, because pairs have to release manifolds on the dispatcher
+	//delete m_dispatcher;
+	delete m_dynamicsWorld;
+
+	if (nullptr != m_ownDispatcher) {
+		delete m_ownDispatcher;
+	}
+
+	if (nullptr != m_solver) {
+		delete m_solver;
+	}
+
+	if (nullptr != m_debugDrawer) {
+		delete m_debugDrawer;
+	}
+
+	if (nullptr != m_filterCallback) {
+		delete m_filterCallback;
+	}
+
+	if (nullptr != m_ghostPairCallback) {
+		delete m_ghostPairCallback;
+	}
+
+	if (nullptr != m_collisionConfiguration) {
+		delete m_collisionConfiguration;
+	}
+
+	if (nullptr != m_broadphase) {
+		delete m_broadphase;
+	}
+
+	if (nullptr != m_cullingTree) {
+		delete m_cullingTree;
+	}
+
+	if (nullptr != m_cullingCache) {
+		delete m_cullingCache;
+	}
 }
 
 btTypedConstraint *CcdPhysicsEnvironment::GetConstraintById(int constraintId)
@@ -2501,7 +2532,7 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 PHY_IVehicle *CcdPhysicsEnvironment::CreateVehicle(PHY_IPhysicsController *ctrl)
 {
 	const btRaycastVehicle::btVehicleTuning tuning = btRaycastVehicle::btVehicleTuning();
-	BlenderVehicleRaycaster *raycaster = new BlenderVehicleRaycaster(m_dynamicsWorld.get());
+	BlenderVehicleRaycaster *raycaster = new BlenderVehicleRaycaster(m_dynamicsWorld);
 	btRaycastVehicle *vehicle = new btRaycastVehicle(tuning, ((CcdPhysicsController *)ctrl)->GetRigidBody(), raycaster);
 	WrapperVehicle *wrapperVehicle = new WrapperVehicle(vehicle, raycaster, ctrl);
 	m_wrapperVehicles.push_back(wrapperVehicle);

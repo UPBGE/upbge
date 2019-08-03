@@ -67,7 +67,7 @@ BL_ActionData *BL_ConvertAction(bAction *action, KX_Scene *scene, BL_SceneConver
 /// Convert all actions of a library and register them in a converter.
 void BL_ConvertActions(KX_Scene *scene, Main *maggie, BL_SceneConverter& converter);
 
-void BL_ConvertBlenderObjects(Main *maggie, KX_Scene *kxscene, KX_KetsjiEngine *ketsjiEngine,
+void BL_ConvertBlenderObjects(Main *maggie, KX_Scene *kxscene, KX_KetsjiEngine *ketsjiEngine, e_PhysicsEngine physics_engine,
 							  RAS_Rasterizer *rendertools, RAS_ICanvas *canvas, BL_SceneConverter& sceneconverter,
                               bool alwaysUseExpandFraming, float camZoom, bool libloading);
 // Non-multithreadable conversion.

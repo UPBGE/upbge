@@ -17,7 +17,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       The gravity value used for the character.
 
-      :type: :class:`mathutils.Vector`
+      :type: float
 
    .. attribute:: fallSpeed
 

@@ -55,7 +55,6 @@
 #include "mathfu.h"
 
 #include "PHY_IPhysicsEnvironment.h"
-#include "DummyPhysicsEnvironment.h"
 
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"
@@ -113,8 +112,6 @@
 #include "BL_ConvertObjectInfo.h"
 #include "BL_ArmatureObject.h"
 #include "BL_ActionData.h"
-
-#include "LA_SystemCommandLine.h"
 
 #include "CM_Message.h"
 
@@ -750,21 +747,32 @@ void BL_ConvertActions(KX_Scene *scene, Main *maggie, BL_SceneConverter& convert
 	}
 }
 
-static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene, bool isActive, PHY_IPhysicsEnvironment *phyEnv)
+static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene, bool isActive, e_PhysicsEngine physics_engine)
 {
+	switch (physics_engine) {
 #ifdef WITH_BULLET
-	CcdPhysicsEnvironment *env = static_cast<CcdPhysicsEnvironment *>(phyEnv);
-	PHY_IMotionState *motionstate = new KX_MotionState(gameobj->GetNode());
-	CcdGraphicController *ctrl = new CcdGraphicController(env, motionstate);
-	gameobj->SetGraphicController(ctrl);
-	ctrl->SetNewClientInfo(&gameobj->GetClientInfo());
-	if (isActive) {
-		// add first, this will create the proxy handle, only if the object is visible or occluder
-		if (gameobj->GetVisible() || gameobj->GetOccluder()) {
-			env->AddCcdGraphicController(ctrl);
+		case UseBullet:
+		{
+			CcdPhysicsEnvironment *env = (CcdPhysicsEnvironment *)kxscene->GetPhysicsEnvironment();
+			BLI_assert(env);
+			PHY_IMotionState *motionstate = new KX_MotionState(gameobj->GetNode());
+			CcdGraphicController *ctrl = new CcdGraphicController(env, motionstate);
+			gameobj->SetGraphicController(ctrl);
+			ctrl->SetNewClientInfo(&gameobj->GetClientInfo());
+			if (isActive) {
+				// add first, this will create the proxy handle, only if the object is visible
+				if (gameobj->GetVisible()) {
+					env->AddCcdGraphicController(ctrl);
+				}
+			}
+			break;
+		}
+#endif
+		default:
+		{
+			break;
 		}
 	}
-#endif
 }
 
 static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj, Object *blenderobject, KX_Mesh *meshobj,
@@ -1296,6 +1304,7 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter& converter,
 void BL_ConvertBlenderObjects(struct Main *maggie,
                               KX_Scene *kxscene,
                               KX_KetsjiEngine *ketsjiEngine,
+                              e_PhysicsEngine physics_engine,
                               RAS_Rasterizer *rendertools,
                               RAS_ICanvas *canvas,
                               BL_SceneConverter& converter,
@@ -1331,33 +1340,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 	 * This will happen when a group instance is made from a linked group instance
 	 * and both are on the active layer. */
 	EXP_ListValue<KX_GameObject> *convertedlist = new EXP_ListValue<KX_GameObject>();
-
-	// Find out which physics engine
-	PHY_IPhysicsEnvironment *phyEnv = nullptr;
-	e_PhysicsEngine physicsEngine = UseBullet;
-
-	switch (blenderscene->gm.physicsEngine) {
-#ifdef WITH_BULLET
-		case WOPHY_BULLET:
-		{
-			SYS_SystemHandle syshandle = SYS_GetSystem();
-			int visualizePhysics = SYS_GetCommandLineInt(syshandle, "show_physics", 0);
-
-			phyEnv = CcdPhysicsEnvironment::Create(blenderscene, visualizePhysics);
-			physicsEngine = UseBullet;
-			break;
-		}
-#endif
-		case WOPHY_NONE:
-		default:
-		{
-			// We should probably use some sort of factory here
-			phyEnv = new DummyPhysicsEnvironment();
-			physicsEngine = UseNone;
-			break;
-		}
-	}
-	kxscene->SetPhysicsEnvironment(phyEnv);
 
 
 	// Get the frame settings of the canvas.
@@ -1636,10 +1618,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 				continue;
 			}
 
-			if (physicsEngine == UseBullet) {
-				const bool isactive = objectlist->SearchValue(gameobj);
-				BL_CreateGraphicObjectNew(gameobj, kxscene, isactive, phyEnv);
-			}
+			bool isactive = objectlist->SearchValue(gameobj);
+			BL_CreateGraphicObjectNew(gameobj, kxscene, isactive, physics_engine);
 			if (gameobj->GetOccluder()) {
 				occlusion = true;
 			}
