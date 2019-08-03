@@ -29,13 +29,13 @@ int MultiBodyTree::InitCache::addBody(const int body_index, const int parent_ind
 			m_num_dofs += 6;
 			break;
 		default:
-			bt_id_error_message("unknown joint type %d\n", joint_type);
+			error_message("unknown joint type %d\n", joint_type);
 			return -1;
 	}
 
 	if(-1 == parent_index) {
 		if(m_root_index>=0) {
-			bt_id_error_message("trying to add body %d as root, but already added %d as root body\n",
+			error_message("trying to add body %d as root, but already added %d as root body\n",
 						  body_index, m_root_index);
 			return -1;
 		}
@@ -63,7 +63,7 @@ int MultiBodyTree::InitCache::addBody(const int body_index, const int parent_ind
 }
 int MultiBodyTree::InitCache::getInertiaData(const int index, InertiaData* inertia) const {
 	if (index < 0 || index > static_cast<int>(m_inertias.size())) {
-		bt_id_error_message("index out of range\n");
+		error_message("index out of range\n");
 		return -1;
 	}
 
@@ -73,7 +73,7 @@ int MultiBodyTree::InitCache::getInertiaData(const int index, InertiaData* inert
 
 int MultiBodyTree::InitCache::getUserInt(const int index, int* user_int) const {
 	if (index < 0 || index > static_cast<int>(m_user_int.size())) {
-		bt_id_error_message("index out of range\n");
+		error_message("index out of range\n");
 		return -1;
 	}
 	*user_int = m_user_int[index];
@@ -82,7 +82,7 @@ int MultiBodyTree::InitCache::getUserInt(const int index, int* user_int) const {
 
 int MultiBodyTree::InitCache::getUserPtr(const int index, void** user_ptr) const {
 	if (index < 0 || index > static_cast<int>(m_user_ptr.size())) {
-		bt_id_error_message("index out of range\n");
+		error_message("index out of range\n");
 		return -1;
 	}
 	*user_ptr = m_user_ptr[index];
@@ -91,7 +91,7 @@ int MultiBodyTree::InitCache::getUserPtr(const int index, void** user_ptr) const
 
 int MultiBodyTree::InitCache::getJointData(const int index, JointData* joint) const {
 	if (index < 0 || index > static_cast<int>(m_joints.size())) {
-		bt_id_error_message("index out of range\n");
+		error_message("index out of range\n");
 		return -1;
 	}
 	*joint = m_joints[index];

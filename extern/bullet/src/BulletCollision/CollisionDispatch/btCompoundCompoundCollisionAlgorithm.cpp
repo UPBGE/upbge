@@ -181,12 +181,11 @@ struct	btCompoundCompoundLeafCallback : btDbvt::ICollide
 			
 
 			btSimplePair* pair = m_childCollisionAlgorithmCache->findPair(childIndex0,childIndex1);
-			bool removePair = false;
+
 			btCollisionAlgorithm* colAlgo = 0;
 			if (m_resultOut->m_closestPointDistanceThreshold > 0)
 			{
 				colAlgo = m_dispatcher->findAlgorithm(&compoundWrap0, &compoundWrap1, 0, BT_CLOSEST_POINT_ALGORITHMS);
-				removePair = true;
 			}
 			else
 			{
@@ -224,11 +223,7 @@ struct	btCompoundCompoundLeafCallback : btDbvt::ICollide
 			m_resultOut->setBody0Wrap(tmpWrap0);
 			m_resultOut->setBody1Wrap(tmpWrap1);
 			
-			if (removePair)
-			{
-				colAlgo->~btCollisionAlgorithm();
-				m_dispatcher->freeCollisionAlgorithm(colAlgo);
-			}
+
 
 		}
 	}
