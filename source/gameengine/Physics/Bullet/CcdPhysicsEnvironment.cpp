@@ -383,43 +383,18 @@ public:
 	virtual bool needBroadphaseCollision(btBroadphaseProxy *proxy0, btBroadphaseProxy *proxy1) const;
 };
 
-CcdDebugDraw::CcdDebugDraw()
-	:m_debugMode(0)
+
+void CcdPhysicsEnvironment::SetDebugDrawer(btIDebugDraw *debugDrawer)
 {
-}
-void CcdDebugDraw::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
-{
-	if (m_debugMode > 0) {
-		KX_RasterizerDrawDebugLine(ToMt(from), ToMt(to), mt::vec4(color.x(), color.y(), color.z(), 1.0f));
+	if (debugDrawer && m_dynamicsWorld) {
+		m_dynamicsWorld->setDebugDrawer(debugDrawer);
 	}
-}
-
-void CcdDebugDraw::reportErrorWarning(const char *warningString)
-{
-}
-
-void CcdDebugDraw::drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, float distance, int lifeTime, const btVector3& color)
-{
-	drawLine(PointOnB, PointOnB + normalOnB, color);
-	drawSphere(PointOnB, 0.1f, color);
-}
-
-void CcdDebugDraw::setDebugMode(int debugMode)
-{
-	m_debugMode = debugMode;
-}
-
-int CcdDebugDraw::getDebugMode() const
-{
-	return m_debugMode;
-}
-
-void CcdDebugDraw::draw3dText(const btVector3& location, const char *textString)
-{
+	m_debugDrawer = debugDrawer;
 }
 
 CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling)
-	:m_collisionConfiguration(new btSoftBodyRigidBodyCollisionConfiguration()),
+	:m_debugDrawer(nullptr),
+	m_collisionConfiguration(new btSoftBodyRigidBodyCollisionConfiguration()),
 	m_broadphase(new btDbvtBroadphase()),
 	m_cullingCache(nullptr),
 	m_cullingTree(nullptr),
@@ -465,8 +440,6 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool use
     m_solverPool.reset(new btConstraintSolverPoolMt(m_solvers.data(), numThread));
 	m_dynamicsWorld.reset(new btSoftRigidDynamicsWorldMt(m_dispatcher.get(), m_broadphase.get(), m_solverPool.get(), m_solverMt.get(), m_collisionConfiguration.get()));
 	m_dynamicsWorld->setInternalTickCallback(&CcdPhysicsEnvironment::StaticSimulationSubtickCallback, this);
-
-	m_dynamicsWorld->setDebugDrawer(&m_debugDrawer);
 
 	SetGravity(0.0f, 0.0f, -9.81f);
 }
@@ -951,12 +924,17 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 
 int CcdPhysicsEnvironment::GetDebugMode() const
 {
-	return m_debugDrawer.getDebugMode();
+	if (m_debugDrawer) {
+		return m_debugDrawer->getDebugMode();
+	}
+	return 0;
 }
 
 void CcdPhysicsEnvironment::SetDebugMode(int debugMode)
 {
-	m_debugDrawer.setDebugMode(debugMode);
+	if (m_debugDrawer) {
+		m_debugDrawer->setDebugMode(debugMode);
+	}
 }
 
 void CcdPhysicsEnvironment::SetNumIterations(int numIter)
@@ -2606,6 +2584,45 @@ void CcdPhysicsEnvironment::ExportFile(const std::string& filename)
 	}
 }
 
+struct BlenderDebugDraw : public btIDebugDraw {
+	BlenderDebugDraw()
+		:m_debugMode(0)
+	{
+	}
+
+	int m_debugMode;
+
+	virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
+	{
+		if (m_debugMode > 0) {
+			KX_RasterizerDrawDebugLine(ToMt(from), ToMt(to), mt::vec4(color.x(), color.y(), color.z(), 1.0f));
+		}
+	}
+
+	virtual void reportErrorWarning(const char *warningString)
+	{
+	}
+
+	virtual void drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, float distance, int lifeTime, const btVector3& color)
+	{
+		drawLine(PointOnB, PointOnB + normalOnB, color);
+		drawSphere(PointOnB, 0.1f, color);
+	}
+
+	virtual void setDebugMode(int debugMode)
+	{
+		m_debugMode = debugMode;
+	}
+	virtual int getDebugMode() const
+	{
+		return m_debugMode;
+	}
+	///todo: find out if Blender can do this
+	virtual void draw3dText(const btVector3& location, const char *textString)
+	{
+	}
+};
+
 CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool visualizePhysics)
 {
 	static const PHY_SolverType solverTypeTable[] = {
@@ -2618,6 +2635,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 	CcdPhysicsEnvironment *ccdPhysEnv = new CcdPhysicsEnvironment(solverTypeTable[blenderscene->gm.solverType],
 	                                                              (blenderscene->gm.mode & WO_DBVT_CULLING) != 0);
 
+	ccdPhysEnv->SetDebugDrawer(new BlenderDebugDraw());
 	ccdPhysEnv->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
 	ccdPhysEnv->SetDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);
 	ccdPhysEnv->SetDeactivationTime(blenderscene->gm.deactivationtime);
