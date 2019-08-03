@@ -132,7 +132,7 @@ btVector3 btKinematicCharacterController::perpindicularComponent (const btVector
 	return direction - parallelComponent(direction, normal);
 }
 
-btKinematicCharacterController::btKinematicCharacterController (btGhostObject* ghostObject,btConvexShape* convexShape,btScalar stepHeight, const btVector3& up)
+btKinematicCharacterController::btKinematicCharacterController (btPairCachingGhostObject* ghostObject,btConvexShape* convexShape,btScalar stepHeight, const btVector3& up)
 {
 	m_ghostObject = ghostObject;
 	m_up.setValue(0.0f, 0.0f, 1.0f);
@@ -170,7 +170,7 @@ btKinematicCharacterController::~btKinematicCharacterController ()
 {
 }
 
-btGhostObject* btKinematicCharacterController::getGhostObject()
+btPairCachingGhostObject* btKinematicCharacterController::getGhostObject()
 {
 	return m_ghostObject;
 }
@@ -194,32 +194,26 @@ bool btKinematicCharacterController::recoverFromPenetration ( btCollisionWorld* 
 						 
 	bool penetration = false;
 
+	collisionWorld->getDispatcher()->dispatchAllCollisionPairs(m_ghostObject->getOverlappingPairCache(), collisionWorld->getDispatchInfo(), collisionWorld->getDispatcher());
+
 	m_currentPosition = m_ghostObject->getWorldTransform().getOrigin();
-
-	btOverlappingPairCache *pairCache = collisionWorld->getPairCache();
-	const unsigned int numPairs = m_ghostObject->getNumOverlappingObjects();
-
+	
 //	btScalar maxPen = btScalar(0.0);
-	for (int i = 0; i < numPairs; i++)
+	for (int i = 0; i < m_ghostObject->getOverlappingPairCache()->getNumOverlappingPairs(); i++)
 	{
-		btCollisionObject *obj0 = m_ghostObject;
-		btCollisionObject *obj1 = m_ghostObject->getOverlappingObject(i);
+		m_manifoldArray.resize(0);
 
-		btBroadphaseProxy *proxy0 = obj0->getBroadphaseHandle();
-		btBroadphaseProxy *proxy1 = obj1->getBroadphaseHandle();
+		btBroadphasePair* collisionPair = &m_ghostObject->getOverlappingPairCache()->getOverlappingPairArray()[i];
 
-		btBroadphasePair* collisionPair = pairCache->findPair(proxy0, proxy1);
-
-		btAssert(collisionPair);
+		btCollisionObject* obj0 = static_cast<btCollisionObject*>(collisionPair->m_pProxy0->m_clientObject);
+        btCollisionObject* obj1 = static_cast<btCollisionObject*>(collisionPair->m_pProxy1->m_clientObject);
 
 		if ((obj0 && !obj0->hasContactResponse()) || (obj1 && !obj1->hasContactResponse()))
 			continue;
 
 		if (!needsCollision(obj0, obj1))
 			continue;
-
-		m_manifoldArray.resize(0);
-
+		
 		if (collisionPair->m_algorithm)
 			collisionPair->m_algorithm->getAllContactManifolds(m_manifoldArray);
 
@@ -694,11 +688,11 @@ void btKinematicCharacterController::reset ( btCollisionWorld* collisionWorld )
     m_velocityTimeInterval = 0.0;
 
     //clear pair cache
-    /*btHashedOverlappingPairCache *cache = m_ghostObject->getOverlappingPairCache();
+    btHashedOverlappingPairCache *cache = m_ghostObject->getOverlappingPairCache();
     while (cache->getOverlappingPairArray().size() > 0)
     {
             cache->removeOverlappingPair(cache->getOverlappingPairArray()[0].m_pProxy0, cache->getOverlappingPairArray()[0].m_pProxy1, collisionWorld->getDispatcher());
-    }*/
+    }
 }
 
 void btKinematicCharacterController::warp (const btVector3& origin)
