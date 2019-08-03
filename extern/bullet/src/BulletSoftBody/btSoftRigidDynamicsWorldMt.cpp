@@ -29,9 +29,10 @@ btSoftRigidDynamicsWorldMt::btSoftRigidDynamicsWorldMt(
 	btDispatcher* dispatcher,
 	btBroadphaseInterface* pairCache,
 	btConstraintSolverPoolMt* constraintSolver,
+	btConstraintSolver* constraintSolverMt,
 	btCollisionConfiguration* collisionConfiguration,
 	btSoftBodySolver *softBodySolver ) : 
-		btDiscreteDynamicsWorldMt(dispatcher,pairCache,constraintSolver,collisionConfiguration),
+		btDiscreteDynamicsWorldMt(dispatcher,pairCache,constraintSolver,constraintSolverMt,collisionConfiguration),
 		m_softBodySolver( softBodySolver ),
 		m_ownsSolver(false)
 {
