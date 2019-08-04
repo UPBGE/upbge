@@ -183,30 +183,34 @@ typedef struct ViewOpsData {
   bool use_dyn_ofs;
 } ViewOpsData;
 
+/**
+ * Size of the sphere being dragged for trackball rotation withing the view bounds.
+ * also affects speed (smaller is faster).
+ */
 #define TRACKBALLSIZE (1.1f)
 
-static void calctrackballvec(const rcti *rect, const int event_xy[2], float vec[3])
+static void calctrackballvec(const rcti *rect, const int event_xy[2], float r_dir[3])
 {
   const float radius = TRACKBALLSIZE;
   const float t = radius / (float)M_SQRT2;
-  float x, y, z, d;
+  const float size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
+  /* Aspect correct so dragging in a non-square view doesn't squash the direction.
+   * So diagonal motion rotates the same direction the cursor is moving. */
+  const float size_min = min_ff(size[0], size[1]);
+  const float aspect[2] = {size_min / size[0], size_min / size[1]};
 
-  /* normalize x and y */
-  x = BLI_rcti_cent_x(rect) - event_xy[0];
-  x /= (float)(BLI_rcti_size_x(rect) / 4);
-  y = BLI_rcti_cent_y(rect) - event_xy[1];
-  y /= (float)(BLI_rcti_size_y(rect) / 2);
-  d = sqrtf(x * x + y * y);
-  if (d < t) { /* Inside sphere */
-    z = sqrtf(radius * radius - d * d);
+  /* Normalize x and y. */
+  r_dir[0] = (event_xy[0] - BLI_rcti_cent_x(rect)) / ((size[0] * aspect[0]) / 2.0);
+  r_dir[1] = (event_xy[1] - BLI_rcti_cent_x(rect)) / ((size[1] * aspect[1]) / 2.0);
+  const float d = len_v2(r_dir);
+  if (d < t) {
+    /* Inside sphere. */
+    r_dir[2] = sqrtf(SQUARE(radius) - SQUARE(d));
   }
-  else { /* On hyperbola */
-    z = t * t / d;
+  else {
+    /* On hyperbola. */
+    r_dir[2] = SQUARE(t) / d;
   }
-
-  vec[0] = x;
-  vec[1] = y;
-  vec[2] = -z; /* yah yah! */
 }
 
 /**
@@ -729,6 +733,10 @@ static void viewrotate_apply(ViewOpsData *vod, const int event_xy[2])
 
     angle = (len_v3(dvec) / (2.0f * TRACKBALLSIZE)) * (float)M_PI;
 
+    /* Before applying the sensitivity this is rotating 1:1,
+     * where the cursor would match the surface of a sphere in the view. */
+    angle *= U.view_rotate_sensitivity_trackball;
+
     /* Allow for rotation beyond the interval [-pi, pi] */
     angle = angle_wrap_rad(angle);
 
@@ -751,11 +759,8 @@ static void viewrotate_apply(ViewOpsData *vod, const int event_xy[2])
     const float zvec_global[3] = {0.0f, 0.0f, 1.0f};
     float xaxis[3];
 
-    /* Sensitivity will control how fast the viewport rotates.  0.007 was
-     * obtained experimentally by looking at viewport rotation sensitivities
-     * on other modeling programs. */
-    /* Perhaps this should be a configurable user parameter. */
-    const float sensitivity = 0.007f;
+    /* Radians per-pixel. */
+    const float sensitivity = U.view_rotate_sensitivity_turntable / U.pixelsize;
 
     /* Get the 3x3 matrix and its inverse from the quaternion */
     quat_to_mat3(m, vod->curr.viewquat);
