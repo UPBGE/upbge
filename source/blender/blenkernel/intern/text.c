@@ -2044,10 +2044,12 @@ static void txt_select_prefix(Text *text, const char *add)
  *
  * \param r_line_index_mask: List of lines that are already at indent level 0,
  * to store them later into the undo buffer.
+ * \param require_all: When true, all non-empty lines must have this prefix.
+ * Needed for comments where we might want to un-comment a block which contains some comments.
  *
  * \note caller must handle undo.
  */
-static bool txt_select_unprefix(Text *text, const char *remove)
+static bool txt_select_unprefix(Text *text, const char *remove, const bool require_all)
 {
   int num = 0;
   const int indentlen = strlen(remove);
@@ -2055,6 +2057,29 @@ static bool txt_select_unprefix(Text *text, const char *remove)
   bool changed_any = false;
 
   BLI_assert(!ELEM(NULL, text->curl, text->sell));
+
+  if (require_all) {
+    /* Check all non-empty lines use this 'remove',
+     * so the operation is applied equally or not at all. */
+    TextLine *l = text->curl;
+    while (true) {
+      if (STREQLEN(l->line, remove, indentlen)) {
+        /* pass */
+      }
+      else {
+        /* Blank lines or whitespace can be skipped. */
+        for (int i = 0; i < l->len; i++) {
+          if (!ELEM(l->line[i], '\t', ' ')) {
+            return false;
+          }
+        }
+      }
+      if (l == text->sell) {
+        break;
+      }
+      l = l->next;
+    }
+  }
 
   while (true) {
     bool changed = false;
@@ -2115,7 +2140,7 @@ bool txt_uncomment(Text *text)
     return false;
   }
 
-  return txt_select_unprefix(text, prefix);
+  return txt_select_unprefix(text, prefix, true);
 }
 
 void txt_indent(Text *text)
@@ -2137,7 +2162,7 @@ bool txt_unindent(Text *text)
     return false;
   }
 
-  return txt_select_unprefix(text, prefix);
+  return txt_select_unprefix(text, prefix, false);
 }
 
 void txt_move_lines(struct Text *text, const int direction)
