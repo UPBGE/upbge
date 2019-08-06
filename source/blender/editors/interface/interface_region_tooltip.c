@@ -174,10 +174,10 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
   ui_draw_tooltip_background(UI_style_get(), NULL, &bbox);
 
   /* set background_color */
-  rgb_uchar_to_float(background_color, (const uchar *)theme->inner);
+  rgb_uchar_to_float(background_color, theme->inner);
 
   /* calculate normal_color */
-  rgb_uchar_to_float(main_color, (const uchar *)theme->text);
+  rgb_uchar_to_float(main_color, theme->text);
   copy_v3_v3(active_color, main_color);
   copy_v3_v3(normal_color, main_color);
   copy_v3_v3(python_color, main_color);
@@ -396,11 +396,23 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
     else {
       /* Note, this is an exceptional case, we could even remove it
        * however there have been reports of tooltips failing, so keep it for now. */
-      expr_result = BLI_strdup("Internal error!");
+      expr_result = BLI_strdup(IFACE_("Internal error!"));
       is_error = true;
     }
 
     if (expr_result != NULL) {
+      /* NOTE: This is a very weak hack to get a valid translation most of the time...
+       * Proper way to do would be to get i18n context from the item, somehow. */
+      const char *label_str = CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, expr_result);
+      if (label_str == expr_result) {
+        label_str = IFACE_(expr_result);
+      }
+
+      if (label_str != expr_result) {
+        MEM_freeN(expr_result);
+        expr_result = BLI_strdup(label_str);
+      }
+
       uiTooltipField *field = text_field_add(data,
                                              &(uiTooltipFormat){
                                                  .style = UI_TIP_STYLE_NORMAL,
@@ -437,7 +449,7 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
     else {
       /* Note, this is an exceptional case, we could even remove it
        * however there have been reports of tooltips failing, so keep it for now. */
-      expr_result = BLI_strdup("Internal error!");
+      expr_result = BLI_strdup(TIP_("Internal error!"));
       is_error = true;
     }
 
