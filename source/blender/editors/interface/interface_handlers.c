@@ -2613,8 +2613,8 @@ static void ui_but_copy_curvemapping(uiBut *but)
 {
   if (but->poin != NULL) {
     but_copypaste_curve_alive = true;
-    curvemapping_free_data(&but_copypaste_curve);
-    curvemapping_copy_data(&but_copypaste_curve, (CurveMapping *)but->poin);
+    BKE_curvemapping_free_data(&but_copypaste_curve);
+    BKE_curvemapping_copy_data(&but_copypaste_curve, (CurveMapping *)but->poin);
   }
 }
 
@@ -2626,8 +2626,8 @@ static void ui_but_paste_curvemapping(bContext *C, uiBut *but)
     }
 
     button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
-    curvemapping_free_data((CurveMapping *)but->poin);
-    curvemapping_copy_data((CurveMapping *)but->poin, &but_copypaste_curve);
+    BKE_curvemapping_free_data((CurveMapping *)but->poin);
+    BKE_curvemapping_copy_data((CurveMapping *)but->poin, &but_copypaste_curve);
     button_activate_state(C, but, BUTTON_STATE_EXIT);
   }
 }
@@ -2815,7 +2815,7 @@ static void ui_but_paste(bContext *C, uiBut *but, uiHandleButtonData *data, cons
 
 void ui_but_clipboard_free(void)
 {
-  curvemapping_free_data(&but_copypaste_curve);
+  BKE_curvemapping_free_data(&but_copypaste_curve);
 }
 
 /** \} */
@@ -6706,7 +6706,7 @@ static bool ui_numedit_but_CURVE(uiBlock *block,
       }
     }
 
-    curvemapping_changed(cumap, false);
+    BKE_curvemapping_changed(cumap, false);
 
     if (moved_point) {
       data->draglastx = evtx;
@@ -6786,8 +6786,8 @@ static int ui_do_but_CURVE(
         float f_xy[2];
         BLI_rctf_transform_pt_v(&cumap->curr, &but->rect, f_xy, m_xy);
 
-        curvemap_insert(cuma, f_xy[0], f_xy[1]);
-        curvemapping_changed(cumap, false);
+        BKE_curvemap_insert(cuma, f_xy[0], f_xy[1]);
+        BKE_curvemapping_changed(cumap, false);
         changed = true;
       }
 
@@ -6824,8 +6824,8 @@ static int ui_do_but_CURVE(
           if (dist_squared_to_line_segment_v2(m_xy, f_xy_prev, f_xy) < dist_min_sq) {
             BLI_rctf_transform_pt_v(&cumap->curr, &but->rect, f_xy, m_xy);
 
-            curvemap_insert(cuma, f_xy[0], f_xy[1]);
-            curvemapping_changed(cumap, false);
+            BKE_curvemap_insert(cuma, f_xy[0], f_xy[1]);
+            BKE_curvemapping_changed(cumap, false);
 
             changed = true;
 
@@ -6899,7 +6899,7 @@ static int ui_do_but_CURVE(
           }
         }
         else {
-          curvemapping_changed(cumap, true); /* remove doubles */
+          BKE_curvemapping_changed(cumap, true); /* remove doubles */
           BKE_paint_invalidate_cursor_overlay(scene, view_layer, cumap);
         }
       }

@@ -554,6 +554,7 @@ BVHTree *bvhtree_from_editmesh_verts(BVHTreeFromEditMesh *data,
         /* Save on cache for later use */
         /* printf("BVHTree built and saved on cache\n"); */
         bvhcache_insert(bvh_cache, data->tree, BVHTREE_FROM_EM_VERTS);
+        data->cached = true;
       }
       BLI_rw_mutex_unlock(&cache_rwlock);
     }
@@ -744,6 +745,7 @@ BVHTree *bvhtree_from_editmesh_edges(BVHTreeFromEditMesh *data,
         /* Save on cache for later use */
         /* printf("BVHTree built and saved on cache\n"); */
         bvhcache_insert(bvh_cache, data->tree, BVHTREE_FROM_EM_EDGES);
+        data->cached = true;
       }
       BLI_rw_mutex_unlock(&cache_rwlock);
     }

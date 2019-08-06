@@ -1086,83 +1086,71 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
       }
 #undef LA_YF_PHOTON
-		}
+    }
+  }
 
-		{
-			Object *ob;
-			for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-				if (ob->body_type == OB_BODY_TYPE_CHARACTER && (ob->gameflag & OB_BOUNDS) && ob->collision_boundtype == OB_BOUND_TRIANGLE_MESH) {
-					ob->boundtype = ob->collision_boundtype = OB_BOUND_BOX;
-				}
-			}
-		}
+  if (!MAIN_VERSION_ATLEAST(bmain, 276, 3)) {
+    if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "CurveMapping", "mblur_shutter_curve")) {
+      Scene *scene;
+      for (scene = bmain->scenes.first; scene != NULL; scene = scene->id.next) {
+        CurveMapping *curve_mapping = &scene->r.mblur_shutter_curve;
+        BKE_curvemapping_set_defaults(curve_mapping, 1, 0.0f, 0.0f, 1.0f, 1.0f);
+        BKE_curvemapping_initialize(curve_mapping);
+        BKE_curvemap_reset(
+            curve_mapping->cm, &curve_mapping->clipr, CURVE_PRESET_MAX, CURVEMAP_SLOPE_POS_NEG);
+      }
+    }
+  }
 
-	}
+  if (!MAIN_VERSION_ATLEAST(bmain, 276, 4)) {
+    for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      ToolSettings *ts = scene->toolsettings;
 
-	if (!MAIN_VERSION_ATLEAST(bmain, 276, 3)) {
-		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "CurveMapping", "mblur_shutter_curve")) {
-			Scene *scene;
-			for (scene = bmain->scenes.first; scene != NULL; scene = scene->id.next) {
-				CurveMapping *curve_mapping = &scene->r.mblur_shutter_curve;
-				curvemapping_set_defaults(curve_mapping, 1, 0.0f, 0.0f, 1.0f, 1.0f);
-				curvemapping_initialize(curve_mapping);
-				curvemap_reset(curve_mapping->cm,
-				               &curve_mapping->clipr,
-				               CURVE_PRESET_MAX,
-				               CURVEMAP_SLOPE_POS_NEG);
-			}
-		}
-	}
+      if (ts->gp_sculpt.brush[0].size == 0) {
+        GP_Sculpt_Settings *gset = &ts->gp_sculpt;
+        GP_Sculpt_Data *brush;
 
-	if (!MAIN_VERSION_ATLEAST(bmain, 276, 4)) {
-		for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-			ToolSettings *ts = scene->toolsettings;
+        brush = &gset->brush[GP_SCULPT_TYPE_SMOOTH];
+        brush->size = 25;
+        brush->strength = 0.3f;
+        brush->flag = GP_SCULPT_FLAG_USE_FALLOFF | GP_SCULPT_FLAG_SMOOTH_PRESSURE;
 
-			if (ts->gp_sculpt.brush[0].size == 0) {
-				GP_Sculpt_Settings *gset = &ts->gp_sculpt;
-				GP_Sculpt_Data *brush;
+        brush = &gset->brush[GP_SCULPT_TYPE_THICKNESS];
+        brush->size = 25;
+        brush->strength = 0.5f;
+        brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
 
-				brush = &gset->brush[GP_SCULPT_TYPE_SMOOTH];
-				brush->size = 25;
-				brush->strength = 0.3f;
-				brush->flag = GP_SCULPT_FLAG_USE_FALLOFF | GP_SCULPT_FLAG_SMOOTH_PRESSURE;
+        brush = &gset->brush[GP_SCULPT_TYPE_GRAB];
+        brush->size = 50;
+        brush->strength = 0.3f;
+        brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
 
-				brush = &gset->brush[GP_SCULPT_TYPE_THICKNESS];
-				brush->size = 25;
-				brush->strength = 0.5f;
-				brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
+        brush = &gset->brush[GP_SCULPT_TYPE_PUSH];
+        brush->size = 25;
+        brush->strength = 0.3f;
+        brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
 
-				brush = &gset->brush[GP_SCULPT_TYPE_GRAB];
-				brush->size = 50;
-				brush->strength = 0.3f;
-				brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
+        brush = &gset->brush[GP_SCULPT_TYPE_TWIST];
+        brush->size = 50;
+        brush->strength = 0.3f;  // XXX?
+        brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
 
-				brush = &gset->brush[GP_SCULPT_TYPE_PUSH];
-				brush->size = 25;
-				brush->strength = 0.3f;
-				brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
+        brush = &gset->brush[GP_SCULPT_TYPE_PINCH];
+        brush->size = 50;
+        brush->strength = 0.5f;  // XXX?
+        brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
 
-				brush = &gset->brush[GP_SCULPT_TYPE_TWIST];
-				brush->size = 50;
-				brush->strength = 0.3f; // XXX?
-				brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
+        brush = &gset->brush[GP_SCULPT_TYPE_RANDOMIZE];
+        brush->size = 25;
+        brush->strength = 0.5f;
+        brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
 
-				brush = &gset->brush[GP_SCULPT_TYPE_PINCH];
-				brush->size = 50;
-				brush->strength = 0.5f; // XXX?
-				brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
+        brush = &gset->brush[GP_SCULPT_TYPE_CLONE];
+        brush->size = 50;
+        brush->strength = 1.0f;
+      }
 
-				brush = &gset->brush[GP_SCULPT_TYPE_RANDOMIZE];
-				brush->size = 25;
-				brush->strength = 0.5f;
-				brush->flag = GP_SCULPT_FLAG_USE_FALLOFF;
-
-				brush = &gset->brush[GP_SCULPT_TYPE_CLONE];
-				brush->size = 50;
-				brush->strength = 1.0f;
-			}
-
-			if (!DNA_struct_elem_find(fd->filesdna, "ToolSettings", "char", "gpencil_v3d_align")) {
+      if (!DNA_struct_elem_find(fd->filesdna, "ToolSettings", "char", "gpencil_v3d_align")) {
 #if 0 /* XXX: Cannot do this, as we get random crashes... */
         if (scene->gpd) {
           bGPdata *gpd = scene->gpd;
