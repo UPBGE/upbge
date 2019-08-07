@@ -90,6 +90,7 @@ protected:
 	bool m_isReplica;
 	Mesh *m_backupMesh;
 	bool m_staticObject;
+  bool m_useCopy;
 	/* END OF EEVEE INTEGRATION */
 
 
@@ -139,7 +140,7 @@ public:
 	void RestoreOriginalMesh();
 	bool IsStatic();
 	void RecalcGeometry();
-
+  void UseCopy();
 	/* END OF EEVEE INTEGRATION */
 
 

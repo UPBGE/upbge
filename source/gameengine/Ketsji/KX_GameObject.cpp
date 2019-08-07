@@ -116,6 +116,7 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
       m_isReplica(false),     // eevee
       m_backupMesh(nullptr),  // eevee
       m_staticObject(true),   // eevee
+      m_useCopy(false),
       m_layer(0),
       m_pBlenderObject(nullptr),
       m_pBlenderGroupObject(nullptr),
@@ -243,7 +244,7 @@ void KX_GameObject::TagForUpdate()
   }
   Object *orig_ob = GetBlenderObject();
   if (orig_ob) {
-    Object *ob = GetBlenderObject()->type != OB_MBALL ?
+    Object *ob = GetBlenderObject()->type != OB_MBALL && !m_useCopy ?
                      DEG_get_evaluated_object(depsgraph, GetBlenderObject()) :
                      GetBlenderObject();
 
@@ -251,9 +252,13 @@ void KX_GameObject::TagForUpdate()
     invert_m4_m4(ob->imat, obmat);
     /* NORMAL CASE */
     if (!m_staticObject && ob->type != OB_MBALL) {
-      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-      /*DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
-      DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);*/
+      if (!m_useCopy) {
+        DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+      }
+      else {
+        DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
+        DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+      }
     }
     /* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position at ge
      * exit) */
@@ -275,8 +280,13 @@ void KX_GameObject::TagForUpdate()
       }
     }
   }
-
+  m_useCopy = false;
   copy_m4_m4(m_prevObmat, obmat);
+}
+
+void KX_GameObject::UseCopy()
+{
+  m_useCopy = true;
 }
 
 void KX_GameObject::ReplicateBlenderObject()
@@ -355,6 +365,7 @@ void KX_GameObject::RecalcGeometry()
   Object *ob = GetBlenderObject();
   if (ob) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    UseCopy();
   }
 }
 /********************End of EEVEE INTEGRATION*********************/
@@ -1920,7 +1931,7 @@ PyObject *KX_GameObject::PyUpdatePhysicsShape()
   if (GetPhysicsController()) {
 
     GetPhysicsController()->ReinstancePhysicsShape2(GetMesh(0), GetBlenderObject());
-	Py_RETURN_NONE;
+    Py_RETURN_NONE;
   }
   Py_RETURN_NONE;
 }
