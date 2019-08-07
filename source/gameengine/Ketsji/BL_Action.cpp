@@ -484,7 +484,22 @@ void BL_Action::Update(float curtime, bool applyToObject)
 				}
 			}
 		}
-	}
+	// TEST FollowPath action
+    for (bConstraint *con = (bConstraint *)ob->constraints.first; con;
+         con = (bConstraint *)con->next) {
+      if (con) {
+		Scene *sc = scene->GetBlenderScene();
+		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+
+		DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+
+		BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
+
+		scene->ResetTaaSamples();
+		}
+      }
+    }
 }
 
 void BL_Action::UpdateIPOs()
