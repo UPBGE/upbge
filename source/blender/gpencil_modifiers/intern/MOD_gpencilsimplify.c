@@ -45,6 +45,7 @@ static void initData(GpencilModifierData *md)
   gpmd->pass_index = 0;
   gpmd->step = 1;
   gpmd->factor = 0.0f;
+  gpmd->length = 0.1f;
   gpmd->layername[0] = '\0';
 }
 
@@ -57,7 +58,7 @@ static void deformStroke(GpencilModifierData *md,
                          Depsgraph *UNUSED(depsgraph),
                          Object *ob,
                          bGPDlayer *gpl,
-                         bGPDframe *UNUSED(gpf),
+                         bGPDframe *gpf,
                          bGPDstroke *gps)
 {
   SimplifyGpencilModifierData *mmd = (SimplifyGpencilModifierData *)md;
@@ -66,7 +67,7 @@ static void deformStroke(GpencilModifierData *md,
                                       mmd->layername,
                                       mmd->pass_index,
                                       mmd->layer_pass,
-                                      4,
+                                      mmd->mode == GP_SIMPLIFY_SAMPLE ? 3 : 4,
                                       gpl,
                                       gps,
                                       mmd->flag & GP_SIMPLIFY_INVERT_LAYER,
@@ -75,14 +76,29 @@ static void deformStroke(GpencilModifierData *md,
     return;
   }
 
-  if (mmd->mode == GP_SIMPLIFY_FIXED) {
-    for (int i = 0; i < mmd->step; i++) {
-      BKE_gpencil_simplify_fixed(gps);
+  /* Select simplification mode. */
+  switch (mmd->mode) {
+    case GP_SIMPLIFY_FIXED: {
+      for (int i = 0; i < mmd->step; i++) {
+        BKE_gpencil_simplify_fixed(gps);
+      }
+      break;
     }
-  }
-  else {
-    /* simplify stroke using Ramer-Douglas-Peucker algorithm */
-    BKE_gpencil_simplify_stroke(gps, mmd->factor);
+    case GP_SIMPLIFY_ADAPTIVE: {
+      /* simplify stroke using Ramer-Douglas-Peucker algorithm */
+      BKE_gpencil_simplify_stroke(gps, mmd->factor);
+      break;
+    }
+    case GP_SIMPLIFY_SAMPLE: {
+      BKE_gpencil_sample_stroke(gps, mmd->length, false);
+      break;
+    }
+    case GP_SIMPLIFY_MERGE: {
+      BKE_gpencil_merge_distance_stroke(gpf, gps, mmd->length, true);
+      break;
+    }
+    default:
+      break;
   }
 }
 

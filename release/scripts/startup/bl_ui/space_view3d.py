@@ -4472,6 +4472,7 @@ class VIEW3D_MT_gpencil_simplify(Menu):
         layout = self.layout
         layout.operator("gpencil.stroke_simplify_fixed", text="Fixed")
         layout.operator("gpencil.stroke_simplify", text="Adaptive")
+        layout.operator("gpencil.stroke_sample", text="Sample")
 
 
 class VIEW3D_MT_paint_gpencil(Menu):
@@ -4482,7 +4483,6 @@ class VIEW3D_MT_paint_gpencil(Menu):
         layout = self.layout
 
         layout.menu("VIEW3D_MT_gpencil_animation")
-        layout.menu("VIEW3D_MT_edit_gpencil_interpolate")
 
         layout.separator()
 
@@ -4539,7 +4539,6 @@ class VIEW3D_MT_edit_gpencil(Menu):
         layout.separator()
 
         layout.menu("VIEW3D_MT_gpencil_animation")
-        layout.menu("VIEW3D_MT_edit_gpencil_interpolate")
 
         layout.separator()
 
@@ -4638,16 +4637,6 @@ class VIEW3D_MT_edit_gpencil_transform(Menu):
         layout.operator("transform.shear", text="Shear")
         layout.operator("transform.tosphere", text="To Sphere")
         layout.operator("transform.transform", text="Shrink Fatten").mode = 'GPENCIL_SHRINKFATTEN'
-
-
-class VIEW3D_MT_edit_gpencil_interpolate(Menu):
-    bl_label = "Interpolate"
-
-    def draw(self, _context):
-        layout = self.layout
-
-        layout.operator("gpencil.interpolate", text="Interpolate")
-        layout.operator("gpencil.interpolate_sequence", text="Sequence")
 
 
 class VIEW3D_MT_object_mode_pie(Menu):
@@ -6359,8 +6348,7 @@ class VIEW3D_MT_gpencil_edit_context_menu(Menu):
         if is_3d_view:
             layout.menu("GPENCIL_MT_cleanup")
 
-        layout.operator("gpencil.stroke_simplify_fixed", text="Simplify")
-        layout.operator("gpencil.stroke_simplify", text="Simplify Adaptive")
+        layout.menu("VIEW3D_MT_gpencil_simplify")
         layout.operator("gpencil.stroke_merge", text="Merge")
         layout.menu("VIEW3D_MT_edit_gpencil_delete")
 
@@ -6682,7 +6670,6 @@ classes = (
     VIEW3D_MT_edit_armature_names,
     VIEW3D_MT_edit_armature_delete,
     VIEW3D_MT_edit_gpencil_transform,
-    VIEW3D_MT_edit_gpencil_interpolate,
     VIEW3D_MT_object_mode_pie,
     VIEW3D_MT_view_pie,
     VIEW3D_MT_transform_gizmo_pie,

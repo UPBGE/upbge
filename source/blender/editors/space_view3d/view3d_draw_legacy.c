@@ -102,6 +102,7 @@
 #include "RE_engine.h"
 
 #include "DRW_engine.h"
+#include "DRW_select_buffer.h"
 
 #include "view3d_intern.h" /* own include */
 
@@ -236,22 +237,6 @@ void ED_view3d_backbuf_depth_validate(ViewContext *vc)
 
     vc->v3d->flag &= ~V3D_INVALID_BACKBUF;
   }
-}
-
-uint *ED_view3d_select_id_read_rect(const rcti *clip, uint *r_buf_len)
-{
-  uint width = BLI_rcti_size_x(clip);
-  uint height = BLI_rcti_size_y(clip);
-  uint buf_len = width * height;
-  uint *buf = MEM_mallocN(buf_len * sizeof(*buf), __func__);
-
-  DRW_framebuffer_select_id_read(clip, buf);
-
-  if (r_buf_len) {
-    *r_buf_len = buf_len;
-  }
-
-  return buf;
 }
 
 /**

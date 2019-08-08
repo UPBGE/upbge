@@ -197,6 +197,10 @@ void BKE_gpencil_simplify_stroke(struct bGPDstroke *gps, float factor);
 void BKE_gpencil_simplify_fixed(struct bGPDstroke *gps);
 void BKE_gpencil_subdivide(struct bGPDstroke *gps, int level, int flag);
 bool BKE_gpencil_trim_stroke(struct bGPDstroke *gps);
+void BKE_gpencil_merge_distance_stroke(struct bGPDframe *gpf,
+                                       struct bGPDstroke *gps,
+                                       const float threshold,
+                                       const bool use_unselected);
 
 void BKE_gpencil_stroke_2d_flat(const struct bGPDspoint *points,
                                 int totpoints,
@@ -212,6 +216,7 @@ void BKE_gpencil_stroke_2d_flat_ref(const struct bGPDspoint *ref_points,
 
 void BKE_gpencil_transform(struct bGPdata *gpd, float mat[4][4]);
 
+bool BKE_gpencil_sample_stroke(struct bGPDstroke *gps, const float dist, const bool select);
 bool BKE_gpencil_smooth_stroke(struct bGPDstroke *gps, int i, float inf);
 bool BKE_gpencil_smooth_stroke_strength(struct bGPDstroke *gps, int point_index, float influence);
 bool BKE_gpencil_smooth_stroke_thickness(struct bGPDstroke *gps, int point_index, float influence);

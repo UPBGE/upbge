@@ -465,8 +465,6 @@ int ED_view3d_backbuf_sample_size_clamp(struct ARegion *ar, const float dist);
 
 void ED_view3d_select_id_validate(struct ViewContext *vc);
 
-uint *ED_view3d_select_id_read_rect(const struct rcti *rect, uint *r_buf_len);
-
 bool ED_view3d_autodist(struct Depsgraph *depsgraph,
                         struct ARegion *ar,
                         struct View3D *v3d,
@@ -686,6 +684,9 @@ void ED_view3d_lock_clear(struct View3D *v3d);
 
 float ED_view3d_offset_distance(float mat[4][4], const float ofs[3], const float dist_fallback);
 void ED_view3d_distance_set(struct RegionView3D *rv3d, const float dist);
+bool ED_view3d_distance_set_from_location(struct RegionView3D *rv3d,
+                                          const float dist_co[3],
+                                          const float dist_min);
 
 float ED_scene_grid_scale(struct Scene *scene, const char **grid_unit);
 float ED_view3d_grid_scale(struct Scene *scene, struct View3D *v3d, const char **grid_unit);

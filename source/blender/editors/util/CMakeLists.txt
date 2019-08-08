@@ -41,7 +41,6 @@ set(SRC
   ed_util.c
   gizmo_utils.c
   numinput.c
-  select_buffer_utils.c
   select_utils.c
 
   # general includes
@@ -80,7 +79,6 @@ set(SRC
   ../include/ED_screen.h
   ../include/ED_screen_types.h
   ../include/ED_sculpt.h
-  ../include/ED_select_buffer_utils.h
   ../include/ED_select_utils.h
   ../include/ED_sequencer.h
   ../include/ED_sound.h
