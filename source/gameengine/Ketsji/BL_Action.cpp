@@ -497,9 +497,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
 		BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
 
 		scene->ResetTaaSamples();
-		}
-      }
+        break;
+	  }
     }
+  }
 }
 
 void BL_Action::UpdateIPOs()
