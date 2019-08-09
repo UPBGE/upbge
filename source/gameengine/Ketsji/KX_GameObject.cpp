@@ -116,7 +116,8 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
       m_isReplica(false),     // eevee
       m_backupMesh(nullptr),  // eevee
       m_staticObject(true),   // eevee
-      m_useCopy(false),
+      m_useCopy(false), // eevee
+	  m_visibleAtGameStart(false), // eevee
       m_layer(0),
       m_pBlenderObject(nullptr),
       m_pBlenderGroupObject(nullptr),
@@ -179,6 +180,7 @@ KX_GameObject::~KX_GameObject()
     RemoveReplicaObject();
   }
   else {                    // at scene exit
+    SetVisible(m_visibleAtGameStart, false);
     RestoreOriginalMesh();  // we restore original mesh in the case we modified it during runtime
     RemoveReplicaObject();
     if (ob && ob->type == OB_MBALL) {
@@ -229,6 +231,18 @@ KX_GameObject::~KX_GameObject()
 }
 
 /************************EEVEE_INTEGRATION**********************/
+void KX_GameObject::SetBlenderObject(Object *obj)
+{
+  m_pBlenderObject = obj;
+  if (obj) {
+    copy_m4_m4(m_savedObmat, obj->obmat);
+    Scene *scene = GetScene()->GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+    Base *base = BKE_view_layer_base_find(view_layer, obj);
+    m_visibleAtGameStart = (base->flag & BASE_HIDDEN) == 0;
+  }
+}
+
 void KX_GameObject::TagForUpdate()
 {
   float obmat[4][4];
@@ -895,6 +909,23 @@ static void setVisible_recursive(SG_Node *node, bool v)
 
 void KX_GameObject::SetVisible(bool v, bool recursive)
 {
+  Object *ob = GetBlenderObject();
+  if (ob) {
+	Scene *scene = GetScene()->GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+    Base *base = BKE_view_layer_base_find(view_layer, ob);
+    if (v) {
+      base->flag &= ~BASE_HIDDEN;
+    }
+    else {
+      base->flag |= BASE_HIDDEN;
+    }
+
+    BKE_layer_collection_sync(scene, view_layer);
+    DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+    GetScene()->ResetTaaSamples();
+  }
+
   m_bVisible = v;
 }
 

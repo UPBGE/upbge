@@ -91,6 +91,7 @@ protected:
 	Mesh *m_backupMesh;
 	bool m_staticObject;
   bool m_useCopy;
+  bool m_visibleAtGameStart;
 	/* END OF EEVEE INTEGRATION */
 
 
@@ -525,13 +526,7 @@ public:
 		return m_pBlenderObject;
 	}
 
-	void SetBlenderObject(struct Object* obj)
-	{
-		m_pBlenderObject = obj;
-		if (obj) {
-			copy_m4_m4(m_savedObmat, obj->obmat);
-		}
-	}
+	void SetBlenderObject(struct Object *obj);
 
 	struct Object* GetBlenderGroupObject( )
 	{
