@@ -951,6 +951,8 @@ struct GPUViewport *WM_draw_region_get_bound_viewport(struct ARegion *ar) RET_NU
 void uiTemplateHeader3D_mode(struct uiLayout *layout, struct bContext *C) RET_NONE
 void WM_init_tablet_api(void) RET_NONE
 
+void WM_set_locked_interface(struct wmWindowManager *wm, bool lock) RET_NONE
+
 void PE_update_object(
 	struct Depsgraph *depsgraph, struct Scene *scene,
 	struct Object *ob, int useflag) RET_NONE
