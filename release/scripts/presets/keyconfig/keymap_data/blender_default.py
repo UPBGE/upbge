@@ -1738,6 +1738,7 @@ def km_info(params):
         ("info.report_delete", {"type": 'X', "value": 'PRESS'}, None),
         ("info.report_delete", {"type": 'DEL', "value": 'PRESS'}, None),
         ("info.report_copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
+        op_menu("INFO_MT_context_menu", params.context_menu_event),
     ])
 
     return keymap
@@ -2451,7 +2452,7 @@ def km_sequencerpreview(params):
     return keymap
 
 
-def km_console(_params):
+def km_console(params):
     items = []
     keymap = (
         "Console",
@@ -2511,6 +2512,7 @@ def km_console(_params):
         ("console.indent", {"type": 'TAB', "value": 'PRESS'}, None),
         ("console.unindent", {"type": 'TAB', "value": 'PRESS', "shift": True}, None),
         ("console.insert", {"type": 'TEXTINPUT', "value": 'ANY', "any": True}, None),
+        op_menu("CONSOLE_MT_context_menu", params.context_menu_event),
     ])
 
     return keymap
@@ -3063,7 +3065,7 @@ def km_grease_pencil_stroke_edit_mode(params):
          {"properties": [("mode", 'GPENCIL_SHRINKFATTEN')]}),
         ("transform.transform", {"type": 'F', "value": 'PRESS', "shift": True},
          {"properties": [("mode", 'GPENCIL_OPACITY')]}),
-        # Proportonal editing
+        # Proportional editing.
         *_template_items_proportional_editing(connected=True),
         # Add menu
         ("object.gpencil_add", {"type": 'A', "value": 'PRESS', "shift": True}, None),
