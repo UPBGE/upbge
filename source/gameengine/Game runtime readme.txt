@@ -1,0 +1,1 @@
+copy game_engine_save_as_runtime_eevee.py into YourInstallationFolder/2.81/scripts/addons
