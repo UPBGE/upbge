@@ -925,7 +925,7 @@ void UI_widgetbase_draw_cache_flush(void) RET_NONE
 
 void UI_icons_reload_internal_textures(void) RET_NONE
 
-struct uiPopover *UI_popover_begin(struct bContext *C, int menu_width) RET_NULL
+struct uiPopover *UI_popover_begin(struct bContext *C, int menu_width, bool from_active_button) RET_NULL
 void UI_popover_end(struct bContext *C, struct uiPopover *head, struct wmKeyMap *keymap) RET_NONE
 struct uiLayout *UI_popover_layout(struct uiPopover *head) RET_NULL
 void uiTemplateOperatorRedoProperties(uiLayout *layout, const struct bContext *C) RET_NONE
@@ -1114,12 +1114,26 @@ void WM_operator_last_properties_ensure(struct wmOperatorType *ot, struct Pointe
 const char *WM_operatortype_name(struct wmOperatorType *ot, struct PointerRNA *properties) RET_NULL
 
 void update_autoflags_fcurve(struct FCurve *fcu, struct bContext *C, struct ReportList *reports, struct PointerRNA *ptr) RET_NONE
-short insert_keyframe(
-	struct Main *bmain, struct Depsgraph *depsgraph, struct ReportList *reports, struct ID *id, struct bAction *act,
-	const char group[], const char rna_path[], int array_index, float cfra, eBezTriple_KeyframeType keytype, struct ListBase *nla_cache, eInsertKeyFlags flag) RET_ZERO
-short delete_keyframe(
-	struct Main *bmain, struct ReportList *reports, struct ID *id, struct bAction *act,
-	const char group[], const char rna_path[], int array_index, float cfra, eInsertKeyFlags flag) RET_ZERO
+short insert_keyframe(struct Main *bmain,
+                      struct ReportList *reports,
+                      struct ID *id,
+                      struct bAction *act,
+                      const char group[],
+                      const char rna_path[],
+                      int array_index,
+                      float cfra,
+                      eBezTriple_KeyframeType keytype,
+                      struct ListBase *nla_cache,
+                      eInsertKeyFlags flag) RET_ZERO
+short delete_keyframe(struct Main *bmain,
+                      struct ReportList *reports,
+                      struct ID *id,
+                      struct bAction *act,
+                      const char group[],
+                      const char rna_path[],
+                      int array_index,
+                      float cfra,
+                      eInsertKeyFlags flag) RET_ZERO
 struct bAction *verify_adt_action(struct Main *bmain, struct ID *id, short add) RET_NULL
 char *WM_operator_pystring_ex(struct bContext *C, struct wmOperator *op, const bool all_args, const bool macro_args, struct wmOperatorType *ot, struct PointerRNA *opptr) RET_NULL
 char *WM_operator_pystring(struct bContext *C, struct wmOperator *op, const bool all_args, const bool macro_args) RET_NULL
