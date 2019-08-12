@@ -962,7 +962,6 @@ struct EditBone *ED_armature_ebone_get_mirrored(const struct ListBase *edbo, str
 void ED_armature_ebone_remove(struct bArmature *arm, struct EditBone *exBone) RET_NONE
 struct EditBone *ED_armature_ebone_add(struct bArmature *arm, const char *name) RET_NULL
 
-void set_inverted_drawing(int enable) RET_NONE
 /* rna template */
 void uiTemplateAnyID(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *proptypename, const char *text) RET_NONE
 void uiTemplatePathBuilder(uiLayout *layout, struct PointerRNA *ptr, const char *propname, struct PointerRNA *root_ptr, const char *text) RET_NONE

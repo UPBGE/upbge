@@ -350,67 +350,6 @@ static void rna_GpencilColorData_fill_image_set(PointerRNA *ptr,
 
 #else
 
-static void rna_def_material_gamesettings(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-
-	static const EnumPropertyItem prop_alpha_blend_items[] = {
-		{GEMAT_SOLID, "OPAQUE", 0, "Opaque", "Render color of textured face as color"},
-		{GEMAT_ADD, "ADD", 0, "Add", "Render face transparent and add color of face"},
-		{GEMAT_CLIP, "CLIP", 0, "Alpha Clip", "Use the image alpha values clipped with no blending (binary alpha)"},
-		{GEMAT_ALPHA, "ALPHA", 0, "Alpha Blend",
-		 "Render polygon transparent, depending on alpha channel of the texture"},
-		{GEMAT_ALPHA_SORT, "ALPHA_SORT", 0, "Alpha Sort",
-		 "Sort faces for correct alpha drawing (slow, use Alpha Clip instead when possible)"},
-		{GEMAT_ALPHA_TO_COVERAGE, "ALPHA_ANTIALIASING", 0, "Alpha Anti-Aliasing",
-		 "Use textures alpha as anti-aliasing mask, requires multi-sample OpenGL display"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
-	static const EnumPropertyItem prop_face_orientation_items[] = {
-		{GEMAT_NORMAL, "NORMAL", 0, "Normal", "No transformation"},
-		{GEMAT_HALO, "HALO", 0, "Halo", "Screen aligned billboard"},
-		{GEMAT_BILLBOARD, "BILLBOARD", 0, "Billboard", "Billboard with Z-axis constraint"},
-		{GEMAT_SHADOW, "SHADOW", 0, "Shadow", "Faces are used for shadow"},
-		{0, NULL, 0, NULL, NULL}
-	};
-	
-	srna = RNA_def_struct(brna, "MaterialGameSettings", NULL);
-	RNA_def_struct_sdna(srna, "GameSettings");
-	RNA_def_struct_nested(brna, srna, "Material");
-	RNA_def_struct_ui_text(srna, "Material Game Settings", "Game Engine settings for a Material data-block");
-	
-	prop = RNA_def_property(srna, "use_backface_culling", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", GEMAT_BACKCULL); /* use bitflags */
-	RNA_def_property_ui_text(prop, "Backface Culling", "Hide Back of the face in Game Engine ");
-	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-	prop = RNA_def_property(srna, "text", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", GEMAT_TEXT); /* use bitflags */
-	RNA_def_property_ui_text(prop, "Text", "Use material as text in Game Engine ");
-	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-	prop = RNA_def_property(srna, "invisible", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", GEMAT_INVISIBLE); /* use bitflags */
-	RNA_def_property_ui_text(prop, "Invisible", "Make face invisible");
-	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-	prop = RNA_def_property(srna, "alpha_blend", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "alpha_blend");
-	RNA_def_property_enum_items(prop, prop_alpha_blend_items);
-	RNA_def_property_ui_text(prop, "Blend Mode", "Blend Mode for Transparent Faces");
-	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-
-	prop = RNA_def_property(srna, "face_orientation", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, prop_face_orientation_items);
-	RNA_def_property_ui_text(prop, "Face Orientations", "Especial face orientation options");
-
-	prop = RNA_def_property(srna, "physics", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GEMAT_NOPHYSICS); /* use bitflags */
-	RNA_def_property_ui_text(prop, "Physics", "Use physics properties of materials ");
-}
-
 static void rna_def_material_display(StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -460,50 +399,6 @@ static void rna_def_material_display(StructRNA *srna)
   RNA_def_property_ui_text(
       prop, "Line Priority", "The line color of a higher priority is used at material boundaries");
   RNA_def_property_update(prop, 0, "rna_Material_update");
-}
-
-static void rna_def_material_physics(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-	
-	srna = RNA_def_struct(brna, "MaterialPhysics", NULL);
-	RNA_def_struct_sdna(srna, "Material");
-	RNA_def_struct_nested(brna, srna, "Material");
-	RNA_def_struct_ui_text(srna, "Material Physics", "Physics settings for a Material data-block");
-	
-	prop = RNA_def_property(srna, "friction", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "friction");
-	RNA_def_property_range(prop, 0, 100);
-	RNA_def_property_ui_text(prop, "Friction", "Coulomb friction coefficient, when inside the physics distance area");
-
-	prop = RNA_def_property(srna, "elasticity", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "reflect");
-	RNA_def_property_range(prop, 0, 1);
-	RNA_def_property_ui_text(prop, "Elasticity", "Elasticity of collisions");
-
-	/* FH/Force Field Settings */
-	prop = RNA_def_property(srna, "use_fh_normal", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "dynamode", false);
-	RNA_def_property_ui_text(prop, "Align to Normal",
-	                         "Align dynamic game objects along the surface normal, "
-	                         "when inside the physics distance area");
-
-	prop = RNA_def_property(srna, "fh_force", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "fh");
-	RNA_def_property_range(prop, 0, 1);
-	RNA_def_property_ui_range(prop, 0.0, 1.0, 10, 2);
-	RNA_def_property_ui_text(prop, "Force", "Upward spring force, when inside the physics distance area");
-	
-	prop = RNA_def_property(srna, "fh_distance", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "fhdist");
-	RNA_def_property_range(prop, 0, 20);
-	RNA_def_property_ui_text(prop, "Distance", "Distance of the physics area");
-	
-	prop = RNA_def_property(srna, "fh_damping", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "xyfrict");
-	RNA_def_property_range(prop, 0, 1);
-	RNA_def_property_ui_text(prop, "Damping", "Damping of the spring force, when inside the physics distance area");
 }
 
 static void rna_def_material_greasepencil(BlenderRNA *brna)
