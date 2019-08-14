@@ -110,6 +110,10 @@ BL_Action::~BL_Action()
 	m_obj->GetScene()->GetBlenderScene()->r.cfra = int(m_backupFrame); //eevee
 	Object *ob = m_obj->GetBlenderObject();
 
+	if (m_action) {
+      ob->adt->action = m_action;
+	}
+
 	DEG_id_tag_update(&ob->id, ID_RECALC_ALL);
 
 	Scene *sc = m_obj->GetScene()->GetBlenderScene();
@@ -419,6 +423,9 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
 	{
 		Object *ob = m_obj->GetBlenderObject(); //eevee
+
+		ob->adt->action = m_tmpaction;
+
 		DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
 		Scene *sc = scene->GetBlenderScene();
