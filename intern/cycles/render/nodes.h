@@ -1236,7 +1236,21 @@ class MapRangeNode : public ShaderNode {
   {
     return NODE_GROUP_LEVEL_3;
   }
+  void expand(ShaderGraph *graph);
+
   float value, from_min, from_max, to_min, to_max;
+  bool clamp;
+};
+
+class ClampNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(ClampNode)
+  void constant_fold(const ConstantFolder &folder);
+  virtual int get_group()
+  {
+    return NODE_GROUP_LEVEL_3;
+  }
+  float value, min, max;
 };
 
 class MathNode : public ShaderNode {
