@@ -3852,5 +3852,10 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         }
       }
     }
+    for (Mesh *mesh = bmain->meshes.first; mesh; mesh = mesh->id.next) {
+      if (mesh->remesh_voxel_size == 0.0f) {
+        mesh->remesh_voxel_size = 0.1f;
+      }
+    }
   }
 }

@@ -825,6 +825,7 @@ bool ED_space_image_check_show_maskedit(struct SpaceImage *sima, struct ViewLaye
 
 
 bool ED_text_region_location_from_cursor(SpaceText *st, ARegion *ar, const int cursor_co[2], int r_pixel_co[2]) RET_ZERO
+bool ED_text_is_syntax_highlight_supported(struct Text *text) RET_ZERO
 
 SnapObjectContext *ED_transform_snap_object_context_create(
 	struct Main *bmain, struct Scene *scene, struct Depsgraph *depsgraph, int flag) RET_NULL
