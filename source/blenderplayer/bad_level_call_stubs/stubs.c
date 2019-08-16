@@ -491,7 +491,7 @@ void ED_node_composit_default(const struct bContext *C, struct Scene *scene) RET
 void *ED_region_draw_cb_activate(struct ARegionType *art, void(*draw)(const struct bContext *, struct ARegion *, void *), void *custumdata, int type) RET_ZERO /* XXX this one looks weird */
 void ED_region_draw_cb_draw(const struct bContext *C, ARegion *ar, int type) RET_NONE
 void ED_region_draw_cb_exit(struct ARegionType *art, void *handle) RET_NONE
-void ED_region_visible_rect(ARegion *ar, rcti *rect) RET_NONE
+const rcti *ED_region_visible_rect(ARegion *ar) RET_NULL
 void ED_region_pixelspace(struct ARegion *ar) RET_NONE
 
 void ED_region_toggle_hidden(struct bContext *C, struct ARegion *ar) RET_NONE
