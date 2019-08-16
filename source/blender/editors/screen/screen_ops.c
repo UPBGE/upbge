@@ -3747,7 +3747,7 @@ static int region_quadview_exec(bContext *C, wmOperator *op)
       rv3d->viewlock = 0;
       rv3d->rflag &= ~RV3D_CLIPPING;
 
-      /* accumulate locks, incase they're mixed */
+      /* Accumulate locks, in case they're mixed. */
       for (ar_iter = sa->regionbase.first; ar_iter; ar_iter = ar_iter->next) {
         if (ar_iter->regiontype == RGN_TYPE_WINDOW) {
           RegionView3D *rv3d_iter = ar_iter->regiondata;
@@ -4780,6 +4780,40 @@ static void SCREEN_OT_drivers_editor_show(struct wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Show Info Log Operator
+ * \{ */
+
+static int info_log_show_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  int sizex = 900 * UI_DPI_FAC;
+  int sizey = 580 * UI_DPI_FAC;
+  int shift_y = 480;
+
+  /* changes context! */
+  if (WM_window_open_temp(C, event->x, event->y + shift_y, sizex, sizey, WM_WINDOW_INFO) != NULL) {
+    return OPERATOR_FINISHED;
+  }
+  else {
+    BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
+    return OPERATOR_CANCELLED;
+  }
+}
+
+static void SCREEN_OT_info_log_show(struct wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Show Info Log";
+  ot->description = "Show info log in a separate window";
+  ot->idname = "SCREEN_OT_info_log_show";
+
+  /* api callbacks */
+  ot->invoke = info_log_show_invoke;
+  ot->poll = ED_operator_screenactive;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name New Screen Operator
  * \{ */
 
@@ -5246,6 +5280,7 @@ void ED_operatortypes_screen(void)
   WM_operatortype_append(SCREEN_OT_screenshot);
   WM_operatortype_append(SCREEN_OT_userpref_show);
   WM_operatortype_append(SCREEN_OT_drivers_editor_show);
+  WM_operatortype_append(SCREEN_OT_info_log_show);
   WM_operatortype_append(SCREEN_OT_region_blend);
   WM_operatortype_append(SCREEN_OT_space_type_set_or_cycle);
   WM_operatortype_append(SCREEN_OT_space_context_cycle);

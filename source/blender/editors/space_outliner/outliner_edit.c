@@ -101,9 +101,15 @@ static int outliner_highlight_update(bContext *C, wmOperator *UNUSED(op), const 
 
   ARegion *ar = CTX_wm_region(C);
   SpaceOutliner *soops = CTX_wm_space_outliner(C);
-  const float my = UI_view2d_region_to_view_y(&ar->v2d, event->mval[1]);
 
-  TreeElement *hovered_te = outliner_find_item_at_y(soops, &soops->tree, my);
+  float view_mval[2];
+  UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &view_mval[0], &view_mval[1]);
+
+  TreeElement *hovered_te = outliner_find_item_at_y(soops, &soops->tree, view_mval[1]);
+
+  if (hovered_te) {
+    hovered_te = outliner_find_item_at_x_in_row(soops, hovered_te, view_mval[0], NULL);
+  }
   bool changed = false;
 
   if (!hovered_te || !(hovered_te->store_elem->flag & TSE_HIGHLIGHTED)) {
@@ -134,59 +140,108 @@ void OUTLINER_OT_highlight_update(wmOperatorType *ot)
 
 /* Toggle Open/Closed ------------------------------------------- */
 
-static int do_outliner_item_openclose(
-    bContext *C, SpaceOutliner *soops, TreeElement *te, const bool all, const float mval[2])
+/* Open or close a tree element, optionally toggling all children recursively */
+void outliner_item_openclose(TreeElement *te, bool open, bool toggle_all)
 {
+  TreeStoreElem *tselem = TREESTORE(te);
 
-  if (mval[1] > te->ys && mval[1] < te->ys + UI_UNIT_Y) {
-    TreeStoreElem *tselem = TREESTORE(te);
-
-    /* all below close/open? */
-    if (all) {
-      tselem->flag &= ~TSE_CLOSED;
-      outliner_flag_set(
-          &te->subtree, TSE_CLOSED, !outliner_flag_is_any_test(&te->subtree, TSE_CLOSED, 1));
-    }
-    else {
-      if (tselem->flag & TSE_CLOSED) {
-        tselem->flag &= ~TSE_CLOSED;
-      }
-      else {
-        tselem->flag |= TSE_CLOSED;
-      }
-    }
-
-    return 1;
+  if (open) {
+    tselem->flag &= ~TSE_CLOSED;
+  }
+  else {
+    tselem->flag |= TSE_CLOSED;
   }
 
-  for (te = te->subtree.first; te; te = te->next) {
-    if (do_outliner_item_openclose(C, soops, te, all, mval)) {
-      return 1;
-    }
+  if (toggle_all) {
+    outliner_flag_set(&te->subtree, TSE_CLOSED, !open);
   }
-  return 0;
 }
 
-/* event can enterkey, then it opens/closes */
-static int outliner_item_openclose(bContext *C, wmOperator *op, const wmEvent *event)
+typedef struct OpenCloseData {
+  TreeStoreElem *prev_tselem;
+  bool open;
+  int x_location;
+} OpenCloseData;
+
+static int outliner_item_openclose_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *ar = CTX_wm_region(C);
   SpaceOutliner *soops = CTX_wm_space_outliner(C);
-  TreeElement *te;
-  float fmval[2];
-  const bool all = RNA_boolean_get(op->ptr, "all");
 
-  UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+  float view_mval[2];
+  UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &view_mval[0], &view_mval[1]);
 
-  for (te = soops->tree.first; te; te = te->next) {
-    if (do_outliner_item_openclose(C, soops, te, all, fmval)) {
-      break;
+  if (event->type == MOUSEMOVE) {
+    TreeElement *te = outliner_find_item_at_y(soops, &soops->tree, view_mval[1]);
+
+    OpenCloseData *data = (OpenCloseData *)op->customdata;
+
+    /* Only openclose if mouse is not over the previously toggled element */
+    if (te && TREESTORE(te) != data->prev_tselem) {
+
+      /* Only toggle openclose on the same level as the first clicked element */
+      if (te->xs == data->x_location) {
+        outliner_item_openclose(te, data->open, false);
+        ED_region_tag_redraw(ar);
+      }
+    }
+
+    if (te) {
+      data->prev_tselem = TREESTORE(te);
+    }
+    else {
+      data->prev_tselem = NULL;
     }
   }
+  else if (event->val == KM_RELEASE) {
+    MEM_freeN(op->customdata);
 
-  ED_region_tag_redraw(ar);
+    return OPERATOR_FINISHED;
+  }
 
-  return OPERATOR_FINISHED;
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static int outliner_item_openclose_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  ARegion *ar = CTX_wm_region(C);
+  SpaceOutliner *soops = CTX_wm_space_outliner(C);
+
+  const bool toggle_all = RNA_boolean_get(op->ptr, "all");
+
+  float view_mval[2];
+  UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &view_mval[0], &view_mval[1]);
+
+  TreeElement *te = outliner_find_item_at_y(soops, &soops->tree, view_mval[1]);
+
+  if (te && outliner_item_is_co_within_close_toggle(te, view_mval[0])) {
+    TreeStoreElem *tselem = TREESTORE(te);
+
+    const bool open = (tselem->flag & TSE_CLOSED) ||
+                      (toggle_all && (outliner_flag_is_any_test(&te->subtree, TSE_CLOSED, 1)));
+
+    outliner_item_openclose(te, open, toggle_all);
+    ED_region_tag_redraw(ar);
+
+    /* Only toggle once for single click toggling */
+    if (event->type == LEFTMOUSE) {
+      return OPERATOR_FINISHED;
+    }
+
+    /* Store last expanded tselem and x coordinate of disclosure triangle */
+    OpenCloseData *toggle_data = MEM_callocN(sizeof(OpenCloseData), "open_close_data");
+    toggle_data->prev_tselem = tselem;
+    toggle_data->open = open;
+    toggle_data->x_location = te->xs;
+
+    /* Store the first clicked on element */
+    op->customdata = toggle_data;
+
+    WM_event_add_modal_handler(C, op);
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
 }
 
 void OUTLINER_OT_item_openclose(wmOperatorType *ot)
@@ -195,11 +250,12 @@ void OUTLINER_OT_item_openclose(wmOperatorType *ot)
   ot->idname = "OUTLINER_OT_item_openclose";
   ot->description = "Toggle whether item under cursor is enabled or closed";
 
-  ot->invoke = outliner_item_openclose;
+  ot->invoke = outliner_item_openclose_invoke;
+  ot->modal = outliner_item_openclose_modal;
 
   ot->poll = ED_operator_outliner_active;
 
-  RNA_def_boolean(ot->srna, "all", 1, "All", "Close or open all items");
+  RNA_def_boolean(ot->srna, "all", false, "All", "Close or open all items");
 }
 
 /* -------------------------------------------------------------------- */
@@ -330,10 +386,10 @@ void item_rename_cb(bContext *C,
   do_item_rename(ar, te, tselem, reports);
 }
 
-static int do_outliner_item_rename(ReportList *reports,
-                                   ARegion *ar,
-                                   TreeElement *te,
-                                   const float mval[2])
+static void do_outliner_item_rename(ReportList *reports,
+                                    ARegion *ar,
+                                    TreeElement *te,
+                                    const float mval[2])
 {
   if (mval[1] > te->ys && mval[1] < te->ys + UI_UNIT_Y) {
     TreeStoreElem *tselem = TREESTORE(te);
@@ -341,17 +397,12 @@ static int do_outliner_item_rename(ReportList *reports,
     /* click on name */
     if (mval[0] > te->xs + UI_UNIT_X * 2 && mval[0] < te->xend) {
       do_item_rename(ar, te, tselem, reports);
-      return 1;
     }
-    return 0;
   }
 
   for (te = te->subtree.first; te; te = te->next) {
-    if (do_outliner_item_rename(reports, ar, te, mval)) {
-      return 1;
-    }
+    do_outliner_item_rename(reports, ar, te, mval);
   }
-  return 0;
 }
 
 static int outliner_item_rename(bContext *C, wmOperator *op, const wmEvent *event)
@@ -360,25 +411,34 @@ static int outliner_item_rename(bContext *C, wmOperator *op, const wmEvent *even
   SpaceOutliner *soops = CTX_wm_space_outliner(C);
   TreeElement *te;
   float fmval[2];
-  bool changed = false;
 
-  UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+  /* Rename active element if key pressed, otherwise rename element at cursor coordinates */
+  if (event->val == KM_PRESS) {
+    TreeElement *active_element = outliner_find_element_with_flag(&soops->tree, TSE_ACTIVE);
 
-  for (te = soops->tree.first; te; te = te->next) {
-    if (do_outliner_item_rename(op->reports, ar, te, fmval)) {
-      changed = true;
-      break;
+    if (active_element) {
+      do_item_rename(ar, active_element, TREESTORE(active_element), op->reports);
+    }
+    else {
+      BKE_report(op->reports, RPT_WARNING, "No active item to rename");
+    }
+  }
+  else {
+    UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+
+    for (te = soops->tree.first; te; te = te->next) {
+      do_outliner_item_rename(op->reports, ar, te, fmval);
     }
   }
 
-  return changed ? OPERATOR_FINISHED : OPERATOR_PASS_THROUGH;
+  return OPERATOR_FINISHED;
 }
 
 void OUTLINER_OT_item_rename(wmOperatorType *ot)
 {
   ot->name = "Rename";
   ot->idname = "OUTLINER_OT_item_rename";
-  ot->description = "Rename item under cursor";
+  ot->description = "Rename the active element";
 
   ot->invoke = outliner_item_rename;
 
@@ -1103,6 +1163,10 @@ static int outliner_select_all_exec(bContext *C, wmOperator *op)
       break;
   }
 
+  if (soops->flag & SO_SYNC_SELECT) {
+    ED_outliner_select_sync_from_outliner(C, soops);
+  }
+
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
   ED_region_tag_redraw_no_rebuild(ar);
@@ -1179,20 +1243,17 @@ static int outliner_open_back(TreeElement *te)
   return retval;
 }
 
-static int outliner_show_active_exec(bContext *C, wmOperator *UNUSED(op))
+/* Return element representing the active base or bone in the outliner, or NULL if none exists */
+static TreeElement *outliner_show_active_get_element(bContext *C,
+                                                     SpaceOutliner *so,
+                                                     ViewLayer *view_layer)
 {
-  SpaceOutliner *so = CTX_wm_space_outliner(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  ARegion *ar = CTX_wm_region(C);
-  View2D *v2d = &ar->v2d;
-
   TreeElement *te;
-  int xdelta, ytop;
 
   Object *obact = OBACT(view_layer);
 
   if (!obact) {
-    return OPERATOR_CANCELLED;
+    return NULL;
   }
 
   te = outliner_find_id(so, &so->tree, &obact->id);
@@ -1215,25 +1276,50 @@ static int outliner_show_active_exec(bContext *C, wmOperator *UNUSED(op))
     }
   }
 
-  if (te) {
-    /* open up tree to active object/bone */
+  return te;
+}
+
+static void outliner_show_active(SpaceOutliner *so, ARegion *ar, TreeElement *te, ID *id)
+{
+  /* open up tree to active object/bone */
+  if (TREESTORE(te)->id == id) {
     if (outliner_open_back(te)) {
       outliner_set_coordinates(ar, so);
     }
+    return;
+  }
 
-    /* make te->ys center of view */
-    ytop = te->ys + BLI_rcti_size_y(&v2d->mask) / 2;
-    if (ytop > 0) {
-      ytop = 0;
+  for (TreeElement *ten = te->subtree.first; ten; ten = ten->next) {
+    outliner_show_active(so, ar, ten, id);
+  }
+}
+
+static int outliner_show_active_exec(bContext *C, wmOperator *UNUSED(op))
+{
+  SpaceOutliner *so = CTX_wm_space_outliner(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ARegion *ar = CTX_wm_region(C);
+  View2D *v2d = &ar->v2d;
+
+  TreeElement *active_element = outliner_show_active_get_element(C, so, view_layer);
+
+  if (active_element) {
+    ID *id = TREESTORE(active_element)->id;
+
+    /* Expand all elements in the outliner with matching ID */
+    for (TreeElement *te = so->tree.first; te; te = te->next) {
+      outliner_show_active(so, ar, te, id);
     }
 
-    v2d->cur.ymax = (float)ytop;
-    v2d->cur.ymin = (float)(ytop - BLI_rcti_size_y(&v2d->mask));
+    /* Center view on first element found */
+    int size_y = BLI_rcti_size_y(&v2d->mask) + 1;
+    int ytop = (active_element->ys + (size_y / 2));
+    int delta_y = ytop - v2d->cur.ymax;
 
-    /* make te->xs ==> te->xend center of view */
-    xdelta = (int)(te->xs - v2d->cur.xmin);
-    v2d->cur.xmin += xdelta;
-    v2d->cur.xmax += xdelta;
+    outliner_scroll_view(ar, delta_y);
+  }
+  else {
+    return OPERATOR_CANCELLED;
   }
 
   ED_region_tag_redraw_no_rebuild(ar);
@@ -1259,18 +1345,15 @@ void OUTLINER_OT_show_active(wmOperatorType *ot)
 static int outliner_scroll_page_exec(bContext *C, wmOperator *op)
 {
   ARegion *ar = CTX_wm_region(C);
-  int dy = BLI_rcti_size_y(&ar->v2d.mask);
-  int up = 0;
+  int size_y = BLI_rcti_size_y(&ar->v2d.mask) + 1;
 
-  if (RNA_boolean_get(op->ptr, "up")) {
-    up = 1;
+  bool up = RNA_boolean_get(op->ptr, "up");
+
+  if (!up) {
+    size_y = -size_y;
   }
 
-  if (up == 0) {
-    dy = -dy;
-  }
-  ar->v2d.cur.ymin += dy;
-  ar->v2d.cur.ymax += dy;
+  outliner_scroll_view(ar, size_y);
 
   ED_region_tag_redraw_no_rebuild(ar);
 

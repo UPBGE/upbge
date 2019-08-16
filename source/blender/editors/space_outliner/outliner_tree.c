@@ -297,7 +297,7 @@ static void outliner_add_scene_contents(SpaceOutliner *soops,
 
   ViewLayer *view_layer;
   for (view_layer = sce->view_layers.first; view_layer; view_layer = view_layer->next) {
-    TreeElement *tenlay = outliner_add_element(soops, &ten->subtree, sce, te, TSE_R_LAYER, 0);
+    TreeElement *tenlay = outliner_add_element(soops, &ten->subtree, sce, ten, TSE_R_LAYER, 0);
     tenlay->name = view_layer->name;
     tenlay->directdata = view_layer;
   }
@@ -314,7 +314,7 @@ static void outliner_add_scene_contents(SpaceOutliner *soops,
   ten = outliner_add_element(soops, lb, sce, te, TSE_SCENE_OBJECTS_BASE, 0);
   ten->name = IFACE_("Objects");
   FOREACH_SCENE_OBJECT_BEGIN (sce, ob) {
-    outliner_add_element(soops, &ten->subtree, ob, NULL, 0, 0);
+    outliner_add_element(soops, &ten->subtree, ob, ten, 0, 0);
   }
   FOREACH_SCENE_OBJECT_END;
   outliner_make_object_parent_hierarchy(&ten->subtree);
@@ -2008,6 +2008,9 @@ static int outliner_exclude_filter_get(SpaceOutliner *soops)
     case SO_FILTER_OB_VISIBLE:
       exclude_filter |= SO_FILTER_OB_STATE_VISIBLE;
       break;
+    case SO_FILTER_OB_INVISIBLE:
+      exclude_filter |= SO_FILTER_OB_STATE_INVISIBLE;
+      break;
     case SO_FILTER_OB_SELECTED:
       exclude_filter |= SO_FILTER_OB_STATE_SELECTED;
       break;
@@ -2083,6 +2086,11 @@ static bool outliner_element_visible_get(ViewLayer *view_layer,
 
       if (exclude_filter & SO_FILTER_OB_STATE_VISIBLE) {
         if ((base->flag & BASE_VISIBLE) == 0) {
+          return false;
+        }
+      }
+      else if (exclude_filter & SO_FILTER_OB_STATE_INVISIBLE) {
+        if ((base->flag & BASE_VISIBLE) != 0) {
           return false;
         }
       }
@@ -2339,7 +2347,8 @@ void outliner_build_tree(
       te = outliner_add_element(soops, &soops->tree, sce, NULL, 0, 0);
       tselem = TREESTORE(te);
 
-      if (sce == scene && show_opened) {
+      /* New scene elements open by default */
+      if ((sce == scene && show_opened) || !tselem->used) {
         tselem->flag &= ~TSE_CLOSED;
       }
 

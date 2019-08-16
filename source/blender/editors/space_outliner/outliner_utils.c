@@ -24,11 +24,15 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_action_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BKE_context.h"
 #include "BKE_outliner_treehash.h"
+#include "BKE_layer.h"
 
 #include "ED_armature.h"
+#include "ED_outliner.h"
 
 #include "UI_interface.h"
 #include "UI_view2d.h"
@@ -62,6 +66,38 @@ TreeElement *outliner_find_item_at_y(const SpaceOutliner *soops,
   return NULL;
 }
 
+static TreeElement *outliner_find_item_at_x_in_row_recursive(const TreeElement *parent_te,
+                                                             float view_co_x,
+                                                             bool *r_merged)
+{
+  TreeElement *child_te = parent_te->subtree.first;
+
+  bool over_element = false;
+
+  while (child_te) {
+    over_element = (view_co_x > child_te->xs) && (view_co_x < child_te->xend);
+    if ((child_te->flag & TE_ICONROW) && over_element) {
+      return child_te;
+    }
+    else if ((child_te->flag & TE_ICONROW_MERGED) && over_element) {
+      if (r_merged) {
+        *r_merged = true;
+      }
+      return child_te;
+    }
+
+    TreeElement *te = outliner_find_item_at_x_in_row_recursive(child_te, view_co_x, r_merged);
+    if (te != child_te) {
+      return te;
+    }
+
+    child_te = child_te->next;
+  }
+
+  /* return parent if no child is hovered */
+  return (TreeElement *)parent_te;
+}
+
 /**
  * Collapsed items can show their children as click-able icons. This function tries to find
  * such an icon that represents the child item at x-coordinate \a view_co_x (view-space).
@@ -70,24 +106,14 @@ TreeElement *outliner_find_item_at_y(const SpaceOutliner *soops,
  */
 TreeElement *outliner_find_item_at_x_in_row(const SpaceOutliner *soops,
                                             const TreeElement *parent_te,
-                                            float view_co_x)
+                                            float view_co_x,
+                                            bool *r_merged)
 {
-  /* if parent_te is opened, it doesn't show childs in row */
+  /* if parent_te is opened, it doesn't show children in row */
   if (!TSELEM_OPEN(TREESTORE(parent_te), soops)) {
-    /* no recursion, items can only display their direct children in the row */
-    for (TreeElement *child_te = parent_te->subtree.first;
-         /* don't look further if co_x is smaller than child position*/
-         child_te && view_co_x >= child_te->xs;
-
-         child_te = child_te->next) {
-      if ((child_te->flag & TE_ICONROW) && (view_co_x > child_te->xs) &&
-          (view_co_x < child_te->xend)) {
-        return child_te;
-      }
-    }
+    return outliner_find_item_at_x_in_row_recursive(parent_te, view_co_x, r_merged);
   }
 
-  /* return parent if no child is hovered */
   return (TreeElement *)parent_te;
 }
 
@@ -299,4 +325,90 @@ float outliner_restrict_columns_width(const SpaceOutliner *soops)
       break;
   }
   return (num_columns * UI_UNIT_X + V2D_SCROLL_WIDTH);
+}
+
+/* Find first tree element in tree with matching treestore flag */
+TreeElement *outliner_find_element_with_flag(const ListBase *lb, short flag)
+{
+  for (TreeElement *te = lb->first; te; te = te->next) {
+    if ((TREESTORE(te)->flag & flag) == flag) {
+      return te;
+    }
+    TreeElement *active_element = outliner_find_element_with_flag(&te->subtree, flag);
+    if (active_element) {
+      return active_element;
+    }
+  }
+  return NULL;
+}
+
+/* Find if element is visible in the outliner tree */
+bool outliner_is_element_visible(const TreeElement *te)
+{
+  TreeStoreElem *tselem;
+
+  while (te->parent) {
+    tselem = TREESTORE(te->parent);
+
+    if (tselem->flag & TSE_CLOSED) {
+      return false;
+    }
+    else {
+      te = te->parent;
+    }
+  }
+
+  return true;
+}
+
+/* Find if x coordinate is over element disclosure toggle */
+bool outliner_item_is_co_within_close_toggle(TreeElement *te, float view_co_x)
+{
+  return (view_co_x > te->xs) && (view_co_x < te->xs + UI_UNIT_X);
+}
+
+/* Scroll view vertically while keeping within total bounds */
+void outliner_scroll_view(ARegion *ar, int delta_y)
+{
+  int y_min = MIN2(ar->v2d.cur.ymin, ar->v2d.tot.ymin);
+
+  ar->v2d.cur.ymax += delta_y;
+  ar->v2d.cur.ymin += delta_y;
+
+  /* Adjust view if delta placed view outside total area */
+  int offset;
+  if (ar->v2d.cur.ymax > -UI_UNIT_Y) {
+    offset = ar->v2d.cur.ymax;
+    ar->v2d.cur.ymax -= offset;
+    ar->v2d.cur.ymin -= offset;
+  }
+  else if (ar->v2d.cur.ymin < y_min) {
+    offset = y_min - ar->v2d.cur.ymin;
+    ar->v2d.cur.ymax += offset;
+    ar->v2d.cur.ymin += offset;
+  }
+}
+
+/* Get base of object under cursor. Used for eyedropper tool */
+Base *ED_outliner_give_base_under_cursor(bContext *C, const int mval[2])
+{
+  ARegion *ar = CTX_wm_region(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceOutliner *soops = CTX_wm_space_outliner(C);
+  TreeElement *te;
+  Base *base = NULL;
+  float view_mval[2];
+
+  UI_view2d_region_to_view(&ar->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+
+  te = outliner_find_item_at_y(soops, &soops->tree, view_mval[1]);
+  if (te) {
+    TreeStoreElem *tselem = TREESTORE(te);
+    if (tselem->type == 0) {
+      Object *ob = (Object *)tselem->id;
+      base = (te->directdata) ? (Base *)te->directdata : BKE_view_layer_base_find(view_layer, ob);
+    }
+  }
+
+  return base;
 }

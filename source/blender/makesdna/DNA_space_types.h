@@ -258,7 +258,12 @@ typedef struct SpaceOutliner {
   char search_string[64];
   struct TreeStoreElem search_tse;
 
-  short flag, outlinevis, storeflag, search_flags;
+  short flag, outlinevis, storeflag;
+  char search_flags;
+
+  /** Selection syncing flag (#WM_OUTLINER_SYNC_SELECT_FROM_OBJECT and similar flags). */
+  char sync_select_dirty;
+
   int filter;
   char filter_state;
   char show_restrict_flags;
@@ -277,6 +282,7 @@ typedef enum eSpaceOutliner_Flag {
   SO_FLAG_UNUSED_1 = (1 << 2), /* cleared */
   SO_HIDE_KEYINGSETINFO = (1 << 3),
   SO_SKIP_SORT_ALPHA = (1 << 4),
+  SO_SYNC_SELECT = (1 << 5),
 } eSpaceOutliner_Flag;
 
 /* SpaceOutliner.filter */
@@ -295,13 +301,14 @@ typedef enum eSpaceOutliner_Filter {
   SO_FILTER_NO_OB_CAMERA = (1 << 10),
   SO_FILTER_NO_OB_OTHERS = (1 << 11),
 
-  SO_FILTER_UNUSED_12 = (1 << 12),         /* cleared */
-  SO_FILTER_OB_STATE_VISIBLE = (1 << 13),  /* Not set via DNA. */
-  SO_FILTER_OB_STATE_SELECTED = (1 << 14), /* Not set via DNA. */
-  SO_FILTER_OB_STATE_ACTIVE = (1 << 15),   /* Not set via DNA. */
-  SO_FILTER_NO_COLLECTION = (1 << 16),
+  SO_FILTER_UNUSED_12 = (1 << 12),          /* cleared */
+  SO_FILTER_OB_STATE_VISIBLE = (1 << 13),   /* Not set via DNA. */
+  SO_FILTER_OB_STATE_INVISIBLE = (1 << 14), /* Not set via DNA. */
+  SO_FILTER_OB_STATE_SELECTED = (1 << 15),  /* Not set via DNA. */
+  SO_FILTER_OB_STATE_ACTIVE = (1 << 16),    /* Not set via DNA. */
+  SO_FILTER_NO_COLLECTION = (1 << 17),
 
-  SO_FILTER_ID_TYPE = (1 << 17),
+  SO_FILTER_ID_TYPE = (1 << 18),
 } eSpaceOutliner_Filter;
 
 #define SO_FILTER_OB_TYPE \
@@ -309,7 +316,8 @@ typedef enum eSpaceOutliner_Filter {
    SO_FILTER_NO_OB_LAMP | SO_FILTER_NO_OB_CAMERA | SO_FILTER_NO_OB_OTHERS)
 
 #define SO_FILTER_OB_STATE \
-  (SO_FILTER_OB_STATE_VISIBLE | SO_FILTER_OB_STATE_SELECTED | SO_FILTER_OB_STATE_ACTIVE)
+  (SO_FILTER_OB_STATE_VISIBLE | SO_FILTER_OB_STATE_INVISIBLE | SO_FILTER_OB_STATE_SELECTED | \
+   SO_FILTER_OB_STATE_ACTIVE)
 
 #define SO_FILTER_ANY \
   (SO_FILTER_NO_OB_CONTENT | SO_FILTER_NO_CHILDREN | SO_FILTER_OB_TYPE | SO_FILTER_OB_STATE | \
@@ -319,8 +327,9 @@ typedef enum eSpaceOutliner_Filter {
 typedef enum eSpaceOutliner_StateFilter {
   SO_FILTER_OB_ALL = 0,
   SO_FILTER_OB_VISIBLE = 1,
-  SO_FILTER_OB_SELECTED = 2,
-  SO_FILTER_OB_ACTIVE = 3,
+  SO_FILTER_OB_INVISIBLE = 2,
+  SO_FILTER_OB_SELECTED = 3,
+  SO_FILTER_OB_ACTIVE = 4,
 } eSpaceOutliner_StateFilter;
 
 /* SpaceOutliner.show_restrict_flags */

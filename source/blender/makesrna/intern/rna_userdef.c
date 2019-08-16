@@ -2297,6 +2297,11 @@ static void rna_def_userdef_theme_space_outliner(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Selected Highlight", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
+  prop = RNA_def_property(srna, "active", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Active Highlight", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
   prop = RNA_def_property(srna, "selected_object", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Selected Objects", "");
@@ -4113,6 +4118,12 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       "Show Playback FPS",
       "Show the frames per second screen refresh rate, while animation is played back");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "show_addons_enabled_only", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_ADDONS_ENABLED_ONLY);
+  RNA_def_property_ui_text(prop,
+                           "Enabled Add-ons Only",
+                           "Only show enabled add-ons. Un-check to see all installed add-ons");
 
   static const EnumPropertyItem factor_display_items[] = {
       {USER_FACTOR_AS_FACTOR, "FACTOR", 0, "Factor", "Display factors as values between 0 and 1"},

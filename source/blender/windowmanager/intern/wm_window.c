@@ -482,8 +482,8 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
     }
 
     /* Informs GHOST of unsaved changes, to set window modified visual indicator (macOS)
-     * and to give hint of unsaved changes for a user warning mechanism in case of OS
-     * application terminate request (e.g. OS Shortcut Alt+F4, Cmd+Q, (...), or session end). */
+     * and to give hint of unsaved changes for a user warning mechanism in case of OS application
+     * terminate request (e.g. OS Shortcut Alt+F4, Command+Q, (...), or session end). */
     GHOST_SetWindowModifiedState(win->ghostwin, (GHOST_TUns8)!wm->file_saved);
   }
 }
@@ -893,6 +893,9 @@ wmWindow *WM_window_open_temp(bContext *C, int x, int y, int sizex, int sizey, i
   else if (type == WM_WINDOW_DRIVERS) {
     ED_area_newspace(C, sa, SPACE_GRAPH, false);
   }
+  else if (type == WM_WINDOW_INFO) {
+    ED_area_newspace(C, sa, SPACE_INFO, false);
+  }
   else {
     ED_area_newspace(C, sa, SPACE_USERPREF, false);
   }
@@ -916,6 +919,9 @@ wmWindow *WM_window_open_temp(bContext *C, int x, int y, int sizex, int sizey, i
   }
   else if (sa->spacetype == SPACE_GRAPH) {
     title = IFACE_("Blender Drivers Editor");
+  }
+  else if (sa->spacetype == SPACE_INFO) {
+    title = IFACE_("Blender Info Log");
   }
   else {
     title = "Blender";

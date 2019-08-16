@@ -505,7 +505,7 @@ static void extract_tris_looptri_mesh(const MeshRenderData *mr,
                                       void *_data)
 {
   const MPoly *mpoly = &mr->mpoly[mlt->poly];
-  if (!(mpoly->flag & ME_HIDE)) {
+  if (!(mr->use_hide && (mpoly->flag & ME_HIDE))) {
     MeshExtract_Tri_Data *data = _data;
     int *mat_tri_ofs = data->tri_mat_end;
     GPU_indexbuf_set_tri_verts(
@@ -919,7 +919,7 @@ static void *extract_lines_adjacency_init(const MeshRenderData *mr, void *UNUSED
 {
   /* Similar to poly_to_tri_count().
    * There is always loop + tri - 1 edges inside a polygon.
-   * Cummulate for all polys and you get : */
+   * Accumulate for all polys and you get : */
   uint tess_edge_len = mr->loop_len + mr->tri_len - mr->poly_len;
 
   size_t vert_to_loop_size = sizeof(uint) * mr->vert_len;
@@ -1859,8 +1859,8 @@ static void *extract_orco_init(const MeshRenderData *mr, void *buf)
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
     /* FIXME(fclem): We use the last component as a way to differentiate from generic vertex
-     * attribs. This is a substential waste of Vram and should be done another way.
-     * Unfortunately, at the time of writting, I did not found any other "non disruptive"
+     * attribs. This is a substantial waste of Vram and should be done another way.
+     * Unfortunately, at the time of writing, I did not found any other "non disruptive"
      * alternative. */
     GPU_vertformat_attr_add(&format, "orco", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
   }
