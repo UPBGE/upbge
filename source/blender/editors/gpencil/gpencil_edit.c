@@ -220,6 +220,17 @@ void GPENCIL_OT_editmode_toggle(wmOperatorType *ot)
 }
 
 /* set select mode */
+static bool gpencil_selectmode_toggle_poll(bContext *C)
+{
+  /* edit only supported with grease pencil objects */
+  Object *ob = CTX_data_active_object(C);
+  if ((ob == NULL) || (ob->type != OB_GPENCIL) || (ob->mode != OB_MODE_EDIT_GPENCIL)) {
+    return false;
+  }
+
+  return ED_operator_view3d_active(C);
+}
+
 static int gpencil_selectmode_toggle_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
@@ -227,7 +238,7 @@ static int gpencil_selectmode_toggle_exec(bContext *C, wmOperator *op)
   const int mode = RNA_int_get(op->ptr, "mode");
 
   /* Just set mode */
-  ts->gpencil_selectmode = mode;
+  ts->gpencil_selectmode_edit = mode;
 
   WM_main_add_notifier(NC_SCENE | ND_TOOLSETTINGS, NULL);
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
@@ -246,7 +257,7 @@ void GPENCIL_OT_selectmode_toggle(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = gpencil_selectmode_toggle_exec;
-  ot->poll = gp_strokes_edit3d_poll;
+  ot->poll = gpencil_selectmode_toggle_poll;
 
   /* flags */
   ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
@@ -3546,7 +3557,7 @@ static void gp_smooth_stroke(bContext *C, wmOperator *op)
           }
           if (smooth_thickness) {
             /* thickness need to repeat process several times */
-            for (int r2 = 0; r2 < r * 10; r2++) {
+            for (int r2 = 0; r2 < r * 20; r2++) {
               BKE_gpencil_smooth_stroke_thickness(gps, i, factor);
             }
           }
@@ -4302,7 +4313,7 @@ void GPENCIL_OT_stroke_smooth(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  prop = RNA_def_int(ot->srna, "repeat", 1, 1, 10, "Repeat", "", 1, 5);
+  prop = RNA_def_int(ot->srna, "repeat", 1, 1, 50, "Repeat", "", 1, 20);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   RNA_def_float(ot->srna, "factor", 0.5f, 0.0f, 2.0f, "Factor", "", 0.0f, 2.0f);

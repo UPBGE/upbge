@@ -8379,207 +8379,198 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
         break;
       }
 #endif
-			case MOUSEMOVE:
-			{
-				uiBut *but_other = ui_but_find_mouse_over(ar, event);
-				bool exit = false;
+      case MOUSEMOVE: {
+        uiBut *but_other = ui_but_find_mouse_over(ar, event);
+        bool exit = false;
 
-				/* always deactivate button for pie menus,
-				 * else moving to blank space will leave activated */
-				if ((!ui_block_is_menu(block) || ui_block_is_pie_menu(block)) &&
-				    !ui_but_contains_point_px(but, ar, event->x, event->y))
-				{
-					exit = true;
-				}
-				else if (but_other && ui_but_is_editable(but_other) && (but_other != but)) {
-					exit = true;
-				}
+        /* always deactivate button for pie menus,
+         * else moving to blank space will leave activated */
+        if ((!ui_block_is_menu(block) || ui_block_is_pie_menu(block)) &&
+            !ui_but_contains_point_px(but, ar, event->x, event->y)) {
+          exit = true;
+        }
+        else if (but_other && ui_but_is_editable(but_other) && (but_other != but)) {
+          exit = true;
+        }
 
-				if (exit) {
-					data->cancel = true;
-					button_activate_state(C, but, BUTTON_STATE_EXIT);
-				}
-				else if (event->x != event->prevx || event->y != event->prevy) {
-					/* re-enable tooltip on mouse move */
-					ui_blocks_set_tooltips(ar, true);
-					button_tooltip_timer_reset(C, but);
-				}
+        if (exit) {
+          data->cancel = true;
+          button_activate_state(C, but, BUTTON_STATE_EXIT);
+        }
+        else if (event->x != event->prevx || event->y != event->prevy) {
+          /* re-enable tooltip on mouse move */
+          ui_blocks_set_tooltips(ar, true);
+          button_tooltip_timer_reset(C, but);
+        }
 
-				break;
-			}
-			case TIMER:
-			{
-				/* Handle menu auto open timer. */
-				if (event->customdata == data->autoopentimer) {
-					WM_event_remove_timer(data->wm, data->window, data->autoopentimer);
-					data->autoopentimer = NULL;
+        break;
+      }
+      case TIMER: {
+        /* Handle menu auto open timer. */
+        if (event->customdata == data->autoopentimer) {
+          WM_event_remove_timer(data->wm, data->window, data->autoopentimer);
+          data->autoopentimer = NULL;
 
-					if (ui_but_contains_point_px(but, ar, event->x, event->y) || but->active) {
-						button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
-					}
-				}
+          if (ui_but_contains_point_px(but, ar, event->x, event->y) || but->active) {
+            button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
+          }
+        }
 
-				break;
-			}
-			/* XXX hardcoded keymap check... but anyway,
-			 * while view changes, tooltips should be removed */
-			case WHEELUPMOUSE:
-			case WHEELDOWNMOUSE:
-			case MIDDLEMOUSE:
-			case MOUSEPAN:
-				UI_but_tooltip_timer_remove(C, but);
-				ATTR_FALLTHROUGH;
-			default:
-				break;
-		}
+        break;
+      }
+      /* XXX hardcoded keymap check... but anyway,
+       * while view changes, tooltips should be removed */
+      case WHEELUPMOUSE:
+      case WHEELDOWNMOUSE:
+      case MIDDLEMOUSE:
+      case MOUSEPAN:
+        UI_but_tooltip_timer_remove(C, but);
+        ATTR_FALLTHROUGH;
+      default:
+        break;
+    }
 
-		/* handle button type specific events */
-		retval = ui_do_button(C, block, but, event);
-	}
-	else if (data->state == BUTTON_STATE_WAIT_RELEASE) {
-		switch (event->type) {
-			case WINDEACTIVATE:
-				data->cancel = true;
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-				break;
+    /* handle button type specific events */
+    retval = ui_do_button(C, block, but, event);
+  }
+  else if (data->state == BUTTON_STATE_WAIT_RELEASE) {
+    switch (event->type) {
+      case WINDEACTIVATE:
+        data->cancel = true;
+        button_activate_state(C, but, BUTTON_STATE_EXIT);
+        break;
 
-			case TIMER:
-			{
-				if (event->customdata == data->hold_action_timer) {
-					if (true) {
-						data->cancel = true;
-						button_activate_state(C, but, BUTTON_STATE_EXIT);
-					}
-					else {
-						/* Do this so we can still mouse-up, closing the menu and running the button.
-						 * This is nice to support but there are times when the button gets left pressed.
-						 * Keep disavled for now. */
-						WM_event_remove_timer(data->wm, data->window, data->hold_action_timer);
-						data->hold_action_timer = NULL;
-					}
-					retval = WM_UI_HANDLER_CONTINUE;
-					but->hold_func(C, data->region, but);
-				}
-				break;
-			}
-			case MOUSEMOVE:
-			{
-				if (ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK)) {
-					but->flag |= UI_SELECT;
-					ui_do_button(C, block, but, event);
-					ED_region_tag_redraw(ar);
-				}
-				else {
-					/* deselect the button when moving the mouse away */
-					/* also de-activate for buttons that only show highlights */
-					if (ui_but_contains_point_px(but, ar, event->x, event->y)) {
+      case TIMER: {
+        if (event->customdata == data->hold_action_timer) {
+          if (true) {
+            data->cancel = true;
+            button_activate_state(C, but, BUTTON_STATE_EXIT);
+          }
+          else {
+            /* Do this so we can still mouse-up, closing the menu and running the button.
+             * This is nice to support but there are times when the button gets left pressed.
+             * Keep disabled for now. */
+            WM_event_remove_timer(data->wm, data->window, data->hold_action_timer);
+            data->hold_action_timer = NULL;
+          }
+          retval = WM_UI_HANDLER_CONTINUE;
+          but->hold_func(C, data->region, but);
+        }
+        break;
+      }
+      case MOUSEMOVE: {
+        if (ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK)) {
+          but->flag |= UI_SELECT;
+          ui_do_button(C, block, but, event);
+          ED_region_tag_redraw(ar);
+        }
+        else {
+          /* deselect the button when moving the mouse away */
+          /* also de-activate for buttons that only show highlights */
+          if (ui_but_contains_point_px(but, ar, event->x, event->y)) {
 
-						/* Drag on a hold button (used in the toolbar) now opens it immediately. */
-						if (data->hold_action_timer) {
-							if (but->flag & UI_SELECT) {
-								if (len_manhattan_v2v2_int(&event->x, &event->prevx) <= WM_EVENT_CURSOR_MOTION_THRESHOLD) {
-									/* pass */
-								}
-								else {
-									WM_event_remove_timer(data->wm, data->window, data->hold_action_timer);
-									data->hold_action_timer = WM_event_add_timer(data->wm, data->window, TIMER, 0.0f);
-								}
-							}
+            /* Drag on a hold button (used in the toolbar) now opens it immediately. */
+            if (data->hold_action_timer) {
+              if (but->flag & UI_SELECT) {
+                if (len_manhattan_v2v2_int(&event->x, &event->prevx) <=
+                    WM_EVENT_CURSOR_MOTION_THRESHOLD) {
+                  /* pass */
+                }
+                else {
+                  WM_event_remove_timer(data->wm, data->window, data->hold_action_timer);
+                  data->hold_action_timer = WM_event_add_timer(data->wm, data->window, TIMER, 0.0f);
+                }
+              }
+            }
 
-							if (!(but->flag & UI_SELECT)) {
-								but->flag |= (UI_SELECT | UI_ACTIVE);
-								data->cancel = false;
-								ED_region_tag_redraw(data->region);
-							}
-						}
-						else {
-							if (but->flag & UI_SELECT) {
-								but->flag &= ~(UI_SELECT | UI_ACTIVE);
-								data->cancel = true;
-								ED_region_tag_redraw(data->region);
-							}
-						}
-					}
-				}
-				break;
-			}
-			default:
-				/* otherwise catch mouse release event */
-				ui_do_button(C, block, but, event);
-				break;
-		}
+            if (!(but->flag & UI_SELECT)) {
+              but->flag |= (UI_SELECT | UI_ACTIVE);
+              data->cancel = false;
+              ED_region_tag_redraw(data->region);
+            }
+          }
+          else {
+            if (but->flag & UI_SELECT) {
+              but->flag &= ~(UI_SELECT | UI_ACTIVE);
+              data->cancel = true;
+              ED_region_tag_redraw(data->region);
+            }
+          }
+        }
+        break;
+      }
+      default:
+        /* otherwise catch mouse release event */
+        ui_do_button(C, block, but, event);
+        break;
+    }
 
-		retval = WM_UI_HANDLER_BREAK;
-	}
-	else if (data->state == BUTTON_STATE_WAIT_FLASH) {
-		switch (event->type) {
-			case TIMER:
-			{
-				if (event->customdata == data->flashtimer) {
-					button_activate_state(C, but, BUTTON_STATE_EXIT);
-				}
-				break;
-			}
-		}
+    retval = WM_UI_HANDLER_BREAK;
+  }
+  else if (data->state == BUTTON_STATE_WAIT_FLASH) {
+    switch (event->type) {
+      case TIMER: {
+        if (event->customdata == data->flashtimer) {
+          button_activate_state(C, but, BUTTON_STATE_EXIT);
+        }
+        break;
+      }
+    }
 
-		retval = WM_UI_HANDLER_CONTINUE;
-	}
-	else if (data->state == BUTTON_STATE_MENU_OPEN) {
-		/* check for exit because of mouse-over another button */
-		switch (event->type) {
-			case MOUSEMOVE:
-			{
-				uiBut *bt;
+    retval = WM_UI_HANDLER_CONTINUE;
+  }
+  else if (data->state == BUTTON_STATE_MENU_OPEN) {
+    /* check for exit because of mouse-over another button */
+    switch (event->type) {
+      case MOUSEMOVE: {
+        uiBut *bt;
 
-				if (data->menu && data->menu->region) {
-					if (ui_region_contains_point_px(data->menu->region, event->x, event->y)) {
-						break;
-					}
-				}
+        if (data->menu && data->menu->region) {
+          if (ui_region_contains_point_px(data->menu->region, event->x, event->y)) {
+            break;
+          }
+        }
 
-				bt = ui_but_find_mouse_over(ar, event);
+        bt = ui_but_find_mouse_over(ar, event);
 
-				if (bt && bt->active != data) {
-					if (but->type != UI_BTYPE_COLOR) {  /* exception */
-						data->cancel = true;
-					}
-					button_activate_state(C, but, BUTTON_STATE_EXIT);
-				}
-				break;
-			}
-			case RIGHTMOUSE:
-			{
-				if (event->val == KM_PRESS) {
-					uiBut *bt = ui_but_find_mouse_over(ar, event);
-					if (bt && bt->active == data) {
-						button_activate_state(C, bt, BUTTON_STATE_HIGHLIGHT);
-					}
-				}
-				break;
-			}
+        if (bt && bt->active != data) {
+          if (but->type != UI_BTYPE_COLOR) { /* exception */
+            data->cancel = true;
+          }
+          button_activate_state(C, but, BUTTON_STATE_EXIT);
+        }
+        break;
+      }
+      case RIGHTMOUSE: {
+        if (event->val == KM_PRESS) {
+          uiBut *bt = ui_but_find_mouse_over(ar, event);
+          if (bt && bt->active == data) {
+            button_activate_state(C, bt, BUTTON_STATE_HIGHLIGHT);
+          }
+        }
+        break;
+      }
+    }
 
-		}
+    ui_do_button(C, block, but, event);
+    retval = WM_UI_HANDLER_CONTINUE;
+  }
+  else {
+    retval = ui_do_button(C, block, but, event);
+    // retval = WM_UI_HANDLER_BREAK; XXX why ?
+  }
 
-		ui_do_button(C, block, but, event);
-		retval = WM_UI_HANDLER_CONTINUE;
-	}
-	else {
-		retval = ui_do_button(C, block, but, event);
-		// retval = WM_UI_HANDLER_BREAK; XXX why ?
-	}
+  /* may have been re-allocated above (eyedropper for eg) */
+  data = but->active;
+  if (data && data->state == BUTTON_STATE_EXIT) {
+    uiBut *post_but = data->postbut;
+    uiButtonActivateType post_type = data->posttype;
 
-	/* may have been re-allocated above (eyedropper for eg) */
-	data = but->active;
-	if (data && data->state == BUTTON_STATE_EXIT) {
-		uiBut *post_but = data->postbut;
-		uiButtonActivateType post_type = data->posttype;
-
-		/* Reset the button value when empty text is typed. */
-		if ((data->cancel == false) && (data->str != NULL) && (data->str[0] == '\0') &&
-		    (but->rnaprop && ELEM(RNA_property_type(but->rnaprop), PROP_FLOAT, PROP_INT)))
-		{
-			MEM_SAFE_FREE(data->str);
-			ui_button_value_default(but, &data->value);
+    /* Reset the button value when empty text is typed. */
+    if ((data->cancel == false) && (data->str != NULL) && (data->str[0] == '\0') &&
+        (but->rnaprop && ELEM(RNA_property_type(but->rnaprop), PROP_FLOAT, PROP_INT))) {
+      MEM_SAFE_FREE(data->str);
+      ui_button_value_default(but, &data->value);
 
 #ifdef USE_DRAG_MULTINUM
       if (data->multi_data.mbuts) {
