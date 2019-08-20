@@ -34,8 +34,6 @@ class BL_Action
 {
 private:
 
-	float m_backupFrame; //eevee
-
 	struct bAction* m_action;
 	struct bAction* m_tmpaction;
 	struct bPose* m_blendpose;

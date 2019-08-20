@@ -92,7 +92,6 @@ BL_Action::BL_Action(class KX_GameObject* gameobj)
 	m_calc_localtime(true),
 	m_prevUpdate(-1.0f)
 {
-	m_backupFrame = gameobj->GetScene()->GetBlenderScene()->r.cfra; //eevee
 }
 
 BL_Action::~BL_Action()
@@ -107,20 +106,6 @@ BL_Action::~BL_Action()
 		BKE_id_free(G.main, m_tmpaction);
 		m_tmpaction = nullptr;
 	}
-	m_obj->GetScene()->GetBlenderScene()->r.cfra = int(m_backupFrame); //eevee
-	Object *ob = m_obj->GetBlenderObject();
-
-	if (m_action) {
-      ob->adt->action = m_action;
-	}
-
-	DEG_id_tag_update(&ob->id, ID_RECALC_ALL);
-
-	Scene *sc = m_obj->GetScene()->GetBlenderScene();
-	ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-	Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
-
-	BKE_object_where_is_calc_time(depsgraph, sc, ob, m_backupFrame);
 }
 
 void BL_Action::ClearControllerList()
