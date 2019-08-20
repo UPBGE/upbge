@@ -461,6 +461,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
     sce->gm.exitkey = 218; // Blender key code for ESC
 
+    sce->gm.flag |= GAME_USE_UNDO;
+
     //sce->gm.pythonkeys[0] = LEFTCTRLKEY;
     //sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
     //sce->gm.pythonkeys[2] = LEFTALTKEY;
