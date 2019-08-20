@@ -34,6 +34,7 @@
 
 extern "C" {
 #  include "BKE_context.h"
+#  include "BKE_undo_system.h"
 
 // avoid c++ conflict with 'new'
 #  define new _new
@@ -135,6 +136,10 @@ void LA_BlenderLauncher::InitEngine()
 	m_savedBlenderData.sceneLayer = m_startScene->lay;
 	m_savedBlenderData.camera = m_startScene->camera;
 
+	if (m_startScene->gm.flag & GAME_USE_UNDO) {
+      BKE_undosys_step_push(m_windowManager->undo_stack, m_context, "bge_start");
+	}
+
 	if (m_view3d->scenelock == 0) {
 		m_startScene->lay = m_view3d->local_view_uuid;
 		m_startScene->camera = m_view3d->camera;
@@ -152,6 +157,10 @@ void LA_BlenderLauncher::ExitEngine()
 		m_startScene->lay = m_savedBlenderData.sceneLayer;
 		m_startScene->camera= m_savedBlenderData.camera;
 	}
+
+	if (m_startScene->gm.flag & GAME_USE_UNDO) {
+	  BKE_undosys_step_undo(m_windowManager->undo_stack, m_context);
+    }
 
 	// Free all window manager events unused.
 	wm_event_free_all(m_window);

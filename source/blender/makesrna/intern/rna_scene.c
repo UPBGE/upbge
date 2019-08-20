@@ -5189,6 +5189,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                            "(objects outside the box are activity-culled)");
 
   /* booleans */
+  prop = RNA_def_property(srna, "use_undo", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_UNDO);
+  RNA_def_property_ui_text(prop, "Undo at Exit",
+                           "Undo bpy changes at game engine exit");
+
   prop = RNA_def_property(srna, "show_debug_properties", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_DEBUG_PROPS);
   RNA_def_property_ui_text(prop, "Show Debug Properties",
