@@ -122,6 +122,7 @@
 typedef struct MoveToCollectionData MoveToCollectionData;
 static void move_to_collection_menus_items(struct uiLayout *layout,
                                            struct MoveToCollectionData *menu);
+static ListBase selected_objects_get(bContext *C);
 
 /* ************* XXX **************** */
 static void error(const char *UNUSED(arg)) {}
@@ -1912,6 +1913,24 @@ void OBJECT_OT_mode_set_or_submode(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+static ListBase selected_objects_get(bContext *C)
+{
+  ListBase objects = {NULL};
+
+  if (CTX_wm_space_outliner(C) != NULL) {
+    ED_outliner_selected_objects_get(C, &objects);
+  }
+  else {
+    CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+      BLI_addtail(&objects, BLI_genericNodeN(ob));
+    }
+    CTX_DATA_END;
+  }
+
+  return objects;
+}
+
+
 /************************ Game Properties ***********************/
 
 static int game_property_new_exec(bContext *C, wmOperator *op)
@@ -2308,68 +2327,6 @@ void OBJECT_OT_game_physics_copy(struct wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-bool ED_object_editmode_calc_active_center(Object *obedit, const bool select_only, float r_center[3])
-{
-	switch (obedit->type) {
-		case OB_MESH:
-		{
-			BMEditMesh *em = BKE_editmesh_from_object(obedit);
-			BMEditSelection ese;
-
-			if (BM_select_history_active_get(em->bm, &ese)) {
-				BM_editselection_center(&ese, r_center);
-				return true;
-			}
-			break;
-		}
-		case OB_ARMATURE:
-		{
-			bArmature *arm = obedit->data;
-			EditBone *ebo = arm->act_edbone;
-
-			if (ebo && (!select_only || (ebo->flag & (BONE_SELECTED | BONE_ROOTSEL)))) {
-				copy_v3_v3(r_center, ebo->head);
-				return true;
-			}
-
-			break;
-		}
-		case OB_CURVE:
-		case OB_SURF:
-		{
-			Curve *cu = obedit->data;
-
-			if (ED_curve_active_center(cu, r_center)) {
-				return true;
-			}
-			break;
-		}
-		case OB_MBALL:
-		{
-			MetaBall *mb = obedit->data;
-			MetaElem *ml_act = mb->lastelem;
-
-			if (ml_act && (!select_only || (ml_act->flag & SELECT))) {
-				copy_v3_v3(r_center, &ml_act->x);
-				return true;
-			}
-			break;
-		}
-		case OB_LATTICE:
-		{
-			BPoint *actbp = BKE_lattice_active_point_get(obedit->data);
-
-			if (actbp) {
-				copy_v3_v3(r_center, actbp->vec);
-				return true;
-			}
-			break;
-		}
-	}
-
-	return false;
-}
-
 static bool move_to_collection_poll(bContext *C)
 {
   if (CTX_wm_space_outliner(C) != NULL) {
@@ -2382,7 +2339,7 @@ static bool move_to_collection_poll(bContext *C)
       return false;
     }
 
-    return ED_operator_object_active_editable(C);
+    return ED_operator_objectmode(C);
   }
 }
 
@@ -2408,15 +2365,7 @@ static int move_to_collection_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (CTX_wm_space_outliner(C) != NULL) {
-    ED_outliner_selected_objects_get(C, &objects);
-  }
-  else {
-    CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
-      BLI_addtail(&objects, BLI_genericNodeN(ob));
-    }
-    CTX_DATA_END;
-  }
+  objects = selected_objects_get(C);
 
   if (is_new) {
     char new_collection_name[MAX_NAME];
@@ -2559,6 +2508,13 @@ static MoveToCollectionData *master_collection_menu = NULL;
 static int move_to_collection_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
   Scene *scene = CTX_data_scene(C);
+
+  ListBase objects = selected_objects_get(C);
+  if (BLI_listbase_is_empty(&objects)) {
+    BKE_report(op->reports, RPT_ERROR, "No objects selected");
+    return OPERATOR_CANCELLED;
+  }
+  BLI_freelistN(&objects);
 
   /* Reset the menus data for the current master collection, and free previously allocated data. */
   move_to_collection_menus_free(&master_collection_menu);

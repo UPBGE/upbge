@@ -1242,38 +1242,45 @@ void outliner_item_select(SpaceOutliner *soops,
   tselem->flag = new_flag;
 }
 
-static void do_outliner_range_select_recursive(ListBase *lb,
+static bool do_outliner_range_select_recursive(ListBase *lb,
                                                TreeElement *active,
                                                TreeElement *cursor,
-                                               bool *selecting)
+                                               bool selecting)
 {
   for (TreeElement *te = lb->first; te; te = te->next) {
-    if (*selecting) {
-      TREESTORE(te)->flag |= TSE_SELECTED;
+    TreeStoreElem *tselem = TREESTORE(te);
+
+    if (selecting) {
+      tselem->flag |= TSE_SELECTED;
     }
 
     /* Set state for selection */
     if (te == active || te == cursor) {
-      *selecting = !*selecting;
+      selecting = !selecting;
     }
 
-    if (*selecting) {
-      TREESTORE(te)->flag |= TSE_SELECTED;
+    if (selecting) {
+      tselem->flag |= TSE_SELECTED;
     }
 
     /* Don't look inside closed elements */
-    if (!(TREESTORE(te)->flag & TSE_CLOSED)) {
-      do_outliner_range_select_recursive(&te->subtree, active, cursor, selecting);
+    if (!(tselem->flag & TSE_CLOSED)) {
+      selecting = do_outliner_range_select_recursive(&te->subtree, active, cursor, selecting);
     }
   }
+
+  return selecting;
 }
 
 /* Select a range of items between cursor and active element */
-static void do_outliner_range_select(bContext *C, SpaceOutliner *soops, TreeElement *cursor)
+static void do_outliner_range_select(bContext *C,
+                                     SpaceOutliner *soops,
+                                     TreeElement *cursor,
+                                     const bool extend)
 {
   TreeElement *active = outliner_find_element_with_flag(&soops->tree, TSE_ACTIVE);
-  outliner_flag_set(&soops->tree, TSE_ACTIVE_WALK, false);
 
+  /* If no active element exists, activate the element under the cursor */
   if (!active) {
     outliner_item_select(soops, cursor, false, false);
     outliner_item_do_activate_from_tree_element(C, cursor, TREESTORE(cursor), false, false);
@@ -1283,7 +1290,9 @@ static void do_outliner_range_select(bContext *C, SpaceOutliner *soops, TreeElem
   TreeStoreElem *tselem = TREESTORE(active);
   const bool active_selected = (tselem->flag & TSE_SELECTED);
 
-  outliner_flag_set(&soops->tree, TSE_SELECTED | TSE_ACTIVE_WALK, false);
+  if (!extend) {
+    outliner_flag_set(&soops->tree, TSE_SELECTED, false);
+  }
 
   /* Select active if under cursor */
   if (active == cursor) {
@@ -1291,17 +1300,14 @@ static void do_outliner_range_select(bContext *C, SpaceOutliner *soops, TreeElem
     return;
   }
 
-  /* If active is not selected, just select the element under the cursor */
+  /* If active is not selected, select the element under the cursor */
   if (!active_selected || !outliner_is_element_visible(active)) {
     outliner_item_select(soops, cursor, false, false);
     outliner_item_do_activate_from_tree_element(C, cursor, TREESTORE(cursor), false, false);
     return;
   }
 
-  outliner_flag_set(&soops->tree, TSE_SELECTED, false);
-
-  bool selecting = false;
-  do_outliner_range_select_recursive(&soops->tree, active, cursor, &selecting);
+  do_outliner_range_select_recursive(&soops->tree, active, cursor, false);
 }
 
 static bool outliner_is_co_within_restrict_columns(const SpaceOutliner *soops,
@@ -1380,7 +1386,7 @@ static int outliner_item_do_activate_from_cursor(bContext *C,
     TreeStoreElem *activate_tselem = TREESTORE(activate_te);
 
     if (use_range) {
-      do_outliner_range_select(C, soops, activate_te);
+      do_outliner_range_select(C, soops, activate_te, extend);
     }
     else {
       outliner_item_select(soops, activate_te, extend, extend);
@@ -1398,7 +1404,6 @@ static int outliner_item_do_activate_from_cursor(bContext *C,
     else {
       ED_region_tag_redraw_no_rebuild(ar);
     }
-    ED_undo_push(C, "Outliner selection change");
 
     if (soops->flag & SO_SYNC_SELECT) {
       ED_outliner_select_sync_from_outliner(C, soops);
@@ -1426,6 +1431,8 @@ void OUTLINER_OT_item_activate(wmOperatorType *ot)
   ot->invoke = outliner_item_activate_invoke;
 
   ot->poll = ED_operator_outliner_active;
+
+  ot->flag |= OPTYPE_REGISTER | OPTYPE_UNDO;
 
   PropertyRNA *prop;
   RNA_def_boolean(ot->srna, "extend", true, "Extend", "Extend selection for activation");
@@ -1766,6 +1773,8 @@ void OUTLINER_OT_select_walk(wmOperatorType *ot)
   /* api callbacks */
   ot->invoke = outliner_walk_select_invoke;
   ot->poll = ED_operator_outliner_active;
+
+  ot->flag |= OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
   PropertyRNA *prop;

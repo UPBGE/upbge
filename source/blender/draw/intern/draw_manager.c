@@ -3283,6 +3283,11 @@ void DRW_game_render_loop_end()
 	eevee_game_view_layer_data_free();
 	draw_engine_eevee_type.engine_free();
 
+  if (game_default_camera) {
+    BKE_camera_free(game_default_camera);
+    game_default_camera = NULL;
+  }
+
 	memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
 

@@ -676,6 +676,10 @@ void ED_view3d_update_viewmat(struct Depsgraph *depsgraph,
                               const struct rcti *rect,
                               bool offscreen) RET_NONE
 float ED_view3d_grid_scale(struct Scene *scene, struct View3D *v3d, const char **grid_unit) RET_ZERO
+void ED_view3d_grid_steps(struct Scene *scene,
+                          struct View3D *v3d,
+                          struct RegionView3D *rv3d,
+                          float *r_grid_steps) RET_NONE
 void ED_view3d_shade_update(struct Main *bmain, struct View3D *v3d, struct ScrArea *sa) RET_NONE
 void ED_view3d_clipping_calc_from_boundbox(float clip[6][4], const struct BoundBox *clipbb, const bool is_flip) RET_NONE
 void ED_view3d_clipping_calc(struct BoundBox *bb, float planes[4][4],
