@@ -114,7 +114,6 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
     : SCA_IObject(),
       m_castShadows(true),    // eevee
       m_isReplica(false),     // eevee
-      m_backupMesh(nullptr),  // eevee
       m_staticObject(true),   // eevee
       m_useCopy(false), // eevee
 	  m_visibleAtGameStart(false), // eevee
@@ -181,7 +180,6 @@ KX_GameObject::~KX_GameObject()
   }
   else {                    // at scene exit
     SetVisible(m_visibleAtGameStart, false);
-    RestoreOriginalMesh();  // we restore original mesh in the case we modified it during runtime
     RemoveReplicaObject();
     if (ob && ob->type == OB_MBALL) {
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -332,25 +330,6 @@ void KX_GameObject::RemoveReplicaObject()
     BKE_id_free(bmain, &ob->id);
     SetBlenderObject(nullptr);
     DEG_relations_tag_update(bmain);
-  }
-}
-
-void KX_GameObject::SetBackupMesh(Mesh *me)
-{
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-  BKE_id_copy_ex(bmain, &me->id, (ID **)&m_backupMesh, 0);
-}
-
-void KX_GameObject::RestoreOriginalMesh()
-{
-  Object *ob = GetBlenderObject();
-  if (ob && m_backupMesh) {
-    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-    Mesh *origMesh = (Mesh *)ob->data;
-    BKE_mesh_copy_data(bmain, origMesh, m_backupMesh, 0);
-    BKE_id_free(bmain, m_backupMesh);
-    m_backupMesh = nullptr;
-    DEG_id_tag_update(&origMesh->id, ID_RECALC_GEOMETRY);
   }
 }
 
@@ -677,7 +656,6 @@ void KX_GameObject::ProcessReplica()
 
   m_pPhysicsController = nullptr;
   m_pSGNode = nullptr;
-  m_backupMesh = nullptr;
 
   /* Dupli group and instance list are set later in replication.
    * See KX_Scene::DupliGroupRecurse. */

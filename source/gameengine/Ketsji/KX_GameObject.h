@@ -88,7 +88,6 @@ protected:
 	float m_prevObmat[4][4];
 	bool m_castShadows;
 	bool m_isReplica;
-	Mesh *m_backupMesh;
 	bool m_staticObject;
   bool m_useCopy;
   bool m_visibleAtGameStart;
@@ -137,8 +136,6 @@ public:
 	void ReplicateBlenderObject();
 	void HideOriginalObject();
 	void RemoveReplicaObject();
-	void SetBackupMesh(Mesh *me);
-	void RestoreOriginalMesh();
 	bool IsStatic();
 	void RecalcGeometry();
   void UseCopy();
