@@ -1725,7 +1725,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	game_engine_restore_state(C, prevwin);
 
 	//XXX restore_all_scene_cfra(scene_cfra_store);
-	BKE_scene_set_background(CTX_data_main(C), startscene);
+	//BKE_scene_set_background(CTX_data_main(C), startscene);
 	//XXX BKE_scene_graph_update_for_newframe(depsgraph, bmain);
 
 	BLI_callback_exec(bmain, &startscene->id, BLI_CB_EVT_GAME_POST);
