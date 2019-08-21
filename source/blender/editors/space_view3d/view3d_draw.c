@@ -920,10 +920,21 @@ float ED_view3d_grid_view_scale(Scene *scene,
     float min_dist = 0.38f * (rv3d->dist / v3d->lens);
     float grid_steps[8];
     ED_view3d_grid_steps(scene, v3d, rv3d, grid_steps);
-    for (int i = 0; i < ARRAY_SIZE(grid_steps); i++) {
+    int i;
+    for (i = 0; i < ARRAY_SIZE(grid_steps); i++) {
       grid_scale = grid_steps[i];
       if (grid_scale > min_dist) {
         break;
+      }
+    }
+
+    if (grid_unit) {
+      const void *usys;
+      int len;
+      bUnit_GetSystem(scene->unit.system, B_UNIT_LENGTH, &usys, &len);
+
+      if (usys) {
+        *grid_unit = bUnit_GetNameDisplay(usys, len - i - 1);
       }
     }
   }
@@ -1405,6 +1416,27 @@ static void draw_selected_name(
   BLF_disable(font_id, BLF_SHADOW);
 }
 
+static void draw_grid_unit_name(
+    Scene *scene, RegionView3D *rv3d, View3D *v3d, int xoffset, int *yoffset)
+{
+  if (!rv3d->is_persp && RV3D_VIEW_IS_AXIS(rv3d->view)) {
+    const char *grid_unit = NULL;
+    ED_view3d_grid_view_scale(scene, v3d, rv3d, &grid_unit);
+
+    if (grid_unit) {
+      char numstr[32] = "";
+      UI_FontThemeColor(BLF_default(), TH_TEXT_HI);
+      if (v3d->grid != 1.0f) {
+        BLI_snprintf(numstr, sizeof(numstr), "%s x %.4g", grid_unit, v3d->grid);
+      }
+
+      *yoffset -= U.widget_unit;
+      BLF_draw_default_ascii(
+          xoffset, *yoffset, 0.0f, numstr[0] ? numstr : grid_unit, sizeof(numstr));
+    }
+  }
+}
+
 /**
  * Information drawn on top of the solid plates and composed data
  */
@@ -1466,19 +1498,10 @@ void view3d_draw_region_info(const bContext *C, ARegion *ar)
       draw_selected_name(scene, view_layer, ob, xoffset, &yoffset);
     }
 
-#if 0 /* TODO */
-    if (grid_unit) { /* draw below the viewport name */
-      char numstr[32] = "";
-
-      UI_FontThemeColor(BLF_default(), TH_TEXT_HI);
-      if (v3d->grid != 1.0f) {
-        BLI_snprintf(numstr, sizeof(numstr), "%s x %.4g", grid_unit, v3d->grid);
-      }
-
-      *yoffset -= U.widget_unit;
-      BLF_draw_default_ascii(xoffset, *yoffset, numstr[0] ? numstr : grid_unit, sizeof(numstr));
+    if (v3d->gridflag & (V3D_SHOW_FLOOR | V3D_SHOW_X | V3D_SHOW_Y | V3D_SHOW_Z)) {
+      /* draw below the viewport name */
+      draw_grid_unit_name(scene, rv3d, v3d, xoffset, &yoffset);
     }
-#endif
   }
 
   if ((v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0) {
@@ -1537,7 +1560,7 @@ void view3d_main_region_draw(const bContext *C, ARegion *ar)
   GPU_pass_cache_garbage_collect();
 
   /* XXX This is in order to draw UI batches with the DRW
-   * olg context since we now use it for drawing the entire area */
+   * old context since we now use it for drawing the entire area. */
   gpu_batch_presets_reset();
 
   /* No depth test for drawing action zones afterwards. */

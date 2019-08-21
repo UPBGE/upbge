@@ -328,6 +328,7 @@ void applyProject(TransInfo *t)
                       .use_occlusion_test = false,
                   },
                   mval_fl,
+                  NULL,
                   0,
                   loc,
                   no)) {
@@ -998,7 +999,8 @@ static void CalcSnapGeometry(TransInfo *t, float *UNUSED(vec))
     mval[0] = t->mval[0];
     mval[1] = t->mval[1];
 
-    if (t->tsnap.mode & (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE)) {
+    if (t->tsnap.mode & (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE |
+                         SCE_SNAP_MODE_EDGE_MIDPOINT | SCE_SNAP_MODE_EDGE_PERPENDICULAR)) {
       zero_v3(no); /* objects won't set this */
       found = snapObjectsTransform(t, mval, &dist_px, loc, no);
     }
@@ -1271,6 +1273,7 @@ bool snapObjectsTransform(
           .use_occlusion_test = t->scene->toolsettings->snap_mode != SCE_SNAP_MODE_FACE,
       },
       mval,
+      t->center_global,
       dist_px,
       r_loc,
       r_no);

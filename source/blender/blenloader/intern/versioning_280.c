@@ -3764,8 +3764,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  {
-    /* Versioning code until next subversion bump goes here. */
+  if (!MAIN_VERSION_ATLEAST(bmain, 281, 3)) {
     if (U.view_rotate_sensitivity_turntable == 0) {
       U.view_rotate_sensitivity_turntable = DEG2RADF(0.4f);
       U.view_rotate_sensitivity_trackball = 1.0f;
@@ -3794,5 +3793,9 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         mesh->remesh_voxel_size = 0.1f;
       }
     }
+  }
+
+  {
+    /* Versioning code until next subversion bump goes here. */
   }
 }

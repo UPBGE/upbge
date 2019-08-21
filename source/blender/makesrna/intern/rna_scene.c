@@ -167,6 +167,16 @@ const EnumPropertyItem rna_enum_snap_element_items[] = {
     {SCE_SNAP_MODE_EDGE, "EDGE", ICON_SNAP_EDGE, "Edge", "Snap to edges"},
     {SCE_SNAP_MODE_FACE, "FACE", ICON_SNAP_FACE, "Face", "Snap to faces"},
     {SCE_SNAP_MODE_VOLUME, "VOLUME", ICON_SNAP_VOLUME, "Volume", "Snap to volume"},
+    {SCE_SNAP_MODE_EDGE_MIDPOINT,
+     "EDGE_MIDPOINT",
+     ICON_SNAP_MIDPOINT,
+     "Edge Center",
+     "Snap to the middle of edges"},
+    {SCE_SNAP_MODE_EDGE_PERPENDICULAR,
+     "EDGE_PERPENDICULAR",
+     ICON_SNAP_PERPENDICULAR,
+     "Edge Perpendicular",
+     "Snap to the nearest point on an edge"},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -3726,6 +3736,7 @@ void rna_def_view_layer_common(StructRNA *srna, const bool scene)
     RNA_def_property_pointer_sdna(prop, NULL, "mat_override");
     RNA_def_property_struct_type(prop, "Material");
     RNA_def_property_flag(prop, PROP_EDITABLE);
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     RNA_def_property_ui_text(
         prop, "Material Override", "Material to override all other materials in this view layer");
     RNA_def_property_update(
@@ -7731,6 +7742,7 @@ void RNA_def_scene(BlenderRNA *brna)
   /* Global Settings */
   prop = RNA_def_property(srna, "camera", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Camera_object_poll");
   RNA_def_property_ui_text(prop, "Camera", "Active camera, used for rendering the scene");
   RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_camera_update");
@@ -7746,6 +7758,7 @@ void RNA_def_scene(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "world", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "World", "World used for rendering the scene");
   RNA_def_property_update(prop, NC_SCENE | ND_WORLD, "rna_Scene_world_update");
 
@@ -8106,6 +8119,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_pointer_funcs(
       prop, NULL, NULL, NULL, "rna_GPencil_datablocks_annotations_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(
       prop, "Annotations", "Grease Pencil data-block used for annotations in the 3D view");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
