@@ -51,12 +51,8 @@ struct DerivedMesh *CDDM_from_mesh_ex(struct Mesh *mesh,
                                       eCDAllocType alloctype,
                                       const struct CustomData_MeshMasks *mask);
 
-struct DerivedMesh *CDDM_from_bmesh(struct BMesh *bm, const bool use_mdisps);
-
 /* creates a CDDerivedMesh from the given BMEditMesh */
-DerivedMesh *CDDM_from_editbmesh(struct BMEditMesh *em,
-                                 const bool use_mdisps,
-                                 const bool use_tessface);
+DerivedMesh *CDDM_from_editbmesh(struct BMEditMesh *em, const bool use_mdisps);
 
 /* merge verts  */
 /* Enum for merge_mode of CDDM_merge_verts.
@@ -78,8 +74,6 @@ DerivedMesh *CDDM_from_curve_displist(struct Object *ob, struct ListBase *dispba
  * custom element data.
  */
 struct DerivedMesh *CDDM_copy(struct DerivedMesh *dm);
-struct DerivedMesh *CDDM_copy_from_tessface(struct DerivedMesh *dm);
-struct DerivedMesh *CDDM_copy_with_tessface(struct DerivedMesh *dm);
 
 /* creates a CDDerivedMesh with the same layer stack configuration as the
  * given DerivedMesh and containing the requested numbers of elements.

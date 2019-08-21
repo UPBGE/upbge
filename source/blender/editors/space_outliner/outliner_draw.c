@@ -177,8 +177,9 @@ static void restrictbutton_r_lay_cb(bContext *C, void *poin, void *UNUSED(poin2)
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, poin);
 }
 
-static void restrictbutton_bone_visibility_cb(bContext *C, void *UNUSED(poin), void *poin2)
+static void restrictbutton_bone_visibility_cb(bContext *C, void *poin, void *poin2)
 {
+  bArmature *arm = (bArmature *)poin;
   Bone *bone = (Bone *)poin2;
   if (bone->flag & BONE_HIDDEN_P) {
     bone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
@@ -189,6 +190,7 @@ static void restrictbutton_bone_visibility_cb(bContext *C, void *UNUSED(poin), v
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_POSE, NULL);
+  DEG_id_tag_update(&arm->id, ID_RECALC_COPY_ON_WRITE);
 }
 
 static void restrictbutton_bone_select_cb(bContext *C, void *UNUSED(poin), void *poin2)
@@ -1280,7 +1282,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                 UI_BTYPE_ICON_TOGGLE,
                                 BONE_HIDDEN_P,
                                 0,
-                                ICON_HIDE_OFF,
+                                ICON_RESTRICT_VIEW_OFF,
                                 (int)(ar->v2d.cur.xmax - restrict_offsets.viewport),
                                 te->ys,
                                 UI_UNIT_X,
