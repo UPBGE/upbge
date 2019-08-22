@@ -3232,11 +3232,6 @@ void ntreeTagUsedSockets(bNodeTree *ntree)
   }
 
   for (link = ntree->links.first; link; link = link->next) {
-    /* link is unused if either side is disabled */
-    if ((link->fromsock->flag & SOCK_UNAVAIL) || (link->tosock->flag & SOCK_UNAVAIL)) {
-      continue;
-    }
-
     link->fromsock->flag |= SOCK_IN_USE;
     link->tosock->flag |= SOCK_IN_USE;
   }
@@ -3938,6 +3933,7 @@ static void registerShaderNodes(void)
   register_node_type_sh_tex_brick();
   register_node_type_sh_tex_pointdensity();
   register_node_type_sh_tex_ies();
+  register_node_type_sh_tex_white_noise();
 }
 
 static void registerTextureNodes(void)
@@ -3964,6 +3960,7 @@ static void registerTextureNodes(void)
   register_node_type_sh_tangent();
   register_node_type_sh_normal_map();
   register_node_type_sh_hair_info();
+  register_node_type_sh_volume_info();
 
   register_node_type_tex_checker();
   register_node_type_tex_texture();

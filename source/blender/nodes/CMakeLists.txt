@@ -200,14 +200,16 @@ set(SRC
   shader/nodes/node_shader_tex_sky.c
   shader/nodes/node_shader_tex_voronoi.c
   shader/nodes/node_shader_tex_wave.c
+  shader/nodes/node_shader_tex_white_noise.c
   shader/nodes/node_shader_uvAlongStroke.c
   shader/nodes/node_shader_uvmap.c
   shader/nodes/node_shader_valToRgb.c
   shader/nodes/node_shader_value.c
-  shader/nodes/node_shader_vectMath.c
+  shader/nodes/node_shader_vector_math.c
   shader/nodes/node_shader_vectTransform.c
   shader/nodes/node_shader_vector_displacement.c
   shader/nodes/node_shader_volume_absorption.c
+  shader/nodes/node_shader_volume_info.c
   shader/nodes/node_shader_volume_principled.c
   shader/nodes/node_shader_volume_scatter.c
   shader/nodes/node_shader_wavelength.c

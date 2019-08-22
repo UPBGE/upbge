@@ -163,8 +163,10 @@ void TextureMapping::compile(SVMCompiler &compiler, int offset_in, int offset_ou
   }
 
   if (type == NORMAL) {
-    compiler.add_node(NODE_VECTOR_MATH, NODE_VECTOR_MATH_NORMALIZE, offset_out, offset_out);
-    compiler.add_node(NODE_VECTOR_MATH, SVM_STACK_INVALID, offset_out);
+    compiler.add_node(NODE_VECTOR_MATH,
+                      NODE_VECTOR_MATH_NORMALIZE,
+                      compiler.encode_uchar4(offset_out, offset_out, offset_out),
+                      compiler.encode_uchar4(SVM_STACK_INVALID, offset_out));
   }
 }
 
@@ -1106,6 +1108,53 @@ void IESLightNode::compile(OSLCompiler &compiler)
 
   compiler.parameter_texture_ies("filename", slot);
   compiler.add(this, "node_ies_light");
+}
+
+/* White Noise Texture */
+
+NODE_DEFINE(WhiteNoiseTextureNode)
+{
+  NodeType *type = NodeType::add("white_noise_texture", create, NodeType::SHADER);
+
+  static NodeEnum dimensions_enum;
+  dimensions_enum.insert("1D", 1);
+  dimensions_enum.insert("2D", 2);
+  dimensions_enum.insert("3D", 3);
+  dimensions_enum.insert("4D", 4);
+  SOCKET_ENUM(dimensions, "Dimensions", dimensions_enum, 3);
+
+  SOCKET_IN_POINT(vector, "Vector", make_float3(0.0f, 0.0f, 0.0f));
+  SOCKET_IN_FLOAT(w, "W", 0.0f);
+
+  SOCKET_OUT_FLOAT(value, "Value");
+
+  return type;
+}
+
+WhiteNoiseTextureNode::WhiteNoiseTextureNode() : ShaderNode(node_type)
+{
+}
+
+void WhiteNoiseTextureNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *vector_in = input("Vector");
+  ShaderInput *w_in = input("W");
+  ShaderOutput *value_out = output("Value");
+
+  int vector_stack_offset = compiler.stack_assign(vector_in);
+  int w_stack_offset = compiler.stack_assign(w_in);
+  int value_stack_offset = compiler.stack_assign(value_out);
+
+  compiler.add_node(NODE_TEX_WHITE_NOISE,
+                    dimensions,
+                    compiler.encode_uchar4(vector_stack_offset, w_stack_offset),
+                    value_stack_offset);
+}
+
+void WhiteNoiseTextureNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "dimensions");
+  compiler.add(this, "node_white_noise_texture");
 }
 
 /* Musgrave Texture */
@@ -4119,6 +4168,90 @@ void HairInfoNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_hair_info");
 }
 
+/* Volume Info */
+
+NODE_DEFINE(VolumeInfoNode)
+{
+  NodeType *type = NodeType::add("volume_info", create, NodeType::SHADER);
+
+  SOCKET_OUT_COLOR(color, "Color");
+  SOCKET_OUT_FLOAT(density, "Density");
+  SOCKET_OUT_FLOAT(flame, "Flame");
+  SOCKET_OUT_FLOAT(temperature, "Temperature");
+
+  return type;
+}
+
+VolumeInfoNode::VolumeInfoNode() : ShaderNode(node_type)
+{
+}
+
+/* The requested attributes are not updated after node expansion.
+ * So we explicitly request the required attributes.
+ */
+void VolumeInfoNode::attributes(Shader *shader, AttributeRequestSet *attributes)
+{
+  if (shader->has_volume) {
+    if (!output("Color")->links.empty()) {
+      attributes->add(ATTR_STD_VOLUME_COLOR);
+    }
+    if (!output("Density")->links.empty()) {
+      attributes->add(ATTR_STD_VOLUME_DENSITY);
+    }
+    if (!output("Flame")->links.empty()) {
+      attributes->add(ATTR_STD_VOLUME_FLAME);
+    }
+    if (!output("Temperature")->links.empty()) {
+      attributes->add(ATTR_STD_VOLUME_TEMPERATURE);
+    }
+    attributes->add(ATTR_STD_GENERATED_TRANSFORM);
+  }
+  ShaderNode::attributes(shader, attributes);
+}
+
+void VolumeInfoNode::expand(ShaderGraph *graph)
+{
+  ShaderOutput *color_out = output("Color");
+  if (!color_out->links.empty()) {
+    AttributeNode *attr = new AttributeNode();
+    attr->attribute = "color";
+    graph->add(attr);
+    graph->relink(color_out, attr->output("Color"));
+  }
+
+  ShaderOutput *density_out = output("Density");
+  if (!density_out->links.empty()) {
+    AttributeNode *attr = new AttributeNode();
+    attr->attribute = "density";
+    graph->add(attr);
+    graph->relink(density_out, attr->output("Fac"));
+  }
+
+  ShaderOutput *flame_out = output("Flame");
+  if (!flame_out->links.empty()) {
+    AttributeNode *attr = new AttributeNode();
+    attr->attribute = "flame";
+    graph->add(attr);
+    graph->relink(flame_out, attr->output("Fac"));
+  }
+
+  ShaderOutput *temperature_out = output("Temperature");
+  if (!temperature_out->links.empty()) {
+    AttributeNode *attr = new AttributeNode();
+    attr->attribute = "temperature";
+    graph->add(attr);
+    graph->relink(temperature_out, attr->output("Fac"));
+  }
+}
+
+void VolumeInfoNode::compile(SVMCompiler &)
+{
+}
+
+void VolumeInfoNode::compile(OSLCompiler &)
+{
+}
+
 /* Value */
 
 NODE_DEFINE(ValueNode)
@@ -5496,14 +5629,32 @@ NODE_DEFINE(VectorMathNode)
   static NodeEnum type_enum;
   type_enum.insert("add", NODE_VECTOR_MATH_ADD);
   type_enum.insert("subtract", NODE_VECTOR_MATH_SUBTRACT);
-  type_enum.insert("average", NODE_VECTOR_MATH_AVERAGE);
-  type_enum.insert("dot_product", NODE_VECTOR_MATH_DOT_PRODUCT);
+  type_enum.insert("multiply", NODE_VECTOR_MATH_MULTIPLY);
+  type_enum.insert("divide", NODE_VECTOR_MATH_DIVIDE);
+
   type_enum.insert("cross_product", NODE_VECTOR_MATH_CROSS_PRODUCT);
+  type_enum.insert("project", NODE_VECTOR_MATH_PROJECT);
+  type_enum.insert("reflect", NODE_VECTOR_MATH_REFLECT);
+  type_enum.insert("dot_product", NODE_VECTOR_MATH_DOT_PRODUCT);
+
+  type_enum.insert("distance", NODE_VECTOR_MATH_DISTANCE);
+  type_enum.insert("length", NODE_VECTOR_MATH_LENGTH);
+  type_enum.insert("scale", NODE_VECTOR_MATH_SCALE);
   type_enum.insert("normalize", NODE_VECTOR_MATH_NORMALIZE);
+
+  type_enum.insert("snap", NODE_VECTOR_MATH_SNAP);
+  type_enum.insert("floor", NODE_VECTOR_MATH_FLOOR);
+  type_enum.insert("ceil", NODE_VECTOR_MATH_CEIL);
+  type_enum.insert("modulo", NODE_VECTOR_MATH_MODULO);
+  type_enum.insert("fraction", NODE_VECTOR_MATH_FRACTION);
+  type_enum.insert("absolute", NODE_VECTOR_MATH_ABSOLUTE);
+  type_enum.insert("minimum", NODE_VECTOR_MATH_MINIMUM);
+  type_enum.insert("maximum", NODE_VECTOR_MATH_MAXIMUM);
   SOCKET_ENUM(type, "Type", type_enum, NODE_VECTOR_MATH_ADD);
 
   SOCKET_IN_VECTOR(vector1, "Vector1", make_float3(0.0f, 0.0f, 0.0f));
   SOCKET_IN_VECTOR(vector2, "Vector2", make_float3(0.0f, 0.0f, 0.0f));
+  SOCKET_IN_FLOAT(scale, "Scale", 1.0f);
 
   SOCKET_OUT_FLOAT(value, "Value");
   SOCKET_OUT_VECTOR(vector, "Vector");
@@ -5521,8 +5672,7 @@ void VectorMathNode::constant_fold(const ConstantFolder &folder)
   float3 vector;
 
   if (folder.all_inputs_constant()) {
-    svm_vector_math(&value, &vector, type, vector1, vector2);
-
+    svm_vector_math(&value, &vector, type, vector1, vector2, scale);
     if (folder.output == output("Value")) {
       folder.make_constant(value);
     }
@@ -5539,15 +5689,21 @@ void VectorMathNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *vector1_in = input("Vector1");
   ShaderInput *vector2_in = input("Vector2");
+  ShaderInput *scale_in = input("Scale");
   ShaderOutput *value_out = output("Value");
   ShaderOutput *vector_out = output("Vector");
 
-  compiler.add_node(NODE_VECTOR_MATH,
-                    type,
-                    compiler.stack_assign(vector1_in),
-                    compiler.stack_assign(vector2_in));
+  int vector1_stack_offset = compiler.stack_assign(vector1_in);
+  int vector2_stack_offset = compiler.stack_assign(vector2_in);
+  int scale_stack_offset = compiler.stack_assign(scale_in);
+  int value_stack_offset = compiler.stack_assign_if_linked(value_out);
+  int vector_stack_offset = compiler.stack_assign_if_linked(vector_out);
+
   compiler.add_node(
-      NODE_VECTOR_MATH, compiler.stack_assign(value_out), compiler.stack_assign(vector_out));
+      NODE_VECTOR_MATH,
+      type,
+      compiler.encode_uchar4(vector1_stack_offset, vector2_stack_offset, scale_stack_offset),
+      compiler.encode_uchar4(value_stack_offset, vector_stack_offset));
 }
 
 void VectorMathNode::compile(OSLCompiler &compiler)

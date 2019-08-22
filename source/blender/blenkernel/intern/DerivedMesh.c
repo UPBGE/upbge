@@ -518,31 +518,30 @@ void DM_ensure_tessface(DerivedMesh *dm)
  */
 void DM_ensure_looptri_data(DerivedMesh *dm)
 {
-	const unsigned int totpoly = dm->numPolyData;
-	const unsigned int totloop = dm->numLoopData;
-	const int looptris_num = poly_to_tri_count(totpoly, totloop);
+  const unsigned int totpoly = dm->numPolyData;
+  const unsigned int totloop = dm->numLoopData;
+  const int looptris_num = poly_to_tri_count(totpoly, totloop);
 
-	BLI_assert(dm->looptris.array_wip == NULL);
+  BLI_assert(dm->looptris.array_wip == NULL);
 
-	SWAP(MLoopTri *, dm->looptris.array, dm->looptris.array_wip);
+  SWAP(MLoopTri *, dm->looptris.array, dm->looptris.array_wip);
 
-	if ((looptris_num > dm->looptris.num_alloc) ||
-	    (looptris_num < dm->looptris.num_alloc * 2) ||
-	    (totpoly == 0))
-	{
-		MEM_SAFE_FREE(dm->looptris.array_wip);
-		dm->looptris.num_alloc = 0;
-		dm->looptris.num = 0;
-	}
+  if ((looptris_num > dm->looptris.num_alloc) || (looptris_num < dm->looptris.num_alloc * 2) ||
+      (totpoly == 0)) {
+    MEM_SAFE_FREE(dm->looptris.array_wip);
+    dm->looptris.num_alloc = 0;
+    dm->looptris.num = 0;
+  }
 
-	if (totpoly) {
-		if (dm->looptris.array_wip == NULL) {
-			dm->looptris.array_wip = MEM_malloc_arrayN(looptris_num, sizeof(*dm->looptris.array_wip), __func__);
-			dm->looptris.num_alloc = looptris_num;
-		}
+  if (totpoly) {
+    if (dm->looptris.array_wip == NULL) {
+      dm->looptris.array_wip = MEM_malloc_arrayN(
+          looptris_num, sizeof(*dm->looptris.array_wip), __func__);
+      dm->looptris.num_alloc = looptris_num;
+    }
 
-		dm->looptris.num = looptris_num;
-	}
+    dm->looptris.num = looptris_num;
+  }
 }
 
 void DM_verttri_from_looptri(MVertTri *verttri, const MLoop *mloop, const MLoopTri *looptri, int looptri_num)
@@ -725,148 +724,152 @@ MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr)
 	return uv_base;
 }
 
-void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, const CustomData_MeshMasks *mask, bool take_ownership)
+void DM_to_mesh(
+    DerivedMesh *dm, Mesh *me, Object *ob, const CustomData_MeshMasks *mask, bool take_ownership)
 {
-	/* dm might depend on me, so we need to do everything with a local copy */
-	Mesh tmp = *me;
-	int totvert, totedge /*, totface */ /* UNUSED */, totloop, totpoly;
-	int did_shapekeys = 0;
-	eCDAllocType alloctype = CD_DUPLICATE;
+  /* dm might depend on me, so we need to do everything with a local copy */
+  Mesh tmp = *me;
+  int totvert, totedge /*, totface */ /* UNUSED */, totloop, totpoly;
+  int did_shapekeys = 0;
+  eCDAllocType alloctype = CD_DUPLICATE;
 
-	if (take_ownership && dm->type == DM_TYPE_CDDM && dm->needsFree) {
-		bool has_any_referenced_layers =
-		        CustomData_has_referenced(&dm->vertData) ||
-		        CustomData_has_referenced(&dm->edgeData) ||
-		        CustomData_has_referenced(&dm->loopData) ||
-		        CustomData_has_referenced(&dm->faceData) ||
-		        CustomData_has_referenced(&dm->polyData);
-		if (!has_any_referenced_layers) {
-			alloctype = CD_ASSIGN;
-		}
-	}
+  if (take_ownership && dm->type == DM_TYPE_CDDM && dm->needsFree) {
+    bool has_any_referenced_layers = CustomData_has_referenced(&dm->vertData) ||
+                                     CustomData_has_referenced(&dm->edgeData) ||
+                                     CustomData_has_referenced(&dm->loopData) ||
+                                     CustomData_has_referenced(&dm->faceData) ||
+                                     CustomData_has_referenced(&dm->polyData);
+    if (!has_any_referenced_layers) {
+      alloctype = CD_ASSIGN;
+    }
+  }
 
-	CustomData_reset(&tmp.vdata);
-	CustomData_reset(&tmp.edata);
-	CustomData_reset(&tmp.fdata);
-	CustomData_reset(&tmp.ldata);
-	CustomData_reset(&tmp.pdata);
+  CustomData_reset(&tmp.vdata);
+  CustomData_reset(&tmp.edata);
+  CustomData_reset(&tmp.fdata);
+  CustomData_reset(&tmp.ldata);
+  CustomData_reset(&tmp.pdata);
 
-	DM_ensure_normals(dm);
+  DM_ensure_normals(dm);
 
-	totvert = tmp.totvert = dm->getNumVerts(dm);
-	totedge = tmp.totedge = dm->getNumEdges(dm);
-	totloop = tmp.totloop = dm->getNumLoops(dm);
-	totpoly = tmp.totpoly = dm->getNumPolys(dm);
-	tmp.totface = 0;
+  totvert = tmp.totvert = dm->getNumVerts(dm);
+  totedge = tmp.totedge = dm->getNumEdges(dm);
+  totloop = tmp.totloop = dm->getNumLoops(dm);
+  totpoly = tmp.totpoly = dm->getNumPolys(dm);
+  tmp.totface = 0;
 
-	CustomData_copy(&dm->vertData, &tmp.vdata, mask->vmask, alloctype, totvert);
-	CustomData_copy(&dm->edgeData, &tmp.edata, mask->emask, alloctype, totedge);
-	CustomData_copy(&dm->loopData, &tmp.ldata, mask->lmask, alloctype, totloop);
-	CustomData_copy(&dm->polyData, &tmp.pdata, mask->pmask, alloctype, totpoly);
-	tmp.cd_flag = dm->cd_flag;
-	tmp.runtime.deformed_only = dm->deformedOnly;
+  CustomData_copy(&dm->vertData, &tmp.vdata, mask->vmask, alloctype, totvert);
+  CustomData_copy(&dm->edgeData, &tmp.edata, mask->emask, alloctype, totedge);
+  CustomData_copy(&dm->loopData, &tmp.ldata, mask->lmask, alloctype, totloop);
+  CustomData_copy(&dm->polyData, &tmp.pdata, mask->pmask, alloctype, totpoly);
+  tmp.cd_flag = dm->cd_flag;
+  tmp.runtime.deformed_only = dm->deformedOnly;
 
-	if (CustomData_has_layer(&dm->vertData, CD_SHAPEKEY)) {
-		KeyBlock *kb;
-		int uid;
+  if (CustomData_has_layer(&dm->vertData, CD_SHAPEKEY)) {
+    KeyBlock *kb;
+    int uid;
 
-		if (ob) {
-			kb = BLI_findlink(&me->key->block, ob->shapenr - 1);
-			if (kb) {
-				uid = kb->uid;
-			}
-			else {
-				CLOG_ERROR(&LOG, "could not find active shapekey %d!", ob->shapenr - 1);
-				uid = INT_MAX;
-			}
-		}
-		else {
-			/* if no object, set to INT_MAX so we don't mess up any shapekey layers */
-			uid = INT_MAX;
-		}
+    if (ob) {
+      kb = BLI_findlink(&me->key->block, ob->shapenr - 1);
+      if (kb) {
+        uid = kb->uid;
+      }
+      else {
+        CLOG_ERROR(&LOG, "could not find active shapekey %d!", ob->shapenr - 1);
+        uid = INT_MAX;
+      }
+    }
+    else {
+      /* if no object, set to INT_MAX so we don't mess up any shapekey layers */
+      uid = INT_MAX;
+    }
 
-		shapekey_layers_to_keyblocks(dm, me, uid);
-		did_shapekeys = 1;
-	}
+    shapekey_layers_to_keyblocks(dm, me, uid);
+    did_shapekeys = 1;
+  }
 
-	/* copy texture space */
-	if (ob) {
-		BKE_mesh_texspace_copy_from_object(&tmp, ob);
-	}
+  /* copy texture space */
+  if (ob) {
+    BKE_mesh_texspace_copy_from_object(&tmp, ob);
+  }
 
-	/* not all DerivedMeshes store their verts/edges/faces in CustomData, so
-	 * we set them here in case they are missing */
-	if (!CustomData_has_layer(&tmp.vdata, CD_MVERT)) {
-		CustomData_add_layer(&tmp.vdata, CD_MVERT, CD_ASSIGN,
-		                     (alloctype == CD_ASSIGN) ? dm->getVertArray(dm) : dm->dupVertArray(dm),
-		                     totvert);
-	}
-	if (!CustomData_has_layer(&tmp.edata, CD_MEDGE)) {
-		CustomData_add_layer(&tmp.edata, CD_MEDGE, CD_ASSIGN,
-		                     (alloctype == CD_ASSIGN) ? dm->getEdgeArray(dm) : dm->dupEdgeArray(dm),
-		                     totedge);
-	}
-	if (!CustomData_has_layer(&tmp.pdata, CD_MPOLY)) {
-		tmp.mloop = (alloctype == CD_ASSIGN) ? dm->getLoopArray(dm) : dm->dupLoopArray(dm);
-		tmp.mpoly = (alloctype == CD_ASSIGN) ? dm->getPolyArray(dm) : dm->dupPolyArray(dm);
+  /* not all DerivedMeshes store their verts/edges/faces in CustomData, so
+   * we set them here in case they are missing */
+  if (!CustomData_has_layer(&tmp.vdata, CD_MVERT)) {
+    CustomData_add_layer(&tmp.vdata,
+                         CD_MVERT,
+                         CD_ASSIGN,
+                         (alloctype == CD_ASSIGN) ? dm->getVertArray(dm) : dm->dupVertArray(dm),
+                         totvert);
+  }
+  if (!CustomData_has_layer(&tmp.edata, CD_MEDGE)) {
+    CustomData_add_layer(&tmp.edata,
+                         CD_MEDGE,
+                         CD_ASSIGN,
+                         (alloctype == CD_ASSIGN) ? dm->getEdgeArray(dm) : dm->dupEdgeArray(dm),
+                         totedge);
+  }
+  if (!CustomData_has_layer(&tmp.pdata, CD_MPOLY)) {
+    tmp.mloop = (alloctype == CD_ASSIGN) ? dm->getLoopArray(dm) : dm->dupLoopArray(dm);
+    tmp.mpoly = (alloctype == CD_ASSIGN) ? dm->getPolyArray(dm) : dm->dupPolyArray(dm);
 
-		CustomData_add_layer(&tmp.ldata, CD_MLOOP, CD_ASSIGN, tmp.mloop, tmp.totloop);
-		CustomData_add_layer(&tmp.pdata, CD_MPOLY, CD_ASSIGN, tmp.mpoly, tmp.totpoly);
-	}
+    CustomData_add_layer(&tmp.ldata, CD_MLOOP, CD_ASSIGN, tmp.mloop, tmp.totloop);
+    CustomData_add_layer(&tmp.pdata, CD_MPOLY, CD_ASSIGN, tmp.mpoly, tmp.totpoly);
+  }
 
-	/* object had got displacement layer, should copy this layer to save sculpted data */
-	/* NOTE: maybe some other layers should be copied? nazgul */
-	if (CustomData_has_layer(&me->ldata, CD_MDISPS)) {
-		if (totloop == me->totloop) {
-			MDisps *mdisps = CustomData_get_layer(&me->ldata, CD_MDISPS);
-			CustomData_add_layer(&tmp.ldata, CD_MDISPS, alloctype, mdisps, totloop);
-		}
-	}
+  /* object had got displacement layer, should copy this layer to save sculpted data */
+  /* NOTE: maybe some other layers should be copied? nazgul */
+  if (CustomData_has_layer(&me->ldata, CD_MDISPS)) {
+    if (totloop == me->totloop) {
+      MDisps *mdisps = CustomData_get_layer(&me->ldata, CD_MDISPS);
+      CustomData_add_layer(&tmp.ldata, CD_MDISPS, alloctype, mdisps, totloop);
+    }
+  }
 
-	/* yes, must be before _and_ after tessellate */
-	BKE_mesh_update_customdata_pointers(&tmp, false);
+  /* yes, must be before _and_ after tessellate */
+  BKE_mesh_update_customdata_pointers(&tmp, false);
 
-	/* since 2.65 caller must do! */
-	// BKE_mesh_tessface_calc(&tmp);
+  /* since 2.65 caller must do! */
+  // BKE_mesh_tessface_calc(&tmp);
 
-	CustomData_free(&me->vdata, me->totvert);
-	CustomData_free(&me->edata, me->totedge);
-	CustomData_free(&me->fdata, me->totface);
-	CustomData_free(&me->ldata, me->totloop);
-	CustomData_free(&me->pdata, me->totpoly);
+  CustomData_free(&me->vdata, me->totvert);
+  CustomData_free(&me->edata, me->totedge);
+  CustomData_free(&me->fdata, me->totface);
+  CustomData_free(&me->ldata, me->totloop);
+  CustomData_free(&me->pdata, me->totpoly);
 
-	/* ok, this should now use new CD shapekey data,
-	 * which should be fed through the modifier
-	 * stack */
-	if (tmp.totvert != me->totvert && !did_shapekeys && me->key) {
-		CLOG_WARN(&LOG, "YEEK! this should be recoded! Shape key loss!: ID '%s'", tmp.id.name);
-		if (tmp.key && !(tmp.id.tag & LIB_TAG_NO_MAIN)) {
-			id_us_min(&tmp.key->id);
-		}
-		tmp.key = NULL;
-	}
+  /* ok, this should now use new CD shapekey data,
+   * which should be fed through the modifier
+   * stack */
+  if (tmp.totvert != me->totvert && !did_shapekeys && me->key) {
+    CLOG_WARN(&LOG, "YEEK! this should be recoded! Shape key loss!: ID '%s'", tmp.id.name);
+    if (tmp.key && !(tmp.id.tag & LIB_TAG_NO_MAIN)) {
+      id_us_min(&tmp.key->id);
+    }
+    tmp.key = NULL;
+  }
 
-	/* Clear selection history */
-	MEM_SAFE_FREE(tmp.mselect);
-	tmp.totselect = 0;
-	BLI_assert(ELEM(tmp.bb, NULL, me->bb));
-	if (me->bb) {
-		MEM_freeN(me->bb);
-		tmp.bb = NULL;
-	}
+  /* Clear selection history */
+  MEM_SAFE_FREE(tmp.mselect);
+  tmp.totselect = 0;
+  BLI_assert(ELEM(tmp.bb, NULL, me->bb));
+  if (me->bb) {
+    MEM_freeN(me->bb);
+    tmp.bb = NULL;
+  }
 
-	/* skip the listbase */
-	MEMCPY_STRUCT_AFTER(me, &tmp, id.prev);
+  /* skip the listbase */
+  MEMCPY_STRUCT_AFTER(me, &tmp, id.prev);
 
-	if (take_ownership) {
-		if (alloctype == CD_ASSIGN) {
-			CustomData_free_typemask(&dm->vertData, dm->numVertData, ~mask->vmask);
-			CustomData_free_typemask(&dm->edgeData, dm->numEdgeData, ~mask->emask);
-			CustomData_free_typemask(&dm->loopData, dm->numLoopData, ~mask->lmask);
-			CustomData_free_typemask(&dm->polyData, dm->numPolyData, ~mask->pmask);
-		}
-		dm->release(dm);
-	}
+  if (take_ownership) {
+    if (alloctype == CD_ASSIGN) {
+      CustomData_free_typemask(&dm->vertData, dm->numVertData, ~mask->vmask);
+      CustomData_free_typemask(&dm->edgeData, dm->numEdgeData, ~mask->emask);
+      CustomData_free_typemask(&dm->loopData, dm->numLoopData, ~mask->lmask);
+      CustomData_free_typemask(&dm->polyData, dm->numPolyData, ~mask->pmask);
+    }
+    dm->release(dm);
+  }
 }
 
 /** Utility function to convert an (evaluated) Mesh to a shape key block. */
@@ -1094,7 +1097,7 @@ static Mesh *create_orco_mesh(Object *ob, Mesh *me, BMEditMesh *em, int layer)
   orco = get_orco_coords(ob, em, layer, &free);
 
   if (orco) {
-    BKE_mesh_apply_vert_coords(mesh, orco);
+    BKE_mesh_vert_coords_apply(mesh, orco);
     if (free) {
       MEM_freeN(orco);
     }
@@ -1114,10 +1117,10 @@ static void add_orco_mesh(Object *ob, BMEditMesh *em, Mesh *mesh, Mesh *mesh_orc
     free = 1;
 
     if (mesh_orco->totvert == totvert) {
-      orco = BKE_mesh_vertexCos_get(mesh_orco, NULL);
+      orco = BKE_mesh_vert_coords_alloc(mesh_orco, NULL);
     }
     else {
-      orco = BKE_mesh_vertexCos_get(mesh, NULL);
+      orco = BKE_mesh_vert_coords_alloc(mesh, NULL);
     }
   }
   else {
@@ -1413,14 +1416,14 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
 
       if (mti->type == eModifierTypeType_OnlyDeform && !sculpt_dyntopo) {
         if (!deformed_verts) {
-          deformed_verts = BKE_mesh_vertexCos_get(mesh_input, &num_deformed_verts);
+          deformed_verts = BKE_mesh_vert_coords_alloc(mesh_input, &num_deformed_verts);
         }
         else if (isPrevDeform && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
           if (mesh_final == NULL) {
             mesh_final = BKE_mesh_copy_for_eval(mesh_input, true);
             ASSERT_IS_VALID_MESH(mesh_final);
           }
-          BKE_mesh_apply_vert_coords(mesh_final, deformed_verts);
+          BKE_mesh_vert_coords_apply(mesh_final, deformed_verts);
         }
 
         modwrap_deformVerts(md, &mectx, mesh_final, deformed_verts, num_deformed_verts);
@@ -1444,7 +1447,7 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
       mesh_deform = BKE_mesh_copy_for_eval(mesh_input, true);
 
       if (deformed_verts) {
-        BKE_mesh_apply_vert_coords(mesh_deform, deformed_verts);
+        BKE_mesh_vert_coords_apply(mesh_deform, deformed_verts);
       }
     }
   }
@@ -1527,10 +1530,10 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
           /* Deforming a mesh, read the vertex locations
            * out of the mesh and deform them. Once done with this
            * run of deformers verts will be written back. */
-          deformed_verts = BKE_mesh_vertexCos_get(mesh_final, &num_deformed_verts);
+          deformed_verts = BKE_mesh_vert_coords_alloc(mesh_final, &num_deformed_verts);
         }
         else {
-          deformed_verts = BKE_mesh_vertexCos_get(mesh_input, &num_deformed_verts);
+          deformed_verts = BKE_mesh_vert_coords_alloc(mesh_input, &num_deformed_verts);
         }
       }
       /* if this is not the last modifier in the stack then recalculate the normals
@@ -1538,7 +1541,7 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
       else if (isPrevDeform && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
         /* XXX, this covers bug #23673, but we may need normal calc for other types */
         if (mesh_final) {
-          BKE_mesh_apply_vert_coords(mesh_final, deformed_verts);
+          BKE_mesh_vert_coords_apply(mesh_final, deformed_verts);
         }
       }
 
@@ -1557,7 +1560,7 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
       /* apply vertex coordinates or build a Mesh as necessary */
       if (mesh_final) {
         if (deformed_verts) {
-          BKE_mesh_apply_vert_coords(mesh_final, deformed_verts);
+          BKE_mesh_vert_coords_apply(mesh_final, deformed_verts);
         }
       }
       else {
@@ -1565,7 +1568,7 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
         ASSERT_IS_VALID_MESH(mesh_final);
 
         if (deformed_verts) {
-          BKE_mesh_apply_vert_coords(mesh_final, deformed_verts);
+          BKE_mesh_vert_coords_apply(mesh_final, deformed_verts);
         }
 
         /* Initialize original indices the first time we evaluate a
@@ -1744,7 +1747,7 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
     }
   }
   if (deformed_verts) {
-    BKE_mesh_apply_vert_coords(mesh_final, deformed_verts);
+    BKE_mesh_vert_coords_apply(mesh_final, deformed_verts);
     MEM_freeN(deformed_verts);
     deformed_verts = NULL;
   }
@@ -1804,7 +1807,6 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
   }
 }
 
-
 //#ifdef USE_DERIVEDMESH
 static void mesh_calc_modifiers_dm(
         struct Depsgraph *depsgraph, Scene *scene, Object *ob, float (*inputVertexCos)[3],
@@ -1831,14 +1833,14 @@ static void mesh_calc_modifiers_dm(
 }
 //#endif
 
-float (*editbmesh_get_vertex_cos(BMEditMesh *em, int *r_numVerts))[3]
+float (*editbmesh_vert_coords_alloc(BMEditMesh *em, int *r_vert_len))[3]
 {
   BMIter iter;
   BMVert *eve;
   float(*cos)[3];
   int i;
 
-  *r_numVerts = em->bm->totvert;
+  *r_vert_len = em->bm->totvert;
 
   cos = MEM_malloc_arrayN(em->bm->totvert, 3 * sizeof(float), "vertexcos");
 
@@ -2010,10 +2012,10 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
           /* Deforming a derived mesh, read the vertex locations
            * out of the mesh and deform them. Once done with this
            * run of deformers verts will be written back. */
-          deformed_verts = BKE_mesh_vertexCos_get(mesh_final, &num_deformed_verts);
+          deformed_verts = BKE_mesh_vert_coords_alloc(mesh_final, &num_deformed_verts);
         }
         else {
-          deformed_verts = editbmesh_get_vertex_cos(em_input, &num_deformed_verts);
+          deformed_verts = editbmesh_vert_coords_alloc(em_input, &num_deformed_verts);
         }
       }
       else if (isPrevDeform && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
@@ -2023,7 +2025,7 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
           mesh_copy_autosmooth(mesh_final, mesh_input);
         }
         BLI_assert(deformed_verts != NULL);
-        BKE_mesh_apply_vert_coords(mesh_final, deformed_verts);
+        BKE_mesh_vert_coords_apply(mesh_final, deformed_verts);
       }
 
       if (mti->deformVertsEM) {
@@ -2043,7 +2045,7 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
             BKE_id_free(NULL, mesh_final);
           }
           mesh_final = mesh_tmp;
-          BKE_mesh_apply_vert_coords(mesh_final, deformed_verts);
+          BKE_mesh_vert_coords_apply(mesh_final, deformed_verts);
         }
         else if (mesh_final == mesh_cage) {
           /* 'me' may be changed by this modifier, so we need to copy it. */
@@ -2057,7 +2059,7 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
         mesh_copy_autosmooth(mesh_final, mesh_input);
 
         if (deformed_verts) {
-          BKE_mesh_apply_vert_coords(mesh_final, deformed_verts);
+          BKE_mesh_vert_coords_apply(mesh_final, deformed_verts);
         }
       }
 
@@ -2127,7 +2129,7 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
     if (r_cage && i == cageIndex) {
       if (mesh_final && deformed_verts) {
         mesh_cage = BKE_mesh_copy_for_eval(mesh_final, false);
-        BKE_mesh_apply_vert_coords(mesh_cage, deformed_verts);
+        BKE_mesh_vert_coords_apply(mesh_cage, deformed_verts);
       }
       else if (mesh_final) {
         mesh_cage = mesh_final;
@@ -2159,7 +2161,7 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
         BKE_id_free(NULL, mesh_final);
       }
       mesh_final = mesh_tmp;
-      BKE_mesh_apply_vert_coords(mesh_final, deformed_verts);
+      BKE_mesh_vert_coords_apply(mesh_final, deformed_verts);
     }
   }
   else if (!deformed_verts && mesh_cage) {

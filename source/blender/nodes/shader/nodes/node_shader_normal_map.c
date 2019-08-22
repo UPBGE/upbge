@@ -58,7 +58,7 @@ static int gpu_shader_normal_map(GPUMaterial *mat,
   GPUNodeLink *realnorm;
   GPUNodeLink *strength;
 
-  float d[4] = {0, 0, 0, 0};
+  float strength_min[4] = {0, 0, 0, 0};
 
   if (in[0].link) {
     strength = in[0].link;
@@ -85,7 +85,7 @@ static int gpu_shader_normal_map(GPUMaterial *mat,
   }
 
   negnorm = GPU_builtin(GPU_WORLD_NORMAL);
-  GPU_link(mat, "math_max", strength, GPU_constant(d), &strength);
+  GPU_link(mat, "math_maximum", strength, GPU_constant(strength_min), &strength);
 
   const char *color_to_normal_fnc_name = "color_to_normal_new_shading";
   if (nm->space == SHD_SPACE_BLENDER_OBJECT || nm->space == SHD_SPACE_BLENDER_WORLD) {
@@ -114,7 +114,7 @@ static int gpu_shader_normal_map(GPUMaterial *mat,
       break;
   }
 
-  GPU_link(mat, "vec_math_mix", strength, realnorm, negnorm, &out[0].link);
+  GPU_link(mat, "vector_math_mix", strength, realnorm, negnorm, &out[0].link);
   GPU_link(mat, "vect_normalize", out[0].link, &out[0].link);
 
   return true;

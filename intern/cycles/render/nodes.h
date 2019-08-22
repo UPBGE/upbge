@@ -370,6 +370,19 @@ class IESLightNode : public TextureNode {
   void get_slot();
 };
 
+class WhiteNoiseTextureNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(WhiteNoiseTextureNode)
+  virtual int get_group()
+  {
+    return NODE_GROUP_LEVEL_2;
+  }
+
+  int dimensions;
+  float3 vector;
+  float w;
+};
+
 class MappingNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(MappingNode)
@@ -948,6 +961,21 @@ class HairInfoNode : public ShaderNode {
   }
 };
 
+class VolumeInfoNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(VolumeInfoNode)
+  void attributes(Shader *shader, AttributeRequestSet *attributes);
+  bool has_attribute_dependency()
+  {
+    return true;
+  }
+  bool has_spatial_varying()
+  {
+    return true;
+  }
+  void expand(ShaderGraph *graph);
+};
+
 class ValueNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(ValueNode)
@@ -1292,7 +1320,8 @@ class VectorMathNode : public ShaderNode {
 
   float3 vector1;
   float3 vector2;
-  NodeVectorMath type;
+  float scale;
+  NodeVectorMathType type;
 };
 
 class VectorTransformNode : public ShaderNode {

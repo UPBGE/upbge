@@ -1186,6 +1186,11 @@ static void node_shader_buts_ambient_occlusion(uiLayout *layout,
   uiItemR(layout, ptr, "only_local", 0, NULL, ICON_NONE);
 }
 
+static void node_shader_buts_white_noise(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "dimensions", 0, "", ICON_NONE);
+}
+
 /* only once called */
 static void node_shader_set_butfunc(bNodeType *ntype)
 {
@@ -1220,7 +1225,7 @@ static void node_shader_set_butfunc(bNodeType *ntype)
     case SH_NODE_MATH:
       ntype->draw_buttons = node_buts_math;
       break;
-    case SH_NODE_VECT_MATH:
+    case SH_NODE_VECTOR_MATH:
       ntype->draw_buttons = node_shader_buts_vect_math;
       break;
     case SH_NODE_VECT_TRANSFORM:
@@ -1329,6 +1334,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
       break;
     case SH_NODE_AMBIENT_OCCLUSION:
       ntype->draw_buttons = node_shader_buts_ambient_occlusion;
+      break;
+    case SH_NODE_TEX_WHITE_NOISE:
+      ntype->draw_buttons = node_shader_buts_white_noise;
       break;
   }
 }
