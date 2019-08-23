@@ -121,7 +121,7 @@ static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
 
 static void rna_Actuator_name_set(PointerRNA *ptr, const char *value)
 {
-	Object *ob = ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	bActuator *act = ptr->data;
 	BLI_strncpy_utf8(act->name, value, sizeof(act->name));
 	BLI_uniquename(&ob->actuators, act, DATA_("Actuator"), '.', offsetof(bActuator, name), sizeof(act->name));
@@ -439,7 +439,7 @@ const EnumPropertyItem *rna_Actuator_type_itemf(bContext *C, PointerRNA *ptr, Pr
 	int totitem = 0;
 	
 	if (ptr->type == &RNA_Actuator || RNA_struct_is_a(ptr->type, &RNA_Actuator)) {
-		ob = (Object *)ptr->id.data;
+		ob = (Object *)ptr->owner_id;
 	}
 	else {
 		/* can't use ob from ptr->id.data because that enum is also used by operators */
@@ -481,7 +481,7 @@ static void rna_Actuator_Armature_update(Main *UNUSED(bmain), Scene *UNUSED(scen
 {
 	bActuator *act = (bActuator *)ptr->data;
 	bArmatureActuator *aa = act->data;
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 
 	char *posechannel = aa->posechannel;
 	char *constraint = aa->constraint;

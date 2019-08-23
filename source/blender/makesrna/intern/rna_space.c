@@ -525,7 +525,7 @@ static StructRNA *rna_Space_refine(struct PointerRNA *ptr)
 
 static ScrArea *rna_area_from_space(PointerRNA *ptr)
 {
-  bScreen *sc = (bScreen *)ptr->id.data;
+  bScreen *sc = (bScreen *)ptr->owner_id;
   SpaceLink *link = (SpaceLink *)ptr->data;
   return BKE_screen_find_area_from_space(sc, link);
 }
@@ -554,7 +554,7 @@ static void area_region_from_regiondata(bScreen *sc,
 
 static void rna_area_region_from_regiondata(PointerRNA *ptr, ScrArea **r_sa, ARegion **r_ar)
 {
-  bScreen *sc = (bScreen *)ptr->id.data;
+  bScreen *sc = (bScreen *)ptr->owner_id;
   void *regiondata = ptr->data;
 
   area_region_from_regiondata(sc, regiondata, r_sa, r_ar);
@@ -772,7 +772,7 @@ static void rna_Space_view2d_sync_update(Main *UNUSED(bmain),
   ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 
   if (ar) {
-    bScreen *sc = (bScreen *)ptr->id.data;
+    bScreen *sc = (bScreen *)ptr->owner_id;
     View2D *v2d = &ar->v2d;
 
     UI_view2d_sync(sc, sa, v2d, V2D_LOCK_SET);
@@ -805,7 +805,7 @@ static void rna_SpaceView3D_camera_update(Main *bmain, Scene *scene, PointerRNA 
 static void rna_SpaceView3D_use_local_camera_set(PointerRNA *ptr, bool value)
 {
   View3D *v3d = (View3D *)(ptr->data);
-  bScreen *sc = (bScreen *)ptr->id.data;
+  bScreen *sc = (bScreen *)ptr->owner_id;
 
   v3d->scenelock = !value;
 
@@ -818,7 +818,7 @@ static void rna_SpaceView3D_use_local_camera_set(PointerRNA *ptr, bool value)
 static float rna_View3DOverlay_GridScaleUnit_get(PointerRNA *ptr)
 {
   View3D *v3d = (View3D *)(ptr->data);
-  bScreen *screen = ptr->id.data;
+  bScreen *screen = (bScreen *)ptr->owner_id;
   Scene *scene = ED_screen_scene_find(screen, G_MAIN->wm.first);
 
   return ED_view3d_grid_scale(scene, v3d, NULL);
@@ -935,7 +935,7 @@ static bool rna_RegionView3D_is_orthographic_side_view_get(PointerRNA *ptr)
 
 static void rna_3DViewShading_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  ID *id = ptr->id.data;
+  ID *id = ptr->owner_id;
   if (GS(id->name) == ID_SCE) {
     return;
   }
@@ -952,7 +952,7 @@ static void rna_3DViewShading_type_update(Main *bmain, Scene *scene, PointerRNA 
     }
   }
 
-  bScreen *screen = ptr->id.data;
+  bScreen *screen = (bScreen *)ptr->owner_id;
   for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
     for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
       if (sl->spacetype == SPACE_VIEW3D) {
@@ -969,12 +969,12 @@ static void rna_3DViewShading_type_update(Main *bmain, Scene *scene, PointerRNA 
 static Scene *rna_3DViewShading_scene(PointerRNA *ptr)
 {
   /* Get scene, depends if using 3D view or OpenGL render settings. */
-  ID *id = ptr->id.data;
+  ID *id = ptr->owner_id;
   if (GS(id->name) == ID_SCE) {
     return (Scene *)id;
   }
   else {
-    bScreen *screen = ptr->id.data;
+    bScreen *screen = (bScreen *)ptr->owner_id;
     return WM_windows_scene_get_from_screen(G_MAIN->wm.first, screen);
   }
 }
@@ -1297,7 +1297,7 @@ static bool rna_SpaceImageEditor_show_paint_get(PointerRNA *ptr)
 static bool rna_SpaceImageEditor_show_uvedit_get(PointerRNA *ptr)
 {
   SpaceImage *sima = (SpaceImage *)(ptr->data);
-  bScreen *sc = (bScreen *)ptr->id.data;
+  bScreen *sc = (bScreen *)ptr->owner_id;
   wmWindow *win = ED_screen_window_find(sc, G_MAIN->wm.first);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
   Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
@@ -1307,7 +1307,7 @@ static bool rna_SpaceImageEditor_show_uvedit_get(PointerRNA *ptr)
 static bool rna_SpaceImageEditor_show_maskedit_get(PointerRNA *ptr)
 {
   SpaceImage *sima = (SpaceImage *)(ptr->data);
-  bScreen *sc = (bScreen *)ptr->id.data;
+  bScreen *sc = (bScreen *)ptr->owner_id;
   wmWindow *win = ED_screen_window_find(sc, G_MAIN->wm.first);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
   return ED_space_image_check_show_maskedit(sima, view_layer);
@@ -1318,7 +1318,7 @@ static void rna_SpaceImageEditor_image_set(PointerRNA *ptr,
                                            struct ReportList *UNUSED(reports))
 {
   SpaceImage *sima = (SpaceImage *)(ptr->data);
-  bScreen *sc = (bScreen *)ptr->id.data;
+  bScreen *sc = (bScreen *)ptr->owner_id;
   wmWindow *win = ED_screen_window_find(sc, G_MAIN->wm.first);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
   Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
@@ -2095,7 +2095,7 @@ static void rna_SpaceClipEditor_clip_set(PointerRNA *ptr,
                                          struct ReportList *UNUSED(reports))
 {
   SpaceClip *sc = (SpaceClip *)(ptr->data);
-  bScreen *screen = (bScreen *)ptr->id.data;
+  bScreen *screen = (bScreen *)ptr->owner_id;
 
   ED_space_clip_set_clip(NULL, screen, sc, (MovieClip *)value.data);
 }

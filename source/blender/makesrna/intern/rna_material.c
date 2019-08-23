@@ -37,7 +37,7 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
     {0, "", ICON_NONE, NULL, NULL},
     {MA_RAMP_DARK, "DARKEN", 0, "Darken", ""},
     {MA_RAMP_MULT, "MULTIPLY", 0, "Multiply", ""},
-    {MA_RAMP_BURN, "BURN", 0, "Burn", ""},
+    {MA_RAMP_BURN, "BURN", 0, "Color Burn", ""},
     {0, "", ICON_NONE, NULL, NULL},
     {MA_RAMP_LIGHT, "LIGHTEN", 0, "Lighten", ""},
     {MA_RAMP_SCREEN, "SCREEN", 0, "Screen", ""},
@@ -89,7 +89,7 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
 
 static void rna_Material_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
-  Material *ma = ptr->id.data;
+  Material *ma = (Material *)ptr->owner_id;
 
   DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
   WM_main_add_notifier(NC_MATERIAL | ND_SHADING, ma);
@@ -99,7 +99,7 @@ static void rna_Material_update_previews(Main *UNUSED(bmain),
                                          Scene *UNUSED(scene),
                                          PointerRNA *ptr)
 {
-  Material *ma = ptr->id.data;
+  Material *ma = (Material *)ptr->owner_id;
 
   if (ma->nodetree) {
     BKE_node_preview_clear_tree(ma->nodetree);
@@ -110,7 +110,7 @@ static void rna_Material_update_previews(Main *UNUSED(bmain),
 
 static void rna_MaterialGpencil_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Material *ma = ptr->id.data;
+  Material *ma = (Material *)ptr->owner_id;
 
   rna_Material_update(bmain, scene, ptr);
   WM_main_add_notifier(NC_GPENCIL | ND_DATA, ma);
@@ -118,7 +118,7 @@ static void rna_MaterialGpencil_update(Main *bmain, Scene *scene, PointerRNA *pt
 
 static void rna_MaterialGpencil_nopreview_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Material *ma = ptr->id.data;
+  Material *ma = (Material *)ptr->owner_id;
 
   rna_Material_update(bmain, scene, ptr);
   WM_main_add_notifier(NC_GPENCIL | ND_DATA, ma);
@@ -126,7 +126,7 @@ static void rna_MaterialGpencil_nopreview_update(Main *bmain, Scene *scene, Poin
 
 static void rna_Material_draw_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
-  Material *ma = ptr->id.data;
+  Material *ma = (Material *)ptr->owner_id;
 
   DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
   WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, ma);
@@ -144,7 +144,7 @@ static void rna_Material_active_paint_texture_index_update(Main *bmain,
                                                            PointerRNA *ptr)
 {
   bScreen *sc;
-  Material *ma = ptr->id.data;
+  Material *ma = (Material *)ptr->owner_id;
 
   if (ma->use_nodes && ma->nodetree) {
     struct bNode *node = BKE_texpaint_slot_material_find_node(ma, ma->paint_active_slot);
@@ -303,7 +303,7 @@ static bool rna_is_grease_pencil_get(PointerRNA *ptr)
 static void rna_gpcolordata_uv_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   /* update all uv strokes of this color */
-  Material *ma = ptr->id.data;
+  Material *ma = (Material *)ptr->owner_id;
   ED_gpencil_update_color_uv(bmain, ma);
 
   rna_MaterialGpencil_update(bmain, scene, ptr);
@@ -357,12 +357,14 @@ static void rna_def_material_display(StructRNA *srna)
   prop = RNA_def_property(srna, "diffuse_color", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, NULL, "r");
   RNA_def_property_array(prop, 4);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Diffuse Color", "Diffuse color of the material");
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
   prop = RNA_def_property(srna, "specular_color", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, NULL, "specr");
   RNA_def_property_array(prop, 3);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Specular Color", "Specular color of the material");
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
@@ -370,6 +372,7 @@ static void rna_def_material_display(StructRNA *srna)
   RNA_def_property_float_sdna(prop, NULL, "roughness");
   RNA_def_property_float_default(prop, 0.25f);
   RNA_def_property_range(prop, 0, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Roughness", "Roughness of the material");
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
@@ -377,12 +380,14 @@ static void rna_def_material_display(StructRNA *srna)
   RNA_def_property_float_sdna(prop, NULL, "spec");
   RNA_def_property_float_default(prop, 0.5f);
   RNA_def_property_range(prop, 0, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Specular", "How intense (bright) the specular reflection is");
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
   prop = RNA_def_property(srna, "metallic", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, NULL, "metallic");
   RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Metallic", "Amount of mirror reflection for raytrace");
   RNA_def_property_update(prop, 0, "rna_Material_update");
 

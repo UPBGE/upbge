@@ -108,7 +108,7 @@ static StructRNA *rna_Sensor_refine(struct PointerRNA *ptr)
 
 static void rna_Sensor_name_set(PointerRNA *ptr, const char *value)
 {
-	Object *ob = ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	bSensor *sens = ptr->data;
 	BLI_strncpy_utf8(sens->name, value, sizeof(sens->name));
 	BLI_uniquename(&ob->sensors, sens, DATA_("Sensor"), '.', offsetof(bSensor, name), sizeof(sens->name));
@@ -144,7 +144,7 @@ const EnumPropertyItem *rna_Sensor_type_itemf(bContext *C, PointerRNA *ptr, Prop
 	int totitem = 0;
 
 	if (ptr->type == &RNA_Sensor || RNA_struct_is_a(ptr->type, &RNA_Sensor)) {
-		ob = (Object *)ptr->id.data;
+		ob = (Object *)ptr->owner_id;
 	}
 	else {
 		/* can't use ob from ptr->id.data because that enum is also used by operators */
@@ -233,7 +233,7 @@ static void rna_Sensor_Armature_update(Main *UNUSED(bmain), Scene *UNUSED(scene)
 {
 	bSensor *sens = (bSensor *)ptr->data;
 	bArmatureSensor *as = sens->data;
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 
 	char *posechannel = as->posechannel;
 	char *constraint = as->constraint;

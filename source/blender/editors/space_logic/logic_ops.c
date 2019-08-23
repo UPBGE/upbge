@@ -66,7 +66,7 @@ static bool edit_sensor_poll(bContext *C)
 {
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "sensor", &RNA_Sensor);
 
-	if (ptr.data && ID_IS_LINKED(ptr.id.data)) return 0;
+	if (ptr.data && ID_IS_LINKED(ptr.owner_id)) return 0;
 	return true;
 }
 
@@ -74,7 +74,7 @@ static bool edit_controller_poll(bContext *C)
 {
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "controller", &RNA_Controller);
 
-	if (ptr.data && ID_IS_LINKED(ptr.id.data)) return 0;
+	if (ptr.data && ID_IS_LINKED(ptr.owner_id)) return 0;
 	return true;
 }
 
@@ -82,7 +82,7 @@ static bool edit_actuator_poll(bContext *C)
 {
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "actuator", &RNA_Actuator);
 
-	if (ptr.data && ID_IS_LINKED(ptr.id.data)) return 0;
+	if (ptr.data && ID_IS_LINKED(ptr.owner_id)) return 0;
 	return true;
 }
 
@@ -101,7 +101,7 @@ static int edit_sensor_invoke_properties(bContext *C, wmOperator *op)
 	
 	if (ptr.data) {
 		bSensor *sens = ptr.data;
-		Object *ob = ptr.id.data;
+		Object *ob = (Object *)ptr.owner_id;
 		
 		RNA_string_set(op->ptr, "sensor", sens->name);
 		RNA_string_set(op->ptr, "object", ob->id.name + 2);
@@ -157,7 +157,7 @@ static int edit_controller_invoke_properties(bContext *C, wmOperator *op)
 	
 	if (ptr.data) {
 		bController *cont = ptr.data;
-		Object *ob = ptr.id.data;
+		Object *ob = (Object *)ptr.owner_id;
 		
 		RNA_string_set(op->ptr, "controller", cont->name);
 		RNA_string_set(op->ptr, "object", ob->id.name + 2);
@@ -196,7 +196,7 @@ static int edit_actuator_invoke_properties(bContext *C, wmOperator *op)
 	
 	if (ptr.data) {
 		bActuator *act = ptr.data;
-		Object *ob = ptr.id.data;
+		Object *ob = (Object *)ptr.owner_id;
 		
 		RNA_string_set(op->ptr, "actuator", act->name);
 		RNA_string_set(op->ptr, "object", ob->id.name + 2);

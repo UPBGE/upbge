@@ -2709,7 +2709,7 @@ static int object_unlink_data_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  id = pprop.ptr.id.data;
+  id = pprop.ptr.owner_id;
 
   if (GS(id->name) == ID_OB) {
     Object *ob = (Object *)id;

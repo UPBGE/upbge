@@ -398,8 +398,6 @@ static void buttons_area_listener(wmWindow *UNUSED(win),
           buttons_area_redraw(sa, BCONTEXT_DATA); /* autotexpace flag */
           break;
         case ND_POSE:
-          buttons_area_redraw(sa, BCONTEXT_DATA);
-          break;
         case ND_BONE_ACTIVE:
         case ND_BONE_SELECT:
           buttons_area_redraw(sa, BCONTEXT_BONE);
@@ -561,7 +559,7 @@ static void buttons_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, 
     int i;
 
     for (i = 0; i < path->len; i++) {
-      if (path->ptr[i].id.data == old_id) {
+      if (path->ptr[i].owner_id == old_id) {
         break;
       }
     }

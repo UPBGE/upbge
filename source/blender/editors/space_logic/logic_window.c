@@ -909,7 +909,7 @@ static void draw_sensor_internal_header(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_sensor_actuator(uiLayout *layout, PointerRNA *ptr)
 {
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	PointerRNA settings_ptr;
 
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
@@ -920,7 +920,7 @@ static void draw_sensor_armature(uiLayout *layout, PointerRNA *ptr)
 {
 	bSensor *sens = (bSensor *)ptr->data;
 	bArmatureSensor *as = (bArmatureSensor *) sens->data;
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	uiLayout *row;
 
 	if (ob->type != OB_ARMATURE) {
@@ -1022,7 +1022,7 @@ static void draw_sensor_joystick(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_sensor_keyboard(uiLayout *layout, PointerRNA *ptr)
 {
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	PointerRNA settings_ptr;
 	uiLayout *row, *col;
 
@@ -1093,7 +1093,7 @@ static void draw_sensor_near(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_sensor_property(uiLayout *layout, PointerRNA *ptr)
 {
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	PointerRNA settings_ptr;
 
 	uiLayout *row;
@@ -1368,7 +1368,7 @@ static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *
 
 static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
 {
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	PointerRNA settings_ptr;
 	uiLayout *row, *sub;
 
@@ -1420,7 +1420,7 @@ static void draw_actuator_armature(uiLayout *layout, PointerRNA *ptr)
 {
 	bActuator *act = (bActuator *)ptr->data;
 	bArmatureActuator *aa = (bArmatureActuator *) act->data;
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	bConstraint *constraint = NULL;
 	PointerRNA pose_ptr, pchan_ptr;
 	PropertyRNA *bones_prop = NULL;
@@ -1606,7 +1606,7 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr, bContext
 
 static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
 {
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	uiLayout *row, *split, *sub;
 	uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
 
@@ -1691,7 +1691,7 @@ static void draw_actuator_message(uiLayout *layout, PointerRNA *ptr, bContext *C
 
 	RNA_main_pointer_create(CTX_data_main(C), &main_ptr);
 
-	ob = (Object *)ptr->id.data;
+	ob = (Object *)ptr->owner_id;
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 
 	uiItemPointerR(layout, ptr, "to_property", &main_ptr, "objects", NULL, ICON_OBJECT_DATA);
@@ -1713,7 +1713,7 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
 	uiLayout *split, *row, *col, *sub;
 	int physics_type;
 
-	ob = (Object *)ptr->id.data;
+	ob = (Object *)ptr->owner_id;
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 	physics_type = RNA_enum_get(&settings_ptr, "physics_type");
 	
@@ -1838,7 +1838,7 @@ static void draw_actuator_parent(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_actuator_property(uiLayout *layout, PointerRNA *ptr)
 {
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	bActuator *act = (bActuator *)ptr->data;
 	bPropertyActuator *pa = (bPropertyActuator *) act->data;
 	Object *ob_from= pa->ob;
@@ -1883,7 +1883,7 @@ static void draw_actuator_random(uiLayout *layout, PointerRNA *ptr)
 	PointerRNA settings_ptr;
 	uiLayout *row;
 
-	ob = (Object *)ptr->id.data;
+	ob = (Object *)ptr->owner_id;
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 
 	row = uiLayoutRow(layout, false);
@@ -1960,7 +1960,7 @@ static void draw_actuator_scene(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_actuator_shape_action(uiLayout *layout, PointerRNA *ptr)
 {
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	PointerRNA settings_ptr;
 	uiLayout *row;
 
@@ -2037,7 +2037,7 @@ static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)
 static void draw_actuator_state(uiLayout *layout, PointerRNA *ptr)
 {
 	uiLayout *split;
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob = (Object *)ptr->owner_id;
 	PointerRNA settings_ptr;
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 
