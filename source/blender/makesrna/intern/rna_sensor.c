@@ -147,7 +147,7 @@ const EnumPropertyItem *rna_Sensor_type_itemf(bContext *C, PointerRNA *ptr, Prop
 		ob = (Object *)ptr->owner_id;
 	}
 	else {
-		/* can't use ob from ptr->id.data because that enum is also used by operators */
+		/* can't use ob from ptr->owner_id because that enum is also used by operators */
 		ob = CTX_data_active_object(C);
 	}
 
