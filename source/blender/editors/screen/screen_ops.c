@@ -3757,7 +3757,7 @@ static void SCREEN_OT_redo_last(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Redo Last";
-  ot->description = "Display menu for last action performed";
+  ot->description = "Display parameters for last action performed";
   ot->idname = "SCREEN_OT_redo_last";
 
   /* api callbacks */
@@ -3808,7 +3808,7 @@ static int region_quadview_exec(bContext *C, wmOperator *op)
 
   /* some rules... */
   if (ar->regiontype != RGN_TYPE_WINDOW) {
-    BKE_report(op->reports, RPT_ERROR, "Only window region can be 4-splitted");
+    BKE_report(op->reports, RPT_ERROR, "Only window region can be 4-split");
   }
   else if (ar->alignment == RGN_ALIGN_QSPLIT) {
     /* Exit quad-view */
@@ -3861,7 +3861,7 @@ static int region_quadview_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
   }
   else if (ar->next) {
-    BKE_report(op->reports, RPT_ERROR, "Only last region can be 4-splitted");
+    BKE_report(op->reports, RPT_ERROR, "Only last region can be 4-split");
   }
   else {
     /* Enter quad-view */
@@ -5034,7 +5034,9 @@ static void region_blend_end(bContext *C, ARegion *ar, const bool is_running)
   WM_event_remove_timer(CTX_wm_manager(C), NULL, ar->regiontimer); /* frees rgi */
   ar->regiontimer = NULL;
 }
-/* assumes that *ar itself is not a splitted version from previous region */
+/**
+ * \note Assumes that \a ar itself is not a split version from previous region.
+ */
 void ED_region_visibility_change_update_animated(bContext *C, ScrArea *sa, ARegion *ar)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
