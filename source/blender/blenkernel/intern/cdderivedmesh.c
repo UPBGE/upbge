@@ -457,7 +457,7 @@ void CDDM_recalc_tessellation_ex(DerivedMesh *dm, const bool do_face_nor_cpy)
 {
   CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
 
-  dm->numTessFaceData = BKE_mesh_recalc_tessellation(&dm->faceData,
+  dm->numTessFaceData = BKE_mesh_tessface_calc_ex(&dm->faceData,
                                                      &dm->loopData,
                                                      &dm->polyData,
                                                      cddm->mvert,
@@ -1273,27 +1273,27 @@ void CDDM_calc_loop_normals_spacearr(DerivedMesh *dm,
 }
 
 
-void CDDM_calc_normals_tessface(DerivedMesh *dm)
-{
-	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	float (*face_nors)[3];
-
-	if (dm->numVertData == 0) return;
-
-	/* we don't want to overwrite any referenced layers */
-	cddm->mvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MVERT, dm->numVertData);
-
-	/* fill in if it exists */
-	face_nors = CustomData_get_layer(&dm->faceData, CD_NORMAL);
-	if (!face_nors) {
-		face_nors = CustomData_add_layer(&dm->faceData, CD_NORMAL, CD_CALLOC, NULL, dm->numTessFaceData);
-	}
-
-	BKE_mesh_calc_normals_tessface(cddm->mvert, dm->numVertData,
-	                               cddm->mface, dm->numTessFaceData, face_nors);
-
-	cddm->dm.dirty &= ~DM_DIRTY_NORMALS;
-}
+//void CDDM_calc_normals_tessface(DerivedMesh *dm)
+//{
+//	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
+//	float (*face_nors)[3];
+//
+//	if (dm->numVertData == 0) return;
+//
+//	/* we don't want to overwrite any referenced layers */
+//	cddm->mvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MVERT, dm->numVertData);
+//
+//	/* fill in if it exists */
+//	face_nors = CustomData_get_layer(&dm->faceData, CD_NORMAL);
+//	if (!face_nors) {
+//		face_nors = CustomData_add_layer(&dm->faceData, CD_NORMAL, CD_CALLOC, NULL, dm->numTessFaceData);
+//	}
+//
+//	BKE_mesh_calc_normals_tessface(cddm->mvert, dm->numVertData,
+//	                               cddm->mface, dm->numTessFaceData, face_nors);
+//
+//	cddm->dm.dirty &= ~DM_DIRTY_NORMALS;
+//}
 
 #if 1
 /* TODO(sybren): Delete everything in this #if block after we have ported the modifiers

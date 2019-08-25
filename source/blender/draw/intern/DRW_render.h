@@ -61,7 +61,6 @@
 
 #include "../depsgraph/DEG_depsgraph.h" // For bge (EvaluationContext)
 
-struct DRWTextStore;
 struct DefaultFramebufferList;
 struct DefaultTextureList;
 struct GPUBatch;
@@ -70,12 +69,9 @@ struct GPUMaterial;
 struct GPUShader;
 struct GPUTexture;
 struct GPUUniformBuffer;
-struct LightEngineData;
 struct Object;
 struct ParticleSystem;
 struct RenderEngineType;
-struct ViewportEngineData;
-struct ViewportEngineData_Info;
 struct bContext;
 struct rcti;
 

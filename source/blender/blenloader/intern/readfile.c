@@ -4900,21 +4900,13 @@ static void lib_link_mesh(FileData *fd, Main *main)
         G_MAIN = gmain;
       }
 
-      /*
-       * Re-tessellate, even if the polys were just created from tessfaces, this
-       * is important because it:
-       * - fill the CD_ORIGINDEX layer
-       * - gives consistency of tessface between loading from a file and
-       *   converting an edited BMesh back into a mesh (i.e. it replaces
-       *   quad tessfaces in a loaded mesh immediately, instead of lazily
-       *   waiting until edit mode has been entered/exited, making it easier
-       *   to recognize problems that would otherwise only show up after edits).
-       */
-#ifdef USE_TESSFACE_DEFAULT
-      BKE_mesh_tessface_calc(me);
-#else
+      /* Deprecated, only kept for conversion. */
       BKE_mesh_tessface_clear(me);
-#endif
+
+      /* Moved from do_versions because we need updated polygons for calculating normals. */
+      if (MAIN_VERSION_OLDER(main, 256, 6)) {
+        BKE_mesh_calc_normals(me);
+      }
 
       me->id.tag &= ~LIB_TAG_NEED_LINK;
     }

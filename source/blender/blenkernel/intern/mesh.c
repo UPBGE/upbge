@@ -813,92 +813,6 @@ void BKE_mesh_make_local(Main *bmain, Mesh *me, const bool lib_local)
   BKE_id_make_local_generic(bmain, &me->id, true, lib_local);
 }
 
-bool BKE_mesh_uv_cdlayer_rename_index(Mesh *me,
-                                      const int loop_index,
-                                      const int face_index,
-                                      const char *new_name,
-                                      const bool do_tessface)
-{
-  CustomData *ldata, *fdata;
-  CustomDataLayer *cdlu, *cdlf;
-
-  if (me->edit_mesh) {
-    ldata = &me->edit_mesh->bm->ldata;
-    fdata = NULL; /* No tessellated data in BMesh! */
-  }
-  else {
-    ldata = &me->ldata;
-    fdata = &me->fdata;
-  }
-
-  cdlu = &ldata->layers[loop_index];
-  cdlf = (face_index != -1) && fdata && do_tessface ? &fdata->layers[face_index] : NULL;
-
-  if (cdlu->name != new_name) {
-    /* Mesh validate passes a name from the CD layer as the new name,
-     * Avoid memcpy from self to self in this case.
-     */
-    BLI_strncpy(cdlu->name, new_name, sizeof(cdlu->name));
-    CustomData_set_layer_unique_name(ldata, loop_index);
-  }
-
-  if (cdlf == NULL) {
-    return false;
-  }
-
-  BLI_strncpy(cdlf->name, cdlu->name, sizeof(cdlf->name));
-  CustomData_set_layer_unique_name(fdata, face_index);
-
-  return true;
-}
-
-bool BKE_mesh_uv_cdlayer_rename(Mesh *me,
-                                const char *old_name,
-                                const char *new_name,
-                                bool do_tessface)
-{
-  CustomData *ldata, *fdata;
-  if (me->edit_mesh) {
-    ldata = &me->edit_mesh->bm->ldata;
-    /* No tessellated data in BMesh! */
-    fdata = NULL;
-    do_tessface = false;
-  }
-  else {
-    ldata = &me->ldata;
-    fdata = &me->fdata;
-    do_tessface = (do_tessface && fdata->totlayer);
-  }
-
-  {
-    const int lidx_start = CustomData_get_layer_index(ldata, CD_MLOOPUV);
-    const int fidx_start = do_tessface ? CustomData_get_layer_index(fdata, CD_MTFACE) : -1;
-    int lidx = CustomData_get_named_layer(ldata, CD_MLOOPUV, old_name);
-    int fidx = do_tessface ? CustomData_get_named_layer(fdata, CD_MTFACE, old_name) : -1;
-
-    /* None of those cases should happen, in theory!
-     * Note this assume we have the same number of mtexpoly, mloopuv and mtface layers!
-     */
-    if (lidx == -1) {
-      if (fidx == -1) {
-        /* No layer found with this name! */
-        return false;
-      }
-      else {
-        lidx = fidx;
-      }
-    }
-
-    /* Go back to absolute indices! */
-    lidx += lidx_start;
-    if (fidx != -1) {
-      fidx += fidx_start;
-    }
-
-    return BKE_mesh_uv_cdlayer_rename_index(me, lidx, fidx, new_name, do_tessface);
-  }
-}
-
 void BKE_mesh_boundbox_calc(Mesh *me, float r_loc[3], float r_size[3])
 {
   BoundBox *bb;
@@ -1273,30 +1187,16 @@ void BKE_mesh_material_remap(Mesh *me, const unsigned int *remap, unsigned int r
 #undef MAT_NR_REMAP
 }
 
-void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth)
+void BKE_mesh_smooth_flag_set(Mesh *me, const bool use_smooth)
 {
-  Mesh *me = meshOb->data;
-  int i;
-
-  for (i = 0; i < me->totpoly; i++) {
-    MPoly *mp = &me->mpoly[i];
-
-    if (enableSmooth) {
-      mp->flag |= ME_SMOOTH;
-    }
-    else {
-      mp->flag &= ~ME_SMOOTH;
+  if (use_smooth) {
+    for (int i = 0; i < me->totpoly; i++) {
+      me->mpoly[i].flag |= ME_SMOOTH;
     }
   }
-
-  for (i = 0; i < me->totface; i++) {
-    MFace *mf = &me->mface[i];
-
-    if (enableSmooth) {
-      mf->flag |= ME_SMOOTH;
-    }
-    else {
-      mf->flag &= ~ME_SMOOTH;
+  else {
+    for (int i = 0; i < me->totpoly; i++) {
+      me->mpoly[i].flag &= ~ME_SMOOTH;
     }
   }
 }
@@ -1452,7 +1352,7 @@ void BKE_mesh_ensure_navmesh(Mesh *me)
 
 void BKE_mesh_tessface_calc(Mesh *mesh)
 {
-  mesh->totface = BKE_mesh_recalc_tessellation(
+  mesh->totface = BKE_mesh_tessface_calc_ex(
       &mesh->fdata,
       &mesh->ldata,
       &mesh->pdata,

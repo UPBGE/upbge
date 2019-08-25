@@ -49,7 +49,6 @@ struct RegionView3D;
 struct RigidBodyWorld;
 struct Scene;
 struct ShaderFxData;
-struct SoftBody;
 struct View3D;
 struct ViewLayer;
 

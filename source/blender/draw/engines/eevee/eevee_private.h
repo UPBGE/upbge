@@ -34,7 +34,6 @@ struct EEVEE_ShadowCasterBuffer;
 struct GPUFrameBuffer;
 struct Object;
 struct RenderLayer;
-struct RenderResult;
 
 extern struct DrawEngineType draw_engine_eevee_type;
 

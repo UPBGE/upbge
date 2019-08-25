@@ -599,7 +599,7 @@ bool ED_object_editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag
     if (LIKELY(em)) {
       /* order doesn't matter */
       EDBM_mesh_normals_update(em);
-      BKE_editmesh_tessface_calc(em);
+      BKE_editmesh_looptri_calc(em);
     }
 
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_MESH, NULL);
@@ -1652,7 +1652,7 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
     }
 
     if (ob->type == OB_MESH) {
-      BKE_mesh_smooth_flag_set(ob, !clear);
+      BKE_mesh_smooth_flag_set(ob->data, !clear);
 
       BKE_mesh_batch_cache_dirty_tag(ob->data, BKE_MESH_BATCH_DIRTY_ALL);
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
