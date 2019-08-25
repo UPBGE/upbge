@@ -111,6 +111,19 @@ static bool gpencil_select_poll(bContext *C)
 /* -------------------------------------------------------------------- */
 /** \name Select All Operator
  * \{ */
+static bool gpencil_select_all_poll(bContext *C)
+{
+  bGPdata *gpd = ED_gpencil_data_get_active(C);
+
+  /* we just need some visible strokes, and to be in editmode or other modes only to catch event */
+  if (GPENCIL_ANY_MODE(gpd)) {
+    if (gpd->layers.first) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 static int gpencil_select_all_exec(bContext *C, wmOperator *op)
 {
@@ -125,6 +138,14 @@ static int gpencil_select_all_exec(bContext *C, wmOperator *op)
   /* if not edit/sculpt mode, the event is catched but not processed */
   if (GPENCIL_NONE_EDIT_MODE(gpd)) {
     return OPERATOR_CANCELLED;
+  }
+
+  /* For sculpt mode, if mask is disable, only allows deselect */
+  if (GPENCIL_SCULPT_MODE(gpd)) {
+    ToolSettings *ts = CTX_data_tool_settings(C);
+    if ((!(GPENCIL_ANY_SCULPT_MASK(ts->gpencil_selectmode_sculpt))) && (action != SEL_DESELECT)) {
+      return OPERATOR_CANCELLED;
+    }
   }
 
   ED_gpencil_select_toggle_all(C, action);
@@ -149,7 +170,7 @@ void GPENCIL_OT_select_all(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = gpencil_select_all_exec;
-  ot->poll = gpencil_select_poll;
+  ot->poll = gpencil_select_all_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -825,6 +846,7 @@ static bool gp_stroke_do_circle_sel(bGPDlayer *gpl,
 {
   bGPDspoint *pt1 = NULL;
   bGPDspoint *pt2 = NULL;
+  bGPDstroke *gps_orig = gps->runtime.gps_orig;
   int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
   int i;
   bool changed = false;
@@ -840,12 +862,12 @@ static bool gp_stroke_do_circle_sel(bGPDlayer *gpl,
       if (((x0 - mx) * (x0 - mx) + (y0 - my) * (y0 - my)) <= radius * radius) {
         /* change selection */
         if (select) {
-          gps->points->flag |= GP_SPOINT_SELECT;
-          gps->flag |= GP_STROKE_SELECT;
+          gps_orig->points->flag |= GP_SPOINT_SELECT;
+          gps_orig->flag |= GP_STROKE_SELECT;
         }
         else {
-          gps->points->flag &= ~GP_SPOINT_SELECT;
-          gps->flag &= ~GP_STROKE_SELECT;
+          gps_orig->points->flag &= ~GP_SPOINT_SELECT;
+          gps_orig->flag &= ~GP_STROKE_SELECT;
         }
 
         return true;
@@ -885,15 +907,21 @@ static bool gp_stroke_do_circle_sel(bGPDlayer *gpl,
            */
           hit = true;
           if (select) {
-            pt1->flag |= GP_SPOINT_SELECT;
-            pt2->flag |= GP_SPOINT_SELECT;
-
+            if (pt1->runtime.pt_orig != NULL) {
+              pt1->runtime.pt_orig->flag |= GP_SPOINT_SELECT;
+            }
+            if (pt2->runtime.pt_orig != NULL) {
+              pt2->runtime.pt_orig->flag |= GP_SPOINT_SELECT;
+            }
             changed = true;
           }
           else {
-            pt1->flag &= ~GP_SPOINT_SELECT;
-            pt2->flag &= ~GP_SPOINT_SELECT;
-
+            if (pt1->runtime.pt_orig != NULL) {
+              pt1->runtime.pt_orig->flag &= ~GP_SPOINT_SELECT;
+            }
+            if (pt2->runtime.pt_orig != NULL) {
+              pt2->runtime.pt_orig->flag &= ~GP_SPOINT_SELECT;
+            }
             changed = true;
           }
         }
@@ -907,24 +935,28 @@ static bool gp_stroke_do_circle_sel(bGPDlayer *gpl,
     /* if stroke mode expand selection */
     if ((hit) && (selectmode == GP_SELECTMODE_STROKE)) {
       for (i = 0, pt1 = gps->points; i < gps->totpoints; i++, pt1++) {
-        if (select) {
-          pt1->flag |= GP_SPOINT_SELECT;
-        }
-        else {
-          pt1->flag &= ~GP_SPOINT_SELECT;
+        if (pt1->runtime.pt_orig != NULL) {
+          if (select) {
+            pt1->runtime.pt_orig->flag |= GP_SPOINT_SELECT;
+          }
+          else {
+            pt1->runtime.pt_orig->flag &= ~GP_SPOINT_SELECT;
+          }
         }
       }
     }
 
     /* expand selection to segment */
-    if ((hit) && (selectmode == GP_SELECTMODE_SEGMENT) && (select)) {
+    if ((hit) && (selectmode == GP_SELECTMODE_SEGMENT) && (select) &&
+        (pt1->runtime.pt_orig != NULL)) {
       float r_hita[3], r_hitb[3];
       bool hit_select = (bool)(pt1->flag & GP_SPOINT_SELECT);
-      ED_gpencil_select_stroke_segment(gpl, gps, pt1, hit_select, false, scale, r_hita, r_hitb);
+      ED_gpencil_select_stroke_segment(
+          gpl, gps_orig, pt1->runtime.pt_orig, hit_select, false, scale, r_hita, r_hitb);
     }
 
     /* Ensure that stroke selection is in sync with its points */
-    BKE_gpencil_stroke_sync_selection(gps);
+    BKE_gpencil_stroke_sync_selection(gps_orig);
   }
 
   return changed;
@@ -982,11 +1014,12 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
   rect.ymax = my + radius;
 
   /* find visible strokes, and select if hit */
-  GP_EDITABLE_STROKES_BEGIN (gpstroke_iter, C, gpl, gps) {
+  GP_EVALUATED_STROKES_BEGIN(gpstroke_iter, C, gpl, gps)
+  {
     changed |= gp_stroke_do_circle_sel(
         gpl, gps, &gsc, mx, my, radius, select, &rect, gpstroke_iter.diff_mat, selectmode, scale);
   }
-  GP_EDITABLE_STROKES_END(gpstroke_iter);
+  GP_EVALUATED_STROKES_END(gpstroke_iter);
 
   /* updates */
   if (changed) {
@@ -1090,27 +1123,38 @@ static int gpencil_generic_select_exec(bContext *C,
   }
 
   /* select/deselect points */
-  GP_EDITABLE_STROKES_BEGIN (gpstroke_iter, C, gpl, gps) {
+  GP_EVALUATED_STROKES_BEGIN(gpstroke_iter, C, gpl, gps)
+  {
 
     bGPDspoint *pt;
     int i;
     bool hit = false;
     for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+      if (pt->runtime.pt_orig == NULL) {
+        continue;
+      }
+
       /* convert point coords to screenspace */
       const bool is_inside = is_inside_fn(gps, pt, &gsc, gpstroke_iter.diff_mat, user_data);
       if (strokemode == false) {
-        const bool is_select = (pt->flag & GP_SPOINT_SELECT) != 0;
+        const bool is_select = (pt->runtime.pt_orig->flag & GP_SPOINT_SELECT) != 0;
         const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
         if (sel_op_result != -1) {
-          SET_FLAG_FROM_TEST(pt->flag, sel_op_result, GP_SPOINT_SELECT);
+          SET_FLAG_FROM_TEST(pt->runtime.pt_orig->flag, sel_op_result, GP_SPOINT_SELECT);
           changed = true;
 
           /* expand selection to segment */
           if ((sel_op_result != -1) && (segmentmode)) {
-            bool hit_select = (bool)(pt->flag & GP_SPOINT_SELECT);
+            bool hit_select = (bool)(pt->runtime.pt_orig->flag & GP_SPOINT_SELECT);
             float r_hita[3], r_hitb[3];
-            ED_gpencil_select_stroke_segment(
-                gpl, gps, pt, hit_select, false, scale, r_hita, r_hitb);
+            ED_gpencil_select_stroke_segment(gpl,
+                                             gps->runtime.gps_orig,
+                                             pt->runtime.pt_orig,
+                                             hit_select,
+                                             false,
+                                             scale,
+                                             r_hita,
+                                             r_hitb);
           }
         }
       }
@@ -1124,16 +1168,19 @@ static int gpencil_generic_select_exec(bContext *C,
 
     /* if stroke mode expand selection */
     if (strokemode) {
-      const bool is_select = BKE_gpencil_stroke_select_check(gps);
+      const bool is_select = BKE_gpencil_stroke_select_check(gps->runtime.gps_orig);
       const bool is_inside = hit;
       const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
       if (sel_op_result != -1) {
         for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+          if (pt->runtime.pt_orig == NULL) {
+            continue;
+          }
           if (sel_op_result) {
-            pt->flag |= GP_SPOINT_SELECT;
+            pt->runtime.pt_orig->flag |= GP_SPOINT_SELECT;
           }
           else {
-            pt->flag &= ~GP_SPOINT_SELECT;
+            pt->runtime.pt_orig->flag &= ~GP_SPOINT_SELECT;
           }
         }
         changed = true;
@@ -1141,9 +1188,9 @@ static int gpencil_generic_select_exec(bContext *C,
     }
 
     /* Ensure that stroke selection is in sync with its points */
-    BKE_gpencil_stroke_sync_selection(gps);
+    BKE_gpencil_stroke_sync_selection(gps->runtime.gps_orig);
   }
-  GP_EDITABLE_STROKES_END(gpstroke_iter);
+  GP_EVALUATED_STROKES_END(gpstroke_iter);
 
   /* if paint mode,delete selected points */
   if (gpd->flag & GP_DATA_STROKE_PAINTMODE) {
@@ -1365,13 +1412,17 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
 
   /* First Pass: Find stroke point which gets hit */
   /* XXX: maybe we should go from the top of the stack down instead... */
-  GP_EDITABLE_STROKES_BEGIN (gpstroke_iter, C, gpl, gps) {
+  GP_EVALUATED_STROKES_BEGIN(gpstroke_iter, C, gpl, gps)
+  {
     bGPDspoint *pt;
     int i;
 
     /* firstly, check for hit-point */
     for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
       int xy[2];
+      if (pt->runtime.pt_orig == NULL) {
+        continue;
+      }
 
       bGPDspoint pt2;
       gp_point_to_parent_space(pt, gpstroke_iter.diff_mat, &pt2);
@@ -1386,15 +1437,15 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
           /* only use this point if it is a better match than the current hit - T44685 */
           if (pt_distance < hit_distance) {
             hit_layer = gpl;
-            hit_stroke = gps;
-            hit_point = pt;
+            hit_stroke = gps->runtime.gps_orig;
+            hit_point = pt->runtime.pt_orig;
             hit_distance = pt_distance;
           }
         }
       }
     }
   }
-  GP_EDITABLE_STROKES_END(gpstroke_iter);
+  GP_EVALUATED_STROKES_END(gpstroke_iter);
 
   /* Abort if nothing hit... */
   if (ELEM(NULL, hit_stroke, hit_point)) {
