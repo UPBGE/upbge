@@ -234,6 +234,7 @@ typedef struct OBJECT_ShadingGroupList {
   /* Helpers */
   DRWCallBuffer *relationship_lines;
   DRWCallBuffer *constraint_lines;
+  DRWCallBuffer *origin_xform;
 
   /* Camera */
   DRWCallBuffer *camera;
@@ -1734,6 +1735,16 @@ static void OBJECT_cache_init(void *vedata)
         sgl->non_meshes, gb->colorWire, draw_ctx->sh_cfg);
     sgl->constraint_lines = buffer_dynlines_dashed_uniform_color(
         sgl->non_meshes, gb->colorGridAxisZ, draw_ctx->sh_cfg);
+
+    {
+      DRWShadingGroup *grp_axes;
+      sgl->origin_xform = buffer_instance_color_axes(
+          sgl->non_meshes, DRW_cache_bone_arrows_get(), &grp_axes, draw_ctx->sh_cfg);
+
+      DRW_shgroup_state_disable(grp_axes, DRW_STATE_DEPTH_LESS_EQUAL);
+      DRW_shgroup_state_enable(grp_axes, DRW_STATE_DEPTH_ALWAYS);
+      DRW_shgroup_state_enable(grp_axes, DRW_STATE_WIRE_SMOOTH);
+    }
 
     /* Force Field Curve Guide End (here because of stipple) */
     /* TODO port to shader stipple */
@@ -3675,6 +3686,15 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
     DRW_shgroup_bounds(sgl, ob, theme_id);
   }
 
+  /* Helpers for when we're transforming origins. */
+  if (scene->toolsettings->transform_flag & SCE_XFORM_DATA_ORIGIN) {
+    if (ob->base_flag & BASE_SELECTED) {
+      const float color[4] = {0.75, 0.75, 0.75, 0.5};
+      float axes_size = 1.0f;
+      DRW_buffer_add_entry(sgl->origin_xform, color, &axes_size, ob->obmat);
+    }
+  }
+
   /* don't show object extras in set's */
   if ((ob->base_flag & (BASE_FROM_SET | BASE_FROM_DUPLI)) == 0) {
     if ((draw_ctx->object_mode & (OB_MODE_ALL_PAINT | OB_MODE_ALL_PAINT_GPENCIL)) == 0) {
@@ -3685,7 +3705,7 @@ static void OBJECT_cache_populate(void *vedata, Object *ob)
       DRW_shgroup_relationship_lines(sgl, draw_ctx->depsgraph, scene, ob);
     }
 
-    const bool draw_extra = (ob->dtx != 0);
+    const bool draw_extra = ob->dtx & (OB_DRAWNAME | OB_TEXSPACE | OB_DRAWBOUNDOX);
     if (draw_extra && (theme_id == TH_UNDEFINED)) {
       theme_id = DRW_object_wire_theme_get(ob, view_layer, NULL);
     }
