@@ -283,7 +283,7 @@ void DRW_transform_to_display(GPUTexture *tex, bool use_view_transform, bool use
   bool use_ocio = false;
 
   /* Should we apply the view transform */
-  if (DRW_state_do_color_management() && !(DST.draw_ctx.scene->flag & SCE_INTERACTIVE)) {
+  if (DRW_state_do_color_management() /*&& !(DST.draw_ctx.scene->flag & SCE_INTERACTIVE)*/) {
     Scene *scene = DST.draw_ctx.scene;
     ColorManagedDisplaySettings *display_settings = &scene->display_settings;
     ColorManagedViewSettings view_settings;
@@ -3224,6 +3224,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 	DST.draw_ctx.depsgraph = depsgraph;
 
   DST.options.draw_background = true;
+  DST.options.do_color_management = true;
 
 	drw_context_state_init();
 	drw_viewport_var_init();
