@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Checker */
 
-ccl_device_noinline float svm_checker(float3 p)
+ccl_device float svm_checker(float3 p)
 {
   /* avoid precision issues on unit coordinates */
   p.x = (p.x + 0.000001f) * 0.999999f;
@@ -37,8 +37,8 @@ ccl_device void svm_node_tex_checker(KernelGlobals *kg, ShaderData *sd, float *s
   uint co_offset, color1_offset, color2_offset, scale_offset;
   uint color_offset, fac_offset;
 
-  decode_node_uchar4(node.y, &co_offset, &color1_offset, &color2_offset, &scale_offset);
-  decode_node_uchar4(node.z, &color_offset, &fac_offset, NULL, NULL);
+  svm_unpack_node_uchar4(node.y, &co_offset, &color1_offset, &color2_offset, &scale_offset);
+  svm_unpack_node_uchar2(node.z, &color_offset, &fac_offset);
 
   float3 co = stack_load_float3(stack, co_offset);
   float3 color1 = stack_load_float3(stack, color1_offset);

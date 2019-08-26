@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Brick */
 
-ccl_device_noinline float brick_noise(uint n) /* fast integer noise */
+ccl_device_inline float brick_noise(uint n) /* fast integer noise */
 {
   uint nn;
   n = (n + 1013) & 0x7fffffff;
@@ -27,16 +27,16 @@ ccl_device_noinline float brick_noise(uint n) /* fast integer noise */
   return 0.5f * ((float)nn / 1073741824.0f);
 }
 
-ccl_device_noinline float2 svm_brick(float3 p,
-                                     float mortar_size,
-                                     float mortar_smooth,
-                                     float bias,
-                                     float brick_width,
-                                     float row_height,
-                                     float offset_amount,
-                                     int offset_frequency,
-                                     float squash_amount,
-                                     int squash_frequency)
+ccl_device_noinline_cpu float2 svm_brick(float3 p,
+                                         float mortar_size,
+                                         float mortar_smooth,
+                                         float bias,
+                                         float brick_width,
+                                         float row_height,
+                                         float offset_amount,
+                                         int offset_frequency,
+                                         float squash_amount,
+                                         int squash_frequency)
 {
   int bricknum, rownum;
   float offset = 0.0f;
@@ -87,13 +87,13 @@ ccl_device void svm_node_tex_brick(
   /* RNA properties */
   uint offset_frequency, squash_frequency;
 
-  decode_node_uchar4(node.y, &co_offset, &color1_offset, &color2_offset, &mortar_offset);
-  decode_node_uchar4(
+  svm_unpack_node_uchar4(node.y, &co_offset, &color1_offset, &color2_offset, &mortar_offset);
+  svm_unpack_node_uchar4(
       node.z, &scale_offset, &mortar_size_offset, &bias_offset, &brick_width_offset);
-  decode_node_uchar4(
+  svm_unpack_node_uchar4(
       node.w, &row_height_offset, &color_offset, &fac_offset, &mortar_smooth_offset);
 
-  decode_node_uchar4(node2.x, &offset_frequency, &squash_frequency, NULL, NULL);
+  svm_unpack_node_uchar2(node2.x, &offset_frequency, &squash_frequency);
 
   float3 co = stack_load_float3(stack, co_offset);
 

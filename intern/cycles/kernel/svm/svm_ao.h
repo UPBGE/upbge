@@ -16,6 +16,8 @@
 
 CCL_NAMESPACE_BEGIN
 
+#ifdef __SHADER_RAYTRACE__
+
 ccl_device_noinline float svm_ao(KernelGlobals *kg,
                                  ShaderData *sd,
                                  float3 N,
@@ -64,13 +66,13 @@ ccl_device_noinline float svm_ao(KernelGlobals *kg,
     ray.dD = differential3_zero();
 
     if (flags & NODE_AO_ONLY_LOCAL) {
-      if (!scene_intersect_local(kg, ray, NULL, sd->object, NULL, 0)) {
+      if (!scene_intersect_local(kg, &ray, NULL, sd->object, NULL, 0)) {
         unoccluded++;
       }
     }
     else {
       Intersection isect;
-      if (!scene_intersect(kg, ray, PATH_RAY_SHADOW_OPAQUE, &isect)) {
+      if (!scene_intersect(kg, &ray, PATH_RAY_SHADOW_OPAQUE, &isect)) {
         unoccluded++;
       }
     }
@@ -83,10 +85,10 @@ ccl_device void svm_node_ao(
     KernelGlobals *kg, ShaderData *sd, ccl_addr_space PathState *state, float *stack, uint4 node)
 {
   uint flags, dist_offset, normal_offset, out_ao_offset;
-  decode_node_uchar4(node.y, &flags, &dist_offset, &normal_offset, &out_ao_offset);
+  svm_unpack_node_uchar4(node.y, &flags, &dist_offset, &normal_offset, &out_ao_offset);
 
   uint color_offset, out_color_offset, samples;
-  decode_node_uchar4(node.z, &color_offset, &out_color_offset, &samples, NULL);
+  svm_unpack_node_uchar3(node.z, &color_offset, &out_color_offset, &samples);
 
   float dist = stack_load_float_default(stack, dist_offset, node.w);
   float3 normal = stack_valid(normal_offset) ? stack_load_float3(stack, normal_offset) : sd->N;
@@ -101,5 +103,7 @@ ccl_device void svm_node_ao(
     stack_store_float3(stack, out_color_offset, ao * color);
   }
 }
+
+#endif /* __SHADER_RAYTRACE__ */
 
 CCL_NAMESPACE_END

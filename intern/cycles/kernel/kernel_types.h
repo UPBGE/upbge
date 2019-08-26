@@ -115,7 +115,6 @@ CCL_NAMESPACE_BEGIN
 #  define __LAMP_MIS__
 #  define __CAMERA_MOTION__
 #  define __OBJECT_MOTION__
-#  define __HAIR__
 #  define __BAKING__
 #  define __PRINCIPLED__
 #  define __SUBSURFACE__
@@ -650,9 +649,8 @@ typedef struct Ray {
  * is fixed.
  */
 #ifndef __KERNEL_OPENCL_AMD__
-  float3 P; /* origin */
-  float3 D; /* direction */
-
+  float3 P;   /* origin */
+  float3 D;   /* direction */
   float t;    /* length of the ray */
   float time; /* time (for motion blur) */
 #else
