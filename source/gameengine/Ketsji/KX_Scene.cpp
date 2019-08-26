@@ -454,7 +454,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   rasty->SetViewport(v[0], v[1], v[2], v[3]);
   rasty->SetScissor(v[0], v[1], v[2], v[3]);
 
-  DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()), true, false);
+  DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()), true, true);
 
   if (!calledFromConstructor) {
     engine->EndFrame();
