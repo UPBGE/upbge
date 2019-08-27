@@ -24,6 +24,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_system.h"
 
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -2703,6 +2704,10 @@ static void node_composit_buts_denoise(uiLayout *layout, bContext *UNUSED(C), Po
 {
 #ifndef WITH_OPENIMAGEDENOISE
   uiItemL(layout, IFACE_("Disabled, built without OpenImageDenoise"), ICON_ERROR);
+#else
+  if (!BLI_cpu_support_sse41()) {
+    uiItemL(layout, IFACE_("Disabled, CPU with SSE4.1 is required"), ICON_ERROR);
+  }
 #endif
 
   uiItemR(layout, ptr, "use_hdr", 0, NULL, ICON_NONE);
