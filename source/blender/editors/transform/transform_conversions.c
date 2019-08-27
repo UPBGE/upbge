@@ -7128,7 +7128,7 @@ static void special_aftertrans_update__mesh(bContext *UNUSED(C), TransInfo *t)
 
       if (t->scene->toolsettings->automerge & AUTO_MERGE) {
         if (t->scene->toolsettings->automerge & AUTO_MERGE_AND_SPLIT) {
-          EDBM_automerge_and_split(t->scene, tc->obedit, true, true, hflag);
+          EDBM_automerge_and_split(t->scene, tc->obedit, true, true, true, hflag);
         }
         else {
           EDBM_automerge(t->scene, tc->obedit, true, hflag);
@@ -7722,6 +7722,10 @@ static void trans_obdata_in_obmode_ensure_object(TransInfo *t, Object *ob)
 
 void trans_obdata_in_obmode_update_all(TransInfo *t)
 {
+  if (t->obdata_in_obmode_map == NULL) {
+    return;
+  }
+
   struct Main *bmain = CTX_data_main(t->context);
   BKE_scene_graph_evaluated_ensure(t->depsgraph, bmain);
 

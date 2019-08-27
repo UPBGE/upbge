@@ -176,7 +176,7 @@ void loadTexture(unsigned int texId, unsigned int *texture, short *size,
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		ibuf = IMB_allocFromBuffer(texture, nullptr, size[0], size[1]);
+		ibuf = IMB_allocFromBuffer(texture, nullptr, size[0], size[1], 4);
 
 		IMB_makemipmap(ibuf, true);
 
@@ -433,7 +433,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 					if (size[0] != orgSize[0] || size[1] != orgSize[1])
 					{
 						IMB_freeImBuf(m_scaledImBuf);
-						m_scaledImBuf = IMB_allocFromBuffer(texture, nullptr, orgSize[0], orgSize[1]);
+						m_scaledImBuf = IMB_allocFromBuffer(texture, nullptr, orgSize[0], orgSize[1], 4);
 						IMB_scaleImBuf(m_scaledImBuf, size[0], size[1]);
 						// use scaled image instead original
 						texture = m_scaledImBuf->rect;
