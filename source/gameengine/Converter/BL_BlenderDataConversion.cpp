@@ -152,6 +152,7 @@ extern "C" {
 #include "BKE_DerivedMesh.h"
 #include "BKE_layer.h"
 #include "BKE_material.h" /* give_current_material */
+#include "BKE_mesh_runtime.h"
 #include "BKE_image.h"
 #include "IMB_imbuf_types.h"
 #include "BKE_displist.h"
@@ -475,7 +476,11 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	}
 
 	// Get DerivedMesh data
-	DerivedMesh *dm = CDDM_from_mesh(mesh);
+    Scene *bl_scene = scene->GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(bl_scene);
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bl_scene, view_layer, false);
+	Mesh *final_me = mesh_get_eval_final(depsgraph, bl_scene, blenderobj, &CD_MASK_MESH);
+	DerivedMesh *dm = CDDM_from_mesh(final_me);
 	DM_ensure_tessface(dm);
 
 	MVert *mvert = dm->getVertArray(dm);
@@ -541,7 +546,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		}
 	}
 
-	meshobj = new RAS_MeshObject(mesh, layersInfo);
+	meshobj = new RAS_MeshObject(final_me, layersInfo);
 
 	meshobj->m_sharedvertex_map.resize(totvert);
 
@@ -574,8 +579,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	}
 
 	// Convert all the materials contained in the mesh.
-	for (unsigned short i = 0, size = max_ii(mesh->totcol, 1); i < size; ++i) {
-		ma = mesh->mat ? mesh->mat[i] : nullptr;
+	for (unsigned short i = 0, size = max_ii(final_me->totcol, 1); i < size; ++i) {
+		ma = final_me->mat ? final_me->mat[i] : nullptr;
 		// Check for blender material
 		if (!ma) {
 			ma = &defmaterial;
@@ -630,7 +635,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		if (blenderobj)
 			ma = give_current_material(blenderobj, mface->mat_nr+1);
 		else
-			ma = mesh->mat ? mesh->mat[mface->mat_nr]:nullptr;
+			ma = final_me->mat ? final_me->mat[mface->mat_nr]:nullptr;
 
 		// Check for blender material
 		if (ma == nullptr) {
@@ -717,7 +722,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	dm->release(dm);
 
-	converter.RegisterGameMesh(meshobj, mesh);
+	converter.RegisterGameMesh(meshobj, final_me);
 	return meshobj;
 }
 
