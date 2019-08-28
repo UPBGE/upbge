@@ -87,6 +87,7 @@
 
 /* eevee integration */
 extern "C" {
+#include "BKE_DerivedMesh.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mball.h"
@@ -182,6 +183,7 @@ KX_GameObject::~KX_GameObject()
     SetVisible(m_visibleAtGameStart, false);
     RemoveReplicaObject();
     if (ob) {
+      ob->derivedFinal->needsFree = 1;
       ob->derivedFinal = NULL; // hack to avoid crash when using updatePhysicsShape at ge exit
 	}
     if (ob && ob->type == OB_MBALL) {
