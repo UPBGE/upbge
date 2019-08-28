@@ -3048,7 +3048,7 @@ static void mesh_build_derived_data(struct Depsgraph *depsgraph,
    * they aren't cleaned up properly on mode switch, causing crashes, e.g T58150. */
   BLI_assert(ob->id.tag & LIB_TAG_COPIED_ON_WRITE);
 
-  BKE_object_free_derived_caches2(ob);
+  BKE_object_free_derived_caches(ob);
   if (DEG_is_active(depsgraph)) {
     BKE_sculpt_update_object_before_eval(ob);
   }

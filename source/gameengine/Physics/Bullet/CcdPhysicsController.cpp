@@ -52,6 +52,7 @@ extern "C" {
 	#include "BKE_cdderivedmesh.h"
     #include "BKE_mesh_runtime.h"
     #include "BKE_layer.h"
+    #include "BKE_object.h"
     #include "BKE_scene.h"
 }
 
@@ -2302,8 +2303,9 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob)
 
 	m_meshObject = meshobj;
 	if (free_dm) {
-		dm->release(dm);
-		dm = nullptr;
+		//dm->release(dm);
+		//dm = nullptr;
+      BKE_object_free_derived_caches(ob);
 	}
 
 	// sharing only on static mesh at present, if you change that, you must also change in FindMesh

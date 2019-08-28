@@ -419,10 +419,6 @@ struct Mesh *BKE_object_to_mesh(struct Depsgraph *depsgraph,
 
 void BKE_object_to_mesh_clear(struct Object *object);
 
-/* Game engine transition physics shape */
-void BKE_object_free_derived_caches2(struct Object *ob);
-/* End of Game engine transition */
-
 #ifdef __cplusplus
 }
 #endif

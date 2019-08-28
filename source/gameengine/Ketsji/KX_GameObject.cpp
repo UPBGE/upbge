@@ -118,7 +118,6 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
       m_staticObject(true),         // eevee
       m_useCopy(false),             // eevee
       m_visibleAtGameStart(false),  // eevee
-      m_physicsShapeUpdated(false), //eevee
       m_layer(0),
       m_pBlenderObject(nullptr),
       m_pBlenderGroupObject(nullptr),
@@ -183,10 +182,7 @@ KX_GameObject::~KX_GameObject()
   else {  // at scene exit
     SetVisible(m_visibleAtGameStart, false);
     RemoveReplicaObject();
-    if (ob && m_physicsShapeUpdated) {
-      //ob->derivedFinal->needsFree = 1;
-      ob->derivedFinal = NULL; // hack to avoid crash when using updatePhysicsShape at ge exit
-	}
+
     if (ob && ob->type == OB_MBALL) {
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     }
@@ -1946,7 +1942,6 @@ PyObject *KX_GameObject::PyUpdatePhysicsShape()
   if (GetPhysicsController()) {
 
     GetPhysicsController()->ReinstancePhysicsShape2(GetMesh(0), GetBlenderObject());
-    m_physicsShapeUpdated = true;
     Py_RETURN_NONE;
   }
   Py_RETURN_NONE;

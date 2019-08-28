@@ -91,7 +91,6 @@ protected:
 	bool m_staticObject;
   bool m_useCopy;
   bool m_visibleAtGameStart;
-  bool m_physicsShapeUpdated;
 	/* END OF EEVEE INTEGRATION */
 
 
