@@ -183,7 +183,7 @@ KX_GameObject::~KX_GameObject()
     SetVisible(m_visibleAtGameStart, false);
     RemoveReplicaObject();
     if (ob) {
-      ob->derivedFinal->needsFree = 1;
+      //ob->derivedFinal->needsFree = 1;
       ob->derivedFinal = NULL; // hack to avoid crash when using updatePhysicsShape at ge exit
 	}
     if (ob && ob->type == OB_MBALL) {
