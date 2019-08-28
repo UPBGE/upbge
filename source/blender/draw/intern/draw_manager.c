@@ -3137,7 +3137,7 @@ static RegionView3D game_rv3d;
 static Camera *game_default_camera = NULL;
 
 GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
-	float view[4][4], float viewinv[4][4], float proj[4][4], float projinv[4][4], float pers[4][4], float persinv[4][4],
+	float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
   int v[4], bool called_from_constructor, bool reset_taa_samples)
 {
 	/* Reset before using it. */

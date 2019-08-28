@@ -401,14 +401,12 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   float view[4][4];
   float viewinv[4][4];
   float proj[4][4];
-  float projinv[4][4];
   float pers[4][4];
   float persinv[4][4];
 
   m.view.getValue(&view[0][0]);
   m.viewinv.getValue(&viewinv[0][0]);
   m.proj.getValue(&proj[0][0]);
-  m.projinv.getValue(&projinv[0][0]);
   m.pers.getValue(&pers[0][0]);
   m.persinv.getValue(&persinv[0][0]);
 
@@ -420,7 +418,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
                                               view,
                                               viewinv,
                                               proj,
-                                              projinv,
                                               pers,
                                               persinv,
                                               v,
