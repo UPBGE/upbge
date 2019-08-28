@@ -112,11 +112,11 @@ static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
 
 KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
     : SCA_IObject(),
-      m_castShadows(true),    // eevee
-      m_isReplica(false),     // eevee
-      m_staticObject(true),   // eevee
-      m_useCopy(false), // eevee
-	  m_visibleAtGameStart(false), // eevee
+      m_castShadows(true),          // eevee
+      m_isReplica(false),           // eevee
+      m_staticObject(true),         // eevee
+      m_useCopy(false),             // eevee
+      m_visibleAtGameStart(false),  // eevee
       m_layer(0),
       m_pBlenderObject(nullptr),
       m_pBlenderGroupObject(nullptr),
@@ -178,9 +178,12 @@ KX_GameObject::~KX_GameObject()
     HideOriginalObject();
     RemoveReplicaObject();
   }
-  else {                    // at scene exit
+  else {  // at scene exit
     SetVisible(m_visibleAtGameStart, false);
     RemoveReplicaObject();
+    if (ob) {
+      ob->derivedFinal = NULL; // hack to avoid crash when using updatePhysicsShape at ge exit
+	}
     if (ob && ob->type == OB_MBALL) {
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     }
@@ -889,7 +892,7 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
 {
   Object *ob = GetBlenderObject();
   if (ob) {
-	Scene *scene = GetScene()->GetBlenderScene();
+    Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
     if (v) {
