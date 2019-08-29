@@ -111,11 +111,11 @@ void BKE_override_library_copy(ID *dst_id, const ID *src_id)
 
   if (dst_id->override_library != NULL) {
     if (src_id->override_library == NULL) {
-      BKE_override_library_free(&dst_id->override_library);
+      BKE_override_library_free(&dst_id->override_library, true);
       return;
     }
     else {
-      BKE_override_library_clear(dst_id->override_library);
+      BKE_override_library_clear(dst_id->override_library, true);
     }
   }
   else if (src_id->override_library == NULL) {
@@ -144,7 +144,7 @@ void BKE_override_library_copy(ID *dst_id, const ID *src_id)
 }
 
 /** Clear any overriding data from given \a override. */
-void BKE_override_library_clear(IDOverrideLibrary *override)
+void BKE_override_library_clear(IDOverrideLibrary *override, const bool do_id_user)
 {
   BLI_assert(override != NULL);
 
@@ -153,16 +153,18 @@ void BKE_override_library_clear(IDOverrideLibrary *override)
   }
   BLI_freelistN(&override->properties);
 
-  id_us_min(override->reference);
-  /* override->storage should never be refcounted... */
+  if (do_id_user) {
+    id_us_min(override->reference);
+    /* override->storage should never be refcounted... */
+  }
 }
 
 /** Free given \a override. */
-void BKE_override_library_free(struct IDOverrideLibrary **override)
+void BKE_override_library_free(struct IDOverrideLibrary **override, const bool do_id_user)
 {
   BLI_assert(*override != NULL);
 
-  BKE_override_library_clear(*override);
+  BKE_override_library_clear(*override, do_id_user);
   MEM_freeN(*override);
   *override = NULL;
 }
@@ -205,6 +207,11 @@ ID *BKE_override_library_create_from_id(Main *bmain, ID *reference_id)
  * \note Set id->newid of overridden libs with newly created overrides,
  * caller is responsible to clean those pointers before/after usage as needed.
  *
+ * \note By default, it will only remap newly created local overriding data-blocks between
+ * themselves, to avoid 'enforcing' those overrides into all other usages of the linked data in
+ * main. You can add more local IDs to be remapped to use new overriding ones by setting their
+ * LIB_TAG_DOIT tag.
+ *
  * \return \a true on success, \a false otherwise.
  */
 bool BKE_override_library_create_from_tag(Main *bmain)
@@ -212,26 +219,59 @@ bool BKE_override_library_create_from_tag(Main *bmain)
   ID *reference_id;
   bool ret = true;
 
+  ListBase todo_ids = {NULL};
+  LinkData *todo_id_iter;
+
+  /* Get all IDs we want to override. */
   FOREACH_MAIN_ID_BEGIN (bmain, reference_id) {
     if ((reference_id->tag & LIB_TAG_DOIT) != 0 && reference_id->lib != NULL) {
-      if ((reference_id->newid = override_library_create_from(bmain, reference_id)) == NULL) {
-        ret = false;
-      }
+      todo_id_iter = MEM_callocN(sizeof(*todo_id_iter), __func__);
+      todo_id_iter->data = reference_id;
+      BLI_addtail(&todo_ids, todo_id_iter);
     }
   }
   FOREACH_MAIN_ID_END;
 
-  FOREACH_MAIN_ID_BEGIN (bmain, reference_id) {
-    if ((reference_id->tag & LIB_TAG_DOIT) != 0 && reference_id->lib != NULL &&
-        reference_id->newid != NULL) {
-      ID *local_id = reference_id->newid;
-      BKE_libblock_remap(bmain,
-                         reference_id,
-                         local_id,
-                         ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_OVERRIDE_LIBRARY);
+  /* Override the IDs. */
+  for (todo_id_iter = todo_ids.first; todo_id_iter != NULL; todo_id_iter = todo_id_iter->next) {
+    reference_id = todo_id_iter->data;
+    if ((reference_id->newid = override_library_create_from(bmain, reference_id)) == NULL) {
+      ret = false;
+    }
+    else {
+      /* We also tag the new IDs so that in next step we can remap their pointers too. */
+      reference_id->newid->tag |= LIB_TAG_DOIT;
     }
   }
-  FOREACH_MAIN_ID_END;
+
+  /* Only remap new local ID's pointers, we don't want to force our new overrides onto our whole
+   * existing linked IDs usages. */
+  for (todo_id_iter = todo_ids.first; todo_id_iter != NULL; todo_id_iter = todo_id_iter->next) {
+    ID *other_id;
+    reference_id = todo_id_iter->data;
+
+    if (reference_id->newid == NULL) {
+      continue;
+    }
+
+    /* Still checking the whole Main, that way we can tag other local IDs as needing to be remapped
+     * to use newly created overriding IDs, if needed. */
+    FOREACH_MAIN_ID_BEGIN (bmain, other_id) {
+      if ((other_id->tag & LIB_TAG_DOIT) != 0 && other_id->lib == NULL) {
+        ID *local_id = reference_id->newid;
+        /* Note that using ID_REMAP_SKIP_INDIRECT_USAGE below is superfluous, as we only remap
+         * local IDs usages anyway... */
+        BKE_libblock_relink_ex(bmain,
+                               other_id,
+                               reference_id,
+                               local_id,
+                               ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_OVERRIDE_LIBRARY);
+      }
+    }
+    FOREACH_MAIN_ID_END;
+  }
+
+  BLI_freelistN(&todo_ids);
 
   return ret;
 }
