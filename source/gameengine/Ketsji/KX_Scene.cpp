@@ -410,8 +410,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   m.pers.getValue(&pers[0][0]);
   m.persinv.getValue(&persinv[0][0]);
 
-  int viewportsize[2] = {canvas->GetWidth(), canvas->GetHeight()};
-
   GPUTexture *finaltex = DRW_game_render_loop(bmain,
                                               scene,
                                               maincam,
@@ -431,7 +429,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     // I create an extra depth tex to attach to output filter framebuffer to write depth and use
     // bgl_DepthTexture
     m_2dfiltersDepthTex = GPU_texture_create_2d(
-        viewportsize[0], viewportsize[1], GPU_DEPTH24_STENCIL8, nullptr, nullptr);
+        v[2], v[3], GPU_DEPTH24_STENCIL8, nullptr, nullptr);
   }
 
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), finaltex, 0, 0);
