@@ -170,9 +170,10 @@ static bool edbm_vert_pair_share_splittable_face_cb(BMFace *UNUSED(f),
   float lambda;
   if (isect_ray_seg_v3(v_a_co, v_a_b_dir, l_a->prev->v->co, l_a->next->v->co, &lambda)) {
     if (IN_RANGE(lambda, 0.0f, 1.0f)) {
-      if (isect_ray_seg_v3(v_a_co, v_a_b_dir, l_b->prev->v->co, l_b->next->v->co, &lambda)) {
-        return IN_RANGE(lambda, 0.0f, 1.0f);
-      }
+      return true;
+    }
+    else if (isect_ray_seg_v3(v_a_co, v_a_b_dir, l_b->prev->v->co, l_b->next->v->co, &lambda)) {
+      return IN_RANGE(lambda, 0.0f, 1.0f);
     }
   }
   return false;
@@ -198,6 +199,11 @@ static void edbm_automerge_weld_linked_wire_edges_into_linked_faces(BMesh *bm,
       }
       edgenet[edgenet_len++] = e;
       v_other = BM_edge_other_vert(e, v_other);
+      if (v_other == v) {
+        /* Endless loop. */
+        break;
+      }
+
       BMEdge *e_next = BM_DISK_EDGE_NEXT(e, v_other);
       if (e_next == e) {
         /* Vert is wire_endpoint */
