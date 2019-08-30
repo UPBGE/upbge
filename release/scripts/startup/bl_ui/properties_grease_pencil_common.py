@@ -591,6 +591,30 @@ class GPENCIL_MT_snap(Menu):
         layout.operator("view3d.snap_cursor_to_grid", text="Cursor to Grid")
 
 
+class GPENCIL_MT_move_to_layer(Menu):
+    bl_label = "Move to Layer"
+
+    def draw(self, context):
+        layout = self.layout
+        gpd = context.gpencil_data
+        if gpd:
+            gpl_active = context.active_gpencil_layer
+            tot_layers = len(gpd.layers)
+            i = tot_layers - 1
+            while(i >= 0):
+                gpl = gpd.layers[i]
+                if gpl.info == gpl_active.info:
+                    icon='GREASEPENCIL'
+                else:
+                    icon = 'NONE'
+                layout.operator("gpencil.move_to_layer", text=gpl.info, icon=icon).layer=i
+                i -= 1
+
+            layout.separator()
+
+        layout.operator("gpencil.layer_add", text="New Layer", icon='ADD')
+
+
 class GPENCIL_MT_gpencil_draw_delete(Menu):
     bl_label = "Delete"
 
@@ -868,7 +892,8 @@ class GreasePencilMaterialsPanel:
             if is_view3d and brush is not None:
                 gp_settings = brush.gpencil_settings
                 if gp_settings.use_material_pin is False:
-                    ma = ob.material_slots[ob.active_material_index].material
+                    if ob.active_material_index > 0:
+                        ma = ob.material_slots[ob.active_material_index].material
                 else:
                     ma = gp_settings.material
 
@@ -934,6 +959,7 @@ classes = (
 
     GPENCIL_MT_snap,
     GPENCIL_MT_cleanup,
+    GPENCIL_MT_move_to_layer,
 
     GPENCIL_MT_gpencil_draw_delete,
 

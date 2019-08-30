@@ -1191,10 +1191,15 @@ static int gp_strokes_copy_exec(bContext *C, wmOperator *op)
     GHash *ma_to_name = gp_strokes_copypastebuf_colors_material_to_name_create(bmain);
     for (bGPDstroke *gps = gp_strokes_copypastebuf.first; gps; gps = gps->next) {
       if (ED_gpencil_stroke_can_use(C, gps)) {
+        Material *ma = give_current_material(ob, gps->mat_nr + 1);
+        /* Avoid default material. */
+        if (ma == NULL) {
+          continue;
+        }
+
         char **ma_name_val;
         if (!BLI_ghash_ensure_p(
                 gp_strokes_copypastebuf_colors, &gps->mat_nr, (void ***)&ma_name_val)) {
-          Material *ma = give_current_material(ob, gps->mat_nr + 1);
           char *ma_name = BLI_ghash_lookup(ma_to_name, ma);
           *ma_name_val = MEM_dupallocN(ma_name);
         }
@@ -1361,7 +1366,7 @@ static int gp_strokes_paste_exec(bContext *C, wmOperator *op)
         /* Remap material */
         Material *ma = BLI_ghash_lookup(new_colors, POINTER_FROM_INT(new_stroke->mat_nr));
         new_stroke->mat_nr = BKE_gpencil_object_material_get_index(ob, ma);
-        BLI_assert(new_stroke->mat_nr >= 0); /* have to add the material first */
+        CLAMP_MIN(new_stroke->mat_nr, 0);
       }
     }
   }
@@ -1402,28 +1407,13 @@ void GPENCIL_OT_paste(wmOperatorType *ot)
 
 /* ******************* Move To Layer ****************************** */
 
-static int gp_move_to_layer_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(evt))
-{
-  uiPopupMenu *pup;
-  uiLayout *layout;
-
-  /* call the menu, which will call this operator again, hence the canceled */
-  pup = UI_popup_menu_begin(C, op->type->name, ICON_NONE);
-  layout = UI_popup_menu_layout(pup);
-  uiItemsEnumO(layout, "GPENCIL_OT_move_to_layer", "layer");
-  UI_popup_menu_end(C, pup);
-
-  return OPERATOR_INTERFACE;
-}
-
-// FIXME: allow moving partial strokes
 static int gp_move_to_layer_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = CTX_data_gpencil_data(C);
   Scene *scene = CTX_data_scene(C);
   bGPDlayer *target_layer = NULL;
   ListBase strokes = {NULL, NULL};
-  int layer_num = RNA_enum_get(op->ptr, "layer");
+  int layer_num = RNA_int_get(op->ptr, "layer");
   const bool use_autolock = (bool)(gpd->flag & GP_DATA_AUTOLOCK_LAYERS);
 
   if (GPENCIL_MULTIEDIT_SESSIONS_ON(gpd)) {
@@ -1436,23 +1426,16 @@ static int gp_move_to_layer_exec(bContext *C, wmOperator *op)
     gpd->flag &= ~GP_DATA_AUTOLOCK_LAYERS;
   }
 
-  /* Get layer or create new one */
-  if (layer_num == -1) {
-    /* Create layer */
-    target_layer = BKE_gpencil_layer_addnew(gpd, DATA_("GP_Layer"), true);
-  }
-  else {
-    /* Try to get layer */
-    target_layer = BLI_findlink(&gpd->layers, layer_num);
+  /* Try to get layer */
+  target_layer = BLI_findlink(&gpd->layers, layer_num);
 
-    if (target_layer == NULL) {
-      /* back autolock status */
-      if (use_autolock) {
-        gpd->flag |= GP_DATA_AUTOLOCK_LAYERS;
-      }
-      BKE_reportf(op->reports, RPT_ERROR, "There is no layer number %d", layer_num);
-      return OPERATOR_CANCELLED;
+  if (target_layer == NULL) {
+    /* back autolock status */
+    if (use_autolock) {
+      gpd->flag |= GP_DATA_AUTOLOCK_LAYERS;
     }
+    BKE_reportf(op->reports, RPT_ERROR, "There is no layer number %d", layer_num);
+    return OPERATOR_CANCELLED;
   }
 
   /* Extract all strokes to move to this layer
@@ -1520,16 +1503,14 @@ void GPENCIL_OT_move_to_layer(wmOperatorType *ot)
       "Move selected strokes to another layer";  // XXX: allow moving individual points too?
 
   /* callbacks */
-  ot->invoke = gp_move_to_layer_invoke;
   ot->exec = gp_move_to_layer_exec;
   ot->poll = gp_stroke_edit_poll;  // XXX?
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* gp layer to use (dynamic enum) */
-  ot->prop = RNA_def_enum(ot->srna, "layer", DummyRNA_DEFAULT_items, 0, "Grease Pencil Layer", "");
-  RNA_def_enum_funcs(ot->prop, ED_gpencil_layers_with_new_enum_itemf);
+  /* GPencil layer to use. */
+  ot->prop = RNA_def_int(ot->srna, "layer", 0, 0, INT_MAX, "Grease Pencil Layer", "", 0, INT_MAX);
 }
 
 /* ********************* Add Blank Frame *************************** */
@@ -4092,7 +4073,7 @@ static int gp_stroke_separate_exec(bContext *C, wmOperator *op)
               /* add duplicate materials */
 
               /* XXX same material can be in multiple slots. */
-              ma = give_current_material(ob, gps->mat_nr + 1);
+              ma = BKE_material_gpencil_get(ob, gps->mat_nr + 1);
 
               idx = BKE_gpencil_object_material_ensure(bmain, ob_dst, ma);
 
@@ -4165,7 +4146,7 @@ static int gp_stroke_separate_exec(bContext *C, wmOperator *op)
           if (ED_gpencil_stroke_can_use(C, gps) == false) {
             continue;
           }
-          ma = give_current_material(ob, gps->mat_nr + 1);
+          ma = BKE_material_gpencil_get(ob, gps->mat_nr + 1);
           gps->mat_nr = BKE_gpencil_object_material_ensure(bmain, ob_dst, ma);
         }
       }

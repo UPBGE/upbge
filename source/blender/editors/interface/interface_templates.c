@@ -3161,7 +3161,7 @@ static void colorband_buttons_layout(uiLayout *layout,
                 &coba->cur,
                 0.0,
                 (float)(MAX2(0, coba->tot - 1)),
-                0,
+                1,
                 0,
                 TIP_("Choose active color stop"));
       row = uiLayoutRow(split, false);
@@ -3191,7 +3191,7 @@ static void colorband_buttons_layout(uiLayout *layout,
                 &coba->cur,
                 0.0,
                 (float)(MAX2(0, coba->tot - 1)),
-                0,
+                1,
                 0,
                 TIP_("Choose active color stop"));
       row = uiLayoutRow(subsplit, false);
