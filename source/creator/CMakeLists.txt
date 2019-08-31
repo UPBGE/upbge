@@ -835,18 +835,6 @@ elseif(WIN32)
     )
   endif()
 
-  if(NOT CMAKE_CL_64)
-    install(
-      FILES ${LIBDIR}/thumbhandler/lib/BlendThumb.dll
-      DESTINATION "."
-    )
-  endif()
-
-  install( # x86 builds can run on x64 Windows, so this is required at all times
-    FILES ${LIBDIR}/thumbhandler/lib/BlendThumb64.dll
-    DESTINATION "."
-  )
-
   install(
     FILES
       ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_gpu.cmd

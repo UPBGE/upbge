@@ -233,11 +233,18 @@ endif
 ifneq "$(findstring ninja, $(MAKECMDGOALS))" ""
 	BUILD_CMAKE_ARGS:=$(BUILD_CMAKE_ARGS) -G Ninja
 	BUILD_COMMAND:=ninja
+	DEPS_BUILD_COMMAND:=ninja
 else
 	ifneq ("$(wildcard $(BUILD_DIR)/build.ninja)","")
 		BUILD_COMMAND:=ninja
 	else
 		BUILD_COMMAND:=make -s
+	endif
+
+	ifneq ("$(wildcard $(DEPS_BUILD_DIR)/build.ninja)","")
+		DEPS_BUILD_COMMAND:=ninja
+	else
+		DEPS_BUILD_COMMAND:=make -s
 	endif
 endif
 
@@ -333,7 +340,7 @@ deps: .FORCE
 
 	@echo
 	@echo Building dependencies ...
-	$(BUILD_COMMAND) -C "$(DEPS_BUILD_DIR)" -j $(NPROCS) $(DEPS_TARGET)
+	$(DEPS_BUILD_COMMAND) -C "$(DEPS_BUILD_DIR)" -j $(NPROCS) $(DEPS_TARGET)
 	@echo
 	@echo Dependencies successfully built and installed to $(DEPS_INSTALL_DIR).
 	@echo
@@ -368,7 +375,7 @@ package_archive: .FORCE
 # Tests
 #
 test: .FORCE
-	cd $(BUILD_DIR) ; ctest . --output-on-failure
+	python3 ./build_files/utils/make_test.py "$(BUILD_DIR)"
 
 # run pep8 check check on scripts we distribute.
 test_pep8: .FORCE
@@ -524,17 +531,7 @@ icons_geom: .FORCE
 	    "$(BLENDER_DIR)/release/datafiles/blender_icons_geom_update.py"
 
 update: .FORCE
-	if [ "$(OS_NCASE)" = "darwin" ] && [ ! -d "../lib/$(OS_NCASE)" ]; then \
-		svn checkout https://svn.blender.org/svnroot/bf-blender/trunk/lib/$(OS_NCASE) ../lib/$(OS_NCASE) ; \
-	fi
-	if [ -d "../lib" ]; then \
-		svn cleanup ../lib/* ; \
-		svn update ../lib/* ; \
-	fi
-	git pull --rebase
-	git submodule update --init --recursive
-	git submodule foreach git checkout master
-	git submodule foreach git pull --rebase origin master
+	python3 ./build_files/utils/make_update.py
 
 format: .FORCE
 	PATH="../lib/${OS_NCASE}/llvm/bin/:$(PATH)" \
