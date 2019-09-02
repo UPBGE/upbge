@@ -1435,7 +1435,7 @@ static int make_links_scene_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Collection *collection_to = BKE_collection_master(scene_to);
+  Collection *collection_to = scene_to->master_collection;
   CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
     BKE_collection_object_add(bmain, collection_to, base->object);
   }
@@ -1771,16 +1771,17 @@ static Collection *single_object_users_collection(Main *bmain,
 static void single_object_users(
     Main *bmain, Scene *scene, View3D *v3d, const int flag, const bool copy_collections)
 {
-	clear_sca_new_poins();  /* BGE logic */
+  clear_sca_new_poins();  /* BGE logic */
+  
+  /* duplicate all the objects of the scene (and matching collections, if required). */
+  Collection *master_collection = scene->master_collection;
+  single_object_users_collection(bmain, scene, master_collection, flag, copy_collections, true);
 
-	/* duplicate all the objects of the scene */
-	Collection *master_collection = BKE_collection_master(scene);
-	single_object_users_collection(bmain, scene, master_collection, flag, copy_collections, true);
-
-	/* duplicate collections that consist entirely of duplicated objects */
-	/* XXX I guess that was designed for calls from 'make single user' operator... But since copy_collection is
-	 *     always false then, was not doing anything. And that kind of behavior should be added at operator level,
-	 *     not in a utility function also used by rather different code... */
+  /* duplicate collections that consist entirely of duplicated objects */
+  /* XXX I guess that was designed for calls from 'make single user' operator.
+   *     But since copy_collection is always false then, was not doing anything.
+   *     And that kind of behavior should be added at operator level,
+   *     not in a utility function also used by rather different code. */
 #if 0
   if (copy_collections) {
     Collection *collection, *collectionn;
@@ -1820,10 +1821,11 @@ static void single_object_users(
     ID_NEW_REMAP(v3d->camera);
   }
 
-	/* Making single user may affect other scenes if they share with current one some collections in their ViewLayer. */
-	BKE_main_collection_sync(bmain);
-
-	set_sca_new_poins();
+  /* Making single user may affect other scenes if they share
+   * with current one some collections in their ViewLayer. */
+  BKE_main_collection_sync(bmain);
+  
+  set_sca_new_poins();
 }
 
 /* not an especially efficient function, only added so the single user

@@ -406,7 +406,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
   }
 
   /* Create collections from layers. */
-  Collection *collection_master = BKE_collection_master(scene);
+  Collection *collection_master = scene->master_collection;
   Collection *collections[20] = {NULL};
 
   for (int layer = 0; layer < 20; layer++) {
@@ -3806,12 +3806,23 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     FOREACH_MAIN_ID_END;
   }
 
-  {
-    /* Versioning code until next subversion bump goes here. */
+  if (!MAIN_VERSION_ATLEAST(bmain, 281, 5)) {
     for (Brush *br = bmain->brushes.first; br; br = br->id.next) {
       if (br->ob_mode & OB_MODE_SCULPT && br->normal_radius_factor == 0.0f) {
         br->normal_radius_factor = 0.5f;
       }
     }
+
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      /* Older files do not hqve a msater collection, which is then added through
+       * `BKE_collection_master_add()`, so everything is fine. */
+      if (scene->master_collection != NULL) {
+        scene->master_collection->id.flag |= LIB_PRIVATE_DATA;
+      }
+    }
+  }
+
+  {
+    /* Versioning code until next subversion bump goes here. */
   }
 }

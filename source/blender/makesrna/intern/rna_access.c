@@ -41,6 +41,7 @@
 #include "BLT_translation.h"
 
 #include "BKE_animsys.h"
+#include "BKE_collection.h"
 #include "BKE_context.h"
 #include "BKE_idcode.h"
 #include "BKE_idprop.h"
@@ -5778,6 +5779,11 @@ ID *RNA_find_real_ID_and_path(Main *bmain, ID *id, const char **r_path)
           *r_path = "node_tree";
         }
         return BKE_node_tree_find_owner_ID(bmain, (bNodeTree *)id);
+      case ID_GR:
+        if (r_path) {
+          *r_path = "collection";
+        }
+        return (ID *)BKE_collection_master_scene_search(bmain, (Collection *)id);
 
       default:
         return NULL;
@@ -5788,15 +5794,23 @@ ID *RNA_find_real_ID_and_path(Main *bmain, ID *id, const char **r_path)
   }
 }
 
-static char *rna_prepend_real_ID_path(Main *bmain, ID *id, char *path, ID **r_real)
+static char *rna_prepend_real_ID_path(Main *bmain, ID *id, char *path, ID **r_real_id)
 {
-  if (path) {
-    const char *prefix;
+  if (r_real_id != NULL) {
+    *r_real_id = NULL;
+  }
+
+  const char *prefix;
+  ID *real_id = RNA_find_real_ID_and_path(bmain, id, &prefix);
+
+  if (r_real_id != NULL) {
+    *r_real_id = real_id;
+  }
+
+  if (path != NULL) {
     char *new_path = NULL;
 
-    *r_real = RNA_find_real_ID_and_path(bmain, id, &prefix);
-
-    if (*r_real) {
+    if (real_id) {
       if (prefix[0]) {
         new_path = BLI_sprintfN("%s%s%s", prefix, path[0] == '[' ? "" : ".", path);
       }
@@ -5809,7 +5823,7 @@ static char *rna_prepend_real_ID_path(Main *bmain, ID *id, char *path, ID **r_re
     return new_path;
   }
   else {
-    return NULL;
+    return prefix[0] != '\0' ? BLI_strdup(prefix) : NULL;
   }
 }
 
@@ -5969,11 +5983,11 @@ char *RNA_path_from_ID_to_property(PointerRNA *ptr, PropertyRNA *prop)
 }
 
 char *RNA_path_from_real_ID_to_property_index(
-    Main *bmain, PointerRNA *ptr, PropertyRNA *prop, int index_dim, int index, ID **r_real)
+    Main *bmain, PointerRNA *ptr, PropertyRNA *prop, int index_dim, int index, ID **r_real_id)
 {
   char *path = RNA_path_from_ID_to_property_index(ptr, prop, index_dim, index);
 
-  return rna_prepend_real_ID_path(bmain, ptr->owner_id, path, r_real);
+  return rna_prepend_real_ID_path(bmain, ptr->owner_id, path, r_real_id);
 }
 
 /**
