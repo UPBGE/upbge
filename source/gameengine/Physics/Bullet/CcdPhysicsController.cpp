@@ -54,6 +54,7 @@ extern "C" {
     #include "BKE_layer.h"
     #include "BKE_object.h"
     #include "BKE_scene.h"
+    #include "../depsgraph/DEG_depsgraph_query.h"
 }
 
 
@@ -2116,7 +2117,7 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob)
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
 
-  DerivedMesh *dm = mesh_get_derived_final(depsgraph, scene, ob, &CD_MASK_MESH);
+  DerivedMesh *dm = mesh_get_derived_final(depsgraph, scene, DEG_get_evaluated_object(depsgraph, ob), &CD_MASK_MESH);
 
 	// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
 	DM_ensure_tessface(dm);
