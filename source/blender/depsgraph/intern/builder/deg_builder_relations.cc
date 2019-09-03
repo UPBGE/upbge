@@ -807,13 +807,25 @@ void DepsgraphRelationBuilder::build_object_parent(Object *object)
 {
   Object *parent = object->parent;
   ID *parent_id = &object->parent->id;
-  ComponentKey ob_key(&object->id, NodeType::TRANSFORM);
-  /* Type-specific links/ */
+  ComponentKey object_transform_key(&object->id, NodeType::TRANSFORM);
+  /* Type-specific links. */
   switch (object->partype) {
     /* Armature Deform (Virtual Modifier) */
     case PARSKEL: {
-      ComponentKey parent_key(parent_id, NodeType::TRANSFORM);
-      add_relation(parent_key, ob_key, "Armature Deform Parent");
+      ComponentKey parent_transform_key(parent_id, NodeType::TRANSFORM);
+      add_relation(parent_transform_key, object_transform_key, "Parent Armature Transform");
+
+      if (parent->type == OB_ARMATURE) {
+        ComponentKey object_geometry_key(&object->id, NodeType::GEOMETRY);
+        ComponentKey parent_pose_key(parent_id, NodeType::EVAL_POSE);
+        add_relation(
+            parent_transform_key, object_geometry_key, "Parent Armature Transform -> Geometry");
+        add_relation(parent_pose_key, object_geometry_key, "Parent Armature Pose -> Geometry");
+
+        add_depends_on_transform_relation(
+            &object->id, object_geometry_key, "Virtual Armature Modifier");
+      }
+
       break;
     }
 
@@ -821,7 +833,7 @@ void DepsgraphRelationBuilder::build_object_parent(Object *object)
     case PARVERT1:
     case PARVERT3: {
       ComponentKey parent_key(parent_id, NodeType::GEOMETRY);
-      add_relation(parent_key, ob_key, "Vertex Parent");
+      add_relation(parent_key, object_transform_key, "Vertex Parent");
       /* Original index is used for optimizations of lookups for subdiv
        * only meshes.
        * TODO(sergey): This optimization got lost at 2.8, so either verify
@@ -833,7 +845,7 @@ void DepsgraphRelationBuilder::build_object_parent(Object *object)
                               DEGCustomDataMeshMasks::MaskFace(CD_MASK_ORIGINDEX) |
                               DEGCustomDataMeshMasks::MaskPoly(CD_MASK_ORIGINDEX));
       ComponentKey transform_key(parent_id, NodeType::TRANSFORM);
-      add_relation(transform_key, ob_key, "Vertex Parent TFM");
+      add_relation(transform_key, object_transform_key, "Vertex Parent TFM");
       break;
     }
 
@@ -842,8 +854,8 @@ void DepsgraphRelationBuilder::build_object_parent(Object *object)
       ComponentKey parent_bone_key(parent_id, NodeType::BONE, object->parsubstr);
       OperationKey parent_transform_key(
           parent_id, NodeType::TRANSFORM, OperationCode::TRANSFORM_FINAL);
-      add_relation(parent_bone_key, ob_key, "Bone Parent");
-      add_relation(parent_transform_key, ob_key, "Armature Parent");
+      add_relation(parent_bone_key, object_transform_key, "Bone Parent");
+      add_relation(parent_transform_key, object_transform_key, "Armature Parent");
       break;
     }
 
@@ -852,8 +864,8 @@ void DepsgraphRelationBuilder::build_object_parent(Object *object)
         /* Lattice Deform Parent - Virtual Modifier. */
         ComponentKey parent_key(parent_id, NodeType::TRANSFORM);
         ComponentKey geom_key(parent_id, NodeType::GEOMETRY);
-        add_relation(parent_key, ob_key, "Lattice Deform Parent");
-        add_relation(geom_key, ob_key, "Lattice Deform Parent Geom");
+        add_relation(parent_key, object_transform_key, "Lattice Deform Parent");
+        add_relation(geom_key, object_transform_key, "Lattice Deform Parent Geom");
       }
       else if (object->parent->type == OB_CURVE) {
         Curve *cu = (Curve *)object->parent->data;
@@ -861,20 +873,20 @@ void DepsgraphRelationBuilder::build_object_parent(Object *object)
         if (cu->flag & CU_PATH) {
           /* Follow Path. */
           ComponentKey parent_key(parent_id, NodeType::GEOMETRY);
-          add_relation(parent_key, ob_key, "Curve Follow Parent");
+          add_relation(parent_key, object_transform_key, "Curve Follow Parent");
           ComponentKey transform_key(parent_id, NodeType::TRANSFORM);
-          add_relation(transform_key, ob_key, "Curve Follow TFM");
+          add_relation(transform_key, object_transform_key, "Curve Follow TFM");
         }
         else {
           /* Standard Parent. */
           ComponentKey parent_key(parent_id, NodeType::TRANSFORM);
-          add_relation(parent_key, ob_key, "Curve Parent");
+          add_relation(parent_key, object_transform_key, "Curve Parent");
         }
       }
       else {
         /* Standard Parent. */
         ComponentKey parent_key(parent_id, NodeType::TRANSFORM);
-        add_relation(parent_key, ob_key, "Parent");
+        add_relation(parent_key, object_transform_key, "Parent");
       }
       break;
     }
@@ -887,7 +899,7 @@ void DepsgraphRelationBuilder::build_object_parent(Object *object)
     ComponentKey parent_geometry_key(parent_id, NodeType::GEOMETRY);
     /* NOTE: Metaballs are evaluating geometry only after their transform,
      * so we only hook up to transform channel here. */
-    add_relation(parent_geometry_key, ob_key, "Parent");
+    add_relation(parent_geometry_key, object_transform_key, "Parent");
   }
 
   /* Dupliverts uses original vertex index. */

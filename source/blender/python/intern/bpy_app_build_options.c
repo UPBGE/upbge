@@ -27,41 +27,42 @@
 static PyTypeObject BlenderAppBuildOptionsType;
 
 static PyStructSequence_Field app_builtopts_info_fields[] = {
-	/* names mostly follow CMake options, lowercase, after WITH_ */
-	{(char *)"bullet", NULL},
-	{(char *)"codec_avi", NULL},
-	{(char *)"codec_ffmpeg", NULL},
-	{(char *)"codec_sndfile", NULL},
-	{(char *)"compositor", NULL},
-	{(char *)"cycles", NULL},
-	{(char *)"cycles_osl", NULL},
-	{(char *)"freestyle", NULL},
-	{(char *)"gameengine", NULL},
-	{(char *)"image_cineon", NULL},
-	{(char *)"image_dds", NULL},
-	{(char *)"image_hdr", NULL},
-	{(char *)"image_openexr", NULL},
-	{(char *)"image_openjpeg", NULL},
-	{(char *)"image_tiff", NULL},
-	{(char *)"input_ndof", NULL},
-	{(char *)"audaspace", NULL},
-	{(char *)"international", NULL},
-	{(char *)"openal", NULL},
-	{(char *)"sdl", NULL},
-	{(char *)"sdl_dynload", NULL},
-	{(char *)"jack", NULL},
-	{(char *)"libmv", NULL},
-	{(char *)"mod_fluid", NULL},
-	{(char *)"mod_oceansim", NULL},
-	{(char *)"mod_remesh", NULL},
-	{(char *)"mod_smoke", NULL},
-	{(char *)"collada", NULL},
-	{(char *)"opencolorio", NULL},
-	{(char *)"player", NULL},
-	{(char *)"openmp", NULL},
-	{(char *)"openvdb", NULL},
-	{(char *)"alembic", NULL},
-	{NULL},
+    /* names mostly follow CMake options, lowercase, after WITH_ */
+    {(char *)"bullet", NULL},
+    {(char *)"codec_avi", NULL},
+    {(char *)"codec_ffmpeg", NULL},
+    {(char *)"codec_sndfile", NULL},
+    {(char *)"compositor", NULL},
+    {(char *)"cycles", NULL},
+    {(char *)"cycles_osl", NULL},
+    {(char *)"freestyle", NULL},
+    {(char *)"gameengine", NULL},
+    {(char *)"image_cineon", NULL},
+    {(char *)"image_dds", NULL},
+    {(char *)"image_hdr", NULL},
+    {(char *)"image_openexr", NULL},
+    {(char *)"image_openjpeg", NULL},
+    {(char *)"image_tiff", NULL},
+    {(char *)"input_ndof", NULL},
+    {(char *)"audaspace", NULL},
+    {(char *)"international", NULL},
+    {(char *)"openal", NULL},
+    {(char *)"opensubdiv", NULL},
+    {(char *)"sdl", NULL},
+    {(char *)"sdl_dynload", NULL},
+    {(char *)"jack", NULL},
+    {(char *)"libmv", NULL},
+    {(char *)"mod_fluid", NULL},
+    {(char *)"mod_oceansim", NULL},
+    {(char *)"mod_remesh", NULL},
+    {(char *)"mod_smoke", NULL},
+    {(char *)"collada", NULL},
+    {(char *)"opencolorio", NULL},
+    {(char *)"player", NULL},
+    {(char *)"openmp", NULL},
+    {(char *)"openvdb", NULL},
+    {(char *)"alembic", NULL},
+    {NULL},
 };
 
 static PyStructSequence_Desc app_builtopts_info_desc = {
@@ -193,6 +194,12 @@ static PyObject *make_builtopts_info(void)
 #endif
 
 #ifdef WITH_OPENAL
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
+#ifdef WITH_OPENSUBDIV
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);

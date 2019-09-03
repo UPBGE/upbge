@@ -1208,6 +1208,8 @@ static ImBuf *blend_file_thumb(const bContext *C,
   /* will be scaled down, but gives some nice oversampling */
   ImBuf *ibuf;
   BlendThumbnail *thumb;
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *windrawable_old = wm->windrawable;
   char err_out[256] = "unknown";
 
   /* screen if no camera found */
@@ -1241,6 +1243,9 @@ static ImBuf *blend_file_thumb(const bContext *C,
   /* gets scaled to BLEN_THUMB_SIZE */
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
+  /* Offscreen drawing requires a drawable window context. */
+  wm_window_make_drawable(wm, CTX_wm_window(C));
+
   if (scene->camera) {
     ibuf = ED_view3d_draw_offscreen_imbuf_simple(depsgraph,
                                                  scene,
@@ -1271,6 +1276,14 @@ static ImBuf *blend_file_thumb(const bContext *C,
                                           NULL,
                                           NULL,
                                           err_out);
+  }
+
+  /* Reset to old drawable. */
+  if (windrawable_old) {
+    wm_window_make_drawable(wm, windrawable_old);
+  }
+  else {
+    wm_window_clear_drawable(wm);
   }
 
   if (ibuf) {
@@ -2326,7 +2339,7 @@ static void wm_open_mainfile_ui(bContext *UNUSED(C), wmOperator *op)
 
 void WM_OT_open_mainfile(wmOperatorType *ot)
 {
-  ot->name = "Open Blender File";
+  ot->name = "Open";
   ot->idname = "WM_OT_open_mainfile";
   ot->description = "Open a Blender file";
 
@@ -2508,7 +2521,7 @@ void WM_OT_recover_auto_save(wmOperatorType *ot)
                                  FILE_BLENDER,
                                  FILE_OPENFILE,
                                  WM_FILESEL_FILEPATH,
-                                 FILE_LONGDISPLAY,
+                                 FILE_HORIZONTALDISPLAY,
                                  FILE_SORT_TIME);
 }
 
@@ -2642,7 +2655,7 @@ void WM_OT_save_as_mainfile(wmOperatorType *ot)
 {
   PropertyRNA *prop;
 
-  ot->name = "Save As Blender File";
+  ot->name = "Save As";
   ot->idname = "WM_OT_save_as_mainfile";
   ot->description = "Save the current file in the desired location";
 

@@ -3814,7 +3814,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     }
 
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      /* Older files do not hqve a msater collection, which is then added through
+      /* Older files do not have a master collection, which is then added through
        * `BKE_collection_master_add()`, so everything is fine. */
       if (scene->master_collection != NULL) {
         scene->master_collection->id.flag |= LIB_PRIVATE_DATA;
@@ -3824,5 +3824,39 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
   {
     /* Versioning code until next subversion bump goes here. */
+
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+        for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+          if (sl->spacetype == SPACE_FILE) {
+            SpaceFile *sfile = (SpaceFile *)sl;
+            ListBase *regionbase = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+            ARegion *ar_ui = do_versions_find_region(regionbase, RGN_TYPE_UI);
+            ARegion *ar_header = do_versions_find_region(regionbase, RGN_TYPE_HEADER);
+            ARegion *ar_toolprops = do_versions_find_region_or_null(regionbase,
+                                                                    RGN_TYPE_TOOL_PROPS);
+
+            /* Reinsert UI region so that it spawns entire area width */
+            BLI_remlink(regionbase, ar_ui);
+            BLI_insertlinkafter(regionbase, ar_header, ar_ui);
+
+            ar_ui->flag |= RGN_FLAG_DYNAMIC_SIZE;
+
+            if (ar_toolprops && (ar_toolprops->alignment == (RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV))) {
+              SpaceType *stype = BKE_spacetype_from_id(sl->spacetype);
+
+              /* Remove empty region at old location. */
+              BLI_assert(sfile->op == NULL);
+              BKE_area_region_free(stype, ar_toolprops);
+              BLI_freelinkN(regionbase, ar_toolprops);
+            }
+
+            if (sfile->params) {
+              sfile->params->details_flags |= FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME;
+            }
+          }
+        }
+      }
+    }
   }
 }
