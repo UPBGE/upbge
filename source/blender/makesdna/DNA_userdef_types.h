@@ -64,7 +64,7 @@ typedef struct uiFont {
   char _pad0[2];
 } uiFont;
 
-/* this state defines appearance of text */
+/** This state defines appearance of text. */
 typedef struct uiFontStyle {
   /** Saved in file, 0 is default. */
   short uifont_id;
@@ -430,15 +430,22 @@ typedef enum eWireColor_Flags {
   TH_WIRECOLOR_TEXTCOLS = (1 << 1),
 } eWireColor_Flags;
 
-/* A theme */
+/**
+ * A theme.
+ *
+ * \note Currently only a single theme is ever used at once.
+ * Different theme presets are stored as external files now.
+ */
 typedef struct bTheme {
   struct bTheme *next, *prev;
   char name[32];
 
   ThemeUI tui;
 
-  /* Individual Spacetypes */
-  /* note: ensure UI_THEMESPACE_END is updated when adding */
+  /**
+   * Individual Spacetypes:
+   * \note Ensure #UI_THEMESPACE_END is updated when adding.
+   */
   ThemeSpace space_properties;
   ThemeSpace space_view3d;
   ThemeSpace space_file;
@@ -466,8 +473,10 @@ typedef struct bTheme {
   char _pad0[4];
 } bTheme;
 
-#define UI_THEMESPACE_START(btheme) (CHECK_TYPE_INLINE(btheme, bTheme *), &((btheme)->tbuts))
-#define UI_THEMESPACE_END(btheme) (CHECK_TYPE_INLINE(btheme, bTheme *), (&((btheme)->tclip) + 1))
+#define UI_THEMESPACE_START(btheme) \
+  (CHECK_TYPE_INLINE(btheme, bTheme *), &((btheme)->space_properties))
+#define UI_THEMESPACE_END(btheme) \
+  (CHECK_TYPE_INLINE(btheme, bTheme *), (&((btheme)->space_statusbar) + 1))
 
 typedef struct bAddon {
   struct bAddon *next, *prev;
@@ -493,7 +502,7 @@ typedef struct bUserMenu {
   ListBase items;
 } bUserMenu;
 
-/* May be part of bUserMenu or other list. */
+/** May be part of #bUserMenu or other list. */
 typedef struct bUserMenuItem {
   struct bUserMenuItem *next, *prev;
   char ui_name[64];
@@ -554,16 +563,26 @@ typedef struct UserDef_Runtime {
   char _pad0[7];
 } UserDef_Runtime;
 
+/**
+ * Store UI data here instead of the space
+ * since the space is typically a window which is freed.
+ */
+typedef struct UserDef_SpaceData {
+  char section_active;
+  /** #eUserPref_SpaceData_Flag UI options. */
+  char flag;
+  char _pad0[6];
+} UserDef_SpaceData;
+
 typedef struct UserDef {
-  /* UserDef has separate do-version handling, and can be read from other files */
+  /** UserDef has separate do-version handling, and can be read from other files. */
   int versionfile, subversionfile;
 
   /** #eUserPref_Flag. */
   int flag;
   /** #eDupli_ID_Flags. */
   short dupflag;
-  /**
-   * #eUserPref_PrefFlag preferences for the preferences. */
+  /** #eUserPref_PrefFlag preferences for the preferences. */
   char pref_flag;
   char savetime;
   char _pad4[4];
@@ -601,14 +620,12 @@ typedef struct UserDef {
   /** #eUserpref_UI_Flag2. */
   char uiflag2;
   char gpu_flag;
-  char _pad8[2];
+  char _pad8[6];
   /* Experimental flag for app-templates to make changes to behavior
    * which are outside the scope of typical preferences. */
-  short app_flag;
-  short language;
-  short userpref;
-  char userpref_flag;
+  char app_flag;
   char viewzoom;
+  short language;
 
   int mixbufsize;
   int audiodevice;
@@ -639,7 +656,7 @@ typedef struct UserDef {
   short transopts;
   short menuthreshold1, menuthreshold2;
 
-  /* startup template */
+  /** Startup application template. */
   char app_template[64];
 
   struct ListBase themes;
@@ -766,7 +783,6 @@ typedef struct UserDef {
 
   /** Legacy, for backwards compatibility only. */
   int compute_device_type;
-  char _pad6[4];
 
   /** Opacity of inactive F-Curves in F-Curve Editor. */
   float fcu_inactive_alpha;
@@ -788,8 +804,6 @@ typedef struct UserDef {
   /** Pie menu distance from center before a direction is set. */
   short pie_menu_threshold;
 
-  struct WalkNavigation walk_navigation;
-
   short opensubdiv_compute_type;
   /** #eMultiSample_Type, amount of samples for Grease Pencil. */
   short gpencil_multisamples;
@@ -798,7 +812,12 @@ typedef struct UserDef {
 
   char viewport_aa;
 
-  char _pad5[2];
+  char _pad5[6];
+
+  struct WalkNavigation walk_navigation;
+
+  /** The UI for the user preferences. */
+  UserDef_SpaceData space_data;
 
   /** Runtime data (keep last). */
   UserDef_Runtime runtime;
@@ -812,7 +831,7 @@ extern UserDef U;
 /* Toggles for unfinished 2.8 UserPref design. */
 //#define WITH_USERDEF_WORKSPACES
 
-/** #UserDef.userpref (UI active_section) */
+/** #UserDef_SpaceData.section_active (UI active_section) */
 typedef enum eUserPref_Section {
   USER_SECTION_INTERFACE = 0,
   USER_SECTION_EDITING = 1,
@@ -834,11 +853,12 @@ typedef enum eUserPref_Section {
   USER_SECTION_FILE_PATHS = 15,
 } eUserPref_Section;
 
-/* UserDef.userpref_flag (State of the user preferences UI). */
-typedef enum eUserPref_SectionFlag {
-  /* Hide/expand keymap preferences. */
-  USER_SECTION_INPUT_HIDE_UI_KEYCONFIG = (1 << 0),
-} eUserPref_SectionFlag;
+/** #UserDef_SpaceData.flag (State of the user preferences UI). */
+typedef enum eUserPref_SpaceData_Flag {
+  /** Hide/expand key-map preferences. */
+  USER_SPACEDATA_INPUT_HIDE_UI_KEYCONFIG = (1 << 0),
+  USER_SPACEDATA_ADDONS_SHOW_ONLY_ENABLED = (1 << 1),
+} eUserPref_SpaceData_Flag;
 
 /** #UserDef.flag */
 typedef enum eUserPref_Flag {
@@ -869,7 +889,7 @@ typedef enum eUserPref_Flag {
   USER_NONEGFRAMES = (1 << 24),
   USER_TXT_TABSTOSPACES_DISABLE = (1 << 25),
   USER_TOOLTIPS_PYTHON = (1 << 26),
-  USER_ADDONS_ENABLED_ONLY = (1 << 27),
+  USER_FLAG_UNUSED_27 = (1 << 27), /* dirty */
 } eUserPref_Flag;
 
 typedef enum eUserPref_PrefFlag {
@@ -1090,26 +1110,23 @@ typedef enum eColorPicker_Types {
 /** Timecode display styles
  * #UserDef.timecode_style */
 typedef enum eTimecodeStyles {
-  /* as little info as is necessary to show relevant info
-   * with '+' to denote the frames
-   * i.e. HH:MM:SS+FF, MM:SS+FF, SS+FF, or MM:SS
+  /**
+   * As little info as is necessary to show relevant info with '+' to denote the frames
+   * i.e. HH:MM:SS+FF, MM:SS+FF, SS+FF, or MM:SS.
    */
   USER_TIMECODE_MINIMAL = 0,
-
-  /* reduced SMPTE - (HH:)MM:SS:FF */
+  /** Reduced SMPTE - (HH:)MM:SS:FF */
   USER_TIMECODE_SMPTE_MSF = 1,
-
-  /* full SMPTE - HH:MM:SS:FF */
+  /** Full SMPTE - HH:MM:SS:FF */
   USER_TIMECODE_SMPTE_FULL = 2,
-
-  /* milliseconds for sub-frames - HH:MM:SS.sss */
+  /** Milliseconds for sub-frames - HH:MM:SS.sss. */
   USER_TIMECODE_MILLISECONDS = 3,
-
-  /* seconds only */
+  /** Seconds only. */
   USER_TIMECODE_SECONDS_ONLY = 4,
-
-  /* Private (not exposed as generic choices) options. */
-  /* milliseconds for sub-frames , SubRip format- HH:MM:SS,sss */
+  /**
+   * Private (not exposed as generic choices) options.
+   * milliseconds for sub-frames , SubRip format- HH:MM:SS,sss.
+   */
   USER_TIMECODE_SUBRIP = 100,
 } eTimecodeStyles;
 
@@ -1119,15 +1136,14 @@ typedef enum eNdof_Flag {
   NDOF_FLY_HELICOPTER = (1 << 1),
   NDOF_LOCK_HORIZON = (1 << 2),
 
-  /* the following might not need to be saved between sessions,
-   * but they do need to live somewhere accessible... */
+  /* The following might not need to be saved between sessions,
+   * but they do need to live somewhere accessible. */
   NDOF_SHOULD_PAN = (1 << 3),
   NDOF_SHOULD_ZOOM = (1 << 4),
   NDOF_SHOULD_ROTATE = (1 << 5),
 
-  /* orbit navigation modes */
+  /* Orbit navigation modes. */
 
-  /* exposed as Orbit|Explore in the UI */
   NDOF_MODE_ORBIT = (1 << 6),
 
   /* actually... users probably don't care about what the mode

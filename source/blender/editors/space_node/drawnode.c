@@ -731,37 +731,7 @@ static void node_buts_image_user(uiLayout *layout,
 
 static void node_shader_buts_mapping(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-  uiLayout *row, *col, *sub;
-
-  uiItemR(layout, ptr, "vector_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-
-  row = uiLayoutRow(layout, false);
-
-  col = uiLayoutColumn(row, true);
-  uiItemL(col, IFACE_("Location:"), ICON_NONE);
-  uiItemR(col, ptr, "translation", 0, "", ICON_NONE);
-
-  col = uiLayoutColumn(row, true);
-  uiItemL(col, IFACE_("Rotation:"), ICON_NONE);
-  uiItemR(col, ptr, "rotation", 0, "", ICON_NONE);
-
-  col = uiLayoutColumn(row, true);
-  uiItemL(col, IFACE_("Scale:"), ICON_NONE);
-  uiItemR(col, ptr, "scale", 0, "", ICON_NONE);
-
-  row = uiLayoutRow(layout, false);
-
-  col = uiLayoutColumn(row, true);
-  uiItemR(col, ptr, "use_min", 0, IFACE_("Min"), ICON_NONE);
-  sub = uiLayoutColumn(col, true);
-  uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_min"));
-  uiItemR(sub, ptr, "min", 0, "", ICON_NONE);
-
-  col = uiLayoutColumn(row, true);
-  uiItemR(col, ptr, "use_max", 0, IFACE_("Max"), ICON_NONE);
-  sub = uiLayoutColumn(col, true);
-  uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_max"));
-  uiItemR(sub, ptr, "max", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "vector_type", 0, NULL, ICON_NONE);
 }
 
 static void node_shader_buts_vect_math(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -946,6 +916,11 @@ static void node_shader_buts_tex_voronoi(uiLayout *layout, bContext *UNUSED(C), 
   uiItemR(layout, ptr, "coloring", 0, "", ICON_NONE);
   uiItemR(layout, ptr, "distance", 0, "", ICON_NONE);
   uiItemR(layout, ptr, "feature", 0, "", ICON_NONE);
+}
+
+static void node_shader_buts_tex_noise(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "dimensions", 0, "", ICON_NONE);
 }
 
 static void node_shader_buts_tex_pointdensity(uiLayout *layout,
@@ -1266,6 +1241,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
       break;
     case SH_NODE_TEX_VORONOI:
       ntype->draw_buttons = node_shader_buts_tex_voronoi;
+      break;
+    case SH_NODE_TEX_NOISE:
+      ntype->draw_buttons = node_shader_buts_tex_noise;
       break;
     case SH_NODE_TEX_POINTDENSITY:
       ntype->draw_buttons = node_shader_buts_tex_pointdensity;

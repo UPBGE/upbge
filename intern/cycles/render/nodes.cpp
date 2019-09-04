@@ -25,6 +25,7 @@
 #include "kernel/svm/svm_color_util.h"
 #include "kernel/svm/svm_ramp_util.h"
 #include "kernel/svm/svm_math_util.h"
+#include "kernel/svm/svm_mapping_util.h"
 #include "render/osl.h"
 #include "render/constant_fold.h"
 
@@ -149,7 +150,7 @@ bool TextureMapping::skip()
 
 void TextureMapping::compile(SVMCompiler &compiler, int offset_in, int offset_out)
 {
-  compiler.add_node(NODE_MAPPING, offset_in, offset_out);
+  compiler.add_node(NODE_TEXTURE_MAPPING, offset_in, offset_out);
 
   Transform tfm = compute_transform();
   compiler.add_node(tfm.x);
@@ -893,14 +894,22 @@ NODE_DEFINE(NoiseTextureNode)
 
   TEXTURE_MAPPING_DEFINE(NoiseTextureNode);
 
+  static NodeEnum dimensions_enum;
+  dimensions_enum.insert("1D", 1);
+  dimensions_enum.insert("2D", 2);
+  dimensions_enum.insert("3D", 3);
+  dimensions_enum.insert("4D", 4);
+  SOCKET_ENUM(dimensions, "Dimensions", dimensions_enum, 3);
+
+  SOCKET_IN_POINT(
+      vector, "Vector", make_float3(0.0f, 0.0f, 0.0f), SocketType::LINK_TEXTURE_GENERATED);
+  SOCKET_IN_FLOAT(w, "W", 0.0f);
   SOCKET_IN_FLOAT(scale, "Scale", 1.0f);
   SOCKET_IN_FLOAT(detail, "Detail", 2.0f);
   SOCKET_IN_FLOAT(distortion, "Distortion", 0.0f);
-  SOCKET_IN_POINT(
-      vector, "Vector", make_float3(0.0f, 0.0f, 0.0f), SocketType::LINK_TEXTURE_GENERATED);
 
-  SOCKET_OUT_COLOR(color, "Color");
   SOCKET_OUT_FLOAT(fac, "Fac");
+  SOCKET_OUT_COLOR(color, "Color");
 
   return type;
 }
@@ -911,31 +920,40 @@ NoiseTextureNode::NoiseTextureNode() : TextureNode(node_type)
 
 void NoiseTextureNode::compile(SVMCompiler &compiler)
 {
-  ShaderInput *distortion_in = input("Distortion");
-  ShaderInput *detail_in = input("Detail");
-  ShaderInput *scale_in = input("Scale");
   ShaderInput *vector_in = input("Vector");
-  ShaderOutput *color_out = output("Color");
+  ShaderInput *w_in = input("W");
+  ShaderInput *scale_in = input("Scale");
+  ShaderInput *detail_in = input("Detail");
+  ShaderInput *distortion_in = input("Distortion");
   ShaderOutput *fac_out = output("Fac");
+  ShaderOutput *color_out = output("Color");
 
-  int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
+  int vector_stack_offset = tex_mapping.compile_begin(compiler, vector_in);
+  int w_stack_offset = compiler.stack_assign_if_linked(w_in);
+  int scale_stack_offset = compiler.stack_assign_if_linked(scale_in);
+  int detail_stack_offset = compiler.stack_assign_if_linked(detail_in);
+  int distortion_stack_offset = compiler.stack_assign_if_linked(distortion_in);
+  int fac_stack_offset = compiler.stack_assign_if_linked(fac_out);
+  int color_stack_offset = compiler.stack_assign_if_linked(color_out);
 
-  compiler.add_node(NODE_TEX_NOISE,
-                    compiler.encode_uchar4(vector_offset,
-                                           compiler.stack_assign_if_linked(scale_in),
-                                           compiler.stack_assign_if_linked(detail_in),
-                                           compiler.stack_assign_if_linked(distortion_in)),
-                    compiler.encode_uchar4(compiler.stack_assign_if_linked(color_out),
-                                           compiler.stack_assign_if_linked(fac_out)));
-  compiler.add_node(__float_as_int(scale), __float_as_int(detail), __float_as_int(distortion));
+  compiler.add_node(
+      NODE_TEX_NOISE,
+      dimensions,
+      compiler.encode_uchar4(
+          vector_stack_offset, w_stack_offset, scale_stack_offset, detail_stack_offset),
+      compiler.encode_uchar4(distortion_stack_offset, fac_stack_offset, color_stack_offset));
+  compiler.add_node(__float_as_int(w),
+                    __float_as_int(scale),
+                    __float_as_int(detail),
+                    __float_as_int(distortion));
 
-  tex_mapping.compile_end(compiler, vector_in, vector_offset);
+  tex_mapping.compile_end(compiler, vector_in, vector_stack_offset);
 }
 
 void NoiseTextureNode::compile(OSLCompiler &compiler)
 {
   tex_mapping.compile(compiler);
-
+  compiler.parameter(this, "dimensions");
   compiler.add(this, "node_noise_texture");
 }
 
@@ -1710,9 +1728,18 @@ NODE_DEFINE(MappingNode)
 {
   NodeType *type = NodeType::add("mapping", create, NodeType::SHADER);
 
-  TEXTURE_MAPPING_DEFINE(MappingNode);
+  static NodeEnum type_enum;
+  type_enum.insert("point", NODE_MAPPING_TYPE_POINT);
+  type_enum.insert("texture", NODE_MAPPING_TYPE_TEXTURE);
+  type_enum.insert("vector", NODE_MAPPING_TYPE_VECTOR);
+  type_enum.insert("normal", NODE_MAPPING_TYPE_NORMAL);
+  SOCKET_ENUM(type, "Type", type_enum, NODE_MAPPING_TYPE_POINT);
 
   SOCKET_IN_POINT(vector, "Vector", make_float3(0.0f, 0.0f, 0.0f));
+  SOCKET_IN_POINT(location, "Location", make_float3(0.0f, 0.0f, 0.0f));
+  SOCKET_IN_POINT(rotation, "Rotation", make_float3(0.0f, 0.0f, 0.0f));
+  SOCKET_IN_POINT(scale, "Scale", make_float3(1.0f, 1.0f, 1.0f));
+
   SOCKET_OUT_POINT(vector, "Vector");
 
   return type;
@@ -1722,22 +1749,42 @@ MappingNode::MappingNode() : ShaderNode(node_type)
 {
 }
 
+void MappingNode::constant_fold(const ConstantFolder &folder)
+{
+  if (folder.all_inputs_constant()) {
+    float3 result = svm_mapping((NodeMappingType)type, vector, location, rotation, scale);
+    folder.make_constant(result);
+  }
+  else {
+    folder.fold_mapping((NodeMappingType)type);
+  }
+}
+
 void MappingNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *vector_in = input("Vector");
+  ShaderInput *location_in = input("Location");
+  ShaderInput *rotation_in = input("Rotation");
+  ShaderInput *scale_in = input("Scale");
   ShaderOutput *vector_out = output("Vector");
 
-  tex_mapping.compile(
-      compiler, compiler.stack_assign(vector_in), compiler.stack_assign(vector_out));
+  int vector_stack_offset = compiler.stack_assign(vector_in);
+  int location_stack_offset = compiler.stack_assign(location_in);
+  int rotation_stack_offset = compiler.stack_assign(rotation_in);
+  int scale_stack_offset = compiler.stack_assign(scale_in);
+  int result_stack_offset = compiler.stack_assign(vector_out);
+
+  compiler.add_node(
+      NODE_MAPPING,
+      type,
+      compiler.encode_uchar4(
+          vector_stack_offset, location_stack_offset, rotation_stack_offset, scale_stack_offset),
+      result_stack_offset);
 }
 
 void MappingNode::compile(OSLCompiler &compiler)
 {
-  compiler.parameter("Matrix", tex_mapping.compute_transform());
-  compiler.parameter_point("mapping_min", tex_mapping.min);
-  compiler.parameter_point("mapping_max", tex_mapping.max);
-  compiler.parameter("use_minmax", tex_mapping.use_minmax);
-
+  compiler.parameter(this, "type");
   compiler.add(this, "node_mapping");
 }
 

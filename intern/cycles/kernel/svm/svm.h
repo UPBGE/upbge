@@ -158,10 +158,11 @@ CCL_NAMESPACE_END
 /* Nodes */
 
 #include "kernel/svm/svm_noise.h"
-#include "svm_texture.h"
+#include "svm_fractal_noise.h"
 
 #include "kernel/svm/svm_color_util.h"
 #include "kernel/svm/svm_math_util.h"
+#include "kernel/svm/svm_mapping_util.h"
 
 #include "kernel/svm/svm_attribute.h"
 #include "kernel/svm/svm_gradient.h"
@@ -313,7 +314,7 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
         svm_node_tex_image_box(kg, sd, stack, node);
         break;
       case NODE_TEX_NOISE:
-        svm_node_tex_noise(kg, sd, stack, node, &offset);
+        svm_node_tex_noise(kg, sd, stack, node.y, node.z, node.w, &offset);
         break;
 #  endif /* __TEXTURES__ */
 #  ifdef __EXTRA_NODES__
@@ -405,8 +406,11 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
 #endif       /* NODES_GROUP(NODE_GROUP_LEVEL_1) */
 
 #if NODES_GROUP(NODE_GROUP_LEVEL_2)
+      case NODE_TEXTURE_MAPPING:
+        svm_node_texture_mapping(kg, sd, stack, node.y, node.z, &offset);
+        break;
       case NODE_MAPPING:
-        svm_node_mapping(kg, sd, stack, node.y, node.z, &offset);
+        svm_node_mapping(kg, sd, stack, node.y, node.z, node.w, &offset);
         break;
       case NODE_MIN_MAX:
         svm_node_min_max(kg, sd, stack, node.y, node.z, &offset);
