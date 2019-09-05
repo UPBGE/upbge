@@ -39,10 +39,13 @@ set(INC
 	../VideoTexture
 	../../blender/blenkernel
 	../../blender/blenlib
+	../../blender/blentranslation
 	../../blender/draw/engines/eevee/
+	../../blender/draw/intern
 	../../blender/gpu
 	../../blender/makesdna
 	../../blender/makesrna
+	../../blender/render/extern/include
 	../../blender/windowmanager
 	../../../intern/guardedalloc
 	../../../intern/ghost
@@ -53,6 +56,7 @@ set(INC
 set(INC_SYS
 	../../../intern/moto/include
 	${BOOST_INCLUDE_DIR}
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC

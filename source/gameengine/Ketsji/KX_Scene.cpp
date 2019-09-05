@@ -106,7 +106,7 @@ extern "C" {
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
-#include "DRW_engine.h"
+//#include "DRW_engine.h"
 #include "DRW_render.h"
 #include "MEM_guardedalloc.h"
 }

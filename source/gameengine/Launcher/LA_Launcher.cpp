@@ -70,8 +70,6 @@ extern "C" {
 #  include "BKE_sound.h"
 #  include "BKE_main.h"
 
-#  include "../draw/DRW_engine.h"
-
 #  include "DNA_scene_types.h"
 #  include "DNA_material_types.h"
 

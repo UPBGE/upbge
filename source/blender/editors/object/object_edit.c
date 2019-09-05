@@ -1794,26 +1794,11 @@ static bool object_mode_set_poll(bContext *C)
 
 static int object_mode_set_exec(bContext *C, wmOperator *op)
 {
-  bool use_submode = STREQ(op->idname, "OBJECT_OT_mode_set_or_submode");
+  bool use_submode = STREQ(op->idname, "OBJECT_OT_mode_set_with_submode");
   Object *ob = CTX_data_active_object(C);
   eObjectMode mode = RNA_enum_get(op->ptr, "mode");
   eObjectMode restore_mode = (ob) ? ob->mode : OB_MODE_OBJECT;
   const bool toggle = RNA_boolean_get(op->ptr, "toggle");
-
-  if (use_submode) {
-    /* When not changing modes use submodes, see: T55162. */
-    if (toggle == false) {
-      if (mode == restore_mode) {
-        switch (mode) {
-          case OB_MODE_EDIT:
-            WM_menu_name_call(C, "VIEW3D_MT_edit_mesh_select_mode", WM_OP_INVOKE_REGION_WIN);
-            return OPERATOR_INTERFACE;
-          default:
-            break;
-        }
-      }
-    }
-  }
 
   /* by default the operator assume is a mesh, but if gp object change mode */
   if ((ob != NULL) && (ob->type == OB_GPENCIL) && (mode == OB_MODE_EDIT)) {
@@ -1858,6 +1843,20 @@ static int object_mode_set_exec(bContext *C, wmOperator *op)
     }
   }
 
+  if (use_submode) {
+    if (ob->type == OB_MESH) {
+      if (ob->mode & OB_MODE_EDIT) {
+        PropertyRNA *prop = RNA_struct_find_property(op->ptr, "mesh_select_mode");
+        if (RNA_property_is_set(op->ptr, prop)) {
+          int mesh_select_mode = RNA_property_enum_get(op->ptr, prop);
+          if (mesh_select_mode != 0) {
+            EDBM_selectmode_set_multi(C, mesh_select_mode);
+          }
+        }
+      }
+    }
+  }
+
   return OPERATOR_FINISHED;
 }
 
@@ -1887,30 +1886,20 @@ void OBJECT_OT_mode_set(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-void OBJECT_OT_mode_set_or_submode(wmOperatorType *ot)
+void OBJECT_OT_mode_set_with_submode(wmOperatorType *ot)
 {
-  PropertyRNA *prop;
+  OBJECT_OT_mode_set(ot);
 
   /* identifiers */
-  ot->name = "Set Object Mode or Submode";
-  ot->description = "Sets the object interaction mode";
-  ot->idname = "OBJECT_OT_mode_set_or_submode";
+  ot->name = "Set Object Mode with Submode";
+  ot->idname = "OBJECT_OT_mode_set_with_submode";
 
-  /* api callbacks */
-  ot->exec = object_mode_set_exec;
-
-  ot->poll = object_mode_set_poll;  // ED_operator_object_active_editable;
-
-  /* flags */
-  ot->flag = 0; /* no register/undo here, leave it to operators being called */
-
-  ot->prop = RNA_def_enum(
-      ot->srna, "mode", rna_enum_object_mode_items, OB_MODE_OBJECT, "Mode", "");
-  RNA_def_enum_funcs(ot->prop, object_mode_set_itemsf);
-  RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
-
-  prop = RNA_def_boolean(ot->srna, "toggle", 0, "Toggle", "");
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  /* properties */
+  /* we could add other types - particle for eg. */
+  PropertyRNA *prop;
+  prop = RNA_def_enum_flag(
+      ot->srna, "mesh_select_mode", rna_enum_mesh_select_mode_items, 0, "Mesh Mode", "");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 static ListBase selected_objects_get(bContext *C)
