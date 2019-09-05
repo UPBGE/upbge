@@ -106,6 +106,14 @@ extern "C" {
 #include "BL_ArmatureActuator.h"
 #include "RNA_access.h"
 #include "BL_Action.h"
+
+extern "C" {
+#include "BKE_layer.h"
+#include "BKE_scene.h"
+#include "DEG_depsgraph_query.h"
+}
+
+
 /* end of blender include block */
 
 #include "BL_BlenderDataConversion.h"
@@ -352,6 +360,11 @@ void BL_ConvertActuators(const char* maggiename,
 					settings.reference_distance = soundact->sound3D.reference_distance;
 					settings.rolloff_factor = soundact->sound3D.rolloff_factor;
 
+					Scene *bl_scene = scene->GetBlenderScene();
+					ViewLayer *view_layer = BKE_view_layer_default_view(bl_scene);
+					Depsgraph *depsgraph = BKE_scene_get_depsgraph(bl_scene, view_layer, false);
+					bSound *sound_eval = (bSound *)DEG_get_evaluated_id(depsgraph, &sound->id);
+
 					if (!sound) {
 						CM_Warning("sound actuator \"" << bact->name << "\" from object \"" <<  blenderobject->id.name+2
 							<< "\" has no sound datablock.");
@@ -359,8 +372,8 @@ void BL_ConvertActuators(const char* maggiename,
 					else
 					{
 #ifdef WITH_AUDASPACE
-						BKE_sound_load(G_MAIN, sound);
-						snd_sound = sound->playback_handle;
+						BKE_sound_load(G_MAIN, sound_eval);
+						snd_sound = sound_eval->playback_handle;
 
 						// if sound shall be 3D but isn't mono, we have to make it mono!
 						if (is3d)
@@ -382,7 +395,7 @@ void BL_ConvertActuators(const char* maggiename,
 
 #ifdef WITH_AUDASPACE
 					// if we made it mono, we have to free it
-					if (sound && snd_sound && snd_sound != sound->playback_handle) {
+					if (sound_eval && snd_sound && snd_sound != sound_eval->playback_handle) {
 						AUD_Sound_free(snd_sound);
 					}
 #endif  // WITH_AUDASPACE
