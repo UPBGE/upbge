@@ -223,7 +223,7 @@ static void file_draw_preview(uiBlock *block,
   float scaledx, scaledy;
   float scale;
   int ex, ey;
-  bool use_dropshadow = !is_icon &&
+  bool show_outline = !is_icon &&
                         (typeflags & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_BLENDER));
 
   BLI_assert(imb != NULL);
@@ -258,11 +258,6 @@ static void file_draw_preview(uiBlock *block,
   dy = (fy + 0.5f - layout->prv_border_y);
   xco = sx + (int)dx;
   yco = sy - layout->prv_h + (int)dy;
-
-  /* shadow */
-  if (use_dropshadow) {
-    UI_draw_box_shadow(128, (float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
-  }
 
   GPU_blend(true);
 
@@ -316,18 +311,18 @@ static void file_draw_preview(uiBlock *block,
 
     if (is_icon) {
       const float icon_size = 16.0f / icon_aspect * U.dpi_fac;
-      float icon_opacity = MIN2(icon_aspect, 0.7);
-      uchar icon_color[4] = {255, 255, 255, 255};
-      float bg[3];
-      /*  base this off theme color of file or folder later */
-      UI_GetThemeColor3fv(TH_BACK, bg);
-      if (rgb_to_grayscale(bg) > 0.5f) {
-        icon_color[0] = 0;
-        icon_color[1] = 0;
-        icon_color[2] = 0;
+      float icon_opacity = 0.3f;
+      uchar icon_color[4] = {0, 0, 0, 255};
+      float bgcolor[4];
+      UI_GetThemeColor4fv(TH_TEXT, bgcolor);
+      if (rgb_to_grayscale(bgcolor) < 0.5f)
+      {
+        icon_color[0] = 255;
+        icon_color[1] = 255;
+        icon_color[2] = 255;
       }
       icon_x = xco + (ex / 2.0f) - (icon_size / 2.0f);
-      icon_y = yco + (ey / 2.0f) - (icon_size * ((typeflags & FILE_TYPE_DIR) ? 0.78f : 0.65f));
+      icon_y = yco + (ey / 2.0f) - (icon_size * ((typeflags & FILE_TYPE_DIR) ? 0.78f : 0.75f));
       UI_icon_draw_ex(
           icon_x, icon_y, icon, icon_aspect / U.dpi_fac, icon_opacity, 0.0f, icon_color, false);
     }
@@ -344,23 +339,21 @@ static void file_draw_preview(uiBlock *block,
     }
   }
 
-  /* border */
-  if (use_dropshadow) {
+  /* Contrasting outline around some preview types. */
+  if (show_outline) {
     GPUVertFormat *format = immVertexFormat();
-    uint pos_attr = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-    uint col_attr = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-
-    immBindBuiltinProgram(GPU_SHADER_2D_FLAT_COLOR);
-    immBegin(GPU_PRIM_LINE_LOOP, 4);
-    immAttr4f(col_attr, 1.0f, 1.0f, 1.0f, 0.15f);
-    immVertex2f(pos_attr, (float)xco + 1, (float)(yco + ey));
-    immAttr4f(col_attr, 1.0f, 1.0f, 1.0f, 0.2f);
-    immVertex2f(pos_attr, (float)(xco + ex), (float)(yco + ey));
-    immAttr4f(col_attr, 0.0f, 0.0f, 0.0f, 0.2f);
-    immVertex2f(pos_attr, (float)(xco + ex), (float)yco + 1);
-    immAttr4f(col_attr, 0.0f, 0.0f, 0.0f, 0.3f);
-    immVertex2f(pos_attr, (float)xco + 1, (float)yco + 1);
-    immEnd();
+    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+    float border_color[4] = {1.0f, 1.0f, 1.0f, 0.4f};
+    float bgcolor[4];
+    UI_GetThemeColor4fv(TH_BACK, bgcolor);
+    if (rgb_to_grayscale(bgcolor) > 0.5f) {
+      border_color[0] = 0.0f;
+      border_color[1] = 0.0f;
+      border_color[2] = 0.0f;
+    }
+    immUniformColor4fv(border_color);
+    imm_draw_box_wire_2d(pos, (float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
     immUnbindProgram();
   }
 
