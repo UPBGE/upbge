@@ -1330,7 +1330,17 @@ bool constraints_list_needinv(TransInfo *t, ListBase *list)
           /* CopyRot constraint only does this when rotating, and offset is on */
           bRotateLikeConstraint *data = (bRotateLikeConstraint *)con->data;
 
-          if ((data->flag & ROTLIKE_OFFSET) && (t->mode == TFM_ROTATION)) {
+          if (ELEM(data->mix_mode, ROTLIKE_MIX_OFFSET, ROTLIKE_MIX_BEFORE) &&
+              ELEM(t->mode, TFM_ROTATION)) {
+            return true;
+          }
+        }
+        else if (con->type == CONSTRAINT_TYPE_TRANSLIKE) {
+          /* Copy Transforms constraint only does this in the Before mode. */
+          bTransLikeConstraint *data = (bTransLikeConstraint *)con->data;
+
+          if (ELEM(data->mix_mode, TRANSLIKE_MIX_BEFORE) &&
+              ELEM(t->mode, TFM_ROTATION, TFM_TRANSLATION)) {
             return true;
           }
         }
@@ -1338,11 +1348,13 @@ bool constraints_list_needinv(TransInfo *t, ListBase *list)
           /* Transform constraint needs it for rotation at least (r.57309),
            * but doing so when translating may also mess things up [#36203]
            */
+          bTransformConstraint *data = (bTransformConstraint *)con->data;
 
-          if (t->mode == TFM_ROTATION) {
-            return true;
+          if (data->to == TRANS_ROTATION) {
+            if (t->mode == TFM_ROTATION && data->mix_mode_rot == TRANS_MIXROT_BEFORE) {
+              return true;
+            }
           }
-          /* ??? (t->mode == TFM_SCALE) ? */
         }
       }
     }

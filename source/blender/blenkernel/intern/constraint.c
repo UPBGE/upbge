@@ -1802,12 +1802,10 @@ static void rotlike_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
   bConstraintTarget *ct = targets->first;
 
   if (VALID_CONS_TARGET(ct)) {
-    float loc[3];
-    float eul[3], obeul[3];
-    float size[3];
+    float loc[3], size[3], oldrot[3][3], newrot[3][3];
+    float eul[3], obeul[3], defeul[3];
 
-    copy_v3_v3(loc, cob->matrix[3]);
-    mat4_to_size(size, cob->matrix);
+    mat4_to_loc_rot_size(loc, oldrot, size, cob->matrix);
 
     /* Select the Euler rotation order, defaulting to the owner. */
     short rot_order = cob->rotOrder;
@@ -1822,11 +1820,28 @@ static void rotlike_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
      * some of them can be modified below (see bug T21875). */
     mat4_to_compatible_eulO(eul, obeul, rot_order, ct->matrix);
 
+    /* Prepare the copied euler rotation. */
+    bool legacy_offset = false;
+
+    switch (data->mix_mode) {
+      case ROTLIKE_MIX_OFFSET:
+        legacy_offset = true;
+        copy_v3_v3(defeul, obeul);
+        break;
+
+      case ROTLIKE_MIX_REPLACE:
+        copy_v3_v3(defeul, obeul);
+        break;
+
+      default:
+        zero_v3(defeul);
+    }
+
     if ((data->flag & ROTLIKE_X) == 0) {
-      eul[0] = obeul[0];
+      eul[0] = defeul[0];
     }
     else {
-      if (data->flag & ROTLIKE_OFFSET) {
+      if (legacy_offset) {
         rotate_eulO(eul, rot_order, 'X', obeul[0]);
       }
 
@@ -1836,10 +1851,10 @@ static void rotlike_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
     }
 
     if ((data->flag & ROTLIKE_Y) == 0) {
-      eul[1] = obeul[1];
+      eul[1] = defeul[1];
     }
     else {
-      if (data->flag & ROTLIKE_OFFSET) {
+      if (legacy_offset) {
         rotate_eulO(eul, rot_order, 'Y', obeul[1]);
       }
 
@@ -1849,10 +1864,10 @@ static void rotlike_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
     }
 
     if ((data->flag & ROTLIKE_Z) == 0) {
-      eul[2] = obeul[2];
+      eul[2] = defeul[2];
     }
     else {
-      if (data->flag & ROTLIKE_OFFSET) {
+      if (legacy_offset) {
         rotate_eulO(eul, rot_order, 'Z', obeul[2]);
       }
 
@@ -1861,10 +1876,36 @@ static void rotlike_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
       }
     }
 
+    /* Add the euler components together if needed. */
+    if (data->mix_mode == ROTLIKE_MIX_ADD) {
+      add_v3_v3(eul, obeul);
+    }
+
     /* Good to make eulers compatible again,
      * since we don't know how much they were changed above. */
     compatible_eul(eul, obeul);
-    loc_eulO_size_to_mat4(cob->matrix, loc, eul, size, rot_order);
+    eulO_to_mat3(newrot, eul, rot_order);
+
+    /* Mix the rotation matrices: */
+    switch (data->mix_mode) {
+      case ROTLIKE_MIX_REPLACE:
+      case ROTLIKE_MIX_OFFSET:
+      case ROTLIKE_MIX_ADD:
+        break;
+
+      case ROTLIKE_MIX_BEFORE:
+        mul_m3_m3m3(newrot, newrot, oldrot);
+        break;
+
+      case ROTLIKE_MIX_AFTER:
+        mul_m3_m3m3(newrot, oldrot, newrot);
+        break;
+
+      default:
+        BLI_assert(false);
+    }
+
+    loc_rot_size_to_mat4(cob->matrix, loc, newrot, size);
   }
 }
 
@@ -2049,13 +2090,43 @@ static void translike_flush_tars(bConstraint *con, ListBase *list, bool no_copy)
   }
 }
 
-static void translike_evaluate(bConstraint *UNUSED(con), bConstraintOb *cob, ListBase *targets)
+static void translike_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *targets)
 {
+  bTransLikeConstraint *data = con->data;
   bConstraintTarget *ct = targets->first;
 
   if (VALID_CONS_TARGET(ct)) {
-    /* just copy the entire transform matrix of the target */
-    copy_m4_m4(cob->matrix, ct->matrix);
+    if (data->mix_mode == TRANSLIKE_MIX_REPLACE) {
+      /* just copy the entire transform matrix of the target */
+      copy_m4_m4(cob->matrix, ct->matrix);
+    }
+    else {
+      float old_loc[3], old_rot[3][3], old_size[3];
+      float new_loc[3], new_rot[3][3], new_size[3];
+
+      /* Separate matrices so they can be combined in a way that avoids shear. */
+      mat4_to_loc_rot_size(old_loc, old_rot, old_size, cob->matrix);
+      mat4_to_loc_rot_size(new_loc, new_rot, new_size, ct->matrix);
+
+      switch (data->mix_mode) {
+        case TRANSLIKE_MIX_BEFORE:
+          mul_v3_m4v3(new_loc, ct->matrix, old_loc);
+          mul_m3_m3m3(new_rot, new_rot, old_rot);
+          mul_v3_v3(new_size, old_size);
+          break;
+
+        case TRANSLIKE_MIX_AFTER:
+          mul_v3_m4v3(new_loc, cob->matrix, new_loc);
+          mul_m3_m3m3(new_rot, old_rot, new_rot);
+          mul_v3_v3(new_size, old_size);
+          break;
+
+        default:
+          BLI_assert(false);
+      }
+
+      loc_rot_size_to_mat4(cob->matrix, new_loc, new_rot, new_size);
+    }
   }
 }
 
@@ -3742,6 +3813,11 @@ static void transform_new_data(void *cdata)
   data->map[0] = 0;
   data->map[1] = 1;
   data->map[2] = 2;
+
+  for (int i = 0; i < 3; i++) {
+    data->from_min_scale[i] = data->from_max_scale[i] = 1.0f;
+    data->to_min_scale[i] = data->to_max_scale[i] = 1.0f;
+  }
 }
 
 static void transform_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
@@ -3786,7 +3862,8 @@ static void transform_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
   /* only evaluate if there is a target */
   if (VALID_CONS_TARGET(ct)) {
     float *from_min, *from_max, *to_min, *to_max;
-    float loc[3], eul[3], size[3];
+    float loc[3], rot[3][3], oldeul[3], size[3];
+    float newloc[3], newrot[3][3], neweul[3], newsize[3];
     float dbuf[4], sval[3];
     float *const dvec = dbuf + 1;
     int i;
@@ -3828,9 +3905,7 @@ static void transform_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
     }
 
     /* extract components of owner's matrix */
-    copy_v3_v3(loc, cob->matrix[3]);
-    mat4_to_eulO(eul, rot_order, cob->matrix);
-    mat4_to_size(size, cob->matrix);
+    mat4_to_loc_rot_size(loc, rot, size, cob->matrix);
 
     /* determine where in range current transforms lie */
     if (data->expo) {
@@ -3862,18 +3937,42 @@ static void transform_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
         to_min = data->to_min_scale;
         to_max = data->to_max_scale;
         for (i = 0; i < 3; i++) {
-          /* multiply with original scale (so that it can still be scaled) */
-          /* size[i] *= to_min[i] + (sval[(int)data->map[i]] * (to_max[i] - to_min[i])); */
-          /* Stay absolute, else it breaks existing rigs... sigh. */
-          size[i] = to_min[i] + (sval[(int)data->map[i]] * (to_max[i] - to_min[i]));
+          newsize[i] = to_min[i] + (sval[(int)data->map[i]] * (to_max[i] - to_min[i]));
+        }
+        switch (data->mix_mode_scale) {
+          case TRANS_MIXSCALE_MULTIPLY:
+            mul_v3_v3(size, newsize);
+            break;
+          case TRANS_MIXSCALE_REPLACE:
+          default:
+            copy_v3_v3(size, newsize);
+            break;
         }
         break;
       case TRANS_ROTATION:
         to_min = data->to_min_rot;
         to_max = data->to_max_rot;
         for (i = 0; i < 3; i++) {
-          /* add to original rotation (so that it can still be rotated) */
-          eul[i] += to_min[i] + (sval[(int)data->map[i]] * (to_max[i] - to_min[i]));
+          neweul[i] = to_min[i] + (sval[(int)data->map[i]] * (to_max[i] - to_min[i]));
+        }
+        switch (data->mix_mode_rot) {
+          case TRANS_MIXROT_REPLACE:
+            eulO_to_mat3(rot, neweul, rot_order);
+            break;
+          case TRANS_MIXROT_BEFORE:
+            eulO_to_mat3(newrot, neweul, rot_order);
+            mul_m3_m3m3(rot, newrot, rot);
+            break;
+          case TRANS_MIXROT_AFTER:
+            eulO_to_mat3(newrot, neweul, rot_order);
+            mul_m3_m3m3(rot, rot, newrot);
+            break;
+          case TRANS_MIXROT_ADD:
+          default:
+            mat3_to_eulO(oldeul, rot_order, rot);
+            add_v3_v3(neweul, oldeul);
+            eulO_to_mat3(rot, neweul, rot_order);
+            break;
         }
         break;
       case TRANS_LOCATION:
@@ -3881,14 +3980,22 @@ static void transform_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
         to_min = data->to_min;
         to_max = data->to_max;
         for (i = 0; i < 3; i++) {
-          /* add to original location (so that it can still be moved) */
-          loc[i] += (to_min[i] + (sval[(int)data->map[i]] * (to_max[i] - to_min[i])));
+          newloc[i] = (to_min[i] + (sval[(int)data->map[i]] * (to_max[i] - to_min[i])));
+        }
+        switch (data->mix_mode_loc) {
+          case TRANS_MIXLOC_REPLACE:
+            copy_v3_v3(loc, newloc);
+            break;
+          case TRANS_MIXLOC_ADD:
+          default:
+            add_v3_v3(loc, newloc);
+            break;
         }
         break;
     }
 
     /* apply to matrix */
-    loc_eulO_size_to_mat4(cob->matrix, loc, eul, size, rot_order);
+    loc_rot_size_to_mat4(cob->matrix, loc, rot, size);
   }
 }
 

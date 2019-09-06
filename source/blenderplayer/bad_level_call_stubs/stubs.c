@@ -472,7 +472,7 @@ int WM_enum_search_invoke(struct bContext *C, struct wmOperator *op, const struc
 void WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference) RET_NONE
 void WM_main_add_notifier(unsigned int type, void *reference) RET_NONE
 void ED_armature_bone_rename(struct Main *bmain, struct bArmature *arm, const char *oldnamep, const char *newnamep) RET_NONE
-void ED_armature_transform(struct Main *bmain, struct bArmature *arm, float mat[4][4], const bool do_props) RET_NONE
+void ED_armature_transform(struct bArmature *arm, const float mat[4][4], const bool do_props) RET_NONE
 struct wmEventHandler_Op *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op) RET_NULL
 struct wmTimer *WM_event_add_timer(struct wmWindowManager *wm, struct wmWindow *win, int event_type, double timestep) RET_NULL
 struct wmEvent *WM_event_add_simulate(struct wmWindow *win, const struct wmEvent *event_to_add) RET_NULL
@@ -780,6 +780,10 @@ void uiTemplateIconView(
 	float icon_scale, float icon_scale_popup) RET_NONE
 void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale) RET_NONE
 
+void uiTemplateFileSelectPath(uiLayout *layout,
+                              struct bContext *C,
+                              struct FileSelectParams *params) RET_NONE
+
 uiLayout *uiTemplateGpencilModifier(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr) RET_NULL
 void uiTemplateGpencilColorPreview(
 	uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
@@ -797,7 +801,7 @@ void ED_workspace_status_text(struct bContext *C, const char *str) RET_NONE
 
 
 void ED_object_base_free_and_unlink(struct Main *bmain, struct Scene *scene, struct Object *base) RET_NONE
-void ED_mesh_update(struct Mesh *mesh, struct bContext *C, bool calc_edges, bool calc_edges_loose, bool calc_tessface) RET_NONE
+void ED_mesh_update(struct Mesh *mesh, struct bContext *C, bool calc_edges, bool calc_edges_loose) RET_NONE
 void ED_mesh_vertices_add(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
 void ED_mesh_edges_add(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
 void ED_mesh_tessfaces_add(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE

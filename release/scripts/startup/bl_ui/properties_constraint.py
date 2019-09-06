@@ -392,7 +392,7 @@ class ConstraintButtonsPanel:
         sub.active = con.use_z
         sub.prop(con, "invert_z", text="Invert")
 
-        layout.prop(con, "use_offset")
+        layout.prop(con, "mix_mode", text="Mix")
 
         self.space_template(layout, con)
 
@@ -458,6 +458,8 @@ class ConstraintButtonsPanel:
 
     def COPY_TRANSFORMS(self, _context, layout, con):
         self.target_template(layout, con)
+
+        layout.prop(con, "mix_mode", text="Mix")
 
         self.space_template(layout, con)
 
@@ -758,6 +760,8 @@ class ConstraintButtonsPanel:
         sub = col.column(align=True)
         sub.prop(con, "to_min_z" + ext, text="Min")
         sub.prop(con, "to_max_z" + ext, text="Max")
+
+        layout.prop(con, "mix_mode" + ext, text="Mix")
 
         self.space_template(layout, con)
 

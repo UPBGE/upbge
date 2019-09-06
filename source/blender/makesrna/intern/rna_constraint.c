@@ -530,6 +530,24 @@ static void rna_Constraint_ik_type_set(struct PointerRNA *ptr, int value)
   }
 }
 
+/* DEPRECATED: use_offset replaced with mix_mode */
+static bool rna_Constraint_RotLike_use_offset_get(struct PointerRNA *ptr)
+{
+  bConstraint *con = ptr->data;
+  bRotateLikeConstraint *rotlike = con->data;
+  return rotlike->mix_mode != ROTLIKE_MIX_REPLACE;
+}
+
+static void rna_Constraint_RotLike_use_offset_set(struct PointerRNA *ptr, bool value)
+{
+  bConstraint *con = ptr->data;
+  bRotateLikeConstraint *rotlike = con->data;
+  bool curval = (rotlike->mix_mode != ROTLIKE_MIX_REPLACE);
+  if (curval != value) {
+    rotlike->mix_mode = (value ? ROTLIKE_MIX_OFFSET : ROTLIKE_MIX_REPLACE);
+  }
+}
+
 static const EnumPropertyItem *rna_Constraint_owner_space_itemf(bContext *UNUSED(C),
                                                                 PointerRNA *ptr,
                                                                 PropertyRNA *UNUSED(prop),
@@ -1298,6 +1316,28 @@ static void rna_def_constraint_rotate_like(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
+  static const EnumPropertyItem mix_mode_items[] = {
+      {ROTLIKE_MIX_REPLACE, "REPLACE", 0, "Replace", "Replace the original rotation with copied"},
+      {ROTLIKE_MIX_ADD, "ADD", 0, "Add", "Add euler component values together"},
+      {ROTLIKE_MIX_BEFORE,
+       "BEFORE",
+       0,
+       "Before Original",
+       "Apply copied rotation before original, as if the constraint target is a parent"},
+      {ROTLIKE_MIX_AFTER,
+       "AFTER",
+       0,
+       "After Original",
+       "Apply copied rotation after original, as if the constraint target is a child"},
+      {ROTLIKE_MIX_OFFSET,
+       "OFFSET",
+       0,
+       "Offset (Legacy)",
+       "Combine rotations like the original Offset checkbox. Does not work well for "
+       "multiple axis rotations"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
   srna = RNA_def_struct(brna, "CopyRotationConstraint", "Constraint");
   RNA_def_struct_ui_text(srna, "Copy Rotation Constraint", "Copy the rotation of the target");
   RNA_def_struct_sdna_from(srna, "bRotateLikeConstraint", "data");
@@ -1341,9 +1381,19 @@ static void rna_def_constraint_rotate_like(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Euler Order", "Explicitly specify the euler rotation order");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
+  prop = RNA_def_property(srna, "mix_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "mix_mode");
+  RNA_def_property_enum_items(prop, mix_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Mix Mode", "Specify how the copied and existing rotations are combined");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
+  /* DEPRECATED: replaced with mix_mode */
   prop = RNA_def_property(srna, "use_offset", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", ROTLIKE_OFFSET);
-  RNA_def_property_ui_text(prop, "Offset", "Add original rotation into copied rotation");
+  RNA_def_property_boolean_funcs(
+      prop, "rna_Constraint_RotLike_use_offset_get", "rna_Constraint_RotLike_use_offset_set");
+  RNA_def_property_ui_text(
+      prop, "Offset", "DEPRECATED: Add original rotation into copied rotation");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 }
 
@@ -1465,6 +1515,28 @@ static void rna_def_constraint_same_volume(BlenderRNA *brna)
 static void rna_def_constraint_transform_like(BlenderRNA *brna)
 {
   StructRNA *srna;
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem mix_mode_items[] = {
+      {TRANSLIKE_MIX_REPLACE,
+       "REPLACE",
+       0,
+       "Replace",
+       "Replace the original transformation with copied"},
+      {TRANSLIKE_MIX_BEFORE,
+       "BEFORE",
+       0,
+       "Before Original",
+       "Apply copied transformation before original, as if the constraint target is a parent. "
+       "Scale is handled specially to avoid creating shear"},
+      {TRANSLIKE_MIX_AFTER,
+       "AFTER",
+       0,
+       "After Original",
+       "Apply copied transformation after original, as if the constraint target is a child. "
+       "Scale is handled specially to avoid creating shear"},
+      {0, NULL, 0, NULL, NULL},
+  };
 
   srna = RNA_def_struct(brna, "CopyTransformsConstraint", "Constraint");
   RNA_def_struct_ui_text(
@@ -1477,6 +1549,13 @@ static void rna_def_constraint_transform_like(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_CON_TRANSLIKE);
 
   rna_def_constraint_target_common(srna);
+
+  prop = RNA_def_property(srna, "mix_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "mix_mode");
+  RNA_def_property_enum_items(prop, mix_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Mix Mode", "Specify how the copied and existing transformations are combined");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 }
 
 static void rna_def_constraint_minmax(BlenderRNA *brna)
@@ -1855,6 +1934,34 @@ static void rna_def_constraint_transform(BlenderRNA *brna)
       {0, NULL, 0, NULL, NULL},
   };
 
+  static const EnumPropertyItem mix_mode_loc_items[] = {
+      {TRANS_MIXLOC_REPLACE, "REPLACE", 0, "Replace", "Replace component values"},
+      {TRANS_MIXLOC_ADD, "ADD", 0, "Add", "Add component values together"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  static const EnumPropertyItem mix_mode_rot_items[] = {
+      {TRANS_MIXROT_REPLACE, "REPLACE", 0, "Replace", "Replace component values"},
+      {TRANS_MIXROT_ADD, "ADD", 0, "Add", "Add component values together"},
+      {TRANS_MIXROT_BEFORE,
+       "BEFORE",
+       0,
+       "Before Original",
+       "Apply new rotation before original, as if it was on a parent"},
+      {TRANS_MIXROT_AFTER,
+       "AFTER",
+       0,
+       "After Original",
+       "Apply new rotation after original, as if it was on a child"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  static const EnumPropertyItem mix_mode_scale_items[] = {
+      {TRANS_MIXSCALE_REPLACE, "REPLACE", 0, "Replace", "Replace component values"},
+      {TRANS_MIXSCALE_MULTIPLY, "MULTIPLY", 0, "Multiply", "Multiply component values together"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
   srna = RNA_def_struct(brna, "TransformConstraint", "Constraint");
   RNA_def_struct_ui_text(
       srna, "Transformation Constraint", "Map transformations of the target to the object");
@@ -1987,6 +2094,13 @@ static void rna_def_constraint_transform(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "To Maximum Z", "Top range of Z axis destination motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
+  prop = RNA_def_property(srna, "mix_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "mix_mode_loc");
+  RNA_def_property_enum_items(prop, mix_mode_loc_items);
+  RNA_def_property_ui_text(
+      prop, "Location Mix Mode", "Specify how to combine the new location with original");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
   /* Rot */
   prop = RNA_def_property(srna, "from_min_x_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, NULL, "from_min_rot[0]");
@@ -2060,6 +2174,13 @@ static void rna_def_constraint_transform(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "To Maximum Z", "Top range of Z axis destination motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
+  prop = RNA_def_property(srna, "mix_mode_rot", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "mix_mode_rot");
+  RNA_def_property_enum_items(prop, mix_mode_rot_items);
+  RNA_def_property_ui_text(
+      prop, "Rotation Mix Mode", "Specify how to combine the new rotation with original");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
   /* Scale */
   prop = RNA_def_property(srna, "from_min_x_scale", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "from_min_scale[0]");
@@ -2131,6 +2252,13 @@ static void rna_def_constraint_transform(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "to_max_scale[2]");
   RNA_def_property_ui_range(prop, -1000.0f, 1000.0f, 10, 3);
   RNA_def_property_ui_text(prop, "To Maximum Z", "Top range of Z axis destination motion");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
+  prop = RNA_def_property(srna, "mix_mode_scale", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "mix_mode_scale");
+  RNA_def_property_enum_items(prop, mix_mode_scale_items);
+  RNA_def_property_ui_text(
+      prop, "Scale Mix Mode", "Specify how to combine the new scale with original");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 }
 
