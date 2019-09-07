@@ -926,8 +926,8 @@ static void render_result_rescale(Render *re)
 
       scale_x = (float)result->rectx / re->result->rectx;
       scale_y = (float)result->recty / re->result->recty;
-      for (x = 0; x < re->result->rectx; ++x) {
-        for (y = 0; y < re->result->recty; ++y) {
+      for (x = 0; x < re->result->rectx; x++) {
+        for (y = 0; y < re->result->recty; y++) {
           int src_x = x * scale_x;
           int src_y = y * scale_y;
           int dst_index = y * re->result->rectx + x;
@@ -1637,7 +1637,7 @@ static void do_render_seq(Render *re)
         BKE_stamp_info_from_imbuf(rr, ibuf_arr[view_id]);
       }
 
-      if (recurs_depth == 0) { /* with nested scenes, only free on toplevel... */
+      if (recurs_depth == 0) { /* With nested scenes, only free on top-level. */
         Editing *ed = re->pipeline_scene_eval->ed;
         if (ed) {
           BKE_sequencer_free_imbuf(re->pipeline_scene_eval, &ed->seqbase, true);

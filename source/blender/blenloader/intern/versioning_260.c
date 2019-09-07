@@ -44,6 +44,8 @@
 #include "DNA_sdna_types.h"
 #include "DNA_smoke_types.h"
 #include "DNA_space_types.h"
+#include "DNA_world_types.h"
+#include "DNA_light_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -2629,7 +2631,7 @@ void do_versions_after_linking_260(Main *bmain)
           if (input_node) {
             link->fromnode = input_node;
             link->fromsock = node_group_input_find_socket(input_node, link->fromsock->identifier);
-            ++num_inputs;
+            num_inputs++;
 
             if (link->tonode) {
               if (input_locx > link->tonode->locx - offsetx) {
@@ -2647,7 +2649,7 @@ void do_versions_after_linking_260(Main *bmain)
           if (output_node) {
             link->tonode = output_node;
             link->tosock = node_group_output_find_socket(output_node, link->tosock->identifier);
-            ++num_outputs;
+            num_outputs++;
 
             if (link->fromnode) {
               if (output_locx < link->fromnode->locx + offsetx) {

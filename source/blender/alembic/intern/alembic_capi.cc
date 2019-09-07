@@ -129,7 +129,7 @@ static bool gather_objects_paths(const IObject &object, ListBase *object_paths)
   size_t children_claiming_this_object = 0;
   size_t num_children = object.getNumChildren();
 
-  for (size_t i = 0; i < num_children; ++i) {
+  for (size_t i = 0; i < num_children; i++) {
     bool child_claims_this_object = gather_objects_paths(object.getChild(i), object_paths);
     children_claiming_this_object += child_claims_this_object ? 1 : 0;
   }
@@ -452,7 +452,7 @@ static std::pair<bool, AbcObjectReader *> visit_object(
   AbcObjectReader::ptr_vector claiming_child_readers;
   AbcObjectReader::ptr_vector nonclaiming_child_readers;
   AbcObjectReader::ptr_vector assign_as_parent;
-  for (size_t i = 0; i < num_children; ++i) {
+  for (size_t i = 0; i < num_children; i++) {
     const IObject ichild = object.getChild(i);
 
     /* TODO: When we only support C++11, use std::tie() instead. */

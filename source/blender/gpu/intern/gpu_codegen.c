@@ -1307,7 +1307,7 @@ static char *code_generate_geometry(ListBase *nodes, const char *geom_code, cons
       BLI_dynstr_append(ds, "\tgl_Position = gl_in[2].gl_Position;\n");
       BLI_dynstr_append(ds, "\tpass_attr(2);\n");
       BLI_dynstr_append(ds, "\tEmitVertex();\n");
-      BLI_dynstr_append(ds, "};\n");
+      BLI_dynstr_append(ds, "}\n");
     }
   }
   else {
@@ -2129,7 +2129,7 @@ static int count_active_texture_sampler(GPUShader *shader, char *source)
         }
         /* Catch duplicates. */
         bool is_duplicate = false;
-        for (int i = 0; i < sampler_len; ++i) {
+        for (int i = 0; i < sampler_len; i++) {
           if (samplers_id[i] == id) {
             is_duplicate = true;
           }

@@ -608,7 +608,7 @@ static void find_reachable_operations_recursive(Tags &reachable, NodeOperation *
   }
   reachable.insert(op);
 
-  for (int i = 0; i < op->getNumberOfInputSockets(); ++i) {
+  for (int i = 0; i < op->getNumberOfInputSockets(); i++) {
     NodeOperationInput *input = op->getInputSocket(i);
     if (input->isConnected()) {
       find_reachable_operations_recursive(reachable, &input->getLink()->getOperation());
@@ -661,7 +661,7 @@ static void sort_operations_recursive(NodeOperationBuilder::Operations &sorted,
   }
   visited.insert(op);
 
-  for (int i = 0; i < op->getNumberOfInputSockets(); ++i) {
+  for (int i = 0; i < op->getNumberOfInputSockets(); i++) {
     NodeOperationInput *input = op->getInputSocket(i);
     if (input->isConnected()) {
       sort_operations_recursive(sorted, visited, &input->getLink()->getOperation());
@@ -696,7 +696,7 @@ static void add_group_operations_recursive(Tags &visited, NodeOperation *op, Exe
   }
 
   /* add all eligible input ops to the group */
-  for (int i = 0; i < op->getNumberOfInputSockets(); ++i) {
+  for (int i = 0; i < op->getNumberOfInputSockets(); i++) {
     NodeOperationInput *input = op->getInputSocket(i);
     if (input->isConnected()) {
       add_group_operations_recursive(visited, &input->getLink()->getOperation(), group);

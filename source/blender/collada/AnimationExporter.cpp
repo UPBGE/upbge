@@ -594,7 +594,7 @@ std::string AnimationExporter::collada_tangent_from_curve(
   const FCurve *fcu = curve.get_fcurve();
   int tangent = (semantic == COLLADASW::InputSemantic::IN_TANGENT) ? 0 : 2;
 
-  for (int i = 0; i < fcu->totvert; ++i) {
+  for (int i = 0; i < fcu->totvert; i++) {
     BezTriple &bezt = fcu->bezt[i];
 
     float sampled_time = bezt.vec[tangent][0];

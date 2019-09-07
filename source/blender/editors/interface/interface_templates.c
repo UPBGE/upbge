@@ -4872,7 +4872,7 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
 
     /* Normally clicking only selects one layer */
     RNA_property_boolean_set_index(&but->rnapoin, but->rnaprop, cur, true);
-    for (i = 0; i < tot; ++i) {
+    for (i = 0; i < tot; i++) {
       if (i != cur) {
         RNA_property_boolean_set_index(&but->rnapoin, but->rnaprop, i, false);
       }
@@ -6141,6 +6141,7 @@ eAutoPropButsReturn uiTemplateOperatorPropertyButs(const bContext *C,
     RNA_pointer_create(&wm->id, op->type->srna, op->properties, &ptr);
 
     uiLayoutSetPropSep(layout, true);
+    uiLayoutSetPropDecorate(layout, false);
 
     /* main draw call */
     return_info = uiDefAutoButsRNA(

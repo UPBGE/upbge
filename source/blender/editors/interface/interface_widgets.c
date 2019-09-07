@@ -468,7 +468,7 @@ static void roundbox_batch_add_tria(GPUVertBufRaw *vflag_step, int tria, uint32_
   const int tria_num =
       ELEM(tria, ROUNDBOX_TRIA_CHECK, ROUNDBOX_TRIA_HOLD_ACTION_ARROW, ROUNDBOX_TRIA_MENU) ? 1 : 2;
   /* for each tria */
-  for (int t = 0; t < tria_num; ++t) {
+  for (int t = 0; t < tria_num; t++) {
     for (int j = 0; j < WIDGET_AA_JITTER; j++) {
       /* restart */
       set_roundbox_vertex_data(vflag_step, last_data);
@@ -1153,7 +1153,7 @@ static void widget_draw_vertex_buffer(uint pos,
                                       uint totvert)
 {
   immBegin(mode, totvert);
-  for (int i = 0; i < totvert; ++i) {
+  for (int i = 0; i < totvert; i++) {
     if (quads_col) {
       immAttr4ubv(col, quads_col[i]);
     }

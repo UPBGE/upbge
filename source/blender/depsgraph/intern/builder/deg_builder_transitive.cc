@@ -97,7 +97,7 @@ void deg_graph_transitive_reduction(Depsgraph *graph)
       else if (rel->from->custom_flags & OP_REACHABLE) {
         rel->unlink();
         OBJECT_GUARDED_DELETE(rel, Relation);
-        ++num_removed_relations;
+        num_removed_relations++;
       }
       else {
         ++it_rel;

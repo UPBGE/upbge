@@ -129,7 +129,7 @@ static void add_keyframes_from(bAction *action, BCFrameSet &frameset)
 void BCAnimationSampler::check_property_is_animated(
     BCAnimation &animation, float *ref, float *val, std::string data_path, int length)
 {
-  for (int array_index = 0; array_index < length; ++array_index) {
+  for (int array_index = 0; array_index < length; array_index++) {
     if (!bc_in_range(ref[length], val[length], 0.00001)) {
       BCCurveKey key(BC_ANIMATION_TYPE_OBJECT, data_path, array_index);
       BCAnimationCurveMap::iterator it = animation.curve_map.find(key);
@@ -195,7 +195,7 @@ void BCAnimationSampler::sample_scene(BCExportSettings &export_settings, bool ke
   int startframe = scene->r.sfra;
   int endframe = scene->r.efra;
 
-  for (int frame_index = startframe; frame_index <= endframe; ++frame_index) {
+  for (int frame_index = startframe; frame_index <= endframe; frame_index++) {
     /* Loop over all frames and decide for each frame if sampling is necessary */
     bool is_scene_sample_frame = false;
     bool needs_update = true;

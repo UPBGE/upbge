@@ -1116,20 +1116,23 @@ static void cursor_draw_tiling_preview(const uint gpuattr,
   const float *step = sd->paint.tile_offset;
 
   copy_v3_v3(orgLoc, true_location);
-  for (dim = 0; dim < 3; ++dim) {
+  for (dim = 0; dim < 3; dim++) {
     if ((sd->paint.symmetry_flags & (PAINT_TILE_X << dim)) && step[dim] > 0) {
       start[dim] = (bbMin[dim] - orgLoc[dim] - radius) / step[dim];
       end[dim] = (bbMax[dim] - orgLoc[dim] + radius) / step[dim];
     }
-    else
+    else {
       start[dim] = end[dim] = 0;
+    }
   }
   copy_v3_v3_int(cur, start);
   for (cur[0] = start[0]; cur[0] <= end[0]; cur[0]++) {
     for (cur[1] = start[1]; cur[1] <= end[1]; cur[1]++) {
       for (cur[2] = start[2]; cur[2] <= end[2]; cur[2]++) {
-        if (!cur[0] && !cur[1] && !cur[2])
-          continue; /* skip tile at orgLoc, this was already handled before all others */
+        if (!cur[0] && !cur[1] && !cur[2]) {
+          /* skip tile at orgLoc, this was already handled before all others */
+          continue;
+        }
         tile_pass++;
         for (dim = 0; dim < 3; dim++) {
           location[dim] = cur[dim] * step[dim] + orgLoc[dim];
@@ -1150,7 +1153,7 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
   const char symm = sd->paint.symmetry_flags & PAINT_SYMM_AXIS_ALL;
   float location[3], symm_rot_mat[4][4];
 
-  for (int i = 0; i <= symm; ++i) {
+  for (int i = 0; i <= symm; i++) {
     if (i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5)))) {
 
       /* Axis Symmetry */

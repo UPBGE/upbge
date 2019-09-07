@@ -1118,7 +1118,7 @@ void IMB_exr_write_channels(void *handle)
       if (echan->use_half_float) {
         float *rect = echan->rect;
         half *cur = current_rect_half;
-        for (size_t i = 0; i < num_pixels; ++i, ++cur) {
+        for (size_t i = 0; i < num_pixels; i++, cur++) {
           *cur = rect[i * echan->xstride];
         }
         half *rect_to_write = current_rect_half + (data->height - 1L) * data->width;
@@ -2013,7 +2013,7 @@ struct ImBuf *imb_load_openexr(const unsigned char *mem,
           if (!has_rgb && has_luma) {
             size_t a;
             if (exr_has_chroma(*file)) {
-              for (a = 0; a < (size_t)ibuf->x * ibuf->y; ++a) {
+              for (a = 0; a < (size_t)ibuf->x * ibuf->y; a++) {
                 float *color = ibuf->rect_float + a * 4;
                 ycc_to_rgb(color[0] * 255.0f,
                            color[1] * 255.0f,
@@ -2025,7 +2025,7 @@ struct ImBuf *imb_load_openexr(const unsigned char *mem,
               }
             }
             else {
-              for (a = 0; a < (size_t)ibuf->x * ibuf->y; ++a) {
+              for (a = 0; a < (size_t)ibuf->x * ibuf->y; a++) {
                 float *color = ibuf->rect_float + a * 4;
                 color[1] = color[2] = color[0];
               }
