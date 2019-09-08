@@ -876,7 +876,10 @@ public:
 	KX_PYMETHOD_DOC(KX_GameObject, getActionName);
 	KX_PYMETHOD_DOC(KX_GameObject, setActionFrame);
 	KX_PYMETHOD_DOC(KX_GameObject, isPlayingAction);
+
+
 	KX_PYMETHOD_DOC(KX_GameObject, recalcGeometry);
+  KX_PYMETHOD_DOC(KX_GameObject, recalcTransform);
 	
 	/* Dict access */
 	KX_PYMETHOD_VARARGS(KX_GameObject,get);

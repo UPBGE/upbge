@@ -1765,6 +1765,7 @@ PyMethodDef KX_GameObject::Methods[] = {
     KX_PYMETHODTABLE(KX_GameObject, setActionFrame),
     KX_PYMETHODTABLE(KX_GameObject, isPlayingAction),
     KX_PYMETHODTABLE(KX_GameObject, recalcGeometry),
+	KX_PYMETHODTABLE(KX_GameObject, recalcTransform),
 
     // dict style access for props
     {"get", (PyCFunction)KX_GameObject::sPyget, METH_VARARGS},
@@ -4201,6 +4202,15 @@ KX_PYMETHODDEF_DOC(KX_GameObject,
 KX_PYMETHODDEF_DOC(KX_GameObject, recalcGeometry, "ID_RECALC_GEOMETRY depsgraph notifier\n")
 {
   RecalcGeometry();
+
+  Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_GameObject, recalcTransform, "ID_RECALC_TRANSFORM depsgraph notifier\n")
+{
+  if (GetBlenderObject()) {
+    DEG_id_tag_update(&GetBlenderObject()->id, ID_RECALC_TRANSFORM);
+  }
 
   Py_RETURN_NONE;
 }
