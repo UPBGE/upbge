@@ -36,6 +36,8 @@
  * - #DNA_struct_default_alloc
  *
  * These access the struct table #DNA_default_table using the struct number.
+ *
+ * \note Struct members only define their members (pointers are left as NULL set).
  */
 
 #include <stdio.h>
@@ -51,13 +53,42 @@
 #include "BLI_math.h"
 
 #include "DNA_defaults.h"
-#include "DNA_scene_types.h"
-#include "DNA_curve_types.h"
 
+#include "DNA_curve_types.h"
+#include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+
+#include "DNA_material_defaults.h"
+#include "DNA_mesh_defaults.h"
+#include "DNA_object_defaults.h"
 #include "DNA_scene_defaults.h"
 
-const Scene DNA_DEFAULT_Scene = _DNA_DEFAULT_Scene;
-const ToolSettings DNA_DEFAULT_ToolSettings = _DNA_DEFAULT_ToolSettings;
+#define SDNA_DEFAULT_DECL_STRUCT(struct_name) \
+  const struct_name DNA_DEFAULT_##struct_name = _DNA_DEFAULT_##struct_name
+
+/* DNA_scene_material.h */
+SDNA_DEFAULT_DECL_STRUCT(Material);
+
+/* DNA_scene_mesh.h */
+SDNA_DEFAULT_DECL_STRUCT(Mesh);
+
+/* DNA_scene_object.h */
+SDNA_DEFAULT_DECL_STRUCT(Object);
+
+/* DNA_scene_defaults.h */
+SDNA_DEFAULT_DECL_STRUCT(Scene);
+SDNA_DEFAULT_DECL_STRUCT(ToolSettings);
+
+#undef SDNA_DEFAULT_DECL_STRUCT
+
+/* Reuse existing definitions. */
+extern const struct UserDef U_default;
+#define DNA_DEFAULT_UserDef U_default
+
+extern const bTheme U_theme_default;
+#define DNA_DEFAULT_bTheme U_theme_default
 
 /**
  * Prevent assigning the wrong struct types since all elements in #DNA_default_table are `void *`.
@@ -68,7 +99,6 @@ const ToolSettings DNA_DEFAULT_ToolSettings = _DNA_DEFAULT_ToolSettings;
 #  define SDNA_TYPE_CHECKED(v, t) (&(v))
 #endif
 
-/*  */
 #define SDNA_DEFAULT_DECL(struct_name) \
   [SDNA_TYPE_FROM_STRUCT(struct_name)] = SDNA_TYPE_CHECKED(DNA_DEFAULT_##struct_name, struct_name)
 
@@ -77,6 +107,16 @@ const ToolSettings DNA_DEFAULT_ToolSettings = _DNA_DEFAULT_ToolSettings;
 
 /** Keep headers sorted. */
 const void *DNA_default_table[SDNA_TYPE_MAX] = {
+
+    /* DNA_material_defaults.h */
+    SDNA_DEFAULT_DECL(Material),
+
+    /* DNA_mesh_defaults.h */
+    SDNA_DEFAULT_DECL(Mesh),
+
+    /* DNA_object_defaults.h */
+    SDNA_DEFAULT_DECL(Object),
+
     /* DNA_scene_defaults.h */
     SDNA_DEFAULT_DECL(Scene),
     SDNA_DEFAULT_DECL_EX(RenderData, Scene.r),
@@ -96,6 +136,12 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     SDNA_DEFAULT_DECL_EX(MeshStatVis, ToolSettings.statvis),
     SDNA_DEFAULT_DECL_EX(GP_Sculpt_Settings, ToolSettings.gp_sculpt),
     SDNA_DEFAULT_DECL_EX(GP_Sculpt_Guide, ToolSettings.gp_sculpt.guide),
+
+    /* DNA_userdef_types.h */
+    SDNA_DEFAULT_DECL(UserDef),
+    SDNA_DEFAULT_DECL(bTheme),
+    SDNA_DEFAULT_DECL_EX(UserDef_SpaceData, UserDef.space_data),
+    SDNA_DEFAULT_DECL_EX(WalkNavigation, UserDef.walk_navigation),
 
     /* DNA_view3d_defaults.h */
     SDNA_DEFAULT_DECL_EX(View3DShading, Scene.display.shading),
