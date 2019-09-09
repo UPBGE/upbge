@@ -1601,6 +1601,9 @@ static void write_actuators(WriteData *wd, ListBase *lb)
 			case ACT_GAME:
 				writestruct(wd, DATA, bGameActuator, 1, act->data);
 				break;
+      case ACT_VIBRATION:
+				writestruct(wd, DATA, bVibrationActuator, 1, act->data);
+				break;
 			case ACT_VISIBILITY:
 				writestruct(wd, DATA, bVisibilityActuator, 1, act->data);
 				break;

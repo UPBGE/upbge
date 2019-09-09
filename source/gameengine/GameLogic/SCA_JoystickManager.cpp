@@ -35,8 +35,8 @@
 #include "SCA_ISensor.h"
 
 
-SCA_JoystickManager::SCA_JoystickManager(class SCA_LogicManager* logicmgr)
-	: SCA_EventManager(logicmgr, JOY_EVENTMGR)
+SCA_JoystickManager::SCA_JoystickManager(class SCA_LogicManager *logicmgr)
+	:SCA_EventManager(logicmgr, JOY_EVENTMGR)
 {
 }
 
@@ -46,29 +46,27 @@ SCA_JoystickManager::~SCA_JoystickManager()
 }
 
 
-void SCA_JoystickManager::NextFrame(double curtime,double deltatime)
+void SCA_JoystickManager::NextFrame(double curtime, double deltatime)
 {
-	if (m_sensors.Empty()) {
-		return;
-	}
-	else {
-		SG_DList::iterator<SCA_JoystickSensor> it(m_sensors);
-		for (it.begin();!it.end();++it)
-		{
-			SCA_JoystickSensor* joysensor = *it;
-			if (!joysensor->IsSuspended())
-			{
-				joysensor->Activate(m_logicmgr);
-			}
-		}
-	}
+  if (m_sensors.Empty()) {
+	return;
+  }
+  else {
+    SG_DList::iterator<SCA_JoystickSensor> it(m_sensors);
+    for (it.begin(); !it.end(); ++it) {
+      SCA_JoystickSensor *joysensor = *it;
+      if (!joysensor->IsSuspended()) {
+        joysensor->Activate(m_logicmgr);
+      }
+    }
+  }
 }
 
 
-DEV_Joystick *SCA_JoystickManager::GetJoystickDevice( short int joyindex)
+DEV_Joystick *SCA_JoystickManager::GetJoystickDevice(short int joyindex)
 {
 	/*
-	 *Return the instance of DEV_Joystick for use
+	 * Return the instance of DEV_Joystick for use
 	 */
 	return DEV_Joystick::GetInstance(joyindex);
 }

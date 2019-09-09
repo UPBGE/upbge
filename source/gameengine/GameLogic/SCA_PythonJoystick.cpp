@@ -35,10 +35,9 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_PythonJoystick::SCA_PythonJoystick(DEV_Joystick* joystick, int joyindex)
-: PyObjectPlus(),
-  m_joystick(joystick),
-  m_joyindex(joyindex)
+SCA_PythonJoystick::SCA_PythonJoystick(DEV_Joystick *joystick, int joyindex)
+	:m_joystick(joystick),
+	m_joyindex(joyindex)
 {
 #ifdef WITH_PYTHON
 	m_event_dict = PyDict_New();
@@ -53,16 +52,16 @@ SCA_PythonJoystick::~SCA_PythonJoystick()
 #endif
 }
 
+std::string SCA_PythonJoystick::GetName()
+{
+	return m_joystick->GetName();
+}
+
 #ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
 /* Python functions                                                          */
 /* ------------------------------------------------------------------------- */
-PyObject* SCA_PythonJoystick::py_repr(void)
-{
-	return PyUnicode_FromStdString(m_joystick->GetName());
-}
-
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_PythonJoystick::Type = {
@@ -76,19 +75,19 @@ PyTypeObject SCA_PythonJoystick::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&PyObjectPlus::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef SCA_PythonJoystick::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_PythonJoystick::Attributes[] = {
@@ -99,11 +98,11 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("hatValues", SCA_PythonJoystick, pyattr_get_hat_values),
 	KX_PYATTRIBUTE_RO_FUNCTION("axisValues", SCA_PythonJoystick, pyattr_get_axis_values),
 	KX_PYATTRIBUTE_RO_FUNCTION("name", SCA_PythonJoystick, pyattr_get_name),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	KX_PYATTRIBUTE_NULL    //Sentinel
 };
 
 // Use one function for numAxis, numButtons, and numHats
-PyObject* SCA_PythonJoystick::pyattr_get_num_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonJoystick::pyattr_get_num_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	if (attrdef->m_name == "numButtons") {
 		return PyLong_FromLong(JOYBUT_MAX);
@@ -121,16 +120,16 @@ PyObject* SCA_PythonJoystick::pyattr_get_num_x(PyObjectPlus *self_v, const KX_PY
 	return nullptr;
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonJoystick::pyattr_get_active_buttons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
-	
+	SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+
 	const int button_number = JOYBUT_MAX;
 
 	PyObject *list = PyList_New(0);
 	PyObject *value;
 
-	for (int i=0; i < button_number; i++) {
+	for (int i = 0; i < button_number; i++) {
 		if (self->m_joystick->aButtonPressIsPositive(i)) {
 			value = PyLong_FromLong(i);
 			PyList_Append(list, value);
@@ -142,38 +141,40 @@ PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(PyObjectPlus *self_v, co
 	return list;
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonJoystick::pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	ShowDeprecationWarning("SCA_PythonJoystick.hatValues", "SCA_PythonJoystick.activeButtons");
 	return PyList_New(0);
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_axis_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonJoystick::pyattr_get_axis_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
-	
+	SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+
 	int axis_index = JOYAXIS_MAX;
 	PyObject *list = PyList_New(axis_index);
 	int position;
-	
+
 	while (axis_index--) {
 		position = self->m_joystick->GetAxisPosition(axis_index);
 
 		// We get back a range from -32768 to 32767, so we use an if here to
 		// get a perfect -1.0 to 1.0 mapping. Some oddball system might have an
 		// actual min of -32767 for shorts, so we use SHRT_MIN/MAX to be safe.
-		if (position < 0)
-			PyList_SET_ITEM(list, axis_index, PyFloat_FromDouble(position/((double)-SHRT_MIN)));
-		else
-			PyList_SET_ITEM(list, axis_index, PyFloat_FromDouble(position/(double)SHRT_MAX));
+		if (position < 0) {
+			PyList_SET_ITEM(list, axis_index, PyFloat_FromDouble(position / ((double)-SHRT_MIN)));
+		}
+		else {
+			PyList_SET_ITEM(list, axis_index, PyFloat_FromDouble(position / (double)SHRT_MAX));
+		}
 	}
-	
+
 	return list;
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonJoystick::pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
+	SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
 
 	return PyUnicode_FromStdString(self->m_joystick->GetName());
 }

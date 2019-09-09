@@ -160,9 +160,10 @@ void init_sensor(bSensor *sens)
 	case SENS_JOYSTICK:
 		sens->data= MEM_callocN(sizeof(bJoystickSensor), "joysticksens");
 		js= sens->data;
-		js->hatf = SENS_JOY_HAT_UP;
-		js->axis = 1;
-		js->hat = 1;
+		js->type = SENS_JOY_AXIS;
+		js->axis = SENS_JOY_LEFT_STICK;
+		js->axis_single = SENS_JOY_LEFT_STICK_HORIZONTAL;
+		js->precision = 5000;
 		break;
 	default:
 		; /* this is very severe... I cannot make any memory for this        */
@@ -415,6 +416,7 @@ void init_actuator(bActuator *act)
 	bArmatureActuator *arma;
 	bMouseActuator *ma;
 	bEditObjectActuator *eoa;
+  bVibrationActuator *via;
 	
 	if (act->data) MEM_freeN(act->data);
 	act->data= NULL;
@@ -473,6 +475,12 @@ void init_actuator(bActuator *act)
 		break;
 	case ACT_GAME:
 		act->data= MEM_callocN(sizeof(bGameActuator), "game act");
+		break;
+  case ACT_VIBRATION:
+		act->data = MEM_callocN(sizeof(bVibrationActuator), "vibration act");
+		via = act->data;
+		via->duration = 500; //milliseconds
+		via->strength = 0.4;
 		break;
 	case ACT_VISIBILITY:
 		act->data= MEM_callocN(sizeof(bVisibilityActuator), "visibility act");
@@ -1151,6 +1159,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
 			case ACT_GROUP:
 			case ACT_RANDOM:
 			case ACT_GAME:
+      case ACT_VIBRATION:
 			case ACT_VISIBILITY:
 			case ACT_SHAPEACTION:
 			case ACT_STATE:

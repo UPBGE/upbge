@@ -432,6 +432,8 @@ static const char *actuator_name(int type)
 		return N_("Parent");
 	case ACT_STATE:
 		return N_("State");
+  case ACT_VIBRATION:
+		return N_("Vibration");
 	case ACT_ARMATURE:
 		return N_("Armature");
 	case ACT_STEERING:
@@ -981,42 +983,66 @@ static void draw_sensor_delay(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_sensor_joystick(uiLayout *layout, PointerRNA *ptr)
 {
-	uiLayout *col, *row;
+	uiLayout *col, *row, *split;
 
 	uiItemR(layout, ptr, "joystick_index", 0, NULL, ICON_NONE);
-	uiItemR(layout, ptr, "event_type", 0, NULL, ICON_NONE);
+	split = uiLayoutSplit(layout, 0.75f, false);
+	row = uiLayoutRow(split, false);
+	uiItemR(row, ptr, "event_type", 0, NULL, ICON_NONE);
 
 	switch (RNA_enum_get(ptr, "event_type")) {
 		case SENS_JOY_BUTTON:
-			uiItemR(layout, ptr, "use_all_events", 0, NULL, ICON_NONE);
+			uiItemR(split, ptr, "use_all_events", 0, NULL, ICON_NONE);
 
 			col = uiLayoutColumn(layout, false);
 			uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_events") == false);
 			uiItemR(col, ptr, "button_number", 0, NULL, ICON_NONE);
 			break;
 		case SENS_JOY_AXIS:
-			row = uiLayoutRow(layout, false);
-			uiItemR(row, ptr, "axis_number", 0, NULL, ICON_NONE);
-			uiItemR(row, ptr, "axis_threshold", 0, NULL, ICON_NONE);
+			uiItemR(split, ptr, "use_all_events", 0, NULL, ICON_NONE);
 
-			uiItemR(layout, ptr, "use_all_events", 0, NULL, ICON_NONE);
 			col = uiLayoutColumn(layout, false);
+			uiItemR(col, ptr, "axis_number", 0, NULL, ICON_NONE);
 			uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_events") == false);
 			uiItemR(col, ptr, "axis_direction", 0, NULL, ICON_NONE);
-			break;
-		case SENS_JOY_HAT:
-			uiItemR(layout, ptr, "hat_number", 0, NULL, ICON_NONE);
-			uiItemR(layout, ptr, "use_all_events", 0, NULL, ICON_NONE);
-
-			col = uiLayoutColumn(layout, false);
-			uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_events") == false);
-			uiItemR(col, ptr, "hat_direction", 0, NULL, ICON_NONE);
+			uiItemR(col, ptr, "axis_threshold", 0, NULL, ICON_NONE);
 			break;
 		case SENS_JOY_AXIS_SINGLE:
-			row = uiLayoutRow(layout, false);
-			uiItemR(row, ptr, "single_axis_number", 0, NULL, ICON_NONE);
-			uiItemR(row, ptr, "axis_threshold", 0, NULL, ICON_NONE);
+			col = uiLayoutColumn(layout, false);
+			uiItemR(col, ptr, "single_axis_number", 0, NULL, ICON_NONE);
+			uiItemR(col, ptr, "axis_threshold", 0, NULL, ICON_NONE);
 			break;
+		case SENS_JOY_SHOULDER_TRIGGER:
+			col = uiLayoutColumn(layout, false);
+			uiItemR(col, ptr, "axis_trigger_number", 0, NULL, ICON_NONE);
+			uiItemR(col, ptr, "axis_threshold", 0, NULL, ICON_NONE);
+			break;
+	}
+}
+
+static void draw_actuator_vibration(uiLayout *layout, PointerRNA *ptr)
+{
+	uiLayout *row;
+	row = uiLayoutRow(layout, false);
+
+	uiItemR(layout, ptr, "mode", 0, NULL, 0);
+
+	switch (RNA_enum_get(ptr, "mode")) {
+		case ACT_VIBRATION_PLAY:
+		{
+			uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
+			row = uiLayoutRow(layout, false);
+			uiItemR(row, ptr, "joy_strength_left", 0, NULL, ICON_NONE);
+			uiItemR(row, ptr, "joy_strength_right", 0, NULL, ICON_NONE);
+			row = uiLayoutRow(layout, false);
+			uiItemR(row, ptr, "joy_duration", 0, NULL, ICON_NONE);
+			break;
+		}
+		case ACT_VIBRATION_STOP:
+		{
+			uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
+			break;
+		}
 	}
 }
 
@@ -2223,6 +2249,9 @@ static void draw_brick_actuator(uiLayout *layout, PointerRNA *ptr, bContext *C)
 			break;
 		case ACT_STATE:
 			draw_actuator_state(box, ptr);
+			break;
+    case ACT_VIBRATION:
+			draw_actuator_vibration(box, ptr);
 			break;
 		case ACT_VISIBILITY:
 			draw_actuator_visibility(box, ptr);

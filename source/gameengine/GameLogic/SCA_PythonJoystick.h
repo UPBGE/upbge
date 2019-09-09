@@ -27,9 +27,9 @@
 #ifndef __SCA_PYTHONJOYSTICK_H__
 #define __SCA_PYTHONJOYSTICK_H__
 
-#include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
 
-class SCA_PythonJoystick : public PyObjectPlus
+class SCA_PythonJoystick : public CValue
 {
 	Py_Header
 private:
@@ -42,9 +42,9 @@ public:
 	SCA_PythonJoystick(class DEV_Joystick* joystick, int joyindex);
 	virtual ~SCA_PythonJoystick();
 
-#ifdef WITH_PYTHON
-	virtual PyObject* py_repr(void);
+	virtual std::string GetName();
 
+#ifdef WITH_PYTHON
 	static PyObject*	pyattr_get_num_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_active_buttons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

@@ -521,53 +521,66 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					}
 					break;
 				}
-			case SENS_JOYSTICK:
+				case SENS_JOYSTICK:
 				{
 					int joysticktype = SCA_JoystickSensor::KX_JOYSENSORMODE_NODEF;
 
-					bJoystickSensor* bjoy = (bJoystickSensor*) sens->data;
+					bJoystickSensor *bjoy = (bJoystickSensor *)sens->data;
 
 					SCA_JoystickManager *eventmgr
-						= (SCA_JoystickManager*) logicmgr->FindEventManager(SCA_EventManager::JOY_EVENTMGR);
-					if (eventmgr)
-					{
-						int axis	=0;
-						int axisf	=0;
-						int button	=0;
-						int prec	=0;
+					    = (SCA_JoystickManager *)logicmgr->FindEventManager(SCA_EventManager::JOY_EVENTMGR);
+					if (eventmgr) {
+						int axis    = 0;
+						int axisf   = 0;
+						int button  = 0;
+						int prec    = 0;
 
 						switch (bjoy->type) {
-						case SENS_JOY_AXIS:
-							axis	= bjoy->axis;
-							axisf	= bjoy->axisf;
-							prec	= bjoy->precision;
-							joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_AXIS;
-							break;
-						case SENS_JOY_BUTTON:
-							button	= bjoy->button;
-							joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_BUTTON;
-							break;
-						case SENS_JOY_AXIS_SINGLE:
-							axis	= bjoy->axis_single;
-							prec	= bjoy->precision;
-							joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_AXIS_SINGLE;
-							break;
-						default:
-							CM_Error("bad case statement");
-							break;
+							case SENS_JOY_AXIS:
+							{
+								axis    = bjoy->axis;
+								axisf   = bjoy->axisf;
+								prec    = bjoy->precision;
+								joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_AXIS;
+								break;
+							}
+							case SENS_JOY_BUTTON:
+							{
+								button  = bjoy->button;
+								joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_BUTTON;
+								break;
+							}
+							case SENS_JOY_AXIS_SINGLE:
+							{
+								axis    = bjoy->axis_single;
+								prec    = bjoy->precision;
+								joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_AXIS_SINGLE;
+								break;
+							}
+							case SENS_JOY_SHOULDER_TRIGGER:
+							{
+								axis    = bjoy->axis_single;
+								prec    = bjoy->precision;
+								joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_SHOULDER_TRIGGER;
+								break;
+							}
+							default:
+							{
+								CM_Error("bad case statement");
+								break;
+							}
 						}
 						gamesensor = new SCA_JoystickSensor(
 							eventmgr,
 							gameobj,
 							bjoy->joyindex,
 							joysticktype,
-							axis,axisf,
+							axis, axisf,
 							prec,
 							button,
 							(bjoy->flag & SENS_JOY_ANY_EVENT));
 					}
-					else
-					{
+					else {
 						CM_Error("problem finding the event manager");
 					}
 
