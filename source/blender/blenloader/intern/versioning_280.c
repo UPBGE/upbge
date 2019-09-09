@@ -3868,8 +3868,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  {
-    /* Versioning code until next subversion bump goes here. */
+  if (!MAIN_VERSION_ATLEAST(bmain, 281, 9)) {
     for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
       for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
         for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
@@ -3936,5 +3935,16 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         }
       }
     }
+
+    /* Elatic deform brush */
+    for (Brush *br = bmain->brushes.first; br; br = br->id.next) {
+      if (br->ob_mode & OB_MODE_SCULPT && br->elastic_deform_compressibility == 0.0f) {
+        br->elastic_deform_compressibility = 0.5f;
+      }
+    }
+  }
+
+  {
+    /* Versioning code until next subversion bump goes here. */
   }
 }

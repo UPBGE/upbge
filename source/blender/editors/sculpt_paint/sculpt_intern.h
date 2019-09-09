@@ -175,6 +175,20 @@ typedef struct SculptThreadedTaskData {
   int *count;
   bool any_vertex_sampled;
 
+  int filter_type;
+  float filter_strength;
+  int *node_mask;
+
+  float *prev_mask;
+
+  float *pose_origin;
+  float *pose_initial_co;
+  float (*transform_rot)[4], (*transform_trans)[4], (*transform_trans_inv)[4];
+
+  float max_distance_squared;
+  float nearest_vertex_search_co[3];
+  int nearest_vertex_index;
+
   ThreadMutex mutex;
 
 } SculptThreadedTaskData;
@@ -202,6 +216,7 @@ typedef struct {
   struct Sculpt *sd;
   struct SculptSession *ss;
   float radius_squared;
+  float *center;
   bool original;
 } SculptSearchSphereData;
 
@@ -235,6 +250,7 @@ float tex_strength(struct SculptSession *ss,
                    const short vno[3],
                    const float fno[3],
                    const float mask,
+                   const int vertex_index,
                    const int thread_id);
 
 /* just for vertex paint. */
@@ -322,6 +338,11 @@ typedef struct StrokeCache {
   bool original;
   float anchored_location[3];
 
+  /* Pose brush */
+  float *pose_factor;
+  float pose_initial_co[3];
+  float pose_origin[3];
+
   float vertex_rotation; /* amount to rotate the vertices when using rotate brush */
   struct Dial *dial;
 
@@ -336,10 +357,26 @@ typedef struct StrokeCache {
   float true_gravity_direction[3];
   float gravity_direction[3];
 
+  float *automask;
+
   rcti previous_r; /* previous redraw rectangle */
   rcti current_r;  /* current redraw rectangle */
 
 } StrokeCache;
+
+typedef struct FilterCache {
+  bool enabled_axis[3];
+  int random_seed;
+
+  /* unmasked nodes */
+  PBVHNode **nodes;
+  int totnode;
+
+  /* mask expand iteration caches */
+  int mask_update_current_it;
+  int mask_update_last_it;
+  int *mask_update_it;
+} FilterCache;
 
 void sculpt_cache_calc_brushdata_symm(StrokeCache *cache,
                                       const char symm,

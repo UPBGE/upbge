@@ -78,14 +78,6 @@ enum {
   /* warn: rest of uiBut->flag in UI_interface.h */
 };
 
-/* some buttons display icons only under special conditions
- * (e.g. 'x' icon in search menu) - used with ui_but_icon_extra_get */
-typedef enum uiButExtraIconType {
-  UI_BUT_ICONEXTRA_NONE = 1,
-  UI_BUT_ICONEXTRA_CLEAR,
-  UI_BUT_ICONEXTRA_EYEDROPPER,
-} uiButExtraIconType;
-
 /* uiBut->dragflag */
 enum {
   UI_BUT_DRAGPOIN_FREE = (1 << 0),
@@ -170,144 +162,160 @@ typedef struct {
 } uiLink;
 
 struct uiBut {
-	struct uiBut *next, *prev;
-	int flag, drawflag;
-	eButType         type;
-	eButPointerType  pointype;
-	short bit, bitnr, retval, strwidth, alignnr;
-	short ofs, pos, selsta, selend;
+  struct uiBut *next, *prev;
+  int flag, drawflag;
+  eButType type;
+  eButPointerType pointype;
+  short bit, bitnr, retval, strwidth, alignnr;
+  short ofs, pos, selsta, selend;
 
-	char *str;
-	char strdata[UI_MAX_NAME_STR];
-	char drawstr[UI_MAX_DRAW_STR];
+  char *str;
+  char strdata[UI_MAX_NAME_STR];
+  char drawstr[UI_MAX_DRAW_STR];
 
-	rctf rect;  /* block relative coords */
+  rctf rect; /* block relative coords */
 
-	char *poin;
-	float hardmin, hardmax, softmin, softmax;
+  char *poin;
+  float hardmin, hardmax, softmin, softmax;
 
-	/* both these values use depends on the button type
-	 * (polymorphic struct or union would be nicer for this stuff) */
+  /* both these values use depends on the button type
+   * (polymorphic struct or union would be nicer for this stuff) */
 
-	/* (type == UI_BTYPE_HSVCUBE),    Use UI_GRAD_* values.
-	 * (type == UI_BTYPE_NUM),        Use to store RNA 'step' value, for dragging and click-step.
-	 * (type == UI_BTYPE_LABEL),      Use (a1 == 1.0f) to use a2 as a blending factor (wow, this is imaginative!).
-	 * (type == UI_BTYPE_SCROLL)      Use as scroll size.
-	 * (type == UI_BTYPE_SEARCH_MENU) Use as number or rows.
-	 * (type == UI_BTYPE_COLOR)       Use as indication of color palette
-	 * (type == UI_BTYPE_PROGRESS_BAR) Use to store progress (0..1).
-	 */
-	float a1;
+  /**
+   * For #uiBut.type:
+   * - UI_BTYPE_HSVCUBE:      Use UI_GRAD_* values.
+   * - UI_BTYPE_NUM:          Use to store RNA 'step' value, for dragging and click-step.
+   * - UI_BTYPE_LABEL:        Use `(a1 == 1.0f)` to use a2 as a blending factor (imaginative!).
+   * - UI_BTYPE_SCROLL:       Use as scroll size.
+   * - UI_BTYPE_SEARCH_MENU:  Use as number or rows.
+   * - UI_BTYPE_COLOR:        Use as indication of color palette.
+   * - UI_BTYPE_PROGRESS_BAR: Use to store progress (0..1).
+   */
+  float a1;
 
-	/* (type == UI_BTYPE_HSVCIRCLE ), Use to store the luminosity.
-	 * (type == UI_BTYPE_NUM),        Use to store RNA 'precision' value, for dragging and click-step.
-	 * (type == UI_BTYPE_LABEL),      If (a1 == 1.0f) use a2 as a blending factor.
-	 * (type == UI_BTYPE_SEARCH_MENU) Use as number or columns.
-	 * (type == UI_BTYPE_COLOR)       Use as index in palette (not so good, needs refactor)
-	 */
-	float a2;
+  /**
+   * For #uiBut.type:
+   * - UI_BTYPE_HSVCIRCLE:    Use to store the luminosity.
+   * - UI_BTYPE_NUM:          Use to store RNA 'precision' value, for dragging and click-step.
+   * - UI_BTYPE_LABEL:        If `(a1 == 1.0f)` use a2 as a blending factor.
+   * - UI_BTYPE_SEARCH_MENU:  Use as number or columns.
+   * - UI_BTYPE_COLOR:        Use as index in palette (not so good, needs refactor).
+   */
+  float a2;
 
-	uchar col[4];
+  uchar col[4];
 
-	uiButHandleFunc func;
-	void *func_arg1;
-	void *func_arg2;
+  uiButHandleFunc func;
+  void *func_arg1;
+  void *func_arg2;
 
-	uiButHandleNFunc funcN;
-	void *func_argN;
+  uiButHandleNFunc funcN;
+  void *func_argN;
 
-	struct bContextStore *context;
+  struct bContextStore *context;
 
-	uiButCompleteFunc autocomplete_func;
-	void *autofunc_arg;
+  uiButCompleteFunc autocomplete_func;
+  void *autofunc_arg;
 
-	uiButSearchCreateFunc search_create_func;
-	uiButSearchFunc search_func;
-	bool free_search_arg;
-	void *search_arg;
+  uiButSearchCreateFunc search_create_func;
+  uiButSearchFunc search_func;
+  bool free_search_arg;
+  void *search_arg;
 
-	uiButHandleRenameFunc rename_func;
-	void *rename_arg1;
-	void *rename_orig;
+  uiButHandleRenameFunc rename_func;
+  void *rename_arg1;
+  void *rename_orig;
 
-	/** Run an action when holding the button down. */
-	uiButHandleHoldFunc hold_func;
-	void *hold_argN;
+  /** Run an action when holding the button down. */
+  uiButHandleHoldFunc hold_func;
+  void *hold_argN;
 
-	uiLink *link;
-	int linkto[2];  /* region relative coords */
-	
-	const char *tip;
-	uiButToolTipFunc tip_func;
-	void *tip_argN;
+  uiLink *link;
+  int linkto[2];  /* region relative coords */
 
-	/** info on why button is disabled, displayed in tooltip */
-	const char *disabled_info;
+  const char *tip;
+  uiButToolTipFunc tip_func;
+  void *tip_argN;
 
-	BIFIconID icon;
-	/** drawtype: UI_EMBOSS, UI_EMBOSS_NONE ... etc, copied from the block */
-	char dt;
-	/** direction in a pie menu, used for collision detection (RadialDirection) */
-	signed char pie_dir;
-	/** could be made into a single flag */
-	bool changed;
-	/** so buttons can support unit systems which are not RNA */
-	uchar unit_type;
-	short modifier_key;
-	short iconadd;
+  /** info on why button is disabled, displayed in tooltip */
+  const char *disabled_info;
 
-	/* UI_BTYPE_BLOCK data */
-	uiBlockCreateFunc block_create_func;
+  BIFIconID icon;
+  /** drawtype: UI_EMBOSS, UI_EMBOSS_NONE ... etc, copied from the block */
+  char dt;
+  /** direction in a pie menu, used for collision detection (RadialDirection) */
+  signed char pie_dir;
+  /** could be made into a single flag */
+  bool changed;
+  /** so buttons can support unit systems which are not RNA */
+  uchar unit_type;
+  short modifier_key;
+  short iconadd;
 
-	/* UI_BTYPE_PULLDOWN/UI_BTYPE_MENU data */
-	uiMenuCreateFunc menu_create_func;
+  /* UI_BTYPE_BLOCK data */
+  uiBlockCreateFunc block_create_func;
 
-	uiMenuStepFunc menu_step_func;
+  /* UI_BTYPE_PULLDOWN/UI_BTYPE_MENU data */
+  uiMenuCreateFunc menu_create_func;
 
-	/* RNA data */
-	struct PointerRNA rnapoin;
-	struct PropertyRNA *rnaprop;
-	int rnaindex;
+  uiMenuStepFunc menu_step_func;
 
-	struct PointerRNA rnasearchpoin;
-	struct PropertyRNA *rnasearchprop;
+  /* RNA data */
+  struct PointerRNA rnapoin;
+  struct PropertyRNA *rnaprop;
+  int rnaindex;
 
-	/* Operator data */
-	struct wmOperatorType *optype;
-	struct PointerRNA *opptr;
-	short opcontext;
-	uchar menu_key; /* 'a'-'z', always lower case */
+  struct PointerRNA rnasearchpoin;
+  struct PropertyRNA *rnasearchprop;
 
-	/* Draggable data, type is WM_DRAG_... */
-	char dragtype;
-	short dragflag;
-	void *dragpoin;
-	struct ImBuf *imb;
-	float imb_scale;
+  /* Operator data */
+  struct wmOperatorType *optype;
+  struct PointerRNA *opptr;
+  short opcontext;
+  uchar menu_key; /* 'a'-'z', always lower case */
 
-	/* active button data */
-	struct uiHandleButtonData *active;
+  ListBase extra_op_icons; /* uiButExtraOpIcon */
 
-	/* Custom button data. */
-	void *custom_data;
+  /* Draggable data, type is WM_DRAG_... */
+  char dragtype;
+  short dragflag;
+  void *dragpoin;
+  struct ImBuf *imb;
+  float imb_scale;
 
-	char *editstr;
-	double *editval;
-	float *editvec;
-	void *editcoba;
-	void *editcumap;
+  /* active button data */
+  struct uiHandleButtonData *active;
 
-	uiButPushedStateFunc pushed_state_func;
-	void *pushed_state_arg;
+  /* Custom button data. */
+  void *custom_data;
 
-	/* pointer back */
-	uiBlock *block;
+  char *editstr;
+  double *editval;
+  float *editvec;
+  void *editcoba;
+  void *editcumap;
+
+  uiButPushedStateFunc pushed_state_func;
+  void *pushed_state_arg;
+
+  /* pointer back */
+  uiBlock *block;
 };
 
 typedef struct uiButTab {
   uiBut but;
   struct MenuType *menu;
 } uiButTab;
+
+/**
+ * Additional, superimposed icon for a button, invoking an operator.
+ */
+typedef struct uiButExtraOpIcon {
+  struct uiButExtraOpIcon *next, *prev;
+
+  BIFIconID icon;
+  struct wmOperatorCallParams *optype_params;
+} uiButExtraOpIcon;
 
 typedef struct ColorPicker {
   struct ColorPicker *next, *prev;
@@ -515,13 +523,16 @@ extern bool ui_but_string_set_eval_num(struct bContext *C,
                                        const char *str,
                                        double *value) ATTR_NONNULL();
 extern int ui_but_string_get_max_length(uiBut *but);
+/* Clear & exit the active button's string. */
+extern void ui_but_active_string_clear_and_exit(struct bContext *C, uiBut *but) ATTR_NONNULL();
 extern uiBut *ui_but_drag_multi_edit_get(uiBut *but);
 
 void ui_def_but_icon(uiBut *but, const int icon, const int flag);
 void ui_def_but_icon_clear(uiBut *but);
-extern uiButExtraIconType ui_but_icon_extra_get(uiBut *but);
 
 extern void ui_but_default_set(struct bContext *C, const bool all, const bool use_afterfunc);
+
+void ui_but_extra_operator_icons_free(uiBut *but);
 
 extern void ui_but_rna_menu_convert_to_panel_type(struct uiBut *but, const char *panel_type);
 extern void ui_but_rna_menu_convert_to_menu_type(struct uiBut *but, const char *menu_type);

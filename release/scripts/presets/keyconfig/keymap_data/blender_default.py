@@ -1764,7 +1764,7 @@ def km_info(params):
     return keymap
 
 
-def km_file_browser(_params):
+def km_file_browser(params):
     items = []
     keymap = (
         "File Browser",
@@ -1790,6 +1790,19 @@ def km_file_browser(_params):
         ("file.directory_new", {"type": 'I', "value": 'PRESS'}, None),
         ("file.smoothscroll", {"type": 'TIMER1', "value": 'ANY', "any": True}, None),
         ("file.bookmark_add", {"type": 'B', "value": 'PRESS', "ctrl": True}, None),
+        ("file.filenum", {"type": 'NUMPAD_PLUS', "value": 'PRESS'},
+         {"properties": [("increment", 1)]}),
+        ("file.filenum", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "shift": True},
+         {"properties": [("increment", 10)]}),
+        ("file.filenum", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True},
+         {"properties": [("increment", 100)]}),
+        ("file.filenum", {"type": 'NUMPAD_MINUS', "value": 'PRESS'},
+         {"properties": [("increment", -1)]}),
+        ("file.filenum", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "shift": True},
+         {"properties": [("increment", -10)]}),
+        ("file.filenum", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True},
+         {"properties": [("increment", -100)]}),
+        op_menu("FILEBROWSER_MT_context_menu", params.context_menu_event),
     ])
 
     return keymap
@@ -1849,19 +1862,6 @@ def km_file_browser_main(params):
          {"properties": [("mode", 'SUB')]}),
         ("file.highlight", {"type": 'MOUSEMOVE', "value": 'ANY', "any": True}, None),
         ("file.sort_column_ui_context", {"type": 'LEFTMOUSE', "value": 'PRESS', "any": True}, None),
-        op_menu("FILEBROWSER_MT_context_menu", params.context_menu_event),
-        ("file.filenum", {"type": 'NUMPAD_PLUS', "value": 'PRESS'},
-         {"properties": [("increment", 1)]}),
-        ("file.filenum", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "shift": True},
-         {"properties": [("increment", 10)]}),
-        ("file.filenum", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True},
-         {"properties": [("increment", 100)]}),
-        ("file.filenum", {"type": 'NUMPAD_MINUS', "value": 'PRESS'},
-         {"properties": [("increment", -1)]}),
-        ("file.filenum", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "shift": True},
-         {"properties": [("increment", -10)]}),
-        ("file.filenum", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True},
-         {"properties": [("increment", -100)]}),
     ])
 
     return keymap
@@ -3902,6 +3902,7 @@ def km_sculpt(params):
          {"properties": [("data_path", 'tool_settings.sculpt.brush.use_smooth_stroke')]}),
         op_menu("VIEW3D_MT_angle_control", {"type": 'R', "value": 'PRESS'}),
         op_panel("VIEW3D_PT_sculpt_context_menu", params.context_menu_event),
+        op_menu_pie("VIEW3D_MT_sculpt_mask_edit_pie", {"type" : 'A', "value": 'PRESS'})
     ])
 
     if params.legacy:
@@ -5720,6 +5721,15 @@ def km_3d_view_tool_sculpt_lasso_mask(params):
         ]},
     )
 
+def km_3d_view_tool_sculpt_mesh_filter(params):
+    return (
+        "3D View Tool: Sculpt, Mesh Filter",
+        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
+        {"items": [
+            ("sculpt.mesh_filter", {"type": params.tool_tweak, "value": 'ANY'},
+             None)
+        ]},
+    )
 
 def km_3d_view_tool_paint_weight_sample_weight(params):
     return (
@@ -6161,6 +6171,7 @@ def generate_keymaps(params=None):
         km_3d_view_tool_sculpt_box_hide(params),
         km_3d_view_tool_sculpt_box_mask(params),
         km_3d_view_tool_sculpt_lasso_mask(params),
+        km_3d_view_tool_sculpt_mesh_filter(params),
         km_3d_view_tool_paint_weight_sample_weight(params),
         km_3d_view_tool_paint_weight_sample_vertex_group(params),
         km_3d_view_tool_paint_weight_gradient(params),

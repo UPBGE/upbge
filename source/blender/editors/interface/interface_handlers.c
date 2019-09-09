@@ -107,7 +107,10 @@
 /* proto */
 static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to);
 static void ui_but_link_add(bContext *C, uiBut *from, uiBut *to);
-static int ui_do_but_EXIT(bContext *C, uiBut *but, struct uiHandleButtonData *data, const wmEvent *event);
+static int ui_do_but_EXIT(bContext *C,
+                          uiBut *but,
+                          struct uiHandleButtonData *data,
+                          const wmEvent *event);
 static bool ui_but_find_select_in_enum__cmp(const uiBut *but_a, const uiBut *but_b);
 static void ui_textedit_string_set(uiBut *but, struct uiHandleButtonData *data, const char *str);
 
@@ -742,19 +745,19 @@ static void ui_apply_but_undo(uiBut *but)
   if (but->flag & UI_BUT_UNDO) {
     const char *str = NULL;
 
-		/* define which string to use for undo */
-		if (ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK)) {
-			str = "Add button link";
-		}
-		else if (but->type == UI_BTYPE_MENU) {
-			str = but->drawstr;
-		}
-		else if (but->drawstr[0]) {
-			str = but->drawstr;
-		}
-		else {
-			str = but->tip;
-		}
+    /* define which string to use for undo */
+    if (ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK)) {
+      str = "Add button link";
+    }
+    else if (but->type == UI_BTYPE_MENU) {
+      str = but->drawstr;
+    }
+    else if (but->drawstr[0]) {
+      str = but->drawstr;
+    }
+    else {
+      str = but->tip;
+    }
 
     /* fallback, else we don't get an undo! */
     if (str == NULL || str[0] == '\0') {
@@ -2210,101 +2213,101 @@ static void ui_apply_but(
       data->select_others.elems_len = -1;
     }
 #endif
-	}
+  }
 
-	/* ensures we are writing actual values */
-	editstr = but->editstr;
-	editval = but->editval;
-	editvec = but->editvec;
-	editcoba = but->editcoba;
-	editcumap = but->editcumap;
-	but->editstr = NULL;
-	but->editval = NULL;
-	but->editvec = NULL;
-	but->editcoba = NULL;
-	but->editcumap = NULL;
+  /* ensures we are writing actual values */
+  editstr = but->editstr;
+  editval = but->editval;
+  editvec = but->editvec;
+  editcoba = but->editcoba;
+  editcumap = but->editcumap;
+  but->editstr = NULL;
+  but->editval = NULL;
+  but->editvec = NULL;
+  but->editcoba = NULL;
+  but->editcumap = NULL;
 
-	/* handle different types */
-	switch (but->type) {
-		case UI_BTYPE_BUT:
-			ui_apply_but_BUT(C, but, data);
-			break;
-		case UI_BTYPE_TEXT:
-		case UI_BTYPE_SEARCH_MENU:
-			ui_apply_but_TEX(C, but, data);
-			break;
-		case UI_BTYPE_BUT_TOGGLE:
-		case UI_BTYPE_TOGGLE:
-		case UI_BTYPE_TOGGLE_N:
-		case UI_BTYPE_ICON_TOGGLE:
-		case UI_BTYPE_ICON_TOGGLE_N:
-		case UI_BTYPE_CHECKBOX:
-		case UI_BTYPE_CHECKBOX_N:
-			ui_apply_but_TOG(C, but, data);
-			break;
-		case UI_BTYPE_ROW:
-		case UI_BTYPE_LISTROW:
-			ui_apply_but_ROW(C, block, but, data);
-			break;
-		case UI_BTYPE_TAB:
-			ui_apply_but_TAB(C, but, data);
-			break;
-		case UI_BTYPE_SCROLL:
-		case UI_BTYPE_GRIP:
-		case UI_BTYPE_NUM:
-		case UI_BTYPE_NUM_SLIDER:
-			ui_apply_but_NUM(C, but, data);
-			break;
-		case UI_BTYPE_MENU:
-		case UI_BTYPE_BLOCK:
-		case UI_BTYPE_PULLDOWN:
-			ui_apply_but_BLOCK(C, but, data);
-			break;
-		case UI_BTYPE_COLOR:
-			if (data->cancel) {
-				ui_apply_but_VEC(C, but, data);
-			}
-			else {
-				ui_apply_but_BLOCK(C, but, data);
-			}
-			break;
-		case UI_BTYPE_BUT_MENU:
-			ui_apply_but_BUTM(C, but, data);
-			break;
-		case UI_BTYPE_UNITVEC:
-		case UI_BTYPE_HSVCUBE:
-		case UI_BTYPE_HSVCIRCLE:
-			ui_apply_but_VEC(C, but, data);
-			break;
-		case UI_BTYPE_COLORBAND:
-			ui_apply_but_COLORBAND(C, but, data);
-			break;
-		case UI_BTYPE_CURVE:
-			ui_apply_but_CURVE(C, but, data);
-			break;
-		case UI_BTYPE_KEY_EVENT:
-		case UI_BTYPE_HOTKEY_EVENT:
-			ui_apply_but_BUT(C, but, data);
-			break;
-		case UI_BTYPE_LINK:
-		case UI_BTYPE_INLINK:
-			ui_apply_but_LINK(C, but, data);
-			break;
-		case UI_BTYPE_IMAGE:
-			ui_apply_but_IMAGE(C, but, data);
-			break;
-		case UI_BTYPE_HISTOGRAM:
-			ui_apply_but_HISTOGRAM(C, but, data);
-			break;
-		case UI_BTYPE_WAVEFORM:
-			ui_apply_but_WAVEFORM(C, but, data);
-			break;
-		case UI_BTYPE_TRACK_PREVIEW:
-			ui_apply_but_TRACKPREVIEW(C, but, data);
-			break;
-		default:
-			break;
-	}
+  /* handle different types */
+  switch (but->type) {
+    case UI_BTYPE_BUT:
+      ui_apply_but_BUT(C, but, data);
+      break;
+    case UI_BTYPE_TEXT:
+    case UI_BTYPE_SEARCH_MENU:
+      ui_apply_but_TEX(C, but, data);
+      break;
+    case UI_BTYPE_BUT_TOGGLE:
+    case UI_BTYPE_TOGGLE:
+    case UI_BTYPE_TOGGLE_N:
+    case UI_BTYPE_ICON_TOGGLE:
+    case UI_BTYPE_ICON_TOGGLE_N:
+    case UI_BTYPE_CHECKBOX:
+    case UI_BTYPE_CHECKBOX_N:
+      ui_apply_but_TOG(C, but, data);
+      break;
+    case UI_BTYPE_ROW:
+    case UI_BTYPE_LISTROW:
+      ui_apply_but_ROW(C, block, but, data);
+      break;
+    case UI_BTYPE_TAB:
+      ui_apply_but_TAB(C, but, data);
+      break;
+    case UI_BTYPE_SCROLL:
+    case UI_BTYPE_GRIP:
+    case UI_BTYPE_NUM:
+    case UI_BTYPE_NUM_SLIDER:
+      ui_apply_but_NUM(C, but, data);
+      break;
+    case UI_BTYPE_MENU:
+    case UI_BTYPE_BLOCK:
+    case UI_BTYPE_PULLDOWN:
+      ui_apply_but_BLOCK(C, but, data);
+      break;
+    case UI_BTYPE_COLOR:
+      if (data->cancel) {
+        ui_apply_but_VEC(C, but, data);
+      }
+      else {
+        ui_apply_but_BLOCK(C, but, data);
+      }
+      break;
+    case UI_BTYPE_BUT_MENU:
+      ui_apply_but_BUTM(C, but, data);
+      break;
+    case UI_BTYPE_UNITVEC:
+    case UI_BTYPE_HSVCUBE:
+    case UI_BTYPE_HSVCIRCLE:
+      ui_apply_but_VEC(C, but, data);
+      break;
+    case UI_BTYPE_COLORBAND:
+      ui_apply_but_COLORBAND(C, but, data);
+      break;
+    case UI_BTYPE_CURVE:
+      ui_apply_but_CURVE(C, but, data);
+      break;
+    case UI_BTYPE_KEY_EVENT:
+    case UI_BTYPE_HOTKEY_EVENT:
+      ui_apply_but_BUT(C, but, data);
+      break;
+    case UI_BTYPE_LINK:
+    case UI_BTYPE_INLINK:
+      ui_apply_but_LINK(C, but, data);
+      break;
+    case UI_BTYPE_IMAGE:
+      ui_apply_but_IMAGE(C, but, data);
+      break;
+    case UI_BTYPE_HISTOGRAM:
+      ui_apply_but_HISTOGRAM(C, but, data);
+      break;
+    case UI_BTYPE_WAVEFORM:
+      ui_apply_but_WAVEFORM(C, but, data);
+      break;
+    case UI_BTYPE_TRACK_PREVIEW:
+      ui_apply_but_TRACKPREVIEW(C, but, data);
+      break;
+    default:
+      break;
+  }
 
 #ifdef USE_DRAG_MULTINUM
   if (data->multi_data.has_mbuts) {
@@ -2900,15 +2903,19 @@ void ui_but_text_password_hide(char password_str[UI_MAX_PASSWORD_STR],
 /** \name Button Text Selection/Editing
  * \{ */
 
-static void ui_textedit_string_clear_and_exit(bContext *C, uiBut *but, uiHandleButtonData *data)
+void ui_but_active_string_clear_and_exit(bContext *C, uiBut *but)
 {
-  /* most likely NULL, but let's check, and give it temp zero string */
-  if (!data->str) {
-    data->str = MEM_callocN(1, "temp str");
+  if (!but->active) {
+    return;
   }
-  data->str[0] = 0;
 
-  ui_apply_but_TEX(C, but, data);
+  /* most likely NULL, but let's check, and give it temp zero string */
+  if (!but->active->str) {
+    but->active->str = MEM_callocN(1, "temp str");
+  }
+  but->active->str[0] = 0;
+
+  ui_apply_but_TEX(C, but, but->active);
   button_activate_state(C, but, BUTTON_STATE_EXIT);
 }
 
@@ -3995,6 +4002,19 @@ static void ui_numedit_apply(bContext *C, uiBlock *block, uiBut *but, uiHandleBu
   ED_region_tag_redraw(data->region);
 }
 
+static void ui_but_extra_operator_icon_apply(bContext *C, uiBut *but, uiButExtraOpIcon *op_icon)
+{
+  WM_operator_name_call_ptr(C,
+                            op_icon->optype_params->optype,
+                            op_icon->optype_params->opcontext,
+                            op_icon->optype_params->opptr);
+
+  /* Force recreation of extra operator icons (pseudo update). */
+  ui_but_extra_operator_icons_free(but);
+
+  WM_event_add_mousemove(C);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -4137,6 +4157,46 @@ static uiBut *ui_but_list_row_text_activate(bContext *C,
 /* -------------------------------------------------------------------- */
 /** \name Events for Various Button Types
  * \{ */
+
+static uiButExtraOpIcon *ui_but_extra_operator_icon_mouse_over_get(uiBut *but,
+                                                                   uiHandleButtonData *data,
+                                                                   const wmEvent *event)
+{
+  float xmax = but->rect.xmax;
+  const float icon_size = BLI_rctf_size_y(&but->rect);
+  int x = event->x, y = event->y;
+
+  ui_window_to_block(data->region, but->block, &x, &y);
+  if (!BLI_rctf_isect_pt(&but->rect, x, y)) {
+    return NULL;
+  }
+
+  /* Inverse order, from right to left. */
+  for (uiButExtraOpIcon *op_icon = but->extra_op_icons.last; op_icon; op_icon = op_icon->prev) {
+    if ((x > (xmax - icon_size)) && x < xmax) {
+      return op_icon;
+    }
+    xmax -= icon_size;
+  }
+
+  return NULL;
+}
+
+static bool ui_do_but_extra_operator_icon(bContext *C,
+                                          uiBut *but,
+                                          uiHandleButtonData *data,
+                                          const wmEvent *event)
+{
+  uiButExtraOpIcon *op_icon = ui_but_extra_operator_icon_mouse_over_get(but, data, event);
+
+  if (op_icon) {
+    ui_but_extra_operator_icon_apply(C, but, op_icon);
+    button_activate_exit(C, but, data, false, false);
+    return true;
+  }
+
+  return false;
+}
 
 #ifdef USE_DRAG_TOGGLE
 /* Shared by any button that supports drag-toggle. */
@@ -4325,23 +4385,6 @@ static int ui_do_but_KEYEVT(bContext *C,
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static bool ui_but_is_mouse_over_icon_extra(const ARegion *region,
-                                            uiBut *but,
-                                            const int mouse_xy[2])
-{
-  int x = mouse_xy[0], y = mouse_xy[1];
-  rcti icon_rect;
-
-  BLI_assert(ui_but_icon_extra_get(but) != UI_BUT_ICONEXTRA_NONE);
-
-  ui_window_to_block(region, but->block, &x, &y);
-
-  BLI_rcti_rctf_copy(&icon_rect, &but->rect);
-  icon_rect.xmin = icon_rect.xmax - (BLI_rcti_size_y(&icon_rect));
-
-  return BLI_rcti_isect_pt(&icon_rect, x, y);
-}
-
 static int ui_do_but_TAB(
     bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
@@ -4395,17 +4438,11 @@ static int ui_do_but_TEX(
       else if (but->dt == UI_EMBOSS_NONE && !event->ctrl) {
         /* pass */
       }
-      else {
-        const bool has_icon_extra = ui_but_icon_extra_get(but) == UI_BUT_ICONEXTRA_CLEAR;
-
-        if (has_icon_extra && ui_but_is_mouse_over_icon_extra(data->region, but, &event->x)) {
-          ui_textedit_string_clear_and_exit(C, but, data);
-        }
-        else {
-          button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
-        }
-        return WM_UI_HANDLER_BREAK;
+      else if (!ui_but_extra_operator_icon_mouse_over_get(but, data, event)) {
+        button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
       }
+
+      return WM_UI_HANDLER_BREAK;
     }
   }
   else if (data->state == BUTTON_STATE_TEXT_EDITING) {
@@ -4423,27 +4460,12 @@ static int ui_do_but_TEX(
 static int ui_do_but_SEARCH_UNLINK(
     bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
-  const uiButExtraIconType extra_icon_type = ui_but_icon_extra_get(but);
-  const bool has_icon_extra = (extra_icon_type != UI_BUT_ICONEXTRA_NONE);
-
   /* unlink icon is on right */
-  if ((ELEM(event->type, LEFTMOUSE, EVT_BUT_OPEN, PADENTER, RETKEY)) && (has_icon_extra == true) &&
-      (ui_but_is_mouse_over_icon_extra(data->region, but, &event->x) == true)) {
+  if (ELEM(event->type, LEFTMOUSE, EVT_BUT_OPEN, PADENTER, RETKEY)) {
     /* doing this on KM_PRESS calls eyedropper after clicking unlink icon */
-    if (event->val == KM_RELEASE) {
-      /* unlink */
-      if (extra_icon_type == UI_BUT_ICONEXTRA_CLEAR) {
-        ui_textedit_string_clear_and_exit(C, but, data);
-      }
-      /* eyedropper */
-      else if (extra_icon_type == UI_BUT_ICONEXTRA_EYEDROPPER) {
-        WM_operator_name_call(C, "UI_OT_eyedropper_id", WM_OP_INVOKE_DEFAULT, NULL);
-      }
-      else {
-        BLI_assert(0);
-      }
+    if ((event->val == KM_RELEASE) && ui_do_but_extra_operator_icon(C, but, data, event)) {
+      return WM_UI_HANDLER_BREAK;
     }
-    return WM_UI_HANDLER_BREAK;
   }
   return ui_do_but_TEX(C, block, but, data, event);
 }
@@ -4526,7 +4548,7 @@ static int ui_do_but_EXIT(bContext *C, uiBut *but, uiHandleButtonData *data, con
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
 
     /* first handle click on icondrag type button */
-    if (event->type == LEFTMOUSE && but->dragpoin) {
+    if ((event->type == LEFTMOUSE) && (event->val == KM_PRESS) && but->dragpoin) {
       if (ui_but_contains_point_px_icon(but, data->region, event)) {
 
         /* tell the button to wait and keep checking further events to
@@ -4538,7 +4560,7 @@ static int ui_do_but_EXIT(bContext *C, uiBut *but, uiHandleButtonData *data, con
       }
     }
 #ifdef USE_DRAG_TOGGLE
-    if (event->type == LEFTMOUSE && ui_but_is_drag_toggle(but)) {
+    if ((event->type == LEFTMOUSE) && (event->val == KM_PRESS) && ui_but_is_drag_toggle(but)) {
       button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
       data->dragstartx = event->x;
       data->dragstarty = event->y;
@@ -7173,204 +7195,207 @@ static int ui_do_but_TRACKPREVIEW(
 
 static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *event)
 {
-	uiHandleButtonData *data;
-	int retval;
+  uiHandleButtonData *data;
+  int retval;
 
-	data = but->active;
-	retval = WM_UI_HANDLER_CONTINUE;
+  data = but->active;
+  retval = WM_UI_HANDLER_CONTINUE;
 
-	bool is_disabled = but->flag & UI_BUT_DISABLED;
+  bool is_disabled = but->flag & UI_BUT_DISABLED;
 
-	/* if but->pointype is set, but->poin should be too */
-	BLI_assert(!but->pointype || but->poin);
+  /* if but->pointype is set, but->poin should be too */
+  BLI_assert(!but->pointype || but->poin);
 
-	/* Only hard-coded stuff here, button interactions with configurable
-	 * keymaps are handled using operators (see #ED_keymap_ui). */
+  /* Only hard-coded stuff here, button interactions with configurable
+   * keymaps are handled using operators (see #ED_keymap_ui). */
 
-	if ((data->state == BUTTON_STATE_HIGHLIGHT) || (event->type == EVT_DROP)) {
+  if ((data->state == BUTTON_STATE_HIGHLIGHT) || (event->type == EVT_DROP)) {
 
-		/* handle copy and paste */
-		bool is_press_ctrl_but_no_shift = event->val == KM_PRESS && IS_EVENT_MOD(event, ctrl, oskey) && !event->shift;
-		bool do_copy = event->type == CKEY && is_press_ctrl_but_no_shift;
-		bool do_paste = event->type == VKEY && is_press_ctrl_but_no_shift;
+    /* handle copy and paste */
+    bool is_press_ctrl_but_no_shift = event->val == KM_PRESS && IS_EVENT_MOD(event, ctrl, oskey) &&
+                                      !event->shift;
+    bool do_copy = event->type == CKEY && is_press_ctrl_but_no_shift;
+    bool do_paste = event->type == VKEY && is_press_ctrl_but_no_shift;
 
-		/* Specific handling for listrows, we try to find their overlapping tex button. */
-		if ((do_copy || do_paste) && but->type == UI_BTYPE_LISTROW) {
-			uiBut *labelbut = ui_but_list_row_text_activate(C, but, data, event, BUTTON_ACTIVATE_OVER);
-			if (labelbut) {
-				but = labelbut;
-				data = but->active;
-			}
-		}
+    /* Specific handling for listrows, we try to find their overlapping tex button. */
+    if ((do_copy || do_paste) && but->type == UI_BTYPE_LISTROW) {
+      uiBut *labelbut = ui_but_list_row_text_activate(C, but, data, event, BUTTON_ACTIVATE_OVER);
+      if (labelbut) {
+        but = labelbut;
+        data = but->active;
+      }
+    }
 
-		/* do copy first, because it is the only allowed operator when disabled */
-		if (do_copy) {
-			ui_but_copy(C, but, event->alt);
-			return WM_UI_HANDLER_BREAK;
-		}
+    /* do copy first, because it is the only allowed operator when disabled */
+    if (do_copy) {
+      ui_but_copy(C, but, event->alt);
+      return WM_UI_HANDLER_BREAK;
+    }
 
-		/* handle menu */
-		if ((event->type == RIGHTMOUSE) &&
-		    !IS_EVENT_MOD(event, shift, ctrl, alt, oskey) &&
-		    (event->val == KM_PRESS))
-		{
-			/* RMB has two options now */
-			if (ui_popup_context_menu_for_button(C, but)) {
-				return WM_UI_HANDLER_BREAK;
-			}
-		}
+    /* handle menu */
+    if ((event->type == RIGHTMOUSE) && !IS_EVENT_MOD(event, shift, ctrl, alt, oskey) &&
+        (event->val == KM_PRESS)) {
+      /* RMB has two options now */
+      if (ui_popup_context_menu_for_button(C, but)) {
+        return WM_UI_HANDLER_BREAK;
+      }
+    }
 
-		if (is_disabled) {
-			return WM_UI_HANDLER_CONTINUE;
-		}
+    if (is_disabled) {
+      return WM_UI_HANDLER_CONTINUE;
+    }
 
-		if (do_paste) {
-			ui_but_paste(C, but, data, event->alt);
-			return WM_UI_HANDLER_BREAK;
-		}
+    if (do_paste) {
+      ui_but_paste(C, but, data, event->alt);
+      return WM_UI_HANDLER_BREAK;
+    }
 
-		/* handle drop */
-		if (event->type == EVT_DROP) {
-			ui_but_drop(C, event, but, data);
-		}
-	}
+    /* handle drop */
+    if (event->type == EVT_DROP) {
+      ui_but_drop(C, event, but, data);
+    }
 
-	if (but->flag & UI_BUT_DISABLED) {
-		return WM_UI_HANDLER_CONTINUE;
-	}
+    if ((data->state == BUTTON_STATE_HIGHLIGHT) &&
+        ELEM(event->type, LEFTMOUSE, EVT_BUT_OPEN, PADENTER, RETKEY) &&
+        (event->val == KM_RELEASE) &&
+        /* Only returns true if the event was handled. */
+        ui_do_but_extra_operator_icon(C, but, data, event)) {
+      return WM_UI_HANDLER_BREAK;
+    }
+  }
 
-	switch (but->type) {
-		case UI_BTYPE_BUT:
-			retval = ui_do_but_BUT(C, but, data, event);
-			break;
-		case UI_BTYPE_KEY_EVENT:
-			retval = ui_do_but_KEYEVT(C, but, data, event);
-			break;
-		case UI_BTYPE_HOTKEY_EVENT:
-			retval = ui_do_but_HOTKEYEVT(C, but, data, event);
-			break;
-		case UI_BTYPE_TAB:
-			retval = ui_do_but_TAB(C, block, but, data, event);
-			break;
-		case UI_BTYPE_BUT_TOGGLE:
-		case UI_BTYPE_TOGGLE:
-		case UI_BTYPE_ICON_TOGGLE:
-		case UI_BTYPE_ICON_TOGGLE_N:
-		case UI_BTYPE_TOGGLE_N:
-		case UI_BTYPE_CHECKBOX:
-		case UI_BTYPE_CHECKBOX_N:
-		case UI_BTYPE_ROW:
-			retval = ui_do_but_TOG(C, but, data, event);
-			break;
-		case UI_BTYPE_SCROLL:
-			retval = ui_do_but_SCROLL(C, block, but, data, event);
-			break;
-		case UI_BTYPE_GRIP:
-			retval = ui_do_but_GRIP(C, block, but, data, event);
-			break;
-		case UI_BTYPE_NUM:
-			retval = ui_do_but_NUM(C, block, but, data, event);
-			break;
-		case UI_BTYPE_NUM_SLIDER:
-			retval = ui_do_but_SLI(C, block, but, data, event);
-			break;
-		case UI_BTYPE_LISTBOX:
-			/* Nothing to do! */
-			break;
-		case UI_BTYPE_LISTROW:
-			retval = ui_do_but_LISTROW(C, but, data, event);
-			break;
-		case UI_BTYPE_ROUNDBOX:
-		case UI_BTYPE_LABEL:
-		case UI_BTYPE_IMAGE:
-		case UI_BTYPE_PROGRESS_BAR:
-		case UI_BTYPE_NODE_SOCKET:
-			retval = ui_do_but_EXIT(C, but, data, event);
-			break;
-		case UI_BTYPE_HISTOGRAM:
-			retval = ui_do_but_HISTOGRAM(C, block, but, data, event);
-			break;
-		case UI_BTYPE_WAVEFORM:
-			retval = ui_do_but_WAVEFORM(C, block, but, data, event);
-			break;
-		case UI_BTYPE_VECTORSCOPE:
-			/* Nothing to do! */
-			break;
-		case UI_BTYPE_TEXT:
-		case UI_BTYPE_SEARCH_MENU:
-			if ((but->type == UI_BTYPE_SEARCH_MENU) &&
-			    (but->flag & UI_BUT_VALUE_CLEAR))
-			{
-				retval = ui_do_but_SEARCH_UNLINK(C, block, but, data, event);
-				if (retval & WM_UI_HANDLER_BREAK) {
-					break;
-				}
-			}
-			retval = ui_do_but_TEX(C, block, but, data, event);
-			break;
-		case UI_BTYPE_MENU:
-		case UI_BTYPE_POPOVER:
-		case UI_BTYPE_BLOCK:
-		case UI_BTYPE_PULLDOWN:
-			retval = ui_do_but_BLOCK(C, but, data, event);
-			break;
-		case UI_BTYPE_BUT_MENU:
-			retval = ui_do_but_BUT(C, but, data, event);
-			break;
-		case UI_BTYPE_COLOR:
-			if (but->a1 == -1) {
-				/* signal to prevent calling up color picker */
-				retval = ui_do_but_EXIT(C, but, data, event);
-			}
-			else {
-				retval = ui_do_but_COLOR(C, but, data, event);
-			}
-			break;
-		case UI_BTYPE_UNITVEC:
-			retval = ui_do_but_UNITVEC(C, block, but, data, event);
-			break;
-		case UI_BTYPE_COLORBAND:
-			retval = ui_do_but_COLORBAND(C, block, but, data, event);
-			break;
-		case UI_BTYPE_CURVE:
-			retval = ui_do_but_CURVE(C, block, but, data, event);
-			break;
-		case UI_BTYPE_HSVCUBE:
-			retval = ui_do_but_HSVCUBE(C, block, but, data, event);
-			break;
-		case UI_BTYPE_HSVCIRCLE:
-			retval = ui_do_but_HSVCIRCLE(C, block, but, data, event);
-			break;
-		case UI_BTYPE_LINK:
-		case UI_BTYPE_INLINK:
-			retval = ui_do_but_LINK(C, but, data, event);
-			break;
-		case UI_BTYPE_TRACK_PREVIEW:
-			retval = ui_do_but_TRACKPREVIEW(C, block, but, data, event);
-			break;
+  if (but->flag & UI_BUT_DISABLED) {
+    return WM_UI_HANDLER_CONTINUE;
+  }
 
-			/* quiet warnings for unhandled types */
-		case UI_BTYPE_SEPR:
-		case UI_BTYPE_SEPR_LINE:
-		case UI_BTYPE_SEPR_SPACER:
-		case UI_BTYPE_EXTRA:
-			break;
-	}
+  switch (but->type) {
+    case UI_BTYPE_BUT:
+      retval = ui_do_but_BUT(C, but, data, event);
+      break;
+    case UI_BTYPE_KEY_EVENT:
+      retval = ui_do_but_KEYEVT(C, but, data, event);
+      break;
+    case UI_BTYPE_HOTKEY_EVENT:
+      retval = ui_do_but_HOTKEYEVT(C, but, data, event);
+      break;
+    case UI_BTYPE_TAB:
+      retval = ui_do_but_TAB(C, block, but, data, event);
+      break;
+    case UI_BTYPE_BUT_TOGGLE:
+    case UI_BTYPE_TOGGLE:
+    case UI_BTYPE_ICON_TOGGLE:
+    case UI_BTYPE_ICON_TOGGLE_N:
+    case UI_BTYPE_TOGGLE_N:
+    case UI_BTYPE_CHECKBOX:
+    case UI_BTYPE_CHECKBOX_N:
+    case UI_BTYPE_ROW:
+      retval = ui_do_but_TOG(C, but, data, event);
+      break;
+    case UI_BTYPE_SCROLL:
+      retval = ui_do_but_SCROLL(C, block, but, data, event);
+      break;
+    case UI_BTYPE_GRIP:
+      retval = ui_do_but_GRIP(C, block, but, data, event);
+      break;
+    case UI_BTYPE_NUM:
+      retval = ui_do_but_NUM(C, block, but, data, event);
+      break;
+    case UI_BTYPE_NUM_SLIDER:
+      retval = ui_do_but_SLI(C, block, but, data, event);
+      break;
+    case UI_BTYPE_LISTBOX:
+      /* Nothing to do! */
+      break;
+    case UI_BTYPE_LISTROW:
+      retval = ui_do_but_LISTROW(C, but, data, event);
+      break;
+    case UI_BTYPE_ROUNDBOX:
+    case UI_BTYPE_LABEL:
+    case UI_BTYPE_IMAGE:
+    case UI_BTYPE_PROGRESS_BAR:
+    case UI_BTYPE_NODE_SOCKET:
+      retval = ui_do_but_EXIT(C, but, data, event);
+      break;
+    case UI_BTYPE_HISTOGRAM:
+      retval = ui_do_but_HISTOGRAM(C, block, but, data, event);
+      break;
+    case UI_BTYPE_WAVEFORM:
+      retval = ui_do_but_WAVEFORM(C, block, but, data, event);
+      break;
+    case UI_BTYPE_VECTORSCOPE:
+      /* Nothing to do! */
+      break;
+    case UI_BTYPE_TEXT:
+    case UI_BTYPE_SEARCH_MENU:
+      if ((but->type == UI_BTYPE_SEARCH_MENU) && (but->flag & UI_BUT_VALUE_CLEAR)) {
+        retval = ui_do_but_SEARCH_UNLINK(C, block, but, data, event);
+        if (retval & WM_UI_HANDLER_BREAK) {
+          break;
+        }
+      }
+      retval = ui_do_but_TEX(C, block, but, data, event);
+      break;
+    case UI_BTYPE_MENU:
+    case UI_BTYPE_POPOVER:
+    case UI_BTYPE_BLOCK:
+    case UI_BTYPE_PULLDOWN:
+      retval = ui_do_but_BLOCK(C, but, data, event);
+      break;
+    case UI_BTYPE_BUT_MENU:
+      retval = ui_do_but_BUT(C, but, data, event);
+      break;
+    case UI_BTYPE_COLOR:
+      if (but->a1 == -1) {
+        /* signal to prevent calling up color picker */
+        retval = ui_do_but_EXIT(C, but, data, event);
+      }
+      else {
+        retval = ui_do_but_COLOR(C, but, data, event);
+      }
+      break;
+    case UI_BTYPE_UNITVEC:
+      retval = ui_do_but_UNITVEC(C, block, but, data, event);
+      break;
+    case UI_BTYPE_COLORBAND:
+      retval = ui_do_but_COLORBAND(C, block, but, data, event);
+      break;
+    case UI_BTYPE_CURVE:
+      retval = ui_do_but_CURVE(C, block, but, data, event);
+      break;
+    case UI_BTYPE_HSVCUBE:
+      retval = ui_do_but_HSVCUBE(C, block, but, data, event);
+      break;
+    case UI_BTYPE_HSVCIRCLE:
+      retval = ui_do_but_HSVCIRCLE(C, block, but, data, event);
+      break;
+    case UI_BTYPE_LINK:
+    case UI_BTYPE_INLINK:
+      retval = ui_do_but_LINK(C, but, data, event);
+      break;
+    case UI_BTYPE_TRACK_PREVIEW:
+      retval = ui_do_but_TRACKPREVIEW(C, block, but, data, event);
+      break;
 
+      /* quiet warnings for unhandled types */
+    case UI_BTYPE_SEPR:
+    case UI_BTYPE_SEPR_LINE:
+    case UI_BTYPE_SEPR_SPACER:
+    case UI_BTYPE_EXTRA:
+      break;
+  }
 
-	/* reset to default (generic function, only use if not handled by switch above) */
-	/* XXX hardcoded keymap check.... */
-	data = but->active;
-	if (data && data->state == BUTTON_STATE_HIGHLIGHT) {
-		if ((retval == WM_UI_HANDLER_CONTINUE) &&
-		    (event->type == BACKSPACEKEY && event->val == KM_PRESS))
-		{
-			/* ctrl+backspace = reset active button; backspace = reset a whole array*/
-			ui_but_default_set(C, !event->ctrl, true);
-			ED_region_tag_redraw(data->region);
-			retval = WM_UI_HANDLER_BREAK;
-		}
-	}
+  /* reset to default (generic function, only use if not handled by switch above) */
+  /* XXX hardcoded keymap check.... */
+  data = but->active;
+  if (data && data->state == BUTTON_STATE_HIGHLIGHT) {
+    if ((retval == WM_UI_HANDLER_CONTINUE) &&
+        (event->type == BACKSPACEKEY && event->val == KM_PRESS)) {
+      /* ctrl+backspace = reset active button; backspace = reset a whole array*/
+      ui_but_default_set(C, !event->ctrl, true);
+      ED_region_tag_redraw(data->region);
+      retval = WM_UI_HANDLER_BREAK;
+    }
+  }
 
 #ifdef USE_DRAG_MULTINUM
   if (data) {

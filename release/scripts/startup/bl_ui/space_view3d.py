@@ -2869,6 +2869,36 @@ class VIEW3D_MT_sculpt(Menu):
         props = layout.operator("view3d.select_box", text="Box Mask")
         props = layout.operator("paint.mask_lasso_gesture", text="Lasso Mask")
 
+        layout.separator()
+
+        props = layout.operator("sculpt.mask_filter", text='Smooth Mask')
+        props.filter_type = 'SMOOTH'
+        props.auto_iteration_count = True;
+
+        props = layout.operator("sculpt.mask_filter", text='Sharpen Mask')
+        props.filter_type = 'SHARPEN'
+        props.auto_iteration_count = True;
+
+        props = layout.operator("sculpt.mask_filter", text='Grow Mask')
+        props.filter_type = 'GROW'
+        props.auto_iteration_count = True;
+
+        props = layout.operator("sculpt.mask_filter", text='Shrink Mask')
+        props.filter_type = 'SHRINK'
+        props.auto_iteration_count = True;
+
+        props = layout.operator("sculpt.mask_filter", text='Increase Contrast')
+        props.filter_type = 'CONTRAST_INCREASE'
+        props.auto_iteration_count = False;
+
+        props = layout.operator("sculpt.mask_filter", text='Decrease Contrast')
+        props.filter_type = 'CONTRAST_DECREASE'
+        props.auto_iteration_count = False;
+
+        layout.separator()
+
+        props = layout.operator("sculpt.dirty_mask", text='Dirty Mask')
+
 
 class VIEW3D_MT_particle(Menu):
     bl_label = "Particle"
@@ -4807,6 +4837,36 @@ class VIEW3D_MT_proportional_editing_falloff_pie(Menu):
 
         pie.prop(tool_settings, "proportional_edit_falloff", expand=True)
 
+class VIEW3D_MT_sculpt_mask_edit_pie(Menu):
+    bl_label = "Mask Edit"
+
+    def draw(self, _context):
+        layout = self.layout
+        pie = layout.menu_pie()
+
+        op = pie.operator("paint.mask_flood_fill", text='Invert Mask')
+        op.mode = 'INVERT'
+        op = pie.operator("paint.mask_flood_fill", text='Clear Mask')
+        op.mode = 'VALUE'
+        op = pie.operator("sculpt.mask_filter", text='Smooth Mask')
+        op.filter_type = 'SMOOTH'
+        op.auto_iteration_count = True;
+        op = pie.operator("sculpt.mask_filter", text='Sharpen Mask')
+        op.filter_type = 'SHARPEN'
+        op.auto_iteration_count = True;
+        op = pie.operator("sculpt.mask_filter", text='Grow Mask')
+        op.filter_type = 'GROW'
+        op.auto_iteration_count = True;
+        op = pie.operator("sculpt.mask_filter", text='Shrink Mask')
+        op.filter_type = 'SHRINK'
+        op.auto_iteration_count = True;
+        op = pie.operator("sculpt.mask_filter", text='Increase Contrast')
+        op.filter_type = 'CONTRAST_INCREASE'
+        op.auto_iteration_count = False;
+        op = pie.operator("sculpt.mask_filter", text='Decrease Contrast')
+        op.filter_type = 'CONTRAST_DECREASE'
+        op.auto_iteration_count = False;
+
 
 # ********** Panel **********
 
@@ -6160,18 +6220,17 @@ class VIEW3D_PT_overlay_gpencil_options(Panel):
         sub.prop(overlay, "gpencil_grid_opacity", text="Canvas", slider=True)
 
         row = col.row()
+        row.prop(overlay, "use_gpencil_fade_layers", text="")
+        sub = row.row()
+        sub.active = overlay.use_gpencil_fade_layers
+        sub.prop(overlay, "gpencil_fade_layer", text="Fade Layers", slider=True)
+
+        row = col.row()
         row.prop(overlay, "use_gpencil_paper", text="")
         sub = row.row(align=True)
         sub.active = overlay.use_gpencil_paper
         sub.prop(overlay, "gpencil_paper_opacity", text="Fade Objects", slider=True)
         sub.prop(overlay, "use_gpencil_fade_objects", text="", icon='OUTLINER_OB_GREASEPENCIL')
-
-        if context.object.mode == 'PAINT_GPENCIL':
-            row = col.row()
-            row.prop(overlay, "use_gpencil_fade_layers", text="")
-            sub = row.row()
-            sub.active = overlay.use_gpencil_fade_layers
-            sub.prop(overlay, "gpencil_fade_layer", text="Fade Layers", slider=True)
 
         if context.object.mode in {'EDIT_GPENCIL', 'SCULPT_GPENCIL', 'WEIGHT_GPENCIL'}:
             layout.prop(overlay, "use_gpencil_edit_lines", text="Edit Lines")
@@ -6792,6 +6851,7 @@ classes = (
     VIEW3D_MT_snap_pie,
     VIEW3D_MT_orientations_pie,
     VIEW3D_MT_proportional_editing_falloff_pie,
+    VIEW3D_MT_sculpt_mask_edit_pie,
     VIEW3D_PT_active_tool,
     VIEW3D_PT_active_tool_duplicate,
     VIEW3D_PT_view3d_properties,
