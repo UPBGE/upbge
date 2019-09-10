@@ -877,37 +877,72 @@ static void update_mapping_node_inputs_and_properties(bNodeTree *ntree)
 
       AnimData *animData = BKE_animdata_from_id(&ntree->id);
       if (animData && animData->action) {
-        const char *nodePath = BLI_sprintfN("nodes[\"%s\"]", node->name);
+        char *nodePath = BLI_sprintfN("nodes[\"%s\"]", node->name);
+
         for (FCurve *fcu = animData->action->curves.first; fcu; fcu = fcu->next) {
           if (STRPREFIX(fcu->rna_path, nodePath) &&
               !BLI_str_endswith(fcu->rna_path, "default_value")) {
+            char *old_fcu_rna_path = fcu->rna_path;
 
-            MEM_freeN(fcu->rna_path);
-            if (BLI_str_endswith(fcu->rna_path, "translation")) {
+            if (BLI_str_endswith(old_fcu_rna_path, "translation")) {
               fcu->rna_path = BLI_sprintfN("%s.%s", nodePath, "inputs[1].default_value");
             }
-            else if (BLI_str_endswith(fcu->rna_path, "rotation")) {
+            else if (BLI_str_endswith(old_fcu_rna_path, "rotation")) {
               fcu->rna_path = BLI_sprintfN("%s.%s", nodePath, "inputs[2].default_value");
             }
-            else if (BLI_str_endswith(fcu->rna_path, "scale")) {
+            else if (BLI_str_endswith(old_fcu_rna_path, "scale")) {
               fcu->rna_path = BLI_sprintfN("%s.%s", nodePath, "inputs[3].default_value");
             }
-            else if (minimumNode && BLI_str_endswith(fcu->rna_path, "min")) {
+            else if (minimumNode && BLI_str_endswith(old_fcu_rna_path, "min")) {
               fcu->rna_path = BLI_sprintfN(
                   "nodes[\"%s\"].%s", minimumNode->name, "inputs[1].default_value");
             }
-            else if (maximumNode && BLI_str_endswith(fcu->rna_path, "max")) {
+            else if (maximumNode && BLI_str_endswith(old_fcu_rna_path, "max")) {
               fcu->rna_path = BLI_sprintfN(
                   "nodes[\"%s\"].%s", maximumNode->name, "inputs[1].default_value");
             }
+
+            if (fcu->rna_path != old_fcu_rna_path) {
+              MEM_freeN(old_fcu_rna_path);
+            }
           }
         }
+
+        MEM_freeN(nodePath);
       }
     }
   }
 
   if (need_update) {
     ntreeUpdateTree(NULL, ntree);
+  }
+}
+
+/* The Musgrave node now has a dimension property. This property should
+ * be initialized to 3 by default.
+ */
+static void update_musgrave_node_dimensions(bNodeTree *ntree)
+{
+  for (bNode *node = ntree->nodes.first; node; node = node->next) {
+    if (node->type == SH_NODE_TEX_MUSGRAVE) {
+      NodeTexMusgrave *tex = (NodeTexMusgrave *)node->storage;
+      tex->dimensions = 3;
+    }
+  }
+}
+
+/* The Color output of the Musgrave node has been removed. Previously, this
+ * output was just equal to the Fac output. To correct this, we move links
+ * from the Color output to the Fac output if they exist.
+ */
+static void update_musgrave_node_color_output(bNodeTree *ntree)
+{
+  LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
+    if (link->fromnode && link->fromnode->type == SH_NODE_TEX_MUSGRAVE) {
+      if (link->fromsock->type == SOCK_RGBA) {
+        link->fromsock = link->fromsock->next;
+      }
+    }
   }
 }
 
@@ -948,6 +983,15 @@ void blo_do_versions_cycles(FileData *UNUSED(fd), Library *UNUSED(lib), Main *bm
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_SHADER) {
         update_vector_math_node_operators_enum_mapping(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 281, 10)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        update_musgrave_node_color_output(ntree);
       }
     }
     FOREACH_NODETREE_END;
@@ -1097,6 +1141,15 @@ void do_versions_after_linking_cycles(Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_SHADER) {
         update_mapping_node_inputs_and_properties(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 281, 10)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        update_musgrave_node_dimensions(ntree);
       }
     }
     FOREACH_NODETREE_END;
