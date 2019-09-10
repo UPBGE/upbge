@@ -57,6 +57,10 @@ bool sculpt_cursor_geometry_info_update(bContext *C,
                                         SculptCursorGeometryInfo *out,
                                         const float mouse[2],
                                         bool use_sampled_normal);
+void sculpt_geometry_preview_lines_update(bContext *C, struct SculptSession *ss, float radius);
+
+/* Sculpt PBVH abstraction API */
+float *sculpt_vertex_co_get(struct SculptSession *ss, int index);
 
 /* Dynamic topology */
 void sculpt_pbvh_clear(Object *ob);
@@ -188,6 +192,11 @@ typedef struct SculptThreadedTaskData {
   float max_distance_squared;
   float nearest_vertex_search_co[3];
   int nearest_vertex_index;
+
+  int mask_expand_update_it;
+  bool mask_expand_invert_mask;
+  bool mask_expand_use_normals;
+  bool mask_expand_keep_prev_mask;
 
   ThreadMutex mutex;
 
@@ -376,6 +385,8 @@ typedef struct FilterCache {
   int mask_update_current_it;
   int mask_update_last_it;
   int *mask_update_it;
+  float *normal_factor;
+  float *prev_mask;
 } FilterCache;
 
 void sculpt_cache_calc_brushdata_symm(StrokeCache *cache,

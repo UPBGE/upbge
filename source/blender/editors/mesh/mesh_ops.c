@@ -190,25 +190,27 @@ void ED_operatortypes_mesh(void)
   WM_operatortype_append(MESH_OT_convex_hull);
 #endif
 
-	WM_operatortype_append(MESH_OT_bisect);
-	WM_operatortype_append(MESH_OT_symmetrize);
-	WM_operatortype_append(MESH_OT_symmetry_snap);
+  WM_operatortype_append(MESH_OT_bisect);
+  WM_operatortype_append(MESH_OT_symmetrize);
+  WM_operatortype_append(MESH_OT_symmetry_snap);
 
-	WM_operatortype_append(MESH_OT_point_normals);
-	WM_operatortype_append(MESH_OT_merge_normals);
-	WM_operatortype_append(MESH_OT_split_normals);
-	WM_operatortype_append(MESH_OT_normals_tools);
-	WM_operatortype_append(MESH_OT_set_normals_from_faces);
-	WM_operatortype_append(MESH_OT_average_normals);
-	WM_operatortype_append(MESH_OT_smoothen_normals);
-	WM_operatortype_append(MESH_OT_mod_weighted_strength);
+  WM_operatortype_append(MESH_OT_paint_mask_extract);
+
+  WM_operatortype_append(MESH_OT_point_normals);
+  WM_operatortype_append(MESH_OT_merge_normals);
+  WM_operatortype_append(MESH_OT_split_normals);
+  WM_operatortype_append(MESH_OT_normals_tools);
+  WM_operatortype_append(MESH_OT_set_normals_from_faces);
+  WM_operatortype_append(MESH_OT_average_normals);
+  WM_operatortype_append(MESH_OT_smoothen_normals);
+  WM_operatortype_append(MESH_OT_mod_weighted_strength);
 
 #ifdef WITH_GAMEENGINE
-	WM_operatortype_append(MESH_OT_navmesh_make);
-	WM_operatortype_append(MESH_OT_navmesh_face_copy);
-	WM_operatortype_append(MESH_OT_navmesh_face_add);
-	WM_operatortype_append(MESH_OT_navmesh_reset);
-	WM_operatortype_append(MESH_OT_navmesh_clear);
+  WM_operatortype_append(MESH_OT_navmesh_make);
+  WM_operatortype_append(MESH_OT_navmesh_face_copy);
+  WM_operatortype_append(MESH_OT_navmesh_face_add);
+  WM_operatortype_append(MESH_OT_navmesh_reset);
+  WM_operatortype_append(MESH_OT_navmesh_clear);
 #endif
 }
 

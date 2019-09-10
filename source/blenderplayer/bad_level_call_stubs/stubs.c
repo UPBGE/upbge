@@ -508,6 +508,7 @@ void UI_view2d_sync(struct bScreen *screen, struct ScrArea *sa, struct View2D *v
 void ED_gpencil_update_color_uv(struct Main *bmain, struct Material *mat) RET_NONE
 int ED_gpencil_session_active(void) RET_ZERO
 void ED_gpencil_calc_stroke_uv(struct Object *ob, struct bGPDstroke *gps) RET_NONE
+void ED_gpencil_tag_scene_gpencil(struct Scene *scene) RET_NONE
 
 void ED_gp_project_point_to_plane(
 	const struct Scene *scene,

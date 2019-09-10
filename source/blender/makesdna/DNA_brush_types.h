@@ -404,7 +404,7 @@ typedef enum eBrushFlags {
   BRUSH_JITTER_PRESSURE = (1 << 4),
   BRUSH_SPACING_PRESSURE = (1 << 5),
   BRUSH_FLAG_UNUSED_6 = (1 << 6), /* cleared */
-  BRUSH_FLAG_UNUSED_7 = (1 << 7), /* cleared */
+  BRUSH_GRAB_ACTIVE_VERTEX = (1 << 7),
   BRUSH_ANCHORED = (1 << 8),
   BRUSH_DIR_IN = (1 << 9),
   BRUSH_SPACE = (1 << 10),
