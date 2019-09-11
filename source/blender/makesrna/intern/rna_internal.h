@@ -74,6 +74,11 @@ typedef struct PropertyDefRNA {
   const char *dnatype;
   int dnaarraylength;
   int dnapointerlevel;
+  /**
+   * Offset in bytes within `dnastructname`.
+   * -1 when unusable (follows pointer for e.g.). */
+  int dnaoffset;
+  int dnasize;
 
   /* for finding length of array collections */
   const char *dnalengthstructname;
@@ -548,6 +553,11 @@ PointerRNA rna_array_lookup_int(
     PointerRNA *ptr, StructRNA *type, void *data, int itemsize, int length, int index);
 
 /* Duplicated code since we can't link in blenlib */
+
+#ifndef RNA_RUNTIME
+void *rna_alloc_from_buffer(const char *buffer, int buffer_len);
+void *rna_calloc(int buffer_len);
+#endif
 
 void rna_addtail(struct ListBase *listbase, void *vlink);
 void rna_freelinkN(struct ListBase *listbase, void *vlink);
