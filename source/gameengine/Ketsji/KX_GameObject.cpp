@@ -251,7 +251,8 @@ void KX_GameObject::TagForUpdate()
 
   Scene *sc = GetScene()->GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, sc, view_layer, false);
 
   if (m_staticObject) {
     GetScene()->AppendToStaticObjects(this);

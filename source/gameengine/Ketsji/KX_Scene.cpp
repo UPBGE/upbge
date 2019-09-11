@@ -271,8 +271,8 @@ KX_Scene::~KX_Scene()
 
   // Flush depsgraph updates a last time at ge exit
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   if (m_2dfiltersDepthTex) {

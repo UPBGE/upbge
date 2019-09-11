@@ -415,7 +415,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
 		Scene *sc = scene->GetBlenderScene();
 		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, sc, view_layer, false);
 
 		BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
 
@@ -467,7 +467,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
 					Scene *sc = scene->GetBlenderScene();
 					ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-					Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+					Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, sc, view_layer, false);
 
 					BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
 
@@ -482,7 +482,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       if (con) {
 		Scene *sc = scene->GetBlenderScene();
 		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-		Depsgraph *depsgraph = BKE_scene_get_depsgraph(sc, view_layer, false);
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, sc, view_layer, false);
 
 		DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 

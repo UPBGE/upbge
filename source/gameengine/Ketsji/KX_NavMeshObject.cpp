@@ -37,6 +37,7 @@
 #include "DNA_meshdata_types.h"
 
 extern "C" {
+#include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_scene.h"
 #include "BKE_customdata.h"
@@ -121,7 +122,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 	/* TODO: This doesn't work currently because of eval_ctx. */
 	Scene *scene = GetScene()->GetBlenderScene();
 	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, scene, view_layer, false);
     DerivedMesh* dm = mesh_create_derived_no_virtual(depsgraph, GetScene()->GetBlenderScene(), GetBlenderObject(),
 													nullptr, &CD_MASK_MESH);
 	CustomData *pdata = dm->getPolyDataLayout(dm);

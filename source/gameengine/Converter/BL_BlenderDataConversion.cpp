@@ -478,7 +478,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	// Get DerivedMesh data
     Scene *bl_scene = scene->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(bl_scene);
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bl_scene, view_layer, false);
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, bl_scene, view_layer, false);
 	Mesh *final_me = mesh_get_eval_final(depsgraph, bl_scene, DEG_get_evaluated_object(depsgraph, blenderobj), &CD_MASK_MESH);
 	DerivedMesh *dm = CDDM_from_mesh(final_me);
 	DM_ensure_tessface(dm);
@@ -1040,7 +1040,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 	{
 		if (ob->runtime.curve_cache == nullptr) {
 			ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
-			Depsgraph *depsgraph = BKE_scene_get_depsgraph(blenderscene, view_layer, false);
+			Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, blenderscene, view_layer, false);
 			BKE_displist_make_curveTypes(depsgraph, blenderscene, ob, false, false);
 		}
 		//eevee add curves to scene.objects list

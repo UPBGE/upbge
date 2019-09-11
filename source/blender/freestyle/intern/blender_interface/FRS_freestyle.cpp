@@ -80,7 +80,10 @@ static AppView *view = NULL;
 static FreestyleLineSet lineset_buffer;
 static bool lineset_copied = false;
 
-static void load_post_callback(struct Main * /*main*/, struct ID * /*id*/, void * /*arg*/)
+static void load_post_callback(struct Main * /*main*/,
+                               struct PointerRNA ** /*pointers*/,
+                               const int /*num_pointers*/,
+                               void * /*arg*/)
 {
   lineset_copied = false;
 }
@@ -649,7 +652,7 @@ Render *FRS_do_stroke_rendering(Render *re, ViewLayer *view_layer, int render)
   /* Create depsgraph and evaluate scene. */
   ViewLayer *scene_view_layer = (ViewLayer *)BLI_findstring(
       &re->scene->view_layers, view_layer->name, offsetof(ViewLayer, name));
-  Depsgraph *depsgraph = DEG_graph_new(re->scene, scene_view_layer, DAG_EVAL_RENDER);
+  Depsgraph *depsgraph = DEG_graph_new(re->main, re->scene, scene_view_layer, DAG_EVAL_RENDER);
   BKE_scene_graph_update_for_newframe(depsgraph, re->main);
 
   // prepare Freestyle:

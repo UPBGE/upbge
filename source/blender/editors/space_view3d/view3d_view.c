@@ -1671,7 +1671,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	 * the window manager until after this operator exits */
 	WM_redraw_windows(C);
 
-	BKE_callback_exec(bmain, &startscene->id, BKE_CB_EVT_GAME_PRE);
+	BKE_callback_exec_id(bmain, &startscene->id, BKE_CB_EVT_GAME_PRE);
 
 	rv3d = CTX_wm_region_view3d(C);
 	/* sa = CTX_wm_area(C); */ /* UNUSED */
@@ -1728,7 +1728,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	//BKE_scene_set_background(CTX_data_main(C), startscene);
 	//XXX BKE_scene_graph_update_for_newframe(depsgraph, bmain);
 
-	BKE_callback_exec(bmain, &startscene->id, BKE_CB_EVT_GAME_POST);
+	BKE_callback_exec_id(bmain, &startscene->id, BKE_CB_EVT_GAME_POST);
 
 	return OPERATOR_FINISHED;
 #else

@@ -34,6 +34,7 @@
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
+
 #include "KX_GameObject.h"
 
 #include "BulletSoftBody/btSoftBody.h"
@@ -50,6 +51,7 @@
 extern "C" {
 	#include "BLI_utildefines.h"
 	#include "BKE_cdderivedmesh.h"
+	#include "BKE_global.h"
     #include "BKE_mesh_runtime.h"
     #include "BKE_layer.h"
     #include "BKE_object.h"
@@ -2115,7 +2117,8 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob)
   free_dm = true;
   Scene *scene = KX_GetActiveScene()->GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
+  Main *bmain = G_MAIN;
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
 
   DerivedMesh *dm = mesh_get_derived_final(depsgraph, scene, DEG_get_evaluated_object(depsgraph, ob), &CD_MASK_MESH);
 

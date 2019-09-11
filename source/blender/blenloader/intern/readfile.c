@@ -6507,6 +6507,14 @@ static void direct_link_lightcache(FileData *fd, LightCache *cache)
   cache->grid_data = newdataadr(fd, cache->grid_data);
 }
 
+static void direct_link_view3dshading(FileData *fd, View3DShading *shading)
+{
+  if (shading->prop) {
+    shading->prop = newdataadr(fd, shading->prop);
+    IDP_DirectLinkGroup_OrFree(&shading->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+  }
+}
+
 /* check for cyclic set-scene,
  * libs can cause this case which is normally prevented, see (T#####) */
 #define USE_SETSCENE_CHECK
@@ -7141,6 +7149,8 @@ static void direct_link_scene(FileData *fd, Scene *sce)
     }
   }
 
+  direct_link_view3dshading(fd, &sce->display.shading);
+
   sce->layer_properties = newdataadr(fd, sce->layer_properties);
   IDP_DirectLinkGroup_OrFree(&sce->layer_properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 }
@@ -7408,6 +7418,8 @@ static void direct_link_area(FileData *fd, ScrArea *area)
       if (v3d->fx_settings.ssao) {
         v3d->fx_settings.ssao = newdataadr(fd, v3d->fx_settings.ssao);
       }
+
+      direct_link_view3dshading(fd, &v3d->shading);
 
       blo_do_versions_view3d_split_250(v3d, &sl->regionbase);
     }

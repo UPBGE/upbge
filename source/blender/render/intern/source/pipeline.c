@@ -134,6 +134,24 @@ static struct {
   ListBase renderlist;
 } RenderGlobal = {{NULL, NULL}};
 
+/* ********* callbacks ******** */
+
+static void render_callback_exec_null(Render *re, Main *bmain, eCbEvent evt)
+{
+  if (re->r.scemode & R_BUTS_PREVIEW) {
+    return;
+  }
+  BKE_callback_exec_null(bmain, evt);
+}
+
+static void render_callback_exec_id(Render *re, Main *bmain, ID *id, eCbEvent evt)
+{
+  if (re->r.scemode & R_BUTS_PREVIEW) {
+    return;
+  }
+  BKE_callback_exec_id(bmain, id, evt);
+}
+
 /* ********* alloc and free ******** */
 
 static int do_write_image_or_movie(Render *re,
@@ -226,7 +244,7 @@ static void stats_background(void *UNUSED(arg), RenderStats *rs)
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass NULL? */
-  BKE_callback_exec(G_MAIN, NULL, BKE_CB_EVT_RENDER_STATS);
+  BKE_callback_exec_null(G_MAIN, BKE_CB_EVT_RENDER_STATS);
 
   fputc('\n', stdout);
   fflush(stdout);
@@ -1953,7 +1971,7 @@ static void update_physics_cache(Render *re,
   baker.bmain = re->main;
   baker.scene = scene;
   baker.view_layer = view_layer;
-  baker.depsgraph = BKE_scene_get_depsgraph(scene, view_layer, true);
+  baker.depsgraph = BKE_scene_get_depsgraph(re->main, scene, view_layer, true);
   baker.bake = 0;
   baker.render = 1;
   baker.anim_init = 1;
@@ -2069,7 +2087,7 @@ static void render_init_depsgraph(Render *re)
   Scene *scene = re->scene;
   ViewLayer *view_layer = BKE_view_layer_default_render(re->scene);
 
-  re->pipeline_depsgraph = DEG_graph_new(scene, view_layer, DAG_EVAL_RENDER);
+  re->pipeline_depsgraph = DEG_graph_new(re->main, scene, view_layer, DAG_EVAL_RENDER);
   DEG_debug_name_set(re->pipeline_depsgraph, "RENDER PIPELINE");
 
   /* Make sure there is a correct evaluated scene pointer. */
@@ -2090,7 +2108,7 @@ void RE_RenderFrame(Render *re,
                     int frame,
                     const bool write_still)
 {
-  BKE_callback_exec(re->main, (ID *)scene, BKE_CB_EVT_RENDER_INIT);
+  render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_INIT);
 
   /* Ugly global still...
    * is to prevent preview events and signal subsurfs etc to make full resol. */
@@ -2103,9 +2121,9 @@ void RE_RenderFrame(Render *re,
     const RenderData rd = scene->r;
     MEM_reset_peak_memory();
 
-    render_init_depsgraph(re);
+    render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_PRE);
 
-    BKE_callback_exec(re->main, (ID *)scene, BKE_CB_EVT_RENDER_PRE);
+    render_init_depsgraph(re);
 
     do_render_all_options(re);
 
@@ -2131,14 +2149,16 @@ void RE_RenderFrame(Render *re,
     }
 
     /* keep after file save */
-    BKE_callback_exec(re->main, (ID *)scene, BKE_CB_EVT_RENDER_POST);
+    render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_POST);
     if (write_still) {
-      BKE_callback_exec(re->main, (ID *)scene, BKE_CB_EVT_RENDER_WRITE);
+      render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_WRITE);
     }
   }
 
-  BKE_callback_exec(
-      re->main, (ID *)scene, G.is_break ? BKE_CB_EVT_RENDER_CANCEL : BKE_CB_EVT_RENDER_COMPLETE);
+  render_callback_exec_id(re,
+                          re->main,
+                          &scene->id,
+                          G.is_break ? BKE_CB_EVT_RENDER_CANCEL : BKE_CB_EVT_RENDER_COMPLETE);
 
   RE_CleanAfterRender(re);
 
@@ -2429,7 +2449,7 @@ static int do_write_image_or_movie(Render *re,
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass NULL? */
-  BKE_callback_exec(G_MAIN, NULL, BKE_CB_EVT_RENDER_STATS);
+  render_callback_exec_null(re, G_MAIN, BKE_CB_EVT_RENDER_STATS);
 
   BLI_timecode_string_from_time_simple(name, sizeof(name), re->i.lastframetime - render_time);
   printf(" (Saving: %s)\n", name);
@@ -2495,7 +2515,7 @@ void RE_RenderAnim(Render *re,
   const bool is_multiview_name = ((rd.scemode & R_MULTIVIEW) != 0 &&
                                   (rd.im_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
 
-  BKE_callback_exec(re->main, (ID *)scene, BKE_CB_EVT_RENDER_INIT);
+  render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_INIT);
 
   /* do not fully call for each frame, it initializes & pops output window */
   if (!render_initialize_from_main(re, &rd, bmain, scene, single_layer, camera_override, 0, 1)) {
@@ -2660,8 +2680,8 @@ void RE_RenderAnim(Render *re,
 
       re->r.cfra = scene->r.cfra; /* weak.... */
 
-      /* run callbacs before rendering, before the scene is updated */
-      BKE_callback_exec(re->main, (ID *)scene, BKE_CB_EVT_RENDER_PRE);
+      /* run callbacks before rendering, before the scene is updated */
+      render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_PRE);
 
       do_render_all_options(re);
       totrendered++;
@@ -2712,8 +2732,8 @@ void RE_RenderAnim(Render *re,
 
       if (G.is_break == false) {
         /* keep after file save */
-        BKE_callback_exec(re->main, (ID *)scene, BKE_CB_EVT_RENDER_POST);
-        BKE_callback_exec(re->main, (ID *)scene, BKE_CB_EVT_RENDER_WRITE);
+        render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_POST);
+        render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_WRITE);
       }
     }
   }
@@ -2731,8 +2751,10 @@ void RE_RenderAnim(Render *re,
 
   re->flag &= ~R_ANIMATION;
 
-  BKE_callback_exec(
-      re->main, (ID *)scene, G.is_break ? BKE_CB_EVT_RENDER_CANCEL : BKE_CB_EVT_RENDER_COMPLETE);
+  render_callback_exec_id(re,
+                          re->main,
+                          &scene->id,
+                          G.is_break ? BKE_CB_EVT_RENDER_CANCEL : BKE_CB_EVT_RENDER_COMPLETE);
   BKE_sound_reset_scene_specs(re->pipeline_scene_eval);
 
   RE_CleanAfterRender(re);

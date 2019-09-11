@@ -1025,7 +1025,7 @@ void DRW_cache_free_old_batches(Main *bmain)
 
   for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
     for (view_layer = scene->view_layers.first; view_layer; view_layer = view_layer->next) {
-      Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);
+      Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
       if (depsgraph == NULL) {
         continue;
       }
@@ -3159,7 +3159,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 	drw_state_prepare_clean_for_draw(&DST);
 
 	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, called_from_constructor);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, called_from_constructor);
 	BKE_scene_graph_update_tagged(depsgraph, bmain);
 
 	DRW_opengl_context_enable();

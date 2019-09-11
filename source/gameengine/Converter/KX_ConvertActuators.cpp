@@ -362,7 +362,7 @@ void BL_ConvertActuators(const char* maggiename,
 
 					Scene *bl_scene = scene->GetBlenderScene();
 					ViewLayer *view_layer = BKE_view_layer_default_view(bl_scene);
-					Depsgraph *depsgraph = BKE_scene_get_depsgraph(bl_scene, view_layer, false);
+					Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, bl_scene, view_layer, false);
 					bSound *sound_eval = (bSound *)DEG_get_evaluated_id(depsgraph, &sound->id);
 
 					if (!sound) {
