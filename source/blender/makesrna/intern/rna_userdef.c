@@ -1507,8 +1507,7 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
   prop = RNA_def_property(srna, "icon_folder", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, NULL, "icon_folder");
   RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(
-      prop, "File Folders", "Color of folders in the file browser");
+  RNA_def_property_ui_text(prop, "File Folders", "Color of folders in the file browser");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "icon_border_intensity", PROP_FLOAT, PROP_FACTOR);
@@ -4084,7 +4083,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       prop, "UI Scale", "Changes the size of the fonts and widgets in the interface");
   RNA_def_property_range(prop, 0.25f, 4.0f);
   RNA_def_property_ui_range(prop, 0.5f, 2.0f, 1, 2);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
 
   prop = RNA_def_property(srna, "ui_line_width", PROP_ENUM, PROP_NONE);
@@ -4350,7 +4348,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "gizmo_size", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, NULL, "gizmo_size");
   RNA_def_property_range(prop, 10, 200);
-  RNA_def_property_int_default(prop, 75);
   RNA_def_property_ui_text(prop, "Gizmo Size", "Diameter of the gizmo");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
@@ -4358,7 +4355,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "lookdev_sphere_size", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, NULL, "lookdev_sphere_size");
   RNA_def_property_range(prop, 50, 400);
-  RNA_def_property_int_default(prop, 150);
   RNA_def_property_ui_text(
       prop, "Look Dev Spheres Size", "Maximum diameter of the look development sphere size");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
@@ -5288,7 +5284,6 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "view_rotate_sensitivity_turntable", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_range(prop, DEG2RADF(0.001f), DEG2RADF(15.0f));
-  RNA_def_property_float_default(prop, DEG2RADF(0.4f));
   RNA_def_property_ui_range(prop, DEG2RADF(0.001f), DEG2RADF(15.0f), 1.0f, 2);
   RNA_def_property_ui_text(prop,
                            "Orbit Sensitivity",
@@ -5296,7 +5291,6 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "view_rotate_sensitivity_trackball", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_range(prop, 0.1f, 10.0f);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_range(prop, 0.1f, 2.0f, 0.01f, 2);
   RNA_def_property_ui_text(prop, "Orbit Sensitivity", "Scale trackball orbit sensitivity");
 
@@ -5336,7 +5330,6 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   /* tablet pressure curve */
   prop = RNA_def_property(srna, "pressure_threshold_max", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.01f, 3);
   RNA_def_property_ui_text(
       prop, "Max Threshold", "Raw input pressure value that is interpreted as 100% by Blender");

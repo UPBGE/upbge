@@ -220,10 +220,10 @@ class VoronoiTextureNode : public TextureNode {
     return NODE_GROUP_LEVEL_2;
   }
 
-  NodeVoronoiColoring coloring;
+  int dimensions;
   NodeVoronoiDistanceMetric metric;
   NodeVoronoiFeature feature;
-  float scale, exponent;
+  float w, scale, exponent, smoothness, randomness;
   float3 vector;
 };
 
@@ -977,6 +977,22 @@ class VolumeInfoNode : public ShaderNode {
     return true;
   }
   void expand(ShaderGraph *graph);
+};
+
+class VertexColorNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(VertexColorNode)
+  void attributes(Shader *shader, AttributeRequestSet *attributes);
+  bool has_attribute_dependency()
+  {
+    return true;
+  }
+  bool has_spatial_varying()
+  {
+    return true;
+  }
+
+  ustring layer_name;
 };
 
 class ValueNode : public ShaderNode {

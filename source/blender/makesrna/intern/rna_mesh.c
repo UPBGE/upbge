@@ -2994,18 +2994,17 @@ static void rna_def_mesh(BlenderRNA *brna)
   /* Remesh */
   prop = RNA_def_property(srna, "remesh_voxel_size", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_sdna(prop, NULL, "remesh_voxel_size");
-  RNA_def_property_float_default(prop, 0.1f);
   RNA_def_property_range(prop, 0.00001f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.0001f, FLT_MAX, 0.01, 4);
   RNA_def_property_ui_text(prop,
-                           "Voxel size",
+                           "Voxel Size",
                            "Size of the voxel in object space used for volume evaluation. Lower "
                            "values preserve finer details");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
 
   prop = RNA_def_property(srna, "remesh_smooth_normals", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", ME_REMESH_SMOOTH_NORMALS);
-  RNA_def_property_ui_text(prop, "Smooth normals", "Smooth the normals of the remesher result");
+  RNA_def_property_ui_text(prop, "Smooth Normals", "Smooth the normals of the remesher result");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
 
   prop = RNA_def_property(srna, "remesh_preserve_paint_mask", PROP_BOOLEAN, PROP_NONE);
@@ -3026,7 +3025,6 @@ static void rna_def_mesh(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "auto_smooth_angle", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, NULL, "smoothresh");
-  RNA_def_property_float_default(prop, DEG2RADF(180.0f));
   RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
   RNA_def_property_ui_text(prop,
                            "Auto Smooth Angle",

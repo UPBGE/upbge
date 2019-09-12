@@ -629,8 +629,8 @@ static char *rna_def_property_get_func(
 
       if (prop->type == PROP_FLOAT) {
         if (IS_DNATYPE_FLOAT_COMPAT(dp->dnatype) == 0) {
-          if (prop->subtype !=
-              PROP_COLOR_GAMMA) { /* colors are an exception. these get translated */
+          /* Colors are an exception. these get translated. */
+          if (prop->subtype != PROP_COLOR_GAMMA) {
             CLOG_ERROR(&LOG,
                        "%s.%s is a '%s' but wrapped as type '%s'.",
                        srna->identifier,
@@ -2538,6 +2538,12 @@ static void rna_def_struct_function_call_impl_cpp(FILE *f, StructRNA *srna, Func
                   rna_parameter_type_name(dp->prop),
                   rna_safe_id(dp->prop->identifier));
         }
+      }
+      else if (dp->prop->flag_parameter & PARM_RNAPTR) {
+        fprintf(f,
+                "(::%s *) &%s",
+                rna_parameter_type_name(dp->prop),
+                rna_safe_id(dp->prop->identifier));
       }
       else {
         fprintf(f,

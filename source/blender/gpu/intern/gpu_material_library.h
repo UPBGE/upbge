@@ -44,7 +44,6 @@ extern char datatoc_gpu_shader_material_blackbody_glsl[];
 extern char datatoc_gpu_shader_material_bright_contrast_glsl[];
 extern char datatoc_gpu_shader_material_bump_glsl[];
 extern char datatoc_gpu_shader_material_camera_glsl[];
-extern char datatoc_gpu_shader_material_cell_noise_glsl[];
 extern char datatoc_gpu_shader_material_clamp_glsl[];
 extern char datatoc_gpu_shader_material_color_ramp_glsl[];
 extern char datatoc_gpu_shader_material_color_util_glsl[];
@@ -115,6 +114,7 @@ extern char datatoc_gpu_shader_material_vector_curves_glsl[];
 extern char datatoc_gpu_shader_material_vector_displacement_glsl[];
 extern char datatoc_gpu_shader_material_vector_math_glsl[];
 extern char datatoc_gpu_shader_material_velvet_glsl[];
+extern char datatoc_gpu_shader_material_vertex_color_glsl[];
 extern char datatoc_gpu_shader_material_volume_absorption_glsl[];
 extern char datatoc_gpu_shader_material_volume_info_glsl[];
 extern char datatoc_gpu_shader_material_volume_principled_glsl[];
@@ -147,13 +147,6 @@ static GPUMaterialLibrary gpu_shader_material_noise_library = {
 static GPUMaterialLibrary gpu_shader_material_fractal_noise_library = {
     .code = datatoc_gpu_shader_material_fractal_noise_glsl,
     .dependencies = {&gpu_shader_material_noise_library, NULL},
-};
-
-static GPUMaterialLibrary gpu_shader_material_cell_noise_library = {
-    .code = datatoc_gpu_shader_material_cell_noise_glsl,
-    .dependencies = {&gpu_shader_material_math_util_library,
-                     &gpu_shader_material_hash_library,
-                     NULL},
 };
 
 static GPUMaterialLibrary gpu_shader_material_add_shader_library = {
@@ -481,7 +474,7 @@ static GPUMaterialLibrary gpu_shader_material_texture_coordinates_library = {
 static GPUMaterialLibrary gpu_shader_material_tex_voronoi_library = {
     .code = datatoc_gpu_shader_material_tex_voronoi_glsl,
     .dependencies = {&gpu_shader_material_math_util_library,
-                     &gpu_shader_material_cell_noise_library,
+                     &gpu_shader_material_hash_library,
                      NULL},
 };
 
@@ -535,6 +528,11 @@ static GPUMaterialLibrary gpu_shader_material_velvet_library = {
     .dependencies = {&gpu_shader_material_diffuse_library, NULL},
 };
 
+static GPUMaterialLibrary gpu_shader_material_vertex_color_library = {
+    .code = datatoc_gpu_shader_material_vertex_color_glsl,
+    .dependencies = {NULL},
+};
+
 static GPUMaterialLibrary gpu_shader_material_volume_absorption_library = {
     .code = datatoc_gpu_shader_material_volume_absorption_glsl,
     .dependencies = {NULL},
@@ -571,7 +569,6 @@ static GPUMaterialLibrary *gpu_material_libraries[] = {
     &gpu_shader_material_hash_library,
     &gpu_shader_material_noise_library,
     &gpu_shader_material_fractal_noise_library,
-    &gpu_shader_material_cell_noise_library,
     &gpu_shader_material_add_shader_library,
     &gpu_shader_material_ambient_occlusion_library,
     &gpu_shader_material_glossy_library,
@@ -647,6 +644,7 @@ static GPUMaterialLibrary *gpu_material_libraries[] = {
     &gpu_shader_material_vector_displacement_library,
     &gpu_shader_material_vector_math_library,
     &gpu_shader_material_velvet_library,
+    &gpu_shader_material_vertex_color_library,
     &gpu_shader_material_volume_absorption_library,
     &gpu_shader_material_volume_info_library,
     &gpu_shader_material_volume_principled_library,

@@ -1036,11 +1036,12 @@ static void rna_def_image_paint(BlenderRNA *brna)
                            NULL,
                            0,
                            0,
-                           "screen_grab_size",
+                           "Screen Grab Size",
                            "Size to capture the image for re-projecting",
                            0,
                            0);
   RNA_def_property_range(prop, 512, 16384);
+  RNA_def_property_subtype(prop, PROP_PIXEL);
 
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
@@ -1350,7 +1351,6 @@ static void rna_def_gpencil_guides(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "spacing", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_sdna(prop, NULL, "spacing");
-  RNA_def_property_float_default(prop, 0.01f);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.0f, FLT_MAX, 1, 3);
   RNA_def_property_ui_text(prop, "Spacing", "Guide spacing");
