@@ -57,7 +57,6 @@
 #include "DNA_text_types.h"
 #include "DNA_world_types.h"
 
-#include "BKE_action.h"
 #include "BKE_animsys.h"
 #include "BKE_cloth.h"
 #include "BKE_collection.h"
@@ -66,22 +65,17 @@
 #include "BKE_customdata.h"
 #include "BKE_fcurve.h"
 #include "BKE_freestyle.h"
-#include "BKE_gpencil.h"
 #include "BKE_idprop.h"
-#include "BKE_image.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
-#include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
-#include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_pointcache.h"
 #include "BKE_report.h"
 #include "BKE_rigidbody.h"
-#include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
 #include "BKE_studiolight.h"
@@ -846,6 +840,14 @@ static void do_versions_material_convert_legacy_blend_mode(bNodeTree *ntree, cha
 
   if (need_update) {
     ntreeUpdateTree(NULL, ntree);
+  }
+}
+
+static void do_versions_local_collection_bits_set(LayerCollection *layer_collection)
+{
+  layer_collection->local_collections_bits = ~(0);
+  LISTBASE_FOREACH (LayerCollection *, child, &layer_collection->layer_collections) {
+    do_versions_local_collection_bits_set(child);
   }
 }
 
@@ -3021,7 +3023,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
             }
             case SPACE_VIEW3D: {
               View3D *v3d = (View3D *)sl;
-              v3d->flag &= ~(V3D_FLAG_UNUSED_0 | V3D_FLAG_UNUSED_1 | V3D_FLAG_UNUSED_10 |
+              v3d->flag &= ~(V3D_LOCAL_COLLECTIONS | V3D_FLAG_UNUSED_1 | V3D_FLAG_UNUSED_10 |
                              V3D_FLAG_UNUSED_12);
               v3d->flag2 &= ~(V3D_FLAG2_UNUSED_3 | V3D_FLAG2_UNUSED_6 | V3D_FLAG2_UNUSED_12 |
                               V3D_FLAG2_UNUSED_13 | V3D_FLAG2_UNUSED_14 | V3D_FLAG2_UNUSED_15);
@@ -3956,5 +3958,16 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
   {
     /* Versioning code until next subversion bump goes here. */
+
+    if (!DNA_struct_elem_find(
+            fd->filesdna, "LayerCollection", "short", "local_collections_bits")) {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+          LISTBASE_FOREACH (LayerCollection *, layer_collection, &view_layer->layer_collections) {
+            do_versions_local_collection_bits_set(layer_collection);
+          }
+        }
+      }
+    }
   }
 }

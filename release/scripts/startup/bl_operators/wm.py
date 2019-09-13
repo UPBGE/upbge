@@ -1891,7 +1891,7 @@ class WM_OT_batch_rename(Operator):
     bl_idname = "wm.batch_rename"
     bl_label = "Batch Rename"
 
-    bl_options = {'UNDO', 'INTERNAL'}
+    bl_options = {'UNDO'}
 
     data_type: EnumProperty(
         name="Type",

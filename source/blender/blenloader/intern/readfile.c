@@ -115,8 +115,6 @@
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_brush.h"
-#include "BKE_cachefile.h"
-#include "BKE_cloth.h"
 #include "BKE_collection.h"
 #include "BKE_colortools.h"
 #include "BKE_constraint.h"
@@ -124,7 +122,6 @@
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"  // for G
-#include "BKE_gpencil.h"
 #include "BKE_gpencil_modifier.h"
 #include "BKE_idcode.h"
 #include "BKE_idprop.h"
@@ -141,8 +138,6 @@
 #include "BKE_multires.h"
 #include "BKE_node.h"  // for tree type defines
 #include "BKE_object.h"
-#include "BKE_ocean.h"
-#include "BKE_outliner_treehash.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"

@@ -694,6 +694,8 @@ void ED_view3d_clipping_set(struct RegionView3D *rv3d) RET_NONE
 
 void ED_view3d_polygon_offset(const struct RegionView3D *rv3d, const float dist) RET_NONE
 
+bool ED_view3d_local_collections_set(struct Main *bmain, struct View3D *v3d) RET_ZERO
+
 void ED_annotation_draw_view3d(struct Scene *scene, struct Depsgraph *depsgraph, struct View3D *v3d, struct ARegion *ar, bool only3d) RET_NONE
 
 
