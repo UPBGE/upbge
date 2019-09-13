@@ -279,6 +279,8 @@ endif()
 option(WITH_HEADLESS      "Build without graphical support (renderfarm, server mode only)" OFF)
 mark_as_advanced(WITH_HEADLESS)
 
+option(WITH_QUADRIFLOW    "Build with quadriflow remesher support" ON)
+
 option(WITH_AUDASPACE    "Build with blenders audio library (only disable if you know what you're doing!)" ON)
 option(WITH_SYSTEM_AUDASPACE "Build with external audaspace library installed on the system (only enable if you know what you're doing!)" OFF)
 mark_as_advanced(WITH_AUDASPACE)
@@ -441,6 +443,7 @@ mark_as_advanced(WITH_CYCLES_DEBUG)
 mark_as_advanced(WITH_CYCLES_NATIVE_ONLY)
 
 option(WITH_CYCLES_DEVICE_CUDA              "Enable Cycles CUDA compute support" ON)
+option(WITH_CYCLES_DEVICE_OPTIX             "Enable Cycles OptiX support" OFF)
 option(WITH_CYCLES_DEVICE_OPENCL            "Enable Cycles OpenCL compute support" ON)
 option(WITH_CYCLES_NETWORK              "Enable Cycles compute over network support (EXPERIMENTAL and unfinished)" OFF)
 mark_as_advanced(WITH_CYCLES_DEVICE_CUDA)
@@ -711,6 +714,7 @@ if(NOT WITH_BOOST)
   set_and_warn(WITH_INTERNATIONAL  OFF)
   set_and_warn(WITH_OPENVDB        OFF)
   set_and_warn(WITH_OPENCOLORIO    OFF)
+  set_and_warn(WITH_QUADRIFLOW     OFF)
 elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_INTERNATIONAL OR
        WITH_OPENVDB OR WITH_OPENCOLORIO)
   # Keep enabled
@@ -1825,6 +1829,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_OPENIMAGEDENOISE)
   info_cfg_option(WITH_OPENVDB)
   info_cfg_option(WITH_ALEMBIC)
+  info_cfg_option(WITH_QUADRIFLOW)
 
   info_cfg_text("Compiler Options:")
   info_cfg_option(WITH_BUILDINFO)

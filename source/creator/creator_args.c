@@ -72,7 +72,6 @@
 
 #  include "WM_api.h"
 
-#  include "GPU_draw.h"
 
 /* for passing information between creator and gameengine */
 #ifdef WITH_GAMEENGINE

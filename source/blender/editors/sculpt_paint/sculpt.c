@@ -7896,7 +7896,12 @@ static void sculpt_filter_cache_init(Object *ob, Sculpt *sd)
   for (int i = 0; i < totnode; i++) {
     BKE_pbvh_node_mark_normals_update(nodes[i]);
   }
-  BKE_pbvh_update_normals(ss->pbvh, NULL);
+
+  /* mesh->runtime.subdiv_ccg is not available. Updating of the normals is done during drawing.
+   * Filters can't use normals in multires. */
+  if (BKE_pbvh_type(ss->pbvh) != PBVH_GRIDS) {
+    BKE_pbvh_update_normals(ss->pbvh, NULL);
+  }
 
   SculptThreadedTaskData data = {
       .sd = sd,
@@ -9109,14 +9114,6 @@ void ED_sculpt_init_transform(struct bContext *C)
 
   copy_v3_v3(ss->init_pivot_pos, ss->pivot_pos);
   copy_v4_v4(ss->init_pivot_rot, ss->pivot_rot);
-
-  ss->init_pivot_scale[0] = 1.0f;
-  ss->init_pivot_scale[1] = 1.0f;
-  ss->init_pivot_scale[2] = 1.0f;
-
-  ss->pivot_scale[0] = 1.0f;
-  ss->pivot_scale[1] = 1.0f;
-  ss->pivot_scale[2] = 1.0f;
 
   sculpt_undo_push_begin("Transform");
   BKE_sculpt_update_object_for_edit(depsgraph, ob, false, false);

@@ -16,8 +16,9 @@
  * The Original Code is Copyright (C) 2019 by Blender Foundation
  * All rights reserved.
  */
-#ifndef __BKE_REMESH_H__
-#define __BKE_REMESH_H__
+
+#ifndef __BKE_MESH_REMESH_VOXEL_H__
+#define __BKE_MESH_REMESH_VOXEL_H__
 
 /** \file
  * \ingroup bke
@@ -39,8 +40,16 @@ struct Mesh *BKE_mesh_remesh_voxel_ovdb_volume_to_mesh_nomain(struct OpenVDBLeve
                                                               bool relax_disoriented_triangles);
 #endif
 struct Mesh *BKE_mesh_remesh_voxel_to_mesh_nomain(struct Mesh *mesh, float voxel_size);
+struct Mesh *BKE_mesh_remesh_quadriflow_to_mesh_nomain(struct Mesh *mesh,
+                                                       int target_faces,
+                                                       int seed,
+                                                       bool preserve_sharp,
+                                                       bool preserve_boundary,
+                                                       bool adaptive_scale,
+                                                       void *update_cb,
+                                                       void *update_cb_data);
 
 /* Data reprojection functions */
 void BKE_remesh_reproject_paint_mask(struct Mesh *target, struct Mesh *source);
 
-#endif /* __BKE_REMESH_H__ */
+#endif /* __BKE_MESH_REMESH_VOXEL_H__ */

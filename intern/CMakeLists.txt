@@ -86,3 +86,8 @@ endif()
 if(WITH_OPENVDB)
   add_subdirectory(openvdb)
 endif()
+
+if(WITH_QUADRIFLOW)
+  add_subdirectory(quadriflow)
+endif()
+

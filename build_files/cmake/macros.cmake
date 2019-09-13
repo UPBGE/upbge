@@ -747,6 +747,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_intern_eigen
 		bf_intern_libmv
 		bf_intern_glew_mx
+		bf_intern_quadriflow
 
 		extern_lzma
 		extern_curve_fit_nd
@@ -769,6 +770,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_intern_eigen
 		extern_rangetree
 		extern_wcwidth
+		extern_quadriflow
 		bf_intern_libmv
 		extern_sdlew
 

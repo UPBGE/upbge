@@ -14,6 +14,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#ifndef __BLI_VECTOR_H__
+#define __BLI_VECTOR_H__
+
 /** \file
  * \ingroup bli
  *
@@ -21,8 +24,6 @@
  * optimization. That means, when the vector only contains a few elements, no memory allocation is
  * performed. Instead, those elements are stored directly in the vector.
  */
-
-#pragma once
 
 #include <algorithm>
 #include <cstdlib>
@@ -52,7 +53,7 @@ template<typename T, uint N = 4, typename Allocator = GuardedAllocator> class Ve
 #ifdef DEBUG
   /* Storing size in debug builds, because it makes debugging much easier sometimes. */
   uint m_debug_size;
-#  define UPDATE_VECTOR_SIZE(ptr) (ptr)->m_debug_size = (ptr)->m_end - (ptr)->m_begin
+#  define UPDATE_VECTOR_SIZE(ptr) (ptr)->m_debug_size = (uint)((ptr)->m_end - (ptr)->m_begin)
 #else
 #  define UPDATE_VECTOR_SIZE(ptr) ((void)0)
 #endif
@@ -387,8 +388,8 @@ template<typename T, uint N = 4, typename Allocator = GuardedAllocator> class Ve
    */
   uint size() const
   {
-    BLI_assert(m_debug_size == m_end - m_begin);
-    return m_end - m_begin;
+    BLI_assert(m_debug_size == (uint)(m_end - m_begin));
+    return (uint)(m_end - m_begin);
   }
 
   /**
@@ -539,7 +540,7 @@ template<typename T, uint N = 4, typename Allocator = GuardedAllocator> class Ve
 
   uint capacity() const
   {
-    return m_capacity_end - m_begin;
+    return (uint)(m_capacity_end - m_begin);
   }
 
   BLI_NOINLINE void grow(uint min_capacity)
@@ -554,7 +555,7 @@ template<typename T, uint N = 4, typename Allocator = GuardedAllocator> class Ve
     uint size = this->size();
 
     T *new_array = (T *)m_allocator.allocate_aligned(
-        min_capacity * sizeof(T), std::alignment_of<T>::value, __func__);
+        min_capacity * (uint)sizeof(T), std::alignment_of<T>::value, __func__);
     uninitialized_relocate_n(m_begin, size, new_array);
 
     if (!this->is_small()) {
@@ -599,3 +600,5 @@ template<typename T, uint N = 4, typename Allocator = GuardedAllocator> class Ve
 template<typename T, uint N = 4> using TemporaryVector = Vector<T, N, TemporaryAllocator>;
 
 } /* namespace BLI */
+
+#endif /* __BLI_VECTOR_H__ */

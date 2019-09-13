@@ -13,6 +13,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+#ifndef __BLI_ALLOCATOR_H__
+#define __BLI_ALLOCATOR_H__
 
 /** \file
  * \ingroup bli
@@ -26,8 +28,6 @@
  * file are fairly simple still, more complexity can be added when necessary. For now they do their
  * job good enough.
  */
-
-#pragma once
 
 #include <stdlib.h>
 
@@ -82,13 +82,13 @@ class RawAllocator {
 
   void *allocate_aligned(uint size, uint alignment, const char *UNUSED(name))
   {
-    BLI_assert(is_power_of_2_i(alignment));
+    BLI_assert(is_power_of_2_i((int)alignment));
     void *ptr = malloc(size + alignment + sizeof(MemHead));
     void *used_ptr = (void *)((uintptr_t)POINTER_OFFSET(ptr, alignment + sizeof(MemHead)) &
                               ~((uintptr_t)alignment - 1));
-    uint offset = (uintptr_t)used_ptr - (uintptr_t)ptr;
+    uint offset = (uint)((uintptr_t)used_ptr - (uintptr_t)ptr);
     BLI_assert(offset >= sizeof(MemHead));
-    ((MemHead *)used_ptr - 1)->offset = offset;
+    ((MemHead *)used_ptr - 1)->offset = (int)offset;
     return used_ptr;
   }
 
@@ -125,3 +125,5 @@ class TemporaryAllocator {
 };
 
 }  // namespace BLI
+
+#endif /* __BLI_ALLOCATOR_H__ */
