@@ -75,7 +75,7 @@ static bool bmesh_test_dist_add(BMVert *v,
                                 /* optionally track original index */
                                 int *index,
                                 const int *index_prev,
-                                float mtx[3][3])
+                                const float mtx[3][3])
 {
   if ((BM_elem_flag_test(v_other, BM_ELEM_SELECT) == 0) &&
       (BM_elem_flag_test(v_other, BM_ELEM_HIDDEN) == 0)) {
@@ -105,7 +105,7 @@ static bool bmesh_test_dist_add(BMVert *v,
  * \param index: Optionally store the original index we're measuring the distance to (can be NULL).
  */
 static void editmesh_set_connectivity_distance(BMesh *bm,
-                                               float mtx[3][3],
+                                               const float mtx[3][3],
                                                float *dists,
                                                int *index)
 {
@@ -1044,7 +1044,6 @@ void trans_mesh_customdata_correction_init(TransInfo *t)
            * accidentally break uv maps or vertex colors then */
           (bm->shapenr <= 1) && (has_layer_math || (cd_loop_mdisp_offset != -1))) {
         use_origfaces = true;
-        cd_loop_mdisp_offset = cd_loop_mdisp_offset;
       }
       else {
         use_origfaces = false;

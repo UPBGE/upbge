@@ -27,6 +27,7 @@
 #include <functional>
 #include <string>
 #include <utility>
+#include <memory>
 
 #include "BLI_utildefines.h"
 #include "BLI_math_base.h"
@@ -86,6 +87,13 @@ template<typename T> struct DefaultHash<T *> {
     uintptr_t ptr = POINTER_AS_UINT(value);
     uint32_t hash = (uint32_t)(ptr >> 3);
     return hash;
+  }
+};
+
+template<typename T> struct DefaultHash<std::unique_ptr<T>> {
+  uint32_t operator()(const std::unique_ptr<T> &value) const
+  {
+    return DefaultHash<T *>{}(value.get());
   }
 };
 

@@ -419,7 +419,7 @@ template<typename T, uint N = 4, typename Allocator = GuardedAllocator> class Ve
   {
     BLI_assert(!this->empty());
     m_end--;
-    T value = *m_end;
+    T value = std::move(*m_end);
     destruct(m_end);
     UPDATE_VECTOR_SIZE(this);
     return value;
@@ -435,7 +435,7 @@ template<typename T, uint N = 4, typename Allocator = GuardedAllocator> class Ve
     T *element_to_remove = m_begin + index;
     m_end--;
     if (element_to_remove < m_end) {
-      *element_to_remove = *m_end;
+      *element_to_remove = std::move(*m_end);
     }
     destruct(m_end);
     UPDATE_VECTOR_SIZE(this);
@@ -512,6 +512,14 @@ template<typename T, uint N = 4, typename Allocator = GuardedAllocator> class Ve
     return m_end;
   }
 
+  /**
+   * Get the current capacity of the vector.
+   */
+  uint capacity() const
+  {
+    return (uint)(m_capacity_end - m_begin);
+  }
+
   void print_stats() const
   {
     std::cout << "Small Vector at " << (void *)this << ":" << std::endl;
@@ -536,11 +544,6 @@ template<typename T, uint N = 4, typename Allocator = GuardedAllocator> class Ve
     if (UNLIKELY(m_end >= m_capacity_end)) {
       this->grow(std::max(this->size() * 2, (uint)1));
     }
-  }
-
-  uint capacity() const
-  {
-    return (uint)(m_capacity_end - m_begin);
   }
 
   BLI_NOINLINE void grow(uint min_capacity)

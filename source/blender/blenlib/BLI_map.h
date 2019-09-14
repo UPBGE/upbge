@@ -142,20 +142,20 @@ template<typename KeyT, typename ValueT, typename Allocator = GuardedAllocator> 
       return (ValueT *)(m_values + offset * sizeof(ValueT));
     }
 
-    void copy_in(uint offset, const KeyT &key, const ValueT &value)
+    template<typename ForwardKeyT, typename ForwardValueT>
+    void store(uint offset, ForwardKeyT &&key, ForwardValueT &&value)
     {
       BLI_assert(m_status[offset] != IS_SET);
       m_status[offset] = IS_SET;
-      new (this->key(offset)) KeyT(key);
-      new (this->value(offset)) ValueT(value);
+      new (this->key(offset)) KeyT(std::forward<ForwardKeyT>(key));
+      new (this->value(offset)) ValueT(std::forward<ForwardValueT>(value));
     }
 
-    void move_in(uint offset, KeyT &key, ValueT &value)
+    template<typename ForwardKeyT> void store_without_value(uint offset, ForwardKeyT &&key)
     {
       BLI_assert(m_status[offset] != IS_SET);
       m_status[offset] = IS_SET;
-      new (this->key(offset)) KeyT(std::move(key));
-      new (this->value(offset)) ValueT(std::move(value));
+      new (this->key(offset)) KeyT(std::forward<ForwardKeyT>(key));
     }
 
     void set_dummy(uint offset)
@@ -199,17 +199,19 @@ template<typename KeyT, typename ValueT, typename Allocator = GuardedAllocator> 
    */
   void add_new(const KeyT &key, const ValueT &value)
   {
-    BLI_assert(!this->contains(key));
-    this->ensure_can_add();
-
-    ITER_SLOTS_BEGIN (key, m_array, , item, offset) {
-      if (item.is_empty(offset)) {
-        item.copy_in(offset, key, value);
-        m_array.update__empty_to_set();
-        return;
-      }
-    }
-    ITER_SLOTS_END(offset);
+    this->add_new__impl(key, value);
+  }
+  void add_new(const KeyT &key, ValueT &&value)
+  {
+    this->add_new__impl(key, std::move(value));
+  }
+  void add_new(KeyT &&key, const ValueT &value)
+  {
+    this->add_new__impl(std::move(key), value);
+  }
+  void add_new(KeyT &&key, ValueT &&value)
+  {
+    this->add_new__impl(std::move(key), std::move(value));
   }
 
   /**
@@ -218,19 +220,19 @@ template<typename KeyT, typename ValueT, typename Allocator = GuardedAllocator> 
    */
   bool add(const KeyT &key, const ValueT &value)
   {
-    this->ensure_can_add();
-
-    ITER_SLOTS_BEGIN (key, m_array, , item, offset) {
-      if (item.is_empty(offset)) {
-        item.copy_in(offset, key, value);
-        m_array.update__empty_to_set();
-        return true;
-      }
-      else if (item.has_key(offset, key)) {
-        return false;
-      }
-    }
-    ITER_SLOTS_END(offset);
+    return this->add__impl(key, value);
+  }
+  bool add(const KeyT &key, ValueT &&value)
+  {
+    return this->add__impl(key, std::move(value));
+  }
+  bool add(KeyT &&key, const ValueT &value)
+  {
+    return this->add__impl(std::move(key), value);
+  }
+  bool add(KeyT &&key, ValueT &&value)
+  {
+    return this->add__impl(std::move(key), std::move(value));
   }
 
   /**
@@ -285,30 +287,30 @@ template<typename KeyT, typename ValueT, typename Allocator = GuardedAllocator> 
   }
 
   /**
-   * Check if the key exists in the map.
-   * If it does exist, call the modify function with a reference to the corresponding value.
-   * If it does not exist, call the create function and insert a new key-value-pair.
-   * Returns true when a new pair was inserted, otherwise false.
+   * First, checks if the key exists in the map.
+   * If it does exist, call the modify function with a pointer to the corresponding value.
+   * If it does not exist, call the create function with a pointer to where the value should be
+   * created.
+   *
+   * Returns whatever is returned from one of the callback functions. Both callbacks have to return
+   * the same type.
+   *
+   * CreateValueF: Takes a pointer to where the value should be created.
+   * ModifyValueF: Takes a pointer to the value that should be modified.
    */
   template<typename CreateValueF, typename ModifyValueF>
-  bool add_or_modify(const KeyT &key,
+  auto add_or_modify(const KeyT &key,
                      const CreateValueF &create_value,
-                     const ModifyValueF &modify_value)
+                     const ModifyValueF &modify_value) -> decltype(create_value(nullptr))
   {
-    this->ensure_can_add();
-
-    ITER_SLOTS_BEGIN (key, m_array, , item, offset) {
-      if (item.is_empty(offset)) {
-        item.copy_in(offset, key, create_value());
-        m_array.update__empty_to_set();
-        return true;
-      }
-      else if (item.has_key(offset, key)) {
-        modify_value(*item.value(offset));
-        return false;
-      }
-    }
-    ITER_SLOTS_END(offset);
+    return this->add_or_modify__impl(key, create_value, modify_value);
+  }
+  template<typename CreateValueF, typename ModifyValueF>
+  auto add_or_modify(KeyT &&key,
+                     const CreateValueF &create_value,
+                     const ModifyValueF &modify_value) -> decltype(create_value(nullptr))
+  {
+    return this->add_or_modify__impl(std::move(key), create_value, modify_value);
   }
 
   /**
@@ -316,8 +318,19 @@ template<typename KeyT, typename ValueT, typename Allocator = GuardedAllocator> 
    */
   bool add_override(const KeyT &key, const ValueT &value)
   {
-    return this->add_or_modify(
-        key, [&value]() { return value; }, [&value](ValueT &old_value) { old_value = value; });
+    return this->add_override__impl(key, value);
+  }
+  bool add_override(const KeyT &key, ValueT &&value)
+  {
+    return this->add_override__impl(key, std::move(value));
+  }
+  bool add_override(KeyT &&key, const ValueT &value)
+  {
+    return this->add_override__impl(std::move(key), value);
+  }
+  bool add_override(KeyT &&key, ValueT &&value)
+  {
+    return this->add_override__impl(std::move(key), std::move(value));
   }
 
   /**
@@ -384,19 +397,12 @@ template<typename KeyT, typename ValueT, typename Allocator = GuardedAllocator> 
   template<typename CreateValueF>
   ValueT &lookup_or_add(const KeyT &key, const CreateValueF &create_value)
   {
-    this->ensure_can_add();
-
-    ITER_SLOTS_BEGIN (key, m_array, , item, offset) {
-      if (item.is_empty(offset)) {
-        item.copy_in(offset, key, create_value());
-        m_array.update__empty_to_set();
-        return *item.value(offset);
-      }
-      else if (item.has_key(offset, key)) {
-        return *item.value(offset);
-      }
-    }
-    ITER_SLOTS_END(offset);
+    return this->lookup_or_add__impl(key, create_value);
+  }
+  template<typename CreateValueF>
+  ValueT &lookup_or_add(KeyT &&key, const CreateValueF &create_value)
+  {
+    return this->lookup_or_add__impl(std::move(key), create_value);
   }
 
   /**
@@ -608,8 +614,101 @@ template<typename KeyT, typename ValueT, typename Allocator = GuardedAllocator> 
   {
     ITER_SLOTS_BEGIN (key, new_array, , item, offset) {
       if (item.is_empty(offset)) {
-        item.move_in(offset, key, value);
+        item.store(offset, std::move(key), std::move(value));
         return;
+      }
+    }
+    ITER_SLOTS_END(offset);
+  }
+
+  template<typename ForwardKeyT, typename ForwardValueT>
+  bool add_override__impl(ForwardKeyT &&key, ForwardValueT &&value)
+  {
+    return this->add_or_modify(std::forward<ForwardKeyT>(key),
+                               [&](ValueT *dst) {
+                                 new (dst) ValueT(std::forward<ForwardValueT>(value));
+                                 return true;
+                               },
+                               [&](ValueT *old_value) {
+                                 *old_value = std::forward<ForwardValueT>(value);
+                                 return false;
+                               });
+  }
+
+  template<typename ForwardKeyT, typename ForwardValueT>
+  bool add__impl(ForwardKeyT &&key, ForwardValueT &&value)
+  {
+    this->ensure_can_add();
+
+    ITER_SLOTS_BEGIN (key, m_array, , item, offset) {
+      if (item.is_empty(offset)) {
+        item.store(offset, std::forward<ForwardKeyT>(key), std::forward<ForwardValueT>(value));
+        m_array.update__empty_to_set();
+        return true;
+      }
+      else if (item.has_key(offset, key)) {
+        return false;
+      }
+    }
+    ITER_SLOTS_END(offset);
+  }
+
+  template<typename ForwardKeyT, typename ForwardValueT>
+  void add_new__impl(ForwardKeyT &&key, ForwardValueT &&value)
+  {
+    BLI_assert(!this->contains(key));
+    this->ensure_can_add();
+
+    ITER_SLOTS_BEGIN (key, m_array, , item, offset) {
+      if (item.is_empty(offset)) {
+        item.store(offset, std::forward<ForwardKeyT>(key), std::forward<ForwardValueT>(value));
+        m_array.update__empty_to_set();
+        return;
+      }
+    }
+    ITER_SLOTS_END(offset);
+  }
+
+  template<typename ForwardKeyT, typename CreateValueF, typename ModifyValueF>
+  auto add_or_modify__impl(ForwardKeyT &&key,
+                           const CreateValueF &create_value,
+                           const ModifyValueF &modify_value) -> decltype(create_value(nullptr))
+  {
+    using CreateReturnT = decltype(create_value(nullptr));
+    using ModifyReturnT = decltype(modify_value(nullptr));
+    BLI_STATIC_ASSERT((std::is_same<CreateReturnT, ModifyReturnT>::value),
+                      "Both callbacks should return the same type.");
+
+    this->ensure_can_add();
+
+    ITER_SLOTS_BEGIN (key, m_array, , item, offset) {
+      if (item.is_empty(offset)) {
+        m_array.update__empty_to_set();
+        item.store_without_value(offset, std::forward<ForwardKeyT>(key));
+        ValueT *value_ptr = item.value(offset);
+        return create_value(value_ptr);
+      }
+      else if (item.has_key(offset, key)) {
+        ValueT *value_ptr = item.value(offset);
+        return modify_value(value_ptr);
+      }
+    }
+    ITER_SLOTS_END(offset);
+  }
+
+  template<typename ForwardKeyT, typename CreateValueF>
+  ValueT &lookup_or_add__impl(ForwardKeyT &&key, const CreateValueF &create_value)
+  {
+    this->ensure_can_add();
+
+    ITER_SLOTS_BEGIN (key, m_array, , item, offset) {
+      if (item.is_empty(offset)) {
+        item.store(offset, std::forward<ForwardKeyT>(key), create_value());
+        m_array.update__empty_to_set();
+        return *item.value(offset);
+      }
+      else if (item.has_key(offset, key)) {
+        return *item.value(offset);
       }
     }
     ITER_SLOTS_END(offset);
