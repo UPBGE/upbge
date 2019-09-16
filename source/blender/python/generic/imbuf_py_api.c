@@ -227,12 +227,46 @@ static int py_imbuf_ppm_set(Py_ImBuf *self, PyObject *value, void *UNUSED(closur
   return 0;
 }
 
+PyDoc_STRVAR(py_imbuf_filepath_doc, "filepath associated with this image.\n\n:type: string");
+static PyObject *py_imbuf_filepath_get(Py_ImBuf *self, void *UNUSED(closure))
+{
+  PY_IMBUF_CHECK_OBJ(self);
+  ImBuf *ibuf = self->ibuf;
+  return PyC_UnicodeFromByte(ibuf->name);
+}
+
+static int py_imbuf_filepath_set(Py_ImBuf *self, PyObject *value, void *UNUSED(closure))
+{
+  PY_IMBUF_CHECK_INT(self);
+
+  if (!PyUnicode_Check(value)) {
+    PyErr_SetString(PyExc_TypeError, "expected a string!");
+    return -1;
+  }
+
+  ImBuf *ibuf = self->ibuf;
+  Py_ssize_t value_str_len_max = sizeof(ibuf->name);
+  Py_ssize_t value_str_len;
+  const char *value_str = _PyUnicode_AsStringAndSize(value, &value_str_len);
+  if (value_str_len >= value_str_len_max) {
+    PyErr_Format(PyExc_TypeError, "filepath length over %zd", value_str_len_max - 1);
+    return -1;
+  }
+  memcpy(ibuf->name, value_str, value_str_len + 1);
+  return 0;
+}
+
 static PyGetSetDef Py_ImBuf_getseters[] = {
     {(char *)"size", (getter)py_imbuf_size_get, (setter)NULL, (char *)py_imbuf_size_doc, NULL},
     {(char *)"ppm",
      (getter)py_imbuf_ppm_get,
      (setter)py_imbuf_ppm_set,
      (char *)py_imbuf_ppm_doc,
+     NULL},
+    {(char *)"filepath",
+     (getter)py_imbuf_filepath_get,
+     (setter)py_imbuf_filepath_set,
+     (char *)py_imbuf_filepath_doc,
      NULL},
     {NULL, NULL, NULL, NULL, NULL} /* Sentinel */
 };
@@ -258,7 +292,7 @@ static PyObject *py_imbuf_repr(Py_ImBuf *self)
   const ImBuf *ibuf = self->ibuf;
   if (ibuf != NULL) {
     return PyUnicode_FromFormat(
-        "<imbuf: address=%p, filename='%s', size=(%d, %d)>", ibuf, ibuf->name, ibuf->x, ibuf->y);
+        "<imbuf: address=%p, filepath='%s', size=(%d, %d)>", ibuf, ibuf->name, ibuf->x, ibuf->y);
   }
   else {
     return PyUnicode_FromString("<imbuf: address=0x0>");
@@ -375,73 +409,73 @@ static PyObject *M_imbuf_new(PyObject *UNUSED(self), PyObject *args, PyObject *k
 }
 
 PyDoc_STRVAR(M_imbuf_load_doc,
-             ".. function:: load(filename)\n"
+             ".. function:: load(filepath)\n"
              "\n"
              "   Load an image from a file.\n"
              "\n"
-             "   :arg filename: the filename of the image.\n"
-             "   :type filename: string\n"
+             "   :arg filepath: the filepath of the image.\n"
+             "   :type filepath: string\n"
              "   :return: the newly loaded image.\n"
              "   :rtype: :class:`ImBuf`\n");
 static PyObject *M_imbuf_load(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
-  const char *filename;
+  const char *filepath;
 
-  static const char *_keywords[] = {"filename", NULL};
+  static const char *_keywords[] = {"filepath", NULL};
   static _PyArg_Parser _parser = {"s:load", _keywords, 0};
-  if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, &filename)) {
+  if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, &filepath)) {
     return NULL;
   }
 
-  const int file = BLI_open(filename, O_BINARY | O_RDONLY, 0);
+  const int file = BLI_open(filepath, O_BINARY | O_RDONLY, 0);
   if (file == -1) {
     PyErr_Format(PyExc_IOError, "load: %s, failed to open file '%s'", strerror(errno));
     return NULL;
   }
 
-  ImBuf *ibuf = IMB_loadifffile(file, filename, IB_rect, NULL, filename);
+  ImBuf *ibuf = IMB_loadifffile(file, filepath, IB_rect, NULL, filepath);
 
   close(file);
 
   if (ibuf == NULL) {
     PyErr_Format(
-        PyExc_ValueError, "load: Unable to recognize image format for file '%s'", filename);
+        PyExc_ValueError, "load: Unable to recognize image format for file '%s'", filepath);
     return NULL;
   }
 
-  BLI_strncpy(ibuf->name, filename, sizeof(ibuf->name));
+  BLI_strncpy(ibuf->name, filepath, sizeof(ibuf->name));
 
   return Py_ImBuf_CreatePyObject(ibuf);
 }
 
 PyDoc_STRVAR(M_imbuf_write_doc,
-             ".. function:: write(image, filename)\n"
+             ".. function:: write(image, filepath)\n"
              "\n"
              "   Write an image.\n"
              "\n"
              "   :arg image: the image to write.\n"
              "   :type image: :class:`ImBuf`\n"
-             "   :arg filename: the filename of the image.\n"
-             "   :type filename: string\n");
+             "   :arg filepath: the filepath of the image.\n"
+             "   :type filepath: string\n");
 static PyObject *M_imbuf_write(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
   Py_ImBuf *py_imb;
-  const char *filename = NULL;
+  const char *filepath = NULL;
 
-  static const char *_keywords[] = {"image", "filename", NULL};
+  static const char *_keywords[] = {"image", "filepath", NULL};
   static _PyArg_Parser _parser = {"O!|s:write", _keywords, 0};
-  if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, &Py_ImBuf_Type, &py_imb, &filename)) {
+  if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, &Py_ImBuf_Type, &py_imb, &filepath)) {
     return NULL;
   }
 
-  if (filename == NULL) {
-    filename = py_imb->ibuf->name;
+  if (filepath == NULL) {
+    filepath = py_imb->ibuf->name;
   }
 
-  bool ok = IMB_saveiff(py_imb->ibuf, filename, IB_rect);
+  bool ok = IMB_saveiff(py_imb->ibuf, filepath, IB_rect);
   if (ok == false) {
     PyErr_Format(
-        PyExc_IOError, "write: Unable to write image file (%s) '%s'", strerror(errno), filename);
+        PyExc_IOError, "write: Unable to write image file (%s) '%s'", strerror(errno), filepath);
     return NULL;
   }
 
