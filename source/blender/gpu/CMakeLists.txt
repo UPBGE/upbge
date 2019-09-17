@@ -335,8 +335,11 @@ data_to_c_simple(shaders/gpu_shader_gpencil_fill_frag.glsl SRC)
 
 data_to_c_simple(shaders/gpu_shader_cfg_world_clip_lib.glsl SRC)
 
+data_to_c_simple(shaders/gpu_shader_common_obinfos_lib.glsl SRC)
+
+
 if(WITH_GAMEENGINE)
-	add_definitions(-DWITH_GAMEENGINE)
+  add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 if(WITH_MOD_SMOKE)

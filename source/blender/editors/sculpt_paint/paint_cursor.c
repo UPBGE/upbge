@@ -1093,17 +1093,15 @@ static bool ommit_cursor_drawing(Paint *paint, ePaintMode mode, Brush *brush)
   return true;
 }
 
-static void cursor_draw_point_screen_space(const uint gpuattr,
-                                           const ARegion *ar,
-                                           const float true_location[3],
-                                           const float obmat[4][4])
+static void cursor_draw_point_screen_space(
+    const uint gpuattr, const ARegion *ar, float true_location[3], float obmat[4][4], int size)
 {
   float translation_vertex_cursor[3], location[3];
   copy_v3_v3(location, true_location);
   mul_m4_v3(obmat, location);
   ED_view3d_project(ar, location, translation_vertex_cursor);
   imm_draw_circle_fill_3d(
-      gpuattr, translation_vertex_cursor[0], translation_vertex_cursor[1], 3, 10);
+      gpuattr, translation_vertex_cursor[0], translation_vertex_cursor[1], size, 10);
 }
 
 static void cursor_draw_tiling_preview(const uint gpuattr,
@@ -1145,7 +1143,7 @@ static void cursor_draw_tiling_preview(const uint gpuattr,
         for (dim = 0; dim < 3; dim++) {
           location[dim] = cur[dim] * step[dim] + orgLoc[dim];
         }
-        cursor_draw_point_screen_space(gpuattr, ar, location, ob->obmat);
+        cursor_draw_point_screen_space(gpuattr, ar, location, ob->obmat, 3);
       }
     }
   }
@@ -1166,7 +1164,7 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
 
       /* Axis Symmetry */
       flip_v3_v3(location, true_location, (char)i);
-      cursor_draw_point_screen_space(gpuattr, ar, location, ob->obmat);
+      cursor_draw_point_screen_space(gpuattr, ar, location, ob->obmat, 3);
 
       /* Tiling */
       cursor_draw_tiling_preview(gpuattr, ar, location, sd, ob, radius);
@@ -1181,7 +1179,7 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
           mul_m4_v3(symm_rot_mat, location);
 
           cursor_draw_tiling_preview(gpuattr, ar, location, sd, ob, radius);
-          cursor_draw_point_screen_space(gpuattr, ar, location, ob->obmat);
+          cursor_draw_point_screen_space(gpuattr, ar, location, ob->obmat, 3);
         }
       }
     }
@@ -1191,7 +1189,13 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
 static void sculpt_geometry_preview_lines_draw(const uint gpuattr, SculptSession *ss)
 {
   immUniformColor4f(1.0f, 1.0f, 1.0f, 0.6f);
-  GPU_depth_test(true);
+
+  /* Cursor normally draws on top, but for this part we need depth tests. */
+  const bool depth_test = GPU_depth_test_enabled();
+  if (!depth_test) {
+    GPU_depth_test(true);
+  }
+
   GPU_line_width(1.0f);
   if (ss->preview_vert_index_count > 0) {
     immBegin(GPU_PRIM_LINES, ss->preview_vert_index_count);
@@ -1200,10 +1204,16 @@ static void sculpt_geometry_preview_lines_draw(const uint gpuattr, SculptSession
     }
     immEnd();
   }
+
+  /* Restore depth test value. */
+  if (!depth_test) {
+    GPU_depth_test(false);
+  }
 }
 
 static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 {
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
   ARegion *ar = CTX_wm_region(C);
   UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
@@ -1253,7 +1263,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
   /* TODO: as sculpt and other paint modes are unified, this
    * special mode of drawing will go away */
-  if ((mode == PAINT_MODE_SCULPT) && vc.obact->sculpt) {
+  Object *obact = vc.obact;
+  if ((mode == PAINT_MODE_SCULPT) && obact && obact->sculpt) {
     float location[3];
     int pixel_radius;
 
@@ -1308,7 +1319,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
   /* Only sculpt mode cursor for now */
 
   /* Disable for PBVH_GRIDS */
-  SculptSession *ss = vc.obact->sculpt;
+  SculptSession *ss = obact ? obact->sculpt : NULL;
   bool is_multires = ss && ss->pbvh && BKE_pbvh_type(ss->pbvh) == PBVH_GRIDS;
 
   if ((mode == PAINT_MODE_SCULPT) && ss && !is_multires &&
@@ -1327,7 +1338,13 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
     if (!ups->stroke_active) {
       SculptCursorGeometryInfo gi;
       float mouse[2] = {x - ar->winrct.xmin, y - ar->winrct.ymin};
+      int prev_active_vertex_index = ss->active_vertex_index;
+      bool update_previews = false;
       if (sculpt_cursor_geometry_info_update(C, &gi, mouse, true) && !alpha_overlay_active) {
+
+        if (prev_active_vertex_index != ss->active_vertex_index) {
+          update_previews = true;
+        }
 
         float rds;
         if (!BKE_brush_use_locked_size(scene, brush)) {
@@ -1342,6 +1359,16 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
         /* Draw 3D active vertex preview with symmetry*/
         if (len_v3v3(gi.active_vertex_co, gi.location) < rds) {
           cursor_draw_point_with_symmetry(pos, ar, gi.active_vertex_co, sd, vc.obact, rds);
+        }
+
+        /* Draw pose brush origin */
+        if (brush->sculpt_tool == SCULPT_TOOL_POSE && !is_multires) {
+          immUniformColor4f(1.0f, 1.0f, 1.0f, 0.8f);
+          if (update_previews) {
+            BKE_sculpt_update_object_for_edit(depsgraph, vc.obact, true, false);
+            sculpt_pose_calc_pose_data(sd, vc.obact, ss, gi.location, rds, ss->pose_origin, NULL);
+          }
+          cursor_draw_point_screen_space(pos, ar, ss->pose_origin, vc.obact->obmat, 5);
         }
 
         /* Draw 3D brush cursor */
@@ -1367,6 +1394,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
         GPU_matrix_push();
         GPU_matrix_mul(cursor_trans);
         GPU_matrix_mul(cursor_rot);
+        immUniformColor3fvAlpha(outline_col, outline_alpha);
         imm_draw_circle_wire_3d(pos, 0, 0, rds, 40);
         GPU_matrix_pop();
 
@@ -1379,6 +1407,17 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
             sculpt_geometry_preview_lines_draw(pos, ss);
           }
         }
+
+        /* Draw pose brush line preview */
+        if (brush->sculpt_tool == SCULPT_TOOL_POSE && !is_multires) {
+          immUniformColor4f(1.0f, 1.0f, 1.0f, 0.8f);
+          GPU_line_width(2.0f);
+          immBegin(GPU_PRIM_LINES, 2);
+          immVertex3fv(pos, ss->pose_origin);
+          immVertex3fv(pos, gi.location);
+          immEnd();
+        }
+
         GPU_matrix_pop();
 
         GPU_matrix_pop_projection();

@@ -436,7 +436,7 @@ static int track_to_path_segment(SpaceClip *sc,
   const MovieTrackingMarker *marker = BKE_tracking_marker_get_exact(track, current_frame);
   /* Check whether there is marker at exact current frame.
    * If not, we don't have anything to be put to path. */
-  if (marker == NULL) {
+  if (marker == NULL || (marker->flag & MARKER_DISABLED)) {
     return 0;
   }
   /* Index inside of path array where we write data to. */
@@ -449,7 +449,7 @@ static int track_to_path_segment(SpaceClip *sc,
     point_index += direction;
     current_frame += direction;
     marker = BKE_tracking_marker_get_exact(track, current_frame);
-    if (marker == NULL) {
+    if (marker == NULL || (marker->flag & MARKER_DISABLED)) {
       /* Reached end of tracked segment. */
       break;
     }
@@ -462,6 +462,9 @@ static void draw_track_path_points(const TrackPathPoint *path,
                                    const int start_point,
                                    const int num_points)
 {
+  if (num_points == 0) {
+    return;
+  }
   immBegin(GPU_PRIM_POINTS, num_points);
   for (int i = 0; i < num_points; i++) {
     const TrackPathPoint *point = &path[i + start_point];
@@ -507,7 +510,16 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
   /* Collect path information. */
   const int num_points_before = track_to_path_segment(sc, track, -1, path);
   const int num_points_after = track_to_path_segment(sc, track, 1, path);
-  const int num_all_points = num_points_before + num_points_after - 1;
+  if (num_points_before == 0 && num_points_after == 0) {
+    return;
+  }
+
+  int num_all_points = num_points_before + num_points_after;
+  /* If both leading and trailing parts of the path are there the center point is counted twice. */
+  if (num_points_before != 0 && num_points_after != 0) {
+    num_all_points -= 1;
+  }
+
   const int path_start_index = count - num_points_before + 1;
   const int path_center_index = count;
 
@@ -519,23 +531,23 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
   if (!tiny) {
     immUniformThemeColor(TH_MARKER_OUTLINE);
     if (TRACK_VIEW_SELECTED(sc, track)) {
-      glPointSize(5.0f);
+      GPU_point_size(5.0f);
       draw_track_path_points(path, position_attribute, path_start_index, num_all_points);
     }
     /* Draw darker outline for actual path, all line segments at once. */
-    glLineWidth(3.0f);
+    GPU_line_width(3.0f);
     draw_track_path_lines(path, position_attribute, path_start_index, num_all_points);
   }
 
   /* Draw all points. */
-  glPointSize(3.0f);
+  GPU_point_size(3.0f);
   immUniformThemeColor(TH_PATH_BEFORE);
   draw_track_path_points(path, position_attribute, path_start_index, num_points_before);
   immUniformThemeColor(TH_PATH_AFTER);
   draw_track_path_points(path, position_attribute, path_center_index, num_points_after);
 
   /* Connect points with color coded segments. */
-  glLineWidth(1);
+  GPU_line_width(1);
   immUniformThemeColor(TH_PATH_BEFORE);
   draw_track_path_lines(path, position_attribute, path_start_index, num_points_before);
   immUniformThemeColor(TH_PATH_AFTER);
