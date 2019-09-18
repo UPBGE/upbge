@@ -91,6 +91,7 @@ typedef struct CursorSnapshot {
   GLuint overlay_texture;
   int size;
   int zoom;
+  int curve_preset;
 } CursorSnapshot;
 
 static TexSnapshot primary_snap = {0};
@@ -426,7 +427,8 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 
   int size;
   const bool refresh = !cursor_snap.overlay_texture ||
-                       (overlay_flags & PAINT_OVERLAY_INVALID_CURVE) || cursor_snap.zoom != zoom;
+                       (overlay_flags & PAINT_OVERLAY_INVALID_CURVE) || cursor_snap.zoom != zoom ||
+                       cursor_snap.curve_preset != br->curve_preset;
 
   init = (cursor_snap.overlay_texture != 0);
 
@@ -506,6 +508,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
+  cursor_snap.curve_preset = br->curve_preset;
   BKE_paint_reset_overlay_invalid(PAINT_OVERLAY_INVALID_CURVE);
 
   return 1;
@@ -1229,7 +1232,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
   /* can't use stroke vc here because this will be called during
    * mouse over too, not just during a stroke */
   ViewContext vc;
-  ED_view3d_viewcontext_init(C, &vc);
+  ED_view3d_viewcontext_init(C, &vc, depsgraph);
 
   if (vc.rv3d && (vc.rv3d->rflag & RV3D_NAVIGATING)) {
     return;

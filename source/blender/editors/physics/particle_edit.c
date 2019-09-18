@@ -473,7 +473,8 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 {
   PE_set_data(C, data);
 
-  ED_view3d_viewcontext_init(C, &data->vc);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ED_view3d_viewcontext_init(C, &data->vc, depsgraph);
 
   if (!XRAY_ENABLED(data->vc.v3d)) {
     if (data->vc.v3d->flag & V3D_INVALID_BACKBUF) {
@@ -3315,6 +3316,7 @@ static int delete_exec(bContext *C, wmOperator *op)
   }
 
   DEG_id_tag_update(&data.ob->id, ID_RECALC_GEOMETRY);
+  BKE_particle_batch_cache_dirty_tag(data.edit->psys, BKE_PARTICLE_BATCH_DIRTY_ALL);
   WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE | NA_EDITED, data.ob);
 
   return OPERATOR_FINISHED;
