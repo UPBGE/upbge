@@ -36,6 +36,8 @@
 #include "BKE_screen.h"
 #include "BKE_report.h"
 
+#include "BLT_translation.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -137,11 +139,11 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
   SpaceImage *sima;
   bool area_was_image = false;
 
-  if (scene->r.displaymode == R_OUTPUT_NONE) {
+  if (U.render_display_type == USER_RENDER_DISPLAY_NONE) {
     return NULL;
   }
 
-  if (scene->r.displaymode == R_OUTPUT_WINDOW) {
+  if (U.render_display_type == USER_RENDER_DISPLAY_WINDOW) {
     int sizex = 30 * UI_DPI_FAC + (scene->r.xsch * scene->r.size) / 100;
     int sizey = 60 * UI_DPI_FAC + (scene->r.ysch * scene->r.size) / 100;
 
@@ -154,14 +156,15 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
     }
 
     /* changes context! */
-    if (WM_window_open_temp(C, mx, my, sizex, sizey, WM_WINDOW_RENDER) == NULL) {
+    if (WM_window_open_temp(C, IFACE_("Blender Render"), mx, my, sizex, sizey, SPACE_IMAGE) ==
+        NULL) {
       BKE_report(reports, RPT_ERROR, "Failed to open window!");
       return NULL;
     }
 
     sa = CTX_wm_area(C);
   }
-  else if (scene->r.displaymode == R_OUTPUT_SCREEN) {
+  else if (U.render_display_type == USER_RENDER_DISPLAY_SCREEN) {
     sa = CTX_wm_area(C);
 
     /* if the active screen is already in fullscreen mode, skip this and
