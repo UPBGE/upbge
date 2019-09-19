@@ -176,10 +176,6 @@ set(SRC
 	KX_CollisionContactPoints.h
 )
 
-set(LIB
-    ge_videotex
-)
-
 add_definitions(${GL_DEFINITIONS})
 
 if(WITH_IMAGE_DDS)

@@ -74,7 +74,6 @@ set(SRC
 )
 
 set(LIB
-    ge_videotex
 )
 
 if(WITH_GAMEENGINE_SECURITY)
