@@ -777,7 +777,7 @@ typedef struct wmOperatorType {
 } wmOperatorType;
 
 /**
- * Wrapper to reference a wmOperatorType together with some set properties and othere relevant
+ * Wrapper to reference a #wmOperatorType together with some set properties and other relevant
  * information to invoke the operator in a customizable way.
  */
 typedef struct wmOperatorCallParams {
