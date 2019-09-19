@@ -199,7 +199,7 @@ static void free_anim_avi(struct anim *anim)
   }
 #  endif
 
-  anim->duration = 0;
+  anim->duration_in_frames = 0;
 }
 #endif /* WITH_AVI */
 
@@ -408,7 +408,7 @@ static int startavi(struct anim *anim)
     return -1;
   }
 
-  anim->duration = anim->avi->header->TotalFrames;
+  anim->duration_in_frames = anim->avi->header->TotalFrames;
   anim->params = NULL;
 
   anim->x = anim->avi->header->Width;
@@ -426,7 +426,7 @@ static int startavi(struct anim *anim)
          anim->y,
          anim->framesize,
          anim->interlacing,
-         anim->duration);
+         anim->duration_in_frames);
 #  endif
 
   return 0;
@@ -493,12 +493,13 @@ BLI_INLINE bool need_aligned_ffmpeg_buffer(struct anim *anim)
 
 static int startffmpeg(struct anim *anim)
 {
-  int i, videoStream;
+  int i, video_stream_index;
 
   AVCodec *pCodec;
   AVFormatContext *pFormatCtx = NULL;
   AVCodecContext *pCodecCtx;
   AVRational frame_rate;
+  AVStream *video_stream;
   int frs_num;
   double frs_den;
   int streamcount;
@@ -528,7 +529,7 @@ static int startffmpeg(struct anim *anim)
   av_dump_format(pFormatCtx, 0, anim->name, 0);
 
   /* Find the video stream */
-  videoStream = -1;
+  video_stream_index = -1;
 
   for (i = 0; i < pFormatCtx->nb_streams; i++) {
     if (pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
@@ -536,17 +537,18 @@ static int startffmpeg(struct anim *anim)
         streamcount--;
         continue;
       }
-      videoStream = i;
+      video_stream_index = i;
       break;
     }
   }
 
-  if (videoStream == -1) {
+  if (video_stream_index == -1) {
     avformat_close_input(&pFormatCtx);
     return -1;
   }
 
-  pCodecCtx = pFormatCtx->streams[videoStream]->codec;
+  video_stream = pFormatCtx->streams[video_stream_index];
+  pCodecCtx = video_stream->codec;
 
   /* Find the decoder for the video stream */
   pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
@@ -567,12 +569,29 @@ static int startffmpeg(struct anim *anim)
     return -1;
   }
 
-  frame_rate = av_get_r_frame_rate_compat(pFormatCtx, pFormatCtx->streams[videoStream]);
-  if (pFormatCtx->streams[videoStream]->nb_frames != 0) {
-    anim->duration = pFormatCtx->streams[videoStream]->nb_frames;
+  frame_rate = av_guess_frame_rate(pFormatCtx, video_stream, NULL);
+  anim->duration_in_frames = 0;
+
+  /* Take from the stream if we can. */
+  if (video_stream->nb_frames != 0) {
+    anim->duration_in_frames = video_stream->nb_frames;
+
+    /* Sanity check on the detected duration. This is to work around corruption like reported in
+     * T68091. */
+    if (frame_rate.den != 0 && pFormatCtx->duration > 0) {
+      double stream_sec = anim->duration_in_frames * av_q2d(frame_rate);
+      double container_sec = pFormatCtx->duration / (double)AV_TIME_BASE;
+      if (stream_sec > 4.0 * container_sec) {
+        /* The stream is significantly longer than the container duration, which is
+         * suspicious. */
+        anim->duration_in_frames = 0;
+      }
+    }
   }
-  else {
-    anim->duration = (int)(pFormatCtx->duration * av_q2d(frame_rate) / AV_TIME_BASE + 0.5f);
+  /* Fall back to the container. */
+  if (anim->duration_in_frames == 0) {
+    anim->duration_in_frames = (int)(pFormatCtx->duration * av_q2d(frame_rate) / AV_TIME_BASE +
+                                     0.5f);
   }
 
   frs_num = frame_rate.num;
@@ -596,7 +615,7 @@ static int startffmpeg(struct anim *anim)
   anim->pFormatCtx = pFormatCtx;
   anim->pCodecCtx = pCodecCtx;
   anim->pCodec = pCodec;
-  anim->videoStream = videoStream;
+  anim->videoStream = video_stream_index;
 
   anim->interlacing = 0;
   anim->orientation = 0;
@@ -1038,7 +1057,7 @@ static ImBuf *ffmpeg_fetchibuf(struct anim *anim, int position, IMB_Timecode_Typ
 
   v_st = anim->pFormatCtx->streams[anim->videoStream];
 
-  frame_rate = av_q2d(av_get_r_frame_rate_compat(anim->pFormatCtx, v_st));
+  frame_rate = av_q2d(av_guess_frame_rate(anim->pFormatCtx, v_st, NULL));
 
   st_time = anim->pFormatCtx->start_time;
   pts_time_base = av_q2d(v_st->time_base);
@@ -1222,7 +1241,7 @@ static void free_anim_ffmpeg(struct anim *anim)
       av_free_packet(&anim->next_packet);
     }
   }
-  anim->duration = 0;
+  anim->duration_in_frames = 0;
 }
 
 #endif
@@ -1259,7 +1278,7 @@ static ImBuf *anim_getnew(struct anim *anim)
       ibuf = IMB_loadiffname(anim->name, anim->ib_flags, anim->colorspace);
       if (ibuf) {
         BLI_strncpy(anim->first, anim->name, sizeof(anim->first));
-        anim->duration = 1;
+        anim->duration_in_frames = 1;
       }
       break;
     case ANIM_MOVIE:
@@ -1297,7 +1316,7 @@ struct ImBuf *IMB_anim_previewframe(struct anim *anim)
   ibuf = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
   if (ibuf) {
     IMB_freeImBuf(ibuf);
-    position = anim->duration / 2;
+    position = anim->duration_in_frames / 2;
     ibuf = IMB_anim_absolute(anim, position, IMB_TC_NONE, IMB_PROXY_NONE);
   }
   return ibuf;
@@ -1333,7 +1352,7 @@ struct ImBuf *IMB_anim_absolute(struct anim *anim,
     if (position < 0) {
       return (NULL);
     }
-    if (position >= anim->duration) {
+    if (position >= anim->duration_in_frames) {
       return (NULL);
     }
   }
@@ -1398,12 +1417,12 @@ int IMB_anim_get_duration(struct anim *anim, IMB_Timecode_Type tc)
 {
   struct anim_index *idx;
   if (tc == IMB_TC_NONE) {
-    return anim->duration;
+    return anim->duration_in_frames;
   }
 
   idx = IMB_anim_open_index(anim, tc);
   if (!idx) {
-    return anim->duration;
+    return anim->duration_in_frames;
   }
 
   return IMB_indexer_get_duration(idx);

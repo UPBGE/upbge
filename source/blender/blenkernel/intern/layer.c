@@ -32,6 +32,7 @@
 #include "BKE_freestyle.h"
 #include "BKE_idprop.h"
 #include "BKE_layer.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
@@ -698,6 +699,10 @@ static short layer_collection_sync(ViewLayer *view_layer,
       lc->flag = parent_exclude;
     }
 
+    /* Tag linked collection as a weak reference so we keep the layer
+     * collection pointer on file load and remember exclude state. */
+    id_lib_indirect_weak_link(&collection->id);
+
     /* Collection restrict is inherited. */
     short child_restrict = parent_restrict;
     short child_layer_restrict = parent_layer_restrict;
@@ -734,6 +739,10 @@ static short layer_collection_sync(ViewLayer *view_layer,
       if (cob->ob == NULL) {
         continue;
       }
+
+      /* Tag linked object as a weak reference so we keep the object
+       * base pointer on file load and remember hidden state. */
+      id_lib_indirect_weak_link(&cob->ob->id);
 
       void **base_p;
       Base *base;
@@ -1123,7 +1132,9 @@ static void layer_collection_local_sync(ViewLayer *view_layer,
   }
 
   LISTBASE_FOREACH (LayerCollection *, child, &layer_collection->layer_collections) {
-    layer_collection_local_sync(view_layer, child, local_collections_uuid, visible);
+    if ((child->flag & LAYER_COLLECTION_EXCLUDE) == 0) {
+      layer_collection_local_sync(view_layer, child, local_collections_uuid, visible);
+    }
   }
 }
 
