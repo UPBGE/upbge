@@ -1168,16 +1168,20 @@ static void gizmo_prepare_mat(const bContext *C,
 
       if (scene->toolsettings->transform_pivot_point == V3D_AROUND_ACTIVE) {
         bGPdata *gpd = CTX_data_gpencil_data(C);
-        Object *ob = OBACT(view_layer);
         if (gpd && (gpd->flag & GP_DATA_STROKE_EDITMODE)) {
           /* pass */
         }
-        else if (ob->sculpt) {
-          SculptSession *ss = ob->sculpt;
-          copy_v3_v3(rv3d->twmat[3], ss->pivot_pos);
-        }
-        else if (ob != NULL) {
-          ED_object_calc_active_center(ob, false, rv3d->twmat[3]);
+        else {
+          Object *ob = OBACT(view_layer);
+          if (ob != NULL) {
+            if ((ob->mode & OB_MODE_ALL_SCULPT) && ob->sculpt) {
+              SculptSession *ss = ob->sculpt;
+              copy_v3_v3(rv3d->twmat[3], ss->pivot_pos);
+            }
+            else {
+              ED_object_calc_active_center(ob, false, rv3d->twmat[3]);
+            }
+          }
         }
       }
       break;
@@ -1293,7 +1297,7 @@ static void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   PointerRNA toolsettings_ptr;
   RNA_pointer_create(&scene->id, &RNA_ToolSettings, scene->toolsettings, &toolsettings_ptr);
 
-  if (type_fn == VIEW3D_GGT_xform_gizmo) {
+  if (ELEM(type_fn, VIEW3D_GGT_xform_gizmo, VIEW3D_GGT_xform_shear)) {
     extern PropertyRNA rna_ToolSettings_transform_pivot_point;
     const PropertyRNA *props[] = {
         &rna_ToolSettings_transform_pivot_point,
