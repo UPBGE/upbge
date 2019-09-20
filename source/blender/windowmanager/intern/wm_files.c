@@ -2519,7 +2519,7 @@ void WM_OT_recover_auto_save(wmOperatorType *ot)
                                  FILE_BLENDER,
                                  FILE_OPENFILE,
                                  WM_FILESEL_FILEPATH,
-                                 FILE_HORIZONTALDISPLAY,
+                                 FILE_VERTICALDISPLAY,
                                  FILE_SORT_TIME);
 }
 

@@ -3981,15 +3981,22 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
           }
           else if (sl->spacetype == SPACE_FILE) {
             ListBase *regionbase = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
-            ARegion *ar_execute = do_versions_find_region_or_null(regionbase, RGN_TYPE_EXECUTE);
+            ARegion *ar_tools = do_versions_find_region_or_null(regionbase, RGN_TYPE_TOOLS);
 
-            if (!ar_execute) {
-              ARegion *ar_main = do_versions_find_region(regionbase, RGN_TYPE_WINDOW);
-              ar_execute = MEM_callocN(sizeof(ARegion), "versioning execute region for file");
-              BLI_insertlinkbefore(regionbase, ar_main, ar_execute);
-              ar_execute->regiontype = RGN_TYPE_EXECUTE;
-              ar_execute->alignment = RGN_ALIGN_BOTTOM;
-              ar_execute->flag |= RGN_FLAG_DYNAMIC_SIZE;
+            if (ar_tools) {
+              ARegion *ar_next = ar_tools->next;
+
+              /* We temporarily had two tools regions, get rid of the second one. */
+              if (ar_next && ar_next->regiontype == RGN_TYPE_TOOLS) {
+                do_versions_remove_region(regionbase, RGN_TYPE_TOOLS);
+              }
+            }
+            else {
+              ARegion *ar_ui = do_versions_find_region(regionbase, RGN_TYPE_UI);
+
+              ar_tools = do_versions_add_region(RGN_TYPE_TOOLS, "versioning file tools region");
+              BLI_insertlinkafter(regionbase, ar_ui, ar_tools);
+              ar_tools->alignment = RGN_ALIGN_LEFT;
             }
           }
         }
