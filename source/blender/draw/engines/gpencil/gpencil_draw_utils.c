@@ -135,7 +135,7 @@ static void gpencil_calc_vertex(GPENCIL_StorageList *stl,
                                 GpencilBatchCache *cache,
                                 bGPdata *gpd)
 {
-  if (!cache->is_dirty) {
+  if ((!cache->is_dirty) || (gpd == NULL)) {
     return;
   }
 
@@ -153,6 +153,11 @@ static void gpencil_calc_vertex(GPENCIL_StorageList *stl,
 
   const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
 
+  /* Onion skining. */
+  const int step = gpd->gstep;
+  const int mode = gpd->onion_mode;
+  const short onion_keytype = gpd->onion_keytype;
+
   cache_ob->tot_vertex = 0;
   cache_ob->tot_triangles = 0;
   int idx_eval = 0;
@@ -165,7 +170,7 @@ static void gpencil_calc_vertex(GPENCIL_StorageList *stl,
       continue;
     }
 
-    /* if multiedit or onion skin need to count all frames of the layer */
+    /* If multiedit or onion skin need to count all frames of the layer. */
     if ((is_multiedit) || (is_onion)) {
       init_gpf = gpl->frames.first;
     }
@@ -179,9 +184,35 @@ static void gpencil_calc_vertex(GPENCIL_StorageList *stl,
 
     for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {
       for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
-        cache_ob->tot_vertex += gps->totpoints + 3;
-        cache_ob->tot_triangles += gps->totpoints - 1;
+        if (!is_onion) {
+          if ((!is_multiedit) ||
+              ((is_multiedit) && ((gpf == gpl->actframe) || (gpf->flag & GP_FRAME_SELECT)))) {
+            cache_ob->tot_vertex += gps->totpoints + 3;
+            cache_ob->tot_triangles += gps->totpoints - 1;
+          }
+        }
+        else {
+          /* Only selected frames. */
+          if ((mode == GP_ONION_MODE_SELECTED) && ((gpf->flag & GP_FRAME_SELECT) == 0)) {
+            continue;
+          }
+          /* Verify keyframe type. */
+          if ((onion_keytype > -1) && (gpf->key_type != onion_keytype)) {
+            continue;
+          }
+          /* Absolute range. */
+          if (mode == GP_ONION_MODE_ABSOLUTE) {
+            if ((gpl->actframe) && (abs(gpl->actframe->framenum - gpf->framenum) > step)) {
+              continue;
+            }
+          }
+          /* For relative range it takes too much time compute, so use all frames. */
+          cache_ob->tot_vertex += gps->totpoints + 3;
+          cache_ob->tot_triangles += gps->totpoints - 1;
+        }
       }
+
+      /* If not multiframe nor Onion skin, don't need follow counting. */
       if ((!is_multiedit) && (!is_onion)) {
         break;
       }
@@ -1156,7 +1187,8 @@ static void gpencil_draw_strokes(GpencilBatchCache *cache,
   const bool playing = stl->storage->is_playing;
   const bool is_render = (bool)stl->storage->is_render;
   const bool is_mat_preview = (bool)stl->storage->is_mat_preview;
-  const bool overlay_multiedit = v3d != NULL ? (v3d->gp_flag & V3D_GP_SHOW_MULTIEDIT_LINES) : true;
+  const bool overlay_multiedit = v3d != NULL ? !(v3d->gp_flag & V3D_GP_SHOW_MULTIEDIT_LINES) :
+                                               true;
 
   /* Get evaluation context */
   /* NOTE: We must check if C is valid, otherwise we get crashes when trying to save files
@@ -1178,6 +1210,12 @@ static void gpencil_draw_strokes(GpencilBatchCache *cache,
     /* check if stroke can be drawn */
     if (gpencil_can_draw_stroke(gp_style, gps, false, is_mat_preview) == false) {
       continue;
+    }
+
+    /* Copy color to temp fields. */
+    if ((is_multiedit) && (gp_style)) {
+      copy_v4_v4(gps->runtime.tmp_stroke_rgba, gp_style->stroke_rgba);
+      copy_v4_v4(gps->runtime.tmp_fill_rgba, gp_style->fill_rgba);
     }
 
     /* be sure recalc all cache in source stroke to avoid recalculation when frame change
@@ -1693,7 +1731,7 @@ void gpencil_populate_buffer_strokes(GPENCIL_e_data *e_data,
 }
 
 /* create all missing batches */
-static void gpencil_create_batches(GpencilBatchCache *cache)
+static void gpencil_batches_ensure(GpencilBatchCache *cache)
 {
   if ((cache->b_point.vbo) && (cache->b_point.batch == NULL)) {
     cache->b_point.batch = GPU_batch_create_ex(
@@ -1996,7 +2034,7 @@ void gpencil_populate_multiedit(GPENCIL_e_data *e_data,
   }
 
   /* create batchs and shading groups */
-  gpencil_create_batches(cache);
+  gpencil_batches_ensure(cache);
   gpencil_shgroups_create(e_data, vedata, ob, cache, cache_ob);
 
   cache->is_dirty = false;
@@ -2119,7 +2157,7 @@ void gpencil_populate_datablock(GPENCIL_e_data *e_data,
   }
 
   /* create batchs and shading groups */
-  gpencil_create_batches(cache);
+  gpencil_batches_ensure(cache);
   gpencil_shgroups_create(e_data, vedata, ob, cache, cache_ob);
 
   cache->is_dirty = false;

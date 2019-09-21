@@ -52,6 +52,7 @@
 #include "BKE_context.h"
 #include "BKE_deform.h"
 #include "BKE_gpencil.h"
+#include "BKE_gpencil_modifier.h"
 #include "BKE_material.h"
 #include "BKE_object_deform.h"
 #include "BKE_report.h"
@@ -109,6 +110,7 @@ typedef struct tGP_BrushEditData {
   /* Is the brush currently painting? */
   bool is_painting;
   bool is_weight_mode;
+  bool is_transformed;
 
   /* Start of new sculpt stroke */
   bool first;
@@ -532,7 +534,7 @@ static void gp_brush_grab_calc_dvec(tGP_BrushEditData *gso)
   // XXX: screen-space strokes in 3D space will suffer!
   if (gso->sa->spacetype == SPACE_VIEW3D) {
     RegionView3D *rv3d = gso->ar->regiondata;
-    float *rvec = gso->scene->cursor.location;
+    float *rvec = gso->object->loc;
     float zfac = ED_view3d_calc_zfac(rv3d, rvec, NULL);
 
     float mval_f[2];
@@ -657,7 +659,7 @@ static void gp_brush_calc_midpoint(tGP_BrushEditData *gso)
      * See: gpencil_paint.c :: gp_stroke_convertcoords()
      */
     RegionView3D *rv3d = gso->ar->regiondata;
-    const float *rvec = gso->scene->cursor.location;
+    const float *rvec = gso->object->loc;
     float zfac = ED_view3d_calc_zfac(rv3d, rvec, NULL);
 
     float mval_f[2];
@@ -1326,9 +1328,12 @@ static bool gpsculpt_brush_init(bContext *C, wmOperator *op)
     if (!BLI_findlink(&ob->defbase, gso->vrgroup)) {
       gso->vrgroup = -1;
     }
+    /* Check if some modifier can transform the stroke. */
+    gso->is_transformed = BKE_gpencil_has_transform_modifiers(ob);
   }
   else {
     gso->vrgroup = -1;
+    gso->is_transformed = false;
   }
 
   gso->sa = CTX_wm_area(C);
@@ -1506,12 +1511,17 @@ static void gpsculpt_brush_init_stroke(bContext *C, tGP_BrushEditData *gso)
  * For strokes with one point only this is impossible to calculate because there isn't a
  * valid reference point.
  */
-static float gpsculpt_rotation_eval_get(GP_SpaceConversion *gsc,
+static float gpsculpt_rotation_eval_get(tGP_BrushEditData *gso,
                                         bGPDstroke *gps_eval,
                                         bGPDspoint *pt_eval,
                                         int idx_eval)
 {
+  /* If multiframe or no modifiers, return 0. */
+  if ((GPENCIL_MULTIEDIT_SESSIONS_ON(gso->gpd)) || (!gso->is_transformed)) {
+    return 0.0f;
+  }
 
+  GP_SpaceConversion *gsc = &gso->gsc;
   bGPDstroke *gps_orig = gps_eval->runtime.gps_orig;
   bGPDspoint *pt_orig = &gps_orig->points[pt_eval->runtime.idx_orig];
   bGPDspoint *pt_prev_eval = NULL;
@@ -1566,12 +1576,16 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso,
   const int radius = (gp_brush->flag & GP_SCULPT_FLAG_PRESSURE_RADIUS) ?
                          gso->gp_brush->size * gso->pressure :
                          gso->gp_brush->size;
+  const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gso->gpd);
+  bGPDstroke *gps_active = (!is_multiedit) ? gps->runtime.gps_orig : gps;
+  bGPDspoint *pt_active = NULL;
 
   bGPDspoint *pt1, *pt2;
   bGPDspoint *pt = NULL;
   int pc1[2] = {0};
   int pc2[2] = {0};
   int i;
+  int index;
   bool include_last = false;
   bool changed = false;
   float rot_eval = 0.0f;
@@ -1581,6 +1595,7 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso,
     gp_point_to_parent_space(gps->points, diff_mat, &pt_temp);
     gp_point_to_xy(gsc, gps, &pt_temp, &pc1[0], &pc1[1]);
 
+    pt_active = (!is_multiedit) ? pt->runtime.pt_orig : pt;
     /* do boundbox check first */
     if ((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) {
       /* only check if point is inside */
@@ -1588,9 +1603,9 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso,
       round_v2i_v2fl(mval_i, gso->mval);
       if (len_v2v2_int(mval_i, pc1) <= radius) {
         /* apply operation to this point */
-        if (pt->runtime.pt_orig != NULL) {
-          rot_eval = gpsculpt_rotation_eval_get(&gso->gsc, gps, pt, 0);
-          changed = apply(gso, gps->runtime.gps_orig, rot_eval, pt->runtime.idx_orig, radius, pc1);
+        if (pt_active != NULL) {
+          rot_eval = gpsculpt_rotation_eval_get(gso, gps, pt, 0);
+          changed = apply(gso, gps_active, rot_eval, 0, radius, pc1);
         }
       }
     }
@@ -1633,9 +1648,11 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso,
 
           /* To each point individually... */
           pt = &gps->points[i];
-          if (pt->runtime.pt_orig != NULL) {
-            rot_eval = gpsculpt_rotation_eval_get(&gso->gsc, gps, pt, i);
-            ok = apply(gso, gps->runtime.gps_orig, rot_eval, pt->runtime.idx_orig, radius, pc1);
+          pt_active = (!is_multiedit) ? pt->runtime.pt_orig : pt;
+          index = (!is_multiedit) ? pt->runtime.idx_orig : i;
+          if (pt_active != NULL) {
+            rot_eval = gpsculpt_rotation_eval_get(gso, gps, pt, i);
+            ok = apply(gso, gps_active, rot_eval, index, radius, pc1);
           }
 
           /* Only do the second point if this is the last segment,
@@ -1648,9 +1665,11 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso,
            */
           if (i + 1 == gps->totpoints - 1) {
             pt = &gps->points[i + 1];
+            pt_active = (!is_multiedit) ? pt->runtime.pt_orig : pt;
+            index = (!is_multiedit) ? pt->runtime.idx_orig : i;
             if (pt->runtime.pt_orig != NULL) {
-              rot_eval = gpsculpt_rotation_eval_get(&gso->gsc, gps, pt, i + 1);
-              ok |= apply(gso, gps->runtime.gps_orig, rot_eval, pt->runtime.idx_orig, radius, pc2);
+              rot_eval = gpsculpt_rotation_eval_get(gso, gps, pt, i + 1);
+              ok |= apply(gso, gps_active, rot_eval, index, radius, pc2);
               include_last = false;
             }
           }
@@ -1667,10 +1686,11 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso,
            * (but wasn't added then, to avoid double-ups).
            */
           pt = &gps->points[i];
+          pt_active = (!is_multiedit) ? pt->runtime.pt_orig : pt;
+          index = (!is_multiedit) ? pt->runtime.idx_orig : i;
           if (pt->runtime.pt_orig != NULL) {
-            rot_eval = gpsculpt_rotation_eval_get(&gso->gsc, gps, pt, i);
-            changed |= apply(
-                gso, gps->runtime.gps_orig, rot_eval, pt->runtime.idx_orig, radius, pc1);
+            rot_eval = gpsculpt_rotation_eval_get(gso, gps, pt, i);
+            changed |= apply(gso, gps_active, rot_eval, index, radius, pc1);
             include_last = false;
           }
         }
@@ -1690,6 +1710,7 @@ static bool gpsculpt_brush_do_frame(bContext *C,
 {
   bool changed = false;
   Object *ob = CTX_data_active_object(C);
+  const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gso->gpd);
 
   for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
     /* skip strokes that are invalid for current view */
@@ -1722,18 +1743,19 @@ static bool gpsculpt_brush_do_frame(bContext *C,
 
       case GP_SCULPT_TYPE_GRAB: /* Grab points */
       {
-        if (gps->runtime.gps_orig != NULL) {
+        bGPDstroke *gps_active = (!is_multiedit) ? gps->runtime.gps_orig : gps;
+        if (gps_active != NULL) {
           if (gso->first) {
             /* First time this brush stroke is being applied:
              * 1) Prepare data buffers (init/clear) for this stroke
              * 2) Use the points now under the cursor
              */
-            gp_brush_grab_stroke_init(gso, gps->runtime.gps_orig);
+            gp_brush_grab_stroke_init(gso, gps_active);
             changed |= gpsculpt_brush_do_stroke(gso, gps, diff_mat, gp_brush_grab_store_points);
           }
           else {
             /* Apply effect to the stored points */
-            gp_brush_grab_apply_cached(gso, gps->runtime.gps_orig, diff_mat);
+            gp_brush_grab_apply_cached(gso, gps_active, diff_mat);
             changed |= true;
           }
         }
@@ -1864,8 +1886,7 @@ static bool gpsculpt_brush_apply_standard(bContext *C, tGP_BrushEditData *gso)
           }
 
           /* affect strokes in this frame */
-          changed |= gpsculpt_brush_do_frame(
-              C, gso, gpl, (gpf == gpl->actframe) ? gpf_eval : gpf, diff_mat);
+          changed |= gpsculpt_brush_do_frame(C, gso, gpl, gpf, diff_mat);
         }
       }
     }
