@@ -1380,7 +1380,7 @@ int main(
 							}
 
 							G.background = true;
-							DRW_opengl_context_create();
+							DRW_opengl_context_create_blenderplayer();
 							G.background = false;
 							GPU_init();
 							GPU_immActivate();
