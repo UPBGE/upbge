@@ -97,10 +97,10 @@ void GPU_immInit(void)
 
 void GPU_immActivate(void)
 {
-	immActivate();
+	immActivate_no_assert();
 }
 
 void GPU_immDeactivate(void)
 {
-	immDeactivate();
+	immDeactivate_no_assert();
 }
