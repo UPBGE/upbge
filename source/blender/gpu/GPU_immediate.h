@@ -146,4 +146,9 @@ void immActivate(void);
 void immDeactivate(void);
 void immDestroy(void);
 
+/* Game engine transition */
+void immActivate_no_assert(void);
+void immDeactivate_no_assert(void);
+/**************************/
+
 #endif /* __GPU_IMMEDIATE_H__ */
