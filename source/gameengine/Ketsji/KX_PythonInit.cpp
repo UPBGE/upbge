@@ -49,6 +49,7 @@ extern "C" {
 	#  include "bgl.h"
 	#  include "bpy.h" // for bpy_sys_module_backup
 	#  include "blf_py_api.h"
+	#include "../blender/python/BPY_extern.h"
 
 	#  include "marshal.h" /* python header for loading/saving dicts */
 }
@@ -138,6 +139,14 @@ extern "C" {
 #include "BLI_blenlib.h"
 #include "GPU_material.h"
 #include "MEM_guardedalloc.h"
+
+	#include "bpy_path.h"
+	#include "imbuf_py_api.h"
+	#include "bmesh/bmesh_py_api.h"
+	#include "gpu/gpu_py_api.h"
+	#include "idprop_py_api.h"
+	#include "bpy_intern_string.h"
+	//#include "bpy_rna.h"
 }
 
 /* for converting new scenes */
@@ -1929,6 +1938,15 @@ static struct _inittab bge_internal_modules[] = {
 	{nullptr, nullptr}
 };
 
+static struct _inittab bpy_internal_modules[] = {
+    {"_bpy_path", BPyInit__bpy_path},
+    {"imbuf", BPyInit_imbuf},
+    {"bmesh", BPyInit_bmesh},
+    {"gpu", BPyInit_gpu},
+    {"idprop", BPyInit_idprop},
+    {NULL, NULL},
+};
+
 /**
  * Python is not initialized.
  * see bpy_interface.c's BPY_python_start() which shares the same functionality in blender.
@@ -1941,6 +1959,7 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 	 * Id have thought python being totally restarted would make this ok but
 	 * somehow it remembers the sys.path - Campbell
 	 */
+
 	static bool first_time = true;
 	const char * const py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, nullptr);
 
@@ -1963,6 +1982,8 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 
 	/* must run before python initializes */
 	PyImport_ExtendInittab(bge_internal_modules);
+    /* must run before python initializes */
+    PyImport_ExtendInittab(bpy_internal_modules);
 
 	/* find local python installation */
 	PyC_SetHomePath(py_path_bundle);
@@ -1984,6 +2005,11 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 
 	/* Initialize thread support (also acquires lock) */
 	PyEval_InitThreads();
+
+	bpy_intern_string_init();
+    BPy_init_modules();
+
+    //pyrna_alloc_types();
 
 	bpy_import_init(PyEval_GetBuiltins());
 
@@ -2043,23 +2069,72 @@ void exitGamePlayerPythonScripting()
  */
 void initGamePythonScripting(Main *maggie)
 {
-	/* no need to Py_SetProgramName, it was already taken care of in BPY_python_start */
+  /* Yet another gotcha in the py api
+   * Cant run PySys_SetArgv more than once because this adds the
+   * binary dir to the sys.path each time.
+   * Id have thought python being totally restarted would make this ok but
+   * somehow it remembers the sys.path - Campbell
+   */
 
-	bpy_import_main_set(maggie);
+  static bool first_time = true;
+  const char *const py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, nullptr);
 
-	initPySysObjects(maggie);
+  /* not essential but nice to set our name */
+  static wchar_t program_path_wchar[FILE_MAX]; /* python holds a reference */
+  BLI_strncpy_wchar_from_utf8(
+      program_path_wchar, BKE_appdir_program_path(), ARRAY_SIZE(program_path_wchar));
+  Py_SetProgramName(program_path_wchar);
 
-#ifdef WITH_AUDASPACE
-	/* accessing a SoundActuator's sound results in a crash if aud is not initialized... */
-	{
-		PyObject *mod= PyImport_ImportModuleLevel("aud", nullptr, nullptr, nullptr, 0);
-		Py_DECREF(mod);
+  /* Update, Py3.3 resolves attempting to parse non-existing header */
+#  if 0
+	/* Python 3.2 now looks for '2.xx/python/include/python3.2d/pyconfig.h' to
+	 * parse from the 'sysconfig' module which is used by 'site',
+	 * so for now disable site. alternatively we could copy the file. */
+	if (py_path_bundle != nullptr) {
+		Py_NoSiteFlag = 1; /* inhibits the automatic importing of 'site' */
 	}
-#endif
+#  endif
 
-	PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
+  Py_FrozenFlag = 1;
 
-	PyObjectPlus::NullDeprecationWarning();
+  /* must run before python initializes */
+  PyImport_ExtendInittab(bge_internal_modules);
+  /* must run before python initializes */
+  PyImport_ExtendInittab(bpy_internal_modules);
+
+  /* find local python installation */
+  PyC_SetHomePath(py_path_bundle);
+
+  Py_Initialize();
+
+  /* Initialize thread support (also acquires lock) */
+  PyEval_InitThreads();
+
+  bpy_import_init(PyEval_GetBuiltins());
+
+  bpy_import_main_set(maggie);
+
+  initPySysObjects(maggie);
+
+  /* mathutils types are used by the BGE even if we don't import them */
+  {
+    PyObject *mod = PyImport_ImportModuleLevel("mathutils", nullptr, nullptr, nullptr, 0);
+    Py_DECREF(mod);
+  }
+
+#  ifdef WITH_AUDASPACE
+  /* accessing a SoundActuator's sound results in a crash if aud is not initialized... */
+  {
+    PyObject *mod = PyImport_ImportModuleLevel("aud", nullptr, nullptr, nullptr, 0);
+    Py_DECREF(mod);
+  }
+#  endif
+
+  PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
+
+  first_time = false;
+
+  PyObjectPlus::ClearDeprecationWarning();
 }
 
 void exitGamePythonScripting()
@@ -2093,7 +2168,7 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
 	if (argv) /* player only */
 		initGamePlayerPythonScripting(blenderdata, argc, argv);
 	else
-		initGamePlayerPythonScripting(blenderdata, 0, nullptr); //initGamePythonScripting(blenderdata); eevee temp fix for modules
+		initGamePythonScripting(blenderdata);
 
 	modules = PyImport_GetModuleDict();
 
