@@ -75,6 +75,8 @@ extern "C" {
 
 #  include "wm_event_types.h"
 
+	#include "../../blender/python/BPY_extern.h"
+
 #  include "MEM_guardedalloc.h"
 }
 
@@ -241,8 +243,17 @@ void LA_Launcher::InitEngine()
 
 #ifdef WITH_PYTHON
 	KX_SetMainPath(std::string(m_maggie->name));
+
+	//BPY_context_set(NULL); /* necessary evil */
+	//BPY_python_start(m_argc, (const char **)m_argv);
+ //   BPY_python_reset(NULL);
 	// Some python things.
 	setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv);
+
+	//
+    
+
+    //
 #endif  // WITH_PYTHON
 
 	// Create a scene converter, create and convert the stratingscene.

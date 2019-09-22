@@ -90,6 +90,33 @@ extern "C"
 
 #  include "../blender/editors/include/ED_datafiles.h"
 
+#  include "windowmanager/wm_window.h"
+
+	#include "editors/include/ED_space_api.h"
+	#include "editors/include/ED_node.h"
+	#include "editors/include/ED_undo.h"
+	#include "editors/include/ED_util.h"
+	#include "editors/include/ED_render.h"
+	#include "editors/include/UI_resources.h"
+	#include "windowmanager/WM_api.h"
+	#include "windowmanager/wm.h"
+	#include "windowmanager/message_bus/wm_message_bus.h"
+	#include "BKE_context.h"
+	//#include "BKE_screen.h"
+	#include "BKE_addon.h"
+	#include "BKE_keyconfig.h"
+	#include "BKE_cachefile.h"
+	#include "BKE_callbacks.h"
+	#include "BKE_gpencil_modifier.h"
+	#include "BKE_shader_fx.h"
+	#include "BKE_studiolight.h"
+	#include "BKE_brush.h"
+	#include "BLI_system.h"
+	#include "../render/extern/include/RE_render_ext.h"
+	#include "../../../intern/ghost/GHOST_Path-api.h"
+	#include "../../../intern/clog/CLG_log.h"
+	#include "../../blender/python/BPY_extern.h"
+
 #  ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
 #  endif
@@ -640,6 +667,20 @@ static bool quitGame(KX_ExitRequest exitcode)
 //
 //#endif  // WITH_GAMEENGINE_BPPLAYER
 
+static void wm_init_reports(bContext *C)
+{
+  ReportList *reports = CTX_wm_reports(C);
+
+  BLI_assert(!reports || BLI_listbase_is_empty(&reports->list));
+
+  BKE_reports_init(reports, RPT_STORE);
+}
+
+static void callback_clg_fatal(void *fp)
+{
+  BLI_system_backtrace((FILE *)fp);
+}
+
 int main(
 	int argc,
 #ifdef WIN32
@@ -722,30 +763,97 @@ int main(
 	sdlewInit();
 #endif
 
+	 /* Initialize logging */
+  CLG_init();
+  CLG_fatal_fn_set(callback_clg_fatal);
+
+	bContext *C = CTX_create();
+
 	BKE_appdir_program_path_init(argv[0]);
 	BKE_tempdir_init(nullptr);
 	
 	// We don't use threads directly in the BGE, but we need to call this so things like
 	// freeing up GPU_Textures works correctly.
-	BLI_threadapi_init();
+  BLI_threadapi_init();
+  BLI_thread_put_process_on_fast_node();
 
-	DNA_sdna_current_init();
+  DNA_sdna_current_init();
 
-	RNA_init();
+  BKE_blender_globals_init(); /* blender.c */
+
+
+  MEM_CacheLimiter_set_disabled(true);
+  BKE_cachefiles_init();
+  IMB_init();
+
+  BKE_images_init();
+  BKE_modifier_init();
+  BKE_gpencil_modifier_init();
+  BKE_shaderfx_init();
+  DEG_register_node_types();
+
+  BKE_brush_system_init();
+  RE_texture_rng_init();
+
+  BKE_callback_global_init();
+
+  RNA_init();
+
+  GHOST_CreateSystemPaths();
+
+  BKE_addon_pref_type_init();
+  BKE_keyconfig_pref_type_init();
+
+  wm_operatortype_init();
+  wm_operatortypes_register();
+
+  WM_paneltype_init(); /* Lookup table only. */
+  WM_menutype_init();
+  WM_uilisttype_init();
+
+  ED_undosys_type_init();
+
+  BKE_library_callback_free_window_manager_set(wm_close_and_free); /* library.c */
+  BKE_library_callback_free_notifier_reference_set(
+      WM_main_remove_notifier_reference);                    /* library.c */
+  BKE_library_callback_remap_editor_id_reference_set(
+      WM_main_remap_editor_id_reference);                     /* library.c */
+  //BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
+  DEG_editors_set_update_cb(ED_render_id_flush_update, ED_render_scene_update);
+
+  ED_spacetypes_init(); /* editors/space_api/spacetype.c */
+
+  ED_file_init(); /* for fsmenu */
+  //ED_node_init_butfuncs();
+
+  // Setup builtin font for BLF (mostly copied from creator.c, wm_init_exit.c and
+  // interface_style.c)
+  BLF_init();
+  BLT_lang_init();
+  BLT_lang_set("");
+
+  /* Init icons before reading .blend files for preview icons, which can
+   * get triggered by the depsgraph. This is also done in background mode
+   * for scripts that do background processing with preview icons. */
+  BKE_icons_init(BIFICONID_LAST);
+
+  /* reports cant be initialized before the wm,
+   * but keep before file reading, since that may report errors */
+  wm_init_reports(C);
+
+  WM_msgbus_types_init();
+
+  /* Studio-lights needs to be init before we read the home-file,
+   * otherwise the versioning cannot find the default studio-light. */
+  BKE_studiolight_init();
+
+  ED_spacemacros_init();
 
 	init_nodesystem();
-	
-	BKE_blender_globals_init();
 
 	// We load our own G.main, so free the one that BKE_blender_globals_init() gives us
 	BKE_main_free(G.main);
 	G.main = nullptr;
-
-	MEM_CacheLimiter_set_disabled(true);
-	IMB_init();
-	BKE_images_init();
-	BKE_modifier_init();
-	DEG_register_node_types();
 
 #ifdef WITH_FFMPEG
 	IMB_ffmpeg_init();
@@ -753,11 +861,6 @@ int main(
 
 	/* background render uses this font too */
 	BKE_vfont_builtin_register(datatoc_bfont_pfb, datatoc_bfont_pfb_size);
-
-	// Setup builtin font for BLF (mostly copied from creator.c, wm_init_exit.c and interface_style.c)
-	BLF_init();
-	BLT_lang_init();
-	BLT_lang_set("");
 
 	BLF_load_mem("default", (unsigned char*)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
 	if (blf_mono_font == -1)
