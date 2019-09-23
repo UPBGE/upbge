@@ -101,8 +101,10 @@ endif()
 	set(BLENDER_SORTED_LIBS
 		ge_player
 		ge_launcher
+		ge_player
 		ge_logic_ketsji
 		ge_converter
+		ge_logic_ketsji
 		ge_phys_bullet
 		ge_phys_dummy
 		ge_logic
@@ -111,138 +113,98 @@ endif()
 		ge_oglrasterizer
 		ge_logic_expressions
 		ge_common
+		ge_scenegraph
 		ge_logic_network
 		#ge_videotex
-    ge_blen_routines
+
+		bf_editor_datafiles
+
+		bf_rna
+		bf_blenloader
+		bf_modifiers
+		bf_draw
+		bf_gpu
+		bf_blenkernel
+		bf_physics
+		bf_depsgraph
+		bf_physics
+		bf_intern_rigidbody
+		bf_blenloader
+		ge_blen_routines
+		bf_editor_datafiles
+		ge_converter 
+		ge_logic_ketsji 
+		ge_phys_bullet 
+		ge_phys_dummy
+		ge_logic 
+		ge_rasterizer 
+		ge_oglrasterizer 
+		ge_logic_expressions 
 		ge_scenegraph
-
-    extern_bullet
-    extern_ceres
-    extern_clew
-    extern_curve_fit_nd
-    extern_gflags
-    extern_glew
-    extern_glog
-    extern_lzma
-    extern_minilzo
-    extern_quadriflow
-    extern_rangetree
-    extern_recastnavigation
-    extern_wcwidth
-
-    #bf_intern_cycles
-
-    bf_intern_audaspace
-    bf_intern_clog
-    bf_intern_decklink
-    bf_intern_dualcon
-    bf_intern_eigen
-    bf_intern_elbeem
-    bf_intern_ghost
-    bf_intern_glew_mx
-    bf_intern_gpudirect
-    bf_intern_guardedalloc
-    bf_intern_iksolver
-    bf_intern_itasc
-    bf_intern_libmv
-    bf_intern_locale
-    bf_intern_memutil
-    bf_intern_mikktspace
-    bf_intern_moto
-    bf_intern_numaapi
-    bf_intern_opencolorio
-    bf_intern_opensubdiv
-    bf_intern_quadriflow
-    bf_intern_rigidbody
-    bf_intern_smoke
-    bf_intern_string
-    bf_intern_utfconv
-
-
-    bf_editor_animation
-    bf_editor_armature
-    bf_editor_curve
-    bf_editor_datafiles
-    bf_editor_gizmo_library
-    bf_editor_gpencil
-    bf_editor_interface
-    bf_editor_io
-    bf_editor_lattice
-    bf_editor_mask
-    bf_editor_mesh
-    bf_editor_metaball
-    bf_editor_object
-    bf_editor_physics
-    bf_editor_render
-    bf_editor_scene
-    bf_editor_screen
-    bf_editor_sculpt_paint
-    bf_editor_sound
-    bf_editor_space_action
-    bf_editor_space_api
-    bf_editor_space_buttons
-    bf_editor_space_clip
-    bf_editor_space_console
-    bf_editor_space_file
-    bf_editor_space_graph
-    bf_editor_space_image
-    bf_editor_space_info
-    bf_editor_space_logic
-    bf_editor_space_nla
-    bf_editor_space_node
-    bf_editor_space_outliner
-    bf_editor_space_script
-    bf_editor_space_sequencer
-    bf_editor_space_statusbar
-    bf_editor_space_text
-    bf_editor_space_topbar
-    bf_editor_space_userpref
-    bf_editor_space_view3d
-    bf_editor_transform
-    bf_editor_undo
-    bf_editor_util
-    bf_editor_uvedit
-
-    bf_imbuf_cineon
+		bf_ikplugin
+		bf_intern_itasc
+		bf_intern_iksolver
+		bf_intern_smoke
+		bf_modifiers
+		bf_intern_moto 
+		bf_nodes
+		bf_gpu
+		bf_intern_gawain
+		bf_imbuf
+		bf_avi
+    bf_python
+		bf_python_ext
+		bf_python_mathutils
+		bf_python_bmesh
+		bf_intern_utfconv
+		bf_imbuf_cineon
 		bf_imbuf_openexr
 		bf_imbuf_openimageio
+		extern_openjpeg
 		bf_imbuf_dds
-
-    bf_python
-    bf_python_bmesh
-    bf_python_ext
-    bf_python_gpu
-    bf_python_mathutils
-
-    bf_avi
-    bf_blenfont
-    bf_blenkernel
-    bf_blenlib
-    bf_blenloader
-    bf_blentranslation
-    bf_bmesh
-    bf_collada
-    bf_compositor
-    bf_depsgraph
-    bf_draw
-    bf_freestyle
-    bf_gpencil_modifiers
-    bf_gpu
-    bf_ikplugin
-    bf_imbuf
-    bf_modifiers
-    bf_nodes
-    bf_physics
-    bf_render
-    bf_shader_fx
-    bf_windowmanager
-
-    bf_dna
-		bf_rna
-
+		bf_dna
+		#ge_videotex
+		bf_blenfont
+		bf_blentranslation
+		bf_intern_audaspace
 		audaspace
 		audaspace-py
 		blenkernel_blc
+		bf_bmesh
+		bf_blenlib
+		blenkernel_blc
+
+		bf_intern_string
+		bf_intern_ghost
+		bf_intern_rigidbody
+		bf_intern_itasc
+		bf_intern_iksolver
+		bf_intern_smoke
+		bf_intern_moto
+		bf_intern_guardedalloc
+		bf_intern_memutil
+		bf_intern_utfconv
+		extern_binreloc
+		extern_minilzo
+		bf_intern_ghost # duplicate for linking
+		bf_blenkernel # duplicate for linking
+		bf_intern_mikktspace
+		extern_recastnavigation
+		bf_intern_opencolorio
+		bf_intern_glew_mx
+		bf_intern_gawain
+		bf_intern_eigen
+		bf_intern_libmv
+
+		extern_bullet
+		extern_openjpeg
+		extern_binreloc
+		extern_minilzo
+		extern_recastnavigation
+		extern_rangetree
+		extern_wcwidth
+		bf_intern_libmv
+		extern_sdlew
 	)
 
 	if(NOT WITH_SYSTEM_GLOG)
@@ -285,9 +247,9 @@ endif()
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_decklink)
 	endif()
 
-  #if(WITH_GAMEENGINE_BPPLAYER)
-		#list(APPEND BLENDER_SORTED_LIBS bf_intern_spindle)
-	#endif()
+	if(WITH_GAMEENGINE_BPPLAYER)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_spindle)
+	endif()
 
 	if(WIN32)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_gpudirect)
@@ -311,13 +273,12 @@ endif()
 			if(${SEARCHLIB} STREQUAL ${SORTLIB})
 				set(REMLIB "")
 			endif()
-      #if(REMLIB)
-			  # message(STATUS "Removing library ${REMLIB} from blenderplayer linking because: not configured")
-			  #list(APPEND REM_MSG ${REMLIB})
-			  #list(REMOVE_ITEM BLENDER_SORTED_LIBS ${REMLIB})
-		  #endif()
 		endforeach()
-		
+		if(REMLIB)
+			# message(STATUS "Removing library ${REMLIB} from blenderplayer linking because: not configured")
+			list(APPEND REM_MSG ${REMLIB})
+			list(REMOVE_ITEM BLENDER_SORTED_LIBS ${REMLIB})
+		endif()
 	endforeach()
 	if(REM_MSG)
 		list(SORT REM_MSG)
