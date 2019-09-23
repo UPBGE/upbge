@@ -496,7 +496,6 @@ void BKE_mesh_clear_geometry(Mesh *mesh)
   CustomData_free(&mesh->ldata, mesh->totloop);
   CustomData_free(&mesh->pdata, mesh->totpoly);
 
-  MEM_SAFE_FREE(mesh->bb);
   MEM_SAFE_FREE(mesh->mselect);
   MEM_SAFE_FREE(mesh->edit_mesh);
 
@@ -605,7 +604,6 @@ void BKE_mesh_copy_data(Main *bmain, Mesh *me_dst, const Mesh *me_src, const int
   me_dst->edit_mesh = NULL;
 
   me_dst->mselect = MEM_dupallocN(me_dst->mselect);
-  me_dst->bb = MEM_dupallocN(me_dst->bb);
 
   /* TODO Do we want to add flag to prevent this? */
   if (me_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
@@ -659,6 +657,30 @@ Mesh *BKE_mesh_new_nomain(
   return mesh;
 }
 
+/* Copy user editable settings that we want to preserve through the modifier stack
+ * or operations where a mesh with new topology is created based on another mesh. */
+void BKE_mesh_copy_settings(Mesh *me_dst, const Mesh *me_src)
+{
+  /* Copy general settings. */
+  me_dst->editflag = me_src->editflag;
+  me_dst->flag = me_src->flag;
+  me_dst->smoothresh = me_src->smoothresh;
+  me_dst->remesh_voxel_size = me_src->remesh_voxel_size;
+  me_dst->remesh_mode = me_src->remesh_mode;
+
+  /* Copy texture space. */
+  me_dst->texflag = me_src->texflag;
+  copy_v3_v3(me_dst->loc, me_src->loc);
+  copy_v3_v3(me_dst->size, me_src->size);
+
+  /* Copy materials. */
+  if (me_dst->mat != NULL) {
+    MEM_freeN(me_dst->mat);
+  }
+  me_dst->mat = MEM_dupallocN(me_src->mat);
+  me_dst->totcol = me_src->totcol;
+}
+
 Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
                                            int verts_len,
                                            int edges_len,
@@ -672,7 +694,6 @@ Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
 
   Mesh *me_dst = BKE_id_new_nomain(ID_ME, NULL);
 
-  me_dst->mat = MEM_dupallocN(me_src->mat);
   me_dst->mselect = MEM_dupallocN(me_dst->mselect);
 
   me_dst->totvert = verts_len;
@@ -682,8 +703,7 @@ Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
   me_dst->totpoly = polys_len;
 
   me_dst->cd_flag = me_src->cd_flag;
-  me_dst->editflag = me_src->editflag;
-  me_dst->texflag = me_src->texflag;
+  BKE_mesh_copy_settings(me_dst, me_src);
 
   CustomData_copy(&me_src->vdata, &me_dst->vdata, mask.vmask, CD_CALLOC, verts_len);
   CustomData_copy(&me_src->edata, &me_dst->edata, mask.emask, CD_CALLOC, edges_len);
@@ -772,18 +792,24 @@ BMesh *BKE_mesh_to_bmesh(Mesh *me,
                               });
 }
 
-Mesh *BKE_mesh_from_bmesh_nomain(BMesh *bm, const struct BMeshToMeshParams *params)
+Mesh *BKE_mesh_from_bmesh_nomain(BMesh *bm,
+                                 const struct BMeshToMeshParams *params,
+                                 const Mesh *me_settings)
 {
   BLI_assert(params->calc_object_remap == false);
   Mesh *mesh = BKE_id_new_nomain(ID_ME, NULL);
   BM_mesh_bm_to_me(NULL, bm, mesh, params);
+  BKE_mesh_copy_settings(mesh, me_settings);
   return mesh;
 }
 
-Mesh *BKE_mesh_from_bmesh_for_eval_nomain(BMesh *bm, const CustomData_MeshMasks *cd_mask_extra)
+Mesh *BKE_mesh_from_bmesh_for_eval_nomain(BMesh *bm,
+                                          const CustomData_MeshMasks *cd_mask_extra,
+                                          const Mesh *me_settings)
 {
   Mesh *mesh = BKE_id_new_nomain(ID_ME, NULL);
   BM_mesh_bm_to_me_for_eval(bm, mesh, cd_mask_extra);
+  BKE_mesh_copy_settings(mesh, me_settings);
   return mesh;
 }
 
@@ -792,9 +818,10 @@ Mesh *BKE_mesh_from_bmesh_for_eval_nomain(BMesh *bm, const CustomData_MeshMasks 
  */
 Mesh *BKE_mesh_from_editmesh_with_coords_thin_wrap(BMEditMesh *em,
                                                    const CustomData_MeshMasks *data_mask,
-                                                   float (*vertexCos)[3])
+                                                   float (*vertexCos)[3],
+                                                   const Mesh *me_settings)
 {
-  Mesh *me = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, data_mask);
+  Mesh *me = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, data_mask, me_settings);
   /* Use editmesh directly where possible. */
   me->runtime.is_original = true;
   if (vertexCos) {
@@ -809,67 +836,6 @@ Mesh *BKE_mesh_from_editmesh_with_coords_thin_wrap(BMEditMesh *em,
 void BKE_mesh_make_local(Main *bmain, Mesh *me, const bool lib_local)
 {
   BKE_id_make_local_generic(bmain, &me->id, true, lib_local);
-}
-
-void BKE_mesh_boundbox_calc(Mesh *me, float r_loc[3], float r_size[3])
-{
-  BoundBox *bb;
-  float min[3], max[3];
-  float mloc[3], msize[3];
-
-  if (me->bb == NULL) {
-    me->bb = MEM_callocN(sizeof(BoundBox), "boundbox");
-  }
-  bb = me->bb;
-
-  if (!r_loc) {
-    r_loc = mloc;
-  }
-  if (!r_size) {
-    r_size = msize;
-  }
-
-  INIT_MINMAX(min, max);
-  if (!BKE_mesh_minmax(me, min, max)) {
-    min[0] = min[1] = min[2] = -1.0f;
-    max[0] = max[1] = max[2] = 1.0f;
-  }
-
-  mid_v3_v3v3(r_loc, min, max);
-
-  r_size[0] = (max[0] - min[0]) / 2.0f;
-  r_size[1] = (max[1] - min[1]) / 2.0f;
-  r_size[2] = (max[2] - min[2]) / 2.0f;
-
-  BKE_boundbox_init_from_minmax(bb, min, max);
-
-  bb->flag &= ~BOUNDBOX_DIRTY;
-}
-
-void BKE_mesh_texspace_calc(Mesh *me)
-{
-  float loc[3], size[3];
-  int a;
-
-  BKE_mesh_boundbox_calc(me, loc, size);
-
-  if (me->texflag & ME_AUTOSPACE) {
-    for (a = 0; a < 3; a++) {
-      if (size[a] == 0.0f) {
-        size[a] = 1.0f;
-      }
-      else if (size[a] > 0.0f && size[a] < 0.00001f) {
-        size[a] = 0.00001f;
-      }
-      else if (size[a] < 0.0f && size[a] > -0.00001f) {
-        size[a] = -0.00001f;
-      }
-    }
-
-    copy_v3_v3(me->loc, loc);
-    copy_v3_v3(me->size, size);
-    zero_v3(me->rot);
-  }
 }
 
 BoundBox *BKE_mesh_boundbox_get(Object *ob)
@@ -896,40 +862,71 @@ BoundBox *BKE_mesh_boundbox_get(Object *ob)
   return ob->runtime.bb;
 }
 
-BoundBox *BKE_mesh_texspace_get(Mesh *me, float r_loc[3], float r_rot[3], float r_size[3])
+void BKE_mesh_texspace_calc(Mesh *me)
 {
-  if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
+  if (me->texflag & ME_AUTOSPACE) {
+    float min[3], max[3];
+
+    INIT_MINMAX(min, max);
+    if (!BKE_mesh_minmax(me, min, max)) {
+      min[0] = min[1] = min[2] = -1.0f;
+      max[0] = max[1] = max[2] = 1.0f;
+    }
+
+    float loc[3], size[3];
+    mid_v3_v3v3(loc, min, max);
+
+    size[0] = (max[0] - min[0]) / 2.0f;
+    size[1] = (max[1] - min[1]) / 2.0f;
+    size[2] = (max[2] - min[2]) / 2.0f;
+
+    for (int a = 0; a < 3; a++) {
+      if (size[a] == 0.0f) {
+        size[a] = 1.0f;
+      }
+      else if (size[a] > 0.0f && size[a] < 0.00001f) {
+        size[a] = 0.00001f;
+      }
+      else if (size[a] < 0.0f && size[a] > -0.00001f) {
+        size[a] = -0.00001f;
+      }
+    }
+
+    copy_v3_v3(me->loc, loc);
+    copy_v3_v3(me->size, size);
+
+    me->texflag |= ME_AUTOSPACE_EVALUATED;
+  }
+}
+
+void BKE_mesh_texspace_ensure(Mesh *me)
+{
+  if ((me->texflag & ME_AUTOSPACE) && !(me->texflag & ME_AUTOSPACE_EVALUATED)) {
     BKE_mesh_texspace_calc(me);
   }
+}
+
+void BKE_mesh_texspace_get(Mesh *me, float r_loc[3], float r_size[3])
+{
+  BKE_mesh_texspace_ensure(me);
 
   if (r_loc) {
     copy_v3_v3(r_loc, me->loc);
   }
-  if (r_rot) {
-    copy_v3_v3(r_rot, me->rot);
-  }
   if (r_size) {
     copy_v3_v3(r_size, me->size);
   }
-
-  return me->bb;
 }
 
-void BKE_mesh_texspace_get_reference(
-    Mesh *me, short **r_texflag, float **r_loc, float **r_rot, float **r_size)
+void BKE_mesh_texspace_get_reference(Mesh *me, short **r_texflag, float **r_loc, float **r_size)
 {
-  if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
-    BKE_mesh_texspace_calc(me);
-  }
+  BKE_mesh_texspace_ensure(me);
 
   if (r_texflag != NULL) {
     *r_texflag = &me->texflag;
   }
   if (r_loc != NULL) {
     *r_loc = me->loc;
-  }
-  if (r_rot != NULL) {
-    *r_rot = me->rot;
   }
   if (r_size != NULL) {
     *r_size = me->size;
@@ -938,14 +935,13 @@ void BKE_mesh_texspace_get_reference(
 
 void BKE_mesh_texspace_copy_from_object(Mesh *me, Object *ob)
 {
-  float *texloc, *texrot, *texsize;
+  float *texloc, *texsize;
   short *texflag;
 
-  if (BKE_object_obdata_texspace_get(ob, &texflag, &texloc, &texsize, &texrot)) {
+  if (BKE_object_obdata_texspace_get(ob, &texflag, &texloc, &texsize)) {
     me->texflag = *texflag;
     copy_v3_v3(me->loc, texloc);
     copy_v3_v3(me->size, texsize);
-    copy_v3_v3(me->rot, texrot);
   }
 }
 
@@ -974,7 +970,7 @@ void BKE_mesh_orco_verts_transform(Mesh *me, float (*orco)[3], int totvert, int 
   float loc[3], size[3];
   int a;
 
-  BKE_mesh_texspace_get(me->texcomesh ? me->texcomesh : me, loc, NULL, size);
+  BKE_mesh_texspace_get(me->texcomesh ? me->texcomesh : me, loc, size);
 
   if (invert) {
     for (a = 0; a < totvert; a++) {
@@ -1949,9 +1945,6 @@ void BKE_mesh_eval_geometry(Depsgraph *depsgraph, Mesh *mesh)
 {
   DEG_debug_print_eval(depsgraph, __func__, mesh->id.name, mesh);
   BKE_mesh_texspace_calc(mesh);
-  /* Clear autospace flag in evaluated mesh, so that texspace does not get recomputed when bbox is
-   * (e.g. after modifiers, etc.) */
-  mesh->texflag &= ~ME_AUTOSPACE;
   /* We are here because something did change in the mesh. This means we can not trust the existing
    * evaluated mesh, and we don't know what parts of the mesh did change. So we simply delete the
    * evaluated mesh and let objects to re-create it with updated settings. */
@@ -1962,15 +1955,10 @@ void BKE_mesh_eval_geometry(Depsgraph *depsgraph, Mesh *mesh)
   }
   if (DEG_is_active(depsgraph)) {
     Mesh *mesh_orig = (Mesh *)DEG_get_original_id(&mesh->id);
-    BoundBox *bb = mesh->bb;
-    if (bb != NULL) {
-      if (mesh_orig->bb == NULL) {
-        mesh_orig->bb = MEM_mallocN(sizeof(*mesh_orig->bb), __func__);
-      }
-      *mesh_orig->bb = *bb;
+    if (mesh->texflag & ME_AUTOSPACE_EVALUATED) {
+      mesh_orig->texflag |= ME_AUTOSPACE_EVALUATED;
       copy_v3_v3(mesh_orig->loc, mesh->loc);
       copy_v3_v3(mesh_orig->size, mesh->size);
-      copy_v3_v3(mesh_orig->rot, mesh->rot);
     }
   }
 }

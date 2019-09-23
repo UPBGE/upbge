@@ -447,13 +447,11 @@ static void drw_call_calc_orco(Object *ob, float (*r_orcofacs)[4])
   if (ob_data != NULL) {
     switch (GS(ob_data->name)) {
       case ID_ME:
-        BKE_mesh_texspace_get_reference((Mesh *)ob_data, NULL, &texcoloc, NULL, &texcosize);
+        BKE_mesh_texspace_get_reference((Mesh *)ob_data, NULL, &texcoloc, &texcosize);
         break;
       case ID_CU: {
         Curve *cu = (Curve *)ob_data;
-        if (cu->bb == NULL || (cu->bb->flag & BOUNDBOX_DIRTY)) {
-          BKE_curve_texspace_calc(cu);
-        }
+        BKE_curve_texspace_ensure(cu);
         texcoloc = cu->loc;
         texcosize = cu->size;
         break;

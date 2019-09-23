@@ -667,7 +667,6 @@ void BKE_mesh_from_nurbs_displist(Main *bmain,
   me->texflag = cu->texflag & ~CU_AUTOSPACE;
   copy_v3_v3(me->loc, cu->loc);
   copy_v3_v3(me->size, cu->size);
-  copy_v3_v3(me->rot, cu->rot);
   BKE_mesh_texspace_calc(me);
 
   cu->mat = NULL;
@@ -1576,11 +1575,7 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src,
   /* Clear selection history */
   MEM_SAFE_FREE(tmp.mselect);
   tmp.totselect = 0;
-  BLI_assert(ELEM(tmp.bb, NULL, mesh_dst->bb));
-  if (mesh_dst->bb) {
-    MEM_freeN(mesh_dst->bb);
-    tmp.bb = NULL;
-  }
+  tmp.texflag &= ~ME_AUTOSPACE_EVALUATED;
 
   /* skip the listbase */
   MEMCPY_STRUCT_AFTER(mesh_dst, &tmp, id.prev);

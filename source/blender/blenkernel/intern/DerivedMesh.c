@@ -852,11 +852,11 @@ void DM_to_mesh(
   /* Clear selection history */
   MEM_SAFE_FREE(tmp.mselect);
   tmp.totselect = 0;
-  BLI_assert(ELEM(tmp.bb, NULL, me->bb));
+  /*BLI_assert(ELEM(tmp.bb, NULL, me->bb));
   if (me->bb) {
     MEM_freeN(me->bb);
     tmp.bb = NULL;
-  }
+  }*/
 
   /* skip the listbase */
   MEMCPY_STRUCT_AFTER(me, &tmp, id.prev);
@@ -1088,7 +1088,7 @@ static Mesh *create_orco_mesh(Object *ob, Mesh *me, BMEditMesh *em, int layer)
   int free;
 
   if (em) {
-    mesh = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, NULL);
+    mesh = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, NULL, me);
   }
   else {
     mesh = BKE_mesh_copy_for_eval(me, true);
@@ -1160,68 +1160,63 @@ static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape
 {
   KeyBlock *kb;
   int i, j, tot;
-
-  if (!me->key) {
+  if (!me->key)
+  {
     return;
   }
-
   tot = CustomData_number_of_layers(&dm->vertData, CD_SHAPEKEY);
-  for (i = 0; i < tot; i++) {
+  for (i = 0; i < tot; i++)
+  {
     CustomDataLayer *layer =
         &dm->vertData.layers[CustomData_get_layer_index_n(&dm->vertData, CD_SHAPEKEY, i)];
     float(*cos)[3], (*kbcos)[3];
-
-    for (kb = me->key->block.first; kb; kb = kb->next) {
-      if (kb->uid == layer->uid) {
+    for (kb = me->key->block.first; kb; kb = kb->next)
+    {
+      if (kb->uid == layer->uid)
+      {
         break;
       }
     }
-
-    if (!kb) {
+    if (!kb)
+    {
       kb = BKE_keyblock_add(me->key, layer->name);
       kb->uid = layer->uid;
     }
-
-    if (kb->data) {
+    if (kb->data)
+    {
       MEM_freeN(kb->data);
     }
-
     cos = CustomData_get_layer_n(&dm->vertData, CD_SHAPEKEY, i);
     kb->totelem = dm->numVertData;
-
     kb->data = kbcos = MEM_malloc_arrayN(kb->totelem, 3 * sizeof(float), "kbcos DerivedMesh.c");
-    if (kb->uid == actshape_uid) {
+    if (kb->uid == actshape_uid)
+    {
       MVert *mvert = dm->getVertArray(dm);
-
-      for (j = 0; j < dm->numVertData; j++, kbcos++, mvert++) {
+      for (j = 0; j < dm->numVertData; j++, kbcos++, mvert++)
+      {
         copy_v3_v3(*kbcos, mvert->co);
       }
     }
-    else {
-      for (j = 0; j < kb->totelem; j++, cos++, kbcos++) {
+    else
+    {
+      for (j = 0; j < kb->totelem; j++, cos++, kbcos++)
+      {
         copy_v3_v3(*kbcos, *cos);
       }
     }
   }
-
-  for (kb = me->key->block.first; kb; kb = kb->next) {
-    if (kb->totelem != dm->numVertData) {
-      if (kb->data) {
+  for (kb = me->key->block.first; kb; kb = kb->next)
+  {
+    if (kb->totelem != dm->numVertData)
+    {
+      if (kb->data)
+      {
         MEM_freeN(kb->data);
       }
-
       kb->totelem = dm->numVertData;
       kb->data = MEM_calloc_arrayN(kb->totelem, 3 * sizeof(float), "kb->data derivedmesh.c");
       CLOG_ERROR(&LOG, "lost a shapekey layer: '%s'! (bmesh internal error)", kb->name);
     }
-  }
-}
-
-static void mesh_copy_autosmooth(Mesh *me, Mesh *me_orig)
-{
-  if (me_orig->flag & ME_AUTOSMOOTH) {
-    me->flag |= ME_AUTOSMOOTH;
-    me->smoothresh = me_orig->smoothresh;
   }
 }
 
@@ -1301,18 +1296,8 @@ static void mesh_calc_finalize(const Mesh *mesh_input, Mesh *mesh_eval)
   /* Make sure the name is the same. This is because mesh allocation from template does not
    * take care of naming. */
   BLI_strncpy(mesh_eval->id.name, mesh_input->id.name, sizeof(mesh_eval->id.name));
-  /* Make sure materials are preserved from the input. */
-  if (mesh_eval->mat != NULL) {
-    MEM_freeN(mesh_eval->mat);
-  }
-  mesh_eval->mat = MEM_dupallocN(mesh_input->mat);
-  mesh_eval->totcol = mesh_input->totcol;
   /* Make evaluated mesh to share same edit mesh pointer as original and copied meshes. */
   mesh_eval->edit_mesh = mesh_input->edit_mesh;
-  /* Copy auth-smooth settings which are also not taken care about by mesh allocation from a
-   * template. */
-  mesh_eval->flag |= (mesh_input->flag & ME_AUTOSMOOTH);
-  mesh_eval->smoothresh = mesh_input->smoothresh;
 }
 
 static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
@@ -1640,8 +1625,6 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
           MEM_freeN(deformed_verts);
           deformed_verts = NULL;
         }
-
-        mesh_copy_autosmooth(mesh_final, mesh_input);
       }
 
       /* create an orco mesh in parallel */
@@ -1979,8 +1962,8 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
   /* Evaluate modifiers up to certain index to get the mesh cage. */
   int cageIndex = modifiers_getCageIndex(scene, ob, NULL, 1);
   if (r_cage && cageIndex == -1) {
-    mesh_cage = BKE_mesh_from_editmesh_with_coords_thin_wrap(em_input, &final_datamask, NULL);
-    mesh_copy_autosmooth(mesh_cage, mesh_input);
+    mesh_cage = BKE_mesh_from_editmesh_with_coords_thin_wrap(
+        em_input, &final_datamask, NULL, mesh_input);
   }
 
   /* Clear errors before evaluation. */
@@ -2020,9 +2003,8 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
       }
       else if (isPrevDeform && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
         if (mesh_final == NULL) {
-          mesh_final = BKE_mesh_from_bmesh_for_eval_nomain(em_input->bm, NULL);
+          mesh_final = BKE_mesh_from_bmesh_for_eval_nomain(em_input->bm, NULL, mesh_input);
           ASSERT_IS_VALID_MESH(mesh_final);
-          mesh_copy_autosmooth(mesh_final, mesh_input);
         }
         BLI_assert(deformed_verts != NULL);
         BKE_mesh_vert_coords_apply(mesh_final, deformed_verts);
@@ -2053,10 +2035,8 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
         }
       }
       else {
-        mesh_final = BKE_mesh_from_bmesh_for_eval_nomain(em_input->bm, NULL);
+        mesh_final = BKE_mesh_from_bmesh_for_eval_nomain(em_input->bm, NULL, mesh_input);
         ASSERT_IS_VALID_MESH(mesh_final);
-
-        mesh_copy_autosmooth(mesh_final, mesh_input);
 
         if (deformed_verts) {
           BKE_mesh_vert_coords_apply(mesh_final, deformed_verts);
@@ -2120,8 +2100,6 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
           MEM_freeN(deformed_verts);
           deformed_verts = NULL;
         }
-
-        mesh_copy_autosmooth(mesh_final, mesh_input);
       }
       mesh_final->runtime.deformed_only = false;
     }
@@ -2141,8 +2119,10 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
           me_orig->runtime.edit_data->vertexCos = MEM_dupallocN(deformed_verts);
         }
         mesh_cage = BKE_mesh_from_editmesh_with_coords_thin_wrap(
-            em_input, &final_datamask, deformed_verts ? MEM_dupallocN(deformed_verts) : NULL);
-        mesh_copy_autosmooth(mesh_cage, mesh_input);
+            em_input,
+            &final_datamask,
+            deformed_verts ? MEM_dupallocN(deformed_verts) : NULL,
+            mesh_input);
       }
     }
 
@@ -2176,10 +2156,8 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
   else {
     /* this is just a copy of the editmesh, no need to calc normals */
     mesh_final = BKE_mesh_from_editmesh_with_coords_thin_wrap(
-        em_input, &final_datamask, deformed_verts);
+        em_input, &final_datamask, deformed_verts, mesh_input);
     deformed_verts = NULL;
-
-    mesh_copy_autosmooth(mesh_final, mesh_input);
 
     /* In this case, we should never have weight-modifying modifiers in stack... */
     if (do_init_statvis) {
@@ -2300,11 +2278,6 @@ static void mesh_build_data(struct Depsgraph *depsgraph,
                       &ob->runtime.mesh_eval);
 
   BKE_object_boundbox_calc_from_mesh(ob, ob->runtime.mesh_eval);
-  /* Only copy texspace from orig mesh if some modifier (hint: smoke sim, see T58492)
-   * did not re-enable that flag (which always get disabled for eval mesh as a start). */
-  if (!(ob->runtime.mesh_eval->texflag & ME_AUTOSPACE)) {
-    BKE_mesh_texspace_copy_from_object(ob->runtime.mesh_eval, ob);
-  }
 
   assign_object_mesh_eval(ob);
 

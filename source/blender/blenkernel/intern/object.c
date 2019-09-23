@@ -3363,8 +3363,7 @@ void BKE_object_sculpt_data_create(Object *ob)
   ob->sculpt->mode_type = ob->mode;
 }
 
-int BKE_object_obdata_texspace_get(
-    Object *ob, short **r_texflag, float **r_loc, float **r_size, float **r_rot)
+int BKE_object_obdata_texspace_get(Object *ob, short **r_texflag, float **r_loc, float **r_size)
 {
 
   if (ob->data == NULL) {
@@ -3373,14 +3372,12 @@ int BKE_object_obdata_texspace_get(
 
   switch (GS(((ID *)ob->data)->name)) {
     case ID_ME: {
-      BKE_mesh_texspace_get_reference((Mesh *)ob->data, r_texflag, r_loc, r_rot, r_size);
+      BKE_mesh_texspace_get_reference((Mesh *)ob->data, r_texflag, r_loc, r_size);
       break;
     }
     case ID_CU: {
       Curve *cu = ob->data;
-      if (cu->bb == NULL || (cu->bb->flag & BOUNDBOX_DIRTY)) {
-        BKE_curve_texspace_calc(cu);
-      }
+      BKE_curve_texspace_ensure(cu);
       if (r_texflag) {
         *r_texflag = &cu->texflag;
       }
@@ -3389,9 +3386,6 @@ int BKE_object_obdata_texspace_get(
       }
       if (r_size) {
         *r_size = cu->size;
-      }
-      if (r_rot) {
-        *r_rot = cu->rot;
       }
       break;
     }
@@ -3405,9 +3399,6 @@ int BKE_object_obdata_texspace_get(
       }
       if (r_size) {
         *r_size = mb->size;
-      }
-      if (r_rot) {
-        *r_rot = mb->rot;
       }
       break;
     }
