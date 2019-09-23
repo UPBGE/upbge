@@ -152,7 +152,6 @@ endif()
 		bf_intern_gawain
 		bf_imbuf
 		bf_avi
-    bf_python
 		bf_python_ext
 		bf_python_mathutils
 		bf_python_bmesh

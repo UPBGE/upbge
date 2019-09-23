@@ -228,6 +228,7 @@ extern const char *BPY_app_translations_py_pgettext(const char *msgctxt, const c
 extern struct PyObject *pyrna_id_CreatePyObject(struct ID *id);
 extern bool pyrna_id_CheckPyObject(struct PyObject *obj);
 /* bpy_interface.c */
+bool BPY_string_is_keyword(const char *str) { return false; }
 
 #endif
 /* end declarations */
@@ -426,7 +427,6 @@ struct wmGizmoProperty *WM_gizmo_target_property_find(struct wmGizmo *gz, const 
 void WM_gizmo_target_property_def_rna_ptr(struct wmGizmo *gz, const struct wmGizmoPropertyType *gz_prop_type, struct PointerRNA *ptr, struct PropertyRNA *prop, int index) RET_NONE
 bool WM_gizmo_target_property_is_valid(const struct wmGizmoProperty *gz_prop) RET_ZERO
 const struct wmGizmoPropertyType *WM_gizmotype_target_property_find(const struct wmGizmoType *gzt, const char *idname) RET_NULL
-void WM_gizmotype_target_property_def(struct wmGizmoType *gzt, const char *idname, int data_type, int array_length) RET_NONE
 const struct ListBase *WM_gizmomap_group_list(struct wmGizmoMap *gzmap) RET_NULL
 struct wmGizmoMapType *WM_gizmomaptype_ensure(const struct wmGizmoMapType_Params *gzmap_params) RET_NULL
 void WM_gizmo_group_type_add_ptr_ex(struct wmGizmoGroupType *gzgt, struct wmGizmoMapType *gzmap_type) RET_NONE
@@ -1172,6 +1172,12 @@ int collada_export(struct bContext *C,
 void ED_mesh_calc_tessface(struct Mesh *mesh, bool free_mpoly) RET_NONE
 
 /* bpy/python internal api */
+extern void BPY_RNA_operator_wrapper(struct wmOperatorType *ot, void *userdata);
+extern void BPY_RNA_operator_macro_wrapper(struct wmOperatorType *ot, void *userdata);
+void BPY_RNA_operator_wrapper(struct wmOperatorType *ot, void *userdata) RET_NONE
+void BPY_RNA_operator_macro_wrapper(struct wmOperatorType *ot, void *userdata) RET_NONE
+void BPY_RNA_gizmo_wrapper(wmGizmoType *gzgt, void *userdata) RET_NONE
+void BPY_RNA_gizmogroup_wrapper(wmGizmoGroupType *gzgt, void *userdata) RET_NONE
 void ED_gizmo_draw_preset_box(
         const struct wmGizmo *gz, float mat[4][4], int select_id) RET_NONE
 void ED_gizmo_draw_preset_arrow(
@@ -1181,64 +1187,20 @@ void ED_gizmo_draw_preset_circle(
 void ED_gizmo_draw_preset_facemap(
         const struct bContext *C, const struct wmGizmo *gz,
         struct Object *ob,  const int facemap, int select_id) RET_NONE
-
-struct PyObject *BPyInit_gpu(void) RET_NULL
-void *CCL_python_module_init(void) RET_NULL
-struct PyObject *Freestyle_Init(void) RET_NULL
-void WM_exit_ex(struct bContext *C, const bool do_python) RET_NONE
-bool insert_keyframe_direct(struct ReportList *reports,
-                                struct PointerRNA ptr,
-                                struct PropertyRNA *prop,
-                                struct FCurve *fcu,
-                                float cfra,
-                                eBezTriple_KeyframeType keytype,
-                                struct NlaKeyframingContext *nla,
-                                eInsertKeyFlags flag) RET_ZERO
-struct wmPaintCursor *WM_paint_cursor_activate(
-        struct wmWindowManager *wm,
-        short space_type,
-        short region_type,
-        bool (*poll)(struct bContext *C),
-        void (*draw)(struct bContext *C, int, int, void *customdata),
-        void *customdata) RET_NULL
-bool WM_paint_cursor_end(struct wmWindowManager *wm, struct wmPaintCursor *handle) RET_ZERO
-int UI_preview_render_size(enum eIconSizes size) RET_ZERO
-void WM_gizmo_target_property_def_func(struct wmGizmo *gz,
-                                           const char *idname,
-                                           const struct wmGizmoPropertyFnParams *params) RET_NONE
-void WM_gizmo_target_property_def_func_ptr(struct wmGizmo *gz,
-                                               const struct wmGizmoPropertyType *gz_prop_type,
-                                               const struct wmGizmoPropertyFnParams *params) RET_NONE
-float WM_gizmo_target_property_float_get(const struct wmGizmo *gz,
-                                             struct wmGizmoProperty *gz_prop) RET_ZERO
-void WM_gizmo_target_property_float_set(struct bContext *C,
-                                            const struct wmGizmo *gz,
-                                            struct wmGizmoProperty *gz_prop,
-                                            const float value) RET_NONE
-
-void WM_gizmo_target_property_float_get_array(const struct wmGizmo *gz,
-                                              struct wmGizmoProperty *gz_prop,
-                                              float *value) RET_NONE
-void WM_gizmo_target_property_float_set_array(struct bContext *C,
-                                              const struct wmGizmo *gz,
-                                              struct wmGizmoProperty *gz_prop,
-                                              const float *value) RET_NONE
-bool WM_gizmo_target_property_float_range_get(const struct wmGizmo *gz,
-                                                  struct wmGizmoProperty *gz_prop,
-                                                  float range[2]) RET_ZERO
-
-int WM_gizmo_target_property_array_length(const struct wmGizmo *gz,
-                                          struct wmGizmoProperty *gz_prop) RET_ZERO
-void WM_msgbus_clear_by_owner(struct wmMsgBus *mbus, void *owner) RET_NONE
-void WM_msg_dump(struct wmMsgBus *mbus, const char *info) RET_NONE
-void WM_msg_publish_rna_params(struct wmMsgBus *mbus, const wmMsgParams_RNA *msg_key_params) RET_NONE
-void WM_msg_subscribe_rna_params(struct wmMsgBus *mbus,
-                                     const wmMsgParams_RNA *msg_key_params,
-                                     const wmMsgSubscribeValue *msg_val_params,
-                                     const char *id_repr) RET_NONE
-void EDBM_update_generic(struct BMEditMesh *em,
-                             const bool do_tessellation,
-                             const bool is_destructive) RET_NONE
+void BPY_text_free_code(struct Text *text) RET_NONE
+void BPY_id_release(struct ID *id) RET_NONE
+void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr) RET_NONE
+int BPY_context_member_get(struct bContext *C, const char *member, struct bContextDataResult *result) RET_ZERO
+void BPY_pyconstraint_target(struct bPythonConstraint *con, struct bConstraintTarget *ct) RET_NONE
+float BPY_driver_exec(struct PathResolvedRNA *anim_rna, struct ChannelDriver *driver,
+	struct ChannelDriver *driver_orig, const float evaltime) RET_ZERO /* might need this one! */
+void BPY_DECREF(void *pyob_ptr) RET_NONE
+void BPY_pyconstraint_exec(struct bPythonConstraint *con, struct bConstraintOb *cob, struct ListBase *targets) RET_NONE
+bool pyrna_id_FromPyObject(struct PyObject *obj, struct ID **id) RET_ZERO
+struct PyObject *pyrna_id_CreatePyObject(struct ID *id) RET_NULL
+bool pyrna_id_CheckPyObject(struct PyObject *obj) RET_ZERO
+void BPY_context_update(struct bContext *C) RET_NONE
+const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *msgid) RET_ARG(msgid)
 
 /* intern/dualcon */
 
