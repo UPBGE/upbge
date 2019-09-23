@@ -148,16 +148,19 @@ class SequencerFadesClear(Operator):
 
     def execute(self, context):
         fcurves = context.scene.animation_data.action.fcurves
-
+        fcurve_map = {
+            curve.data_path: curve
+            for curve in fcurves
+            if curve.data_path.startswith("sequence_editor.sequences_all")
+        }
         for sequence in context.selected_sequences:
-            animated_property = 'volume' if hasattr(sequence, 'volume') else 'blend_alpha'
-            for curve in fcurves:
-                if not curve.data_path.endswith(animated_property):
-                    continue
-                # Ensure the fcurve corresponds to the selected sequence
-                if sequence == eval("bpy.context.scene." + curve.data_path.replace('.' + animated_property, '')):
-                    fcurves.remove(curve)
+            animated_property = "volume" if hasattr(sequence, "volume") else "blend_alpha"
+            data_path = sequence.path_from_id() + "." + animated_property
+            curve = fcurve_map.get(data_path)
+            if curve:
+                fcurves.remove(curve)
             setattr(sequence, animated_property, 1.0)
+
         return {'FINISHED'}
 
 
@@ -225,8 +228,8 @@ class SequencerFadesAdd(Operator):
             faded_sequences.append(sequence)
 
         sequence_string = "sequence" if len(faded_sequences) == 1 else "sequences"
-        self.report({"INFO"}, "Added fade animation to {} {}.".format(len(faded_sequences), sequence_string))
-        return {"FINISHED"}
+        self.report({'INFO'}, "Added fade animation to {} {}.".format(len(faded_sequences), sequence_string))
+        return {'FINISHED'}
 
     def calculate_fade_duration(self, context, sequence):
         frame_current = context.scene.frame_current
@@ -364,8 +367,6 @@ classes = (
     SequencerCrossfadeSounds,
     SequencerCutMulticam,
     SequencerDeinterlaceSelectedMovies,
-
-    # Disable until D5166#133312 is resolved.
-    # SequencerFadesClear,
-    # SequencerFadesAdd,
+    SequencerFadesClear,
+    SequencerFadesAdd,
 )
