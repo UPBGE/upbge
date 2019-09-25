@@ -1860,7 +1860,7 @@ class VIEW3D_PT_tools_grease_pencil_brush(View3DPanel, Panel):
         brush = gpencil_paint.brush
 
         sub = col.column(align=True)
-        sub.operator("gpencil.brush_presets_create", icon='HELP', text="")
+        sub.operator("gpencil.brush_presets_create", icon='PRESET_NEW', text="")
 
         if brush is not None:
             gp_settings = brush.gpencil_settings
@@ -1888,7 +1888,6 @@ class VIEW3D_PT_tools_grease_pencil_brush_option(View3DPanel, Panel):
     bl_context = ".greasepencil_paint"
     bl_label = "Options"
     bl_category = "Tool"
-    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -1968,7 +1967,6 @@ class VIEW3D_PT_tools_grease_pencil_brush_settings(View3DPanel, Panel):
     bl_parent_id = 'VIEW3D_PT_tools_grease_pencil_brush_option'
     bl_label = "Post-Processing"
     bl_category = "Tool"
-    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
