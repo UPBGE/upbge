@@ -76,6 +76,9 @@ extern "C"
 #  include "BKE_layer.h"
 #  include "BKE_idprop.h"
 
+#include "windowmanager/wm_window.h"
+#include "GPU_material.h"
+
 #  include "draw/DRW_engine.h"
 
 #  include "IMB_imbuf.h"
@@ -86,9 +89,6 @@ extern "C"
 #  include "DEG_depsgraph_query.h"
 
 #  include "../blender/editors/include/ED_datafiles.h"
-
-#include "windowmanager/wm_window.h"
-#include "GPU_material.h"
 
 #  ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
