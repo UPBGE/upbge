@@ -214,6 +214,7 @@ struct wmManipulatorMap;
  * (ideally we wouldn't have _any_ but we can't include all directly)
  */
 
+
 /* bpy_operator_wrap.h */
 extern void macro_wrapper(struct wmOperatorType *ot, void *userdata);
 extern void operator_wrapper(struct wmManipulatorGroupType *wgt, void *userdata);
@@ -807,12 +808,10 @@ void ED_object_base_free_and_unlink(struct Main *bmain, struct Scene *scene, str
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C, bool calc_edges, bool calc_edges_loose) RET_NONE
 void ED_mesh_vertices_add(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
 void ED_mesh_edges_add(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
-void ED_mesh_tessfaces_add(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
 void ED_mesh_loops_add(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
 void ED_mesh_polys_add(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
 void ED_mesh_vertices_remove(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
 void ED_mesh_edges_remove(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
-void ED_mesh_faces_remove(struct Mesh *mesh, struct ReportList *reports, int count) RET_NONE
 int  ED_mesh_color_add(struct Mesh *me, const char *name, const bool active_set, const bool do_init) RET_MINUSONE
 int  ED_mesh_uv_texture_add(struct Mesh *me, const char *name, const bool active_set, const bool do_init) RET_MINUSONE
 bool ED_mesh_color_remove_named(struct Mesh *me, const char *name) RET_ZERO
@@ -1169,7 +1168,6 @@ int UI_pie_menu_invoke_from_operator_enum(struct bContext *C, const char *title,
 int collada_export(struct bContext *C,
 	ExportSettings *export_settings) RET_ZERO
 
-void ED_mesh_calc_tessface(struct Mesh *mesh, bool free_mpoly) RET_NONE
 
 /* bpy/python internal api */
 extern void BPY_RNA_operator_wrapper(struct wmOperatorType *ot, void *userdata);

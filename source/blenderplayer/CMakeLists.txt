@@ -162,6 +162,7 @@ endif()
 		extern_openjpeg
 		bf_imbuf_dds
 		bf_dna
+                bf_blenloader
 		#ge_videotex
 		bf_blenfont
 		bf_blentranslation
