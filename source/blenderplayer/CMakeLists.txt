@@ -104,50 +104,6 @@ set(BLENDER_SORTED_LIBS
 
   bf_editor_undo
 
-  bf_editor_space_api
-  bf_editor_space_action
-  bf_editor_space_buttons
-  bf_editor_space_console
-  bf_editor_space_file
-  bf_editor_space_graph
-  bf_editor_space_image
-  bf_editor_space_info
-  bf_editor_space_logic
-  bf_editor_space_nla
-  bf_editor_space_node
-  bf_editor_space_outliner
-  bf_editor_space_script
-  bf_editor_space_sequencer
-  bf_editor_space_statusbar
-  bf_editor_space_text
-  bf_editor_space_topbar
-  bf_editor_space_userpref
-  bf_editor_space_view3d
-  bf_editor_space_clip
-
-  bf_editor_transform
-  bf_editor_uvedit
-  bf_editor_curve
-  bf_editor_interface
-  bf_editor_gizmo_library
-  bf_editor_mesh
-  bf_editor_metaball
-  bf_editor_object
-  bf_editor_gpencil
-  bf_editor_lattice
-  bf_editor_armature
-  bf_editor_physics
-  bf_editor_render
-  bf_editor_scene
-  bf_editor_screen
-  bf_editor_sculpt_paint
-  bf_editor_sound
-  bf_editor_animation
-  bf_editor_datafiles
-  bf_editor_mask
-  bf_editor_io
-  bf_editor_util
-
   ge_player
   ge_launcher
   ge_logic_ketsji
