@@ -87,6 +87,9 @@ extern "C"
 
 #  include "../blender/editors/include/ED_datafiles.h"
 
+#include "windowmanager/wm_window.h"
+#include "GPU_material.h"
+
 #  ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
 #  endif
@@ -1379,15 +1382,18 @@ int main(
 								}
 							}
 
-							G.background = true;
+                            G.background = true;
+                            wm_ghost_init(NULL);
                             DRW_opengl_context_create_blenderplayer();
-							G.background = false;
+                            G.background = false;
 							GPU_init();
 							GPU_immActivate();
 
-							GPU_set_anisotropic(maggie, U.anisotropic_filter);
-							//GPU_set_gpu_mipmapping(maggie, U.use_gpu_mipmap);
-							GPU_set_linear_mipmap(true);
+                            GPU_set_mipmap(G.main, true);
+                            GPU_set_linear_mipmap(true);
+                            GPU_set_anisotropic(G.main, U.anisotropic_filter);
+
+                            GPU_pass_cache_init();
 						}
 
 						// This argc cant be argc_py_clamped, since python uses it.
