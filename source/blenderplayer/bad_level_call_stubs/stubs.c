@@ -148,6 +148,7 @@ struct wmManipulatorMap;
 
 #include <stdio.h>  /* FILE */
 
+#include "../../intern/cycles/blender/CCL_api.h"
 #include "../../intern/clog/CLG_log.h"
 #include "../../intern/dualcon/dualcon.h"
 #include "../../intern/elbeem/extern/elbeem.h"
@@ -192,6 +193,7 @@ struct wmManipulatorMap;
 #include "../blender/editors/include/UI_resources.h"
 #include "../blender/editors/include/UI_view2d.h"
 #include "../blender/freestyle/FRS_freestyle.h"
+#include "../blender/freestyle/intern/python/BPy_Freestyle.h"
 #include "../blender/gpu/GPU_immediate.h"
 #include "../blender/gpu/GPU_matrix.h"
 #include "../blender/python/BPY_extern.h"
@@ -258,7 +260,7 @@ struct Render *FRS_do_stroke_rendering(struct Render *re,
 void FRS_end_stroke_rendering(struct Render *re) RET_NONE
 void FRS_exit(void) RET_NONE
 
-struct PyObject *Freestyle_Init(void) RET_NULL
+PyObject *Freestyle_Init(void) RET_NULL
 
 void FRS_copy_active_lineset(struct FreestyleConfig *config) RET_NONE
 void FRS_paste_active_lineset(struct FreestyleConfig *config) RET_NONE

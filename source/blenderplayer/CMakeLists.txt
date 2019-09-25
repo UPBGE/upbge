@@ -97,8 +97,8 @@ endif()
 #endif()
 
 # if(UNIX)
-	# Sort libraries
-	set(BLENDER_SORTED_LIBS
+# Sort libraries
+set(BLENDER_SORTED_LIBS
 
   bf_windowmanager
 
@@ -148,28 +148,28 @@ endif()
   bf_editor_io
   bf_editor_util
 
-	ge_player
+  ge_player
   ge_launcher
   ge_logic_ketsji
   ge_player
-	ge_logic_ketsji
-	ge_converter
-	ge_logic_ketsji
-	ge_phys_bullet
-	ge_phys_dummy
-	ge_logic
-	ge_device
-	ge_rasterizer
-	ge_oglrasterizer
-	ge_logic_expressions
-	ge_common
-	ge_scenegraph
-	ge_logic_network
-	#ge_videotex
+  ge_logic_ketsji
+  ge_converter
+  ge_logic_ketsji
+  ge_phys_bullet
+  ge_phys_dummy
+  ge_logic
+  ge_device
+  ge_rasterizer
+  ge_oglrasterizer
+  ge_logic_expressions
+  ge_common
+  ge_scenegraph
+  ge_logic_network
+  #ge_videotex
 
-	bf_editor_datafiles
+  bf_editor_datafiles
 
-	bf_rna
+  bf_rna
   bf_windowmanager
   bf_editor_animation
   bf_editor_armature
@@ -253,90 +253,97 @@ endif()
 
   bf_intern_clog
   bf_blenloader
-	bf_modifiers
-	bf_draw
-	bf_gpu
-	bf_blenkernel
+  bf_modifiers
+  bf_draw
+  bf_gpu
+  bf_blenkernel
   bf_shader_fx
   bf_gpencil_modifiers
-	bf_physics
-	bf_depsgraph
-	bf_physics
-	bf_intern_rigidbody
-	bf_blenloader
-	ge_blen_routines
-	bf_editor_datafiles
+  bf_physics
+  bf_depsgraph
+  bf_physics
+  bf_intern_rigidbody
+  bf_blenloader
+  ge_blen_routines
+  bf_editor_datafiles
   ge_launcher
   ge_blen_routines
-	ge_converter 
-	ge_logic_ketsji 
-	ge_phys_bullet 
-	ge_phys_dummy
-	ge_logic 
-	ge_rasterizer 
-	ge_oglrasterizer 
-	ge_logic_expressions 
-	ge_scenegraph
-	bf_ikplugin
-	bf_intern_itasc
-	bf_intern_iksolver
-	bf_intern_smoke
-	bf_modifiers
-	bf_intern_moto 
-	bf_nodes
-	bf_gpu
-	bf_imbuf
-	bf_avi
-	bf_python_ext
-	bf_python_mathutils
-	bf_python_bmesh
-	bf_imbuf_cineon
-	bf_imbuf_openexr
-	bf_imbuf_openimageio
-	bf_imbuf_dds
-	bf_dna
+  ge_converter
+  ge_logic_ketsji
+  ge_phys_bullet
+  ge_phys_dummy
+  ge_logic
+  ge_rasterizer
+  ge_oglrasterizer
+  ge_logic_expressions
+  ge_scenegraph
+  bf_ikplugin
+  bf_intern_itasc
+  bf_intern_iksolver
+  bf_intern_smoke
+  bf_modifiers
+  bf_intern_moto
+  bf_nodes
+  bf_gpu
+  bf_imbuf
+  bf_avi
+  bf_python_ext
+  bf_python_mathutils
+  bf_python_bmesh
+  bf_imbuf_cineon
+  bf_imbuf_openexr
+  bf_imbuf_openimageio
+  bf_imbuf_dds
+  bf_dna
   bf_blenloader
-	#ge_videotex
-	bf_blenfont
-	bf_blentranslation
-	bf_intern_audaspace
-	audaspace
-	audaspace-py
-	blenkernel_blc
-	bf_bmesh
-	bf_blenlib
-	blenkernel_blc
+  #ge_videotex
+  bf_blenfont
+  bf_blentranslation
+  bf_intern_audaspace
+  audaspace
+  audaspace-py
+  blenkernel_blc
+  bf_bmesh
+  bf_blenlib
+  blenkernel_blc
 
-	bf_intern_string
-	bf_intern_ghost
-	bf_intern_rigidbody
-	bf_intern_itasc
-	bf_intern_iksolver
-	bf_intern_smoke
-	bf_intern_moto
-	bf_intern_guardedalloc
-	bf_intern_memutil
-	extern_minilzo
-	bf_intern_ghost # duplicate for linking
-	bf_blenkernel # duplicate for linking
-	bf_intern_mikktspace
-	extern_recastnavigation
-	bf_intern_opencolorio
-	bf_intern_glew_mx
+  bf_intern_string
+  bf_intern_ghost
+  bf_intern_rigidbody
+  bf_intern_itasc
+  bf_intern_iksolver
+  bf_intern_smoke
+  bf_intern_moto
+  bf_intern_guardedalloc
+  bf_intern_memutil
+  extern_minilzo
+  bf_intern_ghost # duplicate for linking
+  bf_blenkernel # duplicate for linking
+  bf_intern_mikktspace
+  extern_recastnavigation
+  bf_intern_opencolorio
+  bf_intern_glew_mx
   bf_intern_quadriflow
   bf_intern_numaapi
-	bf_intern_eigen
-	bf_intern_libmv
-  bf_intern_utfconv
+  bf_intern_eigen
+  bf_intern_libmv
 
-	extern_bullet
-	extern_minilzo
+  extern_bullet
+  extern_minilzo
   extern_quadriflow
-	extern_recastnavigation
-	extern_rangetree
-	extern_wcwidth
-	bf_intern_libmv
+  extern_recastnavigation
+  extern_rangetree
+  extern_wcwidth
+  bf_intern_libmv
 )
+
+if(UNIX AND NOT WIN32)
+  list(APPEND BLENDER_SORTED_LIBS extern_binreloc)
+endif()
+
+if(WIN32 AND NOT UNIX)
+    list(APPEND BLENDER_SORTED_LIBS bf_intern_utfconv)
+endif()
 
 	if(NOT WITH_SYSTEM_GLOG)
 		list(APPEND BLENDER_SORTED_LIBS extern_glog)
