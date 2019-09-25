@@ -1362,12 +1362,25 @@ void OBJECT_OT_forcefield_toggle(wmOperatorType *ot)
 /* ********************************************** */
 /* Motion Paths */
 
+static eAnimvizCalcRange object_path_convert_range(eObjectPathCalcRange range)
+{
+  switch (range) {
+    case OBJECT_PATH_CALC_RANGE_CURRENT_FRAME:
+      return ANIMVIZ_CALC_RANGE_CURRENT_FRAME;
+    case OBJECT_PATH_CALC_RANGE_CHANGED:
+      return ANIMVIZ_CALC_RANGE_CHANGED;
+    case OBJECT_PATH_CALC_RANGE_FULL:
+      return ANIMVIZ_CALC_RANGE_FULL;
+  }
+  return ANIMVIZ_CALC_RANGE_FULL;
+}
+
 /* For the objects with animation: update paths for those that have got them
  * This should selectively update paths that exist...
  *
  * To be called from various tools that do incremental updates
  */
-void ED_objects_recalculate_paths(bContext *C, Scene *scene, bool current_frame_only)
+void ED_objects_recalculate_paths(bContext *C, Scene *scene, eObjectPathCalcRange range)
 {
   /* Transform doesn't always have context available to do update. */
   if (C == NULL) {
@@ -1375,11 +1388,9 @@ void ED_objects_recalculate_paths(bContext *C, Scene *scene, bool current_frame_
   }
 
   Main *bmain = CTX_data_main(C);
-  /* NOTE: Dependency graph will be evaluated at all the frames, but we first need to access some
-   * nested pointers, like animation data. */
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ListBase targets = {NULL, NULL};
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
+  ListBase targets = {NULL, NULL};
   /* loop over objects in scene */
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     /* set flag to force recalc, then grab path(s) from object */
@@ -1388,11 +1399,27 @@ void ED_objects_recalculate_paths(bContext *C, Scene *scene, bool current_frame_
   }
   CTX_DATA_END;
 
+  Depsgraph *depsgraph;
+  bool free_depsgraph = false;
+  /* For a single frame update it's faster to re-use existing dependency graph and avoid overhead
+   * of building all the relations and so on for a temporary one.  */
+  if (range == OBJECT_PATH_CALC_RANGE_CURRENT_FRAME) {
+    /* NOTE: Dependency graph will be evaluated at all the frames, but we first need to access some
+     * nested pointers, like animation data. */
+    depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    free_depsgraph = false;
+  }
+  else {
+    depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, &targets);
+    free_depsgraph = true;
+  }
+
   /* recalculate paths, then free */
-  animviz_calc_motionpaths(depsgraph, bmain, scene, &targets, true, current_frame_only);
+  animviz_calc_motionpaths(
+      depsgraph, bmain, scene, &targets, object_path_convert_range(range), true);
   BLI_freelistN(&targets);
 
-  if (!current_frame_only) {
+  if (range != OBJECT_PATH_CALC_RANGE_CURRENT_FRAME) {
     /* Tag objects for copy on write - so paths will draw/redraw
      * For currently frame only we update evaluated object directly. */
     CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
@@ -1401,6 +1428,11 @@ void ED_objects_recalculate_paths(bContext *C, Scene *scene, bool current_frame_
       }
     }
     CTX_DATA_END;
+  }
+
+  /* Free temporary depsgraph. */
+  if (free_depsgraph) {
+    DEG_graph_free(depsgraph);
   }
 }
 
@@ -1447,7 +1479,7 @@ static int object_calculate_paths_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   /* calculate the paths for objects that have them (and are tagged to get refreshed) */
-  ED_objects_recalculate_paths(C, scene, false);
+  ED_objects_recalculate_paths(C, scene, OBJECT_PATH_CALC_RANGE_FULL);
 
   /* notifiers for updates */
   WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
@@ -1512,7 +1544,7 @@ static int object_update_paths_exec(bContext *C, wmOperator *UNUSED(op))
   }
 
   /* calculate the paths for objects that have them (and are tagged to get refreshed) */
-  ED_objects_recalculate_paths(C, scene, false);
+  ED_objects_recalculate_paths(C, scene, OBJECT_PATH_CALC_RANGE_FULL);
 
   /* notifiers for updates */
   WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);

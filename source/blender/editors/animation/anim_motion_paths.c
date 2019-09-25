@@ -36,6 +36,7 @@
 #include "BKE_scene.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
 
 #include "GPU_batch.h"
@@ -66,6 +67,37 @@ typedef struct MPathTarget {
 } MPathTarget;
 
 /* ........ */
+
+/* update scene for current frame */
+static void motionpaths_calc_update_scene(Main *bmain, struct Depsgraph *depsgraph)
+{
+  BKE_scene_graph_update_for_newframe(depsgraph, bmain);
+}
+
+Depsgraph *animviz_depsgraph_build(Main *bmain,
+                                   Scene *scene,
+                                   ViewLayer *view_layer,
+                                   ListBase *targets)
+{
+  /* Allocate dependency graph. */
+  Depsgraph *depsgraph = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_VIEWPORT);
+
+  /* Make a flat array of IDs for the DEG API. */
+  const int num_ids = BLI_listbase_count(targets);
+  ID **ids = MEM_malloc_arrayN(sizeof(ID *), num_ids, "animviz IDS");
+  int current_id_index = 0;
+  for (MPathTarget *mpt = targets->first; mpt != NULL; mpt = mpt->next) {
+    ids[current_id_index++] = &mpt->ob->id;
+  }
+
+  /* Build graph from all requested IDs. */
+  DEG_graph_build_from_ids(depsgraph, bmain, scene, view_layer, ids, num_ids);
+  MEM_freeN(ids);
+
+  /* Update once so we can access pointers of evaluated animation data. */
+  motionpaths_calc_update_scene(bmain, depsgraph);
+  return depsgraph;
+}
 
 /* get list of motion paths to be baked for the given object
  * - assumes the given list is ready to be used
@@ -102,24 +134,6 @@ void animviz_get_object_motionpaths(Object *ob, ListBase *targets)
       }
     }
   }
-}
-
-/* ........ */
-
-/* update scene for current frame */
-static void motionpaths_calc_update_scene(Main *bmain, struct Depsgraph *depsgraph)
-{
-  /* Do all updates
-   *  - if this is too slow, resort to using a more efficient way
-   *    that doesn't force complete update, but for now, this is the
-   *    most accurate way!
-   *
-   * TODO(segey): Bring back partial updates, which became impossible
-   * with the new depsgraph due to unsorted nature of bases.
-   *
-   * TODO(sergey): Use evaluation context dedicated to motion paths.
-   */
-  BKE_scene_graph_update_for_newframe(depsgraph, bmain);
 }
 
 /* ........ */
@@ -201,6 +215,135 @@ static void motionpaths_calc_bake_targets(ListBase *targets, int cframe)
   }
 }
 
+/* Get pointer to animviz settings for the given target. */
+static bAnimVizSettings *animviz_target_settings_get(MPathTarget *mpt)
+{
+  if (mpt->pchan != NULL) {
+    return &mpt->ob->pose->avs;
+  }
+  return &mpt->ob->avs;
+}
+
+static void motionpath_get_global_framerange(ListBase *targets, int *r_sfra, int *r_efra)
+{
+  *r_sfra = INT_MAX;
+  *r_efra = INT_MIN;
+  for (MPathTarget *mpt = targets->first; mpt; mpt = mpt->next) {
+    *r_sfra = min_ii(*r_sfra, mpt->mpath->start_frame);
+    *r_efra = max_ii(*r_efra, mpt->mpath->end_frame);
+  }
+}
+
+static int motionpath_get_prev_keyframe(MPathTarget *mpt, DLRBT_Tree *fcu_keys, int current_frame)
+{
+  /* If the current frame is outside of the configured motion path range we ignore update of this
+   * motion path by using invalid frame range where start frame is above the end frame. */
+  if (current_frame <= mpt->mpath->start_frame) {
+    return INT_MAX;
+  }
+
+  float current_frame_float = current_frame;
+  DLRBT_Node *node = BLI_dlrbTree_search_prev(fcu_keys, compare_ak_cfraPtr, &current_frame_float);
+  if (node == NULL) {
+    return mpt->mpath->start_frame;
+  }
+
+  ActKeyColumn *key_data = (ActKeyColumn *)node;
+  return key_data->cfra;
+}
+
+static int motionpath_get_prev_prev_keyframe(MPathTarget *mpt,
+                                             DLRBT_Tree *fcu_keys,
+                                             int current_frame)
+{
+  int frame = motionpath_get_prev_keyframe(mpt, fcu_keys, current_frame);
+  return motionpath_get_prev_keyframe(mpt, fcu_keys, frame);
+}
+
+static int motionpath_get_next_keyframe(MPathTarget *mpt, DLRBT_Tree *fcu_keys, int current_frame)
+{
+  /* If the current frame is outside of the configured motion path range we ignore update of this
+   * motion path by using invalid frame range where start frame is above the end frame. */
+  if (current_frame >= mpt->mpath->end_frame) {
+    return INT_MIN;
+  }
+
+  float current_frame_float = current_frame;
+  DLRBT_Node *node = BLI_dlrbTree_search_next(fcu_keys, compare_ak_cfraPtr, &current_frame_float);
+  if (node == NULL) {
+    return mpt->mpath->end_frame;
+  }
+
+  ActKeyColumn *key_data = (ActKeyColumn *)node;
+  return key_data->cfra;
+}
+
+static int motionpath_get_next_next_keyframe(MPathTarget *mpt,
+                                             DLRBT_Tree *fcu_keys,
+                                             int current_frame)
+{
+  int frame = motionpath_get_next_keyframe(mpt, fcu_keys, current_frame);
+  return motionpath_get_next_keyframe(mpt, fcu_keys, frame);
+}
+
+static bool motionpath_check_can_use_keyframe_range(MPathTarget *UNUSED(mpt),
+                                                    AnimData *adt,
+                                                    ListBase *fcurve_list)
+{
+  if (adt == NULL || fcurve_list == NULL) {
+    return false;
+  }
+  /* NOTE: We might needed to do a full frame range update if there is a specific setup of NLA
+   * or drivers or modifiers on the f-curves. */
+  return true;
+}
+
+static void motionpath_calculate_update_range(MPathTarget *mpt,
+                                              AnimData *adt,
+                                              ListBase *fcurve_list,
+                                              int current_frame,
+                                              int *r_sfra,
+                                              int *r_efra)
+{
+  /* Similar to the case when there is only a single keyframe: need to update en entire range to
+   * a constant value. */
+  if (!motionpath_check_can_use_keyframe_range(mpt, adt, fcurve_list)) {
+    *r_sfra = mpt->mpath->start_frame;
+    *r_efra = mpt->mpath->end_frame;
+    return;
+  }
+
+  *r_sfra = INT_MAX;
+  *r_efra = INT_MIN;
+
+  /* NOTE: Iterate over individual f-curves, and check their keyframes individually and pick a
+   * widest range from them. This is because it's possible to have more narrow keyframe on a
+   * channel which wasn't edited.
+   * Could be optimized further by storing some flags about which channels has been modified so
+   * we ignore all others (which can potentially make an update range unnecessary wide). */
+  for (FCurve *fcu = fcurve_list->first; fcu != NULL; fcu = fcu->next) {
+    DLRBT_Tree fcu_keys;
+    BLI_dlrbTree_init(&fcu_keys);
+    fcurve_to_keylist(adt, fcu, &fcu_keys, 0);
+
+    int fcu_sfra = motionpath_get_prev_prev_keyframe(mpt, &fcu_keys, current_frame);
+    int fcu_efra = motionpath_get_next_next_keyframe(mpt, &fcu_keys, current_frame);
+
+    /* Extend range furher, since accelleration compensation propagates even further away. */
+    if (fcu->auto_smoothing != FCURVE_SMOOTH_NONE) {
+      fcu_sfra = motionpath_get_prev_prev_keyframe(mpt, &fcu_keys, fcu_sfra);
+      fcu_efra = motionpath_get_next_next_keyframe(mpt, &fcu_keys, fcu_efra);
+    }
+
+    if (fcu_sfra <= fcu_efra) {
+      *r_sfra = min_ii(*r_sfra, fcu_sfra);
+      *r_efra = max_ii(*r_efra, fcu_efra);
+    }
+
+    BLI_dlrbTree_free(&fcu_keys);
+  }
+}
+
 /* Perform baking of the given object's and/or its bones' transforms to motion paths
  * - scene: current scene
  * - ob: object whose flagged motionpaths should get calculated
@@ -211,39 +354,36 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               Main *bmain,
                               Scene *scene,
                               ListBase *targets,
-                              bool restore,
-                              bool current_frame_only)
+                              eAnimvizCalcRange range,
+                              bool restore)
 {
-  /* sanity check */
+  /* Sanity check. */
   if (ELEM(NULL, targets, targets->first)) {
     return;
   }
 
-  /* Compute frame range to bake within.
-   * TODO: this method could be improved...
-   * 1) max range for standard baking
-   * 2) minimum range for recalc baking (i.e. between keyframes, but how?) */
-  int sfra = INT_MAX;
-  int efra = INT_MIN;
-
-  for (MPathTarget *mpt = targets->first; mpt; mpt = mpt->next) {
-    /* try to increase area to do (only as much as needed) */
-    sfra = MIN2(sfra, mpt->mpath->start_frame);
-    efra = MAX2(efra, mpt->mpath->end_frame);
-  }
-
-  if (efra <= sfra) {
-    return;
-  }
-
-  /* Limit frame range if we are updating just the current frame. */
-  /* set frame values */
-  int cfra = CFRA;
-  if (current_frame_only) {
-    if (cfra < sfra || cfra > efra) {
-      return;
-    }
-    sfra = efra = cfra;
+  const int cfra = CFRA;
+  int sfra = INT_MAX, efra = INT_MIN;
+  switch (range) {
+    case ANIMVIZ_CALC_RANGE_CURRENT_FRAME:
+      motionpath_get_global_framerange(targets, &sfra, &efra);
+      if (sfra > efra) {
+        return;
+      }
+      if (cfra < sfra || cfra > efra) {
+        return;
+      }
+      sfra = efra = cfra;
+      break;
+    case ANIMVIZ_CALC_RANGE_CHANGED:
+      /* Nothing to do here, will be handled later when iterating through the targets. */
+      break;
+    case ANIMVIZ_CALC_RANGE_FULL:
+      motionpath_get_global_framerange(targets, &sfra, &efra);
+      if (sfra > efra) {
+        return;
+      }
+      break;
   }
 
   /* get copies of objects/bones to get the calculated results from
@@ -271,16 +411,10 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
     /* build list of all keyframes in active action for object or pchan */
     BLI_dlrbTree_init(&mpt->keys);
 
+    ListBase *fcurve_list = NULL;
     if (adt) {
-      bAnimVizSettings *avs;
-
       /* get pointer to animviz settings for each target */
-      if (mpt->pchan) {
-        avs = &mpt->ob->pose->avs;
-      }
-      else {
-        avs = &mpt->ob->avs;
-      }
+      bAnimVizSettings *avs = animviz_target_settings_get(mpt);
 
       /* it is assumed that keyframes for bones are all grouped in a single group
        * unless an option is set to always use the whole action
@@ -289,13 +423,28 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
         bActionGroup *agrp = BKE_action_group_find_name(adt->action, mpt->pchan->name);
 
         if (agrp) {
+          fcurve_list = &agrp->channels;
           agroup_to_keylist(adt, agrp, &mpt->keys, 0);
         }
       }
       else {
+        fcurve_list = &adt->action->curves;
         action_to_keylist(adt, adt->action, &mpt->keys, 0);
       }
     }
+
+    if (range == ANIMVIZ_CALC_RANGE_CHANGED) {
+      int mpt_sfra, mpt_efra;
+      motionpath_calculate_update_range(mpt, adt, fcurve_list, cfra, &mpt_sfra, &mpt_efra);
+      if (mpt_sfra <= mpt_efra) {
+        sfra = min_ii(sfra, mpt_sfra);
+        efra = max_ii(efra, mpt_efra);
+      }
+    }
+  }
+
+  if (sfra > efra) {
+    return;
   }
 
   /* calculate path over requested range */
@@ -306,7 +455,7 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
             efra,
             efra - sfra + 1);
   for (CFRA = sfra; CFRA <= efra; CFRA++) {
-    if (current_frame_only) {
+    if (range == ANIMVIZ_CALC_RANGE_CURRENT_FRAME) {
       /* For current frame, only update tagged. */
       BKE_scene_graph_update_tagged(depsgraph, bmain);
     }
@@ -324,7 +473,7 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
    * may be a temporary one that works on a subset of the data.
    * We always have to restore the current frame though. */
   CFRA = cfra;
-  if (!current_frame_only && restore) {
+  if (range != ANIMVIZ_CALC_RANGE_CURRENT_FRAME && restore) {
     motionpaths_calc_update_scene(bmain, depsgraph);
   }
 
@@ -334,16 +483,10 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
 
   /* clear recalc flags from targets */
   for (MPathTarget *mpt = targets->first; mpt; mpt = mpt->next) {
-    bAnimVizSettings *avs;
     bMotionPath *mpath = mpt->mpath;
 
     /* get pointer to animviz settings for each target */
-    if (mpt->pchan) {
-      avs = &mpt->ob->pose->avs;
-    }
-    else {
-      avs = &mpt->ob->avs;
-    }
+    bAnimVizSettings *avs = animviz_target_settings_get(mpt);
 
     /* clear the flag requesting recalculation of targets */
     avs->recalc &= ~ANIMVIZ_RECALC_PATHS;
