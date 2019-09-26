@@ -1345,6 +1345,7 @@ int main(
 						Main *maggie = bfd->main;
 						Scene *scene = bfd->curscene;
 						G.main = maggie;
+						G_MAIN = G.main;
 
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;
@@ -1604,10 +1605,14 @@ int main(
   GPU_free_unused_buffers(G_MAIN);
   
 
-  //BKE_blender_free(); /* blender.c, does entire library and spacetypes */
+  BKE_blender_free(); /* blender.c, does entire library and spacetypes */
                       //  free_matcopybuf();
 
-  BLO_blendfiledata_free(bfd);
+  if (bfd->user) {
+    MEM_freeN(bfd->user);
+  }
+
+  MEM_freeN(bfd);
   /* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */
   G.main = nullptr;
 
@@ -1626,8 +1631,7 @@ int main(
   DRW_opengl_context_destroy();
 
 #ifdef WITH_PYTHON
-  //bpy_intern_string_exit();
-  Py_Finalize();
+  BPY_python_end_blenderplayer();
 #endif
 
   ED_file_exit(); /* for fsmenu */
@@ -1635,24 +1639,6 @@ int main(
   BKE_blender_userdef_data_free(&U, false);
 
   RNA_exit(); /* should be after BPY_python_end so struct python slots are cleared */
-
-  BKE_studiolight_free();
-
-  //BKE_spacetypes_free(); /* after free main, it uses space callbacks */
-
-  IMB_exit();
-  BKE_cachefiles_exit();
-  BKE_images_exit();
-  DEG_free_node_types();
-
-  BKE_brush_system_exit();
-  RE_texture_rng_exit();
-
-  BKE_callback_global_finalize();
-
-  IMB_moviecache_destruct();
-
-  free_nodesystem();
 
   SYS_DeleteSystem(syshandle);
 
