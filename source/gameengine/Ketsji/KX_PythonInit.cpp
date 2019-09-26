@@ -1950,7 +1950,7 @@ static struct _inittab bpy_internal_modules[] = {
  * Python is not initialized.
  * see bpy_interface.c's BPY_python_start() which shares the same functionality in blender.
  */
-void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
+void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv, bContext *C)
 {
 	/* Yet another gotcha in the py api
 	 * Cant run PySys_SetArgv more than once because this adds the
@@ -1958,6 +1958,8 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 	 * Id have thought python being totally restarted would make this ok but
 	 * somehow it remembers the sys.path - Campbell
 	 */
+
+	BPY_context_set(C);
 
 	static bool first_time = true;
 	const char * const py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, nullptr);
@@ -2035,6 +2037,8 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 	first_time = false;
 	
 	PyObjectPlus::ClearDeprecationWarning();
+
+	BPY_python_reset(C);
 }
 
 void exitGamePlayerPythonScripting()
@@ -2158,12 +2162,12 @@ void exitGamePythonScripting()
 /* similar to the above functions except it sets up the namespace
  * and other more general things */
 void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
-                     PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char** argv)
+                     PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char** argv, bContext *C)
 {
 	PyObject *modules;
 
 	if (argv) /* player only */
-		initGamePlayerPythonScripting(blenderdata, argc, argv);
+		initGamePlayerPythonScripting(blenderdata, argc, argv, C);
 	else
 		initGamePythonScripting(blenderdata);
 

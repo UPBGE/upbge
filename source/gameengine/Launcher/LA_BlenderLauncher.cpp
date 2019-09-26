@@ -56,7 +56,7 @@ extern "C" {
 
 LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_Rasterizer::StereoMode stereoMode, 
 									   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming)
-	:LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, argc, argv),
+	:LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, argc, argv, context),
 	m_context(context),
 	m_ar(ar),
 	m_camFrame(camframe),

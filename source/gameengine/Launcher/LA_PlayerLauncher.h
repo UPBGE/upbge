@@ -61,7 +61,7 @@ protected:
 
 public:
 	LA_PlayerLauncher(GHOST_ISystem *system, GHOST_IWindow *window, Main *maggie, Scene *scene, GlobalSettings *gs,
-					  RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop);
+					  RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop, struct bContext *C);
 	virtual ~LA_PlayerLauncher();
 
 	virtual void InitEngine();

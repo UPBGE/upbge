@@ -47,7 +47,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding(void);
 PyMODINIT_FUNC initGameKeysPythonBinding(void);
 PyMODINIT_FUNC initRasterizerPythonBinding(void);
 PyMODINIT_FUNC initVideoTexturePythonBinding(void);
-void initGamePlayerPythonScripting(struct Main *maggie, int argc, char **argv);
+void initGamePlayerPythonScripting(struct Main *maggie, int argc, char **argv, struct bContext *C);
 void initGamePythonScripting(struct Main *maggie);
 
 // Add a python include path.
@@ -56,7 +56,7 @@ void appendPythonPath(const std::string& path);
 void exitGamePlayerPythonScripting();
 void exitGamePythonScripting();
 void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata,
-                     PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char **argv);
+                     PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char **argv, struct bContext *C);
 std::string pathGamePythonConfig();
 void saveGamePythonConfig();
 void loadGamePythonConfig();

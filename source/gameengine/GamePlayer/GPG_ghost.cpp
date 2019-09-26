@@ -1346,6 +1346,7 @@ int main(
 						Scene *scene = bfd->curscene;
 						G.main = maggie;
 						G_MAIN = G.main;
+						CTX_data_main_set(C, maggie);
 
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;
@@ -1502,6 +1503,7 @@ int main(
 
                             G.background = true;
                             wm_ghost_init(NULL);
+                            WM_check(C);
                             DRW_opengl_context_create_blenderplayer();
                             G.background = false;
 							GPU_init();
@@ -1516,7 +1518,7 @@ int main(
 
 						// This argc cant be argc_py_clamped, since python uses it.
 						LA_PlayerLauncher launcher(system, window, maggie, scene, &gs, stereomode, aasamples,
-												   argc, argv, pythonControllerFile);
+												   argc, argv, pythonControllerFile, C);
 #ifdef WITH_PYTHON
 						if (!globalDict) {
 							globalDict = PyDict_New();

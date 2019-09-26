@@ -85,7 +85,7 @@ extern "C" {
 #endif
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
-						 RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv)
+						 RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, bContext *C)
 	:m_startSceneName(scene->id.name + 2), 
 	m_startScene(scene),
 	m_maggie(maggie),
@@ -107,7 +107,8 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	m_samples(samples),
 	m_stereoMode(stereoMode),
 	m_argc(argc),
-	m_argv(argv)
+	m_argv(argv),
+    m_context(C)
 {
 	m_pythonConsole.use = false;
 }
@@ -243,7 +244,7 @@ void LA_Launcher::InitEngine()
 
 #ifdef WITH_PYTHON
 	KX_SetMainPath(std::string(m_maggie->name));
-	setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv);
+	setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv, m_context);
 #endif  // WITH_PYTHON
 
 	// Create a scene converter, create and convert the stratingscene.

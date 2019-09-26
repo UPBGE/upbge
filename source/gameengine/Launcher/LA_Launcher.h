@@ -95,6 +95,8 @@ protected:
 	int m_argc;
 	char **m_argv;
 
+  struct bContext *m_context;
+
 	/// Saved data to restore at the game end.
 	struct SavedData {
 		int vsync;
@@ -132,7 +134,7 @@ protected:
 
 public:
 	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
-				RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv);
+				RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, struct bContext *C);
 	virtual ~LA_Launcher();
 
 #ifdef WITH_PYTHON
