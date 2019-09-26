@@ -325,9 +325,9 @@ endif()
 		list(APPEND BLENDER_SORTED_LIBS extern_ceres)
 	endif()
 
-	if(WITH_GHOST_XDND)
-		list(APPEND BLENDER_SORTED_LIBS extern_xdnd)
-	endif()
+#	if(WITH_GHOST_XDND)
+#		list(APPEND BLENDER_SORTED_LIBS extern_xdnd)
+#	endif()
 
 	if(WITH_CXX_GUARDEDALLOC)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_guardedalloc_cpp)
