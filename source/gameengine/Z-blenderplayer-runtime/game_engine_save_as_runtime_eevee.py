@@ -21,12 +21,12 @@ bl_info = {
     "author": "Mitchell Stokes (Moguri)",
     "version": (0, 3, 1),
     "blender": (2, 80, 0),
-    "location": "File > Export",
+    "location": "File > Import-Export",
     "description": "Bundle a .blend file with the Blenderplayer",
     "warning": "",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
                 "Scripts/Game_Engine/Save_As_Runtime",
-    "category": "Game Engine",
+    "category": "Import-Export",
 }
 
 import bpy
@@ -80,7 +80,7 @@ def WriteAppleRuntime(player_path, output_path, copy_python, overwrite_lib):
     # Python doesn't need to be copied for OS X since it's already inside blenderplayer.app
 
 
-def WriteRuntime(player_path, output_path, copy_python, overwrite_lib, copy_dlls, copy_scripts, copy_datafiles, report=print):
+def WriteRuntime(player_path, output_path, copy_python, overwrite_lib, copy_dlls, copy_scripts, copy_datafiles, copy_modules, report=print):
     import struct
 
     # Check the paths
@@ -183,6 +183,15 @@ def WriteRuntime(player_path, output_path, copy_python, overwrite_lib, copy_dlls
         shutil.copytree(src, dst)
         print("done")
 
+    # Copy modules folder (to have bpy working)
+    if copy_modules:
+        print("Copying modules...", end=" ")
+        modules_folder = os.path.join(bpy.app.version_string.split()[0], "scripts\\modules")
+        src = os.path.join(blender_dir, modules_folder)
+        dst = os.path.join(runtime_dir, modules_folder)
+        shutil.copytree(src, dst)
+        print("done")
+
 from bpy.props import *
 
 
@@ -230,6 +239,11 @@ class SaveAsRuntime(bpy.types.Operator):
             description="Copy bundle datafiles folder with the runtime",
             default=True,
             )
+    copy_modules: BoolProperty(
+            name="Copy Script>Modules folder",
+            description="Copy bundle modules folder with the runtime",
+            default=True,
+            )
 
     # Only Windows has dlls to copy
     if ext == '.exe':
@@ -252,6 +266,7 @@ class SaveAsRuntime(bpy.types.Operator):
                      self.copy_dlls,
                      self.copy_scripts,
                      self.copy_datafiles,
+                     self.copy_modules,
                      self.report,
                      )
         print("Finished in %.4fs" % (time.clock()-start_time))
