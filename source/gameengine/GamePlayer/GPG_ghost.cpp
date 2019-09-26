@@ -88,34 +88,38 @@ extern "C"
 #  include "DEG_depsgraph_build.h"
 #  include "DEG_depsgraph_query.h"
 
-#  include "../blender/editors/include/ED_datafiles.h"
 
-#  include "windowmanager/wm_window.h"
 
-	#include "editors/include/ED_space_api.h"
+
+	#include "editors/include/ED_datafiles.h"
 	#include "editors/include/ED_node.h"
-	#include "editors/include/ED_undo.h"
-	#include "editors/include/ED_util.h"
 	#include "editors/include/ED_render.h"
 	#include "editors/include/UI_resources.h"
-	#include "windowmanager/WM_api.h"
-	#include "windowmanager/wm.h"
-	#include "windowmanager/message_bus/wm_message_bus.h"
-	#include "BKE_context.h"
-	//#include "BKE_screen.h"
+	#include "editors/include/ED_space_api.h"
+	#include "editors/include/ED_undo.h"
+	#include "editors/include/ED_util.h"
+
 	#include "BKE_addon.h"
+	#include "BKE_brush.h"
+	#include "BKE_context.h"
 	#include "BKE_keyconfig.h"
 	#include "BKE_cachefile.h"
 	#include "BKE_callbacks.h"
 	#include "BKE_gpencil_modifier.h"
 	#include "BKE_shader_fx.h"
+	//#include "BKE_screen.h"
 	#include "BKE_studiolight.h"
-	#include "BKE_brush.h"
+	
 	#include "BLI_system.h"
-	#include "../render/extern/include/RE_render_ext.h"
+
+	#include "windowmanager/WM_api.h"
+	#include "windowmanager/wm.h"
+	#include "windowmanager/message_bus/wm_message_bus.h"
+	
 	#include "../../../intern/ghost/GHOST_Path-api.h"
 	#include "../../../intern/clog/CLG_log.h"
 	#include "../../blender/python/BPY_extern.h"
+	#include "../render/extern/include/RE_render_ext.h"
 
 #  ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
@@ -676,6 +680,13 @@ static void wm_init_reports(bContext *C)
   BKE_reports_init(reports, RPT_STORE);
 }
 
+static void wm_free_reports(bContext *C)
+{
+  ReportList *reports = CTX_wm_reports(C);
+
+  BKE_reports_clear(reports);
+}
+
 static void callback_clg_fatal(void *fp)
 {
   BLI_system_backtrace((FILE *)fp);
@@ -767,10 +778,10 @@ int main(
   CLG_init();
   CLG_fatal_fn_set(callback_clg_fatal);
 
-	bContext *C = CTX_create();
+  bContext *C = CTX_create();
 
-	BKE_appdir_program_path_init(argv[0]);
-	BKE_tempdir_init(nullptr);
+  BKE_appdir_program_path_init(argv[0]);
+  BKE_tempdir_init(nullptr);
 	
 	// We don't use threads directly in the BGE, but we need to call this so things like
 	// freeing up GPU_Textures works correctly.
@@ -806,6 +817,8 @@ int main(
 
   wm_operatortype_init();
   wm_operatortypes_register();
+  wm_gizmotype_init();
+  wm_gizmogrouptype_init();
 
   WM_paneltype_init(); /* Lookup table only. */
   WM_menutype_init();
@@ -1543,11 +1556,9 @@ int main(
 			}
 
 			GPU_immDeactivate();
-			GPU_exit();
-			DRW_opengl_context_destroy();
 
 			// Seg Fault; icon.c gIcons == 0
-			BKE_icons_free();
+			//BKE_icons_free();
 
 			if (window) {
 				system->disposeWindow(window);
@@ -1567,27 +1578,109 @@ int main(
 	 * if the order of function calls or blenders state isn't matching that of blender proper,
 	 * we may get troubles later on */
 
-	free_nodesystem();
+  WM_paneltype_clear();
 
-	// Cleanup
-	RNA_exit();
-	DNA_sdna_current_free();
-	BLF_exit();
+  BKE_addon_pref_type_free();
+  BKE_keyconfig_pref_type_free();
+  BKE_material_gpencil_default_free();
 
-#ifdef WITH_INTERNATIONAL
-	BLF_free_unifont();
-	BLF_free_unifont_mono();
-	BLT_lang_free();
+  wm_operatortype_free();
+  WM_menutype_free();
+  WM_uilisttype_free();
+
+  /* all non-screen and non-space stuff editors did, like editmode */
+  if (C) {
+    Main *bmain = CTX_data_main(C);
+    ED_editors_exit(bmain, true);
+  }
+
+  ED_undosys_type_free();
+
+  ED_preview_free_dbase(); /* frees a Main dbase, before BKE_blender_free! */
+
+  /* Before BKE_blender_free! - since the ListBases get freed there. */
+  wm_free_reports(C);
+
+  BKE_vfont_clipboard_free();
+  BKE_node_clipboard_free();
+
+  GPU_free_unused_buffers(G_MAIN);
+  
+
+  //BKE_blender_free(); /* blender.c, does entire library and spacetypes */
+                      //  free_matcopybuf();
+
+  
+
+  /* free gizmo-maps after freeing blender,
+   * so no deleted data get accessed during cleaning up of areas. */
+  wm_gizmomaptypes_free();
+  wm_gizmogrouptype_free();
+  wm_gizmotype_free();
+
+  BLF_exit();
+
+  DRW_opengl_context_enable_ex(false);
+  GPU_pass_cache_free();
+  GPU_exit();
+  DRW_opengl_context_disable_ex(false);
+  DRW_opengl_context_destroy();
+
+#ifdef WITH_PYTHON
+  //BPY_python_end();
 #endif
 
-	IMB_exit();
-	BKE_images_exit();
-	DEG_free_node_types();
-	IMB_moviecache_destruct();
+  ED_file_exit(); /* for fsmenu */
 
-	SYS_DeleteSystem(syshandle);
+  BKE_blender_userdef_data_free(&U, false);
 
-	BLI_threadapi_exit();
+  RNA_exit(); /* should be after BPY_python_end so struct python slots are cleared */
+
+  BKE_studiolight_free();
+
+  //BKE_spacetypes_free(); /* after free main, it uses space callbacks */
+
+  IMB_exit();
+  BKE_cachefiles_exit();
+  BKE_images_exit();
+  DEG_free_node_types();
+
+  BKE_brush_system_exit();
+  RE_texture_rng_exit();
+
+  BKE_callback_global_finalize();
+
+  IMB_moviecache_destruct();
+
+  free_nodesystem();
+
+  SYS_DeleteSystem(syshandle);
+
+#ifdef WITH_INTERNATIONAL
+  BLF_free_unifont();
+  BLF_free_unifont_mono();
+  BLT_lang_free();
+#endif
+
+  wm_ghost_exit();
+
+  CTX_free(C);
+
+  GHOST_DisposeSystemPaths();
+
+  DNA_sdna_current_free();
+
+  BLI_threadapi_exit();
+
+  /* No need to call this early, rather do it late so that other
+   * pieces of Blender using sound may exit cleanly, see also T50676. */
+  BKE_sound_exit();
+
+  CLG_exit();
+
+  BKE_blender_atexit();
+
+  wm_autosave_delete();
 
 	int totblock= MEM_get_memory_blocks_in_use();
 	if (totblock!=0) {
