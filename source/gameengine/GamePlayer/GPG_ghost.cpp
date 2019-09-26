@@ -774,6 +774,8 @@ int main(
 	sdlewInit();
 #endif
 
+  BlendFileData *bfd = nullptr;
+
 	 /* Initialize logging */
   CLG_init();
   CLG_fatal_fn_set(callback_clg_fatal);
@@ -1280,7 +1282,6 @@ int main(
 
 				do {
 					// Read the Blender file
-					BlendFileData *bfd;
 					
 					// if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
 					if (exitcode == KX_ExitRequest::START_OTHER_GAME)
@@ -1547,10 +1548,6 @@ int main(
 						launcher.ExitEngine();
 
 						DRW_engines_free();
-
-						BLO_blendfiledata_free(bfd);
-						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */
-						G.main = nullptr;
 					}
 				} while (!quitGame(exitcode));
 			}
@@ -1610,7 +1607,9 @@ int main(
   //BKE_blender_free(); /* blender.c, does entire library and spacetypes */
                       //  free_matcopybuf();
 
-  
+  BLO_blendfiledata_free(bfd);
+  /* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */
+  G.main = nullptr;
 
   /* free gizmo-maps after freeing blender,
    * so no deleted data get accessed during cleaning up of areas. */
@@ -1627,7 +1626,8 @@ int main(
   DRW_opengl_context_destroy();
 
 #ifdef WITH_PYTHON
-  //BPY_python_end();
+  //bpy_intern_string_exit();
+  Py_Finalize();
 #endif
 
   ED_file_exit(); /* for fsmenu */

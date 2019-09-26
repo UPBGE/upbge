@@ -2057,7 +2057,7 @@ void exitGamePlayerPythonScripting()
 	/* since python restarts we cant let the python backup of the sys.path hang around in a global pointer */
 	restorePySysObjects(); /* get back the original sys.path and clear the backup */
 	
-	Py_Finalize();
+	//Py_Finalize();
 	bpy_import_main_set(nullptr);
 	PyObjectPlus::ClearDeprecationWarning();
 }
