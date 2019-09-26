@@ -146,7 +146,6 @@ extern "C" {
 	#include "gpu/gpu_py_api.h"
 	#include "idprop_py_api.h"
 	#include "bpy_intern_string.h"
-	//#include "bpy_rna.h"
 }
 
 /* for converting new scenes */
@@ -2009,7 +2008,7 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 	bpy_intern_string_init();
     BPy_init_modules();
 
-    //pyrna_alloc_types();
+    BPY_python_rna_alloc_types();
 
 	bpy_import_init(PyEval_GetBuiltins());
 

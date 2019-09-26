@@ -127,9 +127,10 @@ bool BPY_string_is_keyword(const char *str);
 const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *msgid);
 #endif
 
-/* Game engine transition */
+/********** Game engine transition **********/
 void BPY_python_end_blenderplayer(void);
-/**************************/
+void BPY_python_rna_alloc_types(void);
+/********************************************/
 
 #ifdef __cplusplus
 } /* extern "C" */
