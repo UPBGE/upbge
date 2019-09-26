@@ -2099,8 +2099,6 @@ void initGamePythonScripting(Main *maggie)
 
   /* must run before python initializes */
   PyImport_ExtendInittab(bge_internal_modules);
-  /* must run before python initializes */
-  PyImport_ExtendInittab(bpy_internal_modules);
 
   /* find local python installation */
   PyC_SetHomePath(py_path_bundle);
