@@ -3872,7 +3872,7 @@ void MESH_OT_knife_cut(wmOperatorType *ot)
 
   /* internal */
   RNA_def_int(
-      ot->srna, "cursor", BC_KNIFECURSOR, 0, BC_NUMCURSORS, "Cursor", "", 0, BC_NUMCURSORS);
+      ot->srna, "cursor", WM_CURSOR_KNIFE, 0, WM_CURSOR_NUM, "Cursor", "", 0, WM_CURSOR_NUM);
 }
 
 /** \} */

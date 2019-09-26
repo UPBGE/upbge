@@ -154,17 +154,17 @@ void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
 	switch (mousestate) {
 		case MOUSE_INVISIBLE:
 		{
-			WM_cursor_set(m_win, CURSOR_NONE);
+			WM_cursor_set(m_win, WM_CURSOR_NONE);
 			break;
 		}
 		case MOUSE_WAIT:
 		{
-			WM_cursor_set(m_win, CURSOR_WAIT);
+			WM_cursor_set(m_win, WM_CURSOR_WAIT);
 			break;
 		}
 		case MOUSE_NORMAL:
 		{
-			WM_cursor_set(m_win, CURSOR_STD);
+			WM_cursor_set(m_win, WM_CURSOR_DEFAULT);
 			break;
 		}
 		default:

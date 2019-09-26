@@ -24,80 +24,57 @@
 #ifndef __WM_CURSORS_H__
 #define __WM_CURSORS_H__
 
-void wm_init_cursor_data(void);
-
-#define BC_GHOST_CURSORS 1000
-
-/* old cursors */
-enum {
-  CURSOR_FACESEL = BC_GHOST_CURSORS,
-  CURSOR_WAIT,
-  CURSOR_EDIT,
-  CURSOR_X_MOVE,
-  CURSOR_Y_MOVE,
-  CURSOR_HELP,
-  CURSOR_STD,
-  CURSOR_NONE,
-  CURSOR_PENCIL,
-  CURSOR_COPY,
-};
-
-// typedef struct BCursor_s BCursor;
-typedef struct BCursor {
-
-  char *small_bm;
-  char *small_mask;
-
-  char small_sizex;
-  char small_sizey;
-  char small_hotx;
-  char small_hoty;
-
-  char *big_bm;
-  char *big_mask;
-
-  char big_sizex;
-  char big_sizey;
-  char big_hotx;
-  char big_hoty;
-
-  bool can_invert_color;
-
-} BCursor;
-
-#define SYSCURSOR 1
-enum {
-  BC_NW_ARROWCURSOR = 2,
-  BC_NS_ARROWCURSOR,
-  BC_EW_ARROWCURSOR,
-  BC_WAITCURSOR,
-  BC_CROSSCURSOR,
-  BC_EDITCROSSCURSOR,
-  BC_BOXSELCURSOR,
-  BC_KNIFECURSOR,
-  BC_VLOOPCURSOR,
-  BC_TEXTEDITCURSOR,
-  BC_PAINTBRUSHCURSOR,
-  BC_HANDCURSOR,
-  BC_NSEW_SCROLLCURSOR,
-  BC_NS_SCROLLCURSOR,
-  BC_EW_SCROLLCURSOR,
-  BC_EYEDROPPER_CURSOR,
-  BC_SWAPAREA_CURSOR,
-  BC_H_SPLITCURSOR,
-  BC_V_SPLITCURSOR,
-  BC_N_ARROWCURSOR,
-  BC_S_ARROWCURSOR,
-  BC_E_ARROWCURSOR,
-  BC_W_ARROWCURSOR,
-  BC_STOPCURSOR,
-  /* --- ALWAYS LAST ----- */
-  BC_NUMCURSORS,
-};
-
 struct wmEvent;
 struct wmWindow;
 
+typedef enum WMCursorType {
+  WM_CURSOR_DEFAULT = 1,
+  WM_CURSOR_TEXT_EDIT,
+  WM_CURSOR_WAIT,
+  WM_CURSOR_STOP,
+  WM_CURSOR_EDIT,
+  WM_CURSOR_COPY,
+  WM_CURSOR_HAND,
+
+  WM_CURSOR_CROSS,
+  WM_CURSOR_CROSSA,
+  WM_CURSOR_CROSSB,
+  WM_CURSOR_CROSSC,
+
+  WM_CURSOR_KNIFE,
+  WM_CURSOR_VERTEX_LOOP,
+  WM_CURSOR_PAINT_BRUSH,
+  WM_CURSOR_ERASER,
+  WM_CURSOR_EYEDROPPER,
+
+  WM_CURSOR_SWAP_AREA,
+  WM_CURSOR_X_MOVE,
+  WM_CURSOR_Y_MOVE,
+  WM_CURSOR_H_SPLIT,
+  WM_CURSOR_V_SPLIT,
+
+  WM_CURSOR_NW_ARROW,
+  WM_CURSOR_NS_ARROW,
+  WM_CURSOR_EW_ARROW,
+  WM_CURSOR_N_ARROW,
+  WM_CURSOR_S_ARROW,
+  WM_CURSOR_E_ARROW,
+  WM_CURSOR_W_ARROW,
+
+  WM_CURSOR_NSEW_SCROLL,
+  WM_CURSOR_NS_SCROLL,
+  WM_CURSOR_EW_SCROLL,
+
+  WM_CURSOR_ZOOM_IN,
+  WM_CURSOR_ZOOM_OUT,
+
+  WM_CURSOR_NONE,
+
+  /* --- ALWAYS LAST ----- */
+  WM_CURSOR_NUM,
+} WMCursorType;
+
+void wm_init_cursor_data(void);
 bool wm_cursor_arrow_move(struct wmWindow *win, const struct wmEvent *event);
 
 #endif /* __WM_CURSORS_H__ */

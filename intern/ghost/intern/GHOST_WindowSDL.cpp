@@ -301,19 +301,6 @@ static unsigned char sdl_std_cursor_top_left_corner[] = {
 #define sdl_std_cursor_HOT_X_top_left_corner 0
 #define sdl_std_cursor_HOT_Y_top_left_corner -14
 
-static unsigned char sdl_std_cursor_mask_spraycan[] = {
-    0x00, 0x0c, 0x18, 0x0d, 0x7c, 0x0d, 0x7c, 0x0d, 0x7e, 0x0d, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
-    0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
-};
-static unsigned char sdl_std_cursor_spraycan[] = {
-    0x00, 0x06, 0x80, 0x00, 0x2c, 0x06, 0x9e, 0x00, 0x16, 0x06, 0x3f, 0x00, 0x21, 0x00, 0x27, 0x00,
-    0x25, 0x00, 0x27, 0x00, 0x25, 0x00, 0x27, 0x00, 0x27, 0x00, 0x21, 0x00, 0x21, 0x00, 0x3f, 0x00,
-};
-#define sdl_std_cursor_WIDTH_spraycan 12
-#define sdl_std_cursor_HEIGHT_spraycan 16
-#define sdl_std_cursor_HOT_X_spraycan -9
-#define sdl_std_cursor_HOT_Y_spraycan -14
-
 static unsigned char sdl_std_cursor_mask_sb_v_double_arrow[] = {
     0x38, 0x00, 0x7c, 0x00, 0xfe, 0x00, 0xff, 0x01, 0xff, 0x01, 0x7c, 0x00, 0x7c, 0x00, 0x7c,
     0x00, 0x7c, 0x00, 0x7c, 0x00, 0xff, 0x01, 0xff, 0x01, 0xfe, 0x00, 0x7c, 0x00, 0x38, 0x00,
@@ -450,19 +437,6 @@ static unsigned char sdl_std_cursor_left_ptr[] = {
 #define sdl_std_cursor_HOT_X_left_ptr -8
 #define sdl_std_cursor_HOT_Y_left_ptr -14
 
-static unsigned char sdl_std_cursor_mask_exchange[] = {
-    0xe3, 0x07, 0xf7, 0x0f, 0xff, 0x1f, 0xff, 0x3f, 0x3f, 0x38, 0xff, 0x30, 0xff, 0x00, 0xff, 0x00,
-    0x00, 0xff, 0x00, 0xff, 0x0c, 0xfe, 0x1c, 0xfc, 0xfc, 0xff, 0xf8, 0xff, 0xf0, 0xef, 0xe0, 0xc7,
-};
-static unsigned char sdl_std_cursor_exchange[] = {
-    0xf1, 0x03, 0xfb, 0x07, 0x1f, 0x0c, 0x09, 0x08, 0x19, 0x00, 0x3f, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x3f, 0x00, 0x26, 0x04, 0x24, 0x0c, 0x3e, 0xf8, 0x37, 0xf0, 0x23, 0x00, 0x00, 0x00, 0x00,
-};
-#define sdl_std_cursor_WIDTH_exchange 16
-#define sdl_std_cursor_HEIGHT_exchange 16
-#define sdl_std_cursor_HOT_X_exchange -6
-#define sdl_std_cursor_HOT_Y_exchange -8
-
 static unsigned char sdl_std_cursor_mask_crosshair[] = {
     0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01,
@@ -583,9 +557,9 @@ static SDL_Cursor *sdl_ghost_CreateCursor(
 }
 
 /* TODO, this is currently never freed but it wont leak either. */
-static void sdl_cursor_init(void)
+static void getStandardCursorShape(GHOST_TStandardCursor shape)
 {
-
+  if (sdl_std_cursor_array[0] == NULL) {
 #define DEF_CURSOR(name, ind) \
   { \
     sdl_std_cursor_array[(int)ind] = sdl_ghost_CreateCursor( \
@@ -599,32 +573,32 @@ static void sdl_cursor_init(void)
   } \
   (void)0
 
-  DEF_CURSOR(left_ptr, GHOST_kStandardCursorDefault);
-  DEF_CURSOR(right_ptr, GHOST_kStandardCursorRightArrow);
-  DEF_CURSOR(left_ptr, GHOST_kStandardCursorLeftArrow);
-  DEF_CURSOR(umbrella, GHOST_kStandardCursorInfo);  // TODO, replace this one.
-  DEF_CURSOR(pirate, GHOST_kStandardCursorDestroy);
-  DEF_CURSOR(question_arrow, GHOST_kStandardCursorHelp);
-  DEF_CURSOR(exchange, GHOST_kStandardCursorCycle);
-  DEF_CURSOR(spraycan, GHOST_kStandardCursorSpray);
-  DEF_CURSOR(watch, GHOST_kStandardCursorWait);
-  DEF_CURSOR(xterm, GHOST_kStandardCursorText);
-  DEF_CURSOR(crosshair, GHOST_kStandardCursorCrosshair);
-  DEF_CURSOR(sb_v_double_arrow, GHOST_kStandardCursorUpDown);
-  DEF_CURSOR(sb_h_double_arrow, GHOST_kStandardCursorLeftRight);
-  DEF_CURSOR(top_side, GHOST_kStandardCursorTopSide);
-  DEF_CURSOR(bottom_side, GHOST_kStandardCursorBottomSide);
-  DEF_CURSOR(left_side, GHOST_kStandardCursorLeftSide);
-  DEF_CURSOR(right_side, GHOST_kStandardCursorRightSide);
-  DEF_CURSOR(top_left_corner, GHOST_kStandardCursorTopLeftCorner);
-  DEF_CURSOR(top_right_corner, GHOST_kStandardCursorTopRightCorner);
-  DEF_CURSOR(bottom_right_corner, GHOST_kStandardCursorBottomRightCorner);
-  DEF_CURSOR(bottom_left_corner, GHOST_kStandardCursorBottomLeftCorner);
-  DEF_CURSOR(arrow, GHOST_kStandardCursorCopy);
-  // DEF_CURSOR(arrow, GHOST_kStandardCursorCustom);
-  DEF_CURSOR(arrow, GHOST_kStandardCursorPencil);
-
+    DEF_CURSOR(left_ptr, GHOST_kStandardCursorDefault);
+    DEF_CURSOR(right_ptr, GHOST_kStandardCursorRightArrow);
+    DEF_CURSOR(left_ptr, GHOST_kStandardCursorLeftArrow);
+    DEF_CURSOR(umbrella, GHOST_kStandardCursorInfo);  // TODO, replace this one.
+    DEF_CURSOR(pirate, GHOST_kStandardCursorDestroy);
+    DEF_CURSOR(question_arrow, GHOST_kStandardCursorHelp);
+    DEF_CURSOR(watch, GHOST_kStandardCursorWait);
+    DEF_CURSOR(xterm, GHOST_kStandardCursorText);
+    DEF_CURSOR(crosshair, GHOST_kStandardCursorCrosshair);
+    DEF_CURSOR(sb_v_double_arrow, GHOST_kStandardCursorUpDown);
+    DEF_CURSOR(sb_h_double_arrow, GHOST_kStandardCursorLeftRight);
+    DEF_CURSOR(top_side, GHOST_kStandardCursorTopSide);
+    DEF_CURSOR(bottom_side, GHOST_kStandardCursorBottomSide);
+    DEF_CURSOR(left_side, GHOST_kStandardCursorLeftSide);
+    DEF_CURSOR(right_side, GHOST_kStandardCursorRightSide);
+    DEF_CURSOR(top_left_corner, GHOST_kStandardCursorTopLeftCorner);
+    DEF_CURSOR(top_right_corner, GHOST_kStandardCursorTopRightCorner);
+    DEF_CURSOR(bottom_right_corner, GHOST_kStandardCursorBottomRightCorner);
+    DEF_CURSOR(bottom_left_corner, GHOST_kStandardCursorBottomLeftCorner);
+    DEF_CURSOR(arrow, GHOST_kStandardCursorCopy);
+    // DEF_CURSOR(arrow, GHOST_kStandardCursorCustom);
+    DEF_CURSOR(arrow, GHOST_kStandardCursorPencil);
 #undef DEF_CURSOR
+  }
+
+  return sdl_std_cursor_array[(int)shape];
 }
 
 GHOST_TSuccess GHOST_WindowSDL::setWindowCursorGrab(GHOST_TGrabCursorMode mode)
@@ -634,12 +608,18 @@ GHOST_TSuccess GHOST_WindowSDL::setWindowCursorGrab(GHOST_TGrabCursorMode mode)
 
 GHOST_TSuccess GHOST_WindowSDL::setWindowCursorShape(GHOST_TStandardCursor shape)
 {
-  if (sdl_std_cursor_array[0] == NULL) {
-    sdl_cursor_init();
+  SDL_Cursor *cursor = getStandardCursorShape(shape);
+  if (cursor == NULL) {
+    cursor = getStandardCursorShape(GHOST_kStandardCursorDefault);
   }
 
-  SDL_SetCursor(sdl_std_cursor_array[(int)shape]);
+  SDL_SetCursor(cursor);
   return GHOST_kSuccess;
+}
+
+GHOST_TSuccess GHOST_WindowSDL::hasCursorShape(GHOST_TStandardCursor shape)
+{
+  return (getStandardCursorShape(shape)) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_WindowSDL::setWindowCustomCursorShape(GHOST_TUns8 *bitmap,
