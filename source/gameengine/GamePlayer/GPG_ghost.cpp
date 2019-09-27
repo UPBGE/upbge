@@ -1347,6 +1347,7 @@ int main(
 						G.main = maggie;
 						G_MAIN = G.main;
 						CTX_data_main_set(C, maggie);
+						CTX_data_scene_set(C, scene);
 
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;
