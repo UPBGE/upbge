@@ -1639,6 +1639,8 @@ int main(
 
   ED_file_exit(); /* for fsmenu */
 
+  BKE_icons_free(); // In UI_exit
+
   BKE_blender_userdef_data_free(&U, false);
 
   RNA_exit(); /* should be after BPY_python_end so struct python slots are cleared */
