@@ -1343,9 +1343,6 @@ int main(
 
 							gs.glslflag= scene->gm.flag;
 						}
-
-						//Seg Fault; icon.c gIcons == 0
-						BKE_icons_init(1);
 						
 						titlename = maggie->name;
 						
