@@ -111,14 +111,16 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
     ED_sculpt_undo_geometry_begin(ob);
   }
 
-  new_mesh = BKE_mesh_remesh_voxel_to_mesh_nomain(mesh, mesh->remesh_voxel_size);
+  new_mesh = BKE_mesh_remesh_voxel_to_mesh_nomain(
+      mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity);
 
   if (!new_mesh) {
     return OPERATOR_CANCELLED;
   }
 
-  if (mesh->flag & ME_REMESH_FIX_POLES) {
+  if (mesh->flag & ME_REMESH_FIX_POLES && mesh->remesh_voxel_adaptivity <= 0.0f) {
     new_mesh = BKE_mesh_remesh_voxel_fix_poles(new_mesh);
+    BKE_mesh_calc_normals(new_mesh);
   }
 
   if (mesh->flag & ME_REMESH_REPROJECT_VOLUME) {
@@ -364,6 +366,9 @@ static void quadriflow_start_job(void *customdata, short *stop, short *do_update
   BKE_mesh_nomain_to_mesh(new_mesh, mesh, ob, &CD_MASK_MESH, true);
 
   if (qj->smooth_normals) {
+    if (qj->use_paint_symmetry) {
+      BKE_mesh_calc_normals(ob->data);
+    }
     BKE_mesh_smooth_flag_set(ob->data, true);
   }
 

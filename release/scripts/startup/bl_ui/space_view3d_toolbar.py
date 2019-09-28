@@ -424,9 +424,10 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 row.prop(brush, "elastic_deform_type")
                 row = col.row()
                 row.prop(brush, "elastic_deform_volume_preservation", slider=True)
-
-
-            if brush.sculpt_tool == 'GRAB':
+            elif brush.sculpt_tool == 'POSE':
+                row = col.row()
+                row.prop(brush, "pose_offset")
+            elif brush.sculpt_tool == 'GRAB':
                 col.separator()
                 row = col.row()
                 row.prop(brush, "use_grab_active_vertex")
@@ -1234,6 +1235,7 @@ class VIEW3D_PT_sculpt_voxel_remesh(Panel, View3DPaintPanel):
         col = layout.column()
         mesh = context.active_object.data
         col.prop(mesh, "remesh_voxel_size")
+        col.prop(mesh, "remesh_voxel_adaptivity")
         col.prop(mesh, "remesh_fix_poles")
         col.prop(mesh, "remesh_smooth_normals")
         col.prop(mesh, "remesh_preserve_volume")

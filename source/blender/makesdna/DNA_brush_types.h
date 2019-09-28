@@ -321,10 +321,11 @@ typedef struct Brush {
   int curve_preset;
   int automasking_flags;
 
-  char _pad1[4];
-
   int elastic_deform_type;
   float elastic_deform_volume_preservation;
+
+  /* pose */
+  float pose_offset;
 
   /* overlay */
   int texture_overlay_alpha;
@@ -498,6 +499,7 @@ typedef enum eBrushUVSculptTool {
        SCULPT_TOOL_CLAY, \
        SCULPT_TOOL_CLAY_STRIPS, \
        SCULPT_TOOL_ROTATE, \
+       SCULPT_TOOL_SCRAPE, \
        SCULPT_TOOL_FLATTEN)
 
 #define SCULPT_TOOL_HAS_NORMAL_WEIGHT(t) ELEM(t, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK)

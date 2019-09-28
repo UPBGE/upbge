@@ -309,7 +309,6 @@ static void clip_planes_from_rect(bContext *C,
   view3d_operator_needs_opengl(C);
   ED_view3d_viewcontext_init(C, &vc, depsgraph);
   ED_view3d_clipping_calc(&bb, clip_planes, vc.ar, vc.obact, rect);
-  negate_m4(clip_planes);
 }
 
 /* If mode is inside, get all PBVH nodes that lie at least partially
@@ -324,17 +323,18 @@ static void get_pbvh_nodes(
   /* select search callback */
   switch (mode) {
     case PARTIALVIS_INSIDE:
-      cb = BKE_pbvh_node_planes_contain_AABB;
+      cb = BKE_pbvh_node_frustum_contain_AABB;
       break;
     case PARTIALVIS_OUTSIDE:
-      cb = BKE_pbvh_node_planes_exclude_AABB;
+      cb = BKE_pbvh_node_frustum_exclude_AABB;
       break;
     case PARTIALVIS_ALL:
     case PARTIALVIS_MASKED:
       break;
   }
 
-  BKE_pbvh_search_gather(pbvh, cb, clip_planes, nodes, totnode);
+  PBVHFrustumPlanes frustum = {.planes = clip_planes, .num_planes = 4};
+  BKE_pbvh_search_gather(pbvh, cb, &frustum, nodes, totnode);
 }
 
 static int hide_show_exec(bContext *C, wmOperator *op)
@@ -364,6 +364,8 @@ static int hide_show_exec(bContext *C, wmOperator *op)
 
   get_pbvh_nodes(pbvh, &nodes, &totnode, clip_planes, area);
   pbvh_type = BKE_pbvh_type(pbvh);
+
+  negate_m4(clip_planes);
 
   /* start undo */
   switch (action) {

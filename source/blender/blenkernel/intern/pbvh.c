@@ -1059,11 +1059,12 @@ static void pbvh_update_normals_store_task_cb(void *__restrict userdata,
       const int v = verts[i];
       MVert *mvert = &bvh->verts[v];
 
-      /* mvert is shared between nodes, hence between threads. */
-      if (atomic_fetch_and_and_char(&mvert->flag, (char)~ME_VERT_PBVH_UPDATE) &
-          ME_VERT_PBVH_UPDATE) {
+      /* No atomics necessary because we are iterating over uniq_verts only,
+       * so we know only this thread will handle this vertex. */
+      if (mvert->flag & ME_VERT_PBVH_UPDATE) {
         normalize_v3(vnors[v]);
         normal_float_to_short_v3(mvert->no, vnors[v]);
+        mvert->flag &= ~ME_VERT_PBVH_UPDATE;
       }
     }
 
@@ -2167,16 +2168,18 @@ typedef enum {
  * Returns true if the AABB is at least partially within the frustum
  * (ok, not a real frustum), false otherwise.
  */
-static PlaneAABBIsect test_planes_aabb(const float bb_min[3],
-                                       const float bb_max[3],
-                                       const float (*planes)[4])
+static PlaneAABBIsect test_frustum_aabb(const float bb_min[3],
+                                        const float bb_max[3],
+                                        PBVHFrustumPlanes *frustum)
 {
-  float vmin[3], vmax[3];
   PlaneAABBIsect ret = ISECT_INSIDE;
+  float(*planes)[4] = frustum->planes;
 
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < frustum->num_planes; i++) {
+    float vmin[3], vmax[3];
+
     for (int axis = 0; axis < 3; axis++) {
-      if (planes[i][axis] > 0) {
+      if (planes[i][axis] < 0) {
         vmin[axis] = bb_min[axis];
         vmax[axis] = bb_max[axis];
       }
@@ -2186,10 +2189,10 @@ static PlaneAABBIsect test_planes_aabb(const float bb_min[3],
       }
     }
 
-    if (dot_v3v3(planes[i], vmin) + planes[i][3] > 0) {
+    if (dot_v3v3(planes[i], vmin) + planes[i][3] < 0) {
       return ISECT_OUTSIDE;
     }
-    else if (dot_v3v3(planes[i], vmax) + planes[i][3] >= 0) {
+    else if (dot_v3v3(planes[i], vmax) + planes[i][3] <= 0) {
       ret = ISECT_INTERSECT;
     }
   }
@@ -2197,24 +2200,24 @@ static PlaneAABBIsect test_planes_aabb(const float bb_min[3],
   return ret;
 }
 
-bool BKE_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data)
+bool BKE_pbvh_node_frustum_contain_AABB(PBVHNode *node, void *data)
 {
   const float *bb_min, *bb_max;
   /* BKE_pbvh_node_get_BB */
   bb_min = node->vb.bmin;
   bb_max = node->vb.bmax;
 
-  return test_planes_aabb(bb_min, bb_max, data) != ISECT_OUTSIDE;
+  return test_frustum_aabb(bb_min, bb_max, data) != ISECT_OUTSIDE;
 }
 
-bool BKE_pbvh_node_planes_exclude_AABB(PBVHNode *node, void *data)
+bool BKE_pbvh_node_frustum_exclude_AABB(PBVHNode *node, void *data)
 {
   const float *bb_min, *bb_max;
   /* BKE_pbvh_node_get_BB */
   bb_min = node->vb.bmin;
   bb_max = node->vb.bmax;
 
-  return test_planes_aabb(bb_min, bb_max, data) != ISECT_INSIDE;
+  return test_frustum_aabb(bb_min, bb_max, data) != ISECT_INSIDE;
 }
 
 typedef struct PBVHNodeDrawCallbackData {
@@ -2281,7 +2284,7 @@ void BKE_pbvh_update_draw_buffers(PBVH *bvh, bool show_vcol)
  * Version of #BKE_pbvh_draw that runs a callback.
  */
 void BKE_pbvh_draw_cb(PBVH *bvh,
-                      float (*planes)[4],
+                      PBVHFrustumPlanes *frustum,
                       void (*draw_fn)(void *user_data, GPU_PBVH_Buffers *buffers),
                       void *user_data)
 {
@@ -2290,9 +2293,9 @@ void BKE_pbvh_draw_cb(PBVH *bvh,
       .user_data = user_data,
   };
 
-  if (planes) {
+  if (frustum) {
     BKE_pbvh_search_callback(
-        bvh, BKE_pbvh_node_planes_contain_AABB, planes, pbvh_node_draw_cb, &draw_data);
+        bvh, BKE_pbvh_node_frustum_contain_AABB, frustum, pbvh_node_draw_cb, &draw_data);
   }
   else {
     BKE_pbvh_search_callback(bvh, NULL, NULL, pbvh_node_draw_cb, &draw_data);

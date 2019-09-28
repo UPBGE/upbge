@@ -882,18 +882,18 @@ GPUBatch *DRW_mesh_batch_cache_get_verts_with_select_id(Mesh *me)
  * The `cache->tot_area` and cache->tot_uv_area` update are calculation are
  * only valid after calling `DRW_mesh_batch_cache_create_requested`. */
 GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_stretch_area(Mesh *me,
-                                                             float *tot_area,
-                                                             float *tot_uv_area)
+                                                             float **tot_area,
+                                                             float **tot_uv_area)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
   texpaint_request_active_uv(cache, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_FACES_STRETCH_AREA);
 
   if (tot_area != NULL) {
-    *tot_area = cache->tot_area;
+    *tot_area = &cache->tot_area;
   }
   if (tot_uv_area != NULL) {
-    *tot_uv_area = cache->tot_uv_area;
+    *tot_uv_area = &cache->tot_uv_area;
   }
   return DRW_batch_request(&cache->batch.edituv_faces_stretch_area);
 }
@@ -1031,6 +1031,9 @@ void DRW_mesh_batch_cache_create_requested(
     GPU_BATCH_CLEAR_SAFE(cache->batch.edit_triangles);
     GPU_BATCH_CLEAR_SAFE(cache->batch.edit_lnor);
     GPU_BATCH_CLEAR_SAFE(cache->batch.edit_selection_faces);
+    for (int i = 0; i < cache->mat_len; i++) {
+      GPU_BATCH_CLEAR_SAFE(cache->surface_per_mat[i]);
+    }
 
     cache->batch_ready &= ~(MBC_SURFACE | MBC_SURFACE_WEIGHTS | MBC_EDIT_MESH_ANALYSIS |
                             MBC_EDIT_TRIANGLES | MBC_EDIT_LNOR | MBC_EDIT_SELECTION_FACES);
@@ -1041,7 +1044,9 @@ void DRW_mesh_batch_cache_create_requested(
        MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS)) {
     /* Modifiers will only generate an orco layer if the mesh is deformed. */
     if (cache->cd_needed.orco != 0) {
-      if (CustomData_get_layer(&me->vdata, CD_ORCO) == NULL) {
+      /* Orco is always extracted from final mesh. */
+      Mesh *me_final = (me->edit_mesh) ? me->edit_mesh->mesh_eval_final : me;
+      if (CustomData_get_layer(&me_final->vdata, CD_ORCO) == NULL) {
         /* Skip orco calculation */
         cache->cd_needed.orco = 0;
       }

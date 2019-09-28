@@ -1261,7 +1261,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
   /* set various defaults */
   const float *outline_col = brush->add_col;
-  const float outline_alpha = 0.5f;
+  const float outline_alpha = 0.7f;
   float translation[2] = {x, y};
   float final_radius = (BKE_brush_size_get(scene, brush) * zoomx);
 
@@ -1352,10 +1352,12 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
     SculptCursorGeometryInfo gi;
     float mouse[2] = {x - ar->winrct.xmin, y - ar->winrct.ymin};
+    int prev_active_vertex_index = -1;
     bool is_cursor_over_mesh = false;
 
     /* Update the active vertex */
-    if ((mode == PAINT_MODE_SCULPT) && !ups->stroke_active) {
+    if ((mode == PAINT_MODE_SCULPT) && ss && !ups->stroke_active) {
+      prev_active_vertex_index = ss->active_vertex_index;
       is_cursor_over_mesh = sculpt_cursor_geometry_info_update(
           C, &gi, mouse, !(brush->falloff_shape & BRUSH_AIRBRUSH));
     }
@@ -1374,7 +1376,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
       }
 
       if (!ups->stroke_active) {
-        int prev_active_vertex_index = ss->active_vertex_index;
         bool update_previews = false;
         if (is_cursor_over_mesh && !alpha_overlay_active) {
 
@@ -1404,7 +1405,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
             if (update_previews) {
               BKE_sculpt_update_object_for_edit(depsgraph, vc.obact, true, false);
               sculpt_pose_calc_pose_data(
-                  sd, vc.obact, ss, gi.location, rds, ss->pose_origin, NULL);
+                  sd, vc.obact, ss, gi.location, rds, brush->pose_offset, ss->pose_origin, NULL);
             }
             cursor_draw_point_screen_space(pos, ar, ss->pose_origin, vc.obact->obmat, 5);
           }
@@ -1433,7 +1434,11 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
           GPU_matrix_mul(cursor_trans);
           GPU_matrix_mul(cursor_rot);
           immUniformColor3fvAlpha(outline_col, outline_alpha);
-          imm_draw_circle_wire_3d(pos, 0, 0, rds, 40);
+          GPU_line_width(2.0f);
+          imm_draw_circle_wire_3d(pos, 0, 0, rds, 80);
+          GPU_line_width(1.0f);
+          immUniformColor3fvAlpha(outline_col, outline_alpha * 0.5f);
+          imm_draw_circle_wire_3d(pos, 0, 0, rds * clamp_f(brush->alpha, 0.0f, 1.0f), 80);
           GPU_matrix_pop();
 
           /* Update and draw dynamic mesh preview lines */
@@ -1466,7 +1471,15 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
           /* Draw default cursor when the mouse is not over the mesh or there are no supported
            * overlays active */
           GPU_line_width(1.0f);
-          imm_draw_circle_wire_3d(pos, translation[0], translation[1], final_radius, 40);
+          /* Reduce alpha to increase the contrast when the cursor is over the mesh */
+          immUniformColor3fvAlpha(outline_col, outline_alpha * 0.8);
+          imm_draw_circle_wire_3d(pos, translation[0], translation[1], final_radius, 80);
+          immUniformColor3fvAlpha(outline_col, outline_alpha * 0.35f);
+          imm_draw_circle_wire_3d(pos,
+                                  translation[0],
+                                  translation[1],
+                                  final_radius * clamp_f(brush->alpha, 0.0f, 1.0f),
+                                  80);
         }
       }
       else {
