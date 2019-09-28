@@ -1600,7 +1600,7 @@ int main(
   BKE_blender_free(); /* blender.c, does entire library and spacetypes */
                       //  free_matcopybuf();
 
-  if (bfd->user) {
+  if (bfd && bfd->user) {
     MEM_freeN(bfd->user);
   }
 
