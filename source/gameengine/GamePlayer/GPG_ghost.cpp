@@ -183,14 +183,6 @@ static void mem_error_cb(const char *errorStr)
 	fflush(stderr);
 }
 
-// library.c will only free window managers with a callback function.
-// We don't actually use a wmWindowManager, but loading a blendfile
-// loads wmWindows, so we need to free those.
-static void wm_free(bContext *C, wmWindowManager *wm)
-{
-	BLI_freelistN(&wm->windows);
-}
-
 #ifdef WIN32
 typedef enum {
 	SCREEN_SAVER_MODE_NONE = 0,
@@ -839,7 +831,6 @@ int main(
   ED_spacetypes_init(); /* editors/space_api/spacetype.c */
 
   ED_file_init(); /* for fsmenu */
-  //ED_node_init_butfuncs();
 
   // Setup builtin font for BLF (mostly copied from creator.c, wm_init_exit.c and
   // interface_style.c)
@@ -925,8 +916,6 @@ int main(
 
 	// Initialize a default material for meshes without materials.
 	init_def_material();
-
-	BKE_library_callback_free_window_manager_set(wm_free);
 
 	/* if running blenderplayer the last argument can't be parsed since it has to be the filename. else it is bundled */
 	isBlenderPlayer = !BLO_is_a_runtime(argv[0]);
