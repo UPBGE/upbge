@@ -1547,9 +1547,6 @@ int main(
 
 			GPU_immDeactivate();
 
-			// Seg Fault; icon.c gIcons == 0
-			//BKE_icons_free();
-
 			if (window) {
 				system->disposeWindow(window);
 			}
