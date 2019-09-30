@@ -3256,7 +3256,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 
   //DST.draw_ctx.v3d->zbuf = true;
   DST.draw_ctx.scene = DEG_get_evaluated_scene(depsgraph);
-  DST.draw_ctx.view_layer = view_layer;
+  DST.draw_ctx.view_layer = DEG_get_evaluated_view_layer(depsgraph);
   DST.draw_ctx.obact = OBACT(view_layer);
 
   DST.draw_ctx.depsgraph = depsgraph;
