@@ -3982,6 +3982,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
           else if (sl->spacetype == SPACE_FILE) {
             ListBase *regionbase = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
             ARegion *ar_tools = do_versions_find_region_or_null(regionbase, RGN_TYPE_TOOLS);
+            ARegion *ar_header = do_versions_find_region(regionbase, RGN_TYPE_HEADER);
 
             if (ar_tools) {
               ARegion *ar_next = ar_tools->next;
@@ -3990,12 +3991,13 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
               if (ar_next && ar_next->regiontype == RGN_TYPE_TOOLS) {
                 do_versions_remove_region(regionbase, RGN_TYPE_TOOLS);
               }
+
+              BLI_remlink(regionbase, ar_tools);
+              BLI_insertlinkafter(regionbase, ar_header, ar_tools);
             }
             else {
-              ARegion *ar_ui = do_versions_find_region(regionbase, RGN_TYPE_UI);
-
               ar_tools = do_versions_add_region(RGN_TYPE_TOOLS, "versioning file tools region");
-              BLI_insertlinkafter(regionbase, ar_ui, ar_tools);
+              BLI_insertlinkafter(regionbase, ar_header, ar_tools);
               ar_tools->alignment = RGN_ALIGN_LEFT;
             }
           }
