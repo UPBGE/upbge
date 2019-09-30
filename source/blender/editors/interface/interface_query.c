@@ -137,9 +137,19 @@ bool ui_but_has_array_value(const uiBut *but)
                PROP_COORDS));
 }
 
+static wmOperatorType *g_ot_tool_set_by_id = NULL;
 bool UI_but_is_tool(const uiBut *but)
 {
-  return but->optype && but->optype->is_tool_button;
+  /* very evil! */
+  if (but->optype != NULL) {
+    if (g_ot_tool_set_by_id == NULL) {
+      g_ot_tool_set_by_id = WM_operatortype_find("WM_OT_tool_set_by_id", false);
+    }
+    if (but->optype == g_ot_tool_set_by_id) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool UI_but_has_tooltip_label(const uiBut *but)
@@ -602,6 +612,17 @@ ARegion *ui_screen_region_find_mouse_over_ex(bScreen *screen, int x, int y)
 ARegion *ui_screen_region_find_mouse_over(bScreen *screen, const wmEvent *event)
 {
   return ui_screen_region_find_mouse_over_ex(screen, event->x, event->y);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Manage Internal State
+ * \{ */
+
+void ui_interface_tag_script_reload_queries(void)
+{
+  g_ot_tool_set_by_id = NULL;
 }
 
 /** \} */
