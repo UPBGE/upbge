@@ -34,6 +34,7 @@
 #include <math.h>
 #include <fstream>
 #include <iostream>
+#include <stdio.h>
 
 #ifdef __linux__
 #  ifdef __alpha__
