@@ -3255,7 +3255,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 	DST.draw_ctx.evil_C = NULL;
 
 	//DST.draw_ctx.v3d->zbuf = true;
-	DST.draw_ctx.scene = scene;
+	DST.draw_ctx.scene = DEG_get_evaluated_scene(depsgraph);
 	DST.draw_ctx.view_layer = view_layer;
 	DST.draw_ctx.obact = OBACT(view_layer);
 
@@ -3272,7 +3272,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 	/* Init engines */
 	drw_engines_init();
 	drw_engines_cache_init();
-	drw_engines_world_update(scene);
+  drw_engines_world_update(DST.draw_ctx.scene);
 
 	
 
