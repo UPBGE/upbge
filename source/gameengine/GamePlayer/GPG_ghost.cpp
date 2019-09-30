@@ -34,7 +34,6 @@
 #include <math.h>
 #include <fstream>
 #include <iostream>
-#include <stdio.h>
 
 #ifdef __linux__
 #  ifdef __alpha__
@@ -211,7 +210,7 @@ static BOOL scr_saver_init(int argc, char **argv)
 		{
 			if (argc >= 3)
 			{
-				scr_saver_hwnd = (HWND) ::atoi(argv[2]);
+				scr_saver_hwnd = (HWND)(INT_PTR) ::atoi(argv[2]);
 			}
 			if (!::stricmp("/c", argv[1]))
 			{
