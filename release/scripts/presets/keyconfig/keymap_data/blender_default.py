@@ -1589,6 +1589,11 @@ def km_image(params):
         ("image.clear_render_border", {"type": 'B', "value": 'PRESS', "ctrl": True, "alt": True}, None),
     ])
 
+    if params.legacy:
+        items.extend([
+            ("image.view_center_cursor", {"type": 'HOME', "value": 'PRESS', "alt": True}, None),
+        ])
+
     return keymap
 
 
@@ -2687,6 +2692,11 @@ def km_clip_editor(params):
         ("clip.copy_tracks", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("clip.paste_tracks", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
     ])
+
+    if params.legacy:
+        items.extend([
+            ("clip.view_center_cursor", {"type": 'HOME', "value": 'PRESS', "alt": True}, None),
+        ])
 
     return keymap
 
@@ -6203,7 +6213,7 @@ def generate_keymaps(params=None):
         km_3d_view_tool_edit_gpencil_select_box(params),
         km_3d_view_tool_edit_gpencil_select_circle(params),
         km_3d_view_tool_edit_gpencil_select_lasso(params),
-        km_3d_view_tool_edit_gpencil_extrude(params), 
+        km_3d_view_tool_edit_gpencil_extrude(params),
         km_3d_view_tool_edit_gpencil_radius(params),
         km_3d_view_tool_edit_gpencil_bend(params),
         km_3d_view_tool_edit_gpencil_shear(params),
