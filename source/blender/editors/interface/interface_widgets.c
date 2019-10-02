@@ -4593,7 +4593,7 @@ static int widget_roundbox_set(uiBut *but, rcti *rect)
   }
 
   /* align with open menu */
-  if (but->active && (but->type != UI_BTYPE_POPOVER)) {
+  if (but->active && (but->type != UI_BTYPE_POPOVER) && !ui_but_menu_draw_as_popover(but)) {
     int direction = ui_but_menu_direction(but);
 
     if (direction == UI_DIR_UP) {
@@ -4992,7 +4992,9 @@ static void ui_draw_popover_back_impl(const uiWidgetColors *wcol,
 {
   /* tsk, this isn't nice. */
   const float unit_half = unit_size / 2;
-  const float cent_x = mval_origin ? mval_origin[0] : BLI_rcti_cent_x(rect);
+  const float cent_x = mval_origin ?
+                       CLAMPIS(mval_origin[0], rect->xmin + unit_size, rect->xmax - unit_size) :
+                       BLI_rcti_cent_x(rect);
   rect->ymax -= unit_half;
   rect->ymin += unit_half;
 

@@ -213,7 +213,7 @@ static ImageUser *image_user_from_context(const bContext *C)
   }
 }
 
-static bool image_buffer_exists_from_context(bContext *C)
+static bool image_from_context_has_data_poll(bContext *C)
 {
   Image *ima = image_from_context(C);
   ImageUser *iuser = image_user_from_context(C);
@@ -227,6 +227,16 @@ static bool image_buffer_exists_from_context(bContext *C)
   const bool has_buffer = (ibuf && (ibuf->rect || ibuf->rect_float));
   BKE_image_release_ibuf(ima, ibuf, lock);
   return has_buffer;
+}
+
+/**
+ * Use this when the image buffer is accessed without the image user.
+ */
+static bool image_from_contect_has_data_poll_no_image_user(bContext *C)
+{
+  Image *ima = image_from_context(C);
+
+  return BKE_image_has_ibuf(ima, NULL);
 }
 
 static bool image_not_packed_poll(bContext *C)
@@ -2054,7 +2064,7 @@ static void image_save_as_draw(bContext *UNUSED(C), wmOperator *op)
 
 static bool image_save_as_poll(bContext *C)
 {
-  if (!image_buffer_exists_from_context(C)) {
+  if (!image_from_context_has_data_poll(C)) {
     return false;
   }
 
@@ -2155,7 +2165,7 @@ static bool image_file_path_saveable(bContext *C, Image *ima, ImageUser *iuser)
 static bool image_save_poll(bContext *C)
 {
   /* Can't save if there are no pixels. */
-  if (image_buffer_exists_from_context(C) == false) {
+  if (image_from_context_has_data_poll(C) == false) {
     return false;
   }
 
@@ -2288,7 +2298,12 @@ static int image_save_sequence_exec(bContext *C, wmOperator *op)
 
   /* get a filename for menu */
   BLI_split_dir_part(first_ibuf->name, di, sizeof(di));
-  BKE_reportf(op->reports, RPT_INFO, "%d image(s) will be saved in %s", tot, di);
+  BKE_reportf(op->reports,
+              RPT_INFO,
+              tot == 1 ? "%d image will be saved in %s" :
+                         "%d images will be saved in %s",
+              tot,
+              di);
 
   iter = IMB_moviecacheIter_new(image->cache);
   while (!IMB_moviecacheIter_done(iter)) {
@@ -2325,7 +2340,7 @@ void IMAGE_OT_save_sequence(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = image_save_sequence_exec;
-  ot->poll = image_buffer_exists_from_context;
+  ot->poll = image_from_context_has_data_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2753,20 +2768,12 @@ void IMAGE_OT_new(wmOperatorType *ot)
 /** \name Invert Operators
  * \{ */
 
-static bool image_invert_poll(bContext *C)
-{
-  Image *ima = image_from_context(C);
-
-  return BKE_image_has_ibuf(ima, NULL);
-}
-
 static int image_invert_exec(bContext *C, wmOperator *op)
 {
   Image *ima = image_from_context(C);
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, NULL);
   SpaceImage *sima = CTX_wm_space_image(C);
-  /* undo is supported only on image paint mode currently */
-  bool support_undo = ((sima != NULL) && (sima->mode == SI_MODE_PAINT));
+  const bool is_paint = ((sima != NULL) && (sima->mode == SI_MODE_PAINT));
 
   /* flags indicate if this channel should be inverted */
   const bool r = RNA_boolean_get(op->ptr, "invert_r");
@@ -2781,14 +2788,12 @@ static int image_invert_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (support_undo) {
-    ED_image_undo_push_begin(op->type->name, PAINT_MODE_TEXTURE_2D);
-    /* not strictly needed, because we only imapaint_dirty_region to invalidate all tiles
-     * but better do this right in case someone copies this for a tool that uses partial
-     * redraw better */
+  ED_image_undo_push_begin_with_image(op->type->name, ima, ibuf);
+
+  if (is_paint) {
     ED_imapaint_clear_partial_redraw();
-    ED_imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y, false);
   }
+
   /* TODO: make this into an IMB_invert_channels(ibuf,r,g,b,a) method!? */
   if (ibuf->rect_float) {
 
@@ -2842,9 +2847,7 @@ static int image_invert_exec(bContext *C, wmOperator *op)
     ibuf->userflags |= IB_MIPMAP_INVALID;
   }
 
-  if (support_undo) {
-    ED_image_undo_push_end();
-  }
+  ED_image_undo_push_end();
 
   /* force GPU reupload, all image is invalid */
   GPU_free_image(ima);
@@ -2867,7 +2870,7 @@ void IMAGE_OT_invert(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = image_invert_exec;
-  ot->poll = image_invert_poll;
+  ot->poll = image_from_contect_has_data_poll_no_image_user;
 
   /* properties */
   prop = RNA_def_boolean(ot->srna, "invert_r", 0, "Red", "Invert Red Channel");
@@ -2880,7 +2883,89 @@ void IMAGE_OT_invert(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Scale Operator
+ * \{ */
+
+static int image_scale_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+  Image *ima = image_from_context(C);
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "size");
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, NULL);
+    const int size[2] = {ibuf->x, ibuf->y};
+    RNA_property_int_set_array(op->ptr, prop, size);
+    BKE_image_release_ibuf(ima, ibuf, NULL);
+  }
+  return WM_operator_props_dialog_popup(C, op, 200, 200);
+}
+
+static int image_scale_exec(bContext *C, wmOperator *op)
+{
+  Image *ima = image_from_context(C);
+  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, NULL);
+  SpaceImage *sima = CTX_wm_space_image(C);
+  const bool is_paint = ((sima != NULL) && (sima->mode == SI_MODE_PAINT));
+
+  if (ibuf == NULL) {
+    /* TODO: this should actually never happen, but does for render-results -> cleanup */
+    return OPERATOR_CANCELLED;
+  }
+
+  if (is_paint) {
+    ED_imapaint_clear_partial_redraw();
+  }
+
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "size");
+  int size[2];
+  if (RNA_property_is_set(op->ptr, prop)) {
+    RNA_property_int_get_array(op->ptr, prop, size);
+  }
+  else {
+    size[0] = ibuf->x;
+    size[1] = ibuf->y;
+    RNA_property_int_set_array(op->ptr, prop, size);
+  }
+
+  ED_image_undo_push_begin_with_image(op->type->name, ima, ibuf);
+
+  ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+  IMB_scaleImBuf(ibuf, size[0], size[1]);
+  BKE_image_release_ibuf(ima, ibuf, NULL);
+
+  ED_image_undo_push_end();
+
+  /* force GPU reupload, all image is invalid */
+  GPU_free_image(ima);
+
+  DEG_id_tag_update(&ima->id, 0);
+  WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
+
+  return OPERATOR_FINISHED;
+}
+
+void IMAGE_OT_resize(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Resize Image";
+  ot->idname = "IMAGE_OT_resize";
+  ot->description = "Resize the image";
+
+  /* api callbacks */
+  ot->invoke = image_scale_invoke;
+  ot->exec = image_scale_exec;
+  ot->poll = image_from_contect_has_data_poll_no_image_user;
+
+  /* properties */
+  RNA_def_int_vector(ot->srna, "size", 2, NULL, 1, INT_MAX, "Size", "", 1, SHRT_MAX);
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */

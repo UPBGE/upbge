@@ -75,7 +75,7 @@ void sculpt_pose_calc_pose_data(struct Sculpt *sd,
                                 float *r_pose_factor);
 
 /* Sculpt PBVH abstraction API */
-float *sculpt_vertex_co_get(struct SculptSession *ss, int index);
+const float *sculpt_vertex_co_get(struct SculptSession *ss, int index);
 
 /* Dynamic topology */
 void sculpt_pbvh_clear(Object *ob);
@@ -215,6 +215,7 @@ typedef struct SculptThreadedTaskData {
   float max_distance_squared;
   float nearest_vertex_search_co[3];
   int nearest_vertex_index;
+  float nearest_vertex_distance_squared;
 
   int mask_expand_update_it;
   bool mask_expand_invert_mask;
@@ -222,6 +223,10 @@ typedef struct SculptThreadedTaskData {
   bool mask_expand_keep_prev_mask;
 
   float transform_mats[8][4][4];
+
+  float dirty_mask_min;
+  float dirty_mask_max;
+  bool dirty_mask_dirty_only;
 
   ThreadMutex mutex;
 
