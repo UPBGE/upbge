@@ -424,6 +424,17 @@ static void rna_userdef_timecode_style_set(PointerRNA *ptr, int value)
   }
 }
 
+static int rna_UserDef_mouse_emulate_3_button_modifier_get(PointerRNA *ptr)
+{
+#  if !defined(WIN32)
+  UserDef *userdef = ptr->data;
+  return userdef->mouse_emulate_3_button_modifier;
+#  else
+  UNUSED_VARS(ptr);
+  return USER_EMU_MMB_MOD_ALT;
+#  endif
+}
+
 static PointerRNA rna_UserDef_view_get(PointerRNA *ptr)
 {
   return rna_pointer_inherit_refine(ptr, &RNA_PreferencesView, ptr->data);
@@ -3206,6 +3217,18 @@ static void rna_def_userdef_theme_space_nla(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "View Sliders", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
+  prop = RNA_def_property(srna, "dopesheet_channel", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, NULL, "ds_channel");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Channel", "Nonlinear Animation Channel");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "nla_track", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, NULL, "nla_track");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Track", "Nonlinear Animation Track");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
   prop = RNA_def_property(srna, "active_action", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, NULL, "anim_active");
   RNA_def_property_array(prop, 4);
@@ -5508,6 +5531,21 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_TWOBUTTONMOUSE);
   RNA_def_property_ui_text(
       prop, "Emulate 3 Button Mouse", "Emulate Middle Mouse with Alt+Left Mouse");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, 0, "rna_userdef_keyconfig_reload_update");
+
+  static const EnumPropertyItem mouse_emulate_3_button_modifier[] = {
+      {USER_EMU_MMB_MOD_ALT, "ALT", 0, "Alt", ""},
+      {USER_EMU_MMB_MOD_OSKEY, "OSKEY", 0, "OS-Key", ""},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  prop = RNA_def_property(srna, "mouse_emulate_3_button_modifier", PROP_ENUM, PROP_NONE);
+  /* Only needed because of WIN32 inability to support the option. */
+  RNA_def_property_enum_funcs(prop, "rna_UserDef_mouse_emulate_3_button_modifier_get", NULL, NULL);
+  RNA_def_property_enum_items(prop, mouse_emulate_3_button_modifier);
+  RNA_def_property_ui_text(
+      prop, "Emulate 3 Button Modifier", "Hold this modifier to emulate the middle mouse button");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_userdef_keyconfig_reload_update");
 
