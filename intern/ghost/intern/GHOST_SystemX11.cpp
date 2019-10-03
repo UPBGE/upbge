@@ -324,7 +324,7 @@ void GHOST_SystemX11::getAllDisplayDimensions(GHOST_TUns32 &width, GHOST_TUns32 
  * \param   type    The type of drawing context installed in this window.
  * \param glSettings: Misc OpenGL settings.
  * \param exclusive: Use to show the window ontop and ignore others (used fullscreen).
- * \param   parentWindow    Parent (embedder) window
+ * \param   parentWindow    Parent window
  * \return  The new window (or 0 if creation failed).
  */
 GHOST_IWindow *GHOST_SystemX11::createWindow(const STR_String &title,
@@ -336,7 +336,8 @@ GHOST_IWindow *GHOST_SystemX11::createWindow(const STR_String &title,
                                              GHOST_TDrawingContextType type,
                                              GHOST_GLSettings glSettings,
                                              const bool exclusive,
-                                             const GHOST_TEmbedderWindowID parentWindow)
+                                             const bool is_dialog,
+                                             const GHOST_IWindow *parentWindow)
 {
   GHOST_WindowX11 *window = NULL;
 
@@ -351,8 +352,9 @@ GHOST_IWindow *GHOST_SystemX11::createWindow(const STR_String &title,
                                width,
                                height,
                                state,
-                               parentWindow,
+                               (GHOST_WindowX11 *)parentWindow,
                                type,
+                               is_dialog,
                                ((glSettings.flags & GHOST_glStereoVisual) != 0),
                                exclusive,
                                ((glSettings.flags & GHOST_glAlphaBackground) != 0),
@@ -2303,26 +2305,30 @@ void GHOST_SystemX11::refreshXInputDevices()
           /* Find how many pressure levels tablet has */
           XAnyClassPtr ici = device_info[i].inputclassinfo;
 
-          for (int j = 0; j < xtablet.Device->num_classes; ++j) {
-            if (ici->c_class == ValuatorClass) {
-              XValuatorInfo *xvi = (XValuatorInfo *)ici;
-              xtablet.PressureLevels = xvi->axes[2].max_value;
+          if (ici != NULL) {
+            for (int j = 0; j < xtablet.Device->num_classes; ++j) {
+              if (ici->c_class == ValuatorClass) {
+                XValuatorInfo *xvi = (XValuatorInfo *)ici;
+                if (xvi->axes != NULL) {
+                  xtablet.PressureLevels = xvi->axes[2].max_value;
 
-              if (xvi->num_axes > 3) {
-                /* this is assuming that the tablet has the same tilt resolution in both
-                 * positive and negative directions. It would be rather weird if it didn't.. */
-                xtablet.XtiltLevels = xvi->axes[3].max_value;
-                xtablet.YtiltLevels = xvi->axes[4].max_value;
-              }
-              else {
-                xtablet.XtiltLevels = 0;
-                xtablet.YtiltLevels = 0;
+                  if (xvi->num_axes > 3) {
+                    /* this is assuming that the tablet has the same tilt resolution in both
+                     * positive and negative directions. It would be rather weird if it didn't.. */
+                    xtablet.XtiltLevels = xvi->axes[3].max_value;
+                    xtablet.YtiltLevels = xvi->axes[4].max_value;
+                  }
+                  else {
+                    xtablet.XtiltLevels = 0;
+                    xtablet.YtiltLevels = 0;
+                  }
+
+                  break;
+                }
               }
 
-              break;
+              ici = (XAnyClassPtr)(((char *)ici) + ici->length);
             }
-
-            ici = (XAnyClassPtr)(((char *)ici) + ici->length);
           }
 
           m_xtablets.push_back(xtablet);
