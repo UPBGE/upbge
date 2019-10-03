@@ -1944,7 +1944,7 @@ PyObject *KX_GameObject::PyUpdatePhysicsShape(PyObject *args)
   int recalcGeom = 0;
 
   if (!PyArg_ParseTuple(args, "|i:updatePhysicsShape", &recalcGeom)) {
-    PyErr_SetString(PyExc_ValueError,
+    PyErr_SetString(PyExc_TypeError,
                     "gameOb.updatePhysicsShape(obj): expected a boolean");
     return nullptr;
   }
