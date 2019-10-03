@@ -1650,13 +1650,13 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, R
 	return true;
 }
 
-bool CcdPhysicsController::ReinstancePhysicsShape2(RAS_MeshObject *meshobj, Object *ob)
+bool CcdPhysicsController::ReinstancePhysicsShape2(RAS_MeshObject *meshobj, Object *ob, bool recalcGeom)
 {
   if (m_shapeInfo->m_shapeType != PHY_SHAPE_MESH)
     return false;
 
   /* updates the arrays used for making the new bullet mesh */
-  m_shapeInfo->SetMesh2(meshobj, ob);
+  m_shapeInfo->SetMesh2(meshobj, ob, recalcGeom);
 
   /* create the new bullet mesh */
   GetPhysicsEnvironment()->UpdateCcdPhysicsControllerShape(m_shapeInfo);
@@ -2095,7 +2095,7 @@ cleanup_empty_mesh:
 	return false;
 }
 
-bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob)
+bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob, bool recalcGeom)
 {
   int numpolys, numverts;
 
@@ -2310,6 +2310,10 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob)
 		//dm->release(dm);
 		//dm = nullptr;
       BKE_object_free_derived_caches(ob);
+	}
+
+	if (recalcGeom) {
+		DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 	}
 
 	// sharing only on static mesh at present, if you change that, you must also change in FindMesh

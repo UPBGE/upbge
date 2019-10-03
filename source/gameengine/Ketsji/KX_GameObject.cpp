@@ -1750,7 +1750,7 @@ PyMethodDef KX_GameObject::Methods[] = {
     {"endObject", (PyCFunction)KX_GameObject::sPyEndObject, METH_NOARGS},
     {"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh, METH_VARARGS},
     {"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_O},
-    {"updatePhysicsShape", (PyCFunction)KX_GameObject::sPyUpdatePhysicsShape, METH_NOARGS},
+    {"updatePhysicsShape", (PyCFunction)KX_GameObject::sPyUpdatePhysicsShape, METH_VARARGS},
 
     KX_PYMETHODTABLE(KX_GameObject, rayCastTo),
     KX_PYMETHODTABLE(KX_GameObject, rayCast),
@@ -1939,11 +1939,23 @@ PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
   Py_RETURN_NONE;
 }
 
-PyObject *KX_GameObject::PyUpdatePhysicsShape()
+PyObject *KX_GameObject::PyUpdatePhysicsShape(PyObject *args)
 {
+  int recalcGeom = 0;
+
+  if (!PyArg_ParseTuple(args, "|i:updatePhysicsShape", &recalcGeom)) {
+    PyErr_SetString(PyExc_ValueError,
+                    "gameOb.updatePhysicsShape(obj): expected a boolean");
+    return nullptr;
+  }
+
   if (GetPhysicsController()) {
 
-    GetPhysicsController()->ReinstancePhysicsShape2(GetMesh(0), GetBlenderObject());
+	if (recalcGeom) {
+      UseCopy();
+	}
+
+    GetPhysicsController()->ReinstancePhysicsShape2(GetMesh(0), GetBlenderObject(), recalcGeom);
     Py_RETURN_NONE;
   }
   Py_RETURN_NONE;
