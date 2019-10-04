@@ -104,7 +104,7 @@
 #include "SCA_MouseActuator.h"
 #include "KX_CollisionContactPoints.h"
 #include "EXP_ListWrapper.h"
-//#include "Texture.h"
+#include "Texture.h"
 
 static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
 {

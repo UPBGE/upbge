@@ -47,9 +47,9 @@
 
 #include "KX_NetworkMessageManager.h"
 
-//#ifdef WITH_PYTHON
-//#  include "Texture.h" // For FreeAllTextures.
-//#endif  // WITH_PYTHON
+#ifdef WITH_PYTHON
+#  include "Texture.h" // For FreeAllTextures.
+#endif  // WITH_PYTHON
 
 #include "GHOST_ISystem.h"
 #include "GHOST_IWindow.h"
@@ -287,9 +287,9 @@ void LA_Launcher::InitEngine()
 
 void LA_Launcher::ExitEngine()
 {
-//#ifdef WITH_PYTHON
-//	Texture::FreeAllTextures(nullptr);
-//#endif  // WITH_PYTHON
+#ifdef WITH_PYTHON
+    Texture::FreeAllTextures(nullptr);
+#endif  // WITH_PYTHON
 
 	DEV_Joystick::Close();
 	m_ketsjiEngine->StopEngine();
