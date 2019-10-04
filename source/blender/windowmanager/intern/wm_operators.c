@@ -700,6 +700,82 @@ void WM_operator_properties_free(PointerRNA *ptr)
 /** \name Default Operator Callbacks
  * \{ */
 
+int WM_generic_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  PropertyRNA *wait_to_deselect_prop = RNA_struct_find_property(op->ptr,
+                                                                "wait_to_deselect_others");
+  const short init_event_type = (short)POINTER_AS_INT(op->customdata);
+  int ret_value = 0;
+
+  /* get settings from RNA properties for operator */
+  int mval[2];
+  mval[0] = RNA_int_get(op->ptr, "mouse_x");
+  mval[1] = RNA_int_get(op->ptr, "mouse_y");
+
+  if (init_event_type == 0) {
+    if (event->val == KM_PRESS) {
+      RNA_property_boolean_set(op->ptr, wait_to_deselect_prop, true);
+
+      ret_value = op->type->exec(C, op);
+      OPERATOR_RETVAL_CHECK(ret_value);
+
+      op->customdata = POINTER_FROM_INT((int)event->type);
+      if (ret_value & OPERATOR_RUNNING_MODAL) {
+        WM_event_add_modal_handler(C, op);
+      }
+      return ret_value | OPERATOR_PASS_THROUGH;
+    }
+    else {
+      /* If we are in init phase, and cannot validate init of modal operations,
+       * just fall back to basic exec.
+       */
+      RNA_property_boolean_set(op->ptr, wait_to_deselect_prop, false);
+
+      ret_value = op->type->exec(C, op);
+      OPERATOR_RETVAL_CHECK(ret_value);
+
+      return ret_value | OPERATOR_PASS_THROUGH;
+    }
+  }
+  else if (event->type == init_event_type && event->val == KM_RELEASE) {
+    RNA_property_boolean_set(op->ptr, wait_to_deselect_prop, false);
+
+    ret_value = op->type->exec(C, op);
+    OPERATOR_RETVAL_CHECK(ret_value);
+
+    return ret_value | OPERATOR_PASS_THROUGH;
+  }
+  else if (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
+    const int drag_delta[2] = {
+        mval[0] - event->mval[0],
+        mval[1] - event->mval[1],
+    };
+    /* If user moves mouse more than defined threshold, we consider select operator as
+     * finished. Otherwise, it is still running until we get an 'release' event. In any
+     * case, we pass through event, but select op is not finished yet. */
+    if (WM_event_drag_test_with_delta(event, drag_delta)) {
+      return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
+    }
+    else {
+      /* Important not to return anything other than PASS_THROUGH here,
+       * otherwise it prevents underlying tweak detection code to work properly. */
+      return OPERATOR_PASS_THROUGH;
+    }
+  }
+
+  return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
+}
+
+int WM_generic_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  RNA_int_set(op->ptr, "mouse_x", event->mval[0]);
+  RNA_int_set(op->ptr, "mouse_y", event->mval[1]);
+
+  op->customdata = POINTER_FROM_INT(0);
+
+  return op->type->modal(C, op, event);
+}
+
 void WM_operator_view3d_unit_defaults(struct bContext *C, struct wmOperator *op)
 {
   if (op->flag & OP_IS_INVOKE) {
@@ -2641,14 +2717,18 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
           }
           else {
             delta[0] = rc->initial_mouse[0] - event->x;
-            delta[1] = 0.0f;
-
+            delta[1] = rc->initial_mouse[1] - event->y;
             if (rc->zoom_prop) {
               RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
               delta[0] /= zoom[0];
+              delta[1] /= zoom[1];
             }
-
-            dist = clamp_f(-delta[0], 0.0f, FLT_MAX);
+            if (rc->subtype == PROP_ANGLE) {
+              dist = len_v2(delta);
+            }
+            else {
+              dist = clamp_f(-delta[0], 0.0f, FLT_MAX);
+            }
           }
 
           /* calculate new value and apply snapping  */

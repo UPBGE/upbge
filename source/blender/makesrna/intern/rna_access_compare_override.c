@@ -400,9 +400,39 @@ static bool rna_property_override_operation_store(Main *bmain,
     return changed;
   }
 
-  BLI_assert(prop_local->override_store == prop_reference->override_store &&
-             (!ptr_storage || prop_local->override_store == prop_storage->override_store) &&
-             prop_local->override_store != NULL);
+  RNAPropOverrideStore override_store = NULL;
+  /* Special case for IDProps, we use default callback then. */
+  if (prop_local->magic != RNA_MAGIC) {
+    override_store = rna_property_override_store_default;
+    if (prop_reference->magic == RNA_MAGIC && prop_reference->override_store != override_store) {
+      override_store = NULL;
+    }
+  }
+  else if (prop_reference->magic != RNA_MAGIC) {
+    override_store = rna_property_override_store_default;
+    if (prop_local->override_store != override_store) {
+      override_store = NULL;
+    }
+  }
+  else if (prop_local->override_store == prop_reference->override_store) {
+    override_store = prop_local->override_store;
+  }
+
+  if (ptr_storage != NULL && prop_storage->magic == RNA_MAGIC &&
+      prop_storage->override_store != override_store) {
+    override_store = NULL;
+  }
+
+  if (override_store == NULL) {
+#ifndef NDEBUG
+    printf("'%s' gives unmatching or NULL RNA store callbacks, should not happen (%d vs. %d).\n",
+           op->rna_path,
+           prop_local->magic == RNA_MAGIC,
+           prop_reference->magic == RNA_MAGIC);
+#endif
+    BLI_assert(0);
+    return changed;
+  }
 
   for (IDOverrideLibraryPropertyOperation *opop = op->operations.first; opop; opop = opop->next) {
     /* Only needed for diff operations. */
@@ -413,17 +443,17 @@ static bool rna_property_override_operation_store(Main *bmain,
       continue;
     }
 
-    if (prop_local->override_store(bmain,
-                                   ptr_local,
-                                   ptr_reference,
-                                   ptr_storage,
-                                   prop_local,
-                                   prop_reference,
-                                   prop_storage,
-                                   len_local,
-                                   len_reference,
-                                   len_storage,
-                                   opop)) {
+    if (override_store(bmain,
+                       ptr_local,
+                       ptr_reference,
+                       ptr_storage,
+                       prop_local,
+                       prop_reference,
+                       prop_storage,
+                       len_local,
+                       len_reference,
+                       len_storage,
+                       opop)) {
       changed = true;
     }
   }
@@ -594,6 +624,21 @@ bool RNA_struct_override_matches(Main *bmain,
      * or an IDProperty in disguise. */
     prop_local = rna_ensure_property_realdata(&prop_local, ptr_local);
     prop_reference = rna_ensure_property_realdata(&prop_reference, ptr_reference);
+
+    /* IDProps (custom properties) are even more of a PITA here, we cannot use
+     * `rna_ensure_property_realdata()` to deal with them, we have to use the path generated from
+     * `prop_local` (which is valid) to access to the actual reference counterpart... */
+    if (prop_local != NULL && prop_local->magic != RNA_MAGIC && prop_local == prop_reference) {
+      /* We could also use (lower in this code, after rna_path has been computed):
+       *    RNA_path_resolve_property(ptr_reference, rna_path, &some_rna_ptr, &prop_reference);
+       * But that would be much more costly, and would also fail when ptr_reference
+       * is not an ID pointer itself, so we'd need to rebuild it from its owner_id, then check that
+       * generated some_rna_ptr and ptr_reference do point to the same data, etc.
+       * For now, let's try that simple access, it won't cover all cases but should handle fine
+       * most basic custom properties situations. */
+      prop_reference = (PropertyRNA *)rna_idproperty_find(ptr_reference,
+                                                          ((IDProperty *)prop_local)->name);
+    }
 
     if (ELEM(NULL, prop_local, prop_reference)) {
       continue;
