@@ -64,6 +64,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
+#include "BKE_subdiv_ccg.h"
 #include "BKE_subsurf.h"
 
 #include "DEG_depsgraph.h"
@@ -185,7 +186,6 @@ static float sculpt_vertex_mask_get(SculptSession *ss, int index)
 
 static int sculpt_active_vertex_get(SculptSession *ss)
 {
-  BLI_assert(BKE_pbvh_type(ss->pbvh) != PBVH_GRIDS);
   switch (BKE_pbvh_type(ss->pbvh)) {
     case PBVH_FACES:
       return ss->active_vertex_index;
@@ -293,16 +293,37 @@ static void sculpt_vertex_neighbors_get_faces(SculptSession *ss,
   }
 }
 
-static void sculpt_vertex_neighbors_get_grids(SculptSession *UNUSED(ss),
-                                              int UNUSED(index),
+static void sculpt_vertex_neighbors_get_grids(SculptSession *ss,
+                                              int index,
                                               SculptVertexNeighborIter *iter)
 {
-  /* TODO: implement this for multires. It might also be worth changing this
-   * iterator to provide a coordinate and mask pointer directly for effiency,
-   * rather than converting back and forth between CCGElem and global index. */
+  /* TODO: optimize this. We could fill SculptVertexNeighborIter directly,
+   * maybe provide coordinate and mask pointers directly rather than converting
+   * back and forth between CCGElem and global index. */
+  const CCGKey *key = BKE_pbvh_get_grid_key(ss->pbvh);
+  const int grid_index = index / key->grid_area;
+  const int vertex_index = index - grid_index * key->grid_area;
+
+  SubdivCCGCoord coord = {.grid_index = grid_index,
+                          .x = vertex_index % key->grid_size,
+                          .y = vertex_index / key->grid_size};
+
+  SubdivCCGNeighbors neighbors;
+  BKE_subdiv_ccg_neighbor_coords_get(ss->subdiv_ccg, &coord, &neighbors);
+
   iter->size = 0;
   iter->capacity = SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY;
   iter->neighbors = iter->neighbors_fixed;
+
+  for (int i = 0; i < neighbors.size; i++) {
+    sculpt_vertex_neighbor_add(iter,
+                               neighbors.coords[i].grid_index * key->grid_area +
+                                   neighbors.coords[i].y * key->grid_size + neighbors.coords[i].x);
+  }
+
+  if (neighbors.coords != neighbors.coords_fixed) {
+    MEM_freeN(neighbors.coords);
+  }
 }
 
 static void sculpt_vertex_neighbors_get(SculptSession *ss,
@@ -8274,6 +8295,11 @@ static void mesh_filter_task_cb(void *__restrict userdata,
     float fade = vd.mask ? *vd.mask : 0.0f;
     fade = 1 - fade;
     fade *= data->filter_strength;
+
+    if (fade == 0.0f) {
+      continue;
+    }
+
     copy_v3_v3(orig_co, orig_data.co);
     switch (filter_type) {
       case MESH_FILTER_SMOOTH:
@@ -8414,10 +8440,6 @@ static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent 
   int filter_type = RNA_enum_get(op->ptr, "type");
   SculptSession *ss = ob->sculpt;
   PBVH *pbvh = ob->sculpt->pbvh;
-
-  if (BKE_pbvh_type(ss->pbvh) == PBVH_GRIDS) {
-    return OPERATOR_CANCELLED;
-  }
 
   int deform_axis = RNA_enum_get(op->ptr, "deform_axis");
   if (deform_axis == 0) {
@@ -8628,10 +8650,6 @@ static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
   int totnode;
   int filter_type = RNA_enum_get(op->ptr, "filter_type");
-
-  if (BKE_pbvh_type(ss->pbvh) == PBVH_GRIDS) {
-    return OPERATOR_CANCELLED;
-  }
 
   BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true);
 
@@ -8845,10 +8863,6 @@ static int sculpt_dirty_mask_exec(bContext *C, wmOperator *op)
   PBVHNode **nodes;
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
   int totnode;
-
-  if (BKE_pbvh_type(ss->pbvh) == PBVH_GRIDS) {
-    return OPERATOR_CANCELLED;
-  }
 
   BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true);
 
