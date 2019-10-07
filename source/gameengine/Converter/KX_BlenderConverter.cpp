@@ -58,9 +58,9 @@
 
 #include "EXP_StringValue.h"
 
-#ifdef WITH_PYTHON
-#  include "Texture.h" // For FreeAllTextures.
-#endif  // WITH_PYTHON
+//#ifdef WITH_PYTHON
+//#  include "Texture.h" // For FreeAllTextures.
+//#endif  // WITH_PYTHON
 
 // This list includes only data type definitions
 #include "DNA_scene_types.h"
@@ -250,9 +250,9 @@ void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_Rasterize
 void KX_BlenderConverter::RemoveScene(KX_Scene *scene)
 {
 
-#ifdef WITH_PYTHON
-    Texture::FreeAllTextures(scene);
-#endif  // WITH_PYTHON
+//#ifdef WITH_PYTHON
+//	Texture::FreeAllTextures(scene);
+//#endif  // WITH_PYTHON
 
 	// delete the scene first as it will stop the use of entities
 	scene->Release();

@@ -32,6 +32,10 @@
 #define WINDOWS_LEAN_AND_MEAN
 #endif
 
+#ifndef nullptr
+#define nullptr 0
+#endif
+
 #ifndef _HRESULT_DEFINED
 #define _HRESULT_DEFINED
 #define HRESULT long
