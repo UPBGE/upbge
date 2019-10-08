@@ -410,7 +410,7 @@ static void load_tex_cursor_task_cb(void *__restrict userdata,
     if (len <= 1.0f) {
       float avg = BKE_brush_curve_strength_clamped(br, len, 1.0f); /* Falloff curve */
 
-      buffer[index] = 255 - (GLubyte)(255 * avg);
+      buffer[index] = (GLubyte)(255 * avg);
     }
     else {
       buffer[index] = 0;
@@ -1439,7 +1439,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
           GPU_matrix_mul(vc.obact->obmat);
           if (brush->sculpt_tool == SCULPT_TOOL_GRAB && (brush->flag & BRUSH_GRAB_ACTIVE_VERTEX) &&
               !is_multires) {
-            if (BKE_pbvh_type(ss->pbvh) == PBVH_FACES && ss->modifiers_active) {
+            if (BKE_pbvh_type(ss->pbvh) == PBVH_FACES && ss->deform_modifiers_active) {
               sculpt_geometry_preview_lines_update(C, ss, rds);
               sculpt_geometry_preview_lines_draw(pos, ss);
             }
@@ -1492,7 +1492,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
           /* Draw cached dynamic mesh preview lines */
           if (brush->sculpt_tool == SCULPT_TOOL_GRAB && (brush->flag & BRUSH_GRAB_ACTIVE_VERTEX) &&
               !is_multires) {
-            if (BKE_pbvh_type(ss->pbvh) == PBVH_FACES && ss->modifiers_active) {
+            if (BKE_pbvh_type(ss->pbvh) == PBVH_FACES && ss->deform_modifiers_active) {
               GPU_matrix_push_projection();
               ED_view3d_draw_setup_view(CTX_wm_window(C),
                                         CTX_data_depsgraph_pointer(C),

@@ -206,42 +206,42 @@ static const MeshElemMap *cdDM_getPolyMap(Object *ob, DerivedMesh *dm)
   return cddm->pmap;
 }
 
-static bool check_sculpt_object_deformed(Object *object, bool for_construction)
-{
-  bool deformed = false;
+//static bool check_sculpt_object_deformed(Object *object, bool for_construction)
+//{
+//  //bool deformed = false;
+//
+//  /* Active modifiers means extra deformation, which can't be handled correct
+//   * on birth of PBVH and sculpt "layer" levels, so use PBVH only for internal brush
+//   * stuff and show final DerivedMesh so user would see actual object shape.
+//   */
+//  //deformed |= object->sculpt->modifiers_active;
+//
+//  if (for_construction) {
+//    //deformed |= object->sculpt->kb != NULL;
+//  }
+//  else {
+//    /* As in case with modifiers, we can't synchronize deformation made against
+//     * PBVH and non-locked keyblock, so also use PBVH only for brushes and
+//     * final DM to give final result to user.
+//     */
+//    deformed |= object->sculpt->kb && (object->shapeflag & OB_SHAPE_LOCK) == 0;
+//  }
+//
+//  return deformed;
+//}
 
-  /* Active modifiers means extra deformation, which can't be handled correct
-   * on birth of PBVH and sculpt "layer" levels, so use PBVH only for internal brush
-   * stuff and show final DerivedMesh so user would see actual object shape.
-   */
-  deformed |= object->sculpt->modifiers_active;
-
-  if (for_construction) {
-    deformed |= object->sculpt->kb != NULL;
-  }
-  else {
-    /* As in case with modifiers, we can't synchronize deformation made against
-     * PBVH and non-locked keyblock, so also use PBVH only for brushes and
-     * final DM to give final result to user.
-     */
-    deformed |= object->sculpt->kb && (object->shapeflag & OB_SHAPE_LOCK) == 0;
-  }
-
-  return deformed;
-}
-
-static bool can_pbvh_draw(Object *ob, DerivedMesh *dm)
-{
-  CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-  Mesh *me = ob->data;
-  bool deformed = check_sculpt_object_deformed(ob, false);
-
-  if (deformed) {
-    return false;
-  }
-
-  return cddm->mvert == me->mvert || ob->sculpt->kb;
-}
+//static bool can_pbvh_draw(Object *ob, DerivedMesh *dm)
+//{
+//  CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
+//  Mesh *me = ob->data;
+//  bool deformed = check_sculpt_object_deformed(ob, false);
+//
+//  if (deformed) {
+//    return false;
+//  }
+//
+//  return cddm->mvert == me->mvert || ob->sculpt->kb;
+//}
 
 static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 {
@@ -258,13 +258,13 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 
   if (ob->sculpt->pbvh) {
     cddm->pbvh = ob->sculpt->pbvh;
-    cddm->pbvh_draw = can_pbvh_draw(ob, dm);
+    //cddm->pbvh_draw = can_pbvh_draw(ob, dm);
   }
 
   /* Sculpting on a BMesh (dynamic-topology) gets a special PBVH */
   if (!cddm->pbvh && ob->sculpt->bm) {
     cddm->pbvh = BKE_pbvh_new();
-    cddm->pbvh_draw = true;
+    //cddm->pbvh_draw = true;
 
     BKE_pbvh_build_bmesh(cddm->pbvh,
                          ob->sculpt->bm,
@@ -283,10 +283,10 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
     Mesh *me = BKE_object_get_original_mesh(ob);
     const int looptris_num = poly_to_tri_count(me->totpoly, me->totloop);
     MLoopTri *looptri;
-    bool deformed;
+    //bool deformed;
 
     cddm->pbvh = BKE_pbvh_new();
-    cddm->pbvh_draw = can_pbvh_draw(ob, dm);
+    //cddm->pbvh_draw = can_pbvh_draw(ob, dm);
 
     looptri = MEM_malloc_arrayN(looptris_num, sizeof(*looptri), __func__);
 
@@ -304,9 +304,9 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 
     pbvh_show_mask_set(cddm->pbvh, ob->sculpt->show_mask);
 
-    deformed = check_sculpt_object_deformed(ob, true);
+    //deformed = check_sculpt_object_deformed(ob, true);
 
-    if (deformed && ob->derivedDeform) {
+    if (/*deformed &&*/ ob->derivedDeform) {
       DerivedMesh *deformdm = ob->derivedDeform;
       float(*vertCos)[3];
       int totvert;
