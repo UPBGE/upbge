@@ -92,6 +92,14 @@ typedef struct SubdivToCCGSettings {
   bool need_mask;
 } SubdivToCCGSettings;
 
+typedef struct SubdivCCGCoord {
+  /* Index of the grid within SubdivCCG::grids array. */
+  int grid_index;
+
+  /* Coordinate within the grid. */
+  short x, y;
+} SubdivCCGCoord;
+
 /* This is actually a coarse face, which consists of multiple CCG grids. */
 typedef struct SubdivCCGFace {
   /* Total number of grids in this face.
@@ -107,15 +115,15 @@ typedef struct SubdivCCGFace {
 typedef struct SubdivCCGAdjacentEdge {
   int num_adjacent_faces;
   /* Indexed by adjacent face index, then by point index on the edge.
-   * points to a grid element. */
-  struct CCGElem ***boundary_elements;
+   * points to a coordinate into the grids. */
+  struct SubdivCCGCoord **boundary_coords;
 } SubdivCCGAdjacentEdge;
 
 /* Definition of a vertex which is adjacent to at least one of the faces. */
 typedef struct SubdivCCGAdjacentVertex {
   int num_adjacent_faces;
-  /* Indexed by adjacent face index, points to a grid element. */
-  struct CCGElem **corner_elements;
+  /* Indexed by adjacent face index, points to a coordinate in the grids. */
+  struct SubdivCCGCoord *corner_coords;
 } SubdivCCGAdjacentVertex;
 
 /* Representation of subdivision surface which uses CCG grids. */
@@ -254,17 +262,10 @@ void BKE_subdiv_ccg_topology_counters(const SubdivCCG *subdiv_ccg,
                                       int *r_num_faces,
                                       int *r_num_loops);
 
-typedef struct SubdivCCGCoord {
-  /* Index of the grid within SubdivCCG::grids array. */
-  int grid_index;
-
-  /* Coordinate within the grid. */
-  int x, y;
-} SubdivCCGCoord;
-
 typedef struct SubdivCCGNeighbors {
   SubdivCCGCoord *coords;
   int size;
+  int num_duplicates;
 
   SubdivCCGCoord coords_fixed[256];
 } SubdivCCGNeighbors;
@@ -288,9 +289,13 @@ bool BKE_subdiv_ccg_check_coord_valid(const SubdivCCG *subdiv_ccg, const SubdivC
 /* Get actual neighbors of the given coordinate.
  *
  * SubdivCCGNeighbors.neighbors must be freed if it is not equal to
- * SubdivCCGNeighbors.fixed_neighbors. */
+ * SubdivCCGNeighbors.fixed_neighbors.
+ *
+ * If include_duplicates is true, vertices in other grids that match
+ * the current vertex are added at the end of the coords array. */
 void BKE_subdiv_ccg_neighbor_coords_get(const SubdivCCG *subdiv_ccg,
                                         const SubdivCCGCoord *coord,
+                                        const bool include_duplicates,
                                         SubdivCCGNeighbors *r_neighbors);
 
 #endif /* __BKE_SUBDIV_CCG_H__ */

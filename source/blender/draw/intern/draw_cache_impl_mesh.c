@@ -90,9 +90,15 @@ BLI_INLINE void mesh_cd_layers_type_clear(DRW_MeshCDMask *a)
   *((uint32_t *)a) = 0;
 }
 
+static void mesh_cd_calc_edit_uv_layer(const Mesh *UNUSED(me), DRW_MeshCDMask *cd_used)
+{
+  cd_used->edit_uv = 1;
+}
+
 static void mesh_cd_calc_active_uv_layer(const Mesh *me, DRW_MeshCDMask *cd_used)
 {
-  const CustomData *cd_ldata = (me->edit_mesh) ? &me->edit_mesh->bm->ldata : &me->ldata;
+  const Mesh *me_final = (me->edit_mesh) ? me->edit_mesh->mesh_eval_final : me;
+  const CustomData *cd_ldata = &me_final->ldata;
 
   int layer = CustomData_get_active_layer(cd_ldata, CD_MLOOPUV);
   if (layer != -1) {
@@ -102,7 +108,8 @@ static void mesh_cd_calc_active_uv_layer(const Mesh *me, DRW_MeshCDMask *cd_used
 
 static void mesh_cd_calc_active_mask_uv_layer(const Mesh *me, DRW_MeshCDMask *cd_used)
 {
-  const CustomData *cd_ldata = (me->edit_mesh) ? &me->edit_mesh->bm->ldata : &me->ldata;
+  const Mesh *me_final = (me->edit_mesh) ? me->edit_mesh->mesh_eval_final : me;
+  const CustomData *cd_ldata = &me_final->ldata;
 
   int layer = CustomData_get_stencil_layer(cd_ldata, CD_MLOOPUV);
   if (layer != -1) {
@@ -112,7 +119,8 @@ static void mesh_cd_calc_active_mask_uv_layer(const Mesh *me, DRW_MeshCDMask *cd
 
 static void mesh_cd_calc_active_vcol_layer(const Mesh *me, DRW_MeshCDMask *cd_used)
 {
-  const CustomData *cd_ldata = (me->edit_mesh) ? &me->edit_mesh->bm->ldata : &me->ldata;
+  const Mesh *me_final = (me->edit_mesh) ? me->edit_mesh->mesh_eval_final : me;
+  const CustomData *cd_ldata = &me_final->ldata;
 
   int layer = CustomData_get_active_layer(cd_ldata, CD_MLOOPCOL);
   if (layer != -1) {
@@ -124,7 +132,8 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Mesh *me,
                                                    struct GPUMaterial **gpumat_array,
                                                    int gpumat_array_len)
 {
-  const CustomData *cd_ldata = (me->edit_mesh) ? &me->edit_mesh->bm->ldata : &me->ldata;
+  const Mesh *me_final = (me->edit_mesh) ? me->edit_mesh->mesh_eval_final : me;
+  const CustomData *cd_ldata = &me_final->ldata;
 
   /* See: DM_vertex_attributes_from_gpu for similar logic */
   DRW_MeshCDMask cd_used;
@@ -227,7 +236,8 @@ static void mesh_cd_extract_auto_layers_names_and_srgb(Mesh *me,
                                                        int **r_auto_layers_srgb,
                                                        int *r_auto_layers_len)
 {
-  const CustomData *cd_ldata = (me->edit_mesh) ? &me->edit_mesh->bm->ldata : &me->ldata;
+  const Mesh *me_final = (me->edit_mesh) ? me->edit_mesh->mesh_eval_final : me;
+  const CustomData *cd_ldata = &me_final->ldata;
 
   int uv_len_used = count_bits_i(cd_used.uv);
   int vcol_len_used = count_bits_i(cd_used.vcol);
@@ -882,6 +892,19 @@ GPUBatch *DRW_mesh_batch_cache_get_verts_with_select_id(Mesh *me)
 /** \name UV Image editor API
  * \{ */
 
+static void edituv_request_active_uv(MeshBatchCache *cache, Mesh *me)
+{
+  DRW_MeshCDMask cd_needed;
+  mesh_cd_layers_type_clear(&cd_needed);
+  mesh_cd_calc_edit_uv_layer(me, &cd_needed);
+
+  BLI_assert(cd_needed.uv != 0 &&
+             "No uv layer available in edituv, but batches requested anyway!");
+
+  mesh_cd_calc_active_mask_uv_layer(me, &cd_needed);
+  mesh_cd_layers_type_merge(&cache->cd_needed, cd_needed);
+}
+
 /* Creates the GPUBatch for drawing the UV Stretching Area Overlay.
  * Optional retrieves the total area or total uv area of the mesh.
  *
@@ -892,7 +915,7 @@ GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_stretch_area(Mesh *me,
                                                              float **tot_uv_area)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  texpaint_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_FACES_STRETCH_AREA);
 
   if (tot_area != NULL) {
@@ -907,7 +930,7 @@ GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_stretch_area(Mesh *me,
 GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_stretch_angle(Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  texpaint_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_FACES_STRETCH_ANGLE);
   return DRW_batch_request(&cache->batch.edituv_faces_stretch_angle);
 }
@@ -915,7 +938,7 @@ GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_stretch_angle(Mesh *me)
 GPUBatch *DRW_mesh_batch_cache_get_edituv_faces(Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  texpaint_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_FACES);
   return DRW_batch_request(&cache->batch.edituv_faces);
 }
@@ -923,7 +946,7 @@ GPUBatch *DRW_mesh_batch_cache_get_edituv_faces(Mesh *me)
 GPUBatch *DRW_mesh_batch_cache_get_edituv_edges(Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  texpaint_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_EDGES);
   return DRW_batch_request(&cache->batch.edituv_edges);
 }
@@ -931,7 +954,7 @@ GPUBatch *DRW_mesh_batch_cache_get_edituv_edges(Mesh *me)
 GPUBatch *DRW_mesh_batch_cache_get_edituv_verts(Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  texpaint_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_VERTS);
   return DRW_batch_request(&cache->batch.edituv_verts);
 }
@@ -939,7 +962,7 @@ GPUBatch *DRW_mesh_batch_cache_get_edituv_verts(Mesh *me)
 GPUBatch *DRW_mesh_batch_cache_get_edituv_facedots(Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  texpaint_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_FACEDOTS);
   return DRW_batch_request(&cache->batch.edituv_fdots);
 }
@@ -947,7 +970,7 @@ GPUBatch *DRW_mesh_batch_cache_get_edituv_facedots(Mesh *me)
 GPUBatch *DRW_mesh_batch_cache_get_uv_edges(Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  texpaint_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, me);
   mesh_batch_cache_add_request(cache, MBC_WIRE_LOOPS_UVS);
   return DRW_batch_request(&cache->batch.wire_loops_uvs);
 }

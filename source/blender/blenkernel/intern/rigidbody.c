@@ -51,6 +51,7 @@
 
 #include "BKE_collection.h"
 #include "BKE_effect.h"
+#include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
@@ -61,7 +62,6 @@
 #include "BKE_rigidbody.h"
 #include "BKE_scene.h"
 #ifdef WITH_BULLET
-#  include "BKE_global.h"
 #  include "BKE_library.h"
 #  include "BKE_library_query.h"
 #endif
@@ -174,12 +174,21 @@ void BKE_rigidbody_free_object(Object *ob, RigidBodyWorld *rbw)
   /* free physics references */
   if (is_orig) {
     if (rbo->shared->physics_object) {
-      BLI_assert(rbw);
-      if (rbw) {
+      if (rbw != NULL) {
         /* We can only remove the body from the world if the world is known.
          * The world is generally only unknown if it's an evaluated copy of
          * an object that's being freed, in which case this code isn't run anyway. */
         RB_dworld_remove_body(rbw->shared->physics_world, rbo->shared->physics_object);
+      }
+      else {
+        /* We have no access to 'owner' RBW when deleting the object ID itself... No choice bu to
+         * loop over all scenes then. */
+        for (Scene *scene = G_MAIN->scenes.first; scene != NULL; scene = scene->id.next) {
+          RigidBodyWorld *scene_rbw = scene->rigidbody_world;
+          if (scene_rbw != NULL) {
+            RB_dworld_remove_body(scene_rbw->shared->physics_world, rbo->shared->physics_object);
+          }
+        }
       }
 
       RB_body_delete(rbo->shared->physics_object);

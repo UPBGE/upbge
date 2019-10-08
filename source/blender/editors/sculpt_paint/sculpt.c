@@ -211,14 +211,19 @@ static void sculpt_active_vertex_normal_get(SculptSession *ss, float normal[3])
 #define SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY 256
 
 typedef struct SculptVertexNeighborIter {
+  /* Storage */
   int *neighbors;
   int size;
   int capacity;
-
   int neighbors_fixed[SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY];
 
-  int index;
+  /* Internal iterator. */
+  int num_duplicates;
   int i;
+
+  /* Public */
+  int index;
+  bool is_duplicate;
 } SculptVertexNeighborIter;
 
 static void sculpt_vertex_neighbor_add(SculptVertexNeighborIter *iter, int neighbor_index)
@@ -254,6 +259,7 @@ static void sculpt_vertex_neighbors_get_bmesh(SculptSession *ss,
   BMIter liter;
   BMLoop *l;
   iter->size = 0;
+  iter->num_duplicates = 0;
   iter->capacity = SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY;
   iter->neighbors = iter->neighbors_fixed;
 
@@ -276,6 +282,7 @@ static void sculpt_vertex_neighbors_get_faces(SculptSession *ss,
   int i;
   MeshElemMap *vert_map = &ss->pmap[(int)index];
   iter->size = 0;
+  iter->num_duplicates = 0;
   iter->capacity = SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY;
   iter->neighbors = iter->neighbors_fixed;
 
@@ -294,7 +301,8 @@ static void sculpt_vertex_neighbors_get_faces(SculptSession *ss,
 }
 
 static void sculpt_vertex_neighbors_get_grids(SculptSession *ss,
-                                              int index,
+                                              const int index,
+                                              const bool include_duplicates,
                                               SculptVertexNeighborIter *iter)
 {
   /* TODO: optimize this. We could fill SculptVertexNeighborIter directly,
@@ -309,9 +317,10 @@ static void sculpt_vertex_neighbors_get_grids(SculptSession *ss,
                           .y = vertex_index / key->grid_size};
 
   SubdivCCGNeighbors neighbors;
-  BKE_subdiv_ccg_neighbor_coords_get(ss->subdiv_ccg, &coord, &neighbors);
+  BKE_subdiv_ccg_neighbor_coords_get(ss->subdiv_ccg, &coord, include_duplicates, &neighbors);
 
   iter->size = 0;
+  iter->num_duplicates = neighbors.num_duplicates;
   iter->capacity = SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY;
   iter->neighbors = iter->neighbors_fixed;
 
@@ -327,7 +336,8 @@ static void sculpt_vertex_neighbors_get_grids(SculptSession *ss,
 }
 
 static void sculpt_vertex_neighbors_get(SculptSession *ss,
-                                        int index,
+                                        const int index,
+                                        const bool include_duplicates,
                                         SculptVertexNeighborIter *iter)
 {
   switch (BKE_pbvh_type(ss->pbvh)) {
@@ -338,16 +348,27 @@ static void sculpt_vertex_neighbors_get(SculptSession *ss,
       sculpt_vertex_neighbors_get_bmesh(ss, index, iter);
       return;
     case PBVH_GRIDS:
-      sculpt_vertex_neighbors_get_grids(ss, index, iter);
+      sculpt_vertex_neighbors_get_grids(ss, index, include_duplicates, iter);
       return;
   }
 }
 
+/* Iterator over neighboring vertices. */
 #define sculpt_vertex_neighbors_iter_begin(ss, v_index, neighbor_iterator) \
-  sculpt_vertex_neighbors_get(ss, v_index, &neighbor_iterator); \
+  sculpt_vertex_neighbors_get(ss, v_index, false, &neighbor_iterator); \
   for (neighbor_iterator.i = 0; neighbor_iterator.i < neighbor_iterator.size; \
        neighbor_iterator.i++) { \
     neighbor_iterator.index = ni.neighbors[ni.i];
+
+/* Iterate over neighboring and duplicate vertices (for PBVH_GRIDS). Duplicates come
+ * first since they are nearest for floodfill. */
+#define sculpt_vertex_duplicates_and_neighbors_iter_begin(ss, v_index, neighbor_iterator) \
+  sculpt_vertex_neighbors_get(ss, v_index, true, &neighbor_iterator); \
+  for (neighbor_iterator.i = neighbor_iterator.size - 1; neighbor_iterator.i >= 0; \
+       neighbor_iterator.i--) { \
+    neighbor_iterator.index = ni.neighbors[ni.i]; \
+    neighbor_iterator.is_duplicate = (ni.i >= \
+                                      neighbor_iterator.size - neighbor_iterator.num_duplicates);
 
 #define sculpt_vertex_neighbors_iter_end(neighbor_iterator) \
   } \
@@ -492,28 +513,18 @@ typedef struct SculptFloodFill {
   char *visited_vertices;
 } SculptFloodFill;
 
-typedef struct SculptFloodFillIterator {
-  int v;
-  int it;
-  float edge_factor;
-} SculptFloodFillIterator;
-
 static void sculpt_floodfill_init(SculptSession *ss, SculptFloodFill *flood)
 {
   int vertex_count = sculpt_vertex_count_get(ss);
   sculpt_vertex_random_access_init(ss);
 
-  flood->queue = BLI_gsqueue_new(sizeof(SculptFloodFillIterator));
+  flood->queue = BLI_gsqueue_new(sizeof(int));
   flood->visited_vertices = MEM_callocN(vertex_count * sizeof(char), "visited vertices");
 }
 
 static void sculpt_floodfill_add_initial(SculptFloodFill *flood, int index)
 {
-  SculptFloodFillIterator mevit;
-  mevit.v = index;
-  mevit.it = 0;
-  mevit.edge_factor = 1.0f;
-  BLI_gsqueue_push(flood->queue, &mevit);
+  BLI_gsqueue_push(flood->queue, &index);
 }
 
 static void sculpt_floodfill_add_active(
@@ -540,32 +551,24 @@ static void sculpt_floodfill_add_active(
   }
 }
 
-static void sculpt_floodfill_execute(SculptSession *ss,
-                                     SculptFloodFill *flood,
-                                     bool (*func)(SculptSession *ss,
-                                                  const SculptFloodFillIterator *from,
-                                                  SculptFloodFillIterator *to,
-                                                  void *userdata),
-                                     void *userdata)
+static void sculpt_floodfill_execute(
+    SculptSession *ss,
+    SculptFloodFill *flood,
+    bool (*func)(SculptSession *ss, int from_v, int to_v, bool is_duplicate, void *userdata),
+    void *userdata)
 {
-  /* TODO: multires support, taking into account duplicate vertices and
-   * correctly handling them in the pose, automask and mask expand callbacks. */
   while (!BLI_gsqueue_is_empty(flood->queue)) {
-    SculptFloodFillIterator from;
-    BLI_gsqueue_pop(flood->queue, &from);
+    int from_v;
+    BLI_gsqueue_pop(flood->queue, &from_v);
     SculptVertexNeighborIter ni;
-    sculpt_vertex_neighbors_iter_begin(ss, from.v, ni)
+    sculpt_vertex_duplicates_and_neighbors_iter_begin(ss, from_v, ni)
     {
-      if (flood->visited_vertices[ni.index] == 0) {
-        flood->visited_vertices[ni.index] = 1;
+      const int to_v = ni.index;
+      if (flood->visited_vertices[to_v] == 0) {
+        flood->visited_vertices[to_v] = 1;
 
-        SculptFloodFillIterator to;
-        to.v = ni.index;
-        to.it = from.it + 1;
-        to.edge_factor = 0.0f;
-
-        if (func(ss, &from, &to, userdata)) {
-          BLI_gsqueue_push(flood->queue, &to);
+        if (func(ss, from_v, to_v, ni.is_duplicate, userdata)) {
+          BLI_gsqueue_push(flood->queue, &to_v);
         }
       }
     }
@@ -1215,11 +1218,6 @@ static bool sculpt_brush_test_cyl(SculptBrushTest *test,
 
 static bool sculpt_automasking_enabled(SculptSession *ss, const Brush *br)
 {
-  // REMOVE WITH PBVH_GRIDS
-  if (ss->pbvh && BKE_pbvh_type(ss->pbvh) == PBVH_GRIDS) {
-    return false;
-  }
-
   if (sculpt_stroke_is_dynamic_topology(ss, br)) {
     return false;
   }
@@ -1268,17 +1266,15 @@ typedef struct AutomaskFloodFillData {
   char symm;
 } AutomaskFloodFillData;
 
-static bool automask_floodfill_cb(SculptSession *ss,
-                                  const SculptFloodFillIterator *UNUSED(from),
-                                  SculptFloodFillIterator *to,
-                                  void *userdata)
+static bool automask_floodfill_cb(
+    SculptSession *ss, int UNUSED(from_v), int to_v, bool UNUSED(is_duplicate), void *userdata)
 {
   AutomaskFloodFillData *data = userdata;
 
-  data->automask_factor[to->v] = 1.0f;
+  data->automask_factor[to_v] = 1.0f;
   return (!data->use_radius ||
           sculpt_is_vertex_inside_brush_radius_symm(
-              sculpt_vertex_co_get(ss, to->v), data->location, data->radius, data->symm));
+              sculpt_vertex_co_get(ss, to_v), data->location, data->radius, data->symm));
 }
 
 static float *sculpt_topology_automasking_init(Sculpt *sd, Object *ob, float *automask_factor)
@@ -3657,10 +3653,6 @@ static void do_pose_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
   float pose_initial_co[3];
   float transform_rot[4][4], transform_trans[4][4], transform_trans_inv[4][4];
 
-  if (BKE_pbvh_type(ss->pbvh) == PBVH_GRIDS) {
-    return;
-  }
-
   copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
   copy_v3_v3(pose_origin, ss->cache->pose_origin);
@@ -3835,25 +3827,25 @@ typedef struct PoseFloodFillData {
   int tot_co;
 } PoseFloodFillData;
 
-static bool pose_floodfill_cb(SculptSession *ss,
-                              const SculptFloodFillIterator *UNUSED(from),
-                              SculptFloodFillIterator *to,
-                              void *userdata)
+static bool pose_floodfill_cb(
+    SculptSession *ss, int UNUSED(from_v), int to_v, bool is_duplicate, void *userdata)
 {
   PoseFloodFillData *data = userdata;
 
   if (data->pose_factor) {
-    data->pose_factor[to->v] = 1.0f;
+    data->pose_factor[to_v] = 1.0f;
   }
 
-  const float *co = sculpt_vertex_co_get(ss, to->v);
+  const float *co = sculpt_vertex_co_get(ss, to_v);
   if (sculpt_pose_brush_is_vertex_inside_brush_radius(
           co, data->pose_initial_co, data->radius, data->symm)) {
     return true;
   }
   else if (check_vertex_pivot_symmetry(co, data->pose_initial_co, data->symm)) {
-    add_v3_v3(data->pose_origin, co);
-    data->tot_co++;
+    if (!is_duplicate) {
+      add_v3_v3(data->pose_origin, co);
+      data->tot_co++;
+    }
   }
 
   return false;
@@ -5340,9 +5332,7 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
 
     if (brush->sculpt_tool == SCULPT_TOOL_POSE && ss->cache->first_time &&
         ss->cache->mirror_symmetry_pass == 0) {
-      if (BKE_pbvh_type(ss->pbvh) != PBVH_GRIDS) {
-        sculpt_pose_brush_init(sd, ob, ss, brush, ss->cache->location, ss->cache->radius);
-      }
+      sculpt_pose_brush_init(sd, ob, ss, brush, ss->cache->location, ss->cache->radius);
     }
 
     /* Apply one type of brush action */
@@ -9152,26 +9142,37 @@ typedef struct MaskExpandFloodFillData {
   bool use_normals;
 } MaskExpandFloodFillData;
 
-static bool mask_expand_floodfill_cb(SculptSession *ss,
-                                     const SculptFloodFillIterator *from,
-                                     SculptFloodFillIterator *to,
-                                     void *userdata)
+static bool mask_expand_floodfill_cb(
+    SculptSession *ss, int from_v, int to_v, bool is_duplicate, void *userdata)
 {
   MaskExpandFloodFillData *data = userdata;
 
-  ss->filter_cache->mask_update_it[to->v] = to->it;
-  if (to->it > ss->filter_cache->mask_update_last_it) {
-    ss->filter_cache->mask_update_last_it = to->it;
-  }
+  if (!is_duplicate) {
+    int to_it = ss->filter_cache->mask_update_it[from_v] + 1;
+    ss->filter_cache->mask_update_it[to_v] = to_it;
+    if (to_it > ss->filter_cache->mask_update_last_it) {
+      ss->filter_cache->mask_update_last_it = to_it;
+    }
 
-  if (data->use_normals) {
-    float current_normal[3], prev_normal[3];
-    sculpt_vertex_normal_get(ss, to->v, current_normal);
-    sculpt_vertex_normal_get(ss, from->v, prev_normal);
-    to->edge_factor = dot_v3v3(current_normal, prev_normal) * from->edge_factor;
-    ss->filter_cache->normal_factor[to->v] = dot_v3v3(data->original_normal, current_normal) *
-                                             powf(from->edge_factor, data->edge_sensitivity);
-    CLAMP(ss->filter_cache->normal_factor[to->v], 0.0f, 1.0f);
+    if (data->use_normals) {
+      float current_normal[3], prev_normal[3];
+      sculpt_vertex_normal_get(ss, to_v, current_normal);
+      sculpt_vertex_normal_get(ss, from_v, prev_normal);
+      const float from_edge_factor = ss->filter_cache->edge_factor[from_v];
+      ss->filter_cache->edge_factor[to_v] = dot_v3v3(current_normal, prev_normal) *
+                                            from_edge_factor;
+      ss->filter_cache->normal_factor[to_v] = dot_v3v3(data->original_normal, current_normal) *
+                                              powf(from_edge_factor, data->edge_sensitivity);
+      CLAMP(ss->filter_cache->normal_factor[to_v], 0.0f, 1.0f);
+    }
+  }
+  else {
+    /* PBVH_GRIDS duplicate handling */
+    ss->filter_cache->mask_update_it[to_v] = ss->filter_cache->mask_update_it[from_v];
+    if (data->use_normals) {
+      ss->filter_cache->edge_factor[to_v] = ss->filter_cache->edge_factor[from_v];
+      ss->filter_cache->normal_factor[to_v] = ss->filter_cache->normal_factor[from_v];
+    }
   }
 
   return true;
@@ -9191,10 +9192,6 @@ static int sculpt_mask_expand_invoke(bContext *C, wmOperator *op, const wmEvent 
   float mouse[2];
   mouse[0] = event->mval[0];
   mouse[1] = event->mval[1];
-
-  if (BKE_pbvh_type(ss->pbvh) == PBVH_GRIDS) {
-    return OPERATOR_CANCELLED;
-  }
 
   sculpt_vertex_random_access_init(ss);
 
@@ -9223,6 +9220,11 @@ static int sculpt_mask_expand_invoke(bContext *C, wmOperator *op, const wmEvent 
   if (use_normals) {
     ss->filter_cache->normal_factor = MEM_callocN(sizeof(float) * vertex_count,
                                                   "mask update normal factor");
+    ss->filter_cache->edge_factor = MEM_callocN(sizeof(float) * vertex_count,
+                                                "mask update normal factor");
+    for (int i = 0; i < vertex_count; i++) {
+      ss->filter_cache->edge_factor[i] = 1.0f;
+    }
   }
 
   ss->filter_cache->prev_mask = MEM_callocN(sizeof(float) * vertex_count, "prev mask");
@@ -9261,6 +9263,8 @@ static int sculpt_mask_expand_invoke(bContext *C, wmOperator *op, const wmEvent 
         ss->filter_cache->normal_factor[i] = avg / ni.size;
       }
     }
+
+    MEM_SAFE_FREE(ss->filter_cache->edge_factor);
   }
 
   SculptThreadedTaskData data = {
