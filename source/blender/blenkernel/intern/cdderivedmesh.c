@@ -293,6 +293,7 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
     BKE_mesh_recalc_looptri(me->mloop, me->mpoly, me->mvert, me->totloop, me->totpoly, looptri);
 
     BKE_pbvh_build_mesh(cddm->pbvh,
+                        me,
                         me->mpoly,
                         me->mloop,
                         me->mvert,
