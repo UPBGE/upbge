@@ -224,10 +224,10 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 
 	// Keep a copy of the original armature so we can fix drivers later
 	m_origObjArma = armature;
-	m_objArma = BKE_object_copy(G.main, armature);
-	m_objArma->data = BKE_armature_copy(G.main, (bArmature *)armature->data);
+	m_objArma = m_origObjArma; //BKE_object_copy(G.main, armature);
+	//m_objArma->data = BKE_armature_copy(G.main, (bArmature *)armature->data);
 	// During object replication ob->data is increase, we decrease it now because we get a copy.
-	id_us_min(&((bArmature *)m_origObjArma->data)->id);
+	//id_us_min(&((bArmature *)m_origObjArma->data)->id);
 	m_pose = m_objArma->pose;
 	// need this to get iTaSC working ok in the BGE
 	//m_pose->flag |= POSE_GAME_ENGINE;
@@ -239,13 +239,13 @@ BL_ArmatureObject::~BL_ArmatureObject()
 	m_poseChannels->Release();
 	m_controlledConstraints->Release();
 
-	if (m_objArma) {
-		BKE_id_free(G.main, m_objArma->data);
-		/* avoid BKE_libblock_free(G.main, m_objArma)
-		   try to access m_objArma->data */
-		m_objArma->data = nullptr;
-		BKE_id_free(G.main, m_objArma);
-	}
+	//if (m_objArma) {
+	//	BKE_id_free(G.main, m_objArma->data);
+	//	/* avoid BKE_libblock_free(G.main, m_objArma)
+	//	   try to access m_objArma->data */
+	//	m_objArma->data = nullptr;
+	//	BKE_id_free(G.main, m_objArma);
+	//}
 }
 
 void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter& converter)
@@ -465,16 +465,16 @@ void BL_ArmatureObject::SetPose(bPose *pose)
 
 void BL_ArmatureObject::SetPoseByAction(bAction *action, float localtime)
 {
-	Object *arm = GetArmatureObject();
+	Object *arm = GetArmatureObject(); // Same than GetOrigArmaObject
 
 	PointerRNA ptrrna;
 	RNA_id_pointer_create(&arm->id, &ptrrna);
 
 	/*Scene *scene = KX_GetActiveScene()->GetBlenderScene();
 	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-	Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer, false);*/
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, scene, view_layer, false);*/
 
-	//animsys_evaluate_action(depsgraph, &ptrrna, action, localtime);
+	animsys_evaluate_action(&ptrrna, action, localtime, false);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
