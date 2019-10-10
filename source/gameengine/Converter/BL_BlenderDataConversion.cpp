@@ -390,7 +390,11 @@ static KX_BlenderMaterial *ConvertMaterial(
 	return kx_blmat;
 }
 
-static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_Scene *scene, KX_BlenderSceneConverter& converter)
+static RAS_MaterialBucket *material_from_mesh(Material *ma,
+                                              int lightlayer,
+                                              KX_Scene *scene,
+                                              RAS_Rasterizer *rasty,
+                                              KX_BlenderSceneConverter &converter)
 {
 	KX_BlenderMaterial* mat = converter.FindMaterial(ma);
 
@@ -513,7 +517,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			ma = &defmaterial;
 		}
 
-		RAS_MaterialBucket *bucket = material_from_mesh(ma, lightlayer, scene, converter);
+		RAS_MaterialBucket *bucket = material_from_mesh(ma, lightlayer, scene, rasty, converter);
 		RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
 
 		convertedMats[i] = {ma, meshmat, ((ma->game.flag & GEMAT_INVISIBLE) == 0), ((ma->game.flag  & GEMAT_BACKCULL) == 0),
