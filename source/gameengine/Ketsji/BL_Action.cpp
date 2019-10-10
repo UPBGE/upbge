@@ -424,12 +424,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
     scene->ResetTaaSamples();
 
-    // Handle blending between armature actions
-    if (m_blendin && m_blendframe < m_blendin) {
-    	IncrementBlending(curtime);
-    }
-    // Calculate weight
-    float weight = 1.f - (m_blendframe / m_blendin);
     BL_ArmatureObject *obj = (BL_ArmatureObject*)m_obj;
 
     if (m_layer_weight >= 0)
