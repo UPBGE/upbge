@@ -317,7 +317,7 @@ void KX_GameObject::ReplicateBlenderObject()
                                    scene,
                                    BKE_view_layer_camera_find(view_layer),
                                    newob);  // add replica where is the active camera
-    newob->base_flag |= BASE_VISIBLE_VIEWLAYER;
+    newob->base_flag |= (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH);
     DEG_relations_tag_update(bmain);
     m_pBlenderObject = newob;
     m_isReplica = true;
@@ -344,7 +344,8 @@ bool KX_GameObject::IsStatic()
 void KX_GameObject::HideOriginalObject()
 {
   Object *ob = GetBlenderObject();
-  if (ob && !m_isReplica && (ob->base_flag & BASE_VISIBLE_VIEWLAYER) != 0) {
+  if (ob && !m_isReplica && (ob->base_flag & (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0)
+    {
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, ob);

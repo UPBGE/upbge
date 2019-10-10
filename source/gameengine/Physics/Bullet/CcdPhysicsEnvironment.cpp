@@ -3079,7 +3079,9 @@ void CcdPhysicsEnvironment::ConvertObject(KX_BlenderSceneConverter& converter, K
 	physicscontroller->SetNewClientInfo(gameobj->getClientInfo());
 
 	// don't add automatically sensor object, they are added when a collision sensor is registered
-	if (!isbulletsensor && (blenderobject->base_flag & BASE_VISIBLE_VIEWLAYER) != 0) {
+  if (!isbulletsensor &&
+      (blenderobject->base_flag & (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0)
+    {
 		this->AddCcdPhysicsController(physicscontroller);
 	}
 
