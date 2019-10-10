@@ -412,7 +412,8 @@ static void flatten_group_do(bNodeTree *ntree, bNode *gnode)
     BLI_remlink(&ngroup->nodes, node);
     BLI_addtail(&ntree->nodes, node);
     /* ensure unique node name in the node tree */
-    nodeUniqueName(ntree, node);
+    /* This is very slow and it has no use for GPU nodetree. (see T70609) */
+    // nodeUniqueName(ntree, node);
   }
 
   /* Save first and last link to iterate over flattened group links. */
@@ -628,7 +629,7 @@ static bNode *ntree_shader_copy_branch(bNodeTree *ntree,
   /* Count and tag all nodes inside the displacement branch of the tree. */
   start_node->tmp_flag = 0;
   int node_count = 1;
-  nodeChainIterBackwards(ntree, start_node, ntree_branch_count_and_tag_nodes, &node_count);
+  nodeChainIterBackwards(ntree, start_node, ntree_branch_count_and_tag_nodes, &node_count, 1);
   /* Make a full copy of the branch */
   bNode **nodes_copy = MEM_mallocN(sizeof(bNode *) * node_count, __func__);
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
@@ -762,13 +763,13 @@ static void node_tag_branch_as_derivative(bNode *node, int dx)
   }
 }
 
-static bool ntree_shader_bump_branches(bNode *UNUSED(fromnode), bNode *tonode, void *userdata)
+static bool ntree_shader_bump_branches(bNode *fromnode, bNode *UNUSED(tonode), void *userdata)
 {
   bNodeTree *ntree = (bNodeTree *)userdata;
 
-  if (tonode->type == SH_NODE_BUMP) {
+  if (fromnode->type == SH_NODE_BUMP) {
     bNodeSocket *height_dx_sock, *height_dy_sock, *bump_socket, *bump_dx_socket, *bump_dy_socket;
-    bNode *bump = tonode;
+    bNode *bump = fromnode;
     bump_socket = ntree_shader_node_find_input(bump, "Height");
     bump_dx_socket = ntree_shader_node_find_input(bump, "Height_dx");
     bump_dy_socket = ntree_shader_node_find_input(bump, "Height_dy");
@@ -831,7 +832,7 @@ void ntree_shader_tag_nodes(bNodeTree *ntree, bNode *output_node, nTreeTags *tag
   /* Make sure sockets links pointers are correct. */
   ntreeUpdateTree(G.main, ntree);
 
-  nodeChainIterBackwards(ntree, output_node, ntree_tag_bsdf_cb, tags);
+  nodeChainIterBackwards(ntree, output_node, ntree_tag_bsdf_cb, tags, 0);
 }
 
 /* This one needs to work on a local tree. */
@@ -860,7 +861,7 @@ void ntreeGPUMaterialNodes(bNodeTree *localtree,
 
   /* Duplicate bump height branches for manual derivatives.
    */
-  nodeChainIterBackwards(localtree, output, ntree_shader_bump_branches, localtree);
+  nodeChainIterBackwards(localtree, output, ntree_shader_bump_branches, localtree, 0);
 
   /* TODO(fclem): consider moving this to the gpu shader tree evaluation. */
   nTreeTags tags = {
