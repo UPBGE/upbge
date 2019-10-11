@@ -466,6 +466,23 @@ void BL_ArmatureObject::SetPose(bPose *pose)
 void BL_ArmatureObject::SetPoseByAction(bAction *action, float localtime)
 {
 	Object *arm = GetArmatureObject(); // Same than GetOrigArmaObject
+	// This is an attempt to use original object instead of copies.
+	// This can be changed by more experienced coders about armatures.
+	// See the change I did in constructor: m_objArma = m_origObjArma
+	// instead of m_objArma = BKE_object_copy(G.main, armature);
+	// Another thing to check is why Moguri or the one who wrote this code
+	// was doing:
+	// m_objArma->data = BKE_armature_copy(G.main, (bArmature *)armature->data);
+	// id_us_min(&((bArmature *)m_origObjArma->data)->id);
+	// m_pose->flag |= POSE_GAME_ENGINE;
+	// We'd need to check that in 0.1.8 code to try to understand,
+	// and maybe to try to solve the duplication of ArmaturesObjects.
+	// For now, Armature original objects are duplicate TWICE!? during
+	// ProcessReplica:
+	// - 1 time in ReplicateBlendObject (KX_GameObject::ProcessReplica)
+	// - 1 time in BL_ArmatureObject::ProcessReplica
+	// This is a temp situation waiting we find a solution to replicate
+	// and play replicated Armatures actions.
 
 	PointerRNA ptrrna;
 	RNA_id_pointer_create(&arm->id, &ptrrna);
