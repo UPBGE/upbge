@@ -307,7 +307,7 @@ void KX_GameObject::UseCopy()
 void KX_GameObject::ReplicateBlenderObject()
 {
   Object *ob = GetBlenderObject();
-  if (ob) {
+  if (ob && ob->type != OB_ARMATURE) {
     Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
     Object *newob;
     BKE_id_copy_ex(bmain, &ob->id, (ID **)&newob, 0);
