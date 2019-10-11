@@ -2401,7 +2401,7 @@ Mesh *mesh_get_eval_final(struct Depsgraph *depsgraph,
                           const CustomData_MeshMasks *dataMask)
 {
   /* This function isn't thread-safe and can't be used during evaluation. */
-  BLI_assert(DEG_debug_is_evaluating(depsgraph) == false);
+  BLI_assert(DEG_is_evaluating(depsgraph) == false);
 
   /* Evaluated meshes aren't supposed to be created on original instances. If you do,
    * they aren't cleaned up properly on mode switch, causing crashes, e.g T58150. */
@@ -2434,7 +2434,7 @@ Mesh *mesh_get_eval_deform(struct Depsgraph *depsgraph,
                            const CustomData_MeshMasks *dataMask)
 {
   /* This function isn't thread-safe and can't be used during evaluation. */
-  BLI_assert(DEG_debug_is_evaluating(depsgraph) == false);
+  BLI_assert(DEG_is_evaluating(depsgraph) == false);
 
   /* Evaluated meshes aren't supposed to be created on original instances. If you do,
    * they aren't cleaned up properly on mode switch, causing crashes, e.g T58150. */

@@ -1795,6 +1795,8 @@ def km_file_browser(params):
          {"properties": [("data_path", 'space_data.params.show_hidden')]}),
         ("file.directory_new", {"type": 'I', "value": 'PRESS'},
          {"properties": [("confirm", False)]}),
+        ("file.delete", {"type": 'X', "value": 'PRESS'}, None),
+        ("file.delete", {"type": 'DEL', "value": 'PRESS'}, None),
         ("file.smoothscroll", {"type": 'TIMER1', "value": 'ANY', "any": True}, None),
         ("file.bookmark_add", {"type": 'B', "value": 'PRESS', "ctrl": True}, None),
         ("file.filenum", {"type": 'NUMPAD_PLUS', "value": 'PRESS'},
@@ -5869,6 +5871,18 @@ def km_3d_view_tool_paint_gpencil_cutter(params):
     )
 
 
+def km_3d_view_tool_paint_gpencil_eyedropper(params):
+    return (
+        "3D View Tool: Paint Gpencil, Eyedropper",
+        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
+        {"items": [
+            ("ui.eyedropper_gpencil_color", {"type": params.tool_mouse, "value": 'PRESS'}, None),
+            ("ui.eyedropper_gpencil_color", {"type": params.tool_mouse, "value": 'PRESS', "shift": True}, None),
+            ("ui.eyedropper_gpencil_color", {"type": params.tool_mouse, "value": 'PRESS', "shift": True, "ctrl": True}, None),
+        ]},
+    )
+
+
 def km_3d_view_tool_edit_gpencil_select(params):
     return (
         "3D View Tool: Edit Gpencil, Tweak",
@@ -6206,6 +6220,7 @@ def generate_keymaps(params=None):
         km_3d_view_tool_paint_gpencil_arc(params),
         km_3d_view_tool_paint_gpencil_curve(params),
         km_3d_view_tool_paint_gpencil_cutter(params),
+        km_3d_view_tool_paint_gpencil_eyedropper(params),
         km_3d_view_tool_edit_gpencil_select(params),
         km_3d_view_tool_edit_gpencil_select_box(params),
         km_3d_view_tool_edit_gpencil_select_circle(params),

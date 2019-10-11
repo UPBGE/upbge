@@ -1320,7 +1320,7 @@ class _defs_gpencil_paint:
             icon_prefix="brush.gpencil_draw.",
             type=bpy.types.Brush,
             attr="gpencil_tool",
-            cursor='PAINT_CROSS',
+            cursor='DOT',
             tooldef_keywords=dict(
                 operator="gpencil.draw",
             ),
@@ -1392,6 +1392,17 @@ class _defs_gpencil_paint:
             keymap=(),
         )
 
+
+    @ToolDef.from_fn
+    def eyedropper():
+        return dict(
+            idname="builtin.eyedropper",
+            label="Eyedropper",
+            icon="ops.paint.weight_sample",
+            cursor='EYEDROPPER',
+            widget=None,
+            keymap=(),
+        )
 
 class _defs_gpencil_edit:
     @ToolDef.from_fn
@@ -2043,6 +2054,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             _defs_gpencil_paint.generate_from_brushes,
             _defs_gpencil_paint.cutter,
+            None,
+            _defs_gpencil_paint.eyedropper,
             None,
             _defs_gpencil_paint.line,
             _defs_gpencil_paint.arc,

@@ -420,42 +420,34 @@ void BL_Action::Update(float curtime, bool applyToObject)
   {
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
-    BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
+    //BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
 
     scene->ResetTaaSamples();
 
-    //// Handle blending between armature actions
-    //if (m_blendin && m_blendframe < m_blendin) {
-    //	IncrementBlending(curtime);
-    //}
-    //// Calculate weight
-    //float weight = 1.f - (m_blendframe / m_blendin);
-    //BL_ArmatureObject *obj = (BL_ArmatureObject*)m_obj;
+    BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
 
-    //if (m_layer_weight >= 0)
-    //	obj->GetPose(&m_blendpose);
+    if (m_layer_weight >= 0)
+      obj->GetPose(&m_blendpose);
 
-    //// Extract the pose from the action
-    //obj->SetPoseByAction(m_tmpaction, m_localframe);
+    // Extract the pose from the action
+    obj->SetPoseByAction(m_tmpaction, m_localframe);
 
-    //// Handle blending between armature actions
-    //if (m_blendin && m_blendframe<m_blendin)
-    //{
-    //	IncrementBlending(curtime);
+    // Handle blending between armature actions
+    if (m_blendin && m_blendframe < m_blendin) {
+      IncrementBlending(curtime);
 
-    //	// Calculate weight
-    //	float weight = 1.f - (m_blendframe/m_blendin);
+      // Calculate weight
+      float weight = 1.f - (m_blendframe / m_blendin);
 
-    //	// Blend the poses
-    //	obj->BlendInPose(m_blendinpose, weight, ACT_BLEND_BLEND);
-    //}
+      // Blend the poses
+      obj->BlendInPose(m_blendinpose, weight, ACT_BLEND_BLEND);
+    }
 
+    // Handle layer blending
+    if (m_layer_weight >= 0)
+      obj->BlendInPose(m_blendpose, m_layer_weight, m_blendmode);
 
-    //// Handle layer blending
-    //if (m_layer_weight >= 0)
-    //	obj->BlendInPose(m_blendpose, m_layer_weight, m_blendmode);
-
-    //obj->UpdateTimestep(curtime);
+    obj->UpdateTimestep(curtime);
   }
   else
   {

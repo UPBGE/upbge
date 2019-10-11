@@ -477,13 +477,13 @@ mark_as_advanced(WITH_CXX_GUARDEDALLOC)
 option(WITH_ASSERT_ABORT "Call abort() when raising an assertion through BLI_assert()" ON)
 mark_as_advanced(WITH_ASSERT_ABORT)
 
-option(WITH_BOOST                   "Enable features depending on boost" ON)
+option(WITH_BOOST "Enable features depending on boost" ON)
+option(WITH_TBB   "Enable features depending on TBB (OpenVDB, OpenImageDenoise, sculpt multithreading)" ON)
 
 # Unit testsing
 option(WITH_GTESTS "Enable GTest unit testing" OFF)
 option(WITH_OPENGL_RENDER_TESTS "Enable OpenGL render related unit testing (Experimental)" OFF)
 option(WITH_OPENGL_DRAW_TESTS "Enable OpenGL UI drawing related unit testing (Experimental)" OFF)
-
 
 # Documentation
 if(UNIX AND NOT APPLE)
@@ -609,6 +609,11 @@ if("${CMAKE_GENERATOR}" MATCHES "Ninja")
          "Enable Ninja pools of jobs, to try to ease building on machines with 16GB of RAM or less (if not yet defined, will try to set best values based on detected machine specifications)."
          OFF)
   mark_as_advanced(WITH_NINJA_POOL_JOBS)
+endif()
+
+if(UNIX AND NOT APPLE)
+  option(WITH_CXX11_ABI "Use native C++11 ABI of compiler" ON)
+  mark_as_advanced(WITH_CXX11_ABI)
 endif()
 
 # avoid using again
@@ -1686,6 +1691,12 @@ if(
 )
   # Use C11 + GNU extensions, works with GCC, Clang, ICC
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11")
+endif()
+
+if(UNIX AND NOT APPLE)
+  if(NOT WITH_CXX11_ABI)
+    set(PLATFORM_CFLAGS "${PLATFORM_CFLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+  endif()
 endif()
 
 # Include warnings first, so its possible to disable them with user defined flags
