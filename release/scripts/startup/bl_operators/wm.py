@@ -2046,7 +2046,6 @@ class WM_OT_batch_rename(Operator):
                     descr,
                 )
 
-
         return data
 
     @staticmethod
