@@ -173,12 +173,12 @@ const EnumPropertyItem rna_enum_constraint_type_items[] = {
      ICON_CON_PIVOT,
      "Pivot",
      "Change pivot point for transforms (buggy)"},
-#if 0
     {CONSTRAINT_TYPE_RIGIDBODYJOINT,
      "RIGID_BODY_JOINT",
-     ICON_CONSTRAINT_DATA,
+     ICON_CON_RIGIDBODYJOINT,
      "Rigid Body Joint",
      "Use to define a Rigid Body Constraint (for Game Engine use only)"},
+#if 0
     {CONSTRAINT_TYPE_PYTHON,
      "SCRIPT",
      ICON_CONSTRAINT_DATA,
@@ -327,6 +327,8 @@ static StructRNA *rna_ConstraintType_refine(struct PointerRNA *ptr)
       return &RNA_StretchToConstraint;
     case CONSTRAINT_TYPE_MINMAX:
       return &RNA_FloorConstraint;
+    case CONSTRAINT_TYPE_RIGIDBODYJOINT:
+      return &RNA_RigidBodyJointConstraint;
     case CONSTRAINT_TYPE_CLAMPTO:
       return &RNA_ClampToConstraint;
     case CONSTRAINT_TYPE_TRANSFORM:
@@ -1898,6 +1900,7 @@ static void rna_def_constraint_rigid_body_joint(BlenderRNA *brna)
     srna = RNA_def_struct(brna, "RigidBodyJointConstraint", "Constraint");
     RNA_def_struct_ui_text(srna, "Rigid Body Joint Constraint", "For use with the Game Engine");
     RNA_def_struct_sdna_from(srna, "bRigidBodyJointConstraint", "data");
+    RNA_def_struct_ui_icon(srna, ICON_CON_RIGIDBODYJOINT);
 
     prop = RNA_def_property(srna, "target", PROP_POINTER, PROP_NONE);
     RNA_def_property_pointer_sdna(prop, NULL, "tar");
@@ -3445,6 +3448,7 @@ void RNA_def_constraint(BlenderRNA *brna)
   rna_def_constraint_minmax(brna);
   rna_def_constraint_track_to(brna);
   rna_def_constraint_kinematic(brna);
+  rna_def_constraint_rigid_body_joint(brna);
   rna_def_constraint_clamp_to(brna);
   rna_def_constraint_distance_limit(brna);
   rna_def_constraint_size_limit(brna);

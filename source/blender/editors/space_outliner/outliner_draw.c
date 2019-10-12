@@ -2014,6 +2014,9 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
           case CONSTRAINT_TYPE_SHRINKWRAP:
             data.icon = ICON_CON_SHRINKWRAP;
             break;
+          case CONSTRAINT_TYPE_RIGIDBODYJOINT:
+            data.icon = ICON_CON_RIGIDBODYJOINT;
+            break;
 
           default:
             data.icon = ICON_DOT;
