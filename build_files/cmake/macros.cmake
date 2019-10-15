@@ -644,7 +644,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_editor_space_sequencer
 		bf_editor_space_statusbar
 		bf_editor_space_text
-		bf_editor_space_time
 		bf_editor_space_topbar
 		bf_editor_space_userpref
 		bf_editor_space_view3d
@@ -689,7 +688,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_logic_expressions
 		ge_scenegraph
 		ge_logic_network
-		ge_videotex
+                #ge_videotex
 
 		bf_render
 		bf_python
@@ -741,12 +740,10 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_intern_elbeem
 		bf_intern_memutil
 		bf_intern_guardedalloc
-		bf_intern_ctr
 		bf_intern_utfconv
 		bf_intern_smoke
 		bf_intern_moto
 		bf_intern_opencolorio
-		bf_intern_gawain
 		bf_intern_eigen
 		bf_intern_libmv
 		bf_intern_glew_mx
@@ -769,13 +766,11 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		cycles_util
 		cycles_subd
 		bf_intern_opencolorio
-		bf_intern_gawain
 		bf_intern_eigen
 		extern_rangetree
 		extern_wcwidth
 		extern_quadriflow
 		bf_intern_libmv
-		extern_sdlew
 
 		bf_intern_glew_mx
 		bf_intern_clog
