@@ -1059,6 +1059,35 @@ bool BKE_base_is_visible(const View3D *v3d, const Base *base)
   return base->flag & BASE_VISIBLE_VIEWLAYER;
 }
 
+bool BKE_object_is_visible_in_viewport(const struct View3D *v3d, const struct Object *ob)
+{
+  BLI_assert(v3d != NULL);
+
+  if (ob->restrictflag & OB_RESTRICT_VIEWPORT) {
+    return false;
+  }
+
+  if ((v3d->object_type_exclude_viewport & (1 << ob->type)) != 0) {
+    return false;
+  }
+
+  if (v3d->localvd && ((v3d->local_view_uuid & ob->base_local_view_bits) == 0)) {
+    return false;
+  }
+
+  if ((v3d->flag & V3D_LOCAL_COLLECTIONS) &&
+      ((v3d->local_collections_uuid & ob->runtime.local_collections_bits) == 0)) {
+    return false;
+  }
+
+  /* If not using local view or local collection the object may still be in a hidden collection. */
+  if (((v3d->localvd) == NULL) && ((v3d->flag & V3D_LOCAL_COLLECTIONS) == 0)) {
+    return (ob->base_flag & BASE_VISIBLE_VIEWLAYER) != 0;
+  }
+
+  return true;
+}
+
 static void layer_collection_flag_set_recursive(LayerCollection *lc, const int flag)
 {
   lc->flag |= flag;
@@ -1609,7 +1638,7 @@ void BKE_view_layer_bases_in_mode_iterator_begin(BLI_Iterator *iter, void *data_
     data->object_type = base->object->type;
   }
 
-  if (!base_is_in_mode(data, base)) {
+  if (!(base_is_in_mode(data, base) && BKE_base_is_visible(data->v3d, base))) {
     BKE_view_layer_bases_in_mode_iterator_next(iter);
   }
 }
@@ -1622,7 +1651,7 @@ void BKE_view_layer_bases_in_mode_iterator_next(BLI_Iterator *iter)
   if (base == data->base_active) {
     /* first step */
     base = data->view_layer->object_bases.first;
-    if (base == data->base_active) {
+    if ((base == data->base_active) && BKE_base_is_visible(data->v3d, base)) {
       base = base->next;
     }
   }
@@ -1631,7 +1660,8 @@ void BKE_view_layer_bases_in_mode_iterator_next(BLI_Iterator *iter)
   }
 
   while (base) {
-    if ((base != data->base_active) && base_is_in_mode(data, base)) {
+    if ((base != data->base_active) && base_is_in_mode(data, base) &&
+        BKE_base_is_visible(data->v3d, base)) {
       iter->current = base;
       return;
     }

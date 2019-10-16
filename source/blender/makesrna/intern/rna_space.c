@@ -790,13 +790,18 @@ static void rna_Space_view2d_sync_update(Main *UNUSED(bmain),
 
 static void rna_GPencil_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
+  bool changed = false;
   /* need set all caches as dirty to recalculate onion skinning */
   for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
     if (ob->type == OB_GPENCIL) {
-      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+      bGPdata *gpd = (bGPdata *)ob->data;
+      DEG_id_tag_update(&gpd->id, ID_RECALC_GEOMETRY);
+      changed = true;
     }
   }
-  WM_main_add_notifier(NC_GPENCIL | NA_EDITED, NULL);
+  if (changed) {
+    WM_main_add_notifier(NC_GPENCIL | NA_EDITED, NULL);
+  }
 }
 
 /* Space 3D View */
@@ -5286,7 +5291,11 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
       {FILTER_ID_TXT, "TEXT", ICON_TEXT, "Texts", "Show/hide Text data-blocks"},
       {FILTER_ID_VF, "FONT", ICON_FONT_DATA, "Fonts", "Show/hide Font data-blocks"},
       {FILTER_ID_WO, "WORLD", ICON_WORLD_DATA, "Worlds", "Show/hide World data-blocks"},
-      {FILTER_ID_WS, "WORK_SPACE", ICON_NONE, "Workspaces", "Show/hide workspace data-blocks"},
+      {FILTER_ID_WS,
+       "WORK_SPACE",
+       ICON_WORKSPACE,
+       "Workspaces",
+       "Show/hide workspace data-blocks"},
       {0, NULL, 0, NULL, NULL},
   };
 
