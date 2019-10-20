@@ -628,40 +628,40 @@ static bool quitGame(KX_ExitRequest exitcode)
 	return (exitcode != KX_ExitRequest::RESTART_GAME && exitcode != KX_ExitRequest::START_OTHER_GAME);
 }
 
-//#ifdef WITH_GAMEENGINE_BPPLAYER
-//
-//static BlendFileData *load_encrypted_game_data(const char *filename, std::string encryptKey)
-//{
-//	ReportList reports;
-//	BlendFileData *bfd = NULL;
-//	char *fileData = NULL;
-//	int fileSize;
-//	std::string localPath(SPINDLE_GetFilePath());
-//	BKE_reports_init(&reports, RPT_STORE);
-//
-//	if (filename == NULL) {
-//		return NULL;
-//	}
-//
-//	if (!localPath.empty() && !encryptKey.empty()) {
-//		// Load file and decrypt.
-//		fileData = SPINDLE_DecryptFromFile(filename, &fileSize, encryptKey.c_str(), 0);
-//	}
-//
-//	if (fileData) {
-//		bfd = BLO_read_from_memory(fileData, fileSize, &reports, BLO_READ_SKIP_USERDEF);
-//		delete[] fileData;
-//	}
-//
-//	if (!bfd) {
-//		BKE_reports_print(&reports, RPT_ERROR);
-//	}
-//
-//	BKE_reports_clear(&reports);
-//	return bfd;
-//}
-//
-//#endif  // WITH_GAMEENGINE_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
+
+static BlendFileData *load_encrypted_game_data(const char *filename, std::string encryptKey)
+{
+    ReportList reports;
+    BlendFileData *bfd = NULL;
+    char *fileData = NULL;
+    int fileSize;
+    std::string localPath(SPINDLE_GetFilePath());
+    BKE_reports_init(&reports, RPT_STORE);
+
+    if (filename == NULL) {
+        return NULL;
+    }
+
+    if (!localPath.empty() && !encryptKey.empty()) {
+        // Load file and decrypt.
+        fileData = SPINDLE_DecryptFromFile(filename, &fileSize, encryptKey.c_str(), 0);
+    }
+
+    if (fileData) {
+      bfd = BLO_read_from_memory(fileData, fileSize, BLO_READ_SKIP_USERDEF, &reports);
+        delete[] fileData;
+    }
+
+    if (!bfd) {
+        BKE_reports_print(&reports, RPT_ERROR);
+    }
+
+    BKE_reports_clear(&reports);
+    return bfd;
+}
+
+#endif  // WITH_GAMEENGINE_BPPLAYER
 
 static void wm_init_reports(bContext *C)
 {
@@ -704,10 +704,10 @@ int main(
 	bool closeConsole = true;
 #endif
 
-//#ifdef WITH_GAMEENGINE_BPPLAYER
-//	bool useLocalPath = false;
-//	std::string hexKey;
-//#endif  // WITH_GAMEENGINE_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
+    bool useLocalPath = false;
+    std::string hexKey;
+#endif  // WITH_GAMEENGINE_BPPLAYER
 	RAS_Rasterizer::StereoMode stereomode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
 	bool stereoWindow = false;
 	bool stereoParFound = false;
@@ -1012,25 +1012,25 @@ int main(
 
 				break;
 			}
-//#ifdef WITH_GAMEENGINE_BPPLAYER
-//			case 'L':
-//			{
-//				// Find the requested base file directory.
-//				if (!useLocalPath) {
-//					SPINDLE_SetFilePath(&argv[i][2]);
-//					useLocalPath = true;
-//				}
-//				i++;
-//				break;
-//			}
-//			case 'K':
-//			{
-//				//Find and set keys
-//				hexKey = SPINDLE_FindAndSetEncryptionKeys(argv, i);
-//				i++;
-//				break;
-//			}
-//#endif  // WITH_GAMEENGINE_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
+            case 'L':
+            {
+                // Find the requested base file directory.
+                if (!useLocalPath) {
+                    SPINDLE_SetFilePath(&argv[i][2]);
+                    useLocalPath = true;
+                }
+                i++;
+                break;
+            }
+            case 'K':
+            {
+                //Find and set keys
+                hexKey = SPINDLE_FindAndSetEncryptionKeys(argv, i);
+                i++;
+                break;
+            }
+#endif  // WITH_GAMEENGINE_BPPLAYER
 			case 'f': //fullscreen mode
 			{
 				i++;
@@ -1293,18 +1293,18 @@ int main(
 					}
 					else
 					{
-//#ifdef WITH_GAMEENGINE_BPPLAYER
-//						if (useLocalPath) {
-//							bfd = load_encrypted_game_data(filename[0] ? filename : NULL, hexKey);
-//
-//							// The file is valid and it's the original file name.
-//							if (bfd) {
-//								remove(filename);
-//								KX_SetOrigPath(bfd->main->name);
-//							}
-//						}
-//						else
-//#endif  // WITH_GAMEENGINE_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
+                        if (useLocalPath) {
+                            bfd = load_encrypted_game_data(filename[0] ? filename : NULL, hexKey);
+
+                            // The file is valid and it's the original file name.
+                            if (bfd) {
+                                remove(filename);
+                                KX_SetOrigPath(bfd->main->name);
+                            }
+                        }
+                        else
+#endif  // WITH_GAMEENGINE_BPPLAYER
 						{
 							bfd = load_game_data(BKE_appdir_program_path(), filename[0] ? filename : NULL);
 							// The file is valid and it's the original file name.

@@ -162,6 +162,10 @@
 
 #include <errno.h>
 
+#ifdef WITH_GAMEENGINE_BPPLAYER
+#  include "SpindleEncryption.h"
+#endif  // WITH_GAMEENGINE_BPPLAYER
+
 /**
  * READ
  * ====
@@ -1299,62 +1303,77 @@ static FileData *blo_filedata_from_file_descriptor(const char *filepath,
 
   char header[7];
 
-  /* Regular file. */
-  errno = 0;
-  if (read(file, header, sizeof(header)) != sizeof(header)) {
-    BKE_reportf(reports,
-                RPT_WARNING,
-                "Unable to read '%s': %s",
-                filepath,
-                errno ? strerror(errno) : TIP_("insufficient content"));
-    return NULL;
-  }
-  else {
-    lseek(file, 0, SEEK_SET);
-  }
+#ifdef WITH_GAMEENGINE_BPPLAYER
+  const int typeencryption = SPINDLE_CheckEncryptionFromFile(filepath);
+  if (typeencryption <= SPINDLE_NO_ENCRYPTION) {
+#endif
 
-  /* Regular file. */
-  if (memcmp(header, "BLENDER", sizeof(header)) == 0) {
-    read_fn = fd_read_data_from_file;
-    seek_fn = fd_seek_data_from_file;
-  }
-
-  /* Gzip file. */
-  errno = 0;
-  if ((read_fn == NULL) &&
-      /* Check header magic. */
-      (header[0] == 0x1f && header[1] == 0x8b)) {
-    gzfile = BLI_gzopen(filepath, "rb");
-    if (gzfile == (gzFile)Z_NULL) {
+    /* Regular file. */
+    errno = 0;
+    if (read(file, header, sizeof(header)) != sizeof(header)) {
       BKE_reportf(reports,
                   RPT_WARNING,
-                  "Unable to open '%s': %s",
+                  "Unable to read '%s': %s",
                   filepath,
-                  errno ? strerror(errno) : TIP_("unknown error reading file"));
+                  errno ? strerror(errno) : TIP_("insufficient content"));
       return NULL;
     }
     else {
-      /* 'seek_fn' is too slow for gzip, don't set it. */
-      read_fn = fd_read_gzip_from_file;
-      /* Caller must close. */
-      file = -1;
+      lseek(file, 0, SEEK_SET);
     }
+
+    /* Regular file. */
+    if (memcmp(header, "BLENDER", sizeof(header)) == 0) {
+      read_fn = fd_read_data_from_file;
+      seek_fn = fd_seek_data_from_file;
+    }
+
+    /* Gzip file. */
+    errno = 0;
+    if ((read_fn == NULL) &&
+        /* Check header magic. */
+        (header[0] == 0x1f && header[1] == 0x8b)) {
+      gzfile = BLI_gzopen(filepath, "rb");
+      if (gzfile == (gzFile)Z_NULL) {
+        BKE_reportf(reports,
+                    RPT_WARNING,
+                    "Unable to open '%s': %s",
+                    filepath,
+                    errno ? strerror(errno) : TIP_("unknown error reading file"));
+        return NULL;
+      }
+      else {
+        /* 'seek_fn' is too slow for gzip, don't set it. */
+        read_fn = fd_read_gzip_from_file;
+        /* Caller must close. */
+        file = -1;
+      }
+    }
+
+    if (read_fn == NULL) {
+      BKE_reportf(reports, RPT_WARNING, "Unrecognized file format '%s'", filepath);
+      return NULL;
+    }
+
+    FileData *fd = filedata_new();
+
+    fd->filedes = file;
+    fd->gzfiledes = gzfile;
+
+    fd->read = read_fn;
+    fd->seek = seek_fn;
+
+    return fd;
+#ifdef WITH_GAMEENGINE_BPPLAYER
+    }
+    else {
+      int filesize = 0;
+      const char *decrypteddata = SPINDLE_DecryptFromFile(filepath, &filesize, NULL, typeencryption);
+      SPINDLE_SetFilePath(filepath);
+      return blo_filedata_from_memory(decrypteddata, filesize, reports);
   }
+#endif
 
-  if (read_fn == NULL) {
-    BKE_reportf(reports, RPT_WARNING, "Unrecognized file format '%s'", filepath);
-    return NULL;
-  }
-
-  FileData *fd = filedata_new();
-
-  fd->filedes = file;
-  fd->gzfiledes = gzfile;
-
-  fd->read = read_fn;
-  fd->seek = seek_fn;
-
-  return fd;
 }
 
 static FileData *blo_filedata_from_file_open(const char *filepath, ReportList *reports)
@@ -1473,6 +1492,11 @@ FileData *blo_filedata_from_memory(const void *mem, int memsize, ReportList *rep
     }
 
     fd->flags |= FD_FLAGS_NOT_MY_BUFFER;
+
+#ifdef WITH_GAMEENGINE_BPPLAYER
+    // Set local path before calling blo_decode_and_check.
+    BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
+#endif
 
     return blo_decode_and_check(fd, reports);
   }

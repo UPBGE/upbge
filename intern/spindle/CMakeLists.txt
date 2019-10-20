@@ -30,5 +30,7 @@ set(SRC
 	SpindleEncryption.h
 )
 
+set(LIB
+)
 
-blender_add_lib(bf_intern_spindle "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_intern_spindle "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

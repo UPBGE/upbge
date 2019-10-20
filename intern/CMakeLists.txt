@@ -36,6 +36,10 @@ if(WITH_GAMEENGINE_DECKLINK)
 	add_subdirectory(decklink)
 endif()
 
+if (WITH_GAMEENGINE_BPPLAYER)
+  add_subdirectory(spindle)
+endif()
+
 if(WITH_AUDASPACE)
   add_subdirectory(audaspace)
 endif()
