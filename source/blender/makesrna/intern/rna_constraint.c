@@ -175,7 +175,7 @@ const EnumPropertyItem rna_enum_constraint_type_items[] = {
      "Change pivot point for transforms (buggy)"},
     {CONSTRAINT_TYPE_RIGIDBODYJOINT,
      "RIGID_BODY_JOINT",
-     ICON_CON_RIGIDBODYJOINT,
+     ICON_CON_KINEMATIC,
      "Rigid Body Joint",
      "Use to define a Rigid Body Constraint (for Game Engine use only)"},
 #if 0
@@ -1900,7 +1900,7 @@ static void rna_def_constraint_rigid_body_joint(BlenderRNA *brna)
     srna = RNA_def_struct(brna, "RigidBodyJointConstraint", "Constraint");
     RNA_def_struct_ui_text(srna, "Rigid Body Joint Constraint", "For use with the Game Engine");
     RNA_def_struct_sdna_from(srna, "bRigidBodyJointConstraint", "data");
-    RNA_def_struct_ui_icon(srna, ICON_CON_RIGIDBODYJOINT);
+    RNA_def_struct_ui_icon(srna, ICON_CON_KINEMATIC);
 
     prop = RNA_def_property(srna, "target", PROP_POINTER, PROP_NONE);
     RNA_def_property_pointer_sdna(prop, NULL, "tar");
