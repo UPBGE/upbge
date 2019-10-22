@@ -307,6 +307,20 @@ void KX_GameObject::UseCopy()
 void KX_GameObject::ReplicateBlenderObject()
 {
   Object *ob = GetBlenderObject();
+
+  /* This code seems to work for most object types,
+   * however, there is an issue with Armature Objects.
+   * BL_ArmatureObject has its own ProcessReplica function
+   * which is duplicating Armature object and bArmature
+   * m_objArma->data.
+   * Some experimental work has been done to try to fix the issue
+   * but this doesn't work. To have the old code, some commits need to be reverted:
+   * fb1c1a2846c6682d5e4f2f74826f95c280ac0b79
+   * 523d225ef8d2ec4399baa03ec4fd97cb4e9c5f7b
+   * 9c83a1a9e027c910d1bdc99b55fba19288406e40
+   * 3ad876a8479bed7026f6d9f9009f3738c9eb7467
+   * e70b5a6238309463fe743155e3481c57e0e71a51
+   */
   if (ob && ob->type != OB_ARMATURE) {
     Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
     Object *newob;
