@@ -12,30 +12,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
  */
+
+#ifndef __BMESH_MESH_DUPLICATE_H__
+#define __BMESH_MESH_DUPLICATE_H__
 
 /** \file
- * \ingroup DNA
+ * \ingroup bmesh
  */
 
-#ifndef __DNA_GPU_TYPES_H__
-#define __DNA_GPU_TYPES_H__
+void BM_mesh_copy_arrays(BMesh *bm_src,
+                         BMesh *bm_dst,
+                         BMVert **verts_src,
+                         uint verts_src_len,
+                         BMEdge **edges_src,
+                         uint edges_src_len,
+                         BMFace **faces_src,
+                         uint faces_src_len);
 
-/* Keep for 'Camera' versioning. */
-/** Properties for dof effect. */
-typedef struct GPUDOFSettings {
-  /** Focal distance for depth of field. */
-  float focus_distance;
-  float fstop;
-  float focal_length;
-  float sensor;
-  float rotation;
-  float ratio;
-  int num_blades;
-  int high_quality;
-} GPUDOFSettings;
-
-#endif /* __DNA_GPU_TYPES_H__ */
+#endif /* __BMESH_MESH_DUPLICATE_H__ */

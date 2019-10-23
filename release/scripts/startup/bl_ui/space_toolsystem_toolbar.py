@@ -35,9 +35,6 @@ from bl_ui.space_toolsystem_common import (
 from bpy.app.translations import pgettext_tip as tip_
 
 
-I18N_CTX_OPERATOR = bpy.app.translations.contexts_C_to_py['BLT_I18NCONTEXT_OPERATOR_DEFAULT']
-
-
 def kmi_to_string_or_none(kmi):
     return kmi.to_string() if kmi else "<none>"
 
@@ -724,8 +721,8 @@ class _defs_edit_mesh:
 
     @ToolDef.from_fn
     def shear():
-        def draw_settings(context, layout, tool):
-            props = tool.operator_properties("transform.shear")
+        def draw_settings(context, layout, _tool):
+            # props = tool.operator_properties("transform.shear")
             _template_widget.VIEW3D_GGT_xform_gizmo.draw_settings_with_index(context, layout, 2)
         return dict(
             idname="builtin.shear",
@@ -1343,6 +1340,17 @@ class _defs_gpencil_paint:
             idname="builtin.line",
             label="Line",
             icon="ops.gpencil.primitive_line",
+            cursor='CROSSHAIR',
+            widget=None,
+            keymap=(),
+        )
+
+    @ToolDef.from_fn
+    def polyline():
+        return dict(
+            idname="builtin.polyline",
+            label="Polyline",
+            icon="ops.gpencil.primitive_polyline",
             cursor='CROSSHAIR',
             widget=None,
             keymap=(),
@@ -2058,6 +2066,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_gpencil_paint.eyedropper,
             None,
             _defs_gpencil_paint.line,
+            _defs_gpencil_paint.polyline,
             _defs_gpencil_paint.arc,
             _defs_gpencil_paint.curve,
             _defs_gpencil_paint.box,
