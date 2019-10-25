@@ -1263,6 +1263,9 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
   else {
     Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
     if (obedit) {
+      for (base = FIRSTBASE(view_layer); base; base = base->next) {
+        base->local_view_bits &= ~local_view_bit;
+      }
       FOREACH_BASE_IN_EDIT_MODE_BEGIN (view_layer, v3d, base_iter) {
         BKE_object_minmax(base_iter->object, min, max, false);
         base_iter->local_view_bits |= local_view_bit;
@@ -1276,6 +1279,9 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
           BKE_object_minmax(base->object, min, max, false);
           base->local_view_bits |= local_view_bit;
           ok = true;
+        }
+        else {
+          base->local_view_bits &= ~local_view_bit;
         }
       }
     }

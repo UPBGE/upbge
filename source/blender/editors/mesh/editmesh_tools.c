@@ -3887,6 +3887,7 @@ enum {
   MESH_SEPARATE_LOOSE = 2,
 };
 
+/** TODO: Use #mesh_separate_arrays since it's more efficient. */
 static Base *mesh_separate_tagged(
     Main *bmain, Scene *scene, ViewLayer *view_layer, Base *base_old, BMesh *bm_old)
 {
@@ -4173,12 +4174,10 @@ static bool mesh_separate_loose(
   }
 
   Mesh *me_old = base_old->object->data;
-  BMEditMesh *em_old = me_old->edit_mesh;
-
-  BM_mesh_elem_hflag_disable_all(em_old->bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+  BM_mesh_elem_hflag_disable_all(bm_old, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
 
   if (clear_object_data) {
-    BM_mesh_bm_to_me(NULL, em_old->bm, me_old, (&(struct BMeshToMeshParams){0}));
+    BM_mesh_bm_to_me(NULL, bm_old, me_old, (&(struct BMeshToMeshParams){0}));
   }
 
 finally:
