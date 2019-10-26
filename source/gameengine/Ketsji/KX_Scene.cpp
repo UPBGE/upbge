@@ -1425,6 +1425,10 @@ void KX_Scene::LogicUpdateFrame(double curtime)
     objects.push_back(gameobj);
   }
 
+  for (std::vector<KX_GameObject *>::iterator it = objects.begin(), end = objects.end(); it != end; ++it) {
+      (*it)->UpdateComponents();
+  }
+
   m_logicmgr->UpdateFrame(curtime);
 }
 

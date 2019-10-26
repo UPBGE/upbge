@@ -120,6 +120,7 @@
 #include "BKE_camera.h"
 #include "BKE_image.h"
 #include "BKE_gpencil.h"
+#include "BKE_python_component.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -567,6 +568,7 @@ void BKE_object_free(Object *ob)
   free_sensors(&ob->sensors);
   free_controllers(&ob->controllers);
   free_actuators(&ob->actuators);
+  BKE_python_component_free_list(&ob->components);
 
   BKE_constraints_free_ex(&ob->constraints, false);
 
@@ -1447,6 +1449,7 @@ void BKE_object_copy_data(Main *bmain, Object *ob_dst, const Object *ob_src, con
   BKE_bproperty_copy_list(&ob_dst->prop, &ob_src->prop);
 
   BKE_sca_logic_copy(ob_dst, ob_src, flag_subdata);
+  BKE_python_component_copy_list(&ob_dst->components, &ob_src->components);
 
   if (ob_src->pose) {
     copy_object_pose(ob_dst, ob_src, flag_subdata);

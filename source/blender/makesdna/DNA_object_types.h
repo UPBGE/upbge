@@ -440,6 +440,7 @@ typedef struct Object {
   ListBase sensors;		/* game logic sensors */
   ListBase controllers;	/* game logic controllers */
   ListBase actuators;		/* game logic actuators */
+  ListBase components;	/* python components */
 
   float sf; /* sf is time-offset */
 

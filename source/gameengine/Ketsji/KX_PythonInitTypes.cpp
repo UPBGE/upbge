@@ -62,6 +62,7 @@
 #include "SCA_ObjectActuator.h"
 #include "SCA_ParentActuator.h"
 #include "KX_PolyProxy.h"
+#include "KX_PythonComponent.h"
 #include "SCA_AddObjectActuator.h"
 #include "SCA_EndObjectActuator.h"
 #include "SCA_SceneActuator.h"
@@ -231,6 +232,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, SCA_ObjectActuator, init_getset);
 		PyType_Ready_Attr(dict, SCA_ParentActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_PolyProxy, init_getset);
+        PyType_Ready_Attr(dict, KX_PythonComponent, init_getset);
 		PyType_Ready_Attr(dict, SCA_RadarSensor, init_getset);
 		PyType_Ready_Attr(dict, SCA_RaySensor, init_getset);
 		PyType_Ready_Attr(dict, SCA_AddObjectActuator, init_getset);

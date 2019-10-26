@@ -81,6 +81,7 @@
 #include "KX_Camera.h"
 #include "KX_EmptyObject.h"
 #include "KX_FontObject.h"
+#include "KX_PythonComponent.h"
 
 #include "RAS_ICanvas.h"
 #include "RAS_Polygon.h"
@@ -94,6 +95,7 @@
 #include "BKE_main.h"
 #include "BKE_global.h"
 #include "BKE_object.h"
+#include "BKE_python_component.h"
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 #include "BLI_iterator.h"
@@ -135,6 +137,7 @@
 #include "DNA_action_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_python_component_types.h"
 #include "DNA_layer_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -989,6 +992,84 @@ static void blenderSceneSetBackground(Scene *blenderscene)
 	}*/
 }
 
+static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderobj)
+{
+    PythonComponent *pc = (PythonComponent *)blenderobj->components.first;
+    PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp = NULL, *ret = NULL;
+
+    if (!pc) {
+        return;
+    }
+
+    CListValue<KX_PythonComponent> *components = new CListValue<KX_PythonComponent>();
+
+    while (pc) {
+        // Make sure to clean out anything from previous loops
+        Py_XDECREF(args);
+        Py_XDECREF(arg_dict);
+        Py_XDECREF(mod);
+        Py_XDECREF(cls);
+        Py_XDECREF(ret);
+        Py_XDECREF(pycomp);
+        args = arg_dict = mod = cls = pycomp = ret = NULL;
+
+        // Grab the module
+        mod = PyImport_ImportModule(pc->module);
+
+        if (mod == NULL) {
+            if (PyErr_Occurred()) {
+                PyErr_Print();
+            }
+            CM_Error("coulding import the module '" << pc->module << "'");
+            pc = pc->next;
+            continue;
+        }
+
+        // Grab the class object
+        cls = PyObject_GetAttrString(mod, pc->name);
+        if (cls == NULL) {
+            if (PyErr_Occurred()) {
+                PyErr_Print();
+            }
+            CM_Error("python module found, but failed to find the component '" << pc->name << "'");
+            pc = pc->next;
+            continue;
+        }
+
+        // Lastly make sure we have a class and it's an appropriate sub type
+        if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject*)&KX_PythonComponent::Type)) {
+            CM_Error(pc->module << "." << pc->name << " is not a KX_PythonComponent subclass");
+            pc = pc->next;
+            continue;
+        }
+
+        // Every thing checks out, now generate the args dictionary and init the component
+        args = PyTuple_Pack(1, gameobj->GetProxy());
+
+        pycomp = PyObject_Call(cls, args, NULL);
+
+        if (PyErr_Occurred()) {
+            // The component is invalid, drop it
+            PyErr_Print();
+        }
+        else {
+            KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(BGE_PROXY_REF(pycomp));
+            comp->SetBlenderPythonComponent(pc);
+            comp->SetGameObject(gameobj);
+            components->Add(comp);
+        }
+
+        pc = pc->next;
+    }
+
+    Py_XDECREF(args);
+    Py_XDECREF(mod);
+    Py_XDECREF(cls);
+    Py_XDECREF(pycomp);
+
+    gameobj->SetComponents(components);
+}
+
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(
@@ -1474,6 +1555,10 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		}
 	}
 
+
+    KX_SetActiveScene(kxscene);
+    PHY_SetActiveEnvironment(kxscene->GetPhysicsEnvironment());
+
 	//create object representations for obstacle simulation
 	KX_ObstacleSimulation* obssimulation = kxscene->GetObstacleSimulation();
 	if (obssimulation)
@@ -1533,6 +1618,12 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	for (KX_GameObject *gameobj : objectlist) {
 		gameobj->ResetState();
 	}
+
+    // Convert the python components of each object.
+    for (KX_GameObject *gameobj : sumolist) {
+        Object *blenderobj = gameobj->GetBlenderObject();
+        BL_ConvertComponentsObject(gameobj, blenderobj);
+    }
 
 	// cleanup converted set of group objects
 	convertedlist->Release();

@@ -115,6 +115,7 @@ set(APISRC
 	rna_meta_api.c
 	rna_object_api.c
 	rna_pose_api.c
+        rna_python_component.c
 	rna_scene_api.c
 	rna_sensor_api.c
 	rna_sequencer_api.c

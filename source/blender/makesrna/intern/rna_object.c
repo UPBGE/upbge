@@ -2334,6 +2334,11 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "GameProperty"); /* rna_property.c */
   RNA_def_property_ui_text(prop, "Properties", "Game engine properties");
 
+  prop = RNA_def_property(srna, "components", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, NULL, "components", NULL);
+  RNA_def_property_struct_type(prop, "PythonComponent"); /* rna_python_component.c */
+  RNA_def_property_ui_text(prop, "Components", "Game engine components");
+
   prop = RNA_def_property(srna, "show_sensors", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "scaflag", OB_SHOWSENS);
   RNA_def_property_ui_text(prop, "Show Sensors", "Shows sensors for this object in the user interface");

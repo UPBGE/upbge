@@ -58,6 +58,7 @@ set(INC
 set(INC_SYS
   ${GLEW_INCLUDE_PATH}
   ${ZLIB_INCLUDE_DIRS}
+  ${PYTHON_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -187,6 +188,7 @@ set(SRC
   intern/pbvh_parallel.cc
   intern/pointcache.c
   intern/property.c
+  intern/python_component.c
   intern/report.c
   intern/rigidbody.c
   intern/sca.c
@@ -335,6 +337,7 @@ set(SRC
   BKE_pbvh.h
   BKE_pointcache.h
   BKE_property.h
+  BKE_python_component.h
   BKE_report.h
   BKE_rigidbody.h
   BKE_sca.h

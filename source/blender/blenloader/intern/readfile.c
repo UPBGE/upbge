@@ -78,6 +78,7 @@
 #include "DNA_particle_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_property_types.h"
+#include "DNA_python_component_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_text_types.h"
 #include "DNA_view3d_types.h"
@@ -6000,6 +6001,8 @@ static void direct_link_object(FileData *fd, Object *ob)
   bSensor *sens;
   bController *cont;
   bActuator *act;
+  PythonComponent *pc;
+  PythonComponentProperty *cprop;
 
   /* XXX This should not be needed - but seems like it can happen in some cases,
    * so for now play safe. */
@@ -6186,6 +6189,21 @@ static void direct_link_object(FileData *fd, Object *ob)
   link_glob_list(fd, &ob->actuators);
   for (act = ob->actuators.first; act; act = act->next) {
     act->data = newdataadr(fd, act->data);
+  }
+
+  link_glob_list(fd, &ob->components);
+  pc = ob->components.first;
+  while (pc) {
+    link_glob_list(fd, &pc->properties);
+    cprop = pc->properties.first;
+    while (cprop) {
+      link_list(fd, &cprop->enumval);
+      for (LinkData *link = cprop->enumval.first; link; link = link->next) {
+        link->data = newdataadr(fd, link->data);
+      }
+      cprop = cprop->next;
+    }
+    pc = pc->next;
   }
 
   link_list(fd, &ob->hooks);
