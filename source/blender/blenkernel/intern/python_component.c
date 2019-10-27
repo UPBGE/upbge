@@ -383,7 +383,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 			PySequence_DelItem(sys_path, index); \
 		} \
 		Py_DECREF(pypath); \
-		for (Library *lib = (Library *)maggie->library.first; lib; lib = (Library *)lib->id.next) { \
+        for (Library *lib = (Library *)maggie->libraries.first; lib; lib = (Library *)lib->id.next) { \
 			BLI_split_dir_part(lib->filepath, path, sizeof(path)); \
 			pypath = PyC_UnicodeFromByte(path); \
 			index = PySequence_Index(sys_path, pypath); \
@@ -407,7 +407,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 	sys_path = PySys_GetObject("path");
 	/* Add to sys.path the path to all the used library to follow game engine sys.path management.
 	 * These path are remove later in FINISH. */
-	for (Library *lib = (Library *)maggie->library.first; lib; lib = (Library *)lib->id.next) {
+	for (Library *lib = (Library *)maggie->libraries.first; lib; lib = (Library *)lib->id.next) {
 		BLI_split_dir_part(lib->filepath, path, sizeof(path));
 		pypath = PyC_UnicodeFromByte(path);
 		PyList_Insert(sys_path, 0, pypath);
@@ -539,7 +539,7 @@ PythonComponent *BKE_python_component_create_file(char *import, ReportList *repo
 	strcpy(filename, modulename);
 	BLI_path_extension_ensure(filename, FILE_MAX, ".py");
 
-	if (BLI_findstring(&maggie->text, filename, offsetof(ID, name) + 2)) {
+	if (BLI_findstring(&maggie->texts, filename, offsetof(ID, name) + 2)) {
 		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "File %s already exists.", filename);
 		return NULL;
 	}

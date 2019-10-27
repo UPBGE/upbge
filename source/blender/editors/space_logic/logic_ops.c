@@ -785,7 +785,7 @@ static void LOGIC_OT_component_add(wmOperatorType *ot)
 
     PropertyRNA *parm;
     parm = RNA_def_string(ot->srna, "component_name", "module.Component", 64, "Component", "The component class name with module (module.ComponentName)");
-    RNA_def_property_flag(parm, PROP_REQUIRED);
+    RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 }
 
 static int component_remove_exec(bContext *C, wmOperator *op)

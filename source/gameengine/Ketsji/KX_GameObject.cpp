@@ -1946,7 +1946,6 @@ PyAttributeDef KX_GameObject::Attributes[] = {
     KX_PYATTRIBUTE_RO_FUNCTION("attrDict", KX_GameObject, pyattr_get_attrDict),
     KX_PYATTRIBUTE_RW_FUNCTION("color", KX_GameObject, pyattr_get_obcolor, pyattr_set_obcolor),
     KX_PYATTRIBUTE_RW_FUNCTION("debug", KX_GameObject, pyattr_get_debug, pyattr_set_debug),
-    KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
     KX_PYATTRIBUTE_RW_FUNCTION(
         "debugRecursive", KX_GameObject, pyattr_get_debugRecursive, pyattr_set_debugRecursive),
     KX_PYATTRIBUTE_BOOL_RW("castShadows", KX_GameObject, m_castShadows),
@@ -1956,6 +1955,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
     KX_PYATTRIBUTE_RO_FUNCTION("sensors", KX_GameObject, pyattr_get_sensors),
     KX_PYATTRIBUTE_RO_FUNCTION("controllers", KX_GameObject, pyattr_get_controllers),
     KX_PYATTRIBUTE_RO_FUNCTION("actuators", KX_GameObject, pyattr_get_actuators),
+    //KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
     KX_PYATTRIBUTE_NULL  // Sentinel
 };
 

@@ -1641,12 +1641,12 @@ static void write_component_properties(WriteData *wd, ListBase *lb)
 
   while (cprop) {
     LinkData *link;
-      writestruct(wd, DATA, "PythonComponentProperty", 1, cprop);
-      writelist(wd, DATA, "LinkData", &cprop->enumval);
-      for (link = cprop->enumval.first; link; link = link->next) {
-        writedata(wd, DATA, strlen(link->data)+1, link->data);
-      }
-      cprop = cprop->next;
+    writestruct(wd, DATA, PythonComponentProperty, 1, cprop);
+    writelist(wd, DATA, LinkData, &cprop->enumval);
+    for (link = cprop->enumval.first; link; link = link->next) {
+      writedata(wd, DATA, strlen(link->data) + 1, link->data);
+    }
+    cprop = cprop->next;
   }
 }
 
@@ -1656,8 +1656,8 @@ static void write_components(WriteData *wd, ListBase *lb)
 
   pc = lb->first;
 
-  while(pc) {
-    writestruct(wd, DATA, "PythonComponent", 1, pc);
+  while (pc) {
+    writestruct(wd, DATA, PythonComponent, 1, pc);
     write_component_properties(wd, &pc->properties);
 
     pc = pc->next;

@@ -1416,7 +1416,9 @@ typedef struct SpaceLogic {
 	short blockhandler[8]  DNA_DEPRECATED;
 	
 	short flag, scaflag;
-	int _pad;
+    char _pad[4];
+
+    char import_string[64];
 	
 	struct bGPdata *gpd;        /* grease-pencil data */
 } SpaceLogic;
