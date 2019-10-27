@@ -23,6 +23,7 @@ from bpy.types import Header, Menu, Panel
 class LOGIC_PT_components(bpy.types.Panel):
     bl_space_type = 'LOGIC_EDITOR'
     bl_region_type = 'UI'
+    bl_category = "Logic"
     bl_label = 'Components'
 
     @classmethod
