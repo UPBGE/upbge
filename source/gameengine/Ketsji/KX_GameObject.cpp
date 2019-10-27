@@ -1955,7 +1955,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
     KX_PYATTRIBUTE_RO_FUNCTION("sensors", KX_GameObject, pyattr_get_sensors),
     KX_PYATTRIBUTE_RO_FUNCTION("controllers", KX_GameObject, pyattr_get_controllers),
     KX_PYATTRIBUTE_RO_FUNCTION("actuators", KX_GameObject, pyattr_get_actuators),
-    //KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
+    KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
     KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
@@ -3215,7 +3215,8 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_GameObject::pyattr_get_components(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* KX_GameObject::pyattr_get_components(PyObjectPlus *self_v,
+                                               const KX_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
   CListValue<KX_PythonComponent> *components = self->GetComponents();

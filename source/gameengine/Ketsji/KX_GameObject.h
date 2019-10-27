@@ -970,7 +970,7 @@ public:
 	static PyObject*	pyattr_get_attrDict(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_obcolor(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_obcolor(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-    static PyObject*	pyattr_get_components(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
+    static PyObject*	pyattr_get_components(PyObjectPlus *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_collisionCallbacks(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_collisionCallbacks(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_collisionGroup(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
