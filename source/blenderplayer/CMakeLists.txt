@@ -121,7 +121,7 @@ set(BLENDER_SORTED_LIBS
   ge_common
   ge_scenegraph
   ge_logic_network
-  #ge_videotex
+  ge_videotex
 
   bf_editor_datafiles
 
@@ -252,7 +252,7 @@ set(BLENDER_SORTED_LIBS
   bf_imbuf_dds
   bf_dna
   bf_blenloader
-  #ge_videotex
+  ge_videotex
   bf_blenfont
   bf_blentranslation
   bf_intern_audaspace

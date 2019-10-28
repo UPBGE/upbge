@@ -688,7 +688,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_logic_expressions
 		ge_scenegraph
 		ge_logic_network
-                #ge_videotex
+		ge_videotex
 
 		bf_render
 		bf_python
