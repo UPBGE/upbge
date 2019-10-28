@@ -41,6 +41,7 @@
 #ifdef WITH_PYTHON
 #include "Python.h"
 #include "generic/py_capi_utils.h"
+#include "generic/bpy_internal_import.h"
 #endif
 
 #include <string.h>
@@ -402,6 +403,9 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 	int index;
 
 	state = PyGILState_Ensure();
+
+    bpy_import_init(PyEval_GetBuiltins());
+    bpy_import_main_set(maggie);
 
 	// Set the current file directory do import path to allow extern modules.
 	sys_path = PySys_GetObject("path");
