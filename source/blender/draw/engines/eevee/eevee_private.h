@@ -159,10 +159,11 @@ enum {
   VAR_MAT_BLEND = (1 << 3),
   VAR_MAT_VOLUME = (1 << 4),
   VAR_MAT_LOOKDEV = (1 << 5),
+  VAR_MAT_HOLDOUT = (1 << 6),
   /* Max number of variation */
   /* IMPORTANT : Leave it last and set
    * it's value accordingly. */
-  VAR_MAT_MAX = (1 << 6),
+  VAR_MAT_MAX = (1 << 7),
   /* These are options that are not counted in VAR_MAT_MAX
    * because they are not cumulative with the others above. */
   VAR_MAT_CLIP = (1 << 9),
@@ -667,9 +668,13 @@ typedef struct EEVEE_CommonUniformBuffer {
   float prb_lod_cube_max;      /* float */
   float prb_lod_planar_max;    /* float */
   /* Misc */
-  int hiz_mip_offset; /* int */
-  int ray_type;       /* int */
-  float ray_depth;    /* float */
+  int hiz_mip_offset;      /* int */
+  int ray_type;            /* int */
+  float ray_depth;         /* float */
+  float alpha_hash_offset; /* float */
+  float alpha_hash_scale;  /* float */
+  float pad7;              /* float */
+  float pad8;              /* float */
 } EEVEE_CommonUniformBuffer;
 
 BLI_STATIC_ASSERT_ALIGN(EEVEE_CommonUniformBuffer, 16)
