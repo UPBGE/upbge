@@ -213,6 +213,7 @@ set(BLENDER_SORTED_LIBS
   bf_draw
   bf_gpu
   bf_blenkernel
+  bf_intern_opensubdiv
   bf_shader_fx
   bf_gpencil_modifiers
   bf_physics
