@@ -1601,7 +1601,7 @@ bool snapNodesTransform(
  * the Snap Keyframe to Nearest Frame/Marker
  */
 void snapFrameTransform(TransInfo *t,
-                        const short autosnap,
+                        const eAnimEdit_AutoSnap autosnap,
                         const bool is_frame_value,
                         const float delta,
                         float *r_val)
