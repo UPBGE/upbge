@@ -457,6 +457,38 @@ def preset_paths(subdir):
     return dirs
 
 
+def is_path_builtin(path):
+    """
+    Returns True if the path is one of the built-in paths used by Blender.
+
+    :arg path: Path you want to check if it is in the built-in settings directory
+    :type path: str
+    :rtype: bool
+    """
+    # Note that this function is is not optimized for speed,
+    # it's intended to be used to check if it's OK to remove presets.
+    #
+    # If this is used in a draw-loop for example, we could cache some of the values.
+    search_path = _os.path.abspath(path)
+    user_path = resource_path('USER')
+
+    for res in ('SYSTEM', 'LOCAL'):
+        parent_path = resource_path(res)
+        if not parent_path or parent_path == user_path:
+            # Make sure that the current path is not empty string and that it is
+            # not the same as the user config path. IE "~/.config/blender" on Linux
+            # This can happen on portable installs.
+            continue
+
+        if _os.path.samefile(
+                _os.path.commonpath([parent_path]),
+                _os.path.commonpath([parent_path, path])
+        ):
+            return True
+
+    return False
+
+
 def smpte_from_seconds(time, fps=None, fps_base=None):
     """
     Returns an SMPTE formatted string from the *time*:

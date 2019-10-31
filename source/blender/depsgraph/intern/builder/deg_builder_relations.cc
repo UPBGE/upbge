@@ -120,31 +120,72 @@ namespace DEG {
 /* ***************** */
 /* Relations Builder */
 
+namespace {
+
 /* TODO(sergey): This is somewhat weak, but we don't want neither false-positive
- * time dependencies nor special exceptions in the depsgraph evaluation.
- */
-static bool python_driver_depends_on_time(ChannelDriver *driver)
+ * time dependencies nor special exceptions in the depsgraph evaluation. */
+
+bool python_driver_exression_depends_on_time(const char *expression)
 {
-  if (driver->expression[0] == '\0') {
+  if (expression[0] == '\0') {
     /* Empty expression depends on nothing. */
     return false;
   }
-  if (strchr(driver->expression, '(') != NULL) {
+  if (strchr(expression, '(') != NULL) {
     /* Function calls are considered dependent on a time. */
     return true;
   }
-  if (strstr(driver->expression, "frame") != NULL) {
+  if (strstr(expression, "frame") != NULL) {
     /* Variable `frame` depends on time. */
-    /* TODO(sergey): This is a bit weak, but not sure about better way of
-     * handling this. */
+    /* TODO(sergey): This is a bit weak, but not sure about better way of handling this. */
     return true;
   }
-  /* Possible indirect time relation s should be handled via variable
-   * targets. */
+  /* Possible indirect time relation s should be handled via variable targets. */
   return false;
 }
 
-static bool particle_system_depends_on_time(ParticleSystem *psys)
+bool driver_target_depends_on_time(const DriverTarget *target)
+{
+  if (target->idtype == ID_SCE && STREQ(target->rna_path, "frame_current")) {
+    return true;
+  }
+  return false;
+}
+
+bool driver_variable_depends_on_time(const DriverVar *variable)
+{
+  for (int i = 0; i < variable->num_targets; ++i) {
+    if (driver_target_depends_on_time(&variable->targets[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool driver_variables_depends_on_time(const ListBase *variables)
+{
+  LISTBASE_FOREACH (const DriverVar *, variable, variables) {
+    if (driver_variable_depends_on_time(variable)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool driver_depends_on_time(ChannelDriver *driver)
+{
+  if (driver->type == DRIVER_TYPE_PYTHON) {
+    if (python_driver_exression_depends_on_time(driver->expression)) {
+      return true;
+    }
+  }
+  if (driver_variables_depends_on_time(&driver->variables)) {
+    return true;
+  }
+  return false;
+}
+
+bool particle_system_depends_on_time(ParticleSystem *psys)
 {
   ParticleSettings *part = psys->part;
   /* Non-hair particles we always consider dependent on time. */
@@ -159,7 +200,7 @@ static bool particle_system_depends_on_time(ParticleSystem *psys)
   return false;
 }
 
-static bool object_particles_depends_on_time(Object *object)
+bool object_particles_depends_on_time(Object *object)
 {
   if (object->type != OB_MESH) {
     return false;
@@ -172,7 +213,7 @@ static bool object_particles_depends_on_time(Object *object)
   return false;
 }
 
-static bool check_id_has_anim_component(ID *id)
+bool check_id_has_anim_component(ID *id)
 {
   AnimData *adt = BKE_animdata_from_id(id);
   if (adt == NULL) {
@@ -181,11 +222,11 @@ static bool check_id_has_anim_component(ID *id)
   return (adt->action != NULL) || (!BLI_listbase_is_empty(&adt->nla_tracks));
 }
 
-static OperationCode bone_target_opcode(ID *target,
-                                        const char *subtarget,
-                                        ID *id,
-                                        const char *component_subdata,
-                                        RootPChanMap *root_map)
+OperationCode bone_target_opcode(ID *target,
+                                 const char *subtarget,
+                                 ID *id,
+                                 const char *component_subdata,
+                                 RootPChanMap *root_map)
 {
   /* Same armature.  */
   if (target == id) {
@@ -200,10 +241,12 @@ static OperationCode bone_target_opcode(ID *target,
   return OperationCode::BONE_DONE;
 }
 
-static bool object_have_geometry_component(const Object *object)
+bool object_have_geometry_component(const Object *object)
 {
   return ELEM(object->type, OB_MESH, OB_CURVE, OB_FONT, OB_SURF, OB_MBALL, OB_LATTICE, OB_GPENCIL);
 }
+
+}  // namespace
 
 /* **** General purpose functions ****  */
 
@@ -1380,7 +1423,7 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
   /* It's quite tricky to detect if the driver actually depends on time or
    * not, so for now we'll be quite conservative here about optimization and
    * consider all python drivers to be depending on time. */
-  if ((driver->type == DRIVER_TYPE_PYTHON) && python_driver_depends_on_time(driver)) {
+  if (driver_depends_on_time(driver)) {
     TimeSourceKey time_src_key;
     add_relation(time_src_key, driver_key, "TimeSrc -> Driver");
   }

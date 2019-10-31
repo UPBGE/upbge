@@ -54,109 +54,133 @@ using OpenSubdiv::Osd::CpuPatchTable;
 using OpenSubdiv::Osd::CpuVertexBuffer;
 using OpenSubdiv::Osd::PatchCoord;
 
-// TODO(sergey): Remove after official requirement bump for OSD version.
-#if OPENSUBDIV_VERSION_NUMBER >= 30200
-#  define OPENSUBDIV_HAS_FVAR_EVALUATION
-#else
-#  undef OPENSUBDIV_HAS_FVAR_EVALUATION
-#endif
-
 namespace opensubdiv_capi {
 
 namespace {
 
-// Helper class to wrap numerous of patch coordinates into a buffer.
-// Used to pass coordinates to the CPU evaluator. Other evaluators are not
-// supported.
-class PatchCoordBuffer : public vector<PatchCoord> {
+// Array implementation which stores small data on stack (or, rather, in the class itself).
+template<typename T, int kNumMaxElementsOnStack> class StackOrHeapArray {
  public:
-  static PatchCoordBuffer *Create(int size)
-  {
-    PatchCoordBuffer *buffer = new PatchCoordBuffer();
-    buffer->resize(size);
-    return buffer;
-  }
-
-  PatchCoord *BindCpuBuffer()
-  {
-    return reinterpret_cast<PatchCoord *>(&(*this)[0]);
-  }
-
-  int GetNumVertices()
-  {
-    return size();
-  }
-
-  void UpdateData(const PatchCoord *patch_coords, int num_patch_coords)
-  {
-    memcpy(&(*this)[0],
-           reinterpret_cast<const void *>(patch_coords),
-           sizeof(PatchCoord) * num_patch_coords);
-  }
-};
-
-// Helper class to wrap single of patch coord into a buffer. Used to pass
-// coordinates to the CPU evaluator. Other evaluators are not supported.
-class SinglePatchCoordBuffer {
- public:
-  static SinglePatchCoordBuffer *Create()
-  {
-    return new SinglePatchCoordBuffer();
-  }
-
-  SinglePatchCoordBuffer()
+  StackOrHeapArray()
+      : num_elements_(0), heap_elements_(NULL), num_heap_elements_(0), effective_elements_(NULL)
   {
   }
 
-  explicit SinglePatchCoordBuffer(const PatchCoord &patch_coord) : patch_coord_(patch_coord)
+  explicit StackOrHeapArray(int size) : StackOrHeapArray()
   {
+    resize(size);
   }
 
-  PatchCoord *BindCpuBuffer()
+  ~StackOrHeapArray()
   {
-    return &patch_coord_;
+    delete[] heap_elements_;
   }
 
-  int GetNumVertices()
+  int size() const
   {
-    return 1;
+    return num_elements_;
+  };
+
+  T *data()
+  {
+    return effective_elements_;
   }
 
-  void UpdateData(const PatchCoord &patch_coord)
+  void resize(int num_elements)
   {
-    patch_coord_ = patch_coord;
+    const int old_num_elements = num_elements_;
+    num_elements_ = num_elements;
+    // Early output if allcoation size did not change, or allocation size is smaller.
+    // We never re-allocate, sacrificing some memory over performance.
+    if (old_num_elements >= num_elements) {
+      return;
+    }
+    // Simple case: no previously allocated buffer, can simply do one allocation.
+    if (effective_elements_ == NULL) {
+      effective_elements_ = allocate(num_elements);
+      return;
+    }
+    // Make new allocation, and copy elements if needed.
+    T *old_buffer = effective_elements_;
+    effective_elements_ = allocate(num_elements);
+    if (old_buffer != effective_elements_) {
+      memcpy(effective_elements_, old_buffer, sizeof(T) * min(old_num_elements, num_elements));
+    }
+    if (old_buffer != stack_elements_) {
+      delete[] old_buffer;
+    }
   }
 
  protected:
-  PatchCoord patch_coord_;
+  T *allocate(int num_elements)
+  {
+    if (num_elements < kNumMaxElementsOnStack) {
+      return stack_elements_;
+    }
+    heap_elements_ = new T[num_elements];
+    return heap_elements_;
+  }
+
+  // Number of elements in the buffer.
+  int num_elements_;
+
+  // Elements which are allocated on a stack (or, rather, in the same allocation as the buffer
+  // itself).
+  // Is used as long as buffer is smaller than kNumMaxElementsOnStack.
+  T stack_elements_[kNumMaxElementsOnStack];
+
+  // Heap storage for buffer larger than kNumMaxElementsOnStack.
+  T *heap_elements_;
+  int num_heap_elements_;
+
+  // Depending on the current buffer size points to rither stack_elements_ or heap_elements_.
+  T *effective_elements_;
 };
 
-// Helper class which is aimed to be used in cases when buffer is small enough
-// and better to be allocated in stack rather than in heap.
-//
-// TODO(sergey): Check if bare arrays could be used by CPU evaluator.
-template<int element_size, int num_vertices> class StackAllocatedBuffer {
+// 32 is a number of inner vertices along the patch size at subdivision level 6.
+typedef StackOrHeapArray<PatchCoord, 32 * 32> StackOrHeapPatchCoordArray;
+
+// Buffer which implements API required by OpenSubdiv and uses an existing memory as an underlying
+// storage.
+template<typename T> class RawDataWrapperBuffer {
  public:
-  static PatchCoordBuffer *Create(int /*size*/)
+  RawDataWrapperBuffer(T *data) : data_(data)
   {
-    // TODO(sergey): Validate that requested size is smaller than static
-    // stack memory size.
-    return new StackAllocatedBuffer<element_size, num_vertices>();
   }
 
-  float *BindCpuBuffer()
+  T *BindCpuBuffer()
   {
-    return &data_[0];
-  }
-
-  int GetNumVertices()
-  {
-    return num_vertices;
+    return data_;
   }
 
   // TODO(sergey): Support UpdateData().
+
  protected:
-  float data_[element_size * num_vertices];
+  T *data_;
+};
+
+template<typename T> class RawDataWrapperVertexBuffer : public RawDataWrapperBuffer<T> {
+ public:
+  RawDataWrapperVertexBuffer(T *data, int num_vertices)
+      : RawDataWrapperBuffer<T>(data), num_vertices_(num_vertices)
+  {
+  }
+
+  int GetNumVertices()
+  {
+    return num_vertices_;
+  }
+
+ protected:
+  int num_vertices_;
+};
+
+class ConstPatchCoordWrapperBuffer : public RawDataWrapperVertexBuffer<const PatchCoord> {
+ public:
+  ConstPatchCoordWrapperBuffer(const PatchCoord *data, int num_vertices)
+      : RawDataWrapperVertexBuffer(data, num_vertices)
+  {
+  }
 };
 
 template<typename EVAL_VERTEX_BUFFER,
@@ -217,11 +241,12 @@ class FaceVaryingVolatileEval {
                             device_context_);
   }
 
-  void evalPatch(const PatchCoord &patch_coord, float face_varying[2])
+  // NOTE: face_varying must point to a memory of at least float[2]*num_patch_coords.
+  void evalPatches(const PatchCoord *patch_coord, const int num_patch_coords, float *face_varying)
   {
-    StackAllocatedBuffer<2, 1> face_varying_data;
+    RawDataWrapperBuffer<float> face_varying_data(face_varying);
     BufferDescriptor face_varying_desc(0, 2, 2);
-    SinglePatchCoordBuffer patch_coord_buffer(patch_coord);
+    ConstPatchCoordWrapperBuffer patch_coord_buffer(patch_coord, num_patch_coords);
     const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
         evaluator_cache_, src_face_varying_desc_, face_varying_desc, device_context_);
     EVALUATOR::EvalPatchesFaceVarying(src_face_varying_data_,
@@ -234,8 +259,6 @@ class FaceVaryingVolatileEval {
                                       face_varying_channel_,
                                       eval_instance,
                                       device_context_);
-    const float *refined_face_varying = face_varying_data.BindCpuBuffer();
-    memcpy(face_varying, refined_face_varying, sizeof(float) * 2);
   }
 
  protected:
@@ -297,7 +320,6 @@ class VolatileEvalOutput {
     src_data_ = SRC_VERTEX_BUFFER::Create(3, num_total_vertices, device_context_);
     src_varying_data_ = SRC_VERTEX_BUFFER::Create(3, num_total_vertices, device_context_);
     patch_table_ = PATCH_TABLE::Create(patch_table, device_context_);
-    patch_coords_ = NULL;
     vertex_stencils_ = convertToCompatibleStencilTable<STENCIL_TABLE>(vertex_stencils,
                                                                       device_context_);
     varying_stencils_ = convertToCompatibleStencilTable<STENCIL_TABLE>(varying_stencils,
@@ -398,74 +420,66 @@ class VolatileEvalOutput {
     }
   }
 
-  void evalPatchCoord(const PatchCoord &patch_coord, float P[3])
+  // NOTE: P must point to a memory of at least float[3]*num_patch_coords.
+  void evalPatches(const PatchCoord *patch_coord, const int num_patch_coords, float *P)
   {
-    StackAllocatedBuffer<6, 1> vertex_data;
-    // TODO(sergey): Varying data is interleaved in vertex array, so need to
-    // adjust stride if there is a varying data.
-    // BufferDescriptor vertex_desc(0, 3, 6);
-    BufferDescriptor vertex_desc(0, 3, 3);
-    SinglePatchCoordBuffer patch_coord_buffer(patch_coord);
+    RawDataWrapperBuffer<float> P_data(P);
+    // TODO(sergey): Support interleaved vertex-varying data.
+    BufferDescriptor P_desc(0, 3, 3);
+    ConstPatchCoordWrapperBuffer patch_coord_buffer(patch_coord, num_patch_coords);
     const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
-        evaluator_cache_, src_desc_, vertex_desc, device_context_);
+        evaluator_cache_, src_desc_, P_desc, device_context_);
     EVALUATOR::EvalPatches(src_data_,
                            src_desc_,
-                           &vertex_data,
-                           vertex_desc,
+                           &P_data,
+                           P_desc,
                            patch_coord_buffer.GetNumVertices(),
                            &patch_coord_buffer,
                            patch_table_,
                            eval_instance,
                            device_context_);
-    const float *refined_vertices = vertex_data.BindCpuBuffer();
-    memcpy(P, refined_vertices, sizeof(float) * 3);
   }
 
-  void evalPatchesWithDerivatives(const PatchCoord &patch_coord,
-                                  float P[3],
-                                  float dPdu[3],
-                                  float dPdv[3])
+  // NOTE: P, dPdu, dPdv must point to a memory of at least float[3]*num_patch_coords.
+  void evalPatchesWithDerivatives(const PatchCoord *patch_coord,
+                                  const int num_patch_coords,
+                                  float *P,
+                                  float *dPdu,
+                                  float *dPdv)
   {
-    StackAllocatedBuffer<6, 1> vertex_data, derivatives;
-    // TODO(sergey): Varying data is interleaved in vertex array, so need to
-    // adjust stride if there is a varying data.
-    // BufferDescriptor vertex_desc(0, 3, 6);
-    BufferDescriptor vertex_desc(0, 3, 3);
-    BufferDescriptor du_desc(0, 3, 6), dv_desc(3, 3, 6);
-    SinglePatchCoordBuffer patch_coord_buffer(patch_coord);
+    assert(dPdu);
+    assert(dPdv);
+    RawDataWrapperBuffer<float> P_data(P);
+    RawDataWrapperBuffer<float> dPdu_data(dPdu), dPdv_data(dPdv);
+    // TODO(sergey): Support interleaved vertex-varying data.
+    BufferDescriptor P_desc(0, 3, 3);
+    BufferDescriptor dpDu_desc(0, 3, 3), pPdv_desc(0, 3, 3);
+    ConstPatchCoordWrapperBuffer patch_coord_buffer(patch_coord, num_patch_coords);
     const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
-        evaluator_cache_, src_desc_, vertex_desc, du_desc, dv_desc, device_context_);
+        evaluator_cache_, src_desc_, P_desc, dpDu_desc, pPdv_desc, device_context_);
     EVALUATOR::EvalPatches(src_data_,
                            src_desc_,
-                           &vertex_data,
-                           vertex_desc,
-                           &derivatives,
-                           du_desc,
-                           &derivatives,
-                           dv_desc,
+                           &P_data,
+                           P_desc,
+                           &dPdu_data,
+                           dpDu_desc,
+                           &dPdv_data,
+                           pPdv_desc,
                            patch_coord_buffer.GetNumVertices(),
                            &patch_coord_buffer,
                            patch_table_,
                            eval_instance,
                            device_context_);
-    const float *refined_vertices = vertex_data.BindCpuBuffer();
-    memcpy(P, refined_vertices, sizeof(float) * 3);
-    if (dPdu != NULL || dPdv != NULL) {
-      const float *refined_derivatives = derivatives.BindCpuBuffer();
-      if (dPdu != NULL) {
-        memcpy(dPdu, refined_derivatives, sizeof(float) * 3);
-      }
-      if (dPdv != NULL) {
-        memcpy(dPdv, refined_derivatives + 3, sizeof(float) * 3);
-      }
-    }
   }
 
-  void evalPatchVarying(const PatchCoord &patch_coord, float varying[3])
+  // NOTE: varying must point to a memory of at least float[3]*num_patch_coords.
+  void evalPatchesVarying(const PatchCoord *patch_coord,
+                          const int num_patch_coords,
+                          float *varying)
   {
-    StackAllocatedBuffer<6, 1> varying_data;
+    RawDataWrapperBuffer<float> varying_data(varying);
     BufferDescriptor varying_desc(3, 3, 6);
-    SinglePatchCoordBuffer patch_coord_buffer(patch_coord);
+    ConstPatchCoordWrapperBuffer patch_coord_buffer(patch_coord, num_patch_coords);
     const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
         evaluator_cache_, src_varying_desc_, varying_desc, device_context_);
     EVALUATOR::EvalPatchesVarying(src_varying_data_,
@@ -477,23 +491,22 @@ class VolatileEvalOutput {
                                   patch_table_,
                                   eval_instance,
                                   device_context_);
-    const float *refined_varying = varying_data.BindCpuBuffer();
-    memcpy(varying, refined_varying, sizeof(float) * 3);
   }
 
-  void evalPatchFaceVarying(const int face_varying_channel,
-                            const PatchCoord &patch_coord,
-                            float face_varying[2])
+  void evalPatchesFaceVarying(const int face_varying_channel,
+                              const PatchCoord *patch_coord,
+                              const int num_patch_coords,
+                              float face_varying[2])
   {
     assert(face_varying_channel >= 0);
     assert(face_varying_channel < face_varying_evaluators.size());
-    face_varying_evaluators[face_varying_channel]->evalPatch(patch_coord, face_varying);
+    face_varying_evaluators[face_varying_channel]->evalPatches(
+        patch_coord, num_patch_coords, face_varying);
   }
 
  private:
   SRC_VERTEX_BUFFER *src_data_;
   SRC_VERTEX_BUFFER *src_varying_data_;
-  PatchCoordBuffer *patch_coords_;
   PATCH_TABLE *patch_table_;
   BufferDescriptor src_desc_;
   BufferDescriptor src_varying_desc_;
@@ -509,6 +522,19 @@ class VolatileEvalOutput {
   EvaluatorCache *evaluator_cache_;
   DEVICE_CONTEXT *device_context_;
 };
+
+void convertPatchCoordsToArray(const OpenSubdiv_PatchCoord *patch_coords,
+                               const int num_patch_coords,
+                               const OpenSubdiv::Far::PatchMap *patch_map,
+                               StackOrHeapPatchCoordArray *array)
+{
+  array->resize(num_patch_coords);
+  for (int i = 0; i < num_patch_coords; ++i) {
+    const PatchTable::PatchHandle *handle = patch_map->FindPatch(
+        patch_coords[i].ptex_face, patch_coords[i].u, patch_coords[i].v);
+    (array->data())[i] = PatchCoord(*handle, patch_coords[i].u, patch_coords[i].v);
+  }
+}
 
 }  // namespace
 
@@ -653,10 +679,10 @@ void CpuEvalOutputAPI::evaluateLimit(const int ptex_face_index,
   const PatchTable::PatchHandle *handle = patch_map_->FindPatch(ptex_face_index, face_u, face_v);
   PatchCoord patch_coord(*handle, face_u, face_v);
   if (dPdu != NULL || dPdv != NULL) {
-    implementation_->evalPatchesWithDerivatives(patch_coord, P, dPdu, dPdv);
+    implementation_->evalPatchesWithDerivatives(&patch_coord, 1, P, dPdu, dPdv);
   }
   else {
-    implementation_->evalPatchCoord(patch_coord, P);
+    implementation_->evalPatches(&patch_coord, 1, P);
   }
 }
 
@@ -671,7 +697,7 @@ void CpuEvalOutputAPI::evaluateVarying(const int ptex_face_index,
   assert(face_v <= 1.0f);
   const PatchTable::PatchHandle *handle = patch_map_->FindPatch(ptex_face_index, face_u, face_v);
   PatchCoord patch_coord(*handle, face_u, face_v);
-  implementation_->evalPatchVarying(patch_coord, varying);
+  implementation_->evalPatchesVarying(&patch_coord, 1, varying);
 }
 
 void CpuEvalOutputAPI::evaluateFaceVarying(const int face_varying_channel,
@@ -686,7 +712,24 @@ void CpuEvalOutputAPI::evaluateFaceVarying(const int face_varying_channel,
   assert(face_v <= 1.0f);
   const PatchTable::PatchHandle *handle = patch_map_->FindPatch(ptex_face_index, face_u, face_v);
   PatchCoord patch_coord(*handle, face_u, face_v);
-  implementation_->evalPatchFaceVarying(face_varying_channel, patch_coord, face_varying);
+  implementation_->evalPatchesFaceVarying(face_varying_channel, &patch_coord, 1, face_varying);
+}
+
+void CpuEvalOutputAPI::evaluatePatchesLimit(const OpenSubdiv_PatchCoord *patch_coords,
+                                            const int num_patch_coords,
+                                            float *P,
+                                            float *dPdu,
+                                            float *dPdv)
+{
+  StackOrHeapPatchCoordArray patch_coords_array;
+  convertPatchCoordsToArray(patch_coords, num_patch_coords, patch_map_, &patch_coords_array);
+  if (dPdu != NULL || dPdv != NULL) {
+    implementation_->evalPatchesWithDerivatives(
+        patch_coords_array.data(), num_patch_coords, P, dPdu, dPdv);
+  }
+  else {
+    implementation_->evalPatches(patch_coords_array.data(), num_patch_coords, P);
+  }
 }
 
 }  // namespace opensubdiv_capi
@@ -757,7 +800,6 @@ OpenSubdiv_EvaluatorInternal *openSubdiv_createEvaluatorInternal(
   }
   // Face warying stencil.
   vector<const StencilTable *> all_face_varying_stencils;
-#ifdef OPENSUBDIV_HAS_FVAR_EVALUATION
   all_face_varying_stencils.reserve(num_face_varying_channels);
   for (int face_varying_channel = 0; face_varying_channel < num_face_varying_channels;
        ++face_varying_channel) {
@@ -769,7 +811,6 @@ OpenSubdiv_EvaluatorInternal *openSubdiv_createEvaluatorInternal(
     all_face_varying_stencils.push_back(
         StencilTableFactory::Create(*refiner, face_varying_stencil_options));
   }
-#endif
   // Generate bi-cubic patch table for the limit surface.
   // TODO(sergey): Ideally we would want to expose end-cap settings via
   // C-API to make it more generic. Currently it matches old Blender's
@@ -800,7 +841,6 @@ OpenSubdiv_EvaluatorInternal *openSubdiv_createEvaluatorInternal(
       varying_stencils = table;
     }
   }
-#ifdef OPENSUBDIV_HAS_FVAR_EVALUATION
   for (int face_varying_channel = 0; face_varying_channel < num_face_varying_channels;
        ++face_varying_channel) {
     const StencilTable *table = StencilTableFactory::AppendLocalPointStencilTableFaceVarying(
@@ -813,7 +853,6 @@ OpenSubdiv_EvaluatorInternal *openSubdiv_createEvaluatorInternal(
       all_face_varying_stencils[face_varying_channel] = table;
     }
   }
-#endif
   // Create OpenSubdiv's CPU side evaluator.
   // TODO(sergey): Make it possible to use different evaluators.
   opensubdiv_capi::CpuEvalOutput *eval_output = new opensubdiv_capi::CpuEvalOutput(
