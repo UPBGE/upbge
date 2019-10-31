@@ -282,14 +282,25 @@ class SaveAsRuntime(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 
-def menu_func(self, context):
-    self.layout.operator(SaveAsRuntime.bl_idname)
-
+def menu_func_export(self, context):
+    self.layout.operator(SaveAsRuntime.bl_idname, text="Save as game runtime")
 
 classes = (
 SaveAsRuntime,
 )
-register, unregister = bpy.utils.register_classes_factory(classes)
+
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+    bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
+
+
+def unregister():
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
+
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
 
 
 if __name__ == "__main__":
