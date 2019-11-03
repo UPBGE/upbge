@@ -59,6 +59,7 @@ extern "C" {
 #include "DNA_anim_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "depsgraph/DEG_depsgraph.h"
 #include "depsgraph/DEG_depsgraph_query.h"
@@ -107,7 +108,7 @@ BL_Action::~BL_Action()
   }
 
   Object *ob = m_obj->GetBlenderObject();
-  if (ob && m_action) {
+  if (ob && ob->adt && m_action) {
     ob->adt->action = m_action;
   }
 }
@@ -414,7 +415,9 @@ void BL_Action::Update(float curtime, bool applyToObject)
   ViewLayer *view_layer = BKE_view_layer_default_view(sc);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, sc, view_layer, false);
 
-  ob->adt->action = m_tmpaction;
+  if (ob->adt) {
+    ob->adt->action = m_tmpaction;
+  }
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
   {
@@ -475,6 +478,26 @@ void BL_Action::Update(float curtime, bool applyToObject)
         break;
       }
     }
+	// TEST Material action
+    int totcol = ob->totcol;
+    for (int i = 0; i < totcol; i++) {
+      Material *ma = give_current_material(ob, i + 1);
+      if (ma) {
+        if (ma->use_nodes && ma->nodetree) {
+          bNodeTree *node_tree = ma->nodetree;
+          if (node_tree->adt) {
+            DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
+
+            PointerRNA ptrrna;
+            RNA_id_pointer_create(&node_tree->id, &ptrrna);
+
+            animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
+
+			scene->ResetTaaSamples();
+		  }
+		}
+	  }
+	}
   }
 }
 
