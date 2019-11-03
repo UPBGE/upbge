@@ -67,28 +67,33 @@ class RENDER_PT_game_resolution(RenderButtonsPanel, Panel):
     COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     def draw(self, context):
+        import sys
         layout = self.layout
+        not_osx = sys.platform != "darwin"
 
         view_render = context.scene.render
 
         row = layout.row()
         row.operator("view3d.game_start", text="Embedded Start")
         row = layout.row(align=True)
-        row.prop(view_render, "resolution_x", slider=False, text="X")
-        row.prop(view_render, "resolution_y", slider=False, text="Y")
+        row.prop(view_render, "resolution_x", slider=False, text="X:")
+        row.prop(view_render, "resolution_y", slider=False, text="Y:")
 
         gs = context.scene.game_settings
 
         row = layout.row()
         row.operator("wm.blenderplayer_start", text="Standalone Start")
         row = layout.row(align=True)
-        row.active = True
-        row.prop(gs, "resolution_x", slider=False, text="X")
-        row.prop(gs, "resolution_y", slider=False, text="Y")
+        row.prop(gs, "resolution_x", slider=False, text="X:")
+        row.prop(gs, "resolution_y", slider=False, text="Y:")
         row = layout.row()
         col = row.column()
         col.prop(gs, "show_fullscreen")
 
+        if not_osx:
+            col = row.column()
+            col.prop(gs, "use_desktop")
+            col.active = gs.show_fullscreen
 
 class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
     bl_label = "Game Debug"
