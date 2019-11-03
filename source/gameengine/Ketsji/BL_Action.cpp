@@ -485,19 +485,19 @@ void BL_Action::Update(float curtime, bool applyToObject)
       if (ma) {
         if (ma->use_nodes && ma->nodetree) {
           bNodeTree *node_tree = ma->nodetree;
-          if (node_tree->adt) {
+          if (node_tree->adt && node_tree->adt->action == m_action) {
             DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
 
             PointerRNA ptrrna;
             RNA_id_pointer_create(&node_tree->id, &ptrrna);
 
             animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
-
-			scene->ResetTaaSamples();
-		  }
-		}
-	  }
-	}
+            scene->ResetTaaSamples();
+            break;
+          }
+        }
+      }
+    }
   }
 }
 
