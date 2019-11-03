@@ -415,13 +415,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
   ViewLayer *view_layer = BKE_view_layer_default_view(sc);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, sc, view_layer, false);
 
-  if (ob->adt) {
-    ob->adt->action = m_tmpaction;
-  }
-
-  if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
-  {
+  if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+
+	if (ob->adt) {
+      ob->adt->action = m_tmpaction;
+    }
 
     //BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
 
@@ -456,7 +455,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
   {
     // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
     for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = (ModifierData *)md->next) {
-      if (BKE_object_modifier_use_time(ob, md)) {
+      if (BKE_object_modifier_use_time(ob, md) && ob->adt && ob->adt->action == m_action) {
         // TODO: We need to find the good notifier per action
         if (!modifier_isNonGeometrical(md)) {
           DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -471,11 +470,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
     for (bConstraint *con = (bConstraint *)ob->constraints.first; con;
          con = (bConstraint *)con->next) {
       if (con) {
-        DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-        BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
-
-        scene->ResetTaaSamples();
-        break;
+        if (ob->adt && ob->adt->action == m_action) {
+          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+          BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
+          scene->ResetTaaSamples();
+          break;
+        }
       }
     }
 	// TEST Material action
