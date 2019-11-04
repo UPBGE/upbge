@@ -452,6 +452,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
   }
   else
   {
+    /* WARNING: The check to be sure the right action is played (to know if the action
+     * which is in the actuator will be the one which will be played)
+     * might be wrong (if (ob->adt && ob->adt->action == m_action) playaction;)
+     * because WE MIGHT NEED TO CHANGE OB->ADT->ACTION DURING RUNTIME
+     * then another check should be found to ensure to play the right action.
+     */
     // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
     for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = (ModifierData *)md->next) {
       // TODO: We need to find the good notifier per action
