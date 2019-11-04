@@ -2530,8 +2530,8 @@ void ED_gpencil_select_toggle_all(bContext *C, int action)
 
 /* Ensure the SBuffer (while drawing stroke) size is enough to save all points of the stroke */
 tGPspoint *ED_gpencil_sbuffer_ensure(tGPspoint *buffer_array,
-                                     short *buffer_size,
-                                     short *buffer_used,
+                                     int *buffer_size,
+                                     int *buffer_used,
                                      const bool clear)
 {
   tGPspoint *p = NULL;
@@ -2548,6 +2548,11 @@ tGPspoint *ED_gpencil_sbuffer_ensure(tGPspoint *buffer_array,
       *buffer_size += GP_STROKE_BUFFER_CHUNK;
       p = MEM_recallocN(buffer_array, sizeof(struct tGPspoint) * *buffer_size);
     }
+
+    if (p == NULL) {
+      *buffer_size = *buffer_used = 0;
+    }
+
     buffer_array = p;
   }
 

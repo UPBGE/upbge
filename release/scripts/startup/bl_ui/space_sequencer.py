@@ -176,12 +176,14 @@ class SEQUENCER_MT_range(Menu):
         layout = self.layout
 
         layout.operator("anim.previewrange_set", text="Set Preview Range")
+        layout.operator("sequencer.set_range_to_strips", text="Set Preview Range to Strips").preview = True
         layout.operator("anim.previewrange_clear", text="Clear Preview Range")
 
         layout.separator()
 
         layout.operator("anim.start_frame_set", text="Set Start Frame")
         layout.operator("anim.end_frame_set", text="Set End Frame")
+        layout.operator("sequencer.set_range_to_strips", text="Set Frame Range to Strips")
 
 
 class SEQUENCER_MT_preview_zoom(Menu):
@@ -316,8 +318,10 @@ class SEQUENCER_MT_select_channel(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("sequencer.select_active_side", text="Left").side = 'LEFT'
-        layout.operator("sequencer.select_active_side", text="Right").side = 'RIGHT'
+        layout.operator("sequencer.select_side", text="Left").side = 'LEFT'
+        layout.operator("sequencer.select_side", text="Right").side = 'RIGHT'
+        layout.separator()
+        layout.operator("sequencer.select_side", text="Both Sides").side = 'BOTH'
 
 
 class SEQUENCER_MT_select_linked(Menu):
@@ -751,6 +755,10 @@ class SEQUENCER_MT_context_menu(Menu):
 
         layout.operator("sequencer.slip", text="Slip Strip Contents")
         layout.operator("sequencer.snap")
+
+        layout.separator()
+
+        layout.operator("sequencer.set_range_to_strips", text="Set Preview Range to Strips").preview = True
 
         layout.separator()
 

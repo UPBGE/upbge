@@ -21,6 +21,8 @@
  * \ingroup spoutliner
  */
 
+#include <string.h>
+
 #include "BLI_utildefines.h"
 
 #include "DNA_action_types.h"
@@ -30,6 +32,7 @@
 #include "BKE_context.h"
 #include "BKE_outliner_treehash.h"
 #include "BKE_layer.h"
+#include "BKE_object.h"
 
 #include "ED_armature.h"
 #include "ED_outliner.h"
@@ -38,6 +41,33 @@
 #include "UI_view2d.h"
 
 #include "outliner_intern.h"
+
+/* -------------------------------------------------------------------- */
+/** \name Tree View Context
+ * \{ */
+
+void outliner_viewcontext_init(const bContext *C, TreeViewContext *tvc)
+{
+  memset(tvc, 0, sizeof(*tvc));
+
+  /* Scene level. */
+  tvc->scene = CTX_data_scene(C);
+  tvc->view_layer = CTX_data_view_layer(C);
+
+  /* Objects. */
+  tvc->obact = OBACT(tvc->view_layer);
+  if (tvc->obact != NULL) {
+    tvc->ob_edit = OBEDIT_FROM_OBACT(tvc->obact);
+
+    if ((tvc->obact->type == OB_ARMATURE) ||
+        /* This could be made into it's own function. */
+        ((tvc->obact->type == OB_MESH) && tvc->obact->mode & OB_MODE_WEIGHT_PAINT)) {
+      tvc->ob_pose = BKE_object_pose_armature_get(tvc->obact);
+    }
+  }
+}
+
+/** \} */
 
 /**
  * Try to find an item under y-coordinate \a view_co_y (view-space).
@@ -361,8 +391,19 @@ bool outliner_is_element_visible(const TreeElement *te)
   return true;
 }
 
+/* Find if x coordinate is over an icon or name */
+bool outliner_item_is_co_over_name_icons(const TreeElement *te, float view_co_x)
+{
+  /* Special case: count area left of Scene Collection as empty space */
+  bool outside_left = (TREESTORE(te)->type == TSE_VIEW_COLLECTION_BASE) ?
+                          (view_co_x > te->xs + UI_UNIT_X) :
+                          (view_co_x > te->xs);
+
+  return outside_left && (view_co_x < te->xend);
+}
+
 /* Find if x coordinate is over element disclosure toggle */
-bool outliner_item_is_co_within_close_toggle(TreeElement *te, float view_co_x)
+bool outliner_item_is_co_within_close_toggle(const TreeElement *te, float view_co_x)
 {
   return (view_co_x > te->xs) && (view_co_x < te->xs + UI_UNIT_X);
 }

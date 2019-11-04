@@ -177,7 +177,7 @@ static void proxy_endjob(void *pjv)
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, pj->scene);
 }
 
-static void seq_proxy_build_job(const bContext *C)
+static void seq_proxy_build_job(const bContext *C, ReportList *reports)
 {
   wmJob *wm_job;
   ProxyJob *pj;
@@ -216,8 +216,11 @@ static void seq_proxy_build_job(const bContext *C)
   file_list = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, "file list");
   SEQP_BEGIN (ed, seq) {
     if ((seq->flag & SELECT)) {
-      BKE_sequencer_proxy_rebuild_context(
+      bool success = BKE_sequencer_proxy_rebuild_context(
           pj->main, pj->depsgraph, pj->scene, seq, file_list, &pj->queue);
+      if (!success) {
+        BKE_reportf(reports, RPT_ERROR, "Could not build proxy for strip %s", seq->name);
+      }
     }
   }
   SEQ_END;
@@ -3608,10 +3611,10 @@ void SEQUENCER_OT_view_ghost_border(wmOperatorType *ot)
 /* rebuild_proxy operator */
 
 static int sequencer_rebuild_proxy_invoke(bContext *C,
-                                          wmOperator *UNUSED(op),
+                                          wmOperator *op,
                                           const wmEvent *UNUSED(event))
 {
-  seq_proxy_build_job(C);
+  seq_proxy_build_job(C, op->reports);
 
   return OPERATOR_FINISHED;
 }
@@ -4180,4 +4183,68 @@ void SEQUENCER_OT_export_subtitles(struct wmOperatorType *ot)
                                  WM_FILESEL_FILEPATH,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_ALPHA);
+}
+
+static int sequencer_set_range_to_strips_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  Editing *ed = BKE_sequencer_editing_get(scene, false);
+  Sequence *seq;
+
+  int sfra = MAXFRAME;
+  int efra = -MAXFRAME;
+  bool selected = false;
+  const bool preview = RNA_boolean_get(op->ptr, "preview");
+
+  for (seq = ed->seqbasep->first; seq; seq = seq->next) {
+    if (seq->flag & SELECT) {
+      selected = true;
+      sfra = min_ii(sfra, seq->startdisp);
+      efra = max_ii(efra, seq->enddisp - 1);
+    }
+  }
+
+  if (!selected) {
+    BKE_report(op->reports, RPT_WARNING, "Select one or more strips");
+    return OPERATOR_CANCELLED;
+  }
+  else if (efra < 0) {
+    BKE_report(op->reports, RPT_ERROR, "Can't set a negative range");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (preview) {
+    scene->r.flag |= SCER_PRV_RANGE;
+    scene->r.psfra = max_ii(0, sfra);
+    scene->r.pefra = efra;
+  }
+  else {
+    scene->r.flag &= ~SCER_PRV_RANGE;
+    scene->r.sfra = max_ii(0, sfra);
+    scene->r.efra = efra;
+  }
+
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+void SEQUENCER_OT_set_range_to_strips(struct wmOperatorType *ot)
+{
+  PropertyRNA *prop;
+
+  /* identifiers */
+  ot->name = "Set Range to Strips";
+  ot->idname = "SEQUENCER_OT_set_range_to_strips";
+  ot->description = "Set the frame range to the selected strips start and end";
+
+  /* api callbacks */
+  ot->exec = sequencer_set_range_to_strips_exec;
+  ot->poll = sequencer_edit_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  prop = RNA_def_boolean(ot->srna, "preview", false, "Preview", "Set the preview range instead");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
