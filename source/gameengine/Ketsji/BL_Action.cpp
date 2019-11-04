@@ -466,6 +466,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
         scene->ResetTaaSamples();
         break;
       }
+      /* HERE we can add other modifier action types,
+       * if some actions require another notifier than ID_RECALC_GEOMETRY */
     }
     // TEST FollowPath action
     for (bConstraint *con = (bConstraint *)ob->constraints.first; con;
@@ -479,6 +481,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
           scene->ResetTaaSamples();
           break;
         }
+        /* HERE we can add other constraint action types,
+         * if some actions require another notifier than ID_RECALC_TRANSFORM */
       }
     }
 	// TEST Material action
