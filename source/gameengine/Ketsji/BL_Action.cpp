@@ -413,9 +413,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
   m_requestIpo = true;
 
   Object *ob = m_obj->GetBlenderObject();  // eevee
-  Scene *sc = scene->GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, sc, view_layer, false);
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
