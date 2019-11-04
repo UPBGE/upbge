@@ -508,7 +508,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
     }
     // TEST Shapekeys action
     Mesh *me = (Mesh *)ob->data;
-    if (me) {
+    if (ob->type == OB_MESH && me) {
       const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
       if (bHasShapeKey && me->key->adt && me->key->adt->action == m_action) {
         DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
