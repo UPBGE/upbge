@@ -57,7 +57,9 @@ extern "C" {
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "DNA_anim_types.h"
+#include "DNA_key_types.h"
 #include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
@@ -496,6 +498,49 @@ void BL_Action::Update(float curtime, bool applyToObject)
             break;
           }
         }
+      }
+    }
+    // TEST Shapekeys action
+    Mesh *me = (Mesh *)ob->data;
+    if (me) {
+      const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
+      if (bHasShapeKey && me->key->adt && me->key->adt->action == m_action) {
+
+		DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
+
+        Key *key = me->key;
+
+        PointerRNA ptrrna;
+        RNA_id_pointer_create(&key->id, &ptrrna);
+
+        animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
+
+        // Handle blending between shape actions
+        if (m_blendin && m_blendframe < m_blendin) {
+          IncrementBlending(curtime);
+
+          float weight = 1.f - (m_blendframe / m_blendin);
+
+          // We go through and clear out the keyblocks so there isn't any interference
+          // from other shape actions
+          KeyBlock *kb;
+          for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next) {
+            kb->curval = 0.f;
+          }
+
+          // Now blend the shape
+          BlendShape(key, weight, m_blendinshape);
+        }
+
+        //// Handle layer blending
+        //if (m_layer_weight >= 0) {
+        //  shape_deformer->GetShape(m_blendshape);
+        //  BlendShape(key, m_layer_weight, m_blendshape);
+        //}
+
+        //shape_deformer->SetLastFrame(curtime);
+
+        scene->ResetTaaSamples();
       }
     }
   }
