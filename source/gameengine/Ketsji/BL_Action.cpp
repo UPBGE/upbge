@@ -457,12 +457,13 @@ void BL_Action::Update(float curtime, bool applyToObject)
   {
     // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
     for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = (ModifierData *)md->next) {
-      if (BKE_object_modifier_use_time(ob, md) && ob->adt && ob->adt->action == m_action) {
+      if (ob->adt && ob->adt->action == m_action) {
         // TODO: We need to find the good notifier per action
         if (!modifier_isNonGeometrical(md)) {
           DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-          BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
-
+          PointerRNA ptrrna;
+          RNA_id_pointer_create(&ob->id, &ptrrna);
+          animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
           scene->ResetTaaSamples();
           break;
         }
@@ -474,7 +475,9 @@ void BL_Action::Update(float curtime, bool applyToObject)
       if (con) {
         if (ob->adt && ob->adt->action == m_action) {
           DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-          BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
+          PointerRNA ptrrna;
+          RNA_id_pointer_create(&ob->id, &ptrrna);
+          animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
           scene->ResetTaaSamples();
           break;
         }
@@ -489,10 +492,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
           bNodeTree *node_tree = ma->nodetree;
           if (node_tree->adt && node_tree->adt->action == m_action) {
             DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
-
             PointerRNA ptrrna;
             RNA_id_pointer_create(&node_tree->id, &ptrrna);
-
             animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
             scene->ResetTaaSamples();
             break;
@@ -505,14 +506,11 @@ void BL_Action::Update(float curtime, bool applyToObject)
     if (me) {
       const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
       if (bHasShapeKey && me->key->adt && me->key->adt->action == m_action) {
-
-		DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
-
+        DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
         Key *key = me->key;
 
         PointerRNA ptrrna;
         RNA_id_pointer_create(&key->id, &ptrrna);
-
         animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
 
         // Handle blending between shape actions
@@ -531,7 +529,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
           // Now blend the shape
           BlendShape(key, weight, m_blendinshape);
         }
-
         //// Handle layer blending
         //if (m_layer_weight >= 0) {
         //  shape_deformer->GetShape(m_blendshape);
