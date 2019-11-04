@@ -457,16 +457,14 @@ void BL_Action::Update(float curtime, bool applyToObject)
   {
     // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
     for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = (ModifierData *)md->next) {
-      if (ob->adt && ob->adt->action == m_action) {
-        // TODO: We need to find the good notifier per action
-        if (!modifier_isNonGeometrical(md)) {
-          DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-          PointerRNA ptrrna;
-          RNA_id_pointer_create(&ob->id, &ptrrna);
-          animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
-          scene->ResetTaaSamples();
-          break;
-        }
+      // TODO: We need to find the good notifier per action
+      if (!modifier_isNonGeometrical(md) && ob->adt && ob->adt->action == m_action) {
+        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+        PointerRNA ptrrna;
+        RNA_id_pointer_create(&ob->id, &ptrrna);
+        animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
+        scene->ResetTaaSamples();
+        break;
       }
     }
     // TEST FollowPath action
