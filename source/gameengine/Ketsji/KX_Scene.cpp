@@ -239,7 +239,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
-
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
@@ -265,8 +264,9 @@ KX_Scene::~KX_Scene()
 
   Scene *scene = GetBlenderScene();
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0)
-  DRW_game_render_loop_end();
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
+    DRW_game_render_loop_end();
+  }
 
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
