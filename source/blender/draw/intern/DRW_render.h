@@ -727,6 +727,8 @@ struct GPUTexture *DRW_game_render_loop(struct Main *bmain, struct Scene *scene,
   int v[4], bool called_from_constructor, bool reset_taa_samples);
 void DRW_game_render_loop_finish(void);
 void DRW_game_render_loop_end(void);
+
+void DRW_draw_view(const struct bContext *C);
 /**************************END OF GAME ENGINE*******************************/
 
 #endif /* __DRW_RENDER_H__ */

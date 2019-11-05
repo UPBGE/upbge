@@ -88,6 +88,9 @@
 #include "KX_MotionState.h"
 #include "KX_ObstacleSimulation.h"
 
+
+#include "KX_BlenderCanvas.h"
+
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
 #endif
@@ -109,6 +112,12 @@ extern "C" {
 //#include "DRW_engine.h"
 #include "DRW_render.h"
 #include "MEM_guardedalloc.h"
+
+// TEST USE_VIEWPORT_RENDER
+#include "windowmanager/wm_draw.h"
+#include "GPU_viewport.h"
+#include "ED_screen.h"
+// END OF TEST USE VIEWPORT RENDER
 }
 
 #include "RAS_FrameBuffer.h"
@@ -229,11 +238,14 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   scene->eevee.taa_samples = 0;
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
-  /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
-   * depsgraph code too later */
-  scene->flag |= SCE_INTERACTIVE;
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
 
-  RenderAfterCameraSetup(true);
+    /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
+     * depsgraph code too later */
+    scene->flag |= SCE_INTERACTIVE;
+
+    RenderAfterCameraSetup(true);
+  }
   /******************************************************************************************************************************/
 
 #ifdef WITH_PYTHON
@@ -251,18 +263,18 @@ KX_Scene::~KX_Scene()
 
   m_isRuntime = false;  // eevee
 
+  Scene *scene = GetBlenderScene();
+
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0)
   DRW_game_render_loop_end();
 
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
-    Scene *scene = GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, hiddenOb);
     base->flag &= ~BASE_HIDDEN;
     BKE_layer_collection_sync(scene, view_layer);
     DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
   }
-
-  Scene *scene = GetBlenderScene();
   scene->eevee.taa_samples = m_taaSamplesBackup;
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
@@ -409,6 +421,30 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   m.proj.getValue(&proj[0][0]);
   m.pers.getValue(&pers[0][0]);
   m.persinv.getValue(&persinv[0][0]);
+
+  if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) {
+
+	if (!calledFromConstructor) {
+      KX_BlenderCanvas *ecanvas = (KX_BlenderCanvas *)canvas;
+      ARegion *ar = ecanvas->GetARegion();
+      RegionView3D *rv3d = (RegionView3D *)ar->regiondata;
+
+      DRW_view_set_active(NULL);
+
+      copy_m4_m4(rv3d->persmat, pers);
+      copy_m4_m4(rv3d->persinv, persinv);
+      copy_m4_m4(rv3d->viewmat, view);
+      copy_m4_m4(rv3d->viewinv, viewinv);
+      copy_m4_m4(rv3d->winmat, proj);
+
+      Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+      BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+      ED_region_tag_redraw(ar);
+      wm_draw_update(engine->GetContext());
+      return;
+    }
+  }
 
   GPUTexture *finaltex = DRW_game_render_loop(bmain,
                                               scene,

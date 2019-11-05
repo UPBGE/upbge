@@ -86,7 +86,6 @@ typedef enum eDRWSelectStage {
 typedef bool (*DRW_SelectPassFn)(eDRWSelectStage stage, void *user_data);
 typedef bool (*DRW_ObjectFilterFn)(struct Object *ob, void *user_data);
 
-void DRW_draw_view(const struct bContext *C);
 void DRW_draw_region_engine_info(int xoffset, int yoffset);
 
 void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,

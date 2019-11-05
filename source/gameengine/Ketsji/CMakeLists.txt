@@ -47,6 +47,7 @@ set(INC
 	../../blender/draw
 	../../blender/draw/intern
 	../../blender/draw/engines/eevee
+	../../blender/editors/include
 	../../blender/gpu
 	../../blender/imbuf
 	../../blender/makesdna

@@ -56,6 +56,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "DRW_engine.h"
+#include "../draw/intern/DRW_render.h"
 
 #include "ED_armature.h"
 #include "ED_keyframing.h"

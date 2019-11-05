@@ -95,6 +95,10 @@ class RENDER_PT_game_resolution(RenderButtonsPanel, Panel):
             col.prop(gs, "use_desktop")
             col.active = gs.show_fullscreen
 
+        row = layout.row()
+        col = row.column()
+        col.prop(gs, "use_viewport_render")
+
 class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
     bl_label = "Game Debug"
     COMPAT_ENGINES = {'BLENDER_EEVEE'}
