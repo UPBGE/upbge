@@ -918,6 +918,13 @@ static KX_GameObject *gameobject_from_blenderobject(
 		break;
 	}
 
+    case OB_GPENCIL:
+    {
+      gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
+      // set transformation
+      break;
+    }
+
 	case OB_FONT:
 	{
 		/* font objects have no bounding box */

@@ -23,6 +23,8 @@
  */
 
 #include "KX_BlenderMaterial.h"
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
 #include "KX_Scene.h"
 #include "KX_PyMath.h"
 
@@ -32,6 +34,7 @@
 #include "EXP_ListWrapper.h"
 
 #include "RAS_BucketManager.h"
+#include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
 
 extern "C" {
@@ -60,7 +63,9 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_alphablend = mat->blend_method;
 
 	if (m_material->use_nodes && m_material->nodetree) {
-      if ((m_scene->GetBlenderScene()->flag & GAME_USE_VIEWPORT_RENDER) == 0) {
+      RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+      ARegion *ar = canvas->GetARegion(); // if no ar, we are in blenderplayer
+      if ((m_scene->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || !ar) {
         EEVEE_Data *vedata = EEVEE_engine_data_get();
         EEVEE_EffectsInfo *effects = vedata->stl->effects;
         const bool use_ssrefract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) &&

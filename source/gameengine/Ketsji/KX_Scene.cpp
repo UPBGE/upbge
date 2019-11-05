@@ -109,14 +109,13 @@ extern "C" {
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
-//#include "DRW_engine.h"
 #include "DRW_render.h"
 #include "MEM_guardedalloc.h"
 
 // TEST USE_VIEWPORT_RENDER
-#include "windowmanager/wm_draw.h"
-#include "GPU_viewport.h"
 #include "ED_screen.h"
+#include "GPU_viewport.h"
+#include "windowmanager/wm_draw.h"
 // END OF TEST USE VIEWPORT RENDER
 }
 
@@ -238,12 +237,26 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   scene->eevee.taa_samples = 0;
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
+  ARegion *ar = canvas->GetARegion();
+
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || !ar) { // if no ar, we are in blenderplayer
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
 
     RenderAfterCameraSetup(true);
+  }
+  else {
+    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(
+        KX_GetActiveEngine()->GetConverter()->GetMain(), scene, view_layer, false);
+    if (!depsgraph) {
+      /* If we don't have a depsgraph for this view_layer, allocate one (last arg (true))
+	   * We'll need it during BlenderDataConversion.
+	   */
+      BKE_scene_get_depsgraph(
+          KX_GetActiveEngine()->GetConverter()->GetMain(), scene, view_layer, true);
+	}
   }
   /******************************************************************************************************************************/
 
@@ -263,8 +276,10 @@ KX_Scene::~KX_Scene()
   m_isRuntime = false;  // eevee
 
   Scene *scene = GetBlenderScene();
+  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+  ARegion *ar = canvas->GetARegion();
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || !ar) { // if no ar, we are in blenderplayer
     DRW_game_render_loop_end();
   }
 
@@ -422,10 +437,13 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   m.pers.getValue(&pers[0][0]);
   m.persinv.getValue(&persinv[0][0]);
 
-  if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) {
+  ARegion *ar = canvas->GetARegion();
+
+  /* Ensure there is a valid ARegion *ar (this is not the case in blenderplayer)
+   * Here we'll render directly the scene with viewport code.
+   */
+  if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && ar) {
     if (!calledFromConstructor) {
-      KX_BlenderCanvas *ecanvas = (KX_BlenderCanvas *)canvas;
-      ARegion *ar = ecanvas->GetARegion();
       RegionView3D *rv3d = (RegionView3D *)ar->regiondata;
 
       DRW_view_set_active(NULL);

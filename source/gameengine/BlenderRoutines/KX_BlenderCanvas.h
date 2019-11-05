@@ -93,7 +93,7 @@ public:
 	virtual void BeginDraw();
 	virtual void EndDraw();
 
-  struct ARegion *GetARegion();
+  virtual ARegion *GetARegion();
 };
 
 #endif  // __KX_BLENDERCANVAS_H__
