@@ -423,8 +423,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   m.persinv.getValue(&persinv[0][0]);
 
   if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) {
-
-	if (!calledFromConstructor) {
+    if (!calledFromConstructor) {
       KX_BlenderCanvas *ecanvas = (KX_BlenderCanvas *)canvas;
       ARegion *ar = ecanvas->GetARegion();
       RegionView3D *rv3d = (RegionView3D *)ar->regiondata;
