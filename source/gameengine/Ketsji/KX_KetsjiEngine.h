@@ -135,6 +135,8 @@ private:
 		std::vector<SceneRenderData> m_sceneDataList;
 	};
 
+  struct bContext *m_context;
+
 	/// 2D Canvas (2D Rendering Device Context)
 	RAS_ICanvas *m_canvas;
 	/// 3D Rasterizer (3D Rendering)
@@ -286,8 +288,10 @@ private:
 	
 
 public:
-	KX_KetsjiEngine(KX_ISystem *system);
+	KX_KetsjiEngine(KX_ISystem *system, struct bContext *C);
 	virtual ~KX_KetsjiEngine();
+
+  struct bContext *GetContext();
 
 	void EndFrame();
 

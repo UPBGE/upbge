@@ -42,6 +42,7 @@
 #include "GHOST_IWindow.h"
 
 class RAS_Rasterizer;
+struct ARegion;
 
 class GPG_Canvas : public RAS_ICanvas
 {
@@ -92,6 +93,8 @@ public:
 
 	virtual void BeginDraw();
 	virtual void EndDraw();
+
+  virtual ARegion *GetARegion();
 };
 
 #endif  // __GPG_CANVAS_H__

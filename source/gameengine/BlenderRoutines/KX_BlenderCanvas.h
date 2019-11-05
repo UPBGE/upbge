@@ -92,6 +92,8 @@ public:
 
 	virtual void BeginDraw();
 	virtual void EndDraw();
+
+  virtual ARegion *GetARegion();
 };
 
 #endif  // __KX_BLENDERCANVAS_H__

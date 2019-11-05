@@ -35,6 +35,7 @@
 #include "RAS_Rasterizer.h" // for RAS_Rasterizer::HdrType
 
 class RAS_Rect;
+struct ARegion;
 struct TaskScheduler;
 struct TaskPool;
 struct ImageFormatData;
@@ -74,6 +75,8 @@ public:
 	 * Unitializes the canvas for drawing.
 	 */
 	virtual void EndDraw() = 0;
+
+  virtual ARegion *GetARegion() = 0;
 
 	/// probably needs some arguments for PS2 in future
 	virtual void SwapBuffers() = 0;

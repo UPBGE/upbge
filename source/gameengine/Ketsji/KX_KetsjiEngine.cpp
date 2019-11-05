@@ -139,8 +139,9 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
 /**
  * Constructor of the Ketsji Engine
  */
-KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
-	:m_canvas(nullptr),
+KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system, bContext *C)
+	: m_context(C),
+	m_canvas(nullptr),
 	m_rasterizer(nullptr),
 	m_kxsystem(system),
 	m_converter(nullptr),
@@ -195,6 +196,11 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 		BLI_task_scheduler_free(m_taskscheduler);
 
 	m_scenes->Release();
+}
+
+bContext *KX_KetsjiEngine::GetContext()
+{
+  return m_context;
 }
 
 void KX_KetsjiEngine::SetInputDevice(SCA_IInputDevice *inputDevice)

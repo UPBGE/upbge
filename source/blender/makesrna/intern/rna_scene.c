@@ -5227,6 +5227,10 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                            "(objects outside the box are activity-culled)");
 
   /* booleans */
+  prop = RNA_def_property(srna, "use_viewport_render", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_VIEWPORT_RENDER);
+  RNA_def_property_ui_text(prop, "Use Viewport Render", "Use Blender Render Loop to render the scene");
+
   prop = RNA_def_property(srna, "use_undo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_UNDO);
   RNA_def_property_ui_text(prop, "Undo at Exit",
