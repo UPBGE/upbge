@@ -60,13 +60,17 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_alphablend = mat->blend_method;
 
 	if (m_material->use_nodes && m_material->nodetree) {
-		/*EEVEE_Data *vedata = EEVEE_engine_data_get();
-		EEVEE_EffectsInfo *effects = vedata->stl->effects;
-		const bool use_ssrefract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) &&
-                               ((effects->enabled_effects & EFFECT_REFRACT) != 0);
-		m_gpuMat = EEVEE_material_mesh_get(scene->GetBlenderScene(), m_material, vedata,
-			false, use_ssrefract);*/
-    m_gpuMat = nullptr;
+      if ((m_scene->GetBlenderScene()->flag & GAME_USE_VIEWPORT_RENDER) == 0) {
+        EEVEE_Data *vedata = EEVEE_engine_data_get();
+        EEVEE_EffectsInfo *effects = vedata->stl->effects;
+        const bool use_ssrefract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) &&
+                                 ((effects->enabled_effects & EFFECT_REFRACT) != 0);
+        m_gpuMat = EEVEE_material_mesh_get(scene->GetBlenderScene(), m_material, vedata,
+        false, use_ssrefract);
+      }
+      else {
+        m_gpuMat = nullptr;
+      }
 	}
 	else {
 		m_gpuMat = nullptr;
