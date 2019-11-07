@@ -4034,5 +4034,10 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
   {
     /* Versioning code until next subversion bump goes here. */
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+        sa->flag &= ~AREA_FLAG_UNUSED_6;
+      }
+    }
   }
 }

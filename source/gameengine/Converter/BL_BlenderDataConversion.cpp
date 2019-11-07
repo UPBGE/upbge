@@ -876,13 +876,13 @@ static KX_GameObject *gameobject_from_blenderobject(
 	
 	case OB_ARMATURE:
 	{
-		bArmature *arm = (bArmature*)ob->data;
+		/*bArmature *arm = (bArmature*)ob->data;*/
 		gameobj = new BL_ArmatureObject(
 			kxscene,
 			KX_Scene::m_callbacks,
 			ob,
 			kxscene->GetBlenderScene(), // handle
-			arm->gevertdeformer
+			/*arm->gevertdeformer*/0
 		);
 
 		kxscene->AddAnimatedObject(gameobj);
