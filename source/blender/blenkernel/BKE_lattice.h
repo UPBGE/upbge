@@ -84,6 +84,7 @@ void armature_deform_verts(struct Object *armOb,
                            float (*defMats)[3][3],
                            int numVerts,
                            int deformflag,
+                           int deformvertflag,
                            float (*prevCos)[3],
                            const char *defgrp_name,
                            struct bGPDstroke *gps);

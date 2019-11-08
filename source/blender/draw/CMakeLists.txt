@@ -51,6 +51,7 @@ set(INC_SYS
 set(SRC
   intern/draw_anim_viz.c
   intern/draw_armature.c
+  intern/draw_armature_hw_skinning.c
   intern/draw_cache.c
   intern/draw_cache_extract_mesh.c
   intern/draw_cache_impl_curve.c
@@ -172,6 +173,7 @@ set(LIB
 )
 
 data_to_c_simple(engines/eevee/shaders/ambient_occlusion_lib.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/armature_hardware_skinning_vert.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/default_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/default_world_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/background_vert.glsl SRC)

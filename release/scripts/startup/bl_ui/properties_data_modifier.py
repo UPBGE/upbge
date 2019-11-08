@@ -68,7 +68,14 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "use_bone_envelopes", text="Bone Envelopes")
 
         layout.separator()
+        split = layout.split()
 
+        col = split.column()
+        col.label(text="Deform Type:")
+        col.active = md.use_vertex_groups
+        col.prop(md, "vert_deformer", text="")
+
+        layout.separator()
         split = layout.split()
 
         row = split.row(align=True)

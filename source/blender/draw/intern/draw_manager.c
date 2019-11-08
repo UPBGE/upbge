@@ -1632,6 +1632,9 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
   drw_debug_init();
   DRW_hair_init();
 
+  /* GPU Skinning */
+  DRW_hardware_skinning_init();
+
   /* No framebuffer allowed before drawing. */
   BLI_assert(GPU_framebuffer_active_get() == NULL);
 
@@ -1680,6 +1683,9 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
   DRW_state_reset();
 
   DRW_hair_update();
+
+  /* GPU Skinning */
+  DRW_hardware_skinning_update();
 
   const bool background_drawn = drw_engines_draw_background();
 
@@ -2919,6 +2925,7 @@ void DRW_engines_free(void)
   GPU_FRAMEBUFFER_FREE_SAFE(g_select_buffer.framebuffer_depth_only);
 
   DRW_hair_free();
+  DRW_hardware_skinning_free();
   DRW_shape_cache_free();
   DRW_stats_free();
   DRW_globals_free();
@@ -3269,6 +3276,9 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 
   DRW_hair_init();
 
+  /* GPU Skinning */
+  DRW_hardware_skinning_init();
+
   /* Init engines */
   drw_engines_init();
   drw_engines_cache_init();
@@ -3295,6 +3305,9 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   }
 
   DRW_hair_update();
+
+  /* GPU Skinning */
+  DRW_hardware_skinning_update();
 
   drw_engines_draw_background();
   GPUTexture *finaltex = effects->final_tx;

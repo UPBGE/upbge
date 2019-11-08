@@ -1653,6 +1653,7 @@ void armature_deform_verts(Object *armOb,
                            float (*defMats)[3][3],
                            int numVerts,
                            int deformflag,
+                           int deformvertflag,
                            float (*prevCos)[3],
                            const char *defgrp_name,
                            bGPDstroke *gps)
@@ -1669,8 +1670,8 @@ void armature_deform_verts(Object *armOb,
   bool use_dverts = false;
   int armature_def_nr;
 
-  /* in editmode, or not an armature */
-  if (arm->edbo || (armOb->pose == NULL)) {
+  /* in editmode, or not an armature, or mesh GPU Skinning */
+  if (arm->edbo || (armOb->pose == NULL) || ((target->type == OB_MESH) && arm->deformvertflag == ARM_VDEF_BLENDER_GPU_SKINNING) ) {
     return;
   }
 
