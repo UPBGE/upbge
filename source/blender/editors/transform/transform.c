@@ -2133,7 +2133,7 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
         else if (t->options & CTX_MASK) {
           ts->proportional_mask = proportional != 0;
         }
-        else {
+        else if ((t->options & CTX_CURSOR) == 0) {
           ts->proportional_objects = proportional != 0;
         }
       }
@@ -7576,20 +7576,27 @@ static void drawEdgeSlide(TransInfo *t)
         }
         immEnd();
 
-        immUniformThemeColorShadeAlpha(TH_SELECT, -30, alpha_shade);
-        GPU_point_size(ctrl_size);
-        immBegin(GPU_PRIM_POINTS, 1);
-        if (slp->flipped) {
-          if (curr_sv->v_side[1]) {
-            immVertex3fv(pos, curr_sv->v_side[1]->co);
+        {
+          float *co_test = NULL;
+          if (slp->flipped) {
+            if (curr_sv->v_side[1]) {
+              co_test = curr_sv->v_side[1]->co;
+            }
+          }
+          else {
+            if (curr_sv->v_side[0]) {
+              co_test = curr_sv->v_side[0]->co;
+            }
+          }
+
+          if (co_test != NULL) {
+            immUniformThemeColorShadeAlpha(TH_SELECT, -30, alpha_shade);
+            GPU_point_size(ctrl_size);
+            immBegin(GPU_PRIM_POINTS, 1);
+            immVertex3fv(pos, co_test);
+            immEnd();
           }
         }
-        else {
-          if (curr_sv->v_side[0]) {
-            immVertex3fv(pos, curr_sv->v_side[0]->co);
-          }
-        }
-        immEnd();
 
         immUniformThemeColorShadeAlpha(TH_SELECT, 255, alpha_shade);
         GPU_point_size(guide_size);

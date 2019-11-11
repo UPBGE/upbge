@@ -95,7 +95,7 @@ if(WIN32)
     ExternalProject_Add_Step(external_opencolorio after_install
       COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/opencolorio/include ${HARVEST_TARGET}/opencolorio/include
       COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/opencolorio/lib/static ${HARVEST_TARGET}/opencolorio/lib
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/yamlcpp/lib/libyaml-cppmt.lib ${HARVEST_TARGET}/opencolorio/lib/libyaml-cpp.lib
+      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/yamlcpp/lib/libyaml-cppmd.lib ${HARVEST_TARGET}/opencolorio/lib/libyaml-cpp.lib
       COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/tinyxml/lib/tinyxml.lib ${HARVEST_TARGET}/opencolorio/lib/tinyxml.lib
       DEPENDEES install
     )
@@ -103,7 +103,7 @@ if(WIN32)
   if(BUILD_MODE STREQUAL Debug)
     ExternalProject_Add_Step(external_opencolorio after_install
       COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/opencolorio/lib/static/Opencolorio.lib ${HARVEST_TARGET}/opencolorio/lib/OpencolorIO_d.lib
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/yamlcpp/lib/libyaml-cppmtd.lib ${HARVEST_TARGET}/opencolorio/lib/libyaml-cpp_d.lib
+      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/yamlcpp/lib/libyaml-cppmdd.lib ${HARVEST_TARGET}/opencolorio/lib/libyaml-cpp_d.lib
       COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/tinyxml/lib/tinyxml.lib ${HARVEST_TARGET}/opencolorio/lib/tinyxml_d.lib
       DEPENDEES install
     )

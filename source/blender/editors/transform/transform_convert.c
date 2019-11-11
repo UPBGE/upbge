@@ -2391,7 +2391,6 @@ void createTransData(bContext *C, TransInfo *t)
   /* if tests must match recalcData for correct updates */
   if (t->options & CTX_CURSOR) {
     t->flag |= T_CURSOR;
-    t->obedit_type = -1;
 
     if (t->spacetype == SPACE_IMAGE) {
       createTransCursor_image(t);
@@ -2407,7 +2406,6 @@ void createTransData(bContext *C, TransInfo *t)
   }
   else if (t->options & CTX_TEXTURE) {
     t->flag |= T_TEXTURE;
-    t->obedit_type = -1;
 
     createTransTexspace(t);
     countAndCleanTransDataContainer(t);
@@ -2726,6 +2724,9 @@ void createTransData(bContext *C, TransInfo *t)
         if (v3d->camera->id.tag & LIB_TAG_DOIT) {
           t->flag |= T_CAMERA;
         }
+      }
+      else if (v3d->ob_centre && v3d->ob_centre->id.tag & LIB_TAG_DOIT) {
+        t->flag |= T_CAMERA;
       }
     }
   }
