@@ -143,6 +143,8 @@ public:
 	bool IsStatic();
 	void RecalcGeometry();
   void UseCopy();
+  void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
+  void RestorePhysics(bool childrenRecursive);
 	/* END OF EEVEE INTEGRATION */
 
 

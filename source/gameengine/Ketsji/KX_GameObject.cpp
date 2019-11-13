@@ -388,6 +388,61 @@ void KX_GameObject::RecalcGeometry()
     UseCopy();
   }
 }
+
+static void suspend_physics_recursive(SG_Node *node, bool freeConstraints)
+{
+  NodeList &children = node->GetSGChildren();
+
+  for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
+    SG_Node *childnode = (*childit);
+    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>((*childit)->GetSGClientObject());
+    if (clientgameobj != nullptr) { // This is a GameObject
+      clientgameobj->SuspendPhysics(freeConstraints, false);
+    }
+
+    // if the childobj is nullptr then this may be an inverse parent link
+    // so a non recursive search should still look down this node.
+    suspend_physics_recursive(childnode, freeConstraints);
+  }
+}
+
+void KX_GameObject::SuspendPhysics(bool freeConstraints, bool childrenRecursive)
+{
+  if (m_pPhysicsController) {
+    GetPhysicsController()->SuspendPhysics(freeConstraints);
+  }
+  if (childrenRecursive) {
+    suspend_physics_recursive(GetSGNode(), freeConstraints);
+  }
+}
+
+static void restore_physics_recursive(SG_Node *node)
+{
+  NodeList &children = node->GetSGChildren();
+
+  for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
+    SG_Node *childnode = (*childit);
+    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>((*childit)->GetSGClientObject());
+    if (clientgameobj != nullptr) { // This is a GameObject
+      clientgameobj->RestorePhysics(false);
+    }
+
+    // if the childobj is nullptr then this may be an inverse parent link
+    // so a non recursive search should still look down this node.
+    restore_physics_recursive(childnode);
+  }
+}
+
+void KX_GameObject::RestorePhysics(bool childrenRecursive)
+{
+  if (m_pPhysicsController) {
+    GetPhysicsController()->RestorePhysics();
+  }
+  if (childrenRecursive) {
+    restore_physics_recursive(GetSGNode());
+  }
+}
+
 /********************End of EEVEE INTEGRATION*********************/
 
 KX_GameObject *KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
