@@ -128,7 +128,10 @@ typedef struct bArmature {
 
   /** ID data is older than edit-mode data (TODO: move to edit-mode struct). */
   char needs_flush_to_id;
-  char _pad0[7];
+  char _pad0[5];
+
+  /** how vertex deformation is handled */
+  short deformvertflag;
 
   int flag;
   int drawtype;
@@ -176,6 +179,12 @@ typedef enum eArmature_Drawtype {
   ARM_ENVELOPE = 3,
   ARM_WIRE = 4,
 } eArmature_Drawtype;
+
+/* armature->deformvertflag */
+typedef enum eArmature_DeformVertFlag {
+    ARM_VDEF_BLENDER,
+    ARM_VDEF_BLENDER_OPTIMIZED,
+} eArmature_DeformVertFlag;
 
 /* armature->deformflag */
 typedef enum eArmature_DeformFlag {

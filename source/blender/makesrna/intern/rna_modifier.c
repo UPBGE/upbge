@@ -2220,6 +2220,11 @@ static void rna_def_modifier_armature(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
+  static EnumPropertyItem prop_vdeformer[] = {
+      {ARM_VDEF_BLENDER, "BLENDER", 0, "Normal", "Uses Blender's normal armature vertex deformation"},
+      {ARM_VDEF_BLENDER_OPTIMIZED, "BLENDER_OPTIMIZED", 0, "Optimized", "Uses Blender's optimized vertex deformation code (no works for quaternions or envelope)"},
+      {0, NULL, 0, NULL, NULL}};
+
   srna = RNA_def_struct(brna, "ArmatureModifier", "Modifier");
   RNA_def_struct_ui_text(srna, "Armature Modifier", "Armature deformation modifier");
   RNA_def_struct_sdna(srna, "ArmatureModifierData");
@@ -2231,6 +2236,12 @@ static void rna_def_modifier_armature(BlenderRNA *brna)
       prop, NULL, "rna_ArmatureModifier_object_set", NULL, "rna_Armature_object_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+
+  prop= RNA_def_property(srna, "vert_deformer", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "deformvertflag");
+  RNA_def_property_enum_items(prop, prop_vdeformer);
+  RNA_def_property_ui_text(prop, "Vertex Deformer", "");
   RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
 
   prop = RNA_def_property(srna, "use_bone_envelopes", PROP_BOOLEAN, PROP_NONE);

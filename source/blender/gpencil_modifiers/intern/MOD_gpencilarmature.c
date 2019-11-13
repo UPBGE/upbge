@@ -88,6 +88,7 @@ static void gpencil_deform_verts(ArmatureGpencilModifierData *mmd, Object *targe
                         NULL,
                         gps->totpoints,
                         mmd->deformflag,
+                        mmd->deformvertflag,
                         (float(*)[3])mmd->prevCos,
                         mmd->vgname,
                         gps);

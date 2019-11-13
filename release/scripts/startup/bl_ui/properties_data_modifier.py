@@ -71,6 +71,15 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         split = layout.split()
 
+        col = split.column()
+        col.label(text="Deform Type:")
+        col.active = md.use_vertex_groups
+        col.prop(md, "vert_deformer", text="")
+
+        layout.separator()
+
+        split = layout.split()
+
         row = split.row(align=True)
         row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
         sub = row.row(align=True)

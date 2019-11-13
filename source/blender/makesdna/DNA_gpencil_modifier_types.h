@@ -631,7 +631,10 @@ typedef struct ArmatureGpencilModifierData {
   GpencilModifierData modifier;
   /** Deformflag replaces armature->deformflag. */
   short deformflag, multi;
-  int _pad;
+  /** deformvertflag replaces armature->deformvertflag */
+  short deformvertflag;
+  char _pad[2];
+
   struct Object *object;
   /** Stored input of previous modifier, for vertexgroup blending. */
   float *prevCos;
