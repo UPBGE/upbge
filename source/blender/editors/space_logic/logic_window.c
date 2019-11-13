@@ -1632,7 +1632,7 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr, bContext
 
 static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
 {
-	Object *ob = (Object *)ptr->owner_id;
+	//Object *ob = (Object *)ptr->owner_id;
 	uiLayout *row, *split, *sub;
 	uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
 
@@ -1668,13 +1668,20 @@ static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
 			uiItemR(row, ptr, "track_axis", 0, NULL, ICON_NONE);
 			break;
 		case ACT_EDOB_DYNAMICS:
-			if (ob->type != OB_MESH) {
+			/*if (ob->type != OB_MESH) {
 				uiItemL(layout, IFACE_("Mode only available for mesh objects"), ICON_NONE);
 				break;
-			}
+			}*/
 			uiItemR(layout, ptr, "dynamic_operation", 0, NULL, ICON_NONE);
 			if (RNA_enum_get(ptr, "dynamic_operation") == ACT_EDOB_SET_MASS)
 				uiItemR(layout, ptr, "mass", 0, NULL, ICON_NONE);
+      if (RNA_enum_get(ptr, "dynamic_operation") == ACT_EDOB_RESTORE_PHY) {
+        uiItemR(layout, ptr, "children_recursive_restore", 0, NULL, ICON_NONE);
+      }
+      if (RNA_enum_get(ptr, "dynamic_operation") == ACT_EDOB_SUSPEND_PHY) {
+        uiItemR(layout, ptr, "children_recursive_suspend", 0, NULL, ICON_NONE);
+        uiItemR(layout, ptr, "free_constraints", 0, NULL, ICON_NONE);
+      }
 			break;
 	}
 }

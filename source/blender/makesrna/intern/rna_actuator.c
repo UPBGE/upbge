@@ -1349,6 +1349,8 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 		{ACT_EDOB_ENABLE_RB, "ENABLERIGIDBODY", 0, "Enable Rigid Body", ""},
 		{ACT_EDOB_DISABLE_RB, "DISABLERIGIDBODY", 0, "Disable Rigid Body", ""},
 		{ACT_EDOB_SET_MASS, "SETMASS", 0, "Set Mass", ""},
+    {ACT_EDOB_RESTORE_PHY, "RESTOREPHY", 0, "Restore Physics", ""},
+    {ACT_EDOB_SUSPEND_PHY, "SUSPENDPHY", 0, "Suspend Physics", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -1455,6 +1457,24 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	/* booleans */
+  prop = RNA_def_property(srna, "children_recursive_suspend", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "dyn_operation_flag", ACT_EDOB_SUSPEND_PHY_CHILDREN_RECURSIVE);
+  RNA_def_property_ui_text(prop, "Suspend Children Dynamics", "Apply to all children");
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "free_constraints", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "dyn_operation_flag", ACT_EDOB_SUSPEND_PHY_FREE_CONSTRAINTS);
+  RNA_def_property_ui_text(prop, "Free constraints", "Free constraints");
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "children_recursive_restore", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "dyn_operation_flag", ACT_EDOB_RESTORE_PHY_CHILDREN_RECURSIVE);
+  RNA_def_property_ui_text(prop, "Restore Children Dynamics", "Apply to all children");
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
 	prop = RNA_def_property(srna, "use_local_linear_velocity", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "localflag", ACT_EDOB_LOCAL_LINV);
 	RNA_def_property_ui_text(prop, "L", "Apply the transformation locally");
