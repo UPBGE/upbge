@@ -988,6 +988,10 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
     GetScene()->ResetTaaSamples();
   }
 
+  if (recursive) {
+    setVisible_recursive(GetSGNode(), v);
+  }
+
   m_bVisible = v;
 }
 
