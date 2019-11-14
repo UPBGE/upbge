@@ -1194,7 +1194,7 @@ static void material_opaque(Object *ob, /* Game engine transition (arg Object *o
   }
 
   /* Game engine transition */
-  if (ob->dtx & OB_DRAWXRAY) {
+  if (ob->dtx & OB_DRAWXRAY_BGE) {
     *shgrp_depth = DRW_shgroup_create(e_data.default_prepass_sh, psl->ghost_prepass_pass);
   }
   /* End of Game engine transition */
@@ -1222,7 +1222,7 @@ static void material_opaque(Object *ob, /* Game engine transition (arg Object *o
         status_mat_surface = status_mat_depth;
       }
       else if (use_ssrefract) {
-        if ((ob->dtx & OB_DRAWXRAY) == 0) { /* Game engine transition */
+        if ((ob->dtx & OB_DRAWXRAY_BGE) == 0) { /* Game engine transition */
           *shgrp_depth = DRW_shgroup_material_create(
               *gpumat_depth, (do_cull) ? psl->refract_depth_pass_cull : psl->refract_depth_pass);
         }
@@ -1231,7 +1231,7 @@ static void material_opaque(Object *ob, /* Game engine transition (arg Object *o
             (do_cull) ? psl->refract_depth_pass_clip_cull : psl->refract_depth_pass_clip);
       }
       else {
-        if ((ob->dtx & OB_DRAWXRAY) == 0) { /* Game engine transition */
+        if ((ob->dtx & OB_DRAWXRAY_BGE) == 0) { /* Game engine transition */
           *shgrp_depth = DRW_shgroup_material_create(
               *gpumat_depth, (do_cull) ? psl->depth_pass_cull : psl->depth_pass);
         }
