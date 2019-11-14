@@ -82,6 +82,12 @@ if(WITH_CODEC_FFMPEG)
   add_definitions(-DWITH_FFMPEG)
 endif()
 
+if(WITH_TBB)
+  blender_include_dirs(${TBB_INCLUDE_DIRS})
+  link_directories(${LIBDIR}/tbb/lib)
+endif()
+
+
 if(WITH_PYTHON)
   blender_include_dirs(../blender/python)
   add_definitions(-DWITH_PYTHON)
@@ -821,6 +827,15 @@ elseif(WIN32)
     )
   endif()
 
+  if(WITH_TBB_MALLOC_PROXY)
+    install(
+      FILES
+        ${LIBDIR}/tbb/lib/tbbmalloc.dll
+        ${LIBDIR}/tbb/lib/tbbmalloc_proxy.dll
+      DESTINATION "."
+    )
+  endif()
+
   if(WITH_CODEC_SNDFILE)
     install(
       FILES ${LIBDIR}/sndfile/lib/libsndfile-1.dll
@@ -1127,4 +1142,11 @@ if(WIN32 AND NOT WITH_PYTHON_MODULE)
     PROPERTIES
       VS_USER_PROPS "blender.Cpp.user.props"
   )
+endif()
+
+# -----------------------------------------------------------------------------
+# Post-install script
+
+if(POSTINSTALL_SCRIPT)
+  install(SCRIPT ${POSTINSTALL_SCRIPT})
 endif()

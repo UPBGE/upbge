@@ -645,7 +645,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         split = layout.split()
         col = split.column()
         col.prop(md, "levels", text="Preview")
-        col.prop(md, "sculpt_levels", text="Sculpt")
+        # TODO(sergey): Expose it again after T58473 is solved.
+        # col.prop(md, "sculpt_levels", text="Sculpt")
         col.prop(md, "render_levels", text="Render")
         col.prop(md, "quality")
 
@@ -2350,7 +2351,52 @@ class DATA_PT_gpencil_modifiers(ModifierButtonsPanel, Panel):
         sub.active = bool(md.vertex_group)
         sub.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
 
+    def GP_MULTIPLY(self, layout, ob, md):
+        gpd = ob.data
+        col = layout.column()
 
+        col.prop(md, "duplications")
+        subcol = col.column()
+        subcol.enabled = md.duplications > 0
+        subcol.prop(md, "distance")
+        subcol.prop(md, "offset", slider=True)
+    
+        subcol.separator()
+
+        subcol.prop(md, "enable_fading")
+        if md.enable_fading:
+            subcol.prop(md, "fading_center")
+            subcol.prop(md, "fading_thickness", slider=True)
+            subcol.prop(md, "fading_opacity", slider=True)
+
+        subcol.separator()
+
+        col.prop(md, "enable_angle_splitting")
+        if md.enable_angle_splitting:
+            col.prop(md, "split_angle")
+
+        col = layout.column()
+        col.separator()
+
+        col.label(text="Material:")
+        row = col.row(align=True)
+        row.prop_search(md, "material", gpd, "materials", text="", icon='SHADING_TEXTURE')
+        row.prop(md, "invert_materials", text="", icon='ARROW_LEFTRIGHT')
+        row = layout.row(align=True)
+        row.prop(md, "pass_index", text="Pass")
+        row.prop(md, "invert_material_pass", text="", icon='ARROW_LEFTRIGHT')
+
+        col = layout.column()
+        col.separator()
+
+        col.label(text="Layer:")
+        row = col.row(align=True)
+        row.prop_search(md, "layer", gpd, "layers", text="", icon='GREASEPENCIL')
+        row.prop(md, "invert_layers", text="", icon='ARROW_LEFTRIGHT')
+        row = layout.row(align=True)
+        row.prop(md, "layer_pass", text="Pass")
+        row.prop(md, "invert_layer_pass", text="", icon='ARROW_LEFTRIGHT')
+            
 classes = (
     DATA_PT_modifiers,
     DATA_PT_gpencil_modifiers,

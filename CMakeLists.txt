@@ -171,6 +171,14 @@ option_defaults_init(
   _init_OPENSUBDIV
 )
 
+# TBB malloc is only supported on for windows currently
+if(WIN32)
+  set(_init_TBB_MALLOC_PROXY ON)
+else()
+  set(_init_TBB_MALLOC_PROXY OFF)
+endif()
+
+
 # customize...
 if(UNIX AND NOT APPLE)
   # some of these libraries are problematic on Linux
@@ -480,6 +488,7 @@ mark_as_advanced(WITH_ASSERT_ABORT)
 
 option(WITH_BOOST "Enable features depending on boost" ON)
 option(WITH_TBB   "Enable features depending on TBB (OpenVDB, OpenImageDenoise, sculpt multithreading)" ON)
+option(WITH_TBB_MALLOC_PROXY "Enable the TBB malloc replacement" ${_init_TBB_MALLOC_PROXY})
 
 # Unit testsing
 option(WITH_GTESTS "Enable GTest unit testing" OFF)
@@ -616,6 +625,10 @@ if(UNIX AND NOT APPLE)
   option(WITH_CXX11_ABI "Use native C++11 ABI of compiler" ON)
   mark_as_advanced(WITH_CXX11_ABI)
 endif()
+
+# Installation process.
+option(POSTINSTALL_SCRIPT "Run given CMake script after installation process" OFF)
+mark_as_advanced(POSTINSTALL_SCRIPT)
 
 # avoid using again
 option_defaults_clear()
