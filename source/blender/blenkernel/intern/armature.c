@@ -1511,7 +1511,7 @@ static void armature_vert_task(void *__restrict userdata,
   if (dvert && use_dverts && dverts_optimized) {
     MDeformWeight *dw;
 
-    for (int i = 0; i < data->mesh->totvert; ++i, dvert++) {
+    for (int i = 0; i < data->target_totvert; ++i, dvert++) {
       float vect[4], coor[4], temp[4];
 
       vect[0] = vect[1] = vect[2] = 0.0f;
@@ -1527,22 +1527,23 @@ static void armature_vert_task(void *__restrict userdata,
 
       mul_m4_v4(data->premat, coor);
 
-      dw = dvert->dw;
+      if (dvert->dw) {
+        dw = dvert->dw;
+        for (unsigned int j = dvert->totweight; j != 0; j--, dw++) {
+          const int index = dw->def_nr;
 
-      for (unsigned int j = dvert->totweight; j != 0; j--, dw++) {
-        const int index = dw->def_nr;
+          if (index < data->defbase_tot && (pchan = data->defnrToPC[index])) {
+            armature_weight = dw->weight;
 
-        if (index < data->defbase_tot && (pchan = data->defnrToPC[index])) {
-          armature_weight = dw->weight;
+            if (armature_weight) {
+              // Update Vertex Position
+              mul_v4_m4v4(temp, pchan->chan_mat, coor);
+              sub_v4_v4v4(temp, temp, coor);
+              mul_v4_v4fl(temp, temp, armature_weight);
+              sub_v4_v4(vect, temp);
 
-          if (armature_weight) {
-            // Update Vertex Position
-            mul_v4_m4v4(temp, pchan->chan_mat, coor);
-            sub_v4_v4v4(temp, temp, coor);
-            mul_v4_v4fl(temp, temp, armature_weight);
-            sub_v4_v4(vect, temp);
-
-            contrib += armature_weight;
+              contrib += armature_weight;
+            }
           }
         }
       }
