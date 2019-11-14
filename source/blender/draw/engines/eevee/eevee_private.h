@@ -1155,6 +1155,7 @@ static const float cubefacemat[6][4][4] = {
 };
 
 
+/* Game engine transition */
 EEVEE_Data *EEVEE_engine_data_get(void);
-
+/* End of Game engine transition */
 #endif /* __EEVEE_PRIVATE_H__ */
