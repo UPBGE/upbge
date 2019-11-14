@@ -1189,6 +1189,10 @@ static void material_opaque(Object *ob,
     return;
   }
 
+  if (ob->dtx & OB_DRAWXRAY) {
+    *shgrp_depth = DRW_shgroup_create(e_data.default_prepass_sh, psl->ghost_prepass_pass);
+  }
+
   if (use_gpumat) {
     static float error_col[3] = {1.0f, 0.0f, 1.0f};
     static float compile_col[3] = {0.5f, 0.5f, 0.5f};
@@ -1196,10 +1200,6 @@ static void material_opaque(Object *ob,
 
     /* Shading */
     *gpumat = EEVEE_material_mesh_get(scene, ma, vedata, false, use_ssrefract);
-
-    if (ob->dtx & OB_DRAWXRAY) {
-      *shgrp_depth = DRW_shgroup_create(e_data.default_prepass_sh, psl->ghost_prepass_pass);
-    }
 
     eGPUMaterialStatus status_mat_surface = GPU_material_status(*gpumat);
 
