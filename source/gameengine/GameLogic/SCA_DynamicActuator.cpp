@@ -145,12 +145,12 @@ bool SCA_DynamicActuator::Update()
 			break;
 		case KX_DYN_RESTORE_PHYSICS:
 		{
-			controller->RestorePhysics();
+			obj->RestorePhysics(m_restore_children_phys);
 			break;
 		}
 		case KX_DYN_DISABLE_PHYSICS:
 		{
-			controller->SuspendPhysics(false);
+			obj->SuspendPhysics(m_suspend_constraints, m_suspend_children_phys);
 			break;
 		}
 	}
