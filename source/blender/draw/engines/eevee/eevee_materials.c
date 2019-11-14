@@ -55,13 +55,13 @@ static struct {
 
   struct GPUShader *default_prepass_sh;
   struct GPUShader *default_prepass_clip_sh;
-  struct GPUShader *ghost_resolve_sh;
+  struct GPUShader *ghost_resolve_sh; /* Game engine transition */
   struct GPUShader *default_hair_prepass_sh;
   struct GPUShader *default_hair_prepass_clip_sh;
   struct GPUShader *default_lit[VAR_MAT_MAX];
   struct GPUShader *default_background;
   struct GPUShader *update_noise_sh;
-  struct GPUTexture *ghost_depth_tx;
+  struct GPUTexture *ghost_depth_tx; /* Game engine transition */
 
   /* 64*64 array texture containing all LUTs and other utilitarian arrays.
    * Packing enables us to same precious textures slots. */
@@ -106,7 +106,7 @@ extern char datatoc_volumetric_lib_glsl[];
 
 extern char datatoc_gpu_shader_uniform_color_frag_glsl[];
 
-extern char datatoc_workbench_ghost_resolve_frag_glsl[];
+extern char datatoc_workbench_ghost_resolve_frag_glsl[]; /* Game engine transition */
 
 /* *********** FUNCTIONS *********** */
 
@@ -606,7 +606,7 @@ void EEVEE_materials_init(EEVEE_ViewLayerData *sldata,
                                                             "#define CLIP_PLANES\n");
 
     e_data.ghost_resolve_sh = DRW_shader_create_fullscreen(
-        datatoc_workbench_ghost_resolve_frag_glsl, NULL);
+        datatoc_workbench_ghost_resolve_frag_glsl, NULL); /* Game engine transition */
 
     MEM_freeN(vert_str);
 
@@ -1007,6 +1007,7 @@ void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     stl->g_data->depth_shgrp_clip_cull = DRW_shgroup_create(e_data.default_prepass_clip_sh,
                                                             psl->depth_pass_clip_cull);
 
+    /* Game engine transition */
     state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL;
     DRW_PASS_CREATE(psl->ghost_prepass_pass, state);
     state = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS;
@@ -1014,6 +1015,7 @@ void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     DRWShadingGroup *grp = DRW_shgroup_create(e_data.ghost_resolve_sh, psl->ghost_resolve_pass);
     DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &e_data.ghost_depth_tx);
     DRW_shgroup_call(grp, DRW_cache_fullscreen_quad_get(), NULL);
+    /* End of Game engine transition */
   }
 
   {
@@ -1128,6 +1130,7 @@ typedef struct EeveeMaterialShadingGroups {
   struct DRWShadingGroup *depth_clip_grp;
 } EeveeMaterialShadingGroups;
 
+/* Game engine transition */
 void EEVEE_setup_ghost_framebuffer(EEVEE_FramebufferList *fbl, EEVEE_Data *vedata)
 {
   const float *viewport_size = DRW_viewport_size_get();
@@ -1142,8 +1145,9 @@ void EEVEE_setup_ghost_framebuffer(EEVEE_FramebufferList *fbl, EEVEE_Data *vedat
                                     GPU_ATTACHMENT_TEXTURE(vedata->txl->color),
                                 });
 }
+/* End of Game engine transition */
 
-static void material_opaque(Object *ob,
+static void material_opaque(Object *ob, /* Game engine transition (arg Object *ob)*/
                             Material *ma,
                             GHash *material_hash,
                             EEVEE_ViewLayerData *sldata,
@@ -1189,9 +1193,11 @@ static void material_opaque(Object *ob,
     return;
   }
 
+  /* Game engine transition */
   if (ob->dtx & OB_DRAWXRAY) {
     *shgrp_depth = DRW_shgroup_create(e_data.default_prepass_sh, psl->ghost_prepass_pass);
   }
+  /* End of Game engine transition */
 
   if (use_gpumat) {
     static float error_col[3] = {1.0f, 0.0f, 1.0f};
@@ -1216,7 +1222,7 @@ static void material_opaque(Object *ob,
         status_mat_surface = status_mat_depth;
       }
       else if (use_ssrefract) {
-        if ((ob->dtx & OB_DRAWXRAY) == 0) {
+        if ((ob->dtx & OB_DRAWXRAY) == 0) { /* Game engine transition */
           *shgrp_depth = DRW_shgroup_material_create(
               *gpumat_depth, (do_cull) ? psl->refract_depth_pass_cull : psl->refract_depth_pass);
         }
@@ -1225,7 +1231,7 @@ static void material_opaque(Object *ob,
             (do_cull) ? psl->refract_depth_pass_clip_cull : psl->refract_depth_pass_clip);
       }
       else {
-        if ((ob->dtx & OB_DRAWXRAY) == 0) {
+        if ((ob->dtx & OB_DRAWXRAY) == 0) { /* Game engine transition */
           *shgrp_depth = DRW_shgroup_material_create(
               *gpumat_depth, (do_cull) ? psl->depth_pass_cull : psl->depth_pass);
         }
@@ -1519,7 +1525,7 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata,
       shgrp_depth_clip_array[i] = NULL;
 
       if (holdout) {
-        material_opaque(ob,
+        material_opaque(ob, /* Game engine transition (arg ob) */
                         ma_array[i],
                         material_hash,
                         sldata,
@@ -1537,7 +1543,7 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata,
         case MA_BM_SOLID:
         case MA_BM_CLIP:
         case MA_BM_HASHED:
-          material_opaque(ob,
+          material_opaque(ob, /* Game engine transition (arg ob) */
                           ma_array[i],
                           material_hash,
                           sldata,
@@ -1817,7 +1823,7 @@ void EEVEE_materials_free(void)
   DRW_SHADER_FREE_SAFE(e_data.default_hair_prepass_clip_sh);
   DRW_SHADER_FREE_SAFE(e_data.default_prepass_sh);
   DRW_SHADER_FREE_SAFE(e_data.default_prepass_clip_sh);
-  DRW_SHADER_FREE_SAFE(e_data.ghost_resolve_sh);
+  DRW_SHADER_FREE_SAFE(e_data.ghost_resolve_sh); /* Game engine transition */
   DRW_SHADER_FREE_SAFE(e_data.default_background);
   DRW_SHADER_FREE_SAFE(e_data.update_noise_sh);
   DRW_TEXTURE_FREE_SAFE(e_data.util_tex);
