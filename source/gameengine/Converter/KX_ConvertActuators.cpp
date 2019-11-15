@@ -491,10 +491,18 @@ void BL_ConvertActuators(const char* maggiename,
 					}
 				case ACT_EDOB_DYNAMICS:
 					{
-						SCA_DynamicActuator* tmpdynact = new SCA_DynamicActuator(
-						            gameobj,
-						            editobact->dyn_operation,
-						            editobact->mass);
+						bool suspend_children_phys = ((editobact->dyn_operation_flag &
+                                           ACT_EDOB_SUSPEND_PHY_CHILDREN_RECURSIVE) != 0);
+						bool restore_children_phys = ((editobact->dyn_operation_flag &
+                                           ACT_EDOB_RESTORE_PHY_CHILDREN_RECURSIVE) != 0);
+						bool suspend_constraints = ((editobact->dyn_operation_flag &
+                                         ACT_EDOB_SUSPEND_PHY_FREE_CONSTRAINTS) != 0);
+						SCA_DynamicActuator *tmpdynact = new SCA_DynamicActuator(gameobj,
+                                                                     editobact->dyn_operation,
+                                                                     editobact->mass,
+                                                                     suspend_children_phys,
+                                                                     restore_children_phys,
+                                                                     suspend_constraints);
 						baseact = tmpdynact;
 					}
 				}

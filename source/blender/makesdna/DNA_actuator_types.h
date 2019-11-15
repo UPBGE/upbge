@@ -98,7 +98,8 @@ typedef struct bEditObjectActuator {
 	short localflag; /* flag for the lin & ang. vel: apply locally   */
 	short dyn_operation;
 	short upflag, trackflag; /* flag for up axis and track axis */
-	int _pad;
+	short dyn_operation_flag;
+  short _pad;
 } bEditObjectActuator;
 
 typedef struct bSceneActuator {
@@ -461,6 +462,13 @@ typedef struct bActuator {
 #define ACT_EDOB_ENABLE_RB		2
 #define ACT_EDOB_DISABLE_RB		3
 #define ACT_EDOB_SET_MASS		4
+#define ACT_EDOB_RESTORE_PHY 5
+#define ACT_EDOB_SUSPEND_PHY 6
+
+/* editObjectActuator->dyn_operation_flag for dynamic actuator */
+#define ACT_EDOB_RESTORE_PHY_CHILDREN_RECURSIVE 2 /* use for dynamic actuator */
+#define ACT_EDOB_SUSPEND_PHY_CHILDREN_RECURSIVE 4
+#define ACT_EDOB_SUSPEND_PHY_FREE_CONSTRAINTS   8
 
 
 /* SceneActuator->type */

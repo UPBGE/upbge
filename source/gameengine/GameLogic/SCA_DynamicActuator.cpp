@@ -85,11 +85,17 @@ PyAttributeDef SCA_DynamicActuator::Attributes[] = {
 
 SCA_DynamicActuator::SCA_DynamicActuator(SCA_IObject *gameobj,
 													   short dyn_operation,
-													   float setmass) :
+													   float setmass,
+	                                                   bool suspend_children_phys,
+	                                                   bool restore_children_phys,
+	                                                   bool suspend_constraint) :
 
 	SCA_IActuator(gameobj, KX_ACT_DYNAMIC),
 	m_dyn_operation(dyn_operation),
-	m_setmass(setmass)
+	m_setmass(setmass),
+    m_suspend_children_phys(suspend_children_phys),
+    m_restore_children_phys(restore_children_phys),
+    m_suspend_constraints(suspend_constraint)
 {
 } /* End of constructor */
 
@@ -139,12 +145,12 @@ bool SCA_DynamicActuator::Update()
 			break;
 		case KX_DYN_RESTORE_PHYSICS:
 		{
-			controller->RestorePhysics();
+			obj->RestorePhysics(m_restore_children_phys);
 			break;
 		}
 		case KX_DYN_DISABLE_PHYSICS:
 		{
-			controller->SuspendPhysics(false);
+			obj->SuspendPhysics(m_suspend_constraints, m_suspend_children_phys);
 			break;
 		}
 	}

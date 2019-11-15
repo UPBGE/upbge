@@ -46,11 +46,19 @@ class SCA_DynamicActuator : public SCA_IActuator
 	// dynamics operation to apply to the game object
 	short m_dyn_operation;
 	float m_setmass;
+
+  bool m_suspend_children_phys;
+  bool m_restore_children_phys;
+  bool m_suspend_constraints;
+
  public:
 	SCA_DynamicActuator(
 	        SCA_IObject* gameobj,
 	        short dyn_operation,
-	        float setmass
+	        float setmass,
+          bool suspend_children_phys,
+          bool restore_children_phys,
+          bool suspend_constraints
 	        );
 
 	~SCA_DynamicActuator(
