@@ -903,7 +903,7 @@ int main(
 #endif
 	// XXX add the ability to change this values to the command line parsing.
 	U.mixbufsize = 2048;
-	U.audiodevice = 2;
+	U.audiodevice = 1; // Previously OpenAL was 2, seems that with the new code it is 1
 	U.audiorate = 44100;
 	U.audioformat = 0x24;
 	U.audiochannels = 2;
