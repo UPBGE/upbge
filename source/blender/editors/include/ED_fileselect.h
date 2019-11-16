@@ -31,6 +31,7 @@ struct SpaceFile;
 struct bContext;
 struct bScreen;
 struct uiBlock;
+struct wmWindow;
 struct wmWindowManager;
 
 #define FILE_LAYOUT_HOR 1
@@ -99,7 +100,9 @@ struct FileSelectParams *ED_fileselect_get_params(struct SpaceFile *sfile);
 
 short ED_fileselect_set_params(struct SpaceFile *sfile);
 void ED_fileselect_set_params_from_userdef(struct SpaceFile *sfile);
-void ED_fileselect_params_to_userdef(struct SpaceFile *sfile, int temp_win_size[]);
+void ED_fileselect_params_to_userdef(struct SpaceFile *sfile,
+                                     int temp_win_size[],
+                                     const bool is_maximized);
 
 void ED_fileselect_reset_params(struct SpaceFile *sfile);
 
@@ -129,6 +132,10 @@ void ED_operatormacros_file(void);
 void ED_fileselect_clear(struct wmWindowManager *wm, struct ScrArea *sa, struct SpaceFile *sfile);
 
 void ED_fileselect_exit(struct wmWindowManager *wm, struct ScrArea *sa, struct SpaceFile *sfile);
+
+void ED_fileselect_window_params_get(const struct wmWindow *win,
+                                     int win_size[2],
+                                     bool *is_maximized);
 
 int ED_path_extension_type(const char *path);
 int ED_file_extension_icon(const char *path);

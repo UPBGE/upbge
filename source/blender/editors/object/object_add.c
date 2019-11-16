@@ -1813,6 +1813,9 @@ static void make_object_duplilist_real(bContext *C,
     base_dst = BKE_view_layer_base_find(view_layer, ob_dst);
     BLI_assert(base_dst != NULL);
 
+    ED_object_base_select(base_dst, BA_SELECT);
+    DEG_id_tag_update(&ob_dst->id, ID_RECALC_SELECT);
+
     BKE_scene_object_base_flag_sync_from_base(base_dst);
 
     /* make sure apply works */
@@ -1948,6 +1951,9 @@ static void make_object_duplilist_real(bContext *C,
     }
     base->object->instance_collection = NULL;
   }
+
+  ED_object_base_select(base, BA_DESELECT);
+  DEG_id_tag_update(&base->object->id, ID_RECALC_SELECT);
 
   BLI_ghash_free(dupli_gh, NULL, NULL);
   if (parent_gh) {
