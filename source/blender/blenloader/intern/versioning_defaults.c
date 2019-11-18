@@ -353,7 +353,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     //sce->gm.timeScale = 1.0f;
     sce->gm.lineardeactthreshold = 0.8f;
     sce->gm.angulardeactthreshold = 1.0f;
-    sce->gm.deactivationtime = 0.0f;
+    sce->gm.deactivationtime = 2.0f;
 
     sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
     sce->gm.levelHeight = 2.f;
