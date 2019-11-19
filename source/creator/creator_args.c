@@ -2168,6 +2168,12 @@ void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
               (void *)G_DEBUG_HANDLERS);
   BLI_argsAdd(
       ba, 1, NULL, "--debug-wm", CB_EX(arg_handle_debug_mode_generic_set, wm), (void *)G_DEBUG_WM);
+  BLI_argsAdd(ba,
+              1,
+              NULL,
+              "--debug-ghost",
+              CB_EX(arg_handle_debug_mode_generic_set, handlers),
+              (void *)G_DEBUG_GHOST);
   BLI_argsAdd(ba, 1, NULL, "--debug-all", CB(arg_handle_debug_mode_all), NULL);
 
   BLI_argsAdd(ba, 1, NULL, "--debug-io", CB(arg_handle_debug_mode_io), NULL);
