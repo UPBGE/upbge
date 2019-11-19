@@ -3226,8 +3226,8 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   v3d.shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
 
 
-  game_rv3d.camdx = 0.0f;
-  game_rv3d.camdy = 0.0f;
+  game_rv3d.camdx = cam->shiftx;
+  game_rv3d.camdy = cam->shifty;
   game_rv3d.camzoom = 0.0f;
   game_rv3d.persp = RV3D_CAMOB;
   game_rv3d.is_persp = true;
