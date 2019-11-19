@@ -164,6 +164,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     : CValue(),
       m_2dfiltersDepthTex(nullptr),  // eevee
       m_resetTaaSamples(false),      // eevee
+      m_lastReplicatedParentObject(nullptr),  // eevee
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -377,6 +378,21 @@ KX_Scene::~KX_Scene()
 }
 
 /*******************EEVEE INTEGRATION******************/
+
+void KX_Scene::SetLastReplicatedParentObject(Object *ob)
+{
+  m_lastReplicatedParentObject = ob;
+}
+
+Object *KX_Scene::GetLastReplicatedParentObject()
+{
+  return m_lastReplicatedParentObject;
+}
+
+void KX_Scene::ResetLastReplicatedParentObject()
+{
+  m_lastReplicatedParentObject = nullptr;
+}
 
 bool KX_Scene::ObjectsAreStatic()
 {

@@ -227,9 +227,9 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 	// Keep a copy of the original armature so we can fix drivers later
 	m_origObjArma = armature;
 	m_objArma = m_origObjArma; //BKE_object_copy(G.main, armature);
-	m_objArma->data = BKE_armature_copy(G.main, (bArmature *)armature->data);
+	//m_objArma->data = BKE_armature_copy(G.main, (bArmature *)armature->data);
 	// During object replication ob->data is increase, we decrease it now because we get a copy.
-	id_us_min(&((bArmature *)m_origObjArma->data)->id);
+	//id_us_min(&((bArmature *)m_origObjArma->data)->id);
 	m_pose = m_objArma->pose;
 	// need this to get iTaSC working ok in the BGE
 	//m_pose->flag |= POSE_GAME_ENGINE;
@@ -393,25 +393,8 @@ void BL_ArmatureObject::ProcessReplica()
 	// Share pose channels.
 	m_poseChannels->AddRef();
 
-	bArmature *tmp = (bArmature *)m_objArma->data;
-	Object *newob;
-	BKE_id_copy_ex(G_MAIN, &m_objArma->id, (ID **)&newob, 0);
-	Scene *scene = m_scene;
-	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-	BKE_collection_object_add_from(G_MAIN,
-                                 scene,
-                                 BKE_view_layer_camera_find(view_layer),
-                                 newob);  // add replica where is the active camera
-
-	DEG_relations_tag_update(G_MAIN);
-
-	m_objArma = newob;  // BKE_object_copy(G.main, m_objArma);
-
-
-	BKE_id_copy_ex(G_MAIN, &tmp->id, (ID **)&m_objArma->data, 0);
-	//m_objArma->data = BKE_armature_copy(G.main, tmp); // Do we need to do armature copy?
 	m_pose = m_objArma->pose;
-	m_pBlenderObject = m_objArma; // Commenting this change behaviour -> See KX_GameObjetc::TagForUpdate?
+    m_objArma = m_pBlenderObject;
 	m_isReplica = true;
 }
 

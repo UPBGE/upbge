@@ -136,6 +136,7 @@ protected:
 	GPUTexture *m_2dfiltersDepthTex;
 	int m_taaSamplesBackup;
 	bool m_resetTaaSamples;
+  Object *m_lastReplicatedParentObject;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -319,6 +320,10 @@ public:
 
 	void RenderAfterCameraSetup(bool calledFromConstructor);
 	void RenderAfterCameraSetupImageRender(KX_Camera *cam, GPUTexture *finaltex, int *viewport);
+
+  void SetLastReplicatedParentObject(Object *ob);
+  Object *GetLastReplicatedParentObject();
+  void ResetLastReplicatedParentObject();
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;
