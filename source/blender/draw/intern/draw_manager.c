@@ -3212,7 +3212,6 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   }
   else if (!game_default_camera) {
     game_default_camera = BKE_camera_add(bmain, "blabla");
-    BKE_camera_init(game_default_camera);
     obcam = (Object *)game_default_camera;
     obcam->data = game_default_camera;
   }
