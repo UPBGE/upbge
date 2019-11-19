@@ -3217,7 +3217,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   else {
     obcam = (Object *)game_default_camera;
   }
-  Camera *cam = (Camera *)obcam;
+  Camera *cam = (Camera *)obcam->data;
   v3d.camera = obcam;
   v3d.lens = cam->lens;
   v3d.clip_start = cam->clip_start;
