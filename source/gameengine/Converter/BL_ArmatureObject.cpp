@@ -393,9 +393,8 @@ void BL_ArmatureObject::ProcessReplica()
 	// Share pose channels.
 	m_poseChannels->AddRef();
 
+	m_objArma = m_pBlenderObject;
 	m_pose = m_objArma->pose;
-    m_objArma = m_pBlenderObject;
-	m_isReplica = true;
 }
 
 int BL_ArmatureObject::GetGameObjectType() const
