@@ -91,7 +91,7 @@ static GPUShader *armature_hardware_skinning_shader_get(HardwareSkinningShader s
   return g_hardware_skinning_shaders[sh];
 }
 
-void DRW_hair_init(void)
+void DRW_armature_hardware_skinning_init(void)
 {
 #ifdef USE_TRANSFORM_FEEDBACK
   g_tf_pass = DRW_pass_create("Update Hair Pass", 0);

@@ -246,6 +246,11 @@ void DRW_shgroup_armature_object(struct Object *ob,
 void DRW_shgroup_armature_pose(struct Object *ob, struct DRWArmaturePasses passes, bool transp);
 void DRW_shgroup_armature_edit(struct Object *ob, struct DRWArmaturePasses passes, bool transp);
 
+/* draw_armature_hw_skinning */
+void DRW_armature_hardware_skinning_init(void);
+void DRW_armature_hardware_skinning_update(void);
+void DRW_armature_hardware_skinning_free(void);
+
 /* draw_hair.c */
 
 /* This creates a shading group with display hairs.
