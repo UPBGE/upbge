@@ -189,6 +189,7 @@ set(SRC
   intern/pointcache.c
   intern/property.c
   intern/python_component.c
+  intern/curveprofile.c
   intern/report.c
   intern/rigidbody.c
   intern/sca.c
@@ -338,6 +339,7 @@ set(SRC
   BKE_pointcache.h
   BKE_property.h
   BKE_python_component.h
+  BKE_curveprofile.h
   BKE_report.h
   BKE_rigidbody.h
   BKE_sca.h

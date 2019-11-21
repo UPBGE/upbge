@@ -294,6 +294,7 @@ struct uiBut {
   float *editvec;
   void *editcoba;
   void *editcumap;
+  void *editprofile;
 
   uiButPushedStateFunc pushed_state_func;
   void *pushed_state_arg;
@@ -762,6 +763,10 @@ void ui_draw_but_CURVE(ARegion *ar,
                        uiBut *but,
                        const struct uiWidgetColors *wcol,
                        const rcti *rect);
+void ui_draw_but_CURVEPROFILE(ARegion *ar,
+                              uiBut *but,
+                              const struct uiWidgetColors *wcol,
+                              const rcti *rect);
 void ui_draw_but_IMAGE(ARegion *ar,
                        uiBut *but,
                        const struct uiWidgetColors *wcol,

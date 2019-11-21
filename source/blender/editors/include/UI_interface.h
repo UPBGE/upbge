@@ -180,51 +180,51 @@ enum {
 
 /* but->flag - general state flags. */
 enum {
-	/** Warning, the first 6 flags are internal. */
-	UI_BUT_ICON_SUBMENU    = 1 << 6,
-	UI_BUT_ICON_PREVIEW    = 1 << 7,
+  /** Warning, the first 6 flags are internal. */
+  UI_BUT_ICON_SUBMENU = 1 << 6,
+  UI_BUT_ICON_PREVIEW = 1 << 7,
 
-	UI_BUT_NODE_LINK       = 1 << 8,
-	UI_BUT_NODE_ACTIVE     = 1 << 9,
-	UI_BUT_DRAG_LOCK       = 1 << 10,
-	/** Grayed out and un-editable. */
-	UI_BUT_DISABLED        = 1 << 11,
+  UI_BUT_NODE_LINK = 1 << 8,
+  UI_BUT_NODE_ACTIVE = 1 << 9,
+  UI_BUT_DRAG_LOCK = 1 << 10,
+  /** Grayed out and un-editable. */
+  UI_BUT_DISABLED = 1 << 11,
 
-	UI_BUT_ANIMATED        = 1 << 13,
-	UI_BUT_ANIMATED_KEY    = 1 << 14,
-	UI_BUT_DRIVEN          = 1 << 15,
-	UI_BUT_REDALERT        = 1 << 16,
-	/** Grayed out but still editable. */
-	UI_BUT_INACTIVE        = 1 << 17,
-	UI_BUT_LAST_ACTIVE     = 1 << 18,
-	UI_BUT_UNDO            = 1 << 19,
-	UI_BUT_IMMEDIATE       = 1 << 20,
-	UI_BUT_NO_UTF8         = 1 << 21,
+  UI_BUT_ANIMATED = 1 << 13,
+  UI_BUT_ANIMATED_KEY = 1 << 14,
+  UI_BUT_DRIVEN = 1 << 15,
+  UI_BUT_REDALERT = 1 << 16,
+  /** Grayed out but still editable. */
+  UI_BUT_INACTIVE = 1 << 17,
+  UI_BUT_LAST_ACTIVE = 1 << 18,
+  UI_BUT_UNDO = 1 << 19,
+  UI_BUT_IMMEDIATE = 1 << 20,
+  UI_BUT_NO_UTF8 = 1 << 21,
 
-	/** For popups, pressing return activates this button, overriding the highlighted button.
-	 * For non-popups this is just used as a display hint for the user to let them
-	 * know the action which is activated when pressing return (file selector for eg). */
-	UI_BUT_ACTIVE_DEFAULT = 1 << 23,
+  /** For popups, pressing return activates this button, overriding the highlighted button.
+   * For non-popups this is just used as a display hint for the user to let them
+   * know the action which is activated when pressing return (file selector for eg). */
+  UI_BUT_ACTIVE_DEFAULT = 1 << 23,
 
-	/** This but is "inside" a list item (currently used to change theme colors). */
-	UI_BUT_LIST_ITEM       = 1 << 24,
-	/** edit this button as well as the active button (not just dragging) */
-	UI_BUT_DRAG_MULTI      = 1 << 25,
-	/** Use for popups to start editing the button on initialization. */
-	UI_BUT_ACTIVATE_ON_INIT = 1 << 26,
+  /** This but is "inside" a list item (currently used to change theme colors). */
+  UI_BUT_LIST_ITEM = 1 << 24,
+  /** edit this button as well as the active button (not just dragging) */
+  UI_BUT_DRAG_MULTI = 1 << 25,
+  /** Use for popups to start editing the button on initialization. */
+  UI_BUT_ACTIVATE_ON_INIT = 1 << 26,
 
-	/** #uiBut.str contains #UI_SEP_CHAR, used for key shortcuts */
-	UI_BUT_HAS_SEP_CHAR    = 1 << 27,
-	/** Don't run updates while dragging (needed in rare cases). */
-	UI_BUT_UPDATE_DELAY    = 1 << 28,
-	/** When widget is in textedit mode, update value on each char stroke */
-	UI_BUT_TEXTEDIT_UPDATE = 1 << 29,
-	/** Show 'x' icon to clear/unlink value of text or search button. */
-	UI_BUT_VALUE_CLEAR     = 1 << 30,
-	UI_BUT_SCA_LINK_GREY   = 1 << 31,  /* used to flag if sca links shoud be gray out */
+  /** #uiBut.str contains #UI_SEP_CHAR, used for key shortcuts */
+  UI_BUT_HAS_SEP_CHAR = 1 << 27,
+  /** Don't run updates while dragging (needed in rare cases). */
+  UI_BUT_UPDATE_DELAY = 1 << 28,
+  /** When widget is in textedit mode, update value on each char stroke */
+  UI_BUT_TEXTEDIT_UPDATE = 1 << 29,
+  /** Show 'x' icon to clear/unlink value of text or search button. */
+  UI_BUT_VALUE_CLEAR = 1 << 30,
+  UI_BUT_SCA_LINK_GREY   = 1 << 31,  /* used to flag if sca links shoud be gray out */
 
-	/** RNA property of the button is overridden from linked reference data. */
-	UI_BUT_OVERRIDEN       = 1u << 31u,
+  /** RNA property of the button is overridden from linked reference data. */
+  UI_BUT_OVERRIDEN = 1u << 31u,
 };
 
 #define UI_PANEL_WIDTH 340
@@ -313,64 +313,66 @@ typedef enum {
 
 /* assigned to but->type, OR'd with the flags above when passing args */
 typedef enum {
-	UI_BTYPE_BUT                    = 1 << 9,
-	UI_BTYPE_ROW                    = 2 << 9,
-	UI_BTYPE_TEXT                   = 3 << 9,
-	/** dropdown list */
-	UI_BTYPE_MENU                   = 4 << 9,
-	UI_BTYPE_BUT_MENU               = 5 << 9,
-	/** number button */
-	UI_BTYPE_NUM                    = 6 << 9,
-	/** number slider */
-	UI_BTYPE_NUM_SLIDER             = 7 << 9,
-	UI_BTYPE_TOGGLE                 = 8 << 9,
-	UI_BTYPE_TOGGLE_N               = 9 << 9,
-	UI_BTYPE_ICON_TOGGLE            = 10 << 9,
-	UI_BTYPE_ICON_TOGGLE_N          = 11 << 9,
-	/** same as regular toggle, but no on/off state displayed */
-	UI_BTYPE_BUT_TOGGLE             = 12 << 9,
-	/** similar to toggle, display a 'tick' */
-	UI_BTYPE_CHECKBOX               = 13 << 9,
-	UI_BTYPE_CHECKBOX_N             = 14 << 9,
-	UI_BTYPE_COLOR                  = 15 << 9,
-	UI_BTYPE_TAB                    = 16 << 9,
-	UI_BTYPE_POPOVER                = 17 << 9,
-	UI_BTYPE_SCROLL                 = 18 << 9,
-	UI_BTYPE_BLOCK                  = 19 << 9,
-	UI_BTYPE_LABEL                  = 20 << 9,
-	UI_BTYPE_LINK                   = 22 << 9,
-	UI_BTYPE_INLINK                 = 23 << 9,
-	UI_BTYPE_KEY_EVENT              = 24 << 9,
-	UI_BTYPE_HSVCUBE                = 26 << 9,
-	/** menu (often used in headers), **_MENU /w different draw-type */
-	UI_BTYPE_PULLDOWN               = 27 << 9,
-	UI_BTYPE_ROUNDBOX               = 28 << 9,
-	UI_BTYPE_COLORBAND              = 30 << 9,
-	/** sphere widget (used to input a unit-vector, aka normal) */
-	UI_BTYPE_UNITVEC                = 31 << 9,
-	UI_BTYPE_CURVE                  = 32 << 9,
-	UI_BTYPE_LISTBOX                = 36 << 9,
-	UI_BTYPE_LISTROW                = 37 << 9,
-	UI_BTYPE_HSVCIRCLE              = 38 << 9,
-	UI_BTYPE_TRACK_PREVIEW          = 40 << 9,
+  UI_BTYPE_BUT = 1 << 9,
+  UI_BTYPE_ROW = 2 << 9,
+  UI_BTYPE_TEXT = 3 << 9,
+  /** dropdown list */
+  UI_BTYPE_MENU = 4 << 9,
+  UI_BTYPE_BUT_MENU = 5 << 9,
+  /** number button */
+  UI_BTYPE_NUM = 6 << 9,
+  /** number slider */
+  UI_BTYPE_NUM_SLIDER = 7 << 9,
+  UI_BTYPE_TOGGLE = 8 << 9,
+  UI_BTYPE_TOGGLE_N = 9 << 9,
+  UI_BTYPE_ICON_TOGGLE = 10 << 9,
+  UI_BTYPE_ICON_TOGGLE_N = 11 << 9,
+  /** same as regular toggle, but no on/off state displayed */
+  UI_BTYPE_BUT_TOGGLE = 12 << 9,
+  /** similar to toggle, display a 'tick' */
+  UI_BTYPE_CHECKBOX = 13 << 9,
+  UI_BTYPE_CHECKBOX_N = 14 << 9,
+  UI_BTYPE_COLOR = 15 << 9,
+  UI_BTYPE_TAB = 16 << 9,
+  UI_BTYPE_POPOVER = 17 << 9,
+  UI_BTYPE_SCROLL = 18 << 9,
+  UI_BTYPE_BLOCK = 19 << 9,
+  UI_BTYPE_LABEL = 20 << 9,
+  UI_BTYPE_LINK = 22 << 9,
+  UI_BTYPE_INLINK = 23 << 9,
+  UI_BTYPE_KEY_EVENT = 24 << 9,
+  UI_BTYPE_HSVCUBE = 26 << 9,
+  /** menu (often used in headers), **_MENU /w different draw-type */
+  UI_BTYPE_PULLDOWN = 27 << 9,
+  UI_BTYPE_ROUNDBOX = 28 << 9,
+  UI_BTYPE_COLORBAND = 30 << 9,
+  /** sphere widget (used to input a unit-vector, aka normal) */
+  UI_BTYPE_UNITVEC = 31 << 9,
+  UI_BTYPE_CURVE = 32 << 9,
+  /** Profile editing widget */
+  UI_BTYPE_CURVEPROFILE = 33 << 9,
+  UI_BTYPE_LISTBOX = 36 << 9,
+  UI_BTYPE_LISTROW = 37 << 9,
+  UI_BTYPE_HSVCIRCLE = 38 << 9,
+  UI_BTYPE_TRACK_PREVIEW = 40 << 9,
 
-	/** Buttons with value >= #UI_BTYPE_SEARCH_MENU don't get undo pushes. */
-	UI_BTYPE_SEARCH_MENU            = 41 << 9,
-	UI_BTYPE_EXTRA                  = 42 << 9,
-	UI_BTYPE_HOTKEY_EVENT           = 46 << 9,
-	/** Non-interactive image, used for splash screen */
-	UI_BTYPE_IMAGE                  = 47 << 9,
-	UI_BTYPE_HISTOGRAM              = 48 << 9,
-	UI_BTYPE_WAVEFORM               = 49 << 9,
-	UI_BTYPE_VECTORSCOPE            = 50 << 9,
-	UI_BTYPE_PROGRESS_BAR           = 51 << 9,
-	UI_BTYPE_NODE_SOCKET            = 53 << 9,
-	UI_BTYPE_SEPR                   = 54 << 9,
-	UI_BTYPE_SEPR_LINE              = 55 << 9,
-	/** Dynamically fill available space. */
-	UI_BTYPE_SEPR_SPACER            = 56 << 9,
-	/** Resize handle (resize uilist). */
-	UI_BTYPE_GRIP                   = 57 << 9,
+  /** Buttons with value >= #UI_BTYPE_SEARCH_MENU don't get undo pushes. */
+  UI_BTYPE_SEARCH_MENU = 41 << 9,
+  UI_BTYPE_EXTRA = 42 << 9,
+  UI_BTYPE_HOTKEY_EVENT = 46 << 9,
+  /** Non-interactive image, used for splash screen */
+  UI_BTYPE_IMAGE = 47 << 9,
+  UI_BTYPE_HISTOGRAM = 48 << 9,
+  UI_BTYPE_WAVEFORM = 49 << 9,
+  UI_BTYPE_VECTORSCOPE = 50 << 9,
+  UI_BTYPE_PROGRESS_BAR = 51 << 9,
+  UI_BTYPE_NODE_SOCKET = 53 << 9,
+  UI_BTYPE_SEPR = 54 << 9,
+  UI_BTYPE_SEPR_LINE = 55 << 9,
+  /** Dynamically fill available space. */
+  UI_BTYPE_SEPR_SPACER = 56 << 9,
+  /** Resize handle (resize uilist). */
+  UI_BTYPE_GRIP = 57 << 9,
 } eButType;
 
 #define BUTTYPE (63 << 9)
@@ -1986,6 +1988,7 @@ void uiTemplateCurveMapping(uiLayout *layout,
                             bool brush,
                             bool neg_slope,
                             bool tone);
+void uiTemplateCurveProfile(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
 void uiTemplateColorPicker(uiLayout *layout,
                            struct PointerRNA *ptr,
                            const char *propname,
