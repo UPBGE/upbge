@@ -74,6 +74,7 @@ typedef struct Main {
   struct Main *next, *prev;
   char name[1024];                   /* 1024 = FILE_MAX */
   short versionfile, subversionfile; /* see BLENDER_VERSION, BLENDER_SUBVERSION */
+  short upbgeversionfile, upbgesubversionfile;
   short minversionfile, minsubversionfile;
   uint64_t build_commit_timestamp; /* commit's timestamp from buildinfo */
   char build_hash[16];             /* hash from buildinfo */
@@ -204,6 +205,10 @@ int set_listbasepointers(struct Main *main, struct ListBase *lb[MAX_LIBARRAY]);
 #define MAIN_VERSION_ATLEAST(main, ver, subver) \
   ((main)->versionfile > (ver) || \
    (main->versionfile == (ver) && (main)->subversionfile >= (subver)))
+
+#define MAIN_VERSION_UPBGE_ATLEAST(main, ver, subver) \
+  ((main)->upbgeversionfile > (ver) || \
+   (main->upbgeversionfile == (ver) && (main)->upbgesubversionfile >= (subver)))
 
 #define MAIN_VERSION_OLDER(main, ver, subver) \
   ((main)->versionfile < (ver) || \
