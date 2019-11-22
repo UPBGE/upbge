@@ -107,6 +107,7 @@ void ED_spacetypes_init(void)
   ED_operatortypes_gpencil();
   ED_operatortypes_object();
   ED_operatortypes_lattice();
+  ED_operatortypes_logic();
   ED_operatortypes_mesh();
   ED_operatortypes_sculpt();
   ED_operatortypes_uvedit();
