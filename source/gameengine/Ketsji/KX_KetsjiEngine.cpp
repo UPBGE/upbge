@@ -966,9 +966,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 		activecam = new KX_Camera(scene, KX_Scene::m_callbacks, override_camera ? m_overrideCamData : RAS_CameraData());
 		activecam->SetName("__default__cam__");
 
-		Scene *sc = scene->GetBlenderScene();
-		ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-		activecam->SetBlenderObject(BKE_view_layer_camera_find(view_layer));
+		activecam->SetBlenderObject(DRW_game_default_camera_get());
 
 		// set transformation
 		if (override_camera) {
