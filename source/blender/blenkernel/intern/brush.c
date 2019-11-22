@@ -926,24 +926,40 @@ void BKE_brush_sculpt_reset(Brush *br)
       br->curve_preset = BRUSH_CURVE_POW4;
       br->spacing = 5;
       break;
+    case SCULPT_TOOL_TOPOLOGY:
+      br->spacing = 10;
+      br->alpha = 1.0f;
+      break;
     case SCULPT_TOOL_CLAY:
-      br->flag |= BRUSH_FRONTFACE;
+      br->spacing = 6;
+      br->normal_radius_factor = 0.75f;
       break;
     case SCULPT_TOOL_CLAY_STRIPS:
-      br->flag |= BRUSH_ACCUMULATE;
-      br->alpha = 0.7f;
+      br->flag |= BRUSH_ACCUMULATE | BRUSH_SIZE_PRESSURE;
+      br->flag &= ~BRUSH_SPACE_ATTEN;
+      br->alpha = 0.6f;
       br->normal_radius_factor = 1.55f;
       br->curve_preset = BRUSH_CURVE_SPHERE;
       br->spacing = 6;
+      break;
+    case SCULPT_TOOL_MULTIPLANE_SCRAPE:
+      br->flag2 |= BRUSH_MULTIPLANE_SCRAPE_DYNAMIC | BRUSH_MULTIPLANE_SCRAPE_PLANES_PREVIEW;
+      br->alpha = 0.7f;
+      br->normal_radius_factor = 0.70f;
+      br->multiplane_scrape_angle = 60;
+      br->curve_preset = BRUSH_CURVE_SMOOTH;
+      br->spacing = 5;
       break;
     case SCULPT_TOOL_CREASE:
       br->flag |= BRUSH_DIR_IN;
       br->alpha = 0.25;
       break;
     case SCULPT_TOOL_SCRAPE:
+    case SCULPT_TOOL_FILL:
       br->alpha = 1.0f;
       br->spacing = 7;
       br->flag |= BRUSH_ACCUMULATE;
+      br->flag |= BRUSH_INVERT_TO_SCRAPE_FILL;
       break;
     case SCULPT_TOOL_ROTATE:
       br->alpha = 1.0;
@@ -971,6 +987,7 @@ void BKE_brush_sculpt_reset(Brush *br)
       br->flag &= ~BRUSH_SPACE_ATTEN;
       break;
     case SCULPT_TOOL_POSE:
+      br->pose_smooth_iterations = 4;
       br->flag &= ~BRUSH_ALPHA_PRESSURE;
       br->flag &= ~BRUSH_SPACE;
       br->flag &= ~BRUSH_SPACE_ATTEN;
@@ -1008,6 +1025,7 @@ void BKE_brush_sculpt_reset(Brush *br)
     case SCULPT_TOOL_FLATTEN:
     case SCULPT_TOOL_FILL:
     case SCULPT_TOOL_SCRAPE:
+    case SCULPT_TOOL_MULTIPLANE_SCRAPE:
       br->add_col[0] = 1.0f;
       br->add_col[1] = 0.39f;
       br->add_col[2] = 0.39f;

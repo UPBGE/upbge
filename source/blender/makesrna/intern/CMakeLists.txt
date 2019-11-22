@@ -42,6 +42,7 @@ set(DEFSRC
   rna_context.c
   rna_controller.c
   rna_curve.c
+  rna_curveprofile.c
   rna_depsgraph.c
   rna_dynamicpaint.c
   rna_fcurve.c
@@ -72,7 +73,6 @@ set(DEFSRC
   rna_pose.c
   rna_property.c
   rna_python_component.c
-  rna_curveprofile.c
   rna_render.c
   rna_rigidbody.c
   rna_rna.c

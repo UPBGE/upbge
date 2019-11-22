@@ -53,6 +53,7 @@
 #include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
+#include "BKE_mesh_mirror.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_node.h"
@@ -1730,16 +1731,27 @@ static float brush_strength(const Sculpt *sd,
    * normalized diameter */
 
   float flip = dir * invert * pen_flip;
+  if (brush->flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
+    flip = 1.0f;
+  }
+
+  /* Pressure final value after being tweaked depending on the brush */
+  float final_pressure;
 
   switch (brush->sculpt_tool) {
     case SCULPT_TOOL_CLAY:
+      overlap = (1.0f + overlap) / 2.0f;
+      return 0.25f * alpha * flip * pressure * overlap * feather;
     case SCULPT_TOOL_DRAW:
     case SCULPT_TOOL_DRAW_SHARP:
     case SCULPT_TOOL_LAYER:
       return alpha * flip * pressure * overlap * feather;
+    case SCULPT_TOOL_TOPOLOGY:
+      return alpha * pressure * overlap * feather * 2.0f;
     case SCULPT_TOOL_CLAY_STRIPS:
-      /* Clay Strips needs extra strength to compensate for its default normal radius */
-      return alpha * flip * pressure * overlap * feather * 1.3f;
+      /* Clay Strips needs less strength to compensate the curve */
+      final_pressure = pressure * pressure * pressure;
+      return alpha * flip * final_pressure * overlap * feather * 0.3f;
 
     case SCULPT_TOOL_MASK:
       overlap = (1 + overlap) / 2;
@@ -1763,6 +1775,10 @@ static float brush_strength(const Sculpt *sd,
       else {
         return 0.125f * alpha * flip * pressure * overlap * feather;
       }
+
+    case SCULPT_TOOL_MULTIPLANE_SCRAPE:
+      overlap = (1.0f + overlap) / 2.0f;
+      return alpha * flip * pressure * overlap * feather;
 
     case SCULPT_TOOL_FILL:
     case SCULPT_TOOL_SCRAPE:
@@ -3085,6 +3101,183 @@ static void do_draw_sharp_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
   BKE_pbvh_parallel_range(0, totnode, &data, do_draw_sharp_brush_task_cb_ex, &settings);
 }
 
+/* -------------------------------------------------------------------- */
+
+/** \name Sculpt Topology Brush
+ * \{ */
+
+static void do_topology_slide_task_cb_ex(void *__restrict userdata,
+                                         const int n,
+                                         const TaskParallelTLS *__restrict tls)
+{
+  SculptThreadedTaskData *data = userdata;
+  SculptSession *ss = data->ob->sculpt;
+  const Brush *brush = data->brush;
+
+  PBVHVertexIter vd;
+  SculptOrigVertData orig_data;
+  float(*proxy)[3];
+
+  sculpt_orig_vert_data_init(&orig_data, data->ob, data->nodes[n]);
+
+  proxy = BKE_pbvh_node_add_proxy(ss->pbvh, data->nodes[n])->co;
+
+  SculptBrushTest test;
+  SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+      ss, &test, data->brush->falloff_shape);
+
+  BKE_pbvh_vertex_iter_begin(ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE)
+  {
+    sculpt_orig_vert_data_update(&orig_data, &vd);
+    if (sculpt_brush_test_sq_fn(&test, orig_data.co)) {
+      const float fade = tex_strength(ss,
+                                      brush,
+                                      orig_data.co,
+                                      sqrtf(test.dist),
+                                      orig_data.no,
+                                      NULL,
+                                      vd.mask ? *vd.mask : 0.0f,
+                                      vd.index,
+                                      tls->thread_id);
+      float current_disp[3];
+      float current_disp_norm[3];
+      float final_disp[3];
+      zero_v3(final_disp);
+      sub_v3_v3v3(current_disp, ss->cache->location, ss->cache->last_location);
+      normalize_v3_v3(current_disp_norm, current_disp);
+      mul_v3_v3fl(current_disp, current_disp_norm, ss->cache->bstrength);
+      SculptVertexNeighborIter ni;
+      sculpt_vertex_neighbors_iter_begin(ss, vd.index, ni)
+      {
+        float vertex_disp[3];
+        float vertex_disp_norm[3];
+        sub_v3_v3v3(vertex_disp, sculpt_vertex_co_get(ss, ni.index), vd.co);
+        normalize_v3_v3(vertex_disp_norm, vertex_disp);
+        if (dot_v3v3(current_disp_norm, vertex_disp_norm) > 0.0f) {
+          madd_v3_v3fl(final_disp, vertex_disp_norm, dot_v3v3(current_disp, vertex_disp));
+        }
+      }
+      sculpt_vertex_neighbors_iter_end(ni);
+
+      mul_v3_v3fl(proxy[vd.i], final_disp, fade);
+
+      if (vd.mvert) {
+        vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+      }
+    }
+  }
+  BKE_pbvh_vertex_iter_end;
+}
+
+static void sculpt_relax_vertex(SculptSession *ss,
+                                PBVHVertexIter *vd,
+                                float factor,
+                                float *r_final_pos)
+{
+  float smooth_pos[3];
+  float final_disp[3];
+  int count = 0;
+  zero_v3(smooth_pos);
+
+  SculptVertexNeighborIter ni;
+  sculpt_vertex_neighbors_iter_begin(ss, vd->index, ni)
+  {
+    add_v3_v3(smooth_pos, sculpt_vertex_co_get(ss, ni.index));
+    count++;
+  }
+  sculpt_vertex_neighbors_iter_end(ni);
+
+  if (count > 0) {
+    mul_v3_fl(smooth_pos, 1.0f / (float)count);
+  }
+
+  float plane[4];
+  float smooth_closest_plane[3];
+  float vno[3];
+  normal_short_to_float_v3(vno, vd->no);
+  plane_from_point_normal_v3(plane, vd->co, vno);
+  closest_to_plane_v3(smooth_closest_plane, plane, smooth_pos);
+  sub_v3_v3v3(final_disp, smooth_closest_plane, vd->co);
+
+  mul_v3_fl(final_disp, factor);
+  add_v3_v3v3(r_final_pos, vd->co, final_disp);
+}
+
+static void do_topology_relax_task_cb_ex(void *__restrict userdata,
+                                         const int n,
+                                         const TaskParallelTLS *__restrict tls)
+{
+  SculptThreadedTaskData *data = userdata;
+  SculptSession *ss = data->ob->sculpt;
+  const Brush *brush = data->brush;
+  const float bstrength = ss->cache->bstrength;
+
+  PBVHVertexIter vd;
+  SculptOrigVertData orig_data;
+
+  sculpt_orig_vert_data_init(&orig_data, data->ob, data->nodes[n]);
+
+  BKE_pbvh_node_add_proxy(ss->pbvh, data->nodes[n]);
+
+  SculptBrushTest test;
+  SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+      ss, &test, data->brush->falloff_shape);
+
+  BKE_pbvh_vertex_iter_begin(ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE)
+  {
+    sculpt_orig_vert_data_update(&orig_data, &vd);
+    if (sculpt_brush_test_sq_fn(&test, orig_data.co)) {
+      const float fade = tex_strength(ss,
+                                      brush,
+                                      orig_data.co,
+                                      sqrtf(test.dist),
+                                      orig_data.no,
+                                      NULL,
+                                      vd.mask ? *vd.mask : 0.0f,
+                                      vd.index,
+                                      tls->thread_id);
+
+      sculpt_relax_vertex(ss, &vd, fade * bstrength, vd.co);
+      if (vd.mvert) {
+        vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+      }
+    }
+  }
+  BKE_pbvh_vertex_iter_end;
+}
+
+static void do_topology_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
+{
+  SculptSession *ss = ob->sculpt;
+  Brush *brush = BKE_paint_brush(&sd->paint);
+
+  if (ss->cache->first_time) {
+    return;
+  }
+
+  BKE_curvemapping_initialize(brush->curve);
+
+  SculptThreadedTaskData data = {
+      .sd = sd,
+      .ob = ob,
+      .brush = brush,
+      .nodes = nodes,
+  };
+
+  PBVHParallelSettings settings;
+  BKE_pbvh_parallel_range_settings(&settings, (sd->flags & SCULPT_USE_OPENMP), totnode);
+  if (ss->cache->alt_smooth) {
+    for (int i = 0; i < 4; i++) {
+      BKE_pbvh_parallel_range(0, totnode, &data, do_topology_relax_task_cb_ex, &settings);
+    }
+  }
+  else {
+    BKE_pbvh_parallel_range(0, totnode, &data, do_topology_slide_task_cb_ex, &settings);
+  }
+}
+
+/** \} */
+
 /**
  * Used for 'SCULPT_TOOL_CREASE' and 'SCULPT_TOOL_BLOB'
  */
@@ -3929,7 +4122,7 @@ static void sculpt_pose_brush_init(
   };
 
   /* Smooth the pose brush factor for cleaner deformation */
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < br->pose_smooth_iterations; i++) {
     PBVHParallelSettings settings;
     BKE_pbvh_parallel_range_settings(&settings, (sd->flags & SCULPT_USE_OPENMP), totnode);
     BKE_pbvh_parallel_range(0, totnode, &data, pose_brush_init_task_cb_ex, &settings);
@@ -4645,6 +4838,66 @@ static void do_flatten_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totno
   BKE_pbvh_parallel_range(0, totnode, &data, do_flatten_brush_task_cb_ex, &settings);
 }
 
+/* -------------------------------------------------------------------- */
+
+/** \name Sculpt Clay Brush
+ * \{ */
+
+typedef struct ClaySampleData {
+  float plane_dist[2];
+} ClaySampleData;
+
+static void calc_clay_surface_task_cb(void *__restrict userdata,
+                                      const int n,
+                                      const TaskParallelTLS *__restrict tls)
+{
+  SculptThreadedTaskData *data = userdata;
+  SculptSession *ss = data->ob->sculpt;
+  const Brush *brush = data->brush;
+  ClaySampleData *csd = tls->userdata_chunk;
+  const float *area_no = data->area_no;
+  const float *area_co = data->area_co;
+  float plane[4];
+
+  PBVHVertexIter vd;
+
+  SculptBrushTest test;
+  SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+      ss, &test, brush->falloff_shape);
+
+  /* Apply the brush normal radius to the test before sampling */
+  float test_radius = sqrtf(test.radius_squared);
+  test_radius *= brush->normal_radius_factor;
+  test.radius_squared = test_radius * test_radius;
+  plane_from_point_normal_v3(plane, area_co, area_no);
+
+  BKE_pbvh_vertex_iter_begin(ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE)
+  {
+
+    if (sculpt_brush_test_sq_fn(&test, vd.co)) {
+      float plane_dist = dist_signed_to_plane_v3(vd.co, plane);
+      float plane_dist_abs = fabsf(plane_dist);
+      if (plane_dist > 0.0f) {
+        csd->plane_dist[0] = MIN2(csd->plane_dist[0], plane_dist_abs);
+      }
+      else {
+        csd->plane_dist[1] = MIN2(csd->plane_dist[1], plane_dist_abs);
+      }
+    }
+    BKE_pbvh_vertex_iter_end;
+  }
+}
+
+static void calc_clay_surface_reduce(const void *__restrict UNUSED(userdata),
+                                     void *__restrict chunk_join,
+                                     void *__restrict chunk)
+{
+  ClaySampleData *join = chunk_join;
+  ClaySampleData *csd = chunk;
+  join->plane_dist[0] = MIN2(csd->plane_dist[0], join->plane_dist[0]);
+  join->plane_dist[1] = MIN2(csd->plane_dist[1], join->plane_dist[1]);
+}
+
 static void do_clay_brush_task_cb_ex(void *__restrict userdata,
                                      const int n,
                                      const TaskParallelTLS *__restrict tls)
@@ -4654,11 +4907,11 @@ static void do_clay_brush_task_cb_ex(void *__restrict userdata,
   const Brush *brush = data->brush;
   const float *area_no = data->area_no;
   const float *area_co = data->area_co;
+  const float hardness = 0.65f;
 
   PBVHVertexIter vd;
   float(*proxy)[3];
-  const bool flip = (ss->cache->bstrength < 0);
-  const float bstrength = flip ? -ss->cache->bstrength : ss->cache->bstrength;
+  const float bstrength = fabsf(ss->cache->bstrength);
 
   proxy = BKE_pbvh_node_add_proxy(ss->pbvh, data->nodes[n])->co;
 
@@ -4671,21 +4924,254 @@ static void do_clay_brush_task_cb_ex(void *__restrict userdata,
   BKE_pbvh_vertex_iter_begin(ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE)
   {
     if (sculpt_brush_test_sq_fn(&test, vd.co)) {
-      if (plane_point_side_flip(vd.co, test.plane_tool, flip)) {
+      float intr[3];
+      float val[3];
+
+      closest_to_plane_normalized_v3(intr, test.plane_tool, vd.co);
+
+      sub_v3_v3v3(val, intr, vd.co);
+
+      float dist = sqrtf(test.dist);
+      float p = dist / ss->cache->radius;
+      p = (p - hardness) / (1.0f - hardness);
+      CLAMP(p, 0.0f, 1.0f);
+      dist *= p;
+      const float fade = bstrength * tex_strength(ss,
+                                                  brush,
+                                                  vd.co,
+                                                  dist,
+                                                  vd.no,
+                                                  vd.fno,
+                                                  vd.mask ? *vd.mask : 0.0f,
+                                                  vd.index,
+                                                  tls->thread_id);
+
+      mul_v3_v3fl(proxy[vd.i], val, fade);
+
+      if (vd.mvert) {
+        vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+      }
+    }
+  }
+  BKE_pbvh_vertex_iter_end;
+}
+
+static void do_clay_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
+{
+  SculptSession *ss = ob->sculpt;
+  Brush *brush = BKE_paint_brush(&sd->paint);
+
+  const float radius = fabsf(ss->cache->radius);
+  bool flip = ss->cache->bstrength < 0.0f;
+
+  float offset = get_offset(sd, ss);
+  float displace;
+
+  float area_no[3];
+  float area_co[3];
+  float temp[3];
+
+  calc_sculpt_plane(sd, ob, nodes, totnode, area_no, area_co);
+
+  SculptThreadedTaskData sample_data = {
+      .sd = NULL,
+      .ob = ob,
+      .brush = brush,
+      .nodes = nodes,
+      .totnode = totnode,
+      .area_no = area_no,
+      .area_co = ss->cache->location,
+  };
+
+  ClaySampleData csd = {{0}};
+
+  PBVHParallelSettings sample_settings;
+  BKE_pbvh_parallel_range_settings(&sample_settings, (sd->flags & SCULPT_USE_OPENMP), totnode);
+  sample_settings.func_reduce = calc_clay_surface_reduce;
+  sample_settings.userdata_chunk = &csd;
+  sample_settings.userdata_chunk_size = sizeof(ClaySampleData);
+
+  BKE_pbvh_parallel_range(0, totnode, &sample_data, calc_clay_surface_task_cb, &sample_settings);
+
+  float d_offset = (csd.plane_dist[0] + csd.plane_dist[1]);
+  d_offset = min_ff(radius, d_offset);
+  d_offset = d_offset / radius;
+  d_offset = 1.0f - d_offset;
+  displace = fabsf(radius * (0.25f + offset + (d_offset * 0.15f)));
+  if (flip) {
+    displace = -displace;
+  }
+
+  mul_v3_v3v3(temp, area_no, ss->cache->scale);
+  mul_v3_fl(temp, displace);
+  copy_v3_v3(area_co, ss->cache->location);
+  add_v3_v3(area_co, temp);
+
+  SculptThreadedTaskData data = {
+      .sd = sd,
+      .ob = ob,
+      .brush = brush,
+      .nodes = nodes,
+      .area_no = area_no,
+      .area_co = area_co,
+  };
+
+  PBVHParallelSettings settings;
+  BKE_pbvh_parallel_range_settings(&settings, (sd->flags & SCULPT_USE_OPENMP), totnode);
+  BKE_pbvh_parallel_range(0, totnode, &data, do_clay_brush_task_cb_ex, &settings);
+}
+
+/* -------------------------------------------------------------------- */
+
+/** \name Sculpt Multiplane Scrape Brush
+ * \{ */
+
+typedef struct MultiplaneScrapeSampleData {
+  float area_cos[2][3];
+  float area_nos[2][3];
+  int area_count[2];
+} MultiplaneScrapeSampleData;
+
+static void calc_multiplane_scrape_surface_task_cb(void *__restrict userdata,
+                                                   const int n,
+                                                   const TaskParallelTLS *__restrict tls)
+{
+  SculptThreadedTaskData *data = userdata;
+  SculptSession *ss = data->ob->sculpt;
+  const Brush *brush = data->brush;
+  MultiplaneScrapeSampleData *mssd = tls->userdata_chunk;
+  float(*mat)[4] = data->mat;
+
+  PBVHVertexIter vd;
+
+  SculptBrushTest test;
+  SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+      ss, &test, brush->falloff_shape);
+
+  /* Apply the brush normal radius to the test before sampling */
+  float test_radius = sqrtf(test.radius_squared);
+  test_radius *= brush->normal_radius_factor;
+  test.radius_squared = test_radius * test_radius;
+
+  BKE_pbvh_vertex_iter_begin(ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE)
+  {
+
+    if (sculpt_brush_test_sq_fn(&test, vd.co)) {
+      float local_co[3];
+      float normal[3];
+      if (vd.no) {
+        normal_short_to_float_v3(normal, vd.no);
+      }
+      else {
+        copy_v3_v3(normal, vd.fno);
+      }
+      mul_v3_m4v3(local_co, mat, vd.co);
+      /* Use the brush falloff to weight the sampled normals */
+      const float fade = tex_strength(ss,
+                                      brush,
+                                      vd.co,
+                                      sqrtf(test.dist),
+                                      vd.no,
+                                      vd.fno,
+                                      vd.mask ? *vd.mask : 0.0f,
+                                      vd.index,
+                                      tls->thread_id);
+
+      /* Sample the normal and area of the +X and -X axis individually */
+      if (local_co[0] > 0.0f) {
+        madd_v3_v3fl(mssd->area_nos[0], normal, fade);
+        add_v3_v3(mssd->area_cos[0], vd.co);
+        mssd->area_count[0]++;
+      }
+      else {
+        madd_v3_v3fl(mssd->area_nos[1], normal, fade);
+        add_v3_v3(mssd->area_cos[1], vd.co);
+        mssd->area_count[1]++;
+      }
+    }
+    BKE_pbvh_vertex_iter_end;
+  }
+}
+
+static void calc_multiplane_scrape_surface_reduce(const void *__restrict UNUSED(userdata),
+                                                  void *__restrict chunk_join,
+                                                  void *__restrict chunk)
+{
+  MultiplaneScrapeSampleData *join = chunk_join;
+  MultiplaneScrapeSampleData *mssd = chunk;
+
+  add_v3_v3(join->area_cos[0], mssd->area_cos[0]);
+  add_v3_v3(join->area_cos[1], mssd->area_cos[1]);
+
+  add_v3_v3(join->area_nos[0], mssd->area_nos[0]);
+  add_v3_v3(join->area_nos[1], mssd->area_nos[1]);
+
+  join->area_count[0] += mssd->area_count[0];
+  join->area_count[1] += mssd->area_count[1];
+}
+
+static void do_multiplane_scrape_brush_task_cb_ex(void *__restrict userdata,
+                                                  const int n,
+                                                  const TaskParallelTLS *__restrict tls)
+{
+  SculptThreadedTaskData *data = userdata;
+  SculptSession *ss = data->ob->sculpt;
+  const Brush *brush = data->brush;
+  float(*mat)[4] = data->mat;
+  float(*scrape_planes)[4] = data->multiplane_scrape_planes;
+
+  float angle = data->multiplane_scrape_angle;
+
+  PBVHVertexIter vd;
+  float(*proxy)[3];
+  const float bstrength = fabsf(ss->cache->bstrength);
+
+  proxy = BKE_pbvh_node_add_proxy(ss->pbvh, data->nodes[n])->co;
+
+  SculptBrushTest test;
+  SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+      ss, &test, data->brush->falloff_shape);
+
+  BKE_pbvh_vertex_iter_begin(ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE)
+  {
+
+    if (sculpt_brush_test_sq_fn(&test, vd.co)) {
+      float local_co[3];
+      bool deform = false;
+
+      mul_v3_m4v3(local_co, mat, vd.co);
+
+      if (local_co[0] > 0.0f) {
+        deform = !plane_point_side(vd.co, scrape_planes[0]);
+      }
+      else {
+        deform = !plane_point_side(vd.co, scrape_planes[1]);
+      }
+
+      if (angle < 0.0f) {
+        deform = true;
+      }
+
+      if (deform) {
         float intr[3];
         float val[3];
 
-        closest_to_plane_normalized_v3(intr, test.plane_tool, vd.co);
+        if (local_co[0] > 0.0f) {
+          closest_to_plane_normalized_v3(intr, scrape_planes[0], vd.co);
+        }
+        else {
+          closest_to_plane_normalized_v3(intr, scrape_planes[1], vd.co);
+        }
 
         sub_v3_v3v3(val, intr, vd.co);
-
         if (plane_trim(ss->cache, brush, val)) {
-          /* note, the normal from the vertices is ignored,
-           * causes glitch with planes, see: T44390 */
+          /* Deform the local space along the Y axis to avoid artifacts on curved strokes */
+          /* This produces a not round brush tip */
+          local_co[1] *= 2.0f;
           const float fade = bstrength * tex_strength(ss,
                                                       brush,
                                                       vd.co,
-                                                      sqrtf(test.dist),
+                                                      len_v3(local_co),
                                                       vd.no,
                                                       vd.fno,
                                                       vd.mask ? *vd.mask : 0.0f,
@@ -4704,44 +5190,173 @@ static void do_clay_brush_task_cb_ex(void *__restrict userdata,
   BKE_pbvh_vertex_iter_end;
 }
 
-static void do_clay_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
+static void do_multiplane_scrape_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 {
   SculptSession *ss = ob->sculpt;
   Brush *brush = BKE_paint_brush(&sd->paint);
 
-  const bool flip = (ss->cache->bstrength < 0);
+  const bool flip = (ss->cache->bstrength < 0.0f);
   const float radius = flip ? -ss->cache->radius : ss->cache->radius;
+  const float offset = get_offset(sd, ss);
+  const float displace = -radius * offset;
 
-  float offset = get_offset(sd, ss);
-  float displace;
-
-  float area_no[3];
+  float area_no_sp[3]; /* the sculpt-plane normal (whatever its set to) */
+  float area_no[3];    /* geometry normal */
   float area_co[3];
+
   float temp[3];
+  float mat[4][4];
 
-  calc_sculpt_plane(sd, ob, nodes, totnode, area_no, area_co);
+  calc_sculpt_plane(sd, ob, nodes, totnode, area_no_sp, area_co);
 
-  displace = radius * (0.25f + offset);
+  if (brush->sculpt_plane != SCULPT_DISP_DIR_AREA || (brush->flag & BRUSH_ORIGINAL_NORMAL)) {
+    calc_area_normal(sd, ob, nodes, totnode, area_no);
+  }
+  else {
+    copy_v3_v3(area_no, area_no_sp);
+  }
 
-  mul_v3_v3v3(temp, area_no, ss->cache->scale);
+  /* delay the first daub because grab delta is not setup */
+  if (ss->cache->first_time) {
+    return;
+  }
+
+  if (is_zero_v3(ss->cache->grab_delta_symmetry)) {
+    return;
+  }
+
+  mul_v3_v3v3(temp, area_no_sp, ss->cache->scale);
   mul_v3_fl(temp, displace);
   add_v3_v3(area_co, temp);
 
-  /* add_v3_v3v3(p, ss->cache->location, area_no); */
+  /* Init brush local space matrix */
+  cross_v3_v3v3(mat[0], area_no, ss->cache->grab_delta_symmetry);
+  mat[0][3] = 0;
+  cross_v3_v3v3(mat[1], area_no, mat[0]);
+  mat[1][3] = 0;
+  copy_v3_v3(mat[2], area_no);
+  mat[2][3] = 0;
+  copy_v3_v3(mat[3], ss->cache->location);
+  mat[3][3] = 1;
+  normalize_m4(mat);
+  invert_m4(mat);
+
+  float angle = brush->multiplane_scrape_angle;
+
+  /* Update matrix for the cursor preview */
+  if (ss->cache->mirror_symmetry_pass == 0) {
+    copy_m4_m4(ss->cache->stroke_local_mat, mat);
+  }
+
+  /* Dynamic mode */
+
+  if (brush->flag2 & BRUSH_MULTIPLANE_SCRAPE_DYNAMIC) {
+    /* Sample the individual normal and area center of the two areas at both sides of the cursor */
+    SculptThreadedTaskData sample_data = {
+        .sd = NULL,
+        .ob = ob,
+        .brush = brush,
+        .nodes = nodes,
+        .totnode = totnode,
+        .mat = mat,
+    };
+
+    MultiplaneScrapeSampleData mssd = {{{0}}};
+
+    PBVHParallelSettings sample_settings;
+    BKE_pbvh_parallel_range_settings(&sample_settings, (sd->flags & SCULPT_USE_OPENMP), totnode);
+    sample_settings.func_reduce = calc_multiplane_scrape_surface_reduce;
+    sample_settings.userdata_chunk = &mssd;
+    sample_settings.userdata_chunk_size = sizeof(MultiplaneScrapeSampleData);
+
+    BKE_pbvh_parallel_range(
+        0, totnode, &sample_data, calc_multiplane_scrape_surface_task_cb, &sample_settings);
+
+    float sampled_plane_normals[2][3];
+    float sampled_plane_co[2][3];
+    float sampled_cv[2][3];
+    float mid_co[3];
+
+    /* Use the area center of both planes to detect if we are sculpting along a concave or convex
+     * edge */
+    mul_v3_v3fl(sampled_plane_co[0], mssd.area_cos[0], 1.0f / (float)mssd.area_count[0]);
+    mul_v3_v3fl(sampled_plane_co[1], mssd.area_cos[1], 1.0f / (float)mssd.area_count[1]);
+    mid_v3_v3v3(mid_co, sampled_plane_co[0], sampled_plane_co[1]);
+
+    /* Calculate the scrape planes angle based on the sampled normals */
+    mul_v3_v3fl(sampled_plane_normals[0], mssd.area_nos[0], 1.0f / (float)mssd.area_count[0]);
+    mul_v3_v3fl(sampled_plane_normals[1], mssd.area_nos[1], 1.0f / (float)mssd.area_count[1]);
+    normalize_v3(sampled_plane_normals[0]);
+    normalize_v3(sampled_plane_normals[1]);
+
+    float sampled_angle = angle_v3v3(sampled_plane_normals[0], sampled_plane_normals[1]);
+    copy_v3_v3(sampled_cv[0], area_no);
+    sub_v3_v3v3(sampled_cv[1], ss->cache->location, mid_co);
+
+    sampled_angle += DEG2RADF(brush->multiplane_scrape_angle) * ss->cache->pressure;
+
+    /* Invert the angle if we are sculpting along a concave edge */
+    if (dot_v3v3(sampled_cv[0], sampled_cv[1]) < 0.0f) {
+      sampled_angle = -sampled_angle;
+    }
+
+    /* In dynamic mode, set the angle to 0 when inverting the brush, so you can trim plane surfaces
+     * without changing the brush */
+    if (flip) {
+      sampled_angle = 0.0f;
+    }
+    else {
+      copy_v3_v3(area_co, ss->cache->location);
+    }
+
+    angle = RAD2DEGF(sampled_angle);
+  }
+  else {
+
+    /* Standard mode: Scrape with the brush property fixed angle */
+    copy_v3_v3(area_co, ss->cache->location);
+    if (flip) {
+      angle = -angle;
+    }
+  }
+
+  /* Set the angle for the cursor preview */
+  ss->cache->multiplane_scrape_sampled_angle = angle;
 
   SculptThreadedTaskData data = {
       .sd = sd,
       .ob = ob,
       .brush = brush,
       .nodes = nodes,
-      .area_no = area_no,
-      .area_co = area_co,
+      .mat = mat,
+      .multiplane_scrape_angle = angle,
   };
+
+  /* Calculate the final left and right scrape planes */
+  float plane_no[3];
+  float plane_no_rot[3];
+  float y_axis[3] = {0.0f, 1.0f, 0.0f};
+  float mat_inv[4][4];
+  invert_m4_m4(mat_inv, mat);
+
+  mul_v3_mat3_m4v3(plane_no, mat, area_no);
+  rotate_v3_v3v3fl(plane_no_rot, plane_no, y_axis, DEG2RADF(-angle * 0.5f));
+  mul_v3_mat3_m4v3(plane_no, mat_inv, plane_no_rot);
+  normalize_v3(plane_no);
+  plane_from_point_normal_v3(data.multiplane_scrape_planes[1], area_co, plane_no);
+
+  mul_v3_mat3_m4v3(plane_no, mat, area_no);
+  rotate_v3_v3v3fl(plane_no_rot, plane_no, y_axis, DEG2RADF(angle * 0.5f));
+  mul_v3_mat3_m4v3(plane_no, mat_inv, plane_no_rot);
+  normalize_v3(plane_no);
+  plane_from_point_normal_v3(data.multiplane_scrape_planes[0], area_co, plane_no);
 
   PBVHParallelSettings settings;
   BKE_pbvh_parallel_range_settings(&settings, (sd->flags & SCULPT_USE_OPENMP), totnode);
-  BKE_pbvh_parallel_range(0, totnode, &data, do_clay_brush_task_cb_ex, &settings);
+  BKE_pbvh_parallel_range(0, totnode, &data, do_multiplane_scrape_brush_task_cb_ex, &settings);
 }
+
+/** \} */
 
 static void do_clay_strips_brush_task_cb_ex(void *__restrict userdata,
                                             const int n,
@@ -5264,7 +5879,12 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
     BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
   }
   else if (brush->sculpt_tool == SCULPT_TOOL_POSE) {
-    float final_radius = ss->cache->radius * (1 + brush->pose_offset);
+    /* After smoothing the pose factor an arbitrary number of times, the pose factor values can
+     * expand to nodes that are not inside the original radius of the brush. Using a slightly
+     * bigger radius should prevent those artifacts. */
+    /* We can optimize this further by removing the nodes that have all 0 values in the pose factor
+     * after calculating it. */
+    float final_radius = ss->cache->radius * 1.5f * (1.0f + brush->pose_offset);
     SculptSearchSphereData data = {
         .ss = ss,
         .sd = sd,
@@ -5319,6 +5939,8 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
       sculpt_pose_brush_init(sd, ob, ss, brush, ss->cache->location, ss->cache->radius);
     }
 
+    bool invert = ss->cache->pen_flip || ss->cache->invert || brush->flag & BRUSH_DIR_IN;
+
     /* Apply one type of brush action */
     switch (brush->sculpt_tool) {
       case SCULPT_TOOL_DRAW:
@@ -5366,11 +5988,24 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
       case SCULPT_TOOL_CLAY_STRIPS:
         do_clay_strips_brush(sd, ob, nodes, totnode);
         break;
+      case SCULPT_TOOL_MULTIPLANE_SCRAPE:
+        do_multiplane_scrape_brush(sd, ob, nodes, totnode);
+        break;
       case SCULPT_TOOL_FILL:
-        do_fill_brush(sd, ob, nodes, totnode);
+        if (invert && brush->flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
+          do_scrape_brush(sd, ob, nodes, totnode);
+        }
+        else {
+          do_fill_brush(sd, ob, nodes, totnode);
+        }
         break;
       case SCULPT_TOOL_SCRAPE:
-        do_scrape_brush(sd, ob, nodes, totnode);
+        if (invert && brush->flag & BRUSH_INVERT_TO_SCRAPE_FILL) {
+          do_fill_brush(sd, ob, nodes, totnode);
+        }
+        else {
+          do_scrape_brush(sd, ob, nodes, totnode);
+        }
         break;
       case SCULPT_TOOL_MASK:
         do_mask_brush(sd, ob, nodes, totnode);
@@ -5383,6 +6018,9 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
         break;
       case SCULPT_TOOL_ELASTIC_DEFORM:
         do_elastic_deform_brush(sd, ob, nodes, totnode);
+        break;
+      case SCULPT_TOOL_TOPOLOGY:
+        do_topology_brush(sd, ob, nodes, totnode);
         break;
     }
 
@@ -5895,6 +6533,10 @@ static const char *sculpt_tool_name(Sculpt *sd)
       return "Elastic Deform Brush";
     case SCULPT_TOOL_POSE:
       return "Pose Brush";
+    case SCULPT_TOOL_MULTIPLANE_SCRAPE:
+      return "Multiplane Scrape Brush";
+    case SCULPT_TOOL_TOPOLOGY:
+      return "Topology Slide/Relax Brush";
   }
 
   return "Sculpting";
@@ -6018,6 +6660,9 @@ static void sculpt_update_cache_invariants(
       cache->saved_mask_brush_tool = brush->mask_tool;
       brush->mask_tool = BRUSH_MASK_SMOOTH;
     }
+    else if (brush->sculpt_tool == SCULPT_TOOL_TOPOLOGY) {
+      /* Do nothing, this tool has its own smooth mode */
+    }
     else {
       Paint *p = &sd->paint;
       Brush *br;
@@ -6133,6 +6778,16 @@ static void sculpt_update_cache_invariants(
 #undef PIXEL_INPUT_THRESHHOLD
 }
 
+static float sculpt_brush_dynamic_size_get(Brush *brush, StrokeCache *cache, float initial_size)
+{
+  switch (brush->sculpt_tool) {
+    case SCULPT_TOOL_CLAY_STRIPS:
+      return max_ff(initial_size * 0.35f, initial_size * cache->pressure * cache->pressure);
+    default:
+      return initial_size * cache->pressure;
+  }
+}
+
 static void sculpt_update_brush_delta(UnifiedPaintSettings *ups, Object *ob, Brush *brush)
 {
   SculptSession *ss = ob->sculpt;
@@ -6148,6 +6803,7 @@ static void sculpt_update_brush_delta(UnifiedPaintSettings *ups, Object *ob, Bru
            SCULPT_TOOL_ELASTIC_DEFORM,
            SCULPT_TOOL_NUDGE,
            SCULPT_TOOL_CLAY_STRIPS,
+           SCULPT_TOOL_MULTIPLANE_SCRAPE,
            SCULPT_TOOL_SNAKE_HOOK,
            SCULPT_TOOL_POSE,
            SCULPT_TOOL_THUMB) ||
@@ -6183,6 +6839,7 @@ static void sculpt_update_brush_delta(UnifiedPaintSettings *ups, Object *ob, Bru
           add_v3_v3(cache->grab_delta, delta);
           break;
         case SCULPT_TOOL_CLAY_STRIPS:
+        case SCULPT_TOOL_MULTIPLANE_SCRAPE:
         case SCULPT_TOOL_NUDGE:
         case SCULPT_TOOL_SNAKE_HOOK:
           if (brush->flag & BRUSH_ANCHORED) {
@@ -6331,7 +6988,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob, Po
 
   if (BKE_brush_use_size_pressure(scene, brush) &&
       paint_supports_dynamic_size(brush, PAINT_MODE_SCULPT)) {
-    cache->radius = cache->initial_radius * cache->pressure;
+    cache->radius = sculpt_brush_dynamic_size_get(brush, cache, cache->initial_radius);
   }
   else {
     cache->radius = cache->initial_radius;
@@ -6377,7 +7034,8 @@ static bool sculpt_needs_connectivity_info(const Brush *brush, SculptSession *ss
   return ((stroke_mode == BRUSH_STROKE_SMOOTH) || (ss && ss->cache && ss->cache->alt_smooth) ||
           (brush->sculpt_tool == SCULPT_TOOL_SMOOTH) || (brush->autosmooth_factor > 0) ||
           ((brush->sculpt_tool == SCULPT_TOOL_MASK) && (brush->mask_tool == BRUSH_MASK_SMOOTH)) ||
-          (brush->sculpt_tool == SCULPT_TOOL_POSE));
+          (brush->sculpt_tool == SCULPT_TOOL_POSE) ||
+          (brush->sculpt_tool == SCULPT_TOOL_TOPOLOGY));
 }
 
 static void sculpt_stroke_modifiers_check(const bContext *C, Object *ob, const Brush *brush)
@@ -6981,6 +7639,7 @@ static void sculpt_stroke_update_step(bContext *C,
   }
 
   ss->cache->first_time = false;
+  copy_v3_v3(ss->cache->true_last_location, ss->cache->true_location);
 
   /* Cleanup */
   if (brush->sculpt_tool == SCULPT_TOOL_MASK) {
@@ -7022,6 +7681,9 @@ static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(str
     if (ss->cache->alt_smooth) {
       if (brush->sculpt_tool == SCULPT_TOOL_MASK) {
         brush->mask_tool = ss->cache->saved_mask_brush_tool;
+      }
+      else if (brush->sculpt_tool == SCULPT_TOOL_TOPOLOGY) {
+        /* Do nothing */
       }
       else {
         BKE_brush_size_set(scene, brush, ss->cache->saved_smooth_size);
@@ -7592,38 +8254,106 @@ static void SCULPT_OT_optimize(wmOperatorType *ot)
 
 /********************* Dynamic topology symmetrize ********************/
 
+static bool sculpt_no_multires_poll(bContext *C)
+{
+  Object *ob = CTX_data_active_object(C);
+  SculptSession *ss = ob->sculpt;
+  if (ss && ss->pbvh && sculpt_mode_poll(C)) {
+    return BKE_pbvh_type(ss->pbvh) != PBVH_GRIDS;
+  }
+  return false;
+}
+
 static int sculpt_symmetrize_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Object *ob = CTX_data_active_object(C);
   const Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
   SculptSession *ss = ob->sculpt;
+  PBVH *pbvh = ss->pbvh;
 
-  /* To simplify undo for symmetrize, all BMesh elements are logged
-   * as deleted, then after symmetrize operation all BMesh elements
-   * are logged as added (as opposed to attempting to store just the
-   * parts that symmetrize modifies) */
-  sculpt_undo_push_begin("Dynamic topology symmetrize");
-  sculpt_undo_push_node(ob, NULL, SCULPT_UNDO_DYNTOPO_SYMMETRIZE);
-  BM_log_before_all_removed(ss->bm, ss->bm_log);
+  if (!pbvh) {
+    return OPERATOR_CANCELLED;
+  }
 
-  BM_mesh_toolflags_set(ss->bm, true);
+  switch (BKE_pbvh_type(pbvh)) {
+    case PBVH_BMESH:
+      /* Dyntopo Symmetrize */
 
-  /* Symmetrize and re-triangulate */
-  BMO_op_callf(ss->bm,
-               (BMO_FLAG_DEFAULTS & ~BMO_FLAG_RESPECT_HIDE),
-               "symmetrize input=%avef direction=%i  dist=%f",
-               sd->symmetrize_direction,
-               0.00001f);
-  sculpt_dynamic_topology_triangulate(ss->bm);
+      /* To simplify undo for symmetrize, all BMesh elements are logged
+       * as deleted, then after symmetrize operation all BMesh elements
+       * are logged as added (as opposed to attempting to store just the
+       * parts that symmetrize modifies) */
+      sculpt_undo_push_begin("Dynamic topology symmetrize");
+      sculpt_undo_push_node(ob, NULL, SCULPT_UNDO_DYNTOPO_SYMMETRIZE);
+      BM_log_before_all_removed(ss->bm, ss->bm_log);
 
-  /* bisect operator flags edges (keep tags clean for edge queue) */
-  BM_mesh_elem_hflag_disable_all(ss->bm, BM_EDGE, BM_ELEM_TAG, false);
+      BM_mesh_toolflags_set(ss->bm, true);
 
-  BM_mesh_toolflags_set(ss->bm, false);
+      /* Symmetrize and re-triangulate */
+      BMO_op_callf(ss->bm,
+                   (BMO_FLAG_DEFAULTS & ~BMO_FLAG_RESPECT_HIDE),
+                   "symmetrize input=%avef direction=%i  dist=%f",
+                   sd->symmetrize_direction,
+                   0.00001f);
+      sculpt_dynamic_topology_triangulate(ss->bm);
 
-  /* Finish undo */
-  BM_log_all_added(ss->bm, ss->bm_log);
-  sculpt_undo_push_end();
+      /* bisect operator flags edges (keep tags clean for edge queue) */
+      BM_mesh_elem_hflag_disable_all(ss->bm, BM_EDGE, BM_ELEM_TAG, false);
+
+      BM_mesh_toolflags_set(ss->bm, false);
+
+      /* Finish undo */
+      BM_log_all_added(ss->bm, ss->bm_log);
+      sculpt_undo_push_end();
+
+      break;
+    case PBVH_FACES:
+      /* Mesh Symmetrize */
+      ED_sculpt_undo_geometry_begin(ob, "mesh symmetrize");
+      Mesh *mesh = ob->data;
+      Mesh *mesh_mirror;
+      MirrorModifierData mmd = {0};
+      int axis = 0;
+      mmd.flag = 0;
+      mmd.tolerance = 0.005f;
+      switch (sd->symmetrize_direction) {
+        case BMO_SYMMETRIZE_NEGATIVE_X:
+          axis = 0;
+          mmd.flag |= MOD_MIR_AXIS_X | MOD_MIR_BISECT_AXIS_X | MOD_MIR_BISECT_FLIP_AXIS_X;
+          break;
+        case BMO_SYMMETRIZE_NEGATIVE_Y:
+          axis = 1;
+          mmd.flag |= MOD_MIR_AXIS_Y | MOD_MIR_BISECT_AXIS_Y | MOD_MIR_BISECT_FLIP_AXIS_Y;
+          break;
+        case BMO_SYMMETRIZE_NEGATIVE_Z:
+          axis = 2;
+          mmd.flag |= MOD_MIR_AXIS_Z | MOD_MIR_BISECT_AXIS_Z | MOD_MIR_BISECT_FLIP_AXIS_Z;
+          break;
+        case BMO_SYMMETRIZE_POSITIVE_X:
+          axis = 0;
+          mmd.flag |= MOD_MIR_AXIS_X | MOD_MIR_BISECT_AXIS_X;
+          break;
+        case BMO_SYMMETRIZE_POSITIVE_Y:
+          axis = 1;
+          mmd.flag |= MOD_MIR_AXIS_Y | MOD_MIR_BISECT_AXIS_Y;
+          break;
+        case BMO_SYMMETRIZE_POSITIVE_Z:
+          axis = 2;
+          mmd.flag |= MOD_MIR_AXIS_Z | MOD_MIR_BISECT_AXIS_Z;
+          break;
+      }
+      mesh_mirror = BKE_mesh_mirror_apply_mirror_on_axis(&mmd, NULL, ob, mesh, axis);
+      if (mesh_mirror) {
+        BKE_mesh_nomain_to_mesh(mesh_mirror, mesh, ob, &CD_MASK_MESH, true);
+      }
+      ED_sculpt_undo_geometry_end(ob);
+      BKE_mesh_calc_normals(ob->data);
+      BKE_mesh_batch_cache_dirty_tag(ob->data, BKE_MESH_BATCH_DIRTY_ALL);
+
+      break;
+    case PBVH_GRIDS:
+      return OPERATOR_CANCELLED;
+  }
 
   /* Redraw */
   sculpt_pbvh_clear(ob);
@@ -7641,7 +8371,7 @@ static void SCULPT_OT_symmetrize(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = sculpt_symmetrize_exec;
-  ot->poll = sculpt_and_dynamic_topology_poll;
+  ot->poll = sculpt_no_multires_poll;
 }
 
 /**** Toggle operator for turning sculpt mode on or off ****/
@@ -8237,6 +8967,7 @@ typedef enum eSculptMeshFilterTypes {
   MESH_FILTER_INFLATE = 2,
   MESH_FILTER_SPHERE = 3,
   MESH_FILTER_RANDOM = 4,
+  MESH_FILTER_RELAX = 5,
 } eSculptMeshFilterTypes;
 
 static EnumPropertyItem prop_mesh_filter_types[] = {
@@ -8245,6 +8976,7 @@ static EnumPropertyItem prop_mesh_filter_types[] = {
     {MESH_FILTER_INFLATE, "INFLATE", 0, "Inflate", "Inflate mesh"},
     {MESH_FILTER_SPHERE, "SPHERE", 0, "Sphere", "Morph into sphere"},
     {MESH_FILTER_RANDOM, "RANDOM", 0, "Random", "Randomize vertex positions"},
+    {MESH_FILTER_RELAX, "RELAX", 0, "Relax", "Relax mesh"},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -8260,6 +8992,11 @@ static EnumPropertyItem prop_mesh_filter_deform_axis_items[] = {
     {MESH_FILTER_DEFORM_Z, "Z", 0, "Z", "Deform in the Z axis"},
     {0, NULL, 0, NULL, NULL},
 };
+
+static bool sculpt_mesh_filter_needs_pmap(int filter_type)
+{
+  return ELEM(filter_type, MESH_FILTER_SMOOTH, MESH_FILTER_RELAX);
+}
 
 static void mesh_filter_task_cb(void *__restrict userdata,
                                 const int i,
@@ -8287,7 +9024,12 @@ static void mesh_filter_task_cb(void *__restrict userdata,
       continue;
     }
 
-    copy_v3_v3(orig_co, orig_data.co);
+    if (filter_type == MESH_FILTER_RELAX) {
+      copy_v3_v3(orig_co, vd.co);
+    }
+    else {
+      copy_v3_v3(orig_co, orig_data.co);
+    }
     switch (filter_type) {
       case MESH_FILTER_SMOOTH:
         CLAMP(fade, -1.0f, 1.0f);
@@ -8349,6 +9091,11 @@ static void mesh_filter_task_cb(void *__restrict userdata,
         mul_v3_v3fl(disp, normal, fade);
         break;
       }
+      case MESH_FILTER_RELAX: {
+        sculpt_relax_vertex(ss, &vd, clamp_f(fade, 0.0f, 1.0f), val);
+        sub_v3_v3v3(disp, val, vd.co);
+        break;
+      }
     }
 
     for (int it = 0; it < 3; it++) {
@@ -8394,7 +9141,7 @@ static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *
 
   sculpt_vertex_random_access_init(ss);
 
-  bool needs_pmap = (filter_type == MESH_FILTER_SMOOTH);
+  bool needs_pmap = sculpt_mesh_filter_needs_pmap(filter_type);
   BKE_sculpt_update_object_for_edit(depsgraph, ob, needs_pmap, false);
 
   SculptThreadedTaskData data = {
@@ -8435,7 +9182,7 @@ static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent 
 
   sculpt_vertex_random_access_init(ss);
 
-  bool needs_pmap = (filter_type == MESH_FILTER_SMOOTH);
+  bool needs_pmap = sculpt_mesh_filter_needs_pmap(filter_type);
   BKE_sculpt_update_object_for_edit(depsgraph, ob, needs_pmap, false);
 
   if (BKE_pbvh_type(pbvh) == PBVH_FACES && needs_pmap && !ob->sculpt->pmap) {

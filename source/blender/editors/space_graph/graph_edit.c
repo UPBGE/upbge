@@ -85,6 +85,7 @@ void get_graph_keyframe_extents(bAnimContext *ac,
                                 const bool include_handles)
 {
   Scene *scene = ac->scene;
+  SpaceGraph *sipo = (SpaceGraph *)ac->sl;
 
   ListBase anim_data = {NULL, NULL};
   bAnimListElem *ale;
@@ -92,6 +93,10 @@ void get_graph_keyframe_extents(bAnimContext *ac,
 
   /* get data to filter, from Dopesheet */
   filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_NODUPLIS);
+  if (sipo->flag & SIPO_SELCUVERTSONLY) {
+    filter |= ANIMFILTER_SEL;
+  }
+
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* set large values initial values that will be easy to override */
@@ -1296,6 +1301,78 @@ void GRAPH_OT_clean(wmOperatorType *ot)
   ot->prop = RNA_def_float(
       ot->srna, "threshold", 0.001f, 0.0f, FLT_MAX, "Threshold", "", 0.0f, 1000.0f);
   RNA_def_boolean(ot->srna, "channels", false, "Channels", "");
+}
+
+/* ******************** Decimate Keyframes Operator ************************* */
+
+static void decimate_graph_keys(bAnimContext *ac, float remove_ratio)
+{
+  ListBase anim_data = {NULL, NULL};
+  bAnimListElem *ale;
+  int filter;
+
+  /* filter data */
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FOREDIT |
+            ANIMFILTER_SEL | ANIMFILTER_NODUPLIS);
+  ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+
+  /* loop through filtered data and clean curves */
+  for (ale = anim_data.first; ale; ale = ale->next) {
+    decimate_fcurve(ale, remove_ratio);
+
+    ale->update |= ANIM_UPDATE_DEFAULT;
+  }
+
+  ANIM_animdata_update(ac, &anim_data);
+  ANIM_animdata_freelist(&anim_data);
+}
+
+/* ------------------- */
+
+static int graphkeys_decimate_exec(bContext *C, wmOperator *op)
+{
+  bAnimContext ac;
+  float remove_ratio;
+
+  /* get editor data */
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  remove_ratio = RNA_float_get(op->ptr, "remove_ratio");
+  decimate_graph_keys(&ac, remove_ratio);
+
+  /* set notifier that keyframes have changed */
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+void GRAPH_OT_decimate(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Decimate Keyframes";
+  ot->idname = "GRAPH_OT_decimate";
+  ot->description =
+      "Decimate F-Curves by removing keyframes that influence the curve shape the least";
+
+  /* api callbacks */
+  ot->exec = graphkeys_decimate_exec;
+  ot->poll = graphop_editable_keyframes_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  ot->prop = RNA_def_float_percentage(ot->srna,
+                                      "remove_ratio",
+                                      1.0f / 3.0f,
+                                      0.0f,
+                                      1.0f,
+                                      "Remove",
+                                      "The percentage of keyframes to remove",
+                                      0.0f,
+                                      1.0f);
 }
 
 /* ******************** Bake F-Curve Operator *********************** */

@@ -247,7 +247,9 @@ typedef struct Brush {
   int size;
   /** General purpose flags. */
   int flag;
+  int flag2;
   int sampling_flag;
+
   /** Pressure influence for mask. */
   int mask_pressure;
   /** Jitter the position of the brush. */
@@ -272,6 +274,10 @@ typedef struct Brush {
   /** Background color. */
   float secondary_rgb[3];
 
+  /** Rate */
+  float dash_ratio;
+  int dash_samples;
+
   /** The direction of movement for sculpt vertices. */
   int sculpt_plane;
 
@@ -284,7 +290,8 @@ typedef struct Brush {
   /** Source for fill tool color gradient application. */
   char gradient_fill_mode;
 
-  char _pad[5];
+  char _pad0;
+
   /** Projection shape (sphere, circle). */
   char falloff_shape;
   float falloff_angle;
@@ -303,7 +310,7 @@ typedef struct Brush {
   char mask_tool;
   /** Active grease pencil tool. */
   char gpencil_tool;
-  char _pad0[1];
+  char _pad1[5];
 
   float autosmooth_factor;
 
@@ -327,6 +334,12 @@ typedef struct Brush {
 
   /* pose */
   float pose_offset;
+  int pose_smooth_iterations;
+
+  char _pad2[4];
+
+  /* multiplane scrape */
+  float multiplane_scrape_angle;
 
   /* overlay */
   int texture_overlay_alpha;
@@ -403,7 +416,7 @@ typedef enum eBrushGradientSourceFill {
 /* Brush.flag */
 typedef enum eBrushFlags {
   BRUSH_AIRBRUSH = (1 << 0),
-  BRUSH_FLAG_UNUSED_1 = (1 << 1), /* cleared */
+  BRUSH_INVERT_TO_SCRAPE_FILL = (1 << 1),
   BRUSH_ALPHA_PRESSURE = (1 << 2),
   BRUSH_SIZE_PRESSURE = (1 << 3),
   BRUSH_JITTER_PRESSURE = (1 << 4),
@@ -440,6 +453,12 @@ typedef enum eBrushFlags {
 typedef enum eBrushSamplingFlags {
   BRUSH_PAINT_ANTIALIASING = (1 << 0),
 } eBrushSamplingFlags;
+
+/* Brush.flag2 */
+typedef enum eBrushFlags2 {
+  BRUSH_MULTIPLANE_SCRAPE_DYNAMIC = (1 << 0),
+  BRUSH_MULTIPLANE_SCRAPE_PLANES_PREVIEW = (1 << 1),
+} eBrushFlags2;
 
 typedef enum {
   BRUSH_MASK_PRESSURE_RAMP = (1 << 1),
@@ -484,6 +503,8 @@ typedef enum eBrushSculptTool {
   SCULPT_TOOL_DRAW_SHARP = 20,
   SCULPT_TOOL_ELASTIC_DEFORM = 21,
   SCULPT_TOOL_POSE = 22,
+  SCULPT_TOOL_MULTIPLANE_SCRAPE = 23,
+  SCULPT_TOOL_TOPOLOGY = 24,
 } eBrushSculptTool;
 
 /* Brush.uv_sculpt_tool */
@@ -498,6 +519,7 @@ typedef enum eBrushUVSculptTool {
   ELEM(t, \
        SCULPT_TOOL_DRAW, \
        SCULPT_TOOL_DRAW_SHARP, \
+       SCULPT_TOOL_TOPOLOGY, \
        SCULPT_TOOL_CREASE, \
        SCULPT_TOOL_BLOB, \
        SCULPT_TOOL_LAYER, \
@@ -520,6 +542,7 @@ typedef enum eBrushUVSculptTool {
         SCULPT_TOOL_THUMB, \
         SCULPT_TOOL_LAYER, \
         SCULPT_TOOL_DRAW_SHARP, \
+        SCULPT_TOOL_TOPOLOGY, \
         SCULPT_TOOL_ELASTIC_DEFORM, \
         SCULPT_TOOL_POSE, \
 \
@@ -534,6 +557,7 @@ typedef enum eBrushUVSculptTool {
         SCULPT_TOOL_ROTATE, \
         SCULPT_TOOL_THUMB, \
         SCULPT_TOOL_DRAW_SHARP, \
+        SCULPT_TOOL_TOPOLOGY, \
         SCULPT_TOOL_MASK) == 0)
 
 /* ImagePaintSettings.tool */

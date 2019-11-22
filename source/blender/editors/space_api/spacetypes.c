@@ -69,91 +69,86 @@
 /* only call once on startup, storage is global in BKE kernel listbase */
 void ED_spacetypes_init(void)
 {
-	const ListBase *spacetypes;
-	SpaceType *type;
+  const ListBase *spacetypes;
+  SpaceType *type;
 
-	/* UI_UNIT_X is now a variable, is used in some spacetype inits? */
-	U.widget_unit = 20;
+  /* UI_UNIT_X is now a variable, is used in some spacetype inits? */
+  U.widget_unit = 20;
 
-	/* create space types */
-	ED_spacetype_outliner();
-	ED_spacetype_view3d();
-	ED_spacetype_ipo();
-	ED_spacetype_image();
-	ED_spacetype_node();
-	ED_spacetype_buttons();
-	ED_spacetype_info();
-	ED_spacetype_file();
-	ED_spacetype_action();
-	ED_spacetype_nla();
-	ED_spacetype_script();
-	ED_spacetype_text();
-	ED_spacetype_sequencer();
-	ED_spacetype_logic();
-	ED_spacetype_console();
-	ED_spacetype_userpref();
-	ED_spacetype_clip();
-	ED_spacetype_statusbar();
-	ED_spacetype_topbar();
-//	...
+  /* create space types */
+  ED_spacetype_outliner();
+  ED_spacetype_view3d();
+  ED_spacetype_ipo();
+  ED_spacetype_image();
+  ED_spacetype_node();
+  ED_spacetype_buttons();
+  ED_spacetype_info();
+  ED_spacetype_file();
+  ED_spacetype_action();
+  ED_spacetype_nla();
+  ED_spacetype_script();
+  ED_spacetype_text();
+  ED_spacetype_sequencer();
+  ED_spacetype_logic();
+  ED_spacetype_console();
+  ED_spacetype_userpref();
+  ED_spacetype_clip();
+  ED_spacetype_statusbar();
+  ED_spacetype_topbar();
+  //  ...
 
-	/* register operator types for screen and all spaces */
-	ED_operatortypes_userpref();
-	ED_operatortypes_workspace();
-	ED_operatortypes_scene();
-	ED_operatortypes_screen();
-	ED_operatortypes_anim();
-	ED_operatortypes_animchannels();
-	ED_operatortypes_gpencil();
-	ED_operatortypes_object();
-	ED_operatortypes_lattice();
-	ED_operatortypes_mesh();
-	ED_operatortypes_sculpt();
-	ED_operatortypes_uvedit();
-	ED_operatortypes_paint();
-	ED_operatortypes_physics();
-	ED_operatortypes_curve();
-	ED_operatortypes_armature();
-	ED_operatortypes_marker();
-	ED_operatortypes_metaball();
-	ED_operatortypes_sound();
-	ED_operatortypes_render();
-	ED_operatortypes_logic();
-	ED_operatortypes_mask();
-	ED_operatortypes_io();
+  /* register operator types for screen and all spaces */
+  ED_operatortypes_userpref();
+  ED_operatortypes_workspace();
+  ED_operatortypes_scene();
+  ED_operatortypes_screen();
+  ED_operatortypes_anim();
+  ED_operatortypes_animchannels();
+  ED_operatortypes_gpencil();
+  ED_operatortypes_object();
+  ED_operatortypes_lattice();
+  ED_operatortypes_mesh();
+  ED_operatortypes_sculpt();
+  ED_operatortypes_uvedit();
+  ED_operatortypes_paint();
+  ED_operatortypes_physics();
+  ED_operatortypes_curve();
+  ED_operatortypes_armature();
+  ED_operatortypes_marker();
+  ED_operatortypes_metaball();
+  ED_operatortypes_sound();
+  ED_operatortypes_render();
+  ED_operatortypes_mask();
+  ED_operatortypes_io();
 
-	ED_operatortypes_view2d();
-	ED_operatortypes_ui();
+  ED_operatortypes_view2d();
+  ED_operatortypes_ui();
 
-	ED_screen_user_menu_register();
+  ED_screen_user_menu_register();
 
-	/* gizmo types */
-	ED_gizmotypes_button_2d();
-	ED_gizmotypes_dial_3d();
-	ED_gizmotypes_move_3d();
-	ED_gizmotypes_arrow_2d();
-	ED_gizmotypes_arrow_3d();
-	ED_gizmotypes_preselect_3d();
-	ED_gizmotypes_primitive_3d();
-	ED_gizmotypes_blank_3d();
-	ED_gizmotypes_cage_2d();
-	ED_gizmotypes_cage_3d();
-	ED_gizmotypes_value_2d();
+  /* gizmo types */
+  ED_gizmotypes_button_2d();
+  ED_gizmotypes_dial_3d();
+  ED_gizmotypes_move_3d();
+  ED_gizmotypes_arrow_2d();
+  ED_gizmotypes_arrow_3d();
+  ED_gizmotypes_preselect_3d();
+  ED_gizmotypes_primitive_3d();
+  ED_gizmotypes_blank_3d();
+  ED_gizmotypes_cage_2d();
+  ED_gizmotypes_cage_3d();
 
-	/* gizmo group types */
-	ED_gizmogrouptypes_value_2d();
-
-	/* register types for operators and gizmos */
-	spacetypes = BKE_spacetypes_list();
-	for (type = spacetypes->first; type; type = type->next) {
-		/* init gizmo types first, operator-types need them */
-		if (type->gizmos) {
-			type->gizmos();
-		}
-		if (type->operatortypes) {
-			type->operatortypes();
-		}
-	}
+  /* register types for operators and gizmos */
+  spacetypes = BKE_spacetypes_list();
+  for (type = spacetypes->first; type; type = type->next) {
+    /* init gizmo types first, operator-types need them */
+    if (type->gizmos) {
+      type->gizmos();
+    }
+    if (type->operatortypes) {
+      type->operatortypes();
+    }
+  }
 }
 
 void ED_spacemacros_init(void)

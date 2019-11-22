@@ -426,10 +426,25 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             elif brush.sculpt_tool == 'POSE':
                 row = col.row()
                 row.prop(brush, "pose_offset")
+                row = col.row()
+                row.prop(brush, "pose_smooth_iterations")
+            elif brush.sculpt_tool == 'SCRAPE':
+                row = col.row()
+                row.prop(brush, "invert_to_scrape_fill", text = "Invert to Fill")
+            elif brush.sculpt_tool == 'FILL':
+                row = col.row()
+                row.prop(brush, "invert_to_scrape_fill", text = "Invert to Scrape")
             elif brush.sculpt_tool == 'GRAB':
                 col.separator()
                 row = col.row()
                 row.prop(brush, "use_grab_active_vertex")
+            elif brush.sculpt_tool == 'MULTIPLANE_SCRAPE':
+                row = col.row()
+                row.prop(brush, "multiplane_scrape_angle")
+                row = col.row()
+                row.prop(brush, "use_multiplane_scrape_dynamic")
+                row = col.row()
+                row.prop(brush, "show_multiplane_scrape_planes_preview")
 
             # topology_rake_factor
             if (
@@ -972,10 +987,14 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
             row = col.row(align=True)
             row.prop(brush, "spacing", text="Spacing")
             row.prop(brush, "use_pressure_spacing", toggle=True, text="")
+            col.prop(brush, "dash_ratio")
+            col.prop(brush, "dash_samples")
 
         if brush.use_line or brush.use_curve:
             row = col.row(align=True)
             row.prop(brush, "spacing", text="Spacing")
+            col.prop(brush, "dash_ratio")
+            col.prop(brush, "dash_samples")
 
         if brush.use_curve:
             col.template_ID(brush, "paint_curve", new="paintcurve.new")
