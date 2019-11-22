@@ -406,6 +406,12 @@ base class --- :class:`SCA_IObject`
 
       :type: float
 
+   .. attribute:: blenderObject
+
+      This KX_GameObject's Object.
+
+      :type: :class:`bpy.types.Object`, (readonly)
+
    .. attribute:: state
 
       the game object's state bitmask, using the first 30 bits, one bit must always be set.

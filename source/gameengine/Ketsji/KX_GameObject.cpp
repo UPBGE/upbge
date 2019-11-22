@@ -106,6 +106,8 @@ extern "C" {
 #include "eevee_private.h"
 #include "GPU_immediate.h"
 #include "windowmanager/WM_types.h"
+
+#include "bpy_rna.h"
 }
 
 #include "KX_BlenderConverter.h"
@@ -2016,6 +2018,8 @@ PyAttributeDef KX_GameObject::Attributes[] = {
     KX_PYATTRIBUTE_BOOL_RW("castShadows", KX_GameObject, m_castShadows),
     KX_PYATTRIBUTE_RW_FUNCTION("gravity", KX_GameObject, pyattr_get_gravity, pyattr_set_gravity),
 
+	KX_PYATTRIBUTE_RO_FUNCTION("blenderObject", KX_GameObject, pyattr_get_blender_object),
+
     /* experimental, don't rely on these yet */
     KX_PYATTRIBUTE_RO_FUNCTION("sensors", KX_GameObject, pyattr_get_sensors),
     KX_PYATTRIBUTE_RO_FUNCTION("controllers", KX_GameObject, pyattr_get_controllers),
@@ -3797,6 +3801,17 @@ PyObject *KX_GameObject::PyGetPropertyNames()
     }
   }
   return list;
+}
+
+PyObject *KX_GameObject::pyattr_get_blender_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+  KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+  Object *ob = self->GetBlenderObject();
+  if (ob) {
+    PyObject *py_blender_object = pyrna_id_CreatePyObject(&ob->id);
+    return py_blender_object;
+  }
+  Py_RETURN_NONE;
 }
 
 KX_PYMETHODDEF_DOC_O(KX_GameObject,

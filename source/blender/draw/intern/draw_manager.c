@@ -3165,7 +3165,6 @@ typedef struct GameViewPort {
 
 static GameViewPort game_viewport;
 static RegionView3D game_rv3d;
-static Camera *game_default_camera = NULL;
 
 GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
@@ -3210,13 +3209,8 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   if (maincam) {
     obcam = maincam;
   }
-  else if (!game_default_camera) {
-    game_default_camera = BKE_camera_add(bmain, "blabla");
-    obcam = (Object *)game_default_camera;
-    obcam->data = game_default_camera;
-  }
   else {
-    obcam = (Object *)game_default_camera;
+    obcam = BKE_view_layer_camera_find(view_layer);
   }
   Camera *cam = (Camera *)obcam->data;
   v3d.camera = obcam;
@@ -3323,11 +3317,6 @@ void DRW_game_render_loop_end()
 
   eevee_game_view_layer_data_free();
   draw_engine_eevee_type.engine_free();
-
-  if (game_default_camera) {
-    BKE_camera_free(game_default_camera);
-    game_default_camera = NULL;
-  }
 
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
