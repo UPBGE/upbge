@@ -394,8 +394,6 @@ static const char *controller_name(int type)
 static const char *actuator_name(int type)
 {
 	switch (type) {
-	case ACT_SHAPEACTION:
-		return N_("Shape Action");
 	case ACT_ACTION:
 		return N_("Action");
 	case ACT_OBJECT:
@@ -1996,45 +1994,6 @@ static void draw_actuator_scene(uiLayout *layout, PointerRNA *ptr)
 	}
 }
 
-static void draw_actuator_shape_action(uiLayout *layout, PointerRNA *ptr)
-{
-	Object *ob = (Object *)ptr->owner_id;
-	PointerRNA settings_ptr;
-	uiLayout *row;
-
-	if (ob->type != OB_MESH) {
-		uiItemL(layout, IFACE_("Actuator only available for mesh objects"), ICON_NONE);
-		return;
-	}
-
-	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
-
-	row = uiLayoutRow(layout, false);
-	uiItemR(row, ptr, "mode", 0, "", ICON_NONE);
-	uiItemR(row, ptr, "action", 0, "", ICON_NONE);
-	uiItemR(row, ptr, "use_continue_last_frame", 0, NULL, ICON_NONE);
-
-	row = uiLayoutRow(layout, false);
-	if ((RNA_enum_get(ptr, "mode") == ACT_ACTION_FROM_PROP))
-		uiItemPointerR(row, ptr, "property", &settings_ptr, "properties", NULL, ICON_NONE);
-
-	else {
-		uiItemR(row, ptr, "frame_start", 0, NULL, ICON_NONE);
-		uiItemR(row, ptr, "frame_end", 0, NULL, ICON_NONE);
-	}
-
-	row = uiLayoutRow(layout, false);
-	uiItemR(row, ptr, "frame_blend_in", 0, NULL, ICON_NONE);
-	uiItemR(row, ptr, "priority", 0, NULL, ICON_NONE);
-
-	row = uiLayoutRow(layout, false);
-	uiItemPointerR(row, ptr, "frame_property", &settings_ptr, "properties", NULL, ICON_NONE);
-
-#ifdef __NLA_ACTION_BY_MOTION_ACTUATOR
-	uiItemR(row, "stride_length", 0, NULL, ICON_NONE);
-#endif
-}
-
 static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)
 {
 	uiLayout *row, *col;
@@ -2252,9 +2211,6 @@ static void draw_brick_actuator(uiLayout *layout, PointerRNA *ptr, bContext *C)
 			break;
 		case ACT_SCENE:
 			draw_actuator_scene(box, ptr);
-			break;
-		case ACT_SHAPEACTION:
-			draw_actuator_shape_action(box, ptr);
 			break;
 		case ACT_SOUND:
 			draw_actuator_sound(box, ptr, C);

@@ -332,7 +332,6 @@ void free_actuator(bActuator *act)
 	if (act->data) {
 		switch (act->type) {
 			case ACT_ACTION:
-			case ACT_SHAPEACTION:
 			/*{
 				bActionActuator *aa = (bActionActuator *)act->data;
 				if (aa->act)
@@ -374,7 +373,6 @@ bActuator *copy_actuator(bActuator *act, const int flag)
 	
 	switch (act->type) {
 		case ACT_ACTION:
-		case ACT_SHAPEACTION:
 		/*{
 			bActionActuator *aa = (bActionActuator *)act->data;
 			if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
@@ -425,7 +423,6 @@ void init_actuator(bActuator *act)
 	
 	switch (act->type) {
 	case ACT_ACTION:
-	case ACT_SHAPEACTION:
 		act->data= MEM_callocN(sizeof(bActionActuator), "actionact");
 		break;
 	case ACT_SOUND:
