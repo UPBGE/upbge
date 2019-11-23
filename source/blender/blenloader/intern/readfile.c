@@ -6207,6 +6207,9 @@ static void direct_link_object(FileData *fd, Object *ob)
   else if (!ob->state) {
     ob->state = 1;
   }
+  else if (!ob->init_state) {
+      ob->init_state = 1;
+  }
   for (cont = ob->controllers.first; cont; cont = cont->next) {
     cont->data = newdataadr(fd, cont->data);
     cont->links = newdataadr(fd, cont->links);
