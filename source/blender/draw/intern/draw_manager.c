@@ -3165,7 +3165,7 @@ typedef struct GameViewPort {
 
 static GameViewPort game_viewport;
 static RegionView3D game_rv3d;
-static Camera *game_default_camera = NULL;
+static Object *game_default_camera = NULL;
 
 GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
@@ -3206,18 +3206,17 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 
   View3D v3d;
 
-  Object *obcam;
+  Object *obcam = NULL;
   if (maincam) {
     obcam = maincam;
   }
-  else if (!game_default_camera) {
-    game_default_camera = BKE_camera_add(bmain, "blabla");
-    obcam = (Object *)game_default_camera;
-    obcam->data = game_default_camera;
-  }
   else {
-    obcam = (Object *)game_default_camera;
+    if (!game_default_camera) {
+      game_default_camera = BKE_object_add(bmain, scene, view_layer, OB_CAMERA, "game_default_cam");
+    }
+    obcam = game_default_camera;
   }
+
   Camera *cam = (Camera *)obcam->data;
   v3d.camera = obcam;
   v3d.lens = cam->lens;
@@ -3325,7 +3324,7 @@ void DRW_game_render_loop_end()
   draw_engine_eevee_type.engine_free();
 
   if (game_default_camera) {
-    BKE_camera_free(game_default_camera);
+    BKE_object_free(game_default_camera);
     game_default_camera = NULL;
   }
 
@@ -3352,6 +3351,11 @@ void DRW_opengl_context_create_blenderplayer(void)
   GPU_state_init();
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
+}
+
+Object *DRW_game_default_camera_get()
+{
+  return game_default_camera;
 }
 
 /***************************Enf of Game engine transition***************************/

@@ -978,6 +978,8 @@ public:
 	static PyObject*	pyattr_get_angularDamping(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_angularDamping(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
+  static PyObject *pyattr_get_blender_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+
 	/* Experimental! */
 	static PyObject*	pyattr_get_sensors(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_controllers(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

@@ -425,7 +425,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
+  Object *maincam = cam ? cam->GetBlenderObject() : nullptr;
 
   const RAS_Rect *viewport = &canvas->GetViewportArea();
   int v[4] = {viewport->GetLeft(),
