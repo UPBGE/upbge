@@ -2375,7 +2375,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Ghost", "Object does not react to collisions, like a ghost");
 
   prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_range(prop, 0.01, 10000.0);
+  RNA_def_property_range(prop, 0.01, 1000000.0);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(prop, "Mass", "Mass of the object");
 
