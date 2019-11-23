@@ -60,6 +60,7 @@ typedef struct bMouseSensor {
 	short mode;			/* flag to choose material or property */
 	char propname[64];
 	char matname[64];
+    int mask;
 } bMouseSensor;
 
 /* DEPRECATED */
@@ -134,6 +135,7 @@ typedef struct bRaySensor {
 	short mode;
 	short _pad1;
 	int axisflag;
+    int mask;
 } bRaySensor;
 
 typedef struct bArmatureSensor {

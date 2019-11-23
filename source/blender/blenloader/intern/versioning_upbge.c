@@ -64,20 +64,19 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 {
     //printf("UPBGE: open file from version : %i, subversion : %i\n", main->upbgeversionfile, main->upbgesubversionfile);
     if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 1)) {
-#if 0 /* XXX UPBGE | we need to recover masks for mouse and ray sensors */
         if (!DNA_struct_elem_find(fd->filesdna, "bRaySensor", "int", "mask")) {
             bRaySensor *raySensor;
 
-            for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+            for (Object *ob = main->objects.first; ob; ob = ob->id.next) {
                 for (bSensor* sensor = ob->sensors.first; sensor != NULL; sensor = (bSensor *)sensor->next) {
                     if (sensor->type == SENS_RAY) {
                         raySensor = (bRaySensor *)sensor->data;
-                        raySensor->mask = 0xFFFF;//all one, 'cause this was the previous behavior
+                        /* All one, because this was the previous behavior */
+                        raySensor->mask = 0xFFFF;
                     }
                 }
             }
         }
-#endif
 #if 0 /* XXX UPBGE | Pending clean-up of gm.flag */
         for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
             /* Previous value of GAME_GLSL_NO_ENV_LIGHTING was 1 << 18, it was conflicting
@@ -177,18 +176,16 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
             }
         }
 #endif
-#if 0 /* XXX UPBGE | we need to recover masks for mouse and ray sensors */
         if (!DNA_struct_elem_find(fd->filesdna, "bMouseSensor", "int", "mask")) {
             for (Object *ob = main->objects.first; ob; ob = ob->id.next) {
                 for (bSensor *sensor = ob->sensors.first; sensor; sensor = (bSensor *)sensor->next) {
                     if (sensor->type == SENS_MOUSE) {
                         bMouseSensor *mouseSensor = (bMouseSensor *)sensor->data;
-                        // All one, because this was the previous behavior.
+                        /* All one, because this was the previous behavior */
                         mouseSensor->mask = 0xFFFF;
                     }
                 }
             }
         }
-#endif
     }
 }

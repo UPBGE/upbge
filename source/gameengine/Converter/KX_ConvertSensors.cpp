@@ -327,7 +327,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 							/* give us a focus-aware sensor */
 							bool bFindMaterial = (bmouse->mode & SENS_COLLISION_MATERIAL);
 							bool bXRay = (bmouse->flag & SENS_RAY_XRAY);
-							int mask = 0xFFFF;
+                            int mask = bmouse->mask;
 							std::string checkname = (bFindMaterial? bmouse->matname : bmouse->propname);
 
 							gamesensor = new SCA_MouseFocusSensor(eventmgr,
@@ -485,7 +485,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						// don't want to get rays of length 0.0 or so
 						double distance = (blenderraysensor->range < 0.01f ? 0.01f : blenderraysensor->range);
 						int axis = blenderraysensor->axisflag;
-						int mask = 0xFFFF;
+                        int mask = blenderraysensor->mask;
 
 						gamesensor = new SCA_RaySensor(eventmgr,
 													  gameobj,
