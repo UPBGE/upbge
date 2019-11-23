@@ -120,6 +120,8 @@ void KX_FontObject::UpdateCurveText(std::string newText) //eevee
 	DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 	DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
 
+	UseCopy();
+
 	GetScene()->ResetTaaSamples();
 }
 
