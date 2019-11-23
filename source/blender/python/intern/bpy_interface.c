@@ -348,6 +348,9 @@ void BPY_python_end(void)
   /* bpy.app modules that need cleanup */
   BPY_app_translations_end();
 
+  /* Release copy of clear sys modules dictionary */
+  BPy_end_modules();
+
 #ifndef WITH_PYTHON_MODULE
   BPY_atexit_unregister(); /* without this we get recursive calls to WM_exit */
 
@@ -1026,6 +1029,9 @@ void BPY_python_end_blenderplayer(void)
 
   /* bpy.app modules that need cleanup */
   BPY_app_translations_end();
+
+  /* Release copy of clear sys modules dictionary */
+  BPy_end_modules();
 
   //#ifndef WITH_PYTHON_MODULE
   // BPY_atexit_unregister(); /* without this we get recursive calls to WM_exit */
