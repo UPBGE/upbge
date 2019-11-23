@@ -1033,36 +1033,36 @@ void BPY_python_end_blenderplayer(void)
   /* Release copy of clear sys modules dictionary */
   BPy_end_modules();
 
-  //#ifndef WITH_PYTHON_MODULE
-  // BPY_atexit_unregister(); /* without this we get recursive calls to WM_exit */
+#ifndef WITH_PYTHON_MODULE
+  BPY_atexit_unregister(); /* without this we get recursive calls to WM_exit */
 
   Py_Finalize();
 
   (void)gilstate;
-  //#else
-  // PyGILState_Release(gilstate);
-  //#endif
+#else
+  PyGILState_Release(gilstate);
+#endif
 
-  //#ifdef TIME_PY_RUN
-  //  /* measure time since py started */
-  //  bpy_timer = PIL_check_seconds_timer() - bpy_timer;
-  //
-  //  printf("*bpy stats* - ");
-  //  printf("tot exec: %d,  ", bpy_timer_count);
-  //  printf("tot run: %.4fsec,  ", bpy_timer_run_tot);
-  //  if (bpy_timer_count > 0) {
-  //    printf("average run: %.6fsec,  ", (bpy_timer_run_tot / bpy_timer_count));
-  //  }
-  //
-  //  if (bpy_timer > 0.0) {
-  //    printf("tot usage %.4f%%", (bpy_timer_run_tot / bpy_timer) * 100.0);
-  //  }
-  //
-  //  printf("\n");
-  //
-  //  // fprintf(stderr, "Ending Python Done!\n");
-  //
-  //#endif
+#ifdef TIME_PY_RUN
+  /* measure time since py started */
+  bpy_timer = PIL_check_seconds_timer() - bpy_timer;
+
+  printf("*bpy stats* - ");
+  printf("tot exec: %d,  ", bpy_timer_count);
+  printf("tot run: %.4fsec,  ", bpy_timer_run_tot);
+  if (bpy_timer_count > 0) {
+    printf("average run: %.6fsec,  ", (bpy_timer_run_tot / bpy_timer_count));
+  }
+
+  if (bpy_timer > 0.0) {
+    printf("tot usage %.4f%%", (bpy_timer_run_tot / bpy_timer) * 100.0);
+  }
+
+  printf("\n");
+
+  fprintf(stderr, "Ending Python Done!\n");
+
+#endif
 }
 
 void BPY_python_rna_alloc_types(void)
