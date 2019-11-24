@@ -442,7 +442,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
     Scene *bl_scene = scene->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(bl_scene);
     Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, bl_scene, view_layer, false);
-	Mesh *final_me = mesh_get_eval_final(depsgraph, bl_scene, DEG_get_evaluated_object(depsgraph, blenderobj), &CD_MASK_MESH);
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, blenderobj);
+	Mesh *final_me = (Mesh *)ob_eval->data;
 	DerivedMesh *dm = CDDM_from_mesh(final_me);
 	DM_ensure_tessface(dm);
 
