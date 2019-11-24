@@ -867,12 +867,10 @@ static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *lo
 					         RNA_boolean_get(ptr, "active")));
 	uiItemR(sub, ptr, "pin", UI_ITEM_R_NO_BG, "", ICON_NONE);
 
-	if (RNA_boolean_get(ptr, "show_expanded")==0) {
-		sub = uiLayoutRow(row, true);
-		uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
-		uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_UP, "direction", 1); // up
-		uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_DOWN, "direction", 2); // down
-	}
+    sub = uiLayoutRow(row, true);
+    uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
+    uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_UP, "direction", 1); // up
+    uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_DOWN, "direction", 2); // down
 
 	sub = uiLayoutRow(row, false);
 	uiItemR(sub, ptr, "active", 0, "", ICON_NONE);
@@ -1278,12 +1276,10 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
 	uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
 	uiItemR(sub, ptr, "use_priority", 0, "", ICON_NONE);
 
-	if (RNA_boolean_get(ptr, "show_expanded")==0) {
-		sub = uiLayoutRow(row, true);
-		uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
-		uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_UP, "direction", 1); // up
-		uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_DOWN, "direction", 2); // down
-	}
+    sub = uiLayoutRow(row, true);
+    uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
+    uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_UP, "direction", 1); // up
+    uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_DOWN, "direction", 2); // down
 
 	sub = uiLayoutRow(row, false);
 	uiItemR(sub, ptr, "active", 0, "", ICON_NONE);
@@ -1380,12 +1376,10 @@ static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *
 	                          RNA_boolean_get(ptr, "active")));
 	uiItemR(sub, ptr, "pin", UI_ITEM_R_NO_BG, "", ICON_NONE);
 
-	if (RNA_boolean_get(ptr, "show_expanded")==0) {
-		sub = uiLayoutRow(row, true);
-		uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
-		uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_UP, "direction", 1); // up
-		uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_DOWN, "direction", 2); // down
-	}
+    sub = uiLayoutRow(row, true);
+    uiLayoutSetActive(sub, RNA_boolean_get(ptr, "active"));
+    uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_UP, "direction", 1); // up
+    uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_DOWN, "direction", 2); // down
 
 	sub = uiLayoutRow(row, false);
 	uiItemR(sub, ptr, "active", 0, "", ICON_NONE);
