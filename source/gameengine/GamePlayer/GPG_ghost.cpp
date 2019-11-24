@@ -1617,7 +1617,7 @@ int main(
   DRW_opengl_context_destroy();
 
 #ifdef WITH_PYTHON
-  BPY_python_end_blenderplayer();
+  BPY_python_end();
 #endif
 
   ED_file_exit(); /* for fsmenu */

@@ -2012,6 +2012,8 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv, bContext
 
     BPY_python_rna_alloc_types();
 
+	BPY_atexit_register(); /* this can init any time */
+
 	bpy_import_init(PyEval_GetBuiltins());
 
 	bpy_import_main_set(maggie);

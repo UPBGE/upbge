@@ -128,7 +128,6 @@ const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *ms
 #endif
 
 /********** Game engine transition **********/
-void BPY_python_end_blenderplayer(void);
 void BPY_python_rna_alloc_types(void);
 /********************************************/
 
