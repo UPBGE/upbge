@@ -3212,7 +3212,11 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   }
   else {
     if (!game_default_camera) {
-      game_default_camera = BKE_object_add(bmain, scene, view_layer, OB_CAMERA, "game_default_cam");
+      game_default_camera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
+      game_default_camera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
+      LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
+      BKE_collection_object_add(bmain, layer_collection->collection, game_default_camera);
+      DEG_relations_tag_update(G_MAIN);
     }
     obcam = game_default_camera;
   }
@@ -3324,7 +3328,10 @@ void DRW_game_render_loop_end()
   draw_engine_eevee_type.engine_free();
 
   if (game_default_camera) {
+    LayerCollection *layer_collection = BKE_layer_collection_get_active(DST.draw_ctx.view_layer);
+    BKE_collection_object_remove(G_MAIN, layer_collection->collection, game_default_camera, true);
     BKE_object_free(game_default_camera);
+    DEG_relations_tag_update(G_MAIN);
     game_default_camera = NULL;
   }
 

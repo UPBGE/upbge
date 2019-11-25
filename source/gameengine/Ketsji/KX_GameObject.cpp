@@ -192,7 +192,9 @@ KX_GameObject::~KX_GameObject()
     RemoveReplicaObject();
   }
   else {  // at scene exit
-    SetVisible(m_visibleAtGameStart, false);
+    if (ob && strcmp(ob->id.name, "OBgame_default_cam") != 0) {
+      SetVisible(m_visibleAtGameStart, false);
+    }
     RemoveReplicaObject();
 
     if (ob && ob->type == OB_MBALL) {
