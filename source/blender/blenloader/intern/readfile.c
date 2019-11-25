@@ -169,6 +169,9 @@
 #  include "SpindleEncryption.h"
 #endif  // WITH_GAMEENGINE_BPPLAYER
 
+/* Make preferences read-only. */
+#define U (*((const UserDef *)&U))
+
 /**
  * READ
  * ====
@@ -2698,6 +2701,7 @@ static void direct_link_id(FileData *fd, ID *id)
   if (id->override_library) {
     id->override_library = newdataadr(fd, id->override_library);
     link_list_ex(fd, &id->override_library->properties, direct_link_id_override_property_cb);
+    id->override_library->runtime = NULL;
   }
 
   DrawDataList *drawdata = DRW_drawdatalist_from_id(id);
@@ -7584,8 +7588,8 @@ static void direct_link_area(FileData *fd, ScrArea *area)
       SpaceText *st = (SpaceText *)sl;
 
       st->drawcache = NULL;
-      st->scroll_accum[0] = 0.0f;
-      st->scroll_accum[1] = 0.0f;
+      st->scroll_ofs_px[0] = 0;
+      st->scroll_ofs_px[1] = 0;
     }
     else if (sl->spacetype == SPACE_SEQ) {
       SpaceSeq *sseq = (SpaceSeq *)sl;

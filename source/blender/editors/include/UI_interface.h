@@ -1888,7 +1888,8 @@ void uiTemplateID(uiLayout *layout,
                   const char *openop,
                   const char *unlinkop,
                   int filter,
-                  const bool live_icon);
+                  const bool live_icon,
+                  const char *text);
 void uiTemplateIDBrowse(uiLayout *layout,
                         struct bContext *C,
                         struct PointerRNA *ptr,
@@ -1896,7 +1897,8 @@ void uiTemplateIDBrowse(uiLayout *layout,
                         const char *newop,
                         const char *openop,
                         const char *unlinkop,
-                        int filter);
+                        int filter,
+                        const char *text);
 void uiTemplateIDPreview(uiLayout *layout,
                          struct bContext *C,
                          struct PointerRNA *ptr,
@@ -2276,6 +2278,7 @@ void uiItemsFullEnumO_items(uiLayout *layout,
                             int totitem);
 
 void uiItemL(uiLayout *layout, const char *name, int icon); /* label */
+uiLayout *uiItemL_respect_property_split(uiLayout *layout, const char *text, int icon);
 /* label icon for dragging */
 void uiItemLDrag(uiLayout *layout, struct PointerRNA *ptr, const char *name, int icon);
 /* menu */

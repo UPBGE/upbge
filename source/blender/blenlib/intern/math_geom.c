@@ -2996,8 +2996,9 @@ int isect_line_line_v3(const float v1[3],
   return isect_line_line_epsilon_v3(v1, v2, v3, v4, r_i1, r_i2, epsilon);
 }
 
-/** Intersection point strictly between the two lines
- * \return false when no intersection is found
+/**
+ * Intersection point strictly between the two lines
+ * \return false when no intersection is found.
  */
 bool isect_line_line_strict_v3(const float v1[3],
                                const float v2[3],
@@ -3070,7 +3071,7 @@ bool isect_ray_ray_epsilon_v3(const float ray_origin_a[3],
   cross_v3_v3v3(n, ray_direction_b, ray_direction_a);
   const float nlen = len_squared_v3(n);
 
-  /* `nlen` is the the square of the area formed by the two vectors. */
+  /* `nlen` is the square of the area formed by the two vectors. */
   if (UNLIKELY(nlen < epsilon)) {
     /* The lines are parallel. */
     return false;
@@ -3188,7 +3189,7 @@ bool isect_ray_aabb_v3(const struct IsectRayAABB_Precalc *data,
  * Test a bounding box (AABB) for ray intersection.
  * Assumes the ray is already local to the boundbox space.
  *
- * \note: \a direction should be normalized
+ * \note \a direction should be normalized
  * if you intend to use the \a tmin or \a tmax distance results!
  */
 bool isect_ray_aabb_v3_simple(const float orig[3],
@@ -3791,7 +3792,7 @@ bool barycentric_coords_v2(
 }
 
 /**
- * \note: using #cross_tri_v2 means locations outside the triangle are correctly weighted
+ * \note Using #cross_tri_v2 means locations outside the triangle are correctly weighted.
  *
  * \note This is *exactly* the same calculation as #resolve_tri_uv_v2,
  * although it has double precision and is used for texture baking, so keep both.

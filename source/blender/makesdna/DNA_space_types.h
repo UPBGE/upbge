@@ -497,6 +497,13 @@ typedef enum eGraphEdit_Runtime_Flag {
   SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC = (1 << 0),
   /** Temporary flag to force fcurves to recalculate colors. */
   SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC_COLOR = (1 << 1),
+
+  /**
+   * These flags are for the mouse-select code to communicate with the transform code. Click
+   * dragging (tweaking) a handle sets the according left/right flag which transform code uses then
+   * to limit translation to this side. */
+  SIPO_RUNTIME_FLAG_TWEAK_HANDLES_LEFT = (1 << 2),
+  SIPO_RUNTIME_FLAG_TWEAK_HANDLES_RIGHT = (1 << 3),
 } eGraphEdit_Runtime_Flag;
 
 /** \} */
@@ -980,7 +987,8 @@ typedef struct FileDirEntry {
   int act_variant;
 } FileDirEntry;
 
-/** Array of direntries.
+/**
+ * Array of direntries.
  *
  * This struct is used in various, different contexts.
  *
@@ -1224,8 +1232,11 @@ typedef struct SpaceText {
   /** Cache for faster drawing. */
   void *drawcache;
 
-  /** Runtime, for scroll increments smaller than a line. */
-  float scroll_accum[2];
+  /**
+   * Run-time for scroll increments smaller than a line (smooth scroll).
+   * Values must be between zero and the line, column width: (cwidth, TXT_LINE_HEIGHT(st)).
+   */
+  int scroll_ofs_px[2];
 } SpaceText;
 
 /* SpaceText flags (moved from DNA_text_types.h) */

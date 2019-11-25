@@ -161,10 +161,12 @@ typedef struct Profile {
 #define PRO_LINE_R 1.0f
 #define PRO_SQUARE_IN_R 0.0f
 
-/** The un-transformed 2D storage of profile vertex locations. Also for non-custom profiles
+/**
+ * The un-transformed 2D storage of profile vertex locations. Also for non-custom profiles
  * this serves as a cache for the results of the expensive calculation of u parameter values to
  * get even spacing on superellipse for current BevelParams seg
- * and pro_super_r. */
+ * and pro_super_r.
+ */
 typedef struct ProfileSpacing {
   /** The profile's seg+1 x values */
   double *xvals;
@@ -3022,14 +3024,18 @@ static bool adjust_the_cycle_or_chain_fast(BoundVert *vstart, int np, bool iscyc
 }
 #endif
 
-/** Helper function to return the next Beveled EdgeHalf along a path.
- * \param toward_bv Whether the direction to travel points toward or away from the BevVert
- *        connected to the current EdgeHalf
- * \param r_bv The BevVert connected to the EdgeHalf-- updated if we're traveling to the other
- *        EdgeHalf of an original edge
+/**
+ * Helper function to return the next Beveled EdgeHalf along a path.
+ *
+ * \param toward_bv: Whether the direction to travel points toward or away from the BevVert
+ * connected to the current EdgeHalf.
+ * \param r_bv: The BevVert connected to the EdgeHalf -- updated if we're traveling to the other
+ * EdgeHalf of an original edge.
+ *
  * \note This only returns the most parallel edge if it's the most parallel by
  * at least 10 degrees. This is a somewhat arbitrary choice, but it makes sure that consistent
- * orientation paths only continue in obvious ways. */
+ * orientation paths only continue in obvious ways.
+ */
 static EdgeHalf *next_edgehalf_bev(BevelParams *bp,
                                    EdgeHalf *start_edge,
                                    bool toward_bv,
@@ -3115,10 +3121,12 @@ static EdgeHalf *next_edgehalf_bev(BevelParams *bp,
   }
 }
 
-/** Starting along any beveled edge, travel along the chain / cycle of beveled edges including that
+/**
+ * Starting along any beveled edge, travel along the chain / cycle of beveled edges including that
  * edge, marking consistent profile orientations along the way. Orientations are marked by setting
  * whether the BoundVert that contains each profile's information is the side of the profile's
- * start or not. */
+ * start or not.
+ */
 static void regularize_profile_orientation(BevelParams *bp, BMEdge *bme)
 {
   BevVert *start_bv;
@@ -3166,10 +3174,12 @@ static void regularize_profile_orientation(BevelParams *bp, BMEdge *bme)
 }
 
 #ifdef DEBUG_PROFILE_ORIENTATION_DRAW
-/** Draws markers on beveled edges showing the side that the profile starts on. A sphere shows
+/**
+ * Draws markers on beveled edges showing the side that the profile starts on. A sphere shows
  * the start side of the profile where it starts, and the lines connected to the sphere show which
  * edge the orientation corresponds to.
- * \note Only drawn while bevel is calculating, the debug geometry is not persistent. */
+ * \note Only drawn while bevel is calculating, the debug geometry is not persistent.
+ */
 static void debug_draw_profile_orientation(BevelParams *bp, BMesh *bm)
 {
   BMIter iter;
@@ -4290,7 +4300,7 @@ static VMesh *adj_vmesh(BevelParams *bp, BevVert *bv)
 
   /* To place the center vertex:
    * 'negative_fullest' is the reflection of the original vertex across the boundverts' center.
-   * 'fullness' is the fraction of the way from the boundvert's centroid to to the original vertex
+   * 'fullness' is the fraction of the way from the boundvert's centroid to the original vertex
    * (if positive) or to negative_fullest (if negative). */
   copy_v3_v3(original_vertex, bv->v->co);
   sub_v3_v3v3(negative_fullest, boundverts_center, original_vertex);
@@ -4365,9 +4375,11 @@ static void snap_to_pipe_profile(BoundVert *vpipe, bool midline, float co[3])
   }
 }
 
-/** See pipe_test for conditions that make 'pipe'; vpipe is the return value from that.
+/**
+ * See pipe_test for conditions that make 'pipe'; vpipe is the return value from that.
  * We want to make an ADJ mesh but then snap the vertices to the profile in a plane
- * perpendicular to the pipes. */
+ * perpendicular to the pipes.
+ */
 static VMesh *pipe_adj_vmesh(BevelParams *bp, BevVert *bv, BoundVert *vpipe)
 {
 #ifdef DEBUG_CUSTOM_PROFILE_PIPE
@@ -4795,9 +4807,9 @@ static VMesh *square_out_adj_vmesh(BevelParams *bp, BevVert *bv)
     if (odd) {
       ang = 0.5f * angle_v3v3v3(bndv->nv.co, co1, bndv->next->nv.co);
       if (ang > BEVEL_SMALL_ANG) {
-        /* finalfrac is length along arms of isoceles triangle with top angle 2*ang
+        /* finalfrac is length along arms of isosceles triangle with top angle 2*ang
          * such that the base of the triangle is 1.
-         * This is used in interpolation along centerline in odd case.
+         * This is used in interpolation along center-line in odd case.
          * To avoid too big a drop from bv, cap finalfrac a 0.8 arbitrarily */
         finalfrac = 0.5f / sinf(ang);
         if (finalfrac > 0.8f) {
@@ -5066,14 +5078,17 @@ static void bevel_build_rings(BevelParams *bp, BMesh *bm, BevVert *bv, BoundVert
   }
 }
 
-/** Builds the vertex mesh when the vertex mesh type is set to "cut off" with a face closing
- * off each incoming edge's profile */
-/* HANS-TODO: Make cutoff VMesh work with outer miter != sharp. This should be possible but there
+/**
+ * Builds the vertex mesh when the vertex mesh type is set to "cut off" with a face closing
+ * off each incoming edge's profile.
+ *
+ * TODO(Hans): Make cutoff VMesh work with outer miter != sharp. This should be possible but there
  * are two problems currently:
  *  - Miter profiles don't have plane_no filled, so down direction is incorrect.
  *  - Indexing profile points of miters with (i, 0, k) seems to return zero except for the first
- *    and last profile point. */
-/* HANS-TODO: Use repface / edge arrays for UV interpolation properly. */
+ *    and last profile point.
+ * TODO(Hans): Use repface / edge arrays for UV interpolation properly.
+ */
 static void bevel_build_cutoff(BevelParams *bp, BMesh *bm, BevVert *bv)
 {
 #ifdef DEBUG_CUSTOM_PROFILE_CUTOFF
@@ -5492,7 +5507,11 @@ static void build_vmesh(BevelParams *bp, BMesh *bm, BevVert *bv)
       }
       else { /* Get the last of the two BoundVerts. */
         weld2 = bndv;
-        move_weld_profile_planes(bv, weld1, weld2); /* Profile recalculated in next loop. */
+        move_weld_profile_planes(bv, weld1, weld2);
+        if (!bp->use_custom_profile) { /* Else profile recalculated in next loop. */
+          calculate_profile(bp, weld1, !weld1->is_profile_start, false);
+          calculate_profile(bp, weld2, !weld2->is_profile_start, false);
+        }
       }
     }
   } while ((bndv = bndv->next) != vm->boundstart);
@@ -5502,7 +5521,7 @@ static void build_vmesh(BevelParams *bp, BMesh *bm, BevVert *bv)
   bndv = vm->boundstart;
   do {
     i = bndv->index;
-    /* bndv's last vert along the boundary arc is the the first of the next BoundVert's arc. */
+    /* bndv's last vert along the boundary arc is the first of the next BoundVert's arc. */
     copy_mesh_vert(vm, i, 0, ns, bndv->next->index, 0, 0);
 
     /* Fix the profile orientations if it's not a miter profile. */
@@ -6901,9 +6920,11 @@ static void find_even_superellipse_chords(int n, float r, double *xvals, double 
   find_even_superellipse_chords_general(n, r, xvals, yvals);
 }
 
-/** Find the profile's "fullness," which is the fraction of the space it takes up way from the
- * boundvert's centroid to to the original vertex for a non-custom profile, or in the case of a
- * custom profile, the average "height" of the profile points along its centerline. */
+/**
+ * Find the profile's "fullness," which is the fraction of the space it takes up way from the
+ * boundvert's centroid to the original vertex for a non-custom profile, or in the case of a
+ * custom profile, the average "height" of the profile points along its centerline.
+ */
 static float find_profile_fullness(BevelParams *bp)
 {
   float fullness;
@@ -6954,14 +6975,16 @@ static float find_profile_fullness(BevelParams *bp)
   return fullness;
 }
 
-/** Fills the ProfileSpacing struct with the 2D coordinates for the profile's vertices.
+/**
+ * Fills the ProfileSpacing struct with the 2D coordinates for the profile's vertices.
  * The superellipse used for multisegment profiles does not have a closed-form way
  * to generate evenly spaced points along an arc. We use an expensive search procedure
  * to find the parameter values that lead to bp->seg even chords.
  * We also want spacing for a number of segments that is a power of 2 >= bp->seg (but at least 4).
  * Use doubles because otherwise we cannot come close to float precision for final results.
+ *
  * \param pro_spacing: The struct to fill. Changes depending on whether there needs
-          to be a separate miter profile. */
+ * to be a separate miter profile. */
 static void set_profile_spacing(BevelParams *bp, ProfileSpacing *pro_spacing, bool custom)
 {
   int seg, seg_2;
@@ -7326,6 +7349,15 @@ void BM_mesh_bevel(BMesh *bm,
 
   if (profile >= 0.950f) { /* r ~ 692, so PRO_SQUARE_R is 1e4 */
     bp.pro_super_r = PRO_SQUARE_R;
+  }
+  else if (fabsf(bp.pro_super_r - PRO_CIRCLE_R) < 1e-4) {
+    bp.pro_super_r = PRO_CIRCLE_R;
+  }
+  else if (fabsf(bp.pro_super_r - PRO_LINE_R) < 1e-4) {
+    bp.pro_super_r = PRO_LINE_R;
+  }
+  else if (bp.pro_super_r < 1e-4) {
+    bp.pro_super_r = PRO_SQUARE_IN_R;
   }
 
   if (bp.offset > 0) {

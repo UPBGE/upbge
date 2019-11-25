@@ -270,8 +270,8 @@ static int text_new_exec(bContext *C, wmOperator *UNUSED(op))
     st->text = text;
     st->left = 0;
     st->top = 0;
-    st->scroll_accum[0] = 0.0f;
-    st->scroll_accum[1] = 0.0f;
+    st->scroll_ofs_px[0] = 0;
+    st->scroll_ofs_px[1] = 0;
     text_drawcache_tag_update(st, 1);
   }
 
@@ -353,8 +353,8 @@ static int text_open_exec(bContext *C, wmOperator *op)
     st->text = text;
     st->left = 0;
     st->top = 0;
-    st->scroll_accum[0] = 0.0f;
-    st->scroll_accum[1] = 0.0f;
+    st->scroll_ofs_px[0] = 0;
+    st->scroll_ofs_px[1] = 0;
   }
 
   text_drawcache_tag_update(st, 1);
@@ -1064,6 +1064,41 @@ void TEXT_OT_cut(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Indent or Autocomplete Operator
+ * \{ */
+
+static int text_indent_or_autocomplete_exec(bContext *C, wmOperator *UNUSED(op))
+{
+  Text *text = CTX_data_edit_text(C);
+  TextLine *line = text->curl;
+  bool text_before_cursor = text->curc != 0 && !ELEM(line->line[text->curc - 1], ' ', '\t');
+  if (text_before_cursor && (txt_has_sel(text) == false)) {
+    WM_operator_name_call(C, "TEXT_OT_autocomplete", WM_OP_INVOKE_DEFAULT, NULL);
+  }
+  else {
+    WM_operator_name_call(C, "TEXT_OT_indent", WM_OP_EXEC_DEFAULT, NULL);
+  }
+  return OPERATOR_FINISHED;
+}
+
+void TEXT_OT_indent_or_autocomplete(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Indent or Autocomplete";
+  ot->idname = "TEXT_OT_indent_or_autocomplete";
+  ot->description = "Indent selected text or autocomplete";
+
+  /* api callbacks */
+  ot->exec = text_indent_or_autocomplete_exec;
+  ot->poll = text_edit_poll;
+
+  /* flags */
+  ot->flag = 0;
 }
 
 /** \} */
@@ -2477,21 +2512,43 @@ static void txt_screen_skip(SpaceText *st, ARegion *ar, int lines)
 }
 
 /* quick enum for tsc->zone (scroller handles) */
-enum {
+enum eScrollZone {
+  SCROLLHANDLE_INVALID_OUTSIDE = -1,
   SCROLLHANDLE_BAR,
   SCROLLHANDLE_MIN_OUTSIDE,
   SCROLLHANDLE_MAX_OUTSIDE,
 };
 
 typedef struct TextScroll {
-  int old[2];
-  int delta[2];
+  int mval_prev[2];
+  int mval_delta[2];
 
-  int first;
-  int scrollbar;
+  bool is_first;
+  bool is_scrollbar;
 
-  int zone;
+  enum eScrollZone zone;
+
+  /* Store the state of the display, cache some constant vars. */
+  struct {
+    int ofs_init[2];
+    int ofs_max[2];
+    int size_px[2];
+  } state;
+  int ofs_delta[2];
+  int ofs_delta_px[2];
 } TextScroll;
+
+static void text_scroll_state_init(TextScroll *tsc, SpaceText *st, ARegion *ar)
+{
+  tsc->state.ofs_init[0] = st->left;
+  tsc->state.ofs_init[1] = st->top;
+
+  tsc->state.ofs_max[0] = INT_MAX;
+  tsc->state.ofs_max[1] = text_get_total_lines(st, ar) - (st->viewlines / 2);
+
+  tsc->state.size_px[0] = st->cwidth;
+  tsc->state.size_px[1] = TXT_LINE_HEIGHT(st);
+}
 
 static bool text_scroll_poll(bContext *C)
 {
@@ -2521,68 +2578,107 @@ static int text_scroll_exec(bContext *C, wmOperator *op)
 static void text_scroll_apply(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceText *st = CTX_wm_space_text(C);
-  ARegion *ar = CTX_wm_region(C);
   TextScroll *tsc = op->customdata;
   int mval[2] = {event->x, event->y};
-  int scroll_steps[2] = {0, 0};
 
   text_update_character_width(st);
 
   /* compute mouse move distance */
-  if (tsc->first) {
-    tsc->old[0] = mval[0];
-    tsc->old[1] = mval[1];
-    tsc->first = 0;
+  if (tsc->is_first) {
+    tsc->mval_prev[0] = mval[0];
+    tsc->mval_prev[1] = mval[1];
+    tsc->is_first = false;
   }
 
   if (event->type != MOUSEPAN) {
-    tsc->delta[0] = mval[0] - tsc->old[0];
-    tsc->delta[1] = mval[1] - tsc->old[1];
+    tsc->mval_delta[0] = mval[0] - tsc->mval_prev[0];
+    tsc->mval_delta[1] = mval[1] - tsc->mval_prev[1];
   }
 
   /* accumulate scroll, in float values for events that give less than one
    * line offset but taken together should still scroll */
-  if (!tsc->scrollbar) {
-    st->scroll_accum[0] += -tsc->delta[0] / (float)st->cwidth;
-    st->scroll_accum[1] += tsc->delta[1] / (float)(TXT_LINE_HEIGHT(st));
+  if (!tsc->is_scrollbar) {
+    tsc->ofs_delta_px[0] -= tsc->mval_delta[0];
+    tsc->ofs_delta_px[1] += tsc->mval_delta[1];
   }
   else {
-    st->scroll_accum[1] += -tsc->delta[1] * st->pix_per_line;
+    tsc->ofs_delta_px[1] -= (tsc->mval_delta[1] * st->pix_per_line) * tsc->state.size_px[1];
   }
 
-  /* round to number of lines to scroll */
-  scroll_steps[0] = (int)st->scroll_accum[0];
-  scroll_steps[1] = (int)st->scroll_accum[1];
+  for (int i = 0; i < 2; i += 1) {
+    int lines_from_pixels = tsc->ofs_delta_px[i] / tsc->state.size_px[i];
+    tsc->ofs_delta[i] += lines_from_pixels;
+    tsc->ofs_delta_px[i] -= lines_from_pixels * tsc->state.size_px[i];
+  }
 
-  st->scroll_accum[0] -= scroll_steps[0];
-  st->scroll_accum[1] -= scroll_steps[1];
+  /* The final values need to be calculated from the inputs,
+   * so clamping and ensuring an unsigned pixel offset doesn't conflict with
+   * updating the cursor mval_delta. */
+  int scroll_ofs_new[2] = {
+      tsc->state.ofs_init[0] + tsc->ofs_delta[0],
+      tsc->state.ofs_init[1] + tsc->ofs_delta[1],
+  };
+  int scroll_ofs_px_new[2] = {
+      tsc->ofs_delta_px[0],
+      tsc->ofs_delta_px[1],
+  };
 
-  /* perform vertical and/or horizontal scroll */
-  if (scroll_steps[0] || scroll_steps[1]) {
-    txt_screen_skip(st, ar, scroll_steps[1]);
-
-    if (st->wordwrap) {
-      st->left = 0;
+  for (int i = 0; i < 2; i += 1) {
+    /* Ensure always unsigned (adjusting line/column accordingly). */
+    while (scroll_ofs_px_new[i] < 0) {
+      scroll_ofs_px_new[i] += tsc->state.size_px[i];
+      scroll_ofs_new[i] -= 1;
     }
-    else {
-      st->left += scroll_steps[0];
-      if (st->left < 0) {
-        st->left = 0;
-      }
-    }
 
+    /* Clamp within usable region. */
+    if (scroll_ofs_new[i] < 0) {
+      scroll_ofs_new[i] = 0;
+      scroll_ofs_px_new[i] = 0;
+    }
+    else if (scroll_ofs_new[i] >= tsc->state.ofs_max[i]) {
+      scroll_ofs_new[i] = tsc->state.ofs_max[i];
+      scroll_ofs_px_new[i] = 0;
+    }
+  }
+
+  /* Override for word-wrap. */
+  if (st->wordwrap) {
+    scroll_ofs_new[0] = 0;
+    scroll_ofs_px_new[0] = 0;
+  }
+
+  /* Apply to the screen. */
+  if (scroll_ofs_new[0] != st->left || scroll_ofs_new[1] != st->top ||
+      /* Horizontal sub-pixel offset currently isn't used. */
+      /* scroll_ofs_px_new[0] != st->scroll_ofs_px[0] || */
+      scroll_ofs_px_new[1] != st->scroll_ofs_px[1]) {
+
+    st->left = scroll_ofs_new[0];
+    st->top = scroll_ofs_new[1];
+    st->scroll_ofs_px[0] = scroll_ofs_px_new[0];
+    st->scroll_ofs_px[1] = scroll_ofs_px_new[1];
     ED_area_tag_redraw(CTX_wm_area(C));
   }
 
-  tsc->old[0] = mval[0];
-  tsc->old[1] = mval[1];
+  tsc->mval_prev[0] = mval[0];
+  tsc->mval_prev[1] = mval[1];
 }
 
 static void scroll_exit(bContext *C, wmOperator *op)
 {
   SpaceText *st = CTX_wm_space_text(C);
+  TextScroll *tsc = op->customdata;
 
   st->flags &= ~ST_SCROLL_SELECT;
+
+  if (st->scroll_ofs_px[1] > tsc->state.size_px[1] / 2) {
+    st->top += 1;
+  }
+
+  st->scroll_ofs_px[0] = 0;
+  st->scroll_ofs_px[1] = 0;
+  ED_area_tag_redraw(CTX_wm_area(C));
+
   MEM_freeN(op->customdata);
 }
 
@@ -2624,6 +2720,8 @@ static void text_scroll_cancel(bContext *C, wmOperator *op)
 static int text_scroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceText *st = CTX_wm_space_text(C);
+  ARegion *ar = CTX_wm_region(C);
+
   TextScroll *tsc;
 
   if (RNA_struct_property_is_set(op->ptr, "lines")) {
@@ -2631,8 +2729,11 @@ static int text_scroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   tsc = MEM_callocN(sizeof(TextScroll), "TextScroll");
-  tsc->first = 1;
+  tsc->is_first = true;
   tsc->zone = SCROLLHANDLE_BAR;
+
+  text_scroll_state_init(tsc, st, ar);
+
   op->customdata = tsc;
 
   st->flags |= ST_SCROLL_SELECT;
@@ -2640,13 +2741,13 @@ static int text_scroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   if (event->type == MOUSEPAN) {
     text_update_character_width(st);
 
-    tsc->old[0] = event->x;
-    tsc->old[1] = event->y;
+    tsc->mval_prev[0] = event->x;
+    tsc->mval_prev[1] = event->y;
     /* Sensitivity of scroll set to 4pix per line/char */
-    tsc->delta[0] = (event->x - event->prevx) * st->cwidth / 4;
-    tsc->delta[1] = (event->y - event->prevy) * st->lheight_dpi / 4;
-    tsc->first = 0;
-    tsc->scrollbar = 0;
+    tsc->mval_delta[0] = (event->x - event->prevx) * st->cwidth / 4;
+    tsc->mval_delta[1] = (event->y - event->prevy) * st->lheight_dpi / 4;
+    tsc->is_first = false;
+    tsc->is_scrollbar = false;
     text_scroll_apply(C, op, event);
     scroll_exit(C, op);
     return OPERATOR_FINISHED;
@@ -2711,7 +2812,7 @@ static int text_scroll_bar_invoke(bContext *C, wmOperator *op, const wmEvent *ev
   ARegion *ar = CTX_wm_region(C);
   TextScroll *tsc;
   const int *mval = event->mval;
-  int zone = -1;
+  enum eScrollZone zone = SCROLLHANDLE_INVALID_OUTSIDE;
 
   if (RNA_struct_property_is_set(op->ptr, "lines")) {
     return text_scroll_exec(C, op);
@@ -2733,24 +2834,26 @@ static int text_scroll_bar_invoke(bContext *C, wmOperator *op, const wmEvent *ev
     }
   }
 
-  if (zone == -1) {
+  if (zone == SCROLLHANDLE_INVALID_OUTSIDE) {
     /* we are outside slider - nothing to do */
     return OPERATOR_PASS_THROUGH;
   }
 
   tsc = MEM_callocN(sizeof(TextScroll), "TextScroll");
-  tsc->first = 1;
-  tsc->scrollbar = 1;
+  tsc->is_first = true;
+  tsc->is_scrollbar = true;
   tsc->zone = zone;
   op->customdata = tsc;
   st->flags |= ST_SCROLL_SELECT;
 
+  text_scroll_state_init(tsc, st, ar);
+
   /* jump scroll, works in v2d but needs to be added here too :S */
   if (event->type == MIDDLEMOUSE) {
-    tsc->old[0] = ar->winrct.xmin + BLI_rcti_cent_x(&st->txtbar);
-    tsc->old[1] = ar->winrct.ymin + BLI_rcti_cent_y(&st->txtbar);
+    tsc->mval_prev[0] = ar->winrct.xmin + BLI_rcti_cent_x(&st->txtbar);
+    tsc->mval_prev[1] = ar->winrct.ymin + BLI_rcti_cent_y(&st->txtbar);
 
-    tsc->first = 0;
+    tsc->is_first = false;
     tsc->zone = SCROLLHANDLE_BAR;
     text_scroll_apply(C, op, event);
   }
@@ -2783,12 +2886,16 @@ void TEXT_OT_scroll_bar(wmOperatorType *ot)
       ot->srna, "lines", 1, INT_MIN, INT_MAX, "Lines", "Number of lines to scroll", -100, 100);
 }
 
-/******************* set selection operator **********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Set Selection Operator
+ * \{ */
 
 typedef struct SetSelection {
   int selecting;
   int selc, sell;
-  short old[2];
+  short mval_prev[2];
   wmTimer *timer; /* needed for scrolling when mouse at region bounds */
 } SetSelection;
 
@@ -3090,8 +3197,8 @@ static void text_cursor_set_apply(bContext *C, wmOperator *op, const wmEvent *ev
       text_scroll_to_cursor(st, ar, false);
       WM_event_add_notifier(C, NC_TEXT | ND_CURSOR, st->text);
 
-      ssel->old[0] = event->mval[0];
-      ssel->old[1] = event->mval[1];
+      ssel->mval_prev[0] = event->mval[0];
+      ssel->mval_prev[1] = event->mval[1];
     }
   }
 }
@@ -3116,7 +3223,7 @@ static void text_cursor_set_exit(bContext *C, wmOperator *op)
   MEM_freeN(ssel);
 }
 
-static int text_set_selection_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int text_selection_set_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceText *st = CTX_wm_space_text(C);
   SetSelection *ssel;
@@ -3127,10 +3234,9 @@ static int text_set_selection_invoke(bContext *C, wmOperator *op, const wmEvent 
 
   op->customdata = MEM_callocN(sizeof(SetSelection), "SetCursor");
   ssel = op->customdata;
-  ssel->selecting = RNA_boolean_get(op->ptr, "select");
 
-  ssel->old[0] = event->mval[0];
-  ssel->old[1] = event->mval[1];
+  ssel->mval_prev[0] = event->mval[0];
+  ssel->mval_prev[1] = event->mval[1];
 
   ssel->sell = txt_get_span(st->text->lines.first, st->text->sell);
   ssel->selc = st->text->selc;
@@ -3142,7 +3248,7 @@ static int text_set_selection_invoke(bContext *C, wmOperator *op, const wmEvent 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int text_set_selection_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int text_selection_set_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   switch (event->type) {
     case LEFTMOUSE:
@@ -3159,7 +3265,7 @@ static int text_set_selection_modal(bContext *C, wmOperator *op, const wmEvent *
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void text_set_selection_cancel(bContext *C, wmOperator *op)
+static void text_selection_set_cancel(bContext *C, wmOperator *op)
 {
   text_cursor_set_exit(C, op);
 }
@@ -3172,13 +3278,10 @@ void TEXT_OT_selection_set(wmOperatorType *ot)
   ot->description = "Set cursor selection";
 
   /* api callbacks */
-  ot->invoke = text_set_selection_invoke;
-  ot->modal = text_set_selection_modal;
-  ot->cancel = text_set_selection_cancel;
+  ot->invoke = text_selection_set_invoke;
+  ot->modal = text_selection_set_modal;
+  ot->cancel = text_selection_set_cancel;
   ot->poll = text_region_edit_poll;
-
-  /* properties */
-  RNA_def_boolean(ot->srna, "select", 0, "Select", "Set selection end rather than cursor");
 }
 
 /** \} */

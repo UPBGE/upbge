@@ -96,6 +96,9 @@
 
 #include "MEM_guardedalloc.h"
 
+/* Make preferences read-only, use versioning_userdef.c. */
+#define U (*((const UserDef *)&U))
+
 static bScreen *screen_parent_find(const bScreen *screen)
 {
   /* Can avoid lookup if screen state isn't maximized/full
@@ -3814,10 +3817,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 281, 3)) {
-    if (U.view_rotate_sensitivity_turntable == 0) {
-      U.view_rotate_sensitivity_turntable = DEG2RADF(0.4f);
-      U.view_rotate_sensitivity_trackball = 1.0f;
-    }
     for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
       for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
         for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
