@@ -99,6 +99,11 @@ if(WITH_GAMEENGINE_BPPLAYER)
   list(APPEND INC
     ../../../intern/spindle
   )
+
+  list(APPEND LIB
+    bf_intern_spindle
+  )
+
   add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
 endif()
 

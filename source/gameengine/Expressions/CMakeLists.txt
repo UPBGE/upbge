@@ -76,6 +76,9 @@ set(SRC
 	EXP_ListWrapper.h
 )
 
+set(LIB
+)
+
 if(WITH_PYTHON)
 	list(APPEND SRC
 		intern/PythonCallBack.cpp
@@ -84,4 +87,4 @@ if(WITH_PYTHON)
 	)
 endif()
 
-blender_add_lib(ge_logic_expressions "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(ge_expressions "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -106,22 +106,22 @@ set(BLENDER_SORTED_LIBS
 
   ge_player
   ge_launcher
-  ge_logic_ketsji
+  ge_ketsji
   ge_player
-  ge_logic_ketsji
+  ge_ketsji
   ge_converter
-  ge_logic_ketsji
-  ge_phys_bullet
-  ge_phys_dummy
-  ge_logic
+  ge_ketsji
+  ge_physics_bullet
+  ge_physics_dummy
+  ge_logic_bricks
   ge_device
   ge_rasterizer
-  ge_oglrasterizer
-  ge_logic_expressions
+  ge_rasterizer_opengl
+  ge_expressions
   ge_common
   ge_scenegraph
-  ge_logic_network
-  ge_videotex
+  ge_msg_network
+  ge_videotexture
 
   bf_editor_datafiles
 
@@ -221,18 +221,18 @@ set(BLENDER_SORTED_LIBS
   bf_physics
   bf_intern_rigidbody
   bf_blenloader
-  ge_blen_routines
+  ge_blender_routines
   bf_editor_datafiles
   ge_launcher
-  ge_blen_routines
+  ge_blender_routines
   ge_converter
-  ge_logic_ketsji
-  ge_phys_bullet
-  ge_phys_dummy
-  ge_logic
+  ge_ketsji
+  ge_physics_bullet
+  ge_physics_dummy
+  ge_logic_bricks
   ge_rasterizer
-  ge_oglrasterizer
-  ge_logic_expressions
+  ge_rasterizer_opengl
+  ge_expressions
   ge_scenegraph
   bf_ikplugin
   bf_intern_itasc
@@ -253,7 +253,7 @@ set(BLENDER_SORTED_LIBS
   bf_imbuf_dds
   bf_dna
   bf_blenloader
-  ge_videotex
+  ge_videotexture
   bf_blenfont
   bf_blentranslation
   bf_intern_audaspace

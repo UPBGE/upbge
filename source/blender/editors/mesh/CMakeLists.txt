@@ -81,14 +81,18 @@ set(LIB
 )
 
 if(WITH_GAMEENGINE)
-	add_definitions(-DWITH_GAMEENGINE)
-	list(APPEND INC
-		../../../../extern/recastnavigation
-	)
+  add_definitions(-DWITH_GAMEENGINE)
+  list(APPEND INC
+      ../../../../extern/recastnavigation
+  )
 
-	list(APPEND SRC
-		mesh_navmesh.c
-	)
+  list(APPEND SRC
+      mesh_navmesh.c
+  )
+
+  list(APPEND LIB
+      extern_recastnavigation
+  )
 endif()
 
 if(WITH_INTERNATIONAL)

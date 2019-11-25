@@ -45,6 +45,11 @@ set(SRC
 	KX_BlenderCanvas.h
 )
 
+set(LIB
+  ge_ketsji
+  ge_common
+)
+
 add_definitions(${GL_DEFINITIONS})
 
 if(WITH_AUDASPACE)
@@ -67,4 +72,4 @@ if(WITH_BULLET)
 endif()
 
 
-blender_add_lib(ge_blen_routines "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(ge_blender_routines "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

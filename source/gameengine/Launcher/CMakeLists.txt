@@ -74,6 +74,12 @@ set(SRC
 )
 
 set(LIB
+  bf_intern_moto
+  ge_expressions
+  ge_logic_bricks
+  ge_msg_network
+  ge_videotexture
+  ge_device
 )
 
 if(WITH_GAMEENGINE_SECURITY)

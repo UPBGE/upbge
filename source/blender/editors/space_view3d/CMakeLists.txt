@@ -87,11 +87,15 @@ endif()
 if(WITH_GAMEENGINE)
   list(APPEND LIB
     ge_launcher
+    ge_blender_routines
   )
-	list(APPEND INC
-		../../../gameengine/Launcher
-	)
-	add_definitions(-DWITH_GAMEENGINE)
+
+  list(APPEND INC
+    ../../../gameengine/Launcher
+    ../../../gameengine/BlenderRoutines
+  )
+
+  add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 add_definitions(${GL_DEFINITIONS})

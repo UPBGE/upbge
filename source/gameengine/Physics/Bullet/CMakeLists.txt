@@ -63,6 +63,9 @@ set(SRC
 	CcdPhysicsEnvironment.h
 )
 
+set(LIB
+)
+
 if(WITH_BULLET)
 	list(APPEND INC_SYS
 		${BULLET_INCLUDE_DIRS}
@@ -72,4 +75,4 @@ endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(ge_phys_bullet "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(ge_physics_bullet "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

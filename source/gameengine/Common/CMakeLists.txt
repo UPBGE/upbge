@@ -49,4 +49,7 @@ set(SRC
 	CM_Thread.h
 )
 
+set(LIB
+)
+
 blender_add_lib(ge_common "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

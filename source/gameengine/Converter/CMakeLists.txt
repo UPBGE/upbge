@@ -102,6 +102,11 @@ set(SRC
 	KX_LibLoadStatus.h
 )
 
+set(LIB
+  ge_physics_dummy
+  ge_physics_bullet
+)
+
 if(WITH_BULLET)
 	list(APPEND INC_SYS
 		${BULLET_INCLUDE_DIRS}

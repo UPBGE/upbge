@@ -52,4 +52,7 @@ set(SRC
 	SG_QList.h
 )
 
+set(LIB
+)
+
 blender_add_lib(ge_scenegraph "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

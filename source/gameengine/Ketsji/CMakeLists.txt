@@ -179,6 +179,11 @@ set(SRC
 	KX_CollisionContactPoints.h
 )
 
+set(LIB
+  ge_rasterizer
+  ge_converter
+)
+
 add_definitions(${GL_DEFINITIONS})
 
 if(WITH_IMAGE_DDS)
@@ -206,4 +211,4 @@ if(WITH_BULLET)
 	add_definitions(-DWITH_BULLET)
 endif()
 
-blender_add_lib(ge_logic_ketsji "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(ge_ketsji "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

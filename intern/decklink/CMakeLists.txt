@@ -55,4 +55,7 @@ if(UNIX AND NOT APPLE)
 	)
 endif()
 
+set(LIB
+)
+
 blender_add_lib(bf_intern_decklink "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
