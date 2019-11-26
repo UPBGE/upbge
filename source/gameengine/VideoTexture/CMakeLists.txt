@@ -106,9 +106,21 @@ set(SRC
 
 set(LIB
   ge_scenegraph
-  bf_intern_decklink
-  bf_intern_gpudirect
 )
+
+if(WITH_GAMEENGINE_DECKLINK)
+  add_definitions(-DWITH_GAMEENGINE_DECKLINK)
+
+  list(APPEND LIB
+    bf_intern_decklink
+  )
+endif()
+
+if(WIN32)
+    list(APPEND LIB
+      bf_intern_gpudirect
+    )
+endif()
 
 if(WITH_CODEC_FFMPEG)
 	list(APPEND INC_SYS
@@ -116,10 +128,6 @@ if(WITH_CODEC_FFMPEG)
 		${PTHREADS_INCLUDE_DIRS}
 	)
 	add_definitions(-DWITH_FFMPEG)
-endif()
-
-if(WITH_GAMEENGINE_DECKLINK)
-	add_definitions(-DWITH_GAMEENGINE_DECKLINK)
 endif()
 
 blender_add_lib(ge_videotexture "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
