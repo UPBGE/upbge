@@ -137,6 +137,7 @@ protected:
 	int m_taaSamplesBackup;
 	bool m_resetTaaSamples;
   Object *m_lastReplicatedParentObject;
+  Object *m_gameDefaultCamera;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -324,6 +325,7 @@ public:
   void SetLastReplicatedParentObject(Object *ob);
   Object *GetLastReplicatedParentObject();
   void ResetLastReplicatedParentObject();
+  Object *GetGameDefaultCamera();
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;

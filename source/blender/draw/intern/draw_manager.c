@@ -3165,7 +3165,6 @@ typedef struct GameViewPort {
 
 static GameViewPort game_viewport;
 static RegionView3D game_rv3d;
-static Object *game_default_camera = NULL;
 
 GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
@@ -3206,20 +3205,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 
   View3D v3d;
 
-  Object *obcam = NULL;
-  if (maincam) {
-    obcam = maincam;
-  }
-  else {
-    if (!game_default_camera) {
-      game_default_camera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
-      game_default_camera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
-      LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
-      BKE_collection_object_add(bmain, layer_collection->collection, game_default_camera);
-      DEG_relations_tag_update(G_MAIN);
-    }
-    obcam = game_default_camera;
-  }
+  Object *obcam = maincam;
 
   Camera *cam = (Camera *)obcam->data;
   v3d.camera = obcam;
@@ -3327,14 +3313,6 @@ void DRW_game_render_loop_end()
   eevee_game_view_layer_data_free();
   draw_engine_eevee_type.engine_free();
 
-  if (game_default_camera) {
-    LayerCollection *layer_collection = BKE_layer_collection_get_active(DST.draw_ctx.view_layer);
-    BKE_collection_object_remove(G_MAIN, layer_collection->collection, game_default_camera, true);
-    BKE_object_free(game_default_camera);
-    DEG_relations_tag_update(G_MAIN);
-    game_default_camera = NULL;
-  }
-
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
 
@@ -3359,10 +3337,4 @@ void DRW_opengl_context_create_blenderplayer(void)
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
 }
-
-Object *DRW_game_default_camera_get()
-{
-  return game_default_camera;
-}
-
 /***************************Enf of Game engine transition***************************/

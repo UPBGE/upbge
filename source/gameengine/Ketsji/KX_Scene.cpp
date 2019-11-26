@@ -109,6 +109,7 @@ extern "C" {
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
+#include "depsgraph/DEG_depsgraph_query.h"
 #include "DRW_render.h"
 #include "MEM_guardedalloc.h"
 
@@ -165,6 +166,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_2dfiltersDepthTex(nullptr),  // eevee
       m_resetTaaSamples(false),      // eevee
       m_lastReplicatedParentObject(nullptr),  // eevee
+      m_gameDefaultCamera(nullptr), // eevee
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -234,6 +236,17 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    * INTEGRATION***********************************************************/
   m_staticObjects = {};
 
+  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+
+  m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
+  m_gameDefaultCamera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
+  LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
+  BKE_collection_object_add(bmain, layer_collection->collection, m_gameDefaultCamera);
+  Base *defaultCamBase = BKE_view_layer_base_find(view_layer, m_gameDefaultCamera);
+  defaultCamBase->flag |= BASE_HIDDEN;
+  DEG_relations_tag_update(bmain);
+
   m_taaSamplesBackup = scene->eevee.taa_samples;
   scene->eevee.taa_samples = 0;
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
@@ -248,7 +261,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     RenderAfterCameraSetup(true);
   }
   else {
-    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Depsgraph *depsgraph = BKE_scene_get_depsgraph(
         KX_GetActiveEngine()->GetConverter()->GetMain(), scene, view_layer, false);
     if (!depsgraph) {
@@ -279,13 +291,20 @@ KX_Scene::~KX_Scene()
   Scene *scene = GetBlenderScene();
   RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
   ARegion *ar = canvas->GetARegion();
+  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || !ar) { // if no ar, we are in blenderplayer
     DRW_game_render_loop_end();
   }
 
+  LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
+  BKE_collection_object_remove(bmain, layer_collection->collection, m_gameDefaultCamera, true);
+  BKE_object_free(m_gameDefaultCamera);
+  m_gameDefaultCamera = nullptr;
+  DEG_relations_tag_update(bmain);
+
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
-    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, hiddenOb);
     base->flag &= ~BASE_HIDDEN;
     BKE_layer_collection_sync(scene, view_layer);
@@ -298,8 +317,6 @@ KX_Scene::~KX_Scene()
   scene->flag &= ~SCE_INTERACTIVE;
 
   // Flush depsgraph updates a last time at ge exit
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
@@ -394,6 +411,11 @@ void KX_Scene::ResetLastReplicatedParentObject()
   m_lastReplicatedParentObject = nullptr;
 }
 
+Object *KX_Scene::GetGameDefaultCamera()
+{
+  return m_gameDefaultCamera;
+}
+
 bool KX_Scene::ObjectsAreStatic()
 {
   return GetObjectList()->GetCount() == m_staticObjects.size();
@@ -425,7 +447,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Object *maincam = cam ? cam->GetBlenderObject() : nullptr;
+  Object *maincam = cam ? cam->GetBlenderObject() : m_gameDefaultCamera;
 
   const RAS_Rect *viewport = &canvas->GetViewportArea();
   int v[4] = {viewport->GetLeft(),
