@@ -53,7 +53,6 @@ set(LIB
   bf_render
   bf_rna
   bf_windowmanager
-  ge_launcher
 )
 
 add_definitions(${GL_DEFINITIONS})
@@ -105,6 +104,9 @@ if(WITH_GAMEENGINE)
 	blender_include_dirs(../gameengine/Launcher)
 
 	add_definitions(-DWITH_GAMEENGINE)
+  list(APPEND LIB
+    ge_launcher
+  )
 endif()
 
 if(WITH_SDL)
