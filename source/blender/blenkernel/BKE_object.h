@@ -354,11 +354,12 @@ bool BKE_object_shapekey_free(struct Main *bmain, struct Object *ob);
 bool BKE_object_flag_test_recursive(const struct Object *ob, short flag);
 
 bool BKE_object_is_child_recursive(const struct Object *ob_parent, const struct Object *ob_child);
-bool BKE_object_is_animated(struct Scene *scene, struct Object *ob);
 
 /* return ModifierMode flag */
 int BKE_object_is_modified(struct Scene *scene, struct Object *ob);
 int BKE_object_is_deform_modified(struct Scene *scene, struct Object *ob);
+
+bool BKE_object_moves_in_time(const struct Object *object, bool recurse_parent);
 
 int BKE_object_scenes_users_get(struct Main *bmain, struct Object *ob);
 

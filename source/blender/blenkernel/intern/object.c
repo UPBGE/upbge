@@ -3860,24 +3860,24 @@ int BKE_object_is_modified(Scene *scene, Object *ob)
  * speed. In combination with checks of modifier stack and real life usage
  * percentage of false-positives shouldn't be that height.
  */
-static bool object_moves_in_time(Object *object)
+bool BKE_object_moves_in_time(const Object *object, bool recurse_parent)
 {
-  AnimData *adt = object->adt;
-  if (adt != NULL) {
-    /* If object has any sort of animation data assume it is moving. */
-    if (adt->action != NULL || !BLI_listbase_is_empty(&adt->nla_tracks) ||
-        !BLI_listbase_is_empty(&adt->drivers) || !BLI_listbase_is_empty(&adt->overrides)) {
-      return true;
-    }
+  /* If object has any sort of animation data assume it is moving. */
+  if (BKE_animdata_id_is_animated(&object->id)) {
+    return true;
   }
   if (!BLI_listbase_is_empty(&object->constraints)) {
     return true;
   }
-  if (object->parent != NULL) {
-    /* TODO(sergey): Do recursive check here? */
-    return true;
+  if (recurse_parent && object->parent != NULL) {
+    return BKE_object_moves_in_time(object->parent, true);
   }
   return false;
+}
+
+static bool object_moves_in_time(const Object *object)
+{
+  return BKE_object_moves_in_time(object, true);
 }
 
 static bool object_deforms_in_time(Object *object)
@@ -3923,7 +3923,7 @@ static bool constructive_modifier_is_deform_modified(ModifierData *md)
   return false;
 }
 
-static bool modifiers_has_animation_check(Object *ob)
+static bool modifiers_has_animation_check(const Object *ob)
 {
   /* TODO(sergey): This is a bit code duplication with depsgraph, but
    * would be nicer to solve this as a part of new dependency graph
@@ -3993,21 +3993,6 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
   }
 
   return flag;
-}
-
-/* See if an object is using an animated modifier */
-bool BKE_object_is_animated(Scene *scene, Object *ob)
-{
-  ModifierData *md;
-  VirtualModifierData virtualModifierData;
-
-  for (md = modifiers_getVirtualModifierList(ob, &virtualModifierData); md; md = md->next) {
-    if (modifier_dependsOnTime(md) && (modifier_isEnabled(scene, md, eModifierMode_Realtime) ||
-                                       modifier_isEnabled(scene, md, eModifierMode_Render))) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /** Return the number of scenes using (instantiating) that object in their collections. */
