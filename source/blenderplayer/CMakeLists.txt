@@ -43,7 +43,7 @@ if(WIN32 AND NOT UNIX)
 			blenderplayer ${EXETYPE}
 			bad_level_call_stubs/stubs.c
 			${CMAKE_SOURCE_DIR}/release/windows/icons/winblender.rc)
-	WINDOWS_SIGN_TARGET(blenderplayer)
+	#WINDOWS_SIGN_TARGET(blenderplayer) removed in b213d82c19c5b677df699debc683b57349185714
 	install(TARGETS blenderplayer
 			COMPONENT Blenderplayer
 			DESTINATION ".")
