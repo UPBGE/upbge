@@ -483,13 +483,23 @@ typedef struct ImageFormatData {
 #define R_IMF_FLAG_PREVIEW_JPG (1 << 1) /* was R_PREVIEW_JPG */
 
 /* return values from BKE_imtype_valid_depths, note this is depts per channel */
-#define R_IMF_CHAN_DEPTH_1 (1 << 0)  /* 1bits  (unused) */
-#define R_IMF_CHAN_DEPTH_8 (1 << 1)  /* 8bits  (default) */
-#define R_IMF_CHAN_DEPTH_10 (1 << 2) /* 10bits (uncommon, Cineon/DPX support) */
-#define R_IMF_CHAN_DEPTH_12 (1 << 3) /* 12bits (uncommon, jp2/DPX support) */
-#define R_IMF_CHAN_DEPTH_16 (1 << 4) /* 16bits (tiff, halff float exr) */
-#define R_IMF_CHAN_DEPTH_24 (1 << 5) /* 24bits (unused) */
-#define R_IMF_CHAN_DEPTH_32 (1 << 6) /* 32bits (full float exr) */
+/* ImageFormatData.depth */
+typedef enum eImageFormatDepth {
+  /* 1bits  (unused) */
+  R_IMF_CHAN_DEPTH_1 = (1 << 0),
+  /* 8bits  (default) */
+  R_IMF_CHAN_DEPTH_8 = (1 << 1),
+  /* 10bits (uncommon, Cineon/DPX support) */
+  R_IMF_CHAN_DEPTH_10 = (1 << 2),
+  /* 12bits (uncommon, jp2/DPX support) */
+  R_IMF_CHAN_DEPTH_12 = (1 << 3),
+  /* 16bits (tiff, half float exr) */
+  R_IMF_CHAN_DEPTH_16 = (1 << 4),
+  /* 24bits (unused) */
+  R_IMF_CHAN_DEPTH_24 = (1 << 5),
+  /* 32bits (full float exr) */
+  R_IMF_CHAN_DEPTH_32 = (1 << 6),
+} eImageFormatDepth;
 
 /* ImageFormatData.planes */
 #define R_IMF_PLANES_RGB 24
@@ -1438,14 +1448,11 @@ typedef enum {
   UNIFIED_PAINT_WEIGHT = (1 << 5),
   UNIFIED_PAINT_COLOR = (1 << 6),
 
-  /* only used if unified size is enabled, mirrors the brush flags
-   * BRUSH_LOCK_SIZE and BRUSH_SIZE_PRESSURE */
+  /* only used if unified size is enabled, mirrors the brush flag BRUSH_LOCK_SIZE */
   UNIFIED_PAINT_BRUSH_LOCK_SIZE = (1 << 2),
-  UNIFIED_PAINT_BRUSH_SIZE_PRESSURE = (1 << 3),
+  UNIFIED_PAINT_FLAG_UNUSED_0 = (1 << 3),
 
-  /* only used if unified alpha is enabled, mirrors the brush flag
-   * BRUSH_ALPHA_PRESSURE */
-  UNIFIED_PAINT_BRUSH_ALPHA_PRESSURE = (1 << 4),
+  UNIFIED_PAINT_FLAG_UNUSED_1 = (1 << 4),
 } eUnifiedPaintSettingsFlags;
 
 typedef struct CurvePaintSettings {

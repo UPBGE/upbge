@@ -931,7 +931,9 @@ void BKE_brush_sculpt_reset(Brush *br)
       br->alpha = 1.0f;
       break;
     case SCULPT_TOOL_CLAY:
-      br->spacing = 6;
+      br->flag |= BRUSH_SIZE_PRESSURE;
+      br->spacing = 3;
+      br->autosmooth_factor = 0.25f;
       br->normal_radius_factor = 0.75f;
       break;
     case SCULPT_TOOL_CLAY_STRIPS:
@@ -1069,18 +1071,19 @@ void BKE_brush_sculpt_reset(Brush *br)
  */
 void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
 {
-  CurveMap *cm = NULL;
+  CurveMapping *cumap = NULL;
+  CurveMap *cuma = NULL;
 
   if (!b->curve) {
     b->curve = BKE_curvemapping_add(1, 0, 0, 1, 1);
   }
+  cumap = b->curve;
+  cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
+  cumap->preset = preset;
 
-  cm = b->curve->cm;
-  cm->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
-
-  b->curve->preset = preset;
-  BKE_curvemap_reset(cm, &b->curve->clipr, b->curve->preset, CURVEMAP_SLOPE_NEGATIVE);
-  BKE_curvemapping_changed(b->curve, false);
+  cuma = b->curve->cm;
+  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_NEGATIVE);
+  BKE_curvemapping_changed(cumap, false);
 }
 
 /* Generic texture sampler for 3D painting systems. point has to be either in
@@ -1398,20 +1401,14 @@ bool BKE_brush_use_locked_size(const Scene *scene, const Brush *brush)
                                           (brush->flag & BRUSH_LOCK_SIZE);
 }
 
-bool BKE_brush_use_size_pressure(const Scene *scene, const Brush *brush)
+bool BKE_brush_use_size_pressure(const Brush *brush)
 {
-  const short us_flag = scene->toolsettings->unified_paint_settings.flag;
-
-  return (us_flag & UNIFIED_PAINT_SIZE) ? (us_flag & UNIFIED_PAINT_BRUSH_SIZE_PRESSURE) :
-                                          (brush->flag & BRUSH_SIZE_PRESSURE);
+  return brush->flag & BRUSH_SIZE_PRESSURE;
 }
 
-bool BKE_brush_use_alpha_pressure(const Scene *scene, const Brush *brush)
+bool BKE_brush_use_alpha_pressure(const Brush *brush)
 {
-  const short us_flag = scene->toolsettings->unified_paint_settings.flag;
-
-  return (us_flag & UNIFIED_PAINT_ALPHA) ? (us_flag & UNIFIED_PAINT_BRUSH_ALPHA_PRESSURE) :
-                                           (brush->flag & BRUSH_ALPHA_PRESSURE);
+  return brush->flag & BRUSH_ALPHA_PRESSURE;
 }
 
 bool BKE_brush_sculpt_has_secondary_color(const Brush *brush)

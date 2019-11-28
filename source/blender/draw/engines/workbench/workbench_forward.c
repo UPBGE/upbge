@@ -22,8 +22,6 @@
 
 #include "workbench_private.h"
 
-#include "BIF_gl.h"
-
 #include "BLI_alloca.h"
 #include "BLI_dynstr.h"
 #include "BLI_string_utils.h"
@@ -337,8 +335,6 @@ void workbench_forward_engine_init(WORKBENCH_Data *vedata)
   }
   WORKBENCH_PrivateData *wpd = stl->g_data;
   workbench_private_data_init(wpd);
-  float light_direction[3];
-  workbench_private_data_get_light_direction(wpd, light_direction);
 
   if (!e_data.checker_depth_sh) {
     e_data.checker_depth_sh = DRW_shader_create_fullscreen(
