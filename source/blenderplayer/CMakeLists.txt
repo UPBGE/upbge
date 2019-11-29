@@ -130,7 +130,7 @@ if(WITH_PYTHON_MODULE)
   #
   # note that 'SHARED' works on Linux and Windows,
   # but not OSX which _must_ be 'MODULE'
-  add_library(blender MODULE ${SRC})
+  add_library(blenderplayer MODULE ${SRC})
   set_target_properties(
     blenderplayer
     PROPERTIES
@@ -142,7 +142,7 @@ if(WITH_PYTHON_MODULE)
 
   if(APPLE)
     set_target_properties(
-      blender
+      blenderplayer
       PROPERTIES
         MACOSX_BUNDLE TRUE
         LINK_FLAGS_RELEASE "${PLATFORM_LINKFLAGS}"
