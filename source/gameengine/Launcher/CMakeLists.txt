@@ -81,6 +81,7 @@ set(LIB
   ge_videotexture
   ge_device
   ge_blender_routines
+  ge_player
 )
 
 if(WITH_GAMEENGINE_SECURITY)

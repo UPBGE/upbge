@@ -38,6 +38,7 @@ set(INC
 	../../blender/makesrna
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
+        ../../creator
 )
 
 set(INC_SYS
@@ -48,22 +49,6 @@ set(INC_SYS
 set(SRC
 	stubs.c
 )
-
-if(WITH_BUILDINFO)
-	list(APPEND SRC
-		../../creator/buildinfo.c
-	)
-	add_definitions(-DBUILD_DATE="\"\""
-					-DBUILD_TIME="\"\""
-					-DBUILD_COMMIT_TIMESTAMP=0
-					-DBUILD_COMMIT_DATE="\"\""
-					-DBUILD_COMMIT_TIME="\"\""
-					-DBUILD_HASH="\"\""
-					-DBUILD_PLATFORM="\"\""
-					-DBUILD_BRANCH="\"\""
-					-DBUILD_TYPE="\"\""
-					)
-endif()
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
