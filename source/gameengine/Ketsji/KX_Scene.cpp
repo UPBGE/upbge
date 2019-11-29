@@ -513,7 +513,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
                                               calledFromConstructor,
                                               reset_taa_samples);
 
-  RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(r));
+  RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
 
   if (!m_2dfiltersDepthTex) {
