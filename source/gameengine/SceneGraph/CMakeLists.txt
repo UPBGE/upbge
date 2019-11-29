@@ -53,6 +53,7 @@ set(SRC
 )
 
 set(LIB
+  ge_common
 )
 
 blender_add_lib(ge_scenegraph "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

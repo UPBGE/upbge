@@ -175,6 +175,7 @@ set(SRC
 )
 
 set(LIB
+  ge_expressions
 )
 
 if(WITH_AUDASPACE)

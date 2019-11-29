@@ -180,8 +180,14 @@ set(SRC
 )
 
 set(LIB
-  ge_rasterizer
   ge_converter
+  ge_logic_bricks
+  ge_scenegraph
+  ge_msg_network
+  ge_device
+  extern_recastnavigation
+  bf_blenkernel
+  ge_rasterizer
 )
 
 add_definitions(${GL_DEFINITIONS})
@@ -209,6 +215,10 @@ if(WITH_BULLET)
 		${BULLET_INCLUDE_DIRS}
 	)
 	add_definitions(-DWITH_BULLET)
+endif()
+
+if(WITH_GAMEENGINE)
+    add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 blender_add_lib(ge_ketsji "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

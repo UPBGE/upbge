@@ -69,4 +69,7 @@ set(SRC
 	Recast/Include/RecastAssert.h
 )
 
+set(LIB
+)
+
 blender_add_lib(extern_recastnavigation "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -48,6 +48,7 @@ set(SRC
 set(LIB
   ge_ketsji
   ge_common
+  ge_launcher
 )
 
 add_definitions(${GL_DEFINITIONS})

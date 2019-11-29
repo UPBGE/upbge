@@ -444,13 +444,13 @@ SG_Controller *BL_CreateMaterialIpo(
 		ipocontr->m_rgba[0]	= blendermaterial->r;
 		ipocontr->m_rgba[1]	= blendermaterial->g;
 		ipocontr->m_rgba[2]	= blendermaterial->b;
-		ipocontr->m_rgba[3]	= blendermaterial->alpha;
+        ipocontr->m_rgba[3]	= 1.0f;//blendermaterial->alpha;
 
 		ipocontr->m_specrgb[0]	= blendermaterial->specr;
 		ipocontr->m_specrgb[1]	= blendermaterial->specg;
 		ipocontr->m_specrgb[2]	= blendermaterial->specb;
 		ipocontr->m_spec		= blendermaterial->spec;
-		ipocontr->m_alpha		= blendermaterial->alpha;
+        ipocontr->m_alpha		= 1.0f;//blendermaterial->alpha;
 	}
 
 	return ipocontr;

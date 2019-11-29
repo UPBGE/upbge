@@ -105,6 +105,9 @@ set(SRC
 set(LIB
   ge_physics_dummy
   ge_physics_bullet
+  ge_ketsji
+  ge_rasterizer
+
 )
 
 if(WITH_BULLET)

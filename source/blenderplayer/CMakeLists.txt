@@ -28,6 +28,10 @@
 setup_libdirs()
 
 
+if(WITH_PLAYER)
+        add_subdirectory(bad_level_call_stubs)
+endif()
+
 list(APPEND LIB
   ge_player
   blenkernel_blc
@@ -92,9 +96,5 @@ add_dependencies(blenderplayer makesdna)
 
 target_link_libraries(blenderplayer ${LIB})
 unset(LIB)
-
-if(WITH_PLAYER)
-	add_subdirectory(bad_level_call_stubs)
-endif()
 
 setup_liblinks(blenderplayer)

@@ -80,6 +80,7 @@ set(LIB
   ge_msg_network
   ge_videotexture
   ge_device
+  ge_blender_routines
 )
 
 if(WITH_GAMEENGINE_SECURITY)

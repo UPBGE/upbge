@@ -71,6 +71,9 @@ if(WITH_BULLET)
 		${BULLET_INCLUDE_DIRS}
 	)
 	add_definitions(-DWITH_BULLET)
+        list(APPEND LIB
+          extern_bullet
+        )
 endif()
 
 add_definitions(${GL_DEFINITIONS})
