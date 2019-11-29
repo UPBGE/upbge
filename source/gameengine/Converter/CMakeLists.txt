@@ -82,7 +82,7 @@ set(SRC
 	KX_ConvertControllers.cpp
 	KX_ConvertProperties.cpp
 	KX_ConvertSensors.cpp
-	KX_IpoConvert.cpp
+        #KX_IpoConvert.cpp (everything inside KX_IpoConvert.h)
 	KX_LibLoadStatus.cpp
 
 	BL_ActionActuator.h

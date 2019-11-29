@@ -32,7 +32,7 @@
 #ifndef __KX_IPOCONVERT_H__
 #define __KX_IPOCONVERT_H__
 
-/** \file gameengine/Converter/KX_IpoConvert.cpp
+/** \file gameengine/Converter/KX_IpoConvert.h
  *  \ingroup bgeconv
  */
 
@@ -73,6 +73,15 @@
 
 #include "SG_Node.h"
 
+/* Prototypes (No .cpp for this file due to linking issues) */
+SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_Scene *scene);
+SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject* gameobj, KX_Scene *scene);
+SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj, KX_Scene *scene);
+SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject*  cameraobj, KX_Scene *scene);
+SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, KX_Scene *scene );
+SG_Controller *BL_CreateMaterialIpo(struct bAction *action, RAS_IPolyMaterial *polymat, KX_GameObject* gameobj, KX_Scene *scene);
+
+/* Definitions */
 static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 {
     KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
