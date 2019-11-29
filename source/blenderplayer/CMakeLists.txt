@@ -27,14 +27,8 @@
 
 setup_libdirs()
 
-
-if(WITH_PLAYER)
-        add_subdirectory(bad_level_call_stubs)
-endif()
-
 list(APPEND LIB
   ge_player
-  blenkernel_blc
   bf_intern_guardedalloc
   bf_blenlib
   bf_intern_memutil
