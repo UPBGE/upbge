@@ -29,7 +29,6 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
-//#include "BLI_sort.h"
 #include "BLI_math_vector.h"
 #include "KX_NavMeshObject.h"
 #include "RAS_MeshObject.h"
