@@ -101,18 +101,16 @@ if(WITH_HEADLESS)
 endif()
 
 if(WITH_GAMEENGINE)
-        blender_include_dirs(../gameengine/Converter)
-	blender_include_dirs(../gameengine/Launcher)
-        blender_include_dirs(../gameengine/Ketsji)
-        blender_include_dirs(../gameengine/SceneGraph)
+  blender_include_dirs(../gameengine/Converter)
+  blender_include_dirs(../gameengine/Ketsji)
+  blender_include_dirs(../gameengine/Launcher)
 
-	add_definitions(-DWITH_GAMEENGINE)
+  add_definitions(-DWITH_GAMEENGINE)
+
   list(APPEND LIB
     ge_launcher
     ge_converter
     ge_ketsji
-    ge_converter
-    ge_scenegraph
   )
 endif()
 
