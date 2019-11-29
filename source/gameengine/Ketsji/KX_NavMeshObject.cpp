@@ -47,6 +47,8 @@ extern "C" {
 #include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_layer.h"
+
+#include "BLI_sort.h"
 }
 
 #include "KX_BlenderConverter.h"
@@ -391,7 +393,7 @@ static int buildNavMeshData(const int nverts, const float *verts,
         trisMapping[i] = i;
     context.recastData = recastData;
     context.trisToFacesMap = trisToFacesMap;
-    qsort_r(trisMapping, ntris, sizeof(int), compareByData, &context);
+    BLI_qsort_r(trisMapping, ntris, sizeof(int), compareByData, &context);
 
     /* search first valid triangle - triangle of convex polygon */
     validTriStart = -1;
