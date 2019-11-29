@@ -561,57 +561,34 @@ BLI_INLINE void bmesh_quick_edgedraw_flag(MEdge *med, BMEdge *e)
  */
 void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *me, const struct BMeshToMeshParams *params)
 {
-  MLoop *mloop;
-  MPoly *mpoly;
-  MVert *mvert, *oldverts;
-  MEdge *med, *medge;
+  MEdge *med;
   BMVert *v, *eve;
   BMEdge *e;
   BMFace *f;
   BMIter iter;
-  int i, j, ototvert;
+  int i, j;
 
   const int cd_vert_bweight_offset = CustomData_get_offset(&bm->vdata, CD_BWEIGHT);
   const int cd_edge_bweight_offset = CustomData_get_offset(&bm->edata, CD_BWEIGHT);
   const int cd_edge_crease_offset = CustomData_get_offset(&bm->edata, CD_CREASE);
+  const int cd_shape_keyindex_offset = CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX);
 
-  ototvert = me->totvert;
+  MVert *oldverts = NULL;
+  const int ototvert = me->totvert;
 
-  /* New vertex block. */
-  if (bm->totvert == 0) {
-    mvert = NULL;
-  }
-  else {
-    mvert = MEM_callocN(bm->totvert * sizeof(MVert), "loadeditbMesh vert");
-  }
+  if (me->key && (cd_shape_keyindex_offset != -1)) {
+    /* Keep the old verts in case we are working on* a key, which is done at the end. */
 
-  /* New edge block. */
-  if (bm->totedge == 0) {
-    medge = NULL;
-  }
-  else {
-    medge = MEM_callocN(bm->totedge * sizeof(MEdge), "loadeditbMesh edge");
-  }
-
-  /* New ngon face block. */
-  if (bm->totface == 0) {
-    mpoly = NULL;
-  }
-  else {
-    mpoly = MEM_callocN(bm->totface * sizeof(MPoly), "loadeditbMesh poly");
-  }
-
-  /* New loop block. */
-  if (bm->totloop == 0) {
-    mloop = NULL;
-  }
-  else {
-    mloop = MEM_callocN(bm->totloop * sizeof(MLoop), "loadeditbMesh loop");
-  }
-
-  /* Lets save the old verts just in case we are actually working on
-   * a key ... we now do processing of the keys at the end. */
+    /* Use the array in-place instead of duplicating the array. */
+#if 0
   oldverts = MEM_dupallocN(me->mvert);
+#else
+    oldverts = me->mvert;
+    me->mvert = NULL;
+    CustomData_update_typemap(&me->vdata);
+    CustomData_set_layer(&me->vdata, CD_MVERT, NULL);
+#endif
+  }
 
   /* Free custom data. */
   CustomData_free(&me->vdata, me->totvert);
@@ -638,6 +615,11 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *me, const struct BMeshToMesh
     CustomData_copy(&bm->ldata, &me->ldata, mask.lmask, CD_CALLOC, me->totloop);
     CustomData_copy(&bm->pdata, &me->pdata, mask.pmask, CD_CALLOC, me->totpoly);
   }
+
+  MVert *mvert = bm->totvert ? MEM_callocN(sizeof(MVert) * bm->totvert, "bm_to_me.vert") : NULL;
+  MEdge *medge = bm->totedge ? MEM_callocN(sizeof(MEdge) * bm->totedge, "bm_to_me.edge") : NULL;
+  MLoop *mloop = bm->totloop ? MEM_callocN(sizeof(MLoop) * bm->totloop, "bm_to_me.loop") : NULL;
+  MPoly *mpoly = bm->totface ? MEM_callocN(sizeof(MPoly) * bm->totface, "bm_to_me.poly") : NULL;
 
   CustomData_add_layer(&me->vdata, CD_MVERT, CD_ASSIGN, mvert, me->totvert);
   CustomData_add_layer(&me->edata, CD_MEDGE, CD_ASSIGN, medge, me->totedge);
@@ -831,8 +813,6 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *me, const struct BMeshToMesh
   /* See comment below, this logic is in twice. */
 
   if (me->key) {
-    const int cd_shape_keyindex_offset = CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX);
-
     KeyBlock *currkey;
     KeyBlock *actkey = BLI_findlink(&me->key->block, bm->shapenr - 1);
 
@@ -869,12 +849,15 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *me, const struct BMeshToMesh
         (actkey != NULL) &&
 
         /* Not used here, but 'oldverts' is used later for applying 'ofs'. */
-        (oldverts != NULL)) {
+        (oldverts != NULL) &&
+
+        /* Needed for referencing oldverts. */
+        (cd_shape_keyindex_offset != -1)) {
 
       const bool act_is_basis = BKE_keyblock_is_basis(me->key, bm->shapenr - 1);
 
       /* Active key is a base. */
-      if (act_is_basis && (cd_shape_keyindex_offset != -1)) {
+      if (act_is_basis) {
         const float(*fp)[3] = actkey->data;
 
         ofs = MEM_callocN(sizeof(float) * 3 * bm->totvert, "currkey->data");
@@ -972,14 +955,15 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *me, const struct BMeshToMesh
     if (ofs) {
       MEM_freeN(ofs);
     }
+  }
 
-    if (params->update_shapekey_indices) {
-      /* We have written a new shape key, if this mesh is _not_ going to be freed,
-       * update the shape key indices to match the newly updated. */
-      if (cd_shape_keyindex_offset != -1) {
-        BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, i) {
-          BM_ELEM_CD_SET_INT(eve, cd_shape_keyindex_offset, i);
-        }
+  /* Run this even when shape keys aren't used since it may be used for hooks or vertex parents. */
+  if (params->update_shapekey_indices) {
+    /* We have written a new shape key, if this mesh is _not_ going to be freed,
+     * update the shape key indices to match the newly updated. */
+    if (cd_shape_keyindex_offset != -1) {
+      BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, i) {
+        BM_ELEM_CD_SET_INT(eve, cd_shape_keyindex_offset, i);
       }
     }
   }
