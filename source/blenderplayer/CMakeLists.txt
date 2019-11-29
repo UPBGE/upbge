@@ -90,7 +90,7 @@ if(WITH_BUILDINFO)
   endif()
 
   # a custom target that is always built
-  add_custom_target(buildinfoo ALL
+  add_custom_target(buildinfo_player ALL
     DEPENDS ${buildinfo_h_fake})
 
   # creates buildinfo.h using cmake script
@@ -122,8 +122,8 @@ if(WITH_BUILDINFO)
   )
 
   # make an object library so can load with it in tests
-  add_library(buildinfooobj OBJECT ../creator/buildinfo.c)
-  add_dependencies(buildinfooobj buildinfoo)
+  add_library(buildinfoobj_player OBJECT ../creator/buildinfo.c)
+  add_dependencies(buildinfoobj_player buildinfo_player)
 endif()
 
 add_cc_flags_custom_test(blenderplayer)
@@ -172,7 +172,7 @@ endif()
 
 if(WITH_BUILDINFO)
   # explicitly say that the executable depends on the buildinfo
-  add_dependencies(blenderplayer buildinfoo)
+  add_dependencies(blenderplayer buildinfo_player)
 endif()
 
 add_dependencies(blenderplayer makesdna)
