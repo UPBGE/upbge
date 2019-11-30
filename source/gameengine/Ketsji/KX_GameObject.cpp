@@ -3276,10 +3276,15 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v,
   if (!PyVecTo(value, obcolor))
     return PY_SET_ATTR_FAIL;
   Object *ob = self->GetBlenderObject();
-  if (ob && ob->type == OB_MESH) {
+  if (ob && ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
     copy_v4_v4(ob->color, obcolor.getValue());
-    //DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-    self->UseCopy();
+    if (!self->IsStatic()) {
+      self->UseCopy();
+    }
+    else {
+      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+      self->GetScene()->ResetTaaSamples();
+    }
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
     return PY_SET_ATTR_SUCCESS;
   }
