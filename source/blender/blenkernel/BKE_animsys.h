@@ -24,6 +24,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct AnimData;
 struct Depsgraph;
 struct FCurve;
@@ -33,6 +37,7 @@ struct KeyingSet;
 struct ListBase;
 struct Main;
 struct NlaKeyframingContext;
+struct PathResolvedRNA;
 struct PointerRNA;
 struct PropertyRNA;
 struct ReportList;
@@ -244,6 +249,9 @@ typedef enum eAnimData_Recalc {
   ADT_RECALC_ALL = (ADT_RECALC_DRIVERS | ADT_RECALC_ANIM),
 } eAnimData_Recalc;
 
+bool BKE_animsys_read_rna_setting(struct PathResolvedRNA *anim_rna, float *r_value);
+bool BKE_animsys_write_rna_setting(struct PathResolvedRNA *anim_rna, const float value);
+
 /* Evaluation loop for evaluating animation data  */
 void BKE_animsys_evaluate_animdata(struct Scene *scene,
                                    struct ID *id,
@@ -257,9 +265,6 @@ void BKE_animsys_evaluate_all_animation(struct Main *main,
                                         struct Depsgraph *depsgraph,
                                         struct Scene *scene,
                                         float ctime);
-
-/* TODO(sergey): This is mainly a temp public function. */
-bool BKE_animsys_execute_fcurve(struct PointerRNA *ptr, struct FCurve *fcu, float curval);
 
 /* ------------ Specialized API --------------- */
 /* There are a few special tools which require these following functions. They are NOT to be used
@@ -296,5 +301,9 @@ void BKE_animsys_eval_driver(struct Depsgraph *depsgraph,
 void BKE_animsys_update_driver_array(struct ID *id);
 
 /* ************************************* */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BKE_ANIMSYS_H__*/

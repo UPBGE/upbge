@@ -3496,19 +3496,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_ATLEAST(bmain, 280, 45)) {
-    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
-      for (ScrArea *area = screen->areabase.first; area; area = area->next) {
-        for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
-          if (sl->spacetype == SPACE_SEQ) {
-            SpaceSeq *sseq = (SpaceSeq *)sl;
-            sseq->flag |= SEQ_SHOW_MARKER_LINES;
-          }
-        }
-      }
-    }
-  }
-
   if (!MAIN_VERSION_ATLEAST(bmain, 280, 46)) {
     /* Add wireframe color. */
     if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "char", "wire_color_type")) {
@@ -4324,9 +4311,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  {
-    /* Versioning code until next subversion bump goes here. */
-
+  if (!MAIN_VERSION_ATLEAST(bmain, 282, 3)) {
     /* Remove Unified pressure/size and pressure/alpha */
     for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
       ToolSettings *ts = scene->toolsettings;
@@ -4351,5 +4336,39 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         }
       }
     }
+
+    /* Make markers region visible by default. */
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      for (ScrArea *area = screen->areabase.first; area; area = area->next) {
+        for (SpaceLink *sl = area->spacedata.first; sl; sl = sl->next) {
+          switch (sl->spacetype) {
+            case SPACE_SEQ: {
+              SpaceSeq *sseq = (SpaceSeq *)sl;
+              sseq->flag |= SEQ_SHOW_MARKERS;
+              break;
+            }
+            case SPACE_ACTION: {
+              SpaceAction *saction = (SpaceAction *)sl;
+              saction->flag |= SACTION_SHOW_MARKERS;
+              break;
+            }
+            case SPACE_GRAPH: {
+              SpaceGraph *sipo = (SpaceGraph *)sl;
+              sipo->flag |= SIPO_SHOW_MARKERS;
+              break;
+            }
+            case SPACE_NLA: {
+              SpaceNla *snla = (SpaceNla *)sl;
+              snla->flag |= SNLA_SHOW_MARKERS;
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  {
+    /* Versioning code until next subversion bump goes here. */
   }
 }

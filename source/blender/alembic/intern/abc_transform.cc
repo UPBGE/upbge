@@ -27,6 +27,7 @@
 extern "C" {
 #include "DNA_object_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 
 #include "BKE_animsys.h"
@@ -131,9 +132,9 @@ Imath::Box3d AbcTransformWriter::bounds()
   return Imath::transform(bounds, m_matrix);
 }
 
-bool AbcTransformWriter::hasAnimation(Object *ob) const
+bool AbcTransformWriter::hasAnimation(Object * /*ob*/) const
 {
-  return BKE_animdata_id_is_animated(&ob->id);
+  return true;
 }
 
 /* ************************************************************************** */

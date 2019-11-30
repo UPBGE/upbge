@@ -1409,20 +1409,24 @@ class USERPREF_PT_saveload_file_browser(PreferencePanel, Panel):
         flow.prop(paths, "hide_system_bookmarks")
 
 
-class USERPREF_MT_ndof_settings(Menu):
-    # accessed from the window key-bindings in C (only)
+class USERPREF_PT_ndof_settings(Panel):
     bl_label = "3D Mouse Settings"
+    bl_space_type = 'TOPBAR'  # dummy.
+    bl_region_type = 'HEADER'
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
 
         input_prefs = context.preferences.inputs
 
         is_view3d = context.space_data.type == 'VIEW_3D'
 
-        layout.prop(input_prefs, "ndof_sensitivity")
-        layout.prop(input_prefs, "ndof_orbit_sensitivity")
-        layout.prop(input_prefs, "ndof_deadzone")
+        col = layout.column(align=True)
+        col.prop(input_prefs, "ndof_sensitivity")
+        col.prop(input_prefs, "ndof_orbit_sensitivity")
+        col.prop(input_prefs, "ndof_deadzone")
 
         if is_view3d:
             layout.separator()
@@ -1430,20 +1434,39 @@ class USERPREF_MT_ndof_settings(Menu):
 
             layout.separator()
             layout.label(text="Orbit Style")
-            layout.row().prop(input_prefs, "ndof_view_navigate_method", text="")
-            layout.row().prop(input_prefs, "ndof_view_rotate_method", text="")
+            layout.row().prop(input_prefs, "ndof_view_navigate_method", text="Navigate")
+            layout.row().prop(input_prefs, "ndof_view_rotate_method", text="Orbit")
             layout.separator()
+
             layout.label(text="Orbit Options")
-            layout.prop(input_prefs, "ndof_rotx_invert_axis")
-            layout.prop(input_prefs, "ndof_roty_invert_axis")
-            layout.prop(input_prefs, "ndof_rotz_invert_axis")
+            split = layout.split(factor=0.6)
+            row = split.row()
+            row.alignment = 'RIGHT'
+            row.label(text="Invert Axis")
+            row = split.row(align=True)
+            for text, attr in (
+                    ("X", "ndof_rotx_invert_axis"),
+                    ("Y", "ndof_roty_invert_axis"),
+                    ("Z", "ndof_rotz_invert_axis"),
+            ):
+                row.prop(input_prefs, attr, text=text, toggle=True)
 
         # view2d use pan/zoom
         layout.separator()
         layout.label(text="Pan Options")
-        layout.prop(input_prefs, "ndof_panx_invert_axis")
-        layout.prop(input_prefs, "ndof_pany_invert_axis")
-        layout.prop(input_prefs, "ndof_panz_invert_axis")
+
+        split = layout.split(factor=0.6)
+        row = split.row()
+        row.alignment = 'RIGHT'
+        row.label(text="Invert Axis")
+        row = split.row(align=True)
+        for text, attr in (
+                ("X", "ndof_panx_invert_axis"),
+                ("Y", "ndof_pany_invert_axis"),
+                ("Z", "ndof_panz_invert_axis"),
+        ):
+            row.prop(input_prefs, attr, text=text, toggle=True)
+
         layout.prop(input_prefs, "ndof_pan_yz_swap_axis")
 
         layout.label(text="Zoom Options")
@@ -1452,8 +1475,8 @@ class USERPREF_MT_ndof_settings(Menu):
         if is_view3d:
             layout.separator()
             layout.label(text="Fly/Walk Options")
-            layout.prop(input_prefs, "ndof_fly_helicopter", icon='NDOF_FLY')
-            layout.prop(input_prefs, "ndof_lock_horizon", icon='NDOF_DOM')
+            layout.prop(input_prefs, "ndof_fly_helicopter")
+            layout.prop(input_prefs, "ndof_lock_horizon")
 
 
 class USERPREF_PT_input_keyboard(PreferencePanel, Panel):
@@ -2255,7 +2278,6 @@ classes = (
     USERPREF_PT_saveload_autorun,
     USERPREF_PT_saveload_file_browser,
 
-    USERPREF_MT_ndof_settings,
     USERPREF_MT_keyconfigs,
 
     USERPREF_PT_input_keyboard,
@@ -2277,6 +2299,9 @@ classes = (
     USERPREF_PT_studiolight_world,
 
     USERPREF_PT_experimental_all,
+
+    # Popovers.
+    USERPREF_PT_ndof_settings,
 
     # Add dynamically generated editor theme panels last,
     # so they show up last in the theme section.

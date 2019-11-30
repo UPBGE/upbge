@@ -49,16 +49,19 @@ try:
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
+    archive_env = os.environ.copy()
+
     if extension == 'zip':
         archive_cmd = ['zip', '-9', '-r', package_archive, package_dir]
     elif extension == 'tar.xz':
         archive_cmd = ['tar', '-cf', package_archive, '--owner=0', '--group=0',
-                       '--use-compress-program=xz -9', package_dir]
+                       '--use-compress-program=xz', package_dir]
+        archive_env['XZ_OPT'] = '-9'
     else:
         sys.stderr.write('Unknown archive extension: ' + extension)
         sys.exit(-1)
 
-    subprocess.call(archive_cmd)
+    subprocess.check_call(archive_cmd, env=archive_env)
 except Exception as ex:
     sys.stderr.write('Failed to create package archive: ' + str(ex) + '\n')
     sys.exit(1)
