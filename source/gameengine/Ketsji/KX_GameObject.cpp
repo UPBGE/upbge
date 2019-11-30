@@ -280,6 +280,7 @@ void KX_GameObject::TagForUpdate()
 
     copy_m4_m4(ob->obmat, obmat);
     invert_m4_m4(ob->imat, obmat);
+    BKE_object_apply_mat4(ob, ob->obmat, true, true);
     /* NORMAL CASE */
     if (!m_staticObject && ob->type != OB_MBALL) {
       if (!m_useCopy) {
