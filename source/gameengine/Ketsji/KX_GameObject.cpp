@@ -3283,6 +3283,7 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v,
     }
     else {
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+      BKE_object_apply_mat4(ob, ob->obmat, true, false);
       self->GetScene()->ResetTaaSamples();
     }
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
