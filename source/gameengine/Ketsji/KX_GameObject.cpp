@@ -105,6 +105,7 @@ extern "C" {
 #include "DRW_render.h"
 #include "eevee_private.h"
 #include "GPU_immediate.h"
+#include "windowmanager/WM_api.h"
 #include "windowmanager/WM_types.h"
 
 #include "bpy_rna.h"
@@ -3262,15 +3263,8 @@ PyObject *KX_GameObject::pyattr_get_meshes(PyObjectPlus *self_v, const KX_PYATTR
 PyObject *KX_GameObject::pyattr_get_obcolor(PyObjectPlus *self_v,
                                             const KX_PYATTRIBUTE_DEF *attrdef)
 {
-#  ifdef USE_MATHUTILS
-  return Vector_CreatePyObject_cb(BGE_PROXY_FROM_REF_BORROW(self_v),
-                                  4,
-                                  mathutils_kxgameob_vector_cb_index,
-                                  MATHUTILS_VEC_CB_OBJECT_COLOR);
-#  else
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-  return PyObjectFrom(self->GetObjectColor());
-#  endif
+  return PyObjectFrom(MT_Vector4(self->GetBlenderObject()->color));
 }
 
 int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v,
@@ -3281,9 +3275,15 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v,
   MT_Vector4 obcolor;
   if (!PyVecTo(value, obcolor))
     return PY_SET_ATTR_FAIL;
-
-  self->SetObjectColor(obcolor);
-  return PY_SET_ATTR_SUCCESS;
+  Object *ob = self->GetBlenderObject();
+  if (ob) {
+    copy_v4_v4(ob->color, obcolor.getValue());
+    //DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+    self->UseCopy();
+    WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
+    return PY_SET_ATTR_SUCCESS;
+  }
+  return PY_SET_ATTR_FAIL;
 }
 
 PyObject* KX_GameObject::pyattr_get_components(PyObjectPlus *self_v,
