@@ -101,16 +101,16 @@ if(WITH_HEADLESS)
 endif()
 
 if(WITH_GAMEENGINE)
+  blender_include_dirs(../gameengine/BlenderRoutines)
   blender_include_dirs(../gameengine/Converter)
-  blender_include_dirs(../gameengine/Ketsji)
   blender_include_dirs(../gameengine/Launcher)
 
   add_definitions(-DWITH_GAMEENGINE)
 
   list(APPEND LIB
+    ge_blender_routines
     ge_launcher
     ge_converter
-    ge_ketsji
   )
 endif()
 

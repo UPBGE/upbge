@@ -58,8 +58,11 @@ set(INC
 	../../blender/python/intern
 	../../blender/render/extern/include
 	../../blender/render/intern/include
+        ../../blender/windowmanager
+        ../../../intern/ghost
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
+        ../../../intern/string
 )
 
 set(INC_SYS
@@ -79,6 +82,7 @@ set(SRC
 	KX_2DFilter.cpp
 	KX_2DFilterManager.cpp
 	KX_2DFilterFrameBuffer.cpp
+        KX_BlenderCanvas.cpp
 	KX_BlenderMaterial.cpp
 	KX_Camera.cpp
 	KX_CameraIpoSGController.cpp
@@ -129,6 +133,7 @@ set(SRC
 	KX_2DFilter.h
 	KX_2DFilterManager.h
 	KX_2DFilterFrameBuffer.h
+        KX_BlenderCanvas.h
 	KX_BlenderMaterial.h
 	KX_Camera.h
 	KX_CameraIpoSGController.h
