@@ -173,16 +173,9 @@ static void file_free(SpaceLink *sl)
 }
 
 /* spacetype; init callback, area size changes, screen set, etc */
-static void file_init(wmWindowManager *wm, ScrArea *sa)
+static void file_init(wmWindowManager *UNUSED(wm), ScrArea *sa)
 {
   SpaceFile *sfile = (SpaceFile *)sa->spacedata.first;
-  struct FSMenu *fsmenu = ED_fsmenu_get();
-
-  /* refresh system directory list */
-  fsmenu_refresh_system_category(fsmenu);
-
-  /* Update bookmarks 'valid' state. */
-  fsmenu_refresh_bookmarks_status(wm, fsmenu);
 
   if (sfile->layout) {
     sfile->layout->dirty = true;

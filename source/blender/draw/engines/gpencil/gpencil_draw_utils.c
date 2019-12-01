@@ -1816,7 +1816,6 @@ static void gpencil_shgroups_create(GPENCIL_e_data *e_data,
   for (int i = 0; i < cache->grp_used; i++) {
     elm = &cache->grp_cache[i];
     array_elm = &cache_ob->shgrp_array[idx];
-    const float scale = cache_ob->scale;
 
     /* Limit stencil id */
     if (stencil_id > 255) {
@@ -1858,6 +1857,8 @@ static void gpencil_shgroups_create(GPENCIL_e_data *e_data,
       break;
     }
 
+    const float scale = (!cache_ob->is_dup_ob) ? mat4_to_scale(gpf->runtime.parent_obmat) :
+                                                 cache_ob->scale;
     float(*obmat)[4] = (!cache_ob->is_dup_ob) ? gpf->runtime.parent_obmat : cache_ob->obmat;
     switch (elm->type) {
       case eGpencilBatchGroupType_Stroke: {
@@ -2077,9 +2078,7 @@ void gpencil_populate_datablock(GPENCIL_e_data *e_data,
     BKE_gpencil_modifiers_calc(draw_ctx->depsgraph, draw_ctx->scene, ob);
   }
 
-  /* Use original data to shared in edit/transform operators */
-  bGPdata *gpd_eval = (bGPdata *)ob->data;
-  bGPdata *gpd = (bGPdata *)DEG_get_original_id(&gpd_eval->id);
+  bGPdata *gpd = (bGPdata *)ob->data;
 
   const bool main_onion = stl->storage->is_main_onion;
   const bool playing = stl->storage->is_playing;

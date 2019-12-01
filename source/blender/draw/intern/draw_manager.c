@@ -2668,6 +2668,9 @@ void DRW_draw_depth_object(ARegion *ar, GPUViewport *viewport, Object *object)
   RegionView3D *rv3d = ar->regiondata;
 
   DRW_opengl_context_enable();
+  GPU_matrix_projection_set(rv3d->winmat);
+  GPU_matrix_set(rv3d->viewmat);
+  GPU_matrix_mul(object->obmat);
 
   /* Setup framebuffer */
   DefaultFramebufferList *fbl = GPU_viewport_framebuffer_list_get(viewport);
@@ -2675,7 +2678,6 @@ void DRW_draw_depth_object(ARegion *ar, GPUViewport *viewport, Object *object)
   GPU_framebuffer_bind(fbl->depth_only_fb);
   GPU_framebuffer_clear_depth(fbl->depth_only_fb, 1.0f);
   GPU_depth_test(true);
-  GPU_matrix_mul(object->obmat);
 
   const float(*world_clip_planes)[4] = NULL;
   if (rv3d->rflag & RV3D_CLIPPING) {
@@ -3165,7 +3167,6 @@ typedef struct GameViewPort {
 
 static GameViewPort game_viewport;
 static RegionView3D game_rv3d;
-static Object *game_default_camera = NULL;
 
 GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
@@ -3206,16 +3207,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 
   View3D v3d;
 
-  Object *obcam = NULL;
-  if (maincam) {
-    obcam = maincam;
-  }
-  else {
-    if (!game_default_camera) {
-      game_default_camera = BKE_object_add(bmain, scene, view_layer, OB_CAMERA, "game_default_cam");
-    }
-    obcam = game_default_camera;
-  }
+  Object *obcam = maincam;
 
   Camera *cam = (Camera *)obcam->data;
   v3d.camera = obcam;
@@ -3323,11 +3315,6 @@ void DRW_game_render_loop_end()
   eevee_game_view_layer_data_free();
   draw_engine_eevee_type.engine_free();
 
-  if (game_default_camera) {
-    BKE_object_free(game_default_camera);
-    game_default_camera = NULL;
-  }
-
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
 
@@ -3352,10 +3339,4 @@ void DRW_opengl_context_create_blenderplayer(void)
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
 }
-
-Object *DRW_game_default_camera_get()
-{
-  return game_default_camera;
-}
-
 /***************************Enf of Game engine transition***************************/

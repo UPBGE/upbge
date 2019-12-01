@@ -28,6 +28,10 @@
 #ifndef __DNA_ACTION_TYPES_H__
 #define __DNA_ACTION_TYPES_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "DNA_listBase.h"
 #include "DNA_ID.h"
 #include "DNA_view2d_types.h"
@@ -856,8 +860,8 @@ typedef enum eSAction_Flag {
   SACTION_SHOW_INTERPOLATION = (1 << 12),
   /* show extremes */
   SACTION_SHOW_EXTREMES = (1 << 13),
-  /* show vertical line markers */
-  SACTION_SHOW_MARKER_LINES = (1 << 14),
+  /* show markers region */
+  SACTION_SHOW_MARKERS = (1 << 14),
 } eSAction_Flag;
 
 /* SpaceAction_Runtime.flag */
@@ -954,5 +958,9 @@ typedef enum eActionChannelFlag {
   ACHAN_SHOWCONS = (1 << 6),
   ACHAN_MOVED = (1u << 31),
 } eActionChannelFlag;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __DNA_ACTION_TYPES_H__ */

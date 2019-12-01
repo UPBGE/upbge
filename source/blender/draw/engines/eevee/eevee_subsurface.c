@@ -156,7 +156,9 @@ static void set_shgrp_stencil(void *UNUSED(userData), DRWShadingGroup *shgrp)
   DRW_shgroup_stencil_mask(shgrp, 255);
 }
 
-void EEVEE_subsurface_output_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
+void EEVEE_subsurface_output_init(EEVEE_ViewLayerData *UNUSED(sldata),
+                                  EEVEE_Data *vedata,
+                                  uint tot_samples)
 {
   EEVEE_FramebufferList *fbl = vedata->fbl;
   EEVEE_TextureList *txl = vedata->txl;
@@ -164,8 +166,10 @@ void EEVEE_subsurface_output_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Dat
   EEVEE_EffectsInfo *effects = stl->effects;
 
   if (effects->enabled_effects & EFFECT_SSS) {
-    DRW_texture_ensure_fullscreen_2d(&txl->sss_dir_accum, GPU_RGBA16F, 0);
-    DRW_texture_ensure_fullscreen_2d(&txl->sss_col_accum, GPU_RGBA16F, 0);
+    const eGPUTextureFormat texture_format_light = (tot_samples > 128) ? GPU_RGBA32F : GPU_RGBA16F;
+    const eGPUTextureFormat texture_format_color = (tot_samples > 512) ? GPU_RGBA32F : GPU_RGBA16F;
+    DRW_texture_ensure_fullscreen_2d(&txl->sss_dir_accum, texture_format_light, 0);
+    DRW_texture_ensure_fullscreen_2d(&txl->sss_col_accum, texture_format_color, 0);
 
     GPUTexture *stencil_tex = effects->sss_stencil;
 
@@ -183,9 +187,11 @@ void EEVEE_subsurface_output_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Dat
                                    GPU_ATTACHMENT_TEXTURE(txl->sss_col_accum)});
 
     /* Clear texture. */
-    float clear[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    GPU_framebuffer_bind(fbl->sss_accum_fb);
-    GPU_framebuffer_clear_color(fbl->sss_accum_fb, clear);
+    if (DRW_state_is_image_render() || effects->taa_current_sample == 1) {
+      float clear[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+      GPU_framebuffer_bind(fbl->sss_accum_fb);
+      GPU_framebuffer_clear_color(fbl->sss_accum_fb, clear);
+    }
 
     /* Make the opaque refraction pass mask the sss. */
     DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL | DRW_STATE_CLIP_PLANES |
@@ -253,7 +259,8 @@ void EEVEE_subsurface_add_pass(EEVEE_ViewLayerData *sldata,
   DRW_shgroup_stencil_mask(grp, sss_id);
   DRW_shgroup_call(grp, quad, NULL);
 
-  if (DRW_state_is_image_render()) {
+  if ((stl->g_data->render_passes & (SCE_PASS_SUBSURFACE_COLOR | SCE_PASS_SUBSURFACE_DIRECT)) !=
+      0) {
     grp = DRW_shgroup_create(e_data.sss_sh[2], psl->sss_accum_ps);
     DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex());
     DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", depth_src);

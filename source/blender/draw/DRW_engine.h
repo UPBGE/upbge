@@ -23,6 +23,10 @@
 #ifndef __DRW_ENGINE_H__
 #define __DRW_ENGINE_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "BLI_sys_types.h" /* for bool */
 
 struct ARegion;
@@ -169,5 +173,9 @@ void DRW_drawdata_free(struct ID *id);
 /* Game engine transition */
 void DRW_opengl_context_create_blenderplayer(void);
 /* End of Game engine transition */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __DRW_ENGINE_H__ */

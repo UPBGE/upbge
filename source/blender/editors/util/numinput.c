@@ -45,7 +45,8 @@
 /* Numeric input which isn't allowing full numeric editing. */
 #define USE_FAKE_EDIT
 
-/** #NumInput.flag
+/**
+ * #NumInput.flag
  * (1 << 8) and below are reserved for public flags!
  */
 enum {
@@ -297,6 +298,7 @@ bool user_string_to_number(
     return success;
   }
 #else
+  UNUSED_VARS(C, unit, type);
   *r_value = atof(str);
   return true;
 #endif

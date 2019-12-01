@@ -131,6 +131,7 @@ set(SRC
   intern/image_gen.c
   intern/image_save.c
   intern/ipo.c
+  intern/kelvinlet.c
   intern/key.c
   intern/keyconfig.c
   intern/lattice.c
@@ -298,6 +299,7 @@ set(SRC
   BKE_image.h
   BKE_image_save.h
   BKE_ipo.h
+  BKE_kelvinlet.h
   BKE_key.h
   BKE_keyconfig.h
   BKE_lattice.h
@@ -405,8 +407,6 @@ set(LIB
   bf_modifiers
   bf_nodes
   bf_physics
-  bf_python
-  bf_python_bmesh
   bf_rna
   bf_shader_fx
 )
@@ -450,14 +450,6 @@ if(WITH_BULLET)
   )
   add_definitions(-DWITH_BULLET)
 endif()
-
-# if(WITH_MOD_CLOTH_ELTOPO)
-#   list(APPEND INC
-#     ../../../extern/eltopo
-#     ../../../extern/eltopo/eltopo3d
-#   )
-#   add_definitions(-DWITH_ELTOPO)
-# endif()
 
 if(WITH_IMAGE_OPENEXR)
   add_definitions(-DWITH_OPENEXR)
@@ -519,6 +511,10 @@ endif()
 if(WITH_PYTHON)
   list(APPEND INC
     ../python
+  )
+  list(APPEND LIB
+    bf_python
+    bf_python_bmesh
   )
   add_definitions(-DWITH_PYTHON)
 

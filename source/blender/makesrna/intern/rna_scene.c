@@ -2705,7 +2705,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   PropertyRNA *prop;
 
   /* the construction of this enum is quite special - everything is stored as bitflags,
-   * with 1st position only for for on/off (and exposed as boolean), while others are mutually
+   * with 1st position only for on/off (and exposed as boolean), while others are mutually
    * exclusive options but which will only have any effect when autokey is enabled
    */
   static const EnumPropertyItem auto_key_items[] = {
@@ -3431,17 +3431,6 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "secondary_rgb");
   RNA_def_property_ui_text(prop, "Secondary Color", "");
   RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_update");
-
-  prop = RNA_def_property(srna, "use_pressure_size", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", UNIFIED_PAINT_BRUSH_SIZE_PRESSURE);
-  RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
-  RNA_def_property_ui_text(prop, "Size Pressure", "Enable tablet pressure sensitivity for size");
-
-  prop = RNA_def_property(srna, "use_pressure_strength", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", UNIFIED_PAINT_BRUSH_ALPHA_PRESSURE);
-  RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
-  RNA_def_property_ui_text(
-      prop, "Strength Pressure", "Enable tablet pressure sensitivity for strength");
 
   prop = RNA_def_property(srna, "use_locked_size", PROP_ENUM, PROP_NONE); /* as an enum */
   RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");

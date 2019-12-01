@@ -644,11 +644,13 @@ void WM_operator_properties_sanitize(PointerRNA *ptr, const bool no_context)
   RNA_STRUCT_END;
 }
 
-/** set all props to their default,
+/**
+ * Set all props to their default.
+ *
  * \param do_update: Only update un-initialized props.
  *
- * \note, there's nothing specific to operators here.
- * this could be made a general function.
+ * \note There's nothing specific to operators here.
+ * This could be made a general function.
  */
 bool WM_operator_properties_default(PointerRNA *ptr, const bool do_update)
 {
@@ -721,6 +723,13 @@ void WM_operator_properties_free(PointerRNA *ptr)
 /** \name Default Operator Callbacks
  * \{ */
 
+/**
+ * Helper to get select and tweak-transform to work conflict free and as desired. See
+ * #WM_operator_properties_generic_select() for details.
+ *
+ * To be used together with #WM_generic_select_invoke() and
+ * #WM_operator_properties_generic_select().
+ */
 int WM_generic_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   PropertyRNA *wait_to_deselect_prop = RNA_struct_find_property(op->ptr,
@@ -787,6 +796,13 @@ int WM_generic_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH;
 }
 
+/**
+ * Helper to get select and tweak-transform to work conflict free and as desired. See
+ * #WM_operator_properties_generic_select() for details.
+ *
+ * To be used together with #WM_generic_select_modal() and
+ * #WM_operator_properties_generic_select().
+ */
 int WM_generic_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RNA_int_set(op->ptr, "mouse_x", event->mval[0]);

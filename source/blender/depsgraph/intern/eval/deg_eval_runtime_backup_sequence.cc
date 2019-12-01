@@ -13,32 +13,46 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * The Original Code is Copyright (C) 2019 Blender Foundation.
  * All rights reserved.
- * os dependent include locations of gl.h
  */
 
 /** \file
- * \ingroup editorui
+ * \ingroup depsgraph
  */
 
-#ifndef __BIF_GL_H__
-#define __BIF_GL_H__
+#include "intern/eval/deg_eval_runtime_backup_sequence.h"
 
-#include "GPU_glew.h"
-#include "BLI_utildefines.h"
+#include "DNA_sequence_types.h"
 
-/* hacking pointsize and linewidth */
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
-#  define glPointSize(f) \
-    glPointSize(U.pixelsize *_Generic((f), double : (float)(f), default : (f)))
-#  define glLineWidth(f) \
-    glLineWidth(U.pixelsize *_Generic((f), double : (float)(f), default : (f)))
-#else
-#  define glPointSize(f) glPointSize(U.pixelsize *(f))
-#  define glLineWidth(f) glLineWidth(U.pixelsize *(f))
-#endif /* C11 */
+namespace DEG {
 
-#define GLA_PIXEL_OFS 0.375f
+SequenceBackup::SequenceBackup(const Depsgraph * /*depsgraph*/)
+{
+  reset();
+}
 
-#endif /* #ifdef __BIF_GL_H__ */
+void SequenceBackup::reset()
+{
+  scene_sound = NULL;
+}
+
+void SequenceBackup::init_from_sequence(Sequence *sequence)
+{
+  scene_sound = sequence->scene_sound;
+
+  sequence->scene_sound = NULL;
+}
+
+void SequenceBackup::restore_to_sequence(Sequence *sequence)
+{
+  sequence->scene_sound = scene_sound;
+  reset();
+}
+
+bool SequenceBackup::isEmpty() const
+{
+  return (scene_sound == NULL);
+}
+
+}  // namespace DEG

@@ -121,12 +121,13 @@ void AnimationImporter::animation_to_fcurves(COLLADAFW::AnimationCurve *curve)
             COLLADAFW::FloatOrDoubleArray &outtan = curve->getOutTangentValues();
 
             /* intangent */
-            bez.vec[0][0] = bc_get_float_value(intan, (j * 2 * dim) + (2 * i)) * fps;
-            bez.vec[0][1] = bc_get_float_value(intan, (j * 2 * dim) + (2 * i) + 1);
+            unsigned int index = 2 * (j * dim + i);
+            bez.vec[0][0] = bc_get_float_value(intan, index) * fps;
+            bez.vec[0][1] = bc_get_float_value(intan, index + 1);
 
             /* outtangent */
-            bez.vec[2][0] = bc_get_float_value(outtan, (j * 2 * dim) + (2 * i)) * fps;
-            bez.vec[2][1] = bc_get_float_value(outtan, (j * 2 * dim) + (2 * i) + 1);
+            bez.vec[2][0] = bc_get_float_value(outtan, index) * fps;
+            bez.vec[2][1] = bc_get_float_value(outtan, index + 1);
             if (curve->getInterpolationType() == COLLADAFW::AnimationCurve::INTERPOLATION_BEZIER) {
               bez.ipo = BEZT_IPO_BEZ;
               bez.h1 = bez.h2 = HD_AUTO_ANIM;
@@ -512,6 +513,24 @@ void AnimationImporter::find_frames(std::vector<float> *frames, std::vector<FCur
   }
 }
 
+static int get_animation_axis_index(const COLLADABU::Math::Vector3 &axis)
+{
+  int index;
+  if (COLLADABU::Math::Vector3::UNIT_X == axis) {
+    index = 0;
+  }
+  else if (COLLADABU::Math::Vector3::UNIT_Y == axis) {
+    index = 1;
+  }
+  else if (COLLADABU::Math::Vector3::UNIT_Z == axis) {
+    index = 2;
+  }
+  else {
+    index = -1;
+  }
+  return index;
+}
+
 /* creates the rna_paths and array indices of fcurves from animations using transformation and
  * bound animation class of each animation. */
 void AnimationImporter::Assign_transform_animations(
@@ -591,30 +610,15 @@ void AnimationImporter::Assign_transform_animations(
       COLLADABU::Math::Vector3 &axis = rot->getRotationAxis();
 
       switch (binding->animationClass) {
-        case COLLADAFW::AnimationList::ANGLE:
-          if (COLLADABU::Math::Vector3::UNIT_X == axis) {
-            modify_fcurve(curves, rna_path, 0);
-          }
-          else if (COLLADABU::Math::Vector3::UNIT_Y == axis) {
-            if (is_joint) {
-              modify_fcurve(curves, rna_path, 2, -1);  // Bone animation from dae to blender
-            }
-            else {
-              modify_fcurve(curves, rna_path, 1);
-            }
-          }
-          else if (COLLADABU::Math::Vector3::UNIT_Z == axis) {
-            if (is_joint) {
-              modify_fcurve(curves, rna_path, 1);  // Bone animation from dae to blender
-            }
-            else {
-              modify_fcurve(curves, rna_path, 2);
-            }
+        case COLLADAFW::AnimationList::ANGLE: {
+          int axis_index = get_animation_axis_index(axis);
+          if (axis_index >= 0) {
+            modify_fcurve(curves, rna_path, axis_index);
           }
           else {
             unused_fcurve(curves);
           }
-          break;
+        } break;
         case COLLADAFW::AnimationList::AXISANGLE:
         /* TODO convert axis-angle to quat? or XYZ? */
         default:
@@ -2042,7 +2046,6 @@ bool AnimationImporter::evaluate_animation(COLLADAFW::Transformation *tm,
             mi++;
             mj = 0;
           }
-          fcurve_is_used(*it);
         }
         unit_converter->dae_matrix_to_mat4_(mat, matrix);
         return true;

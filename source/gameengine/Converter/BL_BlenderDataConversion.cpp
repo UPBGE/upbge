@@ -1308,6 +1308,11 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	for (SETLOOPER(blenderscene, sce_iter, base))
 	{
 		Object *blenderobject = base->object;
+
+		if (blenderobject == kxscene->GetGameDefaultCamera()) {
+			continue;
+		}
+
 		allblobj.insert(blenderobject);
 
 		bool isInActiveLayer = (blenderobject->base_flag & (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0;

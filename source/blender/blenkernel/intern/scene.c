@@ -1333,6 +1333,7 @@ static void prepare_mesh_for_viewport_render(Main *bmain, const ViewLayer *view_
                          mesh,
                          (&(struct BMeshToMeshParams){
                              .calc_object_remap = true,
+                             .update_shapekey_indices = true,
                          }));
         DEG_id_tag_update(&mesh->id, 0);
       }
@@ -1482,7 +1483,8 @@ void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph, Main *bmain)
   }
 }
 
-/** Ensures given scene/view_layer pair has a valid, up-to-date depsgraph.
+/**
+ * Ensures given scene/view_layer pair has a valid, up-to-date depsgraph.
  *
  * \warning Sets matching depsgraph as active,
  * so should only be called from the active editing context (usually, from operators).

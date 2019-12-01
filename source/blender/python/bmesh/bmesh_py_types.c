@@ -1091,7 +1091,9 @@ static PyObject *bpy_bmesh_to_mesh(BPy_BMesh *self, PyObject *args)
   bm = self->bm;
 
   struct Main *bmain = NULL;
-  struct BMeshToMeshParams params = {0};
+  struct BMeshToMeshParams params = {
+      .update_shapekey_indices = true,
+  };
   if (me->id.tag & LIB_TAG_NO_MAIN) {
     /* Mesh might be coming from a self-contained source like object.to_mesh(). No need to remap
      * anything in this case. */
@@ -1543,7 +1545,7 @@ static PyObject *bpy_bm_elem_copy_from(BPy_BMElem *self, BPy_BMElem *value)
   }
 
   if (value->ele != self->ele) {
-    BM_elem_attrs_copy(value->bm, self->bm, value->ele, self->ele);
+    BM_elem_attrs_copy_ex(value->bm, self->bm, value->ele, self->ele, 0xff, CD_MASK_BM_ELEM_PYPTR);
   }
 
   Py_RETURN_NONE;

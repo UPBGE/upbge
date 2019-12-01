@@ -27,8 +27,10 @@
 extern "C" {
 #include "DNA_object_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 
+#include "BKE_animsys.h"
 #include "BKE_object.h"
 
 #include "DEG_depsgraph_query.h"
@@ -132,7 +134,6 @@ Imath::Box3d AbcTransformWriter::bounds()
 
 bool AbcTransformWriter::hasAnimation(Object * /*ob*/) const
 {
-  /* TODO(kevin): implement this. */
   return true;
 }
 

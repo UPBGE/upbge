@@ -624,6 +624,7 @@ void WM_gesture_straightline_cancel(struct bContext *C, struct wmOperator *op);
 struct wmGesture *WM_gesture_new(struct bContext *C, const struct wmEvent *event, int type);
 void WM_gesture_end(struct bContext *C, struct wmGesture *gesture);
 void WM_gestures_remove(struct bContext *C);
+void WM_gestures_free_all(struct wmWindow *win);
 bool WM_gesture_is_modal_first(const struct wmGesture *gesture);
 
 /* fileselecting support */
@@ -676,8 +677,10 @@ enum {
   WM_JOB_PROGRESS = (1 << 2),
 };
 
-/** Identifying jobs by owner alone is unreliable, this isnt saved,
- * order can change (keep 0 for 'any'). */
+/**
+ * Identifying jobs by owner alone is unreliable, this isnt saved,
+ * order can change (keep 0 for 'any').
+ */
 enum {
   WM_JOB_TYPE_ANY = 0,
   WM_JOB_TYPE_COMPOSITE,
@@ -819,15 +822,18 @@ typedef struct ARegion *(*wmTooltipInitFn)(struct bContext *C,
 
 void WM_tooltip_immediate_init(struct bContext *C,
                                struct wmWindow *win,
+                               struct ScrArea *sa,
                                struct ARegion *ar,
                                wmTooltipInitFn init);
 void WM_tooltip_timer_init_ex(struct bContext *C,
                               struct wmWindow *win,
+                              struct ScrArea *sa,
                               struct ARegion *ar,
                               wmTooltipInitFn init,
                               double delay);
 void WM_tooltip_timer_init(struct bContext *C,
                            struct wmWindow *win,
+                           struct ScrArea *sa,
                            struct ARegion *ar,
                            wmTooltipInitFn init);
 void WM_tooltip_timer_clear(struct bContext *C, struct wmWindow *win);

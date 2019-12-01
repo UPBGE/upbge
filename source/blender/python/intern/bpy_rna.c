@@ -2596,7 +2596,8 @@ static PyObject *pyrna_prop_collection_subscript_slice(BPy_PropertyRNA *self,
   return list;
 }
 
-/** TODO - dimensions
+/**
+ * TODO - dimensions
  * \note Could also use pyrna_prop_array_to_py_index(self, count) in a loop, but it's much slower
  * since at the moment it reads (and even allocates) the entire array for each index.
  */
@@ -7817,7 +7818,7 @@ static int pyrna_deferred_register_props(StructRNA *srna, PyObject *class_dict)
     }
   }
 
-  {
+  if (ret == 0) {
     /* This block can be removed once 2.8x is released and annotations are in use. */
     bool has_warning = false;
     while (PyDict_Next(class_dict, &pos, &key, &item)) {

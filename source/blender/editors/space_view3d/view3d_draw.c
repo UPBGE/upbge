@@ -1121,13 +1121,6 @@ static void draw_rotation_guide(const RegionView3D *rv3d)
   immEnd();
   immUnbindProgram();
 
-#  if 0
-  /* find screen coordinates for rotation center, then draw pretty icon */
-  mul_m4_v3(rv3d->persinv, rot_center);
-  UI_icon_draw(rot_center[0], rot_center[1], ICON_NDOF_TURN);
-  /* ^^ just playing around, does not work */
-#  endif
-
   GPU_blend(false);
   glDepthMask(GL_TRUE);
 }
@@ -1866,9 +1859,11 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
 
   if (drawtype == OB_MATERIAL) {
     v3d.shading.flag = V3D_SHADING_SCENE_WORLD | V3D_SHADING_SCENE_LIGHTS;
+    v3d.shading.render_pass = SCE_PASS_COMBINED;
   }
   else if (drawtype == OB_RENDER) {
     v3d.shading.flag = V3D_SHADING_SCENE_WORLD_RENDER | V3D_SHADING_SCENE_LIGHTS_RENDER;
+    v3d.shading.render_pass = SCE_PASS_COMBINED;
   }
 
   v3d.flag2 = V3D_HIDE_OVERLAYS;

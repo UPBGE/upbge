@@ -510,8 +510,8 @@ bGPDstroke *BKE_gpencil_add_stroke_existing_style(
     bGPDframe *gpf, bGPDstroke *existing, int mat_idx, int totpoints, short thickness)
 {
   bGPDstroke *gps = BKE_gpencil_add_stroke(gpf, mat_idx, totpoints, thickness);
-  /* Copy runtime color data so that strokes added in the modifier has the style.
-   * There are depsgrapgh reference pointers inside,
+  /* Copy run-time color data so that strokes added in the modifier has the style.
+   * There are depsgraph reference pointers inside,
    * change the copy function if interfere with future drawing implementation. */
   memcpy(&gps->runtime, &existing->runtime, sizeof(bGPDstroke_Runtime));
   return gps;
@@ -1140,7 +1140,8 @@ int BKE_gpencil_object_material_ensure(Main *bmain, Object *ob, Material *materi
   return index;
 }
 
-/** Creates a new gpencil material and assigns it to object.
+/**
+ * Creates a new gpencil material and assigns it to object.
  *
  * \param *r_index: value is set to zero based index of the new material if r_index is not NULL
  */

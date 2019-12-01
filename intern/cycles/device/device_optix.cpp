@@ -174,7 +174,7 @@ class OptiXDevice : public Device {
   device_vector<SbtRecord> sbt_data;
   device_vector<TextureInfo> texture_info;
   device_only_memory<KernelParams> launch_params;
-  vector<device_only_memory<uint8_t>> blas;
+  vector<device_only_memory<uint8_t>> as_mem;
   OptixTraversableHandle tlas_handle = 0;
 
   // TODO(pmours): This is copied from device_cuda.cpp, so move to common code eventually
@@ -268,8 +268,8 @@ class OptiXDevice : public Device {
     // Stop processing any more tasks
     task_pool.stop();
 
-    // Clean up all memory before destroying context
-    blas.clear();
+    // Free all acceleration structures
+    as_mem.clear();
 
     sbt_data.free();
     texture_info.free();
@@ -290,8 +290,8 @@ class OptiXDevice : public Device {
         optixPipelineDestroy(pipelines[i]);
 
     // Destroy launch streams
-    for (int i = 0; i < info.cpu_threads; ++i)
-      cuStreamDestroy(cuda_stream[i]);
+    for (CUstream stream : cuda_stream)
+      cuStreamDestroy(stream);
 
     // Destroy OptiX and CUDA context
     optixDeviceContextDestroy(context);
@@ -329,16 +329,17 @@ class OptiXDevice : public Device {
 
     const CUDAContextScope scope(cuda_context);
 
-    // Unload any existing modules first
-    if (cuda_module != NULL)
-      cuModuleUnload(cuda_module);
-    if (cuda_filter_module != NULL)
-      cuModuleUnload(cuda_filter_module);
-    if (optix_module != NULL)
+    // Unload existing OptiX module and pipelines first
+    if (optix_module != NULL) {
       optixModuleDestroy(optix_module);
-    for (unsigned int i = 0; i < NUM_PIPELINES; ++i)
-      if (pipelines[i] != NULL)
+      optix_module = NULL;
+    }
+    for (unsigned int i = 0; i < NUM_PIPELINES; ++i) {
+      if (pipelines[i] != NULL) {
         optixPipelineDestroy(pipelines[i]);
+        pipelines[i] = NULL;
+      }
+    }
 
     OptixModuleCompileOptions module_options;
     module_options.maxRegisterCount = 0;  // Do not set an explicit register limit
@@ -399,16 +400,18 @@ class OptiXDevice : public Device {
       cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, info.num);
       cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, info.num);
 
-      string cubin_data;
-      const string cubin_filename = string_printf("lib/kernel_sm_%d%d.cubin", major, minor);
-      if (!path_read_text(path_get(cubin_filename), cubin_data)) {
-        set_error("Failed loading pre-compiled CUDA kernel " + cubin_filename + ".");
-        return false;
+      if (cuda_module == NULL) {  // Avoid reloading module if it was already loaded
+        string cubin_data;
+        const string cubin_filename = string_printf("lib/kernel_sm_%d%d.cubin", major, minor);
+        if (!path_read_text(path_get(cubin_filename), cubin_data)) {
+          set_error("Failed loading pre-compiled CUDA kernel " + cubin_filename + ".");
+          return false;
+        }
+
+        check_result_cuda_ret(cuModuleLoadData(&cuda_module, cubin_data.data()));
       }
 
-      check_result_cuda_ret(cuModuleLoadData(&cuda_module, cubin_data.data()));
-
-      if (requested_features.use_denoising) {
+      if (requested_features.use_denoising && cuda_filter_module == NULL) {
         string filter_data;
         const string filter_filename = string_printf("lib/filter_sm_%d%d.cubin", major, minor);
         if (!path_read_text(path_get(filter_filename), filter_data)) {
@@ -878,15 +881,16 @@ class OptiXDevice : public Device {
     return true;
   }
 
-  bool build_optix_bvh(BVH *bvh, device_memory &out_data) override
+  bool build_optix_bvh(BVH *bvh) override
   {
     assert(bvh->params.top_level);
 
     unsigned int num_instances = 0;
     unordered_map<Mesh *, vector<OptixTraversableHandle>> meshes;
+    meshes.reserve(bvh->meshes.size());
 
-    // Clear all previous AS
-    blas.clear();
+    // Free all previous acceleration structure
+    as_mem.clear();
 
     // Build bottom level acceleration structures (BLAS)
     // Note: Always keep this logic in sync with bvh_optix.cpp!
@@ -897,6 +901,7 @@ class OptiXDevice : public Device {
 
       Mesh *const mesh = ob->mesh;
       vector<OptixTraversableHandle> handles;
+      handles.reserve(2);
 
       // Build BLAS for curve primitives
       if (bvh->params.primitive_mask & PRIMITIVE_ALL_CURVE && mesh->num_curves() > 0) {
@@ -963,9 +968,9 @@ class OptiXDevice : public Device {
         build_input.aabbArray.primitiveIndexOffset = mesh->prim_offset;
 
         // Allocate memory for new BLAS and build it
-        blas.emplace_back(this, "blas");
+        as_mem.emplace_back(this, "blas");
         handles.emplace_back();
-        if (!build_optix_bvh(build_input, num_motion_steps, blas.back(), handles.back()))
+        if (!build_optix_bvh(build_input, num_motion_steps, as_mem.back(), handles.back()))
           return false;
       }
 
@@ -1029,9 +1034,9 @@ class OptiXDevice : public Device {
         build_input.triangleArray.primitiveIndexOffset = mesh->prim_offset + mesh->num_segments();
 
         // Allocate memory for new BLAS and build it
-        blas.emplace_back(this, "blas");
+        as_mem.emplace_back(this, "blas");
         handles.emplace_back();
-        if (!build_optix_bvh(build_input, num_motion_steps, blas.back(), handles.back()))
+        if (!build_optix_bvh(build_input, num_motion_steps, as_mem.back(), handles.back()))
           return false;
       }
 
@@ -1048,6 +1053,7 @@ class OptiXDevice : public Device {
       // Skip non-traceable objects
       if (!ob->is_traceable())
         continue;
+
       // Create separate instance for triangle/curve meshes of an object
       for (OptixTraversableHandle handle : meshes[ob->mesh]) {
         OptixAabb &aabb = aabbs[num_instances];
@@ -1075,8 +1081,8 @@ class OptiXDevice : public Device {
 
         // Insert motion traversable if object has motion
         if (motion_blur && ob->use_motion()) {
-          blas.emplace_back(this, "motion_transform");
-          device_only_memory<uint8_t> &motion_transform_gpu = blas.back();
+          as_mem.emplace_back(this, "motion_transform");
+          device_only_memory<uint8_t> &motion_transform_gpu = as_mem.back();
           motion_transform_gpu.alloc_to_device(sizeof(OptixSRTMotionTransform) +
                                                (max(ob->motion.size(), 2) - 2) *
                                                    sizeof(OptixSRTData));
@@ -1154,7 +1160,7 @@ class OptiXDevice : public Device {
     instances.resize(num_instances);
     instances.copy_to_device();
 
-    // Build top-level acceleration structure
+    // Build top-level acceleration structure (TLAS)
     OptixBuildInput build_input = {};
     build_input.type = OPTIX_BUILD_INPUT_TYPE_INSTANCES;
     build_input.instanceArray.instances = instances.device_pointer;
@@ -1162,7 +1168,8 @@ class OptiXDevice : public Device {
     build_input.instanceArray.aabbs = aabbs.device_pointer;
     build_input.instanceArray.numAabbs = num_instances;
 
-    return build_optix_bvh(build_input, 0 /* TLAS has no motion itself */, out_data, tlas_handle);
+    as_mem.emplace_back(this, "tlas");
+    return build_optix_bvh(build_input, 0, as_mem.back(), tlas_handle);
   }
 
   void update_texture_info()

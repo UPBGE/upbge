@@ -23,6 +23,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SOUND_WAVE_SAMPLES_PER_SECOND 250
 
 #if defined(WITH_AUDASPACE)
@@ -193,5 +197,9 @@ void BKE_sound_evaluate(struct Depsgraph *depsgraph, struct Main *bmain, struct 
 /* Game engine transition */
 void BKE_sound_load_no_assert(struct Main *main, struct bSound *sound);
 /**************************/
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BKE_SOUND_H__ */

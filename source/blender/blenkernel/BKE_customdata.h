@@ -168,8 +168,8 @@ bool CustomData_bmesh_merge(const struct CustomData *source,
 /** NULL's all members and resets the typemap. */
 void CustomData_reset(struct CustomData *data);
 
-/** frees data associated with a CustomData object (doesn't free the object
- * itself, though)
+/**
+ * Frees data associated with a CustomData object (doesn't free the object itself, though).
  */
 void CustomData_free(struct CustomData *data, int totelem);
 
@@ -258,6 +258,11 @@ void CustomData_bmesh_copy_data(const struct CustomData *source,
                                 struct CustomData *dest,
                                 void *src_block,
                                 void **dest_block);
+void CustomData_bmesh_copy_data_exclude_by_type(const struct CustomData *source,
+                                                struct CustomData *dest,
+                                                void *src_block,
+                                                void **dest_block,
+                                                const CustomDataMask mask_exclude);
 
 /* Copies data of a single layer of a given type. */
 void CustomData_copy_layer_type_data(const struct CustomData *source,
@@ -392,6 +397,9 @@ void CustomData_clear_layer_flag(struct CustomData *data, int type, int flag);
 void CustomData_bmesh_set_default(struct CustomData *data, void **block);
 void CustomData_bmesh_free_block(struct CustomData *data, void **block);
 void CustomData_bmesh_free_block_data(struct CustomData *data, void *block);
+void CustomData_bmesh_free_block_data_exclude_by_type(struct CustomData *data,
+                                                      void *block,
+                                                      const CustomDataMask mask_exclude);
 
 /* copy custom data to/from layers as in mesh/derivedmesh, to editmesh
  * blocks of data. the CustomData's must not be compatible */

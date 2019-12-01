@@ -20,6 +20,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "DNA_modifier_types.h" /* needed for all enum typdefs */
 #include "BLI_compiler_attrs.h"
 #include "BKE_customdata.h"
@@ -417,7 +421,7 @@ typedef struct VirtualModifierData {
   ShapeKeyModifierData smd;
 } VirtualModifierData;
 
-struct ModifierData *modifiers_getVirtualModifierList(struct Object *ob,
+struct ModifierData *modifiers_getVirtualModifierList(const struct Object *ob,
                                                       struct VirtualModifierData *data);
 
 /* ensure modifier correctness when changing ob->data */
@@ -460,5 +464,9 @@ void modwrap_deformVertsEM(ModifierData *md,
 
 struct Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(struct Object *ob_eval,
                                                                    const bool get_cage_mesh);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
