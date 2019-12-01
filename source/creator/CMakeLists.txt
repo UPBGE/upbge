@@ -50,7 +50,6 @@ set(LIB
   bf_render
   bf_rna
   bf_windowmanager
-  ge_launcher
 )
 
 add_definitions(${GL_DEFINITIONS})
@@ -102,9 +101,17 @@ if(WITH_HEADLESS)
 endif()
 
 if(WITH_GAMEENGINE)
-	blender_include_dirs(../gameengine/Launcher)
+  blender_include_dirs(../gameengine/BlenderRoutines)
+  blender_include_dirs(../gameengine/Converter)
+  blender_include_dirs(../gameengine/Launcher)
 
-	add_definitions(-DWITH_GAMEENGINE)
+  add_definitions(-DWITH_GAMEENGINE)
+
+  list(APPEND LIB
+    ge_blender_routines
+    ge_launcher
+    ge_converter
+  )
 endif()
 
 if(WITH_SDL)
@@ -1119,11 +1126,7 @@ install(
 # Setup link libs
 
 add_dependencies(blender makesdna)
-
-# Use for testing 'BLENDER_SORTED_LIBS' removal.
-
-setup_blender_sorted_libs()
-target_link_libraries(blender ${BLENDER_SORTED_LIBS})
+target_link_libraries(blender ${LIB})
 unset(LIB)
 
 setup_liblinks(blender)

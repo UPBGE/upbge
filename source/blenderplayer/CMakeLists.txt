@@ -27,381 +27,150 @@
 
 setup_libdirs()
 
-if(WIN32 AND NOT UNIX)
-	string(SUBSTRING ${BLENDER_VERSION} 0 1 bver1)
-	string(SUBSTRING ${BLENDER_VERSION} 2 1 bver2)
-	string(SUBSTRING ${BLENDER_VERSION} 3 1 bver3)
-	add_definitions(
-		-DBLEN_VER_RC_STR=${BLENDER_VERSION}
-		-DBLEN_VER_RC_1=${bver1}
-		-DBLEN_VER_RC_2=${bver2}
-		-DBLEN_VER_RC_3=${bver3}
-		-DBLEN_VER_RC_4=0
-	)
+list(APPEND LIB
+  ge_player
+  bf_intern_guardedalloc
+  bf_blenlib
+  bf_intern_memutil
+  bf_dna_blenlib
+  bf_blenloader
+)
 
-	add_executable(
-			blenderplayer ${EXETYPE}
-			bad_level_call_stubs/stubs.c
-			${CMAKE_SOURCE_DIR}/release/windows/icons/winblender.rc)
-	#WINDOWS_SIGN_TARGET(blenderplayer) removed in b213d82c19c5b677df699debc683b57349185714
-	install(TARGETS blenderplayer
-			COMPONENT Blenderplayer
-			DESTINATION ".")
+if(WITH_BUILDINFO)
+  add_definitions(-DWITH_BUILDINFO)
+  # --------------------------------------------------------------------------
+  # These defines could all be moved into the header below
+  string(REPLACE " " "\ " BUILDINFO_CFLAGS "${CMAKE_C_FLAGS}")
+  string(REPLACE " " "\ " BUILDINFO_CXXFLAGS "${CMAKE_CXX_FLAGS}")
+  string(REPLACE " " "\ " BUILDINFO_LINKFLAGS "${PLATFORM_LINKFLAGS}")
+  add_definitions(
+    # # define in header now, else these get out of date on rebuilds.
+    # -DBUILD_DATE="${BUILD_DATE}"
+    # -DBUILD_TIME="${BUILD_TIME}"
+    # -DBUILD_COMMIT_TIMESTAMP="${BUILD_COMMIT_TIMESTAMP}"
+    # -DBUILD_COMMIT_TIME="${BUILD_COMMIT_TIME}"
+    # -DBUILD_COMMIT_DATE="${BUILD_COMMIT_DATE}"
+    # -DBUILD_HASH="${BUILD_HASH}"
+    # -DBUILD_BRANCH="${BUILD_BRANCH}"
+    -DWITH_BUILDINFO_HEADER # alternative to lines above
+    -DBUILD_PLATFORM="${CMAKE_SYSTEM_NAME}"
+    -DBUILD_TYPE="${CMAKE_BUILD_TYPE}"
+    -DBUILD_CFLAGS="${BUILDINFO_CFLAGS}"
+    -DBUILD_CXXFLAGS="${BUILDINFO_CXXFLAGS}"
+    -DBUILD_LINKFLAGS="${BUILDINFO_LINKFLAGS}"
+    -DBUILD_SYSTEM="CMake"
+  )
+
+  # --------------------------------------------------------------------------
+  # write header for values that change each build
+  # note, generaed file is in build dir's source/creator
+  #       except when used as an include path.
+
+  # include the output directory, where the buildinfo.h file is generated
+  include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+
+  # XXX, ${buildinfo_h_fake} is used here,
+  # because we rely on that file being detected as missing
+  # every build so that the real header "buildinfo.h" is updated.
+  #
+  # Keep this until we find a better way to resolve!
+
+  set(buildinfo_h_real "${CMAKE_CURRENT_BINARY_DIR}/buildinfo.h")
+  set(buildinfo_h_fake "${CMAKE_CURRENT_BINARY_DIR}/buildinfo.h_fake")
+
+  if(EXISTS ${buildinfo_h_fake})
+    message(FATAL_ERROR "File \"${buildinfo_h_fake}\" found, this should never be created, remove!")
+  endif()
+
+  # a custom target that is always built
+  add_custom_target(buildinfo_player ALL
+    DEPENDS ${buildinfo_h_fake})
+
+  # creates buildinfo.h using cmake script
+  add_custom_command(
+    OUTPUT
+      ${buildinfo_h_fake}  # ensure we always run
+      ${buildinfo_h_real}
+    COMMAND ${CMAKE_COMMAND}
+    -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+    # overrides only used when non-empty strings
+    -DBUILD_DATE=${BUILDINFO_OVERRIDE_DATE}
+    -DBUILD_TIME=${BUILDINFO_OVERRIDE_TIME}
+    -P ${CMAKE_SOURCE_DIR}/build_files/cmake/buildinfo.cmake)
+
+  # buildinfo.h is a generated file
+  set_source_files_properties(
+    ${buildinfo_h_real}
+    PROPERTIES GENERATED TRUE
+    HEADER_FILE_ONLY TRUE)
+
+  unset(buildinfo_h_real)
+  unset(buildinfo_h_fake)
+
+  # add deps below, after adding blender
+  # -------------- done with header values.
+
+  list(APPEND SRC
+    ../creator/buildinfo.c
+  )
+
+  # make an object library so can load with it in tests
+  add_library(buildinfoobj_player OBJECT ../creator/buildinfo.c)
+  add_dependencies(buildinfoobj_player buildinfo_player)
+endif()
 
 add_cc_flags_custom_test(blenderplayer)
 
-elseif(APPLE)
-	add_executable(blenderplayer ${EXETYPE} bad_level_call_stubs/stubs.c)
-	# setup Info.plist
-	execute_process(COMMAND date "+%Y-%m-%d" OUTPUT_VARIABLE BLENDER_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)
-	set(PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blenderplayer.app)
-	set(PLAYER_SOURCEINFO ${PLAYER_SOURCEDIR}/Contents/Info.plist)
-	set_target_properties(blenderplayer PROPERTIES
-		MACOSX_BUNDLE_INFO_PLIST ${PLAYER_SOURCEINFO}
-		MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR}"
-		MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR} ${BLENDER_DATE}")
+# message(STATUS "Configuring blender")
+if(WITH_PYTHON_MODULE)
+  add_definitions(-DWITH_PYTHON_MODULE)
+
+  # creates ./bin/bpy.so which can be imported as a python module.
+  #
+  # note that 'SHARED' works on Linux and Windows,
+  # but not OSX which _must_ be 'MODULE'
+  add_library(blenderplayer MODULE ${SRC})
+  set_target_properties(
+    blenderplayer
+    PROPERTIES
+      PREFIX ""
+      OUTPUT_NAME bpy
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin  # only needed on windows
+  )
+
+  if(APPLE)
+    set_target_properties(
+      blenderplayer
+      PROPERTIES
+        MACOSX_BUNDLE TRUE
+        LINK_FLAGS_RELEASE "${PLATFORM_LINKFLAGS}"
+        LINK_FLAGS_DEBUG "${PLATFORM_LINKFLAGS_DEBUG}"
+    )
+  endif()
+
+  if(WIN32)
+    # python modules use this
+    set_target_properties(
+      blenderplayer
+      PROPERTIES
+      SUFFIX ".pyd"
+    )
+  endif()
 
 else()
-	add_executable(blenderplayer bad_level_call_stubs/stubs.c)
+  add_executable(blenderplayer ${EXETYPE} ${SRC})
+endif()
 
-	if(NOT WITH_INSTALL_PORTABLE)
-		install(
-			TARGETS blenderplayer
-			DESTINATION bin
-		)
-	else()
-		install(
-			TARGETS blenderplayer
-			DESTINATION "."
-		)
-	endif()
+if(WITH_BUILDINFO)
+  # explicitly say that the executable depends on the buildinfo
+  add_dependencies(blenderplayer buildinfo_player)
 endif()
 
 add_dependencies(blenderplayer makesdna)
 
-get_property(BLENDER_LINK_LIBS GLOBAL PROPERTY BLENDER_LINK_LIBS)
-
-list(APPEND BLENDER_LINK_LIBS
-	ge_player
-	blenkernel_blc
-)
-
-if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)
-	list(APPEND BLENDER_LINK_LIBS
-		audaspace
-		audaspace-py)
-endif()
-
-#if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-#	list(APPEND BLENDER_LINK_LIBS extern_binreloc)
-#endif()
-
-# if(UNIX)
-# Sort libraries
-set(BLENDER_SORTED_LIBS
-
-  bf_windowmanager
-
-  bf_editor_undo
-
-  ge_player
-  ge_launcher
-  ge_logic_ketsji
-  ge_player
-  ge_logic_ketsji
-  ge_converter
-  ge_logic_ketsji
-  ge_phys_bullet
-  ge_phys_dummy
-  ge_logic
-  ge_device
-  ge_rasterizer
-  ge_oglrasterizer
-  ge_logic_expressions
-  ge_common
-  ge_scenegraph
-  ge_logic_network
-  ge_videotex
-
-  bf_editor_datafiles
-
-  bf_rna
-  bf_windowmanager
-  bf_editor_animation
-  bf_editor_armature
-  bf_editor_space_node
-  bf_editor_object
-  bf_editor_screen
-  bf_editor_space_image
-  bf_editor_gpencil
-  bf_editor_mesh
-  bf_editor_space_clip
-  bf_render
-  bf_editor_curve
-  bf_editor_render
-  bf_editor_space_info
-  bf_editor_scene
-  bf_editor_uvedit
-  bf_editor_transform
-  bf_editor_interface
-  bf_editor_physics
-  bf_editor_sculpt_paint
-  bf_editor_space_view3d
-  bf_editor_space_text
-  bf_editor_space_graph
-  bf_editor_space_file
-  bf_editor_space_buttons
-  bf_windowmanager
-
-  bf_editor_undo
-
-  bf_editor_space_api
-  bf_editor_space_action
-  bf_editor_space_buttons
-  bf_editor_space_console
-  bf_editor_space_file
-  bf_editor_space_graph
-  bf_editor_space_image
-  bf_editor_space_info
-  bf_editor_space_logic
-  bf_editor_space_nla
-  bf_editor_space_node
-  bf_editor_space_outliner
-  bf_editor_space_script
-  bf_editor_space_sequencer
-  bf_editor_space_statusbar
-  bf_editor_space_text
-  bf_editor_space_topbar
-  bf_editor_space_userpref
-  bf_editor_space_view3d
-  bf_editor_space_clip
-
-  bf_editor_transform
-  bf_editor_uvedit
-  bf_editor_curve
-  bf_editor_interface
-  bf_editor_gizmo_library
-  bf_editor_mesh
-  bf_editor_metaball
-  bf_editor_object
-  bf_editor_gpencil
-  bf_editor_lattice
-  bf_editor_armature
-  bf_editor_physics
-  bf_editor_render
-  bf_editor_scene
-  bf_editor_screen
-  bf_editor_sculpt_paint
-  bf_editor_sound
-  bf_editor_animation
-  bf_editor_datafiles
-  bf_editor_mask
-  bf_editor_io
-  bf_editor_util
-
-  bf_python
-  extern_curve_fit_nd
-  bf_render
-  bf_intern_elbeem
-  bf_python_gpu
-  bf_modifiers
-  bf_intern_dualcon
-
-  bf_intern_clog
-  bf_blenloader
-  bf_modifiers
-  bf_draw
-  bf_gpu
-  bf_blenkernel
-  bf_intern_opensubdiv
-  bf_shader_fx
-  bf_gpencil_modifiers
-  bf_physics
-  bf_depsgraph
-  bf_physics
-  bf_intern_rigidbody
-  bf_blenloader
-  ge_blen_routines
-  bf_editor_datafiles
-  ge_launcher
-  ge_blen_routines
-  ge_converter
-  ge_logic_ketsji
-  ge_phys_bullet
-  ge_phys_dummy
-  ge_logic
-  ge_rasterizer
-  ge_oglrasterizer
-  ge_logic_expressions
-  ge_scenegraph
-  bf_ikplugin
-  bf_intern_itasc
-  bf_intern_iksolver
-  bf_intern_smoke
-  bf_modifiers
-  bf_intern_moto
-  bf_nodes
-  bf_gpu
-  bf_imbuf
-  bf_avi
-  bf_python_ext
-  bf_python_mathutils
-  bf_python_bmesh
-  bf_imbuf_cineon
-  bf_imbuf_openexr
-  bf_imbuf_openimageio
-  bf_imbuf_dds
-  bf_dna
-  bf_blenloader
-  ge_videotex
-  bf_blenfont
-  bf_blentranslation
-  bf_intern_audaspace
-  audaspace
-  audaspace-py
-  blenkernel_blc
-  bf_bmesh
-  bf_blenlib
-  blenkernel_blc
-
-  bf_intern_string
-  bf_intern_ghost
-  bf_intern_rigidbody
-  bf_intern_itasc
-  bf_intern_iksolver
-  bf_intern_smoke
-  bf_intern_moto
-  bf_intern_guardedalloc
-  bf_intern_memutil
-  extern_minilzo
-  bf_intern_ghost # duplicate for linking
-  bf_blenkernel # duplicate for linking
-  bf_intern_mikktspace
-  extern_recastnavigation
-  bf_intern_opencolorio
-  bf_intern_glew_mx
-  bf_intern_quadriflow
-  bf_intern_numaapi
-  bf_intern_eigen
-  bf_intern_libmv
-
-  extern_bullet
-  extern_minilzo
-  extern_quadriflow
-  extern_recastnavigation
-  extern_rangetree
-  extern_wcwidth
-  bf_intern_libmv
-)
-
-if(UNIX AND NOT WIN32)
-  list(APPEND BLENDER_SORTED_LIBS extern_binreloc)
-endif()
-
-if(WIN32 AND NOT UNIX)
-    list(APPEND BLENDER_SORTED_LIBS bf_intern_utfconv)
-endif()
-
-	if(NOT WITH_SYSTEM_GLOG)
-		list(APPEND BLENDER_SORTED_LIBS extern_glog)
-	endif()
-
-	if(NOT WITH_SYSTEM_GFLAGS)
-		list(APPEND BLENDER_SORTED_LIBS extern_gflags)
-	endif()
-
-	if(WITH_MOD_CLOTH_ELTOPO)
-		list(APPEND BLENDER_SORTED_LIBS extern_eltopo)
-	endif()
-
-	if(NOT WITH_SYSTEM_GLEW)
-		list(APPEND BLENDER_SORTED_LIBS ${BLENDER_GLEW_LIBRARIES})
-	endif()
-
-	if(WITH_LZMA)
-		list(APPEND BLENDER_SORTED_LIBS extern_lzma)
-	endif()
-
-	if(WITH_LIBMV)
-		list(APPEND BLENDER_SORTED_LIBS extern_ceres)
-	endif()
-
-        if(WITH_GHOST_XDND AND UNIX AND NOT WIN32)
-                list(APPEND BLENDER_SORTED_LIBS extern_xdnd)
-        endif()
-
-	if(WITH_CXX_GUARDEDALLOC)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_guardedalloc_cpp)
-	endif()
-
-	if(WITH_INTERNATIONAL)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_locale)
-	endif()
-
-	if(WITH_GAMEENGINE_DECKLINK)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_decklink)
-	endif()
-
-        if(WITH_GAMEENGINE_BPPLAYER)
-                list(APPEND BLENDER_SORTED_LIBS bf_intern_spindle)
-        endif()
-
-	if(WIN32)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_gpudirect)
-	endif()
-
-	if(WITH_OPENSUBDIV)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_opensubdiv)
-	endif()
-
-	if(WITH_OPENVDB)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_openvdb)
-	endif()
-
-	if(WITH_ALEMBIC)
-		list(APPEND BLENDER_SORTED_LIBS bf_alembic)
-	endif()
-
-	foreach(SORTLIB ${BLENDER_SORTED_LIBS})
-		set(REMLIB ${SORTLIB})
-		foreach(SEARCHLIB ${BLENDER_LINK_LIBS})
-			if(${SEARCHLIB} STREQUAL ${SORTLIB})
-				set(REMLIB "")
-			endif()
-		endforeach()
-		#if(REMLIB)
-			# message(STATUS "Removing library ${REMLIB} from blenderplayer linking because: not configured")
-			#list(APPEND REM_MSG ${REMLIB})
-			#list(REMOVE_ITEM BLENDER_SORTED_LIBS ${REMLIB})
-		#endif()
-	endforeach()
-	if(REM_MSG)
-		list(SORT REM_MSG)
-		message(STATUS "Player Skipping: (${REM_MSG})")
-	endif()
-	target_link_libraries(blenderplayer ${BLENDER_SORTED_LIBS})
-
-	unset(SEARCHLIB)
-	unset(SORTLIB)
-	unset(REMLIB)
-	unset(REM_MSG)
-
-# else()
-# 	target_link_libraries(blenderplayer ${BLENDER_LINK_LIBS})
-# endif()
-
-if(WITH_PLAYER)
-	add_subdirectory(bad_level_call_stubs)
-endif()
+target_link_libraries(blenderplayer ${LIB})
+unset(LIB)
 
 setup_liblinks(blenderplayer)
-
-# We put CLEW and CUEW here because OPENSUBDIV_LIBRARIES dpeends on them..
-if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
-	target_link_libraries(blenderplayer "extern_clew")
-	if(WITH_CUDA_DYNLOAD)
-		target_link_libraries(blenderplayer "extern_cuew")
-	else()
-		target_link_libraries(${target} ${CUDA_CUDA_LIBRARY})
-	endif()
-endif()

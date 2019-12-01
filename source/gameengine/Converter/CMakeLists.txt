@@ -82,7 +82,7 @@ set(SRC
 	KX_ConvertControllers.cpp
 	KX_ConvertProperties.cpp
 	KX_ConvertSensors.cpp
-	KX_IpoConvert.cpp
+        #KX_IpoConvert.cpp (everything inside KX_IpoConvert.h)
 	KX_LibLoadStatus.cpp
 
 	BL_ActionActuator.h
@@ -100,6 +100,14 @@ set(SRC
 	KX_ConvertSensors.h
 	KX_IpoConvert.h
 	KX_LibLoadStatus.h
+)
+
+set(LIB
+  ge_physics_dummy
+  ge_physics_bullet
+  ge_ketsji
+  ge_rasterizer
+
 )
 
 if(WITH_BULLET)

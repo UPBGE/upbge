@@ -70,6 +70,9 @@ set(SRC
 	GPG_Canvas.h
 )
 
+set(LIB
+)
+
 add_definitions(${GL_DEFINITIONS})
 
 if(WIN32)

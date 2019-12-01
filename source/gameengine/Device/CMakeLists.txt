@@ -51,6 +51,9 @@ set(SRC
 	DEV_JoystickMappingdb.h
 )
 
+set(LIB
+)
+
 if(WITH_SDL)
 	list(APPEND INC_SYS
 		${SDL_INCLUDE_DIR}

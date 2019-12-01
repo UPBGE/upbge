@@ -34,19 +34,19 @@ set(INC_SYS
 )
 
 set(SRC
-	space_text.c
-	text_autocomplete.c
-	text_draw.c
-	text_format.c
-	text_format_glsl.c
-	text_format_lua.c
-	text_format_osl.c
-	text_format_pov.c
-	text_format_pov_ini.c
-	text_format_py.c
-	text_header.c
-	text_ops.c
-	text_undo.c
+  space_text.c
+  text_autocomplete.c
+  text_draw.c
+  text_format.c
+  text_format_glsl.c
+  text_format_lua.c
+  text_format_osl.c
+  text_format_pov.c
+  text_format_pov_ini.c
+  text_format_py.c
+  text_header.c
+  text_ops.c
+  text_undo.c
 
   text_format.h
   text_intern.h

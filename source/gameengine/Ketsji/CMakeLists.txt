@@ -58,8 +58,11 @@ set(INC
 	../../blender/python/intern
 	../../blender/render/extern/include
 	../../blender/render/intern/include
+        ../../blender/windowmanager
+        ../../../intern/ghost
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
+        ../../../intern/string
 )
 
 set(INC_SYS
@@ -79,6 +82,7 @@ set(SRC
 	KX_2DFilter.cpp
 	KX_2DFilterManager.cpp
 	KX_2DFilterFrameBuffer.cpp
+        KX_BlenderCanvas.cpp
 	KX_BlenderMaterial.cpp
 	KX_Camera.cpp
 	KX_CameraIpoSGController.cpp
@@ -129,6 +133,7 @@ set(SRC
 	KX_2DFilter.h
 	KX_2DFilterManager.h
 	KX_2DFilterFrameBuffer.h
+        KX_BlenderCanvas.h
 	KX_BlenderMaterial.h
 	KX_Camera.h
 	KX_CameraIpoSGController.h
@@ -179,6 +184,17 @@ set(SRC
 	KX_CollisionContactPoints.h
 )
 
+set(LIB
+  ge_converter
+  ge_logic_bricks
+  ge_scenegraph
+  ge_msg_network
+  ge_device
+  extern_recastnavigation
+  bf_blenkernel
+  ge_rasterizer
+)
+
 add_definitions(${GL_DEFINITIONS})
 
 if(WITH_IMAGE_DDS)
@@ -206,4 +222,8 @@ if(WITH_BULLET)
 	add_definitions(-DWITH_BULLET)
 endif()
 
-blender_add_lib(ge_logic_ketsji "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+if(WITH_GAMEENGINE)
+    add_definitions(-DWITH_GAMEENGINE)
+endif()
+
+blender_add_lib(ge_ketsji "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

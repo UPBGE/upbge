@@ -104,6 +104,24 @@ set(SRC
 	VideoDeckLink.h
 )
 
+set(LIB
+  ge_scenegraph
+)
+
+if(WITH_GAMEENGINE_DECKLINK)
+  add_definitions(-DWITH_GAMEENGINE_DECKLINK)
+
+  list(APPEND LIB
+    bf_intern_decklink
+  )
+endif()
+
+if(WIN32)
+    list(APPEND LIB
+      bf_intern_gpudirect
+    )
+endif()
+
 if(WITH_CODEC_FFMPEG)
 	list(APPEND INC_SYS
 		${FFMPEG_INCLUDE_DIRS}
@@ -112,8 +130,4 @@ if(WITH_CODEC_FFMPEG)
 	add_definitions(-DWITH_FFMPEG)
 endif()
 
-if(WITH_GAMEENGINE_DECKLINK)
-	add_definitions(-DWITH_GAMEENGINE_DECKLINK)
-endif()
-
-blender_add_lib(ge_videotex "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(ge_videotexture "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

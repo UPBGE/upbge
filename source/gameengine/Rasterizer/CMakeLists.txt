@@ -107,6 +107,11 @@ set(SRC
 	RAS_TexVert.h
 )
 
+set(LIB
+  ge_rasterizer_opengl
+  bf_intern_moto
+)
+
 data_to_c_simple(RAS_OpenGLFilters/RAS_Blur2DFilter.glsl SRC)
 data_to_c_simple(RAS_OpenGLFilters/RAS_Dilation2DFilter.glsl SRC)
 data_to_c_simple(RAS_OpenGLFilters/RAS_Erosion2DFilter.glsl SRC)

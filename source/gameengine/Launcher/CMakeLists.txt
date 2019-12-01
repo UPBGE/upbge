@@ -74,10 +74,23 @@ set(SRC
 )
 
 set(LIB
+  bf_intern_moto
+  ge_expressions
+  ge_logic_bricks
+  ge_msg_network
+  ge_videotexture
+  ge_device
+  ge_blender_routines
 )
 
 if(WITH_GAMEENGINE_SECURITY)
 	add_definitions(-DWITH_GAMEENGINE_SECURITY)
+endif()
+
+if(WITH_PLAYER)
+    list(APPEND LIB
+      ge_player
+    )
 endif()
 
 if(WITH_AUDASPACE)

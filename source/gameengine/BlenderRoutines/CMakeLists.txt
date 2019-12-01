@@ -39,10 +39,13 @@ set(INC_SYS
 )
 
 set(SRC
-	BL_KetsjiEmbedStart.cpp
-	KX_BlenderCanvas.cpp
+  BL_KetsjiEmbedStart.cpp
+)
 
-	KX_BlenderCanvas.h
+set(LIB
+  ge_ketsji
+  ge_common
+  ge_launcher
 )
 
 add_definitions(${GL_DEFINITIONS})
@@ -67,4 +70,4 @@ if(WITH_BULLET)
 endif()
 
 
-blender_add_lib(ge_blen_routines "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(ge_blender_routines "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

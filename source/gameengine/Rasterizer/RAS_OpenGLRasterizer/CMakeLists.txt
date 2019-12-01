@@ -65,6 +65,9 @@ set(SRC
 	RAS_OpenGLRasterizer.h
 )
 
+set(LIB
+)
+
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(ge_oglrasterizer "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(ge_rasterizer_opengl "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

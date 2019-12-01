@@ -43,6 +43,8 @@ set(INC
 
 set(INC_SYS
 	../../../intern/moto/include
+        ../../../extern/recastnavigation/Recast/Include
+        ../../../extern/recastnavigation/Detour/Include
 	${BOOST_INCLUDE_DIR}
 )
 
@@ -172,11 +174,8 @@ set(SRC
 	SCA_XORController.h
 )
 
-set(INC_SYS
-	../../../intern/moto/include
-	../../../extern/recastnavigation/Recast/Include
-	../../../extern/recastnavigation/Detour/Include
-	${BOOST_INCLUDE_DIR}
+set(LIB
+  ge_expressions
 )
 
 if(WITH_AUDASPACE)
@@ -203,4 +202,4 @@ if(WITH_SDL)
 	endif()
 endif()
 
-blender_add_lib(ge_logic "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(ge_logic_bricks "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
