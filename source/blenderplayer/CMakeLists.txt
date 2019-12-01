@@ -161,7 +161,6 @@ if(WITH_PYTHON_MODULE)
 
 else()
   add_executable(blenderplayer ${EXETYPE} ${SRC})
-  WINDOWS_SIGN_TARGET(blenderplayer)
 endif()
 
 if(WITH_BUILDINFO)
