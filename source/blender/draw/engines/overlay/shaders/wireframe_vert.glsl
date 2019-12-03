@@ -9,9 +9,10 @@ in vec3 pos;
 in vec3 nor;
 in float wd; /* wiredata */
 
+flat out vec2 edgeStart;
+
 #ifndef SELECT_EDGES
 out vec3 finalColor;
-flat out vec2 edgeStart;
 noperspective out vec2 edgePos;
 #endif
 
@@ -101,16 +102,31 @@ void wire_object_color_get(out vec3 rim_col, out vec3 wire_col)
 void main()
 {
   vec3 wpos = point_object_to_world(pos);
+  vec3 wnor = normalize(normal_object_to_world(nor));
+
+  bool is_persp = (ProjectionMatrix[3][3] == 0.0);
+  vec3 V = (is_persp) ? normalize(ViewMatrixInverse[3].xyz - wpos) : ViewMatrix[2].xyz;
+
+  float facing = dot(wnor, V);
+  float facing_ratio = clamp(1.0 - facing * facing, 0.0, 1.0);
+  float flip = sign(facing);           /* Flip when not facing the normal (i.e.: backfacing). */
+  float curvature = (1.0 - wd * 0.75); /* Avoid making things worse for curvy areas. */
+  vec3 wofs = wnor * (facing_ratio * curvature * flip);
+  wofs = normal_world_to_view(wofs);
+
   gl_Position = point_world_to_ndc(wpos);
 
-  if (get_edge_sharpness(wd) < 0.0) {
-    /* Discard primitive by placing any of the verts at the camera origin. */
-    gl_Position = vec4(0.0, 0.0, -3e36, 0.0);
-  }
+  /* Push vertex half a pixel (maximum) in normal direction. */
+  gl_Position.xy += wofs.xy * sizeViewportInv.xy * gl_Position.w;
+
+  /* Push the vertex towards the camera. Helps a bit. */
+  gl_Position.z -= facing_ratio * curvature * 1e-4;
+
+  /* Convert to screen position [0..sizeVp]. */
+  edgeStart = ((gl_Position.xy / gl_Position.w) * 0.5 + 0.5) * sizeViewport.xy;
 
 #ifndef SELECT_EDGES
-  /* Convert to screen position [0..sizeVp]. */
-  edgePos = edgeStart = ((gl_Position.xy / gl_Position.w) * 0.5 + 0.5) * sizeViewport.xy;
+  edgePos = edgeStart;
 
   vec3 rim_col, wire_col;
   if (isObjectColor || isRandomColor) {
@@ -120,14 +136,17 @@ void main()
     wire_color_get(rim_col, wire_col);
   }
 
-  vec3 wnor = normalize(normal_object_to_world(nor));
-  float facing = dot(wnor, ViewMatrixInverse[2].xyz);
   facing = clamp(abs(facing), 0.0, 1.0);
 
   vec3 final_front_col = mix(rim_col, wire_col, 0.4);
   vec3 final_rim_col = mix(rim_col, wire_col, 0.1);
   finalColor = mix(final_rim_col, final_front_col, facing);
 #endif
+
+  /* Cull flat edges below threshold. */
+  if (get_edge_sharpness(wd) < 0.0) {
+    edgeStart = vec2(-1.0);
+  }
 
 #ifdef USE_WORLD_CLIP_PLANES
   world_clip_planes_calc_clip_distance(wpos);
