@@ -3112,6 +3112,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   v3d.clip_end = cam->clip_end;
   v3d.shading.type = OB_RENDER;
   v3d.shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
+  v3d.shading.render_pass = SCE_PASS_COMBINED;
 
 
   game_rv3d.camdx = cam->shiftx;
