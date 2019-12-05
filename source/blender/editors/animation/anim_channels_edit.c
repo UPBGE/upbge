@@ -3115,6 +3115,7 @@ static int mouse_anim_channels(bContext *C, bAnimContext *ac, int channel_index,
         /* update other layer status */
         BKE_gpencil_layer_setactive(gpd, gpl);
         BKE_gpencil_layer_autolock_set(gpd, false);
+        DEG_id_tag_update(&gpd->id, ID_RECALC_GEOMETRY);
       }
 
       /* Grease Pencil updates */
