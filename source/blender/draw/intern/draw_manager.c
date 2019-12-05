@@ -3185,13 +3185,8 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 
   DRW_hair_update();
 
-  const bool background_drawn = drw_engines_draw_background();
+  drw_engines_draw_background();
 
-  GPU_framebuffer_bind(DST.default_framebuffer);
-
-  if (!background_drawn) {
-    drw_draw_background_alpha_under();
-  }
   GPUTexture *finaltex = effects->final_tx;
 
   GPU_viewport_texture_pool_clear_users_bge(DST.viewport);
