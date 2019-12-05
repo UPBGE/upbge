@@ -50,37 +50,27 @@ static void OVERLAY_engine_init(void *vedata)
   }
 
   OVERLAY_PrivateData *pd = stl->pd;
-  View3DOverlay overlay;
-  short v3d_flag, v3d_gridflag;
 
   pd->hide_overlays = (v3d->flag2 & V3D_HIDE_OVERLAYS) != 0;
   pd->ctx_mode = CTX_data_mode_enum_ex(
       draw_ctx->object_edit, draw_ctx->obact, draw_ctx->object_mode);
 
   if (!pd->hide_overlays) {
-    overlay = v3d->overlay;
-    v3d_flag = v3d->flag;
-    v3d_gridflag = v3d->gridflag;
+    pd->overlay = v3d->overlay;
+    pd->v3d_flag = v3d->flag;
+    pd->v3d_gridflag = v3d->gridflag;
   }
   else {
-    memset(&overlay, 0, sizeof(overlay));
-    v3d_flag = 0;
-    v3d_gridflag = 0;
-    overlay.flag = V3D_OVERLAY_HIDE_TEXT | V3D_OVERLAY_HIDE_MOTION_PATHS | V3D_OVERLAY_HIDE_BONES |
-                   V3D_OVERLAY_HIDE_OBJECT_XTRAS | V3D_OVERLAY_HIDE_OBJECT_ORIGINS;
+    memset(&pd->overlay, 0, sizeof(pd->overlay));
+    pd->v3d_flag = 0;
+    pd->v3d_gridflag = 0;
+    pd->overlay.flag = V3D_OVERLAY_HIDE_TEXT | V3D_OVERLAY_HIDE_MOTION_PATHS |
+                       V3D_OVERLAY_HIDE_BONES | V3D_OVERLAY_HIDE_OBJECT_XTRAS |
+                       V3D_OVERLAY_HIDE_OBJECT_ORIGINS;
   }
 
   if (v3d->shading.type == OB_WIRE) {
-    overlay.flag |= V3D_OVERLAY_WIREFRAMES;
-  }
-
-  /* Check if anything changed, and if so, reset AA. */
-  if (v3d_flag != pd->v3d_flag || pd->v3d_gridflag != v3d_gridflag ||
-      memcmp(&pd->overlay, &overlay, sizeof(overlay))) {
-    pd->overlay = overlay;
-    pd->v3d_flag = v3d_flag;
-    pd->v3d_gridflag = v3d_gridflag;
-    OVERLAY_antialiasing_reset(vedata);
+    pd->overlay.flag |= V3D_OVERLAY_WIREFRAMES;
   }
 
   pd->wireframe_mode = (v3d->shading.type == OB_WIRE);
@@ -206,10 +196,9 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
   const bool draw_bones = (pd->overlay.flag & V3D_OVERLAY_HIDE_BONES) == 0;
   const bool draw_wires = draw_surface && has_surface &&
                           (pd->wireframe_mode || !pd->hide_overlays);
-  const bool draw_outlines = !in_edit_mode && !in_paint_mode && renderable &&
+  const bool draw_outlines = !in_edit_mode && !in_paint_mode && renderable && has_surface &&
                              (pd->v3d_flag & V3D_SELECT_OUTLINE) &&
-                             ((ob->base_flag & BASE_SELECTED) ||
-                              (is_select && ob->type == OB_LIGHTPROBE));
+                             (ob->base_flag & BASE_SELECTED);
   const bool draw_bone_selection = (ob->type == OB_MESH) && pd->armature.do_pose_fade_geom &&
                                    !is_select;
   const bool draw_extras =
@@ -376,45 +365,51 @@ static void OVERLAY_draw_scene(void *vedata)
 
   OVERLAY_antialiasing_start(vedata);
 
-  DRW_view_set_active(pd->view_default);
+  DRW_view_set_active(NULL);
+
+  OVERLAY_outline_draw(vedata);
+
+  if (DRW_state_is_fbo()) {
+    GPU_framebuffer_bind(fbl->overlay_default_fb);
+  }
 
   OVERLAY_image_draw(vedata);
   OVERLAY_facing_draw(vedata);
+
+  if (DRW_state_is_fbo()) {
+    GPU_framebuffer_bind(fbl->overlay_line_fb);
+  }
+
   OVERLAY_wireframe_draw(vedata);
   OVERLAY_armature_draw(vedata);
   OVERLAY_particle_draw(vedata);
   OVERLAY_metaball_draw(vedata);
   OVERLAY_extra_draw(vedata);
 
-  DRW_view_set_active(NULL);
+  if (DRW_state_is_fbo()) {
+    GPU_framebuffer_bind(fbl->overlay_color_only_fb);
+  }
 
   OVERLAY_grid_draw(vedata);
-  OVERLAY_outline_draw(vedata);
-
-  DRW_view_set_active(pd->view_default);
 
   if (DRW_state_is_fbo()) {
-    GPU_framebuffer_bind(fbl->overlay_in_front_fb);
-
-    /* If we are not in solid shading mode, we clear the depth. */
-    if (pd->clear_in_front) {
-      /* TODO(fclem) This clear should be done in a global place. */
-      GPU_framebuffer_clear_depth(fbl->overlay_in_front_fb, 1.0f);
-    }
+    GPU_framebuffer_bind(fbl->overlay_line_in_front_fb);
   }
 
   OVERLAY_wireframe_in_front_draw(vedata);
   OVERLAY_armature_in_front_draw(vedata);
   OVERLAY_extra_in_front_draw(vedata);
   OVERLAY_metaball_in_front_draw(vedata);
-  OVERLAY_image_in_front_draw(vedata);
 
   if (DRW_state_is_fbo()) {
-    GPU_framebuffer_bind(fbl->overlay_default_fb);
+    GPU_framebuffer_bind(fbl->overlay_color_only_fb);
   }
 
+  OVERLAY_image_in_front_draw(vedata);
   OVERLAY_motion_path_draw(vedata);
   OVERLAY_extra_centers_draw(vedata);
+
+  /* Functions after this point can change FBO freely. */
 
   switch (pd->ctx_mode) {
     case CTX_MODE_EDIT_MESH:
@@ -425,26 +420,20 @@ static void OVERLAY_draw_scene(void *vedata)
       OVERLAY_edit_curve_draw(vedata);
       break;
     case CTX_MODE_EDIT_TEXT:
-      /* Text overlay need final color for color inversion. */
-      OVERLAY_antialiasing_end(vedata);
       OVERLAY_edit_text_draw(vedata);
-      return; /* WATCH! dont do AA twice. */
+      break;
     case CTX_MODE_EDIT_LATTICE:
       OVERLAY_edit_lattice_draw(vedata);
       break;
     case CTX_MODE_POSE:
-      /* Pain overlay needs final color because of multiply blend mode. */
-      OVERLAY_antialiasing_end(vedata);
       OVERLAY_paint_draw(vedata);
       OVERLAY_pose_draw(vedata);
-      return; /* WATCH! dont do AA twice. */
+      break;
     case CTX_MODE_PAINT_WEIGHT:
     case CTX_MODE_PAINT_VERTEX:
     case CTX_MODE_PAINT_TEXTURE:
-      /* Pain overlay need final color because of multiply blend mode. */
-      OVERLAY_antialiasing_end(vedata);
       OVERLAY_paint_draw(vedata);
-      return; /* WATCH! dont do AA twice. */
+      break;
     case CTX_MODE_PARTICLE:
       OVERLAY_edit_particle_draw(vedata);
       break;
