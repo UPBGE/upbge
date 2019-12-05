@@ -3150,7 +3150,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 
   DST.draw_ctx.depsgraph = depsgraph;
 
-  DST.options.draw_background = true;
+  DST.options.draw_background = (scene->r.alphamode == R_ADDSKY);
   DST.options.do_color_management = true;
 
   drw_context_state_init();
@@ -3185,7 +3185,13 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 
   DRW_hair_update();
 
-  drw_engines_draw_background();
+  const bool background_drawn = drw_engines_draw_background();
+
+  GPU_framebuffer_bind(DST.default_framebuffer);
+
+  if (!background_drawn) {
+    drw_draw_background_alpha_under();
+  }
   GPUTexture *finaltex = effects->final_tx;
 
   GPU_viewport_texture_pool_clear_users_bge(DST.viewport);
