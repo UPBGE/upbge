@@ -675,8 +675,8 @@ class USERPREF_PT_viewport_quality(PreferencePanel, Panel):
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
         flow.prop(system, "viewport_aa")
-        flow.prop(system, "multi_sample", text="Multisampling")
         flow.prop(system, "gpencil_multi_sample", text="Grease Pencil Multisampling")
+        flow.prop(system, "use_overlay_smooth_wire")
         flow.prop(system, "use_edit_mode_smooth_wire")
 
 
@@ -2188,6 +2188,12 @@ class USERPREF_PT_experimental_all(ExperimentalPanel, Panel):
         # For the other settings create new panels
         # and make sure they are disabled if use_experimental_all is True
 
+        url_prefix = "https://developer.blender.org/"
+
+        row = col.row()
+        row.prop(experimental, "use_tool_fallback")
+
+        row.operator("wm.url_open", text="", icon='URL').url = url_prefix + "T66304"
 
 """
 # Example panel, leave it here so we always have a template to follow even

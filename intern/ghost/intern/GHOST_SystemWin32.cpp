@@ -28,12 +28,6 @@
 #  define _WIN32_IE 0x0501 /* shipped before XP, so doesn't impose additional requirements */
 #endif
 
-/* clang-format off */
-#pragma comment(linker,"\"/manifestdependency:type='win32' \
-name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
-processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
-/* clang-format on */
-
 #include <commctrl.h>
 #include <shlobj.h>
 #include <tlhelp32.h>
@@ -1162,8 +1156,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
   GHOST_ASSERT(system, "GHOST_SystemWin32::s_wndProc(): system not initialized");
 
   if (hwnd) {
-#if 0
-    // Disabled due to bug in Intel drivers, see T51959
+
     if (msg == WM_NCCREATE) {
       // Tell Windows to automatically handle scaling of non-client areas
       // such as the caption bar. EnableNonClientDpiScaling was introduced in Windows 10
@@ -1172,13 +1165,11 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
         GHOST_WIN32_EnableNonClientDpiScaling fpEnableNonClientDpiScaling =
             (GHOST_WIN32_EnableNonClientDpiScaling)::GetProcAddress(m_user32,
                                                                     "EnableNonClientDpiScaling");
-
         if (fpEnableNonClientDpiScaling) {
           fpEnableNonClientDpiScaling(hwnd);
         }
       }
     }
-#endif
 
     GHOST_WindowWin32 *window = (GHOST_WindowWin32 *)::GetWindowLongPtr(hwnd, GWLP_USERDATA);
     if (window) {
