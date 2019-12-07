@@ -5561,11 +5561,19 @@ NODE_DEFINE(MapRangeNode)
 {
   NodeType *type = NodeType::add("map_range", create, NodeType::SHADER);
 
+  static NodeEnum type_enum;
+  type_enum.insert("linear", NODE_MAP_RANGE_LINEAR);
+  type_enum.insert("stepped", NODE_MAP_RANGE_STEPPED);
+  type_enum.insert("smoothstep", NODE_MAP_RANGE_SMOOTHSTEP);
+  type_enum.insert("smootherstep", NODE_MAP_RANGE_SMOOTHERSTEP);
+  SOCKET_ENUM(type, "Type", type_enum, NODE_MAP_RANGE_LINEAR);
+
   SOCKET_IN_FLOAT(value, "Value", 1.0f);
   SOCKET_IN_FLOAT(from_min, "From Min", 0.0f);
   SOCKET_IN_FLOAT(from_max, "From Max", 1.0f);
   SOCKET_IN_FLOAT(to_min, "To Min", 0.0f);
   SOCKET_IN_FLOAT(to_max, "To Max", 1.0f);
+  SOCKET_IN_FLOAT(steps, "Steps", 4.0f);
 
   SOCKET_OUT_FLOAT(result, "Result");
 
@@ -5582,6 +5590,7 @@ void MapRangeNode::expand(ShaderGraph *graph)
     ShaderOutput *result_out = output("Result");
     if (!result_out->links.empty()) {
       ClampNode *clamp_node = new ClampNode();
+      clamp_node->type = NODE_CLAMP_RANGE;
       graph->add(clamp_node);
       graph->relink(result_out, clamp_node->output("Result"));
       graph->connect(result_out, clamp_node->input("Value"));
@@ -5601,20 +5610,6 @@ void MapRangeNode::expand(ShaderGraph *graph)
   }
 }
 
-void MapRangeNode::constant_fold(const ConstantFolder &folder)
-{
-  if (folder.all_inputs_constant()) {
-    float result;
-    if (from_max != from_min) {
-      result = to_min + ((value - from_min) / (from_max - from_min)) * (to_max - to_min);
-    }
-    else {
-      result = 0.0f;
-    }
-    folder.make_constant(result);
-  }
-}
-
 void MapRangeNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *value_in = input("Value");
@@ -5622,6 +5617,7 @@ void MapRangeNode::compile(SVMCompiler &compiler)
   ShaderInput *from_max_in = input("From Max");
   ShaderInput *to_min_in = input("To Min");
   ShaderInput *to_max_in = input("To Max");
+  ShaderInput *steps_in = input("Steps");
   ShaderOutput *result_out = output("Result");
 
   int value_stack_offset = compiler.stack_assign(value_in);
@@ -5629,6 +5625,7 @@ void MapRangeNode::compile(SVMCompiler &compiler)
   int from_max_stack_offset = compiler.stack_assign_if_linked(from_max_in);
   int to_min_stack_offset = compiler.stack_assign_if_linked(to_min_in);
   int to_max_stack_offset = compiler.stack_assign_if_linked(to_max_in);
+  int steps_stack_offset = compiler.stack_assign(steps_in);
   int result_stack_offset = compiler.stack_assign(result_out);
 
   compiler.add_node(
@@ -5636,16 +5633,18 @@ void MapRangeNode::compile(SVMCompiler &compiler)
       value_stack_offset,
       compiler.encode_uchar4(
           from_min_stack_offset, from_max_stack_offset, to_min_stack_offset, to_max_stack_offset),
-      result_stack_offset);
+      compiler.encode_uchar4(type, steps_stack_offset, result_stack_offset));
 
   compiler.add_node(__float_as_int(from_min),
                     __float_as_int(from_max),
                     __float_as_int(to_min),
                     __float_as_int(to_max));
+  compiler.add_node(__float_as_int(steps));
 }
 
 void MapRangeNode::compile(OSLCompiler &compiler)
 {
+  compiler.parameter(this, "type");
   compiler.add(this, "node_map_range");
 }
 
@@ -5654,6 +5653,11 @@ void MapRangeNode::compile(OSLCompiler &compiler)
 NODE_DEFINE(ClampNode)
 {
   NodeType *type = NodeType::add("clamp", create, NodeType::SHADER);
+
+  static NodeEnum type_enum;
+  type_enum.insert("minmax", NODE_CLAMP_MINMAX);
+  type_enum.insert("range", NODE_CLAMP_RANGE);
+  SOCKET_ENUM(type, "Type", type_enum, NODE_CLAMP_MINMAX);
 
   SOCKET_IN_FLOAT(value, "Value", 1.0f);
   SOCKET_IN_FLOAT(min, "Min", 0.0f);
@@ -5671,7 +5675,12 @@ ClampNode::ClampNode() : ShaderNode(node_type)
 void ClampNode::constant_fold(const ConstantFolder &folder)
 {
   if (folder.all_inputs_constant()) {
-    folder.make_constant(clamp(value, min, max));
+    if (type == NODE_CLAMP_RANGE && (min > max)) {
+      folder.make_constant(clamp(value, max, min));
+    }
+    else {
+      folder.make_constant(clamp(value, min, max));
+    }
   }
 }
 
@@ -5689,13 +5698,14 @@ void ClampNode::compile(SVMCompiler &compiler)
 
   compiler.add_node(NODE_CLAMP,
                     value_stack_offset,
-                    compiler.encode_uchar4(min_stack_offset, max_stack_offset),
+                    compiler.encode_uchar4(min_stack_offset, max_stack_offset, type),
                     result_stack_offset);
   compiler.add_node(__float_as_int(min), __float_as_int(max));
 }
 
 void ClampNode::compile(OSLCompiler &compiler)
 {
+  compiler.parameter(this, "type");
   compiler.add(this, "node_clamp");
 }
 
@@ -5710,9 +5720,13 @@ NODE_DEFINE(MathNode)
   type_enum.insert("subtract", NODE_MATH_SUBTRACT);
   type_enum.insert("multiply", NODE_MATH_MULTIPLY);
   type_enum.insert("divide", NODE_MATH_DIVIDE);
+  type_enum.insert("multiply_add", NODE_MATH_MULTIPLY_ADD);
   type_enum.insert("sine", NODE_MATH_SINE);
   type_enum.insert("cosine", NODE_MATH_COSINE);
   type_enum.insert("tangent", NODE_MATH_TANGENT);
+  type_enum.insert("sinh", NODE_MATH_SINH);
+  type_enum.insert("cosh", NODE_MATH_COSH);
+  type_enum.insert("tanh", NODE_MATH_TANH);
   type_enum.insert("arcsine", NODE_MATH_ARCSINE);
   type_enum.insert("arccosine", NODE_MATH_ARCCOSINE);
   type_enum.insert("arctangent", NODE_MATH_ARCTANGENT);
@@ -5729,13 +5743,26 @@ NODE_DEFINE(MathNode)
   type_enum.insert("floor", NODE_MATH_FLOOR);
   type_enum.insert("ceil", NODE_MATH_CEIL);
   type_enum.insert("fraction", NODE_MATH_FRACTION);
+  type_enum.insert("trunc", NODE_MATH_TRUNC);
+  type_enum.insert("snap", NODE_MATH_SNAP);
+  type_enum.insert("wrap", NODE_MATH_WRAP);
+  type_enum.insert("pingpong", NODE_MATH_PINGPONG);
   type_enum.insert("sqrt", NODE_MATH_SQRT);
+  type_enum.insert("inversesqrt", NODE_MATH_INV_SQRT);
+  type_enum.insert("sign", NODE_MATH_SIGN);
+  type_enum.insert("exponent", NODE_MATH_EXPONENT);
+  type_enum.insert("radians", NODE_MATH_RADIANS);
+  type_enum.insert("degrees", NODE_MATH_DEGREES);
+  type_enum.insert("smoothmin", NODE_MATH_SMOOTH_MIN);
+  type_enum.insert("smoothmax", NODE_MATH_SMOOTH_MAX);
+  type_enum.insert("compare", NODE_MATH_COMPARE);
   SOCKET_ENUM(type, "Type", type_enum, NODE_MATH_ADD);
 
   SOCKET_BOOLEAN(use_clamp, "Use Clamp", false);
 
   SOCKET_IN_FLOAT(value1, "Value1", 0.5f);
   SOCKET_IN_FLOAT(value2, "Value2", 0.5f);
+  SOCKET_IN_FLOAT(value3, "Value3", 0.0f);
 
   SOCKET_OUT_FLOAT(value, "Value");
 
@@ -5752,6 +5779,7 @@ void MathNode::expand(ShaderGraph *graph)
     ShaderOutput *result_out = output("Value");
     if (!result_out->links.empty()) {
       ClampNode *clamp_node = new ClampNode();
+      clamp_node->type = NODE_CLAMP_MINMAX;
       clamp_node->min = 0.0f;
       clamp_node->max = 1.0f;
       graph->add(clamp_node);
@@ -5764,7 +5792,7 @@ void MathNode::expand(ShaderGraph *graph)
 void MathNode::constant_fold(const ConstantFolder &folder)
 {
   if (folder.all_inputs_constant()) {
-    folder.make_constant(svm_math(type, value1, value2));
+    folder.make_constant(svm_math(type, value1, value2, value3));
   }
   else {
     folder.fold_math(type);
@@ -5775,16 +5803,19 @@ void MathNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *value1_in = input("Value1");
   ShaderInput *value2_in = input("Value2");
+  ShaderInput *value3_in = input("Value3");
   ShaderOutput *value_out = output("Value");
 
   int value1_stack_offset = compiler.stack_assign(value1_in);
   int value2_stack_offset = compiler.stack_assign(value2_in);
+  int value3_stack_offset = compiler.stack_assign(value3_in);
   int value_stack_offset = compiler.stack_assign(value_out);
 
-  compiler.add_node(NODE_MATH,
-                    type,
-                    compiler.encode_uchar4(value1_stack_offset, value2_stack_offset),
-                    value_stack_offset);
+  compiler.add_node(
+      NODE_MATH,
+      type,
+      compiler.encode_uchar4(value1_stack_offset, value2_stack_offset, value3_stack_offset),
+      value_stack_offset);
 }
 
 void MathNode::compile(OSLCompiler &compiler)

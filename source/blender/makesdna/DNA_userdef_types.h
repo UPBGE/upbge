@@ -276,7 +276,7 @@ typedef struct ThemeSpace {
   unsigned char edge[4], edge_select[4];
   unsigned char edge_seam[4], edge_sharp[4], edge_facesel[4], edge_crease[4], edge_bevel[4];
   /** Solid faces. */
-  unsigned char face[4], face_select[4];
+  unsigned char face[4], face_select[4], face_back[4], face_front[4];
   /**  selected color. */
   unsigned char face_dot[4];
   unsigned char extra_edge_len[4], extra_edge_angle[4], extra_face_angle[4], extra_face_area[4];
@@ -601,10 +601,6 @@ typedef struct UserDef_FileSpaceData {
   int temp_win_sizey;
 } UserDef_FileSpaceData;
 
-/**
- * Store UI data here instead of the space
- * since the space is typically a window which is freed.
- */
 typedef struct UserDef_Experimental {
   /** #eUserPref_Experimental_Flag options. */
   int flag;
@@ -613,6 +609,10 @@ typedef struct UserDef_Experimental {
 
   char _pad0[3];
 } UserDef_Experimental;
+
+#define USER_EXPEREMENTAL_TEST(userdef, member) \
+  (((userdef)->flag & USER_DEVELOPER_UI) && \
+   (((userdef)->experimental.flag & USER_EXPERIMENTAL_ALL) || ((userdef)->experimental).member))
 
 typedef struct UserDef {
   /** UserDef has separate do-version handling, and can be read from other files. */
