@@ -6,9 +6,14 @@ Install Code Signing Certificate
 --------------------------------
 
 * Go to https://developer.apple.com/account/resources/certificates/list
-* Download the Developer ID Application certifate.
+* Download the Developer ID Application certificate.
 * Double click the file and add to key chain (default options).
 * Delete the file from the Downloads folder.
+
+* You will also need to install a .p12 public/private key file for the
+  certificate. This is only available for the owner of the Blender account,
+  or can be exported and copied from another system that already has code
+  signing set up.
 
 Find the codesigning identity by running:
 

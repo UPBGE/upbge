@@ -1084,6 +1084,8 @@ typedef struct SpaceImage {
   char pixel_snap_mode;
   char _pad2[3];
 
+  int tile_grid_shape[2];
+
   MaskSpaceInfo mask_info;
 } SpaceImage;
 

@@ -579,7 +579,7 @@ static void rna_userdef_autosave_update(Main *bmain, Scene *scene, PointerRNA *p
     static bool rna_userdef_experimental_##member##_get(PointerRNA *ptr) \
     { \
       UserDef *userdef = POINTER_OFFSET(ptr->data, -offsetof(UserDef, experimental)); \
-      return USER_EXPEREMENTAL_TEST(userdef, member); \
+      return USER_EXPERIMENTAL_TEST(userdef, member); \
     }
 
 RNA_USERDEF_EXPERIMENTAL_BOOLEAN_GET(use_tool_fallback)
@@ -5881,13 +5881,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_struct_nested(brna, srna, "Preferences");
   RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
   RNA_def_struct_ui_text(srna, "Experimental", "Experimental features");
-
-  prop = RNA_def_property(srna, "use_experimental_all", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_EXPERIMENTAL_ALL);
-  RNA_def_property_ui_text(prop,
-                           "All Experimental Features",
-                           "Expose all the experimental features in the user interface");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "use_tool_fallback", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "use_tool_fallback", 1);

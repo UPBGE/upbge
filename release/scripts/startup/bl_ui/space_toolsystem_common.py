@@ -738,10 +738,10 @@ class ToolSelectPanelHelper:
             else:
                 label = "Active Tool"
 
-            split = layout.split(factor=0.5)
+            split = layout.split(factor=0.33)
             row = split.row()
             row.alignment = 'RIGHT'
-            row.label(text="Drag")
+            row.label(text="Drag:")
             row = split.row()
             row.context_pointer_set("tool", tool)
             row.popover(panel="TOPBAR_PT_tool_fallback", text=label)
@@ -751,7 +751,6 @@ class ToolSelectPanelHelper:
     # Show a list of tools in the popover.
     @staticmethod
     def draw_fallback_tool_items(layout, context):
-
         space_type = context.space_data.type
         if space_type == 'PROPERTIES':
             space_type = 'VIEW_3D'
@@ -930,9 +929,8 @@ def _activate_by_item(context, space_type, item, index, *, as_fallback=False):
         data_block=item.data_block or "",
         operator=item.operator or "",
         index=index,
-
-        idname_fallback=item_fallback.idname if item_fallback else "",
-        keymap_fallback=item_fallback.keymap[0] if (item_fallback and item_fallback.keymap) else "",
+        idname_fallback=(item_fallback and item_fallback.idname) or "",
+        keymap_fallback=(item_fallback and item_fallback.keymap and item_fallback.keymap[0]) or "",
     )
 
     WindowManager = bpy.types.WindowManager

@@ -4394,5 +4394,30 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         }
       }
     }
+
+    /* Add primary tile to images. */
+    if (!DNA_struct_elem_find(fd->filesdna, "Image", "ListBase", "tiles")) {
+      for (Image *ima = bmain->images.first; ima; ima = ima->id.next) {
+        ImageTile *tile = MEM_callocN(sizeof(ImageTile), "Image Tile");
+        tile->ok = 1;
+        tile->tile_number = 1001;
+        BLI_addtail(&ima->tiles, tile);
+      }
+    }
+
+    /* UDIM Image Editor change. */
+    if (!DNA_struct_elem_find(fd->filesdna, "SpaceImage", "int", "tile_grid_shape[2]")) {
+      for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+        for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+          for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+            if (sl->spacetype == SPACE_IMAGE) {
+              SpaceImage *sima = (SpaceImage *)sl;
+              sima->tile_grid_shape[0] = 1;
+              sima->tile_grid_shape[1] = 1;
+            }
+          }
+        }
+      }
+    }
   }
 }
