@@ -29,6 +29,7 @@
 #include "BLI_math.h"
 
 extern "C" {
+#  include "BKE_image.h"
 #  include "DNA_texture_types.h"
 #  include "GPU_draw.h"
 #  include "GPU_texture.h"
@@ -75,7 +76,9 @@ void BL_Texture::CheckValidTexture()
 	 * gpu texture. In both cases we call GPU_texture_from_blender.
 	 */
 	int target = m_isCubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
-	if (m_gpuTex != m_input->ima->gputexture[target]) {
+	ImageTile *tile = BKE_image_get_tile(m_input->ima, 0);
+	GPUTexture *tex = tile->gputexture[target];
+	if (m_gpuTex != tex) {
 		// Restore gpu texture original bind cdoe to make sure we will delete the right opengl texture.
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
 		GPU_texture_free(m_gpuTex);
