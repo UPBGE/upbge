@@ -425,6 +425,40 @@ static void OVERLAY_bounds(
   }
 }
 
+static void OVERLAY_pivot(
+    OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
+{
+  float color[4], size[3], tmp[4][4];
+  BoundBox bb_local;
+
+  if (ob->type == OB_MBALL && !BKE_mball_is_basis(ob)) {
+    return;
+  }
+
+  BoundBox *bb = BKE_object_boundbox_get(ob);
+
+  if (bb == NULL) {
+    const float min[3] = {-1.0f, -1.0f, -1.0f}, max[3] = {1.0f, 1.0f, 1.0f};
+    bb = &bb_local;
+    BKE_boundbox_init_from_minmax(bb, min, max);
+  }
+
+  UI_GetThemeColor4fv(theme_id, color);
+  BKE_boundbox_calc_size_aabb(bb, size);
+
+  for (bConstraint *con = ob->constraints.first; con; con = con->next) {
+    bRigidBodyJointConstraint *rcon = (bRigidBodyJointConstraint *)con->data;
+    if (rcon && rcon->flag & CONSTRAINT_DRAW_PIVOT) {
+      float xyz[3] = {rcon->pivX, rcon->pivY, rcon->pivZ};
+      size_to_mat4(tmp, size);
+      mul_m4_fl(tmp, 0.3f);
+      copy_v3_v3(tmp[3], xyz);
+      mul_m4_m4m4(tmp, ob->obmat, tmp);
+      DRW_buffer_add_entry(cb->empty_sphere, color, tmp);
+    }
+  }
+}
+
 static void OVERLAY_collision(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
 {
   switch (ob->rigidbody_object->shape) {
@@ -1590,6 +1624,9 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
     }
     if (ob->rigidbody_object != NULL) {
       OVERLAY_collision(cb, ob, theme_id);
+    }
+    if (ob->constraints.first) {
+      OVERLAY_pivot(cb, ob, theme_id);
     }
     if (ob->dtx & OB_AXIS) {
       DRW_buffer_add_entry(cb->empty_axes, color, ob->obmat);
