@@ -56,6 +56,13 @@ if(WITH_ALEMBIC)
   set(ALEMBIC_FOUND ON)
 endif()
 
+if(WITH_USD)
+  find_package(USD)
+  if(NOT USD_FOUND)
+    set(WITH_USD OFF)
+  endif()
+endif()
+
 if(WITH_OPENSUBDIV)
   set(OPENSUBDIV ${LIBDIR}/opensubdiv)
   set(OPENSUBDIV_LIBPATH ${OPENSUBDIV}/lib)

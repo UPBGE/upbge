@@ -1135,11 +1135,10 @@ class _defs_weight_paint:
         def draw_settings(context, layout, tool):
             brush = context.tool_settings.weight_paint.brush
             if brush is not None:
-                from bl_ui.properties_paint_common import UnifiedPaintPanel
-                UnifiedPaintPanel.prop_unified_weight(layout, context, brush, "weight", slider=True)
-                UnifiedPaintPanel.prop_unified_strength(layout, context, brush, "strength", slider=True)
+                layout.prop(brush, "weight", slider=True)
+                layout.prop(brush, "strength", slider=True)
             props = tool.operator_properties("paint.weight_gradient")
-            layout.prop(props, "type")
+            layout.prop(props, "type", expand=True)
 
         return dict(
             idname="builtin.gradient",
@@ -1203,7 +1202,7 @@ class _defs_image_uv_transform:
             idname="builtin.move",
             label="Move",
             icon="ops.transform.translate",
-            # widget="VIEW3D_GGT_xform_gizmo",
+            widget="IMAGE_GGT_gizmo2d_translate",
             operator="transform.translate",
             keymap="Image Editor Tool: Uv, Move",
         )
@@ -1214,7 +1213,7 @@ class _defs_image_uv_transform:
             idname="builtin.rotate",
             label="Rotate",
             icon="ops.transform.rotate",
-            # widget="VIEW3D_GGT_xform_gizmo",
+            widget="IMAGE_GGT_gizmo2d_rotate",
             operator="transform.rotate",
             keymap="Image Editor Tool: Uv, Rotate",
         )
@@ -1225,7 +1224,7 @@ class _defs_image_uv_transform:
             idname="builtin.scale",
             label="Scale",
             icon="ops.transform.resize",
-            # widget="VIEW3D_GGT_xform_gizmo",
+            widget="IMAGE_GGT_gizmo2d_resize",
             operator="transform.resize",
             keymap="Image Editor Tool: Uv, Scale",
         )
