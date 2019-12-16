@@ -425,6 +425,7 @@ static void OVERLAY_bounds(
   }
 }
 
+/* Game engine transition */
 static void OVERLAY_pivot(
     OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
 {
@@ -443,6 +444,7 @@ static void OVERLAY_pivot(
     }
   }
 }
+/* End of Game engine transition */
 
 static void OVERLAY_collision(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
 {
@@ -1610,7 +1612,7 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
     if (ob->rigidbody_object != NULL) {
       OVERLAY_collision(cb, ob, theme_id);
     }
-    if (ob->constraints.first) {
+    if (ob->constraints.first) { /* Game engine transition */
       OVERLAY_pivot(cb, ob, theme_id);
     }
     if (ob->dtx & OB_AXIS) {
