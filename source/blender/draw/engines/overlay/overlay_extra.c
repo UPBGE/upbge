@@ -428,29 +428,14 @@ static void OVERLAY_bounds(
 static void OVERLAY_pivot(
     OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
 {
-  float color[4], size[3], tmp[4][4];
-  BoundBox bb_local;
-
-  if (ob->type == OB_MBALL && !BKE_mball_is_basis(ob)) {
-    return;
-  }
-
-  BoundBox *bb = BKE_object_boundbox_get(ob);
-
-  if (bb == NULL) {
-    const float min[3] = {-1.0f, -1.0f, -1.0f}, max[3] = {1.0f, 1.0f, 1.0f};
-    bb = &bb_local;
-    BKE_boundbox_init_from_minmax(bb, min, max);
-  }
-
+  float color[4], tmp[4][4];
   UI_GetThemeColor4fv(theme_id, color);
-  BKE_boundbox_calc_size_aabb(bb, size);
 
   for (bConstraint *con = ob->constraints.first; con; con = con->next) {
     bRigidBodyJointConstraint *rcon = (bRigidBodyJointConstraint *)con->data;
     if (rcon && rcon->flag & CONSTRAINT_DRAW_PIVOT) {
       float xyz[3] = {rcon->pivX, rcon->pivY, rcon->pivZ};
-      size_to_mat4(tmp, size);
+      size_to_mat4(tmp, ob->scale);
       scale_m4_fl(tmp, 0.3f);
       copy_v3_v3(tmp[3], xyz);
       mul_m4_m4m4(tmp, ob->obmat, tmp);
