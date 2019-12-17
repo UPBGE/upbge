@@ -945,7 +945,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             col.prop(md, "angle")
         col.prop(md, "limits", slider=True)
 
-    def SMOKE(self, layout, _ob, _md):
+    def FLUID(self, layout, _ob, _md):
         layout.label(text="Settings are inside the Physics tab")
 
     def SMOOTH(self, layout, ob, md):
@@ -2413,6 +2413,7 @@ class DATA_PT_gpencil_modifiers(ModifierButtonsPanel, Panel):
         row = layout.row(align=True)
         row.prop(md, "layer_pass", text="Pass")
         row.prop(md, "invert_layer_pass", text="", icon='ARROW_LEFTRIGHT')
+
 
 classes = (
     DATA_PT_modifiers,

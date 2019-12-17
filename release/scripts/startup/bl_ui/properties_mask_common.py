@@ -22,6 +22,33 @@
 # menus are referenced `as is`
 
 from bpy.types import Menu, UIList
+from bpy.app.translations import contexts as i18n_contexts
+
+
+# Use by both image & clip context menus.
+def draw_mask_context_menu(layout, context):
+    layout.operator_menu_enum("mask.handle_type_set", "type")
+    layout.operator("mask.switch_direction")
+    layout.operator("mask.cyclic_toggle")
+
+    layout.separator()
+    layout.operator("mask.copy_splines", icon='COPYDOWN')
+    layout.operator("mask.paste_splines", icon='PASTEDOWN')
+
+    layout.separator()
+
+    layout.operator("mask.shape_key_rekey", text="Re-key Shape Points")
+    layout.operator("mask.feather_weight_clear")
+    layout.operator("mask.shape_key_feather_reset", text="Reset Feather Animation")
+
+    layout.separator()
+
+    layout.operator("mask.parent_set")
+    layout.operator("mask.parent_clear")
+
+    layout.separator()
+
+    layout.operator("mask.delete")
 
 
 class MASK_UL_layers(UIList):
@@ -320,6 +347,19 @@ class MASK_MT_mask(Menu):
         layout.menu("MASK_MT_animation")
 
 
+class MASK_MT_add(Menu):
+    bl_idname = "MASK_MT_add"
+    bl_label = "Add"
+    bl_translation_context = i18n_contexts.operator_default
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("mask.primitive_circle_add", text="Circle", icon='MESH_CIRCLE')
+        layout.operator("mask.primitive_square_add", text="Square", icon='MESH_PLANE')
+
+
 class MASK_MT_visibility(Menu):
     bl_label = "Show/Hide"
 
@@ -383,6 +423,7 @@ class MASK_MT_select(Menu):
 classes = (
     MASK_UL_layers,
     MASK_MT_mask,
+    MASK_MT_add,
     MASK_MT_visibility,
     MASK_MT_transform,
     MASK_MT_animation,

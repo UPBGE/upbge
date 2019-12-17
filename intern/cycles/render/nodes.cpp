@@ -235,6 +235,8 @@ NODE_DEFINE(ImageTextureNode)
   SOCKET_STRING(filename, "Filename", ustring());
   SOCKET_STRING(colorspace, "Colorspace", u_colorspace_auto);
 
+  SOCKET_BOOLEAN(is_tiled, "Is Tiled", false);
+
   static NodeEnum alpha_type_enum;
   alpha_type_enum.insert("auto", IMAGE_ALPHA_AUTO);
   alpha_type_enum.insert("unassociated", IMAGE_ALPHA_UNASSOCIATED);
@@ -291,6 +293,14 @@ ShaderNode *ImageTextureNode::clone() const
 
 void ImageTextureNode::cull_tiles(Scene *scene, ShaderGraph *graph)
 {
+  /* Box projection computes its own UVs that always lie in the
+   * 1001 tile, so there's no point in loading any others. */
+  if (projection == NODE_IMAGE_PROJ_BOX) {
+    tiles.clear();
+    tiles.push_back(1001);
+    return;
+  }
+
   if (!scene->params.background) {
     /* During interactive renders, all tiles are loaded.
      * While we could support updating this when UVs change, that could lead
@@ -366,15 +376,12 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
   image_manager = compiler.scene->image_manager;
   if (slots.empty()) {
     cull_tiles(compiler.scene, compiler.current_graph);
-  }
-  if (slots.size() < tiles.size()) {
-    slots.clear();
     slots.reserve(tiles.size());
 
     bool have_metadata = false;
     foreach (int tile, tiles) {
       string tile_name = filename.string();
-      if (tiles.size() > 1) {
+      if (is_tiled) {
         tile_name = string_printf(tile_name.c_str(), tile);
       }
 
@@ -409,15 +416,6 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
   }
 
   if (has_image) {
-    /* If there only is one image (a very common case), we encode it as a negative value. */
-    int num_nodes;
-    if (slots.size() == 1) {
-      num_nodes = -slots[0];
-    }
-    else {
-      num_nodes = divide_up(slots.size(), 2);
-    }
-
     int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
     uint flags = 0;
 
@@ -435,6 +433,15 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
     }
 
     if (projection != NODE_IMAGE_PROJ_BOX) {
+      /* If there only is one image (a very common case), we encode it as a negative value. */
+      int num_nodes;
+      if (slots.size() == 1) {
+        num_nodes = -slots[0];
+      }
+      else {
+        num_nodes = divide_up(slots.size(), 2);
+      }
+
       compiler.add_node(NODE_TEX_IMAGE,
                         num_nodes,
                         compiler.encode_uchar4(vector_offset,
@@ -442,32 +449,33 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
                                                compiler.stack_assign_if_linked(alpha_out),
                                                flags),
                         projection);
+
+      if (num_nodes > 0) {
+        for (int i = 0; i < num_nodes; i++) {
+          int4 node;
+          node.x = tiles[2 * i];
+          node.y = slots[2 * i];
+          if (2 * i + 1 < slots.size()) {
+            node.z = tiles[2 * i + 1];
+            node.w = slots[2 * i + 1];
+          }
+          else {
+            node.z = -1;
+            node.w = -1;
+          }
+          compiler.add_node(node.x, node.y, node.z, node.w);
+        }
+      }
     }
     else {
+      assert(slots.size() == 1);
       compiler.add_node(NODE_TEX_IMAGE_BOX,
-                        num_nodes,
+                        slots[0],
                         compiler.encode_uchar4(vector_offset,
                                                compiler.stack_assign_if_linked(color_out),
                                                compiler.stack_assign_if_linked(alpha_out),
                                                flags),
                         __float_as_int(projection_blend));
-    }
-
-    if (num_nodes > 0) {
-      for (int i = 0; i < num_nodes; i++) {
-        int4 node;
-        node.x = tiles[2 * i];
-        node.y = slots[2 * i];
-        if (2 * i + 1 < slots.size()) {
-          node.z = tiles[2 * i + 1];
-          node.w = slots[2 * i + 1];
-        }
-        else {
-          node.z = -1;
-          node.w = -1;
-        }
-        compiler.add_node(node.x, node.y, node.z, node.w);
-      }
     }
 
     tex_mapping.compile_end(compiler, vector_in, vector_offset);

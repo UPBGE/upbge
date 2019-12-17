@@ -33,6 +33,7 @@ set(INC
   ../../windowmanager
   ../../../../intern/clog
   ../../../../intern/guardedalloc
+  ../../../../intern/mantaflow/extern
   ../../../../intern/opencolorio
 )
 
@@ -261,10 +262,6 @@ if(WITH_LIBMV)
   add_definitions(-DWITH_LIBMV)
 endif()
 
-if(WITH_MOD_FLUID)
-  add_definitions(-DWITH_MOD_FLUID)
-endif()
-
 if(WITH_MOD_OCEANSIM)
   add_definitions(-DWITH_OCEANSIM)
 endif()
@@ -273,8 +270,8 @@ if(WITH_MOD_REMESH)
   add_definitions(-DWITH_MOD_REMESH)
 endif()
 
-if(WITH_MOD_SMOKE)
-  add_definitions(-DWITH_SMOKE)
+if(WITH_MOD_FLUID)
+  add_definitions(-DWITH_FLUID)
 endif()
 
 if(WITH_OPENCOLLADA)

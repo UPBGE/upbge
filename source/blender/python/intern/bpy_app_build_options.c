@@ -52,10 +52,8 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {(char *)"sdl_dynload", NULL},
     {(char *)"jack", NULL},
     {(char *)"libmv", NULL},
-    {(char *)"mod_fluid", NULL},
     {(char *)"mod_oceansim", NULL},
     {(char *)"mod_remesh", NULL},
-    {(char *)"mod_smoke", NULL},
     {(char *)"collada", NULL},
     {(char *)"opencolorio", NULL},
     {(char *)"player", NULL},
@@ -63,6 +61,7 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {(char *)"openvdb", NULL},
     {(char *)"alembic", NULL},
     {(char *)"usd", NULL},
+    {(char *)"fluid", NULL},
     {NULL},
 };
 
@@ -230,12 +229,6 @@ static PyObject *make_builtopts_info(void)
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_MOD_FLUID
-  SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
-
 #ifdef WITH_OCEANSIM
   SetObjIncref(Py_True);
 #else
@@ -243,12 +236,6 @@ static PyObject *make_builtopts_info(void)
 #endif
 
 #ifdef WITH_MOD_REMESH
-  SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
-
-#ifdef WITH_SMOKE
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
@@ -291,6 +278,12 @@ static PyObject *make_builtopts_info(void)
 #endif
 
 #ifdef WITH_USD
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
+#ifdef WITH_FLUID
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);

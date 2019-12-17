@@ -129,9 +129,9 @@
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sdna_types.h"
-#include "DNA_sequence_types.h"
 #include "DNA_sensor_types.h"
-#include "DNA_smoke_types.h"
+#include "DNA_sequence_types.h"
+#include "DNA_fluid_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_speaker_types.h"
@@ -1839,38 +1839,38 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
       writestruct(wd, DATA, EffectorWeights, 1, clmd->sim_parms->effector_weights);
       write_pointcaches(wd, &clmd->ptcaches);
     }
-    else if (md->type == eModifierType_Smoke) {
-      SmokeModifierData *smd = (SmokeModifierData *)md;
+    else if (md->type == eModifierType_Fluid) {
+      FluidModifierData *mmd = (FluidModifierData *)md;
 
-      if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
-        writestruct(wd, DATA, SmokeDomainSettings, 1, smd->domain);
+      if (mmd->type & MOD_FLUID_TYPE_DOMAIN) {
+        writestruct(wd, DATA, FluidDomainSettings, 1, mmd->domain);
 
-        if (smd->domain) {
-          write_pointcaches(wd, &(smd->domain->ptcaches[0]));
+        if (mmd->domain) {
+          write_pointcaches(wd, &(mmd->domain->ptcaches[0]));
 
           /* create fake pointcache so that old blender versions can read it */
-          smd->domain->point_cache[1] = BKE_ptcache_add(&smd->domain->ptcaches[1]);
-          smd->domain->point_cache[1]->flag |= PTCACHE_DISK_CACHE | PTCACHE_FAKE_SMOKE;
-          smd->domain->point_cache[1]->step = 1;
+          mmd->domain->point_cache[1] = BKE_ptcache_add(&mmd->domain->ptcaches[1]);
+          mmd->domain->point_cache[1]->flag |= PTCACHE_DISK_CACHE | PTCACHE_FAKE_SMOKE;
+          mmd->domain->point_cache[1]->step = 1;
 
-          write_pointcaches(wd, &(smd->domain->ptcaches[1]));
+          write_pointcaches(wd, &(mmd->domain->ptcaches[1]));
 
-          if (smd->domain->coba) {
-            writestruct(wd, DATA, ColorBand, 1, smd->domain->coba);
+          if (mmd->domain->coba) {
+            writestruct(wd, DATA, ColorBand, 1, mmd->domain->coba);
           }
 
           /* cleanup the fake pointcache */
-          BKE_ptcache_free_list(&smd->domain->ptcaches[1]);
-          smd->domain->point_cache[1] = NULL;
+          BKE_ptcache_free_list(&mmd->domain->ptcaches[1]);
+          mmd->domain->point_cache[1] = NULL;
 
-          writestruct(wd, DATA, EffectorWeights, 1, smd->domain->effector_weights);
+          writestruct(wd, DATA, EffectorWeights, 1, mmd->domain->effector_weights);
         }
       }
-      else if (smd->type & MOD_SMOKE_TYPE_FLOW) {
-        writestruct(wd, DATA, SmokeFlowSettings, 1, smd->flow);
+      else if (mmd->type & MOD_FLUID_TYPE_FLOW) {
+        writestruct(wd, DATA, FluidFlowSettings, 1, mmd->flow);
       }
-      else if (smd->type & MOD_SMOKE_TYPE_COLL) {
-        writestruct(wd, DATA, SmokeCollSettings, 1, smd->coll);
+      else if (mmd->type & MOD_FLUID_TYPE_EFFEC) {
+        writestruct(wd, DATA, FluidEffectorSettings, 1, mmd->effector);
       }
     }
     else if (md->type == eModifierType_Fluidsim) {
@@ -2042,24 +2042,24 @@ static void write_shaderfxs(WriteData *wd, ListBase *fxbase)
 
 static void write_object(WriteData *wd, Object *ob)
 {
-	if (ob->id.us > 0 || wd->use_memfile) {
-		/* write LibData */
-		writestruct(wd, ID_OB, Object, 1, ob);
-		write_iddata(wd, &ob->id);
+  if (ob->id.us > 0 || wd->use_memfile) {
+    /* write LibData */
+    writestruct(wd, ID_OB, Object, 1, ob);
+    write_iddata(wd, &ob->id);
 
-		if (ob->adt) {
-			write_animdata(wd, ob->adt);
-		}
+    if (ob->adt) {
+      write_animdata(wd, ob->adt);
+    }
 
     /* direct data */
     writedata(wd, DATA, sizeof(void *) * ob->totcol, ob->mat);
     writedata(wd, DATA, sizeof(char) * ob->totcol, ob->matbits);
     /* write_effects(wd, &ob->effect); */ /* not used anymore */
-		write_properties(wd, &ob->prop);
-		write_sensors(wd, &ob->sensors);
-		write_controllers(wd, &ob->controllers);
-		write_actuators(wd, &ob->actuators);
-        write_components(wd, &ob->components);
+    write_properties(wd, &ob->prop);
+    write_sensors(wd, &ob->sensors);
+    write_controllers(wd, &ob->controllers);
+    write_actuators(wd, &ob->actuators);
+    write_components(wd, &ob->components);
 
     if (ob->type == OB_ARMATURE) {
       bArmature *arm = ob->data;
@@ -2084,7 +2084,7 @@ static void write_object(WriteData *wd, Object *ob)
       writestruct(wd, DATA, SoftBody_Shared, 1, ob->soft->shared);
       write_pointcaches(wd, &(ob->soft->shared->ptcaches));
       writestruct(wd, DATA, EffectorWeights, 1, ob->soft->effector_weights);
-		writestruct(wd, DATA, BulletSoftBody, 1, ob->bsoft);
+      writestruct(wd, DATA, BulletSoftBody, 1, ob->bsoft);
     }
 
     if (ob->rigidbody_object) {
@@ -2106,8 +2106,8 @@ static void write_object(WriteData *wd, Object *ob)
 
     writelist(wd, DATA, LinkData, &ob->pc_ids);
 
-		write_previews(wd, ob->preview);
-	}
+    write_previews(wd, ob->preview);
+  }
 }
 
 static void write_vfont(WriteData *wd, VFont *vf)

@@ -218,49 +218,27 @@ class ToolSelectPanelHelper:
 
     @staticmethod
     def _tools_flatten(tools):
-        """
-        Flattens, skips None and calls generators.
-        """
         for item in tools:
-            if item is None:
-                yield None
-            elif type(item) is tuple:
-                for sub_item in item:
-                    if sub_item is None:
-                        yield None
-                    elif _item_is_fn(sub_item):
-                        yield from sub_item(context)
-                    else:
-                        yield sub_item
+            if type(item) is tuple:
+                yield from item
             else:
-                if _item_is_fn(item):
-                    yield from item(context)
-                else:
-                    yield item
+                # May be None.
+                yield item
 
     @staticmethod
     def _tools_flatten_with_tool_index(tools):
         for item in tools:
-            if item is None:
-                yield None, -1
-            elif type(item) is tuple:
+            if type(item) is tuple:
                 i = 0
                 for sub_item in item:
                     if sub_item is None:
                         yield None, -1
-                    elif _item_is_fn(sub_item):
-                        for item_dyn in sub_item(context):
-                            yield item_dyn, i
-                            i += 1
                     else:
                         yield sub_item, i
                         i += 1
             else:
-                if _item_is_fn(item):
-                    for item_dyn in item(context):
-                        yield item_dyn, -1
-                else:
-                    yield item, -1
+                # May be None.
+                yield item, -1
 
     @classmethod
     def _tool_get_active(cls, context, space_type, mode, with_icon=False):
@@ -378,7 +356,7 @@ class ToolSelectPanelHelper:
 
     @staticmethod
     def _tool_active_from_context(context, space_type, mode=None, create=False):
-        if space_type in ('VIEW_3D', 'PROPERTIES'):
+        if space_type in {'VIEW_3D', 'PROPERTIES'}:
             if mode is None:
                 mode = context.mode
             tool = context.workspace.tools.from_space_view3d_mode(mode, create=create)
@@ -675,7 +653,6 @@ class ToolSelectPanelHelper:
     def tool_active_from_context(context):
         space_type = context.space_data.type
         return ToolSelectPanelHelper._tool_active_from_context(context, space_type)
-
 
     @staticmethod
     def draw_active_tool_fallback(

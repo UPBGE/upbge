@@ -40,15 +40,14 @@ struct CustomData;
 struct DMFlagMat;
 struct GPU_PBVH_Buffers;
 struct IsectRayPrecalc;
-struct Mesh;
 struct MLoop;
 struct MLoopTri;
 struct MPoly;
 struct MVert;
+struct Mesh;
 struct PBVH;
 struct PBVHNode;
 struct SubdivCCG;
-struct TaskParallelSettings;
 struct TaskParallelTLS;
 
 typedef struct PBVH PBVH;

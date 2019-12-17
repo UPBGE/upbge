@@ -44,7 +44,7 @@ set(INC
 
   ../../../intern/glew-mx
   ../../../intern/guardedalloc
-  ../../../intern/smoke/extern
+  ../../../intern/mantaflow/extern
 )
 
 set(INC_SYS
@@ -61,6 +61,7 @@ set(SRC
   intern/gpu_context.cpp
   intern/gpu_debug.c
   intern/gpu_draw.c
+  intern/gpu_draw_smoke.c
   intern/gpu_element.c
   intern/gpu_extensions.c
   intern/gpu_framebuffer.c
@@ -328,8 +329,8 @@ if(WITH_GAMEENGINE)
   add_definitions(-DWITH_GAMEENGINE)
 endif()
 
-if(WITH_MOD_SMOKE)
-  add_definitions(-DWITH_SMOKE)
+if(WITH_MOD_FLUID)
+  add_definitions(-DWITH_FLUID)
 endif()
 
 add_definitions(${GL_DEFINITIONS})

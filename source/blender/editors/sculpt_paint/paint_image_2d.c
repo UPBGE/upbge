@@ -1560,9 +1560,9 @@ static void paint_2d_canvas_free(ImagePaintState *s)
   }
 }
 
-static void paint_2d_transform_mouse(ImagePaintState *s, const float in[2], float out[2])
+static void paint_2d_transform_mouse(View2D *v2d, const float in[2], float out[2])
 {
-  UI_view2d_region_to_view(s->v2d, in[0], in[1], &out[0], &out[1]);
+  UI_view2d_region_to_view(v2d, in[0], in[1], &out[0], &out[1]);
 }
 
 static bool is_inside_tile(const int size[2], const float pos[2], const float brush[2])
@@ -1656,8 +1656,9 @@ void paint_2d_stroke(void *ps,
 
     brush_painter_2d_refresh_cache(s, painter, tile, new_coord, mval, pressure, distance, size);
 
-    if (paint_2d_op(s, tile, old_coord, new_coord))
+    if (paint_2d_op(s, tile, old_coord, new_coord)) {
       tile->need_redraw = true;
+    }
   }
 
   painter->firsttouch = 0;
@@ -1899,14 +1900,24 @@ void paint_2d_bucket_fill(const bContext *C,
     return;
   }
 
+  View2D *v2d = s ? s->v2d : &CTX_wm_region(C)->v2d;
   float uv_origin[2];
   float image_init[2];
-  paint_2d_transform_mouse(s, mouse_init, image_init);
+  paint_2d_transform_mouse(v2d, mouse_init, image_init);
 
   int tile_number = BKE_image_get_tile_from_pos(ima, image_init, image_init, uv_origin);
-  ImageUser *iuser = paint_2d_get_tile_iuser(s, tile_number);
-  if (!iuser) {
-    return;
+
+  ImageUser local_iuser, *iuser;
+  if (s != NULL) {
+    iuser = paint_2d_get_tile_iuser(s, tile_number);
+    if (iuser == NULL) {
+      return;
+    }
+  }
+  else {
+    iuser = &local_iuser;
+    BKE_imageuser_default(iuser);
+    iuser->tile = tile_number;
   }
 
   ibuf = BKE_image_acquire_ibuf(ima, iuser, NULL);
@@ -2125,8 +2136,8 @@ void paint_2d_gradient_fill(
     return;
   }
 
-  paint_2d_transform_mouse(s, mouse_final, image_final);
-  paint_2d_transform_mouse(s, mouse_init, image_init);
+  paint_2d_transform_mouse(s->v2d, mouse_final, image_final);
+  paint_2d_transform_mouse(s->v2d, mouse_init, image_init);
   sub_v2_v2(image_init, uv_origin);
   sub_v2_v2(image_final, uv_origin);
 

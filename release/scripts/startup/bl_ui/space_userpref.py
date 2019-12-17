@@ -1213,7 +1213,12 @@ class ThemeGenericClassGenerator():
                             "datapath": new_datapath,
                         })
 
-                        yield from generate_child_panel_classes_recurse(panel_id, prop.fixed_type, theme_area, new_datapath)
+                        yield from generate_child_panel_classes_recurse(
+                            panel_id,
+                            prop.fixed_type,
+                            theme_area,
+                            new_datapath,
+                        )
 
         yield from generate_child_panel_classes_recurse(parent_id, rna_type, theme_area, datapath)
 
@@ -2189,7 +2194,6 @@ class USERPREF_PT_experimental_ui(ExperimentalPanel, Panel):
         col.prop(experimental, "use_tool_fallback", text="Use Tool Fallback")
         col = split.column()
         col.operator("wm.url_open", text=task, icon='URL').url = self.url_prefix + task
-
 
 """
 # Example panel, leave it here so we always have a template to follow even

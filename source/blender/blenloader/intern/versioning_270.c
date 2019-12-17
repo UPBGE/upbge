@@ -47,7 +47,7 @@
 #include "DNA_linestyle_types.h"
 #include "DNA_actuator_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_smoke_types.h"
+#include "DNA_fluid_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_light_types.h"
 
@@ -1540,18 +1540,18 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "SmokeModifierData", "float", "slice_per_voxel")) {
+    if (!DNA_struct_elem_find(fd->filesdna, "FluidModifierData", "float", "slice_per_voxel")) {
       Object *ob;
       ModifierData *md;
 
       for (ob = bmain->objects.first; ob; ob = ob->id.next) {
         for (md = ob->modifiers.first; md; md = md->next) {
-          if (md->type == eModifierType_Smoke) {
-            SmokeModifierData *smd = (SmokeModifierData *)md;
-            if (smd->domain) {
-              smd->domain->slice_per_voxel = 5.0f;
-              smd->domain->slice_depth = 0.5f;
-              smd->domain->display_thickness = 1.0f;
+          if (md->type == eModifierType_Fluid) {
+            FluidModifierData *mmd = (FluidModifierData *)md;
+            if (mmd->domain) {
+              mmd->domain->slice_per_voxel = 5.0f;
+              mmd->domain->slice_depth = 0.5f;
+              mmd->domain->display_thickness = 1.0f;
             }
           }
         }
@@ -1710,16 +1710,16 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 279, 3)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "SmokeDomainSettings", "float", "clipping")) {
+    if (!DNA_struct_elem_find(fd->filesdna, "FluidDomainSettings", "float", "clipping")) {
       Object *ob;
       ModifierData *md;
 
       for (ob = bmain->objects.first; ob; ob = ob->id.next) {
         for (md = ob->modifiers.first; md; md = md->next) {
-          if (md->type == eModifierType_Smoke) {
-            SmokeModifierData *smd = (SmokeModifierData *)md;
-            if (smd->domain) {
-              smd->domain->clipping = 1e-3f;
+          if (md->type == eModifierType_Fluid) {
+            FluidModifierData *mmd = (FluidModifierData *)md;
+            if (mmd->domain) {
+              mmd->domain->clipping = 1e-3f;
             }
           }
         }

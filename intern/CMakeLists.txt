@@ -48,14 +48,6 @@ if(WITH_MOD_REMESH)
   add_subdirectory(dualcon)
 endif()
 
-if(WITH_MOD_FLUID)
-  add_subdirectory(elbeem)
-endif()
-
-if(WITH_MOD_SMOKE)
-  add_subdirectory(smoke)
-endif()
-
 if(WITH_IK_SOLVER)
   add_subdirectory(iksolver)
 endif()
@@ -85,6 +77,10 @@ endif()
 if(WIN32)
 	add_subdirectory(utfconv)
 	add_subdirectory(gpudirect)
+endif()
+
+if(WITH_MOD_FLUID)
+  add_subdirectory(mantaflow)
 endif()
 
 if(WITH_OPENVDB)

@@ -122,7 +122,7 @@ static const char *includefiles[] = {
     "DNA_windowmanager_types.h",
     "DNA_anim_types.h",
     "DNA_boid_types.h",
-    "DNA_smoke_types.h",
+    "DNA_fluid_types.h",
     "DNA_speaker_types.h",
     "DNA_movieclip_types.h",
     "DNA_tracking_types.h",
@@ -908,7 +908,8 @@ static int calculate_struct_sizes(int firststruct, FILE *file_verify, const char
   /* Write test to verify sizes are accurate. */
   fprintf(file_verify, "/* Verify struct sizes and member offsets are as expected by DNA. */\n");
   fprintf(file_verify, "#include \"BLI_assert.h\"\n\n");
-  fprintf(file_verify, "#define DNA_DEPRECATED\n");
+  /* Needed so we can find offsets of deprecated structs. */
+  fprintf(file_verify, "#define DNA_DEPRECATED_ALLOW\n");
   /* Workaround enum naming collision in static asserts
    * (ideally this included a unique name/id per file). */
   fprintf(file_verify, "#define assert_line_ assert_line_DNA_\n");
@@ -1588,7 +1589,7 @@ int main(int argc, char **argv)
 #include "DNA_windowmanager_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_boid_types.h"
-#include "DNA_smoke_types.h"
+#include "DNA_fluid_types.h"
 #include "DNA_speaker_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"

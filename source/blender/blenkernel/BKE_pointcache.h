@@ -75,6 +75,7 @@
 
 /* Structs */
 struct ClothModifierData;
+struct FluidModifierData;
 struct ListBase;
 struct Main;
 struct Object;
@@ -83,7 +84,6 @@ struct ParticleSystem;
 struct PointCache;
 struct RigidBodyWorld;
 struct Scene;
-struct SmokeModifierData;
 struct SoftBody;
 struct ViewLayer;
 
@@ -286,7 +286,7 @@ void BKE_ptcache_make_particle_key(struct ParticleKey *key, int index, void **da
 void BKE_ptcache_id_from_softbody(PTCacheID *pid, struct Object *ob, struct SoftBody *sb);
 void BKE_ptcache_id_from_particles(PTCacheID *pid, struct Object *ob, struct ParticleSystem *psys);
 void BKE_ptcache_id_from_cloth(PTCacheID *pid, struct Object *ob, struct ClothModifierData *clmd);
-void BKE_ptcache_id_from_smoke(PTCacheID *pid, struct Object *ob, struct SmokeModifierData *smd);
+void BKE_ptcache_id_from_smoke(PTCacheID *pid, struct Object *ob, struct FluidModifierData *mmd);
 void BKE_ptcache_id_from_dynamicpaint(PTCacheID *pid,
                                       struct Object *ob,
                                       struct DynamicPaintSurface *surface);
