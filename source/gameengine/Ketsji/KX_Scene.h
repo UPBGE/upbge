@@ -138,6 +138,8 @@ protected:
 	bool m_resetTaaSamples;
   Object *m_lastReplicatedParentObject;
   Object *m_gameDefaultCamera;
+  struct GPUViewport *m_gpuViewport;
+  struct GPUOffScreen *m_gpuOffScreen;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;

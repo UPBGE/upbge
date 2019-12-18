@@ -3060,14 +3060,7 @@ static void game_camera_border(Depsgraph *depsgraph,
   r_viewborder->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
 }
 
-typedef struct GameViewPort {
-  GPUViewport *viewport;
-} GameViewPort;
-
-static GameViewPort game_viewport;
-static RegionView3D game_rv3d;
-
-GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
+GPUTexture *DRW_game_render_loop(GPUViewport *viewport, Main *bmain, Scene *scene, Object *maincam,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
   int v[4], bool called_from_constructor, bool reset_taa_samples)
 {
@@ -3087,13 +3080,7 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
 
   use_drw_engine(&draw_engine_eevee_type);
 
-  if (called_from_constructor) {
-    GPUOffScreen *ofs = GPU_offscreen_create(v[2], v[3], 0, true, false, NULL);
-    game_viewport.viewport = GPU_viewport_create_from_offscreen(ofs);
-    GPU_viewport_engine_data_create(game_viewport.viewport, &draw_engine_eevee_type);
-  }
-
-  DST.viewport = game_viewport.viewport;
+  DST.viewport = viewport;
 
   ARegion ar;
   ar.winx = v[2];
@@ -3117,28 +3104,29 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   v3d.shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
   v3d.shading.render_pass = SCE_PASS_COMBINED;
 
+  RegionView3D rv3d;
 
-  game_rv3d.camdx = cam->shiftx;
-  game_rv3d.camdy = cam->shifty;
-  game_rv3d.camzoom = 0.0f;
-  game_rv3d.persp = RV3D_CAMOB;
-  game_rv3d.is_persp = true;
+  rv3d.camdx = cam->shiftx;
+  rv3d.camdy = cam->shifty;
+  rv3d.camzoom = 0.0f;
+  rv3d.persp = RV3D_CAMOB;
+  rv3d.is_persp = true;
   rctf cameraborder;
-  game_camera_border(depsgraph, scene, &ar, &v3d, &game_rv3d, &cameraborder, false, false);
-  game_rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
+  game_camera_border(depsgraph, scene, &ar, &v3d, &rv3d, &cameraborder, false, false);
+  rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
 
 
   DRW_view_set_active(NULL);
 
-  copy_m4_m4(game_rv3d.persmat, pers);
-  copy_m4_m4(game_rv3d.persinv, persinv);
-  copy_m4_m4(game_rv3d.viewmat, view);
-  copy_m4_m4(game_rv3d.viewinv, viewinv);
-  copy_m4_m4(game_rv3d.winmat, proj);
+  copy_m4_m4(rv3d.persmat, pers);
+  copy_m4_m4(rv3d.persinv, persinv);
+  copy_m4_m4(rv3d.viewmat, view);
+  copy_m4_m4(rv3d.viewinv, viewinv);
+  copy_m4_m4(rv3d.winmat, proj);
 
   DST.draw_ctx.ar = &ar;
   DST.draw_ctx.v3d = &v3d;
-  DST.draw_ctx.rv3d = &game_rv3d;
+  DST.draw_ctx.rv3d = &rv3d;
 
   /* We don't use bContext in bge
   * (not possible or very difficult
@@ -3165,7 +3153,6 @@ GPUTexture *DRW_game_render_loop(Main *bmain, Scene *scene, Object *maincam,
   drw_engines_init();
   drw_engines_cache_init();
   drw_engines_world_update(DST.draw_ctx.scene);
-
   
 
   DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN(depsgraph, ob)

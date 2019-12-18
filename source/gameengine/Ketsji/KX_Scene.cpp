@@ -167,6 +167,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_resetTaaSamples(false),      // eevee
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr), // eevee
+      m_gpuViewport(nullptr), // eevee
+      m_gpuOffScreen(nullptr), // eevee
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -258,6 +260,11 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
 
+    /* Create eevee's cache space */
+    m_gpuOffScreen = GPU_offscreen_create(canvas->GetWidth() + 1, canvas->GetHeight() + 1, 0, true, false, nullptr);
+    m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
+    GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
+
     RenderAfterCameraSetup(true);
   }
   else {
@@ -295,6 +302,7 @@ KX_Scene::~KX_Scene()
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || !ar) { // if no ar, we are in blenderplayer
+    /* This will free m_gpuViewport and m_gpuOffScreen */
     DRW_game_render_loop_end();
   }
 
@@ -501,7 +509,8 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     }
   }
 
-  GPUTexture *finaltex = DRW_game_render_loop(bmain,
+  GPUTexture *finaltex = DRW_game_render_loop(m_gpuViewport,
+                                              bmain,
                                               scene,
                                               maincam,
                                               view,
