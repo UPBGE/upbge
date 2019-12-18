@@ -425,6 +425,27 @@ static void OVERLAY_bounds(
   }
 }
 
+/* Game engine transition */
+static void OVERLAY_pivot(
+    OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
+{
+  float color[4], tmp[4][4];
+  UI_GetThemeColor4fv(theme_id, color);
+
+  for (bConstraint *con = ob->constraints.first; con; con = con->next) {
+    bRigidBodyJointConstraint *rcon = (bRigidBodyJointConstraint *)con->data;
+    if (rcon && rcon->flag & CONSTRAINT_DRAW_PIVOT) {
+      float xyz[3] = {rcon->pivX, rcon->pivY, rcon->pivZ};
+      size_to_mat4(tmp, ob->scale);
+      scale_m4_fl(tmp, 0.2f);
+      copy_v3_v3(tmp[3], xyz);
+      mul_m4_m4m4(tmp, ob->obmat, tmp);
+      DRW_buffer_add_entry(cb->empty_sphere, color, tmp);
+    }
+  }
+}
+/* End of Game engine transition */
+
 static void OVERLAY_collision(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
 {
   switch (ob->rigidbody_object->shape) {
@@ -1590,6 +1611,9 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
     }
     if (ob->rigidbody_object != NULL) {
       OVERLAY_collision(cb, ob, theme_id);
+    }
+    if (ob->constraints.first) { /* Game engine transition */
+      OVERLAY_pivot(cb, ob, theme_id);
     }
     if (ob->dtx & OB_AXIS) {
       DRW_buffer_add_entry(cb->empty_axes, color, ob->obmat);
