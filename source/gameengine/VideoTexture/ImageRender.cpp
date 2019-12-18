@@ -105,9 +105,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 		m_internalFormat = GL_R11F_G11F_B10F;
 	}
 
-	m_gpuOffScreen = GPU_offscreen_create(
-      m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, true, false, nullptr);
-    m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
 	m_gpuTexture = nullptr;
 }
 
@@ -117,7 +114,9 @@ ImageRender::~ImageRender (void)
 	if (m_owncamera) {
 		m_camera->Release();
 	}
-	GPU_viewport_free(m_gpuViewport);
+	if (m_gpuViewport) {
+		GPU_viewport_free(m_gpuViewport);
+	}
 }
 
 int ImageRender::GetColorBindCode() const
@@ -142,12 +141,12 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
 
-	const RAS_Rect& viewport = m_canvas->GetViewportArea();
+	/*const RAS_Rect& viewport = m_canvas->GetViewportArea();
 	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
-	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);*/
 
 	if (m_gpuTexture) {
-		DRW_transform_to_display(m_gpuTexture, true, false);
+		DRW_transform_none(m_gpuTexture);
 	}
 
 	GPU_framebuffer_restore();
@@ -243,6 +242,11 @@ bool ImageRender::Render()
 	m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 	m_rasterizer->SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 	m_rasterizer->SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
+
+	if (!m_gpuViewport) {
+		m_gpuOffScreen = GPU_offscreen_create(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, true, false, nullptr);
+		m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
+	}
 
 	m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 
