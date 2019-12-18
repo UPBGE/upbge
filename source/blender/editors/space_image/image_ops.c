@@ -4212,32 +4212,108 @@ void IMAGE_OT_clear_render_border(wmOperatorType *ot)
 
 /* ********************* Add tile operator ****************** */
 
-static bool tile_poll(bContext *C)
+static bool do_fill_tile(PointerRNA *ptr, Image *ima, ImageTile *tile)
+{
+  float color[4];
+  RNA_float_get_array(ptr, "color", color);
+  int gen_type = RNA_enum_get(ptr, "generated_type");
+  int width = RNA_int_get(ptr, "width");
+  int height = RNA_int_get(ptr, "height");
+  bool is_float = RNA_boolean_get(ptr, "float");
+  int planes = RNA_boolean_get(ptr, "alpha") ? 32 : 24;
+
+  return BKE_image_fill_tile(ima, tile, width, height, color, gen_type, planes, is_float);
+}
+
+static void draw_fill_tile(PointerRNA *ptr, uiLayout *layout)
+{
+  uiLayout *split, *col[2];
+
+  split = uiLayoutSplit(layout, 0.5f, false);
+  col[0] = uiLayoutColumn(split, false);
+  col[1] = uiLayoutColumn(split, false);
+
+  uiItemL(col[0], IFACE_("Color"), ICON_NONE);
+  uiItemR(col[1], ptr, "color", 0, "", ICON_NONE);
+
+  uiItemL(col[0], IFACE_("Width"), ICON_NONE);
+  uiItemR(col[1], ptr, "width", 0, "", ICON_NONE);
+
+  uiItemL(col[0], IFACE_("Height"), ICON_NONE);
+  uiItemR(col[1], ptr, "height", 0, "", ICON_NONE);
+
+  uiItemL(col[0], "", ICON_NONE);
+  uiItemR(col[1], ptr, "alpha", 0, NULL, ICON_NONE);
+
+  uiItemL(col[0], IFACE_("Generated Type"), ICON_NONE);
+  uiItemR(col[1], ptr, "generated_type", 0, "", ICON_NONE);
+
+  uiItemL(col[0], "", ICON_NONE);
+  uiItemR(col[1], ptr, "float", 0, NULL, ICON_NONE);
+}
+
+static void def_fill_tile(StructOrFunctionRNA *srna)
+{
+  PropertyRNA *prop;
+  static float default_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+  prop = RNA_def_float_color(
+      srna, "color", 4, NULL, 0.0f, FLT_MAX, "Color", "Default fill color", 0.0f, 1.0f);
+  RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
+  RNA_def_property_float_array_default(prop, default_color);
+  RNA_def_enum(srna,
+               "generated_type",
+               rna_enum_image_generated_type_items,
+               IMA_GENTYPE_BLANK,
+               "Generated Type",
+               "Fill the image with a grid for UV map testing");
+  prop = RNA_def_int(srna, "width", 1024, 1, INT_MAX, "Width", "Image width", 1, 16384);
+  RNA_def_property_subtype(prop, PROP_PIXEL);
+  prop = RNA_def_int(srna, "height", 1024, 1, INT_MAX, "Height", "Image height", 1, 16384);
+  RNA_def_property_subtype(prop, PROP_PIXEL);
+
+  /* Only needed when filling the first tile. */
+  RNA_def_boolean(
+      srna, "float", 0, "32 bit Float", "Create image with 32 bit floating point bit depth");
+  RNA_def_boolean(srna, "alpha", 1, "Alpha", "Create an image with an alpha channel");
+}
+
+static bool tile_add_poll(bContext *C)
 {
   Image *ima = CTX_data_edit_image(C);
 
-  return (ima != NULL && ima->source == IMA_SRC_TILED);
+  return (ima != NULL && ima->source == IMA_SRC_TILED && BKE_image_has_ibuf(ima, NULL));
 }
 
 static int tile_add_exec(bContext *C, wmOperator *op)
 {
   Image *ima = CTX_data_edit_image(C);
 
-  int tile_number = RNA_int_get(op->ptr, "number");
-
+  int start_tile = RNA_int_get(op->ptr, "number");
+  int end_tile = min_ii(start_tile + RNA_int_get(op->ptr, "count"), IMA_UDIM_MAX);
+  bool fill_tile = RNA_boolean_get(op->ptr, "fill");
   char *label = RNA_string_get_alloc(op->ptr, "label", NULL, 0);
 
-  ImageTile *tile = BKE_image_add_tile(ima, tile_number, label);
+  bool created_tile = false;
+  for (int tile_number = start_tile; tile_number < end_tile; tile_number++) {
+    ImageTile *tile = BKE_image_add_tile(ima, tile_number, label);
+
+    if (tile != NULL) {
+      ima->active_tile_index = BLI_findindex(&ima->tiles, tile);
+
+      if (fill_tile) {
+        do_fill_tile(op->ptr, ima, tile);
+      }
+
+      created_tile = true;
+    }
+  }
   MEM_freeN(label);
 
-  if (tile == NULL) {
+  if (!created_tile) {
     return OPERATOR_CANCELLED;
   }
 
-  ima->active_tile_index = BLI_findindex(&ima->tiles, tile);
-
   WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, NULL);
-
   return OPERATOR_FINISHED;
 }
 
@@ -4256,6 +4332,7 @@ static int tile_add_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(ev
   }
 
   RNA_int_set(op->ptr, "number", next_number);
+  RNA_int_set(op->ptr, "count", 1);
   RNA_string_set(op->ptr, "label", "");
 
   return WM_operator_props_dialog_popup(C, op, 10 * UI_UNIT_X, 5 * UI_UNIT_Y);
@@ -4276,8 +4353,17 @@ static void tile_add_draw(bContext *UNUSED(C), wmOperator *op)
   uiItemL(col[0], IFACE_("Number"), ICON_NONE);
   uiItemR(col[1], &ptr, "number", 0, "", ICON_NONE);
 
+  uiItemL(col[0], IFACE_("Count"), ICON_NONE);
+  uiItemR(col[1], &ptr, "count", 0, "", ICON_NONE);
+
   uiItemL(col[0], IFACE_("Label"), ICON_NONE);
   uiItemR(col[1], &ptr, "label", 0, "", ICON_NONE);
+
+  uiItemR(layout, &ptr, "fill", 0, NULL, ICON_NONE);
+
+  if (RNA_boolean_get(&ptr, "fill")) {
+    draw_fill_tile(&ptr, layout);
+  }
 }
 
 void IMAGE_OT_tile_add(wmOperatorType *ot)
@@ -4288,7 +4374,7 @@ void IMAGE_OT_tile_add(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_tile_add";
 
   /* api callbacks */
-  ot->poll = tile_poll;
+  ot->poll = tile_add_poll;
   ot->exec = tile_add_exec;
   ot->invoke = tile_add_invoke;
   ot->ui = tile_add_draw;
@@ -4298,7 +4384,10 @@ void IMAGE_OT_tile_add(wmOperatorType *ot)
 
   RNA_def_int(
       ot->srna, "number", 1002, 1001, INT_MAX, "Number", "UDIM number of the tile", 1001, 1099);
+  RNA_def_int(ot->srna, "count", 1, 1, INT_MAX, "Count", "How many tiles to add", 1, 1000);
   RNA_def_string(ot->srna, "label", NULL, 0, "Label", "Optional tile label");
+  RNA_def_boolean(ot->srna, "fill", true, "Fill", "Fill new tile with a generated image");
+  def_fill_tile(ot->srna);
 }
 
 /* ********************* Remove tile operator ****************** */
@@ -4344,20 +4433,23 @@ void IMAGE_OT_tile_remove(wmOperatorType *ot)
 
 /* ********************* Fill tile operator ****************** */
 
+static bool tile_fill_poll(bContext *C)
+{
+  Image *ima = CTX_data_edit_image(C);
+
+  if (ima != NULL && ima->source == IMA_SRC_TILED) {
+    /* Filling secondary tiles is only allowed if the primary tile exists. */
+    return (ima->active_tile_index == 0) || BKE_image_has_ibuf(ima, NULL);
+  }
+  return false;
+}
+
 static int tile_fill_exec(bContext *C, wmOperator *op)
 {
   Image *ima = CTX_data_edit_image(C);
 
-  float color[4];
-  RNA_float_get_array(op->ptr, "color", color);
-  int gen_type = RNA_enum_get(op->ptr, "generated_type");
-  int width = RNA_int_get(op->ptr, "width");
-  int height = RNA_int_get(op->ptr, "height");
-  bool is_float = RNA_boolean_get(op->ptr, "float");
-  int planes = RNA_boolean_get(op->ptr, "alpha") ? 32 : 24;
-
   ImageTile *tile = BLI_findlink(&ima->tiles, ima->active_tile_index);
-  if (!BKE_image_fill_tile(ima, tile, width, height, color, gen_type, planes, is_float)) {
+  if (!do_fill_tile(op->ptr, ima, tile)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -4385,35 +4477,10 @@ static int tile_fill_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(e
 
 static void tile_fill_draw(bContext *UNUSED(C), wmOperator *op)
 {
-  uiLayout *split, *col[2];
-  uiLayout *layout = op->layout;
   PointerRNA ptr;
-
   RNA_pointer_create(NULL, op->type->srna, op->properties, &ptr);
 
-  /* copy of WM_operator_props_dialog_popup() layout */
-
-  split = uiLayoutSplit(layout, 0.5f, false);
-  col[0] = uiLayoutColumn(split, false);
-  col[1] = uiLayoutColumn(split, false);
-
-  uiItemL(col[0], IFACE_("Color"), ICON_NONE);
-  uiItemR(col[1], &ptr, "color", 0, "", ICON_NONE);
-
-  uiItemL(col[0], IFACE_("Width"), ICON_NONE);
-  uiItemR(col[1], &ptr, "width", 0, "", ICON_NONE);
-
-  uiItemL(col[0], IFACE_("Height"), ICON_NONE);
-  uiItemR(col[1], &ptr, "height", 0, "", ICON_NONE);
-
-  uiItemL(col[0], "", ICON_NONE);
-  uiItemR(col[1], &ptr, "alpha", 0, NULL, ICON_NONE);
-
-  uiItemL(col[0], IFACE_("Generated Type"), ICON_NONE);
-  uiItemR(col[1], &ptr, "generated_type", 0, "", ICON_NONE);
-
-  uiItemL(col[0], "", ICON_NONE);
-  uiItemR(col[1], &ptr, "float", 0, NULL, ICON_NONE);
+  draw_fill_tile(&ptr, op->layout);
 }
 
 void IMAGE_OT_tile_fill(wmOperatorType *ot)
@@ -4424,7 +4491,7 @@ void IMAGE_OT_tile_fill(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_tile_fill";
 
   /* api callbacks */
-  ot->poll = tile_poll;
+  ot->poll = tile_fill_poll;
   ot->exec = tile_fill_exec;
   ot->invoke = tile_fill_invoke;
   ot->ui = tile_fill_draw;
@@ -4432,25 +4499,5 @@ void IMAGE_OT_tile_fill(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  PropertyRNA *prop;
-  static float default_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-  prop = RNA_def_float_color(
-      ot->srna, "color", 4, NULL, 0.0f, FLT_MAX, "Color", "Default fill color", 0.0f, 1.0f);
-  RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
-  RNA_def_property_float_array_default(prop, default_color);
-  RNA_def_enum(ot->srna,
-               "generated_type",
-               rna_enum_image_generated_type_items,
-               IMA_GENTYPE_BLANK,
-               "Generated Type",
-               "Fill the image with a grid for UV map testing");
-  prop = RNA_def_int(ot->srna, "width", 1024, 1, INT_MAX, "Width", "Image width", 1, 16384);
-  RNA_def_property_subtype(prop, PROP_PIXEL);
-  prop = RNA_def_int(ot->srna, "height", 1024, 1, INT_MAX, "Height", "Image height", 1, 16384);
-  RNA_def_property_subtype(prop, PROP_PIXEL);
-
-  /* Only needed when filling the first tile. */
-  RNA_def_boolean(
-      ot->srna, "float", 0, "32 bit Float", "Create image with 32 bit floating point bit depth");
-  RNA_def_boolean(ot->srna, "alpha", 1, "Alpha", "Create an image with an alpha channel");
+  def_fill_tile(ot->srna);
 }
