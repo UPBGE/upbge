@@ -437,7 +437,7 @@ static void OVERLAY_pivot(
     if (rcon && rcon->flag & CONSTRAINT_DRAW_PIVOT) {
       float xyz[3] = {rcon->pivX, rcon->pivY, rcon->pivZ};
       size_to_mat4(tmp, ob->scale);
-      scale_m4_fl(tmp, 0.3f);
+      scale_m4_fl(tmp, 0.2f);
       copy_v3_v3(tmp[3], xyz);
       mul_m4_m4m4(tmp, ob->obmat, tmp);
       DRW_buffer_add_entry(cb->empty_sphere, color, tmp);
