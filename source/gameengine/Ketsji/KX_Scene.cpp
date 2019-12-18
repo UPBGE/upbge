@@ -593,7 +593,7 @@ GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, G
 
   int viewportsize[2] = {v[2], v[3]};
 
-  GPUTexture *finaltex = DRW_game_render_loop(m_gpuViewport,
+  GPUTexture *finaltex = DRW_game_render_loop(viewport,
                                               bmain,
                                               scene,
                                               maincam,
