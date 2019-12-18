@@ -57,6 +57,7 @@
 extern "C" {
 #  include "DRW_render.h"
 #  include "eevee_private.h"
+#  include "GPU_viewport.h"
 }
 
 ExceptionID SceneInvalid, CameraInvalid, ObserverInvalid, FrameBufferInvalid;
@@ -79,6 +80,9 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_scene(scene),
     m_camera(camera),
     m_owncamera(false),
+    m_gpuTexture(nullptr),
+    m_gpuViewport(nullptr),
+    m_gpuOffScreen(nullptr),
     m_observer(nullptr),
     m_mirror(nullptr),
     m_clip(100.f),
@@ -101,6 +105,9 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 		m_internalFormat = GL_R11F_G11F_B10F;
 	}
 
+	m_gpuOffScreen = GPU_offscreen_create(
+      m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, true, false, nullptr);
+    m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
 	m_gpuTexture = nullptr;
 }
 
@@ -110,6 +117,7 @@ ImageRender::~ImageRender (void)
 	if (m_owncamera) {
 		m_camera->Release();
 	}
+	GPU_viewport_free(m_gpuViewport);
 }
 
 int ImageRender::GetColorBindCode() const
@@ -324,7 +332,7 @@ bool ImageRender::Render()
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_scene->RenderAfterCameraSetupImageRender(m_camera, m_gpuTexture, viewport);
+	m_gpuTexture = m_scene->RenderAfterCameraSetupImageRender(m_rasterizer, m_gpuViewport, m_camera, viewport);
 
 	m_canvas->EndFrame();
 

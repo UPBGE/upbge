@@ -84,6 +84,8 @@ protected:
 	bool m_owncamera;
 
 	GPUTexture *m_gpuTexture;
+  struct GPUViewport *m_gpuViewport;
+  struct GPUOffScreen *m_gpuOffScreen;
 
 	/// for mirror operation
 	KX_GameObject * m_observer;

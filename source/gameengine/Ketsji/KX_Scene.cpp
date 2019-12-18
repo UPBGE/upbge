@@ -566,29 +566,46 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   DRW_game_render_loop_finish();
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, GPUTexture *finaltex, int *v)
+GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport, KX_Camera *cam, int *v)
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate();
   }
 
-  //bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
-  m_resetTaaSamples = false;
-  m_staticObjects.clear();
+  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  Scene *scene = GetBlenderScene();
+  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+  Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
 
-  //Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-  //Scene *scene = GetBlenderScene();
-  //ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  //Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
+  // Normally cam matrices are already set in ImageRender
+  ViewPortMatrices m = rasty->GetAllMatrices();
+  float view[4][4];
+  float viewinv[4][4];
+  float proj[4][4];
+  float pers[4][4];
+  float persinv[4][4];
 
-  //// Normally cam matrices are already set in ImageRender
-  // ViewPortMatrices m = rasty->Get;
-  // DRW_viewport_matrix_get_all(&state);
+  m.view.getValue(&view[0][0]);
+  m.viewinv.getValue(&viewinv[0][0]);
+  m.proj.getValue(&proj[0][0]);
+  m.pers.getValue(&pers[0][0]);
+  m.persinv.getValue(&persinv[0][0]);
 
-  //int viewportsize[2] = {v[2], v[3]};
+  int viewportsize[2] = {v[2], v[3]};
 
-  // finaltex = DRW_game_render_loop(bmain, scene, maincam, viewportsize, state, v, false,
-  // reset_taa_samples);
+  GPUTexture *finaltex = DRW_game_render_loop(m_gpuViewport,
+                                              bmain,
+                                              scene,
+                                              maincam,
+                                              view,
+                                              viewinv,
+                                              proj,
+                                              pers,
+                                              persinv,
+                                              v,
+                                              false,
+                                              true);
+  return finaltex;
 }
 
 /******************End of EEVEE INTEGRATION****************************/
