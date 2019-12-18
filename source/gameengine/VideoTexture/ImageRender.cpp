@@ -244,7 +244,7 @@ bool ImageRender::Render()
 	m_rasterizer->SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 
 	if (!m_gpuViewport) {
-		m_gpuOffScreen = GPU_offscreen_create(m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1, 0, true, false, nullptr);
+		m_gpuOffScreen = GPU_offscreen_create(viewport[2], viewport[3], 0, true, false, nullptr);
 		m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
 	}
 
