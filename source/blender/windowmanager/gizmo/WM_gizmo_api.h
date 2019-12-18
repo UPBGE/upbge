@@ -280,7 +280,13 @@ const struct ListBase *WM_gizmomap_group_list(struct wmGizmoMap *gzmap);
 struct wmGizmoGroup *WM_gizmomap_group_find(struct wmGizmoMap *gzmap, const char *idname);
 struct wmGizmoGroup *WM_gizmomap_group_find_ptr(struct wmGizmoMap *gzmap,
                                                 const struct wmGizmoGroupType *gzgt);
+
+eWM_GizmoFlagMapDrawStep WM_gizmomap_drawstep_from_gizmo_group(const struct wmGizmoGroup *gzgroup);
+void WM_gizmomap_tag_refresh_drawstep(struct wmGizmoMap *gzmap,
+                                      const eWM_GizmoFlagMapDrawStep drawstep);
 void WM_gizmomap_tag_refresh(struct wmGizmoMap *gzmap);
+bool WM_gizmomap_tag_refresh_check(struct wmGizmoMap *gzmap);
+
 void WM_gizmomap_draw(struct wmGizmoMap *gzmap,
                       const struct bContext *C,
                       const eWM_GizmoFlagMapDrawStep drawstep);
@@ -371,12 +377,15 @@ void WM_gizmo_group_type_reinit(struct Main *bmain, const char *idname);
 /* Utilities */
 bool WM_gizmo_context_check_drawstep(const struct bContext *C, eWM_GizmoFlagMapDrawStep step);
 
-bool WM_gizmo_group_type_poll(const struct bContext *C, const struct wmGizmoGroupType *gzgt);
 void WM_gizmo_group_remove_by_tool(struct bContext *C,
                                    struct Main *bmain,
                                    const struct wmGizmoGroupType *gzgt,
                                    const struct bToolRef *tref);
 
 void WM_gizmo_group_tag_remove(struct wmGizmoGroup *gzgroup);
+
+/* Wrap Group Type Callbacks. */
+bool WM_gizmo_group_type_poll(const struct bContext *C, const struct wmGizmoGroupType *gzgt);
+void WM_gizmo_group_refresh(const struct bContext *C, struct wmGizmoGroup *gzgroup);
 
 #endif /* __WM_GIZMO_API_H__ */
