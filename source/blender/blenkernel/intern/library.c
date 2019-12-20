@@ -68,8 +68,10 @@
 #include "DNA_world_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+
+#include "BLI_bitmap.h"
+#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_memarena.h"
@@ -1545,178 +1547,346 @@ ID *BKE_libblock_find_name(struct Main *bmain, const short type, const char *nam
   return BLI_findstring(lb, name, offsetof(ID, name) + 2);
 }
 
-void id_sort_by_name(ListBase *lb, ID *id)
+/**
+ * Sort given \a id into given \a lb list, using case-insensitive comparison of the id names.
+ *
+ * \note All other IDs beside given one are assumed already properly sorted in the list.
+ *
+ * \param id_sorting_hint Ignored if NULL. Otherwise, used to check if we can insert \a id
+ * immediately before or after that pointer. It must always be into given \a lb list.
+ */
+void id_sort_by_name(ListBase *lb, ID *id, ID *id_sorting_hint)
 {
+#define ID_SORT_STEP_SIZE 512
+
   ID *idtest;
 
   /* insert alphabetically */
-  if (lb->first != lb->last) {
-    BLI_remlink(lb, id);
+  if (lb->first == lb->last) {
+    return;
+  }
 
-    idtest = lb->first;
-    while (idtest) {
-      if (BLI_strcasecmp(idtest->name, id->name) > 0 || (idtest->lib && !id->lib)) {
-        BLI_insertlinkbefore(lb, idtest, id);
+  BLI_remlink(lb, id);
+
+  /* Check if we can actually insert id before or after id_sorting_hint, if given. */
+  if (id_sorting_hint != NULL && id_sorting_hint != id) {
+    BLI_assert(BLI_findindex(lb, id_sorting_hint) >= 0);
+
+    ID *id_sorting_hint_next = id_sorting_hint->next;
+    if (BLI_strcasecmp(id_sorting_hint->name, id->name) < 0 &&
+        (id_sorting_hint_next == NULL ||
+         BLI_strcasecmp(id_sorting_hint_next->name, id->name) > 0)) {
+      BLI_insertlinkafter(lb, id_sorting_hint, id);
+      return;
+    }
+
+    ID *id_sorting_hint_prev = id_sorting_hint->prev;
+    if (BLI_strcasecmp(id_sorting_hint->name, id->name) > 0 &&
+        (id_sorting_hint_prev == NULL ||
+         BLI_strcasecmp(id_sorting_hint_prev->name, id->name) < 0)) {
+      BLI_insertlinkbefore(lb, id_sorting_hint, id);
+      return;
+    }
+  }
+
+  void *item_array[ID_SORT_STEP_SIZE];
+  int item_array_index;
+
+  /* Step one: We go backward over a whole chunk of items at once, until we find a limit item
+   * that is lower than, or equal (should never happen!) to the one we want to insert. */
+  /* Note: We start from the end, because in typical 'heavy' case (insertion of lots of IDs at
+   * once using the same base name), newly inserted items will generally be towards the end
+   * (higher extension numbers). */
+  for (idtest = lb->last, item_array_index = ID_SORT_STEP_SIZE - 1; idtest != NULL;
+       idtest = idtest->prev, item_array_index--) {
+    item_array[item_array_index] = idtest;
+    if (item_array_index == 0) {
+      if ((idtest->lib == NULL && id->lib != NULL) ||
+          BLI_strcasecmp(idtest->name, id->name) <= 0) {
         break;
       }
-      idtest = idtest->next;
-    }
-    /* as last */
-    if (idtest == NULL) {
-      BLI_addtail(lb, id);
+      item_array_index = ID_SORT_STEP_SIZE;
     }
   }
+
+  /* Step two: we go forward in the selected chunk of items and check all of them, as we know
+   * that our target is in there. */
+
+  /* If we reached start of the list, current item_array_index is off-by-one.
+   * Otherwise, we already know that it points to an item lower-or-equal-than the one we want to
+   * insert, no need to redo the check for that one.
+   * So we can increment that index in any case. */
+  for (item_array_index++; item_array_index < ID_SORT_STEP_SIZE; item_array_index++) {
+    idtest = item_array[item_array_index];
+    if ((idtest->lib != NULL && id->lib == NULL) || BLI_strcasecmp(idtest->name, id->name) > 0) {
+      BLI_insertlinkbefore(lb, idtest, id);
+      break;
+    }
+  }
+  if (item_array_index == ID_SORT_STEP_SIZE) {
+    if (idtest == NULL) {
+      /* If idtest is NULL here, it means that in the first loop, the last comparison was
+       * performed exactly on the first item of the list, and that it also failed. In other
+       * words, all items in the list are greater than inserted one, so we can put it at the
+       * start of the list. */
+      /* Note that BLI_insertlinkafter() would have same behavior in that case, but better be
+       * explicit here. */
+      BLI_addhead(lb, id);
+    }
+    else {
+      BLI_insertlinkafter(lb, idtest, id);
+    }
+  }
+
+#undef ID_SORT_STEP_SIZE
 }
 
-/**
- * Check to see if there is an ID with the same name as 'name'.
- * Returns the ID if so, if not, returns NULL
- */
-static ID *is_dupid(ListBase *lb, ID *id, const char *name)
-{
-  ID *idtest = NULL;
+/* Note: this code assumes and ensures that the suffix number can never go beyond 1 billion. */
+#define MAX_NUMBER 1000000000
+/* We do not want to get "name.000", so minimal number is 1. */
+#define MIN_NUMBER 1
+/* The maximum value up to which we search for the actual smallest unused number. Beyond that
+ * value, we will only use the first biggest unused number, without trying to 'fill the gaps'
+ * in-between already used numbers... */
+#define MAX_NUMBERS_IN_USE 1024
 
-  for (idtest = lb->first; idtest; idtest = idtest->next) {
-    /* if idtest is not a lib */
-    if (id != idtest && !ID_IS_LINKED(idtest)) {
-      /* do not test alphabetic! */
-      /* optimized */
-      if (idtest->name[2] == name[0]) {
-        if (STREQ(name, idtest->name + 2)) {
-          break;
-        }
-      }
+/**
+ * Helper building final ID name from given base_name and number.
+ *
+ * If everything goes well and we do generate a valid final ID anme in given name, we return true.
+ * In case the final name would overflow the allowed ID name length, or given number is bigger than
+ * maximum allowed value, we truncate further the base_name (and given name, which is assumed to
+ * have the same 'base_name' part), and return false.
+ */
+static bool id_name_final_build(char *name, char *base_name, size_t base_name_len, int number)
+{
+  char number_str[11]; /* Dot + nine digits + NULL terminator. */
+  size_t number_str_len = BLI_snprintf_rlen(number_str, ARRAY_SIZE(number_str), ".%.3d", number);
+
+  /* If the number would lead to an overflow of the maximum ID name length, we need to truncate
+   * the base name part and do all the number checks again. */
+  if (base_name_len + number_str_len >= MAX_ID_NAME - 2 || number >= MAX_NUMBER) {
+    if (base_name_len + number_str_len >= MAX_ID_NAME - 2) {
+      base_name_len = MAX_ID_NAME - 2 - number_str_len - 1;
     }
+    else {
+      base_name_len--;
+    }
+    base_name[base_name_len] = '\0';
+
+    /* Code above may have generated invalid utf-8 string, due to raw truncation.
+     * Ensure we get a valid one now. */
+    base_name_len -= (size_t)BLI_utf8_invalid_strip(base_name, base_name_len);
+
+    /* Also truncate orig name, and start the whole check again. */
+    name[base_name_len] = '\0';
+    return false;
   }
 
-  return idtest;
+  /* We have our final number, we can put it in name and exit the function. */
+  BLI_strncpy(name + base_name_len, number_str, number_str_len + 1);
+  return true;
 }
 
 /**
  * Check to see if an ID name is already used, and find a new one if so.
- * Return true if created a new name (returned in name).
+ * Return true if a new name was created (returned in name).
  *
- * Normally the ID that's being check is already in the ListBase, so ID *id
- * points at the new entry.  The Python Library module needs to know what
- * the name of a data-block will be before it is appended; in this case ID *id
- * id is NULL
+ * Normally the ID that's being checked is already in the ListBase, so ID *id points at the new
+ * entry. The Python Library module needs to know what the name of a data-block will be before it
+ * is appended, in this case ID *id is NULL.
  */
-
-static bool check_for_dupid(ListBase *lb, ID *id, char *name)
+static bool check_for_dupid(ListBase *lb, ID *id, char *name, ID **r_id_sorting_hint)
 {
-  ID *idtest;
-  int nr = 0, a;
-  size_t left_len;
-#define MAX_IN_USE 64
-  bool in_use[MAX_IN_USE];
-  /* to speed up finding unused numbers within [1 .. MAX_IN_USE - 1] */
+  BLI_assert(strlen(name) < MAX_ID_NAME - 2);
 
-  char left[MAX_ID_NAME + 8], leftest[MAX_ID_NAME + 8];
+  *r_id_sorting_hint = NULL;
 
+  ID *id_test = lb->first;
+  bool is_name_changed = false;
+
+  if (id_test == NULL) {
+    return is_name_changed;
+  }
+
+  const short id_type = (short)GS(id_test->name);
+
+  /* Static storage of previous handled ID/name info, used to perform a quicker test and optimize
+   * creation of huge number of IDs using the same given base name. */
+  static char prev_orig_base_name[MAX_ID_NAME - 2] = {0};
+  static char prev_final_base_name[MAX_ID_NAME - 2] = {0};
+  static short prev_id_type = ID_LINK_PLACEHOLDER; /* Should never exist in actual ID list. */
+  static int prev_number = MIN_NUMBER - 1;
+
+  /* Initial test to check whether we can 'shortcut' the more complex loop of the main code below.
+   * Note that we do not do that for low numbers, as that would prevent using actual smallest
+   * available number in some cases, and benefits of this special case handling mostly show up with
+   * high numbers anyway. */
+  if (id_type == prev_id_type && prev_number >= MAX_NUMBERS_IN_USE &&
+      prev_number < MAX_NUMBER - 1 && name[0] == prev_final_base_name[0]) {
+
+    /* Get the name and number parts ("name.number"). */
+    char base_name[MAX_ID_NAME - 2];
+    int number = MIN_NUMBER;
+    size_t base_name_len = BLI_split_name_num(base_name, &number, name, '.');
+    size_t prev_final_base_name_len = strlen(prev_final_base_name);
+    size_t prev_orig_base_name_len = strlen(prev_orig_base_name);
+
+    if (base_name_len == prev_orig_base_name_len &&
+        STREQLEN(base_name, prev_orig_base_name, prev_orig_base_name_len)) {
+      /* Once we have ensured given base_name and original previous one are the same, we can check
+       * that previously used number is actually used, and that next one is free. */
+      /* Note that from now on, we only used previous final base name, as it might have been
+       * truncated from original one due to number suffix length. */
+      char final_name[MAX_ID_NAME - 2];
+      char prev_final_name[MAX_ID_NAME - 2];
+      BLI_strncpy(final_name, prev_final_base_name, prev_final_base_name_len + 1);
+      BLI_strncpy(prev_final_name, prev_final_base_name, prev_final_base_name_len + 1);
+
+      if (id_name_final_build(final_name, base_name, prev_final_base_name_len, prev_number + 1) &&
+          id_name_final_build(prev_final_name, base_name, prev_final_base_name_len, prev_number)) {
+        /* We succeffuly built valid final names of previous and current iterations, now we have to
+         * ensure that previous final name is indeed used in curent ID list, and that current one
+         * is not. */
+        bool is_valid = false;
+        for (id_test = lb->first; id_test; id_test = id_test->next) {
+          if (id != id_test && !ID_IS_LINKED(id_test)) {
+            if (id_test->name[2] == final_name[0] && STREQ(final_name, id_test->name + 2)) {
+              /* We expect final_name to not be already used, so this is a failure. */
+              is_valid = false;
+              break;
+            }
+            /* Previous final name should only be found once in the list, so if it was found
+             * already, no need to do a string comparison again. */
+            if (!is_valid && id_test->name[2] == prev_final_name[0] &&
+                STREQ(prev_final_name, id_test->name + 2)) {
+              is_valid = true;
+              *r_id_sorting_hint = id_test;
+            }
+          }
+        }
+
+        if (is_valid) {
+          /* Only the number changed, prev_orig_base_name, prev_final_base_name and prev_id_type
+           * remain the same. */
+          prev_number++;
+
+          strcpy(name, final_name);
+          return true;
+        }
+      }
+    }
+  }
+
+  /* To speed up finding smallest unused number within [0 .. MAX_NUMBERS_IN_USE - 1].
+   * We do not bother beyond that point. */
+  ID *ids_in_use[MAX_NUMBERS_IN_USE] = {NULL};
+
+  bool is_first_run = true;
   while (true) {
+    /* Get the name and number parts ("name.number"). */
+    char base_name[MAX_ID_NAME - 2];
+    int number = MIN_NUMBER;
+    size_t base_name_len = BLI_split_name_num(base_name, &number, name, '.');
 
-    /* phase 1: id already exists? */
-    idtest = is_dupid(lb, id, name);
-
-    /* if there is no double, done */
-    if (idtest == NULL) {
-      return false;
+    /* Store previous original given base name now, as we might alter it later in code below. */
+    if (is_first_run) {
+      strcpy(prev_orig_base_name, base_name);
+      is_first_run = false;
     }
 
-    /* we have a dup; need to make a new name */
-    /* quick check so we can reuse one of first MAX_IN_USE - 1 ids if vacant */
-    memset(in_use, false, sizeof(in_use));
-
-    /* get name portion, number portion ("name.number") */
-    left_len = BLI_split_name_num(left, &nr, name, '.');
-
-    /* if new name will be too long, truncate it */
-    if (nr > 999 && left_len > (MAX_ID_NAME - 8)) { /* assumption: won't go beyond 9999 */
-      left[MAX_ID_NAME - 8] = '\0';
-      left_len = MAX_ID_NAME - 8;
-    }
-    else if (left_len > (MAX_ID_NAME - 7)) {
-      left[MAX_ID_NAME - 7] = '\0';
-      left_len = MAX_ID_NAME - 7;
+    /* In case we get an insane initial number suffix in given name. */
+    /* Note: BLI_split_name_num() cannot return negative numbers, so we do not have to check for
+     * that here. */
+    if (number >= MAX_NUMBER || number < MIN_NUMBER) {
+      number = MIN_NUMBER;
     }
 
-    /* Code above may have generated invalid utf-8 string, due to raw truncation.
-     * Ensure we get a valid one now! */
-    left_len -= (size_t)BLI_utf8_invalid_strip(left, left_len);
-
-    for (idtest = lb->first; idtest; idtest = idtest->next) {
-      int nrtest;
-      if ((id != idtest) && !ID_IS_LINKED(idtest) && (*name == *(idtest->name + 2)) &&
-          STREQLEN(name, idtest->name + 2, left_len) &&
-          (BLI_split_name_num(leftest, &nrtest, idtest->name + 2, '.') == left_len)) {
-        /* will get here at least once, otherwise is_dupid call above would have returned NULL */
-        if (nrtest < MAX_IN_USE) {
-          in_use[nrtest] = true; /* mark as used */
+    bool is_orig_name_used = false;
+    for (id_test = lb->first; id_test; id_test = id_test->next) {
+      char base_name_test[MAX_ID_NAME - 2];
+      int number_test;
+      if ((id != id_test) && !ID_IS_LINKED(id_test) && (name[0] == id_test->name[2]) &&
+          (id_test->name[base_name_len + 2] == '.' || id_test->name[base_name_len + 2] == '\0') &&
+          STREQLEN(name, id_test->name + 2, base_name_len) &&
+          (BLI_split_name_num(base_name_test, &number_test, id_test->name + 2, '.') ==
+           base_name_len)) {
+        /* If we did not yet encounter exact same name as the given one, check the remaining parts
+         * of the strings. */
+        if (!is_orig_name_used) {
+          is_orig_name_used = STREQ(name + base_name_len, id_test->name + 2 + base_name_len);
         }
-        if (nr <= nrtest) {
-          nr = nrtest + 1; /* track largest unused */
+        /* Mark number of current id_test name as used, if possible. */
+        if (number_test < MAX_NUMBERS_IN_USE) {
+          ids_in_use[number_test] = id_test;
+        }
+        /* Keep track of first largest unused number. */
+        if (number <= number_test) {
+          *r_id_sorting_hint = id_test;
+          number = number_test + 1;
         }
       }
     }
-    /* At this point, 'nr' will typically be at least 1. (but not always) */
-    // BLI_assert(nr >= 1);
 
-    /* decide which value of nr to use */
-    for (a = 0; a < MAX_IN_USE; a++) {
-      if (a >= nr) {
-        break; /* stop when we've checked up to biggest */ /* redundant check */
-      }
-      if (!in_use[a]) { /* found an unused value */
-        nr = a;
-        /* can only be zero if all potential duplicate names had
-         * nonzero numeric suffixes, which means name itself has
-         * nonzero numeric suffix (else no name conflict and wouldn't
-         * have got here), which means name[left_len] is not a null */
+    /* If there is no double, we are done.
+     * Note however that name might have been changed (truncated) in a previous iteration already.
+     */
+    if (!is_orig_name_used) {
+      /* Don't bother updating prev_ static variables here, this case is not supposed to happen
+       * that often, and is not straight-forward here, so just ignore and reset them to default. */
+      prev_id_type = ID_LINK_PLACEHOLDER;
+      prev_final_base_name[0] = '\0';
+      prev_number = MIN_NUMBER - 1;
+
+      /* Value set previously is meaningless in that case. */
+      *r_id_sorting_hint = NULL;
+
+      return is_name_changed;
+    }
+
+    /* Decide which value of number to use, either the smallest unused one if possible, or default
+     * to the first largest unused one we got from previous loop. */
+    for (int i = MIN_NUMBER; i < MAX_NUMBERS_IN_USE; i++) {
+      if (ids_in_use[i] == NULL) {
+        number = i;
+        if (i > 0) {
+          *r_id_sorting_hint = ids_in_use[i - 1];
+        }
         break;
       }
     }
-    /* At this point, nr is either the lowest unused number within [0 .. MAX_IN_USE - 1],
-     * or 1 greater than the largest used number if all those low ones are taken.
-     * We can't be bothered to look for the lowest unused number beyond (MAX_IN_USE - 1). */
+    /* At this point, number is either the lowest unused number within
+     * [MIN_NUMBER .. MAX_NUMBERS_IN_USE - 1], or 1 greater than the largest used number if all
+     * those low ones are taken.
+     * We can't be bothered to look for the lowest unused number beyond
+     * (MAX_NUMBERS_IN_USE - 1).
+     */
+    /* We know for wure that name will be changed. */
+    is_name_changed = true;
 
-    /* If the original name has no numeric suffix,
-     * rather than just chopping and adding numbers,
-     * shave off the end chars until we have a unique name.
-     * Check the null terminators match as well so we don't get Cube.000 -> Cube.00 */
-    if (nr == 0 && name[left_len] == '\0') {
-      size_t len;
-      /* FIXME: this code will never be executed, because either nr will be
-       * at least 1, or name will not end at left_len! */
-      BLI_assert(0);
+    /* If id_name_final_build helper returns false, it had to truncate further given name, hence we
+     * have to go over the whole check again. */
+    if (!id_name_final_build(name, base_name, base_name_len, number)) {
+      /* We have to clear our list of small used numbers before we do the whole check again. */
+      memset(ids_in_use, 0, sizeof(ids_in_use));
 
-      len = left_len - 1;
-      idtest = is_dupid(lb, id, name);
-
-      while (idtest && len > 1) {
-        name[len--] = '\0';
-        idtest = is_dupid(lb, id, name);
-      }
-      if (idtest == NULL) {
-        return true;
-      }
-      /* otherwise just continue and use a number suffix */
-    }
-
-    if (nr > 999 && left_len > (MAX_ID_NAME - 8)) {
-      /* this would overflow name buffer */
-      left[MAX_ID_NAME - 8] = 0;
-      /* left_len = MAX_ID_NAME - 8; */ /* for now this isn't used again */
-      memcpy(name, left, sizeof(char) * (MAX_ID_NAME - 7));
       continue;
     }
-    /* this format specifier is from hell... */
-    BLI_snprintf(name, sizeof(id->name) - 2, "%s.%.3d", left, nr);
 
-    return true;
+    /* Update prev_ static variables, in case next call is for the same type of IDs and with the
+     * same initial base name, we can skip a lot of above process. */
+    prev_id_type = id_type;
+    strcpy(prev_final_base_name, base_name);
+    prev_number = number;
+
+    return is_name_changed;
   }
 
-#undef MAX_IN_USE
+#undef MAX_NUMBERS_IN_USE
 }
+
+#undef MIN_NUMBER
+#undef MAX_NUMBER
 
 /**
  * Ensures given ID has a unique name in given listbase.
@@ -1753,7 +1923,8 @@ bool BKE_id_new_name_validate(ListBase *lb, ID *id, const char *tname)
     BLI_utf8_invalid_strip(name, strlen(name));
   }
 
-  result = check_for_dupid(lb, id, name);
+  ID *id_sorting_hint = NULL;
+  result = check_for_dupid(lb, id, name, &id_sorting_hint);
   strcpy(id->name + 2, name);
 
   /* This was in 2.43 and previous releases
@@ -1762,11 +1933,11 @@ bool BKE_id_new_name_validate(ListBase *lb, ID *id, const char *tname)
    * functions work, so sort every time. */
 #if 0
   if (result) {
-    id_sort_by_name(lb, id);
+    id_sort_by_name(lb, id, id_sorting_hint);
   }
 #endif
 
-  id_sort_by_name(lb, id);
+  id_sort_by_name(lb, id, id_sorting_hint);
 
   return result;
 }
