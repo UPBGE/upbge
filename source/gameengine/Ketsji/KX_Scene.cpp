@@ -260,11 +260,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
 
-    /* Create eevee's cache space */
-    m_gpuOffScreen = GPU_offscreen_create(canvas->GetWidth() + 1, canvas->GetHeight() + 1, 0, true, false, nullptr);
-    m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
-    GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
-
     RenderAfterCameraSetup(true);
   }
   else {
@@ -509,6 +504,14 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     }
   }
 
+  if (!m_gpuViewport) {
+    /* Create eevee's cache space */
+    m_gpuOffScreen = GPU_offscreen_create(
+        canvas->GetWidth() + 1, canvas->GetHeight() + 1, 0, true, false, nullptr);
+    m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
+    GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
+  }
+
   GPUTexture *finaltex = DRW_game_render_loop(m_gpuViewport,
                                               bmain,
                                               scene,
@@ -564,6 +567,9 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_texture_detach(output->GetFrameBuffer(), m_2dfiltersDepthTex);
 
   DRW_game_render_loop_finish();
+  GPU_viewport_free(m_gpuViewport);
+  m_gpuViewport = nullptr;
+  GPU_framebuffer_restore();
 }
 
 GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport, KX_Camera *cam, int *v)

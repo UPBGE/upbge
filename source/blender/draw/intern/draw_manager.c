@@ -3198,7 +3198,7 @@ void DRW_game_render_loop_finish()
 
 void DRW_game_render_loop_end()
 {
-  GPU_viewport_free(DST.viewport);
+  //GPU_viewport_free(DST.viewport);
 
   eevee_game_view_layer_data_free();
   draw_engine_eevee_type.engine_free();
