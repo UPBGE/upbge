@@ -108,7 +108,6 @@ set(SRC
   intern/deform.c
   intern/displist.c
   intern/dynamicpaint.c
-  intern/editderivedmesh.c
   intern/editlattice.c
   intern/editmesh.c
   intern/editmesh_bvh.c
