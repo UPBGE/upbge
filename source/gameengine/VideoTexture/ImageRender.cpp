@@ -106,6 +106,8 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	}
 
 	m_gpuTexture = nullptr;
+
+	m_targetfb = GPU_framebuffer_create();
 }
 
 // destructor
@@ -117,6 +119,9 @@ ImageRender::~ImageRender (void)
 	if (m_gpuViewport) {
 		GPU_viewport_free(m_gpuViewport);
 	}
+
+	GPU_framebuffer_free(m_targetfb);
+	m_targetfb = nullptr;
 }
 
 int ImageRender::GetColorBindCode() const
@@ -138,8 +143,17 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	}
 	m_done = false;
 
+	GPU_framebuffer_texture_attach(m_targetfb, m_gpuTexture, 0, 0);
+	GPU_framebuffer_bind(m_targetfb);
+
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
+
+	GPU_framebuffer_texture_detach(m_targetfb, m_gpuTexture);
+
+	DRW_game_render_loop_finish();
+	GPU_viewport_free(m_gpuViewport);
+	m_gpuViewport = nullptr;
 
 	GPU_framebuffer_restore();
 }
@@ -329,12 +343,6 @@ bool ImageRender::Render()
 	m_engine->UpdateAnimations(m_scene);
 
 	m_gpuTexture = m_scene->RenderAfterCameraSetupImageRender(m_rasterizer, m_gpuViewport, m_camera, viewport);
-
-	DRW_transform_none(m_gpuTexture);
-
-	DRW_game_render_loop_finish();
-    GPU_viewport_free(m_gpuViewport);
-    m_gpuViewport = nullptr;
 
 	m_canvas->EndFrame();
 
