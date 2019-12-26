@@ -596,8 +596,6 @@ GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, G
   m.pers.getValue(&pers[0][0]);
   m.persinv.getValue(&persinv[0][0]);
 
-  int viewportsize[2] = {v[2], v[3]};
-
   GPUTexture *finaltex = DRW_game_render_loop(viewport,
                                               bmain,
                                               scene,
