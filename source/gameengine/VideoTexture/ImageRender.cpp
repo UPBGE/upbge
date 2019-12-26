@@ -143,6 +143,10 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	}
 	m_done = false;
 
+	const RAS_Rect *viewport = &m_canvas->GetViewportArea();
+	m_rasterizer->SetViewport(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
+	m_rasterizer->SetScissor(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
+
 	GPU_framebuffer_texture_attach(m_targetfb, m_gpuTexture, 0, 0);
 	GPU_framebuffer_bind(m_targetfb);
 
