@@ -107,6 +107,7 @@ extern "C" {
 #include "BKE_camera.h"
 #include "BKE_collection.h"
 #include "BKE_layer.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "depsgraph/DEG_depsgraph_query.h"
@@ -303,7 +304,7 @@ KX_Scene::~KX_Scene()
 
   LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
   BKE_collection_object_remove(bmain, layer_collection->collection, m_gameDefaultCamera, false);
-  BKE_object_free(m_gameDefaultCamera);
+  BKE_id_free(bmain, m_gameDefaultCamera);
   m_gameDefaultCamera = nullptr;
   DEG_relations_tag_update(bmain);
 
