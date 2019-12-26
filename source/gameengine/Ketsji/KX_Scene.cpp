@@ -567,8 +567,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_texture_detach(output->GetFrameBuffer(), m_2dfiltersDepthTex);
 
   DRW_game_render_loop_finish();
-  GPU_viewport_free(m_gpuViewport);
-  m_gpuViewport = nullptr;
   GPU_framebuffer_restore();
 }
 

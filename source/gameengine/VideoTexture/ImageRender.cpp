@@ -152,8 +152,6 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	GPU_framebuffer_texture_detach(m_targetfb, m_gpuTexture);
 
 	DRW_game_render_loop_finish();
-	GPU_viewport_free(m_gpuViewport);
-	m_gpuViewport = nullptr;
 
 	GPU_framebuffer_restore();
 }
