@@ -350,7 +350,7 @@ public:
 	/**
 	 * Init initializes the renderer.
 	 */
-	void Init();
+	void Init(RAS_ICanvas *canvas);
 
 	/**
 	 * Exit cleans up the renderer.

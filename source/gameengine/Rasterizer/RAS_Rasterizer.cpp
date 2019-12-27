@@ -287,7 +287,7 @@ void RAS_Rasterizer::SetAmbientColor(const MT_Vector3& color)
 	m_ambient = color;
 }
 
-void RAS_Rasterizer::Init()
+void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
 {
 	GPU_state_init();
 
@@ -297,6 +297,8 @@ void RAS_Rasterizer::Init()
 	SetFrontFace(true);
 
 	SetColorMask(true, true, true, true);
+
+	m_frameBuffers.Update(canvas);
 }
 
 void RAS_Rasterizer::Exit()

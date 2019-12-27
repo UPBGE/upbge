@@ -163,7 +163,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    class RAS_ICanvas *canvas,
                    KX_NetworkMessageManager *messageManager)
     : CValue(),
-      m_2dfiltersDepthTex(nullptr),  // eevee
       m_resetTaaSamples(false),      // eevee
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr), // eevee
@@ -319,10 +318,6 @@ KX_Scene::~KX_Scene()
   // Flush depsgraph updates a last time at ge exit
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
   BKE_scene_graph_update_tagged(depsgraph, bmain);
-
-  if (m_2dfiltersDepthTex) {
-    GPU_texture_free(m_2dfiltersDepthTex);
-  }
 
   /* End of EEVEE INTEGRATION */
 
@@ -516,19 +511,12 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
 
-  if (!m_2dfiltersDepthTex) {
-    // I create an extra depth tex to attach to output filter framebuffer to write depth and use
-    // bgl_DepthTexture
-    m_2dfiltersDepthTex = GPU_texture_create_2d(
-        v[2], v[3], GPU_DEPTH24_STENCIL8, nullptr, nullptr);
-  }
-
+  /* Detach Defaults attachments from input framebuffer... */
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
+  /* And replace it with color and depth textures from viewport */
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), finaltex, 0, 0);
-  GPU_framebuffer_texture_attach(
-      input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
-  GPU_framebuffer_texture_attach(
-      output->GetFrameBuffer(), DRW_viewport_texture_list_get()->color, 0, 0);
-  GPU_framebuffer_texture_attach(output->GetFrameBuffer(), m_2dfiltersDepthTex, 0, 0);
+  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
 
   GPU_framebuffer_bind(input->GetFrameBuffer());
 
@@ -549,10 +537,12 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     engine->EndFrame();
   }
 
+  /* Detach viewport textures from input framebuffer... */
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), finaltex);
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
-  GPU_framebuffer_texture_detach(output->GetFrameBuffer(), DRW_viewport_texture_list_get()->color);
-  GPU_framebuffer_texture_detach(output->GetFrameBuffer(), m_2dfiltersDepthTex);
+  /* And restore defaults attachments */
+  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
+  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
 
   DRW_game_render_loop_finish();
 }
