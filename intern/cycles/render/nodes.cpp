@@ -235,8 +235,6 @@ NODE_DEFINE(ImageTextureNode)
   SOCKET_STRING(filename, "Filename", ustring());
   SOCKET_STRING(colorspace, "Colorspace", u_colorspace_auto);
 
-  SOCKET_BOOLEAN(is_tiled, "Is Tiled", false);
-
   static NodeEnum alpha_type_enum;
   alpha_type_enum.insert("auto", IMAGE_ALPHA_AUTO);
   alpha_type_enum.insert("unassociated", IMAGE_ALPHA_UNASSOCIATED);
@@ -381,9 +379,7 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
     bool have_metadata = false;
     foreach (int tile, tiles) {
       string tile_name = filename.string();
-      if (is_tiled) {
-        tile_name = string_printf(tile_name.c_str(), tile);
-      }
+      string_replace(tile_name, "<UDIM>", string_printf("%04d", tile));
 
       ImageMetaData metadata;
       int slot = image_manager->add_image(tile_name,
@@ -504,11 +500,12 @@ void ImageTextureNode::compile(OSLCompiler &compiler)
   if (slots.size() == 0) {
     ImageMetaData metadata;
     if (builtin_data == NULL) {
-      image_manager->get_image_metadata(filename.string(), NULL, colorspace, metadata);
+      string tile_name = filename.string();
+      string_replace(tile_name, "<UDIM>", "1001");
+      image_manager->get_image_metadata(tile_name, NULL, colorspace, metadata);
       slots.push_back(-1);
     }
     else {
-      /* TODO(lukas): OSL UDIMs */
       int slot = image_manager->add_image(filename.string(),
                                           builtin_data,
                                           animated,
@@ -536,6 +533,7 @@ void ImageTextureNode::compile(OSLCompiler &compiler)
   const bool unassociate_alpha = !(ColorSpaceManager::colorspace_is_data(colorspace) ||
                                    alpha_type == IMAGE_ALPHA_CHANNEL_PACKED ||
                                    alpha_type == IMAGE_ALPHA_IGNORE);
+  const bool is_tiled = (filename.find("<UDIM>") != string::npos);
 
   compiler.parameter(this, "projection");
   compiler.parameter(this, "projection_blend");
@@ -543,6 +541,7 @@ void ImageTextureNode::compile(OSLCompiler &compiler)
   compiler.parameter("ignore_alpha", alpha_type == IMAGE_ALPHA_IGNORE);
   compiler.parameter("unassociate_alpha", !alpha_out->links.empty() && unassociate_alpha);
   compiler.parameter("is_float", is_float);
+  compiler.parameter("is_tiled", is_tiled);
   compiler.parameter(this, "interpolation");
   compiler.parameter(this, "extension");
 
