@@ -107,6 +107,7 @@ extern "C" {
 #include "BKE_camera.h"
 #include "BKE_collection.h"
 #include "BKE_layer.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "depsgraph/DEG_depsgraph_query.h"
@@ -167,6 +168,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_resetTaaSamples(false),      // eevee
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr), // eevee
+      m_gpuViewport(nullptr), // eevee
+      m_gpuOffScreen(nullptr), // eevee
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -295,12 +298,13 @@ KX_Scene::~KX_Scene()
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || !ar) { // if no ar, we are in blenderplayer
+    /* This will free m_gpuViewport and m_gpuOffScreen */
     DRW_game_render_loop_end();
   }
 
   LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
   BKE_collection_object_remove(bmain, layer_collection->collection, m_gameDefaultCamera, false);
-  BKE_object_free(m_gameDefaultCamera);
+  BKE_id_free(bmain, m_gameDefaultCamera);
   m_gameDefaultCamera = nullptr;
   DEG_relations_tag_update(bmain);
 
@@ -501,7 +505,16 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     }
   }
 
-  GPUTexture *finaltex = DRW_game_render_loop(bmain,
+  if (!m_gpuViewport) {
+    /* Create eevee's cache space */
+    m_gpuOffScreen = GPU_offscreen_create(
+        canvas->GetWidth() + 1, canvas->GetHeight() + 1, 0, true, false, nullptr);
+    m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
+    GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
+  }
+
+  GPUTexture *finaltex = DRW_game_render_loop(m_gpuViewport,
+                                              bmain,
                                               scene,
                                               maincam,
                                               view,
@@ -555,31 +568,47 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_texture_detach(output->GetFrameBuffer(), m_2dfiltersDepthTex);
 
   DRW_game_render_loop_finish();
+  GPU_framebuffer_restore();
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, GPUTexture *finaltex, int *v)
+GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport, KX_Camera *cam, int *v)
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate();
   }
 
-  //bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
-  m_resetTaaSamples = false;
-  m_staticObjects.clear();
+  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  Scene *scene = GetBlenderScene();
+  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+  Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
 
-  //Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-  //Scene *scene = GetBlenderScene();
-  //ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  //Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
+  // Normally cam matrices are already set in ImageRender
+  ViewPortMatrices m = rasty->GetAllMatrices();
+  float view[4][4];
+  float viewinv[4][4];
+  float proj[4][4];
+  float pers[4][4];
+  float persinv[4][4];
 
-  //// Normally cam matrices are already set in ImageRender
-  // ViewPortMatrices m = rasty->Get;
-  // DRW_viewport_matrix_get_all(&state);
+  m.view.getValue(&view[0][0]);
+  m.viewinv.getValue(&viewinv[0][0]);
+  m.proj.getValue(&proj[0][0]);
+  m.pers.getValue(&pers[0][0]);
+  m.persinv.getValue(&persinv[0][0]);
 
-  //int viewportsize[2] = {v[2], v[3]};
-
-  // finaltex = DRW_game_render_loop(bmain, scene, maincam, viewportsize, state, v, false,
-  // reset_taa_samples);
+  GPUTexture *finaltex = DRW_game_render_loop(viewport,
+                                              bmain,
+                                              scene,
+                                              maincam,
+                                              view,
+                                              viewinv,
+                                              proj,
+                                              pers,
+                                              persinv,
+                                              v,
+                                              false,
+                                              true);
+  return finaltex;
 }
 
 /******************End of EEVEE INTEGRATION****************************/

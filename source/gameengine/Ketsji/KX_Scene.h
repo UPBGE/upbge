@@ -138,6 +138,8 @@ protected:
 	bool m_resetTaaSamples;
   Object *m_lastReplicatedParentObject;
   Object *m_gameDefaultCamera;
+  struct GPUViewport *m_gpuViewport;
+  struct GPUOffScreen *m_gpuOffScreen;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -320,7 +322,7 @@ public:
 	std::vector<Object *>m_hiddenObjectsDuringRuntime;
 
 	void RenderAfterCameraSetup(bool calledFromConstructor);
-	void RenderAfterCameraSetupImageRender(KX_Camera *cam, GPUTexture *finaltex, int *viewport);
+	GPUTexture *RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, struct GPUViewport *viewport, KX_Camera *cam, int *viewport_size);
 
   void SetLastReplicatedParentObject(Object *ob);
   Object *GetLastReplicatedParentObject();
