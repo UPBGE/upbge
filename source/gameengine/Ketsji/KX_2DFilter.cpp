@@ -231,8 +231,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, width, heigh
 		flag |= RAS_2DFilterFrameBuffer::RAS_MIPMAP;
 	}
 
-	/* TODO: Restore custom HdrType */
-	KX_2DFilterFrameBuffer *kxFrameBuffer = new KX_2DFilterFrameBuffer(slots, (RAS_2DFilterFrameBuffer::Flag)flag, width, height, RAS_Rasterizer::RAS_HDR_NONE);
+	KX_2DFilterFrameBuffer *kxFrameBuffer = new KX_2DFilterFrameBuffer(slots, (RAS_2DFilterFrameBuffer::Flag)flag, width, height);
 
 	SetOffScreen(kxFrameBuffer);
 

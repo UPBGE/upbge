@@ -94,16 +94,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 
-	RAS_Rasterizer::HdrType hdr = m_canvas->GetHdrType();
-	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
-		m_internalFormat = GL_RGBA16F_ARB;
-	}
-	else if (hdr == RAS_Rasterizer::RAS_HDR_FULL_FLOAT) {
-		m_internalFormat = GL_RGBA32F_ARB;
-	}
-	else {
-		m_internalFormat = GL_R11F_G11F_B10F;
-	}
+	m_internalFormat = GL_RGBA16F_ARB;
 
 	m_gpuTexture = nullptr;
 
@@ -676,16 +667,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 
-	RAS_Rasterizer::HdrType hdr = m_canvas->GetHdrType();
-	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
-		m_internalFormat = GL_RGBA16F_ARB;
-	}
-	else if (hdr == RAS_Rasterizer::RAS_HDR_FULL_FLOAT) {
-		m_internalFormat = GL_RGBA32F_ARB;
-	}
-	else {
-		m_internalFormat = GL_R11F_G11F_B10F;
-	}
+	m_internalFormat = GL_RGBA16F_ARB;
 
 	// this constructor is used for automatic planar mirror
 	// create a camera, take all data by default, in any case we will recompute the frustum on each frame

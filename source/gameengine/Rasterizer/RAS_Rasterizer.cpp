@@ -75,8 +75,7 @@ extern "C" {
 RAS_Rasterizer::FrameBuffers::FrameBuffers()
 	:m_width(0),
 	m_height(0),
-	m_samples(0),
-	m_hdr(RAS_HDR_NONE)
+	m_samples(0)
 {
 	for (int i = 0; i < RAS_FRAMEBUFFER_MAX; i++) {
 		m_frameBuffers[i] = nullptr;
@@ -106,7 +105,6 @@ inline void RAS_Rasterizer::FrameBuffers::Update(RAS_ICanvas *canvas)
 	m_width = width;
 	m_height = height;
 	m_samples = canvas->GetSamples();
-	m_hdr = canvas->GetHdrType();
 
 	// Destruct all off screens.
 	for (unsigned short i = 0; i < RAS_FRAMEBUFFER_MAX; ++i) {
@@ -129,7 +127,7 @@ inline RAS_FrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(FrameBuffer
 		 */
 		for (int samples = m_samples; samples >= 0; --samples) {
 
-			RAS_FrameBuffer *fb = new RAS_FrameBuffer(m_width, m_height, m_hdr, fbtype);
+			RAS_FrameBuffer *fb = new RAS_FrameBuffer(m_width, m_height, fbtype);
 			
 			if (!fb->GetFrameBuffer()) {
 				delete fb;

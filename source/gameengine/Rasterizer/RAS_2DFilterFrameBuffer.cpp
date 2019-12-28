@@ -37,14 +37,13 @@ extern "C" {
 }
 
 RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag,
-	unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdrtype)
+	unsigned int width, unsigned int height)
 	:m_flag(flag),
 	m_colorSlots(colorSlots),
 	m_width(width),
 	m_height(height),
 	m_frameBuffer(nullptr),
-	m_depthTexture(nullptr),
-	m_hdrType(hdrtype)
+	m_depthTexture(nullptr)
 {
 	for (unsigned short i = 0; i < NUM_COLOR_SLOTS; ++i) {
 		m_colorTextures[i] = nullptr;
@@ -73,7 +72,7 @@ RAS_2DFilterFrameBuffer::~RAS_2DFilterFrameBuffer()
 
 void RAS_2DFilterFrameBuffer::Construct()
 {
-	m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, m_hdrType, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
+	m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
 	/* TODO: RESTORE SUPPORT OF MULTIPLE COLOR ATTACHEMENTS IF NEEDED */
 	m_colorTextures[0] = m_frameBuffer->GetColorAttachment();
 	m_depthTexture = m_frameBuffer->GetDepthAttachment();

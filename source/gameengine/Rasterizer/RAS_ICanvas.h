@@ -32,7 +32,7 @@
 #ifndef __RAS_ICANVAS_H__
 #define __RAS_ICANVAS_H__
 
-#include "RAS_Rasterizer.h" // for RAS_Rasterizer::HdrType
+#include "RAS_Rasterizer.h"
 
 class RAS_Rect;
 struct ARegion;
@@ -85,9 +85,6 @@ public:
 
 	void SetSamples(int samples);
 	int GetSamples() const;
-
-	void SetHdrType(RAS_Rasterizer::HdrType type);
-	RAS_Rasterizer::HdrType GetHdrType() const;
 
 	int GetWidth() const;
 	int GetHeight() const;
@@ -150,7 +147,6 @@ protected:
 	std::vector<Screenshot> m_screenshots;
 
 	int m_samples;
-	RAS_Rasterizer::HdrType m_hdrType;
 
 	RAS_MouseState m_mousestate;
 	/// frame number for screenshots.

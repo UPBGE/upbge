@@ -27,7 +27,7 @@
 #ifndef __RAS_2DFILTER_FRAMEBUFFER_H__
 #define __RAS_2DFILTER_FRAMEBUFFER_H__
 
-#include "RAS_Rasterizer.h" // for HdrType
+#include "RAS_Rasterizer.h"
 
 #include <memory>
 
@@ -65,8 +65,6 @@ private:
 	GPUTexture *m_colorTextures[NUM_COLOR_SLOTS];
 	GPUTexture *m_depthTexture;
 
-	RAS_Rasterizer::HdrType m_hdrType;
-
 	/// Construct the frame buffer and the textures with the current settings.
 	void Construct();
 	/// Generate mipmap levels for color textures of the off screen.
@@ -74,7 +72,7 @@ private:
 
 public:
 	RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width,
-		unsigned int height, RAS_Rasterizer::HdrType hdrtype);
+		unsigned int height);
 	virtual ~RAS_2DFilterFrameBuffer();
 
 	/** Update the off screen to the new canvas dimensions if allowed.

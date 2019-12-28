@@ -190,7 +190,6 @@ void LA_Launcher::InitEngine()
 
 	// Set canvas multisamples.
 	m_canvas->SetSamples(m_samples);
-	m_canvas->SetHdrType(RAS_Rasterizer::RAS_HDR_NONE);
 
 	m_canvas->Init();
 	if (gm.flag & GAME_SHOW_MOUSE) {

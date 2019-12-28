@@ -35,9 +35,8 @@ extern "C" {
 
 RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
                                  unsigned int height,
-                                 RAS_Rasterizer::HdrType hdrtype,
                                  RAS_Rasterizer::FrameBufferType fbtype)
-    : m_frameBuffer(nullptr), m_frameBufferType(fbtype), m_hdrType(hdrtype)
+    : m_frameBuffer(nullptr), m_frameBufferType(fbtype)
 {
   m_colorAttachment = GPU_texture_create_2d(width, height, GPU_RGBA16F, nullptr, nullptr);
   m_depthAttachment = GPU_texture_create_2d(width, height, GPU_DEPTH24_STENCIL8, nullptr, nullptr);

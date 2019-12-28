@@ -39,13 +39,12 @@ private:
 	GPUFrameBuffer *m_frameBuffer;
 	/// The off screen type, render, final, filter ect...
 	RAS_Rasterizer::FrameBufferType m_frameBufferType;
-	RAS_Rasterizer::HdrType m_hdrType;
 
   GPUTexture *m_colorAttachment;
   GPUTexture *m_depthAttachment;
 
 public:
-	RAS_FrameBuffer(unsigned int width, unsigned height, RAS_Rasterizer::HdrType hdrType, RAS_Rasterizer::FrameBufferType framebufferType);
+	RAS_FrameBuffer(unsigned int width, unsigned height, RAS_Rasterizer::FrameBufferType framebufferType);
 	~RAS_FrameBuffer();
 
 	GPUFrameBuffer *GetFrameBuffer();
