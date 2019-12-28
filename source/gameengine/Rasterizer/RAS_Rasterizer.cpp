@@ -298,6 +298,11 @@ void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
 
 	SetColorMask(true, true, true, true);
 
+	/* Here we set RAS_FrameBuffers width and height very early in ge launching process
+	 * Note that if we want to resize RAS_FrameBuffers, this method must be called
+	 * But other things would need to be resized too with eevee (GPUViewport and
+	 * its GPUOffScreen)
+	 */
 	m_frameBuffers.Update(canvas);
 }
 
