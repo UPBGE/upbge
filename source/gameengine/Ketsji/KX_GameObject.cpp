@@ -280,7 +280,10 @@ void KX_GameObject::TagForUpdate()
 
     copy_m4_m4(ob->obmat, obmat);
     invert_m4_m4(ob->imat, obmat);
-    BKE_object_apply_mat4(ob, ob->obmat, true, true);
+    /* The following line was creating issues in some of my test files
+     * and BPR had issues too. It was introduced when working on object color.
+     * Waiting we find something better, I comment it... */
+    //BKE_object_apply_mat4(ob, ob->obmat, false, true);
     /* NORMAL CASE */
     if (!m_staticObject && ob->type != OB_MBALL) {
       if (!m_useCopy) {
@@ -3284,6 +3287,12 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v,
     }
     else {
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+      /* Warning about the following function which can cause mess
+       * for object transfrom / armatures transform BUT which
+       * was needed to avoid that when we set object color
+       * the position of the object was sometimes "reseted"...
+       */
+      BKE_object_apply_mat4(ob, ob->obmat, true, false);
       self->GetScene()->ResetTaaSamples();
     }
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
