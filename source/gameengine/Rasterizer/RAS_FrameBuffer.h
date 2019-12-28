@@ -46,7 +46,6 @@ private:
 
 public:
 	RAS_FrameBuffer(unsigned int width, unsigned height, RAS_Rasterizer::HdrType hdrType, RAS_Rasterizer::FrameBufferType framebufferType);
-	RAS_FrameBuffer();
 	~RAS_FrameBuffer();
 
 	GPUFrameBuffer *GetFrameBuffer();
