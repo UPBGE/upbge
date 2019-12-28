@@ -373,7 +373,7 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	// parameter keywords
 	static const char *kwlist[] = {"sceneObj", "cameraObj", "width", "height", "samples", nullptr};
 	// get parameters
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iiii",
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iii",
 		const_cast<char**>(kwlist), &scene, &camera, &width, &height, &samples))
 		return -1;
 	try
@@ -551,7 +551,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	// parameter keywords
 	static const char *kwlist[] = {"scene", "observer", "mirror", "material", "width", "height", "samples", nullptr};
 	// get parameters
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|hiiii",
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|hiii",
 	                                 const_cast<char**>(kwlist), &scene, &observer, &mirror, &materialID,
 									 &width, &height, &samples))
 		return -1;
