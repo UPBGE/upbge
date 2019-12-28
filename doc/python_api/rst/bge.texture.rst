@@ -407,7 +407,7 @@ Image classes
 
       :type: bool
 
-.. class:: ImageMirror(scene, observer, mirror, material=0, width, height, samples, hdr)
+.. class:: ImageMirror(scene, observer, mirror, material=0, width, height, samples)
 
    Image source from mirror.
 
@@ -426,8 +426,6 @@ Image classes
    :type height: integer
    :arg samples: Off-screen render buffer samples (optional).
    :type samples: integer
-   :arg hdr: Off-screen image format (optional).
-   :type hdr: One of :ref:`these constants<render-hdr>`
 
    .. attribute:: alpha
 
@@ -656,7 +654,7 @@ Image classes
 
       :type: bool
 
-.. class:: ImageRender(scene, camera, width, height, samples, hdr)
+.. class:: ImageRender(scene, camera, width, height, samples)
 
    Image source from a render of a non active camera.
    The render is done on a custom framebuffer object if fbo is specified,
@@ -672,8 +670,6 @@ Image classes
    :type height: integer
    :arg samples: Off-screen render buffer samples (optional).
    :type samples: integer
-   :arg hdr: Off-screen image format (optional).
-   :type hdr: One of :ref:`these constants<render-hdr>`
 
    .. attribute:: alpha
 

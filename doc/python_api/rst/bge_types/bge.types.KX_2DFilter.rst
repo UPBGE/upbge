@@ -66,20 +66,16 @@ base class --- :class:`BL_Shader`
       :arg samplerName: The shader sampler name set to :data:`index` if :data:`samplerName` is passed in the function. (optional)
       :type samplerName: string
 
-   .. method:: addOffScreen(slots, depth=False, width=-1, height=-1, hdr=bge.render.HDR_NONE, mipmap=False)
+   .. method:: addOffScreen(slots, width=-1, height=-1, mipmap=False)
 
       Register a custom off screen to render the filter to.
 
       :arg slots: The number of color texture attached to the off screen, between 0 and 8 excluded.
       :type slots: integer
-      :arg depth: True of the off screen use a depth texture (optional).
-      :type depth: boolean
       :arg width: The off screen width, -1 if it can be resized dynamically when the viewport dimensions changed (optional).
       :type width: integer
       :arg height: The off screen height, -1 if it can be resized dynamically when the viewport dimensions changed (optional).
       :type height: integer
-      :arg hdr: The image quality HDR of the color textures (optional).
-      :type hdr: one of :ref:`these constants<render-hdr>`
       :arg mipmap: True if the color texture generate mipmap at the end of the filter rendering (optional).
       :type mipmap: boolean
 

@@ -203,7 +203,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, width, heigh
 
 	static const char *kwlist[] = {"slots", "width", "height", "mipmap", nullptr};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "i|iiiii:addOffScreen", const_cast<char**>(kwlist),
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "i|iii:addOffScreen", const_cast<char**>(kwlist),
 									 &slots, &width, &height, &mipmap)) {
 		return nullptr;
 	}

@@ -96,24 +96,6 @@ Constants
 
    Right eye being used during stereoscopic rendering.
 
-.. _render-hdr:
-
----
-HDR
----
-
-.. data:: HDR_NONE
-
-   Use 8 bit per channel image format.
-
-.. data:: HDR_HALF_FLOAT
-
-   Use 16 bit float per channel image format.
-
-.. data:: HDR_FULL_FLOAT
-
-   Use 32 bit float per channel image format.
-
 *********
 Functions
 *********
