@@ -27,52 +27,67 @@
 #include "RAS_FrameBuffer.h"
 
 extern "C" {
-#  include "GPU_framebuffer.h"
-#  include "GPU_texture.h"
-#  include "DRW_render.h"
-#  include "eevee_private.h"
+#include "GPU_framebuffer.h"
+#include "GPU_texture.h"
+#include "DRW_render.h"
+#include "eevee_private.h"
 }
 
-RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdrtype, RAS_Rasterizer::FrameBufferType fbtype)
-	:m_frameBuffer(nullptr),
-	m_frameBufferType(fbtype),
-	m_hdrType(hdrtype)
+RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
+                                 unsigned int height,
+                                 RAS_Rasterizer::HdrType hdrtype,
+                                 RAS_Rasterizer::FrameBufferType fbtype)
+    : m_frameBuffer(nullptr), m_frameBufferType(fbtype), m_hdrType(hdrtype)
 {
-	m_colorAttachment = nullptr;
-	m_depthAttachment = nullptr;
-	m_frameBuffer = GPU_framebuffer_create();
+  m_colorAttachment = GPU_texture_create_2d(width, height, GPU_RGBA16F, nullptr, nullptr);
+  m_depthAttachment = GPU_texture_create_2d(width, height, GPU_DEPTH24_STENCIL8, nullptr, nullptr);
+  m_frameBuffer = GPU_framebuffer_create();
+  GPU_framebuffer_texture_attach(m_frameBuffer, m_colorAttachment, 0, 0);
+  GPU_framebuffer_texture_attach(m_frameBuffer, m_depthAttachment, 0, 0);
 }
 
 RAS_FrameBuffer::RAS_FrameBuffer()
 {
-	m_frameBuffer = GPU_framebuffer_create();
-	m_frameBufferType = RAS_Rasterizer::FrameBufferType::RAS_FRAMEBUFFER_CUSTOM;
-	m_hdrType = RAS_Rasterizer::HdrType::RAS_HDR_HALF_FLOAT;
-	m_colorAttachment = nullptr;
-	m_depthAttachment = nullptr;
+  m_frameBuffer = GPU_framebuffer_create();
+  m_frameBufferType = RAS_Rasterizer::FrameBufferType::RAS_FRAMEBUFFER_CUSTOM;
+  m_hdrType = RAS_Rasterizer::HdrType::RAS_HDR_HALF_FLOAT;
+  m_colorAttachment = nullptr;
+  m_depthAttachment = nullptr;
 }
 
 RAS_FrameBuffer::~RAS_FrameBuffer()
 {
-	GPU_framebuffer_free(m_frameBuffer);
+  GPU_framebuffer_free(m_frameBuffer); //it detaches attachments
+  GPU_texture_free(m_colorAttachment);
+  GPU_texture_free(m_depthAttachment);
 }
 
 GPUFrameBuffer *RAS_FrameBuffer::GetFrameBuffer()
 {
-	return m_frameBuffer;
+  return m_frameBuffer;
 }
 
 unsigned int RAS_FrameBuffer::GetWidth() const
 {
-	return GPU_texture_width(m_colorAttachment);
+  return GPU_texture_width(m_colorAttachment);
 }
 
 unsigned int RAS_FrameBuffer::GetHeight() const
 {
-	return GPU_texture_height(m_colorAttachment);
+  return GPU_texture_height(m_colorAttachment);
+}
+
+GPUTexture *RAS_FrameBuffer::GetColorAttachment()
+{
+  return m_colorAttachment;
+}
+
+GPUTexture *RAS_FrameBuffer::GetDepthAttachment()
+{
+  return m_depthAttachment;
 }
 
 RAS_Rasterizer::FrameBufferType RAS_FrameBuffer::GetType() const
 {
-	return m_frameBufferType;
+  return m_frameBufferType;
 }

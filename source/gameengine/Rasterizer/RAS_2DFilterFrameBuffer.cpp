@@ -75,8 +75,8 @@ void RAS_2DFilterFrameBuffer::Construct()
 {
 	m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, m_hdrType, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
 	/* TODO: RESTORE SUPPORT OF MULTIPLE COLOR ATTACHEMENTS IF NEEDED */
-	m_colorTextures[0] = GPU_framebuffer_color_texture(m_frameBuffer->GetFrameBuffer());
-	m_depthTexture = GPU_framebuffer_depth_texture(m_frameBuffer->GetFrameBuffer());
+	m_colorTextures[0] = m_frameBuffer->GetColorAttachment();
+	m_depthTexture = m_frameBuffer->GetDepthAttachment();
 }
 
 void RAS_2DFilterFrameBuffer::MipmapTexture()

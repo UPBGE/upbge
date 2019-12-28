@@ -239,7 +239,7 @@ void LA_Launcher::InitEngine()
 	// Set the global settings (carried over if restart/load new files).
 	m_ketsjiEngine->SetGlobalSettings(m_globalSettings);
 
-	m_rasterizer->Init();
+	m_rasterizer->Init(m_canvas);
 	InitCamera();
 
 #ifdef WITH_PYTHON

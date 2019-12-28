@@ -133,7 +133,6 @@ protected:
 
 	std::vector<KX_GameObject *>m_staticObjects;
 
-	GPUTexture *m_2dfiltersDepthTex;
 	int m_taaSamplesBackup;
 	bool m_resetTaaSamples;
   Object *m_lastReplicatedParentObject;

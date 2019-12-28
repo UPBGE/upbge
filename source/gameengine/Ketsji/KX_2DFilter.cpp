@@ -119,6 +119,7 @@ PyMethodDef KX_2DFilter::Methods[] = {
 PyAttributeDef KX_2DFilter::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("mipmap", KX_2DFilter, pyattr_get_mipmap, pyattr_set_mipmap),
 	KX_PYATTRIBUTE_RO_FUNCTION("frameBuffer", KX_2DFilter, pyattr_get_frameBuffer),
+	KX_PYATTRIBUTE_RO_FUNCTION("offScreen", KX_2DFilter, pyattr_get_frameBuffer), // Keep offScreen name for background compatibility
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
 

@@ -41,6 +41,9 @@ private:
 	RAS_Rasterizer::FrameBufferType m_frameBufferType;
 	RAS_Rasterizer::HdrType m_hdrType;
 
+  GPUTexture *m_colorAttachment;
+  GPUTexture *m_depthAttachment;
+
 public:
 	RAS_FrameBuffer(unsigned int width, unsigned height, RAS_Rasterizer::HdrType hdrType, RAS_Rasterizer::FrameBufferType framebufferType);
 	RAS_FrameBuffer();
@@ -53,8 +56,8 @@ public:
 	unsigned GetWidth() const;
 	unsigned GetHeight() const;
 
-	GPUTexture *m_colorAttachment;
-	GPUTexture *m_depthAttachment;
+  GPUTexture *GetColorAttachment();
+  GPUTexture *GetDepthAttachment();
 
 	RAS_Rasterizer::FrameBufferType GetType() const;
 };
