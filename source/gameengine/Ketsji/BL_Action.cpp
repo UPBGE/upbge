@@ -414,12 +414,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   Object *ob = m_obj->GetBlenderObject();  // eevee
 
+  if (ob->adt && m_action->id.name == ob->adt->action->id.name) {
+    ob->adt->action = m_tmpaction;
+  }
+
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-
-	if (ob->adt) {
-      ob->adt->action = m_tmpaction;
-    }
 
     //BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
 
@@ -461,7 +461,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
     // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
     for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = (ModifierData *)md->next) {
       // TODO: We need to find the good notifier per action
-      if (!modifier_isNonGeometrical(md) && ob->adt && ob->adt->action == m_action) {
+      if (!modifier_isNonGeometrical(md) && ob->adt && ob->adt->action->id.name == m_action->id.name) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -476,7 +476,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
     for (bConstraint *con = (bConstraint *)ob->constraints.first; con;
          con = (bConstraint *)con->next) {
       if (con) {
-        if (ob->adt && ob->adt->action == m_action) {
+        if (ob->adt && ob->adt->action->id.name == m_action->id.name) {
           DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -495,7 +495,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       if (ma) {
         if (ma->use_nodes && ma->nodetree) {
           bNodeTree *node_tree = ma->nodetree;
-          if (node_tree->adt && node_tree->adt->action == m_action) {
+          if (node_tree->adt && node_tree->adt->action->id.name == m_action->id.name) {
             DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
             PointerRNA ptrrna;
             RNA_id_pointer_create(&node_tree->id, &ptrrna);
@@ -510,7 +510,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
     Mesh *me = (Mesh *)ob->data;
     if (ob->type == OB_MESH && me) {
       const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
-      if (bHasShapeKey && me->key->adt && me->key->adt->action == m_action) {
+      if (bHasShapeKey && me->key->adt && me->key->adt->action->id.name == m_action->id.name) {
         DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
         Key *key = me->key;
 
