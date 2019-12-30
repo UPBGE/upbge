@@ -2326,9 +2326,9 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob, boo
 
 	m_meshObject = meshobj;
 	if (free_dm) {
-		//dm->release(dm);
-		//dm = nullptr;
-      BKE_object_free_derived_caches(ob);
+		dm->release(dm);
+		dm = nullptr;
+		BKE_object_free_derived_caches(ob);
 	}
 
 	if (recalcGeom) {
