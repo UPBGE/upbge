@@ -109,7 +109,9 @@ void EDBM_update_generic(struct BMEditMesh *em,
                          const bool is_destructive);
 
 struct UvElementMap *BM_uv_element_map_create(struct BMesh *bm,
-                                              const bool selected,
+                                              const struct Scene *scene,
+                                              const bool face_selected,
+                                              const bool uv_selected,
                                               const bool use_winding,
                                               const bool do_islands);
 void BM_uv_element_map_free(struct UvElementMap *vmap);
@@ -142,9 +144,9 @@ bool BMBVH_EdgeVisible(struct BMBVHTree *tree,
 /* editmesh_automerge.c */
 void EDBM_automerge(struct Object *ob, bool update, const char hflag, const float dist);
 void EDBM_automerge_and_split(struct Object *ob,
-                              bool split_edges,
-                              bool split_faces,
-                              bool update,
+                              const bool split_edges,
+                              const bool split_faces,
+                              const bool update,
                               const char hflag,
                               const float dist);
 
