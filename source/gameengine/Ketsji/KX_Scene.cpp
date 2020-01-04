@@ -446,7 +446,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Object *maincam = cam ? cam->GetBlenderObject() : m_gameDefaultCamera;
 
   const RAS_Rect *viewport = &canvas->GetViewportArea();
   int v[4] = {viewport->GetLeft(),
@@ -512,13 +511,11 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
                                               m_gpuViewport,
                                               bmain,
                                               scene,
-                                              maincam,
                                               view,
                                               viewinv,
                                               proj,
                                               pers,
                                               persinv,
-                                              v,
                                               calledFromConstructor,
                                               reset_taa_samples);
 
@@ -562,7 +559,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_restore();
 }
 
-GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport, KX_Camera *cam, int *v)
+GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport)
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate();
@@ -570,8 +567,6 @@ GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, G
 
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   Scene *scene = GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Object *maincam = cam ? cam->GetBlenderObject() : BKE_view_layer_camera_find(view_layer);
 
   // Normally cam matrices are already set in ImageRender
   ViewPortMatrices m = rasty->GetAllMatrices();
@@ -591,13 +586,11 @@ GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, G
                                               viewport,
                                               bmain,
                                               scene,
-                                              maincam,
                                               view,
                                               viewinv,
                                               proj,
                                               pers,
                                               persinv,
-                                              v,
                                               false,
                                               true);
   return finaltex;
