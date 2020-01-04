@@ -3033,7 +3033,10 @@ GPUTexture *DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain
   drw_state_prepare_clean_for_draw(&DST);
 
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  if (!depsgraph) {
+    depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
+  }
   //BKE_scene_get_depsgraph(bmain, scene, view_layer, called_from_constructor);
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 

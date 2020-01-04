@@ -111,6 +111,7 @@ extern "C" {
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "depsgraph/DEG_depsgraph_query.h"
+    #include "DNA_windowmanager_types.h"
 #include "DRW_render.h"
 #include "MEM_guardedalloc.h"
 
@@ -243,6 +244,36 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 
+  ARegion *ar;
+  wmWindowManager *wm = CTX_wm_manager(KX_GetActiveEngine()->GetContext());
+  wmWindow *win;
+  for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
+    bScreen *screen = win->screen;
+    if (!screen) {
+      continue;
+    }
+    CTX_wm_screen_set(KX_GetActiveEngine()->GetContext(), screen);
+
+    for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
+      if (sa->spacetype == SPACE_VIEW3D) {
+        ListBase *regionbase = &sa->regionbase;
+        for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
+          if (ar->regiontype == RGN_TYPE_WINDOW) {
+            if (ar->regiondata && sa->spacetype == SPACE_VIEW3D) {
+              CTX_wm_window_set(KX_GetActiveEngine()->GetContext(), win);
+              CTX_wm_area_set(KX_GetActiveEngine()->GetContext(), sa);
+              CTX_wm_region_set(KX_GetActiveEngine()->GetContext(), ar);
+
+              win->scene = scene;
+
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
   m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
   m_gameDefaultCamera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
   LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
@@ -254,8 +285,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_taaSamplesBackup = scene->eevee.taa_samples;
   scene->eevee.taa_samples = 0;
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
-
-  ARegion *ar = canvas->GetARegion();
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || !ar) { // if no ar, we are in blenderplayer
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
