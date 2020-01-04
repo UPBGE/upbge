@@ -88,7 +88,6 @@
 #include "KX_MotionState.h"
 #include "KX_ObstacleSimulation.h"
 
-
 #include "KX_BlenderCanvas.h"
 
 #ifdef WITH_PYTHON
@@ -111,7 +110,7 @@ extern "C" {
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "depsgraph/DEG_depsgraph_query.h"
-    #include "DNA_windowmanager_types.h"
+#include "DNA_windowmanager_types.h"
 #include "DRW_render.h"
 #include "MEM_guardedalloc.h"
 
@@ -165,13 +164,13 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    class RAS_ICanvas *canvas,
                    KX_NetworkMessageManager *messageManager)
     : CValue(),
-      m_resetTaaSamples(false),      // eevee
+      m_resetTaaSamples(false),               // eevee
       m_lastReplicatedParentObject(nullptr),  // eevee
-      m_gameDefaultCamera(nullptr), // eevee
-      m_gpuViewport(nullptr), // eevee
-      m_gpuOffScreen(nullptr), // eevee
-      m_v3dShadingTypeBackup(0), // eevee
-      m_v3dShadingFlagBackup(0), // eevee
+      m_gameDefaultCamera(nullptr),           // eevee
+      m_gpuViewport(nullptr),                 // eevee
+      m_gpuOffScreen(nullptr),                // eevee
+      m_v3dShadingTypeBackup(0),              // eevee
+      m_v3dShadingFlagBackup(0),              // eevee
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -244,36 +243,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 
-  ARegion *ar;
-  wmWindowManager *wm = CTX_wm_manager(KX_GetActiveEngine()->GetContext());
-  wmWindow *win;
-  for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
-    bScreen *screen = win->screen;
-    if (!screen) {
-      continue;
-    }
-    CTX_wm_screen_set(KX_GetActiveEngine()->GetContext(), screen);
-
-    for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
-      if (sa->spacetype == SPACE_VIEW3D) {
-        ListBase *regionbase = &sa->regionbase;
-        for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
-          if (ar->regiontype == RGN_TYPE_WINDOW) {
-            if (ar->regiondata && sa->spacetype == SPACE_VIEW3D) {
-              CTX_wm_window_set(KX_GetActiveEngine()->GetContext(), win);
-              CTX_wm_area_set(KX_GetActiveEngine()->GetContext(), sa);
-              CTX_wm_region_set(KX_GetActiveEngine()->GetContext(), ar);
-
-              win->scene = scene;
-
-              break;
-            }
-          }
-        }
-      }
-    }
-  }
-
   m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
   m_gameDefaultCamera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
   LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
@@ -286,7 +255,23 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   scene->eevee.taa_samples = 0;
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || !ar) { // if no ar, we are in blenderplayer
+  /* The following code is to ensure that when we create a new KX_Scene,
+   * some blender variables like bScreen, wmWindow, ScrArea, Aregion
+   * are correctly set. In embedded player, normally these variables
+   * are already ok, but not in blenderplayer.
+   */
+  InitBlenderContextVariables();
+
+  /* We could try to implement viewport render for blenderplayer
+   * but idk if it is doable with blenderplayer ghost context vs
+   * blender ghost context... (I've set GPGCanvas::GetARegion to return
+   * nullptr, like that, if there is no Aregion, we know that we're in
+   * blenderplayer)
+   */
+  ARegion *ar = canvas->GetARegion();
+
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
+      !ar) {  // if no ar, we are in blenderplayer
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
@@ -302,11 +287,11 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
         KX_GetActiveEngine()->GetConverter()->GetMain(), scene, view_layer, false);
     if (!depsgraph) {
       /* If we don't have a depsgraph for this view_layer, allocate one (last arg (true))
-	   * We'll need it during BlenderDataConversion.
-	   */
+       * We'll need it during BlenderDataConversion.
+       */
       BKE_scene_get_depsgraph(
           KX_GetActiveEngine()->GetConverter()->GetMain(), scene, view_layer, true);
-	}
+    }
   }
   /******************************************************************************************************************************/
 
@@ -331,7 +316,8 @@ KX_Scene::~KX_Scene()
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || !ar) { // if no ar, we are in blenderplayer
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
+      !ar) {  // if no ar, we are in blenderplayer
     /* This will free m_gpuViewport and m_gpuOffScreen */
     DRW_game_render_loop_end();
 
@@ -433,6 +419,39 @@ KX_Scene::~KX_Scene()
 }
 
 /*******************EEVEE INTEGRATION******************/
+
+void KX_Scene::InitBlenderContextVariables()
+{
+  ARegion *ar;
+  wmWindowManager *wm = CTX_wm_manager(KX_GetActiveEngine()->GetContext());
+  wmWindow *win;
+  for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
+    bScreen *screen = win->screen;
+    if (!screen) {
+      continue;
+    }
+    CTX_wm_screen_set(KX_GetActiveEngine()->GetContext(), screen);
+
+    for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
+      if (sa->spacetype == SPACE_VIEW3D) {
+        ListBase *regionbase = &sa->regionbase;
+        for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
+          if (ar->regiontype == RGN_TYPE_WINDOW) {
+            if (ar->regiondata && sa->spacetype == SPACE_VIEW3D) {
+              CTX_wm_window_set(KX_GetActiveEngine()->GetContext(), win);
+              CTX_wm_area_set(KX_GetActiveEngine()->GetContext(), sa);
+              CTX_wm_region_set(KX_GetActiveEngine()->GetContext(), ar);
+
+              win->scene = GetBlenderScene();
+
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
 void KX_Scene::SetLastReplicatedParentObject(Object *ob)
 {
@@ -566,7 +585,8 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
   /* And replace it with color and depth textures from viewport */
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), finaltex, 0, 0);
-  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
+  GPU_framebuffer_texture_attach(
+      input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
 
   GPU_framebuffer_bind(input->GetFrameBuffer());
 
@@ -598,7 +618,8 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_restore();
 }
 
-GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport)
+GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
+                                                        GPUViewport *viewport)
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate();
@@ -1347,9 +1368,10 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
     m_euthanasyobjects.erase(euthit);
   }
 
-  const std::vector<KX_GameObject *>::const_iterator tempit = std::find(m_tempObjectList.begin(), m_tempObjectList.end(), gameobj);
+  const std::vector<KX_GameObject *>::const_iterator tempit = std::find(
+      m_tempObjectList.begin(), m_tempObjectList.end(), gameobj);
   if (tempit != m_tempObjectList.end()) {
-      m_tempObjectList.erase(tempit);
+    m_tempObjectList.erase(tempit);
   }
 
   if (gameobj == m_active_camera) {
@@ -1569,8 +1591,9 @@ void KX_Scene::LogicUpdateFrame(double curtime)
     objects.push_back(gameobj);
   }
 
-  for (std::vector<KX_GameObject *>::iterator it = objects.begin(), end = objects.end(); it != end; ++it) {
-      (*it)->UpdateComponents();
+  for (std::vector<KX_GameObject *>::iterator it = objects.begin(), end = objects.end(); it != end;
+       ++it) {
+    (*it)->UpdateComponents();
   }
 
   m_logicmgr->UpdateFrame(curtime);

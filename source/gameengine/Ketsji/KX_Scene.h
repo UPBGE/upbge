@@ -329,6 +329,7 @@ public:
   Object *GetLastReplicatedParentObject();
   void ResetLastReplicatedParentObject();
   Object *GetGameDefaultCamera();
+  void InitBlenderContextVariables();
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;
