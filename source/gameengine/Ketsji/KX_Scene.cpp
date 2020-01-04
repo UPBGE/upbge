@@ -169,6 +169,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_gameDefaultCamera(nullptr), // eevee
       m_gpuViewport(nullptr), // eevee
       m_gpuOffScreen(nullptr), // eevee
+      m_v3dShadingTypeBackup(0), // eevee
+      m_v3dShadingFlagBackup(0), // eevee
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -260,6 +262,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
 
+    View3D *v3d = CTX_wm_view3d(KX_GetActiveEngine()->GetContext());
+    m_v3dShadingTypeBackup = v3d->shading.type;
+    m_v3dShadingFlagBackup = v3d->shading.flag;
+
     RenderAfterCameraSetup(true);
   }
   else {
@@ -299,6 +305,10 @@ KX_Scene::~KX_Scene()
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || !ar) { // if no ar, we are in blenderplayer
     /* This will free m_gpuViewport and m_gpuOffScreen */
     DRW_game_render_loop_end();
+
+    View3D *v3d = CTX_wm_view3d(KX_GetActiveEngine()->GetContext());
+    v3d->shading.type = m_v3dShadingTypeBackup;
+    v3d->shading.flag = m_v3dShadingFlagBackup;
   }
 
   LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);

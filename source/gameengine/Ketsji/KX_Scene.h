@@ -139,6 +139,8 @@ protected:
   Object *m_gameDefaultCamera;
   struct GPUViewport *m_gpuViewport;
   struct GPUOffScreen *m_gpuOffScreen;
+  int m_v3dShadingTypeBackup;
+  int m_v3dShadingFlagBackup;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
