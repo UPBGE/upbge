@@ -1502,24 +1502,19 @@ int main(
 
                               for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa;
                                    sa = sa->next) {
-                                for (SpaceLink *sl = (SpaceLink *)sa->spacedata.first; sl;
-                                     sl = sl->next) {
-                                  if (sl->spacetype == SPACE_VIEW3D) {
-                                    ListBase *regionbase = (sl == sa->spacedata.first) ?
-                                                               &sa->regionbase :
-                                                               &sl->regionbase;
-                                    for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
-                                      if (ar->regiontype == RGN_TYPE_WINDOW) {
-                                        if (ar->regiondata && sa->spacetype == SPACE_VIEW3D) {
-                                          CTX_wm_window_set(C, win);
-                                          CTX_wm_area_set(C, sa);
-                                          CTX_wm_region_set(C, ar);
+                                if (sa->spacetype == SPACE_VIEW3D) {
+                                  ListBase *regionbase = &sa->regionbase;
+                                  for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
+                                    if (ar->regiontype == RGN_TYPE_WINDOW) {
+                                      if (ar->regiondata && sa->spacetype == SPACE_VIEW3D) {
+                                        CTX_wm_window_set(C, win);
+                                        CTX_wm_area_set(C, sa);
+                                        CTX_wm_region_set(C, ar);
 
-                                          win->scene = scene;
+                                        win->scene = scene;
 
-                                          break;
-										}
-                                      }
+                                        break;
+							          }
                                     }
                                   }
                                 }
