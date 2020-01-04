@@ -3054,7 +3054,6 @@ GPUTexture *DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain
 
   v3d->shading.type = OB_RENDER;
   v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
-  //v3d->shading.render_pass = SCE_PASS_COMBINED; aaa
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
@@ -3070,13 +3069,8 @@ GPUTexture *DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain
   DST.draw_ctx.v3d = v3d;
   DST.draw_ctx.rv3d = rv3d;
 
-  /* We don't use bContext in bge
-  * (not possible or very difficult
-  * with blenderplayer I guess
-  */
   DST.draw_ctx.evil_C = C;
 
-  //DST.draw_ctx.v3d->zbuf = true;
   DST.draw_ctx.scene = DEG_get_evaluated_scene(depsgraph);
   DST.draw_ctx.view_layer = view_layer;
   DST.draw_ctx.obact = OBACT(view_layer);
