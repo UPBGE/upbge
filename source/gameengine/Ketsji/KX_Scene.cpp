@@ -508,7 +508,8 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
   }
 
-  GPUTexture *finaltex = DRW_game_render_loop(m_gpuViewport,
+  GPUTexture *finaltex = DRW_game_render_loop(engine->GetContext(),
+                                              m_gpuViewport,
                                               bmain,
                                               scene,
                                               maincam,
@@ -586,7 +587,8 @@ GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, G
   m.pers.getValue(&pers[0][0]);
   m.persinv.getValue(&persinv[0][0]);
 
-  GPUTexture *finaltex = DRW_game_render_loop(viewport,
+  GPUTexture *finaltex = DRW_game_render_loop(KX_GetActiveEngine()->GetContext(),
+                                              viewport,
                                               bmain,
                                               scene,
                                               maincam,

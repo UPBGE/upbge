@@ -52,6 +52,7 @@ extern "C"
 
 #  include "DNA_object_types.h"
 #  include "DNA_scene_types.h"
+#  include "DNA_space_types.h"
 #  include "DNA_genfile.h"
 
 #  include "BLO_readfile.h"
@@ -1491,6 +1492,40 @@ int main(
                             G.background = true;
                             wm_ghost_init(NULL);
                             WM_check(C);
+
+							ARegion *ar;
+                            wmWindowManager *wm = CTX_wm_manager(C);
+							wmWindow *win;
+                            for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
+                              bScreen *screen = win->screen;
+                              CTX_wm_screen_set(C, screen);
+
+                              for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa;
+                                   sa = sa->next) {
+                                for (SpaceLink *sl = (SpaceLink *)sa->spacedata.first; sl;
+                                     sl = sl->next) {
+                                  if (sl->spacetype == SPACE_VIEW3D) {
+                                    ListBase *regionbase = (sl == sa->spacedata.first) ?
+                                                               &sa->regionbase :
+                                                               &sl->regionbase;
+                                    for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
+                                      if (ar->regiontype == RGN_TYPE_WINDOW) {
+                                        if (ar->regiondata && sa->spacetype == SPACE_VIEW3D) {
+                                          CTX_wm_window_set(C, win);
+                                          CTX_wm_area_set(C, sa);
+                                          CTX_wm_region_set(C, ar);
+
+                                          win->scene = scene;
+
+                                          break;
+										}
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+
                             DRW_opengl_context_create_blenderplayer();
                             G.background = false;
 							GPU_init();
