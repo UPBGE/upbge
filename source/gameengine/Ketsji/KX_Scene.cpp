@@ -438,6 +438,15 @@ void KX_Scene::InitBlenderContextVariables()
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
             if (ar->regiondata && sa->spacetype == SPACE_VIEW3D) {
+              /* If we are in embedded and that we have several viewport opened,
+               * there can be several ARegions. In this case we have to ensure that
+               * the ARegion set at embedded start (canvas->GetARegion()) is the same
+               * than the current ar. If not, we continue the loop.
+               */
+              if (KX_GetActiveEngine()->GetCanvas()->GetARegion() &&
+                  KX_GetActiveEngine()->GetCanvas()->GetARegion() != ar) {
+                continue;
+              }
               CTX_wm_window_set(KX_GetActiveEngine()->GetContext(), win);
               CTX_wm_area_set(KX_GetActiveEngine()->GetContext(), sa);
               CTX_wm_region_set(KX_GetActiveEngine()->GetContext(), ar);
