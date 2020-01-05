@@ -45,9 +45,10 @@
 #include "MEM_guardedalloc.h"
 #include "DNA_space_types.h"
 
-GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
+GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, Scene *startscene)
 	: RAS_ICanvas(rasty),
 	m_window(window),
+	m_startScene(startscene),
 	m_width(0),
 	m_height(0)
 {
@@ -223,4 +224,9 @@ void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNU
 ARegion *GPG_Canvas::GetARegion()
 {
   return nullptr;
+}
+
+Scene *GPG_Canvas::GetStartScene()
+{
+  return m_startScene;
 }

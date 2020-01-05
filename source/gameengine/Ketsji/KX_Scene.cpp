@@ -452,23 +452,44 @@ void KX_Scene::InitBlenderContextVariables()
         ListBase *regionbase = &sa->regionbase;
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
-            if (ar->regiondata && sa->spacetype == SPACE_VIEW3D) {
-              /* If we are in embedded and that we have several viewport opened,
-               * there can be several ARegions. In this case we have to ensure that
-               * the ARegion set at embedded start (canvas->GetARegion()) is the same
-               * than the current ar. If not, we continue the loop.
+            if (ar->regiondata) {
+              /* If we are in EMBEDDED and at FIRST SCENE START and that we have several
+               * viewports opened, there can be several SPACE_VIEW3D and corresponding ARegions.
+               * In this case we have to ensure that the ARegion set at embedded start (canvas->GetARegion())
+               * is the same than the current ar. If not, we continue the loop.
+               * But if we ReplaceScene, We can't know which ARegion we have to choose, then we
+               * choose the first valid ARegion/SPACE_VIEW3D we find in the new scene.
+               * If no ARegion is set, then we are in blenderplayer. Then we choose the
+               * the first valid ARegion/SPACE_VIEW3D we find in the scene.
                */
-              if (KX_GetActiveEngine()->GetCanvas()->GetARegion() &&
-                  KX_GetActiveEngine()->GetCanvas()->GetARegion() != ar) {
+              RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+              bContext *C = KX_GetActiveEngine()->GetContext();
+              bool isStartScene = (GetBlenderScene() == canvas->GetStartScene());
+              /* canvas->GetARegion will always return the first scene ARegion, but
+               * the bContext's Aregion will change if we change scene.
+               */
+              ARegion *firstSceneAregion = canvas->GetARegion();
+              if (isStartScene && firstSceneAregion && firstSceneAregion != ar) {
                 continue;
               }
-              CTX_wm_window_set(KX_GetActiveEngine()->GetContext(), win);
-              CTX_wm_area_set(KX_GetActiveEngine()->GetContext(), sa);
-              CTX_wm_region_set(KX_GetActiveEngine()->GetContext(), ar);
+              /* Here we try to set the valid scene ARegion, wmWindow, ScrArea...
+               * This can be useful to have the correct settings when we do scripts
+               * with bpy or this can also be useful for render when evil_C is used
+               * in render code... An example is that when we didn't use blender
+               * ARegion or things like that, depth of field was not working correctly.
+               * If we manage to find the right ARegion..., this can fix some issues.
+               * Furthermore, this opens new possibilities to adapt render loop, try to
+               * use more directly blender code, try to add support of grease pencil...
+               * + new possibilities in bpy I guess...
+               */
+              Scene *scene = GetBlenderScene();
+              CTX_wm_window_set(C, win);
+              CTX_wm_area_set(C, sa);
+              CTX_wm_region_set(C, ar);
+              CTX_data_scene_set(C, scene);
+              win->scene = scene;
 
-              win->scene = GetBlenderScene();
-
-              break;
+              return;
             }
           }
         }
