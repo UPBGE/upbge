@@ -418,6 +418,21 @@ KX_Scene::~KX_Scene()
 #endif
 }
 
+void KX_Scene::SetLastReplicatedParentObject(Object *ob)
+{
+  m_lastReplicatedParentObject = ob;
+}
+
+Object *KX_Scene::GetLastReplicatedParentObject()
+{
+  return m_lastReplicatedParentObject;
+}
+
+void KX_Scene::ResetLastReplicatedParentObject()
+{
+  m_lastReplicatedParentObject = nullptr;
+}
+
 /*******************EEVEE INTEGRATION******************/
 
 void KX_Scene::InitBlenderContextVariables()
@@ -460,21 +475,6 @@ void KX_Scene::InitBlenderContextVariables()
       }
     }
   }
-}
-
-void KX_Scene::SetLastReplicatedParentObject(Object *ob)
-{
-  m_lastReplicatedParentObject = ob;
-}
-
-Object *KX_Scene::GetLastReplicatedParentObject()
-{
-  return m_lastReplicatedParentObject;
-}
-
-void KX_Scene::ResetLastReplicatedParentObject()
-{
-  m_lastReplicatedParentObject = nullptr;
 }
 
 Object *KX_Scene::GetGameDefaultCamera()
