@@ -115,7 +115,7 @@ static void gizmo2d_get_axis_color(const int axis_idx, float *r_col, float *r_co
 
 static GizmoGroup2D *gizmogroup2d_init(wmGizmoGroup *gzgroup)
 {
-  const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_2d", true);
+  const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);
   const wmGizmoType *gzt_cage = WM_gizmotype_find("GIZMO_GT_cage_2d", true);
   const wmGizmoType *gzt_button = WM_gizmotype_find("GIZMO_GT_button_2d", true);
 
@@ -204,23 +204,30 @@ void ED_widgetgroup_gizmo2d_xform_setup(const bContext *UNUSED(C), wmGizmoGroup 
 
   for (int i = 0; i < ARRAY_SIZE(ggd->translate_xy); i++) {
     wmGizmo *gz = ggd->translate_xy[i];
-    const float offset[3] = {0.0f, 0.2f};
 
     /* custom handler! */
     WM_gizmo_set_fn_custom_modal(gz, gizmo2d_modal);
-    WM_gizmo_set_scale(gz, U.gizmo_size);
 
     if (i < 2) {
       float color[4], color_hi[4];
       gizmo2d_get_axis_color(i, color, color_hi);
 
       /* set up widget data */
-      RNA_float_set(gz->ptr, "angle", -M_PI_2 * i);
       RNA_float_set(gz->ptr, "length", 0.8f);
+      float axis[3] = {0.0f};
+      axis[(i + 1) % 2] = 1.0f;
+      WM_gizmo_set_matrix_rotation_from_z_axis(gz, axis);
+
+      float offset[3] = {0, 0, 0};
+      offset[2] = 0.18f;
       WM_gizmo_set_matrix_offset_location(gz, offset);
+      gz->flag |= WM_GIZMO_DRAW_OFFSET_SCALE;
+
       WM_gizmo_set_line_width(gz, GIZMO_AXIS_LINE_WIDTH);
       WM_gizmo_set_color(gz, color);
       WM_gizmo_set_color_highlight(gz, color_hi);
+
+      WM_gizmo_set_scale(gz, 1.0f);
     }
     else {
       PropertyRNA *prop = RNA_struct_find_property(gz->ptr, "icon");
@@ -230,6 +237,9 @@ void ED_widgetgroup_gizmo2d_xform_setup(const bContext *UNUSED(C), wmGizmoGroup 
       /* Make the center low alpha. */
       WM_gizmo_set_line_width(gz, 2.0f);
       RNA_float_set(gz->ptr, "backdrop_fill_alpha", 0.0);
+      WM_gizmo_set_color(gz, (const float[4]){1, 1, 1, 0.6});
+
+      WM_gizmo_set_scale(gz, 0.2f);
     }
 
     /* Assign operator. */
@@ -450,7 +460,7 @@ typedef struct GizmoGroup_Resize2D {
 
 static GizmoGroup_Resize2D *gizmogroup2d_resize_init(wmGizmoGroup *gzgroup)
 {
-  const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_2d", true);
+  const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);
   const wmGizmoType *gzt_button = WM_gizmotype_find("GIZMO_GT_button_2d", true);
 
   GizmoGroup_Resize2D *ggd = MEM_callocN(sizeof(GizmoGroup_Resize2D), __func__);
@@ -511,22 +521,24 @@ void ED_widgetgroup_gizmo2d_resize_setup(const bContext *UNUSED(C), wmGizmoGroup
 
     /* custom handler! */
     WM_gizmo_set_fn_custom_modal(gz, gizmo2d_modal);
-    WM_gizmo_set_scale(gz, U.gizmo_size);
 
     if (i < 2) {
-      const float offset[3] = {0.0f, 0.2f};
       float color[4], color_hi[4];
       gizmo2d_get_axis_color(i, color, color_hi);
 
       /* set up widget data */
-      RNA_float_set(gz->ptr, "angle", -M_PI_2 * i);
-      RNA_float_set(gz->ptr, "length", 0.8f);
+      RNA_float_set(gz->ptr, "length", 1.0f);
+      float axis[3] = {0.0f};
+      axis[(i + 1) % 2] = 1.0f;
+      WM_gizmo_set_matrix_rotation_from_z_axis(gz, axis);
+
       RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_BOX);
 
-      WM_gizmo_set_matrix_offset_location(gz, offset);
       WM_gizmo_set_line_width(gz, GIZMO_AXIS_LINE_WIDTH);
       WM_gizmo_set_color(gz, color);
       WM_gizmo_set_color_highlight(gz, color_hi);
+
+      WM_gizmo_set_scale(gz, 1.0f);
     }
     else {
       PropertyRNA *prop = RNA_struct_find_property(gz->ptr, "icon");
@@ -536,6 +548,9 @@ void ED_widgetgroup_gizmo2d_resize_setup(const bContext *UNUSED(C), wmGizmoGroup
       /* Make the center low alpha. */
       WM_gizmo_set_line_width(gz, 2.0f);
       RNA_float_set(gz->ptr, "backdrop_fill_alpha", 0.0);
+      WM_gizmo_set_color(gz, (const float[4]){1, 1, 1, 0.6});
+
+      WM_gizmo_set_scale(gz, 1.2f);
     }
 
     /* Assign operator. */
@@ -629,7 +644,7 @@ void ED_widgetgroup_gizmo2d_rotate_setup(const bContext *UNUSED(C), wmGizmoGroup
 
     /* custom handler! */
     WM_gizmo_set_fn_custom_modal(gz, gizmo2d_modal);
-    WM_gizmo_set_scale(gz, U.gizmo_size);
+    WM_gizmo_set_scale(gz, 1.2f);
 
     {
       PropertyRNA *prop = RNA_struct_find_property(gz->ptr, "icon");
@@ -639,6 +654,7 @@ void ED_widgetgroup_gizmo2d_rotate_setup(const bContext *UNUSED(C), wmGizmoGroup
       /* Make the center low alpha. */
       WM_gizmo_set_line_width(gz, 2.0f);
       RNA_float_set(gz->ptr, "backdrop_fill_alpha", 0.0);
+      WM_gizmo_set_color(gz, (const float[4]){1, 1, 1, 0.6});
     }
 
     /* Assign operator. */
