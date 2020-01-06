@@ -258,16 +258,18 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   /* The following code is to ensure that when we create a new KX_Scene,
    * some blender variables like bScreen, wmWindow, ScrArea, Aregion
    * are correctly set. In embedded player, normally these variables
-   * are already ok, but not in blenderplayer.
+   * are already set, but not in blenderplayer.
+   *
+   * Parenthesis:
+   * If later we want to work on viewport render in blenderplayer,
+   * I noticed that when we use viewport render in blenderplayer,
+   * the variables are not correctly set in the next frame then we have to call
+   * InitBlenderContextVariables(); each frame before wm_draw_update
+   * (blenderplayer_viewport branch).
    */
   InitBlenderContextVariables();
 
-  /* We could try to implement viewport render for blenderplayer
-   * but idk if it is doable with blenderplayer ghost context vs
-   * blender ghost context... (I've set GPGCanvas::GetARegion to return
-   * nullptr, like that, if there is no Aregion, we know that we're in
-   * blenderplayer)
-   */
+  /* If there is no Aregion, we know that we're in blenderplayer (for now) */
   ARegion *ar = canvas->GetARegion();
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
@@ -465,8 +467,8 @@ void KX_Scene::InitBlenderContextVariables()
               RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
               bContext *C = KX_GetActiveEngine()->GetContext();
               bool isStartScene = (GetBlenderScene() == canvas->GetStartScene());
-              /* canvas->GetARegion will always return the first scene ARegion, but
-               * the bContext's Aregion will change if we change scene.
+              /* In embedded, canvas->GetARegion will always return the first scene ARegion,
+               * but the bContext's ARegion will change if we replace scene.
                */
               ARegion *firstSceneAregion = canvas->GetARegion();
               if (isStartScene && firstSceneAregion && firstSceneAregion != ar) {
