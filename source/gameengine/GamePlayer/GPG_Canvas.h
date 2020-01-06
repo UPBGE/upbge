@@ -43,12 +43,14 @@
 
 class RAS_Rasterizer;
 struct ARegion;
+struct Scene;
 
 class GPG_Canvas : public RAS_ICanvas
 {
 protected:
 	/// GHOST window.
 	GHOST_IWindow *m_window;
+  Scene *m_startScene;
 	/// Width of the context.
 	int m_width;
 	/// Height of the context.
@@ -61,7 +63,7 @@ protected:
 	int m_viewport[4];
 
 public:
-	GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window);
+	GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, Scene *startscene);
 	virtual ~GPG_Canvas();
 
 	/**
@@ -95,6 +97,8 @@ public:
 	virtual void EndDraw();
 
   virtual ARegion *GetARegion();
+
+  virtual Scene *GetStartScene();
 };
 
 #endif  // __GPG_CANVAS_H__

@@ -53,7 +53,7 @@ protected:
 	virtual void RunPythonMainLoop(const std::string& pythonCode);
 #endif  // WITH_PYTHON
 
-	virtual RAS_ICanvas *CreateCanvas();
+	virtual RAS_ICanvas *CreateCanvas(Scene *startscene);
 	virtual bool GetUseAlwaysExpandFraming();
 	virtual void InitCamera();
 	virtual void InitPython();

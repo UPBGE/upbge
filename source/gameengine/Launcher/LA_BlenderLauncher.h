@@ -56,7 +56,7 @@ protected:
 
 	virtual void RenderEngine();
 
-	virtual RAS_ICanvas *CreateCanvas();
+	virtual RAS_ICanvas *CreateCanvas(Scene *startscene);
 	virtual bool GetUseAlwaysExpandFraming();
 	virtual void InitCamera();
 	virtual void InitPython();

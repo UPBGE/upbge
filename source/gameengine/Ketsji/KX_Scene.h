@@ -139,6 +139,8 @@ protected:
   Object *m_gameDefaultCamera;
   struct GPUViewport *m_gpuViewport;
   struct GPUOffScreen *m_gpuOffScreen;
+  int m_v3dShadingTypeBackup;
+  int m_v3dShadingFlagBackup;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -321,12 +323,13 @@ public:
 	std::vector<Object *>m_hiddenObjectsDuringRuntime;
 
 	void RenderAfterCameraSetup(bool calledFromConstructor);
-	GPUTexture *RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, struct GPUViewport *viewport, KX_Camera *cam, int *viewport_size);
+	GPUTexture *RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, struct GPUViewport *viewport);
 
   void SetLastReplicatedParentObject(Object *ob);
   Object *GetLastReplicatedParentObject();
   void ResetLastReplicatedParentObject();
   Object *GetGameDefaultCamera();
+  void InitBlenderContextVariables();
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;

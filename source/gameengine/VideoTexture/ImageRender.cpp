@@ -335,7 +335,7 @@ bool ImageRender::Render()
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_gpuTexture = m_scene->RenderAfterCameraSetupImageRender(m_rasterizer, m_gpuViewport, m_camera, viewport);
+	m_gpuTexture = m_scene->RenderAfterCameraSetupImageRender(m_rasterizer, m_gpuViewport);
 
 	m_canvas->EndFrame();
 

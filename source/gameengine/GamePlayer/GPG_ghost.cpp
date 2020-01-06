@@ -1491,6 +1491,7 @@ int main(
                             G.background = true;
                             wm_ghost_init(NULL);
                             WM_check(C);
+
                             DRW_opengl_context_create_blenderplayer();
                             G.background = false;
 							GPU_init();

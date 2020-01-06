@@ -3025,50 +3025,19 @@ EEVEE_Data *EEVEE_engine_data_get(void)
   return data;
 }
 
-static void game_camera_border(Depsgraph *depsgraph,
-  const Scene *scene, const ARegion *ar, const View3D *v3d, const RegionView3D *rv3d,
-  rctf *r_viewborder, const bool no_shift, const bool no_zoom)
-{
-  CameraParams params;
-  rctf rect_view, rect_camera;
-
-  /* get viewport viewplane */
-  BKE_camera_params_init(&params);
-  BKE_camera_params_from_view3d(&params, depsgraph, v3d, rv3d);
-  if (no_zoom)
-    params.zoom = 1.0f;
-  BKE_camera_params_compute_viewplane(&params, ar->winx, ar->winy, 1.0f, 1.0f);
-  rect_view = params.viewplane;
-
-  /* get camera viewplane */
-  BKE_camera_params_init(&params);
-  /* fallback for non camera objects */
-  params.clip_start = v3d->clip_start;
-  params.clip_end = v3d->clip_end;
-  BKE_camera_params_from_object(&params, v3d->camera);
-  if (no_shift) {
-    params.shiftx = 0.0f;
-    params.shifty = 0.0f;
-  }
-  BKE_camera_params_compute_viewplane(&params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
-  rect_camera = params.viewplane;
-
-  /* get camera border within viewport */
-  r_viewborder->xmin = ((rect_camera.xmin - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
-  r_viewborder->xmax = ((rect_camera.xmax - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
-  r_viewborder->ymin = ((rect_camera.ymin - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
-  r_viewborder->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
-}
-
-GPUTexture *DRW_game_render_loop(GPUViewport *viewport, Main *bmain, Scene *scene, Object *maincam,
+GPUTexture *DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene *scene,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
-  int v[4], bool called_from_constructor, bool reset_taa_samples)
+  bool called_from_constructor, bool reset_taa_samples)
 {
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
 
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, called_from_constructor);
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  if (!depsgraph) {
+    depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
+  }
+  //BKE_scene_get_depsgraph(bmain, scene, view_layer, called_from_constructor);
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   if (called_from_constructor) {
@@ -3082,59 +3051,29 @@ GPUTexture *DRW_game_render_loop(GPUViewport *viewport, Main *bmain, Scene *scen
 
   DST.viewport = viewport;
 
-  ARegion ar;
-  ar.winx = v[2];
-  ar.winy = v[3];
+  ARegion *ar = CTX_wm_region(C);
 
-  ar.winrct.xmin = v[0];
-  ar.winrct.ymin = v[1];
-  ar.winrct.xmax = v[2];
-  ar.winrct.ymax = v[3];
+  View3D *v3d = CTX_wm_view3d(C);
 
-  View3D v3d;
+  v3d->shading.type = OB_RENDER;
+  v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
 
-  Object *obcam = maincam;
-
-  Camera *cam = (Camera *)obcam->data;
-  v3d.camera = obcam;
-  v3d.lens = cam->lens;
-  v3d.clip_start = cam->clip_start;
-  v3d.clip_end = cam->clip_end;
-  v3d.shading.type = OB_RENDER;
-  v3d.shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
-  v3d.shading.render_pass = SCE_PASS_COMBINED;
-
-  RegionView3D rv3d;
-
-  rv3d.camdx = cam->shiftx;
-  rv3d.camdy = cam->shifty;
-  rv3d.camzoom = 0.0f;
-  rv3d.persp = RV3D_CAMOB;
-  rv3d.is_persp = true;
-  rctf cameraborder;
-  game_camera_border(depsgraph, scene, &ar, &v3d, &rv3d, &cameraborder, false, false);
-  rv3d.viewcamtexcofac[0] = (float)ar.winx / BLI_rctf_size_x(&cameraborder);
-
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
   DRW_view_set_active(NULL);
 
-  copy_m4_m4(rv3d.persmat, pers);
-  copy_m4_m4(rv3d.persinv, persinv);
-  copy_m4_m4(rv3d.viewmat, view);
-  copy_m4_m4(rv3d.viewinv, viewinv);
-  copy_m4_m4(rv3d.winmat, proj);
+  copy_m4_m4(rv3d->persmat, pers);
+  copy_m4_m4(rv3d->persinv, persinv);
+  copy_m4_m4(rv3d->viewmat, view);
+  copy_m4_m4(rv3d->viewinv, viewinv);
+  copy_m4_m4(rv3d->winmat, proj);
 
-  DST.draw_ctx.ar = &ar;
-  DST.draw_ctx.v3d = &v3d;
-  DST.draw_ctx.rv3d = &rv3d;
+  DST.draw_ctx.ar = ar;
+  DST.draw_ctx.v3d = v3d;
+  DST.draw_ctx.rv3d = rv3d;
 
-  /* We don't use bContext in bge
-  * (not possible or very difficult
-  * with blenderplayer I guess
-  */
-  DST.draw_ctx.evil_C = NULL;
+  DST.draw_ctx.evil_C = C;
 
-  //DST.draw_ctx.v3d->zbuf = true;
   DST.draw_ctx.scene = DEG_get_evaluated_scene(depsgraph);
   DST.draw_ctx.view_layer = view_layer;
   DST.draw_ctx.obact = OBACT(view_layer);

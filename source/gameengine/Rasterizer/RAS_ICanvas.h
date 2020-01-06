@@ -35,10 +35,12 @@
 #include "RAS_Rasterizer.h"
 
 class RAS_Rect;
+
 struct ARegion;
-struct TaskScheduler;
-struct TaskPool;
 struct ImageFormatData;
+struct Scene;
+struct TaskPool;
+struct TaskScheduler;
 
 /**
  * 2D rendering device context. The connection from 3d rendercontext to 2d surface.
@@ -77,6 +79,8 @@ public:
 	virtual void EndDraw() = 0;
 
   virtual ARegion *GetARegion() = 0;
+
+  virtual Scene *GetStartScene() = 0;
 
 	/// probably needs some arguments for PS2 in future
 	virtual void SwapBuffers() = 0;
