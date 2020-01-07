@@ -534,7 +534,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
               viewport->GetHeight() + 1};
 
   const RAS_Rect *window = &canvas->GetWindowArea();
-  int w[4] = {window->GetLeft(), window->GetBottom(), window->GetWidth(), window->GetHeight()};
+  int window_size[4] = {window->GetLeft(), window->GetBottom(), window->GetWidth(), window->GetHeight()};
 
   if (!calledFromConstructor) {
     rasty->SetMatrix(cam->GetModelviewMatrix(),
@@ -584,8 +584,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
   if (!m_gpuViewport) {
     /* Create eevee's cache space */
-    m_gpuOffScreen = GPU_offscreen_create(
-        w[1], w[3], 0, true, false, nullptr);
+    m_gpuOffScreen = GPU_offscreen_create(window_size[1], window_size[3], 0, true, false, nullptr);
     m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
     GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
   }
@@ -599,9 +598,9 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
       proj,
       pers,
       persinv,
+      window_size,
       calledFromConstructor,
-      reset_taa_samples,
-      w);
+      reset_taa_samples);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
@@ -649,7 +648,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_restore();
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport, int window[4])
+void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport, int window_size[4])
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate();
@@ -681,9 +680,9 @@ void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewp
                                               proj,
                                               pers,
                                               persinv,
+                                              window_size,
                                               false,
-                                              true,
-                                              window);
+                                              true);
 }
 
 /******************End of EEVEE INTEGRATION****************************/

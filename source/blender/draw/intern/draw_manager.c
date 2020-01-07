@@ -3027,7 +3027,7 @@ EEVEE_Data *EEVEE_engine_data_get(void)
 
 void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene *scene,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
-  bool called_from_constructor, bool reset_taa_samples, int v[4])
+  int window_size[4], bool called_from_constructor, bool reset_taa_samples)
 {
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
