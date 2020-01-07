@@ -543,6 +543,9 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
               viewport->GetWidth() + 1,
               viewport->GetHeight() + 1};
 
+  const RAS_Rect *window = &canvas->GetWindowArea();
+  int w[4] = {window->GetLeft(), window->GetBottom(), window->GetWidth() + 1, window->GetHeight() + 1};
+
   if (!calledFromConstructor) {
     rasty->SetMatrix(cam->GetModelviewMatrix(),
                      cam->GetProjectionMatrix(),
@@ -592,7 +595,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   if (!m_gpuViewport) {
     /* Create eevee's cache space */
     m_gpuOffScreen = GPU_offscreen_create(
-        canvas->GetWidth() + 1, canvas->GetHeight() + 1, 0, true, false, nullptr);
+        canvas->GetWindowArea().GetWidth(), canvas->GetWindowArea().GetHeight(), 0, true, false, nullptr);
     m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
     GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
   }
@@ -608,7 +611,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
                                               persinv,
                                               calledFromConstructor,
                                               reset_taa_samples,
-                                              v);
+                                              w);
 
   //RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   //RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
