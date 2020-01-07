@@ -323,7 +323,7 @@ public:
 	std::vector<Object *>m_hiddenObjectsDuringRuntime;
 
 	void RenderAfterCameraSetup(bool calledFromConstructor);
-	GPUTexture *RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, struct GPUViewport *viewport);
+	void RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, struct GPUViewport *viewport, int window[4]);
 
   void SetLastReplicatedParentObject(Object *ob);
   Object *GetLastReplicatedParentObject();

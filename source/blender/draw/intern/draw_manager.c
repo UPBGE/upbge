@@ -3127,11 +3127,9 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
   DRW_state_reset();
 
   GPU_viewport_unbind(DST.viewport);
-
-  //DRW_opengl_context_disable();
 }
 
-void DRW_game_render_loop_finish()
+void DRW_game_render_loop_finish() //unused: check if something is needed
 {
   GPU_viewport_texture_pool_clear_users_bge(DST.viewport);
   GPU_framebuffer_restore();

@@ -80,7 +80,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_scene(scene),
     m_camera(camera),
     m_owncamera(false),
-    m_gpuTexture(nullptr),
     m_gpuViewport(nullptr),
     m_gpuOffScreen(nullptr),
     m_observer(nullptr),
@@ -95,8 +94,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_canvas = m_engine->GetCanvas();
 
 	m_internalFormat = GL_RGBA16F_ARB;
-
-	m_gpuTexture = nullptr;
 
 	m_targetfb = GPU_framebuffer_create();
 }
@@ -117,8 +114,8 @@ ImageRender::~ImageRender (void)
 
 int ImageRender::GetColorBindCode() const
 {
-	if (m_gpuTexture) {
-		return GPU_texture_opengl_bindcode(m_gpuTexture);
+	if (m_gpuViewport) {
+		return GPU_texture_opengl_bindcode(GPU_viewport_color_texture(m_gpuViewport));
 	}
 	return -1;
 }
@@ -138,13 +135,13 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	m_rasterizer->SetViewport(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
 	m_rasterizer->SetScissor(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
 
-	GPU_framebuffer_texture_attach(m_targetfb, m_gpuTexture, 0, 0);
+	GPU_framebuffer_texture_attach(m_targetfb, GPU_viewport_color_texture(m_gpuViewport), 0, 0);
 	GPU_framebuffer_bind(m_targetfb);
 
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
 
-	GPU_framebuffer_texture_detach(m_targetfb, m_gpuTexture);
+	GPU_framebuffer_texture_detach(m_targetfb, GPU_viewport_color_texture(m_gpuViewport));
 
 	DRW_game_render_loop_finish();
 
@@ -335,7 +332,7 @@ bool ImageRender::Render()
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_gpuTexture = m_scene->RenderAfterCameraSetupImageRender(m_rasterizer, m_gpuViewport);
+	m_scene->RenderAfterCameraSetupImageRender(m_rasterizer, m_gpuViewport, viewport); //viewport and window are the same here
 
 	m_canvas->EndFrame();
 

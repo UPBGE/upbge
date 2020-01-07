@@ -657,8 +657,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_restore();
 }
 
-GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
-                                                        GPUViewport *viewport)
+void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport, int window[4])
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate();
@@ -681,8 +680,6 @@ GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
   m.pers.getValue(&pers[0][0]);
   m.persinv.getValue(&persinv[0][0]);
 
-  int v[4] = {0, 0, 0, 0};
-
   DRW_game_render_loop(KX_GetActiveEngine()->GetContext(),
                                               viewport,
                                               bmain,
@@ -694,8 +691,7 @@ GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
                                               persinv,
                                               false,
                                               true,
-                                              v);
-  return nullptr;
+                                              window);
 }
 
 /******************End of EEVEE INTEGRATION****************************/
