@@ -3128,7 +3128,9 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   drw_engines_draw_background();
 
-  drw_engines_draw_scene();
+  if (gpencil_engine_needed) {
+    drw_engines_draw_scene();
+  }
 
   DRW_state_reset();
 

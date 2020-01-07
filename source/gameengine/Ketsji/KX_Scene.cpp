@@ -585,7 +585,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   if (!m_gpuViewport) {
     /* Create eevee's cache space */
     m_gpuOffScreen = GPU_offscreen_create(
-        canvas->GetWidth() + 1, canvas->GetHeight() + 1, 0, true, false, nullptr);
+        w[1], w[3], 0, true, false, nullptr);
     m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
     GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
   }
