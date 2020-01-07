@@ -35,6 +35,7 @@ struct Depsgraph;
 struct EditMeshData;
 struct Mesh;
 struct MeshStatVis;
+struct Object;
 struct Scene;
 
 /**
@@ -70,9 +71,6 @@ typedef struct BMEditMesh {
   short selectmode;
   short mat_nr;
 
-  /* Object this editmesh came from (if it came from one) */
-  struct Object *ob;
-
   /*temp variables for x-mirror editing*/
   int mirror_cdlayer; /* -1 is invalid */
 
@@ -92,11 +90,14 @@ BMEditMesh *BKE_editmesh_from_object(struct Object *ob);
 void BKE_editmesh_free_derivedmesh(BMEditMesh *em);
 void BKE_editmesh_free(BMEditMesh *em);
 
-float (*BKE_editmesh_vert_coords_alloc(
-    struct Depsgraph *depsgraph, struct BMEditMesh *em, struct Scene *scene, int *r_vert_len))[3];
+float (*BKE_editmesh_vert_coords_alloc(struct Depsgraph *depsgraph,
+                                       struct BMEditMesh *em,
+                                       struct Scene *scene,
+                                       struct Object *ob,
+                                       int *r_vert_len))[3];
 float (*BKE_editmesh_vert_coords_alloc_orco(BMEditMesh *em, int *r_vert_len))[3];
-void BKE_editmesh_lnorspace_update(BMEditMesh *em);
-void BKE_editmesh_ensure_autosmooth(BMEditMesh *em);
+void BKE_editmesh_lnorspace_update(BMEditMesh *em, struct Mesh *me);
+void BKE_editmesh_ensure_autosmooth(BMEditMesh *em, struct Mesh *me);
 struct BoundBox *BKE_editmesh_cage_boundbox_get(BMEditMesh *em);
 
 #endif /* __BKE_EDITMESH_H__ */

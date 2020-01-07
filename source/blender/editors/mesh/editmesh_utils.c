@@ -41,6 +41,7 @@
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
 #include "BKE_editmesh_bvh.h"
+#include "BKE_global.h"
 
 #include "DEG_depsgraph.h"
 
@@ -160,14 +161,27 @@ bool EDBM_op_finish(BMEditMesh *em, BMOperator *bmop, wmOperator *op, const bool
     em->emcopyusers = 0;
     em->emcopy = NULL;
 
+    /**
+     * Note, we could pass in the mesh, however this is an exceptional case, allow a slow lookup.
+     *
+     * This is needed because the COW mesh makes a full copy of the #BMEditMesh
+     * instead of sharing the pointer, tagging since this has been freed above,
+     * the #BMEditMesh.emcopy needs to be flushed to the COW edit-mesh, see T55457.
+     */
+    {
+      Main *bmain = G_MAIN;
+      for (Mesh *mesh = bmain->meshes.first; mesh; mesh = mesh->id.next) {
+        if (mesh->edit_mesh == em) {
+          DEG_id_tag_update(&mesh->id, ID_RECALC_COPY_ON_WRITE);
+          break;
+        }
+      }
+    }
+
     /* when copying, tessellation isn't to for faster copying,
      * but means we need to re-tessellate here */
     if (em->looptris == NULL) {
       BKE_editmesh_looptri_calc(em);
-    }
-
-    if (em->ob) {
-      DEG_id_tag_update(&((Mesh *)em->ob->data)->id, ID_RECALC_COPY_ON_WRITE);
     }
 
     return false;
@@ -316,7 +330,6 @@ void EDBM_mesh_make(Object *ob, const int select_mode, const bool add_key_index)
 
   me->edit_mesh->selectmode = me->edit_mesh->bm->selectmode = select_mode;
   me->edit_mesh->mat_nr = (ob->actcol > 0) ? ob->actcol - 1 : 0;
-  me->edit_mesh->ob = ob;
 
   /* we need to flush selection because the mode may have changed from when last in editmode */
   EDBM_selectmode_flush(me->edit_mesh);
@@ -1061,7 +1074,6 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
                                       float maxdist,
                                       int *r_index)
 {
-  Mesh *me = (Mesh *)em->ob->data;
   BMesh *bm = em->bm;
   BMIter iter;
   BMVert *v;
@@ -1094,7 +1106,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
   BM_mesh_elem_index_ensure(bm, BM_VERT);
 
   if (use_topology) {
-    ED_mesh_mirrtopo_init(me, NULL, &mesh_topo_store, true);
+    ED_mesh_mirrtopo_init(em, NULL, &mesh_topo_store, true);
   }
   else {
     tree = BLI_kdtree_3d_new(bm->totvert);
@@ -1415,12 +1427,12 @@ void EDBM_stats_update(BMEditMesh *em)
 
 /* so many tools call these that we better make it a generic function.
  */
-void EDBM_update_generic(BMEditMesh *em, const bool do_tessellation, const bool is_destructive)
+void EDBM_update_generic(Mesh *mesh, const bool do_tessellation, const bool is_destructive)
 {
-  Object *ob = em->ob;
-  /* order of calling isn't important */
-  DEG_id_tag_update(ob->data, ID_RECALC_GEOMETRY);
-  WM_main_add_notifier(NC_GEOM | ND_DATA, ob->data);
+  BMEditMesh *em = mesh->edit_mesh;
+  /* Order of calling isn't important. */
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_GEOM | ND_DATA, &mesh->id);
 
   if (do_tessellation) {
     BKE_editmesh_looptri_calc(em);

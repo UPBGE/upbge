@@ -2564,7 +2564,7 @@ static void knifetool_finish_ex(KnifeTool_OpData *kcd)
 
   EDBM_selectmode_flush(kcd->em);
   EDBM_mesh_normals_update(kcd->em);
-  EDBM_update_generic(kcd->em, true, true);
+  EDBM_update_generic(kcd->ob->data, true, true);
 
   /* re-tessellating makes this invalid, dont use again by accident */
   knifetool_free_bmbvh(kcd);
@@ -2658,11 +2658,11 @@ static void knifetool_init_bmbvh(KnifeTool_OpData *kcd)
   BM_mesh_elem_index_ensure(kcd->em->bm, BM_VERT);
 
   Scene *scene_eval = (Scene *)DEG_get_evaluated_id(kcd->vc.depsgraph, &kcd->scene->id);
-  Object *obedit_eval = (Object *)DEG_get_evaluated_id(kcd->vc.depsgraph, &kcd->em->ob->id);
+  Object *obedit_eval = (Object *)DEG_get_evaluated_id(kcd->vc.depsgraph, &kcd->ob->id);
   BMEditMesh *em_eval = BKE_editmesh_from_object(obedit_eval);
 
   kcd->cagecos = (const float(*)[3])BKE_editmesh_vert_coords_alloc(
-      kcd->vc.depsgraph, em_eval, scene_eval, NULL);
+      kcd->vc.depsgraph, em_eval, scene_eval, obedit_eval, NULL);
 
   kcd->bmbvh = BKE_bmbvh_new_from_editmesh(
       kcd->em,
