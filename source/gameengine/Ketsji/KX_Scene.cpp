@@ -601,36 +601,37 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   }
 
   DRW_game_render_loop(engine->GetContext(),
-                                              m_gpuViewport,
-                                              bmain,
-                                              scene,
-                                              view,
-                                              viewinv,
-                                              proj,
-                                              pers,
-                                              persinv,
-                                              calledFromConstructor,
-                                              reset_taa_samples,
-                                              w);
+      m_gpuViewport,
+      bmain,
+      scene,
+      view,
+      viewinv,
+      proj,
+      pers,
+      persinv,
+      calledFromConstructor,
+      reset_taa_samples,
+      w);
 
-  //RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
-  //RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
+  RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
+  RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
 
-  ///* Detach Defaults attachments from input framebuffer... */
-  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
-  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
-  ///* And replace it with color and depth textures from viewport */
-  //GPU_framebuffer_texture_attach(input->GetFrameBuffer(), finaltex, 0, 0);
-  //GPU_framebuffer_texture_attach(
-  //    input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
+  /* Detach Defaults attachments from input framebuffer... */
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
+  /* And replace it with color and depth textures from viewport */
+  GPU_framebuffer_texture_attach(
+      input->GetFrameBuffer(), GPU_viewport_color_texture(m_gpuViewport), 0, 0);
+  GPU_framebuffer_texture_attach(
+      input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
 
-  //GPU_framebuffer_bind(input->GetFrameBuffer());
+  GPU_framebuffer_bind(input->GetFrameBuffer());
 
-  //RAS_FrameBuffer *f = Render2DFilters(rasty, canvas, input, output);
+  RAS_FrameBuffer *f = Render2DFilters(rasty, canvas, input, output);
 
-  //GPU_framebuffer_restore();
+  GPU_framebuffer_restore();
 
-  //DRW_game_render_loop_finish();
+  DRW_game_render_loop_finish();
 
   rasty->SetViewport(v[0], v[1], v[2], v[3]);
 
@@ -639,18 +640,19 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
 
-  DRW_transform_none(GPU_viewport_color_texture(m_gpuViewport));
+  DRW_transform_none(GPU_framebuffer_color_texture(f->GetFrameBuffer()));
 
   if (!calledFromConstructor) {
     engine->EndFrame();
   }
 
-  ///* Detach viewport textures from input framebuffer... */
-  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), finaltex);
-  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
-  ///* And restore defaults attachments */
-  //GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
-  //GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
+  /* Detach viewport textures from input framebuffer... */
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
+                                 GPU_viewport_color_texture(m_gpuViewport));
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
+  /* And restore defaults attachments */
+  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
+  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
 
   GPU_framebuffer_restore();
 }
