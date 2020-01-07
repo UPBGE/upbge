@@ -632,6 +632,8 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
   DRW_transform_none(GPU_framebuffer_color_texture(f->GetFrameBuffer()));
 
+  DRW_game_render_loop_finish();
+
   if (!calledFromConstructor) {
     engine->EndFrame();
   }

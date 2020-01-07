@@ -3140,8 +3140,6 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
 void DRW_game_render_loop_finish() //unused: check if something is needed
 {
-  GPU_viewport_texture_pool_clear_users_bge(DST.viewport);
-  GPU_framebuffer_restore();
   drw_engines_disable();
   drw_viewport_cache_resize();
 }
