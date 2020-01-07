@@ -534,7 +534,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
               viewport->GetHeight() + 1};
 
   const RAS_Rect *window = &canvas->GetWindowArea();
-  int w[4] = {window->GetLeft(), window->GetBottom(), window->GetWidth() + 1, window->GetHeight() + 1};
+  int w[4] = {window->GetLeft(), window->GetBottom(), window->GetWidth(), window->GetHeight()};
 
   if (!calledFromConstructor) {
     rasty->SetMatrix(cam->GetModelviewMatrix(),

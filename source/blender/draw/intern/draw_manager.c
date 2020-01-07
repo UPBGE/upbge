@@ -3060,8 +3060,8 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
-  const rcti rect = {v[0], v[2], v[1], v[3]};
-  GPU_viewport_bind(viewport, &rect);
+  //const rcti rect = {v[0], v[2], v[1], v[3]};
+  GPU_viewport_bind(viewport, &ar->winrct);
 
   bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
 
