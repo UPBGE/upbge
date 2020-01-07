@@ -3025,9 +3025,9 @@ EEVEE_Data *EEVEE_engine_data_get(void)
   return data;
 }
 
-GPUTexture *DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene *scene,
+void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene *scene,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
-  bool called_from_constructor, bool reset_taa_samples)
+  bool called_from_constructor, bool reset_taa_samples, int v[4])
 {
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
@@ -3045,12 +3045,6 @@ GPUTexture *DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain
     DEG_make_active(depsgraph);
   }
 
-  DRW_opengl_context_enable();
-
-  use_drw_engine(&draw_engine_eevee_type);
-
-  DST.viewport = viewport;
-
   ARegion *ar = CTX_wm_region(C);
 
   View3D *v3d = CTX_wm_view3d(C);
@@ -3059,6 +3053,18 @@ GPUTexture *DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain
   v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
+
+  const rcti rect = {v[0], v[2], v[1], v[3]};
+  GPU_viewport_bind(viewport, &rect);
+
+  bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
+
+  use_drw_engine(&draw_engine_eevee_type);
+  if (gpencil_engine_needed) {
+    use_drw_engine(&draw_engine_gpencil_type);
+  }
+
+  DST.viewport = viewport;
 
   DRW_view_set_active(NULL);
 
@@ -3116,21 +3122,19 @@ GPUTexture *DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain
 
   drw_engines_draw_background();
 
-  GPUTexture *finaltex = effects->final_tx;
-
-  GPU_viewport_texture_pool_clear_users_bge(DST.viewport);
+  drw_engines_draw_scene();
 
   DRW_state_reset();
 
-  GPU_framebuffer_restore();
+  GPU_viewport_unbind(DST.viewport);
 
-  DRW_opengl_context_disable();
-
-  return finaltex;
+  //DRW_opengl_context_disable();
 }
 
 void DRW_game_render_loop_finish()
 {
+  GPU_viewport_texture_pool_clear_users_bge(DST.viewport);
+  GPU_framebuffer_restore();
   drw_engines_disable();
   drw_viewport_cache_resize();
 }
@@ -3165,5 +3169,15 @@ void DRW_opengl_context_create_blenderplayer(void)
   GPU_state_init();
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
+}
+
+void DRW_game_opengl_context_disable()
+{
+  DRW_opengl_context_disable();
+}
+
+void DRW_game_opengl_context_enable()
+{
+  DRW_opengl_context_enable();
 }
 /***************************Enf of Game engine transition***************************/

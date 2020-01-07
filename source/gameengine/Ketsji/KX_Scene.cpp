@@ -597,7 +597,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
   }
 
-  GPUTexture *finaltex = DRW_game_render_loop(engine->GetContext(),
+  DRW_game_render_loop(engine->GetContext(),
                                               m_gpuViewport,
                                               bmain,
                                               scene,
@@ -607,24 +607,27 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
                                               pers,
                                               persinv,
                                               calledFromConstructor,
-                                              reset_taa_samples);
+                                              reset_taa_samples,
+                                              v);
 
-  RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
-  RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
+  //RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
+  //RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
 
-  /* Detach Defaults attachments from input framebuffer... */
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
-  /* And replace it with color and depth textures from viewport */
-  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), finaltex, 0, 0);
-  GPU_framebuffer_texture_attach(
-      input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
+  ///* Detach Defaults attachments from input framebuffer... */
+  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
+  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
+  ///* And replace it with color and depth textures from viewport */
+  //GPU_framebuffer_texture_attach(input->GetFrameBuffer(), finaltex, 0, 0);
+  //GPU_framebuffer_texture_attach(
+  //    input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
 
-  GPU_framebuffer_bind(input->GetFrameBuffer());
+  //GPU_framebuffer_bind(input->GetFrameBuffer());
 
-  RAS_FrameBuffer *f = Render2DFilters(rasty, canvas, input, output);
+  //RAS_FrameBuffer *f = Render2DFilters(rasty, canvas, input, output);
 
-  GPU_framebuffer_restore();
+  //GPU_framebuffer_restore();
+
+  //DRW_game_render_loop_finish();
 
   rasty->SetViewport(v[0], v[1], v[2], v[3]);
 
@@ -633,20 +636,19 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
 
-  DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()), true, true);
+  DRW_transform_none(GPU_viewport_color_texture(m_gpuViewport));
 
   if (!calledFromConstructor) {
     engine->EndFrame();
   }
 
-  /* Detach viewport textures from input framebuffer... */
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), finaltex);
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
-  /* And restore defaults attachments */
-  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
-  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
+  ///* Detach viewport textures from input framebuffer... */
+  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), finaltex);
+  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
+  ///* And restore defaults attachments */
+  //GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
+  //GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
 
-  DRW_game_render_loop_finish();
   GPU_framebuffer_restore();
 }
 
@@ -674,7 +676,9 @@ GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
   m.pers.getValue(&pers[0][0]);
   m.persinv.getValue(&persinv[0][0]);
 
-  GPUTexture *finaltex = DRW_game_render_loop(KX_GetActiveEngine()->GetContext(),
+  int v[4] = {0, 0, 0, 0};
+
+  DRW_game_render_loop(KX_GetActiveEngine()->GetContext(),
                                               viewport,
                                               bmain,
                                               scene,
@@ -684,8 +688,9 @@ GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
                                               pers,
                                               persinv,
                                               false,
-                                              true);
-  return finaltex;
+                                              true,
+                                              v);
+  return nullptr;
 }
 
 /******************End of EEVEE INTEGRATION****************************/

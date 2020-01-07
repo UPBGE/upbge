@@ -354,11 +354,7 @@ static void eevee_draw_background(void *vedata)
     bool use_render_settings = stl->g_data->use_color_render_settings;
 
     GPU_framebuffer_bind(dfbl->default_fb);
-    const DRWContextState *draw_ctx = DRW_context_state_get();
-    Scene *scene = draw_ctx->scene;
-    if (!(scene->flag & SCE_INTERACTIVE)) {
-      DRW_transform_to_display(stl->effects->final_tx, true, use_render_settings);
-    }
+    DRW_transform_to_display(stl->effects->final_tx, true, use_render_settings);
 
     /* Draw checkerboard with alpha under. */
     EEVEE_draw_alpha_checker(vedata);
