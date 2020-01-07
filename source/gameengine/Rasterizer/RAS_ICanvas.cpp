@@ -69,7 +69,7 @@ RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty)
 	:m_rasterizer(rasty),
 	m_samples(0)
 {
-	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
+	m_taskscheduler = BLI_task_scheduler_create(1);
 	m_taskpool = BLI_task_pool_create(m_taskscheduler, nullptr);
 }
 
