@@ -280,7 +280,7 @@ void DRW_transform_to_display(GPUTexture *tex, bool use_view_transform, bool use
   bool use_ocio = false;
 
   /* Should we apply the view transform */
-  if (DRW_state_do_color_management() /*&& !(DST.draw_ctx.scene->flag & SCE_INTERACTIVE)*/) {
+  if (DRW_state_do_color_management()) {
     Scene *scene = DST.draw_ctx.scene;
     ColorManagedDisplaySettings *display_settings = &scene->display_settings;
     ColorManagedViewSettings view_settings;
@@ -3049,8 +3049,14 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   View3D *v3d = CTX_wm_view3d(C);
 
-  v3d->shading.type = OB_RENDER;
-  v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
+  bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
+  int shading_type_backup = v3d->shading.type;
+  int shading_flag_backup = v3d->shading.flag;
+
+  if (not_eevee) {
+    v3d->shading.type = OB_RENDER;
+    v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
+  }
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
@@ -3127,6 +3133,9 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
   DRW_state_reset();
 
   GPU_viewport_unbind(DST.viewport);
+
+  v3d->shading.type = shading_type_backup;
+  v3d->shading.flag = shading_flag_backup;
 }
 
 void DRW_game_render_loop_finish() //unused: check if something is needed
