@@ -3156,6 +3156,7 @@ void DRW_game_render_loop_end()
 
   eevee_game_view_layer_data_free();
   draw_engine_eevee_type.engine_free();
+  draw_engine_gpencil_type.engine_free();
 
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
