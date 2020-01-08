@@ -3182,6 +3182,9 @@ void DRW_opengl_context_create_blenderplayer(void)
   wm_window_reset_drawable();
 }
 
+/* Called instead of DRW_transform_to_display in eevee_engine
+ * to avoid double tonemapping of rendered textures with ImageRender
+ */
 void DRW_transform_to_display_image_render(GPUTexture *tex)
 {
   drw_state_set(DRW_STATE_WRITE_COLOR);
@@ -3190,7 +3193,6 @@ void DRW_transform_to_display_image_render(GPUTexture *tex)
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-  const float dither = 1.0f;
   immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
   immUniform1i("image", 0);
 

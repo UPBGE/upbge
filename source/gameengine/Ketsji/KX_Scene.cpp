@@ -622,8 +622,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
   GPU_framebuffer_restore();
 
-  DRW_game_render_loop_finish();
-
   rasty->SetViewport(v[0], v[1], v[2], v[3]);
 
   if ((scene->gm.flag & GAME_USE_UI_ANTI_FLICKER) == 0) {
@@ -632,8 +630,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   }
 
   DRW_transform_none(GPU_framebuffer_color_texture(f->GetFrameBuffer()));
-
-  DRW_game_render_loop_finish();
 
   if (!calledFromConstructor) {
     engine->EndFrame();
@@ -647,6 +643,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
 
+  DRW_game_render_loop_finish();
   GPU_framebuffer_restore();
 }
 
