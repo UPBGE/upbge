@@ -332,7 +332,9 @@ bool ImageRender::Render()
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_scene->RenderAfterCameraSetupImageRender(m_rasterizer, m_gpuViewport, viewport); //viewport and window are the same here
+	/* viewport and window share the same values here */
+	const rcti window = {viewport[0], viewport[2], viewport[1], viewport[3]};
+	m_scene->RenderAfterCameraSetupImageRender(m_rasterizer, m_gpuViewport, &window);
 
 	m_canvas->EndFrame();
 

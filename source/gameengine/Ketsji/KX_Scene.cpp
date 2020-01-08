@@ -533,8 +533,8 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
               viewport->GetWidth() + 1,
               viewport->GetHeight() + 1};
 
-  const RAS_Rect *window = &canvas->GetWindowArea();
-  int window_size[4] = {window->GetLeft(), window->GetBottom(), window->GetWidth(), window->GetHeight()};
+  const RAS_Rect *w = &canvas->GetWindowArea();
+  const rcti window = {w->GetLeft(), w->GetWidth(), w->GetBottom(), w->GetHeight()};
 
   if (!calledFromConstructor) {
     rasty->SetMatrix(cam->GetModelviewMatrix(),
@@ -584,7 +584,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
   if (!m_gpuViewport) {
     /* Create eevee's cache space */
-    m_gpuOffScreen = GPU_offscreen_create(window_size[1], window_size[3], 0, true, false, nullptr);
+    m_gpuOffScreen = GPU_offscreen_create(window.xmax - window.xmin, window.ymax - window.ymin, 0, true, false, nullptr);
     m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
     GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
   }
@@ -598,8 +598,9 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
       proj,
       pers,
       persinv,
-      window_size,
+      &window,
       calledFromConstructor,
+      false,
       reset_taa_samples);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
@@ -648,7 +649,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_restore();
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport, int window_size[4])
+void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport, const rcti *window)
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate();
@@ -680,8 +681,9 @@ void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewp
                                               proj,
                                               pers,
                                               persinv,
-                                              window_size,
+                                              window,
                                               false,
+                                              true,
                                               true);
 }
 

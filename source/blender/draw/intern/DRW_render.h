@@ -701,8 +701,9 @@ void DRW_game_render_loop(struct bContext *C,
   float proj[4][4],
   float pers[4][4],
   float persinv[4][4],
-  int window_size[4],
+  const struct rcti *window,
   bool called_from_constructor,
+  bool image_render,
   bool reset_taa_samples);
 
 void DRW_game_render_loop_finish(void);
