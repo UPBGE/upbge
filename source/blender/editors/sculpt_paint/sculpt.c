@@ -1256,7 +1256,7 @@ static bool sculpt_automasking_is_constrained_by_radius(Brush *br)
     return false;
   }
 
-  if (ELEM(br->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_THUMB)) {
+  if (ELEM(br->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE)) {
     return true;
   }
   return false;
@@ -3535,15 +3535,15 @@ static void do_elastic_deform_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, in
 
 static ePaintSymmetryAreas sculpt_get_vertex_symm_area(const float co[3])
 {
-  ePaintSymmetryAreas symm_area = AREA_SYMM_DEFAULT;
+  ePaintSymmetryAreas symm_area = PAINT_SYMM_AREA_DEFAULT;
   if (co[0] < 0.0f) {
-    symm_area |= AREA_SYMM_X;
+    symm_area |= PAINT_SYMM_AREA_X;
   }
   if (co[1] < 0.0f) {
-    symm_area |= AREA_SYMM_Y;
+    symm_area |= PAINT_SYMM_AREA_Y;
   }
   if (co[2] < 0.0f) {
-    symm_area |= AREA_SYMM_Z;
+    symm_area |= PAINT_SYMM_AREA_Z;
   }
   return symm_area;
 }
@@ -3584,9 +3584,9 @@ static void sculpt_flip_quat_by_symm_area(float quat[3],
   }
 }
 
-static void pose_solve_ik_chain(PoseIKChain *ik_chain, const float initial_target[3])
+static void pose_solve_ik_chain(SculptPoseIKChain *ik_chain, const float initial_target[3])
 {
-  PoseIKChainSegment *segments = ik_chain->segments;
+  SculptPoseIKChainSegment *segments = ik_chain->segments;
   int tot_segments = ik_chain->tot_segments;
 
   float target[3];
@@ -3633,9 +3633,11 @@ static void pose_solve_ik_chain(PoseIKChain *ik_chain, const float initial_targe
   }
 }
 
-static void pose_solve_roll_chain(PoseIKChain *ik_chain, const Brush *brush, const float roll)
+static void pose_solve_roll_chain(SculptPoseIKChain *ik_chain,
+                                  const Brush *brush,
+                                  const float roll)
 {
-  PoseIKChainSegment *segments = ik_chain->segments;
+  SculptPoseIKChainSegment *segments = ik_chain->segments;
   int tot_segments = ik_chain->tot_segments;
 
   for (int i = 0; i < tot_segments; i++) {
@@ -3663,8 +3665,8 @@ static void do_pose_brush_task_cb_ex(void *__restrict userdata,
 {
   SculptThreadedTaskData *data = userdata;
   SculptSession *ss = data->ob->sculpt;
-  PoseIKChain *ik_chain = ss->cache->pose_ik_chain;
-  PoseIKChainSegment *segments = ik_chain->segments;
+  SculptPoseIKChain *ik_chain = ss->cache->pose_ik_chain;
+  SculptPoseIKChainSegment *segments = ik_chain->segments;
 
   PBVHVertexIter vd;
   float disp[3], new_co[3];
@@ -3729,7 +3731,7 @@ static void do_pose_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
     return;
   }
 
-  PoseIKChain *ik_chain = ss->cache->pose_ik_chain;
+  SculptPoseIKChain *ik_chain = ss->cache->pose_ik_chain;
 
   /* Solve the positions and rotations of the IK chain. */
   if (ss->cache->invert) {
@@ -4067,7 +4069,7 @@ static void pose_brush_init_task_cb_ex(void *__restrict userdata,
   BKE_pbvh_vertex_iter_end;
 }
 
-void sculpt_pose_ik_chain_free(PoseIKChain *ik_chain)
+void sculpt_pose_ik_chain_free(SculptPoseIKChain *ik_chain)
 {
   for (int i = 0; i < ik_chain->tot_segments; i++) {
     MEM_SAFE_FREE(ik_chain->segments[i].weights);
@@ -4076,12 +4078,12 @@ void sculpt_pose_ik_chain_free(PoseIKChain *ik_chain)
   MEM_SAFE_FREE(ik_chain);
 }
 
-PoseIKChain *sculpt_pose_ik_chain_init(Sculpt *sd,
-                                       Object *ob,
-                                       SculptSession *ss,
-                                       Brush *br,
-                                       const float initial_location[3],
-                                       const float radius)
+SculptPoseIKChain *sculpt_pose_ik_chain_init(Sculpt *sd,
+                                             Object *ob,
+                                             SculptSession *ss,
+                                             Brush *br,
+                                             const float initial_location[3],
+                                             const float radius)
 {
 
   float chain_end[3];
@@ -4105,9 +4107,9 @@ PoseIKChain *sculpt_pose_ik_chain_init(Sculpt *sd,
   pose_factor_grow[nearest_vertex_index] = 1.0f;
 
   /* Init the IK chain with empty weights. */
-  PoseIKChain *ik_chain = MEM_callocN(sizeof(PoseIKChain), "Pose IK Chain");
+  SculptPoseIKChain *ik_chain = MEM_callocN(sizeof(SculptPoseIKChain), "Pose IK Chain");
   ik_chain->tot_segments = br->pose_ik_segments;
-  ik_chain->segments = MEM_callocN(ik_chain->tot_segments * sizeof(PoseIKChainSegment),
+  ik_chain->segments = MEM_callocN(ik_chain->tot_segments * sizeof(SculptPoseIKChainSegment),
                                    "Pose IK Chain Segments");
   for (int i = 0; i < br->pose_ik_segments; i++) {
     ik_chain->segments[i].weights = MEM_callocN(totvert * sizeof(float), "Pose IK weights");
@@ -8845,14 +8847,14 @@ static void sample_detail_dyntopo(bContext *C, ViewContext *vc, ARegion *ar, int
   }
 }
 
-static void sample_detail(bContext *C, int mx, int my, int mode)
+static int sample_detail(bContext *C, int mx, int my, int mode)
 {
   /* Find 3D view to pick from. */
   bScreen *screen = CTX_wm_screen(C);
   ScrArea *sa = BKE_screen_find_area_xy(screen, SPACE_VIEW3D, mx, my);
   ARegion *ar = (sa) ? BKE_area_find_region_xy(sa, RGN_TYPE_WINDOW, mx, my) : NULL;
   if (ar == NULL) {
-    return;
+    return OPERATOR_CANCELLED;
   }
 
   /* Set context to 3D view. */
@@ -8865,12 +8867,29 @@ static void sample_detail(bContext *C, int mx, int my, int mode)
   ViewContext vc;
   ED_view3d_viewcontext_init(C, &vc, depsgraph);
 
+  Object *ob = vc.obact;
+  SculptSession *ss = ob->sculpt;
+
+  if (!ss->pbvh) {
+    return OPERATOR_CANCELLED;
+  }
+
   /* Pick sample detail. */
   switch (mode) {
     case SAMPLE_DETAIL_DYNTOPO:
+      if (BKE_pbvh_type(ss->pbvh) != PBVH_BMESH) {
+        CTX_wm_area_set(C, prev_sa);
+        CTX_wm_region_set(C, prev_ar);
+        return OPERATOR_CANCELLED;
+      }
       sample_detail_dyntopo(C, &vc, ar, mx, my);
       break;
     case SAMPLE_DETAIL_VOXEL:
+      if (BKE_pbvh_type(ss->pbvh) != PBVH_FACES) {
+        CTX_wm_area_set(C, prev_sa);
+        CTX_wm_region_set(C, prev_ar);
+        return OPERATOR_CANCELLED;
+      }
       sample_detail_voxel(C, &vc, mx, my);
       break;
   }
@@ -8878,6 +8897,8 @@ static void sample_detail(bContext *C, int mx, int my, int mode)
   /* Restore context. */
   CTX_wm_area_set(C, prev_sa);
   CTX_wm_region_set(C, prev_ar);
+
+  return OPERATOR_FINISHED;
 }
 
 static int sculpt_sample_detail_size_exec(bContext *C, wmOperator *op)
@@ -8885,8 +8906,7 @@ static int sculpt_sample_detail_size_exec(bContext *C, wmOperator *op)
   int ss_co[2];
   RNA_int_get_array(op->ptr, "location", ss_co);
   int mode = RNA_enum_get(op->ptr, "mode");
-  sample_detail(C, ss_co[0], ss_co[1], mode);
-  return OPERATOR_FINISHED;
+  return sample_detail(C, ss_co[0], ss_co[1], mode);
 }
 
 static int sculpt_sample_detail_size_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(e))
