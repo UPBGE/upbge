@@ -601,7 +601,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
       persinv,
       &window,
       calledFromConstructor,
-      false,
+      canvas->GetARegion() ? true : false,
       reset_taa_samples);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
@@ -681,7 +681,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewp
                                               persinv,
                                               window,
                                               false,
-                                              true,
+                                              false,
                                               true);
 }
 
