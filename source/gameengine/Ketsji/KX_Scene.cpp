@@ -110,6 +110,7 @@ extern "C" {
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "depsgraph/DEG_depsgraph_query.h"
+#include "eevee_private.h"
 #include "DNA_windowmanager_types.h"
 #include "DRW_render.h"
 #include "MEM_guardedalloc.h"

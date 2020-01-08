@@ -31,11 +31,6 @@
 #include "GPU_texture.h"
 #include "GPU_framebuffer.h"
 
-extern "C" {
-#  include "DRW_render.h"
-#  include "eevee_private.h"
-}
-
 RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag,
 	unsigned int width, unsigned int height)
 	:m_flag(flag),

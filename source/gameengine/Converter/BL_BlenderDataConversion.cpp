@@ -160,11 +160,6 @@ extern "C" {
 #include "IMB_imbuf_types.h"
 #include "BKE_displist.h"
 
-#  include "eevee_private.h"
-#  include "eevee_engine.h"
-#  include "draw/intern/DRW_render.h"
-#  include "BLI_alloca.h"
-
 extern Material defmaterial;	/* material.c */
 }
 

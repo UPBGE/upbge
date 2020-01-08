@@ -57,10 +57,8 @@ extern "C" {
 #  include "BLF_api.h"
 #  include "GPU_viewport.h"
 #  include "GPU_uniformbuffer.h"
-#  include "DRW_engine.h"
-#  include "DRW_render.h"
-#  include "eevee_private.h"
 #  include "DNA_view3d_types.h"
+#  include "DRW_render.h"
 }
 
 #include "MEM_guardedalloc.h"

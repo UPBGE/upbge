@@ -44,11 +44,6 @@
 
 #include "GPU_glew.h"
 
-extern "C" {
-#  include "eevee_private.h"
-#  include "DRW_render.h"
-}
-
 KX_Camera::KX_Camera(void* sgReplicationInfo,
                      SG_Callbacks callbacks,
                      const RAS_CameraData& camdata,

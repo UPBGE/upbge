@@ -38,11 +38,6 @@
 
 #include "BLI_math.h"
 
-extern "C" {
-#  include "eevee_private.h"
-#  include "DRW_render.h"
-}
-
 RAS_OpenGLLight::RAS_OpenGLLight()
 {
 }

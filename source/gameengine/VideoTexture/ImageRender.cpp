@@ -57,7 +57,6 @@
 extern "C" {
 #  include "BKE_global.h"
 #  include "../depsgraph/DEG_depsgraph_query.h"
-#  include "DRW_render.h"
 #  include "eevee_private.h"
 #  include "GPU_viewport.h"
 }
