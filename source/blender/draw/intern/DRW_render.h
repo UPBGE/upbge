@@ -708,8 +708,8 @@ void DRW_game_render_loop(struct bContext *C,
 
 void DRW_game_render_loop_finish(void);
 void DRW_game_render_loop_end(void);
-void DRW_game_opengl_context_disable(void);
-void DRW_game_opengl_context_enable(void);
+
+void DRW_transform_to_display_image_render(struct GPUTexture *tex);
 /**************************END OF GAME ENGINE*******************************/
 
 #endif /* __DRW_RENDER_H__ */

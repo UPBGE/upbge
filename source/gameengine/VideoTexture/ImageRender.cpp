@@ -55,6 +55,8 @@
 #include "Texture.h"
 
 extern "C" {
+#  include "BKE_global.h"
+#  include "../depsgraph/DEG_depsgraph_query.h"
 #  include "DRW_render.h"
 #  include "eevee_private.h"
 #  include "GPU_viewport.h"
@@ -123,6 +125,12 @@ int ImageRender::GetColorBindCode() const
 // capture image from viewport
 void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int format)
 {
+	Scene *scene = m_scene->GetBlenderScene();
+	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, scene, view_layer, false);
+	Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+	scene_eval->flag |= SCE_INTERACTIVE_IMAGE_RENDER;
+
 	// render the scene from the camera
 	if (!m_done) {
 		if (!Render()) {
@@ -146,6 +154,8 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	DRW_game_render_loop_finish();
 
 	GPU_framebuffer_restore();
+
+	scene_eval->flag &= ~SCE_INTERACTIVE_IMAGE_RENDER;
 }
 
 bool ImageRender::Render()

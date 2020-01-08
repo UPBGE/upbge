@@ -354,7 +354,16 @@ static void eevee_draw_background(void *vedata)
     bool use_render_settings = stl->g_data->use_color_render_settings;
 
     GPU_framebuffer_bind(dfbl->default_fb);
-    DRW_transform_to_display(stl->effects->final_tx, true, use_render_settings);
+    /* Game engine transition - ImageRender: avoid double tonemapping */
+    const DRWContextState *drw_ctx = DRW_context_state_get();
+    Scene *scene_eval = drw_ctx->scene;
+    if (!(scene_eval->flag & SCE_INTERACTIVE_IMAGE_RENDER)) {
+      DRW_transform_to_display(stl->effects->final_tx, true, use_render_settings);
+    }
+    else {
+      DRW_transform_to_display_image_render(stl->effects->final_tx);
+    }
+    /* End of Game engine transition */
 
     /* Draw checkerboard with alpha under. */
     EEVEE_draw_alpha_checker(vedata);

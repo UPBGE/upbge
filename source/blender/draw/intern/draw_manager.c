@@ -3182,13 +3182,38 @@ void DRW_opengl_context_create_blenderplayer(void)
   wm_window_reset_drawable();
 }
 
-void DRW_game_opengl_context_disable()
+void DRW_transform_to_display_image_render(GPUTexture *tex)
 {
-  DRW_opengl_context_disable();
-}
+  drw_state_set(DRW_STATE_WRITE_COLOR);
 
-void DRW_game_opengl_context_enable()
-{
-  DRW_opengl_context_enable();
+  GPUVertFormat *vert_format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+
+  const float dither = 1.0f;
+  immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
+  immUniform1i("image", 0);
+
+  GPU_texture_bind(tex, 0); /* OCIO texture bind point is 0 */
+
+  float mat[4][4];
+  unit_m4(mat);
+  immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
+
+  /* Full screen triangle */
+  immBegin(GPU_PRIM_TRIS, 3);
+  immAttr2f(texco, 0.0f, 0.0f);
+  immVertex2f(pos, -1.0f, -1.0f);
+
+  immAttr2f(texco, 2.0f, 0.0f);
+  immVertex2f(pos, 3.0f, -1.0f);
+
+  immAttr2f(texco, 0.0f, 2.0f);
+  immVertex2f(pos, -1.0f, 3.0f);
+  immEnd();
+
+  GPU_texture_unbind(tex);
+
+  immUnbindProgram();
 }
 /***************************Enf of Game engine transition***************************/
