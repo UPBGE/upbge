@@ -169,7 +169,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
       m_gpuViewport(nullptr),                 // eevee
-      m_gpuOffScreen(nullptr),                // eevee
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -534,8 +533,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
               viewport->GetWidth() + 1,
               viewport->GetHeight() + 1};
 
-  const RAS_Rect *w = &canvas->GetWindowArea();
-  const rcti window = {w->GetLeft(), w->GetWidth(), w->GetBottom(), w->GetHeight()};
+  const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
 
   if (!calledFromConstructor) {
     rasty->SetMatrix(cam->GetModelviewMatrix(),
@@ -585,9 +583,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
   if (!m_gpuViewport) {
     /* Create eevee's cache space */
-    m_gpuOffScreen = GPU_offscreen_create(window.xmax - window.xmin, window.ymax - window.ymin, 0, true, false, nullptr);
-    m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
-    GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
+    m_gpuViewport = GPU_viewport_create();
   }
 
   DRW_game_render_loop(engine->GetContext(),
@@ -601,7 +597,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
       persinv,
       &window,
       calledFromConstructor,
-      canvas->GetARegion() ? true : false,
       reset_taa_samples);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
@@ -680,7 +675,6 @@ void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewp
                                               pers,
                                               persinv,
                                               window,
-                                              false,
                                               false,
                                               true);
 }

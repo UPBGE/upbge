@@ -3027,7 +3027,7 @@ EEVEE_Data *EEVEE_engine_data_get(void)
 
 void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene *scene,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
-  const rcti *window, bool called_from_constructor, bool use_aregion_size, bool reset_taa_samples)
+  const rcti *window, bool called_from_constructor, bool reset_taa_samples)
 {
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
@@ -3060,12 +3060,7 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
-  if (use_aregion_size) {
-    GPU_viewport_bind(viewport, &ar->winrct);
-  }
-  else {
-    GPU_viewport_bind(viewport, window);
-  }
+  GPU_viewport_bind(viewport, window);
 
   bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
 

@@ -82,7 +82,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_camera(camera),
     m_owncamera(false),
     m_gpuViewport(nullptr),
-    m_gpuOffScreen(nullptr),
     m_observer(nullptr),
     m_mirror(nullptr),
     m_clip(100.f),
@@ -248,9 +247,7 @@ bool ImageRender::Render()
 	m_rasterizer->SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 
 	if (!m_gpuViewport) {
-		m_gpuOffScreen = GPU_offscreen_create(viewport[2], viewport[3], 0, true, false, nullptr);
-		m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
-		GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
+		m_gpuViewport = GPU_viewport_create();
 	}
 
 	m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);

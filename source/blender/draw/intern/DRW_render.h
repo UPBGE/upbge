@@ -703,7 +703,6 @@ void DRW_game_render_loop(struct bContext *C,
   float persinv[4][4],
   const struct rcti *window,
   bool called_from_constructor,
-  bool use_aregion_size,
   bool reset_taa_samples);
 
 void DRW_game_render_loop_finish(void);

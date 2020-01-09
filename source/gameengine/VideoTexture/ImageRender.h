@@ -84,7 +84,6 @@ protected:
 	bool m_owncamera;
 
   struct GPUViewport *m_gpuViewport;
-  struct GPUOffScreen *m_gpuOffScreen;
 
   GPUFrameBuffer *m_targetfb;
 
