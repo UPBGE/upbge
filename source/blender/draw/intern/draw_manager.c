@@ -280,7 +280,7 @@ void DRW_transform_to_display(GPUTexture *tex, bool use_view_transform, bool use
   bool use_ocio = false;
 
   /* Should we apply the view transform */
-  if (DRW_state_do_color_management() /*&& !(DST.draw_ctx.scene->flag & SCE_INTERACTIVE)*/) {
+  if (DRW_state_do_color_management()) {
     Scene *scene = DST.draw_ctx.scene;
     ColorManagedDisplaySettings *display_settings = &scene->display_settings;
     ColorManagedViewSettings view_settings;
@@ -3025,9 +3025,9 @@ EEVEE_Data *EEVEE_engine_data_get(void)
   return data;
 }
 
-GPUTexture *DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene *scene,
+void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene *scene,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
-  bool called_from_constructor, bool reset_taa_samples)
+  const rcti *window, bool called_from_constructor, bool reset_taa_samples)
 {
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
@@ -3045,20 +3045,31 @@ GPUTexture *DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain
     DEG_make_active(depsgraph);
   }
 
-  DRW_opengl_context_enable();
-
-  use_drw_engine(&draw_engine_eevee_type);
-
-  DST.viewport = viewport;
-
   ARegion *ar = CTX_wm_region(C);
 
   View3D *v3d = CTX_wm_view3d(C);
 
-  v3d->shading.type = OB_RENDER;
-  v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
+  bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
+  int shading_type_backup = v3d->shading.type;
+  int shading_flag_backup = v3d->shading.flag;
+
+  if (not_eevee) {
+    v3d->shading.type = OB_RENDER;
+    v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
+  }
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
+
+  GPU_viewport_bind(viewport, window);
+
+  bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
+
+  use_drw_engine(&draw_engine_eevee_type);
+  if (gpencil_engine_needed) {
+    use_drw_engine(&draw_engine_gpencil_type);
+  }
+
+  DST.viewport = viewport;
 
   DRW_view_set_active(NULL);
 
@@ -3116,20 +3127,19 @@ GPUTexture *DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain
 
   drw_engines_draw_background();
 
-  GPUTexture *finaltex = effects->final_tx;
-
-  GPU_viewport_texture_pool_clear_users_bge(DST.viewport);
+  if (gpencil_engine_needed) {
+    drw_engines_draw_scene();
+  }
 
   DRW_state_reset();
 
-  GPU_framebuffer_restore();
+  GPU_viewport_unbind(DST.viewport);
 
-  DRW_opengl_context_disable();
-
-  return finaltex;
+  v3d->shading.type = shading_type_backup;
+  v3d->shading.flag = shading_flag_backup;
 }
 
-void DRW_game_render_loop_finish()
+void DRW_game_render_loop_finish() //unused: check if something is needed
 {
   drw_engines_disable();
   drw_viewport_cache_resize();
@@ -3141,6 +3151,7 @@ void DRW_game_render_loop_end()
 
   eevee_game_view_layer_data_free();
   draw_engine_eevee_type.engine_free();
+  draw_engine_gpencil_type.engine_free();
 
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
@@ -3165,5 +3176,42 @@ void DRW_opengl_context_create_blenderplayer(void)
   GPU_state_init();
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
+}
+
+/* Called instead of DRW_transform_to_display in eevee_engine
+ * to avoid double tonemapping of rendered textures with ImageRender
+ */
+void DRW_transform_to_display_image_render(GPUTexture *tex)
+{
+  drw_state_set(DRW_STATE_WRITE_COLOR);
+
+  GPUVertFormat *vert_format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+
+  immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
+  immUniform1i("image", 0);
+
+  GPU_texture_bind(tex, 0); /* OCIO texture bind point is 0 */
+
+  float mat[4][4];
+  unit_m4(mat);
+  immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
+
+  /* Full screen triangle */
+  immBegin(GPU_PRIM_TRIS, 3);
+  immAttr2f(texco, 0.0f, 0.0f);
+  immVertex2f(pos, -1.0f, -1.0f);
+
+  immAttr2f(texco, 2.0f, 0.0f);
+  immVertex2f(pos, 3.0f, -1.0f);
+
+  immAttr2f(texco, 0.0f, 2.0f);
+  immVertex2f(pos, -1.0f, 3.0f);
+  immEnd();
+
+  GPU_texture_unbind(tex);
+
+  immUnbindProgram();
 }
 /***************************Enf of Game engine transition***************************/

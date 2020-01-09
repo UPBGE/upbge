@@ -692,11 +692,23 @@ typedef struct DRWContextState {
 const DRWContextState *DRW_context_state_get(void);
 
 /*****************************GAME ENGINE***********************************/
-struct GPUTexture *DRW_game_render_loop(struct bContext *C, GPUViewport *viewport, struct Main *bmain, struct Scene *scene,
-	float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
-  bool called_from_constructor, bool reset_taa_samples);
+void DRW_game_render_loop(struct bContext *C,
+  GPUViewport *viewport,
+  struct Main *bmain,
+  struct Scene *scene,
+  float view[4][4],
+  float viewinv[4][4],
+  float proj[4][4],
+  float pers[4][4],
+  float persinv[4][4],
+  const struct rcti *window,
+  bool called_from_constructor,
+  bool reset_taa_samples);
+
 void DRW_game_render_loop_finish(void);
 void DRW_game_render_loop_end(void);
+
+void DRW_transform_to_display_image_render(struct GPUTexture *tex);
 /**************************END OF GAME ENGINE*******************************/
 
 #endif /* __DRW_RENDER_H__ */

@@ -29,8 +29,6 @@
 extern "C" {
 #include "GPU_framebuffer.h"
 #include "GPU_texture.h"
-#include "DRW_render.h"
-#include "eevee_private.h"
 }
 
 RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,

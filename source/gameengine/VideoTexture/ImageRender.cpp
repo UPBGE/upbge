@@ -55,7 +55,8 @@
 #include "Texture.h"
 
 extern "C" {
-#  include "DRW_render.h"
+#  include "BKE_global.h"
+#  include "../depsgraph/DEG_depsgraph_query.h"
 #  include "eevee_private.h"
 #  include "GPU_viewport.h"
 }
@@ -80,9 +81,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_scene(scene),
     m_camera(camera),
     m_owncamera(false),
-    m_gpuTexture(nullptr),
     m_gpuViewport(nullptr),
-    m_gpuOffScreen(nullptr),
     m_observer(nullptr),
     m_mirror(nullptr),
     m_clip(100.f),
@@ -95,8 +94,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_canvas = m_engine->GetCanvas();
 
 	m_internalFormat = GL_RGBA16F_ARB;
-
-	m_gpuTexture = nullptr;
 
 	m_targetfb = GPU_framebuffer_create();
 }
@@ -117,8 +114,8 @@ ImageRender::~ImageRender (void)
 
 int ImageRender::GetColorBindCode() const
 {
-	if (m_gpuTexture) {
-		return GPU_texture_opengl_bindcode(m_gpuTexture);
+	if (m_gpuViewport) {
+		return GPU_texture_opengl_bindcode(GPU_viewport_color_texture(m_gpuViewport));
 	}
 	return -1;
 }
@@ -126,6 +123,12 @@ int ImageRender::GetColorBindCode() const
 // capture image from viewport
 void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int format)
 {
+	Scene *scene = m_scene->GetBlenderScene();
+	ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+	Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, scene, view_layer, false);
+	Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+	scene_eval->flag |= SCE_INTERACTIVE_IMAGE_RENDER;
+
 	// render the scene from the camera
 	if (!m_done) {
 		if (!Render()) {
@@ -138,17 +141,19 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	m_rasterizer->SetViewport(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
 	m_rasterizer->SetScissor(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
 
-	GPU_framebuffer_texture_attach(m_targetfb, m_gpuTexture, 0, 0);
+	GPU_framebuffer_texture_attach(m_targetfb, GPU_viewport_color_texture(m_gpuViewport), 0, 0);
 	GPU_framebuffer_bind(m_targetfb);
 
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
 
-	GPU_framebuffer_texture_detach(m_targetfb, m_gpuTexture);
+	GPU_framebuffer_texture_detach(m_targetfb, GPU_viewport_color_texture(m_gpuViewport));
 
 	DRW_game_render_loop_finish();
 
 	GPU_framebuffer_restore();
+
+	scene_eval->flag &= ~SCE_INTERACTIVE_IMAGE_RENDER;
 }
 
 bool ImageRender::Render()
@@ -242,9 +247,7 @@ bool ImageRender::Render()
 	m_rasterizer->SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 
 	if (!m_gpuViewport) {
-		m_gpuOffScreen = GPU_offscreen_create(viewport[2], viewport[3], 0, true, false, nullptr);
-		m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
-		GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
+		m_gpuViewport = GPU_viewport_create();
 	}
 
 	m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
@@ -335,7 +338,9 @@ bool ImageRender::Render()
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_gpuTexture = m_scene->RenderAfterCameraSetupImageRender(m_rasterizer, m_gpuViewport);
+	/* viewport and window share the same values here */
+	const rcti window = {viewport[0], viewport[2], viewport[1], viewport[3]};
+	m_scene->RenderAfterCameraSetupImageRender(m_rasterizer, m_gpuViewport, &window);
 
 	m_canvas->EndFrame();
 

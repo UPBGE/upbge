@@ -59,7 +59,6 @@
 #include "GPU_texture.h"
 
 extern "C" {
-#  include "eevee_private.h"
 #  include "IMB_imbuf.h"
 }
 

@@ -336,11 +336,10 @@ void EEVEE_lightprobes_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedat
 
     const float *col = G_draw.block.colorBackground;
 
-    if (!(scene->flag & SCE_INTERACTIVE)) {
-      /* LookDev */
-      EEVEE_lookdev_cache_init(vedata, &grp, psl->probe_background, 1.0f, wo, pinfo);
-      /* END */
-    }
+    /* LookDev */
+    EEVEE_lookdev_cache_init(vedata, &grp, psl->probe_background, 1.0f, wo, pinfo);
+    /* END */
+
     if (!grp && wo) {
       col = &wo->horr;
 
@@ -764,7 +763,7 @@ void EEVEE_lightprobes_cache_finish(EEVEE_ViewLayerData *sldata, EEVEE_Data *ved
   /* If light-cache auto-update is enable we tag the relevant part
    * of the cache to update and fire up a baking job. */
   if (!DRW_state_is_image_render() && !DRW_state_is_opengl_render() &&
-      (pinfo->do_grid_update || pinfo->do_cube_update) && !(scene_eval->flag & SCE_INTERACTIVE)) {
+      (pinfo->do_grid_update || pinfo->do_cube_update)) {
     BLI_assert(draw_ctx->evil_C);
 
     if (draw_ctx->scene->eevee.flag & SCE_EEVEE_GI_AUTOBAKE) {

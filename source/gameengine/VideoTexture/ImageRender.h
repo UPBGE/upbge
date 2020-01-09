@@ -83,9 +83,7 @@ protected:
 	/// do we own the camera?
 	bool m_owncamera;
 
-	GPUTexture *m_gpuTexture;
   struct GPUViewport *m_gpuViewport;
-  struct GPUOffScreen *m_gpuOffScreen;
 
   GPUFrameBuffer *m_targetfb;
 

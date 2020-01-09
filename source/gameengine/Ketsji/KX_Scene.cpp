@@ -110,6 +110,7 @@ extern "C" {
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "depsgraph/DEG_depsgraph_query.h"
+#include "eevee_private.h"
 #include "DNA_windowmanager_types.h"
 #include "DRW_render.h"
 #include "MEM_guardedalloc.h"
@@ -168,9 +169,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
       m_gpuViewport(nullptr),                 // eevee
-      m_gpuOffScreen(nullptr),                // eevee
-      m_v3dShadingTypeBackup(0),              // eevee
-      m_v3dShadingFlagBackup(0),              // eevee
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -278,10 +276,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
 
-    View3D *v3d = CTX_wm_view3d(KX_GetActiveEngine()->GetContext());
-    m_v3dShadingTypeBackup = v3d->shading.type;
-    m_v3dShadingFlagBackup = v3d->shading.flag;
-
     RenderAfterCameraSetup(true);
   }
   else {
@@ -322,10 +316,6 @@ KX_Scene::~KX_Scene()
       !ar) {  // if no ar, we are in blenderplayer
     /* This will free m_gpuViewport and m_gpuOffScreen */
     DRW_game_render_loop_end();
-
-    View3D *v3d = CTX_wm_view3d(KX_GetActiveEngine()->GetContext());
-    v3d->shading.type = m_v3dShadingTypeBackup;
-    v3d->shading.flag = m_v3dShadingFlagBackup;
   }
 
   LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
@@ -543,6 +533,8 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
               viewport->GetWidth() + 1,
               viewport->GetHeight() + 1};
 
+  const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
+
   if (!calledFromConstructor) {
     rasty->SetMatrix(cam->GetModelviewMatrix(),
                      cam->GetProjectionMatrix(),
@@ -591,23 +583,21 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
   if (!m_gpuViewport) {
     /* Create eevee's cache space */
-    m_gpuOffScreen = GPU_offscreen_create(
-        canvas->GetWidth() + 1, canvas->GetHeight() + 1, 0, true, false, nullptr);
-    m_gpuViewport = GPU_viewport_create_from_offscreen(m_gpuOffScreen);
-    GPU_viewport_engine_data_create(m_gpuViewport, &draw_engine_eevee_type);
+    m_gpuViewport = GPU_viewport_create();
   }
 
-  GPUTexture *finaltex = DRW_game_render_loop(engine->GetContext(),
-                                              m_gpuViewport,
-                                              bmain,
-                                              scene,
-                                              view,
-                                              viewinv,
-                                              proj,
-                                              pers,
-                                              persinv,
-                                              calledFromConstructor,
-                                              reset_taa_samples);
+  DRW_game_render_loop(engine->GetContext(),
+      m_gpuViewport,
+      bmain,
+      scene,
+      view,
+      viewinv,
+      proj,
+      pers,
+      persinv,
+      &window,
+      calledFromConstructor,
+      reset_taa_samples);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
@@ -616,7 +606,8 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
   /* And replace it with color and depth textures from viewport */
-  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), finaltex, 0, 0);
+  GPU_framebuffer_texture_attach(
+      input->GetFrameBuffer(), GPU_viewport_color_texture(m_gpuViewport), 0, 0);
   GPU_framebuffer_texture_attach(
       input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
 
@@ -633,14 +624,15 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
 
-  DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()), true, true);
+  DRW_transform_none(GPU_framebuffer_color_texture(f->GetFrameBuffer()));
 
   if (!calledFromConstructor) {
     engine->EndFrame();
   }
 
   /* Detach viewport textures from input framebuffer... */
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), finaltex);
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
+                                 GPU_viewport_color_texture(m_gpuViewport));
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
   /* And restore defaults attachments */
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
@@ -650,8 +642,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_restore();
 }
 
-GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
-                                                        GPUViewport *viewport)
+void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport, const rcti *window)
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate();
@@ -674,7 +665,7 @@ GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
   m.pers.getValue(&pers[0][0]);
   m.persinv.getValue(&persinv[0][0]);
 
-  GPUTexture *finaltex = DRW_game_render_loop(KX_GetActiveEngine()->GetContext(),
+  DRW_game_render_loop(KX_GetActiveEngine()->GetContext(),
                                               viewport,
                                               bmain,
                                               scene,
@@ -683,9 +674,9 @@ GPUTexture *KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
                                               proj,
                                               pers,
                                               persinv,
+                                              window,
                                               false,
                                               true);
-  return finaltex;
 }
 
 /******************End of EEVEE INTEGRATION****************************/

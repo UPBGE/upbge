@@ -2304,6 +2304,7 @@ typedef enum eVGroupSelect {
 #define SCE_FRAME_DROP			(1 << 3)
 #define SCE_KEYS_NO_SELONLY	    (1 << 4)
 #define SCE_INTERACTIVE         (1 << 5)
+#define SCE_INTERACTIVE_IMAGE_RENDER (1 << 6)
 
 	/* return flag BKE_scene_base_iter_next functions */
 /* #define F_ERROR			-1 */  /* UNUSED */

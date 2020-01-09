@@ -138,9 +138,6 @@ protected:
   Object *m_lastReplicatedParentObject;
   Object *m_gameDefaultCamera;
   struct GPUViewport *m_gpuViewport;
-  struct GPUOffScreen *m_gpuOffScreen;
-  int m_v3dShadingTypeBackup;
-  int m_v3dShadingFlagBackup;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -323,7 +320,7 @@ public:
 	std::vector<Object *>m_hiddenObjectsDuringRuntime;
 
 	void RenderAfterCameraSetup(bool calledFromConstructor);
-	GPUTexture *RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, struct GPUViewport *viewport);
+	void RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, struct GPUViewport *viewport, const struct rcti *window);
 
   void SetLastReplicatedParentObject(Object *ob);
   Object *GetLastReplicatedParentObject();

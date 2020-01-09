@@ -938,10 +938,7 @@ void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 
     const float *col = G_draw.block.colorBackground;
 
-    if (!(scene->flag & SCE_INTERACTIVE)) {
-      EEVEE_lookdev_cache_init(
-          vedata, &grp, psl->background_pass, stl->g_data->background_alpha, wo, NULL);
-    }
+    EEVEE_lookdev_cache_init(vedata, &grp, psl->background_pass, stl->g_data->background_alpha, wo, NULL);
 
     if (!grp && wo) {
       col = &wo->horr;
