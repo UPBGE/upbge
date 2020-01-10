@@ -94,12 +94,14 @@ extern "C"
 	#include "editors/include/ED_datafiles.h"
 	#include "editors/include/ED_node.h"
 	#include "editors/include/ED_render.h"
-	#include "editors/include/UI_resources.h"
 	#include "editors/include/ED_space_api.h"
 	#include "editors/include/ED_undo.h"
 	#include "editors/include/ED_util.h"
+	#include "editors/include/UI_interface.h"
+	#include "editors/include/UI_resources.h"
 
 	#include "BKE_addon.h"
+	#include "BKE_blendfile.h"
 	#include "BKE_brush.h"
 	#include "BKE_context.h"
 	#include "BKE_keyconfig.h"
@@ -901,16 +903,8 @@ int main(
 		}
 	}
 #endif
-	// XXX add the ability to change this values to the command line parsing.
-	U.mixbufsize = 2048;
-	U.audiodevice = 1; // Previously OpenAL was 2, seems that with the new code it is 1
-	U.audiorate = 44100;
-	U.audioformat = 0x24;
-	U.audiochannels = 2;
-
-	U.anisotropic_filter = 2;
-	// enable fast mipmap generation
-	//U.use_gpu_mipmap = 1;
+	UI_theme_init_default();
+	U = *BKE_blendfile_userdef_from_defaults();
 
 	BKE_sound_init_once();
 
