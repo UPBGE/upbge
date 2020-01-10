@@ -55,6 +55,7 @@ set(SRC
   intern/wm_cursors.c
   intern/wm_dragdrop.c
   intern/wm_draw.c
+  intern/wm_event_query.c
   intern/wm_event_system.c
   intern/wm_files.c
   intern/wm_files_link.c

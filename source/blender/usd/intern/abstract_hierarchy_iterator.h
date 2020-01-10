@@ -128,14 +128,16 @@ class AbstractHierarchyIterator {
  public:
   /* Mapping from export path to writer. */
   typedef std::map<std::string, AbstractHierarchyWriter *> WriterMap;
-  /* Pair of a duplicated object and its duplicator, typically a pair of HierarchyContext::object
-   * and HierarchyContext::duplicator. */
+  /* Pair of a (potentially duplicated) object and its duplicator (or nullptr).
+   * This is typically used to store a pair of HierarchyContext::object and
+   * HierarchyContext::duplicator. */
   typedef std::pair<Object *, Object *> DupliAndDuplicator;
   /* All the children of some object, as per the export hierarchy. */
   typedef std::set<HierarchyContext *> ExportChildren;
   /* Mapping from an object and its duplicator to the object's export-children. */
   typedef std::map<DupliAndDuplicator, ExportChildren> ExportGraph;
-  /* Mapping from (potential) duplicator ID to export path. */
+  /* Mapping from ID to its export path. This is used for instancing; given an
+   * instanced datablock, the export path of the original can be looked up. */
   typedef std::map<ID *, std::string> ExportPathMap;
 
  protected:
@@ -171,9 +173,10 @@ class AbstractHierarchyIterator {
   virtual std::string get_object_data_path(const HierarchyContext *context) const;
 
  private:
-  void debug_print_export_graph() const;
+  void debug_print_export_graph(const ExportGraph &graph) const;
 
   void export_graph_construct();
+  void connect_loose_objects();
   void export_graph_prune();
   void export_graph_clear();
 

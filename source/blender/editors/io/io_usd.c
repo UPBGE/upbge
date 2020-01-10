@@ -111,7 +111,6 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
   MEM_SAFE_FREE(op->customdata);
 
   const bool selected_objects_only = RNA_boolean_get(op->ptr, "selected_objects_only");
-  const bool visible_objects_only = RNA_boolean_get(op->ptr, "visible_objects_only");
   const bool export_animation = RNA_boolean_get(op->ptr, "export_animation");
   const bool export_hair = RNA_boolean_get(op->ptr, "export_hair");
   const bool export_uvmaps = RNA_boolean_get(op->ptr, "export_uvmaps");
@@ -127,7 +126,6 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
       export_normals,
       export_materials,
       selected_objects_only,
-      visible_objects_only,
       use_instancing,
       evaluation_mode,
   };
@@ -147,7 +145,6 @@ static void wm_usd_export_draw(bContext *UNUSED(C), wmOperator *op)
 
   col = uiLayoutColumn(layout, true);
   uiItemR(col, ptr, "selected_objects_only", 0, NULL, ICON_NONE);
-  uiItemR(col, ptr, "visible_objects_only", 0, NULL, ICON_NONE);
 
   col = uiLayoutColumn(layout, true);
   uiItemR(col, ptr, "export_animation", 0, NULL, ICON_NONE);
@@ -188,37 +185,27 @@ void WM_OT_usd_export(struct wmOperatorType *ot)
                   "exported as empty transform");
 
   RNA_def_boolean(ot->srna,
-                  "visible_objects_only",
-                  true,
-                  "Only Export Visible Objects",
-                  "Only visible objects are exported. Invisible parents of visible objects are "
-                  "exported as empty transform");
-
-  RNA_def_boolean(ot->srna,
                   "export_animation",
                   false,
-                  "Export Animation",
+                  "Animation",
                   "When checked, the render frame range is exported. When false, only the current "
                   "frame is exported");
-  RNA_def_boolean(ot->srna,
-                  "export_hair",
-                  false,
-                  "Export Hair",
-                  "When checked, hair is exported as USD curves");
+  RNA_def_boolean(
+      ot->srna, "export_hair", false, "Hair", "When checked, hair is exported as USD curves");
   RNA_def_boolean(ot->srna,
                   "export_uvmaps",
                   true,
-                  "Export UV Maps",
+                  "UV Maps",
                   "When checked, all UV maps of exported meshes are included in the export");
   RNA_def_boolean(ot->srna,
                   "export_normals",
                   true,
-                  "Export Normals",
+                  "Normals",
                   "When checked, normals of exported meshes are included in the export");
   RNA_def_boolean(ot->srna,
                   "export_materials",
                   true,
-                  "Export Materials",
+                  "Materials",
                   "When checked, the viewport settings of materials are exported as USD preview "
                   "materials, and material assignments are exported as geometry subsets");
 
