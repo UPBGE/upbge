@@ -163,11 +163,14 @@ def WriteRuntime(player_path, output_path, copy_python, overwrite_lib, copy_dlls
             src = os.path.join(blender_dir, file)
             dst = os.path.join(runtime_dir, file)
             shutil.copy2(src, dst)
+        src = os.path.join(blender_dir, "blender.crt")
+        dst = os.path.join(runtime_dir, "blender.crt")
+        shutil.copytree(src, dst)
         print("done")
 
     # Copy Scripts folder
     if copy_scripts:
-        print("Copying scripts...", end=" ")
+        print("Copying scripts and modules...", end=" ")
         scripts_folder = os.path.join(bpy.app.version_string.split()[0], "scripts")
         src = os.path.join(blender_dir, scripts_folder)
         dst = os.path.join(runtime_dir, scripts_folder)
@@ -184,9 +187,9 @@ def WriteRuntime(player_path, output_path, copy_python, overwrite_lib, copy_dlls
         print("done")
 
     # Copy modules folder (to have bpy working)
-    if copy_modules:
+    if copy_modules and not copy_scripts:
         print("Copying modules...", end=" ")
-        modules_folder = os.path.join(bpy.app.version_string.split()[0], "scripts\\modules")
+        modules_folder = os.path.join(bpy.app.version_string.split()[0], "scripts", "modules")
         src = os.path.join(blender_dir, modules_folder)
         dst = os.path.join(runtime_dir, modules_folder)
         shutil.copytree(src, dst)
