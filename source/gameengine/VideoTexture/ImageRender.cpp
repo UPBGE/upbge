@@ -142,12 +142,14 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	m_rasterizer->SetScissor(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
 
 	GPU_framebuffer_texture_attach(m_targetfb, GPU_viewport_color_texture(m_gpuViewport), 0, 0);
+	GPU_framebuffer_texture_attach(m_targetfb, DRW_viewport_texture_list_get()->depth, 0, 0);
 	GPU_framebuffer_bind(m_targetfb);
 
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
 
 	GPU_framebuffer_texture_detach(m_targetfb, GPU_viewport_color_texture(m_gpuViewport));
+	GPU_framebuffer_texture_detach(m_targetfb, DRW_viewport_texture_list_get()->depth);
 
 	DRW_game_render_loop_finish();
 
