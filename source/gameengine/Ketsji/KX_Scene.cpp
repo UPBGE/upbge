@@ -110,8 +110,9 @@ extern "C" {
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "depsgraph/DEG_depsgraph_query.h"
-#include "eevee_private.h"
+#include "DNA_mesh_types.h"
 #include "DNA_windowmanager_types.h"
+#include "eevee_private.h"
 #include "DRW_render.h"
 #include "MEM_guardedalloc.h"
 
@@ -1427,7 +1428,13 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
     gameobj->RemoveMeshes();
     gameobj->AddMesh(mesh);
     Mesh *newMesh = mesh->GetMesh();
-    Object *ob = gameobj->GetBlenderObject();
+    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+    Scene *scene = GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+
+    Object *ob = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
+    
     ob->data = newMesh;
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
