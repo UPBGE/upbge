@@ -1717,17 +1717,16 @@ void KX_Scene::AppendToStaticObjects(KX_GameObject *gameobj)
   m_staticObjects.push_back(gameobj);
 }
 /************************End of TAA UTILS**************************/
-/*************************************End of EEVEE
- * INTEGRATION*********************************************/
+/*************************************End of EEVEE INTEGRATION*********************************/
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam/*, const KX_CullingNodeList& nodes*/)
 {
-	const MT_Vector3& cam_pos = cam->NodeGetWorldPosition();
-	const float lodfactor = cam->GetLodDistanceFactor();
+  const MT_Vector3& cam_pos = cam->NodeGetWorldPosition();
+  const float lodfactor = cam->GetLodDistanceFactor();
 
-	/*for (KX_CullingNode *node : nodes) {
-		node->GetObject()->UpdateLod(cam_pos, lodfactor);
-	}*/
+  for (KX_GameObject *gameobj : GetObjectList()) {
+      gameobj->UpdateLod(cam_pos, 1.0f/*lodfactor*/);
+  }
 }
 
 void KX_Scene::SetLodHysteresis(bool active)
