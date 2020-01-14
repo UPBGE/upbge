@@ -1439,11 +1439,11 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
 
-  if (use_phys) { /* update the new assigned mesh with the physics mesh */
-    if (gameobj->GetPhysicsController()) {
-      gameobj->GetPhysicsController()->ReinstancePhysicsShape2(mesh, mesh->GetOriginalObject(), true);
-    }
-  }
+  //if (use_phys) { /* update the new assigned mesh with the physics mesh */
+  //  if (gameobj->GetPhysicsController()) {
+  //    gameobj->GetPhysicsController()->ReinstancePhysicsShape2(mesh, mesh->GetOriginalObject(), true);
+  //  }
+  //}
 
   ResetTaaSamples();
 }
