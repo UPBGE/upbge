@@ -519,6 +519,11 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     gameobj->TagForUpdate();
   }
 
+  KX_Camera *cam = GetActiveCamera();
+  if (cam) {
+    UpdateObjectLods(cam);
+  }
+
   bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
   m_resetTaaSamples = false;
   m_staticObjects.clear();
@@ -526,7 +531,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
-  KX_Camera *cam = GetActiveCamera();
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
