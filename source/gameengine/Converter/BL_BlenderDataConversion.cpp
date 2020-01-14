@@ -611,7 +611,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	dm->release(dm);
 
-	converter.RegisterGameMesh(meshobj, final_me);
+	converter.RegisterGameMesh(meshobj, mesh);
 	return meshobj;
 }
 

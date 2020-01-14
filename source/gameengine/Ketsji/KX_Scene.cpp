@@ -1426,6 +1426,10 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
   if (use_gfx) {
     gameobj->RemoveMeshes();
     gameobj->AddMesh(mesh);
+    Mesh *newMesh = mesh->GetMesh();
+    Object *ob = gameobj->GetBlenderObject();
+    ob->data = newMesh;
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
 
   if (use_phys) { /* update the new assigned mesh with the physics mesh */
@@ -1433,6 +1437,8 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
       gameobj->GetPhysicsController()->ReinstancePhysicsShape(nullptr, use_gfx ? nullptr : mesh);
     }
   }
+
+  ResetTaaSamples();
 }
 
 KX_Camera *KX_Scene::GetActiveCamera()
