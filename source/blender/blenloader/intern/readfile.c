@@ -5555,6 +5555,13 @@ static void lib_link_object(FileData *fd, Main *main)
         ob->rigidbody_constraint->ob1 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob1);
         ob->rigidbody_constraint->ob2 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob2);
       }
+      LodLevel *level;
+      for (level = ob->lodlevels.first; level; level = level->next) {
+        level->source = newlibadr(fd, ob->id.lib, level->source);
+
+        if (!level->source && level == ob->lodlevels.first)
+          level->source = ob;
+      }
     }
   }
 
