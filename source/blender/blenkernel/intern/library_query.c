@@ -673,7 +673,7 @@ static void library_foreach_ID_link(Main *bmain,
         if (object->lodlevels.first) {
           LodLevel *level;
           for (level = object->lodlevels.first; level; level = level->next) {
-            CALLBACK_INVOKE(level->source, IDWALK_CB_NOP);
+            CALLBACK_INVOKE(level->source, IDWALK_CB_NEVER_SELF);
           }
         }
 
