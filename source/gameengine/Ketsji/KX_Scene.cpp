@@ -1419,7 +1419,11 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
     return;
   }
 
-  if (use_gfx && mesh != nullptr) {
+  if (!mesh) {
+    return;
+  }
+
+  if (use_gfx) {
     gameobj->RemoveMeshes();
     gameobj->AddMesh(mesh);
   }
