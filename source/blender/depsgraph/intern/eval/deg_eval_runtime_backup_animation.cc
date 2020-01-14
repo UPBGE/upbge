@@ -59,11 +59,8 @@ void animated_property_store_cb(ID *id, FCurve *fcurve, void *data_v)
 
   /* Resolve path to the property. */
   PathResolvedRNA resolved_rna;
-  if (!RNA_path_resolve_property_full(&data->id_pointer_rna,
-                                      fcurve->rna_path,
-                                      &resolved_rna.ptr,
-                                      &resolved_rna.prop,
-                                      &resolved_rna.prop_index)) {
+  if (!BKE_animsys_store_rna_setting(
+          &data->id_pointer_rna, fcurve->rna_path, fcurve->array_index, &resolved_rna)) {
     return;
   }
 
@@ -73,7 +70,7 @@ void animated_property_store_cb(ID *id, FCurve *fcurve, void *data_v)
     return;
   }
 
-  data->backup->values_backup.emplace_back(fcurve->rna_path, value);
+  data->backup->values_backup.emplace_back(fcurve->rna_path, fcurve->array_index, value);
 }
 
 }  // namespace
@@ -82,8 +79,8 @@ AnimationValueBackup::AnimationValueBackup()
 {
 }
 
-AnimationValueBackup::AnimationValueBackup(const string &rna_path, float value)
-    : rna_path(rna_path), value(value)
+AnimationValueBackup::AnimationValueBackup(const string &rna_path, int array_index, float value)
+    : rna_path(rna_path), array_index(array_index), value(value)
 {
 }
 
@@ -103,6 +100,14 @@ void AnimationBackup::reset()
 
 void AnimationBackup::init_from_id(ID *id)
 {
+  /* NOTE: This animation backup nicely preserves values which are animated and
+   * are not touched by frame/depsgraph post_update handler.
+   *
+   * But it makes it impossible to have user edits to animated properties: for
+   * example, translation of object with animated location will not work with
+   * the current version of backup. */
+  return;
+
   AnimatedPropertyStoreCalbackData data;
   data.backup = this;
   data.id = id;
@@ -112,20 +117,20 @@ void AnimationBackup::init_from_id(ID *id)
 
 void AnimationBackup::restore_to_id(ID *id)
 {
+  return;
+
   PointerRNA id_pointer_rna;
   RNA_id_pointer_create(id, &id_pointer_rna);
   for (const AnimationValueBackup &value_backup : values_backup) {
     /* Resolve path to the property.
      *
-     * NOTE: Do it again (after storing), since the sub-data [ointers might be
-     * changed after copy-on-write.
-     */
+     * NOTE: Do it again (after storing), since the sub-data pointers might be
+     * changed after copy-on-write. */
     PathResolvedRNA resolved_rna;
-    if (!RNA_path_resolve_property_full(&id_pointer_rna,
-                                        value_backup.rna_path.c_str(),
-                                        &resolved_rna.ptr,
-                                        &resolved_rna.prop,
-                                        &resolved_rna.prop_index)) {
+    if (!BKE_animsys_store_rna_setting(&id_pointer_rna,
+                                       value_backup.rna_path.c_str(),
+                                       value_backup.array_index,
+                                       &resolved_rna)) {
       return;
     }
 
