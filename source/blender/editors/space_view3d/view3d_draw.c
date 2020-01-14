@@ -35,6 +35,7 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_key.h"
+#include "BKE_layer.h" // for SetLooper Game engine transition tinkering
 #include "BKE_main.h"
 #include "BKE_scene.h"
 #include "BKE_object.h"
@@ -1517,6 +1518,20 @@ void view3d_draw_region_info(const bContext *C, ARegion *ar)
 /** \name Draw Viewport Contents
  * \{ */
 
+#ifdef WITH_GAMEENGINE
+static void update_lods(Scene *scene, float camera_pos[3])
+{
+  Scene *sce_iter;
+  Base *base;
+  Object *ob;
+
+  for (SETLOOPER(scene, sce_iter, base)) {
+    ob = base->object;
+    BKE_object_lod_update(ob, camera_pos);
+  }
+}
+#endif
+
 static void view3d_draw_view(const bContext *C, ARegion *ar)
 {
   ED_view3d_draw_setup_view(CTX_wm_window(C),
@@ -1527,6 +1542,13 @@ static void view3d_draw_view(const bContext *C, ARegion *ar)
                             NULL,
                             NULL,
                             NULL);
+#ifdef WITH_GAMEENGINE
+  //if (STREQ(CTX_data_scene(C)->r.engine, RE_engine_id_BLENDER_EEVEE)) {
+    /* Make sure LoDs are up to date */
+  RegionView3D *rv3d = ar->regiondata;
+  update_lods(CTX_data_scene(C), rv3d->viewinv[3]);
+  //}
+#endif
 
   /* Only 100% compliant on new spec goes below */
   DRW_draw_view(C);
