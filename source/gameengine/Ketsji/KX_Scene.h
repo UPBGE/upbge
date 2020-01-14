@@ -353,6 +353,7 @@ public:
 	void DelayedRemoveObject(KX_GameObject *gameobj);
 
 	bool NewRemoveObject(KX_GameObject *gameobj);
+	void ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool use_gfx, bool use_phys);
 
 	void AddAnimatedObject(KX_GameObject *gameobj);
 

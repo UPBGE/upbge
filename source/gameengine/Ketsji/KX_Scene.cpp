@@ -1412,6 +1412,25 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
   return ret;
 }
 
+void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool use_gfx, bool use_phys)
+{
+  if (!gameobj) {
+    CM_FunctionWarning("invalid object, doing nothing");
+    return;
+  }
+
+  if (use_gfx && mesh != nullptr) {
+    gameobj->RemoveMeshes();
+    gameobj->AddMesh(mesh);
+  }
+
+  if (use_phys) { /* update the new assigned mesh with the physics mesh */
+    if (gameobj->GetPhysicsController()) {
+      gameobj->GetPhysicsController()->ReinstancePhysicsShape(nullptr, use_gfx ? nullptr : mesh);
+    }
+  }
+}
+
 KX_Camera *KX_Scene::GetActiveCamera()
 {
   // nullptr if not defined
