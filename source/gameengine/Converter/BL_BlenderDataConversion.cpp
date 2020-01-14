@@ -81,6 +81,7 @@
 #include "KX_Camera.h"
 #include "KX_EmptyObject.h"
 #include "KX_FontObject.h"
+#include "KX_LodManager.h"
 #include "KX_PythonComponent.h"
 
 #include "RAS_ICanvas.h"
@@ -733,6 +734,22 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	}
 }
 
+static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, RAS_Rasterizer *rasty, KX_BlenderSceneConverter& converter, bool libloading)
+{
+	if (BLI_listbase_count_at_most(&ob->lodlevels, 2) <= 1) {
+		return nullptr;
+	}
+
+	KX_LodManager *lodManager = new KX_LodManager(ob, scene, rasty, converter, libloading);
+	// The lod manager is useless ?
+	if (lodManager->GetLevelCount() <= 1) {
+		lodManager->Release();
+		return nullptr;
+	}
+
+	return lodManager;
+}
+
 static KX_LightObject *gamelight_from_blamp(Object *ob, Light *la, unsigned int layerflag, KX_Scene *kxscene)
 {
 	RAS_ILightObject *lightobj = new RAS_OpenGLLight();
@@ -860,6 +877,13 @@ static KX_GameObject *gameobject_from_blenderobject(
 	
 		// set transformation
 		gameobj->AddMesh(meshobj);
+
+		// gather levels of detail
+		KX_LodManager *lodManager = lodmanager_from_blenderobject(ob, kxscene, rasty, converter, libloading);
+		gameobj->SetLodManager(lodManager);
+		if (lodManager) {
+			lodManager->Release();
+		}
 
 		// for all objects: check whether they want to
 		// respond to updates
@@ -1270,6 +1294,11 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	
 	// no occlusion culling by default
 	kxscene->SetDbvtOcclusionRes(0);
+
+	if (blenderscene->gm.lodflag & SCE_LOD_USE_HYST) {
+		kxscene->SetLodHysteresis(true);
+		kxscene->SetLodHysteresisValue(blenderscene->gm.scehysteresis);
+	}
 
 	int activeLayerBitInfo = blenderscene->lay;
 	

@@ -1597,6 +1597,9 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
       sce->gm.exitkey = 218;  // Blender key code for ESC
 
+      sce->gm.lodflag = SCE_LOD_USE_HYST;
+      sce->gm.scehysteresis = 10;
+
       sce->gm.flag |= GAME_USE_UNDO;
 
       //sce->gm.pythonkeys[0] = LEFTCTRLKEY;

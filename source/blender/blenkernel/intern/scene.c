@@ -693,6 +693,9 @@ void BKE_scene_init(Scene *sce)
 
   sce->gm.flag |= GAME_USE_UNDO;
 
+  sce->gm.lodflag = SCE_LOD_USE_HYST;
+  sce->gm.scehysteresis = 10;
+
   //sce->gm.pythonkeys[0] = LEFTCTRLKEY;
   //sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
   //sce->gm.pythonkeys[2] = LEFTALTKEY;

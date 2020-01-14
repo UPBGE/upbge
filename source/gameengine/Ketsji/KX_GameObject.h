@@ -54,6 +54,7 @@
 //Forward declarations.
 struct KX_ClientObjectInfo;
 class KX_RayCast;
+class KX_LodManager;
 class KX_PythonComponent;
 class RAS_MeshObject;
 class PHY_IPhysicsEnvironment;
@@ -100,6 +101,8 @@ protected:
 	std::string							m_name;
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
+	KX_LodManager						*m_lodManager;
+	short								m_currentLodLevel;
 	struct Object*						m_pBlenderObject;
 	struct Object*						m_pBlenderGroupObject;
 	
@@ -712,6 +715,19 @@ public:
 		m_meshes.push_back(mesh);
 	}
 
+
+	/** Set current lod manager, can be nullptr.
+	 * If nullptr the object's mesh backs to the mesh of the previous first lod level.
+	 */
+	void SetLodManager(KX_LodManager *lodManager);
+	/// Get current lod manager.
+	KX_LodManager *GetLodManager() const;
+
+	/**
+	 * Updates the current lod level based on distance from camera.
+	 */
+	void UpdateLod(const MT_Vector3& cam_pos, float lodfactor);
+
 	/**
 	 * Pick out a mesh associated with the integer 'num'.
 	 */
@@ -978,6 +994,8 @@ public:
 	static int			pyattr_set_linearDamping(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_angularDamping(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_angularDamping(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_lodManager(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_lodManager(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
   static PyObject *pyattr_get_blender_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
