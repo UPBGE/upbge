@@ -1434,7 +1434,7 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
   if (use_gfx) {
     gameobj->RemoveMeshes();
     gameobj->AddMesh(mesh);
-    Mesh *newMesh = mesh->GetMesh(); //in the current version of the code it returns the evaluated mesh...
+    Mesh *newMesh = mesh->GetOrigMesh();
     Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
     Scene *scene = GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
@@ -1443,7 +1443,7 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
     /* Here we want to change the object which will be rendered, then the evaluated object by the depsgraph */
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
     
-    ob_eval->data = newMesh;
+    ob_eval->data = DEG_get_evaluated_id(depsgraph, &newMesh->id);
   }
 
   //if (use_phys) { /* update the new assigned mesh with the physics mesh */

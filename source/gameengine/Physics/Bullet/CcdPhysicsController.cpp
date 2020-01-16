@@ -1826,7 +1826,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 
 	if (!dm) {
 		free_dm = true;
-		dm = CDDM_from_mesh(meshobj->GetMesh());
+		dm = CDDM_from_mesh(meshobj->GetOrigMesh());
 	}
 
 	// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
@@ -2384,7 +2384,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj)
 	if (m_shapeType != PHY_SHAPE_MESH)
 		return false;
 
-	DerivedMesh *dm = CDDM_from_mesh(meshobj->GetMesh());
+	DerivedMesh *dm = CDDM_from_mesh(meshobj->GetOrigMesh());
 
 	// get the mesh from the object if not defined
 	if (!meshobj) {

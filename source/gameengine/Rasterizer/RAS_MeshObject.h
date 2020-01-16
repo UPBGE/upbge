@@ -120,7 +120,7 @@ public:
 	std::string& GetName();
 
 	// original blender mesh
-	Mesh *GetMesh()
+	Mesh *GetOrigMesh()
 	{
 		return m_mesh;
 	}

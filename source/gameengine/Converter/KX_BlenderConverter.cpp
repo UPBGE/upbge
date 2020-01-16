@@ -604,7 +604,7 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 			std::map<std::string, void *> &mapStringToMeshes = scene->GetLogicManager()->GetMeshMap();
 			for (std::map<std::string, void *>::iterator it = mapStringToMeshes.begin(), end = mapStringToMeshes.end(); it != end;) {
 				RAS_MeshObject *meshobj = (RAS_MeshObject *)it->second;
-				if (meshobj && IS_TAGGED(meshobj->GetMesh())) {
+				if (meshobj && IS_TAGGED(meshobj->GetOrigMesh())) {
 					it = mapStringToMeshes.erase(it);
 				}
 				else {
@@ -652,7 +652,7 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 						int mesh_index = gameobj->GetMeshCount();
 						while (mesh_index--) {
 							RAS_MeshObject *mesh = gameobj->GetMesh(mesh_index);
-							if (IS_TAGGED(mesh->GetMesh())) {
+							if (IS_TAGGED(mesh->GetOrigMesh())) {
 								gameobj->RemoveMeshes(); /* XXX - slack, should only remove meshes that are library items but mostly objects only have 1 mesh */
 								break;
 							}
@@ -713,7 +713,7 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 
 		for (UniquePtrList<RAS_MeshObject>::iterator it =  sceneSlot.m_meshobjects.begin(); it !=  sceneSlot.m_meshobjects.end(); ) {
 			RAS_MeshObject *mesh = (*it).get();
-			if (IS_TAGGED(mesh->GetMesh())) {
+			if (IS_TAGGED(mesh->GetOrigMesh())) {
 				it = sceneSlot.m_meshobjects.erase(it);
 			}
 			else {
