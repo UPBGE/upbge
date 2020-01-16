@@ -1545,7 +1545,7 @@ static void view3d_draw_view(const bContext *C, ARegion *ar)
                             NULL);
 #ifdef WITH_GAMEENGINE
   //if (STREQ(CTX_data_scene(C)->r.engine, RE_engine_id_BLENDER_EEVEE)) {
-    /* Make sure LoDs are up to date */
+  /* Make sure LoDs are up to date */
   RegionView3D *rv3d = ar->regiondata;
   update_lods(CTX_data_scene(C), rv3d->viewinv[3]);
   //}
