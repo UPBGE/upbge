@@ -1434,7 +1434,7 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
   if (use_gfx) {
     gameobj->RemoveMeshes();
     gameobj->AddMesh(mesh);
-    Mesh *newMesh = mesh->GetMesh();
+    Mesh *newMesh = mesh->GetMesh(); //in the current version of the code it returns the evaluated mesh...
     Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
     Scene *scene = GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
