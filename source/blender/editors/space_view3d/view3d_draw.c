@@ -1518,6 +1518,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *ar)
 /** \name Draw Viewport Contents
  * \{ */
 
+/* Game engine transition */
 #ifdef WITH_GAMEENGINE
 static void update_lods(Scene *scene, float camera_pos[3])
 {
@@ -1532,6 +1533,7 @@ static void update_lods(Scene *scene, float camera_pos[3])
   DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
 }
 #endif
+/* End of Game engine transition */
 
 static void view3d_draw_view(const bContext *C, ARegion *ar)
 {
@@ -1543,6 +1545,7 @@ static void view3d_draw_view(const bContext *C, ARegion *ar)
                             NULL,
                             NULL,
                             NULL);
+/* Game engine transition */
 #ifdef WITH_GAMEENGINE
   //if (STREQ(CTX_data_scene(C)->r.engine, RE_engine_id_BLENDER_EEVEE)) {
   /* Make sure LoDs are up to date */
@@ -1550,6 +1553,7 @@ static void view3d_draw_view(const bContext *C, ARegion *ar)
   update_lods(CTX_data_scene(C), rv3d->viewinv[3]);
   //}
 #endif
+/* End of Game engine transition */
 
   /* Only 100% compliant on new spec goes below */
   DRW_draw_view(C);
