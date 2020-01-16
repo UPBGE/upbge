@@ -1525,9 +1525,17 @@ static void update_lods(Scene *scene, float camera_pos[3])
   Base *base;
   Object *ob;
 
+  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, scene, view_layer, false);
+
   for (SETLOOPER(scene, sce_iter, base)) {
     ob = base->object;
+
     BKE_object_lod_update(ob, camera_pos);
+
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+
+    ob_eval->data = BKE_object_lod_meshob_get(ob, view_layer)->data;
   }
 }
 #endif
