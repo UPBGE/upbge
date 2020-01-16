@@ -543,9 +543,10 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
 
             row = box.row()
             row.prop(level, "distance")
-            row = row.row(align=True)
-            row.prop(level, "use_mesh", text="")
-            row.prop(level, "use_material", text="")
+            #Disable distinction material/mesh for now
+            #row = row.row(align=True)
+            #row.prop(level, "use_mesh", text="")
+            #row.prop(level, "use_material", text="")
 
             row = box.row()
             row.active = gs.use_scene_hysteresis

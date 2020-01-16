@@ -1195,14 +1195,14 @@ void BKE_object_lod_update(Object *ob, const float camera_position[3])
 	}
 }
 
-static Object *lod_ob_get(Object *ob, ViewLayer *view_layer, int flag)
+static Object *lod_ob_get(Object *ob, ViewLayer *view_layer/*, int flag*/)
 {
 	LodLevel *current = ob->currentlod;
 
 	if (!current || !BKE_object_lod_is_usable(ob, view_layer))
 		return ob;
 
-	while (current->prev && (!(current->flags & flag) || !current->source || current->source->type != OB_MESH)) {
+	while (current->prev && (/*!(current->flags & flag) ||*/ !current->source || current->source->type != OB_MESH)) {
 		current = current->prev;
 	}
 
@@ -1211,13 +1211,13 @@ static Object *lod_ob_get(Object *ob, ViewLayer *view_layer, int flag)
 
 struct Object *BKE_object_lod_meshob_get(Object *ob, ViewLayer *view_layer)
 {
-	return lod_ob_get(ob, view_layer, OB_LOD_USE_MESH);
+	return lod_ob_get(ob, view_layer/*, OB_LOD_USE_MESH*/);
 }
 
-struct Object *BKE_object_lod_matob_get(Object *ob, ViewLayer *view_layer)
-{
-	return lod_ob_get(ob, view_layer, OB_LOD_USE_MAT);
-}
+//struct Object *BKE_object_lod_matob_get(Object *ob, ViewLayer *view_layer)
+//{
+//	return lod_ob_get(ob, view_layer, OB_LOD_USE_MAT);
+//}
 
 #endif  /* WITH_GAMEENGINE */
 
