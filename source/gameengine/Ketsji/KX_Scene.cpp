@@ -1444,7 +1444,6 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
     Object *ob = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
     
     ob->data = newMesh;
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
 
   //if (use_phys) { /* update the new assigned mesh with the physics mesh */
