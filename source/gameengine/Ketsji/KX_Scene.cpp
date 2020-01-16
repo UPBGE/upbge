@@ -1443,6 +1443,10 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
     /* Here we want to change the object which will be rendered, then the evaluated object by the depsgraph */
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
     
+    /* Replace ob_eval->data with evaluated data (!= eval_final) from the lod level.
+     * Simple evaluated data doesn't take into account modifiers
+     * then modifiers have to be applied on LOD objects
+     */
     ob_eval->data = DEG_get_evaluated_id(depsgraph, &newMesh->id);
   }
 

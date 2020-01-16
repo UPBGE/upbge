@@ -1525,12 +1525,12 @@ static void update_lods(Scene *scene, float camera_pos[3])
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, scene, view_layer, false);
 
-  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) { // Here ob is evaluated object from depsgraph which will be rendered
-    BKE_object_lod_update(DEG_get_original_object(ob), camera_pos);
+  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob_eval) { // Here ob is evaluated object from depsgraph which will be rendered
+    BKE_object_lod_update(DEG_get_original_object(ob_eval), camera_pos);
 
-    if (DEG_get_original_object(ob)->currentlod) {
-      Mesh *orig_mesh = BKE_object_lod_meshob_get(DEG_get_original_object(ob), view_layer)->data;
-      ob->data = DEG_get_evaluated_id(depsgraph, &orig_mesh->id);
+    if (DEG_get_original_object(ob_eval)->currentlod) {
+      Mesh *orig_lod_mesh = BKE_object_lod_meshob_get(DEG_get_original_object(ob_eval), view_layer)->data;
+      ob_eval->data = DEG_get_evaluated_id(depsgraph, &orig_lod_mesh->id);
     }
   }
   DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
