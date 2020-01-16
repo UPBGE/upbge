@@ -136,15 +136,13 @@ void Texture::Close()
 			m_matTexture->SetBindCode(m_orgTex);
 			if (m_imgTexture) {
 				// This is requierd for texture used in blender material.
-				ImageTile *tile = BKE_image_get_tile(m_imgTexture, 0);
-				GPUTexture *tex = tile->gputexture[TEXTARGET_TEXTURE_2D];
+				GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D];
 				GPU_texture_set_opengl_bindcode(tex, m_orgImg);
 			}
 		}
 		else
 		{
-			ImageTile *tile = BKE_image_get_tile(m_imgTexture, 0);
-			GPUTexture *tex = tile->gputexture[TEXTARGET_TEXTURE_2D];
+			GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D];
 			GPU_texture_set_opengl_bindcode(tex, m_orgImg);
 			BKE_image_release_ibuf(m_imgTexture, m_imgBuf, nullptr);
 			m_imgBuf = nullptr;
@@ -396,8 +394,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 						GPU_texture_set_opengl_bindcode(m_matTexture->GetGPUTexture(), m_actTex);
 						m_matTexture->SetBindCode(m_actTex);
 						if (m_imgTexture) {
-							ImageTile *tile = BKE_image_get_tile(m_imgTexture, 0);
-							GPUTexture *tex = tile->gputexture[TEXTARGET_TEXTURE_2D];
+							GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D];
 							m_orgImg = GPU_texture_opengl_bindcode(tex);
 							GPU_texture_set_opengl_bindcode(tex, m_actTex);
 						}
@@ -410,8 +407,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 						// WARNING: GPU has a ImageUser to pass, we don't. Using nullptr
 						// works on image file, not necessarily on other type of image.
 						m_imgBuf = BKE_image_acquire_ibuf(m_imgTexture, nullptr, nullptr);
-						ImageTile *tile = BKE_image_get_tile(m_imgTexture, 0);
-						GPUTexture *tex = tile->gputexture[TEXTARGET_TEXTURE_2D];
+						GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D];
 						m_orgImg = GPU_texture_opengl_bindcode(tex);
 						GPU_texture_set_opengl_bindcode(tex, m_actTex);
 					}

@@ -168,22 +168,28 @@ static void rtc_filter_occluded_func(const RTCFilterFunctionNArguments *args)
         }
       }
 
-      ++ctx->ss_isect->num_hits;
-      int hit_idx;
+      int hit_idx = 0;
 
-      if (ctx->ss_isect->num_hits <= ctx->max_hits) {
-        hit_idx = ctx->ss_isect->num_hits - 1;
+      if (ctx->lcg_state) {
+
+        ++ctx->ss_isect->num_hits;
+        if (ctx->ss_isect->num_hits <= ctx->max_hits) {
+          hit_idx = ctx->ss_isect->num_hits - 1;
+        }
+        else {
+          /* reservoir sampling: if we are at the maximum number of
+           * hits, randomly replace element or skip it */
+          hit_idx = lcg_step_uint(ctx->lcg_state) % ctx->ss_isect->num_hits;
+
+          if (hit_idx >= ctx->max_hits) {
+            /* This tells Embree to continue tracing. */
+            *args->valid = 0;
+            break;
+          }
+        }
       }
       else {
-        /* reservoir sampling: if we are at the maximum number of
-         * hits, randomly replace element or skip it */
-        hit_idx = lcg_step_uint(ctx->lcg_state) % ctx->ss_isect->num_hits;
-
-        if (hit_idx >= ctx->max_hits) {
-          /* This tells Embree to continue tracing. */
-          *args->valid = 0;
-          break;
-        }
+        ctx->ss_isect->num_hits = 1;
       }
       /* record intersection */
       kernel_embree_convert_local_hit(
