@@ -1191,7 +1191,8 @@ void BKE_object_lod_update(Object *ob, const float camera_position[3])
 	LodLevel *new_level = lod_level_select(ob, camera_position);
 
 	if (new_level != cur_level) {
-		ob->currentlod = new_level;
+    ob->currentlod = new_level;
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 	}
 }
 

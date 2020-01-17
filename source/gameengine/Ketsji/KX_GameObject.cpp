@@ -976,7 +976,8 @@ void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 	if (lodLevel) {
 		RAS_MeshObject *mesh = lodLevel->GetMesh();
 		if (mesh != m_meshes[0]) {
-			scene->ReplaceMesh(this, mesh, true, false);
+            scene->ReplaceMesh(this, mesh, true, false);
+            //DEG_id_tag_update(&GetBlenderObject()->id, ID_RECALC_GEOMETRY);
 		}
 
 		m_currentLodLevel = lodLevel->GetLevel();
