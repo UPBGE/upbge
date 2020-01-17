@@ -178,11 +178,12 @@ static bool fluid_initjob(
   return true;
 }
 
-static bool fluid_initpaths(FluidJob *job, ReportList *reports)
+static bool fluid_validatepaths(FluidJob *job, ReportList *reports)
 {
   FluidDomainSettings *mds = job->mmd->domain;
   char temp_dir[FILE_MAX];
   temp_dir[0] = '\0';
+  bool is_relative = false;
 
   const char *relbase = modifier_path_relbase(job->bmain, job->ob);
 
@@ -197,7 +198,7 @@ static bool fluid_initpaths(FluidJob *job, ReportList *reports)
   }
 
   BLI_strncpy(temp_dir, mds->cache_directory, FILE_MAXDIR);
-  BLI_path_abs(temp_dir, relbase);
+  is_relative = BLI_path_abs(temp_dir, relbase);
 
   /* Ensure whole path exists */
   const bool dir_exists = BLI_dir_create_recursive(temp_dir);
@@ -214,9 +215,6 @@ static bool fluid_initpaths(FluidJob *job, ReportList *reports)
                 temp_dir,
                 mds->cache_directory);
 
-    BLI_strncpy(temp_dir, mds->cache_directory, FILE_MAXDIR);
-    BLI_path_abs(temp_dir, relbase);
-
     /* Ensure whole path exists and is writable. */
     if (!BLI_dir_create_recursive(temp_dir)) {
       BKE_reportf(reports,
@@ -224,11 +222,17 @@ static bool fluid_initpaths(FluidJob *job, ReportList *reports)
                   "Fluid: Could not use default cache directory '%s', "
                   "please define a valid cache path manually",
                   temp_dir);
+      return false;
     }
     /* Copy final dir back into domain settings */
     BLI_strncpy(mds->cache_directory, temp_dir, FILE_MAXDIR);
 
     return false;
+  }
+
+  /* Change path back to is original state (ie relative or absolute). */
+  if (is_relative) {
+    BLI_path_rel(temp_dir, relbase);
   }
 
   /* Copy final dir back into domain settings */
@@ -364,6 +368,7 @@ static void fluid_bake_startjob(void *customdata, short *stop, short *do_update,
   FluidDomainSettings *mds = job->mmd->domain;
 
   char temp_dir[FILE_MAX];
+  const char *relbase = modifier_path_relbase_from_global(job->ob);
 
   job->stop = stop;
   job->do_update = do_update;
@@ -377,6 +382,7 @@ static void fluid_bake_startjob(void *customdata, short *stop, short *do_update,
 
   if (fluid_is_bake_noise(job) || fluid_is_bake_all(job)) {
     BLI_path_join(temp_dir, sizeof(temp_dir), mds->cache_directory, FLUID_DOMAIN_DIR_NOISE, NULL);
+    BLI_path_abs(temp_dir, relbase);
     BLI_dir_create_recursive(temp_dir); /* Create 'noise' subdir if it does not exist already */
     mds->cache_flag &= ~(FLUID_DOMAIN_BAKED_NOISE | FLUID_DOMAIN_OUTDATED_NOISE);
     mds->cache_flag |= FLUID_DOMAIN_BAKING_NOISE;
@@ -384,6 +390,7 @@ static void fluid_bake_startjob(void *customdata, short *stop, short *do_update,
   }
   if (fluid_is_bake_mesh(job) || fluid_is_bake_all(job)) {
     BLI_path_join(temp_dir, sizeof(temp_dir), mds->cache_directory, FLUID_DOMAIN_DIR_MESH, NULL);
+    BLI_path_abs(temp_dir, relbase);
     BLI_dir_create_recursive(temp_dir); /* Create 'mesh' subdir if it does not exist already */
     mds->cache_flag &= ~(FLUID_DOMAIN_BAKED_MESH | FLUID_DOMAIN_OUTDATED_MESH);
     mds->cache_flag |= FLUID_DOMAIN_BAKING_MESH;
@@ -392,6 +399,7 @@ static void fluid_bake_startjob(void *customdata, short *stop, short *do_update,
   if (fluid_is_bake_particle(job) || fluid_is_bake_all(job)) {
     BLI_path_join(
         temp_dir, sizeof(temp_dir), mds->cache_directory, FLUID_DOMAIN_DIR_PARTICLES, NULL);
+    BLI_path_abs(temp_dir, relbase);
     BLI_dir_create_recursive(
         temp_dir); /* Create 'particles' subdir if it does not exist already */
     mds->cache_flag &= ~(FLUID_DOMAIN_BAKED_PARTICLES | FLUID_DOMAIN_OUTDATED_PARTICLES);
@@ -400,6 +408,7 @@ static void fluid_bake_startjob(void *customdata, short *stop, short *do_update,
   }
   if (fluid_is_bake_guiding(job) || fluid_is_bake_all(job)) {
     BLI_path_join(temp_dir, sizeof(temp_dir), mds->cache_directory, FLUID_DOMAIN_DIR_GUIDE, NULL);
+    BLI_path_abs(temp_dir, relbase);
     BLI_dir_create_recursive(temp_dir); /* Create 'guiding' subdir if it does not exist already */
     mds->cache_flag &= ~(FLUID_DOMAIN_BAKED_GUIDE | FLUID_DOMAIN_OUTDATED_GUIDE);
     mds->cache_flag |= FLUID_DOMAIN_BAKING_GUIDE;
@@ -407,9 +416,11 @@ static void fluid_bake_startjob(void *customdata, short *stop, short *do_update,
   }
   if (fluid_is_bake_data(job) || fluid_is_bake_all(job)) {
     BLI_path_join(temp_dir, sizeof(temp_dir), mds->cache_directory, FLUID_DOMAIN_DIR_CONFIG, NULL);
+    BLI_path_abs(temp_dir, relbase);
     BLI_dir_create_recursive(temp_dir); /* Create 'config' subdir if it does not exist already */
 
     BLI_path_join(temp_dir, sizeof(temp_dir), mds->cache_directory, FLUID_DOMAIN_DIR_DATA, NULL);
+    BLI_path_abs(temp_dir, relbase);
     BLI_dir_create_recursive(temp_dir); /* Create 'data' subdir if it does not exist already */
     mds->cache_flag &= ~(FLUID_DOMAIN_BAKED_DATA | FLUID_DOMAIN_OUTDATED_DATA);
     mds->cache_flag |= FLUID_DOMAIN_BAKING_DATA;
@@ -418,6 +429,7 @@ static void fluid_bake_startjob(void *customdata, short *stop, short *do_update,
     if (mds->flags & FLUID_DOMAIN_EXPORT_MANTA_SCRIPT) {
       BLI_path_join(
           temp_dir, sizeof(temp_dir), mds->cache_directory, FLUID_DOMAIN_DIR_SCRIPT, NULL);
+      BLI_path_abs(temp_dir, relbase);
       BLI_dir_create_recursive(temp_dir); /* Create 'script' subdir if it does not exist already */
     }
   }
@@ -463,7 +475,6 @@ static void fluid_free_startjob(void *customdata, short *stop, short *do_update,
 {
   FluidJob *job = customdata;
   FluidDomainSettings *mds = job->mmd->domain;
-  Scene *scene = job->scene;
 
   job->stop = stop;
   job->do_update = do_update;
@@ -495,13 +506,12 @@ static void fluid_free_startjob(void *customdata, short *stop, short *do_update,
   }
 #ifdef WITH_FLUID
   BKE_fluid_cache_free(mds, job->ob, cache_map);
+#else
+  UNUSED_VARS(mds);
 #endif
 
   *do_update = true;
   *stop = 0;
-
-  /* Reset scene frame to cache frame start */
-  CFRA = mds->cache_frame_start;
 
   /* Update scene so that viewport shows freed up scene */
   ED_update_for_newframe(job->bmain, job->depsgraph);
@@ -521,7 +531,7 @@ static int fluid_bake_exec(struct bContext *C, struct wmOperator *op)
     fluid_bake_free(job);
     return OPERATOR_CANCELLED;
   }
-  if (!fluid_initpaths(job, op->reports)) {
+  if (!fluid_validatepaths(job, op->reports)) {
     return OPERATOR_CANCELLED;
   }
   fluid_bake_startjob(job, NULL, NULL, NULL);
@@ -547,7 +557,7 @@ static int fluid_bake_invoke(struct bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  if (!fluid_initpaths(job, op->reports)) {
+  if (!fluid_validatepaths(job, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -621,7 +631,7 @@ static int fluid_free_exec(struct bContext *C, struct wmOperator *op)
   job->type = op->type->idname;
   job->name = op->type->name;
 
-  if (!fluid_initpaths(job, op->reports)) {
+  if (!fluid_validatepaths(job, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
