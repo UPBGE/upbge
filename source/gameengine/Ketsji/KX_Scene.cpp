@@ -318,18 +318,13 @@ KX_Scene::~KX_Scene()
     DRW_game_render_loop_end();
   }
 
-  LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
-  BKE_collection_object_remove(bmain, layer_collection->collection, m_gameDefaultCamera, false);
-  BKE_id_free(bmain, m_gameDefaultCamera);
-  m_gameDefaultCamera = nullptr;
-  DEG_relations_tag_update(bmain);
-
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
     Base *base = BKE_view_layer_base_find(view_layer, hiddenOb);
     base->flag &= ~BASE_HIDDEN;
     BKE_layer_collection_sync(scene, view_layer);
     DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
   }
+
   scene->eevee.taa_samples = m_taaSamplesBackup;
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
@@ -361,6 +356,12 @@ KX_Scene::~KX_Scene()
 
   if (m_objectlist)
     m_objectlist->Release();
+
+  LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
+  BKE_collection_object_remove(bmain, layer_collection->collection, m_gameDefaultCamera, false);
+  BKE_id_free(bmain, m_gameDefaultCamera);
+  m_gameDefaultCamera = nullptr;
+  DEG_relations_tag_update(bmain);
 
   if (m_parentlist)
     m_parentlist->Release();
