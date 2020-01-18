@@ -965,23 +965,40 @@ KX_LodManager *KX_GameObject::GetLodManager() const
 
 void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 {
-	if (!m_lodManager) {
-		return;
-	}
+  if (!m_lodManager) {
+    return;
+  }
 
-	KX_Scene *scene = GetScene();
-	const float distance2 = NodeGetWorldPosition().distance2(cam_pos) * (lodfactor * lodfactor);
-	KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
+  KX_Scene *scene = GetScene();
+  const float distance2 = NodeGetWorldPosition().distance2(cam_pos) * (lodfactor * lodfactor);
+  KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
 
-	if (lodLevel) {
-		RAS_MeshObject *mesh = lodLevel->GetMesh();
-		if (mesh != m_meshes[0]) {
-            scene->ReplaceMesh(this, mesh, true, false);
-            //DEG_id_tag_update(&GetBlenderObject()->id, ID_RECALC_GEOMETRY);
-		}
+  if (lodLevel) {
+    RAS_MeshObject *mesh = lodLevel->GetMesh();
+    if (mesh != m_meshes[0]) {
+      /* Wacky for the next frame */
+      DEG_id_tag_update(&GetBlenderObject()->id, ID_RECALC_GEOMETRY);
+    }
+    scene->ReplaceMesh(this, mesh, true, false);
+    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+    Scene *scene = GetScene()->GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
 
-		m_currentLodLevel = lodLevel->GetLevel();
-	}
+    /* Here we want to change the object which will be rendered, then the evaluated object by the
+     * depsgraph */
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
+
+    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, mesh->GetOriginalObject());
+    /* Try to get the object with all modifiers applied
+     * JUST BEFORE RENDER AFTER BKE_scene_graph_update_tagged
+     */
+    if (eval_lod_ob->runtime.mesh_eval) {
+      ob_eval->data = eval_lod_ob->runtime.mesh_eval;
+    }
+
+    m_currentLodLevel = lodLevel->GetLevel();
+  }
 }
 
 void KX_GameObject::UpdateTransform()
