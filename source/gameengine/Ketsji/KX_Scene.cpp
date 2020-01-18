@@ -515,28 +515,26 @@ static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTE
 
 void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 {
+
+  for (KX_GameObject *gameobj : GetObjectList()) {
+    gameobj->TagForUpdate();
+  }
+
+  KX_Camera *cam = GetActiveCamera();
+  if (cam) {
+    UpdateObjectLods(cam);
+  }
+
+  bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
+  m_resetTaaSamples = false;
+  m_staticObjects.clear();
+
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
-  if (!depsgraph) {
-    depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
-  }
-
-  for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdate();
-  }
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
-
-  KX_Camera *cam = GetActiveCamera();
-
-  bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
-  m_resetTaaSamples = false;
-  m_staticObjects.clear();
 
   const RAS_Rect *viewport = &canvas->GetViewportArea();
   int v[4] = {viewport->GetLeft(),
@@ -590,11 +588,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
       wm_draw_update(engine->GetContext());
       return;
     }
-  }
-
-  if (cam) {
-    /* Call just before Render AND AFTER BKE_scene_graph_update_tagged */
-    UpdateObjectLods(cam);
   }
 
   if (!m_gpuViewport) {
@@ -1448,6 +1441,24 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
   if (use_gfx) {
     gameobj->RemoveMeshes();
     gameobj->AddMesh(mesh);
+    Mesh *newMesh = mesh->GetOrigMesh();
+    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+    Scene *scene = GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+
+    /* Here we want to change the object which will be rendered, then the evaluated object by the depsgraph */
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
+    
+    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, mesh->GetOriginalObject());
+    /* Try to get the object with all modifiers applied */
+    if (eval_lod_ob->runtime.mesh_eval) {
+      ob_eval->data = eval_lod_ob->runtime.mesh_eval;
+    }
+    /* Else get non fully evaluated object data */
+    else {
+      ob_eval->data = DEG_get_evaluated_id(depsgraph, &newMesh->id);
+    }
   }
 
   //if (use_phys) { /* update the new assigned mesh with the physics mesh */
