@@ -7116,7 +7116,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     }
   }
 
-  if (ED_screen_animation_playing(wm)) {
+  if (ED_screen_animation_no_scrub(wm)) {
     uiDefIconTextBut(block,
                      UI_BTYPE_BUT,
                      B_STOPANIM,
