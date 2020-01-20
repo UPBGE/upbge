@@ -520,6 +520,19 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     gameobj->TagForUpdate();
   }
 
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  RAS_Rasterizer *rasty = engine->GetRasterizer();
+  RAS_ICanvas *canvas = engine->GetCanvas();
+  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  Scene *scene = GetBlenderScene();
+  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  if (!depsgraph) {
+    depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
+  }
+
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
   KX_Camera *cam = GetActiveCamera();
   if (cam) {
     UpdateObjectLods(cam);
@@ -528,13 +541,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
   m_resetTaaSamples = false;
   m_staticObjects.clear();
-
-  KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  RAS_Rasterizer *rasty = engine->GetRasterizer();
-  RAS_ICanvas *canvas = engine->GetCanvas();
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-  Scene *scene = GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 
   const RAS_Rect *viewport = &canvas->GetViewportArea();
   int v[4] = {viewport->GetLeft(),
@@ -1441,24 +1447,19 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
   if (use_gfx) {
     gameobj->RemoveMeshes();
     gameobj->AddMesh(mesh);
-    Mesh *newMesh = mesh->GetOrigMesh();
-    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-    Scene *scene = GetBlenderScene();
-    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
 
-    /* Here we want to change the object which will be rendered, then the evaluated object by the depsgraph */
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
-    
-    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, mesh->GetOriginalObject());
-    /* Try to get the object with all modifiers applied */
-    if (eval_lod_ob->runtime.mesh_eval) {
-      ob_eval->data = eval_lod_ob->runtime.mesh_eval;
+    /* Here we are in the case where we use ReplaceMesh not for levels of details
+     * but for other purposes. We'll add a dummy LodManager with only 1 KX_LodLevel
+     * because we need it to update the rendered mesh.
+     */
+    if (!gameobj->GetLodManager() || gameobj->GetLodManager()->GetLevelCount() < 2) {
+      if (gameobj->GetLodManager()) {
+        gameobj->GetLodManager()->Release();
+      }
+      gameobj->AddDummyLodManager(mesh);
     }
-    /* Else get non fully evaluated object data */
-    else {
-      ob_eval->data = DEG_get_evaluated_id(depsgraph, &newMesh->id);
-    }
+
+    DEG_id_tag_update(&gameobj->GetBlenderObject()->id, ID_RECALC_GEOMETRY);
   }
 
   //if (use_phys) { /* update the new assigned mesh with the physics mesh */

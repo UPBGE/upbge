@@ -1179,10 +1179,9 @@ static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
 	return current;
 }
 
-bool BKE_object_lod_is_usable(Object *ob, ViewLayer *view_layer)
+bool BKE_object_lod_is_usable(Object *ob)
 {
-	bool active = (view_layer) ? ob == OBACT(view_layer) : false;
-	return (ob->mode == OB_MODE_OBJECT || !active);
+	return (ob->mode == OB_MODE_OBJECT);
 }
 
 void BKE_object_lod_update(Object *ob, const float camera_position[3])
@@ -1192,6 +1191,7 @@ void BKE_object_lod_update(Object *ob, const float camera_position[3])
 
 	if (new_level != cur_level) {
 		ob->currentlod = new_level;
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 	}
 }
 
@@ -1199,7 +1199,7 @@ static Object *lod_ob_get(Object *ob, ViewLayer *view_layer/*, int flag*/)
 {
 	LodLevel *current = ob->currentlod;
 
-	if (!current || !BKE_object_lod_is_usable(ob, view_layer))
+	if (!current || !BKE_object_lod_is_usable(ob))
 		return ob;
 
 	while (current->prev && (/*!(current->flags & flag) ||*/ !current->source || current->source->type != OB_MESH)) {

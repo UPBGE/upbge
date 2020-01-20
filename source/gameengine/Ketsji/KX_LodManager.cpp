@@ -127,6 +127,13 @@ KX_LodManager::KX_LodManager(Object *ob, KX_Scene *scene, RAS_Rasterizer *rasty,
 	}
 }
 
+KX_LodManager::KX_LodManager(RAS_MeshObject *meshObj) : m_refcount(1), m_distanceFactor(1.0f)
+{
+  KX_LodLevel *lodLevel = new KX_LodLevel(
+      0.0f, 0.0f, 0, meshObj, OB_LOD_USE_MESH | OB_LOD_USE_MAT);
+  m_levels.push_back(lodLevel);
+}
+
 KX_LodManager::~KX_LodManager()
 {
 	for (std::vector<KX_LodLevel *>::iterator it = m_levels.begin(), end = m_levels.end(); it != end; ++it) {

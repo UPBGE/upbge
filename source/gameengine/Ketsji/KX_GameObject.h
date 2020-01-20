@@ -148,6 +148,7 @@ public:
   void UseCopy();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
   void RestorePhysics(bool childrenRecursive);
+  void AddDummyLodManager(RAS_MeshObject *meshObj);
 	/* END OF EEVEE INTEGRATION */
 
 

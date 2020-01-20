@@ -1529,17 +1529,8 @@ static void update_lods(Scene *scene, float camera_pos[3])
     BKE_object_lod_update(DEG_get_original_object(ob_eval), camera_pos);
 
     if (DEG_get_original_object(ob_eval)->currentlod) {
-      Object *orig_lod_ob = BKE_object_lod_meshob_get(DEG_get_original_object(ob_eval), view_layer);
-      Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, orig_lod_ob);
-      /* Try to get the object with all modifiers applied */
-      if (eval_lod_ob->runtime.mesh_eval) {
-        ob_eval->data = eval_lod_ob->runtime.mesh_eval;
-      }
-      /* Else get non fully evaluated object data */
-      else {
-        Mesh *orig_lod_mesh = orig_lod_ob->data;
-        ob_eval->data = DEG_get_evaluated_id(depsgraph, &orig_lod_mesh->id);
-      }
+      Object *lod_ob = BKE_object_lod_meshob_get(DEG_get_original_object(ob_eval), view_layer);
+      ob_eval->data = DEG_get_evaluated_object(depsgraph, lod_ob)->data;
     }
   }
   DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;

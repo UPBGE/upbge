@@ -470,6 +470,12 @@ void KX_GameObject::RestorePhysics(bool childrenRecursive)
   }
 }
 
+void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj)
+{
+  m_lodManager = new KX_LodManager(meshObj);
+  m_lodManager->AddRef();
+}
+
 /********************End of EEVEE INTEGRATION*********************/
 
 KX_GameObject *KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
@@ -965,22 +971,41 @@ KX_LodManager *KX_GameObject::GetLodManager() const
 
 void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 {
-	if (!m_lodManager) {
-		return;
-	}
+  if (!m_lodManager) {
+    return;
+  }
 
-	KX_Scene *scene = GetScene();
-	const float distance2 = NodeGetWorldPosition().distance2(cam_pos) * (lodfactor * lodfactor);
-	KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
+  KX_Scene *scene = GetScene();
+  const float distance2 = NodeGetWorldPosition().distance2(cam_pos) * (lodfactor * lodfactor);
+  KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
 
-	if (lodLevel) {
-		RAS_MeshObject *mesh = lodLevel->GetMesh();
-		if (mesh != m_meshes[0]) {
-			scene->ReplaceMesh(this, mesh, true, false);
-		}
+  if (lodLevel) {
+    RAS_MeshObject *mesh = lodLevel->GetMesh();
+    if (mesh != m_meshes[0]) {
+      scene->ReplaceMesh(this, mesh, true, false);
+    }
+    m_currentLodLevel = lodLevel->GetLevel();
+  }
 
-		m_currentLodLevel = lodLevel->GetLevel();
-	}
+  KX_LodLevel *currentLodLevel = m_lodManager->GetLevel(m_currentLodLevel);
+  if (currentLodLevel) {
+    RAS_MeshObject *currentMeshObject = currentLodLevel->GetMesh();
+
+    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+    Scene *sc = GetScene()->GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(sc);
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, sc, view_layer, false);
+
+    /* Here we want to change the object which will be rendered, then the evaluated object by the
+     * depsgraph */
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
+
+    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, currentMeshObject->GetOriginalObject());
+    /* Try to get the object with all modifiers applied */
+    if (eval_lod_ob->runtime.mesh_eval) {
+      ob_eval->data = eval_lod_ob->runtime.mesh_eval;
+    }
+  }
 }
 
 void KX_GameObject::UpdateTransform()

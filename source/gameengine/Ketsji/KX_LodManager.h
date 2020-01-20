@@ -80,6 +80,7 @@ private:
 
 public:
 	KX_LodManager(Object *ob, KX_Scene *scene, RAS_Rasterizer *rasty, KX_BlenderSceneConverter& converter, bool libloading);
+  KX_LodManager(class RAS_MeshObject *meshObj); //just to use for ReplaceMesh
 	virtual ~KX_LodManager();
 
 	virtual std::string GetName();
