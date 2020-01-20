@@ -140,7 +140,7 @@ void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
       cb->light_point = BUF_INSTANCE(grp_sub, format, DRW_cache_light_point_lines_get());
       cb->light_spot = BUF_INSTANCE(grp_sub, format, DRW_cache_light_spot_lines_get());
       cb->light_sun = BUF_INSTANCE(grp_sub, format, DRW_cache_light_sun_lines_get());
-      cb->probe_cube = BUF_INSTANCE(grp_sub, format, DRW_cache_lightprobe_planar_get());
+      cb->probe_cube = BUF_INSTANCE(grp_sub, format, DRW_cache_lightprobe_cube_get());
       cb->probe_grid = BUF_INSTANCE(grp_sub, format, DRW_cache_lightprobe_grid_get());
       cb->probe_planar = BUF_INSTANCE(grp_sub, format, DRW_cache_lightprobe_planar_get());
       cb->solid_quad = BUF_INSTANCE(grp_sub, format, DRW_cache_quad_get());
@@ -728,7 +728,7 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
     case LIGHTPROBE_TYPE_CUBE:
       instdata.clip_sta = show_clipping ? prb->clipsta : -1.0;
       instdata.clip_end = show_clipping ? prb->clipend : -1.0;
-      DRW_buffer_add_entry(cb->probe_grid, color_p, &instdata);
+      DRW_buffer_add_entry(cb->probe_cube, color_p, &instdata);
       DRW_buffer_add_entry(cb->groundline, instdata.pos);
 
       if (show_influence) {
@@ -1038,6 +1038,11 @@ static void camera_stereoscopy_extra(OVERLAY_ExtraCallBuffers *cb,
   const bool is_stereo3d_cameras = (v3d->stereo3d_flag & V3D_S3D_DISPCAMERAS) != 0;
   const bool is_stereo3d_plane = (v3d->stereo3d_flag & V3D_S3D_DISPPLANE) != 0;
   const bool is_stereo3d_volume = (v3d->stereo3d_flag & V3D_S3D_DISPVOLUME) != 0;
+
+  if (!is_stereo3d_cameras) {
+    /* Draw single camera. */
+    DRW_buffer_add_entry_struct(cb->camera_frame, instdata);
+  }
 
   for (int eye = 0; eye < 2; eye++) {
     ob = BKE_camera_multiview_render(scene, ob, viewnames[eye]);
@@ -1521,7 +1526,7 @@ static void OVERLAY_object_center(OVERLAY_ExtraCallBuffers *cb,
                                   OVERLAY_PrivateData *pd,
                                   ViewLayer *view_layer)
 {
-  const bool is_library = ob->id.us > 1 || ID_IS_LINKED(ob);
+  const bool is_library = ID_REAL_USERS(&ob->id) > 1 || ID_IS_LINKED(ob);
 
   if (ob == OBACT(view_layer)) {
     DRW_buffer_add_entry(cb->center_active, ob->obmat[3]);

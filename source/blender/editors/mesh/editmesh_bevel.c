@@ -95,6 +95,7 @@ typedef struct {
   uint ob_store_len;
 
   /* modal only */
+  int launch_event;
   float mcenter[2];
   void *draw_handle_pixel;
   short gizmo_flag;
@@ -421,17 +422,20 @@ static void edbm_bevel_exit(bContext *C, wmOperator *op)
     ED_area_status_text(sa, NULL);
   }
 
+  for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
+    Object *obedit = opdata->ob_store[ob_index].ob;
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    /* Without this, faces surrounded by selected edges/verts will be unselected. */
+    if ((em->selectmode & SCE_SELECT_FACE) == 0) {
+      EDBM_selectmode_flush(em);
+    }
+  }
+
   if (opdata->is_modal) {
     View3D *v3d = CTX_wm_view3d(C);
     ARegion *ar = CTX_wm_region(C);
     for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
-      Object *obedit = opdata->ob_store[ob_index].ob;
-      BMEditMesh *em = BKE_editmesh_from_object(obedit);
       EDBM_redo_state_free(&opdata->ob_store[ob_index].mesh_backup, NULL, false);
-      /* Without this, faces surrounded by selected edges/verts will be unselected. */
-      if ((em->selectmode & SCE_SELECT_FACE) == 0) {
-        EDBM_selectmode_flush(em);
-      }
     }
     ED_region_draw_cb_exit(ar->type, opdata->draw_handle_pixel);
     if (v3d) {
@@ -516,6 +520,8 @@ static int edbm_bevel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   opdata = op->customdata;
+
+  opdata->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
   /* initialize mouse values */
   if (!calculateTransformCenter(C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter)) {
@@ -707,7 +713,8 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
   short eval = event->val;
 
   /* When activated from toolbar, need to convert leftmouse release to confirm */
-  if (etype == LEFTMOUSE && eval == KM_RELEASE && RNA_boolean_get(op->ptr, "release_confirm")) {
+  if (ELEM(etype, LEFTMOUSE, opdata->launch_event) && (eval == KM_RELEASE) &&
+      RNA_boolean_get(op->ptr, "release_confirm")) {
     etype = EVT_MODAL_MAP;
     eval = BEV_MODAL_CONFIRM;
   }
