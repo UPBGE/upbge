@@ -527,16 +527,13 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  KX_Camera *cam = GetActiveCamera();
+
   if (!depsgraph) {
     depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
   }
 
   BKE_scene_graph_update_tagged(depsgraph, bmain);
-
-  KX_Camera *cam = GetActiveCamera();
-  if (cam) {
-    UpdateObjectLods(cam);
-  }
 
   bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
   m_resetTaaSamples = false;
@@ -594,6 +591,10 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
       wm_draw_update(engine->GetContext());
       return;
     }
+  }
+
+  if (cam) {
+    UpdateObjectLods(cam);
   }
 
   if (!m_gpuViewport) {
