@@ -612,7 +612,7 @@ static int lightprobe_add_exec(bContext *C, wmOperator *op)
 
   probe = (LightProbe *)ob->data;
 
-  BKE_lightprobe_configure(probe, type);
+  BKE_lightprobe_type_set(probe, type);
 
   DEG_relations_tag_update(CTX_data_main(C));
 
@@ -2343,7 +2343,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 
       if (!keep_original) {
         /* other users */
-        if (cu->id.us > 1) {
+        if (ID_REAL_USERS(&cu->id) > 1) {
           for (ob1 = bmain->objects.first; ob1; ob1 = ob1->id.next) {
             if (ob1->data == ob->data) {
               ob1->type = OB_CURVE;

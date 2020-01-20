@@ -1039,6 +1039,11 @@ static void camera_stereoscopy_extra(OVERLAY_ExtraCallBuffers *cb,
   const bool is_stereo3d_plane = (v3d->stereo3d_flag & V3D_S3D_DISPPLANE) != 0;
   const bool is_stereo3d_volume = (v3d->stereo3d_flag & V3D_S3D_DISPVOLUME) != 0;
 
+  if (!is_stereo3d_cameras) {
+    /* Draw single camera. */
+    DRW_buffer_add_entry_struct(cb->camera_frame, instdata);
+  }
+
   for (int eye = 0; eye < 2; eye++) {
     ob = BKE_camera_multiview_render(scene, ob, viewnames[eye]);
     BKE_camera_multiview_model_matrix(&scene->r, ob, viewnames[eye], stereodata.mat);
@@ -1521,7 +1526,7 @@ static void OVERLAY_object_center(OVERLAY_ExtraCallBuffers *cb,
                                   OVERLAY_PrivateData *pd,
                                   ViewLayer *view_layer)
 {
-  const bool is_library = ob->id.us > 1 || ID_IS_LINKED(ob);
+  const bool is_library = ID_REAL_USERS(&ob->id) > 1 || ID_IS_LINKED(ob);
 
   if (ob == OBACT(view_layer)) {
     DRW_buffer_add_entry(cb->center_active, ob->obmat[3]);
