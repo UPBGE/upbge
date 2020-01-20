@@ -158,6 +158,9 @@ KX_LodLevel *KX_LodManager::GetLevel(unsigned int index) const
 
 KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, short previouslod, float distance2)
 {
+  if (m_levels.size() == 1) {
+    return m_levels[0]; // in the case of ReplaceMesh we have only 1 level with 1 RAS_MeshObject
+  }
 	distance2 *= (m_distanceFactor * m_distanceFactor);
 
 	LodLevelIterator it(m_levels, previouslod, scene);
