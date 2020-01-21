@@ -99,10 +99,11 @@ struct RAS_MeshObject::fronttoback
 
 // mesh object
 
-RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
+RAS_MeshObject::RAS_MeshObject(Mesh *mesh, Object *originalOb, const LayersInfo& layersInfo)
 	:m_name(mesh->id.name + 2),
 	m_layersInfo(layersInfo),
-	m_mesh(mesh)
+	m_mesh(mesh),
+	m_originalOb(originalOb)
 {
 }
 
@@ -409,4 +410,10 @@ bool RAS_MeshObject::HasColliderPolygon()
 	}
 
 	return false;
+}
+
+/* In 2.8 code, ReinstancePhysicsShape2 needs an Object to recalculate the physics shape */
+Object* RAS_MeshObject::GetOriginalObject()
+{
+  return m_originalOb;
 }

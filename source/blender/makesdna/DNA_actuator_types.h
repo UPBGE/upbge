@@ -429,6 +429,7 @@ typedef struct bActuator {
 /* editObjectActuator->type */
 #define ACT_EDOB_ADD_OBJECT		0
 #define ACT_EDOB_END_OBJECT		1
+#define ACT_EDOB_REPLACE_MESH		2
 #define ACT_EDOB_TRACK_TO		3
 #define ACT_EDOB_DYNAMICS		4
 
@@ -453,8 +454,8 @@ typedef struct bActuator {
 #define ACT_TRACK_TRAXIS_NEGZ		5
 
 /* editObjectActuator->flag for replace mesh actuator */
-#define ACT_EDOB_REPLACE_MESH_NOGFX		2 /* use for replace mesh actuator */
-#define ACT_EDOB_REPLACE_MESH_PHYS		4
+//#define ACT_EDOB_REPLACE_MESH_NOGFX		2 /* use for replace mesh actuator */
+//#define ACT_EDOB_REPLACE_MESH_PHYS		4
 
 /* editObjectActuator->dyn_operation */
 #define ACT_EDOB_RESTORE_DYN	0

@@ -1027,8 +1027,8 @@ class LodGenerate(Operator):
             for level in ob.lod_levels[1:]:
                 level.object.hide = level.object.hide_render = True
 
-        lod.select = False
-        ob.select = True
+        lod.select_set(False)
+        ob.select_set(True)
         context.view_layer.objects.active = ob
 
         return {'FINISHED'}

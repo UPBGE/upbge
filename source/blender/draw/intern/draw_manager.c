@@ -3049,11 +3049,6 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
-  if (!depsgraph) {
-    depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
-  }
-  //BKE_scene_get_depsgraph(bmain, scene, view_layer, called_from_constructor);
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   if (called_from_constructor) {
     // For blenderplayer, the depsgraph is not activated by default

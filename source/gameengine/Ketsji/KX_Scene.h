@@ -301,6 +301,12 @@ protected:
 	AnimationPoolData m_animationPoolData;
 	TaskPool *m_animationPool;
 
+	/**
+	 * LOD Hysteresis settings
+	 */
+	bool m_isActivedHysteresis;
+	int m_lodHysteresisValue;
+
 public:
 	KX_Scene(SCA_IInputDevice *inputDevice,
 		const std::string& scenename,
@@ -353,6 +359,7 @@ public:
 	void DelayedRemoveObject(KX_GameObject *gameobj);
 
 	bool NewRemoveObject(KX_GameObject *gameobj);
+	void ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool use_gfx, bool use_phys);
 
 	void AddAnimatedObject(KX_GameObject *gameobj);
 
@@ -483,6 +490,15 @@ public:
 
 	// Resume a suspended scene.
 	void Resume();
+
+	/// Update the mesh for objects based on level of detail settings
+	void UpdateObjectLods(KX_Camera *cam/*, const KX_CullingNodeList& nodes*/);
+
+	// LoD Hysteresis functions
+	void SetLodHysteresis(bool active);
+	bool IsActivedLodHysteresis();
+	void SetLodHysteresisValue(int hysteresisvalue);
+	int GetLodHysteresisValue();
 	
 	// Update the activity box settings for objects in this scene, if needed.
 	void UpdateObjectActivity(void);

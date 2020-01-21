@@ -56,6 +56,7 @@
 #include "KX_PyMath.h"
 #include "RAS_MeshObject.h"
 #include "SCA_IScene.h"
+#include "KX_LodManager.h"
 
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
@@ -110,8 +111,9 @@ extern "C" {
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "depsgraph/DEG_depsgraph_query.h"
-#include "eevee_private.h"
+#include "DNA_mesh_types.h"
 #include "DNA_windowmanager_types.h"
+#include "eevee_private.h"
 #include "DRW_render.h"
 #include "MEM_guardedalloc.h"
 
@@ -178,6 +180,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_ueberExecutionPriority(0),
       m_suspendeddelta(0.0),
       m_blenderScene(scene),
+      m_isActivedHysteresis(false),
+      m_lodHysteresisValue(0),
       m_isRuntime(true)  // eevee
 {
 
@@ -516,17 +520,24 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     gameobj->TagForUpdate();
   }
 
-  bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
-  m_resetTaaSamples = false;
-  m_staticObjects.clear();
-
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
-  KX_Camera *cam = GetActiveCamera();
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  KX_Camera *cam = GetActiveCamera();
+
+  if (!depsgraph) {
+    depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
+  }
+
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+  bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
+  m_resetTaaSamples = false;
+  m_staticObjects.clear();
 
   const RAS_Rect *viewport = &canvas->GetViewportArea();
   int v[4] = {viewport->GetLeft(),
@@ -580,6 +591,10 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
       wm_draw_update(engine->GetContext());
       return;
     }
+  }
+
+  if (cam) {
+    UpdateObjectLods(cam);
   }
 
   if (!m_gpuViewport) {
@@ -1419,6 +1434,44 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
   return ret;
 }
 
+void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool use_gfx, bool use_phys)
+{
+  if (!gameobj) {
+    CM_FunctionWarning("invalid object, doing nothing");
+    return;
+  }
+
+  if (!mesh) {
+    return;
+  }
+
+  if (use_gfx) {
+    gameobj->RemoveMeshes();
+    gameobj->AddMesh(mesh);
+
+    /* Here we are in the case where we use ReplaceMesh not for levels of details
+     * but for other purposes. We'll add a dummy LodManager with only 1 KX_LodLevel
+     * because we need it to update the rendered mesh.
+     */
+    if (!gameobj->GetLodManager() || gameobj->GetLodManager()->GetLevelCount() < 2) {
+      if (gameobj->GetLodManager()) {
+        gameobj->GetLodManager()->Release();
+      }
+      gameobj->AddDummyLodManager(mesh);
+    }
+
+    DEG_id_tag_update(&gameobj->GetBlenderObject()->id, ID_RECALC_GEOMETRY);
+  }
+
+  //if (use_phys) { /* update the new assigned mesh with the physics mesh */
+  //  if (gameobj->GetPhysicsController()) {
+  //    gameobj->GetPhysicsController()->ReinstancePhysicsShape2(mesh, mesh->GetOriginalObject(), true);
+  //  }
+  //}
+
+  ResetTaaSamples();
+}
+
 KX_Camera *KX_Scene::GetActiveCamera()
 {
   // nullptr if not defined
@@ -1685,32 +1738,62 @@ void KX_Scene::AppendToStaticObjects(KX_GameObject *gameobj)
   m_staticObjects.push_back(gameobj);
 }
 /************************End of TAA UTILS**************************/
-/*************************************End of EEVEE
- * INTEGRATION*********************************************/
+/*************************************End of EEVEE INTEGRATION*********************************/
 
-void KX_Scene::UpdateObjectActivity(void)
+void KX_Scene::UpdateObjectLods(KX_Camera *cam/*, const KX_CullingNodeList& nodes*/)
 {
-  if (m_activity_culling) {
-    /* determine the activity criterium and set objects accordingly */
-    MT_Vector3 camloc = GetActiveCamera()->NodeGetWorldPosition();  // GetCameraLocation();
+  const MT_Vector3& cam_pos = cam->NodeGetWorldPosition();
+  const float lodfactor = cam->GetLodDistanceFactor();
 
-    for (KX_GameObject *ob : *m_objectlist) {
-      if (!ob->GetIgnoreActivityCulling()) {
-        /* Simple test: more than 10 away from the camera, count
-         * Manhattan distance. */
-        MT_Vector3 obpos = ob->NodeGetWorldPosition();
-
-        if ((fabsf(camloc[0] - obpos[0]) > m_activity_box_radius) ||
-            (fabsf(camloc[1] - obpos[1]) > m_activity_box_radius) ||
-            (fabsf(camloc[2] - obpos[2]) > m_activity_box_radius)) {
-          ob->Suspend();
-        }
-        else {
-          ob->Resume();
-        }
-      }
-    }
+  for (KX_GameObject *gameobj : GetObjectList()) {
+      gameobj->UpdateLod(cam_pos, 1.0f/*lodfactor*/);
   }
+}
+
+void KX_Scene::SetLodHysteresis(bool active)
+{
+	m_isActivedHysteresis = active;
+}
+
+bool KX_Scene::IsActivedLodHysteresis(void)
+{
+	return m_isActivedHysteresis;
+}
+
+void KX_Scene::SetLodHysteresisValue(int hysteresisvalue)
+{
+	m_lodHysteresisValue = hysteresisvalue;
+}
+
+int KX_Scene::GetLodHysteresisValue(void)
+{
+	return m_lodHysteresisValue;
+}
+
+void KX_Scene::UpdateObjectActivity(void) 
+{
+	if (m_activity_culling) {
+		/* determine the activity criterium and set objects accordingly */
+		MT_Vector3 camloc = GetActiveCamera()->NodeGetWorldPosition(); //GetCameraLocation();
+
+		for (KX_GameObject *ob : *m_objectlist) {
+			if (!ob->GetIgnoreActivityCulling()) {
+				/* Simple test: more than 10 away from the camera, count
+				 * Manhattan distance. */
+				MT_Vector3 obpos = ob->NodeGetWorldPosition();
+				
+				if ((fabsf(camloc[0] - obpos[0]) > m_activity_box_radius) ||
+				    (fabsf(camloc[1] - obpos[1]) > m_activity_box_radius) ||
+				    (fabsf(camloc[2] - obpos[2]) > m_activity_box_radius) )
+				{
+					ob->Suspend();
+				}
+				else {
+					ob->Resume();
+				}
+			}
+		}
+	}
 }
 
 void KX_Scene::SetActivityCullingRadius(float f)

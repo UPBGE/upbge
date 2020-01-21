@@ -111,6 +111,10 @@ protected:
 	 */
 	bool         m_delete_node;
 
+
+	/** Distance factor for level of detail*/
+	float m_lodDistanceFactor;
+
 	/**
 	 * Show Debug Camera Frustum?
 	 */
@@ -189,6 +193,11 @@ public:
 	/** Get/Set show camera frustum */
 	void SetShowCameraFrustum(bool show);
 	bool GetShowCameraFrustum() const;
+
+	/** Get level of detail distance factor */
+	float GetLodDistanceFactor() const;
+	/** Set level of detail distance factor */
+	void SetLodDistanceFactor(float lodfactor);
 
 	const SG_Frustum& GetFrustum();
 

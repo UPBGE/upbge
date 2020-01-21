@@ -61,6 +61,8 @@
 #include "KX_NetworkMessageScene.h"  //Needed for sendMessage()
 #include "KX_ObstacleSimulation.h"
 #include "KX_Scene.h"
+#include "KX_LodLevel.h"
+#include "KX_LodManager.h"
 #include "KX_CollisionContactPoints.h"
 
 #include "BKE_object.h"
@@ -127,6 +129,8 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
       m_useCopy(false),             // eevee
       m_visibleAtGameStart(false),  // eevee
       m_layer(0),
+      m_lodManager(nullptr),
+      m_currentLodLevel(0),
       m_pBlenderObject(nullptr),
       m_pBlenderGroupObject(nullptr),
       m_bIsNegativeScaling(false),
@@ -242,6 +246,9 @@ KX_GameObject::~KX_GameObject()
 
   if (m_pInstanceObjects) {
     m_pInstanceObjects->Release();
+  }
+  if (m_lodManager) {
+    m_lodManager->Release();
   }
 }
 
@@ -461,6 +468,12 @@ void KX_GameObject::RestorePhysics(bool childrenRecursive)
   if (childrenRecursive) {
     restore_physics_recursive(GetSGNode());
   }
+}
+
+void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj)
+{
+  m_lodManager = new KX_LodManager(meshObj);
+  m_lodManager->AddRef();
 }
 
 /********************End of EEVEE INTEGRATION*********************/
@@ -763,6 +776,10 @@ void KX_GameObject::ProcessReplica()
   m_actionManager = nullptr;
   m_state = 0;
 
+  if (m_lodManager) {
+    m_lodManager->AddRef();
+  }
+
 #ifdef WITH_PYTHON
 
   if (m_attr_dict)
@@ -922,6 +939,71 @@ void KX_GameObject::RemoveMeshes()
 bool KX_GameObject::UseCulling() const
 {
   return false;
+}
+
+void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
+{
+	// Reset lod level to avoid overflow index in KX_LodManager::GetLevel.
+	m_currentLodLevel = 0;
+
+	// Restore object original mesh.
+	if (!lodManager && m_lodManager && m_lodManager->GetLevelCount() > 0) {
+		KX_Scene *scene = GetScene();
+		RAS_MeshObject *origmesh = m_lodManager->GetLevel(0)->GetMesh();
+		scene->ReplaceMesh(this, origmesh, true, false);
+	}
+
+	if (m_lodManager) {
+		m_lodManager->Release();
+	}
+
+	m_lodManager = lodManager;
+
+	if (m_lodManager) {
+		m_lodManager->AddRef();
+	}
+}
+
+KX_LodManager *KX_GameObject::GetLodManager() const
+{
+	return m_lodManager;
+}
+
+void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
+{
+  if (!m_lodManager) {
+    return;
+  }
+
+  KX_Scene *scene = GetScene();
+  const float distance2 = NodeGetWorldPosition().distance2(cam_pos) * (lodfactor * lodfactor);
+  KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
+
+  if (lodLevel) {
+    RAS_MeshObject *mesh = lodLevel->GetMesh();
+    if (mesh != m_meshes[0]) {
+      scene->ReplaceMesh(this, mesh, true, false);
+    }
+    m_currentLodLevel = lodLevel->GetLevel();
+  }
+
+  KX_LodLevel *currentLodLevel = m_lodManager->GetLevel(m_currentLodLevel);
+  if (currentLodLevel) {
+    RAS_MeshObject *currentMeshObject = currentLodLevel->GetMesh();
+
+    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+    Scene *sc = GetScene()->GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(sc);
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, sc, view_layer, false);
+
+    /* Here we want to change the object which will be rendered, then the evaluated object by the
+     * depsgraph */
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
+
+    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, currentMeshObject->GetOriginalObject());
+    /* Try to get the object with all modifiers applied */
+    ob_eval->data = eval_lod_ob->data;
+  }
 }
 
 void KX_GameObject::UpdateTransform()
@@ -1901,6 +1983,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 
     {"getPhysicsId", (PyCFunction)KX_GameObject::sPyGetPhysicsId, METH_NOARGS},
     {"getPropertyNames", (PyCFunction)KX_GameObject::sPyGetPropertyNames, METH_NOARGS},
+    {"replaceMesh",(PyCFunction) KX_GameObject::sPyReplaceMesh, METH_VARARGS},
     {"endObject", (PyCFunction)KX_GameObject::sPyEndObject, METH_NOARGS},
     {"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh, METH_VARARGS},
     {"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_O},
@@ -1929,6 +2012,8 @@ PyMethodDef KX_GameObject::Methods[] = {
 };
 
 PyAttributeDef KX_GameObject::Attributes[] = {
+    KX_PYATTRIBUTE_SHORT_RO("currentLodLevel", KX_GameObject, m_currentLodLevel),
+    KX_PYATTRIBUTE_RW_FUNCTION("lodManager", KX_GameObject, pyattr_get_lodManager, pyattr_set_lodManager),
     KX_PYATTRIBUTE_RW_FUNCTION("name", KX_GameObject, pyattr_get_name, pyattr_set_name),
     KX_PYATTRIBUTE_RO_FUNCTION("parent", KX_GameObject, pyattr_get_parent),
     KX_PYATTRIBUTE_RO_FUNCTION("groupMembers", KX_GameObject, pyattr_get_group_members),
@@ -2034,6 +2119,24 @@ PyAttributeDef KX_GameObject::Attributes[] = {
     KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
     KX_PYATTRIBUTE_NULL  // Sentinel
 };
+
+PyObject *KX_GameObject::PyReplaceMesh(PyObject *args)
+{
+	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
+
+	PyObject *value;
+	int use_gfx= 1, use_phys= 0;
+	RAS_MeshObject *new_mesh;
+	
+	if (!PyArg_ParseTuple(args,"O|ii:replaceMesh", &value, &use_gfx, &use_phys))
+		return nullptr;
+	
+	if (!ConvertPythonToMesh(logicmgr, value, &new_mesh, false, "gameOb.replaceMesh(value): KX_GameObject"))
+		return nullptr;
+	
+	GetScene()->ReplaceMesh(this, new_mesh, (bool)use_gfx, (bool)use_phys);
+	Py_RETURN_NONE;
+}
 
 PyObject *KX_GameObject::PyEndObject()
 {
@@ -3470,6 +3573,27 @@ int KX_GameObject::pyattr_set_debugRecursive(PyObjectPlus *self_v,
   self->SetUseDebugProperties(param, true);
 
   return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_lodManager(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+
+	return (self->m_lodManager) ? self->m_lodManager->GetProxy() : Py_None;
+}
+
+int KX_GameObject::pyattr_set_lodManager(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject *self = static_cast<KX_GameObject*>(self_v);
+
+	KX_LodManager *lodManager = nullptr;
+	if (!ConvertPythonToLodManager(value, &lodManager, true, "gameobj.lodManager: KX_GameObject")) {
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->SetLodManager(lodManager);
+
+	return PY_SET_ATTR_SUCCESS;
 }
 
 PyObject *KX_GameObject::PyApplyForce(PyObject *args)

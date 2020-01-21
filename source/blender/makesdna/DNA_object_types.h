@@ -109,6 +109,15 @@ enum {
   BOUNDBOX_DIRTY = (1 << 1),
 };
 
+typedef struct LodLevel {
+  struct LodLevel *next, *prev;
+  struct Object *source;
+  int flags;
+  float distance, _pad;
+  int obhysteresis;
+} LodLevel;
+
+
 
 struct CustomData_MeshMasks;
 
@@ -391,6 +400,10 @@ typedef struct Object {
   Object_Runtime runtime;
 
   /************Game engine**************/
+
+  /** Contains data for levels of detail. */
+  ListBase lodlevels;
+  LodLevel *currentlod;
 
   /* settings for game engine bullet soft body */
   struct BulletSoftBody *bsoft;

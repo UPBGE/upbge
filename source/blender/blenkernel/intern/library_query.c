@@ -680,6 +680,13 @@ static void library_foreach_ID_link(Main *bmain,
           CALLBACK_INVOKE(object->rigidbody_constraint->ob2, IDWALK_CB_NEVER_SELF);
         }
 
+        if (object->lodlevels.first) {
+          LodLevel *level;
+          for (level = object->lodlevels.first; level; level = level->next) {
+            CALLBACK_INVOKE(level->source, IDWALK_CB_NEVER_SELF);
+          }
+        }
+
 
         modifiers_foreachIDLink(object, library_foreach_modifiersForeachIDLink, &data);
         BKE_gpencil_modifiers_foreachIDLink(

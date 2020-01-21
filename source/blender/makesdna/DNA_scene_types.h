@@ -878,6 +878,9 @@ typedef struct GameData {
 	float deactivationtime, lineardeactthreshold, angulardeactthreshold;
 	int _pad;
 
+    /* Scene LoD */
+    short lodflag, _pad2;
+    int scehysteresis;
 } GameData;
 
 /* GameData.stereoflag */
@@ -951,6 +954,9 @@ enum {
 	GAME_MAT_MULTITEX   = 1,
 	GAME_MAT_GLSL       = 2,
 };
+
+/* GameData.lodflag */
+#define SCE_LOD_USE_HYST		(1 << 0)
 
 /* UV Paint */
 /* ToolSettings.uv_sculpt_settings */

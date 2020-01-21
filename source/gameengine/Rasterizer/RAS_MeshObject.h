@@ -52,6 +52,7 @@ class RAS_ITexVert;
 struct Mesh;
 struct MLoopUV;
 struct MLoopCol;
+struct Object;
 
 /* RAS_MeshObject is a mesh used for rendering. It stores polygons,
  * but the actual vertices and index arrays are stored in material
@@ -99,9 +100,12 @@ protected:
 	RAS_MeshMaterialList m_materials;
 	Mesh *m_mesh;
 
+  /* In 2.8 code, ReinstancePhysicsShape2 needs an Object to recalculate the physics shape */
+  Object *m_originalOb;
+
 public:
 	// for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
-	RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo);
+	RAS_MeshObject(Mesh *mesh, Object *originalOb, const LayersInfo& layersInfo);
 	virtual ~RAS_MeshObject();
 
 	// materials
@@ -116,7 +120,7 @@ public:
 	std::string& GetName();
 
 	// original blender mesh
-	Mesh *GetMesh()
+	Mesh *GetOrigMesh()
 	{
 		return m_mesh;
 	}
@@ -153,6 +157,8 @@ public:
 	void SortPolygons(RAS_IDisplayArray *array, const MT_Transform &transform, unsigned int *indexmap);
 
 	bool HasColliderPolygon();
+
+  Object *GetOriginalObject();
 
 	// for construction to find shared vertices
 	struct SharedVertex
