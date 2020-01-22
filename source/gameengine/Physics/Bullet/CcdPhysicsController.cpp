@@ -1826,7 +1826,14 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 
 	if (!dm) {
 		free_dm = true;
-		dm = CDDM_from_mesh(meshobj->GetOrigMesh());
+		Scene *scene = KX_GetActiveScene()->GetBlenderScene();
+		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+		Main *bmain = G_MAIN;
+		Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+
+		Object *ob_eval = DEG_get_evaluated_object(depsgraph, meshobj->GetOriginalObject());
+		Mesh *me = (Mesh *)ob_eval->data;
+		dm = CDDM_from_mesh(me);
 	}
 
 	// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
