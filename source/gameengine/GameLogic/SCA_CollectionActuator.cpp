@@ -37,6 +37,9 @@
 #include "SCA_CollectionActuator.h"
 #include <iostream>
 
+#include "KX_GameObject.h"
+#include "KX_Scene.h"
+
 extern "C" {
   #include "BKE_collection.h"
 }
@@ -46,11 +49,19 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 
 SCA_CollectionActuator::SCA_CollectionActuator(SCA_IObject *gameobj,
+                                               KX_Scene *scene,
                                                Collection *collection,
-                                               int mode)
+                                               int mode,
+                                               bool use_logic,
+                                               bool use_physics,
+                                               bool use_visibility)
     : SCA_IActuator(gameobj, KX_ACT_COLLECTION),
+    m_kxscene(scene),
 	m_collection(collection),
-	m_mode(mode)
+	m_mode(mode),
+    m_useLogic(use_logic),
+    m_usePhysics(use_physics),
+    m_useVisibility(use_visibility)
 {
 } /* End of constructor */
 
@@ -97,43 +108,42 @@ bool SCA_CollectionActuator::Update()
   if (bNegativeEvent)
     return false; // do nothing on negative events
 	
-  //switch (m_mode)
-  //{
-  //case KX_SCENE_SET_SCENE:
-  //	{
-  //		m_KetsjiEngine->ReplaceScene(m_scene->GetName(),m_nextSceneName);
-  //		break;
-  //	}
-  //case KX_SCENE_ADD_FRONT_SCENE:
-  //	{
-  //		bool overlay=true;
-  //		m_KetsjiEngine->ConvertAndAddScene(m_nextSceneName,overlay);
-  //		break;
-  //	}
-  //case KX_SCENE_ADD_BACK_SCENE:
-  //	{
-  //		bool overlay=false;
-  //		m_KetsjiEngine->ConvertAndAddScene(m_nextSceneName,overlay);
-  //		break;
-  //	}
-  //case KX_SCENE_REMOVE_SCENE:
-  //	{
-  //		m_KetsjiEngine->RemoveScene(m_nextSceneName);
-  //		break;
-  //	}
-  //case KX_SCENE_SUSPEND:
-  //	{
-  //		m_KetsjiEngine->SuspendScene(m_nextSceneName);
-  //		break;
-  //	}
-  //case KX_SCENE_RESUME:
-  //	{
-  //		m_KetsjiEngine->ResumeScene(m_nextSceneName);
-  //		break;
-  //	}
-  //default:
-  //	; /* do nothing? this is an internal error !!! */
-  //}
+  switch (m_mode) {
+    case KX_COLLECTION_SUSPEND:
+      for (KX_GameObject *gameobj : m_kxscene->GetObjectList()) {
+        Object *ob = gameobj->GetBlenderObject();
+        if (ob && BKE_collection_has_object(m_collection, ob)) {
+          if (m_useLogic) {
+            gameobj->SuspendLogic(true);
+          }
+          if (m_usePhysics) {
+            gameobj->SuspendPhysics(false, true);
+          }
+          if (m_useVisibility) {
+            gameobj->SetVisible(false, true);
+          }
+        }
+      }
+      break;
+    case KX_COLLECTION_RESUME:
+      for (KX_GameObject *gameobj : m_kxscene->GetObjectList()) {
+        Object *ob = gameobj->GetBlenderObject();
+        if (ob && BKE_collection_has_object(m_collection, ob)) {
+          if (m_useLogic) {
+            gameobj->RestoreLogic(true);
+          }
+          if (m_usePhysics) {
+            gameobj->RestorePhysics(true);
+          }
+          if (m_useVisibility) {
+            gameobj->SetVisible(true, true);
+          }
+        }
+      }
+      break;
+    default:
+      break;
+  }
 
   return false;
 }

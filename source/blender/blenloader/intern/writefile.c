@@ -1599,6 +1599,9 @@ static void write_actuators(WriteData *wd, ListBase *lb)
 			case ACT_SCENE:
 				writestruct(wd, DATA, bSceneActuator, 1, act->data);
 				break;
+      case ACT_COLLECTION:
+        writestruct(wd, DATA, bCollectionActuator, 1, act->data);
+        break;
 			case ACT_GROUP:
 				writestruct(wd, DATA, bGroupActuator, 1, act->data);
 				break;

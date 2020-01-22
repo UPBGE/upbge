@@ -36,18 +36,32 @@
 
 struct Collection;
 
+class KX_Scene;
+
 class SCA_CollectionActuator : public SCA_IActuator
 {
   Py_Header
 
  private :
 
+  KX_Scene *m_kxscene;
   Collection *m_collection;
   int m_mode; //suspend/resume
 
+  bool m_useLogic;
+  bool m_usePhysics;
+  bool m_useVisibility;
+
  public :
 
-  SCA_CollectionActuator(SCA_IObject *gameobj, Collection *collection, int m_mode);
+   enum SCA_SceneActuatorMode {
+    KX_COLLECTION_NODEF = 0,
+    KX_COLLECTION_SUSPEND,
+    KX_COLLECTION_RESUME,
+    KX_COLLECTION_MAX
+  };
+
+  SCA_CollectionActuator(SCA_IObject *gameobj, KX_Scene *scene, Collection *collection, int m_mode, bool use_logic, bool use_physics, bool use_visibility);
   virtual ~SCA_CollectionActuator();
 
   virtual CValue* GetReplica();
