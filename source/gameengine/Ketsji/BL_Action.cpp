@@ -73,7 +73,6 @@ extern "C" {
 
 BL_Action::BL_Action(class KX_GameObject* gameobj):
     m_action(nullptr),
-    m_tmpaction(nullptr),
     m_blendpose(nullptr),
     m_blendinpose(nullptr),
     m_obj(gameobj),
@@ -103,11 +102,6 @@ BL_Action::~BL_Action()
   if (m_blendinpose)
     BKE_pose_free(m_blendinpose);
   ClearControllerList();
-
-  if (m_tmpaction) {
-    BKE_id_free(G.main, m_tmpaction);
-    m_tmpaction = nullptr;
-  }
 
   Object *ob = m_obj->GetBlenderObject();
   if (ob && ob->adt && m_action) {
@@ -167,13 +161,6 @@ bool BL_Action::Play(const std::string& name,
   if (!IsDone() && m_action == prev_action && m_startframe == start && m_endframe == end
             && m_priority == priority && m_speed == playback_speed)
     return false;
-
-  // Keep a copy of the action for threading purposes
-  if (m_tmpaction) {
-    BKE_id_free(G.main, m_tmpaction);
-    m_tmpaction = nullptr;
-  }
-  m_tmpaction = BKE_action_copy(G.main, m_action);
 
   // First get rid of any old controllers
   ClearControllerList();
@@ -414,10 +401,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   Object *ob = m_obj->GetBlenderObject();  // eevee
 
-  if (ob->adt && m_action->id.name == ob->adt->action->id.name) {
-    ob->adt->action = m_tmpaction;
-  }
-
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
@@ -431,7 +414,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       obj->GetPose(&m_blendpose);
 
     // Extract the pose from the action
-    obj->SetPoseByAction(m_tmpaction, m_localframe);
+    obj->SetPoseByAction(m_action, m_localframe);
 
     // Handle blending between armature actions
     if (m_blendin && m_blendframe < m_blendin) {
@@ -465,7 +448,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
-        animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
+        animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
         scene->ResetTaaSamples();
         break;
       }
@@ -480,7 +463,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
-          animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
+          animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
           scene->ResetTaaSamples();
           break;
         }
@@ -499,7 +482,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
             DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
             PointerRNA ptrrna;
             RNA_id_pointer_create(&node_tree->id, &ptrrna);
-            animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
+            animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
             scene->ResetTaaSamples();
             break;
           }
@@ -516,7 +499,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
         PointerRNA ptrrna;
         RNA_id_pointer_create(&key->id, &ptrrna);
-        animsys_evaluate_action(&ptrrna, m_tmpaction, m_localframe, false);
+        animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
 
         // Handle blending between shape actions
         if (m_blendin && m_blendframe < m_blendin) {
