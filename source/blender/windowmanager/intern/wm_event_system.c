@@ -101,7 +101,6 @@
 #define USE_GIZMO_MOUSE_PRIORITY_HACK
 
 static void wm_notifier_clear(wmNotifier *note);
-static void update_tablet_data(wmWindow *win, wmEvent *event);
 
 static int wm_operator_call_internal(bContext *C,
                                      wmOperatorType *ot,
@@ -124,14 +123,6 @@ wmEvent *wm_event_add_ex(wmWindow *win,
   wmEvent *event = MEM_mallocN(sizeof(wmEvent), "wmEvent");
 
   *event = *event_to_add;
-
-  update_tablet_data(win, event);
-
-  if (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
-    /* We could have a preference to support relative tablet motion (we can't detect that). */
-    event->is_motion_absolute = ((event->tablet_data != NULL) &&
-                                 (event->tablet_data->Active != GHOST_kTabletModeNone));
-  }
 
   if (event_to_add_after == NULL) {
     BLI_addtail(&win->queue, event);
@@ -176,10 +167,6 @@ void wm_event_free(wmEvent *event)
     }
   }
 
-  if (event->tablet_data) {
-    MEM_freeN((void *)event->tablet_data);
-  }
-
   MEM_freeN(event);
 }
 
@@ -194,9 +181,6 @@ void wm_event_free_all(wmWindow *win)
 
 void wm_event_init_from_window(wmWindow *win, wmEvent *event)
 {
-  /* make sure we don't copy any owned pointers */
-  BLI_assert(win->eventstate->tablet_data == NULL);
-
   *event = *(win->eventstate);
 }
 
@@ -1793,19 +1777,16 @@ static bool wm_eventmatch(const wmEvent *winevent, const wmKeyMapItem *kmi)
 
   if (kmitype != KM_ANY) {
     if (ELEM(kmitype, TABLET_STYLUS, TABLET_ERASER)) {
-      const wmTabletData *wmtab = winevent->tablet_data;
+      const wmTabletData *wmtab = &winevent->tablet;
 
-      if (wmtab == NULL) {
-        return false;
-      }
-      else if (winevent->type != LEFTMOUSE) {
+      if (winevent->type != LEFTMOUSE) {
         /* tablet events can occur on hover + keypress */
         return false;
       }
-      else if ((kmitype == TABLET_STYLUS) && (wmtab->Active != EVT_TABLET_STYLUS)) {
+      else if ((kmitype == TABLET_STYLUS) && (wmtab->active != EVT_TABLET_STYLUS)) {
         return false;
       }
-      else if ((kmitype == TABLET_ERASER) && (wmtab->Active != EVT_TABLET_ERASER)) {
+      else if ((kmitype == TABLET_ERASER) && (wmtab->active != EVT_TABLET_ERASER)) {
         return false;
       }
     }
@@ -4103,25 +4084,23 @@ static void wm_eventemulation(wmEvent *event, bool test_only)
   }
 }
 
-/* adds customdata to event */
-static void update_tablet_data(wmWindow *win, wmEvent *event)
+void wm_tablet_data_from_ghost(const GHOST_TabletData *tablet_data, wmTabletData *wmtab)
 {
-  const GHOST_TabletData *td = GHOST_GetTabletData(win->ghostwin);
-
-  /* if there's tablet data from an active tablet device then add it */
-  if ((td != NULL) && td->Active != GHOST_kTabletModeNone) {
-    struct wmTabletData *wmtab = MEM_mallocN(sizeof(wmTabletData), "customdata tablet");
-
-    wmtab->Active = (int)td->Active;
-    wmtab->Pressure = wm_pressure_curve(td->Pressure);
-    wmtab->Xtilt = td->Xtilt;
-    wmtab->Ytilt = td->Ytilt;
-
-    event->tablet_data = wmtab;
-    // printf("%s: using tablet %.5f\n", __func__, wmtab->Pressure);
+  if ((tablet_data != NULL) && tablet_data->Active != GHOST_kTabletModeNone) {
+    wmtab->active = (int)tablet_data->Active;
+    wmtab->pressure = wm_pressure_curve(tablet_data->Pressure);
+    wmtab->x_tilt = tablet_data->Xtilt;
+    wmtab->y_tilt = tablet_data->Ytilt;
+    /* We could have a preference to support relative tablet motion (we can't detect that). */
+    wmtab->is_motion_absolute = true;
+    // printf("%s: using tablet %.5f\n", __func__, wmtab->pressure);
   }
   else {
-    event->tablet_data = NULL;
+    wmtab->active = EVT_TABLET_NONE;
+    wmtab->pressure = 1.0f;
+    wmtab->x_tilt = 0.0f;
+    wmtab->y_tilt = 0.0f;
+    wmtab->is_motion_absolute = false;
     // printf("%s: not using tablet\n", __func__);
   }
 }
@@ -4273,6 +4252,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
 
       copy_v2_v2_int(&event.x, &cd->x);
       wm_stereo3d_mouse_offset_apply(win, &event.x);
+      wm_tablet_data_from_ghost(&cd->tablet, &event.tablet);
 
       event.prevtype = event.type;
       event.prevval = event.val;
@@ -4280,7 +4260,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
       {
         wmEvent *event_new = wm_event_add_mousemove(win, &event);
         copy_v2_v2_int(&evt->x, &event_new->x);
-        evt->is_motion_absolute = event_new->is_motion_absolute;
+        evt->tablet.is_motion_absolute = event_new->tablet.is_motion_absolute;
       }
 
       /* also add to other window if event is there, this makes overdraws disappear nicely */
@@ -4298,7 +4278,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
         {
           wmEvent *event_new = wm_event_add_mousemove(owin, &oevent);
           copy_v2_v2_int(&oevt->x, &event_new->x);
-          oevt->is_motion_absolute = event_new->is_motion_absolute;
+          oevt->tablet.is_motion_absolute = event_new->tablet.is_motion_absolute;
         }
       }
 
@@ -4362,6 +4342,9 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
         event.type = MIDDLEMOUSE;
       }
 
+      /* Get tablet data. */
+      wm_tablet_data_from_ghost(&bd->tablet, &event.tablet);
+
       wm_eventemulation(&event, false);
 
       /* copy previous state to prev event state (two old!) */
@@ -4371,17 +4354,6 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
       /* copy to event state */
       evt->val = event.val;
       evt->type = event.type;
-
-      if (win->active == 0) {
-        int cx, cy;
-
-        /* Entering window, update mouse pos.
-         * (ghost sends win-activate *after* the mouseclick in window!) */
-        wm_get_cursor_position(win, &cx, &cy);
-
-        event.x = evt->x = cx;
-        event.y = evt->y = cy;
-      }
 
       /* double click test */
       if (wm_event_is_double_click(&event, evt)) {
@@ -4403,6 +4375,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
         oevent.y = event.y;
         oevent.type = event.type;
         oevent.val = event.val;
+        oevent.tablet = event.tablet;
 
         wm_event_add(owin, &oevent);
       }
