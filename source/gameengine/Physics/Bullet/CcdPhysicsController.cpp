@@ -2145,7 +2145,8 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob, boo
   Main *bmain = G_MAIN;
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
 
-  Mesh *me = mesh_get_eval_final(depsgraph, scene, DEG_get_evaluated_object(depsgraph, ob), &CD_MASK_MESH);
+  Object *ob_eval = DEG_get_evaluated_object(depsgraph, meshobj->GetOriginalObject());
+  Mesh *me = (Mesh *)ob_eval->data;
   DerivedMesh *dm = CDDM_from_mesh(me);
 
 	// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
