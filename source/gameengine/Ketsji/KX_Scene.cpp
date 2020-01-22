@@ -1786,10 +1786,10 @@ void KX_Scene::UpdateObjectActivity(void)
 				    (fabsf(camloc[1] - obpos[1]) > m_activity_box_radius) ||
 				    (fabsf(camloc[2] - obpos[2]) > m_activity_box_radius) )
 				{
-					ob->Suspend();
+					ob->SuspendDynamics();
 				}
 				else {
-					ob->Resume();
+					ob->ResumeDynamics();
 				}
 			}
 		}

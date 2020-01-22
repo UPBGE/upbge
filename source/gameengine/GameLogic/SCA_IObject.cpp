@@ -248,7 +248,7 @@ SCA_IActuator* SCA_IObject::FindActuator(const std::string& actuatorname)
 }
 
 
-void SCA_IObject::Suspend()
+void SCA_IObject::SuspendSensors()
 {
 	if ((!m_ignore_activity_culling) 
 		&& (!m_suspended)) {
@@ -264,7 +264,7 @@ void SCA_IObject::Suspend()
 
 
 
-void SCA_IObject::Resume(void)
+void SCA_IObject::ResumeSensors(void)
 {
 	if (m_suspended) {
 		m_suspended = false;
