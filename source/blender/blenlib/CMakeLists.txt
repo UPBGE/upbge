@@ -265,6 +265,8 @@ set(LIB
   bf_intern_guardedalloc
   bf_intern_numaapi
   extern_wcwidth
+
+  ${FREETYPE_LIBRARY}
 )
 
 if(WITH_MEM_VALGRIND)
