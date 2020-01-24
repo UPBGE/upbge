@@ -46,6 +46,7 @@ extern "C" {
 
 #include "intern/depsgraph_update.h"
 #include "intern/depsgraph_physics.h"
+#include "intern/depsgraph_relation.h"
 #include "intern/depsgraph_registry.h"
 
 #include "intern/eval/deg_eval_copy_on_write.h"
@@ -82,7 +83,6 @@ Depsgraph::Depsgraph(Main *bmain, Scene *scene, ViewLayer *view_layer, eEvaluati
   BLI_spin_init(&lock);
   id_hash = BLI_ghash_ptr_new("Depsgraph id hash");
   entry_tags = BLI_gset_ptr_new("Depsgraph entry_tags");
-  debug_flags = G.debug;
   memset(id_type_updated, 0, sizeof(id_type_updated));
   memset(id_type_exist, 0, sizeof(id_type_exist));
   memset(physics_relations, 0, sizeof(physics_relations));
@@ -218,43 +218,6 @@ Relation *Depsgraph::check_nodes_connected(const Node *from,
     return rel;
   }
   return NULL;
-}
-
-/* ************************ */
-/* Relationships Management */
-
-Relation::Relation(Node *from, Node *to, const char *description)
-    : from(from), to(to), name(description), flag(0)
-{
-  /* Hook it up to the nodes which use it.
-   *
-   * NOTE: We register relation in the nodes which this link connects to here
-   * in constructor but we don't unregister it in the destructor.
-   *
-   * Reasoning:
-   *
-   * - Destructor is currently used on global graph destruction, so there's no
-   *   real need in avoiding dangling pointers, all the memory is to be freed
-   *   anyway.
-   *
-   * - Unregistering relation is not a cheap operation, so better to have it
-   *   as an explicit call if we need this. */
-  from->outlinks.push_back(this);
-  to->inlinks.push_back(this);
-}
-
-Relation::~Relation()
-{
-  /* Sanity check. */
-  BLI_assert(from != NULL && to != NULL);
-}
-
-void Relation::unlink()
-{
-  /* Sanity check. */
-  BLI_assert(from != NULL && to != NULL);
-  remove_from_vector(&from->outlinks, this);
-  remove_from_vector(&to->inlinks, this);
 }
 
 /* Low level tagging -------------------------------------- */
