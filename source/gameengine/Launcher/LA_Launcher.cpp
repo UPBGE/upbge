@@ -80,9 +80,6 @@ extern "C" {
 #  include "MEM_guardedalloc.h"
 }
 
-#ifdef WITH_AUDASPACE
-#  include AUD_DEVICE_H
-#endif
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
 						 RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, bContext *C)

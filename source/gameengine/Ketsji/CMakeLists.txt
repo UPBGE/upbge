@@ -228,6 +228,17 @@ if(WITH_BULLET)
 	add_definitions(-DWITH_BULLET)
 endif()
 
+if(WITH_AUDASPACE)
+  list(APPEND INC_SYS
+    ${AUDASPACE_C_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${AUDASPACE_C_LIBRARIES}
+    ${AUDASPACE_PY_LIBRARIES}
+  )
+  add_definitions(-DWITH_AUDASPACE)
+endif()
+
 if(WITH_GAMEENGINE)
     add_definitions(-DWITH_GAMEENGINE)
 endif()

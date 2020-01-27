@@ -92,11 +92,16 @@ if(WITH_INTERNATIONAL)
 endif()
 
 if(WITH_AUDASPACE)
-	add_definitions(${AUDASPACE_DEFINITIONS})
+  list(APPEND INC_SYS
+    ${AUDASPACE_C_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    bf_intern_audaspace
 
-	list(APPEND INC_SYS
-		${AUDASPACE_C_INCLUDE_DIRS}
-	)
+    ${AUDASPACE_C_LIBRARIES}
+    ${AUDASPACE_PY_LIBRARIES}
+  )
+  add_definitions(-DWITH_AUDASPACE)
 endif()
 
 if(WITH_SDL AND WITH_SDL_DYNLOAD)
