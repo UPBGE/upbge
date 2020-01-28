@@ -32,8 +32,9 @@
 
 #include "GPU_glew.h"
 
+#include "DRW_render.h"
+
 extern "C" {
-#  include "DRW_render.h"
 #  include "../gpu/GPU_framebuffer.h"
 #  include "../gpu/GPU_texture.h"
 }

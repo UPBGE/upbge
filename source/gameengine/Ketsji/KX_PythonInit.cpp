@@ -40,6 +40,8 @@
 #  endif
 #  include <Python.h>
 
+#include "MEM_guardedalloc.h"
+
 extern "C" {
 	#  include "BLI_utildefines.h"
 	#  include "python_utildefines.h"
@@ -138,7 +140,6 @@ extern "C" {
 #include "BKE_blender_version.h"
 #include "BLI_blenlib.h"
 #include "GPU_material.h"
-#include "MEM_guardedalloc.h"
 
 	#include "bpy_path.h"
 	#include "imbuf_py_api.h"

@@ -103,6 +103,8 @@
 #include "CM_Message.h"
 
 /**************************EEVEE INTEGRATION*****************************/
+#include "MEM_guardedalloc.h"
+
 extern "C" {
 #include "BKE_camera.h"
 #include "BKE_collection.h"
@@ -115,7 +117,6 @@ extern "C" {
 #include "DNA_windowmanager_types.h"
 #include "eevee_private.h"
 #include "DRW_render.h"
-#include "MEM_guardedalloc.h"
 
 // TEST USE_VIEWPORT_RENDER
 #include "ED_screen.h"

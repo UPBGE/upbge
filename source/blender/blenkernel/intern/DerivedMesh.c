@@ -3033,9 +3033,6 @@ static void mesh_build_derived_data(struct Depsgraph *depsgraph,
                       &ob->runtime.mesh_deform_eval,
                       &ob->runtime.mesh_eval);
 
-  ob->derivedDeform = CDDM_from_mesh_ex(ob->runtime.mesh_deform_eval, CD_REFERENCE, &CD_MASK_MESH);
-	ob->derivedFinal = CDDM_from_mesh_ex(ob->runtime.mesh_eval, CD_REFERENCE, &CD_MASK_MESH);
-
   BKE_object_boundbox_calc_from_mesh(ob, ob->runtime.mesh_eval);
   /* Only copy texspace from orig mesh if some modifier (hint: smoke sim, see T58492)
    * did not re-enable that flag (which always get disabled for eval mesh as a start). */
@@ -3080,7 +3077,7 @@ DerivedMesh *mesh_get_derived_final(
   mesh_build_derived_data(
       depsgraph, scene, ob, &cddata_masks, need_mapping || ob->runtime.last_need_mapping);
 
-  return ob->derivedFinal;
+  return CDDM_from_mesh_ex(ob->runtime.mesh_eval, CD_REFERENCE, &CD_MASK_MESH);
 }
 
 /* End of Game engine transition */

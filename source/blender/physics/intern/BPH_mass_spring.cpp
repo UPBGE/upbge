@@ -21,9 +21,9 @@
  * \ingroup bph
  */
 
-extern "C" {
 #include "MEM_guardedalloc.h"
 
+extern "C" {
 #include "DNA_cloth_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_force_types.h"
@@ -81,6 +81,11 @@ static float cloth_calc_volume(ClothModifierData *clmd)
   const MVertTri *tri = cloth->tri;
   Implicit_Data *data = cloth->implicit;
   float vol = 0;
+
+  /* Early exit for hair, as it never has volume. */
+  if (clmd->hairdata) {
+    return 0.0f;
+  }
 
   if (clmd->sim_parms->vgroup_pressure > 0) {
     for (unsigned int i = 0; i < cloth->primitive_num; i++) {
@@ -547,8 +552,8 @@ static void cloth_calc_force(
 #ifdef CLOTH_FORCE_DRAG
   BPH_mass_spring_force_drag(data, drag);
 #endif
-  /* handle pressure forces */
-  if (parms->flags & CLOTH_SIMSETTINGS_FLAG_PRESSURE) {
+  /* handle pressure forces (making sure that this never gets computed for hair). */
+  if ((parms->flags & CLOTH_SIMSETTINGS_FLAG_PRESSURE) && (clmd->hairdata == NULL)) {
     /* The difference in pressure between the inside and outside of the mesh.*/
     float pressure_difference = 0.0f;
 
@@ -634,13 +639,14 @@ static void cloth_calc_force(
           effectors, NULL, clmd->sim_parms->effector_weights, &epoint, winvec[i], NULL);
     }
 
-    for (i = 0; i < cloth->primitive_num; i++) {
-      const MVertTri *vt = &tri[i];
-      BPH_mass_spring_force_face_wind(data, vt->tri[0], vt->tri[1], vt->tri[2], winvec);
+    /* Hair has only edges. */
+    if ((clmd->hairdata == NULL) && (cloth->primitive_num > 0)) {
+      for (i = 0; i < cloth->primitive_num; i++) {
+        const MVertTri *vt = &tri[i];
+        BPH_mass_spring_force_face_wind(data, vt->tri[0], vt->tri[1], vt->tri[2], winvec);
+      }
     }
-
-    /* Hair has only edges */
-    if (cloth->primitive_num == 0) {
+    else {
 #if 0
       ClothHairData *hairdata = clmd->hairdata;
       ClothHairData *hair_ij, *hair_kl;

@@ -27,6 +27,9 @@
 
 #include <set>
 #include <string>
+
+#include "MEM_guardedalloc.h"
+
 extern "C" {
 #include "DNA_modifier_types.h"
 #include "DNA_customdata_types.h"
@@ -61,8 +64,6 @@ extern "C" {
 #include "ED_screen.h"
 #include "ED_node.h"
 #include "ED_object.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "WM_api.h" /* XXX hrm, see if we can do without this */
 #include "WM_types.h"
@@ -1321,7 +1322,8 @@ void bc_add_default_shader(bContext *C, Material *ma)
 
 COLLADASW::ColorOrTexture bc_get_base_color(Material *ma)
 {
-  Color default_color = {ma->r, ma->g, ma->b, 1.0}; // for alpha see bc_get_alpha()
+  /* for alpha see bc_get_alpha() */
+  Color default_color = {ma->r, ma->g, ma->b, 1.0};
   bNode *shader = bc_get_master_shader(ma);
   if (ma->use_nodes && shader) {
     return bc_get_cot_from_shader(shader, "Base Color", default_color, false);

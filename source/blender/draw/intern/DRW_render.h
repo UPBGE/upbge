@@ -25,6 +25,12 @@
 #ifndef __DRW_RENDER_H__
 #define __DRW_RENDER_H__
 
+#include "MEM_guardedalloc.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -54,8 +60,6 @@
 
 #include "draw_manager_profiling.h"
 #include "draw_debug.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "RE_engine.h"
 
@@ -710,5 +714,9 @@ void DRW_game_render_loop_end(void);
 
 void DRW_transform_to_display_image_render(struct GPUTexture *tex);
 /**************************END OF GAME ENGINE*******************************/
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __DRW_RENDER_H__ */

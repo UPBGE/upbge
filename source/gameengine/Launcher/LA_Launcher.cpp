@@ -61,6 +61,8 @@
 
 #include "CM_Message.h"
 
+#include "MEM_guardedalloc.h"
+
 extern "C" {
 #  include "GPU_extensions.h"
 #  include "GPU_framebuffer.h"
@@ -75,9 +77,7 @@ extern "C" {
 
 #  include "wm_event_types.h"
 
-	#include "../../blender/python/BPY_extern.h"
-
-#  include "MEM_guardedalloc.h"
+#  include "../../blender/python/BPY_extern.h"
 }
 
 

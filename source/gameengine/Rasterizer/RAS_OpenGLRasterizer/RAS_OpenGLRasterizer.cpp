@@ -32,6 +32,8 @@
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_IPolygonMaterial.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "GPU_glew.h"
 
 #include "GPU_draw.h"
@@ -48,8 +50,6 @@ extern "C" {
 #  include "DNA_material_types.h"
 #  include "GPU_immediate.h"
 }
-
-#include "MEM_guardedalloc.h"
 
 #include "CM_Message.h"
 

@@ -22,6 +22,8 @@
  *  \ingroup bgerast
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "RAS_ICanvas.h"
 #include "DNA_scene_types.h"
 
@@ -32,8 +34,6 @@
 #include "BLI_task.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "KX_KetsjiEngine.h"
 

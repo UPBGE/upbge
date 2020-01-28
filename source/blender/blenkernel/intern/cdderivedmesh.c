@@ -304,20 +304,6 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
                         looptris_num);
 
     pbvh_show_mask_set(cddm->pbvh, ob->sculpt->show_mask);
-
-    //deformed = check_sculpt_object_deformed(ob, true);
-
-    if (/*deformed &&*/ ob->derivedDeform) {
-      DerivedMesh *deformdm = ob->derivedDeform;
-      float(*vertCos)[3];
-      int totvert;
-
-      totvert = deformdm->getNumVerts(deformdm);
-      vertCos = MEM_malloc_arrayN(totvert, sizeof(float[3]), "cdDM_getPBVH vertCos");
-      deformdm->getVertCos(deformdm, vertCos);
-      BKE_pbvh_vert_coords_apply(cddm->pbvh, vertCos, totvert);
-      MEM_freeN(vertCos);
-    }
   }
 
   return cddm->pbvh;

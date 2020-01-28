@@ -36,9 +36,7 @@
 
 #include "GPU_glew.h"
 
-extern "C" {
-#  include "DRW_render.h"
-}
+#include "DRW_render.h"
 
 extern "C" {
 	extern char datatoc_RAS_Blur2DFilter_glsl[];

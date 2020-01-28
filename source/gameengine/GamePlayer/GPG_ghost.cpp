@@ -41,9 +41,10 @@
 #  endif /* __alpha__ */
 #endif /* __linux__ */
 
+#include "MEM_guardedalloc.h"
+
 extern "C"
 {
-#  include "MEM_guardedalloc.h"
 #  include "MEM_CacheLimiterC-Api.h"
 
 #  include "BLI_threads.h"
