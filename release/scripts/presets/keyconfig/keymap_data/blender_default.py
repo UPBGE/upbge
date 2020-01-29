@@ -942,6 +942,7 @@ def km_view3d(params):
         # Visibility.
         ("view3d.localview", {"type": 'NUMPAD_SLASH', "value": 'PRESS'}, None),
         ("view3d.localview", {"type": 'SLASH', "value": 'PRESS'}, None),
+        ("view3d.localview", {"type": 'MOUSESMARTZOOM', "value": 'ANY'}, None),
         ("view3d.localview_remove_from", {"type": 'M', "value": 'PRESS'}, None),
         # Navigation.
         ("view3d.rotate", {"type": 'MIDDLEMOUSE', "value": 'PRESS'}, None),
@@ -5293,6 +5294,26 @@ def km_3d_view_tool_scale(params):
     )
 
 
+def km_3d_view_tool_shear(params):
+    return (
+        "3D View Tool: Shear",
+        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
+        {"items": [
+            ("transform.shear",
+             {"type": params.tool_tweak, "value": 'NORTH'},
+             {"properties": [("release_confirm", True), ("orient_axis_ortho", 'Y')]}),
+            ("transform.shear",
+             {"type": params.tool_tweak, "value": 'SOUTH'},
+             {"properties": [("release_confirm", True), ("orient_axis_ortho", 'Y')]}),
+
+            # Use as fallback to catch diagonals too.
+            ("transform.shear",
+             {"type": params.tool_tweak, "value": 'ANY'},
+             {"properties": [("release_confirm", True), ("orient_axis_ortho", 'X')]}),
+        ]},
+    )
+
+
 def km_3d_view_tool_measure(params):
     return (
         "3D View Tool: Measure",
@@ -5604,26 +5625,6 @@ def km_3d_view_tool_edit_mesh_push_pull(params):
         {"items": [
             ("transform.push_pull", {"type": params.tool_tweak, "value": 'ANY'},
              {"properties": [("release_confirm", True)]}),
-        ]},
-    )
-
-
-def km_3d_view_tool_edit_mesh_shear(params):
-    return (
-        "3D View Tool: Edit Mesh, Shear",
-        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
-        {"items": [
-            ("transform.shear",
-             {"type": params.tool_tweak, "value": 'NORTH'},
-             {"properties": [("release_confirm", True), ("orient_axis_ortho", 'Y')]}),
-            ("transform.shear",
-             {"type": params.tool_tweak, "value": 'SOUTH'},
-             {"properties": [("release_confirm", True), ("orient_axis_ortho", 'Y')]}),
-
-            # Use as fallback to catch diagonals too.
-            ("transform.shear",
-             {"type": params.tool_tweak, "value": 'ANY'},
-             {"properties": [("release_confirm", True), ("orient_axis_ortho", 'X')]}),
         ]},
     )
 
@@ -6240,6 +6241,7 @@ def generate_keymaps(params=None):
         km_3d_view_tool_move(params),
         km_3d_view_tool_rotate(params),
         km_3d_view_tool_scale(params),
+        km_3d_view_tool_shear(params),
         km_3d_view_tool_measure(params),
         km_3d_view_tool_pose_breakdowner(params),
         km_3d_view_tool_pose_push(params),
@@ -6269,7 +6271,6 @@ def generate_keymaps(params=None):
         km_3d_view_tool_edit_mesh_vertex_slide(params),
         km_3d_view_tool_edit_mesh_shrink_fatten(params),
         km_3d_view_tool_edit_mesh_push_pull(params),
-        km_3d_view_tool_edit_mesh_shear(params),
         km_3d_view_tool_edit_mesh_to_sphere(params),
         km_3d_view_tool_edit_mesh_rip_region(params),
         km_3d_view_tool_edit_mesh_rip_edge(params),

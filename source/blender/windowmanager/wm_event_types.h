@@ -43,64 +43,64 @@ enum {
 
 /* ********** wmEvent.type ********** */
 enum {
-	/* non-event, for example disabled timer */
-	EVENT_NONE = 0x0000,
+  /* non-event, for example disabled timer */
+  EVENT_NONE = 0x0000,
 
-	/* ********** Start of Input devices. ********** */
+  /* ********** Start of Input devices. ********** */
 
-	/* MOUSE : 0x000x, 0x001x */
-	LEFTMOUSE           = 0x0001,
-	MIDDLEMOUSE         = 0x0002,
-	RIGHTMOUSE          = 0x0003,
-	MOUSEMOVE           = 0x0004,
-	/* only use if you want user option switch possible */
-	ACTIONMOUSE = 0x0005,
-	SELECTMOUSE = 0x0006,
-	/* Extra mouse buttons */
-	BUTTON4MOUSE        = 0x0007,
-	BUTTON5MOUSE        = 0x0008,
-	/* More mouse buttons - can't use 9 and 10 here (wheel) */
-	BUTTON6MOUSE        = 0x0012,
-	BUTTON7MOUSE        = 0x0013,
-	/* Extra trackpad gestures */
-	MOUSEPAN            = 0x000e,
-	MOUSEZOOM           = 0x000f,
-	MOUSEROTATE         = 0x0010,
-	/* defaults from ghost */
-	WHEELUPMOUSE        = 0x000a,
-	WHEELDOWNMOUSE      = 0x000b,
-	/* mapped with userdef */
-	WHEELINMOUSE        = 0x000c,
-	WHEELOUTMOUSE       = 0x000d,
-	/* Successive MOUSEMOVE's are converted to this, so we can easily
-	 * ignore all but the most recent MOUSEMOVE (for better performance),
-	 * paint and drawing tools however will want to handle these. */
-	INBETWEEN_MOUSEMOVE = 0x0011,
+  /* MOUSE : 0x000x, 0x001x */
+  LEFTMOUSE = 0x0001,
+  MIDDLEMOUSE = 0x0002,
+  RIGHTMOUSE = 0x0003,
+  MOUSEMOVE = 0x0004,
+  ACTIONMOUSE = 0x0005,
+  /* Extra mouse buttons */
+  BUTTON4MOUSE = 0x0007,
+  BUTTON5MOUSE = 0x0008,
+  /* More mouse buttons - can't use 9 and 10 here (wheel) */
+  BUTTON6MOUSE = 0x0012,
+  BUTTON7MOUSE = 0x0013,
+  /* Extra trackpad gestures */
+  MOUSEPAN = 0x000e,
+  MOUSEZOOM = 0x000f,
+  MOUSEROTATE = 0x0010,
+  MOUSESMARTZOOM = 0x0017,
 
-/* IME event, GHOST_kEventImeCompositionStart in ghost */
-	WM_IME_COMPOSITE_START = 0x0014,
-/* IME event, GHOST_kEventImeComposition in ghost */
-	WM_IME_COMPOSITE_EVENT      = 0x0015,
-/* IME event, GHOST_kEventImeCompositionEnd in ghost */
-	WM_IME_COMPOSITE_END   = 0x0016,
+  /* defaults from ghost */
+  WHEELUPMOUSE = 0x000a,
+  WHEELDOWNMOUSE = 0x000b,
+  /* mapped with userdef */
+  WHEELINMOUSE = 0x000c,
+  WHEELOUTMOUSE = 0x000d,
+  /* Successive MOUSEMOVE's are converted to this, so we can easily
+   * ignore all but the most recent MOUSEMOVE (for better performance),
+   * paint and drawing tools however will want to handle these. */
+  INBETWEEN_MOUSEMOVE = 0x0011,
 
-	/* Tablet/Pen Specific Events */
-	TABLET_STYLUS       = 0x001a,
-	TABLET_ERASER       = 0x001b,
+  /* IME event, GHOST_kEventImeCompositionStart in ghost */
+  WM_IME_COMPOSITE_START = 0x0014,
+  /* IME event, GHOST_kEventImeComposition in ghost */
+  WM_IME_COMPOSITE_EVENT = 0x0015,
+  /* IME event, GHOST_kEventImeCompositionEnd in ghost */
+  WM_IME_COMPOSITE_END = 0x0016,
 
-	/* *** Start of keyboard codes. *** */
+  /* Tablet/Pen Specific Events */
+  TABLET_STYLUS = 0x001a,
+  TABLET_ERASER = 0x001b,
 
-	/* standard keyboard.
-	 * XXX from 0x0020 to 0x00ff, and 0x012c to 0x013f for function keys! */
+  /* *** Start of keyboard codes. *** */
 
-	/* NOTE: these values are saved in keymap files, do not change them but just add new ones */
-	AKEY            = 0x0061,  /* 'a' */
-	BKEY            = 0x0062,  /* 'b' */
-	CKEY            = 0x0063,  /* 'c' */
-	DKEY            = 0x0064,  /* 'd' */
-	EKEY            = 0x0065,  /* 'e' */
-	FKEY            = 0x0066,  /* 'f' */
-	GKEY            = 0x0067,  /* 'g' */
+  /* standard keyboard.
+   * XXX from 0x0020 to 0x00ff, and 0x012c to 0x013f for function keys! */
+
+  /* NOTE: these values are saved in keymap files, do not change them but just add new ones */
+  AKEY = 0x0061, /* 'a' */
+  BKEY = 0x0062, /* 'b' */
+  CKEY = 0x0063, /* 'c' */
+  DKEY = 0x0064, /* 'd' */
+  EKEY = 0x0065, /* 'e' */
+  FKEY = 0x0066, /* 'f' */
+  GKEY = 0x0067, /* 'g' */
 #ifndef WIN32
   HKEY = 0x0068, /* 'h' */
 #else
@@ -362,7 +362,8 @@ enum {
   (((event_type) >= LEFTCTRLKEY && (event_type) <= LEFTSHIFTKEY) || (event_type) == OSKEY)
 
 /* test whether the event is a mouse button */
-#define ISMOUSE(event_type) ((event_type) >= LEFTMOUSE && (event_type) <= BUTTON7MOUSE)
+#define ISMOUSE(event_type) \
+  (((event_type) >= LEFTMOUSE && (event_type) <= BUTTON7MOUSE) || (event_type) == MOUSESMARTZOOM)
 
 #define ISMOUSE_WHEEL(event_type) ((event_type) >= WHEELUPMOUSE && (event_type) <= WHEELOUTMOUSE)
 #define ISMOUSE_GESTURE(event_type) ((event_type) >= MOUSEPAN && (event_type) <= MOUSEROTATE)
