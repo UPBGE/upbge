@@ -46,7 +46,7 @@ const struct MLoopTri *BKE_mesh_runtime_looptri_ensure(struct Mesh *mesh);
 bool BKE_mesh_runtime_ensure_edit_data(struct Mesh *mesh);
 bool BKE_mesh_runtime_clear_edit_data(struct Mesh *mesh);
 void BKE_mesh_runtime_clear_geometry(struct Mesh *mesh);
-void BKE_mesh_runtime_clear_cache(struct Mesh *mesh);
+void BKE_mesh_runtime_clear_cache(struct Mesh *mesh, bool navmesh); /* Game Engine transition */
 
 void BKE_mesh_runtime_verttri_from_looptri(struct MVertTri *r_verttri,
                                            const struct MLoop *mloop,

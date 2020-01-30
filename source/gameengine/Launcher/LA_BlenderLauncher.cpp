@@ -158,8 +158,16 @@ void LA_BlenderLauncher::ExitEngine()
 		m_startScene->camera= m_savedBlenderData.camera;
 	}
 
-	if (m_startScene->gm.flag & GAME_USE_UNDO) {
-	  BKE_undosys_step_undo(m_windowManager->undo_stack, m_context);
+    /* Undo System */
+    if (m_startScene->gm.flag & GAME_USE_UNDO) {
+        UndoStep *step_data_from_name = NULL;
+        step_data_from_name = BKE_undosys_step_find_by_name(m_windowManager->undo_stack, "bge_start");
+        if (step_data_from_name) {
+            BKE_undosys_step_undo_with_data(m_windowManager->undo_stack, m_context, step_data_from_name);
+        }
+        else {
+            BKE_undosys_step_undo(m_windowManager->undo_stack, m_context);
+        }
     }
 
 	// Free all window manager events unused.

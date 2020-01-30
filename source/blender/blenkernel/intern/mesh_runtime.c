@@ -74,7 +74,7 @@ void BKE_mesh_runtime_reset_on_copy(Mesh *mesh, const int UNUSED(flag))
   BLI_mutex_init(mesh->runtime.eval_mutex);
 }
 
-void BKE_mesh_runtime_clear_cache(Mesh *mesh)
+void BKE_mesh_runtime_clear_cache(Mesh *mesh, bool navmesh)
 {
   if (mesh->runtime.eval_mutex != NULL) {
     BLI_mutex_end(mesh->runtime.eval_mutex);
@@ -83,7 +83,10 @@ void BKE_mesh_runtime_clear_cache(Mesh *mesh)
   }
   if (mesh->runtime.mesh_eval != NULL) {
     mesh->runtime.mesh_eval->edit_mesh = NULL;
-    BKE_id_free(NULL, mesh->runtime.mesh_eval);
+    /* Navmesh is not built around 'id' unlike other meshes */
+    if (!navmesh) { /* Game Engine transition */
+      BKE_id_free(NULL, mesh->runtime.mesh_eval);
+    }
     mesh->runtime.mesh_eval = NULL;
   }
   BKE_mesh_runtime_clear_geometry(mesh);
