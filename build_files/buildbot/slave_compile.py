@@ -103,7 +103,7 @@ def cmake_build(builder):
     if builder.platform == 'win':
         command = ['cmake', '--build', '.', '--target', 'install', '--config', 'Release']
     else:
-        command = ['make', '-s', '-j2', 'install']
+        command = ['make', '-s', '-j16', 'install']
 
     print("CMake build:")
     buildbot_utils.call(builder.command_prefix + command)

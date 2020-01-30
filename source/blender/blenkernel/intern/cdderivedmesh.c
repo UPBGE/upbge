@@ -667,7 +667,6 @@ DerivedMesh *CDDM_from_curve(Object *ob)
 
 DerivedMesh *CDDM_from_curve_displist(Object *ob, ListBase *dispbase)
 {
-  Curve *cu = (Curve *)ob->data;
   DerivedMesh *dm;
   CDDerivedMesh *cddm;
   MVert *allvert;
@@ -676,7 +675,6 @@ DerivedMesh *CDDM_from_curve_displist(Object *ob, ListBase *dispbase)
   MPoly *allpoly;
   MLoopUV *alluv = NULL;
   int totvert, totedge, totloop, totpoly;
-  bool use_orco_uv = (cu->flag & CU_UV_ORCO) != 0;
 
   if (BKE_mesh_nurbs_displist_to_mdata(ob,
                                        dispbase,
@@ -686,7 +684,7 @@ DerivedMesh *CDDM_from_curve_displist(Object *ob, ListBase *dispbase)
                                        &totedge,
                                        &allloop,
                                        &allpoly,
-                                       (use_orco_uv) ? &alluv : NULL,
+                                       &alluv,
                                        &totloop,
                                        &totpoly) != 0) {
     /* Error initializing mdata. This often happens when curve is empty */
