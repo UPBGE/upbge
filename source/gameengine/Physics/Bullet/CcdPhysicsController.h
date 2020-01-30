@@ -138,7 +138,7 @@ public:
 		return true;
 	}
 
-	bool SetMesh(class RAS_MeshObject *mesh, struct DerivedMesh *dm, bool polytope);
+	bool SetMesh(class KX_Scene *kxscene, class RAS_MeshObject *mesh, struct DerivedMesh *dm, bool polytope);
   bool SetMesh2(class RAS_MeshObject *mesh, struct Object *ob, bool recalcGeom);
 
 	RAS_MeshObject *GetMesh(void)

@@ -1804,7 +1804,7 @@ void CcdShapeConstructionInfo::ProcessReplica()
 	m_shapeArray.clear();
 }
 
-bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm, bool polytope)
+bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene, RAS_MeshObject *meshobj, DerivedMesh *dm, bool polytope)
 {
 	int numpolys, numverts;
 
@@ -1826,7 +1826,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 
 	if (!dm) {
 		free_dm = true;
-		Scene *scene = KX_GetActiveScene()->GetBlenderScene();
+		Scene *scene = kxscene->GetBlenderScene();
 		ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 		Main *bmain = G_MAIN;
 		Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
