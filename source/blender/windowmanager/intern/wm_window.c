@@ -2472,56 +2472,38 @@ void *WM_opengl_context_create_blenderplayer(void *syshandle)
 void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
                                                wmWindow *win,
                                                void *ghostwin) {
-  GHOST_GLSettings glSettings = {0};
-  int scr_w, scr_h, posy;
-  /* a new window is created when pageflip mode is required for a window */
-  if (win->stereo3d_format->display_mode == S3D_DISPLAY_PAGEFLIP)
-  {
-    glSettings.flags |= GHOST_glStereoVisual;
-  }
-  if (G.debug & G_DEBUG_GPU)
-  {
-    glSettings.flags |= GHOST_glDebugContext;
-  }
-  wm_get_screensize(&scr_w, &scr_h);
-  posy = (scr_h - win->posy - win->sizey);
   wm_window_clear_drawable(wm);
+  GHOST_RectangleHandle bounds;
+  GLuint default_fb = GHOST_GetDefaultOpenGLFramebuffer(ghostwin);
+  win->gpuctx = GPU_context_create(default_fb);
+  /* needed so we can detect the graphics card below */
+  GPU_init();
+  /* Set window as drawable upon creation. Note this has already been
+   * it has already been activated by GHOST_CreateWindow. */
+  wm_window_set_drawable(wm, win, false);
   win->ghostwin = ghostwin;
-  if (ghostwin) {
-    GHOST_RectangleHandle bounds;
-    GLuint default_fb = GHOST_GetDefaultOpenGLFramebuffer(ghostwin);
-    win->gpuctx = GPU_context_create(default_fb);
-    /* needed so we can detect the graphics card below */
-    GPU_init();
-    /* Set window as drawable upon creation. Note this has already been
-     * it has already been activated by GHOST_CreateWindow. */
-    wm_window_set_drawable(wm, win, false);
-    win->ghostwin = ghostwin;
-    GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
-    wm_window_ensure_eventstate(win);
-    /* store actual window size in blender window */
-    bounds = GHOST_GetClientBounds(win->ghostwin);
-    /* win32: gives undefined window size when minimized */
-    if (GHOST_GetWindowState(win->ghostwin) != GHOST_kWindowStateMinimized)
-    {
-      win->sizex = GHOST_GetWidthRectangle(bounds);
-      win->sizey = GHOST_GetHeightRectangle(bounds);
-    }
-    GHOST_DisposeRectangle(bounds);
-    /* until screens get drawn, make it nice gray */
-    glClearColor(0.55, 0.55, 0.55, 0.0);
-    /* Crash on OSS ATI: bugs.launchpad.net/ubuntu/+source/mesa/+bug/656100 */
-    if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE))
-    {
-      glClear(GL_COLOR_BUFFER_BIT);
-    }
-    /* needed here, because it's used before it reads userdef */
-    WM_window_set_dpi(win);
-    wm_window_swap_buffers(win);
-    // GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
-    /* standard state vars for window */
-    GPU_state_init();
+  GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
+  wm_window_ensure_eventstate(win);
+  /* store actual window size in blender window */
+  bounds = GHOST_GetClientBounds(win->ghostwin);
+  /* win32: gives undefined window size when minimized */
+  if (GHOST_GetWindowState(win->ghostwin) != GHOST_kWindowStateMinimized) {
+    win->sizex = GHOST_GetWidthRectangle(bounds);
+    win->sizey = GHOST_GetHeightRectangle(bounds);
   }
+  GHOST_DisposeRectangle(bounds);
+  /* until screens get drawn, make it nice gray */
+  glClearColor(0.55, 0.55, 0.55, 0.0);
+  /* Crash on OSS ATI: bugs.launchpad.net/ubuntu/+source/mesa/+bug/656100 */
+  if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
+    glClear(GL_COLOR_BUFFER_BIT);
+  }
+  /* needed here, because it's used before it reads userdef */
+  WM_window_set_dpi(win);
+  wm_window_swap_buffers(win);
+  // GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
+  /* standard state vars for window */
+  GPU_state_init();
 }
 /* End of Game engine transition */
 /** \} */
