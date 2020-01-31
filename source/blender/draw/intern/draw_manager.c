@@ -3174,7 +3174,7 @@ void DRW_opengl_context_create_blenderplayer(void *syshandle)
 
   /* This changes the active context. */
   DST.gl_context = WM_opengl_context_create_blenderplayer(syshandle);
-  //WM_opengl_context_activate(DST.gl_context);
+  WM_opengl_context_activate(DST.gl_context);
   /* Be sure to create gpu_context too. */
   DST.gpu_context = GPU_context_create(0);
   /* Set default Blender OpenGL state */
