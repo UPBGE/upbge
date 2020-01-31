@@ -594,6 +594,13 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     }
   }
 
+  if (scene->gm.vsync == VSYNC_ADAPTIVE) {
+    canvas->SetSwapInterval(-1);
+  }
+  else {
+    canvas->SetSwapInterval((scene->gm.vsync == VSYNC_ON) ? 1 : 0);
+  }
+
   if (cam) {
     UpdateObjectLods(cam);
   }
