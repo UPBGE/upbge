@@ -1233,11 +1233,6 @@ static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *
 					if (ELEM(base->object->type, OB_CURVE, OB_SURF)) {
 						cu = ob->data;
 						cu1 = base->object->data;
-
-						if (cu->flag & CU_UV_ORCO)
-							cu1->flag |= CU_UV_ORCO;
-						else
-							cu1->flag &= ~CU_UV_ORCO;
 					}
 				}
 				else if (event == 29) { /* protected bits */
