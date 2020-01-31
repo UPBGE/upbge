@@ -2492,8 +2492,8 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
     win->sizey = GHOST_GetHeightRectangle(bounds);
   }
   GHOST_DisposeRectangle(bounds);
-  /* until screens get drawn, make it nice gray */
-  glClearColor(0.55, 0.55, 0.55, 0.0);
+  /* until screens get drawn, make it white */
+  glClearColor(1.0, 1.0, 1.0, 0.0);
   /* Crash on OSS ATI: bugs.launchpad.net/ubuntu/+source/mesa/+bug/656100 */
   if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
     glClear(GL_COLOR_BUFFER_BIT);
