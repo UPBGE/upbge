@@ -1527,8 +1527,6 @@ int main(
 					}
 				} while (!quitGame(exitcode));
 			}
-
-			GPU_immDeactivate();
 		}
 		else {
 			error = true;
