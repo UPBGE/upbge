@@ -858,6 +858,11 @@ void WM_generic_callback_free(struct wmGenericCallback *callback);
 
 void WM_generic_user_data_free(struct wmGenericUserData *user_data);
 
+/* Game engine transition */
+void WM_init_opengl_blenderplayer(struct Main *bmain, void *syshandle);
+void *WM_opengl_context_create_blenderplayer(void *syshandle);
+/* End of Game engine transition */
+
 #ifdef __cplusplus
 }
 #endif

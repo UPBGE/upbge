@@ -1223,14 +1223,14 @@ int main(
 		usage(argv[0], isBlenderPlayer);
 		return 0;
 	}
-
+	GHOST_ISystem *system = nullptr;
 #ifdef WIN32
 	if (scr_saver_mode != SCREEN_SAVER_MODE_CONFIGURATION)
 #endif
 	{
 		// Create the system
 		if (GHOST_ISystem::createSystem() == GHOST_kSuccess) {
-			GHOST_ISystem* system = GHOST_ISystem::getSystem();
+			system = GHOST_ISystem::getSystem();
 			BLI_assert(system);
 			
 			if (!fullScreenWidth || !fullScreenHeight)
@@ -1482,21 +1482,11 @@ int main(
 															 windowHeight, stereoWindow, alphaBackground);
 								}
 							}
-
-                            G.background = true;
-                            wm_ghost_init(NULL);
-                            WM_check(C);
-
-                            DRW_opengl_context_create_blenderplayer();
-                            G.background = false;
-							GPU_init();
-							GPU_immActivate();
-
-                            GPU_set_mipmap(G.main, true);
-                            GPU_set_linear_mipmap(true);
-                            GPU_set_anisotropic(G.main, U.anisotropic_filter);
-
-                            GPU_pass_cache_init();
+							/* wm context */
+							wmWindowManager * wm = (wmWindowManager *)CTX_data_main(C)->wm.first;
+							CTX_wm_manager_set(C, wm);
+							WM_init_opengl_blenderplayer(G_MAIN, system);
+							wm_window_ghostwindow_blenderplayer_ensure(wm, (wmWindow *)wm->windows.first, window);
 						}
 
 						// This argc cant be argc_py_clamped, since python uses it.
@@ -1537,15 +1527,6 @@ int main(
 					}
 				} while (!quitGame(exitcode));
 			}
-
-			GPU_immDeactivate();
-
-			if (window) {
-				system->disposeWindow(window);
-			}
-
-			// Dispose the system
-			GHOST_ISystem::disposeSystem();
 		}
 		else {
 			error = true;
@@ -1611,6 +1592,13 @@ int main(
   GPU_exit();
   DRW_opengl_context_disable_ex(false);
   DRW_opengl_context_destroy();
+
+  if (window) {
+    system->disposeWindow(window);
+  }
+
+  // Dispose the system
+  GHOST_ISystem::disposeSystem();
 
 #ifdef WITH_PYTHON
   BPY_python_end();
