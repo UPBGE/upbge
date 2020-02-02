@@ -115,8 +115,8 @@ extern "C" {
 #include "depsgraph/DEG_depsgraph_query.h"
 #include "DNA_mesh_types.h"
 #include "DNA_windowmanager_types.h"
-#include "eevee_private.h"
 #include "DRW_render.h"
+#include "WM_api.h"
 
 // TEST USE_VIEWPORT_RENDER
 #include "ED_screen.h"
@@ -439,7 +439,7 @@ void KX_Scene::InitBlenderContextVariables()
   wmWindowManager *wm = CTX_wm_manager(KX_GetActiveEngine()->GetContext());
   wmWindow *win;
   for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
-    bScreen *screen = win->screen;
+    bScreen *screen = WM_window_get_active_screen(win);
     if (!screen) {
       continue;
     }
