@@ -381,7 +381,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             col.label(text="Space:")
             col.prop(md, "space", text="")
         col.label(text="Vertex Group:")
-        col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row = col.row(align=True)
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
 
         col = split.column(align=True)
         col.active = has_texture
@@ -1137,7 +1139,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.label(text="To:")
         col.prop(md, "object_to", text="")
-        col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row = col.row(align=True)
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
 
         col = layout.column()
 

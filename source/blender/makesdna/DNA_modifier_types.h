@@ -492,7 +492,14 @@ typedef struct DisplaceModifierData {
   char defgrp_name[64];
   float midlevel;
   int space;
+  short flag;
+  char _pad[6];
 } DisplaceModifierData;
+
+/* DisplaceModifierData->flag */
+enum {
+  MOD_DISP_INVERT_VGROUP = (1 << 0),
+};
 
 /* DisplaceModifierData->direction */
 enum {
@@ -1293,13 +1300,17 @@ typedef struct WarpModifierData {
   char defgrp_name[64];
   float strength;
   float falloff_radius;
-  /** Not used yet. */
   char flag;
   char falloff_type;
   char _pad[6];
 } WarpModifierData;
 
 #define MOD_WARP_VOLUME_PRESERVE 1
+
+/* WarpModifierData->flag */
+enum {
+  MOD_WARP_INVERT_VGROUP = (1 << 0),
+};
 
 typedef enum {
   eWarp_Falloff_None = 0,

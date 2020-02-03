@@ -385,11 +385,11 @@ static void rna_ParticleSystem_co_hair(
     totchild = 0;
   }
 
-  if (particle_no < totpart) {
+  if (particle_no < totpart && particlesystem->pathcache) {
     cache = particlesystem->pathcache[particle_no];
     max_k = (int)cache->segments;
   }
-  else if (particle_no < totpart + totchild) {
+  else if (particle_no < totpart + totchild && particlesystem->childcache) {
     cache = particlesystem->childcache[particle_no - totpart];
 
     if (cache->segments < 0) {
