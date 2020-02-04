@@ -171,7 +171,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_resetTaaSamples(false),               // eevee
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
-      m_gpuViewport(nullptr),                 // eevee
+      m_currentGPUViewport(nullptr),          // eevee
+      m_overlayCamera(nullptr),               // eevee
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -283,7 +284,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
 
-    RenderAfterCameraSetup(true);
+    RenderAfterCameraSetup(nullptr, false);
   }
   else {
     Depsgraph *depsgraph = BKE_scene_get_depsgraph(
@@ -434,29 +435,6 @@ void KX_Scene::ResetLastReplicatedParentObject()
 }
 
 /*******************EEVEE INTEGRATION******************/
-void KX_Scene::AddOverlayCollection(Collection *collection)
-{
-  /* TODO: Add check for already added collections */
-  m_overlay_collections.push_back(collection);
-  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, collection_object) {
-    collection_object->gameflag |= OB_OVERLAY_COLLECTION;
-  }
-  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-  ResetTaaSamples();
-}
-
-void KX_Scene::RemoveOverlayCollection(Collection *collection)
-{
-  /* TODO: Add check for already removed collections */
-  m_overlay_collections.erase(
-      std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection));
-  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, collection_object) {
-    collection_object->gameflag &= ~OB_OVERLAY_COLLECTION;
-  }
-  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-  ResetTaaSamples();
-}
-
 void KX_Scene::InitBlenderContextVariables()
 {
   ARegion *ar;
@@ -535,10 +513,76 @@ void KX_Scene::ResetTaaSamples()
   m_resetTaaSamples = true;
 }
 
+void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collection)
+{
+  /* TODO: Add check for already added collections */
+  if (std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection) !=
+      m_overlay_collections.end()) {
+    std::cout << "Collection already added." << std::endl;
+    return;
+  }
+  SetOverlayCamera(overlay_cam);
+  m_overlay_collections.push_back(collection);
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, collection_object) {
+    collection_object->gameflag |= OB_OVERLAY_COLLECTION;
+  }
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+  ResetTaaSamples();
+}
+
+void KX_Scene::RemoveOverlayCollection(Collection *collection)
+{
+  /* TODO: Add check for already removed collections */
+  if (std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection) !=
+      m_overlay_collections.end()) {
+    SetOverlayCamera(nullptr);
+    m_overlay_collections.erase(
+        std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection));
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, collection_object) {
+      collection_object->gameflag &= ~OB_OVERLAY_COLLECTION;
+    }
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+    ResetTaaSamples();
+  }
+}
+
+void KX_Scene::SetCurrentGPUViewport(GPUViewport* viewport)
+{
+  m_currentGPUViewport = viewport;
+}
+
+GPUViewport *KX_Scene::GetCurrentGPUViewport()
+{
+  return m_currentGPUViewport;
+}
+
+void KX_Scene::SetInitMaterialsGPUViewport(GPUViewport *viewport)
+{
+  if (!viewport) {
+    GPU_viewport_free(m_initMaterialsGPUViewport);
+  }
+  m_initMaterialsGPUViewport = viewport;
+}
+
+GPUViewport* KX_Scene::GetInitMaterialsGPUViewport()
+{
+  return m_initMaterialsGPUViewport;
+}
+
+void KX_Scene::SetOverlayCamera(KX_Camera* cam)
+{
+  m_overlayCamera = cam;
+}
+
+KX_Camera* KX_Scene::GetOverlayCamera()
+{
+  return m_overlayCamera;
+}
+
 static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0;
 static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER1;
 
-void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
+void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 {
 
   for (KX_GameObject *gameobj : GetObjectList()) {
@@ -552,7 +596,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
-  KX_Camera *cam = GetActiveCamera();
 
   if (!depsgraph) {
     depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
@@ -572,7 +615,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
   const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
 
-  if (!calledFromConstructor) {
+  if (cam) {
     rasty->SetMatrix(cam->GetModelviewMatrix(),
                      cam->GetProjectionMatrix(),
                      cam->NodeGetWorldPosition(),
@@ -598,7 +641,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
    * Here we'll render directly the scene with viewport code.
    */
   if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && ar) {
-    if (!calledFromConstructor) {
+    if (cam) {
       RegionView3D *rv3d = (RegionView3D *)ar->regiondata;
 
       DRW_view_set_active(NULL);
@@ -620,30 +663,17 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
   if (cam) {
     UpdateObjectLods(cam);
+    SetCurrentGPUViewport(cam->GetGPUViewport());
   }
 
-  int numpasses = 1;
-  if (!m_overlay_collections.empty()) {
-    numpasses = 2;
+  bool calledFromConstructor = cam == nullptr;
+  if (calledFromConstructor) {
+    m_currentGPUViewport = GPU_viewport_create();
+    SetInitMaterialsGPUViewport(m_currentGPUViewport);
   }
 
-  for (int i = 0; i < numpasses; i++) {
-    bool draw_overlay = i == 1;
-
-    if (draw_overlay) {
-      rasty->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
-      rasty->Enable(RAS_Rasterizer::RAS_BLEND);
-      rasty->SetBlendFunc(RAS_Rasterizer::RAS_ONE, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA); //?????
-      reset_taa_samples = true;
-    }
-
-    if (!m_gpuViewport) {
-      /* Create eevee's cache space */
-      m_gpuViewport = GPU_viewport_create();
-    }
-
-    DRW_game_render_loop(engine->GetContext(),
-                         m_gpuViewport,
+  DRW_game_render_loop(engine->GetContext(),
+                         m_currentGPUViewport,
                          bmain,
                          scene,
                          view,
@@ -654,57 +684,53 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
                          &window,
                          calledFromConstructor,
                          reset_taa_samples,
-                         draw_overlay);
+                         is_overlay_pass);
 
-    RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
-    RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
+  RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
+  RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
 
-    /* Detach Defaults attachments from input framebuffer... */
-    GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
-    GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
-    /* And replace it with color and depth textures from viewport */
-    GPU_framebuffer_texture_attach(
-        input->GetFrameBuffer(), GPU_viewport_color_texture(m_gpuViewport), 0, 0);
-    GPU_framebuffer_texture_attach(
-        input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
+  /* Detach Defaults attachments from input framebuffer... */
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
+  /* And replace it with color and depth textures from viewport */
+  GPU_framebuffer_texture_attach(
+      input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport), 0, 0);
+  GPU_framebuffer_texture_attach(
+      input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
 
-    GPU_framebuffer_bind(input->GetFrameBuffer());
+  GPU_framebuffer_bind(input->GetFrameBuffer());
 
-    RAS_FrameBuffer *f = Render2DFilters(rasty, canvas, input, output);
+  RAS_FrameBuffer *f = Render2DFilters(rasty, canvas, input, output);
 
-    /* Detach viewport textures from input framebuffer... */
-    GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
-                                    GPU_viewport_color_texture(m_gpuViewport));
-    GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
-                                    DRW_viewport_texture_list_get()->depth);
-    /* And restore defaults attachments */
-    GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
-    GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
+  GPU_framebuffer_restore();
 
-    GPU_framebuffer_restore();
+  rasty->SetViewport(v[0], v[1], v[2], v[3]);
 
-    rasty->SetViewport(v[0], v[1], v[2], v[3]);
-
-    if ((scene->gm.flag & GAME_USE_UI_ANTI_FLICKER) == 0) {
-      rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-      rasty->SetScissor(v[0], v[1], v[2], v[3]);
-    }
-    DRW_transform_to_display_image_render(GPU_viewport_color_texture(m_gpuViewport));
-
-    DRW_game_render_loop_finish();
-    GPU_framebuffer_restore();
+  if ((scene->gm.flag & GAME_USE_UI_ANTI_FLICKER) == 0) {
+    rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+    rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
+  DRW_transform_to_display_image_render(GPU_framebuffer_color_texture(f->GetFrameBuffer()));
+
+  /* Detach viewport textures from input framebuffer... */
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
+                                 GPU_viewport_color_texture(m_currentGPUViewport));
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
+  /* And restore defaults attachments */
+  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
+  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
+
+  DRW_game_render_loop_finish();
+  GPU_framebuffer_restore();
 
   rasty->Disable(RAS_Rasterizer::RAS_BLEND);
 
-  if (!calledFromConstructor) {
+  if (cam) {
     engine->EndFrame();
   }
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
-                                                 GPUViewport *viewport,
-                                                 const rcti *window)
+void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_Rasterizer *rasty, const rcti *window)
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate();
@@ -712,6 +738,13 @@ void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
 
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   Scene *scene = GetBlenderScene();
+
+  SetCurrentGPUViewport(cam->GetGPUViewport());
+
+  rasty->SetMatrix(cam->GetModelviewMatrix(),
+                   cam->GetProjectionMatrix(),
+                   cam->NodeGetWorldPosition(),
+                   cam->NodeGetLocalScaling());
 
   // Normally cam matrices are already set in ImageRender
   ViewPortMatrices m = rasty->GetAllMatrices();
@@ -728,7 +761,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty,
   m.persinv.getValue(&persinv[0][0]);
 
   DRW_game_render_loop(KX_GetActiveEngine()->GetContext(),
-                       viewport,
+                       m_currentGPUViewport,
                        bmain,
                        scene,
                        view,

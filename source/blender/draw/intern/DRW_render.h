@@ -708,7 +708,7 @@ void DRW_game_render_loop(struct bContext *C,
   const struct rcti *window,
   bool called_from_constructor,
   bool reset_taa_samples,
-  bool draw_overlay);
+  bool is_overlay_pass);
 
 void DRW_game_render_loop_finish(void);
 void DRW_game_render_loop_end(void);

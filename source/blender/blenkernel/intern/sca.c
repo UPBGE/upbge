@@ -624,6 +624,7 @@ void set_sca_new_poins_ob(Object *ob)
       else if (act->type == ACT_COLLECTION) {
         bCollectionActuator *ca = act->data;
         ID_NEW_REMAP(ca->collection);
+        ID_NEW_REMAP(ca->camera);
       }
 			else if (act->type==ACT_CAMERA) {
 				bCameraActuator *ca= act->data;
@@ -1111,6 +1112,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       case ACT_COLLECTION: {
         bCollectionActuator *ca = actuator->data;
         func(actuator, (ID **)&ca->collection, userdata, IDWALK_CB_NOP);
+        func(actuator, (ID **)&ca->camera, userdata, IDWALK_CB_NOP);
         break;
       }
 			case ACT_PROPERTY:

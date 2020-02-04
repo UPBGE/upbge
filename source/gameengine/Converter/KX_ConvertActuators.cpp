@@ -752,6 +752,7 @@ void BL_ConvertActuators(const char* maggiename,
 			}
     case ACT_COLLECTION: {
       bCollectionActuator *colact = (bCollectionActuator *)bact->data;
+      KX_Camera *cam = nullptr;
 
       SCA_CollectionActuator *tmpcolact;
       int mode = SCA_CollectionActuator::KX_COLLECTION_NODEF;
@@ -764,6 +765,11 @@ void BL_ConvertActuators(const char* maggiename,
           break;
         case ACT_COLLECTION_ADD_OVERLAY:
           mode = SCA_CollectionActuator::KX_COLLECTION_ADD_OVERLAY;
+          if (colact->camera) {
+            KX_GameObject *tmp = converter.FindGameObject(colact->camera);
+            if (tmp && tmp->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
+              cam = (KX_Camera *)tmp;
+          }
           break;
         case ACT_COLLECTION_REMOVE_OVERLAY:
           mode = SCA_CollectionActuator::KX_COLLECTION_REMOVE_OVERLAY;
@@ -775,7 +781,7 @@ void BL_ConvertActuators(const char* maggiename,
       bool use_logic = (colact->flag & ACT_COLLECTION_SUSPEND_LOGIC) == 0;
       bool use_physics = (colact->flag & ACT_COLLECTION_SUSPEND_PHYSICS) == 0;
       bool use_visibility = (colact->flag & ACT_COLLECTION_SUSPEND_VISIBILITY) == 0;
-      tmpcolact = new SCA_CollectionActuator(gameobj, scene, colact->collection, mode, use_logic, use_physics, use_visibility);
+      tmpcolact = new SCA_CollectionActuator(gameobj, scene, cam, colact->collection, mode, use_logic, use_physics, use_visibility);
       baseact = tmpcolact;
       break;
     }

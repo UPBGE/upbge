@@ -50,6 +50,7 @@ extern "C" {
 
 SCA_CollectionActuator::SCA_CollectionActuator(SCA_IObject *gameobj,
                                                KX_Scene *scene,
+                                               KX_Camera *cam,
                                                Collection *collection,
                                                int mode,
                                                bool use_logic,
@@ -58,6 +59,7 @@ SCA_CollectionActuator::SCA_CollectionActuator(SCA_IObject *gameobj,
     : SCA_IActuator(gameobj, KX_ACT_COLLECTION),
     m_kxscene(scene),
 	m_collection(collection),
+    m_camera(cam),
 	m_mode(mode),
     m_useLogic(use_logic),
     m_usePhysics(use_physics),
@@ -142,7 +144,9 @@ bool SCA_CollectionActuator::Update()
       }
       break;
     case KX_COLLECTION_ADD_OVERLAY:
-      m_kxscene->AddOverlayCollection(m_collection);
+      if (m_camera) {
+        m_kxscene->AddOverlayCollection(m_camera, m_collection);
+      }
       break;
     case KX_COLLECTION_REMOVE_OVERLAY:
       m_kxscene->RemoveOverlayCollection(m_collection);

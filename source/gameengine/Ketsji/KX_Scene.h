@@ -137,8 +137,10 @@ protected:
 	bool m_resetTaaSamples;
   Object *m_lastReplicatedParentObject;
   Object *m_gameDefaultCamera;
-  struct GPUViewport *m_gpuViewport;
   std::vector<struct Collection *> m_overlay_collections;
+  struct GPUViewport *m_currentGPUViewport;
+  struct GPUViewport *m_initMaterialsGPUViewport;
+  KX_Camera *m_overlayCamera;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -326,16 +328,22 @@ public:
 	bool m_isRuntime; // Too lazy to put that in protected
 	std::vector<Object *>m_hiddenObjectsDuringRuntime;
 
-	void RenderAfterCameraSetup(bool calledFromConstructor);
-	void RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, struct GPUViewport *viewport, const struct rcti *window);
+	void RenderAfterCameraSetup(KX_Camera *cam, bool overlay_pass);
+	void RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_Rasterizer *rasty, const struct rcti *window);
 
   void SetLastReplicatedParentObject(Object *ob);
   Object *GetLastReplicatedParentObject();
   void ResetLastReplicatedParentObject();
   Object *GetGameDefaultCamera();
   void InitBlenderContextVariables();
-  void AddOverlayCollection(struct Collection *collection);
+  void AddOverlayCollection(KX_Camera *overlay_cam, struct Collection *collection);
   void RemoveOverlayCollection(struct Collection *collection);
+  void SetCurrentGPUViewport(struct GPUViewport *viewport);
+  struct GPUViewport *GetCurrentGPUViewport();
+  void SetInitMaterialsGPUViewport(struct GPUViewport *viewport);
+  struct GPUViewport *GetInitMaterialsGPUViewport();
+  void SetOverlayCamera(KX_Camera *cam);
+  KX_Camera *GetOverlayCamera();
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;

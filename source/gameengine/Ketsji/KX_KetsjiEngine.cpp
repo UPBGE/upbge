@@ -596,7 +596,7 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 
 			KX_Camera *overrideCullingCam = scene->GetOverrideCullingCamera();
 			for (KX_Camera *cam : scene->GetCameraList()) {
-				if (cam != activecam && !cam->GetViewport()) {
+				if ((cam != activecam) && !cam->GetViewport()) {
 					continue;
 				}
 
@@ -893,7 +893,12 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, rendercam);
 #endif
 
-	scene->RenderAfterCameraSetup(false);
+	if (scene->GetInitMaterialsGPUViewport()) {
+		scene->SetInitMaterialsGPUViewport(nullptr);
+	}
+
+	bool is_overlay_pass = rendercam == scene->GetOverlayCamera();
+	scene->RenderAfterCameraSetup(scene->GetActiveCamera(), is_overlay_pass);
 
 	//if (scene->GetPhysicsEnvironment())
 		//scene->GetPhysicsEnvironment()->DebugDrawWorld();

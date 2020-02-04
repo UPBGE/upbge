@@ -2021,6 +2021,7 @@ static void draw_actuator_collection(uiLayout *layout, PointerRNA *ptr)
       uiItemR(row, ptr, "use_render", 0, NULL, ICON_NONE);
       break;
     case ACT_COLLECTION_ADD_OVERLAY:
+      uiItemR(row, ptr, "camera", 0, NULL, ICON_NONE);
       break;
     case ACT_COLLECTION_REMOVE_OVERLAY:
       break;

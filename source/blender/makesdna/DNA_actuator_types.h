@@ -113,6 +113,7 @@ typedef struct bCollectionActuator {
   short type, flag; //type = Suspend/Resume; flag = use logic/physics/visibility
   int _pad;
   struct Collection *collection;
+  struct Object *camera;
 } bCollectionActuator;
 
 typedef struct bPropertyActuator {

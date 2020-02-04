@@ -1576,6 +1576,12 @@ static void rna_def_collection_actuator(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Collection", "Collection to be paused/resumed");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
+  prop = RNA_def_property(srna, "camera", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Camera", "Camera to render Overlay Collection");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
   /* booleans */
   prop = RNA_def_property(srna, "use_logic", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", ACT_COLLECTION_SUSPEND_LOGIC);

@@ -5455,6 +5455,7 @@ static void lib_link_object(FileData *fd, Main *main)
           case ACT_COLLECTION: {
             bCollectionActuator *ca = act->data;
             ca->collection = newlibadr(fd, ob->id.lib, ca->collection);
+            ca->camera = newlibadr(fd, ob->id.lib, ca->camera);
             break;
           }
           case ACT_ACTION: {
@@ -11225,6 +11226,7 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
     else if (act->type == ACT_COLLECTION) {
       bCollectionActuator *ca = act->data;
       expand_doit(fd, mainvar, ca->collection);
+      expand_doit(fd, mainvar, ca->camera);
     }
 		else if (act->type == ACT_2DFILTER) {
 			bTwoDFilterActuator *tdfa = act->data;

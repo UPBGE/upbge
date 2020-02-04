@@ -35,7 +35,7 @@
 #include "SCA_IActuator.h"
 
 struct Collection;
-
+class KX_Camera;
 class KX_Scene;
 
 class SCA_CollectionActuator : public SCA_IActuator
@@ -46,6 +46,7 @@ class SCA_CollectionActuator : public SCA_IActuator
 
   KX_Scene *m_kxscene;
   Collection *m_collection;
+  KX_Camera *m_camera;
   int m_mode; //suspend/resume
 
   bool m_useLogic;
@@ -63,7 +64,7 @@ class SCA_CollectionActuator : public SCA_IActuator
     KX_COLLECTION_MAX
   };
 
-  SCA_CollectionActuator(SCA_IObject *gameobj, KX_Scene *scene, Collection *collection, int m_mode, bool use_logic, bool use_physics, bool use_visibility);
+  SCA_CollectionActuator(SCA_IObject *gameobj, KX_Scene *scene, KX_Camera *cam, Collection *collection, int m_mode, bool use_logic, bool use_physics, bool use_visibility);
   virtual ~SCA_CollectionActuator();
 
   virtual CValue* GetReplica();
