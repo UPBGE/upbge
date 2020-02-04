@@ -548,7 +548,7 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 	// Pre-compute the display area used for stereo or normal rendering.
 	std::vector<RAS_Rect> displayAreas;
 	for (unsigned short eye = 0; eye < numeyes; ++eye) {
-		displayAreas.push_back(m_rasterizer->GetRenderArea(m_canvas, (RAS_Rasterizer::StereoEye)eye));
+		displayAreas.push_back(m_rasterizer->GetRenderArea(m_canvas, RAS_Rasterizer::RAS_STEREO_LEFTEYE/*(RAS_Rasterizer::StereoEye)eye)*/));
 	}
 
 	// Prepare override culling camera of each scenes, we don't manage stereo currently.
@@ -596,7 +596,7 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 
 			KX_Camera *overrideCullingCam = scene->GetOverrideCullingCamera();
 			for (KX_Camera *cam : scene->GetCameraList()) {
-				if ((cam != activecam) && !cam->GetViewport()) {
+				if ((cam != activecam && cam != scene->GetOverlayCamera()) && !cam->GetViewport()) {
 					continue;
 				}
 
@@ -879,7 +879,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 		m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 	}
 
-	m_rasterizer->SetEye(cameraFrameData.m_eye);
+	m_rasterizer->SetEye(RAS_Rasterizer::RAS_STEREO_LEFTEYE);
 
 	m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
 
@@ -899,7 +899,11 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	}
 
 	bool is_overlay_pass = rendercam == scene->GetOverlayCamera();
-	scene->RenderAfterCameraSetup(scene->GetActiveCamera(), is_overlay_pass);
+  if (is_overlay_pass) {
+    m_rasterizer->Enable(RAS_Rasterizer::RAS_BLEND);
+    m_rasterizer->SetBlendFunc(RAS_Rasterizer::RAS_ONE, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
+  }
+  scene->RenderAfterCameraSetup(rendercam, is_overlay_pass);
 
 	//if (scene->GetPhysicsEnvironment())
 		//scene->GetPhysicsEnvironment()->DebugDrawWorld();
