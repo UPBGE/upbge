@@ -35,7 +35,7 @@ static void free_rootpchanmap_valueset(void *val)
 {
   /* Just need to free the set itself - the names stored are all references. */
   GSet *values = (GSet *)val;
-  BLI_gset_free(values, NULL);
+  BLI_gset_free(values, nullptr);
 }
 
 RootPChanMap::RootPChanMap()
@@ -47,7 +47,7 @@ RootPChanMap::RootPChanMap()
 RootPChanMap::~RootPChanMap()
 {
   /* Free the map, and all the value sets. */
-  BLI_ghash_free(map_, NULL, free_rootpchanmap_valueset);
+  BLI_ghash_free(map_, nullptr, free_rootpchanmap_valueset);
 }
 
 /* Debug contents of map */
@@ -91,7 +91,7 @@ void RootPChanMap::add_bone(const char *bone, const char *root)
 }
 
 /* Check if there's a common root bone between two bones. */
-bool RootPChanMap::has_common_root(const char *bone1, const char *bone2)
+bool RootPChanMap::has_common_root(const char *bone1, const char *bone2) const
 {
   /* Ensure that both are in the map... */
   if (BLI_ghash_haskey(map_, bone1) == false) {

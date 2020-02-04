@@ -83,6 +83,7 @@ set(SRC
   intern/depsgraph_query.cc
   intern/depsgraph_query_foreach.cc
   intern/depsgraph_query_iter.cc
+  intern/depsgraph_relation.cc
   intern/depsgraph_registry.cc
   intern/depsgraph_tag.cc
   intern/depsgraph_type.cc
@@ -105,6 +106,7 @@ set(SRC
   intern/builder/deg_builder_rna.h
   intern/builder/deg_builder_transitive.h
   intern/debug/deg_debug.h
+  intern/debug/deg_time_average.h
   intern/eval/deg_eval.h
   intern/eval/deg_eval_copy_on_write.h
   intern/eval/deg_eval_flush.h
@@ -129,6 +131,7 @@ set(SRC
   intern/depsgraph.h
   intern/depsgraph_physics.h
   intern/depsgraph_registry.h
+  intern/depsgraph_relation.h
   intern/depsgraph_tag.h
   intern/depsgraph_type.h
   intern/depsgraph_update.h

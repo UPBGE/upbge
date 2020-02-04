@@ -82,4 +82,10 @@ void		wm_test_autorun_warning(struct bContext *C);
 #define WM_WIN_INIT_SIZE_Y 1000
 #define WM_WIN_INIT_PAD 40
 
+/* Game engine transition */
+void wm_window_ghostwindow_blenderplayer_ensure(struct wmWindowManager *wm,
+                                                struct wmWindow *win,
+                                                void *ghostwin);
+/* End of Game engine transition */
+
 #endif /* __WM_WINDOW_H__ */

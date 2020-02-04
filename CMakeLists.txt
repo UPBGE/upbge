@@ -97,6 +97,9 @@ cmake_policy(SET CMP0010 NEW)
 # Input directories must have CMakeLists.txt
 cmake_policy(SET CMP0014 NEW)
 
+# Silence draco warning on macOS, new policy works fine.
+cmake_policy(SET CMP0068 NEW)
+
 #-----------------------------------------------------------------------------
 # Load some macros.
 include(build_files/cmake/macros.cmake)
@@ -819,9 +822,11 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Release")
     if(MSVC)
       set(COMPILER_ASAN_LINKER_FLAGS "/FUNCTIONPADMIN:6")
     endif()
-    set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS};${COMPILER_ASAN_LIBRARY}")
-    set(PLATFORM_LINKFLAGS "${COMPILER_ASAN_LIBRARY} ${COMPILER_ASAN_LINKER_FLAGS}")
-    set(PLATFORM_LINKFLAGS_DEBUG "${COMPILER_ASAN_LIBRARY} ${COMPILER_ASAN_LINKER_FLAGS}")
+    if(COMPILER_ASAN_LIBRARY)
+      set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS};${COMPILER_ASAN_LIBRARY}")
+      set(PLATFORM_LINKFLAGS "${COMPILER_ASAN_LIBRARY} ${COMPILER_ASAN_LINKER_FLAGS}")
+      set(PLATFORM_LINKFLAGS_DEBUG "${COMPILER_ASAN_LIBRARY} ${COMPILER_ASAN_LINKER_FLAGS}")
+    endif()
   endif()
 endif()
 
@@ -1020,7 +1025,7 @@ if(WITH_GL_PROFILE_ES20)
       )
     endif()
 
-    list(APPEND BLENDER_GL_LIBRARIES OPENGLES_LIBRARY)
+    list(APPEND BLENDER_GL_LIBRARIES "${OPENGLES_LIBRARY}")
 
   else()
     set(OPENGLES_LIBRARY "" CACHE FILEPATH "OpenGL ES 2.0 library file")
@@ -1080,7 +1085,10 @@ else()
 endif()
 
 if(WITH_GL_EGL)
-  list(APPEND GL_DEFINITIONS -DWITH_GL_EGL)
+  find_package(OpenGL REQUIRED EGL)
+  list(APPEND BLENDER_GL_LIBRARIES OpenGL::EGL)
+
+  list(APPEND GL_DEFINITIONS -DWITH_GL_EGL -DGLEW_EGL -DGLEW_INC_EGL)
 
   if(WITH_SYSTEM_GLES)
     if(NOT OPENGLES_EGL_LIBRARY)
@@ -1090,7 +1098,7 @@ if(WITH_GL_EGL)
       )
     endif()
 
-    list(APPEND BLENDER_GL_LIBRARIES OPENGLES_EGL_LIBRARY)
+    list(APPEND BLENDER_GL_LIBRARIES ${OPENGLES_EGL_LIBRARY})
 
   else()
     set(OPENGLES_EGL_LIBRARY "" CACHE FILEPATH "EGL library file")
@@ -1128,10 +1136,6 @@ if(WITH_GL_PROFILE_ES20)
   list(APPEND GL_DEFINITIONS -DWITH_GL_PROFILE_ES20)
 else()
   list(APPEND GL_DEFINITIONS -DWITH_GL_PROFILE_CORE)
-endif()
-
-if(WITH_GL_EGL)
-  list(APPEND GL_DEFINITIONS -DWITH_EGL)
 endif()
 
 #-----------------------------------------------------------------------------
@@ -1203,10 +1207,6 @@ else()
       # so there are lots of modifications to GLEW to make this work,
       # and no attempt to make it work beyond Blender at this point.
       list(APPEND GL_DEFINITIONS -DGL_ES_VERSION_1_0=0 -DGL_ES_VERSION_CL_1_1=0 -DGL_ES_VERSION_CM_1_1=0)
-    endif()
-
-    if(WITH_GL_EGL)
-      list(APPEND GL_DEFINITIONS -DGLEW_INC_EGL)
     endif()
 
     set(BLENDER_GLEW_LIBRARIES extern_glew_es bf_intern_glew_mx)

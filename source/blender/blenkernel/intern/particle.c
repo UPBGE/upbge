@@ -3246,22 +3246,24 @@ static void psys_cache_edit_paths_iter(void *__restrict iter_data_v,
       }
     }
     else {
+      /* HACK(fclem): Instead of setting the color we pass the select state in the red channel.
+       * This is then picked up in DRW and the gpu shader will do the color interpolation. */
       if ((ekey + (pind.ekey[0] - point->keys))->flag & PEK_SELECT) {
         if ((ekey + (pind.ekey[1] - point->keys))->flag & PEK_SELECT) {
-          copy_v3_v3(ca->col, iter_data->sel_col);
+          ca->col[0] = 1.0f;
         }
         else {
           keytime = (t - (*pind.ekey[0]->time)) / ((*pind.ekey[1]->time) - (*pind.ekey[0]->time));
-          interp_v3_v3v3(ca->col, iter_data->sel_col, iter_data->nosel_col, keytime);
+          ca->col[0] = 1.0f - keytime;
         }
       }
       else {
         if ((ekey + (pind.ekey[1] - point->keys))->flag & PEK_SELECT) {
           keytime = (t - (*pind.ekey[0]->time)) / ((*pind.ekey[1]->time) - (*pind.ekey[0]->time));
-          interp_v3_v3v3(ca->col, iter_data->nosel_col, iter_data->sel_col, keytime);
+          ca->col[0] = keytime;
         }
         else {
-          copy_v3_v3(ca->col, iter_data->nosel_col);
+          ca->col[0] = 0.0f;
         }
       }
     }
@@ -3584,12 +3586,45 @@ void object_remove_particle_system(Main *bmain, Scene *UNUSED(scene), Object *ob
     return;
   }
 
-  /* clear all other appearances of this pointer (like on manta flow modifier) */
+  /* Clear particle system in fluid modifier. */
   if ((md = modifiers_findByType(ob, eModifierType_Fluid))) {
     FluidModifierData *mmd = (FluidModifierData *)md;
+
+    /* Clear particle system pointer in flow settings. */
     if ((mmd->type == MOD_FLUID_TYPE_FLOW) && mmd->flow && mmd->flow->psys) {
       if (mmd->flow->psys == psys) {
         mmd->flow->psys = NULL;
+      }
+    }
+    /* Clear particle flag in domain settings when removing particle system manually. */
+    if (mmd->type == MOD_FLUID_TYPE_DOMAIN) {
+      if (psys->part->type == PART_FLUID_FLIP) {
+        mmd->domain->particle_type &= ~FLUID_DOMAIN_PARTICLE_FLIP;
+      }
+      if (psys->part->type == PART_FLUID_SPRAY || psys->part->type == PART_FLUID_SPRAYFOAM ||
+          psys->part->type == PART_FLUID_SPRAYBUBBLE ||
+          psys->part->type == PART_FLUID_SPRAYFOAMBUBBLE) {
+        mmd->domain->particle_type &= ~FLUID_DOMAIN_PARTICLE_SPRAY;
+      }
+      if (psys->part->type == PART_FLUID_FOAM || psys->part->type == PART_FLUID_SPRAYFOAM ||
+          psys->part->type == PART_FLUID_FOAMBUBBLE ||
+          psys->part->type == PART_FLUID_SPRAYFOAMBUBBLE) {
+        mmd->domain->particle_type &= ~FLUID_DOMAIN_PARTICLE_FOAM;
+      }
+      if (psys->part->type == PART_FLUID_BUBBLE || psys->part->type == PART_FLUID_FOAMBUBBLE ||
+          psys->part->type == PART_FLUID_SPRAYBUBBLE ||
+          psys->part->type == PART_FLUID_SPRAYFOAMBUBBLE) {
+        mmd->domain->particle_type &= ~FLUID_DOMAIN_PARTICLE_BUBBLE;
+      }
+      if (psys->part->type == PART_FLUID_TRACER) {
+        mmd->domain->particle_type &= ~FLUID_DOMAIN_PARTICLE_TRACER;
+      }
+
+      /* Disable combined export if combined particle system was deleted. */
+      if (psys->part->type == PART_FLUID_SPRAYFOAM || psys->part->type == PART_FLUID_SPRAYBUBBLE ||
+          psys->part->type == PART_FLUID_FOAMBUBBLE ||
+          psys->part->type == PART_FLUID_SPRAYFOAMBUBBLE) {
+        mmd->domain->sndparticle_combined_export = SNDPARTICLE_COMBINED_EXPORT_OFF;
       }
     }
   }

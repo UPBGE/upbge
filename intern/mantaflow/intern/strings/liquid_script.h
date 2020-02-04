@@ -139,7 +139,7 @@ waveCrest_sp$ID$     = sp$ID$.create(RealGrid)\n\
 kineticEnergy_sp$ID$ = sp$ID$.create(RealGrid)\n\
 \n\
 # Keep track of important objects in dict to load them later on\n\
-liquid_particles_dict_final_s$ID$   = dict(ppSnd=ppSnd_sp$ID$, pVelSnd=pVelSnd_pp$ID$, pLifeSnd=pLifeSnd_pp$ID$)\n\
+liquid_particles_dict_final_s$ID$  = dict(ppSnd=ppSnd_sp$ID$, pVelSnd=pVelSnd_pp$ID$, pLifeSnd=pLifeSnd_pp$ID$)\n\
 liquid_particles_dict_resume_s$ID$ = dict(trappedAir=trappedAir_sp$ID$, waveCrest=waveCrest_sp$ID$, kineticEnergy=kineticEnergy_sp$ID$)\n";
 
 const std::string liquid_init_phi =
@@ -166,14 +166,14 @@ def liquid_adaptive_step_$ID$(framenr):\n\
         mantaMsg('Initializing obstacle levelset')\n\
         phiObsIn_s$ID$.fillHoles(maxDepth=int(res_s$ID$), boundaryWidth=2)\n\
         extrapolateLsSimple(phi=phiObsIn_s$ID$, distance=int(res_s$ID$/2), inside=True)\n\
-        extrapolateLsSimple(phi=phiObsIn_s$ID$, distance=int(res_s$ID$/2), inside=False)\n\
+        extrapolateLsSimple(phi=phiObsIn_s$ID$, distance=3, inside=False)\n\
         phiObs_s$ID$.join(phiObsIn_s$ID$)\n\
         \n\
         # Using boundaryWidth=2 to not search beginning from walls (just a performance optimization)\n\
         # Additional sanity check: fill holes in phiObs which can result after joining with phiObsIn\n\
         phiObs_s$ID$.fillHoles(maxDepth=int(res_s$ID$), boundaryWidth=2)\n\
         extrapolateLsSimple(phi=phiObs_s$ID$, distance=int(res_s$ID$/2), inside=True)\n\
-        extrapolateLsSimple(phi=phiObs_s$ID$, distance=int(res_s$ID$/2), inside=False)\n\
+        extrapolateLsSimple(phi=phiObs_s$ID$, distance=3, inside=False)\n\
     \n\
     mantaMsg('Initializing fluid levelset')\n\
     extrapolateLsSimple(phi=phiIn_s$ID$, distance=int(res_s$ID$/2), inside=True)\n\
@@ -438,13 +438,11 @@ def liquid_save_particles_$ID$(path, framenr, file_format, resumable):\n\
 const std::string liquid_standalone =
     "\n\
 # Helper function to call cache load functions\n\
-def load(frame):\n\
-    fluid_load_data_$ID$(os.path.join(cache_dir, 'data'), frame, file_format_data)\n\
-    liquid_load_data_$ID$(os.path.join(cache_dir, 'data'), frame, file_format_data)\n\
-    liquid_load_flip_$ID$(os.path.join(cache_dir, 'data'), frame, file_format_particles)\n\
+def load(frame, cache_resumable):\n\
+    fluid_load_data_$ID$(os.path.join(cache_dir, 'data'), frame, file_format_data, cache_resumable)\n\
+    liquid_load_data_$ID$(os.path.join(cache_dir, 'data'), frame, file_format_data, cache_resumable)\n\
     if using_sndparts_s$ID$:\n\
-        fluid_load_particles_$ID$(os.path.join(cache_dir, 'particles'), frame, file_format_particles)\n\
-        liquid_load_particles_$ID$(os.path.join(cache_dir, 'particles'), frame, file_format_particles)\n\
+        liquid_load_particles_$ID$(os.path.join(cache_dir, 'particles'), frame, file_format_particles, cache_resumable)\n\
     if using_mesh_s$ID$:\n\
         liquid_load_mesh_$ID$(os.path.join(cache_dir, 'mesh'), frame, file_format_mesh)\n\
     if using_guiding_s$ID$:\n\

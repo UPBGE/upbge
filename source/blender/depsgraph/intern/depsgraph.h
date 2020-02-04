@@ -40,6 +40,7 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_physics.h"
 
+#include "intern/debug/deg_debug.h"
 #include "intern/depsgraph_type.h"
 
 struct GHash;
@@ -53,46 +54,8 @@ namespace DEG {
 struct IDNode;
 struct Node;
 struct OperationNode;
+struct Relation;
 struct TimeSourceNode;
-
-/* *************************** */
-/* Relationships Between Nodes */
-
-/* Settings/Tags on Relationship.
- * NOTE: Is a bitmask, allowing accumulation. */
-enum RelationFlag {
-  /* "cyclic" link - when detecting cycles, this relationship was the one
-   * which triggers a cyclic relationship to exist in the graph. */
-  RELATION_FLAG_CYCLIC = (1 << 0),
-  /* Update flush will not go through this relation. */
-  RELATION_FLAG_NO_FLUSH = (1 << 1),
-  /* Only flush along the relation is update comes from a node which was
-   * affected by user input. */
-  RELATION_FLAG_FLUSH_USER_EDIT_ONLY = (1 << 2),
-  /* The relation can not be killed by the cyclic dependencies solver. */
-  RELATION_FLAG_GODMODE = (1 << 4),
-  /* Relation will check existence before being added. */
-  RELATION_CHECK_BEFORE_ADD = (1 << 5),
-};
-
-/* B depends on A (A -> B) */
-struct Relation {
-  Relation(Node *from, Node *to, const char *description);
-  ~Relation();
-
-  void unlink();
-
-  /* the nodes in the relationship (since this is shared between the nodes) */
-  Node *from; /* A */
-  Node *to;   /* B */
-
-  /* relationship attributes */
-  const char *name; /* label for debugging */
-  int flag;         /* Bitmask of RelationFlag) */
-};
-
-/* ********* */
-/* Depsgraph */
 
 /* Dependency Graph object */
 struct Depsgraph {
@@ -107,7 +70,7 @@ struct Depsgraph {
   TimeSourceNode *find_time_source() const;
 
   IDNode *find_id_node(const ID *id) const;
-  IDNode *add_id_node(ID *id, ID *id_cow_hint = NULL);
+  IDNode *add_id_node(ID *id, ID *id_cow_hint = nullptr);
   void clear_id_nodes();
   void clear_id_nodes_conditional(const std::function<bool(ID_Type id_type)> &filter);
 
@@ -115,7 +78,7 @@ struct Depsgraph {
   Relation *add_new_relation(Node *from, Node *to, const char *description, int flags = 0);
 
   /* Check whether two nodes are connected by relation with given
-   * description. Description might be NULL to check ANY relation between
+   * description. Description might be nullptr to check ANY relation between
    * given nodes. */
   Relation *check_nodes_connected(const Node *from, const Node *to, const char *description);
 
@@ -194,9 +157,7 @@ struct Depsgraph {
    * to read stuff from. */
   bool is_active;
 
-  /* NOTE: Corresponds to G_DEBUG_DEPSGRAPH_* flags. */
-  int debug_flags;
-  string debug_name;
+  DepsgraphDebug debug;
 
   bool is_evaluating;
 

@@ -590,7 +590,7 @@ void WM_exit_ex(bContext *C, const bool do_python)
 
         BLI_make_file_string("/", filename, BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
-        has_edited = ED_editors_flush_edits(bmain, false);
+        has_edited = ED_editors_flush_edits(bmain);
 
         if ((has_edited && BLO_write_file(bmain, filename, fileflags, NULL, NULL)) ||
             (undo_memfile && BLO_memfile_write_file(undo_memfile, filename))) {
@@ -793,3 +793,24 @@ void WM_script_tag_reload(void)
 {
   UI_interface_tag_script_reload();
 }
+
+/* Game engine transition */
+void WM_init_opengl_blenderplayer(Main *bmain, void *syshandle)
+{
+  /* must be called only once */
+  BLI_assert(opengl_is_init == false);
+  /* Ghost is still not init elsewhere in background mode. */
+  ////////// wm_ghost_init(NULL);
+  /* Needs to be first to have an ogl context bound. */
+  DRW_opengl_context_create_blenderplayer(syshandle);
+  GPU_init();
+  GPU_set_mipmap(bmain, true);
+  GPU_set_linear_mipmap(true);
+  GPU_set_anisotropic(bmain, U.anisotropic_filter);
+  GPU_pass_cache_init();
+#ifdef WITH_OPENSUBDIV
+  BKE_subsurf_osd_init();
+#endif
+  opengl_is_init = true;
+}
+/* End of Game engine transition */

@@ -3166,22 +3166,17 @@ void DRW_game_render_loop_end()
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
 
-void DRW_opengl_context_create_blenderplayer(void)
+void DRW_opengl_context_create_blenderplayer(void *syshandle)
 {
   BLI_assert(DST.gl_context == NULL); /* Ensure it's called once */
 
   DST.gl_context_mutex = BLI_ticket_mutex_alloc();
-  if (!G.background) {
-    immDeactivate();
-  }
+
   /* This changes the active context. */
-  //DST.gl_context = WM_opengl_context_create();
-  //WM_opengl_context_activate(DST.gl_context);
+  DST.gl_context = WM_opengl_context_create_blenderplayer(syshandle);
+  WM_opengl_context_activate(DST.gl_context);
   /* Be sure to create gpu_context too. */
   DST.gpu_context = GPU_context_create(0);
-  if (!G.background) {
-    immActivate();
-  }
   /* Set default Blender OpenGL state */
   GPU_state_init();
   /* So we activate the window's one afterwards. */
@@ -3201,6 +3196,9 @@ void DRW_transform_to_display_image_render(GPUTexture *tex)
 
   immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
   immUniform1i("image", 0);
+
+  const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  immUniform4fv("color", white);
 
   GPU_texture_bind(tex, 0); /* OCIO texture bind point is 0 */
 

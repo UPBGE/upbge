@@ -53,6 +53,8 @@
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 
+#include "MEM_guardedalloc.h"
+
 extern "C" {
 #  include "BLF_api.h"
 #  include "GPU_viewport.h"
@@ -60,8 +62,6 @@ extern "C" {
 #  include "DNA_view3d_types.h"
 #  include "DRW_render.h"
 }
-
-#include "MEM_guardedalloc.h"
 
 // XXX Clean these up <<<
 #include "KX_RayCast.h"

@@ -292,8 +292,8 @@ static int graphkeys_viewall(bContext *C,
   /* Give some more space at the borders. */
   BLI_rctf_scale(&cur_new, 1.1f);
 
-  /* Take regions into account, that could block the view. Marker region is supposed to be larger
-   * than the scrollbar, so priorize it.*/
+  /* Take regions into account, that could block the view.
+   * Marker region is supposed to be larger than the scroll-bar, so prioritize it.*/
   float pad_top = UI_TIME_SCRUB_MARGIN_Y;
   float pad_bottom = BLI_listbase_is_empty(ED_context_get_markers(C)) ? V2D_SCROLL_HANDLE_HEIGHT :
                                                                         UI_MARKER_MARGIN_Y;
@@ -383,9 +383,9 @@ static int graphkeys_view_frame_exec(bContext *C, wmOperator *op)
 void GRAPH_OT_view_frame(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "View Frame";
+  ot->name = "Go to Current Frame";
   ot->idname = "GRAPH_OT_view_frame";
-  ot->description = "Reset viewable area to show range around current frame";
+  ot->description = "Move the view to the playhead";
 
   /* api callbacks */
   ot->exec = graphkeys_view_frame_exec;

@@ -83,8 +83,9 @@
 #endif
 
 /* EEVEE INTEGRATION */
+#include "DRW_render.h"
+
 extern "C" {
-#  include "DRW_render.h"
 #  include "GPU_framebuffer.h"
 }
 /* End of EEVEE INTEGRATION */

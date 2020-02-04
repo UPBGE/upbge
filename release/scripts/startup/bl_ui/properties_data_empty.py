@@ -37,7 +37,6 @@ class DATA_PT_empty(DataButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
-        layout.use_property_decorate = False
 
         ob = context.object
 
@@ -45,12 +44,6 @@ class DATA_PT_empty(DataButtonsPanel, Panel):
         layout.prop(ob, "empty_display_size", text="Size")
 
         if ob.empty_display_type == 'IMAGE':
-            layout.prop(ob, "use_empty_image_alpha")
-
-            col = layout.column()
-            col.active = ob.use_empty_image_alpha
-            col.prop(ob, "color", text="Transparency", index=3, slider=True)
-
             col = layout.column(align=True)
             col.prop(ob, "empty_image_offset", text="Offset X", index=0)
             col.prop(ob, "empty_image_offset", text="Y", index=1)
@@ -61,6 +54,30 @@ class DATA_PT_empty(DataButtonsPanel, Panel):
             col.prop(ob, "show_empty_image_orthographic", text="Display Orthographic")
             col.prop(ob, "show_empty_image_perspective", text="Display Perspective")
             col.prop(ob, "show_empty_image_only_axis_aligned")
+
+
+class DATA_PT_empty_alpha(DataButtonsPanel, Panel):
+    bl_label = "Transparency"
+    bl_parent_id = "DATA_PT_empty"
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return (ob and ob.type == 'EMPTY' and ob.empty_display_type == 'IMAGE')
+
+    def draw_header(self, context):
+        ob = context.object
+
+        self.layout.prop(ob, "use_empty_image_alpha", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        ob = context.object
+
+        layout.active = ob.use_empty_image_alpha
+        layout.prop(ob, "color", text="Opacity", index=3, slider=True)
 
 
 class DATA_PT_empty_image(DataButtonsPanel, Panel):
@@ -81,6 +98,7 @@ class DATA_PT_empty_image(DataButtonsPanel, Panel):
 
 classes = (
     DATA_PT_empty,
+    DATA_PT_empty_alpha,
     DATA_PT_empty_image,
 )
 

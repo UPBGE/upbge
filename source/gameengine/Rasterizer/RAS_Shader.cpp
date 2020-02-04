@@ -25,11 +25,11 @@
 #include "RAS_Shader.h"
 #include "RAS_Rasterizer.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_utildefines.h"
 #include "BLI_alloca.h"
 #include "BLI_string.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "GPU_shader.h"
 

@@ -37,9 +37,10 @@
 #include "KX_Scene.h"
 #include "KX_Camera.h"
 
+#include "DRW_render.h"
+
 extern "C" {
 #  include "BLF_api.h"
-#  include "DRW_render.h"
 #  include "GPU_immediate.h"
 }
 

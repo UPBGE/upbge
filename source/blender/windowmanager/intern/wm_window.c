@@ -395,6 +395,7 @@ void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
 
   if (U.uiflag & USER_SAVE_PROMPT) {
     if (wm_file_or_image_is_modified(C) && !G.background) {
+      wm_window_raise(win);
       wm_confirm_quit(C);
     }
     else {
@@ -1547,7 +1548,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
       case GHOST_kEventButtonUp: {
         if (win->active == 0) {
           /* Entering window, update cursor and tablet state.
-           * (ghost sends win-activate *after* the mouseclick in window!) */
+           * (ghost sends win-activate *after* the mouse-click in window!) */
           wm_window_update_eventstate(win);
         }
 
@@ -2454,4 +2455,55 @@ void WM_ghost_show_message_box(const char *title,
   BLI_assert(g_system);
   GHOST_ShowMessageBox(g_system, title, message, help_label, continue_label, link, dialog_options);
 }
+
+/* Game engine transition */
+void *WM_opengl_context_create_blenderplayer(void *syshandle)
+{
+  /* On Windows there is a problem creating contexts that share lists
+   * from one context that is current in another thread.
+   * So we should call this function only on the main thread.
+   */
+  BLI_assert(BLI_thread_is_main());
+  BLI_assert(GPU_framebuffer_active_get() == NULL);
+  g_system = syshandle;
+  return GHOST_CreateOpenGLContext(g_system);
+}
+
+void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
+                                               wmWindow *win,
+                                               void *ghostwin) {
+  wm_window_clear_drawable(wm);
+  GHOST_RectangleHandle bounds;
+  GLuint default_fb = GHOST_GetDefaultOpenGLFramebuffer(ghostwin);
+  win->gpuctx = GPU_context_create(default_fb);
+  /* needed so we can detect the graphics card below */
+  GPU_init();
+  /* Set window as drawable upon creation. Note this has already been
+   * it has already been activated by GHOST_CreateWindow. */
+  win->ghostwin = ghostwin;
+  wm_window_set_drawable(wm, win, true);
+  GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
+  wm_window_ensure_eventstate(win);
+  /* store actual window size in blender window */
+  bounds = GHOST_GetClientBounds(win->ghostwin);
+  /* win32: gives undefined window size when minimized */
+  if (GHOST_GetWindowState(win->ghostwin) != GHOST_kWindowStateMinimized) {
+    win->sizex = GHOST_GetWidthRectangle(bounds);
+    win->sizey = GHOST_GetHeightRectangle(bounds);
+  }
+  GHOST_DisposeRectangle(bounds);
+  /* until screens get drawn, make it white */
+  glClearColor(1.0, 1.0, 1.0, 0.0);
+  /* Crash on OSS ATI: bugs.launchpad.net/ubuntu/+source/mesa/+bug/656100 */
+  if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
+    glClear(GL_COLOR_BUFFER_BIT);
+  }
+  /* needed here, because it's used before it reads userdef */
+  WM_window_set_dpi(win);
+  wm_window_swap_buffers(win);
+  // GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
+  /* standard state vars for window */
+  GPU_state_init();
+}
+/* End of Game engine transition */
 /** \} */

@@ -94,11 +94,14 @@ if(WITH_PLAYER)
 endif()
 
 if(WITH_AUDASPACE)
-	add_definitions(${AUDASPACE_DEFINITIONS})
-
-	list(APPEND INC_SYS
-		${AUDASPACE_C_INCLUDE_DIRS}
-	)
+  list(APPEND INC_SYS
+    ${AUDASPACE_C_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${AUDASPACE_C_LIBRARIES}
+    ${AUDASPACE_PY_LIBRARIES}
+  )
+  add_definitions(-DWITH_AUDASPACE)
 endif()
 
 blender_add_lib(ge_launcher "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

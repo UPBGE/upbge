@@ -73,6 +73,7 @@
 #include "BKE_curveprofile.h"
 #include "BKE_report.h"
 #include "BKE_sca.h"
+#include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_shader_fx.h"
 
@@ -2846,8 +2847,13 @@ void uiTemplatePreview(uiLayout *layout,
       col = uiLayoutColumn(row, true);
       uiLayoutSetScaleX(col, 1.5);
       uiItemR(col, &material_ptr, "preview_render_type", UI_ITEM_R_EXPAND, "", ICON_NONE);
-      uiItemS(col);
-      uiItemR(col, &material_ptr, "use_preview_world", 0, "", ICON_WORLD);
+
+      /* EEVEE preview file has baked lighting so use_preview_world has no effect,
+       * just hide the option until this feature is supported. */
+      if (!BKE_scene_uses_blender_eevee(CTX_data_scene(C))) {
+        uiItemS(col);
+        uiItemR(col, &material_ptr, "use_preview_world", 0, "", ICON_WORLD);
+      }
     }
 
     if (pr_texture) {

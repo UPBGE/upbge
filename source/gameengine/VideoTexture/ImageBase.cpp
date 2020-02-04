@@ -29,6 +29,9 @@
  */
 
 #include "ImageBase.h"
+
+#include "MEM_guardedalloc.h"
+
 extern "C" {
 #include "bgl.h"
 }
@@ -37,8 +40,6 @@ extern "C" {
 
 #include <vector>
 #include <string.h>
-
-#include "MEM_guardedalloc.h"
 
 #include "EXP_PyObjectPlus.h"
 #include <structmember.h>

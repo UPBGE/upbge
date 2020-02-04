@@ -398,36 +398,44 @@ static void rna_Object_matrix_basis_set(PointerRNA *ptr, const float values[16])
   BKE_object_apply_mat4(ob, (float(*)[4])values, false, false);
 }
 
-void rna_Object_internal_update_data(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+void rna_Object_internal_update_data_impl(PointerRNA *ptr)
 {
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->owner_id);
 }
 
-void rna_Object_internal_update_data_dependency(Main *bmain, Scene *scene, PointerRNA *ptr)
+void rna_Object_internal_update_data(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
-  DEG_relations_tag_update(bmain);
-  rna_Object_internal_update_data(bmain, scene, ptr);
+  rna_Object_internal_update_data_impl(ptr);
 }
 
-static void rna_Object_active_shape_update(bContext *C, PointerRNA *ptr)
+void rna_Object_internal_update_data_dependency(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
+{
+  DEG_relations_tag_update(bmain);
+  rna_Object_internal_update_data_impl(ptr);
+}
+
+static void rna_Object_active_shape_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
 
-  if (CTX_data_edit_object(C) == ob) {
+  if (BKE_object_is_in_editmode(ob)) {
     /* exit/enter editmode to get new shape */
     switch (ob->type) {
-      case OB_MESH:
+      case OB_MESH: {
+        Mesh *me = ob->data;
+        BMEditMesh *em = me->edit_mesh;
+        int select_mode = em->selectmode;
         EDBM_mesh_load(bmain, ob);
-        EDBM_mesh_make(ob, scene->toolsettings->selectmode, true);
+        EDBM_mesh_make(ob, select_mode, true);
+        em = me->edit_mesh;
 
-        DEG_id_tag_update(ob->data, 0);
+        DEG_id_tag_update(&me->id, 0);
 
-        EDBM_mesh_normals_update(((Mesh *)ob->data)->edit_mesh);
-        BKE_editmesh_looptri_calc(((Mesh *)ob->data)->edit_mesh);
+        EDBM_mesh_normals_update(em);
+        BKE_editmesh_looptri_calc(em);
         break;
+      }
       case OB_CURVE:
       case OB_SURF:
         ED_curve_editnurb_load(bmain, ob);
@@ -440,7 +448,7 @@ static void rna_Object_active_shape_update(bContext *C, PointerRNA *ptr)
     }
   }
 
-  rna_Object_internal_update_data(bmain, scene, ptr);
+  rna_Object_internal_update_data_impl(ptr);
 }
 
 static void rna_Object_dependency_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
@@ -1848,9 +1856,9 @@ bool rna_Object_modifiers_override_apply(Main *bmain,
   ModifierData *mod_dst = ED_object_modifier_add(
       NULL, bmain, NULL, ob_dst, mod_src->name, mod_src->type);
 
-  /* XXX Current handling of 'copy' from particlesystem modifier is *very* bad (it keeps same psys
+  /* XXX Current handling of 'copy' from particle-system modifier is *very* bad (it keeps same psys
    * pointer as source, then calling code copies psys of object separately and do some magic
-   * remapping of pointers...), unfortunately several pieces of code in Obejct editing area rely on
+   * remapping of pointers...), unfortunately several pieces of code in Object editing area rely on
    * this behavior. So for now, hacking around it to get it doing what we want it to do, as getting
    * a proper behavior would be everything but trivial, and this whole particle thingy is
    * end-of-life. */
@@ -3818,7 +3826,6 @@ static void rna_def_object(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "active_shape_key_index", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "shapenr");
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE); /* XXX this is really unpredictable... */
   RNA_def_property_int_funcs(prop,
                              "rna_Object_active_shape_key_index_get",

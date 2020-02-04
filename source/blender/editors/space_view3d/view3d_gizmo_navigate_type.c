@@ -515,12 +515,9 @@ static int gizmo_axis_test_select(bContext *UNUSED(C), wmGizmo *gz, const int mv
   return -1;
 }
 
-static int gizmo_axis_cursor_get(wmGizmo *gz)
+static int gizmo_axis_cursor_get(wmGizmo *UNUSED(gz))
 {
-  if (gz->highlight_part > 0) {
-    return WM_CURSOR_EDIT;
-  }
-  return WM_CURSOR_NSEW_SCROLL;
+  return WM_CURSOR_DEFAULT;
 }
 
 void VIEW3D_GT_navigate_rotate(wmGizmoType *gzt)

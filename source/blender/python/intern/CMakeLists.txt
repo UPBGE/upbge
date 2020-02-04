@@ -56,6 +56,7 @@ set(SRC
   bpy_app_sdl.c
   bpy_app_timers.c
   bpy_app_translations.c
+  bpy_app_usd.c
   bpy_capi_utils.c
   bpy_driver.c
   bpy_gizmo_wrap.c
@@ -95,6 +96,7 @@ set(SRC
   bpy_app_sdl.h
   bpy_app_timers.h
   bpy_app_translations.h
+  bpy_app_usd.h
   bpy_capi_utils.h
   bpy_driver.h
   bpy_gizmo_wrap.h
@@ -123,6 +125,9 @@ set(LIB
   bf_editor_interface
   bf_editor_space_api
   bf_python_gpu
+
+  ${PYTHON_LINKFLAGS}
+  ${PYTHON_LIBRARIES}
 )
 
 # only to check if buildinfo is available
@@ -155,6 +160,9 @@ endif()
 if(WITH_CODEC_FFMPEG)
   list(APPEND INC_SYS
     ${FFMPEG_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${FFMPEG_LIBRARIES}
   )
   add_definitions(-DWITH_FFMPEG)
 endif()
@@ -244,6 +252,11 @@ if(WITH_SDL)
   list(APPEND INC_SYS
     ${SDL_INCLUDE_DIR}
   )
+  if(NOT WITH_SDL_DYNLOAD)
+    list(APPEND LIB
+      ${SDL_LIBRARY}
+    )
+  endif()
   add_definitions(-DWITH_SDL)
 endif()
 
@@ -302,6 +315,9 @@ endif()
 
 if(WITH_USD)
   add_definitions(-DWITH_USD)
+  list(APPEND INC
+    ../../usd
+  )
 endif()
 
 if(WITH_OPENIMAGEIO)

@@ -92,18 +92,3 @@ bool GPU_is_initialized(void)
 {
   return initialized;
 }
-
-void GPU_immInit(void)
-{
-	immInit();
-}
-
-void GPU_immActivate(void)
-{
-	immActivate_no_assert();
-}
-
-void GPU_immDeactivate(void)
-{
-	immDeactivate_no_assert();
-}

@@ -92,6 +92,8 @@
 #include "CM_Message.h"
 
 /* eevee integration */
+#include "DRW_render.h"
+
 extern "C" {
 #include "BKE_DerivedMesh.h"
 #include "BKE_library.h"
@@ -104,7 +106,6 @@ extern "C" {
 #include "depsgraph/DEG_depsgraph_query.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
-#include "DRW_render.h"
 #include "eevee_private.h"
 #include "GPU_immediate.h"
 #include "windowmanager/WM_api.h"

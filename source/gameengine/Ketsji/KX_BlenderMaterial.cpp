@@ -37,9 +37,10 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
 
+#include "eevee_private.h"
+
 extern "C" {
 #  include "DNA_material_types.h"
-#  include "eevee_private.h"
 #  include "GPU_material.h"
 #  include "../gpu/intern/gpu_codegen.h"
 }

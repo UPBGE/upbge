@@ -413,7 +413,10 @@ bool BKE_sequence_base_shuffle_ex(struct ListBase *seqbasep,
 bool BKE_sequence_base_shuffle(struct ListBase *seqbasep,
                                struct Sequence *test,
                                struct Scene *evil_scene);
-bool BKE_sequence_base_shuffle_time(ListBase *seqbasep, struct Scene *evil_scene);
+bool BKE_sequence_base_shuffle_time(ListBase *seqbasep,
+                                    struct Scene *evil_scene,
+                                    ListBase *markers,
+                                    const bool use_sync_markers);
 bool BKE_sequence_base_isolated_sel_check(struct ListBase *seqbase);
 void BKE_sequencer_free_imbuf(struct Scene *scene, struct ListBase *seqbasep, bool for_render);
 struct Sequence *BKE_sequence_dupli_recursive(const struct Scene *scene_src,
@@ -504,6 +507,7 @@ enum {
   SEQ_SIDE_LEFT,
   SEQ_SIDE_RIGHT,
   SEQ_SIDE_BOTH,
+  SEQ_SIDE_NO_CHANGE,
 };
 int BKE_sequencer_find_next_prev_edit(struct Scene *scene,
                                       int cfra,

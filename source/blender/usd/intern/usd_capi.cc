@@ -20,8 +20,11 @@
 #include "usd.h"
 #include "usd_hierarchy_iterator.h"
 
+#include <pxr/pxr.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/tokens.h>
+
+#include "MEM_guardedalloc.h"
 
 extern "C" {
 #include "DEG_depsgraph.h"
@@ -38,8 +41,6 @@ extern "C" {
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -215,4 +216,18 @@ bool USD_export(bContext *C,
   }
 
   return export_ok;
+}
+
+int USD_get_version(void)
+{
+  /* USD 19.11 defines:
+   *
+   * #define PXR_MAJOR_VERSION 0
+   * #define PXR_MINOR_VERSION 19
+   * #define PXR_PATCH_VERSION 11
+   * #define PXR_VERSION 1911
+   *
+   * So the major version is implicit/invisible in the public version number.
+   */
+  return PXR_VERSION;
 }

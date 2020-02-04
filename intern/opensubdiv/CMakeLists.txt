@@ -83,6 +83,16 @@ if(WITH_OPENSUBDIV)
     internal/opensubdiv_util.h
   )
 
+  list(APPEND LIB
+    ${OPENSUBDIV_LIBRARIES}
+  )
+
+  if(WITH_OPENMP_STATIC)
+    list(APPEND LIB
+      ${OpenMP_LIBRARIES}
+    )
+  endif()
+
   OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENMP)
   # TODO(sergey): OpenCL is not tested and totally unstable atm.
   # OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENCL)
@@ -96,6 +106,7 @@ if(WITH_OPENSUBDIV)
   data_to_c_simple(shader/gpu_shader_opensubdiv_fragment.glsl SRC)
 
   add_definitions(-DGLEW_STATIC)
+  add_definitions(-DOSD_USES_GLEW)
 
   if(WIN32)
     add_definitions(-DNOMINMAX)

@@ -6433,8 +6433,6 @@ static void direct_link_object(FileData *fd, Object *ob)
     BKE_object_empty_draw_type_set(ob, ob->empty_drawtype);
   }
 
-  ob->derivedDeform = NULL;
-  ob->derivedFinal = NULL;
   BKE_object_runtime_reset(ob);
   link_list(fd, &ob->pc_ids);
 
@@ -9550,6 +9548,9 @@ static BHead *read_libblock(FileData *fd,
   ID *id;
   ListBase *lb;
   const char *allocname;
+
+  /* XXX Very weakly handled currently, see comment at the end of this function before trying to
+   * use it for anything new. */
   bool wrong_id = false;
 
   /* In undo case, most libs and linked data should be kept as is from previous state
@@ -9805,7 +9806,14 @@ static BHead *read_libblock(FileData *fd,
   oldnewmap_clear(fd->datamap);
 
   if (wrong_id) {
+    /* XXX This is probably working OK currently given the very limited scope of that flag.
+     * However, it is absolutely **not** handled correctly: it is freeing an ID pointer that has
+     * been added to the fd->libmap mapping, which in theory could lead to nice crashes...
+     * This should be properly solved at some point. */
     BKE_id_free(main, id);
+    if (r_id != NULL) {
+      *r_id = NULL;
+    }
   }
 
   return (bhead);

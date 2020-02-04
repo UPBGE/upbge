@@ -560,12 +560,23 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
             layout.operator("image.save_all_modified", text="Save All Images", icon='FILE_TICK')
 
 
+class VIEW3D_PT_mask(View3DPanel, Panel):
+    bl_category = "Tool"
+    bl_context = ".imagepaint"  # dot on purpose (access from topbar)
+    bl_label = "Masking"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        pass
+
+
 # TODO, move to space_view3d.py
 class VIEW3D_PT_stencil_projectpaint(View3DPanel, Panel):
     bl_category = "Tool"
     bl_context = ".imagepaint"  # dot on purpose (access from topbar)
-    bl_label = "Mask"
+    bl_label = "Stencil Mask"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "VIEW3D_PT_mask"
     bl_ui_units_x = 14
 
     @classmethod
@@ -799,38 +810,14 @@ class VIEW3D_PT_sculpt_dyntopo(Panel, View3DPaintPanel):
         sub.prop(sculpt, "detail_refine_method", text="Refine Method")
         sub.prop(sculpt, "detail_type_method", text="Detailing")
 
+        if sculpt.detail_type_method in {'CONSTANT', 'MANUAL'}:
+            col.operator("sculpt.detail_flood_fill")
+
         col.prop(sculpt, "use_smooth_shading")
 
 
-class VIEW3D_PT_sculpt_dyntopo_remesh(Panel, View3DPaintPanel):
-    bl_context = ".sculpt_mode"  # dot on purpose (access from topbar)
-    bl_label = "Remesh"
-    bl_parent_id = "VIEW3D_PT_sculpt_dyntopo"
-    bl_options = {'DEFAULT_CLOSED'}
-    bl_ui_units_x = 12
 
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
 
-        tool_settings = context.tool_settings
-        sculpt = tool_settings.sculpt
-
-        col = layout.column()
-        col.active = context.sculpt_object.use_dynamic_topology_sculpting
-
-        col.prop(sculpt, "symmetrize_direction")
-
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
-
-        col = flow.column()
-        col.operator("sculpt.symmetrize")
-        col = flow.column()
-        col.operator("sculpt.optimize")
-        if sculpt.detail_type_method in {'CONSTANT', 'MANUAL'}:
-            col = flow.column()
-            col.operator("sculpt.detail_flood_fill")
 
 
 class VIEW3D_PT_sculpt_voxel_remesh(Panel, View3DPaintPanel):
@@ -978,6 +965,13 @@ class VIEW3D_PT_sculpt_symmetry(Panel, View3DPaintPanel):
         layout.prop(sculpt, "use_symmetry_feather", text="Feather")
         layout.column().prop(sculpt, "radial_symmetry", text="Radial")
         layout.column().prop(sculpt, "tile_offset", text="Tile Offset")
+
+        layout.separator()
+
+        col = layout.column()
+
+        col.prop(sculpt, "symmetrize_direction")
+        col.operator("sculpt.symmetrize")
 
 
 class VIEW3D_PT_sculpt_symmetry_for_topbar(Panel):
@@ -1192,6 +1186,7 @@ class VIEW3D_PT_tools_imagepaint_options_cavity(View3DPaintPanel, Panel):
     bl_context = ".imagepaint"  # dot on purpose (access from topbar)
     bl_label = "Cavity Mask"
     bl_parent_id = "VIEW3D_PT_tools_imagepaint_options"
+    bl_parent_id = "VIEW3D_PT_mask"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
@@ -1876,7 +1871,7 @@ classes = (
     VIEW3D_PT_tools_curveedit_options_stroke,
     VIEW3D_PT_tools_armatureedit_options,
     VIEW3D_PT_tools_posemode_options,
-
+    
     VIEW3D_PT_slots_projectpaint,
     VIEW3D_PT_tools_brush_select,
     VIEW3D_PT_tools_brush_settings,
@@ -1886,7 +1881,6 @@ classes = (
     VIEW3D_PT_tools_brush_clone,
     TEXTURE_UL_texpaintslots,
     VIEW3D_MT_tools_projectpaint_uvlayer,
-    VIEW3D_PT_stencil_projectpaint,
     VIEW3D_PT_tools_brush_texture,
     VIEW3D_PT_tools_mask_texture,
     VIEW3D_PT_tools_brush_stroke,
@@ -1897,7 +1891,6 @@ classes = (
     VIEW3D_PT_tools_brush_display,
 
     VIEW3D_PT_sculpt_dyntopo,
-    VIEW3D_PT_sculpt_dyntopo_remesh,
     VIEW3D_PT_sculpt_voxel_remesh,
     VIEW3D_PT_sculpt_symmetry,
     VIEW3D_PT_sculpt_symmetry_for_topbar,
@@ -1912,9 +1905,13 @@ classes = (
     VIEW3D_PT_tools_vertexpaint_symmetry_for_topbar,
     VIEW3D_PT_tools_vertexpaint_options,
 
+    VIEW3D_PT_mask,
+    VIEW3D_PT_stencil_projectpaint,
+    VIEW3D_PT_tools_imagepaint_options_cavity,
+
     VIEW3D_PT_tools_imagepaint_symmetry,
     VIEW3D_PT_tools_imagepaint_options,
-    VIEW3D_PT_tools_imagepaint_options_cavity,
+    
     VIEW3D_PT_tools_imagepaint_options_external,
     VIEW3D_MT_tools_projectpaint_stencil,
 

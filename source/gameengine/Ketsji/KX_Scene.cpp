@@ -103,6 +103,8 @@
 #include "CM_Message.h"
 
 /**************************EEVEE INTEGRATION*****************************/
+#include "MEM_guardedalloc.h"
+
 extern "C" {
 #include "BKE_camera.h"
 #include "BKE_collection.h"
@@ -113,9 +115,8 @@ extern "C" {
 #include "depsgraph/DEG_depsgraph_query.h"
 #include "DNA_mesh_types.h"
 #include "DNA_windowmanager_types.h"
-#include "eevee_private.h"
 #include "DRW_render.h"
-#include "MEM_guardedalloc.h"
+#include "WM_api.h"
 
 // TEST USE_VIEWPORT_RENDER
 #include "ED_screen.h"
@@ -438,7 +439,7 @@ void KX_Scene::InitBlenderContextVariables()
   wmWindowManager *wm = CTX_wm_manager(KX_GetActiveEngine()->GetContext());
   wmWindow *win;
   for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
-    bScreen *screen = win->screen;
+    bScreen *screen = WM_window_get_active_screen(win);
     if (!screen) {
       continue;
     }
@@ -639,14 +640,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
     rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
     rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
-
-  bool isBlenderPlayer = !canvas->GetARegion();
-  if (isBlenderPlayer) {
-    DRW_transform_none(GPU_framebuffer_color_texture(f->GetFrameBuffer()));
-  }
-  else {
-    DRW_transform_to_display_image_render(GPU_framebuffer_color_texture(f->GetFrameBuffer()));
-  }
+  DRW_transform_to_display_image_render(GPU_framebuffer_color_texture(f->GetFrameBuffer()));
 
   if (!calledFromConstructor) {
     engine->EndFrame();

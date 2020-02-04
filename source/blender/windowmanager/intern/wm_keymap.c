@@ -505,31 +505,6 @@ static void keymap_item_set_id(wmKeyMap *keymap, wmKeyMapItem *kmi)
   }
 }
 
-/* if item was added, then bail out */
-wmKeyMapItem *WM_keymap_verify_item(
-    wmKeyMap *keymap, const char *idname, int type, int val, int modifier, int keymodifier)
-{
-  wmKeyMapItem *kmi;
-
-  for (kmi = keymap->items.first; kmi; kmi = kmi->next) {
-    if (STREQLEN(kmi->idname, idname, OP_MAX_TYPENAME)) {
-      break;
-    }
-  }
-  if (kmi == NULL) {
-    kmi = MEM_callocN(sizeof(wmKeyMapItem), "keymap entry");
-
-    BLI_addtail(&keymap->items, kmi);
-    BLI_strncpy(kmi->idname, idname, OP_MAX_TYPENAME);
-
-    keymap_item_set_id(keymap, kmi);
-
-    keymap_event_set(kmi, type, val, modifier, keymodifier);
-    wm_keymap_item_properties_set(kmi);
-  }
-  return kmi;
-}
-
 /* always add item */
 wmKeyMapItem *WM_keymap_add_item(
     wmKeyMap *keymap, const char *idname, int type, int val, int modifier, int keymodifier)
@@ -1134,12 +1109,13 @@ const char *WM_key_event_string(const short type, const bool compact)
       case LEFTCTRLKEY:
       case RIGHTCTRLKEY:
         if (platform == MACOS) {
-          return "^";
+          return key_event_glyph_or_text(font_id, "^", "\xe2\x8c\x83");
         }
         return IFACE_("Ctrl");
       case LEFTALTKEY:
       case RIGHTALTKEY: {
         if (platform == MACOS) {
+          /* Option symbol on Mac keyboard. */
           single_glyph = "\xe2\x8c\xa5";
         }
         return key_event_glyph_or_text(font_id, IFACE_("Alt"), single_glyph);
@@ -1149,28 +1125,23 @@ const char *WM_key_event_string(const short type, const bool compact)
           return key_event_glyph_or_text(font_id, IFACE_("Cmd"), "\xe2\x8c\x98");
         }
         else if (platform == MSWIN) {
-          return key_event_glyph_or_text(font_id, IFACE_("Win"), "\xe2\x8a\x9e");
+          return key_event_glyph_or_text(font_id, IFACE_("Win"), "\xe2\x9d\x96");
         }
-        return IFACE_("OSkey");
+        return IFACE_("OS");
       } break;
-      case TABKEY: {
-        if (platform == MACOS) {
-          single_glyph = "\xe2\x86\xb9";
-        }
-        return key_event_glyph_or_text(font_id, IFACE_("Tab"), single_glyph);
-      }
+      case TABKEY:
+        return key_event_glyph_or_text(font_id, IFACE_("Tab"), "\xe2\xad\xbe");
       case BACKSPACEKEY:
         return key_event_glyph_or_text(font_id, IFACE_("Bksp"), "\xe2\x8c\xab");
       case ESCKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Esc"), NULL /* "\xe2\x8e\x8b" */);
-      case RETKEY: {
         if (platform == MACOS) {
-          single_glyph = "\xe2\x8f\x8e";
+          single_glyph = "\xe2\x8e\x8b";
         }
-        return key_event_glyph_or_text(font_id, IFACE_("Enter"), single_glyph);
-      }
+        return key_event_glyph_or_text(font_id, IFACE_("Esc"), single_glyph);
+      case RETKEY:
+        return key_event_glyph_or_text(font_id, IFACE_("Enter"), "\xe2\x86\xb5");
       case SPACEKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Space"), NULL /* "\xe2\x90\xa3" */);
+        return key_event_glyph_or_text(font_id, IFACE_("Space"), "\xe2\x90\xa3");
       case LEFTARROWKEY:
         return key_event_glyph_or_text(font_id, IFACE_("Left"), "\xe2\x86\x90");
       case UPARROWKEY:

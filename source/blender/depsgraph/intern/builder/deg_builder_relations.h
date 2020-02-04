@@ -257,6 +257,10 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                                    bPoseChannel *pchan,
                                    bConstraint *con,
                                    RootPChanMap *root_map);
+  virtual void build_inter_ik_chains(Object *object,
+                                     const OperationKey &solver_key,
+                                     const bPoseChannel *rootchan,
+                                     const RootPChanMap *root_map);
   virtual void build_rig(Object *object);
   virtual void build_proxy_rig(Object *object);
   virtual void build_shapekeys(Key *key);
@@ -364,7 +368,7 @@ struct DepsNodeHandle {
                  const char *default_name = "")
       : builder(builder), node(node), default_name(default_name)
   {
-    BLI_assert(node != NULL);
+    BLI_assert(node != nullptr);
   }
 
   DepsgraphRelationBuilder *builder;

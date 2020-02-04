@@ -54,10 +54,11 @@
 #include "Exception.h"
 #include "Texture.h"
 
+#include "eevee_private.h"
+
 extern "C" {
 #  include "BKE_global.h"
 #  include "../depsgraph/DEG_depsgraph_query.h"
-#  include "eevee_private.h"
 #  include "GPU_viewport.h"
 }
 
@@ -160,9 +161,6 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 
 bool ImageRender::Render()
 {
-
-	DRW_state_reset();
-
 	RAS_FrameFrustum frustum;
 
 	if (!m_render ||

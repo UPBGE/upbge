@@ -363,84 +363,84 @@ static uint gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
     BKE_imageuser_default(&iuser);
     iuser.tile = tile->tile_number;
     ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, NULL);
-    BLI_assert(ibuf != NULL);
 
-    bool needs_scale = (ibuf->x != tilesize[0] || ibuf->y != tilesize[1]);
+    if (ibuf) {
+      bool needs_scale = (ibuf->x != tilesize[0] || ibuf->y != tilesize[1]);
 
-    ImBuf *scale_ibuf = NULL;
-    if (ibuf->rect_float) {
-      float *rect_float = ibuf->rect_float;
+      ImBuf *scale_ibuf = NULL;
+      if (ibuf->rect_float) {
+        float *rect_float = ibuf->rect_float;
 
-      const bool store_premultiplied = ima->alpha_mode != IMA_ALPHA_STRAIGHT;
-      if (ibuf->channels != 4 || !store_premultiplied) {
-        rect_float = MEM_mallocN(sizeof(float) * 4 * ibuf->x * ibuf->y, __func__);
-        IMB_colormanagement_imbuf_to_float_texture(
-            rect_float, 0, 0, ibuf->x, ibuf->y, ibuf, store_premultiplied);
+        const bool store_premultiplied = ima->alpha_mode != IMA_ALPHA_STRAIGHT;
+        if (ibuf->channels != 4 || !store_premultiplied) {
+          rect_float = MEM_mallocN(sizeof(float) * 4 * ibuf->x * ibuf->y, __func__);
+          IMB_colormanagement_imbuf_to_float_texture(
+              rect_float, 0, 0, ibuf->x, ibuf->y, ibuf, store_premultiplied);
+        }
+
+        float *pixeldata = rect_float;
+        if (needs_scale) {
+          scale_ibuf = IMB_allocFromBuffer(NULL, rect_float, ibuf->x, ibuf->y, 4);
+          IMB_scaleImBuf(scale_ibuf, tilesize[0], tilesize[1]);
+          pixeldata = scale_ibuf->rect_float;
+        }
+
+        glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
+                        0,
+                        tileoffset[0],
+                        tileoffset[1],
+                        tilelayer,
+                        tilesize[0],
+                        tilesize[1],
+                        1,
+                        GL_RGBA,
+                        GL_FLOAT,
+                        pixeldata);
+
+        if (rect_float != ibuf->rect_float) {
+          MEM_freeN(rect_float);
+        }
       }
+      else {
+        unsigned int *rect = ibuf->rect;
 
-      float *pixeldata = rect_float;
-      if (needs_scale) {
-        scale_ibuf = IMB_allocFromBuffer(NULL, rect_float, ibuf->x, ibuf->y, 4);
-        IMB_scaleImBuf(scale_ibuf, tilesize[0], tilesize[1]);
-        pixeldata = scale_ibuf->rect_float;
+        if (!IMB_colormanagement_space_is_data(ibuf->rect_colorspace)) {
+          rect = MEM_mallocN(sizeof(uchar) * 4 * ibuf->x * ibuf->y, __func__);
+          IMB_colormanagement_imbuf_to_byte_texture((uchar *)rect,
+                                                    0,
+                                                    0,
+                                                    ibuf->x,
+                                                    ibuf->y,
+                                                    ibuf,
+                                                    internal_format == GL_SRGB8_ALPHA8,
+                                                    ima->alpha_mode == IMA_ALPHA_PREMUL);
+        }
+
+        unsigned int *pixeldata = rect;
+        if (needs_scale) {
+          scale_ibuf = IMB_allocFromBuffer(rect, NULL, ibuf->x, ibuf->y, 4);
+          IMB_scaleImBuf(scale_ibuf, tilesize[0], tilesize[1]);
+          pixeldata = scale_ibuf->rect;
+        }
+        glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
+                        0,
+                        tileoffset[0],
+                        tileoffset[1],
+                        tilelayer,
+                        tilesize[0],
+                        tilesize[1],
+                        1,
+                        GL_RGBA,
+                        GL_UNSIGNED_BYTE,
+                        pixeldata);
+
+        if (rect != ibuf->rect) {
+          MEM_freeN(rect);
+        }
       }
-
-      glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
-                      0,
-                      tileoffset[0],
-                      tileoffset[1],
-                      tilelayer,
-                      tilesize[0],
-                      tilesize[1],
-                      1,
-                      GL_RGBA,
-                      GL_FLOAT,
-                      pixeldata);
-
-      if (rect_float != ibuf->rect_float) {
-        MEM_freeN(rect_float);
+      if (scale_ibuf != NULL) {
+        IMB_freeImBuf(scale_ibuf);
       }
-    }
-    else {
-      unsigned int *rect = ibuf->rect;
-
-      if (!IMB_colormanagement_space_is_data(ibuf->rect_colorspace)) {
-        rect = MEM_mallocN(sizeof(uchar) * 4 * ibuf->x * ibuf->y, __func__);
-        IMB_colormanagement_imbuf_to_byte_texture((uchar *)rect,
-                                                  0,
-                                                  0,
-                                                  ibuf->x,
-                                                  ibuf->y,
-                                                  ibuf,
-                                                  internal_format == GL_SRGB8_ALPHA8,
-                                                  ima->alpha_mode == IMA_ALPHA_PREMUL);
-      }
-
-      unsigned int *pixeldata = rect;
-      if (needs_scale) {
-        scale_ibuf = IMB_allocFromBuffer(rect, NULL, ibuf->x, ibuf->y, 4);
-        IMB_scaleImBuf(scale_ibuf, tilesize[0], tilesize[1]);
-        pixeldata = scale_ibuf->rect;
-      }
-      glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
-                      0,
-                      tileoffset[0],
-                      tileoffset[1],
-                      tilelayer,
-                      tilesize[0],
-                      tilesize[1],
-                      1,
-                      GL_RGBA,
-                      GL_UNSIGNED_BYTE,
-                      pixeldata);
-
-      if (rect != ibuf->rect) {
-        MEM_freeN(rect);
-      }
-    }
-
-    if (scale_ibuf != NULL) {
-      IMB_freeImBuf(scale_ibuf);
     }
 
     BKE_image_release_ibuf(ima, ibuf, NULL);
@@ -851,7 +851,11 @@ static void gpu_texture_update_from_ibuf(
   GPU_texture_unbind(tex);
 }
 
-GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int textarget)
+/* Get the GPUTexture for a given `Image`.
+ *
+ * `iuser` and `ibuf` are mutual exclusive parameters. The caller can pass the `ibuf` when already
+ * available. It is also required when requesting the GPUTexture for a render result. */
+GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, ImBuf *ibuf, int textarget)
 {
   if (ima == NULL) {
     return NULL;
@@ -882,27 +886,33 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int textarget
   }
 
   /* check if we have a valid image buffer */
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, NULL);
-  if (ibuf == NULL) {
-    *tex = GPU_texture_from_bindcode(textarget, bindcode);
-    return *tex;
+  ImBuf *ibuf_intern = ibuf;
+  if (ibuf_intern == NULL) {
+    ibuf_intern = BKE_image_acquire_ibuf(ima, iuser, NULL);
+    if (ibuf_intern == NULL) {
+      *tex = GPU_texture_from_bindcode(textarget, bindcode);
+      return *tex;
+    }
   }
 
   if (textarget == GL_TEXTURE_2D_ARRAY) {
-    bindcode = gpu_texture_create_tile_array(ima, ibuf);
+    bindcode = gpu_texture_create_tile_array(ima, ibuf_intern);
   }
   else if (textarget == GL_TEXTURE_1D_ARRAY) {
     bindcode = gpu_texture_create_tile_mapping(ima);
   }
   else {
-    bindcode = gpu_texture_create_from_ibuf(ima, ibuf, textarget);
+    bindcode = gpu_texture_create_from_ibuf(ima, ibuf_intern, textarget);
   }
 
-  BKE_image_release_ibuf(ima, ibuf, NULL);
+  /* if `ibuf` was given, we don't own the `ibuf_intern` */
+  if (ibuf == NULL) {
+    BKE_image_release_ibuf(ima, ibuf_intern, NULL);
+  }
 
   *tex = GPU_texture_from_bindcode(textarget, bindcode);
 
-  GPU_texture_orig_size_set(*tex, ibuf->x, ibuf->y);
+  GPU_texture_orig_size_set(*tex, ibuf_intern->x, ibuf_intern->y);
 
   return *tex;
 }

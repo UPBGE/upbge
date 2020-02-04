@@ -31,6 +31,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
 
+#include "BLT_translation.h"
+
 #include "BKE_appdir.h"
 
 #include "ED_fileselect.h"
@@ -270,7 +272,7 @@ void fsmenu_insert_entry(struct FSMenu *fsmenu,
                          FSMenuCategory category,
                          const char *path,
                          const char *name,
-                         const int icon,
+                         int icon,
                          FSMenuInsert flag)
 {
   FSMenuEntry *fsm_prev;
@@ -311,19 +313,22 @@ void fsmenu_insert_entry(struct FSMenu *fsmenu,
   fsm_iter->path = BLI_strdup(path);
   fsm_iter->save = (flag & FS_INSERT_SAVE) != 0;
 
-  if ((category == FS_CATEGORY_RECENT) && (!name || !name[0])) {
-    /* Special handling when adding new recent entry - check if dir exists in
-     * some other categories, and try to use name from there if so. */
+  /* If entry is also in another list, use that icon and maybe name. */
+  if (ELEM(category, FS_CATEGORY_BOOKMARKS, FS_CATEGORY_RECENT)) {
+
     FSMenuCategory cats[] = {
         FS_CATEGORY_SYSTEM, FS_CATEGORY_SYSTEM_BOOKMARKS, FS_CATEGORY_BOOKMARKS};
     int i = ARRAY_SIZE(cats);
+    if (category == FS_CATEGORY_BOOKMARKS) {
+      i--;
+    }
 
     while (i--) {
       FSMenuEntry *tfsm = ED_fsmenu_get_category(fsmenu, cats[i]);
-
       for (; tfsm; tfsm = tfsm->next) {
         if (STREQ(tfsm->path, fsm_iter->path)) {
-          if (tfsm->name[0]) {
+          icon = tfsm->icon;
+          if (tfsm->name[0] && (!name || !name[0])) {
             name = tfsm->name;
           }
           break;
@@ -485,6 +490,25 @@ void fsmenu_read_bookmarks(struct FSMenu *fsmenu, const char *filename)
   fclose(fp);
 }
 
+#ifdef WIN32
+/* Add a Windows known folder path to the System list. */
+static void fsmenu_add_windows_folder(struct FSMenu *fsmenu,
+                                      REFKNOWNFOLDERID rfid,
+                                      const char *name,
+                                      const int icon,
+                                      FSMenuInsert flag)
+{
+  LPWSTR pPath;
+  char line[FILE_MAXDIR];
+  if (SHGetKnownFolderPath(rfid, 0, NULL, &pPath) == S_OK) {
+    BLI_strncpy_wchar_as_utf8(line, pPath, FILE_MAXDIR);
+    CoTaskMemFree(pPath);
+    BLI_add_slash(line);
+    fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, name, icon, flag);
+  }
+}
+#endif
+
 void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 {
   char line[FILE_MAXDIR];
@@ -541,16 +565,24 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
       }
     }
 
-    /* Adding Desktop and My Documents */
+    /* Get Special Folder Locations. */
     if (read_bookmarks) {
-      SHGetSpecialFolderPathW(0, wline, CSIDL_PERSONAL, 0);
-      BLI_strncpy_wchar_as_utf8(line, wline, FILE_MAXDIR);
-      fsmenu_insert_entry(
-          fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, ICON_DOCUMENTS, FS_INSERT_SORTED);
-      SHGetSpecialFolderPathW(0, wline, CSIDL_DESKTOPDIRECTORY, 0);
-      BLI_strncpy_wchar_as_utf8(line, wline, FILE_MAXDIR);
-      fsmenu_insert_entry(
-          fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, ICON_DESKTOP, FS_INSERT_SORTED);
+      fsmenu_add_windows_folder(
+          fsmenu, &FOLDERID_Profile, IFACE_("Home"), ICON_HOME, FS_INSERT_LAST);
+      fsmenu_add_windows_folder(
+          fsmenu, &FOLDERID_Desktop, IFACE_("Desktop"), ICON_DESKTOP, FS_INSERT_LAST);
+      fsmenu_add_windows_folder(
+          fsmenu, &FOLDERID_Documents, IFACE_("Documents"), ICON_DOCUMENTS, FS_INSERT_LAST);
+      fsmenu_add_windows_folder(
+          fsmenu, &FOLDERID_Downloads, IFACE_("Downloads"), ICON_IMPORT, FS_INSERT_LAST);
+      fsmenu_add_windows_folder(
+          fsmenu, &FOLDERID_Music, IFACE_("Music"), ICON_FILE_SOUND, FS_INSERT_LAST);
+      fsmenu_add_windows_folder(
+          fsmenu, &FOLDERID_Pictures, IFACE_("Pictures"), ICON_FILE_IMAGE, FS_INSERT_LAST);
+      fsmenu_add_windows_folder(
+          fsmenu, &FOLDERID_Videos, IFACE_("Videos"), ICON_FILE_MOVIE, FS_INSERT_LAST);
+      fsmenu_add_windows_folder(
+          fsmenu, &FOLDERID_Fonts, IFACE_("Fonts"), ICON_FONTPREVIEW, FS_INSERT_LAST);
     }
   }
 #else
@@ -578,11 +610,41 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 
       CFURLGetFileSystemRepresentation(cfURL, false, (UInt8 *)defPath, FILE_MAX);
 
+      /* Get name of the volume. */
+      char name[FILE_MAXFILE] = "";
+      CFStringRef nameString = NULL;
+      CFURLCopyResourcePropertyForKey(cfURL, kCFURLVolumeLocalizedNameKey, &nameString, NULL);
+      if (nameString != NULL) {
+        CFStringGetCString(nameString, name, sizeof(name), kCFStringEncodingUTF8);
+        CFRelease(nameString);
+      }
+
+      /* Set icon for regular, removable or network drive. */
+      int icon = ICON_DISK_DRIVE;
+      CFBooleanRef localKey = NULL;
+      CFURLCopyResourcePropertyForKey(cfURL, kCFURLVolumeIsLocalKey, &localKey, NULL);
+      if (localKey != NULL) {
+        if (!CFBooleanGetValue(localKey)) {
+          icon = ICON_NETWORK_DRIVE;
+        }
+        else {
+          CFBooleanRef ejectableKey = NULL;
+          CFURLCopyResourcePropertyForKey(cfURL, kCFURLVolumeIsEjectableKey, &ejectableKey, NULL);
+          if (ejectableKey != NULL) {
+            if (CFBooleanGetValue(ejectableKey)) {
+              icon = ICON_EXTERNAL_DRIVE;
+            }
+            CFRelease(ejectableKey);
+          }
+        }
+        CFRelease(localKey);
+      }
+
       /* Add end slash for consistency with other platforms */
       BLI_add_slash(defPath);
 
       fsmenu_insert_entry(
-          fsmenu, FS_CATEGORY_SYSTEM, defPath, NULL, ICON_DISK_DRIVE, FS_INSERT_SORTED);
+          fsmenu, FS_CATEGORY_SYSTEM, defPath, name[0] ? name : NULL, icon, FS_INSERT_SORTED);
     }
 
     CFRelease(volEnum);
@@ -640,13 +702,75 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
     const char *home = BLI_getenv("HOME");
 
     if (read_bookmarks && home) {
+
       BLI_snprintf(line, sizeof(line), "%s/", home);
-      fsmenu_insert_entry(
-          fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, ICON_HOME, FS_INSERT_SORTED);
-      BLI_snprintf(line, sizeof(line), "%s/Desktop/", home);
       if (BLI_exists(line)) {
         fsmenu_insert_entry(
-            fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, ICON_DESKTOP, FS_INSERT_SORTED);
+            fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, IFACE_("Home"), ICON_HOME, FS_INSERT_LAST);
+      }
+
+      /* Follow the XDG spec, check if these are available. */
+
+      /* TODO: parse "$XDG_CONFIG_HOME/user-dirs.dirs" for localized paths. */
+
+      BLI_snprintf(line, sizeof(line), "%s/Desktop/", home);
+      if (BLI_exists(line)) {
+        fsmenu_insert_entry(fsmenu,
+                            FS_CATEGORY_SYSTEM_BOOKMARKS,
+                            line,
+                            IFACE_("Desktop"),
+                            ICON_DESKTOP,
+                            FS_INSERT_LAST);
+      }
+
+      BLI_snprintf(line, sizeof(line), "%s/Documents/", home);
+      if (BLI_exists(line)) {
+        fsmenu_insert_entry(fsmenu,
+                            FS_CATEGORY_SYSTEM_BOOKMARKS,
+                            line,
+                            IFACE_("Documents"),
+                            ICON_DOCUMENTS,
+                            FS_INSERT_LAST);
+      }
+
+      BLI_snprintf(line, sizeof(line), "%s/Downloads/", home);
+      if (BLI_exists(line)) {
+        fsmenu_insert_entry(fsmenu,
+                            FS_CATEGORY_SYSTEM_BOOKMARKS,
+                            line,
+                            IFACE_("Downloads"),
+                            ICON_IMPORT,
+                            FS_INSERT_LAST);
+      }
+
+      BLI_snprintf(line, sizeof(line), "%s/Videos/", home);
+      if (BLI_exists(line)) {
+        fsmenu_insert_entry(fsmenu,
+                            FS_CATEGORY_SYSTEM_BOOKMARKS,
+                            line,
+                            IFACE_("Videos"),
+                            ICON_FILE_MOVIE,
+                            FS_INSERT_LAST);
+      }
+
+      BLI_snprintf(line, sizeof(line), "%s/Pictures/", home);
+      if (BLI_exists(line)) {
+        fsmenu_insert_entry(fsmenu,
+                            FS_CATEGORY_SYSTEM_BOOKMARKS,
+                            line,
+                            IFACE_("Pictures"),
+                            ICON_FILE_IMAGE,
+                            FS_INSERT_LAST);
+      }
+
+      BLI_snprintf(line, sizeof(line), "%s/Music/", home);
+      if (BLI_exists(line)) {
+        fsmenu_insert_entry(fsmenu,
+                            FS_CATEGORY_SYSTEM_BOOKMARKS,
+                            line,
+                            IFACE_("Music"),
+                            ICON_FILE_SOUND,
+                            FS_INSERT_LAST);
       }
     }
 

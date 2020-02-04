@@ -1622,11 +1622,6 @@ static void ed_default_handlers(
       WM_gizmomap_add_handlers(ar, ar->gizmo_map);
     }
   }
-  if (flag & ED_KEYMAP_TOOL) {
-    WM_event_add_keymap_handler_dynamic(
-        &ar->handlers, WM_event_get_keymap_from_toolsystem_fallback, sa);
-    WM_event_add_keymap_handler_dynamic(&ar->handlers, WM_event_get_keymap_from_toolsystem, sa);
-  }
   if (flag & ED_KEYMAP_VIEW2D) {
     /* 2d-viewport handling+manipulation */
     wmKeyMap *keymap = WM_keymap_ensure(wm->defaultconf, "View2D", 0, 0);
@@ -1646,6 +1641,11 @@ static void ed_default_handlers(
     /* frame changing and timeline operators (for time spaces) */
     keymap = WM_keymap_ensure(wm->defaultconf, "Animation", 0, 0);
     WM_event_add_keymap_handler(handlers, keymap);
+  }
+  if (flag & ED_KEYMAP_TOOL) {
+    WM_event_add_keymap_handler_dynamic(
+        &ar->handlers, WM_event_get_keymap_from_toolsystem_fallback, sa);
+    WM_event_add_keymap_handler_dynamic(&ar->handlers, WM_event_get_keymap_from_toolsystem, sa);
   }
   if (flag & ED_KEYMAP_FRAMES) {
     /* frame changing/jumping (for all spaces) */
@@ -1841,8 +1841,10 @@ void ED_region_update_rect(ARegion *ar)
 }
 
 /* externally called for floating regions like menus */
-void ED_region_init(ARegion *ar)
+void ED_region_floating_initialize(ARegion *ar)
 {
+  BLI_assert(ar->alignment == RGN_ALIGN_FLOAT);
+
   /* refresh can be called before window opened */
   region_subwindow(ar);
 

@@ -35,6 +35,7 @@
 #include "intern/node/deg_node_operation.h"
 
 #include "intern/depsgraph.h"
+#include "intern/depsgraph_relation.h"
 
 namespace DEG {
 
@@ -99,8 +100,8 @@ void schedule_node_to_stack(CyclesSolverState *state, OperationNode *node)
 {
   StackEntry entry;
   entry.node = node;
-  entry.from = NULL;
-  entry.via_relation = NULL;
+  entry.from = nullptr;
+  entry.via_relation = nullptr;
   BLI_stack_push(state->traversal_stack, &entry);
   set_node_visited_state(node, NODE_IN_STACK);
 }
@@ -186,7 +187,7 @@ void solve_cycles(CyclesSolverState *state)
                              node->full_identifier() + " via '" + rel->name + "'\n";
           StackEntry *current = entry;
           while (current->node != to) {
-            BLI_assert(current != NULL);
+            BLI_assert(current != nullptr);
             cycle_str += "  " + current->from->node->full_identifier() + " via '" +
                          current->via_relation->name + "'\n";
             current = current->from;

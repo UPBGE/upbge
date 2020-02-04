@@ -24,12 +24,45 @@
 #pragma once
 
 #include "intern/depsgraph_type.h"
+#include "intern/debug/deg_time_average.h"
 
 #include "BKE_global.h"
 
 #include "DEG_depsgraph_debug.h"
 
 namespace DEG {
+
+class DepsgraphDebug {
+ public:
+  DepsgraphDebug();
+
+  bool do_time_debug() const;
+
+  void begin_graph_evaluation();
+  void end_graph_evaluation();
+
+  /* NOTE: Corresponds to G_DEBUG_DEPSGRAPH_* flags. */
+  int flags;
+
+  /* Name of this dependency graph (is used for debug prints, helping to distinguish graphs
+   * created for different view layer). */
+  string name;
+
+  /* Is true when dependency graph was evaluated at least once.
+   * This is NOT an indication that depsgraph is at its evaluated state. */
+  bool is_ever_evaluated;
+
+ protected:
+  /* Maximum number of counters used to calculate frame rate of depsgraph update. */
+  static const constexpr int MAX_FPS_COUNTERS = 64;
+
+  /* Point in time when last graph evaluation began.
+   * Is initialized from begin_graph_evaluation() when time debug is enabled.
+   */
+  double graph_evaluation_start_time_;
+
+  AveragedTimeSampler<MAX_FPS_COUNTERS> fps_samples_;
+};
 
 #define DEG_DEBUG_PRINTF(depsgraph, type, ...) \
   do { \

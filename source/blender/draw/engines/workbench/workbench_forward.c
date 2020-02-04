@@ -210,7 +210,8 @@ WORKBENCH_MaterialData *workbench_forward_get_or_create_material_data(WORKBENCH_
     if (color_type == V3D_SHADING_TEXTURE_COLOR) {
       material->shgrp_object_outline = DRW_shgroup_create(sh_data->object_outline_texture_sh,
                                                           psl->object_outline_pass);
-      GPUTexture *tex = GPU_texture_from_blender(material->ima, material->iuser, GL_TEXTURE_2D);
+      GPUTexture *tex = GPU_texture_from_blender(
+          material->ima, material->iuser, NULL, GL_TEXTURE_2D);
       DRW_shgroup_uniform_texture(material->shgrp_object_outline, "image", tex);
     }
     else {
@@ -594,7 +595,7 @@ static void workbench_forward_cache_populate_texture_paint_mode(WORKBENCH_Data *
   }
   else {
     /* IMAGEPAINT_MODE_MATERIAL */
-    const int materials_len = MAX2(1, ob->totcol);
+    const int materials_len = DRW_cache_object_material_count_get(ob);
     struct GPUBatch **geom_array = DRW_cache_mesh_surface_texpaint_get(ob);
     for (int i = 0; i < materials_len; i++) {
       if (geom_array != NULL && geom_array[i] != NULL) {
@@ -668,7 +669,7 @@ void workbench_forward_cache_populate(WORKBENCH_Data *vedata, Object *ob)
   if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
     const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob, draw_ctx->v3d) &&
                                  !DRW_state_is_image_render();
-    const int materials_len = MAX2(1, ob->totcol);
+    const int materials_len = DRW_cache_object_material_count_get(ob);
     const Mesh *me = (ob->type == OB_MESH) ? ob->data : NULL;
     const WORKBENCH_ColorOverride color_override = workbench_object_color_override_get(ob);
     const bool use_texture_paint_drawing = !(DRW_state_is_image_render() &&

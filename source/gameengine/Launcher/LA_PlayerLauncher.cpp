@@ -42,9 +42,9 @@ extern "C" {
 #  include "BKE_sound.h"
 
 #  include "BLI_fileops.h"
-
-#  include "MEM_guardedalloc.h"
 }
+
+#include "MEM_guardedalloc.h"
 
 #include "KX_PythonInit.h"
 

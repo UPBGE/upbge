@@ -109,14 +109,15 @@ def pack_mac(builder):
     package_filepath = os.path.join(builder.build_dir, package_filename)
 
     release_dir = os.path.join(builder.blender_dir, 'release', 'darwin')
-    bundle_sh = os.path.join(release_dir, 'bundle.sh')
+    buildbot_dir = os.path.join(builder.blender_dir, 'build_files', 'buildbot')
+    bundle_script = os.path.join(buildbot_dir, 'slave_bundle_dmg.py')
 
-    command = [bundle_sh]
-    command += ['--source', builder.install_dir]
+    command = [bundle_script]
     command += ['--dmg', package_filepath]
     if info.is_development_build:
         background_image = os.path.join(release_dir, 'buildbot', 'background.tif')
         command += ['--background-image', background_image]
+    command += [builder.install_dir]
     buildbot_utils.call(command)
 
     create_buildbot_upload_zip(builder, [(package_filepath, package_filename)])
@@ -160,8 +161,6 @@ def pack_linux(builder):
     blender_executable = os.path.join(builder.install_dir, 'blender')
 
     info = buildbot_utils.VersionInfo(builder)
-    blender_glibc = builder.name.split('_')[1]
-    blender_arch = 'x86_64'
 
     # Strip all unused symbols from the binaries
     print("Stripping binaries...")
@@ -172,7 +171,7 @@ def pack_linux(builder):
     buildbot_utils.call(builder.command_prefix + ['find', py_target, '-iname', '*.so', '-exec', 'strip', '-s', '{}', ';'])
 
     # Construct package name
-    platform_name = 'linux-' + blender_glibc + '-' + blender_arch
+    platform_name = 'linux64'
     package_name = get_package_name(builder, platform_name)
     package_filename = package_name + ".tar.xz"
 

@@ -69,6 +69,8 @@ void DRW_mesh_batch_cache_free_old(struct Mesh *me, int ctime);
 /* Curve */
 void DRW_curve_batch_cache_create_requested(struct Object *ob);
 
+int DRW_curve_material_count_get(struct Curve *cu);
+
 struct GPUBatch *DRW_curve_batch_cache_get_wire_edge(struct Curve *cu);
 struct GPUBatch *DRW_curve_batch_cache_get_normal_edge(struct Curve *cu);
 struct GPUBatch *DRW_curve_batch_cache_get_edge_detection(struct Curve *cu, bool *r_is_manifold);
@@ -80,7 +82,10 @@ struct GPUBatch **DRW_curve_batch_cache_get_surface_shaded(struct Curve *cu,
                                                            struct GPUMaterial **gpumat_array,
                                                            uint gpumat_array_len);
 struct GPUBatch *DRW_curve_batch_cache_get_wireframes_face(struct Curve *cu);
+
 /* Metaball */
+int DRW_metaball_material_count_get(struct MetaBall *mb);
+
 struct GPUBatch *DRW_metaball_batch_cache_get_triangles_with_normals(struct Object *ob);
 struct GPUBatch **DRW_metaball_batch_cache_get_surface_shaded(struct Object *ob,
                                                               struct MetaBall *mb,
@@ -93,9 +98,10 @@ struct GPUBatch *DRW_metaball_batch_cache_get_edge_detection(struct Object *ob,
 /* DispList */
 void DRW_displist_vertbuf_create_pos_and_nor(struct ListBase *lb, struct GPUVertBuf *vbo);
 void DRW_displist_vertbuf_create_wiredata(struct ListBase *lb, struct GPUVertBuf *vbo);
-void DRW_displist_vertbuf_create_loop_pos_and_nor_and_uv(struct ListBase *lb,
-                                                         struct GPUVertBuf *vbo_pos_nor,
-                                                         struct GPUVertBuf *vbo_uv);
+void DRW_displist_vertbuf_create_loop_pos_and_nor_and_uv_and_tan(struct ListBase *lb,
+                                                                 struct GPUVertBuf *vbo_pos_nor,
+                                                                 struct GPUVertBuf *vbo_uv,
+                                                                 struct GPUVertBuf *vbo_tan);
 void DRW_displist_indexbuf_create_lines_in_order(struct ListBase *lb, struct GPUIndexBuf *ibo);
 void DRW_displist_indexbuf_create_triangles_in_order(struct ListBase *lb, struct GPUIndexBuf *ibo);
 void DRW_displist_indexbuf_create_triangles_loop_split_by_material(struct ListBase *lb,
@@ -159,6 +165,8 @@ struct GPUBatch *DRW_mesh_batch_cache_get_edituv_facedots(struct Mesh *me);
 /* For Image UV editor. */
 struct GPUBatch *DRW_mesh_batch_cache_get_uv_edges(struct Mesh *me);
 struct GPUBatch *DRW_mesh_batch_cache_get_edit_mesh_analysis(struct Mesh *me);
+
+int DRW_mesh_material_count_get(struct Mesh *me);
 
 /* Edit mesh bitflags (is this the right place?) */
 enum {

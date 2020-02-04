@@ -1743,9 +1743,8 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
   strwidth = BLF_width(fstyle->uifont_id, str, max_len);
 
   if ((okwidth > 0.0f) && (strwidth > okwidth)) {
-    /* utf8 two-dots leader '..' (shorter than ellipsis '...'),
-     * some compilers complain with real literal string. */
-    const char sep[] = {0xe2, 0x80, 0xA5, 0x0};
+    /* Ellipsis. Some compilers complain with real literal string. */
+    const char sep[] = {0xe2, 0x80, 0xA6, 0x0};
     const int sep_len = sizeof(sep) - 1;
     const float sep_strwidth = BLF_width(fstyle->uifont_id, sep, sep_len + 1);
     float parts_strwidth;
@@ -2663,10 +2662,14 @@ static void widget_state(uiWidgetType *wt, int state, int drawflag)
     if (color_blend != NULL) {
       color_blend_v3_v3(wt->wcol.inner, color_blend, wcol_state->blend);
     }
-  }
 
-  if (state & UI_ACTIVE) {
-    widget_active_color(&wt->wcol);
+    /* Add "hover" highlight. Ideally this could apply in all cases,
+     * even if UI_SELECT. But currently this causes some flickering
+     * as buttons can be created and updated without respect to mouse
+     * position and so can draw without UI_ACTIVE set.  See D6503. */
+    if (state & UI_ACTIVE) {
+      widget_active_color(&wt->wcol);
+    }
   }
 
   if (state & UI_BUT_REDALERT) {
