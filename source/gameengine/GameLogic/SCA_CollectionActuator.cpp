@@ -141,6 +141,12 @@ bool SCA_CollectionActuator::Update()
         }
       }
       break;
+    case KX_COLLECTION_ADD_OVERLAY:
+      m_kxscene->AddOverlayCollection(m_collection);
+      break;
+    case KX_COLLECTION_REMOVE_OVERLAY:
+      m_kxscene->RemoveOverlayCollection(m_collection);
+      break;
     default:
       break;
   }

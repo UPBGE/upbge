@@ -1556,6 +1556,8 @@ static void rna_def_collection_actuator(BlenderRNA *brna)
   static const EnumPropertyItem prop_type_items[] = {
       {ACT_COLLECTION_SUSPEND, "SUSPEND", 0, "Suspend Collection", ""},
       {ACT_COLLECTION_RESUME, "RESUME", 0, "Resume Collection", ""},
+      {ACT_COLLECTION_ADD_OVERLAY, "ADD_OVERLAY", 0, "Add Overlay Collection", ""},
+      {ACT_COLLECTION_REMOVE_OVERLAY, "REMOVE_OVERLAY", 0, "Remove Overlay Collection", ""},
       {0, NULL, 0, NULL, NULL}};
 
   srna = RNA_def_struct(brna, "CollectionActuator", "Actuator");

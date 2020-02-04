@@ -2009,9 +2009,24 @@ static void draw_actuator_collection(uiLayout *layout, PointerRNA *ptr)
   row = uiLayoutRow(layout, false);
   uiItemR(row, ptr, "mode", 0, NULL, ICON_NONE);
   row = uiLayoutRow(layout, true);
-  uiItemR(row, ptr, "use_logic", 0, NULL, ICON_NONE);
-  uiItemR(row, ptr, "use_physics", 0, NULL, ICON_NONE);
-  uiItemR(row, ptr, "use_render", 0, NULL, ICON_NONE);
+  switch (RNA_enum_get(ptr, "mode")) {
+    case ACT_COLLECTION_SUSPEND:
+      uiItemR(row, ptr, "use_logic", 0, NULL, ICON_NONE);
+      uiItemR(row, ptr, "use_physics", 0, NULL, ICON_NONE);
+      uiItemR(row, ptr, "use_render", 0, NULL, ICON_NONE);
+      break;
+    case ACT_COLLECTION_RESUME:
+      uiItemR(row, ptr, "use_logic", 0, NULL, ICON_NONE);
+      uiItemR(row, ptr, "use_physics", 0, NULL, ICON_NONE);
+      uiItemR(row, ptr, "use_render", 0, NULL, ICON_NONE);
+      break;
+    case ACT_COLLECTION_ADD_OVERLAY:
+      break;
+    case ACT_COLLECTION_REMOVE_OVERLAY:
+      break;
+    default:
+      break;
+  }
 }
 
 static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)

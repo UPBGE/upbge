@@ -138,6 +138,7 @@ protected:
   Object *m_lastReplicatedParentObject;
   Object *m_gameDefaultCamera;
   struct GPUViewport *m_gpuViewport;
+  std::vector<struct Collection *> m_overlay_collections;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -333,6 +334,8 @@ public:
   void ResetLastReplicatedParentObject();
   Object *GetGameDefaultCamera();
   void InitBlenderContextVariables();
+  void AddOverlayCollection(struct Collection *collection);
+  void RemoveOverlayCollection(struct Collection *collection);
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;

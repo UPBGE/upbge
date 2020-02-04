@@ -3042,7 +3042,7 @@ EEVEE_Data *EEVEE_engine_data_get(void)
 
 void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene *scene,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
-  const rcti *window, bool called_from_constructor, bool reset_taa_samples)
+  const rcti *window, bool called_from_constructor, bool reset_taa_samples, bool draw_overlay)
 {
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
@@ -3101,7 +3101,7 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   DST.draw_ctx.depsgraph = depsgraph;
 
-  DST.options.draw_background = (scene->r.alphamode == R_ADDSKY);
+  DST.options.draw_background = (scene->r.alphamode == R_ADDSKY) && !draw_overlay;
   DST.options.do_color_management = true;
 
   drw_context_state_init();
@@ -3117,7 +3117,17 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN(depsgraph, ob)
   {
-    drw_engines_cache_populate(ob);
+    Object *orig_ob = DEG_get_original_object(ob);
+    if (draw_overlay) {
+      if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
+        drw_engines_cache_populate(ob);
+      }
+    }
+    else {
+      if ((orig_ob->gameflag & OB_OVERLAY_COLLECTION) == 0) {
+        drw_engines_cache_populate(ob);
+      }
+    }
   }
   DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
 

@@ -492,6 +492,8 @@ typedef struct bActuator {
 /* CollectionActuator->type */
 #define ACT_COLLECTION_SUSPEND 0
 #define ACT_COLLECTION_RESUME 1
+#define ACT_COLLECTION_ADD_OVERLAY 2
+#define ACT_COLLECTION_REMOVE_OVERLAY 3
 
 /* CollectionActuator->flag */
 #define ACT_COLLECTION_SUSPEND_LOGIC 2

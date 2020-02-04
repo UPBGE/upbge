@@ -762,6 +762,12 @@ void BL_ConvertActuators(const char* maggiename,
         case ACT_COLLECTION_SUSPEND:
           mode = SCA_CollectionActuator::KX_COLLECTION_SUSPEND;
           break;
+        case ACT_COLLECTION_ADD_OVERLAY:
+          mode = SCA_CollectionActuator::KX_COLLECTION_ADD_OVERLAY;
+          break;
+        case ACT_COLLECTION_REMOVE_OVERLAY:
+          mode = SCA_CollectionActuator::KX_COLLECTION_REMOVE_OVERLAY;
+          break;
         default:
           mode = SCA_CollectionActuator::KX_COLLECTION_SUSPEND;
           break;
