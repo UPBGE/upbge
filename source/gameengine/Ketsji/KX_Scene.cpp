@@ -724,10 +724,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   GPU_framebuffer_restore();
 
   rasty->Disable(RAS_Rasterizer::RAS_BLEND);
-
-  if (cam) {
-    engine->EndFrame();
-  }
 }
 
 void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_Rasterizer *rasty, const rcti *window)

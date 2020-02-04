@@ -652,6 +652,7 @@ void KX_KetsjiEngine::Render()
 			}
 		}
 	}
+	EndFrame();
 }
 
 void KX_KetsjiEngine::RequestExit(KX_ExitRequest exitrequestmode)
