@@ -474,7 +474,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	// TEST Material action
     int totcol = ob->totcol;
     for (int i = 0; i < totcol; i++) {
-      Material *ma = give_current_material(ob, i + 1);
+      Material *ma = BKE_object_material_get(ob, i + 1);
       if (ma) {
         if (ma->use_nodes && ma->nodetree) {
           bNodeTree *node_tree = ma->nodetree;

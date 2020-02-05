@@ -504,7 +504,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value, struct Report
     id_us_plus(id);
 
     ob->data = id;
-    test_object_materials(G_MAIN, ob, id);
+    BKE_object_materials_test(G_MAIN, ob, id);
 
     if (GS(id->name) == ID_CU) {
       BKE_curve_type_test(ob);
@@ -997,7 +997,7 @@ static PointerRNA rna_Object_active_material_get(PointerRNA *ptr)
   Object *ob = (Object *)ptr->owner_id;
   Material *ma;
 
-  ma = (ob->totcol) ? give_current_material(ob, ob->actcol) : NULL;
+  ma = (ob->totcol) ? BKE_object_material_get(ob, ob->actcol) : NULL;
   return rna_pointer_inherit_refine(ptr, &RNA_Material, ma);
 }
 
@@ -1010,7 +1010,7 @@ static void rna_Object_active_material_set(PointerRNA *ptr,
   DEG_id_tag_update(value.data, 0);
   BLI_assert(BKE_id_is_in_global_main(&ob->id));
   BLI_assert(BKE_id_is_in_global_main(value.data));
-  assign_material(G_MAIN, ob, value.data, ob->actcol, BKE_MAT_ASSIGN_EXISTING);
+  BKE_object_material_assign(G_MAIN, ob, value.data, ob->actcol, BKE_MAT_ASSIGN_EXISTING);
 
   if (ob && ob->type == OB_GPENCIL) {
     /* notifying material property in topbar */
@@ -1214,7 +1214,7 @@ static PointerRNA rna_MaterialSlot_material_get(PointerRNA *ptr)
   Material *ma;
   const int index = (Material **)ptr->data - ob->mat;
 
-  ma = give_current_material(ob, index + 1);
+  ma = BKE_object_material_get(ob, index + 1);
   return rna_pointer_inherit_refine(ptr, &RNA_Material, ma);
 }
 
@@ -1227,7 +1227,7 @@ static void rna_MaterialSlot_material_set(PointerRNA *ptr,
 
   BLI_assert(BKE_id_is_in_global_main(&ob->id));
   BLI_assert(BKE_id_is_in_global_main(value.data));
-  assign_material(G_MAIN, ob, value.data, index + 1, BKE_MAT_ASSIGN_EXISTING);
+  BKE_object_material_assign(G_MAIN, ob, value.data, index + 1, BKE_MAT_ASSIGN_EXISTING);
 }
 
 static bool rna_MaterialSlot_material_poll(PointerRNA *ptr, PointerRNA value)
@@ -1274,7 +1274,7 @@ static int rna_MaterialSlot_name_length(PointerRNA *ptr)
   Material *ma;
   int index = (Material **)ptr->data - ob->mat;
 
-  ma = give_current_material(ob, index + 1);
+  ma = BKE_object_material_get(ob, index + 1);
 
   if (ma) {
     return strlen(ma->id.name + 2);
@@ -1289,7 +1289,7 @@ static void rna_MaterialSlot_name_get(PointerRNA *ptr, char *str)
   Material *ma;
   int index = (Material **)ptr->data - ob->mat;
 
-  ma = give_current_material(ob, index + 1);
+  ma = BKE_object_material_get(ob, index + 1);
 
   if (ma) {
     strcpy(str, ma->id.name + 2);

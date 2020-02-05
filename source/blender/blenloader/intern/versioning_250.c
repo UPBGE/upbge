@@ -891,7 +891,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 		    sce->gm.stereoflag = STEREO_ENABLED;
 
 	    /* Framing */
-	    sce->gm.framing = sce->framing;
+	    //sce->gm.framing = sce->framing;
 
 	    /* Physic (previously stored in world) */
 	    sce->gm.gravity =9.8f;

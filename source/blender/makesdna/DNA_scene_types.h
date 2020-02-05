@@ -1903,13 +1903,17 @@ typedef struct Scene {
   struct GHash *depsgraph_hash;
   char _pad7[4];
 
-	/* User-Defined KeyingSets */
-	int active_keyingset;			/* index of the active KeyingSet. first KeyingSet has index 1, 'none' active is 0, 'add new' is -1 */
-	ListBase keyingsets;			/* KeyingSets for this scene */
-	
-	/* Game Settings */
-	struct GameFraming framing  DNA_DEPRECATED; // XXX  deprecated since 2.5
-	struct GameData gm;
+  /* User-Defined KeyingSets */
+  /**
+   * Index of the active KeyingSet.
+   * first KeyingSet has index 1, 'none' active is 0, 'add new' is -1
+   */
+  int active_keyingset;
+  /** KeyingSets for this scene */
+  ListBase keyingsets;
+
+/* Game Settings */
+  struct GameData gm;
 
   /* Units */
   struct UnitSettings unit;
@@ -2305,19 +2309,20 @@ typedef enum eVGroupSelect {
    (1 << WT_VGROUP_BONE_DEFORM_OFF) | (1 << WT_VGROUP_ALL))
 
 /* Scene.flag */
-#define SCE_DS_SELECTED			(1 << 0)
-#define SCE_DS_COLLAPSED		(1 << 1)
-#define SCE_NLA_EDIT_ON			(1 << 2)
-#define SCE_FRAME_DROP			(1 << 3)
-#define SCE_KEYS_NO_SELONLY	    (1 << 4)
-#define SCE_INTERACTIVE         (1 << 5)
-#define SCE_INTERACTIVE_IMAGE_RENDER (1 << 6)
+#define SCE_DS_SELECTED (1 << 0)
+#define SCE_DS_COLLAPSED (1 << 1)
+#define SCE_NLA_EDIT_ON (1 << 2)
+#define SCE_FRAME_DROP (1 << 3)
+#define SCE_KEYS_NO_SELONLY (1 << 4)
+#define SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK (1 << 5)
+#define SCE_INTERACTIVE         (1 << 6)
+#define SCE_INTERACTIVE_IMAGE_RENDER (1 << 7)
 
-	/* return flag BKE_scene_base_iter_next functions */
-/* #define F_ERROR			-1 */  /* UNUSED */
-#define F_START			0
-#define F_SCENE			1
-#define F_DUPLI			3
+/* return flag BKE_scene_base_iter_next functions */
+/* #define F_ERROR          -1 */ /* UNUSED */
+#define F_START 0
+#define F_SCENE 1
+#define F_DUPLI 3
 
 /* AudioData.flag */
 #define AUDIO_MUTE (1 << 0)
