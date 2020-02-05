@@ -700,7 +700,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   GPU_framebuffer_bind(input->GetFrameBuffer());
 
-  RAS_FrameBuffer *f = Render2DFilters(rasty, canvas, input, output);
+  RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
 
   GPU_framebuffer_restore();
 
