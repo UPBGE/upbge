@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -687,6 +687,16 @@ void WM_report_banner_show(void)
 
   rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
   wm_reports->reporttimer->customdata = rti;
+}
+
+/**
+ * Hide all currently displayed banners and abort their timer.
+ */
+void WM_report_banners_cancel(Main *bmain)
+{
+  wmWindowManager *wm = bmain->wm.first;
+  BKE_reports_clear(&wm->reports);
+  WM_event_remove_timer(wm, NULL, wm->reports.reporttimer);
 }
 
 #ifdef WITH_INPUT_NDOF
@@ -4988,8 +4998,9 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
  *
  * \{ */
 
-bool WM_window_modal_keymap_status_draw(bContext *UNUSED(C), wmWindow *win, uiLayout *layout)
+bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *layout)
 {
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmKeyMap *keymap = NULL;
   wmOperator *op = NULL;
   LISTBASE_FOREACH (wmEventHandler *, handler_base, &win->modalhandlers) {
@@ -4997,7 +5008,7 @@ bool WM_window_modal_keymap_status_draw(bContext *UNUSED(C), wmWindow *win, uiLa
       wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
       if (handler->op != NULL) {
         /* 'handler->keymap' could be checked too, seems not to be used. */
-        wmKeyMap *keymap_test = handler->op->type->modalkeymap;
+        wmKeyMap *keymap_test = WM_keymap_active(wm, handler->op->type->modalkeymap);
         if (keymap_test && keymap_test->modal_items) {
           keymap = keymap_test;
           op = handler->op;

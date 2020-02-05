@@ -872,6 +872,11 @@ static void update_obstacleflags(FluidDomainSettings *mds,
     FluidModifierData *mmd2 = (FluidModifierData *)modifiers_findByType(coll_ob,
                                                                         eModifierType_Fluid);
 
+    /* Sanity check. */
+    if (!mmd2) {
+      continue;
+    }
+
     if ((mmd2->type & MOD_FLUID_TYPE_EFFEC) && mmd2->effector) {
       FluidEffectorSettings *mes = mmd2->effector;
       if (!mes) {
@@ -958,6 +963,11 @@ static void update_obstacles(Depsgraph *depsgraph,
     Object *coll_ob = coll_ob_array[coll_index];
     FluidModifierData *mmd2 = (FluidModifierData *)modifiers_findByType(coll_ob,
                                                                         eModifierType_Fluid);
+
+    /* Sanity check. */
+    if (!mmd2) {
+      continue;
+    }
 
     /* TODO (sebbas): check if modifier is active? */
     if ((mmd2->type & MOD_FLUID_TYPE_EFFEC) && mmd2->effector) {
@@ -2298,7 +2308,7 @@ static void update_flowsflags(FluidDomainSettings *mds, Object **flowobjs, int n
     FluidModifierData *mmd2 = (FluidModifierData *)modifiers_findByType(coll_ob,
                                                                         eModifierType_Fluid);
 
-    // Sanity check
+    /* Sanity check. */
     if (!mmd2) {
       continue;
     }
@@ -2411,12 +2421,22 @@ static void update_flowsfluids(struct Depsgraph *depsgraph,
     FluidModifierData *mmd2 = (FluidModifierData *)modifiers_findByType(flowobj,
                                                                         eModifierType_Fluid);
 
+    /* Sanity check. */
+    if (!mmd2) {
+      continue;
+    }
+
     /* Check for initialized smoke object. */
     if ((mmd2->type & MOD_FLUID_TYPE_FLOW) && mmd2->flow) {
       FluidFlowSettings *mfs = mmd2->flow;
       int subframes = mfs->subframes;
       EmissionMap *em = &emaps[flow_index];
 
+      /* Optimization: Skip flow objects with disabled inflow flag. */
+      if (mfs->behavior == FLUID_FLOW_BEHAVIOR_INFLOW &&
+          (mfs->flags & FLUID_FLOW_USE_INFLOW) == 0) {
+        continue;
+      }
       /* Optimization: No need to compute emission value if it won't be applied. */
       if (mfs->behavior == FLUID_FLOW_BEHAVIOR_GEOMETRY && !is_first_frame) {
         continue;
@@ -2606,6 +2626,11 @@ static void update_flowsfluids(struct Depsgraph *depsgraph,
     Object *flowobj = flowobjs[flow_index];
     FluidModifierData *mmd2 = (FluidModifierData *)modifiers_findByType(flowobj,
                                                                         eModifierType_Fluid);
+
+    /* Sanity check. */
+    if (!mmd2) {
+      continue;
+    }
 
     /* Check for initialized flow object. */
     if ((mmd2->type & MOD_FLUID_TYPE_FLOW) && mmd2->flow) {
@@ -3313,7 +3338,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
   guide_parent = mds->guide_parent;
   if (guide_parent) {
     mmd_parent = (FluidModifierData *)modifiers_findByType(guide_parent, eModifierType_Fluid);
-    if (mmd_parent->domain) {
+    if (mmd_parent && mmd_parent->domain) {
       copy_v3_v3_int(mds->guide_res, mmd_parent->domain->res);
     }
   }
