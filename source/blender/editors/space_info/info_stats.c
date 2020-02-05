@@ -562,7 +562,13 @@ static void stats_string(ViewLayer *view_layer)
                         gpumemstr);
   }
 
-  ofs += BLI_snprintf(s + ofs, MAX_INFO_LEN - ofs, " | %s", versionstr);
+  ofs += BLI_snprintf(s + ofs,
+                      MAX_INFO_LEN - ofs,
+                      "  |  UPBGE %s %s (based on Blender %s)",
+                      upbge_versionstr,
+                      "Alpha", // Remove alpha when release
+                      versionstr);
+
 #undef MAX_INFO_MEM_LEN
 }
 
