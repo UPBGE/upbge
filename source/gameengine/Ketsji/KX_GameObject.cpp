@@ -186,6 +186,9 @@ KX_GameObject::~KX_GameObject()
   Object *ob = GetBlenderObject();
 
   if (ob) {
+    if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+      ob->gameflag &= ~OB_OVERLAY_COLLECTION;
+    }
     copy_m4_m4(ob->obmat, m_savedObmat);
     invert_m4_m4(ob->imat, m_savedObmat);
     DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
@@ -527,6 +530,11 @@ void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj)
 {
   m_lodManager = new KX_LodManager(meshObj);
   m_lodManager->AddRef();
+}
+
+bool KX_GameObject::IsReplica()
+{
+  return m_isReplica;
 }
 
 /********************End of EEVEE INTEGRATION*********************/

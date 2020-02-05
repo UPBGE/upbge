@@ -523,10 +523,26 @@ void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collecti
   }
   SetOverlayCamera(overlay_cam);
   m_overlay_collections.push_back(collection);
+
+  /* This loops only on visibled objects */
   FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, collection_object) {
     collection_object->gameflag |= OB_OVERLAY_COLLECTION;
   }
   FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+
+  /* Handle the case of invisibled objects */
+  for (KX_GameObject *gameobj : GetInactiveList()) {
+    if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
+      KX_GameObject *replica = AddReplicaObject(gameobj, nullptr, 0);
+      replica->GetBlenderObject()->gameflag |= OB_OVERLAY_COLLECTION;
+      BKE_collection_object_add(KX_GetActiveEngine()->GetConverter()->GetMain(),
+                                collection,
+                                replica->GetBlenderObject());
+      // release here because AddReplicaObject AddRef's
+      // the object is added to the scene so we don't want python to own a reference
+      replica->Release();
+    }
+  }
   ResetTaaSamples();
 }
 
@@ -538,15 +554,26 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
     SetOverlayCamera(nullptr);
     m_overlay_collections.erase(
         std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection));
+
+    /* Handle the case of replicas added */
+    for (KX_GameObject *gameobj : GetObjectList()) {
+      if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
+        if (gameobj->IsReplica()) {
+          DelayedRemoveObject(gameobj);
+        }
+      }
+    }
+
     FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, collection_object) {
       collection_object->gameflag &= ~OB_OVERLAY_COLLECTION;
     }
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+
     ResetTaaSamples();
   }
 }
 
-void KX_Scene::SetCurrentGPUViewport(GPUViewport* viewport)
+void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)
 {
   m_currentGPUViewport = viewport;
 }
@@ -564,17 +591,17 @@ void KX_Scene::SetInitMaterialsGPUViewport(GPUViewport *viewport)
   m_initMaterialsGPUViewport = viewport;
 }
 
-GPUViewport* KX_Scene::GetInitMaterialsGPUViewport()
+GPUViewport *KX_Scene::GetInitMaterialsGPUViewport()
 {
   return m_initMaterialsGPUViewport;
 }
 
-void KX_Scene::SetOverlayCamera(KX_Camera* cam)
+void KX_Scene::SetOverlayCamera(KX_Camera *cam)
 {
   m_overlayCamera = cam;
 }
 
-KX_Camera* KX_Scene::GetOverlayCamera()
+KX_Camera *KX_Scene::GetOverlayCamera()
 {
   return m_overlayCamera;
 }
@@ -673,18 +700,18 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   }
 
   DRW_game_render_loop(engine->GetContext(),
-                         m_currentGPUViewport,
-                         bmain,
-                         scene,
-                         view,
-                         viewinv,
-                         proj,
-                         pers,
-                         persinv,
-                         &window,
-                         calledFromConstructor,
-                         reset_taa_samples,
-                         is_overlay_pass);
+                       m_currentGPUViewport,
+                       bmain,
+                       scene,
+                       view,
+                       viewinv,
+                       proj,
+                       pers,
+                       persinv,
+                       &window,
+                       calledFromConstructor,
+                       reset_taa_samples,
+                       is_overlay_pass);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
@@ -726,7 +753,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   rasty->Disable(RAS_Rasterizer::RAS_BLEND);
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_Rasterizer *rasty, const rcti *window)
+void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
+                                                 RAS_Rasterizer *rasty,
+                                                 const rcti *window)
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate();

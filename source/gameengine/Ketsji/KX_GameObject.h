@@ -151,6 +151,7 @@ public:
   void SuspendLogic(bool childrenRecursive);
   void RestoreLogic(bool childrenRecursive);
   void AddDummyLodManager(RAS_MeshObject *meshObj);
+  bool IsReplica();
 	/* END OF EEVEE INTEGRATION */
 
 
