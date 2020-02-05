@@ -480,14 +480,14 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
       char str[sizeof(((Main *)NULL)->name) + 24];
       BLI_snprintf(str,
                    sizeof(str),
-                   "Blender%s [%s%s]",
+                   "UPBGE%s [%s%s]",
                    wm->file_saved ? "" : "*",
                    BKE_main_blendfile_path_from_global(),
                    G_MAIN->recovered ? " (Recovered)" : "");
       GHOST_SetTitle(win->ghostwin, str);
     }
     else {
-      GHOST_SetTitle(win->ghostwin, "Blender");
+      GHOST_SetTitle(win->ghostwin, "UPBGE");
     }
 
     /* Informs GHOST of unsaved changes, to set window modified visual indicator (macOS)

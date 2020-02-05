@@ -696,7 +696,7 @@ void DM_update_materials(DerivedMesh *dm, Object *ob)
 	 * the materials by using the mf->mat_nr directly and leaving the last
 	 * material as NULL in case no materials exist on mesh, so indexing will not fail */
 	for (i = 0; i < totmat - 1; i++) {
-		dm->mat[i] = give_current_material(ob, i + 1);
+    dm->mat[i] = BKE_object_material_get(ob, i + 1);
 	}
 	dm->mat[i] = NULL;
 }

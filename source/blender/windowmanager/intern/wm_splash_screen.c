@@ -114,6 +114,7 @@ static void wm_block_splash_add_labels(uiBlock *block, int x, int y)
 {
   /* Version number. */
   const char *version_cycle = NULL;
+  const char *upbge_version_cycle = NULL;
   bool show_build_info = true;
 
   if (STREQ(STRINGIFY(BLENDER_VERSION_CYCLE), "alpha")) {
@@ -136,15 +137,28 @@ static void wm_block_splash_add_labels(uiBlock *block, int x, int y)
     version_cycle_number = " " STRINGIFY(BLENDER_VERSION_CYCLE_NUMBER);
   }
 
+  if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "alpha")) {
+    upbge_version_cycle = " Alpha";
+  }
+  else if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "beta")) {
+    upbge_version_cycle = " Beta";
+  }
+  else if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "rc")) {
+    upbge_version_cycle = " Release Candidate";
+    show_build_info = false;
+  }
+  else if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "release")) {
+    upbge_version_cycle = STRINGIFY(UPBGE_VERSION_CHAR);
+    show_build_info = false;
+  }
+
   char version_buf[256] = "\0";
   BLI_snprintf(version_buf,
                sizeof(version_buf),
-               "v %d.%d%s%s",
-               BLENDER_VERSION / 100,
-               BLENDER_VERSION % 100,
-               version_cycle,
-               version_cycle_number);
-
+               "UPBGE %d.%d%s",
+               UPBGE_VERSION / 10,
+               UPBGE_VERSION % 10,
+               upbge_version_cycle);
   wm_block_splash_add_label(block, version_buf, x, &y);
 
 #ifdef WITH_BUILDINFO

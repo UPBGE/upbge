@@ -32,8 +32,8 @@
 #define BLENDER_MINVERSION 280
 #define BLENDER_MINSUBVERSION 0
 
-#define UPBGE_VERSION 1
-#define UPBGE_SUBVERSION 9
+#define UPBGE_VERSION 3
+#define UPBGE_SUBVERSION 0
 
 /** Used by packaging tools. */
 /** Can be left blank, otherwise a,b,c... etc with no quotes. */
@@ -43,7 +43,12 @@
 /** Optionally set to 1,2,... for example to get alpha1 or rc2. */
 #define BLENDER_VERSION_CYCLE_NUMBER
 
+#define UPBGE_VERSION_CHAR
+/** alpha/beta/rc/release, docs use this. */
+#define UPBGE_VERSION_CYCLE alpha
+
 /** Defined in from blender.c */
 extern char versionstr[];
+extern char upbge_versionstr[];
 
 #endif /* __BKE_BLENDER_VERSION_H__ */

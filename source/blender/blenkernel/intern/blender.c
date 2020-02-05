@@ -67,6 +67,7 @@ Global G;
 UserDef U;
 
 char versionstr[48] = "";
+char upbge_versionstr[48] = "";
 
 /* ********** free ********** */
 
@@ -120,6 +121,23 @@ void BKE_blender_version_string(char *version_str,
   }
 }
 
+void BKE_upbge_version_string(char *version_str,
+                              size_t maxncpy,
+                              short version,
+                              short subversion,
+                              bool v_prefix,
+                              bool include_subversion)
+{
+  const char *prefix = v_prefix ? "v" : "";
+
+  if (include_subversion && subversion > 0) {
+    BLI_snprintf(version_str, maxncpy, "%s0.%d.%d", prefix, version, subversion);
+  }
+  else {
+    BLI_snprintf(version_str, maxncpy, "%s0.%d", prefix, version);
+  }
+}
+
 void BKE_blender_globals_init(void)
 {
   memset(&G, 0, sizeof(Global));
@@ -132,6 +150,8 @@ void BKE_blender_globals_init(void)
 
   BKE_blender_version_string(
       versionstr, sizeof(versionstr), BLENDER_VERSION, BLENDER_SUBVERSION, true, true);
+  BKE_upbge_version_string(
+      upbge_versionstr, sizeof(versionstr), UPBGE_VERSION, UPBGE_SUBVERSION, true, true);
 
 #ifndef WITH_PYTHON_SECURITY /* default */
   G.f |= G_FLAG_SCRIPT_AUTOEXEC;

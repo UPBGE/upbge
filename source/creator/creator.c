@@ -438,7 +438,7 @@ int main(int argc,
    * rendered via ffmpeg. */
   BKE_sound_init_once();
 
-  init_def_material();
+  BKE_materials_init();
 
 #ifdef WITH_USD
   /* Tell USD which directory to search for its JSON files. If datafiles/usd

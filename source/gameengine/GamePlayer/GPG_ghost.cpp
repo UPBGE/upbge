@@ -910,7 +910,7 @@ int main(
 	BKE_sound_init_once();
 
 	// Initialize a default material for meshes without materials.
-	init_def_material();
+	BKE_materials_init();
 
 	/* if running blenderplayer the last argument can't be parsed since it has to be the filename. else it is bundled */
 	isBlenderPlayer = !BLO_is_a_runtime(argv[0]);
@@ -1543,7 +1543,7 @@ int main(
 
   BKE_addon_pref_type_free();
   BKE_keyconfig_pref_type_free();
-  BKE_material_gpencil_default_free();
+  BKE_materials_exit();
 
   wm_operatortype_free();
   WM_menutype_free();
