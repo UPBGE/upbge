@@ -559,6 +559,8 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
     for (KX_GameObject *gameobj : GetObjectList()) {
       if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
         if (gameobj->IsReplica()) {
+          BKE_collection_object_remove(
+              KX_GetActiveEngine()->GetConverter()->GetMain(), collection, gameobj->GetBlenderObject(), false);
           DelayedRemoveObject(gameobj);
         }
       }
