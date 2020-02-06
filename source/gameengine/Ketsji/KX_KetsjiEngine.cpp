@@ -610,7 +610,9 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 
 			KX_Camera *activecam = scene->GetActiveCamera();
 
-			/* Ensure the overlay camera is always at the end of cameras list */
+			/* Ensure the overlay camera is always at the end of cameras list
+			 * which will be rendered.
+			 */
 			if (scene->GetOverlayCamera()) {
 				overlay_cam_at_the_end_of_camera_list_ensure(scene);
 			}
@@ -900,7 +902,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 		m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 	}
 
-	m_rasterizer->SetEye(RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+	m_rasterizer->SetEye(RAS_Rasterizer::RAS_STEREO_LEFTEYE/*cameraFrameData.m_eye*/);
 
 	m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
 

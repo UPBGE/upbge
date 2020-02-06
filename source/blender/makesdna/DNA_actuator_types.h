@@ -110,7 +110,8 @@ typedef struct bSceneActuator {
 } bSceneActuator;
 
 typedef struct bCollectionActuator {
-  short type, flag; //type = Suspend/Resume; flag = use logic/physics/visibility
+  /* type = Suspend/Resume/overlayAdd/overlayRemove; flag = use logic/physics/visibility */
+  short type, flag;
   int _pad;
   struct Collection *collection;
   struct Object *camera;

@@ -1,5 +1,4 @@
 /*
- * Set scene/camera stuff
  *
  *
  * ***** BEGIN GPL LICENSE BLOCK *****

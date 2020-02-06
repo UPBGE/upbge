@@ -437,6 +437,7 @@ static void suspend_physics_recursive(SG_Node *node, bool freeConstraints)
   }
 }
 
+/* We Remove Physics controller */
 void KX_GameObject::SuspendPhysics(bool freeConstraints, bool childrenRecursive)
 {
   if (m_pPhysicsController) {
@@ -491,6 +492,7 @@ static void suspend_logic_recursive(SG_Node *node)
   }
 }
 
+/* We Disable Sensors */
 void KX_GameObject::SuspendLogic(bool childrenRecursive)
 {
   SuspendSensors();

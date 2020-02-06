@@ -47,7 +47,7 @@ class SCA_CollectionActuator : public SCA_IActuator
   KX_Scene *m_kxscene;
   Collection *m_collection;
   KX_Camera *m_camera;
-  int m_mode; //suspend/resume
+  int m_mode; //suspend/resume/addOverlayCollection/RemoveOverlayCollection
 
   bool m_useLogic;
   bool m_usePhysics;

@@ -139,6 +139,10 @@ protected:
   Object *m_gameDefaultCamera;
   std::vector<struct Collection *> m_overlay_collections;
   struct GPUViewport *m_currentGPUViewport;
+  /* In the current state of the code, we need this
+   * to Initialize KX_BlenderMaterial and BL_Texture.
+   * BL_Texture(s) is/are used for ImageRender.
+   */
   struct GPUViewport *m_initMaterialsGPUViewport;
   KX_Camera *m_overlayCamera;
   std::vector<KX_Camera *> m_imageRenderCameraList;
@@ -329,7 +333,7 @@ public:
 	bool m_isRuntime; // Too lazy to put that in protected
 	std::vector<Object *>m_hiddenObjectsDuringRuntime;
 
-	void RenderAfterCameraSetup(KX_Camera *cam, bool overlay_pass);
+	void RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass);
 	void RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_Rasterizer *rasty, const struct rcti *window);
 
   void SetLastReplicatedParentObject(Object *ob);

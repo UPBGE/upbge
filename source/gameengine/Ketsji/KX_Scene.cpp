@@ -172,7 +172,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
       m_currentGPUViewport(nullptr),          // eevee
-      m_overlayCamera(nullptr),               // eevee
+      m_initMaterialsGPUViewport(nullptr),    // eevee (See comment in .h)
+      m_overlayCamera(nullptr),               // eevee (For overlay collections)
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -628,6 +629,9 @@ void KX_Scene::RemoveImageRenderCamera(KX_Camera *cam)
 
 bool KX_Scene::CameraIsInactive(KX_Camera *cam)
 {
+  if (cam->GetViewport()) {
+    return false;
+  }
   if (cam == GetActiveCamera()) {
     return false;
   }
