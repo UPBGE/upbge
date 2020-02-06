@@ -160,8 +160,6 @@ extern "C" {
 #include "BKE_image.h"
 #include "IMB_imbuf_types.h"
 #include "BKE_displist.h"
-
-extern Material defmaterial;	/* material.c */
 }
 
 #include "wm_event_types.h"
@@ -524,7 +522,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		}
 		// Check for blender material
 		if (!ma) {
-			ma = &defmaterial;
+			ma = BKE_material_default_empty();
 		}
 
 		RAS_MaterialBucket *bucket = material_from_mesh(ma, lightlayer, scene, rasty, converter);
