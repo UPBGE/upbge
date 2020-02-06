@@ -161,7 +161,7 @@ bool ImageRender::Render()
 
 	if (!m_render ||
         m_camera->GetViewport() ||        // camera must be inactive
-        m_camera == m_scene->GetActiveCamera())
+        m_camera == m_scene->GetActiveCamera() || m_camera == m_scene->GetOverlayCamera())
 	{
 		// no need to compute texture in non texture rendering
 		return false;

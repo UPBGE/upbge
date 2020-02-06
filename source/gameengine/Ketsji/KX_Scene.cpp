@@ -260,6 +260,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
   m_overlay_collections = {};
+  m_imageRenderCameraList = {};
 
   /* The following code is to ensure that when we create a new KX_Scene,
    * some blender variables like bScreen, wmWindow, ScrArea, Aregion
@@ -551,7 +552,8 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
   /* Check for already removed collections */
   if (std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection) !=
       m_overlay_collections.end()) {
-    /* If there is only one remaining overlay collection, we can Set the overlay camera to nullptr */
+    /* If there is only one remaining overlay collection, we can Set the overlay camera to nullptr
+     */
     if (m_overlay_collections.size() == 1) {
       SetOverlayCamera(nullptr);
     }
@@ -562,8 +564,10 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
     for (KX_GameObject *gameobj : GetObjectList()) {
       if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
         if (gameobj->IsReplica()) {
-          BKE_collection_object_remove(
-              KX_GetActiveEngine()->GetConverter()->GetMain(), collection, gameobj->GetBlenderObject(), false);
+          BKE_collection_object_remove(KX_GetActiveEngine()->GetConverter()->GetMain(),
+                                       collection,
+                                       gameobj->GetBlenderObject(),
+                                       false);
           DelayedRemoveObject(gameobj);
         }
       }
@@ -609,6 +613,29 @@ void KX_Scene::SetOverlayCamera(KX_Camera *cam)
 KX_Camera *KX_Scene::GetOverlayCamera()
 {
   return m_overlayCamera;
+}
+
+void KX_Scene::AddImageRenderCamera(KX_Camera *cam)
+{
+  m_imageRenderCameraList.push_back(cam);
+}
+
+void KX_Scene::RemoveImageRenderCamera(KX_Camera *cam)
+{
+  m_imageRenderCameraList.erase(
+      std::find(m_imageRenderCameraList.begin(), m_imageRenderCameraList.end(), cam));
+}
+
+bool KX_Scene::CameraIsInactive(KX_Camera *cam)
+{
+  if (cam == GetActiveCamera()) {
+    return false;
+  }
+  if (std::find(m_imageRenderCameraList.begin(), m_imageRenderCameraList.end(), cam) !=
+      m_imageRenderCameraList.end()) {
+    return false;
+  }
+  return true;
 }
 
 static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0;
@@ -858,7 +885,7 @@ CListValue<KX_Camera> *KX_Scene::GetCameraList() const
   return m_cameralist;
 }
 
-void KX_Scene::SetCameraList(CListValue<KX_Camera>* camList)
+void KX_Scene::SetCameraList(CListValue<KX_Camera> *camList)
 {
   m_cameralist = camList;
 }

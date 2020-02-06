@@ -752,6 +752,10 @@ void BL_ConvertActuators(const char* maggiename,
 			}
     case ACT_COLLECTION: {
       bCollectionActuator *colact = (bCollectionActuator *)bact->data;
+      if (!colact->collection) {
+        std::cout << "No Collection found, actuator won't be converted. " << std::endl;
+        break;
+	  }
       KX_Camera *cam = nullptr;
 
       SCA_CollectionActuator *tmpcolact;

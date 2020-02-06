@@ -141,6 +141,7 @@ protected:
   struct GPUViewport *m_currentGPUViewport;
   struct GPUViewport *m_initMaterialsGPUViewport;
   KX_Camera *m_overlayCamera;
+  std::vector<KX_Camera *> m_imageRenderCameraList;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -344,6 +345,9 @@ public:
   struct GPUViewport *GetInitMaterialsGPUViewport();
   void SetOverlayCamera(KX_Camera *cam);
   KX_Camera *GetOverlayCamera();
+  void AddImageRenderCamera(KX_Camera *cam);
+  void RemoveImageRenderCamera(KX_Camera *cam);
+  bool CameraIsInactive(KX_Camera *cam);
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;
