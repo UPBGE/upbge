@@ -995,7 +995,10 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 			activecam->NodeUpdateGS(0.0f);
 		}
 
-		scene->GetCameraList()->Add(CM_AddRef(activecam));
+		/* Insert the default camera at the beginning of
+		 * CameraList to render it before overlay camera
+		 */
+		scene->GetCameraList()->Insert(0, CM_AddRef(activecam));
 		scene->SetActiveCamera(activecam);
 		scene->GetObjectList()->Add(CM_AddRef(activecam));
 		scene->GetRootParentList()->Add(CM_AddRef(activecam));
