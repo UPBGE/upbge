@@ -396,6 +396,7 @@ public:
 	SCA_TimeEventManager *GetTimeEventManager() const;
 
 	CListValue<KX_Camera> *GetCameraList() const;
+  void SetCameraList(CListValue<KX_Camera> *camList);
 	CListValue<KX_FontObject> *GetFontList() const;
 
 	/** Find the currently active camera. */

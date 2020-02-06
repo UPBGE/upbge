@@ -525,6 +525,22 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(KX_Scene 
 	return cameraData;
 }
 
+static void overlay_cam_at_the_end_of_camera_list_ensure(KX_Scene *scene)
+{
+  if (scene->GetOverlayCamera()) {
+    CListValue<KX_Camera> *camList = scene->GetCameraList();
+    CListValue<KX_Camera> *sortedList = new CListValue<KX_Camera>();
+    for (KX_Camera *cam : camList) {
+      if (cam != scene->GetOverlayCamera()) {
+        sortedList->Add(CM_AddRef(cam));
+      }
+    }
+    sortedList->Add(CM_AddRef(scene->GetOverlayCamera()));
+    scene->GetCameraList()->Release();
+    scene->SetCameraList(sortedList);
+  }
+}
+
 bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameDataList)
 {
 	const RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
@@ -593,6 +609,11 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 			SceneRenderData& sceneFrameData = frameData.m_sceneDataList.back();
 
 			KX_Camera *activecam = scene->GetActiveCamera();
+
+			/* Ensure the overlay camera is always at the end of cameras list */
+			if (scene->GetOverlayCamera()) {
+				overlay_cam_at_the_end_of_camera_list_ensure(scene);
+			}
 
 			KX_Camera *overrideCullingCam = scene->GetOverrideCullingCamera();
 			for (KX_Camera *cam : scene->GetCameraList()) {
@@ -995,10 +1016,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 			activecam->NodeUpdateGS(0.0f);
 		}
 
-		/* Insert the default camera at the beginning of
-		 * CameraList to render it before overlay camera
-		 */
-		scene->GetCameraList()->Insert(0, CM_AddRef(activecam));
+		scene->GetCameraList()->Add(CM_AddRef(activecam));
 		scene->SetActiveCamera(activecam);
 		scene->GetObjectList()->Add(CM_AddRef(activecam));
 		scene->GetRootParentList()->Add(CM_AddRef(activecam));

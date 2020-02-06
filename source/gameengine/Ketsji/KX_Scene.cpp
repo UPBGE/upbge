@@ -855,6 +855,11 @@ CListValue<KX_Camera> *KX_Scene::GetCameraList() const
   return m_cameralist;
 }
 
+void KX_Scene::SetCameraList(CListValue<KX_Camera>* camList)
+{
+  m_cameralist = camList;
+}
+
 CListValue<KX_FontObject> *KX_Scene::GetFontList() const
 {
   return m_fontlist;
