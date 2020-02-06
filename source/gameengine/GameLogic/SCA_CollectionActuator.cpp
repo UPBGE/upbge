@@ -36,6 +36,7 @@
 #include "SCA_CollectionActuator.h"
 #include <iostream>
 
+#include "KX_Camera.h"
 #include "KX_GameObject.h"
 #include "KX_Scene.h"
 
@@ -64,12 +65,16 @@ SCA_CollectionActuator::SCA_CollectionActuator(SCA_IObject *gameobj,
     m_usePhysics(use_physics),
     m_useVisibility(use_visibility)
 {
+  if (m_camera)
+    m_camera->RegisterActuator(this);
 } /* End of constructor */
 
 
 
 SCA_CollectionActuator::~SCA_CollectionActuator()
 {
+  if (m_camera)
+    m_camera->UnregisterActuator(this);
 } /* end of destructor */
 
 
@@ -83,20 +88,30 @@ CValue* SCA_CollectionActuator::GetReplica()
 
 void SCA_CollectionActuator::ProcessReplica()
 {
+  if (m_camera)
+    m_camera->RegisterActuator(this);
   SCA_IActuator::ProcessReplica();
 }
 
 bool SCA_CollectionActuator::UnlinkObject(SCA_IObject* clientobj)
 {
-  /*if (clientobj == (SCA_IObject*)m_camera)
-  {
+  if (clientobj == (SCA_IObject *)m_camera) {
+    // this object is being deleted, we cannot continue to use it.
+    m_camera = nullptr;
     return true;
-  }*/
+  }
   return false;
 }
 
 void SCA_CollectionActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 {
+  KX_Camera *obj = static_cast<KX_Camera *>(obj_map[m_camera]);
+  if (obj) {
+    if (m_camera)
+      m_camera->UnregisterActuator(this);
+    m_camera = obj;
+    m_camera->RegisterActuator(this);
+  }
 }
 
 
