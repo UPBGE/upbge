@@ -551,7 +551,10 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
   /* Check for already removed collections */
   if (std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection) !=
       m_overlay_collections.end()) {
-    SetOverlayCamera(nullptr);
+    /* If there is only one remaining overlay collection, we can Set the overlay camera to nullptr */
+    if (m_overlay_collections.size() == 1) {
+      SetOverlayCamera(nullptr);
+    }
     m_overlay_collections.erase(
         std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection));
 
