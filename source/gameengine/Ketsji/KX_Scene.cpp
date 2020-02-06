@@ -515,7 +515,7 @@ void KX_Scene::ResetTaaSamples()
 
 void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collection)
 {
-  /* TODO: Add check for already added collections */
+  /* Check for already added collections */
   if (std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection) !=
       m_overlay_collections.end()) {
     std::cout << "Collection already added." << std::endl;
@@ -548,7 +548,7 @@ void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collecti
 
 void KX_Scene::RemoveOverlayCollection(Collection *collection)
 {
-  /* TODO: Add check for already removed collections */
+  /* Check for already removed collections */
   if (std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection) !=
       m_overlay_collections.end()) {
     SetOverlayCamera(nullptr);
