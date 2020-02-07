@@ -34,6 +34,7 @@
 #include "KX_ConstraintWrapper.h"
 #include "KX_VehicleWrapper.h"
 #include "KX_CharacterWrapper.h"
+#include "PHY_IConstraint.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IVehicle.h"
 #include "PHY_DynamicTypes.h"
@@ -547,7 +548,7 @@ static PyObject *gPyCreateConstraint(PyObject *self,
 				return nullptr;
 			}
 
-			KX_ConstraintWrapper *wrap = new KX_ConstraintWrapper(constraint);
+			KX_ConstraintWrapper *wrap = new KX_ConstraintWrapper(constraint, (enum PHY_ConstraintType)constrainttype, constraint->GetIdentifier());
 
 			return wrap->NewProxy(true);
 		}
