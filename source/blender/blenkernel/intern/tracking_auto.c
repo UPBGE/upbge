@@ -127,13 +127,12 @@ static void dna_marker_to_libmv_marker(/*const*/ MovieTrackingTrack *track,
                                        libmv_Marker *libmv_marker)
 {
   const int frame_dimensions[2] = {frame_width, frame_height};
-  int i;
   libmv_marker->clip = clip;
   libmv_marker->frame = marker->framenr;
   libmv_marker->track = track_index;
 
   normalized_to_libmv_frame(marker->pos, frame_dimensions, libmv_marker->center);
-  for (i = 0; i < 4; i++) {
+  for (int i = 0; i < 4; i++) {
     normalized_relative_to_libmv_frame(
         marker->pattern_corners[i], marker->pos, frame_dimensions, libmv_marker->patch[i]);
   }
@@ -183,11 +182,10 @@ static void libmv_marker_to_dna_marker(libmv_Marker *libmv_marker,
                                        MovieTrackingMarker *marker)
 {
   const int frame_dimensions[2] = {frame_width, frame_height};
-  int i;
   marker->framenr = libmv_marker->frame;
 
   libmv_frame_to_normalized(libmv_marker->center, frame_dimensions, marker->pos);
-  for (i = 0; i < 4; i++) {
+  for (int i = 0; i < 4; i++) {
     libmv_frame_to_normalized_relative(libmv_marker->patch[i],
                                        libmv_marker->center,
                                        frame_dimensions,
@@ -260,7 +258,7 @@ static void fill_autotrack_tracks(const int frame_width,
 {
   /* Count number of markers to be put to a context. */
   size_t num_trackable_markers = 0;
-  for (MovieTrackingTrack *track = tracksbase->first; track != NULL; track = track->next) {
+  LISTBASE_FOREACH (MovieTrackingTrack *, track, tracksbase) {
     for (int i = 0; i < track->markersnr; i++) {
       const MovieTrackingMarker *marker = track->markers + i;
       if ((marker->flag & MARKER_DISABLED) == 0) {
@@ -277,7 +275,7 @@ static void fill_autotrack_tracks(const int frame_width,
                                             "libmv markers array");
   /* Fill in markers array. */
   int track_index = 0, num_filled_libmv_markers = 0;
-  for (MovieTrackingTrack *track = tracksbase->first; track != NULL; track = track->next) {
+  LISTBASE_FOREACH (MovieTrackingTrack *, track, tracksbase) {
     for (int i = 0; i < track->markersnr; i++) {
       MovieTrackingMarker *marker = track->markers + i;
       if ((marker->flag & MARKER_DISABLED) != 0) {
@@ -307,7 +305,7 @@ static void create_per_track_tracking_options(const MovieClip *clip,
                                               AutoTrackContext *context)
 {
   /* Count number of trackable tracks. */
-  for (MovieTrackingTrack *track = tracksbase->first; track != NULL; track = track->next) {
+  LISTBASE_FOREACH (MovieTrackingTrack *, track, tracksbase) {
     if (check_track_trackable(clip, track, user)) {
       context->num_tracks++;
     }
@@ -317,7 +315,7 @@ static void create_per_track_tracking_options(const MovieClip *clip,
                                  "auto track options");
   /* Fill in all the settings. */
   int i = 0, track_index = 0;
-  for (MovieTrackingTrack *track = tracksbase->first; track != NULL; track = track->next) {
+  LISTBASE_FOREACH (MovieTrackingTrack *, track, tracksbase) {
     if (!check_track_trackable(clip, track, user)) {
       track_index++;
       continue;
@@ -461,17 +459,16 @@ bool BKE_autotrack_context_step(AutoTrackContext *context)
 void BKE_autotrack_context_sync(AutoTrackContext *context)
 {
   int newframe, frame_delta = context->backwards ? -1 : 1;
-  int frame;
 
   BLI_spin_lock(&context->spin_lock);
   newframe = context->user.framenr;
-  for (frame = context->sync_frame; frame != (context->backwards ? newframe - 1 : newframe + 1);
+  for (int frame = context->sync_frame;
+       frame != (context->backwards ? newframe - 1 : newframe + 1);
        frame += frame_delta) {
     MovieTrackingMarker marker;
     libmv_Marker libmv_marker;
     int clip = 0;
-    int track;
-    for (track = 0; track < context->num_tracks; track++) {
+    for (int track = 0; track < context->num_tracks; track++) {
       AutoTrackOptions *options = &context->options[track];
       int track_frame = BKE_movieclip_remap_scene_to_clip_frame(
           context->clips[options->clip_index], frame);
@@ -522,17 +519,13 @@ void BKE_autotrack_context_sync_user(AutoTrackContext *context, MovieClipUser *u
 
 void BKE_autotrack_context_finish(AutoTrackContext *context)
 {
-  int clip_index;
-
-  for (clip_index = 0; clip_index < context->num_clips; clip_index++) {
+  for (int clip_index = 0; clip_index < context->num_clips; clip_index++) {
     MovieClip *clip = context->clips[clip_index];
     ListBase *plane_tracks_base = BKE_tracking_get_active_plane_tracks(&clip->tracking);
-    MovieTrackingPlaneTrack *plane_track;
 
-    for (plane_track = plane_tracks_base->first; plane_track; plane_track = plane_track->next) {
+    LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, plane_tracks_base) {
       if ((plane_track->flag & PLANE_TRACK_AUTOKEY) == 0) {
-        int track;
-        for (track = 0; track < context->num_tracks; track++) {
+        for (int track = 0; track < context->num_tracks; track++) {
           if (BKE_tracking_plane_track_has_point_track(plane_track,
                                                        context->options[track].track)) {
             BKE_tracking_track_plane_from_existing_motion(plane_track, context->first_frame);
