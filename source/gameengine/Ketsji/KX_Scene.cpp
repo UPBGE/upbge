@@ -336,10 +336,6 @@ KX_Scene::~KX_Scene()
   // Put that before we flush depsgraph updates at scene exit
   scene->flag &= ~SCE_INTERACTIVE;
 
-  // Flush depsgraph updates a last time at ge exit
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
-
   /* End of EEVEE INTEGRATION */
 
   // The release of debug properties used to be in SCA_IScene::~SCA_IScene
@@ -367,6 +363,12 @@ KX_Scene::~KX_Scene()
   BKE_id_free(bmain, m_gameDefaultCamera);
   m_gameDefaultCamera = nullptr;
   DEG_relations_tag_update(bmain);
+
+  /* Flush depsgraph updates a last time at ge exit after all objects have been removed
+   * to reset their transformation as savedMat is restored in KX_GameObject destructor
+   */
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   if (m_parentlist)
     m_parentlist->Release();

@@ -91,7 +91,6 @@ protected:
 	bool m_castShadows;
 	bool m_isReplica;
 	bool m_staticObject;
-  bool m_useCopy;
   bool m_visibleAtGameStart;
 	/* END OF EEVEE INTEGRATION */
 
@@ -145,7 +144,6 @@ public:
 	void RemoveReplicaObject();
 	bool IsStatic();
 	void RecalcGeometry();
-  void UseCopy();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
   void RestorePhysics(bool childrenRecursive);
   void AddDummyLodManager(RAS_MeshObject *meshObj);
