@@ -148,8 +148,6 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	GPU_framebuffer_texture_detach(m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport()));
 	GPU_framebuffer_texture_detach(m_targetfb, DRW_viewport_texture_list_get()->depth);
 
-	DRW_game_render_loop_finish();
-
 	GPU_framebuffer_restore();
 
 	scene_eval->flag &= ~SCE_INTERACTIVE_IMAGE_RENDER;

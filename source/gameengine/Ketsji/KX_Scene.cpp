@@ -783,7 +783,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
 
-  DRW_game_render_loop_finish();
   GPU_framebuffer_restore();
 
   rasty->Disable(RAS_Rasterizer::RAS_BLEND);

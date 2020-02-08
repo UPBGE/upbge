@@ -3147,23 +3147,23 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
   drw_engines_init();
   drw_engines_cache_init();
   drw_engines_world_update(DST.draw_ctx.scene);
-  
 
-  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN(depsgraph, ob)
-  {
-    Object *orig_ob = DEG_get_original_object(ob);
-    if (is_overlay_pass) {
+  if (is_overlay_pass) {
+    DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
+      Object *orig_ob = DEG_get_original_object(ob);
+
       if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
         drw_engines_cache_populate(ob);
       }
     }
-    else {
-      if ((orig_ob->gameflag & OB_OVERLAY_COLLECTION) == 0) {
-        drw_engines_cache_populate(ob);
-      }
-    }
+    DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
   }
-  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
+  else {
+    DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
+      drw_engines_cache_populate(ob);
+    }
+    DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
+  }
 
   drw_engines_cache_finish();
   DRW_render_instance_buffer_finish();
@@ -3187,16 +3187,13 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   DRW_state_reset();
 
+  drw_engines_disable();
+  drw_viewport_cache_resize();
+
   GPU_viewport_unbind(DST.viewport);
 
   v3d->shading.type = shading_type_backup;
   v3d->shading.flag = shading_flag_backup;
-}
-
-void DRW_game_render_loop_finish() //unused: check if something is needed
-{
-  drw_engines_disable();
-  drw_viewport_cache_resize();
 }
 
 void DRW_game_render_loop_end()
