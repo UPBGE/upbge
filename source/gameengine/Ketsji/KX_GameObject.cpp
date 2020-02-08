@@ -262,7 +262,9 @@ void KX_GameObject::SetBlenderObject(Object *obj)
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, obj);
-    m_visibleAtGameStart = (base->flag & BASE_HIDDEN) == 0;
+    if (base) { //base can be nullptr for objects in instanced collections
+      m_visibleAtGameStart = (base->flag & BASE_HIDDEN) == 0;
+    }
   }
 }
 
@@ -1079,16 +1081,18 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
-    if (v) {
-      base->flag &= ~BASE_HIDDEN;
-    }
-    else {
-      base->flag |= BASE_HIDDEN;
-    }
+    if (base) { //base can be nullptr for objects in instanced collections
+      if (v) {
+        base->flag &= ~BASE_HIDDEN;
+      }
+      else {
+        base->flag |= BASE_HIDDEN;
+      }
 
-    BKE_layer_collection_sync(scene, view_layer);
-    DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-    GetScene()->ResetTaaSamples();
+      BKE_layer_collection_sync(scene, view_layer);
+      DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+      GetScene()->ResetTaaSamples();
+    }
   }
 
   if (recursive) {
