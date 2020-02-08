@@ -40,7 +40,8 @@ class PHY_IConstraint;
 class	KX_ConstraintWrapper : public CValue
 {
 	Py_Header
-public: KX_ConstraintWrapper(PHY_IConstraint *constraint, PHY_ConstraintType ctype, int user_id);
+public:
+  KX_ConstraintWrapper(PHY_IConstraint *constraint, PHY_ConstraintType ctype, int user_id);
 	virtual ~KX_ConstraintWrapper ();
 
 	virtual std::string GetName();
