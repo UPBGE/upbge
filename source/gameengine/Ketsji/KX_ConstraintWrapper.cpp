@@ -33,8 +33,11 @@
 #include "KX_ConstraintWrapper.h"
 #include "PHY_IConstraint.h"
 
-KX_ConstraintWrapper::KX_ConstraintWrapper(PHY_IConstraint *constraint)
-	:m_constraint(constraint)
+KX_ConstraintWrapper::KX_ConstraintWrapper(PHY_IConstraint *constraint,
+                                           PHY_ConstraintType ctype, int user_id)
+	:m_constraint(constraint),
+	m_ctype(ctype),
+	m_userId(user_id)
 {
 }
 KX_ConstraintWrapper::~KX_ConstraintWrapper()
@@ -50,7 +53,7 @@ std::string KX_ConstraintWrapper::GetName()
 
 PyObject *KX_ConstraintWrapper::PyGetConstraintId()
 {
-	return PyLong_FromLong(m_constraint->GetIdentifier());
+	return PyLong_FromLong(m_userId);
 }
 
 
@@ -121,13 +124,13 @@ PyAttributeDef KX_ConstraintWrapper::Attributes[] = {
 PyObject *KX_ConstraintWrapper::pyattr_get_constraintId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ConstraintWrapper* self = static_cast<KX_ConstraintWrapper*>(self_v);
-	return PyLong_FromLong(self->m_constraint->GetIdentifier());
+	return PyLong_FromLong(self->m_userId);
 }
 
 PyObject *KX_ConstraintWrapper::pyattr_get_constraintType(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ConstraintWrapper* self = static_cast<KX_ConstraintWrapper*>(self_v);
-	return PyLong_FromLong(self->m_constraint->GetType());
+	return PyLong_FromLong(self->m_ctype);
 }
 
 PyObject *KX_ConstraintWrapper::pyattr_get_breakingThreshold(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
