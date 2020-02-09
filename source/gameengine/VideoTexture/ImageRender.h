@@ -83,8 +83,6 @@ protected:
 	/// do we own the camera?
 	bool m_owncamera;
 
-  struct GPUViewport *m_gpuViewport;
-
   GPUFrameBuffer *m_targetfb;
 
 	/// for mirror operation

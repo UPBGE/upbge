@@ -43,6 +43,9 @@
 #include "RAS_ICanvas.h"
 
 #include "GPU_glew.h"
+extern "C" {
+#  include "GPU_viewport.h"
+}
 
 KX_Camera::KX_Camera(void* sgReplicationInfo,
                      SG_Callbacks callbacks,
@@ -52,6 +55,7 @@ KX_Camera::KX_Camera(void* sgReplicationInfo,
     :
       KX_GameObject(sgReplicationInfo,callbacks),
       m_camdata(camdata),
+      m_gpuViewport(nullptr), //eevee
       m_dirty(true),
       m_normalized(false),
       m_frustum_culling(frustum_culling),
@@ -69,12 +73,30 @@ KX_Camera::KX_Camera(void* sgReplicationInfo,
 
 KX_Camera::~KX_Camera()
 {
+  RemoveGPUViewport();
 	if (m_delete_node && m_pSGNode)
 	{
 		// for shadow camera, avoids memleak
 		delete m_pSGNode;
 		m_pSGNode = nullptr;
 	}
+}
+
+
+GPUViewport* KX_Camera::GetGPUViewport()
+{
+  if (!m_gpuViewport) {
+    m_gpuViewport = GPU_viewport_create();
+  }
+  return m_gpuViewport;
+}
+
+void KX_Camera::RemoveGPUViewport()
+{
+  if (m_gpuViewport && m_gpuViewport != GetScene()->GetCurrentGPUViewport()) {
+    GPU_viewport_free(m_gpuViewport);
+    m_gpuViewport = nullptr;
+  }
 }
 
 

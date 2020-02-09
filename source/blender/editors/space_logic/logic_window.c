@@ -414,6 +414,8 @@ static const char *actuator_name(int type)
 		return N_("Constraint");
 	case ACT_SCENE:
 		return N_("Scene");
+  case ACT_COLLECTION:
+    return N_("Collection");
 	case ACT_GROUP:
 		return N_("Group");
 	case ACT_RANDOM:
@@ -1999,6 +2001,35 @@ static void draw_actuator_scene(uiLayout *layout, PointerRNA *ptr)
 	}
 }
 
+static void draw_actuator_collection(uiLayout *layout, PointerRNA *ptr)
+{
+  uiLayout *row;
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, ptr, "collection", 0, NULL, ICON_NONE);
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, ptr, "mode", 0, NULL, ICON_NONE);
+  row = uiLayoutRow(layout, true);
+  switch (RNA_enum_get(ptr, "mode")) {
+    case ACT_COLLECTION_SUSPEND:
+      uiItemR(row, ptr, "use_logic", 0, NULL, ICON_NONE);
+      uiItemR(row, ptr, "use_physics", 0, NULL, ICON_NONE);
+      uiItemR(row, ptr, "use_render", 0, NULL, ICON_NONE);
+      break;
+    case ACT_COLLECTION_RESUME:
+      uiItemR(row, ptr, "use_logic", 0, NULL, ICON_NONE);
+      uiItemR(row, ptr, "use_physics", 0, NULL, ICON_NONE);
+      uiItemR(row, ptr, "use_render", 0, NULL, ICON_NONE);
+      break;
+    case ACT_COLLECTION_ADD_OVERLAY:
+      uiItemR(row, ptr, "camera", 0, NULL, ICON_NONE);
+      break;
+    case ACT_COLLECTION_REMOVE_OVERLAY:
+      break;
+    default:
+      break;
+  }
+}
+
 static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)
 {
 	uiLayout *row, *col;
@@ -2217,6 +2248,9 @@ static void draw_brick_actuator(uiLayout *layout, PointerRNA *ptr, bContext *C)
 		case ACT_SCENE:
 			draw_actuator_scene(box, ptr);
 			break;
+    case ACT_COLLECTION:
+      draw_actuator_collection(box, ptr);
+      break;
 		case ACT_SOUND:
 			draw_actuator_sound(box, ptr, C);
 			break;

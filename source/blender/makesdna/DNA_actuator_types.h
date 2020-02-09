@@ -109,6 +109,14 @@ typedef struct bSceneActuator {
 	struct Object *camera;
 } bSceneActuator;
 
+typedef struct bCollectionActuator {
+  /* type = Suspend/Resume/overlayAdd/overlayRemove; flag = use logic/physics/visibility */
+  short type, flag;
+  int _pad;
+  struct Collection *collection;
+  struct Object *camera;
+} bCollectionActuator;
+
 typedef struct bPropertyActuator {
 	int _pad, type;
 	char name[64], value[64];	/* MAX_NAME */
@@ -338,6 +346,7 @@ typedef struct bActuator {
 #define ACT_STEERING    24
 #define ACT_MOUSE		25
 #define ACT_VIBRATION	26
+#define ACT_COLLECTION 27
 
 /* actuator flag */
 #define ACT_SHOW		1
@@ -481,6 +490,17 @@ typedef struct bActuator {
 #define ACT_SCENE_REMOVE		5
 #define ACT_SCENE_SUSPEND		6
 #define ACT_SCENE_RESUME		7
+
+/* CollectionActuator->type */
+#define ACT_COLLECTION_SUSPEND 0
+#define ACT_COLLECTION_RESUME 1
+#define ACT_COLLECTION_ADD_OVERLAY 2
+#define ACT_COLLECTION_REMOVE_OVERLAY 3
+
+/* CollectionActuator->flag */
+#define ACT_COLLECTION_SUSPEND_LOGIC 2
+#define ACT_COLLECTION_SUSPEND_PHYSICS 4
+#define ACT_COLLECTION_SUSPEND_VISIBILITY 8
 
 
 /* randomAct->distribution */

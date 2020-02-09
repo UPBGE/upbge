@@ -708,9 +708,9 @@ void DRW_game_render_loop(struct bContext *C,
   float persinv[4][4],
   const struct rcti *window,
   bool called_from_constructor,
-  bool reset_taa_samples);
+  bool reset_taa_samples,
+  bool is_overlay_pass);
 
-void DRW_game_render_loop_finish(void);
 void DRW_game_render_loop_end(void);
 
 void DRW_transform_to_display_image_render(struct GPUTexture *tex);

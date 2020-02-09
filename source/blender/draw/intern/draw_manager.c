@@ -3076,7 +3076,7 @@ EEVEE_Data *EEVEE_engine_data_get(void)
 
 void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene *scene,
   float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
-  const rcti *window, bool called_from_constructor, bool reset_taa_samples)
+  const rcti *window, bool called_from_constructor, bool reset_taa_samples, bool is_overlay_pass)
 {
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
@@ -3135,7 +3135,7 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   DST.draw_ctx.depsgraph = depsgraph;
 
-  DST.options.draw_background = (scene->r.alphamode == R_ADDSKY);
+  DST.options.draw_background = (scene->r.alphamode == R_ADDSKY) && !is_overlay_pass;
   DST.options.do_color_management = true;
 
   drw_context_state_init();
@@ -3147,13 +3147,23 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
   drw_engines_init();
   drw_engines_cache_init();
   drw_engines_world_update(DST.draw_ctx.scene);
-  
 
-  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN(depsgraph, ob)
-  {
-    drw_engines_cache_populate(ob);
+  if (is_overlay_pass) {
+    DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
+      Object *orig_ob = DEG_get_original_object(ob);
+
+      if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
+        drw_engines_cache_populate(ob);
+      }
+    }
+    DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
   }
-  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
+  else {
+    DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
+      drw_engines_cache_populate(ob);
+    }
+    DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
+  }
 
   drw_engines_cache_finish();
   DRW_render_instance_buffer_finish();
@@ -3177,16 +3187,13 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   DRW_state_reset();
 
+  drw_engines_disable();
+  drw_viewport_cache_resize();
+
   GPU_viewport_unbind(DST.viewport);
 
   v3d->shading.type = shading_type_backup;
   v3d->shading.flag = shading_flag_backup;
-}
-
-void DRW_game_render_loop_finish() //unused: check if something is needed
-{
-  drw_engines_disable();
-  drw_viewport_cache_resize();
 }
 
 void DRW_game_render_loop_end()

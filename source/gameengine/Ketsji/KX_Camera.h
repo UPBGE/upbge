@@ -56,6 +56,8 @@ protected:
 	 * here? It doesn't really have a function here. */
 	RAS_CameraData	m_camdata;
 
+  struct GPUViewport *m_gpuViewport;
+
 	// Never used, I think...
 //	void MoveTo(const MT_Vector3& movevec)
 //	{
@@ -130,6 +132,9 @@ public:
 
 	KX_Camera(void* sgReplicationInfo,SG_Callbacks callbacks,const RAS_CameraData& camdata, bool frustum_culling = true, bool delete_node = false);
 	virtual ~KX_Camera();
+
+  struct GPUViewport *GetGPUViewport();
+  void RemoveGPUViewport();
 	
 	/** 
 	 * Inherited from CValue -- return a new copy of this

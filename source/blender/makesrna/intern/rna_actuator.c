@@ -62,6 +62,7 @@ static const EnumPropertyItem actuator_type_items[] = {
 	{ACT_PROPERTY, "PROPERTY", 0, "Property", ""},
 	{ACT_RANDOM, "RANDOM", 0, "Random", ""},
 	{ACT_SCENE, "SCENE", 0, "Scene", ""},
+  {ACT_COLLECTION, "COLLECTION", 0, "Collection", ""},
 	{ACT_SOUND, "SOUND", 0, "Sound", ""},
 	{ACT_STATE, "STATE", 0, "State", ""},
 	{ACT_STEERING, "STEERING", 0, "Steering", ""},
@@ -95,6 +96,8 @@ static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
 			return &RNA_EditObjectActuator;
 		case ACT_SCENE:
 			return &RNA_SceneActuator;
+    case ACT_COLLECTION:
+      return &RNA_CollectionActuator;
 		case ACT_RANDOM:
 			return &RNA_RandomActuator;
 		case ACT_MESSAGE:
@@ -468,6 +471,7 @@ const EnumPropertyItem *rna_Actuator_type_itemf(bContext *C, PointerRNA *ptr, Pr
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_PROPERTY);
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_RANDOM);
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_SCENE);
+  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_COLLECTION);
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_STEERING);
 
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_SOUND);
@@ -1544,6 +1548,57 @@ static void rna_def_scene_actuator(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 
+static void rna_def_collection_actuator(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem prop_type_items[] = {
+      {ACT_COLLECTION_SUSPEND, "SUSPEND", 0, "Suspend Collection", ""},
+      {ACT_COLLECTION_RESUME, "RESUME", 0, "Resume Collection", ""},
+      {ACT_COLLECTION_ADD_OVERLAY, "ADD_OVERLAY", 0, "Add Overlay Collection", ""},
+      {ACT_COLLECTION_REMOVE_OVERLAY, "REMOVE_OVERLAY", 0, "Remove Overlay Collection", ""},
+      {0, NULL, 0, NULL, NULL}};
+
+  srna = RNA_def_struct(brna, "CollectionActuator", "Actuator");
+  RNA_def_struct_ui_text(srna, "Collection Actuator", "");
+  RNA_def_struct_sdna_from(srna, "bCollectionActuator", "data");
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "type");
+  RNA_def_property_enum_items(prop, prop_type_items);
+  RNA_def_property_ui_text(prop, "Mode", "");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "collection", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Collection");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Collection", "Collection");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "camera", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Camera", "Camera to render Overlay Collection");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  /* booleans */
+  prop = RNA_def_property(srna, "use_logic", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", ACT_COLLECTION_SUSPEND_LOGIC);
+  RNA_def_property_ui_text(prop, "Logic", "Suspend/Resume Logic");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "use_physics", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", ACT_COLLECTION_SUSPEND_PHYSICS);
+  RNA_def_property_ui_text(prop, "Physics", "Suspend/Resume Physics");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "use_render", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", ACT_COLLECTION_SUSPEND_VISIBILITY);
+  RNA_def_property_ui_text(prop, "Visibility", "Suspend/Resume Visibility");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+}
+
 static void rna_def_random_actuator(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2275,6 +2330,7 @@ void RNA_def_actuator(BlenderRNA *brna)
 	rna_def_constraint_actuator(brna);
 	rna_def_edit_object_actuator(brna);
 	rna_def_scene_actuator(brna);
+  rna_def_collection_actuator(brna);
 	rna_def_random_actuator(brna);
 	rna_def_message_actuator(brna);
 	rna_def_game_actuator(brna);

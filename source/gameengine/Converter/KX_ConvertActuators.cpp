@@ -62,6 +62,7 @@ extern "C" {
 
 // Ketsji specific logicbricks
 #include "SCA_SceneActuator.h"
+#include "SCA_CollectionActuator.h"
 #include "SCA_SoundActuator.h"
 #include "SCA_ObjectActuator.h"
 #include "SCA_TrackToActuator.h"
@@ -749,6 +750,45 @@ void BL_ConvertActuators(const char* maggiename,
 				baseact = tmpsceneact;
 				break;
 			}
+    case ACT_COLLECTION: {
+      bCollectionActuator *colact = (bCollectionActuator *)bact->data;
+      if (!colact->collection) {
+        std::cout << "No Collection found, actuator won't be converted. " << std::endl;
+        break;
+	  }
+      KX_Camera *cam = nullptr;
+
+      SCA_CollectionActuator *tmpcolact;
+      int mode = SCA_CollectionActuator::KX_COLLECTION_NODEF;
+      switch (colact->type) {
+        case ACT_COLLECTION_RESUME:
+          mode = SCA_CollectionActuator::KX_COLLECTION_RESUME;
+          break;
+        case ACT_COLLECTION_SUSPEND:
+          mode = SCA_CollectionActuator::KX_COLLECTION_SUSPEND;
+          break;
+        case ACT_COLLECTION_ADD_OVERLAY:
+          mode = SCA_CollectionActuator::KX_COLLECTION_ADD_OVERLAY;
+          if (colact->camera) {
+            KX_GameObject *tmp = converter.FindGameObject(colact->camera);
+            if (tmp && tmp->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
+              cam = (KX_Camera *)tmp;
+          }
+          break;
+        case ACT_COLLECTION_REMOVE_OVERLAY:
+          mode = SCA_CollectionActuator::KX_COLLECTION_REMOVE_OVERLAY;
+          break;
+        default:
+          mode = SCA_CollectionActuator::KX_COLLECTION_SUSPEND;
+          break;
+        };
+      bool use_logic = (colact->flag & ACT_COLLECTION_SUSPEND_LOGIC) == 0;
+      bool use_physics = (colact->flag & ACT_COLLECTION_SUSPEND_PHYSICS) == 0;
+      bool use_visibility = (colact->flag & ACT_COLLECTION_SUSPEND_VISIBILITY) == 0;
+      tmpcolact = new SCA_CollectionActuator(gameobj, scene, cam, colact->collection, mode, use_logic, use_physics, use_visibility);
+      baseact = tmpcolact;
+      break;
+    }
 		case ACT_GAME:
 			{
 				bGameActuator *gameact = (bGameActuator *) bact->data;

@@ -738,6 +738,8 @@ enum {
   OB_CHARACTER             = 1 << 22,
 
   OB_RECORD_ANIMATION      = 1 << 23,
+
+  OB_OVERLAY_COLLECTION    = 1 << 24,
 };
 
 /* ob->gameflag2 */

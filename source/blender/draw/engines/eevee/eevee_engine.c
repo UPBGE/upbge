@@ -367,8 +367,10 @@ static void eevee_draw_background(void *vedata)
     }
     /* End of Game engine transition */
 
-    /* Draw checkerboard with alpha under. */
-    EEVEE_draw_alpha_checker(vedata);
+    if (!(scene_eval->flag & SCE_INTERACTIVE)) {
+      /* Draw checkerboard with alpha under. */
+      EEVEE_draw_alpha_checker(vedata);
+    }
   }
   else {
     EEVEE_renderpasses_draw(sldata, vedata);

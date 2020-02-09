@@ -171,7 +171,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_resetTaaSamples(false),               // eevee
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
-      m_gpuViewport(nullptr),                 // eevee
+      m_currentGPUViewport(nullptr),          // eevee
+      m_initMaterialsGPUViewport(nullptr),    // eevee (See comment in .h)
+      m_overlayCamera(nullptr),               // eevee (For overlay collections)
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -258,6 +260,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   scene->eevee.taa_samples = 0;
   DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
+  m_overlay_collections = {};
+  m_imageRenderCameraList = {};
+
   /* The following code is to ensure that when we create a new KX_Scene,
    * some blender variables like bScreen, wmWindow, ScrArea, Aregion
    * are correctly set. In embedded player, normally these variables
@@ -281,7 +286,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
 
-    RenderAfterCameraSetup(true);
+    RenderAfterCameraSetup(nullptr, false);
   }
   else {
     Depsgraph *depsgraph = BKE_scene_get_depsgraph(
@@ -432,7 +437,6 @@ void KX_Scene::ResetLastReplicatedParentObject()
 }
 
 /*******************EEVEE INTEGRATION******************/
-
 void KX_Scene::InitBlenderContextVariables()
 {
   ARegion *ar;
@@ -453,12 +457,12 @@ void KX_Scene::InitBlenderContextVariables()
             if (ar->regiondata) {
               /* If we are in EMBEDDED and at FIRST SCENE START and that we have several
                * viewports opened, there can be several SPACE_VIEW3D and corresponding ARegions.
-               * In this case we have to ensure that the ARegion set at embedded start (canvas->GetARegion())
-               * is the same than the current ar. If not, we continue the loop.
-               * But if we ReplaceScene, We can't know which ARegion we have to choose, then we
-               * choose the first valid ARegion/SPACE_VIEW3D we find in the new scene.
-               * If no ARegion is set, then we are in blenderplayer. Then we choose the
-               * the first valid ARegion/SPACE_VIEW3D we find in the scene.
+               * In this case we have to ensure that the ARegion set at embedded start
+               * (canvas->GetARegion()) is the same than the current ar. If not, we continue the
+               * loop. But if we ReplaceScene, We can't know which ARegion we have to choose, then
+               * we choose the first valid ARegion/SPACE_VIEW3D we find in the new scene. If no
+               * ARegion is set, then we are in blenderplayer. Then we choose the the first valid
+               * ARegion/SPACE_VIEW3D we find in the scene.
                */
               RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
               bContext *C = KX_GetActiveEngine()->GetContext();
@@ -511,10 +515,137 @@ void KX_Scene::ResetTaaSamples()
   m_resetTaaSamples = true;
 }
 
+void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collection)
+{
+  /* Check for already added collections */
+  if (std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection) !=
+      m_overlay_collections.end()) {
+    std::cout << "Collection already added." << std::endl;
+    return;
+  }
+  SetOverlayCamera(overlay_cam);
+  m_overlay_collections.push_back(collection);
+
+  /* This loops only on visibled objects */
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, collection_object) {
+    collection_object->gameflag |= OB_OVERLAY_COLLECTION;
+  }
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+
+  /* Handle the case of invisibled objects */
+  for (KX_GameObject *gameobj : GetInactiveList()) {
+    if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
+      KX_GameObject *replica = AddReplicaObject(gameobj, nullptr, 0);
+      replica->GetBlenderObject()->gameflag |= OB_OVERLAY_COLLECTION;
+      BKE_collection_object_add(KX_GetActiveEngine()->GetConverter()->GetMain(),
+                                collection,
+                                replica->GetBlenderObject());
+      // release here because AddReplicaObject AddRef's
+      // the object is added to the scene so we don't want python to own a reference
+      replica->Release();
+    }
+  }
+  ResetTaaSamples();
+}
+
+void KX_Scene::RemoveOverlayCollection(Collection *collection)
+{
+  /* Check for already removed collections */
+  if (std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection) !=
+      m_overlay_collections.end()) {
+    /* If there is only one remaining overlay collection, we can Set the overlay camera to nullptr
+     */
+    if (m_overlay_collections.size() == 1) {
+      SetOverlayCamera(nullptr);
+    }
+    m_overlay_collections.erase(
+        std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection));
+
+    /* Handle the case of replicas added */
+    for (KX_GameObject *gameobj : GetObjectList()) {
+      if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
+        if (gameobj->IsReplica()) {
+          BKE_collection_object_remove(KX_GetActiveEngine()->GetConverter()->GetMain(),
+                                       collection,
+                                       gameobj->GetBlenderObject(),
+                                       false);
+          DelayedRemoveObject(gameobj);
+        }
+      }
+    }
+
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, collection_object) {
+      collection_object->gameflag &= ~OB_OVERLAY_COLLECTION;
+    }
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+
+    ResetTaaSamples();
+  }
+}
+
+void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)
+{
+  m_currentGPUViewport = viewport;
+}
+
+GPUViewport *KX_Scene::GetCurrentGPUViewport()
+{
+  return m_currentGPUViewport;
+}
+
+void KX_Scene::SetInitMaterialsGPUViewport(GPUViewport *viewport)
+{
+  if (!viewport) {
+    GPU_viewport_free(m_initMaterialsGPUViewport);
+  }
+  m_initMaterialsGPUViewport = viewport;
+}
+
+GPUViewport *KX_Scene::GetInitMaterialsGPUViewport()
+{
+  return m_initMaterialsGPUViewport;
+}
+
+void KX_Scene::SetOverlayCamera(KX_Camera *cam)
+{
+  m_overlayCamera = cam;
+}
+
+KX_Camera *KX_Scene::GetOverlayCamera()
+{
+  return m_overlayCamera;
+}
+
+void KX_Scene::AddImageRenderCamera(KX_Camera *cam)
+{
+  m_imageRenderCameraList.push_back(cam);
+}
+
+void KX_Scene::RemoveImageRenderCamera(KX_Camera *cam)
+{
+  m_imageRenderCameraList.erase(
+      std::find(m_imageRenderCameraList.begin(), m_imageRenderCameraList.end(), cam));
+}
+
+bool KX_Scene::CameraIsInactive(KX_Camera *cam)
+{
+  if (cam->GetViewport()) {
+    return false;
+  }
+  if (cam == GetActiveCamera()) {
+    return false;
+  }
+  if (std::find(m_imageRenderCameraList.begin(), m_imageRenderCameraList.end(), cam) !=
+      m_imageRenderCameraList.end()) {
+    return false;
+  }
+  return true;
+}
+
 static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0;
 static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER1;
 
-void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
+void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 {
 
   for (KX_GameObject *gameobj : GetObjectList()) {
@@ -528,7 +659,6 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
-  KX_Camera *cam = GetActiveCamera();
 
   if (!depsgraph) {
     depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
@@ -548,7 +678,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
   const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
 
-  if (!calledFromConstructor) {
+  if (cam) {
     rasty->SetMatrix(cam->GetModelviewMatrix(),
                      cam->GetProjectionMatrix(),
                      cam->NodeGetWorldPosition(),
@@ -574,7 +704,7 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
    * Here we'll render directly the scene with viewport code.
    */
   if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && ar) {
-    if (!calledFromConstructor) {
+    if (cam) {
       RegionView3D *rv3d = (RegionView3D *)ar->regiondata;
 
       DRW_view_set_active(NULL);
@@ -596,25 +726,28 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
 
   if (cam) {
     UpdateObjectLods(cam);
+    SetCurrentGPUViewport(cam->GetGPUViewport());
   }
 
-  if (!m_gpuViewport) {
-    /* Create eevee's cache space */
-    m_gpuViewport = GPU_viewport_create();
+  bool calledFromConstructor = cam == nullptr;
+  if (calledFromConstructor) {
+    m_currentGPUViewport = GPU_viewport_create();
+    SetInitMaterialsGPUViewport(m_currentGPUViewport);
   }
 
   DRW_game_render_loop(engine->GetContext(),
-      m_gpuViewport,
-      bmain,
-      scene,
-      view,
-      viewinv,
-      proj,
-      pers,
-      persinv,
-      &window,
-      calledFromConstructor,
-      reset_taa_samples);
+                       m_currentGPUViewport,
+                       bmain,
+                       scene,
+                       view,
+                       viewinv,
+                       proj,
+                       pers,
+                       persinv,
+                       &window,
+                       calledFromConstructor,
+                       reset_taa_samples,
+                       is_overlay_pass);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
@@ -624,13 +757,13 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
   /* And replace it with color and depth textures from viewport */
   GPU_framebuffer_texture_attach(
-      input->GetFrameBuffer(), GPU_viewport_color_texture(m_gpuViewport), 0, 0);
+      input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport), 0, 0);
   GPU_framebuffer_texture_attach(
       input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
 
   GPU_framebuffer_bind(input->GetFrameBuffer());
 
-  RAS_FrameBuffer *f = Render2DFilters(rasty, canvas, input, output);
+  RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
 
   GPU_framebuffer_restore();
 
@@ -642,23 +775,22 @@ void KX_Scene::RenderAfterCameraSetup(bool calledFromConstructor)
   }
   DRW_transform_to_display_image_render(GPU_framebuffer_color_texture(f->GetFrameBuffer()));
 
-  if (!calledFromConstructor) {
-    engine->EndFrame();
-  }
-
   /* Detach viewport textures from input framebuffer... */
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
-                                 GPU_viewport_color_texture(m_gpuViewport));
+                                 GPU_viewport_color_texture(m_currentGPUViewport));
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
   /* And restore defaults attachments */
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
 
-  DRW_game_render_loop_finish();
   GPU_framebuffer_restore();
+
+  rasty->Disable(RAS_Rasterizer::RAS_BLEND);
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewport *viewport, const rcti *window)
+void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
+                                                 RAS_Rasterizer *rasty,
+                                                 const rcti *window)
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate();
@@ -666,6 +798,13 @@ void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewp
 
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
   Scene *scene = GetBlenderScene();
+
+  SetCurrentGPUViewport(cam->GetGPUViewport());
+
+  rasty->SetMatrix(cam->GetModelviewMatrix(),
+                   cam->GetProjectionMatrix(),
+                   cam->NodeGetWorldPosition(),
+                   cam->NodeGetLocalScaling());
 
   // Normally cam matrices are already set in ImageRender
   ViewPortMatrices m = rasty->GetAllMatrices();
@@ -682,17 +821,18 @@ void KX_Scene::RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, GPUViewp
   m.persinv.getValue(&persinv[0][0]);
 
   DRW_game_render_loop(KX_GetActiveEngine()->GetContext(),
-                                              viewport,
-                                              bmain,
-                                              scene,
-                                              view,
-                                              viewinv,
-                                              proj,
-                                              pers,
-                                              persinv,
-                                              window,
-                                              false,
-                                              true);
+                       m_currentGPUViewport,
+                       bmain,
+                       scene,
+                       view,
+                       viewinv,
+                       proj,
+                       pers,
+                       persinv,
+                       window,
+                       false,
+                       true,
+                       false);
 }
 
 /******************End of EEVEE INTEGRATION****************************/
@@ -746,6 +886,11 @@ SCA_TimeEventManager *KX_Scene::GetTimeEventManager() const
 CListValue<KX_Camera> *KX_Scene::GetCameraList() const
 {
   return m_cameralist;
+}
+
+void KX_Scene::SetCameraList(CListValue<KX_Camera> *camList)
+{
+  m_cameralist = camList;
 }
 
 CListValue<KX_FontObject> *KX_Scene::GetFontList() const
@@ -1428,7 +1573,10 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
   return ret;
 }
 
-void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool use_gfx, bool use_phys)
+void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
+                           RAS_MeshObject *mesh,
+                           bool use_gfx,
+                           bool use_phys)
 {
   if (!gameobj) {
     CM_FunctionWarning("invalid object, doing nothing");
@@ -1457,9 +1605,10 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool us
     DEG_id_tag_update(&gameobj->GetBlenderObject()->id, ID_RECALC_GEOMETRY);
   }
 
-  //if (use_phys) { /* update the new assigned mesh with the physics mesh */
+  // if (use_phys) { /* update the new assigned mesh with the physics mesh */
   //  if (gameobj->GetPhysicsController()) {
-  //    gameobj->GetPhysicsController()->ReinstancePhysicsShape2(mesh, mesh->GetOriginalObject(), true);
+  //    gameobj->GetPhysicsController()->ReinstancePhysicsShape2(mesh, mesh->GetOriginalObject(),
+  //    true);
   //  }
   //}
 
@@ -1734,60 +1883,59 @@ void KX_Scene::AppendToStaticObjects(KX_GameObject *gameobj)
 /************************End of TAA UTILS**************************/
 /*************************************End of EEVEE INTEGRATION*********************************/
 
-void KX_Scene::UpdateObjectLods(KX_Camera *cam/*, const KX_CullingNodeList& nodes*/)
+void KX_Scene::UpdateObjectLods(KX_Camera *cam /*, const KX_CullingNodeList& nodes*/)
 {
-  const MT_Vector3& cam_pos = cam->NodeGetWorldPosition();
+  const MT_Vector3 &cam_pos = cam->NodeGetWorldPosition();
   const float lodfactor = cam->GetLodDistanceFactor();
 
   for (KX_GameObject *gameobj : GetObjectList()) {
-      gameobj->UpdateLod(cam_pos, 1.0f/*lodfactor*/);
+    gameobj->UpdateLod(cam_pos, 1.0f /*lodfactor*/);
   }
 }
 
 void KX_Scene::SetLodHysteresis(bool active)
 {
-	m_isActivedHysteresis = active;
+  m_isActivedHysteresis = active;
 }
 
 bool KX_Scene::IsActivedLodHysteresis(void)
 {
-	return m_isActivedHysteresis;
+  return m_isActivedHysteresis;
 }
 
 void KX_Scene::SetLodHysteresisValue(int hysteresisvalue)
 {
-	m_lodHysteresisValue = hysteresisvalue;
+  m_lodHysteresisValue = hysteresisvalue;
 }
 
 int KX_Scene::GetLodHysteresisValue(void)
 {
-	return m_lodHysteresisValue;
+  return m_lodHysteresisValue;
 }
 
-void KX_Scene::UpdateObjectActivity(void) 
+void KX_Scene::UpdateObjectActivity(void)
 {
-	if (m_activity_culling) {
-		/* determine the activity criterium and set objects accordingly */
-		MT_Vector3 camloc = GetActiveCamera()->NodeGetWorldPosition(); //GetCameraLocation();
+  if (m_activity_culling) {
+    /* determine the activity criterium and set objects accordingly */
+    MT_Vector3 camloc = GetActiveCamera()->NodeGetWorldPosition();  // GetCameraLocation();
 
-		for (KX_GameObject *ob : *m_objectlist) {
-			if (!ob->GetIgnoreActivityCulling()) {
-				/* Simple test: more than 10 away from the camera, count
-				 * Manhattan distance. */
-				MT_Vector3 obpos = ob->NodeGetWorldPosition();
-				
-				if ((fabsf(camloc[0] - obpos[0]) > m_activity_box_radius) ||
-				    (fabsf(camloc[1] - obpos[1]) > m_activity_box_radius) ||
-				    (fabsf(camloc[2] - obpos[2]) > m_activity_box_radius) )
-				{
-					ob->Suspend();
-				}
-				else {
-					ob->Resume();
-				}
-			}
-		}
-	}
+    for (KX_GameObject *ob : *m_objectlist) {
+      if (!ob->GetIgnoreActivityCulling()) {
+        /* Simple test: more than 10 away from the camera, count
+         * Manhattan distance. */
+        MT_Vector3 obpos = ob->NodeGetWorldPosition();
+
+        if ((fabsf(camloc[0] - obpos[0]) > m_activity_box_radius) ||
+            (fabsf(camloc[1] - obpos[1]) > m_activity_box_radius) ||
+            (fabsf(camloc[2] - obpos[2]) > m_activity_box_radius)) {
+          ob->SuspendDynamics();
+        }
+        else {
+          ob->ResumeDynamics();
+        }
+      }
+    }
+  }
 }
 
 void KX_Scene::SetActivityCullingRadius(float f)
