@@ -527,7 +527,7 @@ void BL_ArmatureObject::GetPose(bPose **pose)
 		 * a crash and memory leakage when
 		 * &BL_ActionActuator::m_pose is freed
 		 */
-		game_copy_pose(pose, m_pose, 0);
+		BKE_pose_copy_data(pose, m_pose, 1);
 	}
 	else {
 		if (*pose == m_pose) {

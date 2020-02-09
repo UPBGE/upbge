@@ -189,6 +189,9 @@ KX_GameObject::~KX_GameObject()
     ViewLayer *view_layer = BKE_view_layer_default_view(sc);
     Depsgraph *depsgraph = BKE_scene_get_depsgraph(
         KX_GetActiveEngine()->GetConverter()->GetMain(), sc, view_layer, false);
+    if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+      ob->gameflag &= ~OB_OVERLAY_COLLECTION;
+    }
     copy_m4_m4(ob->obmat, m_savedObmat);
     invert_m4_m4(ob->imat, m_savedObmat);
     if (ob->parent) {
@@ -430,6 +433,7 @@ static void suspend_physics_recursive(SG_Node *node, bool freeConstraints)
   }
 }
 
+/* We Remove Physics controller */
 void KX_GameObject::SuspendPhysics(bool freeConstraints, bool childrenRecursive)
 {
   if (m_pPhysicsController) {
@@ -467,10 +471,68 @@ void KX_GameObject::RestorePhysics(bool childrenRecursive)
   }
 }
 
+static void suspend_logic_recursive(SG_Node *node)
+{
+  NodeList &children = node->GetSGChildren();
+
+  for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
+    SG_Node *childnode = (*childit);
+    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>((*childit)->GetSGClientObject());
+    if (clientgameobj != nullptr) {  // This is a GameObject
+      clientgameobj->SuspendSensors();
+    }
+
+    // if the childobj is nullptr then this may be an inverse parent link
+    // so a non recursive search should still look down this node.
+    suspend_logic_recursive(childnode);
+  }
+}
+
+/* We Disable Sensors */
+void KX_GameObject::SuspendLogic(bool childrenRecursive)
+{
+  SuspendSensors();
+
+  if (childrenRecursive) {
+    suspend_logic_recursive(GetSGNode());
+  }
+}
+
+static void restore_logic_recursive(SG_Node *node)
+{
+  NodeList &children = node->GetSGChildren();
+
+  for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
+    SG_Node *childnode = (*childit);
+    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>((*childit)->GetSGClientObject());
+    if (clientgameobj != nullptr) {  // This is a GameObject
+      clientgameobj->ResumeSensors();
+    }
+
+    // if the childobj is nullptr then this may be an inverse parent link
+    // so a non recursive search should still look down this node.
+    restore_logic_recursive(childnode);
+  }
+}
+
+void KX_GameObject::RestoreLogic(bool childrenRecursive)
+{
+  ResumeSensors();
+
+  if (childrenRecursive) {
+    restore_logic_recursive(GetSGNode());
+  }
+}
+
 void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj)
 {
   m_lodManager = new KX_LodManager(meshObj);
   m_lodManager->AddRef();
+}
+
+bool KX_GameObject::IsReplica()
+{
+  return m_isReplica;
 }
 
 /********************End of EEVEE INTEGRATION*********************/
@@ -1606,10 +1668,10 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider,
  * So far, only switch the physics and logic.
  * */
 
-void KX_GameObject::Resume(void)
+void KX_GameObject::ResumeDynamics(void)
 {
   if (m_suspended) {
-    SCA_IObject::Resume();
+    SCA_IObject::ResumeSensors();
     // Child objects must be static, so we block changing to dynamic
     if (GetPhysicsController() && !GetParent())
       GetPhysicsController()->RestoreDynamics();
@@ -1618,10 +1680,10 @@ void KX_GameObject::Resume(void)
   }
 }
 
-void KX_GameObject::Suspend()
+void KX_GameObject::SuspendDynamics()
 {
   if ((!m_ignore_activity_culling) && (!m_suspended)) {
-    SCA_IObject::Suspend();
+    SCA_IObject::SuspendSensors();
     if (GetPhysicsController())
       GetPhysicsController()->SuspendDynamics();
     m_suspended = true;

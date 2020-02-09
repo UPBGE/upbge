@@ -82,7 +82,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_scene(scene),
     m_camera(camera),
     m_owncamera(false),
-    m_gpuViewport(nullptr),
     m_observer(nullptr),
     m_mirror(nullptr),
     m_clip(100.f),
@@ -105,9 +104,6 @@ ImageRender::~ImageRender (void)
 	if (m_owncamera) {
 		m_camera->Release();
 	}
-	if (m_gpuViewport) {
-		GPU_viewport_free(m_gpuViewport);
-	}
 
 	GPU_framebuffer_free(m_targetfb);
 	m_targetfb = nullptr;
@@ -115,8 +111,8 @@ ImageRender::~ImageRender (void)
 
 int ImageRender::GetColorBindCode() const
 {
-	if (m_gpuViewport) {
-		return GPU_texture_opengl_bindcode(GPU_viewport_color_texture(m_gpuViewport));
+	if (m_camera->GetGPUViewport()) {
+		return GPU_texture_opengl_bindcode(GPU_viewport_color_texture(m_camera->GetGPUViewport()));
 	}
 	return -1;
 }
@@ -142,17 +138,15 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	m_rasterizer->SetViewport(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
 	m_rasterizer->SetScissor(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
 
-	GPU_framebuffer_texture_attach(m_targetfb, GPU_viewport_color_texture(m_gpuViewport), 0, 0);
+	GPU_framebuffer_texture_attach(m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport()), 0, 0);
 	GPU_framebuffer_texture_attach(m_targetfb, DRW_viewport_texture_list_get()->depth, 0, 0);
 	GPU_framebuffer_bind(m_targetfb);
 
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
 
-	GPU_framebuffer_texture_detach(m_targetfb, GPU_viewport_color_texture(m_gpuViewport));
+	GPU_framebuffer_texture_detach(m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport()));
 	GPU_framebuffer_texture_detach(m_targetfb, DRW_viewport_texture_list_get()->depth);
-
-	DRW_game_render_loop_finish();
 
 	GPU_framebuffer_restore();
 
@@ -165,7 +159,7 @@ bool ImageRender::Render()
 
 	if (!m_render ||
         m_camera->GetViewport() ||        // camera must be inactive
-        m_camera == m_scene->GetActiveCamera())
+        m_camera == m_scene->GetActiveCamera() || m_camera == m_scene->GetOverlayCamera())
 	{
 		// no need to compute texture in non texture rendering
 		return false;
@@ -246,10 +240,6 @@ bool ImageRender::Render()
 	m_rasterizer->SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 	m_rasterizer->SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 
-	if (!m_gpuViewport) {
-		m_gpuViewport = GPU_viewport_create();
-	}
-
 	m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
@@ -321,8 +311,6 @@ bool ImageRender::Render()
 
 	MT_Transform camtrans(m_camera->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
-	
-	m_rasterizer->SetMatrix(viewmat, m_camera->GetProjectionMatrix(), m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling());
 	m_camera->SetModelviewMatrix(viewmat);
 
 	// restore the stereo mode now that the matrix is computed
@@ -340,7 +328,7 @@ bool ImageRender::Render()
 
 	/* viewport and window share the same values here */
 	const rcti window = {viewport[0], viewport[2], viewport[1], viewport[3]};
-	m_scene->RenderAfterCameraSetupImageRender(m_rasterizer, m_gpuViewport, &window);
+	m_scene->RenderAfterCameraSetupImageRender(m_camera, m_rasterizer, &window);
 
 	m_canvas->EndFrame();
 

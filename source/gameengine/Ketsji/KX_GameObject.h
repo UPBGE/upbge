@@ -146,7 +146,10 @@ public:
 	void RecalcGeometry();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
   void RestorePhysics(bool childrenRecursive);
+  void SuspendLogic(bool childrenRecursive);
+  void RestoreLogic(bool childrenRecursive);
   void AddDummyLodManager(RAS_MeshObject *meshObj);
+  bool IsReplica();
 	/* END OF EEVEE INTEGRATION */
 
 
@@ -820,12 +823,12 @@ public:
 	/**
 	 * Stop making progress
 	 */
-	void Suspend(void);
+	void SuspendDynamics(void);
 
 	/**
 	 * Resume making progress
 	 */
-	void Resume(void);
+	void ResumeDynamics(void);
 
 	/**
 	 * add debug object to the debuglist.

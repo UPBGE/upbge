@@ -137,7 +137,15 @@ protected:
 	bool m_resetTaaSamples;
   Object *m_lastReplicatedParentObject;
   Object *m_gameDefaultCamera;
-  struct GPUViewport *m_gpuViewport;
+  std::vector<struct Collection *> m_overlay_collections;
+  struct GPUViewport *m_currentGPUViewport;
+  /* In the current state of the code, we need this
+   * to Initialize KX_BlenderMaterial and BL_Texture.
+   * BL_Texture(s) is/are used for ImageRender.
+   */
+  struct GPUViewport *m_initMaterialsGPUViewport;
+  KX_Camera *m_overlayCamera;
+  std::vector<KX_Camera *> m_imageRenderCameraList;
 	/*************************************************/
 
 	RAS_BucketManager*	m_bucketmanager;
@@ -325,14 +333,25 @@ public:
 	bool m_isRuntime; // Too lazy to put that in protected
 	std::vector<Object *>m_hiddenObjectsDuringRuntime;
 
-	void RenderAfterCameraSetup(bool calledFromConstructor);
-	void RenderAfterCameraSetupImageRender(RAS_Rasterizer *rasty, struct GPUViewport *viewport, const struct rcti *window);
+	void RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass);
+	void RenderAfterCameraSetupImageRender(KX_Camera *cam, RAS_Rasterizer *rasty, const struct rcti *window);
 
   void SetLastReplicatedParentObject(Object *ob);
   Object *GetLastReplicatedParentObject();
   void ResetLastReplicatedParentObject();
   Object *GetGameDefaultCamera();
   void InitBlenderContextVariables();
+  void AddOverlayCollection(KX_Camera *overlay_cam, struct Collection *collection);
+  void RemoveOverlayCollection(struct Collection *collection);
+  void SetCurrentGPUViewport(struct GPUViewport *viewport);
+  struct GPUViewport *GetCurrentGPUViewport();
+  void SetInitMaterialsGPUViewport(struct GPUViewport *viewport);
+  struct GPUViewport *GetInitMaterialsGPUViewport();
+  void SetOverlayCamera(KX_Camera *cam);
+  KX_Camera *GetOverlayCamera();
+  void AddImageRenderCamera(KX_Camera *cam);
+  void RemoveImageRenderCamera(KX_Camera *cam);
+  bool CameraIsInactive(KX_Camera *cam);
 	/***************End of EEVEE INTEGRATION**********************/
 
 	RAS_BucketManager* GetBucketManager() const;
@@ -385,6 +404,7 @@ public:
 	SCA_TimeEventManager *GetTimeEventManager() const;
 
 	CListValue<KX_Camera> *GetCameraList() const;
+  void SetCameraList(CListValue<KX_Camera> *camList);
 	CListValue<KX_FontObject> *GetFontList() const;
 
 	/** Find the currently active camera. */

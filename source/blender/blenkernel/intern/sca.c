@@ -38,6 +38,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_collection_types.h"
 #include "DNA_controller_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_actuator_types.h"
@@ -461,6 +462,9 @@ void init_actuator(bActuator *act)
 	case ACT_SCENE:
 		act->data= MEM_callocN(sizeof(bSceneActuator), "scene act");
 		break;
+  case ACT_COLLECTION:
+    act->data = MEM_callocN(sizeof(bCollectionActuator), "collection act");
+    break;
 	case ACT_GROUP:
 		act->data= MEM_callocN(sizeof(bGroupActuator), "group act");
 		break;
@@ -617,6 +621,11 @@ void set_sca_new_poins_ob(Object *ob)
 				bSceneActuator *sca= act->data;
 				ID_NEW_REMAP(sca->camera);
 			}
+      else if (act->type == ACT_COLLECTION) {
+        bCollectionActuator *ca = act->data;
+        ID_NEW_REMAP(ca->collection);
+        ID_NEW_REMAP(ca->camera);
+      }
 			else if (act->type==ACT_CAMERA) {
 				bCameraActuator *ca= act->data;
 				ID_NEW_REMAP(ca->ob);
@@ -1100,6 +1109,12 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
 				func(actuator, (ID **)&sa->camera, userdata, IDWALK_CB_NOP);
 				break;
 			}
+      case ACT_COLLECTION: {
+        bCollectionActuator *ca = actuator->data;
+        func(actuator, (ID **)&ca->collection, userdata, IDWALK_CB_NOP);
+        func(actuator, (ID **)&ca->camera, userdata, IDWALK_CB_NOP);
+        break;
+      }
 			case ACT_PROPERTY:
 			{
 				bPropertyActuator *pa = actuator->data;

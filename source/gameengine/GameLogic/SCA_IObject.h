@@ -176,12 +176,12 @@ public:
 	/**
 	 * Suspend all progress.
 	 */
-	void Suspend(void);
+	void SuspendSensors(void);
 	
 	/**
 	 * Resume progress
 	 */
-	void Resume(void);
+	void ResumeSensors(void);
 
 	/**
 	 * Set init state

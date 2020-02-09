@@ -572,6 +572,29 @@ void MANTA::terminateMantaflow()
   mantaInitialized = false;
 }
 
+static std::string getCacheFileEnding(char cache_format)
+{
+  if (MANTA::with_debug)
+    std::cout << "MANTA::getCacheFileEnding()" << std::endl;
+
+  switch (cache_format) {
+    case FLUID_DOMAIN_FILE_UNI:
+      return ".uni";
+    case FLUID_DOMAIN_FILE_OPENVDB:
+      return ".vdb";
+    case FLUID_DOMAIN_FILE_RAW:
+      return ".raw";
+    case FLUID_DOMAIN_FILE_BIN_OBJECT:
+      return ".bobj.gz";
+    case FLUID_DOMAIN_FILE_OBJECT:
+      return ".obj";
+    default:
+      if (MANTA::with_debug)
+        std::cout << "Error: Could not find file extension" << std::endl;
+      return ".uni";
+  }
+}
+
 std::string MANTA::getRealValue(const std::string &varName, FluidModifierData *mmd)
 {
   std::ostringstream ss;
@@ -815,6 +838,14 @@ std::string MANTA::getRealValue(const std::string &varName, FluidModifierData *m
     ss << mmd->time;
   else if (varName == "END_FRAME")
     ss << mmd->domain->cache_frame_end;
+  else if (varName == "CACHE_DATA_FORMAT")
+    ss << getCacheFileEnding(mmd->domain->cache_data_format);
+  else if (varName == "CACHE_MESH_FORMAT")
+    ss << getCacheFileEnding(mmd->domain->cache_mesh_format);
+  else if (varName == "CACHE_NOISE_FORMAT")
+    ss << getCacheFileEnding(mmd->domain->cache_noise_format);
+  else if (varName == "CACHE_PARTICLE_FORMAT")
+    ss << getCacheFileEnding(mmd->domain->cache_particle_format);
   else if (varName == "SIMULATION_METHOD") {
     if (mmd->domain->simulation_method & FLUID_DOMAIN_METHOD_FLIP) {
       ss << "'FLIP'";
@@ -985,29 +1016,6 @@ std::string MANTA::parseScript(const std::string &setup_string, FluidModifierDat
     res << parseLine(line, mmd) << "\n";
   }
   return res.str();
-}
-
-static std::string getCacheFileEnding(char cache_format)
-{
-  if (MANTA::with_debug)
-    std::cout << "MANTA::getCacheFileEnding()" << std::endl;
-
-  switch (cache_format) {
-    case FLUID_DOMAIN_FILE_UNI:
-      return ".uni";
-    case FLUID_DOMAIN_FILE_OPENVDB:
-      return ".vdb";
-    case FLUID_DOMAIN_FILE_RAW:
-      return ".raw";
-    case FLUID_DOMAIN_FILE_BIN_OBJECT:
-      return ".bobj.gz";
-    case FLUID_DOMAIN_FILE_OBJECT:
-      return ".obj";
-    default:
-      if (MANTA::with_debug)
-        std::cout << "Error: Could not find file extension" << std::endl;
-      return ".uni";
-  }
 }
 
 int MANTA::updateFlipStructures(FluidModifierData *mmd, int framenr)
@@ -1204,7 +1212,7 @@ int MANTA::updateSmokeStructures(FluidModifierData *mmd, int framenr)
   if (!BLI_exists(targetFile)) {
     return 0;
   }
-  result += updateGridFromFile(targetFile, mDensity);
+  result += updateGridFromFile(targetFile, mDensity, false);
 
   expected += 1;
   ss.str("");
@@ -1214,7 +1222,7 @@ int MANTA::updateSmokeStructures(FluidModifierData *mmd, int framenr)
   if (!BLI_exists(targetFile)) {
     return 0;
   }
-  result += updateGridFromFile(targetFile, mShadow);
+  result += updateGridFromFile(targetFile, mShadow, false);
 
   if (mUsingHeat) {
     expected += 1;
@@ -1225,7 +1233,7 @@ int MANTA::updateSmokeStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mHeat);
+    result += updateGridFromFile(targetFile, mHeat, false);
   }
 
   if (mUsingColors) {
@@ -1237,7 +1245,7 @@ int MANTA::updateSmokeStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mColorR);
+    result += updateGridFromFile(targetFile, mColorR, false);
 
     ss.str("");
     ss << "color_g_####" << dformat;
@@ -1246,7 +1254,7 @@ int MANTA::updateSmokeStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mColorG);
+    result += updateGridFromFile(targetFile, mColorG, false);
 
     ss.str("");
     ss << "color_b_####" << dformat;
@@ -1255,7 +1263,7 @@ int MANTA::updateSmokeStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mColorB);
+    result += updateGridFromFile(targetFile, mColorB, false);
   }
 
   if (mUsingFire) {
@@ -1267,7 +1275,7 @@ int MANTA::updateSmokeStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mFlame);
+    result += updateGridFromFile(targetFile, mFlame, false);
 
     ss.str("");
     ss << "fuel_####" << dformat;
@@ -1276,7 +1284,7 @@ int MANTA::updateSmokeStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mFuel);
+    result += updateGridFromFile(targetFile, mFuel, false);
 
     ss.str("");
     ss << "react_####" << dformat;
@@ -1285,7 +1293,7 @@ int MANTA::updateSmokeStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mReact);
+    result += updateGridFromFile(targetFile, mReact, false);
   }
 
   mSmokeFromFile = true;
@@ -1334,7 +1342,7 @@ int MANTA::updateNoiseStructures(FluidModifierData *mmd, int framenr)
   if (!BLI_exists(targetFile)) {
     return 0;
   }
-  result += updateGridFromFile(targetFile, mDensityHigh);
+  result += updateGridFromFile(targetFile, mDensityHigh, true);
 
   expected += 1;
   ss.str("");
@@ -1344,7 +1352,7 @@ int MANTA::updateNoiseStructures(FluidModifierData *mmd, int framenr)
   if (!BLI_exists(targetFile)) {
     return 0;
   }
-  result += updateGridFromFile(targetFile, mShadow);
+  result += updateGridFromFile(targetFile, mShadow, false);
 
   if (mUsingColors) {
     expected += 3;
@@ -1355,7 +1363,7 @@ int MANTA::updateNoiseStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mColorRHigh);
+    result += updateGridFromFile(targetFile, mColorRHigh, true);
 
     ss.str("");
     ss << "color_g_noise_####" << nformat;
@@ -1364,7 +1372,7 @@ int MANTA::updateNoiseStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mColorGHigh);
+    result += updateGridFromFile(targetFile, mColorGHigh, true);
 
     ss.str("");
     ss << "color_b_noise_####" << nformat;
@@ -1373,7 +1381,7 @@ int MANTA::updateNoiseStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mColorBHigh);
+    result += updateGridFromFile(targetFile, mColorBHigh, true);
   }
 
   if (mUsingFire) {
@@ -1385,7 +1393,7 @@ int MANTA::updateNoiseStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mFlameHigh);
+    result += updateGridFromFile(targetFile, mFlameHigh, true);
 
     ss.str("");
     ss << "fuel_noise_####" << nformat;
@@ -1394,7 +1402,7 @@ int MANTA::updateNoiseStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mFuelHigh);
+    result += updateGridFromFile(targetFile, mFuelHigh, true);
 
     ss.str("");
     ss << "react_noise_####" << nformat;
@@ -1403,7 +1411,7 @@ int MANTA::updateNoiseStructures(FluidModifierData *mmd, int framenr)
     if (!BLI_exists(targetFile)) {
       return 0;
     }
-    result += updateGridFromFile(targetFile, mReactHigh);
+    result += updateGridFromFile(targetFile, mReactHigh, true);
   }
 
   mNoiseFromFile = true;
@@ -2001,6 +2009,9 @@ int MANTA::bakeGuiding(FluidModifierData *mmd, int framenr)
 
   std::string gformat = getCacheFileEnding(mmd->domain->cache_data_format);
 
+  bool final_cache = (mmd->domain->cache_type == FLUID_DOMAIN_CACHE_FINAL);
+  std::string resumable_cache = (final_cache) ? "False" : "True";
+
   BLI_path_join(cacheDirGuiding,
                 sizeof(cacheDirGuiding),
                 mmd->domain->cache_directory,
@@ -2010,7 +2021,7 @@ int MANTA::bakeGuiding(FluidModifierData *mmd, int framenr)
 
   ss.str("");
   ss << "bake_guiding_" << mCurrentID << "('" << escapeSlashes(cacheDirGuiding) << "', " << framenr
-     << ", '" << gformat << "')";
+     << ", '" << gformat << "', " << resumable_cache << ")";
   pythonCommands.push_back(ss.str());
 
   runPythonString(pythonCommands);
@@ -2778,7 +2789,7 @@ void MANTA::updateParticlesFromUni(const char *filename, bool isSecondarySys, bo
   gzclose(gzf);
 }
 
-int MANTA::updateGridFromFile(const char *filename, float *grid)
+int MANTA::updateGridFromFile(const char *filename, float *grid, bool isNoise)
 {
   if (with_debug)
     std::cout << "MANTA::updateGridFromFile()" << std::endl;
@@ -2797,11 +2808,13 @@ int MANTA::updateGridFromFile(const char *filename, float *grid)
     std::string extension = fname.substr(idx + 1);
 
     if (extension.compare("uni") == 0)
-      return updateGridFromUni(filename, grid);
+      return updateGridFromUni(filename, grid, isNoise);
+#if OPENVDB == 1
     else if (extension.compare("vdb") == 0)
-      return updateGridFromVDB(filename, grid);
+      return updateGridFromVDB(filename, grid, isNoise);
+#endif
     else if (extension.compare("raw") == 0)
-      return updateGridFromRaw(filename, grid);
+      return updateGridFromRaw(filename, grid, isNoise);
     else
       std::cerr << "MANTA::updateGridFromFile(): invalid file extension in file: " << filename
                 << std::endl;
@@ -2813,7 +2826,7 @@ int MANTA::updateGridFromFile(const char *filename, float *grid)
   }
 }
 
-int MANTA::updateGridFromUni(const char *filename, float *grid)
+int MANTA::updateGridFromUni(const char *filename, float *grid, bool isNoise)
 {
   if (with_debug)
     std::cout << "MANTA::updateGridFromUni()" << std::endl;
@@ -2861,13 +2874,17 @@ int MANTA::updateGridFromUni(const char *filename, float *grid)
   gzread(gzf, &dimT, sizeof(int));
   gzread(gzf, &timestamp, sizeof(unsigned long long));
 
+  int resX = (isNoise) ? mResXNoise : mResX;
+  int resY = (isNoise) ? mResYNoise : mResY;
+  int resZ = (isNoise) ? mResZNoise : mResZ;
+
   if (with_debug)
     std::cout << "read " << ibuffer[3] << " grid type in file: " << filename << std::endl;
 
   // Sanity checks
-  if (ibuffer[0] != mResX || ibuffer[1] != mResY || ibuffer[2] != mResZ) {
+  if (ibuffer[0] != resX || ibuffer[1] != resY || ibuffer[2] != resZ) {
     std::cout << "grid dim doesn't match, read: (" << ibuffer[0] << ", " << ibuffer[1] << ", "
-              << ibuffer[2] << ") vs setup: (" << mResX << ", " << mResY << ", " << mResZ << ")"
+              << ibuffer[2] << ") vs setup: (" << resX << ", " << resY << ", " << resZ << ")"
               << std::endl;
     return 0;
   }
@@ -2884,7 +2901,8 @@ int MANTA::updateGridFromUni(const char *filename, float *grid)
   return 1;
 }
 
-int MANTA::updateGridFromVDB(const char *filename, float *grid)
+#if OPENVDB == 1
+int MANTA::updateGridFromVDB(const char *filename, float *grid, bool isNoise)
 {
   if (with_debug)
     std::cout << "MANTA::updateGridFromVDB()" << std::endl;
@@ -2910,10 +2928,14 @@ int MANTA::updateGridFromVDB(const char *filename, float *grid)
   openvdb::FloatGrid::Ptr gridVDB = openvdb::gridPtrCast<openvdb::FloatGrid>(baseGrid);
   openvdb::FloatGrid::Accessor accessor = gridVDB->getAccessor();
 
+  int resX = (isNoise) ? mResXNoise : mResX;
+  int resY = (isNoise) ? mResYNoise : mResY;
+  int resZ = (isNoise) ? mResZNoise : mResZ;
+
   size_t index = 0;
-  for (int z = 0; z < mResZ; ++z) {
-    for (int y = 0; y < mResY; ++y) {
-      for (int x = 0; x < mResX; ++x, ++index) {
+  for (int z = 0; z < resZ; ++z) {
+    for (int y = 0; y < resY; ++y) {
+      for (int x = 0; x < resX; ++x, ++index) {
         openvdb::Coord xyz(x, y, z);
         float v = accessor.getValue(xyz);
         grid[index] = v;
@@ -2922,8 +2944,9 @@ int MANTA::updateGridFromVDB(const char *filename, float *grid)
   }
   return 1;
 }
+#endif
 
-int MANTA::updateGridFromRaw(const char *filename, float *grid)
+int MANTA::updateGridFromRaw(const char *filename, float *grid, bool isNoise)
 {
   if (with_debug)
     std::cout << "MANTA::updateGridFromRaw()" << std::endl;
@@ -2937,7 +2960,11 @@ int MANTA::updateGridFromRaw(const char *filename, float *grid)
     return 0;
   }
 
-  expectedBytes = sizeof(float) * mResX * mResY * mResZ;
+  int resX = (isNoise) ? mResXNoise : mResX;
+  int resY = (isNoise) ? mResYNoise : mResY;
+  int resZ = (isNoise) ? mResZNoise : mResZ;
+
+  expectedBytes = sizeof(float) * resX * resY * resZ;
   readBytes = gzread(gzf, grid, expectedBytes);
 
   assert(expectedBytes == readBytes);

@@ -126,7 +126,7 @@
 #include "BKE_idprop.h"
 #include "BKE_layer.h"
 #include "BKE_library.h"
-#include "BKE_library_idmap.h"
+#include "BKE_main_idmap.h"
 #include "BKE_library_override.h"
 #include "BKE_library_query.h"
 #include "BKE_main.h"  // for Main
@@ -5234,6 +5234,12 @@ static void lib_link_object(FileData *fd, Main *bmain, Object *ob)
             bSceneActuator *sa = act->data;
             sa->camera = newlibadr(fd, ob->id.lib, sa->camera);
             sa->scene = newlibadr(fd, ob->id.lib, sa->scene);
+            break;
+          }
+          case ACT_COLLECTION: {
+            bCollectionActuator *ca = act->data;
+            ca->collection = newlibadr(fd, ob->id.lib, ca->collection);
+            ca->camera = newlibadr(fd, ob->id.lib, ca->camera);
             break;
           }
           case ACT_ACTION: {
@@ -10896,6 +10902,11 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 			expand_doit(fd, mainvar, sa->camera);
 			expand_doit(fd, mainvar, sa->scene);
 		}
+    else if (act->type == ACT_COLLECTION) {
+      bCollectionActuator *ca = act->data;
+      expand_doit(fd, mainvar, ca->collection);
+      expand_doit(fd, mainvar, ca->camera);
+    }
 		else if (act->type == ACT_2DFILTER) {
 			bTwoDFilterActuator *tdfa = act->data;
 			expand_doit(fd, mainvar, tdfa->text);
