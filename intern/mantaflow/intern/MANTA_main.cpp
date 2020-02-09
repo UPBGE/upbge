@@ -27,6 +27,10 @@
 #include <iomanip>
 #include <zlib.h>
 
+#if OPENVDB == 1
+#  include "openvdb/openvdb.h"
+#endif
+
 #include "MANTA_main.h"
 #include "manta.h"
 #include "Python.h"
@@ -568,6 +572,29 @@ void MANTA::terminateMantaflow()
   mantaInitialized = false;
 }
 
+static std::string getCacheFileEnding(char cache_format)
+{
+  if (MANTA::with_debug)
+    std::cout << "MANTA::getCacheFileEnding()" << std::endl;
+
+  switch (cache_format) {
+    case FLUID_DOMAIN_FILE_UNI:
+      return ".uni";
+    case FLUID_DOMAIN_FILE_OPENVDB:
+      return ".vdb";
+    case FLUID_DOMAIN_FILE_RAW:
+      return ".raw";
+    case FLUID_DOMAIN_FILE_BIN_OBJECT:
+      return ".bobj.gz";
+    case FLUID_DOMAIN_FILE_OBJECT:
+      return ".obj";
+    default:
+      if (MANTA::with_debug)
+        std::cout << "Error: Could not find file extension" << std::endl;
+      return ".uni";
+  }
+}
+
 std::string MANTA::getRealValue(const std::string &varName, FluidModifierData *mmd)
 {
   std::ostringstream ss;
@@ -811,6 +838,14 @@ std::string MANTA::getRealValue(const std::string &varName, FluidModifierData *m
     ss << mmd->time;
   else if (varName == "END_FRAME")
     ss << mmd->domain->cache_frame_end;
+  else if (varName == "CACHE_DATA_FORMAT")
+    ss << getCacheFileEnding(mmd->domain->cache_data_format);
+  else if (varName == "CACHE_MESH_FORMAT")
+    ss << getCacheFileEnding(mmd->domain->cache_mesh_format);
+  else if (varName == "CACHE_NOISE_FORMAT")
+    ss << getCacheFileEnding(mmd->domain->cache_noise_format);
+  else if (varName == "CACHE_PARTICLE_FORMAT")
+    ss << getCacheFileEnding(mmd->domain->cache_particle_format);
   else if (varName == "SIMULATION_METHOD") {
     if (mmd->domain->simulation_method & FLUID_DOMAIN_METHOD_FLIP) {
       ss << "'FLIP'";
@@ -983,29 +1018,6 @@ std::string MANTA::parseScript(const std::string &setup_string, FluidModifierDat
   return res.str();
 }
 
-static std::string getCacheFileEnding(char cache_format)
-{
-  if (MANTA::with_debug)
-    std::cout << "MANTA::getCacheFileEnding()" << std::endl;
-
-  switch (cache_format) {
-    case FLUID_DOMAIN_FILE_UNI:
-      return ".uni";
-    case FLUID_DOMAIN_FILE_OPENVDB:
-      return ".vdb";
-    case FLUID_DOMAIN_FILE_RAW:
-      return ".raw";
-    case FLUID_DOMAIN_FILE_BIN_OBJECT:
-      return ".bobj.gz";
-    case FLUID_DOMAIN_FILE_OBJECT:
-      return ".obj";
-    default:
-      if (MANTA::with_debug)
-        std::cout << "Error: Could not find file extension" << std::endl;
-      return ".uni";
-  }
-}
-
 int MANTA::updateFlipStructures(FluidModifierData *mmd, int framenr)
 {
   if (MANTA::with_debug)
@@ -1168,6 +1180,244 @@ int MANTA::updateParticleStructures(FluidModifierData *mmd, int framenr)
   return 1;
 }
 
+int MANTA::updateSmokeStructures(FluidModifierData *mmd, int framenr)
+{
+  if (MANTA::with_debug)
+    std::cout << "MANTA::updateGridStructures()" << std::endl;
+
+  mSmokeFromFile = false;
+
+  if (!mUsingSmoke)
+    return 0;
+  if (BLI_path_is_rel(mmd->domain->cache_directory))
+    return 0;
+
+  int result = 0;
+  int expected = 0; /* Expected number of read successes for this frame. */
+
+  std::ostringstream ss;
+  char cacheDir[FILE_MAX], targetFile[FILE_MAX];
+  cacheDir[0] = '\0';
+  targetFile[0] = '\0';
+
+  std::string dformat = getCacheFileEnding(mmd->domain->cache_data_format);
+  BLI_path_join(
+      cacheDir, sizeof(cacheDir), mmd->domain->cache_directory, FLUID_DOMAIN_DIR_DATA, nullptr);
+
+  expected += 1;
+  ss.str("");
+  ss << "density_####" << dformat;
+  BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDir, ss.str().c_str());
+  BLI_path_frame(targetFile, framenr, 0);
+  if (!BLI_exists(targetFile)) {
+    return 0;
+  }
+  result += updateGridFromFile(targetFile, mDensity, false);
+
+  expected += 1;
+  ss.str("");
+  ss << "shadow_####" << dformat;
+  BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDir, ss.str().c_str());
+  BLI_path_frame(targetFile, framenr, 0);
+  if (!BLI_exists(targetFile)) {
+    return 0;
+  }
+  result += updateGridFromFile(targetFile, mShadow, false);
+
+  if (mUsingHeat) {
+    expected += 1;
+    ss.str("");
+    ss << "heat_####" << dformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDir, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mHeat, false);
+  }
+
+  if (mUsingColors) {
+    expected += 3;
+    ss.str("");
+    ss << "color_r_####" << dformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDir, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mColorR, false);
+
+    ss.str("");
+    ss << "color_g_####" << dformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDir, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mColorG, false);
+
+    ss.str("");
+    ss << "color_b_####" << dformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDir, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mColorB, false);
+  }
+
+  if (mUsingFire) {
+    expected += 3;
+    ss.str("");
+    ss << "flame_####" << dformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDir, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mFlame, false);
+
+    ss.str("");
+    ss << "fuel_####" << dformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDir, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mFuel, false);
+
+    ss.str("");
+    ss << "react_####" << dformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDir, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mReact, false);
+  }
+
+  mSmokeFromFile = true;
+  return (result == expected) ? 1 : 0;
+}
+
+int MANTA::updateNoiseStructures(FluidModifierData *mmd, int framenr)
+{
+  if (MANTA::with_debug)
+    std::cout << "MANTA::updateNoiseStructures()" << std::endl;
+
+  mNoiseFromFile = false;
+
+  if (!mUsingSmoke || !mUsingNoise)
+    return 0;
+  if (BLI_path_is_rel(mmd->domain->cache_directory))
+    return 0;
+
+  int result = 0;
+  int expected = 0; /* Expected number of read successes for this frame. */
+
+  std::ostringstream ss;
+  char cacheDirData[FILE_MAX], cacheDirNoise[FILE_MAX], targetFile[FILE_MAX];
+  cacheDirData[0] = '\0';
+  cacheDirNoise[0] = '\0';
+  targetFile[0] = '\0';
+
+  std::string dformat = getCacheFileEnding(mmd->domain->cache_data_format);
+  std::string nformat = getCacheFileEnding(mmd->domain->cache_noise_format);
+  BLI_path_join(cacheDirData,
+                sizeof(cacheDirData),
+                mmd->domain->cache_directory,
+                FLUID_DOMAIN_DIR_DATA,
+                nullptr);
+  BLI_path_join(cacheDirNoise,
+                sizeof(cacheDirNoise),
+                mmd->domain->cache_directory,
+                FLUID_DOMAIN_DIR_NOISE,
+                nullptr);
+
+  expected += 1;
+  ss.str("");
+  ss << "density_noise_####" << nformat;
+  BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDirNoise, ss.str().c_str());
+  BLI_path_frame(targetFile, framenr, 0);
+  if (!BLI_exists(targetFile)) {
+    return 0;
+  }
+  result += updateGridFromFile(targetFile, mDensityHigh, true);
+
+  expected += 1;
+  ss.str("");
+  ss << "shadow_####" << dformat;
+  BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDirData, ss.str().c_str());
+  BLI_path_frame(targetFile, framenr, 0);
+  if (!BLI_exists(targetFile)) {
+    return 0;
+  }
+  result += updateGridFromFile(targetFile, mShadow, false);
+
+  if (mUsingColors) {
+    expected += 3;
+    ss.str("");
+    ss << "color_r_noise_####" << nformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDirNoise, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mColorRHigh, true);
+
+    ss.str("");
+    ss << "color_g_noise_####" << nformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDirNoise, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mColorGHigh, true);
+
+    ss.str("");
+    ss << "color_b_noise_####" << nformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDirNoise, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mColorBHigh, true);
+  }
+
+  if (mUsingFire) {
+    expected += 3;
+    ss.str("");
+    ss << "flame_noise_####" << nformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDirNoise, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mFlameHigh, true);
+
+    ss.str("");
+    ss << "fuel_noise_####" << nformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDirNoise, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mFuelHigh, true);
+
+    ss.str("");
+    ss << "react_noise_####" << nformat;
+    BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDirNoise, ss.str().c_str());
+    BLI_path_frame(targetFile, framenr, 0);
+    if (!BLI_exists(targetFile)) {
+      return 0;
+    }
+    result += updateGridFromFile(targetFile, mReactHigh, true);
+  }
+
+  mNoiseFromFile = true;
+  return (result == expected) ? 1 : 0;
+}
+
 /* Dirty hack: Needed to format paths from python code that is run via PyRun_SimpleString */
 static std::string escapeSlashes(std::string const &s)
 {
@@ -1194,7 +1444,7 @@ int MANTA::writeConfiguration(FluidModifierData *mmd, int framenr)
   cacheDir[0] = '\0';
   targetFile[0] = '\0';
 
-  std::string dformat = getCacheFileEnding(mmd->domain->cache_data_format);
+  std::string dformat = ".uni";
 
   BLI_path_join(
       cacheDir, sizeof(cacheDir), mmd->domain->cache_directory, FLUID_DOMAIN_DIR_CONFIG, nullptr);
@@ -1287,7 +1537,7 @@ int MANTA::readConfiguration(FluidModifierData *mmd, int framenr)
   targetFile[0] = '\0';
   float dummy;
 
-  std::string dformat = getCacheFileEnding(mmd->domain->cache_data_format);
+  std::string dformat = ".uni";
 
   BLI_path_join(
       cacheDir, sizeof(cacheDir), mmd->domain->cache_directory, FLUID_DOMAIN_DIR_CONFIG, nullptr);
@@ -1759,6 +2009,9 @@ int MANTA::bakeGuiding(FluidModifierData *mmd, int framenr)
 
   std::string gformat = getCacheFileEnding(mmd->domain->cache_data_format);
 
+  bool final_cache = (mmd->domain->cache_type == FLUID_DOMAIN_CACHE_FINAL);
+  std::string resumable_cache = (final_cache) ? "False" : "True";
+
   BLI_path_join(cacheDirGuiding,
                 sizeof(cacheDirGuiding),
                 mmd->domain->cache_directory,
@@ -1768,7 +2021,7 @@ int MANTA::bakeGuiding(FluidModifierData *mmd, int framenr)
 
   ss.str("");
   ss << "bake_guiding_" << mCurrentID << "('" << escapeSlashes(cacheDirGuiding) << "', " << framenr
-     << ", '" << gformat << "')";
+     << ", '" << gformat << "', " << resumable_cache << ")";
   pythonCommands.push_back(ss.str());
 
   runPythonString(pythonCommands);
@@ -1932,6 +2185,7 @@ void MANTA::exportLiquidScript(FluidModifierData *mmd)
   bool floater = mmd->domain->particle_type & FLUID_DOMAIN_PARTICLE_FOAM;
   bool tracer = mmd->domain->particle_type & FLUID_DOMAIN_PARTICLE_TRACER;
   bool obstacle = mmd->domain->active_fields & FLUID_DOMAIN_ACTIVE_OBSTACLE;
+  bool fractions = mmd->domain->flags & FLUID_DOMAIN_USE_FRACTIONS;
   bool guiding = mmd->domain->active_fields & FLUID_DOMAIN_ACTIVE_GUIDE;
   bool invel = mmd->domain->active_fields & FLUID_DOMAIN_ACTIVE_INVEL;
 
@@ -1968,6 +2222,8 @@ void MANTA::exportLiquidScript(FluidModifierData *mmd)
     manta_script += fluid_alloc_guiding;
   if (obstacle)
     manta_script += fluid_alloc_obstacle;
+  if (fractions)
+    manta_script += fluid_alloc_fractions;
   if (invel)
     manta_script += fluid_alloc_invel;
 
@@ -2533,6 +2789,191 @@ void MANTA::updateParticlesFromUni(const char *filename, bool isSecondarySys, bo
   gzclose(gzf);
 }
 
+int MANTA::updateGridFromFile(const char *filename, float *grid, bool isNoise)
+{
+  if (with_debug)
+    std::cout << "MANTA::updateGridFromFile()" << std::endl;
+
+  if (!grid) {
+    std::cout << "MANTA::updateGridFromFile(): cannot read into uninitialized grid, grid is null"
+              << std::endl;
+    return 0;
+  }
+
+  std::string fname(filename);
+  std::string::size_type idx;
+
+  idx = fname.rfind('.');
+  if (idx != std::string::npos) {
+    std::string extension = fname.substr(idx + 1);
+
+    if (extension.compare("uni") == 0)
+      return updateGridFromUni(filename, grid, isNoise);
+#if OPENVDB == 1
+    else if (extension.compare("vdb") == 0)
+      return updateGridFromVDB(filename, grid, isNoise);
+#endif
+    else if (extension.compare("raw") == 0)
+      return updateGridFromRaw(filename, grid, isNoise);
+    else
+      std::cerr << "MANTA::updateGridFromFile(): invalid file extension in file: " << filename
+                << std::endl;
+    return 0;
+  }
+  else {
+    std::cerr << "MANTA::updateGridFromFile(): unable to open file: " << filename << std::endl;
+    return 0;
+  }
+}
+
+int MANTA::updateGridFromUni(const char *filename, float *grid, bool isNoise)
+{
+  if (with_debug)
+    std::cout << "MANTA::updateGridFromUni()" << std::endl;
+
+  gzFile gzf;
+  int ibuffer[4];
+
+  gzf = (gzFile)BLI_gzopen(filename, "rb1");
+  if (!gzf) {
+    std::cout << "MANTA::updateGridFromUni(): unable to open file" << std::endl;
+    return 0;
+  }
+
+  char ID[5] = {0, 0, 0, 0, 0};
+  gzread(gzf, ID, 4);
+
+  if (!strcmp(ID, "DDF2")) {
+    std::cout << "MANTA::updateGridFromUni(): grid uni file format DDF2 not supported anymore"
+              << std::endl;
+    return 0;
+  }
+  if (!strcmp(ID, "MNT1")) {
+    std::cout << "MANTA::updateGridFromUni(): grid uni file format MNT1 not supported anymore"
+              << std::endl;
+    return 0;
+  }
+  if (!strcmp(ID, "MNT2")) {
+    std::cout << "MANTA::updateGridFromUni(): grid uni file format MNT2 not supported anymore"
+              << std::endl;
+    return 0;
+  }
+
+  // grid uni header
+  const int STR_LEN_GRID = 252;
+  int elementType, bytesPerElement;  // data type info
+  char info[STR_LEN_GRID];           // mantaflow build information
+  int dimT;                          // optionally store forth dimension for 4d grids
+  unsigned long long timestamp;      // creation time
+
+  // read grid header
+  gzread(gzf, &ibuffer, sizeof(int) * 4);  // dimX, dimY, dimZ, gridType
+  gzread(gzf, &elementType, sizeof(int));
+  gzread(gzf, &bytesPerElement, sizeof(int));
+  gzread(gzf, &info, sizeof(info));
+  gzread(gzf, &dimT, sizeof(int));
+  gzread(gzf, &timestamp, sizeof(unsigned long long));
+
+  int resX = (isNoise) ? mResXNoise : mResX;
+  int resY = (isNoise) ? mResYNoise : mResY;
+  int resZ = (isNoise) ? mResZNoise : mResZ;
+
+  if (with_debug)
+    std::cout << "read " << ibuffer[3] << " grid type in file: " << filename << std::endl;
+
+  // Sanity checks
+  if (ibuffer[0] != resX || ibuffer[1] != resY || ibuffer[2] != resZ) {
+    std::cout << "grid dim doesn't match, read: (" << ibuffer[0] << ", " << ibuffer[1] << ", "
+              << ibuffer[2] << ") vs setup: (" << resX << ", " << resY << ", " << resZ << ")"
+              << std::endl;
+    return 0;
+  }
+
+  // Actual data reading
+  if (!strcmp(ID, "MNT3")) {
+    gzread(gzf, grid, sizeof(float) * ibuffer[0] * ibuffer[1] * ibuffer[2]);
+  }
+
+  if (with_debug)
+    std::cout << "read successfully: " << filename << std::endl;
+
+  gzclose(gzf);
+  return 1;
+}
+
+#if OPENVDB == 1
+int MANTA::updateGridFromVDB(const char *filename, float *grid, bool isNoise)
+{
+  if (with_debug)
+    std::cout << "MANTA::updateGridFromVDB()" << std::endl;
+
+  openvdb::initialize();
+  openvdb::io::File file(filename);
+  try {
+    file.open();
+  }
+  catch (const openvdb::IoError &) {
+    std::cout << "MANTA::updateGridFromVDB(): IOError, invalid OpenVDB file: " << filename
+              << std::endl;
+    return 0;
+  }
+
+  openvdb::GridBase::Ptr baseGrid;
+  for (openvdb::io::File::NameIterator nameIter = file.beginName(); nameIter != file.endName();
+       ++nameIter) {
+    baseGrid = file.readGrid(nameIter.gridName());
+    break;
+  }
+  file.close();
+  openvdb::FloatGrid::Ptr gridVDB = openvdb::gridPtrCast<openvdb::FloatGrid>(baseGrid);
+  openvdb::FloatGrid::Accessor accessor = gridVDB->getAccessor();
+
+  int resX = (isNoise) ? mResXNoise : mResX;
+  int resY = (isNoise) ? mResYNoise : mResY;
+  int resZ = (isNoise) ? mResZNoise : mResZ;
+
+  size_t index = 0;
+  for (int z = 0; z < resZ; ++z) {
+    for (int y = 0; y < resY; ++y) {
+      for (int x = 0; x < resX; ++x, ++index) {
+        openvdb::Coord xyz(x, y, z);
+        float v = accessor.getValue(xyz);
+        grid[index] = v;
+      }
+    }
+  }
+  return 1;
+}
+#endif
+
+int MANTA::updateGridFromRaw(const char *filename, float *grid, bool isNoise)
+{
+  if (with_debug)
+    std::cout << "MANTA::updateGridFromRaw()" << std::endl;
+
+  gzFile gzf;
+  int expectedBytes, readBytes;
+
+  gzf = (gzFile)BLI_gzopen(filename, "rb");
+  if (!gzf) {
+    std::cout << "MANTA::updateGridFromRaw(): unable to open file" << std::endl;
+    return 0;
+  }
+
+  int resX = (isNoise) ? mResXNoise : mResX;
+  int resY = (isNoise) ? mResYNoise : mResY;
+  int resZ = (isNoise) ? mResZNoise : mResZ;
+
+  expectedBytes = sizeof(float) * resX * resY * resZ;
+  readBytes = gzread(gzf, grid, expectedBytes);
+
+  assert(expectedBytes == readBytes);
+  (void)readBytes;  // Unused in release.
+
+  gzclose(gzf);
+  return 1;
+}
+
 void MANTA::updatePointers()
 {
   if (with_debug)
@@ -2660,7 +3101,9 @@ void MANTA::updatePointers()
         callPythonFunction("pLifeSnd" + parts_ext, func));
   }
 
-  mFlipFromFile = true;
+  mFlipFromFile = false;
   mMeshFromFile = false;
   mParticlesFromFile = false;
+  mSmokeFromFile = false;
+  mNoiseFromFile = false;
 }

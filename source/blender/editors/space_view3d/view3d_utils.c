@@ -408,6 +408,7 @@ void ED_view3d_lastview_store(RegionView3D *rv3d)
 {
   copy_qt_qt(rv3d->lviewquat, rv3d->viewquat);
   rv3d->lview = rv3d->view;
+  rv3d->lview_axis_roll = rv3d->view_axis_roll;
   if (rv3d->persp != RV3D_CAMOB) {
     rv3d->lpersp = rv3d->persp;
   }
@@ -781,14 +782,16 @@ static void view3d_boxview_sync_axis(RegionView3D *rv3d_dst, RegionView3D *rv3d_
   int i;
 
   /* we could use rv3d->viewinv, but better not depend on view matrix being updated */
-  if (UNLIKELY(ED_view3d_quat_from_axis_view(rv3d_src->view, viewinv) == false)) {
+  if (UNLIKELY(ED_view3d_quat_from_axis_view(rv3d_src->view, rv3d_src->view_axis_roll, viewinv) ==
+               false)) {
     return;
   }
   invert_qt_normalized(viewinv);
   mul_qt_v3(viewinv, view_src_x);
   mul_qt_v3(viewinv, view_src_y);
 
-  if (UNLIKELY(ED_view3d_quat_from_axis_view(rv3d_dst->view, viewinv) == false)) {
+  if (UNLIKELY(ED_view3d_quat_from_axis_view(rv3d_dst->view, rv3d_dst->view_axis_roll, viewinv) ==
+               false)) {
     return;
   }
   invert_qt_normalized(viewinv);
@@ -903,8 +906,9 @@ void ED_view3d_quadview_update(ScrArea *sa, ARegion *ar, bool do_clip)
       if (ar->alignment == RGN_ALIGN_QSPLIT) {
         rv3d = ar->regiondata;
         if (rv3d->viewlock) {
-          if (!RV3D_VIEW_IS_AXIS(rv3d->view)) {
+          if (!RV3D_VIEW_IS_AXIS(rv3d->view) || (rv3d->view_axis_roll != RV3D_VIEW_AXIS_ROLL_0)) {
             rv3d->view = ED_view3d_lock_view_from_index(index_qsplit);
+            rv3d->view_axis_roll = RV3D_VIEW_AXIS_ROLL_0;
             rv3d->persp = RV3D_ORTHO;
             ED_view3d_lock(rv3d);
           }
@@ -1304,19 +1308,62 @@ bool ED_view3d_distance_set_from_location(RegionView3D *rv3d,
 /* -------------------------------------------------------------------- */
 /** \name View Axis Utilities
  * \{ */
-static float view3d_quat_axis[6][4] = {
-    {M_SQRT1_2, -M_SQRT1_2, 0.0f, 0.0f},  /* RV3D_VIEW_FRONT */
-    {0.0f, 0.0f, -M_SQRT1_2, -M_SQRT1_2}, /* RV3D_VIEW_BACK */
-    {0.5f, -0.5f, 0.5f, 0.5f},            /* RV3D_VIEW_LEFT */
-    {0.5f, -0.5f, -0.5f, -0.5f},          /* RV3D_VIEW_RIGHT */
-    {1.0f, 0.0f, 0.0f, 0.0f},             /* RV3D_VIEW_TOP */
-    {0.0f, -1.0f, 0.0f, 0.0f},            /* RV3D_VIEW_BOTTOM */
+
+/**
+ * Lookup by axis-view, axis-roll.
+ */
+static float view3d_quat_axis[6][4][4] = {
+    /* RV3D_VIEW_FRONT */
+    {
+        {M_SQRT1_2, -M_SQRT1_2, 0.0f, 0.0f},
+        {0.5f, -0.5f, -0.5f, 0.5f},
+        {0, 0, -M_SQRT1_2, M_SQRT1_2},
+        {-0.5f, 0.5f, -0.5f, 0.5f},
+    },
+    /* RV3D_VIEW_BACK */
+    {
+        {0.0f, 0.0f, -M_SQRT1_2, -M_SQRT1_2},
+        {0.5f, 0.5f, -0.5f, -0.5f},
+        {M_SQRT1_2, M_SQRT1_2, 0, 0},
+        {0.5f, 0.5f, 0.5f, 0.5f},
+    },
+    /* RV3D_VIEW_LEFT */
+    {
+        {0.5f, -0.5f, 0.5f, 0.5f},
+        {0, -M_SQRT1_2, 0.0f, M_SQRT1_2},
+        {-0.5f, -0.5f, -0.5f, 0.5f},
+        {-M_SQRT1_2, 0, -M_SQRT1_2, 0},
+    },
+
+    /* RV3D_VIEW_RIGHT */
+    {
+        {0.5f, -0.5f, -0.5f, -0.5f},
+        {M_SQRT1_2, 0, -M_SQRT1_2, 0},
+        {0.5f, 0.5f, -0.5f, 0.5f},
+        {0, M_SQRT1_2, 0, M_SQRT1_2},
+    },
+    /* RV3D_VIEW_TOP */
+    {
+        {1.0f, 0.0f, 0.0f, 0.0f},
+        {M_SQRT1_2, 0, 0, M_SQRT1_2},
+        {0, 0, 0, 1},
+        {-M_SQRT1_2, 0, 0, M_SQRT1_2},
+    },
+    /* RV3D_VIEW_BOTTOM */
+    {
+        {0.0f, -1.0f, 0.0f, 0.0f},
+        {0, -M_SQRT1_2, -M_SQRT1_2, 0},
+        {0, 0, -1, 0},
+        {0, M_SQRT1_2, -M_SQRT1_2, 0},
+    },
+
 };
 
-bool ED_view3d_quat_from_axis_view(const char view, float quat[4])
+bool ED_view3d_quat_from_axis_view(const char view, const char view_axis_roll, float quat[4])
 {
+  BLI_assert(view_axis_roll <= RV3D_VIEW_AXIS_ROLL_270);
   if (RV3D_VIEW_IS_AXIS(view)) {
-    copy_qt_qt(quat, view3d_quat_axis[view - RV3D_VIEW_FRONT]);
+    copy_qt_qt(quat, view3d_quat_axis[view - RV3D_VIEW_FRONT][view_axis_roll]);
     return true;
   }
   else {
@@ -1324,19 +1371,28 @@ bool ED_view3d_quat_from_axis_view(const char view, float quat[4])
   }
 }
 
-char ED_view3d_quat_to_axis_view(const float quat[4], const float epsilon)
+bool ED_view3d_quat_to_axis_view(const float quat[4],
+                                 const float epsilon,
+                                 char *r_view,
+                                 char *r_view_axis_roll)
 {
+  *r_view = RV3D_VIEW_USER;
+  *r_view_axis_roll = RV3D_VIEW_AXIS_ROLL_0;
+
   /* quat values are all unit length */
-
-  char view;
-
-  for (view = RV3D_VIEW_FRONT; view <= RV3D_VIEW_BOTTOM; view++) {
-    if (fabsf(angle_signed_qtqt(quat, view3d_quat_axis[view - RV3D_VIEW_FRONT])) < epsilon) {
-      return view;
+  for (int view = RV3D_VIEW_FRONT; view <= RV3D_VIEW_BOTTOM; view++) {
+    for (int view_axis_roll = RV3D_VIEW_AXIS_ROLL_0; view_axis_roll <= RV3D_VIEW_AXIS_ROLL_270;
+         view_axis_roll++) {
+      if (fabsf(angle_signed_qtqt(
+              quat, view3d_quat_axis[view - RV3D_VIEW_FRONT][view_axis_roll])) < epsilon) {
+        *r_view = view;
+        *r_view_axis_roll = view_axis_roll;
+        return true;
+      }
     }
   }
 
-  return RV3D_VIEW_USER;
+  return false;
 }
 
 char ED_view3d_lock_view_from_index(int index)
@@ -1375,7 +1431,7 @@ char ED_view3d_axis_view_opposite(char view)
 
 bool ED_view3d_lock(RegionView3D *rv3d)
 {
-  return ED_view3d_quat_from_axis_view(rv3d->view, rv3d->viewquat);
+  return ED_view3d_quat_from_axis_view(rv3d->view, rv3d->view_axis_roll, rv3d->viewquat);
 }
 
 /** \} */

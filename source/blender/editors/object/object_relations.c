@@ -617,8 +617,6 @@ void OBJECT_OT_parent_clear(wmOperatorType *ot)
   ot->invoke = WM_menu_invoke;
   ot->exec = parent_clear_exec;
 
-  ot->poll = ED_operator_object_active_editable;
-
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -1057,7 +1055,9 @@ static int parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
   if (parent->type == OB_ARMATURE) {
     uiItemEnumO_ptr(layout, ot, NULL, 0, "type", PAR_ARMATURE);
     uiItemEnumO_ptr(layout, ot, NULL, 0, "type", PAR_ARMATURE_NAME);
-    uiItemEnumO_ptr(layout, ot, NULL, 0, "type", PAR_ARMATURE_ENVELOPE);
+    if (!has_children_of_type.gpencil) {
+      uiItemEnumO_ptr(layout, ot, NULL, 0, "type", PAR_ARMATURE_ENVELOPE);
+    }
     if (has_children_of_type.mesh || has_children_of_type.gpencil) {
       uiItemEnumO_ptr(layout, ot, NULL, 0, "type", PAR_ARMATURE_AUTO);
     }

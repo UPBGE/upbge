@@ -88,215 +88,13 @@ bool BlenderSync::object_is_light(BL::Object &b_ob)
   return (b_ob_data && b_ob_data.is_a(&RNA_Light));
 }
 
-static uint object_ray_visibility(BL::Object &b_ob)
-{
-  PointerRNA cvisibility = RNA_pointer_get(&b_ob.ptr, "cycles_visibility");
-  uint flag = 0;
-
-  flag |= get_boolean(cvisibility, "camera") ? PATH_RAY_CAMERA : 0;
-  flag |= get_boolean(cvisibility, "diffuse") ? PATH_RAY_DIFFUSE : 0;
-  flag |= get_boolean(cvisibility, "glossy") ? PATH_RAY_GLOSSY : 0;
-  flag |= get_boolean(cvisibility, "transmission") ? PATH_RAY_TRANSMIT : 0;
-  flag |= get_boolean(cvisibility, "shadow") ? PATH_RAY_SHADOW : 0;
-  flag |= get_boolean(cvisibility, "scatter") ? PATH_RAY_VOLUME_SCATTER : 0;
-
-  return flag;
-}
-
-/* Light */
-
-void BlenderSync::sync_light(BL::Object &b_parent,
-                             int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
-                             BL::Object &b_ob,
-                             BL::Object &b_ob_instance,
-                             int random_id,
-                             Transform &tfm,
-                             bool *use_portal)
-{
-  /* test if we need to sync */
-  Light *light;
-  ObjectKey key(b_parent, persistent_id, b_ob_instance);
-  BL::Light b_light(b_ob.data());
-
-  /* Update if either object or light data changed. */
-  if (!light_map.sync(&light, b_ob, b_parent, key)) {
-    Shader *shader;
-    if (!shader_map.sync(&shader, b_light)) {
-      if (light->is_portal)
-        *use_portal = true;
-      return;
-    }
-  }
-
-  /* type */
-  switch (b_light.type()) {
-    case BL::Light::type_POINT: {
-      BL::PointLight b_point_light(b_light);
-      light->size = b_point_light.shadow_soft_size();
-      light->type = LIGHT_POINT;
-      break;
-    }
-    case BL::Light::type_SPOT: {
-      BL::SpotLight b_spot_light(b_light);
-      light->size = b_spot_light.shadow_soft_size();
-      light->type = LIGHT_SPOT;
-      light->spot_angle = b_spot_light.spot_size();
-      light->spot_smooth = b_spot_light.spot_blend();
-      break;
-    }
-    /* Hemi were removed from 2.8 */
-    // case BL::Light::type_HEMI: {
-    //  light->type = LIGHT_DISTANT;
-    //  light->size = 0.0f;
-    //  break;
-    // }
-    case BL::Light::type_SUN: {
-      BL::SunLight b_sun_light(b_light);
-      light->angle = b_sun_light.angle();
-      light->type = LIGHT_DISTANT;
-      break;
-    }
-    case BL::Light::type_AREA: {
-      BL::AreaLight b_area_light(b_light);
-      light->size = 1.0f;
-      light->axisu = transform_get_column(&tfm, 0);
-      light->axisv = transform_get_column(&tfm, 1);
-      light->sizeu = b_area_light.size();
-      switch (b_area_light.shape()) {
-        case BL::AreaLight::shape_SQUARE:
-          light->sizev = light->sizeu;
-          light->round = false;
-          break;
-        case BL::AreaLight::shape_RECTANGLE:
-          light->sizev = b_area_light.size_y();
-          light->round = false;
-          break;
-        case BL::AreaLight::shape_DISK:
-          light->sizev = light->sizeu;
-          light->round = true;
-          break;
-        case BL::AreaLight::shape_ELLIPSE:
-          light->sizev = b_area_light.size_y();
-          light->round = true;
-          break;
-      }
-      light->type = LIGHT_AREA;
-      break;
-    }
-  }
-
-  /* strength */
-  light->strength = get_float3(b_light.color());
-  light->strength *= BL::PointLight(b_light).energy();
-
-  /* location and (inverted!) direction */
-  light->co = transform_get_column(&tfm, 3);
-  light->dir = -transform_get_column(&tfm, 2);
-  light->tfm = tfm;
-
-  /* shader */
-  vector<Shader *> used_shaders;
-  find_shader(b_light, used_shaders, scene->default_light);
-  light->shader = used_shaders[0];
-
-  /* shadow */
-  PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
-  PointerRNA clight = RNA_pointer_get(&b_light.ptr, "cycles");
-  light->cast_shadow = get_boolean(clight, "cast_shadow");
-  light->use_mis = get_boolean(clight, "use_multiple_importance_sampling");
-
-  int samples = get_int(clight, "samples");
-  if (get_boolean(cscene, "use_square_samples"))
-    light->samples = samples * samples;
-  else
-    light->samples = samples;
-
-  light->max_bounces = get_int(clight, "max_bounces");
-
-  if (b_ob != b_ob_instance) {
-    light->random_id = random_id;
-  }
-  else {
-    light->random_id = hash_uint2(hash_string(b_ob.name().c_str()), 0);
-  }
-
-  if (light->type == LIGHT_AREA)
-    light->is_portal = get_boolean(clight, "is_portal");
-  else
-    light->is_portal = false;
-
-  if (light->is_portal)
-    *use_portal = true;
-
-  /* visibility */
-  uint visibility = object_ray_visibility(b_ob);
-  light->use_diffuse = (visibility & PATH_RAY_DIFFUSE) != 0;
-  light->use_glossy = (visibility & PATH_RAY_GLOSSY) != 0;
-  light->use_transmission = (visibility & PATH_RAY_TRANSMIT) != 0;
-  light->use_scatter = (visibility & PATH_RAY_VOLUME_SCATTER) != 0;
-
-  /* tag */
-  light->tag_update(scene);
-}
-
-void BlenderSync::sync_background_light(BL::SpaceView3D &b_v3d, bool use_portal)
-{
-  BL::World b_world = b_scene.world();
-
-  if (b_world) {
-    PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
-    PointerRNA cworld = RNA_pointer_get(&b_world.ptr, "cycles");
-
-    enum SamplingMethod { SAMPLING_NONE = 0, SAMPLING_AUTOMATIC, SAMPLING_MANUAL, SAMPLING_NUM };
-    int sampling_method = get_enum(cworld, "sampling_method", SAMPLING_NUM, SAMPLING_AUTOMATIC);
-    bool sample_as_light = (sampling_method != SAMPLING_NONE);
-
-    if (sample_as_light || use_portal) {
-      /* test if we need to sync */
-      Light *light;
-      ObjectKey key(b_world, 0, b_world);
-
-      if (light_map.sync(&light, b_world, b_world, key) || world_recalc ||
-          b_world.ptr.data != world_map) {
-        light->type = LIGHT_BACKGROUND;
-        if (sampling_method == SAMPLING_MANUAL) {
-          light->map_resolution = get_int(cworld, "sample_map_resolution");
-        }
-        else {
-          light->map_resolution = 0;
-        }
-        light->shader = scene->default_background;
-        light->use_mis = sample_as_light;
-        light->max_bounces = get_int(cworld, "max_bounces");
-
-        /* force enable light again when world is resynced */
-        light->is_enabled = true;
-
-        int samples = get_int(cworld, "samples");
-        if (get_boolean(cscene, "use_square_samples"))
-          light->samples = samples * samples;
-        else
-          light->samples = samples;
-
-        light->tag_update(scene);
-        light_map.set_recalc(b_world);
-      }
-    }
-  }
-
-  world_map = b_world.ptr.data;
-  world_recalc = false;
-  viewport_parameters = BlenderViewportParameters(b_v3d);
-}
-
 /* Object */
 
 Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
                                  BL::ViewLayer &b_view_layer,
                                  BL::DepsgraphObjectInstance &b_instance,
                                  float motion_time,
-                                 bool show_self,
-                                 bool show_particles,
+                                 bool use_particle_hair,
                                  bool show_lights,
                                  BlenderObjectCulling &culling,
                                  bool *use_portal)
@@ -378,7 +176,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   }
 
   /* key to lookup object */
-  ObjectKey key(b_parent, persistent_id, b_ob_instance);
+  ObjectKey key(b_parent, persistent_id, b_ob_instance, use_particle_hair);
   Object *object;
 
   /* motion vector case */
@@ -393,8 +191,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       }
 
       /* mesh deformation */
-      if (object->mesh)
-        sync_mesh_motion(b_depsgraph, b_ob, object, motion_time);
+      if (object->geometry)
+        sync_geometry_motion(b_depsgraph, b_ob, object, motion_time, use_particle_hair);
     }
 
     return object;
@@ -403,12 +201,12 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   /* test if we need to sync */
   bool object_updated = false;
 
-  if (object_map.sync(&object, b_ob, b_parent, key))
+  if (object_map.add_or_update(&object, b_ob, b_parent, key))
     object_updated = true;
 
   /* mesh sync */
-  object->mesh = sync_mesh(
-      b_depsgraph, b_ob, b_ob_instance, object_updated, show_self, show_particles);
+  object->geometry = sync_geometry(
+      b_depsgraph, b_ob, b_ob_instance, object_updated, use_particle_hair);
 
   /* special case not tracked by object update flags */
 
@@ -450,7 +248,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   /* object sync
    * transform comparison should not be needed, but duplis don't work perfect
    * in the depsgraph and may not signal changes, so this is a workaround */
-  if (object_updated || (object->mesh && object->mesh->need_update) || tfm != object->tfm) {
+  if (object_updated || (object->geometry && object->geometry->need_update) ||
+      tfm != object->tfm) {
     object->name = b_ob.name().c_str();
     object->pass_id = b_ob.pass_index();
     object->color = get_float3(b_ob.color());
@@ -459,23 +258,23 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
 
     /* motion blur */
     Scene::MotionType need_motion = scene->need_motion();
-    if (need_motion != Scene::MOTION_NONE && object->mesh) {
-      Mesh *mesh = object->mesh;
-      mesh->use_motion_blur = false;
-      mesh->motion_steps = 0;
+    if (need_motion != Scene::MOTION_NONE && object->geometry) {
+      Geometry *geom = object->geometry;
+      geom->use_motion_blur = false;
+      geom->motion_steps = 0;
 
       uint motion_steps;
 
       if (need_motion == Scene::MOTION_BLUR) {
         motion_steps = object_motion_steps(b_parent, b_ob);
-        mesh->motion_steps = motion_steps;
+        geom->motion_steps = motion_steps;
         if (motion_steps && object_use_deform_motion(b_parent, b_ob)) {
-          mesh->use_motion_blur = true;
+          geom->use_motion_blur = true;
         }
       }
       else {
         motion_steps = 3;
-        mesh->motion_steps = motion_steps;
+        geom->motion_steps = motion_steps;
       }
 
       object->motion.clear();
@@ -526,13 +325,13 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
   if (!motion) {
     /* prepare for sync */
     light_map.pre_sync();
-    mesh_map.pre_sync();
+    geometry_map.pre_sync();
     object_map.pre_sync();
     particle_system_map.pre_sync();
     motion_times.clear();
   }
   else {
-    mesh_motion_synced.clear();
+    geometry_motion_synced.clear();
   }
 
   /* initialize culling */
@@ -552,22 +351,34 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
     BL::DepsgraphObjectInstance b_instance = *b_instance_iter;
     BL::Object b_ob = b_instance.object();
 
-    /* load per-object culling data */
+    /* Viewport visibility. */
+    const bool show_in_viewport = !b_v3d || b_ob.visible_in_viewport_get(b_v3d);
+    if (show_in_viewport == false) {
+      continue;
+    }
+
+    /* Load per-object culling data. */
     culling.init_object(scene, b_ob);
 
-    /* test if object needs to be hidden */
-    const bool show_self = b_instance.show_self();
-    const bool show_particles = b_instance.show_particles();
-    const bool show_in_viewport = !b_v3d || b_ob.visible_in_viewport_get(b_v3d);
-
-    if (show_in_viewport && (show_self || show_particles)) {
-      /* object itself */
+    /* Object itself. */
+    if (b_instance.show_self()) {
       sync_object(b_depsgraph,
                   b_view_layer,
                   b_instance,
                   motion_time,
-                  show_self,
-                  show_particles,
+                  false,
+                  show_lights,
+                  culling,
+                  &use_portal);
+    }
+
+    /* Particle hair as separate object. */
+    if (b_instance.show_particles() && object_has_particle_hair(b_ob)) {
+      sync_object(b_depsgraph,
+                  b_view_layer,
+                  b_instance,
+                  motion_time,
+                  true,
                   show_lights,
                   culling,
                   &use_portal);
@@ -584,8 +395,8 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
     /* handle removed data and modified pointers */
     if (light_map.post_sync())
       scene->light_manager->tag_update(scene);
-    if (mesh_map.post_sync())
-      scene->mesh_manager->tag_update(scene);
+    if (geometry_map.post_sync())
+      scene->geometry_manager->tag_update(scene);
     if (object_map.post_sync())
       scene->object_manager->tag_update(scene);
     if (particle_system_map.post_sync())
@@ -593,7 +404,7 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
   }
 
   if (motion)
-    mesh_motion_synced.clear();
+    geometry_motion_synced.clear();
 }
 
 void BlenderSync::sync_motion(BL::RenderSettings &b_render,

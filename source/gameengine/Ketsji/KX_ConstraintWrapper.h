@@ -33,6 +33,7 @@
 #define __KX_CONSTRAINTWRAPPER_H__
 
 #include "EXP_Value.h"
+#include "PHY_DynamicTypes.h"
 
 class PHY_IConstraint;
 
@@ -40,7 +41,7 @@ class	KX_ConstraintWrapper : public CValue
 {
 	Py_Header
 public:
-	KX_ConstraintWrapper(PHY_IConstraint *constraint);
+  KX_ConstraintWrapper(PHY_IConstraint *constraint, PHY_ConstraintType ctype, int user_id);
 	virtual ~KX_ConstraintWrapper ();
 
 	virtual std::string GetName();
@@ -60,6 +61,8 @@ public:
 
 private:
 	PHY_IConstraint *m_constraint;
+  PHY_ConstraintType m_ctype;
+  int m_userId;
 };
 
 #endif  /* __KX_CONSTRAINTWRAPPER_H__ */
