@@ -127,7 +127,6 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
       m_castShadows(true),          // eevee
       m_isReplica(false),           // eevee
       m_staticObject(true),         // eevee
-      m_useCopy(false),             // eevee
       m_visibleAtGameStart(false),  // eevee
       m_layer(0),
       m_lodManager(nullptr),
@@ -189,9 +188,6 @@ KX_GameObject::~KX_GameObject()
     if (ob->gameflag & OB_OVERLAY_COLLECTION) {
       ob->gameflag &= ~OB_OVERLAY_COLLECTION;
     }
-    copy_m4_m4(ob->obmat, m_savedObmat);
-    invert_m4_m4(ob->imat, m_savedObmat);
-    DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
   }
 
   KX_Scene *scene = GetScene();
@@ -261,7 +257,6 @@ void KX_GameObject::SetBlenderObject(Object *obj)
 {
   m_pBlenderObject = obj;
   if (obj) {
-    copy_m4_m4(m_savedObmat, obj->obmat);
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, obj);
@@ -285,55 +280,38 @@ void KX_GameObject::TagForUpdate()
   if (m_staticObject) {
     GetScene()->AppendToStaticObjects(this);
   }
-  Object *orig_ob = GetBlenderObject();
-  if (orig_ob) {
-    Object *ob = GetBlenderObject()->type != OB_MBALL && !m_useCopy ?
-                     DEG_get_evaluated_object(depsgraph, GetBlenderObject()) :
-                     GetBlenderObject();
+  Object *ob_orig = GetBlenderObject();
+  if (ob_orig) {
 
-    copy_m4_m4(ob->obmat, obmat);
-    invert_m4_m4(ob->imat, obmat);
-    /* The following line was creating issues in some of my test files
-     * and BPR had issues too. It was introduced when working on object color.
-     * Waiting we find something better, I comment it... */
-    //BKE_object_apply_mat4(ob, ob->obmat, false, true);
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
+
+    copy_m4_m4(ob_orig->obmat, obmat);
+    copy_m4_m4(ob_eval->obmat, obmat);
+    BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
+    BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
     /* NORMAL CASE */
-    if (!m_staticObject && ob->type != OB_MBALL) {
-      if (!m_useCopy) {
-        DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-      }
-      else {
-        DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
-        DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
-      }
+    if (!m_staticObject && ob_orig->type != OB_MBALL) {
+      DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
     }
     /* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position at ge
      * exit) */
-    else if (!m_staticObject && ob->type == OB_MBALL) {
-      if (!BKE_mball_is_basis(ob)) {
-        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    else if (!m_staticObject && ob_orig->type == OB_MBALL) {
+      if (!BKE_mball_is_basis(ob_orig)) {
+        DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
       }
       else {
-        // DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-        DEG_id_tag_update(&ob->id, NC_OBJECT | ND_TRANSFORM);
-        DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+        DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
       }
     }
 
-    if (!m_staticObject && ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
+    if (!m_staticObject && ELEM(ob_orig->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
       if (m_castShadows) {
-        EEVEE_ObjectEngineData *oedata = EEVEE_object_data_ensure(ob);
+        EEVEE_ObjectEngineData *oedata = EEVEE_object_data_ensure(ob_eval);
         oedata->need_update = true;
       }
     }
   }
-  m_useCopy = false;
   copy_m4_m4(m_prevObmat, obmat);
-}
-
-void KX_GameObject::UseCopy()
-{
-  m_useCopy = true;
 }
 
 void KX_GameObject::ReplicateBlenderObject()
@@ -418,7 +396,6 @@ void KX_GameObject::RecalcGeometry()
   Object *ob = GetBlenderObject();
   if (ob) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    UseCopy();
   }
 }
 
@@ -2279,10 +2256,6 @@ PyObject *KX_GameObject::PyUpdatePhysicsShape(PyObject *args)
 
   if (GetPhysicsController()) {
 
-	if (recalcGeom) {
-      UseCopy();
-	}
-
     GetPhysicsController()->ReinstancePhysicsShape2(GetMesh(0), GetBlenderObject(), recalcGeom);
     Py_RETURN_NONE;
   }
@@ -3452,19 +3425,9 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v,
   Object *ob = self->GetBlenderObject();
   if (ob && ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
     copy_v4_v4(ob->color, obcolor.getValue());
-    if (!self->IsStatic()) {
-      self->UseCopy();
-    }
-    else {
-      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-      /* Warning about the following function which can cause mess
-       * for object transfrom / armatures transform BUT which
-       * was needed to avoid that when we set object color
-       * the position of the object was sometimes "reseted"...
-       */
-      BKE_object_apply_mat4(ob, ob->obmat, true, false);
-      self->GetScene()->ResetTaaSamples();
-    }
+    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+    BKE_object_apply_mat4(ob, ob->obmat, false, true);
+    self->GetScene()->ResetTaaSamples();
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
     return PY_SET_ATTR_SUCCESS;
   }

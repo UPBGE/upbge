@@ -647,11 +647,6 @@ static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTE
 
 void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 {
-
-  for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdate();
-  }
-
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
@@ -665,6 +660,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   }
 
   BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+  for (KX_GameObject *gameobj : GetObjectList()) {
+    gameobj->TagForUpdate();
+  }
 
   bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
   m_resetTaaSamples = false;
