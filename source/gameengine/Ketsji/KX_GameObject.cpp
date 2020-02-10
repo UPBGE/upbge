@@ -185,23 +185,9 @@ KX_GameObject::~KX_GameObject()
   Object *ob = GetBlenderObject();
 
   if (ob) {
-    Scene *sc = GetScene()->GetBlenderScene();
-    ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(
-        KX_GetActiveEngine()->GetConverter()->GetMain(), sc, view_layer, false);
     if (ob->gameflag & OB_OVERLAY_COLLECTION) {
       ob->gameflag &= ~OB_OVERLAY_COLLECTION;
     }
-    copy_m4_m4(ob->obmat, m_savedObmat);
-    invert_m4_m4(ob->imat, m_savedObmat);
-    if (ob->parent) {
-      BKE_object_apply_mat4(DEG_get_evaluated_object(depsgraph, ob), ob->obmat, false, true);
-      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-    }
-    else {
-      BKE_object_apply_mat4(ob, ob->obmat, false, true);
-    }
-    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
   }
 
   KX_Scene *scene = GetScene();
@@ -271,7 +257,6 @@ void KX_GameObject::SetBlenderObject(Object *obj)
 {
   m_pBlenderObject = obj;
   if (obj) {
-    copy_m4_m4(m_savedObmat, obj->obmat);
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, obj);
@@ -292,19 +277,9 @@ void KX_GameObject::TagForUpdate()
   }
   Object *ob = GetBlenderObject();
   if (ob) {
-    Scene *scene = GetScene()->GetBlenderScene();
-    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(
-        KX_GetActiveEngine()->GetConverter()->GetMain(), scene, view_layer, false);
-
     copy_m4_m4(ob->obmat, obmat);
     invert_m4_m4(ob->imat, obmat);
-    if (ob->parent) {
-      BKE_object_apply_mat4(DEG_get_evaluated_object(depsgraph, ob), ob->obmat, false, true);
-    }
-    else {
-      BKE_object_apply_mat4(ob, ob->obmat, false, true);
-    }
+    BKE_object_apply_mat4(ob, ob->obmat, false, true);
 
     /* NORMAL CASE */
     if (!m_staticObject && ob->type != OB_MBALL) {
@@ -3441,8 +3416,8 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v,
   Object *ob = self->GetBlenderObject();
   if (ob && ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
     copy_v4_v4(ob->color, obcolor.getValue());
+    BKE_object_apply_mat4(ob, ob->obmat, false, true);
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-    BKE_object_apply_mat4(ob, ob->obmat, true, true);
     self->GetScene()->ResetTaaSamples();
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
     return PY_SET_ATTR_SUCCESS;
