@@ -49,7 +49,7 @@
 
 #include "BKE_fcurve.h"
 #include "BKE_tracking.h"
-#include "BKE_library.h"
+#include "BKE_lib_id.h"
 #include "BKE_movieclip.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
@@ -395,23 +395,20 @@ MovieTrackingReconstruction *BKE_tracking_get_active_reconstruction(MovieTrackin
 /* Get transformation matrix for a given object which is used
  * for parenting motion tracker reconstruction to 3D world.
  */
-void BKE_tracking_get_camera_object_matrix(Scene *scene, Object *ob, float mat[4][4])
+void BKE_tracking_get_camera_object_matrix(Object *camera_object, float mat[4][4])
 {
-  if (!ob) {
-    if (scene->camera) {
-      ob = scene->camera;
-    }
-    else {
-      ob = BKE_view_layer_camera_find(BKE_view_layer_context_active_PLACEHOLDER(scene));
-    }
-  }
-
-  if (ob) {
-    BKE_object_where_is_calc_mat4(ob, mat);
-  }
-  else {
-    unit_m4(mat);
-  }
+  BLI_assert(camera_object != NULL);
+  /* NOTE: Construct matrix from scratch rather than using obmat because the camera object here
+   * will have camera solver constraint taken into account. But here we do not want or need it:
+   * object is solved in camera space (as in, camera is stationary and object is moving).
+   *
+   * This will include animation applied on the camera, but not possible camera rig. This isn't
+   * an issue in practice due to the way how VFX is constructed.
+   *
+   * If we ever need to support crazy setups like that one possible solution would be to use
+   * final camera matrix and multiple it by an inverse of solved camera matrix at the current
+   * frame. */
+  BKE_object_where_is_calc_mat4(camera_object, mat);
 }
 
 /* Get projection matrix for camera specified by given tracking object

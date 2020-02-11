@@ -70,10 +70,10 @@
 #include "BKE_light.h"
 #include "BKE_lattice.h"
 #include "BKE_layer.h"
-#include "BKE_library.h"
-#include "BKE_library_override.h"
-#include "BKE_library_query.h"
-#include "BKE_library_remap.h"
+#include "BKE_lib_id.h"
+#include "BKE_lib_override.h"
+#include "BKE_lib_query.h"
+#include "BKE_lib_remap.h"
 #include "BKE_lightprobe.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
@@ -2458,7 +2458,7 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
     }
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 
-    success = BKE_override_library_create_from_tag(bmain);
+    success = BKE_lib_override_library_create_from_tag(bmain);
 
     /* Instantiate our newly overridden objects in scene, if not yet done. */
     Scene *scene = CTX_data_scene(C);
@@ -2490,7 +2490,7 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
           new_ob->id.override_library->flag &= ~OVERRIDE_LIBRARY_AUTO;
         }
         /* We still want to store all objects' current override status (i.e. change of parent). */
-        BKE_override_library_operations_create(bmain, &new_ob->id, true);
+        BKE_lib_override_library_operations_create(bmain, &new_ob->id, true);
       }
     }
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
@@ -2525,7 +2525,7 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
       make_override_library_tag_object(obact, ob);
     }
 
-    success = BKE_override_library_create_from_tag(bmain);
+    success = BKE_lib_override_library_create_from_tag(bmain);
 
     /* Also, we'd likely want to lock by default things like
      * transformations of implicitly overridden objects? */
@@ -2538,7 +2538,7 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
   else {
     /* For now, remapp all local usages of linked ID to local override one here. */
     BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, true);
-    success = (BKE_override_library_create_from_id(bmain, &obact->id, true) != NULL);
+    success = (BKE_lib_override_library_create_from_id(bmain, &obact->id, true) != NULL);
     BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
   }
 
@@ -2552,7 +2552,7 @@ static bool make_override_library_poll(bContext *C)
   Object *obact = CTX_data_active_object(C);
 
   /* Object must be directly linked to be overridable. */
-  return (BKE_override_library_is_enabled() && ED_operator_objectmode(C) && obact != NULL &&
+  return (BKE_lib_override_library_is_enabled() && ED_operator_objectmode(C) && obact != NULL &&
           ((ID_IS_LINKED(obact) && obact->id.tag & LIB_TAG_EXTERN) ||
            (!ID_IS_LINKED(obact) && obact->instance_collection != NULL &&
             ID_IS_LINKED(obact->instance_collection))));

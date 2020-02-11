@@ -50,8 +50,8 @@
 
 #  include "BKE_global.h"
 #  include "BKE_image.h"
-#  include "BKE_library.h"
-#  include "BKE_library_override.h"
+#  include "BKE_lib_id.h"
+#  include "BKE_lib_override.h"
 #  include "BKE_main.h"
 #  include "BKE_report.h"
 #  include "BKE_scene.h"
@@ -1127,7 +1127,7 @@ static int arg_handle_disable_override_library(int UNUSED(argc),
                                                const char **UNUSED(argv),
                                                void *UNUSED(data))
 {
-  BKE_override_library_enable(false);
+  BKE_lib_override_library_enable(false);
   return 0;
 }
 

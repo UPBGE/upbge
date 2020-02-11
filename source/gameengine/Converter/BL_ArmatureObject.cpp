@@ -36,7 +36,6 @@
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_object.h"
-#include "BKE_library.h"
 #include "BKE_global.h"
 #include "BKE_constraint.h"
 #include "DNA_armature_types.h"
@@ -46,6 +45,7 @@ extern "C" {
 #  include "BKE_animsys.h"
 #  include "BKE_main.h"
 #  include "BKE_layer.h"
+#  include "BKE_lib_id.h"
 #  include "BKE_scene.h"
 
 #  include "DEG_depsgraph_query.h"

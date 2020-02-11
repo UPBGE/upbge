@@ -41,7 +41,7 @@
 #include "DNA_gpencil_types.h"
 
 #include "BKE_context.h"
-#include "BKE_library.h"
+#include "BKE_lib_id.h"
 #include "BKE_screen.h"
 
 #include "ED_space_api.h"

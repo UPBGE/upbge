@@ -13,12 +13,26 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-#ifndef __BKE_LIBRARY_REMAP_H__
-#define __BKE_LIBRARY_REMAP_H__
+#ifndef __BKE_LIB_REMAP_H__
+#define __BKE_LIB_REMAP_H__
 
 /** \file
  * \ingroup bke
+ *
+ * API to perform remapping from one data-block pointer to another.
+ *
+ * \note `BKE_lib_` files are for operations over data-blocks themselves, although they might
+ * alter Main as well (when creating/renaming/deleting an ID e.g.).
+ *
+ * \section Function Names
+ *
+ * \warning Descriptions below is ideal goal, current status of naming does not yet fully follow it
+ * (this is WIP).
+ *
+ * - `BKE_lib_remap_libblock_` should be used for functions performing remapping.
+ * - `BKE_lib_remap_callback_` should be used for functions managing remapping callbacks.
  */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,7 +41,7 @@ extern "C" {
 
 struct wmWindowManager;
 
-/* BKE_libblock_free, delete are declared in BKE_library.h for convenience. */
+/* BKE_libblock_free, delete are declared in BKE_lib_id.h for convenience. */
 
 /* Also IDRemap->flag. */
 enum {
@@ -102,4 +116,4 @@ void BKE_library_callback_remap_editor_id_reference_set(
 }
 #endif
 
-#endif /* __BKE_LIBRARY_REMAP_H__ */
+#endif /* __BKE_LIB_REMAP_H__ */

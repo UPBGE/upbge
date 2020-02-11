@@ -29,7 +29,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_icons.h"
-#include "BKE_library.h"
+#include "BKE_lib_id.h"
 #include "BKE_object.h"
 
 #include "RNA_access.h"
@@ -90,9 +90,10 @@ const EnumPropertyItem rna_enum_id_type_items[] = {
 
 #  include "BKE_font.h"
 #  include "BKE_idprop.h"
-#  include "BKE_library_query.h"
-#  include "BKE_library_override.h"
-#  include "BKE_library_remap.h"
+#  include "BKE_lib_query.h"
+#  include "BKE_lib_override.h"
+#  include "BKE_lib_remap.h"
+#  include "BKE_library.h"
 #  include "BKE_animsys.h"
 #  include "BKE_material.h"
 #  include "BKE_global.h" /* XXX, remove me */
@@ -493,7 +494,7 @@ static ID *rna_ID_copy(ID *id, Main *bmain)
 
 static ID *rna_ID_override_create(ID *id, Main *bmain, bool remap_local_usages)
 {
-  if (!BKE_override_library_is_enabled() || !ID_IS_OVERRIDABLE_LIBRARY(id)) {
+  if (!BKE_lib_override_library_is_enabled() || !ID_IS_OVERRIDABLE_LIBRARY(id)) {
     return NULL;
   }
 
@@ -501,7 +502,7 @@ static ID *rna_ID_override_create(ID *id, Main *bmain, bool remap_local_usages)
     BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, true);
   }
 
-  ID *local_id = BKE_override_library_create_from_id(bmain, id, remap_local_usages);
+  ID *local_id = BKE_lib_override_library_create_from_id(bmain, id, remap_local_usages);
 
   if (remap_local_usages) {
     BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);

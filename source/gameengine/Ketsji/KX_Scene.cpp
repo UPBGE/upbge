@@ -109,7 +109,7 @@ extern "C" {
 #include "BKE_camera.h"
 #include "BKE_collection.h"
 #include "BKE_layer.h"
-#include "BKE_library.h"
+#include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "depsgraph/DEG_depsgraph_query.h"

@@ -137,10 +137,12 @@ set(SRC
   intern/lattice.c
   intern/layer.c
   intern/layer_utils.c
+  intern/lib_id.c
+  intern/lib_id_delete.c
+  intern/lib_override.c
+  intern/lib_query.c
+  intern/lib_remap.c
   intern/library.c
-  intern/library_override.c
-  intern/library_query.c
-  intern/library_remap.c
   intern/light.c
   intern/lightprobe.c
   intern/linestyle.c
@@ -304,10 +306,11 @@ set(SRC
   BKE_keyconfig.h
   BKE_lattice.h
   BKE_layer.h
+  BKE_lib_id.h
+  BKE_lib_override.h
+  BKE_lib_query.h
+  BKE_lib_remap.h
   BKE_library.h
-  BKE_library_override.h
-  BKE_library_query.h
-  BKE_library_remap.h
   BKE_light.h
   BKE_lightprobe.h
   BKE_linestyle.h
@@ -379,6 +382,7 @@ set(SRC
   intern/CCGSubSurf_inline.h
   intern/CCGSubSurf_intern.h
   intern/data_transfer_intern.h
+  intern/lib_intern.h
   intern/multires_inline.h
   intern/pbvh_intern.h
   intern/subdiv_converter.h

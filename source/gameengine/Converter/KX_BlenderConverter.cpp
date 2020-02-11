@@ -74,7 +74,7 @@ extern "C" {
 #  include "BLO_readfile.h"
 #  include "BKE_global.h"
 #  include "BKE_layer.h"
-#  include "BKE_library.h"
+#  include "BKE_lib_id.h"
 #  include "BKE_material.h" // BKE_material_copy
 #  include "BKE_mesh.h" // BKE_mesh_copy
 #  include "BKE_idcode.h"

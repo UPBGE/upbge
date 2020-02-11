@@ -96,7 +96,7 @@
 
 extern "C" {
 #include "BKE_DerivedMesh.h"
-#include "BKE_library.h"
+#include "BKE_lib_id.h""
 #include "BKE_main.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"

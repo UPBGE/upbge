@@ -16,11 +16,23 @@
  * The Original Code is Copyright (C) 2014 by Blender Foundation.
  * All rights reserved.
  */
-#ifndef __BKE_LIBRARY_QUERY_H__
-#define __BKE_LIBRARY_QUERY_H__
+#ifndef __BKE_LIB_QUERY_H__
+#define __BKE_LIB_QUERY_H__
 
 /** \file
  * \ingroup bke
+ *
+ * API to perform operations over all ID pointers used by a given data-block.
+ *
+ * \note `BKE_lib_` files are for operations over data-blocks themselves, although they might
+ * alter Main as well (when creating/renaming/deleting an ID e.g.).
+ *
+ * \section Function Names
+ *
+ * \warning Descriptions below is ideal goal, current status of naming does not yet fully follow it
+ * (this is WIP).
+ *
+ * - `BKE_lib_query_` should be used for functions in that file.
  */
 
 struct ID;
@@ -109,4 +121,4 @@ void BKE_library_ID_test_usages(struct Main *bmain,
 void BKE_library_unused_linked_data_set_tag(struct Main *bmain, const bool do_init_tag);
 void BKE_library_indirectly_used_data_tag_clear(struct Main *bmain);
 
-#endif /* __BKE_LIBRARY_QUERY_H__ */
+#endif /* __BKE_LIB_QUERY_H__ */
