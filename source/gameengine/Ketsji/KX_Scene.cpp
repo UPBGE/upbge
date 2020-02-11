@@ -662,7 +662,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdate();
+    gameobj->TagForUpdate(is_overlay_pass);
   }
 
   bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
@@ -792,7 +792,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                                                  const rcti *window)
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdate();
+    gameobj->TagForUpdate(false);
   }
 
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();

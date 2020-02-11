@@ -138,7 +138,7 @@ public:
 
 	/* EEVEE INTEGRATION */
 
-	void TagForUpdate();
+	void TagForUpdate(bool is_overlay_pass);
 	void ReplicateBlenderObject();
 	void HideOriginalObject();
 	void RemoveReplicaObject();

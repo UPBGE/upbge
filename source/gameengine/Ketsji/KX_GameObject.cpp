@@ -96,7 +96,7 @@
 
 extern "C" {
 #include "BKE_DerivedMesh.h"
-#include "BKE_lib_id.h""
+#include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"
@@ -266,7 +266,7 @@ void KX_GameObject::SetBlenderObject(Object *obj)
   }
 }
 
-void KX_GameObject::TagForUpdate()
+void KX_GameObject::TagForUpdate(bool is_overlay_pass)
 {
   float obmat[4][4];
   NodeGetWorldTransform().getValue(&obmat[0][0]);
@@ -311,7 +311,20 @@ void KX_GameObject::TagForUpdate()
       }
     }
   }
-  copy_m4_m4(m_prevObmat, obmat);
+  /* Wait the end of all render passes (main + overlay)
+   * to evaluate if the objects were static compared to
+   * the previous frame. If the objects are not static,
+   * then evee engine current TAA sample will be set to 1.
+   */
+  if (GetScene()->GetOverlayCamera() && !is_overlay_pass) {
+    //wait
+  }
+  else if (GetScene()->GetOverlayCamera() && is_overlay_pass) {
+    copy_m4_m4(m_prevObmat, obmat);
+  }
+  else {
+    copy_m4_m4(m_prevObmat, obmat);
+  }
 }
 
 void KX_GameObject::ReplicateBlenderObject()
