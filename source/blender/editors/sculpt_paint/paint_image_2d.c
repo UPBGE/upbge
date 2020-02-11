@@ -446,9 +446,9 @@ static unsigned short *brush_painter_curve_mask_new(BrushPainter *painter,
           float len = len_v2(xy_rot);
           float p = len / radius;
           if (hardness < 1.0f) {
-            p = (p - hardness) / (1 - hardness);
+            p = (p - hardness) / (1.0f - hardness);
             p = 1.0f - p;
-            CLAMP(p, 0, 1);
+            CLAMP(p, 0.0f, 1.0f);
           }
           else {
             p = 1.0;
@@ -574,7 +574,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
   /* get brush color */
   if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
     paint_brush_color_get(
-        scene, brush, use_color_correction, cache->invert, 0.0, 1.0, brush_rgb, display);
+        scene, brush, use_color_correction, cache->invert, 0.0f, 1.0f, brush_rgb, display);
   }
   else {
     brush_rgb[0] = 1.0f;
@@ -1646,7 +1646,7 @@ void paint_2d_stroke(void *ps,
       continue;
     }
 
-    ImBuf *ibuf = BKE_image_acquire_ibuf(s->image, &tile->iuser, NULL);
+    ImBuf *ibuf = tile->canvas;
 
     /* OCIO_TODO: float buffers are now always linear, so always use color correction
      *            this should probably be changed when texture painting color space is supported
@@ -1711,6 +1711,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   }
 
   if (ibuf->channels != 4) {
+    BKE_image_release_ibuf(s->image, ibuf, NULL);
     BKE_report(op->reports, RPT_WARNING, "Image requires 4 color channels to paint");
     MEM_freeN(s->tiles);
     MEM_freeN(s);
@@ -1892,7 +1893,7 @@ void paint_2d_bucket_fill(const bContext *C,
   int x_px, y_px;
   unsigned int color_b;
   float color_f[4];
-  float strength = br ? br->alpha : 1.0f;
+  float strength = br ? BKE_brush_alpha_get(s->scene, br) : 1.0f;
 
   bool do_float;
 
@@ -2117,6 +2118,7 @@ void paint_2d_gradient_fill(
   float image_init[2], image_final[2];
   float tangent[2];
   float line_len_sq_inv, line_len;
+  const float brush_alpha = BKE_brush_alpha_get(s->scene, br);
 
   bool do_float;
 
@@ -2178,7 +2180,7 @@ void paint_2d_gradient_fill(
         BKE_colorband_evaluate(br->gradient, f, color_f);
         /* convert to premultiplied */
         mul_v3_fl(color_f, color_f[3]);
-        color_f[3] *= br->alpha;
+        color_f[3] *= brush_alpha;
         IMB_blend_color_float(ibuf->rect_float + 4 * (((size_t)y_px) * ibuf->x + x_px),
                               ibuf->rect_float + 4 * (((size_t)y_px) * ibuf->x + x_px),
                               color_f,
@@ -2207,7 +2209,7 @@ void paint_2d_gradient_fill(
         BKE_colorband_evaluate(br->gradient, f, color_f);
         linearrgb_to_srgb_v3_v3(color_f, color_f);
         rgba_float_to_uchar((unsigned char *)&color_b, color_f);
-        ((unsigned char *)&color_b)[3] *= br->alpha;
+        ((unsigned char *)&color_b)[3] *= brush_alpha;
         IMB_blend_color_byte((unsigned char *)(ibuf->rect + ((size_t)y_px) * ibuf->x + x_px),
                              (unsigned char *)(ibuf->rect + ((size_t)y_px) * ibuf->x + x_px),
                              (unsigned char *)&color_b,

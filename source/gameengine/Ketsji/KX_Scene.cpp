@@ -772,7 +772,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
     rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
-  DRW_transform_to_display_image_render(GPU_framebuffer_color_texture(f->GetFrameBuffer()));
+  DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()), true, true);
 
   /* Detach viewport textures from input framebuffer... */
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
