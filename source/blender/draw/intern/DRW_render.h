@@ -706,9 +706,7 @@ void DRW_game_render_loop(struct bContext *C,
   bool is_overlay_pass);
 
 void DRW_game_render_loop_end(void);
-void DRW_transform_to_display(struct GPUTexture *tex,
-                              bool use_view_transform,
-                              bool use_render_settings);
+void DRW_transform_to_display(struct GPUTexture *tex, struct View3D *v3d);
 void DRW_transform_to_display_image_render(struct GPUTexture *tex);
 /**************************END OF GAME ENGINE*******************************/
 
