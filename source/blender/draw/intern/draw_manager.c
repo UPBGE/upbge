@@ -3081,7 +3081,7 @@ void DRW_transform_to_display(GPUTexture *tex,
   GPUVertFormat *vert_format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  const float dither = 1.0f;
+  const float dither = 0.0f;
   bool use_ocio = false;
   /* Should we apply the view transform */
   if (DRW_state_do_color_management())
