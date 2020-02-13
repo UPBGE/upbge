@@ -92,11 +92,12 @@
   if (!((_data)->status & IDWALK_STOP)) { \
     const int _flag = (_data)->flag; \
     ID *old_id = *(id_pp); \
-    const int callback_return = (_data)->callback((_data)->user_data, \
-                                                  (_data)->self_id, \
-                                                  id_pp, \
-                                                  (_cb_flag | (_data)->cb_flag) & \
-                                                      ~(_data)->cb_flag_clear); \
+    const int callback_return = (_data)->callback(&(struct LibraryIDLinkCallbackData){ \
+        .user_data = (_data)->user_data, \
+        .id_owner = (_data)->owner_id, \
+        .id_self = (_data)->self_id, \
+        .id_pointer = id_pp, \
+        .cb_flag = ((_cb_flag | (_data)->cb_flag) & ~(_data)->cb_flag_clear)}); \
     if (_flag & IDWALK_READONLY) { \
       BLI_assert(*(id_pp) == old_id); \
     } \
@@ -137,7 +138,14 @@ enum {
 };
 
 typedef struct LibraryForeachIDData {
+  Main *bmain;
+  /* 'Real' ID, the one that might be in bmain, only differs from self_id when the later is a
+   * private one. */
+  ID *owner_id;
+  /* ID from which the current ID pointer is being processed. It may be a 'private' ID like master
+   * collection or root node tree. */
   ID *self_id;
+
   int flag;
   int cb_flag;
   int cb_flag_clear;
@@ -151,6 +159,7 @@ typedef struct LibraryForeachIDData {
 } LibraryForeachIDData;
 
 static void library_foreach_ID_link(Main *bmain,
+                                    ID *id_owner,
                                     ID *id,
                                     LibraryIDLinkCallback callback,
                                     void *user_data,
@@ -360,7 +369,13 @@ static void library_foreach_bone(LibraryForeachIDData *data, Bone *bone)
 static void library_foreach_layer_collection(LibraryForeachIDData *data, ListBase *lb)
 {
   for (LayerCollection *lc = lb->first; lc; lc = lc->next) {
-    FOREACH_CALLBACK_INVOKE(data, lc->collection, IDWALK_CB_NOP);
+    /* XXX This is very weak. The whole idea of keeping pointers to private IDs is very bad
+     * anyway... */
+    const int cb_flag = (lc->collection != NULL &&
+                         (lc->collection->id.flag & LIB_PRIVATE_DATA) != 0) ?
+                            IDWALK_CB_PRIVATE :
+                            IDWALK_CB_NOP;
+    FOREACH_CALLBACK_INVOKE(data, lc->collection, cb_flag);
     library_foreach_layer_collection(data, &lc->layer_collections);
   }
 
@@ -378,7 +393,14 @@ static void library_foreach_collection(LibraryForeachIDData *data, Collection *c
     FOREACH_CALLBACK_INVOKE(data, child->collection, IDWALK_CB_NEVER_SELF | IDWALK_CB_USER);
   }
   for (CollectionParent *parent = collection->parents.first; parent; parent = parent->next) {
-    FOREACH_CALLBACK_INVOKE(data, parent->collection, IDWALK_CB_NEVER_SELF | IDWALK_CB_LOOPBACK);
+    /* XXX This is very weak. The whole idea of keeping pointers to private IDs is very bad
+     * anyway... */
+    const int cb_flag = ((parent->collection != NULL &&
+                          (parent->collection->id.flag & LIB_PRIVATE_DATA) != 0) ?
+                             IDWALK_CB_PRIVATE :
+                             IDWALK_CB_NOP);
+    FOREACH_CALLBACK_INVOKE(
+        data, parent->collection, IDWALK_CB_NEVER_SELF | IDWALK_CB_LOOPBACK | cb_flag);
   }
 
   FOREACH_FINALIZE_VOID;
@@ -398,26 +420,31 @@ static void library_foreach_ID_as_subdata_link(ID **id_pp,
   if (flag & IDWALK_RECURSE) {
     /* Defer handling into main loop, recursively calling BKE_library_foreach_ID_link in
      * IDWALK_RECURSE case is troublesome, see T49553. */
+    /* XXX note that this breaks the 'owner id' thing now, we likely want to handle that
+     * differently at some point, but for now it should not be a problem in practice. */
     if (BLI_gset_add(data->ids_handled, id)) {
       BLI_LINKSTACK_PUSH(data->ids_todo, id);
     }
   }
   else {
-    library_foreach_ID_link(NULL, id, callback, user_data, flag, data);
+    library_foreach_ID_link(data->bmain, data->owner_id, id, callback, user_data, flag, data);
   }
 
   FOREACH_FINALIZE_VOID;
 }
 
 static void library_foreach_ID_link(Main *bmain,
+                                    ID *id_owner,
                                     ID *id,
                                     LibraryIDLinkCallback callback,
                                     void *user_data,
                                     int flag,
                                     LibraryForeachIDData *inherit_data)
 {
-  LibraryForeachIDData data;
+  LibraryForeachIDData data = {.bmain = bmain};
   int i;
+
+  BLI_assert(inherit_data == NULL || data.bmain == inherit_data->bmain);
 
   if (flag & IDWALK_RECURSE) {
     /* For now, recursion implies read-only. */
@@ -443,6 +470,7 @@ static void library_foreach_ID_link(Main *bmain,
 
   for (; id != NULL; id = (flag & IDWALK_RECURSE) ? BLI_LINKSTACK_POP(data.ids_todo) : NULL) {
     data.self_id = id;
+    data.owner_id = (id->flag & LIB_PRIVATE_DATA) ? id_owner : data.self_id;
 
     /* inherit_data is non-NULL when this function is called for some sub-data ID
      * (like root nodetree of a material).
@@ -1112,7 +1140,7 @@ FOREACH_FINALIZE:
 void BKE_library_foreach_ID_link(
     Main *bmain, ID *id, LibraryIDLinkCallback callback, void *user_data, int flag)
 {
-  library_foreach_ID_link(bmain, id, callback, user_data, flag, NULL);
+  library_foreach_ID_link(bmain, NULL, id, callback, user_data, flag, NULL);
 }
 
 /**
@@ -1261,12 +1289,11 @@ typedef struct IDUsersIter {
   int count_direct, count_indirect; /* Set by callback. */
 } IDUsersIter;
 
-static int foreach_libblock_id_users_callback(void *user_data,
-                                              ID *UNUSED(self_id),
-                                              ID **id_p,
-                                              int cb_flag)
+static int foreach_libblock_id_users_callback(LibraryIDLinkCallbackData *cb_data)
 {
-  IDUsersIter *iter = user_data;
+  ID **id_p = cb_data->id_pointer;
+  const int cb_flag = cb_data->cb_flag;
+  IDUsersIter *iter = cb_data->user_data;
 
   if (*id_p) {
     /* 'Loopback' ID pointers (the ugly 'from' ones, Object->proxy_from and Key->from).
@@ -1414,12 +1441,12 @@ void BKE_library_ID_test_usages(Main *bmain, void *idv, bool *is_used_local, boo
 }
 
 /* ***** IDs usages.checking/tagging. ***** */
-static int foreach_libblock_used_linked_data_tag_clear_cb(void *user_data,
-                                                          ID *self_id,
-                                                          ID **id_p,
-                                                          int cb_flag)
+static int foreach_libblock_used_linked_data_tag_clear_cb(LibraryIDLinkCallbackData *cb_data)
 {
-  bool *is_changed = user_data;
+  ID *self_id = cb_data->id_self;
+  ID **id_p = cb_data->id_pointer;
+  const int cb_flag = cb_data->cb_flag;
+  bool *is_changed = cb_data->user_data;
 
   if (*id_p) {
     /* The infamous 'from' pointers (Key.from, Object.proxy_from, ...).
