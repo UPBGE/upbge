@@ -3077,8 +3077,18 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d)
 {
   drw_state_set(DRW_STATE_WRITE_COLOR);
 
-  bool use_render_settings = v3d && (v3d->shading.type == OB_RENDER);
+  /* TODO(fclem) This should be a render engine callback to determine if we need CM or not. */
+  //bool use_workbench = BKE_scene_uses_blender_workbench(scene);
+  bool use_scene_lights = (!v3d ||
+                          ((v3d->shading.type == OB_MATERIAL) &&
+                          (v3d->shading.flag & V3D_SHADING_SCENE_LIGHTS)) ||
+                          ((v3d->shading.type == OB_RENDER) &&
+                          (v3d->shading.flag & V3D_SHADING_SCENE_LIGHTS_RENDER)));
+  bool use_scene_world =  (!v3d ||
+                          ((v3d->shading.type == OB_MATERIAL) && (v3d->shading.flag & V3D_SHADING_SCENE_WORLD)) ||
+                          ((v3d->shading.type == OB_RENDER) && (v3d->shading.flag & V3D_SHADING_SCENE_WORLD_RENDER)));
   bool use_view_transform = v3d && (v3d->shading.type >= OB_MATERIAL);
+  bool use_render_settings = v3d && (/*use_workbench ||*/ use_scene_lights || use_scene_world);
 
   GPUVertFormat *vert_format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
