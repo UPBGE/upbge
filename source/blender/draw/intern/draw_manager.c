@@ -3077,8 +3077,8 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d)
 {
   drw_state_set(DRW_STATE_WRITE_COLOR);
 
-  bool use_render_settings = v3d && (v3d->shading.type == OB_RENDER);
-  bool use_view_transform = v3d && (v3d->shading.type >= OB_MATERIAL);
+  bool use_render_settings = true; /*v3d && (v3d->shading.type == OB_RENDER);*/
+  bool use_view_transform = true; /*v3d && (v3d->shading.type >= OB_MATERIAL);*/
 
   GPUVertFormat *vert_format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
