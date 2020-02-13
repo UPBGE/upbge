@@ -2902,15 +2902,6 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   View3D *v3d = CTX_wm_view3d(C);
 
-  bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
-  int shading_type_backup = v3d->shading.type;
-  int shading_flag_backup = v3d->shading.flag;
-
-  if (not_eevee) {
-    v3d->shading.type = OB_RENDER;
-    v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
-  }
-
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
   GPU_viewport_bind(viewport, window);
@@ -2999,9 +2990,6 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
   drw_viewport_cache_resize();
 
   GPU_viewport_unbind(DST.viewport);
-
-  v3d->shading.type = shading_type_backup;
-  v3d->shading.flag = shading_flag_backup;
 }
 
 void DRW_game_render_loop_end()
@@ -3077,8 +3065,8 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d)
 {
   drw_state_set(DRW_STATE_WRITE_COLOR);
 
-  bool use_render_settings = true; /*v3d && (v3d->shading.type == OB_RENDER);*/
-  bool use_view_transform = true; /*v3d && (v3d->shading.type >= OB_MATERIAL);*/
+  bool use_render_settings = v3d && (v3d->shading.type == OB_RENDER);
+  bool use_view_transform = v3d && (v3d->shading.type >= OB_MATERIAL);
 
   GPUVertFormat *vert_format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);

@@ -137,6 +137,8 @@ protected:
 	bool m_resetTaaSamples;
   Object *m_lastReplicatedParentObject;
   Object *m_gameDefaultCamera;
+  int m_shadingTypeBackup;
+  int m_shadingFlagBackup;
   std::vector<struct Collection *> m_overlay_collections;
   struct GPUViewport *m_currentGPUViewport;
   /* In the current state of the code, we need this

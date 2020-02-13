@@ -171,6 +171,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_resetTaaSamples(false),               // eevee
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
+      m_shadingTypeBackup(0),                 // eevee
+      m_shadingFlagBackup(0),                 // eevee
       m_currentGPUViewport(nullptr),          // eevee
       m_initMaterialsGPUViewport(nullptr),    // eevee (See comment in .h)
       m_overlayCamera(nullptr),               // eevee (For overlay collections)
@@ -324,6 +326,11 @@ KX_Scene::~KX_Scene()
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
       !ar) {  // if no ar, we are in blenderplayer
+    if (m_shadingTypeBackup != 0) {
+      View3D *v3d = CTX_wm_view3d(KX_GetActiveEngine()->GetContext());
+      v3d->shading.type = m_shadingTypeBackup;
+      v3d->shading.flag = m_shadingFlagBackup;
+    }
     /* This will free m_gpuViewport and m_gpuOffScreen */
     DRW_game_render_loop_end();
   }
@@ -490,6 +497,19 @@ void KX_Scene::InitBlenderContextVariables()
               CTX_wm_region_set(C, ar);
               CTX_data_scene_set(C, scene);
               win->scene = scene;
+
+              View3D *v3d = CTX_wm_view3d(C);
+
+              bool not_eevee = (v3d->shading.type != OB_RENDER) &&
+                               (v3d->shading.type != OB_MATERIAL);
+
+              if (not_eevee) {
+                m_shadingTypeBackup = v3d->shading.type;
+                m_shadingFlagBackup = v3d->shading.flag;
+                v3d->shading.type = OB_RENDER;
+                v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER |
+                                      V3D_SHADING_SCENE_WORLD_RENDER);
+              }
 
               return;
             }
