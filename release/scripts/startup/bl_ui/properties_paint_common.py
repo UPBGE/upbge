@@ -609,6 +609,10 @@ def brush_settings(layout, context, brush, popover=False):
                 layout.operator("sculpt.set_persistent_base")
                 layout.separator()
 
+        if brush.sculpt_tool == 'CLAY_STRIPS':
+            row = layout.row()
+            row.prop(brush, "tip_roundness")
+
         if brush.sculpt_tool == 'ELASTIC_DEFORM':
             layout.separator()
             layout.prop(brush, "elastic_deform_type")
@@ -625,9 +629,13 @@ def brush_settings(layout, context, brush, popover=False):
         
         if brush.sculpt_tool == 'SCRAPE':
             row = layout.row()
+            row.prop(brush, "area_radius_factor", slider=True)
+            row = layout.row()
             row.prop(brush, "invert_to_scrape_fill", text="Invert to Fill")
 
         if brush.sculpt_tool == 'FILL':
+            row = layout.row()
+            row.prop(brush, "area_radius_factor", slider=True)
             row = layout.row()
             row.prop(brush, "invert_to_scrape_fill", text="Invert to Scrape")
 

@@ -4359,6 +4359,12 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         }
       }
     }
+
+    for (Brush *br = bmain->brushes.first; br; br = br->id.next) {
+      if (br->ob_mode & OB_MODE_SCULPT && br->area_radius_factor == 0.0f) {
+        br->area_radius_factor = 0.5f;
+      }
+    }
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 282, 2)) {
@@ -4533,7 +4539,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       }
     }
 
-    /* Brush cursor alpha */
     for (Brush *br = bmain->brushes.first; br; br = br->id.next) {
       br->add_col[3] = 0.9f;
       br->sub_col[3] = 0.9f;
@@ -4550,6 +4555,15 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     for (Brush *br = bmain->brushes.first; br; br = br->id.next) {
       if (br->sculpt_tool == SCULPT_TOOL_POSE) {
         br->flag2 |= BRUSH_POSE_IK_ANCHORED;
+      }
+    }
+
+    /* Tip Roundness. */
+    if (!DNA_struct_elem_find(fd->filesdna, "Brush", "float", "tip_roundness")) {
+      for (Brush *br = bmain->brushes.first; br; br = br->id.next) {
+        if (br->ob_mode & OB_MODE_SCULPT && br->sculpt_tool == SCULPT_TOOL_CLAY_STRIPS) {
+          br->tip_roundness = 0.18f;
+        }
       }
     }
   }

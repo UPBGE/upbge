@@ -207,6 +207,13 @@ typedef struct SculptThreadedTaskData {
 
   bool use_area_cos;
   bool use_area_nos;
+
+  /* 0=towards view, 1=flipped */
+  float (*area_cos)[3];
+  float (*area_nos)[3];
+  int *count_no;
+  int *count_co;
+
   bool any_vertex_sampled;
 
   float *prev_mask;
@@ -280,7 +287,10 @@ void sculpt_brush_test_init(struct SculptSession *ss, SculptBrushTest *test);
 bool sculpt_brush_test_sphere(SculptBrushTest *test, const float co[3]);
 bool sculpt_brush_test_sphere_sq(SculptBrushTest *test, const float co[3]);
 bool sculpt_brush_test_sphere_fast(const SculptBrushTest *test, const float co[3]);
-bool sculpt_brush_test_cube(SculptBrushTest *test, const float co[3], float local[4][4]);
+bool sculpt_brush_test_cube(SculptBrushTest *test,
+                            const float co[3],
+                            float local[4][4],
+                            const float roundness);
 bool sculpt_brush_test_circle_sq(SculptBrushTest *test, const float co[3]);
 bool sculpt_search_sphere_cb(PBVHNode *node, void *data_v);
 bool sculpt_search_circle_cb(PBVHNode *node, void *data_v);
