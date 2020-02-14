@@ -1443,6 +1443,10 @@ class VIEW3D_MT_select_particle(Menu):
 
         layout.separator()
 
+        layout.operator("particle.select_linked", text="Select Linked")
+
+        layout.separator()
+
         layout.operator("particle.select_more")
         layout.operator("particle.select_less")
 
@@ -3145,6 +3149,9 @@ class VIEW3D_MT_particle_context_menu(Menu):
             layout.operator("particle.select_more")
             layout.operator("particle.select_less")
 
+            layout.separator()
+
+            layout.operator("particle.select_linked", text="Select Linked")
 
 class VIEW3D_MT_particle_showhide(ShowHideMenu, Menu):
     _operator_name = "particle"
@@ -3601,7 +3608,8 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             col.separator()
 
-            col.operator("mesh.loopcut_slide")
+            props = col.operator("mesh.loopcut_slide")
+            props.TRANSFORM_OT_edge_slide.release_confirm = False
             col.operator("mesh.offset_edge_loops_slide")
 
             col.separator()

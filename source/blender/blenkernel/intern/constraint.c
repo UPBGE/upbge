@@ -5331,6 +5331,9 @@ static bConstraint *add_new_constraint(Object *ob,
       }
       break;
     }
+    case CONSTRAINT_TYPE_TRANSFORM_CACHE:
+      con->ownspace = CONSTRAINT_SPACE_LOCAL;
+      break;
   }
 
   return con;

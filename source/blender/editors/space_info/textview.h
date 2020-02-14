@@ -27,16 +27,12 @@ typedef struct TextViewContext {
   /** Text selection, when a selection range is in use. */
   int sel_start, sel_end;
 
-  /* view settings */
-  int cwidth;  /* shouldnt be needed! */
-  int columns; /* shouldnt be needed! */
-
   int row_vpadding;
-  int margin_left_chars;
-  int margin_right_chars;
 
-  /** Area to draw: (0, 0, winx, winy) with a margin applied and scroll-bar subtracted. */
+  /** Area to draw text: (0, 0, winx, winy) with a margin applied and scroll-bar subtracted. */
   rcti draw_rect;
+  /** Area to draw text background colors (extending beyond text in some cases). */
+  rcti draw_rect_outer;
 
   /** Scroll offset in pixels. */
   int scroll_ymin, scroll_ymax;
@@ -56,7 +52,7 @@ typedef struct TextViewContext {
                    int *icon,
                    unsigned char icon_fg[4],
                    unsigned char icon_bg[4]);
-  void (*draw_cursor)(struct TextViewContext *tvc);
+  void (*draw_cursor)(struct TextViewContext *tvc, int cwidth, int columns, int descender);
   /* constant theme colors */
   void (*const_colors)(struct TextViewContext *tvc, unsigned char bg_sel[4]);
   void *iter;
