@@ -96,11 +96,15 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_internalFormat = GL_RGBA16F_ARB;
 
 	m_targetfb = GPU_framebuffer_create();
+
+	m_scene->AddImageRenderCamera(m_camera);
 }
 
 // destructor
 ImageRender::~ImageRender (void)
 {
+	m_scene->RemoveImageRenderCamera(m_camera);
+
 	if (m_owncamera) {
 		m_camera->Release();
 	}
