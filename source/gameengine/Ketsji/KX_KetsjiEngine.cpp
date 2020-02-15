@@ -73,6 +73,10 @@
 
 #include "KX_NavMeshObject.h"
 
+extern "C" {
+# include "GPU_matrix.h"
+}
+
 
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 
@@ -677,6 +681,7 @@ void KX_KetsjiEngine::Render()
 	}
   Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
   if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER && m_canvas->GetARegion())) {
+    GPU_matrix_reset();
     EndFrame();
   }
 }

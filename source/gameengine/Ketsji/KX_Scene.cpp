@@ -113,9 +113,11 @@ extern "C" {
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "depsgraph/DEG_depsgraph_query.h"
+#include "ED_view3d.h"
 #include "DNA_mesh_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DRW_render.h"
+#include "GPU_matrix.h"
 #include "WM_api.h"
 
 // TEST USE_VIEWPORT_RENDER
@@ -499,7 +501,8 @@ void KX_Scene::InitBlenderContextVariables()
               win->scene = scene;
 
               /* Only if we are not in viewport render, modify + backup shading types */
-              if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || !KX_GetActiveEngine()->GetCanvas()->GetARegion()) {
+              if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
+                  !KX_GetActiveEngine()->GetCanvas()->GetARegion()) {
 
                 View3D *v3d = CTX_wm_view3d(C);
 
@@ -701,45 +704,19 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
 
-  if (cam) {
-    rasty->SetMatrix(cam->GetModelviewMatrix(),
-                     cam->GetProjectionMatrix(),
-                     cam->NodeGetWorldPosition(),
-                     cam->NodeGetLocalScaling());
-  }
-
-  ViewPortMatrices m = rasty->GetAllMatrices();
-  float view[4][4];
-  float viewinv[4][4];
-  float proj[4][4];
-  float pers[4][4];
-  float persinv[4][4];
-
-  m.view.getValue(&view[0][0]);
-  m.viewinv.getValue(&viewinv[0][0]);
-  m.proj.getValue(&proj[0][0]);
-  m.pers.getValue(&pers[0][0]);
-  m.persinv.getValue(&persinv[0][0]);
-
   ARegion *ar = canvas->GetARegion();
+  bContext *C = engine->GetContext();
 
   /* Ensure there is a valid ARegion *ar (this is not the case in blenderplayer)
    * Here we'll render directly the scene with viewport code.
    */
   if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && ar) {
     if (cam) {
-      RegionView3D *rv3d = (RegionView3D *)ar->regiondata;
-
       DRW_view_set_active(NULL);
 
-      copy_m4_m4(rv3d->persmat, pers);
-      copy_m4_m4(rv3d->persinv, persinv);
-      copy_m4_m4(rv3d->viewmat, view);
-      copy_m4_m4(rv3d->viewinv, viewinv);
-      copy_m4_m4(rv3d->winmat, proj);
+      InitBlenderContextVariables();
 
-      Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
-      BKE_scene_graph_update_tagged(depsgraph, bmain);
+      CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
 
       ED_region_tag_redraw(ar);
       wm_draw_update(engine->GetContext());
@@ -750,6 +727,19 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   if (cam) {
     UpdateObjectLods(cam);
     SetCurrentGPUViewport(cam->GetGPUViewport());
+
+
+    float winmat[4][4];
+    cam->GetProjectionMatrix().getValue(&winmat[0][0]);
+    CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
+    ED_view3d_draw_setup_view(CTX_wm_window(C),
+                              CTX_data_expect_evaluated_depsgraph(C),
+                              CTX_data_scene(C),
+                              CTX_wm_region(C),
+                              CTX_wm_view3d(C),
+                              NULL,
+                              winmat,
+                              NULL);
   }
 
   bool calledFromConstructor = cam == nullptr;
@@ -758,15 +748,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     SetInitMaterialsGPUViewport(m_currentGPUViewport);
   }
 
-  DRW_game_render_loop(engine->GetContext(),
+  DRW_game_render_loop(C,
                        m_currentGPUViewport,
                        bmain,
                        scene,
-                       view,
-                       viewinv,
-                       proj,
-                       pers,
-                       persinv,
                        &window,
                        calledFromConstructor,
                        reset_taa_samples,
@@ -796,7 +781,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
     rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
-  DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()), CTX_wm_view3d(engine->GetContext()));
+  DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
+                           CTX_wm_view3d(engine->GetContext()));
 
   /* Detach viewport textures from input framebuffer... */
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
@@ -832,38 +818,30 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
 
   SetCurrentGPUViewport(cam->GetGPUViewport());
 
-  rasty->SetMatrix(cam->GetModelviewMatrix(),
-                   cam->GetProjectionMatrix(),
-                   cam->NodeGetWorldPosition(),
-                   cam->NodeGetLocalScaling());
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  float winmat[4][4];
+  cam->GetProjectionMatrix().getValue(&winmat[0][0]);
+  CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
+  ED_view3d_draw_setup_view(CTX_wm_window(C),
+                            CTX_data_expect_evaluated_depsgraph(C),
+                            CTX_data_scene(C),
+                            CTX_wm_region(C),
+                            CTX_wm_view3d(C),
+                            NULL,
+                            winmat,
+                            NULL);
 
-  // Normally cam matrices are already set in ImageRender
-  ViewPortMatrices m = rasty->GetAllMatrices();
-  float view[4][4];
-  float viewinv[4][4];
-  float proj[4][4];
-  float pers[4][4];
-  float persinv[4][4];
-
-  m.view.getValue(&view[0][0]);
-  m.viewinv.getValue(&viewinv[0][0]);
-  m.proj.getValue(&proj[0][0]);
-  m.pers.getValue(&pers[0][0]);
-  m.persinv.getValue(&persinv[0][0]);
-
-  DRW_game_render_loop(KX_GetActiveEngine()->GetContext(),
+  DRW_game_render_loop(C,
                        m_currentGPUViewport,
                        bmain,
                        scene,
-                       view,
-                       viewinv,
-                       proj,
-                       pers,
-                       persinv,
                        window,
                        false,
                        true,
                        false);
+
+  GPU_matrix_pop_projection();
+  GPU_matrix_pop();
 }
 
 /******************End of EEVEE INTEGRATION****************************/
