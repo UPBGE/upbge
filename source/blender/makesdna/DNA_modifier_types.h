@@ -1323,11 +1323,10 @@ typedef struct WarpModifierData {
   char _pad[6];
 } WarpModifierData;
 
-#define MOD_WARP_VOLUME_PRESERVE 1
-
 /* WarpModifierData->flag */
 enum {
-  MOD_WARP_INVERT_VGROUP = (1 << 0),
+  MOD_WARP_VOLUME_PRESERVE = (1 << 0),
+  MOD_WARP_INVERT_VGROUP = (1 << 1),
 };
 
 typedef enum {
@@ -1742,9 +1741,13 @@ typedef struct UVWarpModifierData {
   ModifierData modifier;
 
   char axis_u, axis_v;
-  char _pad[6];
+  char _pad[2];
   /** Used for rotate/scale. */
   float center[2];
+
+  float offset[2];
+  float scale[2];
+  float rotation;
 
   /** Source. */
   struct Object *object_src;

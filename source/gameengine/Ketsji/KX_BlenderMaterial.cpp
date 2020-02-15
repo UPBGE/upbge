@@ -153,17 +153,29 @@ void KX_BlenderMaterial::InitTextures()
 	}
 
 	/* Converting dynamic GPUInput to DRWUniform */
-	ListBase *inputs = GPU_material_get_inputs(m_gpuMat);
+  ListBase textures = GPU_material_textures(m_gpuMat);
 
-	int i = 0;
-	for (GPUInput *input = (GPUInput *)inputs->first; input; input = input->next) {
-		/* Textures */
-		if (input->ima) {
-			BL_Texture *texture = new BL_Texture(input);
-			m_textures[i] = texture;
-			i++;
-		}
-	}
+  int i = 0;
+  for (GPUMaterialTexture *tex = (GPUMaterialTexture *)textures.first; tex; tex = tex->next) {
+    /* Textures */
+    if (tex->ima) {
+      int textarget;
+      if (tex->type == GPU_TEX2D_ARRAY)
+      {
+        textarget = GL_TEXTURE_2D_ARRAY;
+      }
+      else if (tex->type == GPU_TEX1D_ARRAY)
+      {
+        textarget = GL_TEXTURE_1D_ARRAY;
+      }
+      else {
+        textarget = GL_TEXTURE_2D;  //(missing targets)
+      }
+      BL_Texture *texture = new BL_Texture(tex, textarget);
+      m_textures[i] = texture;
+      i++;
+    }
+  }
 }
 
 void KX_BlenderMaterial::OnConstruction()

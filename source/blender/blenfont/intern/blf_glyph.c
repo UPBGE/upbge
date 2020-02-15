@@ -268,11 +268,13 @@ static void blf_glyph_cache_texture(FontBLF *font, GlyphCacheBLF *gc)
   GPUTexture *tex = GPU_texture_create_nD(
       gc->p2_width, gc->p2_height, 0, 2, NULL, GPU_R8, GPU_DATA_UNSIGNED_BYTE, 0, false, error);
 
-  gc->textures[gc->texture_current] = tex;
   GPU_texture_bind(tex, 0);
   GPU_texture_wrap_mode(tex, false);
   GPU_texture_filters(tex, GPU_NEAREST, GPU_LINEAR);
+  GPU_texture_clear(tex, GPU_DATA_UNSIGNED_BYTE, NULL);
   GPU_texture_unbind(tex);
+
+  gc->textures[gc->texture_current] = tex;
 }
 
 GlyphBLF *blf_glyph_search(GlyphCacheBLF *gc, unsigned int c)

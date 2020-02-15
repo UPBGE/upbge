@@ -32,21 +32,26 @@ extern "C" {
 #  include "BKE_image.h"
 #  include "DNA_texture_types.h"
 #  include "GPU_draw.h"
+#  include "GPU_glew.h"
+#  include "GPU_material.h"
 #  include "GPU_texture.h"
 #  include "gpu/intern/gpu_codegen.h"
 }
 
-BL_Texture::BL_Texture(GPUInput *input)
+BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, int textarget)
 	:CValue(),
 	m_isCubeMap(false),
-	m_gpuTex(nullptr),
-	m_input(input)
+	m_gpuMatTex(gpumattex),
+	m_textarget(textarget)
 {
 	/* Normally input->textype is Kept in sync with GPU_DATATYPE_STR */
-	m_isCubeMap = (input->textype == GPU_TEXCUBE);
-	m_name = input->ima->id.name;
+  m_isCubeMap = false; /*(m_gpuTex->type == GPU_TEXCUBE)*/;
+  m_name = m_gpuMatTex->ima->id.name;
 
-	m_gpuTex = GPU_texture_from_blender(input->ima, input->iuser, nullptr, m_isCubeMap ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D);
+  m_gpuTex = GPU_texture_from_blender(m_gpuMatTex->ima,
+                                      m_gpuMatTex->iuser,
+                                      nullptr,
+                                      m_textarget);
 
 	if (m_gpuTex) {
 		m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -76,13 +81,15 @@ void BL_Texture::CheckValidTexture()
 	 * gpu texture. In both cases we call GPU_texture_from_blender.
 	 */
 	int target = m_isCubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
-	GPUTexture *tex = m_input->ima->gputexture[target];
+	GPUTexture *tex = m_gpuMatTex->ima->gputexture[target];
 	if (m_gpuTex != tex) {
 		// Restore gpu texture original bind cdoe to make sure we will delete the right opengl texture.
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
 		GPU_texture_free(m_gpuTex);
 
-		m_gpuTex = (m_input->ima ? GPU_texture_from_blender(m_input->ima, m_input->iuser, nullptr, GL_TEXTURE_2D) : nullptr);
+		m_gpuTex = (m_gpuMatTex->ima ? GPU_texture_from_blender(
+                        m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr, m_textarget) :
+                                   nullptr);
 
 		if (m_gpuTex) {
 			int bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -108,7 +115,7 @@ bool BL_Texture::IsCubeMap() const
 
 Image *BL_Texture::GetImage() const
 {
-	return m_input->ima;
+  return m_gpuMatTex->ima;
 }
 
 GPUTexture *BL_Texture::GetGPUTexture() const
@@ -118,7 +125,7 @@ GPUTexture *BL_Texture::GetGPUTexture() const
 
 unsigned int BL_Texture::GetTextureType()
 {
-	return m_isCubeMap ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D;
+  return m_textarget; /*m_isCubeMap ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D;*/
 }
 
 void BL_Texture::ActivateTexture(int unit)
