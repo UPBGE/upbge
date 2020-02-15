@@ -815,12 +815,20 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                                                  RAS_Rasterizer *rasty,
                                                  const rcti *window)
 {
+  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  Scene *scene = GetBlenderScene();
+  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+
+  if (!depsgraph) {
+    depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
+  }
+
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate(false);
   }
-
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-  Scene *scene = GetBlenderScene();
 
   SetCurrentGPUViewport(cam->GetGPUViewport());
 
