@@ -270,19 +270,6 @@ static void eevee_draw_scene(void *vedata)
     DRW_draw_pass(psl->depth_pass);
     DRW_draw_pass(psl->depth_pass_cull);
 
-    /* Game engine transition */
-    if (!DRW_pass_is_empty(psl->ghost_prepass_pass)) {
-      EEVEE_setup_ghost_framebuffer(fbl, vedata);
-
-      GPU_framebuffer_bind(fbl->ghost_prepass_fb);
-      GPU_framebuffer_clear_depth(fbl->ghost_prepass_fb, 1.0f);
-      DRW_draw_pass(psl->ghost_prepass_pass);
-
-      GPU_framebuffer_bind(dfbl->depth_only_fb);
-      DRW_draw_pass(psl->ghost_resolve_pass);
-    }
-    /* End of Game engine transition */
-
     DRW_stats_group_end();
 
     /* Create minmax texture */

@@ -630,8 +630,6 @@ enum {
   OB_DRAWTRANSP = 1 << 7,
   OB_DRAW_ALL_EDGES = 1 << 8, /* only for meshes currently */
   OB_DRAW_NO_SHADOW_CAST = 1 << 9,
-  /* for overdraws Game engine transition */
-  OB_DRAWXRAY_BGE = 1 << 10,
 };
 
 /* empty_drawtype: no flags */

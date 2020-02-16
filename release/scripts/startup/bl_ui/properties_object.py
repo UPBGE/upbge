@@ -259,7 +259,6 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
 
         col = flow.column()
         col.prop(obj, "show_in_front", text="In Front")
-        col.prop(obj, "show_in_front_bge", text="In Front bge") #Game engine transition
         # if obj_type == 'MESH' or is_empty_image:
         #    col.prop(obj, "show_transparent", text="Transparency")
 

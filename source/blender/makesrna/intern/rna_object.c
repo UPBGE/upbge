@@ -3784,13 +3784,6 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "In Front", "Make the object draw in front of others");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 
-  /* Game engine transition */
-  prop = RNA_def_property(srna, "show_in_front_bge", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "dtx", OB_DRAWXRAY_BGE);
-  RNA_def_property_ui_text(prop, "In Front bge", "Make the object draw in front of others");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
-  /* End of Game engine transition */
-
   /* pose */
   prop = RNA_def_property(srna, "pose_library", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "poselib");

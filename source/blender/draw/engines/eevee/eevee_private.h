@@ -257,9 +257,6 @@ typedef struct EEVEE_PassList {
   struct DRWPass *maxz_copydepth_ps;
   struct DRWPass *maxz_copydepth_layer_ps;
 
-  struct DRWPass *ghost_prepass_pass; /* Game engine transition */
-  struct DRWPass *ghost_resolve_pass; /* Game engine transition */
-
   struct DRWPass *depth_pass;
   struct DRWPass *depth_pass_cull;
   struct DRWPass *depth_pass_clip;
@@ -322,8 +319,6 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *double_buffer_depth_fb;
   struct GPUFrameBuffer *taa_history_fb;
   struct GPUFrameBuffer *taa_history_color_fb;
-
-  struct GPUFrameBuffer *ghost_prepass_fb; /* Game engine transition */
 } EEVEE_FramebufferList;
 
 typedef struct EEVEE_TextureList {
@@ -841,7 +836,6 @@ EEVEE_WorldEngineData *EEVEE_world_data_get(struct World *wo);
 EEVEE_WorldEngineData *EEVEE_world_data_ensure(struct World *wo);
 
 /* eevee_materials.c */
-void EEVEE_setup_ghost_framebuffer(EEVEE_FramebufferList *fbl, EEVEE_Data *vedata); /* Game engine transition */
 struct GPUTexture *EEVEE_materials_get_util_tex(void); /* XXX */
 void EEVEE_materials_init(EEVEE_ViewLayerData *sldata,
                           EEVEE_StorageList *stl,
