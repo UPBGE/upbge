@@ -28,22 +28,23 @@
 #include "RAS_Texture.h"
 #include "EXP_Value.h"
 
-struct GPUInput;
+struct GPUMaterialTexture;
 
 class BL_Texture : public CValue, public RAS_Texture
 {
 	Py_Header
 private:
 	bool m_isCubeMap;
-	GPUTexture *m_gpuTex;
-	GPUInput *m_input;
+  GPUMaterialTexture *m_gpuMatTex;
+  GPUTexture *m_gpuTex;
+  int m_textarget;
 
 	struct {
 		unsigned int bindcode;
 	} m_savedData;
 
 public:
-	BL_Texture(GPUInput *input);
+  BL_Texture(GPUMaterialTexture *gpumattex, int textarget);
 	virtual ~BL_Texture();
 
 	// stuff for cvalue related things
