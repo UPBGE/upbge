@@ -896,6 +896,8 @@ typedef struct NodeTexMusgrave {
 typedef struct NodeTexWave {
   NodeTexBase base;
   int wave_type;
+  int bands_direction;
+  int rings_direction;
   int wave_profile;
 } NodeTexWave;
 
@@ -1139,8 +1141,25 @@ enum {
 #define SHD_WAVE_BANDS 0
 #define SHD_WAVE_RINGS 1
 
-#define SHD_WAVE_PROFILE_SIN 0
-#define SHD_WAVE_PROFILE_SAW 1
+enum {
+  SHD_WAVE_BANDS_DIRECTION_X = 0,
+  SHD_WAVE_BANDS_DIRECTION_Y = 1,
+  SHD_WAVE_BANDS_DIRECTION_Z = 2,
+  SHD_WAVE_BANDS_DIRECTION_DIAGONAL = 3,
+};
+
+enum {
+  SHD_WAVE_RINGS_DIRECTION_X = 0,
+  SHD_WAVE_RINGS_DIRECTION_Y = 1,
+  SHD_WAVE_RINGS_DIRECTION_Z = 2,
+  SHD_WAVE_RINGS_DIRECTION_SPHERICAL = 3,
+};
+
+enum {
+  SHD_WAVE_PROFILE_SIN = 0,
+  SHD_WAVE_PROFILE_SAW = 1,
+  SHD_WAVE_PROFILE_TRI = 2,
+};
 
 /* sky texture */
 #define SHD_SKY_OLD 0
@@ -1191,6 +1210,20 @@ enum {
   NODE_MAPPING_TYPE_TEXTURE = 1,
   NODE_MAPPING_TYPE_VECTOR = 2,
   NODE_MAPPING_TYPE_NORMAL = 3,
+};
+
+/* Rotation node vector types */
+enum {
+  NODE_VECTOR_ROTATE_TYPE_AXIS = 0,
+  NODE_VECTOR_ROTATE_TYPE_AXIS_X = 1,
+  NODE_VECTOR_ROTATE_TYPE_AXIS_Y = 2,
+  NODE_VECTOR_ROTATE_TYPE_AXIS_Z = 3,
+  NODE_VECTOR_ROTATE_TYPE_EULER_XYZ = 4,
+  NODE_VECTOR_ROTATE_TYPE_EULER_XZY = 5,
+  NODE_VECTOR_ROTATE_TYPE_EULER_YXZ = 6,
+  NODE_VECTOR_ROTATE_TYPE_EULER_YZX = 7,
+  NODE_VECTOR_ROTATE_TYPE_EULER_ZXY = 8,
+  NODE_VECTOR_ROTATE_TYPE_EULER_ZYX = 9,
 };
 
 /* math node clamp */

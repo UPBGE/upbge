@@ -78,6 +78,7 @@ set(SRC_OSL
   node_value.osl
   node_vector_curves.osl
   node_vector_math.osl
+  node_vector_rotate.osl
   node_vector_transform.osl
   node_velvet_bsdf.osl
   node_vertex_color.osl
@@ -94,15 +95,6 @@ set(SRC_OSL
   node_principled_bsdf.osl
   node_rgb_to_bw.osl
 )
-
-# FindOSL.cmake does not give us the location of the shader library
-# but generally it can be figured out from the location of the oslc
-# compiler. However if this fails you can set OSL_SHADER_DIR to
-# bypass the auto discovery.
-if(NOT DEFINED OSL_SHADER_DIR)
-  get_filename_component(OSL_SHADER_DIR ${OSL_COMPILER} DIRECTORY)
-  get_filename_component(OSL_SHADER_DIR ${OSL_SHADER_DIR}/../shaders ABSOLUTE)
-endif()
 
 # The headers that OSL ships differs per release so we can not
 # hardcode this.
@@ -131,7 +123,7 @@ foreach(_file ${SRC_OSL})
   string(REPLACE ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} _OSO_FILE ${_OSO_FILE})
   add_custom_command(
     OUTPUT ${_OSO_FILE}
-    COMMAND ${OSL_COMPILER} -q -O2  -I"${CMAKE_CURRENT_SOURCE_DIR}" -o ${_OSO_FILE} ${_OSL_FILE}
+    COMMAND ${OSL_COMPILER} -q -O2  -I"${CMAKE_CURRENT_SOURCE_DIR}" -I"${OSL_SHADER_DIR}" -o ${_OSO_FILE} ${_OSL_FILE}
     DEPENDS ${_OSL_FILE} ${SRC_OSL_HEADERS} ${OSL_COMPILER})
   list(APPEND SRC_OSO
     ${_OSO_FILE}

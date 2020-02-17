@@ -687,6 +687,12 @@ void rna_Object_me_eval_info(
     }
   }
 }
+#  else
+void rna_Object_me_eval_info(
+    struct Object *ob, bContext *C, int type, PointerRNA *rnaptr_depsgraph, char *result)
+{
+  result[0] = '\0';
+}
 #  endif /* NDEBUG */
 
 static bool rna_Object_update_from_editmode(Object *ob, Main *bmain)
@@ -711,7 +717,7 @@ bool rna_Object_generate_gpencil_strokes(Object *ob,
   if (ob->type != OB_CURVE) {
     BKE_reportf(reports,
                 RPT_ERROR,
-                "Object '%s' not valid for this operation! Only curves supported.",
+                "Object '%s' is not valid for this operation! Only curves are supported",
                 ob->id.name + 2);
     return false;
   }

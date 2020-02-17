@@ -153,6 +153,7 @@ typedef enum ShaderNodeType {
   NODE_AOV_START,
   NODE_AOV_VALUE,
   NODE_AOV_COLOR,
+  NODE_VECTOR_ROTATE,
 } ShaderNodeType;
 
 typedef enum NodeAttributeType {
@@ -351,6 +352,19 @@ typedef enum NodeMappingType {
   NODE_MAPPING_TYPE_NORMAL
 } NodeMappingType;
 
+typedef enum NodeVectorRotateType {
+  NODE_VECTOR_ROTATE_TYPE_AXIS,
+  NODE_VECTOR_ROTATE_TYPE_AXIS_X,
+  NODE_VECTOR_ROTATE_TYPE_AXIS_Y,
+  NODE_VECTOR_ROTATE_TYPE_AXIS_Z,
+  NODE_VECTOR_ROTATE_TYPE_EULER_XYZ,
+  NODE_VECTOR_ROTATE_TYPE_EULER_XZY,
+  NODE_VECTOR_ROTATE_TYPE_EULER_YXZ,
+  NODE_VECTOR_ROTATE_TYPE_EULER_YZX,
+  NODE_VECTOR_ROTATE_TYPE_EULER_ZXY,
+  NODE_VECTOR_ROTATE_TYPE_EULER_ZYX,
+} NodeVectorRotateType;
+
 typedef enum NodeVectorTransformType {
   NODE_VECTOR_TRANSFORM_TYPE_VECTOR,
   NODE_VECTOR_TRANSFORM_TYPE_POINT,
@@ -384,9 +398,24 @@ typedef enum NodeMusgraveType {
 
 typedef enum NodeWaveType { NODE_WAVE_BANDS, NODE_WAVE_RINGS } NodeWaveType;
 
-typedef enum NodeWaveProfiles {
+typedef enum NodeWaveBandsDirection {
+  NODE_WAVE_BANDS_DIRECTION_X,
+  NODE_WAVE_BANDS_DIRECTION_Y,
+  NODE_WAVE_BANDS_DIRECTION_Z,
+  NODE_WAVE_BANDS_DIRECTION_DIAGONAL
+} NodeWaveBandsDirection;
+
+typedef enum NodeWaveRingsDirection {
+  NODE_WAVE_RINGS_DIRECTION_X,
+  NODE_WAVE_RINGS_DIRECTION_Y,
+  NODE_WAVE_RINGS_DIRECTION_Z,
+  NODE_WAVE_RINGS_DIRECTION_SPHERICAL
+} NodeWaveRingsDirection;
+
+typedef enum NodeWaveProfile {
   NODE_WAVE_PROFILE_SIN,
   NODE_WAVE_PROFILE_SAW,
+  NODE_WAVE_PROFILE_TRI,
 } NodeWaveProfile;
 
 typedef enum NodeSkyType { NODE_SKY_OLD, NODE_SKY_NEW } NodeSkyType;

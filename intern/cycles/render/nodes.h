@@ -288,9 +288,11 @@ class WaveTextureNode : public TextureNode {
   }
 
   NodeWaveType type;
+  NodeWaveBandsDirection bands_direction;
+  NodeWaveRingsDirection rings_direction;
   NodeWaveProfile profile;
 
-  float scale, distortion, detail, detail_scale;
+  float scale, distortion, detail, detail_scale, phase;
   float3 vector;
 };
 
@@ -1380,6 +1382,22 @@ class VectorMathNode : public ShaderNode {
   float3 vector3;
   float scale;
   NodeVectorMathType type;
+};
+
+class VectorRotateNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(VectorRotateNode)
+
+  virtual int get_group()
+  {
+    return NODE_GROUP_LEVEL_3;
+  }
+  NodeVectorRotateType type;
+  float3 vector;
+  float3 center;
+  float3 axis;
+  float angle;
+  float3 rotation;
 };
 
 class VectorTransformNode : public ShaderNode {

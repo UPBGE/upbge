@@ -1422,15 +1422,33 @@ NODE_DEFINE(WaveTextureNode)
   type_enum.insert("rings", NODE_WAVE_RINGS);
   SOCKET_ENUM(type, "Type", type_enum, NODE_WAVE_BANDS);
 
+  static NodeEnum bands_direction_enum;
+  bands_direction_enum.insert("x", NODE_WAVE_BANDS_DIRECTION_X);
+  bands_direction_enum.insert("y", NODE_WAVE_BANDS_DIRECTION_Y);
+  bands_direction_enum.insert("z", NODE_WAVE_BANDS_DIRECTION_Z);
+  bands_direction_enum.insert("diagonal", NODE_WAVE_BANDS_DIRECTION_DIAGONAL);
+  SOCKET_ENUM(
+      bands_direction, "Bands Direction", bands_direction_enum, NODE_WAVE_BANDS_DIRECTION_X);
+
+  static NodeEnum rings_direction_enum;
+  rings_direction_enum.insert("x", NODE_WAVE_RINGS_DIRECTION_X);
+  rings_direction_enum.insert("y", NODE_WAVE_RINGS_DIRECTION_Y);
+  rings_direction_enum.insert("z", NODE_WAVE_RINGS_DIRECTION_Z);
+  rings_direction_enum.insert("spherical", NODE_WAVE_RINGS_DIRECTION_SPHERICAL);
+  SOCKET_ENUM(
+      rings_direction, "Rings Direction", rings_direction_enum, NODE_WAVE_BANDS_DIRECTION_X);
+
   static NodeEnum profile_enum;
   profile_enum.insert("sine", NODE_WAVE_PROFILE_SIN);
   profile_enum.insert("saw", NODE_WAVE_PROFILE_SAW);
+  profile_enum.insert("tri", NODE_WAVE_PROFILE_TRI);
   SOCKET_ENUM(profile, "Profile", profile_enum, NODE_WAVE_PROFILE_SIN);
 
   SOCKET_IN_FLOAT(scale, "Scale", 1.0f);
   SOCKET_IN_FLOAT(distortion, "Distortion", 0.0f);
   SOCKET_IN_FLOAT(detail, "Detail", 2.0f);
   SOCKET_IN_FLOAT(detail_scale, "Detail Scale", 0.0f);
+  SOCKET_IN_FLOAT(phase, "Phase Offset", 0.0f);
   SOCKET_IN_POINT(
       vector, "Vector", make_float3(0.0f, 0.0f, 0.0f), SocketType::LINK_TEXTURE_GENERATED);
 
@@ -1446,31 +1464,35 @@ WaveTextureNode::WaveTextureNode() : TextureNode(node_type)
 
 void WaveTextureNode::compile(SVMCompiler &compiler)
 {
+  ShaderInput *vector_in = input("Vector");
   ShaderInput *scale_in = input("Scale");
   ShaderInput *distortion_in = input("Distortion");
-  ShaderInput *dscale_in = input("Detail Scale");
   ShaderInput *detail_in = input("Detail");
-  ShaderInput *vector_in = input("Vector");
-  ShaderOutput *fac_out = output("Fac");
+  ShaderInput *dscale_in = input("Detail Scale");
+  ShaderInput *phase_in = input("Phase Offset");
   ShaderOutput *color_out = output("Color");
+  ShaderOutput *fac_out = output("Fac");
 
   int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
 
   compiler.add_node(NODE_TEX_WAVE,
-                    compiler.encode_uchar4(type,
-                                           compiler.stack_assign_if_linked(color_out),
-                                           compiler.stack_assign_if_linked(fac_out),
-                                           compiler.stack_assign_if_linked(dscale_in)),
+                    compiler.encode_uchar4(type, bands_direction, rings_direction, profile),
                     compiler.encode_uchar4(vector_offset,
                                            compiler.stack_assign_if_linked(scale_in),
-                                           compiler.stack_assign_if_linked(detail_in),
-                                           compiler.stack_assign_if_linked(distortion_in)),
-                    profile);
+                                           compiler.stack_assign_if_linked(distortion_in),
+                                           compiler.stack_assign_if_linked(detail_in)),
+                    compiler.encode_uchar4(compiler.stack_assign_if_linked(dscale_in),
+                                           compiler.stack_assign_if_linked(phase_in),
+                                           compiler.stack_assign_if_linked(color_out),
+                                           compiler.stack_assign_if_linked(fac_out)));
 
   compiler.add_node(__float_as_int(scale),
                     __float_as_int(detail),
                     __float_as_int(distortion),
                     __float_as_int(detail_scale));
+
+  compiler.add_node(
+      __float_as_int(phase), SVM_STACK_INVALID, SVM_STACK_INVALID, SVM_STACK_INVALID);
 
   tex_mapping.compile_end(compiler, vector_in, vector_offset);
 }
@@ -1480,6 +1502,8 @@ void WaveTextureNode::compile(OSLCompiler &compiler)
   tex_mapping.compile(compiler);
 
   compiler.parameter(this, "type");
+  compiler.parameter(this, "bands_direction");
+  compiler.parameter(this, "rings_direction");
   compiler.parameter(this, "profile");
 
   compiler.add(this, "node_wave_texture");
@@ -6105,6 +6129,64 @@ void VectorMathNode::compile(OSLCompiler &compiler)
 {
   compiler.parameter(this, "type");
   compiler.add(this, "node_vector_math");
+}
+
+/* Vector Rotate */
+
+NODE_DEFINE(VectorRotateNode)
+{
+  NodeType *type = NodeType::add("vector_rotate", create, NodeType::SHADER);
+
+  static NodeEnum type_enum;
+  type_enum.insert("axis", NODE_VECTOR_ROTATE_TYPE_AXIS);
+  type_enum.insert("x_axis", NODE_VECTOR_ROTATE_TYPE_AXIS_X);
+  type_enum.insert("y_axis", NODE_VECTOR_ROTATE_TYPE_AXIS_Y);
+  type_enum.insert("z_axis", NODE_VECTOR_ROTATE_TYPE_AXIS_Z);
+  type_enum.insert("euler_xyz", NODE_VECTOR_ROTATE_TYPE_EULER_XYZ);
+  type_enum.insert("euler_xzy", NODE_VECTOR_ROTATE_TYPE_EULER_XZY);
+  type_enum.insert("euler_yxz", NODE_VECTOR_ROTATE_TYPE_EULER_YXZ);
+  type_enum.insert("euler_yzx", NODE_VECTOR_ROTATE_TYPE_EULER_YZX);
+  type_enum.insert("euler_zxy", NODE_VECTOR_ROTATE_TYPE_EULER_ZXY);
+  type_enum.insert("euler_zyx", NODE_VECTOR_ROTATE_TYPE_EULER_ZYX);
+  SOCKET_ENUM(type, "Type", type_enum, NODE_VECTOR_ROTATE_TYPE_AXIS);
+
+  SOCKET_IN_VECTOR(vector, "Vector", make_float3(0.0f, 0.0f, 0.0f));
+  SOCKET_IN_POINT(rotation, "Rotation", make_float3(0.0f, 0.0f, 0.0f));
+  SOCKET_IN_POINT(center, "Center", make_float3(0.0f, 0.0f, 0.0f));
+  SOCKET_IN_VECTOR(axis, "Axis", make_float3(0.0f, 0.0f, 1.0f));
+  SOCKET_IN_FLOAT(angle, "Angle", 0.0f);
+  SOCKET_OUT_VECTOR(vector, "Vector");
+
+  return type;
+}
+
+VectorRotateNode::VectorRotateNode() : ShaderNode(node_type)
+{
+}
+
+void VectorRotateNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *vector_in = input("Vector");
+  ShaderInput *rotation_in = input("Rotation");
+  ShaderInput *center_in = input("Center");
+  ShaderInput *axis_in = input("Axis");
+  ShaderInput *angle_in = input("Angle");
+  ShaderOutput *vector_out = output("Vector");
+
+  compiler.add_node(NODE_VECTOR_ROTATE,
+                    compiler.encode_uchar4(type,
+                                           compiler.stack_assign(vector_in),
+                                           compiler.stack_assign(rotation_in)),
+                    compiler.encode_uchar4(compiler.stack_assign(center_in),
+                                           compiler.stack_assign(axis_in),
+                                           compiler.stack_assign(angle_in)),
+                    compiler.stack_assign(vector_out));
+}
+
+void VectorRotateNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "type");
+  compiler.add(this, "node_vector_rotate");
 }
 
 /* VectorTransform */

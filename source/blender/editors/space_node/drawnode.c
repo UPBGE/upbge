@@ -745,6 +745,11 @@ static void node_shader_buts_mapping(uiLayout *layout, bContext *UNUSED(C), Poin
   uiItemR(layout, ptr, "vector_type", 0, NULL, ICON_NONE);
 }
 
+static void node_shader_buts_vector_rotate(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "rotation_type", 0, NULL, ICON_NONE);
+}
+
 static void node_shader_buts_vect_math(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "operation", 0, "", ICON_NONE);
@@ -873,6 +878,14 @@ static void node_shader_buts_tex_brick(uiLayout *layout, bContext *UNUSED(C), Po
 static void node_shader_buts_tex_wave(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "wave_type", 0, "", ICON_NONE);
+  int type = RNA_enum_get(ptr, "wave_type");
+  if (type == SHD_WAVE_BANDS) {
+    uiItemR(layout, ptr, "bands_direction", 0, "", ICON_NONE);
+  }
+  else { /* SHD_WAVE_RINGS */
+    uiItemR(layout, ptr, "rings_direction", 0, "", ICON_NONE);
+  }
+
   uiItemR(layout, ptr, "wave_profile", 0, "", ICON_NONE);
 }
 
@@ -1198,6 +1211,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
       break;
     case SH_NODE_VECTOR_MATH:
       ntype->draw_buttons = node_shader_buts_vect_math;
+      break;
+    case SH_NODE_VECTOR_ROTATE:
+      ntype->draw_buttons = node_shader_buts_vector_rotate;
       break;
     case SH_NODE_VECT_TRANSFORM:
       ntype->draw_buttons = node_shader_buts_vect_transform;
