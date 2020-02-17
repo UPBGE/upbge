@@ -670,7 +670,7 @@ bool KX_Scene::CameraIsInactive(KX_Camera *cam)
 }
 
 static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0;
-static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER1;
+static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0;
 
 void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 {
@@ -758,7 +758,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
                        is_overlay_pass);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
-  RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(s));
+  RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
 
   /* Detach Defaults attachments from input framebuffer... */
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
@@ -768,8 +768,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
       input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport), 0, 0);
   GPU_framebuffer_texture_attach(
       input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
-
-  GPU_framebuffer_bind(input->GetFrameBuffer());
 
   RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
 
