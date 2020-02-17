@@ -812,7 +812,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Light *la, unsigned int 
 static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene)
 {
 	Camera* ca = static_cast<Camera*>(ob->data);
-	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clip_start, ca->clip_end, ca->type == CAM_PERSP, ca->dof_distance);
+	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clip_start, ca->clip_end, ca->type == CAM_PERSP);
 	KX_Camera *gamecamera;
 	
 	gamecamera= new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);

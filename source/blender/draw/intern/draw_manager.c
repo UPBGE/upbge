@@ -2915,7 +2915,6 @@ EEVEE_Data *EEVEE_engine_data_get(void)
 }
 
 void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene *scene,
-  float view[4][4], float viewinv[4][4], float proj[4][4], float pers[4][4], float persinv[4][4],
   const rcti *window, bool called_from_constructor, bool reset_taa_samples, bool is_overlay_pass)
 {
   /* Reset before using it. */
@@ -2947,12 +2946,6 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
   DST.viewport = viewport;
 
   DRW_view_set_active(NULL);
-
-  copy_m4_m4(rv3d->persmat, pers);
-  copy_m4_m4(rv3d->persinv, persinv);
-  copy_m4_m4(rv3d->viewmat, view);
-  copy_m4_m4(rv3d->viewinv, viewinv);
-  copy_m4_m4(rv3d->winmat, proj);
 
   DST.draw_ctx.ar = ar;
   DST.draw_ctx.v3d = v3d;
