@@ -139,7 +139,6 @@ protected:
   Object *m_gameDefaultCamera;
   int m_shadingTypeBackup;
   int m_shadingFlagBackup;
-  int m_rv3dPersBackup;
   std::vector<struct Collection *> m_overlay_collections;
   struct GPUViewport *m_currentGPUViewport;
   /* In the current state of the code, we need this

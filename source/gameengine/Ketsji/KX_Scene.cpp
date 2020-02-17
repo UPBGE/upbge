@@ -175,7 +175,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_gameDefaultCamera(nullptr),           // eevee
       m_shadingTypeBackup(0),                 // eevee
       m_shadingFlagBackup(0),                 // eevee
-      m_rv3dPersBackup(0),                    // eevee
       m_currentGPUViewport(nullptr),          // eevee
       m_initMaterialsGPUViewport(nullptr),    // eevee (See comment in .h)
       m_overlayCamera(nullptr),               // eevee (For overlay collections)
@@ -291,8 +290,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
 
-    m_rv3dPersBackup = CTX_wm_region_view3d(KX_GetActiveEngine()->GetContext())->persp;
-
     RenderAfterCameraSetup(nullptr, false);
   }
   else {
@@ -336,8 +333,6 @@ KX_Scene::~KX_Scene()
       v3d->shading.type = m_shadingTypeBackup;
       v3d->shading.flag = m_shadingFlagBackup;
     }
-
-    CTX_wm_region_view3d(KX_GetActiveEngine()->GetContext())->persp = m_rv3dPersBackup;
     /* This will free m_gpuViewport and m_gpuOffScreen */
     DRW_game_render_loop_end();
   }
@@ -733,10 +728,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     UpdateObjectLods(cam);
     SetCurrentGPUViewport(cam->GetGPUViewport());
 
+
     float winmat[4][4];
     cam->GetProjectionMatrix().getValue(&winmat[0][0]);
     CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-    CTX_wm_region_view3d(C)->persp = RV3D_CAMOB;
     ED_view3d_draw_setup_view(CTX_wm_window(C),
                               CTX_data_expect_evaluated_depsgraph(C),
                               CTX_data_scene(C),
@@ -836,7 +831,14 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, bmain, scene, window, false, true, false);
+  DRW_game_render_loop(C,
+                       m_currentGPUViewport,
+                       bmain,
+                       scene,
+                       window,
+                       false,
+                       true,
+                       false);
 
   GPU_matrix_pop_projection();
   GPU_matrix_pop();
