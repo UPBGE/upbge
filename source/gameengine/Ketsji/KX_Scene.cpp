@@ -837,9 +837,6 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                        false,
                        true,
                        false);
-
-  GPU_matrix_pop_projection();
-  GPU_matrix_pop();
 }
 
 /******************End of EEVEE INTEGRATION****************************/
