@@ -815,6 +815,7 @@ static bool set_pchan_color(const ArmatureDrawContext *ctx,
     case PCHAN_COLOR_SOLID: {
       if (bcolor) {
         rgb_uchar_to_float(fcolor, (uchar *)bcolor->solid);
+        fcolor[3] = 1.0f;
         /* Meh, hardcoded srgb transform here. */
         srgb_to_linearrgb_v4(fcolor, fcolor);
       }
@@ -2245,7 +2246,7 @@ void OVERLAY_armature_in_front_draw(OVERLAY_Data *vedata)
 {
   OVERLAY_PassList *psl = vedata->psl;
 
-  if (psl->armature_bone_select_ps == NULL) {
+  if (psl->armature_bone_select_ps == NULL || DRW_state_is_select()) {
     DRW_draw_pass(psl->armature_ps[1]);
   }
 }
