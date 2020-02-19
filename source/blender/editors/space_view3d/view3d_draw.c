@@ -1549,10 +1549,9 @@ void view3d_draw_region_info(const bContext *C, ARegion *ar)
 
 /* Game engine transition */
 #ifdef WITH_GAMEENGINE
-static void update_lods(Scene *scene, float camera_pos[3])
+static void update_lods(Depsgraph *depsgraph, Scene *scene, float camera_pos[3])
 {
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, scene, view_layer, false);
 
   DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob_eval) { // Here ob is evaluated object from depsgraph which will be rendered
     BKE_object_lod_update(DEG_get_original_object(ob_eval), camera_pos);
@@ -1582,7 +1581,7 @@ static void view3d_draw_view(const bContext *C, ARegion *ar)
   //if (STREQ(CTX_data_scene(C)->r.engine, RE_engine_id_BLENDER_EEVEE)) {
   /* Make sure LoDs are up to date */
   RegionView3D *rv3d = ar->regiondata;
-  update_lods(CTX_data_scene(C), rv3d->viewinv[3]);
+  update_lods(CTX_data_expect_evaluated_depsgraph(C), CTX_data_scene(C), rv3d->viewinv[3]);
   //}
 #endif
 /* End of Game engine transition */
