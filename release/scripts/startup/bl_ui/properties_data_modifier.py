@@ -170,7 +170,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         if md.limit_method == 'ANGLE':
             layout.prop(md, "angle_limit")
         elif md.limit_method == 'VGROUP':
-            layout.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+            row = layout.row(align=True)
+            row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+            row.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
 
         layout.label(text="Face Strength Mode:")
         layout.row().prop(md, "face_strength_mode", expand=True)
@@ -423,7 +425,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         col = split.column()
         col.label(text="Vertex Group:")
-        col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row = col.row(align=True)
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
         sub = col.column()
         sub.active = bool(md.vertex_group)
         sub.prop(md, "protect")
@@ -497,6 +501,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row = layout.row()
         row.enabled = not is_bind
         row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
 
         layout.separator()
 
@@ -525,7 +530,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "use_normalized")
 
         layout.label(text="Vertex Group:")
-        layout.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row = layout.row(align=True)
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
 
     def LATTICE(self, layout, ob, md):
         split = layout.split()
@@ -1472,7 +1479,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         col = split.column()
         col.label(text="Vertex Group:")
-        col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row = col.row(align=True)
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
 
         col = split.column()
         col.label(text="UV Map:")
