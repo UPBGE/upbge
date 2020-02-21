@@ -48,7 +48,7 @@ typedef struct BlendHandle BlendHandle;
 
 typedef enum eBlenFileType {
   BLENFILETYPE_BLEND = 1,
-  BLENFILETYPE_PUB = 2,
+  /* BLENFILETYPE_PUB = 2, */     /* UNUSED */
   BLENFILETYPE_RUNTIME = 3,
 } eBlenFileType;
 

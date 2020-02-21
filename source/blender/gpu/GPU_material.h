@@ -52,8 +52,6 @@ typedef struct GPUMaterial GPUMaterial;
 typedef struct GPUNode GPUNode;
 typedef struct GPUNodeLink GPUNodeLink;
 
-typedef struct GPUParticleInfo GPUParticleInfo;
-
 /* Functions to create GPU Materials nodes */
 
 typedef enum eGPUType {
@@ -143,7 +141,6 @@ GPUNodeLink *GPU_attribute(CustomDataType type, const char *name);
 GPUNodeLink *GPU_constant(float *num);
 GPUNodeLink *GPU_uniform(float *num);
 GPUNodeLink *GPU_image(struct Image *ima, struct ImageUser *iuser);
-GPUNodeLink *GPU_image_tilemap(struct Image *ima, struct ImageUser *iuser);
 GPUNodeLink *GPU_color_band(GPUMaterial *mat, int size, float *pixels, float *layer);
 GPUNodeLink *GPU_builtin(eGPUBuiltin builtin);
 

@@ -621,7 +621,7 @@ enum {
   OB_AXIS = 1 << 1,
   OB_TEXSPACE = 1 << 2,
   OB_DRAWNAME = 1 << 3,
-  OB_DRAWIMAGE = 1 << 4,
+  /* OB_DRAWIMAGE = 1 << 4, */ /* UNUSED */
   /* for solid+wire display */
   OB_DRAWWIRE = 1 << 5,
   /* for overdraw s*/
@@ -810,13 +810,13 @@ enum {
   /* object-channel expanded status */
   OB_ADS_COLLAPSED = 1 << 10,
   /* object's ipo-block */
-  OB_ADS_SHOWIPO = 1 << 11,
+  /* OB_ADS_SHOWIPO = 1 << 11, */ /* UNUSED */
   /* object's constraint channels */
-  OB_ADS_SHOWCONS = 1 << 12,
+  /* OB_ADS_SHOWCONS = 1 << 12, */ /* UNUSED */
   /* object's material channels */
-  OB_ADS_SHOWMATS = 1 << 13,
+  /* OB_ADS_SHOWMATS = 1 << 13, */ /* UNUSED */
   /* object's marticle channels */
-  OB_ADS_SHOWPARTS = 1 << 14,
+  /* OB_ADS_SHOWPARTS = 1 << 14, */ /* UNUSED */
 };
 
 /* ob->protectflag */

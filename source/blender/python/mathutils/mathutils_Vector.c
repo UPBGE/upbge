@@ -1273,31 +1273,42 @@ static PyObject *Vector_slerp(VectorObject *self, PyObject *args)
   return Vector_CreatePyObject(ret_vec, size, Py_TYPE(self));
 }
 
-PyDoc_STRVAR(Vector_rotate_doc,
-             ".. function:: rotate(other)\n"
-             "\n"
-             "   Rotate the vector by a rotation value.\n"
-             "\n"
-             "   :arg other: rotation component of mathutils value\n"
-             "   :type other: :class:`Euler`, :class:`Quaternion` or :class:`Matrix`\n");
+PyDoc_STRVAR(
+    Vector_rotate_doc,
+    ".. function:: rotate(other)\n"
+    "\n"
+    "   Rotate the vector by a rotation value.\n"
+    "\n"
+    "   .. note:: 2D vectors are a special case that can only be rotated by a 2x2 matrix.\n"
+    "\n"
+    "   :arg other: rotation component of mathutils value\n"
+    "   :type other: :class:`Euler`, :class:`Quaternion` or :class:`Matrix`\n");
 static PyObject *Vector_rotate(VectorObject *self, PyObject *value)
 {
-  float other_rmat[3][3];
-
   if (BaseMath_ReadCallback_ForWrite(self) == -1) {
     return NULL;
   }
 
-  if (mathutils_any_to_rotmat(other_rmat, value, "Vector.rotate(value)") == -1) {
-    return NULL;
+  if (self->size == 2) {
+    /* Special case for 2D Vector with 2x2 matrix, so we avoid resizing it to a 3x3. */
+    float other_rmat[2][2];
+    MatrixObject *pymat;
+    if (!Matrix_Parse2x2(value, &pymat)) {
+      return NULL;
+    }
+    normalize_m2_m2(other_rmat, (const float(*)[2])pymat->matrix);
+    /* Equivalent to a rotation along the Z axis. */
+    mul_m2_v2(other_rmat, self->vec);
   }
+  else {
+    float other_rmat[3][3];
 
-  if (self->size < 3 || self->size > 4) {
-    PyErr_SetString(PyExc_ValueError, "Vector must be 3D or 4D");
-    return NULL;
+    if (mathutils_any_to_rotmat(other_rmat, value, "Vector.rotate(value)") == -1) {
+      return NULL;
+    }
+
+    mul_m3_v3(other_rmat, self->vec);
   }
-
-  mul_m3_v3(other_rmat, self->vec);
 
   (void)BaseMath_WriteCallback(self);
   Py_RETURN_NONE;
@@ -2408,7 +2419,7 @@ static PyObject *Vector_swizzle_get(VectorObject *self, void *closure)
   size_t axis_to;
   size_t axis_from;
   float vec[MAX_DIMENSIONS];
-  unsigned int swizzleClosure;
+  uint swizzleClosure;
 
   if (BaseMath_ReadCallback(self) == -1) {
     return NULL;
@@ -2453,7 +2464,7 @@ static int Vector_swizzle_set(VectorObject *self, PyObject *value, void *closure
   size_t axis_from;
   size_t axis_to;
 
-  unsigned int swizzleClosure;
+  uint swizzleClosure;
 
   float tvec[MAX_DIMENSIONS];
   float vec_assign[MAX_DIMENSIONS];
@@ -3207,10 +3218,7 @@ PyObject *Vector_CreatePyObject_wrap(float *vec, const int size, PyTypeObject *b
  * Create a vector where the value is defined by registered callbacks,
  * see: #Mathutils_RegisterCallback
  */
-PyObject *Vector_CreatePyObject_cb(PyObject *cb_user,
-                                   int size,
-                                   unsigned char cb_type,
-                                   unsigned char cb_subtype)
+PyObject *Vector_CreatePyObject_cb(PyObject *cb_user, int size, uchar cb_type, uchar cb_subtype)
 {
   VectorObject *self = (VectorObject *)Vector_CreatePyObject(NULL, size, NULL);
   if (self) {
@@ -3225,14 +3233,14 @@ PyObject *Vector_CreatePyObject_cb(PyObject *cb_user,
 }
 
 /**
- * \param vec: Initialized vector value to use in-place, allocated with: PyMem_Malloc
+ * \param vec: Initialized vector value to use in-place, allocated with #PyMem_Malloc
  */
 PyObject *Vector_CreatePyObject_alloc(float *vec, const int size, PyTypeObject *base_type)
 {
   VectorObject *self;
   self = (VectorObject *)Vector_CreatePyObject_wrap(vec, size, base_type);
   if (self) {
-    self->flag = BASE_MATH_FLAG_DEFAULT;
+    self->flag &= ~BASE_MATH_FLAG_IS_WRAP;
   }
 
   return (PyObject *)self;

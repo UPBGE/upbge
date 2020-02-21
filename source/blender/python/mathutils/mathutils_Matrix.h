@@ -24,6 +24,8 @@
 extern PyTypeObject matrix_Type;
 extern PyTypeObject matrix_access_Type;
 
+typedef unsigned short ushort;
+
 #define MatrixObject_Check(v) PyObject_TypeCheck((v), &matrix_Type)
 #define MatrixObject_CheckExact(v) (Py_TYPE(v) == &matrix_Type)
 
@@ -49,8 +51,8 @@ extern PyTypeObject matrix_access_Type;
 
 typedef struct {
   BASE_MATH_MEMBERS(matrix);
-  unsigned short num_col;
-  unsigned short num_row;
+  ushort num_col;
+  ushort num_row;
 } MatrixObject;
 
 /* struct data contains a pointer to the actual data that the
@@ -60,12 +62,12 @@ typedef struct {
 
 /* prototypes */
 PyObject *Matrix_CreatePyObject(const float *mat,
-                                const unsigned short num_col,
-                                const unsigned short num_row,
+                                const ushort num_col,
+                                const ushort num_row,
                                 PyTypeObject *base_type) ATTR_WARN_UNUSED_RESULT;
 PyObject *Matrix_CreatePyObject_wrap(float *mat,
-                                     const unsigned short num_col,
-                                     const unsigned short num_row,
+                                     const ushort num_col,
+                                     const ushort num_row,
                                      PyTypeObject *base_type) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1);
 PyObject *Matrix_CreatePyObject_cb(PyObject *user,
@@ -74,8 +76,14 @@ PyObject *Matrix_CreatePyObject_cb(PyObject *user,
                                    unsigned char cb_type,
                                    unsigned char cb_subtype) ATTR_WARN_UNUSED_RESULT;
 
+PyObject *Matrix_CreatePyObject_alloc(float *mat,
+                                      const ushort num_col,
+                                      const ushort num_row,
+                                      PyTypeObject *base_type) ATTR_WARN_UNUSED_RESULT;
+
 /* PyArg_ParseTuple's "O&" formatting helpers. */
 int Matrix_ParseAny(PyObject *o, void *p);
+int Matrix_Parse2x2(PyObject *o, void *p);
 int Matrix_Parse3x3(PyObject *o, void *p);
 int Matrix_Parse4x4(PyObject *o, void *p);
 

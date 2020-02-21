@@ -316,7 +316,6 @@ void BKE_object_eval_transform_all(struct Depsgraph *depsgraph,
                                    struct Scene *scene,
                                    struct Object *object);
 
-void BKE_object_eval_update_shading(struct Depsgraph *depsgraph, struct Object *object);
 void BKE_object_data_select_update(struct Depsgraph *depsgraph, struct ID *object_data);
 void BKE_object_select_update(struct Depsgraph *depsgraph, struct Object *object);
 
@@ -388,7 +387,8 @@ typedef enum eObRelationTypes {
   OB_REL_CHILDREN = (1 << 2),           /* immediate children */
   OB_REL_CHILDREN_RECURSIVE = (1 << 3), /* All children */
   OB_REL_MOD_ARMATURE = (1 << 4),       /* Armatures related to the selected objects */
-  OB_REL_SCENE_CAMERA = (1 << 5), /* you might want the scene camera too even if unselected? */
+  /* OB_REL_SCENE_CAMERA = (1 << 5), */ /* you might want the scene camera too even if unselected?
+                                         */
 } eObRelationTypes;
 
 typedef enum eObjectSet {
