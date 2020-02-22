@@ -1000,9 +1000,12 @@ elseif(APPLE)
   # note we are using OSX Bundle as base and copying Blender dummy bundle on top of it
   if(WITH_GAMEENGINE AND WITH_PLAYER)
     set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blenderplayer.app)
-    set(PLAYER_SOURCEINFO ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist)
     set(PLAYER_TARGETDIR_VER blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
 
+    set_target_properties(blenderplayer PROPERTIES
+      MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist
+      MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR}"
+      MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR} ${BLENDER_DATE}")
 
   # important to make a clean  install each time else old scripts get loaded.
     install(
@@ -1014,22 +1017,30 @@ elseif(APPLE)
     execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE}
                     ${EXECUTABLE_OUTPUT_PATH}/blenderplayer.app)
 
-    install(
+   install(
+     TARGETS blenderplayer
+     DESTINATION "."
+   )
+
+   # install release and app files
+   set(BLENDER_TEXT_FILES_DESTINATION blenderplayer.app/Contents/Resources/text)
+
+   install(
       FILES ${OSX_APP_PLAYER_SOURCEDIR}/Contents/PkgInfo
       DESTINATION blenderplayer.app/Contents
-    )
+   )
 
-    install_dir(
+   install_dir(
       ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Resources
       blenderplayer.app/Contents/
-    )
+   )
 
-    if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
+   if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
       install(
         FILES ${LIBDIR}/openmp/lib/libomp.dylib
         DESTINATION blenderplayer.app/Contents/Resources/lib/
       )
-    endif()
+   endif()
 
 
     # python
