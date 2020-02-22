@@ -710,6 +710,7 @@ extern StructRNA RNA_View3DCursor;
 extern StructRNA RNA_View3DOverlay;
 extern StructRNA RNA_View3DShading;
 extern StructRNA RNA_ViewLayer;
+extern StructRNA RNA_ViewLayerEEVEE;
 extern StructRNA RNA_VoronoiTexture;
 extern StructRNA RNA_WalkNavigation;
 extern StructRNA RNA_WarpModifier;

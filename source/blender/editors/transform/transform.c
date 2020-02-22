@@ -25,7 +25,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_armature_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_mesh_types.h"
@@ -917,7 +916,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           restoreTransObjects(t);
           resetTransModal(t);
           resetTransRestrictions(t);
-          initTranslation(t);
+          transform_mode_init(t, NULL, TFM_TRANSLATION);
           initSnapping(t, NULL);  // need to reinit after mode change
           t->redraw |= TREDRAW_HARD;
           handled = true;
@@ -935,21 +934,20 @@ int transformEvent(TransInfo *t, const wmEvent *event)
               resetTransRestrictions(t);
 
               /* first try edge slide */
-              initEdgeSlide(t);
+              transform_mode_init(t, NULL, TFM_EDGE_SLIDE);
               /* if that fails, do vertex slide */
               if (t->state == TRANS_CANCEL) {
                 resetTransModal(t);
                 t->state = TRANS_STARTING;
-                initVertSlide(t);
+                transform_mode_init(t, NULL, TFM_VERT_SLIDE);
               }
               /* vert slide can fail on unconnected vertices (rare but possible) */
               if (t->state == TRANS_CANCEL) {
                 resetTransModal(t);
-                t->mode = TFM_TRANSLATION;
                 t->state = TRANS_STARTING;
                 restoreTransObjects(t);
                 resetTransRestrictions(t);
-                initTranslation(t);
+                transform_mode_init(t, NULL, TFM_TRANSLATION);
               }
               initSnapping(t, NULL);  // need to reinit after mode change
               t->redraw |= TREDRAW_HARD;
@@ -982,10 +980,10 @@ int transformEvent(TransInfo *t, const wmEvent *event)
             resetTransRestrictions(t);
 
             if (t->mode == TFM_ROTATION) {
-              initTrackball(t);
+              transform_mode_init(t, NULL, TFM_TRACKBALL);
             }
             else {
-              initRotation(t);
+              transform_mode_init(t, NULL, TFM_ROTATION);
             }
             initSnapping(t, NULL);  // need to reinit after mode change
             t->redraw |= TREDRAW_HARD;
@@ -1010,7 +1008,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           restoreTransObjects(t);
           resetTransModal(t);
           resetTransRestrictions(t);
-          initResize(t);
+          transform_mode_init(t, NULL, TFM_RESIZE);
           initSnapping(t, NULL);  // need to reinit after mode change
           t->redraw |= TREDRAW_HARD;
           handled = true;
@@ -1214,7 +1212,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
             }
             else if (t->mode == TFM_ROTATION) {
               restoreTransObjects(t);
-              initTrackball(t);
+              transform_mode_init(t, NULL, TFM_TRACKBALL);
             }
           }
           else {
@@ -1256,7 +1254,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           restoreTransObjects(t);
           resetTransModal(t);
           resetTransRestrictions(t);
-          initTranslation(t);
+          transform_mode_init(t, NULL, TFM_TRANSLATION);
           initSnapping(t, NULL);  // need to reinit after mode change
           t->redraw |= TREDRAW_HARD;
           handled = true;
@@ -1268,7 +1266,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           restoreTransObjects(t);
           resetTransModal(t);
           resetTransRestrictions(t);
-          initResize(t);
+          transform_mode_init(t, NULL, TFM_RESIZE);
           initSnapping(t, NULL);  // need to reinit after mode change
           t->redraw |= TREDRAW_HARD;
           handled = true;
@@ -1283,10 +1281,10 @@ int transformEvent(TransInfo *t, const wmEvent *event)
             resetTransRestrictions(t);
 
             if (t->mode == TFM_ROTATION) {
-              initTrackball(t);
+              transform_mode_init(t, NULL, TFM_TRACKBALL);
             }
             else {
-              initRotation(t);
+              transform_mode_init(t, NULL, TFM_ROTATION);
             }
             initSnapping(t, NULL);  // need to reinit after mode change
             t->redraw |= TREDRAW_HARD;
@@ -1368,7 +1366,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
             restoreTransObjects(t);
             resetTransModal(t);
             resetTransRestrictions(t);
-            initNormalRotation(t);
+            transform_mode_init(t, NULL, TFM_NORMAL_ROTATION);
             t->redraw = TREDRAW_HARD;
             handled = true;
           }
@@ -2113,145 +2111,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     initMouseInput(t, &t->mouse, t->center2d, event->mval, use_accurate);
   }
 
-  switch (mode) {
-    case TFM_TRANSLATION:
-      initTranslation(t);
-      break;
-    case TFM_ROTATION:
-      initRotation(t);
-      break;
-    case TFM_RESIZE:
-      initResize(t);
-      break;
-    case TFM_SKIN_RESIZE:
-      initSkinResize(t);
-      break;
-    case TFM_TOSPHERE:
-      initToSphere(t);
-      break;
-    case TFM_SHEAR:
-      initShear(t);
-      break;
-    case TFM_BEND:
-      initBend(t);
-      break;
-    case TFM_SHRINKFATTEN:
-      initShrinkFatten(t);
-      break;
-    case TFM_TILT:
-      initTilt(t);
-      break;
-    case TFM_CURVE_SHRINKFATTEN:
-      initCurveShrinkFatten(t);
-      break;
-    case TFM_MASK_SHRINKFATTEN:
-      initMaskShrinkFatten(t);
-      break;
-    case TFM_GPENCIL_SHRINKFATTEN:
-      initGPShrinkFatten(t);
-      break;
-    case TFM_TRACKBALL:
-      initTrackball(t);
-      break;
-    case TFM_PUSHPULL:
-      initPushPull(t);
-      break;
-    case TFM_CREASE:
-      initCrease(t);
-      break;
-    case TFM_BONESIZE: { /* used for both B-Bone width (bonesize) as for deform-dist (envelope) */
-      /* Note: we have to pick one, use the active object. */
-      TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_OK(t);
-      bArmature *arm = tc->poseobj->data;
-      if (arm->drawtype == ARM_ENVELOPE) {
-        initBoneEnvelope(t);
-        t->mode = TFM_BONE_ENVELOPE_DIST;
-      }
-      else {
-        initBoneSize(t);
-      }
-      break;
-    }
-    case TFM_BONE_ENVELOPE:
-      initBoneEnvelope(t);
-      break;
-    case TFM_BONE_ENVELOPE_DIST:
-      initBoneEnvelope(t);
-      t->mode = TFM_BONE_ENVELOPE_DIST;
-      break;
-    case TFM_EDGE_SLIDE:
-    case TFM_VERT_SLIDE: {
-      const bool use_even = (op ? RNA_boolean_get(op->ptr, "use_even") : false);
-      const bool flipped = (op ? RNA_boolean_get(op->ptr, "flipped") : false);
-      const bool use_clamp = (op ? RNA_boolean_get(op->ptr, "use_clamp") : true);
-      if (mode == TFM_EDGE_SLIDE) {
-        const bool use_double_side = (op ? !RNA_boolean_get(op->ptr, "single_side") : true);
-        initEdgeSlide_ex(t, use_double_side, use_even, flipped, use_clamp);
-      }
-      else {
-        initVertSlide_ex(t, use_even, flipped, use_clamp);
-      }
-      break;
-    }
-    case TFM_BONE_ROLL:
-      initBoneRoll(t);
-      break;
-    case TFM_TIME_TRANSLATE:
-      initTimeTranslate(t);
-      break;
-    case TFM_TIME_SLIDE:
-      initTimeSlide(t);
-      break;
-    case TFM_TIME_SCALE:
-      initTimeScale(t);
-      break;
-    case TFM_TIME_DUPLICATE:
-      /* same as TFM_TIME_EXTEND, but we need the mode info for later
-       * so that duplicate-culling will work properly
-       */
-      if (ELEM(t->spacetype, SPACE_GRAPH, SPACE_NLA)) {
-        initTranslation(t);
-      }
-      else {
-        initTimeTranslate(t);
-      }
-      t->mode = mode;
-      break;
-    case TFM_TIME_EXTEND:
-      /* now that transdata has been made, do like for TFM_TIME_TRANSLATE (for most Animation
-       * Editors because they have only 1D transforms for time values) or TFM_TRANSLATION
-       * (for Graph/NLA Editors only since they uses 'standard' transforms to get 2D movement)
-       * depending on which editor this was called from
-       */
-      if (ELEM(t->spacetype, SPACE_GRAPH, SPACE_NLA)) {
-        initTranslation(t);
-      }
-      else {
-        initTimeTranslate(t);
-      }
-      break;
-    case TFM_BAKE_TIME:
-      initBakeTime(t);
-      break;
-    case TFM_MIRROR:
-      initMirror(t);
-      break;
-    case TFM_BWEIGHT:
-      initBevelWeight(t);
-      break;
-    case TFM_ALIGN:
-      initAlign(t);
-      break;
-    case TFM_SEQ_SLIDE:
-      initSeqSlide(t);
-      break;
-    case TFM_NORMAL_ROTATION:
-      initNormalRotation(t);
-      break;
-    case TFM_GPENCIL_OPACITY:
-      initGPOpacity(t);
-      break;
-  }
+  transform_mode_init(t, op, mode);
 
   if (t->state == TRANS_CANCEL) {
     postTrans(C, t);

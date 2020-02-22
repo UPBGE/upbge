@@ -374,6 +374,16 @@ void WM_toolsystem_ref_set_from_runtime(struct bContext *C,
 
   toolsystem_refresh_screen_from_active_tool(bmain, workspace, tref);
 
+  /* Set the cursor if possible, if not - it's fine as entering the region will refresh it. */
+  {
+    wmWindow *win = CTX_wm_window(C);
+    ScrArea *sa = CTX_wm_area(C);
+    if (win && sa) {
+      win->addmousemove = true;
+      sa->flag |= AREA_FLAG_CURSOR_UPDATE;
+    }
+  }
+
   {
     struct wmMsgBus *mbus = CTX_wm_message_bus(C);
     WM_msg_publish_rna_prop(mbus, &workspace->id, workspace, WorkSpace, tools);
