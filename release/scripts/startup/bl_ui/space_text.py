@@ -297,6 +297,18 @@ class TEXT_MT_templates_osl(Menu):
         )
 
 
+class TEXT_MT_templates_glsl(Menu):
+    bl_label = "OpenGL Shading Language"
+
+    def draw(self, _context):
+        self.path_menu(
+            bpy.utils.script_paths("templates_glsl"),
+            "text.open",
+            props_default={"internal": True},
+            filter_ext=lambda ext: (ext.lower() == ".glsl")
+        )
+
+
 class TEXT_MT_templates(Menu):
     bl_label = "Templates"
 
@@ -304,6 +316,7 @@ class TEXT_MT_templates(Menu):
         layout = self.layout
         layout.menu("TEXT_MT_templates_py")
         layout.menu("TEXT_MT_templates_osl")
+        layout.menu("TEXT_MT_templates_glsl")
 
 
 class TEXT_MT_select(Menu):
@@ -454,6 +467,7 @@ classes = (
     TEXT_MT_templates,
     TEXT_MT_templates_py,
     TEXT_MT_templates_osl,
+    TEXT_MT_templates_glsl,
     TEXT_MT_select,
     TEXT_MT_format,
     TEXT_MT_edit_to3d,
