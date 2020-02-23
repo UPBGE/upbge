@@ -1091,7 +1091,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
 			case ACT_SOUND:
 			{
 				bSoundActuator *sa = actuator->data;
-				func(actuator, (ID **)&sa->sound, userdata, IDWALK_CB_NOP);
+				func(actuator, (ID **)&sa->sound, userdata, IDWALK_CB_USER);
 				break;
 			}
 			case ACT_EDIT_OBJECT:
