@@ -188,6 +188,260 @@ if(WITH_BUILDINFO)
   add_dependencies(blenderplayer buildinfo_player)
 endif()
 
+# Apple treats both executables in a self-contained manner.
+# Therefore we have to copy all the resources for the blenderplayer as well
+if(APPLE)
+
+  set(PLAYER_TARGETDIR_VER Blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
+
+  # Skip relinking on cpack / install
+  set_target_properties(blenderplayer PROPERTIES BUILD_WITH_INSTALL_RPATH true)
+
+  set(BLENDERPLAYER_TEXT_FILES
+    ${CMAKE_SOURCE_DIR}/release/text/GPL-license.txt
+    ${CMAKE_SOURCE_DIR}/release/text/GPL3-license.txt
+    ${CMAKE_SOURCE_DIR}/release/text/copyright.txt
+    # generate this file
+    # ${CMAKE_SOURCE_DIR}/release/text/readme.html
+    ${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bfont.ttf.txt
+  )
+
+  if(WITH_PYTHON)
+    list(APPEND BLENDERPLAYER_TEXT_FILES
+      ${CMAKE_SOURCE_DIR}/release/text/Python-license.txt
+    )
+  endif()
+
+  if(WITH_OPENCOLORIO)
+    list(APPEND BLENDERPLAYER_TEXT_FILES
+      ${CMAKE_SOURCE_DIR}/release/text/ocio-license.txt
+    )
+  endif()
+
+  if(WITH_MEM_JEMALLOC)
+    list(APPEND BLENDERPLAYER_TEXT_FILES
+      ${CMAKE_SOURCE_DIR}/release/text/jemalloc-license.txt
+    )
+  endif()
+
+  if(WITH_INTERNATIONAL)
+    list(APPEND BLENDERPLAYER_TEXT_FILES
+      ${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-droidsans.ttf.txt
+      ${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bmonofont-i18n.ttf.txt
+    )
+  endif()
+
+  # -----------------------------------------------------------------------------
+  # Install Targets (Generic, All Platforms)
+  # important to make a clean  install each time, else old scripts get loaded.
+  install(
+    CODE
+    "file(REMOVE_RECURSE ${PLAYER_TARGETDIR_VER})"
+  )
+
+  if(WITH_PYTHON)
+    # install(CODE "message(\"copying blender scripts...\")")
+
+    # exclude addons_contrib if release
+    if("${BLENDER_VERSION_CYCLE}" STREQUAL "release" OR
+       "${BLENDER_VERSION_CYCLE}" STREQUAL "rc")
+      set(ADDON_EXCLUDE_CONDITIONAL "addons_contrib/*")
+    else()
+      set(ADDON_EXCLUDE_CONDITIONAL "_addons_contrib/*")  # dummy, wont do anything
+    endif()
+
+    # do not install freestyle dir if disabled
+    if(NOT WITH_FREESTYLE)
+      set(FREESTYLE_EXCLUDE_CONDITIONAL "freestyle/*")
+    else()
+      set(FREESTYLE_EXCLUDE_CONDITIONAL "_freestyle/*")  # dummy, wont do anything
+    endif()
+
+    install(
+      DIRECTORY ${CMAKE_SOURCE_DIR}/release/scripts
+      DESTINATION ${PLAYER_TARGETDIR_VER}
+      PATTERN ".git" EXCLUDE
+      PATTERN ".gitignore" EXCLUDE
+      PATTERN ".arcconfig" EXCLUDE
+      PATTERN "__pycache__" EXCLUDE
+      PATTERN "${ADDON_EXCLUDE_CONDITIONAL}" EXCLUDE
+      PATTERN "${FREESTYLE_EXCLUDE_CONDITIONAL}" EXCLUDE
+    )
+
+    unset(ADDON_EXCLUDE_CONDITIONAL)
+    unset(FREESTYLE_EXCLUDE_CONDITIONAL)
+  endif()
+
+  # localization
+  install(
+    DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/fonts
+    DESTINATION ${PLAYER_TARGETDIR_VER}/datafiles
+  )
+
+  # color management
+  if(WITH_OPENCOLORIO)
+    install(
+      DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/colormanagement
+      DESTINATION ${PLAYER_TARGETDIR_VER}/datafiles
+    )
+  endif()
+
+  # game controller data base
+  if(WITH_GAMEENGINE AND WITH_SDL)
+    install(
+      DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/gamecontroller
+      DESTINATION ${PLAYER_TARGETDIR_VER}/datafiles
+    )
+  endif()
+
+  if(NOT WITH_PYTHON_MODULE)
+    # Uppercase name for app bundle
+    set_target_properties(blenderplayer PROPERTIES OUTPUT_NAME Blenderplayer)
+  endif()
+
+  # handy install macro to exclude files, we use \$ escape for the "to"
+  # argument when calling so ${BUILD_TYPE} does not get expanded
+  macro(install_dir from to)
+    install(
+      DIRECTORY ${from}
+      DESTINATION ${to}
+      PATTERN ".git" EXCLUDE
+      PATTERN ".svn" EXCLUDE
+      PATTERN "*.pyc" EXCLUDE
+      PATTERN "*.pyo" EXCLUDE
+      PATTERN "*.orig" EXCLUDE
+      PATTERN "*.rej" EXCLUDE
+      PATTERN "__pycache__" EXCLUDE
+      PATTERN "__MACOSX" EXCLUDE
+      PATTERN ".DS_Store" EXCLUDE
+      PATTERN "config-${PYTHON_VERSION}m/*.a" EXCLUDE  # static lib
+      PATTERN "lib2to3" EXCLUDE                   # ./lib2to3
+      PATTERN "tkinter" EXCLUDE                   # ./tkinter
+      PATTERN "lib-dynload/_tkinter.*" EXCLUDE    # ./lib-dynload/_tkinter.co
+      PATTERN "idlelib" EXCLUDE                   # ./idlelib
+      PATTERN "test" EXCLUDE                      # ./test
+      PATTERN "turtledemo" EXCLUDE                # ./turtledemo
+      PATTERN "turtle.py" EXCLUDE                 # ./turtle.py
+      PATTERN "wininst*.exe" EXCLUDE              # from distutils, avoid malware false positive
+    )
+  endmacro()
+
+  set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/Blenderplayer.app)
+
+  # setup Info.plist
+  execute_process(COMMAND date "+%Y-%m-%d"
+                  OUTPUT_VARIABLE BLENDER_DATE
+                  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+  set_target_properties(blenderplayer PROPERTIES
+    MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR}"
+    MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR} ${BLENDER_DATE}")
+
+  # Gather the date in finder-style
+  execute_process(COMMAND date "+%m/%d/%Y/%H:%M"
+  OUTPUT_VARIABLE SETFILE_DATE
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+  # Give the bundle actual creation/modification date
+  execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE}
+                  ${EXECUTABLE_OUTPUT_PATH}/Blenderplayer.app)
+
+  install(
+    TARGETS blenderplayer
+    DESTINATION "."
+  )
+
+  # install release and app files
+  set(BLENDER_TEXT_FILES_DESTINATION Blenderplayer.app/Contents/Resources/text)
+
+  install(
+    FILES ${OSX_APP_PLAYER_SOURCEDIR}/Contents/PkgInfo
+    DESTINATION Blenderplayer.app/Contents
+  )
+
+  install_dir(
+    ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Resources
+    Blenderplayer.app/Contents/
+  )
+
+  if(WITH_OPENMP AND OPENMP_CUSTOM)
+    install(
+      FILES ${LIBDIR}/openmp/lib/libomp.dylib
+      DESTINATION Blenderplayer.app/Contents/Resources/lib
+    )
+  endif()
+
+  if(WITH_LLVM AND NOT LLVM_STATIC)
+    install(
+      FILES ${LIBDIR}/llvm/lib/libLLVM-3.4.dylib
+      DESTINATION Blenderplayer.app/Contents/MacOS
+    )
+  endif()
+
+  # python
+  if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
+    # Copy the python libs into the install directory
+    install_dir(
+      ${PYTHON_LIBPATH}
+      ${PLAYER_TARGETDIR_VER}/python/lib
+    )
+
+    install(DIRECTORY ${LIBDIR}/python/bin
+      DESTINATION ${PLAYER_TARGETDIR_VER}/python
+      USE_SOURCE_PERMISSIONS
+    )
+
+    # Needed for distutils/pip
+    # get the last part of the include dir, will be 'python{version}{abiflag}',
+    get_filename_component(_py_inc_suffix ${PYTHON_INCLUDE_DIR} NAME)
+    install(
+      FILES ${PYTHON_INCLUDE_DIR}/pyconfig.h
+      DESTINATION ${PLAYER_TARGETDIR_VER}/python/include/${_py_inc_suffix}
+    )
+    unset(_py_inc_suffix)
+  endif()
+
+  # -----------------------------------------------------------------------------
+  # Generic Install, for all targets
+
+  if(DEFINED BLENDERPLAYER_TEXT_FILES_DESTINATION)
+
+    install(
+      CODE
+      "
+      file(READ \"${CMAKE_SOURCE_DIR}/release/text/readme.html\" DATA_SRC)
+      string(REGEX REPLACE \"BLENDER_VERSION\" \"${BLENDER_VERSION}\" DATA_DST \"\${DATA_SRC}\")
+      file(WRITE \"${CMAKE_BINARY_DIR}/release/text/readme.html\" \"\${DATA_DST}\")
+      unset(DATA_SRC)
+      unset(DATA_DST)
+      "
+    )
+    list(APPEND BLENDERPLAYER_TEXT_FILES
+      ${CMAKE_BINARY_DIR}/release/text/readme.html
+    )
+
+    install(
+      FILES ${BLENDERPLAYER_TEXT_FILES}
+      DESTINATION "${BLENDERPLAYER_TEXT_FILES_DESTINATION}"
+    )
+  endif()
+
+  # install more files specified elsewhere
+  delayed_do_install(${PLAYER_TARGETDIR_VER})
+
+  unset(BLENDERPLAYER_TEXT_FILES)
+  unset(BLENDERPLAYER_TEXT_FILES_DESTINATION)
+
+  # -----------------------------------------------------------------------------
+  # Studio Lights
+  install(
+    DIRECTORY
+    ${CMAKE_SOURCE_DIR}/release/datafiles/studiolights
+    DESTINATION ${PLAYER_TARGETDIR_VER}/datafiles
+  )
+endif()
+
 add_dependencies(blenderplayer makesdna)
 
 target_link_libraries(blenderplayer ${LIB})

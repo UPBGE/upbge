@@ -1590,7 +1590,7 @@ class WM_OT_blenderplayer_start(Operator):
         # done static vars
 
         if sys.platform == "darwin":
-            player_path = os.path.join(blender_bin_dir, "../../../blenderplayer.app/Contents/MacOS/blenderplayer")
+            player_path = os.path.join(blender_bin_dir, "../../../Blenderplayer.app/Contents/MacOS/blenderplayer")
 
         if not os.path.exists(player_path):
             self.report({'ERROR'}, "Player path: %r not found" % player_path)
