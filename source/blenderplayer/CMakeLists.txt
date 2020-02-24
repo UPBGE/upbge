@@ -275,14 +275,14 @@ if(APPLE)
   # localization
   install(
     DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/fonts
-    DESTINATION ${TARGETDIR_VER}/datafiles
+    DESTINATION ${PLAYER_TARGETDIR_VER}/datafiles
   )
 
   # color management
   if(WITH_OPENCOLORIO)
     install(
       DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/colormanagement
-      DESTINATION ${TARGETDIR_VER}/datafiles
+      DESTINATION ${PLAYER_TARGETDIR_VER}/datafiles
     )
   endif()
 
@@ -290,7 +290,7 @@ if(APPLE)
   if(WITH_GAMEENGINE AND WITH_SDL)
     install(
       DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/gamecontroller
-      DESTINATION ${TARGETDIR_VER}/datafiles
+      DESTINATION ${PLAYER_TARGETDIR_VER}/datafiles
     )
   endif()
 
