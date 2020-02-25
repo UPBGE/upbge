@@ -239,11 +239,10 @@ typedef struct wmWindow {
   /** Window coords. */
   short posx, posy, sizex, sizey;
   /** Borderless, full. */
-  short windowstate;
-  /** Multiscreen... no idea how to store yet. */
-  short monitor;
+  char windowstate;
   /** Set to 1 if an active window, for quick rejects. */
-  short active;
+  char active;
+  char _pad0[4];
   /** Current mouse cursor type. */
   short cursor;
   /** Previous cursor when setting modal one. */
@@ -254,7 +253,8 @@ typedef struct wmWindow {
   short grabcursor;
   /** Internal: tag this for extra mousemove event,
    * makes cursors/buttons active on UI switching. */
-  short addmousemove;
+  char addmousemove;
+  char tag_cursor_refresh;
 
   /** Winid also in screens, is for retrieving this window after read. */
   int winid;

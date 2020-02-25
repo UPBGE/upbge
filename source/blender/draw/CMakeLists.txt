@@ -245,7 +245,6 @@ data_to_c_simple(engines/eevee/shaders/volumetric_integration_frag.glsl SRC)
 
 data_to_c_simple(engines/workbench/shaders/workbench_cavity_lib.glsl SRC)
 data_to_c_simple(engines/workbench/shaders/workbench_cavity_frag.glsl SRC)
-data_to_c_simple(engines/workbench/shaders/workbench_checkerboard_depth_frag.glsl SRC)
 data_to_c_simple(engines/workbench/shaders/workbench_common_lib.glsl SRC)
 data_to_c_simple(engines/workbench/shaders/workbench_data_lib.glsl SRC)
 data_to_c_simple(engines/workbench/shaders/workbench_deferred_composite_frag.glsl SRC)
@@ -392,6 +391,7 @@ data_to_c_simple(engines/overlay/shaders/sculpt_mask_vert.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/volume_velocity_vert.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/wireframe_vert.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/wireframe_frag.glsl SRC)
+data_to_c_simple(engines/overlay/shaders/xray_fade_frag.glsl SRC)
 
 list(APPEND INC
 )
