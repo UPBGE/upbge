@@ -5440,6 +5440,7 @@ class VIEW3D_PT_shading_lighting(Panel):
                 col.prop(shading, "studiolight_rotate_z", text="Rotation")
                 col.prop(shading, "studiolight_intensity")
                 col.prop(shading, "studiolight_background_alpha")
+                col.prop(shading, "studiolight_background_blur")
                 col = split.column()  # to align properly with above
 
         elif shading.type == 'RENDERED':
@@ -5463,6 +5464,7 @@ class VIEW3D_PT_shading_lighting(Panel):
                 col.prop(shading, "studiolight_rotate_z", text="Rotation")
                 col.prop(shading, "studiolight_intensity")
                 col.prop(shading, "studiolight_background_alpha")
+                col.prop(shading, "studiolight_background_blur")
                 col = split.column()  # to align properly with above
 
 

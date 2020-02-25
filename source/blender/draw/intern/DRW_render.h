@@ -31,6 +31,8 @@
 extern "C" {
 #endif
 
+#include "../draw/DRW_engine_types.h"
+
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -63,10 +65,8 @@ extern "C" {
 
 #include "RE_engine.h"
 
-#include "../depsgraph/DEG_depsgraph.h" // For bge (EvaluationContext)
+#include "../depsgraph/DEG_depsgraph.h"
 
-struct DefaultFramebufferList;
-struct DefaultTextureList;
 struct GPUBatch;
 struct GPUFrameBuffer;
 struct GPUMaterial;
@@ -137,25 +137,6 @@ typedef struct DrawEngineType {
                           struct RenderLayer *layer,
                           const struct rcti *rect);
 } DrawEngineType;
-
-#ifndef __DRW_ENGINE_H__
-/* Buffer and textures used by the viewport by default */
-typedef struct DefaultFramebufferList {
-  struct GPUFrameBuffer *default_fb;
-  struct GPUFrameBuffer *overlay_fb;
-  struct GPUFrameBuffer *in_front_fb;
-  struct GPUFrameBuffer *color_only_fb;
-  struct GPUFrameBuffer *depth_only_fb;
-  struct GPUFrameBuffer *overlay_only_fb;
-} DefaultFramebufferList;
-
-typedef struct DefaultTextureList {
-  struct GPUTexture *color;
-  struct GPUTexture *color_overlay;
-  struct GPUTexture *depth;
-  struct GPUTexture *depth_in_front;
-} DefaultTextureList;
-#endif
 
 /* Textures */
 typedef enum {

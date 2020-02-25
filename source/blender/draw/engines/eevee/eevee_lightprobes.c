@@ -186,7 +186,7 @@ void EEVEE_lightprobes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 #elif defined(IRRADIANCE_HL2)
     int grid_res = 4;
 #endif
-    int cube_res = OCTAHEDRAL_SIZE_FROM_CUBESIZE(scene_eval->eevee.gi_cubemap_resolution);
+    int cube_res = octahedral_size_from_cubesize(scene_eval->eevee.gi_cubemap_resolution);
     int vis_res = scene_eval->eevee.gi_visibility_resolution;
     sldata->fallback_lightcache = EEVEE_lightcache_create(
         1, 1, cube_res, vis_res, (int[3]){grid_res, grid_res, 1});
@@ -343,7 +343,7 @@ void EEVEE_lightprobes_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedat
     const float *col = G_draw.block.colorBackground;
 
     /* LookDev */
-    EEVEE_lookdev_cache_init(vedata, &grp, psl->probe_background, 1.0f, wo, pinfo);
+    EEVEE_lookdev_cache_init(vedata, sldata, &grp, psl->probe_background, wo, pinfo);
     /* END */
 
     if (!grp && wo) {
@@ -1061,7 +1061,7 @@ void EEVEE_lightbake_filter_glossy(EEVEE_ViewLayerData *sldata,
   float target_size = (float)GPU_texture_width(rt_color);
 
   /* Max lod used from the render target probe */
-  pinfo->lod_rt_max = floorf(log2f(target_size)) - 2.0f;
+  pinfo->lod_rt_max = log2_floor_u(target_size) - 2.0f;
   pinfo->intensity_fac = intensity;
 
   /* Start fresh */
@@ -1170,7 +1170,7 @@ void EEVEE_lightbake_filter_diffuse(EEVEE_ViewLayerData *sldata,
   pinfo->lodfactor = bias + 0.5f *
                                 log((float)(target_size * target_size) * pinfo->samples_len_inv) /
                                 log(2);
-  pinfo->lod_rt_max = floorf(log2f(target_size)) - 2.0f;
+  pinfo->lod_rt_max = log2_floor_u(target_size) - 2.0f;
 #else
   pinfo->shres = 32;        /* Less texture fetches & reduce branches */
   pinfo->lod_rt_max = 2.0f; /* Improve cache reuse */

@@ -3469,7 +3469,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     }
 
     for (Image *image = bmain->images.first; image; image = image->id.next) {
-      image->flag &= ~(IMA_FLAG_UNUSED_0 | IMA_FLAG_UNUSED_1 | IMA_FLAG_UNUSED_4 |
+      image->flag &= ~(IMA_HIGH_BITDEPTH | IMA_FLAG_UNUSED_1 | IMA_FLAG_UNUSED_4 |
                        IMA_FLAG_UNUSED_6 | IMA_FLAG_UNUSED_8 | IMA_FLAG_UNUSED_15 |
                        IMA_FLAG_UNUSED_16);
     }
@@ -4571,18 +4571,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  /**
-   * Versioning code until next subversion bump goes here.
-   *
-   * \note Be sure to check when bumping the version:
-   * - "versioning_userdef.c", #BLO_version_defaults_userpref_blend
-   * - "versioning_userdef.c", #do_versions_theme
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-  {
-    /* Keep this block, even when empty. */
-
+  if (!MAIN_VERSION_ATLEAST(bmain, 283, 5)) {
     /* Alembic Transform Cache changed from world to local space. */
     LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
       LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
@@ -4603,5 +4592,32 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         }
       }
     }
+
+    /* Add Lookdev blur property. */
+    if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "float", "studiolight_blur")) {
+      for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+        for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+          for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+            if (sl->spacetype == SPACE_VIEW3D) {
+              View3D *v3d = (View3D *)sl;
+              v3d->shading.studiolight_blur = 0.5f;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Versioning code until next subversion bump goes here.
+   *
+   * \note Be sure to check when bumping the version:
+   * - "versioning_userdef.c", #BLO_version_defaults_userpref_blend
+   * - "versioning_userdef.c", #do_versions_theme
+   *
+   * \note Keep this message at the bottom of the function.
+   */
+  {
+    /* Keep this block, even when empty. */
   }
 }

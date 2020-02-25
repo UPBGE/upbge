@@ -1240,8 +1240,9 @@ static int objectsolver_set_inverse_exec(bContext *C, wmOperator *op)
 
   /* despite 3 layers of checks, we may still not be able to find a constraint */
   if (data == NULL) {
-    printf("DEBUG: Child-Of Set Inverse - object = '%s'\n", (ob) ? ob->id.name + 2 : "<None>");
-    BKE_report(op->reports, RPT_ERROR, "Could not find constraint data for Child-Of Set Inverse");
+    printf("DEBUG: ObjectSolver Set Inverse - object = '%s'\n", (ob) ? ob->id.name + 2 : "<None>");
+    BKE_report(
+        op->reports, RPT_ERROR, "Could not find constraint data for ObjectSolver Set Inverse");
     return OPERATOR_CANCELLED;
   }
 
@@ -1291,6 +1292,7 @@ void CONSTRAINT_OT_objectsolver_set_inverse(wmOperatorType *ot)
 
 static int objectsolver_clear_inverse_exec(bContext *C, wmOperator *op)
 {
+  Main *bmain = CTX_data_main(C);
   Object *ob = ED_object_active_context(C);
   bConstraint *con = edit_constraint_property_get(op, ob, CONSTRAINT_TYPE_OBJECTSOLVER);
   bObjectSolverConstraint *data = (con) ? (bObjectSolverConstraint *)con->data : NULL;
@@ -1303,6 +1305,7 @@ static int objectsolver_clear_inverse_exec(bContext *C, wmOperator *op)
   /* simply clear the matrix */
   unit_m4(data->invmat);
 
+  ED_object_constraint_update(bmain, ob);
   WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 
   return OPERATOR_FINISHED;

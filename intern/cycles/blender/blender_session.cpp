@@ -278,8 +278,6 @@ static ShaderEvalType get_shader_type(const string &pass_type)
     return SHADER_EVAL_GLOSSY_COLOR;
   else if (strcmp(shader_type, "TRANSMISSION_COLOR") == 0)
     return SHADER_EVAL_TRANSMISSION_COLOR;
-  else if (strcmp(shader_type, "SUBSURFACE_COLOR") == 0)
-    return SHADER_EVAL_SUBSURFACE_COLOR;
   else if (strcmp(shader_type, "EMIT") == 0)
     return SHADER_EVAL_EMISSION;
 
@@ -296,8 +294,6 @@ static ShaderEvalType get_shader_type(const string &pass_type)
     return SHADER_EVAL_GLOSSY;
   else if (strcmp(shader_type, "TRANSMISSION") == 0)
     return SHADER_EVAL_TRANSMISSION;
-  else if (strcmp(shader_type, "SUBSURFACE") == 0)
-    return SHADER_EVAL_SUBSURFACE;
 
   /* extra */
   else if (strcmp(shader_type, "ENVIRONMENT") == 0)
@@ -640,8 +636,6 @@ static int bake_pass_filter_get(const int pass_filter)
     flag |= BAKE_FILTER_GLOSSY;
   if ((pass_filter & BL::BakeSettings::pass_filter_TRANSMISSION) != 0)
     flag |= BAKE_FILTER_TRANSMISSION;
-  if ((pass_filter & BL::BakeSettings::pass_filter_SUBSURFACE) != 0)
-    flag |= BAKE_FILTER_SUBSURFACE;
 
   if ((pass_filter & BL::BakeSettings::pass_filter_EMIT) != 0)
     flag |= BAKE_FILTER_EMISSION;
@@ -855,6 +849,7 @@ void BlenderSession::synchronize(BL::Depsgraph &b_depsgraph_)
 
   /* increase samples, but never decrease */
   session->set_samples(session_params.samples);
+  session->set_denoising_start_sample(session_params.denoising_start_sample);
   session->set_pause(session_pause);
 
   /* copy recalc flags, outside of mutex so we can decide to do the real
