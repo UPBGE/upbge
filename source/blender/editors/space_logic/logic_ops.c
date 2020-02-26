@@ -739,6 +739,48 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 	ot->flag = 0;
 }
 
+/* ********** flip a region alignment ********************* */
+
+static int logic_region_flip_exec(bContext *C, wmOperator *op)
+{
+    ScrArea *sa = CTX_wm_area(C);
+    ARegion *ar = logic_has_buttons_region(sa);
+
+    if (ar == NULL)
+        return OPERATOR_CANCELLED;
+
+    if (ar->alignment == RGN_ALIGN_RIGHT) {
+        ED_region_toggle_hidden(C, ar);
+        ar->alignment = RGN_ALIGN_LEFT;
+    }
+    else if (ar->alignment == RGN_ALIGN_LEFT) {
+        ED_region_toggle_hidden(C, ar);
+        ar->alignment = RGN_ALIGN_RIGHT;
+    }
+
+    ED_area_tag_redraw(CTX_wm_area(C));
+    WM_event_add_mousemove(C);
+    WM_event_add_notifier(C, NC_LOGIC, NULL);
+    ED_region_toggle_hidden(C, ar);
+
+    return OPERATOR_FINISHED;
+}
+
+static void LOGIC_OT_region_flip(wmOperatorType *ot)
+{
+    /* identifiers */
+    ot->name = "Region flip";
+    ot->idname = "LOGIC_OT_region_flip";
+    ot->description = "Toggle the properties region's alignment (left/right)";
+
+    /* api callbacks */
+    ot->exec = logic_region_flip_exec;
+    ot->poll = ED_operator_logic_active;
+
+    /* flags */
+    ot->flag = 0;
+}
+
 /* Component operators */
 static int component_add_exec(bContext *C, wmOperator *op)
 {
@@ -894,4 +936,5 @@ void ED_operatortypes_logic(void)
     WM_operatortype_append(LOGIC_OT_component_remove);
     WM_operatortype_append(LOGIC_OT_component_reload);
 	WM_operatortype_append(LOGIC_OT_view_all);
+    WM_operatortype_append(LOGIC_OT_region_flip);
 }

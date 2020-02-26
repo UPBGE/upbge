@@ -1801,6 +1801,7 @@ def km_logic(params):
 
     items.extend([
         ("logic.properties", {"type": 'N', "value": 'PRESS'}, None),
+        ("logic.region_flip", {"type": 'F5', "value": 'PRESS'}, None),
         ("logic.links_cut", {"type": 'EVT_TWEAK_R', "value": 'ANY', "ctrl": True}, None),
         ("logic.view_all", {"type": 'HOME', "value": 'PRESS'}, None),
         ("logic.view_all", {"type": 'NDOF_BUTTON_FIT', "value": 'PRESS'}, None),
