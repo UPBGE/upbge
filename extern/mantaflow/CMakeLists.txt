@@ -84,22 +84,11 @@ endif()
 
 if(WITH_OPENVDB)
   list(APPEND INC_SYS
-    ${BOOST_INCLUDE_DIR}
-    ${OPENEXR_INCLUDE_DIRS}
     ${OPENVDB_INCLUDE_DIRS}
   )
   list(APPEND LIB
     ${OPENVDB_LIBRARIES}
-    ${OPENEXR_LIBRARIES}
-    ${ZLIB_LIBRARIES}
-    ${BOOST_LIBRARIES}
   )
-  if(WITH_OPENVDB_BLOSC)
-    list(APPEND LIB
-      ${BLOSC_LIBRARIES}
-      ${ZLIB_LIBRARIES}
-    )
-  endif()
 endif()
 
 set(SRC

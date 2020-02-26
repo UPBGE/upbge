@@ -44,6 +44,7 @@
 #include "BLI_task.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_colorband.h"
 #include "BKE_editmesh.h"
 #include "BKE_key.h"
@@ -321,8 +322,6 @@ void DM_init_funcs(DerivedMesh *dm)
   dm->getTessFaceDataArray = DM_get_tessface_data_layer;
   dm->getPolyDataArray = DM_get_poly_data_layer;
   dm->getLoopDataArray = DM_get_loop_data_layer;
-
-  dm->bvhCache = NULL;
 }
 
 /**
@@ -415,18 +414,11 @@ void DM_from_template(DerivedMesh *dm,
 int DM_release(DerivedMesh *dm)
 {
   if (dm->needsFree) {
-    bvhcache_free(&dm->bvhCache);
     CustomData_free(&dm->vertData, dm->numVertData);
     CustomData_free(&dm->edgeData, dm->numEdgeData);
     CustomData_free(&dm->faceData, dm->numTessFaceData);
     CustomData_free(&dm->loopData, dm->numLoopData);
     CustomData_free(&dm->polyData, dm->numPolyData);
-
-    if (dm->mat) {
-      MEM_freeN(dm->mat);
-      dm->mat = NULL;
-      dm->totmat = 0;
-    }
 
     MEM_SAFE_FREE(dm->looptris.array);
     dm->looptris.num = 0;
@@ -1804,11 +1796,11 @@ static void mesh_calc_modifiers_dm(
 	        (r_deformdm ? &deform_mesh : NULL), &final_mesh);
 
 	if (deform_mesh) {
-		*r_deformdm = CDDM_from_mesh_ex(deform_mesh, CD_DUPLICATE, &CD_MASK_MESH);
+		*r_deformdm = cdDM_from_mesh_ex(deform_mesh, CD_DUPLICATE, &CD_MASK_MESH);
 		BKE_id_free(NULL, deform_mesh);
 	}
 
-	*r_finaldm = CDDM_from_mesh_ex(final_mesh, CD_DUPLICATE, &CD_MASK_MESH);
+	*r_finaldm = cdDM_from_mesh_ex(final_mesh, CD_DUPLICATE, &CD_MASK_MESH);
 	BKE_id_free(NULL, final_mesh);
 }
 //#endif
@@ -3077,7 +3069,7 @@ DerivedMesh *mesh_get_derived_final(
   mesh_build_derived_data(
       depsgraph, scene, ob, &cddata_masks, need_mapping || ob->runtime.last_need_mapping);
 
-  return CDDM_from_mesh_ex(ob->runtime.mesh_eval, CD_REFERENCE, &CD_MASK_MESH);
+  return cdDM_from_mesh_ex(ob->runtime.mesh_eval, CD_REFERENCE, &CD_MASK_MESH);
 }
 
 /* End of Game engine transition */

@@ -31,6 +31,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_utildefines_stack.h"
 
+#include "BKE_DerivedMesh.h"
 #include "BKE_pbvh.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_global.h"
@@ -465,7 +466,7 @@ void CDDM_recalc_tessellation(DerivedMesh *dm)
   CDDM_recalc_tessellation_ex(dm, true);
 }
 
-void CDDM_recalc_looptri(DerivedMesh *dm)
+void cdDM_recalc_looptri(DerivedMesh *dm)
 {
   CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
   const unsigned int totpoly = dm->numPolyData;
@@ -542,7 +543,7 @@ static CDDerivedMesh *cdDM_create(const char *desc)
   dm->calcLoopNormalsSpaceArray = CDDM_calc_loop_normals_spacearr;
   dm->calcLoopTangents = DM_calc_loop_tangents;
   dm->recalcTessellation = CDDM_recalc_tessellation;
-  dm->recalcLoopTri = CDDM_recalc_looptri;
+  dm->recalcLoopTri = cdDM_recalc_looptri;
 
   dm->getVertCos = cdDM_getVertCos;
   dm->getVertCo = cdDM_getVertCo;
@@ -590,10 +591,10 @@ DerivedMesh *CDDM_new(int numVerts, int numEdges, int numTessFaces, int numLoops
 
 DerivedMesh *CDDM_from_mesh(Mesh *mesh)
 {
-  return CDDM_from_mesh_ex(mesh, CD_REFERENCE, &CD_MASK_MESH);
+  return cdDM_from_mesh_ex(mesh, CD_REFERENCE, &CD_MASK_MESH);
 }
 
-DerivedMesh *CDDM_from_mesh_ex(Mesh *mesh,
+DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh,
                                eCDAllocType alloctype,
                                const CustomData_MeshMasks *mask)
 {
