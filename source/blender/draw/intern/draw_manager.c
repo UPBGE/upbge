@@ -3086,7 +3086,7 @@ void DRW_transform_to_display_image_render(GPUTexture *tex)
 }
 
 /* Use color management profile to draw texture to framebuffer */
-void DRW_transform_to_display(GPUTexture *tex, View3D *v3d)
+void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
 {
   drw_state_set(DRW_STATE_WRITE_COLOR);
 
@@ -3106,7 +3106,7 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d)
   GPUVertFormat *vert_format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  const float dither = 0.0f;
+  float dither = 0.0f;
   bool use_ocio = false;
   /* Should we apply the view transform */
   if (DRW_state_do_color_management())
@@ -3118,6 +3118,7 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d)
     {
       /* Use full render settings, for renders with scene lighting. */
       view_settings = scene->view_settings;
+      dither = do_dithering ? scene->r.dither_intensity : 0.0f;
     }
     else if (use_view_transform)
     {
@@ -3126,6 +3127,7 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d)
       BKE_color_managed_view_settings_init_render(&view_settings, display_settings, NULL);
       STRNCPY(view_settings.view_transform, scene->view_settings.view_transform);
       STRNCPY(view_settings.look, scene->view_settings.look);
+      dither = do_dithering ? scene->r.dither_intensity : 0.0f;
     }
     else
     {
