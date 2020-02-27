@@ -152,25 +152,17 @@ void KX_BlenderMaterial::InitTextures()
 		return;
 	}
 
-	/* Converting dynamic GPUInput to DRWUniform */
   ListBase textures = GPU_material_textures(m_gpuMat);
 
   int i = 0;
   for (GPUMaterialTexture *tex = (GPUMaterialTexture *)textures.first; tex; tex = tex->next) {
     /* Textures */
-    if (tex->ima) {
-      int textarget;
-      if (tex->type == GPU_TEX2D_ARRAY)
-      {
-        textarget = GL_TEXTURE_2D_ARRAY;
-      }
-      else if (tex->type == GPU_TEX1D_ARRAY)
-      {
-        textarget = GL_TEXTURE_1D_ARRAY;
-      }
-      else {
-        textarget = GL_TEXTURE_2D;  //(missing targets)
-      }
+    if (tex->ima && tex->ima->gputexture[TEXTARGET_TEXTURE_2D]) {
+	  /* We keep BL_Texture, RAS_Texture.... only for ImageRender and backward compatibility
+	   * with old scripts from upbge which were using BL_Texture::bindCode.
+	   * Here we are only interested in GL_TEXTURE_2D textures
+	   */
+      int textarget = GL_TEXTURE_2D;
       BL_Texture *texture = new BL_Texture(tex, textarget);
       m_textures[i] = texture;
       i++;

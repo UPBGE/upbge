@@ -2993,7 +2993,7 @@ static void mesh_build_derived_data(struct Depsgraph *depsgraph,
     dataMask->pmask |= CD_MASK_ORIGINDEX;
   }
 #endif
-
+  Mesh *mesh_eval = NULL, *mesh_deform_eval = NULL;
   mesh_calc_modifiers(depsgraph,
                       scene,
                       ob,
@@ -3003,17 +3003,20 @@ static void mesh_build_derived_data(struct Depsgraph *depsgraph,
                       -1,
                       true,
                       true,
-                      &ob->runtime.mesh_deform_eval,
-                      &ob->runtime.mesh_eval);
+                      &mesh_deform_eval,
+                      &mesh_eval);
 
-  BKE_object_boundbox_calc_from_mesh(ob, ob->runtime.mesh_eval);
+  Mesh *mesh = ob->data;
+  const bool is_mesh_eval_owned = (mesh_eval != mesh->runtime.mesh_eval);
+  BKE_object_eval_assign_data(ob, &mesh_eval->id, is_mesh_eval_owned);
+  ob->runtime.mesh_deform_eval = mesh_deform_eval;
+  BKE_object_boundbox_calc_from_mesh(ob, mesh_eval);
+
   /* Only copy texspace from orig mesh if some modifier (hint: smoke sim, see T58492)
    * did not re-enable that flag (which always get disabled for eval mesh as a start). */
-  if (!(ob->runtime.mesh_eval->texflag & ME_AUTOSPACE)) {
-    BKE_mesh_texspace_copy_from_object(ob->runtime.mesh_eval, ob);
+  if (!(mesh_eval->texflag & ME_AUTOSPACE)) {
+    BKE_mesh_texspace_copy_from_object(mesh_eval, ob);
   }
-
-  assign_object_mesh_eval(ob);
 
   ob->runtime.last_data_mask = *dataMask;
   ob->runtime.last_need_mapping = need_mapping;
@@ -3024,10 +3027,10 @@ static void mesh_build_derived_data(struct Depsgraph *depsgraph,
     }
   }
 
-  if (ob->runtime.mesh_eval != NULL) {
-    mesh_runtime_check_normals_valid(ob->runtime.mesh_eval);
+  if (mesh_eval != NULL) {
+    mesh_runtime_check_normals_valid(mesh_eval);
   }
-  mesh_build_extra_data(depsgraph, ob);
+  mesh_build_extra_data(depsgraph, ob, mesh_eval);
 }
 
 DerivedMesh *mesh_get_derived_final(
@@ -3050,7 +3053,7 @@ DerivedMesh *mesh_get_derived_final(
   mesh_build_derived_data(
       depsgraph, scene, ob, &cddata_masks, need_mapping || ob->runtime.last_need_mapping);
 
-  return cdDM_from_mesh_ex(ob->runtime.mesh_eval, CD_REFERENCE, &CD_MASK_MESH);
+  return cdDM_from_mesh_ex(BKE_object_get_evaluated_mesh(ob), CD_REFERENCE, &CD_MASK_MESH);
 }
 
 /* End of Game engine transition */
