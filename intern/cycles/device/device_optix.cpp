@@ -186,14 +186,15 @@ class OptiXDevice : public CUDADevice {
   OptixTraversableHandle tlas_handle = 0;
 
   OptixDenoiser denoiser = NULL;
-  pair<int2, CUdeviceptr> denoiser_state = {};
+  device_only_memory<unsigned char> denoiser_state;
   int denoiser_input_passes = 0;
 
  public:
   OptiXDevice(DeviceInfo &info_, Stats &stats_, Profiler &profiler_, bool background_)
       : CUDADevice(info_, stats_, profiler_, background_),
         sbt_data(this, "__sbt", MEM_READ_ONLY),
-        launch_params(this, "__params")
+        launch_params(this, "__params"),
+        denoiser_state(this, "__denoiser_state")
   {
     // Store number of CUDA streams in device info
     info.cpu_threads = DebugFlags().optix.cuda_streams;
@@ -255,13 +256,10 @@ class OptiXDevice : public CUDADevice {
       cuMemFree(mem);
     }
 
-    if (denoiser_state.second) {
-      cuMemFree(denoiser_state.second);
-    }
-
     sbt_data.free();
     texture_info.free();
     launch_params.free();
+    denoiser_state.free();
 
     // Unload modules
     if (optix_module != NULL)
@@ -571,9 +569,14 @@ class OptiXDevice : public CUDADevice {
     if (have_error())
       return;  // Abort early if there was an error previously
 
-    if (task.type == DeviceTask::RENDER || task.type == DeviceTask::DENOISE) {
+    if (task.type == DeviceTask::RENDER) {
+      if (thread_index != 0) {
+        // Only execute denoising in a single thread (see also 'task_add')
+        task.tile_types &= ~RenderTile::DENOISE;
+      }
+
       RenderTile tile;
-      while (task.acquire_tile(this, tile)) {
+      while (task.acquire_tile(this, tile, task.tile_types)) {
         if (tile.task == RenderTile::PATH_TRACE)
           launch_render(task, tile, thread_index);
         else if (tile.task == RenderTile::DENOISE)
@@ -813,32 +816,26 @@ class OptiXDevice : public CUDADevice {
       check_result_optix_ret(
           optixDenoiserComputeMemoryResources(denoiser, rect_size.x, rect_size.y, &sizes));
 
-      auto &state = denoiser_state.second;
-      auto &state_size = denoiser_state.first;
       const size_t scratch_size = sizes.recommendedScratchSizeInBytes;
       const size_t scratch_offset = sizes.stateSizeInBytes;
 
       // Allocate denoiser state if tile size has changed since last setup
-      if (state_size.x != rect_size.x || state_size.y != rect_size.y || recreate_denoiser) {
-        // Free existing state before allocating new one
-        if (state) {
-          cuMemFree(state);
-          state = 0;
-        }
-
-        check_result_cuda_ret(cuMemAlloc(&state, scratch_offset + scratch_size));
+      if (recreate_denoiser || (denoiser_state.data_width != rect_size.x ||
+                                denoiser_state.data_height != rect_size.y)) {
+        denoiser_state.alloc_to_device(scratch_offset + scratch_size);
 
         // Initialize denoiser state for the current tile size
         check_result_optix_ret(optixDenoiserSetup(denoiser,
                                                   0,
                                                   rect_size.x,
                                                   rect_size.y,
-                                                  state,
+                                                  denoiser_state.device_pointer,
                                                   scratch_offset,
-                                                  state + scratch_offset,
+                                                  denoiser_state.device_pointer + scratch_offset,
                                                   scratch_size));
 
-        state_size = rect_size;
+        denoiser_state.data_width = rect_size.x;
+        denoiser_state.data_height = rect_size.y;
       }
 
       // Set up input and output layer information
@@ -880,14 +877,14 @@ class OptiXDevice : public CUDADevice {
       check_result_optix_ret(optixDenoiserInvoke(denoiser,
                                                  0,
                                                  &params,
-                                                 state,
+                                                 denoiser_state.device_pointer,
                                                  scratch_offset,
                                                  input_layers,
                                                  task.denoising.optix_input_passes,
                                                  overlap_offset.x,
                                                  overlap_offset.y,
                                                  output_layers,
-                                                 state + scratch_offset,
+                                                 denoiser_state.device_pointer + scratch_offset,
                                                  scratch_size));
 
 #  if OPTIX_DENOISER_NO_PIXEL_STRIDE
@@ -1459,7 +1456,7 @@ class OptiXDevice : public CUDADevice {
       return;
     }
 
-    if (task.type == DeviceTask::DENOISE || task.type == DeviceTask::DENOISE_BUFFER) {
+    if (task.type == DeviceTask::DENOISE_BUFFER) {
       // Execute denoising in a single thread (e.g. to avoid race conditions during creation)
       task_pool.push(new OptiXDeviceTask(this, task, 0));
       return;

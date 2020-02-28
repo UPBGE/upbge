@@ -96,7 +96,7 @@ void ObjectRuntimeBackup::backup_pose_channel_runtime_data(Object *object)
 void ObjectRuntimeBackup::restore_to_object(Object *object)
 {
   ID *data_orig = object->runtime.data_orig;
-  ID *data_eval = object->runtime.data_eval;
+  ID *data_eval = runtime.data_eval;
   BoundBox *bb = object->runtime.bb;
   object->runtime = runtime;
   object->runtime.data_orig = data_orig;

@@ -406,47 +406,66 @@ void multires_mark_as_modified(Depsgraph *depsgraph, Object *object, MultiresMod
   multires_ccg_mark_as_modified(subdiv_ccg, flags);
 }
 
-void multires_flush_sculpt_updates(Object *ob)
+void multires_flush_sculpt_updates(Object *object)
 {
-  if (ob && ob->sculpt && ob->sculpt->pbvh != NULL) {
-    SculptSession *sculpt_session = ob->sculpt;
-    if (BKE_pbvh_type(sculpt_session->pbvh) == PBVH_GRIDS && sculpt_session->multires) {
-      Mesh *mesh = ob->data;
-      multiresModifier_reshapeFromCCG(
-          sculpt_session->multires->totlvl, mesh, sculpt_session->subdiv_ccg);
-    }
+  if (object == NULL || object->sculpt == NULL || object->sculpt->pbvh == NULL) {
+    return;
+  }
+
+  SculptSession *sculpt_session = object->sculpt;
+  if (BKE_pbvh_type(sculpt_session->pbvh) != PBVH_GRIDS || sculpt_session->multires == NULL) {
+    return;
+  }
+
+  SubdivCCG *subdiv_ccg = sculpt_session->subdiv_ccg;
+  if (subdiv_ccg == NULL) {
+    return;
+  }
+
+  if (!subdiv_ccg->dirty.coords && !subdiv_ccg->dirty.hidden) {
+    return;
+  }
+
+  Mesh *mesh = object->data;
+  multiresModifier_reshapeFromCCG(
+      sculpt_session->multires->totlvl, mesh, sculpt_session->subdiv_ccg);
+
+  subdiv_ccg->dirty.coords = false;
+  subdiv_ccg->dirty.hidden = false;
+}
+
+void multires_force_sculpt_rebuild(Object *object)
+{
+  multires_flush_sculpt_updates(object);
+
+  if (object == NULL || object->sculpt == NULL) {
+    return;
+  }
+
+  SculptSession *ss = object->sculpt;
+
+  if (ss->pbvh != NULL) {
+    BKE_pbvh_free(ss->pbvh);
+    object->sculpt->pbvh = NULL;
+  }
+
+  if (ss->pmap != NULL) {
+    MEM_freeN(ss->pmap);
+    ss->pmap = NULL;
+  }
+
+  if (ss->pmap_mem != NULL) {
+    MEM_freeN(ss->pmap_mem);
+    ss->pmap_mem = NULL;
   }
 }
 
-void multires_force_sculpt_rebuild(Object *ob)
+void multires_force_external_reload(Object *object)
 {
-  multires_flush_sculpt_updates(ob);
+  Mesh *mesh = BKE_mesh_from_object(object);
 
-  if (ob && ob->sculpt) {
-    SculptSession *ss = ob->sculpt;
-    if (ss->pbvh) {
-      BKE_pbvh_free(ss->pbvh);
-      ob->sculpt->pbvh = NULL;
-    }
-
-    if (ss->pmap) {
-      MEM_freeN(ss->pmap);
-      ss->pmap = NULL;
-    }
-
-    if (ss->pmap_mem) {
-      MEM_freeN(ss->pmap_mem);
-      ss->pmap_mem = NULL;
-    }
-  }
-}
-
-void multires_force_external_reload(Object *ob)
-{
-  Mesh *me = BKE_mesh_from_object(ob);
-
-  CustomData_external_reload(&me->ldata, &me->id, CD_MASK_MDISPS, me->totloop);
-  multires_force_sculpt_rebuild(ob);
+  CustomData_external_reload(&mesh->ldata, &mesh->id, CD_MASK_MDISPS, mesh->totloop);
+  multires_force_sculpt_rebuild(object);
 }
 
 /* reset the multires levels to match the number of mdisps */
