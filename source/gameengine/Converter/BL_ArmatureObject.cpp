@@ -43,7 +43,6 @@
 
 extern "C" {
 #  include "BKE_animsys.h"
-#  include "BKE_context.h"
 #  include "BKE_main.h"
 #  include "BKE_layer.h"
 #  include "BKE_lib_id.h"
@@ -472,10 +471,6 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, float localtime)
 	RNA_id_pointer_create(&arm->id, &ptrrna);
 
 	animsys_evaluate_action(&ptrrna, action, localtime, false);
-
-	Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(KX_GetActiveEngine()->GetContext());
-
-	ignore_parent_tx(G.main, depsgraph, m_scene, arm);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
