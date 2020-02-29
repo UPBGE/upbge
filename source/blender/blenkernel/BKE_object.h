@@ -437,6 +437,8 @@ struct Mesh *BKE_object_to_mesh(struct Depsgraph *depsgraph,
 
 void BKE_object_to_mesh_clear(struct Object *object);
 
+void ignore_parent_tx(struct Main *bmain, struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob);
+
 #ifdef __cplusplus
 }
 #endif
