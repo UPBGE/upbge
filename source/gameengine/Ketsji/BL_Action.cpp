@@ -357,7 +357,7 @@ static void ignore_parent_tx_bge(Main *bmain, Depsgraph *depsgraph, KX_Scene *kx
   /* a change was made, adjust the children to compensate */
   for (KX_GameObject *gameobj : kxscene->GetObjectList()) {
     if (gameobj->GetBlenderObject()->parent == ob) {
-      ob_child = ob;
+      ob_child = gameobj->GetBlenderObject();
       Object *ob_child_eval = DEG_get_evaluated_object(depsgraph, ob_child);
       BKE_object_apply_mat4(ob_child_eval, ob_child_eval->obmat, true, false);
       BKE_object_workob_calc_parent(depsgraph, kxscene->GetBlenderScene(), ob_child_eval, &workob);
