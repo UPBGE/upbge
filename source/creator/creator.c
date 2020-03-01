@@ -233,8 +233,8 @@ int main(int argc,
 #endif
 )
 {
-	bContext *C;
-	SYS_SystemHandle syshandle;
+  bContext *C;
+  SYS_SystemHandle syshandle;
 
 #ifndef WITH_PYTHON_MODULE
   bArgs *ba;
@@ -388,27 +388,27 @@ int main(int argc,
   BKE_callback_global_init();
 
 #ifdef WITH_GAMEENGINE
-	syshandle = SYS_GetSystem();
+  syshandle = SYS_GetSystem();
 #else
-	syshandle = 0;
+  syshandle = 0;
 #endif
 
-	/* first test for background */
+  /* first test for background */
 #ifndef WITH_PYTHON_MODULE
   ba = BLI_argsInit(argc, (const char **)argv); /* skip binary path */
 
   /* ensure we free on early exit */
   app_init_data.ba = ba;
 
-	main_args_setup(C, ba, &syshandle);
+  main_args_setup(C, ba, &syshandle);
 
   BLI_argsParse(ba, 1, NULL, NULL);
 
   main_signal_setup();
 
 #else
-	G.factory_startup = true;  /* using preferences or user startup makes no sense for py-as-module */
-	(void)syshandle;
+  G.factory_startup = true; /* using preferences or user startup makes no sense for py-as-module */
+  (void)syshandle;
 #endif
 
 #ifdef WITH_FFMPEG
@@ -519,29 +519,29 @@ int main(int argc,
   return 0; /* keep blender in background mode running */
 #endif
 
-	if (G.background) {
-		/* Using window-manager API in background mode is a bit odd, but works fine. */
-		WM_exit(C);
-	}
-	else {
-		if (G.fileflags & G_FILE_AUTOPLAY) {
-			if (G.f & G_FLAG_SCRIPT_AUTOEXEC) {
-				if (WM_init_game(C)) {
-					return 0;
-				}
-			}
-			else {
-				if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
-					G.f |= G_FLAG_SCRIPT_AUTOEXEC_FAIL;
-					BLI_snprintf(G.autoexec_fail, sizeof(G.autoexec_fail), "Game AutoStart");
-				}
-			}
-		}
+  if (G.background) {
+    /* Using window-manager API in background mode is a bit odd, but works fine. */
+    WM_exit(C);
+  }
+  else {
+    if (G.fileflags & G_FILE_AUTOPLAY) {
+      if (G.f & G_FLAG_SCRIPT_AUTOEXEC) {
+        if (WM_init_game(C)) {
+          return 0;
+        }
+      }
+      else {
+        if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
+          G.f |= G_FLAG_SCRIPT_AUTOEXEC_FAIL;
+          BLI_snprintf(G.autoexec_fail, sizeof(G.autoexec_fail), "Game AutoStart");
+        }
+      }
+    }
 
-		if (!G.file_loaded) {
-			WM_init_splash(C);
-		}
-	}
+    if (!G.file_loaded) {
+      WM_init_splash(C);
+    }
+  }
 
   WM_main(C);
 
