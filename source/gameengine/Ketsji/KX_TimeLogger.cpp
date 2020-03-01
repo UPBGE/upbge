@@ -29,13 +29,10 @@
  *  \ingroup ketsji
  */
 
-
 #include "KX_TimeLogger.h"
 
 KX_TimeLogger::KX_TimeLogger(unsigned int maxNumMeasurements)
-	:m_maxNumMeasurements(maxNumMeasurements),
-	m_logStart(0),
-	m_logging(false)
+    : m_maxNumMeasurements(maxNumMeasurements), m_logStart(0), m_logging(false)
 {
 }
 
@@ -45,64 +42,64 @@ KX_TimeLogger::~KX_TimeLogger()
 
 void KX_TimeLogger::SetMaxNumMeasurements(unsigned int maxNumMeasurements)
 {
-	if ((m_maxNumMeasurements != maxNumMeasurements) && maxNumMeasurements) {
-		// Actual removing is done in NextMeasurement()
-		m_maxNumMeasurements = maxNumMeasurements;
-	}
+  if ((m_maxNumMeasurements != maxNumMeasurements) && maxNumMeasurements) {
+    // Actual removing is done in NextMeasurement()
+    m_maxNumMeasurements = maxNumMeasurements;
+  }
 }
 
 unsigned int KX_TimeLogger::GetMaxNumMeasurements() const
 {
-	return m_maxNumMeasurements;
+  return m_maxNumMeasurements;
 }
 
 void KX_TimeLogger::StartLog(double now)
 {
-	if (!m_logging) {
-		m_logging = true;
-		m_logStart = now;
-	}
+  if (!m_logging) {
+    m_logging = true;
+    m_logStart = now;
+  }
 }
 
 void KX_TimeLogger::EndLog(double now)
 {
-	if (m_logging) {
-		m_logging = false;
-		double time = now - m_logStart;
-		if (m_measurements.size() > 0) {
-			m_measurements[0] += time;
-		}
-	}
+  if (m_logging) {
+    m_logging = false;
+    double time = now - m_logStart;
+    if (m_measurements.size() > 0) {
+      m_measurements[0] += time;
+    }
+  }
 }
 
 void KX_TimeLogger::NextMeasurement(double now)
 {
-	// End logging to current measurement
-	EndLog(now);
+  // End logging to current measurement
+  EndLog(now);
 
-	// Add a new measurement at the front
-	double m = 0.0;
-	m_measurements.push_front(m);
+  // Add a new measurement at the front
+  double m = 0.0;
+  m_measurements.push_front(m);
 
-	// Remove measurement if we grow beyond the maximum size
-	if ((m_measurements.size()) > m_maxNumMeasurements) {
-		while (m_measurements.size() > m_maxNumMeasurements) {
-			m_measurements.pop_back();
-		}
-	}
+  // Remove measurement if we grow beyond the maximum size
+  if ((m_measurements.size()) > m_maxNumMeasurements) {
+    while (m_measurements.size() > m_maxNumMeasurements) {
+      m_measurements.pop_back();
+    }
+  }
 }
 
 double KX_TimeLogger::GetAverage() const
 {
-	double avg = 0.0;
+  double avg = 0.0;
 
-	const unsigned int numMeasurements = m_measurements.size();
-	if (numMeasurements > 1) {
-		for (unsigned int i = 1; i < numMeasurements; i++) {
-			avg += m_measurements[i];
-		}
-		avg /= (double)numMeasurements - 1.0;
-	}
+  const unsigned int numMeasurements = m_measurements.size();
+  if (numMeasurements > 1) {
+    for (unsigned int i = 1; i < numMeasurements; i++) {
+      avg += m_measurements[i];
+    }
+    avg /= (double)numMeasurements - 1.0;
+  }
 
-	return avg;
+  return avg;
 }

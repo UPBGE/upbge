@@ -40,33 +40,24 @@
 class KX_Scene;
 class KX_GameObject;
 
-class SCA_EndObjectActuator : public SCA_IActuator
-{
-	Py_Header
-	KX_Scene *m_scene;
+class SCA_EndObjectActuator : public SCA_IActuator {
+  Py_Header KX_Scene *m_scene;
 
  public:
-	SCA_EndObjectActuator(
-		KX_GameObject *gameobj,
-		KX_Scene *scene
-	);
+  SCA_EndObjectActuator(KX_GameObject *gameobj, KX_Scene *scene);
 
-	~SCA_EndObjectActuator();
+  ~SCA_EndObjectActuator();
 
-		CValue* 
-	GetReplica(
-	);
+  CValue *GetReplica();
 
-	virtual bool 
-	Update();
+  virtual bool Update();
 
-	virtual void Replace_IScene(SCA_IScene *val);
+  virtual void Replace_IScene(SCA_IScene *val);
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
-	
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+
 }; /* end of class KX_EditObjectActuator : public SCA_PropertyActuator */
 
 #endif
-

@@ -33,7 +33,7 @@
 #include "KX_NetworkMessageScene.h"
 
 KX_NetworkMessageScene::KX_NetworkMessageScene(KX_NetworkMessageManager *messageManager)
-	:m_messageManager(messageManager)
+    : m_messageManager(messageManager)
 {
 }
 
@@ -41,19 +41,23 @@ KX_NetworkMessageScene::~KX_NetworkMessageScene()
 {
 }
 
-void KX_NetworkMessageScene::SendMessage(std::string to, SCA_IObject *from, std::string subject, std::string body)
+void KX_NetworkMessageScene::SendMessage(std::string to,
+                                         SCA_IObject *from,
+                                         std::string subject,
+                                         std::string body)
 {
-	KX_NetworkMessageManager::Message message;
-	message.to = to;
-	message.from = from;
-	message.subject = subject;
-	message.body = body;
+  KX_NetworkMessageManager::Message message;
+  message.to = to;
+  message.from = from;
+  message.subject = subject;
+  message.body = body;
 
-	// Put the new message in map for the given receiver and subject.
-	m_messageManager->AddMessage(message);
+  // Put the new message in map for the given receiver and subject.
+  m_messageManager->AddMessage(message);
 }
 
-const std::vector<KX_NetworkMessageManager::Message> KX_NetworkMessageScene::FindMessages(std::string to, std::string subject)
+const std::vector<KX_NetworkMessageManager::Message> KX_NetworkMessageScene::FindMessages(
+    std::string to, std::string subject)
 {
-	return m_messageManager->GetMessages(to, subject);
+  return m_messageManager->GetMessages(to, subject);
 }

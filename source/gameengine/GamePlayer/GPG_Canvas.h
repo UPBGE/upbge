@@ -33,7 +33,7 @@
 #define __GPG_CANVAS_H__
 
 #ifdef WIN32
-#pragma warning (disable:4786)
+#  pragma warning(disable : 4786)
 #endif  // WIN32
 
 #include "RAS_ICanvas.h"
@@ -45,56 +45,55 @@ class RAS_Rasterizer;
 struct ARegion;
 struct Scene;
 
-class GPG_Canvas : public RAS_ICanvas
-{
-protected:
-	/// GHOST window.
-	GHOST_IWindow *m_window;
+class GPG_Canvas : public RAS_ICanvas {
+ protected:
+  /// GHOST window.
+  GHOST_IWindow *m_window;
   Scene *m_startScene;
-	/// Width of the context.
-	int m_width;
-	/// Height of the context.
-	int m_height;
-	/** Rect that defines the area used for rendering,
-	 * relative to the context.
-	 */
-	RAS_Rect m_area;
+  /// Width of the context.
+  int m_width;
+  /// Height of the context.
+  int m_height;
+  /** Rect that defines the area used for rendering,
+   * relative to the context.
+   */
+  RAS_Rect m_area;
 
-	int m_viewport[4];
+  int m_viewport[4];
 
-public:
-	GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, Scene *startscene);
-	virtual ~GPG_Canvas();
+ public:
+  GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, Scene *startscene);
+  virtual ~GPG_Canvas();
 
-	/**
-	 * \section Methods inherited from abstract base class RAS_ICanvas.
-	 */
+  /**
+   * \section Methods inherited from abstract base class RAS_ICanvas.
+   */
 
-	virtual void BeginFrame();
+  virtual void BeginFrame();
 
-	/// Draws overlay banners and progress bars.
-	virtual void EndFrame();
+  /// Draws overlay banners and progress bars.
+  virtual void EndFrame();
 
-	virtual void MakeScreenShot(const std::string& filename);
+  virtual void MakeScreenShot(const std::string &filename);
 
-	virtual void Init();
-	virtual void SetMousePosition(int x, int y);
-	virtual void SetMouseState(RAS_MouseState mousestate);
-	virtual void SwapBuffers();
-	virtual void SetSwapInterval(int interval);
-	virtual bool GetSwapInterval(int& intervalOut);
+  virtual void Init();
+  virtual void SetMousePosition(int x, int y);
+  virtual void SetMouseState(RAS_MouseState mousestate);
+  virtual void SwapBuffers();
+  virtual void SetSwapInterval(int interval);
+  virtual bool GetSwapInterval(int &intervalOut);
 
-	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
+  virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
 
-	virtual void GetDisplayDimensions(int &width, int &height);
+  virtual void GetDisplayDimensions(int &width, int &height);
 
-	virtual void Resize(int width, int height);
-	virtual void ResizeWindow(int width, int height);
-	virtual void SetFullScreen(bool enable);
-	virtual bool GetFullScreen();
+  virtual void Resize(int width, int height);
+  virtual void ResizeWindow(int width, int height);
+  virtual void SetFullScreen(bool enable);
+  virtual bool GetFullScreen();
 
-	virtual void BeginDraw();
-	virtual void EndDraw();
+  virtual void BeginDraw();
+  virtual void EndDraw();
 
   virtual ARegion *GetARegion();
 

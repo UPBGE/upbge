@@ -55,119 +55,102 @@ class RAS_Rect;
  * be computed based upon the design aspect ratio.
  */
 
-class RAS_FrameSettings
-{
-public:
-	/**
-	 * enum defining the policy to use
-	 * in each axis.
-	 */
-	enum RAS_FrameType {
-		e_frame_scale,
-		e_frame_extend,
-		e_frame_bars
-	};
+class RAS_FrameSettings {
+ public:
+  /**
+   * enum defining the policy to use
+   * in each axis.
+   */
+  enum RAS_FrameType { e_frame_scale, e_frame_extend, e_frame_bars };
 
-	/**
-	 * Constructor
-	 */
+  /**
+   * Constructor
+   */
 
-	RAS_FrameSettings(
-		RAS_FrameType frame_type,
-		float bar_r,
-		float bar_g,
-		float bar_b,
-		unsigned int design_aspect_width,
-		unsigned int design_aspect_height)
-		:m_frame_type(frame_type),
-		m_bar_r(bar_r),
-		m_bar_g(bar_g),
-		m_bar_b(bar_b),
-		m_design_aspect_width(design_aspect_width),
-		m_design_aspect_height(design_aspect_height)
-	{
-	}
+  RAS_FrameSettings(RAS_FrameType frame_type,
+                    float bar_r,
+                    float bar_g,
+                    float bar_b,
+                    unsigned int design_aspect_width,
+                    unsigned int design_aspect_height)
+      : m_frame_type(frame_type),
+        m_bar_r(bar_r),
+        m_bar_g(bar_g),
+        m_bar_b(bar_b),
+        m_design_aspect_width(design_aspect_width),
+        m_design_aspect_height(design_aspect_height)
+  {
+  }
 
-	RAS_FrameSettings()
-		:m_frame_type(e_frame_scale),
-		m_bar_r(0),
-		m_bar_g(0),
-		m_bar_b(0),
-		m_design_aspect_width(1),
-		m_design_aspect_height(1)
-	{
-	}
+  RAS_FrameSettings()
+      : m_frame_type(e_frame_scale),
+        m_bar_r(0),
+        m_bar_g(0),
+        m_bar_b(0),
+        m_design_aspect_width(1),
+        m_design_aspect_height(1)
+  {
+  }
 
-	/**
-	 * Accessors
-	 */
+  /**
+   * Accessors
+   */
 
-	const RAS_FrameType &FrameType() const
-	{
-		return m_frame_type;
-	}
+  const RAS_FrameType &FrameType() const
+  {
+    return m_frame_type;
+  }
 
-	void SetFrameType(RAS_FrameType type)
-	{
-		m_frame_type = type;
-	}
+  void SetFrameType(RAS_FrameType type)
+  {
+    m_frame_type = type;
+  }
 
-	float BarRed() const
-	{
-		return m_bar_r;
-	}
+  float BarRed() const
+  {
+    return m_bar_r;
+  }
 
-	float BarGreen() const
-	{
-		return m_bar_g;
-	}
+  float BarGreen() const
+  {
+    return m_bar_g;
+  }
 
-	float BarBlue() const
-	{
-		return m_bar_b;
-	}
+  float BarBlue() const
+  {
+    return m_bar_b;
+  }
 
-	unsigned int DesignAspectWidth() const
-	{
-		return m_design_aspect_width;
-	}
+  unsigned int DesignAspectWidth() const
+  {
+    return m_design_aspect_width;
+  }
 
-	unsigned int DesignAspectHeight() const
-	{
-		return m_design_aspect_height;
-	}
+  unsigned int DesignAspectHeight() const
+  {
+    return m_design_aspect_height;
+  }
 
-private:
-	RAS_FrameType m_frame_type;
-	float m_bar_r;
-	float m_bar_g;
-	float m_bar_b;
-	unsigned int m_design_aspect_width;
-	unsigned int m_design_aspect_height;
+ private:
+  RAS_FrameType m_frame_type;
+  float m_bar_r;
+  float m_bar_g;
+  float m_bar_b;
+  unsigned int m_design_aspect_width;
+  unsigned int m_design_aspect_height;
 };
 
-struct RAS_FrameFrustum
-{
-	float camnear, camfar;
-	float x1, y1;
-	float x2, y2;
+struct RAS_FrameFrustum {
+  float camnear, camfar;
+  float x1, y1;
+  float x2, y2;
 };
 
 /* must match R_CULLING_... from DNA_scene_types.h */
-enum RAS_CullingMode
-{
-	RAS_CULLING_DBVT = 0,
-	RAS_CULLING_NORMAL,
-	RAS_CULLING_NONE
-};
+enum RAS_CullingMode { RAS_CULLING_DBVT = 0, RAS_CULLING_NORMAL, RAS_CULLING_NONE };
 
 /* Should match CAMERA_SENSOR_FIT... from DNA_camera_types.h */
-enum RAS_SensorFit
-{
-	RAS_SENSORFIT_AUTO = 0,
-	RAS_SENSORFIT_HOR,
-	RAS_SENSORFIT_VERT
-};
+enum RAS_SensorFit { RAS_SENSORFIT_AUTO = 0, RAS_SENSORFIT_HOR, RAS_SENSORFIT_VERT };
 
 /**
  * \section RAS_FramingManager
@@ -180,85 +163,81 @@ enum RAS_SensorFit
  * directly, it only contains static helper functions
  */
 
-class RAS_FramingManager
-{
-public:
-	/**
-	 * Compute a viewport given
-	 * a RAS_FrameSettings and a description of the
-	 * canvas.
-	 */
+class RAS_FramingManager {
+ public:
+  /**
+   * Compute a viewport given
+   * a RAS_FrameSettings and a description of the
+   * canvas.
+   */
 
-	static void ComputeViewport(
-		const RAS_FrameSettings &settings,
-		const RAS_Rect &availableViewport,
-		RAS_Rect &viewport);
+  static void ComputeViewport(const RAS_FrameSettings &settings,
+                              const RAS_Rect &availableViewport,
+                              RAS_Rect &viewport);
 
-	/**
-	 * compute a frustum given a valid viewport,
-	 * RAS_FrameSettings, canvas description
-	 * and camera description
-	 */
+  /**
+   * compute a frustum given a valid viewport,
+   * RAS_FrameSettings, canvas description
+   * and camera description
+   */
 
-	static void ComputeOrtho(
-		const RAS_FrameSettings &settings,
-		const RAS_Rect &availableViewport,
-		const RAS_Rect &viewport,
-		const float scale,
-		const float camnear,
-		const float camfar,
-		const short sensor_fit,
-		const float shift_x,
-		const float shift_y,
-		RAS_FrameFrustum &frustum);
+  static void ComputeOrtho(const RAS_FrameSettings &settings,
+                           const RAS_Rect &availableViewport,
+                           const RAS_Rect &viewport,
+                           const float scale,
+                           const float camnear,
+                           const float camfar,
+                           const short sensor_fit,
+                           const float shift_x,
+                           const float shift_y,
+                           RAS_FrameFrustum &frustum);
 
-	static void ComputeFrustum(
-		const RAS_FrameSettings &settings,
-		const RAS_Rect &availableViewport,
-		const RAS_Rect &viewport,
-		const float lens,
-		const float sensor_x, const float sensor_y, const short sensor_fit,
-		const float shift_x,
-		const float shift_y,
-		const float camnear,
-		const float camfar,
-		RAS_FrameFrustum &frustum);
+  static void ComputeFrustum(const RAS_FrameSettings &settings,
+                             const RAS_Rect &availableViewport,
+                             const RAS_Rect &viewport,
+                             const float lens,
+                             const float sensor_x,
+                             const float sensor_y,
+                             const short sensor_fit,
+                             const float shift_x,
+                             const float shift_y,
+                             const float camnear,
+                             const float camfar,
+                             RAS_FrameFrustum &frustum);
 
-	static void ComputeDefaultFrustum(
-		const float camnear,
-		const float camfar,
-		const float lens,
-		const float sensor_x, const float sensor_y,
-		const short sensor_fit,
-		const float shift_x,
-		const float shift_y,
-		const float design_aspect_ratio,
-		RAS_FrameFrustum & frustum);
+  static void ComputeDefaultFrustum(const float camnear,
+                                    const float camfar,
+                                    const float lens,
+                                    const float sensor_x,
+                                    const float sensor_y,
+                                    const short sensor_fit,
+                                    const float shift_x,
+                                    const float shift_y,
+                                    const float design_aspect_ratio,
+                                    RAS_FrameFrustum &frustum);
 
-	static void ComputeDefaultOrtho(
-		const float camnear,
-		const float camfar,
-		const float scale,
-		const float design_aspect_ratio,
-		const short sensor_fit,
-		const float shift_x,
-		const float shift_y,
-		RAS_FrameFrustum & frustum);
+  static void ComputeDefaultOrtho(const float camnear,
+                                  const float camfar,
+                                  const float scale,
+                                  const float design_aspect_ratio,
+                                  const short sensor_fit,
+                                  const float shift_x,
+                                  const float shift_y,
+                                  RAS_FrameFrustum &frustum);
 
-private:
-	static void ComputeBestFitViewRect(
-		const RAS_Rect &availableViewport,
-		const float design_aspect_ratio,
-		RAS_Rect &viewport);
+ private:
+  static void ComputeBestFitViewRect(const RAS_Rect &availableViewport,
+                                     const float design_aspect_ratio,
+                                     RAS_Rect &viewport);
 
-	/**
-	 * Private constructor - this class is not meant
-	 * for instantiation.
-	 */
+  /**
+   * Private constructor - this class is not meant
+   * for instantiation.
+   */
 
-	RAS_FramingManager();
+  RAS_FramingManager();
 
-	RAS_FramingManager(const RAS_FramingManager &);
+  RAS_FramingManager(const RAS_FramingManager &);
 };
 
 #endif

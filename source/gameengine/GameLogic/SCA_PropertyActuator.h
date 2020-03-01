@@ -34,54 +34,44 @@
 
 #include "SCA_IActuator.h"
 
-class SCA_PropertyActuator : public SCA_IActuator
-{
-	Py_Header
-	
-	enum KX_ACT_PROP_MODE {
-		KX_ACT_PROP_NODEF = 0,
-		KX_ACT_PROP_ASSIGN,
-		KX_ACT_PROP_ADD,
-		KX_ACT_PROP_COPY,
-		KX_ACT_PROP_TOGGLE,
-		KX_ACT_PROP_LEVEL,
-		KX_ACT_PROP_MAX
-	};
+class SCA_PropertyActuator : public SCA_IActuator {
+  Py_Header
 
-	int			m_type;
-	std::string	m_propname;
-	std::string	m_exprtxt;
-	SCA_IObject* m_sourceObj; // for copy property actuator
+      enum KX_ACT_PROP_MODE {
+        KX_ACT_PROP_NODEF = 0,
+        KX_ACT_PROP_ASSIGN,
+        KX_ACT_PROP_ADD,
+        KX_ACT_PROP_COPY,
+        KX_ACT_PROP_TOGGLE,
+        KX_ACT_PROP_LEVEL,
+        KX_ACT_PROP_MAX
+      };
 
-public:
+  int m_type;
+  std::string m_propname;
+  std::string m_exprtxt;
+  SCA_IObject *m_sourceObj;  // for copy property actuator
 
+ public:
+  SCA_PropertyActuator(SCA_IObject *gameobj,
+                       SCA_IObject *sourceObj,
+                       const std::string &propname,
+                       const std::string &expr,
+                       int acttype);
 
+  ~SCA_PropertyActuator();
 
-	SCA_PropertyActuator(
-		SCA_IObject* gameobj,
-		SCA_IObject* sourceObj,
-		const std::string& propname,
-		const std::string& expr,
-		int acttype);
+  CValue *GetReplica();
 
+  virtual void ProcessReplica();
+  virtual bool UnlinkObject(SCA_IObject *clientobj);
+  virtual void Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map);
 
-	~SCA_PropertyActuator();
+  virtual bool Update();
 
-		CValue* 
-	GetReplica(
-	);
-
-	virtual void ProcessReplica();
-	virtual bool UnlinkObject(SCA_IObject* clientobj);
-	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
-
-	virtual bool 
-	Update();
-
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
-	
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 };
 
-#endif  /* __KX_PROPERTYACTUATOR_DOC */
+#endif /* __KX_PROPERTYACTUATOR_DOC */

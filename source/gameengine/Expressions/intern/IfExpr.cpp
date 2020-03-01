@@ -25,45 +25,43 @@ CIfExpr::CIfExpr()
 }
 
 CIfExpr::CIfExpr(CExpression *guard, CExpression *e1, CExpression *e2)
-	:m_guard(guard),
-	m_e1(e1),
-	m_e2(e2)
+    : m_guard(guard), m_e1(e1), m_e2(e2)
 {
 }
 
 CIfExpr::~CIfExpr()
 {
-	if (m_guard) {
-		m_guard->Release();
-	}
+  if (m_guard) {
+    m_guard->Release();
+  }
 
-	if (m_e1) {
-		m_e1->Release();
-	}
+  if (m_e1) {
+    m_e1->Release();
+  }
 
-	if (m_e2) {
-		m_e2->Release();
-	}
+  if (m_e2) {
+    m_e2->Release();
+  }
 }
 
 CValue *CIfExpr::Calculate()
 {
-	CValue *guardval = m_guard->Calculate();
-	const std::string& text = guardval->GetText();
-	guardval->Release();
+  CValue *guardval = m_guard->Calculate();
+  const std::string &text = guardval->GetText();
+  guardval->Release();
 
-	if (text == CBoolValue::sTrueString) {
-		return m_e1->Calculate();
-	}
-	else if (text == CBoolValue::sFalseString) {
-		return m_e2->Calculate();
-	}
-	else {
-		return new CErrorValue("Guard should be of boolean type");
-	}
+  if (text == CBoolValue::sTrueString) {
+    return m_e1->Calculate();
+  }
+  else if (text == CBoolValue::sFalseString) {
+    return m_e2->Calculate();
+  }
+  else {
+    return new CErrorValue("Guard should be of boolean type");
+  }
 }
 
 unsigned char CIfExpr::GetExpressionID()
 {
-	return CIFEXPRESSIONID;
+  return CIFEXPRESSIONID;
 }

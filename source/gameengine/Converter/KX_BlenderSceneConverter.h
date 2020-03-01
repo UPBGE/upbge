@@ -54,42 +54,41 @@ struct Material;
 struct bActuator;
 struct bController;
 
-class KX_BlenderSceneConverter
-{
-	friend KX_BlenderConverter;
+class KX_BlenderSceneConverter {
+  friend KX_BlenderConverter;
 
-private:
-	std::vector<KX_BlenderMaterial *> m_materials;
-	std::vector<RAS_MeshObject *> m_meshobjects;
+ private:
+  std::vector<KX_BlenderMaterial *> m_materials;
+  std::vector<RAS_MeshObject *> m_meshobjects;
 
-	std::map<Object *, KX_GameObject *> m_map_blender_to_gameobject;
-	std::map<Mesh *, RAS_MeshObject *> m_map_mesh_to_gamemesh;
-	std::map<Material *, KX_BlenderMaterial *> m_map_mesh_to_polyaterial;
-	std::map<bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;
-	std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;
+  std::map<Object *, KX_GameObject *> m_map_blender_to_gameobject;
+  std::map<Mesh *, RAS_MeshObject *> m_map_mesh_to_gamemesh;
+  std::map<Material *, KX_BlenderMaterial *> m_map_mesh_to_polyaterial;
+  std::map<bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;
+  std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;
 
-public:
-	KX_BlenderSceneConverter() = default;
-	~KX_BlenderSceneConverter() = default;
+ public:
+  KX_BlenderSceneConverter() = default;
+  ~KX_BlenderSceneConverter() = default;
 
-	// Disable dangerous copy.
-	KX_BlenderSceneConverter(const KX_BlenderSceneConverter& other) = delete;
+  // Disable dangerous copy.
+  KX_BlenderSceneConverter(const KX_BlenderSceneConverter &other) = delete;
 
-	void RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject);
-	void UnregisterGameObject(KX_GameObject *gameobject);
-	KX_GameObject *FindGameObject(Object *for_blenderobject);
+  void RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject);
+  void UnregisterGameObject(KX_GameObject *gameobject);
+  KX_GameObject *FindGameObject(Object *for_blenderobject);
 
-	void RegisterGameMesh(RAS_MeshObject *gamemesh, Mesh *for_blendermesh);
-	RAS_MeshObject *FindGameMesh(Mesh *for_blendermesh);
+  void RegisterGameMesh(RAS_MeshObject *gamemesh, Mesh *for_blendermesh);
+  RAS_MeshObject *FindGameMesh(Mesh *for_blendermesh);
 
-	void RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat);
-	KX_BlenderMaterial *FindMaterial(Material *mat);
+  void RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat);
+  KX_BlenderMaterial *FindMaterial(Material *mat);
 
-	void RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator);
-	SCA_IActuator *FindGameActuator(bActuator *for_actuator);
+  void RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator);
+  SCA_IActuator *FindGameActuator(bActuator *for_actuator);
 
-	void RegisterGameController(SCA_IController *cont, bController *for_controller);
-	SCA_IController *FindGameController(bController *for_controller);
+  void RegisterGameController(SCA_IController *cont, bController *for_controller);
+  SCA_IController *FindGameController(bController *for_controller);
 };
 
 #endif  // __KX_BLENDERSCENECONVERTER_H__

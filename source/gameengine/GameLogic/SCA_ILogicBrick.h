@@ -40,105 +40,108 @@ class KX_NetworkMessageScene;
 class SCA_IScene;
 class SCA_LogicManager;
 
-class SCA_ILogicBrick : public CValue, public SG_QList
-{
-	Py_Header
-protected:
-	SCA_IObject*		m_gameobj;
-	SCA_LogicManager *m_logicManager;
-	int					m_Execute_Priority;
-	int					m_Execute_Ueber_Priority;
+class SCA_ILogicBrick : public CValue, public SG_QList {
+  Py_Header protected : SCA_IObject *m_gameobj;
+  SCA_LogicManager *m_logicManager;
+  int m_Execute_Priority;
+  int m_Execute_Ueber_Priority;
 
-	bool				m_bActive;
-	CValue*				m_eventval;
-	std::string			m_name;
-	//unsigned long		m_drawcolor;
-	void RemoveEvent();
+  bool m_bActive;
+  CValue *m_eventval;
+  std::string m_name;
+  // unsigned long		m_drawcolor;
+  void RemoveEvent();
 
-public:
-	SCA_ILogicBrick(SCA_IObject* gameobj);
-	virtual ~SCA_ILogicBrick();
+ public:
+  SCA_ILogicBrick(SCA_IObject *gameobj);
+  virtual ~SCA_ILogicBrick();
 
-	void SetExecutePriority(int execute_Priority);
-	void SetUeberExecutePriority(int execute_Priority);
+  void SetExecutePriority(int execute_Priority);
+  void SetUeberExecutePriority(int execute_Priority);
 
-	SCA_IObject*	GetParent() { return m_gameobj; }
+  SCA_IObject *GetParent()
+  {
+    return m_gameobj;
+  }
 
-	virtual void	ReParent(SCA_IObject* parent);
-	virtual void	Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
-	virtual void Delete() { Release(); }
+  virtual void ReParent(SCA_IObject *parent);
+  virtual void Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map);
+  virtual void Delete()
+  {
+    Release();
+  }
 
-	virtual std::string GetName();
-	virtual void		SetName(const std::string& name);
-		
-	bool				IsActive()
-	{
-		return m_bActive;
-	}
+  virtual std::string GetName();
+  virtual void SetName(const std::string &name);
 
-	void				SetActive(bool active)
-	{
-		m_bActive=active;
-	}
+  bool IsActive()
+  {
+    return m_bActive;
+  }
 
-	// insert in a QList at position corresponding to m_Execute_Priority
-	void			    InsertActiveQList(SG_QList& head)
-	{
-		SG_QList::iterator<SCA_ILogicBrick> it(head);
-		for (it.begin(); !it.end() && m_Execute_Priority > (*it)->m_Execute_Priority; ++it);
-		it.add_back(this);
-	}
+  void SetActive(bool active)
+  {
+    m_bActive = active;
+  }
 
-	// insert in a QList at position corresponding to m_Execute_Priority
-	// inside a longer list that contains elements of other objects. 
-	// Sorting is done only between the elements of the same object.
-	// head is the head of the combined list
-	// current points to the first element of the object in the list, nullptr if none yet
-	void			    InsertSelfActiveQList(SG_QList& head, SG_QList** current)
-	{
-		if (!*current)
-		{
-			// first element can be put anywhere
-			head.QAddBack(this);
-			*current = this;
-			return;
-		}
-		// note: we assume current points actually to one o our element, skip the tests
-		SG_QList::iterator<SCA_ILogicBrick> it(head,*current);
-		if (m_Execute_Priority <= (*it)->m_Execute_Priority)
-		{
-			// this element comes before the first
-			*current = this;
-		}
-		else {
-			for (++it; !it.end() && (*it)->m_gameobj == m_gameobj &&  m_Execute_Priority > (*it)->m_Execute_Priority; ++it);
-		}
-		it.add_back(this);
-	}
+  // insert in a QList at position corresponding to m_Execute_Priority
+  void InsertActiveQList(SG_QList &head)
+  {
+    SG_QList::iterator<SCA_ILogicBrick> it(head);
+    for (it.begin(); !it.end() && m_Execute_Priority > (*it)->m_Execute_Priority; ++it)
+      ;
+    it.add_back(this);
+  }
 
-	virtual void SetLogicManager(SCA_LogicManager *logicmgr);
-	SCA_LogicManager *GetLogicManager();
+  // insert in a QList at position corresponding to m_Execute_Priority
+  // inside a longer list that contains elements of other objects.
+  // Sorting is done only between the elements of the same object.
+  // head is the head of the combined list
+  // current points to the first element of the object in the list, nullptr if none yet
+  void InsertSelfActiveQList(SG_QList &head, SG_QList **current)
+  {
+    if (!*current) {
+      // first element can be put anywhere
+      head.QAddBack(this);
+      *current = this;
+      return;
+    }
+    // note: we assume current points actually to one o our element, skip the tests
+    SG_QList::iterator<SCA_ILogicBrick> it(head, *current);
+    if (m_Execute_Priority <= (*it)->m_Execute_Priority) {
+      // this element comes before the first
+      *current = this;
+    }
+    else {
+      for (++it; !it.end() && (*it)->m_gameobj == m_gameobj &&
+                 m_Execute_Priority > (*it)->m_Execute_Priority;
+           ++it)
+        ;
+    }
+    it.add_back(this);
+  }
 
-	/* for moving logic bricks between scenes */
-	virtual void		Replace_IScene(SCA_IScene *val) {}
-	virtual void		Replace_NetworkScene(KX_NetworkMessageScene *val) {}
+  virtual void SetLogicManager(SCA_LogicManager *logicmgr);
+  SCA_LogicManager *GetLogicManager();
+
+  /* for moving logic bricks between scenes */
+  virtual void Replace_IScene(SCA_IScene *val)
+  {
+  }
+  virtual void Replace_NetworkScene(KX_NetworkMessageScene *val)
+  {
+  }
 
 #ifdef WITH_PYTHON
-	// python methods
-	
-	static PyObject*	pyattr_get_owner(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  // python methods
 
-	// check that attribute is a property
-	static int CheckProperty(PyObjectPlus *self, const PyAttributeDef *attrdef);
+  static PyObject *pyattr_get_owner(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
-	enum KX_BOOL_TYPE {
-		KX_BOOL_NODEF = 0,
-		KX_TRUE,
-		KX_FALSE,
-		KX_BOOL_MAX
-	};
-#endif  /* WITH_PYTHON */
+  // check that attribute is a property
+  static int CheckProperty(PyObjectPlus *self, const PyAttributeDef *attrdef);
 
+  enum KX_BOOL_TYPE { KX_BOOL_NODEF = 0, KX_TRUE, KX_FALSE, KX_BOOL_MAX };
+#endif /* WITH_PYTHON */
 };
 
-#endif  /* __SCA_ILOGICBRICK_H__ */
+#endif /* __SCA_ILOGICBRICK_H__ */

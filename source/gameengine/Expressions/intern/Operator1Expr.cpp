@@ -18,37 +18,34 @@
 #include "EXP_Operator1Expr.h"
 #include "EXP_EmptyValue.h"
 
-COperator1Expr::COperator1Expr()
-	:m_lhs(nullptr)
+COperator1Expr::COperator1Expr() : m_lhs(nullptr)
 {
 }
 
-COperator1Expr::COperator1Expr(VALUE_OPERATOR op, CExpression *lhs)
-	:m_op(op),
-	m_lhs(lhs)
+COperator1Expr::COperator1Expr(VALUE_OPERATOR op, CExpression *lhs) : m_op(op), m_lhs(lhs)
 {
 }
 
 COperator1Expr::~COperator1Expr()
 {
-	if (m_lhs) {
-		m_lhs->Release();
-	}
+  if (m_lhs) {
+    m_lhs->Release();
+  }
 }
 
 unsigned char COperator1Expr::GetExpressionID()
 {
-	return COPERATOR1EXPRESSIONID;
+  return COPERATOR1EXPRESSIONID;
 }
 
 CValue *COperator1Expr::Calculate()
 {
-	CValue *temp = m_lhs->Calculate();
-	CValue *empty = new CEmptyValue();
-	CValue *ret = empty->Calc(m_op, temp);
+  CValue *temp = m_lhs->Calculate();
+  CValue *empty = new CEmptyValue();
+  CValue *ret = empty->Calc(m_op, temp);
 
-	empty->Release();
-	temp->Release();
+  empty->Release();
+  temp->Release();
 
-	return ret;
+  return ret;
 }

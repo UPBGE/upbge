@@ -34,70 +34,70 @@
 
 #include "SCA_IActuator.h"
 #include "SCA_IScene.h" /* Replace_IScene only */
-#include "KX_Scene.h" /* Replace_IScene only */
+#include "KX_Scene.h"   /* Replace_IScene only */
 
-class SCA_SceneActuator : public SCA_IActuator
-{
-	Py_Header
-	
-	int							m_mode;
-	// (restart) has become a toggle internally... not in the interface though
-	bool						m_restart;
-	// (set Scene) Scene
-	/** The current scene. */
-	class	KX_Scene*			m_scene;
-	class	KX_KetsjiEngine*	m_KetsjiEngine;
-	/** The scene to switch to. */
-	std::string					m_nextSceneName;
-	
-	// (Set Camera) Object
-	class KX_Camera*			m_camera;
+class SCA_SceneActuator : public SCA_IActuator {
+  Py_Header
+
+      int m_mode;
+  // (restart) has become a toggle internally... not in the interface though
+  bool m_restart;
+  // (set Scene) Scene
+  /** The current scene. */
+  class KX_Scene *m_scene;
+  class KX_KetsjiEngine *m_KetsjiEngine;
+  /** The scene to switch to. */
+  std::string m_nextSceneName;
+
+  // (Set Camera) Object
+  class KX_Camera *m_camera;
 
  public:
-	enum SCA_SceneActuatorMode
-	{
-		KX_SCENE_NODEF = 0,
-		KX_SCENE_RESTART,
-		KX_SCENE_SET_SCENE,
-		KX_SCENE_SET_CAMERA,
-		KX_SCENE_ADD_FRONT_SCENE,
-		KX_SCENE_ADD_BACK_SCENE,
-		KX_SCENE_REMOVE_SCENE,
-		KX_SCENE_SUSPEND,
-		KX_SCENE_RESUME,
-		KX_SCENE_MAX
-	};
-	
-	SCA_SceneActuator(SCA_IObject* gameobj,
-					 int mode,
-					 KX_Scene* scene,
-					 KX_KetsjiEngine* ketsjiEngine,
-					 const std::string& nextSceneName,
-					 KX_Camera* camera);
-	virtual ~SCA_SceneActuator();
+  enum SCA_SceneActuatorMode {
+    KX_SCENE_NODEF = 0,
+    KX_SCENE_RESTART,
+    KX_SCENE_SET_SCENE,
+    KX_SCENE_SET_CAMERA,
+    KX_SCENE_ADD_FRONT_SCENE,
+    KX_SCENE_ADD_BACK_SCENE,
+    KX_SCENE_REMOVE_SCENE,
+    KX_SCENE_SUSPEND,
+    KX_SCENE_RESUME,
+    KX_SCENE_MAX
+  };
 
-	virtual CValue* GetReplica();
-	virtual void ProcessReplica();
-	virtual bool UnlinkObject(SCA_IObject* clientobj);
-	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
+  SCA_SceneActuator(SCA_IObject *gameobj,
+                    int mode,
+                    KX_Scene *scene,
+                    KX_KetsjiEngine *ketsjiEngine,
+                    const std::string &nextSceneName,
+                    KX_Camera *camera);
+  virtual ~SCA_SceneActuator();
 
-	virtual bool Update();
-	
+  virtual CValue *GetReplica();
+  virtual void ProcessReplica();
+  virtual bool UnlinkObject(SCA_IObject *clientobj);
+  virtual void Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map);
+
+  virtual bool Update();
+
 #ifdef WITH_PYTHON
 
-	virtual void Replace_IScene(SCA_IScene *val)
-	{
-		m_scene= static_cast<KX_Scene *>(val);
-	};
+  virtual void Replace_IScene(SCA_IScene *val)
+  {
+    m_scene = static_cast<KX_Scene *>(val);
+  };
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
-	
-	static PyObject *pyattr_get_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-#endif  /* WITH_PYTHON */
+  static PyObject *pyattr_get_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_camera(PyObjectPlus *self,
+                               const struct KX_PYATTRIBUTE_DEF *attrdef,
+                               PyObject *value);
+
+#endif /* WITH_PYTHON */
 
 }; /* end of class KXSceneActuator */
 

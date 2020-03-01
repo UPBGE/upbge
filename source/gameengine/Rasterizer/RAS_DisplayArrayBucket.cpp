@@ -39,46 +39,45 @@
 #include <algorithm>
 
 #ifdef _MSC_VER
-#  pragma warning (disable:4786)
+#  pragma warning(disable : 4786)
 #endif
 
 #ifdef WIN32
 #  include <windows.h>
-#endif // WIN32
+#endif  // WIN32
 
-RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
-											   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat)
-	:m_bucket(bucket),
-	m_displayArray(array),
-	m_mesh(mesh),
-	m_meshMaterial(meshmat)
+RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket,
+                                               RAS_IDisplayArray *array,
+                                               RAS_MeshObject *mesh,
+                                               RAS_MeshMaterial *meshmat)
+    : m_bucket(bucket), m_displayArray(array), m_mesh(mesh), m_meshMaterial(meshmat)
 {
-	//m_bucket->AddDisplayArrayBucket(this);
+  // m_bucket->AddDisplayArrayBucket(this);
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 {
-	//m_bucket->RemoveDisplayArrayBucket(this);
+  // m_bucket->RemoveDisplayArrayBucket(this);
 }
 
 RAS_MaterialBucket *RAS_DisplayArrayBucket::GetBucket() const
 {
-	return m_bucket;
+  return m_bucket;
 }
 
 RAS_IDisplayArray *RAS_DisplayArrayBucket::GetDisplayArray() const
 {
-	return m_displayArray;
+  return m_displayArray;
 }
 
 RAS_MeshObject *RAS_DisplayArrayBucket::GetMesh() const
 {
-	return m_mesh;
+  return m_mesh;
 }
 
 RAS_MeshMaterial *RAS_DisplayArrayBucket::GetMeshMaterial() const
 {
-	return m_meshMaterial;
+  return m_meshMaterial;
 }
 
 void RAS_DisplayArrayBucket::ActivateMesh()
@@ -91,7 +90,7 @@ void RAS_DisplayArrayBucket::RemoveActiveMeshSlots()
 
 bool RAS_DisplayArrayBucket::UseBatching() const
 {
-	return false;
+  return false;
 }
 
 void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_MaterialShader *shader)
@@ -100,5 +99,5 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_MaterialShader *shader)
 
 void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)
 {
-	m_bucket = bucket;
+  m_bucket = bucket;
 }

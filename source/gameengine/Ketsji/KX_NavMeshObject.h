@@ -34,47 +34,50 @@
 class RAS_MeshObject;
 class MT_Transform;
 
-class KX_NavMeshObject: public KX_GameObject
-{
-	Py_Header
+class KX_NavMeshObject : public KX_GameObject {
+  Py_Header
 
-protected:
-	dtStatNavMesh* m_navMesh;
-	
-	bool BuildVertIndArrays(float *&vertices, int& nverts,
-							unsigned short* &polys, int& npolys, unsigned short *&dmeshes, 
-							float *&dvertices, int &ndvertsuniq, unsigned short* &dtris, 
-							int& ndtris, int &vertsPerPoly);
-	
-public:
-	KX_NavMeshObject(void* sgReplicationInfo, SG_Callbacks callbacks);
-	~KX_NavMeshObject();
+      protected : dtStatNavMesh *m_navMesh;
 
-	virtual	CValue* GetReplica();
-	virtual	void ProcessReplica();
+  bool BuildVertIndArrays(float *&vertices,
+                          int &nverts,
+                          unsigned short *&polys,
+                          int &npolys,
+                          unsigned short *&dmeshes,
+                          float *&dvertices,
+                          int &ndvertsuniq,
+                          unsigned short *&dtris,
+                          int &ndtris,
+                          int &vertsPerPoly);
 
+ public:
+  KX_NavMeshObject(void *sgReplicationInfo, SG_Callbacks callbacks);
+  ~KX_NavMeshObject();
 
-	bool BuildNavMesh();
-	dtStatNavMesh* GetNavMesh();
-	int FindPath(const MT_Vector3& from, const MT_Vector3& to, float* path, int maxPathLen);
-	float Raycast(const MT_Vector3& from, const MT_Vector3& to);
+  virtual CValue *GetReplica();
+  virtual void ProcessReplica();
 
-	enum NavMeshRenderMode {RM_WALLS, RM_POLYS, RM_TRIS, RM_MAX};
-	void DrawNavMesh(NavMeshRenderMode mode);
-	void DrawPath(const float *path, int pathLen, const MT_Vector4& color);
+  bool BuildNavMesh();
+  dtStatNavMesh *GetNavMesh();
+  int FindPath(const MT_Vector3 &from, const MT_Vector3 &to, float *path, int maxPathLen);
+  float Raycast(const MT_Vector3 &from, const MT_Vector3 &to);
 
-	MT_Vector3 TransformToLocalCoords(const MT_Vector3& wpos);
-	MT_Vector3 TransformToWorldCoords(const MT_Vector3& lpos);
+  enum NavMeshRenderMode { RM_WALLS, RM_POLYS, RM_TRIS, RM_MAX };
+  void DrawNavMesh(NavMeshRenderMode mode);
+  void DrawPath(const float *path, int pathLen, const MT_Vector4 &color);
+
+  MT_Vector3 TransformToLocalCoords(const MT_Vector3 &wpos);
+  MT_Vector3 TransformToWorldCoords(const MT_Vector3 &lpos);
 #ifdef WITH_PYTHON
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	KX_PYMETHOD_DOC(KX_NavMeshObject, findPath);
-	KX_PYMETHOD_DOC(KX_NavMeshObject, raycast);
-	KX_PYMETHOD_DOC(KX_NavMeshObject, draw);
-	KX_PYMETHOD_DOC_NOARGS(KX_NavMeshObject, rebuild);
-#endif  /* WITH_PYTHON */
+  KX_PYMETHOD_DOC(KX_NavMeshObject, findPath);
+  KX_PYMETHOD_DOC(KX_NavMeshObject, raycast);
+  KX_PYMETHOD_DOC(KX_NavMeshObject, draw);
+  KX_PYMETHOD_DOC_NOARGS(KX_NavMeshObject, rebuild);
+#endif /* WITH_PYTHON */
 };
 
-#endif  /* __KX_NAVMESHOBJECT_H__ */
+#endif /* __KX_NAVMESHOBJECT_H__ */

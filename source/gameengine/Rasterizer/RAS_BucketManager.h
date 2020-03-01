@@ -39,47 +39,46 @@
 
 class RAS_FrameBuffer;
 
-class RAS_BucketManager
-{
-public:
-	typedef std::vector<RAS_MaterialBucket *> BucketList;
+class RAS_BucketManager {
+ public:
+  typedef std::vector<RAS_MaterialBucket *> BucketList;
 
-private:
-	enum BucketType {
-		ALL_BUCKET = 0,
-		NUM_BUCKET_TYPE,
-	};
+ private:
+  enum BucketType {
+    ALL_BUCKET = 0,
+    NUM_BUCKET_TYPE,
+  };
 
-	/// Override shaders.
-	enum OverrideShaderType {
-		OVERRIDE_SHADER_NONE = 0,
-		OVERRIDE_SHADER_BLACK,
-		OVERRIDE_SHADER_SHADOW,
-		OVERRIDE_SHADER_MAX
-	};
+  /// Override shaders.
+  enum OverrideShaderType {
+    OVERRIDE_SHADER_NONE = 0,
+    OVERRIDE_SHADER_BLACK,
+    OVERRIDE_SHADER_SHADOW,
+    OVERRIDE_SHADER_MAX
+  };
 
-	BucketList m_buckets[NUM_BUCKET_TYPE];
+  BucketList m_buckets[NUM_BUCKET_TYPE];
 
-public:
-	/** Initialize bucket manager
-	 */
-	RAS_BucketManager();
-	virtual ~RAS_BucketManager();
+ public:
+  /** Initialize bucket manager
+   */
+  RAS_BucketManager();
+  virtual ~RAS_BucketManager();
 
-	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
+  RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 
-	void UpdateShaders(RAS_IPolyMaterial *material = nullptr);
-	void ReleaseMaterials(RAS_IPolyMaterial *material = nullptr);
+  void UpdateShaders(RAS_IPolyMaterial *material = nullptr);
+  void ReleaseMaterials(RAS_IPolyMaterial *material = nullptr);
 
-	// freeing scenes only
-	void RemoveMaterial(RAS_IPolyMaterial *mat);
+  // freeing scenes only
+  void RemoveMaterial(RAS_IPolyMaterial *mat);
 
-	// for merging
-	void MergeBucketManager(RAS_BucketManager *other);
-	BucketList& GetBuckets()
-	{
-		return m_buckets[ALL_BUCKET];
-	}
+  // for merging
+  void MergeBucketManager(RAS_BucketManager *other);
+  BucketList &GetBuckets()
+  {
+    return m_buckets[ALL_BUCKET];
+  }
 };
 
-#endif // __RAS_BUCKETMANAGER_H__
+#endif  // __RAS_BUCKETMANAGER_H__

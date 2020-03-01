@@ -37,35 +37,35 @@
 #include "EXP_BoolValue.h"
 #include "SCA_RandomNumberGenerator.h"
 
-class SCA_RandomSensor : public SCA_ISensor
-{
-	Py_Header
+class SCA_RandomSensor : public SCA_ISensor {
+  Py_Header
 
-	unsigned int m_currentDraw;
-	int m_iteration;
-	int m_interval;
-	SCA_RandomNumberGenerator *m_basegenerator;
-	bool m_lastdraw;
-public:
-	SCA_RandomSensor(class SCA_EventManager* rndmgr,
-					SCA_IObject* gameobj,
-					int startseed);
-	virtual ~SCA_RandomSensor();
-	virtual CValue* GetReplica();
-	virtual void ProcessReplica();
-	virtual bool Evaluate();
-	virtual bool IsPositiveTrigger();
-	virtual void Init();
+      unsigned int m_currentDraw;
+  int m_iteration;
+  int m_interval;
+  SCA_RandomNumberGenerator *m_basegenerator;
+  bool m_lastdraw;
+
+ public:
+  SCA_RandomSensor(class SCA_EventManager *rndmgr, SCA_IObject *gameobj, int startseed);
+  virtual ~SCA_RandomSensor();
+  virtual CValue *GetReplica();
+  virtual void ProcessReplica();
+  virtual bool Evaluate();
+  virtual bool IsPositiveTrigger();
+  virtual void Init();
 
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
-	
-	static PyObject*	pyattr_get_seed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_seed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+
+  static PyObject *pyattr_get_seed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_seed(PyObjectPlus *self_v,
+                             const KX_PYATTRIBUTE_DEF *attrdef,
+                             PyObject *value);
 #endif
 };
 
-#endif  /* __SCA_RANDOMSENSOR_H__ */
+#endif /* __SCA_RANDOMSENSOR_H__ */

@@ -45,101 +45,101 @@ class MT_Matrix4x4;
 class KX_BlenderSceneConverter;
 class RAS_DebugDraw;
 
-class BL_ArmatureObject : public KX_GameObject
-{
-	Py_Header
+class BL_ArmatureObject : public KX_GameObject {
+  Py_Header
 
-protected:
-	/// List element: BL_ArmatureConstraint.
-	CListValue<BL_ArmatureConstraint> *m_controlledConstraints;
-	/// List element: BL_ArmatureChannel.
-	CListValue<BL_ArmatureChannel> *m_poseChannels;
-	Object *m_objArma;
-	Object *m_origObjArma;
-	bPose *m_pose;
-	bPose *m_armpose;
-	// Need for BKE_pose_where_is.
-	Scene *m_scene;
-	double m_lastframe;
-	/// Delta since last pose evaluation.
-	double m_timestep;
-	int m_vert_deform_type;
-	size_t m_constraintNumber;
-	size_t m_channelNumber;
-	/// Store the original armature object matrix.
-	float m_obmat[4][4];
-	/// Set to true to allow draw debug info for one frame, reset in DrawDebugArmature.
-	bool m_drawDebug;
+      protected :
+      /// List element: BL_ArmatureConstraint.
+      CListValue<BL_ArmatureConstraint> *m_controlledConstraints;
+  /// List element: BL_ArmatureChannel.
+  CListValue<BL_ArmatureChannel> *m_poseChannels;
+  Object *m_objArma;
+  Object *m_origObjArma;
+  bPose *m_pose;
+  bPose *m_armpose;
+  // Need for BKE_pose_where_is.
+  Scene *m_scene;
+  double m_lastframe;
+  /// Delta since last pose evaluation.
+  double m_timestep;
+  int m_vert_deform_type;
+  size_t m_constraintNumber;
+  size_t m_channelNumber;
+  /// Store the original armature object matrix.
+  float m_obmat[4][4];
+  /// Set to true to allow draw debug info for one frame, reset in DrawDebugArmature.
+  bool m_drawDebug;
 
-	double m_lastapplyframe;
+  double m_lastapplyframe;
 
-public:
-	BL_ArmatureObject(void *sgReplicationInfo,
-	                  SG_Callbacks callbacks,
-	                  Object *armature,
-	                  Scene *scene,
-	                  int vert_deform_type);
-	virtual ~BL_ArmatureObject();
+ public:
+  BL_ArmatureObject(void *sgReplicationInfo,
+                    SG_Callbacks callbacks,
+                    Object *armature,
+                    Scene *scene,
+                    int vert_deform_type);
+  virtual ~BL_ArmatureObject();
 
-	virtual CValue *GetReplica();
-	virtual void ProcessReplica();
-	virtual int GetGameObjectType() const;
-	virtual void ReParentLogic();
-	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
-	virtual bool UnlinkObject(SCA_IObject *clientobj);
+  virtual CValue *GetReplica();
+  virtual void ProcessReplica();
+  virtual int GetGameObjectType() const;
+  virtual void ReParentLogic();
+  virtual void Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map);
+  virtual bool UnlinkObject(SCA_IObject *clientobj);
 
-	double GetLastFrame();
+  double GetLastFrame();
 
-	void GetPose(bPose **pose);
-	void SetPose(bPose *pose);
-	/// Never edit this, only for accessing names.
-	bPose *GetOrigPose();
-	void ApplyPose();
-	void SetPoseByAction(bAction *action, float localtime);
-	void BlendInPose(bPose *blend_pose, float weight, short mode);
-	void RestorePose();
+  void GetPose(bPose **pose);
+  void SetPose(bPose *pose);
+  /// Never edit this, only for accessing names.
+  bPose *GetOrigPose();
+  void ApplyPose();
+  void SetPoseByAction(bAction *action, float localtime);
+  void BlendInPose(bPose *blend_pose, float weight, short mode);
+  void RestorePose();
 
-	bool UpdateTimestep(double curtime);
+  bool UpdateTimestep(double curtime);
 
-	bArmature *GetArmature();
-	const bArmature *GetArmature() const;
-	const Scene *GetScene() const;
-	Object *GetArmatureObject();
-	Object *GetOrigArmatureObject();
-	int GetVertDeformType();
-	bool GetDrawDebug() const;
-	void DrawDebug(RAS_DebugDraw& debugDraw);
+  bArmature *GetArmature();
+  const bArmature *GetArmature() const;
+  const Scene *GetScene() const;
+  Object *GetArmatureObject();
+  Object *GetOrigArmatureObject();
+  int GetVertDeformType();
+  bool GetDrawDebug() const;
+  void DrawDebug(RAS_DebugDraw &debugDraw);
 
-	// for constraint python API
-	void LoadConstraints(KX_BlenderSceneConverter& converter);
-	size_t GetConstraintNumber() const;
-	BL_ArmatureConstraint *GetConstraint(const std::string& posechannel, const std::string& constraint);
-	BL_ArmatureConstraint *GetConstraint(const std::string& posechannelconstraint);
-	BL_ArmatureConstraint *GetConstraint(int index);
+  // for constraint python API
+  void LoadConstraints(KX_BlenderSceneConverter &converter);
+  size_t GetConstraintNumber() const;
+  BL_ArmatureConstraint *GetConstraint(const std::string &posechannel,
+                                       const std::string &constraint);
+  BL_ArmatureConstraint *GetConstraint(const std::string &posechannelconstraint);
+  BL_ArmatureConstraint *GetConstraint(int index);
 
-	// for pose channel python API
-	void LoadChannels();
-	size_t GetChannelNumber() const;
-	BL_ArmatureChannel *GetChannel(bPoseChannel *channel);
-	BL_ArmatureChannel *GetChannel(const std::string& channel);
-	BL_ArmatureChannel *GetChannel(int index);
+  // for pose channel python API
+  void LoadChannels();
+  size_t GetChannelNumber() const;
+  BL_ArmatureChannel *GetChannel(bPoseChannel *channel);
+  BL_ArmatureChannel *GetChannel(const std::string &channel);
+  BL_ArmatureChannel *GetChannel(int index);
 
-	/// Retrieve the pose matrix for the specified bone.
-	/// Returns true on success.
-	bool GetBoneMatrix(Bone *bone, MT_Matrix4x4& matrix);
+  /// Retrieve the pose matrix for the specified bone.
+  /// Returns true on success.
+  bool GetBoneMatrix(Bone *bone, MT_Matrix4x4 &matrix);
 
-	/// Returns the bone length.  The end of the bone is in the local y direction.
-	float GetBoneLength(Bone *bone) const;
+  /// Returns the bone length.  The end of the bone is in the local y direction.
+  float GetBoneLength(Bone *bone) const;
 
 #ifdef WITH_PYTHON
 
-	// PYTHON
-	static PyObject *pyattr_get_constraints(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_channels(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	KX_PYMETHOD_DOC_NOARGS(BL_ArmatureObject, update);
-	KX_PYMETHOD_DOC_NOARGS(BL_ArmatureObject, draw);
+  // PYTHON
+  static PyObject *pyattr_get_constraints(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_channels(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  KX_PYMETHOD_DOC_NOARGS(BL_ArmatureObject, update);
+  KX_PYMETHOD_DOC_NOARGS(BL_ArmatureObject, draw);
 
-#endif  /* WITH_PYTHON */
+#endif /* WITH_PYTHON */
 };
 
-#endif  /* __BL_ARMATUREOBJECT_H__ */
+#endif /* __BL_ARMATUREOBJECT_H__ */

@@ -60,131 +60,133 @@
 class DEV_Joystick
 
 {
-	static DEV_Joystick *m_instance[JOYINDEX_MAX];
+  static DEV_Joystick *m_instance[JOYINDEX_MAX];
 
-	class PrivateData;
+  class PrivateData;
 #ifdef WITH_SDL
-	PrivateData		*m_private;
+  PrivateData *m_private;
 #endif
-	int				m_joyindex;
+  int m_joyindex;
 
-	/** 
-	 *support for JOYAXIS_MAX axes (in pairs)
-	 */
-	int m_axis_array[JOYAXIS_MAX];
-	
-	/**
-	 * Precision or range of the axes
-	 */
-	int 			m_prec;
+  /**
+   *support for JOYAXIS_MAX axes (in pairs)
+   */
+  int m_axis_array[JOYAXIS_MAX];
 
-	/**
-	 * max # of buttons avail
-	 */
-	
-	int 			m_axismax;
-	int 			m_buttonmax;
-	
-	/** is the joystick initialized ?*/
-	bool			m_isinit;
+  /**
+   * Precision or range of the axes
+   */
+  int m_prec;
 
-	
-	/** is triggered for each event type */
-	bool			m_istrig_axis;
-	bool			m_istrig_button;
+  /**
+   * max # of buttons avail
+   */
+
+  int m_axismax;
+  int m_buttonmax;
+
+  /** is the joystick initialized ?*/
+  bool m_isinit;
+
+  /** is triggered for each event type */
+  bool m_istrig_axis;
+  bool m_istrig_button;
 
 #ifdef WITH_SDL
-	/**
-	 * event callbacks
-	 */
-	void OnAxisEvent(SDL_Event *sdl_event);
-	void OnButtonEvent(SDL_Event *sdl_event);
-	void OnNothing(SDL_Event *sdl_event);
-		
+  /**
+   * event callbacks
+   */
+  void OnAxisEvent(SDL_Event *sdl_event);
+  void OnButtonEvent(SDL_Event *sdl_event);
+  void OnNothing(SDL_Event *sdl_event);
+
 #endif /* WITH_SDL */
-	/**
-	 * Open the joystick
-	 */
-	bool CreateJoystickDevice(void);
+  /**
+   * Open the joystick
+   */
+  bool CreateJoystickDevice(void);
 
-	/**
-	 * Close the joystick
-	 */
-	void DestroyJoystickDevice(void);
+  /**
+   * Close the joystick
+   */
+  void DestroyJoystickDevice(void);
 
-	/**
-	 * returns m_axis_array
-	 */
+  /**
+   * returns m_axis_array
+   */
 
-	int pAxisTest(int axisnum);
-	/**
-	 * returns m_axis_array
-	 */
-	int pGetAxis(int axisnum, int udlr);
+  int pAxisTest(int axisnum);
+  /**
+   * returns m_axis_array
+   */
+  int pGetAxis(int axisnum, int udlr);
 
-	DEV_Joystick(short index);
+  DEV_Joystick(short index);
 
-	~DEV_Joystick();
-	
-public:
+  ~DEV_Joystick();
 
-	static DEV_Joystick *GetInstance(short joyindex);
-	static bool HandleEvents(short (&addrem)[JOYINDEX_MAX]);
-	void ReleaseInstance(short joyindex);
-	static void Init();
-	static void Close();
+ public:
+  static DEV_Joystick *GetInstance(short joyindex);
+  static bool HandleEvents(short (&addrem)[JOYINDEX_MAX]);
+  void ReleaseInstance(short joyindex);
+  static void Init();
+  static void Close();
 
-	/*
-	 */
-	bool aAxisPairIsPositive(int axis);
-	bool aAxisPairDirectionIsPositive(int axis, int dir); /* function assumes joysticks are in axis pairs */
-	bool aAxisIsPositive(int axis_single); /* check a single axis only */
+  /*
+   */
+  bool aAxisPairIsPositive(int axis);
+  bool aAxisPairDirectionIsPositive(int axis,
+                                    int dir); /* function assumes joysticks are in axis pairs */
+  bool aAxisIsPositive(int axis_single);      /* check a single axis only */
 
-	bool aAnyButtonPressIsPositive(void);
-	bool aButtonPressIsPositive(int button);
-	bool aButtonReleaseIsPositive(int button);
+  bool aAnyButtonPressIsPositive(void);
+  bool aButtonPressIsPositive(int button);
+  bool aButtonReleaseIsPositive(int button);
 
-	/**
-	 * precision is default '3200' which is overridden by input
-	 */
+  /**
+   * precision is default '3200' which is overridden by input
+   */
 
-	void cSetPrecision(int val);
+  void cSetPrecision(int val);
 
-	int GetAxisPosition(int index) {
-		return m_axis_array[index];
-	}
+  int GetAxisPosition(int index)
+  {
+    return m_axis_array[index];
+  }
 
-	bool IsTrigAxis(void) {
-		return m_istrig_axis;
-	}
-	
-	bool IsTrigButton(void) {
-		return m_istrig_button;
-	}
+  bool IsTrigAxis(void)
+  {
+    return m_istrig_axis;
+  }
 
-	/**
-	 * Force Feedback - Vibration
-	 * We could add many optional arguments to these functions to take into account different sort of vibrations.
-	 * But we propose to keep the UI simple with only joyindex, force (in both motors) and duration.
-	 * As the vibration strength and duration can be updated on-fly it is possible to generate several types of vibration
-	 * (sinus, periodic, custom, etc) using BGE python scripts for more advanced uses.
-	 */
-	bool RumblePlay(float strengthLeft, float strengthRight, unsigned int duration);
-	bool RumbleStop();
-	bool GetRumbleStatus();
-	bool GetRumbleSupport();
-	void ProcessRumbleStatus();
+  bool IsTrigButton(void)
+  {
+    return m_istrig_button;
+  }
 
-	/**
-	 * Test if the joystick is connected
-	 */
-	int Connected(void);
+  /**
+   * Force Feedback - Vibration
+   * We could add many optional arguments to these functions to take into account different sort of
+   * vibrations. But we propose to keep the UI simple with only joyindex, force (in both motors)
+   * and duration. As the vibration strength and duration can be updated on-fly it is possible to
+   * generate several types of vibration (sinus, periodic, custom, etc) using BGE python scripts
+   * for more advanced uses.
+   */
+  bool RumblePlay(float strengthLeft, float strengthRight, unsigned int duration);
+  bool RumbleStop();
+  bool GetRumbleStatus();
+  bool GetRumbleSupport();
+  void ProcessRumbleStatus();
 
-	/**
-	 * Name of the joytsick
-	 */
-	const std::string GetName();
+  /**
+   * Test if the joystick is connected
+   */
+  int Connected(void);
+
+  /**
+   * Name of the joytsick
+   */
+  const std::string GetName();
 };
 
-#endif // __DEV_JOYSTICK_H__
-
+#endif  // __DEV_JOYSTICK_H__

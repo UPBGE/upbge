@@ -32,7 +32,6 @@
  *  \ingroup gamelogic
  */
 
-
 #include "SCA_ANDController.h"
 #include "SCA_ISensor.h"
 #include "SCA_LogicManager.h"
@@ -42,53 +41,44 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_ANDController::SCA_ANDController(SCA_IObject* gameobj)
-	:
-	SCA_IController(gameobj)
+SCA_ANDController::SCA_ANDController(SCA_IObject *gameobj) : SCA_IController(gameobj)
 {
 }
-
-
 
 SCA_ANDController::~SCA_ANDController()
 {
 }
 
-
-
-void SCA_ANDController::Trigger(SCA_LogicManager* logicmgr)
+void SCA_ANDController::Trigger(SCA_LogicManager *logicmgr)
 {
 
-	bool sensorresult = true;
+  bool sensorresult = true;
 
-	for (std::vector<SCA_ISensor*>::const_iterator is=m_linkedsensors.begin();
-	!(is==m_linkedsensors.end());is++)
-	{
-		SCA_ISensor* sensor = *is;
-		if (!sensor->GetState())
-		{
-			sensorresult = false;
-			break;
-		}
-	}
-	
-	for (std::vector<SCA_IActuator*>::const_iterator i=m_linkedactuators.begin();
-	!(i==m_linkedactuators.end());i++)
-	{
-		SCA_IActuator* actua = *i;
-		logicmgr->AddActiveActuator(actua,sensorresult);
-	}
+  for (std::vector<SCA_ISensor *>::const_iterator is = m_linkedsensors.begin();
+       !(is == m_linkedsensors.end());
+       is++) {
+    SCA_ISensor *sensor = *is;
+    if (!sensor->GetState()) {
+      sensorresult = false;
+      break;
+    }
+  }
+
+  for (std::vector<SCA_IActuator *>::const_iterator i = m_linkedactuators.begin();
+       !(i == m_linkedactuators.end());
+       i++) {
+    SCA_IActuator *actua = *i;
+    logicmgr->AddActiveActuator(actua, sensorresult);
+  }
 }
 
-
-
-CValue* SCA_ANDController::GetReplica()
+CValue *SCA_ANDController::GetReplica()
 {
-	CValue* replica = new SCA_ANDController(*this);
-	// this will copy properties and so on...
-	replica->ProcessReplica();
+  CValue *replica = new SCA_ANDController(*this);
+  // this will copy properties and so on...
+  replica->ProcessReplica();
 
-	return replica;
+  return replica;
 }
 
 #ifdef WITH_PYTHON
@@ -98,34 +88,50 @@ CValue* SCA_ANDController::GetReplica()
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject SCA_ANDController::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_ANDController",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_IController::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+PyTypeObject SCA_ANDController::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_ANDController",
+                                        sizeof(PyObjectPlus_Proxy),
+                                        0,
+                                        py_base_dealloc,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        py_base_repr,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        Methods,
+                                        0,
+                                        0,
+                                        &SCA_IController::Type,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        py_base_new};
 
 PyMethodDef SCA_ANDController::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_ANDController::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON
 /* eof */

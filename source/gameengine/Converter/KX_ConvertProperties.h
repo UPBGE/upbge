@@ -32,10 +32,10 @@
 #ifndef __KX_CONVERTPROPERTIES_H__
 #define __KX_CONVERTPROPERTIES_H__
 
-void BL_ConvertProperties(struct Object* object,
-                          class KX_GameObject* gameobj,
-                          class SCA_TimeEventManager* timemgr,
-                          class SCA_IScene* scene,
+void BL_ConvertProperties(struct Object *object,
+                          class KX_GameObject *gameobj,
+                          class SCA_TimeEventManager *timemgr,
+                          class SCA_IScene *scene,
                           bool isInActiveLayer);
 
-#endif  /* __KX_CONVERTPROPERTIES_H__ */
+#endif /* __KX_CONVERTPROPERTIES_H__ */

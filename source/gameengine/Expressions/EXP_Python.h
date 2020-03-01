@@ -34,47 +34,48 @@
 
 // Python redefines, quiet the compiler.
 #ifdef _XOPEN_SOURCE
-#undef _XOPEN_SOURCE
+#  undef _XOPEN_SOURCE
 #endif
 
 #ifdef _POSIX_C_SOURCE
-#undef _POSIX_C_SOURCE
+#  undef _POSIX_C_SOURCE
 #endif
 
 #ifdef WITH_PYTHON
-#include "Python.h"
+#  include "Python.h"
 
-#define USE_MATHUTILS // Blender 2.5x api will use mathutils, for a while we might want to test without it
+#  define USE_MATHUTILS  // Blender 2.5x api will use mathutils, for a while we might want to test
+                         // without it
 
 #endif
 
 #ifdef __FreeBSD__
-#include <osreldate.h>
-#if __FreeBSD_version > 500039
-#undef isalnum
-#undef isalpha
-#undef iscntrl
-#undef isdigit
-#undef isgraph
-#undef islower
-#undef isprint
-#undef ispunct
-#undef isspace
-#undef isupper
-#undef isxdigit
-#undef tolower
-#undef toupper
-#endif
+#  include <osreldate.h>
+#  if __FreeBSD_version > 500039
+#    undef isalnum
+#    undef isalpha
+#    undef iscntrl
+#    undef isdigit
+#    undef isgraph
+#    undef islower
+#    undef isprint
+#    undef ispunct
+#    undef isspace
+#    undef isupper
+#    undef isxdigit
+#    undef tolower
+#    undef toupper
+#  endif
 #endif
 
 #ifdef __APPLE__
-#undef isalnum
-#undef isalpha
-#undef islower
-#undef isspace
-#undef isupper
-#undef tolower
-#undef toupper
+#  undef isalnum
+#  undef isalpha
+#  undef islower
+#  undef isspace
+#  undef isupper
+#  undef tolower
+#  undef toupper
 #endif
 
 #endif  // __EXP_PYTHON_H__

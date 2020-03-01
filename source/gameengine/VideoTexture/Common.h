@@ -29,7 +29,7 @@
  */
 
 #if defined WIN32
-#define WINDOWS_LEAN_AND_MEAN
+#  define WINDOWS_LEAN_AND_MEAN
 #endif
 
 //#ifndef nullptr
@@ -37,28 +37,28 @@
 //#endif
 
 #ifndef _HRESULT_DEFINED
-#define _HRESULT_DEFINED
-#define HRESULT long
+#  define _HRESULT_DEFINED
+#  define HRESULT long
 #endif
 
 #ifndef DWORD
-#define DWORD unsigned long
+#  define DWORD unsigned long
 #endif
 
 #ifndef S_OK
-#define S_OK ((HRESULT)0L)
+#  define S_OK ((HRESULT)0L)
 #endif
 
 #ifndef BYTE
-#define BYTE unsigned char
+#  define BYTE unsigned char
 #endif
 
 #ifndef WIN32
-#define Sleep(time) sleep(time)
+#  define Sleep(time) sleep(time)
 #endif
 
 #ifndef FAILED
-#define FAILED(Status) ((HRESULT)(Status)<0)
+#  define FAILED(Status) ((HRESULT)(Status) < 0)
 #endif
 
 #include <iostream>

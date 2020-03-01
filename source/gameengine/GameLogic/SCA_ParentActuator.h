@@ -36,56 +36,51 @@
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
 
-class SCA_ParentActuator : public SCA_IActuator
-{
-	Py_Header
-	
-	/** Mode */
-	int m_mode;
-	
-	/** option */
-	bool	m_addToCompound;
-	bool	m_ghost;
-	/** Object to set as parent */
-	SCA_IObject *m_ob;
-	
-	
+class SCA_ParentActuator : public SCA_IActuator {
+  Py_Header
 
-public:
-	enum KX_PARENTACT_MODE
-	{
-		KX_PARENT_NODEF = 0,
-		KX_PARENT_SET,
-		KX_PARENT_REMOVE,
-		KX_PARENT_MAX
+      /** Mode */
+      int m_mode;
 
-	};
+  /** option */
+  bool m_addToCompound;
+  bool m_ghost;
+  /** Object to set as parent */
+  SCA_IObject *m_ob;
 
-	SCA_ParentActuator(class SCA_IObject* gameobj,
-						int mode,
-						bool addToCompound,
-						bool ghost,
-						SCA_IObject *ob);
-	virtual ~SCA_ParentActuator();
-	virtual bool Update();
-	
-	virtual CValue* GetReplica();
-	virtual void ProcessReplica();
-	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
-	virtual bool UnlinkObject(SCA_IObject* clientobj);
-	
+ public:
+  enum KX_PARENTACT_MODE {
+    KX_PARENT_NODEF = 0,
+    KX_PARENT_SET,
+    KX_PARENT_REMOVE,
+    KX_PARENT_MAX
+
+  };
+
+  SCA_ParentActuator(
+      class SCA_IObject *gameobj, int mode, bool addToCompound, bool ghost, SCA_IObject *ob);
+  virtual ~SCA_ParentActuator();
+  virtual bool Update();
+
+  virtual CValue *GetReplica();
+  virtual void ProcessReplica();
+  virtual void Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map);
+  virtual bool UnlinkObject(SCA_IObject *clientobj);
+
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	/* These are used to get and set m_ob */
-	static PyObject *pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	
-#endif  /* WITH_PYTHON */
+  /* These are used to get and set m_ob */
+  static PyObject *pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_object(PyObjectPlus *self,
+                               const struct KX_PYATTRIBUTE_DEF *attrdef,
+                               PyObject *value);
+
+#endif /* WITH_PYTHON */
 
 }; /* end of class SCA_ParentActuator : public SCA_PropertyActuator */
 
-#endif  /* __SCA_ParentActuator_H__ */
+#endif /* __SCA_ParentActuator_H__ */

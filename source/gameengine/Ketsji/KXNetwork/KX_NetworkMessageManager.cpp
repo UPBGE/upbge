@@ -33,56 +33,64 @@
 #include "KX_NetworkMessageManager.h"
 #include <iostream>
 
-KX_NetworkMessageManager::KX_NetworkMessageManager()
-	:m_currentList(0)
+KX_NetworkMessageManager::KX_NetworkMessageManager() : m_currentList(0)
 {
 }
 
 KX_NetworkMessageManager::~KX_NetworkMessageManager()
 {
-	ClearMessages();
+  ClearMessages();
 }
 
 void KX_NetworkMessageManager::AddMessage(KX_NetworkMessageManager::Message message)
 {
-	// Put the new message in map for the given receiver and subject.
-	m_messages[m_currentList][message.to][message.subject].push_back(message);
+  // Put the new message in map for the given receiver and subject.
+  m_messages[m_currentList][message.to][message.subject].push_back(message);
 }
 
-const std::vector<KX_NetworkMessageManager::Message> KX_NetworkMessageManager::GetMessages(std::string to, std::string subject)
+const std::vector<KX_NetworkMessageManager::Message> KX_NetworkMessageManager::GetMessages(
+    std::string to, std::string subject)
 {
-	std::vector<KX_NetworkMessageManager::Message> messages;
+  std::vector<KX_NetworkMessageManager::Message> messages;
 
-	// look at messages without receiver.
-	std::map<std::string, std::vector<Message> >& messagesNoReceiver = m_messages[1 - m_currentList][""];
-	std::map<std::string, std::vector<Message> >& messagesReceiver = m_messages[1 - m_currentList][to];
-	if (subject.empty()) {
-		// Add all message without receiver and subject.
-		for (std::map<std::string, std::vector<Message> >::iterator it = messagesNoReceiver.begin(), end = messagesNoReceiver.end();
-			it != end; ++it)
-		{
-			messages.insert(messages.end(), it->second.begin(), it->second.end());
-		}
-		// Add all message with the given receiver and no subject.
-		for (std::map<std::string, std::vector<Message> >::iterator it = messagesReceiver.begin(), end = messagesReceiver.end();
-			 it != end; ++it)
-		{
-			messages.insert(messages.end(), it->second.begin(), it->second.end());
-		}
-	}
-	else {
-		std::vector<KX_NetworkMessageManager::Message>& messagesNoReceiverSubject = messagesNoReceiver[subject];
-		messages.insert(messages.end(), messagesNoReceiverSubject.begin(), messagesNoReceiverSubject.end());
-		std::vector<KX_NetworkMessageManager::Message>& messagesReceiverSubject = messagesReceiver[subject];
-		messages.insert(messages.end(), messagesReceiverSubject.begin(), messagesReceiverSubject.end());
-	}
+  // look at messages without receiver.
+  std::map<std::string, std::vector<Message>> &messagesNoReceiver =
+      m_messages[1 - m_currentList][""];
+  std::map<std::string, std::vector<Message>> &messagesReceiver =
+      m_messages[1 - m_currentList][to];
+  if (subject.empty()) {
+    // Add all message without receiver and subject.
+    for (std::map<std::string, std::vector<Message>>::iterator it = messagesNoReceiver.begin(),
+                                                               end = messagesNoReceiver.end();
+         it != end;
+         ++it) {
+      messages.insert(messages.end(), it->second.begin(), it->second.end());
+    }
+    // Add all message with the given receiver and no subject.
+    for (std::map<std::string, std::vector<Message>>::iterator it = messagesReceiver.begin(),
+                                                               end = messagesReceiver.end();
+         it != end;
+         ++it) {
+      messages.insert(messages.end(), it->second.begin(), it->second.end());
+    }
+  }
+  else {
+    std::vector<KX_NetworkMessageManager::Message> &messagesNoReceiverSubject =
+        messagesNoReceiver[subject];
+    messages.insert(
+        messages.end(), messagesNoReceiverSubject.begin(), messagesNoReceiverSubject.end());
+    std::vector<KX_NetworkMessageManager::Message> &messagesReceiverSubject =
+        messagesReceiver[subject];
+    messages.insert(
+        messages.end(), messagesReceiverSubject.begin(), messagesReceiverSubject.end());
+  }
 
-	return messages;
+  return messages;
 }
 
 void KX_NetworkMessageManager::ClearMessages()
 {
-	// Clear previous list.
-	m_messages[1 - m_currentList].clear();
-	m_currentList = 1 - m_currentList;
+  // Clear previous list.
+  m_messages[1 - m_currentList].clear();
+  m_currentList = 1 - m_currentList;
 }

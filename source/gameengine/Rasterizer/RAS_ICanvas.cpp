@@ -38,21 +38,21 @@
 #include "KX_KetsjiEngine.h"
 
 extern "C" {
-#  include "IMB_imbuf.h"
-#  include "IMB_imbuf_types.h"
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 }
 
 #include "CM_Message.h"
 
-#include <stdlib.h> // for free()
+#include <stdlib.h>  // for free()
 
 // Task data for saving screenshots in a different thread.
 struct ScreenshotTaskData {
-	unsigned int *dumprect;
-	int dumpsx;
-	int dumpsy;
-	char path[FILE_MAX];
-	ImageFormatData *im_format;
+  unsigned int *dumprect;
+  int dumpsx;
+  int dumpsy;
+  char path[FILE_MAX];
+  ImageFormatData *im_format;
 };
 
 /**
@@ -64,133 +64,135 @@ struct ScreenshotTaskData {
  */
 void save_screenshot_thread_func(TaskPool *__restrict pool, void *taskdata, int threadid);
 
-
-RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty)
-	:m_rasterizer(rasty),
-	m_samples(0)
+RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty) : m_rasterizer(rasty), m_samples(0)
 {
-	m_taskscheduler = BLI_task_scheduler_create(1);
-	m_taskpool = BLI_task_pool_create(m_taskscheduler, nullptr);
+  m_taskscheduler = BLI_task_scheduler_create(1);
+  m_taskpool = BLI_task_pool_create(m_taskscheduler, nullptr);
 }
 
 RAS_ICanvas::~RAS_ICanvas()
 {
-	if (m_taskpool) {
-		BLI_task_pool_work_and_wait(m_taskpool);
-		BLI_task_pool_free(m_taskpool);
-		m_taskpool = nullptr;
-	}
+  if (m_taskpool) {
+    BLI_task_pool_work_and_wait(m_taskpool);
+    BLI_task_pool_free(m_taskpool);
+    m_taskpool = nullptr;
+  }
 
-	if (m_taskscheduler) {
-		BLI_task_scheduler_free(m_taskscheduler);
-		m_taskscheduler = nullptr;
-	}
+  if (m_taskscheduler) {
+    BLI_task_scheduler_free(m_taskscheduler);
+    m_taskscheduler = nullptr;
+  }
 }
 
 void RAS_ICanvas::SetSamples(int samples)
 {
-	m_samples = samples;
+  m_samples = samples;
 }
 
 int RAS_ICanvas::GetSamples() const
 {
-	return m_samples;
+  return m_samples;
 }
 
 int RAS_ICanvas::GetWidth() const
 {
-	return m_viewportArea.GetWidth();
+  return m_viewportArea.GetWidth();
 }
 
 int RAS_ICanvas::GetHeight() const
 {
-	return m_viewportArea.GetHeight();
+  return m_viewportArea.GetHeight();
 }
 
 float RAS_ICanvas::GetMouseNormalizedX(int x)
 {
-	return float(x) / GetWidth();
+  return float(x) / GetWidth();
 }
 
 float RAS_ICanvas::GetMouseNormalizedY(int y)
 {
-	return float(y) / GetHeight();
+  return float(y) / GetHeight();
 }
 
-const RAS_Rect& RAS_ICanvas::GetWindowArea() const
+const RAS_Rect &RAS_ICanvas::GetWindowArea() const
 {
-	return m_windowArea;
+  return m_windowArea;
 }
 
-const RAS_Rect& RAS_ICanvas::GetViewportArea() const
+const RAS_Rect &RAS_ICanvas::GetViewportArea() const
 {
-	return m_viewportArea;
+  return m_viewportArea;
 }
 
 void RAS_ICanvas::FlushScreenshots()
 {
-	for (const Screenshot& screenshot : m_screenshots) {
-		SaveScreeshot(screenshot);
-	}
+  for (const Screenshot &screenshot : m_screenshots) {
+    SaveScreeshot(screenshot);
+  }
 
-	m_screenshots.clear();
+  m_screenshots.clear();
 }
 
-void RAS_ICanvas::AddScreenshot(const std::string& path, int x, int y, int width, int height, ImageFormatData *format)
+void RAS_ICanvas::AddScreenshot(
+    const std::string &path, int x, int y, int width, int height, ImageFormatData *format)
 {
-	Screenshot screenshot;
-	screenshot.path = path;
-	screenshot.x = x;
-	screenshot.y = y;
-	screenshot.width = width;
-	screenshot.height = height;
-	screenshot.format = format;
+  Screenshot screenshot;
+  screenshot.path = path;
+  screenshot.x = x;
+  screenshot.y = y;
+  screenshot.width = width;
+  screenshot.height = height;
+  screenshot.format = format;
 
-	m_screenshots.push_back(screenshot);
+  m_screenshots.push_back(screenshot);
 }
 
-void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskdata, int UNUSED(threadid))
+void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool),
+                                 void *taskdata,
+                                 int UNUSED(threadid))
 {
-	ScreenshotTaskData *task = static_cast<ScreenshotTaskData *>(taskdata);
+  ScreenshotTaskData *task = static_cast<ScreenshotTaskData *>(taskdata);
 
-	/* create and save imbuf */
-	ImBuf *ibuf = IMB_allocImBuf(task->dumpsx, task->dumpsy, 24, 0);
-	ibuf->rect = task->dumprect;
+  /* create and save imbuf */
+  ImBuf *ibuf = IMB_allocImBuf(task->dumpsx, task->dumpsy, 24, 0);
+  ibuf->rect = task->dumprect;
 
-	BKE_imbuf_write_as(ibuf, task->path, task->im_format, false);
+  BKE_imbuf_write_as(ibuf, task->path, task->im_format, false);
 
-	ibuf->rect = nullptr;
-	IMB_freeImBuf(ibuf);
-	// Dumprect is allocated in RAS_OpenGLRasterizer::MakeScreenShot with malloc(), we must use free() then.
-	free(task->dumprect);
-	MEM_freeN(task->im_format);
+  ibuf->rect = nullptr;
+  IMB_freeImBuf(ibuf);
+  // Dumprect is allocated in RAS_OpenGLRasterizer::MakeScreenShot with malloc(), we must use
+  // free() then.
+  free(task->dumprect);
+  MEM_freeN(task->im_format);
 }
 
-
-void RAS_ICanvas::SaveScreeshot(const Screenshot& screenshot)
+void RAS_ICanvas::SaveScreeshot(const Screenshot &screenshot)
 {
-	unsigned int *pixels = m_rasterizer->MakeScreenshot(screenshot.x, screenshot.y, screenshot.width, screenshot.height);
-	if (!pixels) {
-		CM_Error("cannot allocate pixels array");
-		return;
-	}
+  unsigned int *pixels = m_rasterizer->MakeScreenshot(
+      screenshot.x, screenshot.y, screenshot.width, screenshot.height);
+  if (!pixels) {
+    CM_Error("cannot allocate pixels array");
+    return;
+  }
 
-	/* Save the actual file in a different thread, so that the
-	 * game engine can keep running at full speed. */
-	ScreenshotTaskData *task = (ScreenshotTaskData *)MEM_mallocN(sizeof(ScreenshotTaskData), "screenshot-data");
-	task->dumprect = pixels;
-	task->dumpsx = screenshot.width;
-	task->dumpsy = screenshot.height;
-	task->im_format = screenshot.format;
+  /* Save the actual file in a different thread, so that the
+   * game engine can keep running at full speed. */
+  ScreenshotTaskData *task = (ScreenshotTaskData *)MEM_mallocN(sizeof(ScreenshotTaskData),
+                                                               "screenshot-data");
+  task->dumprect = pixels;
+  task->dumpsx = screenshot.width;
+  task->dumpsy = screenshot.height;
+  task->im_format = screenshot.format;
 
-	BLI_strncpy(task->path, screenshot.path.c_str(), FILE_MAX);
-	BLI_path_frame(task->path, m_frame, 0);
-	m_frame++;
-	BKE_image_path_ensure_ext_from_imtype(task->path, task->im_format->imtype);
+  BLI_strncpy(task->path, screenshot.path.c_str(), FILE_MAX);
+  BLI_path_frame(task->path, m_frame, 0);
+  m_frame++;
+  BKE_image_path_ensure_ext_from_imtype(task->path, task->im_format->imtype);
 
-	BLI_task_pool_push(m_taskpool,
-	                   save_screenshot_thread_func,
-	                   task,
-	                   true, // free task data
-	                   TASK_PRIORITY_LOW);
+  BLI_task_pool_push(m_taskpool,
+                     save_screenshot_thread_func,
+                     task,
+                     true,  // free task data
+                     TASK_PRIORITY_LOW);
 }

@@ -34,20 +34,17 @@
 
 #include "SCA_IController.h"
 
-class SCA_XNORController : public SCA_IController
-{
-	Py_Header
-	//virtual void Trigger(class SCA_LogicManager* logicmgr);
-public:
-	SCA_XNORController(SCA_IObject* gameobj);
-	virtual ~SCA_XNORController();
-	virtual CValue* GetReplica();
-	virtual void Trigger(SCA_LogicManager* logicmgr);
+class SCA_XNORController : public SCA_IController {
+  Py_Header
+      // virtual void Trigger(class SCA_LogicManager* logicmgr);
+      public : SCA_XNORController(SCA_IObject *gameobj);
+  virtual ~SCA_XNORController();
+  virtual CValue *GetReplica();
+  virtual void Trigger(SCA_LogicManager *logicmgr);
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
-
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 };
 
-#endif  /* __SCA_XNORCONTROLLER_H__ */
+#endif /* __SCA_XNORCONTROLLER_H__ */

@@ -33,7 +33,6 @@
  *  \ingroup gamelogic
  */
 
-
 #include <stddef.h>
 
 #include "SCA_MouseSensor.h"
@@ -48,121 +47,112 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_MouseSensor::SCA_MouseSensor(SCA_MouseManager* eventmgr, 
-                                 int startx,int starty,
-                                 short int mousemode,
-                                 SCA_IObject* gameobj)
-    : SCA_ISensor(gameobj,eventmgr),
-      m_x(startx),
-      m_y(starty)
+SCA_MouseSensor::SCA_MouseSensor(
+    SCA_MouseManager *eventmgr, int startx, int starty, short int mousemode, SCA_IObject *gameobj)
+    : SCA_ISensor(gameobj, eventmgr), m_x(startx), m_y(starty)
 {
-	m_mousemode   = mousemode;
-	m_triggermode = true;
+  m_mousemode = mousemode;
+  m_triggermode = true;
 
-	Init();
+  Init();
 }
 
 void SCA_MouseSensor::Init()
 {
-	m_val = (m_invert)?1:0; /* stores the latest attribute */
-	m_reset = true;
+  m_val = (m_invert) ? 1 : 0; /* stores the latest attribute */
+  m_reset = true;
 }
 
-SCA_MouseSensor::~SCA_MouseSensor() 
+SCA_MouseSensor::~SCA_MouseSensor()
 {
-	/* Nothing to be done here. */
+  /* Nothing to be done here. */
 }
 
-CValue* SCA_MouseSensor::GetReplica()
+CValue *SCA_MouseSensor::GetReplica()
 {
-	SCA_MouseSensor* replica = new SCA_MouseSensor(*this);
-	// this will copy properties and so on...
-	replica->ProcessReplica();
-	replica->Init();
+  SCA_MouseSensor *replica = new SCA_MouseSensor(*this);
+  // this will copy properties and so on...
+  replica->ProcessReplica();
+  replica->Init();
 
-	return replica;
+  return replica;
 }
-
-
 
 bool SCA_MouseSensor::IsPositiveTrigger()
 {
-	bool result = (m_val != 0);
-	if (m_invert)
-		result = !result;
-		
-	return result;
+  bool result = (m_val != 0);
+  if (m_invert)
+    result = !result;
+
+  return result;
 }
 
 bool SCA_MouseSensor::Evaluate()
 {
-	bool result = false;
-	bool reset = m_reset && m_level;
-	int previousval = m_val;
-	SCA_IInputDevice* mousedev = ((SCA_MouseManager *)m_eventmgr)->GetInputDevice();
+  bool result = false;
+  bool reset = m_reset && m_level;
+  int previousval = m_val;
+  SCA_IInputDevice *mousedev = ((SCA_MouseManager *)m_eventmgr)->GetInputDevice();
 
-	m_reset = false;
-	switch (m_mousemode) {
-	case KX_MOUSESENSORMODE_LEFTBUTTON:
-	case KX_MOUSESENSORMODE_MIDDLEBUTTON:
-	case KX_MOUSESENSORMODE_RIGHTBUTTON:
-	case KX_MOUSESENSORMODE_WHEELUP:
-	case KX_MOUSESENSORMODE_WHEELDOWN:
-		{
-			static const SCA_IInputDevice::SCA_EnumInputs convertTable[KX_MOUSESENSORMODE_MAX] = {
-				SCA_IInputDevice::NOKEY, // KX_MOUSESENSORMODE_NODEF
-				SCA_IInputDevice::LEFTMOUSE, // KX_MOUSESENSORMODE_LEFTBUTTON
-				SCA_IInputDevice::MIDDLEMOUSE, // KX_MOUSESENSORMODE_MIDDLEBUTTON
-				SCA_IInputDevice::RIGHTMOUSE, // KX_MOUSESENSORMODE_RIGHTBUTTON
-				SCA_IInputDevice::WHEELUPMOUSE, // KX_MOUSESENSORMODE_WHEELUP
-				SCA_IInputDevice::WHEELDOWNMOUSE // KX_MOUSESENSORMODE_WHEELDOWN
-			};
+  m_reset = false;
+  switch (m_mousemode) {
+    case KX_MOUSESENSORMODE_LEFTBUTTON:
+    case KX_MOUSESENSORMODE_MIDDLEBUTTON:
+    case KX_MOUSESENSORMODE_RIGHTBUTTON:
+    case KX_MOUSESENSORMODE_WHEELUP:
+    case KX_MOUSESENSORMODE_WHEELDOWN: {
+      static const SCA_IInputDevice::SCA_EnumInputs convertTable[KX_MOUSESENSORMODE_MAX] = {
+          SCA_IInputDevice::NOKEY,          // KX_MOUSESENSORMODE_NODEF
+          SCA_IInputDevice::LEFTMOUSE,      // KX_MOUSESENSORMODE_LEFTBUTTON
+          SCA_IInputDevice::MIDDLEMOUSE,    // KX_MOUSESENSORMODE_MIDDLEBUTTON
+          SCA_IInputDevice::RIGHTMOUSE,     // KX_MOUSESENSORMODE_RIGHTBUTTON
+          SCA_IInputDevice::WHEELUPMOUSE,   // KX_MOUSESENSORMODE_WHEELUP
+          SCA_IInputDevice::WHEELDOWNMOUSE  // KX_MOUSESENSORMODE_WHEELDOWN
+      };
 
-			const SCA_InputEvent& mevent = mousedev->GetInput(convertTable[m_mousemode]);
-			if (mevent.Find(SCA_InputEvent::ACTIVE)) {
-				m_val = 1;
-			}
-			else {
-				m_val = 0;
-			}
-			break;
-		}
-	case KX_MOUSESENSORMODE_MOVEMENT:
-		{
-			const SCA_InputEvent& eventX = mousedev->GetInput(SCA_IInputDevice::MOUSEX);
-			const SCA_InputEvent& eventY = mousedev->GetInput(SCA_IInputDevice::MOUSEY);
+      const SCA_InputEvent &mevent = mousedev->GetInput(convertTable[m_mousemode]);
+      if (mevent.Find(SCA_InputEvent::ACTIVE)) {
+        m_val = 1;
+      }
+      else {
+        m_val = 0;
+      }
+      break;
+    }
+    case KX_MOUSESENSORMODE_MOVEMENT: {
+      const SCA_InputEvent &eventX = mousedev->GetInput(SCA_IInputDevice::MOUSEX);
+      const SCA_InputEvent &eventY = mousedev->GetInput(SCA_IInputDevice::MOUSEY);
 
-			if (eventX.Find(SCA_InputEvent::ACTIVE) || eventY.Find(SCA_InputEvent::ACTIVE)) {
-				m_val = 1;
-				result = true;
-			} 
-			else {
-				m_val = 0;
-			}
-			break;
-		}
-	default:
-		; /* error */
-	}
+      if (eventX.Find(SCA_InputEvent::ACTIVE) || eventY.Find(SCA_InputEvent::ACTIVE)) {
+        m_val = 1;
+        result = true;
+      }
+      else {
+        m_val = 0;
+      }
+      break;
+    }
+    default:; /* error */
+  }
 
-	if (previousval != m_val) {
-		result = true;
-	}
+  if (previousval != m_val) {
+    result = true;
+  }
 
-	if (reset)
-		// force an event
-		result = true;
-	return result;
+  if (reset)
+    // force an event
+    result = true;
+  return result;
 }
 
 void SCA_MouseSensor::setX(short x)
 {
-	m_x = x;
+  m_x = x;
 }
 
 void SCA_MouseSensor::setY(short y)
 {
-	m_y = y;
+  m_y = y;
 }
 
 #ifdef WITH_PYTHON
@@ -171,68 +161,89 @@ void SCA_MouseSensor::setY(short y)
 /* Python functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
-"getButtonStatus(button)\n"
-"\tGet the given button's status (KX_INPUT_NONE, KX_INPUT_NONE, KX_INPUT_JUST_ACTIVATED, KX_INPUT_ACTIVE, KX_INPUT_JUST_RELEASED).\n")
+KX_PYMETHODDEF_DOC_O(SCA_MouseSensor,
+                     getButtonStatus,
+                     "getButtonStatus(button)\n"
+                     "\tGet the given button's status (KX_INPUT_NONE, KX_INPUT_NONE, "
+                     "KX_INPUT_JUST_ACTIVATED, KX_INPUT_ACTIVE, KX_INPUT_JUST_RELEASED).\n")
 {
-	ShowDeprecationWarning("sensor.getButtonStatus(button)", "logic.mouse.events[button]");
+  ShowDeprecationWarning("sensor.getButtonStatus(button)", "logic.mouse.events[button]");
 
-	if (PyLong_Check(value))
-	{
-		SCA_IInputDevice::SCA_EnumInputs button = (SCA_IInputDevice::SCA_EnumInputs)PyLong_AsLong(value);
-		
-		if ((button < SCA_IInputDevice::LEFTMOUSE) ||
-		    (button > SCA_IInputDevice::RIGHTMOUSE))
-		{
-			PyErr_SetString(PyExc_ValueError, "sensor.getButtonStatus(int): Mouse Sensor, invalid button specified!");
-			return nullptr;
-		}
-		
-		SCA_IInputDevice* mousedev = ((SCA_MouseManager *)m_eventmgr)->GetInputDevice();
-		const SCA_InputEvent& event = mousedev->GetInput(button);
-		return PyLong_FromLong(event.m_status[event.m_status.size() - 1]);
-	}
-	
-	Py_RETURN_NONE;
+  if (PyLong_Check(value)) {
+    SCA_IInputDevice::SCA_EnumInputs button = (SCA_IInputDevice::SCA_EnumInputs)PyLong_AsLong(
+        value);
+
+    if ((button < SCA_IInputDevice::LEFTMOUSE) || (button > SCA_IInputDevice::RIGHTMOUSE)) {
+      PyErr_SetString(PyExc_ValueError,
+                      "sensor.getButtonStatus(int): Mouse Sensor, invalid button specified!");
+      return nullptr;
+    }
+
+    SCA_IInputDevice *mousedev = ((SCA_MouseManager *)m_eventmgr)->GetInputDevice();
+    const SCA_InputEvent &event = mousedev->GetInput(button);
+    return PyLong_FromLong(event.m_status[event.m_status.size() - 1]);
+  }
+
+  Py_RETURN_NONE;
 }
 
 /* ------------------------------------------------------------------------- */
 /* Python Integration Hooks                                                  */
 /* ------------------------------------------------------------------------- */
 
-PyTypeObject SCA_MouseSensor::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_MouseSensor",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_ISensor::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+PyTypeObject SCA_MouseSensor::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_MouseSensor",
+                                      sizeof(PyObjectPlus_Proxy),
+                                      0,
+                                      py_base_dealloc,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      py_base_repr,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      Methods,
+                                      0,
+                                      0,
+                                      &SCA_ISensor::Type,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      py_base_new};
 
 PyMethodDef SCA_MouseSensor::Methods[] = {
-	KX_PYMETHODTABLE_O(SCA_MouseSensor, getButtonStatus),
-	{nullptr,nullptr} //Sentinel
+    KX_PYMETHODTABLE_O(SCA_MouseSensor, getButtonStatus), {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_MouseSensor::Attributes[] = {
-	KX_PYATTRIBUTE_SHORT_RW("mode",KX_MOUSESENSORMODE_NODEF,KX_MOUSESENSORMODE_MAX-1,true,SCA_MouseSensor,m_mousemode),
-	KX_PYATTRIBUTE_SHORT_LIST_RO("position",SCA_MouseSensor,m_x,2),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    KX_PYATTRIBUTE_SHORT_RW("mode",
+                            KX_MOUSESENSORMODE_NODEF,
+                            KX_MOUSESENSORMODE_MAX - 1,
+                            true,
+                            SCA_MouseSensor,
+                            m_mousemode),
+    KX_PYATTRIBUTE_SHORT_LIST_RO("position", SCA_MouseSensor, m_x, 2),
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON
 
 /* eof */

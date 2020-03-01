@@ -33,11 +33,12 @@
 #define __KX_ISCALARINTERPOLATOR_H__
 
 class KX_IScalarInterpolator {
-public:
-	virtual ~KX_IScalarInterpolator() {}
-	
-	virtual float GetValue(float currentTime) const = 0; 
+ public:
+  virtual ~KX_IScalarInterpolator()
+  {
+  }
+
+  virtual float GetValue(float currentTime) const = 0;
 };
 
 #endif
-

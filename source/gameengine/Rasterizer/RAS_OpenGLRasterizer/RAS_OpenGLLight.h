@@ -27,23 +27,21 @@
 
 #include "RAS_ILightObject.h"
 
-class RAS_OpenGLLight : public RAS_ILightObject
-{
+class RAS_OpenGLLight : public RAS_ILightObject {
 
-public:
-	RAS_OpenGLLight();
-	virtual ~RAS_OpenGLLight();
+ public:
+  RAS_OpenGLLight();
+  virtual ~RAS_OpenGLLight();
 
-	RAS_OpenGLLight *Clone();
+  RAS_OpenGLLight *Clone();
 
-	virtual bool HasShadow() const;
-	virtual bool NeedShadowUpdate();
-	virtual int GetShadowBindCode();
-	virtual MT_Matrix4x4 GetViewMat();
-	virtual MT_Matrix4x4 GetWinMat();
-	virtual MT_Matrix4x4 GetShadowMatrix();
-	virtual int GetShadowLayer();
-	virtual Image *GetTextureImage(short texslot);
-	void SetShadowUpdateState(short state);
-
+  virtual bool HasShadow() const;
+  virtual bool NeedShadowUpdate();
+  virtual int GetShadowBindCode();
+  virtual MT_Matrix4x4 GetViewMat();
+  virtual MT_Matrix4x4 GetWinMat();
+  virtual MT_Matrix4x4 GetShadowMatrix();
+  virtual int GetShadowLayer();
+  virtual Image *GetTextureImage(short texslot);
+  void SetShadowUpdateState(short state);
 };

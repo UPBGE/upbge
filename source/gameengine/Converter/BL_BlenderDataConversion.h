@@ -37,21 +37,24 @@
 #include "KX_PhysicsEngineEnums.h"
 #include "SCA_IInputDevice.h"
 
-class RAS_MeshObject* BL_ConvertMesh(struct Mesh* mesh, struct Object* lightobj, class KX_Scene* scene, class RAS_Rasterizer *rasty,
-		class KX_BlenderSceneConverter& converter, bool libloading);
+class RAS_MeshObject *BL_ConvertMesh(struct Mesh *mesh,
+                                     struct Object *lightobj,
+                                     class KX_Scene *scene,
+                                     class RAS_Rasterizer *rasty,
+                                     class KX_BlenderSceneConverter &converter,
+                                     bool libloading);
 
-void BL_ConvertBlenderObjects(struct Main* maggie,
-							  struct Depsgraph *depsgraph,
-							  class KX_Scene* kxscene,
-							  class KX_KetsjiEngine* ketsjiEngine,
-							  e_PhysicsEngine	physics_engine,
-							  class RAS_Rasterizer* rendertools,
-							  class RAS_ICanvas* canvas,
-							  class KX_BlenderSceneConverter& sceneconverter,
-							  bool alwaysUseExpandFraming,
-							  bool libloading=false
-							  );
+void BL_ConvertBlenderObjects(struct Main *maggie,
+                              struct Depsgraph *depsgraph,
+                              class KX_Scene *kxscene,
+                              class KX_KetsjiEngine *ketsjiEngine,
+                              e_PhysicsEngine physics_engine,
+                              class RAS_Rasterizer *rendertools,
+                              class RAS_ICanvas *canvas,
+                              class KX_BlenderSceneConverter &sceneconverter,
+                              bool alwaysUseExpandFraming,
+                              bool libloading = false);
 
 SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code);
 
-#endif  /* __BL_BLENDERDATACONVERSION_H__ */
+#endif /* __BL_BLENDERDATACONVERSION_H__ */

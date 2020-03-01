@@ -36,7 +36,7 @@
 #include <string>
 #include "MT_Vector3.h"
 
-#include "DEV_JoystickDefines.h" // For JOYINDEX_MAX
+#include "DEV_JoystickDefines.h"  // For JOYINDEX_MAX
 
 class KX_KetsjiEngine;
 
@@ -51,12 +51,17 @@ void initGamePlayerPythonScripting(struct Main *maggie, int argc, char **argv, s
 void initGamePythonScripting(struct Main *maggie);
 
 // Add a python include path.
-void appendPythonPath(const std::string& path);
+void appendPythonPath(const std::string &path);
 
 void exitGamePlayerPythonScripting();
 void exitGamePythonScripting();
-void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata,
-                     PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char **argv, struct bContext *C);
+void setupGamePython(KX_KetsjiEngine *ketsjiengine,
+                     Main *blenderdata,
+                     PyObject *pyGlobalDict,
+                     PyObject **gameLogic,
+                     int argc,
+                     char **argv,
+                     struct bContext *C);
 std::string pathGamePythonConfig();
 void saveGamePythonConfig();
 void loadGamePythonConfig();
@@ -74,11 +79,11 @@ void removeImportMain(struct Main *maggie);
 typedef int (*PyNextFrameFunc)(void *);
 
 struct PyNextFrameState {
-	/// Launcher currently used (LA_Launcher).
-	void *state;
-	/// Launcher python frame function (LA_Launcher::PythonEngineNextFrame).
-	PyNextFrameFunc func;
+  /// Launcher currently used (LA_Launcher).
+  void *state;
+  /// Launcher python frame function (LA_Launcher::PythonEngineNextFrame).
+  PyNextFrameFunc func;
 };
 extern struct PyNextFrameState pynextframestate;
 
-#endif  /* __KX_PYTHONINIT_H__ */
+#endif /* __KX_PYTHONINIT_H__ */

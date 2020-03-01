@@ -37,13 +37,12 @@
 
 #include "SCA_EventManager.h"
 
-class SCA_BasicEventManager : public SCA_EventManager
-{
-public:
-	SCA_BasicEventManager(class SCA_LogicManager* logicmgr);
-	~SCA_BasicEventManager();
+class SCA_BasicEventManager : public SCA_EventManager {
+ public:
+  SCA_BasicEventManager(class SCA_LogicManager *logicmgr);
+  ~SCA_BasicEventManager();
 
-	virtual void NextFrame();
+  virtual void NextFrame();
 };
 
-#endif  /* __SCA_BASICEVENTMANAGER_H__ */
+#endif /* __SCA_BASICEVENTMANAGER_H__ */

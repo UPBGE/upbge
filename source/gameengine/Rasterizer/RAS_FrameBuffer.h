@@ -32,32 +32,33 @@
 struct GPUFrameBuffer;
 struct GPUTexture;
 
-class RAS_FrameBuffer
-{
-private:
-	/// All the off screens used.
-	GPUFrameBuffer *m_frameBuffer;
-	/// The off screen type, render, final, filter ect...
-	RAS_Rasterizer::FrameBufferType m_frameBufferType;
+class RAS_FrameBuffer {
+ private:
+  /// All the off screens used.
+  GPUFrameBuffer *m_frameBuffer;
+  /// The off screen type, render, final, filter ect...
+  RAS_Rasterizer::FrameBufferType m_frameBufferType;
 
   GPUTexture *m_colorAttachment;
   GPUTexture *m_depthAttachment;
 
-public:
-	RAS_FrameBuffer(unsigned int width, unsigned height, RAS_Rasterizer::FrameBufferType framebufferType);
-	~RAS_FrameBuffer();
+ public:
+  RAS_FrameBuffer(unsigned int width,
+                  unsigned height,
+                  RAS_Rasterizer::FrameBufferType framebufferType);
+  ~RAS_FrameBuffer();
 
-	GPUFrameBuffer *GetFrameBuffer();
-	/// NOTE: This function has the side effect to leave the destination off screen bound.
-	RAS_FrameBuffer *Blit(RAS_FrameBuffer *dstFrameBuffer, bool color, bool depth);
+  GPUFrameBuffer *GetFrameBuffer();
+  /// NOTE: This function has the side effect to leave the destination off screen bound.
+  RAS_FrameBuffer *Blit(RAS_FrameBuffer *dstFrameBuffer, bool color, bool depth);
 
-	unsigned GetWidth() const;
-	unsigned GetHeight() const;
+  unsigned GetWidth() const;
+  unsigned GetHeight() const;
 
   GPUTexture *GetColorAttachment();
   GPUTexture *GetDepthAttachment();
 
-	RAS_Rasterizer::FrameBufferType GetType() const;
+  RAS_Rasterizer::FrameBufferType GetType() const;
 };
 
 #endif  // __RAS_FRAMEBUFFER_H__

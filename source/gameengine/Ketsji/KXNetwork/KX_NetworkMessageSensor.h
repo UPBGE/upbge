@@ -36,56 +36,52 @@
 
 class KX_NetworkMessageScene;
 class CStringValue;
-template <class ItemType>
-class CListValue;
+template<class ItemType> class CListValue;
 
-class KX_NetworkMessageSensor : public SCA_ISensor
-{
-	// note: Py_Header MUST BE the first listed here
-	Py_Header
-	KX_NetworkMessageScene *m_NetworkScene;
+class KX_NetworkMessageSensor : public SCA_ISensor {
+  // note: Py_Header MUST BE the first listed here
+  Py_Header KX_NetworkMessageScene *m_NetworkScene;
 
-	// The subject we filter on.
-	std::string m_subject;
+  // The subject we filter on.
+  std::string m_subject;
 
-	// The number of messages caught since the last frame.
-	int m_frame_message_count;
+  // The number of messages caught since the last frame.
+  int m_frame_message_count;
 
-	bool m_IsUp;
+  bool m_IsUp;
 
-	CListValue<CStringValue> *m_BodyList;
-	CListValue<CStringValue> *m_SubjectList;
+  CListValue<CStringValue> *m_BodyList;
+  CListValue<CStringValue> *m_SubjectList;
 
-public:
-	KX_NetworkMessageSensor(
-	    SCA_EventManager *eventmgr, // our eventmanager
-	    KX_NetworkMessageScene *NetworkScene, // our scene
-	    SCA_IObject *gameobj, // the sensor controlling object
-	    const std::string &subject);
-	virtual ~KX_NetworkMessageSensor();
+ public:
+  KX_NetworkMessageSensor(SCA_EventManager *eventmgr,            // our eventmanager
+                          KX_NetworkMessageScene *NetworkScene,  // our scene
+                          SCA_IObject *gameobj,                  // the sensor controlling object
+                          const std::string &subject);
+  virtual ~KX_NetworkMessageSensor();
 
-	virtual CValue *GetReplica();
-	virtual bool Evaluate();
-	virtual bool IsPositiveTrigger();
-	virtual void Init();
-	void EndFrame();
+  virtual CValue *GetReplica();
+  virtual bool Evaluate();
+  virtual bool IsPositiveTrigger();
+  virtual void Init();
+  void EndFrame();
 
-	virtual void Replace_NetworkScene(KX_NetworkMessageScene *val)
-	{
-		m_NetworkScene = val;
-	};
+  virtual void Replace_NetworkScene(KX_NetworkMessageScene *val)
+  {
+    m_NetworkScene = val;
+  };
 
 #ifdef WITH_PYTHON
 
-	/* ------------------------------------------------------------- */
-	/* Python interface -------------------------------------------- */
-	/* ------------------------------------------------------------- */
+  /* ------------------------------------------------------------- */
+  /* Python interface -------------------------------------------- */
+  /* ------------------------------------------------------------- */
 
-	/* attributes */
-	static PyObject *pyattr_get_bodies(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_subjects(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  /* attributes */
+  static PyObject *pyattr_get_bodies(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_subjects(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
-#endif  /* WITH_PYTHON */
+#endif /* WITH_PYTHON */
 };
 
-#endif  /* __KX_NETWORKMESSAGESENSOR_H__ */
+#endif /* __KX_NETWORKMESSAGESENSOR_H__ */

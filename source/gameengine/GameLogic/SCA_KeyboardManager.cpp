@@ -32,38 +32,29 @@
  *  \ingroup gamelogic
  */
 
-
 #include "EXP_BoolValue.h"
 #include "SCA_KeyboardManager.h"
 #include "SCA_KeyboardSensor.h"
 #include "EXP_IntValue.h"
 #include <vector>
 
-SCA_KeyboardManager::SCA_KeyboardManager(SCA_LogicManager* logicmgr,
-										 SCA_IInputDevice* inputdev)
-	:	SCA_EventManager(logicmgr, KEYBOARD_EVENTMGR),
-		m_inputDevice(inputdev)
+SCA_KeyboardManager::SCA_KeyboardManager(SCA_LogicManager *logicmgr, SCA_IInputDevice *inputdev)
+    : SCA_EventManager(logicmgr, KEYBOARD_EVENTMGR), m_inputDevice(inputdev)
 {
 }
-
-
 
 SCA_KeyboardManager::~SCA_KeyboardManager()
 {
 }
 
-
-
-SCA_IInputDevice* SCA_KeyboardManager::GetInputDevice()
+SCA_IInputDevice *SCA_KeyboardManager::GetInputDevice()
 {
-	return m_inputDevice;
+  return m_inputDevice;
 }
-
-
 
 void SCA_KeyboardManager::NextFrame()
 {
-	for (SCA_ISensor *sensor : m_sensors) {
-		sensor->Activate(m_logicmgr);
-	}
+  for (SCA_ISensor *sensor : m_sensors) {
+    sensor->Activate(m_logicmgr);
+  }
 }

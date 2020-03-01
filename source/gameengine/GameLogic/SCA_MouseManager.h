@@ -31,25 +31,21 @@
  *
  */
 
-
 #ifndef __SCA_MOUSEMANAGER_H__
 #define __SCA_MOUSEMANAGER_H__
-
 
 #include "SCA_EventManager.h"
 #include "SCA_IInputDevice.h"
 
+class SCA_MouseManager : public SCA_EventManager {
+  class SCA_IInputDevice *m_mousedevice;
 
-class SCA_MouseManager : public SCA_EventManager
-{
-	class 	SCA_IInputDevice*				m_mousedevice;
+ public:
+  SCA_MouseManager(class SCA_LogicManager *logicmgr, class SCA_IInputDevice *mousedev);
+  virtual ~SCA_MouseManager();
 
-public:
-	SCA_MouseManager(class SCA_LogicManager* logicmgr,class SCA_IInputDevice* mousedev);
-	virtual ~SCA_MouseManager();
-
-	virtual void 	NextFrame();
-	SCA_IInputDevice* GetInputDevice();
+  virtual void NextFrame();
+  SCA_IInputDevice *GetInputDevice();
 };
 
-#endif  /* __SCA_MOUSEMANAGER_H__ */
+#endif /* __SCA_MOUSEMANAGER_H__ */

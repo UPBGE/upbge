@@ -30,53 +30,53 @@
  */
 
 #ifndef __KX_FONTOBJECT_H__
-#define  __KX_FONTOBJECT_H__
+#define __KX_FONTOBJECT_H__
 
 #include "KX_GameObject.h"
 
-class KX_FontObject : public KX_GameObject
-{
-public:
-	Py_Header
-	KX_FontObject(void *sgReplicationInfo,
-	              SG_Callbacks callbacks,
-	              RAS_Rasterizer *rasterizer,
-	              Object *ob);
+class KX_FontObject : public KX_GameObject {
+ public:
+  Py_Header KX_FontObject(void *sgReplicationInfo,
+                          SG_Callbacks callbacks,
+                          RAS_Rasterizer *rasterizer,
+                          Object *ob);
 
-	virtual ~KX_FontObject();
+  virtual ~KX_FontObject();
 
-	/**
-	 * Inherited from CValue -- return a new copy of this
-	 * instance allocated on the heap. Ownership of the new
-	 * object belongs with the caller.
-	 */
-	virtual CValue *GetReplica();
-	virtual void ProcessReplica();
-	virtual int GetGameObjectType() const
-	{
-		return OBJ_TEXT;
-	}
+  /**
+   * Inherited from CValue -- return a new copy of this
+   * instance allocated on the heap. Ownership of the new
+   * object belongs with the caller.
+   */
+  virtual CValue *GetReplica();
+  virtual void ProcessReplica();
+  virtual int GetGameObjectType() const
+  {
+    return OBJ_TEXT;
+  }
 
-	void UpdateCurveText(std::string text); //eevee
+  void UpdateCurveText(std::string text);  // eevee
 
-	// Update text and bounding box.
-	void SetText(const std::string& text);
-	/// Update text from property.
-	void UpdateTextFromProperty();
+  // Update text and bounding box.
+  void SetText(const std::string &text);
+  /// Update text from property.
+  void UpdateTextFromProperty();
 
-protected:
-	std::string m_text;
-	std::vector<std::string> m_texts;
-	Object *m_object;
+ protected:
+  std::string m_text;
+  std::vector<std::string> m_texts;
+  Object *m_object;
 
-	std::string m_backupText; //eevee
-	/// needed for drawing routine
-	class RAS_Rasterizer *m_rasterizer;
+  std::string m_backupText;  // eevee
+  /// needed for drawing routine
+  class RAS_Rasterizer *m_rasterizer;
 
 #ifdef WITH_PYTHON
-	static PyObject *pyattr_get_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  static PyObject *pyattr_get_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_text(PyObjectPlus *self_v,
+                             const KX_PYATTRIBUTE_DEF *attrdef,
+                             PyObject *value);
 #endif
 };
 
-#endif  /* __KX_FONTOBJECT_H__ */
+#endif /* __KX_FONTOBJECT_H__ */

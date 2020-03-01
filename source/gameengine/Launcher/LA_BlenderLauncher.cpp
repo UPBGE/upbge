@@ -33,41 +33,50 @@
 #include "CM_Message.h"
 
 extern "C" {
-#  include "BKE_context.h"
-#  include "BKE_undo_system.h"
+#include "BKE_context.h"
+#include "BKE_undo_system.h"
 
 // avoid c++ conflict with 'new'
-#  define new _new
-#  include "BKE_screen.h"
-#  undef new
+#define new _new
+#include "BKE_screen.h"
+#undef new
 
-#  include "DNA_scene_types.h"
-#  include "DNA_screen_types.h"
-#  include "DNA_object_types.h"
-#  include "DNA_view3d_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_object_types.h"
+#include "DNA_view3d_types.h"
 
-#  include "WM_types.h"
-#  include "WM_api.h"
-#  include "wm_event_system.h"
-#  include "wm_window.h"
+#include "WM_types.h"
+#include "WM_api.h"
+#include "wm_event_system.h"
+#include "wm_window.h"
 
-#  include "BLI_rect.h"
+#include "BLI_rect.h"
 }
 
-LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_Rasterizer::StereoMode stereoMode, 
-									   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming)
-	:LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, argc, argv, context),
-	m_context(context),
-	m_ar(ar),
-	m_camFrame(camframe),
-	m_alwaysUseExpandFraming(alwaysUseExpandFraming),
-	m_drawLetterBox(false)
+LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system,
+                                       Main *maggie,
+                                       Scene *scene,
+                                       GlobalSettings *gs,
+                                       RAS_Rasterizer::StereoMode stereoMode,
+                                       int argc,
+                                       char **argv,
+                                       bContext *context,
+                                       rcti *camframe,
+                                       ARegion *ar,
+                                       int alwaysUseExpandFraming)
+    : LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, argc, argv, context),
+      m_context(context),
+      m_ar(ar),
+      m_camFrame(camframe),
+      m_alwaysUseExpandFraming(alwaysUseExpandFraming),
+      m_drawLetterBox(false)
 {
-	m_windowManager = CTX_wm_manager(m_context);
-	m_window = CTX_wm_window(m_context);
-	m_view3d = CTX_wm_view3d(m_context);
-	CM_Debug(ar->winx << ", " << ar->winy);
-	print_rcti("rcti: ", &ar->winrct);
+  m_windowManager = CTX_wm_manager(m_context);
+  m_window = CTX_wm_window(m_context);
+  m_view3d = CTX_wm_view3d(m_context);
+  CM_Debug(ar->winx << ", " << ar->winy);
+  print_rcti("rcti: ", &ar->winrct);
 }
 
 LA_BlenderLauncher::~LA_BlenderLauncher()
@@ -76,44 +85,47 @@ LA_BlenderLauncher::~LA_BlenderLauncher()
 
 RAS_ICanvas *LA_BlenderLauncher::CreateCanvas(Scene *startscene)
 {
-	return (new KX_BlenderCanvas(m_rasterizer, m_windowManager, m_window, startscene, m_camFrame, m_ar));
+  return (
+      new KX_BlenderCanvas(m_rasterizer, m_windowManager, m_window, startscene, m_camFrame, m_ar));
 }
 
 bool LA_BlenderLauncher::GetUseAlwaysExpandFraming()
 {
-	return m_alwaysUseExpandFraming;
+  return m_alwaysUseExpandFraming;
 }
 
 void LA_BlenderLauncher::InitCamera()
 {
-	RegionView3D *rv3d = CTX_wm_region_view3d(m_context);
+  RegionView3D *rv3d = CTX_wm_region_view3d(m_context);
 
-	// Some blender stuff.
-	float camzoom = 1.0f;
+  // Some blender stuff.
+  float camzoom = 1.0f;
 
-	if (rv3d->persp == RV3D_CAMOB) {
-		if (m_startScene->gm.framing.type == SCE_GAMEFRAMING_BARS) { /* Letterbox */
-			m_drawLetterBox = true;
-		}
-		else {
-			camzoom = 1.0f / BKE_screen_view3d_zoom_to_fac(rv3d->camzoom);
-		}
-	}
+  if (rv3d->persp == RV3D_CAMOB) {
+    if (m_startScene->gm.framing.type == SCE_GAMEFRAMING_BARS) { /* Letterbox */
+      m_drawLetterBox = true;
+    }
+    else {
+      camzoom = 1.0f / BKE_screen_view3d_zoom_to_fac(rv3d->camzoom);
+    }
+  }
 
-	m_ketsjiEngine->SetCameraZoom(camzoom);
-	m_ketsjiEngine->SetCameraOverrideZoom(2.0f);
+  m_ketsjiEngine->SetCameraZoom(camzoom);
+  m_ketsjiEngine->SetCameraOverrideZoom(2.0f);
 
-	if (rv3d->persp != RV3D_CAMOB) {
-		RAS_CameraData camdata = RAS_CameraData();
-		camdata.m_lens = m_view3d->lens;
-		camdata.m_clipstart = m_view3d->clip_start;
-		camdata.m_clipend = m_view3d->clip_end;
-		camdata.m_perspective = (rv3d->persp != RV3D_ORTHO);
+  if (rv3d->persp != RV3D_CAMOB) {
+    RAS_CameraData camdata = RAS_CameraData();
+    camdata.m_lens = m_view3d->lens;
+    camdata.m_clipstart = m_view3d->clip_start;
+    camdata.m_clipend = m_view3d->clip_end;
+    camdata.m_perspective = (rv3d->persp != RV3D_ORTHO);
 
-		m_ketsjiEngine->EnableCameraOverride(m_startSceneName, MT_Matrix4x4(&rv3d->winmat[0][0]), MT_Matrix4x4(&rv3d->viewmat[0][0]), camdata);
-	}
+    m_ketsjiEngine->EnableCameraOverride(m_startSceneName,
+                                         MT_Matrix4x4(&rv3d->winmat[0][0]),
+                                         MT_Matrix4x4(&rv3d->viewmat[0][0]),
+                                         camdata);
+  }
 }
-
 
 void LA_BlenderLauncher::InitPython()
 {
@@ -125,75 +137,79 @@ void LA_BlenderLauncher::ExitPython()
 {
 #ifdef WITH_PYTHON
 
-	exitGamePythonScripting();
+  exitGamePythonScripting();
 
 #endif  // WITH_PYTHON
 }
 
 void LA_BlenderLauncher::InitEngine()
 {
-	// Lock frame and camera enabled - storing global values.
-	m_savedBlenderData.sceneLayer = m_startScene->lay;
-	m_savedBlenderData.camera = m_startScene->camera;
+  // Lock frame and camera enabled - storing global values.
+  m_savedBlenderData.sceneLayer = m_startScene->lay;
+  m_savedBlenderData.camera = m_startScene->camera;
 
-	if (m_startScene->gm.flag & GAME_USE_UNDO) {
-      BKE_undosys_step_push(m_windowManager->undo_stack, m_context, "bge_start");
-	}
+  if (m_startScene->gm.flag & GAME_USE_UNDO) {
+    BKE_undosys_step_push(m_windowManager->undo_stack, m_context, "bge_start");
+  }
 
-	if (m_view3d->scenelock == 0) {
-		m_startScene->lay = m_view3d->local_view_uuid;
-		m_startScene->camera = m_view3d->camera;
-	}
+  if (m_view3d->scenelock == 0) {
+    m_startScene->lay = m_view3d->local_view_uuid;
+    m_startScene->camera = m_view3d->camera;
+  }
 
-	LA_Launcher::InitEngine();
+  LA_Launcher::InitEngine();
 }
 
 void LA_BlenderLauncher::ExitEngine()
 {
-	LA_Launcher::ExitEngine();
+  LA_Launcher::ExitEngine();
 
-	// Lock frame and camera enabled - restoring global values.
-	if (m_view3d->scenelock == 0) {
-		m_startScene->lay = m_savedBlenderData.sceneLayer;
-		m_startScene->camera= m_savedBlenderData.camera;
-	}
+  // Lock frame and camera enabled - restoring global values.
+  if (m_view3d->scenelock == 0) {
+    m_startScene->lay = m_savedBlenderData.sceneLayer;
+    m_startScene->camera = m_savedBlenderData.camera;
+  }
 
-    /* Undo System */
-    if (m_startScene->gm.flag & GAME_USE_UNDO) {
-        UndoStep *step_data_from_name = NULL;
-        step_data_from_name = BKE_undosys_step_find_by_name(m_windowManager->undo_stack, "bge_start");
-        if (step_data_from_name) {
-            BKE_undosys_step_undo_with_data(m_windowManager->undo_stack, m_context, step_data_from_name);
-        }
-        else {
-            BKE_undosys_step_undo(m_windowManager->undo_stack, m_context);
-        }
+  /* Undo System */
+  if (m_startScene->gm.flag & GAME_USE_UNDO) {
+    UndoStep *step_data_from_name = NULL;
+    step_data_from_name = BKE_undosys_step_find_by_name(m_windowManager->undo_stack, "bge_start");
+    if (step_data_from_name) {
+      BKE_undosys_step_undo_with_data(m_windowManager->undo_stack, m_context, step_data_from_name);
     }
+    else {
+      BKE_undosys_step_undo(m_windowManager->undo_stack, m_context);
+    }
+  }
 
-	// Free all window manager events unused.
-	wm_event_free_all(m_window);
+  // Free all window manager events unused.
+  wm_event_free_all(m_window);
 }
 
 void LA_BlenderLauncher::RenderEngine()
 {
-	if (m_drawLetterBox) {
-		// Clear screen to border color
-		// We do this here since we set the canvas to be within the frames. This means the engine
-		// itself is unaware of the extra space, so we clear the whole region for it.
-		m_rasterizer->SetClearColor(m_startScene->gm.framing.col[0], m_startScene->gm.framing.col[1], m_startScene->gm.framing.col[2]);
-// 		m_rasterizer->SetViewport(m_ar->winrct.xmin, m_ar->winrct.ymin,
-// 		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
-		m_rasterizer->SetScissor(m_ar->winrct.xmin, m_ar->winrct.ymin,
-		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
-		m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
-	}
-	LA_Launcher::RenderEngine();
+  if (m_drawLetterBox) {
+    // Clear screen to border color
+    // We do this here since we set the canvas to be within the frames. This means the engine
+    // itself is unaware of the extra space, so we clear the whole region for it.
+    m_rasterizer->SetClearColor(m_startScene->gm.framing.col[0],
+                                m_startScene->gm.framing.col[1],
+                                m_startScene->gm.framing.col[2]);
+    // 		m_rasterizer->SetViewport(m_ar->winrct.xmin, m_ar->winrct.ymin,
+    // 		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
+    m_rasterizer->SetScissor(m_ar->winrct.xmin,
+                             m_ar->winrct.ymin,
+                             BLI_rcti_size_x(&m_ar->winrct) + 1,
+                             BLI_rcti_size_y(&m_ar->winrct) + 1);
+    m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
+  }
+  LA_Launcher::RenderEngine();
 }
 
 bool LA_BlenderLauncher::EngineNextFrame()
 {
-	// Free all window manager events unused.
-	wm_event_free_all(m_window);
+  // Free all window manager events unused.
+  wm_event_free_all(m_window);
 
-	return LA_Launcher::EngineNextFrame();
+  return LA_Launcher::EngineNextFrame();
 }

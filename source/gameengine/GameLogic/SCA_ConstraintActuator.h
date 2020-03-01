@@ -42,110 +42,108 @@
 class KX_RayCast;
 class KX_GameObject;
 
-class SCA_ConstraintActuator : public SCA_IActuator
-{
-	Py_Header
-protected:
-	// Damp time (int),
-	int m_posDampTime;
-	int m_rotDampTime;
-	// min (float) 
-	float m_minimumBound;
-	// max (float)
-	float m_maximumBound;
-	// sinus of minimum angle
-	float m_minimumSine;
-	// sinus of maximum angle
-	float m_maximumSine;
-	// reference direction
-	float m_refDirection[3];
-	MT_Vector3 m_refDirVector;	// same as m_refDirection
-	// locrotxyz choice (pick one): only one choice allowed at a time!
-	int m_locrot;
-	// active time of actuator
-	int m_activeTime;
-	int m_currentTime;
-	// option
-	int m_option;
-	// property to check
-	std::string m_property;
-	// hit object
-	KX_GameObject* m_hitObject;
+class SCA_ConstraintActuator : public SCA_IActuator {
+  Py_Header protected :
+      // Damp time (int),
+      int m_posDampTime;
+  int m_rotDampTime;
+  // min (float)
+  float m_minimumBound;
+  // max (float)
+  float m_maximumBound;
+  // sinus of minimum angle
+  float m_minimumSine;
+  // sinus of maximum angle
+  float m_maximumSine;
+  // reference direction
+  float m_refDirection[3];
+  MT_Vector3 m_refDirVector;  // same as m_refDirection
+  // locrotxyz choice (pick one): only one choice allowed at a time!
+  int m_locrot;
+  // active time of actuator
+  int m_activeTime;
+  int m_currentTime;
+  // option
+  int m_option;
+  // property to check
+  std::string m_property;
+  // hit object
+  KX_GameObject *m_hitObject;
 
-	/**
-	 * Clamp <var> to <min>, <max>. Borders are included (in as far as
-	 * float comparisons are good for equality...).
-	 */
-	void Clamp(MT_Scalar &var, float min, float max);
+  /**
+   * Clamp <var> to <min>, <max>. Borders are included (in as far as
+   * float comparisons are good for equality...).
+   */
+  void Clamp(MT_Scalar &var, float min, float max);
 
-	
  public:
-	 //  m_locrot
-	enum KX_CONSTRAINTTYPE {
-		KX_ACT_CONSTRAINT_NODEF = 0,
-		KX_ACT_CONSTRAINT_LOCX,
-		KX_ACT_CONSTRAINT_LOCY,
-		KX_ACT_CONSTRAINT_LOCZ,
-		KX_ACT_CONSTRAINT_ROTX,
-		KX_ACT_CONSTRAINT_ROTY,
-		KX_ACT_CONSTRAINT_ROTZ,
-		KX_ACT_CONSTRAINT_DIRPX,
-		KX_ACT_CONSTRAINT_DIRPY,
-		KX_ACT_CONSTRAINT_DIRPZ,
-		KX_ACT_CONSTRAINT_DIRNX,
-		KX_ACT_CONSTRAINT_DIRNY,
-		KX_ACT_CONSTRAINT_DIRNZ,
-		KX_ACT_CONSTRAINT_ORIX,
-		KX_ACT_CONSTRAINT_ORIY,
-		KX_ACT_CONSTRAINT_ORIZ,
-		KX_ACT_CONSTRAINT_FHPX,
-		KX_ACT_CONSTRAINT_FHPY,
-		KX_ACT_CONSTRAINT_FHPZ,
-		KX_ACT_CONSTRAINT_FHNX,
-		KX_ACT_CONSTRAINT_FHNY,
-		KX_ACT_CONSTRAINT_FHNZ,
-		KX_ACT_CONSTRAINT_MAX
-	};
-	// match ACT_CONST_... values from BIF_interface.h
-	enum KX_CONSTRAINTOPT {
-		KX_ACT_CONSTRAINT_NORMAL = 64,
-		KX_ACT_CONSTRAINT_MATERIAL = 128,
-		KX_ACT_CONSTRAINT_PERMANENT = 256,
-		KX_ACT_CONSTRAINT_DISTANCE = 512,
-		KX_ACT_CONSTRAINT_LOCAL = 1024,
-		KX_ACT_CONSTRAINT_DOROTFH = 2048
-	};
-	/// \see KX_RayCast
-	bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data));
-	/// \see KX_RayCast
-	bool NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data));
+  //  m_locrot
+  enum KX_CONSTRAINTTYPE {
+    KX_ACT_CONSTRAINT_NODEF = 0,
+    KX_ACT_CONSTRAINT_LOCX,
+    KX_ACT_CONSTRAINT_LOCY,
+    KX_ACT_CONSTRAINT_LOCZ,
+    KX_ACT_CONSTRAINT_ROTX,
+    KX_ACT_CONSTRAINT_ROTY,
+    KX_ACT_CONSTRAINT_ROTZ,
+    KX_ACT_CONSTRAINT_DIRPX,
+    KX_ACT_CONSTRAINT_DIRPY,
+    KX_ACT_CONSTRAINT_DIRPZ,
+    KX_ACT_CONSTRAINT_DIRNX,
+    KX_ACT_CONSTRAINT_DIRNY,
+    KX_ACT_CONSTRAINT_DIRNZ,
+    KX_ACT_CONSTRAINT_ORIX,
+    KX_ACT_CONSTRAINT_ORIY,
+    KX_ACT_CONSTRAINT_ORIZ,
+    KX_ACT_CONSTRAINT_FHPX,
+    KX_ACT_CONSTRAINT_FHPY,
+    KX_ACT_CONSTRAINT_FHPZ,
+    KX_ACT_CONSTRAINT_FHNX,
+    KX_ACT_CONSTRAINT_FHNY,
+    KX_ACT_CONSTRAINT_FHNZ,
+    KX_ACT_CONSTRAINT_MAX
+  };
+  // match ACT_CONST_... values from BIF_interface.h
+  enum KX_CONSTRAINTOPT {
+    KX_ACT_CONSTRAINT_NORMAL = 64,
+    KX_ACT_CONSTRAINT_MATERIAL = 128,
+    KX_ACT_CONSTRAINT_PERMANENT = 256,
+    KX_ACT_CONSTRAINT_DISTANCE = 512,
+    KX_ACT_CONSTRAINT_LOCAL = 1024,
+    KX_ACT_CONSTRAINT_DOROTFH = 2048
+  };
+  /// \see KX_RayCast
+  bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data));
+  /// \see KX_RayCast
+  bool NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data));
 
-	SCA_ConstraintActuator(SCA_IObject* gameobj,
-						  int posDamptime,
-						  int rotDampTime,
-						  float min,
-						  float max,
-						  float refDir[3],
-						  int locrot,
-						  int time,
-						  int option,
-						  char *property);
-	virtual ~SCA_ConstraintActuator();
-	virtual CValue* GetReplica() {
-		SCA_ConstraintActuator* replica = new SCA_ConstraintActuator(*this);
-		replica->ProcessReplica();
-		return replica;
-	};
+  SCA_ConstraintActuator(SCA_IObject *gameobj,
+                         int posDamptime,
+                         int rotDampTime,
+                         float min,
+                         float max,
+                         float refDir[3],
+                         int locrot,
+                         int time,
+                         int option,
+                         char *property);
+  virtual ~SCA_ConstraintActuator();
+  virtual CValue *GetReplica()
+  {
+    SCA_ConstraintActuator *replica = new SCA_ConstraintActuator(*this);
+    replica->ProcessReplica();
+    return replica;
+  };
 
-	virtual bool Update(double curtime);
+  virtual bool Update(double curtime);
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	static int pyattr_check_direction(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_check_min(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef);
-
+  static int pyattr_check_direction(PyObjectPlus *self_v,
+                                    const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_check_min(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef);
 };
 
-#endif  /* __SCA_ConstraintActuator_H__ */
+#endif /* __SCA_ConstraintActuator_H__ */

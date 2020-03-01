@@ -31,129 +31,131 @@
 #include "GPU_texture.h"
 #include "GPU_framebuffer.h"
 
-RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag,
-	unsigned int width, unsigned int height)
-	:m_flag(flag),
-	m_colorSlots(colorSlots),
-	m_width(width),
-	m_height(height),
-	m_frameBuffer(nullptr),
-	m_depthTexture(nullptr)
+RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots,
+                                                 Flag flag,
+                                                 unsigned int width,
+                                                 unsigned int height)
+    : m_flag(flag),
+      m_colorSlots(colorSlots),
+      m_width(width),
+      m_height(height),
+      m_frameBuffer(nullptr),
+      m_depthTexture(nullptr)
 {
-	for (unsigned short i = 0; i < NUM_COLOR_SLOTS; ++i) {
-		m_colorTextures[i] = nullptr;
-	}
+  for (unsigned short i = 0; i < NUM_COLOR_SLOTS; ++i) {
+    m_colorTextures[i] = nullptr;
+  }
 
-	if (!(m_flag & RAS_VIEWPORT_SIZE)) {
-		Construct();
-	}
+  if (!(m_flag & RAS_VIEWPORT_SIZE)) {
+    Construct();
+  }
 
-	if (m_frameBuffer) {
-		delete m_frameBuffer;
-	}
+  if (m_frameBuffer) {
+    delete m_frameBuffer;
+  }
 }
 
 RAS_2DFilterFrameBuffer::~RAS_2DFilterFrameBuffer()
 {
-	GPU_framebuffer_free(m_frameBuffer->GetFrameBuffer());
-	for (unsigned short i = 0; i < NUM_COLOR_SLOTS; ++i) {
-		GPUTexture *texture = m_colorTextures[i];
-		if (texture) {
-			GPU_texture_free(texture);
-			GPU_texture_free(m_depthTexture);
-		}
-	}
+  GPU_framebuffer_free(m_frameBuffer->GetFrameBuffer());
+  for (unsigned short i = 0; i < NUM_COLOR_SLOTS; ++i) {
+    GPUTexture *texture = m_colorTextures[i];
+    if (texture) {
+      GPU_texture_free(texture);
+      GPU_texture_free(m_depthTexture);
+    }
+  }
 }
 
 void RAS_2DFilterFrameBuffer::Construct()
 {
-	m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
-	/* TODO: RESTORE SUPPORT OF MULTIPLE COLOR ATTACHEMENTS IF NEEDED */
-	m_colorTextures[0] = m_frameBuffer->GetColorAttachment();
-	m_depthTexture = m_frameBuffer->GetDepthAttachment();
+  m_frameBuffer = new RAS_FrameBuffer(m_width, m_height, RAS_Rasterizer::RAS_FRAMEBUFFER_CUSTOM);
+  /* TODO: RESTORE SUPPORT OF MULTIPLE COLOR ATTACHEMENTS IF NEEDED */
+  m_colorTextures[0] = m_frameBuffer->GetColorAttachment();
+  m_depthTexture = m_frameBuffer->GetDepthAttachment();
 }
 
 void RAS_2DFilterFrameBuffer::MipmapTexture()
 {
-	for (unsigned short i = 0; i < m_colorSlots; ++i) {
-		GPUTexture *texture = m_colorTextures[i];
-		GPU_texture_bind(texture, 0);
-		GPU_texture_filter_mode(texture, true);
-		GPU_texture_mipmap_mode(texture, true, false);
-		GPU_texture_generate_mipmap(texture);
-		GPU_texture_unbind(texture);
-	}
+  for (unsigned short i = 0; i < m_colorSlots; ++i) {
+    GPUTexture *texture = m_colorTextures[i];
+    GPU_texture_bind(texture, 0);
+    GPU_texture_filter_mode(texture, true);
+    GPU_texture_mipmap_mode(texture, true, false);
+    GPU_texture_generate_mipmap(texture);
+    GPU_texture_unbind(texture);
+  }
 }
 
 bool RAS_2DFilterFrameBuffer::Update(RAS_ICanvas *canvas)
 {
-	if (m_flag & RAS_VIEWPORT_SIZE) {
-		const unsigned int width = canvas->GetWidth() + 1;
-		const unsigned int height = canvas->GetHeight() + 1;
-		if (m_width != width || m_height != height) {
-			m_width = width;
-			m_height = height;
+  if (m_flag & RAS_VIEWPORT_SIZE) {
+    const unsigned int width = canvas->GetWidth() + 1;
+    const unsigned int height = canvas->GetHeight() + 1;
+    if (m_width != width || m_height != height) {
+      m_width = width;
+      m_height = height;
 
-			Construct();
-		}
-	}
+      Construct();
+    }
+  }
 
-	return GetValid();
+  return GetValid();
 }
 
 void RAS_2DFilterFrameBuffer::Bind(RAS_Rasterizer *rasty)
 {
-	//GPU_framebuffer_bind_all_attachments(m_frameBuffer->GetFrameBuffer());
+  // GPU_framebuffer_bind_all_attachments(m_frameBuffer->GetFrameBuffer());
 
-	if (!(m_flag & RAS_VIEWPORT_SIZE)) {
-		rasty->SetViewport(0, 0, m_width + 1, m_height + 1);
-		rasty->SetScissor(0, 0, m_width + 1, m_height + 1);
-	}
+  if (!(m_flag & RAS_VIEWPORT_SIZE)) {
+    rasty->SetViewport(0, 0, m_width + 1, m_height + 1);
+    rasty->SetScissor(0, 0, m_width + 1, m_height + 1);
+  }
 }
 
 void RAS_2DFilterFrameBuffer::Unbind(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
 {
-	if (m_flag & RAS_MIPMAP) {
-		MipmapTexture();
-	}
+  if (m_flag & RAS_MIPMAP) {
+    MipmapTexture();
+  }
 
-	if (!(m_flag & RAS_VIEWPORT_SIZE)) {
-		const int width = canvas->GetWidth();
-		const int height = canvas->GetHeight();
-		rasty->SetViewport(0, 0, width + 1, height + 1);
-		rasty->SetScissor(0, 0, width + 1, height + 1);
-	}
+  if (!(m_flag & RAS_VIEWPORT_SIZE)) {
+    const int width = canvas->GetWidth();
+    const int height = canvas->GetHeight();
+    rasty->SetViewport(0, 0, width + 1, height + 1);
+    rasty->SetScissor(0, 0, width + 1, height + 1);
+  }
 }
 
 bool RAS_2DFilterFrameBuffer::GetValid() const
 {
-	return GPU_framebuffer_check_valid(m_frameBuffer->GetFrameBuffer(), nullptr);
+  return GPU_framebuffer_check_valid(m_frameBuffer->GetFrameBuffer(), nullptr);
 }
 
 int RAS_2DFilterFrameBuffer::GetColorBindCode(unsigned short index) const
 {
-	if (!m_colorTextures[index]) {
-		return -1;
-	}
+  if (!m_colorTextures[index]) {
+    return -1;
+  }
 
-	return GPU_texture_opengl_bindcode(m_colorTextures[index]);
+  return GPU_texture_opengl_bindcode(m_colorTextures[index]);
 }
 
 int RAS_2DFilterFrameBuffer::GetDepthBindCode() const
 {
-	if (!m_depthTexture) {
-		return -1;
-	}
+  if (!m_depthTexture) {
+    return -1;
+  }
 
-	return GPU_texture_opengl_bindcode(m_depthTexture);
+  return GPU_texture_opengl_bindcode(m_depthTexture);
 }
 
 unsigned int RAS_2DFilterFrameBuffer::GetWidth() const
 {
-	return m_width;
+  return m_width;
 }
 
 unsigned int RAS_2DFilterFrameBuffer::GetHeight() const
 {
-	return m_height;
+  return m_height;
 }

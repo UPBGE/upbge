@@ -39,54 +39,55 @@
 
 struct RAS_CameraData;
 
-class KX_CameraIpoSGController : public SG_Controller
-{
-public:
-	MT_Scalar           m_lens;
-	MT_Scalar           m_clipstart;
-	MT_Scalar           m_clipend;
+class KX_CameraIpoSGController : public SG_Controller {
+ public:
+  MT_Scalar m_lens;
+  MT_Scalar m_clipstart;
+  MT_Scalar m_clipend;
 
-private:
-	T_InterpolatorList	m_interpolators;
-	unsigned short  	m_modify_lens 	 : 1;
-	unsigned short	    m_modify_clipstart       : 1;
-	unsigned short		m_modify_clipend    	 : 1;
-	bool				m_modified;
+ private:
+  T_InterpolatorList m_interpolators;
+  unsigned short m_modify_lens : 1;
+  unsigned short m_modify_clipstart : 1;
+  unsigned short m_modify_clipend : 1;
+  bool m_modified;
 
-	double		        m_ipotime;
-public:
-	KX_CameraIpoSGController() : 
-				m_modify_lens(false),
-				m_modify_clipstart(false),
-				m_modify_clipend(false),
-				m_modified(true),
-				m_ipotime(0.0)
-		{}
+  double m_ipotime;
 
-	~KX_CameraIpoSGController();
-	SG_Controller*	GetReplica(class SG_Node* destnode);
-	bool Update(double time);
+ public:
+  KX_CameraIpoSGController()
+      : m_modify_lens(false),
+        m_modify_clipstart(false),
+        m_modify_clipend(false),
+        m_modified(true),
+        m_ipotime(0.0)
+  {
+  }
 
-		void
-	SetOption(
-		int option,
-		int value
-	);
+  ~KX_CameraIpoSGController();
+  SG_Controller *GetReplica(class SG_Node *destnode);
+  bool Update(double time);
 
-	void SetSimulatedTime(double time) {
-		m_ipotime = time;
-		m_modified = true;
-	}
-	void	SetModifyLens(bool modify) {
-		m_modify_lens = modify;
-	}
-	void	SetModifyClipEnd(bool modify) {
-		m_modify_clipend = modify;
-	}
-	void	SetModifyClipStart(bool modify) {
-		m_modify_clipstart = modify;
-	}
-	void	AddInterpolator(KX_IInterpolator* interp);
+  void SetOption(int option, int value);
+
+  void SetSimulatedTime(double time)
+  {
+    m_ipotime = time;
+    m_modified = true;
+  }
+  void SetModifyLens(bool modify)
+  {
+    m_modify_lens = modify;
+  }
+  void SetModifyClipEnd(bool modify)
+  {
+    m_modify_clipend = modify;
+  }
+  void SetModifyClipStart(bool modify)
+  {
+    m_modify_clipstart = modify;
+  }
+  void AddInterpolator(KX_IInterpolator *interp);
 };
 
-#endif  /* __KX_CAMERAIPOSGCONTROLLER_H__ */
+#endif /* __KX_CAMERAIPOSGCONTROLLER_H__ */

@@ -46,7 +46,6 @@ extern "C" {
 #include "BKE_action.h"
 #include "BKE_context.h"
 
-
 #include "BKE_layer.h"
 #include "BKE_scene.h"
 
@@ -72,27 +71,27 @@ extern "C" {
 #include "BKE_library.h"
 #include "BKE_global.h"
 
-BL_Action::BL_Action(class KX_GameObject* gameobj):
-    m_action(nullptr),
-    m_blendpose(nullptr),
-    m_blendinpose(nullptr),
-    m_obj(gameobj),
-    m_startframe(0.f),
-    m_endframe(0.f),
-    m_localframe(0.f),
-    m_blendin(0.f),
-    m_blendframe(0.f),
-    m_blendstart(0.f),
-    m_speed(0.f),
-    m_priority(0),
-    m_playmode(ACT_MODE_PLAY),
-    m_blendmode(ACT_BLEND_BLEND),
-    m_ipo_flags(0),
-    m_done(true),
-    m_appliedToObject(true),
-    m_requestIpo(false),
-    m_calc_localtime(true),
-    m_prevUpdate(-1.0f)
+BL_Action::BL_Action(class KX_GameObject *gameobj)
+    : m_action(nullptr),
+      m_blendpose(nullptr),
+      m_blendinpose(nullptr),
+      m_obj(gameobj),
+      m_startframe(0.f),
+      m_endframe(0.f),
+      m_localframe(0.f),
+      m_blendin(0.f),
+      m_blendframe(0.f),
+      m_blendstart(0.f),
+      m_speed(0.f),
+      m_priority(0),
+      m_playmode(ACT_MODE_PLAY),
+      m_blendmode(ACT_BLEND_BLEND),
+      m_ipo_flags(0),
+      m_done(true),
+      m_appliedToObject(true),
+      m_requestIpo(false),
+      m_calc_localtime(true),
+      m_prevUpdate(-1.0f)
 {
 }
 
@@ -113,9 +112,8 @@ BL_Action::~BL_Action()
 void BL_Action::ClearControllerList()
 {
   // Clear out the controller list
-  std::vector<SG_Controller*>::iterator it;
-  for (it = m_sg_contr_list.begin(); it != m_sg_contr_list.end(); it++)
-  {
+  std::vector<SG_Controller *>::iterator it;
+  for (it = m_sg_contr_list.begin(); it != m_sg_contr_list.end(); it++) {
     m_obj->GetSGNode()->RemoveSGController((*it));
     delete *it;
   }
@@ -123,16 +121,16 @@ void BL_Action::ClearControllerList()
   m_sg_contr_list.clear();
 }
 
-bool BL_Action::Play(const std::string& name,
-                    float start,
-                    float end,
-                    short priority,
-                    float blendin,
-                    short play_mode,
-                    float layer_weight,
-                    short ipo_flags,
-                    float playback_speed,
-                    short blend_mode)
+bool BL_Action::Play(const std::string &name,
+                     float start,
+                     float end,
+                     short priority,
+                     float blendin,
+                     short play_mode,
+                     float layer_weight,
+                     short ipo_flags,
+                     float playback_speed,
+                     short blend_mode)
 {
 
   // Only start playing a new action if we're done, or if
@@ -140,14 +138,13 @@ bool BL_Action::Play(const std::string& name,
   if (!IsDone() && priority > m_priority)
     return false;
   m_priority = priority;
-  bAction* prev_action = m_action;
+  bAction *prev_action = m_action;
 
-  KX_Scene* kxscene = m_obj->GetScene();
+  KX_Scene *kxscene = m_obj->GetScene();
 
   // First try to load the action
-  m_action = (bAction*)kxscene->GetLogicManager()->GetActionByName(name);
-  if (!m_action)
-  {
+  m_action = (bAction *)kxscene->GetLogicManager()->GetActionByName(name);
+  if (!m_action) {
     CM_Error("failed to load action: " << name);
     m_done = true;
     return false;
@@ -159,8 +156,8 @@ bool BL_Action::Play(const std::string& name,
   // However, this may eventually lead to issues where a user wants to override an already
   // playing action with the same action and settings. If this becomes an issue,
   // then this fix may have to be re-evaluated.
-  if (!IsDone() && m_action == prev_action && m_startframe == start && m_endframe == end
-            && m_priority == priority && m_speed == playback_speed)
+  if (!IsDone() && m_action == prev_action && m_startframe == start && m_endframe == end &&
+      m_priority == priority && m_speed == playback_speed)
     return false;
 
   // First get rid of any old controllers
@@ -205,15 +202,13 @@ bool BL_Action::Play(const std::string& name,
   }
 
   // Extra controllers
-  if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT)
-  {
+  if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
     sg_contr = BL_CreateLampIPO(m_action, m_obj, kxscene);
     m_sg_contr_list.push_back(sg_contr);
     m_obj->GetSGNode()->AddSGController(sg_contr);
     sg_contr->SetNode(m_obj->GetSGNode());
   }
-  else if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
-  {
+  else if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA) {
     sg_contr = BL_CreateCameraIPO(m_action, m_obj, kxscene);
     m_sg_contr_list.push_back(sg_contr);
     m_obj->GetSGNode()->AddSGController(sg_contr);
@@ -224,13 +219,11 @@ bool BL_Action::Play(const std::string& name,
   InitIPO();
 
   // Setup blendin shapes/poses
-  if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
-  {
-    BL_ArmatureObject *obj = (BL_ArmatureObject*)m_obj;
+  if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
+    BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
     obj->GetPose(&m_blendinpose);
   }
-  else
-  {
+  else {
   }
 
   // Now that we have an action, we have something we can play
@@ -262,9 +255,8 @@ bool BL_Action::IsDone()
 void BL_Action::InitIPO()
 {
   // Initialize the IPOs
-  std::vector<SG_Controller*>::iterator it;
-  for (it = m_sg_contr_list.begin(); it != m_sg_contr_list.end(); it++)
-  {
+  std::vector<SG_Controller *>::iterator it;
+  for (it = m_sg_contr_list.begin(); it != m_sg_contr_list.end(); it++) {
     (*it)->SetOption(SG_Controller::SG_CONTR_IPO_RESET, true);
     (*it)->SetOption(SG_Controller::SG_CONTR_IPO_IPO_AS_FORCE, m_ipo_flags & ACT_IPOFLAG_FORCE);
     (*it)->SetOption(SG_Controller::SG_CONTR_IPO_IPO_ADD, m_ipo_flags & ACT_IPOFLAG_ADD);
@@ -311,7 +303,7 @@ void BL_Action::SetPlayMode(short play_mode)
 
 void BL_Action::SetLocalTime(float curtime)
 {
-  float dt = (curtime-m_starttime)*(float)KX_GetActiveEngine()->GetAnimFrameRate()*m_speed;
+  float dt = (curtime - m_starttime) * (float)KX_GetActiveEngine()->GetAnimFrameRate() * m_speed;
 
   if (m_endframe < m_startframe)
     dt = -dt;
@@ -321,9 +313,10 @@ void BL_Action::SetLocalTime(float curtime)
 
 void BL_Action::ResetStartTime(float curtime)
 {
-  float dt = (m_localframe > m_startframe) ? m_localframe - m_startframe : m_startframe - m_localframe;
+  float dt = (m_localframe > m_startframe) ? m_localframe - m_startframe :
+                                             m_startframe - m_localframe;
 
-  m_starttime = curtime - dt / ((float)KX_GetActiveEngine()->GetAnimFrameRate()*m_speed);
+  m_starttime = curtime - dt / ((float)KX_GetActiveEngine()->GetAnimFrameRate() * m_speed);
   SetLocalTime(curtime);
 }
 
@@ -334,15 +327,14 @@ void BL_Action::IncrementBlending(float curtime)
     m_blendstart = curtime;
 
   // Bump the blend frame
-  m_blendframe = (curtime - m_blendstart)*(float)KX_GetActiveEngine()->GetAnimFrameRate();
+  m_blendframe = (curtime - m_blendstart) * (float)KX_GetActiveEngine()->GetAnimFrameRate();
 
   // Clamp
-  if (m_blendframe>m_blendin)
+  if (m_blendframe > m_blendin)
     m_blendframe = m_blendin;
 }
 
-
-void BL_Action::BlendShape(Key* key, float srcweight, std::vector<float>& blendshape)
+void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float> &blendshape)
 {
 }
 
@@ -378,8 +370,9 @@ static void ignore_parent_tx_bge(Main *bmain, Depsgraph *depsgraph, KX_Scene *kx
 
 void BL_Action::Update(float curtime, bool applyToObject)
 {
-  /* Don't bother if we're done with the animation and if the animation was already applied to the object.
-   * of if the animation made a double update for the same time and that it was applied to the object.
+  /* Don't bother if we're done with the animation and if the animation was already applied to the
+   * object. of if the animation made a double update for the same time and that it was applied to
+   * the object.
    */
   if ((m_done || m_prevUpdate == curtime) && m_appliedToObject) {
     return;
@@ -391,14 +384,14 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   if (m_calc_localtime)
     SetLocalTime(curtime);
-  else
-  {
+  else {
     ResetStartTime(curtime);
     m_calc_localtime = true;
   }
 
   // Handle wrap around
-  if (m_localframe < std::min(m_startframe, m_endframe) || m_localframe > std::max(m_startframe, m_endframe)) {
+  if (m_localframe < std::min(m_startframe, m_endframe) ||
+      m_localframe > std::max(m_startframe, m_endframe)) {
     switch (m_playmode) {
       case ACT_MODE_PLAY:
         // Clamp
@@ -436,7 +429,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
-    //BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
+    // BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
 
     scene->ResetTaaSamples();
 
@@ -467,8 +460,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
     obj->UpdateTimestep(curtime);
   }
-  else
-  {
+  else {
     /* WARNING: The check to be sure the right action is played (to know if the action
      * which is in the actuator will be the one which will be played)
      * might be wrong (if (ob->adt && ob->adt->action == m_action) playaction;)
@@ -476,9 +468,11 @@ void BL_Action::Update(float curtime, bool applyToObject)
      * then another check should be found to ensure to play the right action.
      */
     // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
-    for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = (ModifierData *)md->next) {
+    for (ModifierData *md = (ModifierData *)ob->modifiers.first; md;
+         md = (ModifierData *)md->next) {
       // TODO: We need to find the good notifier per action
-      if (!modifier_isNonGeometrical(md) && ob->adt && ob->adt->action->id.name == m_action->id.name) {
+      if (!modifier_isNonGeometrical(md) && ob->adt &&
+          ob->adt->action->id.name == m_action->id.name) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -508,7 +502,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
          * if some actions require another notifier than ID_RECALC_TRANSFORM */
       }
     }
-	// TEST Material action
+    // TEST Material action
     int totcol = ob->totcol;
     for (int i = 0; i < totcol; i++) {
       Material *ma = BKE_object_material_get(ob, i + 1);
@@ -555,12 +549,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
           BlendShape(key, weight, m_blendinshape);
         }
         //// Handle layer blending
-        //if (m_layer_weight >= 0) {
+        // if (m_layer_weight >= 0) {
         //  shape_deformer->GetShape(m_blendshape);
         //  BlendShape(key, m_layer_weight, m_blendshape);
         //}
 
-        //shape_deformer->SetLastFrame(curtime);
+        // shape_deformer->SetLastFrame(curtime);
 
         scene->ResetTaaSamples();
       }

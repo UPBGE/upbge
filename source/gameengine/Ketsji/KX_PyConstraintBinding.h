@@ -34,13 +34,13 @@
 
 #ifdef WITH_PYTHON
 
-#include <Python.h>
+#  include <Python.h>
 
 PyMODINIT_FUNC initConstraintPythonBinding();
 
-#endif  /* WITH_PYTHON */
+#endif /* WITH_PYTHON */
 
-void	PHY_SetActiveEnvironment(class	PHY_IPhysicsEnvironment* env);
-PHY_IPhysicsEnvironment*	PHY_GetActiveEnvironment();
+void PHY_SetActiveEnvironment(class PHY_IPhysicsEnvironment *env);
+PHY_IPhysicsEnvironment *PHY_GetActiveEnvironment();
 
-#endif  /* __KX_PYCONSTRAINTBINDING_H__ */
+#endif /* __KX_PYCONSTRAINTBINDING_H__ */

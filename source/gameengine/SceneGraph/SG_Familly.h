@@ -37,17 +37,15 @@
 
 #include "CM_Thread.h"
 
-class SG_Familly
-{
-private:
-	CM_ThreadSpinLock m_mutex;
+class SG_Familly {
+ private:
+  CM_ThreadSpinLock m_mutex;
 
-public:
-	SG_Familly() = default;
-	~SG_Familly() = default;
+ public:
+  SG_Familly() = default;
+  ~SG_Familly() = default;
 
-	CM_ThreadSpinLock& GetMutex();
-
+  CM_ThreadSpinLock &GetMutex();
 };
 
-#endif  /* __SG_FAMILLY_H__ */
+#endif /* __SG_FAMILLY_H__ */

@@ -29,7 +29,7 @@
 #include "RAS_Rasterizer.h"
 
 extern "C" {
-#  include "BLI_blenlib.h"
+#include "BLI_blenlib.h"
 }
 
 static KX_KetsjiEngine *g_engine = nullptr;
@@ -39,57 +39,63 @@ static std::string g_origPath = "";
 
 void KX_SetActiveEngine(KX_KetsjiEngine *engine)
 {
-	g_engine = engine;
+  g_engine = engine;
 }
 
 void KX_SetActiveScene(KX_Scene *scene)
 {
-	g_scene = scene;
+  g_scene = scene;
 }
 
-void KX_SetMainPath(const std::string& path)
+void KX_SetMainPath(const std::string &path)
 {
-	char cpath[FILE_MAX];
-	BLI_strncpy(cpath, path.c_str(), sizeof(cpath));
-	BLI_cleanup_file(nullptr, cpath);
-	g_mainPath = std::string(cpath);
+  char cpath[FILE_MAX];
+  BLI_strncpy(cpath, path.c_str(), sizeof(cpath));
+  BLI_cleanup_file(nullptr, cpath);
+  g_mainPath = std::string(cpath);
 }
 
-void KX_SetOrigPath(const std::string& path)
+void KX_SetOrigPath(const std::string &path)
 {
-	char cpath[FILE_MAX];
-	BLI_strncpy(cpath, path.c_str(), sizeof(cpath));
-	BLI_cleanup_file(nullptr, cpath);
-	g_origPath = std::string(cpath);
+  char cpath[FILE_MAX];
+  BLI_strncpy(cpath, path.c_str(), sizeof(cpath));
+  BLI_cleanup_file(nullptr, cpath);
+  g_origPath = std::string(cpath);
 }
 
 KX_KetsjiEngine *KX_GetActiveEngine()
 {
-	return g_engine;
+  return g_engine;
 }
 
 KX_Scene *KX_GetActiveScene()
 {
-	return g_scene;
+  return g_scene;
 }
 
-const std::string& KX_GetMainPath()
+const std::string &KX_GetMainPath()
 {
-	return g_mainPath;
+  return g_mainPath;
 }
 
-const std::string& KX_GetOrigPath()
+const std::string &KX_GetOrigPath()
 {
-	return g_origPath;
+  return g_origPath;
 }
 
-void KX_RasterizerDrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,const MT_Vector4& color)
+void KX_RasterizerDrawDebugLine(const MT_Vector3 &from,
+                                const MT_Vector3 &to,
+                                const MT_Vector4 &color)
 {
-	g_engine->GetRasterizer()->GetDebugDraw(g_scene).DrawLine(from, to, color);
+  g_engine->GetRasterizer()->GetDebugDraw(g_scene).DrawLine(from, to, color);
 }
 
-void KX_RasterizerDrawDebugCircle(const MT_Vector3& center, const MT_Scalar radius, const MT_Vector4& color,
-                                  const MT_Vector3& normal, int nsector)
+void KX_RasterizerDrawDebugCircle(const MT_Vector3 &center,
+                                  const MT_Scalar radius,
+                                  const MT_Vector4 &color,
+                                  const MT_Vector3 &normal,
+                                  int nsector)
 {
-	g_engine->GetRasterizer()->GetDebugDraw(g_scene).DrawCircle(center, radius, color, normal, nsector);
+  g_engine->GetRasterizer()->GetDebugDraw(g_scene).DrawCircle(
+      center, radius, color, normal, nsector);
 }

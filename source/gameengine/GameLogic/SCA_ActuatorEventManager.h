@@ -34,13 +34,12 @@
 
 #include "SCA_EventManager.h"
 
-class SCA_ActuatorEventManager : public SCA_EventManager
-{
-public:
-	SCA_ActuatorEventManager(class SCA_LogicManager* logicmgr);
-	virtual ~SCA_ActuatorEventManager();
-	virtual void NextFrame();
-	virtual void UpdateFrame();
+class SCA_ActuatorEventManager : public SCA_EventManager {
+ public:
+  SCA_ActuatorEventManager(class SCA_LogicManager *logicmgr);
+  virtual ~SCA_ActuatorEventManager();
+  virtual void NextFrame();
+  virtual void UpdateFrame();
 };
 
-#endif  /* __SCA_ACTUATOREVENTMANAGER_H__ */
+#endif /* __SCA_ACTUATOREVENTMANAGER_H__ */

@@ -26,9 +26,7 @@
 
 #include "GPU_glew.h"
 
-RAS_Texture::RAS_Texture()
-	:m_bindCode(-1),
-	m_name("")
+RAS_Texture::RAS_Texture() : m_bindCode(-1), m_name("")
 {
 }
 
@@ -36,47 +34,45 @@ RAS_Texture::~RAS_Texture()
 {
 }
 
-std::string& RAS_Texture::GetName()
+std::string &RAS_Texture::GetName()
 {
-	return m_name;
+  return m_name;
 }
 
 int RAS_Texture::GetCubeMapTextureType()
 {
-	return GL_TEXTURE_CUBE_MAP;
+  return GL_TEXTURE_CUBE_MAP;
 }
 
 int RAS_Texture::GetTexture2DType()
 {
-	return GL_TEXTURE_2D;
+  return GL_TEXTURE_2D;
 }
 
-const std::array<int, 6>& RAS_Texture::GetCubeMapTargets()
+const std::array<int, 6> &RAS_Texture::GetCubeMapTargets()
 {
-	static std::array<int, 6> targets = {
-		GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
-		GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
-		GL_TEXTURE_CUBE_MAP_POSITIVE_X,
-		GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-		GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
-		GL_TEXTURE_CUBE_MAP_NEGATIVE_Y
-	};
+  static std::array<int, 6> targets = {GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+                                       GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+                                       GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+                                       GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+                                       GL_TEXTURE_CUBE_MAP_NEGATIVE_Y};
 
-	return targets;
+  return targets;
 }
 
 void RAS_Texture::DesactiveTextures()
 {
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, 0);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 int RAS_Texture::GetBindCode() const
 {
-	return m_bindCode;
+  return m_bindCode;
 }
 
 void RAS_Texture::SetBindCode(int bindcode)
 {
-	m_bindCode = bindcode;
+  m_bindCode = bindcode;
 }

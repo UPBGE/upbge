@@ -29,36 +29,31 @@
  *  \ingroup gamelogic
  */
 
-
 #include "SCA_ISensor.h"
 #include "SCA_ActuatorEventManager.h"
 #include "SCA_ActuatorSensor.h"
 
-
-SCA_ActuatorEventManager::SCA_ActuatorEventManager(class SCA_LogicManager* logicmgr)
-	: SCA_EventManager(logicmgr, ACTUATOR_EVENTMGR)
+SCA_ActuatorEventManager::SCA_ActuatorEventManager(class SCA_LogicManager *logicmgr)
+    : SCA_EventManager(logicmgr, ACTUATOR_EVENTMGR)
 {
 }
 
-
-
 SCA_ActuatorEventManager::~SCA_ActuatorEventManager()
 {
-
 }
 
 void SCA_ActuatorEventManager::NextFrame()
 {
-	// check for changed actuator
-	for (SCA_ISensor *sensor : m_sensors) {
-		sensor->Activate(m_logicmgr);
-	}
+  // check for changed actuator
+  for (SCA_ISensor *sensor : m_sensors) {
+    sensor->Activate(m_logicmgr);
+  }
 }
 
 void SCA_ActuatorEventManager::UpdateFrame()
 {
-	// update the state of actuator before executing them
-	for (SCA_ISensor *sensor : m_sensors) {
-		static_cast<SCA_ActuatorSensor *>(sensor)->Update();
-	}
+  // update the state of actuator before executing them
+  for (SCA_ISensor *sensor : m_sensors) {
+    static_cast<SCA_ActuatorSensor *>(sensor)->Update();
+  }
 }

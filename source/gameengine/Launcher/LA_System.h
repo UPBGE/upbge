@@ -31,16 +31,15 @@
 
 #include "KX_ISystem.h"
 
-class LA_System : public KX_ISystem
-{
-private:
-	double m_starttime;
+class LA_System : public KX_ISystem {
+ private:
+  double m_starttime;
 
-public:
-	LA_System();
-	virtual ~LA_System();
+ public:
+  LA_System();
+  virtual ~LA_System();
 
-	virtual double GetTimeInSeconds();
+  virtual double GetTimeInSeconds();
 };
 
 #endif  // __LA_SYSTEM_H__

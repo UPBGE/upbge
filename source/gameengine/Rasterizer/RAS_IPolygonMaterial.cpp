@@ -29,136 +29,129 @@
  *  \ingroup bgerast
  */
 
-
 #include "RAS_IPolygonMaterial.h"
 
 #include "DNA_material_types.h"
 
-RAS_IPolyMaterial::RAS_IPolyMaterial(
-	const std::string& name,
-	GameSettings *game)
-	:m_name(name),
-	m_alphablend(0),
-	m_zoffset(0.0f),
-	m_rasMode(0),
-	m_flag(0)
+RAS_IPolyMaterial::RAS_IPolyMaterial(const std::string &name, GameSettings *game)
+    : m_name(name), m_alphablend(0), m_zoffset(0.0f), m_rasMode(0), m_flag(0)
 {
-	if (game) {
-		m_drawingmode = ConvertFaceMode(game);
-	}
+  if (game) {
+    m_drawingmode = ConvertFaceMode(game);
+  }
 
-	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
-		m_textures[i] = nullptr;
-	}
+  for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
+    m_textures[i] = nullptr;
+  }
 }
 
 RAS_IPolyMaterial::~RAS_IPolyMaterial()
 {
-	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
-		if (m_textures[i]) {
-			delete m_textures[i];
-		}
-	}
+  for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
+    if (m_textures[i]) {
+      delete m_textures[i];
+    }
+  }
 }
 
 int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game) const
 {
-	int modefinal = 0;
+  int modefinal = 0;
 
-	int orimode = game->face_orientation;
-	int alpha_blend = game->alpha_blend;
-	int flags = game->flag & (GEMAT_BACKCULL);
+  int orimode = game->face_orientation;
+  int alpha_blend = game->alpha_blend;
+  int flags = game->flag & (GEMAT_BACKCULL);
 
-	modefinal = orimode | alpha_blend | flags;
+  modefinal = orimode | alpha_blend | flags;
 
-	return modefinal;
+  return modefinal;
 }
 
 bool RAS_IPolyMaterial::IsAlphaShadow() const
 {
-	return (m_rasMode & RAS_ALPHA_SHADOW);
+  return (m_rasMode & RAS_ALPHA_SHADOW);
 }
 
 bool RAS_IPolyMaterial::IsWire() const
 {
-	return (m_rasMode & RAS_WIRE);
+  return (m_rasMode & RAS_WIRE);
 }
 
 bool RAS_IPolyMaterial::IsText() const
 {
-	return (m_rasMode & RAS_TEXT);
+  return (m_rasMode & RAS_TEXT);
 }
 
 bool RAS_IPolyMaterial::IsCullFace() const
 {
-	return !(m_rasMode & (RAS_TWOSIDED | RAS_WIRE));
+  return !(m_rasMode & (RAS_TWOSIDED | RAS_WIRE));
 }
 
 void RAS_IPolyMaterial::GetRGBAColor(unsigned char *rgba) const
 {
-	*rgba++ = 0xFF;
-	*rgba++ = 0xFF;
-	*rgba++ = 0xFF;
-	*rgba++ = 0xFF;
+  *rgba++ = 0xFF;
+  *rgba++ = 0xFF;
+  *rgba++ = 0xFF;
+  *rgba++ = 0xFF;
 }
 
 bool RAS_IPolyMaterial::IsAlpha() const
 {
-	return (m_rasMode & (RAS_ALPHA | RAS_ZSORT));
+  return (m_rasMode & (RAS_ALPHA | RAS_ZSORT));
 }
 
 bool RAS_IPolyMaterial::IsAlphaDepth() const
 {
-	return (m_rasMode & RAS_DEPTH_ALPHA);
+  return (m_rasMode & RAS_DEPTH_ALPHA);
 }
 
 bool RAS_IPolyMaterial::IsZSort() const
 {
-	return (m_rasMode & RAS_ZSORT);
+  return (m_rasMode & RAS_ZSORT);
 }
 
 int RAS_IPolyMaterial::GetDrawingMode() const
 {
-	return m_drawingmode;
+  return m_drawingmode;
 }
 
 int RAS_IPolyMaterial::GetAlphaBlend() const
 {
-	return m_alphablend;
+  return m_alphablend;
 }
 
 float RAS_IPolyMaterial::GetZOffset() const
 {
-	return m_zoffset;
+  return m_zoffset;
 }
 
 std::string RAS_IPolyMaterial::GetName()
 {
-	return m_name;
+  return m_name;
 }
 
 unsigned int RAS_IPolyMaterial::GetFlag() const
 {
-	return m_flag;
+  return m_flag;
 }
 
 bool RAS_IPolyMaterial::UsesLighting() const
 {
-	// Return false only if material is shadeless.
-	return (m_flag & RAS_MULTILIGHT);
+  // Return false only if material is shadeless.
+  return (m_flag & RAS_MULTILIGHT);
 }
 
 bool RAS_IPolyMaterial::CastsShadows() const
 {
-	return (m_flag & RAS_CASTSHADOW) != 0;
+  return (m_flag & RAS_CASTSHADOW) != 0;
 }
 
 bool RAS_IPolyMaterial::OnlyShadow() const
 {
-	return (m_flag & RAS_ONLYSHADOW) != 0;
+  return (m_flag & RAS_ONLYSHADOW) != 0;
 }
 
 RAS_Texture *RAS_IPolyMaterial::GetTexture(unsigned int index)
 {
-	return m_textures[index];
+  return m_textures[index];
 }

@@ -31,34 +31,33 @@
 
 #include "RAS_ITexVert.h"
 
-bool operator== (const RAS_TexVertFormat& format1, const RAS_TexVertFormat& format2)
+bool operator==(const RAS_TexVertFormat &format1, const RAS_TexVertFormat &format2)
 {
-	return (format1.uvSize == format2.uvSize && format1.colorSize == format2.colorSize);
+  return (format1.uvSize == format2.uvSize && format1.colorSize == format2.colorSize);
 }
 
-bool operator!= (const RAS_TexVertFormat& format1, const RAS_TexVertFormat& format2)
+bool operator!=(const RAS_TexVertFormat &format1, const RAS_TexVertFormat &format2)
 {
-	return !(format1 == format2);
+  return !(format1 == format2);
 }
 
 RAS_TexVertInfo::RAS_TexVertInfo(unsigned int origindex, bool flat)
-	:m_origindex(origindex),
-	m_softBodyIndex(-1)
+    : m_origindex(origindex), m_softBodyIndex(-1)
 {
-	m_flag = (flat) ? FLAT : 0;
+  m_flag = (flat) ? FLAT : 0;
 }
 
 RAS_TexVertInfo::~RAS_TexVertInfo()
 {
 }
 
-RAS_ITexVert::RAS_ITexVert(const MT_Vector3& xyz,
-						 const MT_Vector4& tangent,
-						 const MT_Vector3& normal)
+RAS_ITexVert::RAS_ITexVert(const MT_Vector3 &xyz,
+                           const MT_Vector4 &tangent,
+                           const MT_Vector3 &normal)
 {
-	xyz.getValue(m_localxyz);
-	SetNormal(normal);
-	SetTangent(tangent);
+  xyz.getValue(m_localxyz);
+  SetNormal(normal);
+  SetTangent(tangent);
 }
 
 RAS_ITexVert::~RAS_ITexVert()

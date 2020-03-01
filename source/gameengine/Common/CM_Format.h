@@ -30,13 +30,12 @@
 #include <sstream>
 #include <fstream>
 
-template<typename T>
-bool CM_StringTo(const std::string& string, T& out)
+template<typename T> bool CM_StringTo(const std::string &string, T &out)
 {
-	std::stringstream stream(string);
-	stream >> out;
+  std::stringstream stream(string);
+  stream >> out;
 
-	return !stream.fail();
+  return !stream.fail();
 }
 
 #endif  // __CM_FORMAT_H__

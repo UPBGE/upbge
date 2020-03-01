@@ -33,9 +33,9 @@
  */
 
 #ifdef _MSC_VER
-  /* This warning tells us about truncation of __long__ stl-generated names.
-   * It can occasionally cause DevStudio to have internal compiler warnings. */
-#  pragma warning( disable:4786 )
+/* This warning tells us about truncation of __long__ stl-generated names.
+ * It can occasionally cause DevStudio to have internal compiler warnings. */
+#  pragma warning(disable : 4786)
 #endif
 
 #include "SCA_AlwaysSensor.h"
@@ -46,55 +46,48 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_AlwaysSensor::SCA_AlwaysSensor(class SCA_EventManager* eventmgr,
-								 SCA_IObject* gameobj)
-	: SCA_ISensor(gameobj,eventmgr)
+SCA_AlwaysSensor::SCA_AlwaysSensor(class SCA_EventManager *eventmgr, SCA_IObject *gameobj)
+    : SCA_ISensor(gameobj, eventmgr)
 {
-	//SetDrawColor(255,0,0);
-	Init();
+  // SetDrawColor(255,0,0);
+  Init();
 }
 
 void SCA_AlwaysSensor::Init()
 {
-	m_alwaysresult = true;
+  m_alwaysresult = true;
 }
 
 SCA_AlwaysSensor::~SCA_AlwaysSensor()
 {
-	/* intentionally empty */
+  /* intentionally empty */
 }
 
-
-
-CValue* SCA_AlwaysSensor::GetReplica()
+CValue *SCA_AlwaysSensor::GetReplica()
 {
-	CValue* replica = new SCA_AlwaysSensor(*this);//m_float,GetName());
-	// this will copy properties and so on...
-	replica->ProcessReplica();
+  CValue *replica = new SCA_AlwaysSensor(*this);  // m_float,GetName());
+  // this will copy properties and so on...
+  replica->ProcessReplica();
 
-	return replica;
+  return replica;
 }
-
-
 
 bool SCA_AlwaysSensor::IsPositiveTrigger()
-{ 
-	return (m_invert ? false : true);
+{
+  return (m_invert ? false : true);
 }
-
-
 
 bool SCA_AlwaysSensor::Evaluate()
 {
-	/* Nice! :) */
-		//return true;
-	/* even nicer ;) */
-		//return false;
-	
-	/* nicest ! */
-	bool result = m_alwaysresult;
-	m_alwaysresult = false;
-	return result;
+  /* Nice! :) */
+  // return true;
+  /* even nicer ;) */
+  // return false;
+
+  /* nicest ! */
+  bool result = m_alwaysresult;
+  m_alwaysresult = false;
+  return result;
 }
 
 #ifdef WITH_PYTHON
@@ -104,34 +97,50 @@ bool SCA_AlwaysSensor::Evaluate()
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject SCA_AlwaysSensor::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_AlwaysSensor",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_ISensor::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+PyTypeObject SCA_AlwaysSensor::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_AlwaysSensor",
+                                       sizeof(PyObjectPlus_Proxy),
+                                       0,
+                                       py_base_dealloc,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       py_base_repr,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       Methods,
+                                       0,
+                                       0,
+                                       &SCA_ISensor::Type,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       py_base_new};
 
 PyMethodDef SCA_AlwaysSensor::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_AlwaysSensor::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif

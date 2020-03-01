@@ -32,215 +32,190 @@
  *  \ingroup ketsji
  */
 
-
 #include "SCA_NearSensor.h"
 #include "SCA_LogicManager.h"
 #include "KX_GameObject.h"
 #include "KX_CollisionEventManager.h"
-#include "KX_Scene.h" // needed to create a replica
+#include "KX_Scene.h"  // needed to create a replica
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IMotionState.h"
 
-SCA_NearSensor::SCA_NearSensor(SCA_EventManager* eventmgr,
-							 KX_GameObject* gameobj,
-							 float margin,
-							 float resetmargin,
-							 bool bFindMaterial,
-							 const std::string& touchedpropname,
-							 PHY_IPhysicsController* ctrl)
-							:SCA_CollisionSensor(eventmgr,
-							 gameobj,
-							 bFindMaterial,
-							 false,
-							 touchedpropname),
-			 m_Margin(margin),
-			 m_ResetMargin(resetmargin)
+SCA_NearSensor::SCA_NearSensor(SCA_EventManager *eventmgr,
+                               KX_GameObject *gameobj,
+                               float margin,
+                               float resetmargin,
+                               bool bFindMaterial,
+                               const std::string &touchedpropname,
+                               PHY_IPhysicsController *ctrl)
+    : SCA_CollisionSensor(eventmgr, gameobj, bFindMaterial, false, touchedpropname),
+      m_Margin(margin),
+      m_ResetMargin(resetmargin)
 
 {
 
-	gameobj->getClientInfo()->m_sensors.remove(this);
-	m_client_info = new KX_ClientObjectInfo(gameobj, KX_ClientObjectInfo::SENSOR);
-	m_client_info->m_sensors.push_back(this);
-	
-	//DT_ShapeHandle shape = (DT_ShapeHandle) vshape;
-	m_physCtrl = ctrl;
-	if (m_physCtrl)
-	{
-		m_physCtrl->SetMargin(m_Margin);
-		m_physCtrl->SetNewClientInfo(m_client_info);
-	}
-	SynchronizeTransform();
+  gameobj->getClientInfo()->m_sensors.remove(this);
+  m_client_info = new KX_ClientObjectInfo(gameobj, KX_ClientObjectInfo::SENSOR);
+  m_client_info->m_sensors.push_back(this);
+
+  // DT_ShapeHandle shape = (DT_ShapeHandle) vshape;
+  m_physCtrl = ctrl;
+  if (m_physCtrl) {
+    m_physCtrl->SetMargin(m_Margin);
+    m_physCtrl->SetNewClientInfo(m_client_info);
+  }
+  SynchronizeTransform();
 }
 
 void SCA_NearSensor::SynchronizeTransform()
 {
-	// The near and radar sensors are using a different physical object which is 
-	// not linked to the parent object, must synchronize it.
-	if (m_physCtrl)
-	{
-		PHY_IMotionState* motionState = m_physCtrl->GetMotionState();
-		KX_GameObject* parent = ((KX_GameObject*)GetParent());
-		motionState->SetWorldPosition(parent->NodeGetWorldPosition());
-		motionState->SetWorldOrientation(parent->NodeGetWorldOrientation());
-		m_physCtrl->WriteMotionStateToDynamics(true);
-	}
+  // The near and radar sensors are using a different physical object which is
+  // not linked to the parent object, must synchronize it.
+  if (m_physCtrl) {
+    PHY_IMotionState *motionState = m_physCtrl->GetMotionState();
+    KX_GameObject *parent = ((KX_GameObject *)GetParent());
+    motionState->SetWorldPosition(parent->NodeGetWorldPosition());
+    motionState->SetWorldOrientation(parent->NodeGetWorldOrientation());
+    m_physCtrl->WriteMotionStateToDynamics(true);
+  }
 }
 
-CValue* SCA_NearSensor::GetReplica()
+CValue *SCA_NearSensor::GetReplica()
 {
-	SCA_NearSensor* replica = new SCA_NearSensor(*this);
-	replica->ProcessReplica();
-	return replica;
+  SCA_NearSensor *replica = new SCA_NearSensor(*this);
+  replica->ProcessReplica();
+  return replica;
 }
 
 void SCA_NearSensor::ProcessReplica()
 {
-	SCA_CollisionSensor::ProcessReplica();
-	
-	m_client_info = new KX_ClientObjectInfo(m_client_info->m_gameobject, KX_ClientObjectInfo::SENSOR);
-	
-	if (m_physCtrl)
-	{
-		m_physCtrl = m_physCtrl->GetReplicaForSensors();
-		if (m_physCtrl)
-		{
-			//static_cast<KX_CollisionEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->addSensor(replica->m_physCtrl);
-			m_physCtrl->SetMargin(m_Margin);
-			m_physCtrl->SetNewClientInfo(m_client_info);
-		}
-		
-	}
+  SCA_CollisionSensor::ProcessReplica();
+
+  m_client_info = new KX_ClientObjectInfo(m_client_info->m_gameobject,
+                                          KX_ClientObjectInfo::SENSOR);
+
+  if (m_physCtrl) {
+    m_physCtrl = m_physCtrl->GetReplicaForSensors();
+    if (m_physCtrl) {
+      // static_cast<KX_CollisionEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->addSensor(replica->m_physCtrl);
+      m_physCtrl->SetMargin(m_Margin);
+      m_physCtrl->SetNewClientInfo(m_client_info);
+    }
+  }
 }
 
-void SCA_NearSensor::ReParent(SCA_IObject* parent)
+void SCA_NearSensor::ReParent(SCA_IObject *parent)
 {
-	SCA_ISensor::ReParent(parent);
-	m_client_info->m_gameobject = static_cast<KX_GameObject*>(parent); 
-	m_client_info->m_sensors.push_back(this);
-	//Synchronize here with the actual parent.
-	SynchronizeTransform();
+  SCA_ISensor::ReParent(parent);
+  m_client_info->m_gameobject = static_cast<KX_GameObject *>(parent);
+  m_client_info->m_sensors.push_back(this);
+  // Synchronize here with the actual parent.
+  SynchronizeTransform();
 }
-
-
 
 SCA_NearSensor::~SCA_NearSensor()
 {
-	// for nearsensor, the sensor is the 'owner' of sumoobj
-	// for collisionsensor, it's the parent
-	if (m_physCtrl)
-	{
-		//static_cast<KX_CollisionEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->removeSensor(m_physCtrl);
-		delete m_physCtrl;
-		m_physCtrl = nullptr;
-	}
-	
-		
-	if (m_client_info)
-		delete m_client_info;
+  // for nearsensor, the sensor is the 'owner' of sumoobj
+  // for collisionsensor, it's the parent
+  if (m_physCtrl) {
+    // static_cast<KX_CollisionEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->removeSensor(m_physCtrl);
+    delete m_physCtrl;
+    m_physCtrl = nullptr;
+  }
+
+  if (m_client_info)
+    delete m_client_info;
 }
 
 void SCA_NearSensor::SetPhysCtrlRadius()
 {
-	if (m_bTriggered)
-	{
-		if (m_physCtrl)
-		{
-			m_physCtrl->SetRadius(m_ResetMargin);
-		}
-	} else
-	{
-		if (m_physCtrl)
-		{
-			m_physCtrl->SetRadius(m_Margin);
-		}
-	}
+  if (m_bTriggered) {
+    if (m_physCtrl) {
+      m_physCtrl->SetRadius(m_ResetMargin);
+    }
+  }
+  else {
+    if (m_physCtrl) {
+      m_physCtrl->SetRadius(m_Margin);
+    }
+  }
 }
 
 bool SCA_NearSensor::Evaluate()
 {
-	bool result = false;
-//	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
+  bool result = false;
+  //	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
 
-	if (m_bTriggered != m_bLastTriggered)
-	{
-		m_bLastTriggered = m_bTriggered;
-		
-		SetPhysCtrlRadius();
-		
-		result = true;
-	}
+  if (m_bTriggered != m_bLastTriggered) {
+    m_bLastTriggered = m_bTriggered;
 
-	return result;
+    SetPhysCtrlRadius();
+
+    result = true;
+  }
+
+  return result;
 }
 
 // this function is called at broad phase stage to check if the two controller
 // need to interact at all. It is used for Near/Radar sensor that don't need to
 // check collision with object not included in filter
-bool	SCA_NearSensor::BroadPhaseFilterCollision(void*obj1,void*obj2)
+bool SCA_NearSensor::BroadPhaseFilterCollision(void *obj1, void *obj2)
 {
-	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
-	
-	// need the mapping from PHY_IPhysicsController to gameobjects now
-	BLI_assert(obj1==m_physCtrl && obj2);
-	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*>((static_cast<PHY_IPhysicsController*>(obj2))->GetNewClientInfo());
+  KX_GameObject *parent = static_cast<KX_GameObject *>(GetParent());
 
-	KX_GameObject* gameobj = ( client_info ? 
-			client_info->m_gameobject :
-			nullptr);
-	
-	if (gameobj && (gameobj != parent))
-	{
-		// only take valid colliders
-		if (client_info->m_type == KX_ClientObjectInfo::ACTOR)
-		{
-			if ((m_touchedpropname.size() == 0) || 
-				(gameobj->GetProperty(m_touchedpropname)))
-			{
-				return true;
-			}
-		}
-	}
+  // need the mapping from PHY_IPhysicsController to gameobjects now
+  BLI_assert(obj1 == m_physCtrl && obj2);
+  KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo *>(
+      (static_cast<PHY_IPhysicsController *>(obj2))->GetNewClientInfo());
 
-	return false;
+  KX_GameObject *gameobj = (client_info ? client_info->m_gameobject : nullptr);
+
+  if (gameobj && (gameobj != parent)) {
+    // only take valid colliders
+    if (client_info->m_type == KX_ClientObjectInfo::ACTOR) {
+      if ((m_touchedpropname.size() == 0) || (gameobj->GetProperty(m_touchedpropname))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
-bool	SCA_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *coll_data)
+bool SCA_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *coll_data)
 {
-//	KX_CollisionEventManager* toucheventmgr = static_cast<KX_CollisionEventManager*>(m_eventmgr);
-//	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
-	
-	// need the mapping from PHY_IPhysicsController to gameobjects now
-	
-	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*> (obj1 == m_physCtrl?
-					((PHY_IPhysicsController*)obj2)->GetNewClientInfo() :
-					((PHY_IPhysicsController*)obj1)->GetNewClientInfo());
+  //	KX_CollisionEventManager* toucheventmgr = static_cast<KX_CollisionEventManager*>(m_eventmgr);
+  //	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
 
-	KX_GameObject* gameobj = ( client_info ? 
-			client_info->m_gameobject :
-			nullptr);
-	
-	// Add the same check as in SCA_ISensor::Activate(), 
-	// we don't want to record collision when the sensor is not active.
-	if (m_links && !m_suspended &&
-		gameobj /* done in BroadPhaseFilterCollision() && (gameobj != parent)*/)
-	{
-		if (!m_colliders->SearchValue(gameobj))
-			m_colliders->Add(CM_AddRef(gameobj));
-		// only take valid colliders
-		// These checks are done already in BroadPhaseFilterCollision()
-		//if (client_info->m_type == KX_ClientObjectInfo::ACTOR)
-		//{
-		//	if ((m_touchedpropname.size() == 0) || 
-		//		(gameobj->GetProperty(m_touchedpropname)))
-		//	{
-				m_bTriggered = true;
-				m_hitObject = gameobj;
-		//	}
-		//}
-	}
-	
-	return false; // was DT_CONTINUE; but this was defined in Sumo as false
+  // need the mapping from PHY_IPhysicsController to gameobjects now
+
+  KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo *>(
+      obj1 == m_physCtrl ? ((PHY_IPhysicsController *)obj2)->GetNewClientInfo() :
+                           ((PHY_IPhysicsController *)obj1)->GetNewClientInfo());
+
+  KX_GameObject *gameobj = (client_info ? client_info->m_gameobject : nullptr);
+
+  // Add the same check as in SCA_ISensor::Activate(),
+  // we don't want to record collision when the sensor is not active.
+  if (m_links && !m_suspended &&
+      gameobj /* done in BroadPhaseFilterCollision() && (gameobj != parent)*/) {
+    if (!m_colliders->SearchValue(gameobj))
+      m_colliders->Add(CM_AddRef(gameobj));
+    // only take valid colliders
+    // These checks are done already in BroadPhaseFilterCollision()
+    // if (client_info->m_type == KX_ClientObjectInfo::ACTOR)
+    //{
+    //	if ((m_touchedpropname.size() == 0) ||
+    //		(gameobj->GetProperty(m_touchedpropname)))
+    //	{
+    m_bTriggered = true;
+    m_hitObject = gameobj;
+    //	}
+    //}
+  }
+
+  return false;  // was DT_CONTINUE; but this was defined in Sumo as false
 }
 
 #ifdef WITH_PYTHON
@@ -253,37 +228,55 @@ bool	SCA_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollDa
 /* Python Integration Hooks                                                  */
 /* ------------------------------------------------------------------------- */
 
-PyTypeObject SCA_NearSensor::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_NearSensor",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_CollisionSensor::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+PyTypeObject SCA_NearSensor::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_NearSensor",
+                                     sizeof(PyObjectPlus_Proxy),
+                                     0,
+                                     py_base_dealloc,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     py_base_repr,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     Methods,
+                                     0,
+                                     0,
+                                     &SCA_CollisionSensor::Type,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     0,
+                                     py_base_new};
 
 PyMethodDef SCA_NearSensor::Methods[] = {
-	//No methods
-	{nullptr,nullptr} //Sentinel
+    // No methods
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_NearSensor::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_RW_CHECK("distance", 0, 10000, SCA_NearSensor, m_Margin, CheckResetDistance),
-	KX_PYATTRIBUTE_FLOAT_RW_CHECK("resetDistance", 0, 10000, SCA_NearSensor, m_ResetMargin, CheckResetDistance),
-	KX_PYATTRIBUTE_NULL //Sentinel
+    KX_PYATTRIBUTE_FLOAT_RW_CHECK(
+        "distance", 0, 10000, SCA_NearSensor, m_Margin, CheckResetDistance),
+    KX_PYATTRIBUTE_FLOAT_RW_CHECK(
+        "resetDistance", 0, 10000, SCA_NearSensor, m_ResetMargin, CheckResetDistance),
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON

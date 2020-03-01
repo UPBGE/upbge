@@ -260,7 +260,7 @@ void KX_GameObject::SetBlenderObject(Object *obj)
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, obj);
-    if (base) { //base can be nullptr for objects in instanced collections
+    if (base) {  // base can be nullptr for objects in instanced collections
       m_visibleAtGameStart = (base->flag & BASE_HIDDEN) == 0;
     }
   }
@@ -317,7 +317,7 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
    * then evee engine current TAA sample will be set to 1.
    */
   if (GetScene()->GetOverlayCamera() && !is_overlay_pass) {
-    //wait
+    // wait
   }
   else if (GetScene()->GetOverlayCamera() && is_overlay_pass) {
     copy_m4_m4(m_prevObmat, obmat);
@@ -343,7 +343,7 @@ void KX_GameObject::ReplicateBlenderObject()
                                    newob);  // add replica where is the active camera
     newob->base_flag |= (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH);
 
-	if (ob->parent) {
+    if (ob->parent) {
       if (GetScene()->GetLastReplicatedParentObject()) {
         newob->parent = GetScene()->GetLastReplicatedParentObject();
         if (ob->parent && ob->parent->type == OB_ARMATURE) {
@@ -355,16 +355,16 @@ void KX_GameObject::ReplicateBlenderObject()
           }
         }
         GetScene()->ResetLastReplicatedParentObject();
-	  }
-	}
+      }
+    }
 
-	// To check again
-	NodeList &children = GetSGNode()->GetSGChildren();
+    // To check again
+    NodeList &children = GetSGNode()->GetSGChildren();
     if (children.size() > 0) {
       GetScene()->SetLastReplicatedParentObject(newob);
     }
 
-	DEG_relations_tag_update(bmain);
+    DEG_relations_tag_update(bmain);
 
     m_pBlenderObject = newob;
     m_isReplica = true;
@@ -391,8 +391,8 @@ bool KX_GameObject::IsStatic()
 void KX_GameObject::HideOriginalObject()
 {
   Object *ob = GetBlenderObject();
-  if (ob && !m_isReplica && (ob->base_flag & (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0)
-    {
+  if (ob && !m_isReplica &&
+      (ob->base_flag & (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0) {
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
@@ -419,7 +419,7 @@ static void suspend_physics_recursive(SG_Node *node, bool freeConstraints)
   for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
     SG_Node *childnode = (*childit);
     KX_GameObject *clientgameobj = static_cast<KX_GameObject *>((*childit)->GetSGClientObject());
-    if (clientgameobj != nullptr) { // This is a GameObject
+    if (clientgameobj != nullptr) {  // This is a GameObject
       clientgameobj->SuspendPhysics(freeConstraints, false);
     }
 
@@ -447,7 +447,7 @@ static void restore_physics_recursive(SG_Node *node)
   for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
     SG_Node *childnode = (*childit);
     KX_GameObject *clientgameobj = static_cast<KX_GameObject *>((*childit)->GetSGClientObject());
-    if (clientgameobj != nullptr) { // This is a GameObject
+    if (clientgameobj != nullptr) {  // This is a GameObject
       clientgameobj->RestorePhysics(false);
     }
 
@@ -998,33 +998,33 @@ bool KX_GameObject::UseCulling() const
 
 void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
 {
-	// Reset lod level to avoid overflow index in KX_LodManager::GetLevel.
-	m_currentLodLevel = 0;
+  // Reset lod level to avoid overflow index in KX_LodManager::GetLevel.
+  m_currentLodLevel = 0;
 
-	// Restore object original mesh.
-	if (!lodManager && m_lodManager && m_lodManager->GetLevelCount() > 0) {
-		KX_Scene *scene = GetScene();
-		RAS_MeshObject *origmesh = m_lodManager->GetLevel(0)->GetMesh();
-		scene->ReplaceMesh(this, origmesh, true, false);
-	}
+  // Restore object original mesh.
+  if (!lodManager && m_lodManager && m_lodManager->GetLevelCount() > 0) {
+    KX_Scene *scene = GetScene();
+    RAS_MeshObject *origmesh = m_lodManager->GetLevel(0)->GetMesh();
+    scene->ReplaceMesh(this, origmesh, true, false);
+  }
 
-	if (m_lodManager) {
-		m_lodManager->Release();
-	}
+  if (m_lodManager) {
+    m_lodManager->Release();
+  }
 
-	m_lodManager = lodManager;
+  m_lodManager = lodManager;
 
-	if (m_lodManager) {
-		m_lodManager->AddRef();
-	}
+  if (m_lodManager) {
+    m_lodManager->AddRef();
+  }
 }
 
 KX_LodManager *KX_GameObject::GetLodManager() const
 {
-	return m_lodManager;
+  return m_lodManager;
 }
 
-void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
+void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
 {
   if (!m_lodManager) {
     return;
@@ -1055,7 +1055,8 @@ void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
      * depsgraph */
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
 
-    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, currentMeshObject->GetOriginalObject());
+    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph,
+                                                   currentMeshObject->GetOriginalObject());
     /* Try to get the object with all modifiers applied */
     ob_eval->data = eval_lod_ob->data;
   }
@@ -1133,7 +1134,7 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
-    if (base) { //base can be nullptr for objects in instanced collections
+    if (base) {  // base can be nullptr for objects in instanced collections
       if (v) {
         base->flag &= ~BASE_HIDDEN;
       }
@@ -1423,19 +1424,19 @@ MT_Vector3 KX_GameObject::GetAngularVelocity(bool local)
 
 MT_Vector3 KX_GameObject::GetGravity()
 {
-    MT_Vector3 gravity(0.0f, 0.0f, 0.0f);
-    if (m_pPhysicsController) {
-        gravity = m_pPhysicsController->GetGravity();
-        return gravity;
-    }
+  MT_Vector3 gravity(0.0f, 0.0f, 0.0f);
+  if (m_pPhysicsController) {
+    gravity = m_pPhysicsController->GetGravity();
     return gravity;
+  }
+  return gravity;
 }
 
 void KX_GameObject::SetGravity(const MT_Vector3 &gravity)
 {
-    if (m_pPhysicsController) {
-        m_pPhysicsController->SetGravity(gravity);
-    }
+  if (m_pPhysicsController) {
+    m_pPhysicsController->SetGravity(gravity);
+  }
 }
 
 MT_Vector3 KX_GameObject::GetVelocity(const MT_Vector3 &point)
@@ -1753,7 +1754,7 @@ void KX_GameObject::UpdateComponents()
     comp->Update();
   }
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON
 }
 
 KX_Scene *KX_GameObject::GetScene()
@@ -2040,7 +2041,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 
     {"getPhysicsId", (PyCFunction)KX_GameObject::sPyGetPhysicsId, METH_NOARGS},
     {"getPropertyNames", (PyCFunction)KX_GameObject::sPyGetPropertyNames, METH_NOARGS},
-    {"replaceMesh",(PyCFunction) KX_GameObject::sPyReplaceMesh, METH_VARARGS},
+    {"replaceMesh", (PyCFunction)KX_GameObject::sPyReplaceMesh, METH_VARARGS},
     {"endObject", (PyCFunction)KX_GameObject::sPyEndObject, METH_NOARGS},
     {"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh, METH_VARARGS},
     {"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_O},
@@ -2060,7 +2061,7 @@ PyMethodDef KX_GameObject::Methods[] = {
     KX_PYMETHODTABLE(KX_GameObject, setActionFrame),
     KX_PYMETHODTABLE(KX_GameObject, isPlayingAction),
     KX_PYMETHODTABLE(KX_GameObject, recalcGeometry),
-	KX_PYMETHODTABLE(KX_GameObject, recalcTransform),
+    KX_PYMETHODTABLE(KX_GameObject, recalcTransform),
 
     // dict style access for props
     {"get", (PyCFunction)KX_GameObject::sPyget, METH_VARARGS},
@@ -2070,7 +2071,8 @@ PyMethodDef KX_GameObject::Methods[] = {
 
 PyAttributeDef KX_GameObject::Attributes[] = {
     KX_PYATTRIBUTE_SHORT_RO("currentLodLevel", KX_GameObject, m_currentLodLevel),
-    KX_PYATTRIBUTE_RW_FUNCTION("lodManager", KX_GameObject, pyattr_get_lodManager, pyattr_set_lodManager),
+    KX_PYATTRIBUTE_RW_FUNCTION(
+        "lodManager", KX_GameObject, pyattr_get_lodManager, pyattr_set_lodManager),
     KX_PYATTRIBUTE_RW_FUNCTION("name", KX_GameObject, pyattr_get_name, pyattr_set_name),
     KX_PYATTRIBUTE_RO_FUNCTION("parent", KX_GameObject, pyattr_get_parent),
     KX_PYATTRIBUTE_RO_FUNCTION("groupMembers", KX_GameObject, pyattr_get_group_members),
@@ -2167,7 +2169,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
     KX_PYATTRIBUTE_BOOL_RW("castShadows", KX_GameObject, m_castShadows),
     KX_PYATTRIBUTE_RW_FUNCTION("gravity", KX_GameObject, pyattr_get_gravity, pyattr_set_gravity),
 
-	KX_PYATTRIBUTE_RO_FUNCTION("blenderObject", KX_GameObject, pyattr_get_blender_object),
+    KX_PYATTRIBUTE_RO_FUNCTION("blenderObject", KX_GameObject, pyattr_get_blender_object),
 
     /* experimental, don't rely on these yet */
     KX_PYATTRIBUTE_RO_FUNCTION("sensors", KX_GameObject, pyattr_get_sensors),
@@ -2179,20 +2181,21 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 
 PyObject *KX_GameObject::PyReplaceMesh(PyObject *args)
 {
-	SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
+  SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
-	PyObject *value;
-	int use_gfx= 1, use_phys= 0;
-	RAS_MeshObject *new_mesh;
-	
-	if (!PyArg_ParseTuple(args,"O|ii:replaceMesh", &value, &use_gfx, &use_phys))
-		return nullptr;
-	
-	if (!ConvertPythonToMesh(logicmgr, value, &new_mesh, false, "gameOb.replaceMesh(value): KX_GameObject"))
-		return nullptr;
-	
-	GetScene()->ReplaceMesh(this, new_mesh, (bool)use_gfx, (bool)use_phys);
-	Py_RETURN_NONE;
+  PyObject *value;
+  int use_gfx = 1, use_phys = 0;
+  RAS_MeshObject *new_mesh;
+
+  if (!PyArg_ParseTuple(args, "O|ii:replaceMesh", &value, &use_gfx, &use_phys))
+    return nullptr;
+
+  if (!ConvertPythonToMesh(
+          logicmgr, value, &new_mesh, false, "gameOb.replaceMesh(value): KX_GameObject"))
+    return nullptr;
+
+  GetScene()->ReplaceMesh(this, new_mesh, (bool)use_gfx, (bool)use_phys);
+  Py_RETURN_NONE;
 }
 
 PyObject *KX_GameObject::PyEndObject()
@@ -2262,8 +2265,7 @@ PyObject *KX_GameObject::PyUpdatePhysicsShape(PyObject *args)
   int recalcGeom = 0;
 
   if (!PyArg_ParseTuple(args, "|i:updatePhysicsShape", &recalcGeom)) {
-    PyErr_SetString(PyExc_TypeError,
-                    "gameOb.updatePhysicsShape(obj): expected a boolean");
+    PyErr_SetString(PyExc_TypeError, "gameOb.updatePhysicsShape(obj): expected a boolean");
     return nullptr;
   }
 
@@ -3284,28 +3286,29 @@ int KX_GameObject::pyattr_set_localAngularVelocity(PyObjectPlus *self_v,
 PyObject *KX_GameObject::pyattr_get_gravity(PyObjectPlus *self_v,
                                             const KX_PYATTRIBUTE_DEF *attrdef)
 {
-#ifdef USE_MATHUTILS
-    return Vector_CreatePyObject_cb(
-        BGE_PROXY_FROM_REF_BORROW(self_v), 3,
-        mathutils_kxgameob_vector_cb_index, MATHUTILS_VEC_CB_GRAVITY);
-#else
-    KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-    return PyObjectFrom(GetGravity());
-#endif
+#  ifdef USE_MATHUTILS
+  return Vector_CreatePyObject_cb(BGE_PROXY_FROM_REF_BORROW(self_v),
+                                  3,
+                                  mathutils_kxgameob_vector_cb_index,
+                                  MATHUTILS_VEC_CB_GRAVITY);
+#  else
+  KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+  return PyObjectFrom(GetGravity());
+#  endif
 }
 
 int KX_GameObject::pyattr_set_gravity(PyObjectPlus *self_v,
                                       const KX_PYATTRIBUTE_DEF *attrdef,
                                       PyObject *value)
 {
-    KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-    MT_Vector3 gravity;
-    if (!PyVecTo(value, gravity))
-        return PY_SET_ATTR_FAIL;
+  KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+  MT_Vector3 gravity;
+  if (!PyVecTo(value, gravity))
+    return PY_SET_ATTR_FAIL;
 
-    self->SetGravity(gravity);
+  self->SetGravity(gravity);
 
-    return PY_SET_ATTR_SUCCESS;
+  return PY_SET_ATTR_SUCCESS;
 }
 
 PyObject *KX_GameObject::pyattr_get_linearDamping(PyObjectPlus *self_v,
@@ -3447,12 +3450,13 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v,
   return PY_SET_ATTR_FAIL;
 }
 
-PyObject* KX_GameObject::pyattr_get_components(PyObjectPlus *self_v,
+PyObject *KX_GameObject::pyattr_get_components(PyObjectPlus *self_v,
                                                const KX_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
   CListValue<KX_PythonComponent> *components = self->GetComponents();
-  return components ? components->GetProxy() : (new CListValue<KX_PythonComponent>())->NewProxy(true);
+  return components ? components->GetProxy() :
+                      (new CListValue<KX_PythonComponent>())->NewProxy(true);
 }
 
 static int kx_game_object_get_sensors_size_cb(void *self_v)
@@ -3618,25 +3622,28 @@ int KX_GameObject::pyattr_set_debugRecursive(PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_GameObject::pyattr_get_lodManager(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_GameObject::pyattr_get_lodManager(PyObjectPlus *self_v,
+                                               const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+  KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 
-	return (self->m_lodManager) ? self->m_lodManager->GetProxy() : Py_None;
+  return (self->m_lodManager) ? self->m_lodManager->GetProxy() : Py_None;
 }
 
-int KX_GameObject::pyattr_set_lodManager(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_GameObject::pyattr_set_lodManager(PyObjectPlus *self_v,
+                                         const KX_PYATTRIBUTE_DEF *attrdef,
+                                         PyObject *value)
 {
-	KX_GameObject *self = static_cast<KX_GameObject*>(self_v);
+  KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 
-	KX_LodManager *lodManager = nullptr;
-	if (!ConvertPythonToLodManager(value, &lodManager, true, "gameobj.lodManager: KX_GameObject")) {
-		return PY_SET_ATTR_FAIL;
-	}
+  KX_LodManager *lodManager = nullptr;
+  if (!ConvertPythonToLodManager(value, &lodManager, true, "gameobj.lodManager: KX_GameObject")) {
+    return PY_SET_ATTR_FAIL;
+  }
 
-	self->SetLodManager(lodManager);
+  self->SetLodManager(lodManager);
 
-	return PY_SET_ATTR_SUCCESS;
+  return PY_SET_ATTR_SUCCESS;
 }
 
 PyObject *KX_GameObject::PyApplyForce(PyObject *args)
@@ -3987,7 +3994,8 @@ PyObject *KX_GameObject::PyGetPropertyNames()
   return list;
 }
 
-PyObject *KX_GameObject::pyattr_get_blender_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_GameObject::pyattr_get_blender_object(PyObjectPlus *self_v,
+                                                   const KX_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
   Object *ob = self->GetBlenderObject();

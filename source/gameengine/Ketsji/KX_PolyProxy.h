@@ -34,54 +34,53 @@
 
 #ifdef WITH_PYTHON
 
-#include "SCA_IObject.h"
+#  include "SCA_IObject.h"
 
 class KX_MeshProxy;
 class RAS_MeshObject;
 class RAS_Polygon;
 
-class KX_PolyProxy : public CValue
-{
-	Py_Header
-protected:
-	KX_MeshProxy *m_meshProxy;
-	RAS_Polygon* m_polygon;
-	RAS_MeshObject*	m_mesh;
-public:
-	KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_MeshObject *mesh, RAS_Polygon *polygon);
-	virtual ~KX_PolyProxy();
+class KX_PolyProxy : public CValue {
+  Py_Header protected : KX_MeshProxy *m_meshProxy;
+  RAS_Polygon *m_polygon;
+  RAS_MeshObject *m_mesh;
 
-	// stuff for cvalue related things
-	virtual std::string GetName();
+ public:
+  KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_MeshObject *mesh, RAS_Polygon *polygon);
+  virtual ~KX_PolyProxy();
 
-	RAS_Polygon *GetPolygon();
-	KX_MeshProxy *GetMeshProxy();
+  // stuff for cvalue related things
+  virtual std::string GetName();
 
-	// stuff for python integration
-	static PyObject *pyattr_get_material_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_texture_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_material(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_material_id(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v1(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v2(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v3(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v4(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_visible(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_collide(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_vertices(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  RAS_Polygon *GetPolygon();
+  KX_MeshProxy *GetMeshProxy();
 
-	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterialIndex)
-	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getNumVertex)
-	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, isVisible)
-	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, isCollider)
-	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterialName)
-	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getTextureName)
-	KX_PYMETHOD_DOC(KX_PolyProxy, getVertexIndex)
-	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMesh)
-	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterial)
+  // stuff for python integration
+  static PyObject *pyattr_get_material_name(PyObjectPlus *self_v,
+                                            const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_texture_name(PyObjectPlus *self_v,
+                                           const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_material(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_material_id(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_v1(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_v2(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_v3(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_v4(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_visible(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_collide(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_vertices(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
+  KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterialIndex)
+  KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getNumVertex)
+  KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, isVisible)
+  KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, isCollider)
+  KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterialName)
+  KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getTextureName)
+  KX_PYMETHOD_DOC(KX_PolyProxy, getVertexIndex)
+  KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMesh)
+  KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterial)
 };
 
-#endif  /* WITH_PYTHON */
+#endif /* WITH_PYTHON */
 
-#endif  /* __KX_POLYPROXY_H__ */
+#endif /* __KX_POLYPROXY_H__ */

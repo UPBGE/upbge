@@ -45,132 +45,139 @@
 
 /* Integration hooks ------------------------------------------------------- */
 
-PyTypeObject SCA_DynamicActuator::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_DynamicActuator",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+PyTypeObject SCA_DynamicActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_DynamicActuator",
+                                          sizeof(PyObjectPlus_Proxy),
+                                          0,
+                                          py_base_dealloc,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          py_base_repr,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          Methods,
+                                          0,
+                                          0,
+                                          &SCA_IActuator::Type,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          0,
+                                          py_base_new};
 
 PyMethodDef SCA_DynamicActuator::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_DynamicActuator::Attributes[] = {
-	KX_PYATTRIBUTE_SHORT_RW("mode",0,4,false,SCA_DynamicActuator,m_dyn_operation),
-	KX_PYATTRIBUTE_FLOAT_RW("mass",0.0f,FLT_MAX,SCA_DynamicActuator,m_setmass),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    KX_PYATTRIBUTE_SHORT_RW("mode", 0, 4, false, SCA_DynamicActuator, m_dyn_operation),
+    KX_PYATTRIBUTE_FLOAT_RW("mass", 0.0f, FLT_MAX, SCA_DynamicActuator, m_setmass),
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
 SCA_DynamicActuator::SCA_DynamicActuator(SCA_IObject *gameobj,
-													   short dyn_operation,
-													   float setmass,
-	                                                   bool suspend_children_phys,
-	                                                   bool restore_children_phys,
-	                                                   bool suspend_constraint) :
+                                         short dyn_operation,
+                                         float setmass,
+                                         bool suspend_children_phys,
+                                         bool restore_children_phys,
+                                         bool suspend_constraint)
+    :
 
-	SCA_IActuator(gameobj, KX_ACT_DYNAMIC),
-	m_dyn_operation(dyn_operation),
-	m_setmass(setmass),
-    m_suspend_children_phys(suspend_children_phys),
-    m_restore_children_phys(restore_children_phys),
-    m_suspend_constraints(suspend_constraint)
+      SCA_IActuator(gameobj, KX_ACT_DYNAMIC),
+      m_dyn_operation(dyn_operation),
+      m_setmass(setmass),
+      m_suspend_children_phys(suspend_children_phys),
+      m_restore_children_phys(restore_children_phys),
+      m_suspend_constraints(suspend_constraint)
 {
 } /* End of constructor */
 
-
 SCA_DynamicActuator::~SCA_DynamicActuator()
-{ 
-	// there's nothing to be done here, really....
+{
+  // there's nothing to be done here, really....
 } /* end of destructor */
-
-
 
 bool SCA_DynamicActuator::Update()
 {
-	// bool result = false;	/*unused*/
-	KX_GameObject *obj = (KX_GameObject*) GetParent();
-	bool bNegativeEvent = IsNegativeEvent();
-	PHY_IPhysicsController* controller;
-	RemoveAllEvents();
+  // bool result = false;	/*unused*/
+  KX_GameObject *obj = (KX_GameObject *)GetParent();
+  bool bNegativeEvent = IsNegativeEvent();
+  PHY_IPhysicsController *controller;
+  RemoveAllEvents();
 
-	if (bNegativeEvent)
-		return false; // do nothing on negative events
-	
-	if (!obj)
-		return false; // object not accessible, shouldnt happen
-	controller = obj->GetPhysicsController();
-	if (!controller)
-		return false;	// no physic object
+  if (bNegativeEvent)
+    return false;  // do nothing on negative events
 
-	switch (m_dyn_operation)
-	{
-		case KX_DYN_RESTORE_DYNAMICS:
-			// Child objects must be static, so we block changing to dynamic
-			if (!obj->GetParent())
-				controller->RestoreDynamics();
-			break;
-		case KX_DYN_DISABLE_DYNAMICS:
-			controller->SuspendDynamics();
-			break;
-		case KX_DYN_ENABLE_RIGID_BODY:
-			controller->SetRigidBody(true);
-			break;
-		case KX_DYN_DISABLE_RIGID_BODY:
-			controller->SetRigidBody(false);
-			break;
-		case KX_DYN_SET_MASS:
-			controller->SetMass(m_setmass);
-			break;
-		case KX_DYN_RESTORE_PHYSICS:
-		{
-			obj->RestorePhysics(m_restore_children_phys);
-			break;
-		}
-		case KX_DYN_DISABLE_PHYSICS:
-		{
-			obj->SuspendPhysics(m_suspend_constraints, m_suspend_children_phys);
-			break;
-		}
-	}
+  if (!obj)
+    return false;  // object not accessible, shouldnt happen
+  controller = obj->GetPhysicsController();
+  if (!controller)
+    return false;  // no physic object
 
-	return false;
+  switch (m_dyn_operation) {
+    case KX_DYN_RESTORE_DYNAMICS:
+      // Child objects must be static, so we block changing to dynamic
+      if (!obj->GetParent())
+        controller->RestoreDynamics();
+      break;
+    case KX_DYN_DISABLE_DYNAMICS:
+      controller->SuspendDynamics();
+      break;
+    case KX_DYN_ENABLE_RIGID_BODY:
+      controller->SetRigidBody(true);
+      break;
+    case KX_DYN_DISABLE_RIGID_BODY:
+      controller->SetRigidBody(false);
+      break;
+    case KX_DYN_SET_MASS:
+      controller->SetMass(m_setmass);
+      break;
+    case KX_DYN_RESTORE_PHYSICS: {
+      obj->RestorePhysics(m_restore_children_phys);
+      break;
+    }
+    case KX_DYN_DISABLE_PHYSICS: {
+      obj->SuspendPhysics(m_suspend_constraints, m_suspend_children_phys);
+      break;
+    }
+  }
+
+  return false;
 }
 
-
-
-CValue* SCA_DynamicActuator::GetReplica()
+CValue *SCA_DynamicActuator::GetReplica()
 {
-	SCA_DynamicActuator* replica = 
-		new SCA_DynamicActuator(*this);
+  SCA_DynamicActuator *replica = new SCA_DynamicActuator(*this);
 
-	if (replica == nullptr)
-		return nullptr;
+  if (replica == nullptr)
+    return nullptr;
 
-	replica->ProcessReplica();
-	return replica;
+  replica->ProcessReplica();
+  return replica;
 };
-
 
 /* eof */

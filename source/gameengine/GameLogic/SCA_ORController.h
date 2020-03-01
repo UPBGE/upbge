@@ -34,16 +34,14 @@
 
 #include "SCA_IController.h"
 
-class SCA_ORController : public SCA_IController
-{
-	Py_Header
-	//virtual void Trigger(class SCA_LogicManager* logicmgr);
-public:
-	SCA_ORController(SCA_IObject* gameobj);
+class SCA_ORController : public SCA_IController {
+  Py_Header
+      // virtual void Trigger(class SCA_LogicManager* logicmgr);
+      public : SCA_ORController(SCA_IObject *gameobj);
 
-	virtual ~SCA_ORController();
-	virtual CValue* GetReplica();
-	virtual void Trigger(SCA_LogicManager* logicmgr);
+  virtual ~SCA_ORController();
+  virtual CValue *GetReplica();
+  virtual void Trigger(SCA_LogicManager *logicmgr);
 };
 
-#endif  /* __SCA_ORCONTROLLER_H__ */
+#endif /* __SCA_ORCONTROLLER_H__ */
