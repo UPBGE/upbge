@@ -35,64 +35,61 @@
 
 #include "SCA_ISensor.h"
 
-class SCA_PropertySensor : public SCA_ISensor
-{
-	Py_Header
-	//class CExpression*	m_rightexpr;
-	int				m_checktype;
-	std::string		m_checkpropval;
-	std::string		m_checkpropmaxval;
-	std::string		m_checkpropname;
-	std::string		m_previoustext;
-	bool			m_lastresult;
-	bool			m_recentresult;
+class SCA_PropertySensor : public SCA_ISensor {
+  Py_Header
+      // class CExpression*	m_rightexpr;
+      int m_checktype;
+  std::string m_checkpropval;
+  std::string m_checkpropmaxval;
+  std::string m_checkpropname;
+  std::string m_previoustext;
+  bool m_lastresult;
+  bool m_recentresult;
 
  protected:
+ public:
+  enum KX_PROPSENSOR_TYPE {
+    KX_PROPSENSOR_NODEF = 0,
+    KX_PROPSENSOR_EQUAL,
+    KX_PROPSENSOR_NOTEQUAL,
+    KX_PROPSENSOR_INTERVAL,
+    KX_PROPSENSOR_CHANGED,
+    KX_PROPSENSOR_EXPRESSION,
+    KX_PROPSENSOR_LESSTHAN,
+    KX_PROPSENSOR_GREATERTHAN,
+    KX_PROPSENSOR_MAX
+  };
 
-public:
-	enum KX_PROPSENSOR_TYPE {
-		KX_PROPSENSOR_NODEF = 0,
-		KX_PROPSENSOR_EQUAL,
-		KX_PROPSENSOR_NOTEQUAL,
-		KX_PROPSENSOR_INTERVAL,
-		KX_PROPSENSOR_CHANGED,
-		KX_PROPSENSOR_EXPRESSION,
-		KX_PROPSENSOR_LESSTHAN,
-		KX_PROPSENSOR_GREATERTHAN,
-		KX_PROPSENSOR_MAX
-	};
+  const std::string S_KX_PROPSENSOR_EQ_STRING;
 
-	const std::string S_KX_PROPSENSOR_EQ_STRING;
-	
-	SCA_PropertySensor(class SCA_EventManager* eventmgr,
-					  SCA_IObject* gameobj,
-					  const std::string& propname,
-					  const std::string& propval,
-					  const std::string& propmaxval,
-					  KX_PROPSENSOR_TYPE checktype);
+  SCA_PropertySensor(class SCA_EventManager *eventmgr,
+                     SCA_IObject *gameobj,
+                     const std::string &propname,
+                     const std::string &propval,
+                     const std::string &propmaxval,
+                     KX_PROPSENSOR_TYPE checktype);
 
-	virtual ~SCA_PropertySensor();
-	virtual CValue* GetReplica();
-	virtual void Init();
-	bool	CheckPropertyCondition();
+  virtual ~SCA_PropertySensor();
+  virtual CValue *GetReplica();
+  virtual void Init();
+  bool CheckPropertyCondition();
 
-	virtual bool Evaluate();
-	virtual bool	IsPositiveTrigger();
-	virtual CValue*		FindIdentifier(const std::string& identifiername);
+  virtual bool Evaluate();
+  virtual bool IsPositiveTrigger();
+  virtual CValue *FindIdentifier(const std::string &identifiername);
 
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	/**
-	 * Test whether this is a sensible value (type check)
-	 */
-	static int validValueForProperty(PyObjectPlus *self, const PyAttributeDef*);
+  /**
+   * Test whether this is a sensible value (type check)
+   */
+  static int validValueForProperty(PyObjectPlus *self, const PyAttributeDef *);
 
 #endif
 };
 
 #endif
-

@@ -29,96 +29,91 @@
 
 #include "RAS_ITexVert.h"
 
-template <class Vertex>
-class RAS_DisplayArray;
+template<class Vertex> class RAS_DisplayArray;
 
-template <unsigned int uvSize, unsigned int colorSize>
-class RAS_TexVert : public RAS_ITexVert
-{
-friend class RAS_DisplayArray<RAS_TexVert<uvSize, colorSize> >;
-public:
-	enum {
-		UvSize = uvSize,
-		ColorSize = colorSize
-	};
+template<unsigned int uvSize, unsigned int colorSize> class RAS_TexVert : public RAS_ITexVert {
+  friend class RAS_DisplayArray<RAS_TexVert<uvSize, colorSize>>;
 
-private:
-	float m_uvs[UvSize][2];
-	unsigned int m_rgba[ColorSize];
+ public:
+  enum { UvSize = uvSize, ColorSize = colorSize };
 
-public:
-	RAS_TexVert()
-	{
-	}
+ private:
+  float m_uvs[UvSize][2];
+  unsigned int m_rgba[ColorSize];
 
-	RAS_TexVert(const MT_Vector3& xyz,
-	            const MT_Vector2 uvs[UvSize],
-	            const MT_Vector4& tangent,
-				const unsigned int rgba[ColorSize],
-	            const MT_Vector3& normal)
-		:RAS_ITexVert(xyz, tangent, normal)
-	{
-		for (int i = 0; i < UvSize; ++i) {
-			uvs[i].getValue(m_uvs[i]);
-		}
+ public:
+  RAS_TexVert()
+  {
+  }
 
-		for (unsigned short i = 0; i < ColorSize; ++i) {
-			m_rgba[i] = rgba[i];
-		}
-	}
+  RAS_TexVert(const MT_Vector3 &xyz,
+              const MT_Vector2 uvs[UvSize],
+              const MT_Vector4 &tangent,
+              const unsigned int rgba[ColorSize],
+              const MT_Vector3 &normal)
+      : RAS_ITexVert(xyz, tangent, normal)
+  {
+    for (int i = 0; i < UvSize; ++i) {
+      uvs[i].getValue(m_uvs[i]);
+    }
 
-	virtual ~RAS_TexVert()
-	{
-	}
+    for (unsigned short i = 0; i < ColorSize; ++i) {
+      m_rgba[i] = rgba[i];
+    }
+  }
 
-	virtual const unsigned short getUvSize() const
-	{
-		return UvSize;
-	}
+  virtual ~RAS_TexVert()
+  {
+  }
 
-	virtual const float *getUV(const int unit) const
-	{
-		return m_uvs[unit];
-	}
+  virtual const unsigned short getUvSize() const
+  {
+    return UvSize;
+  }
 
-	virtual void SetUV(const int index, const MT_Vector2& uv)
-	{
-		uv.getValue(m_uvs[index]);
-	}
+  virtual const float *getUV(const int unit) const
+  {
+    return m_uvs[unit];
+  }
 
-	virtual void SetUV(const int index, const float uv[2])
-	{
-		copy_v2_v2(m_uvs[index], uv);
-	}
+  virtual void SetUV(const int index, const MT_Vector2 &uv)
+  {
+    uv.getValue(m_uvs[index]);
+  }
 
-	virtual const unsigned short getColorSize() const
-	{
-		return ColorSize;
-	}
+  virtual void SetUV(const int index, const float uv[2])
+  {
+    copy_v2_v2(m_uvs[index], uv);
+  }
 
-	virtual const unsigned char *getRGBA(const int index) const
-	{
-		return (unsigned char *)&m_rgba[index];
-	}
+  virtual const unsigned short getColorSize() const
+  {
+    return ColorSize;
+  }
 
-	virtual const unsigned int getRawRGBA(const int index) const
-	{
-		return m_rgba[index];
-	}
+  virtual const unsigned char *getRGBA(const int index) const
+  {
+    return (unsigned char *)&m_rgba[index];
+  }
 
-	virtual void SetRGBA(const int index, const unsigned int rgba)
-	{
-		m_rgba[index] = rgba;
-	}
+  virtual const unsigned int getRawRGBA(const int index) const
+  {
+    return m_rgba[index];
+  }
 
-	virtual void SetRGBA(const int index, const MT_Vector4& rgba)
-	{
-		unsigned char *colp = (unsigned char *)&m_rgba[index];
-		colp[0] = (unsigned char)(rgba[0] * 255.0f);
-		colp[1] = (unsigned char)(rgba[1] * 255.0f);
-		colp[2] = (unsigned char)(rgba[2] * 255.0f);
-		colp[3] = (unsigned char)(rgba[3] * 255.0f);
-	}
+  virtual void SetRGBA(const int index, const unsigned int rgba)
+  {
+    m_rgba[index] = rgba;
+  }
+
+  virtual void SetRGBA(const int index, const MT_Vector4 &rgba)
+  {
+    unsigned char *colp = (unsigned char *)&m_rgba[index];
+    colp[0] = (unsigned char)(rgba[0] * 255.0f);
+    colp[1] = (unsigned char)(rgba[1] * 255.0f);
+    colp[2] = (unsigned char)(rgba[2] * 255.0f);
+    colp[3] = (unsigned char)(rgba[3] * 255.0f);
+  }
 };
 
 #endif  // __RAS_TEXVERT_H__

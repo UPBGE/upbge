@@ -46,23 +46,21 @@
 #endif
 
 DEV_Joystick::DEV_Joystick(short index)
-	:
-	m_joyindex(index),
-	m_prec(3200),
-	m_axismax(-1),
-	m_buttonmax(-1),
-	m_isinit(0),
-	m_istrig_axis(0),
-	m_istrig_button(0)
+    : m_joyindex(index),
+      m_prec(3200),
+      m_axismax(-1),
+      m_buttonmax(-1),
+      m_isinit(0),
+      m_istrig_axis(0),
+      m_istrig_button(0)
 {
-	for (int i=0; i < JOYAXIS_MAX; i++)
-		m_axis_array[i] = 0;
-	
+  for (int i = 0; i < JOYAXIS_MAX; i++)
+    m_axis_array[i] = 0;
+
 #ifdef WITH_SDL
-	m_private = new PrivateData();
+  m_private = new PrivateData();
 #endif
 }
-
 
 DEV_Joystick::~DEV_Joystick()
 {
@@ -70,324 +68,324 @@ DEV_Joystick::~DEV_Joystick()
 
 DEV_Joystick *DEV_Joystick::m_instance[JOYINDEX_MAX];
 
-
 void DEV_Joystick::Init()
 {
 #ifdef WITH_SDL
 
-	if (!(SDL_CHECK(SDL_InitSubSystem)) ||
-	    !(SDL_CHECK(SDL_GameControllerAddMapping)) ||
-	    !(SDL_CHECK(SDL_GameControllerAddMappingsFromRW)))
-	{
-		return;
-	}
+  if (!(SDL_CHECK(SDL_InitSubSystem)) || !(SDL_CHECK(SDL_GameControllerAddMapping)) ||
+      !(SDL_CHECK(SDL_GameControllerAddMappingsFromRW))) {
+    return;
+  }
 
-	/* Initializing Game Controller related subsystems */
-	bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1 );
+  /* Initializing Game Controller related subsystems */
+  bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1);
 
-	if (success) {
-		// First we try loading mapping file from blenderplayer directory
-		int fileMapping = SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt");
+  if (success) {
+    // First we try loading mapping file from blenderplayer directory
+    int fileMapping = SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt");
 
-		// If it doesnt exist we load our internal data base
-		if (fileMapping == -1) {
-			unsigned short i = 0;
-			const char *mapping_string = nullptr;
-			mapping_string = controller_mappings[i];
+    // If it doesnt exist we load our internal data base
+    if (fileMapping == -1) {
+      unsigned short i = 0;
+      const char *mapping_string = nullptr;
+      mapping_string = controller_mappings[i];
 
-			while (mapping_string) {
-				SDL_GameControllerAddMapping(mapping_string);
-				i++;
-				mapping_string = controller_mappings[i];
-			}
-		}
-	}
-	else {
-		CM_Error("initializing SDL Game Controller: " << SDL_GetError());
-	}
+      while (mapping_string) {
+        SDL_GameControllerAddMapping(mapping_string);
+        i++;
+        mapping_string = controller_mappings[i];
+      }
+    }
+  }
+  else {
+    CM_Error("initializing SDL Game Controller: " << SDL_GetError());
+  }
 #endif
 }
 
 void DEV_Joystick::Close()
 {
 #ifdef WITH_SDL
-	/* Closing possible connected Joysticks */
-	for (int i = 0; i < JOYINDEX_MAX; i++) {
-		m_instance[i]->ReleaseInstance(i);
-	}
+  /* Closing possible connected Joysticks */
+  for (int i = 0; i < JOYINDEX_MAX; i++) {
+    m_instance[i]->ReleaseInstance(i);
+  }
 
-	/* Closing SDL Game controller system */
-	if (SDL_CHECK(SDL_QuitSubSystem)) {
-		SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
-}
+  /* Closing SDL Game controller system */
+  if (SDL_CHECK(SDL_QuitSubSystem)) {
+    SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+  }
 #endif
 }
 
 DEV_Joystick *DEV_Joystick::GetInstance(short joyindex)
 {
 #ifndef WITH_SDL
-	return nullptr;
+  return nullptr;
 #else  /* WITH_SDL */
 
-	if (joyindex < 0 || joyindex >= JOYINDEX_MAX) {
-		CM_Error("invalid joystick index: " << joyindex);
-		return nullptr;
-	}
+  if (joyindex < 0 || joyindex >= JOYINDEX_MAX) {
+    CM_Error("invalid joystick index: " << joyindex);
+    return nullptr;
+  }
 
-	return m_instance[joyindex];
+  return m_instance[joyindex];
 #endif /* WITH_SDL */
 }
 
 void DEV_Joystick::ReleaseInstance(short joyindex)
 {
 #ifdef WITH_SDL
-	if (m_instance[joyindex]) {
-		m_instance[joyindex]->DestroyJoystickDevice();
-		delete m_private;
-		delete m_instance[joyindex];
-	}
-	m_instance[joyindex] = nullptr;
+  if (m_instance[joyindex]) {
+    m_instance[joyindex]->DestroyJoystickDevice();
+    delete m_private;
+    delete m_instance[joyindex];
+  }
+  m_instance[joyindex] = nullptr;
 #endif /* WITH_SDL */
 }
 
 void DEV_Joystick::cSetPrecision(int val)
 {
-	m_prec = val;
+  m_prec = val;
 }
-
 
 bool DEV_Joystick::aAxisPairIsPositive(int axis)
 {
-	return (pAxisTest(axis) > m_prec) ? true:false;
+  return (pAxisTest(axis) > m_prec) ? true : false;
 }
 
 bool DEV_Joystick::aAxisPairDirectionIsPositive(int axis, int dir)
 {
 
-	int res;
+  int res;
 
-	if (dir==JOYAXIS_UP || dir==JOYAXIS_DOWN)
-		res = pGetAxis(axis, 1);
-	else /* JOYAXIS_LEFT || JOYAXIS_RIGHT */
-		res = pGetAxis(axis, 0);
-	
-	if (dir==JOYAXIS_DOWN || dir==JOYAXIS_RIGHT)
-		return (res > m_prec) ? true : false;
-	else /* JOYAXIS_UP || JOYAXIS_LEFT */
-		return (res < -m_prec) ? true : false;
+  if (dir == JOYAXIS_UP || dir == JOYAXIS_DOWN)
+    res = pGetAxis(axis, 1);
+  else /* JOYAXIS_LEFT || JOYAXIS_RIGHT */
+    res = pGetAxis(axis, 0);
+
+  if (dir == JOYAXIS_DOWN || dir == JOYAXIS_RIGHT)
+    return (res > m_prec) ? true : false;
+  else /* JOYAXIS_UP || JOYAXIS_LEFT */
+    return (res < -m_prec) ? true : false;
 }
 
 bool DEV_Joystick::aAxisIsPositive(int axis_single)
 {
-	return std::abs(m_axis_array[axis_single]) > m_prec ? true:false;
+  return std::abs(m_axis_array[axis_single]) > m_prec ? true : false;
 }
 
 bool DEV_Joystick::aAnyButtonPressIsPositive(void)
 {
 #ifdef WITH_SDL
-	if (!(SDL_CHECK(SDL_GameControllerGetButton))) {
-		return false;
-	}
+  if (!(SDL_CHECK(SDL_GameControllerGetButton))) {
+    return false;
+  }
 
-	/* this is needed for the "all events" option
-	 * so we know if there are no buttons pressed */
-	for (int i = 0; i < m_buttonmax; i++) {
-		if (SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)i)) {
-			return true;
-		}
-	}
+  /* this is needed for the "all events" option
+   * so we know if there are no buttons pressed */
+  for (int i = 0; i < m_buttonmax; i++) {
+    if (SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)i)) {
+      return true;
+    }
+  }
 #endif
-	return false;
+  return false;
 }
 
 bool DEV_Joystick::aButtonPressIsPositive(int button)
 {
 #ifdef WITH_SDL
-	if ((SDL_CHECK(SDL_GameControllerGetButton) &&
-		SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button)))
-	{
-		return true;
-	}
+  if ((SDL_CHECK(SDL_GameControllerGetButton) &&
+       SDL_GameControllerGetButton(m_private->m_gamecontroller,
+                                   (SDL_GameControllerButton)button))) {
+    return true;
+  }
 #endif
-	return false;
+  return false;
 }
-
 
 bool DEV_Joystick::aButtonReleaseIsPositive(int button)
 {
 #ifdef WITH_SDL
-	if (!(SDL_CHECK(SDL_GameControllerGetButton) &&
-		SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button)))
-	{
-		return true;
-	}
+  if (!(SDL_CHECK(SDL_GameControllerGetButton) &&
+        SDL_GameControllerGetButton(m_private->m_gamecontroller,
+                                    (SDL_GameControllerButton)button))) {
+    return true;
+  }
 #endif
-	return false;
+  return false;
 }
 
 bool DEV_Joystick::CreateJoystickDevice(void)
 {
-	bool joy_error = false;
+  bool joy_error = false;
 
 #ifndef WITH_SDL
-	m_isinit = true;
-	joy_error = true;
-#else /* WITH_SDL */
-	if (!m_isinit) {
+  m_isinit = true;
+  joy_error = true;
+#else  /* WITH_SDL */
+  if (!m_isinit) {
 
-		if (!(SDL_CHECK(SDL_IsGameController) &&
-			SDL_CHECK(SDL_GameControllerOpen) &&
-			SDL_CHECK(SDL_GameControllerEventState) &&
-			SDL_CHECK(SDL_GameControllerGetJoystick) &&
-			SDL_CHECK(SDL_JoystickInstanceID)))
-		{
-			joy_error = true;
-		}
+    if (!(SDL_CHECK(SDL_IsGameController) && SDL_CHECK(SDL_GameControllerOpen) &&
+          SDL_CHECK(SDL_GameControllerEventState) && SDL_CHECK(SDL_GameControllerGetJoystick) &&
+          SDL_CHECK(SDL_JoystickInstanceID))) {
+      joy_error = true;
+    }
 
-		if (!joy_error && !SDL_IsGameController(m_joyindex)) {
-			/* mapping instruccions if joystick is not a game controller */
-			CM_Error("Game Controller index " << m_joyindex << ": Could not be initialized\n"
-			<< "Please, generate Xbox360 compatible mapping using Antimicro (https://github.com/AntiMicro/antimicro)\n"
-			<< "or SDL2 Gamepad Tool (http://www.generalarcade.com/gamepadtool) or Steam big mode applications\n"
-			<< "and after, set the SDL controller variable before you launch the executable, i.e:\n"
-			<< "export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"");
-			/* Need this so python args can return empty lists */
-			joy_error = true;
-		}
+    if (!joy_error && !SDL_IsGameController(m_joyindex)) {
+      /* mapping instruccions if joystick is not a game controller */
+      CM_Error(
+          "Game Controller index "
+          << m_joyindex << ": Could not be initialized\n"
+          << "Please, generate Xbox360 compatible mapping using Antimicro "
+             "(https://github.com/AntiMicro/antimicro)\n"
+          << "or SDL2 Gamepad Tool (http://www.generalarcade.com/gamepadtool) or Steam big mode "
+             "applications\n"
+          << "and after, set the SDL controller variable before you launch the executable, i.e:\n"
+          << "export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"");
+      /* Need this so python args can return empty lists */
+      joy_error = true;
+    }
 
-		if (!joy_error) {
-			m_private->m_gamecontroller = SDL_GameControllerOpen(m_joyindex);
-			if (!m_private->m_gamecontroller) {
-				joy_error = true;
-			}
-		}
+    if (!joy_error) {
+      m_private->m_gamecontroller = SDL_GameControllerOpen(m_joyindex);
+      if (!m_private->m_gamecontroller) {
+        joy_error = true;
+      }
+    }
 
-		SDL_Joystick *joy;
-		if (!joy_error) {
-			joy = SDL_GameControllerGetJoystick(m_private->m_gamecontroller);
-			if (!joy) {
-				joy_error = true;
-			}
-		}
+    SDL_Joystick *joy;
+    if (!joy_error) {
+      joy = SDL_GameControllerGetJoystick(m_private->m_gamecontroller);
+      if (!joy) {
+        joy_error = true;
+      }
+    }
 
-		if (!joy_error) {
-			m_private->m_instance_id = SDL_JoystickInstanceID(joy);
-			if (m_private->m_instance_id < 0){
-				joy_error = true;
-				CM_Error("joystick instanced failed: " << SDL_GetError());
-			}
-		}
+    if (!joy_error) {
+      m_private->m_instance_id = SDL_JoystickInstanceID(joy);
+      if (m_private->m_instance_id < 0) {
+        joy_error = true;
+        CM_Error("joystick instanced failed: " << SDL_GetError());
+      }
+    }
 
-		if (!joy_error) {
-			CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex << " initialized");
+    if (!joy_error) {
+      CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex
+                                   << " initialized");
 
-			/* A Game Controller has:
-			 *
-			 * 6 axis availables:	   AXIS_LEFTSTICK_X, AXIS_LEFTSTICK_Y,
-			 * (in order from 0 to 5)  AXIS_RIGHTSTICK_X, AXIS_RIGHTSTICK_Y,
-			 *						   AXIS_TRIGGERLEFT and AXIS_TRIGGERRIGHT.
-			 *
-			 * 15 buttons availables:  BUTTON_A, BUTTON_B, BUTTON_X, BUTTON_Y,
-			 * (in order from 0 to 14) BUTTON_BACK, BUTTON_GUIDE, BUTTON_START,
-			 *						   BUTTON_LEFTSTICK, BUTTON_RIGHTSTICK,
-			 *						   BUTTON_LEFTSHOULDER, BUTTON_RIGHTSHOULDER,
-			 *						   BUTTON_DPAD_UP, BUTTON_DPAD_DOWN,
-			 *						   BUTTON_DPAD_LEFT and BUTTON_DPAD_RIGHT.
-			 */
-			m_axismax = SDL_CONTROLLER_AXIS_MAX;
-			m_buttonmax = SDL_CONTROLLER_BUTTON_MAX;
-		}
+      /* A Game Controller has:
+       *
+       * 6 axis availables:	   AXIS_LEFTSTICK_X, AXIS_LEFTSTICK_Y,
+       * (in order from 0 to 5)  AXIS_RIGHTSTICK_X, AXIS_RIGHTSTICK_Y,
+       *						   AXIS_TRIGGERLEFT and AXIS_TRIGGERRIGHT.
+       *
+       * 15 buttons availables:  BUTTON_A, BUTTON_B, BUTTON_X, BUTTON_Y,
+       * (in order from 0 to 14) BUTTON_BACK, BUTTON_GUIDE, BUTTON_START,
+       *						   BUTTON_LEFTSTICK, BUTTON_RIGHTSTICK,
+       *						   BUTTON_LEFTSHOULDER, BUTTON_RIGHTSHOULDER,
+       *						   BUTTON_DPAD_UP, BUTTON_DPAD_DOWN,
+       *						   BUTTON_DPAD_LEFT and BUTTON_DPAD_RIGHT.
+       */
+      m_axismax = SDL_CONTROLLER_AXIS_MAX;
+      m_buttonmax = SDL_CONTROLLER_BUTTON_MAX;
+    }
 
-		/* Haptic configuration */
-		if (!joy_error && SDL_CHECK(SDL_HapticOpen)) {
-			m_private->m_haptic = SDL_HapticOpen(m_joyindex);
-			if (!m_private->m_haptic) {
-				CM_Warning("Game Controller (" << GetName() << ") with index " << m_joyindex
-					<< " has not force feedback (vibration) available");
-			}
-		}
-	}
+    /* Haptic configuration */
+    if (!joy_error && SDL_CHECK(SDL_HapticOpen)) {
+      m_private->m_haptic = SDL_HapticOpen(m_joyindex);
+      if (!m_private->m_haptic) {
+        CM_Warning("Game Controller (" << GetName() << ") with index " << m_joyindex
+                                       << " has not force feedback (vibration) available");
+      }
+    }
+  }
 #endif /* WITH_SDL */
 
-	if (joy_error) {
-		m_axismax = m_buttonmax = 0;
-		return false;
-	}
-	else {
-		m_isinit = true;
-		return true;
-	}
+  if (joy_error) {
+    m_axismax = m_buttonmax = 0;
+    return false;
+  }
+  else {
+    m_isinit = true;
+    return true;
+  }
 }
-
 
 void DEV_Joystick::DestroyJoystickDevice(void)
 {
 #ifdef WITH_SDL
-	if (m_isinit) {
+  if (m_isinit) {
 
-			if (m_private->m_haptic && SDL_CHECK(SDL_HapticClose)) {
-				SDL_HapticClose(m_private->m_haptic);
-				m_private->m_haptic = nullptr;
-			}
+    if (m_private->m_haptic && SDL_CHECK(SDL_HapticClose)) {
+      SDL_HapticClose(m_private->m_haptic);
+      m_private->m_haptic = nullptr;
+    }
 
-			if (m_private->m_gamecontroller && SDL_CHECK(SDL_GameControllerClose)) {
-				CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex << " closed");
-				SDL_GameControllerClose(m_private->m_gamecontroller);
-				m_private->m_gamecontroller = nullptr;
-			}
+    if (m_private->m_gamecontroller && SDL_CHECK(SDL_GameControllerClose)) {
+      CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex << " closed");
+      SDL_GameControllerClose(m_private->m_gamecontroller);
+      m_private->m_gamecontroller = nullptr;
+    }
 
-		m_isinit = false;
-	}
+    m_isinit = false;
+  }
 #endif /* WITH_SDL */
 }
 
 int DEV_Joystick::Connected(void)
 {
 #ifdef WITH_SDL
-	if (m_isinit &&
-		(SDL_CHECK(SDL_GameControllerGetAttached) &&
-		SDL_GameControllerGetAttached(m_private->m_gamecontroller)))
-	{
-		return 1;
-	}
+  if (m_isinit && (SDL_CHECK(SDL_GameControllerGetAttached) &&
+                   SDL_GameControllerGetAttached(m_private->m_gamecontroller))) {
+    return 1;
+  }
 #endif
-	return 0;
+  return 0;
 }
 
 int DEV_Joystick::pGetAxis(int axisnum, int udlr)
 {
 #ifdef WITH_SDL
-	return m_axis_array[(axisnum*2)+udlr];
+  return m_axis_array[(axisnum * 2) + udlr];
 #endif
-	return 0;
+  return 0;
 }
 
 int DEV_Joystick::pAxisTest(int axisnum)
 {
 #ifdef WITH_SDL
-	/* Use ints instead of shorts here to avoid problems when we get -32768.
-	 * When we take the negative of that later, we should get 32768, which is greater
-	 * than what a short can hold. In other words, abs(MIN_SHORT) > MAX_SHRT. */
-	int i1 = m_axis_array[(axisnum * 2)];
-	int i2 = m_axis_array[(axisnum * 2) + 1];
-	
-	/* long winded way to do:
-	 * return max_ff(absf(i1), absf(i2))
-	 * ...avoid abs from math.h */
-	if (i1 < 0) i1 = -i1;
-	if (i2 < 0) i2 = -i2;
-	if (i1 <i2) return i2;
-	else        return i1;
-#else /* WITH_SDL */
-	return 0;
+  /* Use ints instead of shorts here to avoid problems when we get -32768.
+   * When we take the negative of that later, we should get 32768, which is greater
+   * than what a short can hold. In other words, abs(MIN_SHORT) > MAX_SHRT. */
+  int i1 = m_axis_array[(axisnum * 2)];
+  int i2 = m_axis_array[(axisnum * 2) + 1];
+
+  /* long winded way to do:
+   * return max_ff(absf(i1), absf(i2))
+   * ...avoid abs from math.h */
+  if (i1 < 0)
+    i1 = -i1;
+  if (i2 < 0)
+    i2 = -i2;
+  if (i1 < i2)
+    return i2;
+  else
+    return i1;
+#else  /* WITH_SDL */
+  return 0;
 #endif /* WITH_SDL */
 }
 
 const std::string DEV_Joystick::GetName()
 {
 #ifdef WITH_SDL
-	return (SDL_CHECK(SDL_GameControllerName)) ? SDL_GameControllerName(m_private->m_gamecontroller) : "";
-#else /* WITH_SDL */
-	return "";
+  return (SDL_CHECK(SDL_GameControllerName)) ?
+             SDL_GameControllerName(m_private->m_gamecontroller) :
+             "";
+#else  /* WITH_SDL */
+  return "";
 #endif /* WITH_SDL */
 }

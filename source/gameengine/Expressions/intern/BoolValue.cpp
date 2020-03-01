@@ -20,151 +20,135 @@
 #include "EXP_StringValue.h"
 #include "EXP_ErrorValue.h"
 
-const std::string CBoolValue::sTrueString  = "TRUE";
+const std::string CBoolValue::sTrueString = "TRUE";
 const std::string CBoolValue::sFalseString = "FALSE";
 
 CBoolValue::CBoolValue()
 {
-	trace("Bool constructor error");
+  trace("Bool constructor error");
 }
 
-CBoolValue::CBoolValue(bool inBool)
-	:m_bool(inBool)
+CBoolValue::CBoolValue(bool inBool) : m_bool(inBool)
 {
 }
 
-CBoolValue::CBoolValue(bool innie, const std::string& name)
-	:m_bool(innie)
+CBoolValue::CBoolValue(bool innie, const std::string &name) : m_bool(innie)
 {
-	SetName(name);
+  SetName(name);
 }
 
 void CBoolValue::SetValue(CValue *newval)
 {
-	m_bool = (newval->GetNumber() != 0);
+  m_bool = (newval->GetNumber() != 0);
 }
 
 CValue *CBoolValue::Calc(VALUE_OPERATOR op, CValue *val)
 {
-	switch (op) {
-		case VALUE_POS_OPERATOR:
-		case VALUE_NEG_OPERATOR:
-		{
-			return new CErrorValue(op2str(op) + GetText());
-			break;
-		}
-		case VALUE_NOT_OPERATOR:
-		{
-			return new CBoolValue(!m_bool);
-			break;
-		}
-		default:
-		{
-			return val->CalcFinal(VALUE_BOOL_TYPE, op, this);
-			break;
-		}
-	}
+  switch (op) {
+    case VALUE_POS_OPERATOR:
+    case VALUE_NEG_OPERATOR: {
+      return new CErrorValue(op2str(op) + GetText());
+      break;
+    }
+    case VALUE_NOT_OPERATOR: {
+      return new CBoolValue(!m_bool);
+      break;
+    }
+    default: {
+      return val->CalcFinal(VALUE_BOOL_TYPE, op, this);
+      break;
+    }
+  }
 }
 
 CValue *CBoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
 {
-	CValue *ret;
+  CValue *ret;
 
-	switch (dtype) {
-		case VALUE_EMPTY_TYPE:
-		case VALUE_BOOL_TYPE:
-		{
-			switch (op)
-			{
-				case VALUE_AND_OPERATOR:
-				{
-					ret = new CBoolValue(((CBoolValue *)val)->GetBool() && m_bool);
-					break;
-				}
-				case VALUE_OR_OPERATOR:
-				{
-					ret = new CBoolValue(((CBoolValue *)val)->GetBool() || m_bool);
-					break;
-				}
-				case VALUE_EQL_OPERATOR:
-				{
-					ret = new CBoolValue(((CBoolValue *)val)->GetBool() == m_bool);
-					break;
-				}
-				case VALUE_NEQ_OPERATOR:
-				{
-					ret = new CBoolValue(((CBoolValue *)val)->GetBool() != m_bool);
-					break;
-				}
-				case VALUE_NOT_OPERATOR:
-				{
-					return new CBoolValue(!m_bool);
-					break;
-				}
-				default:
-				{
-					ret =  new CErrorValue(val->GetText() + op2str(op) +
-					                       "[operator not allowed on booleans]");
-					break;
-				}
-			}
-			break;
-		}
-		case VALUE_STRING_TYPE:
-		{
-			switch (op)
-			{
-				case VALUE_ADD_OPERATOR:
-				{
-					ret = new CStringValue(val->GetText() + GetText(), "");
-					break;
-				}
-				default:
-				{
-					ret =  new CErrorValue(val->GetText() + op2str(op) + "[Only + allowed on boolean and string]");
-					break;
-				}
-			}
-			break;
-		}
-		default:
-			ret =  new CErrorValue("[type mismatch]" + op2str(op) + GetText());
-	}
+  switch (dtype) {
+    case VALUE_EMPTY_TYPE:
+    case VALUE_BOOL_TYPE: {
+      switch (op) {
+        case VALUE_AND_OPERATOR: {
+          ret = new CBoolValue(((CBoolValue *)val)->GetBool() && m_bool);
+          break;
+        }
+        case VALUE_OR_OPERATOR: {
+          ret = new CBoolValue(((CBoolValue *)val)->GetBool() || m_bool);
+          break;
+        }
+        case VALUE_EQL_OPERATOR: {
+          ret = new CBoolValue(((CBoolValue *)val)->GetBool() == m_bool);
+          break;
+        }
+        case VALUE_NEQ_OPERATOR: {
+          ret = new CBoolValue(((CBoolValue *)val)->GetBool() != m_bool);
+          break;
+        }
+        case VALUE_NOT_OPERATOR: {
+          return new CBoolValue(!m_bool);
+          break;
+        }
+        default: {
+          ret = new CErrorValue(val->GetText() + op2str(op) +
+                                "[operator not allowed on booleans]");
+          break;
+        }
+      }
+      break;
+    }
+    case VALUE_STRING_TYPE: {
+      switch (op) {
+        case VALUE_ADD_OPERATOR: {
+          ret = new CStringValue(val->GetText() + GetText(), "");
+          break;
+        }
+        default: {
+          ret = new CErrorValue(val->GetText() + op2str(op) +
+                                "[Only + allowed on boolean and string]");
+          break;
+        }
+      }
+      break;
+    }
+    default:
+      ret = new CErrorValue("[type mismatch]" + op2str(op) + GetText());
+  }
 
-	return ret;
+  return ret;
 }
 
 bool CBoolValue::GetBool()
 {
-	return m_bool;
+  return m_bool;
 }
 
 double CBoolValue::GetNumber()
 {
-	return (double)m_bool;
+  return (double)m_bool;
 }
 
 int CBoolValue::GetValueType()
 {
-	return VALUE_BOOL_TYPE;
+  return VALUE_BOOL_TYPE;
 }
 
 std::string CBoolValue::GetText()
 {
-	return m_bool ? sTrueString : sFalseString;
+  return m_bool ? sTrueString : sFalseString;
 }
 
 CValue *CBoolValue::GetReplica()
 {
-	CBoolValue *replica = new CBoolValue(*this);
-	replica->ProcessReplica();
+  CBoolValue *replica = new CBoolValue(*this);
+  replica->ProcessReplica();
 
-	return replica;
+  return replica;
 }
 
 #ifdef WITH_PYTHON
 PyObject *CBoolValue::ConvertValueToPython()
 {
-	return PyBool_FromLong(m_bool != 0);
+  return PyBool_FromLong(m_bool != 0);
 }
 #endif  // WITH_PYTHON

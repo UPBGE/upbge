@@ -36,31 +36,28 @@
 #define __SCA_DELAYSENSOR_H__
 #include "SCA_ISensor.h"
 
-class SCA_DelaySensor : public SCA_ISensor
-{
-	Py_Header
-	bool			m_lastResult;
-	bool			m_repeat;
-	int				m_delay; 
-	int				m_duration;
-	int				m_frameCount;
+class SCA_DelaySensor : public SCA_ISensor {
+  Py_Header bool m_lastResult;
+  bool m_repeat;
+  int m_delay;
+  int m_duration;
+  int m_frameCount;
 
-public:
-	SCA_DelaySensor(class SCA_EventManager* eventmgr,
-					SCA_IObject* gameobj,
-					int delay,
-					int duration,
-					bool repeat);
-	virtual ~SCA_DelaySensor();
-	virtual CValue* GetReplica();
-	virtual bool Evaluate();
-	virtual bool IsPositiveTrigger();
-	virtual void Init();
+ public:
+  SCA_DelaySensor(class SCA_EventManager *eventmgr,
+                  SCA_IObject *gameobj,
+                  int delay,
+                  int duration,
+                  bool repeat);
+  virtual ~SCA_DelaySensor();
+  virtual CValue *GetReplica();
+  virtual bool Evaluate();
+  virtual bool IsPositiveTrigger();
+  virtual void Init();
 
-
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 };
 
-#endif  /* __SCA_DELAYSENSOR_H__ */
+#endif /* __SCA_DELAYSENSOR_H__ */

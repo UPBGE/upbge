@@ -37,62 +37,59 @@
 #include "MT_Matrix3x3.h"
 #include "KX_GameObject.h"
 
+class SCA_TrackToActuator : public SCA_IActuator {
+  Py_Header
+      // Object reference. Actually, we use the object's 'life'
+      SCA_IObject *m_object;
+  // 3d toggle
+  bool m_allow3D;
+  // time field
+  int m_time;
+  int m_trackflag;
+  int m_upflag;
 
-class SCA_TrackToActuator : public SCA_IActuator
-{
-	Py_Header
-	// Object reference. Actually, we use the object's 'life'
-	SCA_IObject*	m_object;
-	// 3d toggle
-	bool m_allow3D;
-	// time field
-	int m_time;
-	int	m_trackflag;
-	int m_upflag;
-	
-	MT_Matrix3x3 m_parentlocalmat;
-	KX_GameObject* m_parentobj;
+  MT_Matrix3x3 m_parentlocalmat;
+  KX_GameObject *m_parentobj;
 
-  public:
-	SCA_TrackToActuator(SCA_IObject* gameobj, SCA_IObject *ob, int time,
-	                   bool threedee,int trackflag,int upflag);
-	virtual ~SCA_TrackToActuator();
-	virtual CValue* GetReplica() {
-		SCA_TrackToActuator* replica = new SCA_TrackToActuator(*this);
-		replica->ProcessReplica();
-		return replica;
-	};
+ public:
+  SCA_TrackToActuator(
+      SCA_IObject *gameobj, SCA_IObject *ob, int time, bool threedee, int trackflag, int upflag);
+  virtual ~SCA_TrackToActuator();
+  virtual CValue *GetReplica()
+  {
+    SCA_TrackToActuator *replica = new SCA_TrackToActuator(*this);
+    replica->ProcessReplica();
+    return replica;
+  };
 
-	virtual void ProcessReplica();
-	virtual bool UnlinkObject(SCA_IObject* clientobj);
-	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
-	virtual bool Update(double curtime);
+  virtual void ProcessReplica();
+  virtual bool UnlinkObject(SCA_IObject *clientobj);
+  virtual void Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map);
+  virtual bool Update(double curtime);
 
-	//Python Interface
-	enum UpAxis {
-		KX_TRACK_UPAXIS_POS_X = 0,
-		KX_TRACK_UPAXIS_POS_Y,
-		KX_TRACK_UPAXIS_POS_Z
-	};
-	enum TrackAxis {
-		KX_TRACK_TRAXIS_POS_X = 0,
-		KX_TRACK_TRAXIS_POS_Y,
-		KX_TRACK_TRAXIS_POS_Z,
-		KX_TRACK_TRAXIS_NEG_X,
-		KX_TRACK_TRAXIS_NEG_Y,
-		KX_TRACK_TRAXIS_NEG_Z
-	};
+  // Python Interface
+  enum UpAxis { KX_TRACK_UPAXIS_POS_X = 0, KX_TRACK_UPAXIS_POS_Y, KX_TRACK_UPAXIS_POS_Z };
+  enum TrackAxis {
+    KX_TRACK_TRAXIS_POS_X = 0,
+    KX_TRACK_TRAXIS_POS_Y,
+    KX_TRACK_TRAXIS_POS_Z,
+    KX_TRACK_TRAXIS_NEG_X,
+    KX_TRACK_TRAXIS_NEG_Y,
+    KX_TRACK_TRAXIS_NEG_Z
+  };
 
 #ifdef WITH_PYTHON
 
-	/* Python part */
+  /* Python part */
 
-	/* These are used to get and set m_ob */
-	static PyObject *pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	
-#endif  /* WITH_PYTHON */
+  /* These are used to get and set m_ob */
+  static PyObject *pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_object(PyObjectPlus *self,
+                               const struct KX_PYATTRIBUTE_DEF *attrdef,
+                               PyObject *value);
+
+#endif /* WITH_PYTHON */
 
 }; /* end of class SCA_TrackToActuator : public KX_EditObjectActuator */
 
-#endif  /* __SCA_TrackToActuator_H__ */
+#endif /* __SCA_TrackToActuator_H__ */

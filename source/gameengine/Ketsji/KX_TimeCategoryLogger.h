@@ -33,7 +33,7 @@
 #define __KX_TIMECATEGORYLOGGER_H__
 
 #ifdef _MSC_VER
-#  pragma warning (disable:4786)  /* suppress stl-MSVC debug info warning */
+#  pragma warning(disable : 4786) /* suppress stl-MSVC debug info warning */
 #endif
 
 #include <map>
@@ -46,83 +46,82 @@
  * Average measurements can be established for each separate category
  * or for all categories together.
  */
-class KX_TimeCategoryLogger
-{
-public:
-	typedef int TimeCategory;
-	typedef std::map<TimeCategory, KX_TimeLogger> TimeLoggerMap;
+class KX_TimeCategoryLogger {
+ public:
+  typedef int TimeCategory;
+  typedef std::map<TimeCategory, KX_TimeLogger> TimeLoggerMap;
 
-	/**
-	 * Constructor.
-	 * \param maxNumMesasurements Maximum number of measurements stored (> 1).
-	 */
-	KX_TimeCategoryLogger(unsigned int maxNumMeasurements = 10);
+  /**
+   * Constructor.
+   * \param maxNumMesasurements Maximum number of measurements stored (> 1).
+   */
+  KX_TimeCategoryLogger(unsigned int maxNumMeasurements = 10);
 
-	/**
-	 * Destructor.
-	 */
-	~KX_TimeCategoryLogger();
+  /**
+   * Destructor.
+   */
+  ~KX_TimeCategoryLogger();
 
-	/**
-	 * Changes the maximum number of measurements that can be stored.
-	 */
-	void SetMaxNumMeasurements(unsigned int maxNumMeasurements);
+  /**
+   * Changes the maximum number of measurements that can be stored.
+   */
+  void SetMaxNumMeasurements(unsigned int maxNumMeasurements);
 
-	/**
-	 * Changes the maximum number of measurements that can be stored.
-	 */
-	unsigned int GetMaxNumMeasurements() const;
+  /**
+   * Changes the maximum number of measurements that can be stored.
+   */
+  unsigned int GetMaxNumMeasurements() const;
 
-	/**
-	 * Adds a category.
-	 * \param category	The new category.
-	 */
-	void AddCategory(TimeCategory tc);
+  /**
+   * Adds a category.
+   * \param category	The new category.
+   */
+  void AddCategory(TimeCategory tc);
 
-	/**
-	 * Starts logging in current measurement for the given category.
-	 * \param tc					The category to log to.
-	 * \param now					The current time.
-	 */
-	void StartLog(TimeCategory tc, double now);
+  /**
+   * Starts logging in current measurement for the given category.
+   * \param tc					The category to log to.
+   * \param now					The current time.
+   */
+  void StartLog(TimeCategory tc, double now);
 
-	/**
-	 * End logging in current measurement for the given category.
-	 * \param tc	The category to log to.
-	 * \param now	The current time.
-	 */
-	void EndLog(TimeCategory tc, double now);
+  /**
+   * End logging in current measurement for the given category.
+   * \param tc	The category to log to.
+   * \param now	The current time.
+   */
+  void EndLog(TimeCategory tc, double now);
 
-	/**
-	 * End logging in current measurement for all categories.
-	 * \param now	The current time.
-	 */
-	void EndLog(double now);
+  /**
+   * End logging in current measurement for all categories.
+   * \param now	The current time.
+   */
+  void EndLog(double now);
 
-	/**
-	 * Logs time in next measurement.
-	 * \param now	The current time.
-	 */
-	void NextMeasurement(double now);
+  /**
+   * Logs time in next measurement.
+   * \param now	The current time.
+   */
+  void NextMeasurement(double now);
 
-	/**
-	 * Returns average of all but the current measurement time.
-	 * \return The average of all but the current measurement.
-	 */
-	double GetAverage(TimeCategory tc);
+  /**
+   * Returns average of all but the current measurement time.
+   * \return The average of all but the current measurement.
+   */
+  double GetAverage(TimeCategory tc);
 
-	/**
-	 * Returns average for grand total.
-	 */
-	double GetAverage();
+  /**
+   * Returns average for grand total.
+   */
+  double GetAverage();
 
-protected:
-	/// Storage for the loggers.
-	TimeLoggerMap m_loggers;
-	/// Maximum number of measurements.
-	unsigned int m_maxNumMeasurements;
+ protected:
+  /// Storage for the loggers.
+  TimeLoggerMap m_loggers;
+  /// Maximum number of measurements.
+  unsigned int m_maxNumMeasurements;
 
-	TimeCategory m_lastCategory;
+  TimeCategory m_lastCategory;
 };
 
-#endif  /* __KX_TIMECATEGORYLOGGER_H__ */
+#endif /* __KX_TIMECATEGORYLOGGER_H__ */

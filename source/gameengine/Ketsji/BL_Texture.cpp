@@ -29,88 +29,85 @@
 #include "BLI_math.h"
 
 extern "C" {
-#  include "BKE_image.h"
-#  include "DNA_texture_types.h"
-#  include "GPU_draw.h"
-#  include "GPU_glew.h"
-#  include "GPU_material.h"
-#  include "GPU_texture.h"
-#  include "gpu/intern/gpu_codegen.h"
+#include "BKE_image.h"
+#include "DNA_texture_types.h"
+#include "GPU_draw.h"
+#include "GPU_glew.h"
+#include "GPU_material.h"
+#include "GPU_texture.h"
+#include "gpu/intern/gpu_codegen.h"
 }
 
 BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, int textarget)
-	:CValue(),
-	m_isCubeMap(false),
-	m_gpuMatTex(gpumattex),
-	m_textarget(textarget)
+    : CValue(), m_isCubeMap(false), m_gpuMatTex(gpumattex), m_textarget(textarget)
 {
-	/* Normally input->textype is Kept in sync with GPU_DATATYPE_STR */
-  m_isCubeMap = false; /*(m_gpuTex->type == GPU_TEXCUBE)*/;
+  /* Normally input->textype is Kept in sync with GPU_DATATYPE_STR */
+  m_isCubeMap = false; /*(m_gpuTex->type == GPU_TEXCUBE)*/
+  ;
   m_name = m_gpuMatTex->ima->id.name;
 
-  m_gpuTex = GPU_texture_from_blender(m_gpuMatTex->ima,
-                                      m_gpuMatTex->iuser,
-                                      nullptr,
-                                      m_textarget);
+  m_gpuTex = GPU_texture_from_blender(m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr, m_textarget);
 
-	if (m_gpuTex) {
-		m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
-		m_savedData.bindcode = m_bindCode;
-		GPU_texture_ref(m_gpuTex);
-	}
+  if (m_gpuTex) {
+    m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
+    m_savedData.bindcode = m_bindCode;
+    GPU_texture_ref(m_gpuTex);
+  }
 }
 
 BL_Texture::~BL_Texture()
 {
-	if (m_gpuTex) {
-		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
-		GPU_texture_free(m_gpuTex);
-	}
+  if (m_gpuTex) {
+    GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
+    GPU_texture_free(m_gpuTex);
+  }
 }
 
 void BL_Texture::CheckValidTexture()
 {
-	if (!m_gpuTex) {
-		return;
-	}
+  if (!m_gpuTex) {
+    return;
+  }
 
-	/* Test if the gpu texture is the same in the image which own it, if it's not
-	 * the case then it means that no materials use it anymore and that we have to
-	 * get a pointer of the updated gpu texture used by materials.
-	 * The gpu texture in the image can be nullptr or an already different loaded
-	 * gpu texture. In both cases we call GPU_texture_from_blender.
-	 */
-	int target = m_isCubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
-	GPUTexture *tex = m_gpuMatTex->ima->gputexture[target];
-	if (m_gpuTex != tex) {
-		// Restore gpu texture original bind cdoe to make sure we will delete the right opengl texture.
-		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
-		GPU_texture_free(m_gpuTex);
+  /* Test if the gpu texture is the same in the image which own it, if it's not
+   * the case then it means that no materials use it anymore and that we have to
+   * get a pointer of the updated gpu texture used by materials.
+   * The gpu texture in the image can be nullptr or an already different loaded
+   * gpu texture. In both cases we call GPU_texture_from_blender.
+   */
+  int target = m_isCubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
+  GPUTexture *tex = m_gpuMatTex->ima->gputexture[target];
+  if (m_gpuTex != tex) {
+    // Restore gpu texture original bind cdoe to make sure we will delete the right opengl texture.
+    GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
+    GPU_texture_free(m_gpuTex);
 
-		m_gpuTex = (m_gpuMatTex->ima ? GPU_texture_from_blender(
+    m_gpuTex = (m_gpuMatTex->ima ?
+                    GPU_texture_from_blender(
                         m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr, m_textarget) :
-                                   nullptr);
+                    nullptr);
 
-		if (m_gpuTex) {
-			int bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
-			// If our bind code was the same as the previous gpu texture bind code, then we update it to the new bind code.
-			if (m_bindCode == m_savedData.bindcode) {
-				m_bindCode = bindCode;
-			}
-			m_savedData.bindcode = bindCode;
-			GPU_texture_ref(m_gpuTex);
-		}
-	}
+    if (m_gpuTex) {
+      int bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
+      // If our bind code was the same as the previous gpu texture bind code, then we update it to
+      // the new bind code.
+      if (m_bindCode == m_savedData.bindcode) {
+        m_bindCode = bindCode;
+      }
+      m_savedData.bindcode = bindCode;
+      GPU_texture_ref(m_gpuTex);
+    }
+  }
 }
 
 bool BL_Texture::Ok() const
 {
-	return (m_gpuTex != nullptr);
+  return (m_gpuTex != nullptr);
 }
 
 bool BL_Texture::IsCubeMap() const
 {
-	return m_isCubeMap;
+  return m_isCubeMap;
 }
 
 Image *BL_Texture::GetImage() const
@@ -120,7 +117,7 @@ Image *BL_Texture::GetImage() const
 
 GPUTexture *BL_Texture::GetGPUTexture() const
 {
-	return m_gpuTex;
+  return m_gpuTex;
 }
 
 unsigned int BL_Texture::GetTextureType()
@@ -130,77 +127,97 @@ unsigned int BL_Texture::GetTextureType()
 
 void BL_Texture::ActivateTexture(int unit)
 {
-	/* Since GPUTexture can be shared between material textures (MTex),
-	 * we should reapply the bindcode in case of VideoTexture owned texture.
-	 * Without that every material that use this GPUTexture will then use
-	 * the VideoTexture texture, it's not wanted. */
-	GPU_texture_set_opengl_bindcode(m_gpuTex, m_bindCode);
-	GPU_texture_bind(m_gpuTex, unit);
+  /* Since GPUTexture can be shared between material textures (MTex),
+   * we should reapply the bindcode in case of VideoTexture owned texture.
+   * Without that every material that use this GPUTexture will then use
+   * the VideoTexture texture, it's not wanted. */
+  GPU_texture_set_opengl_bindcode(m_gpuTex, m_bindCode);
+  GPU_texture_bind(m_gpuTex, unit);
 }
 
 void BL_Texture::DisableTexture()
 {
-	GPU_texture_unbind(m_gpuTex);
+  GPU_texture_unbind(m_gpuTex);
 }
 
 // stuff for cvalue related things
 std::string BL_Texture::GetName()
 {
-	return RAS_Texture::GetName();
+  return RAS_Texture::GetName();
 }
 
 #ifdef WITH_PYTHON
 
-PyTypeObject BL_Texture::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"BL_Texture",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0, 0, 0, 0, 0, 0, 0, 0, 0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0, 0, 0, 0, 0, 0, 0,
-	Methods,
-	0,
-	0,
-	&CValue::Type,
-	0, 0, 0, 0, 0, 0,
-	py_base_new
-};
+PyTypeObject BL_Texture::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_Texture",
+                                 sizeof(PyObjectPlus_Proxy),
+                                 0,
+                                 py_base_dealloc,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 py_base_repr,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 Methods,
+                                 0,
+                                 0,
+                                 &CValue::Type,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 py_base_new};
 
 PyMethodDef BL_Texture::Methods[] = {
-	{ nullptr, nullptr } //Sentinel
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef BL_Texture::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
-	KX_PYATTRIBUTE_NULL    //Sentinel
+    KX_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
 PyObject *BL_Texture::pyattr_get_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	BL_Texture *self = static_cast<BL_Texture *>(self_v);
-	self->CheckValidTexture();
-	return PyLong_FromLong(self->m_bindCode);
+  BL_Texture *self = static_cast<BL_Texture *>(self_v);
+  self->CheckValidTexture();
+  return PyLong_FromLong(self->m_bindCode);
 }
 
-int BL_Texture::pyattr_set_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Texture::pyattr_set_bind_code(PyObjectPlus *self_v,
+                                     const KX_PYATTRIBUTE_DEF *attrdef,
+                                     PyObject *value)
 {
-	BL_Texture *self = static_cast<BL_Texture *>(self_v);
-	int val = PyLong_AsLong(value);
+  BL_Texture *self = static_cast<BL_Texture *>(self_v);
+  int val = PyLong_AsLong(value);
 
-	if (val < 0 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = int: BL_Texture, expected a unsigned int", attrdef->m_name.c_str());
-		return PY_SET_ATTR_FAIL;
-	}
+  if (val < 0 && PyErr_Occurred()) {
+    PyErr_Format(PyExc_AttributeError,
+                 "texture.%s = int: BL_Texture, expected a unsigned int",
+                 attrdef->m_name.c_str());
+    return PY_SET_ATTR_FAIL;
+  }
 
-	self->m_bindCode = val;
-	return PY_SET_ATTR_SUCCESS;
+  self->m_bindCode = val;
+  return PY_SET_ATTR_SUCCESS;
 }
 
 #endif  // WITH_PYTHON

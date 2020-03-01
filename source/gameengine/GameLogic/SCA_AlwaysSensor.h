@@ -36,18 +36,16 @@
 #define __SCA_ALWAYSSENSOR_H__
 #include "SCA_ISensor.h"
 
-class SCA_AlwaysSensor : public SCA_ISensor
-{
-	Py_Header
-	bool			m_alwaysresult;
-public:
-	SCA_AlwaysSensor(class SCA_EventManager* eventmgr,
-					SCA_IObject* gameobj);
-	virtual ~SCA_AlwaysSensor();
-	virtual CValue* GetReplica();
-	virtual bool Evaluate();
-	virtual bool IsPositiveTrigger();
-	virtual void Init();
+class SCA_AlwaysSensor : public SCA_ISensor {
+  Py_Header bool m_alwaysresult;
+
+ public:
+  SCA_AlwaysSensor(class SCA_EventManager *eventmgr, SCA_IObject *gameobj);
+  virtual ~SCA_AlwaysSensor();
+  virtual CValue *GetReplica();
+  virtual bool Evaluate();
+  virtual bool IsPositiveTrigger();
+  virtual void Init();
 };
 
-#endif  /* __SCA_ALWAYSSENSOR_H__ */
+#endif /* __SCA_ALWAYSSENSOR_H__ */

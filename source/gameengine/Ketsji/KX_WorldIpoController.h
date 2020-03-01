@@ -36,84 +36,87 @@
 #include "SG_Node.h"
 #include "KX_IInterpolator.h"
 
-class KX_WorldIpoController : public SG_Controller
-{
-public:
-	MT_Scalar           m_mist_start;
-	MT_Scalar           m_mist_dist;
-	MT_Scalar           m_mist_intensity;
-	MT_Vector3 m_hori_rgb;
-	MT_Vector3 m_zeni_rgb;
-	MT_Vector3 m_ambi_rgb;
+class KX_WorldIpoController : public SG_Controller {
+ public:
+  MT_Scalar m_mist_start;
+  MT_Scalar m_mist_dist;
+  MT_Scalar m_mist_intensity;
+  MT_Vector3 m_hori_rgb;
+  MT_Vector3 m_zeni_rgb;
+  MT_Vector3 m_ambi_rgb;
 
-private:
-	T_InterpolatorList	m_interpolators;
-	unsigned short		m_modify_mist_start	 : 1;
-	unsigned short  	m_modify_mist_dist 	 : 1;
-	unsigned short		m_modify_mist_intensity	: 1;
-	unsigned short		m_modify_horizon_color	: 1;
-	unsigned short		m_modify_zenith_color : 1;
-	unsigned short		m_modify_ambient_color	: 1;
-	bool				m_modified;
+ private:
+  T_InterpolatorList m_interpolators;
+  unsigned short m_modify_mist_start : 1;
+  unsigned short m_modify_mist_dist : 1;
+  unsigned short m_modify_mist_intensity : 1;
+  unsigned short m_modify_horizon_color : 1;
+  unsigned short m_modify_zenith_color : 1;
+  unsigned short m_modify_ambient_color : 1;
+  bool m_modified;
 
-	double		        m_ipotime;
+  double m_ipotime;
 
-public:
-	KX_WorldIpoController() : 
-				m_modify_mist_start(false),
-				m_modify_mist_dist(false),
-				m_modify_mist_intensity(false),
-				m_modify_horizon_color(false),
-				m_modify_zenith_color(false),
-				m_modify_ambient_color(false),
-				m_modified(true),
-				m_ipotime(0.0)
-		{}
+ public:
+  KX_WorldIpoController()
+      : m_modify_mist_start(false),
+        m_modify_mist_dist(false),
+        m_modify_mist_intensity(false),
+        m_modify_horizon_color(false),
+        m_modify_zenith_color(false),
+        m_modify_ambient_color(false),
+        m_modified(true),
+        m_ipotime(0.0)
+  {
+  }
 
-	virtual ~KX_WorldIpoController();
+  virtual ~KX_WorldIpoController();
 
-	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
+  virtual SG_Controller *GetReplica(class SG_Node *destnode);
 
-	virtual bool Update(double time);
-	
-	virtual void SetSimulatedTime(double time) {
-		m_ipotime = time;
-		m_modified = true;
-	}
+  virtual bool Update(double time);
 
-	void	SetModifyMistStart(bool modify) {
-		m_modify_mist_start = modify;
-	}
+  virtual void SetSimulatedTime(double time)
+  {
+    m_ipotime = time;
+    m_modified = true;
+  }
 
-	void	SetModifyMistDist(bool modify) {
-		m_modify_mist_dist = modify;
-	}
+  void SetModifyMistStart(bool modify)
+  {
+    m_modify_mist_start = modify;
+  }
 
-	void	SetModifyMistIntensity(bool modify) {
-		m_modify_mist_intensity = modify;
-	}
+  void SetModifyMistDist(bool modify)
+  {
+    m_modify_mist_dist = modify;
+  }
 
-	void	SetModifyHorizonColor(bool modify) {
-		m_modify_horizon_color = modify;
-	}
+  void SetModifyMistIntensity(bool modify)
+  {
+    m_modify_mist_intensity = modify;
+  }
 
-	void	SetModifyZenithColor(bool modify) {
-		m_modify_zenith_color = modify;
-	}
+  void SetModifyHorizonColor(bool modify)
+  {
+    m_modify_horizon_color = modify;
+  }
 
-	void	SetModifyAmbientColor(bool modify) {
-		m_modify_ambient_color = modify;
-	}
+  void SetModifyZenithColor(bool modify)
+  {
+    m_modify_zenith_color = modify;
+  }
 
-		void
-	SetOption(
-		int option,
-		int value
-	) {
-		// intentionally empty
-	};
+  void SetModifyAmbientColor(bool modify)
+  {
+    m_modify_ambient_color = modify;
+  }
 
-	void	AddInterpolator(KX_IInterpolator* interp);
+  void SetOption(int option, int value){
+      // intentionally empty
+  };
+
+  void AddInterpolator(KX_IInterpolator *interp);
 };
 
-#endif  /* __KX_WORLDIPOCONTROLLER_H__ */
+#endif /* __KX_WORLDIPOCONTROLLER_H__ */

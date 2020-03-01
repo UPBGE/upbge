@@ -33,7 +33,7 @@
 #define __KX_BLENDERCANVAS_H__
 
 #ifdef WIN32
-#include <windows.h>
+#  include <windows.h>
 #endif
 
 #include "RAS_ICanvas.h"
@@ -50,50 +50,54 @@ struct wmWindowManager;
  * The connection from 3d rendercontext to 2d Blender surface embedding.
  */
 
-class KX_BlenderCanvas : public RAS_ICanvas
-{
-private:
-	int m_viewport[4];
+class KX_BlenderCanvas : public RAS_ICanvas {
+ private:
+  int m_viewport[4];
 
-	wmWindowManager *m_wm;
-	wmWindow *m_win;
+  wmWindowManager *m_wm;
+  wmWindow *m_win;
   Scene *m_startScene;
-	RAS_Rect m_area_rect;
-	ARegion *m_ar;
+  RAS_Rect m_area_rect;
+  ARegion *m_ar;
 
-public:
-	/* Construct a new canvas.
-	 *
-	 * \param area The Blender ARegion to run the game within.
-	 */
-	KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, Scene *startscene, rcti *viewport, ARegion *ar);
-	virtual ~KX_BlenderCanvas();
+ public:
+  /* Construct a new canvas.
+   *
+   * \param area The Blender ARegion to run the game within.
+   */
+  KX_BlenderCanvas(RAS_Rasterizer *rasty,
+                   wmWindowManager *wm,
+                   wmWindow *win,
+                   Scene *startscene,
+                   rcti *viewport,
+                   ARegion *ar);
+  virtual ~KX_BlenderCanvas();
 
-	virtual void Init();
+  virtual void Init();
 
-	virtual void SwapBuffers();
-	virtual void SetSwapInterval(int interval);
-	virtual bool GetSwapInterval(int &intervalOut);
+  virtual void SwapBuffers();
+  virtual void SetSwapInterval(int interval);
+  virtual bool GetSwapInterval(int &intervalOut);
 
-	virtual void GetDisplayDimensions(int &width, int &height);
-	virtual void ResizeWindow(int width, int height);
-	virtual void Resize(int width, int height);
+  virtual void GetDisplayDimensions(int &width, int &height);
+  virtual void ResizeWindow(int width, int height);
+  virtual void Resize(int width, int height);
 
-	virtual void SetFullScreen(bool enable);
-	virtual bool GetFullScreen();
+  virtual void SetFullScreen(bool enable);
+  virtual bool GetFullScreen();
 
-	virtual void BeginFrame();
-	virtual void EndFrame();
+  virtual void BeginFrame();
+  virtual void EndFrame();
 
-	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
+  virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
 
-	virtual void SetMouseState(RAS_MouseState mousestate);
-	virtual void SetMousePosition(int x, int y);
+  virtual void SetMouseState(RAS_MouseState mousestate);
+  virtual void SetMousePosition(int x, int y);
 
-	virtual void MakeScreenShot(const std::string& filename);
+  virtual void MakeScreenShot(const std::string &filename);
 
-	virtual void BeginDraw();
-	virtual void EndDraw();
+  virtual void BeginDraw();
+  virtual void EndDraw();
 
   virtual ARegion *GetARegion();
 

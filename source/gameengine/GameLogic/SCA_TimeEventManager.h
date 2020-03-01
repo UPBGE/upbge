@@ -36,21 +36,20 @@
 #include "EXP_Value.h"
 #include <vector>
 
-class SCA_TimeEventManager : public SCA_EventManager
-{
-	std::vector<CValue*>		m_timevalues; // values that need their time updated regularly
-	
-public:
-	SCA_TimeEventManager(class SCA_LogicManager* logicmgr);
-	virtual ~SCA_TimeEventManager();
+class SCA_TimeEventManager : public SCA_EventManager {
+  std::vector<CValue *> m_timevalues;  // values that need their time updated regularly
 
-	virtual void	NextFrame(double curtime, double fixedtime);
-	virtual bool	RegisterSensor(class SCA_ISensor* sensor);
-	virtual bool	RemoveSensor(class SCA_ISensor* sensor);
-	void			AddTimeProperty(CValue* timeval);
-	void			RemoveTimeProperty(CValue* timeval);
+ public:
+  SCA_TimeEventManager(class SCA_LogicManager *logicmgr);
+  virtual ~SCA_TimeEventManager();
 
-	std::vector<CValue*>	GetTimeValues();
+  virtual void NextFrame(double curtime, double fixedtime);
+  virtual bool RegisterSensor(class SCA_ISensor *sensor);
+  virtual bool RemoveSensor(class SCA_ISensor *sensor);
+  void AddTimeProperty(CValue *timeval);
+  void RemoveTimeProperty(CValue *timeval);
+
+  std::vector<CValue *> GetTimeValues();
 };
 
-#endif  /* __SCA_TIMEEVENTMANAGER_H__ */
+#endif /* __SCA_TIMEEVENTMANAGER_H__ */

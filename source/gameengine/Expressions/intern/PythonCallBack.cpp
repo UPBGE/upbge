@@ -37,33 +37,41 @@
  * \param r_argcount The number of argument of this function, this variable will be
  * changed in the function.
  */
-static PyObject *CheckPythonFunction(PyObject *value, unsigned int minargcount, unsigned int maxargcount, unsigned int &r_argcount)
+static PyObject *CheckPythonFunction(PyObject *value,
+                                     unsigned int minargcount,
+                                     unsigned int maxargcount,
+                                     unsigned int &r_argcount)
 {
-	if (PyMethod_Check(value)) {
-		PyCodeObject *code = ((PyCodeObject *)PyFunction_GET_CODE(PyMethod_GET_FUNCTION(value)));
-		// *args support
-		r_argcount = (code->co_flags & CO_VARARGS) ? maxargcount : (code->co_argcount - 1);
-	}
-	else if (PyFunction_Check(value)) {
-		PyCodeObject *code = ((PyCodeObject *)PyFunction_GET_CODE(value));
-		// *args support
-		r_argcount = (code->co_flags & CO_VARARGS) ? maxargcount : code->co_argcount;
-	}
-	// Is not a methode or a function.
-	else {
-		PyErr_Format(PyExc_TypeError, "items must be functions or methodes, not %s",
-		             Py_TYPE(value)->tp_name);
-		return nullptr;
-	}
+  if (PyMethod_Check(value)) {
+    PyCodeObject *code = ((PyCodeObject *)PyFunction_GET_CODE(PyMethod_GET_FUNCTION(value)));
+    // *args support
+    r_argcount = (code->co_flags & CO_VARARGS) ? maxargcount : (code->co_argcount - 1);
+  }
+  else if (PyFunction_Check(value)) {
+    PyCodeObject *code = ((PyCodeObject *)PyFunction_GET_CODE(value));
+    // *args support
+    r_argcount = (code->co_flags & CO_VARARGS) ? maxargcount : code->co_argcount;
+  }
+  // Is not a methode or a function.
+  else {
+    PyErr_Format(
+        PyExc_TypeError, "items must be functions or methodes, not %s", Py_TYPE(value)->tp_name);
+    return nullptr;
+  }
 
-	if (r_argcount < minargcount || r_argcount >  maxargcount) {
-		// Wrong number of arguments.
-		PyErr_Format(PyExc_TypeError, "methode or function (%s) has invalid number of arguments (%i) must be between %i and %i",
-		             Py_TYPE(value)->tp_name, r_argcount, minargcount, maxargcount);
-		return nullptr;
-	}
+  if (r_argcount < minargcount || r_argcount > maxargcount) {
+    // Wrong number of arguments.
+    PyErr_Format(
+        PyExc_TypeError,
+        "methode or function (%s) has invalid number of arguments (%i) must be between %i and %i",
+        Py_TYPE(value)->tp_name,
+        r_argcount,
+        minargcount,
+        maxargcount);
+    return nullptr;
+  }
 
-	return value;
+  return value;
 }
 
 /** Create a python tuple to call a python function
@@ -72,53 +80,56 @@ static PyObject *CheckPythonFunction(PyObject *value, unsigned int minargcount, 
  */
 static PyObject *CreatePythonTuple(unsigned int argcount, PyObject **arglist)
 {
-	PyObject *tuple = PyTuple_New(argcount);
+  PyObject *tuple = PyTuple_New(argcount);
 
-	for (unsigned int i = 0; i < argcount; ++i) {
-		PyObject *item = arglist[i];
-		// Increment reference and copy it in a new tuple.
-		Py_INCREF(item);
-		PyTuple_SET_ITEM(tuple, i, item);
-	}
+  for (unsigned int i = 0; i < argcount; ++i) {
+    PyObject *item = arglist[i];
+    // Increment reference and copy it in a new tuple.
+    Py_INCREF(item);
+    PyTuple_SET_ITEM(tuple, i, item);
+  }
 
-	return tuple;
+  return tuple;
 }
 
-void RunPythonCallBackList(PyObject *functionlist, PyObject **arglist, unsigned int minargcount, unsigned int maxargcount)
+void RunPythonCallBackList(PyObject *functionlist,
+                           PyObject **arglist,
+                           unsigned int minargcount,
+                           unsigned int maxargcount)
 {
-	unsigned int size = PyList_Size(functionlist);
-	PyObject **argTuples = (PyObject **)BLI_array_alloca(argTuples, maxargcount - minargcount + 1);
-	memset(argTuples, 0, sizeof(PyObject *) * (maxargcount - minargcount + 1));
+  unsigned int size = PyList_Size(functionlist);
+  PyObject **argTuples = (PyObject **)BLI_array_alloca(argTuples, maxargcount - minargcount + 1);
+  memset(argTuples, 0, sizeof(PyObject *) * (maxargcount - minargcount + 1));
 
-	for (unsigned int i = 0; i < size; ++i) {
-		unsigned int funcargcount = 0;
+  for (unsigned int i = 0; i < size; ++i) {
+    unsigned int funcargcount = 0;
 
-		PyObject *item = PyList_GET_ITEM(functionlist, i);
-		PyObject *func = CheckPythonFunction(item, minargcount, maxargcount, funcargcount);
-		// This item fails the check.
-		if (!func) {
-			PyErr_Print();
-			PyErr_Clear();
-			continue;
-		}
+    PyObject *item = PyList_GET_ITEM(functionlist, i);
+    PyObject *func = CheckPythonFunction(item, minargcount, maxargcount, funcargcount);
+    // This item fails the check.
+    if (!func) {
+      PyErr_Print();
+      PyErr_Clear();
+      continue;
+    }
 
-		// Get correct argument tuple.
-		PyObject *tuple = argTuples[funcargcount - minargcount];
-		if (!tuple) {
-			argTuples[funcargcount - minargcount] = tuple = CreatePythonTuple(funcargcount, arglist);
-		}
+    // Get correct argument tuple.
+    PyObject *tuple = argTuples[funcargcount - minargcount];
+    if (!tuple) {
+      argTuples[funcargcount - minargcount] = tuple = CreatePythonTuple(funcargcount, arglist);
+    }
 
-		PyObject *ret = PyObject_Call(func, tuple, nullptr);
-		if (!ret) { // If ret is nullptr this seems that the function doesn't work.
-			PyErr_Print();
-			PyErr_Clear();
-		}
-		else {
-			Py_DECREF(ret);
-		}
-	}
+    PyObject *ret = PyObject_Call(func, tuple, nullptr);
+    if (!ret) {  // If ret is nullptr this seems that the function doesn't work.
+      PyErr_Print();
+      PyErr_Clear();
+    }
+    else {
+      Py_DECREF(ret);
+    }
+  }
 
-	for (unsigned int i = 0; i <= (maxargcount - minargcount); ++i) {
-		Py_XDECREF(argTuples[i]);
-	}
+  for (unsigned int i = 0; i <= (maxargcount - minargcount); ++i) {
+    Py_XDECREF(argTuples[i]);
+  }
 }

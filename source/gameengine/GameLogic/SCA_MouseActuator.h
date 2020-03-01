@@ -30,102 +30,101 @@ class SCA_MouseManager;
 class SCA_IInputDevice;
 class RAS_ICanvas;
 
-class SCA_MouseActuator : public SCA_IActuator
-{
-	Py_Header
+class SCA_MouseActuator : public SCA_IActuator {
+  Py_Header
 
-private:
+      private :
 
-	KX_KetsjiEngine* m_ketsji;
-	SCA_MouseManager* m_eventmgr;
-	SCA_IInputDevice* m_mouse;
-	RAS_ICanvas* m_canvas;
-	int m_type;
+      KX_KetsjiEngine *m_ketsji;
+  SCA_MouseManager *m_eventmgr;
+  SCA_IInputDevice *m_mouse;
+  RAS_ICanvas *m_canvas;
+  int m_type;
 
-	bool m_visible;
+  bool m_visible;
 
-	bool m_use_axis_x; /* 0 for calculate axis, 1 for ignore axis */
-	bool m_use_axis_y;
-	float m_threshold[2];
-	bool m_reset_x; /* 0=reset, 1=free */
-	bool m_reset_y;
-	int m_object_axis[2]; /* 0=x, 1=y, 2=z */
-	bool m_local_x; /* 0=local, 1=global*/
-	bool m_local_y;
-	float m_sensitivity[2];
-	float m_limit_x[2];
-	float m_limit_y[2];
+  bool m_use_axis_x; /* 0 for calculate axis, 1 for ignore axis */
+  bool m_use_axis_y;
+  float m_threshold[2];
+  bool m_reset_x; /* 0=reset, 1=free */
+  bool m_reset_y;
+  int m_object_axis[2]; /* 0=x, 1=y, 2=z */
+  bool m_local_x;       /* 0=local, 1=global*/
+  bool m_local_y;
+  float m_sensitivity[2];
+  float m_limit_x[2];
+  float m_limit_y[2];
 
-	float m_oldposition[2];
-	float m_angle[2];
+  float m_oldposition[2];
+  float m_angle[2];
 
-public:
+ public:
+  enum KX_ACT_MOUSE_OBJECT_AXIS {
+    KX_ACT_MOUSE_OBJECT_AXIS_X = 0,
+    KX_ACT_MOUSE_OBJECT_AXIS_Y,
+    KX_ACT_MOUSE_OBJECT_AXIS_Z
+  };
 
-	enum KX_ACT_MOUSE_OBJECT_AXIS {
-		KX_ACT_MOUSE_OBJECT_AXIS_X = 0,
-		KX_ACT_MOUSE_OBJECT_AXIS_Y,
-		KX_ACT_MOUSE_OBJECT_AXIS_Z
-	};
+  enum KX_ACT_MOUSE_MODE {
+    KX_ACT_MOUSE_NODEF = 0,
+    KX_ACT_MOUSE_VISIBILITY,
+    KX_ACT_MOUSE_LOOK,
+    KX_ACT_MOUSE_MAX
+  };
 
-	enum KX_ACT_MOUSE_MODE {
-		KX_ACT_MOUSE_NODEF = 0,
-		KX_ACT_MOUSE_VISIBILITY,
-		KX_ACT_MOUSE_LOOK,
-		KX_ACT_MOUSE_MAX
-	};
+  SCA_MouseActuator(SCA_IObject *gameobj,
+                    KX_KetsjiEngine *ketsjiEngine,
+                    SCA_MouseManager *eventmgr,
+                    int acttype,
+                    bool visible,
+                    bool *use_axis,
+                    float *threshold,
+                    bool *reset,
+                    int *object_axis,
+                    bool *local,
+                    float *sensitivity,
+                    float *limit_x,
+                    float *limit_y);
 
-	SCA_MouseActuator(
-		SCA_IObject* gameobj,
-		KX_KetsjiEngine* ketsjiEngine,
-		SCA_MouseManager* eventmgr,
-		int acttype,
-		bool visible,
-		bool* use_axis,
-		float* threshold,
-		bool* reset,
-		int* object_axis,
-		bool* local,
-		float* sensitivity,
-		float* limit_x,
-		float* limit_y
-	);
+  ~SCA_MouseActuator();
 
+  CValue *GetReplica();
+  virtual void ProcessReplica();
 
-	~SCA_MouseActuator();
+  virtual void Replace_IScene(SCA_IScene *scene);
 
-	CValue* GetReplica();
-	virtual void ProcessReplica();
+  virtual bool Update();
 
-	virtual void Replace_IScene(SCA_IScene *scene);
-
-	virtual bool Update();
-
-	virtual void getMousePosition(float*);
-	virtual void setMousePosition(float, float);
-
+  virtual void getMousePosition(float *);
+  virtual void setMousePosition(float, float);
 
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	/* Methods */
+  /* Methods */
 
-	KX_PYMETHOD_DOC_NOARGS(SCA_MouseActuator,Reset);
+  KX_PYMETHOD_DOC_NOARGS(SCA_MouseActuator, Reset);
 
-	/* Attributes */
+  /* Attributes */
 
-	static PyObject*	pyattr_get_limit_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_limit_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  static PyObject *pyattr_get_limit_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_limit_x(PyObjectPlus *self_v,
+                                const KX_PYATTRIBUTE_DEF *attrdef,
+                                PyObject *value);
 
-	static PyObject*	pyattr_get_limit_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_limit_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  static PyObject *pyattr_get_limit_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_limit_y(PyObjectPlus *self_v,
+                                const KX_PYATTRIBUTE_DEF *attrdef,
+                                PyObject *value);
 
-	static PyObject*	pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-#endif  /* WITH_PYTHON */
-
+  static PyObject *pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_angle(PyObjectPlus *self_v,
+                              const KX_PYATTRIBUTE_DEF *attrdef,
+                              PyObject *value);
+#endif /* WITH_PYTHON */
 };
 
-#endif //__SCA_MouseActuator_DOC
+#endif  //__SCA_MouseActuator_DOC

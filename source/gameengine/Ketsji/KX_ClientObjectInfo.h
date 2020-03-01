@@ -39,41 +39,42 @@
 class SCA_ISensor;
 class KX_GameObject;
 /**
- * Client Type and Additional Info. This structure can be use instead of a bare void* pointer, for safeness, and additional info for callbacks
+ * Client Type and Additional Info. This structure can be use instead of a bare void* pointer, for
+ * safeness, and additional info for callbacks
  */
-struct KX_ClientObjectInfo
-{
-	enum clienttype {
-		STATIC,
-		ACTOR,
-		RESERVED1,
-		SENSOR,
-		OBSENSOR,
-		OBACTORSENSOR
-	}		m_type;
-	KX_GameObject*	m_gameobject;
-	std::list<SCA_ISensor*>	m_sensors;
-public:
-	KX_ClientObjectInfo(KX_GameObject *gameobject, clienttype type = STATIC) :
-		m_type(type),
-		m_gameobject(gameobject)
-	{}
-	
-	KX_ClientObjectInfo(const KX_ClientObjectInfo &copy) :
-		  m_type(copy.m_type),
-		  m_gameobject(copy.m_gameobject)
-	{
-	}
-	
-	virtual ~KX_ClientObjectInfo() {}
-	
-	virtual bool hasCollisionCallback() 
-	{
-		return m_sensors.size() != 0;
-	}
-	
-	bool isActor() { return m_type <= ACTOR; }
-	bool isSensor() { return m_type >= SENSOR && m_type <= OBACTORSENSOR; }
+struct KX_ClientObjectInfo {
+  enum clienttype { STATIC, ACTOR, RESERVED1, SENSOR, OBSENSOR, OBACTORSENSOR } m_type;
+  KX_GameObject *m_gameobject;
+  std::list<SCA_ISensor *> m_sensors;
+
+ public:
+  KX_ClientObjectInfo(KX_GameObject *gameobject, clienttype type = STATIC)
+      : m_type(type), m_gameobject(gameobject)
+  {
+  }
+
+  KX_ClientObjectInfo(const KX_ClientObjectInfo &copy)
+      : m_type(copy.m_type), m_gameobject(copy.m_gameobject)
+  {
+  }
+
+  virtual ~KX_ClientObjectInfo()
+  {
+  }
+
+  virtual bool hasCollisionCallback()
+  {
+    return m_sensors.size() != 0;
+  }
+
+  bool isActor()
+  {
+    return m_type <= ACTOR;
+  }
+  bool isSensor()
+  {
+    return m_type >= SENSOR && m_type <= OBACTORSENSOR;
+  }
 };
 
-#endif  /* __KX_CLIENTOBJECTINFO_H__ */
+#endif /* __KX_CLIENTOBJECTINFO_H__ */

@@ -38,53 +38,51 @@ struct bConstraint;
 #include "SCA_ISensor.h"
 #include "DNA_sensor_types.h"
 
-class SCA_ArmatureSensor : public SCA_ISensor
-{
-	Py_Header
-	//class CExpression*	m_rightexpr;
+class SCA_ArmatureSensor : public SCA_ISensor {
+  Py_Header
+      // class CExpression*	m_rightexpr;
 
-protected:
+      protected :
 
-public:
-	SCA_ArmatureSensor(class SCA_EventManager* eventmgr,
-					SCA_IObject* gameobj,
-					const std::string& posechannel,
-					const std::string& constraintname,
-					int type,
-					float value);
-	
-	/** 
-	 *  For property sensor, it is used to release the pre-calculated expression
-	 *  so that self references are removed before the sensor itself is released
-	 */
-	virtual ~SCA_ArmatureSensor();
-	virtual CValue* GetReplica();
-	virtual void ReParent(SCA_IObject* parent);
-	virtual void Init();
-	virtual bool Evaluate();
-	virtual bool IsPositiveTrigger();
+      public : SCA_ArmatureSensor(class SCA_EventManager *eventmgr,
+                                  SCA_IObject *gameobj,
+                                  const std::string &posechannel,
+                                  const std::string &constraintname,
+                                  int type,
+                                  float value);
 
-	// identify the constraint that this actuator controls
-	void FindConstraint();
+  /**
+   *  For property sensor, it is used to release the pre-calculated expression
+   *  so that self references are removed before the sensor itself is released
+   */
+  virtual ~SCA_ArmatureSensor();
+  virtual CValue *GetReplica();
+  virtual void ReParent(SCA_IObject *parent);
+  virtual void Init();
+  virtual bool Evaluate();
+  virtual bool IsPositiveTrigger();
+
+  // identify the constraint that this actuator controls
+  void FindConstraint();
 
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
-	static PyObject *pyattr_get_constraint(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  static PyObject *pyattr_get_constraint(PyObjectPlus *self,
+                                         const struct KX_PYATTRIBUTE_DEF *attrdef);
 
-#endif  /* WITH_PYTHON */
+#endif /* WITH_PYTHON */
 
-private:
-	struct bConstraint*	m_constraint;
-	std::string		m_posechannel;
-	std::string		m_constraintname;
-	int				m_type;
-	float			m_value;
-	bool			m_result;
-	bool			m_lastresult;
+ private:
+  struct bConstraint *m_constraint;
+  std::string m_posechannel;
+  std::string m_constraintname;
+  int m_type;
+  float m_value;
+  bool m_result;
+  bool m_lastresult;
 };
 
 #endif
-

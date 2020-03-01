@@ -34,14 +34,12 @@
 
 #include "EXP_Python.h"
 
-void BL_ConvertControllers(
-	struct Object* blenderobject,
-	class KX_GameObject* gameobj,
-	class SCA_LogicManager* logicmgr,
-	int activeLayerBitInfo,
-	bool isInActiveLayer, 
-	class KX_BlenderSceneConverter& converter,
-	bool libloading
-);
+void BL_ConvertControllers(struct Object *blenderobject,
+                           class KX_GameObject *gameobj,
+                           class SCA_LogicManager *logicmgr,
+                           int activeLayerBitInfo,
+                           bool isInActiveLayer,
+                           class KX_BlenderSceneConverter &converter,
+                           bool libloading);
 
-#endif  /* __KX_CONVERTCONTROLLERS_H__ */
+#endif /* __KX_CONVERTCONTROLLERS_H__ */

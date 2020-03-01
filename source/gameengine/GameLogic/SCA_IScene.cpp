@@ -34,9 +34,8 @@
 
 #define DEBUG_MAX_DISPLAY 100
 
-SCA_DebugProp::SCA_DebugProp(SCA_IObject *gameobj, const std::string& name)
-	:m_obj(gameobj),
-	m_name(name)
+SCA_DebugProp::SCA_DebugProp(SCA_IObject *gameobj, const std::string &name)
+    : m_obj(gameobj), m_name(name)
 {
 }
 
@@ -50,72 +49,72 @@ SCA_IScene::SCA_IScene()
 
 void SCA_IScene::RemoveAllDebugProperties()
 {
-	m_debugList.clear();
+  m_debugList.clear();
 }
 
 SCA_IScene::~SCA_IScene()
 {
-	RemoveAllDebugProperties();
+  RemoveAllDebugProperties();
 }
 
-const std::vector<SCA_DebugProp>& SCA_IScene::GetDebugProperties() const
+const std::vector<SCA_DebugProp> &SCA_IScene::GetDebugProperties() const
 {
-	return m_debugList;
+  return m_debugList;
 }
 
 bool SCA_IScene::PropertyInDebugList(SCA_IObject *gameobj, const std::string &name)
 {
-	for (const SCA_DebugProp& prop : m_debugList) {
-		if (prop.m_obj == gameobj && prop.m_name == name) {
-			return true;
-		}
-	}
-	return false;
+  for (const SCA_DebugProp &prop : m_debugList) {
+    if (prop.m_obj == gameobj && prop.m_name == name) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool SCA_IScene::ObjectInDebugList(SCA_IObject *gameobj)
 {
-	for (const SCA_DebugProp& prop : m_debugList) {
-		if (prop.m_obj == gameobj) {
-			return true;
-		}
-	}
-	return false;
+  for (const SCA_DebugProp &prop : m_debugList) {
+    if (prop.m_obj == gameobj) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void SCA_IScene::AddDebugProperty(SCA_IObject *gameobj, const std::string &name)
 {
-	if (m_debugList.size() < DEBUG_MAX_DISPLAY) {
-		m_debugList.emplace_back(gameobj, name);
-	}
+  if (m_debugList.size() < DEBUG_MAX_DISPLAY) {
+    m_debugList.emplace_back(gameobj, name);
+  }
 }
 
 void SCA_IScene::RemoveDebugProperty(SCA_IObject *gameobj, const std::string &name)
 {
-	for (std::vector<SCA_DebugProp>::iterator it = m_debugList.begin(); it != m_debugList.end();) {
-		const SCA_DebugProp& prop = *it;
+  for (std::vector<SCA_DebugProp>::iterator it = m_debugList.begin(); it != m_debugList.end();) {
+    const SCA_DebugProp &prop = *it;
 
-		if (prop.m_obj == gameobj && prop.m_name == name) {
-			it = m_debugList.erase(it);
-			break;
-		}
-		else {
-			++it;
-		}
-	}
+    if (prop.m_obj == gameobj && prop.m_name == name) {
+      it = m_debugList.erase(it);
+      break;
+    }
+    else {
+      ++it;
+    }
+  }
 }
 
 void SCA_IScene::RemoveObjectDebugProperties(SCA_IObject *gameobj)
 {
-	for (std::vector<SCA_DebugProp>::iterator it = m_debugList.begin(); it != m_debugList.end();) {
-		const SCA_DebugProp& prop = *it;
+  for (std::vector<SCA_DebugProp>::iterator it = m_debugList.begin(); it != m_debugList.end();) {
+    const SCA_DebugProp &prop = *it;
 
-		if (prop.m_obj == gameobj) {
-			it = m_debugList.erase(it);
-			continue;
-		}
-		else {
-			++it;
-		}
-	}
+    if (prop.m_obj == gameobj) {
+      it = m_debugList.erase(it);
+      continue;
+    }
+    else {
+      ++it;
+    }
+  }
 }

@@ -39,62 +39,63 @@
 
 class RAS_ILightObject;
 
-class KX_LightIpoSGController : public SG_Controller
-{
-public:
-	MT_Scalar           m_energy;
-	MT_Scalar           m_col_rgb[3];
-	MT_Scalar           m_dist;
+class KX_LightIpoSGController : public SG_Controller {
+ public:
+  MT_Scalar m_energy;
+  MT_Scalar m_col_rgb[3];
+  MT_Scalar m_dist;
 
-private:
-	T_InterpolatorList	m_interpolators;
-	unsigned short  	m_modify_energy 	 : 1;
-	unsigned short	    m_modify_color       : 1;
-	unsigned short		m_modify_dist    	 : 1;
-	bool				m_modified;
+ private:
+  T_InterpolatorList m_interpolators;
+  unsigned short m_modify_energy : 1;
+  unsigned short m_modify_color : 1;
+  unsigned short m_modify_dist : 1;
+  bool m_modified;
 
-	double		        m_ipotime;
-public:
-	KX_LightIpoSGController() : 
-				m_modify_energy(false),
-				m_modify_color(false),
-				m_modify_dist(false),
-				m_modified(true),
-				m_ipotime(0.0)
-		{}
+  double m_ipotime;
 
-	virtual ~KX_LightIpoSGController();
+ public:
+  KX_LightIpoSGController()
+      : m_modify_energy(false),
+        m_modify_color(false),
+        m_modify_dist(false),
+        m_modified(true),
+        m_ipotime(0.0)
+  {
+  }
 
-	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
+  virtual ~KX_LightIpoSGController();
 
-	virtual bool Update(double time);
-	
-	virtual void SetSimulatedTime(double time) {
-		m_ipotime = time;
-		m_modified = true;
-	}
+  virtual SG_Controller *GetReplica(class SG_Node *destnode);
 
-	void	SetModifyEnergy(bool modify) {
-		m_modify_energy = modify;
-	}
+  virtual bool Update(double time);
 
-	void	SetModifyColor(bool modify) {
-		m_modify_color = modify;
-	}
+  virtual void SetSimulatedTime(double time)
+  {
+    m_ipotime = time;
+    m_modified = true;
+  }
 
-	void	SetModifyDist(bool modify) {
-		m_modify_dist = modify;
-	}
+  void SetModifyEnergy(bool modify)
+  {
+    m_modify_energy = modify;
+  }
 
-			void
-	SetOption(
-		int option,
-		int value
-	) {
-		// intentionally empty
-	};
+  void SetModifyColor(bool modify)
+  {
+    m_modify_color = modify;
+  }
 
-	void	AddInterpolator(KX_IInterpolator* interp);
+  void SetModifyDist(bool modify)
+  {
+    m_modify_dist = modify;
+  }
+
+  void SetOption(int option, int value){
+      // intentionally empty
+  };
+
+  void AddInterpolator(KX_IInterpolator *interp);
 };
 
-#endif  /* __KX_LIGHTIPOSGCONTROLLER_H__ */
+#endif /* __KX_LIGHTIPOSGCONTROLLER_H__ */

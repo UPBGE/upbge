@@ -36,82 +36,89 @@ class KX_BlenderSceneConverter;
 class KX_LodLevel;
 struct Object;
 
-class KX_LodManager : public CValue
-{
-	Py_Header
+class KX_LodManager : public CValue {
+  Py_Header
 
-private:
-	/** This class helps to compare the object distance to camera with the list of lod levels.
-	 * It represent the gap between two levels, when you compare it with a distance it compare
-	 * with the a N level distance and a N+1 level distance including hysteresis.
-	 */
-	class LodLevelIterator
-	{
-	private:
-		const std::vector<KX_LodLevel *>& m_levels;
-		short m_index;
-		KX_Scene *m_scene;
-		float GetHysteresis(unsigned short level) const;
+      private :
+      /** This class helps to compare the object distance to camera with the list of lod levels.
+       * It represent the gap between two levels, when you compare it with a distance it compare
+       * with the a N level distance and a N+1 level distance including hysteresis.
+       */
+      class LodLevelIterator {
+   private:
+    const std::vector<KX_LodLevel *> &m_levels;
+    short m_index;
+    KX_Scene *m_scene;
+    float GetHysteresis(unsigned short level) const;
 
-	public:
-		LodLevelIterator(const std::vector<KX_LodLevel *>& levels, unsigned short index, KX_Scene *scene);
+   public:
+    LodLevelIterator(const std::vector<KX_LodLevel *> &levels,
+                     unsigned short index,
+                     KX_Scene *scene);
 
-		int operator++();
-		int operator--();
-		short operator*() const;
-		/// Compare next level distance more hysteresis with current distance.
-		bool operator<=(float distance2) const;
-		/// Compare the current lod level distance less hysteresis with current distance.
-		bool operator>(float distance2) const;
-	};
+    int operator++();
+    int operator--();
+    short operator*() const;
+    /// Compare next level distance more hysteresis with current distance.
+    bool operator<=(float distance2) const;
+    /// Compare the current lod level distance less hysteresis with current distance.
+    bool operator>(float distance2) const;
+  };
 
-	std::vector<KX_LodLevel *> m_levels;
+  std::vector<KX_LodLevel *> m_levels;
 
-	/** Get the hysteresis from the level or the scene.
-	 * \param scene Scene used to get default hysteresis.
-	 * \param level Level index used to get hysteresis.
-	 */
-	float GetHysteresis(KX_Scene *scene, unsigned short level);
+  /** Get the hysteresis from the level or the scene.
+   * \param scene Scene used to get default hysteresis.
+   * \param level Level index used to get hysteresis.
+   */
+  float GetHysteresis(KX_Scene *scene, unsigned short level);
 
-	int m_refcount;
+  int m_refcount;
 
-	/// Factor applied to the distance from the camera to the object.
-	float m_distanceFactor;
+  /// Factor applied to the distance from the camera to the object.
+  float m_distanceFactor;
 
-public:
-	KX_LodManager(Object *ob, KX_Scene *scene, RAS_Rasterizer *rasty, KX_BlenderSceneConverter& converter, bool libloading);
-  KX_LodManager(class RAS_MeshObject *meshObj); //just to use for ReplaceMesh
-	virtual ~KX_LodManager();
+ public:
+  KX_LodManager(Object *ob,
+                KX_Scene *scene,
+                RAS_Rasterizer *rasty,
+                KX_BlenderSceneConverter &converter,
+                bool libloading);
+  KX_LodManager(class RAS_MeshObject *meshObj);  // just to use for ReplaceMesh
+  virtual ~KX_LodManager();
 
-	virtual std::string GetName();
+  virtual std::string GetName();
 
-	/// Return number of lod levels.
-	unsigned int GetLevelCount() const;
+  /// Return number of lod levels.
+  unsigned int GetLevelCount() const;
 
-	/** Get lod level by index.
-	 * \param index The lod level index.
-	 */
-	KX_LodLevel *GetLevel(unsigned int index) const;
+  /** Get lod level by index.
+   * \param index The lod level index.
+   */
+  KX_LodLevel *GetLevel(unsigned int index) const;
 
-	/** Get lod level cooresponding to distance and previous level.
-	 * \param scene Scene used to get default hysteresis.
-	 * \param previouslod Previous lod computed by this function before.
-	 *   Use -1 to disable the hysteresis when the lod manager has changed.
-	 * \param distance2 Squared distance object to the camera.
-	 */
-	KX_LodLevel *GetLevel(KX_Scene *scene, short previouslod, float distance);
+  /** Get lod level cooresponding to distance and previous level.
+   * \param scene Scene used to get default hysteresis.
+   * \param previouslod Previous lod computed by this function before.
+   *   Use -1 to disable the hysteresis when the lod manager has changed.
+   * \param distance2 Squared distance object to the camera.
+   */
+  KX_LodLevel *GetLevel(KX_Scene *scene, short previouslod, float distance);
 
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_levels(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_levels(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
-#endif //WITH_PYTHON
+#endif  // WITH_PYTHON
 };
 
 #ifdef WITH_PYTHON
 
 /// Utility python conversion function.
-bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToLodManager(PyObject *value,
+                               KX_LodManager **object,
+                               bool py_none_ok,
+                               const char *error_prefix);
 
 #endif  // WITH_PYTHON
 

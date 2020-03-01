@@ -23,7 +23,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * 
+ *
  */
 
 /** \file KX_SG_BoneParentNodeRelationship.h
@@ -32,60 +32,47 @@
 
 #ifndef __KX_SG_BONEPARENTNODERELATIONSHIP_H__
 #define __KX_SG_BONEPARENTNODERELATIONSHIP_H__
- 
+
 #include "SG_Node.h"
 #include "SG_ParentRelation.h"
 
 struct Bone;
 
 /**
- *  Bone parent relationship parents a child SG_Node frame to a 
+ *  Bone parent relationship parents a child SG_Node frame to a
  *  bone in an armature object.
  */
-class KX_BoneParentRelation : public SG_ParentRelation
-{
+class KX_BoneParentRelation : public SG_ParentRelation {
 
-public :
-	/**
-	 * Allocate and construct a new KX_SG_BoneParentRelation
-	 * on the heap.
-	 *
-	 * bone is the bone id to use.  Currently it is a pointer
-	 * to a Blender struct Bone - this should be fixed if
-	 */
+ public:
+  /**
+   * Allocate and construct a new KX_SG_BoneParentRelation
+   * on the heap.
+   *
+   * bone is the bone id to use.  Currently it is a pointer
+   * to a Blender struct Bone - this should be fixed if
+   */
 
-	static 
-		KX_BoneParentRelation *
-	New(Bone* bone
-	);
+  static KX_BoneParentRelation *New(Bone *bone);
 
-	/**
-	 *  Updates the childs world coordinates relative to the parent's
-	 *  world coordinates.
-	 *
-	 *  Parent should be a BL_ArmatureObject.
-	 */
-		bool
-	UpdateChildCoordinates(
-		SG_Node * child,
-		const SG_Node * parent,
-		bool& parentUpdated
-	);
+  /**
+   *  Updates the childs world coordinates relative to the parent's
+   *  world coordinates.
+   *
+   *  Parent should be a BL_ArmatureObject.
+   */
+  bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool &parentUpdated);
 
-	/**
-	 *  Create a copy of this relationship
-	 */
-		SG_ParentRelation *
-	NewCopy(
-	);
+  /**
+   *  Create a copy of this relationship
+   */
+  SG_ParentRelation *NewCopy();
 
-	~KX_BoneParentRelation(
-	);
+  ~KX_BoneParentRelation();
 
-private :
-	Bone* m_bone;
-	KX_BoneParentRelation(Bone* bone
-	);
+ private:
+  Bone *m_bone;
+  KX_BoneParentRelation(Bone *bone);
 };
 
 #endif

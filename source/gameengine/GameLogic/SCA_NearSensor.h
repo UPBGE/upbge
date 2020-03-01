@@ -39,22 +39,20 @@
 class KX_Scene;
 class PHY_CollData;
 
-class SCA_NearSensor : public SCA_CollisionSensor
-{
-	Py_Header
-protected:
-	float	m_Margin;
-	float  m_ResetMargin;
+class SCA_NearSensor : public SCA_CollisionSensor {
+  Py_Header protected : float m_Margin;
+  float m_ResetMargin;
 
-	KX_ClientObjectInfo*	m_client_info;
-public:
-	SCA_NearSensor(class SCA_EventManager* eventmgr,
-	              class KX_GameObject* gameobj,
-	              float margin,
-	              float resetmargin,
-	              bool bFindMaterial,
-	              const std::string& touchedpropname,
-	              PHY_IPhysicsController*	ctrl);
+  KX_ClientObjectInfo *m_client_info;
+
+ public:
+  SCA_NearSensor(class SCA_EventManager *eventmgr,
+                 class KX_GameObject *gameobj,
+                 float margin,
+                 float resetmargin,
+                 bool bFindMaterial,
+                 const std::string &touchedpropname,
+                 PHY_IPhysicsController *ctrl);
 #if 0
 public:
 	SCA_NearSensor(class SCA_EventManager* eventmgr,
@@ -65,43 +63,47 @@ public:
 			const std::string& touchedpropname,
 			class KX_Scene* scene);
 #endif
-	virtual ~SCA_NearSensor(); 
-	virtual void SynchronizeTransform();
-	virtual CValue* GetReplica();
-	virtual void ProcessReplica();
-	virtual void SetPhysCtrlRadius();
-	virtual bool Evaluate();
+  virtual ~SCA_NearSensor();
+  virtual void SynchronizeTransform();
+  virtual CValue *GetReplica();
+  virtual void ProcessReplica();
+  virtual void SetPhysCtrlRadius();
+  virtual bool Evaluate();
 
-	virtual void ReParent(SCA_IObject* parent);
-	virtual bool	NewHandleCollision(void* obj1,void* obj2,
-	                                   const PHY_CollData * coll_data);
-	virtual bool	BroadPhaseFilterCollision(void*obj1,void*obj2);
-	virtual bool	BroadPhaseSensorFilterCollision(void* obj1,void* obj2) { return false; }
-	virtual sensortype GetSensorType() { return ST_NEAR; }
+  virtual void ReParent(SCA_IObject *parent);
+  virtual bool NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *coll_data);
+  virtual bool BroadPhaseFilterCollision(void *obj1, void *obj2);
+  virtual bool BroadPhaseSensorFilterCollision(void *obj1, void *obj2)
+  {
+    return false;
+  }
+  virtual sensortype GetSensorType()
+  {
+    return ST_NEAR;
+  }
 
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	//No methods
+  // No methods
 
-	//This method is used to make sure the distance does not exceed the reset distance
-	static int CheckResetDistance(PyObjectPlus *self, const PyAttributeDef*)
-	{
-		SCA_NearSensor* sensor = reinterpret_cast<SCA_NearSensor*>(self);
+  // This method is used to make sure the distance does not exceed the reset distance
+  static int CheckResetDistance(PyObjectPlus *self, const PyAttributeDef *)
+  {
+    SCA_NearSensor *sensor = reinterpret_cast<SCA_NearSensor *>(self);
 
-		if (sensor->m_Margin > sensor->m_ResetMargin)
-			sensor->m_ResetMargin = sensor->m_Margin;
+    if (sensor->m_Margin > sensor->m_ResetMargin)
+      sensor->m_ResetMargin = sensor->m_Margin;
 
-		sensor->SetPhysCtrlRadius();
-			
-		return 0;
-	}
+    sensor->SetPhysCtrlRadius();
 
-#endif  /* WITH_PYTHON */
+    return 0;
+  }
 
+#endif /* WITH_PYTHON */
 };
 
-#endif  /* __SCA_NearSensor_H__ */
+#endif /* __SCA_NearSensor_H__ */

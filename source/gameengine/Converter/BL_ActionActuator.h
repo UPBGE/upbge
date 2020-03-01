@@ -36,116 +36,127 @@
 #include "DNA_actuator_types.h"
 #include "MT_Vector3.h"
 
-class BL_ActionActuator : public SCA_IActuator  
-{
-public:
-	Py_Header
-	BL_ActionActuator(SCA_IObject* gameobj,
-						const std::string& propname,
-						const std::string& framepropname,
-						float starttime,
-						float endtime,
-						struct bAction *action,
-						short	playtype,
-						short	blend_mode,
-						short	blendin,
-						short	priority,
-						short	layer,
-						float	layer_weight,
-						short	ipo_flags,
-						short	end_reset,
-						float	stride);
+class BL_ActionActuator : public SCA_IActuator {
+ public:
+  Py_Header BL_ActionActuator(SCA_IObject *gameobj,
+                              const std::string &propname,
+                              const std::string &framepropname,
+                              float starttime,
+                              float endtime,
+                              struct bAction *action,
+                              short playtype,
+                              short blend_mode,
+                              short blendin,
+                              short priority,
+                              short layer,
+                              float layer_weight,
+                              short ipo_flags,
+                              short end_reset,
+                              float stride);
 
-	virtual ~BL_ActionActuator();
-	virtual	bool Update(double curtime);
-	virtual CValue* GetReplica();
-	virtual void ProcessReplica();
-	
-	void SetLocalTime(float curtime);
-	void ResetStartTime(float curtime);
-	
-	bAction*	GetAction() { return m_action; }
-	void		SetAction(bAction* act) { m_action= act; }
+  virtual ~BL_ActionActuator();
+  virtual bool Update(double curtime);
+  virtual CValue *GetReplica();
+  virtual void ProcessReplica();
 
-	virtual void DecLink();
+  void SetLocalTime(float curtime);
+  void ResetStartTime(float curtime);
+
+  bAction *GetAction()
+  {
+    return m_action;
+  }
+  void SetAction(bAction *act)
+  {
+    m_action = act;
+  }
+
+  virtual void DecLink();
 
 #ifdef WITH_PYTHON
 
-	KX_PYMETHOD_O(BL_ActionActuator,GetChannel)
-	KX_PYMETHOD_DOC(BL_ActionActuator,setChannel)
+  KX_PYMETHOD_O(BL_ActionActuator, GetChannel)
+  KX_PYMETHOD_DOC(BL_ActionActuator, setChannel)
 
-	static PyObject*	pyattr_get_action(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_action(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_channel_names(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_use_continue(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_use_continue(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_frame(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_frame(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  static PyObject *pyattr_get_action(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_action(PyObjectPlus *self_v,
+                               const KX_PYATTRIBUTE_DEF *attrdef,
+                               PyObject *value);
+  static PyObject *pyattr_get_channel_names(PyObjectPlus *self_v,
+                                            const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_use_continue(PyObjectPlus *self_v,
+                                           const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_use_continue(PyObjectPlus *self_v,
+                                     const KX_PYATTRIBUTE_DEF *attrdef,
+                                     PyObject *value);
+  static PyObject *pyattr_get_frame(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_frame(PyObjectPlus *self_v,
+                              const KX_PYATTRIBUTE_DEF *attrdef,
+                              PyObject *value);
 
-	static int CheckBlendTime(PyObjectPlus *self, const PyAttributeDef*)
-	{
-		BL_ActionActuator* act = reinterpret_cast<BL_ActionActuator*>(self);
+  static int CheckBlendTime(PyObjectPlus *self, const PyAttributeDef *)
+  {
+    BL_ActionActuator *act = reinterpret_cast<BL_ActionActuator *>(self);
 
-		if (act->m_blendframe > act->m_blendin)
-			act->m_blendframe = act->m_blendin;
+    if (act->m_blendframe > act->m_blendin)
+      act->m_blendframe = act->m_blendin;
 
-		return 0;
-	}
+    return 0;
+  }
 
-	static int CheckType(PyObjectPlus *self, const PyAttributeDef*)
-	{
-		BL_ActionActuator* act = reinterpret_cast<BL_ActionActuator*>(self);
+  static int CheckType(PyObjectPlus *self, const PyAttributeDef *)
+  {
+    BL_ActionActuator *act = reinterpret_cast<BL_ActionActuator *>(self);
 
-		switch (act->m_playtype) {
-			case ACT_ACTION_PLAY:
-			case ACT_ACTION_PINGPONG:
-			case ACT_ACTION_FLIPPER:
-			case ACT_ACTION_LOOP_STOP:
-			case ACT_ACTION_LOOP_END:
-			case ACT_ACTION_FROM_PROP:
-				return 0;
-			default:
-				PyErr_SetString(PyExc_ValueError, "Action Actuator, invalid play type supplied");
-				return 1;
-		}
-	}
-#endif  /* WITH_PYTHON */
-	
-protected:
-	MT_Vector3	m_lastpos;
-	float	m_blendframe;
-	int		m_flag;
-	/** The frame this action starts */
-	float	m_startframe;
-	/** The frame this action ends */
-	float	m_endframe;
-	/** The time this action started */
-	float	m_starttime;
-	/** The current time of the action */
-	float	m_localtime;
-	
-	float	m_lastUpdate;
-	float	m_blendin;
-	float	m_blendstart;
-	float	m_stridelength;
-	float	m_layer_weight;
-	short	m_playtype;
-	short   m_blendmode;
-	short	m_priority;
-	short	m_layer;
-	short	m_ipo_flags;
-	struct bAction *m_action;
-	std::string	m_propname;
-	std::string	m_framepropname;
+    switch (act->m_playtype) {
+      case ACT_ACTION_PLAY:
+      case ACT_ACTION_PINGPONG:
+      case ACT_ACTION_FLIPPER:
+      case ACT_ACTION_LOOP_STOP:
+      case ACT_ACTION_LOOP_END:
+      case ACT_ACTION_FROM_PROP:
+        return 0;
+      default:
+        PyErr_SetString(PyExc_ValueError, "Action Actuator, invalid play type supplied");
+        return 1;
+    }
+  }
+#endif /* WITH_PYTHON */
+
+ protected:
+  MT_Vector3 m_lastpos;
+  float m_blendframe;
+  int m_flag;
+  /** The frame this action starts */
+  float m_startframe;
+  /** The frame this action ends */
+  float m_endframe;
+  /** The time this action started */
+  float m_starttime;
+  /** The current time of the action */
+  float m_localtime;
+
+  float m_lastUpdate;
+  float m_blendin;
+  float m_blendstart;
+  float m_stridelength;
+  float m_layer_weight;
+  short m_playtype;
+  short m_blendmode;
+  short m_priority;
+  short m_layer;
+  short m_ipo_flags;
+  struct bAction *m_action;
+  std::string m_propname;
+  std::string m_framepropname;
 };
 
 enum {
-	ACT_FLAG_REVERSE	= 1<<0,
-	ACT_FLAG_ACTIVE		= 1<<1,
-	ACT_FLAG_CONTINUE	= 1<<2,
-	ACT_FLAG_PLAY_END	= 1<<3,
-	ACT_FLAG_ATTEMPT_PLAY = 1<<4,
+  ACT_FLAG_REVERSE = 1 << 0,
+  ACT_FLAG_ACTIVE = 1 << 1,
+  ACT_FLAG_CONTINUE = 1 << 2,
+  ACT_FLAG_PLAY_END = 1 << 3,
+  ACT_FLAG_ATTEMPT_PLAY = 1 << 4,
 };
 
 #endif
-

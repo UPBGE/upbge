@@ -36,39 +36,47 @@ struct rcti;
 struct wmWindowManager;
 struct wmWindow;
 
-class LA_BlenderLauncher : public LA_Launcher
-{
-protected:
-	bContext *m_context;
-	ARegion *m_ar;
-	rcti *m_camFrame;
-	View3D *m_view3d;
-	wmWindowManager *m_windowManager;
-	wmWindow *m_window;
-	int m_alwaysUseExpandFraming;
-	bool m_drawLetterBox;
+class LA_BlenderLauncher : public LA_Launcher {
+ protected:
+  bContext *m_context;
+  ARegion *m_ar;
+  rcti *m_camFrame;
+  View3D *m_view3d;
+  wmWindowManager *m_windowManager;
+  wmWindow *m_window;
+  int m_alwaysUseExpandFraming;
+  bool m_drawLetterBox;
 
-	/// Saved blender data to restore at the game end as m_savedData from LA_Launcher.
-	struct SavedBlenderData {
-		int sceneLayer;
-		Object *camera;
-	} m_savedBlenderData;
+  /// Saved blender data to restore at the game end as m_savedData from LA_Launcher.
+  struct SavedBlenderData {
+    int sceneLayer;
+    Object *camera;
+  } m_savedBlenderData;
 
-	virtual void RenderEngine();
+  virtual void RenderEngine();
 
-	virtual RAS_ICanvas *CreateCanvas(Scene *startscene);
-	virtual bool GetUseAlwaysExpandFraming();
-	virtual void InitCamera();
-	virtual void InitPython();
-	virtual void ExitPython();
+  virtual RAS_ICanvas *CreateCanvas(Scene *startscene);
+  virtual bool GetUseAlwaysExpandFraming();
+  virtual void InitCamera();
+  virtual void InitPython();
+  virtual void ExitPython();
 
-public:
-	LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_Rasterizer::StereoMode stereoMode, 
-					   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming);
-	virtual ~LA_BlenderLauncher();
+ public:
+  LA_BlenderLauncher(GHOST_ISystem *system,
+                     Main *maggie,
+                     Scene *scene,
+                     GlobalSettings *gs,
+                     RAS_Rasterizer::StereoMode stereoMode,
+                     int argc,
+                     char **argv,
+                     bContext *context,
+                     rcti *camframe,
+                     ARegion *ar,
+                     int alwaysUseExpandFraming);
+  virtual ~LA_BlenderLauncher();
 
-	virtual void InitEngine();
-	virtual void ExitEngine();
+  virtual void InitEngine();
+  virtual void ExitEngine();
 
-	virtual bool EngineNextFrame();
+  virtual bool EngineNextFrame();
 };

@@ -32,11 +32,10 @@
 #ifndef __KX_PHYSICSENGINEENUMS_H__
 #define __KX_PHYSICSENGINEENUMS_H__
 
-enum	e_PhysicsEngine
-{
-		NoSelection = -1,
-		UseNone     =  0,
-		UseBullet   =  5,
+enum e_PhysicsEngine {
+  NoSelection = -1,
+  UseNone = 0,
+  UseBullet = 5,
 };
 
-#endif  /* __KX_PHYSICSENGINEENUMS_H__ */
+#endif /* __KX_PHYSICSENGINEENUMS_H__ */

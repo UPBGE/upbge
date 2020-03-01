@@ -29,7 +29,6 @@
  *  \ingroup bgeconv
  */
 
-
 #include "KX_BlenderScalarInterpolator.h"
 
 #include <cstring>
@@ -42,44 +41,43 @@ extern "C" {
 
 float BL_ScalarInterpolator::GetValue(float currentTime) const
 {
-	// XXX 2.4x IPO_GetFloatValue(m_blender_adt, m_channel, currentTime);
-	return evaluate_fcurve(m_fcu, currentTime);
+  // XXX 2.4x IPO_GetFloatValue(m_blender_adt, m_channel, currentTime);
+  return evaluate_fcurve(m_fcu, currentTime);
 }
 
-BL_InterpolatorList::BL_InterpolatorList(bAction *action)
-	:m_action(action)
+BL_InterpolatorList::BL_InterpolatorList(bAction *action) : m_action(action)
 {
-	if (action==nullptr)
-		return;
-	
-	for (FCurve *fcu = (FCurve *)action->curves.first; fcu; fcu = fcu->next) {
-		if (fcu->rna_path) {
-			BL_ScalarInterpolator *new_ipo = new BL_ScalarInterpolator(fcu); 
-			//assert(new_ipo);
-			m_interpolators.push_back(new_ipo);
-		}
-	}
+  if (action == nullptr)
+    return;
+
+  for (FCurve *fcu = (FCurve *)action->curves.first; fcu; fcu = fcu->next) {
+    if (fcu->rna_path) {
+      BL_ScalarInterpolator *new_ipo = new BL_ScalarInterpolator(fcu);
+      // assert(new_ipo);
+      m_interpolators.push_back(new_ipo);
+    }
+  }
 }
 
 BL_InterpolatorList::~BL_InterpolatorList()
 {
-	for (BL_ScalarInterpolator *interp : m_interpolators) {
-		delete interp;
-	}
+  for (BL_ScalarInterpolator *interp : m_interpolators) {
+    delete interp;
+  }
 }
 
 bAction *BL_InterpolatorList::GetAction() const
 {
-	return m_action;
+  return m_action;
 }
 
-BL_ScalarInterpolator *BL_InterpolatorList::GetScalarInterpolator(const char *rna_path, int array_index)
+BL_ScalarInterpolator *BL_InterpolatorList::GetScalarInterpolator(const char *rna_path,
+                                                                  int array_index)
 {
-	for (BL_ScalarInterpolator *interp : m_interpolators) {
-		FCurve *fcu= interp->GetFCurve();
-		if (array_index==fcu->array_index && strcmp(rna_path, fcu->rna_path)==0)
-			return interp;
-	}
-	return nullptr;
+  for (BL_ScalarInterpolator *interp : m_interpolators) {
+    FCurve *fcu = interp->GetFCurve();
+    if (array_index == fcu->array_index && strcmp(rna_path, fcu->rna_path) == 0)
+      return interp;
+  }
+  return nullptr;
 }
-

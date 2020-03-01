@@ -29,7 +29,6 @@
  *  \ingroup physdummy
  */
 
-
 #include <stddef.h>
 
 #include "DummyPhysicsEnvironment.h"
@@ -37,33 +36,33 @@
 
 DummyPhysicsEnvironment::DummyPhysicsEnvironment()
 {
-	// create physicsengine data
+  // create physicsengine data
 }
 
 DummyPhysicsEnvironment::~DummyPhysicsEnvironment()
 {
-	//destroy physicsengine data
+  // destroy physicsengine data
 }
 
 void DummyPhysicsEnvironment::BeginFrame()
 {
-	// beginning of logic frame: apply forces
+  // beginning of logic frame: apply forces
 }
 
 void DummyPhysicsEnvironment::EndFrame()
 {
-	// end of logic frame: clear forces
+  // end of logic frame: clear forces
 }
 
 bool DummyPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, float interval)
 {
-	//step physics simulation, typically perform
+  // step physics simulation, typically perform
 
-	//collision detection
-	//solve constraints
-	//integrate solution
-	// return true if an update was done.
-	return true;
+  // collision detection
+  // solve constraints
+  // integrate solution
+  // return true if an update was done.
+  return true;
 }
 
 void DummyPhysicsEnvironment::SetFixedTimeStep(bool useFixedTimeStep, float fixedTimeStep)
@@ -72,44 +71,62 @@ void DummyPhysicsEnvironment::SetFixedTimeStep(bool useFixedTimeStep, float fixe
 
 float DummyPhysicsEnvironment::GetFixedTimeStep()
 {
-	return 0.0f;
+  return 0.0f;
 }
 
 int DummyPhysicsEnvironment::GetDebugMode() const
 {
-	return 0;
+  return 0;
 }
 
 void DummyPhysicsEnvironment::SetGravity(float x, float y, float z)
 {
 }
 
-void DummyPhysicsEnvironment::GetGravity(class MT_Vector3& grav)
+void DummyPhysicsEnvironment::GetGravity(class MT_Vector3 &grav)
 {
 }
 
-PHY_IConstraint *DummyPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
-											  float pivotX, float pivotY, float pivotZ, float axisX, float axisY, float axisZ,
-											  float axis1X, float axis1Y, float axis1Z,
-											  float axis2X, float axis2Y, float axis2Z, int flag)
+PHY_IConstraint *DummyPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl,
+                                                           class PHY_IPhysicsController *ctrl2,
+                                                           PHY_ConstraintType type,
+                                                           float pivotX,
+                                                           float pivotY,
+                                                           float pivotZ,
+                                                           float axisX,
+                                                           float axisY,
+                                                           float axisZ,
+                                                           float axis1X,
+                                                           float axis1Y,
+                                                           float axis1Z,
+                                                           float axis2X,
+                                                           float axis2Y,
+                                                           float axis2Z,
+                                                           int flag)
 {
-	return nullptr;
+  return nullptr;
 }
 
 PHY_IVehicle *DummyPhysicsEnvironment::CreateVehicle(PHY_IPhysicsController *ctrl)
 {
-	return nullptr;
+  return nullptr;
 }
 
 void DummyPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
 {
-	if (constraintid) {
-	}
+  if (constraintid) {
+  }
 }
 
-PHY_IPhysicsController *DummyPhysicsEnvironment::RayTest(PHY_IRayCastFilterCallback &filterCallback, float fromX, float fromY, float fromZ, float toX, float toY, float toZ)
+PHY_IPhysicsController *DummyPhysicsEnvironment::RayTest(
+    PHY_IRayCastFilterCallback &filterCallback,
+    float fromX,
+    float fromY,
+    float fromZ,
+    float toX,
+    float toY,
+    float toZ)
 {
-	//collision detection / raytesting
-	return nullptr;
+  // collision detection / raytesting
+  return nullptr;
 }
-

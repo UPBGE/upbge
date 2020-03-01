@@ -34,25 +34,24 @@
 
 #include "PHY_IController.h"
 
-
 /**
  * PHY_IPhysicsController is the abstract simplified Interface to a physical object.
  * It contains the IMotionState and IDeformableMesh Interfaces.
  */
-class PHY_IGraphicController : public PHY_IController
-{
-public:
-	/**
-	 * SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
-	 */
-	virtual bool SetGraphicTransform() = 0;
-	virtual void Activate(bool active = true) = 0;
-	virtual void SetLocalAabb(const class MT_Vector3& aabbMin, const class MT_Vector3& aabbMax) = 0;
+class PHY_IGraphicController : public PHY_IController {
+ public:
+  /**
+   * SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late
+   * binding')
+   */
+  virtual bool SetGraphicTransform() = 0;
+  virtual void Activate(bool active = true) = 0;
+  virtual void SetLocalAabb(const class MT_Vector3 &aabbMin, const class MT_Vector3 &aabbMax) = 0;
 
-	virtual PHY_IGraphicController *GetReplica(class PHY_IMotionState *motionstate)
-	{
-		return nullptr;
-	}
+  virtual PHY_IGraphicController *GetReplica(class PHY_IMotionState *motionstate)
+  {
+    return nullptr;
+  }
 };
 
-#endif  /* __PHY_IGRAPHICCONTROLLER_H__ */
+#endif /* __PHY_IGRAPHICCONTROLLER_H__ */

@@ -48,50 +48,49 @@ RAS_OpenGLLight::~RAS_OpenGLLight()
 
 RAS_OpenGLLight *RAS_OpenGLLight::Clone()
 {
-	return new RAS_OpenGLLight(*this);
+  return new RAS_OpenGLLight(*this);
 }
 
 bool RAS_OpenGLLight::HasShadow() const
 {
-	return m_hasShadow;
+  return m_hasShadow;
 }
 
 bool RAS_OpenGLLight::NeedShadowUpdate()
 {
-	if (m_staticShadow) {
-		return m_requestShadowUpdate;
-	}
+  if (m_staticShadow) {
+    return m_requestShadowUpdate;
+  }
 
-	return true;
+  return true;
 }
 
 int RAS_OpenGLLight::GetShadowBindCode()
 {
-	return -1;
+  return -1;
 }
 
 MT_Matrix4x4 RAS_OpenGLLight::GetViewMat()
 {
-	return MT_Matrix4x4::Identity();
+  return MT_Matrix4x4::Identity();
 }
 
 MT_Matrix4x4 RAS_OpenGLLight::GetWinMat()
 {
-	return MT_Matrix4x4::Identity();
+  return MT_Matrix4x4::Identity();
 }
 
 MT_Matrix4x4 RAS_OpenGLLight::GetShadowMatrix()
 {
-	return MT_Matrix4x4::Identity();
+  return MT_Matrix4x4::Identity();
 }
 
 int RAS_OpenGLLight::GetShadowLayer()
 {
-	return 0;
+  return 0;
 }
 
 Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 {
-	return nullptr;
+  return nullptr;
 }
-

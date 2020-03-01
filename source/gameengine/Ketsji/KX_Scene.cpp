@@ -728,7 +728,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     UpdateObjectLods(cam);
     SetCurrentGPUViewport(cam->GetGPUViewport());
 
-
     float winmat[4][4];
     cam->GetProjectionMatrix().getValue(&winmat[0][0]);
     CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
@@ -780,7 +779,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
   DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
-                           CTX_wm_view3d(engine->GetContext()), GetOverlayCamera() && !is_overlay_pass ? false : true);
+                           CTX_wm_view3d(engine->GetContext()),
+                           GetOverlayCamera() && !is_overlay_pass ? false : true);
 
   /* Detach viewport textures from input framebuffer... */
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
@@ -829,14 +829,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C,
-                       m_currentGPUViewport,
-                       bmain,
-                       scene,
-                       window,
-                       false,
-                       true,
-                       false);
+  DRW_game_render_loop(C, m_currentGPUViewport, bmain, scene, window, false, true, false);
 }
 
 /******************End of EEVEE INTEGRATION****************************/

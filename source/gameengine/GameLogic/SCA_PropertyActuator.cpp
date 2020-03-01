@@ -32,7 +32,6 @@
  *  \ingroup gamelogic
  */
 
-
 #include <stddef.h>
 
 #include "SCA_PropertyActuator.h"
@@ -44,193 +43,173 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_PropertyActuator::SCA_PropertyActuator(SCA_IObject* gameobj,SCA_IObject* sourceObj,const std::string& propname,const std::string& expr,int acttype)
-   :	SCA_IActuator(gameobj, KX_ACT_PROPERTY),
-	m_type(acttype),
-	m_propname(propname),
-	m_exprtxt(expr),
-	m_sourceObj(sourceObj)
+SCA_PropertyActuator::SCA_PropertyActuator(SCA_IObject *gameobj,
+                                           SCA_IObject *sourceObj,
+                                           const std::string &propname,
+                                           const std::string &expr,
+                                           int acttype)
+    : SCA_IActuator(gameobj, KX_ACT_PROPERTY),
+      m_type(acttype),
+      m_propname(propname),
+      m_exprtxt(expr),
+      m_sourceObj(sourceObj)
 {
-	// protect ourselves against someone else deleting the source object
-	// don't protect against ourselves: it would create a dead lock
-	if (m_sourceObj)
-		m_sourceObj->RegisterActuator(this);
+  // protect ourselves against someone else deleting the source object
+  // don't protect against ourselves: it would create a dead lock
+  if (m_sourceObj)
+    m_sourceObj->RegisterActuator(this);
 }
 
 SCA_PropertyActuator::~SCA_PropertyActuator()
 {
-	if (m_sourceObj)
-		m_sourceObj->UnregisterActuator(this);
+  if (m_sourceObj)
+    m_sourceObj->UnregisterActuator(this);
 }
 
 bool SCA_PropertyActuator::Update()
 {
-	bool result = false;
+  bool result = false;
 
-	bool bNegativeEvent = IsNegativeEvent();
-	RemoveAllEvents();
-	CValue* propowner = GetParent();
+  bool bNegativeEvent = IsNegativeEvent();
+  RemoveAllEvents();
+  CValue *propowner = GetParent();
 
-	if (bNegativeEvent)
-	{
-		if (m_type==KX_ACT_PROP_LEVEL)
-		{
-			CValue* newval = new CBoolValue(false);
-			CValue* oldprop = propowner->GetProperty(m_propname);
-			if (oldprop)
-			{
-				oldprop->SetValue(newval);
-			}
-			newval->Release();
-		}
-		return false;
-	}
+  if (bNegativeEvent) {
+    if (m_type == KX_ACT_PROP_LEVEL) {
+      CValue *newval = new CBoolValue(false);
+      CValue *oldprop = propowner->GetProperty(m_propname);
+      if (oldprop) {
+        oldprop->SetValue(newval);
+      }
+      newval->Release();
+    }
+    return false;
+  }
 
+  CParser parser;
+  parser.SetContext(propowner->AddRef());
 
-	CParser parser;
-	parser.SetContext( propowner->AddRef());
-	
-	CExpression* userexpr= nullptr;
-	
-	if (m_type==KX_ACT_PROP_TOGGLE)
-	{
-		/* don't use */
-		CValue* newval;
-		CValue* oldprop = propowner->GetProperty(m_propname);
-		if (oldprop)
-		{
-			newval = new CBoolValue((oldprop->GetNumber()==0.0) ? true:false);
-			oldprop->SetValue(newval);
-		} else
-		{	/* as not been assigned, evaluate as false, so assign true */
-			newval = new CBoolValue(true);
-			propowner->SetProperty(m_propname,newval);
-		}
-		newval->Release();
-	}
-	else if (m_type==KX_ACT_PROP_LEVEL)
-	{
-		CValue* newval = new CBoolValue(true);
-		CValue* oldprop = propowner->GetProperty(m_propname);
-		if (oldprop)
-		{
-			oldprop->SetValue(newval);
-		} else
-		{
-			propowner->SetProperty(m_propname,newval);
-		}
-		newval->Release();
-	}
-	else if ((userexpr = parser.ProcessText(m_exprtxt))) {
-		switch (m_type)
-		{
+  CExpression *userexpr = nullptr;
 
-		case KX_ACT_PROP_ASSIGN:
-			{
-				
-				CValue* newval = userexpr->Calculate();
-				CValue* oldprop = propowner->GetProperty(m_propname);
-				if (oldprop)
-				{
-					oldprop->SetValue(newval);
-				} else
-				{
-					propowner->SetProperty(m_propname,newval);
-				}
-				newval->Release();
-				break;
-			}
-		case KX_ACT_PROP_ADD:
-			{
-				CValue* oldprop = propowner->GetProperty(m_propname);
-				if (oldprop)
-				{
-					// int waarde = (int)oldprop->GetNumber();  /*unused*/
-					CExpression* expr = new COperator2Expr(VALUE_ADD_OPERATOR,new CConstExpr(oldprop->AddRef()),
-															userexpr->AddRef());
+  if (m_type == KX_ACT_PROP_TOGGLE) {
+    /* don't use */
+    CValue *newval;
+    CValue *oldprop = propowner->GetProperty(m_propname);
+    if (oldprop) {
+      newval = new CBoolValue((oldprop->GetNumber() == 0.0) ? true : false);
+      oldprop->SetValue(newval);
+    }
+    else { /* as not been assigned, evaluate as false, so assign true */
+      newval = new CBoolValue(true);
+      propowner->SetProperty(m_propname, newval);
+    }
+    newval->Release();
+  }
+  else if (m_type == KX_ACT_PROP_LEVEL) {
+    CValue *newval = new CBoolValue(true);
+    CValue *oldprop = propowner->GetProperty(m_propname);
+    if (oldprop) {
+      oldprop->SetValue(newval);
+    }
+    else {
+      propowner->SetProperty(m_propname, newval);
+    }
+    newval->Release();
+  }
+  else if ((userexpr = parser.ProcessText(m_exprtxt))) {
+    switch (m_type) {
 
-					CValue* newprop = expr->Calculate();
-					oldprop->SetValue(newprop);
-					newprop->Release();
-					expr->Release();
+      case KX_ACT_PROP_ASSIGN: {
 
-				}
+        CValue *newval = userexpr->Calculate();
+        CValue *oldprop = propowner->GetProperty(m_propname);
+        if (oldprop) {
+          oldprop->SetValue(newval);
+        }
+        else {
+          propowner->SetProperty(m_propname, newval);
+        }
+        newval->Release();
+        break;
+      }
+      case KX_ACT_PROP_ADD: {
+        CValue *oldprop = propowner->GetProperty(m_propname);
+        if (oldprop) {
+          // int waarde = (int)oldprop->GetNumber();  /*unused*/
+          CExpression *expr = new COperator2Expr(
+              VALUE_ADD_OPERATOR, new CConstExpr(oldprop->AddRef()), userexpr->AddRef());
 
-				break;
-			}
-		case KX_ACT_PROP_COPY:
-			{
-				if (m_sourceObj)
-				{
-					CValue* copyprop = m_sourceObj->GetProperty(m_exprtxt);
-					if (copyprop)
-					{
-						CValue *val = copyprop->GetReplica();
-						GetParent()->SetProperty(
-							 m_propname,
-							 val);
-						val->Release();
+          CValue *newprop = expr->Calculate();
+          oldprop->SetValue(newprop);
+          newprop->Release();
+          expr->Release();
+        }
 
-					}
-				}
-				break;
-			}
-		/* case KX_ACT_PROP_TOGGLE: */ /* accounted for above, no need for userexpr */
-		default:
-			{
+        break;
+      }
+      case KX_ACT_PROP_COPY: {
+        if (m_sourceObj) {
+          CValue *copyprop = m_sourceObj->GetProperty(m_exprtxt);
+          if (copyprop) {
+            CValue *val = copyprop->GetReplica();
+            GetParent()->SetProperty(m_propname, val);
+            val->Release();
+          }
+        }
+        break;
+      }
+      /* case KX_ACT_PROP_TOGGLE: */ /* accounted for above, no need for userexpr */
+      default: {
+      }
+    }
 
-			}
-		}
+    userexpr->Release();
+  }
 
-		userexpr->Release();
-	}
-	
-	return result;
+  return result;
 }
 
-	CValue* 
+CValue *
 
 SCA_PropertyActuator::
 
-GetReplica()
+    GetReplica()
 {
 
-	SCA_PropertyActuator* replica = new SCA_PropertyActuator(*this);
+  SCA_PropertyActuator *replica = new SCA_PropertyActuator(*this);
 
-	replica->ProcessReplica();
-	return replica;
-
+  replica->ProcessReplica();
+  return replica;
 };
 
 void SCA_PropertyActuator::ProcessReplica()
 {
-	// no need to check for self reference like in the constructor:
-	// the replica will always have a different parent
-	if (m_sourceObj)
-		m_sourceObj->RegisterActuator(this);
-	SCA_IActuator::ProcessReplica();
+  // no need to check for self reference like in the constructor:
+  // the replica will always have a different parent
+  if (m_sourceObj)
+    m_sourceObj->RegisterActuator(this);
+  SCA_IActuator::ProcessReplica();
 }
 
-bool SCA_PropertyActuator::UnlinkObject(SCA_IObject* clientobj)
+bool SCA_PropertyActuator::UnlinkObject(SCA_IObject *clientobj)
 {
-	if (clientobj == m_sourceObj)
-	{
-		// this object is being deleted, we cannot continue to track it.
-		m_sourceObj = nullptr;
-		return true;
-	}
-	return false;
+  if (clientobj == m_sourceObj) {
+    // this object is being deleted, we cannot continue to track it.
+    m_sourceObj = nullptr;
+    return true;
+  }
+  return false;
 }
 
-void SCA_PropertyActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
+void SCA_PropertyActuator::Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map)
 {
-	SCA_IObject *obj = obj_map[m_sourceObj];
-	if (obj) {
-		if (m_sourceObj)
-			m_sourceObj->UnregisterActuator(this);
-		m_sourceObj = obj;
-		m_sourceObj->RegisterActuator(this);
-	}
+  SCA_IObject *obj = obj_map[m_sourceObj];
+  if (obj) {
+    if (m_sourceObj)
+      m_sourceObj->UnregisterActuator(this);
+    m_sourceObj = obj;
+    m_sourceObj->RegisterActuator(this);
+  }
 }
 
 #ifdef WITH_PYTHON
@@ -241,36 +220,59 @@ void SCA_PropertyActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_ma
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_PropertyActuator::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_PropertyActuator",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+    PyVarObject_HEAD_INIT(nullptr, 0) "SCA_PropertyActuator",
+    sizeof(PyObjectPlus_Proxy),
+    0,
+    py_base_dealloc,
+    0,
+    0,
+    0,
+    0,
+    py_base_repr,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    Methods,
+    0,
+    0,
+    &SCA_IActuator::Type,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    py_base_new};
 
 PyMethodDef SCA_PropertyActuator::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_PropertyActuator::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW_CHECK("propName",0,MAX_PROP_NAME,false,SCA_PropertyActuator,m_propname,CheckProperty),
-	KX_PYATTRIBUTE_STRING_RW("value",0,100,false,SCA_PropertyActuator,m_exprtxt),
-	KX_PYATTRIBUTE_INT_RW("mode", KX_ACT_PROP_NODEF+1, KX_ACT_PROP_MAX-1, false, SCA_PropertyActuator, m_type), /* ATTR_TODO add constents to game logic dict */
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    KX_PYATTRIBUTE_STRING_RW_CHECK(
+        "propName", 0, MAX_PROP_NAME, false, SCA_PropertyActuator, m_propname, CheckProperty),
+    KX_PYATTRIBUTE_STRING_RW("value", 0, 100, false, SCA_PropertyActuator, m_exprtxt),
+    KX_PYATTRIBUTE_INT_RW("mode",
+                          KX_ACT_PROP_NODEF + 1,
+                          KX_ACT_PROP_MAX - 1,
+                          false,
+                          SCA_PropertyActuator,
+                          m_type), /* ATTR_TODO add constents to game logic dict */
+    KX_PYATTRIBUTE_NULL            // Sentinel
 };
 
 #endif

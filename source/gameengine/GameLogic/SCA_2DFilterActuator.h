@@ -37,40 +37,38 @@
 
 class RAS_2DFilterManager;
 
-class SCA_2DFilterActuator : public SCA_IActuator
-{
-	Py_Header
+class SCA_2DFilterActuator : public SCA_IActuator {
+  Py_Header
 
-private:
-	std::vector<std::string> m_propNames;
-	int m_type;
-	short m_disableMotionBlur;
-	float m_float_arg;
-	int   m_int_arg;
-	bool  m_mipmap;
-	std::string m_shaderText;
-	RAS_Rasterizer* m_rasterizer;
-	RAS_2DFilterManager *m_filterManager;
-	SCA_IScene* m_scene;
+      private : std::vector<std::string>
+                    m_propNames;
+  int m_type;
+  short m_disableMotionBlur;
+  float m_float_arg;
+  int m_int_arg;
+  bool m_mipmap;
+  std::string m_shaderText;
+  RAS_Rasterizer *m_rasterizer;
+  RAS_2DFilterManager *m_filterManager;
+  SCA_IScene *m_scene;
 
-public:
-	SCA_2DFilterActuator(
-	        class SCA_IObject* gameobj,
-	        int type,
-	        short flag,
-	        float float_arg,
-	        int int_arg,
-	        bool mipmap,
-	        RAS_Rasterizer* rasterizer,
-			RAS_2DFilterManager *filterManager,
-	        SCA_IScene* scene);
+ public:
+  SCA_2DFilterActuator(class SCA_IObject *gameobj,
+                       int type,
+                       short flag,
+                       float float_arg,
+                       int int_arg,
+                       bool mipmap,
+                       RAS_Rasterizer *rasterizer,
+                       RAS_2DFilterManager *filterManager,
+                       SCA_IScene *scene);
 
-	void	SetShaderText(const std::string& text);
-	virtual ~SCA_2DFilterActuator();
-	virtual bool Update();
+  void SetShaderText(const std::string &text);
+  virtual ~SCA_2DFilterActuator();
+  virtual bool Update();
 
-	void SetScene(SCA_IScene *scene, RAS_2DFilterManager *filterManager);
+  void SetScene(SCA_IScene *scene, RAS_2DFilterManager *filterManager);
 
-	virtual CValue* GetReplica();
+  virtual CValue *GetReplica();
 };
 #endif

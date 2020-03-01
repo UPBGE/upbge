@@ -38,63 +38,64 @@
 /**
  * Radar 'cone' sensor. Very similar to a near-sensor, but instead of a sphere, a cone is used.
  */
-class SCA_RadarSensor : public SCA_NearSensor
-{
+class SCA_RadarSensor : public SCA_NearSensor {
  protected:
-	Py_Header
-		
-	float		m_coneradius;
+  Py_Header
 
-	/**
-	 * Height of the cone.
-	 */
-	float		m_coneheight;
-	int				m_axis;
+      float m_coneradius;
 
-	/**
-	 * The previous position of the origin of the cone.
-	 */
-	float       m_cone_origin[3];
+  /**
+   * Height of the cone.
+   */
+  float m_coneheight;
+  int m_axis;
 
-	/**
-	 * The previous direction of the cone (origin to bottom plane).
-	 */
-	float       m_cone_target[3];
-	
-public:
+  /**
+   * The previous position of the origin of the cone.
+   */
+  float m_cone_origin[3];
 
-	SCA_RadarSensor(SCA_EventManager* eventmgr,
-		KX_GameObject* gameobj,
-			PHY_IPhysicsController* physCtrl,
-			double coneradius,
-			double coneheight,
-			int	axis,
-			double margin,
-			double resetmargin,
-			bool bFindMaterial,
-			const std::string& touchedpropname);
-	SCA_RadarSensor();
-	virtual ~SCA_RadarSensor();
-	virtual void SynchronizeTransform();
-	virtual CValue* GetReplica();
+  /**
+   * The previous direction of the cone (origin to bottom plane).
+   */
+  float m_cone_target[3];
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
-	enum RadarAxis {
-		KX_RADAR_AXIS_POS_X = 0,
-		KX_RADAR_AXIS_POS_Y,
-		KX_RADAR_AXIS_POS_Z,
-		KX_RADAR_AXIS_NEG_X,
-		KX_RADAR_AXIS_NEG_Y,
-		KX_RADAR_AXIS_NEG_Z
-	};
+ public:
+  SCA_RadarSensor(SCA_EventManager *eventmgr,
+                  KX_GameObject *gameobj,
+                  PHY_IPhysicsController *physCtrl,
+                  double coneradius,
+                  double coneheight,
+                  int axis,
+                  double margin,
+                  double resetmargin,
+                  bool bFindMaterial,
+                  const std::string &touchedpropname);
+  SCA_RadarSensor();
+  virtual ~SCA_RadarSensor();
+  virtual void SynchronizeTransform();
+  virtual CValue *GetReplica();
 
-	virtual sensortype GetSensorType() { return ST_RADAR; }
-	/* python */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  enum RadarAxis {
+    KX_RADAR_AXIS_POS_X = 0,
+    KX_RADAR_AXIS_POS_Y,
+    KX_RADAR_AXIS_POS_Z,
+    KX_RADAR_AXIS_NEG_X,
+    KX_RADAR_AXIS_NEG_Y,
+    KX_RADAR_AXIS_NEG_Z
+  };
+
+  virtual sensortype GetSensorType()
+  {
+    return ST_RADAR;
+  }
+  /* python */
 #ifdef WITH_PYTHON
-	static PyObject*	pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 
-#endif  /* __SCA_RadarSensor_H__ */
+#endif /* __SCA_RadarSensor_H__ */

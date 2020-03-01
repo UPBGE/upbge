@@ -34,24 +34,23 @@ class GHOST_ISystem;
 
 class RAS_ICanvas;
 
-class DEV_EventConsumer : public GHOST_IEventConsumer
-{
-private:
-	DEV_InputDevice *m_device;
-	RAS_ICanvas *m_canvas;
+class DEV_EventConsumer : public GHOST_IEventConsumer {
+ private:
+  DEV_InputDevice *m_device;
+  RAS_ICanvas *m_canvas;
 
-	void HandleWindowEvent(GHOST_TEventType type);
-	void HandleKeyEvent(GHOST_TEventDataPtr data, bool down);
-	void HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow *window);
-	void HandleWheelEvent(GHOST_TEventDataPtr data);
-	void HandleButtonEvent(GHOST_TEventDataPtr data, bool down);
+  void HandleWindowEvent(GHOST_TEventType type);
+  void HandleKeyEvent(GHOST_TEventDataPtr data, bool down);
+  void HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow *window);
+  void HandleWheelEvent(GHOST_TEventDataPtr data);
+  void HandleButtonEvent(GHOST_TEventDataPtr data, bool down);
 
-public:
-	DEV_EventConsumer(GHOST_ISystem *system, DEV_InputDevice *device, RAS_ICanvas *canvas);
-	virtual ~DEV_EventConsumer();
+ public:
+  DEV_EventConsumer(GHOST_ISystem *system, DEV_InputDevice *device, RAS_ICanvas *canvas);
+  virtual ~DEV_EventConsumer();
 
-	/// Function called by GHOST to process all events.
-	virtual bool processEvent(GHOST_IEvent *event);
+  /// Function called by GHOST to process all events.
+  virtual bool processEvent(GHOST_IEvent *event);
 };
 
 #endif  // __DEV_EVENTCONSUMER_H__

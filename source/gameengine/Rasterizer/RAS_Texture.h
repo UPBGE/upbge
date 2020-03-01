@@ -31,50 +31,49 @@
 struct Image;
 struct GPUTexture;
 
-class RAS_Texture
-{
-protected:
-	int m_bindCode;
-	std::string m_name;
+class RAS_Texture {
+ protected:
+  int m_bindCode;
+  std::string m_name;
 
-public:
-	RAS_Texture();
-	virtual ~RAS_Texture();
+ public:
+  RAS_Texture();
+  virtual ~RAS_Texture();
 
-	virtual bool Ok() const = 0;
-	virtual bool IsCubeMap() const = 0;
+  virtual bool Ok() const = 0;
+  virtual bool IsCubeMap() const = 0;
 
-	virtual Image *GetImage() const = 0;
-	virtual GPUTexture *GetGPUTexture() const = 0;
-	std::string& GetName();
+  virtual Image *GetImage() const = 0;
+  virtual GPUTexture *GetGPUTexture() const = 0;
+  std::string &GetName();
 
-	virtual unsigned int GetTextureType() = 0;
+  virtual unsigned int GetTextureType() = 0;
 
-	/// Return GL_TEXTURE_2D.
-	static int GetCubeMapTextureType();
-	/// Return GL_TEXTURE_CUBE_MAP.
-	static int GetTexture2DType();
-	/// Return all the OpenGL cube map face target, e.g GL_TEXTURE_CUBE_MAP_POSITIVE_Z.
-	static const std::array<int, 6>& GetCubeMapTargets();
+  /// Return GL_TEXTURE_2D.
+  static int GetCubeMapTextureType();
+  /// Return GL_TEXTURE_CUBE_MAP.
+  static int GetTexture2DType();
+  /// Return all the OpenGL cube map face target, e.g GL_TEXTURE_CUBE_MAP_POSITIVE_Z.
+  static const std::array<int, 6> &GetCubeMapTargets();
 
-	enum {MaxUnits = 32};
+  enum { MaxUnits = 32 };
 
-	virtual void CheckValidTexture() = 0;
-	virtual void ActivateTexture(int unit) = 0;
-	virtual void DisableTexture() = 0;
+  virtual void CheckValidTexture() = 0;
+  virtual void ActivateTexture(int unit) = 0;
+  virtual void DisableTexture() = 0;
 
-	/** Set the current active OpenGL texture to the first texture
-	 * and bind a null texture in this slot.
-	 * This function must be used very carfully, normally only after
-	 * that the user played with glActiveTexture and to make sure that
-	 * it will not break the render.
-	 * Only the first slot is affected all texture in greater slot are
-	 * not affected but just unused as default.
-	 */
-	static void DesactiveTextures();
+  /** Set the current active OpenGL texture to the first texture
+   * and bind a null texture in this slot.
+   * This function must be used very carfully, normally only after
+   * that the user played with glActiveTexture and to make sure that
+   * it will not break the render.
+   * Only the first slot is affected all texture in greater slot are
+   * not affected but just unused as default.
+   */
+  static void DesactiveTextures();
 
-	int GetBindCode() const;
-	void SetBindCode(int bindcode);
+  int GetBindCode() const;
+  void SetBindCode(int bindcode);
 };
 
-#endif // __RAS_TEXTURE_H__
+#endif  // __RAS_TEXTURE_H__

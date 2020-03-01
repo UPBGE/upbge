@@ -21,8 +21,8 @@
  */
 
 /** \file KX_2DFilter.h
-*  \ingroup ketsji
-*/
+ *  \ingroup ketsji
+ */
 
 #ifndef __KX_2DFILTER_FRAMEBUFFER_H__
 #define __KX_2DFILTER_FRAMEBUFFER_H__
@@ -30,21 +30,23 @@
 #include "RAS_2DFilterFrameBuffer.h"
 #include "EXP_Value.h"
 
-class KX_2DFilterFrameBuffer : public CValue, public RAS_2DFilterFrameBuffer
-{
-	Py_Header
-public:
-	KX_2DFilterFrameBuffer(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height);
-	virtual ~KX_2DFilterFrameBuffer();
+class KX_2DFilterFrameBuffer : public CValue, public RAS_2DFilterFrameBuffer {
+  Py_Header public : KX_2DFilterFrameBuffer(unsigned short colorSlots,
+                                            Flag flag,
+                                            unsigned int width,
+                                            unsigned int height);
+  virtual ~KX_2DFilterFrameBuffer();
 
-	virtual std::string GetName();
+  virtual std::string GetName();
 
 #ifdef WITH_PYTHON
 
-	static PyObject *pyattr_get_width(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_height(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_colorBindCodes(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_depthBindCode(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_width(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_height(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_colorBindCodes(PyObjectPlus *self_v,
+                                             const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_depthBindCode(PyObjectPlus *self_v,
+                                            const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif
 };

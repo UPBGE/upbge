@@ -45,29 +45,29 @@ conflicts with KX_NetworkMessageScene::SendMessage */
 
 class SCA_IObject;
 
-class KX_NetworkMessageScene
-{
-private:
-	KX_NetworkMessageManager *m_messageManager;
+class KX_NetworkMessageScene {
+ private:
+  KX_NetworkMessageManager *m_messageManager;
 
-public:
-	KX_NetworkMessageScene(KX_NetworkMessageManager *messageManager);
-	virtual ~KX_NetworkMessageScene();
+ public:
+  KX_NetworkMessageScene(KX_NetworkMessageManager *messageManager);
+  virtual ~KX_NetworkMessageScene();
 
-	/** Send A message to an object(s) name.
-	 * \param to The object(s) name, in case of duplicated object all objects
-	 * with the same name will receive the message.
-	 * \param from The sender game object.
-	 * \param subject The message subject, used as filter for receiver object(s).
-	 * \param message The body of the message.
-	 */
-	void SendMessage(std::string to, SCA_IObject *from, std::string subject, std::string body);
+  /** Send A message to an object(s) name.
+   * \param to The object(s) name, in case of duplicated object all objects
+   * with the same name will receive the message.
+   * \param from The sender game object.
+   * \param subject The message subject, used as filter for receiver object(s).
+   * \param message The body of the message.
+   */
+  void SendMessage(std::string to, SCA_IObject *from, std::string subject, std::string body);
 
-	/** Get all messages for a given receiver object name and message subject.
-	 * \param to The object(s) name.
-	 * \param subject The message subject/filter.
-	 */
-	const std::vector<KX_NetworkMessageManager::Message> FindMessages(std::string to, std::string subject);
+  /** Get all messages for a given receiver object name and message subject.
+   * \param to The object(s) name.
+   * \param subject The message subject/filter.
+   */
+  const std::vector<KX_NetworkMessageManager::Message> FindMessages(std::string to,
+                                                                    std::string subject);
 };
 
-#endif // __KX_NETWORKMESSAGESCENE_H__
+#endif  // __KX_NETWORKMESSAGESCENE_H__

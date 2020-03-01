@@ -38,27 +38,28 @@
 class KX_IScalarInterpolator;
 
 class KX_ScalarInterpolator : public KX_IInterpolator {
-public:
-	KX_ScalarInterpolator(MT_Scalar* target, 
-						  KX_IScalarInterpolator *ipo) :
-		m_target(target),
-		m_ipo(ipo)
-		{}
-	
-	virtual ~KX_ScalarInterpolator() {}
-	virtual void Execute(float currentTime) const;
-	void		SetNewTarget(MT_Scalar* newtarget)
-	{
-		m_target=newtarget;
-	}
-	MT_Scalar*	GetTarget()
-	{
-		return m_target;
-	}
-private:
-	MT_Scalar*               m_target;
-	KX_IScalarInterpolator *m_ipo;
+ public:
+  KX_ScalarInterpolator(MT_Scalar *target, KX_IScalarInterpolator *ipo)
+      : m_target(target), m_ipo(ipo)
+  {
+  }
+
+  virtual ~KX_ScalarInterpolator()
+  {
+  }
+  virtual void Execute(float currentTime) const;
+  void SetNewTarget(MT_Scalar *newtarget)
+  {
+    m_target = newtarget;
+  }
+  MT_Scalar *GetTarget()
+  {
+    return m_target;
+  }
+
+ private:
+  MT_Scalar *m_target;
+  KX_IScalarInterpolator *m_ipo;
 };
 
 #endif
-

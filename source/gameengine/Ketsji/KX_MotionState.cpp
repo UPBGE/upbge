@@ -32,8 +32,7 @@
 #include "KX_MotionState.h"
 #include "SG_Node.h"
 
-KX_MotionState::KX_MotionState(SG_Node *node)
-	:m_node(node)
+KX_MotionState::KX_MotionState(SG_Node *node) : m_node(node)
 {
 }
 
@@ -43,39 +42,37 @@ KX_MotionState::~KX_MotionState()
 
 MT_Vector3 KX_MotionState::GetWorldPosition() const
 {
-	return m_node->GetWorldPosition();
+  return m_node->GetWorldPosition();
 }
 
 MT_Vector3 KX_MotionState::GetWorldScaling() const
 {
-	return m_node->GetWorldScaling();
+  return m_node->GetWorldScaling();
 }
 
 MT_Matrix3x3 KX_MotionState::GetWorldOrientation() const
 {
-	return m_node->GetWorldOrientation();
+  return m_node->GetWorldOrientation();
 }
 
-void KX_MotionState::SetWorldOrientation(const MT_Matrix3x3& ori)
+void KX_MotionState::SetWorldOrientation(const MT_Matrix3x3 &ori)
 {
-	m_node->SetLocalOrientation(ori);
+  m_node->SetLocalOrientation(ori);
 }
 
-void KX_MotionState::SetWorldPosition(const MT_Vector3& pos)
+void KX_MotionState::SetWorldPosition(const MT_Vector3 &pos)
 {
-	m_node->SetLocalPosition(pos);
+  m_node->SetLocalPosition(pos);
 }
 
-void KX_MotionState::SetWorldOrientation(const MT_Quaternion& quat)
+void KX_MotionState::SetWorldOrientation(const MT_Quaternion &quat)
 {
-	m_node->SetLocalOrientation(MT_Matrix3x3(quat));
+  m_node->SetLocalOrientation(MT_Matrix3x3(quat));
 }
 
 void KX_MotionState::CalculateWorldTransformations()
 {
-	//Not needed, will be done in KX_Scene::UpdateParents() after the physics simulation
-	//bool parentUpdated = false;
-	//m_node->ComputeWorldTransforms(nullptr, parentUpdated);
+  // Not needed, will be done in KX_Scene::UpdateParents() after the physics simulation
+  // bool parentUpdated = false;
+  // m_node->ComputeWorldTransforms(nullptr, parentUpdated);
 }
-
-

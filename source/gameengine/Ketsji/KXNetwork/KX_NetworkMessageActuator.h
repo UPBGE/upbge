@@ -36,32 +36,29 @@
 #include <string>
 #include "SCA_IActuator.h"
 
-class KX_NetworkMessageActuator : public SCA_IActuator
-{
-	Py_Header
-	bool m_lastEvent;
-	class KX_NetworkMessageScene *m_networkscene;  // needed for replication
-	std::string m_toPropName;
-	std::string m_subject;
-	bool m_bPropBody;
-	std::string m_body;
+class KX_NetworkMessageActuator : public SCA_IActuator {
+  Py_Header bool m_lastEvent;
+  class KX_NetworkMessageScene *m_networkscene;  // needed for replication
+  std::string m_toPropName;
+  std::string m_subject;
+  bool m_bPropBody;
+  std::string m_body;
 
-public:
-	KX_NetworkMessageActuator(
-	    SCA_IObject *gameobj,
-	    KX_NetworkMessageScene *networkscene,
-	    const std::string &toPropName,
-	    const std::string &subject,
-	    int bodyType,
-	    const std::string &body);
-	virtual ~KX_NetworkMessageActuator();
+ public:
+  KX_NetworkMessageActuator(SCA_IObject *gameobj,
+                            KX_NetworkMessageScene *networkscene,
+                            const std::string &toPropName,
+                            const std::string &subject,
+                            int bodyType,
+                            const std::string &body);
+  virtual ~KX_NetworkMessageActuator();
 
-	virtual bool Update();
-	virtual CValue *GetReplica();
-	virtual void Replace_NetworkScene(KX_NetworkMessageScene *val)
-	{
-		m_networkscene = val;
-	};
+  virtual bool Update();
+  virtual CValue *GetReplica();
+  virtual void Replace_NetworkScene(KX_NetworkMessageScene *val)
+  {
+    m_networkscene = val;
+  };
 };
 
-#endif  /* __KX_NETWORKMESSAGEACTUATOR_H__ */
+#endif /* __KX_NETWORKMESSAGEACTUATOR_H__ */

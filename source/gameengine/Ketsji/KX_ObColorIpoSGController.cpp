@@ -29,7 +29,6 @@
  *  \ingroup ketsji
  */
 
-
 #include "KX_ObColorIpoSGController.h"
 #include "KX_ScalarInterpolator.h"
 #include "KX_GameObject.h"
@@ -40,71 +39,65 @@ typedef unsigned __int64 uint_ptr;
 typedef unsigned long uint_ptr;
 #endif
 
-
 bool KX_ObColorIpoSGController::Update(double currentTime)
 {
-	if (m_modified)
-	{
-		SG_Node* ob = (SG_Node*)m_node;
-		KX_GameObject* kxgameobj= (KX_GameObject*) ob->GetSGClientObject();
+  if (m_modified) {
+    SG_Node *ob = (SG_Node *)m_node;
+    KX_GameObject *kxgameobj = (KX_GameObject *)ob->GetSGClientObject();
 
-		m_rgba = kxgameobj->GetObjectColor();
+    m_rgba = kxgameobj->GetObjectColor();
 
-		T_InterpolatorList::iterator i;
-		for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
-			(*i)->Execute(m_ipotime);
-		}
-		
+    T_InterpolatorList::iterator i;
+    for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
+      (*i)->Execute(m_ipotime);
+    }
 
-		kxgameobj->SetObjectColor(m_rgba);
-		
+    kxgameobj->SetObjectColor(m_rgba);
 
-		m_modified=false;
-	}
-	return false;
+    m_modified = false;
+  }
+  return false;
 }
 
-
-void KX_ObColorIpoSGController::AddInterpolator(KX_IInterpolator* interp)
+void KX_ObColorIpoSGController::AddInterpolator(KX_IInterpolator *interp)
 {
-	this->m_interpolators.push_back(interp);
+  this->m_interpolators.push_back(interp);
 }
 
-SG_Controller*	KX_ObColorIpoSGController::GetReplica(class SG_Node* destnode)
+SG_Controller *KX_ObColorIpoSGController::GetReplica(class SG_Node *destnode)
 {
-	KX_ObColorIpoSGController* iporeplica = new KX_ObColorIpoSGController(*this);
-	// clear object that ipo acts on
-	iporeplica->ClearNode();
+  KX_ObColorIpoSGController *iporeplica = new KX_ObColorIpoSGController(*this);
+  // clear object that ipo acts on
+  iporeplica->ClearNode();
 
-	// dirty hack, ask Gino for a better solution in the ipo implementation
-	// hacken en zagen, in what we call datahiding, not written for replication :(
+  // dirty hack, ask Gino for a better solution in the ipo implementation
+  // hacken en zagen, in what we call datahiding, not written for replication :(
 
-	T_InterpolatorList oldlist = m_interpolators;
-	iporeplica->m_interpolators.clear();
+  T_InterpolatorList oldlist = m_interpolators;
+  iporeplica->m_interpolators.clear();
 
-	T_InterpolatorList::iterator i;
-	for (i = oldlist.begin(); !(i == oldlist.end()); ++i) {
-		KX_ScalarInterpolator* copyipo = new KX_ScalarInterpolator(*((KX_ScalarInterpolator*)*i));
-		iporeplica->AddInterpolator(copyipo);
+  T_InterpolatorList::iterator i;
+  for (i = oldlist.begin(); !(i == oldlist.end()); ++i) {
+    KX_ScalarInterpolator *copyipo = new KX_ScalarInterpolator(*((KX_ScalarInterpolator *)*i));
+    iporeplica->AddInterpolator(copyipo);
 
-		MT_Scalar* scaal = ((KX_ScalarInterpolator*)*i)->GetTarget();
-		uint_ptr orgbase = (uint_ptr)this;
-		uint_ptr orgloc = (uint_ptr)scaal;
-		uint_ptr offset = orgloc-orgbase;
-		uint_ptr newaddrbase = (uint_ptr)iporeplica + offset;
-		MT_Scalar* blaptr = (MT_Scalar*) newaddrbase;
-		copyipo->SetNewTarget((MT_Scalar*)blaptr);
-	}
-	
-	return iporeplica;
+    MT_Scalar *scaal = ((KX_ScalarInterpolator *)*i)->GetTarget();
+    uint_ptr orgbase = (uint_ptr)this;
+    uint_ptr orgloc = (uint_ptr)scaal;
+    uint_ptr offset = orgloc - orgbase;
+    uint_ptr newaddrbase = (uint_ptr)iporeplica + offset;
+    MT_Scalar *blaptr = (MT_Scalar *)newaddrbase;
+    copyipo->SetNewTarget((MT_Scalar *)blaptr);
+  }
+
+  return iporeplica;
 }
 
 KX_ObColorIpoSGController::~KX_ObColorIpoSGController()
 {
 
-	T_InterpolatorList::iterator i;
-	for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
-		delete (*i);
-	}
-	
+  T_InterpolatorList::iterator i;
+  for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
+    delete (*i);
+  }
 }

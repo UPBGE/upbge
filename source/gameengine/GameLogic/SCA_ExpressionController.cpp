@@ -32,13 +32,12 @@
  *  \ingroup gamelogic
  */
 
-
 #include "SCA_ExpressionController.h"
 #include "SCA_ISensor.h"
 #include "SCA_LogicManager.h"
 #include "EXP_BoolValue.h"
 #include "EXP_InputParser.h"
-#include "MT_Transform.h" // for fuzzyZero
+#include "MT_Transform.h"  // for fuzzyZero
 
 #include "CM_Message.h"
 
@@ -46,113 +45,95 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_ExpressionController::SCA_ExpressionController(SCA_IObject* gameobj,
-												   const std::string& exprtext)
-	:SCA_IController(gameobj),
-	m_exprText(exprtext),
-	m_exprCache(nullptr)
+SCA_ExpressionController::SCA_ExpressionController(SCA_IObject *gameobj,
+                                                   const std::string &exprtext)
+    : SCA_IController(gameobj), m_exprText(exprtext), m_exprCache(nullptr)
 {
 }
-
-
 
 SCA_ExpressionController::~SCA_ExpressionController()
 {
-	if (m_exprCache)
-		m_exprCache->Release();
+  if (m_exprCache)
+    m_exprCache->Release();
 }
 
-
-
-CValue* SCA_ExpressionController::GetReplica()
+CValue *SCA_ExpressionController::GetReplica()
 {
-	SCA_ExpressionController* replica = new SCA_ExpressionController(*this);
-	replica->m_exprText = m_exprText;
-	replica->m_exprCache = nullptr;
-	// this will copy properties and so on...
-	replica->ProcessReplica();
+  SCA_ExpressionController *replica = new SCA_ExpressionController(*this);
+  replica->m_exprText = m_exprText;
+  replica->m_exprCache = nullptr;
+  // this will copy properties and so on...
+  replica->ProcessReplica();
 
-	return replica;
+  return replica;
 }
-
 
 // Forced deletion of precalculated expression to break reference loop
 // Use this function when you know that you won't use the sensor anymore
 void SCA_ExpressionController::Delete()
 {
-	if (m_exprCache)
-	{
-		m_exprCache->Release();
-		m_exprCache = nullptr;
-	}
-	Release();
+  if (m_exprCache) {
+    m_exprCache->Release();
+    m_exprCache = nullptr;
+  }
+  Release();
 }
 
-
-void SCA_ExpressionController::Trigger(SCA_LogicManager* logicmgr)
+void SCA_ExpressionController::Trigger(SCA_LogicManager *logicmgr)
 {
 
-	bool expressionresult = false;
-	if (!m_exprCache)
-	{
-		CParser parser;
-		parser.SetContext(this->AddRef());
-		m_exprCache = parser.ProcessText(m_exprText);
-	}
-	if (m_exprCache)
-	{
-		CValue* value = m_exprCache->Calculate();
-		if (value)
-		{
-			if (value->IsError())
-			{
-				CM_LogicBrickError(this, value->GetText());
-			} else
-			{
-				float num = (float)value->GetNumber();
-				expressionresult = !MT_fuzzyZero(num);
-			}
-			value->Release();
+  bool expressionresult = false;
+  if (!m_exprCache) {
+    CParser parser;
+    parser.SetContext(this->AddRef());
+    m_exprCache = parser.ProcessText(m_exprText);
+  }
+  if (m_exprCache) {
+    CValue *value = m_exprCache->Calculate();
+    if (value) {
+      if (value->IsError()) {
+        CM_LogicBrickError(this, value->GetText());
+      }
+      else {
+        float num = (float)value->GetNumber();
+        expressionresult = !MT_fuzzyZero(num);
+      }
+      value->Release();
+    }
+  }
 
-		}
-	}
-
-	for (std::vector<SCA_IActuator*>::const_iterator i=m_linkedactuators.begin();
-	!(i==m_linkedactuators.end());i++)
-	{
-		SCA_IActuator* actua = *i;
-		logicmgr->AddActiveActuator(actua,expressionresult);
-	}
+  for (std::vector<SCA_IActuator *>::const_iterator i = m_linkedactuators.begin();
+       !(i == m_linkedactuators.end());
+       i++) {
+    SCA_IActuator *actua = *i;
+    logicmgr->AddActiveActuator(actua, expressionresult);
+  }
 }
 
-
-
-CValue* SCA_ExpressionController::FindIdentifier(const std::string& identifiername)
+CValue *SCA_ExpressionController::FindIdentifier(const std::string &identifiername)
 {
 
-	CValue* identifierval = nullptr;
+  CValue *identifierval = nullptr;
 
-	for (std::vector<SCA_ISensor*>::const_iterator is=m_linkedsensors.begin();
-	!(is==m_linkedsensors.end());is++)
-	{
-		SCA_ISensor* sensor = *is;
-		if (sensor->GetName() == identifiername)
-		{
-			identifierval = new CBoolValue(sensor->GetState());
-			//identifierval = sensor->AddRef();
-			break;
-		}
+  for (std::vector<SCA_ISensor *>::const_iterator is = m_linkedsensors.begin();
+       !(is == m_linkedsensors.end());
+       is++) {
+    SCA_ISensor *sensor = *is;
+    if (sensor->GetName() == identifiername) {
+      identifierval = new CBoolValue(sensor->GetState());
+      // identifierval = sensor->AddRef();
+      break;
+    }
 
-		//if (!sensor->IsPositiveTrigger())
-		//{
-		//	sensorresult = false;
-		//	break;
-		//}
-	}
+    // if (!sensor->IsPositiveTrigger())
+    //{
+    //	sensorresult = false;
+    //	break;
+    //}
+  }
 
-	if (identifierval)
-		return identifierval;
+  if (identifierval)
+    return identifierval;
 
-	return  GetParent()->FindIdentifier(identifiername);
-
+  return GetParent()->FindIdentifier(identifiername);
 }

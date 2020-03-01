@@ -54,63 +54,63 @@
 
 class SG_Node;
 
-class SG_ParentRelation
-{
-public:
-	/**
-	 * Update the childs local and global coordinates
-	 * based upon the parents global coordinates.
-	 * You must also handle the case when this node has no
-	 * parent (parent == nullptr). Usually you should just
-	 * copy the local coordinates of the child to the
-	 * world coordinates.
-	 */
-	virtual bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated) = 0;
+class SG_ParentRelation {
+ public:
+  /**
+   * Update the childs local and global coordinates
+   * based upon the parents global coordinates.
+   * You must also handle the case when this node has no
+   * parent (parent == nullptr). Usually you should just
+   * copy the local coordinates of the child to the
+   * world coordinates.
+   */
+  virtual bool UpdateChildCoordinates(SG_Node *child,
+                                      const SG_Node *parent,
+                                      bool &parentUpdated) = 0;
 
-	virtual ~SG_ParentRelation()
-	{
-	}
+  virtual ~SG_ParentRelation()
+  {
+  }
 
-	/**
-	 * You must provide a way of duplicating an
-	 * instance of an SG_ParentRelation. This should
-	 * return a pointer to a new duplicate allocated
-	 * on the heap. Responsibility for deleting the
-	 * duplicate resides with the caller of this method.
-	 */
-	virtual SG_ParentRelation *NewCopy() = 0;
+  /**
+   * You must provide a way of duplicating an
+   * instance of an SG_ParentRelation. This should
+   * return a pointer to a new duplicate allocated
+   * on the heap. Responsibility for deleting the
+   * duplicate resides with the caller of this method.
+   */
+  virtual SG_ParentRelation *NewCopy() = 0;
 
-	/**
-	 * Vertex Parent Relation are special: they don't propagate rotation
-	 */
-	virtual bool IsVertexRelation()
-	{
-		return false;
-	}
+  /**
+   * Vertex Parent Relation are special: they don't propagate rotation
+   */
+  virtual bool IsVertexRelation()
+  {
+    return false;
+  }
 
-	/**
-	 * Need this to see if we are able to adjust time-offset from the python api
-	 */
-	virtual bool IsSlowRelation()
-	{
-		return false;
-	}
+  /**
+   * Need this to see if we are able to adjust time-offset from the python api
+   */
+  virtual bool IsSlowRelation()
+  {
+    return false;
+  }
 
-protected:
-	/**
-	 * Protected constructors
-	 * this class is not meant to be instantiated.
-	 */
+ protected:
+  /**
+   * Protected constructors
+   * this class is not meant to be instantiated.
+   */
 
-	SG_ParentRelation()
-	{
-	}
+  SG_ParentRelation()
+  {
+  }
 
-	/**
-	 * Copy construction should not be implemented
-	 */
-	SG_ParentRelation(const SG_ParentRelation &);
+  /**
+   * Copy construction should not be implemented
+   */
+  SG_ParentRelation(const SG_ParentRelation &);
 };
 
 #endif  // __SG_PARENTRELATION_H__
-

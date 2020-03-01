@@ -21,26 +21,25 @@
 
 #include "EXP_Value.h"
 
-class CExpression : public CM_RefCount<CExpression>
-{
-public:
-	enum {
-		COPERATOR1EXPRESSIONID = 1,
-		COPERATOR2EXPRESSIONID = 2,
-		CCONSTEXPRESSIONID = 3,
-		CIFEXPRESSIONID = 4,
-		COPERATORVAREXPRESSIONID = 5,
-		CIDENTIFIEREXPRESSIONID = 6
-	};
+class CExpression : public CM_RefCount<CExpression> {
+ public:
+  enum {
+    COPERATOR1EXPRESSIONID = 1,
+    COPERATOR2EXPRESSIONID = 2,
+    CCONSTEXPRESSIONID = 3,
+    CIFEXPRESSIONID = 4,
+    COPERATORVAREXPRESSIONID = 5,
+    CIDENTIFIEREXPRESSIONID = 6
+  };
 
-protected:
-	virtual ~CExpression() = 0;
+ protected:
+  virtual ~CExpression() = 0;
 
-public:
-	CExpression();
+ public:
+  CExpression();
 
-	virtual CValue *Calculate() = 0;
-	virtual unsigned char GetExpressionID() = 0;
+  virtual CValue *Calculate() = 0;
+  virtual unsigned char GetExpressionID() = 0;
 };
 
 #endif  // __EXP_EXPRESSION_H__

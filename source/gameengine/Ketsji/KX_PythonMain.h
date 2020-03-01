@@ -37,7 +37,7 @@
 struct Scene;
 struct Main;
 
-std::string KX_GetPythonMain(Scene* scene);
-std::string KX_GetPythonCode(Main *main, const std::string& python_main);
+std::string KX_GetPythonMain(Scene *scene);
+std::string KX_GetPythonCode(Main *main, const std::string &python_main);
 
-#endif  /* __KX_PYTHON_MAIN__ */
+#endif /* __KX_PYTHON_MAIN__ */

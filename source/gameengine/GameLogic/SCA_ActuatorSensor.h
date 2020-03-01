@@ -35,36 +35,36 @@
 #include "SCA_ISensor.h"
 #include "SCA_IActuator.h"
 
-class SCA_ActuatorSensor : public SCA_ISensor
-{
-	Py_Header
-	std::string		m_checkactname;
-	bool			m_lastresult;
-	bool			m_midresult;
+class SCA_ActuatorSensor : public SCA_ISensor {
+  Py_Header std::string m_checkactname;
+  bool m_lastresult;
+  bool m_midresult;
+
  protected:
-	SCA_IActuator*	m_actuator;
-public:
-	SCA_ActuatorSensor(class SCA_EventManager* eventmgr,
-					  SCA_IObject* gameobj,
-					  const std::string& actname);
-	
-	virtual ~SCA_ActuatorSensor();
-	virtual CValue* GetReplica();
-	virtual void Init();
-	virtual bool Evaluate();
-	virtual bool	IsPositiveTrigger();
-	virtual void	ReParent(SCA_IObject* parent);
-	void Update();
+  SCA_IActuator *m_actuator;
+
+ public:
+  SCA_ActuatorSensor(class SCA_EventManager *eventmgr,
+                     SCA_IObject *gameobj,
+                     const std::string &actname);
+
+  virtual ~SCA_ActuatorSensor();
+  virtual CValue *GetReplica();
+  virtual void Init();
+  virtual bool Evaluate();
+  virtual bool IsPositiveTrigger();
+  virtual void ReParent(SCA_IObject *parent);
+  void Update();
 
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	static int CheckActuator(PyObjectPlus *self, const PyAttributeDef*);
-	
-#endif  /* WITH_PYTHON */
+  static int CheckActuator(PyObjectPlus *self, const PyAttributeDef *);
+
+#endif /* WITH_PYTHON */
 };
 
-#endif  /* __SCA_ACTUATORSENSOR_H__ */
+#endif /* __SCA_ACTUATORSENSOR_H__ */

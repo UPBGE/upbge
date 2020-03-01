@@ -38,59 +38,60 @@
 /**
  * This class is the conversion of the Pose channel constraint.
  * It makes a link between the pose constraint and the KX scene.
- * The main purpose is to give access to the constraint target 
- * to link it to a game object. 
+ * The main purpose is to give access to the constraint target
+ * to link it to a game object.
  * It also allows to activate/deactivate constraints during the game.
  * Later it will also be possible to create constraint on the fly
  */
 
-class	BL_ArmatureActuator : public SCA_IActuator
-{
-	Py_Header
-public:
-	BL_ArmatureActuator(SCA_IObject* gameobj,
-	                    int type,
-	                    const char *posechannel,
-	                    const char *constraintname,
-	                    KX_GameObject* targetobj,
-	                    KX_GameObject* subtargetobj,
-	                    float weight,
-	                    float influence);
+class BL_ArmatureActuator : public SCA_IActuator {
+  Py_Header public : BL_ArmatureActuator(SCA_IObject *gameobj,
+                                         int type,
+                                         const char *posechannel,
+                                         const char *constraintname,
+                                         KX_GameObject *targetobj,
+                                         KX_GameObject *subtargetobj,
+                                         float weight,
+                                         float influence);
 
-	virtual ~BL_ArmatureActuator();
+  virtual ~BL_ArmatureActuator();
 
-	virtual CValue* GetReplica() {
-		BL_ArmatureActuator* replica = new BL_ArmatureActuator(*this);
-		replica->ProcessReplica();
-		return replica;
-	};
-	virtual void ProcessReplica();
-	virtual bool UnlinkObject(SCA_IObject* clientobj);
-	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
-	virtual bool Update(double curtime);
-	virtual void ReParent(SCA_IObject* parent);
-	
+  virtual CValue *GetReplica()
+  {
+    BL_ArmatureActuator *replica = new BL_ArmatureActuator(*this);
+    replica->ProcessReplica();
+    return replica;
+  };
+  virtual void ProcessReplica();
+  virtual bool UnlinkObject(SCA_IObject *clientobj);
+  virtual void Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map);
+  virtual bool Update(double curtime);
+  virtual void ReParent(SCA_IObject *parent);
+
 #ifdef WITH_PYTHON
 
-	/* These are used to get and set m_target */
-	static PyObject *pyattr_get_constraint(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  /* These are used to get and set m_target */
+  static PyObject *pyattr_get_constraint(PyObjectPlus *self,
+                                         const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_object(PyObjectPlus *self,
+                               const struct KX_PYATTRIBUTE_DEF *attrdef,
+                               PyObject *value);
 
-#endif  /* WITH_PYTHON */
+#endif /* WITH_PYTHON */
 
-private:
-	// identify the constraint that this actuator controls
-	void FindConstraint();
+ private:
+  // identify the constraint that this actuator controls
+  void FindConstraint();
 
-	BL_ArmatureConstraint*	m_constraint;
-	KX_GameObject*	m_gametarget;
-	KX_GameObject*	m_gamesubtarget;
-	std::string		m_posechannel;
-	std::string		m_constraintname;
-	float			m_weight;
-	float			m_influence;
-	int				m_type;
+  BL_ArmatureConstraint *m_constraint;
+  KX_GameObject *m_gametarget;
+  KX_GameObject *m_gamesubtarget;
+  std::string m_posechannel;
+  std::string m_constraintname;
+  float m_weight;
+  float m_influence;
+  int m_type;
 };
 
-#endif  /* __BL_ARMATUREACTUATOR_H__ */
+#endif /* __BL_ARMATUREACTUATOR_H__ */

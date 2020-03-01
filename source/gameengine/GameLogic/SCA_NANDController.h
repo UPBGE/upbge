@@ -34,19 +34,17 @@
 
 #include "SCA_IController.h"
 
-class SCA_NANDController : public SCA_IController
-{
-	Py_Header
-	//virtual void Trigger(class SCA_LogicManager* logicmgr);
-public:
-	SCA_NANDController(SCA_IObject* gameobj);
-	virtual ~SCA_NANDController();
-	virtual CValue* GetReplica();
-	virtual void Trigger(SCA_LogicManager* logicmgr);
+class SCA_NANDController : public SCA_IController {
+  Py_Header
+      // virtual void Trigger(class SCA_LogicManager* logicmgr);
+      public : SCA_NANDController(SCA_IObject *gameobj);
+  virtual ~SCA_NANDController();
+  virtual CValue *GetReplica();
+  virtual void Trigger(SCA_LogicManager *logicmgr);
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 };
 
-#endif  /* __SCA_NANDCONTROLLER_H__ */
+#endif /* __SCA_NANDCONTROLLER_H__ */

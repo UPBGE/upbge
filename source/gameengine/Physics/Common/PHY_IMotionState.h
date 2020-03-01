@@ -40,22 +40,21 @@
  * PHY_IMotionState is the Interface to explicitly synchronize the world transformation.
  * Default implementations for mayor graphics libraries like OpenGL and DirectX can be provided.
  */
-class PHY_IMotionState
-{
-public:
-	virtual ~PHY_IMotionState()
-	{
-	}
+class PHY_IMotionState {
+ public:
+  virtual ~PHY_IMotionState()
+  {
+  }
 
-	virtual MT_Vector3 GetWorldPosition() const = 0;
-	virtual MT_Vector3 GetWorldScaling() const = 0;
-	virtual MT_Matrix3x3 GetWorldOrientation() const = 0;
+  virtual MT_Vector3 GetWorldPosition() const = 0;
+  virtual MT_Vector3 GetWorldScaling() const = 0;
+  virtual MT_Matrix3x3 GetWorldOrientation() const = 0;
 
-	virtual void SetWorldPosition(const MT_Vector3& pos) = 0;
-	virtual void SetWorldOrientation(const MT_Matrix3x3& ori) = 0;
-	virtual void SetWorldOrientation(const MT_Quaternion& quat) = 0;
+  virtual void SetWorldPosition(const MT_Vector3 &pos) = 0;
+  virtual void SetWorldOrientation(const MT_Matrix3x3 &ori) = 0;
+  virtual void SetWorldOrientation(const MT_Quaternion &quat) = 0;
 
-	virtual void CalculateWorldTransformations() = 0;
+  virtual void CalculateWorldTransformations() = 0;
 };
 
-#endif  /* __PHY_IMOTIONSTATE_H__ */
+#endif /* __PHY_IMOTIONSTATE_H__ */

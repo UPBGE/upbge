@@ -29,172 +29,171 @@
  *  \ingroup gamelogic
  */
 
-
 #ifndef __JOYSENSOR_H__
 #define __JOYSENSOR_H__
 
 #include "SCA_ISensor.h"
 #include "DEV_JoystickDefines.h"
 
-class SCA_JoystickSensor :public SCA_ISensor
-{
-	Py_Header
-	
-	/**
-	 * Axis 1-JOYAXIS_MAX, MUST be followed by m_axisf
-	 */
-	int 	m_axis;
-	/**
-	 * Axis flag to find direction, MUST be an int
-	 */
-	int 	m_axisf;
-	/**
-	 * The actual button
-	 */
-	int 	m_button;
-	/**
-	 * Flag for a pressed or released button
-	 */
-	int 	m_buttonf;
-	/**
-	 * The threshold value the axis acts upon
-	 */
-	int 	m_precision;
-	/**
-	 * Is an event triggered ?
-	 */
-	bool	m_istrig;
-	/**
-	 * Last trigger state for this sensors joystick,
-	 * Otherwise it will trigger all the time
-	 * this is used to see if the trigger state changes.
-	 */
-	bool	m_istrig_prev;
-	/**
-	 * The mode to determine axis,button or hat
-	 */
-	short int m_joymode;
-	/**
-	 * Select which joystick to use
-	 */
-	short int m_joyindex;
+class SCA_JoystickSensor : public SCA_ISensor {
+  Py_Header
 
-	/**
-	 * Detect all events for the currently selected type
-	 */
-	bool m_bAllEvents;
+      /**
+       * Axis 1-JOYAXIS_MAX, MUST be followed by m_axisf
+       */
+      int m_axis;
+  /**
+   * Axis flag to find direction, MUST be an int
+   */
+  int m_axisf;
+  /**
+   * The actual button
+   */
+  int m_button;
+  /**
+   * Flag for a pressed or released button
+   */
+  int m_buttonf;
+  /**
+   * The threshold value the axis acts upon
+   */
+  int m_precision;
+  /**
+   * Is an event triggered ?
+   */
+  bool m_istrig;
+  /**
+   * Last trigger state for this sensors joystick,
+   * Otherwise it will trigger all the time
+   * this is used to see if the trigger state changes.
+   */
+  bool m_istrig_prev;
+  /**
+   * The mode to determine axis,button or hat
+   */
+  short int m_joymode;
+  /**
+   * Select which joystick to use
+   */
+  short int m_joyindex;
 
-public:
+  /**
+   * Detect all events for the currently selected type
+   */
+  bool m_bAllEvents;
 
-	enum KX_JOYSENSORMODE {
-		KX_JOYSENSORMODE_NODEF = 0,
-		KX_JOYSENSORMODE_BUTTON,
-		KX_JOYSENSORMODE_AXIS,
-		KX_JOYSENSORMODE_HAT, //unused
-		KX_JOYSENSORMODE_AXIS_SINGLE,
-		KX_JOYSENSORMODE_SHOULDER_TRIGGER,
-		KX_JOYSENSORMODE_MAX
-	};
+ public:
+  enum KX_JOYSENSORMODE {
+    KX_JOYSENSORMODE_NODEF = 0,
+    KX_JOYSENSORMODE_BUTTON,
+    KX_JOYSENSORMODE_AXIS,
+    KX_JOYSENSORMODE_HAT,  // unused
+    KX_JOYSENSORMODE_AXIS_SINGLE,
+    KX_JOYSENSORMODE_SHOULDER_TRIGGER,
+    KX_JOYSENSORMODE_MAX
+  };
 
-	enum KX_JOYSENS_BUTTON {
-		KX_JOYSENS_BUTTON_NODEF = -1,
-		KX_JOYSENS_BUTTON_A,
-		KX_JOYSENS_BUTTON_B,
-		KX_JOYSENS_BUTTON_X,
-		KX_JOYSENS_BUTTON_Y,
-		KX_JOYSENS_BUTTON_BACK,
-		KX_JOYSENS_BUTTON_GUIDE,
-		KX_JOYSENS_BUTTON_START,
-		KX_JOYSENS_BUTTON_STICK_LEFT,
-		KX_JOYSENS_BUTTON_STICK_RIGHT,
-		KX_JOYSENS_BUTTON_SHOULDER_LEFT,
-		KX_JOYSENS_BUTTON_SHOULDER_RIGHT,
-		KX_JOYSENS_BUTTON_DPAD_UP,
-		KX_JOYSENS_BUTTON_DPAD_DOWN,
-		KX_JOYSENS_BUTTON_DPAD_LEFT,
-		KX_JOYSENS_BUTTON_DPAD_RIGHT,
-		KX_JOYSENS_BUTTON_MAX
-	};
+  enum KX_JOYSENS_BUTTON {
+    KX_JOYSENS_BUTTON_NODEF = -1,
+    KX_JOYSENS_BUTTON_A,
+    KX_JOYSENS_BUTTON_B,
+    KX_JOYSENS_BUTTON_X,
+    KX_JOYSENS_BUTTON_Y,
+    KX_JOYSENS_BUTTON_BACK,
+    KX_JOYSENS_BUTTON_GUIDE,
+    KX_JOYSENS_BUTTON_START,
+    KX_JOYSENS_BUTTON_STICK_LEFT,
+    KX_JOYSENS_BUTTON_STICK_RIGHT,
+    KX_JOYSENS_BUTTON_SHOULDER_LEFT,
+    KX_JOYSENS_BUTTON_SHOULDER_RIGHT,
+    KX_JOYSENS_BUTTON_DPAD_UP,
+    KX_JOYSENS_BUTTON_DPAD_DOWN,
+    KX_JOYSENS_BUTTON_DPAD_LEFT,
+    KX_JOYSENS_BUTTON_DPAD_RIGHT,
+    KX_JOYSENS_BUTTON_MAX
+  };
 
-	enum KX_JOYSENS_AXIS_SINGLE {
-		KX_JOYSENS_AXIS_SINGLE_NODEF = 0,
-		KX_JOYSENS_AXIS_SINGLE_LEFT_STICK_HORIZONTAL,
-		KX_JOYSENS_AXIS_SINGLE_LEFT_STICK_VERTICAL,
-		KX_JOYSENS_AXIS_SINGLE_RIGHT_STICK_HORIZONTAL,
-		KX_JOYSENS_AXIS_SINGLE_RIGHT_STICK_VERTICAL,
-		KX_JOYSENS_AXIS_SINGLE_LEFT_SHOULDER_TRIGGER,
-		KX_JOYSENS_AXIS_SINGLE_RIGHT_SHOULDER_TRIGGER,
-		KX_JOYSENS_AXIS_SINGLE_MAX
-	};
+  enum KX_JOYSENS_AXIS_SINGLE {
+    KX_JOYSENS_AXIS_SINGLE_NODEF = 0,
+    KX_JOYSENS_AXIS_SINGLE_LEFT_STICK_HORIZONTAL,
+    KX_JOYSENS_AXIS_SINGLE_LEFT_STICK_VERTICAL,
+    KX_JOYSENS_AXIS_SINGLE_RIGHT_STICK_HORIZONTAL,
+    KX_JOYSENS_AXIS_SINGLE_RIGHT_STICK_VERTICAL,
+    KX_JOYSENS_AXIS_SINGLE_LEFT_SHOULDER_TRIGGER,
+    KX_JOYSENS_AXIS_SINGLE_RIGHT_SHOULDER_TRIGGER,
+    KX_JOYSENS_AXIS_SINGLE_MAX
+  };
 
-	enum KX_JOYSENS_AXIS {
-		KX_JOYSENS_AXIS_NODEF = 0,
-		KX_JOYSENS_AXIS_LEFT_STICK,
-		KX_JOYSENS_AXIS_RIGHT_STICK,
-		KX_JOYSENS_AXIS_SHOULDER_TRIGGER,
-		KX_JOYSENS_AXIS_MAX
-	};
+  enum KX_JOYSENS_AXIS {
+    KX_JOYSENS_AXIS_NODEF = 0,
+    KX_JOYSENS_AXIS_LEFT_STICK,
+    KX_JOYSENS_AXIS_RIGHT_STICK,
+    KX_JOYSENS_AXIS_SHOULDER_TRIGGER,
+    KX_JOYSENS_AXIS_MAX
+  };
 
-	enum KX_JOYSENS_AXIS_STICK_DIRECTION {
-		KX_JOYSENS_AXIS_STICK_DIRECTION_NODEF = -1,
-		KX_JOYSENS_AXIS_STICK_DIRECTION_RIGHT,
-		KX_JOYSENS_AXIS_STICK_DIRECTION_UP,
-		KX_JOYSENS_AXIS_STICK_DIRECTION_LEFT,
-		KX_JOYSENS_AXIS_STICK_DIRECTION_DOWN,
-		KX_JOYSENS_AXIS_STICK_DIRECTION_MAX
-	};
+  enum KX_JOYSENS_AXIS_STICK_DIRECTION {
+    KX_JOYSENS_AXIS_STICK_DIRECTION_NODEF = -1,
+    KX_JOYSENS_AXIS_STICK_DIRECTION_RIGHT,
+    KX_JOYSENS_AXIS_STICK_DIRECTION_UP,
+    KX_JOYSENS_AXIS_STICK_DIRECTION_LEFT,
+    KX_JOYSENS_AXIS_STICK_DIRECTION_DOWN,
+    KX_JOYSENS_AXIS_STICK_DIRECTION_MAX
+  };
 
-	SCA_JoystickSensor(class SCA_JoystickManager* eventmgr,
-					   SCA_IObject* gameobj,
-					   short int joyindex,
-					   short int joymode,
-					   int axis, int axisf,int prec,
-					   int button, bool allevents);
-	virtual ~SCA_JoystickSensor();
-	virtual CValue* GetReplica();
-	
-	virtual bool Evaluate();
-	virtual bool IsPositiveTrigger();
-	virtual void Init();
-	
-	short int GetJoyIndex(void) {
-		return m_joyindex;
-	}
+  SCA_JoystickSensor(class SCA_JoystickManager *eventmgr,
+                     SCA_IObject *gameobj,
+                     short int joyindex,
+                     short int joymode,
+                     int axis,
+                     int axisf,
+                     int prec,
+                     int button,
+                     bool allevents);
+  virtual ~SCA_JoystickSensor();
+  virtual CValue *GetReplica();
+
+  virtual bool Evaluate();
+  virtual bool IsPositiveTrigger();
+  virtual void Init();
+
+  short int GetJoyIndex(void)
+  {
+    return m_joyindex;
+  }
 
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	/* Joystick Index */
-	KX_PYMETHOD_DOC_NOARGS(SCA_JoystickSensor,GetButtonActiveList)
-	KX_PYMETHOD_DOC_VARARGS(SCA_JoystickSensor,GetButtonStatus)
+  /* Joystick Index */
+  KX_PYMETHOD_DOC_NOARGS(SCA_JoystickSensor, GetButtonActiveList)
+  KX_PYMETHOD_DOC_VARARGS(SCA_JoystickSensor, GetButtonStatus)
 
-	static PyObject*	pyattr_get_axis_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_axis_single(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_check_hat(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_hat_single(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_num_axis(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_num_buttons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_num_hats(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_connected(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	
+  static PyObject *pyattr_get_axis_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_axis_single(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_check_hat(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hat_single(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_num_axis(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_num_buttons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_num_hats(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_connected(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
-	/* attribute check */
-	static int CheckAxis(PyObjectPlus *self, const PyAttributeDef*)
-	{
-		SCA_JoystickSensor* sensor = reinterpret_cast<SCA_JoystickSensor*>(self);
-		if (sensor->m_axis < 1)
-			sensor->m_axis = 1;
-		else if (sensor->m_axis > JOYAXIS_MAX)
-			sensor->m_axis = JOYAXIS_MAX;
-		return 0;
-	}
-	
-#endif  /* WITH_PYTHON */
+  /* attribute check */
+  static int CheckAxis(PyObjectPlus *self, const PyAttributeDef *)
+  {
+    SCA_JoystickSensor *sensor = reinterpret_cast<SCA_JoystickSensor *>(self);
+    if (sensor->m_axis < 1)
+      sensor->m_axis = 1;
+    else if (sensor->m_axis > JOYAXIS_MAX)
+      sensor->m_axis = JOYAXIS_MAX;
+    return 0;
+  }
 
+#endif /* WITH_PYTHON */
 };
 
-#endif  /* __JOYSENSOR_H__ */
+#endif /* __JOYSENSOR_H__ */

@@ -24,32 +24,31 @@
 /** Smart Boolean Value class.
  * Is used by parser when an expression tree is build containing booleans.
  */
-class CBoolValue : public CPropValue
-{
-public:
-	static const std::string sTrueString;
-	static const std::string sFalseString;
+class CBoolValue : public CPropValue {
+ public:
+  static const std::string sTrueString;
+  static const std::string sFalseString;
 
-	CBoolValue();
-	CBoolValue(bool inBool);
-	CBoolValue(bool innie, const std::string& name);
+  CBoolValue();
+  CBoolValue(bool inBool);
+  CBoolValue(bool innie, const std::string &name);
 
-	virtual std::string GetText();
-	virtual double GetNumber();
-	virtual int GetValueType();
-	bool GetBool();
-	virtual void SetValue(CValue *newval);
+  virtual std::string GetText();
+  virtual double GetNumber();
+  virtual int GetValueType();
+  bool GetBool();
+  virtual void SetValue(CValue *newval);
 
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+  virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
+  virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 
-	virtual CValue *GetReplica();
+  virtual CValue *GetReplica();
 #ifdef WITH_PYTHON
-	virtual PyObject *ConvertValueToPython();
+  virtual PyObject *ConvertValueToPython();
 #endif
 
-private:
-	bool m_bool;
+ private:
+  bool m_bool;
 };
 
 #endif  // __EXP_BOOLVALUE_H__

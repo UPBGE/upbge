@@ -32,7 +32,6 @@
  *  \ingroup gamelogic
  */
 
-
 #include "SCA_XNORController.h"
 #include "SCA_ISensor.h"
 #include "SCA_LogicManager.h"
@@ -42,57 +41,47 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_XNORController::SCA_XNORController(SCA_IObject* gameobj)
-	:
-	SCA_IController(gameobj)
+SCA_XNORController::SCA_XNORController(SCA_IObject *gameobj) : SCA_IController(gameobj)
 {
 }
-
-
 
 SCA_XNORController::~SCA_XNORController()
 {
 }
 
-
-
-void SCA_XNORController::Trigger(SCA_LogicManager* logicmgr)
+void SCA_XNORController::Trigger(SCA_LogicManager *logicmgr)
 {
 
-	bool sensorresult = true;
+  bool sensorresult = true;
 
-	for (std::vector<SCA_ISensor*>::const_iterator is=m_linkedsensors.begin();
-	!(is==m_linkedsensors.end());is++)
-	{
-		SCA_ISensor* sensor = *is;
-		if (sensor->GetState())
-		{
-			if (sensorresult == false)
-			{
-				sensorresult = true;
-				break;
-			}
-			sensorresult = false;
-		}
-	}
+  for (std::vector<SCA_ISensor *>::const_iterator is = m_linkedsensors.begin();
+       !(is == m_linkedsensors.end());
+       is++) {
+    SCA_ISensor *sensor = *is;
+    if (sensor->GetState()) {
+      if (sensorresult == false) {
+        sensorresult = true;
+        break;
+      }
+      sensorresult = false;
+    }
+  }
 
-	for (std::vector<SCA_IActuator*>::const_iterator i=m_linkedactuators.begin();
-	!(i==m_linkedactuators.end());i++)
-	{
-		SCA_IActuator* actua = *i;
-		logicmgr->AddActiveActuator(actua,sensorresult);
-	}
+  for (std::vector<SCA_IActuator *>::const_iterator i = m_linkedactuators.begin();
+       !(i == m_linkedactuators.end());
+       i++) {
+    SCA_IActuator *actua = *i;
+    logicmgr->AddActiveActuator(actua, sensorresult);
+  }
 }
 
-
-
-CValue* SCA_XNORController::GetReplica()
+CValue *SCA_XNORController::GetReplica()
 {
-	CValue* replica = new SCA_XNORController(*this);
-	// this will copy properties and so on...
-	replica->ProcessReplica();
+  CValue *replica = new SCA_XNORController(*this);
+  // this will copy properties and so on...
+  replica->ProcessReplica();
 
-	return replica;
+  return replica;
 }
 
 #ifdef WITH_PYTHON
@@ -102,36 +91,52 @@ CValue* SCA_XNORController::GetReplica()
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject SCA_XNORController::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_XNORController",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_IController::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+PyTypeObject SCA_XNORController::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_XNORController",
+                                         sizeof(PyObjectPlus_Proxy),
+                                         0,
+                                         py_base_dealloc,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         py_base_repr,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         Methods,
+                                         0,
+                                         0,
+                                         &SCA_IController::Type,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         py_base_new};
 
 PyMethodDef SCA_XNORController::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_XNORController::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON
 
 /* eof */

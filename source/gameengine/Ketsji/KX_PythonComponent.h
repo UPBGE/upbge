@@ -25,45 +25,43 @@
 
 #ifdef WITH_PYTHON
 
-#include "EXP_Value.h"
+#  include "EXP_Value.h"
 
 class KX_GameObject;
 struct PythonComponent;
 
-class KX_PythonComponent : public CValue
-{
-	Py_Header
+class KX_PythonComponent : public CValue {
+  Py_Header
 
-private:
-	PythonComponent *m_pc;
-	KX_GameObject *m_gameobj;
-	std::string m_name;
-	bool m_init;
+      private : PythonComponent *m_pc;
+  KX_GameObject *m_gameobj;
+  std::string m_name;
+  bool m_init;
 
-public:
-	KX_PythonComponent(const std::string& name);
-	virtual ~KX_PythonComponent();
+ public:
+  KX_PythonComponent(const std::string &name);
+  virtual ~KX_PythonComponent();
 
-	// stuff for cvalue related things
-	virtual std::string GetName();
-    virtual CValue *GetReplica();
+  // stuff for cvalue related things
+  virtual std::string GetName();
+  virtual CValue *GetReplica();
 
-	void ProcessReplica();
+  void ProcessReplica();
 
-	KX_GameObject *GetGameObject() const;
-	void SetGameObject(KX_GameObject *gameobj);
+  KX_GameObject *GetGameObject() const;
+  void SetGameObject(KX_GameObject *gameobj);
 
-	void SetBlenderPythonComponent(PythonComponent *pc);
+  void SetBlenderPythonComponent(PythonComponent *pc);
 
-	void Start();
-	void Update();
+  void Start();
+  void Update();
 
-	static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+  static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
-	// Attributes
-    static PyObject *pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  // Attributes
+  static PyObject *pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 };
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON
 
-#endif // __KX_PYCOMPONENT_H__
+#endif  // __KX_PYCOMPONENT_H__

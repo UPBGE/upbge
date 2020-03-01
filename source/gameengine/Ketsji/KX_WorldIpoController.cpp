@@ -29,7 +29,6 @@
  *  \ingroup ketsji
  */
 
-
 #include "KX_WorldIpoController.h"
 #include "KX_ScalarInterpolator.h"
 #include "KX_Globals.h"
@@ -43,59 +42,56 @@ typedef unsigned long uint_ptr;
 
 bool KX_WorldIpoController::Update(double currentTime)
 {
-	if (m_modified) {
-		T_InterpolatorList::iterator i;
-		for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
-			(*i)->Execute(m_ipotime);
-		}
+  if (m_modified) {
+    T_InterpolatorList::iterator i;
+    for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
+      (*i)->Execute(m_ipotime);
+    }
 
-		m_modified = false;
-	}
-	return false;
+    m_modified = false;
+  }
+  return false;
 }
 
-
-void KX_WorldIpoController::AddInterpolator(KX_IInterpolator* interp)
+void KX_WorldIpoController::AddInterpolator(KX_IInterpolator *interp)
 {
-	this->m_interpolators.push_back(interp);
+  this->m_interpolators.push_back(interp);
 }
 
-
-SG_Controller*	KX_WorldIpoController::GetReplica(class SG_Node* destnode)
+SG_Controller *KX_WorldIpoController::GetReplica(class SG_Node *destnode)
 {
-	KX_WorldIpoController* iporeplica = new KX_WorldIpoController(*this);
-	// clear object that ipo acts on
-	iporeplica->ClearNode();
+  KX_WorldIpoController *iporeplica = new KX_WorldIpoController(*this);
+  // clear object that ipo acts on
+  iporeplica->ClearNode();
 
-	// dirty hack, ask Gino for a better solution in the ipo implementation
-	// hacken en zagen, in what we call datahiding, not written for replication :(
+  // dirty hack, ask Gino for a better solution in the ipo implementation
+  // hacken en zagen, in what we call datahiding, not written for replication :(
 
-	T_InterpolatorList oldlist = m_interpolators;
-	iporeplica->m_interpolators.clear();
+  T_InterpolatorList oldlist = m_interpolators;
+  iporeplica->m_interpolators.clear();
 
-	T_InterpolatorList::iterator i;
-	for (i = oldlist.begin(); !(i == oldlist.end()); ++i) {
-		KX_ScalarInterpolator* copyipo = new KX_ScalarInterpolator(*((KX_ScalarInterpolator*)*i));
-		iporeplica->AddInterpolator(copyipo);
+  T_InterpolatorList::iterator i;
+  for (i = oldlist.begin(); !(i == oldlist.end()); ++i) {
+    KX_ScalarInterpolator *copyipo = new KX_ScalarInterpolator(*((KX_ScalarInterpolator *)*i));
+    iporeplica->AddInterpolator(copyipo);
 
-		MT_Scalar* scaal = ((KX_ScalarInterpolator*)*i)->GetTarget();
-		uint_ptr orgbase = (uint_ptr)this;
-		uint_ptr orgloc = (uint_ptr)scaal;
-		uint_ptr offset = orgloc-orgbase;
-		uint_ptr newaddrbase = (uint_ptr)iporeplica + offset;
-		MT_Scalar* blaptr = (MT_Scalar*) newaddrbase;
-		copyipo->SetNewTarget((MT_Scalar*)blaptr);
-	}
-	
-	return iporeplica;
+    MT_Scalar *scaal = ((KX_ScalarInterpolator *)*i)->GetTarget();
+    uint_ptr orgbase = (uint_ptr)this;
+    uint_ptr orgloc = (uint_ptr)scaal;
+    uint_ptr offset = orgloc - orgbase;
+    uint_ptr newaddrbase = (uint_ptr)iporeplica + offset;
+    MT_Scalar *blaptr = (MT_Scalar *)newaddrbase;
+    copyipo->SetNewTarget((MT_Scalar *)blaptr);
+  }
+
+  return iporeplica;
 }
 
 KX_WorldIpoController::~KX_WorldIpoController()
 {
 
-	T_InterpolatorList::iterator i;
-	for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
-		delete (*i);
-	}
-	
+  T_InterpolatorList::iterator i;
+  for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
+    delete (*i);
+  }
 }

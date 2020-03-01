@@ -36,40 +36,40 @@ CM_ThreadLock::~CM_ThreadLock()
 
 CM_ThreadSpinLock::CM_ThreadSpinLock()
 {
-	BLI_spin_init(&m_spinlock);
+  BLI_spin_init(&m_spinlock);
 }
 
 CM_ThreadSpinLock::~CM_ThreadSpinLock()
 {
-	BLI_spin_end(&m_spinlock);
+  BLI_spin_end(&m_spinlock);
 }
 
 void CM_ThreadSpinLock::Lock()
 {
-	BLI_spin_lock(&m_spinlock);
+  BLI_spin_lock(&m_spinlock);
 }
 
 void CM_ThreadSpinLock::Unlock()
 {
-	BLI_spin_unlock(&m_spinlock);
+  BLI_spin_unlock(&m_spinlock);
 }
 
 CM_ThreadMutex::CM_ThreadMutex()
 {
-	BLI_mutex_init(&m_mutex);
+  BLI_mutex_init(&m_mutex);
 }
 
 CM_ThreadMutex::~CM_ThreadMutex()
 {
-	BLI_mutex_end(&m_mutex);
+  BLI_mutex_end(&m_mutex);
 }
 
 void CM_ThreadMutex::Lock()
 {
-	BLI_mutex_lock(&m_mutex);
+  BLI_mutex_lock(&m_mutex);
 }
 
 void CM_ThreadMutex::Unlock()
 {
-	BLI_mutex_unlock(&m_mutex);
+  BLI_mutex_unlock(&m_mutex);
 }

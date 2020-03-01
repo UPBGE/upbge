@@ -42,90 +42,99 @@
 #include "BKE_sound.h"
 
 typedef struct KX_3DSoundSettings {
-	float min_gain;
-	float max_gain;
-	float reference_distance;
-	float max_distance;
-	float rolloff_factor;
-	float cone_inner_angle;
-	float cone_outer_angle;
-	float cone_outer_gain;
+  float min_gain;
+  float max_gain;
+  float reference_distance;
+  float max_distance;
+  float rolloff_factor;
+  float cone_inner_angle;
+  float cone_outer_angle;
+  float cone_outer_gain;
 } KX_3DSoundSettings;
 
-class SCA_SoundActuator : public SCA_IActuator
-{
-	Py_Header
-	bool					m_isplaying;
+class SCA_SoundActuator : public SCA_IActuator {
+  Py_Header bool m_isplaying;
 #ifdef WITH_AUDASPACE
-	AUD_Sound*				m_sound;
-	AUD_Handle*				m_handle;
+  AUD_Sound *m_sound;
+  AUD_Handle *m_handle;
 #endif  // WITH_AUDASPACE
-	float					m_volume;
-	float					m_pitch;
-	bool					m_is3d;
-	KX_3DSoundSettings		m_3d;
+  float m_volume;
+  float m_pitch;
+  bool m_is3d;
+  KX_3DSoundSettings m_3d;
 
-	void play();
+  void play();
 
-public:
+ public:
+  enum KX_SOUNDACT_TYPE {
+    KX_SOUNDACT_NODEF = 0,
+    KX_SOUNDACT_PLAYSTOP,
+    KX_SOUNDACT_PLAYEND,
+    KX_SOUNDACT_LOOPSTOP,
+    KX_SOUNDACT_LOOPEND,
+    KX_SOUNDACT_LOOPBIDIRECTIONAL,
+    KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP,
+    KX_SOUNDACT_MAX
+  };
 
-	enum KX_SOUNDACT_TYPE
-	{
-			KX_SOUNDACT_NODEF = 0,
-			KX_SOUNDACT_PLAYSTOP,
-			KX_SOUNDACT_PLAYEND,
-			KX_SOUNDACT_LOOPSTOP,
-			KX_SOUNDACT_LOOPEND,
-			KX_SOUNDACT_LOOPBIDIRECTIONAL,
-			KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP,
-			KX_SOUNDACT_MAX
-	};
+  KX_SOUNDACT_TYPE m_type;
 
-	KX_SOUNDACT_TYPE		m_type;
-
-	SCA_SoundActuator(SCA_IObject* gameobj,
+  SCA_SoundActuator(SCA_IObject *gameobj,
 #ifdef WITH_AUDASPACE
-					 AUD_Sound *sound,
+                    AUD_Sound *sound,
 #endif  // WITH_AUDASPACE
-					 float volume,
-					 float pitch,
-					 bool is3d,
-					 KX_3DSoundSettings settings,
-					 KX_SOUNDACT_TYPE type);
+                    float volume,
+                    float pitch,
+                    bool is3d,
+                    KX_3DSoundSettings settings,
+                    KX_SOUNDACT_TYPE type);
 
-	~SCA_SoundActuator();
+  ~SCA_SoundActuator();
 
-	virtual bool Update(double curtime);
+  virtual bool Update(double curtime);
 
-	CValue* GetReplica();
-	void ProcessReplica();
+  CValue *GetReplica();
+  void ProcessReplica();
 
 #ifdef WITH_PYTHON
 
-	/* -------------------------------------------------------------------- */
-	/* Python interface --------------------------------------------------- */
-	/* -------------------------------------------------------------------- */
+  /* -------------------------------------------------------------------- */
+  /* Python interface --------------------------------------------------- */
+  /* -------------------------------------------------------------------- */
 
-	KX_PYMETHOD_DOC_NOARGS(SCA_SoundActuator, startSound);
-	KX_PYMETHOD_DOC_NOARGS(SCA_SoundActuator, pauseSound);
-	KX_PYMETHOD_DOC_NOARGS(SCA_SoundActuator, stopSound);
+  KX_PYMETHOD_DOC_NOARGS(SCA_SoundActuator, startSound);
+  KX_PYMETHOD_DOC_NOARGS(SCA_SoundActuator, pauseSound);
+  KX_PYMETHOD_DOC_NOARGS(SCA_SoundActuator, stopSound);
 
-	static int pyattr_set_3d_property(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_audposition(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_gain(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_pitch(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_type(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_sound(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  static int pyattr_set_3d_property(PyObjectPlus *self,
+                                    const struct KX_PYATTRIBUTE_DEF *attrdef,
+                                    PyObject *value);
+  static int pyattr_set_audposition(PyObjectPlus *self,
+                                    const struct KX_PYATTRIBUTE_DEF *attrdef,
+                                    PyObject *value);
+  static int pyattr_set_gain(PyObjectPlus *self,
+                             const struct KX_PYATTRIBUTE_DEF *attrdef,
+                             PyObject *value);
+  static int pyattr_set_pitch(PyObjectPlus *self,
+                              const struct KX_PYATTRIBUTE_DEF *attrdef,
+                              PyObject *value);
+  static int pyattr_set_type(PyObjectPlus *self,
+                             const struct KX_PYATTRIBUTE_DEF *attrdef,
+                             PyObject *value);
+  static int pyattr_set_sound(PyObjectPlus *self,
+                              const struct KX_PYATTRIBUTE_DEF *attrdef,
+                              PyObject *value);
 
-	static PyObject *pyattr_get_3d_property(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_audposition(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_gain(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_pitch(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_type(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_sound(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_3d_property(PyObjectPlus *self,
+                                          const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_audposition(PyObjectPlus *self,
+                                          const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_gain(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_pitch(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_type(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_sound(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 
-#endif  /* WITH_PYTHON */
-
+#endif /* WITH_PYTHON */
 };
 
-#endif  /* __SCA_SoundActuator_H__ */
+#endif /* __SCA_SoundActuator_H__ */

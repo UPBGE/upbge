@@ -22,23 +22,21 @@
 #include "EXP_Expression.h"
 #include "EXP_Value.h"
 
-class COperator2Expr : public CExpression
-{
-public:
-	COperator2Expr();
-	COperator2Expr(VALUE_OPERATOR op, CExpression *lhs, CExpression *rhs);
-	virtual ~COperator2Expr();
+class COperator2Expr : public CExpression {
+ public:
+  COperator2Expr();
+  COperator2Expr(VALUE_OPERATOR op, CExpression *lhs, CExpression *rhs);
+  virtual ~COperator2Expr();
 
-	virtual unsigned char GetExpressionID();
-	virtual CValue *Calculate();
+  virtual unsigned char GetExpressionID();
+  virtual CValue *Calculate();
 
-protected:
-	CExpression *m_rhs;
-	CExpression *m_lhs;
+ protected:
+  CExpression *m_rhs;
+  CExpression *m_lhs;
 
-private:
-	VALUE_OPERATOR m_op;
+ private:
+  VALUE_OPERATOR m_op;
 };
 
 #endif  // __EXP_OPERATOR2EXPR_H__
-

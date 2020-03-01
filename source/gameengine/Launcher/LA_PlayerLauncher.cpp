@@ -29,9 +29,8 @@
  *  \ingroup launcher
  */
 
-
 #ifdef WIN32
-#  pragma warning (disable:4786) // suppress stl-MSVC debug info warning
+#  pragma warning(disable : 4786)  // suppress stl-MSVC debug info warning
 #  include <windows.h>
 #endif
 
@@ -39,16 +38,16 @@
 #include "LA_SystemCommandLine.h"
 
 extern "C" {
-#  include "BKE_sound.h"
+#include "BKE_sound.h"
 
-#  include "BLI_fileops.h"
+#include "BLI_fileops.h"
 }
 
 #include "MEM_guardedalloc.h"
 
 #include "KX_PythonInit.h"
 
-#include "GPG_Canvas.h" 
+#include "GPG_Canvas.h"
 
 #include "GHOST_ISystem.h"
 
@@ -56,11 +55,20 @@ extern "C" {
 
 #include "CM_Message.h"
 
-LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, GHOST_IWindow *window, Main *maggie, Scene *scene, GlobalSettings *gs,
-								 RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop, bContext *C)
-	:LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv, C),
-	m_mainWindow(window),
-	m_pythonMainLoop(pythonMainLoop)
+LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system,
+                                     GHOST_IWindow *window,
+                                     Main *maggie,
+                                     Scene *scene,
+                                     GlobalSettings *gs,
+                                     RAS_Rasterizer::StereoMode stereoMode,
+                                     int samples,
+                                     int argc,
+                                     char **argv,
+                                     const std::string &pythonMainLoop,
+                                     bContext *C)
+    : LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv, C),
+      m_mainWindow(window),
+      m_pythonMainLoop(pythonMainLoop)
 {
 }
 
@@ -70,42 +78,43 @@ LA_PlayerLauncher::~LA_PlayerLauncher()
 
 #ifdef WITH_PYTHON
 
-bool LA_PlayerLauncher::GetPythonMainLoopCode(std::string& pythonCode, std::string& pythonFileName)
+bool LA_PlayerLauncher::GetPythonMainLoopCode(std::string &pythonCode, std::string &pythonFileName)
 {
-#ifndef WITH_GAMEENGINE_SECURITY
-	if (!m_pythonMainLoop.empty()) {
-		if (BLI_is_file(m_pythonMainLoop.c_str())) {
-			size_t filesize = 0;
-			char *filecontent = (char *)BLI_file_read_text_as_mem(m_pythonMainLoop.c_str(), 0, &filesize);
-			pythonCode = std::string(filecontent, filesize);
-			MEM_freeN(filecontent);
-			pythonFileName = m_pythonMainLoop;
-			return true;
-		}
-		else {
-			CM_Error("cannot yield control to Python: no file named '" << m_pythonMainLoop << "'");
-			return false;
-		}
-	}
-#endif
-	return LA_Launcher::GetPythonMainLoopCode(pythonCode, pythonFileName);
+#  ifndef WITH_GAMEENGINE_SECURITY
+  if (!m_pythonMainLoop.empty()) {
+    if (BLI_is_file(m_pythonMainLoop.c_str())) {
+      size_t filesize = 0;
+      char *filecontent = (char *)BLI_file_read_text_as_mem(
+          m_pythonMainLoop.c_str(), 0, &filesize);
+      pythonCode = std::string(filecontent, filesize);
+      MEM_freeN(filecontent);
+      pythonFileName = m_pythonMainLoop;
+      return true;
+    }
+    else {
+      CM_Error("cannot yield control to Python: no file named '" << m_pythonMainLoop << "'");
+      return false;
+    }
+  }
+#  endif
+  return LA_Launcher::GetPythonMainLoopCode(pythonCode, pythonFileName);
 }
 
-void LA_PlayerLauncher::RunPythonMainLoop(const std::string& pythonCode)
+void LA_PlayerLauncher::RunPythonMainLoop(const std::string &pythonCode)
 {
-	/* If a valid python main loop file exists is that we are running it.
-	 * Then we put its path in the python include paths. */
-	if (!m_pythonMainLoop.empty()) {
-		appendPythonPath(m_pythonMainLoop);
-	}
-	LA_Launcher::RunPythonMainLoop(pythonCode);
+  /* If a valid python main loop file exists is that we are running it.
+   * Then we put its path in the python include paths. */
+  if (!m_pythonMainLoop.empty()) {
+    appendPythonPath(m_pythonMainLoop);
+  }
+  LA_Launcher::RunPythonMainLoop(pythonCode);
 }
 
 #endif  // WITH_PYTHON
 
 bool LA_PlayerLauncher::GetUseAlwaysExpandFraming()
 {
-	return false;
+  return false;
 }
 
 void LA_PlayerLauncher::InitCamera()
@@ -119,38 +128,38 @@ void LA_PlayerLauncher::InitPython()
 void LA_PlayerLauncher::ExitPython()
 {
 #ifdef WITH_PYTHON
-	exitGamePlayerPythonScripting();
+  exitGamePlayerPythonScripting();
 #endif  // WITH_PYTHON
 }
 
 void LA_PlayerLauncher::InitEngine()
 {
-	BKE_sound_init(m_maggie);
-	LA_Launcher::InitEngine();
+  BKE_sound_init(m_maggie);
+  LA_Launcher::InitEngine();
 
-	m_rasterizer->PrintHardwareInfo();
+  m_rasterizer->PrintHardwareInfo();
 }
 
 void LA_PlayerLauncher::ExitEngine()
 {
-	LA_Launcher::ExitEngine();
-	BKE_sound_exit();
+  LA_Launcher::ExitEngine();
+  BKE_sound_exit();
 }
 
 bool LA_PlayerLauncher::EngineNextFrame()
 {
-	if (m_inputDevice->GetInput(SCA_IInputDevice::WINRESIZE).Find(SCA_InputEvent::ACTIVE)) {
-		GHOST_Rect bnds;
-		m_mainWindow->getClientBounds(bnds);
-		m_canvas->Resize(bnds.getWidth(), bnds.getHeight());
-		m_ketsjiEngine->Resize();
-		m_inputDevice->ConvertEvent(SCA_IInputDevice::WINRESIZE, 0, 0);
-	}
+  if (m_inputDevice->GetInput(SCA_IInputDevice::WINRESIZE).Find(SCA_InputEvent::ACTIVE)) {
+    GHOST_Rect bnds;
+    m_mainWindow->getClientBounds(bnds);
+    m_canvas->Resize(bnds.getWidth(), bnds.getHeight());
+    m_ketsjiEngine->Resize();
+    m_inputDevice->ConvertEvent(SCA_IInputDevice::WINRESIZE, 0, 0);
+  }
 
-	return LA_Launcher::EngineNextFrame();
+  return LA_Launcher::EngineNextFrame();
 }
 
 RAS_ICanvas *LA_PlayerLauncher::CreateCanvas(Scene *startscene)
 {
-	return (new GPG_Canvas(m_rasterizer, m_mainWindow, startscene));
+  return (new GPG_Canvas(m_rasterizer, m_mainWindow, startscene));
 }

@@ -48,170 +48,183 @@ class SCA_IActuator;
 template<class T> T PyVecTo(PyObject *);
 #endif
 
-typedef std::vector<SCA_ISensor *>       SCA_SensorList;
-typedef std::vector<SCA_IController *>   SCA_ControllerList;
-typedef std::vector<SCA_IActuator *>     SCA_ActuatorList;
-typedef std::vector<SCA_IObject *>		 SCA_ObjectList;
+typedef std::vector<SCA_ISensor *> SCA_SensorList;
+typedef std::vector<SCA_IController *> SCA_ControllerList;
+typedef std::vector<SCA_IActuator *> SCA_ActuatorList;
+typedef std::vector<SCA_IObject *> SCA_ObjectList;
 
-class SCA_IObject :	public CValue
-{
-	
-	Py_Header
-	
-protected:
-	friend class SCA_StateActuator;
-	friend class SCA_IActuator;
-	friend class SCA_IController;
-	SCA_SensorList         m_sensors;
-	SCA_ControllerList     m_controllers;
-	SCA_ActuatorList       m_actuators;
-	SCA_ActuatorList       m_registeredActuators;	// actuators that use a pointer to this object
-	SCA_ObjectList		   m_registeredObjects;		// objects that hold reference to this object
+class SCA_IObject : public CValue {
 
-	// SG_Dlist: element of objects with active actuators
-	//           Head: SCA_LogicManager::m_activeActuators
-	// SG_QList: Head of active actuators list on this object
-	//           Elements: SCA_IActuator
-	SG_QList			   m_activeActuators;
-	// SG_Dlist: element of list os lists with active controllers
-	//           Head: SCA_LogicManager::m_activeControllers
-	// SG_QList: Head of active controller list on this object
-	//           Elements: SCA_IController
-	SG_QList			   m_activeControllers;
-	// SG_Dlist: element of list of lists of active controllers
-	//           Head: SCA_LogicManager::m_activeControllers
-	// SG_QList: Head of active bookmarked controller list globally
-	//           Elements: SCA_IController with bookmark option
-	static SG_QList		   m_activeBookmarkedControllers;
+  Py_Header
 
-	static class MT_Vector3 m_sDummy;
+      protected : friend class SCA_StateActuator;
+  friend class SCA_IActuator;
+  friend class SCA_IController;
+  SCA_SensorList m_sensors;
+  SCA_ControllerList m_controllers;
+  SCA_ActuatorList m_actuators;
+  SCA_ActuatorList m_registeredActuators;  // actuators that use a pointer to this object
+  SCA_ObjectList m_registeredObjects;      // objects that hold reference to this object
 
-	/**
-	 * Ignore activity culling requests?
-	 */
-	bool m_ignore_activity_culling;
+  // SG_Dlist: element of objects with active actuators
+  //           Head: SCA_LogicManager::m_activeActuators
+  // SG_QList: Head of active actuators list on this object
+  //           Elements: SCA_IActuator
+  SG_QList m_activeActuators;
+  // SG_Dlist: element of list os lists with active controllers
+  //           Head: SCA_LogicManager::m_activeControllers
+  // SG_QList: Head of active controller list on this object
+  //           Elements: SCA_IController
+  SG_QList m_activeControllers;
+  // SG_Dlist: element of list of lists of active controllers
+  //           Head: SCA_LogicManager::m_activeControllers
+  // SG_QList: Head of active bookmarked controller list globally
+  //           Elements: SCA_IController with bookmark option
+  static SG_QList m_activeBookmarkedControllers;
 
-	/**
-	 * Ignore updates?
-	 */
-	bool m_suspended;
+  static class MT_Vector3 m_sDummy;
 
-	/**
-	 * init state of object (used when object is created)
-	 */
-	unsigned int			m_initState;
+  /**
+   * Ignore activity culling requests?
+   */
+  bool m_ignore_activity_culling;
 
-	/**
-	 * current state = bit mask of state that are active
-	 */
-	unsigned int			m_state;
+  /**
+   * Ignore updates?
+   */
+  bool m_suspended;
 
-	/**
-	 * pointer inside state actuator list for sorting
-	 */
-	SG_QList*				m_firstState;
+  /**
+   * init state of object (used when object is created)
+   */
+  unsigned int m_initState;
 
-public:
-	
-	SCA_IObject();
-	virtual ~SCA_IObject();
+  /**
+   * current state = bit mask of state that are active
+   */
+  unsigned int m_state;
 
-	SCA_ControllerList& GetControllers()
-	{
-		return m_controllers;
-	}
-	SCA_SensorList& GetSensors()
-	{
-		return m_sensors;
-	}
-	SCA_ActuatorList& GetActuators()
-	{
-		return m_actuators;
-	}
-	SG_QList& GetActiveActuators()
-	{
-		return m_activeActuators;
-	}
+  /**
+   * pointer inside state actuator list for sorting
+   */
+  SG_QList *m_firstState;
 
-	void AddSensor(SCA_ISensor* act);
-	void AddController(SCA_IController* act);
-	void AddActuator(SCA_IActuator* act);
-	void RegisterActuator(SCA_IActuator* act);
-	void UnregisterActuator(SCA_IActuator* act);
-	
-	void RegisterObject(SCA_IObject* objs);
-	void UnregisterObject(SCA_IObject* objs);
-	/**
-	 * UnlinkObject(...)
-	 * this object is informed that one of the object to which it holds a reference is deleted
-	 * returns true if there was indeed a reference.
-	 */
-	virtual bool UnlinkObject(SCA_IObject* clientobj) { return false; }
+ public:
+  SCA_IObject();
+  virtual ~SCA_IObject();
 
-	SCA_ISensor* FindSensor(const std::string& sensorname);
-	SCA_IActuator* FindActuator(const std::string& actuatorname);
-	SCA_IController* FindController(const std::string& controllername);
+  SCA_ControllerList &GetControllers()
+  {
+    return m_controllers;
+  }
+  SCA_SensorList &GetSensors()
+  {
+    return m_sensors;
+  }
+  SCA_ActuatorList &GetActuators()
+  {
+    return m_actuators;
+  }
+  SG_QList &GetActiveActuators()
+  {
+    return m_activeActuators;
+  }
 
-	void SetCurrentTime(float currentTime) {}
+  void AddSensor(SCA_ISensor *act);
+  void AddController(SCA_IController *act);
+  void AddActuator(SCA_IActuator *act);
+  void RegisterActuator(SCA_IActuator *act);
+  void UnregisterActuator(SCA_IActuator *act);
 
-	virtual void ReParentLogic();
-	
-	/**
-	 * Set whether or not to ignore activity culling requests
-	 */
-	void SetIgnoreActivityCulling(bool b)
-	{
-		m_ignore_activity_culling = b;
-	}
+  void RegisterObject(SCA_IObject *objs);
+  void UnregisterObject(SCA_IObject *objs);
+  /**
+   * UnlinkObject(...)
+   * this object is informed that one of the object to which it holds a reference is deleted
+   * returns true if there was indeed a reference.
+   */
+  virtual bool UnlinkObject(SCA_IObject *clientobj)
+  {
+    return false;
+  }
 
-	/**
-	 * Set whether or not this object wants to ignore activity culling
-	 * requests
-	 */
-	bool GetIgnoreActivityCulling()
-	{
-		return m_ignore_activity_culling;
-	}
+  SCA_ISensor *FindSensor(const std::string &sensorname);
+  SCA_IActuator *FindActuator(const std::string &actuatorname);
+  SCA_IController *FindController(const std::string &controllername);
 
-	/**
-	 * Suspend all progress.
-	 */
-	void SuspendSensors(void);
-	
-	/**
-	 * Resume progress
-	 */
-	void ResumeSensors(void);
+  void SetCurrentTime(float currentTime)
+  {
+  }
 
-	/**
-	 * Set init state
-	 */
-	void SetInitState(unsigned int initState) { m_initState = initState; }
+  virtual void ReParentLogic();
 
-	/**
-	 * initialize the state when object is created
-	 */
-	void ResetState(void) { SetState(m_initState); }
+  /**
+   * Set whether or not to ignore activity culling requests
+   */
+  void SetIgnoreActivityCulling(bool b)
+  {
+    m_ignore_activity_culling = b;
+  }
 
-	/**
-	 * Set the object state
-	 */
-	void SetState(unsigned int state);
+  /**
+   * Set whether or not this object wants to ignore activity culling
+   * requests
+   */
+  bool GetIgnoreActivityCulling()
+  {
+    return m_ignore_activity_culling;
+  }
 
-	/**
-	 * Get the object state
-	 */
-	unsigned int GetState(void)	{ return m_state; }
+  /**
+   * Suspend all progress.
+   */
+  void SuspendSensors(void);
 
-	virtual int GetGameObjectType() const {return -1;}
-	
-	typedef enum ObjectTypes {
-		OBJ_ARMATURE=0,
-		OBJ_CAMERA=1,
-		OBJ_LIGHT=2,
-		OBJ_TEXT=3
-	} ObjectTypes;
+  /**
+   * Resume progress
+   */
+  void ResumeSensors(void);
 
+  /**
+   * Set init state
+   */
+  void SetInitState(unsigned int initState)
+  {
+    m_initState = initState;
+  }
+
+  /**
+   * initialize the state when object is created
+   */
+  void ResetState(void)
+  {
+    SetState(m_initState);
+  }
+
+  /**
+   * Set the object state
+   */
+  void SetState(unsigned int state);
+
+  /**
+   * Get the object state
+   */
+  unsigned int GetState(void)
+  {
+    return m_state;
+  }
+
+  virtual int GetGameObjectType() const
+  {
+    return -1;
+  }
+
+  typedef enum ObjectTypes {
+    OBJ_ARMATURE = 0,
+    OBJ_CAMERA = 1,
+    OBJ_LIGHT = 2,
+    OBJ_TEXT = 3
+  } ObjectTypes;
 };
 
-#endif  /* __SCA_IOBJECT_H__ */
+#endif /* __SCA_IOBJECT_H__ */

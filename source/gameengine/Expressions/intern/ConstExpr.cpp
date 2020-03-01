@@ -25,27 +25,27 @@ CConstExpr::CConstExpr()
 
 CConstExpr::CConstExpr(CValue *constval)
 {
-	m_value = constval;
+  m_value = constval;
 }
 
 CConstExpr::~CConstExpr()
 {
-	if (m_value) {
-		m_value->Release();
-	}
+  if (m_value) {
+    m_value->Release();
+  }
 }
 
 unsigned char CConstExpr::GetExpressionID()
 {
-	return CCONSTEXPRESSIONID;
+  return CCONSTEXPRESSIONID;
 }
 
 CValue *CConstExpr::Calculate()
 {
-	return m_value->AddRef();
+  return m_value->AddRef();
 }
 
 double CConstExpr::GetNumber()
 {
-	return -1.0;
+  return -1.0;
 }

@@ -37,213 +37,210 @@
 #include <map>
 // #include <pair>
 
-#define MOUSEX         MOUSEMOVE
-#define MOUSEY         ACTIONMOUSE
+#define MOUSEX MOUSEMOVE
+#define MOUSEY ACTIONMOUSE
 
-class SCA_IInputDevice 
-{
-public:
-	SCA_IInputDevice();
-	virtual ~SCA_IInputDevice();
+class SCA_IInputDevice {
+ public:
+  SCA_IInputDevice();
+  virtual ~SCA_IInputDevice();
 
-	enum SCA_EnumInputs {
-		NOKEY = 0,
+  enum SCA_EnumInputs {
+    NOKEY = 0,
 
-		BEGINWIN,
+    BEGINWIN,
 
-		WINRESIZE,
-		WINCLOSE,
-		WINQUIT,
+    WINRESIZE,
+    WINCLOSE,
+    WINQUIT,
 
-		ENDWIN,
+    ENDWIN,
 
-		BEGINKEY,
+    BEGINKEY,
 
-		RETKEY,
-		SPACEKEY,
-		PADASTERKEY,
-		COMMAKEY,
-		MINUSKEY,
-		PERIODKEY,
+    RETKEY,
+    SPACEKEY,
+    PADASTERKEY,
+    COMMAKEY,
+    MINUSKEY,
+    PERIODKEY,
 
-		ZEROKEY,
-		ONEKEY,
-		TWOKEY,
-		THREEKEY,
-		FOURKEY,
-		FIVEKEY,
-		SIXKEY,
-		SEVENKEY,
-		EIGHTKEY,
-		NINEKEY,
+    ZEROKEY,
+    ONEKEY,
+    TWOKEY,
+    THREEKEY,
+    FOURKEY,
+    FIVEKEY,
+    SIXKEY,
+    SEVENKEY,
+    EIGHTKEY,
+    NINEKEY,
 
-		AKEY,
-		BKEY,
-		CKEY,
-		DKEY,
-		EKEY,
-		FKEY,
-		GKEY,
-		/* To avoid conflict with typedef HKEY (<windows.h>)
-		 * we rename HKEY to HKEY_ */
-		HKEY_,
-		IKEY,
-		JKEY,
-		KKEY,
-		LKEY,
-		MKEY,
-		NKEY,
-		OKEY,
-		PKEY,
-		QKEY,
-		RKEY,
-		SKEY,
-		TKEY,
-		UKEY,
-		VKEY,
-		WKEY,
-		XKEY,
-		YKEY,
-		ZKEY,
+    AKEY,
+    BKEY,
+    CKEY,
+    DKEY,
+    EKEY,
+    FKEY,
+    GKEY,
+    /* To avoid conflict with typedef HKEY (<windows.h>)
+     * we rename HKEY to HKEY_ */
+    HKEY_,
+    IKEY,
+    JKEY,
+    KKEY,
+    LKEY,
+    MKEY,
+    NKEY,
+    OKEY,
+    PKEY,
+    QKEY,
+    RKEY,
+    SKEY,
+    TKEY,
+    UKEY,
+    VKEY,
+    WKEY,
+    XKEY,
+    YKEY,
+    ZKEY,
 
-		CAPSLOCKKEY,
+    CAPSLOCKKEY,
 
-		LEFTCTRLKEY,
-		LEFTALTKEY,
-		RIGHTALTKEY,
-		RIGHTCTRLKEY,
-		RIGHTSHIFTKEY,
-		LEFTSHIFTKEY,
+    LEFTCTRLKEY,
+    LEFTALTKEY,
+    RIGHTALTKEY,
+    RIGHTCTRLKEY,
+    RIGHTSHIFTKEY,
+    LEFTSHIFTKEY,
 
-		ESCKEY,
-		TABKEY,
+    ESCKEY,
+    TABKEY,
 
-		LINEFEEDKEY,
-		BACKSPACEKEY,
-		DELKEY,
-		SEMICOLONKEY,
+    LINEFEEDKEY,
+    BACKSPACEKEY,
+    DELKEY,
+    SEMICOLONKEY,
 
-		QUOTEKEY,
-		ACCENTGRAVEKEY,
+    QUOTEKEY,
+    ACCENTGRAVEKEY,
 
-		SLASHKEY,
-		BACKSLASHKEY,
-		EQUALKEY,
-		LEFTBRACKETKEY,
-		RIGHTBRACKETKEY,
+    SLASHKEY,
+    BACKSLASHKEY,
+    EQUALKEY,
+    LEFTBRACKETKEY,
+    RIGHTBRACKETKEY,
 
-		LEFTARROWKEY,
-		DOWNARROWKEY,
-		RIGHTARROWKEY,
-		UPARROWKEY,
+    LEFTARROWKEY,
+    DOWNARROWKEY,
+    RIGHTARROWKEY,
+    UPARROWKEY,
 
-		PAD2,
-		PAD4,
-		PAD6,
-		PAD8,
+    PAD2,
+    PAD4,
+    PAD6,
+    PAD8,
 
-		PAD1,
-		PAD3,
-		PAD5,
-		PAD7,
-		PAD9,
+    PAD1,
+    PAD3,
+    PAD5,
+    PAD7,
+    PAD9,
 
-		PADPERIOD,
-		PADSLASHKEY,
+    PADPERIOD,
+    PADSLASHKEY,
 
-		PAD0,
-		PADMINUS,
-		PADENTER,
-		PADPLUSKEY,
+    PAD0,
+    PADMINUS,
+    PADENTER,
+    PADPLUSKEY,
 
-		F1KEY,
-		F2KEY,
-		F3KEY,
-		F4KEY,
-		F5KEY,
-		F6KEY,
-		F7KEY,
-		F8KEY,
-		F9KEY,
-		F10KEY,
-		F11KEY,
-		F12KEY,
-		F13KEY,
-		F14KEY,
-		F15KEY,
-		F16KEY,
-		F17KEY,
-		F18KEY,
-		F19KEY,
+    F1KEY,
+    F2KEY,
+    F3KEY,
+    F4KEY,
+    F5KEY,
+    F6KEY,
+    F7KEY,
+    F8KEY,
+    F9KEY,
+    F10KEY,
+    F11KEY,
+    F12KEY,
+    F13KEY,
+    F14KEY,
+    F15KEY,
+    F16KEY,
+    F17KEY,
+    F18KEY,
+    F19KEY,
 
-		OSKEY,
+    OSKEY,
 
-		PAUSEKEY,
-		INSERTKEY,
-		HOMEKEY,
-		PAGEUPKEY,
-		PAGEDOWNKEY,
-		ENDKEY,
+    PAUSEKEY,
+    INSERTKEY,
+    HOMEKEY,
+    PAGEUPKEY,
+    PAGEDOWNKEY,
+    ENDKEY,
 
-		BEGINMOUSE,
+    BEGINMOUSE,
 
-		BEGINMOUSEBUTTONS,
+    BEGINMOUSEBUTTONS,
 
-		LEFTMOUSE,
-		MIDDLEMOUSE,
-		RIGHTMOUSE,
+    LEFTMOUSE,
+    MIDDLEMOUSE,
+    RIGHTMOUSE,
 
-		ENDMOUSEBUTTONS,
+    ENDMOUSEBUTTONS,
 
-		WHEELUPMOUSE,
-		WHEELDOWNMOUSE,
+    WHEELUPMOUSE,
+    WHEELDOWNMOUSE,
 
-		MOUSEX,
-		MOUSEY,
+    MOUSEX,
+    MOUSEY,
 
-		ENDMOUSE,
+    ENDMOUSE,
 
-		MAX_KEYS
-	}; // enum
+    MAX_KEYS
+  };  // enum
 
+ protected:
+  /// Table of all possible input.
+  SCA_InputEvent m_inputsTable[SCA_IInputDevice::MAX_KEYS];
+  /// Typed text in unicode during a frame.
+  std::wstring m_text;
 
-protected:
-	/// Table of all possible input.
-	SCA_InputEvent m_inputsTable[SCA_IInputDevice::MAX_KEYS];
-	/// Typed text in unicode during a frame.
-	std::wstring m_text;
+  /// True when a sensor handle the same key as the exit key.
+  bool m_hookExitKey;
 
-	/// True when a sensor handle the same key as the exit key.
-	bool m_hookExitKey;
+  /** Translation table used to get the character from a key number with shift or not.
+   * Key -> (Character, Character shifted)
+   */
+  static std::map<SCA_EnumInputs, std::pair<char, char>> m_keyToChar;
 
-	/** Translation table used to get the character from a key number with shift or not.
-	 * Key -> (Character, Character shifted)
-	 */
-	static std::map<SCA_EnumInputs, std::pair<char, char> > m_keyToChar;
+ public:
+  virtual SCA_InputEvent &GetInput(SCA_IInputDevice::SCA_EnumInputs inputcode);
 
-public:
-	virtual SCA_InputEvent& GetInput(SCA_IInputDevice::SCA_EnumInputs inputcode);
+  void SetHookExitKey(bool hook);
+  bool GetHookExitKey() const;
 
-	void SetHookExitKey(bool hook);
-	bool GetHookExitKey() const;
+  /** Clear inputs:
+   *     - Clear status and copy last status to first status.
+   *     - Clear queue
+   *     - Clear values and copy last value to first value.
+   */
+  virtual void ClearInputs();
 
-	/** Clear inputs:
-	 *     - Clear status and copy last status to first status.
-	 *     - Clear queue
-	 *     - Clear values and copy last value to first value.
-	 */
-	virtual void ClearInputs();
+  /** Manage move event like mouse by releasing if possible.
+   * These kind of events are precise of one frame.
+   */
+  virtual void ReleaseMoveEvent();
 
-	/** Manage move event like mouse by releasing if possible.
-	 * These kind of events are precise of one frame.
-	 */
-	virtual void ReleaseMoveEvent();
+  /// Return typed unicode text during a frame.
+  const std::wstring &GetText() const;
 
-	/// Return typed unicode text during a frame.
-	const std::wstring& GetText() const;
-
-	static const char ConvertKeyToChar(SCA_EnumInputs input, bool shifted);
+  static const char ConvertKeyToChar(SCA_EnumInputs input, bool shifted);
 };
 
-#endif	 /* __SCA_IINPUTDEVICE_H__ */
-
+#endif /* __SCA_IINPUTDEVICE_H__ */

@@ -39,31 +39,29 @@ class SCA_IObject;
 
 class SCA_IObject;
 
-struct SCA_DebugProp
-{
-	SCA_IObject *m_obj;
-	std::string m_name;
+struct SCA_DebugProp {
+  SCA_IObject *m_obj;
+  std::string m_name;
 
-	SCA_DebugProp(SCA_IObject *gameobj, const std::string& name);
-	~SCA_DebugProp();
+  SCA_DebugProp(SCA_IObject *gameobj, const std::string &name);
+  ~SCA_DebugProp();
 };
 
-class SCA_IScene
-{
-private:
-	std::vector<SCA_DebugProp> m_debugList;
+class SCA_IScene {
+ private:
+  std::vector<SCA_DebugProp> m_debugList;
 
-public:
-	SCA_IScene();
-	virtual ~SCA_IScene();
+ public:
+  SCA_IScene();
+  virtual ~SCA_IScene();
 
-	const std::vector<SCA_DebugProp>& GetDebugProperties() const;
-	bool PropertyInDebugList(SCA_IObject *gameobj, const std::string &name);
-	bool ObjectInDebugList(SCA_IObject *gameobj);
-	void RemoveAllDebugProperties();
-	void AddDebugProperty(SCA_IObject *gameobj, const std::string &name);
-	void RemoveDebugProperty(SCA_IObject *gameobj, const std::string &name);
-	void RemoveObjectDebugProperties(SCA_IObject *gameobj);
+  const std::vector<SCA_DebugProp> &GetDebugProperties() const;
+  bool PropertyInDebugList(SCA_IObject *gameobj, const std::string &name);
+  bool ObjectInDebugList(SCA_IObject *gameobj);
+  void RemoveAllDebugProperties();
+  void AddDebugProperty(SCA_IObject *gameobj, const std::string &name);
+  void RemoveDebugProperty(SCA_IObject *gameobj, const std::string &name);
+  void RemoveObjectDebugProperties(SCA_IObject *gameobj);
 };
 
 #endif  // __SCA_ISCENE_H__

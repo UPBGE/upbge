@@ -44,26 +44,28 @@ struct RAS_TexVertFormat;
  * Own the display array and the display array bucket used to draw the part of the mesh
  * with the bucket material.
  */
-class RAS_MeshMaterial
-{
-private:
-	RAS_MaterialBucket *m_bucket;
-	/// The blender material index position in the mesh.
-	unsigned int m_index;
+class RAS_MeshMaterial {
+ private:
+  RAS_MaterialBucket *m_bucket;
+  /// The blender material index position in the mesh.
+  unsigned int m_index;
 
-	RAS_IDisplayArray *m_displayArray;
-	RAS_DisplayArrayBucket *m_displayArrayBucket;
+  RAS_IDisplayArray *m_displayArray;
+  RAS_DisplayArrayBucket *m_displayArrayBucket;
 
-public:
-	RAS_MeshMaterial(RAS_MeshObject *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_TexVertFormat& format);
-	~RAS_MeshMaterial();
+ public:
+  RAS_MeshMaterial(RAS_MeshObject *mesh,
+                   RAS_MaterialBucket *bucket,
+                   unsigned int index,
+                   const RAS_TexVertFormat &format);
+  ~RAS_MeshMaterial();
 
-	unsigned int GetIndex() const;
-	RAS_MaterialBucket *GetBucket() const;
-	RAS_IDisplayArray *GetDisplayArray() const;
-	RAS_DisplayArrayBucket *GetDisplayArrayBucket() const;
+  unsigned int GetIndex() const;
+  RAS_MaterialBucket *GetBucket() const;
+  RAS_IDisplayArray *GetDisplayArray() const;
+  RAS_DisplayArrayBucket *GetDisplayArrayBucket() const;
 
-	void ReplaceMaterial(RAS_MaterialBucket *bucket);
+  void ReplaceMaterial(RAS_MaterialBucket *bucket);
 };
 
 using RAS_MeshMaterialList = std::vector<RAS_MeshMaterial *>;

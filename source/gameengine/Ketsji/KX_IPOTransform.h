@@ -36,52 +36,90 @@
 #include "MT_Transform.h"
 
 class KX_IPOTransform {
-public:
-	KX_IPOTransform() :
-		m_position(0.0f, 0.0f, 0.0f),
-		m_eulerAngles(0.0f, 0.0f, 0.0f),
-		m_scaling(1.0f, 1.0f, 1.0f),
-		m_deltaPosition(0.0f, 0.0f, 0.0f),
-		m_deltaEulerAngles(0.0f, 0.0f, 0.0f),
-		m_deltaScaling(0.0f, 0.0f, 0.0f)
-		{}
+ public:
+  KX_IPOTransform()
+      : m_position(0.0f, 0.0f, 0.0f),
+        m_eulerAngles(0.0f, 0.0f, 0.0f),
+        m_scaling(1.0f, 1.0f, 1.0f),
+        m_deltaPosition(0.0f, 0.0f, 0.0f),
+        m_deltaEulerAngles(0.0f, 0.0f, 0.0f),
+        m_deltaScaling(0.0f, 0.0f, 0.0f)
+  {
+  }
 
-	MT_Transform         GetTransform() const {
-		return MT_Transform(m_position + m_deltaPosition,
-		                    MT_Matrix3x3(m_eulerAngles + m_deltaEulerAngles,
-		                                 m_scaling + m_deltaScaling));
-	}
+  MT_Transform GetTransform() const
+  {
+    return MT_Transform(
+        m_position + m_deltaPosition,
+        MT_Matrix3x3(m_eulerAngles + m_deltaEulerAngles, m_scaling + m_deltaScaling));
+  }
 
-	MT_Vector3&	         GetPosition()          { return m_position; 	}
-	MT_Vector3&          GetEulerAngles()       { return m_eulerAngles;	}
-	MT_Vector3&          GetScaling()           { return m_scaling;	}
+  MT_Vector3 &GetPosition()
+  {
+    return m_position;
+  }
+  MT_Vector3 &GetEulerAngles()
+  {
+    return m_eulerAngles;
+  }
+  MT_Vector3 &GetScaling()
+  {
+    return m_scaling;
+  }
 
-	const MT_Vector3&	 GetPosition()    const { return m_position; 	}
-	const MT_Vector3&    GetEulerAngles() const { return m_eulerAngles;	}
-	const MT_Vector3&    GetScaling()     const { return m_scaling;	}
-	
-	MT_Vector3&          GetDeltaPosition()     { return m_deltaPosition; }
-	MT_Vector3&          GetDeltaEulerAngles()  { return m_deltaEulerAngles; }
-	MT_Vector3&          GetDeltaScaling()      { return m_deltaScaling; }
-	
-	void SetPosition(const MT_Vector3& pos)      { m_position = pos; 	}
-	void SetEulerAngles(const MT_Vector3& eul)  { m_eulerAngles = eul;	}
-	void SetScaling(const MT_Vector3& scaling)  { m_scaling = scaling;	}
-	
-	void ClearDeltaStuff() { 
-		m_deltaPosition.setValue(0.0f, 0.0f, 0.0f);
-		m_deltaEulerAngles.setValue(0.0f, 0.0f, 0.0f);
-		m_deltaScaling.setValue(0.0f, 0.0f, 0.0f);
-	}
+  const MT_Vector3 &GetPosition() const
+  {
+    return m_position;
+  }
+  const MT_Vector3 &GetEulerAngles() const
+  {
+    return m_eulerAngles;
+  }
+  const MT_Vector3 &GetScaling() const
+  {
+    return m_scaling;
+  }
 
-protected:
-	MT_Vector3              m_position;
-	MT_Vector3             m_eulerAngles;
-	MT_Vector3             m_scaling;
-	MT_Vector3             m_deltaPosition;
-	MT_Vector3             m_deltaEulerAngles;
-	MT_Vector3             m_deltaScaling;
+  MT_Vector3 &GetDeltaPosition()
+  {
+    return m_deltaPosition;
+  }
+  MT_Vector3 &GetDeltaEulerAngles()
+  {
+    return m_deltaEulerAngles;
+  }
+  MT_Vector3 &GetDeltaScaling()
+  {
+    return m_deltaScaling;
+  }
+
+  void SetPosition(const MT_Vector3 &pos)
+  {
+    m_position = pos;
+  }
+  void SetEulerAngles(const MT_Vector3 &eul)
+  {
+    m_eulerAngles = eul;
+  }
+  void SetScaling(const MT_Vector3 &scaling)
+  {
+    m_scaling = scaling;
+  }
+
+  void ClearDeltaStuff()
+  {
+    m_deltaPosition.setValue(0.0f, 0.0f, 0.0f);
+    m_deltaEulerAngles.setValue(0.0f, 0.0f, 0.0f);
+    m_deltaScaling.setValue(0.0f, 0.0f, 0.0f);
+  }
+
+ protected:
+  MT_Vector3 m_position;
+  MT_Vector3 m_eulerAngles;
+  MT_Vector3 m_scaling;
+  MT_Vector3 m_deltaPosition;
+  MT_Vector3 m_deltaEulerAngles;
+  MT_Vector3 m_deltaScaling;
 };
 
 #endif
-

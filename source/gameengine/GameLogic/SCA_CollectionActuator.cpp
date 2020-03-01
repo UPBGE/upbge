@@ -31,7 +31,6 @@
  *  \ingroup ketsji
  */
 
-
 #include "SCA_IActuator.h"
 #include "SCA_CollectionActuator.h"
 #include <iostream>
@@ -41,7 +40,7 @@
 #include "KX_Scene.h"
 
 extern "C" {
-  #include "BKE_collection.h"
+#include "BKE_collection.h"
 }
 
 /* ------------------------------------------------------------------------- */
@@ -57,19 +56,17 @@ SCA_CollectionActuator::SCA_CollectionActuator(SCA_IObject *gameobj,
                                                bool use_physics,
                                                bool use_visibility)
     : SCA_IActuator(gameobj, KX_ACT_COLLECTION),
-    m_kxscene(scene),
-	m_collection(collection),
-    m_camera(cam),
-	m_mode(mode),
-    m_useLogic(use_logic),
-    m_usePhysics(use_physics),
-    m_useVisibility(use_visibility)
+      m_kxscene(scene),
+      m_collection(collection),
+      m_camera(cam),
+      m_mode(mode),
+      m_useLogic(use_logic),
+      m_usePhysics(use_physics),
+      m_useVisibility(use_visibility)
 {
   if (m_camera)
     m_camera->RegisterActuator(this);
 } /* End of constructor */
-
-
 
 SCA_CollectionActuator::~SCA_CollectionActuator()
 {
@@ -77,11 +74,9 @@ SCA_CollectionActuator::~SCA_CollectionActuator()
     m_camera->UnregisterActuator(this);
 } /* end of destructor */
 
-
-
-CValue* SCA_CollectionActuator::GetReplica()
+CValue *SCA_CollectionActuator::GetReplica()
 {
-  SCA_CollectionActuator* replica = new SCA_CollectionActuator(*this);
+  SCA_CollectionActuator *replica = new SCA_CollectionActuator(*this);
   replica->ProcessReplica();
   return replica;
 }
@@ -93,7 +88,7 @@ void SCA_CollectionActuator::ProcessReplica()
   SCA_IActuator::ProcessReplica();
 }
 
-bool SCA_CollectionActuator::UnlinkObject(SCA_IObject* clientobj)
+bool SCA_CollectionActuator::UnlinkObject(SCA_IObject *clientobj)
 {
   if (clientobj == (SCA_IObject *)m_camera) {
     // this object is being deleted, we cannot continue to use it.
@@ -103,7 +98,7 @@ bool SCA_CollectionActuator::UnlinkObject(SCA_IObject* clientobj)
   return false;
 }
 
-void SCA_CollectionActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
+void SCA_CollectionActuator::Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map)
 {
   KX_Camera *obj = static_cast<KX_Camera *>(obj_map[m_camera]);
   if (obj) {
@@ -114,7 +109,6 @@ void SCA_CollectionActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_
   }
 }
 
-
 bool SCA_CollectionActuator::Update()
 {
   // bool result = false;	/*unused*/
@@ -122,8 +116,8 @@ bool SCA_CollectionActuator::Update()
   RemoveAllEvents();
 
   if (bNegativeEvent)
-    return false; // do nothing on negative events
-	
+    return false;  // do nothing on negative events
+
   switch (m_mode) {
     case KX_COLLECTION_SUSPEND:
       for (KX_GameObject *gameobj : m_kxscene->GetObjectList()) {
@@ -177,7 +171,6 @@ bool SCA_CollectionActuator::Update()
   return false;
 }
 
-
 #ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
@@ -186,40 +179,57 @@ bool SCA_CollectionActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_CollectionActuator::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_CollectionActuator",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+    PyVarObject_HEAD_INIT(nullptr, 0) "SCA_CollectionActuator",
+    sizeof(PyObjectPlus_Proxy),
+    0,
+    py_base_dealloc,
+    0,
+    0,
+    0,
+    0,
+    py_base_repr,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    Methods,
+    0,
+    0,
+    &SCA_IActuator::Type,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    py_base_new};
 
-PyMethodDef SCA_CollectionActuator::Methods[] =
-{
-	{nullptr,nullptr} //Sentinel
+PyMethodDef SCA_CollectionActuator::Methods[] = {
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_CollectionActuator::Attributes[] = {
-	//KX_PYATTRIBUTE_STRING_RW("scene",0,MAX_ID_NAME-2,true,SCA_SceneActuator,m_nextSceneName),
-	//KX_PYATTRIBUTE_RW_FUNCTION("camera",SCA_SceneActuator,pyattr_get_camera,pyattr_set_camera),
-	//KX_PYATTRIBUTE_BOOL_RW("useRestart", SCA_SceneActuator, m_restart),
-	//KX_PYATTRIBUTE_INT_RW("mode", KX_SCENE_NODEF+1, KX_SCENE_MAX-1, true, SCA_SceneActuator, m_mode),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    // KX_PYATTRIBUTE_STRING_RW("scene",0,MAX_ID_NAME-2,true,SCA_SceneActuator,m_nextSceneName),
+    // KX_PYATTRIBUTE_RW_FUNCTION("camera",SCA_SceneActuator,pyattr_get_camera,pyattr_set_camera),
+    // KX_PYATTRIBUTE_BOOL_RW("useRestart", SCA_SceneActuator, m_restart),
+    // KX_PYATTRIBUTE_INT_RW("mode", KX_SCENE_NODEF+1, KX_SCENE_MAX-1, true, SCA_SceneActuator,
+    // m_mode),
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON
 
 /* eof */

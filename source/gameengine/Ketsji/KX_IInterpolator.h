@@ -35,13 +35,14 @@
 #include <vector>
 
 class KX_IInterpolator {
-public:
-	virtual ~KX_IInterpolator() {}
-	
-	virtual void Execute(float currentTime) const = 0; 
+ public:
+  virtual ~KX_IInterpolator()
+  {
+  }
+
+  virtual void Execute(float currentTime) const = 0;
 };
 
 typedef std::vector<KX_IInterpolator *> T_InterpolatorList;
 
 #endif
-
