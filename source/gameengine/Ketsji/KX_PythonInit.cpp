@@ -173,8 +173,8 @@ static struct {
 
 /* Macro for building the keyboard translation */
 //#define KX_MACRO_addToDict(dict, name) PyDict_SetItemString(dict, #name,
-//PyLong_FromLong(SCA_IInputDevice::##name)) #define KX_MACRO_addToDict(dict, name)
-//PyDict_SetItemString(dict, #name, item=PyLong_FromLong(name)); Py_DECREF(item)
+// PyLong_FromLong(SCA_IInputDevice::##name)) #define KX_MACRO_addToDict(dict, name)
+// PyDict_SetItemString(dict, #name, item=PyLong_FromLong(name)); Py_DECREF(item)
 /* For the defines for types from logic bricks, we do stuff explicitly... */
 #  define KX_MACRO_addTypesToDict(dict, name, value) KX_MACRO_addTypesToDict_fn(dict, #  name, value)
 static void KX_MACRO_addTypesToDict_fn(PyObject *dict, const char *name, long value)

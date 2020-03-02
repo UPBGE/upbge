@@ -1272,7 +1272,7 @@ void CDDM_calc_loop_normals_spacearr(DerivedMesh *dm,
 //	face_nors = CustomData_get_layer(&dm->faceData, CD_NORMAL);
 //	if (!face_nors) {
 //		face_nors = CustomData_add_layer(&dm->faceData, CD_NORMAL, CD_CALLOC, NULL,
-//dm->numTessFaceData);
+// dm->numTessFaceData);
 //	}
 //
 //	BKE_mesh_calc_normals_tessface(cddm->mvert, dm->numVertData,

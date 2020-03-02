@@ -438,7 +438,7 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(bool useDbvtCulling,
 
   SetSolverType(1);  // issues with quickstep and memory allocations
   //	m_dynamicsWorld = new
-  //btDiscreteDynamicsWorld(dispatcher,m_broadphase,m_solver,m_collisionConfiguration);
+  // btDiscreteDynamicsWorld(dispatcher,m_broadphase,m_solver,m_collisionConfiguration);
   m_dynamicsWorld = new btSoftRigidDynamicsWorld(
       dispatcher, m_broadphase, m_solver, m_collisionConfiguration);
   m_dynamicsWorld->setInternalTickCallback(&CcdPhysicsEnvironment::StaticSimulationSubtickCallback,

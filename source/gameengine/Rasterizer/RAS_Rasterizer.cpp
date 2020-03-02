@@ -441,8 +441,8 @@ void RAS_Rasterizer::DrawStereoFrameBuffer(RAS_ICanvas *canvas,
   //
   //	const RAS_Rect& viewport = canvas->GetViewportArea();
   //	SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1,
-  //viewport.GetHeight() + 1); 	SetScissor(viewport.GetLeft(), viewport.GetBottom(),
-  //viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+  // viewport.GetHeight() + 1); 	SetScissor(viewport.GetLeft(), viewport.GetBottom(),
+  // viewport.GetWidth() + 1, viewport.GetHeight() + 1);
   //
   //// 	Disable(RAS_CULL_FACE);
   //// 	SetDepthFunc(RAS_ALWAYS);
@@ -455,17 +455,17 @@ void RAS_Rasterizer::DrawStereoFrameBuffer(RAS_ICanvas *canvas,
   //		case RAS_STEREO_INTERLACED:
   //		{
   //			DRW_bind_shader_shgroup(m_screenShaders.interlace/*, (DRWState)(DRW_STATE_WRITE_COLOR |
-  //DRW_STATE_DEPTH_ALWAYS)*/); 			break;
+  // DRW_STATE_DEPTH_ALWAYS)*/); 			break;
   //		}
   //		case RAS_STEREO_VINTERLACE:
   //		{
   //			DRW_bind_shader_shgroup(m_screenShaders.interlace/*, (DRWState)(DRW_STATE_WRITE_COLOR |
-  //DRW_STATE_DEPTH_ALWAYS)*/); 			break;
+  // DRW_STATE_DEPTH_ALWAYS)*/); 			break;
   //		}
   //		case RAS_STEREO_ANAGLYPH:
   //		{
   //			DRW_bind_shader_shgroup(m_screenShaders.anaglyph/*, (DRWState)(DRW_STATE_WRITE_COLOR |
-  //DRW_STATE_DEPTH_ALWAYS)*/); 			break;
+  // DRW_STATE_DEPTH_ALWAYS)*/); 			break;
   //		}
   //		default:
   //		{
