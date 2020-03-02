@@ -103,6 +103,7 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw()
   glGenBuffers(1, &m_vbo);
   glGenBuffers(1, &m_wireibo);
   glGenBuffers(1, &m_solidibo);
+  glGenBuffers(1, &m_lineibo);
 
   GLubyte wireIndices[24] = {0, 1, 1, 2, 2, 3, 3, 0, 0, 4, 4, 5,
                              5, 6, 6, 7, 7, 4, 1, 5, 2, 6, 3, 7};
@@ -117,6 +118,12 @@ RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw()
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_solidibo);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 36, solidIndices, GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+  const GLubyte lineIndices[2] = {0, 1};
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lineibo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 2, lineIndices, GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 RAS_OpenGLDebugDraw::~RAS_OpenGLDebugDraw()
@@ -124,6 +131,7 @@ RAS_OpenGLDebugDraw::~RAS_OpenGLDebugDraw()
   glDeleteBuffers(1, &m_vbo);
   glDeleteBuffers(1, &m_wireibo);
   glDeleteBuffers(1, &m_solidibo);
+  glDeleteBuffers(1, &m_lineibo);
   glDeleteVertexArrays(1, &m_vao);
 }
 
@@ -132,9 +140,9 @@ void RAS_OpenGLDebugDraw::BindVBO(float *mvp, float color[4], float *vertexes, u
   glUseProgram(m_genericProg);
 
   glUniform4f(
-      glGetUniformLocation(m_genericProg, "color"), color[0], color[1], color[2], color[3]);
+  glGetUniformLocation(m_genericProg, "color"), color[0], color[1], color[2], color[3]);
   glUniformMatrix4fv(
-      glGetUniformLocation(m_genericProg, "ModelViewProjectionMatrix"), 1, false, mvp);
+  glGetUniformLocation(m_genericProg, "ModelViewProjectionMatrix"), 1, false, mvp);
 
   glBindVertexArray(m_vao);
 
@@ -167,29 +175,28 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
   rasty->SetFrontFace(true);
 
+  float mvp[16];
+  m_cameraMatrix.getValue(&mvp[0]);
+
   // draw lines
-  GPUVertFormat *format = immVertexFormat();
-  unsigned int pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
   for (const RAS_DebugDraw::Line &line : debugDraw->m_lines) {
     float col[4];
     line.m_color.getValue(col);
-    immUniformColor4fv(col);
+    const MT_Vector3 &min = line.m_from;
+    const MT_Vector3 &max = line.m_to;
+    GLfloat vertexes[6] = {
+        (float)min[0],
+        (float)min[1],
+        (float)min[2],
+        (float)max[0],
+        (float)max[1],
+        (float)max[2],
+    };
 
-    immBeginAtMost(GPU_PRIM_LINES, 2);
-
-    float frompos[3];
-    line.m_from.getValue(frompos);
-    immVertex3fv(pos, frompos);
-    float topos[3];
-    line.m_to.getValue(topos);
-    immVertex3fv(pos, topos);
-
-    immEnd();
+    BindVBO(mvp, col, vertexes, m_lineibo);
+    glDrawElements(GL_LINES, 2, GL_UNSIGNED_BYTE, 0);
+    UnbindVBO();
   }
-  immUnbindProgram();
 
   // Draw aabbs
   for (const RAS_DebugDraw::Aabb &aabb : debugDraw->m_aabbs) {
@@ -240,7 +247,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     // rasty->PopMatrix();
   }
 
-  float mvp[16];
   m_cameraMatrix.getValue(mvp);
   // Draw boxes.
   for (const RAS_DebugDraw::SolidBox &box : debugDraw->m_solidBoxes) {
@@ -278,8 +284,8 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   const unsigned int height = canvas->GetHeight();
   GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
 
-  format = immVertexFormat();
-  pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  GPUVertFormat *format = immVertexFormat();
+  unsigned int pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
   for (const RAS_DebugDraw::Box2D &box2d : debugDraw->m_boxes2D) {

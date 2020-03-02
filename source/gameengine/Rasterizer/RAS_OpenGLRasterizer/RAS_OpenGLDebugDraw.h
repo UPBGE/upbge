@@ -41,6 +41,7 @@ class RAS_OpenGLDebugDraw {
   unsigned int m_vao;
   unsigned int m_wireibo;
   unsigned int m_solidibo;
+  unsigned int m_lineibo;
   MT_Matrix4x4 m_cameraMatrix;
 
  public:

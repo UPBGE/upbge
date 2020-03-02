@@ -87,7 +87,7 @@ void KX_RasterizerDrawDebugLine(const MT_Vector3 &from,
                                 const MT_Vector3 &to,
                                 const MT_Vector4 &color)
 {
-  g_engine->GetRasterizer()->GetDebugDraw(g_scene).DrawLine(from, to, color);
+  g_engine->GetRasterizer()->GetDebugDraw(nullptr).DrawLine(from, to, color);
 }
 
 void KX_RasterizerDrawDebugCircle(const MT_Vector3 &center,
@@ -96,6 +96,6 @@ void KX_RasterizerDrawDebugCircle(const MT_Vector3 &center,
                                   const MT_Vector3 &normal,
                                   int nsector)
 {
-  g_engine->GetRasterizer()->GetDebugDraw(g_scene).DrawCircle(
+  g_engine->GetRasterizer()->GetDebugDraw(nullptr).DrawCircle(
       center, radius, color, normal, nsector);
 }
