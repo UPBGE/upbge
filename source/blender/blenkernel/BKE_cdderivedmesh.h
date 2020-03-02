@@ -29,6 +29,10 @@
 #ifndef __BKE_CDDERIVEDMESH_H__
 #define __BKE_CDDERIVEDMESH_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "BKE_DerivedMesh.h"
 #include "BKE_customdata.h"
 
@@ -178,5 +182,9 @@ void CDDM_set_medge(struct DerivedMesh *dm, struct MEdge *medge);
 void CDDM_set_mface(struct DerivedMesh *dm, struct MFace *mface);
 void CDDM_set_mloop(struct DerivedMesh *dm, struct MLoop *mloop);
 void CDDM_set_mpoly(struct DerivedMesh *dm, struct MPoly *mpoly);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

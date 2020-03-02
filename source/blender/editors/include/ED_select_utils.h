@@ -21,6 +21,10 @@
 #ifndef __ED_SELECT_UTILS_H__
 #define __ED_SELECT_UTILS_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct KDTree_1d;
 
 enum {
@@ -29,6 +33,13 @@ enum {
   SEL_DESELECT = 2,
   SEL_INVERT = 3,
 };
+
+typedef enum WalkSelectDirection {
+  UI_SELECT_WALK_UP,
+  UI_SELECT_WALK_DOWN,
+  UI_SELECT_WALK_LEFT,
+  UI_SELECT_WALK_RIGHT,
+} WalkSelectDirections;
 
 /** See #WM_operator_properties_select_operation */
 typedef enum {
@@ -63,5 +74,9 @@ bool ED_select_similar_compare_float_tree(const struct KDTree_1d *tree,
                                           const int compare);
 
 eSelectOp ED_select_op_modal(const eSelectOp sel_op, const bool is_first);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __ED_SELECT_UTILS_H__ */

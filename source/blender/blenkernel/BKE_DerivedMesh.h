@@ -72,6 +72,10 @@
 #include "BKE_customdata.h"
 #include "BKE_bvhutils.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct BMEditMesh;
 struct CCGElem;
 struct CCGKey;
@@ -530,5 +534,9 @@ struct MEdge *DM_get_edge_array(struct DerivedMesh *dm, bool *r_allocated);
 struct MLoop *DM_get_loop_array(struct DerivedMesh *dm, bool *r_allocated);
 struct MPoly *DM_get_poly_array(struct DerivedMesh *dm, bool *r_allocated);
 struct MFace *DM_get_tessface_array(struct DerivedMesh *dm, bool *r_allocated);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BKE_DERIVEDMESH_H__ */
