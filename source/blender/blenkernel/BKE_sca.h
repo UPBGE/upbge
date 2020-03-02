@@ -77,16 +77,25 @@ void sca_move_controller(struct bController *cont_to_move, struct Object *ob, in
 void sca_move_actuator(struct bActuator *act_to_move, struct Object *ob, int move_up);
 
 /* Callback format for performing operations on ID-pointers for sensors/controllers/actuators. */
-typedef void (*SCASensorIDFunc)(struct bSensor *sensor, struct ID **idpoin, void *userdata, int cb_flag);
-typedef void (*SCAControllerIDFunc)(struct bController *controller, struct ID **idpoin, void *userdata, int cb_flag);
-typedef void (*SCAActuatorIDFunc)(struct bActuator *actuator, struct ID **idpoin, void *userdata, int cb_flag);
+typedef void (*SCASensorIDFunc)(struct bSensor *sensor,
+                                struct ID **idpoin,
+                                void *userdata,
+                                int cb_flag);
+typedef void (*SCAControllerIDFunc)(struct bController *controller,
+                                    struct ID **idpoin,
+                                    void *userdata,
+                                    int cb_flag);
+typedef void (*SCAActuatorIDFunc)(struct bActuator *actuator,
+                                  struct ID **idpoin,
+                                  void *userdata,
+                                  int cb_flag);
 
 void BKE_sca_sensors_id_loop(struct ListBase *senslist, SCASensorIDFunc func, void *userdata);
-void BKE_sca_controllers_id_loop(struct ListBase *contlist, SCAControllerIDFunc func, void *userdata);
+void BKE_sca_controllers_id_loop(struct ListBase *contlist,
+                                 SCAControllerIDFunc func,
+                                 void *userdata);
 void BKE_sca_actuators_id_loop(struct ListBase *atclist, SCAActuatorIDFunc func, void *userdata);
-
 
 const char *sca_state_name_get(Object *ob, short bit);
 
 #endif
-

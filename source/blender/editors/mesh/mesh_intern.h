@@ -274,7 +274,6 @@ void MESH_OT_customdata_skin_clear(struct wmOperatorType *ot);
 void MESH_OT_customdata_custom_splitnormals_add(struct wmOperatorType *ot);
 void MESH_OT_customdata_custom_splitnormals_clear(struct wmOperatorType *ot);
 
-
 /* *** mesh_navmesh.c *** */
 void MESH_OT_navmesh_make(struct wmOperatorType *ot);
 void MESH_OT_navmesh_face_copy(struct wmOperatorType *ot);
@@ -282,5 +281,4 @@ void MESH_OT_navmesh_face_add(struct wmOperatorType *ot);
 void MESH_OT_navmesh_reset(struct wmOperatorType *ot);
 void MESH_OT_navmesh_clear(struct wmOperatorType *ot);
 
-
-#endif  /* __MESH_INTERN_H__ */
+#endif /* __MESH_INTERN_H__ */

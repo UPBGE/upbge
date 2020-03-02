@@ -565,7 +565,7 @@ static void stats_string(ViewLayer *view_layer)
                       MAX_INFO_LEN - ofs,
                       "  |  UPBGE %s %s (based on Blender %s)",
                       upbge_versionstr,
-                      "Alpha", // Remove alpha when release
+                      "Alpha",  // Remove alpha when release
                       versionstr);
 
 #undef MAX_INFO_MEM_LEN

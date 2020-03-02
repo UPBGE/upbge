@@ -33,7 +33,6 @@
 
 struct BulletSoftBody;
 
-
 /* allocates and initializes general main data */
 extern struct BulletSoftBody *bsbNew(void);
 
@@ -41,4 +40,3 @@ extern struct BulletSoftBody *bsbNew(void);
 extern void bsbFree(struct BulletSoftBody *sb);
 
 #endif
-

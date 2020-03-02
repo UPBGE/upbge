@@ -1469,181 +1469,178 @@ static void write_particlesystems(WriteData *wd, ListBase *particles)
 
 static void write_properties(WriteData *wd, ListBase *lb)
 {
-	bProperty *prop;
+  bProperty *prop;
 
-	prop = lb->first;
-	while (prop) {
-		writestruct(wd, DATA, bProperty, 1, prop);
+  prop = lb->first;
+  while (prop) {
+    writestruct(wd, DATA, bProperty, 1, prop);
 
-		if (prop->poin && prop->poin != &prop->data) {
-			writedata(wd, DATA, MEM_allocN_len(prop->poin), prop->poin);
-		}
+    if (prop->poin && prop->poin != &prop->data) {
+      writedata(wd, DATA, MEM_allocN_len(prop->poin), prop->poin);
+    }
 
-		prop = prop->next;
-	}
+    prop = prop->next;
+  }
 }
 
 static void write_sensors(WriteData *wd, ListBase *lb)
 {
-	bSensor *sens;
+  bSensor *sens;
 
-	sens = lb->first;
-	while (sens) {
-		writestruct(wd, DATA, bSensor, 1, sens);
+  sens = lb->first;
+  while (sens) {
+    writestruct(wd, DATA, bSensor, 1, sens);
 
-		writedata(wd, DATA, sizeof(void *) * sens->totlinks, sens->links);
+    writedata(wd, DATA, sizeof(void *) * sens->totlinks, sens->links);
 
-		switch (sens->type) {
-			case SENS_NEAR:
-				writestruct(wd, DATA, bNearSensor, 1, sens->data);
-				break;
-			case SENS_MOUSE:
-				writestruct(wd, DATA, bMouseSensor, 1, sens->data);
-				break;
-			case SENS_KEYBOARD:
-				writestruct(wd, DATA, bKeyboardSensor, 1, sens->data);
-				break;
-			case SENS_PROPERTY:
-				writestruct(wd, DATA, bPropertySensor, 1, sens->data);
-				break;
-			case SENS_ARMATURE:
-				writestruct(wd, DATA, bArmatureSensor, 1, sens->data);
-				break;
-			case SENS_ACTUATOR:
-				writestruct(wd, DATA, bActuatorSensor, 1, sens->data);
-				break;
-			case SENS_DELAY:
-				writestruct(wd, DATA, bDelaySensor, 1, sens->data);
-				break;
-			case SENS_COLLISION:
-				writestruct(wd, DATA, bCollisionSensor, 1, sens->data);
-				break;
-			case SENS_RADAR:
-				writestruct(wd, DATA, bRadarSensor, 1, sens->data);
-				break;
-			case SENS_RANDOM:
-				writestruct(wd, DATA, bRandomSensor, 1, sens->data);
-				break;
-			case SENS_RAY:
-				writestruct(wd, DATA, bRaySensor, 1, sens->data);
-				break;
-			case SENS_MESSAGE:
-				writestruct(wd, DATA, bMessageSensor, 1, sens->data);
-				break;
-			case SENS_JOYSTICK:
-				writestruct(wd, DATA, bJoystickSensor, 1, sens->data);
-				break;
-			default:
-				; /* error: don't know how to write this file */
-		}
+    switch (sens->type) {
+      case SENS_NEAR:
+        writestruct(wd, DATA, bNearSensor, 1, sens->data);
+        break;
+      case SENS_MOUSE:
+        writestruct(wd, DATA, bMouseSensor, 1, sens->data);
+        break;
+      case SENS_KEYBOARD:
+        writestruct(wd, DATA, bKeyboardSensor, 1, sens->data);
+        break;
+      case SENS_PROPERTY:
+        writestruct(wd, DATA, bPropertySensor, 1, sens->data);
+        break;
+      case SENS_ARMATURE:
+        writestruct(wd, DATA, bArmatureSensor, 1, sens->data);
+        break;
+      case SENS_ACTUATOR:
+        writestruct(wd, DATA, bActuatorSensor, 1, sens->data);
+        break;
+      case SENS_DELAY:
+        writestruct(wd, DATA, bDelaySensor, 1, sens->data);
+        break;
+      case SENS_COLLISION:
+        writestruct(wd, DATA, bCollisionSensor, 1, sens->data);
+        break;
+      case SENS_RADAR:
+        writestruct(wd, DATA, bRadarSensor, 1, sens->data);
+        break;
+      case SENS_RANDOM:
+        writestruct(wd, DATA, bRandomSensor, 1, sens->data);
+        break;
+      case SENS_RAY:
+        writestruct(wd, DATA, bRaySensor, 1, sens->data);
+        break;
+      case SENS_MESSAGE:
+        writestruct(wd, DATA, bMessageSensor, 1, sens->data);
+        break;
+      case SENS_JOYSTICK:
+        writestruct(wd, DATA, bJoystickSensor, 1, sens->data);
+        break;
+      default:; /* error: don't know how to write this file */
+    }
 
-		sens = sens->next;
-	}
+    sens = sens->next;
+  }
 }
 
 static void write_controllers(WriteData *wd, ListBase *lb)
 {
-	bController *cont;
+  bController *cont;
 
-	cont = lb->first;
-	while (cont) {
-		writestruct(wd, DATA, bController, 1, cont);
+  cont = lb->first;
+  while (cont) {
+    writestruct(wd, DATA, bController, 1, cont);
 
-		writedata(wd, DATA, sizeof(void *) * cont->totlinks, cont->links);
+    writedata(wd, DATA, sizeof(void *) * cont->totlinks, cont->links);
 
-		switch (cont->type) {
-			case CONT_EXPRESSION:
-				writestruct(wd, DATA, bExpressionCont, 1, cont->data);
-				break;
-			case CONT_PYTHON:
-				writestruct(wd, DATA, bPythonCont, 1, cont->data);
-				break;
-			default:
-				; /* error: don't know how to write this file */
-		}
+    switch (cont->type) {
+      case CONT_EXPRESSION:
+        writestruct(wd, DATA, bExpressionCont, 1, cont->data);
+        break;
+      case CONT_PYTHON:
+        writestruct(wd, DATA, bPythonCont, 1, cont->data);
+        break;
+      default:; /* error: don't know how to write this file */
+    }
 
-		cont = cont->next;
-	}
+    cont = cont->next;
+  }
 }
 
 static void write_actuators(WriteData *wd, ListBase *lb)
 {
-	bActuator *act;
+  bActuator *act;
 
-	act = lb->first;
-	while (act) {
-		writestruct(wd, DATA, bActuator, 1, act);
+  act = lb->first;
+  while (act) {
+    writestruct(wd, DATA, bActuator, 1, act);
 
-		switch (act->type) {
-			case ACT_ACTION:
-				writestruct(wd, DATA, bActionActuator, 1, act->data);
-				break;
-			case ACT_SOUND:
-				writestruct(wd, DATA, bSoundActuator, 1, act->data);
-				break;
-			case ACT_OBJECT:
-				writestruct(wd, DATA, bObjectActuator, 1, act->data);
-				break;
-			case ACT_PROPERTY:
-				writestruct(wd, DATA, bPropertyActuator, 1, act->data);
-				break;
-			case ACT_CAMERA:
-				writestruct(wd, DATA, bCameraActuator, 1, act->data);
-				break;
-			case ACT_CONSTRAINT:
-				writestruct(wd, DATA, bConstraintActuator, 1, act->data);
-				break;
-			case ACT_EDIT_OBJECT:
-				writestruct(wd, DATA, bEditObjectActuator, 1, act->data);
-				break;
-			case ACT_SCENE:
-				writestruct(wd, DATA, bSceneActuator, 1, act->data);
-				break;
+    switch (act->type) {
+      case ACT_ACTION:
+        writestruct(wd, DATA, bActionActuator, 1, act->data);
+        break;
+      case ACT_SOUND:
+        writestruct(wd, DATA, bSoundActuator, 1, act->data);
+        break;
+      case ACT_OBJECT:
+        writestruct(wd, DATA, bObjectActuator, 1, act->data);
+        break;
+      case ACT_PROPERTY:
+        writestruct(wd, DATA, bPropertyActuator, 1, act->data);
+        break;
+      case ACT_CAMERA:
+        writestruct(wd, DATA, bCameraActuator, 1, act->data);
+        break;
+      case ACT_CONSTRAINT:
+        writestruct(wd, DATA, bConstraintActuator, 1, act->data);
+        break;
+      case ACT_EDIT_OBJECT:
+        writestruct(wd, DATA, bEditObjectActuator, 1, act->data);
+        break;
+      case ACT_SCENE:
+        writestruct(wd, DATA, bSceneActuator, 1, act->data);
+        break;
       case ACT_COLLECTION:
         writestruct(wd, DATA, bCollectionActuator, 1, act->data);
         break;
-			case ACT_GROUP:
-				writestruct(wd, DATA, bGroupActuator, 1, act->data);
-				break;
-			case ACT_RANDOM:
-				writestruct(wd, DATA, bRandomActuator, 1, act->data);
-				break;
-			case ACT_MESSAGE:
-				writestruct(wd, DATA, bMessageActuator, 1, act->data);
-				break;
-			case ACT_GAME:
-				writestruct(wd, DATA, bGameActuator, 1, act->data);
-				break;
+      case ACT_GROUP:
+        writestruct(wd, DATA, bGroupActuator, 1, act->data);
+        break;
+      case ACT_RANDOM:
+        writestruct(wd, DATA, bRandomActuator, 1, act->data);
+        break;
+      case ACT_MESSAGE:
+        writestruct(wd, DATA, bMessageActuator, 1, act->data);
+        break;
+      case ACT_GAME:
+        writestruct(wd, DATA, bGameActuator, 1, act->data);
+        break;
       case ACT_VIBRATION:
-				writestruct(wd, DATA, bVibrationActuator, 1, act->data);
-				break;
-			case ACT_VISIBILITY:
-				writestruct(wd, DATA, bVisibilityActuator, 1, act->data);
-				break;
-			case ACT_2DFILTER:
-				writestruct(wd, DATA, bTwoDFilterActuator, 1, act->data);
-				break;
-			case ACT_PARENT:
-				writestruct(wd, DATA, bParentActuator, 1, act->data);
-				break;
-			case ACT_STATE:
-				writestruct(wd, DATA, bStateActuator, 1, act->data);
-				break;
-			case ACT_ARMATURE:
-				writestruct(wd, DATA, bArmatureActuator, 1, act->data);
-				break;
-			case ACT_STEERING:
-				writestruct(wd, DATA, bSteeringActuator, 1, act->data);
-				break;
-			case ACT_MOUSE:
-				writestruct(wd, DATA, bMouseActuator, 1, act->data);
-				break;
-			default:
-				; /* error: don't know how to write this file */
-		}
+        writestruct(wd, DATA, bVibrationActuator, 1, act->data);
+        break;
+      case ACT_VISIBILITY:
+        writestruct(wd, DATA, bVisibilityActuator, 1, act->data);
+        break;
+      case ACT_2DFILTER:
+        writestruct(wd, DATA, bTwoDFilterActuator, 1, act->data);
+        break;
+      case ACT_PARENT:
+        writestruct(wd, DATA, bParentActuator, 1, act->data);
+        break;
+      case ACT_STATE:
+        writestruct(wd, DATA, bStateActuator, 1, act->data);
+        break;
+      case ACT_ARMATURE:
+        writestruct(wd, DATA, bArmatureActuator, 1, act->data);
+        break;
+      case ACT_STEERING:
+        writestruct(wd, DATA, bSteeringActuator, 1, act->data);
+        break;
+      case ACT_MOUSE:
+        writestruct(wd, DATA, bMouseActuator, 1, act->data);
+        break;
+      default:; /* error: don't know how to write this file */
+    }
 
-		act = act->next;
-	}
+    act = act->next;
+  }
 }
 
 static void write_component_properties(WriteData *wd, ListBase *lb)

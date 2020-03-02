@@ -5,6 +5,6 @@ out vec4 texcovar;
 
 void main()
 {
-	gl_Position = bgl_InPosition;
-	texcovar = vec4(bgl_InTexCoord, 0.0, 0.0);
+  gl_Position = bgl_InPosition;
+  texcovar = vec4(bgl_InTexCoord, 0.0, 0.0);
 }

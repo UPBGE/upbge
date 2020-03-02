@@ -745,8 +745,8 @@ WorkspaceConfigFileData *BKE_blendfile_workspace_config_read(const char *filepat
 
 bool BKE_blendfile_workspace_config_write(Main *bmain, const char *filepath, ReportList *reports)
 {
-	int fileflags = G.fileflags & ~(G_FILE_NO_UI | G_FILE_AUTOPLAY | G_FILE_HISTORY);
-	bool retval = false;
+  int fileflags = G.fileflags & ~(G_FILE_NO_UI | G_FILE_AUTOPLAY | G_FILE_HISTORY);
+  bool retval = false;
 
   BKE_blendfile_write_partial_begin(bmain);
 

@@ -428,8 +428,7 @@ static void OVERLAY_bounds(OVERLAY_ExtraCallBuffers *cb,
 }
 
 /* Game engine transition */
-static void OVERLAY_pivot(
-    OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
+static void OVERLAY_pivot(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
 {
   float color[4], tmp[4][4];
   UI_GetThemeColor4fv(theme_id, color);

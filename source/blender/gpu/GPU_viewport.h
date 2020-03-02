@@ -137,4 +137,4 @@ GPUTexture *GPU_viewport_texture_pool_query(
 bool GPU_viewport_engines_data_validate(GPUViewport *viewport, void **engine_handle_array);
 void GPU_viewport_cache_release(GPUViewport *viewport);
 
-#endif // __GPU_VIEWPORT_H__
+#endif  // __GPU_VIEWPORT_H__

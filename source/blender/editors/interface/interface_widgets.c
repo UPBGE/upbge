@@ -3569,20 +3569,23 @@ bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol)
   vec[2][0] = vec[3][0] - dist;
   vec[2][1] = vec[3][1];
 
-  BKE_curve_forward_diff_bezier(vec[0][0], vec[1][0], vec[2][0], vec[3][0], &coord_array[0][0], resol, sizeof(float[2]));
-  BKE_curve_forward_diff_bezier(vec[0][1], vec[1][1], vec[2][1], vec[3][1], &coord_array[0][1], resol, sizeof(float[2]));
+  BKE_curve_forward_diff_bezier(
+      vec[0][0], vec[1][0], vec[2][0], vec[3][0], &coord_array[0][0], resol, sizeof(float[2]));
+  BKE_curve_forward_diff_bezier(
+      vec[0][1], vec[1][1], vec[2][1], vec[3][1], &coord_array[0][1], resol, sizeof(float[2]));
 
   /* TODO: why return anything if always true? */
   return true;
 }
 
-#define LINK_RESOL  24
+#define LINK_RESOL 24
 void ui_draw_link_bezier(const rcti *rect, const float color[4])
 {
   float coord_array[LINK_RESOL + 1][2];
 
   if (ui_link_bezier_points(rect, coord_array, LINK_RESOL)) {
-    unsigned int pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    unsigned int pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
 #if 0 /* unused */
@@ -3798,7 +3801,11 @@ static void widget_progressbar(
   rect->xmax += (BLI_rcti_size_x(&rect_prog) / 2);
 }
 
-static void widget_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+static void widget_link(uiBut *but,
+                        uiWidgetColors *UNUSED(wcol),
+                        rcti *rect,
+                        int UNUSED(state),
+                        int UNUSED(roundboxalign))
 {
   if (but->flag & UI_SELECT) {
     rcti rectlink;

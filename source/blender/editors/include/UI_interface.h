@@ -225,7 +225,7 @@ enum {
   UI_BUT_TEXTEDIT_UPDATE = 1 << 29,
   /** Show 'x' icon to clear/unlink value of text or search button. */
   UI_BUT_VALUE_CLEAR = 1 << 30,
-  UI_BUT_SCA_LINK_GREY   = 1 << 31,  /* used to flag if sca links shoud be gray out */
+  UI_BUT_SCA_LINK_GREY = 1 << 31, /* used to flag if sca links shoud be gray out */
 
   /** RNA property of the button is overridden from linked reference data. */
   UI_BUT_OVERRIDEN = 1u << 31u,
@@ -1567,7 +1567,7 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
  * Game engine logic brick links. Non-functional currently in 2.5,
  * code to handle and draw these is disabled internally. */
 
-void UI_but_link_set(struct uiBut *but,  void **poin,  void ***ppoin,  short *tot,  int from, int to);
+void UI_but_link_set(struct uiBut *but, void **poin, void ***ppoin, short *tot, int from, int to);
 
 void UI_block_links_compose(uiBlock *block);
 uiBut *UI_block_links_find_inlink(uiBlock *block, void *poin);
@@ -2014,12 +2014,25 @@ void uiTemplateColorPicker(uiLayout *layout,
                            bool cubic);
 void uiTemplatePalette(uiLayout *layout, struct PointerRNA *ptr, const char *propname, bool color);
 void uiTemplateCryptoPicker(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
-void uiTemplateLayers(
-        uiLayout *layout, struct PointerRNA *ptr, const char *propname,
-        PointerRNA *used_ptr, const char *used_propname, int active_layer);
-void uiTemplateGameStates(uiLayout *layout, struct PointerRNA *ptr, const char *propname,
-    	PointerRNA *used_ptr, const char *used_propname, int active_state);
-void uiTemplateImage(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, struct PointerRNA *userptr, bool compact, bool multiview);
+void uiTemplateLayers(uiLayout *layout,
+                      struct PointerRNA *ptr,
+                      const char *propname,
+                      PointerRNA *used_ptr,
+                      const char *used_propname,
+                      int active_layer);
+void uiTemplateGameStates(uiLayout *layout,
+                          struct PointerRNA *ptr,
+                          const char *propname,
+                          PointerRNA *used_ptr,
+                          const char *used_propname,
+                          int active_state);
+void uiTemplateImage(uiLayout *layout,
+                     struct bContext *C,
+                     struct PointerRNA *ptr,
+                     const char *propname,
+                     struct PointerRNA *userptr,
+                     bool compact,
+                     bool multiview);
 void uiTemplateImageSettings(uiLayout *layout, struct PointerRNA *imfptr, bool color_management);
 void uiTemplateImageStereo3d(uiLayout *layout, struct PointerRNA *stereo3d_format_ptr);
 void uiTemplateImageViews(uiLayout *layout, struct PointerRNA *imaptr);

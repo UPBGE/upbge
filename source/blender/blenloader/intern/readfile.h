@@ -61,66 +61,65 @@ typedef int(FileDataReadFn)(struct FileData *filedata, void *buffer, unsigned in
 typedef off64_t(FileDataSeekFn)(struct FileData *filedata, off64_t offset, int whence);
 
 typedef struct FileData {
-	/** Linked list of BHeadN's. */
-	ListBase bhead_list;
-	enum eFileDataFlag flags;
-	bool is_eof;
-	int buffersize;
-	int64_t file_offset;
+  /** Linked list of BHeadN's. */
+  ListBase bhead_list;
+  enum eFileDataFlag flags;
+  bool is_eof;
+  int buffersize;
+  int64_t file_offset;
 
-	FileDataReadFn *read;
-	FileDataSeekFn *seek;
+  FileDataReadFn *read;
+  FileDataSeekFn *seek;
 
-	/** Variables needed for reading from memory / stream. */
-	int filedes;
-	const char *buffer;
-	/** Variables needed for reading from memfile (undo). */
-	struct MemFile *memfile;
+  /** Variables needed for reading from memory / stream. */
+  int filedes;
+  const char *buffer;
+  /** Variables needed for reading from memfile (undo). */
+  struct MemFile *memfile;
 
-	/** Variables needed for reading from file. */
-	gzFile gzfiledes;
-	/** Gzip stream for memory decompression. */
-	z_stream strm;
+  /** Variables needed for reading from file. */
+  gzFile gzfiledes;
+  /** Gzip stream for memory decompression. */
+  z_stream strm;
 
-	/** Now only in use for library appending. */
-	char relabase[FILE_MAX];
+  /** Now only in use for library appending. */
+  char relabase[FILE_MAX];
 
+  /** General reading variables. */
+  struct SDNA *filesdna;
+  const struct SDNA *memsdna;
+  /** Array of #eSDNA_StructCompare. */
+  const char *compflags;
 
-	/** General reading variables. */
-	struct SDNA *filesdna;
-	const struct SDNA *memsdna;
-	/** Array of #eSDNA_StructCompare. */
-	const char *compflags;
+  int fileversion;
+  /** Used to retrieve ID names from (bhead+1). */
+  int id_name_offs;
+  /** For do_versions patching. */
+  int globalf, fileflags;
 
-	int fileversion;
-	/** Used to retrieve ID names from (bhead+1). */
-	int id_name_offs;
-	/** For do_versions patching. */
-	int globalf, fileflags;
+  /** Optionally skip some data-blocks when they're not needed. */
+  eBLOReadSkip skip_flags;
 
-	/** Optionally skip some data-blocks when they're not needed. */
-	eBLOReadSkip skip_flags;
+  struct OldNewMap *datamap;
+  struct OldNewMap *globmap;
+  struct OldNewMap *libmap;
+  struct OldNewMap *imamap;
+  struct OldNewMap *movieclipmap;
+  struct OldNewMap *scenemap;
+  struct OldNewMap *soundmap;
+  struct OldNewMap *packedmap;
 
-	struct OldNewMap *datamap;
-	struct OldNewMap *globmap;
-	struct OldNewMap *libmap;
-	struct OldNewMap *imamap;
-	struct OldNewMap *movieclipmap;
-	struct OldNewMap *scenemap;
-	struct OldNewMap *soundmap;
-	struct OldNewMap *packedmap;
+  struct BHeadSort *bheadmap;
+  int tot_bheadmap;
 
-	struct BHeadSort *bheadmap;
-	int tot_bheadmap;
+  /** See: #USE_GHASH_BHEAD. */
+  struct GHash *bhead_idname_hash;
 
-	/** See: #USE_GHASH_BHEAD. */
-	struct GHash *bhead_idname_hash;
+  ListBase *mainlist;
+  /** Used for undo. */
+  ListBase *old_mainlist;
 
-	ListBase *mainlist;
-	/** Used for undo. */
-	ListBase *old_mainlist;
-
-	struct ReportList *reports;
+  struct ReportList *reports;
 } FileData;
 
 #define SIZEOFBLENDERHEADER 12

@@ -2871,7 +2871,8 @@ void DRW_gpu_render_context_disable(void *UNUSED(re_gpu_context))
 
 /** \} */
 
-/***********************************Game engine transition*******************************************/
+/***********************************Game engine
+ * transition*******************************************/
 
 #include "BKE_camera.h"
 #include "BKE_main.h"
@@ -2915,8 +2916,14 @@ EEVEE_Data *EEVEE_engine_data_get(void)
   return data;
 }
 
-void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene *scene,
-  const rcti *window, bool called_from_constructor, bool reset_taa_samples, bool is_overlay_pass)
+void DRW_game_render_loop(bContext *C,
+                          GPUViewport *viewport,
+                          Main *bmain,
+                          Scene *scene,
+                          const rcti *window,
+                          bool called_from_constructor,
+                          bool reset_taa_samples,
+                          bool is_overlay_pass)
 {
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
@@ -2960,7 +2967,8 @@ void DRW_game_render_loop(bContext *C, GPUViewport *viewport, Main *bmain, Scene
 
   DST.draw_ctx.depsgraph = depsgraph;
 
-  DST.options.draw_background = ((scene->r.alphamode == R_ADDSKY) || (v3d->shading.type != OB_RENDER)) &&
+  DST.options.draw_background = ((scene->r.alphamode == R_ADDSKY) ||
+                                 (v3d->shading.type != OB_RENDER)) &&
                                 !is_overlay_pass;
   DST.options.do_color_management = true;
 
@@ -3091,15 +3099,16 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
   drw_state_set(DRW_STATE_WRITE_COLOR);
 
   /* TODO(fclem) This should be a render engine callback to determine if we need CM or not. */
-  //bool use_workbench = BKE_scene_uses_blender_workbench(scene);
+  // bool use_workbench = BKE_scene_uses_blender_workbench(scene);
   bool use_scene_lights = (!v3d ||
-                          ((v3d->shading.type == OB_MATERIAL) &&
-                          (v3d->shading.flag & V3D_SHADING_SCENE_LIGHTS)) ||
-                          ((v3d->shading.type == OB_RENDER) &&
-                          (v3d->shading.flag & V3D_SHADING_SCENE_LIGHTS_RENDER)));
-  bool use_scene_world =  (!v3d ||
-                          ((v3d->shading.type == OB_MATERIAL) && (v3d->shading.flag & V3D_SHADING_SCENE_WORLD)) ||
-                          ((v3d->shading.type == OB_RENDER) && (v3d->shading.flag & V3D_SHADING_SCENE_WORLD_RENDER)));
+                           ((v3d->shading.type == OB_MATERIAL) &&
+                            (v3d->shading.flag & V3D_SHADING_SCENE_LIGHTS)) ||
+                           ((v3d->shading.type == OB_RENDER) &&
+                            (v3d->shading.flag & V3D_SHADING_SCENE_LIGHTS_RENDER)));
+  bool use_scene_world =
+      (!v3d ||
+       ((v3d->shading.type == OB_MATERIAL) && (v3d->shading.flag & V3D_SHADING_SCENE_WORLD)) ||
+       ((v3d->shading.type == OB_RENDER) && (v3d->shading.flag & V3D_SHADING_SCENE_WORLD_RENDER)));
   bool use_view_transform = v3d && (v3d->shading.type >= OB_MATERIAL);
   bool use_render_settings = v3d && (/*use_workbench ||*/ use_scene_lights || use_scene_world);
 
@@ -3109,19 +3118,16 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
   float dither = 0.0f;
   bool use_ocio = false;
   /* Should we apply the view transform */
-  if (DRW_state_do_color_management())
-  {
+  if (DRW_state_do_color_management()) {
     Scene *scene = DST.draw_ctx.scene;
     ColorManagedDisplaySettings *display_settings = &scene->display_settings;
     ColorManagedViewSettings view_settings;
-    if (use_render_settings)
-    {
+    if (use_render_settings) {
       /* Use full render settings, for renders with scene lighting. */
       view_settings = scene->view_settings;
       dither = do_dithering ? scene->r.dither_intensity : 0.0f;
     }
-    else if (use_view_transform)
-    {
+    else if (use_view_transform) {
       /* Use only view transform + look and nothing else for lookdev without
        * scene lighting, as exposure depends on scene light intensity. */
       BKE_color_managed_view_settings_init_render(&view_settings, display_settings, NULL);
@@ -3129,25 +3135,21 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
       STRNCPY(view_settings.look, scene->view_settings.look);
       dither = do_dithering ? scene->r.dither_intensity : 0.0f;
     }
-    else
-    {
+    else {
       /* For workbench use only default view transform in configuration,
-      * using no scene settings. */
+       * using no scene settings. */
       BKE_color_managed_view_settings_init_render(&view_settings, display_settings, NULL);
     }
     use_ocio = IMB_colormanagement_setup_glsl_draw_from_space(
         &view_settings, display_settings, NULL, dither, false, false);
   }
-  if (!use_ocio)
-  {
+  if (!use_ocio) {
     /* View transform is already applied for offscreen, don't apply again, see: T52046 */
-    if (DST.options.is_image_render && !DST.options.is_scene_render)
-    {
+    if (DST.options.is_image_render && !DST.options.is_scene_render) {
       immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
       immUniformColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     }
-    else
-    {
+    else {
       immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB);
     }
     immUniform1i("image", 0);
@@ -3169,13 +3171,11 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
 
   GPU_texture_unbind(tex);
 
-  if (use_ocio)
-  {
+  if (use_ocio) {
     IMB_colormanagement_finish_glsl_draw();
   }
-  else
-  {
+  else {
     immUnbindProgram();
   }
 }
-  /***************************Enf of Game engine transition***************************/
+/***************************Enf of Game engine transition***************************/

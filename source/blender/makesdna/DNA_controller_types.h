@@ -41,55 +41,55 @@ struct bSensor;
 /* ****************** CONTROLLERS ********************* */
 
 typedef struct bExpressionCont {
-	char str[128];
+  char str[128];
 } bExpressionCont;
 
 typedef struct bPythonCont {
-	struct Text *text;
-	char module[64];
-	int mode;
-	int flag; /* only used for debug now */
+  struct Text *text;
+  char module[64];
+  int mode;
+  int flag; /* only used for debug now */
 } bPythonCont;
 
 typedef struct bController {
-	struct bController *next, *prev, *mynew;
-	short type, flag, inputs, totlinks;
-	short otype, totslinks, _pad2, _pad3;
-	
-	char name[64];
-	void *data;
-	
-	struct bActuator **links;
+  struct bController *next, *prev, *mynew;
+  short type, flag, inputs, totlinks;
+  short otype, totslinks, _pad2, _pad3;
 
-	struct bSensor **slinks;
-	short val, valo;
-	unsigned int state_mask;
-	
+  char name[64];
+  void *data;
+
+  struct bActuator **links;
+
+  struct bSensor **slinks;
+  short val, valo;
+  unsigned int state_mask;
+
 } bController;
 
 /* controller->type */
-#define CONT_LOGIC_AND	0
-#define CONT_LOGIC_OR	1
-#define CONT_EXPRESSION	2
-#define CONT_PYTHON		3
-#define CONT_LOGIC_NAND	4
-#define CONT_LOGIC_NOR	5
-#define CONT_LOGIC_XOR	6
-#define CONT_LOGIC_XNOR	7
+#define CONT_LOGIC_AND 0
+#define CONT_LOGIC_OR 1
+#define CONT_EXPRESSION 2
+#define CONT_PYTHON 3
+#define CONT_LOGIC_NAND 4
+#define CONT_LOGIC_NOR 5
+#define CONT_LOGIC_XOR 6
+#define CONT_LOGIC_XNOR 7
 
 /* controller->flag */
-#define CONT_SHOW		1
-#define CONT_DEL		2
-#define CONT_NEW		4
-#define CONT_MASK		8
-#define CONT_PRIO		16
-#define CONT_DEACTIVATE	32
+#define CONT_SHOW 1
+#define CONT_DEL 2
+#define CONT_NEW 4
+#define CONT_MASK 8
+#define CONT_PRIO 16
+#define CONT_DEACTIVATE 32
 
 /* pyctrl->flag */
-#define CONT_PY_DEBUG	1
+#define CONT_PY_DEBUG 1
 
 /* pyctrl->mode */
-#define CONT_PY_SCRIPT	0
-#define CONT_PY_MODULE	1
+#define CONT_PY_SCRIPT 0
+#define CONT_PY_MODULE 1
 
-#endif  /* __DNA_CONTROLLER_TYPES_H__ */
+#endif /* __DNA_CONTROLLER_TYPES_H__ */

@@ -59,9 +59,10 @@ void BKE_mesh_runtime_verttri_from_looptri(struct MVertTri *r_verttri,
  * For now keep the names similar to avoid confusion. */
 
 /* Game engine transition */
-struct DerivedMesh *mesh_get_derived_final(
-        struct Depsgraph *depsgraph, struct Scene *scene,
-        struct Object *ob, const struct CustomData_MeshMasks *dataMask);
+struct DerivedMesh *mesh_get_derived_final(struct Depsgraph *depsgraph,
+                                           struct Scene *scene,
+                                           struct Object *ob,
+                                           const struct CustomData_MeshMasks *dataMask);
 /* End of  Game engine transition */
 
 struct Mesh *mesh_get_eval_final(struct Depsgraph *depsgraph,

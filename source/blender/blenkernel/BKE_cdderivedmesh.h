@@ -60,10 +60,13 @@ DerivedMesh *CDDM_from_editbmesh(struct BMEditMesh *em, const bool use_mdisps);
 /* Enum for merge_mode of CDDM_merge_verts.
  * Refer to cdderivedmesh.c for details. */
 enum {
-	CDDM_MERGE_VERTS_DUMP_IF_MAPPED,
-	CDDM_MERGE_VERTS_DUMP_IF_EQUAL,
+  CDDM_MERGE_VERTS_DUMP_IF_MAPPED,
+  CDDM_MERGE_VERTS_DUMP_IF_EQUAL,
 };
-DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int tot_vtargetmap, const int merge_mode);
+DerivedMesh *CDDM_merge_verts(DerivedMesh *dm,
+                              const int *vtargetmap,
+                              const int tot_vtargetmap,
+                              const int merge_mode);
 
 /* creates a CDDerivedMesh from the given curve object */
 struct DerivedMesh *CDDM_from_curve(struct Object *ob);

@@ -439,7 +439,10 @@ void DM_ensure_normals(DerivedMesh *dm);
 void DM_ensure_tessface(DerivedMesh *dm);
 
 void DM_ensure_looptri_data(DerivedMesh *dm);
-void DM_verttri_from_looptri(MVertTri *verttri, const MLoop *mloop, const MLoopTri *looptri, int looptri_num);
+void DM_verttri_from_looptri(MVertTri *verttri,
+                             const MLoop *mloop,
+                             const MLoopTri *looptri,
+                             int looptri_num);
 
 void DM_update_tessface_data(DerivedMesh *dm);
 void DM_generate_tangent_tessface_data(DerivedMesh *dm, bool generate);
@@ -459,12 +462,16 @@ void mesh_get_mapped_verts_coords(struct Mesh *me_eval, float (*r_cos)[3], const
 /* same as above but wont use render settings */
 DerivedMesh *mesh_create_derived(struct Mesh *me, float (*vertCos)[3]);
 /* for gameengine */
-DerivedMesh *mesh_create_derived_no_virtual(
-        struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob,
-        float (*vertCos)[3], const CustomData_MeshMasks *dataMask);
-DerivedMesh *mesh_create_derived_physics(
-        struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob,
-        float (*vertCos)[3], const CustomData_MeshMasks *dataMask);
+DerivedMesh *mesh_create_derived_no_virtual(struct Depsgraph *depsgraph,
+                                            struct Scene *scene,
+                                            struct Object *ob,
+                                            float (*vertCos)[3],
+                                            const CustomData_MeshMasks *dataMask);
+DerivedMesh *mesh_create_derived_physics(struct Depsgraph *depsgraph,
+                                         struct Scene *scene,
+                                         struct Object *ob,
+                                         float (*vertCos)[3],
+                                         const CustomData_MeshMasks *dataMask);
 
 struct Mesh *editbmesh_get_eval_cage(struct Depsgraph *depsgraph,
                                      struct Scene *scene,
@@ -506,14 +513,16 @@ void DM_debug_print_cdlayers(CustomData *cdata);
 bool DM_is_valid(DerivedMesh *dm);
 #endif
 
-BLI_INLINE int DM_origindex_mface_mpoly(
-        const int *index_mf_to_mpoly, const int *index_mp_to_orig, const int i) ATTR_NONNULL(1);
+BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
+                                        const int *index_mp_to_orig,
+                                        const int i) ATTR_NONNULL(1);
 
-BLI_INLINE int DM_origindex_mface_mpoly(
-        const int *index_mf_to_mpoly, const int *index_mp_to_orig, const int i)
+BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
+                                        const int *index_mp_to_orig,
+                                        const int i)
 {
-	const int j = index_mf_to_mpoly[i];
-	return (j != ORIGINDEX_NONE) ? (index_mp_to_orig ? index_mp_to_orig[j] : j) : ORIGINDEX_NONE;
+  const int j = index_mf_to_mpoly[i];
+  return (j != ORIGINDEX_NONE) ? (index_mp_to_orig ? index_mp_to_orig[j] : j) : ORIGINDEX_NONE;
 }
 
 struct MVert *DM_get_vert_array(struct DerivedMesh *dm, bool *r_allocated);
@@ -522,4 +531,4 @@ struct MLoop *DM_get_loop_array(struct DerivedMesh *dm, bool *r_allocated);
 struct MPoly *DM_get_poly_array(struct DerivedMesh *dm, bool *r_allocated);
 struct MFace *DM_get_tessface_array(struct DerivedMesh *dm, bool *r_allocated);
 
-#endif  /* __BKE_DERIVEDMESH_H__ */
+#endif /* __BKE_DERIVEDMESH_H__ */

@@ -591,4 +591,3 @@ void EEVEE_effects_free(void)
   DRW_SHADER_FREE_SAFE(e_data.minz_copydepth_sh);
   DRW_SHADER_FREE_SAFE(e_data.maxz_copydepth_sh);
 }
-

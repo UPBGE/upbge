@@ -142,7 +142,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_curveprofile.h"
 #include "BKE_report.h"
-#include "BKE_sca.h" // for init_actuator
+#include "BKE_sca.h"  // for init_actuator
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
@@ -1376,15 +1376,14 @@ static FileData *blo_filedata_from_file_descriptor(const char *filepath,
 
     return fd;
 #ifdef WITH_GAMEENGINE_BPPLAYER
-    }
-    else {
-      int filesize = 0;
-      const char *decrypteddata = SPINDLE_DecryptFromFile(filepath, &filesize, NULL, typeencryption);
-      SPINDLE_SetFilePath(filepath);
-      return blo_filedata_from_memory(decrypteddata, filesize, reports);
+  }
+  else {
+    int filesize = 0;
+    const char *decrypteddata = SPINDLE_DecryptFromFile(filepath, &filesize, NULL, typeencryption);
+    SPINDLE_SetFilePath(filepath);
+    return blo_filedata_from_memory(decrypteddata, filesize, reports);
   }
 #endif
-
 }
 
 static FileData *blo_filedata_from_file_open(const char *filepath, ReportList *reports)
@@ -5143,133 +5142,133 @@ static void lib_link_object(FileData *fd, Main *bmain, Object *ob)
     }
   }
 
-      for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
-        for (a = 0; a < sens->totlinks; a++)
-          sens->links[a] = newglobadr(fd, sens->links[a]);
+  for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
+    for (a = 0; a < sens->totlinks; a++)
+      sens->links[a] = newglobadr(fd, sens->links[a]);
 
-        if (sens->type == SENS_MESSAGE) {
-          bMessageSensor *ms = sens->data;
-          ms->fromObject = newlibadr(fd, ob->id.lib, ms->fromObject);
-        }
+    if (sens->type == SENS_MESSAGE) {
+      bMessageSensor *ms = sens->data;
+      ms->fromObject = newlibadr(fd, ob->id.lib, ms->fromObject);
+    }
+  }
+
+  for (bController *cont = ob->controllers.first; cont; cont = cont->next) {
+    for (a = 0; a < cont->totlinks; a++)
+      cont->links[a] = newglobadr(fd, cont->links[a]);
+
+    if (cont->type == CONT_PYTHON) {
+      bPythonCont *pc = cont->data;
+      pc->text = newlibadr(fd, ob->id.lib, pc->text);
+    }
+    cont->slinks = NULL;
+    cont->totslinks = 0;
+  }
+
+  for (bActuator *act = ob->actuators.first; act; act = act->next) {
+    switch (act->type) {
+      case ACT_SOUND: {
+        bSoundActuator *sa = act->data;
+        sa->sound = newlibadr(fd, ob->id.lib, sa->sound);
+        break;
       }
-
-      for (bController *cont = ob->controllers.first; cont; cont = cont->next) {
-        for (a = 0; a < cont->totlinks; a++)
-          cont->links[a] = newglobadr(fd, cont->links[a]);
-
-        if (cont->type == CONT_PYTHON) {
-          bPythonCont *pc = cont->data;
-          pc->text = newlibadr(fd, ob->id.lib, pc->text);
-        }
-        cont->slinks = NULL;
-        cont->totslinks = 0;
+      case ACT_GAME:
+        /* bGameActuator *ga= act->data; */
+        break;
+      case ACT_CAMERA: {
+        bCameraActuator *ca = act->data;
+        ca->ob = newlibadr(fd, ob->id.lib, ca->ob);
+        break;
       }
-
-      for (bActuator *act = ob->actuators.first; act; act = act->next) {
-        switch (act->type) {
-          case ACT_SOUND: {
-            bSoundActuator *sa = act->data;
-            sa->sound = newlibadr(fd, ob->id.lib, sa->sound);
-            break;
-          }
-          case ACT_GAME:
-            /* bGameActuator *ga= act->data; */
-            break;
-          case ACT_CAMERA: {
-            bCameraActuator *ca = act->data;
-            ca->ob = newlibadr(fd, ob->id.lib, ca->ob);
-            break;
-          }
-          /* leave this one, it's obsolete but necessary to read for conversion */
-          case ACT_ADD_OBJECT: {
-            bAddObjectActuator *eoa = act->data;
-            if (eoa)
-              eoa->ob = newlibadr(fd, ob->id.lib, eoa->ob);
-            break;
-          }
-          case ACT_OBJECT: {
-            bObjectActuator *oa = act->data;
-            if (oa == NULL) {
-              init_actuator(act);
-            }
-            else {
-              oa->reference = newlibadr(fd, ob->id.lib, oa->reference);
-            }
-            break;
-          }
-          case ACT_EDIT_OBJECT: {
-            bEditObjectActuator *eoa = act->data;
-            if (eoa == NULL) {
-              init_actuator(act);
-            }
-            else {
-              eoa->ob = newlibadr(fd, ob->id.lib, eoa->ob);
-              eoa->me = newlibadr(fd, ob->id.lib, eoa->me);
-            }
-            break;
-          }
-          case ACT_SCENE: {
-            bSceneActuator *sa = act->data;
-            sa->camera = newlibadr(fd, ob->id.lib, sa->camera);
-            sa->scene = newlibadr(fd, ob->id.lib, sa->scene);
-            break;
-          }
-          case ACT_COLLECTION: {
-            bCollectionActuator *ca = act->data;
-            ca->collection = newlibadr(fd, ob->id.lib, ca->collection);
-            ca->camera = newlibadr(fd, ob->id.lib, ca->camera);
-            break;
-          }
-          case ACT_ACTION: {
-            bActionActuator *aa = act->data;
-            aa->act = newlibadr(fd, ob->id.lib, aa->act);
-            break;
-          }
-          case ACT_SHAPEACTION: {
-            bActionActuator *aa = act->data;
-            aa->act = newlibadr(fd, ob->id.lib, aa->act);
-            break;
-          }
-          case ACT_PROPERTY: {
-            bPropertyActuator *pa = act->data;
-            pa->ob = newlibadr(fd, ob->id.lib, pa->ob);
-            break;
-          }
-          case ACT_MESSAGE: {
-            bMessageActuator *ma = act->data;
-            ma->toObject = newlibadr(fd, ob->id.lib, ma->toObject);
-            break;
-          }
-          case ACT_2DFILTER: {
-            bTwoDFilterActuator *_2dfa = act->data;
-            _2dfa->text = newlibadr(fd, ob->id.lib, _2dfa->text);
-            break;
-          }
-          case ACT_PARENT: {
-            bParentActuator *parenta = act->data;
-            parenta->ob = newlibadr(fd, ob->id.lib, parenta->ob);
-            break;
-          }
-          case ACT_STATE:
-            /* bStateActuator *statea = act->data; */
-            break;
-          case ACT_ARMATURE: {
-            bArmatureActuator *arma = act->data;
-            arma->target = newlibadr(fd, ob->id.lib, arma->target);
-            arma->subtarget = newlibadr(fd, ob->id.lib, arma->subtarget);
-            break;
-          }
-          case ACT_STEERING: {
-            bSteeringActuator *steeringa = act->data;
-            steeringa->target = newlibadr(fd, ob->id.lib, steeringa->target);
-            steeringa->navmesh = newlibadr(fd, ob->id.lib, steeringa->navmesh);
-            break;
-          }
-          case ACT_MOUSE:
-            /* bMouseActuator *moa = act->data; */
-            break;
-        }
+      /* leave this one, it's obsolete but necessary to read for conversion */
+      case ACT_ADD_OBJECT: {
+        bAddObjectActuator *eoa = act->data;
+        if (eoa)
+          eoa->ob = newlibadr(fd, ob->id.lib, eoa->ob);
+        break;
       }
+      case ACT_OBJECT: {
+        bObjectActuator *oa = act->data;
+        if (oa == NULL) {
+          init_actuator(act);
+        }
+        else {
+          oa->reference = newlibadr(fd, ob->id.lib, oa->reference);
+        }
+        break;
+      }
+      case ACT_EDIT_OBJECT: {
+        bEditObjectActuator *eoa = act->data;
+        if (eoa == NULL) {
+          init_actuator(act);
+        }
+        else {
+          eoa->ob = newlibadr(fd, ob->id.lib, eoa->ob);
+          eoa->me = newlibadr(fd, ob->id.lib, eoa->me);
+        }
+        break;
+      }
+      case ACT_SCENE: {
+        bSceneActuator *sa = act->data;
+        sa->camera = newlibadr(fd, ob->id.lib, sa->camera);
+        sa->scene = newlibadr(fd, ob->id.lib, sa->scene);
+        break;
+      }
+      case ACT_COLLECTION: {
+        bCollectionActuator *ca = act->data;
+        ca->collection = newlibadr(fd, ob->id.lib, ca->collection);
+        ca->camera = newlibadr(fd, ob->id.lib, ca->camera);
+        break;
+      }
+      case ACT_ACTION: {
+        bActionActuator *aa = act->data;
+        aa->act = newlibadr(fd, ob->id.lib, aa->act);
+        break;
+      }
+      case ACT_SHAPEACTION: {
+        bActionActuator *aa = act->data;
+        aa->act = newlibadr(fd, ob->id.lib, aa->act);
+        break;
+      }
+      case ACT_PROPERTY: {
+        bPropertyActuator *pa = act->data;
+        pa->ob = newlibadr(fd, ob->id.lib, pa->ob);
+        break;
+      }
+      case ACT_MESSAGE: {
+        bMessageActuator *ma = act->data;
+        ma->toObject = newlibadr(fd, ob->id.lib, ma->toObject);
+        break;
+      }
+      case ACT_2DFILTER: {
+        bTwoDFilterActuator *_2dfa = act->data;
+        _2dfa->text = newlibadr(fd, ob->id.lib, _2dfa->text);
+        break;
+      }
+      case ACT_PARENT: {
+        bParentActuator *parenta = act->data;
+        parenta->ob = newlibadr(fd, ob->id.lib, parenta->ob);
+        break;
+      }
+      case ACT_STATE:
+        /* bStateActuator *statea = act->data; */
+        break;
+      case ACT_ARMATURE: {
+        bArmatureActuator *arma = act->data;
+        arma->target = newlibadr(fd, ob->id.lib, arma->target);
+        arma->subtarget = newlibadr(fd, ob->id.lib, arma->subtarget);
+        break;
+      }
+      case ACT_STEERING: {
+        bSteeringActuator *steeringa = act->data;
+        steeringa->target = newlibadr(fd, ob->id.lib, steeringa->target);
+        steeringa->navmesh = newlibadr(fd, ob->id.lib, steeringa->navmesh);
+        break;
+      }
+      case ACT_MOUSE:
+        /* bMouseActuator *moa = act->data; */
+        break;
+    }
+  }
 
   {
     FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(
@@ -6104,7 +6103,7 @@ static void direct_link_object(FileData *fd, Object *ob)
   link_list(fd, &ob->prop);
   for (prop = ob->prop.first; prop; prop = prop->next) {
     prop->poin = newdataadr(fd, prop->poin);
-    if (prop->poin == NULL) 
+    if (prop->poin == NULL)
       prop->poin = &prop->data;
   }
 
@@ -6124,7 +6123,7 @@ static void direct_link_object(FileData *fd, Object *ob)
     ob->state = 1;
   }
   else if (!ob->init_state) {
-      ob->init_state = 1;
+    ob->init_state = 1;
   }
   for (cont = ob->controllers.first; cont; cont = cont->next) {
     cont->data = newdataadr(fd, cont->data);
@@ -6205,7 +6204,6 @@ static void direct_link_object(FileData *fd, Object *ob)
       BKE_object_sculpt_data_create(ob);
     }
   }
-
 
   ob->preview = direct_link_preview_image(fd, ob->preview);
 }
@@ -10856,93 +10854,93 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
     expand_doit(fd, mainvar, psys->part);
   }
 
-	for (sens = ob->sensors.first; sens; sens = sens->next) {
-		if (sens->type == SENS_MESSAGE) {
-			bMessageSensor *ms = sens->data;
-			expand_doit(fd, mainvar, ms->fromObject);
-		}
-	}
-	
-	for (cont = ob->controllers.first; cont; cont = cont->next) {
-		if (cont->type == CONT_PYTHON) {
-			bPythonCont *pc = cont->data;
-			expand_doit(fd, mainvar, pc->text);
-		}
-	}
-	
-	for (act = ob->actuators.first; act; act = act->next) {
-		if (act->type == ACT_SOUND) {
-			bSoundActuator *sa = act->data;
-			expand_doit(fd, mainvar, sa->sound);
-		}
-		else if (act->type == ACT_CAMERA) {
-			bCameraActuator *ca = act->data;
-			expand_doit(fd, mainvar, ca->ob);
-		}
-		else if (act->type == ACT_EDIT_OBJECT) {
-			bEditObjectActuator *eoa = act->data;
-			if (eoa) {
-				expand_doit(fd, mainvar, eoa->ob);
-				expand_doit(fd, mainvar, eoa->me);
-			}
-		}
-		else if (act->type == ACT_OBJECT) {
-			bObjectActuator *oa = act->data;
-			expand_doit(fd, mainvar, oa->reference);
-		}
-		else if (act->type == ACT_ADD_OBJECT) {
-			bAddObjectActuator *aoa = act->data;
-			expand_doit(fd, mainvar, aoa->ob);
-		}
-		else if (act->type == ACT_SCENE) {
-			bSceneActuator *sa = act->data;
-			expand_doit(fd, mainvar, sa->camera);
-			expand_doit(fd, mainvar, sa->scene);
-		}
+  for (sens = ob->sensors.first; sens; sens = sens->next) {
+    if (sens->type == SENS_MESSAGE) {
+      bMessageSensor *ms = sens->data;
+      expand_doit(fd, mainvar, ms->fromObject);
+    }
+  }
+
+  for (cont = ob->controllers.first; cont; cont = cont->next) {
+    if (cont->type == CONT_PYTHON) {
+      bPythonCont *pc = cont->data;
+      expand_doit(fd, mainvar, pc->text);
+    }
+  }
+
+  for (act = ob->actuators.first; act; act = act->next) {
+    if (act->type == ACT_SOUND) {
+      bSoundActuator *sa = act->data;
+      expand_doit(fd, mainvar, sa->sound);
+    }
+    else if (act->type == ACT_CAMERA) {
+      bCameraActuator *ca = act->data;
+      expand_doit(fd, mainvar, ca->ob);
+    }
+    else if (act->type == ACT_EDIT_OBJECT) {
+      bEditObjectActuator *eoa = act->data;
+      if (eoa) {
+        expand_doit(fd, mainvar, eoa->ob);
+        expand_doit(fd, mainvar, eoa->me);
+      }
+    }
+    else if (act->type == ACT_OBJECT) {
+      bObjectActuator *oa = act->data;
+      expand_doit(fd, mainvar, oa->reference);
+    }
+    else if (act->type == ACT_ADD_OBJECT) {
+      bAddObjectActuator *aoa = act->data;
+      expand_doit(fd, mainvar, aoa->ob);
+    }
+    else if (act->type == ACT_SCENE) {
+      bSceneActuator *sa = act->data;
+      expand_doit(fd, mainvar, sa->camera);
+      expand_doit(fd, mainvar, sa->scene);
+    }
     else if (act->type == ACT_COLLECTION) {
       bCollectionActuator *ca = act->data;
       expand_doit(fd, mainvar, ca->collection);
       expand_doit(fd, mainvar, ca->camera);
     }
-		else if (act->type == ACT_2DFILTER) {
-			bTwoDFilterActuator *tdfa = act->data;
-			expand_doit(fd, mainvar, tdfa->text);
-		}
-		else if (act->type == ACT_ACTION) {
-			bActionActuator *aa = act->data;
-			expand_doit(fd, mainvar, aa->act);
-		}
-		else if (act->type == ACT_SHAPEACTION) {
-			bActionActuator *aa = act->data;
-			expand_doit(fd, mainvar, aa->act);
-		}
-		else if (act->type == ACT_PROPERTY) {
-			bPropertyActuator *pa = act->data;
-			expand_doit(fd, mainvar, pa->ob);
-		}
-		else if (act->type == ACT_MESSAGE) {
-			bMessageActuator *ma = act->data;
-			expand_doit(fd, mainvar, ma->toObject);
-		}
-		else if (act->type==ACT_PARENT) {
-			bParentActuator *pa = act->data;
-			expand_doit(fd, mainvar, pa->ob);
-		}
-		else if (act->type == ACT_ARMATURE) {
-			bArmatureActuator *arma = act->data;
-			expand_doit(fd, mainvar, arma->target);
-		}
-		else if (act->type == ACT_STEERING) {
-			bSteeringActuator *sta = act->data;
-			expand_doit(fd, mainvar, sta->target);
-			expand_doit(fd, mainvar, sta->navmesh);
-		}
-	}
-	
-	if (ob->pd) {
-		expand_doit(fd, mainvar, ob->pd->tex);
-		expand_doit(fd, mainvar, ob->pd->f_source);
-	}
+    else if (act->type == ACT_2DFILTER) {
+      bTwoDFilterActuator *tdfa = act->data;
+      expand_doit(fd, mainvar, tdfa->text);
+    }
+    else if (act->type == ACT_ACTION) {
+      bActionActuator *aa = act->data;
+      expand_doit(fd, mainvar, aa->act);
+    }
+    else if (act->type == ACT_SHAPEACTION) {
+      bActionActuator *aa = act->data;
+      expand_doit(fd, mainvar, aa->act);
+    }
+    else if (act->type == ACT_PROPERTY) {
+      bPropertyActuator *pa = act->data;
+      expand_doit(fd, mainvar, pa->ob);
+    }
+    else if (act->type == ACT_MESSAGE) {
+      bMessageActuator *ma = act->data;
+      expand_doit(fd, mainvar, ma->toObject);
+    }
+    else if (act->type == ACT_PARENT) {
+      bParentActuator *pa = act->data;
+      expand_doit(fd, mainvar, pa->ob);
+    }
+    else if (act->type == ACT_ARMATURE) {
+      bArmatureActuator *arma = act->data;
+      expand_doit(fd, mainvar, arma->target);
+    }
+    else if (act->type == ACT_STEERING) {
+      bSteeringActuator *sta = act->data;
+      expand_doit(fd, mainvar, sta->target);
+      expand_doit(fd, mainvar, sta->navmesh);
+    }
+  }
+
+  if (ob->pd) {
+    expand_doit(fd, mainvar, ob->pd->tex);
+    expand_doit(fd, mainvar, ob->pd->f_source);
+  }
 
   if (ob->soft) {
     expand_doit(fd, mainvar, ob->soft->collision_group);
@@ -10956,7 +10954,7 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
     expand_doit(fd, mainvar, ob->rigidbody_constraint->ob1);
     expand_doit(fd, mainvar, ob->rigidbody_constraint->ob2);
   }
-  
+
   if (ob->currentlod) {
     LodLevel *level;
     for (level = ob->lodlevels.first; level; level = level->next) {

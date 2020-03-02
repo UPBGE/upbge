@@ -667,50 +667,57 @@ static void draw_image_buffer(const bContext *C,
   }
 }
 
-static unsigned int *get_part_from_buffer(unsigned int *buffer, int width, short startx, short starty, short endx, short endy)
+static unsigned int *get_part_from_buffer(
+    unsigned int *buffer, int width, short startx, short starty, short endx, short endy)
 {
-	unsigned int *rt, *rp, *rectmain;
-	short y, heigth, len;
+  unsigned int *rt, *rp, *rectmain;
+  short y, heigth, len;
 
-	/* the right offset in rectot */
+  /* the right offset in rectot */
 
-	rt = buffer + (starty * width + startx);
+  rt = buffer + (starty * width + startx);
 
-	len = (endx - startx);
-	heigth = (endy - starty);
+  len = (endx - startx);
+  heigth = (endy - starty);
 
-	rp = rectmain = MEM_mallocN(heigth * len * sizeof(int), "rect");
-	
-	for (y = 0; y < heigth; y++) {
-		memcpy(rp, rt, len * 4);
-		rt += width;
-		rp += len;
-	}
-	return rectmain;
+  rp = rectmain = MEM_mallocN(heigth * len * sizeof(int), "rect");
+
+  for (y = 0; y < heigth; y++) {
+    memcpy(rp, rt, len * 4);
+    rt += width;
+    rp += len;
+  }
+  return rectmain;
 }
 
-static void draw_image_buffer_repeated(const bContext *C, SpaceImage *sima, ARegion *ar, Scene *scene, ImBuf *ibuf, float zoomx, float zoomy)
+static void draw_image_buffer_repeated(const bContext *C,
+                                       SpaceImage *sima,
+                                       ARegion *ar,
+                                       Scene *scene,
+                                       ImBuf *ibuf,
+                                       float zoomx,
+                                       float zoomy)
 {
-	const double time_current = PIL_check_seconds_timer();
+  const double time_current = PIL_check_seconds_timer();
 
-	const int xmax = ceil(ar->v2d.cur.xmax);
-	const int ymax = ceil(ar->v2d.cur.ymax);
-	const int xmin = floor(ar->v2d.cur.xmin);
-	const int ymin = floor(ar->v2d.cur.ymin);
+  const int xmax = ceil(ar->v2d.cur.xmax);
+  const int ymax = ceil(ar->v2d.cur.ymax);
+  const int xmin = floor(ar->v2d.cur.xmin);
+  const int ymin = floor(ar->v2d.cur.ymin);
 
-	int x;
+  int x;
 
-	for (x = xmin; x < xmax; x++) {
-		int y;
-		for (y = ymin; y < ymax; y++) {
-			draw_image_buffer(C, sima, ar, scene, ibuf, x, y, zoomx, zoomy);
+  for (x = xmin; x < xmax; x++) {
+    int y;
+    for (y = ymin; y < ymax; y++) {
+      draw_image_buffer(C, sima, ar, scene, ibuf, x, y, zoomx, zoomy);
 
-			/* only draw until running out of time */
-			if ((PIL_check_seconds_timer() - time_current) > 0.25) {
-				return;
-			}
-		}
-	}
+      /* only draw until running out of time */
+      if ((PIL_check_seconds_timer() - time_current) > 0.25) {
+        return;
+      }
+    }
+  }
 }
 
 /* draw uv edit */

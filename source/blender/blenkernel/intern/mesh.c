@@ -488,7 +488,8 @@ void BKE_mesh_free(Mesh *me)
 void BKE_mesh_clear_geometry(Mesh *mesh)
 {
   BKE_animdata_free(&mesh->id, false);
-  BKE_mesh_runtime_clear_cache(mesh, CustomData_has_layer(&mesh->pdata, CD_RECAST)); /* Game Engine transition */
+  BKE_mesh_runtime_clear_cache(
+      mesh, CustomData_has_layer(&mesh->pdata, CD_RECAST)); /* Game Engine transition */
 
   CustomData_free(&mesh->vdata, mesh->totvert);
   CustomData_free(&mesh->edata, mesh->totedge);

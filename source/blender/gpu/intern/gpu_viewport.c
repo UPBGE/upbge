@@ -730,9 +730,9 @@ void GPU_viewport_free(GPUViewport *viewport)
 }
 
 void GPU_game_viewport_draw_colormanaged(GPUViewport *viewport,
-                                           const rctf *rect_pos,
-                                           const rctf *rect_uv,
-                                           bool display_colorspace)
+                                         const rctf *rect_pos,
+                                         const rctf *rect_uv,
+                                         bool display_colorspace)
 {
   DefaultTextureList *dtxl = viewport->txl;
   GPUTexture *color = dtxl->color;

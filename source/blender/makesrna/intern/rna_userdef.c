@@ -2895,7 +2895,6 @@ static void rna_def_userdef_theme_space_logic(BlenderRNA *brna)
   rna_def_userdef_theme_spaces_main(srna);
 }
 
-
 static void rna_def_userdef_theme_space_buts(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -3717,7 +3716,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
       {7, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequence Editor", ""},
       {8, "TEXT_EDITOR", ICON_TEXT, "Text Editor", ""},
       {9, "NODE_EDITOR", ICON_NODETREE, "Node Editor", ""},
-      {10, "LOGIC_EDITOR", ICON_ACTION, "Logic Editor", ""}, // CHOOSE BETTER ICON
+      {10, "LOGIC_EDITOR", ICON_ACTION, "Logic Editor", ""},  // CHOOSE BETTER ICON
       {11, "PROPERTIES", ICON_PROPERTIES, "Properties", ""},
       {12, "OUTLINER", ICON_OUTLINER, "Outliner", ""},
       {14, "PREFERENCES", ICON_PREFERENCES, "Preferences", ""},

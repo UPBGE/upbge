@@ -29,71 +29,66 @@
  *  \ingroup bke
  */
 
-
 #include "MEM_guardedalloc.h"
 
 /* types */
-#include "DNA_object_force_types.h"	/* here is the softbody struct */
+#include "DNA_object_force_types.h" /* here is the softbody struct */
 
 #include "BKE_bullet.h"
-
 
 /* ************ Object level, exported functions *************** */
 
 /* allocates and initializes general main data */
 BulletSoftBody *bsbNew(void)
 {
-	BulletSoftBody *bsb;
-	
-	bsb = MEM_callocN(sizeof(BulletSoftBody), "bulletsoftbody");
-		
-	bsb->flag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT;
-	bsb->linStiff = 0.5f;
-	bsb->angStiff = 1.0f;
-	bsb->volume = 1.0f;
+  BulletSoftBody *bsb;
 
-	
-	bsb->viterations	=	0;
-	bsb->piterations	=	2;
-	bsb->diterations	=	0;
-	bsb->citerations	=	4;
-	
-	bsb->kSRHR_CL		=	0.1f;
-	bsb->kSKHR_CL		=	1.f;
-	bsb->kSSHR_CL		=	0.5f;
-	bsb->kSR_SPLT_CL	=	0.5f;
-	
-	bsb->kSK_SPLT_CL	=	0.5f;
-	bsb->kSS_SPLT_CL	=	0.5f;
-	bsb->kVCF			=	1;
-	bsb->kDP			=	0;
+  bsb = MEM_callocN(sizeof(BulletSoftBody), "bulletsoftbody");
 
-	bsb->kDG			=	0;
-	bsb->kLF			=	0;
-	bsb->kPR			=	0;
-	bsb->kVC			=	0;
+  bsb->flag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT;
+  bsb->linStiff = 0.5f;
+  bsb->angStiff = 1.0f;
+  bsb->volume = 1.0f;
 
-	bsb->kDF			=	0.2f;
-	bsb->kMT			=	0.05;
-	bsb->kCHR			=	1.0f;
-	bsb->kKHR			=	0.1f;
+  bsb->viterations = 0;
+  bsb->piterations = 2;
+  bsb->diterations = 0;
+  bsb->citerations = 4;
 
-	bsb->kSHR			=	1.0f;
-	bsb->kAHR			=	0.7f;
-	
-	bsb->collisionflags = 0;
-	//bsb->collisionflags = OB_BSB_COL_CL_RS + OB_BSB_COL_CL_SS;
-	bsb->numclusteriterations = 64;
-	bsb->welding = 0.f;
+  bsb->kSRHR_CL = 0.1f;
+  bsb->kSKHR_CL = 1.f;
+  bsb->kSSHR_CL = 0.5f;
+  bsb->kSR_SPLT_CL = 0.5f;
 
-	return bsb;
+  bsb->kSK_SPLT_CL = 0.5f;
+  bsb->kSS_SPLT_CL = 0.5f;
+  bsb->kVCF = 1;
+  bsb->kDP = 0;
+
+  bsb->kDG = 0;
+  bsb->kLF = 0;
+  bsb->kPR = 0;
+  bsb->kVC = 0;
+
+  bsb->kDF = 0.2f;
+  bsb->kMT = 0.05;
+  bsb->kCHR = 1.0f;
+  bsb->kKHR = 0.1f;
+
+  bsb->kSHR = 1.0f;
+  bsb->kAHR = 0.7f;
+
+  bsb->collisionflags = 0;
+  // bsb->collisionflags = OB_BSB_COL_CL_RS + OB_BSB_COL_CL_SS;
+  bsb->numclusteriterations = 64;
+  bsb->welding = 0.f;
+
+  return bsb;
 }
 
 /* frees all */
 void bsbFree(BulletSoftBody *bsb)
 {
-	/* no internal data yet */
-	MEM_freeN(bsb);
+  /* no internal data yet */
+  MEM_freeN(bsb);
 }
-
-

@@ -48,7 +48,7 @@ typedef struct BlendHandle BlendHandle;
 
 typedef enum eBlenFileType {
   BLENFILETYPE_BLEND = 1,
-  /* BLENFILETYPE_PUB = 2, */     /* UNUSED */
+  /* BLENFILETYPE_PUB = 2, */ /* UNUSED */
   BLENFILETYPE_RUNTIME = 3,
 } eBlenFileType;
 
@@ -151,7 +151,10 @@ int BLO_library_link_copypaste(struct Main *mainl,
 
 void *BLO_library_read_struct(struct FileData *fd, struct BHead *bh, const char *blockname);
 
-BlendFileData *blo_read_blendafterruntime(int file, const char *name, int actualsize, struct ReportList *reports);
+BlendFileData *blo_read_blendafterruntime(int file,
+                                          const char *name,
+                                          int actualsize,
+                                          struct ReportList *reports);
 
 /* internal function but we need to expose it */
 void blo_lib_link_restore(struct Main *oldmain,

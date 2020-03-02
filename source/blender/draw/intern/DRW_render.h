@@ -673,13 +673,13 @@ const DRWContextState *DRW_context_state_get(void);
 
 /*****************************GAME ENGINE***********************************/
 void DRW_game_render_loop(struct bContext *C,
-  GPUViewport *viewport,
-  struct Main *bmain,
-  struct Scene *scene,
-  const struct rcti *window,
-  bool called_from_constructor,
-  bool reset_taa_samples,
-  bool is_overlay_pass);
+                          GPUViewport *viewport,
+                          struct Main *bmain,
+                          struct Scene *scene,
+                          const struct rcti *window,
+                          bool called_from_constructor,
+                          bool reset_taa_samples,
+                          bool is_overlay_pass);
 
 void DRW_game_render_loop_end(void);
 void DRW_transform_to_display(struct GPUTexture *tex, struct View3D *v3d, bool do_dithering);

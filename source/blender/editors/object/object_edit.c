@@ -125,8 +125,13 @@ static void move_to_collection_menus_items(struct uiLayout *layout,
 static ListBase selected_objects_get(bContext *C);
 
 /* ************* XXX **************** */
-static void error(const char *UNUSED(arg)) {}
-static int pupmenu(const char *UNUSED(msg)) { return 0; }
+static void error(const char *UNUSED(arg))
+{
+}
+static int pupmenu(const char *UNUSED(msg))
+{
+  return 0;
+}
 
 /* port over here */
 static void error_libdata(void)
@@ -867,445 +872,453 @@ void OBJECT_OT_posemode_toggle(wmOperatorType *ot)
 }
 
 static void copymenu_properties(ViewLayer *view_layer, Object *ob, View3D *v3d)
-{	
-//XXX no longer used - to be removed - replaced by game_properties_copy_exec
-	bProperty *prop;
-	Base *base;
-	int nr, tot = 0;
-	char *str;
-	
-	prop = ob->prop.first;
-	while (prop) {
-		tot++;
-		prop = prop->next;
-	}
-	
-	str = MEM_callocN(50 + 33 * tot, "copymenu prop");
-	
-	if (tot)
-		strcpy(str, "Copy Property %t|Replace All|Merge All|%l");
-	else
-		strcpy(str, "Copy Property %t|Clear All (no properties on active)");
-	
-	tot = 0;
-	prop = ob->prop.first;
-	while (prop) {
-		tot++;
-		strcat(str, "|");
-		strcat(str, prop->name);
-		prop = prop->next;
-	}
+{
+  // XXX no longer used - to be removed - replaced by game_properties_copy_exec
+  bProperty *prop;
+  Base *base;
+  int nr, tot = 0;
+  char *str;
 
-	nr = pupmenu(str);
-	
-	if (nr == 1 || nr == 2) {
-		for (base = FIRSTBASE(view_layer); base; base = base->next) {
-			if ((base != BASACT(view_layer)) && (BASE_SELECTED_EDITABLE(v3d, base))) {
-				if (nr == 1) { /* replace */
-					BKE_bproperty_copy_list(&base->object->prop, &ob->prop);
-				}
-				else {
-					for (prop = ob->prop.first; prop; prop = prop->next) {
-						BKE_bproperty_object_set(base->object, prop);
-					}
-				}
-			}
-		}
-	}
-	else if (nr > 0) {
-		prop = BLI_findlink(&ob->prop, nr - 4); /* account for first 3 menu items & menu index starting at 1*/
-		
-		if (prop) {
-			for (base = FIRSTBASE(view_layer); base; base = base->next) {
-				if ((base != BASACT(view_layer)) && (BASE_SELECTED_EDITABLE(v3d, base))) {
-					BKE_bproperty_object_set(base->object, prop);
-				}
-			}
-		}
-	}
-	MEM_freeN(str);
-	
+  prop = ob->prop.first;
+  while (prop) {
+    tot++;
+    prop = prop->next;
+  }
+
+  str = MEM_callocN(50 + 33 * tot, "copymenu prop");
+
+  if (tot)
+    strcpy(str, "Copy Property %t|Replace All|Merge All|%l");
+  else
+    strcpy(str, "Copy Property %t|Clear All (no properties on active)");
+
+  tot = 0;
+  prop = ob->prop.first;
+  while (prop) {
+    tot++;
+    strcat(str, "|");
+    strcat(str, prop->name);
+    prop = prop->next;
+  }
+
+  nr = pupmenu(str);
+
+  if (nr == 1 || nr == 2) {
+    for (base = FIRSTBASE(view_layer); base; base = base->next) {
+      if ((base != BASACT(view_layer)) && (BASE_SELECTED_EDITABLE(v3d, base))) {
+        if (nr == 1) { /* replace */
+          BKE_bproperty_copy_list(&base->object->prop, &ob->prop);
+        }
+        else {
+          for (prop = ob->prop.first; prop; prop = prop->next) {
+            BKE_bproperty_object_set(base->object, prop);
+          }
+        }
+      }
+    }
+  }
+  else if (nr > 0) {
+    prop = BLI_findlink(&ob->prop,
+                        nr - 4); /* account for first 3 menu items & menu index starting at 1*/
+
+    if (prop) {
+      for (base = FIRSTBASE(view_layer); base; base = base->next) {
+        if ((base != BASACT(view_layer)) && (BASE_SELECTED_EDITABLE(v3d, base))) {
+          BKE_bproperty_object_set(base->object, prop);
+        }
+      }
+    }
+  }
+  MEM_freeN(str);
 }
 
 static void copymenu_logicbricks(ViewLayer *view_layer, Object *ob, View3D *v3d)
 {
-//XXX no longer used - to be removed - replaced by logicbricks_copy_exec
-	Base *base;
-	
-	for (base = FIRSTBASE(view_layer); base; base = base->next) {
-		if (base->object != ob) {
-			if (BASE_SELECTED_EDITABLE(v3d, base)) {
-				
-				/* first: free all logic */
-				free_sensors(&base->object->sensors);
-				unlink_controllers(&base->object->controllers);
-				free_controllers(&base->object->controllers);
-				unlink_actuators(&base->object->actuators);
-				free_actuators(&base->object->actuators);
-				
-				/* now copy it, this also works without logicbricks! */
-				clear_sca_new_poins_ob(ob);
-				copy_sensors(&base->object->sensors, &ob->sensors, 0);
-				copy_controllers(&base->object->controllers, &ob->controllers, 0);
-				copy_actuators(&base->object->actuators, &ob->actuators, 0);
-				set_sca_new_poins_ob(base->object);
-				
-				/* some menu settings */
-				base->object->scavisflag = ob->scavisflag;
-				base->object->scaflag = ob->scaflag;
-				
-				/* set the initial state */
-				base->object->state = ob->state;
-				base->object->init_state = ob->init_state;
-			}
-		}
-	}
+  // XXX no longer used - to be removed - replaced by logicbricks_copy_exec
+  Base *base;
+
+  for (base = FIRSTBASE(view_layer); base; base = base->next) {
+    if (base->object != ob) {
+      if (BASE_SELECTED_EDITABLE(v3d, base)) {
+
+        /* first: free all logic */
+        free_sensors(&base->object->sensors);
+        unlink_controllers(&base->object->controllers);
+        free_controllers(&base->object->controllers);
+        unlink_actuators(&base->object->actuators);
+        free_actuators(&base->object->actuators);
+
+        /* now copy it, this also works without logicbricks! */
+        clear_sca_new_poins_ob(ob);
+        copy_sensors(&base->object->sensors, &ob->sensors, 0);
+        copy_controllers(&base->object->controllers, &ob->controllers, 0);
+        copy_actuators(&base->object->actuators, &ob->actuators, 0);
+        set_sca_new_poins_ob(base->object);
+
+        /* some menu settings */
+        base->object->scavisflag = ob->scavisflag;
+        base->object->scaflag = ob->scaflag;
+
+        /* set the initial state */
+        base->object->state = ob->state;
+        base->object->init_state = ob->init_state;
+      }
+    }
+  }
 }
 
 /* both pointers should exist */
 static void copy_texture_space(Object *to, Object *ob)
 {
-	float *poin1 = NULL, *poin2 = NULL;
-	short texflag = 0;
+  float *poin1 = NULL, *poin2 = NULL;
+  short texflag = 0;
 
-	if (ob->type == OB_MESH) {
-		texflag = ((Mesh *)ob->data)->texflag;
-		poin2 = ((Mesh *)ob->data)->loc;
-	}
-	else if (ELEM(ob->type, OB_CURVE, OB_SURF, OB_FONT)) {
-		texflag = ((Curve *)ob->data)->texflag;
-		poin2 = ((Curve *)ob->data)->loc;
-	}
-	else if (ob->type == OB_MBALL) {
-		texflag = ((MetaBall *)ob->data)->texflag;
-		poin2 = ((MetaBall *)ob->data)->loc;
-	}
-	else
-		return;
+  if (ob->type == OB_MESH) {
+    texflag = ((Mesh *)ob->data)->texflag;
+    poin2 = ((Mesh *)ob->data)->loc;
+  }
+  else if (ELEM(ob->type, OB_CURVE, OB_SURF, OB_FONT)) {
+    texflag = ((Curve *)ob->data)->texflag;
+    poin2 = ((Curve *)ob->data)->loc;
+  }
+  else if (ob->type == OB_MBALL) {
+    texflag = ((MetaBall *)ob->data)->texflag;
+    poin2 = ((MetaBall *)ob->data)->loc;
+  }
+  else
+    return;
 
-	if (to->type == OB_MESH) {
-		((Mesh *)to->data)->texflag = texflag;
-		poin1 = ((Mesh *)to->data)->loc;
-	}
-	else if (ELEM(to->type, OB_CURVE, OB_SURF, OB_FONT)) {
-		((Curve *)to->data)->texflag = texflag;
-		poin1 = ((Curve *)to->data)->loc;
-	}
-	else if (to->type == OB_MBALL) {
-		((MetaBall *)to->data)->texflag = texflag;
-		poin1 = ((MetaBall *)to->data)->loc;
-	}
-	else
-		return;
+  if (to->type == OB_MESH) {
+    ((Mesh *)to->data)->texflag = texflag;
+    poin1 = ((Mesh *)to->data)->loc;
+  }
+  else if (ELEM(to->type, OB_CURVE, OB_SURF, OB_FONT)) {
+    ((Curve *)to->data)->texflag = texflag;
+    poin1 = ((Curve *)to->data)->loc;
+  }
+  else if (to->type == OB_MBALL) {
+    ((MetaBall *)to->data)->texflag = texflag;
+    poin1 = ((MetaBall *)to->data)->loc;
+  }
+  else
+    return;
 
-	memcpy(poin1, poin2, 9 * sizeof(float));  /* this was noted in DNA_mesh, curve, mball */
+  memcpy(poin1, poin2, 9 * sizeof(float)); /* this was noted in DNA_mesh, curve, mball */
 
-	if (to->type == OB_MESH) {
-		/* pass */
-	}
-	else if (to->type == OB_MBALL) {
-		BKE_mball_texspace_calc(to);
-	}
-	else {
-		BKE_curve_texspace_calc(to->data);
-	}
-
+  if (to->type == OB_MESH) {
+    /* pass */
+  }
+  else if (to->type == OB_MBALL) {
+    BKE_mball_texspace_calc(to);
+  }
+  else {
+    BKE_curve_texspace_calc(to->data);
+  }
 }
 
 /* UNUSED, keep in case we want to copy functionality for use elsewhere */
 static void copy_attr(Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *v3d, short event)
 {
-	Object *ob;
-	Base *base;
-	Curve *cu, *cu1;
-	Nurb *nu;
+  Object *ob;
+  Base *base;
+  Curve *cu, *cu1;
+  Nurb *nu;
 
-	if (ID_IS_LINKED(scene)) return;
+  if (ID_IS_LINKED(scene))
+    return;
 
-	if (!(ob = OBACT(view_layer))) return;
+  if (!(ob = OBACT(view_layer)))
+    return;
 
-	if (BKE_object_is_in_editmode(ob)) {
-		/* obedit_copymenu(); */
-		return;
-	}
-	if (event == 9) {
-		copymenu_properties(view_layer, ob, v3d);
-		return;
-	}
-	else if (event == 10) {
-		copymenu_logicbricks(view_layer, ob, v3d);
-		return;
-	}
-	else if (event == 24) {
-		/* moved to BKE_object_link_modifiers */
-		/* copymenu_modifiers(bmain, scene, v3d, ob); */
-		return;
-	}
+  if (BKE_object_is_in_editmode(ob)) {
+    /* obedit_copymenu(); */
+    return;
+  }
+  if (event == 9) {
+    copymenu_properties(view_layer, ob, v3d);
+    return;
+  }
+  else if (event == 10) {
+    copymenu_logicbricks(view_layer, ob, v3d);
+    return;
+  }
+  else if (event == 24) {
+    /* moved to BKE_object_link_modifiers */
+    /* copymenu_modifiers(bmain, scene, v3d, ob); */
+    return;
+  }
 
-	for (base = FIRSTBASE(view_layer); base; base = base->next) {
-		if (base != BASACT(view_layer)) {
-			if (BASE_SELECTED_EDITABLE(v3d, base)) {
-				DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
+  for (base = FIRSTBASE(view_layer); base; base = base->next) {
+    if (base != BASACT(view_layer)) {
+      if (BASE_SELECTED_EDITABLE(v3d, base)) {
+        DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
 
-				if (event == 1) {  /* loc */
-					copy_v3_v3(base->object->loc, ob->loc);
-					copy_v3_v3(base->object->dloc, ob->dloc);
-				}
-				else if (event == 2) {  /* rot */
-					copy_v3_v3(base->object->rot, ob->rot);
-					copy_v3_v3(base->object->drot, ob->drot);
+        if (event == 1) { /* loc */
+          copy_v3_v3(base->object->loc, ob->loc);
+          copy_v3_v3(base->object->dloc, ob->dloc);
+        }
+        else if (event == 2) { /* rot */
+          copy_v3_v3(base->object->rot, ob->rot);
+          copy_v3_v3(base->object->drot, ob->drot);
 
-					copy_qt_qt(base->object->quat, ob->quat);
-					copy_qt_qt(base->object->dquat, ob->dquat);
-				}
-				else if (event == 3) {  /* scale */
-					copy_v3_v3(base->object->scale, ob->scale);
-					copy_v3_v3(base->object->dscale, ob->dscale);
-				}
-				else if (event == 4) {  /* drawtype */
-					base->object->dt = ob->dt;
-					base->object->dtx = ob->dtx;
-					base->object->empty_drawtype = ob->empty_drawtype;
-					base->object->empty_drawsize = ob->empty_drawsize;
-				}
-				else if (event == 5) {  /* time offs */
-					base->object->sf = ob->sf;
-				}
-				else if (event == 6) {  /* dupli */
-					base->object->transflag &= ~OB_DUPLI;
-					base->object->transflag |= (ob->transflag & OB_DUPLI);
+          copy_qt_qt(base->object->quat, ob->quat);
+          copy_qt_qt(base->object->dquat, ob->dquat);
+        }
+        else if (event == 3) { /* scale */
+          copy_v3_v3(base->object->scale, ob->scale);
+          copy_v3_v3(base->object->dscale, ob->dscale);
+        }
+        else if (event == 4) { /* drawtype */
+          base->object->dt = ob->dt;
+          base->object->dtx = ob->dtx;
+          base->object->empty_drawtype = ob->empty_drawtype;
+          base->object->empty_drawsize = ob->empty_drawsize;
+        }
+        else if (event == 5) { /* time offs */
+          base->object->sf = ob->sf;
+        }
+        else if (event == 6) { /* dupli */
+          base->object->transflag &= ~OB_DUPLI;
+          base->object->transflag |= (ob->transflag & OB_DUPLI);
 
-					base->object->instance_collection = ob->instance_collection;
-					if (ob->instance_collection)
-						id_us_plus(&ob->instance_collection->id);
-				}
-				else if (event == 7) {    /* mass */
-					base->object->mass = ob->mass;
-				}
-				else if (event == 8) {    /* damping */
-					base->object->damping = ob->damping;
-					base->object->rdamping = ob->rdamping;
-				}
-				else if (event == 11) {   /* all physical attributes */
-					base->object->gameflag = ob->gameflag;
-					base->object->inertia = ob->inertia;
-					base->object->formfactor = ob->formfactor;
-					base->object->damping = ob->damping;
-					base->object->rdamping = ob->rdamping;
-					base->object->min_vel = ob->min_vel;
-					base->object->max_vel = ob->max_vel;
-					base->object->min_angvel = ob->min_angvel;
-					base->object->max_angvel = ob->max_angvel;
-					if (ob->gameflag & OB_BOUNDS) {
-						base->object->collision_boundtype = ob->collision_boundtype;
-					}
-					base->object->margin = ob->margin;
-					base->object->bsoft = copy_bulletsoftbody(ob->bsoft, 0);
+          base->object->instance_collection = ob->instance_collection;
+          if (ob->instance_collection)
+            id_us_plus(&ob->instance_collection->id);
+        }
+        else if (event == 7) { /* mass */
+          base->object->mass = ob->mass;
+        }
+        else if (event == 8) { /* damping */
+          base->object->damping = ob->damping;
+          base->object->rdamping = ob->rdamping;
+        }
+        else if (event == 11) { /* all physical attributes */
+          base->object->gameflag = ob->gameflag;
+          base->object->inertia = ob->inertia;
+          base->object->formfactor = ob->formfactor;
+          base->object->damping = ob->damping;
+          base->object->rdamping = ob->rdamping;
+          base->object->min_vel = ob->min_vel;
+          base->object->max_vel = ob->max_vel;
+          base->object->min_angvel = ob->min_angvel;
+          base->object->max_angvel = ob->max_angvel;
+          if (ob->gameflag & OB_BOUNDS) {
+            base->object->collision_boundtype = ob->collision_boundtype;
+          }
+          base->object->margin = ob->margin;
+          base->object->bsoft = copy_bulletsoftbody(ob->bsoft, 0);
+        }
+        else if (event == 17) { /* tex space */
+          copy_texture_space(base->object, ob);
+        }
+        else if (event == 18) { /* font settings */
 
-				}
-				else if (event == 17) {   /* tex space */
-					copy_texture_space(base->object, ob);
-				}
-				else if (event == 18) {   /* font settings */
+          if (base->object->type == ob->type) {
+            cu = ob->data;
+            cu1 = base->object->data;
 
-					if (base->object->type == ob->type) {
-						cu = ob->data;
-						cu1 = base->object->data;
+            cu1->spacemode = cu->spacemode;
+            cu1->align_y = cu->align_y;
+            cu1->spacing = cu->spacing;
+            cu1->linedist = cu->linedist;
+            cu1->shear = cu->shear;
+            cu1->fsize = cu->fsize;
+            cu1->xof = cu->xof;
+            cu1->yof = cu->yof;
+            cu1->textoncurve = cu->textoncurve;
+            cu1->wordspace = cu->wordspace;
+            cu1->ulpos = cu->ulpos;
+            cu1->ulheight = cu->ulheight;
+            if (cu1->vfont)
+              id_us_min(&cu1->vfont->id);
+            cu1->vfont = cu->vfont;
+            id_us_plus((ID *)cu1->vfont);
+            if (cu1->vfontb)
+              id_us_min(&cu1->vfontb->id);
+            cu1->vfontb = cu->vfontb;
+            id_us_plus((ID *)cu1->vfontb);
+            if (cu1->vfonti)
+              id_us_min(&cu1->vfonti->id);
+            cu1->vfonti = cu->vfonti;
+            id_us_plus((ID *)cu1->vfonti);
+            if (cu1->vfontbi)
+              id_us_min(&cu1->vfontbi->id);
+            cu1->vfontbi = cu->vfontbi;
+            id_us_plus((ID *)cu1->vfontbi);
 
-						cu1->spacemode = cu->spacemode;
-						cu1->align_y = cu->align_y;
-						cu1->spacing = cu->spacing;
-						cu1->linedist = cu->linedist;
-						cu1->shear = cu->shear;
-						cu1->fsize = cu->fsize;
-						cu1->xof = cu->xof;
-						cu1->yof = cu->yof;
-						cu1->textoncurve = cu->textoncurve;
-						cu1->wordspace = cu->wordspace;
-						cu1->ulpos = cu->ulpos;
-						cu1->ulheight = cu->ulheight;
-						if (cu1->vfont)
-							id_us_min(&cu1->vfont->id);
-						cu1->vfont = cu->vfont;
-						id_us_plus((ID *)cu1->vfont);
-						if (cu1->vfontb)
-							id_us_min(&cu1->vfontb->id);
-						cu1->vfontb = cu->vfontb;
-						id_us_plus((ID *)cu1->vfontb);
-						if (cu1->vfonti)
-							id_us_min(&cu1->vfonti->id);
-						cu1->vfonti = cu->vfonti;
-						id_us_plus((ID *)cu1->vfonti);
-						if (cu1->vfontbi)
-							id_us_min(&cu1->vfontbi->id);
-						cu1->vfontbi = cu->vfontbi;
-						id_us_plus((ID *)cu1->vfontbi);
+            BLI_strncpy(cu1->family, cu->family, sizeof(cu1->family));
 
-						BLI_strncpy(cu1->family, cu->family, sizeof(cu1->family));
+            DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
+          }
+        }
+        else if (event == 19) { /* bevel settings */
 
-						DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
-					}
-				}
-				else if (event == 19) {   /* bevel settings */
+          if (ELEM(base->object->type, OB_CURVE, OB_FONT)) {
+            cu = ob->data;
+            cu1 = base->object->data;
 
-					if (ELEM(base->object->type, OB_CURVE, OB_FONT)) {
-						cu = ob->data;
-						cu1 = base->object->data;
+            cu1->bevobj = cu->bevobj;
+            cu1->taperobj = cu->taperobj;
+            cu1->width = cu->width;
+            cu1->bevresol = cu->bevresol;
+            cu1->ext1 = cu->ext1;
+            cu1->ext2 = cu->ext2;
 
-						cu1->bevobj = cu->bevobj;
-						cu1->taperobj = cu->taperobj;
-						cu1->width = cu->width;
-						cu1->bevresol = cu->bevresol;
-						cu1->ext1 = cu->ext1;
-						cu1->ext2 = cu->ext2;
+            DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
+          }
+        }
+        else if (event == 25) { /* curve resolution */
 
-						DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
-					}
-				}
-				else if (event == 25) {   /* curve resolution */
+          if (ELEM(base->object->type, OB_CURVE, OB_FONT)) {
+            cu = ob->data;
+            cu1 = base->object->data;
 
-					if (ELEM(base->object->type, OB_CURVE, OB_FONT)) {
-						cu = ob->data;
-						cu1 = base->object->data;
+            cu1->resolu = cu->resolu;
+            cu1->resolu_ren = cu->resolu_ren;
 
-						cu1->resolu = cu->resolu;
-						cu1->resolu_ren = cu->resolu_ren;
+            nu = cu1->nurb.first;
 
-						nu = cu1->nurb.first;
+            while (nu) {
+              nu->resolu = cu1->resolu;
+              nu = nu->next;
+            }
 
-						while (nu) {
-							nu->resolu = cu1->resolu;
-							nu = nu->next;
-						}
+            DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
+          }
+        }
+        else if (event == 21) {
+          if (base->object->type == OB_MESH) {
+            ModifierData *md = modifiers_findByType(ob, eModifierType_Subsurf);
 
-						DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
-					}
-				}
-				else if (event == 21) {
-					if (base->object->type == OB_MESH) {
-						ModifierData *md = modifiers_findByType(ob, eModifierType_Subsurf);
+            if (md) {
+              ModifierData *tmd = modifiers_findByType(base->object, eModifierType_Subsurf);
 
-						if (md) {
-							ModifierData *tmd = modifiers_findByType(base->object, eModifierType_Subsurf);
+              if (!tmd) {
+                tmd = modifier_new(eModifierType_Subsurf);
+                BLI_addtail(&base->object->modifiers, tmd);
+              }
 
-							if (!tmd) {
-								tmd = modifier_new(eModifierType_Subsurf);
-								BLI_addtail(&base->object->modifiers, tmd);
-							}
+              modifier_copyData(md, tmd);
+              DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
+            }
+          }
+        }
+        else if (event == 22) {
+          /* Copy the constraint channels over */
+          BKE_constraints_copy(&base->object->constraints, &ob->constraints, true);
+          DEG_id_tag_update(&base->object->id, ID_RECALC_COPY_ON_WRITE);
+          DEG_relations_tag_update(bmain);
+        }
+        else if (event == 23) {
+          sbFree(base->object);
+          BKE_object_copy_softbody(base->object, ob, 0);
 
-							modifier_copyData(md, tmd);
-							DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
-						}
-					}
-				}
-				else if (event == 22) {
-					/* Copy the constraint channels over */
-					BKE_constraints_copy(&base->object->constraints, &ob->constraints, true);
-					DEG_id_tag_update(&base->object->id, ID_RECALC_COPY_ON_WRITE);
-					DEG_relations_tag_update(bmain);
-				}
-				else if (event == 23) {
-					sbFree(base->object);
-					BKE_object_copy_softbody(base->object, ob, 0);
+          if (!modifiers_findByType(base->object, eModifierType_Softbody)) {
+            BLI_addhead(&base->object->modifiers, modifier_new(eModifierType_Softbody));
+          }
 
-					if (!modifiers_findByType(base->object, eModifierType_Softbody)) {
-						BLI_addhead(&base->object->modifiers, modifier_new(eModifierType_Softbody));
-					}
-
-					DEG_id_tag_update(&base->object->id, ID_RECALC_COPY_ON_WRITE);
-					DEG_relations_tag_update(bmain);
-				}
-				else if (event == 26) {
-#if 0 // XXX old animation system
+          DEG_id_tag_update(&base->object->id, ID_RECALC_COPY_ON_WRITE);
+          DEG_relations_tag_update(bmain);
+        }
+        else if (event == 26) {
+#if 0   // XXX old animation system
 					BKE_nlastrip_copy(s(&base->object->nlastrips, &ob->nlastrips);
-#endif // XXX old animation system
-				}
-				else if (event == 27) {   /* autosmooth */
-					if (base->object->type == OB_MESH) {
-						Mesh *me = ob->data;
-						Mesh *cme = base->object->data;
-						cme->smoothresh = me->smoothresh;
-						if (me->flag & ME_AUTOSMOOTH)
-							cme->flag |= ME_AUTOSMOOTH;
-						else
-							cme->flag &= ~ME_AUTOSMOOTH;
-					}
-				}
-				else if (event == 28) { /* UV orco */
-					if (ELEM(base->object->type, OB_CURVE, OB_SURF)) {
-						cu = ob->data;
-						cu1 = base->object->data;
-					}
-				}
-				else if (event == 29) { /* protected bits */
-					base->object->protectflag = ob->protectflag;
-				}
-				else if (event == 30) { /* index object */
-					base->object->index = ob->index;
-				}
-				else if (event == 31) { /* object color */
-					copy_v4_v4(base->object->color, ob->color);
-				}
-			}
-		}
-	}
+#endif  // XXX old animation system
+        }
+        else if (event == 27) { /* autosmooth */
+          if (base->object->type == OB_MESH) {
+            Mesh *me = ob->data;
+            Mesh *cme = base->object->data;
+            cme->smoothresh = me->smoothresh;
+            if (me->flag & ME_AUTOSMOOTH)
+              cme->flag |= ME_AUTOSMOOTH;
+            else
+              cme->flag &= ~ME_AUTOSMOOTH;
+          }
+        }
+        else if (event == 28) { /* UV orco */
+          if (ELEM(base->object->type, OB_CURVE, OB_SURF)) {
+            cu = ob->data;
+            cu1 = base->object->data;
+          }
+        }
+        else if (event == 29) { /* protected bits */
+          base->object->protectflag = ob->protectflag;
+        }
+        else if (event == 30) { /* index object */
+          base->object->index = ob->index;
+        }
+        else if (event == 31) { /* object color */
+          copy_v4_v4(base->object->color, ob->color);
+        }
+      }
+    }
+  }
 }
 
-static void UNUSED_FUNCTION(copy_attr_menu) (Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *v3d, Object *obedit)
+static void UNUSED_FUNCTION(copy_attr_menu)(
+    Main *bmain, Scene *scene, ViewLayer *view_layer, View3D *v3d, Object *obedit)
 {
-	Object *ob;
-	short event;
-	char str[512];
+  Object *ob;
+  short event;
+  char str[512];
 
-	if (!(ob = OBACT(view_layer))) return;
+  if (!(ob = OBACT(view_layer)))
+    return;
 
-	if (obedit) {
-/*		if (ob->type == OB_MESH) */
-/* XXX			mesh_copy_menu(); */
-		return;
-	}
+  if (obedit) {
+    /*		if (ob->type == OB_MESH) */
+    /* XXX			mesh_copy_menu(); */
+    return;
+  }
 
-	/* Object Mode */
+  /* Object Mode */
 
-	/* If you change this menu, don't forget to update the menu in header_view3d.c
-	 * view3d_edit_object_copyattrmenu() and in toolbox.c
-	 */
+  /* If you change this menu, don't forget to update the menu in header_view3d.c
+   * view3d_edit_object_copyattrmenu() and in toolbox.c
+   */
 
-	strcpy(str,
-	       "Copy Attributes %t|Location %x1|Rotation %x2|Size %x3|Draw Options %x4|"
-	       "Time Offset %x5|Dupli %x6|Object Color %x31|%l|Mass %x7|Damping %x8|All Physical Attributes %x11|Properties %x9|"
-	       "Logic Bricks %x10|Protected Transform %x29|%l");
+  strcpy(str,
+         "Copy Attributes %t|Location %x1|Rotation %x2|Size %x3|Draw Options %x4|"
+         "Time Offset %x5|Dupli %x6|Object Color %x31|%l|Mass %x7|Damping %x8|All Physical "
+         "Attributes %x11|Properties %x9|"
+         "Logic Bricks %x10|Protected Transform %x29|%l");
 
-	strcat(str, "|Object Constraints %x22");
-	strcat(str, "|NLA Strips %x26");
+  strcat(str, "|Object Constraints %x22");
+  strcat(str, "|NLA Strips %x26");
 
-/* XXX	if (OB_TYPE_SUPPORT_MATERIAL(ob->type)) { */
-/*		strcat(str, "|Texture Space %x17"); */
-/*	} */
+  /* XXX	if (OB_TYPE_SUPPORT_MATERIAL(ob->type)) { */
+  /*		strcat(str, "|Texture Space %x17"); */
+  /*	} */
 
-	if (ob->type == OB_FONT) strcat(str, "|Font Settings %x18|Bevel Settings %x19");
-	if (ob->type == OB_CURVE) strcat(str, "|Bevel Settings %x19|UV Orco %x28");
+  if (ob->type == OB_FONT)
+    strcat(str, "|Font Settings %x18|Bevel Settings %x19");
+  if (ob->type == OB_CURVE)
+    strcat(str, "|Bevel Settings %x19|UV Orco %x28");
 
-	if ((ob->type == OB_FONT) || (ob->type == OB_CURVE)) {
-		strcat(str, "|Curve Resolution %x25");
-	}
+  if ((ob->type == OB_FONT) || (ob->type == OB_CURVE)) {
+    strcat(str, "|Curve Resolution %x25");
+  }
 
-	if (ob->type == OB_MESH) {
-		strcat(str, "|Subsurf Settings %x21|AutoSmooth %x27");
-	}
+  if (ob->type == OB_MESH) {
+    strcat(str, "|Subsurf Settings %x21|AutoSmooth %x27");
+  }
 
-	if (ob->soft) strcat(str, "|Soft Body Settings %x23");
+  if (ob->soft)
+    strcat(str, "|Soft Body Settings %x23");
 
-	strcat(str, "|Pass Index %x30");
+  strcat(str, "|Pass Index %x30");
 
-	if (ob->type == OB_MESH || ob->type == OB_CURVE || ob->type == OB_LATTICE || ob->type == OB_SURF) {
-		strcat(str, "|Modifiers ... %x24");
-	}
+  if (ob->type == OB_MESH || ob->type == OB_CURVE || ob->type == OB_LATTICE ||
+      ob->type == OB_SURF) {
+    strcat(str, "|Modifiers ... %x24");
+  }
 
-	event = pupmenu(str);
-	if (event <= 0) return;
+  event = pupmenu(str);
+  if (event <= 0)
+    return;
 
-	copy_attr(bmain, scene, view_layer, v3d, event);
+  copy_attr(bmain, scene, view_layer, v3d, event);
 }
 
 /* ******************* force field toggle operator ***************** */
@@ -1979,401 +1992,409 @@ static ListBase selected_objects_get(bContext *C)
   return objects;
 }
 
-
 /************************ Game Properties ***********************/
 
 static int game_property_new_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = CTX_data_active_object(C);
-	bProperty *prop;
-	char name[MAX_NAME];
-	int type = RNA_enum_get(op->ptr, "type");
+  Object *ob = CTX_data_active_object(C);
+  bProperty *prop;
+  char name[MAX_NAME];
+  int type = RNA_enum_get(op->ptr, "type");
 
-	prop = BKE_bproperty_new(type);
-	BLI_addtail(&ob->prop, prop);
+  prop = BKE_bproperty_new(type);
+  BLI_addtail(&ob->prop, prop);
 
-	RNA_string_get(op->ptr, "name", name);
-	if (name[0] != '\0') {
-		BLI_strncpy(prop->name, name, sizeof(prop->name));
-	}
+  RNA_string_get(op->ptr, "name", name);
+  if (name[0] != '\0') {
+    BLI_strncpy(prop->name, name, sizeof(prop->name));
+  }
 
-	BLI_uniquename(&ob->prop, prop, DATA_("Property"), '.', offsetof(bProperty, name), sizeof(prop->name));
+  BLI_uniquename(
+      &ob->prop, prop, DATA_("Property"), '.', offsetof(bProperty, name), sizeof(prop->name));
 
-	WM_event_add_notifier(C, NC_LOGIC, NULL);
-	return OPERATOR_FINISHED;
+  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  return OPERATOR_FINISHED;
 }
-
 
 void OBJECT_OT_game_property_new(wmOperatorType *ot)
 {
-	/* identifiers */
-	ot->name = "New Game Property";
-	ot->description = "Create a new property available to the game engine";
-	ot->idname = "OBJECT_OT_game_property_new";
+  /* identifiers */
+  ot->name = "New Game Property";
+  ot->description = "Create a new property available to the game engine";
+  ot->idname = "OBJECT_OT_game_property_new";
 
-	/* api callbacks */
-	ot->exec = game_property_new_exec;
-	ot->poll = ED_operator_object_active_editable;
+  /* api callbacks */
+  ot->exec = game_property_new_exec;
+  ot->poll = ED_operator_object_active_editable;
 
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_enum(ot->srna, "type", rna_enum_gameproperty_type_items, GPROP_FLOAT, "Type", "Type of game property to add");
-	RNA_def_string(ot->srna, "name", NULL, MAX_NAME, "Name", "Name of the game property to add");
+  RNA_def_enum(ot->srna,
+               "type",
+               rna_enum_gameproperty_type_items,
+               GPROP_FLOAT,
+               "Type",
+               "Type of game property to add");
+  RNA_def_string(ot->srna, "name", NULL, MAX_NAME, "Name", "Name of the game property to add");
 }
 
 static int game_property_remove_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = CTX_data_active_object(C);
-	bProperty *prop;
-	int index = RNA_int_get(op->ptr, "index");
+  Object *ob = CTX_data_active_object(C);
+  bProperty *prop;
+  int index = RNA_int_get(op->ptr, "index");
 
-	if (!ob)
-		return OPERATOR_CANCELLED;
+  if (!ob)
+    return OPERATOR_CANCELLED;
 
-	prop = BLI_findlink(&ob->prop, index);
+  prop = BLI_findlink(&ob->prop, index);
 
-	if (prop) {
-		BLI_remlink(&ob->prop, prop);
-		BKE_bproperty_free(prop);
+  if (prop) {
+    BLI_remlink(&ob->prop, prop);
+    BKE_bproperty_free(prop);
 
-		WM_event_add_notifier(C, NC_LOGIC, NULL);
-		return OPERATOR_FINISHED;
-	}
-	else {
-		return OPERATOR_CANCELLED;
-	}
+    WM_event_add_notifier(C, NC_LOGIC, NULL);
+    return OPERATOR_FINISHED;
+  }
+  else {
+    return OPERATOR_CANCELLED;
+  }
 }
 
 void OBJECT_OT_game_property_remove(wmOperatorType *ot)
 {
-	/* identifiers */
-	ot->name = "Remove Game Property";
-	ot->description = "Remove game property";
-	ot->idname = "OBJECT_OT_game_property_remove";
+  /* identifiers */
+  ot->name = "Remove Game Property";
+  ot->description = "Remove game property";
+  ot->idname = "OBJECT_OT_game_property_remove";
 
-	/* api callbacks */
-	ot->exec = game_property_remove_exec;
-	ot->poll = ED_operator_object_active_editable;
+  /* api callbacks */
+  ot->exec = game_property_remove_exec;
+  ot->poll = ED_operator_object_active_editable;
 
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Property index to remove ", 0, INT_MAX);
+  RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Property index to remove ", 0, INT_MAX);
 }
 
-#define GAME_PROPERTY_MOVE_UP    1
+#define GAME_PROPERTY_MOVE_UP 1
 #define GAME_PROPERTY_MOVE_DOWN -1
 
 static int game_property_move(bContext *C, wmOperator *op)
 {
-	Object *ob = CTX_data_active_object(C);
-	bProperty *prop;
-	bProperty *otherprop = NULL;
-	const int index = RNA_int_get(op->ptr, "index");
-	const int dir = RNA_enum_get(op->ptr, "direction");
+  Object *ob = CTX_data_active_object(C);
+  bProperty *prop;
+  bProperty *otherprop = NULL;
+  const int index = RNA_int_get(op->ptr, "index");
+  const int dir = RNA_enum_get(op->ptr, "direction");
 
-	if (ob == NULL)
-		return OPERATOR_CANCELLED;
+  if (ob == NULL)
+    return OPERATOR_CANCELLED;
 
-	prop = BLI_findlink(&ob->prop, index);
-	/* invalid index */
-	if (prop == NULL)
-		return OPERATOR_CANCELLED;
+  prop = BLI_findlink(&ob->prop, index);
+  /* invalid index */
+  if (prop == NULL)
+    return OPERATOR_CANCELLED;
 
-	if (dir == GAME_PROPERTY_MOVE_UP) {
-		otherprop = prop->prev;
-	}
-	else if (dir == GAME_PROPERTY_MOVE_DOWN) {
-		otherprop = prop->next;
-	}
-	else {
-		BLI_assert(0);
-	}
+  if (dir == GAME_PROPERTY_MOVE_UP) {
+    otherprop = prop->prev;
+  }
+  else if (dir == GAME_PROPERTY_MOVE_DOWN) {
+    otherprop = prop->next;
+  }
+  else {
+    BLI_assert(0);
+  }
 
-	if (prop && otherprop) {
-		BLI_listbase_swaplinks(&ob->prop, prop, otherprop);
+  if (prop && otherprop) {
+    BLI_listbase_swaplinks(&ob->prop, prop, otherprop);
 
-		WM_event_add_notifier(C, NC_LOGIC, NULL);
-		return OPERATOR_FINISHED;
-	}
-	else {
-		return OPERATOR_CANCELLED;
-	}
+    WM_event_add_notifier(C, NC_LOGIC, NULL);
+    return OPERATOR_FINISHED;
+  }
+  else {
+    return OPERATOR_CANCELLED;
+  }
 }
 
 void OBJECT_OT_game_property_move(wmOperatorType *ot)
 {
-	static const EnumPropertyItem direction_property_move[] = {
-		{GAME_PROPERTY_MOVE_UP,   "UP",   0, "Up",   ""},
-		{GAME_PROPERTY_MOVE_DOWN, "DOWN", 0, "Down", ""},
-		{0, NULL, 0, NULL, NULL}
-	};
-	PropertyRNA *prop;
+  static const EnumPropertyItem direction_property_move[] = {
+      {GAME_PROPERTY_MOVE_UP, "UP", 0, "Up", ""},
+      {GAME_PROPERTY_MOVE_DOWN, "DOWN", 0, "Down", ""},
+      {0, NULL, 0, NULL, NULL}};
+  PropertyRNA *prop;
 
-	/* identifiers */
-	ot->name = "Move Game Property";
-	ot->description = "Move game property";
-	ot->idname = "OBJECT_OT_game_property_move";
+  /* identifiers */
+  ot->name = "Move Game Property";
+  ot->description = "Move game property";
+  ot->idname = "OBJECT_OT_game_property_move";
 
-	/* api callbacks */
-	ot->exec = game_property_move;
-	ot->poll = ED_operator_object_active_editable;
+  /* api callbacks */
+  ot->exec = game_property_move;
+  ot->poll = ED_operator_object_active_editable;
 
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	/* properties */
-	prop = RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Property index to move", 0, INT_MAX);
-	RNA_def_property_flag(prop, PROP_HIDDEN);
-	RNA_def_enum(ot->srna, "direction", direction_property_move, 0, "Direction",
-	             "Direction for moving the property");
+  /* properties */
+  prop = RNA_def_int(
+      ot->srna, "index", 0, 0, INT_MAX, "Index", "Property index to move", 0, INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  RNA_def_enum(ot->srna,
+               "direction",
+               direction_property_move,
+               0,
+               "Direction",
+               "Direction for moving the property");
 }
 
 #undef GAME_PROPERTY_MOVE_UP
 #undef GAME_PROPERTY_MOVE_DOWN
 
 #define COPY_PROPERTIES_REPLACE 1
-#define COPY_PROPERTIES_MERGE   2
-#define COPY_PROPERTIES_COPY    3
+#define COPY_PROPERTIES_MERGE 2
+#define COPY_PROPERTIES_COPY 3
 
 static const EnumPropertyItem game_properties_copy_operations[] = {
-	{COPY_PROPERTIES_REPLACE, "REPLACE", 0, "Replace Properties", ""},
-	{COPY_PROPERTIES_MERGE, "MERGE", 0, "Merge Properties", ""},
-	{COPY_PROPERTIES_COPY, "COPY", 0, "Copy a Property", ""},
-	{0, NULL, 0, NULL, NULL}
-};
+    {COPY_PROPERTIES_REPLACE, "REPLACE", 0, "Replace Properties", ""},
+    {COPY_PROPERTIES_MERGE, "MERGE", 0, "Merge Properties", ""},
+    {COPY_PROPERTIES_COPY, "COPY", 0, "Copy a Property", ""},
+    {0, NULL, 0, NULL, NULL}};
 
-static const EnumPropertyItem *gameprops_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
-{	
-	Object *ob = ED_object_active_context(C);
-	EnumPropertyItem tmp = {0, "", 0, "", ""};
-	EnumPropertyItem *item = NULL;
-	bProperty *prop;
-	int a, totitem = 0;
-	
-	if (!ob)
-		return DummyRNA_NULL_items;
+static const EnumPropertyItem *gameprops_itemf(bContext *C,
+                                               PointerRNA *UNUSED(ptr),
+                                               PropertyRNA *UNUSED(prop),
+                                               bool *r_free)
+{
+  Object *ob = ED_object_active_context(C);
+  EnumPropertyItem tmp = {0, "", 0, "", ""};
+  EnumPropertyItem *item = NULL;
+  bProperty *prop;
+  int a, totitem = 0;
 
-	for (a = 1, prop = ob->prop.first; prop; prop = prop->next, a++) {
-		tmp.value = a;
-		tmp.identifier = prop->name;
-		tmp.name = prop->name;
-		RNA_enum_item_add(&item, &totitem, &tmp);
-	}
+  if (!ob)
+    return DummyRNA_NULL_items;
 
-	RNA_enum_item_end(&item, &totitem);
-	*r_free = true;
+  for (a = 1, prop = ob->prop.first; prop; prop = prop->next, a++) {
+    tmp.value = a;
+    tmp.identifier = prop->name;
+    tmp.name = prop->name;
+    RNA_enum_item_add(&item, &totitem, &tmp);
+  }
 
-	return item;
+  RNA_enum_item_end(&item, &totitem);
+  *r_free = true;
+
+  return item;
 }
 
 static int game_property_copy_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = ED_object_active_context(C);
-	bProperty *prop;
-	int type = RNA_enum_get(op->ptr, "operation");
-	int propid = RNA_enum_get(op->ptr, "property");
+  Object *ob = ED_object_active_context(C);
+  bProperty *prop;
+  int type = RNA_enum_get(op->ptr, "operation");
+  int propid = RNA_enum_get(op->ptr, "property");
 
-	if (propid > 0) { /* copy */
-		prop = BLI_findlink(&ob->prop, propid - 1);
-		
-		if (prop) {
-			CTX_DATA_BEGIN(C, Object *, ob_iter, selected_editable_objects)
-			{
-				if (ob != ob_iter)
-					BKE_bproperty_object_set(ob_iter, prop);
-			} CTX_DATA_END;
-		}
-	}
+  if (propid > 0) { /* copy */
+    prop = BLI_findlink(&ob->prop, propid - 1);
 
-	else {
-		CTX_DATA_BEGIN(C, Object *, ob_iter, selected_editable_objects)
-		{
-			if (ob != ob_iter) {
-				if (type == COPY_PROPERTIES_REPLACE) {
-					BKE_bproperty_copy_list(&ob_iter->prop, &ob->prop);
-				}
-				else {
-					/* merge - the default when calling with no argument */
-					for (prop = ob->prop.first; prop; prop = prop->next) {
-						BKE_bproperty_object_set(ob_iter, prop);
-					}
-				}
-			}
-		}
-		CTX_DATA_END;
-	}
+    if (prop) {
+      CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
+        if (ob != ob_iter)
+          BKE_bproperty_object_set(ob_iter, prop);
+      }
+      CTX_DATA_END;
+    }
+  }
 
-	return OPERATOR_FINISHED;
+  else {
+    CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
+      if (ob != ob_iter) {
+        if (type == COPY_PROPERTIES_REPLACE) {
+          BKE_bproperty_copy_list(&ob_iter->prop, &ob->prop);
+        }
+        else {
+          /* merge - the default when calling with no argument */
+          for (prop = ob->prop.first; prop; prop = prop->next) {
+            BKE_bproperty_object_set(ob_iter, prop);
+          }
+        }
+      }
+    }
+    CTX_DATA_END;
+  }
+
+  return OPERATOR_FINISHED;
 }
 
 void OBJECT_OT_game_property_copy(wmOperatorType *ot)
 {
-	PropertyRNA *prop;
-	/* identifiers */
-	ot->name = "Copy Game Property";
-	ot->idname = "OBJECT_OT_game_property_copy";
-	ot->description = "Copy/merge/replace a game property from active object to all selected objects";
+  PropertyRNA *prop;
+  /* identifiers */
+  ot->name = "Copy Game Property";
+  ot->idname = "OBJECT_OT_game_property_copy";
+  ot->description =
+      "Copy/merge/replace a game property from active object to all selected objects";
 
-	/* api callbacks */
-	ot->exec = game_property_copy_exec;
-	ot->poll = ED_operator_object_active_editable;
+  /* api callbacks */
+  ot->exec = game_property_copy_exec;
+  ot->poll = ED_operator_object_active_editable;
 
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_enum(ot->srna, "operation", game_properties_copy_operations, 3, "Operation", "");
-	prop = RNA_def_enum(ot->srna, "property", DummyRNA_NULL_items, 0, "Property", "Properties to copy");
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_ENUM_NO_TRANSLATE);
-	RNA_def_enum_funcs(prop, gameprops_itemf);
-	ot->prop = prop;
+  RNA_def_enum(ot->srna, "operation", game_properties_copy_operations, 3, "Operation", "");
+  prop = RNA_def_enum(
+      ot->srna, "property", DummyRNA_NULL_items, 0, "Property", "Properties to copy");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_ENUM_NO_TRANSLATE);
+  RNA_def_enum_funcs(prop, gameprops_itemf);
+  ot->prop = prop;
 }
 
 static int game_property_clear_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	CTX_DATA_BEGIN(C, Object *, ob_iter, selected_editable_objects)
-	{
-		BKE_bproperty_free_list(&ob_iter->prop);
-	}
-	CTX_DATA_END;
+  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
+    BKE_bproperty_free_list(&ob_iter->prop);
+  }
+  CTX_DATA_END;
 
-	WM_event_add_notifier(C, NC_LOGIC, NULL);
-	return OPERATOR_FINISHED;
+  WM_event_add_notifier(C, NC_LOGIC, NULL);
+  return OPERATOR_FINISHED;
 }
 void OBJECT_OT_game_property_clear(wmOperatorType *ot)
 {
-	/* identifiers */
-	ot->name = "Clear Game Properties";
-	ot->idname = "OBJECT_OT_game_property_clear";
-	ot->description = "Remove all game properties from all selected objects";
+  /* identifiers */
+  ot->name = "Clear Game Properties";
+  ot->idname = "OBJECT_OT_game_property_clear";
+  ot->description = "Remove all game properties from all selected objects";
 
-	/* api callbacks */
-	ot->exec = game_property_clear_exec;
-	ot->poll = ED_operator_object_active_editable;
+  /* api callbacks */
+  ot->exec = game_property_clear_exec;
+  ot->poll = ED_operator_object_active_editable;
 
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /************************ Copy Logic Bricks ***********************/
 
 static int logicbricks_copy_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *ob = ED_object_active_context(C);
+  Object *ob = ED_object_active_context(C);
 
-	CTX_DATA_BEGIN(C, Object *, ob_iter, selected_editable_objects)
-	{
-		if (ob != ob_iter) {
-			/* first: free all logic */
-			free_sensors(&ob_iter->sensors);
-			unlink_controllers(&ob_iter->controllers);
-			free_controllers(&ob_iter->controllers);
-			unlink_actuators(&ob_iter->actuators);
-			free_actuators(&ob_iter->actuators);
-		
-			/* now copy it, this also works without logicbricks! */
-			clear_sca_new_poins_ob(ob);
-			copy_sensors(&ob_iter->sensors, &ob->sensors, 0);
-			copy_controllers(&ob_iter->controllers, &ob->controllers, 0);
-			copy_actuators(&ob_iter->actuators, &ob->actuators, 0);
-			set_sca_new_poins_ob(ob_iter);
-		
-			/* some menu settings */
-			ob_iter->scavisflag = ob->scavisflag;
-			ob_iter->scaflag = ob->scaflag;
-		
-			/* set the initial state */
-			ob_iter->state = ob->state;
-			ob_iter->init_state = ob->init_state;
+  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
+    if (ob != ob_iter) {
+      /* first: free all logic */
+      free_sensors(&ob_iter->sensors);
+      unlink_controllers(&ob_iter->controllers);
+      free_controllers(&ob_iter->controllers);
+      unlink_actuators(&ob_iter->actuators);
+      free_actuators(&ob_iter->actuators);
 
-			if (ob_iter->totcol == ob->totcol) {
-				ob_iter->actcol = ob->actcol;
-				WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob_iter);
-			}
-		}
-	}
-	CTX_DATA_END;
+      /* now copy it, this also works without logicbricks! */
+      clear_sca_new_poins_ob(ob);
+      copy_sensors(&ob_iter->sensors, &ob->sensors, 0);
+      copy_controllers(&ob_iter->controllers, &ob->controllers, 0);
+      copy_actuators(&ob_iter->actuators, &ob->actuators, 0);
+      set_sca_new_poins_ob(ob_iter);
 
-	WM_event_add_notifier(C, NC_LOGIC, NULL);
+      /* some menu settings */
+      ob_iter->scavisflag = ob->scavisflag;
+      ob_iter->scaflag = ob->scaflag;
 
-	return OPERATOR_FINISHED;
+      /* set the initial state */
+      ob_iter->state = ob->state;
+      ob_iter->init_state = ob->init_state;
+
+      if (ob_iter->totcol == ob->totcol) {
+        ob_iter->actcol = ob->actcol;
+        WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob_iter);
+      }
+    }
+  }
+  CTX_DATA_END;
+
+  WM_event_add_notifier(C, NC_LOGIC, NULL);
+
+  return OPERATOR_FINISHED;
 }
 
 void OBJECT_OT_logic_bricks_copy(wmOperatorType *ot)
 {
-	/* identifiers */
-	ot->name = "Copy Logic Bricks to Selected";
-	ot->description = "Copy logic bricks to other selected objects";
-	ot->idname = "OBJECT_OT_logic_bricks_copy";
+  /* identifiers */
+  ot->name = "Copy Logic Bricks to Selected";
+  ot->description = "Copy logic bricks to other selected objects";
+  ot->idname = "OBJECT_OT_logic_bricks_copy";
 
-	/* api callbacks */
-	ot->exec = logicbricks_copy_exec;
-	ot->poll = ED_operator_object_active_editable;
+  /* api callbacks */
+  ot->exec = logicbricks_copy_exec;
+  ot->poll = ED_operator_object_active_editable;
 
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 static int game_physics_copy_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *ob = ED_object_active_context(C);
-	
-	CTX_DATA_BEGIN(C, Object *, ob_iter, selected_editable_objects)
-	{
-		if (ob != ob_iter) {
-			ob_iter->gameflag = ob->gameflag;
-			ob_iter->gameflag2 = ob->gameflag2;
-			ob_iter->inertia = ob->inertia;
-			ob_iter->formfactor = ob->formfactor;
-			ob_iter->damping = ob->damping;
-			ob_iter->rdamping = ob->rdamping;
-			ob_iter->min_vel = ob->min_vel;
-			ob_iter->max_vel = ob->max_vel;
-			ob_iter->min_angvel = ob->min_angvel;
-			ob_iter->max_angvel = ob->max_angvel;
-			ob_iter->obstacleRad = ob->obstacleRad;
-			ob_iter->mass = ob->mass;
-			/********Game engine*************/
-			ob_iter->friction = ob->friction;
-			ob_iter->rolling_friction = ob->rolling_friction;
-			ob_iter->fh = ob->fh;
-			ob_iter->reflect = ob->reflect;
-			ob_iter->fhdist = ob->fhdist;
-			ob_iter->xyfrict = ob->xyfrict;
-			ob_iter->dynamode = ob->dynamode;
-			/******End of Game engine********/
-			copy_v3_v3(ob_iter->anisotropicFriction, ob->anisotropicFriction);
-			ob_iter->collision_boundtype = ob->collision_boundtype;
-			ob_iter->margin = ob->margin;
-			ob_iter->bsoft = copy_bulletsoftbody(ob->bsoft, 0);
-			if (ob->restrictflag & OB_RESTRICT_RENDER) 
-				ob_iter->restrictflag |= OB_RESTRICT_RENDER;
-			else
-				ob_iter->restrictflag &= ~OB_RESTRICT_RENDER;
+  Object *ob = ED_object_active_context(C);
 
-			ob_iter->col_group = ob->col_group;
-			ob_iter->col_mask = ob->col_mask;
-		}
-	}
-	CTX_DATA_END;
-	
-	return OPERATOR_FINISHED;
+  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
+    if (ob != ob_iter) {
+      ob_iter->gameflag = ob->gameflag;
+      ob_iter->gameflag2 = ob->gameflag2;
+      ob_iter->inertia = ob->inertia;
+      ob_iter->formfactor = ob->formfactor;
+      ob_iter->damping = ob->damping;
+      ob_iter->rdamping = ob->rdamping;
+      ob_iter->min_vel = ob->min_vel;
+      ob_iter->max_vel = ob->max_vel;
+      ob_iter->min_angvel = ob->min_angvel;
+      ob_iter->max_angvel = ob->max_angvel;
+      ob_iter->obstacleRad = ob->obstacleRad;
+      ob_iter->mass = ob->mass;
+      /********Game engine*************/
+      ob_iter->friction = ob->friction;
+      ob_iter->rolling_friction = ob->rolling_friction;
+      ob_iter->fh = ob->fh;
+      ob_iter->reflect = ob->reflect;
+      ob_iter->fhdist = ob->fhdist;
+      ob_iter->xyfrict = ob->xyfrict;
+      ob_iter->dynamode = ob->dynamode;
+      /******End of Game engine********/
+      copy_v3_v3(ob_iter->anisotropicFriction, ob->anisotropicFriction);
+      ob_iter->collision_boundtype = ob->collision_boundtype;
+      ob_iter->margin = ob->margin;
+      ob_iter->bsoft = copy_bulletsoftbody(ob->bsoft, 0);
+      if (ob->restrictflag & OB_RESTRICT_RENDER)
+        ob_iter->restrictflag |= OB_RESTRICT_RENDER;
+      else
+        ob_iter->restrictflag &= ~OB_RESTRICT_RENDER;
+
+      ob_iter->col_group = ob->col_group;
+      ob_iter->col_mask = ob->col_mask;
+    }
+  }
+  CTX_DATA_END;
+
+  return OPERATOR_FINISHED;
 }
 
 void OBJECT_OT_game_physics_copy(struct wmOperatorType *ot)
 {
-	/* identifiers */
-	ot->name = "Copy Game Physics Properties to Selected";
-	ot->description = "Copy game physics properties to other selected objects";
-	ot->idname = "OBJECT_OT_game_physics_copy";
-	
-	/* api callbacks */
-	ot->exec = game_physics_copy_exec;
-	ot->poll = ED_operator_object_active_editable;
-	
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* identifiers */
+  ot->name = "Copy Game Physics Properties to Selected";
+  ot->description = "Copy game physics properties to other selected objects";
+  ot->idname = "OBJECT_OT_game_physics_copy";
+
+  /* api callbacks */
+  ot->exec = game_physics_copy_exec;
+  ot->poll = ED_operator_object_active_editable;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 static bool move_to_collection_poll(bContext *C)

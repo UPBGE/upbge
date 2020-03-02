@@ -38,7 +38,7 @@
 #include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_key.h"
-#include "BKE_layer.h" // for SetLooper Game engine transition tinkering
+#include "BKE_layer.h"  // for SetLooper Game engine transition tinkering
 #include "BKE_main.h"
 #include "BKE_scene.h"
 #include "BKE_object.h"
@@ -1553,7 +1553,8 @@ static void update_lods(Depsgraph *depsgraph, Scene *scene, float camera_pos[3])
 {
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 
-  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob_eval) { // Here ob is evaluated object from depsgraph which will be rendered
+  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (
+      depsgraph, ob_eval) {  // Here ob is evaluated object from depsgraph which will be rendered
     BKE_object_lod_update(DEG_get_original_object(ob_eval), camera_pos);
 
     if (DEG_get_original_object(ob_eval)->currentlod) {
@@ -1578,13 +1579,13 @@ static void view3d_draw_view(const bContext *C, ARegion *ar)
                             NULL);
 /* Game engine transition */
 #ifdef WITH_GAMEENGINE
-  //if (STREQ(CTX_data_scene(C)->r.engine, RE_engine_id_BLENDER_EEVEE)) {
+  // if (STREQ(CTX_data_scene(C)->r.engine, RE_engine_id_BLENDER_EEVEE)) {
   /* Make sure LoDs are up to date */
   RegionView3D *rv3d = ar->regiondata;
   update_lods(CTX_data_expect_evaluated_depsgraph(C), CTX_data_scene(C), rv3d->viewinv[3]);
   //}
 #endif
-/* End of Game engine transition */
+  /* End of Game engine transition */
 
   /* Only 100% compliant on new spec goes below */
   DRW_draw_view(C);

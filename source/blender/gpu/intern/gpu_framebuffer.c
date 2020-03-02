@@ -1063,29 +1063,29 @@ void GPU_clear(eGPUFrameBufferBits flags)
 
 int GPU_framebuffer_color_bindcode(const GPUFrameBuffer *fb)
 {
-	return GPU_texture_opengl_bindcode(fb->attachments[GPU_FB_COLOR_ATTACHMENT0].tex);
+  return GPU_texture_opengl_bindcode(fb->attachments[GPU_FB_COLOR_ATTACHMENT0].tex);
 }
 
 GPUTexture *GPU_framebuffer_color_texture(const GPUFrameBuffer *fb)
 {
-	return fb->attachments[GPU_FB_COLOR_ATTACHMENT0].tex;
+  return fb->attachments[GPU_FB_COLOR_ATTACHMENT0].tex;
 }
 
 GPUTexture *GPU_framebuffer_depth_texture(const GPUFrameBuffer *fb)
 {
-	return fb->attachments[GPU_FB_DEPTH_STENCIL_ATTACHMENT].tex;
+  return fb->attachments[GPU_FB_DEPTH_STENCIL_ATTACHMENT].tex;
 }
 
 void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb)
 {
-	GPUTexture *tex = GPU_framebuffer_color_texture(fb);
-	GPU_texture_mipmap_mode(tex, true, false);
-	GPU_texture_generate_mipmap(tex);
+  GPUTexture *tex = GPU_framebuffer_color_texture(fb);
+  GPU_texture_mipmap_mode(tex, true, false);
+  GPU_texture_generate_mipmap(tex);
 }
 
 void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb)
 {
-	GPUTexture *tex = GPU_framebuffer_color_texture(fb);
-	GPU_texture_mipmap_mode(tex, false, false);
+  GPUTexture *tex = GPU_framebuffer_color_texture(fb);
+  GPU_texture_mipmap_mode(tex, false, false);
 }
 /************End of Game engine***********/

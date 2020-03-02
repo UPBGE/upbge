@@ -499,7 +499,8 @@ Object *ED_object_add_type(bContext *C,
   /* Ignore collisions by default for non-mesh objects */
   if (type != OB_MESH) {
     ob->body_type = OB_BODY_TYPE_NO_COLLISION;
-    ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_CHARACTER | OB_OCCLUDER | OB_DYNAMIC | OB_NAVMESH); /* copied from rna_object.c */
+    ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_CHARACTER |
+                      OB_OCCLUDER | OB_DYNAMIC | OB_NAVMESH); /* copied from rna_object.c */
   }
 
   /* TODO(sergey): This is weird to manually tag objects for update, better to
@@ -2645,7 +2646,7 @@ Base *ED_object_add_duplicate(
   Base *basen;
   Object *ob;
 
-  clear_sca_new_poins();  /* BGE logic */
+  clear_sca_new_poins(); /* BGE logic */
 
   basen = object_add_duplicate_internal(bmain, scene, view_layer, base->object, dupflag);
   if (basen == NULL) {
@@ -2679,7 +2680,7 @@ static int duplicate_exec(bContext *C, wmOperator *op)
   const bool linked = RNA_boolean_get(op->ptr, "linked");
   int dupflag = (linked) ? 0 : U.dupflag;
 
-  clear_sca_new_poins();  /* BGE logic */
+  clear_sca_new_poins(); /* BGE logic */
 
   CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
     Base *basen = object_add_duplicate_internal(bmain, scene, view_layer, base->object, dupflag);
@@ -2777,7 +2778,7 @@ static int add_named_exec(bContext *C, wmOperator *op)
 
   /* prepare dupli */
 
-  clear_sca_new_poins();  /* BGE logic */
+  clear_sca_new_poins(); /* BGE logic */
 
   basen = object_add_duplicate_internal(bmain, scene, view_layer, ob, dupflag);
 

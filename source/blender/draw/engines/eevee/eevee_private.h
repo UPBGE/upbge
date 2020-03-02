@@ -33,8 +33,8 @@ extern "C" {
 
 #include "DNA_lightprobe_types.h"
 
-#include "BLI_listbase.h" // For bge
-#include "DNA_object_types.h" // For bge
+#include "BLI_listbase.h"      // For bge
+#include "DNA_object_types.h"  // For bge
 struct EEVEE_ShadowCasterBuffer;
 struct GPUFrameBuffer;
 struct Object;
@@ -1255,7 +1255,6 @@ static const float cubefacemat[6][4][4] = {
      {0.0f, 0.0f, 1.0f, 0.0f},
      {0.0f, 0.0f, 0.0f, 1.0f}},
 };
-
 
 /* Game engine transition */
 EEVEE_Data *EEVEE_engine_data_get(void);

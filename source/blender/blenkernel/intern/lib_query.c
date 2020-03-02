@@ -267,31 +267,37 @@ static void library_foreach_particlesystemsObjectLooper(ParticleSystem *UNUSED(p
   FOREACH_FINALIZE_VOID;
 }
 
-static void library_foreach_sensorsObjectLooper(
-        bSensor *UNUSED(sensor), ID **id_pointer, void *user_data, int cb_flag)
+static void library_foreach_sensorsObjectLooper(bSensor *UNUSED(sensor),
+                                                ID **id_pointer,
+                                                void *user_data,
+                                                int cb_flag)
 {
-	LibraryForeachIDData *data = (LibraryForeachIDData *) user_data;
-	FOREACH_CALLBACK_INVOKE_ID_PP(data, id_pointer, cb_flag);
+  LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
+  FOREACH_CALLBACK_INVOKE_ID_PP(data, id_pointer, cb_flag);
 
-	FOREACH_FINALIZE_VOID;
+  FOREACH_FINALIZE_VOID;
 }
 
-static void library_foreach_controllersObjectLooper(
-        bController *UNUSED(controller), ID **id_pointer, void *user_data, int cb_flag)
+static void library_foreach_controllersObjectLooper(bController *UNUSED(controller),
+                                                    ID **id_pointer,
+                                                    void *user_data,
+                                                    int cb_flag)
 {
-	LibraryForeachIDData *data = (LibraryForeachIDData *) user_data;
-	FOREACH_CALLBACK_INVOKE_ID_PP(data, id_pointer, cb_flag);
+  LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
+  FOREACH_CALLBACK_INVOKE_ID_PP(data, id_pointer, cb_flag);
 
-	FOREACH_FINALIZE_VOID;
+  FOREACH_FINALIZE_VOID;
 }
 
-static void library_foreach_actuatorsObjectLooper(
-        bActuator *UNUSED(actuator), ID **id_pointer, void *user_data, int cb_flag)
+static void library_foreach_actuatorsObjectLooper(bActuator *UNUSED(actuator),
+                                                  ID **id_pointer,
+                                                  void *user_data,
+                                                  int cb_flag)
 {
-	LibraryForeachIDData *data = (LibraryForeachIDData *) user_data;
-	FOREACH_CALLBACK_INVOKE_ID_PP(data, id_pointer, cb_flag);
+  LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
+  FOREACH_CALLBACK_INVOKE_ID_PP(data, id_pointer, cb_flag);
 
-	FOREACH_FINALIZE_VOID;
+  FOREACH_FINALIZE_VOID;
 }
 
 static void library_foreach_nla_strip(LibraryForeachIDData *data, NlaStrip *strip)
@@ -863,7 +869,6 @@ static void library_foreach_ID_link(Main *bmain,
           }
         }
 
-
         modifiers_foreachIDLink(object, library_foreach_modifiersForeachIDLink, &data);
         BKE_gpencil_modifiers_foreachIDLink(
             object, library_foreach_gpencil_modifiersForeachIDLink, &data);
@@ -883,8 +888,10 @@ static void library_foreach_ID_link(Main *bmain,
           }
         }
         BKE_sca_sensors_id_loop(&object->sensors, library_foreach_sensorsObjectLooper, &data);
-        BKE_sca_controllers_id_loop(&object->controllers, library_foreach_controllersObjectLooper, &data);
-        BKE_sca_actuators_id_loop(&object->actuators, library_foreach_actuatorsObjectLooper, &data);
+        BKE_sca_controllers_id_loop(
+            &object->controllers, library_foreach_controllersObjectLooper, &data);
+        BKE_sca_actuators_id_loop(
+            &object->actuators, library_foreach_actuatorsObjectLooper, &data);
         break;
       }
 

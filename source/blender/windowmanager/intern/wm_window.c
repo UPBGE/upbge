@@ -2470,9 +2470,8 @@ void *WM_opengl_context_create_blenderplayer(void *syshandle)
   return GHOST_CreateOpenGLContext(g_system);
 }
 
-void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
-                                               wmWindow *win,
-                                               void *ghostwin) {
+void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm, wmWindow *win, void *ghostwin)
+{
   wm_window_clear_drawable(wm);
   GHOST_RectangleHandle bounds;
   GLuint default_fb = GHOST_GetDefaultOpenGLFramebuffer(ghostwin);

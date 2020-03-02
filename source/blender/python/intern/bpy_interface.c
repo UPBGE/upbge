@@ -1054,7 +1054,7 @@ int text_check_identifier_nodigit_unicode(const uint ch)
 }
 
 /*************** Game engine transition *****************/
-void BPY_python_rna_alloc_types(void) // Just to call from blenderplayer
+void BPY_python_rna_alloc_types(void)  // Just to call from blenderplayer
 {
   pyrna_alloc_types();
 }

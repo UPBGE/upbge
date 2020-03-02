@@ -169,24 +169,24 @@ typedef struct SpaceProperties {
 #  define CONTEXT_SCENE 0
 #  define CONTEXT_OBJECT 1
 // #define CONTEXT_TYPES   2
-#define CONTEXT_SHADING 3
-#define CONTEXT_EDITING 4
-#define CONTEXT_SCRIPT  5
-#define CONTEXT_LOGIC   6
+#  define CONTEXT_SHADING 3
+#  define CONTEXT_EDITING 4
+#  define CONTEXT_SCRIPT 5
+#  define CONTEXT_LOGIC 6
 
 /* SpaceProperties.mainb old (deprecated) */
 // #define BUTS_VIEW           0
-#define BUTS_LAMP           1
-#define BUTS_MAT            2
-#define BUTS_TEX            3
-#define BUTS_ANIM           4
-#define BUTS_WORLD          5
-#define BUTS_RENDER         6
-#define BUTS_EDIT           7
-#define BUTS_GAME           8
-#define BUTS_FPAINT         9
-#define BUTS_RADIO          10
-#define BUTS_SCRIPT         11
+#  define BUTS_LAMP 1
+#  define BUTS_MAT 2
+#  define BUTS_TEX 3
+#  define BUTS_ANIM 4
+#  define BUTS_WORLD 5
+#  define BUTS_RENDER 6
+#  define BUTS_EDIT 7
+#  define BUTS_GAME 8
+#  define BUTS_FPAINT 9
+#  define BUTS_RADIO 10
+#  define BUTS_SCRIPT 11
 // #define BUTS_SOUND          12
 #  define BUTS_CONSTRAINT 13
 // #define BUTS_EFFECTS        14
@@ -230,18 +230,18 @@ typedef enum eSpaceButtons_Flag {
 /** \} */
 
 /* sbuts->scaflag */
-#define BUTS_SENS_SEL           1
-#define BUTS_SENS_ACT           2
-#define BUTS_SENS_LINK          4
-#define BUTS_CONT_SEL           8
-#define BUTS_CONT_ACT           16
-#define BUTS_CONT_LINK          32
-#define BUTS_ACT_SEL            64
-#define BUTS_ACT_ACT            128
-#define BUTS_ACT_LINK           256
-#define BUTS_SENS_STATE         512
-#define BUTS_ACT_STATE          1024
-#define BUTS_CONT_INIT_STATE    2048
+#define BUTS_SENS_SEL 1
+#define BUTS_SENS_ACT 2
+#define BUTS_SENS_LINK 4
+#define BUTS_CONT_SEL 8
+#define BUTS_CONT_ACT 16
+#define BUTS_CONT_LINK 32
+#define BUTS_ACT_SEL 64
+#define BUTS_ACT_ACT 128
+#define BUTS_ACT_LINK 256
+#define BUTS_SENS_STATE 512
+#define BUTS_ACT_STATE 1024
+#define BUTS_CONT_INIT_STATE 2048
 
 /* -------------------------------------------------------------------- */
 /** \name Outliner
@@ -1456,19 +1456,19 @@ enum {
 
 /* Logic Editor */
 typedef struct SpaceLogic {
-	SpaceLink *next, *prev;
-	ListBase regionbase;        /* storage of regions for inactive spaces */
-	int spacetype;
-	float blockscale DNA_DEPRECATED;
-	
-	short blockhandler[8]  DNA_DEPRECATED;
-	
-	short flag, scaflag;
-    char _pad[4];
+  SpaceLink *next, *prev;
+  ListBase regionbase; /* storage of regions for inactive spaces */
+  int spacetype;
+  float blockscale DNA_DEPRECATED;
 
-    char import_string[64];
-	
-	struct bGPdata *gpd;        /* grease-pencil data */
+  short blockhandler[8] DNA_DEPRECATED;
+
+  short flag, scaflag;
+  char _pad[4];
+
+  char import_string[64];
+
+  struct bGPdata *gpd; /* grease-pencil data */
 } SpaceLogic;
 
 /** \} */

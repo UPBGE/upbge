@@ -1828,6 +1828,6 @@ void GPU_texture_get_mipmap_size(GPUTexture *tex, int lvl, int *size)
 /***********************Game engine**************************/
 void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode)
 {
-	tex->bindcode = bindcode;
+  tex->bindcode = bindcode;
 }
 /********************End of Game engine**********************/

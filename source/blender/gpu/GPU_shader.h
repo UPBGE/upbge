@@ -183,7 +183,7 @@ typedef enum eGPUBuiltinShader {
   GPU_SHADER_3D_DEPTH_ONLY,
   GPU_SHADER_3D_CLIPPED_UNIFORM_COLOR,
   /* basic image drawing */
-  GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB, // Game engine transition
+  GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB,  // Game engine transition
   GPU_SHADER_2D_IMAGE_OVERLAYS_MERGE,
   GPU_SHADER_2D_IMAGE_SHUFFLE_COLOR,
   GPU_SHADER_2D_IMAGE_MASK_UNIFORM_COLOR,
@@ -393,7 +393,8 @@ void GPU_shader_free_builtin_shaders(void);
 /******************************************Game engine*****************************************/
 char *GPU_shader_validate(GPUShader *shader);
 void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len);
-// GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2 bgl_TextureCoordinateOffset[9];
+// GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2
+// bgl_TextureCoordinateOffset[9];
 int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name);
 /****************************************End of Game engine************************************/
 

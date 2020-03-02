@@ -28,50 +28,48 @@
  *  \ingroup RNA
  */
 
-
 #include <stdlib.h>
 #include <stdio.h>
 
 #include "WM_types.h"
 #include "RNA_define.h"
 
-#include "rna_internal.h"  /* own include */
+#include "rna_internal.h" /* own include */
 
 #ifdef RNA_RUNTIME
 
-#include "BKE_sca.h"
-#include "DNA_controller_types.h"
-#include "DNA_actuator_types.h"
+#  include "BKE_sca.h"
+#  include "DNA_controller_types.h"
+#  include "DNA_actuator_types.h"
 
 static void rna_Actuator_link(bActuator *act, bController *cont)
 {
-	link_logicbricks((void **)&act, (void ***)&(cont->links), &cont->totlinks, sizeof(bActuator *));
+  link_logicbricks((void **)&act, (void ***)&(cont->links), &cont->totlinks, sizeof(bActuator *));
 }
 
 static void rna_Actuator_unlink(bActuator *act, bController *cont)
 {
-	unlink_logicbricks((void **)&act, (void ***)&(cont->links), &cont->totlinks);
+  unlink_logicbricks((void **)&act, (void ***)&(cont->links), &cont->totlinks);
 }
 
 #else
 
 void RNA_api_actuator(StructRNA *srna)
 {
-	FunctionRNA *func;
-	PropertyRNA *parm;
+  FunctionRNA *func;
+  PropertyRNA *parm;
 
-	func = RNA_def_function(srna, "link", "rna_Actuator_link");
-	RNA_def_function_ui_description(func, "Link the actuator to a controller");
-	parm = RNA_def_pointer(func, "controller", "Controller", "", "Controller to link to");
-	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
-	RNA_def_property_update(parm, NC_LOGIC, NULL);
+  func = RNA_def_function(srna, "link", "rna_Actuator_link");
+  RNA_def_function_ui_description(func, "Link the actuator to a controller");
+  parm = RNA_def_pointer(func, "controller", "Controller", "", "Controller to link to");
+  RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+  RNA_def_property_update(parm, NC_LOGIC, NULL);
 
-	func = RNA_def_function(srna, "unlink", "rna_Actuator_unlink");
-	RNA_def_function_ui_description(func, "Unlink the actuator from a controller");
-	parm = RNA_def_pointer(func, "controller", "Controller", "", "Controller to unlink from");
-	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
-	RNA_def_property_update(parm, NC_LOGIC, NULL);
+  func = RNA_def_function(srna, "unlink", "rna_Actuator_unlink");
+  RNA_def_function_ui_description(func, "Unlink the actuator from a controller");
+  parm = RNA_def_pointer(func, "controller", "Controller", "", "Controller to unlink from");
+  RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+  RNA_def_property_update(parm, NC_LOGIC, NULL);
 }
 
 #endif
-

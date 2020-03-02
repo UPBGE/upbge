@@ -1649,13 +1649,13 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
       sce->gm.gravity = 9.8f;
       sce->gm.physicsEngine = WOPHY_BULLET;
-      //sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
+      // sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
       sce->gm.occlusionRes = 128;
       sce->gm.ticrate = 60;
       sce->gm.maxlogicstep = 5;
       sce->gm.physubstep = 1;
       sce->gm.maxphystep = 5;
-      //sce->gm.timeScale = 1.0f;
+      // sce->gm.timeScale = 1.0f;
       sce->gm.lineardeactthreshold = 0.8f;
       sce->gm.angulardeactthreshold = 1.0f;
       sce->gm.deactivationtime = 2.0f;
@@ -1684,10 +1684,10 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
       sce->gm.flag |= GAME_USE_UNDO;
 
-      //sce->gm.pythonkeys[0] = LEFTCTRLKEY;
-      //sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
-      //sce->gm.pythonkeys[2] = LEFTALTKEY;
-      //sce->gm.pythonkeys[3] = TKEY;
+      // sce->gm.pythonkeys[0] = LEFTCTRLKEY;
+      // sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
+      // sce->gm.pythonkeys[2] = LEFTALTKEY;
+      // sce->gm.pythonkeys[3] = TKEY;
     }
 
     for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
@@ -1710,7 +1710,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       ob->jump_speed = 10.0f;
       ob->fall_speed = 55.0f;
       ob->max_jumps = 1;
-      //ob->max_slope = M_PI_2;
+      // ob->max_slope = M_PI_2;
       ob->col_group = 0x01;
       ob->col_mask = 0xffff;
       ob->preview = NULL;

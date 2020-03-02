@@ -892,29 +892,28 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
   }
 
-	if (!MAIN_VERSION_ATLEAST(bmain, 274, 4)) {
-		SceneRenderView *srv;
-		wmWindowManager *wm;
-		bScreen *screen;
-		wmWindow *win;
-		Scene *scene;
-		Camera *cam;
-		Image *ima;
+  if (!MAIN_VERSION_ATLEAST(bmain, 274, 4)) {
+    SceneRenderView *srv;
+    wmWindowManager *wm;
+    bScreen *screen;
+    wmWindow *win;
+    Scene *scene;
+    Camera *cam;
+    Image *ima;
 
-		for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
-			Sequence *seq;
+    for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      Sequence *seq;
 
-			BKE_scene_add_render_view(scene, STEREO_LEFT_NAME);
-			srv = scene->r.views.first;
-			BLI_strncpy(srv->suffix, STEREO_LEFT_SUFFIX, sizeof(srv->suffix));
+      BKE_scene_add_render_view(scene, STEREO_LEFT_NAME);
+      srv = scene->r.views.first;
+      BLI_strncpy(srv->suffix, STEREO_LEFT_SUFFIX, sizeof(srv->suffix));
 
-			BKE_scene_add_render_view(scene, STEREO_RIGHT_NAME);
-			srv = scene->r.views.last;
-			BLI_strncpy(srv->suffix, STEREO_RIGHT_SUFFIX, sizeof(srv->suffix));
+      BKE_scene_add_render_view(scene, STEREO_RIGHT_NAME);
+      srv = scene->r.views.last;
+      BLI_strncpy(srv->suffix, STEREO_RIGHT_SUFFIX, sizeof(srv->suffix));
 
-			SEQ_BEGIN (scene->ed, seq)
-			{
-				seq->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
+      SEQ_BEGIN (scene->ed, seq) {
+        seq->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
 
 #define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
 #define SEQ_USE_PROXY_CUSTOM_FILE (1 << 21)

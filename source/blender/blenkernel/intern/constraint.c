@@ -3521,60 +3521,60 @@ static bConstraintTypeInfo CTI_MINMAX = {
 
 static void rbj_new_data(void *cdata)
 {
-	bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)cdata;
-	
-	/* removed code which set target of this constraint */
-	data->type = 1;
+  bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)cdata;
+
+  /* removed code which set target of this constraint */
+  data->type = 1;
 }
 
 static void rbj_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
 {
-	bRigidBodyJointConstraint *data = con->data;
-	
-	/* target only */
-	func(con, (ID **)&data->tar, false, userdata);
-	func(con, (ID **)&data->child, false, userdata);
+  bRigidBodyJointConstraint *data = con->data;
+
+  /* target only */
+  func(con, (ID **)&data->tar, false, userdata);
+  func(con, (ID **)&data->child, false, userdata);
 }
 
 static int rbj_get_tars(bConstraint *con, ListBase *list)
 {
-	if (con && list) {
-		bRigidBodyJointConstraint *data = con->data;
-		bConstraintTarget *ct;
-		
-		/* standard target-getting macro for single-target constraints without subtargets */
-		SINGLETARGETNS_GET_TARS(con, data->tar, ct, list);
-		
-		return 1;
-	}
-	
-	return 0;
+  if (con && list) {
+    bRigidBodyJointConstraint *data = con->data;
+    bConstraintTarget *ct;
+
+    /* standard target-getting macro for single-target constraints without subtargets */
+    SINGLETARGETNS_GET_TARS(con, data->tar, ct, list);
+
+    return 1;
+  }
+
+  return 0;
 }
 
 static void rbj_flush_tars(bConstraint *con, ListBase *list, bool no_copy)
 {
-	if (con && list) {
-		bRigidBodyJointConstraint *data = con->data;
-		bConstraintTarget *ct = list->first;
-		
-		/* the following macro is used for all standard single-target constraints */
-		SINGLETARGETNS_FLUSH_TARS(con, data->tar, ct, list, no_copy);
-	}
+  if (con && list) {
+    bRigidBodyJointConstraint *data = con->data;
+    bConstraintTarget *ct = list->first;
+
+    /* the following macro is used for all standard single-target constraints */
+    SINGLETARGETNS_FLUSH_TARS(con, data->tar, ct, list, no_copy);
+  }
 }
 
 static bConstraintTypeInfo CTI_RIGIDBODYJOINT = {
-	CONSTRAINT_TYPE_RIGIDBODYJOINT, /* type */
-	sizeof(bRigidBodyJointConstraint), /* size */
-	"Rigid Body Joint", /* name */
-	"bRigidBodyJointConstraint", /* struct name */
-	NULL, /* free data */
-	rbj_id_looper, /* id looper */
-	NULL, /* copy data */
-	rbj_new_data, /* new data */
-	rbj_get_tars, /* get constraint targets */
-	rbj_flush_tars, /* flush constraint targets */
-	default_get_tarmat, /* get target matrix */
-	NULL /* evaluate - this is not solved here... is just an interface for game-engine */
+    CONSTRAINT_TYPE_RIGIDBODYJOINT,    /* type */
+    sizeof(bRigidBodyJointConstraint), /* size */
+    "Rigid Body Joint",                /* name */
+    "bRigidBodyJointConstraint",       /* struct name */
+    NULL,                              /* free data */
+    rbj_id_looper,                     /* id looper */
+    NULL,                              /* copy data */
+    rbj_new_data,                      /* new data */
+    rbj_get_tars,                      /* get constraint targets */
+    rbj_flush_tars,                    /* flush constraint targets */
+    default_get_tarmat,                /* get target matrix */
+    NULL /* evaluate - this is not solved here... is just an interface for game-engine */
 };
 
 /* -------- Clamp To ---------- */
@@ -5082,37 +5082,37 @@ static short CTI_INIT = 1; /* when non-zero, the list needs to be updated */
 /* This function only gets called when CTI_INIT is non-zero */
 static void constraints_init_typeinfo(void)
 {
-	constraintsTypeInfo[0] =  NULL;                  /* 'Null' Constraint */
-	constraintsTypeInfo[1] =  &CTI_CHILDOF;          /* ChildOf Constraint */
-	constraintsTypeInfo[2] =  &CTI_TRACKTO;          /* TrackTo Constraint */
-	constraintsTypeInfo[3] =  &CTI_KINEMATIC;        /* IK Constraint */
-	constraintsTypeInfo[4] =  &CTI_FOLLOWPATH;       /* Follow-Path Constraint */
-	constraintsTypeInfo[5] =  &CTI_ROTLIMIT;         /* Limit Rotation Constraint */
-	constraintsTypeInfo[6] =  &CTI_LOCLIMIT;         /* Limit Location Constraint */
-	constraintsTypeInfo[7] =  &CTI_SIZELIMIT;        /* Limit Scale Constraint */
-	constraintsTypeInfo[8] =  &CTI_ROTLIKE;          /* Copy Rotation Constraint */
-	constraintsTypeInfo[9] =  &CTI_LOCLIKE;          /* Copy Location Constraint */
-	constraintsTypeInfo[10] = &CTI_SIZELIKE;         /* Copy Scale Constraint */
-	constraintsTypeInfo[11] = &CTI_PYTHON;           /* Python/Script Constraint */
-	constraintsTypeInfo[12] = &CTI_ACTION;           /* Action Constraint */
-	constraintsTypeInfo[13] = &CTI_LOCKTRACK;        /* Locked-Track Constraint */
-	constraintsTypeInfo[14] = &CTI_DISTLIMIT;        /* Limit Distance Constraint */
-	constraintsTypeInfo[15] = &CTI_STRETCHTO;        /* StretchTo Constaint */
-	constraintsTypeInfo[16] = &CTI_MINMAX;           /* Floor Constraint */
-	constraintsTypeInfo[17] = &CTI_RIGIDBODYJOINT;   /* RigidBody Constraint */
-	constraintsTypeInfo[18] = &CTI_CLAMPTO;          /* ClampTo Constraint */
-	constraintsTypeInfo[19] = &CTI_TRANSFORM;        /* Transformation Constraint */
-	constraintsTypeInfo[20] = &CTI_SHRINKWRAP;       /* Shrinkwrap Constraint */
-	constraintsTypeInfo[21] = &CTI_DAMPTRACK;        /* Damped TrackTo Constraint */
-	constraintsTypeInfo[22] = &CTI_SPLINEIK;         /* Spline IK Constraint */
-	constraintsTypeInfo[23] = &CTI_TRANSLIKE;        /* Copy Transforms Constraint */
-	constraintsTypeInfo[24] = &CTI_SAMEVOL;          /* Maintain Volume Constraint */
-	constraintsTypeInfo[25] = &CTI_PIVOT;            /* Pivot Constraint */
-	constraintsTypeInfo[26] = &CTI_FOLLOWTRACK;      /* Follow Track Constraint */
-	constraintsTypeInfo[27] = &CTI_CAMERASOLVER;     /* Camera Solver Constraint */
-	constraintsTypeInfo[28] = &CTI_OBJECTSOLVER;     /* Object Solver Constraint */
-	constraintsTypeInfo[29] = &CTI_TRANSFORM_CACHE;  /* Transform Cache Constraint */
-	constraintsTypeInfo[30] = &CTI_ARMATURE;         /* Armature Constraint */
+  constraintsTypeInfo[0] = NULL;                  /* 'Null' Constraint */
+  constraintsTypeInfo[1] = &CTI_CHILDOF;          /* ChildOf Constraint */
+  constraintsTypeInfo[2] = &CTI_TRACKTO;          /* TrackTo Constraint */
+  constraintsTypeInfo[3] = &CTI_KINEMATIC;        /* IK Constraint */
+  constraintsTypeInfo[4] = &CTI_FOLLOWPATH;       /* Follow-Path Constraint */
+  constraintsTypeInfo[5] = &CTI_ROTLIMIT;         /* Limit Rotation Constraint */
+  constraintsTypeInfo[6] = &CTI_LOCLIMIT;         /* Limit Location Constraint */
+  constraintsTypeInfo[7] = &CTI_SIZELIMIT;        /* Limit Scale Constraint */
+  constraintsTypeInfo[8] = &CTI_ROTLIKE;          /* Copy Rotation Constraint */
+  constraintsTypeInfo[9] = &CTI_LOCLIKE;          /* Copy Location Constraint */
+  constraintsTypeInfo[10] = &CTI_SIZELIKE;        /* Copy Scale Constraint */
+  constraintsTypeInfo[11] = &CTI_PYTHON;          /* Python/Script Constraint */
+  constraintsTypeInfo[12] = &CTI_ACTION;          /* Action Constraint */
+  constraintsTypeInfo[13] = &CTI_LOCKTRACK;       /* Locked-Track Constraint */
+  constraintsTypeInfo[14] = &CTI_DISTLIMIT;       /* Limit Distance Constraint */
+  constraintsTypeInfo[15] = &CTI_STRETCHTO;       /* StretchTo Constaint */
+  constraintsTypeInfo[16] = &CTI_MINMAX;          /* Floor Constraint */
+  constraintsTypeInfo[17] = &CTI_RIGIDBODYJOINT;  /* RigidBody Constraint */
+  constraintsTypeInfo[18] = &CTI_CLAMPTO;         /* ClampTo Constraint */
+  constraintsTypeInfo[19] = &CTI_TRANSFORM;       /* Transformation Constraint */
+  constraintsTypeInfo[20] = &CTI_SHRINKWRAP;      /* Shrinkwrap Constraint */
+  constraintsTypeInfo[21] = &CTI_DAMPTRACK;       /* Damped TrackTo Constraint */
+  constraintsTypeInfo[22] = &CTI_SPLINEIK;        /* Spline IK Constraint */
+  constraintsTypeInfo[23] = &CTI_TRANSLIKE;       /* Copy Transforms Constraint */
+  constraintsTypeInfo[24] = &CTI_SAMEVOL;         /* Maintain Volume Constraint */
+  constraintsTypeInfo[25] = &CTI_PIVOT;           /* Pivot Constraint */
+  constraintsTypeInfo[26] = &CTI_FOLLOWTRACK;     /* Follow Track Constraint */
+  constraintsTypeInfo[27] = &CTI_CAMERASOLVER;    /* Camera Solver Constraint */
+  constraintsTypeInfo[28] = &CTI_OBJECTSOLVER;    /* Object Solver Constraint */
+  constraintsTypeInfo[29] = &CTI_TRANSFORM_CACHE; /* Transform Cache Constraint */
+  constraintsTypeInfo[30] = &CTI_ARMATURE;        /* Armature Constraint */
 }
 
 /* This function should be used for getting the appropriate type-info when only

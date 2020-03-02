@@ -341,7 +341,7 @@ bool ED_operator_console_active(bContext *C)
 
 bool ED_operator_logic_active(bContext *C)
 {
-	return ed_spacetype_test(C, SPACE_LOGIC);
+  return ed_spacetype_test(C, SPACE_LOGIC);
 }
 
 static bool ed_object_hidden(Object *ob)
