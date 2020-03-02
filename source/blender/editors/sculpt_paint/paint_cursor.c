@@ -1231,7 +1231,7 @@ static void sculpt_multiplane_scrape_preview_draw(const uint gpuattr,
   float local_mat_inv[4][4];
   invert_m4_m4(local_mat_inv, ss->cache->stroke_local_mat);
   GPU_matrix_mul(local_mat_inv);
-  float angle = ss->cache->multiplane_scrape_sampled_angle;
+  float angle = ss->cache->multiplane_scrape_angle;
   if (ss->cache->pen_flip || ss->cache->invert) {
     angle = -angle;
   }
@@ -1482,11 +1482,11 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
               /* Free the previous pose brush preview. */
               if (ss->pose_ik_chain_preview) {
-                sculpt_pose_ik_chain_free(ss->pose_ik_chain_preview);
+                SCULPT_pose_ik_chain_free(ss->pose_ik_chain_preview);
               }
 
               /* Generate a new pose brush preview from the current cursor location. */
-              ss->pose_ik_chain_preview = sculpt_pose_ik_chain_init(
+              ss->pose_ik_chain_preview = SCULPT_pose_ik_chain_init(
                   sd, vc.obact, ss, brush, gi.location, rds);
             }
 
