@@ -24,13 +24,16 @@
 #ifndef __ED_SCREEN_TYPES_H__
 #define __ED_SCREEN_TYPES_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------- */
 
 /* for animplayer */
 typedef struct ScreenAnimData {
   ARegion *ar; /* do not read from this, only for comparing if region exists */
   short redraws;
-  short refresh;
   short flag;           /* flags for playback */
   int sfra;             /* frame that playback was started from */
   int nextfra;          /* next frame to go to (when ANIMPLAY_FLAG_USE_NEXT_FRAME is set) */
@@ -133,5 +136,9 @@ enum {
    */
   AZONE_REGION_SCROLL,
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __ED_SCREEN_TYPES_H__ */

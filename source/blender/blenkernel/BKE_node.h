@@ -34,6 +34,10 @@
 
 #include "RNA_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* not very important, but the stack solver likes to know a maximum */
 #define MAX_SOCKET 512
 
@@ -141,6 +145,9 @@ typedef struct bNodeSocketType {
 
   /* for standard socket types in C */
   int type, subtype;
+
+  /* Callback to free the socket type. */
+  void (*free_self)(struct bNodeSocketType *stype);
 } bNodeSocketType;
 
 typedef void *(*NodeInitExecFunction)(struct bNodeExecContext *context,
@@ -167,7 +174,6 @@ typedef int (*NodeGPUExecFunction)(struct GPUMaterial *mat,
  */
 typedef struct bNodeType {
   void *next, *prev;
-  short needs_free; /* set for allocated types that need to be freed */
 
   char idname[64]; /* identifier name */
   int type;
@@ -246,6 +252,8 @@ typedef struct bNodeType {
   void (*insert_link)(struct bNodeTree *ntree, struct bNode *node, struct bNodeLink *link);
   /* Update the internal links list, for muting and disconnect operators. */
   void (*update_internal_links)(struct bNodeTree *, struct bNode *node);
+
+  void (*free_self)(struct bNodeType *ntype);
 
   /* **** execution callbacks **** */
   NodeInitExecFunction initexecfunc;
@@ -391,10 +399,7 @@ struct bNodeTree **BKE_ntree_ptr_from_id(struct ID *id);
 struct bNodeTree *ntreeFromID(struct ID *id);
 struct ID *BKE_node_tree_find_owner_ID(struct Main *bmain, struct bNodeTree *ntree);
 
-void ntreeMakeLocal(struct Main *bmain,
-                    struct bNodeTree *ntree,
-                    bool id_in_mainlist,
-                    const bool lib_local);
+void ntreeMakeLocal(struct Main *bmain, struct bNodeTree *ntree, const int flags);
 void ntreeFreeLocalNode(struct bNodeTree *ntree, struct bNode *node);
 void ntreeFreeLocalTree(struct bNodeTree *ntree);
 struct bNode *ntreeFindType(const struct bNodeTree *ntree, int type);
@@ -944,7 +949,7 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree,
 #define SH_NODE_TEX_COORD 155
 #define SH_NODE_ADD_SHADER 156
 #define SH_NODE_TEX_ENVIRONMENT 157
-#define SH_NODE_OUTPUT_TEXTURE 158
+// #define SH_NODE_OUTPUT_TEXTURE 158
 #define SH_NODE_HOLDOUT 159
 #define SH_NODE_LAYER_WEIGHT 160
 #define SH_NODE_VOLUME_ABSORPTION 161
@@ -972,7 +977,7 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree,
 #define SH_NODE_SEPHSV 183
 #define SH_NODE_COMBHSV 184
 #define SH_NODE_BSDF_HAIR 185
-#define SH_NODE_LAMP 186
+// #define SH_NODE_LAMP 186
 #define SH_NODE_UVMAP 187
 #define SH_NODE_SEPXYZ 188
 #define SH_NODE_COMBXYZ 189
@@ -994,11 +999,12 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree,
 #define SH_NODE_VOLUME_INFO 705
 #define SH_NODE_VERTEX_COLOR 706
 #define SH_NODE_OUTPUT_AOV 707
+#define SH_NODE_VECTOR_ROTATE 708
 
 /* custom defines options for Material node */
-#define SH_NODE_MAT_DIFF 1
-#define SH_NODE_MAT_SPEC 2
-#define SH_NODE_MAT_NEG 4
+// #define SH_NODE_MAT_DIFF 1
+// #define SH_NODE_MAT_SPEC 2
+// #define SH_NODE_MAT_NEG 4
 
 /* API */
 
@@ -1021,36 +1027,36 @@ void ntreeGPUMaterialNodes(struct bNodeTree *localtree,
 /* output socket defines */
 #define RRES_OUT_IMAGE 0
 #define RRES_OUT_ALPHA 1
-#define RRES_OUT_Z 2
-#define RRES_OUT_NORMAL 3
-#define RRES_OUT_UV 4
-#define RRES_OUT_VEC 5
-#define RRES_OUT_RGBA 6
+// #define RRES_OUT_Z 2
+// #define RRES_OUT_NORMAL 3
+// #define RRES_OUT_UV 4
+// #define RRES_OUT_VEC 5
+// #define RRES_OUT_RGBA 6
 #define RRES_OUT_DIFF 7
-#define RRES_OUT_SPEC 8
-#define RRES_OUT_SHADOW 9
-#define RRES_OUT_AO 10
-#define RRES_OUT_REFLECT 11
-#define RRES_OUT_REFRACT 12
-#define RRES_OUT_INDIRECT 13
-#define RRES_OUT_INDEXOB 14
-#define RRES_OUT_INDEXMA 15
-#define RRES_OUT_MIST 16
-#define RRES_OUT_EMIT 17
-#define RRES_OUT_ENV 18
-#define RRES_OUT_DIFF_DIRECT 19
-#define RRES_OUT_DIFF_INDIRECT 20
-#define RRES_OUT_DIFF_COLOR 21
-#define RRES_OUT_GLOSSY_DIRECT 22
-#define RRES_OUT_GLOSSY_INDIRECT 23
-#define RRES_OUT_GLOSSY_COLOR 24
-#define RRES_OUT_TRANSM_DIRECT 25
-#define RRES_OUT_TRANSM_INDIRECT 26
-#define RRES_OUT_TRANSM_COLOR 27
-#define RRES_OUT_SUBSURFACE_DIRECT 28
-#define RRES_OUT_SUBSURFACE_INDIRECT 29
-#define RRES_OUT_SUBSURFACE_COLOR 30
-#define RRES_OUT_DEBUG 31
+// #define RRES_OUT_SPEC 8
+// #define RRES_OUT_SHADOW 9
+// #define RRES_OUT_AO 10
+// #define RRES_OUT_REFLECT 11
+// #define RRES_OUT_REFRACT 12
+// #define RRES_OUT_INDIRECT 13
+// #define RRES_OUT_INDEXOB 14
+// #define RRES_OUT_INDEXMA 15
+// #define RRES_OUT_MIST 16
+// #define RRES_OUT_EMIT 17
+// #define RRES_OUT_ENV 18
+// #define RRES_OUT_DIFF_DIRECT 19
+// #define RRES_OUT_DIFF_INDIRECT 20
+// #define RRES_OUT_DIFF_COLOR 21
+// #define RRES_OUT_GLOSSY_DIRECT 22
+// #define RRES_OUT_GLOSSY_INDIRECT 23
+// #define RRES_OUT_GLOSSY_COLOR 24
+// #define RRES_OUT_TRANSM_DIRECT 25
+// #define RRES_OUT_TRANSM_INDIRECT 26
+// #define RRES_OUT_TRANSM_COLOR 27
+// #define RRES_OUT_SUBSURFACE_DIRECT 28
+// #define RRES_OUT_SUBSURFACE_INDIRECT 29
+// #define RRES_OUT_SUBSURFACE_COLOR 30
+// #define RRES_OUT_DEBUG 31
 
 /* note: types are needed to restore callbacks, don't change values */
 #define CMP_NODE_VIEWER 201
@@ -1292,5 +1298,9 @@ void BKE_nodetree_shading_params_eval(struct Depsgraph *depsgraph,
 
 extern struct bNodeType NodeTypeUndefined;
 extern struct bNodeSocketType NodeSocketTypeUndefined;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BKE_NODE_H__ */

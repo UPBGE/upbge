@@ -488,11 +488,11 @@ void BKE_scene_groups_relink(Scene *sce)
   }
 }
 
-void BKE_scene_make_local(Main *bmain, Scene *sce, const bool lib_local)
+void BKE_scene_make_local(Main *bmain, Scene *sce, const int flags)
 {
   /* For now should work, may need more work though to support all possible corner cases
    * (also scene_copy probably needs some love). */
-  BKE_id_make_local_generic(bmain, &sce->id, true, lib_local);
+  BKE_lib_id_make_local_generic(bmain, &sce->id, flags);
 }
 
 /** Free (or release) any data used by this scene (does not free the scene itself). */
@@ -666,13 +666,13 @@ void BKE_scene_init(Scene *sce)
 
   sce->gm.gravity = 9.8f;
   sce->gm.physicsEngine = WOPHY_BULLET;
-  //sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
+  // sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
   sce->gm.occlusionRes = 128;
   sce->gm.ticrate = 60;
   sce->gm.maxlogicstep = 5;
   sce->gm.physubstep = 1;
   sce->gm.maxphystep = 5;
-  //sce->gm.timeScale = 1.0f;
+  // sce->gm.timeScale = 1.0f;
   sce->gm.lineardeactthreshold = 0.8f;
   sce->gm.angulardeactthreshold = 1.0f;
   sce->gm.deactivationtime = 2.0f;
@@ -694,17 +694,17 @@ void BKE_scene_init(Scene *sce)
   sce->gm.recastData.detailsampledist = 6.0f;
   sce->gm.recastData.detailsamplemaxerror = 1.0f;
 
-  sce->gm.exitkey = 218; // Blender key code for ESC
+  sce->gm.exitkey = 218;  // Blender key code for ESC
 
   sce->gm.flag |= GAME_USE_UNDO;
 
   sce->gm.lodflag = SCE_LOD_USE_HYST;
   sce->gm.scehysteresis = 10;
 
-  //sce->gm.pythonkeys[0] = LEFTCTRLKEY;
-  //sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
-  //sce->gm.pythonkeys[2] = LEFTALTKEY;
-  //sce->gm.pythonkeys[3] = TKEY;
+  // sce->gm.pythonkeys[0] = LEFTCTRLKEY;
+  // sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
+  // sce->gm.pythonkeys[2] = LEFTALTKEY;
+  // sce->gm.pythonkeys[3] = TKEY;
 
   BKE_sound_reset_scene_runtime(sce);
 

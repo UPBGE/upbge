@@ -576,7 +576,7 @@ void BLI_path_rel(char *file, const char *relfile)
         }
       }
     }
-    else if (temp[1] == ':' && file[1] == ':' && temp[0] != file[0]) {
+    else if ((temp[1] == ':' && file[1] == ':') && (tolower(temp[0]) != tolower(file[0]))) {
       return;
     }
   }
@@ -726,6 +726,21 @@ bool BLI_parent_dir(char *path)
   else {
     return false;
   }
+}
+
+/**
+ * Strips off nonexistent (or non-accessible) subdirectories from the end of *dir,
+ * leaving the path of the lowest-level directory that does exist and we can read.
+ */
+bool BLI_parent_dir_until_exists(char *dir)
+{
+  bool valid_path = true;
+
+  /* Loop as long as cur path is not a dir, and we can get a parent path. */
+  while ((BLI_access(dir, R_OK) != 0) && (valid_path = BLI_parent_dir(dir))) {
+    /* pass */
+  }
+  return (valid_path && dir[0]);
 }
 
 /**
@@ -1310,29 +1325,6 @@ const char *BLI_getenv(const char *env)
 #else
   return getenv(env);
 #endif
-}
-
-/**
- * Strips off nonexistent (or non-accessible) subdirectories from the end of *dir,
- * leaving the path of the lowest-level directory that does exist and we can read.
- */
-void BLI_make_exist(char *dir)
-{
-  bool valid_path = true;
-
-  /* Loop as long as cur path is not a dir, and we can get a parent path. */
-  while ((BLI_access(dir, R_OK) != 0) && (valid_path = BLI_parent_dir(dir))) {
-    /* pass */
-  }
-
-  /* If we could not find an existing dir, use default root... */
-  if (!valid_path || !dir[0]) {
-#ifdef WIN32
-    get_default_root(dir);
-#else
-    strcpy(dir, "/");
-#endif
-  }
 }
 
 /**

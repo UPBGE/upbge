@@ -192,7 +192,7 @@ typedef struct Image {
 
 /* Image.flag */
 enum {
-  IMA_FLAG_UNUSED_0 = (1 << 0), /* cleared */
+  IMA_HIGH_BITDEPTH = (1 << 0),
   IMA_FLAG_UNUSED_1 = (1 << 1), /* cleared */
 #ifdef DNA_DEPRECATED_ALLOW
   IMA_DO_PREMUL = (1 << 2),
@@ -223,7 +223,7 @@ enum {
 
 /* Image.source, where the image comes from */
 enum {
-  IMA_SRC_CHECK = 0,
+  /* IMA_SRC_CHECK = 0, */ /* UNUSED */
   IMA_SRC_FILE = 1,
   IMA_SRC_SEQUENCE = 2,
   IMA_SRC_MOVIE = 3,

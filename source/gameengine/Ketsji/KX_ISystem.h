@@ -36,14 +36,12 @@
 /**
  * System Abstraction, needed only for getting some timing stuff from the host.
  */
-class KX_ISystem
-{
-public:
-	KX_ISystem() {};
-	virtual ~KX_ISystem() {};
-	
-	virtual double GetTimeInSeconds()=0;
+class KX_ISystem {
+ public:
+  KX_ISystem(){};
+  virtual ~KX_ISystem(){};
+
+  virtual double GetTimeInSeconds() = 0;
 };
 
 #endif
-

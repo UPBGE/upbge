@@ -21,8 +21,8 @@
  */
 
 /** \file KX_2DFilter.h
-*  \ingroup ketsji
-*/
+ *  \ingroup ketsji
+ */
 
 #ifndef __KX_2DFILTER_H__
 #define __KX_2DFILTER_H__
@@ -31,34 +31,33 @@
 #include "BL_Shader.h"
 
 #ifdef _MSC_VER
-/* KX_2DFilter uses a diamond inheritance from a virtual pure base class. Only one branch of the diamond
- * define these virtual pure functions and come in the final class with dominance. This behaviour is wanted
- * but MSVC warn about it, we just disable the warning.
+/* KX_2DFilter uses a diamond inheritance from a virtual pure base class. Only one branch of the
+ * diamond define these virtual pure functions and come in the final class with dominance. This
+ * behaviour is wanted but MSVC warn about it, we just disable the warning.
  */
-#  pragma warning(disable:4250)
+#  pragma warning(disable : 4250)
 #endif
 
-class KX_2DFilter : public RAS_2DFilter, public BL_Shader
-{
-	Py_Header
-public:
-	KX_2DFilter(RAS_2DFilterData& data);
-	virtual ~KX_2DFilter();
+class KX_2DFilter : public RAS_2DFilter, public BL_Shader {
+  Py_Header public : KX_2DFilter(RAS_2DFilterData &data);
+  virtual ~KX_2DFilter();
 
-	virtual bool LinkProgram();
+  virtual bool LinkProgram();
 
 #ifdef WITH_PYTHON
-	bool CheckTexture(int index, int bindCode, const std::string& prefix) const;
-	bool SetTextureUniform(int index, const char *samplerName);
+  bool CheckTexture(int index, int bindCode, const std::string &prefix) const;
+  bool SetTextureUniform(int index, const char *samplerName);
 
-	static PyObject *pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_frameBuffer(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_mipmap(PyObjectPlus *self_v,
+                               const KX_PYATTRIBUTE_DEF *attrdef,
+                               PyObject *value);
+  static PyObject *pyattr_get_frameBuffer(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
-	KX_PYMETHOD_DOC(KX_2DFilter, setTexture);
-	KX_PYMETHOD_DOC(KX_2DFilter, setCubeMap);
-	KX_PYMETHOD_DOC(KX_2DFilter, addOffScreen);
-	KX_PYMETHOD_DOC_NOARGS(KX_2DFilter, removeOffScreen);
+  KX_PYMETHOD_DOC(KX_2DFilter, setTexture);
+  KX_PYMETHOD_DOC(KX_2DFilter, setCubeMap);
+  KX_PYMETHOD_DOC(KX_2DFilter, addOffScreen);
+  KX_PYMETHOD_DOC_NOARGS(KX_2DFilter, removeOffScreen);
 
 #endif
 };

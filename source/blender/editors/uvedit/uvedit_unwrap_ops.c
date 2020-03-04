@@ -53,6 +53,8 @@
 #include "BKE_scene.h"
 #include "BKE_editmesh.h"
 #include "BKE_layer.h"
+#include "BKE_lib_id.h"
+#include "BKE_mesh.h"
 
 #include "DEG_depsgraph.h"
 
@@ -500,11 +502,15 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
   smd.levels = smd_real->levels;
   smd.subdivType = smd_real->subdivType;
 
-  initialDerived = CDDM_from_editbmesh(em, false);
-  derivedMesh = subsurf_make_derived_from_derived(
-      initialDerived, &smd, scene, NULL, SUBSURF_IN_EDIT_MODE);
+  {
+    Mesh *me_from_em = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, NULL, ob->data);
+    initialDerived = CDDM_from_mesh(me_from_em);
+    derivedMesh = subsurf_make_derived_from_derived(
+        initialDerived, &smd, scene, NULL, SUBSURF_IN_EDIT_MODE);
 
-  initialDerived->release(initialDerived);
+    initialDerived->release(initialDerived);
+    BKE_id_free(NULL, me_from_em);
+  }
 
   /* get the derived data */
   subsurfedVerts = derivedMesh->getVertArray(derivedMesh);
@@ -1491,8 +1497,7 @@ static void uv_map_clip_correct_multi(const Scene *scene,
 
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-          CLAMP(luv->uv[0], 0.0f, 1.0f);
-          CLAMP(luv->uv[1], 0.0f, 1.0f);
+          clamp_v2(luv->uv, 0.0f, 1.0f);
         }
       }
     }

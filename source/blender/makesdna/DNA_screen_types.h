@@ -474,8 +474,8 @@ enum {
   /** Update size of regions within the area. */
   AREA_FLAG_REGION_SIZE_UPDATE = (1 << 3),
   AREA_FLAG_ACTIVE_TOOL_UPDATE = (1 << 4),
+  // AREA_FLAG_UNUSED_5 = (1 << 5),
 
-  //  AREA_FLAG_UNUSED_5           = (1 << 5),
   AREA_FLAG_UNUSED_6 = (1 << 6), /* cleared */
 
   /**
@@ -583,7 +583,7 @@ enum {
 enum {
   /* Plain values (only one is valid at a time, once masked with UILST_FLT_SORT_MASK. */
   /** Just for sake of consistency. */
-  UILST_FLT_SORT_INDEX = 0,
+  /* UILST_FLT_SORT_INDEX = 0, */ /* UNUSED */
   UILST_FLT_SORT_ALPHA = 1,
 
   /* Bitflags affecting behavior of any kind of sorting. */

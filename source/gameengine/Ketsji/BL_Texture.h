@@ -28,46 +28,46 @@
 #include "RAS_Texture.h"
 #include "EXP_Value.h"
 
-struct GPUInput;
+struct GPUMaterialTexture;
 
-class BL_Texture : public CValue, public RAS_Texture
-{
-	Py_Header
-private:
-	bool m_isCubeMap;
-	GPUTexture *m_gpuTex;
-	GPUInput *m_input;
+class BL_Texture : public CValue, public RAS_Texture {
+  Py_Header private : bool m_isCubeMap;
+  GPUMaterialTexture *m_gpuMatTex;
+  GPUTexture *m_gpuTex;
+  int m_textarget;
 
-	struct {
-		unsigned int bindcode;
-	} m_savedData;
+  struct {
+    unsigned int bindcode;
+  } m_savedData;
 
-public:
-	BL_Texture(GPUInput *input);
-	virtual ~BL_Texture();
+ public:
+  BL_Texture(GPUMaterialTexture *gpumattex, int textarget);
+  virtual ~BL_Texture();
 
-	// stuff for cvalue related things
-	virtual std::string GetName();
+  // stuff for cvalue related things
+  virtual std::string GetName();
 
-	virtual bool Ok() const;
-	virtual bool IsCubeMap() const;
+  virtual bool Ok() const;
+  virtual bool IsCubeMap() const;
 
-	virtual Image *GetImage() const;
-	virtual GPUTexture *GetGPUTexture() const;
+  virtual Image *GetImage() const;
+  virtual GPUTexture *GetGPUTexture() const;
 
-	virtual unsigned int GetTextureType();
+  virtual unsigned int GetTextureType();
 
-	enum {MaxUnits = 32};
+  enum { MaxUnits = 32 };
 
-	virtual void CheckValidTexture();
-	virtual void ActivateTexture(int unit);
-	virtual void DisableTexture();
+  virtual void CheckValidTexture();
+  virtual void ActivateTexture(int unit);
+  virtual void DisableTexture();
 
 #ifdef WITH_PYTHON
-	static PyObject *pyattr_get_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  static PyObject *pyattr_get_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_bind_code(PyObjectPlus *self_v,
+                                  const KX_PYATTRIBUTE_DEF *attrdef,
+                                  PyObject *value);
 
 #endif  // WITH_PYTHON
 };
 
-#endif // __BL_TEXTURE_H__
+#endif  // __BL_TEXTURE_H__

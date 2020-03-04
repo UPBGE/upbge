@@ -760,34 +760,38 @@ void OBJECT_OT_select_linked(wmOperatorType *ot)
  * \{ */
 
 enum {
-	OBJECT_GRPSEL_CHILDREN_RECURSIVE =  0,
-	OBJECT_GRPSEL_CHILDREN           =  1,
-	OBJECT_GRPSEL_PARENT             =  2,
-	OBJECT_GRPSEL_SIBLINGS           =  3,
-	OBJECT_GRPSEL_TYPE               =  4,
-	OBJECT_GRPSEL_COLLECTION         =  5,
-	OBJECT_GRPSEL_HOOK               =  7,
-	OBJECT_GRPSEL_PASS               =  8,
-	OBJECT_GRPSEL_COLOR              =  9,
-	OBJECT_GRPSEL_KEYINGSET          = 10,
-	OBJECT_GRPSEL_LIGHT_TYPE          = 11,
-	OBJECT_GRPSEL_PROPERTIES         = 12,
+  OBJECT_GRPSEL_CHILDREN_RECURSIVE = 0,
+  OBJECT_GRPSEL_CHILDREN = 1,
+  OBJECT_GRPSEL_PARENT = 2,
+  OBJECT_GRPSEL_SIBLINGS = 3,
+  OBJECT_GRPSEL_TYPE = 4,
+  OBJECT_GRPSEL_COLLECTION = 5,
+  OBJECT_GRPSEL_HOOK = 7,
+  OBJECT_GRPSEL_PASS = 8,
+  OBJECT_GRPSEL_COLOR = 9,
+  OBJECT_GRPSEL_KEYINGSET = 10,
+  OBJECT_GRPSEL_LIGHT_TYPE = 11,
+  OBJECT_GRPSEL_PROPERTIES = 12,
 };
 
 static const EnumPropertyItem prop_select_grouped_types[] = {
-	{OBJECT_GRPSEL_CHILDREN_RECURSIVE, "CHILDREN_RECURSIVE", 0, "Children", ""},
-	{OBJECT_GRPSEL_CHILDREN, "CHILDREN", 0, "Immediate Children", ""},
-	{OBJECT_GRPSEL_PARENT, "PARENT", 0, "Parent", ""},
-	{OBJECT_GRPSEL_SIBLINGS, "SIBLINGS", 0, "Siblings", "Shared Parent"},
-	{OBJECT_GRPSEL_TYPE, "TYPE", 0, "Type", "Shared object type"},
-	{OBJECT_GRPSEL_COLLECTION, "COLLECTION", 0, "Collection", "Shared collection"},
-	{OBJECT_GRPSEL_HOOK, "HOOK", 0, "Hook", ""},
-	{OBJECT_GRPSEL_PASS, "PASS", 0, "Pass", "Render pass Index"},
-	{OBJECT_GRPSEL_COLOR, "COLOR", 0, "Color", "Object Color"},
-	{OBJECT_GRPSEL_PROPERTIES, "PROPERTIES", 0, "Properties", "Game Properties"},
-	{OBJECT_GRPSEL_KEYINGSET, "KEYINGSET", 0, "Keying Set", "Objects included in active Keying Set"},
-	{OBJECT_GRPSEL_LIGHT_TYPE, "LIGHT_TYPE", 0, "Light Type", "Matching light types"},
-	{0, NULL, 0, NULL, NULL},
+    {OBJECT_GRPSEL_CHILDREN_RECURSIVE, "CHILDREN_RECURSIVE", 0, "Children", ""},
+    {OBJECT_GRPSEL_CHILDREN, "CHILDREN", 0, "Immediate Children", ""},
+    {OBJECT_GRPSEL_PARENT, "PARENT", 0, "Parent", ""},
+    {OBJECT_GRPSEL_SIBLINGS, "SIBLINGS", 0, "Siblings", "Shared Parent"},
+    {OBJECT_GRPSEL_TYPE, "TYPE", 0, "Type", "Shared object type"},
+    {OBJECT_GRPSEL_COLLECTION, "COLLECTION", 0, "Collection", "Shared collection"},
+    {OBJECT_GRPSEL_HOOK, "HOOK", 0, "Hook", ""},
+    {OBJECT_GRPSEL_PASS, "PASS", 0, "Pass", "Render pass Index"},
+    {OBJECT_GRPSEL_COLOR, "COLOR", 0, "Color", "Object Color"},
+    {OBJECT_GRPSEL_PROPERTIES, "PROPERTIES", 0, "Properties", "Game Properties"},
+    {OBJECT_GRPSEL_KEYINGSET,
+     "KEYINGSET",
+     0,
+     "Keying Set",
+     "Objects included in active Keying Set"},
+    {OBJECT_GRPSEL_LIGHT_TYPE, "LIGHT_TYPE", 0, "Light Type", "Matching light types"},
+    {0, NULL, 0, NULL, NULL},
 };
 
 static bool select_grouped_children(bContext *C, Object *ob, const bool recursive)
@@ -836,14 +840,15 @@ static bool select_grouped_parent(bContext *C) /* Makes parent active and de-sel
 /* Select objects in the same group as the active */
 static bool select_grouped_collection(bContext *C, Object *ob)
 {
+  Main *bmain = CTX_data_main(C);
   bool changed = false;
   Collection *collection, *ob_collections[COLLECTION_MENU_MAX];
   int collection_count = 0, i;
   uiPopupMenu *pup;
   uiLayout *layout;
 
-  for (collection = CTX_data_main(C)->collections.first;
-       collection && collection_count < COLLECTION_MENU_MAX;
+  for (collection = bmain->collections.first;
+       collection && (collection_count < COLLECTION_MENU_MAX);
        collection = collection->id.next) {
     if (BKE_collection_has_object(collection, ob)) {
       ob_collections[collection_count] = collection;
@@ -989,29 +994,28 @@ static bool select_grouped_color(bContext *C, Object *ob)
 
 static bool objects_share_gameprop(Object *a, Object *b)
 {
-	bProperty *prop;
+  bProperty *prop;
 
-	for (prop = a->prop.first; prop; prop = prop->next) {
-		if (BKE_bproperty_object_get(b, prop->name)) {
-			return 1;
-		}
-	}
-	return 0;
+  for (prop = a->prop.first; prop; prop = prop->next) {
+    if (BKE_bproperty_object_get(b, prop->name)) {
+      return 1;
+    }
+  }
+  return 0;
 }
 
 static bool select_grouped_gameprops(bContext *C, Object *ob)
 {
-	bool changed = false;
+  bool changed = false;
 
-	CTX_DATA_BEGIN (C, Base *, base, selectable_bases)
-	{
-		if (((base->flag & BASE_SELECTED) == 0) && (objects_share_gameprop(base->object, ob))) {
-			ED_object_base_select(base, BA_SELECT);
-			changed = true;
-		}
-	}
-	CTX_DATA_END;
-	return changed;
+  CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
+    if (((base->flag & BASE_SELECTED) == 0) && (objects_share_gameprop(base->object, ob))) {
+      ED_object_base_select(base, BA_SELECT);
+      changed = true;
+    }
+  }
+  CTX_DATA_END;
+  return changed;
 }
 
 static bool select_grouped_keyingset(bContext *C, Object *UNUSED(ob), ReportList *reports)

@@ -18,6 +18,7 @@
 #define __NODES_H__
 
 #include "render/graph.h"
+#include "render/image.h"
 #include "graph/node.h"
 
 #include "util/util_array.h"
@@ -102,6 +103,8 @@ class ImageTextureNode : public ImageSlotTextureNode {
            animated == image_node.animated;
   }
 
+  ImageKey image_key(const int tile = 0) const;
+
   /* Parameters. */
   ustring filename;
   void *builtin_data;
@@ -144,6 +147,8 @@ class EnvironmentTextureNode : public ImageSlotTextureNode {
     return ImageSlotTextureNode::equals(other) && builtin_data == env_node.builtin_data &&
            animated == env_node.animated;
   }
+
+  ImageKey image_key() const;
 
   /* Parameters. */
   ustring filename;
@@ -288,9 +293,11 @@ class WaveTextureNode : public TextureNode {
   }
 
   NodeWaveType type;
+  NodeWaveBandsDirection bands_direction;
+  NodeWaveRingsDirection rings_direction;
   NodeWaveProfile profile;
 
-  float scale, distortion, detail, detail_scale;
+  float scale, distortion, detail, detail_scale, phase;
   float3 vector;
 };
 
@@ -364,6 +371,8 @@ class PointDensityTextureNode : public ShaderNode {
   }
 
   void add_image();
+
+  ImageKey image_key() const;
 
   /* Parameters. */
   ustring filename;
@@ -1377,8 +1386,26 @@ class VectorMathNode : public ShaderNode {
 
   float3 vector1;
   float3 vector2;
+  float3 vector3;
   float scale;
   NodeVectorMathType type;
+};
+
+class VectorRotateNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(VectorRotateNode)
+
+  virtual int get_group()
+  {
+    return NODE_GROUP_LEVEL_3;
+  }
+  NodeVectorRotateType type;
+  bool invert;
+  float3 vector;
+  float3 center;
+  float3 axis;
+  float angle;
+  float3 rotation;
 };
 
 class VectorTransformNode : public ShaderNode {

@@ -38,22 +38,19 @@ class MT_Vector3;
 class KX_IScalarInterpolator;
 
 class KX_PositionInterpolator : public KX_IInterpolator {
-public:
-	KX_PositionInterpolator(MT_Vector3& target, 
-							KX_IScalarInterpolator *ipos[]) :
-		m_target(target) 
-	{
-		m_ipos[0] = ipos[0]; 
-		m_ipos[1] = ipos[1]; 
-		m_ipos[2] = ipos[2];
-	}
+ public:
+  KX_PositionInterpolator(MT_Vector3 &target, KX_IScalarInterpolator *ipos[]) : m_target(target)
+  {
+    m_ipos[0] = ipos[0];
+    m_ipos[1] = ipos[1];
+    m_ipos[2] = ipos[2];
+  }
 
-	virtual void Execute(float currentTime) const;
+  virtual void Execute(float currentTime) const;
 
-private:
-	MT_Vector3&               m_target;
-	KX_IScalarInterpolator *m_ipos[3];
+ private:
+  MT_Vector3 &m_target;
+  KX_IScalarInterpolator *m_ipos[3];
 };
 
 #endif
-

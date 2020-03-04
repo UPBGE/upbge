@@ -28,33 +28,32 @@ CEmptyValue::~CEmptyValue()
 
 CValue *CEmptyValue::Calc(VALUE_OPERATOR op, CValue *val)
 {
-	return val->CalcFinal(VALUE_EMPTY_TYPE, op, this);
+  return val->CalcFinal(VALUE_EMPTY_TYPE, op, this);
 }
 
 CValue *CEmptyValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
 {
-	return val->AddRef();
+  return val->AddRef();
 }
 
 double CEmptyValue::GetNumber()
 {
-	return 0.0;
+  return 0.0;
 }
 
 int CEmptyValue::GetValueType()
 {
-	return VALUE_EMPTY_TYPE;
+  return VALUE_EMPTY_TYPE;
 }
 
 std::string CEmptyValue::GetText()
 {
-	return "";
+  return "";
 }
 
 CValue *CEmptyValue::GetReplica()
 {
-	CEmptyValue *replica = new CEmptyValue(*this);
-	replica->ProcessReplica();
-	return replica;
+  CEmptyValue *replica = new CEmptyValue(*this);
+  replica->ProcessReplica();
+  return replica;
 }
-

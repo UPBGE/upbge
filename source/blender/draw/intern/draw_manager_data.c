@@ -46,6 +46,7 @@
 #endif
 
 #include "GPU_buffers.h"
+#include "GPU_material.h"
 
 #include "intern/gpu_codegen.h"
 
@@ -513,7 +514,7 @@ static void drw_call_obinfos_init(DRWObjectInfos *ob_infos, Object *ob)
   ob_infos->ob_flag += (ob->base_flag & BASE_FROM_DUPLI) ? (1 << 2) : 0;
   ob_infos->ob_flag += (ob->base_flag & BASE_FROM_SET) ? (1 << 3) : 0;
   ob_infos->ob_flag += (ob == DST.draw_ctx.obact) ? (1 << 4) : 0;
-  /* Negative scalling. */
+  /* Negative scaling. */
   ob_infos->ob_flag *= (ob->transflag & OB_NEG_SCALE) ? -1.0f : 1.0f;
   /* Object Color. */
   copy_v4_v4(ob_infos->ob_color, ob->color);
@@ -1202,42 +1203,39 @@ static DRWShadingGroup *drw_shgroup_material_create_ex(GPUPass *gpupass, DRWPass
   return grp;
 }
 
+static void drw_shgroup_material_texture(DRWShadingGroup *grp,
+                                         GPUMaterialTexture *tex,
+                                         const char *name,
+                                         int textarget)
+{
+  GPUTexture *gputex = GPU_texture_from_blender(tex->ima, tex->iuser, NULL, textarget);
+  DRW_shgroup_uniform_texture(grp, name, gputex);
+
+  GPUTexture **gputex_ref = BLI_memblock_alloc(DST.vmempool->images);
+  *gputex_ref = gputex;
+  GPU_texture_ref(gputex);
+}
+
 static DRWShadingGroup *drw_shgroup_material_inputs(DRWShadingGroup *grp,
                                                     struct GPUMaterial *material)
 {
-  ListBase *inputs = GPU_material_get_inputs(material);
+  ListBase textures = GPU_material_textures(material);
 
-  /* Converting dynamic GPUInput to DRWUniform */
-  for (GPUInput *input = inputs->first; input; input = input->next) {
-    /* Textures */
-    if (input->source == GPU_SOURCE_TEX) {
-      GPUTexture *tex = NULL;
-
-      if (input->ima) {
-        GPUTexture **tex_ref = BLI_memblock_alloc(DST.vmempool->images);
-
-        int textarget;
-        if (input->type == GPU_TEX2D_ARRAY) {
-          textarget = GL_TEXTURE_2D_ARRAY;
-        }
-        else if (input->type == GPU_TEX1D_ARRAY) {
-          textarget = GL_TEXTURE_1D_ARRAY;
-        }
-        else {
-          textarget = GL_TEXTURE_2D;
-        }
-        *tex_ref = tex = GPU_texture_from_blender(input->ima, input->iuser, NULL, textarget);
-
-        GPU_texture_ref(tex);
+  /* Bind all textures needed by the material. */
+  for (GPUMaterialTexture *tex = textures.first; tex; tex = tex->next) {
+    if (tex->ima) {
+      /* Image */
+      if (tex->tiled_mapping_name[0]) {
+        drw_shgroup_material_texture(grp, tex, tex->sampler_name, GL_TEXTURE_2D_ARRAY);
+        drw_shgroup_material_texture(grp, tex, tex->tiled_mapping_name, GL_TEXTURE_1D_ARRAY);
       }
       else {
-        /* Color Ramps */
-        tex = *input->coba;
+        drw_shgroup_material_texture(grp, tex, tex->sampler_name, GL_TEXTURE_2D);
       }
-
-      if (input->bindtex) {
-        drw_shgroup_uniform_create_ex(grp, input->shaderloc, DRW_UNIFORM_TEXTURE, tex, 0, 1);
-      }
+    }
+    else if (tex->colorband) {
+      /* Color Ramp */
+      DRW_shgroup_uniform_texture(grp, tex->sampler_name, *tex->colorband);
     }
   }
 
@@ -1551,15 +1549,6 @@ static void draw_view_matrix_state_update(DRWViewUboStorage *storage,
                                           const float viewmat[4][4],
                                           const float winmat[4][4])
 {
-  /* If only one the matrices is negative, then the
-   * polygon winding changes and we don't want that.
-   * By convention, the winmat is negative because
-   * looking through the -Z axis. So this inverse the
-   * changes the test for the winmat. */
-  if (!(DST.draw_ctx.scene->flag & SCE_INTERACTIVE)) {
-    BLI_assert(is_negative_m4(viewmat) == !is_negative_m4(winmat));
-  }
-
   copy_m4_m4(storage->viewmat, viewmat);
   invert_m4_m4(storage->viewinv, storage->viewmat);
 
@@ -1631,6 +1620,7 @@ void DRW_view_update_sub(DRWView *view, const float viewmat[4][4], const float w
   BLI_assert(view->parent != NULL);
 
   view->is_dirty = true;
+  view->is_inverted = (is_negative_m4(viewmat) == is_negative_m4(winmat));
 
   draw_view_matrix_state_update(&view->storage, viewmat, winmat);
 }
@@ -1648,6 +1638,7 @@ void DRW_view_update(DRWView *view,
   BLI_assert(view->parent == NULL);
 
   view->is_dirty = true;
+  view->is_inverted = (is_negative_m4(viewmat) == is_negative_m4(winmat));
 
   draw_view_matrix_state_update(&view->storage, viewmat, winmat);
 

@@ -434,7 +434,7 @@ static void rna_def_layer_collection(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
                            "Visible",
-                           "Whether this collection is visible for the viewlayer, take into "
+                           "Whether this collection is visible for the view layer, take into "
                            "account the collection parent");
 
   func = RNA_def_function(srna, "has_objects", "rna_LayerCollection_has_objects");
@@ -445,7 +445,7 @@ static void rna_def_layer_collection(BlenderRNA *brna)
       srna, "has_selected_objects", "rna_LayerCollection_has_selected_objects");
   RNA_def_function_ui_description(func, "");
   prop = RNA_def_pointer(
-      func, "view_layer", "ViewLayer", "", "ViewLayer the layer collection belongs to");
+      func, "view_layer", "ViewLayer", "", "View layer the layer collection belongs to");
   RNA_def_parameter_flags(prop, 0, PARM_REQUIRED);
   RNA_def_function_return(func, RNA_def_boolean(func, "result", 0, "", ""));
 }
@@ -595,6 +595,7 @@ void RNA_def_view_layer(BlenderRNA *brna)
   /* Dependency Graph */
   prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Depsgraph");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Dependency Graph", "Dependencies in the scene data");
   RNA_def_property_pointer_funcs(prop, "rna_ViewLayer_depsgraph_get", NULL, NULL, NULL);
 

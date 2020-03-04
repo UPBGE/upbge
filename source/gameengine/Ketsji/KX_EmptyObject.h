@@ -30,16 +30,14 @@
  */
 
 #ifndef __KX_EMPTYOBJECT_H__
-#define  __KX_EMPTYOBJECT_H__
+#define __KX_EMPTYOBJECT_H__
 #include "KX_GameObject.h"
 
-class KX_EmptyObject : public KX_GameObject
-{
-public:
-	KX_EmptyObject(void* sgReplicationInfo,SG_Callbacks callbacks) :
-	KX_GameObject(sgReplicationInfo,callbacks) 
-	{};
-	virtual ~KX_EmptyObject();
+class KX_EmptyObject : public KX_GameObject {
+ public:
+  KX_EmptyObject(void *sgReplicationInfo, SG_Callbacks callbacks)
+      : KX_GameObject(sgReplicationInfo, callbacks){};
+  virtual ~KX_EmptyObject();
 };
 
-#endif  /* __KX_EMPTYOBJECT_H__ */
+#endif /* __KX_EMPTYOBJECT_H__ */

@@ -341,7 +341,7 @@ bool ED_operator_console_active(bContext *C)
 
 bool ED_operator_logic_active(bContext *C)
 {
-	return ed_spacetype_test(C, SPACE_LOGIC);
+  return ed_spacetype_test(C, SPACE_LOGIC);
 }
 
 static bool ed_object_hidden(Object *ob)
@@ -4621,20 +4621,18 @@ int ED_screen_animation_play(bContext *C, int sync, int mode)
 
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     /* stop playback now */
-    ED_screen_animation_timer(C, 0, 0, 0, 0);
+    ED_screen_animation_timer(C, 0, 0, 0);
     BKE_sound_stop_scene(scene_eval);
 
     WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
   }
   else {
     /* these settings are currently only available from a menu in the TimeLine */
-    int refresh = SPACE_ACTION;
-
     if (mode == 1) { /* XXX only play audio forwards!? */
       BKE_sound_play_scene(scene_eval);
     }
 
-    ED_screen_animation_timer(C, screen->redraws_flag, refresh, sync, mode);
+    ED_screen_animation_timer(C, screen->redraws_flag, sync, mode);
 
     if (screen->animtimer) {
       wmTimer *wt = screen->animtimer;

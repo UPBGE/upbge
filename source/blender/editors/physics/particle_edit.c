@@ -207,7 +207,7 @@ static float pe_brush_size_get(const Scene *UNUSED(scene), ParticleBrushData *br
   // UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
   // float size = (ups->flag & UNIFIED_PAINT_SIZE) ? ups->size : brush->size;
 
-  return brush->size * U.pixelsize;
+  return brush->size;
 }
 
 PTCacheEdit *PE_get_current_from_psys(ParticleSystem *psys)
@@ -488,7 +488,8 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 
 static bool PE_create_shape_tree(PEData *data, Object *shapeob)
 {
-  Mesh *mesh = BKE_object_get_evaluated_mesh(data->depsgraph, shapeob);
+  Object *shapeob_eval = DEG_get_evaluated_object(data->depsgraph, shapeob);
+  Mesh *mesh = BKE_object_get_evaluated_mesh(shapeob_eval);
 
   memset(&data->shape_bvh, 0, sizeof(data->shape_bvh));
 

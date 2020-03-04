@@ -29,7 +29,6 @@
  *  \ingroup ketsji
  */
 
-
 #include "SCA_RadarSensor.h"
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"
@@ -40,47 +39,45 @@
 /**
  * 	RadarSensor constructor. Creates a near-sensor derived class, with a cone collision shape.
  */
-SCA_RadarSensor::SCA_RadarSensor(SCA_EventManager* eventmgr,
-		KX_GameObject* gameobj,
-		PHY_IPhysicsController* physCtrl,
-			double coneradius,
-			double coneheight,
-			int	axis,
-			double margin,
-			double resetmargin,
-			bool bFindMaterial,
-			const std::string& touchedpropname)
+SCA_RadarSensor::SCA_RadarSensor(SCA_EventManager *eventmgr,
+                                 KX_GameObject *gameobj,
+                                 PHY_IPhysicsController *physCtrl,
+                                 double coneradius,
+                                 double coneheight,
+                                 int axis,
+                                 double margin,
+                                 double resetmargin,
+                                 bool bFindMaterial,
+                                 const std::string &touchedpropname)
 
-			: SCA_NearSensor(
-				eventmgr,
-				gameobj,
-				//DT_NewCone(coneradius,coneheight),
-				margin,
-				resetmargin,
-				bFindMaterial,
-				touchedpropname,
-				physCtrl),
+    : SCA_NearSensor(eventmgr,
+                     gameobj,
+                     // DT_NewCone(coneradius,coneheight),
+                     margin,
+                     resetmargin,
+                     bFindMaterial,
+                     touchedpropname,
+                     physCtrl),
 
-				m_coneradius(coneradius),
-				m_coneheight(coneheight),
-				m_axis(axis)
+      m_coneradius(coneradius),
+      m_coneheight(coneheight),
+      m_axis(axis)
 {
-	m_client_info->m_type = KX_ClientObjectInfo::SENSOR;
-	//m_client_info->m_clientobject = gameobj;
-	//m_client_info->m_auxilary_info = nullptr;
-	//sumoObj->setClientObject(&m_client_info);
+  m_client_info->m_type = KX_ClientObjectInfo::SENSOR;
+  // m_client_info->m_clientobject = gameobj;
+  // m_client_info->m_auxilary_info = nullptr;
+  // sumoObj->setClientObject(&m_client_info);
 }
-			
+
 SCA_RadarSensor::~SCA_RadarSensor()
 {
-	
 }
 
-CValue* SCA_RadarSensor::GetReplica()
+CValue *SCA_RadarSensor::GetReplica()
 {
-	SCA_RadarSensor* replica = new SCA_RadarSensor(*this);
-	replica->ProcessReplica();
-	return replica;
+  SCA_RadarSensor *replica = new SCA_RadarSensor(*this);
+  replica->ProcessReplica();
+  return replica;
 }
 
 /**
@@ -88,85 +85,81 @@ CValue* SCA_RadarSensor::GetReplica()
  *	for usage.  */
 void SCA_RadarSensor::SynchronizeTransform()
 {
-	// Getting the parent location was commented out. Why?
-	MT_Transform trans;
-	trans.setOrigin(((KX_GameObject*)GetParent())->NodeGetWorldPosition());
-	trans.setBasis(((KX_GameObject*)GetParent())->NodeGetWorldOrientation());
-	// What is the default orientation? pointing in the -y direction?
-	// is the geometry correctly converted?
+  // Getting the parent location was commented out. Why?
+  MT_Transform trans;
+  trans.setOrigin(((KX_GameObject *)GetParent())->NodeGetWorldPosition());
+  trans.setBasis(((KX_GameObject *)GetParent())->NodeGetWorldOrientation());
+  // What is the default orientation? pointing in the -y direction?
+  // is the geometry correctly converted?
 
-	// a collision cone is oriented
-	// center the cone correctly 
-	// depends on the radar 'axis'
-	switch (m_axis)
-	{
-	case SENS_RADAR_X_AXIS: // +X Axis
-		{
-			MT_Quaternion rotquatje(MT_Vector3(0,0,1),MT_radians(90));
-			trans.rotate(rotquatje);
-			trans.translate(MT_Vector3 (0, -m_coneheight/2.0f, 0));
-			break;
-		};
-	case SENS_RADAR_Y_AXIS: // +Y Axis
-		{
-			MT_Quaternion rotquatje(MT_Vector3(1,0,0),MT_radians(-180));
-			trans.rotate(rotquatje);
-			trans.translate(MT_Vector3 (0, -m_coneheight/2.0f, 0));
-			break;
-		};
-	case SENS_RADAR_Z_AXIS: // +Z Axis
-		{
-			MT_Quaternion rotquatje(MT_Vector3(1,0,0),MT_radians(-90));
-			trans.rotate(rotquatje);
-			trans.translate(MT_Vector3 (0, -m_coneheight/2.0f, 0));
-			break;
-		};
-	case SENS_RADAR_NEG_X_AXIS: // -X Axis
-		{
-			MT_Quaternion rotquatje(MT_Vector3(0,0,1),MT_radians(-90));
-			trans.rotate(rotquatje);
-			trans.translate(MT_Vector3 (0, -m_coneheight/2.0f, 0));
-			break;
-		};
-	case SENS_RADAR_NEG_Y_AXIS: // -Y Axis
-		{
-			//MT_Quaternion rotquatje(MT_Vector3(1,0,0),MT_radians(-180));
-			//trans.rotate(rotquatje);
-			trans.translate(MT_Vector3 (0, -m_coneheight/2.0f, 0));
-			break;
-		};
-	case SENS_RADAR_NEG_Z_AXIS: // -Z Axis
-		{
-			MT_Quaternion rotquatje(MT_Vector3(1,0,0),MT_radians(90));
-			trans.rotate(rotquatje);
-			trans.translate(MT_Vector3 (0, -m_coneheight/2.0f, 0));
-			break;
-		};
-	default:
-		{
-		}
-	}
-	
-	//Using a temp variable to translate MT_Vector3 to float[3].
-	//float[3] works better for the Python interface.
-	MT_Vector3 temp = trans.getOrigin();
-	m_cone_origin[0] = temp[0];
-	m_cone_origin[1] = temp[1];
-	m_cone_origin[2] = temp[2];
+  // a collision cone is oriented
+  // center the cone correctly
+  // depends on the radar 'axis'
+  switch (m_axis) {
+    case SENS_RADAR_X_AXIS:  // +X Axis
+    {
+      MT_Quaternion rotquatje(MT_Vector3(0, 0, 1), MT_radians(90));
+      trans.rotate(rotquatje);
+      trans.translate(MT_Vector3(0, -m_coneheight / 2.0f, 0));
+      break;
+    };
+    case SENS_RADAR_Y_AXIS:  // +Y Axis
+    {
+      MT_Quaternion rotquatje(MT_Vector3(1, 0, 0), MT_radians(-180));
+      trans.rotate(rotquatje);
+      trans.translate(MT_Vector3(0, -m_coneheight / 2.0f, 0));
+      break;
+    };
+    case SENS_RADAR_Z_AXIS:  // +Z Axis
+    {
+      MT_Quaternion rotquatje(MT_Vector3(1, 0, 0), MT_radians(-90));
+      trans.rotate(rotquatje);
+      trans.translate(MT_Vector3(0, -m_coneheight / 2.0f, 0));
+      break;
+    };
+    case SENS_RADAR_NEG_X_AXIS:  // -X Axis
+    {
+      MT_Quaternion rotquatje(MT_Vector3(0, 0, 1), MT_radians(-90));
+      trans.rotate(rotquatje);
+      trans.translate(MT_Vector3(0, -m_coneheight / 2.0f, 0));
+      break;
+    };
+    case SENS_RADAR_NEG_Y_AXIS:  // -Y Axis
+    {
+      // MT_Quaternion rotquatje(MT_Vector3(1,0,0),MT_radians(-180));
+      // trans.rotate(rotquatje);
+      trans.translate(MT_Vector3(0, -m_coneheight / 2.0f, 0));
+      break;
+    };
+    case SENS_RADAR_NEG_Z_AXIS:  // -Z Axis
+    {
+      MT_Quaternion rotquatje(MT_Vector3(1, 0, 0), MT_radians(90));
+      trans.rotate(rotquatje);
+      trans.translate(MT_Vector3(0, -m_coneheight / 2.0f, 0));
+      break;
+    };
+    default: {
+    }
+  }
 
-	temp = trans(MT_Vector3(0, -m_coneheight/2.0f, 0));
-	m_cone_target[0] = temp[0];
-	m_cone_target[1] = temp[1];
-	m_cone_target[2] = temp[2];
+  // Using a temp variable to translate MT_Vector3 to float[3].
+  // float[3] works better for the Python interface.
+  MT_Vector3 temp = trans.getOrigin();
+  m_cone_origin[0] = temp[0];
+  m_cone_origin[1] = temp[1];
+  m_cone_origin[2] = temp[2];
 
+  temp = trans(MT_Vector3(0, -m_coneheight / 2.0f, 0));
+  m_cone_target[0] = temp[0];
+  m_cone_target[1] = temp[1];
+  m_cone_target[2] = temp[2];
 
-	if (m_physCtrl) {
-		PHY_IMotionState* motionState = m_physCtrl->GetMotionState();
-		motionState->SetWorldPosition(trans.getOrigin());
-		motionState->SetWorldOrientation(trans.getBasis());
-		m_physCtrl->WriteMotionStateToDynamics(true);
-	}
-
+  if (m_physCtrl) {
+    PHY_IMotionState *motionState = m_physCtrl->GetMotionState();
+    motionState->SetWorldPosition(trans.getOrigin());
+    motionState->SetWorldOrientation(trans.getBasis());
+    m_physCtrl->WriteMotionStateToDynamics(true);
+  }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -178,49 +171,65 @@ void SCA_RadarSensor::SynchronizeTransform()
 /* ------------------------------------------------------------------------- */
 /* Python Integration Hooks                                                  */
 /* ------------------------------------------------------------------------- */
-PyTypeObject SCA_RadarSensor::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_RadarSensor",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_NearSensor::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+PyTypeObject SCA_RadarSensor::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_RadarSensor",
+                                      sizeof(PyObjectPlus_Proxy),
+                                      0,
+                                      py_base_dealloc,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      py_base_repr,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      Methods,
+                                      0,
+                                      0,
+                                      &SCA_NearSensor::Type,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      0,
+                                      py_base_new};
 
 PyMethodDef SCA_RadarSensor::Methods[] = {
-	{nullptr, nullptr} //Sentinel
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_RadarSensor::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneOrigin", SCA_RadarSensor, m_cone_origin, 3),
-	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneTarget", SCA_RadarSensor, m_cone_target, 3),
-	KX_PYATTRIBUTE_FLOAT_RO("distance", SCA_RadarSensor, m_coneheight),
-	KX_PYATTRIBUTE_RO_FUNCTION("angle", SCA_RadarSensor, pyattr_get_angle),
-	KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, SCA_RadarSensor, m_axis),
-	KX_PYATTRIBUTE_NULL //Sentinel
+    KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneOrigin", SCA_RadarSensor, m_cone_origin, 3),
+    KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneTarget", SCA_RadarSensor, m_cone_target, 3),
+    KX_PYATTRIBUTE_FLOAT_RO("distance", SCA_RadarSensor, m_coneheight),
+    KX_PYATTRIBUTE_RO_FUNCTION("angle", SCA_RadarSensor, pyattr_get_angle),
+    KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, SCA_RadarSensor, m_axis),
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *SCA_RadarSensor::pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_RadarSensor::pyattr_get_angle(PyObjectPlus *self_v,
+                                            const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_RadarSensor* self = static_cast<SCA_RadarSensor*>(self_v);
+  SCA_RadarSensor *self = static_cast<SCA_RadarSensor *>(self_v);
 
-	// The original angle from the gui was converted, so we recalculate the value here to maintain
-	// consistency between Python and the gui
-	return PyFloat_FromDouble(MT_degrees(atan(self->m_coneradius / self->m_coneheight)) * 2);
-	
+  // The original angle from the gui was converted, so we recalculate the value here to maintain
+  // consistency between Python and the gui
+  return PyFloat_FromDouble(MT_degrees(atan(self->m_coneradius / self->m_coneheight)) * 2);
 }
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON

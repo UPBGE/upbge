@@ -38,7 +38,7 @@
 #include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_key.h"
-#include "BKE_layer.h" // for SetLooper Game engine transition tinkering
+#include "BKE_layer.h"  // for SetLooper Game engine transition tinkering
 #include "BKE_main.h"
 #include "BKE_scene.h"
 #include "BKE_object.h"
@@ -98,6 +98,8 @@
 #include "IMB_imbuf_types.h"
 
 #include "view3d_intern.h" /* own include */
+
+#define M_GOLDEN_RATIO_CONJUGATE 0.618033988749895f
 
 /* -------------------------------------------------------------------- */
 /** \name General Functions
@@ -451,7 +453,7 @@ static void drawviewborder_triangle(
 
   if (w > h) {
     if (golden) {
-      ofs = w * (1.0f - (1.0f / 1.61803399f));
+      ofs = w * (1.0f - M_GOLDEN_RATIO_CONJUGATE);
     }
     else {
       ofs = h * (h / w);
@@ -471,7 +473,7 @@ static void drawviewborder_triangle(
   }
   else {
     if (golden) {
-      ofs = h * (1.0f - (1.0f / 1.61803399f));
+      ofs = h * (1.0f - M_GOLDEN_RATIO_CONJUGATE);
     }
     else {
       ofs = w * (w / h);
@@ -569,7 +571,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *ar, View
       GPU_blend(false);
     }
 
-    immUniformThemeColor(TH_BACK);
+    immUniformThemeColor3(TH_BACK);
     imm_draw_box_wire_2d(shdr_pos, x1i, y1i, x2i, y2i);
 
 #ifdef VIEW3D_CAMERA_BORDER_HACK
@@ -606,7 +608,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *ar, View
       imm_draw_box_wire_2d(shdr_pos, x1i - 1, y1i - 1, x2i + 1, y2i + 1);
     }
 
-    immUniformThemeColor(TH_VIEW_OVERLAY);
+    immUniformThemeColor3(TH_VIEW_OVERLAY);
     imm_draw_box_wire_2d(shdr_pos, x1i, y1i, x2i, y2i);
   }
 
@@ -661,7 +663,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *ar, View
     }
 
     if (ca->dtx & CAM_DTX_GOLDEN) {
-      drawviewborder_grid3(shdr_pos, x1, x2, y1, y2, 1.0f - (1.0f / 1.61803399f));
+      drawviewborder_grid3(shdr_pos, x1, x2, y1, y2, 1.0f - M_GOLDEN_RATIO_CONJUGATE);
     }
 
     if (ca->dtx & CAM_DTX_GOLDEN_TRI_A) {
@@ -1547,12 +1549,12 @@ void view3d_draw_region_info(const bContext *C, ARegion *ar)
 
 /* Game engine transition */
 #ifdef WITH_GAMEENGINE
-static void update_lods(Scene *scene, float camera_pos[3])
+static void update_lods(Depsgraph *depsgraph, Scene *scene, float camera_pos[3])
 {
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, scene, view_layer, false);
 
-  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob_eval) { // Here ob is evaluated object from depsgraph which will be rendered
+  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (
+      depsgraph, ob_eval) {  // Here ob is evaluated object from depsgraph which will be rendered
     BKE_object_lod_update(DEG_get_original_object(ob_eval), camera_pos);
 
     if (DEG_get_original_object(ob_eval)->currentlod) {
@@ -1577,13 +1579,13 @@ static void view3d_draw_view(const bContext *C, ARegion *ar)
                             NULL);
 /* Game engine transition */
 #ifdef WITH_GAMEENGINE
-  //if (STREQ(CTX_data_scene(C)->r.engine, RE_engine_id_BLENDER_EEVEE)) {
+  // if (STREQ(CTX_data_scene(C)->r.engine, RE_engine_id_BLENDER_EEVEE)) {
   /* Make sure LoDs are up to date */
   RegionView3D *rv3d = ar->regiondata;
-  update_lods(CTX_data_scene(C), rv3d->viewinv[3]);
+  update_lods(CTX_data_expect_evaluated_depsgraph(C), CTX_data_scene(C), rv3d->viewinv[3]);
   //}
 #endif
-/* End of Game engine transition */
+  /* End of Game engine transition */
 
   /* Only 100% compliant on new spec goes below */
   DRW_draw_view(C);

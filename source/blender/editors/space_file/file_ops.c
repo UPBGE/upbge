@@ -626,11 +626,11 @@ static bool file_walk_select_selection_set(bContext *C,
   }
   else {
     /* select last file */
-    if (ELEM(direction, FILE_SELECT_WALK_UP, FILE_SELECT_WALK_LEFT)) {
+    if (ELEM(direction, UI_SELECT_WALK_UP, UI_SELECT_WALK_LEFT)) {
       params->active_file = active = numfiles - 1;
     }
     /* select first file */
-    else if (ELEM(direction, FILE_SELECT_WALK_DOWN, FILE_SELECT_WALK_RIGHT)) {
+    else if (ELEM(direction, UI_SELECT_WALK_DOWN, UI_SELECT_WALK_RIGHT)) {
       params->active_file = active = 0;
     }
     else {
@@ -721,23 +721,23 @@ static bool file_walk_select_do(bContext *C,
     FileLayout *layout = ED_fileselect_get_layout(sfile, ar);
     const int idx_shift = (layout->flag & FILE_LAYOUT_HOR) ? layout->rows : layout->flow_columns;
 
-    if ((layout->flag & FILE_LAYOUT_HOR && direction == FILE_SELECT_WALK_UP) ||
-        (layout->flag & FILE_LAYOUT_VER && direction == FILE_SELECT_WALK_LEFT)) {
+    if ((layout->flag & FILE_LAYOUT_HOR && direction == UI_SELECT_WALK_UP) ||
+        (layout->flag & FILE_LAYOUT_VER && direction == UI_SELECT_WALK_LEFT)) {
       active_new = active_old - 1;
       other_site = active_old + 1;
     }
-    else if ((layout->flag & FILE_LAYOUT_HOR && direction == FILE_SELECT_WALK_DOWN) ||
-             (layout->flag & FILE_LAYOUT_VER && direction == FILE_SELECT_WALK_RIGHT)) {
+    else if ((layout->flag & FILE_LAYOUT_HOR && direction == UI_SELECT_WALK_DOWN) ||
+             (layout->flag & FILE_LAYOUT_VER && direction == UI_SELECT_WALK_RIGHT)) {
       active_new = active_old + 1;
       other_site = active_old - 1;
     }
-    else if ((layout->flag & FILE_LAYOUT_HOR && direction == FILE_SELECT_WALK_LEFT) ||
-             (layout->flag & FILE_LAYOUT_VER && direction == FILE_SELECT_WALK_UP)) {
+    else if ((layout->flag & FILE_LAYOUT_HOR && direction == UI_SELECT_WALK_LEFT) ||
+             (layout->flag & FILE_LAYOUT_VER && direction == UI_SELECT_WALK_UP)) {
       active_new = active_old - idx_shift;
       other_site = active_old + idx_shift;
     }
-    else if ((layout->flag & FILE_LAYOUT_HOR && direction == FILE_SELECT_WALK_RIGHT) ||
-             (layout->flag & FILE_LAYOUT_VER && direction == FILE_SELECT_WALK_DOWN)) {
+    else if ((layout->flag & FILE_LAYOUT_HOR && direction == UI_SELECT_WALK_RIGHT) ||
+             (layout->flag & FILE_LAYOUT_VER && direction == UI_SELECT_WALK_DOWN)) {
 
       active_new = active_old + idx_shift;
       other_site = active_old - idx_shift;
@@ -793,13 +793,6 @@ static int file_walk_select_invoke(bContext *C, wmOperator *op, const wmEvent *U
 
 void FILE_OT_select_walk(wmOperatorType *ot)
 {
-  static const EnumPropertyItem direction_items[] = {
-      {FILE_SELECT_WALK_UP, "UP", 0, "Prev", ""},
-      {FILE_SELECT_WALK_DOWN, "DOWN", 0, "Next", ""},
-      {FILE_SELECT_WALK_LEFT, "LEFT", 0, "Left", ""},
-      {FILE_SELECT_WALK_RIGHT, "RIGHT", 0, "Right", ""},
-      {0, NULL, 0, NULL, NULL},
-  };
   PropertyRNA *prop;
 
   /* identifiers */
@@ -812,13 +805,7 @@ void FILE_OT_select_walk(wmOperatorType *ot)
   ot->poll = ED_operator_file_active;
 
   /* properties */
-  prop = RNA_def_enum(ot->srna,
-                      "direction",
-                      direction_items,
-                      0,
-                      "Walk Direction",
-                      "Select/Deselect file in this direction");
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  WM_operator_properties_select_walk_direction(ot);
   prop = RNA_def_boolean(ot->srna,
                          "extend",
                          false,
@@ -1735,7 +1722,7 @@ static int file_smoothscroll_invoke(bContext *C, wmOperator *UNUSED(op), const w
 {
   ScrArea *sa = CTX_wm_area(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
-  ARegion *ar, *oldar = CTX_wm_region(C);
+  ARegion *ar, *ar_ctx = CTX_wm_region(C);
   const bool is_horizontal = (sfile->layout->flag & FILE_LAYOUT_HOR) != 0;
   int i;
 
@@ -1899,7 +1886,7 @@ static int file_smoothscroll_invoke(bContext *C, wmOperator *UNUSED(op), const w
   ED_region_tag_redraw(ar);
 
   /* and restore context */
-  CTX_wm_region_set(C, oldar);
+  CTX_wm_region_set(C, ar_ctx);
 
   return OPERATOR_FINISHED;
 }
@@ -2540,6 +2527,28 @@ void FILE_OT_delete(struct wmOperatorType *ot)
   ot->invoke = WM_operator_confirm;
   ot->exec = file_delete_exec;
   ot->poll = file_delete_poll; /* <- important, handler is on window level */
+}
+
+static int file_start_filter_exec(bContext *C, wmOperator *UNUSED(op))
+{
+  ScrArea *sa = CTX_wm_area(C);
+  ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_UI);
+  SpaceFile *sf = CTX_wm_space_file(C);
+
+  UI_textbutton_activate_rna(C, ar, sf->params, "filter_search");
+  return OPERATOR_FINISHED;
+}
+
+void FILE_OT_start_filter(struct wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Filter";
+  ot->description = "Start entering filter text";
+  ot->idname = "FILE_OT_start_filter";
+
+  /* api callbacks */
+  ot->exec = file_start_filter_exec;
+  ot->poll = ED_operator_file_active;
 }
 
 void ED_operatormacros_file(void)

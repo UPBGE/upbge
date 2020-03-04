@@ -80,7 +80,7 @@ static void set_coarse_positions(Subdiv *subdiv,
       BLI_BITMAP_ENABLE(vertex_used_map, loop->v);
     }
   }
-  for (int vertex_index = 0, manifold_veretx_index = 0; vertex_index < mesh->totvert;
+  for (int vertex_index = 0, manifold_vertex_index = 0; vertex_index < mesh->totvert;
        vertex_index++) {
     if (!BLI_BITMAP_TEST_BOOL(vertex_used_map, vertex_index)) {
       continue;
@@ -93,8 +93,8 @@ static void set_coarse_positions(Subdiv *subdiv,
       const MVert *vertex = &mvert[vertex_index];
       vertex_co = vertex->co;
     }
-    subdiv->evaluator->setCoarsePositions(subdiv->evaluator, vertex_co, manifold_veretx_index, 1);
-    manifold_veretx_index++;
+    subdiv->evaluator->setCoarsePositions(subdiv->evaluator, vertex_co, manifold_vertex_index, 1);
+    manifold_vertex_index++;
   }
   MEM_freeN(vertex_used_map);
 }
@@ -176,6 +176,28 @@ void BKE_subdiv_eval_limit_point_and_derivatives(Subdiv *subdiv,
                                                  float r_dPdv[3])
 {
   subdiv->evaluator->evaluateLimit(subdiv->evaluator, ptex_face_index, u, v, r_P, r_dPdu, r_dPdv);
+
+  /* NOTE: In a very rare occasions derivatives are evaluated to zeros. This happens, for example,
+   * in single vertex on Suzannne's nose (where two quads have 2 common edges).
+   *
+   * This makes tangent space displacement (such as multires) impossible to be used in those
+   * vertices, so those needs to be addressed in one way or another.
+   *
+   * Simplest thing to do: step inside of the face a little bit, where there is known patch at
+   * which there must be proper derivatives. This might break continuity of normals, but is better
+   * that giving totally unusable derivatives. */
+
+  if (r_dPdu != NULL && r_dPdv != NULL) {
+    if (is_zero_v3(r_dPdu) || is_zero_v3(r_dPdv)) {
+      subdiv->evaluator->evaluateLimit(subdiv->evaluator,
+                                       ptex_face_index,
+                                       u * 0.999f + 0.0005f,
+                                       v * 0.999f + 0.0005f,
+                                       r_P,
+                                       r_dPdu,
+                                       r_dPdv);
+    }
+  }
 }
 
 void BKE_subdiv_eval_limit_point_and_normal(Subdiv *subdiv,

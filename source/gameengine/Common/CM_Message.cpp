@@ -35,105 +35,103 @@
 
 #  include "EXP_Python.h"
 extern "C" {
-#  include "py_capi_utils.h" // for PyC_FileAndNum only
+#  include "py_capi_utils.h"  // for PyC_FileAndNum only
 }
 
 #endif  // WITH_PYTHON
 
-std::ostream& _CM_PrefixWarning(std::ostream& stream)
+std::ostream &_CM_PrefixWarning(std::ostream &stream)
 {
-	stream << termcolor::yellow << termcolor::bold << "Warning" << termcolor::reset << ": ";
-	return stream;
+  stream << termcolor::yellow << termcolor::bold << "Warning" << termcolor::reset << ": ";
+  return stream;
 }
 
-std::ostream& _CM_PrefixError(std::ostream& stream)
+std::ostream &_CM_PrefixError(std::ostream &stream)
 {
-	stream << termcolor::red << termcolor::bold << "Error" << termcolor::reset << ": ";
-	return stream;
+  stream << termcolor::red << termcolor::bold << "Error" << termcolor::reset << ": ";
+  return stream;
 }
 
-std::ostream& _CM_PrefixDebug(std::ostream& stream)
+std::ostream &_CM_PrefixDebug(std::ostream &stream)
 {
-	stream << termcolor::bold << "Debug" << termcolor::reset << ": ";
-	return stream;
+  stream << termcolor::bold << "Debug" << termcolor::reset << ": ";
+  return stream;
 }
 
 #ifdef WITH_PYTHON
 
-std::ostream& _CM_PythonPrefix(std::ostream& stream)
+std::ostream &_CM_PythonPrefix(std::ostream &stream)
 {
-	int line;
-	const char *path;
-	char file[FILE_MAX];
-	PyC_FileAndNum(&path, &line);
-	if (!path) {
-		return stream;
-	}
+  int line;
+  const char *path;
+  char file[FILE_MAX];
+  PyC_FileAndNum(&path, &line);
+  if (!path) {
+    return stream;
+  }
 
-	BLI_split_file_part(path, file, sizeof(file));
+  BLI_split_file_part(path, file, sizeof(file));
 
-	stream << termcolor::bold << file << termcolor::reset << "(" << termcolor::bold << line << termcolor::reset << "), ";
-	return stream;
+  stream << termcolor::bold << file << termcolor::reset << "(" << termcolor::bold << line
+         << termcolor::reset << "), ";
+  return stream;
 }
 
 _CM_PythonAttributPrefix::_CM_PythonAttributPrefix(std::string className, std::string attributName)
-	:m_className(className),
-	m_attributName(attributName)
+    : m_className(className), m_attributName(attributName)
 {
 }
 
-std::ostream& operator<<(std::ostream& stream, const _CM_PythonAttributPrefix& prefix)
+std::ostream &operator<<(std::ostream &stream, const _CM_PythonAttributPrefix &prefix)
 {
-	stream << termcolor::green << prefix.m_className << termcolor::reset << "." << termcolor::green
-		<< termcolor::bold << prefix.m_attributName << termcolor::reset << ", ";
-	return stream;
+  stream << termcolor::green << prefix.m_className << termcolor::reset << "." << termcolor::green
+         << termcolor::bold << prefix.m_attributName << termcolor::reset << ", ";
+  return stream;
 }
 
 _CM_PythonFunctionPrefix::_CM_PythonFunctionPrefix(std::string className, std::string attributName)
-	:m_className(className),
-	m_attributName(attributName)
+    : m_className(className), m_attributName(attributName)
 {
 }
 
-std::ostream& operator<<(std::ostream& stream, const _CM_PythonFunctionPrefix& prefix)
+std::ostream &operator<<(std::ostream &stream, const _CM_PythonFunctionPrefix &prefix)
 {
-	stream << termcolor::green << prefix.m_className << termcolor::reset << "." << termcolor::green
-		<< termcolor::bold << prefix.m_attributName << termcolor::reset << "(...), ";
-	return stream;
+  stream << termcolor::green << prefix.m_className << termcolor::reset << "." << termcolor::green
+         << termcolor::bold << prefix.m_attributName << termcolor::reset << "(...), ";
+  return stream;
 }
 
 #endif  // WITH_PYTHON
 
 _CM_LogicBrickPrefix::_CM_LogicBrickPrefix(SCA_ILogicBrick *brick)
 {
-	m_brickName = brick->GetName();
-	if (brick->GetParent()) {
-		m_objectName = brick->GetParent()->GetName();
-	}
-	else {
-		m_objectName = "None";
-	}
+  m_brickName = brick->GetName();
+  if (brick->GetParent()) {
+    m_objectName = brick->GetParent()->GetName();
+  }
+  else {
+    m_objectName = "None";
+  }
 }
 
-std::ostream& operator<<(std::ostream& stream, const _CM_LogicBrickPrefix& prefix)
+std::ostream &operator<<(std::ostream &stream, const _CM_LogicBrickPrefix &prefix)
 {
-	stream << termcolor::bold << prefix.m_brickName << termcolor::reset << "(" << termcolor::bold
-		<< prefix.m_objectName << termcolor::reset << "), ";
-	return stream;
+  stream << termcolor::bold << prefix.m_brickName << termcolor::reset << "(" << termcolor::bold
+         << prefix.m_objectName << termcolor::reset << "), ";
+  return stream;
 }
 
-_CM_FunctionPrefix::_CM_FunctionPrefix(std::string functionName)
-	:m_functionName(functionName)
+_CM_FunctionPrefix::_CM_FunctionPrefix(std::string functionName) : m_functionName(functionName)
 {
 }
 
-std::ostream& operator<<(std::ostream& stream, const _CM_FunctionPrefix& prefix)
+std::ostream &operator<<(std::ostream &stream, const _CM_FunctionPrefix &prefix)
 {
-	const std::string& functionName = prefix.m_functionName;
-	const size_t colons = functionName.find("::");
-	const size_t begin = functionName.substr(0, colons).rfind(" ") + 1;
-	const size_t end = functionName.rfind("(") - begin;
+  const std::string &functionName = prefix.m_functionName;
+  const size_t colons = functionName.find("::");
+  const size_t begin = functionName.substr(0, colons).rfind(" ") + 1;
+  const size_t end = functionName.rfind("(") - begin;
 
-	stream << termcolor::bold << functionName.substr(begin,end) << termcolor::reset << "(...), ";
-	return stream;
+  stream << termcolor::bold << functionName.substr(begin, end) << termcolor::reset << "(...), ";
+  return stream;
 }

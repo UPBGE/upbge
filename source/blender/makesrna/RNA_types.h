@@ -292,6 +292,8 @@ typedef enum PropertyOverrideFlag {
   /**
    * Forbid usage of this property in comparison (& hence override) code.
    * Useful e.g. for collections of data like mesh's geometry, particles, etc.
+   * Also for runtime data that should never be considered as part of actual Blend data (e.g.
+   * depsgraph from ViewLayers...).
    */
   PROPOVERRIDE_NO_COMPARISON = (1 << 1),
 
@@ -597,7 +599,7 @@ typedef enum StructFlag {
 
   /* internal flags */
   STRUCT_RUNTIME = (1 << 3),
-  STRUCT_GENERATED = (1 << 4),
+  /* STRUCT_GENERATED = (1 << 4), */ /* UNUSED */
   STRUCT_FREE_POINTERS = (1 << 5),
   /** Menus and Panels don't need properties */
   STRUCT_NO_IDPROPERTIES = (1 << 6),

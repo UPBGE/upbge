@@ -21,19 +21,18 @@
 
 #include "EXP_Expression.h"
 
-class COperator1Expr : public CExpression
-{
-public:
-	COperator1Expr();
-	COperator1Expr(VALUE_OPERATOR op, CExpression *lhs);
-	virtual ~COperator1Expr();
+class COperator1Expr : public CExpression {
+ public:
+  COperator1Expr();
+  COperator1Expr(VALUE_OPERATOR op, CExpression *lhs);
+  virtual ~COperator1Expr();
 
-	virtual unsigned char GetExpressionID();
-	virtual CValue *Calculate();
+  virtual unsigned char GetExpressionID();
+  virtual CValue *Calculate();
 
-private:
-	VALUE_OPERATOR m_op;
-	CExpression *m_lhs;
+ private:
+  VALUE_OPERATOR m_op;
+  CExpression *m_lhs;
 };
 
 #endif  // __EXP_OPERATOR1EXPR_H__

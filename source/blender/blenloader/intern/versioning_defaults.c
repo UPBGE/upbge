@@ -286,7 +286,6 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   BLI_strncpy(scene->r.engine, RE_engine_id_BLENDER_EEVEE, sizeof(scene->r.engine));
 
   scene->r.cfra = 1.0f;
-  scene->r.displaymode = R_OUTPUT_WINDOW;
 
   /* Don't enable compositing nodes. */
   if (scene->nodetree) {
@@ -377,13 +376,13 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.depth = 32;
     sce->gm.gravity = 9.8f;
     sce->gm.physicsEngine = WOPHY_BULLET;
-    //sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
+    // sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
     sce->gm.occlusionRes = 128;
     sce->gm.ticrate = 60;
     sce->gm.maxlogicstep = 5;
     sce->gm.physubstep = 1;
     sce->gm.maxphystep = 5;
-    //sce->gm.timeScale = 1.0f;
+    // sce->gm.timeScale = 1.0f;
     sce->gm.lineardeactthreshold = 0.8f;
     sce->gm.angulardeactthreshold = 1.0f;
     sce->gm.deactivationtime = 2.0f;
@@ -405,17 +404,17 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.recastData.detailsampledist = 6.0f;
     sce->gm.recastData.detailsamplemaxerror = 1.0f;
 
-    sce->gm.exitkey = 218; // Blender key code for ESC
+    sce->gm.exitkey = 218;  // Blender key code for ESC
 
     sce->gm.flag |= GAME_USE_UNDO;
 
     sce->gm.lodflag = SCE_LOD_USE_HYST;
     sce->gm.scehysteresis = 10;
 
-    //sce->gm.pythonkeys[0] = LEFTCTRLKEY;
-    //sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
-    //sce->gm.pythonkeys[2] = LEFTALTKEY;
-    //sce->gm.pythonkeys[3] = TKEY;
+    // sce->gm.pythonkeys[0] = LEFTCTRLKEY;
+    // sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
+    // sce->gm.pythonkeys[2] = LEFTALTKEY;
+    // sce->gm.pythonkeys[3] = TKEY;
   }
   for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
     /* Game engine defaults*/
@@ -437,7 +436,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ob->jump_speed = 10.0f;
     ob->fall_speed = 55.0f;
     ob->max_jumps = 1;
-    //ob->max_slope = M_PI_2;
+    // ob->max_slope = M_PI_2;
     ob->col_group = 0x01;
     ob->col_mask = 0xffff;
     ob->preview = NULL;
@@ -616,12 +615,36 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       brush->sculpt_tool = SCULPT_TOOL_POSE;
     }
 
-    brush_name = "Multiplane Scrape";
+    brush_name = "Multi-plane Scrape";
     brush = BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2);
     if (!brush) {
       brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
       id_us_min(&brush->id);
       brush->sculpt_tool = SCULPT_TOOL_MULTIPLANE_SCRAPE;
+    }
+
+    brush_name = "Clay Thumb";
+    brush = BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2);
+    if (!brush) {
+      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
+      id_us_min(&brush->id);
+      brush->sculpt_tool = SCULPT_TOOL_CLAY_THUMB;
+    }
+
+    brush_name = "Cloth";
+    brush = BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2);
+    if (!brush) {
+      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
+      id_us_min(&brush->id);
+      brush->sculpt_tool = SCULPT_TOOL_CLOTH;
+    }
+
+    brush_name = "Slide Relax";
+    brush = BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2);
+    if (!brush) {
+      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
+      id_us_min(&brush->id);
+      brush->sculpt_tool = SCULPT_TOOL_SLIDE_RELAX;
     }
 
     brush_name = "Simplify";

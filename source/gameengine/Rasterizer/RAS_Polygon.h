@@ -37,46 +37,40 @@ class RAS_MaterialBucket;
 class RAS_ITexVert;
 class RAS_TexVertInfo;
 
-class RAS_Polygon
-{
-	// location
-	RAS_MaterialBucket *m_bucket;
-	RAS_IDisplayArray *m_darray;
-	unsigned int m_offset[4];
-	unsigned short m_numvert;
-	unsigned short m_polyflags;
+class RAS_Polygon {
+  // location
+  RAS_MaterialBucket *m_bucket;
+  RAS_IDisplayArray *m_darray;
+  unsigned int m_offset[4];
+  unsigned short m_numvert;
+  unsigned short m_polyflags;
 
-public:
-	enum {
-		VISIBLE = 1,
-		COLLIDER = 2,
-		TWOSIDE = 4
-	};
+ public:
+  enum { VISIBLE = 1, COLLIDER = 2, TWOSIDE = 4 };
 
-	RAS_Polygon(RAS_MaterialBucket *bucket, RAS_IDisplayArray *darray, int numvert);
-	virtual ~RAS_Polygon()
-	{
-	}
+  RAS_Polygon(RAS_MaterialBucket *bucket, RAS_IDisplayArray *darray, int numvert);
+  virtual ~RAS_Polygon()
+  {
+  }
 
-	int VertexCount() const;
-	RAS_ITexVert *GetVertex(int i) const;
-	const RAS_TexVertInfo& GetVertexInfo(unsigned int i) const;
+  int VertexCount() const;
+  RAS_ITexVert *GetVertex(int i) const;
+  const RAS_TexVertInfo &GetVertexInfo(unsigned int i) const;
 
-	void SetVertexOffset(int i, unsigned int offset);
-	unsigned int GetVertexOffset(unsigned int i) const;
+  void SetVertexOffset(int i, unsigned int offset);
+  unsigned int GetVertexOffset(unsigned int i) const;
 
-	bool IsVisible() const;
-	void SetVisible(bool visible);
+  bool IsVisible() const;
+  void SetVisible(bool visible);
 
-	bool IsCollider() const;
-	void SetCollider(bool collider);
+  bool IsCollider() const;
+  void SetCollider(bool collider);
 
-	bool IsTwoside() const;
-	void SetTwoside(bool twoside);
+  bool IsTwoside() const;
+  void SetTwoside(bool twoside);
 
-	RAS_MaterialBucket *GetMaterial() const;
-	RAS_IDisplayArray *GetDisplayArray() const;
+  RAS_MaterialBucket *GetMaterial() const;
+  RAS_IDisplayArray *GetDisplayArray() const;
 };
 
 #endif
-

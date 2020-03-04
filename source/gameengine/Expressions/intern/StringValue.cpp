@@ -19,109 +19,100 @@
 #include "EXP_BoolValue.h"
 #include "EXP_ErrorValue.h"
 
-CStringValue::CStringValue()
-	:m_strString("[Illegal String constructor call]")
+CStringValue::CStringValue() : m_strString("[Illegal String constructor call]")
 {
 }
 
-CStringValue::CStringValue(const std::string& txt, const std::string& name)
-	:m_strString(txt)
+CStringValue::CStringValue(const std::string &txt, const std::string &name) : m_strString(txt)
 {
-	SetName(name);
+  SetName(name);
 }
 
 CValue *CStringValue::Calc(VALUE_OPERATOR op, CValue *val)
 {
-	return val->CalcFinal(VALUE_STRING_TYPE, op, this);
+  return val->CalcFinal(VALUE_STRING_TYPE, op, this);
 }
 
 CValue *CStringValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
 {
-	CValue *ret;
+  CValue *ret;
 
-	if (op == VALUE_ADD_OPERATOR) {
-		if (dtype == VALUE_ERROR_TYPE) {
-			ret = new CErrorValue(val->GetText() + op2str(op) + GetText());
-		}
-		else {
-			ret = new CStringValue(val->GetText() + GetText(), "");
-		}
-	}
-	else {
-		if (dtype == VALUE_STRING_TYPE || dtype == VALUE_EMPTY_TYPE) {
-			switch (op) {
-				case VALUE_EQL_OPERATOR:
-				{
-					ret = new CBoolValue(val->GetText() == GetText());
-					break;
-				}
-				case VALUE_NEQ_OPERATOR:
-				{
-					ret = new CBoolValue(val->GetText() != GetText());
-					break;
-				}
-				case VALUE_GRE_OPERATOR:
-				{
-					ret = new CBoolValue(val->GetText() > GetText());
-					break;
-				}
-				case VALUE_LES_OPERATOR:
-				{
-					ret = new CBoolValue(val->GetText() < GetText());
-					break;
-				}
-				case VALUE_GEQ_OPERATOR:
-				{
-					ret = new CBoolValue(val->GetText() >= GetText());
-					break;
-				}
-				case VALUE_LEQ_OPERATOR:
-				{
-					ret = new CBoolValue(val->GetText() <= GetText());
-					break;
-				}
-				default:
-				{
-					ret =  new CErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
-					break;
-				}
-			}
-		}
-		else {
-			ret =  new CErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
-		}
-	}
-	return ret;
+  if (op == VALUE_ADD_OPERATOR) {
+    if (dtype == VALUE_ERROR_TYPE) {
+      ret = new CErrorValue(val->GetText() + op2str(op) + GetText());
+    }
+    else {
+      ret = new CStringValue(val->GetText() + GetText(), "");
+    }
+  }
+  else {
+    if (dtype == VALUE_STRING_TYPE || dtype == VALUE_EMPTY_TYPE) {
+      switch (op) {
+        case VALUE_EQL_OPERATOR: {
+          ret = new CBoolValue(val->GetText() == GetText());
+          break;
+        }
+        case VALUE_NEQ_OPERATOR: {
+          ret = new CBoolValue(val->GetText() != GetText());
+          break;
+        }
+        case VALUE_GRE_OPERATOR: {
+          ret = new CBoolValue(val->GetText() > GetText());
+          break;
+        }
+        case VALUE_LES_OPERATOR: {
+          ret = new CBoolValue(val->GetText() < GetText());
+          break;
+        }
+        case VALUE_GEQ_OPERATOR: {
+          ret = new CBoolValue(val->GetText() >= GetText());
+          break;
+        }
+        case VALUE_LEQ_OPERATOR: {
+          ret = new CBoolValue(val->GetText() <= GetText());
+          break;
+        }
+        default: {
+          ret = new CErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
+          break;
+        }
+      }
+    }
+    else {
+      ret = new CErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
+    }
+  }
+  return ret;
 }
 
 void CStringValue::SetValue(CValue *newval)
 {
-	m_strString = newval->GetText();
+  m_strString = newval->GetText();
 }
 
 double CStringValue::GetNumber()
 {
-	return -1;
+  return -1;
 }
 
 int CStringValue::GetValueType()
 {
-	return VALUE_STRING_TYPE;
+  return VALUE_STRING_TYPE;
 }
 
 std::string CStringValue::GetText()
 {
-	return m_strString;
+  return m_strString;
 }
 
-bool CStringValue::IsEqual(const std::string & other)
+bool CStringValue::IsEqual(const std::string &other)
 {
-	return (m_strString == other);
+  return (m_strString == other);
 }
 
 CValue *CStringValue::GetReplica()
 {
-	CStringValue *replica = new CStringValue(*this);
-	replica->ProcessReplica();
-	return replica;
+  CStringValue *replica = new CStringValue(*this);
+  replica->ProcessReplica();
+  return replica;
 }

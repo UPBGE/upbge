@@ -52,63 +52,63 @@
 
 static int object_lod_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *ob = ED_object_context(C);
+  Object *ob = ED_object_context(C);
 
 #ifdef WITH_GAMEENGINE
-	BKE_object_lod_add(ob);
+  BKE_object_lod_add(ob);
 #else
-	(void)ob;
+  (void)ob;
 #endif
 
-	return OPERATOR_FINISHED;
+  return OPERATOR_FINISHED;
 }
 
 void OBJECT_OT_lod_add(wmOperatorType *ot)
 {
-	/* identifiers */
-	ot->name = "Add Level of Detail";
-	ot->description = "Add a level of detail to this object";
-	ot->idname = "OBJECT_OT_lod_add";
+  /* identifiers */
+  ot->name = "Add Level of Detail";
+  ot->description = "Add a level of detail to this object";
+  ot->idname = "OBJECT_OT_lod_add";
 
-	/* api callbacks */
-	ot->exec = object_lod_add_exec;
-	ot->poll = ED_operator_object_active;
+  /* api callbacks */
+  ot->exec = object_lod_add_exec;
+  ot->poll = ED_operator_object_active;
 
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 static int object_lod_remove_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = ED_object_context(C);
-	int index = RNA_int_get(op->ptr, "index");
+  Object *ob = ED_object_context(C);
+  int index = RNA_int_get(op->ptr, "index");
 
 #ifdef WITH_GAMEENGINE
-	if (!BKE_object_lod_remove(ob, index))
-		return OPERATOR_CANCELLED;
+  if (!BKE_object_lod_remove(ob, index))
+    return OPERATOR_CANCELLED;
 #else
-	(void)ob;
-	(void)index;
+  (void)ob;
+  (void)index;
 #endif
 
-	WM_event_add_notifier(C, NC_OBJECT | ND_LOD, CTX_wm_view3d(C));
-	return OPERATOR_FINISHED;
+  WM_event_add_notifier(C, NC_OBJECT | ND_LOD, CTX_wm_view3d(C));
+  return OPERATOR_FINISHED;
 }
 
 void OBJECT_OT_lod_remove(wmOperatorType *ot)
 {
-	/* identifiers */
-	ot->name = "Remove Level of Detail";
-	ot->description = "Remove a level of detail from this object";
-	ot->idname = "OBJECT_OT_lod_remove";
+  /* identifiers */
+  ot->name = "Remove Level of Detail";
+  ot->description = "Remove a level of detail from this object";
+  ot->idname = "OBJECT_OT_lod_remove";
 
-	/* api callbacks */
-	ot->exec = object_lod_remove_exec;
-	ot->poll = ED_operator_object_active;
+  /* api callbacks */
+  ot->exec = object_lod_remove_exec;
+  ot->poll = ED_operator_object_active;
 
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	/* properties */
-	ot->prop = RNA_def_int(ot->srna, "index", 1, 1, INT_MAX, "Index", "", 1, INT_MAX);
+  /* properties */
+  ot->prop = RNA_def_int(ot->srna, "index", 1, 1, INT_MAX, "Index", "", 1, INT_MAX);
 }

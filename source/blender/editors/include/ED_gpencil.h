@@ -24,6 +24,10 @@
 #ifndef __ED_GPENCIL_H__
 #define __ED_GPENCIL_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ID;
 struct ListBase;
 struct PointerRNA;
@@ -116,8 +120,6 @@ struct bGPdata *ED_annotation_data_get_active_direct(struct ID *screen_id,
 bool ED_gpencil_data_owner_is_annotation(struct PointerRNA *owner_ptr);
 
 /* 3D View */
-struct bGPdata *ED_gpencil_data_get_active_v3d(struct ViewLayer *view_layer, struct View3D *v3d);
-
 bool ED_gpencil_has_keyframe_v3d(struct Scene *scene, struct Object *ob, int cfra);
 
 /* ----------- Stroke Editing Utilities ---------------- */
@@ -303,5 +305,9 @@ struct tGPspoint *ED_gpencil_sbuffer_ensure(struct tGPspoint *buffer_array,
                                             const bool clear);
 /* Tag all scene grease pencil object to update. */
 void ED_gpencil_tag_scene_gpencil(struct Scene *scene);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /*  __ED_GPENCIL_H__ */

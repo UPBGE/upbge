@@ -30,101 +30,86 @@
  *  \ingroup ketsji
  */
 
-
 #include "SCA_StateActuator.h"
 #include "KX_GameObject.h"
 
-SCA_StateActuator::SCA_StateActuator(
-	SCA_IObject* gameobj,
-	int operation,
-	unsigned int mask
-	) 
-	: SCA_IActuator(gameobj, KX_ACT_STATE),
-	  m_operation(operation),
-	  m_mask(mask)
+SCA_StateActuator::SCA_StateActuator(SCA_IObject *gameobj, int operation, unsigned int mask)
+    : SCA_IActuator(gameobj, KX_ACT_STATE), m_operation(operation), m_mask(mask)
 {
-	// intentionally empty
+  // intentionally empty
 }
 
-SCA_StateActuator::~SCA_StateActuator(
-	void
-	)
+SCA_StateActuator::~SCA_StateActuator(void)
 {
-	// intentionally empty
+  // intentionally empty
 }
 
 // used to put state actuator to be executed before any other actuators
 SG_QList SCA_StateActuator::m_stateActuatorHead;
 
-CValue*
-SCA_StateActuator::GetReplica(
-	void
-	)
+CValue *SCA_StateActuator::GetReplica(void)
 {
-	SCA_StateActuator* replica = new SCA_StateActuator(*this);
-	replica->ProcessReplica();
-	return replica;
+  SCA_StateActuator *replica = new SCA_StateActuator(*this);
+  replica->ProcessReplica();
+  return replica;
 }
 
-bool
-SCA_StateActuator::Update()
+bool SCA_StateActuator::Update()
 {
-	bool bNegativeEvent = IsNegativeEvent();
-	unsigned int objMask;
+  bool bNegativeEvent = IsNegativeEvent();
+  unsigned int objMask;
 
-	// execution of state actuator means that we are in the execution phase, reset this pointer
-	// because all the active actuator of this object will be removed for sure.
-	m_gameobj->m_firstState = nullptr;
-	RemoveAllEvents();
-	if (bNegativeEvent) return false;
+  // execution of state actuator means that we are in the execution phase, reset this pointer
+  // because all the active actuator of this object will be removed for sure.
+  m_gameobj->m_firstState = nullptr;
+  RemoveAllEvents();
+  if (bNegativeEvent)
+    return false;
 
-	KX_GameObject *obj = (KX_GameObject*) GetParent();
-	
-	objMask = obj->GetState();
-	switch (m_operation) 
-	{
-	case OP_CPY:
-		objMask = m_mask;
-		break;
-	case OP_SET:
-		objMask |= m_mask;
-		break;
-	case OP_CLR:
-		objMask &= ~m_mask;
-		break;
-	case OP_NEG:
-		objMask ^= m_mask;
-		break;
-	default:
-		// unsupported operation, no  nothing
-		return false;
-	}
-	obj->SetState(objMask);
-	return false;
+  KX_GameObject *obj = (KX_GameObject *)GetParent();
+
+  objMask = obj->GetState();
+  switch (m_operation) {
+    case OP_CPY:
+      objMask = m_mask;
+      break;
+    case OP_SET:
+      objMask |= m_mask;
+      break;
+    case OP_CLR:
+      objMask &= ~m_mask;
+      break;
+    case OP_NEG:
+      objMask ^= m_mask;
+      break;
+    default:
+      // unsupported operation, no  nothing
+      return false;
+  }
+  obj->SetState(objMask);
+  return false;
 }
 
 // this function is only used to deactivate actuators outside the logic loop
 // e.g. when an object is deleted.
 void SCA_StateActuator::Deactivate()
 {
-	if (QDelink())
-	{
-		// the actuator was in the active list
-		if (m_stateActuatorHead.QEmpty())
-			// no more state object active
-			m_stateActuatorHead.Delink();
-	}
+  if (QDelink()) {
+    // the actuator was in the active list
+    if (m_stateActuatorHead.QEmpty())
+      // no more state object active
+      m_stateActuatorHead.Delink();
+  }
 }
 
-void SCA_StateActuator::Activate(SG_DList& head)
+void SCA_StateActuator::Activate(SG_DList &head)
 {
-	// sort the state actuators per object on the global list
-	if (QEmpty())
-	{
-		InsertSelfActiveQList(m_stateActuatorHead, &m_gameobj->m_firstState);
-		// add front to make sure it runs before other actuators
-		head.AddFront(&m_stateActuatorHead);
-	}
+  // sort the state actuators per object on the global list
+  if (QEmpty()) {
+    InsertSelfActiveQList(m_stateActuatorHead, &m_gameobj->m_firstState);
+    // add front to make sure it runs before other actuators
+    head.AddFront(&m_stateActuatorHead);
+  }
 }
 
 #ifdef WITH_PYTHON
@@ -133,39 +118,58 @@ void SCA_StateActuator::Activate(SG_DList& head)
 /* Python functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-
-
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject SCA_StateActuator::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_StateActuator",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+PyTypeObject SCA_StateActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_StateActuator",
+                                        sizeof(PyObjectPlus_Proxy),
+                                        0,
+                                        py_base_dealloc,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        py_base_repr,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        Methods,
+                                        0,
+                                        0,
+                                        &SCA_IActuator::Type,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        py_base_new};
 
 PyMethodDef SCA_StateActuator::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_StateActuator::Attributes[] = {
-	KX_PYATTRIBUTE_INT_RW("operation",SCA_StateActuator::OP_NOP+1,SCA_StateActuator::OP_COUNT-1,false,SCA_StateActuator,m_operation),
-	KX_PYATTRIBUTE_INT_RW("mask",0,0x3FFFFFFF,false,SCA_StateActuator,m_mask),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    KX_PYATTRIBUTE_INT_RW("operation",
+                          SCA_StateActuator::OP_NOP + 1,
+                          SCA_StateActuator::OP_COUNT - 1,
+                          false,
+                          SCA_StateActuator,
+                          m_operation),
+    KX_PYATTRIBUTE_INT_RW("mask", 0, 0x3FFFFFFF, false, SCA_StateActuator, m_mask),
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON

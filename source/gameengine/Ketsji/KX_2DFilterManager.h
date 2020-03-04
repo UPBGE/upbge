@@ -21,8 +21,8 @@
  */
 
 /** \file KX_2DFilterManager.h
-*  \ingroup ketsji
-*/
+ *  \ingroup ketsji
+ */
 
 #ifndef __KX_2DFILTER_MANAGER_H__
 #define __KX_2DFILTER_MANAGER_H__
@@ -30,23 +30,20 @@
 #include "RAS_2DFilterManager.h"
 #include "EXP_PyObjectPlus.h"
 
-class KX_2DFilterManager : public RAS_2DFilterManager, public PyObjectPlus
-{
-	Py_Header
-public:
-	KX_2DFilterManager();
-	virtual ~KX_2DFilterManager();
+class KX_2DFilterManager : public RAS_2DFilterManager, public PyObjectPlus {
+  Py_Header public : KX_2DFilterManager();
+  virtual ~KX_2DFilterManager();
 
-	virtual RAS_2DFilter *NewFilter(RAS_2DFilterData& filterData);
+  virtual RAS_2DFilter *NewFilter(RAS_2DFilterData &filterData);
 
 #ifdef WITH_PYTHON
 
-	KX_PYMETHOD_DOC(KX_2DFilterManager, getFilter);
-	KX_PYMETHOD_DOC(KX_2DFilterManager, addFilter);
-	KX_PYMETHOD_DOC(KX_2DFilterManager, removeFilter);
-	KX_PYMETHOD_DOC(KX_2DFilterManager, createOffScreen);
+  KX_PYMETHOD_DOC(KX_2DFilterManager, getFilter);
+  KX_PYMETHOD_DOC(KX_2DFilterManager, addFilter);
+  KX_PYMETHOD_DOC(KX_2DFilterManager, removeFilter);
+  KX_PYMETHOD_DOC(KX_2DFilterManager, createOffScreen);
 
 #endif  // WITH_PYTHON
 };
 
-#endif // __KX_2DFILTER_MANAGER_H__
+#endif  // __KX_2DFILTER_MANAGER_H__

@@ -205,6 +205,8 @@ void BKE_curve_copy_data(Main *bmain, Curve *cu_dst, const Curve *cu_src, const 
 
   if (cu_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
     BKE_id_copy_ex(bmain, &cu_src->key->id, (ID **)&cu_dst->key, flag);
+    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
+    cu_dst->key->from = &cu_dst->id;
   }
 
   cu_dst->editnurb = NULL;
@@ -218,9 +220,9 @@ Curve *BKE_curve_copy(Main *bmain, const Curve *cu)
   return cu_copy;
 }
 
-void BKE_curve_make_local(Main *bmain, Curve *cu, const bool lib_local)
+void BKE_curve_make_local(Main *bmain, Curve *cu, const int flags)
 {
-  BKE_id_make_local_generic(bmain, &cu->id, true, lib_local);
+  BKE_lib_id_make_local_generic(bmain, &cu->id, flags);
 }
 
 /* Get list of nurbs from editnurbs structure */

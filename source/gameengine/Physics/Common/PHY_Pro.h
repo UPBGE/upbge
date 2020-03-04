@@ -36,29 +36,31 @@
 
 // Properties of dynamic objects
 struct PHY_ShapeProps {
-	MT_Scalar m_mass; // Total mass
-	MT_Scalar m_inertia; // Inertia, should be a tensor some time
-	MT_Scalar m_lin_drag; // Linear drag (air, water) 0 = concrete, 1 = vacuum, inverted and called dampening in blenders UI
-	MT_Scalar m_ang_drag; // Angular drag, inverted and called dampening in blenders UI
-	MT_Vector3 m_friction_scaling; // Scaling for anisotropic friction. Component in range [0, 1]
-	MT_Scalar m_clamp_vel_min; // Clamp the minimum velocity, this ensures an object moves at a minimum speed unless its stationary
-	MT_Scalar m_clamp_vel_max; // Clamp max velocity
-	MT_Scalar m_clamp_angvel_min; // Clamp the minimum angular velocity.
-	MT_Scalar m_clamp_angvel_max; // Clamp the maximum angular velocity.
-	bool m_do_anisotropic; // Should I do anisotropic friction?
-	bool m_do_fh; // Should the object have a linear Fh spring?
-	bool m_do_rot_fh; // Should the object have an angular Fh spring?
-	MT_Scalar m_restitution; // restitution of energie after a collision 0 = inelastic, 1 = elastic
-	MT_Scalar m_friction; // Coulomb friction (= ratio between the normal en maximum friction force)
-	MT_Scalar m_rollingFriction; // Friction used for rounded shapes.
-	MT_Scalar m_fh_spring; // Spring constant (both linear and angular)
-	MT_Scalar m_fh_damping; // Damping factor (linear and angular) in range [0, 1]
-	MT_Scalar m_fh_distance; // The range above the surface where Fh is active.
-	bool m_fh_normal; // Should the object slide off slopes?
-	MT_Scalar m_step_height; // Max height of climbable steps (Character)
-	MT_Scalar m_jump_speed; // Velocity of jumps (Character)
-	MT_Scalar m_fall_speed; // Max velocity of falling (Character)
-	unsigned char m_max_jumps; // Max ammount of jumps (Character)
+  MT_Scalar m_mass;      // Total mass
+  MT_Scalar m_inertia;   // Inertia, should be a tensor some time
+  MT_Scalar m_lin_drag;  // Linear drag (air, water) 0 = concrete, 1 = vacuum, inverted and called
+                         // dampening in blenders UI
+  MT_Scalar m_ang_drag;  // Angular drag, inverted and called dampening in blenders UI
+  MT_Vector3 m_friction_scaling;  // Scaling for anisotropic friction. Component in range [0, 1]
+  MT_Scalar m_clamp_vel_min;      // Clamp the minimum velocity, this ensures an object moves at a
+                                  // minimum speed unless its stationary
+  MT_Scalar m_clamp_vel_max;      // Clamp max velocity
+  MT_Scalar m_clamp_angvel_min;   // Clamp the minimum angular velocity.
+  MT_Scalar m_clamp_angvel_max;   // Clamp the maximum angular velocity.
+  bool m_do_anisotropic;          // Should I do anisotropic friction?
+  bool m_do_fh;                   // Should the object have a linear Fh spring?
+  bool m_do_rot_fh;               // Should the object have an angular Fh spring?
+  MT_Scalar m_restitution;  // restitution of energie after a collision 0 = inelastic, 1 = elastic
+  MT_Scalar m_friction;  // Coulomb friction (= ratio between the normal en maximum friction force)
+  MT_Scalar m_rollingFriction;  // Friction used for rounded shapes.
+  MT_Scalar m_fh_spring;        // Spring constant (both linear and angular)
+  MT_Scalar m_fh_damping;       // Damping factor (linear and angular) in range [0, 1]
+  MT_Scalar m_fh_distance;      // The range above the surface where Fh is active.
+  bool m_fh_normal;             // Should the object slide off slopes?
+  MT_Scalar m_step_height;      // Max height of climbable steps (Character)
+  MT_Scalar m_jump_speed;       // Velocity of jumps (Character)
+  MT_Scalar m_fall_speed;       // Max velocity of falling (Character)
+  unsigned char m_max_jumps;    // Max ammount of jumps (Character)
 };
 
-#endif  /* __PHY_PRO_H__ */
+#endif /* __PHY_PRO_H__ */

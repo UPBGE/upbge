@@ -29,25 +29,24 @@
 
 #include "EXP_PyObjectPlus.h"
 
-class SCA_PythonKeyboard : public PyObjectPlus
-{
-	Py_Header
-private:
-	class SCA_IInputDevice *m_keyboard;
+class SCA_PythonKeyboard : public PyObjectPlus {
+  Py_Header private : class SCA_IInputDevice *m_keyboard;
 #ifdef WITH_PYTHON
-	PyObject *m_event_dict;
+  PyObject *m_event_dict;
 #endif
-public:
-	SCA_PythonKeyboard(class SCA_IInputDevice* keyboard);
-	virtual ~SCA_PythonKeyboard();
+ public:
+  SCA_PythonKeyboard(class SCA_IInputDevice *keyboard);
+  virtual ~SCA_PythonKeyboard();
 
 #ifdef WITH_PYTHON
-	static PyObject*	pyattr_get_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_active_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_active_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_active_events(PyObjectPlus *self_v,
+                                            const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_active_inputs(PyObjectPlus *self_v,
+                                            const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 
-#endif  /* __SCA_PYTHONKEYBOARD_H__ */
+#endif /* __SCA_PYTHONKEYBOARD_H__ */

@@ -39,85 +39,85 @@ class BL_Action;
 /**
  * BL_ActionManager is responsible for handling a KX_GameObject's actions.
  */
-class BL_ActionManager
-{
-private:
-	typedef std::map<short,BL_Action*> BL_ActionMap;
+class BL_ActionManager {
+ private:
+  typedef std::map<short, BL_Action *> BL_ActionMap;
 
-	class KX_GameObject* m_obj;
-	BL_ActionMap 		 m_layers;
+  class KX_GameObject *m_obj;
+  BL_ActionMap m_layers;
 
-	/**
-	 * Check if an action exists
-	 */
-	BL_Action* GetAction(short layer);
+  /**
+   * Check if an action exists
+   */
+  BL_Action *GetAction(short layer);
 
-public:
-	BL_ActionManager(class KX_GameObject* obj);
-	~BL_ActionManager();
+ public:
+  BL_ActionManager(class KX_GameObject *obj);
+  ~BL_ActionManager();
 
-	bool PlayAction(const std::string& name,
-					float start,
-					float end,
-					short layer=0,
-					short priority=0,
-					float blendin=0.f,
-					short play_mode=0,
-					float layer_weight=0.f,
-					short ipo_flags=0,
-					float playback_speed=1.f,
-					short blend_mode=0);
-	/**
-	 * Gets the current frame of an action
-	 */
-	float GetActionFrame(short layer);
+  bool PlayAction(const std::string &name,
+                  float start,
+                  float end,
+                  short layer = 0,
+                  short priority = 0,
+                  float blendin = 0.f,
+                  short play_mode = 0,
+                  float layer_weight = 0.f,
+                  short ipo_flags = 0,
+                  float playback_speed = 1.f,
+                  short blend_mode = 0);
+  /**
+   * Gets the current frame of an action
+   */
+  float GetActionFrame(short layer);
 
-	/**
-	 * Gets the name of the current action
-	 */        
-	const std::string GetActionName(short layer);
+  /**
+   * Gets the name of the current action
+   */
+  const std::string GetActionName(short layer);
 
-	/**
-	 * Sets the current frame of an action
-	 */
-	void SetActionFrame(short layer, float frame);
-	
-	/**
-	 * Gets the currently running action on the given layer
-	 */
-	struct bAction *GetCurrentAction(short layer);
+  /**
+   * Sets the current frame of an action
+   */
+  void SetActionFrame(short layer, float frame);
 
-	/**
-	 * Sets play mode of the action on the given layer
-	 */
-	void SetPlayMode(short layer, short mode);
+  /**
+   * Gets the currently running action on the given layer
+   */
+  struct bAction *GetCurrentAction(short layer);
 
-	/**
-	 * Stop playing the action on the given layer
-	 */
-	void StopAction(short layer);
+  /**
+   * Sets play mode of the action on the given layer
+   */
+  void SetPlayMode(short layer, short mode);
 
-	/**
-	 * Remove playing tagged actions.
-	 */
-	void RemoveTaggedActions();
+  /**
+   * Stop playing the action on the given layer
+   */
+  void StopAction(short layer);
 
-	/**
-	 * Check if an action has finished playing
-	 */
-	bool IsActionDone(short layer);
+  /**
+   * Remove playing tagged actions.
+   */
+  void RemoveTaggedActions();
 
-	/**
-	 * Update any running actions
-	 * \param curtime The current time used to compute the actions' frame.
-	 * \param applyToObject Set to true if the actions must transform the object, else it only manages actions' frames.
-	 */
-	void Update(float curtime, bool applyToObject);
+  /**
+   * Check if an action has finished playing
+   */
+  bool IsActionDone(short layer);
 
-	/**
-	 * Update object IPOs (note: not thread-safe!)
-	 */
-	void UpdateIPOs();
+  /**
+   * Update any running actions
+   * \param curtime The current time used to compute the actions' frame.
+   * \param applyToObject Set to true if the actions must transform the object, else it only
+   * manages actions' frames.
+   */
+  void Update(float curtime, bool applyToObject);
+
+  /**
+   * Update object IPOs (note: not thread-safe!)
+   */
+  void UpdateIPOs();
 };
 
-#endif  /* BL_ACTIONMANAGER */
+#endif /* BL_ACTIONMANAGER */

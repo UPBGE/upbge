@@ -505,9 +505,9 @@ static void bvhtree_from_mesh_verts_setup_data(BVHTreeFromMesh *data,
   data->nearest_callback = NULL;
   data->raycast_callback = mesh_verts_spherecast;
 
-	data->vert = vert;
-	data->vert_allocated = vert_allocated;
-	//data->face = DM_get_tessface_array(dm, &data->face_allocated);  /* XXX WHY???? */
+  data->vert = vert;
+  data->vert_allocated = vert_allocated;
+  // data->face = DM_get_tessface_array(dm, &data->face_allocated);  /* XXX WHY???? */
 }
 
 /* Builds a bvh tree where nodes are the vertices of the given em */

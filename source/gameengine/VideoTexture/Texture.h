@@ -45,69 +45,75 @@ class KX_Scene;
 class KX_GameObject;
 
 // type Texture declaration
-class Texture : public CValue
-{
-	Py_Header
-protected:
-	virtual void DestructFromPython();
+class Texture : public CValue {
+  Py_Header protected : virtual void DestructFromPython();
 
-public:
-	// texture is using blender material
-	bool m_useMatTexture;
+ public:
+  // texture is using blender material
+  bool m_useMatTexture;
 
-	// video texture bind code
-	unsigned int m_actTex;
-	// original texture bind code
-	unsigned int m_orgTex;
-	// original image bind code
-	unsigned int m_orgImg;
-	// original texture saved
-	bool m_orgSaved;
+  // video texture bind code
+  unsigned int m_actTex;
+  // original texture bind code
+  unsigned int m_orgTex;
+  // original image bind code
+  unsigned int m_orgImg;
+  // original texture saved
+  bool m_orgSaved;
 
-	// kernel image buffer, to make sure the image is loaded before we swap the bindcode
-	struct ImBuf *m_imgBuf;
-	// texture image for game materials
-	Image * m_imgTexture;
-	// texture for blender materials
-	RAS_Texture * m_matTexture;
+  // kernel image buffer, to make sure the image is loaded before we swap the bindcode
+  struct ImBuf *m_imgBuf;
+  // texture image for game materials
+  Image *m_imgTexture;
+  // texture for blender materials
+  RAS_Texture *m_matTexture;
 
-	KX_Scene *m_scene;
+  KX_Scene *m_scene;
 
-	// use mipmapping
-	bool m_mipmap;
+  // use mipmapping
+  bool m_mipmap;
 
-	// scaled image buffer
-	ImBuf * m_scaledImBuf;
-	// last refresh
-	double m_lastClock;
+  // scaled image buffer
+  ImBuf *m_scaledImBuf;
+  // last refresh
+  double m_lastClock;
 
-	// image source
-	PyImage * m_source;
+  // image source
+  PyImage *m_source;
 
-	Texture();
-	virtual ~Texture();
+  Texture();
+  virtual ~Texture();
 
-	virtual std::string GetName();
+  virtual std::string GetName();
 
-	void Close();
-	void SetSource(PyImage *source);
+  void Close();
+  void SetSource(PyImage *source);
 
-	static void FreeAllTextures(KX_Scene *scene);
+  static void FreeAllTextures(KX_Scene *scene);
 
-	KX_PYMETHOD_DOC(Texture, close);
-	KX_PYMETHOD_DOC(Texture, refresh);
+  KX_PYMETHOD_DOC(Texture, close);
+  KX_PYMETHOD_DOC(Texture, refresh);
 
-	static PyObject *pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_bindId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_bindId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  static PyObject *pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_mipmap(PyObjectPlus *self_v,
+                               const KX_PYATTRIBUTE_DEF *attrdef,
+                               PyObject *value);
+  static PyObject *pyattr_get_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_source(PyObjectPlus *self_v,
+                               const KX_PYATTRIBUTE_DEF *attrdef,
+                               PyObject *value);
+  static PyObject *pyattr_get_bindId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_bindId(PyObjectPlus *self_v,
+                               const KX_PYATTRIBUTE_DEF *attrdef,
+                               PyObject *value);
 };
 
 // load texture
-void loadTexture(unsigned int texId, unsigned int *texture, short *size,
-				 bool mipmap, unsigned int internalFormat);
+void loadTexture(unsigned int texId,
+                 unsigned int *texture,
+                 short *size,
+                 bool mipmap,
+                 unsigned int internalFormat);
 
 // get material
 RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID);

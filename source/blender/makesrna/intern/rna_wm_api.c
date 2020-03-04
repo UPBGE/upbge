@@ -552,24 +552,24 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
   }
 
   if (!ELEM(value, KM_PRESS, KM_RELEASE, KM_NOTHING)) {
-    BKE_report(reports, RPT_ERROR, "value: only 'PRESS/RELEASE/NOTHING' are supported");
+    BKE_report(reports, RPT_ERROR, "Value: only 'PRESS/RELEASE/NOTHING' are supported");
     return NULL;
   }
   if (ISKEYBOARD(type) || ISMOUSE_BUTTON(type)) {
     if (!ELEM(value, KM_PRESS, KM_RELEASE)) {
-      BKE_report(reports, RPT_ERROR, "value: must be 'PRESS/RELEASE' for keyboard/buttons");
+      BKE_report(reports, RPT_ERROR, "Value: must be 'PRESS/RELEASE' for keyboard/buttons");
       return NULL;
     }
   }
   if (ELEM(type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
     if (value != KM_NOTHING) {
-      BKE_report(reports, RPT_ERROR, "value: must be 'NOTHING' for motion");
+      BKE_report(reports, RPT_ERROR, "Value: must be 'NOTHING' for motion");
       return NULL;
     }
   }
   if (unicode != NULL) {
     if (value != KM_PRESS) {
-      BKE_report(reports, RPT_ERROR, "value: must be 'PRESS' when unicode is set");
+      BKE_report(reports, RPT_ERROR, "Value: must be 'PRESS' when unicode is set");
       return NULL;
     }
   }
@@ -634,7 +634,6 @@ static void rna_generic_op_invoke(FunctionRNA *func, int flag)
 
   if (flag & WM_GEN_INVOKE_SIZE) {
     RNA_def_int(func, "width", 300, 0, INT_MAX, "", "Width of the popup", 0, INT_MAX);
-    RNA_def_int(func, "height", 20, 0, INT_MAX, "", "Height of the popup", 0, INT_MAX);
   }
 
   if (flag & WM_GEN_INVOKE_RETURN) {
@@ -874,6 +873,15 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_function_return(func, parm);
 
   RNA_def_function(srna, "print_undo_steps", "rna_WindowManager_print_undo_steps");
+
+  parm = RNA_def_property(srna, "is_interface_locked", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(
+      parm,
+      "Is Interface Locked",
+      "If true, the interface is currently locked by a running job and data shouldn't be modified "
+      "from application timers. Otherwise, the running job might conflict with the handler "
+      "causing unexpected results or even crashes");
+  RNA_def_property_clear_flag(parm, PROP_EDITABLE);
 }
 
 void RNA_api_operator(StructRNA *srna)

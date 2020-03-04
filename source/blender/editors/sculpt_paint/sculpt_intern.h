@@ -30,7 +30,9 @@
 
 #include "BLI_bitmap.h"
 #include "BLI_threads.h"
+#include "BLI_gsqueue.h"
 
+#include "BKE_paint.h"
 #include "BKE_pbvh.h"
 
 struct KeyBlock;
@@ -38,6 +40,8 @@ struct Object;
 struct SculptPoseIKChainSegment;
 struct SculptUndoNode;
 struct bContext;
+
+enum ePaintSymmetryFlags;
 
 bool sculpt_mode_poll(struct bContext *C);
 bool sculpt_mode_poll_view3d(struct bContext *C);
@@ -66,7 +70,155 @@ bool sculpt_cursor_geometry_info_update(bContext *C,
                                         const float mouse[2],
                                         bool use_sampled_normal);
 void sculpt_geometry_preview_lines_update(bContext *C, struct SculptSession *ss, float radius);
-void sculpt_pose_calc_pose_data(struct Sculpt *sd,
+
+/* Sculpt PBVH abstraction API */
+void sculpt_vertex_random_access_init(struct SculptSession *ss);
+
+int sculpt_vertex_count_get(struct SculptSession *ss);
+const float *sculpt_vertex_co_get(struct SculptSession *ss, int index);
+float sculpt_vertex_mask_get(struct SculptSession *ss, int index);
+
+#define SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY 256
+typedef struct SculptVertexNeighborIter {
+  /* Storage */
+  int *neighbors;
+  int size;
+  int capacity;
+  int neighbors_fixed[SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY];
+
+  /* Internal iterator. */
+  int num_duplicates;
+  int i;
+
+  /* Public */
+  int index;
+  bool is_duplicate;
+} SculptVertexNeighborIter;
+
+void sculpt_vertex_neighbors_get(struct SculptSession *ss,
+                                 const int index,
+                                 const bool include_duplicates,
+                                 SculptVertexNeighborIter *iter);
+
+/* Iterator over neighboring vertices. */
+#define sculpt_vertex_neighbors_iter_begin(ss, v_index, neighbor_iterator) \
+  sculpt_vertex_neighbors_get(ss, v_index, false, &neighbor_iterator); \
+  for (neighbor_iterator.i = 0; neighbor_iterator.i < neighbor_iterator.size; \
+       neighbor_iterator.i++) { \
+    neighbor_iterator.index = ni.neighbors[ni.i];
+
+/* Iterate over neighboring and duplicate vertices (for PBVH_GRIDS). Duplicates come
+ * first since they are nearest for floodfill. */
+#define sculpt_vertex_duplicates_and_neighbors_iter_begin(ss, v_index, neighbor_iterator) \
+  sculpt_vertex_neighbors_get(ss, v_index, true, &neighbor_iterator); \
+  for (neighbor_iterator.i = neighbor_iterator.size - 1; neighbor_iterator.i >= 0; \
+       neighbor_iterator.i--) { \
+    neighbor_iterator.index = ni.neighbors[ni.i]; \
+    neighbor_iterator.is_duplicate = (ni.i >= \
+                                      neighbor_iterator.size - neighbor_iterator.num_duplicates);
+
+#define sculpt_vertex_neighbors_iter_end(neighbor_iterator) \
+  } \
+  if (neighbor_iterator.neighbors != neighbor_iterator.neighbors_fixed) { \
+    MEM_freeN(neighbor_iterator.neighbors); \
+  } \
+  ((void)0)
+
+/* Sculpt Original Data */
+typedef struct {
+  struct BMLog *bm_log;
+
+  struct SculptUndoNode *unode;
+  float (*coords)[3];
+  short (*normals)[3];
+  const float *vmasks;
+
+  /* Original coordinate, normal, and mask. */
+  const float *co;
+  const short *no;
+  float mask;
+} SculptOrigVertData;
+
+void SCULPT_orig_vert_data_init(SculptOrigVertData *data, Object *ob, PBVHNode *node);
+void SCULPT_orig_vert_data_update(SculptOrigVertData *orig_data, PBVHVertexIter *iter);
+
+/* Dynamic topology */
+void sculpt_pbvh_clear(Object *ob);
+void sculpt_dyntopo_node_layers_add(struct SculptSession *ss);
+void sculpt_dynamic_topology_disable(bContext *C, struct SculptUndoNode *unode);
+
+/* Utils. */
+void SCULPT_calc_brush_plane(struct Sculpt *sd,
+                             struct Object *ob,
+                             struct PBVHNode **nodes,
+                             int totnode,
+                             float r_area_no[3],
+                             float r_area_co[3]);
+int SCULPT_nearest_vertex_get(struct Sculpt *sd,
+                              struct Object *ob,
+                              const float co[3],
+                              float max_distance,
+                              bool use_original);
+
+ePaintSymmetryAreas SCULPT_get_vertex_symm_area(const float co[3]);
+bool SCULPT_check_vertex_pivot_symmetry(const float vco[3], const float pco[3], const char symm);
+bool SCULPT_is_symmetry_iteration_valid(char i, char symm);
+void SCULPT_flip_v3_by_symm_area(float v[3],
+                                 const ePaintSymmetryFlags symm,
+                                 const ePaintSymmetryAreas symmarea,
+                                 const float pivot[3]);
+void SCULPT_flip_quat_by_symm_area(float quat[3],
+                                   const ePaintSymmetryFlags symm,
+                                   const ePaintSymmetryAreas symmarea,
+                                   const float pivot[3]);
+
+/* Flood Fill. */
+typedef struct {
+  GSQueue *queue;
+  char *visited_vertices;
+} SculptFloodFill;
+
+void SCULPT_floodfill_init(struct SculptSession *ss, SculptFloodFill *flood);
+void SCULPT_floodfill_add_active(struct Sculpt *sd,
+                                 struct Object *ob,
+                                 struct SculptSession *ss,
+                                 SculptFloodFill *flood,
+                                 float radius);
+void SCULPT_floodfill_execute(
+    struct SculptSession *ss,
+    SculptFloodFill *flood,
+    bool (*func)(SculptSession *ss, int from_v, int to_v, bool is_duplicate, void *userdata),
+    void *userdata);
+void SCULPT_floodfill_free(SculptFloodFill *flood);
+
+/* Brushes. */
+
+/* Cloth Brush. */
+void SCULPT_do_cloth_brush(struct Sculpt *sd,
+                           struct Object *ob,
+                           struct PBVHNode **nodes,
+                           int totnode);
+void SCULPT_cloth_simulation_free(struct SculptClothSimulation *cloth_sim);
+
+void SCULPT_cloth_simulation_limits_draw(const uint gpuattr,
+                                         const struct Brush *brush,
+                                         const float obmat[4][4],
+                                         const float location[3],
+                                         const float normal[3],
+                                         const float rds,
+                                         const float line_width,
+                                         const float outline_col[3],
+                                         const float alpha);
+void SCULPT_cloth_plane_falloff_preview_draw(const uint gpuattr,
+                                             struct SculptSession *ss,
+                                             const float outline_col[3],
+                                             float outline_alpha);
+/* Pose Brush. */
+void SCULPT_do_pose_brush(struct Sculpt *sd,
+                          struct Object *ob,
+                          struct PBVHNode **nodes,
+                          int totnode);
+void SCULPT_pose_calc_pose_data(struct Sculpt *sd,
                                 struct Object *ob,
                                 struct SculptSession *ss,
                                 float initial_location[3],
@@ -74,23 +226,18 @@ void sculpt_pose_calc_pose_data(struct Sculpt *sd,
                                 float pose_offset,
                                 float *r_pose_origin,
                                 float *r_pose_factor);
-
-struct SculptPoseIKChain *sculpt_pose_ik_chain_init(struct Sculpt *sd,
+void SCULPT_pose_brush_init(struct Sculpt *sd,
+                            struct Object *ob,
+                            struct SculptSession *ss,
+                            struct Brush *br);
+struct SculptPoseIKChain *SCULPT_pose_ik_chain_init(struct Sculpt *sd,
                                                     struct Object *ob,
                                                     struct SculptSession *ss,
                                                     struct Brush *br,
                                                     const float initial_location[3],
                                                     const float radius);
 
-void sculpt_pose_ik_chain_free(struct SculptPoseIKChain *ik_chain);
-
-/* Sculpt PBVH abstraction API */
-const float *sculpt_vertex_co_get(struct SculptSession *ss, int index);
-
-/* Dynamic topology */
-void sculpt_pbvh_clear(Object *ob);
-void sculpt_dyntopo_node_layers_add(struct SculptSession *ss);
-void sculpt_dynamic_topology_disable(bContext *C, struct SculptUndoNode *unode);
+void SCULPT_pose_ik_chain_free(struct SculptPoseIKChain *ik_chain);
 
 /* Undo */
 
@@ -202,6 +349,10 @@ typedef struct SculptThreadedTaskData {
   float (*mat)[4];
   float (*vertCos)[3];
 
+  /* X and Z vectors aligned to the stroke direction for operations where perpendicular vectors to
+   * the stroke direction are needed. */
+  float (*stroke_xz)[3];
+
   int filter_type;
   float filter_strength;
 
@@ -237,6 +388,8 @@ typedef struct SculptThreadedTaskData {
   bool mask_expand_keep_prev_mask;
 
   float transform_mats[8][4][4];
+
+  float cloth_time_step;
 
   float dirty_mask_min;
   float dirty_mask_max;
@@ -412,6 +565,13 @@ typedef struct StrokeCache {
   float clay_pressure_stabilizer[CLAY_STABILIZER_LEN];
   int clay_pressure_stabilizer_index;
 
+  /* Cloth brush */
+  struct SculptClothSimulation *cloth_sim;
+  float initial_location[3];
+  float true_initial_location[3];
+  float initial_normal[3];
+  float true_initial_normal[3];
+
   float vertex_rotation; /* amount to rotate the vertices when using rotate brush */
   struct Dial *dial;
 
@@ -429,7 +589,7 @@ typedef struct StrokeCache {
   float *automask;
 
   float stroke_local_mat[4][4];
-  float multiplane_scrape_sampled_angle;
+  float multiplane_scrape_angle;
 
   rcti previous_r; /* previous redraw rectangle */
   rcti current_r;  /* current redraw rectangle */

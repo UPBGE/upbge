@@ -32,7 +32,6 @@
  *  \ingroup ketsji
  */
 
-
 #include "SCA_IActuator.h"
 #include "SCA_GameActuator.h"
 //#include <iostream>
@@ -47,121 +46,103 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_GameActuator::SCA_GameActuator(SCA_IObject *gameobj, 
-								   int mode,
-								   const std::string& filename,
-								   const std::string& loadinganimationname,
-								   SCA_IScene* scene,
-								   KX_KetsjiEngine* ketsjiengine)
-								   : SCA_IActuator(gameobj, KX_ACT_GAME)
+SCA_GameActuator::SCA_GameActuator(SCA_IObject *gameobj,
+                                   int mode,
+                                   const std::string &filename,
+                                   const std::string &loadinganimationname,
+                                   SCA_IScene *scene,
+                                   KX_KetsjiEngine *ketsjiengine)
+    : SCA_IActuator(gameobj, KX_ACT_GAME)
 {
-	m_mode = mode;
-	m_filename = filename;
-	m_loadinganimationname = loadinganimationname;
-	m_scene = scene;
-	m_ketsjiengine = ketsjiengine;
+  m_mode = mode;
+  m_filename = filename;
+  m_loadinganimationname = loadinganimationname;
+  m_scene = scene;
+  m_ketsjiengine = ketsjiengine;
 } /* End of constructor */
 
-
-
 SCA_GameActuator::~SCA_GameActuator()
-{ 
-	// there's nothing to be done here, really....
+{
+  // there's nothing to be done here, really....
 } /* end of destructor */
 
-
-
-CValue* SCA_GameActuator::GetReplica()
+CValue *SCA_GameActuator::GetReplica()
 {
-	SCA_GameActuator* replica = new SCA_GameActuator(*this);
-	replica->ProcessReplica();
-	
-	return replica;
+  SCA_GameActuator *replica = new SCA_GameActuator(*this);
+  replica->ProcessReplica();
+
+  return replica;
 }
-
-
 
 bool SCA_GameActuator::Update()
 {
-	// bool result = false;	 /*unused*/
-	bool bNegativeEvent = IsNegativeEvent();
-	RemoveAllEvents();
+  // bool result = false;	 /*unused*/
+  bool bNegativeEvent = IsNegativeEvent();
+  RemoveAllEvents();
 
-	if (bNegativeEvent)
-		return false; // do nothing on negative events
+  if (bNegativeEvent)
+    return false;  // do nothing on negative events
 
-	switch (m_mode)
-	{
-	case KX_GAME_LOAD:
-	case KX_GAME_START:
-		{
-			if (m_ketsjiengine)
-			{
-				std::string exitstring = "start other game";
-				m_ketsjiengine->RequestExit(KX_ExitRequest::START_OTHER_GAME);
-				m_ketsjiengine->SetNameNextGame(m_filename);
-				m_scene->AddDebugProperty((this)->GetParent(), exitstring);
-			}
+  switch (m_mode) {
+    case KX_GAME_LOAD:
+    case KX_GAME_START: {
+      if (m_ketsjiengine) {
+        std::string exitstring = "start other game";
+        m_ketsjiengine->RequestExit(KX_ExitRequest::START_OTHER_GAME);
+        m_ketsjiengine->SetNameNextGame(m_filename);
+        m_scene->AddDebugProperty((this)->GetParent(), exitstring);
+      }
 
-			break;
-		}
-	case KX_GAME_RESTART:
-		{
-			if (m_ketsjiengine)
-			{
-				std::string exitstring = "restarting game";
-				m_ketsjiengine->RequestExit(KX_ExitRequest::RESTART_GAME);
-				m_ketsjiengine->SetNameNextGame(m_filename);
-				m_scene->AddDebugProperty((this)->GetParent(), exitstring);
-			}
-			break;
-		}
-	case KX_GAME_QUIT:
-		{
-			if (m_ketsjiengine)
-			{
-				std::string exitstring = "quiting game";
-				m_ketsjiengine->RequestExit(KX_ExitRequest::QUIT_GAME);
-				m_scene->AddDebugProperty((this)->GetParent(), exitstring);
-			}
-			break;
-		}
-	case KX_GAME_SAVECFG:
-		{
+      break;
+    }
+    case KX_GAME_RESTART: {
+      if (m_ketsjiengine) {
+        std::string exitstring = "restarting game";
+        m_ketsjiengine->RequestExit(KX_ExitRequest::RESTART_GAME);
+        m_ketsjiengine->SetNameNextGame(m_filename);
+        m_scene->AddDebugProperty((this)->GetParent(), exitstring);
+      }
+      break;
+    }
+    case KX_GAME_QUIT: {
+      if (m_ketsjiengine) {
+        std::string exitstring = "quiting game";
+        m_ketsjiengine->RequestExit(KX_ExitRequest::QUIT_GAME);
+        m_scene->AddDebugProperty((this)->GetParent(), exitstring);
+      }
+      break;
+    }
+    case KX_GAME_SAVECFG: {
 #ifdef WITH_PYTHON
-			if (m_ketsjiengine) {
-				saveGamePythonConfig();
-			}
-			break;
-#endif // WITH_PYTHON
-		}
-	case KX_GAME_LOADCFG:
-		{
+      if (m_ketsjiengine) {
+        saveGamePythonConfig();
+      }
+      break;
+#endif  // WITH_PYTHON
+    }
+    case KX_GAME_LOADCFG: {
 #ifdef WITH_PYTHON
-			if (m_ketsjiengine) {
-				loadGamePythonConfig();
-			}
-			break;
-#endif // WITH_PYTHON
-		}
-		case KX_GAME_SCREENSHOT:
-		{
-			RAS_ICanvas *canvas = m_ketsjiengine->GetCanvas();
-			if (canvas) {
-				canvas->MakeScreenShot(m_filename);
-			}
-			else {
-				CM_LogicBrickError(this, "KX_GAME_SCREENSHOT Rasterizer not available");
-			}
-			break;
-		}
-	default:
-		; /* do nothing? this is an internal error !!! */
-	}
-	
-	return false;
+      if (m_ketsjiengine) {
+        loadGamePythonConfig();
+      }
+      break;
+#endif  // WITH_PYTHON
+    }
+    case KX_GAME_SCREENSHOT: {
+      RAS_ICanvas *canvas = m_ketsjiengine->GetCanvas();
+      if (canvas) {
+        canvas->MakeScreenShot(m_filename);
+      }
+      else {
+        CM_LogicBrickError(this, "KX_GAME_SCREENSHOT Rasterizer not available");
+      }
+      break;
+    }
+    default:; /* do nothing? this is an internal error !!! */
+  }
+
+  return false;
 }
-
 
 #ifdef WITH_PYTHON
 
@@ -170,37 +151,53 @@ bool SCA_GameActuator::Update()
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject SCA_GameActuator::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_GameActuator",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+PyTypeObject SCA_GameActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_GameActuator",
+                                       sizeof(PyObjectPlus_Proxy),
+                                       0,
+                                       py_base_dealloc,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       py_base_repr,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       Methods,
+                                       0,
+                                       0,
+                                       &SCA_IActuator::Type,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       py_base_new};
 
-PyMethodDef SCA_GameActuator::Methods[] =
-{
-	{nullptr,nullptr} //Sentinel
+PyMethodDef SCA_GameActuator::Methods[] = {
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_GameActuator::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("fileName",0,100,false,SCA_GameActuator,m_filename),
-	KX_PYATTRIBUTE_INT_RW("mode", KX_GAME_NODEF+1, KX_GAME_MAX-1, true, SCA_GameActuator, m_mode),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    KX_PYATTRIBUTE_STRING_RW("fileName", 0, 100, false, SCA_GameActuator, m_filename),
+    KX_PYATTRIBUTE_INT_RW(
+        "mode", KX_GAME_NODEF + 1, KX_GAME_MAX - 1, true, SCA_GameActuator, m_mode),
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON

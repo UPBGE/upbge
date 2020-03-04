@@ -428,8 +428,7 @@ static void OVERLAY_bounds(OVERLAY_ExtraCallBuffers *cb,
 }
 
 /* Game engine transition */
-static void OVERLAY_pivot(
-    OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
+static void OVERLAY_pivot(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
 {
   float color[4], tmp[4][4];
   UI_GetThemeColor4fv(theme_id, color);
@@ -1371,7 +1370,7 @@ static void OVERLAY_gpencil_color_names(Object *ob)
   int theme_id = DRW_object_wire_theme_get(ob, view_layer, NULL);
   uchar color[4];
   /* Color Management: Exception here as texts are drawn in sRGB space directly.  */
-  UI_GetThemeColor4ubv(theme_id, color);
+  UI_GetThemeColor3ubv(theme_id, color);
   color[3] = 255;
   struct DRWTextStore *dt = DRW_text_cache_ensure();
 

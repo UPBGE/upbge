@@ -526,7 +526,6 @@ const EnumPropertyItem rna_enum_bake_pass_filter_type_items[] = {
     {R_BAKE_PASS_FILTER_DIFFUSE, "DIFFUSE", 0, "Diffuse", ""},
     {R_BAKE_PASS_FILTER_GLOSSY, "GLOSSY", 0, "Glossy", ""},
     {R_BAKE_PASS_FILTER_TRANSM, "TRANSMISSION", 0, "Transmission", ""},
-    {R_BAKE_PASS_FILTER_SUBSURFACE, "SUBSURFACE", 0, "Subsurface", ""},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -1046,7 +1045,7 @@ static void rna_Scene_active_keying_set_set(PointerRNA *ptr,
 
 /* get KeyingSet index stuff for list of Keying Sets editing UI
  * - active_keyingset-1 since 0 is reserved for 'none'
- * - don't clamp, otherwise can never set builtins types as active...
+ * - don't clamp, otherwise can never set builtin's types as active...
  */
 static int rna_Scene_active_keying_set_index_get(PointerRNA *ptr)
 {
@@ -1652,6 +1651,20 @@ static void rna_Scene_world_update(Main *bmain, Scene *scene, PointerRNA *ptr)
   rna_Scene_glsl_update(bmain, scene, ptr);
   WM_main_add_notifier(NC_WORLD | ND_WORLD, &sc->id);
   DEG_relations_tag_update(bmain);
+}
+
+static void rna_Scene_mesh_quality_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
+{
+  Scene *scene = (Scene *)ptr->owner_id;
+
+  FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
+    if (ob->type == OB_MESH) {
+      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    }
+  }
+  FOREACH_SCENE_OBJECT_END;
+
+  rna_Scene_glsl_update(bmain, scene, ptr);
 }
 
 void rna_Scene_freestyle_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
@@ -3763,6 +3776,30 @@ static void rna_def_unit_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_WINDOW, NULL);
 }
 
+static void rna_def_view_layer_eevee(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+  srna = RNA_def_struct(brna, "ViewLayerEEVEE", NULL);
+  RNA_def_struct_ui_text(srna, "EEVEE Settings", "View layer settings for EEVEE");
+
+  prop = RNA_def_property(srna, "use_pass_volume_scatter", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "render_passes", EEVEE_RENDER_PASS_VOLUME_SCATTER);
+  RNA_def_property_ui_text(prop, "Volume Scatter", "Deliver volume scattering pass");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+
+  prop = RNA_def_property(srna, "use_pass_volume_transmittance", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, NULL, "render_passes", EEVEE_RENDER_PASS_VOLUME_TRANSMITTANCE);
+  RNA_def_property_ui_text(prop, "Volume Transmittance", "Deliver volume transmittance pass");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+
+  prop = RNA_def_property(srna, "use_pass_bloom", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "render_passes", EEVEE_RENDER_PASS_BLOOM);
+  RNA_def_property_ui_text(prop, "Bloom", "Deliver bloom pass");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+}
+
 void rna_def_view_layer_common(StructRNA *srna, const bool scene)
 {
   PropertyRNA *prop;
@@ -3808,6 +3845,11 @@ void rna_def_view_layer_common(StructRNA *srna, const bool scene)
         "Z, Index, normal, UV and vector passes are only affected by surfaces with "
         "alpha transparency equal to or higher than this threshold");
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+    prop = RNA_def_property(srna, "eevee", PROP_POINTER, PROP_NONE);
+    RNA_def_property_flag(prop, PROP_NEVER_NULL);
+    RNA_def_property_struct_type(prop, "ViewLayerEEVEE");
+    RNA_def_property_ui_text(prop, "EEVEE Settings", "View layer settings for EEVEE");
   }
 
   /* layer options */
@@ -4698,11 +4740,22 @@ static void rna_def_scene_game_recast_data(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem rna_enum_partitioning_items[] = {
-        {RC_PARTITION_WATERSHED, "WATERSHED", 0, "Watershed", "Classic Recast partitioning method generating the nicest tessellation"},
-        {RC_PARTITION_MONOTONE, "MONOTONE", 0, "Monotone", "Fastest navmesh generation method, may create long thin polygons"},
-        {RC_PARTITION_LAYERS, "LAYERS", 0, "Layers", "Reasonably fast method that produces better triangles than monotone partitioning"},
-        {0, NULL, 0, NULL, NULL}
-  };
+      {RC_PARTITION_WATERSHED,
+       "WATERSHED",
+       0,
+       "Watershed",
+       "Classic Recast partitioning method generating the nicest tessellation"},
+      {RC_PARTITION_MONOTONE,
+       "MONOTONE",
+       0,
+       "Monotone",
+       "Fastest navmesh generation method, may create long thin polygons"},
+      {RC_PARTITION_LAYERS,
+       "LAYERS",
+       0,
+       "Layers",
+       "Reasonably fast method that produces better triangles than monotone partitioning"},
+      {0, NULL, 0, NULL, NULL}};
 
   srna = RNA_def_struct(brna, "SceneGameRecastData", NULL);
   RNA_def_struct_sdna(srna, "RecastData");
@@ -4741,7 +4794,8 @@ static void rna_def_scene_game_recast_data(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "agentmaxclimb");
   RNA_def_property_ui_range(prop, 0.1, 5, 1, 2);
   RNA_def_property_float_default(prop, 0.9f);
-  RNA_def_property_ui_text(prop, "Max Climb", "Maximum height between grid cells the agent can climb");
+  RNA_def_property_ui_text(
+      prop, "Max Climb", "Maximum height between grid cells the agent can climb");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "slope_max", PROP_FLOAT, PROP_ANGLE);
@@ -4751,19 +4805,20 @@ static void rna_def_scene_game_recast_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Max Slope", "Maximum walkable slope angle");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
-
   prop = RNA_def_property(srna, "region_min_size", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "regionminsize");
   RNA_def_property_ui_range(prop, 0, 150, 1, 2);
   RNA_def_property_float_default(prop, 8.0f);
-  RNA_def_property_ui_text(prop, "Min Region Size", "Minimum regions size (smaller regions will be deleted)");
+  RNA_def_property_ui_text(
+      prop, "Min Region Size", "Minimum regions size (smaller regions will be deleted)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "region_merge_size", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "regionmergesize");
   RNA_def_property_ui_range(prop, 0, 150, 1, 2);
   RNA_def_property_float_default(prop, 20.0f);
-  RNA_def_property_ui_text(prop, "Merged Region Size", "Minimum regions size (smaller regions will be merged)");
+  RNA_def_property_ui_text(
+      prop, "Merged Region Size", "Minimum regions size (smaller regions will be merged)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "partitioning", PROP_ENUM, PROP_NONE);
@@ -4805,10 +4860,10 @@ static void rna_def_scene_game_recast_data(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "detailsamplemaxerror");
   RNA_def_property_ui_range(prop, 0.0, 16.0, 1, 2);
   RNA_def_property_float_default(prop, 1.0f);
-  RNA_def_property_ui_text(prop, "Max Sample Error", "Detail mesh simplification max sample error");
+  RNA_def_property_ui_text(
+      prop, "Max Sample Error", "Detail mesh simplification max sample error");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 }
-
 
 static void rna_def_bake_data(BlenderRNA *brna)
 {
@@ -4966,11 +5021,6 @@ static void rna_def_bake_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Transmission", "Add transmission contribution");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-  prop = RNA_def_property(srna, "use_pass_subsurface", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_SUBSURFACE);
-  RNA_def_property_ui_text(prop, "Subsurface", "Add subsurface contribution");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-
   prop = RNA_def_property(srna, "pass_filter", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "pass_filter");
   RNA_def_property_enum_items(prop, rna_enum_bake_pass_filter_type_items);
@@ -4984,75 +5034,82 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem aasamples_items[] = {
-        {0, "SAMPLES_0", 0, "Off", ""},
-        {2, "SAMPLES_2", 0, "2x", ""},
-        {4, "SAMPLES_4", 0, "4x", ""},
-        {8, "SAMPLES_8", 0, "8x", ""},
-        {16, "SAMPLES_16", 0, "16x", ""},
-        {0, NULL, 0, NULL, NULL}
-  };
+  static const EnumPropertyItem aasamples_items[] = {{0, "SAMPLES_0", 0, "Off", ""},
+                                                     {2, "SAMPLES_2", 0, "2x", ""},
+                                                     {4, "SAMPLES_4", 0, "4x", ""},
+                                                     {8, "SAMPLES_8", 0, "8x", ""},
+                                                     {16, "SAMPLES_16", 0, "16x", ""},
+                                                     {0, NULL, 0, NULL, NULL}};
 
   static const EnumPropertyItem framing_types_items[] = {
-        {SCE_GAMEFRAMING_BARS, "LETTERBOX", 0, "Letterbox",
-                               "Show the entire viewport in the display window, using bar horizontally or vertically"},
-        {SCE_GAMEFRAMING_EXTEND, "EXTEND", 0, "Extend",
-                                 "Show the entire viewport in the display window, viewing more horizontally "
-                                 "or vertically"},
-        {SCE_GAMEFRAMING_SCALE, "SCALE", 0, "Scale", "Stretch or squeeze the viewport to fill the display window"},
-        {0, NULL, 0, NULL, NULL}
-  };
-	
+      {SCE_GAMEFRAMING_BARS,
+       "LETTERBOX",
+       0,
+       "Letterbox",
+       "Show the entire viewport in the display window, using bar horizontally or vertically"},
+      {SCE_GAMEFRAMING_EXTEND,
+       "EXTEND",
+       0,
+       "Extend",
+       "Show the entire viewport in the display window, viewing more horizontally "
+       "or vertically"},
+      {SCE_GAMEFRAMING_SCALE,
+       "SCALE",
+       0,
+       "Scale",
+       "Stretch or squeeze the viewport to fill the display window"},
+      {0, NULL, 0, NULL, NULL}};
+
   static const EnumPropertyItem stereo_modes_items[] = {
-        {STEREO_QUADBUFFERED, "QUADBUFFERED", 0, "Quad-Buffer", ""},
-        {STEREO_ABOVEBELOW, "ABOVEBELOW", 0, "Above-Below", ""},
-        {STEREO_INTERLACED, "INTERLACED", 0, "Interlaced", ""},
-        {STEREO_ANAGLYPH, "ANAGLYPH", 0, "Anaglyph", ""},
-        {STEREO_SIDEBYSIDE, "SIDEBYSIDE", 0, "Side-by-side", ""},
-        {STEREO_VINTERLACE, "VINTERLACE", 0, "Vinterlace", ""},
-        {STEREO_3DTVTOPBOTTOM, "3DTVTOPBOTTOM", 0, "3DTV Top-Bottom", ""},
-        {0, NULL, 0, NULL, NULL}
-  };
-	
+      {STEREO_QUADBUFFERED, "QUADBUFFERED", 0, "Quad-Buffer", ""},
+      {STEREO_ABOVEBELOW, "ABOVEBELOW", 0, "Above-Below", ""},
+      {STEREO_INTERLACED, "INTERLACED", 0, "Interlaced", ""},
+      {STEREO_ANAGLYPH, "ANAGLYPH", 0, "Anaglyph", ""},
+      {STEREO_SIDEBYSIDE, "SIDEBYSIDE", 0, "Side-by-side", ""},
+      {STEREO_VINTERLACE, "VINTERLACE", 0, "Vinterlace", ""},
+      {STEREO_3DTVTOPBOTTOM, "3DTVTOPBOTTOM", 0, "3DTV Top-Bottom", ""},
+      {0, NULL, 0, NULL, NULL}};
+
   static const EnumPropertyItem stereo_items[] = {
-        {STEREO_NOSTEREO, "NONE", 0, "None", "Disable Stereo environments"},
-        {STEREO_ENABLED, "STEREO", 0, "Stereo", "Enable Stereo environment"},
-        {0, NULL, 0, NULL, NULL}
-  };
+      {STEREO_NOSTEREO, "NONE", 0, "None", "Disable Stereo environments"},
+      {STEREO_ENABLED, "STEREO", 0, "Stereo", "Enable Stereo environment"},
+      {0, NULL, 0, NULL, NULL}};
 
   static const EnumPropertyItem physics_engine_items[] = {
-        {WOPHY_NONE, "NONE", 0, "None", "Don't use a physics engine"},
-        {WOPHY_BULLET, "BULLET", 0, "Bullet", "Use the Bullet physics engine"},
-        {0, NULL, 0, NULL, NULL}
-  };
+      {WOPHY_NONE, "NONE", 0, "None", "Don't use a physics engine"},
+      {WOPHY_BULLET, "BULLET", 0, "Bullet", "Use the Bullet physics engine"},
+      {0, NULL, 0, NULL, NULL}};
 
   static const EnumPropertyItem material_items[] = {
-        {GAME_MAT_MULTITEX, "MULTITEXTURE", 0, "Multitexture", "Multitexture materials"},
-        {GAME_MAT_GLSL, "GLSL", 0, "GLSL", "OpenGL shading language shaders"},
-        {0, NULL, 0, NULL, NULL}
-  };
+      {GAME_MAT_MULTITEX, "MULTITEXTURE", 0, "Multitexture", "Multitexture materials"},
+      {GAME_MAT_GLSL, "GLSL", 0, "GLSL", "OpenGL shading language shaders"},
+      {0, NULL, 0, NULL, NULL}};
 
   static const EnumPropertyItem obstacle_simulation_items[] = {
-        {OBSTSIMULATION_NONE, "NONE", 0, "None", ""},
-        {OBSTSIMULATION_TOI_rays, "RVO_RAYS", 0, "RVO (rays)", ""},
-        {OBSTSIMULATION_TOI_cells, "RVO_CELLS", 0, "RVO (cells)", ""},
-        {0, NULL, 0, NULL, NULL}
-  };
+      {OBSTSIMULATION_NONE, "NONE", 0, "None", ""},
+      {OBSTSIMULATION_TOI_rays, "RVO_RAYS", 0, "RVO (rays)", ""},
+      {OBSTSIMULATION_TOI_cells, "RVO_CELLS", 0, "RVO (cells)", ""},
+      {0, NULL, 0, NULL, NULL}};
 
   static const EnumPropertyItem vsync_items[] = {
-        {VSYNC_OFF, "OFF", 0, "Off", "Disable vsync"},
-        {VSYNC_ON, "ON", 0, "On", "Enable vsync"},
-        {VSYNC_ADAPTIVE, "ADAPTIVE", 0, "Adaptive", "Enable adaptive vsync (if supported)"},
-        {0, NULL, 0, NULL, NULL}
-  };
+      {VSYNC_OFF, "OFF", 0, "Off", "Disable vsync"},
+      {VSYNC_ON, "ON", 0, "On", "Enable vsync"},
+      {VSYNC_ADAPTIVE, "ADAPTIVE", 0, "Adaptive", "Enable adaptive vsync (if supported)"},
+      {0, NULL, 0, NULL, NULL}};
 
   static const EnumPropertyItem storage_items[] = {
-        {RAS_STORE_AUTO, "AUTO", 0, "Auto Select", "Choose the best supported mode"},
-        {RAS_STORE_VA, "VERTEX_ARRAY", 0, "Vertex Arrays", "Usually the best choice (good performance with display lists)"},
-        {RAS_STORE_VBO, "VERTEX_BUFFER_OBJECT", 0, "Vertex Buffer Objects",
-                        "Typically slower than vertex arrays with display lists, requires at least OpenGL 1.4"},
-        {0, NULL, 0, NULL, NULL}
-  };
+      {RAS_STORE_AUTO, "AUTO", 0, "Auto Select", "Choose the best supported mode"},
+      {RAS_STORE_VA,
+       "VERTEX_ARRAY",
+       0,
+       "Vertex Arrays",
+       "Usually the best choice (good performance with display lists)"},
+      {RAS_STORE_VBO,
+       "VERTEX_BUFFER_OBJECT",
+       0,
+       "Vertex Buffer Objects",
+       "Typically slower than vertex arrays with display lists, requires at least OpenGL 1.4"},
+      {0, NULL, 0, NULL, NULL}};
 
   srna = RNA_def_struct(brna, "SceneGameData", NULL);
   RNA_def_struct_sdna(srna, "GameData");
@@ -5120,7 +5177,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_desktop", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "playerflag", GAME_PLAYER_DESKTOP_RESOLUTION);
-  RNA_def_property_ui_text(prop, "Desktop", "Use the current desktop resolution in fullscreen mode");
+  RNA_def_property_ui_text(
+      prop, "Desktop", "Use the current desktop resolution in fullscreen mode");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   /* Framing */
@@ -5155,8 +5213,10 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "eyeseparation");
   RNA_def_property_range(prop, 0.01, 5.0);
   RNA_def_property_float_default(prop, 0.1f);
-  RNA_def_property_ui_text(prop, "Eye Separation",
-                           "Set the distance between the eyes - the camera focal distance/30 should be fine");
+  RNA_def_property_ui_text(
+      prop,
+      "Eye Separation",
+      "Set the distance between the eyes - the camera focal distance/30 should be fine");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   /* physics */
@@ -5164,7 +5224,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, NULL, "physicsEngine");
   RNA_def_property_enum_items(prop, physics_engine_items);
   RNA_def_property_enum_default(prop, WOPHY_BULLET);
-  RNA_def_property_ui_text(prop, "Physics Engine", "Physics engine used for physics simulation in the game engine");
+  RNA_def_property_ui_text(
+      prop, "Physics Engine", "Physics engine used for physics simulation in the game engine");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "physics_gravity", PROP_FLOAT, PROP_ACCELERATION);
@@ -5172,16 +5233,20 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.0, 25.0, 1, 2);
   RNA_def_property_range(prop, 0.0, 10000.0);
   RNA_def_property_float_default(prop, 9.8f);
-  RNA_def_property_ui_text(prop, "Physics Gravity",
-                           "Gravitational constant used for physics simulation in the game engine");
+  RNA_def_property_ui_text(
+      prop,
+      "Physics Gravity",
+      "Gravitational constant used for physics simulation in the game engine");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "occlusion_culling_resolution", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, NULL, "occlusionRes");
   RNA_def_property_range(prop, 128.0, 1024.0);
   RNA_def_property_int_default(prop, 128);
-  RNA_def_property_ui_text(prop, "Occlusion Resolution",
-                           "Size of the occlusion buffer, use higher value for better precision (slower)");
+  RNA_def_property_ui_text(
+      prop,
+      "Occlusion Resolution",
+      "Size of the occlusion buffer, use higher value for better precision (slower)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "fps", PROP_INT, PROP_NONE);
@@ -5189,7 +5254,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 1, 60, 1, 1);
   RNA_def_property_range(prop, 1, 10000);
   RNA_def_property_int_default(prop, 60);
-  RNA_def_property_ui_text(prop, "Frames Per Second",
+  RNA_def_property_ui_text(prop,
+                           "Frames Per Second",
                            "Nominal number of game frames per second "
                            "(physics fixed timestep = 1/fps, independently of actual frame rate)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
@@ -5199,9 +5265,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, 10000);
   RNA_def_property_ui_range(prop, 1, 50, 1, 1);
   RNA_def_property_int_default(prop, 5);
-  RNA_def_property_ui_text(prop, "Max Logic Steps",
-                           "Maximum number of logic frame per game frame if graphics slows down the game, "
-                           "higher value allows better synchronization with physics");
+  RNA_def_property_ui_text(
+      prop,
+      "Max Logic Steps",
+      "Maximum number of logic frame per game frame if graphics slows down the game, "
+      "higher value allows better synchronization with physics");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "physics_step_max", PROP_INT, PROP_NONE);
@@ -5209,9 +5277,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, 10000);
   RNA_def_property_ui_range(prop, 1, 50, 1, 1);
   RNA_def_property_int_default(prop, 5);
-  RNA_def_property_ui_text(prop, "Max Physics Steps",
-                           "Maximum number of physics step per game frame if graphics slows down the game, "
-                           "higher value allows physics to keep up with realtime");
+  RNA_def_property_ui_text(
+      prop,
+      "Max Physics Steps",
+      "Maximum number of physics step per game frame if graphics slows down the game, "
+      "higher value allows physics to keep up with realtime");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "physics_step_sub", PROP_INT, PROP_NONE);
@@ -5219,7 +5289,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, 50);
   RNA_def_property_ui_range(prop, 1, 5, 1, 1);
   RNA_def_property_int_default(prop, 1);
-  RNA_def_property_ui_text(prop, "Physics Sub Steps",
+  RNA_def_property_ui_text(prop,
+                           "Physics Sub Steps",
                            "Number of simulation substep per physic timestep, "
                            "higher value give better physics precision");
   RNA_def_property_update(prop, NC_SCENE, NULL);
@@ -5229,8 +5300,10 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
   RNA_def_property_range(prop, 0.001, 10000.0);
   RNA_def_property_float_default(prop, 0.8f);
-  RNA_def_property_ui_text(prop, "Deactivation Linear Threshold",
-                           "Linear velocity that an object must be below before the deactivation timer can start");
+  RNA_def_property_ui_text(
+      prop,
+      "Deactivation Linear Threshold",
+      "Linear velocity that an object must be below before the deactivation timer can start");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "deactivation_angular_threshold", PROP_FLOAT, PROP_NONE);
@@ -5238,55 +5311,61 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
   RNA_def_property_range(prop, 0.001, 10000.0);
   RNA_def_property_float_default(prop, 1.0f);
-  RNA_def_property_ui_text(prop, "Deactivation Angular Threshold",
-                           "Angular velocity that an object must be below before the deactivation timer can start");
+  RNA_def_property_ui_text(
+      prop,
+      "Deactivation Angular Threshold",
+      "Angular velocity that an object must be below before the deactivation timer can start");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "deactivation_time", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "deactivationtime");
   RNA_def_property_ui_range(prop, 0.0, 60.0, 1, 1);
   RNA_def_property_range(prop, 0.0, 60.0);
-  RNA_def_property_ui_text(prop, "Deactivation Time",
-                           "Amount of time (in seconds) after which objects with a velocity less than the given "
-                           "threshold will deactivate (0.0 means no deactivation)");
+  RNA_def_property_ui_text(
+      prop,
+      "Deactivation Time",
+      "Amount of time (in seconds) after which objects with a velocity less than the given "
+      "threshold will deactivate (0.0 means no deactivation)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
-  /* not used  *//* deprecated !!!!!!!!!!!!! */
+  /* not used  */ /* deprecated !!!!!!!!!!!!! */
   prop = RNA_def_property(srna, "activity_culling_box_radius", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "activityBoxRadius");
   RNA_def_property_range(prop, 0.0, 1000.0);
-  RNA_def_property_ui_text(prop, "Box Radius",
+  RNA_def_property_ui_text(prop,
+                           "Box Radius",
                            "Radius of the activity bubble, in Manhattan length "
                            "(objects outside the box are activity-culled)");
 
   /* booleans */
   prop = RNA_def_property(srna, "use_viewport_render", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_VIEWPORT_RENDER);
-  RNA_def_property_ui_text(prop, "Use Viewport Render", "Use Blender Render Loop to render the scene");
+  RNA_def_property_ui_text(
+      prop, "Use Viewport Render", "Use Blender Render Loop to render the scene");
 
   prop = RNA_def_property(srna, "use_undo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_UNDO);
-  RNA_def_property_ui_text(prop, "Undo at Exit",
-                           "Undo bpy changes at game engine exit");
+  RNA_def_property_ui_text(prop, "Undo at Exit", "Undo bpy changes at game engine exit");
 
   prop = RNA_def_property(srna, "use_ui_anti_flicker", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_UI_ANTI_FLICKER);
-  RNA_def_property_ui_text(prop, "UI anti flickering",
-                           "Skip scissor test to avoid ui flickering");
+  RNA_def_property_ui_text(prop, "UI anti flickering", "Skip scissor test to avoid ui flickering");
 
   prop = RNA_def_property(srna, "show_debug_properties", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_DEBUG_PROPS);
-  RNA_def_property_ui_text(prop, "Show Debug Properties",
-                           "Show properties marked for debugging while the game runs");
+  RNA_def_property_ui_text(
+      prop, "Show Debug Properties", "Show properties marked for debugging while the game runs");
 
   prop = RNA_def_property(srna, "show_framerate_profile", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_FRAMERATE);
-  RNA_def_property_ui_text(prop, "Show Framerate and Profile",
+  RNA_def_property_ui_text(prop,
+                           "Show Framerate and Profile",
                            "Show framerate and profiling information while the game runs");
 
   prop = RNA_def_property(srna, "show_physics_visualization", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_PHYSICS);
-  RNA_def_property_ui_text(prop, "Show Physics Visualization",
+  RNA_def_property_ui_text(prop,
+                           "Show Physics Visualization",
                            "Show a visualization of physics bounds and interactions");
 
   prop = RNA_def_property(srna, "show_mouse", PROP_BOOLEAN, PROP_NONE);
@@ -5295,13 +5374,15 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_frame_rate", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_ENABLE_ALL_FRAMES);
-  RNA_def_property_ui_text(prop, "Use Frame Rate",
+  RNA_def_property_ui_text(prop,
+                           "Use Frame Rate",
                            "Respect the frame rate from the Physics panel in the world properties "
                            "rather than rendering as many frames as possible");
 
   prop = RNA_def_property(srna, "use_deprecation_warnings", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_IGNORE_DEPRECATION_WARNINGS);
-  RNA_def_property_ui_text(prop, "Deprecation Warnings",
+  RNA_def_property_ui_text(prop,
+                           "Deprecation Warnings",
                            "Print warnings when using deprecated features in the python API");
 
   prop = RNA_def_property(srna, "use_animation_record", PROP_BOOLEAN, PROP_NONE);
@@ -5309,14 +5390,17 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Record Animation", "Record animation to F-Curves");
 
   prop = RNA_def_property(srna, "use_auto_start", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_funcs(prop, "rna_GameSettings_auto_start_get", "rna_GameSettings_auto_start_set");
+  RNA_def_property_boolean_funcs(
+      prop, "rna_GameSettings_auto_start_get", "rna_GameSettings_auto_start_set");
   RNA_def_property_ui_text(prop, "Auto Start", "Automatically start game at load time");
 
   prop = RNA_def_property(srna, "use_restrict_animation_updates", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_RESTRICT_ANIM_UPDATES);
-  RNA_def_property_ui_text(prop, "Restrict Animation Updates",
-                           "Restrict the number of animation updates to the animation FPS (this is "
-                           "better for performance, but can cause issues with smooth playback)");
+  RNA_def_property_ui_text(
+      prop,
+      "Restrict Animation Updates",
+      "Restrict the number of animation updates to the animation FPS (this is "
+      "better for performance, but can cause issues with smooth playback)");
 
   /* materials */
   prop = RNA_def_property(srna, "material_mode", PROP_ENUM, PROP_NONE);
@@ -5352,44 +5436,51 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_glsl_color_management", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_COLOR_MANAGEMENT);
-  RNA_def_property_ui_text(prop, "GLSL Color Management", "Use color management for GLSL rendering");
+  RNA_def_property_ui_text(
+      prop, "GLSL Color Management", "Use color management for GLSL rendering");
   RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
 
   prop = RNA_def_property(srna, "use_glsl_extra_textures", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_EXTRA_TEX);
-  RNA_def_property_ui_text(prop, "GLSL Extra Textures",
+  RNA_def_property_ui_text(prop,
+                           "GLSL Extra Textures",
                            "Use extra textures like normal or specular maps for GLSL rendering");
   RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
 
   prop = RNA_def_property(srna, "use_glsl_environment_lighting", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_ENV_LIGHTING);
-  RNA_def_property_ui_text(prop, "GLSL Environment Lighting", "Use environment lighting for GLSL rendering");
+  RNA_def_property_ui_text(
+      prop, "GLSL Environment Lighting", "Use environment lighting for GLSL rendering");
   RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
 
   prop = RNA_def_property(srna, "use_material_caching", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_NO_MATERIAL_CACHING);
-  RNA_def_property_ui_text(prop, "Use Material Caching",
-                           "Cache materials in the converter (this is faster, but can cause problems with older "
-                           "Singletexture and Multitexture games)");
+  RNA_def_property_ui_text(
+      prop,
+      "Use Material Caching",
+      "Cache materials in the converter (this is faster, but can cause problems with older "
+      "Singletexture and Multitexture games)");
 
   /* obstacle simulation */
   prop = RNA_def_property(srna, "obstacle_simulation", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "obstacleSimulation");
   RNA_def_property_enum_items(prop, obstacle_simulation_items);
-  RNA_def_property_ui_text(prop, "Obstacle simulation", "Simulation used for obstacle avoidance in the game engine");
+  RNA_def_property_ui_text(
+      prop, "Obstacle simulation", "Simulation used for obstacle avoidance in the game engine");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "level_height", PROP_FLOAT, PROP_ACCELERATION);
   RNA_def_property_float_sdna(prop, NULL, "levelHeight");
   RNA_def_property_range(prop, 0.0f, 200.0f);
   RNA_def_property_float_default(prop, 2.0f);
-  RNA_def_property_ui_text(prop, "Level height",
-                           "Max difference in heights of obstacles to enable their interaction");
+  RNA_def_property_ui_text(
+      prop, "Level height", "Max difference in heights of obstacles to enable their interaction");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "show_obstacle_simulation", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_OBSTACLE_SIMULATION);
-  RNA_def_property_ui_text(prop, "Visualization", "Enable debug visualization for obstacle simulation");
+  RNA_def_property_ui_text(
+      prop, "Visualization", "Enable debug visualization for obstacle simulation");
 
   /* Recast Settings */
   prop = RNA_def_property(srna, "recast_data", PROP_POINTER, PROP_NONE);
@@ -5412,11 +5503,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, 100);
   RNA_def_property_ui_range(prop, 0, 100, 10, 1);
   RNA_def_property_int_default(prop, 10);
-  RNA_def_property_ui_text(prop, "Hysteresis %",
-                           "Minimum distance change required to transition to the previous level of detail");
+  RNA_def_property_ui_text(
+      prop,
+      "Hysteresis %",
+      "Minimum distance change required to transition to the previous level of detail");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 }
-
 
 static void rna_def_view_layers(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -6261,7 +6353,8 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "dither_intensity", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "dither_intensity");
-  RNA_def_property_range(prop, 0.0f, 2.0f);
+  RNA_def_property_range(prop, 0.0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0, 2.0, 0.1, 2);
   RNA_def_property_ui_text(
       prop,
       "Dither Intensity",
@@ -6338,6 +6431,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, 3);
   RNA_def_property_ui_text(prop, "Additional Subdiv", "Additional subdivision along the hair");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_glsl_update");
+
+  /* Performance */
+  prop = RNA_def_property(srna, "use_high_quality_normals", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "perf_flag", SCE_PERF_HQ_NORMALS);
+  RNA_def_property_ui_text(prop,
+                           "High Quality Normals",
+                           "Use high quality tangent space at the cost of lower performance");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_mesh_quality_update");
 
   /* border */
   prop = RNA_def_property(srna, "use_border", PROP_BOOLEAN, PROP_NONE);
@@ -8109,6 +8210,7 @@ void RNA_def_scene(BlenderRNA *brna)
   rna_def_display_safe_areas(brna);
   rna_def_scene_display(brna);
   rna_def_scene_eevee(brna);
+  rna_def_view_layer_eevee(brna);
   RNA_define_animate_sdna(true);
   /* *** Animated *** */
   rna_def_scene_render_data(brna);

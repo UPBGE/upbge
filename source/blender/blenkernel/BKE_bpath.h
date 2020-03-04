@@ -23,6 +23,10 @@
 #ifndef __BKE_BPATH_H__
 #define __BKE_BPATH_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ID;
 struct ListBase;
 struct Main;
@@ -74,11 +78,19 @@ void BKE_bpath_missing_files_find(struct Main *bmain,
                                   const char *searchpath,
                                   struct ReportList *reports,
                                   const bool find_all);
+void BKE_bpath_relative_rebase(struct Main *bmain,
+                               const char *basedir_src,
+                               const char *basedir_dst,
+                               struct ReportList *reports);
 void BKE_bpath_relative_convert(struct Main *bmain,
                                 const char *basedir,
                                 struct ReportList *reports);
 void BKE_bpath_absolute_convert(struct Main *bmain,
                                 const char *basedir,
                                 struct ReportList *reports);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BKE_BPATH_H__ */

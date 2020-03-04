@@ -42,71 +42,70 @@
  * on selected keystrokes. It has an alternate mode in which it logs
  * keypresses to a property. Note that these modes are not mutually
  * exclusive.  */
-class SCA_KeyboardSensor : public SCA_ISensor
-{
-	Py_Header
+class SCA_KeyboardSensor : public SCA_ISensor {
+  Py_Header
 
-	/**
-	 * the key this sensor is sensing for
-	 */
-	int							m_hotkey;
-	short int					m_qual,m_qual2;
-	short int					m_val;
-	bool m_status[3];
-	/**
-	 * If this toggle is true, all incoming key events generate a
-	 * response.
-	 */
-	bool						m_bAllKeys;
+      /**
+       * the key this sensor is sensing for
+       */
+      int m_hotkey;
+  short int m_qual, m_qual2;
+  short int m_val;
+  bool m_status[3];
+  /**
+   * If this toggle is true, all incoming key events generate a
+   * response.
+   */
+  bool m_bAllKeys;
 
-	/**
-	 * The name of the property to which logged text is appended. If
-	 * this property is not defined, no logging takes place.
-	 */
-	std::string	m_targetprop;
-	/**
-	 * The property that indicates whether or not to log text when in
-	 * logging mode. If the property equals 0, no logging is done. For
-	 * all other values, logging is active. Logging can only become
-	 * active if there is a property to log to. Logging is independent
-	 * from hotkey settings. */
-	std::string	m_toggleprop;
+  /**
+   * The name of the property to which logged text is appended. If
+   * this property is not defined, no logging takes place.
+   */
+  std::string m_targetprop;
+  /**
+   * The property that indicates whether or not to log text when in
+   * logging mode. If the property equals 0, no logging is done. For
+   * all other values, logging is active. Logging can only become
+   * active if there is a property to log to. Logging is independent
+   * from hotkey settings. */
+  std::string m_toggleprop;
 
-	/**
-	 * Log the keystrokes from the current input buffer.
-	 */
-	void LogKeystrokes();
+  /**
+   * Log the keystrokes from the current input buffer.
+   */
+  void LogKeystrokes();
 
-public:
-	SCA_KeyboardSensor(class SCA_KeyboardManager* keybdmgr,
-					   short int hotkey,
-					   short int qual,
-					   short int qual2,
-					   bool bAllKeys,
-					   const std::string& targetProp,
-					   const std::string& toggleProp,
-					   SCA_IObject* gameobj,
-					   short int exitKey);
-	virtual ~SCA_KeyboardSensor();
-	virtual CValue* GetReplica();
-	virtual void Init();
+ public:
+  SCA_KeyboardSensor(class SCA_KeyboardManager *keybdmgr,
+                     short int hotkey,
+                     short int qual,
+                     short int qual2,
+                     bool bAllKeys,
+                     const std::string &targetProp,
+                     const std::string &toggleProp,
+                     SCA_IObject *gameobj,
+                     short int exitKey);
+  virtual ~SCA_KeyboardSensor();
+  virtual CValue *GetReplica();
+  virtual void Init();
 
-	virtual bool Evaluate();
-	virtual bool IsPositiveTrigger();
+  virtual bool Evaluate();
+  virtual bool IsPositiveTrigger();
 
 #ifdef WITH_PYTHON
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	// KeyEvents: 
-	KX_PYMETHOD_DOC_NOARGS(SCA_KeyboardSensor,getEventList);
-	// KeyStatus: 
-	KX_PYMETHOD_DOC_O(SCA_KeyboardSensor,getKeyStatus);
-	
-	static PyObject*	pyattr_get_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  // KeyEvents:
+  KX_PYMETHOD_DOC_NOARGS(SCA_KeyboardSensor, getEventList);
+  // KeyStatus:
+  KX_PYMETHOD_DOC_O(SCA_KeyboardSensor, getKeyStatus);
+
+  static PyObject *pyattr_get_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 
-#endif  /* __SCA_KEYBOARDSENSOR_H__ */
+#endif /* __SCA_KEYBOARDSENSOR_H__ */

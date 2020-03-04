@@ -639,14 +639,14 @@ static int separate_armature_exec(bContext *C, wmOperator *op)
             has_selected_any = true;
           }
         }
-        if (has_selected_bone == false) {
-          if (has_selected_any) {
-            /* Without this, we may leave head/tail selected
-             * which isn't expected after separating. */
-            ED_armature_edit_deselect_all(ob_old);
-          }
-          continue;
+      }
+      if (has_selected_bone == false) {
+        if (has_selected_any) {
+          /* Without this, we may leave head/tail selected
+           * which isn't expected after separating. */
+          ED_armature_edit_deselect_all(ob_old);
         }
+        continue;
       }
     }
 
@@ -667,8 +667,10 @@ static int separate_armature_exec(bContext *C, wmOperator *op)
 
     /* 2) duplicate base */
 
-    /* only duplicate linked armature */
-    Base *base_new = ED_object_add_duplicate(bmain, scene, view_layer, base_old, USER_DUP_ARM);
+    /* Only duplicate linked armature but take into account
+     * user preferences for duplicating actions. */
+    short dupflag = USER_DUP_ARM | (U.dupflag & USER_DUP_ACT);
+    Base *base_new = ED_object_add_duplicate(bmain, scene, view_layer, base_old, dupflag);
     Object *ob_new = base_new->object;
 
     DEG_relations_tag_update(bmain);

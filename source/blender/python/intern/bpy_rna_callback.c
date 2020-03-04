@@ -213,23 +213,55 @@ PyObject *pyrna_callback_remove(BPy_StructRNA *self, PyObject *args)
 /* reverse of rna_Space_refine() */
 static eSpace_Type rna_Space_refine_reverse(StructRNA *srna)
 {
-	if (srna == &RNA_SpaceView3D)           { return SPACE_VIEW3D; }
-	if (srna == &RNA_SpaceGraphEditor)      { return SPACE_GRAPH; }
-	if (srna == &RNA_SpaceOutliner)         { return SPACE_OUTLINER; }
-	if (srna == &RNA_SpaceProperties)       { return SPACE_PROPERTIES; }
-	if (srna == &RNA_SpaceFileBrowser)      { return SPACE_FILE; }
-	if (srna == &RNA_SpaceImageEditor)      { return SPACE_IMAGE; }
-	if (srna == &RNA_SpaceInfo)             { return SPACE_INFO; }
-	if (srna == &RNA_SpaceLogicEditor)      { return SPACE_LOGIC; }
-	if (srna == &RNA_SpaceSequenceEditor)   { return SPACE_SEQ; }
-	if (srna == &RNA_SpaceTextEditor)       { return SPACE_TEXT; }
-	if (srna == &RNA_SpaceDopeSheetEditor)  { return SPACE_ACTION; }
-	if (srna == &RNA_SpaceNLA)              { return SPACE_NLA; }
-	if (srna == &RNA_SpaceNodeEditor)       { return SPACE_NODE; }
-	if (srna == &RNA_SpaceConsole)          { return SPACE_CONSOLE; }
-	if (srna == &RNA_SpacePreferences)      { return SPACE_USERPREF; }
-	if (srna == &RNA_SpaceClipEditor)       { return SPACE_CLIP; }
-	return SPACE_EMPTY;
+  if (srna == &RNA_SpaceView3D) {
+    return SPACE_VIEW3D;
+  }
+  if (srna == &RNA_SpaceGraphEditor) {
+    return SPACE_GRAPH;
+  }
+  if (srna == &RNA_SpaceOutliner) {
+    return SPACE_OUTLINER;
+  }
+  if (srna == &RNA_SpaceProperties) {
+    return SPACE_PROPERTIES;
+  }
+  if (srna == &RNA_SpaceFileBrowser) {
+    return SPACE_FILE;
+  }
+  if (srna == &RNA_SpaceImageEditor) {
+    return SPACE_IMAGE;
+  }
+  if (srna == &RNA_SpaceInfo) {
+    return SPACE_INFO;
+  }
+  if (srna == &RNA_SpaceLogicEditor) {
+    return SPACE_LOGIC;
+  }
+  if (srna == &RNA_SpaceSequenceEditor) {
+    return SPACE_SEQ;
+  }
+  if (srna == &RNA_SpaceTextEditor) {
+    return SPACE_TEXT;
+  }
+  if (srna == &RNA_SpaceDopeSheetEditor) {
+    return SPACE_ACTION;
+  }
+  if (srna == &RNA_SpaceNLA) {
+    return SPACE_NLA;
+  }
+  if (srna == &RNA_SpaceNodeEditor) {
+    return SPACE_NODE;
+  }
+  if (srna == &RNA_SpaceConsole) {
+    return SPACE_CONSOLE;
+  }
+  if (srna == &RNA_SpacePreferences) {
+    return SPACE_USERPREF;
+  }
+  if (srna == &RNA_SpaceClipEditor) {
+    return SPACE_CLIP;
+  }
+  return SPACE_EMPTY;
 }
 
 PyObject *pyrna_callback_classmethod_add(PyObject *UNUSED(self), PyObject *args)

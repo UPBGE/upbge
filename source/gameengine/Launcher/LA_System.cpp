@@ -31,7 +31,7 @@
 
 LA_System::LA_System()
 {
-	m_starttime = PIL_check_seconds_timer();
+  m_starttime = PIL_check_seconds_timer();
 }
 
 LA_System::~LA_System()
@@ -40,7 +40,5 @@ LA_System::~LA_System()
 
 double LA_System::GetTimeInSeconds()
 {
-	return PIL_check_seconds_timer() - m_starttime;
+  return PIL_check_seconds_timer() - m_starttime;
 }
-
-

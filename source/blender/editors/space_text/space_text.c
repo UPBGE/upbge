@@ -439,69 +439,69 @@ static void text_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID 
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_text(void)
 {
-	SpaceType *st = MEM_callocN(sizeof(SpaceType), "spacetype text");
-	ARegionType *art;
+  SpaceType *st = MEM_callocN(sizeof(SpaceType), "spacetype text");
+  ARegionType *art;
 
-	st->spaceid = SPACE_TEXT;
-	strncpy(st->name, "Text", BKE_ST_MAXNAME);
+  st->spaceid = SPACE_TEXT;
+  strncpy(st->name, "Text", BKE_ST_MAXNAME);
 
-	st->new = text_new;
-	st->free = text_free;
-	st->init = text_init;
-	st->duplicate = text_duplicate;
-	st->operatortypes = text_operatortypes;
-	st->keymap = text_keymap;
-	st->listener = text_listener;
-	st->context = text_context;
-	st->dropboxes = text_dropboxes;
-	st->id_remap = text_id_remap;
+  st->new = text_new;
+  st->free = text_free;
+  st->init = text_init;
+  st->duplicate = text_duplicate;
+  st->operatortypes = text_operatortypes;
+  st->keymap = text_keymap;
+  st->listener = text_listener;
+  st->context = text_context;
+  st->dropboxes = text_dropboxes;
+  st->id_remap = text_id_remap;
 
-	/* regions: main window */
-	art = MEM_callocN(sizeof(ARegionType), "spacetype text region");
-	art->regionid = RGN_TYPE_WINDOW;
-	art->init = text_main_region_init;
-	art->draw = text_main_region_draw;
-	art->cursor = text_cursor;
-	art->event_cursor = true;
+  /* regions: main window */
+  art = MEM_callocN(sizeof(ARegionType), "spacetype text region");
+  art->regionid = RGN_TYPE_WINDOW;
+  art->init = text_main_region_init;
+  art->draw = text_main_region_draw;
+  art->cursor = text_cursor;
+  art->event_cursor = true;
 
-	BLI_addhead(&st->regiontypes, art);
+  BLI_addhead(&st->regiontypes, art);
 
-	/* regions: properties */
-	art = MEM_callocN(sizeof(ARegionType), "spacetype text region");
-	art->regionid = RGN_TYPE_UI;
-	art->prefsizex = UI_COMPACT_PANEL_WIDTH;
-	art->keymapflag = ED_KEYMAP_UI;
+  /* regions: properties */
+  art = MEM_callocN(sizeof(ARegionType), "spacetype text region");
+  art->regionid = RGN_TYPE_UI;
+  art->prefsizex = UI_COMPACT_PANEL_WIDTH;
+  art->keymapflag = ED_KEYMAP_UI;
 
-	art->init = text_properties_region_init;
-	art->draw = text_properties_region_draw;
-	BLI_addhead(&st->regiontypes, art);
+  art->init = text_properties_region_init;
+  art->draw = text_properties_region_draw;
+  BLI_addhead(&st->regiontypes, art);
 
-	/* regions: header */
-	art = MEM_callocN(sizeof(ARegionType), "spacetype text region");
-	art->regionid = RGN_TYPE_HEADER;
-	art->prefsizey = HEADERY;
-	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
+  /* regions: header */
+  art = MEM_callocN(sizeof(ARegionType), "spacetype text region");
+  art->regionid = RGN_TYPE_HEADER;
+  art->prefsizey = HEADERY;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
 
-	art->init = text_header_region_init;
-	art->draw = text_header_region_draw;
-	BLI_addhead(&st->regiontypes, art);
+  art->init = text_header_region_init;
+  art->draw = text_header_region_draw;
+  BLI_addhead(&st->regiontypes, art);
 
-	/* regions: footer */
-	art = MEM_callocN(sizeof(ARegionType), "spacetype text region");
-	art->regionid = RGN_TYPE_FOOTER;
-	art->prefsizey = HEADERY;
-	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
-	art->init = text_header_region_init;
-	art->draw = text_header_region_draw;
-	BLI_addhead(&st->regiontypes, art);
+  /* regions: footer */
+  art = MEM_callocN(sizeof(ARegionType), "spacetype text region");
+  art->regionid = RGN_TYPE_FOOTER;
+  art->prefsizey = HEADERY;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
+  art->init = text_header_region_init;
+  art->draw = text_header_region_draw;
+  BLI_addhead(&st->regiontypes, art);
 
-	BKE_spacetype_register(st);
+  BKE_spacetype_register(st);
 
-	/* register formatters */
-	ED_text_format_register_py();
-	ED_text_format_register_osl();
-	ED_text_format_register_lua();
-	ED_text_format_register_pov();
-	ED_text_format_register_pov_ini();
-	ED_text_format_register_glsl();
+  /* register formatters */
+  ED_text_format_register_py();
+  ED_text_format_register_osl();
+  ED_text_format_register_lua();
+  ED_text_format_register_pov();
+  ED_text_format_register_pov_ini();
+  ED_text_format_register_glsl();
 }

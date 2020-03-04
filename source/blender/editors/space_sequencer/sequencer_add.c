@@ -348,7 +348,7 @@ static int sequencer_add_scene_strip_exec(bContext *C, wmOperator *op)
   start_frame = RNA_int_get(op->ptr, "frame_start");
   channel = RNA_int_get(op->ptr, "channel");
 
-  sce_seq = BLI_findlink(&CTX_data_main(C)->scenes, RNA_enum_get(op->ptr, "scene"));
+  sce_seq = BLI_findlink(&bmain->scenes, RNA_enum_get(op->ptr, "scene"));
 
   if (sce_seq == NULL) {
     BKE_report(op->reports, RPT_ERROR, "Scene not found");
@@ -420,6 +420,7 @@ void SEQUENCER_OT_scene_strip_add(struct wmOperatorType *ot)
 /* add movieclip operator */
 static int sequencer_add_movieclip_strip_exec(bContext *C, wmOperator *op)
 {
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Editing *ed = BKE_sequencer_editing_get(scene, true);
 
@@ -432,7 +433,7 @@ static int sequencer_add_movieclip_strip_exec(bContext *C, wmOperator *op)
   start_frame = RNA_int_get(op->ptr, "frame_start");
   channel = RNA_int_get(op->ptr, "channel");
 
-  clip = BLI_findlink(&CTX_data_main(C)->movieclips, RNA_enum_get(op->ptr, "clip"));
+  clip = BLI_findlink(&bmain->movieclips, RNA_enum_get(op->ptr, "clip"));
 
   if (clip == NULL) {
     BKE_report(op->reports, RPT_ERROR, "Movie clip not found");
@@ -504,6 +505,7 @@ void SEQUENCER_OT_movieclip_strip_add(struct wmOperatorType *ot)
 
 static int sequencer_add_mask_strip_exec(bContext *C, wmOperator *op)
 {
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Editing *ed = BKE_sequencer_editing_get(scene, true);
 
@@ -516,7 +518,7 @@ static int sequencer_add_mask_strip_exec(bContext *C, wmOperator *op)
   start_frame = RNA_int_get(op->ptr, "frame_start");
   channel = RNA_int_get(op->ptr, "channel");
 
-  mask = BLI_findlink(&CTX_data_main(C)->masks, RNA_enum_get(op->ptr, "mask"));
+  mask = BLI_findlink(&bmain->masks, RNA_enum_get(op->ptr, "mask"));
 
   if (mask == NULL) {
     BKE_report(op->reports, RPT_ERROR, "Mask not found");
@@ -598,25 +600,17 @@ static int sequencer_add_generic_strip_exec(bContext *C, wmOperator *op, SeqLoad
     ED_sequencer_deselect_all(scene);
   }
 
-  if (RNA_struct_property_is_set(op->ptr, "files") &&
-      RNA_struct_property_is_set(op->ptr, "directory")) {
-    tot_files = RNA_property_collection_length(op->ptr,
-                                               RNA_struct_find_property(op->ptr, "files"));
-  }
-  else {
-    tot_files = 0;
-  }
+  tot_files = RNA_property_collection_length(op->ptr, RNA_struct_find_property(op->ptr, "files"));
 
-  if (tot_files) {
+  if (tot_files > 1) {
     /* multiple files */
     char dir_only[FILE_MAX];
     char file_only[FILE_MAX];
 
-    RNA_string_get(op->ptr, "directory", dir_only);
-
     RNA_BEGIN (op->ptr, itemptr, "files") {
       Sequence *seq;
 
+      RNA_string_get(op->ptr, "directory", dir_only);
       RNA_string_get(&itemptr, "name", file_only);
       BLI_join_dirfile(seq_load.path, sizeof(seq_load.path), dir_only, file_only);
 
@@ -781,7 +775,7 @@ void SEQUENCER_OT_movie_strip_add(struct wmOperatorType *ot)
                                  FILE_SPECIAL,
                                  FILE_OPENFILE,
                                  WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH | WM_FILESEL_FILES |
-                                     WM_FILESEL_SHOW_PROPS,
+                                     WM_FILESEL_SHOW_PROPS | WM_FILESEL_DIRECTORY,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_ALPHA);
   sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME);
@@ -841,7 +835,7 @@ void SEQUENCER_OT_sound_strip_add(struct wmOperatorType *ot)
                                  FILE_SPECIAL,
                                  FILE_OPENFILE,
                                  WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH | WM_FILESEL_FILES |
-                                     WM_FILESEL_SHOW_PROPS,
+                                     WM_FILESEL_SHOW_PROPS | WM_FILESEL_DIRECTORY,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_ALPHA);
   sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME);
@@ -1045,7 +1039,7 @@ void SEQUENCER_OT_image_strip_add(struct wmOperatorType *ot)
                                  FILE_SPECIAL,
                                  FILE_OPENFILE,
                                  WM_FILESEL_DIRECTORY | WM_FILESEL_RELPATH | WM_FILESEL_FILES |
-                                     WM_FILESEL_SHOW_PROPS,
+                                     WM_FILESEL_SHOW_PROPS | WM_FILESEL_DIRECTORY,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_ALPHA);
   sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME | SEQPROP_ENDFRAME);

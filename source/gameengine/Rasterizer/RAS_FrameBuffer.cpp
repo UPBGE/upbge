@@ -45,7 +45,7 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
 
 RAS_FrameBuffer::~RAS_FrameBuffer()
 {
-  GPU_framebuffer_free(m_frameBuffer); //it detaches attachments
+  GPU_framebuffer_free(m_frameBuffer);  // it detaches attachments
   GPU_texture_free(m_colorAttachment);
   GPU_texture_free(m_depthAttachment);
 }

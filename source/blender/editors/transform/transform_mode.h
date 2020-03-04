@@ -26,9 +26,18 @@
 #define __TRANSFORM_MODE_H__
 
 struct AnimData;
+struct LinkNode;
 struct TransInfo;
 struct TransDataContainer;
 struct TransData;
+struct wmOperator;
+
+/* header of TransDataEdgeSlideVert, TransDataEdgeSlideEdge */
+typedef struct TransDataGenericSlideVert {
+  struct BMVert *v;
+  struct LinkNode **cd_loop_groups;
+  float co_orig_3d[3];
+} TransDataGenericSlideVert;
 
 /* transform_mode.c */
 bool transdata_check_local_center(TransInfo *t, short around);
@@ -48,6 +57,7 @@ void ElementResize(TransInfo *t, TransDataContainer *tc, TransData *td, float ma
 short getAnimEdit_SnapMode(TransInfo *t);
 void doAnimEdit_SnapFrame(
     TransInfo *t, TransData *td, TransData2D *td2d, struct AnimData *adt, short autosnap);
+void transform_mode_init(TransInfo *t, struct wmOperator *op, const int mode);
 
 /* transform_mode_align.c */
 void initAlign(TransInfo *t);

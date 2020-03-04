@@ -39,48 +39,41 @@
 
 #include "KX_GameObject.h"
 
-class SCA_DynamicActuator : public SCA_IActuator
-{
-	Py_Header
+class SCA_DynamicActuator : public SCA_IActuator {
+  Py_Header
 
-	// dynamics operation to apply to the game object
-	short m_dyn_operation;
-	float m_setmass;
+      // dynamics operation to apply to the game object
+      short m_dyn_operation;
+  float m_setmass;
 
   bool m_suspend_children_phys;
   bool m_restore_children_phys;
   bool m_suspend_constraints;
 
  public:
-	SCA_DynamicActuator(
-	        SCA_IObject* gameobj,
-	        short dyn_operation,
-	        float setmass,
-          bool suspend_children_phys,
-          bool restore_children_phys,
-          bool suspend_constraints
-	        );
+  SCA_DynamicActuator(SCA_IObject *gameobj,
+                      short dyn_operation,
+                      float setmass,
+                      bool suspend_children_phys,
+                      bool restore_children_phys,
+                      bool suspend_constraints);
 
-	~SCA_DynamicActuator(
-	);
+  ~SCA_DynamicActuator();
 
-		CValue* 
-	GetReplica(
-	);
+  CValue *GetReplica();
 
-	virtual bool 
-	Update();
+  virtual bool Update();
 
-	//Python Interface
-	enum DynamicOperation {
-		KX_DYN_RESTORE_DYNAMICS = 0,
-		KX_DYN_DISABLE_DYNAMICS,
-		KX_DYN_ENABLE_RIGID_BODY,
-		KX_DYN_DISABLE_RIGID_BODY,
-		KX_DYN_SET_MASS,
-		KX_DYN_RESTORE_PHYSICS,
-		KX_DYN_DISABLE_PHYSICS
-	};
-}; 
+  // Python Interface
+  enum DynamicOperation {
+    KX_DYN_RESTORE_DYNAMICS = 0,
+    KX_DYN_DISABLE_DYNAMICS,
+    KX_DYN_ENABLE_RIGID_BODY,
+    KX_DYN_DISABLE_RIGID_BODY,
+    KX_DYN_SET_MASS,
+    KX_DYN_RESTORE_PHYSICS,
+    KX_DYN_DISABLE_PHYSICS
+  };
+};
 
 #endif

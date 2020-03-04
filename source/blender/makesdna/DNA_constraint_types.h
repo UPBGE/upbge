@@ -125,7 +125,7 @@ typedef enum eConstraintObType {
   /** string is vertex-group name */
   CONSTRAINT_OBTYPE_VERT = 3,
   /** string is vertex-group name - is not available until curves get vgroups */
-  CONSTRAINT_OBTYPE_CV = 4,
+  /* CONSTRAINT_OBTYPE_CV = 4, */ /* UNUSED */
 } eConstraintObType;
 
 /* Python Script Constraint */
@@ -626,64 +626,64 @@ typedef struct bTransformCacheConstraint {
  *   broken as their correct value cannot be resolved
  */
 typedef enum eBConstraint_Types {
-	/** Invalid/legacy constraint */
-	CONSTRAINT_TYPE_NULL = 0,
-	/** Unimplemented non longer :) - during constraints recode, Aligorith */
-	CONSTRAINT_TYPE_CHILDOF = 1,
-	CONSTRAINT_TYPE_TRACKTO = 2,
-	CONSTRAINT_TYPE_KINEMATIC = 3,
-	CONSTRAINT_TYPE_FOLLOWPATH = 4,
-	/** Unimplemented no longer :) - Aligorith */
-	CONSTRAINT_TYPE_ROTLIMIT = 5,
-	/** Unimplemented no longer :) - Aligorith */
-	CONSTRAINT_TYPE_LOCLIMIT = 6,
-	/** Unimplemented no longer :) - Aligorith */
-	CONSTRAINT_TYPE_SIZELIMIT = 7,
-	CONSTRAINT_TYPE_ROTLIKE = 8,
-	CONSTRAINT_TYPE_LOCLIKE = 9,
-	CONSTRAINT_TYPE_SIZELIKE = 10,
-	/** Unimplemented no longer :) - Aligorith. Scripts */
-	CONSTRAINT_TYPE_PYTHON = 11,
-	CONSTRAINT_TYPE_ACTION = 12,
-	/** New Tracking constraint that locks an axis in place - theeth */
-	CONSTRAINT_TYPE_LOCKTRACK = 13,
-	/** limit distance */
-	CONSTRAINT_TYPE_DISTLIMIT = 14,
-	/** claiming this to be mine :) is in tuhopuu bjornmose */
-	CONSTRAINT_TYPE_STRETCHTO = 15,
-	/** floor constraint */
-	CONSTRAINT_TYPE_MINMAX = 16,
-	/* rigidbody constraint */
-	CONSTRAINT_TYPE_RIGIDBODYJOINT = 17,
-	/** clampto constraint */
-	CONSTRAINT_TYPE_CLAMPTO = 18,
-	/** transformation (loc/rot/size -> loc/rot/size) constraint */
-	CONSTRAINT_TYPE_TRANSFORM = 19,
-	/** shrinkwrap (loc/rot) constraint */
-	CONSTRAINT_TYPE_SHRINKWRAP = 20,
-	/** New Tracking constraint that minimizes twisting */
-	CONSTRAINT_TYPE_DAMPTRACK = 21,
-	/** Spline-IK - Align 'n' bones to a curve */
-	CONSTRAINT_TYPE_SPLINEIK = 22,
-	/** Copy transform matrix */
-	CONSTRAINT_TYPE_TRANSLIKE = 23,
-	/** Maintain volume during scaling */
-	CONSTRAINT_TYPE_SAMEVOL = 24,
-	/** Pivot Constraint */
-	CONSTRAINT_TYPE_PIVOT = 25,
-	/** Follow Track Constraint */
-	CONSTRAINT_TYPE_FOLLOWTRACK = 26,
-	/** Camera Solver Constraint */
-	CONSTRAINT_TYPE_CAMERASOLVER = 27,
-	/** Object Solver Constraint */
-	CONSTRAINT_TYPE_OBJECTSOLVER = 28,
-	/** Transform Cache Constraint */
-	CONSTRAINT_TYPE_TRANSFORM_CACHE = 29,
-	/** Armature Deform Constraint */
-	CONSTRAINT_TYPE_ARMATURE = 30,
+  /** Invalid/legacy constraint */
+  CONSTRAINT_TYPE_NULL = 0,
+  /** Unimplemented non longer :) - during constraints recode, Aligorith */
+  CONSTRAINT_TYPE_CHILDOF = 1,
+  CONSTRAINT_TYPE_TRACKTO = 2,
+  CONSTRAINT_TYPE_KINEMATIC = 3,
+  CONSTRAINT_TYPE_FOLLOWPATH = 4,
+  /** Unimplemented no longer :) - Aligorith */
+  CONSTRAINT_TYPE_ROTLIMIT = 5,
+  /** Unimplemented no longer :) - Aligorith */
+  CONSTRAINT_TYPE_LOCLIMIT = 6,
+  /** Unimplemented no longer :) - Aligorith */
+  CONSTRAINT_TYPE_SIZELIMIT = 7,
+  CONSTRAINT_TYPE_ROTLIKE = 8,
+  CONSTRAINT_TYPE_LOCLIKE = 9,
+  CONSTRAINT_TYPE_SIZELIKE = 10,
+  /** Unimplemented no longer :) - Aligorith. Scripts */
+  CONSTRAINT_TYPE_PYTHON = 11,
+  CONSTRAINT_TYPE_ACTION = 12,
+  /** New Tracking constraint that locks an axis in place - theeth */
+  CONSTRAINT_TYPE_LOCKTRACK = 13,
+  /** limit distance */
+  CONSTRAINT_TYPE_DISTLIMIT = 14,
+  /** claiming this to be mine :) is in tuhopuu bjornmose */
+  CONSTRAINT_TYPE_STRETCHTO = 15,
+  /** floor constraint */
+  CONSTRAINT_TYPE_MINMAX = 16,
+  /* rigidbody constraint */
+  CONSTRAINT_TYPE_RIGIDBODYJOINT = 17,
+  /** clampto constraint */
+  CONSTRAINT_TYPE_CLAMPTO = 18,
+  /** transformation (loc/rot/size -> loc/rot/size) constraint */
+  CONSTRAINT_TYPE_TRANSFORM = 19,
+  /** shrinkwrap (loc/rot) constraint */
+  CONSTRAINT_TYPE_SHRINKWRAP = 20,
+  /** New Tracking constraint that minimizes twisting */
+  CONSTRAINT_TYPE_DAMPTRACK = 21,
+  /** Spline-IK - Align 'n' bones to a curve */
+  CONSTRAINT_TYPE_SPLINEIK = 22,
+  /** Copy transform matrix */
+  CONSTRAINT_TYPE_TRANSLIKE = 23,
+  /** Maintain volume during scaling */
+  CONSTRAINT_TYPE_SAMEVOL = 24,
+  /** Pivot Constraint */
+  CONSTRAINT_TYPE_PIVOT = 25,
+  /** Follow Track Constraint */
+  CONSTRAINT_TYPE_FOLLOWTRACK = 26,
+  /** Camera Solver Constraint */
+  CONSTRAINT_TYPE_CAMERASOLVER = 27,
+  /** Object Solver Constraint */
+  CONSTRAINT_TYPE_OBJECTSOLVER = 28,
+  /** Transform Cache Constraint */
+  CONSTRAINT_TYPE_TRANSFORM_CACHE = 29,
+  /** Armature Deform Constraint */
+  CONSTRAINT_TYPE_ARMATURE = 30,
 
-	/* NOTE: no constraints are allowed to be added after this */
-	NUM_CONSTRAINT_TYPES
+  /* NOTE: no constraints are allowed to be added after this */
+  NUM_CONSTRAINT_TYPES
 } eBConstraint_Types;
 
 /* bConstraint->flag */
@@ -727,13 +727,6 @@ typedef enum eBConstraint_SpaceTypes {
   /** For files from between 2.43-2.46 (should have been parlocal). */
   CONSTRAINT_SPACE_INVALID = 4, /* do not exchange for anything! */
 } eBConstraint_SpaceTypes;
-
-/* bConstraintChannel.flag */
-// XXX deprecated... old AnimSys
-typedef enum eConstraintChannel_Flags {
-  CONSTRAINT_CHANNEL_SELECT = (1 << 0),
-  CONSTRAINT_CHANNEL_PROTECTED = (1 << 1),
-} eConstraintChannel_Flags;
 
 /* Common enum for constraints that support override. */
 typedef enum eConstraint_EulerOrder {
@@ -1049,7 +1042,7 @@ typedef enum eFloor_Flags {
 /* transform limiting constraints -> flag2 */
 typedef enum eTransformLimits_Flags2 {
   /* not used anymore - for older Limit Location constraints only */
-  LIMIT_NOPARENT = (1 << 0),
+  /* LIMIT_NOPARENT = (1 << 0), */ /* UNUSED */
   /* for all Limit constraints - allow to be used during transform? */
   LIMIT_TRANSFORM = (1 << 1),
 } eTransformLimits_Flags2;
@@ -1105,6 +1098,8 @@ typedef enum eChildOf_Flags {
   CHILDOF_SIZEY = (1 << 7),
   CHILDOF_SIZEZ = (1 << 8),
   CHILDOF_ALL = 511,
+  /* Temporary flag used by the Set Inverse operator. */
+  CHILDOF_SET_INVERSE = (1 << 9),
 } eChildOf_Flags;
 
 /* Pivot Constraint */
@@ -1156,6 +1151,8 @@ typedef enum eCameraSolver_Flags {
 /* ObjectSolver Constraint -> flag */
 typedef enum eObjectSolver_Flags {
   OBJECTSOLVER_ACTIVECLIP = (1 << 0),
+  /* Temporary flag used by the Set Inverse operator. */
+  OBJECTSOLVER_SET_INVERSE = (1 << 1),
 } eObjectSolver_Flags;
 
 /* Rigid-Body Constraint */

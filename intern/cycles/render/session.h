@@ -53,6 +53,7 @@ class SessionParams {
   int2 tile_size;
   TileOrder tile_order;
   int start_resolution;
+  int denoising_start_sample;
   int pixel_size;
   int threads;
 
@@ -85,6 +86,7 @@ class SessionParams {
     samples = 1024;
     tile_size = make_int2(64, 64);
     start_resolution = INT_MAX;
+    denoising_start_sample = 0;
     pixel_size = 1;
     threads = 0;
 
@@ -109,9 +111,10 @@ class SessionParams {
   bool modified(const SessionParams &params)
   {
     return !(device == params.device && background == params.background &&
-             progressive_refine == params.progressive_refine
-             /* && samples == params.samples */
-             && progressive == params.progressive && experimental == params.experimental &&
+             progressive_refine == params.progressive_refine &&
+             /* samples == params.samples && denoising_start_sample ==
+                params.denoising_start_sample && */
+             progressive == params.progressive && experimental == params.experimental &&
              tile_size == params.tile_size && start_resolution == params.start_resolution &&
              pixel_size == params.pixel_size && threads == params.threads &&
              use_profiling == params.use_profiling &&
@@ -152,9 +155,10 @@ class Session {
 
   bool ready_to_reset();
   void reset(BufferParams &params, int samples);
-  void set_samples(int samples);
   void set_pause(bool pause);
+  void set_samples(int samples);
   void set_denoising(bool denoising, bool optix_denoising);
+  void set_denoising_start_sample(int sample);
 
   bool update_scene();
   bool load_kernels(bool lock_scene = true);
@@ -179,8 +183,7 @@ class Session {
 
   void update_status_time(bool show_pause = false, bool show_done = false);
 
-  void render();
-  void denoise();
+  void render(bool with_denoising);
   void copy_to_display_buffer(int sample);
 
   void reset_(BufferParams &params, int samples);
@@ -193,7 +196,7 @@ class Session {
   bool draw_gpu(BufferParams &params, DeviceDrawParams &draw_params);
   void reset_gpu(BufferParams &params, int samples);
 
-  bool acquire_tile(Device *tile_device, RenderTile &tile, RenderTile::Task task);
+  bool acquire_tile(RenderTile &tile, Device *tile_device, uint tile_types);
   void update_tile_sample(RenderTile &tile);
   void release_tile(RenderTile &tile);
 

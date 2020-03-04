@@ -620,7 +620,7 @@ class Stroke : public Interface1D {
    *  \param iVertex:
    *    The StrokeVertex to insert in the Stroke.
    *  \param next:
-   *    A StrokeVertexIterator pointing to the StrokeVeretx before which iVertex must be inserted.
+   *    A StrokeVertexIterator pointing to the StrokeVertex before which iVertex must be inserted.
    */
   void InsertVertex(StrokeVertex *iVertex, StrokeInternal::StrokeVertexIterator next);
 
@@ -841,7 +841,7 @@ class Stroke : public Interface1D {
   vertex_iterator vertices_end();
 
   /*! Returns a StrokeVertexIterator pointing on the first StrokeVertex of the Stroke. One can
-   * specify a sampling value to resample the Stroke on the fly if needed.
+   * specify a sampling value to re-sample the Stroke on the fly if needed.
    *
    * \param t: The resampling value with which we want our Stroke to be resampled.
    * If 0 is specified, no resampling is done.

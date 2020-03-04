@@ -32,7 +32,7 @@ namespace USD {
 class USDHierarchyIterator;
 
 struct USDExporterContext {
-  const Depsgraph *depsgraph;
+  Depsgraph *depsgraph;
   const pxr::UsdStageRefPtr stage;
   const pxr::SdfPath usd_path;
   const USDHierarchyIterator *hierarchy_iterator;

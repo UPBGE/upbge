@@ -46,17 +46,13 @@
 #include "DNA_space_types.h"
 
 GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, Scene *startscene)
-	: RAS_ICanvas(rasty),
-	m_window(window),
-	m_startScene(startscene),
-	m_width(0),
-	m_height(0)
+    : RAS_ICanvas(rasty), m_window(window), m_startScene(startscene), m_width(0), m_height(0)
 {
-	if (m_window) {
-		GHOST_Rect bnds;
-		m_window->getClientBounds(bnds);
-		this->Resize(bnds.getWidth(), bnds.getHeight());
-	}
+  if (m_window) {
+    GHOST_Rect bnds;
+    m_window->getClientBounds(bnds);
+    this->Resize(bnds.getWidth(), bnds.getHeight());
+  }
 }
 
 GPG_Canvas::~GPG_Canvas()
@@ -81,144 +77,145 @@ void GPG_Canvas::EndDraw()
 
 void GPG_Canvas::Resize(int width, int height)
 {
-	m_viewportArea = RAS_Rect(width, height);
-	m_windowArea = RAS_Rect(width, height);
+  m_viewportArea = RAS_Rect(width, height);
+  m_windowArea = RAS_Rect(width, height);
 }
 
-void GPG_Canvas::MakeScreenShot(const std::string& filename)
+void GPG_Canvas::MakeScreenShot(const std::string &filename)
 {
-	// copy image data
-	unsigned int dumpsx = GetWidth();
-	unsigned int dumpsy = GetHeight();
+  // copy image data
+  unsigned int dumpsx = GetWidth();
+  unsigned int dumpsy = GetHeight();
 
-	// initialize image file format data
-	ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData), "im_format");
-	BKE_imformat_defaults(im_format);
+  // initialize image file format data
+  ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData),
+                                                              "im_format");
+  BKE_imformat_defaults(im_format);
 
-	// create file path
-	char path[FILE_MAX];
-	BLI_strncpy(path, filename.c_str(), FILE_MAX);
-	BLI_path_abs(path, KX_GetMainPath().c_str());
+  // create file path
+  char path[FILE_MAX];
+  BLI_strncpy(path, filename.c_str(), FILE_MAX);
+  BLI_path_abs(path, KX_GetMainPath().c_str());
 
-	AddScreenshot(path, 0, 0, dumpsx, dumpsy, im_format);
+  AddScreenshot(path, 0, 0, dumpsx, dumpsy, im_format);
 }
 
 void GPG_Canvas::Init()
 {
-	if (m_window) {
-		m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT | RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
-		m_window->setDrawingContextType(GHOST_kDrawingContextTypeOpenGL);
-		BLI_assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
-	}
+  if (m_window) {
+    m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT |
+                        RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
+    m_window->setDrawingContextType(GHOST_kDrawingContextTypeOpenGL);
+    BLI_assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
+  }
 }
 
 void GPG_Canvas::SetMousePosition(int x, int y)
 {
-	GHOST_ISystem *system = GHOST_ISystem::getSystem();
-	if (system && m_window) {
-		GHOST_TInt32 gx = (GHOST_TInt32)x;
-		GHOST_TInt32 gy = (GHOST_TInt32)y;
-		GHOST_TInt32 cx;
-		GHOST_TInt32 cy;
-		m_window->clientToScreen(gx, gy, cx, cy);
-		system->setCursorPosition(cx, cy);
-	}
+  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  if (system && m_window) {
+    GHOST_TInt32 gx = (GHOST_TInt32)x;
+    GHOST_TInt32 gy = (GHOST_TInt32)y;
+    GHOST_TInt32 cx;
+    GHOST_TInt32 cy;
+    m_window->clientToScreen(gx, gy, cx, cy);
+    system->setCursorPosition(cx, cy);
+  }
 }
-
 
 void GPG_Canvas::SetMouseState(RAS_MouseState mousestate)
 {
-	m_mousestate = mousestate;
+  m_mousestate = mousestate;
 
-	if (m_window) {
-		switch (mousestate) {
-			case MOUSE_INVISIBLE:
-				m_window->setCursorVisibility(false);
-				break;
-			case MOUSE_WAIT:
-				m_window->setCursorShape(GHOST_kStandardCursorWait);
-				m_window->setCursorVisibility(true);
-				break;
-			case MOUSE_NORMAL:
-				m_window->setCursorShape(GHOST_kStandardCursorDefault);
-				m_window->setCursorVisibility(true);
-				break;
-		}
-	}
+  if (m_window) {
+    switch (mousestate) {
+      case MOUSE_INVISIBLE:
+        m_window->setCursorVisibility(false);
+        break;
+      case MOUSE_WAIT:
+        m_window->setCursorShape(GHOST_kStandardCursorWait);
+        m_window->setCursorVisibility(true);
+        break;
+      case MOUSE_NORMAL:
+        m_window->setCursorShape(GHOST_kStandardCursorDefault);
+        m_window->setCursorVisibility(true);
+        break;
+    }
+  }
 }
 
 void GPG_Canvas::SwapBuffers()
 {
-	if (m_window) {
-		m_window->swapBuffers();
-	}
+  if (m_window) {
+    m_window->swapBuffers();
+  }
 }
 
 void GPG_Canvas::SetSwapInterval(int interval)
 {
-	if (m_window) {
-		m_window->setSwapInterval(interval);
-	}
+  if (m_window) {
+    m_window->setSwapInterval(interval);
+  }
 }
 
-bool GPG_Canvas::GetSwapInterval(int& intervalOut)
+bool GPG_Canvas::GetSwapInterval(int &intervalOut)
 {
-	if (m_window) {
-		return (bool)m_window->getSwapInterval(intervalOut);
-	}
+  if (m_window) {
+    return (bool)m_window->getSwapInterval(intervalOut);
+  }
 
-	return false;
+  return false;
 }
 
 void GPG_Canvas::GetDisplayDimensions(int &width, int &height)
 {
-	unsigned int uiwidth;
-	unsigned int uiheight;
+  unsigned int uiwidth;
+  unsigned int uiheight;
 
-	GHOST_ISystem *system = GHOST_ISystem::getSystem();
-	system->getMainDisplayDimensions(uiwidth, uiheight);
+  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  system->getMainDisplayDimensions(uiwidth, uiheight);
 
-	width = uiwidth;
-	height = uiheight;
+  width = uiwidth;
+  height = uiheight;
 }
 
 void GPG_Canvas::ResizeWindow(int width, int height)
 {
-	if (m_window->getState() == GHOST_kWindowStateFullScreen) {
-		GHOST_ISystem *system = GHOST_ISystem::getSystem();
-		GHOST_DisplaySetting setting;
-		setting.xPixels = width;
-		setting.yPixels = height;
-		//XXX allow these to be changed or kept from previous state
-		setting.bpp = 32;
-		setting.frequency = 60;
+  if (m_window->getState() == GHOST_kWindowStateFullScreen) {
+    GHOST_ISystem *system = GHOST_ISystem::getSystem();
+    GHOST_DisplaySetting setting;
+    setting.xPixels = width;
+    setting.yPixels = height;
+    // XXX allow these to be changed or kept from previous state
+    setting.bpp = 32;
+    setting.frequency = 60;
 
-		system->updateFullScreen(setting, &m_window);
-	}
+    system->updateFullScreen(setting, &m_window);
+  }
 
-	m_window->setClientSize(width, height);
+  m_window->setClientSize(width, height);
 
-	Resize(width, height);
+  Resize(width, height);
 }
 
 void GPG_Canvas::SetFullScreen(bool enable)
 {
-	if (enable) {
-		m_window->setState(GHOST_kWindowStateFullScreen);
-	}
-	else {
-		m_window->setState(GHOST_kWindowStateNormal);
-	}
+  if (enable) {
+    m_window->setState(GHOST_kWindowStateFullScreen);
+  }
+  else {
+    m_window->setState(GHOST_kWindowStateNormal);
+  }
 }
 
 bool GPG_Canvas::GetFullScreen()
 {
-	return (m_window->getState() == GHOST_kWindowStateFullScreen);
+  return (m_window->getState() == GHOST_kWindowStateFullScreen);
 }
 
 void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNUSED(screen))
 {
-	m_window->screenToClient(x, y, r_x, r_y);
+  m_window->screenToClient(x, y, r_x, r_y);
 }
 
 ARegion *GPG_Canvas::GetARegion()

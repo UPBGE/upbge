@@ -46,166 +46,171 @@ class KX_RayCast;
  *
  * - extend the valid modes?
  * - */
-class SCA_MouseFocusSensor : public SCA_MouseSensor
-{
+class SCA_MouseFocusSensor : public SCA_MouseSensor {
 
-	Py_Header
-	
- public:
-	
-	SCA_MouseFocusSensor(class SCA_MouseManager* eventmgr,
-						int startx,
-						int starty,
-						short int mousemode,
-						int focusmode,
-						bool bCollisionPulse,
-						const std::string& propname,
-						bool bFindMaterial,
-						bool bXRay,
-						int mask,
-						KX_Scene* kxscene,
-						KX_KetsjiEngine* kxengine,
-						SCA_IObject* gameobj);
+  Py_Header
 
-	virtual ~SCA_MouseFocusSensor() { }
-	virtual CValue* GetReplica() {
-		CValue* replica = new SCA_MouseFocusSensor(*this);
-		// this will copy properties and so on...
-		replica->ProcessReplica();
-		return replica;
-	};
+      public :
 
-	virtual void Replace_IScene(SCA_IScene *val)
-	{
-		m_kxscene= static_cast<KX_Scene *>(val);
-	};
+      SCA_MouseFocusSensor(class SCA_MouseManager *eventmgr,
+                           int startx,
+                           int starty,
+                           short int mousemode,
+                           int focusmode,
+                           bool bCollisionPulse,
+                           const std::string &propname,
+                           bool bFindMaterial,
+                           bool bXRay,
+                           int mask,
+                           KX_Scene *kxscene,
+                           KX_KetsjiEngine *kxengine,
+                           SCA_IObject *gameobj);
 
+  virtual ~SCA_MouseFocusSensor()
+  {
+  }
+  virtual CValue *GetReplica()
+  {
+    CValue *replica = new SCA_MouseFocusSensor(*this);
+    // this will copy properties and so on...
+    replica->ProcessReplica();
+    return replica;
+  };
 
-	/**
-	 * \attention Overrides default evaluate. 
-	 */
-	virtual bool Evaluate();
-	virtual void Init();
+  virtual void Replace_IScene(SCA_IScene *val)
+  {
+    m_kxscene = static_cast<KX_Scene *>(val);
+  };
 
-	virtual bool IsPositiveTrigger() {
-		bool result = m_positive_event;
-		if (m_invert) result = !result;
-		return result;
-	};
+  /**
+   * \attention Overrides default evaluate.
+   */
+  virtual bool Evaluate();
+  virtual void Init();
 
-	/// \see KX_RayCast
-	bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data));
-	/// \see KX_RayCast
-	bool NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data));
-	
-	const MT_Vector3& RaySource() const;
-	const MT_Vector3& RayTarget() const;
-	const MT_Vector3& HitPosition() const;
-	const MT_Vector3& HitNormal() const;
-	const MT_Vector2& HitUV() const;
-	
+  virtual bool IsPositiveTrigger()
+  {
+    bool result = m_positive_event;
+    if (m_invert)
+      result = !result;
+    return result;
+  };
+
+  /// \see KX_RayCast
+  bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data));
+  /// \see KX_RayCast
+  bool NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data));
+
+  const MT_Vector3 &RaySource() const;
+  const MT_Vector3 &RayTarget() const;
+  const MT_Vector3 &HitPosition() const;
+  const MT_Vector3 &HitNormal() const;
+  const MT_Vector2 &HitUV() const;
+
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	/* attributes */
-	static PyObject*	pyattr_get_ray_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_ray_target(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_ray_direction(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_hit_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_hit_position(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_hit_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_hit_uv(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-		
-#endif  /* WITH_PYTHON */
+  /* attributes */
+  static PyObject *pyattr_get_ray_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_ray_target(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_ray_direction(PyObjectPlus *self_v,
+                                            const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hit_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hit_position(PyObjectPlus *self_v,
+                                           const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hit_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hit_uv(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
-	/* --------------------------------------------------------------------- */
-	SCA_IObject*	m_hitObject;
-	void*			m_hitObject_Last; /* only use for comparison, never access */
+#endif /* WITH_PYTHON */
+
+  /* --------------------------------------------------------------------- */
+  SCA_IObject *m_hitObject;
+  void *m_hitObject_Last; /* only use for comparison, never access */
 
  private:
-	/**
-	 * The focus mode. 1 for handling focus, 0 for not handling, 2 for focus on any object
-	 */
-	int	m_focusmode;
+  /**
+   * The focus mode. 1 for handling focus, 0 for not handling, 2 for focus on any object
+   */
+  int m_focusmode;
 
-	/**
-	 * Flags whether the previous test showed a mouse-over.
-	 */
-	bool m_mouse_over_in_previous_frame;
+  /**
+   * Flags whether the previous test showed a mouse-over.
+   */
+  bool m_mouse_over_in_previous_frame;
 
-	/**
-	 * Flags whether changes in hit object should trigger a pulse
-	 */
-	bool m_bCollisionPulse;
-	
-	/**
-	 * Flags get through other objects
-	 */
-	bool m_bXRay;
+  /**
+   * Flags whether changes in hit object should trigger a pulse
+   */
+  bool m_bCollisionPulse;
 
-	int m_mask;
+  /**
+   * Flags get through other objects
+   */
+  bool m_bXRay;
 
-	/**
-	 * Flags material
-	 */
-	bool m_bFindMaterial;
+  int m_mask;
 
-	/**
-	 * Property or material name
-	 */
-	std::string m_propertyname;
+  /**
+   * Flags material
+   */
+  bool m_bFindMaterial;
 
-	/**
-	 * Flags whether the previous test evaluated positive.
-	 */
-	bool m_positive_event;
+  /**
+   * Property or material name
+   */
+  std::string m_propertyname;
 
-	/**
-	 * Tests whether the object is in mouse focus for this camera
-	 */
-	bool ParentObjectHasFocusCamera(KX_Camera *cam);
-	
-	/**
-	 * Tests whether the object is in mouse focus in this scene.
-	 */
-	bool ParentObjectHasFocus(void);
+  /**
+   * Flags whether the previous test evaluated positive.
+   */
+  bool m_positive_event;
 
-	/**
-	 * (in game world coordinates) the place where the object was hit.
-	 */
-	MT_Vector3        m_hitPosition;
+  /**
+   * Tests whether the object is in mouse focus for this camera
+   */
+  bool ParentObjectHasFocusCamera(KX_Camera *cam);
 
-	/**
-	 * (in game world coordinates) the position to which to shoot the ray.
-	 */
-	MT_Vector3        m_prevTargetPoint;
+  /**
+   * Tests whether the object is in mouse focus in this scene.
+   */
+  bool ParentObjectHasFocus(void);
 
-	/**
-	 * (in game world coordinates) the position from which to shoot the ray.
-	 */
-	MT_Vector3        m_prevSourcePoint;
+  /**
+   * (in game world coordinates) the place where the object was hit.
+   */
+  MT_Vector3 m_hitPosition;
 
-	/**
-	 * (in game world coordinates) the face normal of the vertex where
-	 * the object was hit.  */
-	MT_Vector3       m_hitNormal;
+  /**
+   * (in game world coordinates) the position to which to shoot the ray.
+   */
+  MT_Vector3 m_prevTargetPoint;
 
-	/**
-	 * UV texture coordinate of the hit point if any, (0,0) otherwise
-	 */
-	MT_Vector2       m_hitUV;
+  /**
+   * (in game world coordinates) the position from which to shoot the ray.
+   */
+  MT_Vector3 m_prevSourcePoint;
 
-	/**
-	 * The KX scene that holds the camera. The camera position
-	 * determines a part of the start location of the picking ray.  */
-	KX_Scene* m_kxscene;
+  /**
+   * (in game world coordinates) the face normal of the vertex where
+   * the object was hit.  */
+  MT_Vector3 m_hitNormal;
 
-	/**
-	 * The KX engine is needed for computing the viewport */
-	KX_KetsjiEngine* m_kxengine;
+  /**
+   * UV texture coordinate of the hit point if any, (0,0) otherwise
+   */
+  MT_Vector2 m_hitUV;
+
+  /**
+   * The KX scene that holds the camera. The camera position
+   * determines a part of the start location of the picking ray.  */
+  KX_Scene *m_kxscene;
+
+  /**
+   * The KX engine is needed for computing the viewport */
+  KX_KetsjiEngine *m_kxengine;
 };
 
-#endif  /* __KX_MOUSESENSOR */
+#endif /* __KX_MOUSESENSOR */

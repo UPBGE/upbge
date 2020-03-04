@@ -19,43 +19,39 @@
 #include "EXP_StringValue.h"
 
 COperator2Expr::COperator2Expr(VALUE_OPERATOR op, CExpression *lhs, CExpression *rhs)
-	:m_rhs(rhs),
-	m_lhs(lhs),
-	m_op(op)
+    : m_rhs(rhs), m_lhs(lhs), m_op(op)
 {
 }
 
-COperator2Expr::COperator2Expr() :
-	m_rhs(nullptr),
-	m_lhs(nullptr)
+COperator2Expr::COperator2Expr() : m_rhs(nullptr), m_lhs(nullptr)
 {
 }
 
 COperator2Expr::~COperator2Expr()
 {
-	if (m_lhs) {
-		m_lhs->Release();
-	}
-	if (m_rhs) {
-		m_rhs->Release();
-	}
+  if (m_lhs) {
+    m_lhs->Release();
+  }
+  if (m_rhs) {
+    m_rhs->Release();
+  }
 }
 
 unsigned char COperator2Expr::GetExpressionID()
 {
-	return COPERATOR2EXPRESSIONID;
+  return COPERATOR2EXPRESSIONID;
 }
 
 CValue *COperator2Expr::Calculate()
 {
 
-	CValue *ffleft = m_lhs->Calculate();
-	CValue *ffright = m_rhs->Calculate();
+  CValue *ffleft = m_lhs->Calculate();
+  CValue *ffright = m_rhs->Calculate();
 
-	CValue *calculate = ffleft->Calc(m_op, ffright);
+  CValue *calculate = ffleft->Calc(m_op, ffright);
 
-	ffleft->Release();
-	ffright->Release();
+  ffleft->Release();
+  ffright->Release();
 
-	return calculate;
+  return calculate;
 }

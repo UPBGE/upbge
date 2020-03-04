@@ -32,71 +32,74 @@
 #include <map>
 
 struct SingletonSystem {
-	std::map<std::string, int> int_params;
-	std::map<std::string, float> float_params;
-	std::map<std::string, std::string> string_params;
+  std::map<std::string, int> int_params;
+  std::map<std::string, float> float_params;
+  std::map<std::string, std::string> string_params;
 };
 
 static SingletonSystem *_system_instance = nullptr;
 
 SYS_SystemHandle SYS_GetSystem()
 {
-	if (!_system_instance)
-		_system_instance = new SingletonSystem();
+  if (!_system_instance)
+    _system_instance = new SingletonSystem();
 
-	return (SYS_SystemHandle)_system_instance;
+  return (SYS_SystemHandle)_system_instance;
 }
 
 void SYS_DeleteSystem(SYS_SystemHandle sys)
 {
-	if (_system_instance) {
-		delete _system_instance;
-		_system_instance = nullptr;
-	}
+  if (_system_instance) {
+    delete _system_instance;
+    _system_instance = nullptr;
+  }
 }
 
 int SYS_GetCommandLineInt(SYS_SystemHandle sys, const char *paramname, int defaultvalue)
 {
-	std::map<std::string, int>::iterator it = ((SingletonSystem *)sys)->int_params.find(paramname);
-	if (it != ((SingletonSystem *)sys)->int_params.end()) {
-		return it->second;
-	}
+  std::map<std::string, int>::iterator it = ((SingletonSystem *)sys)->int_params.find(paramname);
+  if (it != ((SingletonSystem *)sys)->int_params.end()) {
+    return it->second;
+  }
 
-	return defaultvalue;
+  return defaultvalue;
 }
 
 float SYS_GetCommandLineFloat(SYS_SystemHandle sys, const char *paramname, float defaultvalue)
 {
-	std::map<std::string, float>::iterator it = ((SingletonSystem *)sys)->float_params.find(paramname);
-	if (it != ((SingletonSystem *)sys)->float_params.end()) {
-		return it->second;
-	}
+  std::map<std::string, float>::iterator it =
+      ((SingletonSystem *)sys)->float_params.find(paramname);
+  if (it != ((SingletonSystem *)sys)->float_params.end()) {
+    return it->second;
+  }
 
-	return defaultvalue;
+  return defaultvalue;
 }
 
-const char *SYS_GetCommandLineString(SYS_SystemHandle sys, const char *paramname, const char *defaultvalue)
+const char *SYS_GetCommandLineString(SYS_SystemHandle sys,
+                                     const char *paramname,
+                                     const char *defaultvalue)
 {
-	std::map<std::string, std::string>::iterator it = ((SingletonSystem *)sys)->string_params.find(paramname);
-	if (it != ((SingletonSystem *)sys)->string_params.end()) {
-		return it->second.c_str();
-	}
+  std::map<std::string, std::string>::iterator it =
+      ((SingletonSystem *)sys)->string_params.find(paramname);
+  if (it != ((SingletonSystem *)sys)->string_params.end()) {
+    return it->second.c_str();
+  }
 
-	return defaultvalue;
+  return defaultvalue;
 }
 
 void SYS_WriteCommandLineInt(SYS_SystemHandle sys, const char *paramname, int value)
 {
-	((SingletonSystem *)sys)->int_params[paramname] = value;
+  ((SingletonSystem *)sys)->int_params[paramname] = value;
 }
 
 void SYS_WriteCommandLineFloat(SYS_SystemHandle sys, const char *paramname, float value)
 {
-	((SingletonSystem *)sys)->float_params[paramname] = value;
+  ((SingletonSystem *)sys)->float_params[paramname] = value;
 }
 
 void SYS_WriteCommandLineString(SYS_SystemHandle sys, const char *paramname, const char *value)
 {
-	((SingletonSystem *)sys)->string_params[paramname] = value;
+  ((SingletonSystem *)sys)->string_params[paramname] = value;
 }
-

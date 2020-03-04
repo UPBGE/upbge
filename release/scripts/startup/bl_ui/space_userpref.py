@@ -197,7 +197,6 @@ class USERPREF_PT_interface_display(InterfacePanel, CenterAlignMixIn, Panel):
         flow.prop(view, "show_tooltips")
         flow.prop(view, "show_tooltips_python")
         flow.prop(view, "show_developer_ui")
-        flow.prop(view, "show_large_cursors")
 
 
 class USERPREF_PT_interface_text(InterfacePanel, CenterAlignMixIn, Panel):
@@ -861,11 +860,11 @@ class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
         flow.prop(ui, "menu_shadow_fac")
+        flow.prop(ui, "menu_shadow_width")
         flow.prop(ui, "icon_alpha")
         flow.prop(ui, "icon_saturation")
         flow.prop(ui, "editor_outline")
         flow.prop(ui, "widget_text_cursor")
-        flow.prop(ui, "menu_shadow_width")
         flow.prop(ui, "widget_emboss")
 
 
@@ -1837,7 +1836,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                 # WARNING: 2.8x exception, may be removed
                 # use disabled state for old add-ons, chances are they are broken.
                 if is_addon_27x:
-                    sub.label(text="upgrade to 2.8x required")
+                    sub.label(text="Upgrade to 2.8x required")
                     sub.label(icon='ERROR')
                 # Remove code above after 2.8x migration is complete.
                 elif info["warning"]:

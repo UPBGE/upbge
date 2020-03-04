@@ -86,7 +86,6 @@ const EnumPropertyItem rna_enum_bake_pass_type_items[] = {
     {SCE_PASS_DIFFUSE_COLOR, "DIFFUSE", 0, "Diffuse", ""},
     {SCE_PASS_GLOSSY_COLOR, "GLOSSY", 0, "Glossy", ""},
     {SCE_PASS_TRANSM_COLOR, "TRANSMISSION", 0, "Transmission", ""},
-    {SCE_PASS_SUBSURFACE_COLOR, "SUBSURFACE", 0, "Subsurface", ""},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -129,14 +128,12 @@ static int engine_get_preview_pixel_size(RenderEngine *UNUSED(engine), Scene *sc
 
 static void engine_bind_display_space_shader(RenderEngine *UNUSED(engine), Scene *UNUSED(scene))
 {
-  GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_2D_IMAGE_COLOR);
+  GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_2D_IMAGE);
   GPU_shader_bind(shader);
 
   int img_loc = GPU_shader_get_uniform_ensure(shader, "image");
-  int color_loc = GPU_shader_get_uniform_ensure(shader, "color");
 
   GPU_shader_uniform_int(shader, img_loc, 0);
-  GPU_shader_uniform_vector(shader, color_loc, 3, 1, (float[3]){1.0f, 1.0f, 1.0f});
 }
 
 static void engine_unbind_display_space_shader(RenderEngine *UNUSED(engine))
@@ -533,7 +530,7 @@ static void rna_def_render_engine(BlenderRNA *brna)
                      0,
                      INT_MAX,
                      "Pass Filter",
-                     "Filter to combined, diffuse, glossy, transmission and subsurface passes",
+                     "Filter to combined, diffuse, glossy and transmission passes",
                      0,
                      INT_MAX);
   RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);

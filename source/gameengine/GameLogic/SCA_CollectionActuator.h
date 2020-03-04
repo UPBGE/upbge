@@ -38,24 +38,22 @@ struct Collection;
 class KX_Camera;
 class KX_Scene;
 
-class SCA_CollectionActuator : public SCA_IActuator
-{
+class SCA_CollectionActuator : public SCA_IActuator {
   Py_Header
 
- private :
+      private :
 
-  KX_Scene *m_kxscene;
+      KX_Scene *m_kxscene;
   Collection *m_collection;
   KX_Camera *m_camera;
-  int m_mode; //suspend/resume/addOverlayCollection/RemoveOverlayCollection
+  int m_mode;  // suspend/resume/addOverlayCollection/RemoveOverlayCollection
 
   bool m_useLogic;
   bool m_usePhysics;
   bool m_useVisibility;
 
- public :
-
-   enum SCA_SceneActuatorMode {
+ public:
+  enum SCA_SceneActuatorMode {
     KX_COLLECTION_NODEF = 0,
     KX_COLLECTION_SUSPEND,
     KX_COLLECTION_RESUME,
@@ -64,27 +62,35 @@ class SCA_CollectionActuator : public SCA_IActuator
     KX_COLLECTION_MAX
   };
 
-  SCA_CollectionActuator(SCA_IObject *gameobj, KX_Scene *scene, KX_Camera *cam, Collection *collection, int m_mode, bool use_logic, bool use_physics, bool use_visibility);
+  SCA_CollectionActuator(SCA_IObject *gameobj,
+                         KX_Scene *scene,
+                         KX_Camera *cam,
+                         Collection *collection,
+                         int m_mode,
+                         bool use_logic,
+                         bool use_physics,
+                         bool use_visibility);
   virtual ~SCA_CollectionActuator();
 
-  virtual CValue* GetReplica();
+  virtual CValue *GetReplica();
   virtual void ProcessReplica();
-  virtual bool UnlinkObject(SCA_IObject* clientobj);
-  virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
+  virtual bool UnlinkObject(SCA_IObject *clientobj);
+  virtual void Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map);
 
   virtual bool Update();
-	
+
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
-	
-	//static PyObject *pyattr_get_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	//static int pyattr_set_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-#endif  /* WITH_PYTHON */
+  // static PyObject *pyattr_get_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF
+  // *attrdef); static int pyattr_set_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF
+  // *attrdef, PyObject *value);
+
+#endif /* WITH_PYTHON */
 
 }; /* end of class SCA_CollectionActuator */
 
-#endif //__SCA_CollectionActuator_H__
+#endif  //__SCA_CollectionActuator_H__

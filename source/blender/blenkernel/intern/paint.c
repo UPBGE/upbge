@@ -517,9 +517,9 @@ PaintCurve *BKE_paint_curve_copy(Main *bmain, const PaintCurve *pc)
   return pc_copy;
 }
 
-void BKE_paint_curve_make_local(Main *bmain, PaintCurve *pc, const bool lib_local)
+void BKE_paint_curve_make_local(Main *bmain, PaintCurve *pc, const int flags)
 {
-  BKE_id_make_local_generic(bmain, &pc->id, true, lib_local);
+  BKE_lib_id_make_local_generic(bmain, &pc->id, flags);
 }
 
 Palette *BKE_paint_palette(Paint *p)
@@ -604,9 +604,9 @@ Palette *BKE_palette_copy(Main *bmain, const Palette *palette)
   return palette_copy;
 }
 
-void BKE_palette_make_local(Main *bmain, Palette *palette, const bool lib_local)
+void BKE_palette_make_local(Main *bmain, Palette *palette, const int flags)
 {
-  BKE_id_make_local_generic(bmain, &palette->id, true, lib_local);
+  BKE_lib_id_make_local_generic(bmain, &palette->id, flags);
 }
 
 void BKE_palette_init(Palette *palette)
@@ -1351,7 +1351,7 @@ void BKE_sculpt_update_object_after_eval(Depsgraph *depsgraph, Object *ob_eval)
   /* Update after mesh evaluation in the dependency graph, to rebuild PBVH or
    * other data when modifiers change the mesh. */
   Object *ob_orig = DEG_get_original_object(ob_eval);
-  Mesh *me_eval = ob_eval->runtime.mesh_eval;
+  Mesh *me_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
   BLI_assert(me_eval != NULL);
 

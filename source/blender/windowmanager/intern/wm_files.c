@@ -2672,7 +2672,7 @@ void WM_OT_save_as_mainfile(wmOperatorType *ot)
                   "relative_remap",
                   true,
                   "Remap Relative",
-                  "Make paths relative when saving to a different directory");
+                  "Remap relative paths when saving to a different directory");
   prop = RNA_def_boolean(
       ot->srna,
       "copy",
@@ -2744,7 +2744,7 @@ void WM_OT_save_mainfile(wmOperatorType *ot)
                   "relative_remap",
                   false,
                   "Remap Relative",
-                  "Make paths relative when saving to a different directory");
+                  "Remap relative paths when saving to a different directory");
 
   prop = RNA_def_boolean(ot->srna, "exit", false, "Exit", "Exit Blender after saving");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
@@ -2812,7 +2812,7 @@ static uiBlock *block_create_autorun_warning(struct bContext *C,
                                              void *UNUSED(arg1))
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  uiStyle *style = UI_style_get();
+  uiStyle *style = UI_style_get_dpi();
   uiBlock *block = UI_block_begin(C, ar, "autorun_warning_popup", UI_EMBOSS);
 
   UI_block_flag_enable(
@@ -2832,13 +2832,13 @@ static uiBlock *block_create_autorun_warning(struct bContext *C,
 
   /* Text and some vertical space */
   uiLayout *col = uiLayoutColumn(layout, true);
-  uiItemL(col,
-          TIP_("For security reasons, automatic execution of Python scripts in this file was "
-               "disabled:"),
-          ICON_ERROR);
-  uiLayout *sub = uiLayoutRow(col, true);
-  uiLayoutSetRedAlert(sub, true);
-  uiItemL(sub, G.autoexec_fail, ICON_BLANK1);
+  uiItemL_ex(col,
+             TIP_("For security reasons, automatic execution of Python scripts "
+                  "in this file was disabled:"),
+             ICON_ERROR,
+             true,
+             false);
+  uiItemL_ex(col, G.autoexec_fail, ICON_BLANK1, false, true);
   uiItemL(col, TIP_("This may lead to unexpected behavior"), ICON_BLANK1);
 
   uiItemS(layout);
@@ -3071,6 +3071,7 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C, struct ARegi
 
   /* Create dialog */
   uiBlock *block = UI_block_begin(C, ar, close_file_dialog_name, UI_EMBOSS);
+  style = UI_style_get_dpi();
 
   UI_block_flag_enable(
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
@@ -3088,7 +3089,7 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C, struct ARegi
                                      style);
 
   /* Title */
-  uiItemL(layout, title, ICON_ERROR);
+  uiItemL_ex(layout, title, ICON_ERROR, true, false);
 
   /* Image Saving */
   ReportList reports;
@@ -3096,9 +3097,7 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C, struct ARegi
   uint modified_images_count = ED_image_save_all_modified_info(C, &reports);
 
   LISTBASE_FOREACH (Report *, report, &reports.list) {
-    uiLayout *row = uiLayoutRow(layout, false);
-    uiLayoutSetRedAlert(row, true);
-    uiItemL(row, report->message, ICON_CANCEL);
+    uiItemL_ex(layout, report->message, ICON_CANCEL, false, true);
   }
 
   if (modified_images_count > 0) {

@@ -274,33 +274,33 @@ typedef struct wmNotifier {
  */
 
 /* category */
-#define NOTE_CATEGORY		0xFF000000
-#define	NC_WM				(1<<24)
-#define	NC_WINDOW			(2<<24)
-#define NC_SCREEN			(3<<24)
-#define	NC_SCENE			(4<<24)
-#define	NC_OBJECT			(5<<24)
-#define	NC_MATERIAL			(6<<24)
-#define	NC_TEXTURE			(7<<24)
-#define	NC_LAMP				(8<<24)
-#define	NC_GROUP			(9<<24)
-#define	NC_IMAGE			(10<<24)
-#define	NC_BRUSH			(11<<24)
-#define	NC_TEXT				(12<<24)
-#define NC_WORLD			(13<<24)
-#define NC_ANIMATION		(14<<24)
-#define NC_SPACE			(15<<24)
-#define	NC_GEOM				(16<<24)
-#define NC_NODE				(17<<24)
-#define NC_ID				(18<<24)
-#define NC_PAINTCURVE		(19<<24)
-#define NC_MOVIECLIP			(20<<24)
-#define NC_MASK				(21<<24)
-#define NC_GPENCIL			(22<<24)
-#define NC_LINESTYLE			(23<<24)
-#define NC_CAMERA			(24<<24)
-#define NC_LIGHTPROBE		(25<<24)
-#define NC_LOGIC			(26<<24)
+#define NOTE_CATEGORY 0xFF000000
+#define NC_WM (1 << 24)
+#define NC_WINDOW (2 << 24)
+#define NC_SCREEN (3 << 24)
+#define NC_SCENE (4 << 24)
+#define NC_OBJECT (5 << 24)
+#define NC_MATERIAL (6 << 24)
+#define NC_TEXTURE (7 << 24)
+#define NC_LAMP (8 << 24)
+#define NC_GROUP (9 << 24)
+#define NC_IMAGE (10 << 24)
+#define NC_BRUSH (11 << 24)
+#define NC_TEXT (12 << 24)
+#define NC_WORLD (13 << 24)
+#define NC_ANIMATION (14 << 24)
+#define NC_SPACE (15 << 24)
+#define NC_GEOM (16 << 24)
+#define NC_NODE (17 << 24)
+#define NC_ID (18 << 24)
+#define NC_PAINTCURVE (19 << 24)
+#define NC_MOVIECLIP (20 << 24)
+#define NC_MASK (21 << 24)
+#define NC_GPENCIL (22 << 24)
+#define NC_LINESTYLE (23 << 24)
+#define NC_CAMERA (24 << 24)
+#define NC_LIGHTPROBE (25 << 24)
+#define NC_LOGIC (26 << 24)
 
 /* data type, 256 entries is enough, it can overlap */
 #define NOTE_DATA 0x00FF0000
@@ -372,7 +372,6 @@ typedef struct wmNotifier {
 /* NC_LAMP Light */
 #define ND_LIGHTING (40 << 16)
 #define ND_LIGHTING_DRAW (41 << 16)
-#define ND_SKY (42 << 16)
 
 /* NC_WORLD World */
 #define ND_WORLD_DRAW (45 << 16)
@@ -573,13 +572,6 @@ typedef struct wmEvent {
   void *customdata;
 
 } wmEvent;
-
-/**
- * Values below are considered a click, above are considered a drag.
- */
-int WM_event_cursor_click_drag_threshold_from_event_(const wmEvent *event);
-
-bool WM_event_cursor_click_drag_threshold_met(const wmEvent *event);
 
 /**
  * Values below are ignored when detecting if the user intentionally moved the cursor.

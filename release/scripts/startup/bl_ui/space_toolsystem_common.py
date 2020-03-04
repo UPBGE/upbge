@@ -68,8 +68,8 @@ ToolDef = namedtuple(
         "idname",
         # The name to display in the interface.
         "label",
-        # Description (for tooltip), when not set, use the description of 'operator',
-        # may be a string or a 'function(context, item, keymap) -> string'.
+        # Description (for tool-tip), when not set, use the description of 'operator',
+        # may be a string or a 'function(context, item, key-map) -> string'.
         "description",
         # The name of the icon to use (found in ``release/datafiles/icons``) or None for no icon.
         "icon",
@@ -77,13 +77,34 @@ ToolDef = namedtuple(
         "cursor",
         # An optional gizmo group to activate when the tool is set or None for no gizmo.
         "widget",
-        # Optional keymap for tool, either:
-        # - A function that populates a keymaps passed in as an argument.
+        # Optional key-map for tool, possible values are:
+        #
+        # - ``None`` when the tool doesn't have a key-map.
+        #   Also the default value when no key-map value is defined.
+        #
+        # - A string literal for the key-map name, the key-map items are located in the default key-map.
+        #
+        # - ``()`` an empty tuple for a default name.
+        #   This is convenience functionality for generating a key-map name.
+        #   So if a tool name is "Bone Size", in "Edit Armature" mode for the "3D View",
+        #   All of these values are combined into an id, e.g:
+        #     "3D View Tool: Edit Armature, Bone Envelope"
+        #
+        #   Typically searching for a string ending with the tool name
+        #   in the default key-map will lead you to the key-map for a tool.
+        #
+        # - A function that populates a key-maps passed in as an argument.
+        #
         # - A tuple filled with triple's of:
         #   ``(operator_id, operator_properties, keymap_item_args)``.
         #
+        #   Use this to define the key-map in-line.
+        #
+        #   Note that this isn't used for Blender's built in tools which use the built-in key-map.
+        #   Keep this functionality since it's likely useful for add-on key-maps.
+        #
         # Warning: currently 'from_dict' this is a list of one item,
-        # so internally we can swap the keymap function for the keymap it's self.
+        # so internally we can swap the key-map function for the key-map it's self.
         # This isn't very nice and may change, tool definitions shouldn't care about this.
         "keymap",
         # Optional data-block associated with this tool.
@@ -216,29 +237,52 @@ class ToolSelectPanelHelper:
         else:
             return 0
 
+    # tool flattening
+    #
+    # usually 'tools' is already expanded into ToolDef
+    # but when registering a tool, this can still be a function
+    # (_tools_flatten is usually called with cls.tools_from_context(context)
+    # [that already yields from the function])
+    # so if item is still a function (e.g._defs_XXX.generate_from_brushes)
+    # seems like we cannot expand here (have no context yet)
+    # if we yield None here, this will risk running into duplicate tool bl_idname [in register_tool()]
+    # but still better than erroring out
     @staticmethod
     def _tools_flatten(tools):
-        for item in tools:
-            if type(item) is tuple:
-                yield from item
-            else:
-                # May be None.
-                yield item
+        for item_parent in tools:
+            if item_parent is None:
+                yield None
+            for item in item_parent if (type(item_parent) is tuple) else (item_parent,):
+                if item is None or _item_is_fn(item):
+                    yield None
+                else:
+                    yield item
 
     @staticmethod
     def _tools_flatten_with_tool_index(tools):
-        for item in tools:
-            if type(item) is tuple:
-                i = 0
-                for sub_item in item:
-                    if sub_item is None:
-                        yield None, -1
-                    else:
-                        yield sub_item, i
-                        i += 1
-            else:
-                # May be None.
-                yield item, -1
+        for item_parent in tools:
+            if item_parent is None:
+                yield None, -1
+            i = 0
+            for item in item_parent if (type(item_parent) is tuple) else (item_parent,):
+                if item is None or _item_is_fn(item):
+                    yield None, -1
+                else:
+                    yield item, i
+                    i += 1
+
+    # Special internal function, gives use items that contain keymaps.
+    @staticmethod
+    def _tools_flatten_with_keymap(tools):
+        for item_parent in tools:
+            if item_parent is None:
+                continue
+            for item in item_parent if (type(item_parent) is tuple) else (item_parent,):
+                # skip None or generator function
+                if item is None or _item_is_fn(item):
+                    continue
+                if item.keymap is not None:
+                    yield item
 
     @classmethod
     def _tool_get_active(cls, context, space_type, mode, with_icon=False):
@@ -412,19 +456,6 @@ class ToolSelectPanelHelper:
             km = kc.keymaps.new(km_idname, space_type=cls.bl_space_type, region_type='WINDOW', tool=True)
             keymap_fn[0](km)
         keymap_fn[0] = km.name
-
-    # Special internal function, gives use items that contain keymaps.
-    @staticmethod
-    def _tools_flatten_with_keymap(tools):
-        for item_parent in tools:
-            if item_parent is None:
-                continue
-            for item in item_parent if (type(item_parent) is tuple) else (item_parent,):
-                # skip None or generator function
-                if item is None or _item_is_fn(item):
-                    continue
-                if item.keymap is not None:
-                    yield item
 
     @classmethod
     def register(cls):

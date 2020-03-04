@@ -48,96 +48,94 @@ typedef unsigned long uint_ptr;
 
 class KX_CollisionEventManager;
 
-class SCA_CollisionSensor : public SCA_ISensor
-{
-protected:
-	Py_Header
+class SCA_CollisionSensor : public SCA_ISensor {
+ protected:
+  Py_Header
 
-	/**
-	 * The sensor should only look for objects with this property.
-	 */
-	std::string m_touchedpropname;
-	bool m_bFindMaterial;
-	bool m_bCollisionPulse;                         /* changes in the colliding objects trigger pulses */
+      /**
+       * The sensor should only look for objects with this property.
+       */
+      std::string m_touchedpropname;
+  bool m_bFindMaterial;
+  bool m_bCollisionPulse; /* changes in the colliding objects trigger pulses */
 
-	class PHY_IPhysicsController *   m_physCtrl;
+  class PHY_IPhysicsController *m_physCtrl;
 
-	bool m_bCollision;
-	bool m_bTriggered;
-	bool m_bLastTriggered;
+  bool m_bCollision;
+  bool m_bTriggered;
+  bool m_bLastTriggered;
 
-	// Use with m_bCollisionPulse to detect changes
-	int m_bLastCount;                           /* size of m_colliders last tick */
-	uint_ptr m_bColliderHash;                   /* hash collision objects pointers to trigger in case one object collides and another takes its place */
-	uint_ptr m_bLastColliderHash;
+  // Use with m_bCollisionPulse to detect changes
+  int m_bLastCount;         /* size of m_colliders last tick */
+  uint_ptr m_bColliderHash; /* hash collision objects pointers to trigger in case one object
+                               collides and another takes its place */
+  uint_ptr m_bLastColliderHash;
 
-	SCA_IObject *m_hitObject;
-	CListValue<KX_GameObject> *m_colliders;
-	std::string m_hitMaterial;
+  SCA_IObject *m_hitObject;
+  CListValue<KX_GameObject> *m_colliders;
+  std::string m_hitMaterial;
 
-public:
-	SCA_CollisionSensor(class SCA_EventManager *eventmgr,
-	                   class KX_GameObject *gameobj,
-	                   bool bFindMaterial,
-	                   bool bCollisionPulse,
-	                   const std::string& touchedpropname);
-	virtual ~SCA_CollisionSensor();
+ public:
+  SCA_CollisionSensor(class SCA_EventManager *eventmgr,
+                      class KX_GameObject *gameobj,
+                      bool bFindMaterial,
+                      bool bCollisionPulse,
+                      const std::string &touchedpropname);
+  virtual ~SCA_CollisionSensor();
 
-	virtual CValue *GetReplica();
-	virtual void ProcessReplica();
-	virtual void SynchronizeTransform();
-	virtual bool Evaluate();
-	virtual void Init();
-	virtual void ReParent(SCA_IObject *parent);
+  virtual CValue *GetReplica();
+  virtual void ProcessReplica();
+  virtual void SynchronizeTransform();
+  virtual bool Evaluate();
+  virtual void Init();
+  virtual void ReParent(SCA_IObject *parent);
 
-	virtual void RegisterSumo(KX_CollisionEventManager *collisionman);
-	virtual void UnregisterSumo(KX_CollisionEventManager *collisionman);
-	virtual void UnregisterToManager();
+  virtual void RegisterSumo(KX_CollisionEventManager *collisionman);
+  virtual void UnregisterSumo(KX_CollisionEventManager *collisionman);
+  virtual void UnregisterToManager();
 
-	virtual bool NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *colldata);
+  virtual bool NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *colldata);
 
-	// Allows to do pre-filtering and save computation time
-	// obj1 = sensor physical controller, obj2 = physical controller of second object
-	// return value = true if collision should be checked on pair of object
-	virtual bool BroadPhaseFilterCollision(void *obj1, void *obj2)
-	{
-		return true;
-	}
-	virtual bool BroadPhaseSensorFilterCollision(void *obj1, void *obj2);
-	virtual sensortype GetSensorType()
-	{
-		return ST_TOUCH;
-	}
+  // Allows to do pre-filtering and save computation time
+  // obj1 = sensor physical controller, obj2 = physical controller of second object
+  // return value = true if collision should be checked on pair of object
+  virtual bool BroadPhaseFilterCollision(void *obj1, void *obj2)
+  {
+    return true;
+  }
+  virtual bool BroadPhaseSensorFilterCollision(void *obj1, void *obj2);
+  virtual sensortype GetSensorType()
+  {
+    return ST_TOUCH;
+  }
 
+  virtual bool IsPositiveTrigger()
+  {
+    bool result = m_bTriggered;
+    if (m_invert) {
+      result = !result;
+    }
+    return result;
+  }
 
-	virtual bool IsPositiveTrigger()
-	{
-		bool result = m_bTriggered;
-		if (m_invert) {
-			result = !result;
-		}
-		return result;
-	}
+  virtual void EndFrame();
 
-	virtual void EndFrame();
-
-	class PHY_IPhysicsController *GetPhysicsController()
-	{
-		return m_physCtrl;
-	}
-
+  class PHY_IPhysicsController *GetPhysicsController()
+  {
+    return m_physCtrl;
+  }
 
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	static PyObject *pyattr_get_object_hit(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_object_hit_list(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_object_hit(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_object_hit_list(PyObjectPlus *self_v,
+                                              const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif
-
 };
 
-#endif  /* __KX_TOUCHSENSOR_H__ */
+#endif /* __KX_TOUCHSENSOR_H__ */

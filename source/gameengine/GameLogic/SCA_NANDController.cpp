@@ -32,7 +32,6 @@
  *  \ingroup gamelogic
  */
 
-
 #include "SCA_NANDController.h"
 #include "SCA_ISensor.h"
 #include "SCA_LogicManager.h"
@@ -42,53 +41,44 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_NANDController::SCA_NANDController(SCA_IObject* gameobj)
-	:
-	SCA_IController(gameobj)
+SCA_NANDController::SCA_NANDController(SCA_IObject *gameobj) : SCA_IController(gameobj)
 {
 }
-
-
 
 SCA_NANDController::~SCA_NANDController()
 {
 }
 
-
-
-void SCA_NANDController::Trigger(SCA_LogicManager* logicmgr)
+void SCA_NANDController::Trigger(SCA_LogicManager *logicmgr)
 {
 
-	bool sensorresult = false;
+  bool sensorresult = false;
 
-	for (std::vector<SCA_ISensor*>::const_iterator is=m_linkedsensors.begin();
-	!(is==m_linkedsensors.end());is++)
-	{
-		SCA_ISensor* sensor = *is;
-		if (!sensor->GetState())
-		{
-			sensorresult = true;
-			break;
-		}
-	}
-	
-	for (std::vector<SCA_IActuator*>::const_iterator i=m_linkedactuators.begin();
-	!(i==m_linkedactuators.end());i++)
-	{
-		SCA_IActuator* actua = *i;
-		logicmgr->AddActiveActuator(actua,sensorresult);
-	}
+  for (std::vector<SCA_ISensor *>::const_iterator is = m_linkedsensors.begin();
+       !(is == m_linkedsensors.end());
+       is++) {
+    SCA_ISensor *sensor = *is;
+    if (!sensor->GetState()) {
+      sensorresult = true;
+      break;
+    }
+  }
+
+  for (std::vector<SCA_IActuator *>::const_iterator i = m_linkedactuators.begin();
+       !(i == m_linkedactuators.end());
+       i++) {
+    SCA_IActuator *actua = *i;
+    logicmgr->AddActiveActuator(actua, sensorresult);
+  }
 }
 
-
-
-CValue* SCA_NANDController::GetReplica()
+CValue *SCA_NANDController::GetReplica()
 {
-	CValue* replica = new SCA_NANDController(*this);
-	// this will copy properties and so on...
-	replica->ProcessReplica();
+  CValue *replica = new SCA_NANDController(*this);
+  // this will copy properties and so on...
+  replica->ProcessReplica();
 
-	return replica;
+  return replica;
 }
 
 #ifdef WITH_PYTHON
@@ -98,34 +88,50 @@ CValue* SCA_NANDController::GetReplica()
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject SCA_NANDController::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_NANDController",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_IController::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+PyTypeObject SCA_NANDController::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_NANDController",
+                                         sizeof(PyObjectPlus_Proxy),
+                                         0,
+                                         py_base_dealloc,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         py_base_repr,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         Methods,
+                                         0,
+                                         0,
+                                         &SCA_IController::Type,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         py_base_new};
 
 PyMethodDef SCA_NANDController::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_NANDController::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif

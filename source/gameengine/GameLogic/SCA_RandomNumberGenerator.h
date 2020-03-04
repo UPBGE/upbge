@@ -37,40 +37,40 @@
 
 class SCA_RandomNumberGenerator {
 
-	/* reference counted for memleak */
-	int m_refcount;
+  /* reference counted for memleak */
+  int m_refcount;
 
-	/** base seed */
-	long m_seed;
+  /** base seed */
+  long m_seed;
 
-	/* A bit silly.. The N parameter is a define in the .cpp file */
-	/** the array for the state vector  */
-	/* unsigned long mt[N]; */
-	unsigned long mt[624];
+  /* A bit silly.. The N parameter is a define in the .cpp file */
+  /** the array for the state vector  */
+  /* unsigned long mt[N]; */
+  unsigned long mt[624];
 
-	/** mti==N+1 means mt[KX_MT_VectorLength] is not initialized */
-	int mti; /* initialized in the cpp file */
+  /** mti==N+1 means mt[KX_MT_VectorLength] is not initialized */
+  int mti; /* initialized in the cpp file */
 
-	/** Calculate a start vector */
-	void SetStartVector(void);
+  /** Calculate a start vector */
+  void SetStartVector(void);
+
  public:
-	SCA_RandomNumberGenerator(long seed);
-	~SCA_RandomNumberGenerator();
-	unsigned long Draw();
-	float DrawFloat();
-	long GetSeed();
-	void SetSeed(long newseed);
-	SCA_RandomNumberGenerator* AddRef()
-	{
-		++m_refcount;
-		return this;
-	}
-	void Release()
-	{
-		if (--m_refcount == 0)
-			delete this;
-	}
+  SCA_RandomNumberGenerator(long seed);
+  ~SCA_RandomNumberGenerator();
+  unsigned long Draw();
+  float DrawFloat();
+  long GetSeed();
+  void SetSeed(long newseed);
+  SCA_RandomNumberGenerator *AddRef()
+  {
+    ++m_refcount;
+    return this;
+  }
+  void Release()
+  {
+    if (--m_refcount == 0)
+      delete this;
+  }
 };
 
 #endif /* __SCA_RANDOMNUMBERGENERATOR_H__ */
-

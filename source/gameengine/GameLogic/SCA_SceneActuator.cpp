@@ -32,7 +32,6 @@
  *  \ingroup ketsji
  */
 
-
 #include "SCA_IActuator.h"
 #include "SCA_SceneActuator.h"
 #include <iostream>
@@ -45,149 +44,129 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_SceneActuator::SCA_SceneActuator(SCA_IObject *gameobj, 
-								   int mode,
-								   KX_Scene *scene,
-								   KX_KetsjiEngine* ketsjiEngine,
-								   const std::string& nextSceneName,
-								   KX_Camera* camera)
-								   : SCA_IActuator(gameobj, KX_ACT_SCENE)
+SCA_SceneActuator::SCA_SceneActuator(SCA_IObject *gameobj,
+                                     int mode,
+                                     KX_Scene *scene,
+                                     KX_KetsjiEngine *ketsjiEngine,
+                                     const std::string &nextSceneName,
+                                     KX_Camera *camera)
+    : SCA_IActuator(gameobj, KX_ACT_SCENE)
 {
-	m_mode = mode;
-	m_scene  = scene;
-	m_KetsjiEngine=ketsjiEngine;
-	m_camera = camera;
-	m_nextSceneName = nextSceneName;
-	if (m_camera)
-		m_camera->RegisterActuator(this);
+  m_mode = mode;
+  m_scene = scene;
+  m_KetsjiEngine = ketsjiEngine;
+  m_camera = camera;
+  m_nextSceneName = nextSceneName;
+  if (m_camera)
+    m_camera->RegisterActuator(this);
 } /* End of constructor */
 
-
-
 SCA_SceneActuator::~SCA_SceneActuator()
-{ 
-	if (m_camera)
-		m_camera->UnregisterActuator(this);
+{
+  if (m_camera)
+    m_camera->UnregisterActuator(this);
 } /* end of destructor */
 
-
-
-CValue* SCA_SceneActuator::GetReplica()
+CValue *SCA_SceneActuator::GetReplica()
 {
-	SCA_SceneActuator* replica = new SCA_SceneActuator(*this);
-	replica->ProcessReplica();
-	return replica;
+  SCA_SceneActuator *replica = new SCA_SceneActuator(*this);
+  replica->ProcessReplica();
+  return replica;
 }
 
 void SCA_SceneActuator::ProcessReplica()
 {
-	if (m_camera)
-		m_camera->RegisterActuator(this);
-	SCA_IActuator::ProcessReplica();
+  if (m_camera)
+    m_camera->RegisterActuator(this);
+  SCA_IActuator::ProcessReplica();
 }
 
-bool SCA_SceneActuator::UnlinkObject(SCA_IObject* clientobj)
+bool SCA_SceneActuator::UnlinkObject(SCA_IObject *clientobj)
 {
-	if (clientobj == (SCA_IObject*)m_camera)
-	{
-		// this object is being deleted, we cannot continue to track it.
-		m_camera = nullptr;
-		return true;
-	}
-	return false;
+  if (clientobj == (SCA_IObject *)m_camera) {
+    // this object is being deleted, we cannot continue to track it.
+    m_camera = nullptr;
+    return true;
+  }
+  return false;
 }
 
-void SCA_SceneActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
+void SCA_SceneActuator::Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map)
 {
-	KX_Camera *obj = static_cast<KX_Camera *>(obj_map[m_camera]);
-	if (obj) {
-		if (m_camera)
-			m_camera->UnregisterActuator(this);
-		m_camera = obj;
-		m_camera->RegisterActuator(this);
-	}
+  KX_Camera *obj = static_cast<KX_Camera *>(obj_map[m_camera]);
+  if (obj) {
+    if (m_camera)
+      m_camera->UnregisterActuator(this);
+    m_camera = obj;
+    m_camera->RegisterActuator(this);
+  }
 }
-
 
 bool SCA_SceneActuator::Update()
 {
-	// bool result = false;	/*unused*/
-	bool bNegativeEvent = IsNegativeEvent();
-	RemoveAllEvents();
+  // bool result = false;	/*unused*/
+  bool bNegativeEvent = IsNegativeEvent();
+  RemoveAllEvents();
 
-	if (bNegativeEvent)
-		return false; // do nothing on negative events
+  if (bNegativeEvent)
+    return false;  // do nothing on negative events
 
-	switch (m_mode)
-	{
-	case KX_SCENE_RESTART:
-		{
-			m_KetsjiEngine->ReplaceScene(m_scene->GetName(),m_scene->GetName());
-			break;
-		}
-	case KX_SCENE_SET_CAMERA:
-		if (m_camera)
-		{
-			m_scene->SetActiveCamera(m_camera);
-		}
-		else
-		{
-			// if no camera is set and the parent object is a camera, use it as the camera
-			SCA_IObject* parent = GetParent();
-			if (parent->GetGameObjectType()==SCA_IObject::OBJ_CAMERA)
-			{
-				m_scene->SetActiveCamera((KX_Camera*)parent);
-			}
-		}
-		break;
-	default:
-		break;
-	}
-	
-	if (!m_nextSceneName.size())
-		return false;
-	
-	switch (m_mode)
-	{
-	case KX_SCENE_SET_SCENE:
-		{
-			m_KetsjiEngine->ReplaceScene(m_scene->GetName(),m_nextSceneName);
-			break;
-		}
-	case KX_SCENE_ADD_FRONT_SCENE:
-		{
-			bool overlay=true;
-			m_KetsjiEngine->ConvertAndAddScene(m_nextSceneName,overlay);
-			break;
-		}
-	case KX_SCENE_ADD_BACK_SCENE:
-		{
-			bool overlay=false;
-			m_KetsjiEngine->ConvertAndAddScene(m_nextSceneName,overlay);
-			break;
-		}
-	case KX_SCENE_REMOVE_SCENE:
-		{
-			m_KetsjiEngine->RemoveScene(m_nextSceneName);
-			break;
-		}
-	case KX_SCENE_SUSPEND:
-		{
-			m_KetsjiEngine->SuspendScene(m_nextSceneName);
-			break;
-		}
-	case KX_SCENE_RESUME:
-		{
-			m_KetsjiEngine->ResumeScene(m_nextSceneName);
-			break;
-		}
-	default:
-		; /* do nothing? this is an internal error !!! */
-	}
-	
-	return false;
+  switch (m_mode) {
+    case KX_SCENE_RESTART: {
+      m_KetsjiEngine->ReplaceScene(m_scene->GetName(), m_scene->GetName());
+      break;
+    }
+    case KX_SCENE_SET_CAMERA:
+      if (m_camera) {
+        m_scene->SetActiveCamera(m_camera);
+      }
+      else {
+        // if no camera is set and the parent object is a camera, use it as the camera
+        SCA_IObject *parent = GetParent();
+        if (parent->GetGameObjectType() == SCA_IObject::OBJ_CAMERA) {
+          m_scene->SetActiveCamera((KX_Camera *)parent);
+        }
+      }
+      break;
+    default:
+      break;
+  }
+
+  if (!m_nextSceneName.size())
+    return false;
+
+  switch (m_mode) {
+    case KX_SCENE_SET_SCENE: {
+      m_KetsjiEngine->ReplaceScene(m_scene->GetName(), m_nextSceneName);
+      break;
+    }
+    case KX_SCENE_ADD_FRONT_SCENE: {
+      bool overlay = true;
+      m_KetsjiEngine->ConvertAndAddScene(m_nextSceneName, overlay);
+      break;
+    }
+    case KX_SCENE_ADD_BACK_SCENE: {
+      bool overlay = false;
+      m_KetsjiEngine->ConvertAndAddScene(m_nextSceneName, overlay);
+      break;
+    }
+    case KX_SCENE_REMOVE_SCENE: {
+      m_KetsjiEngine->RemoveScene(m_nextSceneName);
+      break;
+    }
+    case KX_SCENE_SUSPEND: {
+      m_KetsjiEngine->SuspendScene(m_nextSceneName);
+      break;
+    }
+    case KX_SCENE_RESUME: {
+      m_KetsjiEngine->ResumeScene(m_nextSceneName);
+      break;
+    }
+    default:; /* do nothing? this is an internal error !!! */
+  }
+
+  return false;
 }
-
 
 #ifdef WITH_PYTHON
 
@@ -196,72 +175,93 @@ bool SCA_SceneActuator::Update()
 /* ------------------------------------------------------------------------- */
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject SCA_SceneActuator::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_SceneActuator",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+PyTypeObject SCA_SceneActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_SceneActuator",
+                                        sizeof(PyObjectPlus_Proxy),
+                                        0,
+                                        py_base_dealloc,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        py_base_repr,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        Methods,
+                                        0,
+                                        0,
+                                        &SCA_IActuator::Type,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        py_base_new};
 
-PyMethodDef SCA_SceneActuator::Methods[] =
-{
-	{nullptr,nullptr} //Sentinel
+PyMethodDef SCA_SceneActuator::Methods[] = {
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_SceneActuator::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("scene",0,MAX_ID_NAME-2,true,SCA_SceneActuator,m_nextSceneName),
-	KX_PYATTRIBUTE_RW_FUNCTION("camera",SCA_SceneActuator,pyattr_get_camera,pyattr_set_camera),
-	KX_PYATTRIBUTE_BOOL_RW("useRestart", SCA_SceneActuator, m_restart),
-	KX_PYATTRIBUTE_INT_RW("mode", KX_SCENE_NODEF+1, KX_SCENE_MAX-1, true, SCA_SceneActuator, m_mode),
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    KX_PYATTRIBUTE_STRING_RW(
+        "scene", 0, MAX_ID_NAME - 2, true, SCA_SceneActuator, m_nextSceneName),
+    KX_PYATTRIBUTE_RW_FUNCTION("camera", SCA_SceneActuator, pyattr_get_camera, pyattr_set_camera),
+    KX_PYATTRIBUTE_BOOL_RW("useRestart", SCA_SceneActuator, m_restart),
+    KX_PYATTRIBUTE_INT_RW(
+        "mode", KX_SCENE_NODEF + 1, KX_SCENE_MAX - 1, true, SCA_SceneActuator, m_mode),
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *SCA_SceneActuator::pyattr_get_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_SceneActuator::pyattr_get_camera(PyObjectPlus *self,
+                                               const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_SceneActuator* actuator = static_cast<SCA_SceneActuator*>(self);
-	if (!actuator->m_camera)
-		Py_RETURN_NONE;
-	
-	return actuator->m_camera->GetProxy();
+  SCA_SceneActuator *actuator = static_cast<SCA_SceneActuator *>(self);
+  if (!actuator->m_camera)
+    Py_RETURN_NONE;
+
+  return actuator->m_camera->GetProxy();
 }
 
-int SCA_SceneActuator::pyattr_set_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_SceneActuator::pyattr_set_camera(PyObjectPlus *self,
+                                         const struct KX_PYATTRIBUTE_DEF *attrdef,
+                                         PyObject *value)
 {
-	SCA_SceneActuator* actuator = static_cast<SCA_SceneActuator*>(self);
-	KX_Camera *camOb;
-	
-	if (!ConvertPythonToCamera(KX_GetActiveScene(), value, &camOb, true, "actu.camera = value: SCA_SceneActuator"))
-		return PY_SET_ATTR_FAIL;
-	
-	if (actuator->m_camera)
-		actuator->m_camera->UnregisterActuator(actuator);
-	
-	if (camOb==nullptr) {
-		actuator->m_camera= nullptr;
-	}
-	else {
-		actuator->m_camera = camOb;
-		actuator->m_camera->RegisterActuator(actuator);
-	}
-	
-	return PY_SET_ATTR_SUCCESS;
+  SCA_SceneActuator *actuator = static_cast<SCA_SceneActuator *>(self);
+  KX_Camera *camOb;
+
+  if (!ConvertPythonToCamera(
+          KX_GetActiveScene(), value, &camOb, true, "actu.camera = value: SCA_SceneActuator"))
+    return PY_SET_ATTR_FAIL;
+
+  if (actuator->m_camera)
+    actuator->m_camera->UnregisterActuator(actuator);
+
+  if (camOb == nullptr) {
+    actuator->m_camera = nullptr;
+  }
+  else {
+    actuator->m_camera = camOb;
+    actuator->m_camera->RegisterActuator(actuator);
+  }
+
+  return PY_SET_ATTR_SUCCESS;
 }
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON
 
 /* eof */

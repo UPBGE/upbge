@@ -122,7 +122,7 @@ function(target_link_libraries_optimized
   )
 
   foreach(_LIB ${LIBS})
-    target_link_libraries(${TARGET} optimized "${_LIB}")
+    target_link_libraries(${TARGET} INTERFACE optimized "${_LIB}")
   endforeach()
 endfunction()
 
@@ -132,7 +132,7 @@ function(target_link_libraries_debug
   )
 
   foreach(_LIB ${LIBS})
-    target_link_libraries(${TARGET} debug "${_LIB}")
+    target_link_libraries(${TARGET} INTERFACE debug "${_LIB}")
   endforeach()
 endfunction()
 
@@ -170,6 +170,7 @@ function(blender_include_dirs_sys
 endfunction()
 
 function(blender_source_group
+  name
   sources
   )
 
@@ -204,6 +205,13 @@ function(blender_source_group
       endif()
       source_group("${GROUP_ID}" FILES ${_SRC})
     endforeach()
+  endif()
+
+  # if enabled, set the FOLDER property for visual studio projects
+  if(WINDOWS_USE_VISUAL_STUDIO_PROJECT_FOLDERS)
+    get_filename_component(FolderDir ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
+    string(REPLACE ${CMAKE_SOURCE_DIR} "" FolderDir ${FolderDir})
+    set_target_properties(${name} PROPERTIES FOLDER ${FolderDir})
   endif()
 endfunction()
 
@@ -295,11 +303,11 @@ function(blender_add_lib__impl
         set(next_library_mode "${library_lower}")
       else()
         if("${next_library_mode}" STREQUAL "optimized")
-          target_link_libraries(${name} optimized ${library})
+          target_link_libraries(${name} INTERFACE optimized ${library})
         elseif("${next_library_mode}" STREQUAL "debug")
-          target_link_libraries(${name} debug ${library})
+          target_link_libraries(${name} INTERFACE debug ${library})
         else()
-          target_link_libraries(${name} ${library})
+          target_link_libraries(${name} INTERFACE ${library})
         endif()
         set(next_library_mode "")
       endif()
@@ -308,14 +316,7 @@ function(blender_add_lib__impl
 
   # works fine without having the includes
   # listed is helpful for IDE's (QtCreator/MSVC)
-  blender_source_group("${sources}")
-
-  # if enabled, set the FOLDER property for visual studio projects
-  if(WINDOWS_USE_VISUAL_STUDIO_PROJECT_FOLDERS)
-    get_filename_component(FolderDir ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
-    string(REPLACE ${CMAKE_SOURCE_DIR} "" FolderDir ${FolderDir})
-    set_target_properties(${name} PROPERTIES FOLDER ${FolderDir})
-  endif()
+  blender_source_group("${name}" "${sources}")
 
   list_assert_duplicates("${sources}")
   list_assert_duplicates("${includes}")
@@ -946,7 +947,7 @@ function(data_to_c_simple
   set_source_files_properties(${_file_to} PROPERTIES GENERATED TRUE)
 endfunction()
 
-# macro for converting pixmap directory to a png and then a c file
+# Function for converting pixmap directory to a '.png' and then a '.c' file.
 function(data_to_c_simple_icons
   path_from icon_prefix icon_names
   list_to_add
@@ -1138,8 +1139,8 @@ endmacro()
 macro(blender_precompile_headers target cpp header)
   if(MSVC)
     # get the name for the pch output file
-    get_filename_component( pchbase ${cpp} NAME_WE )
-    set( pchfinal "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${pchbase}.pch" )
+    get_filename_component(pchbase ${cpp} NAME_WE)
+    set(pchfinal "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${pchbase}.pch")
 
     # mark the cpp as the one outputting the pch
     set_property(SOURCE ${cpp} APPEND PROPERTY OBJECT_OUTPUTS "${pchfinal}")
@@ -1159,11 +1160,18 @@ macro(blender_precompile_headers target cpp header)
 endmacro()
 
 macro(set_and_warn_dependency
-    _dependency _setting _val)
-    # when $_dependency is disabled, forces $_setting = $_val
-    if(NOT ${${_dependency}} AND ${${_setting}})
-      message(STATUS "'${_dependency}' is disabled: forcing 'set(${_setting} ${_val})'")
-      set(${_setting} ${_val})
-    endif()
+  _dependency _setting _val)
+  # when $_dependency is disabled, forces $_setting = $_val
+  if(NOT ${${_dependency}} AND ${${_setting}})
+    message(STATUS "'${_dependency}' is disabled: forcing 'set(${_setting} ${_val})'")
+    set(${_setting} ${_val})
+  endif()
 endmacro()
 
+macro(without_system_libs_begin)
+  set(CMAKE_IGNORE_PATH "${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES};${CMAKE_SYSTEM_INCLUDE_PATH};${CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES};${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}")
+endmacro()
+
+macro(without_system_libs_end)
+  unset(CMAKE_IGNORE_PATH)
+endmacro()

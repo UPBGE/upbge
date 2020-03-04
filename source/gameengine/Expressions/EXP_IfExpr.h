@@ -21,20 +21,19 @@
 
 #include "EXP_Expression.h"
 
-class CIfExpr : public CExpression
-{
-private:
-	CExpression *m_guard;
-	CExpression *m_e1;
-	CExpression *m_e2;
+class CIfExpr : public CExpression {
+ private:
+  CExpression *m_guard;
+  CExpression *m_e1;
+  CExpression *m_e2;
 
-public:
-	CIfExpr();
-	CIfExpr(CExpression *guard, CExpression *e1, CExpression *e2);
-	virtual ~CIfExpr();
+ public:
+  CIfExpr();
+  CIfExpr(CExpression *guard, CExpression *e1, CExpression *e2);
+  virtual ~CIfExpr();
 
-	virtual unsigned char GetExpressionID();
-	virtual CValue *Calculate();
+  virtual unsigned char GetExpressionID();
+  virtual CValue *Calculate();
 };
 
 #endif  // __EXP_IFEXPR_H__

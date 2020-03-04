@@ -27,6 +27,10 @@
 #include "BLI_compiler_compat.h"
 #include "BLI_sys_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Mesh;
 struct MultiresModifierData;
 struct OpenSubdiv_Converter;
@@ -53,10 +57,33 @@ typedef enum eSubdivFVarLinearInterpolation {
 } eSubdivFVarLinearInterpolation;
 
 typedef struct SubdivSettings {
+  /* Simple subdivision corresponds to "Simple" option in the interface. When its enabled the
+   * subdivided mesh is not "smoothed": new vertices are added uniformly on the existing surface.
+   *
+   * On an OpenSubdiv implementation level this translates to a subdivision scheme:
+   * when is_simple is true OSD_SCHEME_BILINEAR is used, otherwise OSD_SCHEME_CATMARK. */
   bool is_simple;
+
+  /* This refers to an adaptive isolation when creating patches for the subdivided surface.
+   *
+   * When is set to to false (aka uniform subdivision) fixed depth of isolation is used, which
+   * allows to iteratively add more subdivisions (uniform subdivision level 2 = uniform subdivision
+   * level 1 + uniform subdivision level 1). Uniform subdivisions will progressively go to a limit
+   * surface.
+   *
+   * Adaptive isolation generates patches at a limit surface (aka as if infinite number of uniform
+   * subdivisions have been applied). This setting allows to have matches normal and tangent space
+   * the same independent of number of subdivisions set in modifier settings. */
   bool is_adaptive;
+
+  /* Corresponds to Quality option in modifier settings: higher values means the final surface
+   * will be more accurately represented by patches.
+   *
+   * On an OpenSubdiv implementation level this is an isolation level. */
   int level;
+
   bool use_creases;
+
   eSubdivVtxBoundaryInterpolation vtx_boundary_interpolation;
   eSubdivFVarLinearInterpolation fvar_linear_interpolation;
 } SubdivSettings;
@@ -259,6 +286,10 @@ BLI_INLINE int BKE_subdiv_rotate_quad_to_corner(const float quad_u,
  * normalized ptex coordinates. */
 BLI_INLINE void BKE_subdiv_rotate_grid_to_quad(
     const int corner, const float grid_u, const float grid_v, float *r_quad_u, float *r_quad_v);
+
+#ifdef __cplusplus
+}
+#endif
 
 #include "intern/subdiv_inline.h"
 

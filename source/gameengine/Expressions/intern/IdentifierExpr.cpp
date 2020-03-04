@@ -29,38 +29,37 @@
  *  \ingroup expressions
  */
 
-
 #include "EXP_IdentifierExpr.h"
 
-CIdentifierExpr::CIdentifierExpr(const std::string& identifier, CValue *id_context)
-	:m_identifier(identifier)
+CIdentifierExpr::CIdentifierExpr(const std::string &identifier, CValue *id_context)
+    : m_identifier(identifier)
 {
-	if (id_context) {
-		m_idContext = id_context->AddRef();
-	}
-	else {
-		m_idContext = nullptr;
-	}
+  if (id_context) {
+    m_idContext = id_context->AddRef();
+  }
+  else {
+    m_idContext = nullptr;
+  }
 }
 
 CIdentifierExpr::~CIdentifierExpr()
 {
-	if (m_idContext) {
-		m_idContext->Release();
-	}
+  if (m_idContext) {
+    m_idContext->Release();
+  }
 }
 
 CValue *CIdentifierExpr::Calculate()
 {
-	CValue *result = nullptr;
-	if (m_idContext) {
-		result = m_idContext->FindIdentifier(m_identifier);
-	}
+  CValue *result = nullptr;
+  if (m_idContext) {
+    result = m_idContext->FindIdentifier(m_identifier);
+  }
 
-	return result;
+  return result;
 }
 
 unsigned char CIdentifierExpr::GetExpressionID()
 {
-	return CIDENTIFIEREXPRESSIONID;
+  return CIDENTIFIEREXPRESSIONID;
 }

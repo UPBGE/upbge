@@ -396,7 +396,7 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
                              NODE_WIDTH(node) - NODE_DY,
                              NODE_DY,
                              0,
-                             UI_style_get());
+                             UI_style_get_dpi());
 
     if (node->flag & NODE_MUTED) {
       uiLayoutSetActive(layout, false);
@@ -491,7 +491,7 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
                              node->butr.xmax,
                              0,
                              0,
-                             UI_style_get());
+                             UI_style_get_dpi());
 
     if (node->flag & NODE_MUTED) {
       uiLayoutSetActive(layout, false);
@@ -523,7 +523,7 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
                              NODE_WIDTH(node) - NODE_DY,
                              NODE_DY,
                              0,
-                             UI_style_get());
+                             UI_style_get_dpi());
 
     if (node->flag & NODE_MUTED) {
       uiLayoutSetActive(layout, false);
@@ -1341,14 +1341,14 @@ static void node_draw_hidden(const bContext *C,
     GPU_blend(true);
     GPU_line_smooth(true);
 
-    UI_draw_roundbox_3fvAlpha(false,
-                              rct->xmin + 1,
-                              rct->ymin + 1,
-                              rct->xmax - 1,
-                              rct->ymax - 1,
-                              hiddenrad,
-                              node->color,
-                              1.0f);
+    UI_draw_roundbox_3fv_alpha(false,
+                               rct->xmin + 1,
+                               rct->ymin + 1,
+                               rct->xmax - 1,
+                               rct->ymax - 1,
+                               hiddenrad,
+                               node->color,
+                               1.0f);
 
     GPU_line_smooth(false);
     GPU_blend(false);
@@ -1691,6 +1691,8 @@ void drawnodespace(const bContext *C, ARegion *ar)
   snode->cursor[0] /= UI_DPI_FAC;
   snode->cursor[1] /= UI_DPI_FAC;
 
+  int grid_levels = UI_GetThemeValueType(TH_NODE_GRID_LEVELS, SPACE_NODE);
+
   ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
 
   /* only set once */
@@ -1753,8 +1755,11 @@ void drawnodespace(const bContext *C, ARegion *ar)
       snode_setup_v2d(snode, ar, center);
 
       /* grid, uses theme color based on node path depth */
-      UI_view2d_multi_grid_draw(
-          v2d, (depth > 0 ? TH_NODE_GROUP : TH_BACK), ED_node_grid_size(), NODE_GRID_STEPS, 2);
+      UI_view2d_multi_grid_draw(v2d,
+                                (depth > 0 ? TH_NODE_GROUP : TH_BACK),
+                                ED_node_grid_size(),
+                                NODE_GRID_STEPS,
+                                grid_levels);
 
       /* backdrop */
       draw_nodespace_back_pix(C, ar, snode, path->parent_key);
@@ -1795,7 +1800,7 @@ void drawnodespace(const bContext *C, ARegion *ar)
   }
   else {
     /* default grid */
-    UI_view2d_multi_grid_draw(v2d, TH_BACK, ED_node_grid_size(), NODE_GRID_STEPS, 2);
+    UI_view2d_multi_grid_draw(v2d, TH_BACK, ED_node_grid_size(), NODE_GRID_STEPS, grid_levels);
 
     /* backdrop */
     draw_nodespace_back_pix(C, ar, snode, NODE_INSTANCE_KEY_NONE);

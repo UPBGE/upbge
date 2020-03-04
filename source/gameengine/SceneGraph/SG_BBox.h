@@ -40,40 +40,39 @@
  * Holds the minimum and maximum axis aligned points of a node's bounding box,
  * in world coordinates.
  */
-class SG_BBox
-{
-private:
-	/// AABB data.
-	MT_Vector3 m_min;
-	MT_Vector3 m_max;
+class SG_BBox {
+ private:
+  /// AABB data.
+  MT_Vector3 m_min;
+  MT_Vector3 m_max;
 
-	/// Sphere data.
-	MT_Vector3 m_center;
-	float m_radius;
+  /// Sphere data.
+  MT_Vector3 m_center;
+  float m_radius;
 
-	/// Update sphere data with current AABB data.
-	void UpdateSphere();
+  /// Update sphere data with current AABB data.
+  void UpdateSphere();
 
-public:
-	SG_BBox();
-	SG_BBox(const MT_Vector3 &min, const MT_Vector3 &max);
-	~SG_BBox() = default;
+ public:
+  SG_BBox();
+  SG_BBox(const MT_Vector3 &min, const MT_Vector3 &max);
+  ~SG_BBox() = default;
 
-	const MT_Vector3& GetCenter() const;
-	const float GetRadius() const;
+  const MT_Vector3 &GetCenter() const;
+  const float GetRadius() const;
 
-	const MT_Vector3& GetMin() const;
-	const MT_Vector3& GetMax() const;
+  const MT_Vector3 &GetMin() const;
+  const MT_Vector3 &GetMax() const;
 
-	void Get(MT_Vector3& min, MT_Vector3& max) const;
+  void Get(MT_Vector3 &min, MT_Vector3 &max) const;
 
-	void SetMin(const MT_Vector3& min);
-	void SetMax(const MT_Vector3& max);
+  void SetMin(const MT_Vector3 &min);
+  void SetMax(const MT_Vector3 &max);
 
-	void Set(const MT_Vector3& min, const MT_Vector3& max);
+  void Set(const MT_Vector3 &min, const MT_Vector3 &max);
 
-	/// Test if the given point is inside this bounding box.
-	bool Inside(const MT_Vector3& point) const;
+  /// Test if the given point is inside this bounding box.
+  bool Inside(const MT_Vector3 &point) const;
 };
 
 #endif  // __SG_BBOX_H__

@@ -68,7 +68,6 @@
 #include "BKE_lib_id.h"
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
-#include "BKE_cdderivedmesh.h" /* for weight_to_rgb() */
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 #include "BKE_deform.h"
@@ -3838,9 +3837,9 @@ ParticleSettings *BKE_particlesettings_copy(Main *bmain, const ParticleSettings 
   return part_copy;
 }
 
-void BKE_particlesettings_make_local(Main *bmain, ParticleSettings *part, const bool lib_local)
+void BKE_particlesettings_make_local(Main *bmain, ParticleSettings *part, const int flags)
 {
-  BKE_id_make_local_generic(bmain, &part->id, true, lib_local);
+  BKE_lib_id_make_local_generic(bmain, &part->id, flags);
 }
 
 /************************************************/

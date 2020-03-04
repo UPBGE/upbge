@@ -41,25 +41,25 @@
 /* ********************* PROPERTY ************************ */
 
 typedef struct bProperty {
-	struct bProperty *next, *prev;
-	char name[64];	/* MAX_NAME */
-	short type, flag;
-	int data;				/* data should be 4 bytes to store int,float stuff */
-	void *poin;				/* references data unless its a string which is malloc'd */
-	
+  struct bProperty *next, *prev;
+  char name[64]; /* MAX_NAME */
+  short type, flag;
+  int data;   /* data should be 4 bytes to store int,float stuff */
+  void *poin; /* references data unless its a string which is malloc'd */
+
 } bProperty;
 
 /* property->type XXX Game Property, not RNA */
-#define GPROP_BOOL		0
-#define GPROP_INT		1
-#define GPROP_FLOAT		2
-#define GPROP_STRING	3
+#define GPROP_BOOL 0
+#define GPROP_INT 1
+#define GPROP_FLOAT 2
+#define GPROP_STRING 3
 // #define GPROP_VECTOR	4  // UNUSED
-#define GPROP_TIME		5
+#define GPROP_TIME 5
 
 /* property->flag */
-#define PROP_DEBUG		1
+#define PROP_DEBUG 1
 
-#define MAX_PROPSTRING	128
+#define MAX_PROPSTRING 128
 
-#endif  /* __DNA_PROPERTY_TYPES_H__ */
+#endif /* __DNA_PROPERTY_TYPES_H__ */

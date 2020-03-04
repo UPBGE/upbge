@@ -209,7 +209,7 @@ static int open_exec(bContext *C, wmOperator *op)
 
     RNA_string_get(op->ptr, "directory", dir_only);
     if (relative) {
-      BLI_path_rel(dir_only, CTX_data_main(C)->name);
+      BLI_path_rel(dir_only, bmain->name);
     }
 
     prop = RNA_struct_find_property(op->ptr, "files");
@@ -1023,7 +1023,7 @@ void CLIP_OT_view_center_cursor(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name View Selected Operator
+/** \name Frame Selected Operator
  * \{ */
 
 static int view_selected_exec(bContext *C, wmOperator *UNUSED(op))
@@ -1043,7 +1043,7 @@ static int view_selected_exec(bContext *C, wmOperator *UNUSED(op))
 void CLIP_OT_view_selected(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "View Selected";
+  ot->name = "Frame Selected";
   ot->idname = "CLIP_OT_view_selected";
   ot->description = "View all selected elements";
 

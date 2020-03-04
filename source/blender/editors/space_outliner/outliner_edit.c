@@ -642,7 +642,7 @@ static int outliner_id_remap_invoke(bContext *C, wmOperator *op, const wmEvent *
     outliner_id_remap_find_tree_element(C, op, &soops->tree, fmval[1]);
   }
 
-  return WM_operator_props_dialog_popup(C, op, 200, 100);
+  return WM_operator_props_dialog_popup(C, op, 200);
 }
 
 static const EnumPropertyItem *outliner_id_itemf(bContext *C,
@@ -2177,17 +2177,11 @@ void OUTLINER_OT_keyingset_remove_selected(wmOperatorType *ot)
 static bool ed_operator_outliner_id_orphans_active(bContext *C)
 {
   ScrArea *sa = CTX_wm_area(C);
-  if (sa != NULL) {
-    if (sa->spacetype == SPACE_TOPBAR) {
-      return true;
-    }
-
-    if (sa->spacetype == SPACE_OUTLINER) {
-      SpaceOutliner *so = CTX_wm_space_outliner(C);
-      return (so->outlinevis == SO_ID_ORPHANS);
-    }
+  if (sa != NULL && sa->spacetype == SPACE_OUTLINER) {
+    SpaceOutliner *so = CTX_wm_space_outliner(C);
+    return (so->outlinevis == SO_ID_ORPHANS);
   }
-  return 0;
+  return true;
 }
 
 /* Purge Orphans Operator --------------------------------------- */
@@ -2218,7 +2212,7 @@ static int outliner_orphans_purge_invoke(bContext *C, wmOperator *op, const wmEv
   RNA_int_set(op->ptr, "num_deleted", num_tagged[INDEX_ID_NULL]);
 
   if (num_tagged[INDEX_ID_NULL] == 0) {
-    BKE_report(op->reports, RPT_INFO, "No orphanned data-blocks to purge");
+    BKE_report(op->reports, RPT_INFO, "No orphaned data-blocks to purge");
     return OPERATOR_CANCELLED;
   }
 
@@ -2265,7 +2259,7 @@ static int outliner_orphans_purge_exec(bContext *C, wmOperator *op)
     FOREACH_MAIN_ID_END;
 
     if (num_tagged[INDEX_ID_NULL] == 0) {
-      BKE_report(op->reports, RPT_INFO, "No orphanned data-blocks to purge");
+      BKE_report(op->reports, RPT_INFO, "No orphaned data-blocks to purge");
       return OPERATOR_CANCELLED;
     }
   }

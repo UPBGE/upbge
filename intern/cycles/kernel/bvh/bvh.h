@@ -336,7 +336,9 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals *kg,
     ctx.lcg_state = lcg_state;
     ctx.max_hits = max_hits;
     ctx.local_isect = local_isect;
-    local_isect->num_hits = 0;
+    if (local_isect) {
+      local_isect->num_hits = 0;
+    }
     ctx.local_object_id = local_object;
     IntersectContext rtc_ctx(&ctx);
     RTCRay rtc_ray;
@@ -373,7 +375,9 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals *kg,
       rtcOccluded1(kernel_data.bvh.scene, &rtc_ctx.context, &rtc_ray);
     }
 
-    return local_isect->num_hits > 0;
+    /* rtcOccluded1 sets tfar to -inf if a hit was found. */
+    return (local_isect && local_isect->num_hits > 0) || (rtc_ray.tfar < 0);
+    ;
   }
 #    endif /* __EMBREE__ */
 
@@ -439,7 +443,7 @@ ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals *kg,
     ctx.num_hits = 0;
     IntersectContext rtc_ctx(&ctx);
     RTCRay rtc_ray;
-    kernel_embree_setup_ray(*ray, rtc_ray, PATH_RAY_SHADOW);
+    kernel_embree_setup_ray(*ray, rtc_ray, visibility);
     rtcOccluded1(kernel_data.bvh.scene, &rtc_ctx.context, &rtc_ray);
 
     if (ctx.num_hits > max_hits) {

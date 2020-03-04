@@ -129,8 +129,8 @@ int BKE_sequencer_cmp_time_startdisp(const void *a, const void *b);
 enum {
   DO_SINGLE_WIPE,
   DO_DOUBLE_WIPE,
-  DO_BOX_WIPE,
-  DO_CROSS_WIPE,
+  /* DO_BOX_WIPE, */   /* UNUSED */
+  /* DO_CROSS_WIPE, */ /* UNUSED */
   DO_IRIS_WIPE,
   DO_CLOCK_WIPE,
 };
@@ -338,6 +338,7 @@ void BKE_sequencer_cache_iterate(
     struct Scene *scene,
     void *userdata,
     bool callback(void *userdata, struct Sequence *seq, int cfra, int cache_type, float cost));
+size_t BKE_sequencer_cache_get_num_items(struct Scene *scene);
 bool BKE_sequencer_cache_is_full(struct Scene *scene);
 
 /* **********************************************************************

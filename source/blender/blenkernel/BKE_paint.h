@@ -24,6 +24,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct BMFace;
 struct BMesh;
 struct Brush;
@@ -132,7 +136,7 @@ void BKE_palette_copy_data(struct Main *bmain,
                            const struct Palette *palette_src,
                            const int flag);
 struct Palette *BKE_palette_copy(struct Main *bmain, const struct Palette *palette);
-void BKE_palette_make_local(struct Main *bmain, struct Palette *palette, const bool lib_local);
+void BKE_palette_make_local(struct Main *bmain, struct Palette *palette, const int flags);
 struct PaletteColor *BKE_palette_color_add(struct Palette *palette);
 bool BKE_palette_is_empty(const struct Palette *palette);
 void BKE_palette_color_remove(struct Palette *palette, struct PaletteColor *color);
@@ -146,7 +150,7 @@ void BKE_paint_curve_copy_data(struct Main *bmain,
                                const struct PaintCurve *pc_src,
                                const int flag);
 struct PaintCurve *BKE_paint_curve_copy(struct Main *bmain, const struct PaintCurve *pc);
-void BKE_paint_curve_make_local(struct Main *bmain, struct PaintCurve *pc, const bool lib_local);
+void BKE_paint_curve_make_local(struct Main *bmain, struct PaintCurve *pc, const int flags);
 
 bool BKE_paint_ensure(struct ToolSettings *ts, struct Paint **r_paint);
 void BKE_paint_init(struct Main *bmain, struct Scene *sce, ePaintMode mode, const char col[3]);
@@ -245,6 +249,31 @@ typedef struct SculptPoseIKChain {
   int tot_segments;
 } SculptPoseIKChain;
 
+/* Cloth Brush */
+
+typedef struct SculptClothLengthConstraint {
+  int v1;
+  int v2;
+
+  float length;
+} SculptClothLengthConstraint;
+
+typedef struct SculptClothSimulation {
+  SculptClothLengthConstraint *length_constraints;
+  int tot_length_constraints;
+  int capacity_length_constraints;
+  float *length_constraint_tweak;
+
+  float mass;
+  float damping;
+
+  float (*acceleration)[3];
+  float (*pos)[3];
+  float (*init_pos)[3];
+  float (*prev_pos)[3];
+
+} SculptClothSimulation;
+
 /* Session data (mode-specific) */
 
 typedef struct SculptSession {
@@ -298,6 +327,7 @@ typedef struct SculptSession {
   float cursor_radius;
   float cursor_location[3];
   float cursor_normal[3];
+  float cursor_sampled_normal[3];
   float cursor_view_normal[3];
 
   /* TODO(jbakker): Replace rv3d adn v3d with ViewContext */
@@ -382,4 +412,9 @@ enum {
   SCULPT_MASK_LAYER_CALC_VERT = (1 << 0),
   SCULPT_MASK_LAYER_CALC_LOOP = (1 << 1),
 };
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

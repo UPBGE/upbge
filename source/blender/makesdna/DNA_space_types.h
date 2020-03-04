@@ -169,24 +169,24 @@ typedef struct SpaceProperties {
 #  define CONTEXT_SCENE 0
 #  define CONTEXT_OBJECT 1
 // #define CONTEXT_TYPES   2
-#define CONTEXT_SHADING 3
-#define CONTEXT_EDITING 4
-#define CONTEXT_SCRIPT  5
-#define CONTEXT_LOGIC   6
+#  define CONTEXT_SHADING 3
+#  define CONTEXT_EDITING 4
+#  define CONTEXT_SCRIPT 5
+#  define CONTEXT_LOGIC 6
 
 /* SpaceProperties.mainb old (deprecated) */
 // #define BUTS_VIEW           0
-#define BUTS_LAMP           1
-#define BUTS_MAT            2
-#define BUTS_TEX            3
-#define BUTS_ANIM           4
-#define BUTS_WORLD          5
-#define BUTS_RENDER         6
-#define BUTS_EDIT           7
-#define BUTS_GAME           8
-#define BUTS_FPAINT         9
-#define BUTS_RADIO          10
-#define BUTS_SCRIPT         11
+#  define BUTS_LAMP 1
+#  define BUTS_MAT 2
+#  define BUTS_TEX 3
+#  define BUTS_ANIM 4
+#  define BUTS_WORLD 5
+#  define BUTS_RENDER 6
+#  define BUTS_EDIT 7
+#  define BUTS_GAME 8
+#  define BUTS_FPAINT 9
+#  define BUTS_RADIO 10
+#  define BUTS_SCRIPT 11
 // #define BUTS_SOUND          12
 #  define BUTS_CONSTRAINT 13
 // #define BUTS_EFFECTS        14
@@ -218,7 +218,7 @@ typedef enum eSpaceButtons_Context {
 
 /* SpaceProperties.flag */
 typedef enum eSpaceButtons_Flag {
-  SB_PRV_OSA = (1 << 0),
+  /* SB_PRV_OSA = (1 << 0), */ /* UNUSED */
   SB_PIN_CONTEXT = (1 << 1),
   SB_FLAG_UNUSED_2 = (1 << 2),
   SB_FLAG_UNUSED_3 = (1 << 3),
@@ -230,18 +230,18 @@ typedef enum eSpaceButtons_Flag {
 /** \} */
 
 /* sbuts->scaflag */
-#define BUTS_SENS_SEL           1
-#define BUTS_SENS_ACT           2
-#define BUTS_SENS_LINK          4
-#define BUTS_CONT_SEL           8
-#define BUTS_CONT_ACT           16
-#define BUTS_CONT_LINK          32
-#define BUTS_ACT_SEL            64
-#define BUTS_ACT_ACT            128
-#define BUTS_ACT_LINK           256
-#define BUTS_SENS_STATE         512
-#define BUTS_ACT_STATE          1024
-#define BUTS_CONT_INIT_STATE    2048
+#define BUTS_SENS_SEL 1
+#define BUTS_SENS_ACT 2
+#define BUTS_SENS_LINK 4
+#define BUTS_CONT_SEL 8
+#define BUTS_CONT_ACT 16
+#define BUTS_CONT_LINK 32
+#define BUTS_ACT_SEL 64
+#define BUTS_ACT_ACT 128
+#define BUTS_ACT_LINK 256
+#define BUTS_SENS_STATE 512
+#define BUTS_ACT_STATE 1024
+#define BUTS_CONT_INIT_STATE 2048
 
 /* -------------------------------------------------------------------- */
 /** \name Outliner
@@ -293,10 +293,10 @@ typedef struct SpaceOutliner {
 
 /* SpaceOutliner.flag */
 typedef enum eSpaceOutliner_Flag {
-  SO_TESTBLOCKS = (1 << 0),
-  SO_NEWSELECTED = (1 << 1),
-  SO_FLAG_UNUSED_1 = (1 << 2), /* cleared */
-  SO_HIDE_KEYINGSETINFO = (1 << 3),
+  /* SO_TESTBLOCKS = (1 << 0), */         /* UNUSED */
+  /* SO_NEWSELECTED = (1 << 1), */        /* UNUSED */
+  SO_FLAG_UNUSED_1 = (1 << 2),            /* cleared */
+  /* SO_HIDE_KEYINGSETINFO = (1 << 3), */ /* UNUSED */
   SO_SKIP_SORT_ALPHA = (1 << 4),
   SO_SYNC_SELECT = (1 << 5),
 } eSpaceOutliner_Flag;
@@ -464,7 +464,7 @@ typedef enum eGraphEdit_Flag {
   SIPO_SELCUVERTSONLY = (1 << 5),
   /* draw names of F-Curves beside the respective curves */
   /* NOTE: currently not used */
-  SIPO_DRAWNAMES = (1 << 6),
+  /* SIPO_DRAWNAMES = (1 << 6), */ /* UNUSED */
   /* show sliders in channels list */
   SIPO_SLIDERS = (1 << 7),
   /* don't show the horizontal component of the cursor */
@@ -596,9 +596,6 @@ typedef struct SpaceSeq {
   /** Multiview current eye - for internal use. */
   char multiview_eye;
   char _pad2[7];
-
-  struct GPUFX *compositor;
-  void *_pad3;
 } SpaceSeq;
 
 /* SpaceSeq.mainb */
@@ -693,7 +690,8 @@ typedef struct FileSelectParams {
   /** Text items name must match to be shown. */
   char filter_search[64];
   /** Same as filter, but for ID types (aka library groups). */
-  int filter_id;
+  int _pad0;
+  uint64_t filter_id;
 
   /** Active file used for keyboard navigation. */
   int active_file;
@@ -982,6 +980,8 @@ typedef struct FileDirEntry {
 
   short status;
   short flags;
+  /* eFileAttributes defined in BLI_fileops.h */
+  int attributes;
 
   ListBase variants;
   int nbr_variants;
@@ -1013,11 +1013,13 @@ typedef struct FileDirEntryArr {
   char root[1024];
 } FileDirEntryArr;
 
+#if 0 /* UNUSED */
 /* FileDirEntry.status */
 enum {
   ASSET_STATUS_LOCAL = 1 << 0,  /* If active uuid is available locally/immediately. */
   ASSET_STATUS_LATEST = 1 << 1, /* If active uuid is latest available version. */
 };
+#endif
 
 /* FileDirEntry.flags */
 enum {
@@ -1171,12 +1173,6 @@ typedef enum eSpaceImage_Flag {
   SI_SHOW_G = (1 << 28),
   SI_SHOW_B = (1 << 29),
 } eSpaceImage_Flag;
-
-/* SpaceImage.other_uv_filter */
-typedef enum eSpaceImage_OtherUVFilter {
-  SI_FILTER_SAME_IMAGE = 0,
-  SI_FILTER_ALL = 1,
-} eSpaceImage_OtherUVFilter;
 
 /** \} */
 
@@ -1461,19 +1457,19 @@ enum {
 
 /* Logic Editor */
 typedef struct SpaceLogic {
-	SpaceLink *next, *prev;
-	ListBase regionbase;        /* storage of regions for inactive spaces */
-	int spacetype;
-	float blockscale DNA_DEPRECATED;
-	
-	short blockhandler[8]  DNA_DEPRECATED;
-	
-	short flag, scaflag;
-    char _pad[4];
+  SpaceLink *next, *prev;
+  ListBase regionbase; /* storage of regions for inactive spaces */
+  int spacetype;
+  float blockscale DNA_DEPRECATED;
 
-    char import_string[64];
-	
-	struct bGPdata *gpd;        /* grease-pencil data */
+  short blockhandler[8] DNA_DEPRECATED;
+
+  short flag, scaflag;
+  char _pad[4];
+
+  char import_string[64];
+
+  struct bGPdata *gpd; /* grease-pencil data */
 } SpaceLogic;
 
 /** \} */

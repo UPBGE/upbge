@@ -488,7 +488,8 @@ void BKE_mesh_free(Mesh *me)
 void BKE_mesh_clear_geometry(Mesh *mesh)
 {
   BKE_animdata_free(&mesh->id, false);
-  BKE_mesh_runtime_clear_cache(mesh, CustomData_has_layer(&mesh->pdata, CD_RECAST)); /* Game Engine transition */
+  BKE_mesh_runtime_clear_cache(
+      mesh, CustomData_has_layer(&mesh->pdata, CD_RECAST)); /* Game Engine transition */
 
   CustomData_free(&mesh->vdata, mesh->totvert);
   CustomData_free(&mesh->edata, mesh->totedge);
@@ -608,6 +609,8 @@ void BKE_mesh_copy_data(Main *bmain, Mesh *me_dst, const Mesh *me_src, const int
   /* TODO Do we want to add flag to prevent this? */
   if (me_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
     BKE_id_copy_ex(bmain, &me_src->key->id, (ID **)&me_dst->key, flag);
+    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
+    me_dst->key->from = &me_dst->id;
   }
 }
 
@@ -834,9 +837,9 @@ Mesh *BKE_mesh_from_editmesh_with_coords_thin_wrap(BMEditMesh *em,
   return me;
 }
 
-void BKE_mesh_make_local(Main *bmain, Mesh *me, const bool lib_local)
+void BKE_mesh_make_local(Main *bmain, Mesh *me, const int flags)
 {
-  BKE_id_make_local_generic(bmain, &me->id, true, lib_local);
+  BKE_lib_id_make_local_generic(bmain, &me->id, flags);
 }
 
 BoundBox *BKE_mesh_boundbox_get(Object *ob)

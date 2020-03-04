@@ -36,76 +36,73 @@
 #include "SCA_ISensor.h"
 #include "MT_Vector3.h"
 #include "SCA_IScene.h" /* only for scene replace */
-#include "KX_Scene.h" /* only for scene replace */
+#include "KX_Scene.h"   /* only for scene replace */
 
 #include "BLI_utildefines.h"
 
 struct KX_ClientObjectInfo;
 class KX_RayCast;
 
-class SCA_RaySensor : public SCA_ISensor
-{
-	Py_Header
-	std::string		m_propertyname;
-	bool			m_bFindMaterial;
-	bool			m_bXRay;
-	float			m_distance;
-	class KX_Scene* m_scene;
-	bool			m_bTriggered;
-	int				m_axis;
-	int				m_mask;
-	bool			m_rayHit;
-	float			m_hitPosition[3];
-	SCA_IObject*	m_hitObject;
-	float			m_hitNormal[3];
-	float			m_rayDirection[3];
-	std::string		m_hitMaterial;
+class SCA_RaySensor : public SCA_ISensor {
+  Py_Header std::string m_propertyname;
+  bool m_bFindMaterial;
+  bool m_bXRay;
+  float m_distance;
+  class KX_Scene *m_scene;
+  bool m_bTriggered;
+  int m_axis;
+  int m_mask;
+  bool m_rayHit;
+  float m_hitPosition[3];
+  SCA_IObject *m_hitObject;
+  float m_hitNormal[3];
+  float m_rayDirection[3];
+  std::string m_hitMaterial;
 
-public:
-	SCA_RaySensor(class SCA_EventManager* eventmgr,
-					SCA_IObject* gameobj,
-					const std::string& propname,
-					bool bFindMaterial,
-					bool bXRay,
-					double distance,
-					int axis,
-					int mask,
-					class KX_Scene* ketsjiScene);
-	virtual ~SCA_RaySensor();
-	virtual CValue* GetReplica();
+ public:
+  SCA_RaySensor(class SCA_EventManager *eventmgr,
+                SCA_IObject *gameobj,
+                const std::string &propname,
+                bool bFindMaterial,
+                bool bXRay,
+                double distance,
+                int axis,
+                int mask,
+                class KX_Scene *ketsjiScene);
+  virtual ~SCA_RaySensor();
+  virtual CValue *GetReplica();
 
-	virtual bool Evaluate();
-	virtual bool IsPositiveTrigger();
-	virtual void Init();
+  virtual bool Evaluate();
+  virtual bool IsPositiveTrigger();
+  virtual void Init();
 
-	/// \see KX_RayCast
-	bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data));
-	/// \see KX_RayCast
-	bool NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data));
+  /// \see KX_RayCast
+  bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void *UNUSED(data));
+  /// \see KX_RayCast
+  bool NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data));
 
-	virtual void		Replace_IScene(SCA_IScene *val) 
-	{ 	
-		m_scene= static_cast<KX_Scene *>(val); 
-	}
+  virtual void Replace_IScene(SCA_IScene *val)
+  {
+    m_scene = static_cast<KX_Scene *>(val);
+  }
 
-	//Python Interface
-	// odd order, see: SENS_RAY_X_AXIS
-	enum RayAxis {
-		KX_RAY_AXIS_POS_X = 1,
-		KX_RAY_AXIS_POS_Y = 0,
-		KX_RAY_AXIS_POS_Z = 2,
-		KX_RAY_AXIS_NEG_X = 3,
-		KX_RAY_AXIS_NEG_Y = 4,
-		KX_RAY_AXIS_NEG_Z = 5,
-	};
-	
+  // Python Interface
+  // odd order, see: SENS_RAY_X_AXIS
+  enum RayAxis {
+    KX_RAY_AXIS_POS_X = 1,
+    KX_RAY_AXIS_POS_Y = 0,
+    KX_RAY_AXIS_POS_Z = 2,
+    KX_RAY_AXIS_NEG_X = 3,
+    KX_RAY_AXIS_NEG_Y = 4,
+    KX_RAY_AXIS_NEG_Z = 5,
+  };
+
 #ifdef WITH_PYTHON
 
-	/* Attributes */
-	static PyObject *pyattr_get_hitobject(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	
-#endif  /* WITH_PYTHON */
+  /* Attributes */
+  static PyObject *pyattr_get_hitobject(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
+#endif /* WITH_PYTHON */
 };
 
-#endif  /* __SCA_RaySensor_H__ */
+#endif /* __SCA_RaySensor_H__ */

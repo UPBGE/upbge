@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- * 
+ *
  * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -36,16 +36,21 @@ class KX_Scene;
 
 void KX_SetActiveEngine(KX_KetsjiEngine *engine);
 void KX_SetActiveScene(KX_Scene *scene);
-void KX_SetMainPath(const std::string& path);
-void KX_SetOrigPath(const std::string& path);
+void KX_SetMainPath(const std::string &path);
+void KX_SetOrigPath(const std::string &path);
 
 KX_KetsjiEngine *KX_GetActiveEngine();
 KX_Scene *KX_GetActiveScene();
-const std::string& KX_GetMainPath();
-const std::string& KX_GetOrigPath();
+const std::string &KX_GetMainPath();
+const std::string &KX_GetOrigPath();
 
-void KX_RasterizerDrawDebugLine(const MT_Vector3 &from,const MT_Vector3 &to,const MT_Vector4 &color);
-void KX_RasterizerDrawDebugCircle(const MT_Vector3 &center, const MT_Scalar radius, const MT_Vector4 &color,
-                                  const MT_Vector3 &normal, int nsector);
+void KX_RasterizerDrawDebugLine(const MT_Vector3 &from,
+                                const MT_Vector3 &to,
+                                const MT_Vector4 &color);
+void KX_RasterizerDrawDebugCircle(const MT_Vector3 &center,
+                                  const MT_Scalar radius,
+                                  const MT_Vector4 &color,
+                                  const MT_Vector3 &normal,
+                                  int nsector);
 
-#endif // __KX_GLOBALS_H__
+#endif  // __KX_GLOBALS_H__

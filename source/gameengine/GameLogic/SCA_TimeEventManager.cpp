@@ -30,9 +30,9 @@
  */
 
 #ifdef _MSC_VER
-   /* This warning tells us about truncation of __long__ stl-generated names.
-    * It can occasionally cause DevStudio to have internal compiler warnings. */
-#  pragma warning(disable:4786)
+/* This warning tells us about truncation of __long__ stl-generated names.
+ * It can occasionally cause DevStudio to have internal compiler warnings. */
+#  pragma warning(disable : 4786)
 #endif
 
 #include "SCA_TimeEventManager.h"
@@ -40,83 +40,67 @@
 #include "SCA_LogicManager.h"
 #include "EXP_FloatValue.h"
 
-SCA_TimeEventManager::SCA_TimeEventManager(SCA_LogicManager* logicmgr)
-: SCA_EventManager(nullptr, TIME_EVENTMGR)
+SCA_TimeEventManager::SCA_TimeEventManager(SCA_LogicManager *logicmgr)
+    : SCA_EventManager(nullptr, TIME_EVENTMGR)
 {
 }
-
-
 
 SCA_TimeEventManager::~SCA_TimeEventManager()
 {
-	for (std::vector<CValue*>::iterator it = m_timevalues.begin();
-			!(it == m_timevalues.end()); ++it)
-	{
-		(*it)->Release();
-	}
+  for (std::vector<CValue *>::iterator it = m_timevalues.begin(); !(it == m_timevalues.end());
+       ++it) {
+    (*it)->Release();
+  }
 }
 
-
-
-bool SCA_TimeEventManager::RegisterSensor(SCA_ISensor* sensor)
+bool SCA_TimeEventManager::RegisterSensor(SCA_ISensor *sensor)
 {
-	// not yet
-	return false;
+  // not yet
+  return false;
 }
 
-bool SCA_TimeEventManager::RemoveSensor(SCA_ISensor* sensor)
+bool SCA_TimeEventManager::RemoveSensor(SCA_ISensor *sensor)
 {
-	// empty
-	return false;
+  // empty
+  return false;
 }
-
-
 
 void SCA_TimeEventManager::NextFrame(double curtime, double fixedtime)
 {
-	if (m_timevalues.size() > 0 && fixedtime > 0.0)
-	{
-		CFloatValue* floatval = new CFloatValue(curtime);
-		
-		// update sensors, but ... need deltatime !
-		for (std::vector<CValue*>::iterator it = m_timevalues.begin();
-		!(it == m_timevalues.end()); ++it)
-		{
-			float newtime = (*it)->GetNumber() + fixedtime;
-			floatval->SetFloat(newtime);
-			(*it)->SetValue(floatval);
-		}
-		
-		floatval->Release();
-	}
+  if (m_timevalues.size() > 0 && fixedtime > 0.0) {
+    CFloatValue *floatval = new CFloatValue(curtime);
+
+    // update sensors, but ... need deltatime !
+    for (std::vector<CValue *>::iterator it = m_timevalues.begin(); !(it == m_timevalues.end());
+         ++it) {
+      float newtime = (*it)->GetNumber() + fixedtime;
+      floatval->SetFloat(newtime);
+      (*it)->SetValue(floatval);
+    }
+
+    floatval->Release();
+  }
 }
 
-
-
-void SCA_TimeEventManager::AddTimeProperty(CValue* timeval)
+void SCA_TimeEventManager::AddTimeProperty(CValue *timeval)
 {
-	timeval->AddRef();
-	m_timevalues.push_back(timeval);
+  timeval->AddRef();
+  m_timevalues.push_back(timeval);
 }
 
-
-
-void SCA_TimeEventManager::RemoveTimeProperty(CValue* timeval)
+void SCA_TimeEventManager::RemoveTimeProperty(CValue *timeval)
 {
-	for (std::vector<CValue*>::iterator it = m_timevalues.begin();
-			!(it == m_timevalues.end()); ++it)
-	{
-		if ((*it) == timeval)
-		{
-			this->m_timevalues.erase(it);
-			timeval->Release();
-			break;
-		}
-	}
+  for (std::vector<CValue *>::iterator it = m_timevalues.begin(); !(it == m_timevalues.end());
+       ++it) {
+    if ((*it) == timeval) {
+      this->m_timevalues.erase(it);
+      timeval->Release();
+      break;
+    }
+  }
 }
 
-std::vector<CValue*> SCA_TimeEventManager::GetTimeValues()
+std::vector<CValue *> SCA_TimeEventManager::GetTimeValues()
 {
-	return m_timevalues;
+  return m_timevalues;
 }
-

@@ -29,40 +29,37 @@
 
 #include "BLI_threads.h"
 
-class CM_ThreadLock
-{
-public:
-	CM_ThreadLock();
-	virtual ~CM_ThreadLock();
+class CM_ThreadLock {
+ public:
+  CM_ThreadLock();
+  virtual ~CM_ThreadLock();
 
-	virtual void Lock() = 0;
-	virtual void Unlock() = 0;
+  virtual void Lock() = 0;
+  virtual void Unlock() = 0;
 };
 
-class CM_ThreadSpinLock : public CM_ThreadLock
-{
-public:
-	CM_ThreadSpinLock();
-	virtual ~CM_ThreadSpinLock();
+class CM_ThreadSpinLock : public CM_ThreadLock {
+ public:
+  CM_ThreadSpinLock();
+  virtual ~CM_ThreadSpinLock();
 
-	virtual void Lock();
-	virtual void Unlock();
+  virtual void Lock();
+  virtual void Unlock();
 
-private:
-	SpinLock m_spinlock;
+ private:
+  SpinLock m_spinlock;
 };
 
-class CM_ThreadMutex : public CM_ThreadLock
-{
-public:
-	CM_ThreadMutex();
-	virtual ~CM_ThreadMutex();
+class CM_ThreadMutex : public CM_ThreadLock {
+ public:
+  CM_ThreadMutex();
+  virtual ~CM_ThreadMutex();
 
-	virtual void Lock();
-	virtual void Unlock();
+  virtual void Lock();
+  virtual void Unlock();
 
-private:
-	ThreadMutex m_mutex;
+ private:
+  ThreadMutex m_mutex;
 };
 
-#endif // __CM_THREAD_H__
+#endif  // __CM_THREAD_H__

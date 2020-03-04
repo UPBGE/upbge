@@ -62,7 +62,7 @@
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_property.h" // for BKE_bproperty_object_get
+#include "BKE_property.h"  // for BKE_bproperty_object_get
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
@@ -151,6 +151,23 @@ static void do_versions_nodetree_convert_angle(bNodeTree *ntree)
 
 static void do_versions_image_settings_2_60(Scene *sce)
 {
+  /* RenderData.subimtype flag options for imtype */
+  enum {
+    R_OPENEXR_HALF = (1 << 0),
+    R_OPENEXR_ZBUF = (1 << 1),
+    R_PREVIEW_JPG = (1 << 2),
+    R_CINEON_LOG = (1 << 3),
+    R_TIFF_16BIT = (1 << 4),
+
+    R_JPEG2K_12BIT = (1 << 5),
+    /* Jpeg2000 */
+    R_JPEG2K_16BIT = (1 << 6),
+    R_JPEG2K_YCC = (1 << 7),
+    /* when disabled use RGB */
+    R_JPEG2K_CINE_PRESET = (1 << 8),
+    R_JPEG2K_CINE_48FPS = (1 << 9),
+  };
+
   /* note: rd->subimtype is moved into individual settings now and no longer
    * exists */
   RenderData *rd = &sce->r;
@@ -445,21 +462,21 @@ static void do_versions_nodetree_frame_2_64_6(bNodeTree *ntree)
 
 static void do_version_logic_264(ListBase *regionbase)
 {
-	ARegion *ar;
+  ARegion *ar;
 
-	/* view settings for logic changed */
-	for (ar = regionbase->first; ar; ar = ar->next) {
-		if (ar->regiontype == RGN_TYPE_WINDOW) {
-			if (ar->v2d.keeptot == 0) {
-				ar->v2d.maxzoom = 1.5f;
+  /* view settings for logic changed */
+  for (ar = regionbase->first; ar; ar = ar->next) {
+    if (ar->regiontype == RGN_TYPE_WINDOW) {
+      if (ar->v2d.keeptot == 0) {
+        ar->v2d.maxzoom = 1.5f;
 
-				ar->v2d.keepzoom = V2D_KEEPZOOM | V2D_LIMITZOOM | V2D_KEEPASPECT;
-				ar->v2d.keeptot = V2D_KEEPTOT_BOUNDS;
-				ar->v2d.align = V2D_ALIGN_NO_POS_Y | V2D_ALIGN_NO_NEG_X;
-				ar->v2d.keepofs = V2D_KEEPOFS_Y;
-			}
-		}
-	}
+        ar->v2d.keepzoom = V2D_KEEPZOOM | V2D_LIMITZOOM | V2D_KEEPASPECT;
+        ar->v2d.keeptot = V2D_KEEPTOT_BOUNDS;
+        ar->v2d.align = V2D_ALIGN_NO_POS_Y | V2D_ALIGN_NO_NEG_X;
+        ar->v2d.keepofs = V2D_KEEPOFS_Y;
+      }
+    }
+  }
 }
 
 static void do_versions_affine_tracker_track(MovieTrackingTrack *track)

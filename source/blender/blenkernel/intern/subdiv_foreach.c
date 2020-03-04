@@ -525,13 +525,13 @@ static void subdiv_foreach_edge_vertices_special_do(SubdivForeachTaskContext *ct
     const bool flip = (coarse_edge->v2 == coarse_loop->v);
     int subdiv_vertex_index = ctx->vertices_edge_offset +
                               coarse_edge_index * num_subdiv_vertices_per_coarse_edge;
-    int veretx_delta = 1;
+    int vertex_delta = 1;
     if (flip) {
       subdiv_vertex_index += num_subdiv_vertices_per_coarse_edge - 1;
-      veretx_delta = -1;
+      vertex_delta = -1;
     }
     for (int vertex_index = 1; vertex_index < num_vertices_per_ptex_edge;
-         vertex_index++, subdiv_vertex_index += veretx_delta) {
+         vertex_index++, subdiv_vertex_index += vertex_delta) {
       const float u = vertex_index * inv_ptex_resolution_1;
       vertex_edge(ctx->foreach_context,
                   tls,
@@ -546,7 +546,7 @@ static void subdiv_foreach_edge_vertices_special_do(SubdivForeachTaskContext *ct
     const int next_corner = (corner + 1) % coarse_poly->totloop;
     const int next_ptex_face_index = ptex_face_start_index + next_corner;
     for (int vertex_index = 1; vertex_index < num_vertices_per_ptex_edge - 1;
-         vertex_index++, subdiv_vertex_index += veretx_delta) {
+         vertex_index++, subdiv_vertex_index += vertex_delta) {
       const float v = 1.0f - vertex_index * inv_ptex_resolution_1;
       vertex_edge(ctx->foreach_context,
                   tls,
@@ -829,7 +829,7 @@ static void subdiv_foreach_edges_all_patches_regular(SubdivForeachTaskContext *c
     const bool flip = (coarse_edge->v2 == coarse_loop->v);
     int side_start_index = start_vertex_index;
     int side_stride = 0;
-    /* Calculate starting veretx of corresponding inner part of ptex. */
+    /* Calculate starting vertex of corresponding inner part of ptex. */
     if (corner == 0) {
       side_stride = 1;
     }
@@ -1103,6 +1103,23 @@ static void subdiv_foreach_loops_of_poly(SubdivForeachTaskContext *ctx,
                              e3);
 }
 
+static int subdiv_foreach_loops_corner_index(const float u,
+                                             const float v,
+                                             const float du,
+                                             const float dv)
+{
+  if (u + du <= 0.5f && v + dv <= 0.5f) {
+    return 0;
+  }
+  else if (u >= 0.5f && v + dv <= 0.5f) {
+    return 1;
+  }
+  else if (u >= 0.5f && v >= 0.5f) {
+    return 2;
+  }
+  return 3;
+}
+
 static void subdiv_foreach_loops_regular(SubdivForeachTaskContext *ctx,
                                          void *tls,
                                          const MPoly *coarse_poly)
@@ -1146,12 +1163,13 @@ static void subdiv_foreach_loops_regular(SubdivForeachTaskContext *ctx,
       const int e1 = e0 + ptex_inner_resolution;
       const int e2 = e0 + (2 * ptex_inner_resolution - 1);
       const int e3 = e0 + ptex_inner_resolution - 1;
+
       subdiv_foreach_loops_of_poly(ctx,
                                    tls,
                                    subdiv_loop_index,
                                    ptex_face_index,
                                    coarse_poly_index,
-                                   0,
+                                   subdiv_foreach_loops_corner_index(u, v, du, dv),
                                    0,
                                    v0,
                                    e0,
@@ -1192,7 +1210,7 @@ static void subdiv_foreach_loops_regular(SubdivForeachTaskContext *ctx,
       v3 = ctx->vertices_edge_offset + prev_coarse_loop->e * num_subdiv_vertices_per_coarse_edge;
       e3 = ctx->edge_boundary_offset + prev_coarse_loop->e * num_subdiv_edges_per_coarse_edge;
     }
-    /* Calculate starting veretx of corresponding inner part of ptex. */
+    /* Calculate starting vertex of corresponding inner part of ptex. */
     if (corner == 0) {
       side_stride = 1;
       e2_offset = 0;
@@ -1265,12 +1283,16 @@ static void subdiv_foreach_loops_regular(SubdivForeachTaskContext *ctx,
       else {
         e2 = start_edge_index + e2_offset + e2_stride * (i - 1);
       }
+
+      const float loop_u = u + delta_u * i;
+      const float loop_v = v + delta_v * i;
+
       subdiv_foreach_loops_of_poly(ctx,
                                    tls,
                                    subdiv_loop_index,
                                    ptex_face_index,
                                    coarse_poly_index,
-                                   corner,
+                                   subdiv_foreach_loops_corner_index(loop_u, loop_v, du, dv),
                                    corner,
                                    v0,
                                    e0,
@@ -1280,8 +1302,8 @@ static void subdiv_foreach_loops_regular(SubdivForeachTaskContext *ctx,
                                    e2,
                                    v3,
                                    e3,
-                                   u + delta_u * i,
-                                   v + delta_v * i,
+                                   loop_u,
+                                   loop_v,
                                    du,
                                    dv);
       v0 = v1;

@@ -2971,7 +2971,7 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name View Selected Operator
+/** \name Frame Selected Operator
  *
  * Move & Zoom the view to fit selected contents.
  * \{ */
@@ -3110,7 +3110,7 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 void VIEW3D_OT_view_selected(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "View Selected";
+  ot->name = "Frame Selected";
   ot->description = "Move the view to the selection center";
   ot->idname = "VIEW3D_OT_view_selected";
 
@@ -3632,7 +3632,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
     /* ignore dist_range min */
     dist_range[0] = v3d->clip_start * 1.5f;
   }
-  else { /* othographic */
+  else { /* orthographic */
     /* find the current window width and height */
     vb[0] = ar->winx;
     vb[1] = ar->winy;

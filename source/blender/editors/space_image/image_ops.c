@@ -891,7 +891,7 @@ void IMAGE_OT_view_center_cursor(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name View Selected Operator
+/** \name Frame Selected Operator
  * \{ */
 
 static int image_view_selected_exec(bContext *C, wmOperator *UNUSED(op))
@@ -1207,18 +1207,6 @@ typedef struct ImageOpenData {
   ImageFormatData im_format;
 } ImageOpenData;
 
-typedef struct ImageFrameRange {
-  struct ImageFrameRange *next, *prev;
-  ListBase frames;
-  /**  The full path of the first file in the list of image files */
-  char filepath[FILE_MAX];
-} ImageFrameRange;
-
-typedef struct ImageFrame {
-  struct ImageFrame *next, *prev;
-  int framenr;
-} ImageFrame;
-
 static void image_open_init(bContext *C, wmOperator *op)
 {
   ImageOpenData *iod;
@@ -1233,179 +1221,18 @@ static void image_open_cancel(bContext *UNUSED(C), wmOperator *op)
   op->customdata = NULL;
 }
 
-/**
- * Get a list of frames from the list of image files matching the first file name sequence pattern.
- * \param ptr[in]: The RNA pointer containing the "directory" entry and "files" collection.
- * \param frames_all[out]: the list of frame numbers found in the files matching
- * the first one by name.
- */
-static void image_sequence_get_frame_ranges(PointerRNA *ptr, ListBase *frames_all)
-{
-  char dir[FILE_MAXDIR];
-  const bool do_frame_range = RNA_boolean_get(ptr, "use_sequence_detection");
-  ImageFrameRange *frame_range = NULL;
-
-  RNA_string_get(ptr, "directory", dir);
-  RNA_BEGIN (ptr, itemptr, "files") {
-    char base_head[FILE_MAX], base_tail[FILE_MAX];
-    char head[FILE_MAX], tail[FILE_MAX];
-    unsigned short digits;
-    char *filename = RNA_string_get_alloc(&itemptr, "name", NULL, 0);
-    ImageFrame *frame = MEM_callocN(sizeof(ImageFrame), "image_frame");
-
-    /* use the first file in the list as base filename */
-    frame->framenr = BLI_stringdec(filename, head, tail, &digits);
-
-    /* still in the same sequence */
-    if (do_frame_range && (frame_range != NULL) && (STREQLEN(base_head, head, FILE_MAX)) &&
-        (STREQLEN(base_tail, tail, FILE_MAX))) {
-      /* pass */
-    }
-    else {
-      /* start a new frame range */
-      frame_range = MEM_callocN(sizeof(*frame_range), __func__);
-      BLI_join_dirfile(frame_range->filepath, sizeof(frame_range->filepath), dir, filename);
-      BLI_addtail(frames_all, frame_range);
-
-      BLI_strncpy(base_head, head, sizeof(base_head));
-      BLI_strncpy(base_tail, tail, sizeof(base_tail));
-    }
-
-    BLI_addtail(&frame_range->frames, frame);
-    MEM_freeN(filename);
-  }
-  RNA_END;
-}
-
-static int image_cmp_frame(const void *a, const void *b)
-{
-  const ImageFrame *frame_a = a;
-  const ImageFrame *frame_b = b;
-
-  if (frame_a->framenr < frame_b->framenr) {
-    return -1;
-  }
-  if (frame_a->framenr > frame_b->framenr) {
-    return 1;
-  }
-  return 0;
-}
-
-/* Checks whether the given filepath refers to a UDIM texture.
- * If yes, the range from 1001 to the highest tile is returned, otherwise 0.
- *
- * If the result is positive, the filepath will be overwritten with that of
- * the 1001 tile.
- * udim_tiles may get filled even if the result ultimately is false! */
-static int image_get_udim(char *filepath, LinkNodePair *udim_tiles)
-{
-  char filename[FILE_MAX], dirname[FILE_MAXDIR];
-  BLI_split_dirfile(filepath, dirname, filename, sizeof(dirname), sizeof(filename));
-
-  unsigned short digits;
-  char base_head[FILE_MAX], base_tail[FILE_MAX];
-  int id = BLI_stringdec(filename, base_head, base_tail, &digits);
-
-  if (id < 1001 || id >= IMA_UDIM_MAX) {
-    return 0;
-  }
-
-  bool is_udim = true;
-  bool has_primary = false;
-  int max_udim = 0;
-
-  struct direntry *dir;
-  uint totfile = BLI_filelist_dir_contents(dirname, &dir);
-  for (int i = 0; i < totfile; i++) {
-    if (!(dir[i].type & S_IFREG)) {
-      continue;
-    }
-    char head[FILE_MAX], tail[FILE_MAX];
-    id = BLI_stringdec(dir[i].relname, head, tail, &digits);
-
-    if (digits > 4 || !(STREQLEN(base_head, head, FILE_MAX)) ||
-        !(STREQLEN(base_tail, tail, FILE_MAX))) {
-      continue;
-    }
-
-    if (id < 1001 || id >= IMA_UDIM_MAX) {
-      is_udim = false;
-      break;
-    }
-    if (id == 1001) {
-      has_primary = true;
-    }
-
-    BLI_linklist_append(udim_tiles, POINTER_FROM_INT(id));
-    max_udim = max_ii(max_udim, id);
-  }
-  BLI_filelist_free(dir, totfile);
-
-  if (is_udim && has_primary) {
-    char primary_filename[FILE_MAX];
-    BLI_stringenc(primary_filename, base_head, base_tail, digits, 1001);
-    BLI_join_dirfile(filepath, FILE_MAX, dirname, primary_filename);
-    return max_udim - 1000;
-  }
-  return 0;
-}
-
-/**
- * Return the start (offset) and the length of the sequence of
- * continuous frames in the list of frames.
- *
- * \param frames: [in] the list of frame numbers, as a side-effect the list is sorted.
- * \param ofs: [out] offset the first frame number in the sequence.
- * \return the number of contiguous frames in the sequence
- */
-static int image_sequence_get_len(ImageFrameRange *frame_range,
-                                  int *ofs,
-                                  char *filepath_range,
-                                  LinkNodePair *udim_tiles)
-{
-  ImageFrame *frame;
-
-  BLI_listbase_sort(&frame_range->frames, image_cmp_frame);
-  BLI_strncpy(filepath_range, frame_range->filepath, FILE_MAX);
-
-  frame = frame_range->frames.first;
-  if (frame != NULL) {
-    int frame_curr = frame->framenr;
-    (*ofs) = frame_curr;
-
-    if (udim_tiles != NULL) {
-      int len_udim = image_get_udim(filepath_range, udim_tiles);
-      if (len_udim > 0) {
-        *ofs = 1001;
-        return len_udim;
-      }
-    }
-
-    while (frame != NULL && (frame->framenr == frame_curr)) {
-      frame_curr++;
-      frame = frame->next;
-    }
-    return frame_curr - (*ofs);
-  }
-  *ofs = 0;
-  return 0;
-}
-
 static Image *image_open_single(Main *bmain,
                                 wmOperator *op,
-                                const char *filepath,
+                                ImageFrameRange *range,
                                 const char *relbase,
                                 bool is_relative_path,
-                                bool use_multiview,
-                                int frame_seq_len,
-                                int frame_seq_ofs,
-                                LinkNodePair *udim_tiles)
+                                bool use_multiview)
 {
   bool exists = false;
   Image *ima = NULL;
 
   errno = 0;
-  ima = BKE_image_load_exists_ex(bmain, filepath, &exists);
+  ima = BKE_image_load_exists_ex(bmain, range->filepath, &exists);
 
   if (!ima) {
     if (op->customdata) {
@@ -1414,7 +1241,7 @@ static Image *image_open_single(Main *bmain,
     BKE_reportf(op->reports,
                 RPT_ERROR,
                 "Cannot read '%s': %s",
-                filepath,
+                range->filepath,
                 errno ? strerror(errno) : TIP_("unsupported image format"));
     return NULL;
   }
@@ -1439,11 +1266,11 @@ static Image *image_open_single(Main *bmain,
       BKE_image_free_views(ima);
     }
 
-    if ((frame_seq_len > 1) && (ima->source == IMA_SRC_FILE)) {
-      if (udim_tiles && frame_seq_ofs == 1001) {
+    if ((range->length > 1) && (ima->source == IMA_SRC_FILE)) {
+      if (range->udim_tiles.first && range->offset == 1001) {
         ima->source = IMA_SRC_TILED;
-        for (LinkNode *node = udim_tiles->list; node; node = node->next) {
-          BKE_image_add_tile(ima, POINTER_AS_INT(node->link), NULL);
+        for (LinkData *node = range->udim_tiles.first; node; node = node->next) {
+          BKE_image_add_tile(ima, POINTER_AS_INT(node->data), NULL);
         }
       }
       else {
@@ -1464,7 +1291,6 @@ static int image_open_exec(bContext *C, wmOperator *op)
   ImageUser *iuser = NULL;
   ImageOpenData *iod = op->customdata;
   Image *ima = NULL;
-  char filepath[FILE_MAX];
   int frame_seq_len = 0;
   int frame_ofs = 1;
 
@@ -1476,83 +1302,21 @@ static int image_open_exec(bContext *C, wmOperator *op)
     image_open_init(C, op);
   }
 
-  RNA_string_get(op->ptr, "filepath", filepath);
+  ListBase ranges = ED_image_filesel_detect_sequences(bmain, op, use_udim);
+  for (ImageFrameRange *range = ranges.first; range; range = range->next) {
+    Image *ima_range = image_open_single(
+        bmain, op, range, BKE_main_blendfile_path(bmain), is_relative_path, use_multiview);
 
-  if (RNA_struct_property_is_set(op->ptr, "directory") &&
-      RNA_struct_property_is_set(op->ptr, "files")) {
-    bool was_relative = BLI_path_is_rel(filepath);
-    ListBase frame_ranges_all;
-
-    BLI_listbase_clear(&frame_ranges_all);
-    image_sequence_get_frame_ranges(op->ptr, &frame_ranges_all);
-    for (ImageFrameRange *frame_range = frame_ranges_all.first; frame_range;
-         frame_range = frame_range->next) {
-      int frame_range_ofs;
-
-      LinkNodePair udim_tiles = {NULL};
-      LinkNodePair *udim_tiles_ptr = use_udim ? (&udim_tiles) : NULL;
-
-      char filepath_range[FILE_MAX];
-      int frame_range_seq_len = image_sequence_get_len(
-          frame_range, &frame_range_ofs, filepath_range, udim_tiles_ptr);
-      BLI_freelistN(&frame_range->frames);
-
-      if (was_relative) {
-        BLI_path_rel(filepath_range, BKE_main_blendfile_path(bmain));
-      }
-
-      Image *ima_range = image_open_single(bmain,
-                                           op,
-                                           filepath_range,
-                                           BKE_main_blendfile_path(bmain),
-                                           is_relative_path,
-                                           use_multiview,
-                                           frame_range_seq_len,
-                                           frame_range_ofs,
-                                           udim_tiles_ptr);
-
-      /* take the first image */
-      if ((ima == NULL) && ima_range) {
-        ima = ima_range;
-        frame_seq_len = frame_range_seq_len;
-        frame_ofs = frame_range_ofs;
-      }
-
-      BLI_linklist_free(udim_tiles.list, NULL);
-    }
-    BLI_freelistN(&frame_ranges_all);
-  }
-  else {
-    /* for drag & drop etc. */
-
-    LinkNodePair udim_tiles = {NULL};
-    frame_seq_len = 1;
-    char filepath_range[FILE_MAX];
-    BLI_strncpy(filepath_range, filepath, FILE_MAX);
-
-    if (use_udim > 0) {
-      /* Try to find UDIM tiles corresponding to the image */
-      int udim_len = image_get_udim(filepath_range, &udim_tiles);
-
-      /* If we found something, mark the image as tiled. */
-      if (udim_len) {
-        frame_seq_len = udim_len;
-        frame_ofs = 1001;
-      }
+    /* take the first image */
+    if ((ima == NULL) && ima_range) {
+      ima = ima_range;
+      frame_seq_len = range->length;
+      frame_ofs = range->offset;
     }
 
-    ima = image_open_single(bmain,
-                            op,
-                            filepath_range,
-                            BKE_main_blendfile_path(bmain),
-                            is_relative_path,
-                            use_multiview,
-                            frame_seq_len,
-                            frame_ofs,
-                            &udim_tiles);
-
-    BLI_linklist_free(udim_tiles.list, NULL);
+    BLI_freelistN(&range->udim_tiles);
   }
+  BLI_freelistN(&ranges);
 
   if (ima == NULL) {
     return OPERATOR_CANCELLED;
@@ -1901,6 +1665,12 @@ void IMAGE_OT_replace(wmOperatorType *ot)
 /** \name Save Image As Operator
  * \{ */
 
+typedef struct ImageSaveData {
+  ImageUser *iuser;
+  Image *image;
+  ImageFormatData im_format;
+} ImageSaveData;
+
 static char imtype_best_depth(ImBuf *ibuf, const char imtype)
 {
   const char depth_ok = BKE_imtype_valid_depths(imtype);
@@ -1980,9 +1750,6 @@ static int image_save_options_init(Main *bmain,
       opts->im_format.views_format = ima->views_format;
     }
 
-    ///* XXX - this is lame, we need to make these available too! */
-    // opts->subimtype = scene->r.subimtype;
-
     BLI_strncpy(opts->filepath, ibuf->name, sizeof(opts->filepath));
 
     /* sanitize all settings */
@@ -2030,6 +1797,8 @@ static int image_save_options_init(Main *bmain,
     /* color management */
     BKE_color_managed_display_settings_copy(&opts->im_format.display_settings,
                                             &scene->display_settings);
+
+    BKE_color_managed_view_settings_free(&opts->im_format.view_settings);
     BKE_color_managed_view_settings_copy(&opts->im_format.view_settings, &scene->view_settings);
   }
 
@@ -2038,12 +1807,14 @@ static int image_save_options_init(Main *bmain,
   return (ibuf != NULL);
 }
 
-static void image_save_options_from_op(Main *bmain, ImageSaveOptions *opts, wmOperator *op)
+static void image_save_options_from_op(Main *bmain,
+                                       ImageSaveOptions *opts,
+                                       wmOperator *op,
+                                       ImageFormatData *imf)
 {
-  if (op->customdata) {
+  if (imf) {
     BKE_color_managed_view_settings_free(&opts->im_format.view_settings);
-
-    opts->im_format = *(ImageFormatData *)op->customdata;
+    opts->im_format = *imf;
   }
 
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
@@ -2055,20 +1826,17 @@ static void image_save_options_from_op(Main *bmain, ImageSaveOptions *opts, wmOp
 static void image_save_options_to_op(ImageSaveOptions *opts, wmOperator *op)
 {
   if (op->customdata) {
-    BKE_color_managed_view_settings_free(&((ImageFormatData *)op->customdata)->view_settings);
-
-    *(ImageFormatData *)op->customdata = opts->im_format;
+    ImageSaveData *isd = op->customdata;
+    BKE_color_managed_view_settings_free(&isd->im_format.view_settings);
+    isd->im_format = opts->im_format;
   }
 
   RNA_string_set(op->ptr, "filepath", opts->filepath);
 }
 
-static bool save_image_op(const bContext *C, wmOperator *op, ImageSaveOptions *opts)
+static bool save_image_op(
+    Main *bmain, Image *ima, ImageUser *iuser, wmOperator *op, ImageSaveOptions *opts)
 {
-  Main *bmain = CTX_data_main(C);
-  Image *ima = image_from_context(C);
-  ImageUser *iuser = image_user_from_context(C);
-
   opts->relative = (RNA_struct_find_property(op->ptr, "relative_path") &&
                     RNA_boolean_get(op->ptr, "relative_path"));
   opts->save_copy = (RNA_struct_find_property(op->ptr, "copy") &&
@@ -2085,7 +1853,7 @@ static bool save_image_op(const bContext *C, wmOperator *op, ImageSaveOptions *o
   /* Remember file path for next save. */
   BLI_strncpy(G.ima, opts->filepath, sizeof(G.ima));
 
-  WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
+  WM_main_add_notifier(NC_IMAGE | NA_EDITED, ima);
 
   return ok;
 }
@@ -2093,8 +1861,8 @@ static bool save_image_op(const bContext *C, wmOperator *op, ImageSaveOptions *o
 static void image_save_as_free(wmOperator *op)
 {
   if (op->customdata) {
-    ImageFormatData *im_format = (ImageFormatData *)op->customdata;
-    BKE_color_managed_view_settings_free(&im_format->view_settings);
+    ImageSaveData *isd = op->customdata;
+    BKE_color_managed_view_settings_free(&isd->im_format.view_settings);
 
     MEM_freeN(op->customdata);
     op->customdata = NULL;
@@ -2105,9 +1873,21 @@ static int image_save_as_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  Image *image = image_from_context(C);
-  ImageUser *iuser = image_user_from_context(C);
   ImageSaveOptions opts;
+
+  Image *image = NULL;
+  ImageUser *iuser = NULL;
+  ImageFormatData *imf = NULL;
+  if (op->customdata) {
+    ImageSaveData *isd = op->customdata;
+    image = isd->image;
+    iuser = isd->iuser;
+    imf = &isd->im_format;
+  }
+  else {
+    image = image_from_context(C);
+    iuser = image_user_from_context(C);
+  }
 
   BKE_image_save_options_init(&opts, bmain, scene);
 
@@ -2115,10 +1895,10 @@ static int image_save_as_exec(bContext *C, wmOperator *op)
    * these should be set on invoke or by the caller. */
   image_save_options_init(bmain, &opts, image, iuser, false, false);
 
-  image_save_options_from_op(bmain, &opts, op);
+  image_save_options_from_op(bmain, &opts, op, imf);
   opts.do_newpath = true;
 
-  save_image_op(C, op, &opts);
+  save_image_op(bmain, image, iuser, op, &opts);
 
   if (opts.save_copy == false) {
     BKE_image_free_packedfiles(image);
@@ -2131,8 +1911,8 @@ static int image_save_as_exec(bContext *C, wmOperator *op)
 
 static bool image_save_as_check(bContext *UNUSED(C), wmOperator *op)
 {
-  ImageFormatData *imf = op->customdata;
-  return WM_operator_filesel_ensure_ext_imtype(op, imf);
+  ImageSaveData *isd = op->customdata;
+  return WM_operator_filesel_ensure_ext_imtype(op, &isd->im_format);
 }
 
 static int image_save_as_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
@@ -2164,8 +1944,12 @@ static int image_save_as_invoke(bContext *C, wmOperator *op, const wmEvent *UNUS
 
   RNA_boolean_set(op->ptr, "save_as_render", save_as_render);
 
-  op->customdata = MEM_mallocN(sizeof(opts.im_format), __func__);
-  memcpy(op->customdata, &opts.im_format, sizeof(opts.im_format));
+  ImageSaveData *isd = MEM_callocN(sizeof(*isd), __func__);
+  isd->image = ima;
+  isd->iuser = iuser;
+
+  memcpy(&isd->im_format, &opts.im_format, sizeof(opts.im_format));
+  op->customdata = isd;
 
   /* show multiview save options only if image has multiviews */
   prop = RNA_struct_find_property(op->ptr, "show_multiview");
@@ -2198,12 +1982,12 @@ static bool image_save_as_draw_check_prop(PointerRNA *ptr,
 static void image_save_as_draw(bContext *UNUSED(C), wmOperator *op)
 {
   uiLayout *layout = op->layout;
-  ImageFormatData *imf = op->customdata;
+  ImageSaveData *isd = op->customdata;
   PointerRNA imf_ptr, ptr;
   const bool is_multiview = RNA_boolean_get(op->ptr, "show_multiview");
 
   /* image template */
-  RNA_pointer_create(NULL, &RNA_ImageFormatSettings, imf, &imf_ptr);
+  RNA_pointer_create(NULL, &RNA_ImageFormatSettings, &isd->im_format, &imf_ptr);
   uiTemplateImageSettings(layout, &imf_ptr, false);
 
   /* main draw call */
@@ -2343,6 +2127,7 @@ static int image_save_exec(bContext *C, wmOperator *op)
   ImageUser *iuser = image_user_from_context(C);
   Scene *scene = CTX_data_scene(C);
   ImageSaveOptions opts;
+  bool ok = false;
 
   if (BKE_image_has_packedfile(image)) {
     /* Save packed files to memory. */
@@ -2354,21 +2139,28 @@ static int image_save_exec(bContext *C, wmOperator *op)
   if (image_save_options_init(bmain, &opts, image, iuser, false, false) == 0) {
     return OPERATOR_CANCELLED;
   }
-  image_save_options_from_op(bmain, &opts, op);
+  image_save_options_from_op(bmain, &opts, op, NULL);
 
   if (BLI_exists(opts.filepath) && BLI_file_is_writable(opts.filepath)) {
-    if (save_image_op(C, op, &opts)) {
+    if (save_image_op(bmain, image, iuser, op, &opts)) {
       /* report since this can be called from key-shortcuts */
       BKE_reportf(op->reports, RPT_INFO, "Saved Image '%s'", opts.filepath);
+      ok = true;
     }
   }
   else {
     BKE_reportf(
         op->reports, RPT_ERROR, "Cannot save image, path '%s' is not writable", opts.filepath);
-    return OPERATOR_CANCELLED;
   }
 
-  return OPERATOR_FINISHED;
+  BKE_color_managed_view_settings_free(&opts.im_format.view_settings);
+
+  if (ok) {
+    return OPERATOR_FINISHED;
+  }
+  else {
+    return OPERATOR_CANCELLED;
+  }
 }
 
 static int image_save_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
@@ -2821,7 +2613,7 @@ static int image_new_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(e
 
   /* Better for user feedback. */
   RNA_string_set(op->ptr, "name", DATA_(IMA_DEF_NAME));
-  return WM_operator_props_dialog_popup(C, op, 300, 100);
+  return WM_operator_props_dialog_popup(C, op, 300);
 }
 
 static void image_new_draw(bContext *UNUSED(C), wmOperator *op)
@@ -3067,7 +2859,7 @@ static int image_scale_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED
     RNA_property_int_set_array(op->ptr, prop, size);
     BKE_image_release_ibuf(ima, ibuf, NULL);
   }
-  return WM_operator_props_dialog_popup(C, op, 200, 200);
+  return WM_operator_props_dialog_popup(C, op, 200);
 }
 
 static int image_scale_exec(bContext *C, wmOperator *op)
@@ -3199,6 +2991,7 @@ void IMAGE_OT_pack(wmOperatorType *ot)
 
 static int image_unpack_exec(bContext *C, wmOperator *op)
 {
+  Main *bmain = CTX_data_main(C);
   Image *ima = image_from_context(C);
   int method = RNA_enum_get(op->ptr, "method");
 
@@ -3206,7 +2999,7 @@ static int image_unpack_exec(bContext *C, wmOperator *op)
   if (RNA_struct_property_is_set(op->ptr, "id")) {
     char imaname[MAX_ID_NAME - 2];
     RNA_string_get(op->ptr, "id", imaname);
-    ima = BLI_findstring(&CTX_data_main(C)->images, imaname, offsetof(ID, name) + 2);
+    ima = BLI_findstring(&bmain->images, imaname, offsetof(ID, name) + 2);
     if (!ima) {
       ima = image_from_context(C);
     }
@@ -4428,7 +4221,7 @@ static int tile_add_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(ev
   RNA_int_set(op->ptr, "count", 1);
   RNA_string_set(op->ptr, "label", "");
 
-  return WM_operator_props_dialog_popup(C, op, 10 * UI_UNIT_X, 5 * UI_UNIT_Y);
+  return WM_operator_props_dialog_popup(C, op, 10 * UI_UNIT_X);
 }
 
 static void tile_add_draw(bContext *UNUSED(C), wmOperator *op)
@@ -4562,7 +4355,7 @@ static int tile_fill_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(e
 {
   initialize_fill_tile(op->ptr, CTX_data_edit_image(C), NULL);
 
-  return WM_operator_props_dialog_popup(C, op, 15 * UI_UNIT_X, 5 * UI_UNIT_Y);
+  return WM_operator_props_dialog_popup(C, op, 15 * UI_UNIT_X);
 }
 
 static void tile_fill_draw(bContext *UNUSED(C), wmOperator *op)

@@ -45,7 +45,6 @@
 
 #include "BKE_animsys.h"
 #include "BKE_anim.h"
-#include "BKE_cdderivedmesh.h"
 #include "BKE_curve.h"
 #include "BKE_displist.h"
 #include "BKE_key.h"
@@ -282,6 +281,8 @@ void BKE_lattice_copy_data(Main *bmain, Lattice *lt_dst, const Lattice *lt_src, 
 
   if (lt_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
     BKE_id_copy_ex(bmain, &lt_src->key->id, (ID **)&lt_dst->key, flag);
+    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
+    lt_dst->key->from = &lt_dst->id;
   }
 
   if (lt_src->dvert) {
@@ -328,9 +329,9 @@ void BKE_lattice_free(Lattice *lt)
   }
 }
 
-void BKE_lattice_make_local(Main *bmain, Lattice *lt, const bool lib_local)
+void BKE_lattice_make_local(Main *bmain, Lattice *lt, const int flags)
 {
-  BKE_id_make_local_generic(bmain, &lt->id, true, lib_local);
+  BKE_lib_id_make_local_generic(bmain, &lt->id, flags);
 }
 
 typedef struct LatticeDeformData {

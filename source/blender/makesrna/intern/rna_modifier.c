@@ -164,7 +164,7 @@ const EnumPropertyItem rna_enum_object_modifier_type_items[] = {
      "SCREW",
      ICON_MOD_SCREW,
      "Screw",
-     "Lathe around an axis, treating the inout mesh as a profile"},
+     "Lathe around an axis, treating the input mesh as a profile"},
     {eModifierType_Skin,
      "SKIN",
      ICON_MOD_SKIN,
@@ -182,16 +182,16 @@ const EnumPropertyItem rna_enum_object_modifier_type_items[] = {
      ICON_MOD_TRIANGULATE,
      "Triangulate",
      "Convert all polygons to triangles"},
-    {eModifierType_Wireframe,
-     "WIREFRAME",
-     ICON_MOD_WIREFRAME,
-     "Wireframe",
-     "Convert faces into thickened edges"},
     {eModifierType_Weld,
      "WELD",
      ICON_AUTOMERGE_OFF,
      "Weld",
      "Find groups of vertices closer then dist and merges them together"},
+    {eModifierType_Wireframe,
+     "WIREFRAME",
+     ICON_MOD_WIREFRAME,
+     "Wireframe",
+     "Convert faces into thickened edges"},
     {0, "", 0, N_("Deform"), ""},
     {eModifierType_Armature,
      "ARMATURE",
@@ -2356,6 +2356,11 @@ static void rna_def_modifier_wave(BlenderRNA *brna)
   RNA_def_property_string_funcs(prop, NULL, NULL, "rna_WaveModifier_defgrp_name_set");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  prop = RNA_def_property(srna, "invert_vertex_group", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_WAVE_INVERT_VGROUP);
+  RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
   prop = RNA_def_property(srna, "speed", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
   RNA_def_property_ui_range(prop, -1, 1, 10, 2);
@@ -3212,6 +3217,11 @@ static void rna_def_modifier_laplaciansmooth(BlenderRNA *brna)
       "Name of Vertex Group which determines influence of modifier per point");
   RNA_def_property_string_funcs(prop, NULL, NULL, "rna_LaplacianSmoothModifier_defgrp_name_set");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "invert_vertex_group", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_LAPLACIANSMOOTH_INVERT_VGROUP);
+  RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
 static void rna_def_modifier_cast(BlenderRNA *brna)
@@ -3595,6 +3605,11 @@ static void rna_def_modifier_explode(BlenderRNA *brna)
   RNA_def_property_string_maxlength(prop, MAX_CUSTOMDATA_LAYER_NAME);
   RNA_def_property_ui_text(prop, "Particle UV", "UV map to change with particle age");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "invert_vertex_group", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", eExplodeFlag_INVERT_VGROUP);
+  RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
 static void rna_def_modifier_cloth(BlenderRNA *brna)
@@ -3850,6 +3865,11 @@ static void rna_def_modifier_bevel(BlenderRNA *brna)
   RNA_def_property_string_funcs(prop, NULL, NULL, "rna_BevelModifier_defgrp_name_set");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  prop = RNA_def_property(srna, "invert_vertex_group", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flags", MOD_BEVEL_INVERT_VGROUP);
+  RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
   prop = RNA_def_property(srna, "use_clamp_overlap", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flags", MOD_BEVEL_OVERLAP_OK);
   RNA_def_property_ui_text(prop, "Clamp Overlap", "Clamp the width to avoid overlap");
@@ -3923,7 +3943,7 @@ static void rna_def_modifier_bevel(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_custom_profile", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flags", MOD_BEVEL_CUSTOM_PROFILE);
   RNA_def_property_ui_text(
-      prop, "Custom Profile", "Whether to use a user inputed curve for the bevel's profile");
+      prop, "Custom Profile", "Whether to use a user inputted curve for the bevel's profile");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "custom_profile", PROP_POINTER, PROP_NONE);
@@ -4599,6 +4619,21 @@ static void rna_def_modifier_uvwarp(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "UV Center", "Center point for rotate/scale");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  prop = RNA_def_property(srna, "offset", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "offset");
+  RNA_def_property_ui_text(prop, "Offset", "2D Offset for the warp");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "scale");
+  RNA_def_property_ui_text(prop, "Scale", "2D Scale for the warp");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "rotation", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, NULL, "rotation");
+  RNA_def_property_ui_text(prop, "Rotation", "2D Rotation for the warp");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
   prop = RNA_def_property(srna, "object_from", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "object_src");
   RNA_def_property_ui_text(prop, "Object From", "Object defining offset");
@@ -4627,6 +4662,11 @@ static void rna_def_modifier_uvwarp(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, NULL, "vgroup_name");
   RNA_def_property_ui_text(prop, "Vertex Group", "Vertex group name");
   RNA_def_property_string_funcs(prop, NULL, NULL, "rna_UVWarpModifier_vgroup_name_set");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "invert_vertex_group", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_UVWARP_INVERT_VGROUP);
+  RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "uv_layer", PROP_STRING, PROP_NONE);
@@ -5600,7 +5640,7 @@ static void rna_def_modifier_laplaciandeform(BlenderRNA *brna)
   prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "anchor_grp_name");
   RNA_def_property_ui_text(
-      prop, "Vertex Group for Anchors", "Name of Vertex Group which determines Anchors");
+      prop, "Anchor Weights", "Name of Vertex Group which determines Anchors");
   RNA_def_property_string_funcs(
       prop, NULL, NULL, "rna_LaplacianDeformModifier_anchor_grp_name_set");
 
@@ -5614,6 +5654,11 @@ static void rna_def_modifier_laplaciandeform(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, "rna_LaplacianDeformModifier_is_bind_get", NULL);
   RNA_def_property_ui_text(prop, "Bound", "Whether geometry has been bound to anchors");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna, "invert_vertex_group", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_LAPLACIANDEFORM_INVERT_VGROUP);
+  RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }

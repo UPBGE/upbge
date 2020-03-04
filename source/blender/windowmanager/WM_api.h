@@ -95,8 +95,8 @@ void WM_exit(struct bContext *C) ATTR_NORETURN;
 
 void WM_main(struct bContext *C) ATTR_NORETURN;
 
-bool 		WM_init_game		(struct bContext *C);
-void		WM_init_splash		(struct bContext *C);
+bool WM_init_game(struct bContext *C);
+void WM_init_splash(struct bContext *C);
 
 void WM_init_opengl(struct Main *bmain);
 
@@ -379,12 +379,9 @@ int WM_operator_props_popup_call(struct bContext *C,
 int WM_operator_props_popup(struct bContext *C,
                             struct wmOperator *op,
                             const struct wmEvent *event);
-int WM_operator_props_dialog_popup(struct bContext *C,
-                                   struct wmOperator *op,
-                                   int width,
-                                   int height);
+int WM_operator_props_dialog_popup(struct bContext *C, struct wmOperator *op, int width);
 int WM_operator_redo_popup(struct bContext *C, struct wmOperator *op);
-int WM_operator_ui_popup(struct bContext *C, struct wmOperator *op, int width, int height);
+int WM_operator_ui_popup(struct bContext *C, struct wmOperator *op, int width);
 
 int WM_operator_confirm_message_ex(struct bContext *C,
                                    struct wmOperator *op,
@@ -487,6 +484,7 @@ void WM_operator_properties_select_random(struct wmOperatorType *ot);
 int WM_operator_properties_select_random_seed_increment_get(wmOperator *op);
 void WM_operator_properties_select_operation(struct wmOperatorType *ot);
 void WM_operator_properties_select_operation_simple(struct wmOperatorType *ot);
+void WM_operator_properties_select_walk_direction(struct wmOperatorType *ot);
 void WM_operator_properties_generic_select(struct wmOperatorType *ot);
 struct CheckerIntervalParams {
   int nth; /* bypass when set to zero */

@@ -698,8 +698,8 @@ static void id_local_cb(bContext *C,
     Main *bmain = CTX_data_main(C);
     /* if the ID type has no special local function,
      * just clear the lib */
-    if (id_make_local(bmain, tselem->id, false, false) == false) {
-      id_clear_lib_data(bmain, tselem->id);
+    if (BKE_lib_id_make_local(bmain, tselem->id, false, 0) == false) {
+      BKE_lib_id_clear_library_data(bmain, tselem->id);
     }
     else {
       BKE_main_id_clear_newpoins(bmain);
@@ -1926,6 +1926,7 @@ static void actionset_id_cb(TreeElement *UNUSED(te),
 
 static int outliner_action_set_exec(bContext *C, wmOperator *op)
 {
+  Main *bmain = CTX_data_main(C);
   SpaceOutliner *soops = CTX_wm_space_outliner(C);
   int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
 
@@ -1938,7 +1939,7 @@ static int outliner_action_set_exec(bContext *C, wmOperator *op)
   set_operation_types(soops, &soops->tree, &scenelevel, &objectlevel, &idlevel, &datalevel);
 
   /* get action to use */
-  act = BLI_findlink(&CTX_data_main(C)->actions, RNA_enum_get(op->ptr, "action"));
+  act = BLI_findlink(&bmain->actions, RNA_enum_get(op->ptr, "action"));
 
   if (act == NULL) {
     BKE_report(op->reports, RPT_ERROR, "No valid action to add");

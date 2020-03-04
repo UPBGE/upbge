@@ -37,32 +37,37 @@
 
 class PHY_IConstraint;
 
-class	KX_ConstraintWrapper : public CValue
-{
-	Py_Header
-public:
-  KX_ConstraintWrapper(PHY_IConstraint *constraint, PHY_ConstraintType ctype, int user_id);
-	virtual ~KX_ConstraintWrapper ();
+class KX_ConstraintWrapper : public CValue {
+  Py_Header public
+      : KX_ConstraintWrapper(PHY_IConstraint *constraint, PHY_ConstraintType ctype, int user_id);
+  virtual ~KX_ConstraintWrapper();
 
-	virtual std::string GetName();
-	
+  virtual std::string GetName();
+
 #ifdef WITH_PYTHON
-	KX_PYMETHOD_NOARGS(KX_ConstraintWrapper,GetConstraintId);
-	KX_PYMETHOD(KX_ConstraintWrapper,SetParam);
-	KX_PYMETHOD(KX_ConstraintWrapper,GetParam);
+  KX_PYMETHOD_NOARGS(KX_ConstraintWrapper, GetConstraintId);
+  KX_PYMETHOD(KX_ConstraintWrapper, SetParam);
+  KX_PYMETHOD(KX_ConstraintWrapper, GetParam);
 
-	static PyObject *pyattr_get_constraintId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_constraintType(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_breakingThreshold(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_breakingThreshold(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_enabled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_enabled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  static PyObject *pyattr_get_constraintId(PyObjectPlus *self_v,
+                                           const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_constraintType(PyObjectPlus *self_v,
+                                             const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_breakingThreshold(PyObjectPlus *self_v,
+                                                const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_breakingThreshold(PyObjectPlus *self_v,
+                                          const KX_PYATTRIBUTE_DEF *attrdef,
+                                          PyObject *value);
+  static PyObject *pyattr_get_enabled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_enabled(PyObjectPlus *self_v,
+                                const KX_PYATTRIBUTE_DEF *attrdef,
+                                PyObject *value);
 #endif
 
-private:
-	PHY_IConstraint *m_constraint;
+ private:
+  PHY_IConstraint *m_constraint;
   PHY_ConstraintType m_ctype;
   int m_userId;
 };
 
-#endif  /* __KX_CONSTRAINTWRAPPER_H__ */
+#endif /* __KX_CONSTRAINTWRAPPER_H__ */

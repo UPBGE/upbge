@@ -22,15 +22,21 @@
 
 #include <Alembic/AbcMaterial/IMaterial.h>
 
-#include "abc_archive.h"
-#include "abc_camera.h"
-#include "abc_curves.h"
-#include "abc_hair.h"
-#include "abc_mesh.h"
-#include "abc_nurbs.h"
-#include "abc_points.h"
-#include "abc_transform.h"
+#include "abc_reader_archive.h"
+#include "abc_reader_camera.h"
+#include "abc_reader_curves.h"
+#include "abc_reader_mesh.h"
+#include "abc_reader_nurbs.h"
+#include "abc_reader_points.h"
+#include "abc_reader_transform.h"
 #include "abc_util.h"
+#include "abc_writer_camera.h"
+#include "abc_writer_curves.h"
+#include "abc_writer_hair.h"
+#include "abc_writer_mesh.h"
+#include "abc_writer_nurbs.h"
+#include "abc_writer_points.h"
+#include "abc_writer_transform.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -42,7 +48,6 @@ extern "C" {
 #include "DNA_scene_types.h"
 
 #include "BKE_cachefile.h"
-#include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_global.h"

@@ -412,45 +412,54 @@ bool ED_object_add_generic_get_opts(bContext *C,
       rot = _rot;
     }
 
-    prop = RNA_struct_find_property(op->ptr, "align");
-    int alignment = RNA_property_enum_get(op->ptr, prop);
-    bool alignment_set = RNA_property_is_set(op->ptr, prop);
-
     if (RNA_struct_property_is_set(op->ptr, "rotation")) {
+      /* If rotation is set, always use it. Alignment (and corresponding user preference)
+       * can be ignored since this is in world space anyways.
+       * To not confuse (e.g. on redo), dont set it to ALIGN_WORLD in the op UI though. */
       *is_view_aligned = false;
-      RNA_property_enum_set(op->ptr, prop, ALIGN_WORLD);
-      alignment = ALIGN_WORLD;
-    }
-    else if (alignment_set) {
-      *is_view_aligned = alignment == ALIGN_VIEW;
+      RNA_float_get_array(op->ptr, "rotation", rot);
     }
     else {
-      *is_view_aligned = (U.flag & USER_ADD_VIEWALIGNED) != 0;
-      if (*is_view_aligned) {
-        RNA_property_enum_set(op->ptr, prop, ALIGN_VIEW);
-        alignment = ALIGN_VIEW;
-      }
-      else if (U.flag & USER_ADD_CURSORALIGNED) {
-        RNA_property_enum_set(op->ptr, prop, ALIGN_CURSOR);
-        alignment = ALIGN_CURSOR;
-      }
-    }
+      int alignment = ALIGN_WORLD;
+      prop = RNA_struct_find_property(op->ptr, "align");
 
-    switch (alignment) {
-      case ALIGN_WORLD:
-        RNA_float_get_array(op->ptr, "rotation", rot);
-        break;
-      case ALIGN_VIEW:
-        ED_object_rotation_from_view(C, rot, view_align_axis);
-        RNA_float_set_array(op->ptr, "rotation", rot);
-        break;
-      case ALIGN_CURSOR: {
-        const Scene *scene = CTX_data_scene(C);
-        float tmat[3][3];
-        BKE_scene_cursor_rot_to_mat3(&scene->cursor, tmat);
-        mat3_normalized_to_eul(rot, tmat);
-        RNA_float_set_array(op->ptr, "rotation", rot);
-        break;
+      if (RNA_property_is_set(op->ptr, prop)) {
+        /* If alignment is set, always use it. */
+        *is_view_aligned = alignment == ALIGN_VIEW;
+        alignment = RNA_property_enum_get(op->ptr, prop);
+      }
+      else {
+        /* If alignment is not set, use User Preferences. */
+        *is_view_aligned = (U.flag & USER_ADD_VIEWALIGNED) != 0;
+        if (*is_view_aligned) {
+          RNA_property_enum_set(op->ptr, prop, ALIGN_VIEW);
+          alignment = ALIGN_VIEW;
+        }
+        else if ((U.flag & USER_ADD_CURSORALIGNED) != 0) {
+          RNA_property_enum_set(op->ptr, prop, ALIGN_CURSOR);
+          alignment = ALIGN_CURSOR;
+        }
+        else {
+          RNA_property_enum_set(op->ptr, prop, ALIGN_WORLD);
+          alignment = ALIGN_WORLD;
+        }
+      }
+      switch (alignment) {
+        case ALIGN_WORLD:
+          RNA_float_get_array(op->ptr, "rotation", rot);
+          break;
+        case ALIGN_VIEW:
+          ED_object_rotation_from_view(C, rot, view_align_axis);
+          RNA_float_set_array(op->ptr, "rotation", rot);
+          break;
+        case ALIGN_CURSOR: {
+          const Scene *scene = CTX_data_scene(C);
+          float tmat[3][3];
+          BKE_scene_cursor_rot_to_mat3(&scene->cursor, tmat);
+          mat3_normalized_to_eul(rot, tmat);
+          RNA_float_set_array(op->ptr, "rotation", rot);
+          break;
+        }
       }
     }
   }
@@ -490,7 +499,8 @@ Object *ED_object_add_type(bContext *C,
   /* Ignore collisions by default for non-mesh objects */
   if (type != OB_MESH) {
     ob->body_type = OB_BODY_TYPE_NO_COLLISION;
-    ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_CHARACTER | OB_OCCLUDER | OB_DYNAMIC | OB_NAVMESH); /* copied from rna_object.c */
+    ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_CHARACTER |
+                      OB_OCCLUDER | OB_DYNAMIC | OB_NAVMESH); /* copied from rna_object.c */
   }
 
   /* TODO(sergey): This is weird to manually tag objects for update, better to
@@ -1334,7 +1344,7 @@ static int collection_instance_add_exec(bContext *C, wmOperator *op)
     }
   }
   else {
-    collection = BLI_findlink(&CTX_data_main(C)->collections, RNA_enum_get(op->ptr, "collection"));
+    collection = BLI_findlink(&bmain->collections, RNA_enum_get(op->ptr, "collection"));
   }
 
   if (!ED_object_add_generic_get_opts(C, op, 'Z', loc, rot, NULL, &local_view_bits, NULL)) {
@@ -2396,8 +2406,7 @@ static int convert_exec(bContext *C, wmOperator *op)
       else if (target == OB_GPENCIL) {
         if (ob->type != OB_CURVE) {
           ob->flag &= ~OB_DONE;
-          BKE_report(
-              op->reports, RPT_ERROR, "Convert Surfaces to Grease Pencil is not supported.");
+          BKE_report(op->reports, RPT_ERROR, "Convert Surfaces to Grease Pencil is not supported");
         }
         else {
           /* Create a new grease pencil object and copy transformations.
@@ -2637,7 +2646,7 @@ Base *ED_object_add_duplicate(
   Base *basen;
   Object *ob;
 
-  clear_sca_new_poins();  /* BGE logic */
+  clear_sca_new_poins(); /* BGE logic */
 
   basen = object_add_duplicate_internal(bmain, scene, view_layer, base->object, dupflag);
   if (basen == NULL) {
@@ -2671,7 +2680,7 @@ static int duplicate_exec(bContext *C, wmOperator *op)
   const bool linked = RNA_boolean_get(op->ptr, "linked");
   int dupflag = (linked) ? 0 : U.dupflag;
 
-  clear_sca_new_poins();  /* BGE logic */
+  clear_sca_new_poins(); /* BGE logic */
 
   CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
     Base *basen = object_add_duplicate_internal(bmain, scene, view_layer, base->object, dupflag);
@@ -2769,7 +2778,7 @@ static int add_named_exec(bContext *C, wmOperator *op)
 
   /* prepare dupli */
 
-  clear_sca_new_poins();  /* BGE logic */
+  clear_sca_new_poins(); /* BGE logic */
 
   basen = object_add_duplicate_internal(bmain, scene, view_layer, ob, dupflag);
 

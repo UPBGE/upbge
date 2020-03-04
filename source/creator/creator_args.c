@@ -72,13 +72,12 @@
 
 #  include "WM_api.h"
 
-
 /* for passing information between creator and gameengine */
-#ifdef WITH_GAMEENGINE
-#  include "LA_SystemCommandLine.h"
-#else /* dummy */
-#  define SYS_SystemHandle int
-#endif
+#  ifdef WITH_GAMEENGINE
+#    include "LA_SystemCommandLine.h"
+#  else /* dummy */
+#    define SYS_SystemHandle int
+#  endif
 
 #  ifdef WITH_LIBMV
 #    include "libmv-capi.h"
@@ -1318,14 +1317,12 @@ static int arg_handle_register_extension(int UNUSED(argc), const char **UNUSED(a
   return 0;
 }
 
-static const char arg_handle_joystick_disable_doc[] =
-"\n\tDisable joystick support."
-;
+static const char arg_handle_joystick_disable_doc[] = "\n\tDisable joystick support.";
 static int arg_handle_joystick_disable(int UNUSED(argc), const char **UNUSED(argv), void *data)
 {
-#ifndef WITH_GAMEENGINE
+#  ifndef WITH_GAMEENGINE
   (void)data;
-#else
+#  else
   SYS_SystemHandle *syshandle = data;
 
   /**
@@ -1333,8 +1330,9 @@ static int arg_handle_joystick_disable(int UNUSED(argc), const char **UNUSED(arg
    * failed joystick initialization delays over 5 seconds, before game engine start
    */
   SYS_WriteCommandLineInt(*syshandle, "nojoystick", 1);
-  if (G.debug & G_DEBUG) printf("disabling nojoystick\n");
-#endif
+  if (G.debug & G_DEBUG)
+    printf("disabling nojoystick\n");
+#  endif
 
   return 0;
 }
@@ -1573,24 +1571,23 @@ static int arg_handle_extension_set(int argc, const char **argv, void *data)
 }
 
 static const char arg_handle_ge_parameters_set_doc[] =
-"Game Engine specific options\n"
-"\n"
-"\t'fixedtime'\n"
-"\t\tRun on 50 hertz without dropping frames.\n"
-"\t'vertexarrays'\n"
-"\t\tUse Vertex Arrays for rendering (usually faster).\n"
-"\t\tNo Texture Mipmapping.\n"
-"\t'linearmipmap'\n"
-"\t\tLinear Texture Mipmapping instead of Nearest (default)."
-;
+    "Game Engine specific options\n"
+    "\n"
+    "\t'fixedtime'\n"
+    "\t\tRun on 50 hertz without dropping frames.\n"
+    "\t'vertexarrays'\n"
+    "\t\tUse Vertex Arrays for rendering (usually faster).\n"
+    "\t\tNo Texture Mipmapping.\n"
+    "\t'linearmipmap'\n"
+    "\t\tLinear Texture Mipmapping instead of Nearest (default).";
 static int arg_handle_ge_parameters_set(int argc, const char **argv, void *data)
 {
   int a = 0;
-#ifdef WITH_GAMEENGINE
+#  ifdef WITH_GAMEENGINE
   SYS_SystemHandle syshandle = *(SYS_SystemHandle *)data;
-#else
+#  else
   (void)data;
-#endif
+#  endif
 
   /**
    * gameengine parameters are automatically put into system
@@ -1609,9 +1606,9 @@ static int arg_handle_ge_parameters_set(int argc, const char **argv, void *data)
       if (a + 1 < argc) {
         a++;
         /* assignment */
-#ifdef WITH_GAMEENGINE
+#  ifdef WITH_GAMEENGINE
         SYS_WriteCommandLineString(syshandle, paramname, argv[a]);
-#endif
+#  endif
       }
       else {
         printf("Error: argument assignment (%s) without value.\n", paramname);
@@ -1620,9 +1617,9 @@ static int arg_handle_ge_parameters_set(int argc, const char **argv, void *data)
       /* name arg eaten */
     }
     else {
-#ifdef WITH_GAMEENGINE
+#  ifdef WITH_GAMEENGINE
       SYS_WriteCommandLineInt(syshandle, argv[a], 1);
-#endif
+#  endif
     } /* if (*(argv[a + 1]) == '=') */
   }
   return a;

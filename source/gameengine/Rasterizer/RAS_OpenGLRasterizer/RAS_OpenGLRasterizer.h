@@ -33,7 +33,7 @@
 #define __RAS_OPENGLRASTERIZER_H__
 
 #ifdef _MSC_VER
-#  pragma warning (disable:4786)
+#  pragma warning(disable : 4786)
 #endif
 
 #include "RAS_Rasterizer.h"
@@ -41,78 +41,76 @@
 /**
  * 3D rendering device context.
  */
-class RAS_OpenGLRasterizer
-{
-private:
-	class ScreenPlane
-	{
-	private:
-		unsigned int m_vbo;
-		unsigned int m_ibo;
-		unsigned int m_vao;
+class RAS_OpenGLRasterizer {
+ private:
+  class ScreenPlane {
+   private:
+    unsigned int m_vbo;
+    unsigned int m_ibo;
+    unsigned int m_vao;
 
-	public:
-		ScreenPlane();
-		~ScreenPlane();
+   public:
+    ScreenPlane();
+    ~ScreenPlane();
 
-		void Render();
-	};
+    void Render();
+  };
 
-	/// Class used to render a screen plane.
-	ScreenPlane m_screenPlane;
+  /// Class used to render a screen plane.
+  ScreenPlane m_screenPlane;
 
-	RAS_Rasterizer *m_rasterizer;
+  RAS_Rasterizer *m_rasterizer;
 
-public:
-	RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer);
-	virtual ~RAS_OpenGLRasterizer();
+ public:
+  RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer);
+  virtual ~RAS_OpenGLRasterizer();
 
-	unsigned short GetNumLights() const;
+  unsigned short GetNumLights() const;
 
-	void Enable(RAS_Rasterizer::EnableBit bit);
-	void Disable(RAS_Rasterizer::EnableBit bit);
+  void Enable(RAS_Rasterizer::EnableBit bit);
+  void Disable(RAS_Rasterizer::EnableBit bit);
 
-	void SetDepthFunc(RAS_Rasterizer::DepthFunc func);
-	void SetDepthMask(RAS_Rasterizer::DepthMask depthmask);
+  void SetDepthFunc(RAS_Rasterizer::DepthFunc func);
+  void SetDepthMask(RAS_Rasterizer::DepthMask depthmask);
 
-	void SetBlendFunc(RAS_Rasterizer::BlendFunc src, RAS_Rasterizer::BlendFunc dst);
+  void SetBlendFunc(RAS_Rasterizer::BlendFunc src, RAS_Rasterizer::BlendFunc dst);
 
-	unsigned int *MakeScreenshot(int x, int y, int width, int height);
+  unsigned int *MakeScreenshot(int x, int y, int width, int height);
 
-	void Init();
-	void Exit();
-	void DrawOverlayPlane();
-	void BeginFrame();
-	void Clear(int clearbit);
-	void SetClearColor(float r, float g, float b, float a=1.0f);
-	void SetClearDepth(float d);
-	void SetColorMask(bool r, bool g, bool b, bool a);
-	void EndFrame();
+  void Init();
+  void Exit();
+  void DrawOverlayPlane();
+  void BeginFrame();
+  void Clear(int clearbit);
+  void SetClearColor(float r, float g, float b, float a = 1.0f);
+  void SetClearDepth(float d);
+  void SetColorMask(bool r, bool g, bool b, bool a);
+  void EndFrame();
 
-	void SetViewport(int x, int y, int width, int height);
-	void SetScissor(int x, int y, int width, int height);
+  void SetViewport(int x, int y, int width, int height);
+  void SetScissor(int x, int y, int width, int height);
 
-	void SetLines(bool enable);
+  void SetLines(bool enable);
 
-	void SetAmbient(const MT_Vector3& amb, float factor);
+  void SetAmbient(const MT_Vector3 &amb, float factor);
 
-	void SetPolygonOffset(float mult, float add);
+  void SetPolygonOffset(float mult, float add);
 
-	void EnableClipPlane(int numplanes);
-	void DisableClipPlane(int numplanes);
+  void EnableClipPlane(int numplanes);
+  void DisableClipPlane(int numplanes);
 
-	void SetFrontFace(bool ccw);
+  void SetFrontFace(bool ccw);
 
-	/**
-	 * Render Tools
-	 */
+  /**
+   * Render Tools
+   */
 
-	void DisableForText();
+  void DisableForText();
 
-	/**
-	 * Prints information about what the hardware supports.
-	 */
-	void PrintHardwareInfo();
+  /**
+   * Prints information about what the hardware supports.
+   */
+  void PrintHardwareInfo();
 };
 
-#endif  /* __RAS_OPENGLRASTERIZER_H__ */
+#endif /* __RAS_OPENGLRASTERIZER_H__ */

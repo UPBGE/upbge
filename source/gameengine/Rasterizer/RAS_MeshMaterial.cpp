@@ -25,47 +25,50 @@
 #include "RAS_IDisplayArray.h"
 #include "RAS_DisplayArrayBucket.h"
 
-RAS_MeshMaterial::RAS_MeshMaterial(RAS_MeshObject *mesh, RAS_MaterialBucket *bucket, unsigned int index, const RAS_TexVertFormat& format)
-	:m_bucket(bucket),
-	m_index(index)
+RAS_MeshMaterial::RAS_MeshMaterial(RAS_MeshObject *mesh,
+                                   RAS_MaterialBucket *bucket,
+                                   unsigned int index,
+                                   const RAS_TexVertFormat &format)
+    : m_bucket(bucket), m_index(index)
 {
-	RAS_IDisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_IDisplayArray::LINES : RAS_IDisplayArray::TRIANGLES;
-	m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
+  RAS_IDisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_IDisplayArray::LINES :
+                                                               RAS_IDisplayArray::TRIANGLES;
+  m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
 
-	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, mesh, this);
+  m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, mesh, this);
 }
 
 RAS_MeshMaterial::~RAS_MeshMaterial()
 {
-	delete m_displayArrayBucket;
-	delete m_displayArray;
+  delete m_displayArrayBucket;
+  delete m_displayArray;
 }
 
 unsigned int RAS_MeshMaterial::GetIndex() const
 {
-	return m_index;
+  return m_index;
 }
 
 RAS_MaterialBucket *RAS_MeshMaterial::GetBucket() const
 {
-	return m_bucket;
+  return m_bucket;
 }
 
 RAS_IDisplayArray *RAS_MeshMaterial::GetDisplayArray() const
 {
-	return m_displayArray;
+  return m_displayArray;
 }
 
 RAS_DisplayArrayBucket *RAS_MeshMaterial::GetDisplayArrayBucket() const
 {
-	return m_displayArrayBucket;
+  return m_displayArrayBucket;
 }
 
 void RAS_MeshMaterial::ReplaceMaterial(RAS_MaterialBucket *bucket)
 {
-	// Avoid replacing the by the same material bucket.
-	if (m_bucket != bucket) {
-		m_bucket->MoveDisplayArrayBucket(this, bucket);
-		m_bucket = bucket;
-	}
+  // Avoid replacing the by the same material bucket.
+  if (m_bucket != bucket) {
+    m_bucket->MoveDisplayArrayBucket(this, bucket);
+    m_bucket = bucket;
+  }
 }

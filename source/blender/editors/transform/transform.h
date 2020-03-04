@@ -270,114 +270,6 @@ typedef struct TransDataNla {
   int handle;
 } TransDataNla;
 
-struct LinkNode;
-
-/* header of TransDataEdgeSlideVert, TransDataEdgeSlideEdge */
-typedef struct TransDataGenericSlideVert {
-  struct BMVert *v;
-  struct LinkNode **cd_loop_groups;
-  float co_orig_3d[3];
-} TransDataGenericSlideVert;
-
-typedef struct TransDataEdgeSlideVert {
-  /** #TransDataGenericSlideVert (header) */
-  struct BMVert *v;
-  struct LinkNode **cd_loop_groups;
-  float v_co_orig[3];
-  /* end generic */
-
-  float edge_len;
-
-  struct BMVert *v_side[2];
-
-  /* add origvert.co to get the original locations */
-  float dir_side[2][3];
-
-  int loop_nr;
-} TransDataEdgeSlideVert;
-
-typedef struct EdgeSlideData {
-  TransDataEdgeSlideVert *sv;
-  int totsv;
-
-  int mval_start[2], mval_end[2];
-  int curr_sv_index;
-
-  /** when un-clamped - use this index: #TransDataEdgeSlideVert.dir_side */
-  int curr_side_unclamp;
-} EdgeSlideData;
-
-typedef struct EdgeSlideParams {
-  float perc;
-
-  bool use_even;
-  bool flipped;
-} EdgeSlideParams;
-
-typedef struct TransDataVertSlideVert {
-  /** #TransDataGenericSlideVert (header) */
-  struct BMVert *v;
-  struct LinkNode **cd_loop_groups;
-  float co_orig_3d[3];
-  /* end generic */
-
-  float (*co_link_orig_3d)[3];
-  int co_link_tot;
-  int co_link_curr;
-} TransDataVertSlideVert;
-
-typedef struct VertSlideData {
-  TransDataVertSlideVert *sv;
-  int totsv;
-  int curr_sv_index;
-
-  /* result of ED_view3d_ob_project_mat_get */
-  float proj_mat[4][4];
-} VertSlideData;
-
-typedef struct VertSlideParams {
-  float perc;
-
-  bool use_even;
-  bool flipped;
-} VertSlideParams;
-
-typedef struct BoneInitData {
-  struct EditBone *bone;
-  float tail[3];
-  float rad_head;
-  float rad_tail;
-  float roll;
-  float head[3];
-  float dist;
-  float xwidth;
-  float zwidth;
-} BoneInitData;
-
-typedef struct PoseInitData_Mirror {
-  /** Points to the bone which this info is initialized & restored to.
-   * A NULL value is used to terminate the array. */
-  struct bPoseChannel *pchan;
-  struct {
-    float loc[3];
-    float size[3];
-    union {
-      float eul[3];
-      float quat[4];
-      float axis_angle[4];
-    };
-    float curve_in_x;
-    float curve_out_x;
-    float roll1;
-    float roll2;
-  } orig;
-  /**
-   * An extra offset to apply after mirroring.
-   * Use with #POSE_MIRROR_RELATIVE.
-   */
-  float offset_mtx[4][4];
-} PoseInitData_Mirror;
-
 typedef struct TransData {
   /** Distance needed to affect element (for Proportionnal Editing). */
   float dist;
@@ -937,8 +829,6 @@ void projectFloatView(TransInfo *t, const float vec[3], float adr[2]);
 void applyAspectRatio(TransInfo *t, float vec[2]);
 void removeAspectRatio(TransInfo *t, float vec[2]);
 
-void drawPropCircle(const struct bContext *C, TransInfo *t);
-
 struct wmKeyMap *transform_modal_keymap(struct wmKeyConfig *keyconf);
 
 /*********************** transform_gizmo.c ********** */
@@ -951,32 +841,6 @@ void drawDial3d(const TransInfo *t);
 
 /*********************** TransData Creation and General Handling *********** */
 bool transdata_check_local_islands(TransInfo *t, short around);
-
-/*********************** Constraints *****************************/
-
-void drawConstraint(TransInfo *t);
-
-void getConstraintMatrix(TransInfo *t);
-void setConstraint(TransInfo *t, float space[3][3], int mode, const char text[]);
-void setAxisMatrixConstraint(TransInfo *t, int mode, const char text[]);
-void setLocalConstraint(TransInfo *t, int mode, const char text[]);
-void setUserConstraint(TransInfo *t, short orientation, int mode, const char text[]);
-
-void constraintNumInput(TransInfo *t, float vec[3]);
-
-bool isLockConstraint(TransInfo *t);
-int getConstraintSpaceDimension(TransInfo *t);
-int constraintModeToIndex(const TransInfo *t);
-char constraintModeToChar(const TransInfo *t);
-
-void startConstraint(TransInfo *t);
-void stopConstraint(TransInfo *t);
-
-void initSelectConstraint(TransInfo *t, float mtx[3][3]);
-void selectConstraint(TransInfo *t);
-void postSelectConstraint(TransInfo *t);
-
-void setNearestAxis(TransInfo *t);
 
 /********************** Mouse Input ******************************/
 

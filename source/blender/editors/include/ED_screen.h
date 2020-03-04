@@ -34,6 +34,10 @@
 
 #include "BLI_compiler_attrs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ARegion;
 struct Depsgraph;
 struct IDProperty;
@@ -230,8 +234,8 @@ bool ED_screen_change(struct bContext *C, struct bScreen *sc);
 void ED_screen_scene_change(struct bContext *C, struct wmWindow *win, struct Scene *scene);
 void ED_screen_set_active_region(struct bContext *C, struct wmWindow *win, const int xy[2]);
 void ED_screen_exit(struct bContext *C, struct wmWindow *window, struct bScreen *screen);
-void ED_screen_animation_timer(struct bContext *C, int redraws, int refresh, int sync, int enable);
-void ED_screen_animation_timer_update(struct bScreen *screen, int redraws, int refresh);
+void ED_screen_animation_timer(struct bContext *C, int redraws, int sync, int enable);
+void ED_screen_animation_timer_update(struct bScreen *screen, int redraws);
 void ED_screen_restore_temp_type(struct bContext *C, ScrArea *sa);
 ScrArea *ED_screen_full_newspace(struct bContext *C, ScrArea *sa, int type);
 void ED_screen_full_prevspace(struct bContext *C, ScrArea *sa);
@@ -447,7 +451,6 @@ enum {
   ED_KEYMAP_GIZMO = (1 << 2),
   ED_KEYMAP_TOOL = (1 << 3),
   ED_KEYMAP_VIEW2D = (1 << 4),
-  ED_KEYMAP_MARKERS = (1 << 5),
   ED_KEYMAP_ANIMATION = (1 << 6),
   ED_KEYMAP_FRAMES = (1 << 7),
   ED_KEYMAP_HEADER = (1 << 8),
@@ -461,5 +464,9 @@ enum {
   SPACE_CONTEXT_CYCLE_PREV,
   SPACE_CONTEXT_CYCLE_NEXT,
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __ED_SCREEN_H__ */

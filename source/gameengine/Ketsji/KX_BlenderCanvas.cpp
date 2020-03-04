@@ -48,22 +48,23 @@
 #include "GHOST_IWindow.h"
 
 extern "C" {
-#  include "WM_api.h"
-#  include "wm_cursors.h"
-#  include "wm_window.h"
+#include "WM_api.h"
+#include "wm_cursors.h"
+#include "wm_window.h"
 }
 
-KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, Scene *startscene, rcti *viewport, struct ARegion *ar)
-    :RAS_ICanvas(rasty),
-    m_wm(wm),
-    m_win(win),
-    m_startScene(startscene),
-    m_ar(ar)
+KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty,
+                                   wmWindowManager *wm,
+                                   wmWindow *win,
+                                   Scene *startscene,
+                                   rcti *viewport,
+                                   struct ARegion *ar)
+    : RAS_ICanvas(rasty), m_wm(wm), m_win(win), m_startScene(startscene), m_ar(ar)
 {
-    m_frame = 1;
+  m_frame = 1;
 
-    m_viewportArea = RAS_Rect(viewport->xmin, viewport->ymin, viewport->xmax, viewport->ymax);
-    m_windowArea = RAS_Rect(ar->winrct.xmin, ar->winrct.ymin, ar->winrct.xmax, ar->winrct.ymax);
+  m_viewportArea = RAS_Rect(viewport->xmin, viewport->ymin, viewport->xmax, viewport->ymax);
+  m_windowArea = RAS_Rect(ar->winrct.xmin, ar->winrct.ymin, ar->winrct.xmax, ar->winrct.ymax);
 }
 
 KX_BlenderCanvas::~KX_BlenderCanvas()
@@ -76,55 +77,55 @@ void KX_BlenderCanvas::Init()
 
 void KX_BlenderCanvas::SwapBuffers()
 {
-    wm_window_swap_buffers(m_win);
+  wm_window_swap_buffers(m_win);
 }
 
 void KX_BlenderCanvas::SetSwapInterval(int interval)
 {
-    wm_window_set_swap_interval(m_win, interval);
+  wm_window_set_swap_interval(m_win, interval);
 }
 
 bool KX_BlenderCanvas::GetSwapInterval(int &intervalOut)
 {
-    return wm_window_get_swap_interval(m_win, &intervalOut);
+  return wm_window_get_swap_interval(m_win, &intervalOut);
 }
 
 void KX_BlenderCanvas::GetDisplayDimensions(int &width, int &height)
 {
-    wm_get_screensize(&width, &height);
+  wm_get_screensize(&width, &height);
 }
 
 void KX_BlenderCanvas::ResizeWindow(int width, int height)
 {
-    // Not implemented for the embedded player
+  // Not implemented for the embedded player
 }
 
 void KX_BlenderCanvas::Resize(int width, int height)
 {
-    // Not implemented for the embedded player
+  // Not implemented for the embedded player
 }
 
 void KX_BlenderCanvas::SetFullScreen(bool enable)
 {
-    // Not implemented for the embedded player
+  // Not implemented for the embedded player
 }
 
 bool KX_BlenderCanvas::GetFullScreen()
 {
-    // Not implemented for the embedded player
-    return false;
+  // Not implemented for the embedded player
+  return false;
 }
 
 void KX_BlenderCanvas::BeginDraw()
 {
-    // in case of multi-window we need to ensure we are drawing to the correct
-    // window always, because it may change in window event handling
-    wm_window_make_drawable(m_wm, m_win);
+  // in case of multi-window we need to ensure we are drawing to the correct
+  // window always, because it may change in window event handling
+  wm_window_make_drawable(m_wm, m_win);
 }
 
 void KX_BlenderCanvas::EndDraw()
 {
-    // nothing needs to be done here
+  // nothing needs to be done here
 }
 
 void KX_BlenderCanvas::BeginFrame()
@@ -137,82 +138,79 @@ void KX_BlenderCanvas::EndFrame()
 
 void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen)
 {
-    if (screen) {
-        int _x, _y;
-        ((GHOST_IWindow *)m_win->ghostwin)->screenToClient(x, y, _x, _y);
-        x = _x;
-        y = _y;
-    }
+  if (screen) {
+    int _x, _y;
+    ((GHOST_IWindow *)m_win->ghostwin)->screenToClient(x, y, _x, _y);
+    x = _x;
+    y = _y;
+  }
 
-    r_x = x - m_viewportArea.GetLeft() - 1;
-    r_y = -y + m_viewportArea.GetTop() - 1;
+  r_x = x - m_viewportArea.GetLeft() - 1;
+  r_y = -y + m_viewportArea.GetTop() - 1;
 }
 
 void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
 {
-    m_mousestate = mousestate;
+  m_mousestate = mousestate;
 
-    switch (mousestate) {
-        case MOUSE_INVISIBLE:
-        {
-            WM_cursor_set(m_win, WM_CURSOR_NONE);
-            break;
-        }
-        case MOUSE_WAIT:
-        {
-            WM_cursor_set(m_win, WM_CURSOR_WAIT);
-            break;
-        }
-        case MOUSE_NORMAL:
-        {
-            WM_cursor_set(m_win, WM_CURSOR_DEFAULT);
-            break;
-        }
-        default:
-        {
-        }
+  switch (mousestate) {
+    case MOUSE_INVISIBLE: {
+      WM_cursor_set(m_win, WM_CURSOR_NONE);
+      break;
     }
+    case MOUSE_WAIT: {
+      WM_cursor_set(m_win, WM_CURSOR_WAIT);
+      break;
+    }
+    case MOUSE_NORMAL: {
+      WM_cursor_set(m_win, WM_CURSOR_DEFAULT);
+      break;
+    }
+    default: {
+    }
+  }
 }
 
 //	(0,0) is top left, (width,height) is bottom right
 void KX_BlenderCanvas::SetMousePosition(int x, int y)
 {
-    int winX = m_viewportArea.GetLeft();
-    int winY = m_viewportArea.GetBottom();
-    int winH = m_viewportArea.GetHeight();
+  int winX = m_viewportArea.GetLeft();
+  int winY = m_viewportArea.GetBottom();
+  int winH = m_viewportArea.GetHeight();
 
-    WM_cursor_warp(m_win, winX + x + 1, winY + (winH - y - 1));
+  WM_cursor_warp(m_win, winX + x + 1, winY + (winH - y - 1));
 }
 
-void KX_BlenderCanvas::MakeScreenShot(const std::string& filename)
+void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
 {
-    bScreen *screen = m_win->screen;
+  bScreen *screen = m_win->screen;
 
-    int x = m_viewportArea.GetLeft();
-    int y = m_viewportArea.GetBottom();
-    int width = m_viewportArea.GetWidth();
-    int height = m_viewportArea.GetHeight();
+  int x = m_viewportArea.GetLeft();
+  int y = m_viewportArea.GetBottom();
+  int width = m_viewportArea.GetWidth();
+  int height = m_viewportArea.GetHeight();
 
-    /* initialize image file format data */
-    Scene *scene = (screen) ? screen->scene : nullptr;
-    ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData), "im_format");
+  /* initialize image file format data */
+  Scene *scene = (screen) ? screen->scene : nullptr;
+  ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData),
+                                                              "im_format");
 
-    if (scene) {
-        *im_format = scene->r.im_format;
-    }
-    else {
-        BKE_imformat_defaults(im_format);
-    }
+  if (scene) {
+    *im_format = scene->r.im_format;
+  }
+  else {
+    BKE_imformat_defaults(im_format);
+  }
 
-    // create file path
-    char path[FILE_MAX];
-    BLI_strncpy(path, filename.c_str(), FILE_MAX);
-    BLI_path_abs(path, KX_GetMainPath().c_str());
+  // create file path
+  char path[FILE_MAX];
+  BLI_strncpy(path, filename.c_str(), FILE_MAX);
+  BLI_path_abs(path, KX_GetMainPath().c_str());
 
-    AddScreenshot(path, x, y, width, height, im_format);
+  AddScreenshot(path, x, y, width, height, im_format);
 }
 
-ARegion* KX_BlenderCanvas::GetARegion()
+ARegion *KX_BlenderCanvas::GetARegion()
 {
   return m_ar;
 }

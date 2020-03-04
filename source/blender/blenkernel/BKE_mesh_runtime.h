@@ -27,6 +27,10 @@
 
 //#include "BKE_customdata.h"  /* for CustomDataMask */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct CustomData;
 struct CustomData_MeshMasks;
 struct Depsgraph;
@@ -59,9 +63,10 @@ void BKE_mesh_runtime_verttri_from_looptri(struct MVertTri *r_verttri,
  * For now keep the names similar to avoid confusion. */
 
 /* Game engine transition */
-struct DerivedMesh *mesh_get_derived_final(
-        struct Depsgraph *depsgraph, struct Scene *scene,
-        struct Object *ob, const struct CustomData_MeshMasks *dataMask);
+struct DerivedMesh *mesh_get_derived_final(struct Depsgraph *depsgraph,
+                                           struct Scene *scene,
+                                           struct Object *ob,
+                                           const struct CustomData_MeshMasks *dataMask);
 /* End of  Game engine transition */
 
 struct Mesh *mesh_get_eval_final(struct Depsgraph *depsgraph,
@@ -109,5 +114,9 @@ void BKE_mesh_runtime_debug_print(struct Mesh *me_eval);
 void BKE_mesh_runtime_debug_print_cdlayers(struct CustomData *data);
 bool BKE_mesh_runtime_is_valid(struct Mesh *me_eval);
 #endif /* NDEBUG */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BKE_MESH_RUNTIME_H__ */

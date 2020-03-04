@@ -1869,15 +1869,21 @@ void ED_region_floating_initialize(ARegion *ar)
 
 void ED_region_cursor_set(wmWindow *win, ScrArea *sa, ARegion *ar)
 {
-  if (ar && sa && ar->type && ar->type->cursor) {
-    ar->type->cursor(win, sa, ar);
-  }
-  else {
-    if (WM_cursor_set_from_tool(win, sa, ar)) {
+  if (ar != NULL) {
+    if ((ar->gizmo_map != NULL) && WM_gizmomap_cursor_set(ar->gizmo_map, win)) {
       return;
     }
-    WM_cursor_set(win, WM_CURSOR_DEFAULT);
+    if (sa && ar->type && ar->type->cursor) {
+      ar->type->cursor(win, sa, ar);
+      return;
+    }
   }
+
+  if (WM_cursor_set_from_tool(win, sa, ar)) {
+    return;
+  }
+
+  WM_cursor_set(win, WM_CURSOR_DEFAULT);
 }
 
 /* for use after changing visibility of regions */
@@ -2943,7 +2949,8 @@ void ED_region_info_draw(ARegion *ar,
                          float fill_color[4],
                          const bool full_redraw)
 {
-  ED_region_info_draw_multiline(ar, (const char * [2]){text, NULL}, fill_color, full_redraw);
+  const char *text_array[2] = {text, NULL};
+  ED_region_info_draw_multiline(ar, text_array, fill_color, full_redraw);
 }
 
 #define MAX_METADATA_STR 1024

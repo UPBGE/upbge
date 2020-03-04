@@ -44,52 +44,43 @@
 class KX_Scene;
 class KX_GameObject;
 
-class KX_SCA_ReplaceMeshActuator : public SCA_IActuator
-{
-	Py_Header
+class KX_SCA_ReplaceMeshActuator : public SCA_IActuator {
+  Py_Header
 
-	// mesh reference (mesh to replace)
-	RAS_MeshObject* m_mesh;
-	KX_Scene *m_scene;
-	bool m_use_gfx; 
-	bool m_use_phys;
+      // mesh reference (mesh to replace)
+      RAS_MeshObject *m_mesh;
+  KX_Scene *m_scene;
+  bool m_use_gfx;
+  bool m_use_phys;
 
  public:
-	KX_SCA_ReplaceMeshActuator(
-		KX_GameObject *gameobj, 
-		RAS_MeshObject *mesh, 
-		KX_Scene *scene,
-		bool use_gfx,
-		bool use_phys
-	);
+  KX_SCA_ReplaceMeshActuator(
+      KX_GameObject *gameobj, RAS_MeshObject *mesh, KX_Scene *scene, bool use_gfx, bool use_phys);
 
-	~KX_SCA_ReplaceMeshActuator(
-	);
+  ~KX_SCA_ReplaceMeshActuator();
 
-		CValue* 
-	GetReplica(
-	);
+  CValue *GetReplica();
 
-	virtual bool 
-	Update();
+  virtual bool Update();
 
-	void	InstantReplaceMesh();
+  void InstantReplaceMesh();
 
 #ifdef WITH_PYTHON
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 
-	virtual void Replace_IScene(SCA_IScene *val);
+  virtual void Replace_IScene(SCA_IScene *val);
 
-	static PyObject *pyattr_get_mesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_mesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  static PyObject *pyattr_get_mesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_mesh(PyObjectPlus *self,
+                             const struct KX_PYATTRIBUTE_DEF *attrdef,
+                             PyObject *value);
 
-	KX_PYMETHOD_DOC(KX_SCA_ReplaceMeshActuator,instantReplaceMesh);
+  KX_PYMETHOD_DOC(KX_SCA_ReplaceMeshActuator, instantReplaceMesh);
 
-#endif  /* WITH_PYTHON */
+#endif /* WITH_PYTHON */
+};
 
-}; 
-
-#endif  /* __KX_SCA_REPLACEMESHACTUATOR_H__ */
+#endif /* __KX_SCA_REPLACEMESHACTUATOR_H__ */

@@ -31,7 +31,7 @@
 
 #include "SG_Familly.h"
 
-CM_ThreadSpinLock& SG_Familly::GetMutex()
+CM_ThreadSpinLock &SG_Familly::GetMutex()
 {
-	return m_mutex;
+  return m_mutex;
 }

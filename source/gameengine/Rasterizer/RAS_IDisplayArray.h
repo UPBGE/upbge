@@ -32,161 +32,156 @@
 #include <vector>
 #include <memory>
 
-class RAS_IDisplayArray
-{
-public:
-	enum PrimitiveType {
-		TRIANGLES,
-		LINES,
-	};
+class RAS_IDisplayArray {
+ public:
+  enum PrimitiveType {
+    TRIANGLES,
+    LINES,
+  };
 
-	enum Type {
-		NORMAL,
-		BATCHING
-	};
+  enum Type { NORMAL, BATCHING };
 
-protected:
-	/// The display array primitive type.
-	PrimitiveType m_type;
-	/// Modification flag.
-	unsigned short m_modifiedFlag;
-	/// The vertex format used.
-	RAS_TexVertFormat m_format;
+ protected:
+  /// The display array primitive type.
+  PrimitiveType m_type;
+  /// Modification flag.
+  unsigned short m_modifiedFlag;
+  /// The vertex format used.
+  RAS_TexVertFormat m_format;
 
-	/// The vertex infos unused for rendering, e.g original or soft body index, flag.
-	std::vector<RAS_TexVertInfo> m_vertexInfos;
-	/// Cached vertex pointers. This list is constructed with the function UpdateCache.
-	std::vector<RAS_ITexVert *> m_vertexPtrs;
-	/// The indices used for rendering.
-	std::vector<unsigned int> m_indices;
+  /// The vertex infos unused for rendering, e.g original or soft body index, flag.
+  std::vector<RAS_TexVertInfo> m_vertexInfos;
+  /// Cached vertex pointers. This list is constructed with the function UpdateCache.
+  std::vector<RAS_ITexVert *> m_vertexPtrs;
+  /// The indices used for rendering.
+  std::vector<unsigned int> m_indices;
 
-	RAS_IDisplayArray(const RAS_IDisplayArray& other);
+  RAS_IDisplayArray(const RAS_IDisplayArray &other);
 
-public:
-	RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat& format);
-	virtual ~RAS_IDisplayArray();
+ public:
+  RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat &format);
+  virtual ~RAS_IDisplayArray();
 
-	virtual RAS_IDisplayArray *GetReplica() = 0;
+  virtual RAS_IDisplayArray *GetReplica() = 0;
 
-	/** Construct the display array corresponding of the vertex of the given format.
-	 * \param type The type of primitives, one of the enumeration PrimitiveType.
-	 * \param format The format of vertex to use.
-	 */
-	static RAS_IDisplayArray *ConstructArray(PrimitiveType type, const RAS_TexVertFormat &format);
+  /** Construct the display array corresponding of the vertex of the given format.
+   * \param type The type of primitives, one of the enumeration PrimitiveType.
+   * \param format The format of vertex to use.
+   */
+  static RAS_IDisplayArray *ConstructArray(PrimitiveType type, const RAS_TexVertFormat &format);
 
-	virtual unsigned int GetVertexMemorySize() const = 0;
-	virtual intptr_t GetVertexXYZOffset() const = 0;
-	virtual intptr_t GetVertexNormalOffset() const = 0;
-	virtual intptr_t GetVertexTangentOffset() const = 0;
-	virtual intptr_t GetVertexUVOffset() const = 0;
-	virtual intptr_t GetVertexColorOffset() const = 0;
-	virtual unsigned short GetVertexUvSize() const = 0;
-	virtual unsigned short GetVertexColorSize() const = 0;
+  virtual unsigned int GetVertexMemorySize() const = 0;
+  virtual intptr_t GetVertexXYZOffset() const = 0;
+  virtual intptr_t GetVertexNormalOffset() const = 0;
+  virtual intptr_t GetVertexTangentOffset() const = 0;
+  virtual intptr_t GetVertexUVOffset() const = 0;
+  virtual intptr_t GetVertexColorOffset() const = 0;
+  virtual unsigned short GetVertexUvSize() const = 0;
+  virtual unsigned short GetVertexColorSize() const = 0;
 
-	/** Return a vertex pointer without using the cache. Used to get
-	 * a vertex pointer during contruction.
-	 */
-	virtual RAS_ITexVert *GetVertexNoCache(const unsigned int index) const = 0;
+  /** Return a vertex pointer without using the cache. Used to get
+   * a vertex pointer during contruction.
+   */
+  virtual RAS_ITexVert *GetVertexNoCache(const unsigned int index) const = 0;
 
-	inline RAS_ITexVert *GetVertex(const unsigned int index) const
-	{
-		return m_vertexPtrs[index];
-	}
+  inline RAS_ITexVert *GetVertex(const unsigned int index) const
+  {
+    return m_vertexPtrs[index];
+  }
 
-	inline unsigned int GetIndex(const unsigned int index) const
-	{
-		return m_indices[index];
-	}
+  inline unsigned int GetIndex(const unsigned int index) const
+  {
+    return m_indices[index];
+  }
 
-	inline void SetIndex(const unsigned int index, const unsigned int value)
-	{
-		m_indices[index] = value;
-	}
+  inline void SetIndex(const unsigned int index, const unsigned int value)
+  {
+    m_indices[index] = value;
+  }
 
-	inline const RAS_TexVertInfo& GetVertexInfo(const unsigned int index) const
-	{
-		return m_vertexInfos[index];
-	}
+  inline const RAS_TexVertInfo &GetVertexInfo(const unsigned int index) const
+  {
+    return m_vertexInfos[index];
+  }
 
-	inline RAS_TexVertInfo& GetVertexInfo(const unsigned int index)
-	{
-		return m_vertexInfos[index];
-	}
+  inline RAS_TexVertInfo &GetVertexInfo(const unsigned int index)
+  {
+    return m_vertexInfos[index];
+  }
 
-	virtual void AddVertex(RAS_ITexVert *vert) = 0;
+  virtual void AddVertex(RAS_ITexVert *vert) = 0;
 
-	inline void AddIndex(const unsigned int index)
-	{
-		m_indices.push_back(index);
-	}
+  inline void AddIndex(const unsigned int index)
+  {
+    m_indices.push_back(index);
+  }
 
-	inline void AddVertexInfo(const RAS_TexVertInfo& info)
-	{
-		m_vertexInfos.push_back(info);
-	}
+  inline void AddVertexInfo(const RAS_TexVertInfo &info)
+  {
+    m_vertexInfos.push_back(info);
+  }
 
-	virtual const RAS_ITexVert *GetVertexPointer() const = 0;
+  virtual const RAS_ITexVert *GetVertexPointer() const = 0;
 
-	inline const unsigned int *GetIndexPointer() const
-	{
-		return (unsigned int *)m_indices.data();
-	}
+  inline const unsigned int *GetIndexPointer() const
+  {
+    return (unsigned int *)m_indices.data();
+  }
 
-	virtual unsigned int GetVertexCount() const = 0;
+  virtual unsigned int GetVertexCount() const = 0;
 
-	inline unsigned int GetIndexCount() const
-	{
-		return m_indices.size();
-	}
+  inline unsigned int GetIndexCount() const
+  {
+    return m_indices.size();
+  }
 
-	virtual RAS_ITexVert *CreateVertex(
-				const MT_Vector3& xyz,
-				const MT_Vector2 * const uvs,
-				const MT_Vector4& tangent,
-				const unsigned int *rgba,
-				const MT_Vector3& normal) = 0;
+  virtual RAS_ITexVert *CreateVertex(const MT_Vector3 &xyz,
+                                     const MT_Vector2 *const uvs,
+                                     const MT_Vector4 &tangent,
+                                     const unsigned int *rgba,
+                                     const MT_Vector3 &normal) = 0;
 
-	/** Copy vertex data from an other display array. Different vertex type is allowed.
-	 * \param other The other display array to copy from.
-	 * \param flag The flag coresponding to datas to copy.
-	 */
-	void UpdateFrom(RAS_IDisplayArray *other, int flag);
+  /** Copy vertex data from an other display array. Different vertex type is allowed.
+   * \param other The other display array to copy from.
+   * \param flag The flag coresponding to datas to copy.
+   */
+  void UpdateFrom(RAS_IDisplayArray *other, int flag);
 
-	/// Copy vertex pointers to the cache list m_vertexPtrs.
-	virtual void UpdateCache() = 0;
+  /// Copy vertex pointers to the cache list m_vertexPtrs.
+  virtual void UpdateCache() = 0;
 
-	/// Return the primitive type used for indices.
-	PrimitiveType GetPrimitiveType() const;
-	/// Return the primitive type used for indices in OpenGL value.
-	int GetOpenGLPrimitiveType() const;
+  /// Return the primitive type used for indices.
+  PrimitiveType GetPrimitiveType() const;
+  /// Return the primitive type used for indices in OpenGL value.
+  int GetOpenGLPrimitiveType() const;
 
-	/// Modification categories.
-	enum {
-		NONE_MODIFIED = 0,
-		POSITION_MODIFIED = 1 << 0, // Vertex position modified.
-		NORMAL_MODIFIED = 1 << 1, // Vertex normal modified.
-		UVS_MODIFIED = 1 << 2, // Vertex UVs modified.
-		COLORS_MODIFIED = 1 << 3, // Vertex colors modified.
-		TANGENT_MODIFIED = 1 << 4, // Vertex tangent modified.
-		AABB_MODIFIED = POSITION_MODIFIED,
-		MESH_MODIFIED = POSITION_MODIFIED | NORMAL_MODIFIED | UVS_MODIFIED |
-						COLORS_MODIFIED | TANGENT_MODIFIED
-	};
+  /// Modification categories.
+  enum {
+    NONE_MODIFIED = 0,
+    POSITION_MODIFIED = 1 << 0,  // Vertex position modified.
+    NORMAL_MODIFIED = 1 << 1,    // Vertex normal modified.
+    UVS_MODIFIED = 1 << 2,       // Vertex UVs modified.
+    COLORS_MODIFIED = 1 << 3,    // Vertex colors modified.
+    TANGENT_MODIFIED = 1 << 4,   // Vertex tangent modified.
+    AABB_MODIFIED = POSITION_MODIFIED,
+    MESH_MODIFIED = POSITION_MODIFIED | NORMAL_MODIFIED | UVS_MODIFIED | COLORS_MODIFIED |
+                    TANGENT_MODIFIED
+  };
 
-	/// Return display array modified flag.
-	unsigned short GetModifiedFlag() const;
-	/** Mix display array modified flag with a new flag.
-	 * \param flag The flag to mix.
-	 */
-	void AppendModifiedFlag(unsigned short flag);
-	/// Set the display array modified flag.
-	void SetModifiedFlag(unsigned short flag);
+  /// Return display array modified flag.
+  unsigned short GetModifiedFlag() const;
+  /** Mix display array modified flag with a new flag.
+   * \param flag The flag to mix.
+   */
+  void AppendModifiedFlag(unsigned short flag);
+  /// Set the display array modified flag.
+  void SetModifiedFlag(unsigned short flag);
 
-	/// Return the vertex format used.
-	const RAS_TexVertFormat& GetFormat() const;
+  /// Return the vertex format used.
+  const RAS_TexVertFormat &GetFormat() const;
 
-	/// Return the type of the display array.
-	virtual Type GetType() const;
+  /// Return the type of the display array.
+  virtual Type GetType() const;
 };
 
 typedef std::vector<RAS_IDisplayArray *> RAS_IDisplayArrayList;

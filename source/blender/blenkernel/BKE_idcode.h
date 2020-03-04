@@ -24,6 +24,12 @@
  * \ingroup bke
  */
 
+#include "BLI_sys_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 const char *BKE_idcode_to_name(short idcode);
 const char *BKE_idcode_to_name_plural(short idcode);
 const char *BKE_idcode_to_translation_context(short idcode);
@@ -31,12 +37,16 @@ short BKE_idcode_from_name(const char *name);
 bool BKE_idcode_is_linkable(short idcode);
 bool BKE_idcode_is_valid(short idcode);
 
-int BKE_idcode_to_idfilter(const short idcode);
-short BKE_idcode_from_idfilter(const int idfilter);
+uint64_t BKE_idcode_to_idfilter(const short idcode);
+short BKE_idcode_from_idfilter(const uint64_t idfilter);
 
 int BKE_idcode_to_index(const short idcode);
 short BKE_idcode_from_index(const int index);
 
 short BKE_idcode_iter_step(int *index);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

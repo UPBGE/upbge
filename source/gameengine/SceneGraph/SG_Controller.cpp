@@ -33,10 +33,10 @@
 
 void SG_Controller::SetNode(SG_Node *node)
 {
-	m_node = node; // no checks yet ?
+  m_node = node;  // no checks yet ?
 }
 
 void SG_Controller::ClearNode()
 {
-	m_node = nullptr;
+  m_node = nullptr;
 }

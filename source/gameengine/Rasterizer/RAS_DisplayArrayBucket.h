@@ -46,55 +46,56 @@ class RAS_MaterialShader;
 class RAS_MeshObject;
 class RAS_MeshMaterial;
 
-class RAS_DisplayArrayBucket
-{
-private:
-	enum NodeType {
-		NODE_DOWNWARD_NORMAL = 0,
-// 		NODE_DOWNWARD_DERIVED_MESH,
-		NODE_DOWNWARD_CUBE_MAP,
-		NODE_DOWNWARD_INSTANCING,
-		NODE_DOWNWARD_BATCHING,
-		NODE_DOWNWARD_TYPE_MAX,
+class RAS_DisplayArrayBucket {
+ private:
+  enum NodeType {
+    NODE_DOWNWARD_NORMAL = 0,
+    // 		NODE_DOWNWARD_DERIVED_MESH,
+    NODE_DOWNWARD_CUBE_MAP,
+    NODE_DOWNWARD_INSTANCING,
+    NODE_DOWNWARD_BATCHING,
+    NODE_DOWNWARD_TYPE_MAX,
 
-		NODE_UPWARD_NORMAL = 0,
-		NODE_UPWARD_NO_ARRAY,
-		NODE_UPWARD_TYPE_MAX
-	};
+    NODE_UPWARD_NORMAL = 0,
+    NODE_UPWARD_NO_ARRAY,
+    NODE_UPWARD_TYPE_MAX
+  };
 
-	/// The parent bucket.
-	RAS_MaterialBucket *m_bucket;
-	/// The display array = list of vertexes and indexes.
-	RAS_IDisplayArray *m_displayArray;
-	/// The parent mesh object, it can be nullptr for text objects.
-	RAS_MeshObject *m_mesh;
-	/// The material mesh.
-	RAS_MeshMaterial *m_meshMaterial;
+  /// The parent bucket.
+  RAS_MaterialBucket *m_bucket;
+  /// The display array = list of vertexes and indexes.
+  RAS_IDisplayArray *m_displayArray;
+  /// The parent mesh object, it can be nullptr for text objects.
+  RAS_MeshObject *m_mesh;
+  /// The material mesh.
+  RAS_MeshMaterial *m_meshMaterial;
 
-public:
-	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
-						   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat);
-	~RAS_DisplayArrayBucket();
+ public:
+  RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket,
+                         RAS_IDisplayArray *array,
+                         RAS_MeshObject *mesh,
+                         RAS_MeshMaterial *meshmat);
+  ~RAS_DisplayArrayBucket();
 
-	/// \section Accesor
-	RAS_MaterialBucket *GetBucket() const;
-	RAS_IDisplayArray *GetDisplayArray() const;
-	RAS_MeshObject *GetMesh() const;
-	RAS_MeshMaterial *GetMeshMaterial() const;
+  /// \section Accesor
+  RAS_MaterialBucket *GetBucket() const;
+  RAS_IDisplayArray *GetDisplayArray() const;
+  RAS_MeshObject *GetMesh() const;
+  RAS_MeshMaterial *GetMeshMaterial() const;
 
-	/// \section Active Mesh Slots Management.
-	void ActivateMesh();
-	/// Remove all mesh slots from the list.
-	void RemoveActiveMeshSlots();
+  /// \section Active Mesh Slots Management.
+  void ActivateMesh();
+  /// Remove all mesh slots from the list.
+  void RemoveActiveMeshSlots();
 
-	/// \section Render Infos
-	bool UseBatching() const;
+  /// \section Render Infos
+  bool UseBatching() const;
 
-	/// Update render infos.
-	void UpdateActiveMeshSlots(RAS_MaterialShader *shader);
+  /// Update render infos.
+  void UpdateActiveMeshSlots(RAS_MaterialShader *shader);
 
-	/// Replace the material bucket of this display array bucket by the one given.
-	void ChangeMaterialBucket(RAS_MaterialBucket *bucket);
+  /// Replace the material bucket of this display array bucket by the one given.
+  void ChangeMaterialBucket(RAS_MaterialBucket *bucket);
 };
 
 typedef std::vector<RAS_DisplayArrayBucket *> RAS_DisplayArrayBucketList;

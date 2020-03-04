@@ -84,22 +84,11 @@ endif()
 
 if(WITH_OPENVDB)
   list(APPEND INC_SYS
-    ${BOOST_INCLUDE_DIR}
-    ${OPENEXR_INCLUDE_DIRS}
     ${OPENVDB_INCLUDE_DIRS}
   )
   list(APPEND LIB
     ${OPENVDB_LIBRARIES}
-    ${OPENEXR_LIBRARIES}
-    ${ZLIB_LIBRARIES}
-    ${BOOST_LIBRARIES}
   )
-  if(WITH_OPENVDB_BLOSC)
-    list(APPEND LIB
-      ${BLOSC_LIBRARIES}
-      ${ZLIB_LIBRARIES}
-    )
-  endif()
 endif()
 
 set(SRC
@@ -117,6 +106,7 @@ set(SRC
   ${MANTA_PP}/fastmarch.cpp
   ${MANTA_PP}/fastmarch.h
   ${MANTA_PP}/fastmarch.h.reg.cpp
+  ${MANTA_PP}/fileio/ioutil.cpp
   ${MANTA_PP}/fileio/iogrids.cpp
   ${MANTA_PP}/fileio/iomeshes.cpp
   ${MANTA_PP}/fileio/ioparticles.cpp

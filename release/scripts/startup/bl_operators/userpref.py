@@ -52,8 +52,10 @@ def module_filesystem_remove(path_base, module_name):
 # This duplicates shutil.copytree from Python 3.8, with the new dirs_exist_ok
 # argument that we need. Once we upgrade to 3.8 we can remove this.
 def _preferences_copytree(entries, src, dst):
-    import shutil
     import os
+    import shutil
+    from shutil import Error
+
     os.makedirs(dst, exist_ok=True)
     errors = []
 
@@ -1038,7 +1040,7 @@ class PREFERENCES_OT_studiolight_new(Operator):
         if os.path.isfile(filepath_final):
             if not self.ask_overide:
                 self.ask_overide = True
-                return wm.invoke_props_dialog(self, width=600)
+                return wm.invoke_props_dialog(self, width=320)
             else:
                 for studio_light in prefs.studio_lights:
                     if studio_light.name == filename:
@@ -1064,7 +1066,7 @@ class PREFERENCES_OT_studiolight_new(Operator):
 
     def invoke(self, context, _event):
         wm = context.window_manager
-        return wm.invoke_props_dialog(self, width=600)
+        return wm.invoke_props_dialog(self, width=320)
 
 
 class PREFERENCES_OT_studiolight_uninstall(Operator):

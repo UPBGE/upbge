@@ -36,56 +36,51 @@
 #include "SCA_IActuator.h"
 
 #include "SCA_IScene.h" /* Replace_IScene only */
-#include "KX_Scene.h" /* Replace_IScene only */
+#include "KX_Scene.h"   /* Replace_IScene only */
 
-class SCA_GameActuator : public SCA_IActuator
-{
-	Py_Header
-protected:
-	int							m_mode;
-	bool						m_restart;
-	std::string					m_filename;
-	std::string					m_loadinganimationname;
-	class SCA_IScene*			m_scene;
-	class KX_KetsjiEngine*		m_ketsjiengine;
+class SCA_GameActuator : public SCA_IActuator {
+  Py_Header protected : int m_mode;
+  bool m_restart;
+  std::string m_filename;
+  std::string m_loadinganimationname;
+  class SCA_IScene *m_scene;
+  class KX_KetsjiEngine *m_ketsjiengine;
 
  public:
-	enum SCA_GameActuatorMode
-	{
-		KX_GAME_NODEF = 0,
-		KX_GAME_LOAD,
-		KX_GAME_START,
-		KX_GAME_RESTART,
-		KX_GAME_QUIT,
-		KX_GAME_SAVECFG,
-		KX_GAME_LOADCFG,
-		KX_GAME_SCREENSHOT,
-		KX_GAME_MAX
+  enum SCA_GameActuatorMode {
+    KX_GAME_NODEF = 0,
+    KX_GAME_LOAD,
+    KX_GAME_START,
+    KX_GAME_RESTART,
+    KX_GAME_QUIT,
+    KX_GAME_SAVECFG,
+    KX_GAME_LOADCFG,
+    KX_GAME_SCREENSHOT,
+    KX_GAME_MAX
 
-	};
+  };
 
-	SCA_GameActuator(SCA_IObject* gameobj,
-					 int mode,
-					 const std::string& filename,
-					 const std::string& loadinganimationname,
-					 SCA_IScene* scene,
-					 KX_KetsjiEngine* ketsjiEngine);
-	virtual ~SCA_GameActuator();
+  SCA_GameActuator(SCA_IObject *gameobj,
+                   int mode,
+                   const std::string &filename,
+                   const std::string &loadinganimationname,
+                   SCA_IScene *scene,
+                   KX_KetsjiEngine *ketsjiEngine);
+  virtual ~SCA_GameActuator();
 
-	virtual CValue* GetReplica();
+  virtual CValue *GetReplica();
 
-	virtual bool Update();
-	
-	virtual void Replace_IScene(SCA_IScene *val)
-	{
-		m_scene= val;
-	};
+  virtual bool Update();
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
-	
+  virtual void Replace_IScene(SCA_IScene *val)
+  {
+    m_scene = val;
+  };
+
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
+
 }; /* end of class SCA_GameActuator */
 
 #endif
-

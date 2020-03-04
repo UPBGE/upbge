@@ -78,6 +78,7 @@ static void brush_defaults(Brush *brush)
   FROM_DEFAULT(weight);
   FROM_DEFAULT(size);
   FROM_DEFAULT(alpha);
+  FROM_DEFAULT(hardness);
   FROM_DEFAULT(autosmooth_factor);
   FROM_DEFAULT(topology_rake_factor);
   FROM_DEFAULT(crease_pinch_factor);
@@ -765,8 +766,9 @@ void BKE_brush_free(Brush *brush)
   BKE_previewimg_free(&(brush->preview));
 }
 
-void BKE_brush_make_local(Main *bmain, Brush *brush, const bool lib_local)
+void BKE_brush_make_local(Main *bmain, Brush *brush, const int flags)
 {
+  const bool lib_local = (flags & LIB_ID_MAKELOCAL_FULL_LIBRARY) != 0;
   bool is_local = false, is_lib = false;
 
   /* - only lib users: do nothing (unless force_local is set)
@@ -780,15 +782,15 @@ void BKE_brush_make_local(Main *bmain, Brush *brush, const bool lib_local)
 
   if (brush->clone.image) {
     /* Special case: ima always local immediately. Clone image should only have one user anyway. */
-    id_make_local(bmain, &brush->clone.image->id, false, false);
+    BKE_lib_id_make_local(bmain, &brush->clone.image->id, false, 0);
   }
 
   BKE_library_ID_test_usages(bmain, brush, &is_local, &is_lib);
 
   if (lib_local || is_local) {
     if (!is_lib) {
-      id_clear_lib_data(bmain, &brush->id);
-      BKE_id_expand_local(bmain, &brush->id);
+      BKE_lib_id_clear_library_data(bmain, &brush->id);
+      BKE_lib_id_expand_local(bmain, &brush->id);
 
       /* enable fake user by default */
       id_fake_user_set(&brush->id);
@@ -943,6 +945,7 @@ void BKE_brush_sculpt_reset(Brush *br)
       br->alpha = 0.5f;
       br->normal_radius_factor = 1.0f;
       br->spacing = 6;
+      br->hardness = 0.5f;
       br->flag |= BRUSH_SIZE_PRESSURE;
       br->flag &= ~BRUSH_SPACE_ATTEN;
       break;
@@ -1014,6 +1017,14 @@ void BKE_brush_sculpt_reset(Brush *br)
       br->flag &= ~BRUSH_SPACE;
       br->flag &= ~BRUSH_SPACE_ATTEN;
       break;
+    case SCULPT_TOOL_CLOTH:
+      br->cloth_mass = 1.0f;
+      br->cloth_damping = 0.01f;
+      br->cloth_sim_limit = 2.5f;
+      br->cloth_sim_falloff = 0.75f;
+      br->cloth_deform_type = BRUSH_CLOTH_DEFORM_DRAG;
+      br->flag &= ~(BRUSH_ALPHA_PRESSURE | BRUSH_SIZE_PRESSURE);
+      break;
     default:
       break;
   }
@@ -1047,12 +1058,12 @@ void BKE_brush_sculpt_reset(Brush *br)
     case SCULPT_TOOL_FILL:
     case SCULPT_TOOL_SCRAPE:
     case SCULPT_TOOL_MULTIPLANE_SCRAPE:
-      br->add_col[0] = 1.0f;
-      br->add_col[1] = 0.05f;
-      br->add_col[2] = 0.01f;
-      br->sub_col[0] = 1.0f;
-      br->sub_col[1] = 0.05f;
-      br->sub_col[2] = 0.01f;
+      br->add_col[0] = 0.877f;
+      br->add_col[1] = 0.142f;
+      br->add_col[2] = 0.117f;
+      br->sub_col[0] = 0.877f;
+      br->sub_col[1] = 0.142f;
+      br->sub_col[2] = 0.117f;
       break;
 
     case SCULPT_TOOL_PINCH:
@@ -1063,6 +1074,7 @@ void BKE_brush_sculpt_reset(Brush *br)
     case SCULPT_TOOL_ROTATE:
     case SCULPT_TOOL_ELASTIC_DEFORM:
     case SCULPT_TOOL_POSE:
+    case SCULPT_TOOL_SLIDE_RELAX:
       br->add_col[0] = 1.0f;
       br->add_col[1] = 0.95f;
       br->add_col[2] = 0.005f;
@@ -1079,6 +1091,15 @@ void BKE_brush_sculpt_reset(Brush *br)
       br->sub_col[0] = 0.750000;
       br->sub_col[1] = 0.750000;
       br->sub_col[2] = 0.750000;
+      break;
+
+    case SCULPT_TOOL_CLOTH:
+      br->add_col[0] = 1.0f;
+      br->add_col[1] = 0.5f;
+      br->add_col[2] = 0.1f;
+      br->sub_col[0] = 1.0f;
+      br->sub_col[1] = 0.5f;
+      br->sub_col[2] = 0.1f;
       break;
     default:
       break;

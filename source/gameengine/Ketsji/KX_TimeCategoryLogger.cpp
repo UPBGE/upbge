@@ -29,12 +29,10 @@
  *  \ingroup ketsji
  */
 
-
 #include "KX_TimeCategoryLogger.h"
 
 KX_TimeCategoryLogger::KX_TimeCategoryLogger(unsigned int maxNumMeasurements)
-	:m_maxNumMeasurements(maxNumMeasurements),
-	m_lastCategory(-1)
+    : m_maxNumMeasurements(maxNumMeasurements), m_lastCategory(-1)
 {
 }
 
@@ -44,64 +42,64 @@ KX_TimeCategoryLogger::~KX_TimeCategoryLogger()
 
 void KX_TimeCategoryLogger::SetMaxNumMeasurements(unsigned int maxNumMeasurements)
 {
-	for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
-		it->second.SetMaxNumMeasurements(maxNumMeasurements);
-	}
-	m_maxNumMeasurements = maxNumMeasurements;
+  for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
+    it->second.SetMaxNumMeasurements(maxNumMeasurements);
+  }
+  m_maxNumMeasurements = maxNumMeasurements;
 }
 
 unsigned int KX_TimeCategoryLogger::GetMaxNumMeasurements() const
 {
-	return m_maxNumMeasurements;
+  return m_maxNumMeasurements;
 }
 
 void KX_TimeCategoryLogger::AddCategory(TimeCategory tc)
 {
-	// Only add if not already present
-	if (m_loggers.find(tc) == m_loggers.end()) {
-		m_loggers.emplace(TimeLoggerMap::value_type(tc, KX_TimeLogger(m_maxNumMeasurements)));
-	}
+  // Only add if not already present
+  if (m_loggers.find(tc) == m_loggers.end()) {
+    m_loggers.emplace(TimeLoggerMap::value_type(tc, KX_TimeLogger(m_maxNumMeasurements)));
+  }
 }
 
 void KX_TimeCategoryLogger::StartLog(TimeCategory tc, double now)
 {
-	if (m_lastCategory != -1) {
-		m_loggers[m_lastCategory].EndLog(now);
-	}
-	m_loggers[tc].StartLog(now);
-	m_lastCategory = tc;
+  if (m_lastCategory != -1) {
+    m_loggers[m_lastCategory].EndLog(now);
+  }
+  m_loggers[tc].StartLog(now);
+  m_lastCategory = tc;
 }
 
 void KX_TimeCategoryLogger::EndLog(TimeCategory tc, double now)
 {
-	m_loggers[tc].EndLog(now);
+  m_loggers[tc].EndLog(now);
 }
 
 void KX_TimeCategoryLogger::EndLog(double now)
 {
-	m_loggers[m_lastCategory].EndLog(now);
-	m_lastCategory = -1;
+  m_loggers[m_lastCategory].EndLog(now);
+  m_lastCategory = -1;
 }
 
 void KX_TimeCategoryLogger::NextMeasurement(double now)
 {
-	for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
-		it->second.NextMeasurement(now);
-	}
+  for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
+    it->second.NextMeasurement(now);
+  }
 }
 
 double KX_TimeCategoryLogger::GetAverage(TimeCategory tc)
 {
-	return m_loggers[tc].GetAverage();
+  return m_loggers[tc].GetAverage();
 }
 
 double KX_TimeCategoryLogger::GetAverage()
 {
-	double time = 0.0;
+  double time = 0.0;
 
-	for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
-		time += it->second.GetAverage();
-	}
+  for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
+    time += it->second.GetAverage();
+  }
 
-	return time;
+  return time;
 }

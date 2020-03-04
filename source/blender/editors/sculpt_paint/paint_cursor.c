@@ -1231,7 +1231,7 @@ static void sculpt_multiplane_scrape_preview_draw(const uint gpuattr,
   float local_mat_inv[4][4];
   invert_m4_m4(local_mat_inv, ss->cache->stroke_local_mat);
   GPU_matrix_mul(local_mat_inv);
-  float angle = ss->cache->multiplane_scrape_sampled_angle;
+  float angle = ss->cache->multiplane_scrape_angle;
   if (ss->cache->pen_flip || ss->cache->invert) {
     angle = -angle;
   }
@@ -1477,16 +1477,20 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
           /* Draw pose brush origins. */
           if (brush->sculpt_tool == SCULPT_TOOL_POSE) {
             immUniformColor4f(1.0f, 1.0f, 1.0f, 0.8f);
-            if (update_previews) {
+
+            /* Just after switching to the Pose Brush, the active vertex can be the same and the
+             * cursor won't be tagged to update, so always initialize the preview chain if it is
+             * null before drawing it. */
+            if (update_previews || !ss->pose_ik_chain_preview) {
               BKE_sculpt_update_object_for_edit(depsgraph, vc.obact, true, false);
 
               /* Free the previous pose brush preview. */
               if (ss->pose_ik_chain_preview) {
-                sculpt_pose_ik_chain_free(ss->pose_ik_chain_preview);
+                SCULPT_pose_ik_chain_free(ss->pose_ik_chain_preview);
               }
 
               /* Generate a new pose brush preview from the current cursor location. */
-              ss->pose_ik_chain_preview = sculpt_pose_ik_chain_init(
+              ss->pose_ik_chain_preview = SCULPT_pose_ik_chain_init(
                   sd, vc.obact, ss, brush, gi.location, rds);
             }
 
@@ -1526,10 +1530,20 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
           immUniformColor3fvAlpha(outline_col, outline_alpha);
           GPU_line_width(2.0f);
           imm_draw_circle_wire_3d(pos, 0, 0, rds, 80);
+
           GPU_line_width(1.0f);
           immUniformColor3fvAlpha(outline_col, outline_alpha * 0.5f);
           imm_draw_circle_wire_3d(pos, 0, 0, rds * clamp_f(brush->alpha, 0.0f, 1.0f), 80);
           GPU_matrix_pop();
+
+          /* Cloth brush simulation areas. */
+          if (brush->sculpt_tool == SCULPT_TOOL_CLOTH) {
+            GPU_matrix_push();
+            const float white[3] = {1.0f, 1.0f, 1.0f};
+            SCULPT_cloth_simulation_limits_draw(
+                pos, brush, vc.obact->obmat, gi.location, gi.normal, rds, 1.0f, white, 0.25f);
+            GPU_matrix_pop();
+          }
 
           /* Update and draw dynamic mesh preview lines. */
           GPU_matrix_push();
@@ -1617,6 +1631,48 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
             GPU_matrix_mul(vc.obact->obmat);
             sculpt_multiplane_scrape_preview_draw(pos, ss, outline_col, outline_alpha);
             GPU_matrix_pop();
+            GPU_matrix_pop_projection();
+          }
+
+          if (brush->sculpt_tool == SCULPT_TOOL_CLOTH && !ss->cache->first_time) {
+            GPU_matrix_push_projection();
+            ED_view3d_draw_setup_view(CTX_wm_window(C),
+                                      CTX_data_depsgraph_pointer(C),
+                                      CTX_data_scene(C),
+                                      ar,
+                                      CTX_wm_view3d(C),
+                                      NULL,
+                                      NULL,
+                                      NULL);
+
+            /* Plane falloff preview */
+            if (brush->cloth_force_falloff_type == BRUSH_CLOTH_FORCE_FALLOFF_PLANE) {
+              GPU_matrix_push();
+              GPU_matrix_mul(vc.obact->obmat);
+              SCULPT_cloth_plane_falloff_preview_draw(pos, ss, outline_col, outline_alpha);
+              GPU_matrix_pop();
+            }
+
+            /* Display the simulation limits if sculpting outside them. */
+            /* This does not makes much sense of plane fallof as the fallof is infinte. */
+            else if (brush->cloth_force_falloff_type == BRUSH_CLOTH_FORCE_FALLOFF_RADIAL) {
+              if (len_v3v3(ss->cache->true_location, ss->cache->true_initial_location) >
+                  ss->cache->radius * (1.0f + brush->cloth_sim_limit)) {
+                const float red[3] = {1.0f, 0.2f, 0.2f};
+                GPU_matrix_push();
+                SCULPT_cloth_simulation_limits_draw(pos,
+                                                    brush,
+                                                    vc.obact->obmat,
+                                                    ss->cache->true_initial_location,
+                                                    ss->cache->true_initial_normal,
+                                                    ss->cache->radius,
+                                                    2.0f,
+                                                    red,
+                                                    0.8f);
+                GPU_matrix_pop();
+              }
+            }
+
             GPU_matrix_pop_projection();
           }
 

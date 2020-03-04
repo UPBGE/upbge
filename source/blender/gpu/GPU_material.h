@@ -39,7 +39,6 @@ struct GPUNodeLink;
 struct GPUNodeStack;
 struct GPUTexture;
 struct GPUUniformBuffer;
-struct GPUVertAttrLayers;
 struct Image;
 struct ImageUser;
 struct ListBase;
@@ -53,8 +52,6 @@ typedef struct GPUMaterial GPUMaterial;
 typedef struct GPUNode GPUNode;
 typedef struct GPUNodeLink GPUNodeLink;
 
-typedef struct GPUParticleInfo GPUParticleInfo;
-
 /* Functions to create GPU Materials nodes */
 
 typedef enum eGPUType {
@@ -67,6 +64,7 @@ typedef enum eGPUType {
   GPU_VEC4 = 4,
   GPU_MAT3 = 9,
   GPU_MAT4 = 16,
+  GPU_MAX_CONSTANT_DATA = GPU_MAT4,
 
   /* Values not in GPU_DATATYPE_STR */
   GPU_TEX1D_ARRAY = 1001,
@@ -140,11 +138,12 @@ typedef enum eGPUMaterialStatus {
   GPU_MAT_SUCCESS,
 } eGPUMaterialStatus;
 
-GPUNodeLink *GPU_attribute(CustomDataType type, const char *name);
-GPUNodeLink *GPU_constant(float *num);
-GPUNodeLink *GPU_uniform(float *num);
-GPUNodeLink *GPU_image(struct Image *ima, struct ImageUser *iuser);
-GPUNodeLink *GPU_image_tilemap(struct Image *ima, struct ImageUser *iuser);
+GPUNodeLink *GPU_constant(const float *num);
+GPUNodeLink *GPU_uniform(const float *num);
+GPUNodeLink *GPU_attribute(GPUMaterial *mat, CustomDataType type, const char *name);
+GPUNodeLink *GPU_image(GPUMaterial *mat, struct Image *ima, struct ImageUser *iuser);
+GPUNodeLink *GPU_image_tiled(GPUMaterial *mat, struct Image *ima, struct ImageUser *iuser);
+GPUNodeLink *GPU_image_tiled_mapping(GPUMaterial *mat, struct Image *ima, struct ImageUser *iuser);
 GPUNodeLink *GPU_color_band(GPUMaterial *mat, int size, float *pixels, float *layer);
 GPUNodeLink *GPU_builtin(eGPUBuiltin builtin);
 
@@ -161,7 +160,6 @@ GPUNodeLink *GPU_uniformbuffer_link_out(struct GPUMaterial *mat,
                                         const int index);
 
 void GPU_material_output_link(GPUMaterial *material, GPUNodeLink *link);
-eGPUBuiltin GPU_get_material_builtins(GPUMaterial *material);
 
 void GPU_material_sss_profile_create(GPUMaterial *material,
                                      float radii[3],
@@ -201,8 +199,6 @@ struct GPUUniformBuffer *GPU_material_uniform_buffer_get(GPUMaterial *material);
 void GPU_material_uniform_buffer_create(GPUMaterial *material, ListBase *inputs);
 struct GPUUniformBuffer *GPU_material_create_sss_profile_ubo(void);
 
-void GPU_material_vertex_attrs(GPUMaterial *material, struct GPUVertAttrLayers *attrs);
-
 bool GPU_material_use_domain_surface(GPUMaterial *mat);
 bool GPU_material_use_domain_volume(GPUMaterial *mat);
 
@@ -212,6 +208,30 @@ bool GPU_material_flag_get(GPUMaterial *mat, eGPUMatFlag flag);
 void GPU_pass_cache_init(void);
 void GPU_pass_cache_garbage_collect(void);
 void GPU_pass_cache_free(void);
+
+/* Requested Material Attributes and Textures */
+
+typedef struct GPUMaterialAttribute {
+  struct GPUMaterialAttribute *next, *prev;
+  int type;      /* CustomDataType */
+  char name[64]; /* MAX_CUSTOMDATA_LAYER_NAME */
+  eGPUType gputype;
+  int id;
+  int users;
+} GPUMaterialAttribute;
+
+typedef struct GPUMaterialTexture {
+  struct GPUMaterialTexture *next, *prev;
+  struct Image *ima;
+  struct ImageUser *iuser;
+  struct GPUTexture **colorband;
+  char sampler_name[32];       /* Name of sampler in GLSL. */
+  char tiled_mapping_name[32]; /* Name of tile mapping sampler in GLSL. */
+  int users;
+} GPUMaterialTexture;
+
+ListBase GPU_material_attributes(GPUMaterial *material);
+ListBase GPU_material_textures(GPUMaterial *material);
 
 #ifdef __cplusplus
 }

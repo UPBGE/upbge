@@ -21,8 +21,8 @@
  */
 
 /** \file KX_2DFilterManager.cpp
-*  \ingroup ketsji
-*/
+ *  \ingroup ketsji
+ */
 
 #include "KX_2DFilterManager.h"
 #include "KX_2DFilter.h"
@@ -38,109 +38,131 @@ KX_2DFilterManager::~KX_2DFilterManager()
 {
 }
 
-RAS_2DFilter *KX_2DFilterManager::NewFilter(RAS_2DFilterData& filterData)
+RAS_2DFilter *KX_2DFilterManager::NewFilter(RAS_2DFilterData &filterData)
 {
-	return new KX_2DFilter(filterData);
+  return new KX_2DFilter(filterData);
 }
 
 #ifdef WITH_PYTHON
 PyMethodDef KX_2DFilterManager::Methods[] = {
-	// creation
-	KX_PYMETHODTABLE(KX_2DFilterManager, getFilter),
-	KX_PYMETHODTABLE(KX_2DFilterManager, addFilter),
-	KX_PYMETHODTABLE(KX_2DFilterManager, removeFilter),
-	{nullptr, nullptr} //Sentinel
+    // creation
+    KX_PYMETHODTABLE(KX_2DFilterManager, getFilter),
+    KX_PYMETHODTABLE(KX_2DFilterManager, addFilter),
+    KX_PYMETHODTABLE(KX_2DFilterManager, removeFilter),
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef KX_2DFilterManager::Attributes[] = {
-	KX_PYATTRIBUTE_NULL //Sentinel
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyTypeObject KX_2DFilterManager::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"KX_2DFilterManager",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0, 0, 0, 0, 0, 0, 0, 0, 0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0, 0, 0, 0, 0, 0, 0,
-	Methods,
-	0,
-	0,
-	&PyObjectPlus::Type,
-	0, 0, 0, 0, 0, 0,
-	py_base_new
-};
-
+PyTypeObject KX_2DFilterManager::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_2DFilterManager",
+                                         sizeof(PyObjectPlus_Proxy),
+                                         0,
+                                         py_base_dealloc,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         py_base_repr,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         Methods,
+                                         0,
+                                         0,
+                                         &PyObjectPlus::Type,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         py_base_new};
 
 KX_PYMETHODDEF_DOC(KX_2DFilterManager, getFilter, " getFilter(index)")
 {
-	int index = 0;
+  int index = 0;
 
-	if (!PyArg_ParseTuple(args, "i:getFilter", &index)) {
-		return nullptr;
-	}
+  if (!PyArg_ParseTuple(args, "i:getFilter", &index)) {
+    return nullptr;
+  }
 
-	KX_2DFilter *filter = (KX_2DFilter*)GetFilterPass(index);
+  KX_2DFilter *filter = (KX_2DFilter *)GetFilterPass(index);
 
-	if (filter) {
-		return filter->GetProxy();
-	}
+  if (filter) {
+    return filter->GetProxy();
+  }
 
-	Py_RETURN_NONE;
+  Py_RETURN_NONE;
 }
 
 KX_PYMETHODDEF_DOC(KX_2DFilterManager, addFilter, " addFilter(index, type, fragmentProgram)")
 {
-	int index = 0;
-	int type = 0;
-	const char *frag = "";
+  int index = 0;
+  int type = 0;
+  const char *frag = "";
 
-	if (!PyArg_ParseTuple(args, "ii|s:addFilter", &index, &type, &frag)) {
-		return nullptr;
-	}
+  if (!PyArg_ParseTuple(args, "ii|s:addFilter", &index, &type, &frag)) {
+    return nullptr;
+  }
 
-	if (GetFilterPass(index)) {
-		PyErr_Format(PyExc_ValueError, "filterManager.addFilter(index, type, fragmentProgram): KX_2DFilterManager, found existing filter in index (%i)", index);
-		return nullptr;
-	}
+  if (GetFilterPass(index)) {
+    PyErr_Format(PyExc_ValueError,
+                 "filterManager.addFilter(index, type, fragmentProgram): KX_2DFilterManager, "
+                 "found existing filter in index (%i)",
+                 index);
+    return nullptr;
+  }
 
-	if (type < FILTER_BLUR || type > FILTER_CUSTOMFILTER) {
-		PyErr_SetString(PyExc_ValueError, "filterManager.addFilter(index, type, fragmentProgram): KX_2DFilterManager, type invalid");
-		return nullptr;
-	}
+  if (type < FILTER_BLUR || type > FILTER_CUSTOMFILTER) {
+    PyErr_SetString(
+        PyExc_ValueError,
+        "filterManager.addFilter(index, type, fragmentProgram): KX_2DFilterManager, type invalid");
+    return nullptr;
+  }
 
-	if (strlen(frag) > 0 && type != FILTER_CUSTOMFILTER) {
-		CM_PythonFunctionWarning("KX_2DFilterManager", "addFilter", "non-empty fragment program with non-custom filter type");
-	}
+  if (strlen(frag) > 0 && type != FILTER_CUSTOMFILTER) {
+    CM_PythonFunctionWarning("KX_2DFilterManager",
+                             "addFilter",
+                             "non-empty fragment program with non-custom filter type");
+  }
 
-	RAS_2DFilterData data;
-	data.filterPassIndex = index;
-	data.filterMode = type;
-	data.shaderText = std::string(frag);
+  RAS_2DFilterData data;
+  data.filterPassIndex = index;
+  data.filterMode = type;
+  data.shaderText = std::string(frag);
 
-	KX_2DFilter *filter = static_cast<KX_2DFilter *>(AddFilter(data));
+  KX_2DFilter *filter = static_cast<KX_2DFilter *>(AddFilter(data));
 
-	return filter->GetProxy();
+  return filter->GetProxy();
 }
 
 KX_PYMETHODDEF_DOC(KX_2DFilterManager, removeFilter, " removeFilter(index)")
 {
-	int index = 0;
+  int index = 0;
 
-	if (!PyArg_ParseTuple(args, "i:removeFilter", &index)) {
-		return nullptr;
-	}
+  if (!PyArg_ParseTuple(args, "i:removeFilter", &index)) {
+    return nullptr;
+  }
 
-	RemoveFilterPass(index);
+  RemoveFilterPass(index);
 
-	Py_RETURN_NONE;
+  Py_RETURN_NONE;
 }
 
 #endif  // WITH_PYTHON

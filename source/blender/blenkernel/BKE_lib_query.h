@@ -35,6 +35,10 @@
  * - `BKE_lib_query_` should be used for functions in that file.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ID;
 struct Main;
 
@@ -106,7 +110,8 @@ typedef int (*LibraryIDLinkCallback)(LibraryIDLinkCallbackData *cb_data);
 enum {
   IDWALK_NOP = 0,
   IDWALK_READONLY = (1 << 0),
-  IDWALK_RECURSE = (1 << 1), /* Also implies IDWALK_READONLY. */
+  IDWALK_RECURSE = (1 << 1),    /* Also implies IDWALK_READONLY. */
+  IDWALK_INCLUDE_UI = (1 << 2), /* Include UI pointers (from WM and screens editors). */
 
   IDWALK_NO_INDIRECT_PROXY_DATA_USAGE = (1 << 8), /* Ugly special case :(((( */
 };
@@ -129,5 +134,9 @@ void BKE_library_ID_test_usages(struct Main *bmain,
 
 void BKE_library_unused_linked_data_set_tag(struct Main *bmain, const bool do_init_tag);
 void BKE_library_indirectly_used_data_tag_clear(struct Main *bmain);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BKE_LIB_QUERY_H__ */

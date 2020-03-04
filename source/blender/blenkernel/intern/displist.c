@@ -33,15 +33,16 @@
 #include "DNA_object_types.h"
 #include "DNA_vfont_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_memarena.h"
-#include "BLI_math.h"
-#include "BLI_scanfill.h"
-#include "BLI_utildefines.h"
+#include "BLI_bitmap.h"
 #include "BLI_linklist.h"
+#include "BLI_listbase.h"
+#include "BLI_math.h"
+#include "BLI_memarena.h"
+#include "BLI_scanfill.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_displist.h"
-#include "BKE_cdderivedmesh.h"
 #include "BKE_object.h"
 #include "BKE_lib_id.h"
 #include "BKE_mball.h"
@@ -1771,7 +1772,7 @@ static void do_makeDispListCurveTypes(Depsgraph *depsgraph,
       curve_calc_modifiers_post(depsgraph, scene, ob, &nubase, dispbase, r_final, for_render);
     }
 
-    if (cu->flag & CU_DEFORM_FILL && !ob->runtime.mesh_eval) {
+    if (cu->flag & CU_DEFORM_FILL && !ob->runtime.data_eval) {
       curve_to_filledpoly(cu, &nubase, dispbase);
     }
 
@@ -1799,12 +1800,11 @@ void BKE_displist_make_curveTypes(
 
   dispbase = &(ob->runtime.curve_cache->disp);
 
-  do_makeDispListCurveTypes(
-      depsgraph, scene, ob, dispbase, for_render, for_orco, &ob->runtime.mesh_eval);
+  Mesh *mesh_eval = NULL;
+  do_makeDispListCurveTypes(depsgraph, scene, ob, dispbase, for_render, for_orco, &mesh_eval);
 
-  if (ob->runtime.mesh_eval != NULL) {
-    ob->runtime.mesh_eval->id.tag |= LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT;
-    ob->runtime.is_mesh_eval_owned = true;
+  if (mesh_eval != NULL) {
+    BKE_object_eval_assign_data(ob, &mesh_eval->id, true);
   }
 
   boundbox_displist_object(ob);
@@ -1860,8 +1860,9 @@ static void boundbox_displist_object(Object *ob)
       ob->runtime.bb = MEM_callocN(sizeof(BoundBox), "boundbox");
     }
 
-    if (ob->runtime.mesh_eval) {
-      BKE_object_boundbox_calc_from_mesh(ob, ob->runtime.mesh_eval);
+    Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
+    if (mesh_eval) {
+      BKE_object_boundbox_calc_from_mesh(ob, mesh_eval);
     }
     else {
       float min[3], max[3];

@@ -31,10 +31,13 @@
 
 /** Execute each functions with at least one argument
  * \param functionlist The python list which contains callbacks.
- * \param arglist The first item in the tuple to execute callbacks (can be nullptr for no arguments).
- * \param minargcount The minimum of quantity of arguments possible.
- * \param maxargcount The maximum of quantity of arguments possible.
+ * \param arglist The first item in the tuple to execute callbacks (can be nullptr for no
+ * arguments). \param minargcount The minimum of quantity of arguments possible. \param maxargcount
+ * The maximum of quantity of arguments possible.
  */
-void RunPythonCallBackList(PyObject *functionlist, PyObject **arglist, unsigned int minargcount, unsigned int maxargcount);
+void RunPythonCallBackList(PyObject *functionlist,
+                           PyObject **arglist,
+                           unsigned int minargcount,
+                           unsigned int maxargcount);
 
-#endif // __EXP_PYTHON_CALLBACK_H__
+#endif  // __EXP_PYTHON_CALLBACK_H__

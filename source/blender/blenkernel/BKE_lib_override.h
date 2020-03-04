@@ -23,7 +23,7 @@
 /** \file
  * \ingroup bke
  *
- * API to manage data-blocks inside of Blender's Main data-base, or as independant runtime-only
+ * API to manage data-blocks inside of Blender's Main data-base, or as independent runtime-only
  * data.
  *
  * \note `BKE_lib_` files are for operations over data-blocks themselves, although they might
@@ -38,6 +38,10 @@
  *  - `BKE_lib_override_library_main_` should be used for function affecting the whole collection
  *    of IDs in a given Main data-base.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct ID;
 struct IDOverrideLibrary;
@@ -110,5 +114,9 @@ struct ID *BKE_lib_override_library_operations_store_start(
 void BKE_lib_override_library_operations_store_end(OverrideLibraryStorage *override_storage,
                                                    struct ID *local);
 void BKE_lib_override_library_operations_store_finalize(OverrideLibraryStorage *override_storage);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BKE_LIB_OVERRIDE_H__ */

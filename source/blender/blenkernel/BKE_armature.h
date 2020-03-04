@@ -23,6 +23,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Bone;
 struct Depsgraph;
 struct ListBase;
@@ -58,16 +62,13 @@ typedef struct PoseTree {
 } PoseTree;
 
 /*  Core armature functionality */
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct bArmature *BKE_armature_add(struct Main *bmain, const char *name);
 struct bArmature *BKE_armature_from_object(struct Object *ob);
 int BKE_armature_bonelist_count(struct ListBase *lb);
 void BKE_armature_bonelist_free(struct ListBase *lb);
 void BKE_armature_free(struct bArmature *arm);
-void BKE_armature_make_local(struct Main *bmain, struct bArmature *arm, const bool lib_local);
+void BKE_armature_make_local(struct Main *bmain, struct bArmature *arm, const int flags);
 void BKE_armature_copy_data(struct Main *bmain,
                             struct bArmature *arm_dst,
                             const struct bArmature *arm_src,

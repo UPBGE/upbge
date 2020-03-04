@@ -120,7 +120,7 @@ void EEVEE_cache_populate(void *vedata, Object *ob)
   bool cast_shadow = false;
 
   if (ob_visibility & OB_VISIBLE_PARTICLES) {
-    EEVEE_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
+    EEVEE_particle_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
   }
 
   if (DRW_object_is_renderable(ob) && (ob_visibility & OB_VISIBLE_SELF)) {
@@ -151,7 +151,8 @@ void EEVEE_cache_populate(void *vedata, Object *ob)
 static void eevee_cache_finish(void *vedata)
 {
   EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
-  EEVEE_PrivateData *g_data = ((EEVEE_Data *)vedata)->stl->g_data;
+  EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
+  EEVEE_PrivateData *g_data = stl->g_data;
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
 
@@ -270,19 +271,6 @@ static void eevee_draw_scene(void *vedata)
     DRW_draw_pass(psl->depth_pass);
     DRW_draw_pass(psl->depth_pass_cull);
 
-    /* Game engine transition */
-    if (!DRW_pass_is_empty(psl->ghost_prepass_pass)) {
-      EEVEE_setup_ghost_framebuffer(fbl, vedata);
-
-      GPU_framebuffer_bind(fbl->ghost_prepass_fb);
-      GPU_framebuffer_clear_depth(fbl->ghost_prepass_fb, 1.0f);
-      DRW_draw_pass(psl->ghost_prepass_pass);
-
-      GPU_framebuffer_bind(dfbl->depth_only_fb);
-      DRW_draw_pass(psl->ghost_resolve_pass);
-    }
-    /* End of Game engine transition */
-
     DRW_stats_group_end();
 
     /* Create minmax texture */
@@ -321,6 +309,9 @@ static void eevee_draw_scene(void *vedata)
     /* Volumetrics Resolve Opaque */
     EEVEE_volumes_resolve(sldata, vedata);
 
+    /* Renderpasses */
+    EEVEE_renderpasses_output_accumulate(sldata, vedata, false);
+
     /* Transparent */
     /* TODO(fclem): should be its own Framebuffer.
      * This is needed because dualsource blending only works with 1 color buffer. */
@@ -335,8 +326,6 @@ static void eevee_draw_scene(void *vedata)
     EEVEE_draw_effects(sldata, vedata);
     DRW_stats_group_end();
 
-    EEVEE_renderpasses_output_accumulate(sldata, vedata);
-
     DRW_view_set_active(NULL);
 
     if (DRW_state_is_image_render() && (stl->effects->enabled_effects & EFFECT_SSR) &&
@@ -350,7 +339,7 @@ static void eevee_draw_scene(void *vedata)
     }
   }
 
-  if ((stl->g_data->render_passes & SCE_PASS_COMBINED) > 0) {
+  if ((stl->g_data->render_passes & EEVEE_RENDER_PASS_COMBINED) != 0) {
     /* Transfer result to default framebuffer. */
     GPU_framebuffer_bind(dfbl->default_fb);
     DRW_transform_none(stl->effects->final_tx);
@@ -430,9 +419,8 @@ static void eevee_render_to_image(void *vedata,
                                   const rcti *rect)
 {
   const DRWContextState *draw_ctx = DRW_context_state_get();
-  EEVEE_render_init(vedata, engine, draw_ctx->depsgraph);
 
-  if (RE_engine_test_break(engine)) {
+  if (!EEVEE_render_init(vedata, engine, draw_ctx->depsgraph)) {
     return;
   }
 

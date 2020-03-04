@@ -34,21 +34,18 @@
 #ifndef __SCA_KEYBOARDMANAGER_H__
 #define __SCA_KEYBOARDMANAGER_H__
 
-
 #include "SCA_EventManager.h"
 #include "SCA_IInputDevice.h"
 
+class SCA_KeyboardManager : public SCA_EventManager {
+  class SCA_IInputDevice *m_inputDevice;
 
-class SCA_KeyboardManager : public SCA_EventManager
-{
-	class	SCA_IInputDevice*				m_inputDevice;
-	
-public:
-	SCA_KeyboardManager(class SCA_LogicManager* logicmgr,class SCA_IInputDevice* inputdev);
-	virtual ~SCA_KeyboardManager();
+ public:
+  SCA_KeyboardManager(class SCA_LogicManager *logicmgr, class SCA_IInputDevice *inputdev);
+  virtual ~SCA_KeyboardManager();
 
-	virtual void 	NextFrame();
-	SCA_IInputDevice* GetInputDevice();
+  virtual void NextFrame();
+  SCA_IInputDevice *GetInputDevice();
 };
 
-#endif  /* __SCA_KEYBOARDMANAGER_H__ */
+#endif /* __SCA_KEYBOARDMANAGER_H__ */

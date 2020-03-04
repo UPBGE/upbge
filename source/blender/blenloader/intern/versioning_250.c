@@ -525,19 +525,19 @@ static void do_version_constraints_radians_degrees_250(ListBase *lb)
 {
   bConstraint *con;
 
-	for (con = lb->first; con; con = con->next) {
-		if (con->type == CONSTRAINT_TYPE_RIGIDBODYJOINT) {
-			bRigidBodyJointConstraint *data = con->data;
-			data->axX *= (float)(M_PI / 180.0);
-			data->axY *= (float)(M_PI / 180.0);
-			data->axZ *= (float)(M_PI / 180.0);
-		}
-		else if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
-			bKinematicConstraint *data = con->data;
-			data->poleangle *= (float)(M_PI / 180.0);
-		}
-		else if (con->type == CONSTRAINT_TYPE_ROTLIMIT) {
-			bRotLimitConstraint *data = con->data;
+  for (con = lb->first; con; con = con->next) {
+    if (con->type == CONSTRAINT_TYPE_RIGIDBODYJOINT) {
+      bRigidBodyJointConstraint *data = con->data;
+      data->axX *= (float)(M_PI / 180.0);
+      data->axY *= (float)(M_PI / 180.0);
+      data->axZ *= (float)(M_PI / 180.0);
+    }
+    else if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
+      bKinematicConstraint *data = con->data;
+      data->poleangle *= (float)(M_PI / 180.0);
+    }
+    else if (con->type == CONSTRAINT_TYPE_ROTLIMIT) {
+      bRotLimitConstraint *data = con->data;
 
       data->xmin *= (float)(M_PI / 180.0);
       data->xmax *= (float)(M_PI / 180.0);
@@ -658,9 +658,9 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     // PTCacheID *pid;
     // ListBase pidlist;
 
-		bSound *sound;
-		Sequence *seq;
-		bActuator *act;
+    bSound *sound;
+    Sequence *seq;
+    bActuator *act;
 
     for (sound = bmain->sounds.first; sound; sound = sound->id.next) {
       if (sound->newpackedfile) {
@@ -669,43 +669,42 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       }
     }
 
-		for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-			for (act = ob->actuators.first; act; act = act->next) {
-				if (act->type == ACT_SOUND) {
-					bSoundActuator *sAct = (bSoundActuator*) act->data;
-					if (sAct->sound) {
-						sound = blo_do_versions_newlibadr(fd, lib, sAct->sound);
-						sAct->flag = (sound->flags & SOUND_FLAGS_3D) ? ACT_SND_3D_SOUND : 0;
-						sAct->pitch = sound->pitch;
-						sAct->volume = sound->volume;
-						sAct->sound3D.reference_distance = sound->distance;
-						sAct->sound3D.max_gain = sound->max_gain;
-						sAct->sound3D.min_gain = sound->min_gain;
-						sAct->sound3D.rolloff_factor = sound->attenuation;
-					}
-					else {
-						sAct->sound3D.reference_distance = 1.0f;
-						sAct->volume = 1.0f;
-						sAct->sound3D.max_gain = 1.0f;
-						sAct->sound3D.rolloff_factor = 1.0f;
-					}
-					sAct->sound3D.cone_inner_angle = 360.0f;
-					sAct->sound3D.cone_outer_angle = 360.0f;
-					sAct->sound3D.max_distance = FLT_MAX;
-				}
-			}
-		}
+    for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+      for (act = ob->actuators.first; act; act = act->next) {
+        if (act->type == ACT_SOUND) {
+          bSoundActuator *sAct = (bSoundActuator *)act->data;
+          if (sAct->sound) {
+            sound = blo_do_versions_newlibadr(fd, lib, sAct->sound);
+            sAct->flag = (sound->flags & SOUND_FLAGS_3D) ? ACT_SND_3D_SOUND : 0;
+            sAct->pitch = sound->pitch;
+            sAct->volume = sound->volume;
+            sAct->sound3D.reference_distance = sound->distance;
+            sAct->sound3D.max_gain = sound->max_gain;
+            sAct->sound3D.min_gain = sound->min_gain;
+            sAct->sound3D.rolloff_factor = sound->attenuation;
+          }
+          else {
+            sAct->sound3D.reference_distance = 1.0f;
+            sAct->volume = 1.0f;
+            sAct->sound3D.max_gain = 1.0f;
+            sAct->sound3D.rolloff_factor = 1.0f;
+          }
+          sAct->sound3D.cone_inner_angle = 360.0f;
+          sAct->sound3D.cone_outer_angle = 360.0f;
+          sAct->sound3D.max_distance = FLT_MAX;
+        }
+      }
+    }
 
-		for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
-			if (scene->ed && scene->ed->seqbasep) {
-				SEQ_BEGIN(scene->ed, seq)
-				{
-					if (seq->type == SEQ_TYPE_SOUND_HD) {
-						char str[FILE_MAX];
-						BLI_join_dirfile(str, sizeof(str), seq->strip->dir, seq->strip->stripdata->name);
-						BLI_path_abs(str, BKE_main_blendfile_path(bmain));
-						seq->sound = BKE_sound_new_file(bmain, str);
-					}
+    for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      if (scene->ed && scene->ed->seqbasep) {
+        SEQ_BEGIN (scene->ed, seq) {
+          if (seq->type == SEQ_TYPE_SOUND_HD) {
+            char str[FILE_MAX];
+            BLI_join_dirfile(str, sizeof(str), seq->strip->dir, seq->strip->stripdata->name);
+            BLI_path_abs(str, BKE_main_blendfile_path(bmain));
+            seq->sound = BKE_sound_new_file(bmain, str);
+          }
 #define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
 #define SEQ_USE_PROXY_CUSTOM_FILE (1 << 21)
           /* don't know, if anybody used that this way, but just in case, upgrade to new way... */
@@ -881,41 +880,41 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       }
 
       /* Stereo */
-	    sce->gm.stereomode = sce->r.stereomode;
-	    /* reassigning stereomode NO_STEREO to a separeted flag*/
-	    if (sce->gm.stereomode == 1) { // 1 = STEREO_NOSTEREO
-		    sce->gm.stereoflag = STEREO_NOSTEREO;
-		    sce->gm.stereomode = STEREO_ANAGLYPH;
-	    }
-	    else
-		    sce->gm.stereoflag = STEREO_ENABLED;
+      sce->gm.stereomode = sce->r.stereomode;
+      /* reassigning stereomode NO_STEREO to a separeted flag*/
+      if (sce->gm.stereomode == 1) {  // 1 = STEREO_NOSTEREO
+        sce->gm.stereoflag = STEREO_NOSTEREO;
+        sce->gm.stereomode = STEREO_ANAGLYPH;
+      }
+      else
+        sce->gm.stereoflag = STEREO_ENABLED;
 
-	    /* Framing */
-	    //sce->gm.framing = sce->framing;
+      /* Framing */
+      // sce->gm.framing = sce->framing;
 
-	    /* Physic (previously stored in world) */
-	    sce->gm.gravity =9.8f;
-	    sce->gm.physicsEngine = WOPHY_BULLET; /* Bullet by default */
-	    sce->gm.occlusionRes = 128;
-	    sce->gm.ticrate = 60;
-	    sce->gm.maxlogicstep = 5;
-	    sce->gm.physubstep = 1;
-	    sce->gm.maxphystep = 5;
-		}
-	}
+      /* Physic (previously stored in world) */
+      sce->gm.gravity = 9.8f;
+      sce->gm.physicsEngine = WOPHY_BULLET; /* Bullet by default */
+      sce->gm.occlusionRes = 128;
+      sce->gm.ticrate = 60;
+      sce->gm.maxlogicstep = 5;
+      sce->gm.physubstep = 1;
+      sce->gm.maxphystep = 5;
+    }
+  }
 
-	if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 2)) {
-		Scene *sce;
-		Object *ob;
+  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 2)) {
+    Scene *sce;
+    Object *ob;
 
-		for (sce = bmain->scenes.first; sce; sce = sce->id.next) {
-			if (fd->fileflags & G_FILE_ENABLE_ALL_FRAMES)
-				sce->gm.flag |= GAME_ENABLE_ALL_FRAMES;
-			if (fd->fileflags & G_FILE_SHOW_DEBUG_PROPS)
-				sce->gm.flag |= GAME_SHOW_DEBUG_PROPS;
-			if (fd->fileflags & G_FILE_SHOW_FRAMERATE)
-				sce->gm.flag |= GAME_SHOW_FRAMERATE;
-			sce->gm.matmode = GAME_MAT_GLSL;
+    for (sce = bmain->scenes.first; sce; sce = sce->id.next) {
+      if (fd->fileflags & G_FILE_ENABLE_ALL_FRAMES)
+        sce->gm.flag |= GAME_ENABLE_ALL_FRAMES;
+      if (fd->fileflags & G_FILE_SHOW_DEBUG_PROPS)
+        sce->gm.flag |= GAME_SHOW_DEBUG_PROPS;
+      if (fd->fileflags & G_FILE_SHOW_FRAMERATE)
+        sce->gm.flag |= GAME_SHOW_FRAMERATE;
+      sce->gm.matmode = GAME_MAT_GLSL;
 
       if (sce->audio.main == 0.0f)
         sce->audio.main = 1.0f;

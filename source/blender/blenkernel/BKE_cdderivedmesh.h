@@ -22,10 +22,16 @@
  * \section aboutcdderivedmesh CDDerivedMesh interface
  *   CDDerivedMesh (CD = Custom Data) is a DerivedMesh backend which stores
  *   mesh elements (vertices, edges and faces) as layers of custom element data.
+ *
+ * \note This is deprecated & should eventually be removed.
  */
 
 #ifndef __BKE_CDDERIVEDMESH_H__
 #define __BKE_CDDERIVEDMESH_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_customdata.h"
@@ -43,11 +49,11 @@ struct DerivedMesh *CDDM_new(int numVerts, int numEdges, int numFaces, int numLo
 /* creates a CDDerivedMesh from the given Mesh, this will reference the
  * original data in Mesh, but it is safe to apply vertex coordinates or
  * calculate normals as those functions will automatically create new
- * data to not overwrite the original */
+ * data to not overwrite the original. */
 struct DerivedMesh *CDDM_from_mesh(struct Mesh *mesh);
 
 /* creates a CDDerivedMesh from the given Mesh with custom allocation type. */
-struct DerivedMesh *CDDM_from_mesh_ex(struct Mesh *mesh,
+struct DerivedMesh *cdDM_from_mesh_ex(struct Mesh *mesh,
                                       eCDAllocType alloctype,
                                       const struct CustomData_MeshMasks *mask);
 
@@ -58,10 +64,13 @@ DerivedMesh *CDDM_from_editbmesh(struct BMEditMesh *em, const bool use_mdisps);
 /* Enum for merge_mode of CDDM_merge_verts.
  * Refer to cdderivedmesh.c for details. */
 enum {
-	CDDM_MERGE_VERTS_DUMP_IF_MAPPED,
-	CDDM_MERGE_VERTS_DUMP_IF_EQUAL,
+  CDDM_MERGE_VERTS_DUMP_IF_MAPPED,
+  CDDM_MERGE_VERTS_DUMP_IF_EQUAL,
 };
-DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int tot_vtargetmap, const int merge_mode);
+DerivedMesh *CDDM_merge_verts(DerivedMesh *dm,
+                              const int *vtargetmap,
+                              const int tot_vtargetmap,
+                              const int merge_mode);
 
 /* creates a CDDerivedMesh from the given curve object */
 struct DerivedMesh *CDDM_from_curve(struct Object *ob);
@@ -71,8 +80,7 @@ struct DerivedMesh *CDDM_from_curve(struct Object *ob);
 DerivedMesh *CDDM_from_curve_displist(struct Object *ob, struct ListBase *dispbase);
 
 /* Copies the given DerivedMesh with verts, faces & edges stored as
- * custom element data.
- */
+ * custom element data. */
 struct DerivedMesh *CDDM_copy(struct DerivedMesh *dm);
 
 /* creates a CDDerivedMesh with the same layer stack configuration as the
@@ -134,7 +142,7 @@ void CDDM_calc_edges(struct DerivedMesh *dm);
 void CDDM_recalc_tessellation(struct DerivedMesh *dm);
 void CDDM_recalc_tessellation_ex(struct DerivedMesh *dm, const bool do_face_nor_cpy);
 
-void CDDM_recalc_looptri(struct DerivedMesh *dm);
+void cdDM_recalc_looptri(struct DerivedMesh *dm);
 
 /* lowers the number of vertices/edges/faces in a CDDerivedMesh
  * the layer data stays the same size
@@ -174,5 +182,9 @@ void CDDM_set_medge(struct DerivedMesh *dm, struct MEdge *medge);
 void CDDM_set_mface(struct DerivedMesh *dm, struct MFace *mface);
 void CDDM_set_mloop(struct DerivedMesh *dm, struct MLoop *mloop);
 void CDDM_set_mpoly(struct DerivedMesh *dm, struct MPoly *mpoly);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -41,16 +41,15 @@ class PHY_IPhysicsEnvironment;
  * controlled by the physics engine. This includes the physics objects
  * and the graphics object for view frustrum and occlusion culling.
  */
-class PHY_IController
-{
-public:
-	virtual ~PHY_IController()
-	{
-	}
-	// clientinfo for raycasts for example
-	virtual void *GetNewClientInfo() = 0;
-	virtual void SetNewClientInfo(void *clientinfo) = 0;
-	virtual void SetPhysicsEnvironment(class PHY_IPhysicsEnvironment *env) = 0;
+class PHY_IController {
+ public:
+  virtual ~PHY_IController()
+  {
+  }
+  // clientinfo for raycasts for example
+  virtual void *GetNewClientInfo() = 0;
+  virtual void SetNewClientInfo(void *clientinfo) = 0;
+  virtual void SetPhysicsEnvironment(class PHY_IPhysicsEnvironment *env) = 0;
 };
 
-#endif  /* __PHY_ICONTROLLER_H__ */
+#endif /* __PHY_ICONTROLLER_H__ */

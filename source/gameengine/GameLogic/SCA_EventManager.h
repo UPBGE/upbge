@@ -38,47 +38,48 @@
 
 class SCA_ISensor;
 
-class SCA_EventManager
-{
-protected:
-	class SCA_LogicManager* m_logicmgr; /* all event manager subclasses use this (other then TimeEventManager) */
+class SCA_EventManager {
+ protected:
+  class SCA_LogicManager
+      *m_logicmgr; /* all event manager subclasses use this (other then TimeEventManager) */
 
-	std::vector<SCA_ISensor *> m_sensors;
+  std::vector<SCA_ISensor *> m_sensors;
 
-public:
-	enum EVENT_MANAGER_TYPE {
-		KEYBOARD_EVENTMGR = 0,
-		MOUSE_EVENTMGR,
-		ALWAYS_EVENTMGR, 
-		TOUCH_EVENTMGR, 
-		PROPERTY_EVENTMGR,
-		TIME_EVENTMGR,
-		RANDOM_EVENTMGR,
-		RAY_EVENTMGR,
-		NETWORK_EVENTMGR,
-		JOY_EVENTMGR,
-		ACTUATOR_EVENTMGR,
-		BASIC_EVENTMGR
-	};
+ public:
+  enum EVENT_MANAGER_TYPE {
+    KEYBOARD_EVENTMGR = 0,
+    MOUSE_EVENTMGR,
+    ALWAYS_EVENTMGR,
+    TOUCH_EVENTMGR,
+    PROPERTY_EVENTMGR,
+    TIME_EVENTMGR,
+    RANDOM_EVENTMGR,
+    RAY_EVENTMGR,
+    NETWORK_EVENTMGR,
+    JOY_EVENTMGR,
+    ACTUATOR_EVENTMGR,
+    BASIC_EVENTMGR
+  };
 
-	SCA_EventManager(SCA_LogicManager* logicmgr, EVENT_MANAGER_TYPE mgrtype);
-	virtual ~SCA_EventManager();
-	
-	virtual bool	RemoveSensor(class SCA_ISensor* sensor);
-	virtual void	NextFrame(double curtime, double fixedtime);
-	virtual void	NextFrame();
-	virtual void    UpdateFrame();
-	virtual void	EndFrame();
-	virtual bool	RegisterSensor(class SCA_ISensor* sensor);
-	int		GetType();
-	//SG_DList &GetSensors() { return m_sensors; }
+  SCA_EventManager(SCA_LogicManager *logicmgr, EVENT_MANAGER_TYPE mgrtype);
+  virtual ~SCA_EventManager();
 
+  virtual bool RemoveSensor(class SCA_ISensor *sensor);
+  virtual void NextFrame(double curtime, double fixedtime);
+  virtual void NextFrame();
+  virtual void UpdateFrame();
+  virtual void EndFrame();
+  virtual bool RegisterSensor(class SCA_ISensor *sensor);
+  int GetType();
+  // SG_DList &GetSensors() { return m_sensors; }
 
-	void			Replace_LogicManager(SCA_LogicManager* logicmgr) { m_logicmgr= logicmgr; }
+  void Replace_LogicManager(SCA_LogicManager *logicmgr)
+  {
+    m_logicmgr = logicmgr;
+  }
 
-protected:
-	EVENT_MANAGER_TYPE		m_mgrtype;
+ protected:
+  EVENT_MANAGER_TYPE m_mgrtype;
 };
 
 #endif
-

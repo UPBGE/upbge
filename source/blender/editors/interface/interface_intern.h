@@ -144,21 +144,21 @@ enum {
 /* max amount of items a radial menu (pie menu) can contain */
 #define PIE_MAX_ITEMS 8
 
-typedef struct uiLinkLine {  /* only for draw/edit */
-	struct uiLinkLine *next, *prev;
-	struct uiBut *from, *to;
-	short flag, deactive;
+typedef struct uiLinkLine { /* only for draw/edit */
+  struct uiLinkLine *next, *prev;
+  struct uiBut *from, *to;
+  short flag, deactive;
 } uiLinkLine;
 
 typedef struct {
-	void **poin;        /* pointer to original pointer */
-	void ***ppoin;      /* pointer to original pointer-array */
-	short *totlink;     /* if pointer-array, here is the total */
-	
-	short maxlink, pad;
-	short fromcode, tocode;
-	
-	ListBase lines;
+  void **poin;    /* pointer to original pointer */
+  void ***ppoin;  /* pointer to original pointer-array */
+  short *totlink; /* if pointer-array, here is the total */
+
+  short maxlink, pad;
+  short fromcode, tocode;
+
+  ListBase lines;
 } uiLink;
 
 struct uiBut {
@@ -231,7 +231,7 @@ struct uiBut {
   void *hold_argN;
 
   uiLink *link;
-  int linkto[2];  /* region relative coords */
+  int linkto[2]; /* region relative coords */
 
   const char *tip;
   uiButToolTipFunc tip_func;

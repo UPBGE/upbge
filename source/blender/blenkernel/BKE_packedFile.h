@@ -22,6 +22,11 @@
 /** \file
  * \ingroup bke
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define RET_OK 0
 #define RET_ERROR 1
 
@@ -46,7 +51,6 @@ enum ePF_FileStatus {
   PF_USE_ORIGINAL = 6,
   PF_KEEP = 7,
   PF_REMOVE = 8,
-  PF_NOOP = 9,
 
   PF_ASK = 10,
 };
@@ -112,5 +116,9 @@ void BKE_packedfile_id_unpack(struct Main *bmain,
                               struct ID *id,
                               struct ReportList *reports,
                               enum ePF_FileStatus how);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

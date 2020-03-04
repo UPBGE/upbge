@@ -35,18 +35,24 @@ extern "C" {
 
 /* Game Engine command line parameters */
 
-typedef void* SYS_SystemHandle;
+typedef void *SYS_SystemHandle;
 
 extern SYS_SystemHandle SYS_GetSystem(void);
 extern void SYS_DeleteSystem(SYS_SystemHandle sys);
 
 extern int SYS_GetCommandLineInt(SYS_SystemHandle sys, const char *paramname, int defaultvalue);
-extern float SYS_GetCommandLineFloat(SYS_SystemHandle sys, const char *paramname, float defaultvalue);
-extern const char *SYS_GetCommandLineString(SYS_SystemHandle sys, const char *paramname, const char *defaultvalue);
+extern float SYS_GetCommandLineFloat(SYS_SystemHandle sys,
+                                     const char *paramname,
+                                     float defaultvalue);
+extern const char *SYS_GetCommandLineString(SYS_SystemHandle sys,
+                                            const char *paramname,
+                                            const char *defaultvalue);
 
 extern void SYS_WriteCommandLineInt(SYS_SystemHandle sys, const char *paramname, int value);
 extern void SYS_WriteCommandLineFloat(SYS_SystemHandle sys, const char *paramname, float value);
-extern void SYS_WriteCommandLineString(SYS_SystemHandle sys, const char *paramname, const char *value);
+extern void SYS_WriteCommandLineString(SYS_SystemHandle sys,
+                                       const char *paramname,
+                                       const char *value);
 
 /* Start game engine */
 
@@ -54,12 +60,13 @@ struct bContext;
 struct ARegion;
 struct rcti;
 
-extern void StartKetsjiShell(struct bContext *C, struct ARegion *ar,
-	struct rcti *cam_frame, int always_use_expand_framing);
+extern void StartKetsjiShell(struct bContext *C,
+                             struct ARegion *ar,
+                             struct rcti *cam_frame,
+                             int always_use_expand_framing);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* __BL_SYSTEM_H__ */
-

@@ -29,7 +29,6 @@
  *  \ingroup ketsji
  */
 
-
 //
 
 // Remove the actuator's parent when triggered
@@ -42,51 +41,43 @@
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
 
-SCA_EndObjectActuator::SCA_EndObjectActuator(KX_GameObject *gameobj,
-                                                   KX_Scene *scene):
-    SCA_IActuator(gameobj, KX_ACT_END_OBJECT),
-    m_scene(scene)
+SCA_EndObjectActuator::SCA_EndObjectActuator(KX_GameObject *gameobj, KX_Scene *scene)
+    : SCA_IActuator(gameobj, KX_ACT_END_OBJECT), m_scene(scene)
 {
-	// intentionally empty
+  // intentionally empty
 } /* End of constructor */
 
-
-
 SCA_EndObjectActuator::~SCA_EndObjectActuator()
-{ 
-	// there's nothing to be done here, really....
+{
+  // there's nothing to be done here, really....
 } /* end of destructor */
-
-
 
 bool SCA_EndObjectActuator::Update()
 {
-	// bool result = false;	/*unused*/
-	bool bNegativeEvent = IsNegativeEvent();
-	RemoveAllEvents();
+  // bool result = false;	/*unused*/
+  bool bNegativeEvent = IsNegativeEvent();
+  RemoveAllEvents();
 
-	if (bNegativeEvent)
-		return false; // do nothing on negative events
-	m_scene->DelayedRemoveObject(static_cast<KX_GameObject *>(GetParent()));
-	
-	return false;
+  if (bNegativeEvent)
+    return false;  // do nothing on negative events
+  m_scene->DelayedRemoveObject(static_cast<KX_GameObject *>(GetParent()));
+
+  return false;
 }
 
-
-
-CValue* SCA_EndObjectActuator::GetReplica()
+CValue *SCA_EndObjectActuator::GetReplica()
 {
-	SCA_EndObjectActuator* replica = 
-		new SCA_EndObjectActuator(*this);
-	if (replica == nullptr) return nullptr;
+  SCA_EndObjectActuator *replica = new SCA_EndObjectActuator(*this);
+  if (replica == nullptr)
+    return nullptr;
 
-	replica->ProcessReplica();
-	return replica;
+  replica->ProcessReplica();
+  return replica;
 };
 
 void SCA_EndObjectActuator::Replace_IScene(SCA_IScene *val)
 {
-	m_scene = static_cast<KX_Scene *>(val);
+  m_scene = static_cast<KX_Scene *>(val);
 }
 
 #ifdef WITH_PYTHON
@@ -96,35 +87,52 @@ void SCA_EndObjectActuator::Replace_IScene(SCA_IScene *val)
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject SCA_EndObjectActuator::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_EndObjectActuator",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+    PyVarObject_HEAD_INIT(nullptr, 0) "SCA_EndObjectActuator",
+    sizeof(PyObjectPlus_Proxy),
+    0,
+    py_base_dealloc,
+    0,
+    0,
+    0,
+    0,
+    py_base_repr,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    Methods,
+    0,
+    0,
+    &SCA_IActuator::Type,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    py_base_new};
 
 PyMethodDef SCA_EndObjectActuator::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_EndObjectActuator::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON
 
 /* eof */

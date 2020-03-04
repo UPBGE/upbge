@@ -33,27 +33,25 @@ class RAS_Rasterizer;
 class RAS_ICanvas;
 class RAS_DebugDraw;
 
-class RAS_OpenGLDebugDraw
-{
+class RAS_OpenGLDebugDraw {
 
-private:
+ private:
+  unsigned int m_genericProg;
+  unsigned int m_vbo;
+  unsigned int m_vao;
+  unsigned int m_wireibo;
+  unsigned int m_solidibo;
+  unsigned int m_lineibo;
+  MT_Matrix4x4 m_cameraMatrix;
 
-	unsigned int m_genericProg;
-	unsigned int m_vbo;
-	unsigned int m_vao;
-	unsigned int m_wireibo;
-	unsigned int m_solidibo;
-	MT_Matrix4x4 m_cameraMatrix;
+ public:
+  RAS_OpenGLDebugDraw();
+  ~RAS_OpenGLDebugDraw();
 
-public:
+  void BindVBO(float *mvp, float color[4], float *vertexes, unsigned int ibo);
+  void UnbindVBO();
 
-	RAS_OpenGLDebugDraw();
-	~RAS_OpenGLDebugDraw();
-
-	void BindVBO(float *mvp, float color[4], float *vertexes, unsigned int ibo);
-	void UnbindVBO();
-
-	void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
+  void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
 };
 
 #endif  // __RAS_OPEN_GL_DEBUG_DRAW_H__

@@ -34,30 +34,26 @@
 #include "SCA_LogicManager.h"
 #include "SCA_ISensor.h"
 
-
 SCA_JoystickManager::SCA_JoystickManager(class SCA_LogicManager *logicmgr)
-	:SCA_EventManager(logicmgr, JOY_EVENTMGR)
+    : SCA_EventManager(logicmgr, JOY_EVENTMGR)
 {
 }
-
 
 SCA_JoystickManager::~SCA_JoystickManager()
 {
 }
 
-
 void SCA_JoystickManager::NextFrame(double curtime, double deltatime)
 {
-	for (SCA_ISensor *sensor : m_sensors) {
-		sensor->Activate(m_logicmgr);
-	}
+  for (SCA_ISensor *sensor : m_sensors) {
+    sensor->Activate(m_logicmgr);
+  }
 }
-
 
 DEV_Joystick *SCA_JoystickManager::GetJoystickDevice(short int joyindex)
 {
-	/*
-	 * Return the instance of DEV_Joystick for use
-	 */
-	return DEV_Joystick::GetInstance(joyindex);
+  /*
+   * Return the instance of DEV_Joystick for use
+   */
+  return DEV_Joystick::GetInstance(joyindex);
 }

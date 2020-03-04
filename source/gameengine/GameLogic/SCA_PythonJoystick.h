@@ -29,29 +29,26 @@
 
 #include "EXP_Value.h"
 
-class SCA_PythonJoystick : public CValue
-{
-	Py_Header
-private:
-	class DEV_Joystick *m_joystick;
-	int m_joyindex;
+class SCA_PythonJoystick : public CValue {
+  Py_Header private : class DEV_Joystick *m_joystick;
+  int m_joyindex;
 #ifdef WITH_PYTHON
-	PyObject* m_event_dict;
+  PyObject *m_event_dict;
 #endif
-public:
-	SCA_PythonJoystick(class DEV_Joystick* joystick, int joyindex);
-	virtual ~SCA_PythonJoystick();
+ public:
+  SCA_PythonJoystick(class DEV_Joystick *joystick, int joyindex);
+  virtual ~SCA_PythonJoystick();
 
-	virtual std::string GetName();
+  virtual std::string GetName();
 
 #ifdef WITH_PYTHON
-	static PyObject*	pyattr_get_num_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_active_buttons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_axis_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_num_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_active_buttons(PyObjectPlus *self_v,
+                                             const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_axis_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 
-#endif //__SCA_PYTHONJOYSTICK_H__
-
+#endif  //__SCA_PYTHONJOYSTICK_H__

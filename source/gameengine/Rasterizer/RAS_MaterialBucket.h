@@ -43,35 +43,33 @@ class RAS_Rasterizer;
  * and a mesh slot for each mesh that uses display arrays in
  * this bucket */
 
-class RAS_MaterialBucket
-{
-public:
-	RAS_MaterialBucket(RAS_IPolyMaterial *mat);
-	virtual ~RAS_MaterialBucket();
+class RAS_MaterialBucket {
+ public:
+  RAS_MaterialBucket(RAS_IPolyMaterial *mat);
+  virtual ~RAS_MaterialBucket();
 
-	// Material Properties
-	RAS_IPolyMaterial *GetPolyMaterial() const;
-	RAS_MaterialShader *GetShader() const;
-	bool IsAlpha() const;
-	bool IsZSort() const;
-	bool IsWire() const;
-	bool UseInstancing() const;
+  // Material Properties
+  RAS_IPolyMaterial *GetPolyMaterial() const;
+  RAS_MaterialShader *GetShader() const;
+  bool IsAlpha() const;
+  bool IsZSort() const;
+  bool IsWire() const;
+  bool UseInstancing() const;
 
-	/// Set the shader after its conversion or when changing to custom shader.
-	void UpdateShader();
+  /// Set the shader after its conversion or when changing to custom shader.
+  void UpdateShader();
 
-	void RemoveActiveMeshSlots();
+  void RemoveActiveMeshSlots();
 
-	void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
-	void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
+  void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
+  void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 
-	void MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket);
+  void MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket);
 
-private:
-
-	RAS_IPolyMaterial *m_material;
-	RAS_MaterialShader *m_shader;
-	RAS_DisplayArrayBucketList m_displayArrayBucketList;
+ private:
+  RAS_IPolyMaterial *m_material;
+  RAS_MaterialShader *m_shader;
+  RAS_DisplayArrayBucketList m_displayArrayBucketList;
 };
 
 #endif  // __RAS_MATERIAL_BUCKET_H__

@@ -33,6 +33,10 @@
 #include "GPU_immediate_util.h"
 #include "GPU_shader.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** Returns a cleared vertex format, ready for #add_attr. */
 GPUVertFormat *immVertexFormat(void);
 
@@ -150,5 +154,9 @@ void immDestroy(void);
 void immActivate_no_assert(void);
 void immDeactivate_no_assert(void);
 /**************************/
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __GPU_IMMEDIATE_H__ */

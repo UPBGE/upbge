@@ -32,71 +32,66 @@
 /** \brief Reference counter base class. This class manages the destruction of an object
  * based on a reference counter, when the counter is to zero the object is destructed.
  */
-template <class T>
-class CM_RefCount
-{
-private:
-	int m_refCount;
+template<class T> class CM_RefCount {
+ private:
+  int m_refCount;
 
-public:
-	CM_RefCount()
-		:m_refCount(1)
-	{
-	}
+ public:
+  CM_RefCount() : m_refCount(1)
+  {
+  }
 
-	virtual ~CM_RefCount()
-	{
-	}
+  virtual ~CM_RefCount()
+  {
+  }
 
-	CM_RefCount(const CM_RefCount& UNUSED(other))
-	{
-		m_refCount = 1;
-	}
+  CM_RefCount(const CM_RefCount &UNUSED(other))
+  {
+    m_refCount = 1;
+  }
 
-	/// Increase the reference count of the object.
-	T *AddRef()
-	{
-		BLI_assert(m_refCount > 0);
-		++m_refCount;
+  /// Increase the reference count of the object.
+  T *AddRef()
+  {
+    BLI_assert(m_refCount > 0);
+    ++m_refCount;
 
-		return static_cast<T *>(this);
-	}
+    return static_cast<T *>(this);
+  }
 
-	/// Decrease the reference count of the object and destruct at zero.
-	T *Release()
-	{
-		BLI_assert(m_refCount > 0);
-		--m_refCount;
-		if (m_refCount == 0) {
-			delete this;
-			return nullptr;
-		}
+  /// Decrease the reference count of the object and destruct at zero.
+  T *Release()
+  {
+    BLI_assert(m_refCount > 0);
+    --m_refCount;
+    if (m_refCount == 0) {
+      delete this;
+      return nullptr;
+    }
 
-		return static_cast<T *>(this);
-	}
+    return static_cast<T *>(this);
+  }
 
-	int GetRefCount() const
-	{
-		return m_refCount;
-	}
+  int GetRefCount() const
+  {
+    return m_refCount;
+  }
 };
 
 /** Increase the reference count of a object. Used in case of multiple levels
  * inheritance in the goal to return the value back.
  */
-template <class T>
-T *CM_AddRef(T *val)
+template<class T> T *CM_AddRef(T *val)
 {
-	return static_cast<T *>(val->AddRef());
+  return static_cast<T *>(val->AddRef());
 }
 
 /** Decrease the reference count of a object and destruct at zero. Used in case
  * of multiple levels inheritance in the goal to return the value back.
  */
-template <class T>
-T *CM_Release(T *val)
+template<class T> T *CM_Release(T *val)
 {
-	return static_cast<T *>(val->Release());
+  return static_cast<T *>(val->Release());
 }
 
 #endif  // __CM_REFCOUNT_H__

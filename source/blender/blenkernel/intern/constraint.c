@@ -368,7 +368,7 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
   /* when not in EditMode, use the 'final' evaluated mesh, depsgraph
    * ensures we build with CD_MDEFORMVERT layer
    */
-  Mesh *me_eval = ob->runtime.mesh_eval;
+  Mesh *me_eval = BKE_object_get_evaluated_mesh(ob);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   float plane[3];
   float imat[3][3], tmat[3][3];
@@ -855,96 +855,92 @@ static void childof_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
   bConstraintTarget *ct = targets->first;
 
   /* only evaluate if there is a target */
-  if (VALID_CONS_TARGET(ct)) {
-    float parmat[4][4];
+  if (!VALID_CONS_TARGET(ct)) {
+    return;
+  }
 
-    /* simple matrix parenting */
-    if (data->flag == CHILDOF_ALL) {
+  float parmat[4][4];
+  /* Simple matrix parenting. */
+  if ((data->flag & CHILDOF_ALL) == CHILDOF_ALL) {
+    copy_m4_m4(parmat, ct->matrix);
+  }
+  /* Filter the parent matrix by channel. */
+  else {
+    float loc[3], eul[3], size[3];
 
-      /* multiply target (parent matrix) by offset (parent inverse) to get
-       * the effect of the parent that will be exerted on the owner
-       */
-      mul_m4_m4m4(parmat, ct->matrix, data->invmat);
+    /* extract components of both matrices */
+    copy_v3_v3(loc, ct->matrix[3]);
+    mat4_to_eulO(eul, ct->rotOrder, ct->matrix);
+    mat4_to_size(size, ct->matrix);
 
-      /* now multiply the parent matrix by the owner matrix to get the
-       * the effect of this constraint (i.e. owner is 'parented' to parent)
-       */
-      mul_m4_m4m4(cob->matrix, parmat, cob->matrix);
+    /* disable channels not enabled */
+    if (!(data->flag & CHILDOF_LOCX)) {
+      loc[0] = 0.0f;
     }
-    else {
-      float invmat[4][4], tempmat[4][4];
-      float loc[3], eul[3], size[3];
-      float loco[3], eulo[3], sizo[3];
-
-      /* get offset (parent-inverse) matrix */
-      copy_m4_m4(invmat, data->invmat);
-
-      /* extract components of both matrices */
-      copy_v3_v3(loc, ct->matrix[3]);
-      mat4_to_eulO(eul, ct->rotOrder, ct->matrix);
-      mat4_to_size(size, ct->matrix);
-
-      copy_v3_v3(loco, invmat[3]);
-      mat4_to_eulO(eulo, cob->rotOrder, invmat);
-      mat4_to_size(sizo, invmat);
-
-      /* disable channels not enabled */
-      if (!(data->flag & CHILDOF_LOCX)) {
-        loc[0] = loco[0] = 0.0f;
-      }
-      if (!(data->flag & CHILDOF_LOCY)) {
-        loc[1] = loco[1] = 0.0f;
-      }
-      if (!(data->flag & CHILDOF_LOCZ)) {
-        loc[2] = loco[2] = 0.0f;
-      }
-      if (!(data->flag & CHILDOF_ROTX)) {
-        eul[0] = eulo[0] = 0.0f;
-      }
-      if (!(data->flag & CHILDOF_ROTY)) {
-        eul[1] = eulo[1] = 0.0f;
-      }
-      if (!(data->flag & CHILDOF_ROTZ)) {
-        eul[2] = eulo[2] = 0.0f;
-      }
-      if (!(data->flag & CHILDOF_SIZEX)) {
-        size[0] = sizo[0] = 1.0f;
-      }
-      if (!(data->flag & CHILDOF_SIZEY)) {
-        size[1] = sizo[1] = 1.0f;
-      }
-      if (!(data->flag & CHILDOF_SIZEZ)) {
-        size[2] = sizo[2] = 1.0f;
-      }
-
-      /* make new target mat and offset mat */
-      loc_eulO_size_to_mat4(ct->matrix, loc, eul, size, ct->rotOrder);
-      loc_eulO_size_to_mat4(invmat, loco, eulo, sizo, cob->rotOrder);
-
-      /* multiply target (parent matrix) by offset (parent inverse) to get
-       * the effect of the parent that will be exerted on the owner
-       */
-      mul_m4_m4m4(parmat, ct->matrix, invmat);
-
-      /* now multiply the parent matrix by the owner matrix to get the
-       * the effect of this constraint (i.e.  owner is 'parented' to parent)
-       */
-      copy_m4_m4(tempmat, cob->matrix);
-      mul_m4_m4m4(cob->matrix, parmat, tempmat);
-
-      /* without this, changes to scale and rotation can change location
-       * of a parentless bone or a disconnected bone. Even though its set
-       * to zero above. */
-      if (!(data->flag & CHILDOF_LOCX)) {
-        cob->matrix[3][0] = tempmat[3][0];
-      }
-      if (!(data->flag & CHILDOF_LOCY)) {
-        cob->matrix[3][1] = tempmat[3][1];
-      }
-      if (!(data->flag & CHILDOF_LOCZ)) {
-        cob->matrix[3][2] = tempmat[3][2];
-      }
+    if (!(data->flag & CHILDOF_LOCY)) {
+      loc[1] = 0.0f;
     }
+    if (!(data->flag & CHILDOF_LOCZ)) {
+      loc[2] = 0.0f;
+    }
+    if (!(data->flag & CHILDOF_ROTX)) {
+      eul[0] = 0.0f;
+    }
+    if (!(data->flag & CHILDOF_ROTY)) {
+      eul[1] = 0.0f;
+    }
+    if (!(data->flag & CHILDOF_ROTZ)) {
+      eul[2] = 0.0f;
+    }
+    if (!(data->flag & CHILDOF_SIZEX)) {
+      size[0] = 1.0f;
+    }
+    if (!(data->flag & CHILDOF_SIZEY)) {
+      size[1] = 1.0f;
+    }
+    if (!(data->flag & CHILDOF_SIZEZ)) {
+      size[2] = 1.0f;
+    }
+
+    /* make new target mat and offset mat */
+    loc_eulO_size_to_mat4(parmat, loc, eul, size, ct->rotOrder);
+  }
+
+  /* Compute the inverse matrix if requested. */
+  if (data->flag & CHILDOF_SET_INVERSE) {
+    invert_m4_m4(data->invmat, parmat);
+
+    data->flag &= ~CHILDOF_SET_INVERSE;
+
+    /* Write the computed matrix back to the master copy if in COW evaluation. */
+    bConstraint *orig_con = constraint_find_original_for_update(cob, con);
+
+    if (orig_con != NULL) {
+      bChildOfConstraint *orig_data = orig_con->data;
+
+      copy_m4_m4(orig_data->invmat, data->invmat);
+      orig_data->flag &= ~CHILDOF_SET_INVERSE;
+    }
+  }
+
+  /* Multiply together the target (parent) matrix, parent inverse,
+   * and the owner transform matrixto get the effect of this constraint
+   * (i.e.  owner is 'parented' to parent). */
+  float orig_cob_matrix[4][4];
+  copy_m4_m4(orig_cob_matrix, cob->matrix);
+  mul_m4_series(cob->matrix, parmat, data->invmat, orig_cob_matrix);
+
+  /* Without this, changes to scale and rotation can change location
+   * of a parentless bone or a disconnected bone. Even though its set
+   * to zero above. */
+  if (!(data->flag & CHILDOF_LOCX)) {
+    cob->matrix[3][0] = orig_cob_matrix[3][0];
+  }
+  if (!(data->flag & CHILDOF_LOCY)) {
+    cob->matrix[3][1] = orig_cob_matrix[3][1];
+  }
+  if (!(data->flag & CHILDOF_LOCZ)) {
+    cob->matrix[3][2] = orig_cob_matrix[3][2];
   }
 }
 
@@ -3525,60 +3521,60 @@ static bConstraintTypeInfo CTI_MINMAX = {
 
 static void rbj_new_data(void *cdata)
 {
-	bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)cdata;
-	
-	/* removed code which set target of this constraint */
-	data->type = 1;
+  bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)cdata;
+
+  /* removed code which set target of this constraint */
+  data->type = 1;
 }
 
 static void rbj_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
 {
-	bRigidBodyJointConstraint *data = con->data;
-	
-	/* target only */
-	func(con, (ID **)&data->tar, false, userdata);
-	func(con, (ID **)&data->child, false, userdata);
+  bRigidBodyJointConstraint *data = con->data;
+
+  /* target only */
+  func(con, (ID **)&data->tar, false, userdata);
+  func(con, (ID **)&data->child, false, userdata);
 }
 
 static int rbj_get_tars(bConstraint *con, ListBase *list)
 {
-	if (con && list) {
-		bRigidBodyJointConstraint *data = con->data;
-		bConstraintTarget *ct;
-		
-		/* standard target-getting macro for single-target constraints without subtargets */
-		SINGLETARGETNS_GET_TARS(con, data->tar, ct, list);
-		
-		return 1;
-	}
-	
-	return 0;
+  if (con && list) {
+    bRigidBodyJointConstraint *data = con->data;
+    bConstraintTarget *ct;
+
+    /* standard target-getting macro for single-target constraints without subtargets */
+    SINGLETARGETNS_GET_TARS(con, data->tar, ct, list);
+
+    return 1;
+  }
+
+  return 0;
 }
 
 static void rbj_flush_tars(bConstraint *con, ListBase *list, bool no_copy)
 {
-	if (con && list) {
-		bRigidBodyJointConstraint *data = con->data;
-		bConstraintTarget *ct = list->first;
-		
-		/* the following macro is used for all standard single-target constraints */
-		SINGLETARGETNS_FLUSH_TARS(con, data->tar, ct, list, no_copy);
-	}
+  if (con && list) {
+    bRigidBodyJointConstraint *data = con->data;
+    bConstraintTarget *ct = list->first;
+
+    /* the following macro is used for all standard single-target constraints */
+    SINGLETARGETNS_FLUSH_TARS(con, data->tar, ct, list, no_copy);
+  }
 }
 
 static bConstraintTypeInfo CTI_RIGIDBODYJOINT = {
-	CONSTRAINT_TYPE_RIGIDBODYJOINT, /* type */
-	sizeof(bRigidBodyJointConstraint), /* size */
-	"Rigid Body Joint", /* name */
-	"bRigidBodyJointConstraint", /* struct name */
-	NULL, /* free data */
-	rbj_id_looper, /* id looper */
-	NULL, /* copy data */
-	rbj_new_data, /* new data */
-	rbj_get_tars, /* get constraint targets */
-	rbj_flush_tars, /* flush constraint targets */
-	default_get_tarmat, /* get target matrix */
-	NULL /* evaluate - this is not solved here... is just an interface for game-engine */
+    CONSTRAINT_TYPE_RIGIDBODYJOINT,    /* type */
+    sizeof(bRigidBodyJointConstraint), /* size */
+    "Rigid Body Joint",                /* name */
+    "bRigidBodyJointConstraint",       /* struct name */
+    NULL,                              /* free data */
+    rbj_id_looper,                     /* id looper */
+    NULL,                              /* copy data */
+    rbj_new_data,                      /* new data */
+    rbj_get_tars,                      /* get constraint targets */
+    rbj_flush_tars,                    /* flush constraint targets */
+    default_get_tarmat,                /* get target matrix */
+    NULL /* evaluate - this is not solved here... is just an interface for game-engine */
 };
 
 /* -------- Clamp To ---------- */
@@ -4032,7 +4028,7 @@ static void shrinkwrap_get_tarmat(struct Depsgraph *UNUSED(depsgraph),
     float track_no[3] = {0.0f, 0.0f, 0.0f};
 
     SpaceTransform transform;
-    Mesh *target_eval = ct->tar->runtime.mesh_eval;
+    Mesh *target_eval = BKE_object_get_evaluated_mesh(ct->tar);
 
     copy_m4_m4(ct->matrix, cob->matrix);
 
@@ -4800,7 +4796,7 @@ static void followtrack_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
 
       if (data->depth_ob) {
         Object *depth_ob = data->depth_ob;
-        Mesh *target_eval = depth_ob->runtime.mesh_eval;
+        Mesh *target_eval = BKE_object_get_evaluated_mesh(depth_ob);
         if (target_eval) {
           BVHTreeFromMesh treeData = NULL_BVHTreeFromMesh;
           BVHTreeRayHit hit;
@@ -4937,37 +4933,47 @@ static void objectsolver_evaluate(bConstraint *con, bConstraintOb *cob, ListBase
   if (data->flag & OBJECTSOLVER_ACTIVECLIP) {
     clip = scene->clip;
   }
-
   if (!camob || !clip) {
     return;
   }
 
-  if (clip) {
-    MovieTracking *tracking = &clip->tracking;
-    MovieTrackingObject *object;
+  MovieTracking *tracking = &clip->tracking;
+  MovieTrackingObject *object;
 
-    object = BKE_tracking_object_get_named(tracking, data->object);
+  object = BKE_tracking_object_get_named(tracking, data->object);
+  if (!object) {
+    return;
+  }
 
-    if (object) {
-      float mat[4][4], obmat[4][4], imat[4][4], cammat[4][4], camimat[4][4], parmat[4][4];
-      float ctime = DEG_get_ctime(depsgraph);
-      float framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, ctime);
+  float mat[4][4], obmat[4][4], imat[4][4], parmat[4][4];
+  float ctime = DEG_get_ctime(depsgraph);
+  float framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, ctime);
 
-      BKE_object_where_is_calc_mat4(camob, cammat);
+  BKE_tracking_camera_get_reconstructed_interpolate(tracking, object, framenr, mat);
 
-      BKE_tracking_camera_get_reconstructed_interpolate(tracking, object, framenr, mat);
+  invert_m4_m4(imat, mat);
+  mul_m4_m4m4(parmat, camob->obmat, imat);
 
-      invert_m4_m4(camimat, cammat);
-      mul_m4_m4m4(parmat, cammat, data->invmat);
+  copy_m4_m4(obmat, cob->matrix);
 
-      copy_m4_m4(cammat, camob->obmat);
-      copy_m4_m4(obmat, cob->matrix);
+  /* Recalculate the inverse matrix if requested. */
+  if (data->flag & OBJECTSOLVER_SET_INVERSE) {
+    invert_m4_m4(data->invmat, parmat);
 
-      invert_m4_m4(imat, mat);
+    data->flag &= ~OBJECTSOLVER_SET_INVERSE;
 
-      mul_m4_series(cob->matrix, cammat, imat, camimat, parmat, obmat);
+    /* Write the computed matrix back to the master copy if in COW evaluation. */
+    bConstraint *orig_con = constraint_find_original_for_update(cob, con);
+
+    if (orig_con != NULL) {
+      bObjectSolverConstraint *orig_data = orig_con->data;
+
+      copy_m4_m4(orig_data->invmat, data->invmat);
+      orig_data->flag &= ~OBJECTSOLVER_SET_INVERSE;
     }
   }
+
+  mul_m4_series(cob->matrix, parmat, data->invmat, obmat);
 }
 
 static bConstraintTypeInfo CTI_OBJECTSOLVER = {
@@ -5076,37 +5082,37 @@ static short CTI_INIT = 1; /* when non-zero, the list needs to be updated */
 /* This function only gets called when CTI_INIT is non-zero */
 static void constraints_init_typeinfo(void)
 {
-	constraintsTypeInfo[0] =  NULL;                  /* 'Null' Constraint */
-	constraintsTypeInfo[1] =  &CTI_CHILDOF;          /* ChildOf Constraint */
-	constraintsTypeInfo[2] =  &CTI_TRACKTO;          /* TrackTo Constraint */
-	constraintsTypeInfo[3] =  &CTI_KINEMATIC;        /* IK Constraint */
-	constraintsTypeInfo[4] =  &CTI_FOLLOWPATH;       /* Follow-Path Constraint */
-	constraintsTypeInfo[5] =  &CTI_ROTLIMIT;         /* Limit Rotation Constraint */
-	constraintsTypeInfo[6] =  &CTI_LOCLIMIT;         /* Limit Location Constraint */
-	constraintsTypeInfo[7] =  &CTI_SIZELIMIT;        /* Limit Scale Constraint */
-	constraintsTypeInfo[8] =  &CTI_ROTLIKE;          /* Copy Rotation Constraint */
-	constraintsTypeInfo[9] =  &CTI_LOCLIKE;          /* Copy Location Constraint */
-	constraintsTypeInfo[10] = &CTI_SIZELIKE;         /* Copy Scale Constraint */
-	constraintsTypeInfo[11] = &CTI_PYTHON;           /* Python/Script Constraint */
-	constraintsTypeInfo[12] = &CTI_ACTION;           /* Action Constraint */
-	constraintsTypeInfo[13] = &CTI_LOCKTRACK;        /* Locked-Track Constraint */
-	constraintsTypeInfo[14] = &CTI_DISTLIMIT;        /* Limit Distance Constraint */
-	constraintsTypeInfo[15] = &CTI_STRETCHTO;        /* StretchTo Constaint */
-	constraintsTypeInfo[16] = &CTI_MINMAX;           /* Floor Constraint */
-	constraintsTypeInfo[17] = &CTI_RIGIDBODYJOINT;   /* RigidBody Constraint */
-	constraintsTypeInfo[18] = &CTI_CLAMPTO;          /* ClampTo Constraint */
-	constraintsTypeInfo[19] = &CTI_TRANSFORM;        /* Transformation Constraint */
-	constraintsTypeInfo[20] = &CTI_SHRINKWRAP;       /* Shrinkwrap Constraint */
-	constraintsTypeInfo[21] = &CTI_DAMPTRACK;        /* Damped TrackTo Constraint */
-	constraintsTypeInfo[22] = &CTI_SPLINEIK;         /* Spline IK Constraint */
-	constraintsTypeInfo[23] = &CTI_TRANSLIKE;        /* Copy Transforms Constraint */
-	constraintsTypeInfo[24] = &CTI_SAMEVOL;          /* Maintain Volume Constraint */
-	constraintsTypeInfo[25] = &CTI_PIVOT;            /* Pivot Constraint */
-	constraintsTypeInfo[26] = &CTI_FOLLOWTRACK;      /* Follow Track Constraint */
-	constraintsTypeInfo[27] = &CTI_CAMERASOLVER;     /* Camera Solver Constraint */
-	constraintsTypeInfo[28] = &CTI_OBJECTSOLVER;     /* Object Solver Constraint */
-	constraintsTypeInfo[29] = &CTI_TRANSFORM_CACHE;  /* Transform Cache Constraint */
-	constraintsTypeInfo[30] = &CTI_ARMATURE;         /* Armature Constraint */
+  constraintsTypeInfo[0] = NULL;                  /* 'Null' Constraint */
+  constraintsTypeInfo[1] = &CTI_CHILDOF;          /* ChildOf Constraint */
+  constraintsTypeInfo[2] = &CTI_TRACKTO;          /* TrackTo Constraint */
+  constraintsTypeInfo[3] = &CTI_KINEMATIC;        /* IK Constraint */
+  constraintsTypeInfo[4] = &CTI_FOLLOWPATH;       /* Follow-Path Constraint */
+  constraintsTypeInfo[5] = &CTI_ROTLIMIT;         /* Limit Rotation Constraint */
+  constraintsTypeInfo[6] = &CTI_LOCLIMIT;         /* Limit Location Constraint */
+  constraintsTypeInfo[7] = &CTI_SIZELIMIT;        /* Limit Scale Constraint */
+  constraintsTypeInfo[8] = &CTI_ROTLIKE;          /* Copy Rotation Constraint */
+  constraintsTypeInfo[9] = &CTI_LOCLIKE;          /* Copy Location Constraint */
+  constraintsTypeInfo[10] = &CTI_SIZELIKE;        /* Copy Scale Constraint */
+  constraintsTypeInfo[11] = &CTI_PYTHON;          /* Python/Script Constraint */
+  constraintsTypeInfo[12] = &CTI_ACTION;          /* Action Constraint */
+  constraintsTypeInfo[13] = &CTI_LOCKTRACK;       /* Locked-Track Constraint */
+  constraintsTypeInfo[14] = &CTI_DISTLIMIT;       /* Limit Distance Constraint */
+  constraintsTypeInfo[15] = &CTI_STRETCHTO;       /* StretchTo Constaint */
+  constraintsTypeInfo[16] = &CTI_MINMAX;          /* Floor Constraint */
+  constraintsTypeInfo[17] = &CTI_RIGIDBODYJOINT;  /* RigidBody Constraint */
+  constraintsTypeInfo[18] = &CTI_CLAMPTO;         /* ClampTo Constraint */
+  constraintsTypeInfo[19] = &CTI_TRANSFORM;       /* Transformation Constraint */
+  constraintsTypeInfo[20] = &CTI_SHRINKWRAP;      /* Shrinkwrap Constraint */
+  constraintsTypeInfo[21] = &CTI_DAMPTRACK;       /* Damped TrackTo Constraint */
+  constraintsTypeInfo[22] = &CTI_SPLINEIK;        /* Spline IK Constraint */
+  constraintsTypeInfo[23] = &CTI_TRANSLIKE;       /* Copy Transforms Constraint */
+  constraintsTypeInfo[24] = &CTI_SAMEVOL;         /* Maintain Volume Constraint */
+  constraintsTypeInfo[25] = &CTI_PIVOT;           /* Pivot Constraint */
+  constraintsTypeInfo[26] = &CTI_FOLLOWTRACK;     /* Follow Track Constraint */
+  constraintsTypeInfo[27] = &CTI_CAMERASOLVER;    /* Camera Solver Constraint */
+  constraintsTypeInfo[28] = &CTI_OBJECTSOLVER;    /* Object Solver Constraint */
+  constraintsTypeInfo[29] = &CTI_TRANSFORM_CACHE; /* Transform Cache Constraint */
+  constraintsTypeInfo[30] = &CTI_ARMATURE;        /* Armature Constraint */
 }
 
 /* This function should be used for getting the appropriate type-info when only

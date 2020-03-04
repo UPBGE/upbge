@@ -207,7 +207,7 @@ class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
                     note = layout.split()
                     note_flag = False
                     note.enabled = note_flag
-                    note.label(icon='INFO', text="Unbaked Guides: Bake Guides or disable them.")
+                    note.label(icon='INFO', text="Unbaked Guides: Bake Guides or disable them")
 
                 split = layout.split()
                 split.enabled = note_flag
@@ -724,7 +724,7 @@ class PHYSICS_PT_noise(PhysicButtonsPanel, Panel):
                 note = layout.split()
                 note_flag = False
                 note.enabled = note_flag
-                note.label(icon='INFO', text="Unbaked Data: Bake Data first.")
+                note.label(icon='INFO', text="Unbaked Data: Bake Data first")
 
             split = layout.split()
             split.enabled = domain.has_cache_baked_data and note_flag
@@ -809,7 +809,7 @@ class PHYSICS_PT_mesh(PhysicButtonsPanel, Panel):
                 note = layout.split()
                 note_flag = False
                 note.enabled = note_flag
-                note.label(icon='INFO', text="Unbaked Data: Bake Data first.")
+                note.label(icon='INFO', text="Unbaked Data: Bake Data first")
 
             split = layout.split()
             split.enabled = domain.has_cache_baked_data and note_flag
@@ -875,18 +875,18 @@ class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
         col.separator()
 
         col = flow.column(align=True)
-        col.prop(domain, "sndparticle_tau_max_wc", text="Wave Crest Potential Maximum")
-        col.prop(domain, "sndparticle_tau_min_wc", text="Minimum")
+        col.prop(domain, "sndparticle_potential_max_wavecrest", text="Wave Crest Potential Maximum")
+        col.prop(domain, "sndparticle_potential_min_wavecrest", text="Minimum")
         col.separator()
 
         col = flow.column(align=True)
-        col.prop(domain, "sndparticle_tau_max_ta", text="Trapped Air Potential Maximum")
-        col.prop(domain, "sndparticle_tau_min_ta", text="Minimum")
+        col.prop(domain, "sndparticle_potential_max_trappedair", text="Trapped Air Potential Maximum")
+        col.prop(domain, "sndparticle_potential_min_trappedair", text="Minimum")
         col.separator()
 
         col = flow.column(align=True)
-        col.prop(domain, "sndparticle_tau_max_k", text="Kinetic Energy Potential Maximum")
-        col.prop(domain, "sndparticle_tau_min_k", text="Minimum")
+        col.prop(domain, "sndparticle_potential_max_energy", text="Kinetic Energy Potential Maximum")
+        col.prop(domain, "sndparticle_potential_min_energy", text="Minimum")
         col.separator()
 
         col = flow.column(align=True)
@@ -895,18 +895,18 @@ class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
         col.separator()
 
         col = flow.column(align=True)
-        col.prop(domain, "sndparticle_k_wc", text="Wave Crest Particle Sampling")
-        col.prop(domain, "sndparticle_k_ta", text="Trapped Air Particle Sampling")
+        col.prop(domain, "sndparticle_sampling_wavecrest", text="Wave Crest Particle Sampling")
+        col.prop(domain, "sndparticle_sampling_trappedair", text="Trapped Air Particle Sampling")
         col.separator()
 
         col = flow.column(align=True)
-        col.prop(domain, "sndparticle_l_max", text="Particle Life Maximum")
-        col.prop(domain, "sndparticle_l_min", text="Minimum")
+        col.prop(domain, "sndparticle_life_max", text="Particle Life Maximum")
+        col.prop(domain, "sndparticle_life_min", text="Minimum")
         col.separator()
 
         col = flow.column(align=True)
-        col.prop(domain, "sndparticle_k_b", text="Bubble Buoyancy")
-        col.prop(domain, "sndparticle_k_d", text="Bubble Drag")
+        col.prop(domain, "sndparticle_bubble_buoyancy", text="Bubble Buoyancy")
+        col.prop(domain, "sndparticle_bubble_drag", text="Bubble Drag")
         col.separator()
 
         col = flow.column()
@@ -921,7 +921,7 @@ class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
                 note = layout.split()
                 note_flag = False
                 note.enabled = note_flag
-                note.label(icon='INFO', text="Unbaked Data: Bake Data first.")
+                note.label(icon='INFO', text="Unbaked Data: Bake Data first")
 
             split = layout.split()
             split.enabled = (

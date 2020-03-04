@@ -38,81 +38,82 @@
 #include "KX_IPOTransform.h"
 #include "KX_IInterpolator.h"
 
-#define KX_MAX_IPO_CHANNELS 19	//note- [0] is not used
+#define KX_MAX_IPO_CHANNELS 19  // note- [0] is not used
 
-class KX_IpoSGController : public SG_Controller
-{
-	KX_IPOTransform m_ipo_xform;
-	T_InterpolatorList m_interpolators;
+class KX_IpoSGController : public SG_Controller {
+  KX_IPOTransform m_ipo_xform;
+  T_InterpolatorList m_interpolators;
 
-	/** Flag for each IPO channel that can be applied to a game object */
-	bool m_ipo_channels_active[KX_MAX_IPO_CHANNELS];
+  /** Flag for each IPO channel that can be applied to a game object */
+  bool m_ipo_channels_active[KX_MAX_IPO_CHANNELS];
 
-	/** Interpret the ipo as a force rather than a displacement? */
-	bool m_ipo_as_force;
+  /** Interpret the ipo as a force rather than a displacement? */
+  bool m_ipo_as_force;
 
-	/** Add Ipo curve to current loc/rot/scale */
-	bool m_ipo_add;
+  /** Add Ipo curve to current loc/rot/scale */
+  bool m_ipo_add;
 
-	/** Ipo must be applied in local coordinate rather than in global coordinates (used for force and Add mode)*/
-	bool m_ipo_local;
-	
-	/** Were settings altered since the last update? */
-	bool m_modified;
+  /** Ipo must be applied in local coordinate rather than in global coordinates (used for force and
+   * Add mode)*/
+  bool m_ipo_local;
 
-	/** Local time of this ipo.*/
-	double m_ipotime;
+  /** Were settings altered since the last update? */
+  bool m_modified;
 
-	/** Location of the object when the IPO is first fired (for local transformations) */
-	MT_Vector3 m_ipo_start_point;
+  /** Local time of this ipo.*/
+  double m_ipotime;
 
-	/** Orientation of the object when the IPO is first fired (for local transformations) */
-	MT_Matrix3x3 m_ipo_start_orient;
+  /** Location of the object when the IPO is first fired (for local transformations) */
+  MT_Vector3 m_ipo_start_point;
 
-	/** Scale of the object when the IPO is first fired (for local transformations) */
-	MT_Vector3 m_ipo_start_scale;
+  /** Orientation of the object when the IPO is first fired (for local transformations) */
+  MT_Matrix3x3 m_ipo_start_orient;
 
-	/** if IPO initial position has been set for local normal IPO */
-	bool m_ipo_start_initialized;
+  /** Scale of the object when the IPO is first fired (for local transformations) */
+  MT_Vector3 m_ipo_start_scale;
 
-	/** Euler angles at the start of the game, needed for incomplete ROT Ipo curves */
-	MT_Vector3 m_ipo_start_euler;
+  /** if IPO initial position has been set for local normal IPO */
+  bool m_ipo_start_initialized;
 
-	/** true is m_ipo_start_euler has been initialized */
-	bool m_ipo_euler_initialized;
+  /** Euler angles at the start of the game, needed for incomplete ROT Ipo curves */
+  MT_Vector3 m_ipo_start_euler;
 
-	/** A reference to the original game object. */
-	class KX_GameObject *m_game_object;
+  /** true is m_ipo_start_euler has been initialized */
+  bool m_ipo_euler_initialized;
 
-public:
-	KX_IpoSGController();
+  /** A reference to the original game object. */
+  class KX_GameObject *m_game_object;
 
-	virtual ~KX_IpoSGController();
+ public:
+  KX_IpoSGController();
 
-	virtual SG_Controller *GetReplica(class SG_Node *destnode);
+  virtual ~KX_IpoSGController();
 
-	void SetOption(int option, int value);
+  virtual SG_Controller *GetReplica(class SG_Node *destnode);
 
-	/** Set reference to the corresponding game object. */
-	void SetGameObject(class KX_GameObject *go);
+  void SetOption(int option, int value);
 
-	void SetIPOChannelActive(int index, bool value) {
-		//indexes found in makesdna\DNA_ipo_types.h
-		m_ipo_channels_active[index] = value;
-	}
+  /** Set reference to the corresponding game object. */
+  void SetGameObject(class KX_GameObject *go);
 
-	KX_IPOTransform &GetIPOTransform()
-	{
-		return m_ipo_xform;
-	}
+  void SetIPOChannelActive(int index, bool value)
+  {
+    // indexes found in makesdna\DNA_ipo_types.h
+    m_ipo_channels_active[index] = value;
+  }
 
-	void AddInterpolator(KX_IInterpolator *interp);
-	virtual bool Update(double time);
-	virtual void SetSimulatedTime(double time)
-	{
-		m_ipotime = time;
-		m_modified = true;
-	}
+  KX_IPOTransform &GetIPOTransform()
+  {
+    return m_ipo_xform;
+  }
+
+  void AddInterpolator(KX_IInterpolator *interp);
+  virtual bool Update(double time);
+  virtual void SetSimulatedTime(double time)
+  {
+    m_ipotime = time;
+    m_modified = true;
+  }
 };
 
-#endif  /* __KX_IPO_SGCONTROLLER_H__ */
+#endif /* __KX_IPO_SGCONTROLLER_H__ */

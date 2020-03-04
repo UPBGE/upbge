@@ -1072,7 +1072,12 @@ static void draw_call_resource_bind(DRWCommandsState *state, const DRWResourceHa
   /* Front face is not a resource but it is inside the resource handle. */
   bool neg_scale = DRW_handle_negative_scale_get(handle);
   if (neg_scale != state->neg_scale) {
-    glFrontFace((neg_scale) ? GL_CW : GL_CCW);
+    if (DST.view_active->is_inverted) {
+      glFrontFace(neg_scale ? GL_CCW : GL_CW);
+    }
+    else {
+      glFrontFace(neg_scale ? GL_CW : GL_CCW);
+    }
     state->neg_scale = neg_scale;
   }
 
@@ -1203,7 +1208,7 @@ static void draw_call_batching_finish(DRWShadingGroup *shgroup, DRWCommandsState
 
   /* Reset state */
   if (state->neg_scale) {
-    glFrontFace(GL_CCW);
+    glFrontFace(DST.view_active->is_inverted ? GL_CW : GL_CCW);
   }
   if (state->obmats_loc != -1) {
     GPU_uniformbuffer_unbind(DST.vmempool->matrices_ubo[state->resource_chunk]);
@@ -1395,6 +1400,10 @@ static void drw_draw_pass_ex(DRWPass *pass,
   drw_state_set(pass->state);
   drw_state_validate();
 
+  if (DST.view_active->is_inverted) {
+    glFrontFace(GL_CW);
+  }
+
   DRW_stats_query_start(pass->name);
 
   for (DRWShadingGroup *shgroup = start_group; shgroup; shgroup = shgroup->next) {
@@ -1442,6 +1451,11 @@ static void drw_draw_pass_ex(DRWPass *pass,
    * if it has been enabled. */
   if ((DST.state & DRW_STATE_RASTERIZER_ENABLED) == 0) {
     drw_state_set((DST.state & ~DRW_STATE_RASTERIZER_ENABLED) | DRW_STATE_DEFAULT);
+  }
+
+  /* Reset default. */
+  if (DST.view_active->is_inverted) {
+    glFrontFace(GL_CCW);
   }
 
   DRW_stats_query_end();

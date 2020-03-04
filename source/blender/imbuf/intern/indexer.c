@@ -1029,14 +1029,14 @@ static IndexBuildContext *index_fallback_create_context(struct anim *anim,
   FallbackIndexBuilderContext *context;
   int i;
 
-	/* since timecode indices only work with ffmpeg right now,
-	 * don't know a sensible fallback here...
-	 *
-	 * so no proxies, no game to play...
-	 */
-	if (proxy_sizes_in_use == IMB_PROXY_NONE) {
-		return NULL;
-	}
+  /* since timecode indices only work with ffmpeg right now,
+   * don't know a sensible fallback here...
+   *
+   * so no proxies, no game to play...
+   */
+  if (proxy_sizes_in_use == IMB_PROXY_NONE) {
+    return NULL;
+  }
 
   context = MEM_callocN(sizeof(FallbackIndexBuilderContext), "fallback index builder context");
 

@@ -21,36 +21,35 @@
 
 #include "EXP_Value.h"
 
-class CStringValue : public CPropValue
-{
-public:
-	CStringValue();
-	CStringValue(const std::string& txt, const std::string& name);
-	virtual ~CStringValue()
-	{
-	}
+class CStringValue : public CPropValue {
+ public:
+  CStringValue();
+  CStringValue(const std::string &txt, const std::string &name);
+  virtual ~CStringValue()
+  {
+  }
 
-	/// CValue implementation
-	virtual bool IsEqual(const std::string & other);
-	virtual std::string GetText();
-	virtual double GetNumber();
-	virtual int GetValueType();
+  /// CValue implementation
+  virtual bool IsEqual(const std::string &other);
+  virtual std::string GetText();
+  virtual double GetNumber();
+  virtual int GetValueType();
 
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual void SetValue(CValue *newval);
-	virtual CValue *GetReplica();
+  virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
+  virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+  virtual void SetValue(CValue *newval);
+  virtual CValue *GetReplica();
 
 #ifdef WITH_PYTHON
-	virtual PyObject *ConvertValueToPython()
-	{
-		return PyUnicode_FromStdString(m_strString);
-	}
+  virtual PyObject *ConvertValueToPython()
+  {
+    return PyUnicode_FromStdString(m_strString);
+  }
 #endif  // WITH_PYTHON
 
-private:
-	/// Data member.
-	std::string m_strString;
+ private:
+  /// Data member.
+  std::string m_strString;
 };
 
 #endif  // __EXP_STRINGVALUE_H__

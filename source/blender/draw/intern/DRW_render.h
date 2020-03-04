@@ -31,6 +31,8 @@
 extern "C" {
 #endif
 
+#include "../draw/DRW_engine_types.h"
+
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -63,10 +65,8 @@ extern "C" {
 
 #include "RE_engine.h"
 
-#include "../depsgraph/DEG_depsgraph.h" // For bge (EvaluationContext)
+#include "../depsgraph/DEG_depsgraph.h"
 
-struct DefaultFramebufferList;
-struct DefaultTextureList;
 struct GPUBatch;
 struct GPUFrameBuffer;
 struct GPUMaterial;
@@ -137,25 +137,6 @@ typedef struct DrawEngineType {
                           struct RenderLayer *layer,
                           const struct rcti *rect);
 } DrawEngineType;
-
-#ifndef __DRW_ENGINE_H__
-/* Buffer and textures used by the viewport by default */
-typedef struct DefaultFramebufferList {
-  struct GPUFrameBuffer *default_fb;
-  struct GPUFrameBuffer *overlay_fb;
-  struct GPUFrameBuffer *in_front_fb;
-  struct GPUFrameBuffer *color_only_fb;
-  struct GPUFrameBuffer *depth_only_fb;
-  struct GPUFrameBuffer *overlay_only_fb;
-} DefaultFramebufferList;
-
-typedef struct DefaultTextureList {
-  struct GPUTexture *color;
-  struct GPUTexture *color_overlay;
-  struct GPUTexture *depth;
-  struct GPUTexture *depth_in_front;
-} DefaultTextureList;
-#endif
 
 /* Textures */
 typedef enum {
@@ -692,21 +673,16 @@ const DRWContextState *DRW_context_state_get(void);
 
 /*****************************GAME ENGINE***********************************/
 void DRW_game_render_loop(struct bContext *C,
-  GPUViewport *viewport,
-  struct Main *bmain,
-  struct Scene *scene,
-  float view[4][4],
-  float viewinv[4][4],
-  float proj[4][4],
-  float pers[4][4],
-  float persinv[4][4],
-  const struct rcti *window,
-  bool called_from_constructor,
-  bool reset_taa_samples,
-  bool is_overlay_pass);
+                          GPUViewport *viewport,
+                          struct Main *bmain,
+                          struct Scene *scene,
+                          const struct rcti *window,
+                          bool called_from_constructor,
+                          bool reset_taa_samples,
+                          bool is_overlay_pass);
 
 void DRW_game_render_loop_end(void);
-void DRW_transform_to_display(struct GPUTexture *tex, struct View3D *v3d);
+void DRW_transform_to_display(struct GPUTexture *tex, struct View3D *v3d, bool do_dithering);
 void DRW_transform_to_display_image_render(struct GPUTexture *tex);
 /**************************END OF GAME ENGINE*******************************/
 

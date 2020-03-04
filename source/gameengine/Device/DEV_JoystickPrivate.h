@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file DEV_JoystickPrivate.h
  *  \ingroup device
  */
@@ -35,28 +35,27 @@
 #include "DEV_JoystickDefines.h"
 
 #ifdef WITH_SDL
-class DEV_Joystick::PrivateData
-{
-public:
-	/*
-	 * The Game controller
-	 */
-	SDL_GameController *m_gamecontroller;
-	SDL_JoystickID m_instance_id;
-	SDL_Haptic *m_haptic;
-	SDL_HapticEffect m_hapticeffect;
-	int m_hapticEffectId;
-	int m_hapticEffectStatus;
-	double m_hapticEndTime;
+class DEV_Joystick::PrivateData {
+ public:
+  /*
+   * The Game controller
+   */
+  SDL_GameController *m_gamecontroller;
+  SDL_JoystickID m_instance_id;
+  SDL_Haptic *m_haptic;
+  SDL_HapticEffect m_hapticeffect;
+  int m_hapticEffectId;
+  int m_hapticEffectStatus;
+  double m_hapticEndTime;
 
-	PrivateData()
-		:m_gamecontroller(nullptr),
-		m_haptic(nullptr),
-		m_hapticEffectStatus(JOYHAPTIC_STOPPED),
-		m_hapticEndTime(0.0)
-	{
-	}
+  PrivateData()
+      : m_gamecontroller(nullptr),
+        m_haptic(nullptr),
+        m_hapticEffectStatus(JOYHAPTIC_STOPPED),
+        m_hapticEndTime(0.0)
+  {
+  }
 };
-#endif // WITH_SDL
+#endif  // WITH_SDL
 
-#endif // __DEV_JOYSTICKPRIVATE_H__
+#endif  // __DEV_JOYSTICKPRIVATE_H__

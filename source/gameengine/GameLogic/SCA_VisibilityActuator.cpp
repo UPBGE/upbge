@@ -30,55 +30,47 @@
  *  \ingroup ketsji
  */
 
-
 #include "SCA_VisibilityActuator.h"
 #include "KX_GameObject.h"
 
-SCA_VisibilityActuator::SCA_VisibilityActuator(
-	SCA_IObject* gameobj,
-	bool visible,
-	bool occlusion,
-	bool recursive
-	) 
-	: SCA_IActuator(gameobj, KX_ACT_VISIBILITY),
-	  m_visible(visible),
-	  m_occlusion(occlusion),
-	  m_recursive(recursive)
+SCA_VisibilityActuator::SCA_VisibilityActuator(SCA_IObject *gameobj,
+                                               bool visible,
+                                               bool occlusion,
+                                               bool recursive)
+    : SCA_IActuator(gameobj, KX_ACT_VISIBILITY),
+      m_visible(visible),
+      m_occlusion(occlusion),
+      m_recursive(recursive)
 {
-	// intentionally empty
+  // intentionally empty
 }
 
-SCA_VisibilityActuator::~SCA_VisibilityActuator(
-	void
-	)
+SCA_VisibilityActuator::~SCA_VisibilityActuator(void)
 {
-	// intentionally empty
+  // intentionally empty
 }
 
-CValue*
-SCA_VisibilityActuator::GetReplica(
-	void
-	)
+CValue *SCA_VisibilityActuator::GetReplica(void)
 {
-	SCA_VisibilityActuator* replica = new SCA_VisibilityActuator(*this);
-	replica->ProcessReplica();
-	return replica;
+  SCA_VisibilityActuator *replica = new SCA_VisibilityActuator(*this);
+  replica->ProcessReplica();
+  return replica;
 }
 
-bool
-SCA_VisibilityActuator::Update()
+bool SCA_VisibilityActuator::Update()
 {
-	bool bNegativeEvent = IsNegativeEvent();
-	
-	RemoveAllEvents();
-	if (bNegativeEvent) return false;
+  bool bNegativeEvent = IsNegativeEvent();
 
-	KX_GameObject *obj = (KX_GameObject*) GetParent();
-	
-	obj->SetVisible(m_visible, m_recursive);
-	obj->SetOccluder(m_occlusion, m_recursive);
+  RemoveAllEvents();
+  if (bNegativeEvent)
+    return false;
 
-	return false;
+  KX_GameObject *obj = (KX_GameObject *)GetParent();
+
+  obj->SetVisible(m_visible, m_recursive);
+  obj->SetOccluder(m_occlusion, m_recursive);
+
+  return false;
 }
 
 #ifdef WITH_PYTHON
@@ -87,40 +79,55 @@ SCA_VisibilityActuator::Update()
 /* Python functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-
-
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_VisibilityActuator::Type = {
-	PyVarObject_HEAD_INIT(nullptr, 0)
-	"SCA_VisibilityActuator",
-	sizeof(PyObjectPlus_Proxy),
-	0,
-	py_base_dealloc,
-	0,
-	0,
-	0,
-	0,
-	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
-	Methods,
-	0,
-	0,
-	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
-	py_base_new
-};
+    PyVarObject_HEAD_INIT(nullptr, 0) "SCA_VisibilityActuator",
+    sizeof(PyObjectPlus_Proxy),
+    0,
+    py_base_dealloc,
+    0,
+    0,
+    0,
+    0,
+    py_base_repr,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    Methods,
+    0,
+    0,
+    &SCA_IActuator::Type,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    py_base_new};
 
 PyMethodDef SCA_VisibilityActuator::Methods[] = {
-	{nullptr,nullptr} //Sentinel
+    {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_VisibilityActuator::Attributes[] = {
-	KX_PYATTRIBUTE_BOOL_RW("visibility", SCA_VisibilityActuator, m_visible),
-	KX_PYATTRIBUTE_BOOL_RW("useOcclusion", SCA_VisibilityActuator, m_occlusion),
-	KX_PYATTRIBUTE_BOOL_RW("useRecursion", SCA_VisibilityActuator, m_recursive),
-	KX_PYATTRIBUTE_NULL //Sentinel
+    KX_PYATTRIBUTE_BOOL_RW("visibility", SCA_VisibilityActuator, m_visible),
+    KX_PYATTRIBUTE_BOOL_RW("useOcclusion", SCA_VisibilityActuator, m_occlusion),
+    KX_PYATTRIBUTE_BOOL_RW("useRecursion", SCA_VisibilityActuator, m_recursive),
+    KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON

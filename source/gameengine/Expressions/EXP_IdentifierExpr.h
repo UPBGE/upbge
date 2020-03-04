@@ -34,18 +34,17 @@
 
 #include "EXP_Expression.h"
 
-class CIdentifierExpr : public CExpression
-{
-private:
-	CValue *m_idContext;
-	std::string m_identifier;
+class CIdentifierExpr : public CExpression {
+ private:
+  CValue *m_idContext;
+  std::string m_identifier;
 
-public:
-	CIdentifierExpr(const std::string& identifier, CValue *id_context);
-	virtual ~CIdentifierExpr();
+ public:
+  CIdentifierExpr(const std::string &identifier, CValue *id_context);
+  virtual ~CIdentifierExpr();
 
-	virtual CValue *Calculate();
-	virtual unsigned char GetExpressionID();
+  virtual CValue *Calculate();
+  virtual unsigned char GetExpressionID();
 };
 
 #endif  // __EXP_IDENTIFIEREXPR_H__

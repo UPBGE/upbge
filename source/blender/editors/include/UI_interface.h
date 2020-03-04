@@ -28,6 +28,10 @@
 #include "BLI_sys_types.h" /* size_t */
 #include "RNA_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Struct Declarations */
 
 struct ARegion;
@@ -221,7 +225,7 @@ enum {
   UI_BUT_TEXTEDIT_UPDATE = 1 << 29,
   /** Show 'x' icon to clear/unlink value of text or search button. */
   UI_BUT_VALUE_CLEAR = 1 << 30,
-  UI_BUT_SCA_LINK_GREY   = 1 << 31,  /* used to flag if sca links shoud be gray out */
+  UI_BUT_SCA_LINK_GREY = 1 << 31, /* used to flag if sca links shoud be gray out */
 
   /** RNA property of the button is overridden from linked reference data. */
   UI_BUT_OVERRIDEN = 1u << 31u,
@@ -406,22 +410,22 @@ void UI_draw_roundbox_aa(
     bool filled, float minx, float miny, float maxx, float maxy, float rad, const float color[4]);
 void UI_draw_roundbox_4fv(
     bool filled, float minx, float miny, float maxx, float maxy, float rad, const float col[4]);
-void UI_draw_roundbox_3ubAlpha(bool filled,
-                               float minx,
-                               float miny,
-                               float maxx,
-                               float maxy,
-                               float rad,
-                               const unsigned char col[3],
-                               unsigned char alpha);
-void UI_draw_roundbox_3fvAlpha(bool filled,
-                               float minx,
-                               float miny,
-                               float maxx,
-                               float maxy,
-                               float rad,
-                               const float col[3],
-                               float alpha);
+void UI_draw_roundbox_3ub_alpha(bool filled,
+                                float minx,
+                                float miny,
+                                float maxx,
+                                float maxy,
+                                float rad,
+                                const unsigned char col[3],
+                                unsigned char alpha);
+void UI_draw_roundbox_3fv_alpha(bool filled,
+                                float minx,
+                                float miny,
+                                float maxx,
+                                float maxy,
+                                float rad,
+                                const float col[3],
+                                float alpha);
 void UI_draw_roundbox_shade_x(bool filled,
                               float minx,
                               float miny,
@@ -1563,7 +1567,7 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
  * Game engine logic brick links. Non-functional currently in 2.5,
  * code to handle and draw these is disabled internally. */
 
-void UI_but_link_set(struct uiBut *but,  void **poin,  void ***ppoin,  short *tot,  int from, int to);
+void UI_but_link_set(struct uiBut *but, void **poin, void ***ppoin, short *tot, int from, int to);
 
 void UI_block_links_compose(uiBlock *block);
 uiBut *UI_block_links_find_inlink(uiBlock *block, void *poin);
@@ -1745,7 +1749,7 @@ enum {
 };
 
 enum {
-  UI_ITEM_O_RETURN_PROPS = 1 << 0,
+  /* UI_ITEM_O_RETURN_PROPS = 1 << 0, */ /* UNUSED */
   UI_ITEM_R_EXPAND = 1 << 1,
   UI_ITEM_R_SLIDER = 1 << 2,
   /**
@@ -2010,12 +2014,25 @@ void uiTemplateColorPicker(uiLayout *layout,
                            bool cubic);
 void uiTemplatePalette(uiLayout *layout, struct PointerRNA *ptr, const char *propname, bool color);
 void uiTemplateCryptoPicker(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
-void uiTemplateLayers(
-        uiLayout *layout, struct PointerRNA *ptr, const char *propname,
-        PointerRNA *used_ptr, const char *used_propname, int active_layer);
-void uiTemplateGameStates(uiLayout *layout, struct PointerRNA *ptr, const char *propname,
-    	PointerRNA *used_ptr, const char *used_propname, int active_state);
-void uiTemplateImage(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, struct PointerRNA *userptr, bool compact, bool multiview);
+void uiTemplateLayers(uiLayout *layout,
+                      struct PointerRNA *ptr,
+                      const char *propname,
+                      PointerRNA *used_ptr,
+                      const char *used_propname,
+                      int active_layer);
+void uiTemplateGameStates(uiLayout *layout,
+                          struct PointerRNA *ptr,
+                          const char *propname,
+                          PointerRNA *used_ptr,
+                          const char *used_propname,
+                          int active_state);
+void uiTemplateImage(uiLayout *layout,
+                     struct bContext *C,
+                     struct PointerRNA *ptr,
+                     const char *propname,
+                     struct PointerRNA *userptr,
+                     bool compact,
+                     bool multiview);
 void uiTemplateImageSettings(uiLayout *layout, struct PointerRNA *imfptr, bool color_management);
 void uiTemplateImageStereo3d(uiLayout *layout, struct PointerRNA *stereo3d_format_ptr);
 void uiTemplateImageViews(uiLayout *layout, struct PointerRNA *imaptr);
@@ -2037,7 +2054,6 @@ eAutoPropButsReturn uiTemplateOperatorPropertyButs(const struct bContext *C,
                                                    const eButLabelAlign label_align,
                                                    const short flag);
 void uiTemplateHeader3D_mode(uiLayout *layout, struct bContext *C);
-void uiTemplateHeader3D(uiLayout *layout, struct bContext *C);
 void uiTemplateEditModeSelection(uiLayout *layout, struct bContext *C);
 void uiTemplateReportsBanner(uiLayout *layout, struct bContext *C);
 void uiTemplateInputStatus(uiLayout *layout, struct bContext *C);
@@ -2057,8 +2073,6 @@ void uiTemplateCacheFile(uiLayout *layout,
                          struct bContext *C,
                          struct PointerRNA *ptr,
                          const char *propname);
-
-struct ColorBand *UI_block_get_colorband_from_template_menu(struct uiBlock *block);
 
 /* Default UIList class name, keep in sync with its declaration in bl_ui/__init__.py */
 #define UI_UL_DEFAULT_CLASS_NAME "UI_UL_list"
@@ -2288,6 +2302,8 @@ void uiItemsFullEnumO_items(uiLayout *layout,
                             int totitem);
 
 void uiItemL(uiLayout *layout, const char *name, int icon); /* label */
+void uiItemL_ex(
+    uiLayout *layout, const char *name, int icon, const bool highlight, const bool redalert);
 uiLayout *uiItemL_respect_property_split(uiLayout *layout, const char *text, int icon);
 /* label icon for dragging */
 void uiItemLDrag(uiLayout *layout, struct PointerRNA *ptr, const char *name, int icon);
@@ -2489,5 +2505,9 @@ void UI_interface_tag_script_reload(void);
 
 /* Support click-drag motion which presses the button and closes a popover (like a menu). */
 #define USE_UI_POPOVER_ONCE
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __UI_INTERFACE_H__ */

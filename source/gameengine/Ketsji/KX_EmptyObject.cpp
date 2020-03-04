@@ -33,5 +33,4 @@
 
 KX_EmptyObject::~KX_EmptyObject()
 {
-
 }

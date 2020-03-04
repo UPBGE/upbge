@@ -891,6 +891,10 @@ static void do_versions_local_collection_bits_set(LayerCollection *layer_collect
 
 static void do_version_curvemapping_flag_extend_extrapolate(CurveMapping *cumap)
 {
+  if (cumap == NULL) {
+    return;
+  }
+
 #define CUMA_EXTEND_EXTRAPOLATE_OLD 1
   for (int curve_map_index = 0; curve_map_index < 4; curve_map_index++) {
     CurveMap *cuma = &cumap->cm[curve_map_index];
@@ -1645,13 +1649,13 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
       sce->gm.gravity = 9.8f;
       sce->gm.physicsEngine = WOPHY_BULLET;
-      //sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
+      // sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
       sce->gm.occlusionRes = 128;
       sce->gm.ticrate = 60;
       sce->gm.maxlogicstep = 5;
       sce->gm.physubstep = 1;
       sce->gm.maxphystep = 5;
-      //sce->gm.timeScale = 1.0f;
+      // sce->gm.timeScale = 1.0f;
       sce->gm.lineardeactthreshold = 0.8f;
       sce->gm.angulardeactthreshold = 1.0f;
       sce->gm.deactivationtime = 2.0f;
@@ -1680,10 +1684,10 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
       sce->gm.flag |= GAME_USE_UNDO;
 
-      //sce->gm.pythonkeys[0] = LEFTCTRLKEY;
-      //sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
-      //sce->gm.pythonkeys[2] = LEFTALTKEY;
-      //sce->gm.pythonkeys[3] = TKEY;
+      // sce->gm.pythonkeys[0] = LEFTCTRLKEY;
+      // sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
+      // sce->gm.pythonkeys[2] = LEFTALTKEY;
+      // sce->gm.pythonkeys[3] = TKEY;
     }
 
     for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
@@ -1706,7 +1710,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       ob->jump_speed = 10.0f;
       ob->fall_speed = 55.0f;
       ob->max_jumps = 1;
-      //ob->max_slope = M_PI_2;
+      // ob->max_slope = M_PI_2;
       ob->col_group = 0x01;
       ob->col_mask = 0xffff;
       ob->preview = NULL;
@@ -3465,7 +3469,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     }
 
     for (Image *image = bmain->images.first; image; image = image->id.next) {
-      image->flag &= ~(IMA_FLAG_UNUSED_0 | IMA_FLAG_UNUSED_1 | IMA_FLAG_UNUSED_4 |
+      image->flag &= ~(IMA_HIGH_BITDEPTH | IMA_FLAG_UNUSED_1 | IMA_FLAG_UNUSED_4 |
                        IMA_FLAG_UNUSED_6 | IMA_FLAG_UNUSED_8 | IMA_FLAG_UNUSED_15 |
                        IMA_FLAG_UNUSED_16);
     }
@@ -4567,6 +4571,43 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_ATLEAST(bmain, 283, 5)) {
+    /* Alembic Transform Cache changed from world to local space. */
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
+        if (con->type == CONSTRAINT_TYPE_TRANSFORM_CACHE) {
+          con->ownspace = CONSTRAINT_SPACE_LOCAL;
+        }
+      }
+    }
+
+    /* Add 2D transform to UV Warp modifier. */
+    if (!DNA_struct_elem_find(fd->filesdna, "UVWarpModifierData", "float", "scale[2]")) {
+      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+        for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
+          if (md->type == eModifierType_UVWarp) {
+            UVWarpModifierData *umd = (UVWarpModifierData *)md;
+            copy_v2_fl(umd->scale, 1.0f);
+          }
+        }
+      }
+    }
+
+    /* Add Lookdev blur property. */
+    if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "float", "studiolight_blur")) {
+      for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+        for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+          for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+            if (sl->spacetype == SPACE_VIEW3D) {
+              View3D *v3d = (View3D *)sl;
+              v3d->shading.studiolight_blur = 0.5f;
+            }
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -4578,14 +4619,5 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
    */
   {
     /* Keep this block, even when empty. */
-    
-    /* Alembic Transform Cache changed from world to local space. */
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
-        if (con->type == CONSTRAINT_TYPE_TRANSFORM_CACHE) {
-          con->ownspace = CONSTRAINT_SPACE_LOCAL;
-        }
-      }
-    }
   }
 }

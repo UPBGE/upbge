@@ -148,7 +148,12 @@ class FILEBROWSER_PT_filter(Panel):
             if params.use_filter_blendid:
                 row = col.row()
                 row.label(icon='BLANK1')  # Indentation
-                row.prop(params, "filter_id_category", text="")
+
+                sub = row.column(align=True)
+                filter_id = params.filter_id
+                for identifier in dir(filter_id):
+                    if identifier.startswith("category_"):
+                        sub.prop(filter_id, identifier, toggle=True)
 
                 col.separator()
 
@@ -275,7 +280,7 @@ class FILEBROWSER_PT_bookmarks_recents(Panel):
     bl_space_type = 'FILE_BROWSER'
     bl_region_type = 'TOOLS'
     bl_category = "Bookmarks"
-    bl_label = "Recents"
+    bl_label = "Recent"
 
     @classmethod
     def poll(cls, context):
@@ -314,8 +319,11 @@ class FILEBROWSER_PT_advanced_filter(Panel):
             layout.prop(params, "use_filter_blendid")
             if params.use_filter_blendid:
                 layout.separator()
-                col = layout.column()
-                col.prop(params, "filter_id")
+                col = layout.column(align=True)
+                filter_id = params.filter_id
+                for identifier in dir(filter_id):
+                    if identifier.startswith("filter_"):
+                        col.prop(filter_id, identifier, toggle=True)
 
 
 class FILEBROWSER_PT_directory_path(Panel):

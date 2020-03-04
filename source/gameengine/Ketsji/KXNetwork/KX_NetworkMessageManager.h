@@ -41,49 +41,47 @@ conflicts with KX_NetworkMessageManager::SendMessage */
 
 class SCA_IObject;
 
-class KX_NetworkMessageManager
-{
-public:
-	struct Message
-	{
-		/// Receiver object(s) name.
-		std::string to;
-		/// Sender game object.
-		SCA_IObject *from;
-		/// Message subject, used as filter.
-		std::string subject;
-		/// Message body.
-		std::string body;
-	};
+class KX_NetworkMessageManager {
+ public:
+  struct Message {
+    /// Receiver object(s) name.
+    std::string to;
+    /// Sender game object.
+    SCA_IObject *from;
+    /// Message subject, used as filter.
+    std::string subject;
+    /// Message body.
+    std::string body;
+  };
 
-private:
-	/** List of all messages, filtered by receiver object(s) name and subject name.
-	 * We use two lists, one handle sended message in the current frame and the other
-	 * is used for handle message sended in the last frame for sensors.
-	 */
-	std::map<std::string, std::map<std::string, std::vector<Message> > > m_messages[2];
+ private:
+  /** List of all messages, filtered by receiver object(s) name and subject name.
+   * We use two lists, one handle sended message in the current frame and the other
+   * is used for handle message sended in the last frame for sensors.
+   */
+  std::map<std::string, std::map<std::string, std::vector<Message>>> m_messages[2];
 
-	/** Since we use two list for the current and last frame we have to switch of
-	 * current message list each frame. This value is only 0 or 1.
-	 */
-	unsigned short m_currentList;
+  /** Since we use two list for the current and last frame we have to switch of
+   * current message list each frame. This value is only 0 or 1.
+   */
+  unsigned short m_currentList;
 
-public:
-	KX_NetworkMessageManager();
-	virtual ~KX_NetworkMessageManager();
+ public:
+  KX_NetworkMessageManager();
+  virtual ~KX_NetworkMessageManager();
 
-	/** Add a message in the next message list.
-	 * \param message The given message to add.
-	 */
-	void AddMessage(Message message);
-	/** Get all messages for a given receiver object name and message subject.
-	 * \param to The object(s) name.
-	 * \param subject The message subject/filter.
-	 */
-	const std::vector<Message> GetMessages(std::string to, std::string subject);
+  /** Add a message in the next message list.
+   * \param message The given message to add.
+   */
+  void AddMessage(Message message);
+  /** Get all messages for a given receiver object name and message subject.
+   * \param to The object(s) name.
+   * \param subject The message subject/filter.
+   */
+  const std::vector<Message> GetMessages(std::string to, std::string subject);
 
-	/// Clear all messages
-	void ClearMessages();
+  /// Clear all messages
+  void ClearMessages();
 };
 
-#endif // __KX_NETWORKMESSAGEMANAGER_H__
+#endif  // __KX_NETWORKMESSAGEMANAGER_H__

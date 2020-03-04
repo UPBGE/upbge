@@ -118,6 +118,8 @@ typedef struct PaintStroke {
   float last_pressure;
   int stroke_mode;
 
+  float last_tablet_event_pressure;
+
   float zoom_2d;
   int pen_flip;
 
@@ -228,6 +230,10 @@ static bool paint_tool_require_location(Brush *brush, ePaintMode mode)
                SCULPT_TOOL_THUMB)) {
         return false;
       }
+      else if (brush->sculpt_tool == SCULPT_TOOL_CLOTH &&
+               brush->cloth_deform_type == BRUSH_CLOTH_DEFORM_GRAB) {
+        return false;
+      }
       else {
         return true;
       }
@@ -259,6 +265,7 @@ static bool paint_tool_require_inbetween_mouse_events(Brush *brush, ePaintMode m
                SCULPT_TOOL_THUMB,
                SCULPT_TOOL_SNAKE_HOOK,
                SCULPT_TOOL_ELASTIC_DEFORM,
+               SCULPT_TOOL_CLOTH,
                SCULPT_TOOL_POSE)) {
         return false;
       }
@@ -999,6 +1006,10 @@ bool paint_space_stroke_enabled(Brush *br, ePaintMode mode)
 
 static bool sculpt_is_grab_tool(Brush *br)
 {
+
+  if (br->sculpt_tool == SCULPT_TOOL_CLOTH && br->cloth_deform_type == BRUSH_CLOTH_DEFORM_GRAB) {
+    return true;
+  }
   return ELEM(br->sculpt_tool,
               SCULPT_TOOL_GRAB,
               SCULPT_TOOL_ELASTIC_DEFORM,
@@ -1345,6 +1356,15 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
   pressure = ((br->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ?
                   1.0f :
                   WM_event_tablet_data(event, &stroke->pen_flip, NULL));
+
+  /* When processing a timer event the pressure from the event is 0, so use the last valid
+   * pressure. */
+  if (event->type == TIMER) {
+    pressure = stroke->last_tablet_event_pressure;
+  }
+  else {
+    stroke->last_tablet_event_pressure = pressure;
+  }
 
   paint_stroke_add_sample(p, stroke, event->mval[0], event->mval[1], pressure);
   paint_stroke_sample_average(stroke, &sample_average);

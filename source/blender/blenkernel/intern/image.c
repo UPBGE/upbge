@@ -462,9 +462,9 @@ Image *BKE_image_copy(Main *bmain, const Image *ima)
   return ima_copy;
 }
 
-void BKE_image_make_local(Main *bmain, Image *ima, const bool lib_local)
+void BKE_image_make_local(Main *bmain, Image *ima, const int flags)
 {
-  BKE_id_make_local_generic(bmain, &ima->id, true, lib_local);
+  BKE_lib_id_make_local_generic(bmain, &ima->id, flags);
 }
 
 void BKE_image_merge(Main *bmain, Image *dest, Image *source)
@@ -3364,7 +3364,9 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
       if (ima->source != IMA_SRC_TILED) {
         /* Free all but the first tile. */
         ImageTile *base_tile = BKE_image_get_tile(ima, 0);
-        for (ImageTile *tile = base_tile->next; tile; tile = tile->next) {
+        BLI_assert(base_tile == ima->tiles.first);
+        for (ImageTile *tile = base_tile->next, *tile_next; tile; tile = tile_next) {
+          tile_next = tile->next;
           image_free_tile(ima, tile);
           MEM_freeN(tile);
         }
@@ -5176,6 +5178,14 @@ void BKE_image_user_frame_calc(Image *ima, ImageUser *iuser, int cfra)
 
     if (iuser->ok == 0) {
       iuser->ok = 1;
+    }
+
+    if (ima) {
+      LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
+        if (tile->ok == 0) {
+          tile->ok = IMA_OK;
+        }
+      }
     }
 
     iuser->flag &= ~IMA_NEED_FRAME_RECALC;

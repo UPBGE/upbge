@@ -558,7 +558,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
           }
         }
         else {
-          if (id_make_local(bmain, id, false, false)) {
+          if (BKE_lib_id_make_local(bmain, id, false, 0)) {
             BKE_main_id_clear_newpoins(bmain);
 
             /* reassign to get get proper updates/notifiers */
@@ -814,7 +814,7 @@ static void template_ID(bContext *C,
   }
 
   if (text) {
-    /* Add label resepecting the seperated layout property split state. */
+    /* Add label resepecting the separated layout property split state. */
     layout = uiItemL_respect_property_split(layout, text, ICON_NONE);
   }
 
@@ -880,7 +880,7 @@ static void template_ID(bContext *C,
         UI_but_flag_enable(but, UI_BUT_DISABLED);
       }
       else {
-        const bool disabled = (!id_make_local(CTX_data_main(C), id, true /* test */, false) ||
+        const bool disabled = (!BKE_lib_id_make_local(CTX_data_main(C), id, true /* test */, 0) ||
                                (idfrom && idfrom->lib));
         but = uiDefIconBut(block,
                            UI_BTYPE_BUT,
@@ -4608,7 +4608,7 @@ static uiBlock *CurveProfile_presets_func(bContext *C, ARegion *ar, CurveProfile
                    UI_BTYPE_BUT_MENU,
                    1,
                    ICON_BLANK1,
-                   IFACE_("Cornice Moulding"),
+                   IFACE_("Cornice Molding"),
                    0,
                    yco -= UI_UNIT_Y,
                    menuwidth,
@@ -4623,7 +4623,7 @@ static uiBlock *CurveProfile_presets_func(bContext *C, ARegion *ar, CurveProfile
                    UI_BTYPE_BUT_MENU,
                    1,
                    ICON_BLANK1,
-                   IFACE_("Crown Moulding"),
+                   IFACE_("Crown Molding"),
                    0,
                    yco -= UI_UNIT_Y,
                    menuwidth,
@@ -5614,76 +5614,95 @@ void uiTemplateLayers(uiLayout *layout,
   }
 }
 
-void uiTemplateGameStates(
-        uiLayout *layout, PointerRNA *ptr, const char *propname,
-        PointerRNA *used_ptr, const char *used_propname, int active_state)
+void uiTemplateGameStates(uiLayout *layout,
+                          PointerRNA *ptr,
+                          const char *propname,
+                          PointerRNA *used_ptr,
+                          const char *used_propname,
+                          int active_state)
 {
-	uiLayout *uRow, *uCol;
-	PropertyRNA *prop, *used_prop = NULL;
-	int groups, cols, states;
-	int group, col, state, row;
-	int cols_per_group = 5;
-	Object *ob = (Object *)ptr->owner_id;
+  uiLayout *uRow, *uCol;
+  PropertyRNA *prop, *used_prop = NULL;
+  int groups, cols, states;
+  int group, col, state, row;
+  int cols_per_group = 5;
+  Object *ob = (Object *)ptr->owner_id;
 
-	prop = RNA_struct_find_property(ptr, propname);
-	if (!prop) {
-		RNA_warning("states property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
-		return;
-	}
-	
-	/* the number of states determines the way we group them 
-	 *	- we want 2 rows only (for now)
-	 *	- the number of columns (cols) is the total number of buttons per row
-	 *	  the 'remainder' is added to this, as it will be ok to have first row slightly wider if need be
-	 *	- for now, only split into groups if group will have at least 5 items
-	 */
-	states = RNA_property_array_length(ptr, prop);
-	cols = (states / 2) + (states % 2);
-	groups = ((cols / 2) < cols_per_group) ? (1) : (cols / cols_per_group);
+  prop = RNA_struct_find_property(ptr, propname);
+  if (!prop) {
+    RNA_warning("states property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    return;
+  }
 
-	if (used_ptr && used_propname) {
-		used_prop = RNA_struct_find_property(used_ptr, used_propname);
-		if (!used_prop) {
-			RNA_warning("used layers property not found: %s.%s", RNA_struct_identifier(ptr->type), used_propname);
-			return;
-		}
+  /* the number of states determines the way we group them
+   *	- we want 2 rows only (for now)
+   *	- the number of columns (cols) is the total number of buttons per row
+   *	  the 'remainder' is added to this, as it will be ok to have first row slightly wider if need
+   *be
+   *	- for now, only split into groups if group will have at least 5 items
+   */
+  states = RNA_property_array_length(ptr, prop);
+  cols = (states / 2) + (states % 2);
+  groups = ((cols / 2) < cols_per_group) ? (1) : (cols / cols_per_group);
 
-		if (RNA_property_array_length(used_ptr, used_prop) < states)
-			used_prop = NULL;
-	}
-	
-	/* layers are laid out going across rows, with the columns being divided into groups */
-	
-	for (group = 0; group < groups; group++) {
-		uCol = uiLayoutColumn(layout, true);
-		
-		for (row = 0; row < 2; row++) {
-			uiBlock *block;
-			uiBut *but;
+  if (used_ptr && used_propname) {
+    used_prop = RNA_struct_find_property(used_ptr, used_propname);
+    if (!used_prop) {
+      RNA_warning("used layers property not found: %s.%s",
+                  RNA_struct_identifier(ptr->type),
+                  used_propname);
+      return;
+    }
 
-			uRow = uiLayoutRow(uCol, true);
-			block = uiLayoutGetBlock(uRow);
-			state = groups * cols_per_group * row + cols_per_group * group;
-			
-			/* add layers as toggle buts */
-			for (col = 0; (col < cols_per_group) && (state < states); col++, state++) {
-				int icon = 0;
-				int butlay = 1 << state;
+    if (RNA_property_array_length(used_ptr, used_prop) < states)
+      used_prop = NULL;
+  }
 
-				if (active_state & butlay)
-					icon = ICON_LAYER_ACTIVE;
-				else if (used_prop && RNA_property_boolean_get_index(used_ptr, used_prop, state))
-					icon = ICON_LAYER_USED;
-				
-				but = uiDefIconButR_prop(block, UI_BTYPE_ICON_TOGGLE, 0, icon, 0, 0, UI_UNIT_X / 2, UI_UNIT_Y / 2, ptr, prop,
-				                         state, 0, 0, -1, -1, sca_state_name_get(ob, state));
-				UI_but_func_set(but, handle_layer_buttons, but, POINTER_FROM_INT(state));
-				but->type = UI_BTYPE_TOGGLE;
-			}
-		}
-	}
+  /* layers are laid out going across rows, with the columns being divided into groups */
+
+  for (group = 0; group < groups; group++) {
+    uCol = uiLayoutColumn(layout, true);
+
+    for (row = 0; row < 2; row++) {
+      uiBlock *block;
+      uiBut *but;
+
+      uRow = uiLayoutRow(uCol, true);
+      block = uiLayoutGetBlock(uRow);
+      state = groups * cols_per_group * row + cols_per_group * group;
+
+      /* add layers as toggle buts */
+      for (col = 0; (col < cols_per_group) && (state < states); col++, state++) {
+        int icon = 0;
+        int butlay = 1 << state;
+
+        if (active_state & butlay)
+          icon = ICON_LAYER_ACTIVE;
+        else if (used_prop && RNA_property_boolean_get_index(used_ptr, used_prop, state))
+          icon = ICON_LAYER_USED;
+
+        but = uiDefIconButR_prop(block,
+                                 UI_BTYPE_ICON_TOGGLE,
+                                 0,
+                                 icon,
+                                 0,
+                                 0,
+                                 UI_UNIT_X / 2,
+                                 UI_UNIT_Y / 2,
+                                 ptr,
+                                 prop,
+                                 state,
+                                 0,
+                                 0,
+                                 -1,
+                                 -1,
+                                 sca_state_name_get(ob, state));
+        UI_but_func_set(but, handle_layer_buttons, but, POINTER_FROM_INT(state));
+        but->type = UI_BTYPE_TOGGLE;
+      }
+    }
+  }
 }
-
 
 /** \} */
 
@@ -6943,6 +6962,7 @@ static char *progress_tooltip_func(bContext *UNUSED(C), void *argN, const char *
 
 void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 {
+  Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   ScrArea *sa = CTX_wm_area(C);
   uiBlock *block;
@@ -6956,7 +6976,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 
   Scene *scene;
   /* another scene can be rendering too, for example via compositor */
-  for (scene = CTX_data_main(C)->scenes.first; scene; scene = scene->id.next) {
+  for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY)) {
       handle_event = B_STOPOTHER;
       icon = ICON_NONE;

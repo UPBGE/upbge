@@ -1455,7 +1455,7 @@ int MANTA::writeConfiguration(FluidModifierData *mmd, int framenr)
   BLI_join_dirfile(targetFile, sizeof(targetFile), cacheDir, ss.str().c_str());
   BLI_path_frame(targetFile, framenr, 0);
 
-  gzFile gzf = gzopen(targetFile, "wb1");  // do some compression
+  gzFile gzf = (gzFile)BLI_gzopen(targetFile, "wb1");  // do some compression
   if (!gzf)
     std::cerr << "writeConfiguration: can't open file: " << targetFile << std::endl;
 
@@ -1550,7 +1550,7 @@ int MANTA::readConfiguration(FluidModifierData *mmd, int framenr)
   if (!BLI_exists(targetFile))
     return 0;
 
-  gzFile gzf = gzopen(targetFile, "rb");  // do some compression
+  gzFile gzf = (gzFile)BLI_gzopen(targetFile, "rb");  // do some compression
   if (!gzf)
     std::cerr << "readConfiguration: can't open file: " << targetFile << std::endl;
 
@@ -2634,6 +2634,7 @@ void MANTA::updateMeshFromUni(const char *filename)
   if (!ibuffer[0]) {  // Any vertices present?
     if (with_debug)
       std::cout << "no vertices present yet" << std::endl;
+    gzclose(gzf);
     return;
   }
 
@@ -2701,6 +2702,7 @@ void MANTA::updateParticlesFromUni(const char *filename, bool isSecondarySys, bo
 
   if (!strcmp(ID, "PB01")) {
     std::cout << "particle uni file format v01 not supported anymore" << std::endl;
+    gzclose(gzf);
     return;
   }
 
@@ -2743,6 +2745,7 @@ void MANTA::updateParticlesFromUni(const char *filename, bool isSecondarySys, bo
   if (!ibuffer[0]) {  // Any particles present?
     if (with_debug)
       std::cout << "no particles present yet" << std::endl;
+    gzclose(gzf);
     return;
   }
 
@@ -2845,16 +2848,19 @@ int MANTA::updateGridFromUni(const char *filename, float *grid, bool isNoise)
   if (!strcmp(ID, "DDF2")) {
     std::cout << "MANTA::updateGridFromUni(): grid uni file format DDF2 not supported anymore"
               << std::endl;
+    gzclose(gzf);
     return 0;
   }
   if (!strcmp(ID, "MNT1")) {
     std::cout << "MANTA::updateGridFromUni(): grid uni file format MNT1 not supported anymore"
               << std::endl;
+    gzclose(gzf);
     return 0;
   }
   if (!strcmp(ID, "MNT2")) {
     std::cout << "MANTA::updateGridFromUni(): grid uni file format MNT2 not supported anymore"
               << std::endl;
+    gzclose(gzf);
     return 0;
   }
 
@@ -2885,6 +2891,7 @@ int MANTA::updateGridFromUni(const char *filename, float *grid, bool isNoise)
     std::cout << "grid dim doesn't match, read: (" << ibuffer[0] << ", " << ibuffer[1] << ", "
               << ibuffer[2] << ") vs setup: (" << resX << ", " << resY << ", " << resZ << ")"
               << std::endl;
+    gzclose(gzf);
     return 0;
   }
 

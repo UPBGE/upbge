@@ -238,15 +238,12 @@ bool ED_editors_flush_edits_for_object_ex(Main *bmain,
     /* Don't allow flushing while in the middle of a stroke (frees data in use).
      * Auto-save prevents this from happening but scripts
      * may cause a flush on saving: T53986. */
-    if ((ob->sculpt && ob->sculpt->cache) == 0) {
-
-      {
-        char *needs_flush_ptr = &ob->sculpt->needs_flush_to_id;
-        if (check_needs_flush && (*needs_flush_ptr == 0)) {
-          return false;
-        }
-        *needs_flush_ptr = 0;
+    if (!ELEM(NULL, ob->sculpt, ob->sculpt->cache)) {
+      char *needs_flush_ptr = &ob->sculpt->needs_flush_to_id;
+      if (check_needs_flush && (*needs_flush_ptr == 0)) {
+        return false;
       }
+      *needs_flush_ptr = 0;
 
       /* flush multires changes (for sculpt) */
       multires_flush_sculpt_updates(ob);
@@ -458,7 +455,7 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
   immUniform2f("viewport_size", viewport_size[2] / UI_DPI_FAC, viewport_size[3] / UI_DPI_FAC);
 
   immUniform1i("colors_len", 0); /* "simple" mode */
-  immUniformThemeColor(TH_VIEW_OVERLAY);
+  immUniformThemeColor3(TH_VIEW_OVERLAY);
   immUniform1f("dash_width", 6.0f);
   immUniform1f("dash_factor", 0.5f);
 

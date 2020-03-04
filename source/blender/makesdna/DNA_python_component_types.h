@@ -26,34 +26,33 @@
 #include "DNA_listBase.h"
 
 typedef struct PythonComponentProperty {
-    struct PythonComponentProperty *next, *prev;
-    char name[64];
-    short type;
-    short boolval;
-    int intval;
-    float floatval;
-    char strval[64];
-    int itemval;
-    float vec[4];
-    ListBase enumval;
+  struct PythonComponentProperty *next, *prev;
+  char name[64];
+  short type;
+  short boolval;
+  int intval;
+  float floatval;
+  char strval[64];
+  int itemval;
+  float vec[4];
+  ListBase enumval;
 } PythonComponentProperty;
 
 typedef struct PythonComponent {
-    struct PythonComponent *next, *prev;
-    ListBase properties;
-    char name[64];
-    char module[64];
+  struct PythonComponent *next, *prev;
+  ListBase properties;
+  char name[64];
+  char module[64];
 } PythonComponent;
 
-
 /* PythonComponentProperty.type */
-#define CPROP_TYPE_INT         0
-#define CPROP_TYPE_FLOAT       1
-#define CPROP_TYPE_STRING      2
-#define CPROP_TYPE_BOOLEAN     3
-#define CPROP_TYPE_SET         4
-#define CPROP_TYPE_VEC2        5
-#define CPROP_TYPE_VEC3        6
-#define CPROP_TYPE_VEC4        7
+#define CPROP_TYPE_INT 0
+#define CPROP_TYPE_FLOAT 1
+#define CPROP_TYPE_STRING 2
+#define CPROP_TYPE_BOOLEAN 3
+#define CPROP_TYPE_SET 4
+#define CPROP_TYPE_VEC2 5
+#define CPROP_TYPE_VEC3 6
+#define CPROP_TYPE_VEC4 7
 
 #endif /* __DNA_COMPONENT_TYPES_H__ */

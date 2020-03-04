@@ -69,7 +69,9 @@ set(SRC
   intern/gpu_immediate_util.c
   intern/gpu_init_exit.c
   intern/gpu_material.c
+  intern/gpu_material_library.c
   intern/gpu_matrix.c
+  intern/gpu_node_graph.c
   intern/gpu_platform.c
   intern/gpu_primitive.c
   intern/gpu_select.c
@@ -121,6 +123,7 @@ set(SRC
   intern/gpu_context_private.h
   intern/gpu_material_library.h
   intern/gpu_matrix_private.h
+  intern/gpu_node_graph.h
   intern/gpu_primitive_private.h
   intern/gpu_private.h
   intern/gpu_select_private.h
@@ -301,6 +304,7 @@ data_to_c_simple(shaders/material/gpu_shader_material_uv_map.glsl SRC)
 data_to_c_simple(shaders/material/gpu_shader_material_vector_curves.glsl SRC)
 data_to_c_simple(shaders/material/gpu_shader_material_vector_displacement.glsl SRC)
 data_to_c_simple(shaders/material/gpu_shader_material_vector_math.glsl SRC)
+data_to_c_simple(shaders/material/gpu_shader_material_vector_rotate.glsl SRC)
 data_to_c_simple(shaders/material/gpu_shader_material_velvet.glsl SRC)
 data_to_c_simple(shaders/material/gpu_shader_material_vertex_color.glsl SRC)
 data_to_c_simple(shaders/material/gpu_shader_material_volume_absorption.glsl SRC)

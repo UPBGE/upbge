@@ -329,70 +329,27 @@ string CUDADevice::compile_kernel_get_common_cflags(
   return cflags;
 }
 
-bool CUDADevice::compile_check_compiler()
-{
-  const char *nvcc = cuewCompilerPath();
-  if (nvcc == NULL) {
-    cuda_error_message(
-        "CUDA nvcc compiler not found. "
-        "Install CUDA toolkit in default location.");
-    return false;
-  }
-  const int cuda_version = cuewCompilerVersion();
-  VLOG(1) << "Found nvcc " << nvcc << ", CUDA version " << cuda_version << ".";
-  const int major = cuda_version / 10, minor = cuda_version % 10;
-  if (cuda_version == 0) {
-    cuda_error_message("CUDA nvcc compiler version could not be parsed.");
-    return false;
-  }
-  if (cuda_version < 80) {
-    printf(
-        "Unsupported CUDA version %d.%d detected, "
-        "you need CUDA 8.0 or newer.\n",
-        major,
-        minor);
-    return false;
-  }
-  else if (cuda_version != 101) {
-    printf(
-        "CUDA version %d.%d detected, build may succeed but only "
-        "CUDA 10.1 is officially supported.\n",
-        major,
-        minor);
-  }
-  return true;
-}
-
 string CUDADevice::compile_kernel(const DeviceRequestedFeatures &requested_features,
-                                  bool filter,
-                                  bool split)
+                                  const char *name,
+                                  const char *base,
+                                  bool force_ptx)
 {
-  const char *name, *source;
-  if (filter) {
-    name = "filter";
-    source = "filter.cu";
-  }
-  else if (split) {
-    name = "kernel_split";
-    source = "kernel_split.cu";
-  }
-  else {
-    name = "kernel";
-    source = "kernel.cu";
-  }
-  /* Compute cubin name. */
+  /* Compute kernel name. */
   int major, minor;
   cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, cuDevId);
   cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, cuDevId);
 
   /* Attempt to use kernel provided with Blender. */
   if (!use_adaptive_compilation()) {
-    const string cubin = path_get(string_printf("lib/%s_sm_%d%d.cubin", name, major, minor));
-    VLOG(1) << "Testing for pre-compiled kernel " << cubin << ".";
-    if (path_exists(cubin)) {
-      VLOG(1) << "Using precompiled kernel.";
-      return cubin;
+    if (!force_ptx) {
+      const string cubin = path_get(string_printf("lib/%s_sm_%d%d.cubin", name, major, minor));
+      VLOG(1) << "Testing for pre-compiled kernel " << cubin << ".";
+      if (path_exists(cubin)) {
+        VLOG(1) << "Using precompiled kernel.";
+        return cubin;
+      }
     }
+
     const string ptx = path_get(string_printf("lib/%s_compute_%d%d.ptx", name, major, minor));
     VLOG(1) << "Testing for pre-compiled kernel " << ptx << ".";
     if (path_exists(ptx)) {
@@ -401,19 +358,21 @@ string CUDADevice::compile_kernel(const DeviceRequestedFeatures &requested_featu
     }
   }
 
-  const string common_cflags = compile_kernel_get_common_cflags(requested_features, filter, split);
-
   /* Try to use locally compiled kernel. */
-  const string source_path = path_get("source");
-  const string kernel_md5 = path_files_md5_hash(source_path);
+  string source_path = path_get("source");
+  const string source_md5 = path_files_md5_hash(source_path);
 
   /* We include cflags into md5 so changing cuda toolkit or changing other
    * compiler command line arguments makes sure cubin gets re-built.
    */
-  const string cubin_md5 = util_md5_string(kernel_md5 + common_cflags);
+  string common_cflags = compile_kernel_get_common_cflags(
+      requested_features, strstr(name, "filter") != NULL, strstr(name, "split") != NULL);
+  const string kernel_md5 = util_md5_string(source_md5 + common_cflags);
 
+  const char *const kernel_ext = force_ptx ? "ptx" : "cubin";
+  const char *const kernel_arch = force_ptx ? "compute" : "sm";
   const string cubin_file = string_printf(
-      "cycles_%s_sm%d%d_%s.cubin", name, major, minor, cubin_md5.c_str());
+      "cycles_%s_%s_%d%d_%s.%s", name, kernel_arch, major, minor, kernel_md5.c_str(), kernel_ext);
   const string cubin = path_cache_get(path_join("kernels", cubin_file));
   VLOG(1) << "Testing for locally compiled kernel " << cubin << ".";
   if (path_exists(cubin)) {
@@ -422,7 +381,7 @@ string CUDADevice::compile_kernel(const DeviceRequestedFeatures &requested_featu
   }
 
 #  ifdef _WIN32
-  if (have_precompiled_kernels()) {
+  if (!use_adaptive_compilation() && have_precompiled_kernels()) {
     if (major < 3) {
       cuda_error_message(
           string_printf("CUDA device requires compute capability 3.0 or up, "
@@ -437,42 +396,69 @@ string CUDADevice::compile_kernel(const DeviceRequestedFeatures &requested_featu
                         major,
                         minor));
     }
-    return "";
+    return string();
   }
 #  endif
 
   /* Compile. */
-  if (!compile_check_compiler()) {
-    return "";
+  const char *const nvcc = cuewCompilerPath();
+  if (nvcc == NULL) {
+    cuda_error_message(
+        "CUDA nvcc compiler not found. "
+        "Install CUDA toolkit in default location.");
+    return string();
   }
-  const char *nvcc = cuewCompilerPath();
-  const string kernel = path_join(path_join(source_path, "kernel"),
-                                  path_join("kernels", path_join("cuda", source)));
+
+  const int nvcc_cuda_version = cuewCompilerVersion();
+  VLOG(1) << "Found nvcc " << nvcc << ", CUDA version " << nvcc_cuda_version << ".";
+  if (nvcc_cuda_version < 80) {
+    printf(
+        "Unsupported CUDA version %d.%d detected, "
+        "you need CUDA 8.0 or newer.\n",
+        nvcc_cuda_version / 10,
+        nvcc_cuda_version % 10);
+    return string();
+  }
+  else if (nvcc_cuda_version != 101) {
+    printf(
+        "CUDA version %d.%d detected, build may succeed but only "
+        "CUDA 10.1 is officially supported.\n",
+        nvcc_cuda_version / 10,
+        nvcc_cuda_version % 10);
+  }
+
   double starttime = time_dt();
-  printf("Compiling CUDA kernel ...\n");
 
   path_create_directories(cubin);
 
+  source_path = path_join(path_join(source_path, "kernel"),
+                          path_join("kernels", path_join(base, string_printf("%s.cu", name))));
+
   string command = string_printf(
       "\"%s\" "
-      "-arch=sm_%d%d "
-      "--cubin \"%s\" "
+      "-arch=%s_%d%d "
+      "--%s \"%s\" "
       "-o \"%s\" "
-      "%s ",
+      "%s",
       nvcc,
+      kernel_arch,
       major,
       minor,
-      kernel.c_str(),
+      kernel_ext,
+      source_path.c_str(),
       cubin.c_str(),
       common_cflags.c_str());
 
-  printf("%s\n", command.c_str());
+  printf("Compiling CUDA kernel ...\n%s\n", command.c_str());
 
-  if (system(command.c_str()) == -1) {
+#  ifdef _WIN32
+  command = "call " + command;
+#  endif
+  if (system(command.c_str()) != 0) {
     cuda_error_message(
         "Failed to execute compilation command, "
         "see console for details.");
-    return "";
+    return string();
   }
 
   /* Verify if compilation succeeded */
@@ -480,7 +466,7 @@ string CUDADevice::compile_kernel(const DeviceRequestedFeatures &requested_featu
     cuda_error_message(
         "CUDA kernel compilation failed, "
         "see console for details.");
-    return "";
+    return string();
   }
 
   printf("Kernel compilation finished in %.2lfs.\n", time_dt() - starttime);
@@ -509,12 +495,14 @@ bool CUDADevice::load_kernels(const DeviceRequestedFeatures &requested_features)
     return false;
 
   /* get kernel */
-  string cubin = compile_kernel(requested_features, false, use_split_kernel());
-  if (cubin == "")
+  const char *kernel_name = use_split_kernel() ? "kernel_split" : "kernel";
+  string cubin = compile_kernel(requested_features, kernel_name);
+  if (cubin.empty())
     return false;
 
-  string filter_cubin = compile_kernel(requested_features, true, false);
-  if (filter_cubin == "")
+  const char *filter_name = "filter";
+  string filter_cubin = compile_kernel(requested_features, filter_name);
+  if (filter_cubin.empty())
     return false;
 
   /* open module */
@@ -841,18 +829,17 @@ CUDADevice::CUDAMem *CUDADevice::generic_alloc(device_memory &mem, size_t pitch_
 
 void CUDADevice::generic_copy_to(device_memory &mem)
 {
-  if (mem.host_pointer && mem.device_pointer) {
-    CUDAContextScope scope(this);
+  if (!mem.host_pointer || !mem.device_pointer) {
+    return;
+  }
 
-    /* If use_mapped_host of mem is false, the current device only
-     * uses device memory allocated by cuMemAlloc regardless of
-     * mem.host_pointer and mem.shared_pointer, and should copy
-     * data from mem.host_pointer. */
-
-    if (cuda_mem_map[&mem].use_mapped_host == false || mem.host_pointer != mem.shared_pointer) {
-      cuda_assert(
-          cuMemcpyHtoD(cuda_device_ptr(mem.device_pointer), mem.host_pointer, mem.memory_size()));
-    }
+  /* If use_mapped_host of mem is false, the current device only uses device memory allocated by
+   * cuMemAlloc regardless of mem.host_pointer and mem.shared_pointer, and should copy data from
+   * mem.host_pointer. */
+  if (!cuda_mem_map[&mem].use_mapped_host || mem.host_pointer != mem.shared_pointer) {
+    const CUDAContextScope scope(this);
+    cuda_assert(
+        cuMemcpyHtoD((CUdeviceptr)mem.device_pointer, mem.host_pointer, mem.memory_size()));
   }
 }
 
@@ -959,7 +946,7 @@ void CUDADevice::mem_zero(device_memory &mem)
    * regardless of mem.host_pointer and mem.shared_pointer. */
   if (!cuda_mem_map[&mem].use_mapped_host || mem.host_pointer != mem.shared_pointer) {
     const CUDAContextScope scope(this);
-    cuda_assert(cuMemsetD8(cuda_device_ptr(mem.device_pointer), 0, mem.memory_size()));
+    cuda_assert(cuMemsetD8((CUdeviceptr)mem.device_pointer, 0, mem.memory_size()));
   }
   else if (mem.host_pointer) {
     memset(mem.host_pointer, 0, mem.memory_size());
@@ -1285,7 +1272,7 @@ bool CUDADevice::denoising_non_local_means(device_ptr image_ptr,
   if (have_error())
     return false;
 
-  CUdeviceptr difference = cuda_device_ptr(task->buffer.temporary_mem.device_pointer);
+  CUdeviceptr difference = (CUdeviceptr)task->buffer.temporary_mem.device_pointer;
   CUdeviceptr blurDifference = difference + sizeof(float) * pass_stride * num_shifts;
   CUdeviceptr weightAccum = difference + 2 * sizeof(float) * pass_stride * num_shifts;
   CUdeviceptr scale_ptr = 0;
@@ -1417,7 +1404,7 @@ bool CUDADevice::denoising_accumulate(device_ptr color_ptr,
   if (have_error())
     return false;
 
-  CUdeviceptr difference = cuda_device_ptr(task->buffer.temporary_mem.device_pointer);
+  CUdeviceptr difference = (CUdeviceptr)task->buffer.temporary_mem.device_pointer;
   CUdeviceptr blurDifference = difference + sizeof(float) * pass_stride * num_shifts;
 
   CUfunction cuNLMCalcDifference, cuNLMBlur, cuNLMCalcWeight, cuNLMConstructGramian;
@@ -1715,7 +1702,7 @@ void CUDADevice::path_trace(DeviceTask &task,
   wtile->h = rtile.h;
   wtile->offset = rtile.offset;
   wtile->stride = rtile.stride;
-  wtile->buffer = (float *)cuda_device_ptr(rtile.buffer);
+  wtile->buffer = (float *)(CUdeviceptr)rtile.buffer;
 
   /* Prepare work size. More step samples render faster, but for now we
    * remain conservative for GPUs connected to a display to avoid driver
@@ -1739,7 +1726,7 @@ void CUDADevice::path_trace(DeviceTask &task,
     wtile->num_samples = min(step_samples, end_sample - sample);
     work_tiles.copy_to_device();
 
-    CUdeviceptr d_work_tiles = cuda_device_ptr(work_tiles.device_pointer);
+    CUdeviceptr d_work_tiles = (CUdeviceptr)work_tiles.device_pointer;
     uint total_work_size = wtile->w * wtile->h * wtile->num_samples;
     uint num_blocks = divide_up(total_work_size, num_threads_per_block);
 
@@ -1774,7 +1761,7 @@ void CUDADevice::film_convert(DeviceTask &task,
 
   CUfunction cuFilmConvert;
   CUdeviceptr d_rgba = map_pixels((rgba_byte) ? rgba_byte : rgba_half);
-  CUdeviceptr d_buffer = cuda_device_ptr(buffer);
+  CUdeviceptr d_buffer = (CUdeviceptr)buffer;
 
   /* get kernel function */
   if (rgba_half) {
@@ -1835,8 +1822,8 @@ void CUDADevice::shader(DeviceTask &task)
   CUDAContextScope scope(this);
 
   CUfunction cuShader;
-  CUdeviceptr d_input = cuda_device_ptr(task.shader_input);
-  CUdeviceptr d_output = cuda_device_ptr(task.shader_output);
+  CUdeviceptr d_input = (CUdeviceptr)task.shader_input;
+  CUdeviceptr d_output = (CUdeviceptr)task.shader_output;
 
   /* get kernel function */
   if (task.shader_eval_type >= SHADER_EVAL_BAKE) {
@@ -1919,7 +1906,7 @@ CUdeviceptr CUDADevice::map_pixels(device_ptr mem)
     return buffer;
   }
 
-  return cuda_device_ptr(mem);
+  return (CUdeviceptr)mem;
 }
 
 void CUDADevice::unmap_pixels(device_ptr mem)
@@ -2157,7 +2144,7 @@ void CUDADevice::thread_run(DeviceTask *task)
 {
   CUDAContextScope scope(this);
 
-  if (task->type == DeviceTask::RENDER || task->type == DeviceTask::DENOISE) {
+  if (task->type == DeviceTask::RENDER) {
     DeviceRequestedFeatures requested_features;
     if (use_split_kernel()) {
       if (split_kernel == NULL) {
@@ -2172,7 +2159,7 @@ void CUDADevice::thread_run(DeviceTask *task)
     RenderTile tile;
     DenoisingTask denoising(this, *task);
 
-    while (task->acquire_tile(this, tile)) {
+    while (task->acquire_tile(this, tile, task->tile_types)) {
       if (tile.task == RenderTile::PATH_TRACE) {
         if (use_split_kernel()) {
           device_only_memory<uchar> void_buffer(this, "void_buffer");
@@ -2359,7 +2346,7 @@ uint64_t CUDASplitKernel::state_buffer_size(device_memory & /*kg*/,
   size_buffer.zero_to_device();
 
   uint threads = num_threads;
-  CUdeviceptr d_size = device->cuda_device_ptr(size_buffer.device_pointer);
+  CUdeviceptr d_size = (CUdeviceptr)size_buffer.device_pointer;
 
   struct args_t {
     uint *num_threads;
@@ -2394,13 +2381,13 @@ bool CUDASplitKernel::enqueue_split_kernel_data_init(const KernelDimensions &dim
 {
   CUDAContextScope scope(device);
 
-  CUdeviceptr d_split_data = device->cuda_device_ptr(split_data.device_pointer);
-  CUdeviceptr d_ray_state = device->cuda_device_ptr(ray_state.device_pointer);
-  CUdeviceptr d_queue_index = device->cuda_device_ptr(queue_index.device_pointer);
-  CUdeviceptr d_use_queues_flag = device->cuda_device_ptr(use_queues_flag.device_pointer);
-  CUdeviceptr d_work_pool_wgs = device->cuda_device_ptr(work_pool_wgs.device_pointer);
+  CUdeviceptr d_split_data = (CUdeviceptr)split_data.device_pointer;
+  CUdeviceptr d_ray_state = (CUdeviceptr)ray_state.device_pointer;
+  CUdeviceptr d_queue_index = (CUdeviceptr)queue_index.device_pointer;
+  CUdeviceptr d_use_queues_flag = (CUdeviceptr)use_queues_flag.device_pointer;
+  CUdeviceptr d_work_pool_wgs = (CUdeviceptr)work_pool_wgs.device_pointer;
 
-  CUdeviceptr d_buffer = device->cuda_device_ptr(rtile.buffer);
+  CUdeviceptr d_buffer = (CUdeviceptr)rtile.buffer;
 
   int end_sample = rtile.start_sample + rtile.num_samples;
   int queue_size = dim.global_size[0] * dim.global_size[1];

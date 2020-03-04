@@ -31,24 +31,23 @@
 
 #include <map>
 
-class DEV_InputDevice : public SCA_IInputDevice
-{
-protected:
-	/// These maps converts GHOST input number to SCA input enum.
-	std::map<int, SCA_EnumInputs> m_reverseKeyTranslateTable;
-	std::map<int, SCA_EnumInputs> m_reverseButtonTranslateTable;
-	std::map<int, SCA_EnumInputs> m_reverseWindowTranslateTable;
+class DEV_InputDevice : public SCA_IInputDevice {
+ protected:
+  /// These maps converts GHOST input number to SCA input enum.
+  std::map<int, SCA_EnumInputs> m_reverseKeyTranslateTable;
+  std::map<int, SCA_EnumInputs> m_reverseButtonTranslateTable;
+  std::map<int, SCA_EnumInputs> m_reverseWindowTranslateTable;
 
-public:
-	DEV_InputDevice();
-	virtual ~DEV_InputDevice();
+ public:
+  DEV_InputDevice();
+  virtual ~DEV_InputDevice();
 
-	void ConvertKeyEvent(int incode, int val, unsigned int unicode);
-	void ConvertButtonEvent(int incode, int val);
-	void ConvertWindowEvent(int incode);
-	void ConvertMoveEvent(int x, int y);
-	void ConvertWheelEvent(int z);
-	void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
+  void ConvertKeyEvent(int incode, int val, unsigned int unicode);
+  void ConvertButtonEvent(int incode, int val);
+  void ConvertWindowEvent(int incode);
+  void ConvertMoveEvent(int x, int y);
+  void ConvertWheelEvent(int z);
+  void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
 };
 
 #endif  // __DEV_INPUTDEVICE_H__

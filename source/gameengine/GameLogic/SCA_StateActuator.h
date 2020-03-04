@@ -35,63 +35,47 @@
 
 #include "SCA_IActuator.h"
 
-
 /*
  * Use of SG_DList : element of actuator being deactivated
  *                   Head: SCA_LogicManager::m_removedActuators
- * Use of SG_QList : element of global activated state actuator list 
+ * Use of SG_QList : element of global activated state actuator list
  *                   Head: SCA_StateActuator::m_stateActuatorHead
  */
-class SCA_StateActuator : public SCA_IActuator
-{
-	Py_Header
+class SCA_StateActuator : public SCA_IActuator {
+  Py_Header
 
-	/** Make visible? */
-	enum {
-		OP_NOP = -1,
-		OP_CPY = 0,
-		OP_SET,
-		OP_CLR,
-		OP_NEG,
-		OP_COUNT
-	};
-	// SG_Dlist: element of objects with active actuators, always put in front of the list
-	//           Head: SCA_LogicManager::m_activeActuators
-	// SG_QList: Head of active state actuators list globally
-	//           Elements: SCA_StateActuator
-	static SG_QList	m_stateActuatorHead;
-	int				m_operation;
-	int				m_mask;
+      /** Make visible? */
+      enum {
+        OP_NOP = -1,
+        OP_CPY = 0,
+        OP_SET,
+        OP_CLR,
+        OP_NEG,
+        OP_COUNT
+      };
+  // SG_Dlist: element of objects with active actuators, always put in front of the list
+  //           Head: SCA_LogicManager::m_activeActuators
+  // SG_QList: Head of active state actuators list globally
+  //           Elements: SCA_StateActuator
+  static SG_QList m_stateActuatorHead;
+  int m_operation;
+  int m_mask;
 
  public:
-	
-	SCA_StateActuator(
-		SCA_IObject* gameobj,
-		int operation,
-		unsigned int mask
-	);
+  SCA_StateActuator(SCA_IObject *gameobj, int operation, unsigned int mask);
 
-	virtual
-		~SCA_StateActuator(
-			void
-			);
+  virtual ~SCA_StateActuator(void);
 
-	virtual CValue*
-		GetReplica(
-			void
-			);
+  virtual CValue *GetReplica(void);
 
-	virtual bool
-		Update();
+  virtual bool Update();
 
-	virtual void Deactivate();
-	virtual void Activate(SG_DList& head);
+  virtual void Deactivate();
+  virtual void Activate(SG_DList &head);
 
-	/* --------------------------------------------------------------------- */
-	/* Python interface ---------------------------------------------------- */
-	/* --------------------------------------------------------------------- */
-
+  /* --------------------------------------------------------------------- */
+  /* Python interface ---------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
 };
 
 #endif
-

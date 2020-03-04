@@ -783,69 +783,6 @@ static void recalcData_spaceclip(TransInfo *t)
   }
 }
 
-/**
- * if pose bone (partial) selected, copy data.
- * context; posemode armature, with mirror editing enabled.
- *
- * \param pid: Optional, apply relative transform when set (has no effect on mirrored bones).
- */
-static void pose_transform_mirror_update(TransInfo *t,
-                                         TransDataContainer *tc,
-                                         Object *ob,
-                                         PoseInitData_Mirror *pid)
-{
-  float flip_mtx[4][4];
-  unit_m4(flip_mtx);
-  flip_mtx[0][0] = -1;
-
-  TransData *td = tc->data;
-  for (int i = tc->data_len; i--; td++) {
-    bPoseChannel *pchan_orig = td->extra;
-    BLI_assert(pchan_orig->bone->flag & BONE_TRANSFORM);
-    /* No layer check, correct mirror is more important. */
-    bPoseChannel *pchan = BKE_pose_channel_get_mirrored(ob->pose, pchan_orig->name);
-    if (pchan == NULL) {
-      continue;
-    }
-
-    /* Also do bbone scaling. */
-    pchan->bone->xwidth = pchan_orig->bone->xwidth;
-    pchan->bone->zwidth = pchan_orig->bone->zwidth;
-
-    /* We assume X-axis flipping for now. */
-    pchan->curve_in_x = pchan_orig->curve_in_x * -1;
-    pchan->curve_out_x = pchan_orig->curve_out_x * -1;
-    pchan->roll1 = pchan_orig->roll1 * -1;  // XXX?
-    pchan->roll2 = pchan_orig->roll2 * -1;  // XXX?
-
-    float pchan_mtx_final[4][4];
-    BKE_pchan_to_mat4(pchan_orig, pchan_mtx_final);
-    mul_m4_m4m4(pchan_mtx_final, pchan_mtx_final, flip_mtx);
-    mul_m4_m4m4(pchan_mtx_final, flip_mtx, pchan_mtx_final);
-    if (pid) {
-      mul_m4_m4m4(pchan_mtx_final, pid->offset_mtx, pchan_mtx_final);
-    }
-    BKE_pchan_apply_mat4(pchan, pchan_mtx_final, false);
-
-    /* In this case we can do target-less IK grabbing. */
-    if (t->mode == TFM_TRANSLATION) {
-      bKinematicConstraint *data = has_targetless_ik(pchan);
-      if (data == NULL) {
-        continue;
-      }
-      mul_v3_m4v3(data->grabtarget, flip_mtx, td->loc);
-      if (pid) {
-        /* TODO(germano): Realitve Mirror support */
-      }
-      data->flag |= CONSTRAINT_IK_AUTO;
-    }
-
-    if (pid) {
-      pid++;
-    }
-  }
-}
-
 /* helper for recalcData() - for object transforms, typically in the 3D view */
 static void recalcData_objects(TransInfo *t)
 {
@@ -1058,7 +995,7 @@ static void recalcData_objects(TransInfo *t)
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
         bPose *pose = ob->pose;
         if (arm->flag & ARM_MIRROR_EDIT || pose->flag & POSE_MIRROR_EDIT) {
-          pose_transform_mirror_update(t, tc, ob, NULL);
+          pose_transform_mirror_update(t, tc, ob);
         }
       }
     }
@@ -1072,11 +1009,7 @@ static void recalcData_objects(TransInfo *t)
 
       if (pose->flag & POSE_MIRROR_EDIT) {
         if (t->state != TRANS_CANCEL) {
-          PoseInitData_Mirror *pid = NULL;
-          if (pose->flag & POSE_MIRROR_RELATIVE) {
-            pid = tc->custom.type.data;
-          }
-          pose_transform_mirror_update(t, tc, ob, pid);
+          pose_transform_mirror_update(t, tc, ob);
         }
         else {
           restoreMirrorPoseBones(tc);
@@ -1469,20 +1402,16 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   t->redraw = TREDRAW_HARD; /* redraw first time */
 
+  int mval[2];
   if (event) {
-    t->mouse.imval[0] = event->mval[0];
-    t->mouse.imval[1] = event->mval[1];
+    copy_v2_v2_int(mval, event->mval);
   }
   else {
-    t->mouse.imval[0] = 0;
-    t->mouse.imval[1] = 0;
+    zero_v2_int(mval);
   }
-
-  t->con.imval[0] = t->mouse.imval[0];
-  t->con.imval[1] = t->mouse.imval[1];
-
-  t->mval[0] = t->mouse.imval[0];
-  t->mval[1] = t->mouse.imval[1];
+  copy_v2_v2_int(t->mval, mval);
+  copy_v2_v2_int(t->mouse.imval, mval);
+  copy_v2_v2_int(t->con.imval, mval);
 
   t->transform = NULL;
   t->handleEvent = NULL;
@@ -1696,10 +1625,9 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
        /* When using redo, don't use the custom constraint matrix
         * if the user selects a different orientation. */
        (RNA_enum_get(op->ptr, "orient_type") == RNA_enum_get(op->ptr, "orient_matrix_type")))) {
-    RNA_property_float_get_array(op->ptr, prop, &t->spacemtx[0][0]);
+    RNA_property_float_get_array(op->ptr, prop, &t->orient_matrix[0][0]);
+    copy_m3_m3(t->spacemtx, t->orient_matrix);
     /* Some transform modes use this to operate on an axis. */
-    t->orient_matrix_is_set = true;
-    copy_m3_m3(t->orient_matrix, t->spacemtx);
     t->orient_matrix_is_set = true;
     t->orientation.user = V3D_ORIENT_CUSTOM_MATRIX;
     t->orientation.custom = 0;

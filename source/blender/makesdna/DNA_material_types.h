@@ -41,10 +41,10 @@ struct bNodeTree;
 
 /* Game Engine Options (old Texface mode, transp and flag) */
 typedef struct GameSettings {
-	int flag;
-	int alpha_blend;
-	int face_orientation;
-	int _pad1;
+  int flag;
+  int alpha_blend;
+  int face_orientation;
+  int _pad1;
 } GameSettings;
 
 typedef struct TexPaintSlot {
@@ -147,104 +147,102 @@ typedef enum eMaterialGPencilStyle_Mode {
 } eMaterialGPencilStyle_Mode;
 
 typedef struct Material {
-	ID id;
-	/** Animation data (must be immediately after id for utilities to use it). */
-	struct AnimData *adt;
+  ID id;
+  /** Animation data (must be immediately after id for utilities to use it). */
+  struct AnimData *adt;
 
-	short flag;
-	char _pad1[2];
+  short flag;
+  char _pad1[2];
 
-	/* Colors from Blender Internal that we are still using. */
-	float r, g, b, a;
-	float specr, specg, specb;
-	float alpha DNA_DEPRECATED;
-	float ray_mirror  DNA_DEPRECATED;
-	float spec;
-	/** Renamed and inversed to roughness. */
-	float gloss_mir  DNA_DEPRECATED;
-	float roughness;
-	float metallic;
+  /* Colors from Blender Internal that we are still using. */
+  float r, g, b, a;
+  float specr, specg, specb;
+  float alpha DNA_DEPRECATED;
+  float ray_mirror DNA_DEPRECATED;
+  float spec;
+  /** Renamed and inversed to roughness. */
+  float gloss_mir DNA_DEPRECATED;
+  float roughness;
+  float metallic;
 
-	/** Nodes */
-	char use_nodes;
+  /** Nodes */
+  char use_nodes;
 
-	/** Preview render. */
-	char pr_type;
-	short pr_texture;
-	short pr_flag;
+  /** Preview render. */
+  char pr_type;
+  short pr_texture;
+  short pr_flag;
 
-	/** Index for render passes. */
-	short index;
+  /** Index for render passes. */
+  short index;
 
-	struct bNodeTree *nodetree;
-	/** Old animation system, deprecated for 2.5. */
-	struct Ipo *ipo  DNA_DEPRECATED;
-	struct PreviewImage *preview;
+  struct bNodeTree *nodetree;
+  /** Old animation system, deprecated for 2.5. */
+  struct Ipo *ipo DNA_DEPRECATED;
+  struct PreviewImage *preview;
 
-	/* dynamic properties */
-	float friction DNA_DEPRECATED, fh DNA_DEPRECATED, reflect DNA_DEPRECATED;
-	float fhdist DNA_DEPRECATED, xyfrict DNA_DEPRECATED;
-	short dynamode DNA_DEPRECATED, _pad50[5];
-	struct GameSettings game;
+  /* dynamic properties */
+  float friction DNA_DEPRECATED, fh DNA_DEPRECATED, reflect DNA_DEPRECATED;
+  float fhdist DNA_DEPRECATED, xyfrict DNA_DEPRECATED;
+  short dynamode DNA_DEPRECATED, _pad50[5];
+  struct GameSettings game;
 
-	/* Freestyle line settings */
-	float line_col[4];
-	short line_priority;
-	short vcol_alpha;
+  /* Freestyle line settings */
+  float line_col[4];
+  short line_priority;
+  short vcol_alpha;
 
-	/* Texture painting slots. */
-	short paint_active_slot;
-	short paint_clone_slot;
-	short tot_slots;
-	char _pad2[2];
+  /* Texture painting slots. */
+  short paint_active_slot;
+  short paint_clone_slot;
+  short tot_slots;
+  char _pad2[2];
 
-	/* Transparency. */
-	float alpha_threshold;
-	float refract_depth;
-	char blend_method;
-	char blend_shadow;
-	char blend_flag;
-	char _pad3[1];
+  /* Transparency. */
+  float alpha_threshold;
+  float refract_depth;
+  char blend_method;
+  char blend_shadow;
+  char blend_flag;
+  char _pad3[1];
 
-	/**
-	 * Cached slots for texture painting, must be refreshed in
-	 * refresh_texpaint_image_cache before using.
-	 */
-	struct TexPaintSlot *texpaintslot;
+  /**
+   * Cached slots for texture painting, must be refreshed in
+   * refresh_texpaint_image_cache before using.
+   */
+  struct TexPaintSlot *texpaintslot;
 
-	/** Runtime cache for GLSL materials. */
-	ListBase gpumaterial;
+  /** Runtime cache for GLSL materials. */
+  ListBase gpumaterial;
 
-	/** Grease pencil color. */
-	struct MaterialGPencilStyle *gp_style;
+  /** Grease pencil color. */
+  struct MaterialGPencilStyle *gp_style;
 } Material;
-
 
 /* **************** GAME PROPERTIES ********************* */
 // Blend Transparency Options - alpha_blend /* match GPU_material::GPUBlendMode */
-#define GEMAT_SOLID		0 /* GPU_BLEND_SOLID */
-#define GEMAT_ADD		1 /* GPU_BLEND_ADD */
-#define	GEMAT_ALPHA		2 /* GPU_BLEND_ALPHA */
-#define GEMAT_CLIP		4 /* GPU_BLEND_CLIP */
-#define	GEMAT_ALPHA_SORT	8 /* GPU_BLEND_ALPHA_SORT */
-#define	GEMAT_ALPHA_TO_COVERAGE	16 /* GPU_BLEND_ALPHA_TO_COVERAGE */
+#define GEMAT_SOLID 0              /* GPU_BLEND_SOLID */
+#define GEMAT_ADD 1                /* GPU_BLEND_ADD */
+#define GEMAT_ALPHA 2              /* GPU_BLEND_ALPHA */
+#define GEMAT_CLIP 4               /* GPU_BLEND_CLIP */
+#define GEMAT_ALPHA_SORT 8         /* GPU_BLEND_ALPHA_SORT */
+#define GEMAT_ALPHA_TO_COVERAGE 16 /* GPU_BLEND_ALPHA_TO_COVERAGE */
 
 // Game Options - flag
-#define GEMAT_BACKCULL 		16 /* KX_BACKCULL */
-#define GEMAT_SHADED		32 /* KX_LIGHT */
-#define GEMAT_TEXT		64 /* RAS_RENDER_3DPOLYGON_TEXT */
-#define	GEMAT_NOPHYSICS		128
-#define GEMAT_INVISIBLE 	256
+#define GEMAT_BACKCULL 16 /* KX_BACKCULL */
+#define GEMAT_SHADED 32   /* KX_LIGHT */
+#define GEMAT_TEXT 64     /* RAS_RENDER_3DPOLYGON_TEXT */
+#define GEMAT_NOPHYSICS 128
+#define GEMAT_INVISIBLE 256
 
 // Face Orientation Options - face_orientation
-#define GEMAT_NORMAL		0
-#define GEMAT_HALO		512  /* BILLBOARD_SCREENALIGNED  */
-#define GEMAT_BILLBOARD		1024 /* BILLBOARD_AXISALIGNED */
-#define GEMAT_SHADOW		2048 /* SHADOW */
+#define GEMAT_NORMAL 0
+#define GEMAT_HALO 512       /* BILLBOARD_SCREENALIGNED  */
+#define GEMAT_BILLBOARD 1024 /* BILLBOARD_AXISALIGNED */
+#define GEMAT_SHADOW 2048    /* SHADOW */
 
 // Use Textures - not defined directly in the UI
-#define GEMAT_TEX		4096 /* KX_TEX */
-
+#define GEMAT_TEX 4096 /* KX_TEX */
 
 /* **************** MATERIAL ********************* */
 

@@ -19,38 +19,36 @@
 #ifndef __EXP_INTVALUE_H__
 #define __EXP_INTVALUE_H__
 
-
 #include "EXP_Value.h"
 
 typedef long long cInt;
 
-class CIntValue : public CPropValue
-{
-public:
-	CIntValue();
-	CIntValue(cInt innie);
-	CIntValue(cInt innie, const std::string& name);
-	virtual ~CIntValue();
+class CIntValue : public CPropValue {
+ public:
+  CIntValue();
+  CIntValue(cInt innie);
+  CIntValue(cInt innie, const std::string &name);
+  virtual ~CIntValue();
 
-	virtual std::string GetText();
-	virtual double GetNumber();
-	virtual int GetValueType();
+  virtual std::string GetText();
+  virtual double GetNumber();
+  virtual int GetValueType();
 
-	cInt GetInt();
+  cInt GetInt();
 
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+  virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
+  virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 
-	virtual void SetValue(CValue *newval);
+  virtual void SetValue(CValue *newval);
 
-	virtual CValue *GetReplica();
+  virtual CValue *GetReplica();
 
 #ifdef WITH_PYTHON
-	virtual PyObject *ConvertValueToPython();
+  virtual PyObject *ConvertValueToPython();
 #endif
 
-private:
-	cInt m_int;
+ private:
+  cInt m_int;
 };
 
 #endif  // __EXP_INTVALUE_H__

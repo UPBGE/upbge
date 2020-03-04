@@ -22,19 +22,18 @@
 #include "EXP_Expression.h"
 #include "EXP_Value.h"
 
-class CConstExpr : public CExpression
-{
-public:
-	CConstExpr();
-	CConstExpr(CValue *constval);
-	virtual ~CConstExpr();
+class CConstExpr : public CExpression {
+ public:
+  CConstExpr();
+  CConstExpr(CValue *constval);
+  virtual ~CConstExpr();
 
-	virtual unsigned char GetExpressionID();
-	virtual double GetNumber();
-	virtual CValue *Calculate();
+  virtual unsigned char GetExpressionID();
+  virtual double GetNumber();
+  virtual CValue *Calculate();
 
-private:
-	CValue *m_value;
+ private:
+  CValue *m_value;
 };
 
 #endif  // __EXP_CONSTEXPR_H__

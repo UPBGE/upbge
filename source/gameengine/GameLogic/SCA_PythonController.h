@@ -40,76 +40,74 @@
 #include <vector>
 
 class SCA_IObject;
-class SCA_PythonController : public SCA_IController
-{
-	Py_Header
+class SCA_PythonController : public SCA_IController {
+  Py_Header
 #ifdef WITH_PYTHON
-	struct _object *		m_bytecode; /* SCA_PYEXEC_SCRIPT only */
-	PyObject*				m_function; /* SCA_PYEXEC_MODULE only */
+      struct _object *m_bytecode; /* SCA_PYEXEC_SCRIPT only */
+  PyObject *m_function;           /* SCA_PYEXEC_MODULE only */
 #endif
-	int						m_function_argc;
-	bool					m_bModified;
-	bool					m_debug;	/* use with SCA_PYEXEC_MODULE for reloading every logic run */
-	int						m_mode;
+  int m_function_argc;
+  bool m_bModified;
+  bool m_debug; /* use with SCA_PYEXEC_MODULE for reloading every logic run */
+  int m_mode;
 
-	
  protected:
-	std::string				m_scriptText;
-	std::string				m_scriptName;
+  std::string m_scriptText;
+  std::string m_scriptName;
 #ifdef WITH_PYTHON
-	PyObject*				m_pythondictionary;	/* for SCA_PYEXEC_SCRIPT only */
-	PyObject*				m_pythonfunction;	/* for SCA_PYEXEC_MODULE only */
+  PyObject *m_pythondictionary; /* for SCA_PYEXEC_SCRIPT only */
+  PyObject *m_pythonfunction;   /* for SCA_PYEXEC_MODULE only */
 #endif
-	std::vector<class SCA_ISensor*>		m_triggeredSensors;
- 
+  std::vector<class SCA_ISensor *> m_triggeredSensors;
+
  public:
-	enum SCA_PyExecMode
-	{
-		SCA_PYEXEC_SCRIPT = 0,
-		SCA_PYEXEC_MODULE,
-		SCA_PYEXEC_MAX
-	};
+  enum SCA_PyExecMode { SCA_PYEXEC_SCRIPT = 0, SCA_PYEXEC_MODULE, SCA_PYEXEC_MAX };
 
-	static SCA_PythonController* m_sCurrentController; // protected !!!
+  static SCA_PythonController *m_sCurrentController;  // protected !!!
 
-	//for debugging
-	//virtual	CValue*		AddRef();
-	//virtual int			Release();  // Release a reference to this value (when reference count reaches 0, the value is removed from the heap)
+  // for debugging
+  // virtual	CValue*		AddRef();
+  // virtual int			Release();  // Release a reference to this value (when reference count
+  // reaches 0, the value is removed from the heap)
 
-	SCA_PythonController(SCA_IObject* gameobj, int mode);
-	virtual ~SCA_PythonController();
+  SCA_PythonController(SCA_IObject *gameobj, int mode);
+  virtual ~SCA_PythonController();
 
-	virtual CValue* GetReplica();
-	virtual void  Trigger(class SCA_LogicManager* logicmgr);
-  
-	void	SetScriptText(const std::string& text);
-	void	SetScriptName(const std::string& name);
-	void	SetDebug(bool debug) { m_debug = debug; }
-	void	AddTriggeredSensor(class SCA_ISensor* sensor)
-		{ m_triggeredSensors.push_back(sensor); }
-	bool	IsTriggered(class SCA_ISensor* sensor);
-	bool	Compile();
-	bool	Import();
-	void	ErrorPrint(const char *error_msg);
-	
+  virtual CValue *GetReplica();
+  virtual void Trigger(class SCA_LogicManager *logicmgr);
+
+  void SetScriptText(const std::string &text);
+  void SetScriptName(const std::string &name);
+  void SetDebug(bool debug)
+  {
+    m_debug = debug;
+  }
+  void AddTriggeredSensor(class SCA_ISensor *sensor)
+  {
+    m_triggeredSensors.push_back(sensor);
+  }
+  bool IsTriggered(class SCA_ISensor *sensor);
+  bool Compile();
+  bool Import();
+  void ErrorPrint(const char *error_msg);
+
 #ifdef WITH_PYTHON
-	static const char *sPyGetCurrentController__doc__;
-	static PyObject   *sPyGetCurrentController(PyObject *self);
-	static const char *sPyAddActiveActuator__doc__;
-	static PyObject   *sPyAddActiveActuator(PyObject *self,
-	                                        PyObject *args);
-	static SCA_IActuator* LinkedActuatorFromPy(PyObject *value);
+  static const char *sPyGetCurrentController__doc__;
+  static PyObject *sPyGetCurrentController(PyObject *self);
+  static const char *sPyAddActiveActuator__doc__;
+  static PyObject *sPyAddActiveActuator(PyObject *self, PyObject *args);
+  static SCA_IActuator *LinkedActuatorFromPy(PyObject *value);
 
-		
-	KX_PYMETHOD_O(SCA_PythonController,Activate);
-	KX_PYMETHOD_O(SCA_PythonController,DeActivate);
-	KX_PYMETHOD_O(SCA_PythonController,SetScript);
-	KX_PYMETHOD_NOARGS(SCA_PythonController,GetScript);
+  KX_PYMETHOD_O(SCA_PythonController, Activate);
+  KX_PYMETHOD_O(SCA_PythonController, DeActivate);
+  KX_PYMETHOD_O(SCA_PythonController, SetScript);
+  KX_PYMETHOD_NOARGS(SCA_PythonController, GetScript);
 
-	
-	static PyObject*	pyattr_get_script(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_script(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+  static PyObject *pyattr_get_script(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_script(PyObjectPlus *self_v,
+                               const KX_PYATTRIBUTE_DEF *attrdef,
+                               PyObject *value);
 #endif
 };
 
-#endif  /* __SCA_PYTHONCONTROLLER_H__ */
+#endif /* __SCA_PYTHONCONTROLLER_H__ */

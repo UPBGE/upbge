@@ -24,6 +24,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Depsgraph;
 struct Image;
 struct ImageUser;
@@ -145,7 +149,7 @@ void BKE_mask_copy_data(struct Main *bmain,
 struct Mask *BKE_mask_copy_nolib(struct Mask *mask);
 struct Mask *BKE_mask_copy(struct Main *bmain, const struct Mask *mask);
 
-void BKE_mask_make_local(struct Main *bmain, struct Mask *mask, const bool lib_local);
+void BKE_mask_make_local(struct Main *bmain, struct Mask *mask, const int flags);
 
 void BKE_mask_free(struct Mask *mask);
 
@@ -329,5 +333,9 @@ void BKE_maskrasterize_buffer(MaskRasterHandle *mr_handle,
                               const unsigned int width,
                               const unsigned int height,
                               float *buffer);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BKE_MASK_H__ */

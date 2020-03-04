@@ -174,10 +174,10 @@ void BKE_object_free_softbody(Object *ob)
 
 void BKE_object_free_bulletsoftbody(Object *ob)
 {
-	if (ob->bsoft) {
-		bsbFree(ob->bsoft);
-		ob->bsoft = NULL;
-	}
+  if (ob->bsoft) {
+    bsbFree(ob->bsoft);
+    ob->bsoft = NULL;
+  }
 }
 
 void BKE_object_free_curve_cache(Object *ob)
@@ -376,11 +376,11 @@ static void object_update_from_subsurf_ccg(Object *object)
    * (happens on dependency graph free where order of CoW-ed IDs free is undefined).
    *
    * Good news is: such mesh does not have modifiers applied, so no need to worry about CCG. */
-  if (!object->runtime.is_mesh_eval_owned) {
+  if (!object->runtime.is_data_eval_owned) {
     return;
   }
   /* Object was never evaluated, so can not have CCG subdivision surface. */
-  Mesh *mesh_eval = object->runtime.mesh_eval;
+  Mesh *mesh_eval = BKE_object_get_evaluated_mesh(object);
   if (mesh_eval == NULL) {
     return;
   }
@@ -423,18 +423,45 @@ static void object_update_from_subsurf_ccg(Object *object)
   /* TODO(sergey): Solve this somehow, to be fully stable for threaded
    * evaluation environment.
    */
-  /* NOTE: runtime.mesh_orig is what was before assigning mesh_eval,
+  /* NOTE: runtime.data_orig is what was before assigning mesh_eval,
    * it is orig as in what was in object_eval->data before evaluating
    * modifier stack.
    *
    * mesh_cow is a copy-on-written version od object_orig->data.
    */
-  Mesh *mesh_cow = object->runtime.mesh_orig;
+  Mesh *mesh_cow = (Mesh *)object->runtime.data_orig;
   copy_ccg_data(mesh_cow, mesh_orig, CD_MDISPS);
   copy_ccg_data(mesh_cow, mesh_orig, CD_GRID_PAINT_MASK);
   /* Everything is now up-to-date. */
   subdiv_ccg->dirty.coords = false;
   subdiv_ccg->dirty.hidden = false;
+}
+
+/* Assign data after modifier stack evaluation. */
+void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_owned)
+{
+  BLI_assert(object_eval->id.tag & LIB_TAG_COPIED_ON_WRITE);
+  BLI_assert(object_eval->runtime.data_eval == NULL);
+  BLI_assert(data_eval->tag & LIB_TAG_NO_MAIN);
+
+  if (is_owned) {
+    /* Set flag for debugging. */
+    data_eval->tag |= LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT;
+  }
+
+  /* Assigned evaluated data. */
+  object_eval->runtime.data_eval = data_eval;
+  object_eval->runtime.is_data_eval_owned = is_owned;
+
+  /* Overwrite data of evaluated object, if the datablock types match. */
+  ID *data = object_eval->data;
+  if (GS(data->name) == GS(data_eval->name)) {
+    /* NOTE: we are not supposed to invoke evaluation for original objects,
+     * but some areas are still being ported, so we play safe here. */
+    if (object_eval->id.tag & LIB_TAG_COPIED_ON_WRITE) {
+      object_eval->data = data_eval;
+    }
+  }
 }
 
 /* free data derived from mesh, called when mesh changes or is freed */
@@ -444,22 +471,29 @@ void BKE_object_free_derived_caches(Object *ob)
 
   object_update_from_subsurf_ccg(ob);
 
-  /* Restore initial pointer. */
-  if (ob->runtime.mesh_orig != NULL) {
-    ob->data = ob->runtime.mesh_orig;
-  }
-
-  if (ob->runtime.mesh_eval != NULL) {
-    if (ob->runtime.is_mesh_eval_owned) {
-      Mesh *mesh_eval = ob->runtime.mesh_eval;
-      BKE_mesh_eval_delete(mesh_eval);
+  if (ob->runtime.data_eval != NULL) {
+    if (ob->runtime.is_data_eval_owned) {
+      ID *data_eval = ob->runtime.data_eval;
+      if (GS(data_eval->name) == ID_ME) {
+        BKE_mesh_eval_delete((Mesh *)data_eval);
+      }
+      else {
+        BKE_libblock_free_datablock(data_eval, 0);
+        MEM_freeN(data_eval);
+      }
     }
-    ob->runtime.mesh_eval = NULL;
+    ob->runtime.data_eval = NULL;
   }
   if (ob->runtime.mesh_deform_eval != NULL) {
     Mesh *mesh_deform_eval = ob->runtime.mesh_deform_eval;
     BKE_mesh_eval_delete(mesh_deform_eval);
     ob->runtime.mesh_deform_eval = NULL;
+  }
+
+  /* Restore initial pointer for copy-on-write datablocks, object->data
+   * might be pointing to an evaluated datablock data was just freed above. */
+  if (ob->runtime.data_orig != NULL) {
+    ob->data = ob->runtime.data_orig;
   }
 
   BKE_object_to_mesh_clear(ob);
@@ -896,7 +930,7 @@ void BKE_object_init(Object *ob, const short ob_type)
   ob->jump_speed = 10.0f;
   ob->fall_speed = 55.0f;
   ob->max_jumps = 1;
-  //ob->max_slope = M_PI_2;
+  // ob->max_slope = M_PI_2;
   ob->col_group = 0x01;
   ob->col_mask = 0xffff;
 
@@ -1080,189 +1114,192 @@ void BKE_object_copy_softbody(struct Object *ob_dst, const struct Object *ob_src
 
 void BKE_object_lod_add(Object *ob)
 {
-	LodLevel *lod = MEM_callocN(sizeof(LodLevel), "LoD Level");
-	LodLevel *last = ob->lodlevels.last;
+  LodLevel *lod = MEM_callocN(sizeof(LodLevel), "LoD Level");
+  LodLevel *last = ob->lodlevels.last;
 
-	/* If the lod list is empty, initialize it with the base lod level */
-	if (!last) {
-		LodLevel *base = MEM_callocN(sizeof(LodLevel), "Base LoD Level");
-		BLI_addtail(&ob->lodlevels, base);
-		base->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
-		base->source = ob;
-		base->obhysteresis = 10;
-		last = ob->currentlod = base;
-	}
-	
-	lod->distance = last->distance + 25.0f;
-	lod->obhysteresis = 10;
-	lod->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
+  /* If the lod list is empty, initialize it with the base lod level */
+  if (!last) {
+    LodLevel *base = MEM_callocN(sizeof(LodLevel), "Base LoD Level");
+    BLI_addtail(&ob->lodlevels, base);
+    base->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
+    base->source = ob;
+    base->obhysteresis = 10;
+    last = ob->currentlod = base;
+  }
 
-	BLI_addtail(&ob->lodlevels, lod);
+  lod->distance = last->distance + 25.0f;
+  lod->obhysteresis = 10;
+  lod->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
+
+  BLI_addtail(&ob->lodlevels, lod);
 }
 
 static int lod_cmp(const void *a, const void *b)
 {
-	const LodLevel *loda = a;
-	const LodLevel *lodb = b;
+  const LodLevel *loda = a;
+  const LodLevel *lodb = b;
 
-	if (loda->distance < lodb->distance) return -1;
-	return loda->distance > lodb->distance;
+  if (loda->distance < lodb->distance)
+    return -1;
+  return loda->distance > lodb->distance;
 }
 
 void BKE_object_lod_sort(Object *ob)
 {
-	BLI_listbase_sort(&ob->lodlevels, lod_cmp);
+  BLI_listbase_sort(&ob->lodlevels, lod_cmp);
 }
 
 bool BKE_object_lod_remove(Object *ob, int level)
 {
-	LodLevel *rem;
+  LodLevel *rem;
 
-	if (level < 1 || level > BLI_listbase_count(&ob->lodlevels) - 1)
-		return false;
+  if (level < 1 || level > BLI_listbase_count(&ob->lodlevels) - 1)
+    return false;
 
-	rem = BLI_findlink(&ob->lodlevels, level);
+  rem = BLI_findlink(&ob->lodlevels, level);
 
-	if (rem == ob->currentlod) {
-		ob->currentlod = rem->prev;
-	}
+  if (rem == ob->currentlod) {
+    ob->currentlod = rem->prev;
+  }
 
-	BLI_remlink(&ob->lodlevels, rem);
-	MEM_freeN(rem);
+  BLI_remlink(&ob->lodlevels, rem);
+  MEM_freeN(rem);
 
-	/* If there are no user defined lods, remove the base lod as well */
-	if (BLI_listbase_is_single(&ob->lodlevels)) {
-		LodLevel *base = ob->lodlevels.first;
-		BLI_remlink(&ob->lodlevels, base);
-		MEM_freeN(base);
-		ob->currentlod = NULL;
-	}
+  /* If there are no user defined lods, remove the base lod as well */
+  if (BLI_listbase_is_single(&ob->lodlevels)) {
+    LodLevel *base = ob->lodlevels.first;
+    BLI_remlink(&ob->lodlevels, base);
+    MEM_freeN(base);
+    ob->currentlod = NULL;
+  }
 
-	return true;
+  return true;
 }
 
 static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
 {
-	LodLevel *current = ob->currentlod;
-	float dist_sq;
+  LodLevel *current = ob->currentlod;
+  float dist_sq;
 
-	if (!current) return NULL;
+  if (!current)
+    return NULL;
 
-	dist_sq = len_squared_v3v3(ob->obmat[3], camera_position);
+  dist_sq = len_squared_v3v3(ob->obmat[3], camera_position);
 
-	if (dist_sq < SQUARE(current->distance)) {
-		/* check for higher LoD */
-		while (current->prev && dist_sq < SQUARE(current->distance)) {
-			current = current->prev;
-		}
-	}
-	else {
-		/* check for lower LoD */
-		while (current->next && dist_sq > SQUARE(current->next->distance)) {
-			current = current->next;
-		}
-	}
+  if (dist_sq < SQUARE(current->distance)) {
+    /* check for higher LoD */
+    while (current->prev && dist_sq < SQUARE(current->distance)) {
+      current = current->prev;
+    }
+  }
+  else {
+    /* check for lower LoD */
+    while (current->next && dist_sq > SQUARE(current->next->distance)) {
+      current = current->next;
+    }
+  }
 
-	return current;
+  return current;
 }
 
 bool BKE_object_lod_is_usable(Object *ob)
 {
-	return (ob->mode == OB_MODE_OBJECT);
+  return (ob->mode == OB_MODE_OBJECT);
 }
 
 void BKE_object_lod_update(Object *ob, const float camera_position[3])
 {
-	LodLevel *cur_level = ob->currentlod;
-	LodLevel *new_level = lod_level_select(ob, camera_position);
+  LodLevel *cur_level = ob->currentlod;
+  LodLevel *new_level = lod_level_select(ob, camera_position);
 
-	if (new_level != cur_level) {
-		ob->currentlod = new_level;
+  if (new_level != cur_level) {
+    ob->currentlod = new_level;
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-	}
+  }
 }
 
-static Object *lod_ob_get(Object *ob, ViewLayer *view_layer/*, int flag*/)
+static Object *lod_ob_get(Object *ob, ViewLayer *view_layer /*, int flag*/)
 {
-	LodLevel *current = ob->currentlod;
+  LodLevel *current = ob->currentlod;
 
-	if (!current || !BKE_object_lod_is_usable(ob))
-		return ob;
+  if (!current || !BKE_object_lod_is_usable(ob))
+    return ob;
 
-	while (current->prev && (/*!(current->flags & flag) ||*/ !current->source || current->source->type != OB_MESH)) {
-		current = current->prev;
-	}
+  while (current->prev &&
+         (/*!(current->flags & flag) ||*/ !current->source || current->source->type != OB_MESH)) {
+    current = current->prev;
+  }
 
-	return current->source;
+  return current->source;
 }
 
 struct Object *BKE_object_lod_meshob_get(Object *ob, ViewLayer *view_layer)
 {
-	return lod_ob_get(ob, view_layer/*, OB_LOD_USE_MESH*/);
+  return lod_ob_get(ob, view_layer /*, OB_LOD_USE_MESH*/);
 }
 
-//struct Object *BKE_object_lod_matob_get(Object *ob, ViewLayer *view_layer)
+// struct Object *BKE_object_lod_matob_get(Object *ob, ViewLayer *view_layer)
 //{
 //	return lod_ob_get(ob, view_layer, OB_LOD_USE_MAT);
 //}
 
-#endif  /* WITH_GAMEENGINE */
-
+#endif /* WITH_GAMEENGINE */
 
 SoftBody *copy_softbody(const SoftBody *sb, const int flag)
 {
-	SoftBody *sbn;
+  SoftBody *sbn;
 
-	if (sb == NULL) return(NULL);
+  if (sb == NULL)
+    return (NULL);
 
-	sbn = MEM_dupallocN(sb);
+  sbn = MEM_dupallocN(sb);
 
-	if ((flag & LIB_ID_COPY_CACHES) == 0) {
-		sbn->totspring = sbn->totpoint = 0;
-		sbn->bpoint = NULL;
-		sbn->bspring = NULL;
-	}
-	else {
-		sbn->totspring = sb->totspring;
-		sbn->totpoint = sb->totpoint;
+  if ((flag & LIB_ID_COPY_CACHES) == 0) {
+    sbn->totspring = sbn->totpoint = 0;
+    sbn->bpoint = NULL;
+    sbn->bspring = NULL;
+  }
+  else {
+    sbn->totspring = sb->totspring;
+    sbn->totpoint = sb->totpoint;
 
-		if (sbn->bpoint) {
-			int i;
+    if (sbn->bpoint) {
+      int i;
 
-			sbn->bpoint = MEM_dupallocN(sbn->bpoint);
+      sbn->bpoint = MEM_dupallocN(sbn->bpoint);
 
-			for (i = 0; i < sbn->totpoint; i++) {
-				if (sbn->bpoint[i].springs)
-					sbn->bpoint[i].springs = MEM_dupallocN(sbn->bpoint[i].springs);
-			}
-		}
+      for (i = 0; i < sbn->totpoint; i++) {
+        if (sbn->bpoint[i].springs)
+          sbn->bpoint[i].springs = MEM_dupallocN(sbn->bpoint[i].springs);
+      }
+    }
 
-		if (sb->bspring)
-			sbn->bspring = MEM_dupallocN(sb->bspring);
-	}
+    if (sb->bspring)
+      sbn->bspring = MEM_dupallocN(sb->bspring);
+  }
 
-	sbn->keys = NULL;
-	sbn->totkey = sbn->totpointkey = 0;
+  sbn->keys = NULL;
+  sbn->totkey = sbn->totpointkey = 0;
 
-	sbn->scratch = NULL;
+  sbn->scratch = NULL;
 
-	sbn->pointcache = BKE_ptcache_copy_list(&sbn->ptcaches, &sb->ptcaches, flag);
+  sbn->pointcache = BKE_ptcache_copy_list(&sbn->ptcaches, &sb->ptcaches, flag);
 
-	if (sb->effector_weights)
-		sbn->effector_weights = MEM_dupallocN(sb->effector_weights);
+  if (sb->effector_weights)
+    sbn->effector_weights = MEM_dupallocN(sb->effector_weights);
 
-	return sbn;
+  return sbn;
 }
 
 BulletSoftBody *copy_bulletsoftbody(const BulletSoftBody *bsb, const int UNUSED(flag))
 {
-	BulletSoftBody *bsbn;
+  BulletSoftBody *bsbn;
 
-	if (bsb == NULL)
-		return NULL;
-	bsbn = MEM_dupallocN(bsb);
-	/* no pointer in this structure yet */
-	return bsbn;
+  if (bsb == NULL)
+    return NULL;
+  bsbn = MEM_dupallocN(bsb);
+  /* no pointer in this structure yet */
+  return bsbn;
 }
 
 ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys, const int flag)
@@ -1401,9 +1438,9 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
 
 static void copy_object_lod(Object *obn, const Object *ob, const int UNUSED(flag))
 {
-	BLI_duplicatelist(&obn->lodlevels, &ob->lodlevels);
+  BLI_duplicatelist(&obn->lodlevels, &ob->lodlevels);
 
-	obn->currentlod = (LodLevel *)obn->lodlevels.first;
+  obn->currentlod = (LodLevel *)obn->lodlevels.first;
 }
 
 bool BKE_object_pose_context_check(const Object *ob)
@@ -1946,11 +1983,10 @@ Object *BKE_object_duplicate(Main *bmain, const Object *ob, const int dupflag)
   return obn;
 }
 
-void BKE_object_make_local_ex(Main *bmain,
-                              Object *ob,
-                              const bool lib_local,
-                              const bool clear_proxy)
+void BKE_object_make_local(Main *bmain, Object *ob, const int flags)
 {
+  const bool lib_local = (flags & LIB_ID_MAKELOCAL_FULL_LIBRARY) != 0;
+  const bool clear_proxy = (flags & LIB_ID_MAKELOCAL_OBJECT_NO_PROXY_CLEARING) == 0;
   bool is_local = false, is_lib = false;
 
   /* - only lib users: do nothing (unless force_local is set)
@@ -1968,8 +2004,8 @@ void BKE_object_make_local_ex(Main *bmain,
 
   if (lib_local || is_local) {
     if (!is_lib) {
-      id_clear_lib_data(bmain, &ob->id);
-      BKE_id_expand_local(bmain, &ob->id);
+      BKE_lib_id_clear_library_data(bmain, &ob->id);
+      BKE_lib_id_expand_local(bmain, &ob->id);
       if (clear_proxy) {
         if (ob->proxy_from != NULL) {
           ob->proxy_from->proxy = NULL;
@@ -1992,11 +2028,6 @@ void BKE_object_make_local_ex(Main *bmain,
       }
     }
   }
-}
-
-void BKE_object_make_local(Main *bmain, Object *ob, const bool lib_local)
-{
-  BKE_object_make_local_ex(bmain, ob, lib_local, true);
 }
 
 /* Returns true if the Object is from an external blend file (libdata) */
@@ -2547,7 +2578,7 @@ static void give_parvert(Object *par, int nr, float vec[3])
   if (par->type == OB_MESH) {
     Mesh *me = par->data;
     BMEditMesh *em = me->edit_mesh;
-    Mesh *me_eval = (em) ? em->mesh_eval_final : par->runtime.mesh_eval;
+    Mesh *me_eval = (em) ? em->mesh_eval_final : BKE_object_get_evaluated_mesh(par);
 
     if (me_eval) {
       int count = 0;
@@ -3306,12 +3337,12 @@ void BKE_object_foreach_display_point(Object *ob,
                                       void (*func_cb)(const float[3], void *),
                                       void *user_data)
 {
+  Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
   float co[3];
 
-  if (ob->runtime.mesh_eval) {
-    const Mesh *me = ob->runtime.mesh_eval;
-    const MVert *mv = me->mvert;
-    const int totvert = me->totvert;
+  if (mesh_eval != NULL) {
+    const MVert *mv = mesh_eval->mvert;
+    const int totvert = mesh_eval->totvert;
     for (int i = 0; i < totvert; i++, mv++) {
       mul_v3_m4v3(co, obmat, mv->co);
       func_cb(co, user_data);
@@ -3581,24 +3612,11 @@ int BKE_object_obdata_texspace_get(Object *ob, short **r_texflag, float **r_loc,
   return 1;
 }
 
-/** Get evaluated mesh for given (main, original) object and depsgraph. */
-Mesh *BKE_object_get_evaluated_mesh(const Depsgraph *depsgraph, Object *ob)
+/** Get evaluated mesh for given object. */
+Mesh *BKE_object_get_evaluated_mesh(Object *object)
 {
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-  return ob_eval->runtime.mesh_eval;
-}
-
-/* Get object's mesh with all modifiers applied. */
-Mesh *BKE_object_get_final_mesh(Object *object)
-{
-  if (object->runtime.mesh_eval != NULL) {
-    BLI_assert((object->id.tag & LIB_TAG_COPIED_ON_WRITE) != 0);
-    BLI_assert(object->runtime.mesh_eval == object->data);
-    BLI_assert((object->runtime.mesh_eval->id.tag & LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT) != 0);
-    return object->runtime.mesh_eval;
-  }
-  /* Wasn't evaluated yet. */
-  return object->data;
+  ID *data_eval = object->runtime.data_eval;
+  return (data_eval && GS(data_eval->name) == ID_ME) ? (Mesh *)data_eval : NULL;
 }
 
 /* Get mesh which is not affected by modifiers:
@@ -3609,11 +3627,11 @@ Mesh *BKE_object_get_final_mesh(Object *object)
  */
 Mesh *BKE_object_get_pre_modified_mesh(Object *object)
 {
-  if (object->runtime.mesh_orig != NULL) {
+  if (object->type == OB_MESH && object->runtime.data_orig != NULL) {
     BLI_assert(object->id.tag & LIB_TAG_COPIED_ON_WRITE);
     BLI_assert(object->id.orig_id != NULL);
-    BLI_assert(object->runtime.mesh_orig->id.orig_id == ((Object *)object->id.orig_id)->data);
-    Mesh *result = object->runtime.mesh_orig;
+    BLI_assert(object->runtime.data_orig->orig_id == ((Object *)object->id.orig_id)->data);
+    Mesh *result = (Mesh *)object->runtime.data_orig;
     BLI_assert((result->id.tag & LIB_TAG_COPIED_ON_WRITE) != 0);
     BLI_assert((result->id.tag & LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT) == 0);
     return result;
@@ -4164,7 +4182,7 @@ void BKE_object_runtime_reset(Object *object)
 void BKE_object_runtime_reset_on_copy(Object *object, const int UNUSED(flag))
 {
   Object_Runtime *runtime = &object->runtime;
-  runtime->mesh_eval = NULL;
+  runtime->data_eval = NULL;
   runtime->mesh_deform_eval = NULL;
   runtime->curve_cache = NULL;
   runtime->gpencil_cache = NULL;
@@ -4707,4 +4725,3 @@ void BKE_object_to_mesh_clear(Object *object)
   BKE_id_free(NULL, object->runtime.object_as_temp_mesh);
   object->runtime.object_as_temp_mesh = NULL;
 }
-

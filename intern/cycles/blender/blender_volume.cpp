@@ -51,18 +51,13 @@ static void sync_smoke_volume(Scene *scene, BL::Object &b_ob, Mesh *mesh, float 
     Attribute *attr = mesh->attributes.add(std);
     VoxelAttribute *volume_data = attr->data_voxel();
     ImageMetaData metadata;
-    bool animated = false;
+
+    ImageKey key;
+    key.filename = Attribute::standard_name(std);
+    key.builtin_data = b_ob.ptr.data;
 
     volume_data->manager = image_manager;
-    volume_data->slot = image_manager->add_image(Attribute::standard_name(std),
-                                                 b_ob.ptr.data,
-                                                 animated,
-                                                 frame,
-                                                 INTERPOLATION_LINEAR,
-                                                 EXTENSION_CLIP,
-                                                 IMAGE_ALPHA_AUTO,
-                                                 u_colorspace_raw,
-                                                 metadata);
+    volume_data->slot = image_manager->add_image(key, frame, metadata);
   }
 
   /* Create a matrix to transform from object space to mesh texture space.
@@ -80,9 +75,12 @@ static void sync_smoke_volume(Scene *scene, BL::Object &b_ob, Mesh *mesh, float 
   }
 }
 
-void BlenderSync::sync_volume(BL::Object &b_ob, Mesh *mesh)
+void BlenderSync::sync_volume(BL::Object &b_ob, Mesh *mesh, const vector<Shader *> &used_shaders)
 {
   bool old_has_voxel_attributes = mesh->has_voxel_attributes();
+
+  mesh->clear();
+  mesh->used_shaders = used_shaders;
 
   /* Smoke domain. */
   sync_smoke_volume(scene, b_ob, mesh, b_scene.frame_current());

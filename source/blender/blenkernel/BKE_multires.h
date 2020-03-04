@@ -26,6 +26,10 @@
 
 #include "BLI_compiler_compat.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum MultiresModifiedFlags;
 
 struct Depsgraph;
@@ -53,9 +57,9 @@ void multires_mark_as_modified(struct Depsgraph *depsgraph,
                                struct Object *object,
                                enum MultiresModifiedFlags flags);
 
-void multires_flush_sculpt_updates(struct Object *ob);
-void multires_force_sculpt_rebuild(struct Object *ob);
-void multires_force_external_reload(struct Object *ob);
+void multires_flush_sculpt_updates(struct Object *object);
+void multires_force_sculpt_rebuild(struct Object *object);
+void multires_force_external_reload(struct Object *object);
 
 /* internal, only called in subsurf_ccg.c */
 void multires_modifier_update_mdisps(struct DerivedMesh *dm, struct Scene *scene);
@@ -183,6 +187,10 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(float tangent_matrix[3][3]
                                                       const int corner);
 
 int BKE_multires_sculpt_level_get(const struct MultiresModifierData *mmd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #include "intern/multires_inline.h"
 

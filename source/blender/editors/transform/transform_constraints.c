@@ -32,8 +32,6 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BIF_glutil.h"
-
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 #include "GPU_state.h"
@@ -45,7 +43,6 @@
 
 #include "BKE_context.h"
 
-#include "ED_image.h"
 #include "ED_view3d.h"
 
 #include "BLT_translation.h"
@@ -54,6 +51,9 @@
 
 #include "transform.h"
 #include "transform_snap.h"
+
+/* Own include. */
+#include "transform_constraints.h"
 
 static void drawObjectConstraint(TransInfo *t);
 

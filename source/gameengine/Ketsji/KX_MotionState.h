@@ -36,23 +36,22 @@
 
 class SG_Node;
 
-class KX_MotionState : public PHY_IMotionState
-{
-	SG_Node *m_node;
+class KX_MotionState : public PHY_IMotionState {
+  SG_Node *m_node;
 
-public:
-	KX_MotionState(SG_Node *spatial);
-	virtual ~KX_MotionState();
+ public:
+  KX_MotionState(SG_Node *spatial);
+  virtual ~KX_MotionState();
 
-	virtual MT_Vector3 GetWorldPosition() const;
-	virtual MT_Vector3 GetWorldScaling() const;
-	virtual MT_Matrix3x3 GetWorldOrientation() const;
+  virtual MT_Vector3 GetWorldPosition() const;
+  virtual MT_Vector3 GetWorldScaling() const;
+  virtual MT_Matrix3x3 GetWorldOrientation() const;
 
-	virtual void SetWorldPosition(const MT_Vector3& pos);
-	virtual void SetWorldOrientation(const MT_Matrix3x3& ori);
-	virtual void SetWorldOrientation(const MT_Quaternion& quat);
+  virtual void SetWorldPosition(const MT_Vector3 &pos);
+  virtual void SetWorldOrientation(const MT_Matrix3x3 &ori);
+  virtual void SetWorldOrientation(const MT_Quaternion &quat);
 
-	virtual void CalculateWorldTransformations();
+  virtual void CalculateWorldTransformations();
 };
 
 #endif  // __KX_MOTIONSTATE_H__

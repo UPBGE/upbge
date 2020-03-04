@@ -24,7 +24,6 @@
  *  \ingroup device
  */
 
-
 #include "DEV_EventConsumer.h"
 #include "DEV_InputDevice.h"
 
@@ -38,16 +37,17 @@
 
 #include <iostream>
 
-DEV_EventConsumer::DEV_EventConsumer(GHOST_ISystem *system, DEV_InputDevice *device, RAS_ICanvas *canvas)
-	:m_device(device),
-	m_canvas(canvas)
+DEV_EventConsumer::DEV_EventConsumer(GHOST_ISystem *system,
+                                     DEV_InputDevice *device,
+                                     RAS_ICanvas *canvas)
+    : m_device(device), m_canvas(canvas)
 {
-	// Setup the default mouse position.
-	int cursorx, cursory;
-	system->getCursorPosition(cursorx, cursory);
-	int x, y;
-	m_canvas->ConvertMousePosition(cursorx, cursory, x, y, true);
-	m_device->ConvertMoveEvent(x, y);
+  // Setup the default mouse position.
+  int cursorx, cursory;
+  system->getCursorPosition(cursorx, cursory);
+  int x, y;
+  m_canvas->ConvertMousePosition(cursorx, cursory, x, y, true);
+  m_device->ConvertMoveEvent(x, y);
 }
 
 DEV_EventConsumer::~DEV_EventConsumer()
@@ -56,87 +56,81 @@ DEV_EventConsumer::~DEV_EventConsumer()
 
 void DEV_EventConsumer::HandleWindowEvent(GHOST_TEventType type)
 {
-	m_device->ConvertWindowEvent(type);
+  m_device->ConvertWindowEvent(type);
 }
 
 void DEV_EventConsumer::HandleKeyEvent(GHOST_TEventDataPtr data, bool down)
 {
-	GHOST_TEventKeyData *keyData = (GHOST_TEventKeyData *)data;
-	unsigned int unicode = keyData->utf8_buf[0] ? BLI_str_utf8_as_unicode(keyData->utf8_buf) : keyData->ascii;
-	m_device->ConvertKeyEvent(keyData->key, down, unicode);
+  GHOST_TEventKeyData *keyData = (GHOST_TEventKeyData *)data;
+  unsigned int unicode = keyData->utf8_buf[0] ? BLI_str_utf8_as_unicode(keyData->utf8_buf) :
+                                                keyData->ascii;
+  m_device->ConvertKeyEvent(keyData->key, down, unicode);
 }
 
 void DEV_EventConsumer::HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow *window)
 {
-	GHOST_TEventCursorData *cursorData = (GHOST_TEventCursorData *)data;
-	int x, y;
-	m_canvas->ConvertMousePosition(cursorData->x, cursorData->y, x, y, false);
+  GHOST_TEventCursorData *cursorData = (GHOST_TEventCursorData *)data;
+  int x, y;
+  m_canvas->ConvertMousePosition(cursorData->x, cursorData->y, x, y, false);
 
-	m_device->ConvertMoveEvent(x, y);
+  m_device->ConvertMoveEvent(x, y);
 }
 
 void DEV_EventConsumer::HandleWheelEvent(GHOST_TEventDataPtr data)
 {
-	GHOST_TEventWheelData* wheelData = (GHOST_TEventWheelData *)data;
+  GHOST_TEventWheelData *wheelData = (GHOST_TEventWheelData *)data;
 
-	m_device->ConvertWheelEvent(wheelData->z);
+  m_device->ConvertWheelEvent(wheelData->z);
 }
 
 void DEV_EventConsumer::HandleButtonEvent(GHOST_TEventDataPtr data, bool down)
 {
-	GHOST_TEventButtonData *buttonData = (GHOST_TEventButtonData *)data;
+  GHOST_TEventButtonData *buttonData = (GHOST_TEventButtonData *)data;
 
-	m_device->ConvertButtonEvent(buttonData->button, down);
+  m_device->ConvertButtonEvent(buttonData->button, down);
 }
 
 bool DEV_EventConsumer::processEvent(GHOST_IEvent *event)
 {
-	GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
-	switch (event->getType()) {
-		case GHOST_kEventButtonDown:
-		{
-			HandleButtonEvent(eventData, true);
-			break;
-		}
+  GHOST_TEventDataPtr eventData = ((GHOST_IEvent *)event)->getData();
+  switch (event->getType()) {
+    case GHOST_kEventButtonDown: {
+      HandleButtonEvent(eventData, true);
+      break;
+    }
 
-		case GHOST_kEventButtonUp:
-		{
-			HandleButtonEvent(eventData, false);
-			break;
-		}
+    case GHOST_kEventButtonUp: {
+      HandleButtonEvent(eventData, false);
+      break;
+    }
 
-		case GHOST_kEventWheel:
-		{
-			HandleWheelEvent(eventData);
-			break;
-		}
+    case GHOST_kEventWheel: {
+      HandleWheelEvent(eventData);
+      break;
+    }
 
-		case GHOST_kEventCursorMove:
-		{
-			HandleCursorEvent(eventData, event->getWindow());
-			break;
-		}
+    case GHOST_kEventCursorMove: {
+      HandleCursorEvent(eventData, event->getWindow());
+      break;
+    }
 
-		case GHOST_kEventKeyDown:
-		{
-			HandleKeyEvent(eventData, true);
-			break;
-		}
-		case GHOST_kEventKeyUp:
-		{
-			HandleKeyEvent(eventData, false);
-			break;
-		}
-		case GHOST_kEventWindowSize:
-		case GHOST_kEventWindowClose:
-		case GHOST_kEventQuitRequest:
-		{
-			HandleWindowEvent(event->getType());
-			break;
-		}
-		default:
-			break;
-	}
+    case GHOST_kEventKeyDown: {
+      HandleKeyEvent(eventData, true);
+      break;
+    }
+    case GHOST_kEventKeyUp: {
+      HandleKeyEvent(eventData, false);
+      break;
+    }
+    case GHOST_kEventWindowSize:
+    case GHOST_kEventWindowClose:
+    case GHOST_kEventQuitRequest: {
+      HandleWindowEvent(event->getType());
+      break;
+    }
+    default:
+      break;
+  }
 
-	return true;
+  return true;
 }

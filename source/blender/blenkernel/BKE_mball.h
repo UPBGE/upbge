@@ -22,6 +22,11 @@
 /** \file
  * \ingroup bke
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Base;
 struct BoundBox;
 struct Depsgraph;
@@ -40,7 +45,7 @@ void BKE_mball_copy_data(struct Main *bmain,
                          const int flag);
 struct MetaBall *BKE_mball_copy(struct Main *bmain, const struct MetaBall *mb);
 
-void BKE_mball_make_local(struct Main *bmain, struct MetaBall *mb, const bool lib_local);
+void BKE_mball_make_local(struct Main *bmain, struct MetaBall *mb, const int flags);
 
 bool BKE_mball_is_any_selected(const struct MetaBall *mb);
 bool BKE_mball_is_any_selected_multi(struct Base **bases, int bases_len);
@@ -91,5 +96,9 @@ void BKE_mball_batch_cache_free(struct MetaBall *mb);
 
 extern void (*BKE_mball_batch_cache_dirty_tag_cb)(struct MetaBall *mb, int mode);
 extern void (*BKE_mball_batch_cache_free_cb)(struct MetaBall *mb);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

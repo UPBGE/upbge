@@ -2263,10 +2263,22 @@ static void rna_property_update(
   }
 
   if (!is_rna || (prop->flag & PROP_IDPROPERTY)) {
-    /* WARNING! This is so property drivers update the display!
-     * not especially nice  */
+
+    /* Disclaimer: this logic is not applied consistently, causing some confusing behavior.
+     *
+     * - When animated (which skips update functions).
+     * - When ID-properties are edited via Python (since RNA properties aren't used in this case).
+     *
+     * Adding updates will add a lot of overhead in the case of animation.
+     * For Python it may cause unexpected slow-downs for developers using ID-properties
+     * for data storage. Further, the root ID isn't available with nested data-structures.
+     *
+     * So editing custom properties only causes updates in the UI,
+     * keep this exception because it happens to be useful for driving settings.
+     * Python developers on the other hand will need to manually 'update_tag', see: T74000. */
     DEG_id_tag_update(ptr->owner_id,
                       ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_PARAMETERS);
+
     WM_main_add_notifier(NC_WINDOW, NULL);
     /* Not nice as well, but the only way to make sure material preview
      * is updated with custom nodes.
@@ -3771,7 +3783,7 @@ void RNA_property_pointer_set(PointerRNA *ptr,
     if (ptr_value.type != NULL && !RNA_struct_is_a(ptr_value.type, pprop->type)) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "%s: expected %s type, not %s.\n",
+                  "%s: expected %s type, not %s",
                   __func__,
                   pprop->type->identifier,
                   ptr_value.type->identifier);
@@ -3783,7 +3795,7 @@ void RNA_property_pointer_set(PointerRNA *ptr,
     if (ptr_value.type != NULL && !RNA_struct_is_a(ptr_value.type, &RNA_ID)) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "%s: expected ID type, not %s.\n",
+                  "%s: expected ID type, not %s",
                   __func__,
                   ptr_value.type->identifier);
       return;

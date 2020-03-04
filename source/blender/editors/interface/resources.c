@@ -201,9 +201,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->back_grad;
           break;
 
-        case TH_SHOW_BACK_GRAD:
+        case TH_BACKGROUND_TYPE:
           cp = &setting;
-          setting = ts->show_back_grad;
+          setting = ts->background_type;
           break;
         case TH_TEXT:
           if (theme_regionid == RGN_TYPE_WINDOW) {
@@ -315,6 +315,12 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_TIME_SCRUB_BACKGROUND:
           cp = ts->time_scrub_background;
+          break;
+        case TH_TIME_MARKER_LINE:
+          cp = ts->time_marker_line;
+          break;
+        case TH_TIME_MARKER_LINE_SELECTED:
+          cp = ts->time_marker_line_selected;
           break;
         case TH_VIEW_OVERLAY:
           cp = ts->view_overlay;
@@ -638,6 +644,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_NODE_CURVING:
           cp = &ts->noodle_curving;
+          break;
+        case TH_NODE_GRID_LEVELS:
+          cp = &ts->grid_levels;
           break;
 
         case TH_SEQ_MOVIE:

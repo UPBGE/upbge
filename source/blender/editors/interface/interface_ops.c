@@ -735,6 +735,8 @@ bool UI_context_copy_to_selected_list(bContext *C,
 {
   *r_use_path_from_id = false;
   *r_path = NULL;
+  /* special case for bone constraints */
+  char *path_from_bone = NULL;
 
   /* PropertyGroup objects don't have a reference to the struct that actually owns
    * them, so it is normally necessary to do a brute force search to find it. This
@@ -792,10 +794,24 @@ bool UI_context_copy_to_selected_list(bContext *C,
     ui_context_selected_bones_via_pose(C, r_lb);
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
-    *r_lb = CTX_data_collection_get(C, "selected_editable_sequences");
+    /* Special case when we do this for 'Sequence.lock'.
+     * (if the sequence is locked, it wont be in "selected_editable_sequences"). */
+    const char *prop_id = RNA_property_identifier(prop);
+    if (STREQ(prop_id, "lock")) {
+      *r_lb = CTX_data_collection_get(C, "selected_sequences");
+    }
+    else {
+      *r_lb = CTX_data_collection_get(C, "selected_editable_sequences");
+    }
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_FCurve)) {
     *r_lb = CTX_data_collection_get(C, "selected_editable_fcurves");
+  }
+  else if (RNA_struct_is_a(ptr->type, &RNA_Constraint) &&
+           (path_from_bone = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_PoseBone)) !=
+               NULL) {
+    *r_lb = CTX_data_collection_get(C, "selected_pose_bones");
+    *r_path = path_from_bone;
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Node) || RNA_struct_is_a(ptr->type, &RNA_NodeSocket)) {
     ListBase lb = {NULL, NULL};
@@ -893,7 +909,15 @@ bool UI_context_copy_to_selected_list(bContext *C,
       /* Try to recursively find an RNA_Sequence ancestor,
        * to handle situations like T41062... */
       if ((*r_path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Sequence)) != NULL) {
-        *r_lb = CTX_data_collection_get(C, "selected_editable_sequences");
+        /* Special case when we do this for 'Sequence.lock'.
+         * (if the sequence is locked, it wont be in "selected_editable_sequences"). */
+        const char *prop_id = RNA_property_identifier(prop);
+        if (STREQ(prop_id, "lock")) {
+          *r_lb = CTX_data_collection_get(C, "selected_sequences");
+        }
+        else {
+          *r_lb = CTX_data_collection_get(C, "selected_editable_sequences");
+        }
       }
     }
     return (*r_path != NULL);

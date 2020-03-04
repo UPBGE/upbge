@@ -420,11 +420,6 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 
   shader->program = glCreateProgram();
 
-  /****************Game engine transition******************/
-  glBindAttribLocation(shader->program, 0, "bgl_InPositon");
-  glBindAttribLocation(shader->program, 1, "bgl_InTexCoord");
-  /********************************************************/
-
   if (!shader->program || (vertexcode && !shader->vertex) || (fragcode && !shader->fragment) ||
       (geocode && !shader->geometry)) {
     fprintf(stderr, "GPUShader, object creation failed.\n");

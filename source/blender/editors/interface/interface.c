@@ -646,7 +646,8 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int das
   rcti rect;
   float color[4] = {1.0f};
 
-  if (line->from == NULL || line->to == NULL) return;
+  if (line->from == NULL || line->to == NULL)
+    return;
 
   rect.xmin = BLI_rctf_cent_x(&line->from->rect);
   rect.ymin = BLI_rctf_cent_y(&line->from->rect);
@@ -657,7 +658,8 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int das
     UI_GetThemeColor4fv(TH_GRID, color);
   else if (line->flag & UI_SELECT)
     rgba_float_args_set_ch(color, 120, 120, 120, 255);
-  else if (highlightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
+  else if (highlightActiveLines &&
+           ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
     UI_GetThemeColor4fv(TH_TEXT_HI, color);
   else
     rgba_float_args_set_ch(color, 100, 100, 100, 255);
@@ -778,7 +780,8 @@ uiBut *ui_but_find_new(uiBlock *block_new, const uiBut *but_old)
   return but_new;
 }
 
-/* oldbut is being inserted in new block, so we use the lines from new button, and replace button pointers */
+/* oldbut is being inserted in new block, so we use the lines from new button, and replace button
+ * pointers */
 static void ui_but_update_linklines(uiBlock *block, uiBut *oldbut, uiBut *newbut)
 {
   uiLinkLine *line;
@@ -786,9 +789,9 @@ static void ui_but_update_linklines(uiBlock *block, uiBut *oldbut, uiBut *newbut
 
   /* if active button is UI_BTYPE_LINK */
   if (newbut->type == UI_BTYPE_LINK && newbut->link) {
-	
+
     SWAP(uiLink *, oldbut->link, newbut->link);
-	
+
     for (line = oldbut->link->lines.first; line; line = line->next) {
       if (line->to == newbut)
         line->to = oldbut;
@@ -796,7 +799,7 @@ static void ui_but_update_linklines(uiBlock *block, uiBut *oldbut, uiBut *newbut
         line->from = oldbut;
     }
   }
-	
+
   /* check all other button links */
   for (but = block->buttons.first; but; but = but->next) {
     if (but != newbut && but->type == UI_BTYPE_LINK && but->link) {
@@ -2196,7 +2199,8 @@ static uiBut *ui_linkline_find_inlink(uiBlock *block, void *poin)
   but = block->buttons.first;
   while (but) {
     if (but->type == UI_BTYPE_INLINK) {
-      if (but->poin == poin) return but;
+      if (but->poin == poin)
+        return but;
     }
     but = but->next;
   }
@@ -2230,7 +2234,7 @@ void UI_block_links_compose(uiBlock *block)
   while (but) {
     if (but->type == UI_BTYPE_LINK) {
       link = but->link;
-	
+
       /* for all pointers in the array */
       if (link) {
         if (link->ppoin) {
@@ -2244,7 +2248,6 @@ void UI_block_links_compose(uiBlock *block)
               else {
                 ui_linkline_add(&link->lines, but, bt, false);
               }
-
             }
           }
         }
@@ -2264,7 +2267,6 @@ void UI_block_links_compose(uiBlock *block)
     but = but->next;
   }
 }
-
 
 /* ************************************************ */
 
@@ -2295,7 +2297,7 @@ void ui_linkline_remove(uiLinkLine *line, uiBut *but)
 
   /* are there more pointers allowed? */
   if (link->ppoin) {
-	
+
     if (*(link->totlink) == 1) {
       *(link->totlink) = 0;
       MEM_freeN(*(link->ppoin));
@@ -2317,7 +2319,7 @@ void ui_linkline_remove(uiLinkLine *line, uiBut *but)
   }
 
   MEM_freeN(line);
-  //REDRAW
+  // REDRAW
 }
 
 /* *********************** data get/set ***********************
@@ -3419,10 +3421,10 @@ static void ui_set_but_soft_range(uiBut *but)
 
 static void ui_free_link(uiLink *link)
 {
-	if (link) {
-		BLI_freelistN(&link->lines);
-		MEM_freeN(link);
-	}
+  if (link) {
+    BLI_freelistN(&link->lines);
+    MEM_freeN(link);
+  }
 }
 
 /* can be called with C==NULL */

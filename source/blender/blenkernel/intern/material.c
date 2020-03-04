@@ -230,9 +230,9 @@ Material *BKE_material_localize(Material *ma)
   return man;
 }
 
-void BKE_material_make_local(Main *bmain, Material *ma, const bool lib_local)
+void BKE_material_make_local(Main *bmain, Material *ma, const int flags)
 {
-  BKE_id_make_local_generic(bmain, &ma->id, true, lib_local);
+  BKE_lib_id_make_local_generic(bmain, &ma->id, flags);
 }
 
 Material ***BKE_object_material_array(Object *ob)
@@ -1608,6 +1608,7 @@ static void material_default_surface_init(Material *ma)
 {
   bNodeTree *ntree = ntreeAddTree(NULL, "Shader Nodetree", ntreeType_Shader->idname);
   ma->nodetree = ntree;
+  ma->use_nodes = true;
 
   bNode *principled = nodeAddStaticNode(NULL, ntree, SH_NODE_BSDF_PRINCIPLED);
   bNodeSocket *base_color = nodeFindSocket(principled, SOCK_IN, "Base Color");
@@ -1633,6 +1634,7 @@ static void material_default_volume_init(Material *ma)
 {
   bNodeTree *ntree = ntreeAddTree(NULL, "Shader Nodetree", ntreeType_Shader->idname);
   ma->nodetree = ntree;
+  ma->use_nodes = true;
 
   bNode *principled = nodeAddStaticNode(NULL, ntree, SH_NODE_VOLUME_PRINCIPLED);
   bNode *output = nodeAddStaticNode(NULL, ntree, SH_NODE_OUTPUT_MATERIAL);

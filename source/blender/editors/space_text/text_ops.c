@@ -820,13 +820,14 @@ static int text_refresh_pyconstraints_exec(bContext *UNUSED(C), wmOperator *UNUS
 {
 #ifdef WITH_PYTHON
 #  if 0
+  Main *bmain = CTX_data_main(C);
   Text *text = CTX_data_edit_text(C);
   Object *ob;
   bConstraint *con;
   short update;
 
   /* check all pyconstraints */
-  for (ob = CTX_data_main(C)->objects.first; ob; ob = ob->id.next) {
+  for (ob = bmain->objects.first; ob; ob = ob->id.next) {
     update = 0;
     if (ob->type == OB_ARMATURE && ob->pose) {
       bPoseChannel *pchan;
@@ -2315,7 +2316,7 @@ static int text_jump_exec(bContext *C, wmOperator *op)
 
 static int text_jump_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-  return WM_operator_props_dialog_popup(C, op, 200, 100);
+  return WM_operator_props_dialog_popup(C, op, 200);
 }
 
 void TEXT_OT_jump(wmOperatorType *ot)

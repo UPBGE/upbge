@@ -24,6 +24,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Depsgraph;
 struct ImBuf;
 struct Main;
@@ -39,7 +43,7 @@ void BKE_movieclip_copy_data(struct Main *bmain,
                              const struct MovieClip *clip_src,
                              const int flag);
 struct MovieClip *BKE_movieclip_copy(struct Main *bmain, const struct MovieClip *clip);
-void BKE_movieclip_make_local(struct Main *bmain, struct MovieClip *clip, const bool lib_local);
+void BKE_movieclip_make_local(struct Main *bmain, struct MovieClip *clip, const int flags);
 
 struct MovieClip *BKE_movieclip_file_add(struct Main *bmain, const char *name);
 struct MovieClip *BKE_movieclip_file_add_exists_ex(struct Main *bmain,
@@ -131,5 +135,9 @@ void BKE_movieclip_eval_selection_update(struct Depsgraph *depsgraph, struct Mov
 #define MOVIECLIP_DISABLE_GREEN (1 << 1)
 #define MOVIECLIP_DISABLE_BLUE (1 << 2)
 #define MOVIECLIP_PREVIEW_GRAYSCALE (1 << 3)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

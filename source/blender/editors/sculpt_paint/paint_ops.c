@@ -682,8 +682,7 @@ static void stencil_control_calculate(StencilControlData *scd, const int mval[2]
       if (scd->constrain_mode != STENCIL_CONSTRAINT_X) {
         mdiff[1] = factor * scd->init_sdim[1];
       }
-      CLAMP(mdiff[0], 5.0f, 10000.0f);
-      CLAMP(mdiff[1], 5.0f, 10000.0f);
+      clamp_v2(mdiff, 5.0f, 10000.0f);
       copy_v2_v2(scd->dim_target, mdiff);
       break;
     }
@@ -1062,7 +1061,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
   keymap->poll = weight_paint_mode_poll;
 
   /*Weight paint's Vertex Selection Mode */
-  keymap = WM_keymap_ensure(keyconf, "Weight Paint Vertex Selection", 0, 0);
+  keymap = WM_keymap_ensure(keyconf, "Paint Vertex Selection (Weight, Vertex)", 0, 0);
   keymap->poll = vert_paint_poll;
 
   /* Image/Texture Paint mode */
@@ -1070,7 +1069,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
   keymap->poll = image_texture_paint_poll;
 
   /* face-mask mode */
-  keymap = WM_keymap_ensure(keyconf, "Face Mask", 0, 0);
+  keymap = WM_keymap_ensure(keyconf, "Paint Face Mask (Weight, Vertex, Texture)", 0, 0);
   keymap->poll = facemask_paint_poll;
 
   /* paint stroke */

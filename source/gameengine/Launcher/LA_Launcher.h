@@ -47,122 +47,128 @@ class GHOST_ISystem;
 struct Scene;
 struct Main;
 
-class LA_Launcher
-{
-protected:
-	/// \section The game data.
-	std::string m_startSceneName;
-	Scene *m_startScene;
-	Main *m_maggie;
-	KX_Scene *m_kxStartScene;
+class LA_Launcher {
+ protected:
+  /// \section The game data.
+  std::string m_startSceneName;
+  Scene *m_startScene;
+  Main *m_maggie;
+  KX_Scene *m_kxStartScene;
 
-	/// \section Exit state.
-	KX_ExitRequest m_exitRequested;
-	std::string m_exitString;
-	GlobalSettings *m_globalSettings;
+  /// \section Exit state.
+  KX_ExitRequest m_exitRequested;
+  std::string m_exitString;
+  GlobalSettings *m_globalSettings;
 
-	/// GHOST system abstraction.
-	GHOST_ISystem *m_system;
+  /// GHOST system abstraction.
+  GHOST_ISystem *m_system;
 
-	/// The gameengine itself.
-	KX_KetsjiEngine* m_ketsjiEngine;
-	/// The game engine's system abstraction.
-	KX_ISystem* m_kxsystem;
-	/// The game engine's input device abstraction.
-	DEV_InputDevice *m_inputDevice;
-	DEV_EventConsumer *m_eventConsumer;
-	/// The game engine's canvas abstraction.
-	RAS_ICanvas *m_canvas;
-	/// The rasterizer.
-	RAS_Rasterizer *m_rasterizer;
-	/// Converts Blender data files.
-	KX_BlenderConverter *m_converter;
-	/// Manage messages.
-	KX_NetworkMessageManager *m_networkMessageManager;
+  /// The gameengine itself.
+  KX_KetsjiEngine *m_ketsjiEngine;
+  /// The game engine's system abstraction.
+  KX_ISystem *m_kxsystem;
+  /// The game engine's input device abstraction.
+  DEV_InputDevice *m_inputDevice;
+  DEV_EventConsumer *m_eventConsumer;
+  /// The game engine's canvas abstraction.
+  RAS_ICanvas *m_canvas;
+  /// The rasterizer.
+  RAS_Rasterizer *m_rasterizer;
+  /// Converts Blender data files.
+  KX_BlenderConverter *m_converter;
+  /// Manage messages.
+  KX_NetworkMessageManager *m_networkMessageManager;
 
 #ifdef WITH_PYTHON
-	PyObject *m_globalDict;
-	PyObject *m_gameLogic;
+  PyObject *m_globalDict;
+  PyObject *m_gameLogic;
 #endif  // WITH_PYTHON
 
-	/// The number of render samples.
-	int m_samples;
+  /// The number of render samples.
+  int m_samples;
 
-	/// The render stereo mode passed in constructor.
-	RAS_Rasterizer::StereoMode m_stereoMode;
+  /// The render stereo mode passed in constructor.
+  RAS_Rasterizer::StereoMode m_stereoMode;
 
-	/// argc and argv need to be passed on to python
-	int m_argc;
-	char **m_argv;
+  /// argc and argv need to be passed on to python
+  int m_argc;
+  char **m_argv;
 
   struct bContext *m_context;
 
-	/// Saved data to restore at the game end.
-	struct SavedData {
-		int vsync;
-		RAS_Rasterizer::MipmapOption mipmap;
-		int anisotropic;
-	} m_savedData;
+  /// Saved data to restore at the game end.
+  struct SavedData {
+    int vsync;
+    RAS_Rasterizer::MipmapOption mipmap;
+    int anisotropic;
+  } m_savedData;
 
-	struct PythonConsole {
-		bool use;
-		std::vector<SCA_IInputDevice::SCA_EnumInputs> keys;
-	} m_pythonConsole;
+  struct PythonConsole {
+    bool use;
+    std::vector<SCA_IInputDevice::SCA_EnumInputs> keys;
+  } m_pythonConsole;
 
 #ifdef WITH_PYTHON
-	void HandlePythonConsole();
+  void HandlePythonConsole();
 #endif  // WITH_PYTHON
 
-	/// Execute engine render, overrided to render background.
-	virtual void RenderEngine();
+  /// Execute engine render, overrided to render background.
+  virtual void RenderEngine();
 
 #ifdef WITH_PYTHON
-	/** Return true if the user use a valid python script for main loop and copy the python code
-	 * to pythonCode and file name to pythonFileName. Else return false.
-	 * This function print itself error messages for invalid script name and only pythonCode
-	 * value must be freed.
-	 */
-	virtual bool GetPythonMainLoopCode(std::string& pythonCode, std::string& pythonFileName);
-	virtual void RunPythonMainLoop(const std::string& pythonCode);
+  /** Return true if the user use a valid python script for main loop and copy the python code
+   * to pythonCode and file name to pythonFileName. Else return false.
+   * This function print itself error messages for invalid script name and only pythonCode
+   * value must be freed.
+   */
+  virtual bool GetPythonMainLoopCode(std::string &pythonCode, std::string &pythonFileName);
+  virtual void RunPythonMainLoop(const std::string &pythonCode);
 #endif  // WITH_PYTHON
 
-	virtual RAS_ICanvas *CreateCanvas(Scene *startscene) = 0;
-	virtual bool GetUseAlwaysExpandFraming() = 0;
-	virtual void InitCamera() = 0;
-	virtual void InitPython() = 0;
-	virtual void ExitPython() = 0;
+  virtual RAS_ICanvas *CreateCanvas(Scene *startscene) = 0;
+  virtual bool GetUseAlwaysExpandFraming() = 0;
+  virtual void InitCamera() = 0;
+  virtual void InitPython() = 0;
+  virtual void ExitPython() = 0;
 
-public:
-	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
-				RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, struct bContext *C);
-	virtual ~LA_Launcher();
+ public:
+  LA_Launcher(GHOST_ISystem *system,
+              Main *maggie,
+              Scene *scene,
+              GlobalSettings *gs,
+              RAS_Rasterizer::StereoMode stereoMode,
+              int samples,
+              int argc,
+              char **argv,
+              struct bContext *C);
+  virtual ~LA_Launcher();
 
 #ifdef WITH_PYTHON
-	/// Setup python global dictionnary, used outside constructor to compile without python.
-	void SetPythonGlobalDict(PyObject *globalDict);
+  /// Setup python global dictionnary, used outside constructor to compile without python.
+  void SetPythonGlobalDict(PyObject *globalDict);
 #endif  // WITH_PYTHON
 
-	KX_ExitRequest GetExitRequested();
-	const std::string& GetExitString();
-	GlobalSettings *GetGlobalSettings();
+  KX_ExitRequest GetExitRequested();
+  const std::string &GetExitString();
+  GlobalSettings *GetGlobalSettings();
 
-	inline KX_Scene *GetStartScene() const
-	{
-		return m_kxStartScene;
-	}
+  inline KX_Scene *GetStartScene() const
+  {
+    return m_kxStartScene;
+  }
 
-	/// Initializes the game engine.
-	virtual void InitEngine();
-	/// Shuts the game engine down.
-	virtual void ExitEngine();
+  /// Initializes the game engine.
+  virtual void InitEngine();
+  /// Shuts the game engine down.
+  virtual void ExitEngine();
 
-	/// Compute next frame.
-	virtual bool EngineNextFrame();
-	/// Execute the loop of the engine, return when receive a exit request from the engine.
-	void EngineMainLoop();
+  /// Compute next frame.
+  virtual bool EngineNextFrame();
+  /// Execute the loop of the engine, return when receive a exit request from the engine.
+  void EngineMainLoop();
 
 #ifdef WITH_PYTHON
-	static int PythonEngineNextFrame(void *state);
+  static int PythonEngineNextFrame(void *state);
 #endif  // WITH_PYTHON
 };
 

@@ -1441,7 +1441,8 @@ void GPENCIL_OT_paste(wmOperatorType *ot)
 
 static int gp_move_to_layer_exec(bContext *C, wmOperator *op)
 {
-  bGPdata *gpd = CTX_data_gpencil_data(C);
+  Object *ob = CTX_data_active_object(C);
+  bGPdata *gpd = (bGPdata *)ob->data;
   Scene *scene = CTX_data_scene(C);
   bGPDlayer *target_layer = NULL;
   ListBase strokes = {NULL, NULL};
@@ -1489,6 +1490,11 @@ static int gp_move_to_layer_exec(bContext *C, wmOperator *op)
 
       /* skip strokes that are invalid for current view */
       if (ED_gpencil_stroke_can_use(C, gps) == false) {
+        continue;
+      }
+
+      /* Check if the color is editable. */
+      if (ED_gpencil_stroke_color_use(ob, gpl, gps) == false) {
         continue;
       }
 
@@ -4086,8 +4092,11 @@ static int gp_stroke_separate_exec(bContext *C, wmOperator *op)
 
   const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd_src);
 
-  /* create a new object */
-  base_new = ED_object_add_duplicate(bmain, scene, view_layer, base_old, 0);
+  /* Create a new object. */
+  /* Take into account user preferences for duplicating actions. */
+  short dupflag = (U.dupflag & USER_DUP_ACT);
+
+  base_new = ED_object_add_duplicate(bmain, scene, view_layer, base_old, dupflag);
   ob_dst = base_new->object;
   ob_dst->mode = OB_MODE_OBJECT;
   /* create new grease pencil datablock */
@@ -4213,6 +4222,13 @@ static int gp_stroke_separate_exec(bContext *C, wmOperator *op)
           gps->mat_nr = BKE_gpencil_object_material_ensure(bmain, ob_dst, ma);
         }
       }
+    }
+  }
+
+  /* Ensure destination object has one active layer. */
+  if (gpd_dst->layers.first != NULL) {
+    if (BKE_gpencil_layer_getactive(gpd_dst) == NULL) {
+      BKE_gpencil_layer_setactive(gpd_dst, gpd_dst->layers.first);
     }
   }
 

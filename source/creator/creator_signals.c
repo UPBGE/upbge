@@ -57,15 +57,14 @@
 #  include "BKE_main.h"
 #  include "BKE_report.h"
 
-
 /* for passing information between creator and gameengine */
-#ifdef WITH_GAMEENGINE
-#  include "LA_SystemCommandLine.h"
-#else /* dummy */
-#  define SYS_SystemHandle int
-#endif
+#  ifdef WITH_GAMEENGINE
+#    include "LA_SystemCommandLine.h"
+#  else /* dummy */
+#    define SYS_SystemHandle int
+#  endif
 
-#include <signal.h>
+#  include <signal.h>
 
 #  include "creator_intern.h" /* own include */
 

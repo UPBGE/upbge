@@ -76,17 +76,17 @@ typedef struct CurveProfile {
 
 /** #CurveProfile.flag */
 enum {
-  PROF_USE_CLIP = (1 << 0),              /* Keep control points inside bounding rectangle. */
-  PROF_SYMMETRY_MODE = (1 << 1),         /* Unused for now. */
-  PROF_SAMPLE_STRAIGHT_EDGES = (1 << 2), /* Sample extra points on straight edges. */
-  PROF_SAMPLE_EVEN_LENGTHS = (1 << 3),   /* Put segments evenly spaced along the path. */
+  PROF_USE_CLIP = (1 << 0),                    /* Keep control points inside bounding rectangle. */
+  /* PROF_SYMMETRY_MODE = (1 << 1),         */ /* Unused for now. */
+  PROF_SAMPLE_STRAIGHT_EDGES = (1 << 2),       /* Sample extra points on straight edges. */
+  PROF_SAMPLE_EVEN_LENGTHS = (1 << 3),         /* Put segments evenly spaced along the path. */
 };
 
 typedef enum eCurveProfilePresets {
   PROF_PRESET_LINE = 0,     /* Default simple line between end points. */
   PROF_PRESET_SUPPORTS = 1, /* Support loops for a regular curved profile. */
-  PROF_PRESET_CORNICE = 2,  /* Moulding type example. */
-  PROF_PRESET_CROWN = 3,    /* Second moulding example. */
+  PROF_PRESET_CORNICE = 2,  /* Molding type example. */
+  PROF_PRESET_CROWN = 3,    /* Second molding example. */
   PROF_PRESET_STEPS = 4,    /* Dynamic number of steps defined by segments_len. */
 } eCurveProfilePresets;
 

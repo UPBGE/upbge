@@ -35,15 +35,13 @@
 #include "SCA_EventManager.h"
 #include "DEV_Joystick.h"
 
-class SCA_JoystickManager : public SCA_EventManager
-{
+class SCA_JoystickManager : public SCA_EventManager {
 
-public:
-	SCA_JoystickManager(class SCA_LogicManager* logicmgr);
-	virtual ~SCA_JoystickManager();
-	virtual void NextFrame(double curtime,double deltatime);
-	DEV_Joystick* GetJoystickDevice(short int joyindex);
+ public:
+  SCA_JoystickManager(class SCA_LogicManager *logicmgr);
+  virtual ~SCA_JoystickManager();
+  virtual void NextFrame(double curtime, double deltatime);
+  DEV_Joystick *GetJoystickDevice(short int joyindex);
 };
 
 #endif
-

@@ -17,18 +17,17 @@
 
 #include "EXP_ErrorValue.h"
 
-CErrorValue::CErrorValue()
-	:m_strErrorText("Error")
+CErrorValue::CErrorValue() : m_strErrorText("Error")
 {
-	SetError(true);
+  SetError(true);
 }
 
-CErrorValue::CErrorValue(const std::string& errmsg)
+CErrorValue::CErrorValue(const std::string &errmsg)
 {
-	m_strErrorText = "[";
-	m_strErrorText += errmsg;
-	m_strErrorText += "]";
-	SetError(true);
+  m_strErrorText = "[";
+  m_strErrorText += errmsg;
+  m_strErrorText += "]";
+  SetError(true);
 }
 
 CErrorValue::~CErrorValue()
@@ -37,45 +36,43 @@ CErrorValue::~CErrorValue()
 
 CValue *CErrorValue::Calc(VALUE_OPERATOR op, CValue *val)
 {
-	CValue *errorval;
+  CValue *errorval;
 
-	switch (op) {
-		case VALUE_POS_OPERATOR:
-		case VALUE_NEG_OPERATOR:
-		case VALUE_NOT_OPERATOR:
-		{
-			errorval = new CErrorValue(op2str(op) + GetText());
-			break;
-		}
-		default:
-		{
-			errorval = val->CalcFinal(VALUE_ERROR_TYPE, op, this);
-			break;
-		}
-	}
+  switch (op) {
+    case VALUE_POS_OPERATOR:
+    case VALUE_NEG_OPERATOR:
+    case VALUE_NOT_OPERATOR: {
+      errorval = new CErrorValue(op2str(op) + GetText());
+      break;
+    }
+    default: {
+      errorval = val->CalcFinal(VALUE_ERROR_TYPE, op, this);
+      break;
+    }
+  }
 
-	return errorval;
+  return errorval;
 }
 
 CValue *CErrorValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
 {
-	return new CErrorValue(val->GetText() + op2str(op) + GetText());
+  return new CErrorValue(val->GetText() + op2str(op) + GetText());
 }
 
 int CErrorValue::GetValueType()
 {
-	return VALUE_ERROR_TYPE;
+  return VALUE_ERROR_TYPE;
 }
 
 std::string CErrorValue::GetText()
 {
-	return m_strErrorText;
+  return m_strErrorText;
 }
 
 CValue *CErrorValue::GetReplica()
 {
-	// Who would want a copy of an error ?
-	BLI_assert(false && "ErrorValue::GetReplica() not implemented yet");
+  // Who would want a copy of an error ?
+  BLI_assert(false && "ErrorValue::GetReplica() not implemented yet");
 
-	return nullptr;
+  return nullptr;
 }

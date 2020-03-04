@@ -318,6 +318,9 @@ typedef enum eScenePassType {
 #define RE_PASSNAME_SUBSURFACE_COLOR "SubsurfaceCol"
 
 #define RE_PASSNAME_FREESTYLE "Freestyle"
+#define RE_PASSNAME_BLOOM "BloomCol"
+#define RE_PASSNAME_VOLUME_TRANSMITTANCE "VolumeTransmCol"
+#define RE_PASSNAME_VOLUME_SCATTER "VolumeScatterCol"
 
 /* View - MultiView */
 typedef struct SceneRenderView {
@@ -594,12 +597,6 @@ typedef enum eBakePassFilter {
 
 #define R_BAKE_PASS_FILTER_ALL (~0)
 
-/* RenderEngineSettingsClay.options */
-typedef enum ClayFlagSettings {
-  CLAY_USE_AO = (1 << 0),
-  CLAY_USE_HSV = (1 << 1),
-} ClayFlagSettings;
-
 /* *************************************************************** */
 /* Render Data */
 
@@ -655,12 +652,8 @@ typedef struct RenderData {
   short subimtype DNA_DEPRECATED;
   short quality DNA_DEPRECATED;
 
-  /**
-   * Render to image editor, fullscreen or to new window.
-   */
-  short displaymode;
   char use_lock_interface;
-  char _pad7;
+  char _pad7[3];
 
   /**
    * Flags for render settings. Use bit-masking to access the settings.
@@ -754,7 +747,10 @@ typedef struct RenderData {
 
   /* render engine */
   char engine[32];
-  char _pad2[4];
+  char _pad2[2];
+
+  /* Performance Options */
+  short perf_flag;
 
   /* Cycles baking */
   struct BakeData bake;
@@ -779,6 +775,11 @@ typedef struct RenderData {
   /* Motion blur shutter */
   struct CurveMapping mblur_shutter_curve;
 } RenderData;
+
+/* RenderData.quality_flag */
+typedef enum eQualityOption {
+  SCE_PERF_HQ_NORMALS = (1 << 0),
+} eQualityOption;
 
 /* RenderData.hair_type */
 typedef enum eHairType {
@@ -808,32 +809,32 @@ typedef struct RenderProfile {
 /* Game Engine */
 
 typedef struct GameFraming {
-	float col[3];
-	char type, _pad1, _pad2, _pad3;
+  float col[3];
+  char type, _pad1, _pad2, _pad3;
 } GameFraming;
 
 /* GameFraming.type */
-#define SCE_GAMEFRAMING_BARS   0
+#define SCE_GAMEFRAMING_BARS 0
 #define SCE_GAMEFRAMING_EXTEND 1
-#define SCE_GAMEFRAMING_SCALE  2
+#define SCE_GAMEFRAMING_SCALE 2
 
 typedef struct RecastData {
-	float cellsize;
-	float cellheight;
-	float agentmaxslope;
-	float agentmaxclimb;
-	float agentheight;
-	float agentradius;
-	float edgemaxlen;
-	float edgemaxerror;
-	float regionminsize;
-	float regionmergesize;
-	int vertsperpoly;
-	float detailsampledist;
-	float detailsamplemaxerror;
-	char partitioning;
-	char _pad1;
-	short _pad2;
+  float cellsize;
+  float cellheight;
+  float agentmaxslope;
+  float agentmaxclimb;
+  float agentheight;
+  float agentradius;
+  float edgemaxlen;
+  float edgemaxerror;
+  float regionminsize;
+  float regionmergesize;
+  int vertsperpoly;
+  float detailsampledist;
+  float detailsamplemaxerror;
+  char partitioning;
+  char _pad1;
+  short _pad2;
 } RecastData;
 
 /* RecastData.partitioning */
@@ -843,122 +844,121 @@ typedef struct RecastData {
 
 typedef struct GameData {
 
-	/* standalone player */
-	struct GameFraming framing;
-	short playerflag, xplay, yplay, freqplay;
-	short depth, attrib, rt1, rt2;
-	short aasamples, _pad4[3];
+  /* standalone player */
+  struct GameFraming framing;
+  short playerflag, xplay, yplay, freqplay;
+  short depth, attrib, rt1, rt2;
+  short aasamples, _pad4[3];
 
-	/* stereo */
-	short stereoflag, stereomode;
-	float eyeseparation;
-	RecastData recastData;
+  /* stereo */
+  short stereoflag, stereomode;
+  float eyeseparation;
+  RecastData recastData;
 
+  /* physics (it was in world)*/
+  float gravity; /*Gravitation constant for the game world*/
 
-	/* physics (it was in world)*/
-	float gravity; /*Gravitation constant for the game world*/
+  /*
+   * Radius of the activity bubble, in Manhattan length. Objects
+   * outside the box are activity-culled. */
+  float activityBoxRadius;
 
-	/*
-	 * Radius of the activity bubble, in Manhattan length. Objects
-	 * outside the box are activity-culled. */
-	float activityBoxRadius;
+  /*
+   * bit 3: (gameengine): Activity culling is enabled.
+   * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
+   */
+  int flag;
+  short mode, matmode;
+  short occlusionRes; /* resolution of occlusion Z buffer in pixel */
+  short physicsEngine;
+  short exitkey;
+  short vsync; /* Controls vsync: off, on, or adaptive (if supported) */
+  short ticrate, maxlogicstep, physubstep, maxphystep;
+  short obstacleSimulation;
+  short raster_storage;
+  float levelHeight;
+  float deactivationtime, lineardeactthreshold, angulardeactthreshold;
+  int _pad;
 
-	/*
-	 * bit 3: (gameengine): Activity culling is enabled.
-	 * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
-	 */
-	int flag;
-	short mode, matmode;
-	short occlusionRes;		/* resolution of occlusion Z buffer in pixel */
-	short physicsEngine;
-	short exitkey;
-	short vsync; /* Controls vsync: off, on, or adaptive (if supported) */
-	short ticrate, maxlogicstep, physubstep, maxphystep;
-	short obstacleSimulation;
-	short raster_storage;
-	float levelHeight;
-	float deactivationtime, lineardeactthreshold, angulardeactthreshold;
-	int _pad;
-
-    /* Scene LoD */
-    short lodflag, _pad2;
-    int scehysteresis;
+  /* Scene LoD */
+  short lodflag, _pad2;
+  int scehysteresis;
 } GameData;
 
 /* GameData.stereoflag */
-#define STEREO_NOSTEREO		1
-#define STEREO_ENABLED		2
+#define STEREO_NOSTEREO 1
+#define STEREO_ENABLED 2
 
 /* GameData.stereomode */
 //#define STEREO_NOSTEREO		 1
 #define STEREO_QUADBUFFERED 2
-#define STEREO_ABOVEBELOW	 3
-#define STEREO_INTERLACED	 4
-#define STEREO_ANAGLYPH		5
-#define STEREO_SIDEBYSIDE	6
-#define STEREO_VINTERLACE	7
+#define STEREO_ABOVEBELOW 3
+#define STEREO_INTERLACED 4
+#define STEREO_ANAGLYPH 5
+#define STEREO_SIDEBYSIDE 6
+#define STEREO_VINTERLACE 7
 #define STEREO_3DTVTOPBOTTOM 9
 
 /* GameData.physicsEngine */
-#define WOPHY_NONE		0
-#define WOPHY_BULLET	5
+#define WOPHY_NONE 0
+#define WOPHY_BULLET 5
 
 /* obstacleSimulation */
-#define OBSTSIMULATION_NONE		0
-#define OBSTSIMULATION_TOI_rays		1
-#define OBSTSIMULATION_TOI_cells	2
+#define OBSTSIMULATION_NONE 0
+#define OBSTSIMULATION_TOI_rays 1
+#define OBSTSIMULATION_TOI_cells 2
 
 /* GameData.raster_storage */
-#define RAS_STORE_AUTO		0
-/* #define RAS_STORE_IMMEDIATE	1 */  /* DEPRECATED */
-#define RAS_STORE_VA		2
-#define RAS_STORE_VBO		3
+#define RAS_STORE_AUTO 0
+/* #define RAS_STORE_IMMEDIATE	1 */ /* DEPRECATED */
+#define RAS_STORE_VA 2
+#define RAS_STORE_VBO 3
 
 /* GameData.vsync */
-#define VSYNC_ON	0
-#define VSYNC_OFF	1
-#define VSYNC_ADAPTIVE	2
+#define VSYNC_ON 0
+#define VSYNC_OFF 1
+#define VSYNC_ADAPTIVE 2
 
 /* GameData.flag */
-#define GAME_RESTRICT_ANIM_UPDATES			(1 << 0)
-#define GAME_ENABLE_ALL_FRAMES				(1 << 1)
-#define GAME_SHOW_DEBUG_PROPS				(1 << 2)
-#define GAME_SHOW_FRAMERATE					(1 << 3)
-#define GAME_SHOW_PHYSICS					(1 << 4)
+#define GAME_RESTRICT_ANIM_UPDATES (1 << 0)
+#define GAME_ENABLE_ALL_FRAMES (1 << 1)
+#define GAME_SHOW_DEBUG_PROPS (1 << 2)
+#define GAME_SHOW_FRAMERATE (1 << 3)
+#define GAME_SHOW_PHYSICS (1 << 4)
 // #define GAME_DISPLAY_LISTS					(1 << 5)   /* deprecated */
-#define GAME_GLSL_NO_LIGHTS					(1 << 6)
-#define GAME_GLSL_NO_SHADERS				(1 << 7)
-#define GAME_GLSL_NO_SHADOWS				(1 << 8)
-#define GAME_GLSL_NO_RAMPS					(1 << 9)
-#define GAME_GLSL_NO_NODES					(1 << 10)
-#define GAME_GLSL_NO_EXTRA_TEX				(1 << 11)
-#define GAME_IGNORE_DEPRECATION_WARNINGS	(1 << 12)
-#define GAME_ENABLE_ANIMATION_RECORD		(1 << 13)
-#define GAME_SHOW_MOUSE						(1 << 14)
-#define GAME_GLSL_NO_COLOR_MANAGEMENT		(1 << 15)
-#define GAME_SHOW_OBSTACLE_SIMULATION		(1 << 16)
-#define GAME_NO_MATERIAL_CACHING			(1 << 17)
-#define GAME_GLSL_NO_ENV_LIGHTING			(1 << 18)
-#define GAME_USE_UNDO			            (1 << 19)
-#define GAME_USE_UI_ANTI_FLICKER			(1 << 20)
-#define GAME_USE_VIEWPORT_RENDER      (1 << 21)
+#define GAME_GLSL_NO_LIGHTS (1 << 6)
+#define GAME_GLSL_NO_SHADERS (1 << 7)
+#define GAME_GLSL_NO_SHADOWS (1 << 8)
+#define GAME_GLSL_NO_RAMPS (1 << 9)
+#define GAME_GLSL_NO_NODES (1 << 10)
+#define GAME_GLSL_NO_EXTRA_TEX (1 << 11)
+#define GAME_IGNORE_DEPRECATION_WARNINGS (1 << 12)
+#define GAME_ENABLE_ANIMATION_RECORD (1 << 13)
+#define GAME_SHOW_MOUSE (1 << 14)
+#define GAME_GLSL_NO_COLOR_MANAGEMENT (1 << 15)
+#define GAME_SHOW_OBSTACLE_SIMULATION (1 << 16)
+#define GAME_NO_MATERIAL_CACHING (1 << 17)
+#define GAME_GLSL_NO_ENV_LIGHTING (1 << 18)
+#define GAME_USE_UNDO (1 << 19)
+#define GAME_USE_UI_ANTI_FLICKER (1 << 20)
+#define GAME_USE_VIEWPORT_RENDER (1 << 21)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
 
 /* GameData.playerflag */
-#define GAME_PLAYER_FULLSCREEN				(1 << 0)
-#define GAME_PLAYER_DESKTOP_RESOLUTION		(1 << 1)
+#define GAME_PLAYER_FULLSCREEN (1 << 0)
+#define GAME_PLAYER_DESKTOP_RESOLUTION (1 << 1)
 
 /* GameData.matmode */
 enum {
 #ifdef DNA_DEPRECATED
-	GAME_MAT_TEXFACE    = 0, /* deprecated */
+  GAME_MAT_TEXFACE = 0, /* deprecated */
 #endif
-	GAME_MAT_MULTITEX   = 1,
-	GAME_MAT_GLSL       = 2,
+  GAME_MAT_MULTITEX = 1,
+  GAME_MAT_GLSL = 2,
 };
 
 /* GameData.lodflag */
-#define SCE_LOD_USE_HYST		(1 << 0)
+#define SCE_LOD_USE_HYST (1 << 0)
 
 /* UV Paint */
 /* ToolSettings.uv_sculpt_settings */
@@ -1914,7 +1914,7 @@ typedef struct Scene {
   /** KeyingSets for this scene */
   ListBase keyingsets;
 
-/* Game Settings */
+  /* Game Settings */
   struct GameData gm;
 
   /* Units */
@@ -2012,13 +2012,6 @@ enum {
   R_SEQ_OVERRIDE_SCENE_SETTINGS = (1 << 5),
 };
 
-/** #RenderData.displaymode */
-#define R_OUTPUT_SCREEN 0
-#define R_OUTPUT_AREA 1
-#define R_OUTPUT_WINDOW 2
-#define R_OUTPUT_NONE 3
-/*#define R_OUTPUT_FORKED   4*/
-
 /** #RenderData.filtertype (used for nodes) */
 #define R_FILTER_BOX 0
 #define R_FILTER_TENT 1
@@ -2090,25 +2083,6 @@ enum {
   R_COLOR_MANAGEMENT = (1 << 0),
   R_COLOR_MANAGEMENT_UNUSED_1 = (1 << 1),
 };
-
-#ifdef DNA_DEPRECATED_ALLOW
-/* RenderData.subimtype flag options for imtype */
-enum {
-  R_OPENEXR_HALF = (1 << 0), /*deprecated*/
-  R_OPENEXR_ZBUF = (1 << 1), /*deprecated*/
-  R_PREVIEW_JPG = (1 << 2),  /*deprecated*/
-  R_CINEON_LOG = (1 << 3),   /*deprecated*/
-  R_TIFF_16BIT = (1 << 4),   /*deprecated*/
-
-  R_JPEG2K_12BIT = (1 << 5),
-  /* Jpeg2000 */             /*deprecated*/
-  R_JPEG2K_16BIT = (1 << 6), /*deprecated*/
-  R_JPEG2K_YCC = (1 << 7),
-  /* when disabled use RGB */      /*deprecated*/
-  R_JPEG2K_CINE_PRESET = (1 << 8), /*deprecated*/
-  R_JPEG2K_CINE_48FPS = (1 << 9),  /*deprecated*/
-};
-#endif
 
 /* bake_mode: same as RE_BAKE_xxx defines */
 /* RenderData.bake_flag */
@@ -2317,7 +2291,7 @@ typedef enum eVGroupSelect {
 #define SCE_FRAME_DROP (1 << 3)
 #define SCE_KEYS_NO_SELONLY (1 << 4)
 #define SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK (1 << 5)
-#define SCE_INTERACTIVE         (1 << 6)
+#define SCE_INTERACTIVE (1 << 6)
 #define SCE_INTERACTIVE_IMAGE_RENDER (1 << 7)
 
 /* return flag BKE_scene_base_iter_next functions */
@@ -2488,7 +2462,7 @@ typedef enum eGPencil_Placement_Flags {
   GP_PROJECT_VIEWSPACE = (1 << 0),
 
   /* Viewport space, but relative to render canvas (Sequencer Preview Only) */
-  GP_PROJECT_CANVAS = (1 << 1),
+  /* GP_PROJECT_CANVAS = (1 << 1), */ /* UNUSED */
 
   /* Project into the screen's Z values */
   GP_PROJECT_DEPTH_VIEW = (1 << 2),
@@ -2594,8 +2568,8 @@ enum {
 /* SceneEEVEE->shadow_method */
 enum {
   SHADOW_ESM = 1,
-  SHADOW_VSM = 2,
-  SHADOW_METHOD_MAX = 3,
+  /* SHADOW_VSM = 2, */        /* UNUSED */
+  /* SHADOW_METHOD_MAX = 3, */ /* UNUSED */
 };
 
 /* SceneDisplay->render_aa, SceneDisplay->viewport_aa */

@@ -33,7 +33,7 @@
 #define __KX_TIMELOGGER_H__
 
 #ifdef _MSC_VER
-#  pragma warning (disable:4786)  /* suppress stl-MSVC debug info warning */
+#  pragma warning(disable : 4786) /* suppress stl-MSVC debug info warning */
 #endif
 
 #include <deque>
@@ -41,66 +41,65 @@
 /**
  * Stores and manages time measurements.
  */
-class KX_TimeLogger
-{
-public:
-	/**
-	 * Constructor.
-	 * \param maxNumMesasurements Maximum number of measurements stored (>1).
-	 */
-	KX_TimeLogger(unsigned int maxNumMeasurements = 10);
+class KX_TimeLogger {
+ public:
+  /**
+   * Constructor.
+   * \param maxNumMesasurements Maximum number of measurements stored (>1).
+   */
+  KX_TimeLogger(unsigned int maxNumMeasurements = 10);
 
-	/**
-	 * Destructor.
-	 */
-	~KX_TimeLogger();
+  /**
+   * Destructor.
+   */
+  ~KX_TimeLogger();
 
-	/**
-	 * Changes the maximum number of measurements that can be stored.
-	 */
-	void SetMaxNumMeasurements(unsigned int maxNumMeasurements);
+  /**
+   * Changes the maximum number of measurements that can be stored.
+   */
+  void SetMaxNumMeasurements(unsigned int maxNumMeasurements);
 
-	/**
-	 * Changes the maximum number of measurements that can be stored.
-	 */
-	unsigned int GetMaxNumMeasurements() const;
+  /**
+   * Changes the maximum number of measurements that can be stored.
+   */
+  unsigned int GetMaxNumMeasurements() const;
 
-	/**
-	 * Starts logging in current measurement.
-	 * \param now	The current time.
-	 */
-	void StartLog(double now);
+  /**
+   * Starts logging in current measurement.
+   * \param now	The current time.
+   */
+  void StartLog(double now);
 
-	/**
-	 * End logging in current measurement.
-	 * \param now	The current time.
-	 */
-	void EndLog(double now);
+  /**
+   * End logging in current measurement.
+   * \param now	The current time.
+   */
+  void EndLog(double now);
 
-	/**
-	 * Logs time in next measurement.
-	 * \param now	The current time.
-	 */
-	void NextMeasurement(double now);
+  /**
+   * Logs time in next measurement.
+   * \param now	The current time.
+   */
+  void NextMeasurement(double now);
 
-	/**
-	 * Returns average of all but the current measurement.
-	 * \return The average of all but the current measurement.
-	 */
-	double GetAverage() const;
+  /**
+   * Returns average of all but the current measurement.
+   * \return The average of all but the current measurement.
+   */
+  double GetAverage() const;
 
-protected:
-	/// Storage for the measurements.
-	std::deque<double> m_measurements;
+ protected:
+  /// Storage for the measurements.
+  std::deque<double> m_measurements;
 
-	/// Maximum number of measurements.
-	unsigned int m_maxNumMeasurements;
+  /// Maximum number of measurements.
+  unsigned int m_maxNumMeasurements;
 
-	/// Time at start of logging.
-	double m_logStart;
+  /// Time at start of logging.
+  double m_logStart;
 
-	/// State of logging.
-	bool m_logging;
+  /// State of logging.
+  bool m_logging;
 };
 
 #endif  // __KX_TIMELOGGER_H__

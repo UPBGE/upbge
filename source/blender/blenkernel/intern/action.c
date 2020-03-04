@@ -91,9 +91,9 @@ bAction *BKE_action_add(Main *bmain, const char name[])
 /* .................................. */
 
 // does copy_fcurve...
-void BKE_action_make_local(Main *bmain, bAction *act, const bool lib_local)
+void BKE_action_make_local(Main *bmain, bAction *act, const int flags)
 {
-  BKE_id_make_local_generic(bmain, &act->id, true, lib_local);
+  BKE_lib_id_make_local_generic(bmain, &act->id, flags);
 }
 
 /* .................................. */
@@ -1014,35 +1014,35 @@ void BKE_pose_free(bPose *pose)
 
 static void copy_pose_channel_data(bPoseChannel *pchan, const bPoseChannel *chan)
 {
-	bConstraint *pcon, *con;
-	
-	copy_v3_v3(pchan->loc, chan->loc);
-	copy_v3_v3(pchan->size, chan->size);
-	copy_v3_v3(pchan->eul, chan->eul);
-	copy_v3_v3(pchan->rotAxis, chan->rotAxis);
-	pchan->rotAngle = chan->rotAngle;
-	copy_qt_qt(pchan->quat, chan->quat);
-	pchan->rotmode = chan->rotmode;
-	copy_m4_m4(pchan->chan_mat, (float(*)[4])chan->chan_mat);
-	copy_m4_m4(pchan->pose_mat, (float(*)[4])chan->pose_mat);
-	pchan->flag = chan->flag;
-	
-	pchan->roll1 = chan->roll1;
-	pchan->roll2 = chan->roll2;
+  bConstraint *pcon, *con;
+
+  copy_v3_v3(pchan->loc, chan->loc);
+  copy_v3_v3(pchan->size, chan->size);
+  copy_v3_v3(pchan->eul, chan->eul);
+  copy_v3_v3(pchan->rotAxis, chan->rotAxis);
+  pchan->rotAngle = chan->rotAngle;
+  copy_qt_qt(pchan->quat, chan->quat);
+  pchan->rotmode = chan->rotmode;
+  copy_m4_m4(pchan->chan_mat, (float(*)[4])chan->chan_mat);
+  copy_m4_m4(pchan->pose_mat, (float(*)[4])chan->pose_mat);
+  pchan->flag = chan->flag;
+
+  pchan->roll1 = chan->roll1;
+  pchan->roll2 = chan->roll2;
   pchan->curve_in_x = chan->curve_in_x;
-	pchan->curve_in_y = chan->curve_in_y;
-	pchan->curve_out_x = chan->curve_out_x;
-	pchan->curve_out_y = chan->curve_out_y;
-	pchan->ease1 = chan->ease1;
-	pchan->ease2 = chan->ease2;
+  pchan->curve_in_y = chan->curve_in_y;
+  pchan->curve_out_x = chan->curve_out_x;
+  pchan->curve_out_y = chan->curve_out_y;
+  pchan->ease1 = chan->ease1;
+  pchan->ease2 = chan->ease2;
   pchan->scale_in_x = chan->scale_in_y;
   pchan->scale_out_x = chan->scale_out_y;
-	
-	con = chan->constraints.first;
-	for (pcon = pchan->constraints.first; pcon && con; pcon = pcon->next, con = con->next) {
-		pcon->enforce = con->enforce;
-		pcon->headtail = con->headtail;
-	}
+
+  con = chan->constraints.first;
+  for (pcon = pchan->constraints.first; pcon && con; pcon = pcon->next, con = con->next) {
+    pcon->enforce = con->enforce;
+    pcon->headtail = con->headtail;
+  }
 }
 
 /**
@@ -1516,20 +1516,21 @@ short action_get_item_transforms(bAction *act, Object *ob, bPoseChannel *pchan, 
 /* Copy the data from the action-pose (src) into the pose */
 /* both args are assumed to be valid */
 /* exported to game engine */
-/* Note! this assumes both poses are aligned, this isn't always true when dealing with user poses */
+/* Note! this assumes both poses are aligned, this isn't always true when dealing with user poses
+ */
 void extract_pose_from_pose(bPose *pose, const bPose *src)
 {
-	const bPoseChannel *schan;
-	bPoseChannel *pchan = pose->chanbase.first;
+  const bPoseChannel *schan;
+  bPoseChannel *pchan = pose->chanbase.first;
 
-	if (pose == src) {
-		printf("extract_pose_from_pose source and target are the same\n");
-		return;
-	}
+  if (pose == src) {
+    printf("extract_pose_from_pose source and target are the same\n");
+    return;
+  }
 
-	for (schan = src->chanbase.first; (schan && pchan); schan = schan->next, pchan = pchan->next) {
-		copy_pose_channel_data(pchan, schan);
-	}
+  for (schan = src->chanbase.first; (schan && pchan); schan = schan->next, pchan = pchan->next) {
+    copy_pose_channel_data(pchan, schan);
+  }
 }
 
 /* for do_all_pose_actions, clears the pose. Now also exported for proxy and tools */

@@ -1779,8 +1779,8 @@ static Collection *single_object_users_collection(Main *bmain,
 static void single_object_users(
     Main *bmain, Scene *scene, View3D *v3d, const int flag, const bool copy_collections)
 {
-  clear_sca_new_poins();  /* BGE logic */
-  
+  clear_sca_new_poins(); /* BGE logic */
+
   /* duplicate all the objects of the scene (and matching collections, if required). */
   Collection *master_collection = scene->master_collection;
   single_object_users_collection(bmain, scene, master_collection, flag, copy_collections, true);
@@ -2614,6 +2614,9 @@ static int make_single_user_exec(bContext *C, wmOperator *op)
 
   if (RNA_boolean_get(op->ptr, "obdata")) {
     single_obdata_users(bmain, scene, view_layer, v3d, flag);
+
+    /* Needed since some IDs were remapped? (incl. me->texcomesh, see T73797). */
+    update_deps = true;
   }
 
   if (RNA_boolean_get(op->ptr, "material")) {

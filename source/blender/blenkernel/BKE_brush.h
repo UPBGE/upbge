@@ -23,6 +23,12 @@
  * General operations for brushes.
  */
 
+#include "DNA_object_enums.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum eCurveMappingPreset;
 struct Brush;
 struct ImBuf;
@@ -33,8 +39,6 @@ struct ToolSettings;
 struct UnifiedPaintSettings;
 
 // enum eCurveMappingPreset;
-
-#include "DNA_object_enums.h"
 
 /* globals for brush execution */
 void BKE_brush_system_init(void);
@@ -51,7 +55,7 @@ void BKE_brush_copy_data(struct Main *bmain,
                          const struct Brush *brush_src,
                          const int flag);
 struct Brush *BKE_brush_copy(struct Main *bmain, const struct Brush *brush);
-void BKE_brush_make_local(struct Main *bmain, struct Brush *brush, const bool lib_local);
+void BKE_brush_make_local(struct Main *bmain, struct Brush *brush, const int flags);
 void BKE_brush_free(struct Brush *brush);
 
 void BKE_brush_sculpt_reset(struct Brush *brush);
@@ -139,5 +143,9 @@ void BKE_brush_scale_size(int *r_brush_size,
 
 /* debugging only */
 void BKE_brush_debug_print_state(struct Brush *br);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

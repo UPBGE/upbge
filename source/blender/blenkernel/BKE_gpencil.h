@@ -24,6 +24,10 @@
  * \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct BoundBox;
 struct Brush;
 struct CurveMapping;
@@ -95,7 +99,7 @@ struct bGPdata *BKE_gpencil_data_duplicate(struct Main *bmain,
                                            const struct bGPdata *gpd,
                                            bool internal_copy);
 
-void BKE_gpencil_make_local(struct Main *bmain, struct bGPdata *gpd, const bool lib_local);
+void BKE_gpencil_make_local(struct Main *bmain, struct bGPdata *gpd, const int flags);
 
 void BKE_gpencil_frame_delete_laststroke(struct bGPDlayer *gpl, struct bGPDframe *gpf);
 
@@ -271,5 +275,9 @@ void BKE_gpencil_convert_curve(struct Main *bmain,
 
 extern void (*BKE_gpencil_batch_cache_dirty_tag_cb)(struct bGPdata *gpd);
 extern void (*BKE_gpencil_batch_cache_free_cb)(struct bGPdata *gpd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /*  __BKE_GPENCIL_H__ */

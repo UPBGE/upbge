@@ -35,7 +35,6 @@
 #include "workbench_engine.h"
 
 #define WORKBENCH_ENGINE "BLENDER_WORKBENCH"
-#define M_GOLDEN_RATION_CONJUGATE 0.618033988749895
 #define MAX_COMPOSITE_SHADERS (1 << 7)
 #define MAX_PREPASS_SHADERS (1 << 8)
 #define MAX_ACCUM_SHADERS (1 << 8)
@@ -165,7 +164,6 @@ typedef struct WORKBENCH_PassList {
   struct DRWPass *transparent_accum_pass;
   struct DRWPass *object_outline_pass;
   struct DRWPass *depth_pass;
-  struct DRWPass *checker_depth_pass;
 } WORKBENCH_PassList;
 
 typedef struct WORKBENCH_Data {

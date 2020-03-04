@@ -26,6 +26,10 @@
 
 #include "BLI_sys_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Define icon enum. */
 #define DEF_ICON(name) ICON_##name,
 #define DEF_ICON_VECTOR(name) ICON_##name,
@@ -108,6 +112,8 @@ typedef enum ThemeColorID {
   TH_FACEDOT_SIZE,
   TH_CFRAME,
   TH_TIME_SCRUB_BACKGROUND,
+  TH_TIME_MARKER_LINE,
+  TH_TIME_MARKER_LINE_SELECTED,
   TH_TIME_KEYFRAME,
   TH_TIME_GP_KEYFRAME,
   TH_NURB_ULINE,
@@ -229,6 +235,7 @@ typedef enum ThemeColorID {
   TH_DRAWEXTRA_FACEANG,
 
   TH_NODE_CURVING,
+  TH_NODE_GRID_LEVELS,
 
   TH_MARKER_OUTLINE,
   TH_MARKER,
@@ -309,7 +316,7 @@ typedef enum ThemeColorID {
   TH_GIZMO_A,
   TH_GIZMO_B,
 
-  TH_SHOW_BACK_GRAD,
+  TH_BACKGROUND_TYPE,
 
   TH_INFO_SELECTED,
   TH_INFO_SELECTED_TEXT,
@@ -440,5 +447,9 @@ int UI_ThemeMenuShadowWidth(void);
 const unsigned char *UI_ThemeGetColorPtr(struct bTheme *btheme, int spacetype, int colorid);
 
 void UI_make_axis_color(const unsigned char *src_col, unsigned char *dst_col, const char axis);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __UI_RESOURCES_H__ */
