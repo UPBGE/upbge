@@ -1262,6 +1262,14 @@ void KX_GameObject::ResolveCombinedVelocities(const MT_Vector3 &lin_vel,
 void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
 {
   m_objectColor = rgbavec;
+  Object *ob = GetBlenderObject();
+  if (ob && ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
+    copy_v4_v4(ob->color, m_objectColor.getValue());
+    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+    BKE_object_apply_mat4(ob, ob->obmat, false, true);
+    GetScene()->ResetTaaSamples();
+    WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
+  }
 }
 
 const MT_Vector4 &KX_GameObject::GetObjectColor()
@@ -3427,7 +3435,7 @@ PyObject *KX_GameObject::pyattr_get_obcolor(PyObjectPlus *self_v,
                                             const KX_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-  return PyObjectFrom(MT_Vector4(self->GetBlenderObject()->color));
+  return PyObjectFrom(self->m_objectColor);
 }
 
 int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v,
@@ -3438,16 +3446,8 @@ int KX_GameObject::pyattr_set_obcolor(PyObjectPlus *self_v,
   MT_Vector4 obcolor;
   if (!PyVecTo(value, obcolor))
     return PY_SET_ATTR_FAIL;
-  Object *ob = self->GetBlenderObject();
-  if (ob && ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
-    copy_v4_v4(ob->color, obcolor.getValue());
-    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-    BKE_object_apply_mat4(ob, ob->obmat, false, true);
-    self->GetScene()->ResetTaaSamples();
-    WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
-    return PY_SET_ATTR_SUCCESS;
-  }
-  return PY_SET_ATTR_FAIL;
+  self->SetObjectColor(obcolor);
+  return PY_SET_ATTR_SUCCESS;
 }
 
 PyObject *KX_GameObject::pyattr_get_components(PyObjectPlus *self_v,
