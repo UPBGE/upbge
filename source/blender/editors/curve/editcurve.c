@@ -1405,12 +1405,11 @@ static int separate_exec(bContext *C, wmOperator *op)
     }
 
     /* 2. Duplicate the object and data. */
-    newbase = ED_object_add_duplicate(bmain,
-                                      scene,
-                                      view_layer,
-                                      oldbase,
-                                      /* 0 = fully linked. */
-                                      0);
+
+    /* Take into account user preferences for duplicating actions. */
+    short dupflag = (U.dupflag & USER_DUP_ACT);
+
+    newbase = ED_object_add_duplicate(bmain, scene, view_layer, oldbase, dupflag);
     DEG_relations_tag_update(bmain);
 
     newob = newbase->object;

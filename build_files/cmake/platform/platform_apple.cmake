@@ -411,11 +411,21 @@ if(WITH_OPENMP)
 
     # Copy libomp.dylib to allow executables like datatoc and tests to work.
     execute_process(
-        COMMAND mkdir -p ${CMAKE_BINARY_DIR}/Resources/lib
-        COMMAND cp -p ${LIBDIR}/openmp/lib/libomp.dylib ${CMAKE_BINARY_DIR}/Resources/lib/libomp.dylib)
+      COMMAND mkdir -p ${CMAKE_BINARY_DIR}/Resources/lib
+      COMMAND cp -p ${LIBDIR}/openmp/lib/libomp.dylib ${CMAKE_BINARY_DIR}/Resources/lib/libomp.dylib
+    )
     execute_process(
-        COMMAND mkdir -p ${CMAKE_BINARY_DIR}/bin/Resources/lib
-        COMMAND cp -p ${LIBDIR}/openmp/lib/libomp.dylib ${CMAKE_BINARY_DIR}/bin/Resources/lib/libomp.dylib)
+      COMMAND mkdir -p ${CMAKE_BINARY_DIR}/bin/Resources/lib
+      COMMAND cp -p ${LIBDIR}/openmp/lib/libomp.dylib ${CMAKE_BINARY_DIR}/bin/Resources/lib/libomp.dylib
+    )
+  endif()
+endif()
+
+if(WITH_XR_OPENXR)
+  find_package(OpenXR-SDK)
+  if(NOT OPENXR_SDK_FOUND)
+    message(WARNING "OpenXR-SDK was not found, disabling WITH_XR_OPENXR")
+    set(WITH_XR_OPENXR OFF)
   endif()
 endif()
 

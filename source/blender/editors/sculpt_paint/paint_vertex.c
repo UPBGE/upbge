@@ -2332,8 +2332,8 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 
   swap_m4m4(vc->rv3d->persmat, mat);
 
-  /* calculate pivot for rotation around seletion if needed */
-  /* also needed for "View Selected" on last stroke */
+  /* Calculate pivot for rotation around selection if needed.
+   * also needed for "Frame Selected" on last stroke. */
   float loc_world[3];
   mul_v3_m4v3(loc_world, ob->obmat, ss->cache->true_location);
   paint_last_stroke_update(scene, loc_world);
@@ -2524,6 +2524,9 @@ static int vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
   }
   else {
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    if (depsgraph) {
+      depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    }
     wmWindowManager *wm = CTX_wm_manager(C);
     ED_object_vpaintmode_enter_ex(bmain, depsgraph, wm, scene, ob);
     BKE_paint_toolslots_brush_validate(bmain, &ts->vpaint->paint);
@@ -3309,8 +3312,8 @@ static void vpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
         vpd->smear.color_prev, vpd->smear.color_curr, sizeof(uint) * ((Mesh *)ob->data)->totloop);
   }
 
-  /* calculate pivot for rotation around seletion if needed */
-  /* also needed for "View Selected" on last stroke */
+  /* Calculate pivot for rotation around selection if needed.
+   * also needed for "Frame Selected" on last stroke. */
   float loc_world[3];
   mul_v3_m4v3(loc_world, ob->obmat, ss->cache->true_location);
   paint_last_stroke_update(scene, loc_world);

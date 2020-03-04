@@ -335,7 +335,11 @@ if(WITH_OPENSUBDIV)
 endif()
 
 if(WITH_PLAYER)
-	add_definitions(-DWITH_PLAYER)
+  add_definitions(-DWITH_PLAYER)
+endif()
+
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
 endif()
 
 add_definitions(${GL_DEFINITIONS})

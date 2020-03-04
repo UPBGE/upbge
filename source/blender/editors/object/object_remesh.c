@@ -74,6 +74,9 @@
 
 #include "object_intern.h"  // own include
 
+/* TODO(sebpa): unstable, can lead to unrecoverable errors. */
+// #define USE_MESH_CURVATURE
+
 static bool object_remesh_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
@@ -214,6 +217,7 @@ typedef struct QuadriFlowJob {
   bool smooth_normals;
 
   int success;
+  bool is_nonblocking_job;
 } QuadriFlowJob;
 
 static bool mesh_is_manifold_consistent(Mesh *mesh)
@@ -377,7 +381,9 @@ static void quadriflow_start_job(void *customdata, short *stop, short *do_update
   qj->progress = progress;
   qj->success = 1;
 
-  G.is_break = false; /* XXX shared with render - replace with job 'stop' switch */
+  if (qj->is_nonblocking_job) {
+    G.is_break = false; /* XXX shared with render - replace with job 'stop' switch */
+  }
 
   Object *ob = qj->owner;
   Mesh *mesh = ob->data;
@@ -397,15 +403,19 @@ static void quadriflow_start_job(void *customdata, short *stop, short *do_update
   /* Bisect the input mesh using the paint symmetry settings */
   bisect_mesh = remesh_symmetry_bisect(qj->bmain, bisect_mesh, qj->symmetry_axes);
 
-  new_mesh = BKE_mesh_remesh_quadriflow_to_mesh_nomain(bisect_mesh,
-                                                       qj->target_faces,
-                                                       qj->seed,
-                                                       qj->use_preserve_sharp,
-                                                       qj->use_preserve_boundary ||
-                                                           qj->use_paint_symmetry,
-                                                       qj->use_mesh_curvature,
-                                                       quadriflow_update_job,
-                                                       (void *)qj);
+  new_mesh = BKE_mesh_remesh_quadriflow_to_mesh_nomain(
+      bisect_mesh,
+      qj->target_faces,
+      qj->seed,
+      qj->use_preserve_sharp,
+      (qj->use_preserve_boundary || qj->use_paint_symmetry),
+#ifdef USE_MESH_CURVATURE
+      qj->use_mesh_curvature,
+#else
+      false,
+#endif
+      quadriflow_update_job,
+      (void *)qj);
 
   BKE_id_free(qj->bmain, bisect_mesh);
 
@@ -413,7 +423,7 @@ static void quadriflow_start_job(void *customdata, short *stop, short *do_update
     *do_update = true;
     *stop = 0;
     if (qj->success == 1) {
-      /* This is not a user cancelation event */
+      /* This is not a user cancellation event. */
       qj->success = 0;
     }
     return;
@@ -456,7 +466,9 @@ static void quadriflow_end_job(void *customdata)
 
   Object *ob = qj->owner;
 
-  WM_set_locked_interface(G_MAIN->wm.first, false);
+  if (qj->is_nonblocking_job) {
+    WM_set_locked_interface(G_MAIN->wm.first, false);
+  }
 
   switch (qj->success) {
     case 1:
@@ -492,7 +504,9 @@ static int quadriflow_remesh_exec(bContext *C, wmOperator *op)
   job->use_preserve_sharp = RNA_boolean_get(op->ptr, "use_preserve_sharp");
   job->use_preserve_boundary = RNA_boolean_get(op->ptr, "use_preserve_boundary");
 
+#ifdef USE_MESH_CURVATURE
   job->use_mesh_curvature = RNA_boolean_get(op->ptr, "use_mesh_curvature");
+#endif
 
   job->preserve_paint_mask = RNA_boolean_get(op->ptr, "preserve_paint_mask");
   job->smooth_normals = RNA_boolean_get(op->ptr, "smooth_normals");
@@ -513,21 +527,34 @@ static int quadriflow_remesh_exec(bContext *C, wmOperator *op)
     job->symmetry_axes = 0;
   }
 
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-                              CTX_wm_window(C),
-                              CTX_data_scene(C),
-                              "QuadriFlow Remesh",
-                              WM_JOB_PROGRESS,
-                              WM_JOB_TYPE_QUADRIFLOW_REMESH);
+  if (op->flag == 0) {
+    /* This is called directly from the exec operator, this operation is now blocking */
+    job->is_nonblocking_job = false;
+    short stop = 0, do_update = true;
+    float progress;
+    quadriflow_start_job(job, &stop, &do_update, &progress);
+    quadriflow_end_job(job);
+    quadriflow_free_job(job);
+  }
+  else {
+    /* Non blocking call. For when the operator has been called from the gui */
+    job->is_nonblocking_job = true;
 
-  WM_jobs_customdata_set(wm_job, job, quadriflow_free_job);
-  WM_jobs_timer(wm_job, 0.1, NC_GEOM | ND_DATA, NC_GEOM | ND_DATA);
-  WM_jobs_callbacks(wm_job, quadriflow_start_job, NULL, NULL, quadriflow_end_job);
+    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+                                CTX_wm_window(C),
+                                CTX_data_scene(C),
+                                "QuadriFlow Remesh",
+                                WM_JOB_PROGRESS,
+                                WM_JOB_TYPE_QUADRIFLOW_REMESH);
 
-  WM_set_locked_interface(CTX_wm_manager(C), true);
+    WM_jobs_customdata_set(wm_job, job, quadriflow_free_job);
+    WM_jobs_timer(wm_job, 0.1, NC_GEOM | ND_DATA, NC_GEOM | ND_DATA);
+    WM_jobs_callbacks(wm_job, quadriflow_start_job, NULL, NULL, quadriflow_end_job);
 
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+    WM_set_locked_interface(CTX_wm_manager(C), true);
 
+    WM_jobs_start(CTX_wm_manager(C), wm_job);
+  }
   return OPERATOR_FINISHED;
 }
 
@@ -653,13 +680,13 @@ void OBJECT_OT_quadriflow_remesh(wmOperatorType *ot)
                   false,
                   "Preserve Mesh Boundary",
                   "Try to preserve mesh boundary on the mesh");
-
+#ifdef USE_MESH_CURVATURE
   RNA_def_boolean(ot->srna,
                   "use_mesh_curvature",
                   false,
                   "Use Mesh Curvature",
                   "Take the mesh curvature into account when remeshing");
-
+#endif
   RNA_def_boolean(ot->srna,
                   "preserve_paint_mask",
                   false,

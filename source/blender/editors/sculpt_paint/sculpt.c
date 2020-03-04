@@ -1786,7 +1786,7 @@ static float brush_strength(const Sculpt *sd,
     case SCULPT_TOOL_LAYER:
       return alpha * flip * pressure * overlap * feather;
     case SCULPT_TOOL_CLOTH:
-      /* Ex/pand is more sensible to strength as it keeps expanding the cloth when sculpting over
+      /* Expand is more sensible to strength as it keeps expanding the cloth when sculpting over
        * the same vertices. */
       if (brush->cloth_deform_type == BRUSH_CLOTH_DEFORM_EXPAND) {
         return 0.1f * alpha * flip * pressure * overlap * feather;
@@ -6766,6 +6766,9 @@ static void sculpt_update_brush_delta(UnifiedPaintSettings *ups, Object *ob, Bru
 
     /* Handle 'rake' */
     cache->is_rake_rotation_valid = false;
+
+    invert_m4_m4(imat, ob->obmat);
+    mul_mat3_m4_v3(imat, grab_location);
 
     if (cache->first_time) {
       copy_v3_v3(cache->rake_data.follow_co, grab_location);

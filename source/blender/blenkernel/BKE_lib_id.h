@@ -179,7 +179,6 @@ void BKE_libblock_management_main_remove(struct Main *bmain, void *idv);
 void BKE_libblock_management_usercounts_set(struct Main *bmain, void *idv);
 void BKE_libblock_management_usercounts_clear(struct Main *bmain, void *idv);
 
-void BKE_id_lib_local_paths(struct Main *bmain, struct Library *lib, struct ID *id);
 void id_lib_extern(struct ID *id);
 void id_lib_indirect_weak_link(struct ID *id);
 void id_us_ensure_real(struct ID *id);
@@ -191,11 +190,18 @@ void id_fake_user_set(struct ID *id);
 void id_fake_user_clear(struct ID *id);
 void BKE_id_clear_newpoin(struct ID *id);
 
-void BKE_id_make_local_generic(struct Main *bmain,
-                               struct ID *id,
-                               const bool id_in_mainlist,
-                               const bool lib_local);
-bool id_make_local(struct Main *bmain, struct ID *id, const bool test, const bool force_local);
+/** Flags to control make local code behaviour. */
+enum {
+  /** Making that ID local is part of making local a whole library. */
+  LIB_ID_MAKELOCAL_FULL_LIBRARY = 1 << 0,
+
+  /* Special type-specific options. */
+  /** For Objects, do not clear the proxy pointers while making the data-block local. */
+  LIB_ID_MAKELOCAL_OBJECT_NO_PROXY_CLEARING = 1 << 16,
+};
+
+void BKE_lib_id_make_local_generic(struct Main *bmain, struct ID *id, const int flags);
+bool BKE_lib_id_make_local(struct Main *bmain, struct ID *id, const bool test, const int flags);
 bool id_single_user(struct bContext *C,
                     struct ID *id,
                     struct PointerRNA *ptr,
@@ -205,13 +211,11 @@ bool BKE_id_copy(struct Main *bmain, const struct ID *id, struct ID **newid);
 bool BKE_id_copy_ex(struct Main *bmain, const struct ID *id, struct ID **r_newid, const int flag);
 void BKE_id_swap(struct Main *bmain, struct ID *id_a, struct ID *id_b);
 void id_sort_by_name(struct ListBase *lb, struct ID *id, struct ID *id_sorting_hint);
-void BKE_id_expand_local(struct Main *bmain, struct ID *id);
-void BKE_id_copy_ensure_local(struct Main *bmain, const struct ID *old_id, struct ID *new_id);
+void BKE_lib_id_expand_local(struct Main *bmain, struct ID *id);
 
 bool BKE_id_new_name_validate(struct ListBase *lb, struct ID *id, const char *name)
     ATTR_NONNULL(1, 2);
-void id_clear_lib_data(struct Main *bmain, struct ID *id);
-void id_clear_lib_data_ex(struct Main *bmain, struct ID *id, const bool id_in_mainlist);
+void BKE_lib_id_clear_library_data(struct Main *bmain, struct ID *id);
 
 /* Affect whole Main database. */
 void BKE_main_id_tag_idcode(struct Main *mainvar,

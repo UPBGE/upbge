@@ -26,7 +26,7 @@ if(UNIX AND NOT APPLE)
   add_definitions(-D_GLIBCXX_PERMIT_BACKWARD_HASH)
 endif()
 if(WIN32)
-  add_definitions(-DNOMINMAX)
+  add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN)
 endif()
 add_definitions(-DPXR_STATIC)
 
@@ -60,6 +60,7 @@ set(SRC
   intern/usd_writer_hair.cc
   intern/usd_writer_light.cc
   intern/usd_writer_mesh.cc
+  intern/usd_writer_metaball.cc
   intern/usd_writer_transform.cc
 
   usd.h
@@ -71,6 +72,7 @@ set(SRC
   intern/usd_writer_hair.h
   intern/usd_writer_light.h
   intern/usd_writer_mesh.h
+  intern/usd_writer_metaball.h
   intern/usd_writer_transform.h
 )
 
@@ -97,13 +99,13 @@ endif()
 
 # Source: https://github.com/PixarAnimationStudios/USD/blob/master/BUILDING.md#linking-whole-archives
 if(WIN32)
-  target_link_libraries(bf_usd ${USD_LIBRARIES})
+  target_link_libraries(bf_usd INTERFACE ${USD_LIBRARIES})
 elseif(CMAKE_COMPILER_IS_GNUCXX)
-  target_link_libraries(bf_usd "-Wl,--whole-archive ${USD_LIBRARIES} -Wl,--no-whole-archive ${TBB_LIBRARIES}")
+  target_link_libraries(bf_usd INTERFACE "-Wl,--whole-archive ${USD_LIBRARIES} -Wl,--no-whole-archive ${TBB_LIBRARIES}")
 elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-  target_link_libraries(bf_usd  -Wl,-force_load ${USD_LIBRARIES})
+  target_link_libraries(bf_usd INTERFACE -Wl,-force_load ${USD_LIBRARIES})
 else()
   message(FATAL_ERROR "Unknown how to link USD with your compiler ${CMAKE_CXX_COMPILER_ID}")
 endif()
 
-target_link_libraries(bf_usd ${TBB_LIBRARIES})
+target_link_libraries(bf_usd INTERFACE ${TBB_LIBRARIES})

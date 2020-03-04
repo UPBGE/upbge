@@ -2188,7 +2188,7 @@ static PropertyDefRNA *rna_def_property_sdna(PropertyRNA *prop,
 void RNA_def_property_boolean_sdna(PropertyRNA *prop,
                                    const char *structname,
                                    const char *propname,
-                                   int bit)
+                                   int64_t bit)
 {
   PropertyDefRNA *dp;
   BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
@@ -2209,7 +2209,7 @@ void RNA_def_property_boolean_sdna(PropertyRNA *prop,
 
     if (DefRNA.silent == 0) {
       /* error check to ensure floats are not wrapped as ints/bools */
-      if (dp->dnatype && *dp->dnatype && IS_DNATYPE_INT_COMPAT(dp->dnatype) == 0) {
+      if (dp->dnatype && *dp->dnatype && IS_DNATYPE_BOOLEAN_COMPAT(dp->dnatype) == 0) {
         CLOG_ERROR(&LOG,
                    "%s.%s is a '%s' but wrapped as type '%s'.",
                    srna->identifier,
@@ -2279,7 +2279,7 @@ void RNA_def_property_boolean_sdna(PropertyRNA *prop,
 void RNA_def_property_boolean_negative_sdna(PropertyRNA *prop,
                                             const char *structname,
                                             const char *propname,
-                                            int booleanbit)
+                                            int64_t booleanbit)
 {
   PropertyDefRNA *dp;
 
@@ -2288,7 +2288,7 @@ void RNA_def_property_boolean_negative_sdna(PropertyRNA *prop,
   dp = rna_find_struct_property_def(DefRNA.laststruct, prop);
 
   if (dp) {
-    dp->booleannegative = 1;
+    dp->booleannegative = true;
   }
 }
 
@@ -4334,22 +4334,28 @@ int rna_parameter_size(PropertyRNA *parm)
 
 void RNA_enum_item_add(EnumPropertyItem **items, int *totitem, const EnumPropertyItem *item)
 {
-  EnumPropertyItem *newitems;
   int tot = *totitem;
 
   if (tot == 0) {
-    *items = MEM_callocN(sizeof(EnumPropertyItem) * 8, "RNA_enum_items_add");
+    *items = MEM_callocN(sizeof(EnumPropertyItem) * 8, __func__);
   }
   else if (tot >= 8 && (tot & (tot - 1)) == 0) {
     /* power of two > 8 */
-    newitems = MEM_callocN(sizeof(EnumPropertyItem) * tot * 2, "RNA_enum_items_add");
-    memcpy(newitems, *items, sizeof(EnumPropertyItem) * tot);
-    MEM_freeN(*items);
-    *items = newitems;
+    *items = MEM_recallocN_id(*items, sizeof(EnumPropertyItem) * tot * 2, __func__);
   }
 
   (*items)[tot] = *item;
   *totitem = tot + 1;
+
+  /* Ensure we get crashes on missing calls to 'RNA_enum_item_end', see T74227. */
+#ifdef DEBUG
+  static const EnumPropertyItem item_error = {
+      -1, POINTER_FROM_INT(-1), -1, POINTER_FROM_INT(-1), POINTER_FROM_INT(-1)};
+  if (item != &item_error) {
+    RNA_enum_item_add(items, totitem, &item_error);
+    *totitem -= 1;
+  }
+#endif
 }
 
 void RNA_enum_item_add_separator(EnumPropertyItem **items, int *totitem)
