@@ -67,7 +67,6 @@
 #include "KX_IPO_SGController.h"
 #include "KX_LightIpoSGController.h"
 #include "KX_CameraIpoSGController.h"
-#include "KX_WorldIpoController.h"
 #include "KX_ObColorIpoSGController.h"
 #include "KX_MaterialIpoController.h"
 
@@ -82,7 +81,6 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject *lightobj,
 SG_Controller *BL_CreateCameraIPO(struct bAction *action,
                                   KX_GameObject *cameraobj,
                                   KX_Scene *scene);
-SG_Controller *BL_CreateWorldIPO(bAction *action, struct World *blenderworld, KX_Scene *scene);
 SG_Controller *BL_CreateMaterialIpo(struct bAction *action,
                                     RAS_IPolyMaterial *polymat,
                                     KX_GameObject *gameobj,
@@ -291,89 +289,6 @@ SG_Controller *BL_CreateCameraIPO(struct bAction *action,
     ipocontr->SetModifyClipEnd(true);
   }
 
-  return ipocontr;
-}
-
-SG_Controller *BL_CreateWorldIPO(bAction *action, struct World *blenderworld, KX_Scene *scene)
-{
-  KX_WorldIpoController *ipocontr = nullptr;
-
-  if (blenderworld) {
-    BL_InterpolatorList *adtList = GetAdtList(action, scene);
-
-    // For each active channel in the adtList add an interpolator to the game object.
-    KX_IInterpolator *interpolator;
-    BL_ScalarInterpolator *interp;
-
-    for (int i = 0; i < 3; i++) {
-      if ((interp = adtList->GetScalarInterpolator("ambient_color", i))) {
-        if (!ipocontr) {
-          ipocontr = new KX_WorldIpoController();
-        }
-        interpolator = new KX_ScalarInterpolator(&ipocontr->m_ambi_rgb[i], interp);
-        ipocontr->AddInterpolator(interpolator);
-        ipocontr->SetModifyAmbientColor(true);
-      }
-    }
-
-    for (int i = 0; i < 3; i++) {
-      if ((interp = adtList->GetScalarInterpolator("horizon_color", i))) {
-        if (!ipocontr) {
-          ipocontr = new KX_WorldIpoController();
-        }
-        interpolator = new KX_ScalarInterpolator(&ipocontr->m_hori_rgb[i], interp);
-        ipocontr->AddInterpolator(interpolator);
-        ipocontr->SetModifyHorizonColor(true);
-      }
-    }
-
-    for (int i = 0; i < 3; i++) {
-      if ((interp = adtList->GetScalarInterpolator("zenith_color", i))) {
-        if (!ipocontr) {
-          ipocontr = new KX_WorldIpoController();
-        }
-        interpolator = new KX_ScalarInterpolator(&ipocontr->m_zeni_rgb[i], interp);
-        ipocontr->AddInterpolator(interpolator);
-        ipocontr->SetModifyZenithColor(true);
-      }
-    }
-
-    if ((interp = adtList->GetScalarInterpolator("mist_settings.start", 0))) {
-      if (!ipocontr) {
-        ipocontr = new KX_WorldIpoController();
-      }
-      interpolator = new KX_ScalarInterpolator(&ipocontr->m_mist_start, interp);
-      ipocontr->AddInterpolator(interpolator);
-      ipocontr->SetModifyMistStart(true);
-    }
-
-    if ((interp = adtList->GetScalarInterpolator("mist_settings.depth", 0))) {
-      if (!ipocontr) {
-        ipocontr = new KX_WorldIpoController();
-      }
-      interpolator = new KX_ScalarInterpolator(&ipocontr->m_mist_dist, interp);
-      ipocontr->AddInterpolator(interpolator);
-      ipocontr->SetModifyMistDist(true);
-    }
-
-    if ((interp = adtList->GetScalarInterpolator("mist_settings.intensity", 0))) {
-      if (!ipocontr) {
-        ipocontr = new KX_WorldIpoController();
-      }
-      interpolator = new KX_ScalarInterpolator(&ipocontr->m_mist_intensity, interp);
-      ipocontr->AddInterpolator(interpolator);
-      ipocontr->SetModifyMistIntensity(true);
-    }
-
-    if (ipocontr) {
-      ipocontr->m_mist_start = blenderworld->miststa;
-      ipocontr->m_mist_dist = blenderworld->mistdist;
-      ipocontr->m_mist_intensity = blenderworld->misi;
-      ipocontr->m_hori_rgb[0] = blenderworld->horr;
-      ipocontr->m_hori_rgb[1] = blenderworld->horg;
-      ipocontr->m_hori_rgb[2] = blenderworld->horb;
-    }
-  }
   return ipocontr;
 }
 

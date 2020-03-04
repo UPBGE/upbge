@@ -169,14 +169,6 @@ bool BL_Action::Play(const std::string &name,
   m_obj->GetSGNode()->AddSGController(sg_contr);
   sg_contr->SetNode(m_obj->GetSGNode());
 
-  // World
-  sg_contr = BL_CreateWorldIPO(m_action, kxscene->GetBlenderScene()->world, kxscene);
-  if (sg_contr) {
-    m_sg_contr_list.push_back(sg_contr);
-    m_obj->GetSGNode()->AddSGController(sg_contr);
-    sg_contr->SetNode(m_obj->GetSGNode());
-  }
-
   // Try obcolor
   sg_contr = BL_CreateObColorIPO(m_action, m_obj, kxscene);
   if (sg_contr) {
@@ -556,6 +548,18 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
         // shape_deformer->SetLastFrame(curtime);
 
+        scene->ResetTaaSamples();
+      }
+    }
+    // TEST World Background actions
+    World *world = scene->GetBlenderScene()->world;
+    if (world && world->use_nodes && world->nodetree) {
+      bNodeTree *node_tree = world->nodetree;
+      if (node_tree->adt && node_tree->adt->action->id.name == m_action->id.name) {
+        DEG_id_tag_update(&world->id, ID_RECALC_SHADING);
+        PointerRNA ptrrna;
+        RNA_id_pointer_create(&node_tree->id, &ptrrna);
+        animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
         scene->ResetTaaSamples();
       }
     }
