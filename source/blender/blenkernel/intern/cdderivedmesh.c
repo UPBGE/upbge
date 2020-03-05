@@ -301,6 +301,7 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
                         me->totvert,
                         &me->vdata,
                         &me->ldata,
+                        &me->pdata,
                         looptri,
                         looptris_num);
 
