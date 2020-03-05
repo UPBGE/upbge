@@ -40,6 +40,9 @@ class RAS_2DFilter : public virtual RAS_Shader {
   enum PredefinedUniformType {
     RENDERED_TEXTURE_UNIFORM = 0,
     DEPTH_TEXTURE_UNIFORM,
+    UTIL_TEXTURE_UNIFORM,
+    PROJ_MATRIX_UNIFORM,
+    VIEW_MATRIX_UNIFORM,
     RENDERED_TEXTURE_WIDTH_UNIFORM,
     RENDERED_TEXTURE_HEIGHT_UNIFORM,
     TEXTURE_COORDINATE_OFFSETS_UNIFORM,
@@ -71,7 +74,7 @@ class RAS_2DFilter : public virtual RAS_Shader {
 
   virtual bool LinkProgram();
   void ParseShaderProgram();
-  void BindUniforms(RAS_ICanvas *canvas);
+  void BindUniforms(RAS_ICanvas *canvas, class KX_Scene *kxscene);
   void BindTextures(RAS_FrameBuffer *detphofs, RAS_FrameBuffer *colorfb);
   void UnbindTextures(RAS_FrameBuffer *detphofs, RAS_FrameBuffer *colorfb);
   void ComputeTextureOffsets(RAS_ICanvas *canvas);
@@ -100,6 +103,7 @@ class RAS_2DFilter : public virtual RAS_Shader {
    */
   RAS_FrameBuffer *Start(RAS_Rasterizer *rasty,
                          RAS_ICanvas *canvas,
+                         class KX_Scene *kxscene,
                          RAS_FrameBuffer *detphofs,
                          RAS_FrameBuffer *colorfb,
                          RAS_FrameBuffer *targetfb);
