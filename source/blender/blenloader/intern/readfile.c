@@ -5115,11 +5115,11 @@ static void lib_link_object(FileData *fd, Main *bmain, Object *ob)
   /* When the object is local and the data is library its possible
    * the material list size gets out of sync. [#22663] */
   if (ob->data && ob->id.lib != ((ID *)ob->data)->lib) {
-    const short *totcol_data = BKE_object_material_num(ob);
+    const short *totcol_data = BKE_object_material_len_p(ob);
     /* Only expand so as not to loose any object materials that might be set. */
     if (totcol_data && (*totcol_data > ob->totcol)) {
       /* printf("'%s' %d -> %d\n", ob->id.name, ob->totcol, *totcol_data); */
-      BKE_material_resize_object(bmain, ob, *totcol_data, false);
+      BKE_object_material_resize(bmain, ob, *totcol_data, false);
     }
   }
 
@@ -8289,7 +8289,8 @@ void blo_lib_link_restore(Main *oldmain,
                           Scene *curscene,
                           ViewLayer *cur_view_layer)
 {
-  struct IDNameLib_Map *id_map = BKE_main_idmap_create(newmain, true, oldmain);
+  struct IDNameLib_Map *id_map = BKE_main_idmap_create(
+      newmain, true, oldmain, MAIN_IDMAP_TYPE_NAME);
 
   for (WorkSpace *workspace = newmain->workspaces.first; workspace;
        workspace = workspace->id.next) {
@@ -9034,6 +9035,8 @@ static ID *create_placeholder(Main *mainvar, const short idcode, const char *idn
   BLI_addtail(lb, ph_id);
   id_sort_by_name(lb, ph_id, NULL);
 
+  BKE_lib_libblock_session_uuid_ensure(ph_id);
+
   return ph_id;
 }
 
@@ -9246,6 +9249,14 @@ static BHead *read_libblock(FileData *fd,
       oldnewmap_insert(fd->libmap, bhead->old, id, bhead->code);
 
       BLI_addtail(lb, id);
+
+      if (fd->memfile == NULL) {
+        /* When actually reading a file , we do want to reset/re-generate session uuids.
+         * In unod case, we want to re-use existing ones. */
+        id->session_uuid = MAIN_ID_SESSION_UUID_UNSET;
+      }
+
+      BKE_lib_libblock_session_uuid_ensure(id);
     }
     else {
       /* unknown ID type */

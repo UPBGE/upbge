@@ -846,6 +846,7 @@ class VIEW3D_PT_sculpt_voxel_remesh(Panel, View3DPaintPanel):
         col.prop(mesh, "use_remesh_smooth_normals")
         col.prop(mesh, "use_remesh_preserve_volume")
         col.prop(mesh, "use_remesh_preserve_paint_mask")
+        col.prop(mesh, "use_remesh_preserve_sculpt_face_sets")
         col.operator("object.voxel_remesh", text="Remesh")
 
 
@@ -1870,7 +1871,7 @@ classes = (
     VIEW3D_PT_tools_curveedit_options_stroke,
     VIEW3D_PT_tools_armatureedit_options,
     VIEW3D_PT_tools_posemode_options,
-    
+
     VIEW3D_PT_slots_projectpaint,
     VIEW3D_PT_tools_brush_select,
     VIEW3D_PT_tools_brush_settings,
@@ -1910,7 +1911,7 @@ classes = (
 
     VIEW3D_PT_tools_imagepaint_symmetry,
     VIEW3D_PT_tools_imagepaint_options,
-    
+
     VIEW3D_PT_tools_imagepaint_options_external,
     VIEW3D_MT_tools_projectpaint_stencil,
 

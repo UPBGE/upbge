@@ -496,6 +496,15 @@ def disable_all():
             disable(mod_name)
 
 
+def _blender_manual_url_prefix():
+    if _bpy.app.version_cycle in {"rc", "release"}:
+        manual_version = "%d.%d" % _bpy.app.version[:2]
+    else:
+        manual_version = "dev"
+
+    return f"https://docs.blender.org/manual/en/{manual_version}"
+
+
 def module_bl_info(mod, info_basis=None):
     if info_basis is None:
         info_basis = {
@@ -505,7 +514,7 @@ def module_bl_info(mod, info_basis=None):
             "blender": (),
             "location": "",
             "description": "",
-            "wiki_url": "",
+            "doc_url": "",
             "support": 'COMMUNITY',
             "category": "",
             "warning": "",
@@ -526,6 +535,31 @@ def module_bl_info(mod, info_basis=None):
 
     if not addon_info["name"]:
         addon_info["name"] = mod.__name__
+
+    # Replace 'wiki_url' with 'doc_url'.
+    doc_url = addon_info.pop("wiki_url", None)
+    if doc_url is not None:
+        # Unlikely, but possible that both are set.
+        if not addon_info["doc_url"]:
+            addon_info["doc_url"] = doc_url
+        if _bpy.app.debug:
+            print(
+                "Warning: add-on \"{addon_name}\": 'wiki_url' in 'bl_info' "
+                "is deprecated please use 'doc_url' instead!\n"
+                "         {addon_path}".format(
+                    addon_name=addon_info['name'],
+                    addon_path=getattr(mod, "__file__", None),
+                )
+            )
+
+    doc_url = addon_info["doc_url"]
+    if doc_url:
+        doc_url_prefix = "{BLENDER_MANUAL_URL}"
+        if doc_url_prefix in doc_url:
+            addon_info["doc_url"] = doc_url.replace(
+                doc_url_prefix,
+                _blender_manual_url_prefix(),
+            )
 
     addon_info["_init"] = None
     return addon_info

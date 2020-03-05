@@ -246,9 +246,9 @@ struct MANTA {
   {
     return mForceZ;
   }
-  inline int *getObstacle()
+  inline int *getFlags()
   {
-    return mObstacle;
+    return mFlags;
   }
   inline float *getNumObstacle()
   {
@@ -376,9 +376,17 @@ struct MANTA {
   {
     return mPhiIn;
   }
+  inline float *getPhiStaticIn()
+  {
+    return mPhiStaticIn;
+  }
   inline float *getPhiObsIn()
   {
     return mPhiObsIn;
+  }
+  inline float *getPhiObsStaticIn()
+  {
+    return mPhiObsStaticIn;
   }
   inline float *getPhiGuideIn()
   {
@@ -785,7 +793,7 @@ struct MANTA {
   float *mForceX;
   float *mForceY;
   float *mForceZ;
-  int *mObstacle;
+  int *mFlags;
   float *mNumObstacle;
   float *mNumGuide;
 
@@ -823,7 +831,9 @@ struct MANTA {
 
   // Liquid grids
   float *mPhiIn;
+  float *mPhiStaticIn;
   float *mPhiObsIn;
+  float *mPhiObsStaticIn;
   float *mPhiGuideIn;
   float *mPhiOutIn;
   float *mPhi;

@@ -277,19 +277,21 @@ def smoke_adaptive_step_$ID$(framenr):\n\
     \n\
     if using_obstacle_s$ID$:\n\
         mantaMsg('Initializing obstacle levelset')\n\
+        phiObsIn_s$ID$.join(phiObsSIn_s$ID$) # Join static obstacle map\n\
         phiObsIn_s$ID$.fillHoles(maxDepth=int(res_s$ID$), boundaryWidth=2)\n\
-        extrapolateLsSimple(phi=phiObsIn_s$ID$, distance=int(res_s$ID$/2), inside=True)\n\
+        extrapolateLsSimple(phi=phiObsIn_s$ID$, distance=6, inside=True)\n\
         extrapolateLsSimple(phi=phiObsIn_s$ID$, distance=3, inside=False)\n\
         phiObs_s$ID$.join(phiObsIn_s$ID$)\n\
         \n\
         # Using boundaryWidth=2 to not search beginning from walls (just a performance optimization)\n\
         # Additional sanity check: fill holes in phiObs which can result after joining with phiObsIn\n\
         phiObs_s$ID$.fillHoles(maxDepth=int(res_s$ID$), boundaryWidth=2)\n\
-        extrapolateLsSimple(phi=phiObs_s$ID$, distance=int(res_s$ID$/2), inside=True)\n\
+        extrapolateLsSimple(phi=phiObs_s$ID$, distance=6, inside=True)\n\
         extrapolateLsSimple(phi=phiObs_s$ID$, distance=3, inside=False)\n\
     \n\
     mantaMsg('Initializing fluid levelset')\n\
-    extrapolateLsSimple(phi=phiIn_s$ID$, distance=int(res_s$ID$/2), inside=True)\n\
+    phiIn_s$ID$.join(phiSIn_s$ID$) # Join static flow map\n\
+    extrapolateLsSimple(phi=phiIn_s$ID$, distance=6, inside=True)\n\
     extrapolateLsSimple(phi=phiIn_s$ID$, distance=3, inside=False)\n\
     \n\
     if using_outflow_s$ID$:\n\
@@ -374,12 +376,13 @@ def smoke_step_$ID$():\n\
     if using_obstacle_s$ID$:\n\
         mantaMsg('Extrapolating object velocity')\n\
         # ensure velocities inside of obs object, slightly add obvels outside of obs object\n\
-        extrapolateVec3Simple(vel=obvelC_s$ID$, phi=phiObsIn_s$ID$, distance=int(res_s$ID$/2), inside=True)\n\
+        extrapolateVec3Simple(vel=obvelC_s$ID$, phi=phiObsIn_s$ID$, distance=6, inside=True)\n\
         extrapolateVec3Simple(vel=obvelC_s$ID$, phi=phiObsIn_s$ID$, distance=3, inside=False)\n\
         resampleVec3ToMac(source=obvelC_s$ID$, target=obvel_s$ID$)\n\
     \n\
     # Cells inside obstacle should not contain any density, fire, etc.\n\
-    resetInObstacle(flags=flags_s$ID$, density=density_s$ID$, vel=vel_s$ID$, heat=heat_s$ID$, fuel=fuel_s$ID$, flame=flame_s$ID$, red=color_r_s$ID$, green=color_g_s$ID$, blue=color_b_s$ID$)\n\
+    if deleteInObstacle_s$ID$:\n\
+        resetInObstacle(flags=flags_s$ID$, density=density_s$ID$, vel=vel_s$ID$, heat=heat_s$ID$, fuel=fuel_s$ID$, flame=flame_s$ID$, red=color_r_s$ID$, green=color_g_s$ID$, blue=color_b_s$ID$)\n\
     \n\
     # add initial velocity\n\
     if using_invel_s$ID$:\n\

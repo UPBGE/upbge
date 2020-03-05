@@ -19,20 +19,18 @@
 # <pep8 compliant>
 
 import bpy
-from bpy.types import (
-    Panel,
-    Menu,
-)
+from bpy.types import Menu, Panel
+from bl_ui.utils import PresetPanel
 from .properties_physics_common import (
     effector_weights_ui,
 )
 
 
-class FLUID_MT_presets(Menu):
+class FLUID_PT_presets(PresetPanel, Panel):
     bl_label = "Fluid Presets"
     preset_subdir = "fluid"
     preset_operator = "script.execute_preset"
-    draw = Menu.draw_preset
+    preset_add_operator = "fluid.preset_add"
 
 
 class PhysicButtonsPanel:
@@ -179,12 +177,11 @@ class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
             col.prop(domain, "time_scale", text="Time Scale")
             col.prop(domain, "cfl_condition", text="CFL Number")
 
-            col = flow.column()
+            col = flow.column(align=True)
             col.prop(domain, "use_adaptive_timesteps")
-            col1 = col.column(align=True)
-            col1.enabled = domain.use_adaptive_timesteps
-            col1.prop(domain, "timesteps_max", text="Timesteps Maximum")
-            col1.prop(domain, "timesteps_min", text="Minimum")
+            col.active = domain.use_adaptive_timesteps
+            col.prop(domain, "timesteps_max", text="Timesteps Maximum")
+            col.prop(domain, "timesteps_min", text="Minimum")
 
             col.separator()
 
@@ -271,10 +268,10 @@ class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
 
             col.prop(effector_settings, "use_plane_init", text="Is Planar")
             col.prop(effector_settings, "surface_distance", text="Surface Thickness")
+            col.prop(effector_settings, "delete_in_obstacle", text="Delete In Obstacle")
 
             if effector_settings.effector_type == 'GUIDE':
                 col.prop(effector_settings, "velocity_factor", text="Velocity Factor")
-                col = flow.column()
                 col.prop(effector_settings, "guide_mode", text="Guide Mode")
 
 
@@ -318,8 +315,8 @@ class PHYSICS_PT_borders(PhysicButtonsPanel, Panel):
 
 
 class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
-    bl_label = "Smoke"
-    bl_parent_id = 'PHYSICS_PT_settings'
+    bl_label = "Gas"
+    bl_parent_id = 'PHYSICS_PT_fluid'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
     @classmethod
@@ -395,7 +392,7 @@ class PHYSICS_PT_smoke_dissolve(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_fire(PhysicButtonsPanel, Panel):
     bl_label = "Fire"
-    bl_parent_id = 'PHYSICS_PT_settings'
+    bl_parent_id = 'PHYSICS_PT_smoke'
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
@@ -433,7 +430,7 @@ class PHYSICS_PT_fire(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_liquid(PhysicButtonsPanel, Panel):
     bl_label = "Liquid"
-    bl_parent_id = 'PHYSICS_PT_settings'
+    bl_parent_id = 'PHYSICS_PT_fluid'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_OPENGL'}
 
     @classmethod
@@ -481,9 +478,8 @@ class PHYSICS_PT_liquid(PhysicButtonsPanel, Panel):
 
         col = flow.column()
         col.prop(domain, "use_fractions", text="Fractional Obstacles")
-        col1 = col.column()
-        col1.enabled = domain.use_fractions
-        col1.prop(domain, "fractions_threshold", text="Obstacle-Fluid Threshold")
+        col.active = domain.use_fractions
+        col.prop(domain, "fractions_threshold", text="Obstacle-Fluid Threshold")
 
 
 class PHYSICS_PT_flow_source(PhysicButtonsPanel, Panel):
@@ -622,7 +618,7 @@ class PHYSICS_PT_flow_texture(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_adaptive_domain(PhysicButtonsPanel, Panel):
     bl_label = "Adaptive Domain"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = 'PHYSICS_PT_settings'
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_OPENGL'}
 
@@ -674,7 +670,7 @@ class PHYSICS_PT_adaptive_domain(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_noise(PhysicButtonsPanel, Panel):
     bl_label = "Noise"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = 'PHYSICS_PT_smoke'
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
@@ -697,7 +693,7 @@ class PHYSICS_PT_noise(PhysicButtonsPanel, Panel):
         layout.use_property_split = True
 
         domain = context.fluid.domain_settings
-        layout.enabled = domain.use_noise
+        layout.active = domain.use_noise
 
         is_baking_any = domain.is_cache_baking_any
         has_baked_noise = domain.has_cache_baked_noise
@@ -746,7 +742,7 @@ class PHYSICS_PT_noise(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_mesh(PhysicButtonsPanel, Panel):
     bl_label = "Mesh"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = 'PHYSICS_PT_liquid'
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
@@ -769,7 +765,7 @@ class PHYSICS_PT_mesh(PhysicButtonsPanel, Panel):
         layout.use_property_split = True
 
         domain = context.fluid.domain_settings
-        layout.enabled = domain.use_mesh
+        layout.active = domain.use_mesh
 
         is_baking_any = domain.is_cache_baking_any
         has_baked_mesh = domain.has_cache_baked_mesh
@@ -831,7 +827,7 @@ class PHYSICS_PT_mesh(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
     bl_label = "Particles"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = 'PHYSICS_PT_liquid'
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_OPENGL'}
 
@@ -856,21 +852,20 @@ class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
         flow.enabled = not is_baking_any
 
         sndparticle_combined_export = domain.sndparticle_combined_export
-        col = flow.column()
-        col.enabled = sndparticle_combined_export in {'OFF', 'FOAM + BUBBLES'}
-        col.prop(domain, "use_spray_particles", text="Spray")
-        col = flow.column()
-        col.enabled = sndparticle_combined_export in {'OFF', 'SPRAY + BUBBLES'}
-        col.prop(domain, "use_foam_particles", text="Foam")
-        col = flow.column()
-        col.enabled = sndparticle_combined_export in {'OFF', 'SPRAY + FOAM'}
-        col.prop(domain, "use_bubble_particles", text="Bubbles")
-
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
-        flow.enabled = not is_baking_any and not has_baked_particles and using_particles
+        row = flow.row()
+        row.enabled = sndparticle_combined_export in {'OFF', 'FOAM + BUBBLES'}
+        row.prop(domain, "use_spray_particles", text="Spray")
+        row.prop(domain, "use_foam_particles", text="Foam")
+        row.prop(domain, "use_bubble_particles", text="Bubbles")
 
         col = flow.column()
         col.prop(domain, "sndparticle_combined_export")
+
+        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
+        flow.enabled = not is_baking_any and not has_baked_particles
+        flow.active = using_particles
+
+        col = flow.column()
         col.prop(domain, "particle_scale", text="Upres Factor")
         col.separator()
 
@@ -950,7 +945,7 @@ class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_diffusion(PhysicButtonsPanel, Panel):
     bl_label = "Diffusion"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = 'PHYSICS_PT_liquid'
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
@@ -961,6 +956,17 @@ class PHYSICS_PT_diffusion(PhysicButtonsPanel, Panel):
             return False
 
         return (context.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        md = context.fluid.domain_settings
+        domain = context.fluid.domain_settings
+        is_baking_any = domain.is_cache_baking_any
+        has_baked_any = domain.has_cache_baked_any
+        self.layout.enabled = not is_baking_any and not has_baked_any
+        self.layout.prop(md, "use_diffusion", text="")
+
+    def draw_header_preset(self, _context):
+        FLUID_PT_presets.draw_panel_header(self.layout)
 
     def draw(self, context):
         layout = self.layout
@@ -974,16 +980,6 @@ class PHYSICS_PT_diffusion(PhysicButtonsPanel, Panel):
 
         flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
         flow.enabled = not is_baking_any and not has_baked_any and not has_baked_data
-
-        row = flow.row()
-
-        col = row.column()
-        col.label(text="Viscosity Presets:")
-        col.menu("FLUID_MT_presets", text=bpy.types.FLUID_MT_presets.bl_label)
-
-        col = row.column(align=True)
-        col.operator("fluid.preset_add", text="", icon='ADD')
-        col.operator("fluid.preset_add", text="", icon='REMOVE').remove_active = True
 
         col = flow.column(align=True)
         col.prop(domain, "viscosity_base", text="Base")
@@ -1231,35 +1227,31 @@ class PHYSICS_PT_viewport_display(PhysicButtonsPanel, Panel):
         flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=True)
 
         domain = context.fluid.domain_settings
-
-        col = flow.column()
-        col.prop(domain, "display_thickness")
-
-        col.separator()
-
-        col.prop(domain, "slice_method", text="Slicing")
-
         slice_method = domain.slice_method
         axis_slice_method = domain.axis_slice_method
 
         do_axis_slicing = (slice_method == 'AXIS_ALIGNED')
         do_full_slicing = (axis_slice_method == 'FULL')
 
-        col = col.column()
-        col.enabled = do_axis_slicing
-        col.prop(domain, "axis_slice_method")
+        col = flow.column(align=False)
+        col.prop(domain, "display_thickness")
+        col.prop(domain, "display_interpolation")
+        col.separator()
 
         col = flow.column()
-        sub = col.column()
-        sub.enabled = not do_full_slicing and do_axis_slicing
-        sub.prop(domain, "slice_axis")
-        sub.prop(domain, "slice_depth")
+        col.prop(domain, "slice_method", text="Slicing")
 
-        row = col.row()
-        row.enabled = do_full_slicing or not do_axis_slicing
-        row.prop(domain, "slice_per_voxel")
+        col = col.column()
+        col.active = do_axis_slicing
+        col.prop(domain, "axis_slice_method")
 
-        col.prop(domain, "display_interpolation")
+        if not do_full_slicing and do_axis_slicing:
+            col.prop(domain, "slice_axis")
+            col.prop(domain, "slice_depth")
+
+        col = col.column()
+        col.active = do_full_slicing or not do_axis_slicing
+        col.prop(domain, "slice_per_voxel")
 
 
 class PHYSICS_PT_viewport_display_color(PhysicButtonsPanel, Panel):
@@ -1282,8 +1274,7 @@ class PHYSICS_PT_viewport_display_color(PhysicButtonsPanel, Panel):
 
         domain = context.fluid.domain_settings
         col = layout.column()
-        col.enabled = domain.use_color_ramp
-
+        col.active = domain.use_color_ramp
         col.prop(domain, "coba_field")
 
         col.use_property_split = False
@@ -1314,33 +1305,33 @@ class PHYSICS_PT_viewport_display_debug(PhysicButtonsPanel, Panel):
         domain = context.fluid.domain_settings
 
         col = flow.column()
-        col.enabled = domain.show_velocity
+        col.active = domain.show_velocity
         col.prop(domain, "vector_display_type", text="Display As")
         col.prop(domain, "vector_scale")
 
 
 classes = (
-    FLUID_MT_presets,
+    FLUID_PT_presets,
     PHYSICS_PT_fluid,
     PHYSICS_PT_settings,
     PHYSICS_PT_borders,
+    PHYSICS_PT_adaptive_domain,
     PHYSICS_PT_smoke,
     PHYSICS_PT_smoke_dissolve,
+    PHYSICS_PT_noise,
     PHYSICS_PT_fire,
     PHYSICS_PT_liquid,
-    PHYSICS_PT_flow_source,
-    PHYSICS_PT_flow_initial_velocity,
-    PHYSICS_PT_flow_texture,
-    PHYSICS_PT_adaptive_domain,
-    PHYSICS_PT_noise,
-    PHYSICS_PT_mesh,
-    PHYSICS_PT_particles,
     PHYSICS_PT_diffusion,
+    PHYSICS_PT_particles,
+    PHYSICS_PT_mesh,
     PHYSICS_PT_guide,
     PHYSICS_PT_collections,
     PHYSICS_PT_cache,
     PHYSICS_PT_export,
     PHYSICS_PT_field_weights,
+    PHYSICS_PT_flow_source,
+    PHYSICS_PT_flow_initial_velocity,
+    PHYSICS_PT_flow_texture,
     PHYSICS_PT_viewport_display,
     PHYSICS_PT_viewport_display_color,
     PHYSICS_PT_viewport_display_debug,

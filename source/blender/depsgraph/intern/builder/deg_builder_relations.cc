@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <cstring> /* required for STREQ later on. */
-#include <deque>
 #include <unordered_set>
 
 #include "MEM_guardedalloc.h"
@@ -121,7 +120,6 @@ extern "C" {
 
 namespace DEG {
 
-using std::deque;
 using std::unordered_set;
 
 /* ***************** */
@@ -814,9 +812,9 @@ void DepsgraphRelationBuilder::build_object_data(Object *object)
     build_nested_shapekey(&object->id, key);
   }
   /* Materials. */
-  Material ***materials_ptr = BKE_object_material_array(object);
+  Material ***materials_ptr = BKE_object_material_array_p(object);
   if (materials_ptr != nullptr) {
-    short *num_materials_ptr = BKE_object_material_num(object);
+    short *num_materials_ptr = BKE_object_material_len_p(object);
     build_materials(*materials_ptr, *num_materials_ptr);
   }
 }

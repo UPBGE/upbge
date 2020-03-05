@@ -41,6 +41,8 @@ enum {
   FLUID_DOMAIN_USE_SPEED_VECTORS = (1 << 11),   /* Generate mesh speed vectors. */
   FLUID_DOMAIN_EXPORT_MANTA_SCRIPT = (1 << 12), /* Export mantaflow script during bake. */
   FLUID_DOMAIN_USE_FRACTIONS = (1 << 13),       /* Use second order obstacles. */
+  FLUID_DOMAIN_DELETE_IN_OBSTACLE = (1 << 14),  /* Delete fluid inside obstacles. */
+  FLUID_DOMAIN_USE_DIFFUSION = (1 << 15), /* Use diffusion (e.g. viscosity, surface tension). */
 };
 
 /* Border collisions. */
@@ -494,7 +496,7 @@ enum {
   FLUID_FLOW_USE_PART_SIZE = (1 << 4),
   /* Control when to apply inflow. */
   FLUID_FLOW_USE_INFLOW = (1 << 5),
-  /* Control when to apply inflow. */
+  /* Control how to initialize flow objects. */
   FLUID_FLOW_USE_PLANE_INIT = (1 << 6),
 };
 
@@ -563,6 +565,14 @@ enum {
   FLUID_EFFECTOR_GUIDE_AVERAGED = 3,
 };
 
+/* Effector flags. */
+enum {
+  /* Control when to apply inflow. */
+  FLUID_EFFECTOR_USE_EFFEC = (1 << 1),
+  /* Control how to initialize flow objects. */
+  FLUID_EFFECTOR_USE_PLANE_INIT = (1 << 2),
+};
+
 /* Collision objects (filled with smoke). */
 typedef struct FluidEffectorSettings {
 
@@ -578,8 +588,9 @@ typedef struct FluidEffectorSettings {
 
   float surface_distance; /* Thickness of mesh surface, used in obstacle sdf. */
   int flags;
+  int subframes;
   short type;
-  char _pad1[2];
+  char _pad1[6];
 
   /* Guiding options. */
   float vel_multi; /* Multiplier for object velocity. */
