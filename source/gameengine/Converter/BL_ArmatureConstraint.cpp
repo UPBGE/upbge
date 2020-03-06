@@ -125,11 +125,11 @@ BL_ArmatureConstraint::~BL_ArmatureConstraint()
   // objects.
   if (m_blendtarget) {
     m_blendtarget->pose = nullptr;
-    BKE_object_free(m_blendtarget);
+    //BKE_object_free(m_blendtarget);
   }
   if (m_blendsubtarget) {
     m_blendsubtarget->pose = nullptr;
-    BKE_object_free(m_blendsubtarget);
+    //BKE_object_free(m_blendsubtarget);
   }
 }
 

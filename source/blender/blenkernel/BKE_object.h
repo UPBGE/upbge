@@ -73,7 +73,6 @@ void BKE_object_free_softbody(struct Object *ob);
 void BKE_object_free_bulletsoftbody(struct Object *ob);
 void BKE_object_free_curve_cache(struct Object *ob);
 
-void BKE_object_free(struct Object *ob);
 void BKE_object_free_derived_caches(struct Object *ob);
 void BKE_object_free_caches(struct Object *object);
 
@@ -120,7 +119,6 @@ typedef enum eObjectVisibilityResult {
 
 int BKE_object_visibility(const struct Object *ob, const int dag_eval_mode);
 
-void BKE_object_init(struct Object *ob, const short ob_type);
 struct Object *BKE_object_add_only_object(struct Main *bmain, int type, const char *name)
     ATTR_NONNULL(1) ATTR_RETURNS_NONNULL;
 struct Object *BKE_object_add(struct Main *bmain,
@@ -157,7 +155,6 @@ void BKE_object_copy_data(struct Main *bmain,
                           const struct Object *ob_src,
                           const int flag);
 struct Object *BKE_object_copy(struct Main *bmain, const struct Object *ob);
-void BKE_object_make_local(struct Main *bmain, struct Object *ob, const int flags);
 bool BKE_object_is_libdata(const struct Object *ob);
 bool BKE_object_obdata_is_libdata(const struct Object *ob);
 

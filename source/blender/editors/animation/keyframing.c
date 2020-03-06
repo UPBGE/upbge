@@ -87,7 +87,7 @@ static KeyingSet *keyingset_get_from_op_with_error(wmOperator *op,
 /* Keyframing Setting Wrangling */
 
 /* Get the active settings for keyframing settings from context (specifically the given scene) */
-short ANIM_get_keyframing_flags(Scene *scene, short incl_mode)
+eInsertKeyFlags ANIM_get_keyframing_flags(Scene *scene, const bool use_autokey_mode)
 {
   eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
 
@@ -110,7 +110,7 @@ short ANIM_get_keyframing_flags(Scene *scene, short incl_mode)
   }
 
   /* only if including settings from the autokeying mode... */
-  if (incl_mode) {
+  if (use_autokey_mode) {
     /* keyframing mode - only replace existing keyframes */
     if (IS_AUTOKEY_MODE(scene, EDITKEYS)) {
       flag |= INSERTKEY_REPLACE;
@@ -131,13 +131,13 @@ short ANIM_get_keyframing_flags(Scene *scene, short incl_mode)
 /* Get (or add relevant data to be able to do so) the Active Action for the given
  * Animation Data block, given an ID block where the Animation Data should reside.
  */
-bAction *verify_adt_action(Main *bmain, ID *id, short add)
+bAction *ED_id_action_ensure(Main *bmain, ID *id)
 {
   AnimData *adt;
 
   /* init animdata if none available yet */
   adt = BKE_animdata_from_id(id);
-  if ((adt == NULL) && (add)) {
+  if (adt == NULL) {
     adt = BKE_animdata_add_id(id);
   }
   if (adt == NULL) {
@@ -148,7 +148,7 @@ bAction *verify_adt_action(Main *bmain, ID *id, short add)
 
   /* init action if none available yet */
   /* TODO: need some wizardry to handle NLA stuff correct */
-  if ((adt->action == NULL) && (add)) {
+  if (adt->action == NULL) {
     /* init action name from name of ID block */
     char actname[sizeof(id->name) - 2];
     BLI_snprintf(actname, sizeof(actname), "%sAction", id->name + 2);
@@ -172,21 +172,34 @@ bAction *verify_adt_action(Main *bmain, ID *id, short add)
   return adt->action;
 }
 
-/* Get (or add relevant data to be able to do so) F-Curve from the Active Action,
+/**
+ * Find the F-Curve from the Active Action,
  * for the given Animation Data block. This assumes that all the destinations are valid.
  */
-FCurve *verify_fcurve(Main *bmain,
-                      bAction *act,
-                      const char group[],
-                      PointerRNA *ptr,
-                      const char rna_path[],
-                      const int array_index,
-                      short add)
+FCurve *ED_action_fcurve_find(struct bAction *act, const char rna_path[], const int array_index)
+{
+  /* Sanity checks. */
+  if (ELEM(NULL, act, rna_path)) {
+    return NULL;
+  }
+  return list_find_fcurve(&act->curves, rna_path, array_index);
+}
+
+/**
+ * Get (or add relevant data to be able to do so) F-Curve from the Active Action,
+ * for the given Animation Data block. This assumes that all the destinations are valid.
+ */
+FCurve *ED_action_fcurve_ensure(struct Main *bmain,
+                                struct bAction *act,
+                                const char group[],
+                                struct PointerRNA *ptr,
+                                const char rna_path[],
+                                const int array_index)
 {
   bActionGroup *agrp;
   FCurve *fcu;
 
-  /* sanity checks */
+  /* Sanity checks. */
   if (ELEM(NULL, act, rna_path)) {
     return NULL;
   }
@@ -197,7 +210,7 @@ FCurve *verify_fcurve(Main *bmain,
    */
   fcu = list_find_fcurve(&act->curves, rna_path, array_index);
 
-  if ((fcu == NULL) && (add)) {
+  if (fcu == NULL) {
     /* use default settings to make a F-Curve */
     fcu = MEM_callocN(sizeof(FCurve), "FCurve");
 
@@ -1284,7 +1297,9 @@ static bool insert_keyframe_fcurve_value(Main *bmain,
    *   but still try to get the F-Curve if it exists...
    */
   bool can_create_curve = (flag & (INSERTKEY_REPLACE | INSERTKEY_AVAILABLE)) == 0;
-  FCurve *fcu = verify_fcurve(bmain, act, group, ptr, rna_path, array_index, can_create_curve);
+  FCurve *fcu = can_create_curve ?
+                    ED_action_fcurve_ensure(bmain, act, group, ptr, rna_path, array_index) :
+                    ED_action_fcurve_find(act, rna_path, array_index);
 
   /* we may not have a F-Curve when we're replacing only... */
   if (fcu) {
@@ -1313,7 +1328,9 @@ static bool insert_keyframe_fcurve_value(Main *bmain,
   }
 }
 
-/* Main Keyframing API call:
+/**
+ * Main Keyframing API call
+ *
  * Use this when validation of necessary animation data is necessary, since it may not exist yet.
  *
  * The flag argument is used for special settings that alter the behavior of
@@ -1321,18 +1338,20 @@ static bool insert_keyframe_fcurve_value(Main *bmain,
  * and extra keyframe filtering.
  *
  * index of -1 keys all array indices
+ *
+ * \return The number of key-frames inserted.
  */
-short insert_keyframe(Main *bmain,
-                      ReportList *reports,
-                      ID *id,
-                      bAction *act,
-                      const char group[],
-                      const char rna_path[],
-                      int array_index,
-                      float cfra,
-                      eBezTriple_KeyframeType keytype,
-                      ListBase *nla_cache,
-                      eInsertKeyFlags flag)
+int insert_keyframe(Main *bmain,
+                    ReportList *reports,
+                    ID *id,
+                    bAction *act,
+                    const char group[],
+                    const char rna_path[],
+                    int array_index,
+                    float cfra,
+                    eBezTriple_KeyframeType keytype,
+                    ListBase *nla_cache,
+                    eInsertKeyFlags flag)
 {
   PointerRNA id_ptr, ptr;
   PropertyRNA *prop = NULL;
@@ -1361,7 +1380,7 @@ short insert_keyframe(Main *bmain,
   /* if no action is provided, keyframe to the default one attached to this ID-block */
   if (act == NULL) {
     /* get action to add F-Curve+keyframe to */
-    act = verify_adt_action(bmain, id, 1);
+    act = ED_id_action_ensure(bmain, id);
 
     if (act == NULL) {
       BKE_reportf(reports,
@@ -1555,15 +1574,16 @@ static void deg_tag_after_keyframe_delete(Main *bmain, ID *id, AnimData *adt)
   }
 }
 
-short delete_keyframe(Main *bmain,
-                      ReportList *reports,
-                      ID *id,
-                      bAction *act,
-                      const char group[],
-                      const char rna_path[],
-                      int array_index,
-                      float cfra,
-                      eInsertKeyFlags UNUSED(flag))
+/**
+ * \return The number of key-frames deleted.
+ */
+int delete_keyframe(Main *bmain,
+                    ReportList *reports,
+                    ID *id,
+                    bAction *act,
+                    const char rna_path[],
+                    int array_index,
+                    float cfra)
 {
   AnimData *adt = BKE_animdata_from_id(id);
   PointerRNA id_ptr, ptr;
@@ -1625,7 +1645,7 @@ short delete_keyframe(Main *bmain,
 
   /* will only loop once unless the array index was -1 */
   for (; array_index < array_index_max; array_index++) {
-    FCurve *fcu = verify_fcurve(bmain, act, group, &ptr, rna_path, array_index, 0);
+    FCurve *fcu = ED_action_fcurve_find(act, rna_path, array_index);
 
     /* check if F-Curve exists and/or whether it can be edited */
     if (fcu == NULL) {
@@ -1654,21 +1674,23 @@ short delete_keyframe(Main *bmain,
 /* ************************************************** */
 /* KEYFRAME CLEAR */
 
-/* Main Keyframing API call:
+/**
+ * Main Keyframing API call:
  * Use this when validation of necessary animation data isn't necessary as it
  * already exists. It will clear the current buttons fcurve(s).
  *
  * The flag argument is used for special settings that alter the behavior of
  * the keyframe deletion. These include the quick refresh options.
+ *
+ * \return The number of f-curves removed.
  */
-static short clear_keyframe(Main *bmain,
-                            ReportList *reports,
-                            ID *id,
-                            bAction *act,
-                            const char group[],
-                            const char rna_path[],
-                            int array_index,
-                            eInsertKeyFlags UNUSED(flag))
+static int clear_keyframe(Main *bmain,
+                          ReportList *reports,
+                          ID *id,
+                          bAction *act,
+                          const char rna_path[],
+                          int array_index,
+                          eInsertKeyFlags UNUSED(flag))
 {
   AnimData *adt = BKE_animdata_from_id(id);
   PointerRNA id_ptr, ptr;
@@ -1727,7 +1749,7 @@ static short clear_keyframe(Main *bmain,
 
   /* will only loop once unless the array index was -1 */
   for (; array_index < array_index_max; array_index++) {
-    FCurve *fcu = verify_fcurve(bmain, act, group, &ptr, rna_path, array_index, 0);
+    FCurve *fcu = ED_action_fcurve_find(act, rna_path, array_index);
 
     /* check if F-Curve exists and/or whether it can be edited */
     if (fcu == NULL) {
@@ -1792,7 +1814,7 @@ static int insert_key_exec(bContext *C, wmOperator *op)
   bool ob_edit_mode = false;
 
   float cfra = (float)CFRA;  // XXX for now, don't bother about all the yucky offset crap
-  short success;
+  int num_channels;
 
   KeyingSet *ks = keyingset_get_from_op_with_error(op, op->type->prop, scene);
   if (ks == NULL) {
@@ -1808,13 +1830,13 @@ static int insert_key_exec(bContext *C, wmOperator *op)
   }
 
   /* try to insert keyframes for the channels specified by KeyingSet */
-  success = ANIM_apply_keyingset(C, NULL, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
+  num_channels = ANIM_apply_keyingset(C, NULL, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
   if (G.debug & G_DEBUG) {
     BKE_reportf(op->reports,
                 RPT_INFO,
                 "Keying set '%s' - successfully added %d keyframes",
                 ks->name,
-                success);
+                num_channels);
   }
 
   /* restore the edit mode if necessary */
@@ -1823,17 +1845,17 @@ static int insert_key_exec(bContext *C, wmOperator *op)
   }
 
   /* report failure or do updates? */
-  if (success == MODIFYKEY_INVALID_CONTEXT) {
+  if (num_channels < 0) {
     BKE_report(op->reports, RPT_ERROR, "No suitable context info for active keying set");
     return OPERATOR_CANCELLED;
   }
-  else if (success) {
+  else if (num_channels > 0) {
     /* if the appropriate properties have been set, make a note that we've inserted something */
     if (RNA_boolean_get(op->ptr, "confirm_success")) {
       BKE_reportf(op->reports,
                   RPT_INFO,
                   "Successfully added %d keyframes for keying set '%s'",
-                  success,
+                  num_channels,
                   ks->name);
     }
 
@@ -1996,7 +2018,7 @@ static int delete_key_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   float cfra = (float)CFRA;  // XXX for now, don't bother about all the yucky offset crap
-  short success;
+  int num_channels;
 
   KeyingSet *ks = keyingset_get_from_op_with_error(op, op->type->prop, scene);
   if (ks == NULL) {
@@ -2033,23 +2055,23 @@ static int delete_key_exec(bContext *C, wmOperator *op)
   }
 
   /* try to delete keyframes for the channels specified by KeyingSet */
-  success = ANIM_apply_keyingset(C, NULL, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
+  num_channels = ANIM_apply_keyingset(C, NULL, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
   if (G.debug & G_DEBUG) {
-    printf("KeyingSet '%s' - Successfully removed %d Keyframes\n", ks->name, success);
+    printf("KeyingSet '%s' - Successfully removed %d Keyframes\n", ks->name, num_channels);
   }
 
   /* report failure or do updates? */
-  if (success == MODIFYKEY_INVALID_CONTEXT) {
+  if (num_channels < 0) {
     BKE_report(op->reports, RPT_ERROR, "No suitable context info for active keying set");
     return OPERATOR_CANCELLED;
   }
-  else if (success) {
+  else if (num_channels > 0) {
     /* if the appropriate properties have been set, make a note that we've inserted something */
     if (RNA_boolean_get(op->ptr, "confirm_success")) {
       BKE_reportf(op->reports,
                   RPT_INFO,
                   "Successfully removed %d keyframes for keying set '%s'",
-                  success,
+                  num_channels,
                   ks->name);
     }
 
@@ -2355,13 +2377,13 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
   char *path;
   uiBut *but;
   float cfra = (float)CFRA;
-  short success = 0;
+  bool changed = false;
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");
   eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
 
   /* flags for inserting keyframes */
-  flag = ANIM_get_keyframing_flags(scene, 1);
+  flag = ANIM_get_keyframing_flags(scene, true);
 
   /* try to insert keyframe using property retrieved from UI */
   if (!(but = UI_context_active_but_prop_get(C, &ptr, &prop, &index))) {
@@ -2379,7 +2401,7 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
       FCurve *fcu = list_find_fcurve(&strip->fcurves, RNA_property_identifier(prop), index);
 
       if (fcu) {
-        success = insert_keyframe_direct(
+        changed = insert_keyframe_direct(
             op->reports, ptr, prop, fcu, cfra, ts->keyframe_type, NULL, 0);
       }
       else {
@@ -2396,7 +2418,7 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
       fcu = rna_get_fcurve_context_ui(C, &ptr, prop, index, NULL, NULL, &driven, &special);
 
       if (fcu && driven) {
-        success = insert_keyframe_direct(
+        changed = insert_keyframe_direct(
             op->reports, ptr, prop, fcu, cfra, ts->keyframe_type, NULL, INSERTKEY_DRIVER);
       }
     }
@@ -2433,17 +2455,17 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
           index = -1;
         }
 
-        success = insert_keyframe(bmain,
-                                  op->reports,
-                                  ptr.owner_id,
-                                  NULL,
-                                  group,
-                                  path,
-                                  index,
-                                  cfra,
-                                  ts->keyframe_type,
-                                  NULL,
-                                  flag);
+        changed = (insert_keyframe(bmain,
+                                   op->reports,
+                                   ptr.owner_id,
+                                   NULL,
+                                   group,
+                                   path,
+                                   index,
+                                   cfra,
+                                   ts->keyframe_type,
+                                   NULL,
+                                   flag) != 0);
 
         MEM_freeN(path);
       }
@@ -2472,7 +2494,7 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
     }
   }
 
-  if (success) {
+  if (changed) {
     ID *id = ptr.owner_id;
     AnimData *adt = BKE_animdata_from_id(id);
     if (adt->action != NULL) {
@@ -2487,7 +2509,7 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, NULL);
   }
 
-  return (success) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+  return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 void ANIM_OT_keyframe_insert_button(wmOperatorType *ot)
@@ -2518,7 +2540,7 @@ static int delete_key_button_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   char *path;
   float cfra = (float)CFRA;  // XXX for now, don't bother about all the yucky offset crap
-  short success = 0;
+  bool changed = false;
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");
 
@@ -2561,7 +2583,7 @@ static int delete_key_button_exec(bContext *C, wmOperator *op)
           if (found) {
             /* delete the key at the index (will sanity check + do recalc afterwards) */
             delete_fcurve_key(fcu, i, 1);
-            success = true;
+            changed = true;
           }
         }
       }
@@ -2576,8 +2598,7 @@ static int delete_key_button_exec(bContext *C, wmOperator *op)
           index = -1;
         }
 
-        success = delete_keyframe(
-            bmain, op->reports, ptr.owner_id, NULL, NULL, path, index, cfra, 0);
+        changed = delete_keyframe(bmain, op->reports, ptr.owner_id, NULL, path, index, cfra) != 0;
         MEM_freeN(path);
       }
       else if (G.debug & G_DEBUG) {
@@ -2589,7 +2610,7 @@ static int delete_key_button_exec(bContext *C, wmOperator *op)
     printf("ptr.data = %p, prop = %p\n", ptr.data, (void *)prop);
   }
 
-  if (success) {
+  if (changed) {
     /* send updates */
     UI_context_update_anim_flag(C);
 
@@ -2597,7 +2618,7 @@ static int delete_key_button_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, NULL);
   }
 
-  return (success) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+  return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 void ANIM_OT_keyframe_delete_button(wmOperatorType *ot)
@@ -2626,7 +2647,7 @@ static int clear_key_button_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop = NULL;
   Main *bmain = CTX_data_main(C);
   char *path;
-  short success = 0;
+  bool changed = false;
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");
 
@@ -2645,7 +2666,7 @@ static int clear_key_button_exec(bContext *C, wmOperator *op)
         index = -1;
       }
 
-      success += clear_keyframe(bmain, op->reports, ptr.owner_id, NULL, NULL, path, index, 0);
+      changed |= (clear_keyframe(bmain, op->reports, ptr.owner_id, NULL, path, index, 0) != 0);
       MEM_freeN(path);
     }
     else if (G.debug & G_DEBUG) {
@@ -2656,7 +2677,7 @@ static int clear_key_button_exec(bContext *C, wmOperator *op)
     printf("ptr.data = %p, prop = %p\n", ptr.data, (void *)prop);
   }
 
-  if (success) {
+  if (changed) {
     /* send updates */
     UI_context_update_anim_flag(C);
 
@@ -2664,7 +2685,7 @@ static int clear_key_button_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, NULL);
   }
 
-  return (success) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+  return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 void ANIM_OT_keyframe_clear_button(wmOperatorType *ot)
@@ -3014,7 +3035,7 @@ bool ED_autokeyframe_property(
     if (autokeyframe_cfra_can_key(scene, id)) {
       ReportList *reports = CTX_wm_reports(C);
       ToolSettings *ts = scene->toolsettings;
-      short flag = ANIM_get_keyframing_flags(scene, 1);
+      const eInsertKeyFlags flag = ANIM_get_keyframing_flags(scene, true);
 
       /* Note: We use rnaindex instead of fcu->array_index,
        *       because a button may control all items of an array at once.

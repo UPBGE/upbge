@@ -206,8 +206,8 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
   const bool use_island = transdata_check_local_islands(t, t->around);
 
   if (t->flag & T_PROP_PROJECTED) {
-    if (t->spacetype == SPACE_VIEW3D && t->ar && t->ar->regiontype == RGN_TYPE_WINDOW) {
-      RegionView3D *rv3d = t->ar->regiondata;
+    if (t->spacetype == SPACE_VIEW3D && t->region && t->region->regiontype == RGN_TYPE_WINDOW) {
+      RegionView3D *rv3d = t->region->regiondata;
       normalize_v3_v3(_proj_vec, rv3d->viewinv[2]);
       proj_vec = _proj_vec;
     }
@@ -1424,10 +1424,10 @@ void autokeyframe_object(bContext *C, Scene *scene, ViewLayer *view_layer, Objec
     KeyingSet *active_ks = ANIM_scene_get_active_keyingset(scene);
     ListBase dsources = {NULL, NULL};
     float cfra = (float)CFRA;  // xxx this will do for now
-    short flag = 0;
+    eInsertKeyFlags flag = 0;
 
-    /* get flags used for inserting keyframes */
-    flag = ANIM_get_keyframing_flags(scene, 1);
+    /* Get flags used for inserting keyframes. */
+    flag = ANIM_get_keyframing_flags(scene, true);
 
     /* add datasource override for the object */
     ANIM_relative_keyingset_add_source(&dsources, id, NULL, NULL);
@@ -1566,14 +1566,14 @@ void autokeyframe_pose(bContext *C, Scene *scene, Object *ob, int tmode, short t
     KeyingSet *active_ks = ANIM_scene_get_active_keyingset(scene);
     ListBase nla_cache = {NULL, NULL};
     float cfra = (float)CFRA;
-    short flag = 0;
+    eInsertKeyFlags flag = 0;
 
     /* flag is initialized from UserPref keyframing settings
      * - special exception for targetless IK - INSERTKEY_MATRIX keyframes should get
      *   visual keyframes even if flag not set, as it's not that useful otherwise
      *   (for quick animation recording)
      */
-    flag = ANIM_get_keyframing_flags(scene, 1);
+    flag = ANIM_get_keyframing_flags(scene, true);
 
     if (targetless_ik) {
       flag |= INSERTKEY_MATRIX;
@@ -2768,9 +2768,9 @@ void createTransData(bContext *C, TransInfo *t)
     }
 
     /* Check if we're transforming the camera from the camera */
-    if ((t->spacetype == SPACE_VIEW3D) && (t->ar->regiontype == RGN_TYPE_WINDOW)) {
+    if ((t->spacetype == SPACE_VIEW3D) && (t->region->regiontype == RGN_TYPE_WINDOW)) {
       View3D *v3d = t->view;
-      RegionView3D *rv3d = t->ar->regiondata;
+      RegionView3D *rv3d = t->region->regiondata;
       if ((rv3d->persp == RV3D_CAMOB) && v3d->camera) {
         /* we could have a flag to easily check an object is being transformed */
         if (v3d->camera->id.tag & LIB_TAG_DOIT) {

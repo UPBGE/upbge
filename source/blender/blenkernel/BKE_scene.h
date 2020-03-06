@@ -70,9 +70,6 @@ struct Base *_setlooper_base_step(struct Scene **sce_iter,
 
 void free_avicodecdata(struct AviCodecData *acd);
 
-void BKE_scene_free_ex(struct Scene *sce, const bool do_id_user);
-void BKE_scene_free(struct Scene *sce);
-void BKE_scene_init(struct Scene *sce);
 struct Scene *BKE_scene_add(struct Main *bmain, const char *name);
 
 void BKE_scene_remove_rigidbody_object(struct Main *bmain,
@@ -110,14 +107,8 @@ struct Scene *BKE_scene_set_name(struct Main *bmain, const char *name);
 struct ToolSettings *BKE_toolsettings_copy(struct ToolSettings *toolsettings, const int flag);
 void BKE_toolsettings_free(struct ToolSettings *toolsettings);
 
-void BKE_scene_copy_data(struct Main *bmain,
-                         struct Scene *sce_dst,
-                         const struct Scene *sce_src,
-                         const int flag);
 struct Scene *BKE_scene_copy(struct Main *bmain, struct Scene *sce, int type);
 void BKE_scene_groups_relink(struct Scene *sce);
-
-void BKE_scene_make_local(struct Main *bmain, struct Scene *sce, const int flags);
 
 struct Scene *BKE_scene_find_from_collection(const struct Main *bmain,
                                              const struct Collection *collection);
@@ -211,8 +202,8 @@ const char *BKE_scene_multiview_view_suffix_get(const struct RenderData *rd, con
 const char *BKE_scene_multiview_view_id_suffix_get(const struct RenderData *rd, const int view_id);
 void BKE_scene_multiview_view_prefix_get(struct Scene *scene,
                                          const char *name,
-                                         char *rprefix,
-                                         const char **rext);
+                                         char *r_prefix,
+                                         const char **r_ext);
 void BKE_scene_multiview_videos_dimensions_get(const struct RenderData *rd,
                                                const size_t width,
                                                const size_t height,

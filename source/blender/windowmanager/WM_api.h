@@ -51,6 +51,7 @@ struct MenuType;
 struct PointerRNA;
 struct PropertyRNA;
 struct ScrArea;
+struct View3D;
 struct ViewLayer;
 struct bContext;
 struct rcti;
@@ -177,7 +178,10 @@ void WM_autosave_init(struct wmWindowManager *wm);
 void WM_recover_last_session(struct bContext *C, struct ReportList *reports);
 void WM_file_tag_modified(void);
 
-struct ID *WM_file_append_datablock(struct bContext *C,
+struct ID *WM_file_append_datablock(struct Main *bmain,
+                                    struct Scene *scene,
+                                    struct ViewLayer *view_layer,
+                                    struct View3D *v3d,
                                     const char *filepath,
                                     const short id_code,
                                     const char *id_name);
@@ -185,7 +189,7 @@ void WM_lib_reload(struct Library *lib, struct bContext *C, struct ReportList *r
 
 /* mouse cursors */
 void WM_cursor_set(struct wmWindow *win, int curs);
-bool WM_cursor_set_from_tool(struct wmWindow *win, const ScrArea *sa, const ARegion *ar);
+bool WM_cursor_set_from_tool(struct wmWindow *win, const ScrArea *sa, const ARegion *region);
 void WM_cursor_modal_set(struct wmWindow *win, int curs);
 void WM_cursor_modal_restore(struct wmWindow *win);
 void WM_cursor_wait(bool val);
@@ -202,14 +206,14 @@ struct wmPaintCursor *WM_paint_cursor_activate(
     void *customdata);
 
 bool WM_paint_cursor_end(struct wmWindowManager *wm, struct wmPaintCursor *handle);
-void WM_paint_cursor_tag_redraw(struct wmWindow *win, struct ARegion *ar);
+void WM_paint_cursor_tag_redraw(struct wmWindow *win, struct ARegion *region);
 
 void WM_cursor_warp(struct wmWindow *win, int x, int y);
 void WM_cursor_compatible_xy(wmWindow *win, int *x, int *y);
 
 /* handlers */
 
-typedef bool (*EventHandlerPoll)(const ARegion *ar, const struct wmEvent *event);
+typedef bool (*EventHandlerPoll)(const ARegion *region, const struct wmEvent *event);
 struct wmEventHandler_Keymap *WM_event_add_keymap_handler(ListBase *handlers, wmKeyMap *keymap);
 struct wmEventHandler_Keymap *WM_event_add_keymap_handler_poll(ListBase *handlers,
                                                                wmKeyMap *keymap,
@@ -294,13 +298,17 @@ struct wmEventHandler_Dropbox *WM_event_add_dropbox_handler(ListBase *handlers,
                                                             ListBase *dropboxes);
 
 /* mouse */
-void WM_event_add_mousemove(const struct bContext *C);
+void WM_event_add_mousemove(wmWindow *win);
 
 #ifdef WITH_INPUT_NDOF
 /* 3D mouse */
 void WM_ndof_deadzone_set(float deadzone);
 #endif
 /* notifiers */
+void WM_event_add_notifier_ex(struct wmWindowManager *wm,
+                              const struct wmWindow *win,
+                              unsigned int type,
+                              void *reference);
 void WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference);
 void WM_main_add_notifier(unsigned int type, void *reference);
 void WM_main_remove_notifier_reference(const void *reference);
@@ -620,9 +628,12 @@ int WM_gesture_straightline_modal(struct bContext *C,
 void WM_gesture_straightline_cancel(struct bContext *C, struct wmOperator *op);
 
 /* Gesture manager API */
-struct wmGesture *WM_gesture_new(struct bContext *C, const struct wmEvent *event, int type);
-void WM_gesture_end(struct bContext *C, struct wmGesture *gesture);
-void WM_gestures_remove(struct bContext *C);
+struct wmGesture *WM_gesture_new(struct wmWindow *window,
+                                 const struct ARegion *region,
+                                 const struct wmEvent *event,
+                                 int type);
+void WM_gesture_end(struct wmWindow *win, struct wmGesture *gesture);
+void WM_gestures_remove(struct wmWindow *win);
 void WM_gestures_free_all(struct wmWindow *win);
 bool WM_gesture_is_modal_first(const struct wmGesture *gesture);
 
@@ -659,7 +670,7 @@ void wmWindowViewport(struct wmWindow *win);
 /* OpenGL utilities with safety check */
 void wmOrtho2(float x1, float x2, float y1, float y2);
 /* use for conventions (avoid hard-coded offsets all over) */
-void wmOrtho2_region_pixelspace(const struct ARegion *ar);
+void wmOrtho2_region_pixelspace(const struct ARegion *region);
 void wmOrtho2_pixelspace(const float x, const float y);
 void wmGetProjectionMatrix(float mat[4][4], const struct rcti *winrct);
 
@@ -758,14 +769,14 @@ void *WM_draw_cb_activate(struct wmWindow *win,
 void WM_draw_cb_exit(struct wmWindow *win, void *handle);
 void WM_redraw_windows(struct bContext *C);
 
-void WM_draw_region_viewport_ensure(struct ARegion *ar, short space_type);
-void WM_draw_region_viewport_bind(struct ARegion *ar);
-void WM_draw_region_viewport_unbind(struct ARegion *ar);
+void WM_draw_region_viewport_ensure(struct ARegion *region, short space_type);
+void WM_draw_region_viewport_bind(struct ARegion *region);
+void WM_draw_region_viewport_unbind(struct ARegion *region);
 
 /* Region drawing */
-void WM_draw_region_free(struct ARegion *ar);
-struct GPUViewport *WM_draw_region_get_viewport(struct ARegion *ar, int view);
-struct GPUViewport *WM_draw_region_get_bound_viewport(struct ARegion *ar);
+void WM_draw_region_free(struct ARegion *region);
+struct GPUViewport *WM_draw_region_get_viewport(struct ARegion *region, int view);
+struct GPUViewport *WM_draw_region_get_bound_viewport(struct ARegion *region);
 
 void WM_main_playanim(int argc, const char **argv);
 
@@ -824,7 +835,7 @@ bool WM_event_is_ime_switch(const struct wmEvent *event);
 
 /* wm_tooltip.c */
 typedef struct ARegion *(*wmTooltipInitFn)(struct bContext *C,
-                                           struct ARegion *ar,
+                                           struct ARegion *region,
                                            int *pass,
                                            double *r_pass_delay,
                                            bool *r_exit_on_event);
@@ -832,18 +843,18 @@ typedef struct ARegion *(*wmTooltipInitFn)(struct bContext *C,
 void WM_tooltip_immediate_init(struct bContext *C,
                                struct wmWindow *win,
                                struct ScrArea *sa,
-                               struct ARegion *ar,
+                               struct ARegion *region,
                                wmTooltipInitFn init);
 void WM_tooltip_timer_init_ex(struct bContext *C,
                               struct wmWindow *win,
                               struct ScrArea *sa,
-                              struct ARegion *ar,
+                              struct ARegion *region,
                               wmTooltipInitFn init,
                               double delay);
 void WM_tooltip_timer_init(struct bContext *C,
                            struct wmWindow *win,
                            struct ScrArea *sa,
-                           struct ARegion *ar,
+                           struct ARegion *region,
                            wmTooltipInitFn init);
 void WM_tooltip_timer_clear(struct bContext *C, struct wmWindow *win);
 void WM_tooltip_clear(struct bContext *C, struct wmWindow *win);

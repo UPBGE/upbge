@@ -34,6 +34,8 @@
 #include "BLI_math.h"
 #include "BLI_task.h"
 
+#include "BLT_translation.h"
+
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
@@ -47,6 +49,7 @@
 #include "BKE_anim.h"
 #include "BKE_curve.h"
 #include "BKE_displist.h"
+#include "BKE_idtype.h"
 #include "BKE_key.h"
 #include "BKE_lattice.h"
 #include "BKE_lib_id.h"
@@ -57,6 +60,85 @@
 #include "BKE_deform.h"
 
 #include "DEG_depsgraph_query.h"
+
+static void lattice_init_data(ID *id)
+{
+  Lattice *lattice = (Lattice *)id;
+
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(lattice, id));
+
+  MEMCPY_STRUCT_AFTER(lattice, DNA_struct_default_get(Lattice), id);
+
+  lattice->def = MEM_callocN(sizeof(BPoint), "lattvert"); /* temporary */
+  BKE_lattice_resize(lattice, 2, 2, 2, NULL);             /* creates a uniform lattice */
+}
+
+static void lattice_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int flag)
+{
+  Lattice *lattice_dst = (Lattice *)id_dst;
+  const Lattice *lattice_src = (const Lattice *)id_src;
+
+  lattice_dst->def = MEM_dupallocN(lattice_src->def);
+
+  if (lattice_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
+    BKE_id_copy_ex(bmain, &lattice_src->key->id, (ID **)&lattice_dst->key, flag);
+    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
+    lattice_dst->key->from = &lattice_dst->id;
+  }
+
+  if (lattice_src->dvert) {
+    int tot = lattice_src->pntsu * lattice_src->pntsv * lattice_src->pntsw;
+    lattice_dst->dvert = MEM_mallocN(sizeof(MDeformVert) * tot, "Lattice MDeformVert");
+    BKE_defvert_array_copy(lattice_dst->dvert, lattice_src->dvert, tot);
+  }
+
+  lattice_dst->editlatt = NULL;
+}
+
+static void lattice_free_data(ID *id)
+{
+  Lattice *lattice = (Lattice *)id;
+
+  BKE_animdata_free(&lattice->id, false);
+
+  BKE_lattice_batch_cache_free(lattice);
+
+  MEM_SAFE_FREE(lattice->def);
+  if (lattice->dvert) {
+    BKE_defvert_array_free(lattice->dvert, lattice->pntsu * lattice->pntsv * lattice->pntsw);
+    lattice->dvert = NULL;
+  }
+  if (lattice->editlatt) {
+    Lattice *editlt = lattice->editlatt->latt;
+
+    if (editlt->def) {
+      MEM_freeN(editlt->def);
+    }
+    if (editlt->dvert) {
+      BKE_defvert_array_free(editlt->dvert, lattice->pntsu * lattice->pntsv * lattice->pntsw);
+    }
+
+    MEM_freeN(editlt);
+    MEM_freeN(lattice->editlatt);
+    lattice->editlatt = NULL;
+  }
+}
+
+IDTypeInfo IDType_ID_LT = {
+    .id_code = ID_LT,
+    .id_filter = FILTER_ID_LT,
+    .main_listbase_index = INDEX_ID_LT,
+    .struct_size = sizeof(Lattice),
+    .name = "Lattice",
+    .name_plural = "lattices",
+    .translation_context = BLT_I18NCONTEXT_ID_LATTICE,
+    .flags = 0,
+
+    .init_data = lattice_init_data,
+    .copy_data = lattice_copy_data,
+    .free_data = lattice_free_data,
+    .make_local = NULL,
+};
 
 int BKE_lattice_index_from_uvw(Lattice *lt, const int u, const int v, const int w)
 {
@@ -244,54 +326,15 @@ void BKE_lattice_resize(Lattice *lt, int uNew, int vNew, int wNew, Object *ltOb)
   MEM_freeN(vert_coords);
 }
 
-void BKE_lattice_init(Lattice *lt)
-{
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(lt, id));
-
-  MEMCPY_STRUCT_AFTER(lt, DNA_struct_default_get(Lattice), id);
-
-  lt->def = MEM_callocN(sizeof(BPoint), "lattvert"); /* temporary */
-  BKE_lattice_resize(lt, 2, 2, 2, NULL);             /* creates a uniform lattice */
-}
-
 Lattice *BKE_lattice_add(Main *bmain, const char *name)
 {
   Lattice *lt;
 
   lt = BKE_libblock_alloc(bmain, ID_LT, name, 0);
 
-  BKE_lattice_init(lt);
+  lattice_init_data(&lt->id);
 
   return lt;
-}
-
-/**
- * Only copy internal data of Lattice ID from source
- * to already allocated/initialized destination.
- * You probably never want to use that directly,
- * use #BKE_id_copy or #BKE_id_copy_ex for typical needs.
- *
- * WARNING! This function will not handle ID user count!
- *
- * \param flag: Copying options (see BKE_lib_id.h's LIB_ID_COPY_... flags for more).
- */
-void BKE_lattice_copy_data(Main *bmain, Lattice *lt_dst, const Lattice *lt_src, const int flag)
-{
-  lt_dst->def = MEM_dupallocN(lt_src->def);
-
-  if (lt_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
-    BKE_id_copy_ex(bmain, &lt_src->key->id, (ID **)&lt_dst->key, flag);
-    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
-    lt_dst->key->from = &lt_dst->id;
-  }
-
-  if (lt_src->dvert) {
-    int tot = lt_src->pntsu * lt_src->pntsv * lt_src->pntsw;
-    lt_dst->dvert = MEM_mallocN(sizeof(MDeformVert) * tot, "Lattice MDeformVert");
-    BKE_defvert_array_copy(lt_dst->dvert, lt_src->dvert, tot);
-  }
-
-  lt_dst->editlatt = NULL;
 }
 
 Lattice *BKE_lattice_copy(Main *bmain, const Lattice *lt)
@@ -299,39 +342,6 @@ Lattice *BKE_lattice_copy(Main *bmain, const Lattice *lt)
   Lattice *lt_copy;
   BKE_id_copy(bmain, &lt->id, (ID **)&lt_copy);
   return lt_copy;
-}
-
-/** Free (or release) any data used by this lattice (does not free the lattice itself). */
-void BKE_lattice_free(Lattice *lt)
-{
-  BKE_animdata_free(&lt->id, false);
-
-  BKE_lattice_batch_cache_free(lt);
-
-  MEM_SAFE_FREE(lt->def);
-  if (lt->dvert) {
-    BKE_defvert_array_free(lt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
-    lt->dvert = NULL;
-  }
-  if (lt->editlatt) {
-    Lattice *editlt = lt->editlatt->latt;
-
-    if (editlt->def) {
-      MEM_freeN(editlt->def);
-    }
-    if (editlt->dvert) {
-      BKE_defvert_array_free(editlt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
-    }
-
-    MEM_freeN(editlt);
-    MEM_freeN(lt->editlatt);
-    lt->editlatt = NULL;
-  }
-}
-
-void BKE_lattice_make_local(Main *bmain, Lattice *lt, const int flags)
-{
-  BKE_lib_id_make_local_generic(bmain, &lt->id, flags);
 }
 
 typedef struct LatticeDeformData {
@@ -431,7 +441,7 @@ void calc_latt_deform(LatticeDeformData *lattice_deform_data, float co[3], float
   }
 
   if (lt->vgroup[0] && dvert) {
-    defgrp_index = defgroup_name_index(ob, lt->vgroup);
+    defgrp_index = BKE_object_defgroup_name_index(ob, lt->vgroup);
     copy_v3_v3(co_prev, co);
   }
 
@@ -527,7 +537,7 @@ void calc_latt_deform(LatticeDeformData *lattice_deform_data, float co[3], float
               madd_v3_v3fl(co, &latticedata[idx_u * 3], u);
 
               if (defgrp_index != -1) {
-                weight_blend += (u * defvert_find_weight(dvert + idx_u, defgrp_index));
+                weight_blend += (u * BKE_defvert_find_weight(dvert + idx_u, defgrp_index));
               }
             }
           }
@@ -784,8 +794,9 @@ void curve_deform_verts(Object *cuOb,
 
     if (cu->flag & CU_DEFORM_BOUNDS_OFF) {
       for (a = 0, dvert_iter = dvert; a < numVerts; a++, dvert_iter++) {
-        const float weight = invert_vgroup ? 1.0f - defvert_find_weight(dvert_iter, defgrp_index) :
-                                             defvert_find_weight(dvert_iter, defgrp_index);
+        const float weight = invert_vgroup ?
+                                 1.0f - BKE_defvert_find_weight(dvert_iter, defgrp_index) :
+                                 BKE_defvert_find_weight(dvert_iter, defgrp_index);
 
         if (weight > 0.0f) {
           mul_m4_v3(cd.curvespace, vert_coords[a]);
@@ -801,8 +812,9 @@ void curve_deform_verts(Object *cuOb,
       INIT_MINMAX(cd.dmin, cd.dmax);
 
       for (a = 0, dvert_iter = dvert; a < numVerts; a++, dvert_iter++) {
-        const float weight = invert_vgroup ? 1.0f - defvert_find_weight(dvert_iter, defgrp_index) :
-                                             defvert_find_weight(dvert_iter, defgrp_index);
+        const float weight = invert_vgroup ?
+                                 1.0f - BKE_defvert_find_weight(dvert_iter, defgrp_index) :
+                                 BKE_defvert_find_weight(dvert_iter, defgrp_index);
         if (weight > 0.0f) {
           mul_m4_v3(cd.curvespace, vert_coords[a]);
           minmax_v3v3_v3(cd.dmin, cd.dmax, vert_coords[a]);
@@ -810,8 +822,9 @@ void curve_deform_verts(Object *cuOb,
       }
 
       for (a = 0, dvert_iter = dvert; a < numVerts; a++, dvert_iter++) {
-        const float weight = invert_vgroup ? 1.0f - defvert_find_weight(dvert_iter, defgrp_index) :
-                                             defvert_find_weight(dvert_iter, defgrp_index);
+        const float weight = invert_vgroup ?
+                                 1.0f - BKE_defvert_find_weight(dvert_iter, defgrp_index) :
+                                 BKE_defvert_find_weight(dvert_iter, defgrp_index);
 
         if (weight > 0.0f) {
           /* already in 'cd.curvespace', prev for loop */
@@ -901,8 +914,9 @@ static void lattice_deform_vert_task(void *__restrict userdata,
 
   if (data->dvert != NULL) {
     const float weight = data->invert_vgroup ?
-                             1.0f - defvert_find_weight(data->dvert + index, data->defgrp_index) :
-                             defvert_find_weight(data->dvert + index, data->defgrp_index);
+                             1.0f -
+                                 BKE_defvert_find_weight(data->dvert + index, data->defgrp_index) :
+                             BKE_defvert_find_weight(data->dvert + index, data->defgrp_index);
     if (weight > 0.0f) {
       calc_latt_deform(data->lattice_deform_data, data->vert_coords[index], weight * data->fac);
     }
@@ -935,7 +949,7 @@ void lattice_deform_verts(Object *laOb,
    * We want either a Mesh/Lattice with no derived data, or derived data with deformverts.
    */
   if (vgroup && vgroup[0] && target && ELEM(target->type, OB_MESH, OB_LATTICE)) {
-    defgrp_index = defgroup_name_index(target, vgroup);
+    defgrp_index = BKE_object_defgroup_name_index(target, vgroup);
 
     if (defgrp_index != -1) {
       /* if there's derived data without deformverts, don't use vgroups */

@@ -105,6 +105,7 @@
 #include "ED_outliner.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
+#include "ED_view3d_offscreen.h"
 #include "ED_util.h"
 #include "ED_undo.h"
 
@@ -1221,7 +1222,7 @@ static ImBuf *blend_file_thumb(const bContext *C,
 
   /* screen if no camera found */
   ScrArea *sa = NULL;
-  ARegion *ar = NULL;
+  ARegion *region = NULL;
   View3D *v3d = NULL;
 
   /* In case we are given a valid thumbnail data, just generate image from it. */
@@ -1237,8 +1238,8 @@ static ImBuf *blend_file_thumb(const bContext *C,
 
   if ((scene->camera == NULL) && (screen != NULL)) {
     sa = BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0);
-    ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-    if (ar) {
+    region = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+    if (region) {
       v3d = sa->spacedata.first;
     }
   }
@@ -1270,7 +1271,7 @@ static ImBuf *blend_file_thumb(const bContext *C,
                                           scene,
                                           OB_SOLID,
                                           v3d,
-                                          ar,
+                                          region,
                                           BLEN_THUMB_SIZE * 2,
                                           BLEN_THUMB_SIZE * 2,
                                           IB_rect,
@@ -1502,7 +1503,7 @@ void WM_autosave_init(wmWindowManager *wm)
   }
 }
 
-void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *UNUSED(wt))
+void wm_autosave_timer(Main *bmain, wmWindowManager *wm, wmTimer *UNUSED(wt))
 {
   char filepath[FILE_MAX];
 
@@ -1535,7 +1536,6 @@ void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *UNUSED(w
   }
   else {
     /*  save as regular blend file */
-    Main *bmain = CTX_data_main(C);
     int fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_HISTORY | G_FILE_AUTOPLAY);
 
     ED_editors_flush_edits(bmain);
@@ -2012,7 +2012,8 @@ static void wm_free_operator_properties_callback(void *user_data)
 
 static int wm_homefile_read_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-  if (U.uiflag & USER_SAVE_PROMPT && wm_file_or_image_is_modified(C)) {
+  if (U.uiflag & USER_SAVE_PROMPT &&
+      wm_file_or_image_is_modified(CTX_data_main(C), CTX_wm_manager(C))) {
     wmGenericCallback *callback = MEM_callocN(sizeof(*callback), __func__);
     callback->exec = wm_homefile_read_after_dialog_callback;
     callback->user_data = IDP_CopyProperty(op->properties);
@@ -2175,7 +2176,8 @@ static int wm_open_mainfile__discard_changes(bContext *C, wmOperator *op)
     set_next_operator_state(op, OPEN_MAINFILE_STATE_OPEN);
   }
 
-  if (U.uiflag & USER_SAVE_PROMPT && wm_file_or_image_is_modified(C)) {
+  if (U.uiflag & USER_SAVE_PROMPT &&
+      wm_file_or_image_is_modified(CTX_data_main(C), CTX_wm_manager(C))) {
     wmGenericCallback *callback = MEM_callocN(sizeof(*callback), __func__);
     callback->exec = wm_open_mainfile_after_dialog_callback;
     callback->user_data = IDP_CopyProperty(op->properties);
@@ -2815,12 +2817,12 @@ static void wm_block_autorun_warning_enable_scripts(bContext *C,
 
 /* Build the autorun warning dialog UI */
 static uiBlock *block_create_autorun_warning(struct bContext *C,
-                                             struct ARegion *ar,
+                                             struct ARegion *region,
                                              void *UNUSED(arg1))
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   uiStyle *style = UI_style_get_dpi();
-  uiBlock *block = UI_block_begin(C, ar, "autorun_warning_popup", UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
 
   UI_block_flag_enable(
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
@@ -2989,15 +2991,16 @@ static void wm_block_file_close_discard(bContext *C, void *arg_block, void *arg_
 
 static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_data)
 {
+  const Main *bmain = CTX_data_main(C);
   wmGenericCallback *callback = WM_generic_callback_steal((wmGenericCallback *)arg_data);
   bool execute_callback = true;
 
   wmWindow *win = CTX_wm_window(C);
   UI_popup_block_close(C, win, arg_block);
 
-  int modified_images_count = ED_image_save_all_modified_info(C, NULL);
+  int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), NULL);
   if (modified_images_count > 0 && save_images_when_file_is_closed) {
-    if (ED_image_should_save_modified(C)) {
+    if (ED_image_should_save_modified(bmain)) {
       ReportList *reports = CTX_wm_reports(C);
       ED_image_save_all_modified(C, reports);
       WM_report_banner_show();
@@ -3007,7 +3010,6 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
     }
   }
 
-  Main *bmain = CTX_data_main(C);
   bool file_has_been_saved_before = BKE_main_blendfile_path(bmain)[0] != '\0';
 
   if (file_has_been_saved_before) {
@@ -3051,7 +3053,9 @@ static void wm_block_file_close_save_button(uiBlock *block, wmGenericCallback *p
 
 static const char *close_file_dialog_name = "file_close_popup";
 
-static uiBlock *block_create__close_file_dialog(struct bContext *C, struct ARegion *ar, void *arg1)
+static uiBlock *block_create__close_file_dialog(struct bContext *C,
+                                                struct ARegion *region,
+                                                void *arg1)
 {
   wmGenericCallback *post_action = (wmGenericCallback *)arg1;
   Main *bmain = CTX_data_main(C);
@@ -3077,7 +3081,7 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C, struct ARegi
   int title_width = MAX2(UI_fontstyle_string_width(fs, title), U.widget_unit * 22);
 
   /* Create dialog */
-  uiBlock *block = UI_block_begin(C, ar, close_file_dialog_name, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, close_file_dialog_name, UI_EMBOSS);
   style = UI_style_get_dpi();
 
   UI_block_flag_enable(
@@ -3101,7 +3105,7 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C, struct ARegi
   /* Image Saving */
   ReportList reports;
   BKE_reports_init(&reports, RPT_STORE);
-  uint modified_images_count = ED_image_save_all_modified_info(C, &reports);
+  uint modified_images_count = ED_image_save_all_modified_info(bmain, &reports);
 
   LISTBASE_FOREACH (Report *, report, &reports.list) {
     uiItemL_ex(layout, report->message, ICON_CANCEL, false, true);
@@ -3192,7 +3196,7 @@ static void free_post_file_close_action(void *arg)
 
 void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action)
 {
-  if (!UI_popup_block_name_exists(C, close_file_dialog_name)) {
+  if (!UI_popup_block_name_exists(CTX_wm_screen(C), close_file_dialog_name)) {
     UI_popup_block_invoke(
         C, block_create__close_file_dialog, post_action, free_post_file_close_action);
   }
@@ -3201,10 +3205,9 @@ void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action)
   }
 }
 
-bool wm_file_or_image_is_modified(const bContext *C)
+bool wm_file_or_image_is_modified(const Main *bmain, const wmWindowManager *wm)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  return !wm->file_saved || ED_image_should_save_modified(C);
+  return !wm->file_saved || ED_image_should_save_modified(bmain);
 }
 
 /** \} */

@@ -89,7 +89,7 @@ struct uiLayout;
  * in RNA types automatically.
  */
 typedef struct bNodeSocketTemplate {
-  int type, limit;
+  int type;
   char name[64];                /* MAX_NAME */
   float val1, val2, val3, val4; /* default alloc value for inputs */
   float min, max;
@@ -146,6 +146,11 @@ typedef struct bNodeSocketType {
   /* for standard socket types in C */
   int type, subtype;
 
+  /* When set, bNodeSocket->limit does not have any effect anymore. */
+  bool use_link_limits_of_type;
+  int input_link_limit;
+  int output_link_limit;
+
   /* Callback to free the socket type. */
   void (*free_self)(struct bNodeSocketType *stype);
 } bNodeSocketType;
@@ -193,7 +198,7 @@ typedef struct bNodeType {
 
   /* Main draw function for the node */
   void (*draw_nodetype)(const struct bContext *C,
-                        struct ARegion *ar,
+                        struct ARegion *region,
                         struct SpaceNode *snode,
                         struct bNodeTree *ntree,
                         struct bNode *node,
@@ -376,17 +381,12 @@ struct GHashIterator *ntreeTypeGetIterator(void);
 
 void ntreeSetTypes(const struct bContext *C, struct bNodeTree *ntree);
 
-void ntreeInitDefault(struct bNodeTree *ntree);
 struct bNodeTree *ntreeAddTree(struct Main *bmain, const char *name, const char *idname);
 
 /* copy/free funcs, need to manage ID users */
 void ntreeFreeTree(struct bNodeTree *ntree);
 /* Free tree which is owned byt another datablock. */
 void ntreeFreeNestedTree(struct bNodeTree *ntree);
-void BKE_node_tree_copy_data(struct Main *bmain,
-                             struct bNodeTree *ntree_dst,
-                             const struct bNodeTree *ntree_src,
-                             const int flag);
 struct bNodeTree *ntreeCopyTree_ex(const struct bNodeTree *ntree,
                                    struct Main *bmain,
                                    const bool do_id_user);
@@ -399,7 +399,6 @@ struct bNodeTree **BKE_ntree_ptr_from_id(struct ID *id);
 struct bNodeTree *ntreeFromID(struct ID *id);
 struct ID *BKE_node_tree_find_owner_ID(struct Main *bmain, struct bNodeTree *ntree);
 
-void ntreeMakeLocal(struct Main *bmain, struct bNodeTree *ntree, const int flags);
 void ntreeFreeLocalNode(struct bNodeTree *ntree, struct bNode *node);
 void ntreeFreeLocalTree(struct bNodeTree *ntree);
 struct bNode *ntreeFindType(const struct bNodeTree *ntree, int type);
@@ -632,6 +631,8 @@ void nodeUpdateInternalLinks(struct bNodeTree *ntree, struct bNode *node);
 int nodeSocketIsHidden(struct bNodeSocket *sock);
 void ntreeTagUsedSockets(struct bNodeTree *ntree);
 void nodeSetSocketAvailability(struct bNodeSocket *sock, bool is_available);
+
+int nodeSocketLinkLimit(struct bNodeSocket *sock);
 
 /* Node Clipboard */
 void BKE_node_clipboard_init(struct bNodeTree *ntree);

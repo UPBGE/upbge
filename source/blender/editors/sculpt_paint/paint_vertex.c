@@ -172,7 +172,7 @@ static MDeformVert *defweight_prev_init(MDeformVert *dvert_prev,
   MDeformVert *dv_prev = &dvert_prev[index];
   if (dv_prev->flag == 1) {
     dv_prev->flag = 0;
-    defvert_copy(dv_prev, dv_curr);
+    BKE_defvert_copy(dv_prev, dv_curr);
   }
   return dv_prev;
 }
@@ -216,8 +216,8 @@ static bool vertex_paint_poll_ex(bContext *C, bool check_tool)
   if (vertex_paint_mode_poll(C) && BKE_paint_brush(&CTX_data_tool_settings(C)->vpaint->paint)) {
     ScrArea *sa = CTX_wm_area(C);
     if (sa && sa->spacetype == SPACE_VIEW3D) {
-      ARegion *ar = CTX_wm_region(C);
-      if (ar->regiontype == RGN_TYPE_WINDOW) {
+      ARegion *region = CTX_wm_region(C);
+      if (region->regiontype == RGN_TYPE_WINDOW) {
         if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
           return 1;
         }
@@ -252,8 +252,8 @@ static bool weight_paint_poll_ex(bContext *C, bool check_tool)
   if ((ob != NULL) && (ob->mode & OB_MODE_WEIGHT_PAINT) &&
       (BKE_paint_brush(&CTX_data_tool_settings(C)->wpaint->paint) != NULL) &&
       (sa = CTX_wm_area(C)) && (sa->spacetype == SPACE_VIEW3D)) {
-    ARegion *ar = CTX_wm_region(C);
-    if (ELEM(ar->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_HUD)) {
+    ARegion *region = CTX_wm_region(C);
+    if (ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_HUD)) {
       if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
         return 1;
       }
@@ -349,7 +349,7 @@ static void tex_color_alpha(VPaint *vp, const ViewContext *vc, const float co[3]
   else {
     float co_ss[2]; /* screenspace */
     if (ED_view3d_project_float_object(
-            vc->ar, co, co_ss, V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_NEAR) ==
+            vc->region, co, co_ss, V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_NEAR) ==
         V3D_PROJ_RET_OK) {
       const float co_ss_3d[3] = {co_ss[0], co_ss[1], 0.0f}; /* we need a 3rd empty value */
       BKE_brush_sample_tex_3d(vc->scene, brush, co_ss_3d, r_rgba, 0, NULL);
@@ -752,10 +752,10 @@ static void do_weight_paint_vertex_single(
   }
 
   if (wp->flag & VP_FLAG_VGROUP_RESTRICT) {
-    dw = defvert_find_index(dv, wpi->active.index);
+    dw = BKE_defvert_find_index(dv, wpi->active.index);
   }
   else {
-    dw = defvert_verify_index(dv, wpi->active.index);
+    dw = BKE_defvert_ensure_index(dv, wpi->active.index);
   }
 
   if (dw == NULL) {
@@ -766,7 +766,7 @@ static void do_weight_paint_vertex_single(
   if (index_mirr != -1) {
     dv_mirr = &me->dvert[index_mirr];
     if (wp->flag & VP_FLAG_VGROUP_RESTRICT) {
-      dw_mirr = defvert_find_index(dv_mirr, vgroup_mirr);
+      dw_mirr = BKE_defvert_find_index(dv_mirr, vgroup_mirr);
 
       if (dw_mirr == NULL) {
         index_mirr = vgroup_mirr = -1;
@@ -775,13 +775,13 @@ static void do_weight_paint_vertex_single(
     }
     else {
       if (index != index_mirr) {
-        dw_mirr = defvert_verify_index(dv_mirr, vgroup_mirr);
+        dw_mirr = BKE_defvert_ensure_index(dv_mirr, vgroup_mirr);
       }
       else {
         /* dv and dv_mirr are the same */
         int totweight_prev = dv_mirr->totweight;
         int dw_offset = (int)(dw - dv_mirr->dw);
-        dw_mirr = defvert_verify_index(dv_mirr, vgroup_mirr);
+        dw_mirr = BKE_defvert_ensure_index(dv_mirr, vgroup_mirr);
 
         /* if we added another, get our old one back */
         if (totweight_prev != dv_mirr->totweight) {
@@ -802,7 +802,7 @@ static void do_weight_paint_vertex_single(
       defweight_prev_init(dvert_prev, me->dvert, index_mirr);
     }
 
-    weight_prev = defvert_find_weight(dv_prev, wpi->active.index);
+    weight_prev = BKE_defvert_find_weight(dv_prev, wpi->active.index);
   }
   else {
     weight_prev = dw->weight;
@@ -1147,7 +1147,7 @@ static void ed_vwpaintmode_enter_generic(Main *bmain,
   /* Create vertex/weight paint mode session data */
   if (ob->sculpt) {
     if (ob->sculpt->cache) {
-      sculpt_cache_free(ob->sculpt->cache);
+      SCULPT_cache_free(ob->sculpt->cache);
       ob->sculpt->cache = NULL;
     }
     BKE_sculptsession_free(ob);
@@ -1220,7 +1220,7 @@ static void ed_vwpaintmode_exit_generic(Object *ob, const eObjectMode mode_flag)
 
   /* If the cache is not released by a cancel or a done, free it now. */
   if (ob->sculpt && ob->sculpt->cache) {
-    sculpt_cache_free(ob->sculpt->cache);
+    SCULPT_cache_free(ob->sculpt->cache);
     ob->sculpt->cache = NULL;
   }
 
@@ -1694,7 +1694,7 @@ static float wpaint_get_active_weight(const MDeformVert *dv, const WeightPaintIn
     return weight;
   }
   else {
-    return defvert_find_weight(dv, wpi->active.index);
+    return BKE_defvert_find_weight(dv, wpi->active.index);
   }
 }
 
@@ -1753,9 +1753,9 @@ static void do_wpaint_brush_blur_task_cb_ex(void *__restrict userdata,
   const bool use_vert_sel = (data->me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
 
   SculptBrushTest test;
-  SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+  SculptBrushTestFn sculpt_brush_test_sq_fn = SCULPT_brush_test_init_with_falloff_shape(
       ss, &test, data->brush->falloff_shape);
-  const float *sculpt_normal_frontface = sculpt_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
       ss, data->brush->falloff_shape);
 
   /* For each vertex */
@@ -1850,9 +1850,9 @@ static void do_wpaint_brush_smear_task_cb_ex(void *__restrict userdata,
   if (cache->is_last_valid && (normalize_v3(brush_dir) != 0.0f)) {
 
     SculptBrushTest test;
-    SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+    SculptBrushTestFn sculpt_brush_test_sq_fn = SCULPT_brush_test_init_with_falloff_shape(
         ss, &test, data->brush->falloff_shape);
-    const float *sculpt_normal_frontface = sculpt_brush_frontface_normal_from_falloff_shape(
+    const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
         ss, data->brush->falloff_shape);
 
     /* For each vertex */
@@ -1957,9 +1957,9 @@ static void do_wpaint_brush_draw_task_cb_ex(void *__restrict userdata,
   const bool use_vert_sel = (data->me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
 
   SculptBrushTest test;
-  SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+  SculptBrushTestFn sculpt_brush_test_sq_fn = SCULPT_brush_test_init_with_falloff_shape(
       ss, &test, data->brush->falloff_shape);
-  const float *sculpt_normal_frontface = sculpt_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
       ss, data->brush->falloff_shape);
 
   /* For each vertex */
@@ -2026,9 +2026,9 @@ static void do_wpaint_brush_calc_average_weight_cb_ex(
   accum->value = 0.0;
 
   SculptBrushTest test;
-  SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+  SculptBrushTestFn sculpt_brush_test_sq_fn = SCULPT_brush_test_init_with_falloff_shape(
       ss, &test, data->brush->falloff_shape);
-  const float *sculpt_normal_frontface = sculpt_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
       ss, data->brush->falloff_shape);
 
   /* For each vertex */
@@ -2148,9 +2148,9 @@ static PBVHNode **vwpaint_pbvh_gather_generic(
         .radius_squared = ss->cache->radius_squared,
         .original = true,
     };
-    BKE_pbvh_search_gather(ss->pbvh, sculpt_search_sphere_cb, &data, &nodes, r_totnode);
+    BKE_pbvh_search_gather(ss->pbvh, SCULPT_search_sphere_cb, &data, &nodes, r_totnode);
     if (use_normal) {
-      sculpt_pbvh_calc_area_normal(
+      SCULPT_pbvh_calc_area_normal(
           brush, ob, nodes, *r_totnode, true, ss->cache->sculpt_normal_symm);
     }
     else {
@@ -2168,7 +2168,7 @@ static PBVHNode **vwpaint_pbvh_gather_generic(
         .original = true,
         .dist_ray_to_aabb_precalc = &dist_ray_to_aabb_precalc,
     };
-    BKE_pbvh_search_gather(ss->pbvh, sculpt_search_circle_cb, &data, &nodes, r_totnode);
+    BKE_pbvh_search_gather(ss->pbvh, SCULPT_search_circle_cb, &data, &nodes, r_totnode);
     if (use_normal) {
       copy_v3_v3(ss->cache->sculpt_normal_symm, ss->cache->view_normal);
     }
@@ -2194,7 +2194,7 @@ static void wpaint_do_paint(bContext *C,
 {
   SculptSession *ss = ob->sculpt;
   ss->cache->radial_symmetry_pass = i;
-  sculpt_cache_calc_brushdata_symm(ss->cache, symm, axis, angle);
+  SCULPT_cache_calc_brushdata_symm(ss->cache, symm, axis, angle);
 
   int totnode;
   PBVHNode **nodes = vwpaint_pbvh_gather_generic(ob, wp, sd, brush, &totnode);
@@ -2249,7 +2249,7 @@ static void wpaint_do_symmetrical_brush_actions(
     if ((symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5)))) {
       cache->mirror_symmetry_pass = i;
       cache->radial_symmetry_pass = 0;
-      sculpt_cache_calc_brushdata_symm(cache, i, 0, 0);
+      SCULPT_cache_calc_brushdata_symm(cache, i, 0, 0);
 
       if (i & (1 << 0)) {
         wpaint_do_paint(C, ob, wp, sd, wpd, wpi, me, brush, i, 'X', 0, 0);
@@ -2345,7 +2345,7 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
   swap_m4m4(wpd->vc.rv3d->persmat, mat);
 
   rcti r;
-  if (sculpt_get_redraw_rect(vc->ar, CTX_wm_region_view3d(C), ob, &r)) {
+  if (SCULPT_get_redraw_rect(vc->region, CTX_wm_region_view3d(C), ob, &r)) {
     if (ss->cache) {
       ss->cache->current_r = r;
     }
@@ -2358,12 +2358,12 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
       }
     }
 
-    r.xmin += vc->ar->winrct.xmin - 2;
-    r.xmax += vc->ar->winrct.xmin + 2;
-    r.ymin += vc->ar->winrct.ymin - 2;
-    r.ymax += vc->ar->winrct.ymin + 2;
+    r.xmin += vc->region->winrct.xmin - 2;
+    r.xmax += vc->region->winrct.xmin + 2;
+    r.ymin += vc->region->winrct.ymin - 2;
+    r.ymax += vc->region->winrct.ymin + 2;
   }
-  ED_region_tag_redraw_partial(vc->ar, &r, true);
+  ED_region_tag_redraw_partial(vc->region, &r, true);
 }
 
 static void wpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
@@ -2413,7 +2413,7 @@ static void wpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
-  sculpt_cache_free(ob->sculpt->cache);
+  SCULPT_cache_free(ob->sculpt->cache);
   ob->sculpt->cache = NULL;
 }
 
@@ -2423,7 +2423,7 @@ static int wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   op->customdata = paint_stroke_new(C,
                                     op,
-                                    sculpt_stroke_get_location,
+                                    SCULPT_stroke_get_location,
                                     wpaint_stroke_test_start,
                                     wpaint_stroke_update_step,
                                     NULL,
@@ -2447,7 +2447,7 @@ static int wpaint_exec(bContext *C, wmOperator *op)
 {
   op->customdata = paint_stroke_new(C,
                                     op,
-                                    sculpt_stroke_get_location,
+                                    SCULPT_stroke_get_location,
                                     wpaint_stroke_test_start,
                                     wpaint_stroke_update_step,
                                     NULL,
@@ -2464,7 +2464,7 @@ static void wpaint_cancel(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   if (ob->sculpt->cache) {
-    sculpt_cache_free(ob->sculpt->cache);
+    SCULPT_cache_free(ob->sculpt->cache);
     ob->sculpt->cache = NULL;
   }
 
@@ -2710,7 +2710,7 @@ static void do_vpaint_brush_calc_average_color_cb_ex(void *__restrict userdata,
   memset(accum->value, 0, sizeof(accum->value));
 
   SculptBrushTest test;
-  SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+  SculptBrushTestFn sculpt_brush_test_sq_fn = SCULPT_brush_test_init_with_falloff_shape(
       ss, &test, data->brush->falloff_shape);
 
   /* For each vertex */
@@ -2778,9 +2778,9 @@ static void do_vpaint_brush_draw_task_cb_ex(void *__restrict userdata,
   const bool use_face_sel = (data->me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 
   SculptBrushTest test;
-  SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+  SculptBrushTestFn sculpt_brush_test_sq_fn = SCULPT_brush_test_init_with_falloff_shape(
       ss, &test, data->brush->falloff_shape);
-  const float *sculpt_normal_frontface = sculpt_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
       ss, data->brush->falloff_shape);
 
   /* For each vertex */
@@ -2877,9 +2877,9 @@ static void do_vpaint_brush_blur_task_cb_ex(void *__restrict userdata,
   const bool use_face_sel = (data->me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 
   SculptBrushTest test;
-  SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+  SculptBrushTestFn sculpt_brush_test_sq_fn = SCULPT_brush_test_init_with_falloff_shape(
       ss, &test, data->brush->falloff_shape);
-  const float *sculpt_normal_frontface = sculpt_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
       ss, data->brush->falloff_shape);
 
   /* For each vertex */
@@ -3001,9 +3001,9 @@ static void do_vpaint_brush_smear_task_cb_ex(void *__restrict userdata,
   if (cache->is_last_valid && (normalize_v3(brush_dir) != 0.0f)) {
 
     SculptBrushTest test;
-    SculptBrushTestFn sculpt_brush_test_sq_fn = sculpt_brush_test_init_with_falloff_shape(
+    SculptBrushTestFn sculpt_brush_test_sq_fn = SCULPT_brush_test_init_with_falloff_shape(
         ss, &test, data->brush->falloff_shape);
-    const float *sculpt_normal_frontface = sculpt_brush_frontface_normal_from_falloff_shape(
+    const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
         ss, data->brush->falloff_shape);
 
     /* For each vertex */
@@ -3203,7 +3203,7 @@ static void vpaint_do_paint(bContext *C,
 {
   SculptSession *ss = ob->sculpt;
   ss->cache->radial_symmetry_pass = i;
-  sculpt_cache_calc_brushdata_symm(ss->cache, symm, axis, angle);
+  SCULPT_cache_calc_brushdata_symm(ss->cache, symm, axis, angle);
 
   int totnode;
   PBVHNode **nodes = vwpaint_pbvh_gather_generic(ob, vp, sd, brush, &totnode);
@@ -3258,7 +3258,7 @@ static void vpaint_do_symmetrical_brush_actions(
     if (symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5))) {
       cache->mirror_symmetry_pass = i;
       cache->radial_symmetry_pass = 0;
-      sculpt_cache_calc_brushdata_symm(cache, i, 0, 0);
+      SCULPT_cache_calc_brushdata_symm(cache, i, 0, 0);
 
       if (i & (1 << 0)) {
         vpaint_do_paint(C, sd, vp, vpd, ob, me, brush, i, 'X', 0, 0);
@@ -3318,7 +3318,7 @@ static void vpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
   mul_v3_m4v3(loc_world, ob->obmat, ss->cache->true_location);
   paint_last_stroke_update(scene, loc_world);
 
-  ED_region_tag_redraw(vc->ar);
+  ED_region_tag_redraw(vc->region);
 
   if (vpd->use_fast_update == false) {
     /* recalculate modifier stack to get new colors, slow,
@@ -3355,7 +3355,7 @@ static void vpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 
   MEM_freeN(vpd);
 
-  sculpt_cache_free(ob->sculpt->cache);
+  SCULPT_cache_free(ob->sculpt->cache);
   ob->sculpt->cache = NULL;
 }
 
@@ -3365,7 +3365,7 @@ static int vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   op->customdata = paint_stroke_new(C,
                                     op,
-                                    sculpt_stroke_get_location,
+                                    SCULPT_stroke_get_location,
                                     vpaint_stroke_test_start,
                                     vpaint_stroke_update_step,
                                     NULL,
@@ -3390,7 +3390,7 @@ static int vpaint_exec(bContext *C, wmOperator *op)
 {
   op->customdata = paint_stroke_new(C,
                                     op,
-                                    sculpt_stroke_get_location,
+                                    SCULPT_stroke_get_location,
                                     vpaint_stroke_test_start,
                                     vpaint_stroke_update_step,
                                     NULL,
@@ -3407,7 +3407,7 @@ static void vpaint_cancel(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   if (ob->sculpt->cache) {
-    sculpt_cache_free(ob->sculpt->cache);
+    SCULPT_cache_free(ob->sculpt->cache);
     ob->sculpt->cache = NULL;
   }
 

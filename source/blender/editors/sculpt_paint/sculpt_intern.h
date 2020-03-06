@@ -43,11 +43,11 @@ struct bContext;
 
 enum ePaintSymmetryFlags;
 
-bool sculpt_mode_poll(struct bContext *C);
-bool sculpt_mode_poll_view3d(struct bContext *C);
+bool SCULPT_mode_poll(struct bContext *C);
+bool SCULPT_mode_poll_view3d(struct bContext *C);
 /* checks for a brush, not just sculpt mode */
-bool sculpt_poll(struct bContext *C);
-bool sculpt_poll_view3d(struct bContext *C);
+bool SCULPT_poll(struct bContext *C);
+bool SCULPT_poll_view3d(struct bContext *C);
 
 /* Updates */
 
@@ -65,19 +65,19 @@ typedef struct SculptCursorGeometryInfo {
   float active_vertex_co[3];
 } SculptCursorGeometryInfo;
 
-bool sculpt_stroke_get_location(struct bContext *C, float out[3], const float mouse[2]);
-bool sculpt_cursor_geometry_info_update(bContext *C,
+bool SCULPT_stroke_get_location(struct bContext *C, float out[3], const float mouse[2]);
+bool SCULPT_cursor_geometry_info_update(bContext *C,
                                         SculptCursorGeometryInfo *out,
                                         const float mouse[2],
                                         bool use_sampled_normal);
-void sculpt_geometry_preview_lines_update(bContext *C, struct SculptSession *ss, float radius);
+void SCULPT_geometry_preview_lines_update(bContext *C, struct SculptSession *ss, float radius);
 
 /* Sculpt PBVH abstraction API */
-void sculpt_vertex_random_access_init(struct SculptSession *ss);
+void SCULPT_vertex_random_access_init(struct SculptSession *ss);
 
-int sculpt_vertex_count_get(struct SculptSession *ss);
-const float *sculpt_vertex_co_get(struct SculptSession *ss, int index);
-float sculpt_vertex_mask_get(struct SculptSession *ss, int index);
+int SCULPT_vertex_count_get(struct SculptSession *ss);
+const float *SCULPT_vertex_co_get(struct SculptSession *ss, int index);
+float SCULPT_vertex_mask_get(struct SculptSession *ss, int index);
 
 #define SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY 256
 typedef struct SculptVertexNeighborIter {
@@ -96,14 +96,14 @@ typedef struct SculptVertexNeighborIter {
   bool is_duplicate;
 } SculptVertexNeighborIter;
 
-void sculpt_vertex_neighbors_get(struct SculptSession *ss,
+void SCULPT_vertex_neighbors_get(struct SculptSession *ss,
                                  const int index,
                                  const bool include_duplicates,
                                  SculptVertexNeighborIter *iter);
 
 /* Iterator over neighboring vertices. */
 #define sculpt_vertex_neighbors_iter_begin(ss, v_index, neighbor_iterator) \
-  sculpt_vertex_neighbors_get(ss, v_index, false, &neighbor_iterator); \
+  SCULPT_vertex_neighbors_get(ss, v_index, false, &neighbor_iterator); \
   for (neighbor_iterator.i = 0; neighbor_iterator.i < neighbor_iterator.size; \
        neighbor_iterator.i++) { \
     neighbor_iterator.index = ni.neighbors[ni.i];
@@ -111,7 +111,7 @@ void sculpt_vertex_neighbors_get(struct SculptSession *ss,
 /* Iterate over neighboring and duplicate vertices (for PBVH_GRIDS). Duplicates come
  * first since they are nearest for floodfill. */
 #define sculpt_vertex_duplicates_and_neighbors_iter_begin(ss, v_index, neighbor_iterator) \
-  sculpt_vertex_neighbors_get(ss, v_index, true, &neighbor_iterator); \
+  SCULPT_vertex_neighbors_get(ss, v_index, true, &neighbor_iterator); \
   for (neighbor_iterator.i = neighbor_iterator.size - 1; neighbor_iterator.i >= 0; \
        neighbor_iterator.i--) { \
     neighbor_iterator.index = ni.neighbors[ni.i]; \
@@ -155,11 +155,22 @@ void SCULPT_calc_brush_plane(struct Sculpt *sd,
                              int totnode,
                              float r_area_no[3],
                              float r_area_co[3]);
+
+void SCULPT_calc_area_normal(
+    Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode, float r_area_no[3]);
+
 int SCULPT_nearest_vertex_get(struct Sculpt *sd,
                               struct Object *ob,
                               const float co[3],
                               float max_distance,
                               bool use_original);
+
+int SCULPT_plane_point_side(const float co[3], const float plane[4]);
+int SCULPT_plane_trim(const struct StrokeCache *cache,
+                      const struct Brush *brush,
+                      const float val[3]);
+
+float SCULPT_brush_plane_offset_get(Sculpt *sd, SculptSession *ss);
 
 ePaintSymmetryAreas SCULPT_get_vertex_symm_area(const float co[3]);
 bool SCULPT_check_vertex_pivot_symmetry(const float vco[3], const float pco[3], const char symm);
@@ -239,14 +250,16 @@ struct SculptPoseIKChain *SCULPT_pose_ik_chain_init(struct Sculpt *sd,
                                                     const float radius);
 void SCULPT_pose_ik_chain_free(struct SculptPoseIKChain *ik_chain);
 
-/* Sculpt Visibility API */
-void sculpt_visibility_sync_all_face_sets_to_vertices(struct SculptSession *ss);
-void sculpt_visibility_sync_all_vertex_to_face_sets(struct SculptSession *ss);
+/* Multiplane Scrape Brush. */
+void SCULPT_do_multiplane_scrape_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode);
+void SCULPT_multiplane_scrape_preview_draw(const uint gpuattr,
+                                           SculptSession *ss,
+                                           const float outline_col[3],
+                                           const float outline_alpha);
 
-/* Dynamic topology */
-void sculpt_pbvh_clear(Object *ob);
-void sculpt_dyntopo_node_layers_add(struct SculptSession *ss);
-void sculpt_dynamic_topology_disable(bContext *C, struct SculptUndoNode *unode);
+/* Sculpt Visibility API */
+void SCULPT_visibility_sync_all_face_sets_to_vertices(struct SculptSession *ss);
+void SCULPT_visibility_sync_all_vertex_to_face_sets(struct SculptSession *ss);
 
 /* Undo */
 
@@ -452,36 +465,36 @@ typedef struct {
   struct DistRayAABB_Precalc *dist_ray_to_aabb_precalc;
 } SculptSearchCircleData;
 
-void sculpt_brush_test_init(struct SculptSession *ss, SculptBrushTest *test);
-bool sculpt_brush_test_sphere(SculptBrushTest *test, const float co[3]);
-bool sculpt_brush_test_sphere_sq(SculptBrushTest *test, const float co[3]);
-bool sculpt_brush_test_sphere_fast(const SculptBrushTest *test, const float co[3]);
-bool sculpt_brush_test_cube(SculptBrushTest *test,
+void SCULPT_brush_test_init(struct SculptSession *ss, SculptBrushTest *test);
+bool SCULPT_brush_test_sphere(SculptBrushTest *test, const float co[3]);
+bool SCULPT_brush_test_sphere_sq(SculptBrushTest *test, const float co[3]);
+bool SCULPT_brush_test_sphere_fast(const SculptBrushTest *test, const float co[3]);
+bool SCULPT_brush_test_cube(SculptBrushTest *test,
                             const float co[3],
                             const float local[4][4],
                             const float roundness);
-bool sculpt_brush_test_circle_sq(SculptBrushTest *test, const float co[3]);
-bool sculpt_search_sphere_cb(PBVHNode *node, void *data_v);
-bool sculpt_search_circle_cb(PBVHNode *node, void *data_v);
+bool SCULPT_brush_test_circle_sq(SculptBrushTest *test, const float co[3]);
+bool SCULPT_search_sphere_cb(PBVHNode *node, void *data_v);
+bool SCULPT_search_circle_cb(PBVHNode *node, void *data_v);
 
-SculptBrushTestFn sculpt_brush_test_init_with_falloff_shape(SculptSession *ss,
+SculptBrushTestFn SCULPT_brush_test_init_with_falloff_shape(SculptSession *ss,
                                                             SculptBrushTest *test,
                                                             char falloff_shape);
-const float *sculpt_brush_frontface_normal_from_falloff_shape(SculptSession *ss,
+const float *SCULPT_brush_frontface_normal_from_falloff_shape(SculptSession *ss,
                                                               char falloff_shape);
 
-float tex_strength(struct SculptSession *ss,
-                   const struct Brush *br,
-                   const float point[3],
-                   const float len,
-                   const short vno[3],
-                   const float fno[3],
-                   const float mask,
-                   const int vertex_index,
-                   const int thread_id);
+float SCULPT_brush_strength_factor(struct SculptSession *ss,
+                                   const struct Brush *br,
+                                   const float point[3],
+                                   const float len,
+                                   const short vno[3],
+                                   const float fno[3],
+                                   const float mask,
+                                   const int vertex_index,
+                                   const int thread_id);
 
 /* just for vertex paint. */
-bool sculpt_pbvh_calc_area_normal(const struct Brush *brush,
+bool SCULPT_pbvh_calc_area_normal(const struct Brush *brush,
                                   Object *ob,
                                   PBVHNode **nodes,
                                   int totnode,
@@ -638,21 +651,24 @@ typedef struct FilterCache {
   int active_face_set;
 } FilterCache;
 
-void sculpt_cache_calc_brushdata_symm(StrokeCache *cache,
+void SCULPT_cache_calc_brushdata_symm(StrokeCache *cache,
                                       const char symm,
                                       const char axis,
                                       const float angle);
-void sculpt_cache_free(StrokeCache *cache);
+void SCULPT_cache_free(StrokeCache *cache);
 
-SculptUndoNode *sculpt_undo_push_node(Object *ob, PBVHNode *node, SculptUndoType type);
-SculptUndoNode *sculpt_undo_get_node(PBVHNode *node);
-void sculpt_undo_push_begin(const char *name);
-void sculpt_undo_push_end(void);
+SculptUndoNode *SCULPT_undo_push_node(Object *ob, PBVHNode *node, SculptUndoType type);
+SculptUndoNode *SCULPT_undo_get_node(PBVHNode *node);
+void SCULPT_undo_push_begin(const char *name);
+void SCULPT_undo_push_end(void);
 
-void sculpt_vertcos_to_key(Object *ob, KeyBlock *kb, const float (*vertCos)[3]);
+void SCULPT_vertcos_to_key(Object *ob, KeyBlock *kb, const float (*vertCos)[3]);
 
-void sculpt_update_object_bounding_box(struct Object *ob);
+void SCULPT_update_object_bounding_box(struct Object *ob);
 
-bool sculpt_get_redraw_rect(struct ARegion *ar, struct RegionView3D *rv3d, Object *ob, rcti *rect);
+bool SCULPT_get_redraw_rect(struct ARegion *region,
+                            struct RegionView3D *rv3d,
+                            Object *ob,
+                            rcti *rect);
 
 #endif

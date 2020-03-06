@@ -125,7 +125,7 @@ static int same_tex_snap(TexSnapshot *snap, MTex *mtex, ViewContext *vc, bool co
           //(BKE_brush_size_get(vc->scene, brush) <= snap->BKE_brush_size_get)) &&
 
           (mtex->brush_map_mode != MTEX_MAP_MODE_TILED ||
-           (vc->ar->winx == snap->winx && vc->ar->winy == snap->winy)) &&
+           (vc->region->winx == snap->winx && vc->region->winy == snap->winy)) &&
           (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL || snap->old_zoom == zoom) &&
           snap->old_col == col);
 }
@@ -133,8 +133,8 @@ static int same_tex_snap(TexSnapshot *snap, MTex *mtex, ViewContext *vc, bool co
 static void make_tex_snap(TexSnapshot *snap, ViewContext *vc, float zoom)
 {
   snap->old_zoom = zoom;
-  snap->winx = vc->ar->winx;
-  snap->winy = vc->ar->winy;
+  snap->winx = vc->region->winx;
+  snap->winy = vc->region->winy;
 }
 
 typedef struct LoadTexData {
@@ -191,8 +191,8 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
     float len;
 
     if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
-      x *= vc->ar->winx / radius;
-      y *= vc->ar->winy / radius;
+      x *= vc->region->winx / radius;
+      y *= vc->region->winy / radius;
     }
     else {
       x = (x - 0.5f) * 2.0f;
@@ -549,9 +549,10 @@ static int project_brush_radius(ViewContext *vc, float radius, const float locat
   add_v3_v3v3(offset, location, ortho);
 
   /* Project the center of the brush, and the tangent point to the view onto the screen. */
-  if ((ED_view3d_project_float_global(vc->ar, location, p1, V3D_PROJ_TEST_NOP) ==
+  if ((ED_view3d_project_float_global(vc->region, location, p1, V3D_PROJ_TEST_NOP) ==
        V3D_PROJ_RET_OK) &&
-      (ED_view3d_project_float_global(vc->ar, offset, p2, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK)) {
+      (ED_view3d_project_float_global(vc->region, offset, p2, V3D_PROJ_TEST_NOP) ==
+       V3D_PROJ_RET_OK)) {
     /* The distance between these points is the size of the projected brush in pixels. */
     return len_v2v2(p1, p2);
   }
@@ -580,7 +581,7 @@ static bool sculpt_get_brush_geometry(bContext *C,
 
   if (vc->obact->sculpt && vc->obact->sculpt->pbvh) {
     if (!ups->stroke_active) {
-      hit = sculpt_stroke_get_location(C, location, mouse);
+      hit = SCULPT_stroke_get_location(C, location, mouse);
     }
     else {
       hit = ups->last_hit;
@@ -675,8 +676,8 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
     else if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
       quad.xmin = 0;
       quad.ymin = 0;
-      quad.xmax = BLI_rcti_size_x(&vc->ar->winrct);
-      quad.ymax = BLI_rcti_size_y(&vc->ar->winrct);
+      quad.xmax = BLI_rcti_size_x(&vc->region->winrct);
+      quad.ymax = BLI_rcti_size_y(&vc->region->winrct);
     }
     /* Stencil code goes here. */
     else {
@@ -844,9 +845,9 @@ static bool paint_draw_alpha_overlay(UnifiedPaintSettings *ups,
 
   /* Translate to region. */
   GPU_matrix_push();
-  GPU_matrix_translate_2f(vc->ar->winrct.xmin, vc->ar->winrct.ymin);
-  x -= vc->ar->winrct.xmin;
-  y -= vc->ar->winrct.ymin;
+  GPU_matrix_translate_2f(vc->region->winrct.xmin, vc->region->winrct.ymin);
+  x -= vc->region->winrct.xmin;
+  y -= vc->region->winrct.ymin;
 
   /* Colored overlay should be drawn separately. */
   if (col) {
@@ -973,7 +974,7 @@ BLI_INLINE void draw_bezier_handle_lines(unsigned int pos, float sel_col[4], Bez
 static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
 {
   GPU_matrix_push();
-  GPU_matrix_translate_2f(vc->ar->winrct.xmin, vc->ar->winrct.ymin);
+  GPU_matrix_translate_2f(vc->region->winrct.xmin, vc->region->winrct.ymin);
 
   if (brush->paint_curve && brush->paint_curve->points) {
     int i;
@@ -1100,7 +1101,7 @@ static bool ommit_cursor_drawing(Paint *paint, ePaintMode mode, Brush *brush)
 }
 
 static void cursor_draw_point_screen_space(const uint gpuattr,
-                                           const ARegion *ar,
+                                           const ARegion *region,
                                            const float true_location[3],
                                            const float obmat[4][4],
                                            const int size)
@@ -1108,7 +1109,7 @@ static void cursor_draw_point_screen_space(const uint gpuattr,
   float translation_vertex_cursor[3], location[3];
   copy_v3_v3(location, true_location);
   mul_m4_v3(obmat, location);
-  ED_view3d_project(ar, location, translation_vertex_cursor);
+  ED_view3d_project(region, location, translation_vertex_cursor);
   /* Do not draw points behind the view. Z [near, far] is mapped to [-1, 1]. */
   if (translation_vertex_cursor[2] <= 1.0f) {
     imm_draw_circle_fill_3d(
@@ -1117,7 +1118,7 @@ static void cursor_draw_point_screen_space(const uint gpuattr,
 }
 
 static void cursor_draw_tiling_preview(const uint gpuattr,
-                                       const ARegion *ar,
+                                       const ARegion *region,
                                        const float true_location[3],
                                        Sculpt *sd,
                                        Object *ob,
@@ -1155,14 +1156,14 @@ static void cursor_draw_tiling_preview(const uint gpuattr,
         for (int dim = 0; dim < 3; dim++) {
           location[dim] = cur[dim] * step[dim] + orgLoc[dim];
         }
-        cursor_draw_point_screen_space(gpuattr, ar, location, ob->obmat, 3);
+        cursor_draw_point_screen_space(gpuattr, region, location, ob->obmat, 3);
       }
     }
   }
 }
 
 static void cursor_draw_point_with_symmetry(const uint gpuattr,
-                                            const ARegion *ar,
+                                            const ARegion *region,
                                             const float true_location[3],
                                             Sculpt *sd,
                                             Object *ob,
@@ -1176,10 +1177,10 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
 
       /* Axis Symmetry. */
       flip_v3_v3(location, true_location, (char)i);
-      cursor_draw_point_screen_space(gpuattr, ar, location, ob->obmat, 3);
+      cursor_draw_point_screen_space(gpuattr, region, location, ob->obmat, 3);
 
       /* Tiling. */
-      cursor_draw_tiling_preview(gpuattr, ar, location, sd, ob, radius);
+      cursor_draw_tiling_preview(gpuattr, region, location, sd, ob, radius);
 
       /* Radial Symmetry. */
       for (char raxis = 0; raxis < 3; raxis++) {
@@ -1190,8 +1191,8 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
           rotate_m4(symm_rot_mat, raxis + 'X', angle);
           mul_m4_v3(symm_rot_mat, location);
 
-          cursor_draw_tiling_preview(gpuattr, ar, location, sd, ob, radius);
-          cursor_draw_point_screen_space(gpuattr, ar, location, ob->obmat, 3);
+          cursor_draw_tiling_preview(gpuattr, region, location, sd, ob, radius);
+          cursor_draw_point_screen_space(gpuattr, region, location, ob->obmat, 3);
         }
       }
     }
@@ -1212,7 +1213,7 @@ static void sculpt_geometry_preview_lines_draw(const uint gpuattr, SculptSession
   if (ss->preview_vert_index_count > 0) {
     immBegin(GPU_PRIM_LINES, ss->preview_vert_index_count);
     for (int i = 0; i < ss->preview_vert_index_count; i++) {
-      immVertex3fv(gpuattr, sculpt_vertex_co_get(ss, ss->preview_vert_index_list[i]));
+      immVertex3fv(gpuattr, SCULPT_vertex_co_get(ss, ss->preview_vert_index_list[i]));
     }
     immEnd();
   }
@@ -1221,70 +1222,6 @@ static void sculpt_geometry_preview_lines_draw(const uint gpuattr, SculptSession
   if (!depth_test) {
     GPU_depth_test(false);
   }
-}
-
-static void sculpt_multiplane_scrape_preview_draw(const uint gpuattr,
-                                                  SculptSession *ss,
-                                                  const float outline_col[3],
-                                                  const float outline_alpha)
-{
-  float local_mat_inv[4][4];
-  invert_m4_m4(local_mat_inv, ss->cache->stroke_local_mat);
-  GPU_matrix_mul(local_mat_inv);
-  float angle = ss->cache->multiplane_scrape_angle;
-  if (ss->cache->pen_flip || ss->cache->invert) {
-    angle = -angle;
-  }
-
-  float offset = ss->cache->radius * 0.25f;
-
-  float p[3] = {0.0f, 0.0f, ss->cache->radius};
-  float y_axis[3] = {0.0f, 1.0f, 0.0f};
-  float p_l[3];
-  float p_r[3];
-  float area_center[3] = {0.0f, 0.0f, 0.0f};
-  rotate_v3_v3v3fl(p_r, p, y_axis, DEG2RADF((angle + 180) * 0.5f));
-  rotate_v3_v3v3fl(p_l, p, y_axis, DEG2RADF(-(angle + 180) * 0.5f));
-
-  immBegin(GPU_PRIM_LINES, 14);
-  immVertex3f(gpuattr, area_center[0], area_center[1] + offset, area_center[2]);
-  immVertex3f(gpuattr, p_r[0], p_r[1] + offset, p_r[2]);
-  immVertex3f(gpuattr, area_center[0], area_center[1] + offset, area_center[2]);
-  immVertex3f(gpuattr, p_l[0], p_l[1] + offset, p_l[2]);
-
-  immVertex3f(gpuattr, area_center[0], area_center[1] - offset, area_center[2]);
-  immVertex3f(gpuattr, p_r[0], p_r[1] - offset, p_r[2]);
-  immVertex3f(gpuattr, area_center[0], area_center[1] - offset, area_center[2]);
-  immVertex3f(gpuattr, p_l[0], p_l[1] - offset, p_l[2]);
-
-  immVertex3f(gpuattr, area_center[0], area_center[1] - offset, area_center[2]);
-  immVertex3f(gpuattr, area_center[0], area_center[1] + offset, area_center[2]);
-
-  immVertex3f(gpuattr, p_r[0], p_r[1] - offset, p_r[2]);
-  immVertex3f(gpuattr, p_r[0], p_r[1] + offset, p_r[2]);
-
-  immVertex3f(gpuattr, p_l[0], p_l[1] - offset, p_l[2]);
-  immVertex3f(gpuattr, p_l[0], p_l[1] + offset, p_l[2]);
-
-  immEnd();
-
-  immUniformColor3fvAlpha(outline_col, outline_alpha * 0.1f);
-  immBegin(GPU_PRIM_TRIS, 12);
-  immVertex3f(gpuattr, area_center[0], area_center[1] + offset, area_center[2]);
-  immVertex3f(gpuattr, p_r[0], p_r[1] + offset, p_r[2]);
-  immVertex3f(gpuattr, p_r[0], p_r[1] - offset, p_r[2]);
-  immVertex3f(gpuattr, area_center[0], area_center[1] + offset, area_center[2]);
-  immVertex3f(gpuattr, area_center[0], area_center[1] - offset, area_center[2]);
-  immVertex3f(gpuattr, p_r[0], p_r[1] - offset, p_r[2]);
-
-  immVertex3f(gpuattr, area_center[0], area_center[1] + offset, area_center[2]);
-  immVertex3f(gpuattr, p_l[0], p_l[1] + offset, p_l[2]);
-  immVertex3f(gpuattr, p_l[0], p_l[1] - offset, p_l[2]);
-  immVertex3f(gpuattr, area_center[0], area_center[1] + offset, area_center[2]);
-  immVertex3f(gpuattr, area_center[0], area_center[1] - offset, area_center[2]);
-  immVertex3f(gpuattr, p_l[0], p_l[1] - offset, p_l[2]);
-
-  immEnd();
 }
 
 static bool paint_use_2d_cursor(ePaintMode mode)
@@ -1297,8 +1234,8 @@ static bool paint_use_2d_cursor(ePaintMode mode)
 
 static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 {
-  ARegion *ar = CTX_wm_region(C);
-  if (ar && ar->regiontype != RGN_TYPE_WINDOW) {
+  ARegion *region = CTX_wm_region(C);
+  if (region && region->regiontype != RGN_TYPE_WINDOW) {
     return;
   }
 
@@ -1355,8 +1292,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
   if (ups->draw_anchored) {
     final_radius = ups->anchored_size;
     copy_v2_fl2(translation,
-                ups->anchored_initial_mouse[0] + ar->winrct.xmin,
-                ups->anchored_initial_mouse[1] + ar->winrct.ymin);
+                ups->anchored_initial_mouse[0] + region->winrct.xmin,
+                ups->anchored_initial_mouse[1] + region->winrct.ymin);
   }
 
   /* Make lines pretty. */
@@ -1432,14 +1369,14 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
     bool is_multires = ss && ss->pbvh && BKE_pbvh_type(ss->pbvh) == PBVH_GRIDS;
 
     SculptCursorGeometryInfo gi;
-    float mouse[2] = {x - ar->winrct.xmin, y - ar->winrct.ymin};
+    float mouse[2] = {x - region->winrct.xmin, y - region->winrct.ymin};
     int prev_active_vertex_index = -1;
     bool is_cursor_over_mesh = false;
 
     /* Update the active vertex. */
     if ((mode == PAINT_MODE_SCULPT) && ss && !ups->stroke_active) {
       prev_active_vertex_index = ss->active_vertex_index;
-      is_cursor_over_mesh = sculpt_cursor_geometry_info_update(
+      is_cursor_over_mesh = SCULPT_cursor_geometry_info_update(
           C, &gi, mouse, (brush->falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE));
     }
     /* Use special paint crosshair cursor in all paint modes. */
@@ -1467,11 +1404,11 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
             rds = BKE_brush_unprojected_radius_get(scene, brush);
           }
 
-          wmViewport(&ar->winrct);
+          wmViewport(&region->winrct);
 
           /* Draw 3D active vertex preview with symmetry. */
           if (len_v3v3(gi.active_vertex_co, gi.location) < rds) {
-            cursor_draw_point_with_symmetry(pos, ar, gi.active_vertex_co, sd, vc.obact, rds);
+            cursor_draw_point_with_symmetry(pos, region, gi.active_vertex_co, sd, vc.obact, rds);
           }
 
           /* Draw pose brush origins. */
@@ -1497,7 +1434,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
             /* Draw the pose brush rotation origins. */
             for (int i = 0; i < ss->pose_ik_chain_preview->tot_segments; i++) {
               cursor_draw_point_screen_space(pos,
-                                             ar,
+                                             region,
                                              ss->pose_ik_chain_preview->segments[i].initial_orig,
                                              vc.obact->obmat,
                                              3);
@@ -1509,7 +1446,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
           ED_view3d_draw_setup_view(CTX_wm_window(C),
                                     CTX_data_depsgraph_pointer(C),
                                     CTX_data_scene(C),
-                                    ar,
+                                    region,
                                     CTX_wm_view3d(C),
                                     NULL,
                                     NULL,
@@ -1551,7 +1488,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
           if (brush->sculpt_tool == SCULPT_TOOL_GRAB && (brush->flag & BRUSH_GRAB_ACTIVE_VERTEX) &&
               !is_multires) {
             if (BKE_pbvh_type(ss->pbvh) == PBVH_FACES && ss->deform_modifiers_active) {
-              sculpt_geometry_preview_lines_update(C, ss, rds);
+              SCULPT_geometry_preview_lines_update(C, ss, rds);
               sculpt_geometry_preview_lines_draw(pos, ss);
             }
           }
@@ -1593,7 +1530,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
       }
       else {
         if (vc.obact->sculpt->cache && !vc.obact->sculpt->cache->first_time) {
-          wmViewport(&ar->winrct);
+          wmViewport(&region->winrct);
 
           /* Draw cached dynamic mesh preview lines. */
           if (brush->sculpt_tool == SCULPT_TOOL_GRAB && (brush->flag & BRUSH_GRAB_ACTIVE_VERTEX) &&
@@ -1603,7 +1540,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
               ED_view3d_draw_setup_view(CTX_wm_window(C),
                                         CTX_data_depsgraph_pointer(C),
                                         CTX_data_scene(C),
-                                        ar,
+                                        region,
                                         CTX_wm_view3d(C),
                                         NULL,
                                         NULL,
@@ -1622,14 +1559,14 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
             ED_view3d_draw_setup_view(CTX_wm_window(C),
                                       CTX_data_depsgraph_pointer(C),
                                       CTX_data_scene(C),
-                                      ar,
+                                      region,
                                       CTX_wm_view3d(C),
                                       NULL,
                                       NULL,
                                       NULL);
             GPU_matrix_push();
             GPU_matrix_mul(vc.obact->obmat);
-            sculpt_multiplane_scrape_preview_draw(pos, ss, outline_col, outline_alpha);
+            SCULPT_multiplane_scrape_preview_draw(pos, ss, outline_col, outline_alpha);
             GPU_matrix_pop();
             GPU_matrix_pop_projection();
           }
@@ -1639,7 +1576,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
             ED_view3d_draw_setup_view(CTX_wm_window(C),
                                       CTX_data_depsgraph_pointer(C),
                                       CTX_data_scene(C),
-                                      ar,
+                                      region,
                                       CTX_wm_view3d(C),
                                       NULL,
                                       NULL,

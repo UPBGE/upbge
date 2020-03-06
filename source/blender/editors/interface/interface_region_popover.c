@@ -172,21 +172,21 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 
     if (!slideout) {
       ScrArea *sa = CTX_wm_area(C);
-      ARegion *ar = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(C);
 
-      if (ar && ar->panels.first) {
+      if (region && region->panels.first) {
         /* For regions with panels, prefer to open to top so we can
          * see the values of the buttons below changing. */
         UI_block_direction_set(block, UI_DIR_UP | UI_DIR_CENTER_X);
       }
       /* Prefer popover from header to be positioned into the editor. */
-      else if (sa && ar) {
-        if (ELEM(ar->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
+      else if (sa && region) {
+        if (ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
           if (RGN_ALIGN_ENUM_FROM_MASK(ED_area_header_alignment(sa)) == RGN_ALIGN_BOTTOM) {
             UI_block_direction_set(block, UI_DIR_UP | UI_DIR_CENTER_X);
           }
         }
-        if (ar->regiontype == RGN_TYPE_FOOTER) {
+        if (region->regiontype == RGN_TYPE_FOOTER) {
           if (RGN_ALIGN_ENUM_FROM_MASK(ED_area_footer_alignment(sa)) == RGN_ALIGN_BOTTOM) {
             UI_block_direction_set(block, UI_DIR_UP | UI_DIR_CENTER_X);
           }
@@ -284,7 +284,7 @@ uiPopupBlockHandle *ui_popover_panel_create(
    * add a modal handler and pass on events. */
   if (!but) {
     UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
-    WM_event_add_mousemove(C);
+    WM_event_add_mousemove(window);
     handle->popup = true;
   }
 
@@ -403,7 +403,7 @@ void UI_popover_end(bContext *C, uiPopover *pup, wmKeyMap *keymap)
 
   /* Add handlers. */
   UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
-  WM_event_add_mousemove(C);
+  WM_event_add_mousemove(window);
   handle->popup = true;
 
   /* Re-add so it gets priority. */

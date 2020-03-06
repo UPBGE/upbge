@@ -244,7 +244,7 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
       BKE_pose_rebuild(bmain, ob_dst, ob_dst->data, do_pose_id_user);
     }
   }
-  defgroup_copy_list(&ob_dst->defbase, &ob_src->defbase);
+  BKE_defgroup_copy_list(&ob_dst->defbase, &ob_src->defbase);
   BKE_object_facemap_copy_list(&ob_dst->fmaps, &ob_src->fmaps);
   BKE_constraints_copy_ex(&ob_dst->constraints, &ob_src->constraints, flag_subdata, true);
 
@@ -808,12 +808,6 @@ void BKE_object_free_caches(Object *object)
   }
 }
 
-/** Free (or release) any data used by this object (does not free the object itself). */
-void BKE_object_free(Object *ob)
-{
-  object_free_data(&ob->id);
-}
-
 /* actual check for internal data, not context or flags */
 bool BKE_object_is_in_editmode(const Object *ob)
 {
@@ -1052,46 +1046,7 @@ static const char *get_obdata_defname(int type)
   }
 }
 
-void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
-{
-  if (name == NULL) {
-    name = get_obdata_defname(type);
-  }
-
-  switch (type) {
-    case OB_MESH:
-      return BKE_mesh_add(bmain, name);
-    case OB_CURVE:
-      return BKE_curve_add(bmain, name, OB_CURVE);
-    case OB_SURF:
-      return BKE_curve_add(bmain, name, OB_SURF);
-    case OB_FONT:
-      return BKE_curve_add(bmain, name, OB_FONT);
-    case OB_MBALL:
-      return BKE_mball_add(bmain, name);
-    case OB_CAMERA:
-      return BKE_camera_add(bmain, name);
-    case OB_LAMP:
-      return BKE_light_add(bmain, name);
-    case OB_LATTICE:
-      return BKE_lattice_add(bmain, name);
-    case OB_ARMATURE:
-      return BKE_armature_add(bmain, name);
-    case OB_SPEAKER:
-      return BKE_speaker_add(bmain, name);
-    case OB_LIGHTPROBE:
-      return BKE_lightprobe_add(bmain, name);
-    case OB_GPENCIL:
-      return BKE_gpencil_data_addnew(bmain, name);
-    case OB_EMPTY:
-      return NULL;
-    default:
-      CLOG_ERROR(&LOG, "Internal error, bad type: %d", type);
-      return NULL;
-  }
-}
-
-void BKE_object_init(Object *ob, const short ob_type)
+static void object_init(Object *ob, const short ob_type)
 {
   object_init_data(&ob->id);
 
@@ -1134,6 +1089,45 @@ void BKE_object_init(Object *ob, const short ob_type)
   ob->col_mask = 0xffff;
 }
 
+void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
+{
+  if (name == NULL) {
+    name = get_obdata_defname(type);
+  }
+
+  switch (type) {
+    case OB_MESH:
+      return BKE_mesh_add(bmain, name);
+    case OB_CURVE:
+      return BKE_curve_add(bmain, name, OB_CURVE);
+    case OB_SURF:
+      return BKE_curve_add(bmain, name, OB_SURF);
+    case OB_FONT:
+      return BKE_curve_add(bmain, name, OB_FONT);
+    case OB_MBALL:
+      return BKE_mball_add(bmain, name);
+    case OB_CAMERA:
+      return BKE_camera_add(bmain, name);
+    case OB_LAMP:
+      return BKE_light_add(bmain, name);
+    case OB_LATTICE:
+      return BKE_lattice_add(bmain, name);
+    case OB_ARMATURE:
+      return BKE_armature_add(bmain, name);
+    case OB_SPEAKER:
+      return BKE_speaker_add(bmain, name);
+    case OB_LIGHTPROBE:
+      return BKE_lightprobe_add(bmain, name);
+    case OB_GPENCIL:
+      return BKE_gpencil_data_addnew(bmain, name);
+    case OB_EMPTY:
+      return NULL;
+    default:
+      CLOG_ERROR(&LOG, "Internal error, bad type: %d", type);
+      return NULL;
+  }
+}
+
 /* more general add: creates minimum required data, but without vertices etc. */
 Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 {
@@ -1149,7 +1143,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
   id_us_min(&ob->id);
 
   /* default object vars */
-  BKE_object_init(ob, type);
+  object_init(ob, type);
 
   return ob;
 }
@@ -1782,21 +1776,6 @@ void BKE_object_transform_copy(Object *ob_tar, const Object *ob_src)
   copy_v3_v3(ob_tar->scale, ob_src->scale);
 }
 
-/**
- * Only copy internal data of Object ID from source
- * to already allocated/initialized destination.
- * You probably never want to use that directly,
- * use #BKE_id_copy or #BKE_id_copy_ex for typical needs.
- *
- * WARNING! This function will not handle ID user count!
- *
- * \param flag: Copying options (see BKE_lib_id.h's LIB_ID_COPY_... flags for more).
- */
-void BKE_object_copy_data(Main *bmain, Object *ob_dst, const Object *ob_src, const int flag)
-{
-  object_copy_data(bmain, &ob_dst->id, &ob_src->id, flag);
-}
-
 /* copy objects, will re-initialize cached simulation data */
 Object *BKE_object_copy(Main *bmain, const Object *ob)
 {
@@ -2074,11 +2053,6 @@ Object *BKE_object_duplicate(Main *bmain, const Object *ob, const int dupflag)
   return obn;
 }
 
-void BKE_object_make_local(Main *bmain, Object *ob, const int flags)
-{
-  object_make_local(bmain, &ob->id, flags);
-}
-
 /* Returns true if the Object is from an external blend file (libdata) */
 bool BKE_object_is_libdata(const Object *ob)
 {
@@ -2205,7 +2179,7 @@ void BKE_object_make_proxy(Main *bmain, Object *ob, Object *target, Object *cob)
   id_us_plus((ID *)ob->data); /* ensures lib data becomes LIB_TAG_EXTERN */
 
   /* copy vertex groups */
-  defgroup_copy_list(&ob->defbase, &target->defbase);
+  BKE_defgroup_copy_list(&ob->defbase, &target->defbase);
 
   /* copy material and index information */
   ob->actcol = ob->totcol = 0;

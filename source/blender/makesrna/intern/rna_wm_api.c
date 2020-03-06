@@ -83,9 +83,14 @@ static wmKeyMap *rna_keymap_active(wmKeyMap *km, bContext *C)
   return WM_keymap_active(wm, km);
 }
 
+static void rna_keymap_restore_to_default(wmKeyMap *km, bContext *C)
+{
+  WM_keymap_restore_to_default(km, CTX_wm_manager(C));
+}
+
 static void rna_keymap_restore_item_to_default(wmKeyMap *km, bContext *C, wmKeyMapItem *kmi)
 {
-  WM_keymap_item_restore_to_default(C, km, kmi);
+  WM_keymap_item_restore_to_default(CTX_wm_manager(C), km, kmi);
 }
 
 static void rna_Operator_report(wmOperator *op, int type, const char *msg)
@@ -216,6 +221,7 @@ static wmKeyMapItem *rna_KeyMap_item_new(wmKeyMap *km,
                                          bool alt,
                                          bool oskey,
                                          int keymodifier,
+                                         bool repeat,
                                          bool head)
 {
   /*  wmWindowManager *wm = CTX_wm_manager(C); */
@@ -250,6 +256,10 @@ static wmKeyMapItem *rna_KeyMap_item_new(wmKeyMap *km,
 
   /* create keymap item */
   kmi = WM_keymap_add_item(km, idname_bl, type, value, modifier, keymodifier);
+
+  if (!repeat) {
+    kmi->flag |= KMI_REPEAT_IGNORE;
+  }
 
   /* [#32437] allow scripts to define hotkeys that get added to start of keymap
    *          so that they stand a chance against catch-all defines later on
@@ -293,8 +303,10 @@ static wmKeyMapItem *rna_KeyMap_item_new_modal(wmKeyMap *km,
                                                bool ctrl,
                                                bool alt,
                                                bool oskey,
-                                               int keymodifier)
+                                               int keymodifier,
+                                               bool repeat)
 {
+  wmKeyMapItem *kmi = NULL;
   int modifier = 0;
   int propvalue = 0;
 
@@ -323,14 +335,20 @@ static wmKeyMapItem *rna_KeyMap_item_new_modal(wmKeyMap *km,
 
   /* not initialized yet, do delayed lookup */
   if (!km->modal_items) {
-    return WM_modalkeymap_add_item_str(km, type, value, modifier, keymodifier, propvalue_str);
+    kmi = WM_modalkeymap_add_item_str(km, type, value, modifier, keymodifier, propvalue_str);
+  }
+  else {
+    if (RNA_enum_value_from_id(km->modal_items, propvalue_str, &propvalue) == 0) {
+      BKE_report(reports, RPT_WARNING, "Property value not in enumeration");
+    }
+    kmi = WM_modalkeymap_add_item(km, type, value, modifier, keymodifier, propvalue);
   }
 
-  if (RNA_enum_value_from_id(km->modal_items, propvalue_str, &propvalue) == 0) {
-    BKE_report(reports, RPT_WARNING, "Property value not in enumeration");
+  if (!repeat) {
+    kmi->flag |= KMI_REPEAT_IGNORE;
   }
 
-  return WM_modalkeymap_add_item(km, type, value, modifier, keymodifier, propvalue);
+  return kmi;
 }
 
 static void rna_KeyMap_item_remove(wmKeyMap *km, ReportList *reports, PointerRNA *kmi_ptr)
@@ -1037,7 +1055,7 @@ void RNA_api_keymap(StructRNA *srna)
   parm = RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Active key map");
   RNA_def_function_return(func, parm);
 
-  func = RNA_def_function(srna, "restore_to_default", "WM_keymap_restore_to_default");
+  func = RNA_def_function(srna, "restore_to_default", "rna_keymap_restore_to_default");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 
   func = RNA_def_function(srna, "restore_item_to_default", "rna_keymap_restore_item_to_default");
@@ -1083,6 +1101,7 @@ void RNA_api_keymapitems(StructRNA *srna)
   RNA_def_boolean(func, "alt", 0, "Alt", "");
   RNA_def_boolean(func, "oskey", 0, "OS Key", "");
   RNA_def_enum(func, "key_modifier", rna_enum_event_type_items, 0, "Key Modifier", "");
+  RNA_def_boolean(func, "repeat", true, "Repeat", "When set, accept key-repeat events");
   RNA_def_boolean(func,
                   "head",
                   0,
@@ -1106,6 +1125,7 @@ void RNA_api_keymapitems(StructRNA *srna)
   RNA_def_boolean(func, "alt", 0, "Alt", "");
   RNA_def_boolean(func, "oskey", 0, "OS Key", "");
   RNA_def_enum(func, "key_modifier", rna_enum_event_type_items, 0, "Key Modifier", "");
+  RNA_def_boolean(func, "repeat", true, "Repeat", "When set, accept key-repeat events");
   parm = RNA_def_pointer(func, "item", "KeyMapItem", "Item", "Added key map item");
   RNA_def_function_return(func, parm);
 

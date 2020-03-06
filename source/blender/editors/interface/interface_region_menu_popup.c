@@ -277,15 +277,15 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
     /* for a header menu we set the direction automatic */
     if (!pup->slideout && flip) {
       ScrArea *sa = CTX_wm_area(C);
-      ARegion *ar = CTX_wm_region(C);
-      if (sa && ar) {
-        if (ELEM(ar->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
+      ARegion *region = CTX_wm_region(C);
+      if (sa && region) {
+        if (ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
           if (RGN_ALIGN_ENUM_FROM_MASK(ED_area_header_alignment(sa)) == RGN_ALIGN_BOTTOM) {
             UI_block_direction_set(block, UI_DIR_UP);
             UI_block_order_flip(block);
           }
         }
-        if (ar->regiontype == RGN_TYPE_FOOTER) {
+        if (region->regiontype == RGN_TYPE_FOOTER) {
           if (RGN_ALIGN_ENUM_FROM_MASK(ED_area_footer_alignment(sa)) == RGN_ALIGN_BOTTOM) {
             UI_block_direction_set(block, UI_DIR_UP);
             UI_block_order_flip(block);
@@ -357,7 +357,7 @@ uiPopupBlockHandle *ui_popup_menu_create(
     handle->popup = true;
 
     UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
-    WM_event_add_mousemove(C);
+    WM_event_add_mousemove(window);
   }
 
   MEM_freeN(pup);
@@ -467,7 +467,7 @@ void UI_popup_menu_end(bContext *C, uiPopupMenu *pup)
   menu->popup = true;
 
   UI_popup_handlers_add(C, &window->modalhandlers, menu, 0);
-  WM_event_add_mousemove(C);
+  WM_event_add_mousemove(window);
 
   MEM_freeN(pup);
 }
@@ -599,7 +599,7 @@ void UI_popup_block_invoke_ex(bContext *C,
 
   UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
   UI_block_active_only_flagged_buttons(C, handle->region, handle->region->uiblocks.first);
-  WM_event_add_mousemove(C);
+  WM_event_add_mousemove(window);
 }
 
 void UI_popup_block_invoke(bContext *C,
@@ -633,7 +633,7 @@ void UI_popup_block_ex(bContext *C,
 
   UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
   UI_block_active_only_flagged_buttons(C, handle->region, handle->region->uiblocks.first);
-  WM_event_add_mousemove(C);
+  WM_event_add_mousemove(window);
 }
 
 #if 0 /* UNUSED */
@@ -669,21 +669,17 @@ void UI_popup_block_close(bContext *C, wmWindow *win, uiBlock *block)
 
       /* In the case we have nested popups,
        * closing one may need to redraw another, see: T48874 */
-      for (ARegion *ar = screen->regionbase.first; ar; ar = ar->next) {
-        ED_region_tag_refresh_ui(ar);
+      for (ARegion *region = screen->regionbase.first; region; region = region->next) {
+        ED_region_tag_refresh_ui(region);
       }
     }
   }
 }
 
-bool UI_popup_block_name_exists(bContext *C, const char *name)
+bool UI_popup_block_name_exists(const bScreen *screen, const char *name)
 {
-  bScreen *sc = CTX_wm_screen(C);
-  uiBlock *block;
-  ARegion *ar;
-
-  for (ar = sc->regionbase.first; ar; ar = ar->next) {
-    for (block = ar->uiblocks.first; block; block = block->next) {
+  for (const ARegion *region = screen->regionbase.first; region; region = region->next) {
+    for (const uiBlock *block = region->uiblocks.first; block; block = block->next) {
       if (STREQ(block->name, name)) {
         return true;
       }

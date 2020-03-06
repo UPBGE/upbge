@@ -114,7 +114,7 @@ static void acf_generic_root_backdrop(bAnimContext *ac,
                                       float ymaxc)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   short expanded = ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND) != 0;
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[3];
@@ -145,7 +145,7 @@ static void acf_generic_dataexpand_backdrop(bAnimContext *ac,
                                             float ymaxc)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[3];
 
@@ -253,7 +253,7 @@ static void acf_generic_channel_backdrop(bAnimContext *ac,
                                          float ymaxc)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[3];
 
@@ -466,7 +466,7 @@ static void acf_summary_color(bAnimContext *UNUSED(ac),
 static void acf_summary_backdrop(bAnimContext *ac, bAnimListElem *ale, float yminc, float ymaxc)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   float color[3];
 
   /* set backdrop drawing color */
@@ -874,7 +874,7 @@ static void acf_group_color(bAnimContext *ac, bAnimListElem *ale, float r_color[
 static void acf_group_backdrop(bAnimContext *ac, bAnimListElem *ale, float yminc, float ymaxc)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   short expanded = ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND) != 0;
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[3];
@@ -1147,7 +1147,7 @@ static void acf_nla_controls_backdrop(bAnimContext *ac,
                                       float ymaxc)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   short expanded = ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND) != 0;
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[3];
@@ -3580,7 +3580,7 @@ static void acf_nlaaction_color(bAnimContext *UNUSED(ac), bAnimListElem *ale, fl
 static void acf_nlaaction_backdrop(bAnimContext *ac, bAnimListElem *ale, float yminc, float ymaxc)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   AnimData *adt = ale->adt;
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[4];
@@ -4010,7 +4010,7 @@ void ANIM_channel_draw(
     bAnimContext *ac, bAnimListElem *ale, float yminc, float ymaxc, size_t channel_index)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   short selected, offset;
   float y, ymid, ytext;
 
@@ -4357,7 +4357,7 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
   ListBase nla_cache = {NULL, NULL};
   PointerRNA id_ptr, ptr;
   PropertyRNA *prop;
-  short flag = 0;
+  eInsertKeyFlags flag = 0;
   bool done = false;
   float cfra;
 
@@ -4371,8 +4371,8 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
   /* get current frame and apply NLA-mapping to it (if applicable) */
   cfra = BKE_nla_tweakedit_remap(adt, (float)CFRA, NLATIME_CONVERT_UNMAP);
 
-  /* get flags for keyframing */
-  flag = ANIM_get_keyframing_flags(scene, 1);
+  /* Get flags for keyframing. */
+  flag = ANIM_get_keyframing_flags(scene, true);
 
   /* try to resolve the path stored in the F-Curve */
   if (RNA_path_resolve_property(&id_ptr, fcu->rna_path, &ptr, &prop)) {
@@ -4411,7 +4411,7 @@ static void achannel_setting_slider_shapekey_cb(bContext *C, void *key_poin, voi
   ListBase nla_cache = {NULL, NULL};
   PointerRNA id_ptr, ptr;
   PropertyRNA *prop;
-  short flag = 0;
+  eInsertKeyFlags flag = 0;
   bool done = false;
   float cfra;
 
@@ -4426,14 +4426,14 @@ static void achannel_setting_slider_shapekey_cb(bContext *C, void *key_poin, voi
   cfra = BKE_nla_tweakedit_remap(key->adt, (float)CFRA, NLATIME_CONVERT_UNMAP);
 
   /* get flags for keyframing */
-  flag = ANIM_get_keyframing_flags(scene, 1);
+  flag = ANIM_get_keyframing_flags(scene, true);
 
   /* try to resolve the path stored in the F-Curve */
   if (RNA_path_resolve_property(&id_ptr, rna_path, &ptr, &prop)) {
     /* find or create new F-Curve */
     // XXX is the group name for this ok?
-    bAction *act = verify_adt_action(bmain, (ID *)key, 1);
-    FCurve *fcu = verify_fcurve(bmain, act, NULL, &ptr, rna_path, 0, 1);
+    bAction *act = ED_id_action_ensure(bmain, (ID *)key);
+    FCurve *fcu = ED_action_fcurve_ensure(bmain, act, NULL, &ptr, rna_path, 0);
 
     /* set the special 'replace' flag if on a keyframe */
     if (fcurve_frame_has_keyframe(fcu, cfra, 0)) {
@@ -4472,7 +4472,7 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C,
   ReportList *reports = CTX_wm_reports(C);
   Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
-  short flag = 0;
+  eInsertKeyFlags flag = 0;
   bool done = false;
   float cfra;
 
@@ -4480,7 +4480,7 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C,
   cfra = (float)CFRA;
 
   /* get flags for keyframing */
-  flag = ANIM_get_keyframing_flags(scene, 1);
+  flag = ANIM_get_keyframing_flags(scene, true);
 
   /* Get pointer and property from the slider -
    * this should all match up with the NlaStrip required. */
@@ -4741,7 +4741,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                                size_t channel_index)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   float ymid;
   const short channel_height = round_fl_to_int(BLI_rctf_size_y(rect));
   const bool is_being_renamed = achannel_is_being_renamed(ac, acf, channel_index);
@@ -4871,7 +4871,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
      */
     if (acf->name_prop(ale, &ptr, &prop)) {
       const short margin_x = 3 * round_fl_to_int(UI_DPI_FAC);
-      const short width = ac->ar->winx - offset - (margin_x * 2);
+      const short width = ac->region->winx - offset - (margin_x * 2);
       uiBut *but;
 
       UI_block_emboss_set(block, UI_EMBOSS);
@@ -4894,7 +4894,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                       NULL);
 
       /* copy what outliner does here, see outliner_buttons */
-      if (UI_but_active_only(C, ac->ar, block, but) == false) {
+      if (UI_but_active_only(C, ac->region, block, but) == false) {
         ac->ads->renameIndex = 0;
 
         /* send notifiers */

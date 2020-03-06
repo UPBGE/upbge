@@ -137,82 +137,81 @@ void BKE_libblock_free_datablock(ID *id, const int UNUSED(flag))
   const short type = GS(id->name);
   switch (type) {
     case ID_SCE:
-      BKE_scene_free_ex((Scene *)id, false);
+      BLI_assert(0);
       break;
     case ID_LI:
-      BKE_library_free((Library *)id);
+      BLI_assert(0);
       break;
     case ID_OB:
-      BKE_object_free((Object *)id);
+      BLI_assert(0);
       break;
     case ID_ME:
-      BKE_mesh_free((Mesh *)id);
+      BLI_assert(0);
       break;
     case ID_CU:
-      BKE_curve_free((Curve *)id);
+      BLI_assert(0);
       break;
     case ID_MB:
-      BKE_mball_free((MetaBall *)id);
+      BLI_assert(0);
       break;
     case ID_MA:
-      BKE_material_free((Material *)id);
+      BLI_assert(0);
       break;
     case ID_TE:
-      BKE_texture_free((Tex *)id);
       break;
     case ID_IM:
-      BKE_image_free((Image *)id);
+      BLI_assert(0);
       break;
     case ID_LT:
-      BKE_lattice_free((Lattice *)id);
+      BLI_assert(0);
       break;
     case ID_LA:
-      BKE_light_free((Light *)id);
+      BLI_assert(0);
       break;
     case ID_CA:
-      BKE_camera_free((Camera *)id);
+      BLI_assert(0);
       break;
     case ID_IP: /* Deprecated. */
       BKE_ipo_free((Ipo *)id);
       break;
     case ID_KE:
-      BKE_key_free((Key *)id);
+      BLI_assert(0);
       break;
     case ID_WO:
-      BKE_world_free((World *)id);
+      BLI_assert(0);
       break;
     case ID_SCR:
-      BKE_screen_free((bScreen *)id);
+      BLI_assert(0);
       break;
     case ID_VF:
-      BKE_vfont_free((VFont *)id);
+      BLI_assert(0);
       break;
     case ID_TXT:
-      BKE_text_free((Text *)id);
+      BLI_assert(0);
       break;
     case ID_SPK:
       BKE_speaker_free((Speaker *)id);
       break;
     case ID_LP:
-      BKE_lightprobe_free((LightProbe *)id);
+      BLI_assert(0);
       break;
     case ID_SO:
       BKE_sound_free((bSound *)id);
       break;
     case ID_GR:
-      BKE_collection_free((Collection *)id);
+      BLI_assert(0);
       break;
     case ID_AR:
-      BKE_armature_free((bArmature *)id);
+      BLI_assert(0);
       break;
     case ID_AC:
-      BKE_action_free((bAction *)id);
+      BLI_assert(0);
       break;
     case ID_NT:
-      ntreeFreeTree((bNodeTree *)id);
+      BLI_assert(0);
       break;
     case ID_BR:
-      BKE_brush_free((Brush *)id);
+      BLI_assert(0);
       break;
     case ID_PA:
       BKE_particlesettings_free((ParticleSettings *)id);

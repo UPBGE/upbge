@@ -792,7 +792,7 @@ static int logic_region_flip_exec(bContext *C, wmOperator *op)
   }
 
   ED_area_tag_redraw(CTX_wm_area(C));
-  WM_event_add_mousemove(C);
+  WM_event_add_mousemove(CTX_wm_window(C));
   WM_event_add_notifier(C, NC_LOGIC, NULL);
   ED_region_toggle_hidden(C, ar);
 

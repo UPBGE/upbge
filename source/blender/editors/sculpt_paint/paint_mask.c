@@ -115,7 +115,7 @@ static void mask_flood_fill_task_cb(void *__restrict userdata,
 
   PBVHVertexIter vi;
 
-  sculpt_undo_push_node(data->ob, node, SCULPT_UNDO_MASK);
+  SCULPT_undo_push_node(data->ob, node, SCULPT_UNDO_MASK);
 
   BKE_pbvh_vertex_iter_begin(data->pbvh, node, vi, PBVH_ITER_UNIQUE)
   {
@@ -137,7 +137,7 @@ static void mask_flood_fill_task_cb(void *__restrict userdata,
 
 static int mask_flood_fill_exec(bContext *C, wmOperator *op)
 {
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   Object *ob = CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   PaintMaskFloodMode mode;
@@ -157,7 +157,7 @@ static int mask_flood_fill_exec(bContext *C, wmOperator *op)
 
   BKE_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
 
-  sculpt_undo_push_begin("Mask flood fill");
+  SCULPT_undo_push_begin("Mask flood fill");
 
   MaskTaskData data = {
       .ob = ob,
@@ -178,13 +178,13 @@ static int mask_flood_fill_exec(bContext *C, wmOperator *op)
 
   BKE_pbvh_update_vertex_data(pbvh, PBVH_UpdateMask);
 
-  sculpt_undo_push_end();
+  SCULPT_undo_push_end();
 
   if (nodes) {
     MEM_freeN(nodes);
   }
 
-  ED_region_tag_redraw(ar);
+  ED_region_tag_redraw(region);
 
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
@@ -200,7 +200,7 @@ void PAINT_OT_mask_flood_fill(struct wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = mask_flood_fill_exec;
-  ot->poll = sculpt_mode_poll;
+  ot->poll = SCULPT_mode_poll;
 
   ot->flag = OPTYPE_REGISTER;
 
@@ -272,7 +272,7 @@ static void mask_box_select_task_cb(void *__restrict userdata,
       if (!any_masked) {
         any_masked = true;
 
-        sculpt_undo_push_node(data->ob, node, SCULPT_UNDO_MASK);
+        SCULPT_undo_push_node(data->ob, node, SCULPT_UNDO_MASK);
 
         if (data->multires) {
           BKE_pbvh_node_mark_normals_update(node);
@@ -298,7 +298,7 @@ bool ED_sculpt_mask_box_select(struct bContext *C, ViewContext *vc, const rcti *
   BoundBox bb;
   float clip_planes[4][4];
   float clip_planes_final[4][4];
-  ARegion *ar = vc->ar;
+  ARegion *region = vc->region;
   Object *ob = vc->obact;
   PaintMaskFloodMode mode;
   bool multires;
@@ -311,13 +311,13 @@ bool ED_sculpt_mask_box_select(struct bContext *C, ViewContext *vc, const rcti *
   float value = select ? 1.0f : 0.0f;
 
   /* Transform the clip planes in object space. */
-  ED_view3d_clipping_calc(&bb, clip_planes, vc->ar, vc->obact, rect);
+  ED_view3d_clipping_calc(&bb, clip_planes, vc->region, vc->obact, rect);
 
   BKE_sculpt_update_object_for_edit(depsgraph, ob, false, true);
   pbvh = ob->sculpt->pbvh;
   multires = (BKE_pbvh_type(pbvh) == PBVH_GRIDS);
 
-  sculpt_undo_push_begin("Mask box fill");
+  SCULPT_undo_push_begin("Mask box fill");
 
   for (int symmpass = 0; symmpass <= symm; symmpass++) {
     if (symmpass == 0 || (symm & symmpass && (symm != 5 || symmpass != 3) &&
@@ -359,9 +359,9 @@ bool ED_sculpt_mask_box_select(struct bContext *C, ViewContext *vc, const rcti *
 
   BKE_pbvh_update_vertex_data(pbvh, PBVH_UpdateMask);
 
-  sculpt_undo_push_end();
+  SCULPT_undo_push_end();
 
-  ED_region_tag_redraw(ar);
+  ED_region_tag_redraw(region);
 
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
@@ -392,7 +392,7 @@ static bool is_effected_lasso(LassoMaskData *data, float co[3])
 
   flip_v3_v3(co_final, co, data->symmpass);
   /* First project point to 2d space. */
-  ED_view3d_project_float_v2_m4(data->vc->ar, co_final, scr_co_f, data->projviewobjmat);
+  ED_view3d_project_float_v2_m4(data->vc->region, co_final, scr_co_f, data->projviewobjmat);
 
   scr_co_s[0] = scr_co_f[0];
   scr_co_s[1] = scr_co_f[1];
@@ -440,7 +440,7 @@ static void mask_gesture_lasso_task_cb(void *__restrict userdata,
       if (!any_masked) {
         any_masked = true;
 
-        sculpt_undo_push_node(data->ob, node, SCULPT_UNDO_MASK);
+        SCULPT_undo_push_node(data->ob, node, SCULPT_UNDO_MASK);
 
         BKE_pbvh_node_mark_redraw(node);
         if (data->multires) {
@@ -498,13 +498,13 @@ static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
                                   mask_lasso_px_cb,
                                   &data);
 
-    ED_view3d_clipping_calc(&bb, clip_planes, vc.ar, vc.obact, &data.rect);
+    ED_view3d_clipping_calc(&bb, clip_planes, vc.region, vc.obact, &data.rect);
 
     BKE_sculpt_update_object_for_edit(depsgraph, ob, false, true);
     pbvh = ob->sculpt->pbvh;
     multires = (BKE_pbvh_type(pbvh) == PBVH_GRIDS);
 
-    sculpt_undo_push_begin("Mask lasso fill");
+    SCULPT_undo_push_begin("Mask lasso fill");
 
     for (int symmpass = 0; symmpass <= symm; symmpass++) {
       if ((symmpass == 0) || (symm & symmpass && (symm != 5 || symmpass != 3) &&
@@ -548,9 +548,9 @@ static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
 
     BKE_pbvh_update_vertex_data(pbvh, PBVH_UpdateMask);
 
-    sculpt_undo_push_end();
+    SCULPT_undo_push_end();
 
-    ED_region_tag_redraw(vc.ar);
+    ED_region_tag_redraw(vc.region);
     MEM_freeN((void *)mcords);
     MEM_freeN(data.px);
 
@@ -571,7 +571,7 @@ void PAINT_OT_mask_lasso_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_lasso_modal;
   ot->exec = paint_mask_gesture_lasso_exec;
 
-  ot->poll = sculpt_mode_poll;
+  ot->poll = SCULPT_mode_poll;
 
   ot->flag = OPTYPE_REGISTER;
 

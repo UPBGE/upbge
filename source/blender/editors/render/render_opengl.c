@@ -67,6 +67,7 @@
 
 #include "ED_screen.h"
 #include "ED_view3d.h"
+#include "ED_view3d_offscreen.h"
 #include "ED_gpencil.h"
 
 #include "RE_pipeline.h"
@@ -104,7 +105,7 @@ typedef struct OGLRender {
 
   View3D *v3d;
   RegionView3D *rv3d;
-  ARegion *ar;
+  ARegion *region;
 
   ScrArea *prevsa;
   ARegion *prevar;
@@ -286,7 +287,7 @@ static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, R
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = oglrender->scene;
-  ARegion *ar = oglrender->ar;
+  ARegion *region = oglrender->region;
   View3D *v3d = oglrender->v3d;
   RegionView3D *rv3d = oglrender->rv3d;
   Object *camera = NULL;
@@ -368,17 +369,18 @@ static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, R
     char err_out[256] = "unknown";
     ImBuf *ibuf_view;
     const int alpha_mode = (draw_sky) ? R_ADDSKY : R_ALPHAPREMUL;
-    int output_flags = oglrender->color_depth <= R_IMF_CHAN_DEPTH_8 ? IB_rect : IB_rectfloat;
+    eImBufFlags imbuf_flags = oglrender->color_depth <= R_IMF_CHAN_DEPTH_8 ? IB_rect :
+                                                                             IB_rectfloat;
 
     if (view_context) {
       ibuf_view = ED_view3d_draw_offscreen_imbuf(depsgraph,
                                                  scene,
                                                  v3d->shading.type,
                                                  v3d,
-                                                 ar,
+                                                 region,
                                                  sizex,
                                                  sizey,
-                                                 output_flags,
+                                                 imbuf_flags,
                                                  alpha_mode,
                                                  viewname,
                                                  oglrender->ofs,
@@ -397,7 +399,7 @@ static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, R
                                                         scene->camera,
                                                         oglrender->sizex,
                                                         oglrender->sizey,
-                                                        output_flags,
+                                                        imbuf_flags,
                                                         V3D_OFSDRAW_SHOW_ANNOTATION,
                                                         alpha_mode,
                                                         viewname,
@@ -804,9 +806,9 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 
   if (is_view_context) {
     /* so quad view renders camera */
-    ED_view3d_context_user_region(C, &oglrender->v3d, &oglrender->ar);
+    ED_view3d_context_user_region(C, &oglrender->v3d, &oglrender->region);
 
-    oglrender->rv3d = oglrender->ar->regiondata;
+    oglrender->rv3d = oglrender->region->regiondata;
 
     /* MUST be cleared on exit */
     memset(&oglrender->scene->customdata_mask_modal,
@@ -825,7 +827,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender->re = RE_NewSceneRender(scene);
 
   /* create image and image user */
-  oglrender->ima = BKE_image_verify_viewer(oglrender->bmain, IMA_TYPE_R_RESULT, "Render Result");
+  oglrender->ima = BKE_image_ensure_viewer(oglrender->bmain, IMA_TYPE_R_RESULT, "Render Result");
   BKE_image_signal(oglrender->bmain, oglrender->ima, NULL, IMA_SIGNAL_FREE);
   BKE_image_backup_render(oglrender->scene, oglrender->ima, true);
 
@@ -1382,6 +1384,3 @@ void RENDER_OT_opengl(wmOperatorType *ot)
                          "Use the current 3D view for rendering, else use scene settings");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
-
-/* function for getting an opengl buffer from a View3D, used by sequencer */
-// extern void *sequencer_view3d_cb;
