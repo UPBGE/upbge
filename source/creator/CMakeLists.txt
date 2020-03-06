@@ -516,9 +516,9 @@ if(UNIX AND NOT APPLE)
     endif()
     install(
       FILES
-        ${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
-        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/blender.svg
-        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/blender-symbolic.svg
+        ${CMAKE_SOURCE_DIR}/release/freedesktop/upbge.desktop
+        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/upbge.svg
+        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/upbge-symbolic.svg
       DESTINATION "."
     )
 
@@ -555,22 +555,22 @@ if(UNIX AND NOT APPLE)
 
     # misc files
     install(
-      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
+      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/upbge.desktop
       DESTINATION share/applications
     )
     install(
-      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/blender.svg
+      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/upbge.svg
       DESTINATION share/icons/hicolor/scalable/apps
     )
     install(
-      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/blender-symbolic.svg
+      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/upbge-symbolic.svg
       DESTINATION share/icons/hicolor/symbolic/apps
     )
     install(
       PROGRAMS ${CMAKE_SOURCE_DIR}/release/bin/blender-thumbnailer.py
       DESTINATION bin
     )
-    set(BLENDER_TEXT_FILES_DESTINATION share/doc/blender)
+    set(BLENDER_TEXT_FILES_DESTINATION share/doc/upbge)
   endif()
 
   if(WITH_PYTHON)
