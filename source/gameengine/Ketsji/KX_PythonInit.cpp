@@ -550,24 +550,6 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
   return list;
 }
 
-PyDoc_STRVAR(gPyAddScene_doc,
-             "addScene(name, [overlay])\n"
-             "Adds a scene to the game engine.\n"
-             " name = Name of the scene\n"
-             " overlay = Overlay or underlay");
-static PyObject *gPyAddScene(PyObject *, PyObject *args)
-{
-  char *name;
-  int overlay = 1;
-
-  if (!PyArg_ParseTuple(args, "s|i:addScene", &name, &overlay))
-    return nullptr;
-
-  KX_GetActiveEngine()->ConvertAndAddScene(name, (overlay != 0));
-
-  Py_RETURN_NONE;
-}
-
 PyDoc_STRVAR(gPyGetCurrentScene_doc,
              "getCurrentScene()\n"
              "Gets a reference to the current scene.");
@@ -823,7 +805,6 @@ static struct PyMethodDef game_methods[] = {
      METH_NOARGS,
      (const char *)gPyGetInactiveSceneNames_doc},
     {"getSceneList", (PyCFunction)gPyGetSceneList, METH_NOARGS, (const char *)gPyGetSceneList_doc},
-    {"addScene", (PyCFunction)gPyAddScene, METH_VARARGS, (const char *)gPyAddScene_doc},
     {"getRandomFloat",
      (PyCFunction)gPyGetRandomFloat,
      METH_NOARGS,
@@ -1828,12 +1809,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
   KX_MACRO_addTypesToDict(d, KX_SCENE_RESTART, SCA_SceneActuator::KX_SCENE_RESTART);
   KX_MACRO_addTypesToDict(d, KX_SCENE_SET_SCENE, SCA_SceneActuator::KX_SCENE_SET_SCENE);
   KX_MACRO_addTypesToDict(d, KX_SCENE_SET_CAMERA, SCA_SceneActuator::KX_SCENE_SET_CAMERA);
-  KX_MACRO_addTypesToDict(
-      d, KX_SCENE_ADD_FRONT_SCENE, SCA_SceneActuator::KX_SCENE_ADD_FRONT_SCENE);
-  KX_MACRO_addTypesToDict(d, KX_SCENE_ADD_BACK_SCENE, SCA_SceneActuator::KX_SCENE_ADD_BACK_SCENE);
   KX_MACRO_addTypesToDict(d, KX_SCENE_REMOVE_SCENE, SCA_SceneActuator::KX_SCENE_REMOVE_SCENE);
-  KX_MACRO_addTypesToDict(d, KX_SCENE_SUSPEND, SCA_SceneActuator::KX_SCENE_SUSPEND);
-  KX_MACRO_addTypesToDict(d, KX_SCENE_RESUME, SCA_SceneActuator::KX_SCENE_RESUME);
 
   /* Parent Actuator Modes */
   KX_MACRO_addTypesToDict(d, KX_PARENT_SET, SCA_ParentActuator::KX_PARENT_SET);

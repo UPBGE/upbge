@@ -654,25 +654,9 @@ void BL_ConvertActuators(const char *maggiename,
         KX_Camera *cam = nullptr;
         // KX_Scene* scene = nullptr;
         switch (sceneact->type) {
-          case ACT_SCENE_RESUME:
-          case ACT_SCENE_SUSPEND:
-          case ACT_SCENE_ADD_FRONT:
-          case ACT_SCENE_ADD_BACK:
           case ACT_SCENE_REMOVE:
           case ACT_SCENE_SET: {
             switch (sceneact->type) {
-              case ACT_SCENE_RESUME:
-                mode = SCA_SceneActuator::KX_SCENE_RESUME;
-                break;
-              case ACT_SCENE_SUSPEND:
-                mode = SCA_SceneActuator::KX_SCENE_SUSPEND;
-                break;
-              case ACT_SCENE_ADD_FRONT:
-                mode = SCA_SceneActuator::KX_SCENE_ADD_FRONT_SCENE;
-                break;
-              case ACT_SCENE_ADD_BACK:
-                mode = SCA_SceneActuator::KX_SCENE_ADD_BACK_SCENE;
-                break;
               case ACT_SCENE_REMOVE:
                 mode = SCA_SceneActuator::KX_SCENE_REMOVE_SCENE;
                 break;
