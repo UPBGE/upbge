@@ -51,7 +51,6 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
         if physics_type == 'CHARACTER':
             layout.prop(game, "use_actor")
-            layout.prop(ob, "hide_render", text="Invisible")  # out of place but useful
 
             layout.separator()
 
@@ -71,7 +70,6 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.prop(game, "use_actor")
             col.prop(game, "use_ghost")
-            col.prop(ob, "hide_render", text="Invisible")  # out of place but useful
 
             col = split.column()
 #            col.prop(game, "use_physics_fh")
@@ -142,7 +140,6 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = layout.column()
             col.prop(game, "use_actor")
             col.prop(game, "use_ghost")
-            col.prop(ob, "hide_render", text="Invisible")
 
             layout.separator()
 
@@ -207,7 +204,6 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = layout.column()
             col.prop(game, "use_actor")
             col.prop(game, "use_ghost")
-            col.prop(ob, "hide_render", text="Invisible")
 
             layout.separator()
 
@@ -231,10 +227,6 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         elif physics_type == 'SENSOR':
             col = layout.column()
             col.prop(game, "use_actor", text="Detect Actors")
-            col.prop(ob, "hide_render", text="Invisible")
-
-        elif physics_type in {'INVISIBLE', 'NO_COLLISION', 'OCCLUDER'}:
-            layout.prop(ob, "hide_render", text="Invisible")
 
         elif physics_type == 'NAVMESH':
             layout.operator("mesh.navmesh_face_copy")
