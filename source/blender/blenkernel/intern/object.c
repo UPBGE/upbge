@@ -162,8 +162,37 @@ static void object_init_data(ID *id)
 
   ob->type = OB_EMPTY;
 
-  ob->trackflag = OB_POSY;
-  ob->upflag = OB_POSZ;
+  if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
+    ob->trackflag = OB_NEGZ;
+    ob->upflag = OB_POSY;
+  }
+  else {
+    ob->trackflag = OB_POSY;
+    ob->upflag = OB_POSZ;
+  }
+
+  /* Game engine defaults*/
+  ob->mass = ob->inertia = 1.0f;
+  ob->formfactor = 0.4f;
+  ob->damping = 0.04f;
+  ob->rdamping = 0.1f;
+  ob->anisotropicFriction[0] = 1.0f;
+  ob->anisotropicFriction[1] = 1.0f;
+  ob->anisotropicFriction[2] = 1.0f;
+  ob->gameflag = OB_PROP | OB_COLLISION;
+  ob->gameflag2 = 0;
+  ob->margin = 0.04f;
+  ob->friction = 0.5;
+  ob->init_state = 1;
+  ob->state = 1;
+  ob->obstacleRad = 1.0f;
+  ob->step_height = 0.15f;
+  ob->jump_speed = 10.0f;
+  ob->fall_speed = 55.0f;
+  ob->max_jumps = 1;
+  // ob->max_slope = M_PI_2;
+  ob->col_group = 0x01;
+  ob->col_mask = 0xffff;
 
   /* Animation Visualization defaults */
   animviz_settings_init(&ob->avs);
@@ -1060,33 +1089,6 @@ static void object_init(Object *ob, const short ob_type)
     ob->trackflag = OB_NEGZ;
     ob->upflag = OB_POSY;
   }
-  else {
-    ob->trackflag = OB_POSY;
-    ob->upflag = OB_POSZ;
-  }
-
-  /* Game engine defaults*/
-  ob->mass = ob->inertia = 1.0f;
-  ob->formfactor = 0.4f;
-  ob->damping = 0.04f;
-  ob->rdamping = 0.1f;
-  ob->anisotropicFriction[0] = 1.0f;
-  ob->anisotropicFriction[1] = 1.0f;
-  ob->anisotropicFriction[2] = 1.0f;
-  ob->gameflag = OB_PROP | OB_COLLISION;
-  ob->gameflag2 = 0;
-  ob->margin = 0.04f;
-  ob->friction = 0.5;
-  ob->init_state = 1;
-  ob->state = 1;
-  ob->obstacleRad = 1.0f;
-  ob->step_height = 0.15f;
-  ob->jump_speed = 10.0f;
-  ob->fall_speed = 55.0f;
-  ob->max_jumps = 1;
-  // ob->max_slope = M_PI_2;
-  ob->col_group = 0x01;
-  ob->col_mask = 0xffff;
 }
 
 void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
