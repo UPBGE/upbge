@@ -580,7 +580,7 @@ static void get_filename(int argc, char **argv, char *filename)
     }
   }
 
-  srclen -= ::strlen("MacOS/blenderplayer");
+  srclen -= ::strlen("MacOS/Blenderplayer");
   if (srclen > 0) {
     len = srclen + ::strlen("Resources/game.blend");
     gamefile = new char[len + 1];
