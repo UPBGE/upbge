@@ -40,6 +40,7 @@
 #include "BKE_object.h"
 #include "BKE_constraint.h"
 #include "BKE_global.h"
+#include "BKE_lib_id.h"
 
 #include "BLI_math.h"
 #include "BLI_string.h"
@@ -125,11 +126,11 @@ BL_ArmatureConstraint::~BL_ArmatureConstraint()
   // objects.
   if (m_blendtarget) {
     m_blendtarget->pose = nullptr;
-    //BKE_object_free(m_blendtarget);
+    BKE_id_free(G_MAIN, &m_blendtarget->id);
   }
   if (m_blendsubtarget) {
     m_blendsubtarget->pose = nullptr;
-    //BKE_object_free(m_blendsubtarget);
+    BKE_id_free(G_MAIN, &m_blendsubtarget->id);
   }
 }
 
@@ -144,11 +145,11 @@ void BL_ArmatureConstraint::CopyBlenderTargets()
 {
   // Create the fake blender object target.
   if (m_target) {
-    m_blendtarget = BKE_object_add_only_object(G.main, OB_EMPTY, m_target->GetName().c_str());
+    m_blendtarget = BKE_object_add_only_object(G_MAIN, OB_EMPTY, m_target->GetName().c_str());
   }
   if (m_subtarget) {
     m_blendsubtarget = BKE_object_add_only_object(
-        G.main, OB_EMPTY, m_subtarget->GetName().c_str());
+        G_MAIN, OB_EMPTY, m_subtarget->GetName().c_str());
   }
 
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(m_constraint);
