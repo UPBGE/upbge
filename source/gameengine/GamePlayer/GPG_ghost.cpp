@@ -99,6 +99,7 @@ extern "C" {
 #include "BKE_blendfile.h"
 #include "BKE_brush.h"
 #include "BKE_context.h"
+#include "BKE_idtype.h"
 #include "BKE_keyconfig.h"
 #include "BKE_cachefile.h"
 #include "BKE_callbacks.h"
@@ -803,6 +804,7 @@ int main(int argc,
 
   MEM_CacheLimiter_set_disabled(true);
   BKE_cachefiles_init();
+  BKE_idtype_init();
   IMB_init();
 
   BKE_images_init();
