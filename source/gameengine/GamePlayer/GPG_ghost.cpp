@@ -1261,6 +1261,21 @@ int main(int argc,
 
           // if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
           if (exitcode == KX_ExitRequest::START_OTHER_GAME) {
+            if (bfd) {
+              BLO_blendfiledata_free(bfd);
+              DRW_opengl_context_enable_ex(false);
+              GPU_pass_cache_free();
+              GPU_exit();
+              DRW_opengl_context_disable_ex(false);
+              DRW_opengl_context_destroy_blenderplayer();
+
+              if (window) {
+                system->disposeWindow(window);
+              }
+
+              // Dispose the system
+              //GHOST_ISystem::disposeSystem();
+            }
             char basedpath[FILE_MAX];
 
             // base the actuator filename relative to the last file
@@ -1320,9 +1335,9 @@ int main(int argc,
             Scene *scene = bfd->curscene;
             CTX_data_main_set(C, maggie);
             CTX_data_scene_set(C, scene);
+            G.main = maggie;
+            G_MAIN = G.main;
             if (firstTimeRunning) {
-              G.main = maggie;
-              G_MAIN = G.main;
               G.fileflags = bfd->fileflags;
 
               gs.glslflag = scene->gm.flag;
@@ -1393,7 +1408,7 @@ int main(int argc,
               aasamples = scene->gm.aasamples;
 
             BLI_strncpy(pathname, maggie->name, sizeof(pathname));
-            if (firstTimeRunning) {
+            if (1) {
               firstTimeRunning = false;
 
               if (fullScreen) {
@@ -1476,7 +1491,7 @@ int main(int argc,
                 }
               }
               /* wm context */
-              wmWindowManager *wm = (wmWindowManager *)CTX_data_main(C)->wm.first;
+              wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
               CTX_wm_manager_set(C, wm);
               wm->message_bus = WM_msgbus_create();
               WM_init_opengl_blenderplayer(G_MAIN, system);
