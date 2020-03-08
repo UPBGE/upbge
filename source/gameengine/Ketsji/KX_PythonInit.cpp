@@ -2189,12 +2189,14 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
   /* Initialize thread support (also acquires lock) */
   PyEval_InitThreads();
 
-  bpy_intern_string_init();
-  BPy_init_modules();
+  if (first_time) {
+    bpy_intern_string_init();
+    BPy_init_modules();
 
-  BPY_python_rna_alloc_types();
+    BPY_python_rna_alloc_types();
 
-  BPY_atexit_register(); /* this can init any time */
+    BPY_atexit_register(); /* this can init any time */
+  }
 
   bpy_import_init(PyEval_GetBuiltins());
 

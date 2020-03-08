@@ -1254,6 +1254,8 @@ int main(int argc,
         PyObject *globalDict = nullptr;
 #endif  // WITH_PYTHON
 
+        DRW_engines_register();
+
         do {
           // Read the Blender file
 
@@ -1316,12 +1318,11 @@ int main(int argc,
 #endif    // WIN32
             Main *maggie = bfd->main;
             Scene *scene = bfd->curscene;
-            G.main = maggie;
-            G_MAIN = G.main;
-            CTX_data_main_set(C, maggie);
-            CTX_data_scene_set(C, scene);
-
             if (firstTimeRunning) {
+              G.main = maggie;
+              G_MAIN = G.main;
+              CTX_data_main_set(C, maggie);
+              CTX_data_scene_set(C, scene);
               G.fileflags = bfd->fileflags;
 
               gs.glslflag = scene->gm.flag;
@@ -1501,7 +1502,6 @@ int main(int argc,
             }
             launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
-            DRW_engines_register();
 
             launcher.InitEngine();
 
@@ -1525,8 +1525,6 @@ int main(int argc,
 #endif
             }
             launcher.ExitEngine();
-
-            DRW_engines_free();
           }
         } while (!quitGame(exitcode));
       }
@@ -1536,6 +1534,8 @@ int main(int argc,
       CM_Error("couldn't create a system.");
     }
   }
+
+  DRW_engines_free();
 
   /* refer to WM_exit_ext() and BKE_blender_free(),
    * these are not called in the player but we need to match some of there behavior here,
