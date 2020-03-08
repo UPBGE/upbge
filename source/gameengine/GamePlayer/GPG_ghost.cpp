@@ -1318,11 +1318,11 @@ int main(int argc,
 #endif    // WIN32
             Main *maggie = bfd->main;
             Scene *scene = bfd->curscene;
+            CTX_data_main_set(C, maggie);
+            CTX_data_scene_set(C, scene);
             if (firstTimeRunning) {
               G.main = maggie;
               G_MAIN = G.main;
-              CTX_data_main_set(C, maggie);
-              CTX_data_scene_set(C, scene);
               G.fileflags = bfd->fileflags;
 
               gs.glslflag = scene->gm.flag;
