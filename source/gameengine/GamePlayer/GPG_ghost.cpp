@@ -1408,7 +1408,7 @@ int main(int argc,
               aasamples = scene->gm.aasamples;
 
             BLI_strncpy(pathname, maggie->name, sizeof(pathname));
-            if (1) {
+            if (firstTimeRunning || exitcode == KX_ExitRequest::START_OTHER_GAME) {
               firstTimeRunning = false;
 
               if (fullScreen) {
