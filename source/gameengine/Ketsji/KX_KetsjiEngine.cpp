@@ -266,7 +266,6 @@ void KX_KetsjiEngine::EndFrame()
   // Show profiling info
   m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
   if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
-    /* TEMP: DISABLE TEXT DRAWING in 2.8 WAITING FOR REFACTOR */
     RenderDebugProperties();
   }
 
