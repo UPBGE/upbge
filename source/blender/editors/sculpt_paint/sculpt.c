@@ -10031,7 +10031,7 @@ static int sculpt_mask_expand_invoke(bContext *C, wmOperator *op, const wmEvent 
 
   ss->filter_cache->mask_update_last_it = 1;
   ss->filter_cache->mask_update_current_it = 1;
-  ss->filter_cache->mask_update_it[SCULPT_active_vertex_get(ss)] = 1;
+  ss->filter_cache->mask_update_it[SCULPT_active_vertex_get(ss)] = 0;
 
   copy_v3_v3(ss->filter_cache->mask_expand_initial_co, SCULPT_active_vertex_co_get(ss));
 
@@ -10241,7 +10241,7 @@ static void sculpt_transform_task_cb(void *__restrict userdata,
   PBVHVertexIter vd;
 
   SCULPT_undo_push_node(data->ob, node, SCULPT_UNDO_COORDS);
-  BKE_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_ALL)
+  BKE_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_UNIQUE)
   {
     SCULPT_orig_vert_data_update(&orig_data, &vd);
     float transformed_co[3], orig_co[3], disp[3];
@@ -10534,22 +10534,22 @@ static EnumPropertyItem prop_sculpt_face_set_create_types[] = {
         SCULPT_FACE_SET_MASKED,
         "MASKED",
         0,
-        "Face Mask From Masked",
-        "Create a new Face Mask from the masked faces",
+        "Face Set From Masked",
+        "Create a new Face Set from the masked faces",
     },
     {
         SCULPT_FACE_SET_VISIBLE,
         "VISIBLE",
         0,
-        "Face Mask From Visible",
-        "Create a new Face Mask from the visible vertices",
+        "Face Set From Visible",
+        "Create a new Face Set from the visible vertices",
     },
     {
         SCULPT_FACE_SET_ALL,
         "ALL",
         0,
-        "Face Mask Full Mesh",
-        "Create an unique Face Mask with all faces in the sculpt",
+        "Face Set Full Mesh",
+        "Create an unique Face Set with all faces in the sculpt",
     },
     {0, NULL, 0, NULL, NULL},
 };
@@ -10582,7 +10582,7 @@ static int sculpt_face_set_create_invoke(bContext *C, wmOperator *op, const wmEv
     return OPERATOR_CANCELLED;
   }
 
-  SCULPT_undo_push_begin("face mask change");
+  SCULPT_undo_push_begin("face set change");
   SCULPT_undo_push_node(ob, nodes[0], SCULPT_UNDO_FACE_SETS);
 
   const int next_face_set = SCULPT_face_set_next_available_get(ss);
@@ -10626,9 +10626,9 @@ static int sculpt_face_set_create_invoke(bContext *C, wmOperator *op, const wmEv
 static void SCULPT_OT_face_sets_create(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Create Face Group";
+  ot->name = "Create Face Set";
   ot->idname = "SCULPT_OT_face_sets_create";
-  ot->description = "Create a new Face Group";
+  ot->description = "Create a new Face Set";
 
   /* api callbacks */
   ot->invoke = sculpt_face_set_create_invoke;
@@ -10660,8 +10660,8 @@ static EnumPropertyItem prop_sculpt_face_sets_change_visibility_types[] = {
         SCULPT_FACE_SET_VISIBILITY_SHOW_ACTIVE,
         "SHOW_ACTIVE",
         0,
-        "Show Active Face Mask",
-        "Show Active Face Mask",
+        "Show Active Face Set",
+        "Show Active Face Set",
     },
     {
         SCULPT_FACE_SET_VISIBILITY_HIDE_ACTIVE,
@@ -10674,8 +10674,8 @@ static EnumPropertyItem prop_sculpt_face_sets_change_visibility_types[] = {
         SCULPT_FACE_SET_VISIBILITY_INVERT,
         "INVERT",
         0,
-        "Invert Face Mask Visibility",
-        "Invert Face Mask Visibility",
+        "Invert Face Set Visibility",
+        "Invert Face Set Visibility",
     },
     {
         SCULPT_FACE_SET_VISIBILITY_SHOW_ALL,
@@ -10770,7 +10770,7 @@ static int sculpt_face_sets_change_visibility_invoke(bContext *C,
     SCULPT_face_sets_visibility_invert(ss);
   }
 
-  /* Sync face mask visibility and vertex visibility. */
+  /* Sync face sets visibility and vertex visibility. */
   SCULPT_visibility_sync_all_face_sets_to_vertices(ss);
 
   SCULPT_undo_push_end();
@@ -10800,7 +10800,7 @@ static int sculpt_face_sets_change_visibility_invoke(bContext *C,
 static void SCULPT_OT_face_sets_change_visibility(wmOperatorType *ot)
 {
   /* Identifiers. */
-  ot->name = "Face Mask Visibility";
+  ot->name = "Face Sets Visibility";
   ot->idname = "SCULPT_OT_face_set_change_visibility";
   ot->description = "Change the visibility of the Face Sets of the sculpt";
 
