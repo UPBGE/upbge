@@ -1272,9 +1272,6 @@ int main(int argc,
               if (window) {
                 system->disposeWindow(window);
               }
-
-              // Dispose the system
-              //GHOST_ISystem::disposeSystem();
             }
             char basedpath[FILE_MAX];
 
