@@ -487,11 +487,11 @@ typedef struct bActuator {
 #define ACT_SCENE_RESTART 0
 #define ACT_SCENE_SET 1
 #define ACT_SCENE_CAMERA 2
-#define ACT_SCENE_ADD_FRONT 3
-#define ACT_SCENE_ADD_BACK 4
+//#define ACT_SCENE_ADD_FRONT 3
+//#define ACT_SCENE_ADD_BACK 4
 #define ACT_SCENE_REMOVE 5
-#define ACT_SCENE_SUSPEND 6
-#define ACT_SCENE_RESUME 7
+//#define ACT_SCENE_SUSPEND 6
+//#define ACT_SCENE_RESUME 7
 
 /* CollectionActuator->type */
 #define ACT_COLLECTION_SUSPEND 0

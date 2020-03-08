@@ -1611,11 +1611,7 @@ static void rna_def_scene_actuator(BlenderRNA *brna)
       {ACT_SCENE_RESTART, "RESTART", 0, "Restart", ""},
       {ACT_SCENE_SET, "SET", 0, "Set Scene", ""},
       {ACT_SCENE_CAMERA, "CAMERA", 0, "Set Camera", ""},
-      {ACT_SCENE_ADD_FRONT, "ADDFRONT", 0, "Add Overlay Scene", ""},
-      {ACT_SCENE_ADD_BACK, "ADDBACK", 0, "Add Background Scene", ""},
-      {ACT_SCENE_REMOVE, "REMOVE", 0, "Remove Scene", ""},
-      {ACT_SCENE_SUSPEND, "SUSPEND", 0, "Suspend Scene", ""},
-      {ACT_SCENE_RESUME, "RESUME", 0, "Resume Scene", ""},
+      //{ACT_SCENE_REMOVE, "REMOVE", 0, "Remove Scene", ""},
       {0, NULL, 0, NULL, NULL}};
 
   srna = RNA_def_struct(brna, "SceneActuator", "Actuator");

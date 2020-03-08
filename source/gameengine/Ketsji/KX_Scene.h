@@ -249,13 +249,6 @@ class KX_Scene : public CValue, public SCA_IScene {
   int m_ueberExecutionPriority;
 
   /**
-   * Activity 'bubble' settings :
-   * Suspend (freeze) the entire scene.
-   */
-  bool m_suspend;
-  double m_suspendeddelta;
-
-  /**
    * Radius in Manhattan distance of the box for activity culling.
    */
   float m_activity_box_radius;
@@ -477,12 +470,6 @@ class KX_Scene : public CValue, public SCA_IScene {
   void ReplicateLogic(class KX_GameObject *newobj);
   static SG_Callbacks m_callbacks;
 
-  // Suspend the entire scene.
-  void Suspend();
-
-  // Resume a suspended scene.
-  void Resume();
-
   /// Update the mesh for objects based on level of detail settings
   void UpdateObjectLods(KX_Camera *cam /*, const KX_CullingNodeList& nodes*/);
 
@@ -500,7 +487,6 @@ class KX_Scene : public CValue, public SCA_IScene {
 
   // Set the radius of the activity culling box.
   void SetActivityCullingRadius(float f);
-  bool IsSuspended();
   // use of DBVT tree for camera culling
   void SetDbvtCulling(bool b)
   {
@@ -562,8 +548,6 @@ class KX_Scene : public CValue, public SCA_IScene {
   KX_PYMETHOD_DOC(KX_Scene, end);
   KX_PYMETHOD_DOC(KX_Scene, restart);
   KX_PYMETHOD_DOC(KX_Scene, replace);
-  KX_PYMETHOD_DOC(KX_Scene, suspend);
-  KX_PYMETHOD_DOC(KX_Scene, resume);
   KX_PYMETHOD_DOC(KX_Scene, get);
   KX_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
 
@@ -607,16 +591,6 @@ class KX_Scene : public CValue, public SCA_IScene {
   void RunDrawingCallbacks(DrawingCallbackType callbackType, KX_Camera *camera);
 #endif
 
-  /**
-   * Sets the difference between the local time of the scene (when it
-   * was running and not suspended) and the "curtime"
-   */
-  void SetSuspendedDelta(double suspendeddelta);
-  /**
-   * Returns the difference between the local time of the scene (when it
-   * was running and not suspended) and the "curtime"
-   */
-  double GetSuspendedDelta() const;
   /**
    * Returns the Blender scene this was made from
    */
