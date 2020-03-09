@@ -140,26 +140,8 @@ bool SCA_SceneActuator::Update()
       m_KetsjiEngine->ReplaceScene(m_scene->GetName(), m_nextSceneName);
       break;
     }
-    case KX_SCENE_ADD_FRONT_SCENE: {
-      bool overlay = true;
-      m_KetsjiEngine->ConvertAndAddScene(m_nextSceneName, overlay);
-      break;
-    }
-    case KX_SCENE_ADD_BACK_SCENE: {
-      bool overlay = false;
-      m_KetsjiEngine->ConvertAndAddScene(m_nextSceneName, overlay);
-      break;
-    }
     case KX_SCENE_REMOVE_SCENE: {
       m_KetsjiEngine->RemoveScene(m_nextSceneName);
-      break;
-    }
-    case KX_SCENE_SUSPEND: {
-      m_KetsjiEngine->SuspendScene(m_nextSceneName);
-      break;
-    }
-    case KX_SCENE_RESUME: {
-      m_KetsjiEngine->ResumeScene(m_nextSceneName);
       break;
     }
     default:; /* do nothing? this is an internal error !!! */

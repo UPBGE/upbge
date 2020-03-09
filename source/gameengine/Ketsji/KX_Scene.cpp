@@ -185,7 +185,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_active_camera(nullptr),
       m_overrideCullingCamera(nullptr),
       m_ueberExecutionPriority(0),
-      m_suspendeddelta(0.0),
       m_blenderScene(scene),
       m_isActivedHysteresis(false),
       m_lodHysteresisValue(0),
@@ -195,7 +194,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_dbvt_culling = false;
   m_dbvt_occlusion_res = 0;
   m_activity_culling = false;
-  m_suspend = false;
   m_objectlist = new CListValue<KX_GameObject>();
   m_parentlist = new CListValue<KX_GameObject>();
   m_lightlist = new CListValue<KX_LightObject>();
@@ -911,24 +909,9 @@ const RAS_FrameSettings &KX_Scene::GetFramingType() const
   return m_frame_settings;
 }
 
-void KX_Scene::Suspend()
-{
-  m_suspend = true;
-}
-
-void KX_Scene::Resume()
-{
-  m_suspend = false;
-}
-
 void KX_Scene::SetActivityCulling(bool b)
 {
   m_activity_culling = b;
-}
-
-bool KX_Scene::IsSuspended()
-{
-  return m_suspend;
 }
 
 void KX_Scene::AddObjectDebugProperties(class KX_GameObject *gameobj)
@@ -1975,15 +1958,6 @@ void KX_Scene::SetPhysicsEnvironment(class PHY_IPhysicsEnvironment *physEnv)
   }
 }
 
-void KX_Scene::SetSuspendedDelta(double suspendeddelta)
-{
-  m_suspendeddelta = suspendeddelta;
-}
-double KX_Scene::GetSuspendedDelta() const
-{
-  return m_suspendeddelta;
-}
-
 short KX_Scene::GetAnimationFPS()
 {
   return m_blenderScene->r.frs_sec;
@@ -2259,8 +2233,6 @@ PyMethodDef KX_Scene::Methods[] = {
     KX_PYMETHODTABLE(KX_Scene, end),
     KX_PYMETHODTABLE(KX_Scene, restart),
     KX_PYMETHODTABLE(KX_Scene, replace),
-    KX_PYMETHODTABLE(KX_Scene, suspend),
-    KX_PYMETHODTABLE(KX_Scene, resume),
     KX_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
 
     /* dict style access */
@@ -2565,7 +2537,6 @@ PyAttributeDef KX_Scene::Attributes[] = {
     KX_PYATTRIBUTE_RW_FUNCTION(
         "pre_draw_setup", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
     KX_PYATTRIBUTE_RW_FUNCTION("gravity", KX_Scene, pyattr_get_gravity, pyattr_set_gravity),
-    KX_PYATTRIBUTE_BOOL_RO("suspended", KX_Scene, m_suspend),
     KX_PYATTRIBUTE_BOOL_RO("activity_culling", KX_Scene, m_activity_culling),
     KX_PYATTRIBUTE_FLOAT_RW(
         "activity_culling_radius", 0.5f, FLT_MAX, KX_Scene, m_activity_box_radius),
@@ -2652,26 +2623,6 @@ KX_PYMETHODDEF_DOC(
     Py_RETURN_TRUE;
 
   Py_RETURN_FALSE;
-}
-
-KX_PYMETHODDEF_DOC(KX_Scene,
-                   suspend,
-                   "suspend()\n"
-                   "Suspends this scene.\n")
-{
-  Suspend();
-
-  Py_RETURN_NONE;
-}
-
-KX_PYMETHODDEF_DOC(KX_Scene,
-                   resume,
-                   "resume()\n"
-                   "Resumes this scene.\n")
-{
-  Resume();
-
-  Py_RETURN_NONE;
 }
 
 KX_PYMETHODDEF_DOC(KX_Scene,

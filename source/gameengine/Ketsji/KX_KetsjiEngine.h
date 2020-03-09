@@ -143,10 +143,6 @@ class KX_KetsjiEngine {
 
   /// Lists of scenes scheduled to be removed at the end of the frame.
   std::vector<std::string> m_removingScenes;
-  /// Lists of overley scenes scheduled to be added at the end of the frame.
-  std::vector<std::string> m_addingOverlayScenes;
-  /// Lists of background scenes scheduled to be added at the end of the frame.
-  std::vector<std::string> m_addingBackgroundScenes;
   /// Lists of scenes scheduled to be replaced at the end of the frame.
   std::vector<std::pair<std::string, std::string>> m_replace_scenes;
 
@@ -233,18 +229,6 @@ class KX_KetsjiEngine {
   /// Task scheduler for multi-threading
   TaskScheduler *m_taskscheduler;
 
-  /** Set scene's total pause duration for animations process.
-   * This is done in a separate loop to get the proper state of each scenes.
-   * eg: There's 2 scenes, the first is suspended and the second is active.
-   * If the second scene resume the first, the first scene will be not proceed
-   * in 'NextFrame' for one frame, but set as active.
-   * The render functions, called after and which update animations,
-   * will see the first scene as active and will proceed to it,
-   * but it will cause some negative current frame on actions because of the
-   * total pause duration not set.
-   */
-  void UpdateSuspendedScenes(double framestep);
-
   /// Update and return the projection matrix of a camera depending on the viewport.
   MT_Matrix4x4 GetCameraProjectionMatrix(KX_Scene *scene,
                                          KX_Camera *cam,
@@ -282,7 +266,6 @@ class KX_KetsjiEngine {
    * This method is invoked when the scene lists have changed.
    */
   void RemoveScheduledScenes(void);
-  void AddScheduledScenes(void);
   void ReplaceScheduledScenes(void);
   void PostProcessScene(KX_Scene *scene);
 
@@ -351,12 +334,9 @@ class KX_KetsjiEngine {
   CListValue<KX_Scene> *CurrentScenes();
   KX_Scene *FindScene(const std::string &scenename);
   void AddScene(KX_Scene *scene);
-  void ConvertAndAddScene(const std::string &scenename, bool overlay);
 
   void RemoveScene(const std::string &scenename);
   bool ReplaceScene(const std::string &oldscene, const std::string &newscene);
-  void SuspendScene(const std::string &scenename);
-  void ResumeScene(const std::string &scenename);
 
   void GetSceneViewport(KX_Scene *scene,
                         KX_Camera *cam,
