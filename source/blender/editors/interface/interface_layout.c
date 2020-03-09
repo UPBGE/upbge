@@ -2183,7 +2183,11 @@ void uiItemFullR(uiLayout *layout,
     }
 
     if (flag & UI_ITEM_R_CHECKBOX_INVERT) {
-      if (ELEM(but->type, UI_BTYPE_CHECKBOX, UI_BTYPE_CHECKBOX_N)) {
+      if (ELEM(but->type,
+               UI_BTYPE_CHECKBOX,
+               UI_BTYPE_CHECKBOX_N,
+               UI_BTYPE_ICON_TOGGLE,
+               UI_BTYPE_ICON_TOGGLE_N)) {
         but->drawflag |= UI_BUT_CHECKBOX_INVERT;
       }
     }
@@ -2325,7 +2329,7 @@ void uiItemFullR_with_popover(uiLayout *layout,
   uiItemFullR(layout, ptr, prop, index, value, flag, name, icon);
   but = but->next;
   while (but) {
-    if (but->rnaprop == prop && but->type == UI_BTYPE_MENU) {
+    if (but->rnaprop == prop && ELEM(but->type, UI_BTYPE_MENU, UI_BTYPE_COLOR)) {
       ui_but_rna_menu_convert_to_panel_type(but, panel_type);
       break;
     }

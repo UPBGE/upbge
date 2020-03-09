@@ -1382,6 +1382,7 @@ static void region_rect_recursive(
         region->winrct.ymax = region->winrct.ymin + prefsizey - 1;
         winrct->ymin = region->winrct.ymax + 1;
       }
+      BLI_rcti_sanitize(winrct);
     }
   }
   else if (ELEM(alignment, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) {
@@ -1407,6 +1408,7 @@ static void region_rect_recursive(
         region->winrct.xmax = region->winrct.xmin + prefsizex - 1;
         winrct->xmin = region->winrct.xmax + 1;
       }
+      BLI_rcti_sanitize(winrct);
     }
   }
   else if (alignment == RGN_ALIGN_VSPLIT || alignment == RGN_ALIGN_HSPLIT) {
@@ -1723,9 +1725,81 @@ static void ed_default_handlers(
         wm->defaultconf, "Grease Pencil Stroke Paint (Fill)", 0, 0);
     WM_event_add_keymap_handler(handlers, keymap_paint_fill);
 
+    wmKeyMap *keymap_paint_tint = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Paint (Tint)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_paint_tint);
+
     wmKeyMap *keymap_sculpt = WM_keymap_ensure(
         wm->defaultconf, "Grease Pencil Stroke Sculpt Mode", 0, 0);
     WM_event_add_keymap_handler(handlers, keymap_sculpt);
+
+    wmKeyMap *keymap_vertex = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Vertex Mode", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_vertex);
+
+    wmKeyMap *keymap_vertex_draw = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Vertex (Draw)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_vertex_draw);
+
+    wmKeyMap *keymap_vertex_blur = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Vertex (Blur)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_vertex_blur);
+
+    wmKeyMap *keymap_vertex_average = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Vertex (Average)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_vertex_average);
+
+    wmKeyMap *keymap_vertex_smear = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Vertex (Smear)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_vertex_smear);
+
+    wmKeyMap *keymap_vertex_replace = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Vertex (Replace)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_vertex_replace);
+
+    wmKeyMap *keymap_sculpt_smooth = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Sculpt (Smooth)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_sculpt_smooth);
+
+    wmKeyMap *keymap_sculpt_thickness = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Sculpt (Thickness)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_sculpt_thickness);
+
+    wmKeyMap *keymap_sculpt_strength = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Sculpt (Strength)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_sculpt_strength);
+
+    wmKeyMap *keymap_sculpt_grab = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Sculpt (Grab)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_sculpt_grab);
+
+    wmKeyMap *keymap_sculpt_push = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Sculpt (Push)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_sculpt_push);
+
+    wmKeyMap *keymap_sculpt_twist = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Sculpt (Twist)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_sculpt_twist);
+
+    wmKeyMap *keymap_sculpt_pinch = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Sculpt (Pinch)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_sculpt_pinch);
+
+    wmKeyMap *keymap_sculpt_randomize = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Sculpt (Randomize)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_sculpt_randomize);
+
+    wmKeyMap *keymap_sculpt_clone = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Sculpt (Clone)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_sculpt_clone);
+
+    wmKeyMap *keymap_weight = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Weight Mode", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_weight);
+
+    wmKeyMap *keymap_weight_draw = WM_keymap_ensure(
+        wm->defaultconf, "Grease Pencil Stroke Weight (Draw)", 0, 0);
+    WM_event_add_keymap_handler(handlers, keymap_weight_draw);
   }
 }
 
@@ -2533,7 +2607,7 @@ void ED_region_panels_layout_ex(const bContext *C,
         region->sizey = size_dyn[1];
         sa->flag |= AREA_FLAG_REGION_SIZE_UPDATE;
       }
-      y = ABS(region->sizey * UI_DPI_FAC - 1);
+      y = fabsf(region->sizey * UI_DPI_FAC - 1);
     }
   }
   else if (vertical) {
@@ -3390,21 +3464,21 @@ static void region_visible_rect_calc(ARegion *region, rcti *rect)
 
         if (ELEM(alignment, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) {
           /* Overlap left, also check 1 pixel offset (2 regions on one side). */
-          if (ABS(rect->xmin - arn->winrct.xmin) < 2) {
+          if (abs(rect->xmin - arn->winrct.xmin) < 2) {
             rect->xmin = arn->winrct.xmax;
           }
 
           /* Overlap right. */
-          if (ABS(rect->xmax - arn->winrct.xmax) < 2) {
+          if (abs(rect->xmax - arn->winrct.xmax) < 2) {
             rect->xmax = arn->winrct.xmin;
           }
         }
         else if (ELEM(alignment, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM)) {
           /* Same logic as above for vertical regions. */
-          if (ABS(rect->ymin - arn->winrct.ymin) < 2) {
+          if (abs(rect->ymin - arn->winrct.ymin) < 2) {
             rect->ymin = arn->winrct.ymax;
           }
-          if (ABS(rect->ymax - arn->winrct.ymax) < 2) {
+          if (abs(rect->ymax - arn->winrct.ymax) < 2) {
             rect->ymax = arn->winrct.ymin;
           }
         }
