@@ -500,9 +500,7 @@ bool BKE_lib_id_make_local(Main *bmain, ID *id, const bool test, const int flags
       BLI_assert(0);
       return true;
     case ID_SPK:
-      if (!test) {
-        BKE_speaker_make_local(bmain, (Speaker *)id, flags);
-      }
+      BLI_assert(0);
       return true;
     case ID_LP:
       BLI_assert(0);
@@ -517,9 +515,7 @@ bool BKE_lib_id_make_local(Main *bmain, ID *id, const bool test, const int flags
       BLI_assert(0);
       return true;
     case ID_SO:
-      if (!test) {
-        BKE_sound_make_local(bmain, (bSound *)id, flags);
-      }
+      BLI_assert(0);
       return true;
     case ID_GR:
       BLI_assert(0);
@@ -720,7 +716,7 @@ bool BKE_id_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int flag)
         BLI_assert(0);
         break;
       case ID_SPK:
-        BKE_speaker_copy_data(bmain, (Speaker *)*r_newid, (Speaker *)id, flag);
+        BLI_assert(0);
         break;
       case ID_LP:
         BLI_assert(0);
@@ -779,7 +775,7 @@ bool BKE_id_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int flag)
         BKE_cachefile_copy_data(bmain, (CacheFile *)*r_newid, (CacheFile *)id, flag);
         break;
       case ID_SO:
-        BKE_sound_copy_data(bmain, (bSound *)*r_newid, (bSound *)id, flag);
+        BLI_assert(0);
         break;
       case ID_VF:
         BLI_assert(0);
@@ -1341,7 +1337,7 @@ void BKE_libblock_init_empty(ID *id)
       BLI_assert(0);
       break;
     case ID_SPK:
-      BKE_speaker_init((Speaker *)id);
+      BLI_assert(0);
       break;
     case ID_LP:
       BLI_assert(0);
@@ -1362,7 +1358,7 @@ void BKE_libblock_init_empty(ID *id)
       BLI_assert(0);
       break;
     case ID_SO:
-      /* Another fuzzy case, think NULLified content is OK here... */
+      BLI_assert(0);
       break;
     case ID_GR:
       /* Nothing to do. */
