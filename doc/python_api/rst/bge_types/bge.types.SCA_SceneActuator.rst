@@ -1,9 +1,9 @@
-KX_SceneActuator(SCA_IActuator)
+SCA_SceneActuator(SCA_IActuator)
 ===============================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_SceneActuator(SCA_IActuator)
+.. class:: SCA_SceneActuator(SCA_IActuator)
 
    Scene Actuator logic brick.
 
