@@ -42,7 +42,6 @@ class KX_LightObject : public KX_GameObject {
 
 protected :
 
-  KX_Scene *m_scene;
   Object *m_obLight;
   Light *m_light;
 
