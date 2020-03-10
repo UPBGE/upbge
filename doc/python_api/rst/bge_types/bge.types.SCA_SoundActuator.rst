@@ -1,9 +1,9 @@
-KX_SoundActuator(SCA_IActuator)
+SCA_SoundActuator(SCA_IActuator)
 ===============================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_SoundActuator(SCA_IActuator)
+.. class:: SCA_SoundActuator(SCA_IActuator)
 
    Sound Actuator.
 

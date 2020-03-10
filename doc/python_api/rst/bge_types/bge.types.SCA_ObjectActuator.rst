@@ -1,9 +1,9 @@
-KX_ObjectActuator(SCA_IActuator)
+SCA_ObjectActuator(SCA_IActuator)
 ================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_ObjectActuator(SCA_IActuator)
+.. class:: SCA_ObjectActuator(SCA_IActuator)
 
    The object actuator ("Motion Actuator") applies force, torque, displacement, angular displacement, 
    velocity, or angular velocity to an object.

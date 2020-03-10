@@ -1,9 +1,9 @@
-KX_ParentActuator(SCA_IActuator)
+SCA_ParentActuator(SCA_IActuator)
 ================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_ParentActuator(SCA_IActuator)
+.. class:: SCA_ParentActuator(SCA_IActuator)
 
    The parent actuator can set or remove an objects parent object.
 

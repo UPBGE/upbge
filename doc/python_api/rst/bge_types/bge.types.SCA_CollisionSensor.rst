@@ -1,9 +1,9 @@
-KX_CollisionSensor(SCA_ISensor)
+SCA_CollisionSensor(SCA_ISensor)
 ===============================
 
 base class --- :class:`SCA_ISensor`
 
-.. class:: KX_CollisionSensor(SCA_ISensor)
+.. class:: SCA_CollisionSensor(SCA_ISensor)
 
    Collision sensor detects collisions between objects.
 

@@ -1,9 +1,9 @@
-KX_MouseFocusSensor(SCA_MouseSensor)
+SCA_MouseFocusSensor(SCA_MouseSensor)
 ====================================
 
 base class --- :class:`SCA_MouseSensor`
 
-.. class:: KX_MouseFocusSensor(SCA_MouseSensor)
+.. class:: SCA_MouseFocusSensor(SCA_MouseSensor)
 
    The mouse focus sensor detects when the mouse is over the current game object.
 

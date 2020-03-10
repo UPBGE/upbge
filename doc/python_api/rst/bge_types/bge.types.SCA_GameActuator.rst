@@ -1,9 +1,9 @@
-KX_GameActuator(SCA_IActuator)
+SCA_GameActuator(SCA_IActuator)
 ==============================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_GameActuator(SCA_IActuator)
+.. class:: SCA_GameActuator(SCA_IActuator)
 
    The game actuator loads a new .blend file, restarts the current .blend file or quits the game.
 

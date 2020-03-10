@@ -1,9 +1,9 @@
-KX_CameraActuator(SCA_IActuator)
+SCA_CameraActuator(SCA_IActuator)
 ================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_CameraActuator(SCA_IActuator)
+.. class:: SCA_CameraActuator(SCA_IActuator)
 
    Applies changes to a camera.
 

@@ -1,9 +1,9 @@
-KX_VisibilityActuator(SCA_IActuator)
+SCA_VisibilityActuator(SCA_IActuator)
 ====================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_VisibilityActuator(SCA_IActuator)
+.. class:: SCA_VisibilityActuator(SCA_IActuator)
 
    Visibility Actuator.
 

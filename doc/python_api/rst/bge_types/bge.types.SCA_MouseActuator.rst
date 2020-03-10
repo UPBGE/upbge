@@ -1,9 +1,9 @@
-KX_MouseActuator(SCA_IActuator)
+SCA_MouseActuator(SCA_IActuator)
 ====================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_MouseActuator(SCA_IActuator)
+.. class:: SCA_MouseActuator(SCA_IActuator)
 
    The mouse actuator gives control over the visibility of the mouse cursor and rotates the parent object according to mouse movement.
 

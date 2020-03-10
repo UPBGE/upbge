@@ -1,9 +1,9 @@
-KX_ArmatureSensor(SCA_ISensor)
+SCA_ArmatureSensor(SCA_ISensor)
 ==============================
 
 base class --- :class:`SCA_ISensor`
 
-.. class:: KX_ArmatureSensor(SCA_ISensor)
+.. class:: SCA_ArmatureSensor(SCA_ISensor)
 
    Armature sensor detect conditions on armatures.
 

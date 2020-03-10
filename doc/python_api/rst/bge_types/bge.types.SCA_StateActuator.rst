@@ -1,9 +1,9 @@
-KX_StateActuator(SCA_IActuator)
+SCA_StateActuator(SCA_IActuator)
 ===============================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_StateActuator(SCA_IActuator)
+.. class:: SCA_StateActuator(SCA_IActuator)
 
    State actuator changes the state mask of parent object.
 

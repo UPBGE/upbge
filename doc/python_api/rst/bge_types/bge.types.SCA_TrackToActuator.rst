@@ -1,9 +1,9 @@
-KX_TrackToActuator(SCA_IActuator)
+SCA_TrackToActuator(SCA_IActuator)
 =================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_TrackToActuator(SCA_IActuator)
+.. class:: SCA_TrackToActuator(SCA_IActuator)
 
    Edit Object actuator in Track To mode.
 

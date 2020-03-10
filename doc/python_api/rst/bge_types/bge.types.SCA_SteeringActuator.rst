@@ -1,11 +1,11 @@
-KX_SteeringActuator(SCA_IActuator)
+SCA_SteeringActuator(SCA_IActuator)
 ==================================
 
 .. module:: bge.types
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_SteeringActuator(SCA_IActuator)
+.. class:: SCA_SteeringActuator(SCA_IActuator)
 
    Steering Actuator for navigation.
 

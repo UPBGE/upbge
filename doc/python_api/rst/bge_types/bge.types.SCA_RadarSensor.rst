@@ -1,9 +1,9 @@
-KX_RadarSensor(KX_NearSensor)
+SCA_RadarSensor(SCA_NearSensor)
 =============================
 
-base class --- :class:`KX_NearSensor`
+base class --- :class:`SCA_NearSensor`
 
-.. class:: KX_RadarSensor(KX_NearSensor)
+.. class:: SCA_RadarSensor(SCA_NearSensor)
 
    Radar sensor is a near sensor with a conical sensor object.
 

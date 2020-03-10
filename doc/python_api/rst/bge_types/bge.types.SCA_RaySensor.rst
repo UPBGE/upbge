@@ -1,9 +1,9 @@
-KX_RaySensor(SCA_ISensor)
+SCA_RaySensor(SCA_ISensor)
 =========================
 
 base class --- :class:`SCA_ISensor`
 
-.. class:: KX_RaySensor(SCA_ISensor)
+.. class:: SCA_RaySensor(SCA_ISensor)
 
    A ray sensor detects the first object in a given direction.
 

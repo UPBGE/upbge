@@ -1,9 +1,9 @@
-BL_ActionActuator(SCA_IActuator)
+SCA_ActionActuator(SCA_IActuator)
 ================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: BL_ActionActuator(SCA_IActuator)
+.. class:: SCA_ActionActuator(SCA_IActuator)
 
    Action Actuators apply an action to an actor.
 

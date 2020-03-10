@@ -1,9 +1,9 @@
-KX_NetworkMessageActuator(SCA_IActuator)
+SCA_NetworkMessageActuator(SCA_IActuator)
 ========================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_NetworkMessageActuator(SCA_IActuator)
+.. class:: SCA_NetworkMessageActuator(SCA_IActuator)
 
    Message Actuator
 

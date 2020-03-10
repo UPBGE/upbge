@@ -1,9 +1,9 @@
-KX_ConstraintActuator(SCA_IActuator)
+SCA_ConstraintActuator(SCA_IActuator)
 ====================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_ConstraintActuator(SCA_IActuator)
+.. class:: SCA_ConstraintActuator(SCA_IActuator)
 
    A constraint actuator limits the position, rotation, distance or orientation of an object.
 

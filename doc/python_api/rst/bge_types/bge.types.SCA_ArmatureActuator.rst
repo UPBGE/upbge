@@ -1,9 +1,9 @@
-BL_ArmatureActuator(SCA_IActuator)
+SCA_ArmatureActuator(SCA_IActuator)
 ==================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: BL_ArmatureActuator(SCA_IActuator)
+.. class:: SCA_ArmatureActuator(SCA_IActuator)
 
    Armature Actuators change constraint condition on armatures.
 

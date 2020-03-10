@@ -1,9 +1,9 @@
-KX_NetworkMessageSensor(SCA_ISensor)
+SCA_NetworkMessageSensor(SCA_ISensor)
 ====================================
 
 base class --- :class:`SCA_ISensor`
 
-.. class:: KX_NetworkMessageSensor(SCA_ISensor)
+.. class:: SCA_NetworkMessageSensor(SCA_ISensor)
 
    The Message Sensor logic brick.
 
