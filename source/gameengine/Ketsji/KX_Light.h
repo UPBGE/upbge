@@ -50,6 +50,7 @@ protected :
   KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, Object *ob);
   virtual ~KX_LightObject();
 
+  virtual void ProcessReplica();
   virtual CValue *GetReplica();
 
   virtual int GetGameObjectType() const

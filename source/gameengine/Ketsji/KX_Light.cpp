@@ -62,6 +62,14 @@ CValue *KX_LightObject::GetReplica()
   return replica;
 }
 
+void KX_LightObject::ProcessReplica()
+{
+  KX_GameObject::ProcessReplica();
+
+  m_obLight = m_pBlenderObject;
+  m_light = static_cast<Light *>(m_obLight->data);
+}
+
 #ifdef WITH_PYTHON
 /* ------------------------------------------------------------------------- */
 /* Python Integration Hooks					                                 */
