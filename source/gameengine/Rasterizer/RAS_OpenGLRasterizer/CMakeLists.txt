@@ -57,11 +57,9 @@ set(INC_SYS
 
 set(SRC
 	RAS_OpenGLDebugDraw.cpp
-	RAS_OpenGLLight.cpp
 	RAS_OpenGLRasterizer.cpp
 
 	RAS_OpenGLDebugDraw.h
-	RAS_OpenGLLight.h
 	RAS_OpenGLRasterizer.h
 )
 

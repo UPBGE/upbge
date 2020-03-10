@@ -94,7 +94,6 @@ set(SRC
 	RAS_IDisplayArray.h
 	RAS_IPolygonMaterial.h
 	RAS_Rasterizer.h
-	RAS_ILightObject.h
 	RAS_ITexVert.h
 	RAS_MaterialBucket.h
 	RAS_MaterialShader.h

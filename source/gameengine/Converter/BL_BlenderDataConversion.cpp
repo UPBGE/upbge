@@ -65,8 +65,6 @@
 
 #include "RAS_MeshObject.h"
 #include "RAS_Rasterizer.h"
-#include "RAS_OpenGLLight.h"
-#include "RAS_ILightObject.h"
 
 #include "KX_ConvertActuators.h"
 #include "KX_ConvertControllers.h"
@@ -773,66 +771,12 @@ static KX_LodManager *lodmanager_from_blenderobject(Object *ob,
   return lodManager;
 }
 
-static KX_LightObject *gamelight_from_blamp(Object *ob,
-                                            Light *la,
-                                            unsigned int layerflag,
-                                            KX_Scene *kxscene)
+static KX_LightObject *gamelight_from_blamp(KX_Scene *kxscene,
+                                            Object *ob)
 {
-  RAS_ILightObject *lightobj = new RAS_OpenGLLight();
+  
 
-  lightobj->m_att1 = la->att1;
-  lightobj->m_att2 = 0.0f;
-  lightobj->m_coeff_const = la->coeff_const;
-  lightobj->m_coeff_lin = la->coeff_lin;
-  lightobj->m_coeff_quad = la->coeff_quad;
-  lightobj->m_color[0] = la->r;
-  lightobj->m_color[1] = la->g;
-  lightobj->m_color[2] = la->b;
-  lightobj->m_distance = la->dist;
-  lightobj->m_energy = la->energy;
-  lightobj->m_hasShadow = true;
-  lightobj->m_shadowclipstart = la->clipsta;
-  lightobj->m_shadowclipend = la->clipend;
-  lightobj->m_shadowbias = la->bias;
-  lightobj->m_shadowBleedExp = la->bleedexp;
-  lightobj->m_shadowbleedbias = la->bleedbias;
-  lightobj->m_shadowmaptype = 0;
-  lightobj->m_shadowfrustumsize = 0;
-  lightobj->m_shadowcolor[0] = la->shdwr;
-  lightobj->m_shadowcolor[1] = la->shdwg;
-  lightobj->m_shadowcolor[2] = la->shdwb;
-  lightobj->m_layer = layerflag;
-  lightobj->m_spotblend = la->spotblend;
-  lightobj->m_spotsize = la->spotsize;
-  // Set to true to make at least one shadow render in static mode.
-  lightobj->m_staticShadow = false;
-  lightobj->m_requestShadowUpdate = true;
-
-  lightobj->m_nodiffuse = false;
-  lightobj->m_nospecular = false;
-
-  lightobj->m_areaSize = MT_Vector2(la->area_size, la->area_sizey);
-
-  static RAS_ILightObject::LightType convertTypeTable[] = {
-      RAS_ILightObject::LIGHT_NORMAL,  // LA_LOCAL
-      RAS_ILightObject::LIGHT_SUN,     // LA_SUN
-      RAS_ILightObject::LIGHT_SPOT,    // LA_SPOT
-      RAS_ILightObject::LIGHT_HEMI,    // LA_HEMI
-      RAS_ILightObject::LIGHT_AREA     // LA_AREA
-  };
-  lightobj->m_type = convertTypeTable[la->type];
-
-  static RAS_ILightObject::AreaShapeType convertAreaShapeTable[] = {
-      RAS_ILightObject::AREA_SQUARE,  // LA_AREA_SQUARE
-      RAS_ILightObject::AREA_RECT,    // LA_AREA_RECT
-      RAS_ILightObject::AREA_CUBE,    // LA_AREA_CUBE
-      RAS_ILightObject::AREA_BOX      // LA_AREA_BOX
-  };
-  lightobj->m_areaShape = convertAreaShapeTable[la->area_shape];
-
-  KX_LightObject *gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, lightobj);
-
-  gamelight->SetShowShadowFrustum(false);
+  KX_LightObject *gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, ob);
 
   return gamelight;
 }
@@ -871,8 +815,7 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
 
   switch (ob->type) {
     case OB_LAMP: {
-      KX_LightObject *gamelight = gamelight_from_blamp(
-          ob, static_cast<Light *>(ob->data), ob->lay, kxscene);
+      KX_LightObject *gamelight = gamelight_from_blamp(kxscene, ob);
       gameobj = gamelight;
       gamelight->AddRef();
       kxscene->GetLightList()->Add(gamelight);

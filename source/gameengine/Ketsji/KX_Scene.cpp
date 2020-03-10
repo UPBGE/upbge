@@ -64,7 +64,6 @@
 #include "RAS_2DFilter.h"
 #include "KX_2DFilterManager.h"
 #include "RAS_BucketManager.h"
-#include "RAS_ILightObject.h"
 
 #include "GPU_framebuffer.h"
 

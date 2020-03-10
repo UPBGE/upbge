@@ -1178,11 +1178,11 @@ void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw &deb
     return;
   }
 
-  for (KX_LightObject *light : scene->GetLightList()) {
+  /*for (KX_LightObject *light : scene->GetLightList()) {
     if (m_showShadowFrustum == KX_DebugOption::FORCE || light->GetShowShadowFrustum()) {
       debugDraw.DrawCameraFrustum(light->GetShadowFrustumMatrix().inverse());
     }
-  }
+  }*/
 }
 
 CListValue<KX_Scene> *KX_KetsjiEngine::CurrentScenes()
