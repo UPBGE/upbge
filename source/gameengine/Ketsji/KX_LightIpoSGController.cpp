@@ -30,7 +30,6 @@
  */
 
 #include "KX_LightIpoSGController.h"
-#include "KX_Globals.h"
 #include "KX_Light.h"
 #include "KX_ScalarInterpolator.h"
 
@@ -63,7 +62,7 @@ bool KX_LightIpoSGController::Update(double currentTime)
       la->energy = m_energy;
       DEG_id_tag_update(&la->id, 0);
       WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
-      KX_GetActiveScene()->ResetTaaSamples();
+      kxlight->GetScene()->ResetTaaSamples();
     }
 
     if (m_modify_color) {
@@ -72,14 +71,14 @@ bool KX_LightIpoSGController::Update(double currentTime)
       la->b = m_col_rgb[2];
       DEG_id_tag_update(&la->id, 0);
       WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
-      KX_GetActiveScene()->ResetTaaSamples();
+      kxlight->GetScene()->ResetTaaSamples();
     }
 
     if (m_modify_dist) {
       la->dist = m_dist;
       DEG_id_tag_update(&la->id, 0);
       WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
-      KX_GetActiveScene()->ResetTaaSamples();
+      kxlight->GetScene()->ResetTaaSamples();
     }
 
     m_modified = false;
