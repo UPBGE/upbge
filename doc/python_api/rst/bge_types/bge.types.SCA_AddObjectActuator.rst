@@ -1,9 +1,9 @@
-KX_SCA_AddObjectActuator(SCA_IActuator)
+SCA_AddObjectActuator(SCA_IActuator)
 =======================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_SCA_AddObjectActuator(SCA_IActuator)
+.. class:: SCA_AddObjectActuator(SCA_IActuator)
 
    Edit Object Actuator (in Add Object Mode)
 

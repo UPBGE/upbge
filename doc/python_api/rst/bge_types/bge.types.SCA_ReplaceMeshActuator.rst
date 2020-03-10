@@ -1,9 +1,9 @@
-KX_SCA_ReplaceMeshActuator(SCA_IActuator)
+SCA_ReplaceMeshActuator(SCA_IActuator)
 =========================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_SCA_ReplaceMeshActuator(SCA_IActuator)
+.. class:: SCA_ReplaceMeshActuator(SCA_IActuator)
 
    Edit Object actuator, in Replace Mesh mode.
 

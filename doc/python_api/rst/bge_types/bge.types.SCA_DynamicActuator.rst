@@ -1,9 +1,9 @@
-KX_SCA_DynamicActuator(SCA_IActuator)
+SCA_DynamicActuator(SCA_IActuator)
 =====================================
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_SCA_DynamicActuator(SCA_IActuator)
+.. class:: SCA_DynamicActuator(SCA_IActuator)
 
    Dynamic Actuator.
 
