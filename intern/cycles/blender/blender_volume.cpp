@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011-2013 Blender Foundation
  *
@@ -24,6 +23,152 @@
 
 CCL_NAMESPACE_BEGIN
 
+/* TODO: verify this is not loading unnecessary attributes. */
+class BlenderSmokeLoader : public ImageLoader {
+ public:
+  BlenderSmokeLoader(const BL::Object &b_ob, AttributeStandard attribute)
+      : b_ob(b_ob), attribute(attribute)
+  {
+  }
+
+  bool load_metadata(ImageMetaData &metadata) override
+  {
+    BL::FluidDomainSettings b_domain = object_fluid_gas_domain_find(b_ob);
+
+    if (!b_domain) {
+      return false;
+    }
+
+    if (attribute == ATTR_STD_VOLUME_DENSITY || attribute == ATTR_STD_VOLUME_FLAME ||
+        attribute == ATTR_STD_VOLUME_HEAT || attribute == ATTR_STD_VOLUME_TEMPERATURE) {
+      metadata.type = IMAGE_DATA_TYPE_FLOAT;
+      metadata.channels = 1;
+    }
+    else if (attribute == ATTR_STD_VOLUME_COLOR) {
+      metadata.type = IMAGE_DATA_TYPE_FLOAT4;
+      metadata.channels = 4;
+    }
+    else if (attribute == ATTR_STD_VOLUME_VELOCITY) {
+      metadata.type = IMAGE_DATA_TYPE_FLOAT4;
+      metadata.channels = 3;
+    }
+    else {
+      return false;
+    }
+
+    int3 resolution = get_int3(b_domain.domain_resolution());
+    int amplify = (b_domain.use_noise()) ? b_domain.noise_scale() : 1;
+
+    /* Velocity and heat data is always low-resolution. */
+    if (attribute == ATTR_STD_VOLUME_VELOCITY || attribute == ATTR_STD_VOLUME_HEAT) {
+      amplify = 1;
+    }
+
+    metadata.width = resolution.x * amplify;
+    metadata.height = resolution.y * amplify;
+    metadata.depth = resolution.z * amplify;
+
+    return true;
+  }
+
+  bool load_pixels(const ImageMetaData &, void *pixels, const size_t, const bool) override
+  {
+    /* smoke volume data */
+    BL::FluidDomainSettings b_domain = object_fluid_gas_domain_find(b_ob);
+
+    if (!b_domain) {
+      return false;
+    }
+#ifdef WITH_FLUID
+    int3 resolution = get_int3(b_domain.domain_resolution());
+    int length, amplify = (b_domain.use_noise()) ? b_domain.noise_scale() : 1;
+
+    /* Velocity and heat data is always low-resolution. */
+    if (attribute == ATTR_STD_VOLUME_VELOCITY || attribute == ATTR_STD_VOLUME_HEAT) {
+      amplify = 1;
+    }
+
+    const int width = resolution.x * amplify;
+    const int height = resolution.y * amplify;
+    const int depth = resolution.z * amplify;
+    const size_t num_pixels = ((size_t)width) * height * depth;
+
+    float *fpixels = (float *)pixels;
+
+    if (attribute == ATTR_STD_VOLUME_DENSITY) {
+      FluidDomainSettings_density_grid_get_length(&b_domain.ptr, &length);
+      if (length == num_pixels) {
+        FluidDomainSettings_density_grid_get(&b_domain.ptr, fpixels);
+        return true;
+      }
+    }
+    else if (attribute == ATTR_STD_VOLUME_FLAME) {
+      /* this is in range 0..1, and interpreted by the OpenGL smoke viewer
+       * as 1500..3000 K with the first part faded to zero density */
+      FluidDomainSettings_flame_grid_get_length(&b_domain.ptr, &length);
+      if (length == num_pixels) {
+        FluidDomainSettings_flame_grid_get(&b_domain.ptr, fpixels);
+        return true;
+      }
+    }
+    else if (attribute == ATTR_STD_VOLUME_COLOR) {
+      /* the RGB is "premultiplied" by density for better interpolation results */
+      FluidDomainSettings_color_grid_get_length(&b_domain.ptr, &length);
+      if (length == num_pixels * 4) {
+        FluidDomainSettings_color_grid_get(&b_domain.ptr, fpixels);
+        return true;
+      }
+    }
+    else if (attribute == ATTR_STD_VOLUME_VELOCITY) {
+      FluidDomainSettings_velocity_grid_get_length(&b_domain.ptr, &length);
+      if (length == num_pixels * 3) {
+        FluidDomainSettings_velocity_grid_get(&b_domain.ptr, fpixels);
+        return true;
+      }
+    }
+    else if (attribute == ATTR_STD_VOLUME_HEAT) {
+      FluidDomainSettings_heat_grid_get_length(&b_domain.ptr, &length);
+      if (length == num_pixels) {
+        FluidDomainSettings_heat_grid_get(&b_domain.ptr, fpixels);
+        return true;
+      }
+    }
+    else if (attribute == ATTR_STD_VOLUME_TEMPERATURE) {
+      FluidDomainSettings_temperature_grid_get_length(&b_domain.ptr, &length);
+      if (length == num_pixels) {
+        FluidDomainSettings_temperature_grid_get(&b_domain.ptr, fpixels);
+        return true;
+      }
+    }
+    else {
+      fprintf(stderr,
+              "Cycles error: unknown volume attribute %s, skipping\n",
+              Attribute::standard_name(attribute));
+      fpixels[0] = 0.0f;
+      return false;
+    }
+#else
+    (void)pixels;
+#endif
+    fprintf(stderr, "Cycles error: unexpected smoke volume resolution, skipping\n");
+    return false;
+  }
+
+  string name() const override
+  {
+    return Attribute::standard_name(attribute);
+  }
+
+  bool equals(const ImageLoader &other) const override
+  {
+    const BlenderSmokeLoader &other_loader = (const BlenderSmokeLoader &)other;
+    return b_ob == other_loader.b_ob && attribute == other_loader.attribute;
+  }
+
+  BL::Object b_ob;
+  AttributeStandard attribute;
+};
+
 static void sync_smoke_volume(Scene *scene, BL::Object &b_ob, Mesh *mesh, float frame)
 {
   BL::FluidDomainSettings b_domain = object_fluid_gas_domain_find(b_ob);
@@ -31,7 +176,6 @@ static void sync_smoke_volume(Scene *scene, BL::Object &b_ob, Mesh *mesh, float 
     return;
   }
 
-  ImageManager *image_manager = scene->image_manager;
   AttributeStandard attributes[] = {ATTR_STD_VOLUME_DENSITY,
                                     ATTR_STD_VOLUME_COLOR,
                                     ATTR_STD_VOLUME_FLAME,
@@ -49,15 +193,12 @@ static void sync_smoke_volume(Scene *scene, BL::Object &b_ob, Mesh *mesh, float 
     mesh->volume_isovalue = b_domain.clipping();
 
     Attribute *attr = mesh->attributes.add(std);
-    VoxelAttribute *volume_data = attr->data_voxel();
-    ImageMetaData metadata;
 
-    ImageKey key;
-    key.filename = Attribute::standard_name(std);
-    key.builtin_data = b_ob.ptr.data;
+    ImageLoader *loader = new BlenderSmokeLoader(b_ob, std);
+    ImageParams params;
+    params.frame = frame;
 
-    volume_data->manager = image_manager;
-    volume_data->slot = image_manager->add_image(key, frame, metadata);
+    attr->data_voxel() = scene->image_manager->add_image(loader, params);
   }
 
   /* Create a matrix to transform from object space to mesh texture space.
@@ -75,18 +216,33 @@ static void sync_smoke_volume(Scene *scene, BL::Object &b_ob, Mesh *mesh, float 
   }
 }
 
+/* If the voxel attributes change, we need to rebuild the bounding mesh. */
+static vector<int> get_voxel_image_slots(Mesh *mesh)
+{
+  vector<int> slots;
+  for (const Attribute &attr : mesh->attributes.attributes) {
+    if (attr.element == ATTR_ELEMENT_VOXEL) {
+      slots.push_back(attr.data_voxel().svm_slot());
+    }
+  }
+
+  return slots;
+}
+
 void BlenderSync::sync_volume(BL::Object &b_ob, Mesh *mesh, const vector<Shader *> &used_shaders)
 {
-  bool old_has_voxel_attributes = mesh->has_voxel_attributes();
+  vector<int> old_voxel_slots = get_voxel_image_slots(mesh);
 
   mesh->clear();
   mesh->used_shaders = used_shaders;
 
   /* Smoke domain. */
-  sync_smoke_volume(scene, b_ob, mesh, b_scene.frame_current());
+  if (view_layer.use_volumes) {
+    sync_smoke_volume(scene, b_ob, mesh, b_scene.frame_current());
+  }
 
   /* Tag update. */
-  bool rebuild = (old_has_voxel_attributes != mesh->has_voxel_attributes());
+  bool rebuild = (old_voxel_slots != get_voxel_image_slots(mesh));
   mesh->tag_update(scene, rebuild);
 }
 

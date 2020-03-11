@@ -804,7 +804,7 @@ void update_id_after_copy(const Depsgraph *depsgraph,
       Scene *scene_cow = (Scene *)id_cow;
       const Scene *scene_orig = (const Scene *)id_orig;
       scene_cow->toolsettings = scene_orig->toolsettings;
-      scene_cow->eevee.light_cache = scene_orig->eevee.light_cache;
+      scene_cow->eevee.light_cache_data = scene_orig->eevee.light_cache_data;
       scene_setup_view_layers_after_remap(depsgraph, id_node, reinterpret_cast<Scene *>(id_cow));
       update_scene_orig_pointers(scene_orig, scene_cow);
       break;
@@ -914,8 +914,11 @@ ID *deg_expand_copy_on_write_datablock(const Depsgraph *depsgraph,
   user_data.depsgraph = depsgraph;
   user_data.node_builder = node_builder;
   user_data.create_placeholders = create_placeholders;
-  BKE_library_foreach_ID_link(
-      nullptr, id_cow, foreach_libblock_remap_callback, (void *)&user_data, IDWALK_NOP);
+  BKE_library_foreach_ID_link(nullptr,
+                              id_cow,
+                              foreach_libblock_remap_callback,
+                              (void *)&user_data,
+                              IDWALK_IGNORE_EMBEDDED_ID);
   /* Correct or tweak some pointers which are not taken care by foreach
    * from above. */
   update_id_after_copy(depsgraph, id_node, id_orig, id_cow);
@@ -1000,7 +1003,7 @@ void discard_scene_pointers(ID *id_cow)
 {
   Scene *scene_cow = (Scene *)id_cow;
   scene_cow->toolsettings = nullptr;
-  scene_cow->eevee.light_cache = nullptr;
+  scene_cow->eevee.light_cache_data = nullptr;
 }
 
 /* nullptr-ify all edit mode pointers which points to data from
@@ -1113,6 +1116,11 @@ bool deg_copy_on_write_is_expanded(const ID *id_cow)
 bool deg_copy_on_write_is_needed(const ID *id_orig)
 {
   const ID_Type id_type = GS(id_orig->name);
+  return deg_copy_on_write_is_needed(id_type);
+}
+
+bool deg_copy_on_write_is_needed(const ID_Type id_type)
+{
   return ID_TYPE_IS_COW(id_type);
 }
 

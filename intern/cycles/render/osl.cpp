@@ -102,8 +102,8 @@ void OSLShaderManager::device_update(Device *device,
 
   device_free(device, dscene, scene);
 
-  /* determine which shaders are in use */
-  device_update_shaders_used(scene);
+  /* set texture system */
+  scene->image_manager->set_osl_texture_system((void *)ts);
 
   /* create shaders */
   OSLGlobals *og = (OSLGlobals *)device->osl_memory();
@@ -141,9 +141,6 @@ void OSLShaderManager::device_update(Device *device,
     shader->need_update = false;
 
   need_update = false;
-
-  /* set texture system */
-  scene->image_manager->set_osl_texture_system((void *)ts);
 
   /* add special builtin texture types */
   services->textures.insert(ustring("@ao"), new OSLTextureHandle(OSLTextureHandle::AO));
@@ -440,27 +437,35 @@ const char *OSLShaderManager::shader_load_bytecode(const string &hash, const str
   return loaded_shaders.find(hash)->first.c_str();
 }
 
-OSLNode *OSLShaderManager::osl_node(const std::string &filepath,
+/* This is a static function to avoid RTTI link errors with only this
+ * file being compiled without RTTI to match OSL and LLVM libraries. */
+OSLNode *OSLShaderManager::osl_node(ShaderManager *manager,
+                                    const std::string &filepath,
                                     const std::string &bytecode_hash,
                                     const std::string &bytecode)
 {
+  if (!manager->use_osl()) {
+    return NULL;
+  }
+
   /* create query */
+  OSLShaderManager *osl_manager = static_cast<OSLShaderManager *>(manager);
   const char *hash;
 
   if (!filepath.empty()) {
-    hash = shader_load_filepath(filepath);
+    hash = osl_manager->shader_load_filepath(filepath);
   }
   else {
-    hash = shader_test_loaded(bytecode_hash);
+    hash = osl_manager->shader_test_loaded(bytecode_hash);
     if (!hash)
-      hash = shader_load_bytecode(bytecode_hash, bytecode);
+      hash = osl_manager->shader_load_bytecode(bytecode_hash, bytecode);
   }
 
   if (!hash) {
     return NULL;
   }
 
-  OSLShaderInfo *info = shader_loaded_info(hash);
+  OSLShaderInfo *info = osl_manager->shader_loaded_info(hash);
 
   /* count number of inputs */
   size_t num_inputs = 0;

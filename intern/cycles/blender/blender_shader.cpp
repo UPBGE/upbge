@@ -23,6 +23,7 @@
 #include "render/scene.h"
 #include "render/shader.h"
 
+#include "blender/blender_image.h"
 #include "blender/blender_texture.h"
 #include "blender/blender_sync.h"
 #include "blender/blender_util.h"
@@ -619,16 +620,16 @@ static ShaderNode *add_node(Scene *scene,
       /* create script node */
       BL::ShaderNodeScript b_script_node(b_node);
 
-      OSLShaderManager *manager = (OSLShaderManager *)scene->shader_manager;
+      ShaderManager *manager = scene->shader_manager;
       string bytecode_hash = b_script_node.bytecode_hash();
 
       if (!bytecode_hash.empty()) {
-        node = manager->osl_node("", bytecode_hash, b_script_node.bytecode());
+        node = OSLShaderManager::osl_node(manager, "", bytecode_hash, b_script_node.bytecode());
       }
       else {
         string absolute_filepath = blender_absolute_path(
             b_data, b_ntree, b_script_node.filepath());
-        node = manager->osl_node(absolute_filepath, "");
+        node = OSLShaderManager::osl_node(manager, absolute_filepath, "");
       }
     }
 #else
@@ -650,6 +651,18 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(&image->tex_mapping, b_texture_mapping);
 
     if (b_image) {
+      PointerRNA colorspace_ptr = b_image.colorspace_settings().ptr;
+      image->colorspace = get_enum_identifier(colorspace_ptr, "name");
+
+      image->animated = b_image_node.image_user().use_auto_refresh();
+      image->alpha_type = get_image_alpha_type(b_image);
+
+      image->tiles.clear();
+      BL::Image::tiles_iterator b_iter;
+      for (b_image.tiles.begin(b_iter); b_iter != b_image.tiles.end(); ++b_iter) {
+        image->tiles.push_back(b_iter->number());
+      }
+
       /* builtin images will use callback-based reading because
        * they could only be loaded correct from blender side
        */
@@ -666,34 +679,13 @@ static ShaderNode *add_node(Scene *scene,
          */
         int scene_frame = b_scene.frame_current();
         int image_frame = image_user_frame_number(b_image_user, scene_frame);
-        image->filename = b_image.name() + "@" + string_printf("%d", image_frame);
-        image->builtin_data = b_image.ptr.data;
+        image->handle = scene->image_manager->add_image(
+            new BlenderImageLoader(b_image, image_frame), image->image_params());
       }
       else {
         image->filename = image_user_file_path(
             b_image_user, b_image, b_scene.frame_current(), true);
-        image->builtin_data = NULL;
       }
-
-      PointerRNA colorspace_ptr = b_image.colorspace_settings().ptr;
-      image->colorspace = get_enum_identifier(colorspace_ptr, "name");
-
-      image->animated = b_image_node.image_user().use_auto_refresh();
-      image->alpha_type = get_image_alpha_type(b_image);
-
-      image->tiles.clear();
-      BL::Image::tiles_iterator b_iter;
-      for (b_image.tiles.begin(b_iter); b_iter != b_image.tiles.end(); ++b_iter) {
-        image->tiles.push_back(b_iter->number());
-      }
-
-      /* TODO: restore */
-      /* TODO(sergey): Does not work properly when we change builtin type. */
-#if 0
-      if (b_image.is_updated()) {
-        scene->image_manager->tag_reload_image(image->image_key());
-      }
-#endif
     }
     node = image;
   }
@@ -709,6 +701,12 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(&env->tex_mapping, b_texture_mapping);
 
     if (b_image) {
+      PointerRNA colorspace_ptr = b_image.colorspace_settings().ptr;
+      env->colorspace = get_enum_identifier(colorspace_ptr, "name");
+
+      env->animated = b_env_node.image_user().use_auto_refresh();
+      env->alpha_type = get_image_alpha_type(b_image);
+
       bool is_builtin = b_image.packed_file() || b_image.source() == BL::Image::source_GENERATED ||
                         b_image.source() == BL::Image::source_MOVIE ||
                         (b_engine.is_preview() && b_image.source() != BL::Image::source_SEQUENCE);
@@ -716,28 +714,13 @@ static ShaderNode *add_node(Scene *scene,
       if (is_builtin) {
         int scene_frame = b_scene.frame_current();
         int image_frame = image_user_frame_number(b_image_user, scene_frame);
-        env->filename = b_image.name() + "@" + string_printf("%d", image_frame);
-        env->builtin_data = b_image.ptr.data;
+        env->handle = scene->image_manager->add_image(new BlenderImageLoader(b_image, image_frame),
+                                                      env->image_params());
       }
       else {
         env->filename = image_user_file_path(
             b_image_user, b_image, b_scene.frame_current(), false);
-        env->builtin_data = NULL;
       }
-
-      PointerRNA colorspace_ptr = b_image.colorspace_settings().ptr;
-      env->colorspace = get_enum_identifier(colorspace_ptr, "name");
-
-      env->animated = b_env_node.image_user().use_auto_refresh();
-      env->alpha_type = get_image_alpha_type(b_image);
-
-      /* TODO: restore */
-      /* TODO(sergey): Does not work properly when we change builtin type. */
-#if 0
-      if (b_image.is_updated()) {
-        scene->image_manager->tag_reload_image(env->image_key());
-      }
-#endif
     }
     node = env;
   }
@@ -881,18 +864,13 @@ static ShaderNode *add_node(Scene *scene,
   else if (b_node.is_a(&RNA_ShaderNodeTexPointDensity)) {
     BL::ShaderNodeTexPointDensity b_point_density_node(b_node);
     PointDensityTextureNode *point_density = new PointDensityTextureNode();
-    point_density->filename = b_point_density_node.name();
     point_density->space = (NodeTexVoxelSpace)b_point_density_node.space();
     point_density->interpolation = get_image_interpolation(b_point_density_node);
-    point_density->builtin_data = b_point_density_node.ptr.data;
-    point_density->image_manager = scene->image_manager;
+    point_density->handle = scene->image_manager->add_image(
+        new BlenderPointDensityLoader(b_depsgraph, b_point_density_node),
+        point_density->image_params());
 
-    /* TODO(sergey): Use more proper update flag. */
-    if (true) {
-      point_density->add_image();
-      b_point_density_node.cache_point_density(b_depsgraph);
-      scene->image_manager->tag_reload_image(point_density->image_key());
-    }
+    b_point_density_node.cache_point_density(b_depsgraph);
     node = point_density;
 
     /* Transformation form world space to texture space.

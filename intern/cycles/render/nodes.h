@@ -78,12 +78,15 @@ class ImageSlotTextureNode : public TextureNode {
   explicit ImageSlotTextureNode(const NodeType *node_type) : TextureNode(node_type)
   {
     special_type = SHADER_SPECIAL_TYPE_IMAGE_SLOT;
-    image_manager = NULL;
   }
-  ~ImageSlotTextureNode();
-  void add_image_user() const;
-  ImageManager *image_manager;
-  vector<int> slots;
+
+  virtual bool equals(const ShaderNode &other)
+  {
+    const ImageSlotTextureNode &other_node = (const ImageSlotTextureNode &)other;
+    return TextureNode::equals(other) && handle == other_node.handle;
+  }
+
+  ImageHandle handle;
 };
 
 class ImageTextureNode : public ImageSlotTextureNode {
@@ -98,16 +101,14 @@ class ImageTextureNode : public ImageSlotTextureNode {
 
   virtual bool equals(const ShaderNode &other)
   {
-    const ImageTextureNode &image_node = (const ImageTextureNode &)other;
-    return ImageSlotTextureNode::equals(other) && builtin_data == image_node.builtin_data &&
-           animated == image_node.animated;
+    const ImageTextureNode &other_node = (const ImageTextureNode &)other;
+    return ImageSlotTextureNode::equals(other) && animated == other_node.animated;
   }
 
-  ImageKey image_key(const int tile = 0) const;
+  ImageParams image_params() const;
 
   /* Parameters. */
   ustring filename;
-  void *builtin_data;
   ustring colorspace;
   ImageAlphaType alpha_type;
   NodeImageProjection projection;
@@ -117,11 +118,6 @@ class ImageTextureNode : public ImageSlotTextureNode {
   bool animated;
   float3 vector;
   ccl::vector<int> tiles;
-
-  /* Runtime. */
-  bool is_float;
-  bool compress_as_srgb;
-  ustring known_colorspace;
 
  protected:
   void cull_tiles(Scene *scene, ShaderGraph *graph);
@@ -143,27 +139,20 @@ class EnvironmentTextureNode : public ImageSlotTextureNode {
 
   virtual bool equals(const ShaderNode &other)
   {
-    const EnvironmentTextureNode &env_node = (const EnvironmentTextureNode &)other;
-    return ImageSlotTextureNode::equals(other) && builtin_data == env_node.builtin_data &&
-           animated == env_node.animated;
+    const EnvironmentTextureNode &other_node = (const EnvironmentTextureNode &)other;
+    return ImageSlotTextureNode::equals(other) && animated == other_node.animated;
   }
 
-  ImageKey image_key() const;
+  ImageParams image_params() const;
 
   /* Parameters. */
   ustring filename;
-  void *builtin_data;
   ustring colorspace;
   ImageAlphaType alpha_type;
   NodeEnvironmentProjection projection;
   InterpolationType interpolation;
   bool animated;
   float3 vector;
-
-  /* Runtime. */
-  bool is_float;
-  bool compress_as_srgb;
-  ustring known_colorspace;
 };
 
 class SkyTextureNode : public TextureNode {
@@ -370,26 +359,22 @@ class PointDensityTextureNode : public ShaderNode {
     return true;
   }
 
-  void add_image();
-
-  ImageKey image_key() const;
-
   /* Parameters. */
   ustring filename;
   NodeTexVoxelSpace space;
   InterpolationType interpolation;
   Transform tfm;
   float3 vector;
-  void *builtin_data;
 
   /* Runtime. */
-  ImageManager *image_manager;
-  int slot;
+  ImageHandle handle;
+
+  ImageParams image_params() const;
 
   virtual bool equals(const ShaderNode &other)
   {
-    const PointDensityTextureNode &point_dendity_node = (const PointDensityTextureNode &)other;
-    return ShaderNode::equals(other) && builtin_data == point_dendity_node.builtin_data;
+    const PointDensityTextureNode &other_node = (const PointDensityTextureNode &)other;
+    return ShaderNode::equals(other) && handle == other_node.handle;
   }
 };
 

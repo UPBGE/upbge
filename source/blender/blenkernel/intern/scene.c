@@ -447,9 +447,9 @@ static void scene_free_data(ID *id)
     scene->master_collection = NULL;
   }
 
-  if (scene->eevee.light_cache) {
-    EEVEE_lightcache_free(scene->eevee.light_cache);
-    scene->eevee.light_cache = NULL;
+  if (scene->eevee.light_cache_data) {
+    EEVEE_lightcache_free(scene->eevee.light_cache_data);
+    scene->eevee.light_cache_data = NULL;
   }
 
   if (scene->display.shading.prop) {
@@ -635,7 +635,7 @@ void BKE_scene_copy_data_eevee(Scene *sce_dst, const Scene *sce_src)
 {
   /* Copy eevee data between scenes. */
   sce_dst->eevee = sce_src->eevee;
-  sce_dst->eevee.light_cache = NULL;
+  sce_dst->eevee.light_cache_data = NULL;
   sce_dst->eevee.light_cache_info[0] = '\0';
   /* TODO Copy the cache. */
 }
@@ -2107,6 +2107,14 @@ void BKE_scene_free_depsgraph_hash(Scene *scene)
   }
   BLI_ghash_free(scene->depsgraph_hash, depsgraph_key_free, depsgraph_key_value_free);
   scene->depsgraph_hash = NULL;
+}
+
+void BKE_scene_free_view_layer_depsgraph(Scene *scene, ViewLayer *view_layer)
+{
+  if (scene->depsgraph_hash != NULL) {
+    DepsgraphKey key = {view_layer};
+    BLI_ghash_remove(scene->depsgraph_hash, &key, depsgraph_key_free, depsgraph_key_value_free);
+  }
 }
 
 /* Query depsgraph for a specific contexts. */

@@ -17,6 +17,8 @@
 #ifndef __ATTRIBUTE_H__
 #define __ATTRIBUTE_H__
 
+#include "render/image.h"
+
 #include "kernel/kernel_types.h"
 
 #include "util/util_list.h"
@@ -31,18 +33,11 @@ class Attribute;
 class AttributeRequest;
 class AttributeRequestSet;
 class AttributeSet;
-class ImageManager;
+class ImageHandle;
 class Geometry;
 class Hair;
 class Mesh;
 struct Transform;
-
-/* Attributes for voxels are images */
-
-struct VoxelAttribute {
-  ImageManager *manager;
-  int slot;
-};
 
 /* Attribute
  *
@@ -59,9 +54,11 @@ class Attribute {
   AttributeElement element;
   uint flags; /* enum AttributeFlag */
 
-  Attribute()
-  {
-  }
+  Attribute(ustring name,
+            TypeDesc type,
+            AttributeElement element,
+            Geometry *geom,
+            AttributePrimitive prim);
   ~Attribute();
   void set(ustring name, TypeDesc type, AttributeElement element);
   void resize(Geometry *geom, AttributePrimitive prim, bool reserve_only);
@@ -105,10 +102,12 @@ class Attribute {
     assert(data_sizeof() == sizeof(Transform));
     return (Transform *)data();
   }
-  VoxelAttribute *data_voxel()
+
+  /* Attributes for voxels are images */
+  ImageHandle &data_voxel()
   {
-    assert(data_sizeof() == sizeof(VoxelAttribute));
-    return (VoxelAttribute *)data();
+    assert(data_sizeof() == sizeof(ImageHandle));
+    return *(ImageHandle *)data();
   }
 
   const char *data() const
@@ -140,10 +139,10 @@ class Attribute {
     assert(data_sizeof() == sizeof(Transform));
     return (const Transform *)data();
   }
-  const VoxelAttribute *data_voxel() const
+  const ImageHandle &data_voxel() const
   {
-    assert(data_sizeof() == sizeof(VoxelAttribute));
-    return (const VoxelAttribute *)data();
+    assert(data_sizeof() == sizeof(ImageHandle));
+    return *(const ImageHandle *)data();
   }
 
   void zero_data(void *dst);
@@ -153,8 +152,7 @@ class Attribute {
   void add(const float2 &f);
   void add(const float3 &f);
   void add(const uchar4 &f);
-  void add(const Transform &f);
-  void add(const VoxelAttribute &f);
+  void add(const Transform &tfm);
   void add(const char *data);
 
   static bool same_storage(TypeDesc a, TypeDesc b);
