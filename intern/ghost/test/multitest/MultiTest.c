@@ -16,7 +16,18 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  */
-#define FALSE 0
+
+/* Developers Note:
+ *
+ * This test currently only creates windows and draws a 'dot' under the cursor on LMB,
+ * quits when Q is pressed.
+ *
+ * More work is needed for logging drawing to work properly.
+ *
+ * - Use GPU_matrix API.
+ * - Replace old OpenGL calls to glColor, etc with 'imm' API.
+ * - Investigate BLF font flushing (UI_widgetbase_draw_cache_flush) which is currently disabled.
+ */
 
 #ifdef _MSC_VER
 #  pragma warning(disable : 4244 4305)
@@ -27,22 +38,14 @@
 #include <stdio.h>
 #include <math.h>
 
+#include <GL/glew.h>
 #include "GL.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "GHOST_C-api.h"
 
-#ifdef USE_BMF
-#  include "BMF_Api.h"
-#else
-#  include "BLF_api.h"
-extern int datatoc_bfont_ttf_size;
-extern char datatoc_bfont_ttf[];
-
-/* cheat */
-char U[1024] = {0};
-#endif
+#include "BLF_api.h"
 
 #include "Util.h"
 #include "Basic.h"
@@ -51,7 +54,13 @@ char U[1024] = {0};
 
 #include "WindowData.h"
 
-/***/
+/* GPU API. */
+#include "GPU_immediate.h"
+#include "GPU_context.h"
+#include "GPU_init_exit.h"
+
+extern int datatoc_bfont_ttf_size;
+extern char datatoc_bfont_ttf[];
 
 typedef struct _LoggerWindow LoggerWindow;
 typedef struct _MultiTestApp MultiTestApp;
@@ -128,6 +137,7 @@ typedef struct {
   MultiTestApp *app;
 
   GHOST_WindowHandle win;
+  GPUContext *gpu_context;
 
   int size[2];
 
@@ -144,6 +154,7 @@ static void mainwindow_log(MainWindow *mw, char *str)
 static void mainwindow_do_draw(MainWindow *mw)
 {
   GHOST_ActivateWindowDrawingContext(mw->win);
+  GPU_context_active_set(mw->gpu_context);
 
   if (mw->lmbut[0]) {
     glClearColor(0.5, 0.5, 0.5, 1);
@@ -164,6 +175,7 @@ static void mainwindow_do_reshape(MainWindow *mw)
   GHOST_RectangleHandle bounds = GHOST_GetClientBounds(mw->win);
 
   GHOST_ActivateWindowDrawingContext(mw->win);
+  GPU_context_active_set(mw->gpu_context);
 
   mw->size[0] = GHOST_GetWidthRectangle(bounds);
   mw->size[1] = GHOST_GetHeightRectangle(bounds);
@@ -317,6 +329,11 @@ MainWindow *mainwindow_new(MultiTestApp *app)
 
   if (win) {
     MainWindow *mw = MEM_callocN(sizeof(*mw), "mainwindow_new");
+
+    GLuint default_fb = GHOST_GetDefaultOpenGLFramebuffer(win);
+    mw->gpu_context = GPU_context_create(default_fb);
+    GPU_init();
+
     mw->app = app;
     mw->win = win;
 
@@ -348,13 +365,9 @@ struct _LoggerWindow {
   MultiTestApp *app;
 
   GHOST_WindowHandle win;
+  GPUContext *gpu_context;
 
-#ifdef USE_BMF
-  BMF_Font *font;
-#else
   int font;
-#endif
-  int fonttexid;
   int fontheight;
 
   int size[2];
@@ -411,6 +424,7 @@ static void loggerwindow_do_reshape(LoggerWindow *lw)
   GHOST_RectangleHandle bounds = GHOST_GetClientBounds(lw->win);
 
   GHOST_ActivateWindowDrawingContext(lw->win);
+  GPU_context_active_set(lw->gpu_context);
 
   lw->size[0] = GHOST_GetWidthRectangle(bounds);
   lw->size[1] = GHOST_GetHeightRectangle(bounds);
@@ -425,6 +439,8 @@ static void loggerwindow_do_draw(LoggerWindow *lw)
   int sb_rect[2][2], sb_thumb[2][2];
 
   GHOST_ActivateWindowDrawingContext(lw->win);
+  GPU_context_active_set(lw->gpu_context);
+  immActivate();
 
   glClearColor(1, 1, 1, 1);
   glClear(GL_COLOR_BUFFER_BIT);
@@ -449,13 +465,6 @@ static void loggerwindow_do_draw(LoggerWindow *lw)
   startline = scrollbar_get_thumbpos(lw->scroll) * (lw->nloglines - 1);
   ndisplines = min_i(lw->ndisplines, lw->nloglines - startline);
 
-  if (lw->fonttexid != -1) {
-    glBindTexture(GL_TEXTURE_2D, lw->fonttexid);
-
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_BLEND);
-    glEnable(GL_TEXTURE_2D);
-  }
   glColor3f(0, 0, 0);
   for (i = 0; i < ndisplines; i++) {
     /* stored in reverse order */
@@ -463,28 +472,13 @@ static void loggerwindow_do_draw(LoggerWindow *lw)
     int x_pos = lw->textarea[0][0] + 4;
     int y_pos = lw->textarea[0][1] + 4 + i * lw->fontheight;
 
-#ifdef USE_BMF
-    if (lw->fonttexid == -1) {
-      glRasterPos2i(x_pos, y_pos);
-      BMF_DrawString(lw->font, line);
-    }
-    else {
-      BMF_DrawStringTexture(lw->font, line, x_pos, y_pos, 0.0);
-    }
-#else
     BLF_position(lw->font, x_pos, y_pos, 0.0);
     BLF_draw(lw->font, line, 256);  // XXX
-#endif
   }
-
-#ifdef USE_BMF
-  if (lw->fonttexid != -1) {
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_BLEND);
-  }
-#endif
 
   GHOST_SwapWindowBuffers(lw->win);
+
+  immDeactivate();
 }
 
 static void loggerwindow_do_move(LoggerWindow *lw, int x, int y)
@@ -592,21 +586,18 @@ LoggerWindow *loggerwindow_new(MultiTestApp *app)
 
   if (win) {
     LoggerWindow *lw = MEM_callocN(sizeof(*lw), "loggerwindow_new");
+
+    GLuint default_fb = GHOST_GetDefaultOpenGLFramebuffer(win);
+    lw->gpu_context = GPU_context_create(default_fb);
+    GPU_init();
+
     int bbox[2][2];
     lw->app = app;
     lw->win = win;
 
-#ifdef USE_BMF
-    lw->font = BMF_GetFont(BMF_kScreen12);
-    lw->fonttexid = BMF_GetFontTexture(lw->font);
-
-    BMF_GetBoundingBox(lw->font, &bbox[0][0], &bbox[0][1], &bbox[1][0], &bbox[1][1]);
-    lw->fontheight = rect_height(bbox);
-#else
     lw->font = BLF_load_mem("default", (unsigned char *)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
     BLF_size(lw->font, 11, 72);
     lw->fontheight = BLF_height(lw->font, "A_", 2);
-#endif
 
     lw->nloglines = lw->logsize = 0;
     lw->loglines = MEM_mallocN(sizeof(*lw->loglines) * lw->nloglines, "loglines");
@@ -659,6 +650,7 @@ typedef struct {
   MultiTestApp *app;
 
   GHOST_WindowHandle win;
+  GPUContext *gpu_context;
 
   int size[2];
 } ExtraWindow;
@@ -666,6 +658,7 @@ typedef struct {
 static void extrawindow_do_draw(ExtraWindow *ew)
 {
   GHOST_ActivateWindowDrawingContext(ew->win);
+  GPU_context_active_set(ew->gpu_context);
 
   glClearColor(1, 1, 1, 1);
   glClear(GL_COLOR_BUFFER_BIT);
@@ -681,6 +674,7 @@ static void extrawindow_do_reshape(ExtraWindow *ew)
   GHOST_RectangleHandle bounds = GHOST_GetClientBounds(ew->win);
 
   GHOST_ActivateWindowDrawingContext(ew->win);
+  GPU_context_active_set(ew->gpu_context);
 
   ew->size[0] = GHOST_GetWidthRectangle(bounds);
   ew->size[1] = GHOST_GetHeightRectangle(bounds);
@@ -793,6 +787,11 @@ ExtraWindow *extrawindow_new(MultiTestApp *app)
 
   if (win) {
     ExtraWindow *ew = MEM_callocN(sizeof(*ew), "mainwindow_new");
+
+    GLuint default_fb = GHOST_GetDefaultOpenGLFramebuffer(win);
+    ew->gpu_context = GPU_context_create(default_fb);
+    GPU_init();
+
     ew->app = app;
     ew->win = win;
 
@@ -932,6 +931,9 @@ void multitestapp_run(MultiTestApp *app)
 
 void multitestapp_free(MultiTestApp *app)
 {
+  BLF_exit();
+  GPU_exit();
+
   mainwindow_free(app->main);
   loggerwindow_free(app->logger);
   GHOST_DisposeSystem(app->sys);
@@ -944,9 +946,7 @@ int main(int argc, char **argv)
 {
   MultiTestApp *app;
 
-#ifndef USE_BMF
   BLF_init();
-#endif
 
   app = multitestapp_new();
 
