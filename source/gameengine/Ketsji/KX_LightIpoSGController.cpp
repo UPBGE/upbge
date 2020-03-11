@@ -30,10 +30,8 @@
  */
 
 #include "KX_LightIpoSGController.h"
-#include "KX_Globals.h"
 #include "KX_Light.h"
 #include "KX_ScalarInterpolator.h"
-#include "RAS_ILightObject.h"
 
 extern "C" {
 #include "depsgraph/DEG_depsgraph_query.h"
@@ -56,41 +54,31 @@ bool KX_LightIpoSGController::Update(double currentTime)
       (*i)->Execute(m_ipotime);  // currentTime);
     }
 
-    RAS_ILightObject *lightobj;
-
     SG_Node *ob = (SG_Node *)m_node;
-    KX_LightObject* kxlight = (KX_LightObject*) ob->GetSGClientObject();
-    lightobj = kxlight->GetLightData();
-    KX_GameObject *kxobLight = (KX_GameObject *)ob->GetSGClientObject();
-    Object *obLight = kxobLight->GetBlenderObject();
-    Light *la = (Light *)obLight->data;
+    KX_LightObject *kxlight = (KX_LightObject *)ob->GetSGClientObject();
+    Light *la = kxlight->GetLight();
 
     if (m_modify_energy) {
-      lightobj->m_energy = m_energy;
       la->energy = m_energy;
       DEG_id_tag_update(&la->id, 0);
       WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
-      KX_GetActiveScene()->ResetTaaSamples();
+      kxlight->GetScene()->ResetTaaSamples();
     }
 
     if (m_modify_color) {
-      lightobj->m_color[0] = m_col_rgb[0];
-      lightobj->m_color[1] = m_col_rgb[1];
-      lightobj->m_color[2] = m_col_rgb[2];
       la->r = m_col_rgb[0];
       la->g = m_col_rgb[1];
       la->b = m_col_rgb[2];
       DEG_id_tag_update(&la->id, 0);
       WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
-      KX_GetActiveScene()->ResetTaaSamples();
+      kxlight->GetScene()->ResetTaaSamples();
     }
 
     if (m_modify_dist) {
-      lightobj->m_distance = m_dist;
       la->dist = m_dist;
       DEG_id_tag_update(&la->id, 0);
       WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
-      KX_GetActiveScene()->ResetTaaSamples();
+      kxlight->GetScene()->ResetTaaSamples();
     }
 
     m_modified = false;

@@ -1546,7 +1546,7 @@ static float dvar_eval_rotDiff(ChannelDriver *driver, DriverVar *dvar)
   invert_qt_normalized(q1);
   mul_qt_qtqt(quat, q1, q2);
   angle = 2.0f * (saacos(quat[0]));
-  angle = ABS(angle);
+  angle = fabsf(angle);
 
   return (angle > (float)M_PI) ? (float)((2.0f * (float)M_PI) - angle) : (float)(angle);
 }
@@ -1595,7 +1595,7 @@ static float dvar_eval_locDiff(ChannelDriver *driver, DriverVar *dvar)
           /* extract transform just like how the constraints do it! */
           copy_m4_m4(mat, pchan->pose_mat);
           BKE_constraint_mat_convertspace(
-              ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL);
+              ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL, false);
 
           /* ... and from that, we get our transform */
           copy_v3_v3(tmp_loc, mat[3]);
@@ -1621,7 +1621,7 @@ static float dvar_eval_locDiff(ChannelDriver *driver, DriverVar *dvar)
           /* extract transform just like how the constraints do it! */
           copy_m4_m4(mat, ob->obmat);
           BKE_constraint_mat_convertspace(
-              ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL);
+              ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL, false);
 
           /* ... and from that, we get our transform */
           copy_v3_v3(tmp_loc, mat[3]);
@@ -1698,7 +1698,7 @@ static float dvar_eval_transChan(ChannelDriver *driver, DriverVar *dvar)
         /* just like how the constraints do it! */
         copy_m4_m4(mat, pchan->pose_mat);
         BKE_constraint_mat_convertspace(
-            ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL);
+            ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL, false);
       }
       else {
         /* specially calculate local matrix, since chan_mat is not valid
@@ -1726,7 +1726,7 @@ static float dvar_eval_transChan(ChannelDriver *driver, DriverVar *dvar)
         /* just like how the constraints do it! */
         copy_m4_m4(mat, ob->obmat);
         BKE_constraint_mat_convertspace(
-            ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL);
+            ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL, false);
       }
       else {
         /* transforms to matrix */

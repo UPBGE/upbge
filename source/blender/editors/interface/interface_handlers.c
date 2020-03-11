@@ -484,7 +484,7 @@ void ui_pan_to_scroll(const wmEvent *event, int *type, int *val)
   else {
     lastdy += dy;
 
-    if (ABS(lastdy) > (int)UI_UNIT_Y) {
+    if (abs(lastdy) > (int)UI_UNIT_Y) {
       if (U.uiflag2 & USER_TRACKPAD_NATURAL) {
         dy = -dy;
       }
@@ -573,7 +573,7 @@ static bool ui_but_dragedit_update_mval(uiHandleButtonData *data, int mx)
   }
 
   if (data->draglock) {
-    if (ABS(mx - data->dragstartx) <= BUTTON_DRAGLOCK_THRESH) {
+    if (abs(mx - data->dragstartx) <= BUTTON_DRAGLOCK_THRESH) {
       return false;
     }
 #ifdef USE_DRAG_MULTINUM
@@ -1863,7 +1863,7 @@ static bool ui_but_drag_init(bContext *C,
       WM_event_drag_threshold(event),
       (int)((UI_UNIT_Y / 2) * ui_block_to_window_scale(data->region, but->block)));
 
-  if (ABS(data->dragstartx - event->x) + ABS(data->dragstarty - event->y) > drag_threshold) {
+  if (abs(data->dragstartx - event->x) + abs(data->dragstarty - event->y) > drag_threshold) {
     button_activate_state(C, but, BUTTON_STATE_EXIT);
     data->cancel = true;
 #ifdef USE_DRAG_TOGGLE
@@ -4235,7 +4235,12 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
       copy_v3_v3(data->vec, data->origvec);
       but->editvec = data->vec;
 
-      handlefunc = ui_block_func_COLOR;
+      if (ui_but_menu_draw_as_popover(but)) {
+        popoverfunc = but->menu_create_func;
+      }
+      else {
+        handlefunc = ui_block_func_COLOR;
+      }
       arg = but;
       break;
 
@@ -4304,8 +4309,8 @@ int ui_but_menu_direction(uiBut *but)
 }
 
 /**
- * Hack for #uiList #UI_BTYPE_LISTROW buttons to "give" events to overlaying #UI_BTYPE_TEXT buttons
- * (Ctrl-Click rename feature & co).
+ * Hack for #uiList #UI_BTYPE_LISTROW buttons to "give" events to overlaying #UI_BTYPE_TEXT
+ * buttons (Ctrl-Click rename feature & co).
  */
 static uiBut *ui_but_list_row_text_activate(bContext *C,
                                             uiBut *but,
@@ -5794,14 +5799,13 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
         button_activate_state(C, but, BUTTON_STATE_EXIT);
         ui_apply_but(C, but->block, but, data, true);
 
-        /* Button's state need to be changed to EXIT so moving mouse away from this mouse wouldn't
-         * lead to cancel changes made to this button, but changing state to EXIT also makes no
-         * button active for a while which leads to triggering operator
-         * when doing fast scrolling mouse wheel.
-         * using post activate stuff from button allows to make button be active again after
-         * checking for all all that mouse leave and cancel stuff,
-         * so quick scroll wouldn't be an issue anymore.
-         * Same goes for scrolling wheel in another direction below (sergey).
+        /* Button's state need to be changed to EXIT so moving mouse away from this mouse
+         * wouldn't lead to cancel changes made to this button, but changing state to EXIT also
+         * makes no button active for a while which leads to triggering operator when doing fast
+         * scrolling mouse wheel. using post activate stuff from button allows to make button be
+         * active again after checking for all all that mouse leave and cancel stuff, so quick
+         * scroll wouldn't be an issue anymore. Same goes for scrolling wheel in another
+         * direction below (sergey).
          */
         data->postbut = but;
         data->posttype = BUTTON_ACTIVATE_OVER;
@@ -6038,15 +6042,27 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
           }
           else {
             Scene *scene = CTX_data_scene(C);
+            bool updated = false;
 
             if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
               RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
               BKE_brush_color_set(scene, brush, color);
+              updated = true;
             }
             else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
               RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
               IMB_colormanagement_scene_linear_to_srgb_v3(color);
               BKE_brush_color_set(scene, brush, color);
+              updated = true;
+            }
+
+            if (updated) {
+              PointerRNA brush_ptr;
+              PropertyRNA *brush_color_prop;
+
+              RNA_id_pointer_create(&brush->id, &brush_ptr);
+              brush_color_prop = RNA_struct_find_property(&brush_ptr, "color");
+              RNA_property_update(C, &brush_ptr, brush_color_prop);
             }
           }
 
@@ -6795,7 +6811,7 @@ static int ui_do_but_COLORBAND(
         /* activate new key when mouse is close */
         for (a = 0, cbd = coba->data; a < coba->tot; a++, cbd++) {
           xco = but->rect.xmin + (cbd->pos * BLI_rctf_size_x(&but->rect));
-          xco = ABS(xco - mx);
+          xco = abs(xco - mx);
           if (a == coba->cur) {
             /* Selected one disadvantage. */
             xco += 5;
@@ -6980,7 +6996,7 @@ static int ui_do_but_CURVE(
       CurveMap *cuma = cumap->cm + cumap->cur;
       CurveMapPoint *cmp;
       const float m_xy[2] = {mx, my};
-      float dist_min_sq = SQUARE(U.dpi_fac * 14.0f); /* 14 pixels radius */
+      float dist_min_sq = square_f(U.dpi_fac * 14.0f); /* 14 pixels radius */
       int sel = -1;
 
       if (event->ctrl) {
@@ -7015,7 +7031,7 @@ static int ui_do_but_CURVE(
         BLI_rctf_transform_pt_v(&but->rect, &cumap->curr, f_xy, &cmp[0].x);
 
         /* with 160px height 8px should translate to the old 0.05 coefficient at no zoom */
-        dist_min_sq = SQUARE(U.dpi_fac * 8.0f);
+        dist_min_sq = square_f(U.dpi_fac * 8.0f);
 
         /* loop through the curve segment table and find what's near the mouse. */
         for (i = 1; i <= CM_TABLE; i++) {
@@ -7287,7 +7303,7 @@ static int ui_do_but_CURVEPROFILE(
       }
 
       /* Check for selecting of a point by finding closest point in radius. */
-      dist_min_sq = SQUARE(U.dpi_fac * 14.0f); /* 14 pixels radius for selecting points. */
+      dist_min_sq = square_f(U.dpi_fac * 14.0f); /* 14 pixels radius for selecting points. */
       pts = profile->path;
       for (i = 0; i < profile->path_len; i++) {
         float f_xy[2];
@@ -7305,7 +7321,7 @@ static int ui_do_but_CURVEPROFILE(
         pts = profile->table;
         BLI_rctf_transform_pt_v(&but->rect, &profile->view_rect, f_xy, &pts[0].x);
 
-        dist_min_sq = SQUARE(U.dpi_fac * 8.0f); /* 8 pixel radius from each table point. */
+        dist_min_sq = square_f(U.dpi_fac * 8.0f); /* 8 pixel radius from each table point. */
 
         /* Loop through the path's high resolution table and find what's near the click. */
         for (i = 1; i <= PROF_N_TABLE(profile->path_len); i++) {
@@ -9796,7 +9812,8 @@ static int ui_handle_menu_event(bContext *C,
         /* Closing sub-levels of pull-downs.
          *
          * The actual event is handled by the button under the cursor.
-         * This is done so we can right click on menu items even when they have sub-menus open. */
+         * This is done so we can right click on menu items even when they have sub-menus open.
+         */
         case RIGHTMOUSE:
           if (inside == false) {
             if (event->val == KM_PRESS && (block->flag & UI_BLOCK_LOOP)) {
@@ -9876,7 +9893,7 @@ static int ui_handle_menu_event(bContext *C,
                   but->active->cancel = true;
                   button_activate_exit(C, but, but->active, false, false);
                 }
-                WM_event_add_mousemove(but->active->window);
+                WM_event_add_mousemove(CTX_wm_window(C));
               }
             }
             break;

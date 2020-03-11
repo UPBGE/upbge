@@ -836,7 +836,6 @@ int main(int argc,
 
   ED_undosys_type_init();
 
-  BKE_library_callback_free_window_manager_set(wm_close_and_free); /* library.c */
   BKE_library_callback_free_notifier_reference_set(
       WM_main_remove_notifier_reference); /* library.c */
   BKE_library_callback_remap_editor_id_reference_set(

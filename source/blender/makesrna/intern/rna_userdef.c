@@ -5010,7 +5010,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 
   /* Currently only used for insert offset (aka auto-offset),
    * maybe also be useful for later stuff though. */
-  prop = RNA_def_property(srna, "node_margin", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "node_margin", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, NULL, "node_margin");
   RNA_def_property_ui_text(
       prop, "Auto-offset Margin", "Minimum distance between nodes for Auto-offsetting nodes");
@@ -5057,14 +5057,22 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem audio_mixing_samples_items[] = {
-      {256, "SAMPLES_256", 0, "256", "Set audio mixing buffer size to 256 samples"},
-      {512, "SAMPLES_512", 0, "512", "Set audio mixing buffer size to 512 samples"},
-      {1024, "SAMPLES_1024", 0, "1024", "Set audio mixing buffer size to 1024 samples"},
-      {2048, "SAMPLES_2048", 0, "2048", "Set audio mixing buffer size to 2048 samples"},
-      {4096, "SAMPLES_4096", 0, "4096", "Set audio mixing buffer size to 4096 samples"},
-      {8192, "SAMPLES_8192", 0, "8192", "Set audio mixing buffer size to 8192 samples"},
-      {16384, "SAMPLES_16384", 0, "16384", "Set audio mixing buffer size to 16384 samples"},
-      {32768, "SAMPLES_32768", 0, "32768", "Set audio mixing buffer size to 32768 samples"},
+      {256, "SAMPLES_256", 0, "256 Samples", "Set audio mixing buffer size to 256 samples"},
+      {512, "SAMPLES_512", 0, "512 Samples", "Set audio mixing buffer size to 512 samples"},
+      {1024, "SAMPLES_1024", 0, "1024 Samples", "Set audio mixing buffer size to 1024 samples"},
+      {2048, "SAMPLES_2048", 0, "2048 Samples", "Set audio mixing buffer size to 2048 samples"},
+      {4096, "SAMPLES_4096", 0, "4096 Samples", "Set audio mixing buffer size to 4096 samples"},
+      {8192, "SAMPLES_8192", 0, "8192 Samples", "Set audio mixing buffer size to 8192 samples"},
+      {16384,
+       "SAMPLES_16384",
+       0,
+       "16384 Samples",
+       "Set audio mixing buffer size to 16384 samples"},
+      {32768,
+       "SAMPLES_32768",
+       0,
+       "32768 Samples",
+       "Set audio mixing buffer size to 32768 samples"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -5102,15 +5110,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       {4, "SURROUND4", 0, "4 Channels", "Set audio channels to 4 channels"},
       {6, "SURROUND51", 0, "5.1 Surround", "Set audio channels to 5.1 surround sound"},
       {8, "SURROUND71", 0, "7.1 Surround", "Set audio channels to 7.1 surround sound"},
-      {0, NULL, 0, NULL, NULL},
-  };
-
-  static const EnumPropertyItem multi_sample_levels[] = {
-      {USER_MULTISAMPLE_NONE, "NONE", 0, "No MultiSample", "Do not use OpenGL MultiSample"},
-      {USER_MULTISAMPLE_2, "2", 0, "MultiSample: 2", "Use 2x OpenGL MultiSample"},
-      {USER_MULTISAMPLE_4, "4", 0, "MultiSample: 4", "Use 4x OpenGL MultiSample"},
-      {USER_MULTISAMPLE_8, "8", 0, "MultiSample: 8", "Use 8x OpenGL MultiSample"},
-      {USER_MULTISAMPLE_16, "16", 0, "MultiSample: 16", "Use 16x OpenGL MultiSample"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -5196,16 +5195,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Edit-Mode Smooth Wires",
                            "Enable Edit-Mode edge smoothing, reducing aliasing, requires restart");
-  RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
-
-  /* grease pencil anti-aliasing */
-  prop = RNA_def_property(srna, "gpencil_multi_sample", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, NULL, "gpencil_multisamples");
-  RNA_def_property_enum_items(prop, multi_sample_levels);
-  RNA_def_property_ui_text(
-      prop,
-      "Gpencil MultiSample",
-      "Enable Grease Pencil OpenGL multi-sampling, only for systems that support it");
   RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
 
   prop = RNA_def_property(srna, "use_region_overlap", PROP_BOOLEAN, PROP_NONE);

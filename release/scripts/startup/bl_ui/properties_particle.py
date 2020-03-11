@@ -136,13 +136,13 @@ class PARTICLE_UL_particle_systems(bpy.types.UIList):
             if md:
                 row.prop(
                     md,
-                    "show_viewport",
+                    "show_render",
                     emboss=False,
                     icon_only=True,
                 )
                 row.prop(
                     md,
-                    "show_render",
+                    "show_viewport",
                     emboss=False,
                     icon_only=True,
                 )
@@ -643,7 +643,7 @@ class PARTICLE_PT_rotation(ParticleButtonsPanel, Panel):
         col.separator()
 
         col.prop(part, "phase_factor", slider=True)
-        col.prop(part, "phase_factor_random", text="Randomize Phase ", slider=True)
+        col.prop(part, "phase_factor_random", text="Randomize Phase", slider=True)
 
         if part.type != 'HAIR':
             col.prop(part, "use_dynamic_rotation")

@@ -57,6 +57,7 @@
 #include "BLI_listbase.h"
 
 #include "BKE_action.h"
+#include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_brush.h"
 #include "BKE_camera.h"
@@ -119,8 +120,7 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
     BKE_lib_override_library_free(&id->override_library, do_id_user);
   }
 
-  /* XXX TODO remove animdata handling from each type's freeing func,
-   * and do it here, like for copy! */
+  BKE_animdata_free(id, do_id_user);
 }
 
 void BKE_libblock_free_datablock(ID *id, const int UNUSED(flag))
@@ -134,118 +134,7 @@ void BKE_libblock_free_datablock(ID *id, const int UNUSED(flag))
     return;
   }
 
-  const short type = GS(id->name);
-  switch (type) {
-    case ID_SCE:
-      BLI_assert(0);
-      break;
-    case ID_LI:
-      BLI_assert(0);
-      break;
-    case ID_OB:
-      BLI_assert(0);
-      break;
-    case ID_ME:
-      BLI_assert(0);
-      break;
-    case ID_CU:
-      BLI_assert(0);
-      break;
-    case ID_MB:
-      BLI_assert(0);
-      break;
-    case ID_MA:
-      BLI_assert(0);
-      break;
-    case ID_TE:
-      break;
-    case ID_IM:
-      BLI_assert(0);
-      break;
-    case ID_LT:
-      BLI_assert(0);
-      break;
-    case ID_LA:
-      BLI_assert(0);
-      break;
-    case ID_CA:
-      BLI_assert(0);
-      break;
-    case ID_IP: /* Deprecated. */
-      BKE_ipo_free((Ipo *)id);
-      break;
-    case ID_KE:
-      BLI_assert(0);
-      break;
-    case ID_WO:
-      BLI_assert(0);
-      break;
-    case ID_SCR:
-      BLI_assert(0);
-      break;
-    case ID_VF:
-      BLI_assert(0);
-      break;
-    case ID_TXT:
-      BLI_assert(0);
-      break;
-    case ID_SPK:
-      BLI_assert(0);
-      break;
-    case ID_LP:
-      BLI_assert(0);
-      break;
-    case ID_SO:
-      BLI_assert(0);
-      break;
-    case ID_GR:
-      BLI_assert(0);
-      break;
-    case ID_AR:
-      BLI_assert(0);
-      break;
-    case ID_AC:
-      BLI_assert(0);
-      break;
-    case ID_NT:
-      BLI_assert(0);
-      break;
-    case ID_BR:
-      BLI_assert(0);
-      break;
-    case ID_PA:
-      BKE_particlesettings_free((ParticleSettings *)id);
-      break;
-    case ID_WM:
-      if (free_windowmanager_cb) {
-        free_windowmanager_cb(NULL, (wmWindowManager *)id);
-      }
-      break;
-    case ID_GD:
-      BKE_gpencil_free((bGPdata *)id, true);
-      break;
-    case ID_MC:
-      BKE_movieclip_free((MovieClip *)id);
-      break;
-    case ID_MSK:
-      BKE_mask_free((Mask *)id);
-      break;
-    case ID_LS:
-      BKE_linestyle_free((FreestyleLineStyle *)id);
-      break;
-    case ID_PAL:
-      BKE_palette_free((Palette *)id);
-      break;
-    case ID_PC:
-      BKE_paint_curve_free((PaintCurve *)id);
-      break;
-    case ID_CF:
-      BKE_cachefile_free((CacheFile *)id);
-      break;
-    case ID_WS:
-      BKE_workspace_free((WorkSpace *)id);
-      break;
-  }
+  BLI_assert(!"IDType Missing IDTypeInfo");
 }
 
 /**

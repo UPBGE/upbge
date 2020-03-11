@@ -188,6 +188,22 @@ static void gpu_pbvh_batch_init(GPU_PBVH_Buffers *buffers, GPUPrimType prim)
 /** \name Mesh PBVH
  * \{ */
 
+/* Returns the Face Set random color for rendering in the overlay given its ID and a color seed. */
+static void face_set_overlay_color_get(const int face_set, const int seed, uchar *r_color)
+{
+  float rgba[4];
+  const float random_mod_hue = BLI_hash_int_01(abs(face_set) + seed);
+  const float random_mod_sat = BLI_hash_int_01(abs(face_set) + seed + 1);
+  const float random_mod_val = BLI_hash_int_01(abs(face_set) + seed + 2);
+  hsv_to_rgb(random_mod_hue,
+             0.45f + (random_mod_sat * 0.35f),
+             1.0f - (random_mod_val * 0.45f),
+             &rgba[0],
+             &rgba[1],
+             &rgba[2]);
+  rgba_float_to_uchar(r_color, rgba);
+}
+
 /* Threaded - do not call any functions that use OpenGL calls! */
 void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
                                   const MVert *mvert,
@@ -197,6 +213,7 @@ void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
                                   const MLoopCol *vcol,
                                   const int *sculpt_face_sets,
                                   const int face_sets_color_seed,
+                                  const int face_sets_color_default,
                                   const int (*face_vert_indices)[3],
                                   const int update_flags)
 {
@@ -251,14 +268,12 @@ void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
         for (uint i = 0; i < buffers->face_indices_len; i++) {
           if (show_face_sets) {
             const MLoopTri *lt = &buffers->looptri[buffers->face_indices[i]];
-            float rgba[4];
-            hsv_to_rgb(BLI_hash_int_01(abs(sculpt_face_sets[lt->poly]) + face_sets_color_seed),
-                       0.65f,
-                       1.0f,
-                       &rgba[0],
-                       &rgba[1],
-                       &rgba[2]);
-            rgba_float_to_uchar(face_set_color, rgba);
+            const int fset = abs(sculpt_face_sets[lt->poly]);
+
+            /* Skip for the default color Face Set to render it white. */
+            if (fset != face_sets_color_default) {
+              face_set_overlay_color_get(fset, face_sets_color_seed, face_set_color);
+            }
           }
           for (int j = 0; j < 3; j++) {
             const int vidx = face_vert_indices[i][j];
@@ -315,14 +330,11 @@ void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
 
           uchar face_set_color[4] = {UCHAR_MAX, UCHAR_MAX, UCHAR_MAX, UCHAR_MAX};
           if (show_face_sets) {
-            float rgba[4];
-            hsv_to_rgb(BLI_hash_int_01(abs(sculpt_face_sets[lt->poly]) + face_sets_color_seed),
-                       0.65f,
-                       1.0f,
-                       &rgba[0],
-                       &rgba[1],
-                       &rgba[2]);
-            rgba_float_to_uchar(face_set_color, rgba);
+            const int fset = abs(sculpt_face_sets[lt->poly]);
+            /* Skip for the default color Face Set to render it white. */
+            if (fset != face_sets_color_default) {
+              face_set_overlay_color_get(fset, face_sets_color_seed, face_set_color);
+            }
           }
 
           float fmask = 0.0f;
@@ -367,6 +379,15 @@ void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
   buffers->mvert = mvert;
 }
 
+static bool gpu_pbvh_is_looptri_visible(const MLoopTri *lt,
+                                        const MVert *mvert,
+                                        const MLoop *mloop,
+                                        const int *sculpt_face_sets)
+{
+  return (!paint_is_face_hidden(lt, mvert, mloop) && sculpt_face_sets &&
+          sculpt_face_sets[lt->poly] > 0);
+}
+
 /* Threaded - do not call any functions that use OpenGL calls! */
 GPU_PBVH_Buffers *GPU_pbvh_mesh_buffers_build(const int (*face_vert_indices)[3],
                                               const MPoly *mpoly,
@@ -392,8 +413,7 @@ GPU_PBVH_Buffers *GPU_pbvh_mesh_buffers_build(const int (*face_vert_indices)[3],
   /* Count the number of visible triangles */
   for (i = 0, tottri = 0; i < face_indices_len; i++) {
     const MLoopTri *lt = &looptri[face_indices[i]];
-    if (!paint_is_face_hidden(lt, mvert, mloop) && sculpt_face_sets &&
-        sculpt_face_sets[lt->poly] > 0) {
+    if (gpu_pbvh_is_looptri_visible(lt, mvert, mloop, sculpt_face_sets)) {
       int r_edges[3];
       BKE_mesh_looptri_get_real_edges(mesh, lt, r_edges);
       for (int j = 0; j < 3; j++) {
@@ -430,7 +450,7 @@ GPU_PBVH_Buffers *GPU_pbvh_mesh_buffers_build(const int (*face_vert_indices)[3],
       const MLoopTri *lt = &looptri[face_indices[i]];
 
       /* Skip hidden faces */
-      if (paint_is_face_hidden(lt, mvert, mloop)) {
+      if (!gpu_pbvh_is_looptri_visible(lt, mvert, mloop, sculpt_face_sets)) {
         continue;
       }
 
@@ -461,8 +481,7 @@ GPU_PBVH_Buffers *GPU_pbvh_mesh_buffers_build(const int (*face_vert_indices)[3],
       const MLoopTri *lt = &looptri[face_indices[i]];
 
       /* Skip hidden faces */
-      if (paint_is_face_hidden(lt, mvert, mloop) ||
-          (sculpt_face_sets && sculpt_face_sets[lt->poly] < 0)) {
+      if (!gpu_pbvh_is_looptri_visible(lt, mvert, mloop, sculpt_face_sets)) {
         continue;
       }
 
@@ -569,7 +588,7 @@ static void gpu_pbvh_grid_fill_index_buffers(
   }
   else {
     uint offset = 0;
-    const uint grid_vert_len = SQUARE(gridsize - 1) * 4;
+    const uint grid_vert_len = square_uint(gridsize - 1) * 4;
     for (int i = 0; i < totgrid; i++, offset += grid_vert_len) {
       bool grid_visible = false;
 
@@ -668,7 +687,7 @@ void GPU_pbvh_grid_buffers_update(GPU_PBVH_Buffers *buffers,
 
   buffers->smooth = grid_flag_mats[grid_indices[0]].flag & ME_SMOOTH;
 
-  uint vert_per_grid = (buffers->smooth) ? key->grid_area : (SQUARE(key->grid_size - 1) * 4);
+  uint vert_per_grid = (buffers->smooth) ? key->grid_area : (square_i(key->grid_size - 1) * 4);
   uint vert_count = totgrid * vert_per_grid;
 
   if (buffers->index_buf == NULL) {
@@ -784,7 +803,7 @@ void GPU_pbvh_grid_buffers_update(GPU_PBVH_Buffers *buffers,
             vbo_index += 4;
           }
         }
-        vbo_index_offset += SQUARE(key->grid_size - 1) * 4;
+        vbo_index_offset += square_i(key->grid_size - 1) * 4;
       }
     }
 

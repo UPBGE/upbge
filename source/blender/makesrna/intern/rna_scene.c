@@ -733,14 +733,8 @@ static void rna_GPencilInterpolateSettings_type_set(PointerRNA *ptr, int value)
   }
 }
 
-static void rna_Gpencil_selectmode_update(bContext *C, PointerRNA *ptr)
+static void rna_Gpencil_extend_selection(bContext *C, PointerRNA *UNUSED(ptr))
 {
-  ToolSettings *ts = (ToolSettings *)ptr->data;
-  /* If the mode is not Stroke, don't extend selection. */
-  if ((ts->gpencil_selectmode_edit & GP_SELECTMODE_STROKE) == 0) {
-    return;
-  }
-
   /* Extend selection to all points in all selected strokes. */
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Object *ob = OBACT(view_layer);
@@ -762,9 +756,18 @@ static void rna_Gpencil_selectmode_update(bContext *C, PointerRNA *ptr)
   }
 }
 
-static void rna_Gpencil_mask_point_update(Main *UNUSED(bmain),
-                                          Scene *UNUSED(scene),
-                                          PointerRNA *ptr)
+static void rna_Gpencil_selectmode_update(bContext *C, PointerRNA *ptr)
+{
+  ToolSettings *ts = (ToolSettings *)ptr->data;
+  /* If the mode is not Stroke, don't extend selection. */
+  if ((ts->gpencil_selectmode_edit & GP_SELECTMODE_STROKE) == 0) {
+    return;
+  }
+
+  rna_Gpencil_extend_selection(C, ptr);
+}
+
+static void rna_Gpencil_mask_point_update(bContext *UNUSED(C), PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
@@ -772,24 +775,54 @@ static void rna_Gpencil_mask_point_update(Main *UNUSED(bmain),
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_SEGMENT;
 }
 
-static void rna_Gpencil_mask_stroke_update(Main *UNUSED(bmain),
-                                           Scene *UNUSED(scene),
-                                           PointerRNA *ptr)
+static void rna_Gpencil_mask_stroke_update(bContext *C, PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_SEGMENT;
+
+  rna_Gpencil_extend_selection(C, ptr);
 }
 
-static void rna_Gpencil_mask_segment_update(Main *UNUSED(bmain),
-                                            Scene *UNUSED(scene),
-                                            PointerRNA *ptr)
+static void rna_Gpencil_mask_segment_update(bContext *UNUSED(C), PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_STROKE;
+}
+
+static void rna_Gpencil_vertex_mask_point_update(bContext *C, PointerRNA *ptr)
+{
+  ToolSettings *ts = (ToolSettings *)ptr->data;
+
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_STROKE;
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_SEGMENT;
+
+  ED_gpencil_tag_scene_gpencil(CTX_data_scene(C));
+}
+
+static void rna_Gpencil_vertex_mask_stroke_update(bContext *C, PointerRNA *ptr)
+{
+  ToolSettings *ts = (ToolSettings *)ptr->data;
+
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_POINT;
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_SEGMENT;
+
+  rna_Gpencil_extend_selection(C, ptr);
+
+  ED_gpencil_tag_scene_gpencil(CTX_data_scene(C));
+}
+
+static void rna_Gpencil_vertex_mask_segment_update(bContext *C, PointerRNA *ptr)
+{
+  ToolSettings *ts = (ToolSettings *)ptr->data;
+
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_POINT;
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_STROKE;
+
+  ED_gpencil_tag_scene_gpencil(CTX_data_scene(C));
 }
 
 /* Read-only Iterator of all the scene objects. */
@@ -2894,6 +2927,18 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, NULL, "gp_paint");
   RNA_def_property_ui_text(prop, "Grease Pencil Paint", "");
 
+  prop = RNA_def_property(srna, "gpencil_vertex_paint", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "gp_vertexpaint");
+  RNA_def_property_ui_text(prop, "Grease Pencil Vertex Paint", "");
+
+  prop = RNA_def_property(srna, "gpencil_sculpt_paint", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "gp_sculptpaint");
+  RNA_def_property_ui_text(prop, "Grease Pencil Sculpt Paint", "");
+
+  prop = RNA_def_property(srna, "gpencil_weight_paint", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "gp_weightpaint");
+  RNA_def_property_ui_text(prop, "Grease Pencil Weight Paint", "");
+
   prop = RNA_def_property(srna, "particle_edit", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "particle");
   RNA_def_property_ui_text(prop, "Particle Edit", "");
@@ -3211,6 +3256,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Selection Mask", "Only sculpt selected stroke points");
   RNA_def_property_ui_icon(prop, ICON_GP_SELECT_POINTS, 0);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_mask_point_update");
 
   prop = RNA_def_property(srna, "use_gpencil_select_mask_stroke", PROP_BOOLEAN, PROP_NONE);
@@ -3219,6 +3265,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Selection Mask", "Only sculpt selected stroke");
   RNA_def_property_ui_icon(prop, ICON_GP_SELECT_STROKES, 0);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_mask_stroke_update");
 
   prop = RNA_def_property(srna, "use_gpencil_select_mask_segment", PROP_BOOLEAN, PROP_NONE);
@@ -3228,7 +3275,40 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       prop, "Selection Mask", "Only sculpt selected stroke points between other strokes");
   RNA_def_property_ui_icon(prop, ICON_GP_SELECT_BETWEEN_STROKES, 0);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_mask_segment_update");
+
+  /* Grease Pencil - Select mode Vertex Paint */
+  prop = RNA_def_property(srna, "use_gpencil_vertex_select_mask_point", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, NULL, "gpencil_selectmode_vertex", GP_VERTEX_MASK_SELECTMODE_POINT);
+  RNA_def_property_ui_text(prop, "Selection Mask", "Only paint selected stroke points");
+  RNA_def_property_ui_icon(prop, ICON_GP_SELECT_POINTS, 0);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_vertex_mask_point_update");
+
+  prop = RNA_def_property(srna, "use_gpencil_vertex_select_mask_stroke", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, NULL, "gpencil_selectmode_vertex", GP_VERTEX_MASK_SELECTMODE_STROKE);
+  RNA_def_property_ui_text(prop, "Selection Mask", "Only paint selected stroke");
+  RNA_def_property_ui_icon(prop, ICON_GP_SELECT_STROKES, 0);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_vertex_mask_stroke_update");
+
+  prop = RNA_def_property(srna, "use_gpencil_vertex_select_mask_segment", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, NULL, "gpencil_selectmode_vertex", GP_VERTEX_MASK_SELECTMODE_SEGMENT);
+  RNA_def_property_ui_text(
+      prop, "Selection Mask", "Only paint selected stroke points between other strokes");
+  RNA_def_property_ui_icon(prop, ICON_GP_SELECT_BETWEEN_STROKES, 0);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_vertex_mask_segment_update");
 
   /* Annotations - 2D Views Stroke Placement */
   prop = RNA_def_property(srna, "annotation_stroke_placement_view2d", PROP_ENUM, PROP_NONE);
@@ -6265,14 +6345,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Resolution %", "Percentage scale for render resolution");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_SceneSequencer_update");
 
-  prop = RNA_def_property(srna, "tile_x", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "tile_x", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, NULL, "tilex");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 8, 65536);
   RNA_def_property_ui_text(prop, "Tile X", "Horizontal tile size to use while rendering");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-  prop = RNA_def_property(srna, "tile_y", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "tile_y", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, NULL, "tiley");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 8, 65536);
@@ -6921,7 +7001,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "simplify_gpencil_onplay", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_ON_PLAY);
   RNA_def_property_ui_text(
-      prop, "Simplify Playback", "Simplify Grease Pencil only during animation playback");
+      prop, "Playback Only", "Simplify Grease Pencil only during animation playback");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+
+  prop = RNA_def_property(srna, "simplify_gpencil_antialiasing", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_AA);
+  RNA_def_property_ui_text(prop, "Antialiasing", "Use Antialiasing to smooth stroke edges");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_view_fill", PROP_BOOLEAN, PROP_NONE);
@@ -6929,26 +7014,15 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Fill", "Display fill strokes in the viewport");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
-  prop = RNA_def_property(srna, "simplify_gpencil_remove_lines", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(
-      prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_REMOVE_FILL_LINE);
-  RNA_def_property_ui_text(prop, "Disable Lines", "Display external lines of fill strokes");
-  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
-
-  prop = RNA_def_property(srna, "simplify_gpencil_view_modifier", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "simplify_gpencil_modifier", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(
       prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_MODIFIER);
-  RNA_def_property_ui_text(prop, "Disable Modifiers", "Display modifiers in the viewport");
+  RNA_def_property_ui_text(prop, "Modifiers", "Display modifiers");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_shader_fx", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_FX);
-  RNA_def_property_ui_text(prop, "Simplify Shaders", "Display Shader FX");
-  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
-
-  prop = RNA_def_property(srna, "simplify_gpencil_blend", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_BLEND);
-  RNA_def_property_ui_text(prop, "Layers Blending", "Display blend layers");
+  RNA_def_property_ui_text(prop, "ShadersFX", "Display Shader FX");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_tint", PROP_BOOLEAN, PROP_NONE);
@@ -7261,29 +7335,29 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem eevee_shadow_size_items[] = {
-      {64, "64", 0, "64px", ""},
-      {128, "128", 0, "128px", ""},
-      {256, "256", 0, "256px", ""},
-      {512, "512", 0, "512px", ""},
-      {1024, "1024", 0, "1024px", ""},
-      {2048, "2048", 0, "2048px", ""},
-      {4096, "4096", 0, "4096px", ""},
+      {64, "64", 0, "64 px", ""},
+      {128, "128", 0, "128 px", ""},
+      {256, "256", 0, "256 px", ""},
+      {512, "512", 0, "512 px", ""},
+      {1024, "1024", 0, "1024 px", ""},
+      {2048, "2048", 0, "2048 px", ""},
+      {4096, "4096", 0, "4096 px", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
   static const EnumPropertyItem eevee_gi_visibility_size_items[] = {
-      {8, "8", 0, "8px", ""},
-      {16, "16", 0, "16px", ""},
-      {32, "32", 0, "32px", ""},
-      {64, "64", 0, "64px", ""},
+      {8, "8", 0, "8 px", ""},
+      {16, "16", 0, "16 px", ""},
+      {32, "32", 0, "32 px", ""},
+      {64, "64", 0, "64 px", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
   static const EnumPropertyItem eevee_volumetric_tile_size_items[] = {
-      {2, "2", 0, "2px", ""},
-      {4, "4", 0, "4px", ""},
-      {8, "8", 0, "8px", ""},
-      {16, "16", 0, "16px", ""},
+      {2, "2", 0, "2 px", ""},
+      {4, "4", 0, "4 px", ""},
+      {8, "8", 0, "8 px", ""},
+      {16, "16", 0, "16 px", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
