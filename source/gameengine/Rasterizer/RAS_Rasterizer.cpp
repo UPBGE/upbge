@@ -38,9 +38,6 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 #include "RAS_Polygon.h"
-#include "RAS_ILightObject.h"
-
-#include "RAS_OpenGLLight.h"
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"

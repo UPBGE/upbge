@@ -36,7 +36,6 @@
 #include "KX_GameObject.h"
 #include "KX_Light.h"
 #include "RAS_MeshObject.h"
-#include "RAS_ILightObject.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_image_types.h"
@@ -328,8 +327,8 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
         tex->m_useMatTexture = true;
       }
       else if (lamp != nullptr) {
-        tex->m_imgTexture = lamp->GetLightData()->GetTextureImage(texID);
-        tex->m_useMatTexture = false;
+        //tex->m_imgTexture = lamp->GetLightData()->GetTextureImage(texID);
+        //tex->m_useMatTexture = false;
       }
 
       // check if texture is available, if not, initialization failed
