@@ -725,6 +725,19 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "size")
         col.prop(md, "spatial_size")
 
+        layout.separator()
+
+        layout.prop(md, "spectrum")
+
+        if md.spectrum in {'TEXEL_MARSEN_ARSLOE', 'JONSWAP'}:
+            split = layout.split()
+
+            col = split.column()
+            col.prop(md, "sharpen_peak_jonswap")
+
+            col = split.column()
+            col.prop(md, "fetch_jonswap")
+
         layout.label(text="Waves:")
 
         split = layout.split()
@@ -2028,13 +2041,22 @@ class DATA_PT_gpencil_modifiers(ModifierButtonsPanel, Panel):
         sub.prop(md, "frame_start", text="Start")
         sub.prop(md, "frame_end", text="End")
 
-        col = layout.column()
-        col.separator()
-        col.label(text="Layer:")
-        row = col.row(align=True)
+        layout.label(text="Influence Filters:")
+
+        split = layout.split(factor=0.25)
+
+        col1 = split.column()
+
+        col1.label(text="Layer:")
+
+        col2 = split.column()
+
+        split = col2.split(factor=0.6)
+        row = split.row(align=True)
         row.prop_search(md, "layer", gpd, "layers", text="", icon='GREASEPENCIL')
         row.prop(md, "invert_layers", text="", icon='ARROW_LEFTRIGHT')
-        row = layout.row(align=True)
+
+        row = split.row(align=True)
         row.prop(md, "layer_pass", text="Pass")
         row.prop(md, "invert_layer_pass", text="", icon='ARROW_LEFTRIGHT')
 
