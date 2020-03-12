@@ -2841,35 +2841,6 @@ void DRW_gpu_render_context_disable(void *UNUSED(re_gpu_context))
 #include "engines/eevee/eevee_lightcache.h"
 #include "engines/eevee/eevee_private.h"
 
-static void eevee_game_view_layer_data_free()
-{
-  EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
-
-  /* Lights */
-  MEM_SAFE_FREE(sldata->lights);
-  DRW_UBO_FREE_SAFE(sldata->light_ubo);
-  DRW_UBO_FREE_SAFE(sldata->shadow_ubo);
-  GPU_FRAMEBUFFER_FREE_SAFE(sldata->shadow_fb);
-  DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_pool);
-  DRW_TEXTURE_FREE_SAFE(sldata->shadow_cascade_pool);
-  for (int i = 0; i < 2; i++) {
-    MEM_SAFE_FREE(sldata->shcasters_buffers[i].bbox);
-    MEM_SAFE_FREE(sldata->shcasters_buffers[i].update);
-  }
-
-  if (sldata->fallback_lightcache) {
-    EEVEE_lightcache_free(sldata->fallback_lightcache);
-    sldata->fallback_lightcache = NULL;
-  }
-
-  /* Probes */
-  MEM_SAFE_FREE(sldata->probes);
-  DRW_UBO_FREE_SAFE(sldata->probe_ubo);
-  DRW_UBO_FREE_SAFE(sldata->grid_ubo);
-  DRW_UBO_FREE_SAFE(sldata->planar_ubo);
-  DRW_UBO_FREE_SAFE(sldata->common_ubo);
-}
-
 EEVEE_Data *EEVEE_engine_data_get(void)
 {
   EEVEE_Data *data = (EEVEE_Data *)drw_viewport_engine_data_ensure(&draw_engine_eevee_type);
@@ -2989,7 +2960,7 @@ void DRW_game_render_loop_end()
 {
   GPU_viewport_free(DST.viewport);
 
-  eevee_game_view_layer_data_free();
+  EEVEE_view_layer_data_free(EEVEE_view_layer_data_ensure());
   draw_engine_eevee_type.engine_free();
   draw_engine_gpencil_type.engine_free();
 
