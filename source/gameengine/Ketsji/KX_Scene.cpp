@@ -513,7 +513,10 @@ void KX_Scene::InitBlenderContextVariables()
                                         V3D_SHADING_SCENE_WORLD_RENDER);
                 }
 
-                /* empty */
+                /* The following line is needed to fix a crash
+                 * when restart/load new blend file in embedded.
+                 * Why? Don'tKnow
+                 */
                 WM_redraw_windows(C);
               }
               return;
