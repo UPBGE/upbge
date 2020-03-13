@@ -500,7 +500,8 @@ void KX_Scene::InitBlenderContextVariables()
               /* Only if we are not in viewport render, modify + backup shading types */
               if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
 
-                if (!KX_GetActiveEngine()->GetCanvas()->GetARegion()) {
+                if (!KX_GetActiveEngine()->GetCanvas()->GetARegion() ||
+                   (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
 
                   View3D *v3d = CTX_wm_view3d(C);
 
