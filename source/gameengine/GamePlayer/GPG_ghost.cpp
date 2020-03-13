@@ -1261,16 +1261,15 @@ int main(int argc,
           // if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
           if (exitcode == KX_ExitRequest::START_OTHER_GAME ||
               exitcode == KX_ExitRequest::RESTART_GAME) {
+
+            /* This normally exits/close the GHOST_IWindow */
             BLO_blendfiledata_free(bfd);
+
             DRW_opengl_context_enable_ex(false);
             GPU_pass_cache_free();
             GPU_exit();
             DRW_opengl_context_disable_ex(false);
             DRW_opengl_context_destroy_blenderplayer();
-
-            if (window) {
-              system->disposeWindow(window);
-            }
 
             char basedpath[FILE_MAX];
 

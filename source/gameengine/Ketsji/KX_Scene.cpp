@@ -499,8 +499,6 @@ void KX_Scene::InitBlenderContextVariables()
 
               /* Only if we are not in viewport render, modify + backup shading types */
               if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
-                /* empty */
-                WM_redraw_windows(C);
 
                 if (!KX_GetActiveEngine()->GetCanvas()->GetARegion()) {
 
@@ -518,8 +516,10 @@ void KX_Scene::InitBlenderContextVariables()
                   }
                 }
 
-                return;
+                /* empty */
+                WM_redraw_windows(C);
               }
+              return;
             }
           }
         }
