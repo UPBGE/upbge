@@ -500,21 +500,17 @@ void KX_Scene::InitBlenderContextVariables()
               /* Only if we are not in viewport render, modify + backup shading types */
               if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
 
-                if (!KX_GetActiveEngine()->GetCanvas()->GetARegion() ||
-                   (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
+                View3D *v3d = CTX_wm_view3d(C);
 
-                  View3D *v3d = CTX_wm_view3d(C);
+                bool not_eevee = (v3d->shading.type != OB_RENDER) &&
+                                 (v3d->shading.type != OB_MATERIAL);
 
-                  bool not_eevee = (v3d->shading.type != OB_RENDER) &&
-                                   (v3d->shading.type != OB_MATERIAL);
-
-                  if (not_eevee) {
-                    m_shadingTypeBackup = v3d->shading.type;
-                    m_shadingFlagBackup = v3d->shading.flag;
-                    v3d->shading.type = OB_RENDER;
-                    v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER |
-                                          V3D_SHADING_SCENE_WORLD_RENDER);
-                  }
+                if (not_eevee) {
+                  m_shadingTypeBackup = v3d->shading.type;
+                  m_shadingFlagBackup = v3d->shading.flag;
+                  v3d->shading.type = OB_RENDER;
+                  v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER |
+                                        V3D_SHADING_SCENE_WORLD_RENDER);
                 }
 
                 /* empty */
