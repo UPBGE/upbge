@@ -98,16 +98,15 @@ void multiresModifier_del_levels(struct MultiresModifierData *mmd,
                                  struct Scene *scene,
                                  struct Object *object,
                                  int direction);
-void multiresModifier_base_apply(struct MultiresModifierData *mmd,
-                                 struct Scene *scene,
-                                 struct Object *ob);
-void multiresModifier_subdivide(struct MultiresModifierData *mmd,
-                                struct Scene *scene,
-                                struct Object *ob,
-                                int updateblock,
-                                int simple);
-void multiresModifier_sync_levels_ex(struct Scene *scene,
-                                     struct Object *ob_dst,
+void multiresModifier_base_apply(struct Depsgraph *depsgraph,
+                                 struct Object *object,
+                                 struct MultiresModifierData *mmd);
+void multiresModifier_subdivide_legacy(struct MultiresModifierData *mmd,
+                                       struct Scene *scene,
+                                       struct Object *ob,
+                                       int updateblock,
+                                       int simple);
+void multiresModifier_sync_levels_ex(struct Object *ob_dst,
                                      struct MultiresModifierData *mmd_src,
                                      struct MultiresModifierData *mmd_dst);
 
@@ -131,6 +130,10 @@ int multires_mdisp_corners(struct MDisps *s);
 /* update multires data after topology changing */
 void multires_topology_changed(struct Mesh *me);
 
+void multires_ensure_external_read(struct Mesh *mesh, int top_level);
+void multiresModifier_ensure_external_read(struct Mesh *mesh,
+                                           const struct MultiresModifierData *mmd);
+
 /**** interpolation stuff ****/
 void old_mdisps_bilinear(float out[3], float (*disps)[3], const int st, float u, float v);
 int mdisp_rot_face_to_crn(struct MVert *mvert,
@@ -145,17 +148,31 @@ int mdisp_rot_face_to_crn(struct MVert *mvert,
 
 /* Reshaping, define in multires_reshape.c */
 
+bool multiresModifier_reshapeFromVertcos(struct Depsgraph *depsgraph,
+                                         struct Object *object,
+                                         struct MultiresModifierData *mmd,
+                                         const float (*vert_coords)[3],
+                                         const int num_vert_coords);
 bool multiresModifier_reshapeFromObject(struct Depsgraph *depsgraph,
                                         struct MultiresModifierData *mmd,
                                         struct Object *dst,
                                         struct Object *src);
 bool multiresModifier_reshapeFromDeformModifier(struct Depsgraph *depsgraph,
-                                                struct MultiresModifierData *mmd,
                                                 struct Object *ob,
-                                                struct ModifierData *md);
+                                                struct MultiresModifierData *mmd,
+                                                struct ModifierData *deform_md);
 bool multiresModifier_reshapeFromCCG(const int tot_level,
                                      struct Mesh *coarse_mesh,
                                      struct SubdivCCG *subdiv_ccg);
+
+/* Subdivide multires displacement once. */
+void multiresModifier_subdivide(struct Object *object, struct MultiresModifierData *mmd);
+
+/* Subdivide displacement to the given level.
+ * If level is lower than the current top level nothing happens. */
+void multiresModifier_subdivide_to_level(struct Object *object,
+                                         struct MultiresModifierData *mmd,
+                                         const int top_level);
 
 /* Subdivision integration, defined in multires_subdiv.c */
 

@@ -76,7 +76,7 @@ void BL_Texture::CheckValidTexture()
    * gpu texture. In both cases we call GPU_texture_from_blender.
    */
   int target = m_isCubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
-  GPUTexture *tex = m_gpuMatTex->ima->gputexture[target];
+  GPUTexture *tex = m_gpuMatTex->ima->gputexture[target][0];
   if (m_gpuTex != tex) {
     // Restore gpu texture original bind cdoe to make sure we will delete the right opengl texture.
     GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);

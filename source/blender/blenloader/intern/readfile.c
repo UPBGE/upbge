@@ -1920,9 +1920,11 @@ void blo_make_image_pointer_map(FileData *fd, Main *oldmain)
     if (ima->cache) {
       oldnewmap_insert(fd->imamap, ima->cache, ima->cache, 0);
     }
-    for (a = 0; a < TEXTARGET_COUNT; a++) {
-      if (ima->gputexture[a] != NULL) {
-        oldnewmap_insert(fd->imamap, ima->gputexture[a], ima->gputexture[a], 0);
+    for (int eye = 0; eye < 2; eye++) {
+      for (a = 0; a < TEXTARGET_COUNT; a++) {
+        if (ima->gputexture[a][eye] != NULL) {
+          oldnewmap_insert(fd->imamap, ima->gputexture[a][eye], ima->gputexture[a][eye], 0);
+        }
       }
     }
     if (ima->rr) {
@@ -1966,8 +1968,10 @@ void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
     if (ima->cache == NULL) {
       ima->gpuflag = 0;
       ima->gpuframenr = INT_MAX;
-      for (i = 0; i < TEXTARGET_COUNT; i++) {
-        ima->gputexture[i] = NULL;
+      for (int eye = 0; eye < 2; eye++) {
+        for (i = 0; i < TEXTARGET_COUNT; i++) {
+          ima->gputexture[i][eye] = NULL;
+        }
       }
       ima->rr = NULL;
     }
@@ -1975,8 +1979,10 @@ void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
       slot->render = newimaadr(fd, slot->render);
     }
 
-    for (i = 0; i < TEXTARGET_COUNT; i++) {
-      ima->gputexture[i] = newimaadr(fd, ima->gputexture[i]);
+    for (int eye = 0; eye < 2; eye++) {
+      for (i = 0; i < TEXTARGET_COUNT; i++) {
+        ima->gputexture[i][eye] = newimaadr(fd, ima->gputexture[i][eye]);
+      }
     }
     ima->rr = newimaadr(fd, ima->rr);
   }
@@ -4169,14 +4175,18 @@ static void direct_link_image(FileData *fd, Image *ima)
   if (!ima->cache) {
     ima->gpuflag = 0;
     ima->gpuframenr = INT_MAX;
-    for (int i = 0; i < TEXTARGET_COUNT; i++) {
-      ima->gputexture[i] = NULL;
+    for (int eye = 0; eye < 2; eye++) {
+      for (int i = 0; i < TEXTARGET_COUNT; i++) {
+        ima->gputexture[i][eye] = NULL;
+      }
     }
     ima->rr = NULL;
   }
   else {
-    for (int i = 0; i < TEXTARGET_COUNT; i++) {
-      ima->gputexture[i] = newimaadr(fd, ima->gputexture[i]);
+    for (int eye = 0; eye < 2; eye++) {
+      for (int i = 0; i < TEXTARGET_COUNT; i++) {
+        ima->gputexture[i][eye] = newimaadr(fd, ima->gputexture[i][eye]);
+      }
     }
     ima->rr = newimaadr(fd, ima->rr);
   }
@@ -5931,8 +5941,8 @@ static void direct_link_gpencil_modifiers(FileData *fd, ListBase *lb)
         BKE_curvemapping_initialize(gpmd->curve_thickness);
       }
     }
-    else if (md->type == eGpencilModifierType_Vertexcolor) {
-      VertexcolorGpencilModifierData *gpmd = (VertexcolorGpencilModifierData *)md;
+    else if (md->type == eGpencilModifierType_Tint) {
+      TintGpencilModifierData *gpmd = (TintGpencilModifierData *)md;
       gpmd->colorband = newdataadr(fd, gpmd->colorband);
       gpmd->curve_intensity = newdataadr(fd, gpmd->curve_intensity);
       if (gpmd->curve_intensity) {
@@ -5950,14 +5960,6 @@ static void direct_link_gpencil_modifiers(FileData *fd, ListBase *lb)
     }
     else if (md->type == eGpencilModifierType_Color) {
       ColorGpencilModifierData *gpmd = (ColorGpencilModifierData *)md;
-      gpmd->curve_intensity = newdataadr(fd, gpmd->curve_intensity);
-      if (gpmd->curve_intensity) {
-        direct_link_curvemapping(fd, gpmd->curve_intensity);
-        BKE_curvemapping_initialize(gpmd->curve_intensity);
-      }
-    }
-    else if (md->type == eGpencilModifierType_Tint) {
-      TintGpencilModifierData *gpmd = (TintGpencilModifierData *)md;
       gpmd->curve_intensity = newdataadr(fd, gpmd->curve_intensity);
       if (gpmd->curve_intensity) {
         direct_link_curvemapping(fd, gpmd->curve_intensity);

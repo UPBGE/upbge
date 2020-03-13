@@ -55,7 +55,6 @@ static void initData(GpencilModifierData *md)
 {
   NoiseGpencilModifierData *gpmd = (NoiseGpencilModifierData *)md;
   gpmd->pass_index = 0;
-  gpmd->flag |= GP_NOISE_MOD_LOCATION;
   gpmd->flag |= GP_NOISE_FULL_STROKE;
   gpmd->flag |= GP_NOISE_USE_RANDOM;
   gpmd->factor = 0.5f;
@@ -182,7 +181,7 @@ static void deformStroke(GpencilModifierData *md,
   for (int i = 0; i < gps->totpoints; i++) {
     bGPDspoint *pt = &gps->points[i];
     /* verify vertex group */
-    dvert = &gps->dvert[i];
+    dvert = gps->dvert != NULL ? &gps->dvert[i] : NULL;
     float weight = get_modifier_point_weight(dvert, invert_group, def_nr);
     if (weight < 0.0f) {
       continue;

@@ -1068,8 +1068,8 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
           callback(gpmd->curve_intensity);
         }
       }
-      else if (md->type == eGpencilModifierType_Vertexcolor) {
-        VertexcolorGpencilModifierData *gpmd = (VertexcolorGpencilModifierData *)md;
+      else if (md->type == eGpencilModifierType_Tint) {
+        TintGpencilModifierData *gpmd = (TintGpencilModifierData *)md;
 
         if (gpmd->curve_intensity) {
           callback(gpmd->curve_intensity);
@@ -1091,13 +1091,6 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
       }
       else if (md->type == eGpencilModifierType_Opacity) {
         OpacityGpencilModifierData *gpmd = (OpacityGpencilModifierData *)md;
-
-        if (gpmd->curve_intensity) {
-          callback(gpmd->curve_intensity);
-        }
-      }
-      else if (md->type == eGpencilModifierType_Tint) {
-        TintGpencilModifierData *gpmd = (TintGpencilModifierData *)md;
 
         if (gpmd->curve_intensity) {
           callback(gpmd->curve_intensity);
@@ -4756,10 +4749,12 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
             }
             case eGpencilModifierType_Noise: {
               NoiseGpencilModifierData *mmd = (NoiseGpencilModifierData *)md;
-              mmd->factor /= 25.0f;
-              mmd->factor_thickness = mmd->factor;
-              mmd->factor_strength = mmd->factor;
-              mmd->factor_uvs = mmd->factor;
+              float factor = mmd->factor / 25.0f;
+              mmd->factor = (mmd->flag & GP_NOISE_MOD_LOCATION) ? factor : 0.0f;
+              mmd->factor_thickness = (mmd->flag & GP_NOISE_MOD_STRENGTH) ? factor : 0.0f;
+              mmd->factor_strength = (mmd->flag & GP_NOISE_MOD_THICKNESS) ? factor : 0.0f;
+              mmd->factor_uvs = (mmd->flag & GP_NOISE_MOD_UV) ? factor : 0.0f;
+
               mmd->noise_scale = (mmd->flag & GP_NOISE_FULL_STROKE) ? 0.0f : 1.0f;
 
               if (mmd->curve_intensity == NULL) {
@@ -4830,16 +4825,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
               if (mmd->flag & simple) {
                 mmd->flag &= ~simple;
                 mmd->type = GP_SUBDIV_SIMPLE;
-              }
-              break;
-            }
-            case eGpencilModifierType_Vertexcolor: {
-              VertexcolorGpencilModifierData *mmd = (VertexcolorGpencilModifierData *)md;
-              if (mmd->curve_intensity == NULL) {
-                mmd->curve_intensity = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-                if (mmd->curve_intensity) {
-                  BKE_curvemapping_initialize(mmd->curve_intensity);
-                }
               }
               break;
             }

@@ -56,7 +56,7 @@ class DATA_PT_shader_fx(ShaderFxButtonsPanel, Panel):
 
     def FX_BLUR(self, layout, fx):
 
-        layout.prop(fx, "use_dof_mode", text="Use as Depth Of Field")
+        layout.prop(fx, "use_dof_mode", text="Use Depth of Field")
         layout.separator()
 
         col = layout.column()
@@ -98,7 +98,7 @@ class DATA_PT_shader_fx(ShaderFxButtonsPanel, Panel):
 
         layout.prop(fx, "rim_color")
         layout.prop(fx, "mask_color")
-        layout.prop(fx, "mode")
+        layout.prop(fx, "mode", text="Blend")
         layout.prop(fx, "blur")
         layout.prop(fx, "samples")
 
@@ -114,7 +114,7 @@ class DATA_PT_shader_fx(ShaderFxButtonsPanel, Panel):
         layout.prop(fx, "samples")
 
         layout.separator()
-        layout.prop(fx, "use_object", text="Use Object As Pivot")
+        layout.prop(fx, "use_object", text="Use Object as Pivot")
         if fx.use_object:
             row = layout.row()
             row.prop(fx, "object", text="Object")
