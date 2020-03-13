@@ -1263,7 +1263,9 @@ int main(int argc,
               exitcode == KX_ExitRequest::RESTART_GAME) {
 
             /* This normally exits/close the GHOST_IWindow */
-            BLO_blendfiledata_free(bfd);
+            if (bfd) {
+              BLO_blendfiledata_free(bfd);
+            }
 
             DRW_opengl_context_enable_ex(false);
             GPU_pass_cache_free();
