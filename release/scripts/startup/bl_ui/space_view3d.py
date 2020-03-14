@@ -1902,6 +1902,9 @@ class VIEW3D_MT_select_gpencil(Menu):
         layout.operator("gpencil.select_alternate")
         layout.operator_menu_enum("gpencil.select_grouped", "type", text="Grouped")
 
+        if _context.mode == 'VERTEX_GPENCIL':
+            layout.operator("gpencil.select_vertex_color", text="Vertex Color")
+
         layout.separator()
 
         layout.operator("gpencil.select_first")
@@ -6973,8 +6976,9 @@ class VIEW3D_PT_gpencil_draw_context_menu(Panel):
         gp_settings = brush.gpencil_settings
 
         layout = self.layout
+        is_vertex = settings.color_mode == 'VERTEXCOLOR' or brush.gpencil_tool == 'TINT'
 
-        if brush.gpencil_tool not in {'ERASE', 'CUTTER', 'EYEDROPPER'} and settings.color_mode == 'VERTEXCOLOR':
+        if brush.gpencil_tool not in {'ERASE', 'CUTTER', 'EYEDROPPER'} and is_vertex:
             split = layout.split(factor=0.1)
             split.prop(brush, "color", text="")
             split.template_color_picker(brush, "color", value_slider=True)

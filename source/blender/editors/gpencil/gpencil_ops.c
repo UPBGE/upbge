@@ -544,7 +544,7 @@ void ED_operatortypes_gpencil(void)
   WM_operatortype_append(GPENCIL_OT_select_first);
   WM_operatortype_append(GPENCIL_OT_select_last);
   WM_operatortype_append(GPENCIL_OT_select_alternate);
-  WM_operatortype_append(GPENCIL_OT_select_color);
+  WM_operatortype_append(GPENCIL_OT_select_vertex_color);
 
   WM_operatortype_append(GPENCIL_OT_duplicate);
   WM_operatortype_append(GPENCIL_OT_delete);
@@ -653,7 +653,7 @@ void ED_operatortypes_gpencil(void)
   WM_operatortype_append(GPENCIL_OT_color_reveal);
   WM_operatortype_append(GPENCIL_OT_color_lock_all);
   WM_operatortype_append(GPENCIL_OT_color_unlock_all);
-  WM_operatortype_append(GPENCIL_OT_color_select);
+  WM_operatortype_append(GPENCIL_OT_select_material);
 
   /* Editing (Time) --------------- */
 
