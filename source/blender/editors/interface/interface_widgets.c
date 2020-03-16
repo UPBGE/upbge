@@ -5075,22 +5075,37 @@ static void ui_draw_popover_back_impl(const uiWidgetColors *wcol,
   if (ELEM(direction, UI_DIR_UP, UI_DIR_DOWN)) {
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-    immUniformColor4ubv(wcol->inner);
+
+    const bool is_down = (direction == UI_DIR_DOWN);
+    const int sign = is_down ? 1 : -1;
+    float y = is_down ? rect->ymax : rect->ymin;
+
     GPU_blend(true);
     immBegin(GPU_PRIM_TRIS, 3);
-    if (direction == UI_DIR_DOWN) {
-      const float y = rect->ymax;
-      immVertex2f(pos, cent_x - unit_half, y);
-      immVertex2f(pos, cent_x + unit_half, y);
-      immVertex2f(pos, cent_x, y + unit_half);
-    }
-    else {
-      const float y = rect->ymin;
-      immVertex2f(pos, cent_x - unit_half, y);
-      immVertex2f(pos, cent_x + unit_half, y);
-      immVertex2f(pos, cent_x, y - unit_half);
-    }
+    immUniformColor4ub(UNPACK3(wcol->outline), 166);
+    immVertex2f(pos, cent_x - unit_half, y);
+    immVertex2f(pos, cent_x + unit_half, y);
+    immVertex2f(pos, cent_x, y + sign * unit_half);
     immEnd();
+
+    y = y - sign * round(U.pixelsize * 1.41);
+
+    GPU_blend(false);
+    immBegin(GPU_PRIM_TRIS, 3);
+    immUniformColor4ub(0, 0, 0, 0);
+    immVertex2f(pos, cent_x - unit_half, y);
+    immVertex2f(pos, cent_x + unit_half, y);
+    immVertex2f(pos, cent_x, y + sign * unit_half);
+    immEnd();
+
+    GPU_blend(true);
+    immBegin(GPU_PRIM_TRIS, 3);
+    immUniformColor4ubv(wcol->inner);
+    immVertex2f(pos, cent_x - unit_half, y);
+    immVertex2f(pos, cent_x + unit_half, y);
+    immVertex2f(pos, cent_x, y + sign * unit_half);
+    immEnd();
+
     immUnbindProgram();
   }
 
@@ -5320,7 +5335,7 @@ void ui_draw_widget_menu_back(const rcti *rect, bool use_shadow)
   ui_draw_widget_back_color(UI_WTYPE_MENU_BACK, use_shadow, rect, NULL);
 }
 
-void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *UNUSED(block), rcti *rect)
+void ui_draw_tooltip_background(const uiStyle *UNUSED(style), uiBlock *UNUSED(block), rcti *rect)
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_TOOLTIP);
   wt->state(wt, 0, 0);

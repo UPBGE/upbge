@@ -705,8 +705,7 @@ static void bb_allocateData(FluidObjectBB *bb, bool use_velocity, bool use_influ
   }
 
   bb->distances = MEM_malloc_arrayN(bb->total_cells, sizeof(float), "fluid_bb_distances");
-  /* Initialize to infinity. */
-  memset(bb->distances, 0x7f7f7f7f, sizeof(float) * bb->total_cells);
+  copy_vn_fl(bb->distances, bb->total_cells, FLT_MAX);
 
   bb->valid = true;
 }
@@ -3272,12 +3271,12 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *mds, Mesh *orgmesh, Obj
   }
 
   me = BKE_mesh_new_nomain(num_verts, 0, 0, num_faces * 3, num_faces);
-  mverts = me->mvert;
-  mpolys = me->mpoly;
-  mloops = me->mloop;
   if (!me) {
     return NULL;
   }
+  mverts = me->mvert;
+  mpolys = me->mpoly;
+  mloops = me->mloop;
 
   /* Get size (dimension) but considering scaling scaling. */
   copy_v3_v3(cell_size_scaled, mds->cell_size);
@@ -3742,10 +3741,9 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
   baking_mesh = mds->cache_flag & FLUID_DOMAIN_BAKING_MESH;
   baking_particles = mds->cache_flag & FLUID_DOMAIN_BAKING_PARTICLES;
   baking_guide = mds->cache_flag & FLUID_DOMAIN_BAKING_GUIDE;
-  bake_outdated = mds->cache_flag &
-                  (FLUID_DOMAIN_OUTDATED_DATA | FLUID_DOMAIN_OUTDATED_NOISE |
-                   FLUID_DOMAIN_OUTDATED_NOISE | FLUID_DOMAIN_OUTDATED_MESH |
-                   FLUID_DOMAIN_OUTDATED_PARTICLES | FLUID_DOMAIN_OUTDATED_GUIDE);
+  bake_outdated = mds->cache_flag & (FLUID_DOMAIN_OUTDATED_DATA | FLUID_DOMAIN_OUTDATED_NOISE |
+                                     FLUID_DOMAIN_OUTDATED_MESH | FLUID_DOMAIN_OUTDATED_PARTICLES |
+                                     FLUID_DOMAIN_OUTDATED_GUIDE);
 
   bool resume_data, resume_noise, resume_mesh, resume_particles, resume_guide;
   resume_data = (!is_startframe) && (mds->cache_frame_pause_data == scene_framenr);
@@ -4896,7 +4894,6 @@ void BKE_fluid_modifier_create_type_data(struct FluidModifierData *mmd)
 
     mmd->flow->type = FLUID_FLOW_TYPE_SMOKE;
     mmd->flow->behavior = FLUID_FLOW_BEHAVIOR_GEOMETRY;
-    mmd->flow->type = FLUID_FLOW_TYPE_SMOKE;
     mmd->flow->flags = FLUID_FLOW_ABSOLUTE | FLUID_FLOW_USE_PART_SIZE | FLUID_FLOW_USE_INFLOW;
   }
   else if (mmd->type & MOD_FLUID_TYPE_EFFEC) {

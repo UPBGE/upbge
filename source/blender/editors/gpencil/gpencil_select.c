@@ -1661,7 +1661,7 @@ static void gpencil_selected_hue_table(bContext *C,
                                        const int threshold,
                                        GHash *hue_table)
 {
-  const float range = pow(10, 7 - threshold);
+  const float range = pow(10, 5 - threshold);
   float hsv[3];
 
   /* Extract all colors. */
@@ -1727,10 +1727,9 @@ static int gpencil_select_vertex_color_exec(bContext *C, wmOperator *op)
   Object *ob = CTX_data_active_object(C);
 
   const float threshold = RNA_int_get(op->ptr, "threshold");
-  const bool keep = RNA_boolean_get(op->ptr, "keep");
   const int selectmode = gpencil_select_mode_from_vertex(ts->gpencil_selectmode_vertex);
   bGPdata *gpd = (bGPdata *)ob->data;
-  const float range = pow(10, 7 - threshold);
+  const float range = pow(10, 5 - threshold);
 
   bool done = false;
 
@@ -1749,18 +1748,8 @@ static int gpencil_select_vertex_color_exec(bContext *C, wmOperator *op)
     bGPDspoint *pt;
     int i;
     bool gps_selected = false;
-    /* If clear unselect stroke. */
-    if (!keep) {
-      gps->flag &= ~GP_STROKE_SELECT;
-    }
-
     /* Check all stroke points. */
     for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-      /* Clear any previous point selected. */
-      if (!keep) {
-        pt->flag &= ~GP_SPOINT_SELECT;
-      }
-
       if (pt->vert_color[3] == 0.0f) {
         continue;
       }
@@ -1784,7 +1773,6 @@ static int gpencil_select_vertex_color_exec(bContext *C, wmOperator *op)
       /* Extend stroke selection. */
       if (selectmode == GP_SELECTMODE_STROKE) {
         bGPDspoint *pt1 = NULL;
-        int i;
 
         for (i = 0, pt1 = gps->points; i < gps->totpoints; i++, pt1++) {
           pt1->flag |= GP_SPOINT_SELECT;
@@ -1830,20 +1818,17 @@ void GPENCIL_OT_select_vertex_color(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  prop = RNA_def_int(ot->srna,
-                     "threshold",
-                     0,
-                     0,
-                     6,
-                     "Threshold",
-                     "Tolerance of the selection. Higher values select a wider range of similar colors",
-                     0,
-                     6);
+  prop = RNA_def_int(
+      ot->srna,
+      "threshold",
+      0,
+      0,
+      5,
+      "Threshold",
+      "Tolerance of the selection. Higher values select a wider range of similar colors",
+      0,
+      5);
   /* avoid re-using last var */
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-
-  prop = RNA_def_boolean(
-      ot->srna, "keep", true, "Keep Previous Selection", "Keep any previous selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
