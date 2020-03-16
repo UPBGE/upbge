@@ -2693,6 +2693,7 @@ void DRW_engines_free(void)
 
   if (DST.draw_list) {
     GPU_draw_list_discard(DST.draw_list);
+    DST.draw_list = NULL;
   }
 
   DRW_opengl_context_disable();
@@ -2961,8 +2962,7 @@ void DRW_game_render_loop_end()
   GPU_viewport_free(DST.viewport);
 
   EEVEE_view_layer_data_free(EEVEE_view_layer_data_ensure());
-  draw_engine_eevee_type.engine_free();
-  draw_engine_gpencil_type.engine_free();
+  DRW_engines_free();
 
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
@@ -2982,6 +2982,21 @@ void DRW_opengl_context_create_blenderplayer(void *syshandle)
   GPU_state_init();
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
+}
+
+void DRW_opengl_context_destroy_blenderplayer(void)
+{
+  BLI_assert(BLI_thread_is_main());
+  if (DST.gl_context != NULL) {
+    WM_opengl_context_activate(DST.gl_context);
+    GPU_context_active_set(DST.gpu_context);
+    GPU_context_discard(DST.gpu_context);
+    WM_opengl_context_dispose(DST.gl_context);
+    BLI_ticket_mutex_free(DST.gl_context_mutex);
+    DST.gl_context = NULL;
+    DST.gpu_context = NULL;
+    DST.gl_context_mutex = NULL;
+  }
 }
 
 /* Called instead of DRW_transform_to_display in eevee_engine

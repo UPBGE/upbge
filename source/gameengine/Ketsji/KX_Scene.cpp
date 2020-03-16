@@ -498,8 +498,7 @@ void KX_Scene::InitBlenderContextVariables()
               win->scene = scene;
 
               /* Only if we are not in viewport render, modify + backup shading types */
-              if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-                  !KX_GetActiveEngine()->GetCanvas()->GetARegion()) {
+              if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
 
                 View3D *v3d = CTX_wm_view3d(C);
 
@@ -513,8 +512,13 @@ void KX_Scene::InitBlenderContextVariables()
                   v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER |
                                         V3D_SHADING_SCENE_WORLD_RENDER);
                 }
-              }
 
+                /* The following line is needed to fix a crash
+                 * when restart/load new blend file in embedded.
+                 * Why? Don'tKnow
+                 */
+                WM_redraw_windows(C);
+              }
               return;
             }
           }
@@ -523,7 +527,6 @@ void KX_Scene::InitBlenderContextVariables()
     }
   }
 }
-
 Object *KX_Scene::GetGameDefaultCamera()
 {
   return m_gameDefaultCamera;

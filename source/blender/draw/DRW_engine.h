@@ -158,6 +158,7 @@ void DRW_drawdata_free(struct ID *id);
 
 /* Game engine transition */
 void DRW_opengl_context_create_blenderplayer(void *syshandle);
+void DRW_opengl_context_destroy_blenderplayer(void);
 /* End of Game engine transition */
 
 #ifdef __cplusplus

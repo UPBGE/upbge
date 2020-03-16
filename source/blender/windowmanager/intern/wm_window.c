@@ -2470,6 +2470,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm, wmWindow *w
   /* Set window as drawable upon creation. Note this has already been
    * it has already been activated by GHOST_CreateWindow. */
   win->ghostwin = ghostwin;
+  GHOST_SetWindowState(win->ghostwin, GHOST_GetWindowState(ghostwin));
   wm_window_set_drawable(wm, win, true);
   GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
   wm_window_ensure_eventstate(win);

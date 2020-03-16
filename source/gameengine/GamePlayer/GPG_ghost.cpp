@@ -1253,11 +1253,26 @@ int main(int argc,
         PyObject *globalDict = nullptr;
 #endif  // WITH_PYTHON
 
+        DRW_engines_register();
+
         do {
           // Read the Blender file
 
           // if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
-          if (exitcode == KX_ExitRequest::START_OTHER_GAME) {
+          if (exitcode == KX_ExitRequest::START_OTHER_GAME ||
+              exitcode == KX_ExitRequest::RESTART_GAME) {
+
+            /* This normally exits/close the GHOST_IWindow */
+            if (bfd) {
+              BLO_blendfiledata_free(bfd);
+            }
+
+            DRW_opengl_context_enable_ex(false);
+            GPU_pass_cache_free();
+            GPU_exit();
+            DRW_opengl_context_disable_ex(false);
+            DRW_opengl_context_destroy_blenderplayer();
+
             char basedpath[FILE_MAX];
 
             // base the actuator filename relative to the last file
@@ -1391,7 +1406,9 @@ int main(int argc,
               aasamples = scene->gm.aasamples;
 
             BLI_strncpy(pathname, maggie->name, sizeof(pathname));
-            if (firstTimeRunning) {
+            if (firstTimeRunning ||
+                exitcode == KX_ExitRequest::START_OTHER_GAME ||
+                exitcode == KX_ExitRequest::RESTART_GAME) {
               firstTimeRunning = false;
 
               if (fullScreen) {
@@ -1474,7 +1491,7 @@ int main(int argc,
                 }
               }
               /* wm context */
-              wmWindowManager *wm = (wmWindowManager *)CTX_data_main(C)->wm.first;
+              wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
               CTX_wm_manager_set(C, wm);
               wm->message_bus = WM_msgbus_create();
               WM_init_opengl_blenderplayer(G_MAIN, system);
@@ -1500,7 +1517,6 @@ int main(int argc,
             }
             launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
-            DRW_engines_register();
 
             launcher.InitEngine();
 
@@ -1524,8 +1540,6 @@ int main(int argc,
 #endif
             }
             launcher.ExitEngine();
-
-            DRW_engines_free();
           }
         } while (!quitGame(exitcode));
       }
@@ -1535,6 +1549,8 @@ int main(int argc,
       CM_Error("couldn't create a system.");
     }
   }
+
+  DRW_engines_free();
 
   /* refer to WM_exit_ext() and BKE_blender_free(),
    * these are not called in the player but we need to match some of there behavior here,
