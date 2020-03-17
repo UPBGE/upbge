@@ -80,6 +80,9 @@ static int paint_mask_extract_exec(bContext *C, wmOperator *op)
   View3D *v3d = CTX_wm_view3d(C);
   Scene *scene = CTX_data_scene(C);
 
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  ED_object_sculptmode_exit(C, depsgraph);
+
   BKE_sculpt_mask_layers_ensure(ob, NULL);
 
   Mesh *mesh = ob->data;
@@ -208,6 +211,11 @@ static int paint_mask_extract_exec(bContext *C, wmOperator *op)
   }
   Object *new_ob = ED_object_add_type(C, OB_MESH, NULL, ob->loc, ob->rot, false, local_view_bits);
   BKE_mesh_nomain_to_mesh(new_mesh, new_ob->data, new_ob, &CD_MASK_EVERYTHING, true);
+
+  /* Remove the Face Sets as they need to be recreated when entering Sculpt Mode in the new object.
+   * TODO(pablodobarro): In the future we can try to preserve them from the original mesh. */
+  Mesh *new_ob_mesh = new_ob->data;
+  CustomData_free_layers(&new_ob_mesh->pdata, CD_SCULPT_FACE_SETS, new_ob_mesh->totpoly);
 
   if (RNA_boolean_get(op->ptr, "apply_shrinkwrap")) {
     BKE_shrinkwrap_mesh_nearest_surface_deform(C, new_ob, ob);

@@ -708,7 +708,7 @@ void IDP_WriteProperty(const IDProperty *prop, void *wd)
   IDP_WriteProperty_OnlyData(prop, wd);
 }
 
-static void write_iddata(void *wd, const ID *id)
+static void write_iddata(WriteData *wd, ID *id)
 {
   /* ID_WM's id->properties are considered runtime only, and never written in .blend file. */
   if (id->properties && !ELEM(GS(id->name), ID_WM)) {
@@ -735,6 +735,11 @@ static void write_iddata(void *wd, const ID *id)
         }
       }
     }
+  }
+
+  /* Clear the accumulated recalc flags in case of undo step saving. */
+  if (wd->use_memfile) {
+    id->recalc_undo_accumulated = 0;
   }
 }
 
@@ -1135,6 +1140,11 @@ static void write_nodetree_nolib(WriteData *wd, bNodeTree *ntree)
   }
   for (sock = ntree->outputs.first; sock; sock = sock->next) {
     write_node_socket_interface(wd, sock);
+  }
+
+  /* Clear the accumulated recalc flags in case of undo step saving. */
+  if (wd->use_memfile) {
+    ntree->id.recalc_undo_accumulated = 0;
   }
 }
 
@@ -2641,6 +2651,11 @@ static void write_collection_nolib(WriteData *wd, Collection *collection)
 
   for (CollectionChild *child = collection->children.first; child; child = child->next) {
     writestruct(wd, DATA, CollectionChild, 1, child);
+  }
+
+  /* Clear the accumulated recalc flags in case of undo step saving. */
+  if (wd->use_memfile) {
+    collection->id.recalc_undo_accumulated = 0;
   }
 }
 
