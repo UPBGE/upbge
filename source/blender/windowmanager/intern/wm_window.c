@@ -1631,6 +1631,11 @@ void wm_window_process_events(const bContext *C)
     GHOST_DispatchEvents(g_system);
   }
   hasevent |= wm_window_timer(C);
+#ifdef WITH_XR_OPENXR
+  /* XR events don't use the regular window queues. So here we don't only trigger
+   * processing/dispatching but also handling. */
+  hasevent |= wm_xr_events_handle(CTX_wm_manager(C));
+#endif
 
   /* no event, we sleep 5 milliseconds */
   if (hasevent == 0) {
@@ -1957,6 +1962,9 @@ void wm_window_raise(wmWindow *win)
 /** \name Window Buffers
  * \{ */
 
+/**
+ * \brief Push rendered buffer to the screen.
+ */
 void wm_window_swap_buffers(wmWindow *win)
 {
   GHOST_SwapWindowBuffers(win->ghostwin);
@@ -2497,3 +2505,24 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm, wmWindow *w
 }
 /* End of Game engine transition */
 /** \} */
+
+#ifdef WIN32
+/* -------------------------------------------------------------------- */
+/** \name Direct DirectX Context Management
+ * \{ */
+
+void *WM_directx_context_create(void)
+{
+  BLI_assert(GPU_framebuffer_active_get() == NULL);
+  return GHOST_CreateDirectXContext(g_system);
+}
+
+void WM_directx_context_dispose(void *context)
+{
+  BLI_assert(GPU_framebuffer_active_get() == NULL);
+  GHOST_DisposeDirectXContext(g_system, context);
+}
+
+/** \} */
+
+#endif

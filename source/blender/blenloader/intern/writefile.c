@@ -3037,6 +3037,11 @@ static void write_gpencil(WriteData *wd, bGPdata *gpd)
   }
 }
 
+static void write_wm_xr_data(WriteData *wd, wmXrData *xr_data)
+{
+  write_view3dshading(wd, &xr_data->session_settings.shading);
+}
+
 static void write_region(WriteData *wd, ARegion *region, int spacetype)
 {
   writestruct(wd, DATA, ARegion, 1, region);
@@ -3286,6 +3291,7 @@ static void write_windowmanager(WriteData *wd, wmWindowManager *wm)
 {
   writestruct(wd, ID_WM, wmWindowManager, 1, wm);
   write_iddata(wd, &wm->id);
+  write_wm_xr_data(wd, &wm->xr);
 
   for (wmWindow *win = wm->windows.first; win; win = win->next) {
 #ifndef WITH_GLOBAL_AREA_WRITING
@@ -4248,6 +4254,12 @@ static bool write_file_handle(Main *mainvar,
 
         if (do_override) {
           BKE_lib_override_library_operations_store_end(override_storage, id);
+        }
+
+        if (wd->use_memfile) {
+          /* Very important to do it after every ID write now, otherwise we cannot know whether a
+           * specific ID changed or not. */
+          mywrite_flush(wd);
         }
       }
 

@@ -731,7 +731,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     float winmat[4][4];
     cam->GetProjectionMatrix().getValue(&winmat[0][0]);
     CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-    ED_view3d_draw_setup_view(CTX_wm_window(C),
+    ED_view3d_draw_setup_view(CTX_wm_manager(C),
+                              CTX_wm_window(C),
                               CTX_data_expect_evaluated_depsgraph(C),
                               CTX_data_scene(C),
                               CTX_wm_region(C),
@@ -820,7 +821,8 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
   CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-  ED_view3d_draw_setup_view(CTX_wm_window(C),
+  ED_view3d_draw_setup_view(CTX_wm_manager(C),
+                            CTX_wm_window(C),
                             CTX_data_expect_evaluated_depsgraph(C),
                             CTX_data_scene(C),
                             CTX_wm_region(C),

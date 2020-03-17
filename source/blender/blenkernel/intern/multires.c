@@ -271,15 +271,16 @@ static MDisps *multires_mdisps_initialize_hidden(Mesh *me, int level)
 }
 
 Mesh *BKE_multires_create_mesh(struct Depsgraph *depsgraph,
-                               Scene *scene,
-                               MultiresModifierData *mmd,
-                               Object *ob)
+                               Object *object,
+                               MultiresModifierData *mmd)
 {
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-  Mesh *deformed_mesh = mesh_get_eval_deform(depsgraph, scene, ob_eval, &CD_MASK_BAREMESH);
+  Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+  Mesh *deformed_mesh = mesh_get_eval_deform(
+      depsgraph, scene_eval, object_eval, &CD_MASK_BAREMESH);
   ModifierEvalContext modifier_ctx = {
       .depsgraph = depsgraph,
-      .object = ob_eval,
+      .object = object_eval,
       .flag = MOD_APPLY_USECACHE | MOD_APPLY_IGNORE_SIMPLIFY,
   };
 
@@ -290,6 +291,57 @@ Mesh *BKE_multires_create_mesh(struct Depsgraph *depsgraph,
     result = BKE_mesh_copy_for_eval(deformed_mesh, true);
   }
   return result;
+}
+
+float (*BKE_multires_create_deformed_base_mesh_vert_coords(struct Depsgraph *depsgraph,
+                                                           struct Object *object,
+                                                           struct MultiresModifierData *mmd,
+                                                           int *r_num_deformed_verts))[3]
+{
+  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+  Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+
+  Object object_for_eval = *object_eval;
+  object_for_eval.data = object->data;
+
+  const bool use_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
+  ModifierEvalContext mesh_eval_context = {depsgraph, &object_for_eval, 0};
+  if (use_render) {
+    mesh_eval_context.flag |= MOD_APPLY_RENDER;
+  }
+  const int required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
+
+  VirtualModifierData virtual_modifier_data;
+  ModifierData *first_md = modifiers_getVirtualModifierList(&object_for_eval,
+                                                            &virtual_modifier_data);
+
+  Mesh *base_mesh = object->data;
+
+  int num_deformed_verts;
+  float(*deformed_verts)[3] = BKE_mesh_vert_coords_alloc(base_mesh, &num_deformed_verts);
+
+  for (ModifierData *md = first_md; md != NULL; md = md->next) {
+    const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+
+    if (md == &mmd->modifier) {
+      break;
+    }
+
+    if (!modifier_isEnabled(scene_eval, md, required_mode)) {
+      continue;
+    }
+
+    if (mti->type != eModifierTypeType_OnlyDeform) {
+      break;
+    }
+
+    modwrap_deformVerts(md, &mesh_eval_context, base_mesh, deformed_verts, num_deformed_verts);
+  }
+
+  if (r_num_deformed_verts != NULL) {
+    *r_num_deformed_verts = num_deformed_verts;
+  }
+  return deformed_verts;
 }
 
 MultiresModifierData *find_multires_modifier_before(Scene *scene, ModifierData *lastmd)
