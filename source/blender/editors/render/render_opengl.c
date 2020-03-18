@@ -628,6 +628,9 @@ static int gather_frames_to_render_for_id(LibraryIDLinkCallbackData *cb_data)
     case ID_MC:  /* MovieClip */
     case ID_MSK: /* Mask */
     case ID_LP:  /* LightProbe */
+    case ID_HA:  /* Hair */
+    case ID_PT:  /* PointCloud */
+    case ID_VO:  /* Volume */
       break;
 
       /* Blacklist: */
@@ -1219,7 +1222,7 @@ static int screen_opengl_render_modal(bContext *C, wmOperator *op, const wmEvent
   bool ret;
 
   switch (event->type) {
-    case ESCKEY:
+    case EVT_ESCKEY:
       /* cancel */
       oglrender->pool_ok = false; /* Flag pool for cancel. */
       screen_opengl_render_end(C, op->customdata);

@@ -143,7 +143,7 @@ static void wm_xr_error_handler(const GHOST_XrError *error)
   WM_report(RPT_ERROR, error->user_message);
   WM_report_banner_show();
 
-  if (wm->xr.runtime->context) {
+  if (wm->xr.runtime) {
     /* Just play safe and destroy the entire runtime data, including context. */
     wm_xr_runtime_data_free(&wm->xr.runtime);
   }
@@ -746,10 +746,10 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   /* The draw-manager uses both GPUOffscreen and GPUViewport to manage frame and texture buffers. A
    * call to GPU_viewport_draw_to_screen() is still needed to get the final result from the
    * viewport buffers composited together and potentially color managed for display on screen.
-   * It needs a bound framebuffer to draw into, for which we simply reuse the GPUOffscreen one.
+   * It needs a bound frame-buffer to draw into, for which we simply reuse the GPUOffscreen one.
    *
-   * In a next step, Ghost-XR will use the the currently bound framebuffer to retrieve the image to
-   * be submitted to the OpenXR swapchain. So do not un-bind the offscreen yet! */
+   * In a next step, Ghost-XR will use the the currently bound frame-buffer to retrieve the image
+   * to be submitted to the OpenXR swap-chain. So do not un-bind the offscreen yet! */
 
   GPU_offscreen_bind(surface_data->offscreen, false);
 

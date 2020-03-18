@@ -4267,6 +4267,9 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_dynamicpaint.c", NULL, RNA_def_dynamic_paint},
     {"rna_fcurve.c", "rna_fcurve_api.c", RNA_def_fcurve},
     {"rna_gpencil.c", NULL, RNA_def_gpencil},
+#ifdef WITH_NEW_OBJECT_TYPES
+    {"rna_hair.c", NULL, RNA_def_hair},
+#endif
     {"rna_image.c", "rna_image_api.c", RNA_def_image},
     {"rna_key.c", NULL, RNA_def_key},
     {"rna_light.c", NULL, RNA_def_light},
@@ -4289,6 +4292,9 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_packedfile.c", NULL, RNA_def_packedfile},
     {"rna_palette.c", NULL, RNA_def_palette},
     {"rna_particle.c", NULL, RNA_def_particle},
+#ifdef WITH_NEW_OBJECT_TYPES
+    {"rna_pointcloud.c", NULL, RNA_def_pointcloud},
+#endif
     {"rna_pose.c", "rna_pose_api.c", RNA_def_pose},
     {"rna_property.c", NULL, RNA_def_gameproperty},
     {"rna_python_component.c", NULL, RNA_def_py_component},
@@ -4310,6 +4316,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_ui.c", "rna_ui_api.c", RNA_def_ui},
     {"rna_userdef.c", NULL, RNA_def_userdef},
     {"rna_vfont.c", "rna_vfont_api.c", RNA_def_vfont},
+    {"rna_volume.c", NULL, RNA_def_volume},
     {"rna_wm.c", "rna_wm_api.c", RNA_def_wm},
     {"rna_wm_gizmo.c", "rna_wm_gizmo_api.c", RNA_def_wm_gizmo},
     {"rna_workspace.c", "rna_workspace_api.c", RNA_def_workspace},

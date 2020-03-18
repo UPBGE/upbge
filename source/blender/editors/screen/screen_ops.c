@@ -1095,7 +1095,7 @@ static int actionzone_modal(bContext *C, wmOperator *op, const wmEvent *event)
       }
       break;
     }
-    case ESCKEY:
+    case EVT_ESCKEY:
       actionzone_exit(op);
       return OPERATOR_CANCELLED;
     case LEFTMOUSE:
@@ -1275,7 +1275,7 @@ static int area_swap_modal(bContext *C, wmOperator *op, const wmEvent *event)
       }
       break;
 
-    case ESCKEY:
+    case EVT_ESCKEY:
       area_swap_cancel(C, op);
       return OPERATOR_CANCELLED;
   }
@@ -2340,7 +2340,7 @@ static int area_split_modal(bContext *C, wmOperator *op, const wmEvent *event)
       break;
 
     case MIDDLEMOUSE:
-    case TABKEY:
+    case EVT_TABKEY:
       if (sd->previewmode == 0) {
         /* pass */
       }
@@ -2358,11 +2358,11 @@ static int area_split_modal(bContext *C, wmOperator *op, const wmEvent *event)
       break;
 
     case RIGHTMOUSE: /* cancel operation */
-    case ESCKEY:
+    case EVT_ESCKEY:
       area_split_cancel(C, op);
       return OPERATOR_CANCELLED;
 
-    case LEFTCTRLKEY:
+    case EVT_LEFTCTRLKEY:
       sd->do_snap = event->val == KM_PRESS;
       update_factor = true;
       break;
@@ -2762,7 +2762,7 @@ static int region_scale_modal(bContext *C, wmOperator *op, const wmEvent *event)
       }
       break;
 
-    case ESCKEY:
+    case EVT_ESCKEY:
       break;
   }
 
@@ -3478,7 +3478,7 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
       break;
 
     case RIGHTMOUSE:
-    case ESCKEY:
+    case EVT_ESCKEY:
       area_join_cancel(C, op);
       return OPERATOR_CANCELLED;
   }
