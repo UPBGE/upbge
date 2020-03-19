@@ -196,6 +196,7 @@ class KX_KetsjiEngine {
     tc_physics = 0,
     tc_logic,
     tc_animations,
+    tc_depsgraph,
     tc_network,
     tc_scenegraph,
     tc_rasterizer,
@@ -275,7 +276,12 @@ class KX_KetsjiEngine {
   KX_KetsjiEngine(KX_ISystem *system, struct bContext *C);
   virtual ~KX_KetsjiEngine();
 
+  /* EEVEE integration */
   struct bContext *GetContext();
+  // include depsgraph time in tc_depsgraph category
+  void CountDepsgraphTime();
+  void EndCountDepsgraphTime();
+  /* End of EEVEE integration */
 
   void EndFrame();
 

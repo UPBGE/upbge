@@ -134,6 +134,7 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
     "Physics:",     // tc_physics
     "Logic:",       // tc_logic
     "Animations:",  // tc_animations
+    "Depsgraph:",   // tc_depsgraph
     "Network:",     // tc_network
     "Scenegraph:",  // tc_scenegraph
     "Rasterizer:",  // tc_rasterizer
@@ -205,10 +206,25 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
   m_scenes->Release();
 }
 
+/* EEVEE integration */
 bContext *KX_KetsjiEngine::GetContext()
 {
   return m_context;
 }
+
+/* include Depsgraph update time in tc_depsgraph category
+ * (it can include part of animations time too I guess).
+ */
+void KX_KetsjiEngine::CountDepsgraphTime()
+{
+  m_logger.StartLog(tc_depsgraph, m_kxsystem->GetTimeInSeconds());
+}
+
+void KX_KetsjiEngine::EndCountDepsgraphTime()
+{
+  m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+}
+/* End of EEVEE integration */
 
 void KX_KetsjiEngine::SetInputDevice(SCA_IInputDevice *inputDevice)
 {
@@ -1414,8 +1430,7 @@ bool KX_KetsjiEngine::GetRender()
 void KX_KetsjiEngine::ProcessScheduledScenes(void)
 {
   // Check whether there will be changes to the list of scenes
-  if (m_replace_scenes.size() ||
-      m_removingScenes.size()) {
+  if (m_replace_scenes.size() || m_removingScenes.size()) {
 
     // Change the scene list
     ReplaceScheduledScenes();

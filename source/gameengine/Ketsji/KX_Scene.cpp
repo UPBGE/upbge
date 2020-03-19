@@ -663,6 +663,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
 
+  engine->CountDepsgraphTime();
+
   if (!depsgraph) {
     depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
   }
@@ -672,6 +674,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate(is_overlay_pass);
   }
+
+  engine->EndCountDepsgraphTime();
 
   bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
   m_resetTaaSamples = false;
