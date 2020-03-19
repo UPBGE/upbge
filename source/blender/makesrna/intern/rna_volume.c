@@ -44,8 +44,8 @@
 #  include "DEG_depsgraph.h"
 #  include "DEG_depsgraph_build.h"
 
-#  include "WM_types.h"
 #  include "WM_api.h"
+#  include "WM_types.h"
 
 /* Updates */
 
@@ -420,8 +420,8 @@ static void rna_def_volume_render(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "step_size", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_range(prop, 0.00001, FLT_MAX);
-  RNA_def_property_ui_range(prop, 0.001, 100.0, 1, 3);
+  RNA_def_property_range(prop, 0.0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0, 100.0, 1, 3);
   RNA_def_property_ui_text(prop,
                            "Step Size",
                            "Distance between volume samples. Higher values render more detail at "

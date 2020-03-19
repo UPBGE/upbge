@@ -22,11 +22,11 @@
 
 #include "BLI_math.h"
 
-#include "DNA_meshdata_types.h"
-#include "DNA_gpencil_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -138,6 +138,7 @@ static EnumPropertyItem rna_enum_gpencil_caps_modes_items[] = {
 #  include "BKE_action.h"
 #  include "BKE_animsys.h"
 #  include "BKE_gpencil.h"
+#  include "BKE_gpencil_geom.h"
 #  include "BKE_icons.h"
 
 #  include "DEG_depsgraph.h"

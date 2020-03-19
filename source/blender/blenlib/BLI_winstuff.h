@@ -33,8 +33,6 @@
 
 #include <windows.h>
 
-#undef near
-#undef far
 #undef rad
 #undef rad1
 #undef rad2
@@ -79,13 +77,6 @@ extern "C" {
 #endif
 
 typedef unsigned int mode_t;
-
-/* use functions that take a 64 bit offset for files larger than 4GB */
-#include <stdio.h>
-#define fseek(stream, offset, origin) _fseeki64(stream, offset, origin)
-#define ftell(stream) _ftelli64(stream)
-#define lseek(fd, offset, origin) _lseeki64(fd, offset, origin)
-#define tell(fd) _telli64(fd)
 
 #ifndef _SSIZE_T_
 #  define _SSIZE_T_

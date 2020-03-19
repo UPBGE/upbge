@@ -22,11 +22,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
-#include "BLI_kdopbvh.h"
-#include "BLI_memarena.h"
 #include "BLI_ghash.h"
+#include "BLI_kdopbvh.h"
 #include "BLI_listbase.h"
+#include "BLI_math.h"
+#include "BLI_memarena.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_armature_types.h"
@@ -38,23 +38,23 @@
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BKE_bvhutils.h"
-#include "BKE_armature.h"
-#include "BKE_curve.h"
-#include "BKE_object.h"
 #include "BKE_anim.h" /* for duplis */
+#include "BKE_armature.h"
+#include "BKE_bvhutils.h"
+#include "BKE_curve.h"
 #include "BKE_editmesh.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
-#include "BKE_tracking.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_runtime.h"
+#include "BKE_object.h"
+#include "BKE_tracking.h"
 
 #include "DEG_depsgraph_query.h"
 
+#include "ED_armature.h"
 #include "ED_transform_snap_object_context.h"
 #include "ED_view3d.h"
-#include "ED_armature.h"
 
 #include "ED_transform.h"
 
@@ -822,7 +822,7 @@ static bool raycastEditMesh(SnapObjectContext *sctx,
   if (treedata->tree == NULL) {
     /* Operators only update the editmesh looptris of the original mesh. */
     BLI_assert(sod->treedata_editmesh.em == BKE_editmesh_from_object(DEG_get_original_object(ob)));
-    BMEditMesh *em = sod->treedata_editmesh.em;
+    em = sod->treedata_editmesh.em;
 
     if (sctx->callbacks.edit_mesh.test_face_fn) {
       BMesh *bm = em->bm;
@@ -910,7 +910,7 @@ static bool raycastEditMesh(SnapObjectContext *sctx,
         retval = true;
 
         if (r_index) {
-          BMEditMesh *em = sod->treedata_editmesh.em;
+          em = sod->treedata_editmesh.em;
 
           *r_index = BM_elem_index_get(em->looptris[hit.index][0]->f);
         }

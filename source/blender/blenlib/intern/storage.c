@@ -23,9 +23,9 @@
  * Some really low-level file operations.
  */
 
-#include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include <sys/stat.h>
 
@@ -38,8 +38,8 @@
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || \
     defined(__DragonFly__)
 /* For statfs */
-#  include <sys/param.h>
 #  include <sys/mount.h>
+#  include <sys/param.h>
 #endif
 
 #if defined(__linux__) || defined(__hpux) || defined(__GNU__) || defined(__GLIBC__)
@@ -50,26 +50,26 @@
 #include <string.h> /* strcpy etc.. */
 
 #ifdef WIN32
-#  include <io.h>
-#  include <direct.h>
-#  include <stdbool.h>
-#  include "BLI_winstuff.h"
 #  include "BLI_string_utf8.h"
+#  include "BLI_winstuff.h"
 #  include "utfconv.h"
+#  include <direct.h>
+#  include <io.h>
+#  include <stdbool.h>
 #else
+#  include <pwd.h>
 #  include <sys/ioctl.h>
 #  include <unistd.h>
-#  include <pwd.h>
 #endif
 
 /* lib includes */
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
-#include "BLI_linklist.h"
-#include "BLI_string.h"
 #include "BLI_fileops.h"
+#include "BLI_linklist.h"
 #include "BLI_path_util.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 /**
  * Copies the current working directory into *dir (max size maxncpy), and
@@ -172,6 +172,33 @@ double BLI_dir_free_space(const char *dir)
 #  endif
 
   return (((double)disk.f_bsize) * ((double)disk.f_bfree));
+#endif
+}
+
+int64_t BLI_ftell(FILE *stream)
+{
+#ifdef WIN32
+  return _ftelli64(stream);
+#else
+  return ftell(stream);
+#endif
+}
+
+int BLI_fseek(FILE *stream, int64_t offset, int whence)
+{
+#ifdef WIN32
+  return _fseeki64(stream, offset, whence);
+#else
+  return fseek(stream, offset, whence);
+#endif
+}
+
+int64_t BLI_lseek(int fd, int64_t offset, int whence)
+{
+#ifdef WIN32
+  return _lseeki64(fd, offset, whence);
+#else
+  return lseek(fd, offset, whence);
 #endif
 }
 
@@ -383,15 +410,15 @@ static void *file_read_data_as_mem_impl(FILE *fp,
   if (S_ISDIR(st.st_mode)) {
     return NULL;
   }
-  if (fseek(fp, 0L, SEEK_END) == -1) {
+  if (BLI_fseek(fp, 0L, SEEK_END) == -1) {
     return NULL;
   }
   /* Don't use the 'st_size' because it may be the symlink. */
-  const long int filelen = ftell(fp);
+  const long int filelen = BLI_ftell(fp);
   if (filelen == -1) {
     return NULL;
   }
-  if (fseek(fp, 0L, SEEK_SET) == -1) {
+  if (BLI_fseek(fp, 0L, SEEK_SET) == -1) {
     return NULL;
   }
 
@@ -519,9 +546,9 @@ LinkNode *BLI_file_read_as_lines(const char *name)
     return NULL;
   }
 
-  fseek(fp, 0, SEEK_END);
-  size = (size_t)ftell(fp);
-  fseek(fp, 0, SEEK_SET);
+  BLI_fseek(fp, 0, SEEK_END);
+  size = (size_t)BLI_ftell(fp);
+  BLI_fseek(fp, 0, SEEK_SET);
 
   if (UNLIKELY(size == (size_t)-1)) {
     fclose(fp);

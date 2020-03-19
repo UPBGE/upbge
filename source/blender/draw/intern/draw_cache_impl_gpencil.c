@@ -27,17 +27,18 @@
 
 #include "BKE_deform.h"
 #include "BKE_gpencil.h"
+#include "BKE_gpencil_geom.h"
 
 #include "DRW_engine.h"
 #include "DRW_render.h"
 
-#include "GPU_batch.h"
 #include "ED_gpencil.h"
+#include "GPU_batch.h"
 
 #include "DEG_depsgraph_query.h"
 
-#include "BLI_polyfill_2d.h"
 #include "BLI_hash.h"
+#include "BLI_polyfill_2d.h"
 
 #include "draw_cache.h"
 #include "draw_cache_impl.h"

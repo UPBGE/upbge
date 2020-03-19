@@ -16,8 +16,8 @@
 
 #include "render/background.h"
 #include "device/device.h"
-#include "render/integrator.h"
 #include "render/graph.h"
+#include "render/integrator.h"
 #include "render/nodes.h"
 #include "render/scene.h"
 #include "render/shader.h"
@@ -53,6 +53,7 @@ NODE_DEFINE(Background)
 Background::Background() : Node(node_type)
 {
   need_update = true;
+  shader = NULL;
 }
 
 Background::~Background()

@@ -25,31 +25,31 @@
 
 #include "BLT_translation.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_string_utils.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
 #include "DNA_object_force_types.h"
+#include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_action.h"
 #include "BKE_deform.h"
 #include "BKE_editmesh.h"
-#include "BKE_object_deform.h" /* own include */
-#include "BKE_object.h"
+#include "BKE_gpencil.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
-#include "BKE_gpencil.h"
+#include "BKE_object.h"
+#include "BKE_object_deform.h" /* own include */
 
 /** \name Misc helpers
  * \{ */
@@ -706,9 +706,9 @@ bool BKE_object_defgroup_check_lock_relative(const bool *lock_flags,
 }
 
 /**
- * Additional check for whether the lock relative mode is applicable in multipaint mode.
+ * Additional check for whether the lock relative mode is applicable in multi-paint mode.
  *
- * @return true if none of the selected groups are locked.
+ * \return true if none of the selected groups are locked.
  */
 bool BKE_object_defgroup_check_lock_relative_multi(int defbase_tot,
                                                    const bool *lock_flags,

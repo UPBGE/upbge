@@ -31,8 +31,8 @@ struct GPUTexture;
 struct GPUViewport;
 
 typedef struct wmDrawBuffer {
-  struct GPUOffScreen *offscreen[2];
-  struct GPUViewport *viewport[2];
+  struct GPUOffScreen *offscreen;
+  struct GPUViewport *viewport;
   bool stereo;
   int bound_view;
 } wmDrawBuffer;

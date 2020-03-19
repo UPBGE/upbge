@@ -21,13 +21,13 @@
  * \ingroup spseq
  */
 
-#include <stdlib.h>
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
 
@@ -44,8 +44,8 @@
 
 #include "ED_outliner.h"
 #include "ED_screen.h"
-#include "ED_sequencer.h"
 #include "ED_select_utils.h"
+#include "ED_sequencer.h"
 
 #include "UI_view2d.h"
 
@@ -1044,7 +1044,7 @@ static int sequencer_box_select_exec(bContext *C, wmOperator *op)
       if (handles) {
         /* Get the handles draw size. */
         float pixelx = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
-        float handsize = sequence_handle_size_get_clamped(seq, pixelx) * 0.75f;
+        float handsize = sequence_handle_size_get_clamped(seq, pixelx);
 
         /* Right handle. */
         if (rectf.xmax > (seq->enddisp - handsize)) {
@@ -1419,16 +1419,16 @@ static int sequencer_select_grouped_exec(bContext *C, wmOperator *op)
   Editing *ed = BKE_sequencer_editing_get(scene, false);
   Sequence *seq, *actseq = BKE_sequencer_active_get(scene);
 
+  if (actseq == NULL) {
+    BKE_report(op->reports, RPT_ERROR, "No active sequence!");
+    return OPERATOR_CANCELLED;
+  }
+
   const int type = RNA_enum_get(op->ptr, "type");
   const int channel = RNA_boolean_get(op->ptr, "use_active_channel") ? actseq->machine : 0;
   const bool extend = RNA_boolean_get(op->ptr, "extend");
 
   bool changed = false;
-
-  if (actseq == NULL) {
-    BKE_report(op->reports, RPT_ERROR, "No active sequence!");
-    return OPERATOR_CANCELLED;
-  }
 
   if (!extend) {
     SEQP_BEGIN (ed, seq) {

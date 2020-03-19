@@ -24,8 +24,8 @@
 #include "DNA_constraint_types.h"
 #include "DNA_modifier_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 // #define DEBUG_OVERRIDE_TIMEIT
 
@@ -41,8 +41,8 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
-#include "rna_internal.h"
 #include "rna_access_internal.h"
+#include "rna_internal.h"
 
 int RNA_property_override_flag(PropertyRNA *prop)
 {
@@ -57,7 +57,7 @@ bool RNA_property_overridable_get(PointerRNA *ptr, PropertyRNA *prop)
     /* Special handling for insertions of constraints or modifiers... */
     /* TODO Note We may want to add a more generic system to RNA
      * (like a special property in struct of items)
-     * if we get more overrideable collections,
+     * if we get more override-able collections,
      * for now we can live with those special-cases handling I think. */
     if (RNA_struct_is_a(ptr->type, &RNA_Constraint)) {
       bConstraint *con = ptr->data;

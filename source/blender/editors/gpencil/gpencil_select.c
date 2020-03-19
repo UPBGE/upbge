@@ -21,25 +21,25 @@
  * \ingroup edgpencil
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stddef.h>
 #include <math.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_lasso_2d.h"
-#include "BLI_utildefines.h"
 #include "BLI_math_vector.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_gpencil_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_space_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 
 #include "BKE_context.h"
 #include "BKE_gpencil.h"
@@ -1430,11 +1430,12 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
   const float radius = 0.50f * U.widget_unit;
   const int radius_squared = (int)(radius * radius);
 
-  bool extend = RNA_boolean_get(op->ptr, "extend");
+  const bool use_shift_extend = RNA_boolean_get(op->ptr, "use_shift_extend");
+  bool extend = RNA_boolean_get(op->ptr, "extend") || use_shift_extend;
   bool deselect = RNA_boolean_get(op->ptr, "deselect");
   bool toggle = RNA_boolean_get(op->ptr, "toggle");
   bool whole = RNA_boolean_get(op->ptr, "entire_strokes");
-  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
+  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all") && !use_shift_extend;
 
   int mval[2] = {0};
 
@@ -1611,6 +1612,11 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
 static int gpencil_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RNA_int_set_array(op->ptr, "location", event->mval);
+
+  if (!RNA_struct_property_is_set(op->ptr, "use_shift_extend")) {
+    RNA_boolean_set(op->ptr, "use_shift_extend", event->shift);
+  }
+
   return gpencil_select_exec(C, op);
 }
 
@@ -1652,6 +1658,9 @@ void GPENCIL_OT_select(wmOperatorType *ot)
                             INT_MIN,
                             INT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN);
+
+  prop = RNA_def_boolean(ot->srna, "use_shift_extend", false, "Extend", "");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /* Select by Vertex Color. */

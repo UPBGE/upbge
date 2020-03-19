@@ -18,14 +18,14 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
 #include <limits.h>
+#include <stdlib.h>
 
 #include "DNA_anim_types.h"
+#include "DNA_movieclip_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_movieclip_types.h"
 #include "DNA_vfont_types.h"
 
 #include "BLI_math.h"
@@ -70,9 +70,9 @@ const EnumPropertyItem rna_enum_sequence_modifier_type_items[] = {
 #ifdef RNA_RUNTIME
 
 #  include "BKE_global.h"
-#  include "BKE_report.h"
 #  include "BKE_idprop.h"
 #  include "BKE_movieclip.h"
+#  include "BKE_report.h"
 
 #  include "WM_api.h"
 
@@ -1951,7 +1951,7 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.0f, SEQ_CACHE_COST_MAX, 0.1f, 1);
   RNA_def_property_float_sdna(prop, NULL, "recycle_max_cost");
   RNA_def_property_ui_text(
-      prop, "Recycle Up to Cost", "Only frames with cost lower than this value will be recycled");
+      prop, "Recycle Up To Cost", "Only frames with cost lower than this value will be recycled");
 }
 
 static void rna_def_filter_video(StructRNA *srna)

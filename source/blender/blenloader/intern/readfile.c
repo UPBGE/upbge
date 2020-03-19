@@ -23,21 +23,21 @@
 
 #include "zlib.h"
 
+#include <ctype.h> /* for isdigit. */
+#include <fcntl.h> /* for open flags (O_BINARY, O_RDONLY). */
 #include <limits.h>
-#include <stdlib.h> /* for atoi. */
-#include <stddef.h> /* for offsetof. */
-#include <fcntl.h>  /* for open flags (O_BINARY, O_RDONLY). */
 #include <stdarg.h> /* for va_start/end. */
+#include <stddef.h> /* for offsetof. */
+#include <stdlib.h> /* for atoi. */
 #include <time.h>   /* for gmtime. */
-#include <ctype.h>  /* for isdigit. */
 
 #include "BLI_utildefines.h"
 #ifndef WIN32
 #  include <unistd.h>  // for read close
 #else
-#  include <io.h>  // for open close read
-#  include "winsock2.h"
 #  include "BLI_winstuff.h"
+#  include "winsock2.h"
+#  include <io.h>  // for open close read
 #endif
 
 /* allow readfile to use deprecated functionality */
@@ -47,30 +47,34 @@
 #include "DNA_armature_types.h"
 #include "DNA_actuator_types.h"
 #include "DNA_brush_types.h"
-#include "DNA_camera_types.h"
 #include "DNA_cachefile_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_controller_types.h"
+#include "DNA_curveprofile_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_effect_types.h"
 #include "DNA_fileglobal_types.h"
+#include "DNA_fluid_types.h"
 #include "DNA_genfile.h"
-#include "DNA_gpencil_types.h"
 #include "DNA_gpencil_modifier_types.h"
-#include "DNA_shader_fx_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_hair_types.h"
 #include "DNA_ipo_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_light_types.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_linestyle_types.h"
-#include "DNA_meta_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_meta_types.h"
+#include "DNA_movieclip_types.h"
 #include "DNA_nla_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_fluidsim_types.h"
@@ -78,38 +82,34 @@
 #include "DNA_packedFile_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_pointcloud_types.h"
-#include "DNA_curveprofile_types.h"
-#include "DNA_lightprobe_types.h"
 #include "DNA_property_types.h"
 #include "DNA_python_component_types.h"
 #include "DNA_rigidbody_types.h"
-#include "DNA_text_types.h"
-#include "DNA_view3d_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_sdna_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_fluid_types.h"
-#include "DNA_speaker_types.h"
+#include "DNA_shader_fx_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
+#include "DNA_speaker_types.h"
+#include "DNA_text_types.h"
 #include "DNA_vfont_types.h"
+#include "DNA_view3d_types.h"
 #include "DNA_volume_types.h"
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
-#include "DNA_movieclip_types.h"
-#include "DNA_mask_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_endian_switch.h"
 #include "BLI_blenlib.h"
+#include "BLI_endian_switch.h"
+#include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
-#include "BLI_threads.h"
 #include "BLI_mempool.h"
-#include "BLI_ghash.h"
+#include "BLI_threads.h"
 
 #include "BLT_translation.h"
 
@@ -131,10 +131,10 @@
 #include "BKE_idprop.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
-#include "BKE_main_idmap.h"
 #include "BKE_lib_override.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"  // for Main
+#include "BKE_main_idmap.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"  // for ME_ defines (patching)
 #include "BKE_mesh_runtime.h"
@@ -1181,7 +1181,7 @@ static int fd_read_data_from_file(FileData *filedata,
 
 static off64_t fd_seek_data_from_file(FileData *filedata, off64_t offset, int whence)
 {
-  filedata->file_offset = lseek(filedata->filedes, offset, whence);
+  filedata->file_offset = BLI_lseek(filedata->filedes, offset, whence);
   return filedata->file_offset;
 }
 

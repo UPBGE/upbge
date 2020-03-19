@@ -19,9 +19,9 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_rect.h"
 #include "BLI_math.h"
+#include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -31,13 +31,13 @@
 #include "BKE_main.h"
 #include "BKE_report.h"
 
+#include "BKE_material.h"
 #include "BKE_object.h"
 #include "BKE_unit.h"
-#include "BKE_material.h"
 
+#include "DNA_gpencil_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_gpencil_types.h"
 #include "DNA_view3d_types.h"
 
 #include "ED_gizmo_utils.h"
@@ -46,16 +46,16 @@
 #include "ED_transform_snap_object_context.h"
 #include "ED_view3d.h"
 
-#include "UI_resources.h"
 #include "UI_interface.h"
+#include "UI_resources.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
 #include "WM_toolsystem.h"
+#include "WM_types.h"
 
 #include "view3d_intern.h" /* own include */
 
@@ -864,7 +864,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-    immUniformColor4fv(color_act);
+    immUniformThemeColor3(TH_GIZMO_VIEW_ALIGN);
 
     imm_draw_circle_wire_2d(pos, co_ss_snap[0], co_ss_snap[1], size * U.pixelsize, 32);
 

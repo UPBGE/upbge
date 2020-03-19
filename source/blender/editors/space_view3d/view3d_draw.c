@@ -23,26 +23,25 @@
 
 #include <math.h>
 
+#include "BLI_jitter_2d.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.h"
 #include "BLI_threads.h"
-#include "BLI_jitter_2d.h"
 
 #include "BKE_camera.h"
 #include "BKE_collection.h"
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_global.h"
-#include "BKE_layer.h"
 #include "BKE_key.h"
-#include "BKE_layer.h"  // for SetLooper Game engine transition tinkering
+#include "BKE_layer.h"
 #include "BKE_main.h"
-#include "BKE_scene.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
+#include "BKE_scene.h"
 #include "BKE_studiolight.h"
 #include "BKE_unit.h"
 
@@ -63,8 +62,8 @@
 #include "DRW_select_buffer.h"
 
 #include "ED_armature.h"
-#include "ED_keyframing.h"
 #include "ED_gpencil.h"
+#include "ED_keyframing.h"
 #include "ED_screen.h"
 #include "ED_screen_types.h"
 #include "ED_transform.h"
@@ -75,13 +74,13 @@
 #include "GPU_batch.h"
 #include "GPU_batch_presets.h"
 #include "GPU_draw.h"
-#include "GPU_matrix.h"
+#include "GPU_framebuffer.h"
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
 #include "GPU_material.h"
-#include "GPU_viewport.h"
+#include "GPU_matrix.h"
 #include "GPU_state.h"
-#include "GPU_framebuffer.h"
+#include "GPU_viewport.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -856,7 +855,7 @@ void ED_view3d_draw_depth(Depsgraph *depsgraph, ARegion *region, View3D *v3d, bo
   WM_draw_region_viewport_ensure(region, SPACE_VIEW3D);
   WM_draw_region_viewport_bind(region);
 
-  GPUViewport *viewport = WM_draw_region_get_viewport(region, 0);
+  GPUViewport *viewport = WM_draw_region_get_viewport(region);
   /* When Blender is starting, a click event can trigger a depth test while the viewport is not
    * yet available. */
   if (viewport != NULL) {
@@ -2246,7 +2245,7 @@ void ED_view3d_backbuf_depth_validate(ViewContext *vc)
     Object *obact_eval = DEG_get_evaluated_object(vc->depsgraph, vc->obact);
 
     if (obact_eval && ((obact_eval->base_flag & BASE_VISIBLE_DEPSGRAPH) != 0)) {
-      GPUViewport *viewport = WM_draw_region_get_viewport(region, 0);
+      GPUViewport *viewport = WM_draw_region_get_viewport(region);
       DRW_draw_depth_object(vc->region, vc->v3d, viewport, obact_eval);
     }
 
@@ -2309,7 +2308,7 @@ void view3d_update_depths_rect(ARegion *region, ViewDepths *d, rcti *rect)
   }
 
   if (d->damaged) {
-    GPUViewport *viewport = WM_draw_region_get_viewport(region, 0);
+    GPUViewport *viewport = WM_draw_region_get_viewport(region);
     view3d_opengl_read_Z_pixels(viewport, rect, d->depths);
     glGetDoublev(GL_DEPTH_RANGE, d->depth_range);
     d->damaged = false;
@@ -2338,7 +2337,7 @@ void ED_view3d_depth_update(ARegion *region)
     }
 
     if (d->damaged) {
-      GPUViewport *viewport = WM_draw_region_get_viewport(region, 0);
+      GPUViewport *viewport = WM_draw_region_get_viewport(region);
       rcti r = {
           .xmin = 0,
           .xmax = d->w,
@@ -2385,7 +2384,7 @@ void ED_view3d_draw_depth_gpencil(Depsgraph *depsgraph, Scene *scene, ARegion *r
 
   GPU_depth_test(true);
 
-  GPUViewport *viewport = WM_draw_region_get_viewport(region, 0);
+  GPUViewport *viewport = WM_draw_region_get_viewport(region);
   DRW_draw_depth_loop_gpencil(depsgraph, region, v3d, viewport);
 
   GPU_depth_test(false);

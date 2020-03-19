@@ -31,8 +31,8 @@
 #ifndef __DNA_SEQUENCE_TYPES_H__
 #define __DNA_SEQUENCE_TYPES_H__
 
-#include "DNA_defs.h"
 #include "DNA_color_types.h"
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 #include "DNA_vfont_types.h"
@@ -276,6 +276,9 @@ typedef struct Editing {
   int cache_flag;
 
   struct PrefetchJob *prefetch_job;
+
+  /* Must be initialized only by BKE_sequencer_cache_create() */
+  int64_t disk_cache_timestamp;
 } Editing;
 
 /* ************* Effect Variable Structs ********* */
@@ -682,6 +685,7 @@ enum {
   SEQ_CACHE_VIEW_FINAL_OUT = (1 << 9),
 
   SEQ_CACHE_PREFETCH_ENABLE = (1 << 10),
+  SEQ_CACHE_DISK_CACHE_ENABLE = (1 << 11),
 };
 
 #ifdef __cplusplus

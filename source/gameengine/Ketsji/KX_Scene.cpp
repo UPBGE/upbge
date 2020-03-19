@@ -747,7 +747,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
   /* And replace it with color and depth textures from viewport */
   GPU_framebuffer_texture_attach(
-      input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport), 0, 0);
+      input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport, 0), 0, 0);
   GPU_framebuffer_texture_attach(
       input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
 
@@ -767,7 +767,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   /* Detach viewport textures from input framebuffer... */
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
-                                 GPU_viewport_color_texture(m_currentGPUViewport));
+                                 GPU_viewport_color_texture(m_currentGPUViewport, 0));
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
   /* And restore defaults attachments */
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);

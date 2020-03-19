@@ -26,9 +26,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_mesh_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_task.h"
 
@@ -36,8 +36,8 @@
 #include "BKE_mesh_runtime.h"
 #include "BKE_multires.h"
 #include "BKE_subdiv.h"
-#include "BKE_subdiv_eval.h"
 #include "BKE_subdiv_ccg.h"
+#include "BKE_subdiv_eval.h"
 #include "BKE_subdiv_foreach.h"
 #include "BKE_subdiv_mesh.h"
 
@@ -218,6 +218,7 @@ bool multires_reshape_context_create_from_subdivide(MultiresReshapeContext *resh
 
   Mesh *base_mesh = (Mesh *)object->data;
 
+  reshape_context->mmd = mmd;
   reshape_context->base_mesh = base_mesh;
 
   reshape_context->subdiv = multires_reshape_create_subdiv(NULL, object, mmd);

@@ -31,9 +31,9 @@
  */
 
 /* dna-savable wmStructs here */
+#include "BLI_compiler_attrs.h"
 #include "DNA_windowmanager_types.h"
 #include "WM_keymap.h"
-#include "BLI_compiler_attrs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -779,7 +779,7 @@ void WM_draw_region_viewport_unbind(struct ARegion *region);
 
 /* Region drawing */
 void WM_draw_region_free(struct ARegion *region);
-struct GPUViewport *WM_draw_region_get_viewport(struct ARegion *region, int view);
+struct GPUViewport *WM_draw_region_get_viewport(struct ARegion *region);
 struct GPUViewport *WM_draw_region_get_bound_viewport(struct ARegion *region);
 
 void WM_main_playanim(int argc, const char **argv);
