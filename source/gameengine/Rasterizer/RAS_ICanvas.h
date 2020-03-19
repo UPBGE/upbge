@@ -72,7 +72,7 @@ class RAS_ICanvas {
    */
   virtual void EndDraw() = 0;
 
-  virtual ARegion *GetARegion() = 0;
+  virtual bool IsBlenderPlayer() = 0;
 
   virtual Scene *GetStartScene() = 0;
 

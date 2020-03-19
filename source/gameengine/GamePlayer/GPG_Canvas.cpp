@@ -218,9 +218,9 @@ void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNU
   m_window->screenToClient(x, y, r_x, r_y);
 }
 
-ARegion *GPG_Canvas::GetARegion()
+bool GPG_Canvas::IsBlenderPlayer()
 {
-  return nullptr;
+  return true;
 }
 
 Scene *GPG_Canvas::GetStartScene()

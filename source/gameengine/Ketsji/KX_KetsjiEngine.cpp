@@ -689,7 +689,7 @@ void KX_KetsjiEngine::Render()
     }
   }
   Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
-  if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER && m_canvas->GetARegion())) {
+  if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !m_canvas->IsBlenderPlayer())) {
     GPU_matrix_reset();
     EndFrame();
   }

@@ -210,9 +210,9 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
   AddScreenshot(path, x, y, width, height, im_format);
 }
 
-ARegion *KX_BlenderCanvas::GetARegion()
+bool KX_BlenderCanvas::IsBlenderPlayer()
 {
-  return m_ar;
+  return false;
 }
 
 Scene *KX_BlenderCanvas::GetStartScene()

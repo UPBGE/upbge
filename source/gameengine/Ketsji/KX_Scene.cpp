@@ -278,11 +278,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    */
   InitBlenderContextVariables();
 
-  /* If there is no Aregion, we know that we're in blenderplayer (for now) */
-  ARegion *ar = canvas->GetARegion();
-
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-      !ar) {  // if no ar, we are in blenderplayer
+       canvas->IsBlenderPlayer()) {
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
@@ -319,12 +316,11 @@ KX_Scene::~KX_Scene()
 
   Scene *scene = GetBlenderScene();
   RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-  ARegion *ar = canvas->GetARegion();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-      !ar) {  // if no ar, we are in blenderplayer
+       canvas->IsBlenderPlayer()) {
     if (m_shadingTypeBackup != 0) {
       View3D *v3d = CTX_wm_view3d(KX_GetActiveEngine()->GetContext());
       v3d->shading.type = m_shadingTypeBackup;
@@ -446,7 +442,11 @@ void KX_Scene::ResetLastReplicatedParentObject()
 void KX_Scene::InitBlenderContextVariables()
 {
   ARegion *ar;
-  wmWindowManager *wm = CTX_wm_manager(KX_GetActiveEngine()->GetContext());
+  /* Warning here: The bContext is not updated with the right bmain
+   * in embedded if we restart scene/load new .blend.
+   */
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win;
   for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
     bScreen *screen = WM_window_get_active_screen(win);
@@ -461,25 +461,6 @@ void KX_Scene::InitBlenderContextVariables()
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
             if (ar->regiondata) {
-              /* If we are in EMBEDDED and at FIRST SCENE START and that we have several
-               * viewports opened, there can be several SPACE_VIEW3D and corresponding ARegions.
-               * In this case we have to ensure that the ARegion set at embedded start
-               * (canvas->GetARegion()) is the same than the current ar. If not, we continue the
-               * loop. But if we ReplaceScene, We can't know which ARegion we have to choose, then
-               * we choose the first valid ARegion/SPACE_VIEW3D we find in the new scene. If no
-               * ARegion is set, then we are in blenderplayer. Then we choose the the first valid
-               * ARegion/SPACE_VIEW3D we find in the scene.
-               */
-              RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-              bContext *C = KX_GetActiveEngine()->GetContext();
-              bool isStartScene = (GetBlenderScene() == canvas->GetStartScene());
-              /* In embedded, canvas->GetARegion will always return the first scene ARegion,
-               * but the bContext's ARegion will change if we replace scene.
-               */
-              ARegion *firstSceneAregion = canvas->GetARegion();
-              if (isStartScene && firstSceneAregion && firstSceneAregion != ar) {
-                continue;
-              }
               /* Here we try to set the valid scene ARegion, wmWindow, ScrArea...
                * This can be useful to have the correct settings when we do scripts
                * with bpy or this can also be useful for render when evil_C is used
@@ -498,7 +479,7 @@ void KX_Scene::InitBlenderContextVariables()
               win->scene = scene;
 
               /* Only if we are not in viewport render, modify + backup shading types */
-              if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
+              if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || KX_GetActiveEngine()->GetCanvas()->IsBlenderPlayer()) {
 
                 View3D *v3d = CTX_wm_view3d(C);
 
@@ -704,13 +685,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
 
-  ARegion *ar = canvas->GetARegion();
   bContext *C = engine->GetContext();
 
-  /* Ensure there is a valid ARegion *ar (this is not the case in blenderplayer)
-   * Here we'll render directly the scene with viewport code.
-   */
-  if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && ar) {
+  /* Here we'll render directly the scene with viewport code. */
+  if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !canvas->IsBlenderPlayer()) {
     if (cam) {
       DRW_view_set_active(NULL);
 
@@ -718,8 +696,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
       CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
 
-      ED_region_tag_redraw(ar);
-      wm_draw_update(engine->GetContext());
+      ED_region_tag_redraw(CTX_wm_region(C));
+      wm_draw_update(C);
       return;
     }
   }
@@ -780,7 +758,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
   DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
-                           CTX_wm_view3d(engine->GetContext()),
+                           CTX_wm_view3d(C),
                            GetOverlayCamera() && !is_overlay_pass ? false : true);
 
   /* Detach viewport textures from input framebuffer... */
