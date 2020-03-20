@@ -79,6 +79,7 @@ set(SRC
   engines/eevee/eevee_data.c
   engines/eevee/eevee_depth_of_field.c
   engines/eevee/eevee_effects.c
+  engines/eevee/eevee_effect_antialiasing.c
   engines/eevee/eevee_engine.c
   engines/eevee/eevee_lightcache.c
   engines/eevee/eevee_lightprobes.c
