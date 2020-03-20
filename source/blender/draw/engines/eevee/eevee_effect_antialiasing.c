@@ -395,7 +395,7 @@ void eevee_antialiasing_draw_pass(EEVEE_Data *vedata)
   }
 
   if (!DRW_state_is_image_render() ||
-      vedata->stl->effects->taa_current_sample + 1 == vedata->stl->effects->taa_total_sample + 500) {
+      vedata->stl->effects->taa_current_sample + 1 > vedata->stl->effects->taa_total_sample + 500) {
     /* After a certain point SMAA is no longer necessary. */
     g_data->smaa_mix_factor = 1.0f -
                               clamp_f(vedata->stl->effects->taa_current_sample / 4.0f, 0.0f, 1.0f);
