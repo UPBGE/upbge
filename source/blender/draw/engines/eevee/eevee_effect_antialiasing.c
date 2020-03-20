@@ -118,8 +118,8 @@ void eevee_antialiasing_engine_init(EEVEE_Data *vedata)
     DRW_texture_ensure_fullscreen_2d(&txl->history_buffer_tx, GPU_RGBA16F, DRW_TEX_FILTER);
     DRW_texture_ensure_fullscreen_2d(&txl->depth_buffer_tx, GPU_DEPTH24_STENCIL8, 0);
 
-    txl->smaa_edge_tx = DRW_texture_pool_query_fullscreen(GPU_RG8, owner);
-    txl->smaa_weight_tx = DRW_texture_pool_query_fullscreen(GPU_RGBA8, owner);
+    g_data->smaa_edge_tx = DRW_texture_pool_query_fullscreen(GPU_RG8, owner);
+    g_data->smaa_weight_tx = DRW_texture_pool_query_fullscreen(GPU_RGBA8, owner);
 
     GPU_framebuffer_ensure_config(&fbl->antialiasing_fb,
                                   {
@@ -130,13 +130,13 @@ void eevee_antialiasing_engine_init(EEVEE_Data *vedata)
     GPU_framebuffer_ensure_config(&fbl->smaa_edge_fb,
                                   {
                                       GPU_ATTACHMENT_NONE,
-                                      GPU_ATTACHMENT_TEXTURE(txl->smaa_edge_tx),
+                                      GPU_ATTACHMENT_TEXTURE(g_data->smaa_edge_tx),
                                   });
 
     GPU_framebuffer_ensure_config(&fbl->smaa_weight_fb,
                                   {
                                       GPU_ATTACHMENT_NONE,
-                                      GPU_ATTACHMENT_TEXTURE(txl->smaa_weight_tx),
+                                      GPU_ATTACHMENT_TEXTURE(g_data->smaa_weight_tx),
                                   });
 
     /* TODO could be shared for all viewports. */
@@ -186,20 +186,10 @@ void eevee_antialiasing_cache_init(EEVEE_Data *vedata)
   EEVEE_TextureList *txl = vedata->txl;
   EEVEE_PrivateData *g_data = vedata->stl->g_data;
   EEVEE_PassList *psl = vedata->psl;
-  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
   DRWShadingGroup *grp = NULL;
 
   if (vedata->stl->effects->taa_total_sample == 1) { // AA Disabled
     return;
-  }
-
-  {
-    DRW_PASS_CREATE(psl->aa_accum_ps, DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL);
-
-    GPUShader *shader = eevee_shader_antialiasing_accumulation_get();
-    grp = DRW_shgroup_create(shader, psl->aa_accum_ps);
-    DRW_shgroup_uniform_texture(grp, "colorBuffer", dtxl->color);
-    DRW_shgroup_call_procedural_triangles(grp, NULL, 1);
   }
 
   const float *size = DRW_viewport_size_get();
@@ -224,7 +214,7 @@ void eevee_antialiasing_cache_init(EEVEE_Data *vedata)
 
     GPUShader *sh = eevee_shader_antialiasing_get(1);
     grp = DRW_shgroup_create(sh, psl->aa_weight_ps);
-    DRW_shgroup_uniform_texture(grp, "edgesTex", txl->smaa_edge_tx);
+    DRW_shgroup_uniform_texture(grp, "edgesTex", g_data->smaa_edge_tx);
     DRW_shgroup_uniform_texture(grp, "areaTex", txl->smaa_area_tx);
     DRW_shgroup_uniform_texture(grp, "searchTex", txl->smaa_search_tx);
     DRW_shgroup_uniform_vec4_copy(grp, "viewportMetrics", metrics);
@@ -238,7 +228,7 @@ void eevee_antialiasing_cache_init(EEVEE_Data *vedata)
 
     GPUShader *sh = eevee_shader_antialiasing_get(2);
     grp = DRW_shgroup_create(sh, psl->aa_resolve_ps);
-    DRW_shgroup_uniform_texture(grp, "blendTex", txl->smaa_weight_tx);
+    DRW_shgroup_uniform_texture(grp, "blendTex", g_data->smaa_weight_tx);
     DRW_shgroup_uniform_texture(grp, "colorTex", txl->history_buffer_tx);
     DRW_shgroup_uniform_vec4_copy(grp, "viewportMetrics", metrics);
     DRW_shgroup_uniform_float(grp, "mixFactor", &g_data->smaa_mix_factor, 1);

@@ -300,11 +300,11 @@ typedef struct EEVEE_PassList {
   struct DRWPass *lookdev_diffuse_pass;
   struct DRWPass *renderpass_pass;
 
-  //////////////TRY
-  struct DRWPass *aa_accum_ps;
+  /* Game engine transition */
   struct DRWPass *aa_edge_ps;
   struct DRWPass *aa_weight_ps;
   struct DRWPass *aa_resolve_ps;
+  /* End of Game engine transition */
 } EEVEE_PassList;
 
 typedef struct EEVEE_FramebufferList {
@@ -354,10 +354,11 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *taa_history_color_fb;
 
 
-  /////////////TRY
+  /* Game engine transition */
   struct GPUFrameBuffer *antialiasing_fb;
   struct GPUFrameBuffer *smaa_edge_fb;
   struct GPUFrameBuffer *smaa_weight_fb;
+  /* End of Game engine transition */
 } EEVEE_FramebufferList;
 
 typedef struct EEVEE_TextureList {
@@ -398,13 +399,12 @@ typedef struct EEVEE_TextureList {
   struct GPUTexture *color_double_buffer;
   struct GPUTexture *depth_double_buffer;
 
-  /////////////////////TRY
+  /* Game engine transition */
   struct GPUTexture *history_buffer_tx;
   struct GPUTexture *depth_buffer_tx;
-  struct GPUTexture *smaa_edge_tx;
-  struct GPUTexture *smaa_weight_tx;
   struct GPUTexture *smaa_search_tx;
   struct GPUTexture *smaa_area_tx;
+  /* End of Game engine transition */
 } EEVEE_TextureList;
 
 typedef struct EEVEE_StorageList {
@@ -900,10 +900,14 @@ typedef struct EEVEE_PrivateData {
   struct DRWView *planar_views[MAX_PLANAR];
 
 
-  ////////////////TRY
+  /* Game engine transition */
   struct DRWView *view;
   float smaa_mix_factor;
   float taa_sample_inv;
+  
+  struct GPUTexture *smaa_edge_tx;
+  struct GPUTexture *smaa_weight_tx;
+  /* End of Game engine transition */
 } EEVEE_PrivateData; /* Transient data */
 
 /* eevee_data.c */
