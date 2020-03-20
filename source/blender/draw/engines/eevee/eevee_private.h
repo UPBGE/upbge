@@ -1294,7 +1294,6 @@ static const float cubefacemat[6][4][4] = {
 /* Game engine transition */
 EEVEE_Data *EEVEE_engine_data_get(void);
 
-GPUShader *eevee_shader_antialiasing_accumulation_get(void);
 GPUShader *eevee_shader_antialiasing_get(int stage);
 void eevee_shader_library_ensure(void);
 void eevee_antialiasing_engine_init(EEVEE_Data *vedata);

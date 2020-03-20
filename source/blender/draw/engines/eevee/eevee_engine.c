@@ -48,9 +48,6 @@ static void eevee_engine_init(void *ved)
   EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
   EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
-
-  eevee_shader_library_ensure();
-
   const DRWContextState *draw_ctx = DRW_context_state_get();
   View3D *v3d = draw_ctx->v3d;
   RegionView3D *rv3d = draw_ctx->rv3d;
@@ -90,11 +87,13 @@ static void eevee_engine_init(void *ved)
    * `EEVEE_effects_init` needs to go second for TAA. */
   EEVEE_renderpasses_init(vedata);
   EEVEE_effects_init(sldata, vedata, camera, false);
+
   /* Game engine transition */
   if (draw_ctx->scene->flag & SCE_INTERACTIVE && draw_ctx->scene->eevee.flag & SCE_EEVEE_SMAA) {
     eevee_antialiasing_engine_init(vedata);
   }
   /* End of Game engine transition */
+
   EEVEE_materials_init(sldata, stl, fbl);
   EEVEE_shadows_init(sldata);
   EEVEE_lightprobes_init(sldata, vedata);
