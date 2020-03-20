@@ -2539,6 +2539,7 @@ enum {
   SCE_EEVEE_GI_AUTOBAKE = (1 << 19),
   SCE_EEVEE_SHADOW_SOFT = (1 << 20),
   SCE_EEVEE_OVERSCAN = (1 << 21),
+  SCE_EEVEE_SMAA = (1 << 22),
 };
 
 /* SceneEEVEE->shadow_method */

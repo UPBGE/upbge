@@ -103,36 +103,6 @@ static void eevee_taa_jitter_init(void)
   }
 }
 
-int eevee_antialiasing_sample_count_get(EEVEE_Data *vedata)
-{
-  const DRWContextState *draw_ctx = DRW_context_state_get();
-  const Scene *scene = draw_ctx->scene;
-
-  if (1/*vedata->stl->g_data->is_navigating || g_data->is_playback*/) {
-    /* Only draw using SMAA or no AA when navigating. */
-    return min_ii(scene->eevee.taa_samples, 1);
-  }
-  else if (DRW_state_is_image_render()) {
-    if (draw_ctx->v3d) {
-      return scene->display.viewport_aa;
-    }
-    else {
-      return scene->display.render_aa;
-    }
-  }
-  else {
-    return 1/*g_data->preferences->viewport_aa*/;
-  }
-}
-
-void eevee_antialiasing_view_updated(EEVEE_Data *vedata)
-{
-  EEVEE_StorageList *stl = vedata->stl;
-  if (stl && stl->g_data) {
-    stl->g_data->view_updated = true;
-  }
-}
-
 void eevee_antialiasing_engine_init(EEVEE_Data *vedata)
 {
   EEVEE_FramebufferList *fbl = vedata->fbl;
@@ -142,26 +112,7 @@ void eevee_antialiasing_engine_init(EEVEE_Data *vedata)
 
   g_data->view = NULL;
 
-  /* reset complete drawing when navigating. */
-  if (vedata->stl->effects->taa_current_sample > 1) {
-    vedata->stl->effects->taa_current_sample = 1;
-  }
-
-  if (g_data->view_updated) {
-    vedata->stl->effects->taa_current_sample = 1;
-    g_data->view_updated = false;
-  }
-
-  {
-    float persmat[4][4];
-    DRW_view_persmat_get(NULL, persmat, false);
-    if (!equals_m4m4(persmat, vedata->stl->effects->prev_persmat)) {
-      copy_m4_m4(vedata->stl->effects->prev_persmat, persmat);
-      vedata->stl->effects->taa_current_sample = 1;
-    }
-  }
-
-  if (vedata->stl->effects->taa_current_sample + 1 < vedata->stl->effects->taa_total_sample + 32) {
+  if (vedata->stl->effects->taa_current_sample + 1 < vedata->stl->effects->taa_total_sample + 512) {
     eevee_taa_jitter_init();
 
     DRW_texture_ensure_fullscreen_2d(&txl->history_buffer_tx, GPU_RGBA16F, DRW_TEX_FILTER);
@@ -238,7 +189,7 @@ void eevee_antialiasing_cache_init(EEVEE_Data *vedata)
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
   DRWShadingGroup *grp = NULL;
 
-  if (vedata->stl->effects->taa_total_sample == 1) {
+  if (vedata->stl->effects->taa_total_sample == 1) { // AA Disabled
     return;
   }
 
@@ -307,7 +258,7 @@ bool eevee_antialiasing_setup(EEVEE_Data *vedata)
     return true;
   }
 
-  if (vedata->stl->effects->taa_current_sample >= vedata->stl->effects->taa_total_sample) {
+  if (vedata->stl->effects->taa_current_sample >= vedata->stl->effects->taa_total_sample + 512) {
     /* TAA accumulation has finish. Just copy the result back */
     return false;
   }
@@ -316,24 +267,7 @@ bool eevee_antialiasing_setup(EEVEE_Data *vedata)
     const DRWView *default_view = DRW_view_default_get();
     float *transform_offset;
 
-    /*switch (vedata->stl->effects->taa_total_sample) {
-      default:
-      case 5:
-        transform_offset = e_data.jitter_5[min_ii(vedata->stl->effects->taa_current_sample, 5)];
-        break;
-      case 8:
-        transform_offset = e_data.jitter_8[min_ii(vedata->stl->effects->taa_current_sample, 8)];
-        break;
-      case 11:
-        transform_offset = e_data.jitter_11[min_ii(vedata->stl->effects->taa_current_sample, 11)];
-        break;
-      case 16:*/
-        transform_offset = e_data.jitter_16[min_ii(vedata->stl->effects->taa_current_sample, 16)];
-        /*break;
-      case 32:
-        transform_offset = e_data.jitter_32[min_ii(vedata->stl->effects->taa_current_sample, 32)];
-        break;
-    }*/
+    transform_offset = e_data.jitter_16[min_ii(vedata->stl->effects->taa_current_sample, 16)];
 
     /* construct new matrices from transform delta */
     float winmat[4][4], viewmat[4][4], persmat[4][4];
@@ -369,8 +303,6 @@ void eevee_antialiasing_draw_pass(EEVEE_Data *vedata)
 
   if (vedata->stl->effects->taa_total_sample == 1) {
     /* AA disabled. */
-    /* Just set sample to 1 to avoid rendering indefinitely. */
-    vedata->stl->effects->taa_current_sample = 1;
     return;
   }
 
@@ -394,8 +326,7 @@ void eevee_antialiasing_draw_pass(EEVEE_Data *vedata)
     GPU_framebuffer_blit(fbl->antialiasing_fb, 0, dfbl->default_fb, 0, GPU_DEPTH_BIT);
   }
 
-  if (!DRW_state_is_image_render() ||
-      vedata->stl->effects->taa_current_sample + 1 < vedata->stl->effects->taa_total_sample + 32) {
+  if (vedata->stl->effects->taa_current_sample + 1 < vedata->stl->effects->taa_total_sample + 512) {
     /* After a certain point SMAA is no longer necessary. */
     g_data->smaa_mix_factor = 1.0f -
                               clamp_f(vedata->stl->effects->taa_current_sample / 4.0f, 0.0f, 1.0f);
@@ -411,12 +342,5 @@ void eevee_antialiasing_draw_pass(EEVEE_Data *vedata)
 
     GPU_framebuffer_bind(dfbl->default_fb);
     DRW_draw_pass(psl->aa_resolve_ps);
-  }
-
-  vedata->stl->effects->taa_current_sample++;
-
-  if (!DRW_state_is_image_render() &&
-      vedata->stl->effects->taa_current_sample < vedata->stl->effects->taa_total_sample) {
-    DRW_viewport_request_redraw();
   }
 }

@@ -1295,7 +1295,6 @@ GPUShader *eevee_shader_antialiasing_get(int stage);
 void eevee_shader_library_ensure(void);
 void eevee_antialiasing_engine_init(EEVEE_Data *vedata);
 void eevee_antialiasing_cache_init(EEVEE_Data *vedata);
-void eevee_antialiasing_view_updated(EEVEE_Data *vedata);
 bool eevee_antialiasing_setup(EEVEE_Data *vedata);
 void eevee_antialiasing_draw_pass(EEVEE_Data *vedata);
 /* End of Game engine transition */
