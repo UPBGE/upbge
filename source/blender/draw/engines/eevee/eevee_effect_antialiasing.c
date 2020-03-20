@@ -161,7 +161,7 @@ void eevee_antialiasing_engine_init(EEVEE_Data *vedata)
     }
   }
 
-  if (1/*vedata->stl->effects->taa_current_sample > 1*/) {
+  if (vedata->stl->effects->taa_current_sample + 1 < vedata->stl->effects->taa_total_sample + 32) {
     eevee_taa_jitter_init();
 
     DRW_texture_ensure_fullscreen_2d(&txl->history_buffer_tx, GPU_RGBA16F, DRW_TEX_FILTER);
