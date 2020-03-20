@@ -73,11 +73,11 @@ extern "C" {
 #include "BLI_linklist.h"
 #include "BLO_readfile.h"
 #include "BKE_global.h"
+#include "BKE_idtype.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_material.h"  // BKE_material_copy
 #include "BKE_mesh.h"      // BKE_mesh_copy
-#include "BKE_idcode.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 }
@@ -426,7 +426,7 @@ KX_LibLoadStatus *KX_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
                                                      short options)
 {
   Main *main_newlib;  // stored as a dynamic 'main' until we free it
-  const int idcode = BKE_idcode_from_name(group);
+  const int idcode = BKE_idtype_idcode_from_name(group);
   ReportList reports;
   static char err_local[255];
 

@@ -154,7 +154,7 @@ extern "C" {
 #include "KX_LibLoadStatus.h"
 #include "KX_MeshProxy.h" /* for creating a new library of mesh objects */
 extern "C" {
-#include "BKE_idcode.h"
+#include "BKE_idtype.h"
 }
 
 // 'local' copy of canvas ptr, for window height/width python scripts
@@ -698,7 +698,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
     return nullptr;
   }
 
-  idcode = BKE_idcode_from_name(group);
+  idcode = BKE_idtype_idcode_from_name(group);
   if (idcode == 0) {
     PyErr_Format(PyExc_ValueError, "invalid group given \"%s\"", group);
     return nullptr;
