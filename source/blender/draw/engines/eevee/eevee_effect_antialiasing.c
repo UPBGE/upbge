@@ -380,7 +380,7 @@ void eevee_antialiasing_draw_pass(EEVEE_Data *vedata)
    * If TAA accumulation is finished, we only blit the result.
    */
 
-  if (vedata->stl->effects->taa_current_sample = 1) {
+  if (vedata->stl->effects->taa_current_sample == 1) {
     /* In playback mode, we are sure the next redraw will not use the same viewmatrix.
      * In this case no need to save the depth buffer. */
     eGPUFrameBufferBits bits = GPU_COLOR_BIT | GPU_DEPTH_BIT;
