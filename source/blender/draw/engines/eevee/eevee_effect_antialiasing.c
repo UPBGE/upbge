@@ -312,25 +312,17 @@ void eevee_antialiasing_draw_pass(EEVEE_Data *vedata)
    * If TAA accumulation is finished, we only blit the result.
    */
 
-  if (vedata->stl->effects->taa_current_sample == 1) {
+  /* After a certain point SMAA is no longer necessary. */
+  if (vedata->stl->effects->taa_current_sample + 1 <
+      vedata->stl->effects->taa_total_sample + 512) {
     /* In playback mode, we are sure the next redraw will not use the same viewmatrix.
      * In this case no need to save the depth buffer. */
     eGPUFrameBufferBits bits = GPU_COLOR_BIT | GPU_DEPTH_BIT;
     GPU_framebuffer_blit(dfbl->default_fb, 0, fbl->antialiasing_fb, 0, bits);
-  }
-  else {
-    /* Accumulate result to the TAA buffer. */
-    GPU_framebuffer_bind(fbl->antialiasing_fb);
-    DRW_draw_pass(psl->aa_accum_ps);
-    /* Copy back the saved depth buffer for correct overlays. */
-    GPU_framebuffer_blit(fbl->antialiasing_fb, 0, dfbl->default_fb, 0, GPU_DEPTH_BIT);
-  }
-
-  if (vedata->stl->effects->taa_current_sample + 1 < vedata->stl->effects->taa_total_sample + 512) {
-    /* After a certain point SMAA is no longer necessary. */
+  
     g_data->smaa_mix_factor = 1.0f -
-                              clamp_f(vedata->stl->effects->taa_current_sample / 4.0f, 0.0f, 1.0f);
-    g_data->taa_sample_inv = 1.0f / (vedata->stl->effects->taa_current_sample + 1);
+                              clamp_f(vedata->stl->effects->taa_current_sample / 512.0f / 4.0f, 0.0f, 1.0f);
+    g_data->taa_sample_inv = 1.0f / clamp_f((vedata->stl->effects->taa_current_sample / 512.0f + 1), 0.0f, 1.0f);
 
     if (g_data->smaa_mix_factor > 0.0f) {
       GPU_framebuffer_bind(fbl->smaa_edge_fb);
