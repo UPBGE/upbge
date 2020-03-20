@@ -316,7 +316,7 @@ bool eevee_antialiasing_setup(EEVEE_Data *vedata)
     const DRWView *default_view = DRW_view_default_get();
     float *transform_offset;
 
-    switch (vedata->stl->effects->taa_total_sample) {
+    /*switch (vedata->stl->effects->taa_total_sample) {
       default:
       case 5:
         transform_offset = e_data.jitter_5[min_ii(vedata->stl->effects->taa_current_sample, 5)];
@@ -327,13 +327,13 @@ bool eevee_antialiasing_setup(EEVEE_Data *vedata)
       case 11:
         transform_offset = e_data.jitter_11[min_ii(vedata->stl->effects->taa_current_sample, 11)];
         break;
-      case 16:
+      case 16:*/
         transform_offset = e_data.jitter_16[min_ii(vedata->stl->effects->taa_current_sample, 16)];
-        break;
+        /*break;
       case 32:
         transform_offset = e_data.jitter_32[min_ii(vedata->stl->effects->taa_current_sample, 32)];
         break;
-    }
+    }*/
 
     /* construct new matrices from transform delta */
     float winmat[4][4], viewmat[4][4], persmat[4][4];
