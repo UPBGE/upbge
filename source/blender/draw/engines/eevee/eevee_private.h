@@ -299,6 +299,12 @@ typedef struct EEVEE_PassList {
   struct DRWPass *lookdev_glossy_pass;
   struct DRWPass *lookdev_diffuse_pass;
   struct DRWPass *renderpass_pass;
+
+  //////////////TRY
+  struct DRWPass *aa_accum_ps;
+  struct DRWPass *aa_edge_ps;
+  struct DRWPass *aa_weight_ps;
+  struct DRWPass *aa_resolve_ps;
 } EEVEE_PassList;
 
 typedef struct EEVEE_FramebufferList {
@@ -346,6 +352,12 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *double_buffer_depth_fb;
   struct GPUFrameBuffer *taa_history_fb;
   struct GPUFrameBuffer *taa_history_color_fb;
+
+
+  /////////////TRY
+  struct GPUFrameBuffer *antialiasing_fb;
+  struct GPUFrameBuffer *smaa_edge_fb;
+  struct GPUFrameBuffer *smaa_weight_fb;
 } EEVEE_FramebufferList;
 
 typedef struct EEVEE_TextureList {
@@ -385,6 +397,14 @@ typedef struct EEVEE_TextureList {
   struct GPUTexture *color; /* R16_G16_B16 */
   struct GPUTexture *color_double_buffer;
   struct GPUTexture *depth_double_buffer;
+
+  /////////////////////TRY
+  struct GPUTexture *history_buffer_tx;
+  struct GPUTexture *depth_buffer_tx;
+  struct GPUTexture *smaa_edge_tx;
+  struct GPUTexture *smaa_weight_tx;
+  struct GPUTexture *smaa_search_tx;
+  struct GPUTexture *smaa_area_tx;
 } EEVEE_TextureList;
 
 typedef struct EEVEE_StorageList {
@@ -878,6 +898,12 @@ typedef struct EEVEE_PrivateData {
   struct DRWView *world_views[6];
   /** For rendering planar reflections. */
   struct DRWView *planar_views[MAX_PLANAR];
+
+
+  ////////////////TRY
+  struct DRWView *view;
+  float smaa_mix_factor;
+  float taa_sample_inv;
 } EEVEE_PrivateData; /* Transient data */
 
 /* eevee_data.c */
@@ -1263,6 +1289,15 @@ static const float cubefacemat[6][4][4] = {
 
 /* Game engine transition */
 EEVEE_Data *EEVEE_engine_data_get(void);
+
+GPUShader *eevee_shader_antialiasing_accumulation_get(void);
+GPUShader *eevee_shader_antialiasing_get(int stage);
+void eevee_shader_library_ensure(void);
+void eevee_antialiasing_engine_init(EEVEE_Data *vedata);
+void eevee_antialiasing_cache_init(EEVEE_Data *vedata);
+void eevee_antialiasing_view_updated(EEVEE_Data *vedata);
+bool eevee_antialiasing_setup(EEVEE_Data *vedata);
+void eevee_antialiasing_draw_pass(EEVEE_Data *vedata);
 /* End of Game engine transition */
 
 #ifdef __cplusplus

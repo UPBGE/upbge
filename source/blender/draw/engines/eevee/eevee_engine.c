@@ -49,6 +49,8 @@ static void eevee_engine_init(void *ved)
   EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
+  eevee_shader_library_ensure();
+
   const DRWContextState *draw_ctx = DRW_context_state_get();
   View3D *v3d = draw_ctx->v3d;
   RegionView3D *rv3d = draw_ctx->rv3d;
@@ -88,6 +90,8 @@ static void eevee_engine_init(void *ved)
    * `EEVEE_effects_init` needs to go second for TAA. */
   EEVEE_renderpasses_init(vedata);
   EEVEE_effects_init(sldata, vedata, camera, false);
+  /////TRY
+  eevee_antialiasing_engine_init(vedata);
   EEVEE_materials_init(sldata, stl, fbl);
   EEVEE_shadows_init(sldata);
   EEVEE_lightprobes_init(sldata, vedata);
@@ -96,7 +100,8 @@ static void eevee_engine_init(void *ved)
 static void eevee_cache_init(void *vedata)
 {
   EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
-
+  /////TRY
+  eevee_antialiasing_cache_init(vedata);
   EEVEE_bloom_cache_init(sldata, vedata);
   EEVEE_depth_of_field_cache_init(sldata, vedata);
   EEVEE_effects_cache_init(sldata, vedata);
@@ -353,6 +358,11 @@ static void eevee_draw_scene(void *vedata)
   else {
     EEVEE_renderpasses_draw(sldata, vedata);
   }
+
+  /////TRY
+  eevee_antialiasing_view_updated(vedata);
+  eevee_antialiasing_setup(vedata);
+  eevee_antialiasing_draw_pass(vedata);
 
   EEVEE_renderpasses_draw_debug(vedata);
 
