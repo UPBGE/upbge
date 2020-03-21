@@ -112,7 +112,7 @@ void eevee_antialiasing_engine_init(EEVEE_Data *vedata)
 
   g_data->view = NULL;
 
-  if (vedata->stl->effects->taa_current_sample < vedata->stl->effects->taa_total_sample + 512) {
+  if (vedata->stl->effects->taa_current_sample < 16) {
     eevee_taa_jitter_init();
 
     DRW_texture_ensure_fullscreen_2d(&txl->history_buffer_tx, GPU_RGBA16F, DRW_TEX_FILTER);
@@ -248,7 +248,7 @@ bool eevee_antialiasing_setup(EEVEE_Data *vedata)
     return true;
   }
 
-  if (vedata->stl->effects->taa_current_sample >= vedata->stl->effects->taa_total_sample + 512) {
+  if (vedata->stl->effects->taa_current_sample >= 16) {
     /* TAA accumulation has finish. Just copy the result back */
     return false;
   }
@@ -303,8 +303,7 @@ void eevee_antialiasing_draw_pass(EEVEE_Data *vedata)
    */
 
   /* After a certain point SMAA is no longer necessary. */
-  if (vedata->stl->effects->taa_current_sample <
-      vedata->stl->effects->taa_total_sample + 512) {
+  if (vedata->stl->effects->taa_current_sample < 16) {
     /* In playback mode, we are sure the next redraw will not use the same viewmatrix.
      * In this case no need to save the depth buffer. */
     eGPUFrameBufferBits bits = GPU_COLOR_BIT | GPU_DEPTH_BIT;
