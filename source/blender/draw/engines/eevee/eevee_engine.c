@@ -48,6 +48,7 @@ static void eevee_engine_init(void *ved)
   EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
   EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+
   const DRWContextState *draw_ctx = DRW_context_state_get();
   View3D *v3d = draw_ctx->v3d;
   RegionView3D *rv3d = draw_ctx->rv3d;
@@ -95,6 +96,7 @@ static void eevee_engine_init(void *ved)
 static void eevee_cache_init(void *vedata)
 {
   EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
+
   EEVEE_bloom_cache_init(sldata, vedata);
   EEVEE_depth_of_field_cache_init(sldata, vedata);
   EEVEE_effects_cache_init(sldata, vedata);
