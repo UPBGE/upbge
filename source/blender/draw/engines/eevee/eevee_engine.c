@@ -354,6 +354,10 @@ static void eevee_draw_scene(void *vedata)
     EEVEE_renderpasses_draw(sldata, vedata);
   }
 
+  /* Game engine transition */    
+  EEVEE_antialiasing_draw_pass(vedata);
+  /* End of Game engine transition */
+
   EEVEE_renderpasses_draw_debug(vedata);
 
   EEVEE_volumes_free_smoke_textures();

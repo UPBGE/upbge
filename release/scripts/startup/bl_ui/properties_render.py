@@ -464,6 +464,9 @@ class RENDER_PT_eevee_sampling(RenderButtonsPanel, Panel):
         col = layout.column()
         col.prop(props, "use_taa_reprojection")
 
+        row = layout.row()                #Game engine transition
+        row.prop(props, "use_eevee_smaa") #Game engine transition
+
 
 class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
     bl_label = "Indirect Lighting"
