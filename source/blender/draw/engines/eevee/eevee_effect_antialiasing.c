@@ -200,11 +200,6 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
     return;
   }
 
-  // In the case we remove the taa_total_sample set to 0 at ge start
-  if (vedata->stl->effects->taa_total_sample == 1) { // AA Disabled
-    return;
-  }
-
   {
     DRW_PASS_CREATE(psl->aa_accum_ps, DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL);
 
@@ -270,11 +265,6 @@ void eevee_antialiasing_setup(EEVEE_Data *vedata)
     return;
   }
 
-  if (vedata->stl->effects->taa_total_sample == 1) {
-    /* AA disabled. */
-    return;
-  }
-
   if (vedata->stl->effects->taa_current_sample >= SMAA_THRESHOLD) {
     /* TAA accumulation has finish. Just copy the result back */
     return;
@@ -320,12 +310,6 @@ void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata)
 
   EEVEE_EffectsInfo *effects = vedata->stl->effects;
   if (!(effects->enabled_effects & EFFECT_SMAA)) {
-    return;
-  }
-
-  // In the case we remove the taa_total_sample set to 0 at ge start
-  if (vedata->stl->effects->taa_total_sample == 1) {
-    /* AA disabled. */
     return;
   }
 
