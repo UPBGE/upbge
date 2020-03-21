@@ -488,12 +488,6 @@ void OBJECT_OT_proxy_make(wmOperatorType *ot)
 
 /********************** Clear Parent Operator ******************* */
 
-typedef enum eObClearParentTypes {
-  CLEAR_PARENT_ALL = 0,
-  CLEAR_PARENT_KEEP_TRANSFORM,
-  CLEAR_PARENT_INVERSE,
-} eObClearParentTypes;
-
 EnumPropertyItem prop_clear_parent_types[] = {
     {CLEAR_PARENT_ALL,
      "CLEAR",
@@ -2487,7 +2481,7 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
         /* Disabled for now, according to some artist this is probably not really useful anyway.
          * And it breaks things like objects parented to bones
          * (most likely due to missing proper setting of inverse parent matrix?)... */
-        /* Note: we might even actually want to get rid of that instanciating empty... */
+        /* Note: we might even actually want to get rid of that instantiating empty... */
         if (0 && new_ob->parent == NULL) {
           new_ob->parent = obcollection;
         }

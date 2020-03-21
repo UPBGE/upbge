@@ -51,7 +51,7 @@
 #include "BKE_appdir.h"
 #include "BKE_editmesh.h"
 #include "BKE_global.h"
-#include "BKE_idcode.h"
+#include "BKE_idtype.h"
 #include "BKE_key.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
@@ -677,7 +677,7 @@ Object *modifiers_isDeformedByArmature(Object *ob)
     }
   }
 
-  if (amd) { /* if were still here then return the last armature */
+  if (amd) { /* if we're still here then return the last armature */
     return amd->object;
   }
 
@@ -700,7 +700,7 @@ Object *modifiers_isDeformedByMeshDeform(Object *ob)
     }
   }
 
-  if (mdmd) { /* if were still here then return the last armature */
+  if (mdmd) { /* if we're still here then return the last armature */
     return mdmd->object;
   }
 
@@ -726,7 +726,7 @@ Object *modifiers_isDeformedByLattice(Object *ob)
     }
   }
 
-  if (lmd) { /* if were still here then return the last lattice */
+  if (lmd) { /* if we're still here then return the last lattice */
     return lmd->object;
   }
 
@@ -752,7 +752,7 @@ Object *modifiers_isDeformedByCurve(Object *ob)
     }
   }
 
-  if (cmd) { /* if were still here then return the last curve */
+  if (cmd) { /* if we're still here then return the last curve */
     return cmd->object;
   }
 

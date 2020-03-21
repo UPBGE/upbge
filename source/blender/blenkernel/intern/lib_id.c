@@ -71,6 +71,7 @@
 
 #include "BLI_utildefines.h"
 
+#include "BLI_alloca.h"
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
@@ -93,7 +94,6 @@
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
 #include "BKE_hair.h"
-#include "BKE_idcode.h"
 #include "BKE_idprop.h"
 #include "BKE_idtype.h"
 #include "BKE_image.h"
@@ -138,6 +138,23 @@
 #endif
 
 static CLG_LogRef LOG = {.identifier = "bke.lib_id"};
+
+/* Empty shell mostly, but needed for read code. */
+IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
+    .id_code = ID_LINK_PLACEHOLDER,
+    .id_filter = 0,
+    .main_listbase_index = INDEX_ID_NULL,
+    .struct_size = sizeof(ID),
+    .name = "LinkPlaceholder",
+    .name_plural = "link_placeholders",
+    .translation_context = BLT_I18NCONTEXT_ID_ID,
+    .flags = IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_MAKELOCAL,
+
+    .init_data = NULL,
+    .copy_data = NULL,
+    .free_data = NULL,
+    .make_local = NULL,
+};
 
 /* GS reads the memory pointed at in a specific ordering.
  * only use this definition, makes little and big endian systems
@@ -204,7 +221,7 @@ void BKE_lib_id_clear_library_data(Main *bmain, ID *id)
 void id_lib_extern(ID *id)
 {
   if (id && ID_IS_LINKED(id)) {
-    BLI_assert(BKE_idcode_is_linkable(GS(id->name)));
+    BLI_assert(BKE_idtype_idcode_is_linkable(GS(id->name)));
     if (id->tag & LIB_TAG_INDIRECT) {
       id->tag &= ~LIB_TAG_INDIRECT;
       id->flag &= ~LIB_INDIRECT_WEAK_LINK;
@@ -217,7 +234,7 @@ void id_lib_extern(ID *id)
 void id_lib_indirect_weak_link(ID *id)
 {
   if (id && ID_IS_LINKED(id)) {
-    BLI_assert(BKE_idcode_is_linkable(GS(id->name)));
+    BLI_assert(BKE_idtype_idcode_is_linkable(GS(id->name)));
     if (id->tag & LIB_TAG_INDIRECT) {
       id->flag |= LIB_INDIRECT_WEAK_LINK;
     }
@@ -355,7 +372,8 @@ static int lib_id_expand_local_cb(LibraryIDLinkCallbackData *cb_data)
    * (through drivers)...
    * Just skip it, shape key can only be either indirectly linked, or fully local, period.
    * And let's curse one more time that stupid useless shapekey ID type! */
-  if (*id_pointer && *id_pointer != id_self && BKE_idcode_is_linkable(GS((*id_pointer)->name))) {
+  if (*id_pointer && *id_pointer != id_self &&
+      BKE_idtype_idcode_is_linkable(GS((*id_pointer)->name))) {
     id_lib_extern(*id_pointer);
   }
 
@@ -607,58 +625,18 @@ static void id_swap(Main *bmain, ID *id_a, ID *id_b, const bool do_full_id)
 {
   BLI_assert(GS(id_a->name) == GS(id_b->name));
 
+  const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id_a);
+  BLI_assert(id_type != NULL);
+  const size_t id_struct_size = id_type->struct_size;
+
   const ID id_a_back = *id_a;
   const ID id_b_back = *id_b;
 
-#define CASE_SWAP(_gs, _type) \
-  case _gs: \
-    SWAP(_type, *(_type *)id_a, *(_type *)id_b); \
-    break
+  char *id_swap_buff = alloca(id_struct_size);
 
-  switch ((ID_Type)GS(id_a->name)) {
-    CASE_SWAP(ID_SCE, Scene);
-    CASE_SWAP(ID_LI, Library);
-    CASE_SWAP(ID_OB, Object);
-    CASE_SWAP(ID_ME, Mesh);
-    CASE_SWAP(ID_CU, Curve);
-    CASE_SWAP(ID_MB, MetaBall);
-    CASE_SWAP(ID_MA, Material);
-    CASE_SWAP(ID_TE, Tex);
-    CASE_SWAP(ID_IM, Image);
-    CASE_SWAP(ID_LT, Lattice);
-    CASE_SWAP(ID_LA, Light);
-    CASE_SWAP(ID_LP, LightProbe);
-    CASE_SWAP(ID_CA, Camera);
-    CASE_SWAP(ID_KE, Key);
-    CASE_SWAP(ID_WO, World);
-    CASE_SWAP(ID_SCR, bScreen);
-    CASE_SWAP(ID_VF, VFont);
-    CASE_SWAP(ID_TXT, Text);
-    CASE_SWAP(ID_SPK, Speaker);
-    CASE_SWAP(ID_SO, bSound);
-    CASE_SWAP(ID_GR, Collection);
-    CASE_SWAP(ID_AR, bArmature);
-    CASE_SWAP(ID_AC, bAction);
-    CASE_SWAP(ID_NT, bNodeTree);
-    CASE_SWAP(ID_BR, Brush);
-    CASE_SWAP(ID_PA, ParticleSettings);
-    CASE_SWAP(ID_WM, wmWindowManager);
-    CASE_SWAP(ID_WS, WorkSpace);
-    CASE_SWAP(ID_GD, bGPdata);
-    CASE_SWAP(ID_MC, MovieClip);
-    CASE_SWAP(ID_MSK, Mask);
-    CASE_SWAP(ID_LS, FreestyleLineStyle);
-    CASE_SWAP(ID_PAL, Palette);
-    CASE_SWAP(ID_PC, PaintCurve);
-    CASE_SWAP(ID_CF, CacheFile);
-    CASE_SWAP(ID_HA, Hair);
-    CASE_SWAP(ID_PT, PointCloud);
-    CASE_SWAP(ID_VO, Volume);
-    case ID_IP:
-      break; /* Deprecated. */
-  }
-
-#undef CASE_SWAP
+  memcpy(id_swap_buff, id_a, id_struct_size);
+  memcpy(id_a, id_b, id_struct_size);
+  memcpy(id_b, id_swap_buff, id_struct_size);
 
   if (!do_full_id) {
     /* Restore original ID's internal data. */
@@ -980,58 +958,19 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
  */
 size_t BKE_libblock_get_alloc_info(short type, const char **name)
 {
-#define CASE_RETURN(id_code, type) \
-  case id_code: \
-    do { \
-      if (name != NULL) { \
-        *name = #type; \
-      } \
-      return sizeof(type); \
-    } while (0)
+  const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(type);
 
-  switch ((ID_Type)type) {
-    CASE_RETURN(ID_SCE, Scene);
-    CASE_RETURN(ID_LI, Library);
-    CASE_RETURN(ID_OB, Object);
-    CASE_RETURN(ID_ME, Mesh);
-    CASE_RETURN(ID_CU, Curve);
-    CASE_RETURN(ID_MB, MetaBall);
-    CASE_RETURN(ID_MA, Material);
-    CASE_RETURN(ID_TE, Tex);
-    CASE_RETURN(ID_IM, Image);
-    CASE_RETURN(ID_LT, Lattice);
-    CASE_RETURN(ID_LA, Light);
-    CASE_RETURN(ID_CA, Camera);
-    CASE_RETURN(ID_IP, Ipo);
-    CASE_RETURN(ID_KE, Key);
-    CASE_RETURN(ID_WO, World);
-    CASE_RETURN(ID_SCR, bScreen);
-    CASE_RETURN(ID_VF, VFont);
-    CASE_RETURN(ID_TXT, Text);
-    CASE_RETURN(ID_SPK, Speaker);
-    CASE_RETURN(ID_LP, LightProbe);
-    CASE_RETURN(ID_SO, bSound);
-    CASE_RETURN(ID_GR, Collection);
-    CASE_RETURN(ID_AR, bArmature);
-    CASE_RETURN(ID_AC, bAction);
-    CASE_RETURN(ID_NT, bNodeTree);
-    CASE_RETURN(ID_BR, Brush);
-    CASE_RETURN(ID_PA, ParticleSettings);
-    CASE_RETURN(ID_WM, wmWindowManager);
-    CASE_RETURN(ID_GD, bGPdata);
-    CASE_RETURN(ID_MC, MovieClip);
-    CASE_RETURN(ID_MSK, Mask);
-    CASE_RETURN(ID_LS, FreestyleLineStyle);
-    CASE_RETURN(ID_PAL, Palette);
-    CASE_RETURN(ID_PC, PaintCurve);
-    CASE_RETURN(ID_CF, CacheFile);
-    CASE_RETURN(ID_WS, WorkSpace);
-    CASE_RETURN(ID_HA, Hair);
-    CASE_RETURN(ID_PT, PointCloud);
-    CASE_RETURN(ID_VO, Volume);
+  if (id_type == NULL) {
+    if (name != NULL) {
+      *name = NULL;
+    }
+    return 0;
   }
-  return 0;
-#undef CASE_RETURN
+
+  if (name != NULL) {
+    *name = id_type->name;
+  }
+  return id_type->struct_size;
 }
 
 /**
@@ -1154,7 +1093,7 @@ void *BKE_id_new(Main *bmain, const short type, const char *name)
   BLI_assert(bmain != NULL);
 
   if (name == NULL) {
-    name = DATA_(BKE_idcode_to_name(type));
+    name = DATA_(BKE_idtype_idcode_to_name(type));
   }
 
   ID *id = BKE_libblock_alloc(bmain, type, name, 0);
@@ -1171,7 +1110,7 @@ void *BKE_id_new(Main *bmain, const short type, const char *name)
 void *BKE_id_new_nomain(const short type, const char *name)
 {
   if (name == NULL) {
-    name = DATA_(BKE_idcode_to_name(type));
+    name = DATA_(BKE_idtype_idcode_to_name(type));
   }
 
   ID *id = BKE_libblock_alloc(NULL,
@@ -1670,7 +1609,7 @@ bool BKE_id_new_name_validate(ListBase *lb, ID *id, const char *tname)
 
   if (name[0] == '\0') {
     /* Disallow empty names. */
-    BLI_strncpy(name, DATA_(BKE_idcode_to_name(GS(id->name))), sizeof(name));
+    BLI_strncpy(name, DATA_(BKE_idtype_idcode_to_name(GS(id->name))), sizeof(name));
   }
   else {
     /* disallow non utf8 chars,
@@ -1875,7 +1814,7 @@ void BKE_library_make_local(Main *bmain,
 
     /* Do not explicitly make local non-linkable IDs (shapekeys, in fact),
      * they are assumed to be handled by real data-blocks responsible of them. */
-    const bool do_skip = (id && !BKE_idcode_is_linkable(GS(id->name)));
+    const bool do_skip = (id && !BKE_idtype_idcode_is_linkable(GS(id->name)));
 
     for (; id; id = id->next) {
       ID *ntree = (ID *)ntreeFromID(id);
