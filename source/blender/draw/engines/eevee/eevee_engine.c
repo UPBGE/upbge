@@ -87,13 +87,6 @@ static void eevee_engine_init(void *ved)
    * `EEVEE_effects_init` needs to go second for TAA. */
   EEVEE_renderpasses_init(vedata);
   EEVEE_effects_init(sldata, vedata, camera, false);
-
-  /* Game engine transition */
-  if (draw_ctx->scene->flag & SCE_INTERACTIVE && draw_ctx->scene->eevee.flag & SCE_EEVEE_SMAA) {
-    eevee_antialiasing_engine_init(vedata);
-  }
-  /* End of Game engine transition */
-
   EEVEE_materials_init(sldata, stl, fbl);
   EEVEE_shadows_init(sldata);
   EEVEE_lightprobes_init(sldata, vedata);
@@ -102,12 +95,6 @@ static void eevee_engine_init(void *ved)
 static void eevee_cache_init(void *vedata)
 {
   EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
-  /* Game engine transition */
-  const DRWContextState *draw_ctx = DRW_context_state_get();
-  if (draw_ctx->scene->flag & SCE_INTERACTIVE && draw_ctx->scene->eevee.flag & SCE_EEVEE_SMAA) {
-    eevee_antialiasing_cache_init(vedata);
-  }
-  /* End of Game engine transition */
   EEVEE_bloom_cache_init(sldata, vedata);
   EEVEE_depth_of_field_cache_init(sldata, vedata);
   EEVEE_effects_cache_init(sldata, vedata);
@@ -365,12 +352,8 @@ static void eevee_draw_scene(void *vedata)
     EEVEE_renderpasses_draw(sldata, vedata);
   }
 
-  /* Game engine transition */
-  const DRWContextState *draw_ctx = DRW_context_state_get();
-  if (draw_ctx->scene->flag & SCE_INTERACTIVE && draw_ctx->scene->eevee.flag & SCE_EEVEE_SMAA) {
-    eevee_antialiasing_setup(vedata);
-    eevee_antialiasing_draw_pass(vedata);
-  }
+  /* Game engine transition */    
+  EEVEE_antialiasing_draw_pass(vedata);
   /* End of Game engine transition */
 
   EEVEE_renderpasses_draw_debug(vedata);

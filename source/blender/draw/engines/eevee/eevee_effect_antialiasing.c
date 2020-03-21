@@ -103,94 +103,113 @@ static void eevee_taa_jitter_init(void)
   }
 }
 
-void eevee_antialiasing_engine_init(EEVEE_Data *vedata)
+int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata)
 {
   EEVEE_FramebufferList *fbl = vedata->fbl;
   EEVEE_TextureList *txl = vedata->txl;
   EEVEE_PrivateData *g_data = vedata->stl->g_data;
-  DrawEngineType *owner = (DrawEngineType *)&eevee_antialiasing_engine_init;
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  Scene *scene_eval = draw_ctx->scene;
 
-  g_data->view = NULL;
-
-  if (vedata->stl->effects->taa_current_sample < 16) {
-    eevee_taa_jitter_init();
-
-    DRW_texture_ensure_fullscreen_2d(&txl->history_buffer_tx, GPU_RGBA16F, DRW_TEX_FILTER);
-    DRW_texture_ensure_fullscreen_2d(&txl->depth_buffer_tx, GPU_DEPTH24_STENCIL8, 0);
-
-    g_data->smaa_edge_tx = DRW_texture_pool_query_fullscreen(GPU_RG8, owner);
-    g_data->smaa_weight_tx = DRW_texture_pool_query_fullscreen(GPU_RGBA8, owner);
-
-    GPU_framebuffer_ensure_config(&fbl->antialiasing_fb,
-                                  {
-                                      GPU_ATTACHMENT_TEXTURE(txl->depth_buffer_tx),
-                                      GPU_ATTACHMENT_TEXTURE(txl->history_buffer_tx),
-                                  });
-
-    GPU_framebuffer_ensure_config(&fbl->smaa_edge_fb,
-                                  {
-                                      GPU_ATTACHMENT_NONE,
-                                      GPU_ATTACHMENT_TEXTURE(g_data->smaa_edge_tx),
-                                  });
-
-    GPU_framebuffer_ensure_config(&fbl->smaa_weight_fb,
-                                  {
-                                      GPU_ATTACHMENT_NONE,
-                                      GPU_ATTACHMENT_TEXTURE(g_data->smaa_weight_tx),
-                                  });
-
-    /* TODO could be shared for all viewports. */
-    if (txl->smaa_search_tx == NULL) {
-      txl->smaa_search_tx = GPU_texture_create_nD(SEARCHTEX_WIDTH,
-                                                  SEARCHTEX_HEIGHT,
-                                                  0,
-                                                  2,
-                                                  searchTexBytes,
-                                                  GPU_R8,
-                                                  GPU_DATA_UNSIGNED_BYTE,
-                                                  0,
-                                                  false,
-                                                  NULL);
-
-      txl->smaa_area_tx = GPU_texture_create_nD(AREATEX_WIDTH,
-                                                AREATEX_HEIGHT,
-                                                0,
-                                                2,
-                                                areaTexBytes,
-                                                GPU_RG8,
-                                                GPU_DATA_UNSIGNED_BYTE,
-                                                0,
-                                                false,
-                                                NULL);
-
-      GPU_texture_bind(txl->smaa_search_tx, 0);
-      GPU_texture_filter_mode(txl->smaa_search_tx, true);
-      GPU_texture_unbind(txl->smaa_search_tx);
-
-      GPU_texture_bind(txl->smaa_area_tx, 0);
-      GPU_texture_filter_mode(txl->smaa_area_tx, true);
-      GPU_texture_unbind(txl->smaa_area_tx);
-    }
-  }
-  else {
+  if (!(scene_eval->eevee.flag & SCE_EEVEE_SMAA)) {
     /* Cleanup */
     DRW_TEXTURE_FREE_SAFE(txl->history_buffer_tx);
     DRW_TEXTURE_FREE_SAFE(txl->depth_buffer_tx);
     DRW_TEXTURE_FREE_SAFE(txl->smaa_search_tx);
     DRW_TEXTURE_FREE_SAFE(txl->smaa_area_tx);
+    return 0;
   }
+
+  DrawEngineType *owner = (DrawEngineType *)&EEVEE_antialiasing_engine_init;
+  g_data->view = NULL;
+
+  
+  eevee_taa_jitter_init();
+
+  DRW_texture_ensure_fullscreen_2d(&txl->history_buffer_tx, GPU_RGBA16F, DRW_TEX_FILTER);
+  DRW_texture_ensure_fullscreen_2d(&txl->depth_buffer_tx, GPU_DEPTH24_STENCIL8, 0);
+
+  g_data->smaa_edge_tx = DRW_texture_pool_query_fullscreen(GPU_RG8, owner);
+  g_data->smaa_weight_tx = DRW_texture_pool_query_fullscreen(GPU_RGBA8, owner);
+
+  GPU_framebuffer_ensure_config(&fbl->antialiasing_fb,
+                                {
+                                    GPU_ATTACHMENT_TEXTURE(txl->depth_buffer_tx),
+                                    GPU_ATTACHMENT_TEXTURE(txl->history_buffer_tx),
+                                });
+
+  GPU_framebuffer_ensure_config(&fbl->smaa_edge_fb,
+                                {
+                                    GPU_ATTACHMENT_NONE,
+                                    GPU_ATTACHMENT_TEXTURE(g_data->smaa_edge_tx),
+                                });
+
+  GPU_framebuffer_ensure_config(&fbl->smaa_weight_fb,
+                                {
+                                    GPU_ATTACHMENT_NONE,
+                                    GPU_ATTACHMENT_TEXTURE(g_data->smaa_weight_tx),
+                                });
+
+  /* TODO could be shared for all viewports. */
+  if (txl->smaa_search_tx == NULL) {
+    txl->smaa_search_tx = GPU_texture_create_nD(SEARCHTEX_WIDTH,
+                                                SEARCHTEX_HEIGHT,
+                                                0,
+                                                2,
+                                                searchTexBytes,
+                                                GPU_R8,
+                                                GPU_DATA_UNSIGNED_BYTE,
+                                                0,
+                                                false,
+                                                NULL);
+
+    txl->smaa_area_tx = GPU_texture_create_nD(AREATEX_WIDTH,
+                                              AREATEX_HEIGHT,
+                                              0,
+                                              2,
+                                              areaTexBytes,
+                                              GPU_RG8,
+                                              GPU_DATA_UNSIGNED_BYTE,
+                                              0,
+                                              false,
+                                              NULL);
+
+    GPU_texture_bind(txl->smaa_search_tx, 0);
+    GPU_texture_filter_mode(txl->smaa_search_tx, true);
+    GPU_texture_unbind(txl->smaa_search_tx);
+
+    GPU_texture_bind(txl->smaa_area_tx, 0);
+    GPU_texture_filter_mode(txl->smaa_area_tx, true);
+    GPU_texture_unbind(txl->smaa_area_tx);
+  }
+  return EFFECT_SMAA;
 }
 
-void eevee_antialiasing_cache_init(EEVEE_Data *vedata)
+void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
 {
   EEVEE_TextureList *txl = vedata->txl;
   EEVEE_PrivateData *g_data = vedata->stl->g_data;
   EEVEE_PassList *psl = vedata->psl;
+  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
   DRWShadingGroup *grp = NULL;
+
+  EEVEE_EffectsInfo *effects = vedata->stl->effects;
+  if (!(effects->enabled_effects & EFFECT_SMAA)) {
+    return;
+  }
 
   // In the case we remove the taa_total_sample set to 0 at ge start
   if (vedata->stl->effects->taa_total_sample == 1) { // AA Disabled
     return;
+  }
+
+  {
+    DRW_PASS_CREATE(psl->aa_accum_ps, DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL);
+
+    GPUShader *shader = eevee_shader_antialiasing_accumulation_get();
+    grp = DRW_shgroup_create(shader, psl->aa_accum_ps);
+    DRW_shgroup_uniform_texture(grp, "colorBuffer", dtxl->color);
+    DRW_shgroup_call_procedural_triangles(grp, NULL, 1);
   }
 
   const float *size = DRW_viewport_size_get();
@@ -240,19 +259,23 @@ void eevee_antialiasing_cache_init(EEVEE_Data *vedata)
 }
 
 /* Return true if render is not cached. */
-bool eevee_antialiasing_setup(EEVEE_Data *vedata)
+void eevee_antialiasing_setup(EEVEE_Data *vedata)
 {
   EEVEE_PrivateData *g_data = vedata->stl->g_data;
 
-  // In the case we remove the taa_total_sample set to 0 at ge start
+  EEVEE_EffectsInfo *effects = vedata->stl->effects;
+  if (!(effects->enabled_effects & EFFECT_SMAA)) {
+    return;
+  }
+
   if (vedata->stl->effects->taa_total_sample == 1) {
     /* AA disabled. */
-    return true;
+    return;
   }
 
   if (vedata->stl->effects->taa_current_sample >= 16) {
     /* TAA accumulation has finish. Just copy the result back */
-    return false;
+    return;
   }
   else {
     const float *viewport_size = DRW_viewport_size_get();
@@ -282,16 +305,21 @@ bool eevee_antialiasing_setup(EEVEE_Data *vedata)
       g_data->view = DRW_view_create_sub(default_view, viewmat, winmat);
     }
     DRW_view_set_active(g_data->view);
-    return true;
+    return;
   }
 }
 
-void eevee_antialiasing_draw_pass(EEVEE_Data *vedata)
+void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata)
 {
   EEVEE_PrivateData *g_data = vedata->stl->g_data;
   EEVEE_FramebufferList *fbl = vedata->fbl;
   EEVEE_PassList *psl = vedata->psl;
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+
+  EEVEE_EffectsInfo *effects = vedata->stl->effects;
+  if (!(effects->enabled_effects & EFFECT_SMAA)) {
+    return;
+  }
 
   // In the case we remove the taa_total_sample set to 0 at ge start
   if (vedata->stl->effects->taa_total_sample == 1) {
@@ -299,19 +327,30 @@ void eevee_antialiasing_draw_pass(EEVEE_Data *vedata)
     return;
   }
 
+  eevee_antialiasing_setup(vedata);
+
   /**
    * We always do SMAA on top of TAA accumulation, unless the number of samples of TAA is already
    * high. This ensure a smoother transition.
    * If TAA accumulation is finished, we only blit the result.
    */
-
-  /* After a certain point SMAA is no longer necessary. */
   if (vedata->stl->effects->taa_current_sample < 16) {
     /* In playback mode, we are sure the next redraw will not use the same viewmatrix.
      * In this case no need to save the depth buffer. */
-    eGPUFrameBufferBits bits = GPU_COLOR_BIT | GPU_DEPTH_BIT;
+    eGPUFrameBufferBits bits = vedata->stl->effects->taa_current_sample == 1 ? GPU_COLOR_BIT :
+                                                                               GPU_COLOR_BIT | GPU_DEPTH_BIT;
     GPU_framebuffer_blit(dfbl->default_fb, 0, fbl->antialiasing_fb, 0, bits);
-  
+  }
+  else {
+    /* Accumulate result to the TAA buffer. */
+    GPU_framebuffer_bind(fbl->antialiasing_fb);
+    DRW_draw_pass(psl->aa_accum_ps);
+    /* Copy back the saved depth buffer for correct overlays. */
+    GPU_framebuffer_blit(fbl->antialiasing_fb, 0, dfbl->default_fb, 0, GPU_DEPTH_BIT);
+  }
+
+  /* After a certain point SMAA is no longer necessary. */
+  if (vedata->stl->effects->taa_current_sample < 16) {
     g_data->smaa_mix_factor = 1.0f -
                               clamp_f(vedata->stl->effects->taa_current_sample / 4.0f, 0.0f, 1.0f);
     g_data->taa_sample_inv = 1.0f / clamp_f((vedata->stl->effects->taa_current_sample + 1), 0.0f, 1.0f);

@@ -301,6 +301,7 @@ typedef struct EEVEE_PassList {
   struct DRWPass *renderpass_pass;
 
   /* Game engine transition */
+  struct DRWPass *aa_accum_ps;
   struct DRWPass *aa_edge_ps;
   struct DRWPass *aa_weight_ps;
   struct DRWPass *aa_resolve_ps;
@@ -593,6 +594,7 @@ typedef enum EEVEE_EffectsFlag {
   EFFECT_VELOCITY_BUFFER = (1 << 12),     /* Not really an effect but a feature */
   EFFECT_TAA_REPROJECT = (1 << 13),       /* should be mutually exclusive with EFFECT_TAA */
   EFFECT_DEPTH_DOUBLE_BUFFER = (1 << 14), /* Not really an effect but a feature */
+  EFFECT_SMAA = (1 << 15),
 } EEVEE_EffectsFlag;
 
 typedef struct EEVEE_EffectsInfo {
@@ -1294,11 +1296,13 @@ static const float cubefacemat[6][4][4] = {
 /* Game engine transition */
 EEVEE_Data *EEVEE_engine_data_get(void);
 
+void EEVEE_shader_library_ensure(void);
+GPUShader *eevee_shader_antialiasing_accumulation_get(void);
 GPUShader *eevee_shader_antialiasing_get(int stage);
-void eevee_antialiasing_engine_init(EEVEE_Data *vedata);
-void eevee_antialiasing_cache_init(EEVEE_Data *vedata);
-bool eevee_antialiasing_setup(EEVEE_Data *vedata);
-void eevee_antialiasing_draw_pass(EEVEE_Data *vedata);
+int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata);
+void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata);
+void eevee_antialiasing_setup(EEVEE_Data *vedata);
+void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata);
 /* End of Game engine transition */
 
 #ifdef __cplusplus
