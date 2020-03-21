@@ -2191,7 +2191,9 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
   /* accessing a SoundActuator's sound results in a crash if aud is not initialized... */
   {
     PyObject *mod = PyImport_ImportModuleLevel("aud", nullptr, nullptr, nullptr, 0);
-    Py_DECREF(mod);
+    if (mod) { //avoiding crash if audio device can not be initialized
+      Py_DECREF(mod);
+    }
   }
 #  endif
 
@@ -2289,7 +2291,9 @@ void initGamePythonScripting(Main *maggie)
   /* accessing a SoundActuator's sound results in a crash if aud is not initialized... */
   {
     PyObject *mod = PyImport_ImportModuleLevel("aud", nullptr, nullptr, nullptr, 0);
-    Py_DECREF(mod);
+    if (mod) { //avoiding crash if audio device can not be initialized
+      Py_DECREF(mod);
+    }
   }
 #  endif
 
