@@ -311,8 +311,8 @@ void eevee_antialiasing_draw_pass(EEVEE_Data *vedata)
     GPU_framebuffer_blit(dfbl->default_fb, 0, fbl->antialiasing_fb, 0, bits);
   
     g_data->smaa_mix_factor = 1.0f -
-                              clamp_f(vedata->stl->effects->taa_current_sample / 512.0f / 4.0f, 0.0f, 1.0f);
-    g_data->taa_sample_inv = 1.0f / clamp_f((vedata->stl->effects->taa_current_sample / 512.0f + 1), 0.0f, 1.0f);
+                              clamp_f(vedata->stl->effects->taa_current_sample / 4.0f, 0.0f, 1.0f);
+    g_data->taa_sample_inv = 1.0f / clamp_f((vedata->stl->effects->taa_current_sample + 1), 0.0f, 1.0f);
 
     if (g_data->smaa_mix_factor > 0.0f) {
       GPU_framebuffer_bind(fbl->smaa_edge_fb);
