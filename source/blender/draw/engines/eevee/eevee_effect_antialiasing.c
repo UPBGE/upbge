@@ -188,6 +188,7 @@ void eevee_antialiasing_cache_init(EEVEE_Data *vedata)
   EEVEE_PassList *psl = vedata->psl;
   DRWShadingGroup *grp = NULL;
 
+  // In the case we remove the taa_total_sample set to 0 at ge start
   if (vedata->stl->effects->taa_total_sample == 1) { // AA Disabled
     return;
   }
@@ -243,6 +244,7 @@ bool eevee_antialiasing_setup(EEVEE_Data *vedata)
 {
   EEVEE_PrivateData *g_data = vedata->stl->g_data;
 
+  // In the case we remove the taa_total_sample set to 0 at ge start
   if (vedata->stl->effects->taa_total_sample == 1) {
     /* AA disabled. */
     return true;
@@ -291,6 +293,7 @@ void eevee_antialiasing_draw_pass(EEVEE_Data *vedata)
   EEVEE_PassList *psl = vedata->psl;
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
+  // In the case we remove the taa_total_sample set to 0 at ge start
   if (vedata->stl->effects->taa_total_sample == 1) {
     /* AA disabled. */
     return;
