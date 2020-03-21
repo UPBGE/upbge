@@ -39,6 +39,8 @@
 
 #include "eevee_private.h"
 
+#define SMAA_THRESHOLD 16
+
 static struct {
   bool init;
   float jitter_5[5][2];
@@ -273,7 +275,7 @@ void eevee_antialiasing_setup(EEVEE_Data *vedata)
     return;
   }
 
-  if (vedata->stl->effects->taa_current_sample >= 16) {
+  if (vedata->stl->effects->taa_current_sample >= SMAA_THRESHOLD) {
     /* TAA accumulation has finish. Just copy the result back */
     return;
   }
@@ -334,7 +336,7 @@ void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata)
    * high. This ensure a smoother transition.
    * If TAA accumulation is finished, we only blit the result.
    */
-  if (vedata->stl->effects->taa_current_sample < 16) {
+  if (vedata->stl->effects->taa_current_sample < SMAA_THRESHOLD) {
     /* In playback mode, we are sure the next redraw will not use the same viewmatrix.
      * In this case no need to save the depth buffer. */
     eGPUFrameBufferBits bits = vedata->stl->effects->taa_current_sample == 1 ? GPU_COLOR_BIT :
