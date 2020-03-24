@@ -19,6 +19,7 @@
 /** \file
  * \ingroup draw_engine
  */
+#include "DRW_render.h"
 
 #include "workbench_private.h"
 
@@ -189,7 +190,15 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
   wpd->preferences = &U;
   wpd->scene = scene;
   wpd->sh_cfg = draw_ctx->sh_cfg;
-  wpd->clip_state = RV3D_CLIPPING_ENABLED(v3d, rv3d) ? DRW_STATE_CLIP_PLANES : 0;
+
+  /* FIXME: This reproduce old behavior when workbench was separated in 2 engines.
+   * But this is a workaround for a missing update tagging. */
+  DRWState clip_state = RV3D_CLIPPING_ENABLED(v3d, rv3d) ? DRW_STATE_CLIP_PLANES : 0;
+  if (clip_state != wpd->clip_state) {
+    wpd->view_updated = true;
+  }
+  wpd->clip_state = clip_state;
+
   wpd->cull_state = CULL_BACKFACE_ENABLED(wpd) ? DRW_STATE_CULL_BACK : 0;
   wpd->vldata = vldata;
   wpd->world_ubo = vldata->world_ubo;
@@ -199,11 +208,19 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
   wpd->volumes_do = false;
   BLI_listbase_clear(&wpd->smoke_domains);
 
+  /* FIXME: This reproduce old behavior when workbench was separated in 2 engines.
+   * But this is a workaround for a missing update tagging. */
+  if ((rv3d != NULL) && (rv3d->rflag & RV3D_GPULIGHT_UPDATE)) {
+    wpd->view_updated = true;
+    rv3d->rflag &= ~RV3D_GPULIGHT_UPDATE;
+  }
+
   if (!v3d || (v3d->shading.type == OB_RENDER && BKE_scene_uses_blender_workbench(scene))) {
     /* FIXME: This reproduce old behavior when workbench was separated in 2 engines.
      * But this is a workaround for a missing update tagging from operators. */
     if (scene->display.shading.type != wpd->shading.type ||
-        (v3d && (XRAY_ENABLED(v3d) != XRAY_ENABLED(&scene->display)))) {
+        (v3d && (XRAY_ENABLED(v3d) != XRAY_ENABLED(&scene->display))) ||
+        (scene->display.shading.flag != wpd->shading.flag)) {
       wpd->view_updated = true;
     }
 
@@ -229,7 +246,8 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
   else {
     /* FIXME: This reproduce old behavior when workbench was separated in 2 engines.
      * But this is a workaround for a missing update tagging from operators. */
-    if (v3d->shading.type != wpd->shading.type || XRAY_ENABLED(v3d) != XRAY_ENABLED(wpd)) {
+    if (v3d->shading.type != wpd->shading.type || XRAY_ENABLED(v3d) != XRAY_ENABLED(wpd) ||
+        v3d->shading.flag != wpd->shading.flag) {
       wpd->view_updated = true;
     }
 
