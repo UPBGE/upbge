@@ -538,7 +538,7 @@ static bool BKE_fluid_modifier_init(
     /* Initially dt is equal to frame length (dt can change with adaptive-time stepping though). */
     mds->dt = mds->frame_length;
     mds->time_per_frame = 0;
-    mds->time_total = (scene_framenr - 1) * mds->frame_length;
+    mds->time_total = abs(scene_framenr - mds->cache_frame_start) * mds->frame_length;
 
     mmd->time = scene_framenr;
 
@@ -571,7 +571,7 @@ static void update_distances(int index,
                              BVHTreeFromMesh *tree_data,
                              const float ray_start[3],
                              float surface_thickness,
-                             int use_plane_init);
+                             bool use_plane_init);
 
 static int get_light(ViewLayer *view_layer, float *light)
 {
@@ -1717,16 +1717,25 @@ static void update_distances(int index,
                              BVHTreeFromMesh *tree_data,
                              const float ray_start[3],
                              float surface_thickness,
-                             int use_plane_init)
+                             bool use_plane_init)
 {
   float min_dist = PHI_MAX;
 
-  /* a) Planar initialization */
+  /* Planar initialization: Find nearest cells around mesh. */
   if (use_plane_init) {
     BVHTreeNearest nearest = {0};
     nearest.index = -1;
-    nearest.dist_sq = surface_thickness *
-                      surface_thickness; /* find_nearest uses squared distance */
+    /* Distance between two opposing vertices in a unit cube.
+     * I.e. the unit cube diagonal or sqrt(3).
+     * This value is our nearest neighbor search distance. */
+    const float surface_distance = 1.732;
+    nearest.dist_sq = surface_distance *
+                      surface_distance; /* find_nearest uses squared distance. */
+
+    /* Subtract optional surface thickness value and virtually increase the object size. */
+    if (surface_thickness) {
+      nearest.dist_sq += surface_thickness;
+    }
 
     if (BLI_bvhtree_find_nearest(
             tree_data->tree, ray_start, &nearest, tree_data->nearest_callback, tree_data) != -1) {
@@ -1734,76 +1743,73 @@ static void update_distances(int index,
       sub_v3_v3v3(ray, ray_start, nearest.co);
       min_dist = len_v3(ray);
       min_dist = (-1.0f) * fabsf(min_dist);
-      distance_map[index] = min_dist;
-    }
-    return;
-  }
-
-  /* b) Volumetric initialization: Ray-casts around mesh object. */
-
-  /* Ray-casts in 26 directions.
-   * (6 main axis + 12 quadrant diagonals (2D) + 8 octant diagonals (3D)). */
-  float ray_dirs[26][3] = {
-      {1.0f, 0.0f, 0.0f},   {0.0f, 1.0f, 0.0f},   {0.0f, 0.0f, 1.0f},  {-1.0f, 0.0f, 0.0f},
-      {0.0f, -1.0f, 0.0f},  {0.0f, 0.0f, -1.0f},  {1.0f, 1.0f, 0.0f},  {1.0f, -1.0f, 0.0f},
-      {-1.0f, 1.0f, 0.0f},  {-1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 1.0f},  {1.0f, 0.0f, -1.0f},
-      {-1.0f, 0.0f, 1.0f},  {-1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 1.0f},  {0.0f, 1.0f, -1.0f},
-      {0.0f, -1.0f, 1.0f},  {0.0f, -1.0f, -1.0f}, {1.0f, 1.0f, 1.0f},  {1.0f, -1.0f, 1.0f},
-      {-1.0f, 1.0f, 1.0f},  {-1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, -1.0f}, {1.0f, -1.0f, -1.0f},
-      {-1.0f, 1.0f, -1.0f}, {-1.0f, -1.0f, -1.0f}};
-  size_t ray_cnt = sizeof ray_dirs / sizeof ray_dirs[0];
-
-  /* Count ray mesh misses (i.e. no face hit) and cases where the ray direction matches the face
-   * normal direction. From this information it can be derived whether a cell is inside or outside
-   * the mesh. */
-  int miss_cnt = 0, dir_cnt = 0;
-  min_dist = PHI_MAX;
-
-  for (int i = 0; i < ray_cnt; i++) {
-    BVHTreeRayHit hit_tree = {0};
-    hit_tree.index = -1;
-    hit_tree.dist = PHI_MAX;
-
-    normalize_v3(ray_dirs[i]);
-    BLI_bvhtree_ray_cast(tree_data->tree,
-                         ray_start,
-                         ray_dirs[i],
-                         0.0f,
-                         &hit_tree,
-                         tree_data->raycast_callback,
-                         tree_data);
-
-    /* Ray did not hit mesh.
-     * Current point definitely not inside mesh. Inside mesh as all rays have to hit. */
-    if (hit_tree.index == -1) {
-      miss_cnt++;
-      /* Skip this ray since nothing was hit. */
-      continue;
-    }
-
-    /* Ray and normal are pointing in opposite directions. */
-    if (dot_v3v3(ray_dirs[i], hit_tree.no) <= 0) {
-      dir_cnt++;
-    }
-
-    if (hit_tree.dist < min_dist) {
-      min_dist = hit_tree.dist;
     }
   }
+  /* Volumetric initialization: Ray-casts around mesh object. */
+  else {
+    /* Ray-casts in 26 directions.
+     * (6 main axis + 12 quadrant diagonals (2D) + 8 octant diagonals (3D)). */
+    float ray_dirs[26][3] = {
+        {1.0f, 0.0f, 0.0f},   {0.0f, 1.0f, 0.0f},   {0.0f, 0.0f, 1.0f},  {-1.0f, 0.0f, 0.0f},
+        {0.0f, -1.0f, 0.0f},  {0.0f, 0.0f, -1.0f},  {1.0f, 1.0f, 0.0f},  {1.0f, -1.0f, 0.0f},
+        {-1.0f, 1.0f, 0.0f},  {-1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 1.0f},  {1.0f, 0.0f, -1.0f},
+        {-1.0f, 0.0f, 1.0f},  {-1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 1.0f},  {0.0f, 1.0f, -1.0f},
+        {0.0f, -1.0f, 1.0f},  {0.0f, -1.0f, -1.0f}, {1.0f, 1.0f, 1.0f},  {1.0f, -1.0f, 1.0f},
+        {-1.0f, 1.0f, 1.0f},  {-1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, -1.0f}, {1.0f, -1.0f, -1.0f},
+        {-1.0f, 1.0f, -1.0f}, {-1.0f, -1.0f, -1.0f}};
+    size_t ray_cnt = sizeof ray_dirs / sizeof ray_dirs[0];
 
-  /* Point lies inside mesh. Use negative sign for distance value.
-   * This "if statement" has 2 conditions that can be true for points outside mesh. */
-  if (!(miss_cnt > 0 || dir_cnt == ray_cnt)) {
-    min_dist = (-1.0f) * fabsf(min_dist);
+    /* Count ray mesh misses (i.e. no face hit) and cases where the ray direction matches the face
+     * normal direction. From this information it can be derived whether a cell is inside or
+     * outside the mesh. */
+    int miss_cnt = 0, dir_cnt = 0;
+
+    for (int i = 0; i < ray_cnt; i++) {
+      BVHTreeRayHit hit_tree = {0};
+      hit_tree.index = -1;
+      hit_tree.dist = PHI_MAX;
+
+      normalize_v3(ray_dirs[i]);
+      BLI_bvhtree_ray_cast(tree_data->tree,
+                           ray_start,
+                           ray_dirs[i],
+                           0.0f,
+                           &hit_tree,
+                           tree_data->raycast_callback,
+                           tree_data);
+
+      /* Ray did not hit mesh.
+       * Current point definitely not inside mesh. Inside mesh as all rays have to hit. */
+      if (hit_tree.index == -1) {
+        miss_cnt++;
+        /* Skip this ray since nothing was hit. */
+        continue;
+      }
+
+      /* Ray and normal are pointing in opposite directions. */
+      if (dot_v3v3(ray_dirs[i], hit_tree.no) <= 0) {
+        dir_cnt++;
+      }
+
+      if (hit_tree.dist < min_dist) {
+        min_dist = hit_tree.dist;
+      }
+    }
+
+    /* Point lies inside mesh. Use negative sign for distance value.
+     * This "if statement" has 2 conditions that can be true for points outside mesh. */
+    if (!(miss_cnt > 0 || dir_cnt == ray_cnt)) {
+      min_dist = (-1.0f) * fabsf(min_dist);
+    }
+
+    /* Subtract optional surface thickness value and virtually increase the object size. */
+    if (surface_thickness) {
+      min_dist -= surface_thickness;
+    }
   }
 
   /* Update global distance array but ensure that older entries are not overridden. */
   distance_map[index] = MIN2(distance_map[index], min_dist);
-
-  /* Subtract optional surface thickness value and virtually increase the object size. */
-  if (surface_thickness) {
-    distance_map[index] -= surface_thickness;
-  }
 
   /* Sanity check: Ensure that distances don't explode. */
   CLAMP(distance_map[index], -PHI_MAX, PHI_MAX);
@@ -3561,17 +3567,13 @@ static int manta_step(
   BLI_mutex_lock(&object_update_lock);
 
   /* Loop as long as time_per_frame (sum of sub dt's) does not exceed actual framelength. */
-  while (time_per_frame < frame_length) {
+  while (time_per_frame + FLT_EPSILON < frame_length) {
     manta_adapt_timestep(mds->fluid);
     dt = manta_get_timestep(mds->fluid);
 
     /* Save adapted dt so that MANTA object can access it (important when adaptive domain creates
      * new MANTA object). */
     mds->dt = dt;
-
-    /* Count for how long this while loop is running. */
-    time_per_frame += dt;
-    time_total += dt;
 
     /* Calculate inflow geometry. */
     update_flowsfluids(depsgraph, scene, ob, mds, time_per_frame, frame_length, frame, dt);
@@ -3596,10 +3598,14 @@ static int manta_step(
     if (mds->total_cells > 1) {
       update_effectors(depsgraph, scene, ob, mds, dt);
       manta_bake_data(mds->fluid, mmd, frame);
-
-      mds->time_per_frame = time_per_frame;
-      mds->time_total = time_total;
     }
+
+    /* Count for how long this while loop is running. */
+    time_per_frame += dt;
+    time_total += dt;
+
+    mds->time_per_frame = time_per_frame;
+    mds->time_total = time_total;
 
     /* If user requested stop, quit baking */
     if (G.is_break && !mode_replay) {
@@ -3701,8 +3707,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
   bool is_startframe;
   is_startframe = (scene_framenr == mds->cache_frame_start);
 
-  /* Reset fluid if no fluid present (obviously)
-   * or if timeline gets reset to startframe */
+  /* Reset fluid if no fluid present. */
   if (!mds->fluid) {
     BKE_fluid_modifier_reset_ex(mmd, false);
 
@@ -3713,7 +3718,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
   }
   BLI_assert(mds->fluid);
 
-  /* Guiding parent res pointer needs initialization */
+  /* Guiding parent res pointer needs initialization. */
   guide_parent = mds->guide_parent;
   if (guide_parent) {
     mmd_parent = (FluidModifierData *)modifiers_findByType(guide_parent, eModifierType_Fluid);
@@ -3722,12 +3727,13 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
     }
   }
 
-  /* ensure that time parameters are initialized correctly before every step */
+  /* Ensure that time parameters are initialized correctly before every step. */
   float fps = scene->r.frs_sec / scene->r.frs_sec_base;
   mds->frame_length = DT_DEFAULT * (25.0f / fps) * mds->time_scale;
   mds->dt = mds->frame_length;
   mds->time_per_frame = 0;
-  mds->time_total = (scene_framenr - 1) * mds->frame_length;
+  /* Get distance between cache start and current frame for total time. */
+  mds->time_total = abs(scene_framenr - mds->cache_frame_start) * mds->frame_length;
 
   objs = BKE_collision_objects_create(
       depsgraph, ob, mds->fluid_group, &numobj, eModifierType_Fluid);
@@ -3743,7 +3749,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
     MEM_freeN(objs);
   }
 
-  /* Ensure cache directory is not relative */
+  /* Ensure cache directory is not relative. */
   const char *relbase = modifier_path_relbase_from_global(ob);
   BLI_path_abs(mds->cache_directory, relbase);
 
@@ -3801,7 +3807,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
   /* Ensure positivity of previous frame. */
   CLAMP(prev_frame, 1, prev_frame);
 
-  /* Cache mode specific settings */
+  /* Cache mode specific settings. */
   switch (mode) {
     case FLUID_DOMAIN_CACHE_FINAL:
       /* Just load the data that has already been baked */
@@ -3872,8 +3878,13 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
 
     /* Read particles cache. */
     if (with_liquid && with_particles) {
-      /* Update particle data from file is faster than via Python (manta_read_particles()). */
-      has_particles = manta_update_particle_structures(mds->fluid, mmd, particles_frame);
+      if (!baking_data && !baking_particles && !mode_replay) {
+        /* Update particle data from file is faster than via Python (manta_read_particles()). */
+        has_particles = manta_update_particle_structures(mds->fluid, mmd, particles_frame);
+      }
+      else {
+        has_particles = manta_read_particles(mds->fluid, mmd, particles_frame);
+      }
     }
 
     /* Read guide cache. */
@@ -5174,8 +5185,8 @@ void BKE_fluid_modifier_copy(const struct FluidModifierData *mmd,
 
     tmes->surface_distance = mes->surface_distance;
     tmes->type = mes->type;
-    tmes->flags = tmes->flags;
-    tmes->subframes = tmes->subframes;
+    tmes->flags = mes->flags;
+    tmes->subframes = mes->subframes;
 
     /* guide options */
     tmes->guide_mode = mes->guide_mode;

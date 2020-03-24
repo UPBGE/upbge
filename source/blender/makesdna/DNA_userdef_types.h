@@ -169,7 +169,11 @@ typedef struct ThemeUI {
   short menu_shadow_width;
 
   unsigned char editor_outline[4];
-  char _pad0[2];
+
+  /* Transparent Grid */
+  unsigned char transparent_checker_primary[4], transparent_checker_secondary[4];
+  unsigned char transparent_checker_size;
+  char _pad1[1];
 
   float icon_alpha;
   float icon_saturation;
@@ -616,7 +620,9 @@ typedef struct UserDef_FileSpaceData {
 
 typedef struct UserDef_Experimental {
   char use_undo_speedup;
-  char _pad0[7]; /* makesdna does not allow empty structs. */
+  char use_menu_search;
+  /** `makesdna` does not allow empty structs. */
+  char _pad0[6];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
