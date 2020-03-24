@@ -12763,20 +12763,6 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 
 /* reading runtime */
 
-static int fd_read_from_file(FileData *filedata, void *buffer, unsigned int size)
-{
-  int readsize = read(filedata->filedes, buffer, size);
-
-  if (readsize < 0) {
-    readsize = EOF;
-  }
-  else {
-    filedata->file_offset += readsize;
-  }
-
-  return readsize;
-}
-
 BlendFileData *blo_read_blendafterruntime(int file,
                                           const char *name,
                                           int actualsize,
@@ -12786,7 +12772,7 @@ BlendFileData *blo_read_blendafterruntime(int file,
   FileData *fd = filedata_new();
   fd->filedes = file;
   fd->buffersize = actualsize;
-  fd->read = fd_read_from_file;
+  fd->read = fd_read_data_from_file;
 
   /* needed for library_append and read_libraries */
   BLI_strncpy(fd->relabase, name, sizeof(fd->relabase));
