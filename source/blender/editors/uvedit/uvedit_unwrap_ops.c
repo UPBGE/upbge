@@ -77,6 +77,10 @@
 #include "uvedit_intern.h"
 #include "uvedit_parametrizer.h"
 
+/* -------------------------------------------------------------------- */
+/** \name Utility Functions
+ * \{ */
+
 static void modifier_unwrap_state(Object *obedit, const Scene *scene, bool *r_use_subsurf)
 {
   ModifierData *md;
@@ -133,13 +137,21 @@ static bool ED_uvedit_ensure_uvs(Object *obedit)
   return 1;
 }
 
-/****************** Parametrizer Conversion ***************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Parametrizer Conversion
+ * \{ */
 
 typedef struct UnwrapOptions {
-  bool topology_from_uvs; /* Connectivity based on UV coordinates instead of seams. */
-  bool only_selected;     /* Only affect selected faces. */
-  bool fill_holes;        /* Fill holes to better preserve shape. */
-  bool correct_aspect;    /* Correct for mapped image texture aspect ratio. */
+  /** Connectivity based on UV coordinates instead of seams. */
+  bool topology_from_uvs;
+  /** Only affect selected faces. */
+  bool only_selected;
+  /** Fill holes to better preserve shape. */
+  bool fill_holes;
+  /** Correct for mapped image texture aspect ratio. */
+  bool correct_aspect;
 } UnwrapOptions;
 
 static bool uvedit_have_selection(const Scene *scene, BMEditMesh *em, const UnwrapOptions *options)
@@ -199,7 +211,7 @@ static bool uvedit_have_selection_multi(const Scene *scene,
 }
 
 void ED_uvedit_get_aspect(
-    const Scene *UNUSED(scene), Object *ob, BMesh *bm, float *aspx, float *aspy)
+    const Scene *UNUSED(scene), Object *ob, BMesh *bm, float *r_aspx, float *r_aspy)
 {
   bool sloppy = true;
   bool selected = false;
@@ -211,11 +223,11 @@ void ED_uvedit_get_aspect(
   if (efa) {
     ED_object_get_active_image(ob, efa->mat_nr + 1, &ima, NULL, NULL, NULL);
 
-    ED_image_get_uv_aspect(ima, NULL, aspx, aspy);
+    ED_image_get_uv_aspect(ima, NULL, r_aspx, r_aspy);
   }
   else {
-    *aspx = 1.0f;
-    *aspy = 1.0f;
+    *r_aspx = 1.0f;
+    *r_aspy = 1.0f;
   }
 }
 
@@ -410,21 +422,21 @@ static ParamHandle *construct_param_handle_multi(const Scene *scene,
   return handle;
 }
 
-static void texface_from_original_index(BMFace *efa,
+static void texface_from_original_index(const Scene *scene,
+                                        const int cd_loop_uv_offset,
+                                        BMFace *efa,
                                         int index,
-                                        float **uv,
-                                        ParamBool *pin,
-                                        ParamBool *select,
-                                        const Scene *scene,
-                                        const int cd_loop_uv_offset)
+                                        float **r_uv,
+                                        ParamBool *r_pin,
+                                        ParamBool *r_select)
 {
   BMLoop *l;
   BMIter liter;
   MLoopUV *luv;
 
-  *uv = NULL;
-  *pin = 0;
-  *select = 1;
+  *r_uv = NULL;
+  *r_pin = 0;
+  *r_select = 1;
 
   if (index == ORIGINDEX_NONE) {
     return;
@@ -433,9 +445,9 @@ static void texface_from_original_index(BMFace *efa,
   BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
     if (BM_elem_index_get(l->v) == index) {
       luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-      *uv = luv->uv;
-      *pin = (luv->flag & MLOOPUV_PINNED) ? 1 : 0;
-      *select = uvedit_uv_select_test(scene, l, cd_loop_uv_offset);
+      *r_uv = luv->uv;
+      *r_pin = (luv->flag & MLOOPUV_PINNED) ? 1 : 0;
+      *r_select = uvedit_uv_select_test(scene, l, cd_loop_uv_offset);
       break;
     }
   }
@@ -583,34 +595,34 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
     /* This is where all the magic is done.
      * If the vertex exists in the, we pass the original uv pointer to the solver, thus
      * flushing the solution to the edit mesh. */
-    texface_from_original_index(origFace,
+    texface_from_original_index(scene,
+                                cd_loop_uv_offset,
+                                origFace,
                                 origVertIndices[mloop[0].v],
                                 &uv[0],
                                 &pin[0],
-                                &select[0],
-                                scene,
-                                cd_loop_uv_offset);
-    texface_from_original_index(origFace,
+                                &select[0]);
+    texface_from_original_index(scene,
+                                cd_loop_uv_offset,
+                                origFace,
                                 origVertIndices[mloop[1].v],
                                 &uv[1],
                                 &pin[1],
-                                &select[1],
-                                scene,
-                                cd_loop_uv_offset);
-    texface_from_original_index(origFace,
+                                &select[1]);
+    texface_from_original_index(scene,
+                                cd_loop_uv_offset,
+                                origFace,
                                 origVertIndices[mloop[2].v],
                                 &uv[2],
                                 &pin[2],
-                                &select[2],
-                                scene,
-                                cd_loop_uv_offset);
-    texface_from_original_index(origFace,
+                                &select[2]);
+    texface_from_original_index(scene,
+                                cd_loop_uv_offset,
+                                origFace,
                                 origVertIndices[mloop[3].v],
                                 &uv[3],
                                 &pin[3],
-                                &select[3],
-                                scene,
-                                cd_loop_uv_offset);
+                                &select[3]);
 
     param_face_add(handle, key, 4, vkeys, co, uv, pin, select);
   }
@@ -635,7 +647,11 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
   return handle;
 }
 
-/* ******************** Minimize Stretch operator **************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Minimize Stretch Operator
+ * \{ */
 
 typedef struct MinStretch {
   const Scene *scene;
@@ -908,7 +924,11 @@ void UV_OT_minimize_stretch(wmOperatorType *ot)
               100);
 }
 
-/* ******************** Pack Islands operator **************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Pack UV Islands Operator
+ * \{ */
 
 static void uvedit_pack_islands(const Scene *scene, Object *ob, BMesh *bm)
 {
@@ -1006,7 +1026,11 @@ void UV_OT_pack_islands(wmOperatorType *ot)
       ot->srna, "margin", 0.001f, 0.0f, 1.0f, "Margin", "Space between islands", 0.0f, 1.0f);
 }
 
-/* ******************** Average Islands Scale operator **************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Average UV Islands Scale Operator
+ * \{ */
 
 static int average_islands_scale_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -1065,7 +1089,11 @@ void UV_OT_average_islands_scale(wmOperatorType *ot)
   ot->poll = ED_operator_uvedit;
 }
 
-/**************** Live Unwrap *****************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Live UV Unwrap
+ * \{ */
 
 static struct {
   ParamHandle **handles;
@@ -1144,7 +1172,11 @@ void ED_uvedit_live_unwrap_end(short cancel)
   }
 }
 
-/*************** UV Map Common Transforms *****************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UV Map Common Transforms
+ * \{ */
 
 #define VIEW_ON_EQUATOR 0
 #define VIEW_ON_POLES 1
@@ -1427,7 +1459,18 @@ static void correct_uv_aspect(const Scene *scene, Object *ob, BMEditMesh *em)
   }
 }
 
-/******************** Map Clip & Correct ******************/
+#undef VIEW_ON_EQUATOR
+#undef VIEW_ON_POLES
+#undef ALIGN_TO_OBJECT
+
+#undef POLAR_ZX
+#undef POLAR_ZY
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UV Map Clip & Correct
+ * \{ */
 
 static void uv_map_clip_correct_properties(wmOperatorType *ot)
 {
@@ -1542,7 +1585,11 @@ static void uv_map_clip_correct(const Scene *scene, Object *ob, wmOperator *op)
   uv_map_clip_correct_multi(scene, &ob, 1, op);
 }
 
-/* ******************** Unwrap operator **************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UV Unwrap Operator
+ * \{ */
 
 /* Assumes UV Map exists, doesn't run update funcs. */
 static void uvedit_unwrap(const Scene *scene, Object *obedit, const UnwrapOptions *options)
@@ -1783,7 +1830,12 @@ void UV_OT_unwrap(wmOperatorType *ot)
       ot->srna, "margin", 0.001f, 0.0f, 1.0f, "Margin", "Space between islands", 0.0f, 1.0f);
 }
 
-/**************** Project From View operator **************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Project UV From View Operator
+ * \{ */
+
 static int uv_from_view_exec(bContext *C, wmOperator *op);
 
 static int uv_from_view_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
@@ -1969,7 +2021,11 @@ void UV_OT_project_from_view(wmOperatorType *ot)
   uv_map_clip_correct_properties(ot);
 }
 
-/********************** Reset operator ********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Reset UV Operator
+ * \{ */
 
 static int reset_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -2017,7 +2073,11 @@ void UV_OT_reset(wmOperatorType *ot)
   ot->poll = ED_operator_uvmap;
 }
 
-/****************** Sphere Project operator ***************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Sphere UV Project Operator
+ * \{ */
 
 static void uv_sphere_project(float target[2],
                               const float source[3],
@@ -2144,7 +2204,11 @@ void UV_OT_sphere_project(wmOperatorType *ot)
   uv_map_clip_correct_properties(ot);
 }
 
-/***************** Cylinder Project operator **************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Cylinder UV Project Operator
+ * \{ */
 
 static void uv_cylinder_project(float target[2],
                                 const float source[3],
@@ -2238,7 +2302,9 @@ void UV_OT_cylinder_project(wmOperatorType *ot)
   uv_map_clip_correct_properties(ot);
 }
 
-/******************* Cube Project operator ****************/
+/* -------------------------------------------------------------------- */
+/** \name Cube UV Project Operator
+ * \{ */
 
 static void uvedit_unwrap_cube_project(BMesh *bm,
                                        float cube_size,
@@ -2367,7 +2433,11 @@ void UV_OT_cube_project(wmOperatorType *ot)
   uv_map_clip_correct_properties(ot);
 }
 
-/************************* Simple UVs for texture painting *****************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Simple UVs for Texture Painting
+ * \{ */
 
 void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
 {
@@ -2403,3 +2473,5 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
     scene->toolsettings->uv_flag |= UV_SYNC_SELECTION;
   }
 }
+
+/** \} */

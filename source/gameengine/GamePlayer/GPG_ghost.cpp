@@ -127,11 +127,6 @@ int GHOST_HACK_getFirstFile(char buf[]);
 #include "BLF_api.h"
 #include "BLT_translation.h"
 #include "BLT_lang.h"
-
-extern int datatoc_bfont_ttf_size;
-extern char datatoc_bfont_ttf[];
-extern int datatoc_bmonofont_ttf_size;
-extern char datatoc_bmonofont_ttf[];
 }
 
 #include "GPU_init_exit.h"
@@ -883,10 +878,10 @@ int main(int argc,
   /* background render uses this font too */
   BKE_vfont_builtin_register(datatoc_bfont_pfb, datatoc_bfont_pfb_size);
 
-  BLF_load_mem("default", (unsigned char *)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
+  const bool unique = false;
+  BLF_load_default(unique);
   if (blf_mono_font == -1)
-    blf_mono_font = BLF_load_mem_unique(
-        "monospace", (unsigned char *)datatoc_bmonofont_ttf, datatoc_bmonofont_ttf_size);
+    blf_mono_font = BLF_load_mono_default(true);
 
     // Parse command line options
 #if defined(DEBUG)
@@ -1633,8 +1628,6 @@ int main(int argc,
   SYS_DeleteSystem(syshandle);
 
 #ifdef WITH_INTERNATIONAL
-  BLF_free_unifont();
-  BLF_free_unifont_mono();
   BLT_lang_free();
 #endif
 

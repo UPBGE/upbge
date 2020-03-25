@@ -257,16 +257,16 @@ void OpenCLDevice::OpenCLSplitPrograms::load_kernels(
 
     /* Ordered with most complex kernels first, to reduce overall compile time. */
     ADD_SPLIT_KERNEL_PROGRAM(subsurface_scatter);
+    ADD_SPLIT_KERNEL_PROGRAM(direct_lighting);
+    ADD_SPLIT_KERNEL_PROGRAM(indirect_background);
     if (requested_features.use_volume || is_preview) {
       ADD_SPLIT_KERNEL_PROGRAM(do_volume);
     }
+    ADD_SPLIT_KERNEL_PROGRAM(shader_eval);
+    ADD_SPLIT_KERNEL_PROGRAM(lamp_emission);
+    ADD_SPLIT_KERNEL_PROGRAM(holdout_emission_blurring_pathtermination_ao);
     ADD_SPLIT_KERNEL_PROGRAM(shadow_blocked_dl);
     ADD_SPLIT_KERNEL_PROGRAM(shadow_blocked_ao);
-    ADD_SPLIT_KERNEL_PROGRAM(holdout_emission_blurring_pathtermination_ao);
-    ADD_SPLIT_KERNEL_PROGRAM(lamp_emission);
-    ADD_SPLIT_KERNEL_PROGRAM(direct_lighting);
-    ADD_SPLIT_KERNEL_PROGRAM(indirect_background);
-    ADD_SPLIT_KERNEL_PROGRAM(shader_eval);
 
     /* Quick kernels bundled in a single program to reduce overhead of starting
      * Blender processes. */
@@ -1895,6 +1895,17 @@ void OpenCLDevice::shader(DeviceTask &task)
 string OpenCLDevice::kernel_build_options(const string *debug_src)
 {
   string build_options = "-cl-no-signed-zeros -cl-mad-enable ";
+
+  /* Build with OpenCL 2.0 if available, this improves performance
+   * with AMD OpenCL drivers on Windows and Linux (legacy drivers).
+   * Note that OpenCL selects the highest 1.x version by default,
+   * only for 2.0 do we need the explicit compiler flag. */
+  int version_major, version_minor;
+  if (OpenCLInfo::get_device_version(cdDevice, &version_major, &version_minor)) {
+    if (version_major >= 2) {
+      build_options += "-cl-std=CL2.0 ";
+    }
+  }
 
   if (platform_name == "NVIDIA CUDA") {
     build_options +=
