@@ -313,7 +313,7 @@ void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata)
     return;
   }
 
-  eevee_antialiasing_setup(vedata);
+  //eevee_antialiasing_setup(vedata);
 
   /**
    * We always do SMAA on top of TAA accumulation, unless the number of samples of TAA is already
