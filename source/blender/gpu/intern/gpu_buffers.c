@@ -92,7 +92,7 @@ struct GPU_PBVH_Buffers {
    * smooth-shaded or all faces are flat-shaded */
   bool smooth;
 
-  bool show_mask;
+  bool show_overlay;
 };
 
 static struct {
@@ -116,7 +116,7 @@ void gpu_pbvh_init()
         &g_vbo_id.format, "nor", GPU_COMP_I16, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
     /* TODO: Do not allocate these `.msk` and `.col` when they are not used. */
     g_vbo_id.msk = GPU_vertformat_attr_add(
-        &g_vbo_id.format, "msk", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+        &g_vbo_id.format, "msk", GPU_COMP_U8, 1, GPU_FETCH_INT_TO_FLOAT_UNIT);
     g_vbo_id.col = GPU_vertformat_attr_add(
         &g_vbo_id.format, "ac", GPU_COMP_U16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     g_vbo_id.fset = GPU_vertformat_attr_add(
@@ -206,6 +206,15 @@ static void face_set_overlay_color_get(const int face_set, const int seed, uchar
   rgba_float_to_uchar(r_color, rgba);
 }
 
+static bool gpu_pbvh_is_looptri_visible(const MLoopTri *lt,
+                                        const MVert *mvert,
+                                        const MLoop *mloop,
+                                        const int *sculpt_face_sets)
+{
+  return (!paint_is_face_hidden(lt, mvert, mloop) && sculpt_face_sets &&
+          sculpt_face_sets[lt->poly] > SCULPT_FACE_SET_NONE);
+}
+
 /* Threaded - do not call any functions that use OpenGL calls! */
 void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
                                   const MVert *mvert,
@@ -224,6 +233,7 @@ void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
   const bool show_face_sets = sculpt_face_sets &&
                               (update_flags & GPU_PBVH_BUFFERS_SHOW_SCULPT_FACE_SETS) != 0;
   bool empty_mask = true;
+  bool default_face_set = true;
 
   {
     int totelem = (buffers->smooth ? totvert : (buffers->tot_tri * 3));
@@ -254,15 +264,15 @@ void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
           copy_v3_v3(GPU_vertbuf_raw_step(&pos_step), v->co);
           copy_v3_v3_short(GPU_vertbuf_raw_step(&nor_step), v->no);
 
-          float mask;
+          uchar mask;
           if (show_mask) {
-            mask = vmask[vidx];
+            mask = (uchar)(vmask[vidx] * 255);
           }
           else {
             mask = 0.0f;
           }
-          *(float *)GPU_vertbuf_raw_step(&msk_step) = mask;
-          empty_mask = empty_mask && (mask == 0.0f);
+          *(uchar *)GPU_vertbuf_raw_step(&msk_step) = mask;
+          empty_mask = empty_mask && (mask == 0);
         }
 
         /* Face Sets. */
@@ -275,6 +285,7 @@ void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
             /* Skip for the default color Face Set to render it white. */
             if (fset != face_sets_color_default) {
               face_set_overlay_color_get(fset, face_sets_color_seed, face_set_color);
+              default_face_set = false;
             }
           }
           for (int j = 0; j < 3; j++) {
@@ -313,11 +324,7 @@ void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
               buffers->mloop[lt->tri[2]].v,
           };
 
-          if (paint_is_face_hidden(lt, mvert, buffers->mloop)) {
-            continue;
-          }
-
-          if (sculpt_face_sets[lt->poly] <= 0) {
+          if (!gpu_pbvh_is_looptri_visible(lt, mvert, buffers->mloop, sculpt_face_sets)) {
             continue;
           }
 
@@ -336,12 +343,15 @@ void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
             /* Skip for the default color Face Set to render it white. */
             if (fset != face_sets_color_default) {
               face_set_overlay_color_get(fset, face_sets_color_seed, face_set_color);
+              default_face_set = false;
             }
           }
 
           float fmask = 0.0f;
+          uchar cmask = 0;
           if (show_mask) {
             fmask = (vmask[vtri[0]] + vmask[vtri[1]] + vmask[vtri[2]]) / 3.0f;
+            cmask = (uchar)(fmask * 255);
           }
 
           for (uint j = 0; j < 3; j++) {
@@ -349,8 +359,8 @@ void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
 
             copy_v3_v3(GPU_vertbuf_raw_step(&pos_step), v->co);
             copy_v3_v3_short(GPU_vertbuf_raw_step(&nor_step), no);
-            *(float *)GPU_vertbuf_raw_step(&msk_step) = fmask;
-            empty_mask = empty_mask && (fmask == 0.0f);
+            *(uchar *)GPU_vertbuf_raw_step(&msk_step) = cmask;
+            empty_mask = empty_mask && (cmask == 0);
             /* Face Sets. */
             memcpy(GPU_vertbuf_raw_step(&fset_step), face_set_color, sizeof(uchar) * 3);
 
@@ -377,17 +387,8 @@ void GPU_pbvh_mesh_buffers_update(GPU_PBVH_Buffers *buffers,
   const MPoly *mp = &buffers->mpoly[lt->poly];
   buffers->material_index = mp->mat_nr;
 
-  buffers->show_mask = !empty_mask;
+  buffers->show_overlay = !empty_mask || !default_face_set;
   buffers->mvert = mvert;
-}
-
-static bool gpu_pbvh_is_looptri_visible(const MLoopTri *lt,
-                                        const MVert *mvert,
-                                        const MLoop *mloop,
-                                        const int *sculpt_face_sets)
-{
-  return (!paint_is_face_hidden(lt, mvert, mloop) && sculpt_face_sets &&
-          sculpt_face_sets[lt->poly] > 0);
 }
 
 /* Threaded - do not call any functions that use OpenGL calls! */
@@ -410,7 +411,7 @@ GPU_PBVH_Buffers *GPU_pbvh_mesh_buffers_build(const int (*face_vert_indices)[3],
   /* smooth or flat for all */
   buffers->smooth = mpoly[looptri[face_indices[0]].poly].flag & ME_SMOOTH;
 
-  buffers->show_mask = false;
+  buffers->show_overlay = false;
 
   /* Count the number of visible triangles */
   for (i = 0, tottri = 0; i < face_indices_len; i++) {
@@ -731,8 +732,9 @@ void GPU_pbvh_grid_buffers_update(GPU_PBVH_Buffers *buffers,
 
             if (has_mask && show_mask) {
               float fmask = *CCG_elem_mask(key, elem);
-              GPU_vertbuf_attr_set(buffers->vert_buf, g_vbo_id.msk, vbo_index, &fmask);
-              empty_mask = empty_mask && (fmask == 0.0f);
+              uchar cmask = (uchar)(fmask * 255);
+              GPU_vertbuf_attr_set(buffers->vert_buf, g_vbo_id.msk, vbo_index, &cmask);
+              empty_mask = empty_mask && (cmask == 0);
             }
 
             if (show_vcol) {
@@ -780,14 +782,15 @@ void GPU_pbvh_grid_buffers_update(GPU_PBVH_Buffers *buffers,
             GPU_vertbuf_attr_set(buffers->vert_buf, g_vbo_id.nor, vbo_index + 3, no_short);
 
             if (has_mask && show_mask) {
-              float fsets = (*CCG_elem_mask(key, elems[0]) + *CCG_elem_mask(key, elems[1]) +
+              float fmask = (*CCG_elem_mask(key, elems[0]) + *CCG_elem_mask(key, elems[1]) +
                              *CCG_elem_mask(key, elems[2]) + *CCG_elem_mask(key, elems[3])) *
                             0.25f;
-              GPU_vertbuf_attr_set(buffers->vert_buf, g_vbo_id.msk, vbo_index + 0, &fsets);
-              GPU_vertbuf_attr_set(buffers->vert_buf, g_vbo_id.msk, vbo_index + 1, &fsets);
-              GPU_vertbuf_attr_set(buffers->vert_buf, g_vbo_id.msk, vbo_index + 2, &fsets);
-              GPU_vertbuf_attr_set(buffers->vert_buf, g_vbo_id.msk, vbo_index + 3, &fsets);
-              empty_mask = empty_mask && (fsets == 0.0f);
+              uchar cmask = (uchar)(fmask * 255);
+              GPU_vertbuf_attr_set(buffers->vert_buf, g_vbo_id.msk, vbo_index + 0, &cmask);
+              GPU_vertbuf_attr_set(buffers->vert_buf, g_vbo_id.msk, vbo_index + 1, &cmask);
+              GPU_vertbuf_attr_set(buffers->vert_buf, g_vbo_id.msk, vbo_index + 2, &cmask);
+              GPU_vertbuf_attr_set(buffers->vert_buf, g_vbo_id.msk, vbo_index + 3, &cmask);
+              empty_mask = empty_mask && (cmask == 0);
             }
 
             ushort vcol[4] = {USHRT_MAX, USHRT_MAX, USHRT_MAX, USHRT_MAX};
@@ -820,7 +823,7 @@ void GPU_pbvh_grid_buffers_update(GPU_PBVH_Buffers *buffers,
   buffers->totgrid = totgrid;
   buffers->grid_flag_mats = grid_flag_mats;
   buffers->gridkey = *key;
-  buffers->show_mask = !empty_mask;
+  buffers->show_overlay = !empty_mask;
 }
 
 /* Threaded - do not call any functions that use OpenGL calls! */
@@ -832,7 +835,7 @@ GPU_PBVH_Buffers *GPU_pbvh_grid_buffers_build(int totgrid, BLI_bitmap **grid_hid
   buffers->grid_hidden = grid_hidden;
   buffers->totgrid = totgrid;
 
-  buffers->show_mask = false;
+  buffers->show_overlay = false;
 
   return buffers;
 }
@@ -868,8 +871,9 @@ static void gpu_bmesh_vert_to_buffer_copy(BMVert *v,
 
   if (show_mask) {
     float effective_mask = fmask ? *fmask : BM_ELEM_CD_GET_FLOAT(v, cd_vert_mask_offset);
-    GPU_vertbuf_attr_set(vert_buf, g_vbo_id.msk, v_index, &effective_mask);
-    *empty_mask = *empty_mask && (effective_mask == 0.0f);
+    uchar cmask = (uchar)(effective_mask * 255);
+    GPU_vertbuf_attr_set(vert_buf, g_vbo_id.msk, v_index, &cmask);
+    *empty_mask = *empty_mask && (cmask == 0);
   }
 
   if (show_vcol) {
@@ -1095,7 +1099,7 @@ void GPU_pbvh_bmesh_buffers_update(GPU_PBVH_Buffers *buffers,
   /* Get material index from the last face we iterated on. */
   buffers->material_index = (f) ? f->mat_nr : 0;
 
-  buffers->show_mask = !empty_mask;
+  buffers->show_overlay = !empty_mask;
 
   gpu_pbvh_batch_init(buffers, GPU_PRIM_TRIS);
 }
@@ -1114,7 +1118,7 @@ GPU_PBVH_Buffers *GPU_pbvh_bmesh_buffers_build(bool smooth_shading)
   buffers = MEM_callocN(sizeof(GPU_PBVH_Buffers), "GPU_Buffers");
   buffers->use_bmesh = true;
   buffers->smooth = smooth_shading;
-  buffers->show_mask = true;
+  buffers->show_overlay = true;
 
   return buffers;
 }
@@ -1129,9 +1133,9 @@ GPUBatch *GPU_pbvh_buffers_batch_get(GPU_PBVH_Buffers *buffers, bool fast, bool 
   }
 }
 
-bool GPU_pbvh_buffers_has_mask(GPU_PBVH_Buffers *buffers)
+bool GPU_pbvh_buffers_has_overlays(GPU_PBVH_Buffers *buffers)
 {
-  return buffers->show_mask;
+  return buffers->show_overlay;
 }
 
 short GPU_pbvh_buffers_material_index_get(GPU_PBVH_Buffers *buffers)

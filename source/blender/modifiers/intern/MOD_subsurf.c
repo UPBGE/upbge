@@ -58,7 +58,7 @@ static void initData(ModifierData *md)
   smd->renderLevels = 2;
   smd->uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_CORNERS;
   smd->quality = 3;
-  smd->flags |= eSubsurfModifierFlag_UseCrease;
+  smd->flags |= (eSubsurfModifierFlag_UseCrease | eSubsurfModifierFlag_ControlEdges);
 }
 
 static void copyData(const ModifierData *md, ModifierData *target, const int flag)
@@ -148,7 +148,8 @@ static void subdiv_mesh_settings_init(SubdivToMeshSettings *settings,
 {
   const int level = subdiv_levels_for_modifier_get(smd, ctx);
   settings->resolution = (1 << level) + 1;
-  settings->use_optimal_display = (smd->flags & eSubsurfModifierFlag_ControlEdges);
+  settings->use_optimal_display = (smd->flags & eSubsurfModifierFlag_ControlEdges) &&
+                                  !(ctx->flag & MOD_APPLY_TO_BASE_MESH);
 }
 
 static Mesh *subdiv_as_mesh(SubsurfModifierData *smd,

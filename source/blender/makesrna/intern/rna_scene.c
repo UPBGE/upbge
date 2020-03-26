@@ -2361,7 +2361,7 @@ static void rna_Stereo3dFormat_update(Main *bmain, Scene *UNUSED(scene), Pointer
 static ViewLayer *rna_ViewLayer_new(ID *id, Scene *UNUSED(sce), Main *bmain, const char *name)
 {
   Scene *scene = (Scene *)id;
-  ViewLayer *view_layer = BKE_view_layer_add(scene, name);
+  ViewLayer *view_layer = BKE_view_layer_add(scene, name, NULL, VIEWLAYER_ADD_NEW);
 
   DEG_id_tag_update(&scene->id, 0);
   DEG_relations_tag_update(bmain);
@@ -2523,7 +2523,9 @@ static const EnumPropertyItem *rna_UnitSettings_itemf_wrapper(const int system,
     }
   }
 
+  RNA_enum_item_end(&items, &totitem);
   *r_free = true;
+
   return items;
 }
 
@@ -2572,6 +2574,11 @@ static void rna_UnitSettings_system_update(Main *UNUSED(bmain),
 static char *rna_UnitSettings_path(PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("unit_settings");
+}
+
+static char *rna_FFmpegSettings_path(PointerRNA *UNUSED(ptr))
+{
+  return BLI_strdup("render.ffmpeg");
 }
 
 #else
@@ -6092,6 +6099,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "FFmpegSettings", NULL);
   RNA_def_struct_sdna(srna, "FFMpegCodecData");
+  RNA_def_struct_path_func(srna, "rna_FFmpegSettings_path");
   RNA_def_struct_ui_text(srna, "FFmpeg Settings", "FFmpeg related settings for the scene");
 
 #  ifdef WITH_FFMPEG

@@ -3159,6 +3159,13 @@ class VIEW3D_MT_face_sets(Menu):
 
         op = layout.operator("sculpt.face_sets_create", text='Face Set From Visible')
         op.mode = 'VISIBLE'
+        
+        op = layout.operator("sculpt.face_sets_create", text='Face Set From Edit Mode Selection')
+        op.mode = 'SELECTION'
+
+        layout.separator()
+        
+        layout.menu("VIEW3D_MT_face_sets_init", text="Init Face Sets")
 
         layout.separator()
 
@@ -3193,6 +3200,37 @@ class VIEW3D_MT_sculpt_set_pivot(Menu):
 
         props = layout.operator("sculpt.set_pivot_position", text="Pivot to Surface Under Cursor")
         props.mode = 'SURFACE'
+
+class VIEW3D_MT_face_sets_init(Menu):
+    bl_label = "Face Sets Init"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        op = layout.operator("sculpt.face_sets_init", text='By Loose Parts')
+        op.mode = 'LOOSE_PARTS'
+
+        op = layout.operator("sculpt.face_sets_init", text='By Materials')
+        op.mode = 'MATERIALS'
+
+        op = layout.operator("sculpt.face_sets_init", text='By Normals')
+        op.mode = 'NORMALS'
+
+        op = layout.operator("sculpt.face_sets_init", text='By UV Seams')
+        op.mode = 'UV_SEAMS'
+
+        op = layout.operator("sculpt.face_sets_init", text='By Edge Creases')
+        op.mode = 'CREASES'
+
+        op = layout.operator("sculpt.face_sets_init", text='By Edge Bevel Weight')
+        op.mode = 'BEVEL_WEIGHT'
+
+        op = layout.operator("sculpt.face_sets_init", text='By Sharp Edges')
+        op.mode = 'SHARP_EDGES'
+
+        op = layout.operator("sculpt.face_sets_init", text='By Face Maps')
+        op.mode = 'FACE_MAPS'
+
 
 
 class VIEW3D_MT_particle(Menu):
@@ -7361,6 +7399,7 @@ classes = (
     VIEW3D_MT_sculpt_set_pivot,
     VIEW3D_MT_mask,
     VIEW3D_MT_face_sets,
+    VIEW3D_MT_face_sets_init,
     VIEW3D_MT_particle,
     VIEW3D_MT_particle_context_menu,
     VIEW3D_MT_particle_showhide,
