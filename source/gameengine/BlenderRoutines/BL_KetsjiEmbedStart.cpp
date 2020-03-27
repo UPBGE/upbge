@@ -51,7 +51,7 @@ extern "C" {
 #include "BKE_main.h"
 #include "BKE_context.h"
 #include "BKE_sound.h"
-
+#include "BKE_undo_system.h"
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
 
@@ -116,6 +116,10 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
   GlobalSettings gs;
   gs.glslflag = startscene->gm.flag;
+
+  if (startscene->gm.flag & GAME_USE_UNDO) {
+    BKE_undosys_step_push(CTX_wm_manager(C)->undo_stack, C, "bge_start");
+  }
 
   do {
     // if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
@@ -239,6 +243,23 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
   } while (exitrequested == KX_ExitRequest::RESTART_GAME ||
            exitrequested == KX_ExitRequest::START_OTHER_GAME);
+
+  /* Warning: If we work on game restart/load blend actuator and that we change of wmWindowManager
+   * during runtime, we'd have to restore the right wmWindowManager/win/scene... before doing undo.
+   */
+
+  /* Undo System */
+  if (startscene->gm.flag & GAME_USE_UNDO) {
+    UndoStep *step_data_from_name = NULL;
+    step_data_from_name = BKE_undosys_step_find_by_name(CTX_wm_manager(C)->undo_stack,
+                                                        "bge_start");
+    if (step_data_from_name) {
+      BKE_undosys_step_undo_with_data(CTX_wm_manager(C)->undo_stack, C, step_data_from_name);
+    }
+    else {
+      BKE_undosys_step_undo(CTX_wm_manager(C)->undo_stack, C);
+    }
+  }
 
   if (bfd) {
     BLO_blendfiledata_free(bfd);
