@@ -102,7 +102,7 @@ void SCULPT_vertex_neighbors_get(struct SculptSession *ss,
                                  SculptVertexNeighborIter *iter);
 
 /* Iterator over neighboring vertices. */
-#define sculpt_vertex_neighbors_iter_begin(ss, v_index, neighbor_iterator) \
+#define SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN(ss, v_index, neighbor_iterator) \
   SCULPT_vertex_neighbors_get(ss, v_index, false, &neighbor_iterator); \
   for (neighbor_iterator.i = 0; neighbor_iterator.i < neighbor_iterator.size; \
        neighbor_iterator.i++) { \
@@ -110,7 +110,7 @@ void SCULPT_vertex_neighbors_get(struct SculptSession *ss,
 
 /* Iterate over neighboring and duplicate vertices (for PBVH_GRIDS). Duplicates come
  * first since they are nearest for floodfill. */
-#define sculpt_vertex_duplicates_and_neighbors_iter_begin(ss, v_index, neighbor_iterator) \
+#define SCULPT_VERTEX_DUPLICATES_AND_NEIGHBORS_ITER_BEGIN(ss, v_index, neighbor_iterator) \
   SCULPT_vertex_neighbors_get(ss, v_index, true, &neighbor_iterator); \
   for (neighbor_iterator.i = neighbor_iterator.size - 1; neighbor_iterator.i >= 0; \
        neighbor_iterator.i--) { \
@@ -118,12 +118,15 @@ void SCULPT_vertex_neighbors_get(struct SculptSession *ss,
     neighbor_iterator.is_duplicate = (ni.i >= \
                                       neighbor_iterator.size - neighbor_iterator.num_duplicates);
 
-#define sculpt_vertex_neighbors_iter_end(neighbor_iterator) \
+#define SCULPT_VERTEX_NEIGHBORS_ITER_END(neighbor_iterator) \
   } \
   if (neighbor_iterator.neighbors != neighbor_iterator.neighbors_fixed) { \
     MEM_freeN(neighbor_iterator.neighbors); \
   } \
   ((void)0)
+
+int SCULPT_active_vertex_get(SculptSession *ss);
+const float *SCULPT_active_vertex_co_get(SculptSession *ss);
 
 /* Sculpt Original Data */
 typedef struct {
@@ -142,6 +145,11 @@ typedef struct {
 
 void SCULPT_orig_vert_data_init(SculptOrigVertData *data, Object *ob, PBVHNode *node);
 void SCULPT_orig_vert_data_update(SculptOrigVertData *orig_data, PBVHVertexIter *iter);
+
+/* Face Sets */
+int SCULPT_vertex_face_set_get(SculptSession *ss, int index);
+bool SCULPT_vertex_has_face_set(SculptSession *ss, int index, int face_set);
+bool SCULPT_vertex_has_unique_face_set(SculptSession *ss, int index);
 
 /* Dynamic topology */
 void sculpt_pbvh_clear(Object *ob);
@@ -196,6 +204,13 @@ void SCULPT_floodfill_add_active(struct Sculpt *sd,
                                  struct SculptSession *ss,
                                  SculptFloodFill *flood,
                                  float radius);
+void SCULPT_floodfill_add_initial_with_symmetry(struct Sculpt *sd,
+                                                struct Object *ob,
+                                                struct SculptSession *ss,
+                                                SculptFloodFill *flood,
+                                                int index,
+                                                float radius);
+void sculpt_floodfill_add_initial(SculptFloodFill *flood, int index);
 void SCULPT_floodfill_execute(
     struct SculptSession *ss,
     SculptFloodFill *flood,
@@ -441,6 +456,7 @@ typedef struct SculptThreadedTaskData {
 /*************** Brush testing declarations ****************/
 typedef struct SculptBrushTest {
   float radius_squared;
+  float radius;
   float location[3];
   float dist;
   int mirror_symmetry_pass;
@@ -517,7 +533,7 @@ bool SCULPT_pbvh_calc_area_normal(const struct Brush *brush,
  * For descriptions of these settings, check the operator properties.
  */
 
-#define CLAY_STABILIZER_LEN 10
+#define SCULPT_CLAY_STABILIZER_LEN 10
 
 typedef struct StrokeCache {
   /* Invariants */
@@ -608,7 +624,7 @@ typedef struct StrokeCache {
   /* Angle of the front tilting plane of the brush to simulate clay accumulation. */
   float clay_thumb_front_angle;
   /* Stores pressure samples to get an stabilized strength and radius variation. */
-  float clay_pressure_stabilizer[CLAY_STABILIZER_LEN];
+  float clay_pressure_stabilizer[SCULPT_CLAY_STABILIZER_LEN];
   int clay_pressure_stabilizer_index;
 
   /* Cloth brush */

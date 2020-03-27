@@ -1289,7 +1289,7 @@ compile_Python() {
 
     ./configure --prefix=$_inst --libdir=$_inst/lib --enable-ipv6 \
         --enable-loadable-sqlite-extensions --with-dbmliborder=bdb \
-        --with-computed-gotos --with-pymalloc
+        --with-computed-gotos --with-pymalloc --enable-shared
 
     make -j$THREADS && make install
     make clean
@@ -1310,6 +1310,8 @@ compile_Python() {
     INFO "Own Python-$PYTHON_VERSION is up to date, nothing to do!"
     INFO "If you want to force rebuild of this lib, use the --force-python option."
   fi
+
+  run_ldconfig "python-$PYTHON_VERSION_MIN"
 }
 
 # ----------------------------------------------------------------------------
@@ -5189,7 +5191,7 @@ print_info() {
   PRINT ""
   PRINT "If you're using CMake add this to your configuration flags:"
 
-  _buildargs="-U *SNDFILE* -U *PYTHON* -U *BOOST* -U *Boost*"
+  _buildargs="-U *SNDFILE* -U PYTHON* -U *BOOST* -U *Boost*"
   _buildargs="$_buildargs -U *OPENCOLORIO* -U *OPENEXR* -U *OPENIMAGEIO* -U *LLVM* -U *CYCLES*"
   _buildargs="$_buildargs -U *OPENSUBDIV* -U *OPENVDB* -U *COLLADA* -U *FFMPEG* -U *ALEMBIC* -U *USD*"
 

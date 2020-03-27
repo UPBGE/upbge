@@ -1148,6 +1148,8 @@ typedef struct SolidifyModifierData {
 
   /** Name of vertex group to use, MAX_VGROUP_NAME. */
   char defgrp_name[64];
+  char shell_defgrp_name[64];
+  char rim_defgrp_name[64];
   /** New surface offset leve.l*/
   float offset;
   /** Midpoint of the offset . */
@@ -1324,6 +1326,11 @@ typedef struct WarpModifierData {
 
   struct Object *object_from;
   struct Object *object_to;
+  /** Optional name of bone target, MAX_ID_NAME-2. */
+  char bone_from[64];
+  /** Optional name of bone target, MAX_ID_NAME-2. */
+  char bone_to[64];
+
   struct CurveMapping *curfalloff;
   /** Optional vertexgroup name, MAX_VGROUP_NAME. */
   char defgrp_name[64];
@@ -2039,12 +2046,16 @@ typedef struct SurfaceDeformModifierData {
   unsigned int numverts, numpoly;
   int flags;
   float mat[4][4];
+  float strength;
+  char _pad[4];
+  char defgrp_name[64];
 } SurfaceDeformModifierData;
 
 /* Surface Deform modifier flags */
 enum {
   /* This indicates "do bind on next modifier evaluation" as well as "is bound". */
   MOD_SDEF_BIND = (1 << 0),
+  MOD_SDEF_INVERT_VGROUP = (1 << 1)
 
   /* MOD_SDEF_USES_LOOPTRI = (1 << 1), */ /* UNUSED */
   /* MOD_SDEF_HAS_CONCAVE = (1 << 2), */  /* UNUSED */

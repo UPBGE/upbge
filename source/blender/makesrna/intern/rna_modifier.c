@@ -275,6 +275,7 @@ const EnumPropertyItem rna_enum_object_modifier_type_items[] = {
      ICON_MOD_EXPLODE,
      "Explode",
      "Break apart the mesh faces and let them follow particles"},
+    {eModifierType_Fluid, "FLUID", ICON_MOD_FLUIDSIM, "Fluid Simulation", ""},
     {eModifierType_Ocean, "OCEAN", ICON_MOD_OCEAN, "Ocean", "Generate a moving ocean surface"},
     {eModifierType_ParticleInstance,
      "PARTICLE_INSTANCE",
@@ -286,7 +287,6 @@ const EnumPropertyItem rna_enum_object_modifier_type_items[] = {
      ICON_MOD_PARTICLES,
      "Particle System",
      "Spawn particles from the shape"},
-    {eModifierType_Fluid, "FLUID", ICON_MOD_FLUIDSIM, "Fluid Simulation", ""},
     {eModifierType_Softbody, "SOFT_BODY", ICON_MOD_SOFT, "Soft Body", ""},
     {eModifierType_Surface, "SURFACE", ICON_MODIFIER, "Surface", ""},
     {0, NULL, 0, NULL, NULL},
@@ -797,6 +797,9 @@ RNA_MOD_VGROUP_NAME_SET(Shrinkwrap, vgroup_name);
 RNA_MOD_VGROUP_NAME_SET(SimpleDeform, vgroup_name);
 RNA_MOD_VGROUP_NAME_SET(Smooth, defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(Solidify, defgrp_name);
+RNA_MOD_VGROUP_NAME_SET(Solidify, shell_defgrp_name);
+RNA_MOD_VGROUP_NAME_SET(Solidify, rim_defgrp_name);
+RNA_MOD_VGROUP_NAME_SET(SurfaceDeform, defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(UVWarp, vgroup_name);
 RNA_MOD_VGROUP_NAME_SET(Warp, defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(Wave, defgrp_name);
@@ -1795,15 +1798,27 @@ static void rna_def_modifier_warp(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_MOD_WARP);
 
   prop = RNA_def_property(srna, "object_from", PROP_POINTER, PROP_NONE);
-  RNA_def_property_ui_text(prop, "From", "Object to transform from");
+  RNA_def_property_pointer_sdna(prop, NULL, "object_from");
+  RNA_def_property_ui_text(prop, "Object From", "Object to transform from");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
 
+  prop = RNA_def_property(srna, "bone_from", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "bone_from");
+  RNA_def_property_ui_text(prop, "Bone From", "Bone to transform from");
+  RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+
   prop = RNA_def_property(srna, "object_to", PROP_POINTER, PROP_NONE);
-  RNA_def_property_ui_text(prop, "To", "Object to transform to");
+  RNA_def_property_pointer_sdna(prop, NULL, "object_to");
+  RNA_def_property_ui_text(prop, "Object To", "Object to transform to");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+
+  prop = RNA_def_property(srna, "bone_to", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "bone_to");
+  RNA_def_property_ui_text(prop, "Bone To", "Bone defining offset");
   RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
 
   prop = RNA_def_property(srna, "strength", PROP_FLOAT, PROP_NONE);
@@ -4437,6 +4452,22 @@ static void rna_def_modifier_solidify(BlenderRNA *brna)
   RNA_def_property_string_funcs(prop, NULL, NULL, "rna_SolidifyModifier_defgrp_name_set");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  prop = RNA_def_property(srna, "shell_vertex_group", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "shell_defgrp_name");
+  RNA_def_property_ui_text(prop,
+                           "Shell Vertex Group",
+                           "Vertex group that the generated shell geometry will be weighted to");
+  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_SolidifyModifier_shell_defgrp_name_set");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "rim_vertex_group", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "rim_defgrp_name");
+  RNA_def_property_ui_text(prop,
+                           "Rim Vertex Group",
+                           "Vertex group that the generated rim geometry will be weighted to");
+  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_SolidifyModifier_rim_defgrp_name_set");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
   prop = RNA_def_property(srna, "use_rim", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_SOLIDIFY_RIM);
   RNA_def_property_ui_text(prop,
@@ -6359,6 +6390,24 @@ static void rna_def_modifier_surfacedeform(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, "rna_SurfaceDeformModifier_is_bound_get", NULL);
   RNA_def_property_ui_text(prop, "Bound", "Whether geometry has been bound to target mesh");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "defgrp_name");
+  RNA_def_property_ui_text(
+      prop, "Vertex Group", "Vertex group name for selecting/weighting the affected areas");
+  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_SurfaceDeformModifier_defgrp_name_set");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "invert_vertex_group", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flags", MOD_SDEF_INVERT_VGROUP);
+  RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "strength", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, -100, 100);
+  RNA_def_property_ui_range(prop, -100, 100, 10, 2);
+  RNA_def_property_ui_text(prop, "Strength", "Strength of modifier deformations");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
 static void rna_def_modifier_weightednormal(BlenderRNA *brna)
