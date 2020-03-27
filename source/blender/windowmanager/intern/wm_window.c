@@ -2459,6 +2459,9 @@ void WM_ghost_show_message_box(const char *title,
 }
 
 /* Game engine transition */
+
+#include "WM_message.h"
+
 void *WM_opengl_context_create_blenderplayer(void *syshandle)
 {
   /* On Windows there is a problem creating contexts that share lists
@@ -2471,17 +2474,32 @@ void *WM_opengl_context_create_blenderplayer(void *syshandle)
   return GHOST_CreateOpenGLContext(g_system);
 }
 
-void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm, wmWindow *win, void *ghostwin)
+/* Reuse wm->message_bus when we restart game or load a new .blend */
+static void *runtime_msgbus;
+
+void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm, wmWindow *win, void *ghostwin, bool first_time_window)
 {
-  wm_window_clear_drawable(wm);
+  win->ghostwin = ghostwin;
   GHOST_RectangleHandle bounds;
+
+  wm_window_clear_drawable(wm);
   GLuint default_fb = GHOST_GetDefaultOpenGLFramebuffer(ghostwin);
-  win->gpuctx = GPU_context_create(default_fb);
-  /* needed so we can detect the graphics card below */
-  GPU_init();
+
+  if (first_time_window) {
+    win->gpuctx = GPU_context_create(default_fb);
+    wm->message_bus = WM_msgbus_create();
+    runtime_msgbus = wm->message_bus;
+    /* needed so we can detect the graphics card below */
+    GPU_init();
+  }
+  else {
+    win->gpuctx = GPU_context_active_get();
+    wm->message_bus = runtime_msgbus;
+    GPU_exit();
+    GPU_init();
+  }
   /* Set window as drawable upon creation. Note this has already been
    * it has already been activated by GHOST_CreateWindow. */
-  win->ghostwin = ghostwin;
   GHOST_SetWindowState(win->ghostwin, GHOST_GetWindowState(ghostwin));
   wm_window_set_drawable(wm, win, true);
   GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
@@ -2494,8 +2512,8 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm, wmWindow *w
     win->sizey = GHOST_GetHeightRectangle(bounds);
   }
   GHOST_DisposeRectangle(bounds);
-  /* until screens get drawn, make it white */
-  glClearColor(1.0, 1.0, 1.0, 0.0);
+  /* until screens get drawn, make it black */
+  glClearColor(0.0, 0.0, 0.0, 0.0);
   /* Crash on OSS ATI: bugs.launchpad.net/ubuntu/+source/mesa/+bug/656100 */
   if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
     glClear(GL_COLOR_BUFFER_BIT);

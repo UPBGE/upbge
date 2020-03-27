@@ -92,7 +92,8 @@ void wm_test_autorun_warning(bContext *C);
 /* Game engine transition */
 void wm_window_ghostwindow_blenderplayer_ensure(struct wmWindowManager *wm,
                                                 struct wmWindow *win,
-                                                void *ghostwin);
+                                                void *ghostwin,
+                                                bool first_time_window);
 /* End of Game engine transition */
 
 #endif /* __WM_WINDOW_H__ */

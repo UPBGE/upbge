@@ -105,7 +105,9 @@ extern "C" {
 #include "BKE_callbacks.h"
 #include "BKE_gpencil_modifier.h"
 #include "BKE_shader_fx.h"
-//#include "BKE_screen.h"
+#define new _new
+#include "BKE_screen.h"
+#undef new
 #include "BKE_studiolight.h"
 
 #include "BLI_system.h"
@@ -835,7 +837,7 @@ int main(int argc,
       WM_main_remove_notifier_reference); /* library.c */
   BKE_library_callback_remap_editor_id_reference_set(
       WM_main_remap_editor_id_reference); /* library.c */
-  // BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
+  BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
   DEG_editors_set_update_cb(ED_render_id_flush_update, ED_render_scene_update);
 
   ED_spacetypes_init(); /* editors/space_api/spacetype.c */
@@ -1250,6 +1252,8 @@ int main(int argc,
 
         DRW_engines_register();
 
+        bool first_time_window = true;
+
         do {
           // Read the Blender file
 
@@ -1259,6 +1263,11 @@ int main(int argc,
 
             /* This normally exits/close the GHOST_IWindow */
             if (bfd) {
+              /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new .blend */
+              CTX_wm_window(C)->ghostwin = nullptr;
+              /* Hack to not free wm->message_bus when we restart/load new .blend */
+              CTX_wm_manager(C)->message_bus = nullptr;
+
               BLO_blendfiledata_free(bfd);
             }
 
@@ -1321,12 +1330,11 @@ int main(int argc,
             Scene *scene = bfd->curscene;
             CTX_data_main_set(C, maggie);
             CTX_data_scene_set(C, scene);
+            G.main = maggie;
+            G_MAIN = G.main;
 
             if (firstTimeRunning) {
-              G.main = maggie;
-              G_MAIN = G.main;
               G.fileflags = bfd->fileflags;
-
               gs.glslflag = scene->gm.flag;
             }
 
@@ -1481,14 +1489,16 @@ int main(int argc,
               wmWindowManager *wm = (wmWindowManager *)G_MAIN->wm.first;
               wmWindow *win = (wmWindow *)wm->windows.first;
               CTX_wm_manager_set(C, wm);
-              wm->message_bus = WM_msgbus_create();
-              WM_init_opengl_blenderplayer(G_MAIN, system);
-              wm_window_ghostwindow_blenderplayer_ensure(
-                  wm, win, window);
               CTX_wm_window_set(C, win);
+              WM_init_opengl_blenderplayer(G_MAIN, system);
             }
 
-            //WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), bfd->curscene);
+            wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
+            wmWindow *win = (wmWindow *)wm->windows.first;
+            CTX_wm_manager_set(C, wm);
+            CTX_wm_window_set(C, win);
+            wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
+            first_time_window = false;
 
             // This argc cant be argc_py_clamped, since python uses it.
             LA_PlayerLauncher launcher(system,
