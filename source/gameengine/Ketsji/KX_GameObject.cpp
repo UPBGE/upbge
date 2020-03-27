@@ -274,7 +274,8 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
 
   Scene *sc = GetScene()->GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, sc, view_layer, false);
 
   if (m_staticObject) {
@@ -332,7 +333,8 @@ void KX_GameObject::ReplicateBlenderObject()
   Object *ob = GetBlenderObject();
 
   if (ob) {
-    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Main *bmain = CTX_data_main(C);
     Object *newob;
     BKE_id_copy_ex(bmain, &ob->id, (ID **)&newob, 0);
     Scene *scene = GetScene()->GetBlenderScene();
@@ -374,7 +376,8 @@ void KX_GameObject::RemoveReplicaObject()
 {
   Object *ob = GetBlenderObject();
   if (ob && m_isReplica) {
-    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Main *bmain = CTX_data_main(C);
     Scene *scene = GetScene()->GetBlenderScene();
     BKE_scene_collections_object_remove(bmain, scene, ob, true);
     BKE_id_free(bmain, &ob->id);
@@ -1046,7 +1049,8 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
   if (currentLodLevel) {
     RAS_MeshObject *currentMeshObject = currentLodLevel->GetMesh();
 
-    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Main *bmain = CTX_data_main(C);
     Scene *sc = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(sc);
     Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, sc, view_layer, false);

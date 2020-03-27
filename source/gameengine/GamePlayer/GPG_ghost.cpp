@@ -1262,12 +1262,6 @@ int main(int argc,
               BLO_blendfiledata_free(bfd);
             }
 
-            DRW_opengl_context_enable_ex(false);
-            GPU_pass_cache_free();
-            GPU_exit();
-            DRW_opengl_context_disable_ex(false);
-            DRW_opengl_context_destroy_blenderplayer();
-
             char basedpath[FILE_MAX];
 
             // base the actuator filename relative to the last file
@@ -1325,12 +1319,12 @@ int main(int argc,
 #endif    // WIN32
             Main *maggie = bfd->main;
             Scene *scene = bfd->curscene;
-            G.main = maggie;
-            G_MAIN = G.main;
             CTX_data_main_set(C, maggie);
             CTX_data_scene_set(C, scene);
 
             if (firstTimeRunning) {
+              G.main = maggie;
+              G_MAIN = G.main;
               G.fileflags = bfd->fileflags;
 
               gs.glslflag = scene->gm.flag;
@@ -1401,9 +1395,7 @@ int main(int argc,
               aasamples = scene->gm.aasamples;
 
             BLI_strncpy(pathname, maggie->name, sizeof(pathname));
-            if (firstTimeRunning ||
-                exitcode == KX_ExitRequest::START_OTHER_GAME ||
-                exitcode == KX_ExitRequest::RESTART_GAME) {
+            if (firstTimeRunning) {
               firstTimeRunning = false;
 
               if (fullScreen) {
@@ -1486,13 +1478,17 @@ int main(int argc,
                 }
               }
               /* wm context */
-              wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
+              wmWindowManager *wm = (wmWindowManager *)G_MAIN->wm.first;
+              wmWindow *win = (wmWindow *)wm->windows.first;
               CTX_wm_manager_set(C, wm);
               wm->message_bus = WM_msgbus_create();
               WM_init_opengl_blenderplayer(G_MAIN, system);
               wm_window_ghostwindow_blenderplayer_ensure(
-                  wm, (wmWindow *)wm->windows.first, window);
+                  wm, win, window);
+              CTX_wm_window_set(C, win);
             }
+
+            //WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), bfd->curscene);
 
             // This argc cant be argc_py_clamped, since python uses it.
             LA_PlayerLauncher launcher(system,

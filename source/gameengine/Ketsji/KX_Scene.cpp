@@ -246,7 +246,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    * INTEGRATION***********************************************************/
   m_staticObjects = {};
 
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 
   m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
@@ -287,14 +288,12 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     RenderAfterCameraSetup(nullptr, false);
   }
   else {
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(
-        KX_GetActiveEngine()->GetConverter()->GetMain(), scene, view_layer, false);
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
     if (!depsgraph) {
       /* If we don't have a depsgraph for this view_layer, allocate one (last arg (true))
        * We'll need it during BlenderDataConversion.
        */
-      BKE_scene_get_depsgraph(
-          KX_GetActiveEngine()->GetConverter()->GetMain(), scene, view_layer, true);
+      BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
     }
   }
   /******************************************************************************************************************************/
@@ -317,7 +316,8 @@ KX_Scene::~KX_Scene()
   Scene *scene = GetBlenderScene();
   RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
        canvas->IsBlenderPlayer()) {
@@ -545,7 +545,9 @@ void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collecti
     if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
       KX_GameObject *replica = AddReplicaObject(gameobj, nullptr, 0);
       replica->GetBlenderObject()->gameflag |= OB_OVERLAY_COLLECTION;
-      BKE_collection_object_add(KX_GetActiveEngine()->GetConverter()->GetMain(),
+      bContext *C = KX_GetActiveEngine()->GetContext();
+      Main *bmain = CTX_data_main(C);
+      BKE_collection_object_add(bmain,
                                 collection,
                                 replica->GetBlenderObject());
       // release here because AddReplicaObject AddRef's
@@ -573,7 +575,9 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
     for (KX_GameObject *gameobj : GetObjectList()) {
       if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
         if (gameobj->IsReplica()) {
-          BKE_collection_object_remove(KX_GetActiveEngine()->GetConverter()->GetMain(),
+          bContext *C = KX_GetActiveEngine()->GetContext();
+          Main *bmain = CTX_data_main(C);
+          BKE_collection_object_remove(bmain,
                                        collection,
                                        gameobj->GetBlenderObject(),
                                        false);
@@ -658,7 +662,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  bContext *C = engine->GetContext();
+  Main *bmain = CTX_data_main(C);
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
@@ -688,8 +693,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
               viewport->GetHeight() + 1};
 
   const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
-
-  bContext *C = engine->GetContext();
 
   /* Here we'll render directly the scene with viewport code. */
   if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !canvas->IsBlenderPlayer()) {
@@ -782,7 +785,8 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                                                  RAS_Rasterizer *rasty,
                                                  const rcti *window)
 {
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
@@ -799,7 +803,6 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
 
   SetCurrentGPUViewport(cam->GetGPUViewport());
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
   CTX_wm_view3d(C)->camera = cam->GetBlenderObject();

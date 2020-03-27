@@ -50,10 +50,12 @@ extern "C" {
 #include "BKE_report.h"
 #include "BKE_main.h"
 #include "BKE_context.h"
+#include "BKE_global.h"
 #include "BKE_sound.h"
 #include "BKE_undo_system.h"
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
+#include "WM_api.h"
 
 void StartKetsjiShell(struct bContext *C,
                       struct ARegion *ar,
@@ -160,6 +162,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         blenderdata = bfd->main;
         startscenename = bfd->curscene->id.name + 2;
 
+        CTX_data_main_set(C, bfd->main);
+        CTX_data_scene_set(C, bfd->curscene);
+
         if (blenderdata) {
           BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
         }
@@ -173,6 +178,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     Scene *scene = bfd ? bfd->curscene :
                          (Scene *)BLI_findstring(
                              &blenderdata->scenes, startscenename, offsetof(ID, name) + 2);
+
+    //WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene);
 
     RAS_Rasterizer::StereoMode stereoMode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
     if (scene) {
@@ -247,6 +254,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   /* Warning: If we work on game restart/load blend actuator and that we change of wmWindowManager
    * during runtime, we'd have to restore the right wmWindowManager/win/scene... before doing undo.
    */
+  /* Restore Main and Scene used before ge start */
+  CTX_data_main_set(C, G_MAIN);
+  CTX_data_scene_set(C, startscene);
 
   /* Undo System */
   if (startscene->gm.flag & GAME_USE_UNDO) {
