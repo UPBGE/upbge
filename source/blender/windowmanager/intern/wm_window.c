@@ -2520,7 +2520,13 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm, wmWindow *w
   }
   /* needed here, because it's used before it reads userdef */
   WM_window_set_dpi(win);
-  wm_window_swap_buffers(win);
+
+  /* We avoid swap buffers when we aren't at first time
+   * to avoid transition when reload or load a new blend */
+  if (first_time_window) {
+    wm_window_swap_buffers(win);
+  }
+
   // GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
   /* standard state vars for window */
   GPU_state_init();
