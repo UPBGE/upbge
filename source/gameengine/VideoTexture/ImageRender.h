@@ -42,6 +42,7 @@
 #include "ImageViewport.h"
 
 class RAS_FrameBuffer;
+struct GPUFrameBuffer;
 
 /// class for render 3d scene
 class ImageRender : public ImageViewport {

@@ -34,17 +34,9 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include <math.h>
-
-extern "C" {
-#include "BKE_global.h"
-#include "BKE_sound.h"
-}
-
-#include "MEM_guardedalloc.h"
-
-#include "KX_BlenderSceneConverter.h"
 #include "KX_ConvertActuators.h"
+
+#include <math.h>
 
 #ifdef WITH_AUDASPACE
 #  include <AUD_Sound.h>
@@ -52,15 +44,14 @@ extern "C" {
 
 // Actuators
 // SCA logiclibrary native logicbricks
+#include "KX_BlenderSceneConverter.h"
+#include "BL_BlenderDataConversion.h"
 #include "SCA_PropertyActuator.h"
 #include "SCA_LogicManager.h"
 #include "SCA_RandomActuator.h"
 #include "SCA_VibrationActuator.h"
 #include "SCA_2DFilterActuator.h"
-
 #include "RAS_2DFilterManager.h"  // for filter type.
-
-// Ketsji specific logicbricks
 #include "SCA_SceneActuator.h"
 #include "SCA_CollectionActuator.h"
 #include "SCA_SoundActuator.h"
@@ -78,27 +69,26 @@ extern "C" {
 #include "SCA_DynamicActuator.h"
 #include "SCA_SteeringActuator.h"
 #include "SCA_MouseActuator.h"
-
+#include "KX_Globals.h"
+#include "KX_NetworkMessageActuator.h"
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h"
-
 #include "EXP_IntValue.h"
 #include "KX_GameObject.h"
-
 #include "CM_Message.h"
 
 /* This little block needed for linking to Blender... */
+#include "BKE_global.h"
+#include "BKE_sound.h"
+#include "MEM_guardedalloc.h"
 #include "BKE_text.h"
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_path_util.h"
-
-#include "KX_NetworkMessageActuator.h"
-
-#ifdef WIN32
-#  include "BLI_winstuff.h"
-#endif
-
+#include "BKE_context.h"
+#include "BKE_layer.h"
+#include "BKE_scene.h"
+#include "DEG_depsgraph_query.h"
 #include "DNA_object_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_scene_types.h"
@@ -109,15 +99,11 @@ extern "C" {
 #include "RNA_access.h"
 #include "BL_Action.h"
 
-extern "C" {
-#include "BKE_layer.h"
-#include "BKE_scene.h"
-#include "DEG_depsgraph_query.h"
-}
+#ifdef WIN32
+#  include "BLI_winstuff.h"
+#endif
 
 /* end of blender include block */
-
-#include "BL_BlenderDataConversion.h"
 
 /**
  * KX_flt_trunc needed to round 'almost' zero values to zero, else velocities etc. are incorrectly
@@ -355,7 +341,8 @@ void BL_ConvertActuators(const char *maggiename,
           }
           else {
 #ifdef WITH_AUDASPACE
-            BKE_sound_load_no_assert(G_MAIN, sound);
+            bContext *C = KX_GetActiveEngine()->GetContext();
+            BKE_sound_load_no_assert(CTX_data_main(C), sound);
             snd_sound = sound->playback_handle;
 
             // if sound shall be 3D but isn't mono, we have to make it mono!

@@ -41,6 +41,7 @@ set(INC
 	../../../blender/draw/engines/eevee/
 	../../../blender/gpu
 	../../../blender/makesdna
+	../../../blender/makesrna
 	../../../../intern/guardedalloc
 )
 

@@ -30,16 +30,13 @@
 
 // implementation
 
-#include "EXP_PyObjectPlus.h"
+#include "ImageRender.h"
+
 #include <structmember.h>
 #include <float.h>
 #include <math.h>
 
-#include "GPU_framebuffer.h"
-#include "GPU_texture.h"
-
-#include "GPU_glew.h"
-
+#include "EXP_PyObjectPlus.h"
 #include "KX_Globals.h"
 #include "DNA_scene_types.h"
 #include "RAS_FrameBuffer.h"
@@ -47,20 +44,18 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 #include "RAS_ITexVert.h"
-#include "BLI_math.h"
-
-#include "ImageRender.h"
 #include "ImageBase.h"
 #include "Exception.h"
 #include "Texture.h"
 
+#include "GPU_framebuffer.h"
+#include "GPU_texture.h"
+#include "GPU_glew.h"
+#include "BLI_math.h"
 #include "eevee_private.h"
-
-extern "C" {
 #include "BKE_global.h"
 #include "../depsgraph/DEG_depsgraph_query.h"
 #include "GPU_viewport.h"
-}
 
 ExceptionID SceneInvalid, CameraInvalid, ObserverInvalid, FrameBufferInvalid;
 ExceptionID MirrorInvalid, MirrorSizeInvalid, MirrorNormalInvalid, MirrorHorizontal,
@@ -131,7 +126,8 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
 {
   Scene *scene = m_scene->GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, scene, view_layer, false);
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), scene, view_layer, false);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   scene_eval->flag |= SCE_INTERACTIVE_IMAGE_RENDER;
 

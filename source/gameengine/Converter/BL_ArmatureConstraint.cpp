@@ -30,18 +30,17 @@
  */
 
 #include "BL_ArmatureConstraint.h"
-#include "BL_ArmatureObject.h"
 
+#include "BL_ArmatureObject.h"
 #include "KX_Globals.h"
 
 #include "DNA_constraint_types.h"
 #include "DNA_action_types.h"
-
+#include "BKE_context.h"
 #include "BKE_object.h"
 #include "BKE_constraint.h"
 #include "BKE_global.h"
 #include "BKE_lib_id.h"
-
 #include "BLI_math.h"
 #include "BLI_string.h"
 
@@ -124,13 +123,14 @@ BL_ArmatureConstraint::~BL_ArmatureConstraint()
 
   // Free the fake blender object targets without freeing the pose of an armature set in these
   // objects.
+  bContext *C = KX_GetActiveEngine()->GetContext();
   if (m_blendtarget) {
     m_blendtarget->pose = nullptr;
-    BKE_id_free(G_MAIN, &m_blendtarget->id);
+    BKE_id_free(CTX_data_main(C), &m_blendtarget->id);
   }
   if (m_blendsubtarget) {
     m_blendsubtarget->pose = nullptr;
-    BKE_id_free(G_MAIN, &m_blendsubtarget->id);
+    BKE_id_free(CTX_data_main(C), &m_blendsubtarget->id);
   }
 }
 
@@ -144,12 +144,13 @@ CValue *BL_ArmatureConstraint::GetReplica()
 void BL_ArmatureConstraint::CopyBlenderTargets()
 {
   // Create the fake blender object target.
+  bContext *C = KX_GetActiveEngine()->GetContext();
   if (m_target) {
-    m_blendtarget = BKE_object_add_only_object(G_MAIN, OB_EMPTY, m_target->GetName().c_str());
+    m_blendtarget = BKE_object_add_only_object(CTX_data_main(C), OB_EMPTY, m_target->GetName().c_str());
   }
   if (m_subtarget) {
     m_blendsubtarget = BKE_object_add_only_object(
-        G_MAIN, OB_EMPTY, m_subtarget->GetName().c_str());
+        CTX_data_main(C), OB_EMPTY, m_subtarget->GetName().c_str());
   }
 
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(m_constraint);

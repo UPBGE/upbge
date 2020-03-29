@@ -29,6 +29,8 @@
  *  \ingroup bgeconv
  */
 
+#include "BL_ArmatureObject.h"
+
 #include "MEM_guardedalloc.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
@@ -40,31 +42,23 @@
 #include "BKE_constraint.h"
 #include "DNA_armature_types.h"
 #include "RNA_access.h"
-
-extern "C" {
 #include "BKE_animsys.h"
+#include "BKE_context.h"
 #include "BKE_main.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_scene.h"
-
 #include "DEG_depsgraph_query.h"
-}
 
-#include "BL_ArmatureObject.h"
 #include "BL_ActionActuator.h"
 #include "BL_Action.h"
 #include "KX_BlenderSceneConverter.h"
 #include "KX_BlenderConverter.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
-
 #include "RAS_DebugDraw.h"
-
 #include "EXP_ListWrapper.h"
-
 #include "MT_Matrix4x4.h"
-
 #include "CM_Message.h"
 
 /**
@@ -228,8 +222,8 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 
   // Keep a copy of the original armature so we can fix drivers later
   m_origObjArma = armature;
-  m_objArma = m_origObjArma;  // BKE_object_copy(G.main, armature);
-  // m_objArma->data = BKE_armature_copy(G.main, (bArmature *)armature->data);
+  m_objArma = m_origObjArma;  // BKE_object_copy(bmain, armature);
+  // m_objArma->data = BKE_armature_copy(bmain, (bArmature *)armature->data);
   // During object replication ob->data is increase, we decrease it now because we get a copy.
   // id_us_min(&((bArmature *)m_origObjArma->data)->id);
   m_pose = m_objArma->pose;
@@ -244,11 +238,11 @@ BL_ArmatureObject::~BL_ArmatureObject()
   m_controlledConstraints->Release();
 
   // if (m_objArma) {
-  //	BKE_id_free(G.main, m_objArma->data);
-  //	/* avoid BKE_libblock_free(G.main, m_objArma)
+  //	BKE_id_free(bmain, m_objArma->data);
+  //	/* avoid BKE_libblock_free(bmain, m_objArma)
   //	   try to access m_objArma->data */
   //	m_objArma->data = nullptr;
-  //	BKE_id_free(G.main, m_objArma);
+  //	BKE_id_free(bmain, m_objArma);
   //}
 }
 
@@ -452,7 +446,8 @@ void BL_ArmatureObject::ApplyPose()
     // update ourself
     UpdateBlenderObjectMatrix(m_objArma);
     ViewLayer *view_layer = BKE_view_layer_default_view(m_scene);
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, m_scene, view_layer, false);
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), m_scene, view_layer, false);
     BKE_pose_where_is(depsgraph, m_scene, m_objArma);
     // restore ourself
     memcpy(m_objArma->obmat, m_obmat, sizeof(m_obmat));

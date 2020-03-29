@@ -33,6 +33,8 @@
 #  pragma warning(disable : 4786)  // suppress stl-MSVC debug info warning
 #endif
 
+#include "KX_BlenderConverter.h"
+
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
 #include "RAS_MeshObject.h"
@@ -42,21 +44,18 @@
 #include "KX_PythonInit.h"  // So we can handle adding new text datablocks for Python to import
 #include "KX_LibLoadStatus.h"
 #include "KX_BlenderScalarInterpolator.h"
-#include "KX_BlenderConverter.h"
 #include "KX_BlenderSceneConverter.h"
 #include "BL_BlenderDataConversion.h"
 #include "BL_ActionActuator.h"
 #include "KX_BlenderMaterial.h"
-
+#include "CM_Message.h"
+#include "EXP_StringValue.h"
 #include "LA_SystemCommandLine.h"
-
 #include "DummyPhysicsEnvironment.h"
 
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"
 #endif
-
-#include "EXP_StringValue.h"
 
 #ifdef WITH_PYTHON
 #  include "Texture.h"  // For FreeAllTextures.
@@ -65,13 +64,12 @@
 // This list includes only data type definitions
 #include "DNA_scene_types.h"
 #include "BKE_main.h"
-
-extern "C" {
 #include "DNA_mesh_types.h"
 #include "DNA_material_types.h"
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLO_readfile.h"
+#include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_idtype.h"
 #include "BKE_layer.h"
@@ -80,10 +78,7 @@ extern "C" {
 #include "BKE_mesh.h"      // BKE_mesh_copy
 #include "BKE_report.h"
 #include "BKE_scene.h"
-}
-
 #include "BLI_task.h"
-#include "CM_Message.h"
 
 #include <cstring>
 
@@ -221,9 +216,9 @@ void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
   destinationscene->SetPhysicsEnvironment(phy_env);
 
   KX_BlenderSceneConverter sceneConverter;
-
+  bContext *C = KX_GetActiveEngine()->GetContext();
   ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
-  Depsgraph *graph = BKE_scene_get_depsgraph(G_MAIN, blenderscene, view_layer, false);
+  Depsgraph *graph = BKE_scene_get_depsgraph(CTX_data_main(C), blenderscene, view_layer, false);
 
   BL_ConvertBlenderObjects(m_maggie,
                            graph,
@@ -855,7 +850,7 @@ RAS_MeshObject *KX_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 
         BLI_remlink(
             &from_maggie->materials,
-            mat_new);  // BKE_material_copy uses G.main, and there is no BKE_material_copy_ex
+            mat_new);  // BKE_material_copy uses bmain, and there is no BKE_material_copy_ex
         BLI_addtail(&maggie->materials, mat_new);
 
         mesh->mat[i] = mat_new;

@@ -49,29 +49,23 @@
 /* TODO: Disabled for now, because of eval_ctx. */
 #define THREADED_DAG_WORKAROUND
 
+#include "BL_BlenderDataConversion.h"
+
 #include <math.h>
 #include <vector>
 #include <algorithm>
 
-#include "BL_BlenderDataConversion.h"
-
 #include "MT_Transform.h"
 #include "MT_MinMax.h"
-
-#include "GPU_texture.h"
-
 #include "PHY_Pro.h"
 #include "PHY_IPhysicsEnvironment.h"
-
 #include "RAS_MeshObject.h"
 #include "RAS_Rasterizer.h"
-
 #include "KX_ConvertActuators.h"
 #include "KX_ConvertControllers.h"
 #include "KX_ConvertSensors.h"
 #include "SCA_LogicManager.h"
 #include "SCA_TimeEventManager.h"
-
 #include "KX_ClientObjectInfo.h"
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
@@ -81,7 +75,6 @@
 #include "KX_FontObject.h"
 #include "KX_LodManager.h"
 #include "KX_PythonComponent.h"
-
 #include "RAS_ICanvas.h"
 #include "RAS_Polygon.h"
 #include "RAS_TexVert.h"
@@ -89,24 +82,23 @@
 #include "RAS_IPolygonMaterial.h"
 #include "KX_BlenderMaterial.h"
 #include "BL_Texture.h"
-
-#include "BKE_collection.h"
-#include "BKE_main.h"
-#include "BKE_global.h"
-#include "BKE_object.h"
-#include "BKE_python_component.h"
-#include "BLI_utildefines.h"
-#include "BLI_listbase.h"
-#include "BLI_iterator.h"
-
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
-
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderSceneConverter.h"
-
 #include "KX_Globals.h"
 #include "KX_PyConstraintBinding.h"
+#include "KX_ConvertProperties.h"
+#include "SG_Node.h"
+#include "SG_BBox.h"
+#include "KX_SG_NodeRelationships.h"
+#include "KX_SG_BoneParentNodeRelationship.h"
+#include "KX_MotionState.h"
+#include "BL_ArmatureObject.h"
+#include "KX_NavMeshObject.h"
+#include "KX_ObstacleSimulation.h"
+#include "CM_Message.h"
+#ifdef WITH_BULLET
+#  include "CcdPhysicsEnvironment.h"
+#endif
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
@@ -138,17 +130,17 @@
 #include "DNA_constraint_types.h"
 #include "DNA_python_component_types.h"
 #include "DNA_layer_types.h"
-
 #include "MEM_guardedalloc.h"
-
 #include "BKE_key.h"
+#include "BKE_main.h"
 #include "BKE_mesh.h"
-
+#include "BLI_listbase.h"
 #include "BLI_math.h"
-
-extern "C" {
+#include "BLI_threads.h"
 #include "BKE_armature.h"
+#include "BKE_object.h"
 #include "BKE_scene.h"
+#include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
@@ -158,33 +150,20 @@ extern "C" {
 #include "BKE_image.h"
 #include "IMB_imbuf_types.h"
 #include "BKE_displist.h"
-}
-
 #include "wm_event_types.h"
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
+#include "GPU_texture.h"
 
 /* end of blender include block */
 
-#include "KX_ConvertProperties.h"
 
-#include "SG_Node.h"
-#include "SG_BBox.h"
-#include "KX_SG_NodeRelationships.h"
-#include "KX_SG_BoneParentNodeRelationship.h"
 
-#ifdef WITH_BULLET
-#  include "CcdPhysicsEnvironment.h"
-#endif
 
-#include "KX_MotionState.h"
 
-#include "BL_ArmatureObject.h"
 
-#include "KX_NavMeshObject.h"
-#include "KX_ObstacleSimulation.h"
 
-#include "CM_Message.h"
 
-#include "BLI_threads.h"
 
 static bool default_light_mode = 0;
 
@@ -439,9 +418,10 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   }
 
   // Get DerivedMesh data
+  bContext *C = KX_GetActiveEngine()->GetContext();
   Scene *bl_scene = scene->GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(bl_scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, bl_scene, view_layer, false);
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), bl_scene, view_layer, false);
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, blenderobj);
   Mesh *final_me = (Mesh *)ob_eval->data;
   DerivedMesh *dm = CDDM_from_mesh(final_me);
@@ -922,9 +902,10 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
 
 #ifdef THREADED_DAG_WORKAROUND
     case OB_CURVE: {
+      bContext *C = KX_GetActiveEngine()->GetContext();
       if (ob->runtime.curve_cache == nullptr) {
         ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
-        Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, blenderscene, view_layer, false);
+        Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), blenderscene, view_layer, false);
         BKE_displist_make_curveTypes(depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);
       }
       // eevee add curves to scene.objects list

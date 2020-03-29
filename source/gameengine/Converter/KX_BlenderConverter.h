@@ -43,6 +43,7 @@
 #endif
 
 #include "CM_Thread.h"
+#include "EXP_ListValue.h"
 
 class CStringValue;
 class KX_BlenderSceneConverter;

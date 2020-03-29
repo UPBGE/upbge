@@ -24,35 +24,26 @@
  *  \ingroup ketsji
  */
 
-#include "CM_Message.h"
-
 #include "BL_Action.h"
+
+#include "CM_Message.h"
 #include "BL_ArmatureObject.h"
 #include "KX_IpoConvert.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
-
 #include "RAS_MeshObject.h"
-
 #include "SG_Controller.h"
-
-// These three are for getting the action from the logic manager
 #include "KX_Scene.h"
 #include "KX_BlenderConverter.h"
 #include "SCA_LogicManager.h"
 
-extern "C" {
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_context.h"
-
 #include "BKE_layer.h"
 #include "BKE_scene.h"
-
 #include "RNA_access.h"
 #include "RNA_define.h"
-
-// Needed for material IPOs
 #include "BKE_material.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -65,8 +56,6 @@ extern "C" {
 #include "DNA_scene_types.h"
 #include "depsgraph/DEG_depsgraph.h"
 #include "depsgraph/DEG_depsgraph_query.h"
-}
-
 #include "MEM_guardedalloc.h"
 #include "BKE_library.h"
 #include "BKE_global.h"
@@ -414,7 +403,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   m_requestIpo = true;
 
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(KX_GetActiveEngine()->GetContext());
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   Object *ob = m_obj->GetBlenderObject();  // eevee
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
@@ -432,7 +422,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
     // Extract the pose from the action
     obj->SetPoseByAction(m_action, m_localframe);
 
-    ignore_parent_tx_bge(G_MAIN, depsgraph, scene, ob);
+    ignore_parent_tx_bge(CTX_data_main(C), depsgraph, scene, ob);
 
     // Handle blending between armature actions
     if (m_blendin && m_blendframe < m_blendin) {
@@ -484,7 +474,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           RNA_id_pointer_create(&ob->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
 
-          ignore_parent_tx_bge(G_MAIN, depsgraph, scene, ob);
+          ignore_parent_tx_bge(CTX_data_main(C), depsgraph, scene, ob);
 
           scene->ResetTaaSamples();
           break;

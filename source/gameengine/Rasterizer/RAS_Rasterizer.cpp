@@ -29,16 +29,20 @@
  *  \ingroup bgerastogl
  */
 
+#include "KX_RayCast.h"
+#include "KX_GameObject.h"
+#include "KX_Globals.h"
+#include "CM_Message.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArrayBucket.h"
-
 #include "RAS_FrameBuffer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 #include "RAS_Polygon.h"
 
+#include "BKE_context.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -46,26 +50,16 @@
 #include "GPU_framebuffer.h"
 #include "GPU_texture.h"
 #include "GPU_matrix.h"
-
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
-
 #include "MEM_guardedalloc.h"
-
-extern "C" {
 #include "BLF_api.h"
 #include "GPU_viewport.h"
 #include "GPU_uniformbuffer.h"
 #include "DNA_view3d_types.h"
 #include "DRW_render.h"
-}
 
-// XXX Clean these up <<<
-#include "KX_RayCast.h"
-#include "KX_GameObject.h"
-// >>>
 
-#include "CM_Message.h"
 
 RAS_Rasterizer::FrameBuffers::FrameBuffers() : m_width(0), m_height(0), m_samples(0)
 {
@@ -862,10 +856,10 @@ void RAS_Rasterizer::SetInvertFrontFace(bool invert)
   m_invertFrontFace = invert;
 }
 
-#include "BKE_global.h"
 void RAS_Rasterizer::SetAnisotropicFiltering(short level)
 {
-  Main *bmain = G.main;
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
   GPU_set_anisotropic(bmain, (float)level);
 }
 
@@ -876,7 +870,8 @@ short RAS_Rasterizer::GetAnisotropicFiltering()
 
 void RAS_Rasterizer::SetMipmapping(MipmapOption val)
 {
-  Main *bmain = G.main;
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
   if (val == RAS_Rasterizer::RAS_MIPMAP_LINEAR) {
     GPU_set_linear_mipmap(1);
     GPU_set_mipmap(bmain, 1);
