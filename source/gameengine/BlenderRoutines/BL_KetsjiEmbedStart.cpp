@@ -251,12 +251,17 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   } while (exitrequested == KX_ExitRequest::RESTART_GAME ||
            exitrequested == KX_ExitRequest::START_OTHER_GAME);
 
-  /* Warning: If we work on game restart/load blend actuator and that we change of wmWindowManager
-   * during runtime, we'd have to restore the right wmWindowManager/win/scene... before doing undo.
-   */
-  /* Restore Main and Scene used before ge start */
-  CTX_data_main_set(C, G_MAIN);
-  CTX_data_scene_set(C, startscene);
+  if (bfd) {
+    BLO_blendfiledata_free(bfd);
+
+    /* Warning: If we work on game restart/load blend actuator and that we change of
+     * wmWindowManager during runtime, we'd have to restore the right wmWindowManager/win/scene...
+     * before doing undo.
+     */
+    /* Restore Main and Scene used before ge start */
+    CTX_data_main_set(C, maggie1);
+    CTX_data_scene_set(C, startscene);
+  }
 
   /* Undo System */
   if (startscene->gm.flag & GAME_USE_UNDO) {
@@ -269,10 +274,6 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     else {
       BKE_undosys_step_undo(CTX_wm_manager(C)->undo_stack, C);
     }
-  }
-
-  if (bfd) {
-    BLO_blendfiledata_free(bfd);
   }
 
 #ifdef WITH_PYTHON
