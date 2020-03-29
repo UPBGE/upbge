@@ -1158,10 +1158,16 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 
     gameobj->SetBlenderGroupObject(blgroupobj);
 
-    if ((blenderobj->lay & group->layer) == 0) {
+    if (!(group->spawn & COLLECTION_IS_SPAWNED) && ((blenderobj->lay & group->layer) == 0)) {
       // object is not visible in the 3D view, will not be instantiated
       continue;
     }
+
+    if ((group->spawn & COLLECTION_IS_SPAWNED) && (!BKE_collection_has_object(group, blenderobj))) {
+      // old method to spawn in an empty + all group members
+      continue;
+    }
+
     m_groupGameObjects.insert(gameobj);
   }
   FOREACH_COLLECTION_OBJECT_RECURSIVE_END;

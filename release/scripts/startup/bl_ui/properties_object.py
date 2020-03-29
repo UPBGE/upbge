@@ -216,6 +216,9 @@ class OBJECT_PT_collections(ObjectButtonsPanel, Panel):
                 row = col.box().row()
                 row.prop(collection, "instance_offset", text="")
 
+                row = col.box().row()
+                row.prop(collection, "use_collection_spawn", text="Spawn behaviour when instanced")
+
 
 class OBJECT_PT_display(ObjectButtonsPanel, Panel):
     bl_label = "Viewport Display"
