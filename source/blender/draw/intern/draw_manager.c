@@ -2709,7 +2709,6 @@ void DRW_engines_free(void)
 
   if (DST.draw_list) {
     GPU_draw_list_discard(DST.draw_list);
-    DST.draw_list = NULL;
   }
 
   DRW_opengl_context_disable();
@@ -3013,7 +3012,8 @@ void DRW_game_render_loop_end()
   GPU_viewport_free(DST.viewport);
 
   EEVEE_view_layer_data_free(EEVEE_view_layer_data_ensure());
-  DRW_engines_free();
+  draw_engine_eevee_type.engine_free();
+  draw_engine_gpencil_type.engine_free();
 
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
