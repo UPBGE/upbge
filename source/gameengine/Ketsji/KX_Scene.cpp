@@ -453,7 +453,7 @@ void KX_Scene::InitBlenderContextVariables()
     if (!screen) {
       continue;
     }
-    CTX_wm_screen_set(KX_GetActiveEngine()->GetContext(), screen);
+    CTX_wm_screen_set(C, screen);
 
     for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
       if (sa->spacetype == SPACE_VIEW3D) {
