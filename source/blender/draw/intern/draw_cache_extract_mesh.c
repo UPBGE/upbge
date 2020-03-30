@@ -191,7 +191,17 @@ static MeshRenderData *mesh_render_data_create(Mesh *me,
   else {
     mr->me = me;
     mr->edit_bmesh = NULL;
-    mr->extract_type = MR_EXTRACT_MESH;
+
+    bool use_mapped = mr->me && !mr->me->runtime.is_original;
+    if (use_mapped) {
+      mr->v_origindex = CustomData_get_layer(&mr->me->vdata, CD_ORIGINDEX);
+      mr->e_origindex = CustomData_get_layer(&mr->me->edata, CD_ORIGINDEX);
+      mr->p_origindex = CustomData_get_layer(&mr->me->pdata, CD_ORIGINDEX);
+
+      use_mapped = (mr->v_origindex || mr->e_origindex || mr->p_origindex);
+    }
+
+    mr->extract_type = use_mapped ? MR_EXTRACT_MAPPED : MR_EXTRACT_MESH;
   }
 
   if (mr->extract_type != MR_EXTRACT_BMESH) {
@@ -924,10 +934,14 @@ static void extract_lines_paint_mask_loop_mesh(const MeshRenderData *mr,
                                                void *_data)
 {
   MeshExtract_LinePaintMask_Data *data = (MeshExtract_LinePaintMask_Data *)_data;
-  if (!(mr->use_hide && (mpoly->flag & ME_HIDE))) {
+  const int edge_idx = mloop->e;
+  const MEdge *medge = &mr->medge[edge_idx];
+  if (!((mr->use_hide && (medge->flag & ME_HIDE)) ||
+        ((mr->extract_type == MR_EXTRACT_MAPPED) &&
+         (mr->e_origindex[edge_idx] == ORIGINDEX_NONE)))) {
+
     int loopend = mpoly->totloop + mpoly->loopstart - 1;
     int other_loop = (l == loopend) ? mpoly->loopstart : (l + 1);
-    int edge_idx = mloop->e;
     if (mpoly->flag & ME_FACE_SEL) {
       if (BLI_BITMAP_TEST_AND_SET_ATOMIC(data->select_map, edge_idx)) {
         /* Hide edge as it has more than 2 selected loop. */
@@ -944,6 +958,9 @@ static void extract_lines_paint_mask_loop_mesh(const MeshRenderData *mr,
         GPU_indexbuf_set_line_verts(&data->elb, edge_idx, l, other_loop);
       }
     }
+  }
+  else {
+    GPU_indexbuf_set_line_restart(&data->elb, edge_idx);
   }
 }
 static void extract_lines_paint_mask_finish(const MeshRenderData *UNUSED(mr),
@@ -1500,7 +1517,8 @@ static void extract_pos_nor_loop_mesh(const MeshRenderData *mr,
   copy_v3_v3(vert->pos, mvert->co);
   vert->nor = data->packed_nor[mloop->v];
   /* Flag for paint mode overlay. */
-  if (mpoly->flag & ME_HIDE || mvert->flag & ME_HIDE) {
+  if (mpoly->flag & ME_HIDE || mvert->flag & ME_HIDE ||
+      ((mr->extract_type == MR_EXTRACT_MAPPED) && (mr->v_origindex[mloop->v] == ORIGINDEX_NONE))) {
     vert->nor.w = -1;
   }
   else if (mvert->flag & SELECT) {
@@ -1617,24 +1635,27 @@ static void extract_lnor_hq_loop_bmesh(const MeshRenderData *mr, int l, BMLoop *
 static void extract_lnor_hq_loop_mesh(
     const MeshRenderData *mr, int l, const MLoop *mloop, int p, const MPoly *mpoly, void *data)
 {
+  gpuHQNor *lnor_data = &((gpuHQNor *)data)[l];
   if (mr->loop_normals) {
-    normal_float_to_short_v3(&((gpuHQNor *)data)[l].x, mr->loop_normals[l]);
+    normal_float_to_short_v3(&lnor_data->x, mr->loop_normals[l]);
   }
   else if (mpoly->flag & ME_SMOOTH) {
-    copy_v3_v3_short(&((gpuHQNor *)data)[l].x, mr->mvert[mloop->v].no);
+    copy_v3_v3_short(&lnor_data->x, mr->mvert[mloop->v].no);
   }
   else {
-    normal_float_to_short_v3(&((gpuHQNor *)data)[l].x, mr->poly_normals[p]);
+    normal_float_to_short_v3(&lnor_data->x, mr->poly_normals[p]);
   }
+
   /* Flag for paint mode overlay. */
-  if (mpoly->flag & ME_HIDE) {
-    ((gpuHQNor *)data)[l].w = -1;
+  if (mpoly->flag & ME_HIDE ||
+      (mr->extract_type == MR_EXTRACT_MAPPED && mr->v_origindex[mloop->v] == ORIGINDEX_NONE)) {
+    lnor_data->w = -1;
   }
   else if (mpoly->flag & ME_FACE_SEL) {
-    ((gpuHQNor *)data)[l].w = 1;
+    lnor_data->w = 1;
   }
   else {
-    ((gpuHQNor *)data)[l].w = 0;
+    lnor_data->w = 0;
   }
 }
 
@@ -1690,24 +1711,27 @@ static void extract_lnor_loop_bmesh(const MeshRenderData *mr, int l, BMLoop *loo
 static void extract_lnor_loop_mesh(
     const MeshRenderData *mr, int l, const MLoop *mloop, int p, const MPoly *mpoly, void *data)
 {
+  GPUPackedNormal *lnor_data = &((GPUPackedNormal *)data)[l];
   if (mr->loop_normals) {
-    ((GPUPackedNormal *)data)[l] = GPU_normal_convert_i10_v3(mr->loop_normals[l]);
+    *lnor_data = GPU_normal_convert_i10_v3(mr->loop_normals[l]);
   }
   else if (mpoly->flag & ME_SMOOTH) {
-    ((GPUPackedNormal *)data)[l] = GPU_normal_convert_i10_s3(mr->mvert[mloop->v].no);
+    *lnor_data = GPU_normal_convert_i10_s3(mr->mvert[mloop->v].no);
   }
   else {
-    ((GPUPackedNormal *)data)[l] = GPU_normal_convert_i10_v3(mr->poly_normals[p]);
+    *lnor_data = GPU_normal_convert_i10_v3(mr->poly_normals[p]);
   }
+
   /* Flag for paint mode overlay. */
-  if (mpoly->flag & ME_HIDE) {
-    ((GPUPackedNormal *)data)[l].w = -1;
+  if (mpoly->flag & ME_HIDE ||
+      (mr->extract_type == MR_EXTRACT_MAPPED && mr->v_origindex[mloop->v] == ORIGINDEX_NONE)) {
+    lnor_data->w = -1;
   }
   else if (mpoly->flag & ME_FACE_SEL) {
-    ((GPUPackedNormal *)data)[l].w = 1;
+    lnor_data->w = 1;
   }
   else {
-    ((GPUPackedNormal *)data)[l].w = 0;
+    lnor_data->w = 0;
   }
 }
 
@@ -3890,7 +3914,8 @@ static void extract_fdots_nor_finish(const MeshRenderData *mr, void *buf, void *
     for (int f = 0; f < mr->poly_len; f++) {
       efa = BM_face_at_index(mr->bm, f);
       const bool is_face_hidden = BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
-      if (is_face_hidden) {
+      if (is_face_hidden ||
+          (mr->extract_type == MR_EXTRACT_MAPPED && mr->p_origindex[f] == ORIGINDEX_NONE)) {
         nor[f] = GPU_normal_convert_i10_v3(invalid_normal);
         nor[f].w = NOR_AND_FLAG_HIDDEN;
       }
@@ -3906,7 +3931,9 @@ static void extract_fdots_nor_finish(const MeshRenderData *mr, void *buf, void *
   else {
     for (int f = 0; f < mr->poly_len; f++) {
       efa = bm_original_face_get(mr, f);
-      if (!efa || BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
+      const bool is_face_hidden = efa && BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
+      if (is_face_hidden ||
+          (mr->extract_type == MR_EXTRACT_MAPPED && mr->p_origindex[f] == ORIGINDEX_NONE)) {
         nor[f] = GPU_normal_convert_i10_v3(invalid_normal);
         nor[f].w = NOR_AND_FLAG_HIDDEN;
       }

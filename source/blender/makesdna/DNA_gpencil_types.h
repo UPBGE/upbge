@@ -468,7 +468,7 @@ typedef enum eGPDlayer_OnionFlag {
 /* layer blend_mode */
 typedef enum eGPLayerBlendModes {
   eGplBlendMode_Regular = 0,
-  eGplBlendMode_Overlay = 1,
+  eGplBlendMode_HardLight = 1,
   eGplBlendMode_Add = 2,
   eGplBlendMode_Subtract = 3,
   eGplBlendMode_Multiply = 4,
@@ -661,8 +661,6 @@ typedef enum eGPdata_Flag {
 
   /* Autolock not active layers */
   GP_DATA_AUTOLOCK_LAYERS = (1 << 20),
-  /* Internal flag for python update */
-  GP_DATA_PYTHON_UPDATED = (1 << 21),
 } eGPdata_Flag;
 
 /* gpd->onion_flag */
