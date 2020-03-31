@@ -35,18 +35,7 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "KX_PythonInit.h"
-#include "KX_Globals.h"
-
-#include "GHOST_ISystem.h"
-
-#include "LA_BlenderLauncher.h"
-
-#include "CM_Message.h"
-
-extern "C" {
 #include "DNA_scene_types.h"
-
 #include "BKE_report.h"
 #include "BKE_main.h"
 #include "BKE_context.h"
@@ -56,6 +45,14 @@ extern "C" {
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
 #include "WM_api.h"
+
+#include "KX_PythonInit.h"
+#include "KX_Globals.h"
+#include "GHOST_ISystem.h"
+#include "LA_BlenderLauncher.h"
+#include "CM_Message.h"
+
+extern "C" {
 
 void StartKetsjiShell(struct bContext *C,
                       struct ARegion *ar,
