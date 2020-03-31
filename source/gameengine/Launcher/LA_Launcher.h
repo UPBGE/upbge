@@ -27,8 +27,8 @@
 #ifndef __LA_LAUNCHER_H__
 #define __LA_LAUNCHER_H__
 
-#include "KX_KetsjiEngine.h"
 #include "KX_ISystem.h"
+#include "KX_KetsjiEngine.h"
 
 #include "RAS_Rasterizer.h"
 

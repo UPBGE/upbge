@@ -28,8 +28,8 @@
 
 #include "LA_SystemCommandLine.h"
 
-#include <string>
 #include <map>
+#include <string>
 
 struct SingletonSystem {
   std::map<std::string, int> int_params;
