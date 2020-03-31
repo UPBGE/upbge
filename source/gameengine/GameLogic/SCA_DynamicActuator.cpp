@@ -35,6 +35,7 @@
  * Please look here for revision history. */
 
 #include "SCA_DynamicActuator.h"
+
 #include "PHY_IPhysicsController.h"
 
 #ifdef WITH_PYTHON

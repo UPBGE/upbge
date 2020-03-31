@@ -38,6 +38,7 @@
 // Please look here for revision history.
 
 #include "SCA_EndObjectActuator.h"
+
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
 

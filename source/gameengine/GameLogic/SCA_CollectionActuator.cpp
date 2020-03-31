@@ -31,17 +31,16 @@
  *  \ingroup ketsji
  */
 
-#include "SCA_IActuator.h"
 #include "SCA_CollectionActuator.h"
+
 #include <iostream>
 
+#include "SCA_IActuator.h"
 #include "KX_Camera.h"
 #include "KX_GameObject.h"
 #include "KX_Scene.h"
 
-extern "C" {
 #include "BKE_collection.h"
-}
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

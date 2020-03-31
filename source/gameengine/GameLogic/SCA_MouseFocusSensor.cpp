@@ -36,6 +36,8 @@
 #  pragma warning(disable : 4786)
 #endif
 
+#include "SCA_MouseFocusSensor.h"
+
 #include "MT_Vector3.h"
 #include "RAS_FramingManager.h"
 #include "RAS_ICanvas.h"
@@ -44,15 +46,11 @@
 #include "SCA_IScene.h"
 #include "KX_Scene.h"
 #include "KX_Camera.h"
-#include "SCA_MouseFocusSensor.h"
 #include "KX_PyMath.h"
-
 #include "KX_RayCast.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
-
 #include "KX_ClientObjectInfo.h"
-
 #include "CM_Message.h"
 
 /* ------------------------------------------------------------------------- */

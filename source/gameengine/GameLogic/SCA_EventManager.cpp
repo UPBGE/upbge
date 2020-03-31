@@ -30,6 +30,7 @@
  */
 
 #include "SCA_EventManager.h"
+
 #include "SCA_ISensor.h"
 
 SCA_EventManager::SCA_EventManager(SCA_LogicManager *logicmgr, EVENT_MANAGER_TYPE mgrtype)

@@ -39,8 +39,9 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "EXP_BoolValue.h"
 #include "SCA_MouseManager.h"
+
+#include "EXP_BoolValue.h"
 #include "SCA_MouseSensor.h"
 #include "EXP_IntValue.h"
 

@@ -33,15 +33,15 @@
  */
 
 #include "SCA_PropertySensor.h"
-#include "EXP_StringValue.h"
-#include "EXP_BoolValue.h"
-#include "EXP_FloatValue.h"
+
+#include <boost/algorithm/string.hpp>
 
 #include "BLI_compiler_attrs.h"
 
+#include "EXP_StringValue.h"
+#include "EXP_BoolValue.h"
+#include "EXP_FloatValue.h"
 #include "CM_Format.h"
-
-#include <boost/algorithm/string.hpp>
 
 SCA_PropertySensor::SCA_PropertySensor(SCA_EventManager *eventmgr,
                                        SCA_IObject *gameobj,

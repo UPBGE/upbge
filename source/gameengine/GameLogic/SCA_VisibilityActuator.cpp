@@ -31,6 +31,7 @@
  */
 
 #include "SCA_VisibilityActuator.h"
+
 #include "KX_GameObject.h"
 
 SCA_VisibilityActuator::SCA_VisibilityActuator(SCA_IObject *gameobj,

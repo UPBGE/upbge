@@ -33,9 +33,9 @@
  */
 
 #include "SCA_ParentActuator.h"
+
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
-
 #include "EXP_PyObjectPlus.h"
 
 /* ------------------------------------------------------------------------- */

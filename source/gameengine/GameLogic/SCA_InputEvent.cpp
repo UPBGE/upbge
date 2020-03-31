@@ -26,9 +26,9 @@
 
 #include "SCA_InputEvent.h"
 
-#include "EXP_ListWrapper.h"
-
 #include <algorithm>
+
+#include "EXP_ListWrapper.h"
 
 SCA_InputEvent::SCA_InputEvent() : m_unicode(0)
 {

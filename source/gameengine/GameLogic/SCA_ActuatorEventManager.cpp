@@ -29,8 +29,9 @@
  *  \ingroup gamelogic
  */
 
-#include "SCA_ISensor.h"
 #include "SCA_ActuatorEventManager.h"
+
+#include "SCA_ISensor.h"
 #include "SCA_ActuatorSensor.h"
 
 SCA_ActuatorEventManager::SCA_ActuatorEventManager(class SCA_LogicManager *logicmgr)

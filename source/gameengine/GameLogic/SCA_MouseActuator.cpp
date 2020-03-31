@@ -21,6 +21,12 @@
  */
 
 #include "SCA_MouseActuator.h"
+
+#include "limits.h"
+
+#include "BLI_utildefines.h"
+#include "BLI_math.h"
+
 #include "KX_KetsjiEngine.h"
 #include "KX_PyMath.h"
 #include "SCA_MouseManager.h"
@@ -29,10 +35,6 @@
 #include "KX_GameObject.h"
 #include "MT_Vector3.h"
 #include "MT_Scalar.h"
-#include "BLI_utildefines.h"
-#include "limits.h"
-
-#include "BLI_math.h"
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>

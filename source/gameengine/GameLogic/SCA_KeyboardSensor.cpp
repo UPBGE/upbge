@@ -31,13 +31,14 @@
  */
 
 #include "SCA_KeyboardSensor.h"
+
+#include <locale>
+#include <codecvt>
+
 #include "SCA_KeyboardManager.h"
 #include "SCA_LogicManager.h"
 #include "EXP_StringValue.h"
 #include "SCA_IInputDevice.h"
-
-#include <locale>
-#include <codecvt>
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

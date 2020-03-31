@@ -25,6 +25,7 @@
  */
 
 #include "SCA_PythonMouse.h"
+
 #include "SCA_IInputDevice.h"
 #include "RAS_ICanvas.h"
 

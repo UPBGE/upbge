@@ -29,8 +29,9 @@
  *  \ingroup gamelogic
  */
 
-#include "SCA_JoystickSensor.h"
 #include "SCA_JoystickManager.h"
+
+#include "SCA_JoystickSensor.h"
 #include "SCA_LogicManager.h"
 #include "SCA_ISensor.h"
 

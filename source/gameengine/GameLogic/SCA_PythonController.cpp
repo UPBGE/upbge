@@ -33,19 +33,17 @@
  */
 
 #include "SCA_PythonController.h"
-#include "SCA_LogicManager.h"
-#include "SCA_ISensor.h"
-#include "SCA_IActuator.h"
-#include "EXP_PyObjectPlus.h"
 
-extern "C" {
 #ifdef WITH_PYTHON
 #  include "compile.h"
 #  include "eval.h"
 #  include "py_capi_utils.h"
 #endif  // WITH_PYTHON
-}
 
+#include "SCA_LogicManager.h"
+#include "SCA_ISensor.h"
+#include "SCA_IActuator.h"
+#include "EXP_PyObjectPlus.h"
 #include "CM_Message.h"
 
 // initialize static member variables

@@ -44,11 +44,12 @@ typedef float sample_t;
 #  include <AUD_Handle.h>
 #endif
 
+#include <iostream>
+
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"  // needed for PyObjectFrom()
 #include "KX_Globals.h"
 #include "KX_Camera.h"
-#include <iostream>
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

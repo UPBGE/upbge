@@ -25,9 +25,10 @@
  */
 
 #include "SCA_PythonKeyboard.h"
-#include "SCA_IInputDevice.h"
 
 #include "GHOST_C-api.h"
+
+#include "SCA_IInputDevice.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

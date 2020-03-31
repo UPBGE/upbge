@@ -33,12 +33,12 @@
  */
 
 #include "SCA_ObjectActuator.h"
+
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"  // For PyVecTo - should this include be put in PyObjectPlus?
 #include "PHY_IPhysicsController.h"
 #include "PHY_ICharacter.h"
 #include "PHY_IPhysicsEnvironment.h"
-
 #include "CM_Message.h"
 
 /* ------------------------------------------------------------------------- */

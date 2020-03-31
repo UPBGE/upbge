@@ -34,6 +34,7 @@
  */
 
 #include "SCA_BasicEventManager.h"
+
 #include "SCA_LogicManager.h"
 #include "SCA_ISensor.h"
 

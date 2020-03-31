@@ -33,6 +33,9 @@
  */
 
 #include "SCA_RaySensor.h"
+
+#include "DNA_sensor_types.h"
+
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"
 #include "SCA_IObject.h"
@@ -43,9 +46,7 @@
 #include "KX_PyMath.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
-#include "DNA_sensor_types.h"
 #include "RAS_MeshObject.h"
-
 #include "CM_Message.h"
 
 SCA_RaySensor::SCA_RaySensor(class SCA_EventManager *eventmgr,

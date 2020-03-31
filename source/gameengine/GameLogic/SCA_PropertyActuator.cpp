@@ -32,9 +32,10 @@
  *  \ingroup gamelogic
  */
 
+#include "SCA_PropertyActuator.h"
+
 #include <stddef.h>
 
-#include "SCA_PropertyActuator.h"
 #include "EXP_InputParser.h"
 #include "EXP_Operator2Expr.h"
 #include "EXP_ConstExpr.h"

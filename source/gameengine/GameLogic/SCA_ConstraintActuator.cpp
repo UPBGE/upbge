@@ -32,8 +32,9 @@
  *  \ingroup ketsji
  */
 
-#include "SCA_IActuator.h"
 #include "SCA_ConstraintActuator.h"
+
+#include "SCA_IActuator.h"
 #include "SCA_IObject.h"
 #include "MT_Vector3.h"
 #include "MT_Matrix3x3.h"
@@ -41,7 +42,6 @@
 #include "KX_RayCast.h"
 #include "KX_Globals.h"  // KX_GetActiveScene
 #include "RAS_MeshObject.h"
-
 #include "CM_Message.h"
 
 /* ------------------------------------------------------------------------- */

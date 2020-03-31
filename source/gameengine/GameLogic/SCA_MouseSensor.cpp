@@ -33,15 +33,16 @@
  *  \ingroup gamelogic
  */
 
-#include <stddef.h>
-
 #include "SCA_MouseSensor.h"
+
+#include <stddef.h>
+#include <iostream>
+
 #include "SCA_EventManager.h"
 #include "SCA_MouseManager.h"
 #include "SCA_LogicManager.h"
 #include "SCA_IInputDevice.h"
 #include "EXP_ConstExpr.h"
-#include <iostream>
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

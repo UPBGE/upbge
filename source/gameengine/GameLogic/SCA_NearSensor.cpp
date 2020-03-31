@@ -33,6 +33,7 @@
  */
 
 #include "SCA_NearSensor.h"
+
 #include "SCA_LogicManager.h"
 #include "KX_GameObject.h"
 #include "KX_CollisionEventManager.h"

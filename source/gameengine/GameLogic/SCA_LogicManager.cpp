@@ -30,14 +30,16 @@
  *  \ingroup gamelogic
  */
 
-#include "EXP_Value.h"
 #include "SCA_LogicManager.h"
+
+#include <set>
+
+#include "EXP_Value.h"
 #include "SCA_ISensor.h"
 #include "SCA_IController.h"
 #include "SCA_IActuator.h"
 #include "SCA_EventManager.h"
 #include "SCA_PythonController.h"
-#include <set>
 
 SCA_LogicManager::SCA_LogicManager()
 {

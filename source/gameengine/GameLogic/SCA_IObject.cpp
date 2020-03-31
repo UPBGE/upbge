@@ -29,10 +29,11 @@
  *  \ingroup gamelogic
  */
 
+#include "SCA_IObject.h"
+
 #include <iostream>
 #include <algorithm>
 
-#include "SCA_IObject.h"
 #include "SCA_ISensor.h"
 #include "SCA_IController.h"
 #include "SCA_IActuator.h"

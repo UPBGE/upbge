@@ -36,6 +36,7 @@
  * Please look here for revision history. */
 
 #include "SCA_AddObjectActuator.h"
+
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
 
