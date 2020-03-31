@@ -32,8 +32,8 @@
 
 #include <algorithm>
 
-#include "SG_Familly.h"
 #include "SG_Controller.h"
+#include "SG_Familly.h"
 
 static CM_ThreadMutex scheduleMutex;
 static CM_ThreadMutex transformMutex;
