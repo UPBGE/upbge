@@ -32,8 +32,8 @@
 #ifndef __DUMMYPHYSICSENVIRONMENT_H__
 #define __DUMMYPHYSICSENVIRONMENT_H__
 
-#include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IMotionState.h"
+#include "PHY_IPhysicsEnvironment.h"
 
 /**
  * DummyPhysicsEnvironment  is an empty placeholder
