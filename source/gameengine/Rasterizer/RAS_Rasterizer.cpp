@@ -29,11 +29,12 @@
  *  \ingroup bgerastogl
  */
 
+#include "RAS_Rasterizer.h"
+
 #include "KX_RayCast.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 #include "CM_Message.h"
-#include "RAS_Rasterizer.h"
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArrayBucket.h"

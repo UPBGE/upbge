@@ -21,23 +21,20 @@
  */
 
 #include "RAS_2DFilter.h"
+
+#include "GPU_glew.h"
+#include "DRW_render.h"
+#include "../gpu/GPU_framebuffer.h"
+#include "../gpu/GPU_texture.h"
+
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilterFrameBuffer.h"
 #include "RAS_FrameBuffer.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
-
 #include "EXP_Value.h"
 
-#include "GPU_glew.h"
-
-#include "DRW_render.h"
-
-extern "C" {
-#include "../gpu/GPU_framebuffer.h"
-#include "../gpu/GPU_texture.h"
-}
 
 extern "C" {
 extern char datatoc_RAS_VertexShader2DFilter_glsl[];

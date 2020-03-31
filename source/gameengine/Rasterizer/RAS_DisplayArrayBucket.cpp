@@ -30,13 +30,14 @@
  */
 
 #include "RAS_DisplayArrayBucket.h"
+
+#include <algorithm>
+
 #include "RAS_MaterialBucket.h"
 #include "RAS_MaterialShader.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_BucketManager.h"
-
-#include <algorithm>
 
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786)

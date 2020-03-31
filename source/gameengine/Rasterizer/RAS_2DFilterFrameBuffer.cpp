@@ -25,11 +25,12 @@
  */
 
 #include "RAS_2DFilterFrameBuffer.h"
-#include "RAS_FrameBuffer.h"
-#include "RAS_ICanvas.h"
 
 #include "GPU_texture.h"
 #include "GPU_framebuffer.h"
+
+#include "RAS_FrameBuffer.h"
+#include "RAS_ICanvas.h"
 
 RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots,
                                                  Flag flag,

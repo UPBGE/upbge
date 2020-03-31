@@ -23,18 +23,16 @@
  */
 
 #include "RAS_Shader.h"
-#include "RAS_Rasterizer.h"
-
-#include "MEM_guardedalloc.h"
-
-#include "BLI_utildefines.h"
-#include "BLI_alloca.h"
-#include "BLI_string.h"
-
-#include "GPU_shader.h"
 
 #include <cstring>  // for memcpy
 
+#include "MEM_guardedalloc.h"
+#include "BLI_utildefines.h"
+#include "BLI_alloca.h"
+#include "BLI_string.h"
+#include "GPU_shader.h"
+
+#include "RAS_Rasterizer.h"
 #include "CM_Message.h"
 
 RAS_Shader::RAS_Uniform::RAS_Uniform(int data_size)

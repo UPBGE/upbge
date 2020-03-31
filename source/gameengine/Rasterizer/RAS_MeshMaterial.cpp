@@ -21,6 +21,7 @@
  */
 
 #include "RAS_MeshMaterial.h"
+
 #include "RAS_MaterialBucket.h"
 #include "RAS_IDisplayArray.h"
 #include "RAS_DisplayArrayBucket.h"

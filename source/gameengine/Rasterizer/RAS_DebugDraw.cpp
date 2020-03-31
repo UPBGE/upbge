@@ -25,8 +25,8 @@
  */
 
 #include "RAS_DebugDraw.h"
-#include "RAS_OpenGLDebugDraw.h"
 
+#include "RAS_OpenGLDebugDraw.h"
 #include "MT_Frustum.h"
 
 RAS_DebugDraw::RAS_DebugDraw()

@@ -34,6 +34,7 @@
 #endif
 
 #include "RAS_Polygon.h"
+
 #include "RAS_MaterialBucket.h"
 #include "RAS_IDisplayArray.h"
 
