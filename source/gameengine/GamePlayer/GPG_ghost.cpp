@@ -30,10 +30,10 @@
  *  \ingroup player
  */
 
-#include <math.h>
+#include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <iostream>
-#include <boost/algorithm/string.hpp>
+#include <math.h>
 
 #ifdef __linux__
 #  ifdef __alpha__
@@ -45,41 +45,64 @@
 #include "BKE_screen.h"
 #undef new
 
-#include "MEM_guardedalloc.h"
-#include "MEM_CacheLimiterC-Api.h"
-#include "BLI_threads.h"
-#include "BLI_mempool.h"
-#include "BLI_blenlib.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_genfile.h"
-#include "BLO_readfile.h"
-#include "BLO_runtime.h"
+#include "../../../intern/clog/CLG_log.h"
+#include "../../../intern/ghost/GHOST_Path-api.h"
+#include "../../blender/python/BPY_extern.h"
+#include "../render/extern/include/RE_render_ext.h"
+#include "BKE_addon.h"
 #include "BKE_appdir.h"
 #include "BKE_blender.h"
+#include "BKE_blendfile.h"
+#include "BKE_brush.h"
+#include "BKE_cachefile.h"
+#include "BKE_callbacks.h"
+#include "BKE_context.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
+#include "BKE_gpencil_modifier.h"
 #include "BKE_icons.h"
-#include "BKE_image.h"
-#include "BKE_node.h"
-#include "BKE_report.h"
-#include "BKE_lib_remap.h"
-#include "BKE_modifier.h"
-#include "BKE_material.h"
-#include "BKE_object.h"
-#include "BKE_text.h"
-#include "BKE_sound.h"
-#include "BKE_scene.h"
-#include "BKE_layer.h"
 #include "BKE_idprop.h"
-#include "windowmanager/wm_window.h"
-#include "GPU_material.h"
-#include "draw/DRW_engine.h"
-#include "IMB_imbuf.h"
-#include "IMB_moviecache.h"
+#include "BKE_idtype.h"
+#include "BKE_image.h"
+#include "BKE_keyconfig.h"
+#include "BKE_layer.h"
+#include "BKE_lib_remap.h"
+#include "BKE_main.h"
+#include "BKE_material.h"
+#include "BKE_modifier.h"
+#include "BKE_node.h"
+#include "BKE_object.h"
+#include "BKE_report.h"
+#include "BKE_scene.h"
+#include "BKE_shader_fx.h"
+#include "BKE_sound.h"
+#include "BKE_studiolight.h"
+#include "BKE_text.h"
+#include "BLF_api.h"
+#include "BLI_blenlib.h"
+#include "BLI_mempool.h"
+#include "BLI_system.h"
+#include "BLI_threads.h"
+#include "BLO_readfile.h"
+#include "BLO_runtime.h"
+#include "BLT_lang.h"
+#include "BLT_translation.h"
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
+#include "DNA_genfile.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+#include "GHOST_ISystem.h"
+#include "GPU_draw.h"
+#include "GPU_init_exit.h"
+#include "GPU_material.h"
+#include "IMB_imbuf.h"
+#include "IMB_moviecache.h"
+#include "MEM_CacheLimiterC-Api.h"
+#include "MEM_guardedalloc.h"
+#include "RNA_define.h"
+#include "draw/DRW_engine.h"
 #include "editors/include/ED_datafiles.h"
 #include "editors/include/ED_node.h"
 #include "editors/include/ED_render.h"
@@ -88,38 +111,15 @@
 #include "editors/include/ED_util.h"
 #include "editors/include/UI_interface.h"
 #include "editors/include/UI_resources.h"
-#include "BKE_addon.h"
-#include "BKE_blendfile.h"
-#include "BKE_brush.h"
-#include "BKE_context.h"
-#include "BKE_idtype.h"
-#include "BKE_keyconfig.h"
-#include "BKE_cachefile.h"
-#include "BKE_callbacks.h"
-#include "BKE_gpencil_modifier.h"
-#include "BKE_shader_fx.h"
-#include "BKE_studiolight.h"
-#include "BLI_system.h"
 #include "windowmanager/WM_api.h"
-#include "windowmanager/wm.h"
 #include "windowmanager/message_bus/wm_message_bus.h"
-#include "../../../intern/ghost/GHOST_Path-api.h"
-#include "../../../intern/clog/CLG_log.h"
-#include "../../blender/python/BPY_extern.h"
-#include "../render/extern/include/RE_render_ext.h"
-#include "BLF_api.h"
-#include "BLT_translation.h"
-#include "BLT_lang.h"
-#include "GPU_init_exit.h"
-#include "GPU_draw.h"
-#include "GHOST_ISystem.h"
-#include "BKE_main.h"
-#include "RNA_define.h"
+#include "windowmanager/wm.h"
+#include "windowmanager/wm_window.h"
 
-#include "KX_Globals.h"
-#include "LA_SystemCommandLine.h"
-#include "LA_PlayerLauncher.h"
 #include "CM_Message.h"
+#include "KX_Globals.h"
+#include "LA_PlayerLauncher.h"
+#include "LA_SystemCommandLine.h"
 
 #ifdef __APPLE__
 int GHOST_HACK_getFirstFile(char buf[]);
@@ -812,7 +812,7 @@ int main(int argc,
   BKE_library_callback_free_notifier_reference_set(
       WM_main_remove_notifier_reference); /* library.c */
   BKE_library_callback_remap_editor_id_reference_set(
-      WM_main_remap_editor_id_reference); /* library.c */
+      WM_main_remap_editor_id_reference);                     /* library.c */
   BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
   DEG_editors_set_update_cb(ED_render_id_flush_update, ED_render_scene_update);
 
@@ -1239,7 +1239,8 @@ int main(int argc,
 
             /* This normally exits/close the GHOST_IWindow */
             if (bfd) {
-              /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new .blend */
+              /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
+               * .blend */
               CTX_wm_window(C)->ghostwin = nullptr;
               /* Hack to not free wm->message_bus when we restart/load new .blend */
               CTX_wm_manager(C)->message_bus = nullptr;
