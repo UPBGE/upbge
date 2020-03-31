@@ -33,9 +33,9 @@
 #  include <windows.h>
 #endif
 
-#include "GPU_glew.h"
-
 #include "VideoBase.h"
+
+#include "GPU_glew.h"
 
 #include "FilterSource.h"
 

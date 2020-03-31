@@ -30,36 +30,31 @@
 
 // implementation
 
-#include "EXP_PyObjectPlus.h"
-#include <structmember.h>
+#include "Texture.h"
 
-#include "KX_GameObject.h"
-#include "KX_Light.h"
-#include "RAS_MeshObject.h"
+#include <structmember.h>
+#include <memory.h>
+
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_image_types.h"
 #include "IMB_imbuf_types.h"
 #include "BKE_image.h"
-
 #include "MEM_guardedalloc.h"
-
-#include "RAS_IPolygonMaterial.h"
-#include "RAS_Texture.h"
-
-#include "KX_KetsjiEngine.h"
-#include "KX_Globals.h"
-#include "Texture.h"
-#include "ImageBase.h"
-#include "Exception.h"
-
-#include <memory.h>
 #include "GPU_glew.h"
 #include "GPU_texture.h"
-
-extern "C" {
 #include "IMB_imbuf.h"
-}
+
+#include "EXP_PyObjectPlus.h"
+#include "KX_GameObject.h"
+#include "KX_Light.h"
+#include "RAS_MeshObject.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_Texture.h"
+#include "KX_KetsjiEngine.h"
+#include "KX_Globals.h"
+#include "ImageBase.h"
+#include "Exception.h"
 
 static std::vector<Texture *> textures;
 

@@ -30,6 +30,8 @@
 
 #ifdef WITH_FFMPEG
 
+#  include "VideoFFmpeg.h"
+
 // INT64_C fix for some linux machines (C99ism)
 #  ifndef __STDC_CONSTANT_MACROS
 #    define __STDC_CONSTANT_MACROS
@@ -38,13 +40,11 @@
 #  endif
 
 #  include <stdint.h>
-
-#  include "MEM_guardedalloc.h"
-#  include "PIL_time.h"
-
 #  include <string>
 
-#  include "VideoFFmpeg.h"
+#  include "MEM_guardedalloc.h"
+
+#  include "PIL_time.h"
 #  include "Exception.h"
 
 // default framerate

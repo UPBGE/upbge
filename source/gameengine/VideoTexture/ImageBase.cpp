@@ -30,22 +30,16 @@
 
 #include "ImageBase.h"
 
-#include "MEM_guardedalloc.h"
-
-extern "C" {
-#include "bgl.h"
-}
-
-#include "GPU_glew.h"
-
 #include <vector>
 #include <string.h>
-
-#include "EXP_PyObjectPlus.h"
 #include <structmember.h>
 
-#include "FilterBase.h"
+#include "MEM_guardedalloc.h"
+#include "bgl.h"
+#include "GPU_glew.h"
 
+#include "EXP_PyObjectPlus.h"
+#include "FilterBase.h"
 #include "Exception.h"
 
 #if (defined(WIN32) || defined(WIN64))

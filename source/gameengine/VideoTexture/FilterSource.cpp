@@ -30,11 +30,11 @@
 
 // implementation
 
-#include "EXP_PyObjectPlus.h"
-#include <structmember.h>
-
 #include "FilterSource.h"
 
+#include <structmember.h>
+
+#include "EXP_PyObjectPlus.h"
 #include "FilterBase.h"
 #include "PyTypeList.h"
 

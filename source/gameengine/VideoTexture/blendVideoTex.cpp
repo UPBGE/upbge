@@ -28,30 +28,17 @@
  *  \ingroup bgevideotex
  */
 
-#include "EXP_PyObjectPlus.h"
-
-#include "KX_PythonInit.h"
-
 #include <RAS_IPolygonMaterial.h>
 
-// Old API
-//#include "TexPlayer.h"
-//#include "TexImage.h"
-//#include "TexFrameBuff.h"
-
-//#include "TexPlayerGL.h"
-
+#include "EXP_PyObjectPlus.h"
+#include "KX_PythonInit.h"
 #include "ImageBase.h"
 #include "VideoBase.h"
 #include "FilterBase.h"
 #include "Texture.h"
-
 #include "Exception.h"
 
-// access to IMB_BLEND_* constants
-extern "C" {
 #include "IMB_imbuf.h"
-};
 
 // get material id
 static PyObject *getMaterialID(PyObject *self, PyObject *args)
