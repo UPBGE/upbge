@@ -26,8 +26,8 @@
 
 #include "BLI_utildefines.h"
 
-#include "PHY_ICharacter.h"
 #include "KX_PyMath.h"
+#include "PHY_ICharacter.h"
 
 KX_CharacterWrapper::KX_CharacterWrapper(PHY_ICharacter *character) : m_character(character)
 {

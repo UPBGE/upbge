@@ -26,8 +26,8 @@
 
 #include "KX_CollisionContactPoints.h"
 
-#include "PHY_DynamicTypes.h"
 #include "KX_PyMath.h"
+#include "PHY_DynamicTypes.h"
 
 KX_CollisionContactPoint::KX_CollisionContactPoint(const PHY_CollData *collData,
                                                    unsigned int index,

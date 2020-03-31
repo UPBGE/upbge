@@ -24,8 +24,8 @@
 
 #include "BL_Texture.h"
 
-#include "BLI_math.h"
 #include "BKE_image.h"
+#include "BLI_math.h"
 #include "DNA_texture_types.h"
 #include "GPU_draw.h"
 #include "GPU_glew.h"

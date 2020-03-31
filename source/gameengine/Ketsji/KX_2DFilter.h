@@ -27,8 +27,8 @@
 #ifndef __KX_2DFILTER_H__
 #define __KX_2DFILTER_H__
 
-#include "RAS_2DFilter.h"
 #include "BL_Shader.h"
+#include "RAS_2DFilter.h"
 
 #ifdef _MSC_VER
 /* KX_2DFilter uses a diamond inheritance from a virtual pure base class. Only one branch of the

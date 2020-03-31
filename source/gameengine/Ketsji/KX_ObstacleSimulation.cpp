@@ -28,11 +28,11 @@
 
 #include "KX_ObstacleSimulation.h"
 
-#include "DNA_object_types.h"
 #include "BLI_math.h"
+#include "DNA_object_types.h"
 
-#include "KX_NavMeshObject.h"
 #include "KX_Globals.h"
+#include "KX_NavMeshObject.h"
 
 namespace {
 inline float perp(const MT_Vector2 &a, const MT_Vector2 &b)

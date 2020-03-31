@@ -32,12 +32,12 @@
 #ifndef __KX_TOUCHEVENTMANAGER_H__
 #define __KX_TOUCHEVENTMANAGER_H__
 
-#include "SCA_EventManager.h"
-#include "SCA_CollisionSensor.h"
 #include "KX_GameObject.h"
+#include "SCA_CollisionSensor.h"
+#include "SCA_EventManager.h"
 
-#include <vector>
 #include <set>
+#include <vector>
 
 class SCA_ISensor;
 class PHY_IPhysicsEnvironment;

@@ -115,7 +115,7 @@ PyTypeObject KX_LightObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_Light
                                      py_base_new};
 
 PyMethodDef KX_LightObject::Methods[] = {
-    // KX_PYMETHODTABLE_NOARGS(KX_LightObject, updateShadow), 
+    // KX_PYMETHODTABLE_NOARGS(KX_LightObject, updateShadow),
     {nullptr, nullptr}  // Sentinel
 };
 

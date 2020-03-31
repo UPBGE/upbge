@@ -6,8 +6,8 @@
 #ifndef __KX_BLENDERMATERIAL_H__
 #define __KX_BLENDERMATERIAL_H__
 
-#include "RAS_IPolygonMaterial.h"
 #include "BL_Texture.h"
+#include "RAS_IPolygonMaterial.h"
 
 #include "EXP_Value.h"
 

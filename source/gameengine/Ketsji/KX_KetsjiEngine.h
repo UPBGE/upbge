@@ -33,14 +33,14 @@
 #ifndef __KX_KETSJIENGINE_H__
 #define __KX_KETSJIENGINE_H__
 
-#include "MT_Matrix4x4.h"
-#include <string>
+#include "EXP_Python.h"
 #include "KX_ISystem.h"
 #include "KX_Scene.h"
 #include "KX_TimeCategoryLogger.h"
-#include "EXP_Python.h"
+#include "MT_Matrix4x4.h"
 #include "RAS_CameraData.h"
 #include "RAS_Rasterizer.h"
+#include <string>
 #include <vector>
 
 struct TaskScheduler;

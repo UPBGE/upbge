@@ -32,8 +32,8 @@
 
 #include <stddef.h>
 
-#include "KX_NetworkMessageScene.h"
 #include "KX_NetworkMessageActuator.h"
+#include "KX_NetworkMessageScene.h"
 
 KX_NetworkMessageActuator::KX_NetworkMessageActuator(
     SCA_IObject *gameobj,                  // the actuator controlling object

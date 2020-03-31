@@ -36,10 +36,10 @@
 #include "GPU_matrix.h"
 #include "GPU_viewport.h"
 
-#include "KX_Scene.h"
-#include "KX_Globals.h"
 #include "EXP_Python.h"
+#include "KX_Globals.h"
 #include "KX_PyMath.h"
+#include "KX_Scene.h"
 #include "MT_Frustum.h"
 #include "RAS_ICanvas.h"
 

@@ -44,11 +44,11 @@ typedef unsigned long uint_ptr;
 
 #include "KX_IPO_SGController.h"
 
-#include "DNA_ipo_types.h"
 #include "BLI_math.h"
+#include "DNA_ipo_types.h"
 
-#include "KX_ScalarInterpolator.h"
 #include "KX_GameObject.h"
+#include "KX_ScalarInterpolator.h"
 #include "PHY_IPhysicsController.h"
 
 // All objects should start on frame 1! Will we ever need an object to

@@ -27,8 +27,8 @@
 #ifndef __KX_COLLISION_CONTACT_POINTS_H__
 #define __KX_COLLISION_CONTACT_POINTS_H__
 
-#include "EXP_Value.h"
 #include "EXP_ListWrapper.h"
+#include "EXP_Value.h"
 
 class PHY_CollData;
 

@@ -31,10 +31,10 @@
 
 #include "KX_LightIpoSGController.h"
 
-#include "depsgraph/DEG_depsgraph_query.h"
 #include "DNA_light_types.h"
 #include "WM_api.h"
 #include "WM_types.h"
+#include "depsgraph/DEG_depsgraph_query.h"
 
 #include "KX_Light.h"
 #include "KX_ScalarInterpolator.h"

@@ -31,8 +31,8 @@
 
 #include "KX_CameraIpoSGController.h"
 
-#include "KX_ScalarInterpolator.h"
 #include "KX_Camera.h"
+#include "KX_ScalarInterpolator.h"
 #include "RAS_CameraData.h"
 
 #if defined(_WIN64)

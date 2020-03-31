@@ -34,11 +34,10 @@
 
 #include "BLI_utildefines.h"
 
-#include "PHY_IPhysicsEnvironment.h"
-#include "PHY_IPhysicsController.h"
 #include "MT_Vector2.h"
 #include "MT_Vector3.h"
-#include "MT_Vector3.h"
+#include "PHY_IPhysicsController.h"
+#include "PHY_IPhysicsEnvironment.h"
 
 class RAS_MeshObject;
 struct KX_ClientObjectInfo;

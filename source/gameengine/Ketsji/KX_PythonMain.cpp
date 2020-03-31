@@ -26,10 +26,10 @@
 
 #include "KX_PythonMain.h"
 
-#include "BLI_listbase.h"
-#include "BKE_text.h"
 #include "BKE_idprop.h"
 #include "BKE_main.h"
+#include "BKE_text.h"
+#include "BLI_listbase.h"
 #include "DNA_scene_types.h"
 
 std::string KX_GetPythonMain(Scene *scene)

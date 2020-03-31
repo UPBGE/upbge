@@ -36,8 +36,8 @@
 #define __KX_SCA_REPLACEMESHACTUATOR_H__
 
 #include "SCA_IActuator.h"
-#include "SCA_PropertyActuator.h"
 #include "SCA_LogicManager.h"
+#include "SCA_PropertyActuator.h"
 
 #include "RAS_MeshObject.h"
 

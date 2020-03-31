@@ -40,13 +40,12 @@ struct Object;
 class KX_LightObject : public KX_GameObject {
   Py_Header
 
-protected :
+      protected :
 
-  Object *m_obLight;
+      Object *m_obLight;
   Light *m_light;
 
  public:
-
   KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, Object *ob);
   virtual ~KX_LightObject();
 
