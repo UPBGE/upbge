@@ -32,9 +32,9 @@
 #ifndef __PHY_IMOTIONSTATE_H__
 #define __PHY_IMOTIONSTATE_H__
 
-#include "MT_Vector3.h"
-#include "MT_Quaternion.h"
 #include "MT_Matrix3x3.h"
+#include "MT_Quaternion.h"
+#include "MT_Vector3.h"
 
 /**
  * PHY_IMotionState is the Interface to explicitly synchronize the world transformation.

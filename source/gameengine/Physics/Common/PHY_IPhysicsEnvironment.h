@@ -32,11 +32,11 @@
 #ifndef __PHY_IPHYSICSENVIRONMENT_H__
 #define __PHY_IPHYSICSENVIRONMENT_H__
 
-#include "PHY_DynamicTypes.h"
 #include "MT_Matrix4x4.h"
 #include "MT_Vector2.h"
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
+#include "PHY_DynamicTypes.h"
 
 #include <array>
 
