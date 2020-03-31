@@ -21,6 +21,10 @@
 #ifndef __WM_MESSAGE_BUS_H__
 #define __WM_MESSAGE_BUS_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "RNA_types.h"
 #include <stdio.h>
 
@@ -286,5 +290,9 @@ void WM_msg_publish_ID(struct wmMsgBus *mbus, struct ID *id);
                                 __func__); \
   } \
   ((void)0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __WM_MESSAGE_BUS_H__ */

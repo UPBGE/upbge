@@ -61,10 +61,6 @@
 #include "MEM_guardedalloc.h"
 #include "RNA_access.h"
 
-#ifdef WIN32
-#  include "BLI_winstuff.h"
-#endif
-
 // Actuators
 // SCA logiclibrary native logicbricks
 #include "BL_Action.h"
@@ -102,8 +98,6 @@
 #include "SCA_TrackToActuator.h"
 #include "SCA_VibrationActuator.h"
 #include "SCA_VisibilityActuator.h"
-
-/* end of blender include block */
 
 /**
  * KX_flt_trunc needed to round 'almost' zero values to zero, else velocities etc. are incorrectly

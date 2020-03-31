@@ -31,8 +31,13 @@
  *  \ingroup bke
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "DNA_property_types.h"
+
 struct bProperty;
-struct ListBase;
 struct Object;
 
 void BKE_bproperty_free(struct bProperty *prop);
@@ -49,5 +54,9 @@ void BKE_bproperty_set(struct bProperty *prop, const char *str);
 void BKE_bproperty_add(struct bProperty *prop, const char *str);
 /* should really be called '_get_valstr()' or '_as_string()' */
 void BKE_bproperty_set_valstr(struct bProperty *prop, char str[MAX_PROPSTRING]);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -37,9 +37,9 @@
 
 #include "KX_ConvertSensors.h"
 
-#include "DNA_actuator_types.h" /* for SENS_ALL_KEYS ? this define is
+#include "DNA_actuator_types.h" /* for SENS_ALL_KEYS ? this define is */
 #include "DNA_controller_types.h"
-#include "DNA_material_types.h"
+/* #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_sensor_types.h"
 #include "wm_event_types.h"

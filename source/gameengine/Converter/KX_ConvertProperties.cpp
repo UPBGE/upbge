@@ -39,11 +39,6 @@
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
 
-/* This little block needed for linking to Blender... */
-#ifdef WIN32
-#  include "BLI_winstuff.h"
-#endif
-
 #include "CM_Message.h"
 #include "EXP_BoolValue.h"
 #include "EXP_FloatValue.h"

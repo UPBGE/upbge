@@ -25,6 +25,10 @@
 #ifndef __DNA_GENFILE_H__
 #define __DNA_GENFILE_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "intern/dna_utils.h"
 
 struct SDNA;
@@ -133,5 +137,9 @@ bool DNA_struct_alias_elem_find(const struct SDNA *sdna,
                                 const char *vartype,
                                 const char *name);
 void DNA_sdna_alias_data_ensure_structs_map(struct SDNA *sdna);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __DNA_GENFILE_H__ */
