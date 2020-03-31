@@ -23,13 +23,14 @@
  */
 
 #include "KX_VehicleWrapper.h"
+
+#include "DNA_object_types.h"  // for OB_MAX_COL_MASKS
+
 #include "PHY_IVehicle.h"
 #include "KX_PyMath.h"
 #include "KX_GameObject.h"
 #include "KX_MotionState.h"
 #include "KX_Globals.h"
-
-#include "DNA_object_types.h"  // for OB_MAX_COL_MASKS
 
 KX_VehicleWrapper::KX_VehicleWrapper(PHY_IVehicle *vehicle) : m_vehicle(vehicle)
 {

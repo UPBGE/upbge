@@ -30,6 +30,7 @@
  */
 
 #include "KX_ConstraintWrapper.h"
+
 #include "PHY_IConstraint.h"
 
 KX_ConstraintWrapper::KX_ConstraintWrapper(PHY_IConstraint *constraint,

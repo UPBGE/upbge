@@ -25,12 +25,11 @@
  */
 
 #include "KX_Globals.h"
+
+#include "BLI_blenlib.h"
+
 #include "KX_KetsjiEngine.h"
 #include "RAS_Rasterizer.h"
-
-extern "C" {
-#include "BLI_blenlib.h"
-}
 
 static KX_KetsjiEngine *g_engine = nullptr;
 static KX_Scene *g_scene = nullptr;

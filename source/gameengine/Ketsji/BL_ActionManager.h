@@ -28,6 +28,7 @@
 #define __BL_ACTIONMANAGER_H__
 
 #include <map>
+#include <iostream>
 
 // Currently, we use the max value of a short.
 // We should switch to unsigned short; doesn't make sense to support negative layers.

@@ -34,19 +34,21 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "CM_Message.h"
+#include "KX_KetsjiEngine.h"
 
 #include <boost/format.hpp>
 
 #include "BLI_task.h"
+#include "DNA_world_types.h"
+#include "DNA_scene_types.h"
+#include "GPU_matrix.h"
+#include "GPU_framebuffer.h"
 
-#include "KX_KetsjiEngine.h"
-
+#include "CM_Message.h"
 #include "EXP_ListValue.h"
 #include "EXP_IntValue.h"
 #include "EXP_BoolValue.h"
 #include "EXP_FloatValue.h"
-
 #include "RAS_BucketManager.h"
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
@@ -59,23 +61,12 @@
 #include "KX_Globals.h"
 #include "KX_PyConstraintBinding.h"
 #include "PHY_IPhysicsEnvironment.h"
-
 #include "KX_NetworkMessageScene.h"
-
 #include "DEV_Joystick.h"   // for DEV_Joystick::HandleEvents
 #include "KX_PythonInit.h"  // for updatePythonJoysticks
-
 #include "KX_BlenderConverter.h"
-
 #include "RAS_FramingManager.h"
-#include "DNA_world_types.h"
-#include "DNA_scene_types.h"
-
 #include "KX_NavMeshObject.h"
-
-extern "C" {
-#include "GPU_matrix.h"
-}
 
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 
@@ -85,14 +76,6 @@ extern "C" {
 #    undef DrawText
 #  endif
 #endif
-
-/* EEVEE INTEGRATION */
-#include "DRW_render.h"
-
-extern "C" {
-#include "GPU_framebuffer.h"
-}
-/* End of EEVEE INTEGRATION */
 
 KX_KetsjiEngine::CameraRenderData::CameraRenderData(KX_Camera *rendercam,
                                                     KX_Camera *cullingcam,

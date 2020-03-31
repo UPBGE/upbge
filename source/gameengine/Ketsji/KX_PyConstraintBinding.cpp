@@ -30,6 +30,7 @@
  */
 
 #include "KX_PyConstraintBinding.h"
+
 #include "PHY_IPhysicsEnvironment.h"
 #include "KX_ConstraintWrapper.h"
 #include "KX_VehicleWrapper.h"
@@ -39,10 +40,8 @@
 #include "PHY_IVehicle.h"
 #include "PHY_DynamicTypes.h"
 #include "MT_Matrix3x3.h"
-
 #include "KX_GameObject.h"  // ConvertPythonToGameObject()
 #include "KX_Globals.h"
-
 #include "EXP_PyObjectPlus.h"
 
 #ifdef WITH_BULLET

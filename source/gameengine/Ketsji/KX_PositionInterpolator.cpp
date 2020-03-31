@@ -30,6 +30,7 @@
  */
 
 #include "KX_PositionInterpolator.h"
+
 #include "MT_Vector3.h"
 #include "KX_IScalarInterpolator.h"
 

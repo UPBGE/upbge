@@ -30,6 +30,7 @@
  */
 
 #include "KX_ObColorIpoSGController.h"
+
 #include "KX_ScalarInterpolator.h"
 #include "KX_GameObject.h"
 

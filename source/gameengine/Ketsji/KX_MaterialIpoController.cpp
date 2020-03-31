@@ -23,12 +23,12 @@
  */
 
 #include "KX_MaterialIpoController.h"
-#include "KX_ScalarInterpolator.h"
-#include "KX_GameObject.h"
-
-#include "RAS_IPolygonMaterial.h"
 
 #include "BLI_sys_types.h"  // for intptr_t support
+
+#include "KX_ScalarInterpolator.h"
+#include "KX_GameObject.h"
+#include "RAS_IPolygonMaterial.h"
 
 bool KX_MaterialIpoController::Update(double currentTime)
 {

@@ -34,10 +34,8 @@
 
 #include "MT_Vector3.h"
 #include "MT_Vector3.h"
-
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
-
 #include "CM_Message.h"
 
 KX_RayCast::KX_RayCast(PHY_IPhysicsController *ignoreController, bool faceNormal, bool faceUV)

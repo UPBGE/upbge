@@ -33,9 +33,10 @@
 #  pragma warning(disable : 4786)
 #endif
 
+#include "KX_Light.h"
+
 #include <stdio.h>
 
-#include "KX_Light.h"
 #include "DNA_light_types.h"
 
 KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, Object *obLight)

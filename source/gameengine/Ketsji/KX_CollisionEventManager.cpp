@@ -30,6 +30,7 @@
  */
 
 #include "KX_CollisionEventManager.h"
+
 #include "SCA_ISensor.h"
 #include "SCA_CollisionSensor.h"
 #include "KX_GameObject.h"

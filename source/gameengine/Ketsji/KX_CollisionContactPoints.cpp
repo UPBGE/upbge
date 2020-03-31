@@ -25,6 +25,7 @@
  */
 
 #include "KX_CollisionContactPoints.h"
+
 #include "PHY_DynamicTypes.h"
 #include "KX_PyMath.h"
 

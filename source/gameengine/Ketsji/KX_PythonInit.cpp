@@ -38,31 +38,44 @@
 #  ifdef _XOPEN_SOURCE
 #    undef _XOPEN_SOURCE
 #  endif
-#  include <Python.h>
 
-#  include "MEM_guardedalloc.h"
+#include "KX_PythonInit.h"
 
-extern "C" {
-#  include "BLI_utildefines.h"
-#  include "python_utildefines.h"
-#  include "bpy_internal_import.h" /* from the blender python api, but we want to import text too! */
-#  include "py_capi_utils.h"
-#  include "mathutils.h"  // 'mathutils' module copied here so the blenderlayer can use.
-#  include "bgl.h"
-#  include "bpy.h"  // for bpy_sys_module_backup
-#  include "blf_py_api.h"
-#  include "../blender/python/BPY_extern.h"
+#include <Python.h>
 
-#  include "marshal.h" /* python header for loading/saving dicts */
-}
+#include "MEM_guardedalloc.h"
+#include "BLI_utildefines.h"
+#include "python_utildefines.h"
+#include "bpy_internal_import.h" /* from the blender python api, but we want to import text too! */
+#include "py_capi_utils.h"
+#include "mathutils.h"  // 'mathutils' module copied here so the blenderlayer can use.
+#include "bgl.h"
+#include "bpy.h"  // for bpy_sys_module_backup
+#include "blf_py_api.h"
+#include "../blender/python/BPY_extern.h"
+#include "marshal.h" /* python header for loading/saving dicts */
+#include "DNA_ID.h"
+#include "DNA_scene_types.h"
+#include "BKE_main.h"
+#include "BKE_global.h"
+#include "BKE_library.h"
+#include "BKE_appdir.h"
+#include "BKE_blender_version.h"
+#include "BLI_blenlib.h"
+#include "GPU_material.h"
+#include "bpy_path.h"
+#include "imbuf_py_api.h"
+#include "bmesh/bmesh_py_api.h"
+#include "gpu/gpu_py_api.h"
+#include "idprop_py_api.h"
+#include "bpy_intern_string.h"
+#include "BKE_idtype.h"
 
 #  ifdef WITH_AUDASPACE
 #    include "../../../../intern/audaspace/intern/AUD_PyInit.h"
 #  endif  // WITH_AUDASPACE
 
 #endif /* WITH_PYTHON */
-
-#include "KX_PythonInit.h"
 
 // directory header for py function getBlendFileList
 #ifndef WIN32
@@ -75,7 +88,6 @@ extern "C" {
 
 // python physics binding
 #include "KX_PyConstraintBinding.h"
-
 #include "KX_KetsjiEngine.h"
 #include "SCA_RadarSensor.h"
 #include "SCA_RaySensor.h"
@@ -88,7 +100,6 @@ extern "C" {
 #include "KX_NavMeshObject.h"
 #include "SCA_MouseActuator.h"
 #include "SCA_TrackToActuator.h"
-
 #include "SCA_IInputDevice.h"
 #include "SCA_PropertySensor.h"
 #include "SCA_RandomActuator.h"
@@ -112,50 +123,17 @@ extern "C" {
 #include "EXP_InputParser.h"
 #include "KX_Scene.h"
 #include "KX_Globals.h"
-
 #include "KX_NetworkMessageScene.h"  //Needed for sendMessage()
-
 #include "BL_Shader.h"
 #include "BL_Action.h"
-
 #include "KX_PyMath.h"
-
 #include "EXP_PyObjectPlus.h"
-
 #include "KX_PythonInitTypes.h"
-
 #include "CM_Message.h"
-
-/* we only need this to get a list of libraries from the main struct */
-#include "DNA_ID.h"
-#include "DNA_scene_types.h"
-
 #include "PHY_IPhysicsEnvironment.h"
-
-extern "C" {
-#include "BKE_main.h"
-#include "BKE_global.h"
-#include "BKE_library.h"
-#include "BKE_appdir.h"
-#include "BKE_blender_version.h"
-#include "BLI_blenlib.h"
-#include "GPU_material.h"
-
-#include "bpy_path.h"
-#include "imbuf_py_api.h"
-#include "bmesh/bmesh_py_api.h"
-#include "gpu/gpu_py_api.h"
-#include "idprop_py_api.h"
-#include "bpy_intern_string.h"
-}
-
-/* for converting new scenes */
 #include "KX_BlenderConverter.h"
 #include "KX_LibLoadStatus.h"
 #include "KX_MeshProxy.h" /* for creating a new library of mesh objects */
-extern "C" {
-#include "BKE_idtype.h"
-}
 
 // 'local' copy of canvas ptr, for window height/width python scripts
 

@@ -23,27 +23,22 @@
  */
 
 #include "KX_BlenderMaterial.h"
+
+#include "eevee_private.h"
+#include "DNA_material_types.h"
+#include "GPU_material.h"
+#include "../gpu/intern/gpu_codegen.h"
+
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_Scene.h"
 #include "KX_PyMath.h"
-
 #include "KX_MaterialShader.h"
 #include "BL_Shader.h"
-
 #include "EXP_ListWrapper.h"
-
 #include "RAS_BucketManager.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
-
-#include "eevee_private.h"
-
-extern "C" {
-#include "DNA_material_types.h"
-#include "GPU_material.h"
-#include "../gpu/intern/gpu_codegen.h"
-}
 
 KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
                                        KX_Scene *scene,

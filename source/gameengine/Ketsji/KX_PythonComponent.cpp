@@ -22,14 +22,13 @@
 
 #ifdef WITH_PYTHON
 
-#  include "KX_PythonComponent.h"
-#  include "KX_GameObject.h"
+#include "KX_PythonComponent.h"
 
-#  include "CM_Message.h"
+#include "DNA_python_component_types.h"
+#include "BKE_python_component.h"
 
-#  include "DNA_python_component_types.h"
-
-#  include "BKE_python_component.h"
+#include "KX_GameObject.h"
+#include "CM_Message.h"
 
 KX_PythonComponent::KX_PythonComponent(const std::string &name)
     : m_pc(nullptr), m_gameobj(nullptr), m_name(name), m_init(false)

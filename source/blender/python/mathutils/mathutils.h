@@ -21,6 +21,10 @@
  * \ingroup pymathutils
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Can cast different mathutils types to this, use for generic funcs */
 
 #include "BLI_compiler_attrs.h"
@@ -192,6 +196,10 @@ int column_vector_multiplication(float rvec[4], VectorObject *vec, MatrixObject 
 #ifndef MATH_STANDALONE
 /* dynstr as python string utility functions */
 PyObject *mathutils_dynstr_to_py(struct DynStr *ds);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* __MATHUTILS_H__ */

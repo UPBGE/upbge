@@ -37,6 +37,29 @@
 #endif
 
 #include "KX_GameObject.h"
+
+#include "BKE_object.h"
+#include "BLI_utildefines.h"
+#include "DNA_python_component_types.h"
+#include "BLI_math.h"
+#include "DRW_render.h"
+#include "BKE_DerivedMesh.h"
+#include "BKE_lib_id.h"
+#include "BKE_main.h"
+#include "BKE_mball.h"
+#include "BKE_mesh.h"
+#include "BLI_alloca.h"
+#include "BLI_listbase.h"
+#include "depsgraph/DEG_depsgraph_build.h"
+#include "depsgraph/DEG_depsgraph_query.h"
+#include "DNA_mesh_types.h"
+#include "DNA_modifier_types.h"
+#include "eevee_private.h"
+#include "GPU_immediate.h"
+#include "windowmanager/WM_api.h"
+#include "windowmanager/WM_types.h"
+#include "bpy_rna.h"
+
 #include "KX_PythonComponent.h"
 #include "KX_Camera.h"      // only for their ::Type
 #include "KX_Light.h"       // only for their ::Type
@@ -64,58 +87,17 @@
 #include "KX_LodLevel.h"
 #include "KX_LodManager.h"
 #include "KX_CollisionContactPoints.h"
-
-#include "BKE_object.h"
-
 #include "BL_ActionManager.h"
 #include "BL_Action.h"
-
 #include "EXP_PyObjectPlus.h" /* python stuff */
 #include "EXP_ListWrapper.h"
-#include "BLI_utildefines.h"
+#include "KX_SG_NodeRelationships.h"
+#include "CM_Message.h"
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
 #  include "python_utildefines.h"
 #endif
-
-// Component stuff
-#include "DNA_python_component_types.h"
-
-// This file defines relationships between parents and children
-// in the game engine.
-
-#include "KX_SG_NodeRelationships.h"
-
-#include "BLI_math.h"
-
-#include "CM_Message.h"
-
-/* eevee integration */
-#include "DRW_render.h"
-
-extern "C" {
-#include "BKE_DerivedMesh.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_mball.h"
-#include "BKE_mesh.h"
-#include "BLI_alloca.h"
-#include "BLI_listbase.h"
-#include "depsgraph/DEG_depsgraph_build.h"
-#include "depsgraph/DEG_depsgraph_query.h"
-#include "DNA_mesh_types.h"
-#include "DNA_modifier_types.h"
-#include "eevee_private.h"
-#include "GPU_immediate.h"
-#include "windowmanager/WM_api.h"
-#include "windowmanager/WM_types.h"
-
-#include "bpy_rna.h"
-}
-
-#include "KX_BlenderConverter.h"
-/* End of eevee integration */
 
 static MT_Vector3 dummy_point = MT_Vector3(0.0f, 0.0f, 0.0f);
 static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);

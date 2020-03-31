@@ -30,15 +30,14 @@
  */
 
 #include "KX_LightIpoSGController.h"
-#include "KX_Light.h"
-#include "KX_ScalarInterpolator.h"
 
-extern "C" {
 #include "depsgraph/DEG_depsgraph_query.h"
 #include "DNA_light_types.h"
 #include "WM_api.h"
 #include "WM_types.h"
-}
+
+#include "KX_Light.h"
+#include "KX_ScalarInterpolator.h"
 
 #if defined(_WIN64)
 typedef unsigned __int64 uint_ptr;

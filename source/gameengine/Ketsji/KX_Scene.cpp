@@ -35,6 +35,32 @@
 #endif
 
 #include "KX_Scene.h"
+
+#include "DNA_scene_types.h"
+#include "DNA_property_types.h"
+#include "DNA_lightprobe_types.h"
+#include "GPU_texture.h"
+#include "GPU_framebuffer.h"
+#include "BLI_math.h"
+#include "BLI_task.h"
+#include "MEM_guardedalloc.h"
+#include "BKE_camera.h"
+#include "BKE_collection.h"
+#include "BKE_layer.h"
+#include "BKE_lib_id.h"
+#include "BKE_main.h"
+#include "BKE_object.h"
+#include "depsgraph/DEG_depsgraph_query.h"
+#include "ED_view3d.h"
+#include "DNA_mesh_types.h"
+#include "DNA_windowmanager_types.h"
+#include "DRW_render.h"
+#include "GPU_matrix.h"
+#include "WM_api.h"
+#include "ED_screen.h"
+#include "GPU_viewport.h"
+#include "windowmanager/wm_draw.h"
+
 #include "KX_Globals.h"
 #include "BLI_utildefines.h"
 #include "KX_KetsjiEngine.h"
@@ -57,77 +83,33 @@
 #include "RAS_MeshObject.h"
 #include "SCA_IScene.h"
 #include "KX_LodManager.h"
-
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
 #include "RAS_2DFilter.h"
 #include "KX_2DFilterManager.h"
 #include "RAS_BucketManager.h"
-
-#include "GPU_framebuffer.h"
-
 #include "EXP_FloatValue.h"
 #include "SCA_IController.h"
 #include "SCA_IActuator.h"
 #include "SG_Node.h"
 #include "SG_Controller.h"
 #include "SG_Node.h"
-#include "DNA_scene_types.h"
-#include "DNA_property_types.h"
-#include "DNA_lightprobe_types.h"
-
-#include "GPU_texture.h"
-
 #include "KX_SG_NodeRelationships.h"
-
 #include "KX_NetworkMessageScene.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
 #include "KX_BlenderConverter.h"
 #include "KX_MotionState.h"
 #include "KX_ObstacleSimulation.h"
-
 #include "KX_BlenderCanvas.h"
+#include "KX_Light.h"
+#include "CM_Message.h"
+#include "RAS_FrameBuffer.h"
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
 #endif
-
-#include "KX_Light.h"
-
-#include "BLI_math.h"
-#include "BLI_task.h"
-
-#include "CM_Message.h"
-
-/**************************EEVEE INTEGRATION*****************************/
-#include "MEM_guardedalloc.h"
-
-extern "C" {
-#include "BKE_camera.h"
-#include "BKE_collection.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_object.h"
-#include "depsgraph/DEG_depsgraph_query.h"
-#include "ED_view3d.h"
-#include "DNA_mesh_types.h"
-#include "DNA_windowmanager_types.h"
-#include "DRW_render.h"
-#include "GPU_matrix.h"
-#include "WM_api.h"
-
-// TEST USE_VIEWPORT_RENDER
-#include "ED_screen.h"
-#include "GPU_viewport.h"
-#include "windowmanager/wm_draw.h"
-// END OF TEST USE VIEWPORT RENDER
-}
-
-#include "RAS_FrameBuffer.h"
-/*********************END OF EEVEE INTEGRATION***************************/
 
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {

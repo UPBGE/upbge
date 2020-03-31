@@ -30,6 +30,7 @@
  */
 
 #include "KX_CameraIpoSGController.h"
+
 #include "KX_ScalarInterpolator.h"
 #include "KX_Camera.h"
 #include "RAS_CameraData.h"

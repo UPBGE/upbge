@@ -25,6 +25,7 @@
  */
 
 #include "KX_LodLevel.h"
+
 #include "KX_MeshProxy.h"
 
 KX_LodLevel::KX_LodLevel(float distance,

@@ -21,6 +21,10 @@
 #ifndef __GPU_PY_API_H__
 #define __GPU_PY_API_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int bpygpu_ParsePrimType(PyObject *o, void *p);
 
 PyObject *BPyInit_gpu(void);
@@ -36,5 +40,9 @@ bool bpygpu_is_initialized_or_error(void);
     return -1; \
   } \
   ((void)0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __GPU_PY_API_H__ */
