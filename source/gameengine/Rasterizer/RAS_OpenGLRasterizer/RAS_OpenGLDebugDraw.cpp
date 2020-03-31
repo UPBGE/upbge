@@ -26,19 +26,19 @@
 
 #include "RAS_OpenGLDebugDraw.h"
 
+#include "BLF_api.h"
+#include "DRW_render.h"
 #include "GPU_glew.h"
+#include "GPU_immediate.h"
 #include "GPU_material.h"
 #include "GPU_matrix.h"
-#include "DRW_render.h"
-#include "BLF_api.h"
-#include "GPU_immediate.h"
 
-#include "RAS_DebugDraw.h"
-#include "RAS_ICanvas.h"
-#include "RAS_Rasterizer.h"
 #include "KX_Camera.h"
 #include "KX_Globals.h"
 #include "KX_Scene.h"
+#include "RAS_DebugDraw.h"
+#include "RAS_ICanvas.h"
+#include "RAS_Rasterizer.h"
 
 RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw()
     : m_genericProg(-1), m_vbo(-1), m_wireibo(-1), m_solidibo(-1)
