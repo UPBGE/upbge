@@ -44,31 +44,31 @@
 #include "BKE_material.h" /* give_current_material */
 
 #include "KX_GameObject.h"
-#include "KX_IpoConvert.h"
 #include "KX_IInterpolator.h"
+#include "KX_IpoConvert.h"
 #include "KX_ScalarInterpolator.h"
 
-#include "KX_BlenderScalarInterpolator.h"
 #include "KX_BlenderConverter.h"
+#include "KX_BlenderScalarInterpolator.h"
 #include "KX_Globals.h"
 
 #include "RAS_IPolygonMaterial.h"
 
-#include "DNA_object_types.h"
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_ipo_types.h"
 #include "DNA_light_types.h"
-#include "DNA_world_types.h"
-#include "DNA_camera_types.h"
 #include "DNA_material_types.h"
+#include "DNA_object_types.h"
+#include "DNA_world_types.h"
 /* end of blender include block */
 
+#include "KX_CameraIpoSGController.h"
 #include "KX_IPO_SGController.h"
 #include "KX_LightIpoSGController.h"
-#include "KX_CameraIpoSGController.h"
-#include "KX_ObColorIpoSGController.h"
 #include "KX_MaterialIpoController.h"
+#include "KX_ObColorIpoSGController.h"
 
 #include "SG_Node.h"
 

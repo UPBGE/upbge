@@ -33,9 +33,9 @@
 
 #include <cstring>
 
+#include "BKE_fcurve.h"
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
-#include "BKE_fcurve.h"
 
 float BL_ScalarInterpolator::GetValue(float currentTime) const
 {

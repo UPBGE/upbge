@@ -33,13 +33,12 @@
 
 #include <stddef.h>
 
-#include "DNA_armature_types.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
+#include "DNA_armature_types.h"
 
-#include "BL_ArmatureObject.h"
 #include "BL_ArmatureConstraint.h"
-
+#include "BL_ArmatureObject.h"
 
 #ifdef WITH_PYTHON
 

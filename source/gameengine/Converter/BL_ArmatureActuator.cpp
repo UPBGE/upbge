@@ -31,11 +31,11 @@
 
 #include "BL_ArmatureActuator.h"
 
-#include "DNA_action_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_actuator_types.h"
 #include "BKE_constraint.h"
 #include "BLI_math.h"
+#include "DNA_action_types.h"
+#include "DNA_actuator_types.h"
+#include "DNA_constraint_types.h"
 
 #include "BL_ArmatureObject.h"
 
