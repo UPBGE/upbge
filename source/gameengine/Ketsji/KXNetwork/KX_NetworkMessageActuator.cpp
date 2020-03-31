@@ -30,9 +30,10 @@
  *  \ingroup ketsjinet
  */
 
+#include "KX_NetworkMessageActuator.h"
+
 #include <stddef.h>
 
-#include "KX_NetworkMessageActuator.h"
 #include "KX_NetworkMessageScene.h"
 
 KX_NetworkMessageActuator::KX_NetworkMessageActuator(

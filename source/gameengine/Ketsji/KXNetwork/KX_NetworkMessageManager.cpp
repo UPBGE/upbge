@@ -31,6 +31,7 @@
  */
 
 #include "KX_NetworkMessageManager.h"
+
 #include <iostream>
 
 KX_NetworkMessageManager::KX_NetworkMessageManager() : m_currentList(0)
