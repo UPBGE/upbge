@@ -26,9 +26,9 @@
 
 #include <stdlib.h>
 
+#include "DNA_actuator_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
-#include "DNA_actuator_types.h"
 #include "DNA_scene_types.h" /* for MAXFRAME */
 
 #include "BLI_math.h"
@@ -37,8 +37,8 @@
 
 #include "BLT_translation.h"
 
-#include "RNA_define.h"
 #include "RNA_access.h"
+#include "RNA_define.h"
 #include "RNA_enum_types.h"
 
 #include "rna_internal.h"

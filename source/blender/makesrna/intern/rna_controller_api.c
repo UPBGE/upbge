@@ -28,20 +28,20 @@
  *  \ingroup RNA
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#include "WM_types.h"
 #include "RNA_define.h"
+#include "WM_types.h"
 
 #include "rna_internal.h" /* own include */
 
 #ifdef RNA_RUNTIME
 
 #  include "BKE_sca.h"
-#  include "DNA_sensor_types.h"
-#  include "DNA_controller_types.h"
 #  include "DNA_actuator_types.h"
+#  include "DNA_controller_types.h"
+#  include "DNA_sensor_types.h"
 
 static void rna_Controller_link(bController *cont, bSensor *sens, bActuator *act)
 {

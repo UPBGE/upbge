@@ -354,7 +354,6 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *taa_history_fb;
   struct GPUFrameBuffer *taa_history_color_fb;
 
-
   /* Game engine transition */
   struct GPUFrameBuffer *antialiasing_fb;
   struct GPUFrameBuffer *smaa_edge_fb;
@@ -901,12 +900,11 @@ typedef struct EEVEE_PrivateData {
   /** For rendering planar reflections. */
   struct DRWView *planar_views[MAX_PLANAR];
 
-
   /* Game engine transition */
   struct DRWView *view;
   float smaa_mix_factor;
   float taa_sample_inv;
-  
+
   struct GPUTexture *smaa_edge_tx;
   struct GPUTexture *smaa_weight_tx;
   /* End of Game engine transition */

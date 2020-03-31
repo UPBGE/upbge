@@ -39,8 +39,8 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "ED_screen.h"
 #include "ED_object.h"
+#include "ED_screen.h"
 
 #ifdef WITH_GAMEENGINE
 #  include "BKE_object.h"

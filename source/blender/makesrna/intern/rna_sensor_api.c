@@ -28,8 +28,8 @@
  *  \ingroup RNA
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "BLI_utildefines.h"
 
@@ -42,8 +42,8 @@
 #ifdef RNA_RUNTIME
 
 #  include "BKE_sca.h"
-#  include "DNA_sensor_types.h"
 #  include "DNA_controller_types.h"
+#  include "DNA_sensor_types.h"
 
 static void rna_Sensor_link(bSensor *sens, bController *cont)
 {
