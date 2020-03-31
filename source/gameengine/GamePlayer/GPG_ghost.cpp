@@ -33,6 +33,7 @@
 #include <math.h>
 #include <fstream>
 #include <iostream>
+#include <boost/algorithm/string.hpp>
 
 #ifdef __linux__
 #  ifdef __alpha__
@@ -40,22 +41,20 @@
 #  endif /* __alpha__ */
 #endif   /* __linux__ */
 
+#define new _new
+#include "BKE_screen.h"
+#undef new
+
 #include "MEM_guardedalloc.h"
-
-extern "C" {
 #include "MEM_CacheLimiterC-Api.h"
-
 #include "BLI_threads.h"
 #include "BLI_mempool.h"
 #include "BLI_blenlib.h"
-
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_genfile.h"
-
 #include "BLO_readfile.h"
 #include "BLO_runtime.h"
-
 #include "BKE_appdir.h"
 #include "BKE_blender.h"
 #include "BKE_font.h"
@@ -73,19 +72,14 @@ extern "C" {
 #include "BKE_scene.h"
 #include "BKE_layer.h"
 #include "BKE_idprop.h"
-
 #include "windowmanager/wm_window.h"
 #include "GPU_material.h"
-
 #include "draw/DRW_engine.h"
-
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
-
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
-
 #include "editors/include/ED_datafiles.h"
 #include "editors/include/ED_node.h"
 #include "editors/include/ED_render.h"
@@ -94,7 +88,6 @@ extern "C" {
 #include "editors/include/ED_util.h"
 #include "editors/include/UI_interface.h"
 #include "editors/include/UI_resources.h"
-
 #include "BKE_addon.h"
 #include "BKE_blendfile.h"
 #include "BKE_brush.h"
@@ -105,45 +98,32 @@ extern "C" {
 #include "BKE_callbacks.h"
 #include "BKE_gpencil_modifier.h"
 #include "BKE_shader_fx.h"
-#define new _new
-#include "BKE_screen.h"
-#undef new
 #include "BKE_studiolight.h"
-
 #include "BLI_system.h"
-
 #include "windowmanager/WM_api.h"
 #include "windowmanager/wm.h"
 #include "windowmanager/message_bus/wm_message_bus.h"
-
 #include "../../../intern/ghost/GHOST_Path-api.h"
 #include "../../../intern/clog/CLG_log.h"
 #include "../../blender/python/BPY_extern.h"
 #include "../render/extern/include/RE_render_ext.h"
+#include "BLF_api.h"
+#include "BLT_translation.h"
+#include "BLT_lang.h"
+#include "GPU_init_exit.h"
+#include "GPU_draw.h"
+#include "GHOST_ISystem.h"
+#include "BKE_main.h"
+#include "RNA_define.h"
+
+#include "KX_Globals.h"
+#include "LA_SystemCommandLine.h"
+#include "LA_PlayerLauncher.h"
+#include "CM_Message.h"
 
 #ifdef __APPLE__
 int GHOST_HACK_getFirstFile(char buf[]);
 #endif
-
-// For BLF
-#include "BLF_api.h"
-#include "BLT_translation.h"
-#include "BLT_lang.h"
-}
-
-#include "GPU_init_exit.h"
-#include "GPU_draw.h"
-
-#include "KX_Globals.h"
-
-#include "LA_SystemCommandLine.h"
-#include "LA_PlayerLauncher.h"
-
-#include "GHOST_ISystem.h"
-
-#include "BKE_main.h"
-
-#include "RNA_define.h"
 
 #ifdef WIN32
 #  include <windows.h>
@@ -163,10 +143,6 @@ int GHOST_HACK_getFirstFile(char buf[]);
 #ifdef WITH_GAMEENGINE_BPPLAYER
 #  include "SpindleEncryption.h"
 #endif  // WITH_GAMEENGINE_BPPLAYER
-
-#include <boost/algorithm/string.hpp>
-
-#include "CM_Message.h"
 
 const int kMinWindowWidth = 100;
 const int kMinWindowHeight = 100;

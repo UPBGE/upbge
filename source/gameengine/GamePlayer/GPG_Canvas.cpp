@@ -30,20 +30,18 @@
  */
 
 #include "GPG_Canvas.h"
+
 #include "GHOST_ISystem.h"
-
-#include "KX_Globals.h"
-
-#include "RAS_Rasterizer.h"
-#include "KX_KetsjiEngine.h"
-
 #include "BLI_string.h"
 #include "BLI_path_util.h"
 #include "BLI_utildefines.h"
-
 #include "BKE_image.h"
 #include "MEM_guardedalloc.h"
 #include "DNA_space_types.h"
+
+#include "KX_Globals.h"
+#include "RAS_Rasterizer.h"
+#include "KX_KetsjiEngine.h"
 
 GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, Scene *startscene)
     : RAS_ICanvas(rasty), m_window(window), m_startScene(startscene), m_width(0), m_height(0)
