@@ -16,6 +16,7 @@
  */
 
 #include "EXP_Operator1Expr.h"
+
 #include "EXP_EmptyValue.h"
 
 COperator1Expr::COperator1Expr() : m_lhs(nullptr)
