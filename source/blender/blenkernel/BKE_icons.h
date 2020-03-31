@@ -30,6 +30,8 @@
 extern "C" {
 #endif
 
+#include "DNA_ID.h"
+
 typedef void (*DrawInfoFreeFP)(void *drawinfo);
 
 enum {
@@ -79,8 +81,6 @@ struct ImBuf;
 struct PreviewImage;
 struct StudioLight;
 struct bGPDlayer;
-
-enum eIconSizes;
 
 void BKE_icons_init(int first_dyn_id);
 
