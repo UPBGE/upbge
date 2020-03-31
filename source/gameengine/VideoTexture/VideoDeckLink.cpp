@@ -46,20 +46,20 @@
 #  include <stdint.h>
 #  include <string.h>
 #  ifndef WIN32
-#    include <sys/time.h>
-#    include <sys/resource.h>
 #    include <sys/mman.h>
+#    include <sys/resource.h>
+#    include <sys/time.h>
 #  endif
 
 #  include "atomic_ops.h"
 
-#  include "MEM_guardedalloc.h"
-#  include "PIL_time.h"
-#  include "VideoDeckLink.h"
 #  include "DeckLink.h"
 #  include "Exception.h"
 #  include "KX_KetsjiEngine.h"
 #  include "KX_PythonInit.h"
+#  include "MEM_guardedalloc.h"
+#  include "PIL_time.h"
+#  include "VideoDeckLink.h"
 
 extern ExceptionID DeckLinkInternalError;
 ExceptionID SourceVideoOnlyCapture, VideoDeckLinkBadFormat, VideoDeckLinkOpenCard,

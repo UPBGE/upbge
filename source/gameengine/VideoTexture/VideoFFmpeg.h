@@ -37,11 +37,11 @@
 #    include <inttypes.h>
 #  endif
 extern "C" {
-#  include <pthread.h>
-#  include "ffmpeg_compat.h"
-#  include "DNA_listBase.h"
-#  include "BLI_threads.h"
 #  include "BLI_blenlib.h"
+#  include "BLI_threads.h"
+#  include "DNA_listBase.h"
+#  include "ffmpeg_compat.h"
+#  include <pthread.h>
 }
 
 #  if LIBAVFORMAT_VERSION_INT < (49 << 16)

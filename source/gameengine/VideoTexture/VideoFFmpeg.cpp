@@ -44,8 +44,8 @@
 
 #  include "MEM_guardedalloc.h"
 
-#  include "PIL_time.h"
 #  include "Exception.h"
+#  include "PIL_time.h"
 
 // default framerate
 const double defFrameRate = 25.0;

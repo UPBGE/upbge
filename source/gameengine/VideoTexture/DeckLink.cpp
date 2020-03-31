@@ -46,10 +46,10 @@
 
 #  include "atomic_ops.h"
 
-#  include "EXP_PyObjectPlus.h"
-#  include "KX_KetsjiEngine.h"
-#  include "KX_Globals.h"
 #  include "DeckLink.h"
+#  include "EXP_PyObjectPlus.h"
+#  include "KX_Globals.h"
+#  include "KX_KetsjiEngine.h"
 
 #  include <memory.h>
 

@@ -34,14 +34,14 @@
 
 #include <structmember.h>
 
-#include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 #include "bgl.h"
 
 #include "EXP_PyObjectPlus.h"
 #include "Exception.h"
-#include "ImageBase.h"
 #include "FilterSource.h"
+#include "ImageBase.h"
 
 // default filter
 FilterRGB24 defFilter;

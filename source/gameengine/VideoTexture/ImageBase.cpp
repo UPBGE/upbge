@@ -30,17 +30,17 @@
 
 #include "ImageBase.h"
 
-#include <vector>
 #include <string.h>
 #include <structmember.h>
+#include <vector>
 
+#include "GPU_glew.h"
 #include "MEM_guardedalloc.h"
 #include "bgl.h"
-#include "GPU_glew.h"
 
 #include "EXP_PyObjectPlus.h"
-#include "FilterBase.h"
 #include "Exception.h"
+#include "FilterBase.h"
 
 #if (defined(WIN32) || defined(WIN64))
 #  define strcasecmp _stricmp

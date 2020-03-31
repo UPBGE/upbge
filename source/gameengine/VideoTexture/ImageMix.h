@@ -33,8 +33,8 @@
 
 #include "Common.h"
 
-#include "ImageBase.h"
 #include "FilterBase.h"
+#include "ImageBase.h"
 
 /// class for source mixing
 class ImageSourceMix : public ImageSource {

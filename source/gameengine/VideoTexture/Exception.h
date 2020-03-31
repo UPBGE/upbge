@@ -31,10 +31,10 @@
 #ifndef __EXCEPTION_H__
 #define __EXCEPTION_H__
 
-#include <exception>
-#include <vector>
-#include <string>
 #include <algorithm>
+#include <exception>
+#include <string>
+#include <vector>
 
 #include "Common.h"
 
