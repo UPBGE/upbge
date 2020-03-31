@@ -20,12 +20,16 @@
  */
 
 #include "CcdPhysicsEnvironment.h"
-#include "CcdPhysicsController.h"
-#include "CcdGraphicController.h"
-#include "CcdConstraint.h"
-#include "CcdMathUtils.h"
 
 #include <algorithm>
+
+#include "DNA_scene_types.h"
+#include "DNA_world_types.h"
+#include "DNA_object_types.h"  // for OB_MAX_COL_MASKS
+#include "DNA_object_force_types.h"
+#include "BLI_utildefines.h"
+#include "BKE_object.h"
+
 #include "btBulletDynamicsCommon.h"
 #include "LinearMath/btIDebugDraw.h"
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
@@ -34,10 +38,17 @@
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/NarrowPhaseCollision/btRaycastCallback.h"
-
-// profiling/timings
 #include "LinearMath/btQuickprof.h"
+#include "BulletDynamics/Vehicle/btRaycastVehicle.h"
+#include "BulletDynamics/Vehicle/btVehicleRaycaster.h"
+#include "BulletDynamics/Vehicle/btWheelInfo.h"
+#include "LinearMath/btAabbUtil2.h"
+#include "BulletDynamics/ConstraintSolver/btContactConstraint.h"
 
+#include "CcdPhysicsController.h"
+#include "CcdGraphicController.h"
+#include "CcdConstraint.h"
+#include "CcdMathUtils.h"
 #include "PHY_IMotionState.h"
 #include "PHY_ICharacter.h"
 #include "PHY_Pro.h"
@@ -47,35 +58,17 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 #include "RAS_ITexVert.h"
-
-#include "DNA_scene_types.h"
-#include "DNA_world_types.h"
-#include "DNA_object_types.h"  // for OB_MAX_COL_MASKS
-#include "DNA_object_force_types.h"
-
-extern "C" {
-#include "BLI_utildefines.h"
-#include "BKE_object.h"
-}
+#include "PHY_IVehicle.h"
+#include "MT_MinMax.h"
+#include "CM_Message.h"
 
 #define CCD_CONSTRAINT_DISABLE_LINKED_COLLISION 0x80
 
-#include "BulletDynamics/Vehicle/btRaycastVehicle.h"
-#include "BulletDynamics/Vehicle/btVehicleRaycaster.h"
-#include "BulletDynamics/Vehicle/btWheelInfo.h"
-#include "PHY_IVehicle.h"
 static btRaycastVehicle::btVehicleTuning gTuning;
-
-#include "LinearMath/btAabbUtil2.h"
-#include "MT_MinMax.h"
 
 #ifdef WIN32
 void DrawRasterizerLine(const float *from, const float *to, int color);
 #endif
-
-#include "BulletDynamics/ConstraintSolver/btContactConstraint.h"
-
-#include "CM_Message.h"
 
 // This was copied from the old KX_ConvertPhysicsObjects
 #ifdef WIN32

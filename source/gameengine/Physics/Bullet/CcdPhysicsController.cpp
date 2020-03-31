@@ -25,6 +25,18 @@
 
 #include "CcdPhysicsController.h"
 
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
+#include "BLI_utildefines.h"
+#include "BKE_cdderivedmesh.h"
+#include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_mesh_runtime.h"
+#include "BKE_layer.h"
+#include "BKE_object.h"
+#include "BKE_scene.h"
+#include "../depsgraph/DEG_depsgraph_query.h"
+
 #include "btBulletDynamicsCommon.h"
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h"
@@ -43,18 +55,6 @@
 #include "PHY_IMotionState.h"
 #include "CcdPhysicsEnvironment.h"
 #include "CM_Message.h"
-
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "BLI_utildefines.h"
-#include "BKE_cdderivedmesh.h"
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_mesh_runtime.h"
-#include "BKE_layer.h"
-#include "BKE_object.h"
-#include "BKE_scene.h"
-#include "../depsgraph/DEG_depsgraph_query.h"
 
 /// todo: fill all the empty CcdPhysicsController methods, hook them up to the btRigidBody class
 
