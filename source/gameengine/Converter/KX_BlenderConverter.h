@@ -35,12 +35,10 @@
 #include <map>
 #include <vector>
 
-#ifdef _MSC_VER  // MSVC doesn't support incomplete type in std::unique_ptr.
-#  include "KX_BlenderMaterial.h"
-#  include "RAS_MeshObject.h"
+#include "KX_BlenderMaterial.h"
+#include "RAS_MeshObject.h"
 
-#  include "KX_BlenderScalarInterpolator.h"
-#endif
+#include "KX_BlenderScalarInterpolator.h"
 
 #include "CM_Thread.h"
 #include "EXP_ListValue.h"
