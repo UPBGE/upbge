@@ -32,8 +32,8 @@
 #ifndef __SCA_TIMEEVENTMANAGER_H__
 #define __SCA_TIMEEVENTMANAGER_H__
 
-#include "SCA_EventManager.h"
 #include "EXP_Value.h"
+#include "SCA_EventManager.h"
 #include <vector>
 
 class SCA_TimeEventManager : public SCA_EventManager {

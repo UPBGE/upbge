@@ -37,8 +37,8 @@
 #include <vector>
 
 #include "EXP_BoolValue.h"
-#include "SCA_KeyboardSensor.h"
 #include "EXP_IntValue.h"
+#include "SCA_KeyboardSensor.h"
 
 SCA_KeyboardManager::SCA_KeyboardManager(SCA_LogicManager *logicmgr, SCA_IInputDevice *inputdev)
     : SCA_EventManager(logicmgr, KEYBOARD_EVENTMGR), m_inputDevice(inputdev)

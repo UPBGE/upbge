@@ -36,12 +36,12 @@
 
 #include <math.h>
 
-#include "EXP_BoolValue.h"
-#include "EXP_IntValue.h"
-#include "EXP_FloatValue.h"
-#include "SCA_IActuator.h"
-#include "MT_Transform.h"
 #include "CM_Message.h"
+#include "EXP_BoolValue.h"
+#include "EXP_FloatValue.h"
+#include "EXP_IntValue.h"
+#include "MT_Transform.h"
+#include "SCA_IActuator.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

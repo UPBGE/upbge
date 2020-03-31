@@ -33,10 +33,10 @@
 
 #include <algorithm>
 
+#include "CM_Message.h"
+#include "EXP_ListWrapper.h"
 #include "SCA_IActuator.h"
 #include "SCA_ISensor.h"
-#include "EXP_ListWrapper.h"
-#include "CM_Message.h"
 
 SCA_IController::SCA_IController(SCA_IObject *gameobj)
     : SCA_ILogicBrick(gameobj), m_statemask(0), m_justActivated(false)

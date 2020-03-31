@@ -32,8 +32,8 @@
 #ifndef __SCA_RadarSensor_H__
 #define __SCA_RadarSensor_H__
 
-#include "SCA_NearSensor.h"
 #include "MT_Vector3.h"
+#include "SCA_NearSensor.h"
 
 /**
  * Radar 'cone' sensor. Very similar to a near-sensor, but instead of a sphere, a cone is used.

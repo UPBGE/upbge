@@ -34,10 +34,10 @@
 
 #include "SCA_ISensor.h"
 
+#include "CM_Message.h"
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"
 #include "SCA_PythonController.h"
-#include "CM_Message.h"
 
 void SCA_ISensor::ReParent(SCA_IObject *parent)
 {

@@ -32,9 +32,9 @@
 #ifndef __SCA_EVENTMANAGER_H__
 #define __SCA_EVENTMANAGER_H__
 
-#include <vector>
-#include <set>
 #include <algorithm>
+#include <set>
+#include <vector>
 
 class SCA_ISensor;
 

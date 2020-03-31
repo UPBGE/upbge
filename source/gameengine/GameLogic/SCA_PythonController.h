@@ -33,9 +33,9 @@
 #ifndef __SCA_PYTHONCONTROLLER_H__
 #define __SCA_PYTHONCONTROLLER_H__
 
+#include "EXP_BoolValue.h"
 #include "SCA_IController.h"
 #include "SCA_LogicManager.h"
-#include "EXP_BoolValue.h"
 
 #include <vector>
 

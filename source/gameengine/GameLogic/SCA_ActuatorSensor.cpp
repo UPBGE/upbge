@@ -34,8 +34,8 @@
 
 #include "SCA_ActuatorSensor.h"
 
-#include <stddef.h>
 #include <iostream>
+#include <stddef.h>
 
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"

@@ -27,9 +27,9 @@
 #ifndef __SCA_SteeringActuator_H__
 #define __SCA_SteeringActuator_H__
 
+#include "MT_Matrix3x3.h"
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
-#include "MT_Matrix3x3.h"
 
 class KX_GameObject;
 class KX_NavMeshObject;

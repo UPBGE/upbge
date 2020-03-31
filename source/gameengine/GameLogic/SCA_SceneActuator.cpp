@@ -36,11 +36,11 @@
 
 #include <iostream>
 
-#include "SCA_IActuator.h"
-#include "KX_Scene.h"
 #include "KX_Camera.h"
-#include "KX_KetsjiEngine.h"
 #include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
+#include "KX_Scene.h"
+#include "SCA_IActuator.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

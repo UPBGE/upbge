@@ -33,8 +33,8 @@
 #ifndef __KX_TOUCHSENSOR_H__
 #define __KX_TOUCHSENSOR_H__
 
-#include "SCA_ISensor.h"
 #include "EXP_ListValue.h"
+#include "SCA_ISensor.h"
 
 class PHY_CollData;
 

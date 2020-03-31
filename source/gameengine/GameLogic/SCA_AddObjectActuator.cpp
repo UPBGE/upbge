@@ -37,8 +37,8 @@
 
 #include "SCA_AddObjectActuator.h"
 
-#include "KX_Scene.h"
 #include "KX_GameObject.h"
+#include "KX_Scene.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

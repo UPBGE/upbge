@@ -40,11 +40,11 @@
 #  include "py_capi_utils.h"
 #endif  // WITH_PYTHON
 
-#include "SCA_LogicManager.h"
-#include "SCA_ISensor.h"
-#include "SCA_IActuator.h"
-#include "EXP_PyObjectPlus.h"
 #include "CM_Message.h"
+#include "EXP_PyObjectPlus.h"
+#include "SCA_IActuator.h"
+#include "SCA_ISensor.h"
+#include "SCA_LogicManager.h"
 
 // initialize static member variables
 SCA_PythonController *SCA_PythonController::m_sCurrentController = nullptr;

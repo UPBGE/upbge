@@ -28,11 +28,11 @@
 
 #include "SCA_2DFilterActuator.h"
 
-#include "SCA_IActuator.h"
+#include "CM_Message.h"
+#include "RAS_2DFilter.h"
 #include "RAS_2DFilterData.h"
 #include "RAS_2DFilterManager.h"
-#include "RAS_2DFilter.h"
-#include "CM_Message.h"
+#include "SCA_IActuator.h"
 
 SCA_2DFilterActuator::SCA_2DFilterActuator(SCA_IObject *gameobj,
                                            int type,

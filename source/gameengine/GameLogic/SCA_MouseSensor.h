@@ -33,9 +33,9 @@
 #ifndef __SCA_MOUSESENSOR_H__
 #define __SCA_MOUSESENSOR_H__
 
-#include "SCA_ISensor.h"
 #include "EXP_BoolValue.h"
 #include "SCA_IInputDevice.h"
+#include "SCA_ISensor.h"
 
 class SCA_MouseSensor : public SCA_ISensor {
   Py_Header

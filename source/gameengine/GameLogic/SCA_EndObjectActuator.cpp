@@ -39,8 +39,8 @@
 
 #include "SCA_EndObjectActuator.h"
 
-#include "KX_Scene.h"
 #include "KX_GameObject.h"
+#include "KX_Scene.h"
 
 SCA_EndObjectActuator::SCA_EndObjectActuator(KX_GameObject *gameobj, KX_Scene *scene)
     : SCA_IActuator(gameobj, KX_ACT_END_OBJECT), m_scene(scene)

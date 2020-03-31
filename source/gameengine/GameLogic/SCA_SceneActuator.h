@@ -32,9 +32,9 @@
 #ifndef __SCA_SceneActuator_H__
 #define __SCA_SceneActuator_H__
 
+#include "KX_Scene.h" /* Replace_IScene only */
 #include "SCA_IActuator.h"
 #include "SCA_IScene.h" /* Replace_IScene only */
-#include "KX_Scene.h"   /* Replace_IScene only */
 
 class SCA_SceneActuator : public SCA_IActuator {
   Py_Header

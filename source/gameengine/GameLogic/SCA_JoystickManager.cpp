@@ -31,9 +31,9 @@
 
 #include "SCA_JoystickManager.h"
 
+#include "SCA_ISensor.h"
 #include "SCA_JoystickSensor.h"
 #include "SCA_LogicManager.h"
-#include "SCA_ISensor.h"
 
 SCA_JoystickManager::SCA_JoystickManager(class SCA_LogicManager *logicmgr)
     : SCA_EventManager(logicmgr, JOY_EVENTMGR)

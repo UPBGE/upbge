@@ -34,9 +34,9 @@
 
 #include "SCA_XNORController.h"
 
+#include "EXP_BoolValue.h"
 #include "SCA_ISensor.h"
 #include "SCA_LogicManager.h"
-#include "EXP_BoolValue.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

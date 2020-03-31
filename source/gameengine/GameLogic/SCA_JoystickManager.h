@@ -32,8 +32,8 @@
 #ifndef __SCA_JOYSTICKMANAGER_H__
 #define __SCA_JOYSTICKMANAGER_H__
 
-#include "SCA_EventManager.h"
 #include "DEV_Joystick.h"
+#include "SCA_EventManager.h"
 
 class SCA_JoystickManager : public SCA_EventManager {
 

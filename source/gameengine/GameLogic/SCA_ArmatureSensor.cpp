@@ -35,9 +35,9 @@
 #include "SCA_ArmatureSensor.h"
 
 #include "BKE_constraint.h"
-#include "DNA_sensor_types.h"
 #include "DNA_action_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_sensor_types.h"
 
 #include "BL_ArmatureObject.h"
 #include "SCA_EventManager.h"

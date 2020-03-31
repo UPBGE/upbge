@@ -35,8 +35,8 @@
 
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"
-#include "PHY_IPhysicsController.h"
 #include "PHY_IMotionState.h"
+#include "PHY_IPhysicsController.h"
 
 /**
  * 	RadarSensor constructor. Creates a near-sensor derived class, with a cone collision shape.

@@ -32,10 +32,10 @@
 #ifndef __SCA_ConstraintActuator_H__
 #define __SCA_ConstraintActuator_H__
 
-#include "SCA_IActuator.h"
+#include "KX_ClientObjectInfo.h"
 #include "MT_Scalar.h"
 #include "MT_Vector3.h"
-#include "KX_ClientObjectInfo.h"
+#include "SCA_IActuator.h"
 
 #include "BLI_utildefines.h"
 
