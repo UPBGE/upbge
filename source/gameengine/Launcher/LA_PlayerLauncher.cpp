@@ -35,24 +35,16 @@
 #endif
 
 #include "LA_PlayerLauncher.h"
-#include "LA_SystemCommandLine.h"
 
-extern "C" {
 #include "BKE_sound.h"
-
 #include "BLI_fileops.h"
-}
-
 #include "MEM_guardedalloc.h"
 
 #include "KX_PythonInit.h"
-
+#include "LA_SystemCommandLine.h"
 #include "GPG_Canvas.h"
-
 #include "GHOST_ISystem.h"
-
 #include "DEV_InputDevice.h"
-
 #include "CM_Message.h"
 
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system,

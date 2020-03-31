@@ -26,9 +26,9 @@
  *  \ingroup blroutines
  */
 
-#include <string>
 #include "LA_SystemCommandLine.h"
 
+#include <string>
 #include <map>
 
 struct SingletonSystem {

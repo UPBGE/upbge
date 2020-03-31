@@ -29,56 +29,41 @@
 #endif
 
 #include "LA_Launcher.h"
+
+#include "MEM_guardedalloc.h"
+#include "GPU_extensions.h"
+#include "GPU_framebuffer.h"
+#include "BKE_idprop.h"
+#include "BKE_layer.h"
+#include "BKE_main.h"
+#include "BKE_sound.h"
+#include "DNA_material_types.h"
+#include "DNA_scene_types.h"
+#include "wm_event_types.h"
+#include "../../blender/python/BPY_extern.h"
+
 #include "LA_System.h"
 #include "LA_SystemCommandLine.h"
-
 #include "RAS_ICanvas.h"
-
 #include "GPG_Canvas.h"
-
 #include "KX_KetsjiEngine.h"
 #include "KX_Globals.h"
 #include "KX_PythonInit.h"
 #include "KX_PythonMain.h"
 #include "KX_PyConstraintBinding.h"
-
 #include "KX_BlenderConverter.h"
 #include "BL_BlenderDataConversion.h"
-
 #include "KX_NetworkMessageManager.h"
+#include "GHOST_ISystem.h"
+#include "GHOST_IWindow.h"
+#include "DEV_EventConsumer.h"
+#include "DEV_InputDevice.h"
+#include "DEV_Joystick.h"
+#include "CM_Message.h"
 
 #ifdef WITH_PYTHON
 #  include "Texture.h"  // For FreeAllTextures.
 #endif                  // WITH_PYTHON
-
-#include "GHOST_ISystem.h"
-#include "GHOST_IWindow.h"
-
-#include "DEV_EventConsumer.h"
-#include "DEV_InputDevice.h"
-
-#include "DEV_Joystick.h"
-
-#include "CM_Message.h"
-
-#include "MEM_guardedalloc.h"
-
-extern "C" {
-#include "GPU_extensions.h"
-#include "GPU_framebuffer.h"
-
-#include "BKE_idprop.h"
-#include "BKE_layer.h"
-#include "BKE_sound.h"
-#include "BKE_main.h"
-
-#include "DNA_scene_types.h"
-#include "DNA_material_types.h"
-
-#include "wm_event_types.h"
-
-#include "../../blender/python/BPY_extern.h"
-}
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system,
                          Main *maggie,
