@@ -35,13 +35,13 @@
 
 #include "DNA_mesh_types.h"
 
-#include "RAS_Polygon.h"
-#include "RAS_IPolygonMaterial.h"
+#include "CM_Message.h"
+#include "MT_Vector3.h"
 #include "RAS_BucketManager.h"
 #include "RAS_DisplayArray.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_Polygon.h"
 #include "SCA_IScene.h"
-#include "MT_Vector3.h"
-#include "CM_Message.h"
 
 // polygon sorting
 

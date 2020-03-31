@@ -25,8 +25,8 @@
 #ifndef __RAS_TEXTURE_H__
 #define __RAS_TEXTURE_H__
 
-#include <string>
 #include <array>
+#include <string>
 
 struct Image;
 struct GPUTexture;

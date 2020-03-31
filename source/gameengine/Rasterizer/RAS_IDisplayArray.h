@@ -29,8 +29,8 @@
 
 #include "RAS_TexVert.h"
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 class RAS_IDisplayArray {
  public:

@@ -22,9 +22,9 @@
 
 #include "RAS_MeshMaterial.h"
 
-#include "RAS_MaterialBucket.h"
-#include "RAS_IDisplayArray.h"
 #include "RAS_DisplayArrayBucket.h"
+#include "RAS_IDisplayArray.h"
+#include "RAS_MaterialBucket.h"
 
 RAS_MeshMaterial::RAS_MeshMaterial(RAS_MeshObject *mesh,
                                    RAS_MaterialBucket *bucket,

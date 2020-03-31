@@ -32,9 +32,9 @@
 #ifndef __RAS_ITEXVERT_H__
 #define __RAS_ITEXVERT_H__
 
-#include "MT_Vector3.h"
-#include "MT_Vector2.h"
 #include "MT_Matrix4x4.h"
+#include "MT_Vector2.h"
+#include "MT_Vector3.h"
 
 #include "BLI_math.h"
 

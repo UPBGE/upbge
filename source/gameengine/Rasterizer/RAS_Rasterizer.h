@@ -41,11 +41,11 @@
 #include "RAS_DebugDraw.h"
 #include "RAS_Rect.h"
 
-#include <string>
 #include <map>
+#include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <memory>
 
 class RAS_OpenGLRasterizer;
 class RAS_FrameBuffer;

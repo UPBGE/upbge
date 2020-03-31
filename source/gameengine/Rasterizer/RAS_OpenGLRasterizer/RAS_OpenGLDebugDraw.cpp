@@ -25,17 +25,17 @@
  */
 
 #include "RAS_OpenGLDebugDraw.h"
-#include "RAS_Rasterizer.h"
-#include "RAS_ICanvas.h"
 #include "RAS_DebugDraw.h"
+#include "RAS_ICanvas.h"
+#include "RAS_Rasterizer.h"
 
-#include "GPU_material.h"
 #include "GPU_glew.h"
+#include "GPU_material.h"
 #include "GPU_matrix.h"
 
+#include "KX_Camera.h"
 #include "KX_Globals.h"
 #include "KX_Scene.h"
-#include "KX_Camera.h"
 
 #include "DRW_render.h"
 
@@ -140,9 +140,9 @@ void RAS_OpenGLDebugDraw::BindVBO(float *mvp, float color[4], float *vertexes, u
   glUseProgram(m_genericProg);
 
   glUniform4f(
-  glGetUniformLocation(m_genericProg, "color"), color[0], color[1], color[2], color[3]);
+      glGetUniformLocation(m_genericProg, "color"), color[0], color[1], color[2], color[3]);
   glUniformMatrix4fv(
-  glGetUniformLocation(m_genericProg, "ModelViewProjectionMatrix"), 1, false, mvp);
+      glGetUniformLocation(m_genericProg, "ModelViewProjectionMatrix"), 1, false, mvp);
 
   glBindVertexArray(m_vao);
 

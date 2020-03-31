@@ -32,8 +32,8 @@
 #ifndef __RAS_MATERIAL_BUCKET_H__
 #define __RAS_MATERIAL_BUCKET_H__
 
-#include "RAS_DisplayArrayBucket.h"
 #include "MT_Transform.h"
+#include "RAS_DisplayArrayBucket.h"
 
 class RAS_IPolyMaterial;
 class RAS_MaterialShader;

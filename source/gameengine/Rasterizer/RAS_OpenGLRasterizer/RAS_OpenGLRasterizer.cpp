@@ -39,14 +39,14 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
+#include "GPU_matrix.h"
 #include "GPU_shader.h"
 #include "GPU_texture.h"
-#include "GPU_matrix.h"
 
 extern "C" {
+#include "BKE_DerivedMesh.h"
 #include "BLF_api.h"
 #include "BLI_math.h"
-#include "BKE_DerivedMesh.h"
 #include "DNA_material_types.h"
 #include "GPU_immediate.h"
 }
