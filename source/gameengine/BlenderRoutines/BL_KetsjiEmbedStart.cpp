@@ -35,22 +35,22 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "DNA_scene_types.h"
-#include "BKE_report.h"
-#include "BKE_main.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_main.h"
+#include "BKE_report.h"
 #include "BKE_sound.h"
 #include "BKE_undo_system.h"
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
+#include "DNA_scene_types.h"
 #include "WM_api.h"
 
-#include "KX_PythonInit.h"
-#include "KX_Globals.h"
-#include "GHOST_ISystem.h"
-#include "LA_BlenderLauncher.h"
 #include "CM_Message.h"
+#include "GHOST_ISystem.h"
+#include "KX_Globals.h"
+#include "KX_PythonInit.h"
+#include "LA_BlenderLauncher.h"
 
 extern "C" {
 
@@ -176,7 +176,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
                          (Scene *)BLI_findstring(
                              &blenderdata->scenes, startscenename, offsetof(ID, name) + 2);
 
-    //WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene);
+    // WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene);
 
     RAS_Rasterizer::StereoMode stereoMode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
     if (scene) {
