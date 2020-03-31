@@ -42,6 +42,29 @@
 #  include <AUD_Sound.h>
 #endif
 
+/* This little block needed for linking to Blender... */
+#include "BKE_global.h"
+#include "BKE_sound.h"
+#include "MEM_guardedalloc.h"
+#include "BKE_text.h"
+#include "BLI_blenlib.h"
+#include "BLI_math.h"
+#include "BLI_path_util.h"
+#include "BKE_context.h"
+#include "BKE_layer.h"
+#include "BKE_scene.h"
+#include "DEG_depsgraph_query.h"
+#include "DNA_object_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_actuator_types.h"
+#include "DNA_packedFile_types.h"
+#include "RNA_access.h"
+
+#ifdef WIN32
+#  include "BLI_winstuff.h"
+#endif
+
 // Actuators
 // SCA logiclibrary native logicbricks
 #include "KX_BlenderSceneConverter.h"
@@ -76,32 +99,9 @@
 #include "EXP_IntValue.h"
 #include "KX_GameObject.h"
 #include "CM_Message.h"
-
-/* This little block needed for linking to Blender... */
-#include "BKE_global.h"
-#include "BKE_sound.h"
-#include "MEM_guardedalloc.h"
-#include "BKE_text.h"
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
-#include "BLI_path_util.h"
-#include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_scene.h"
-#include "DEG_depsgraph_query.h"
-#include "DNA_object_types.h"
-#include "DNA_sound_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_actuator_types.h"
-#include "DNA_packedFile_types.h"
+#include "BL_Action.h"
 #include "BL_ActionActuator.h"
 #include "BL_ArmatureActuator.h"
-#include "RNA_access.h"
-#include "BL_Action.h"
-
-#ifdef WIN32
-#  include "BLI_winstuff.h"
-#endif
 
 /* end of blender include block */
 

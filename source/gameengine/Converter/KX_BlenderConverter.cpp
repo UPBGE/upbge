@@ -35,6 +35,26 @@
 
 #include "KX_BlenderConverter.h"
 
+#include <cstring>
+
+#include "DNA_scene_types.h"
+#include "BKE_main.h"
+#include "DNA_mesh_types.h"
+#include "DNA_material_types.h"
+#include "BLI_blenlib.h"
+#include "BLI_linklist.h"
+#include "BLO_readfile.h"
+#include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_idtype.h"
+#include "BKE_layer.h"
+#include "BKE_lib_id.h"
+#include "BKE_material.h"  // BKE_material_copy
+#include "BKE_mesh.h"      // BKE_mesh_copy
+#include "BKE_report.h"
+#include "BKE_scene.h"
+#include "BLI_task.h"
+
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
 #include "RAS_MeshObject.h"
@@ -60,27 +80,6 @@
 #ifdef WITH_PYTHON
 #  include "Texture.h"  // For FreeAllTextures.
 #endif                  // WITH_PYTHON
-
-// This list includes only data type definitions
-#include "DNA_scene_types.h"
-#include "BKE_main.h"
-#include "DNA_mesh_types.h"
-#include "DNA_material_types.h"
-#include "BLI_blenlib.h"
-#include "BLI_linklist.h"
-#include "BLO_readfile.h"
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_idtype.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_material.h"  // BKE_material_copy
-#include "BKE_mesh.h"      // BKE_mesh_copy
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BLI_task.h"
-
-#include <cstring>
 
 KX_BlenderConverter::SceneSlot::SceneSlot() = default;
 

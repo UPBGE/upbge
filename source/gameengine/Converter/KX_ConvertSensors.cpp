@@ -35,25 +35,21 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "wm_event_types.h"
-#include "KX_BlenderSceneConverter.h"
 #include "KX_ConvertSensors.h"
 
-/* This little block needed for linking to Blender... */
-#ifdef _MSC_VER
-//#  include "BLI_winstuff.h"
-#endif
-
+#include "wm_event_types.h"
 #include "DNA_object_types.h"
 #include "DNA_material_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_controller_types.h"
 #include "DNA_actuator_types.h" /* for SENS_ALL_KEYS ? this define is
                                  * probably misplaced */
-/* end of blender include block */
+#ifdef _MSC_VER
+//#  include "BLI_winstuff.h"
+#endif
 
 #include "RAS_IPolygonMaterial.h"
-// Sensors
+#include "KX_BlenderSceneConverter.h"
 #include "KX_GameObject.h"
 #include "RAS_MeshObject.h"
 #include "SCA_KeyboardSensor.h"
@@ -68,7 +64,6 @@
 #include "KX_NetworkMessageSensor.h"
 #include "SCA_ActuatorSensor.h"
 #include "SCA_DelaySensor.h"
-
 #include "SCA_PropertySensor.h"
 #include "SCA_RandomSensor.h"
 #include "SCA_RaySensor.h"
@@ -78,11 +73,9 @@
 #include "EXP_IntValue.h"
 #include "RAS_ICanvas.h"
 #include "PHY_IPhysicsEnvironment.h"
-
 #include "KX_KetsjiEngine.h"
 #include "KX_Globals.h"
 #include "BL_BlenderDataConversion.h"
-
 #include "CM_Message.h"
 
 void BL_ConvertSensors(struct Object *blenderobject,

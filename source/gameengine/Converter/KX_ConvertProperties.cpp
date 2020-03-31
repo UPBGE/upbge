@@ -31,9 +31,18 @@
 
 #include "KX_ConvertProperties.h"
 
+#include <sstream>
+#include <fstream>
+
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
-/* end of blender include block */
+#include "DNA_curve_types.h"
+#include "BKE_property.h"
+
+/* This little block needed for linking to Blender... */
+#ifdef WIN32
+#  include "BLI_winstuff.h"
+#endif
 
 #include "EXP_Value.h"
 #include "EXP_BoolValue.h"
@@ -43,23 +52,8 @@
 #include "EXP_IntValue.h"
 #include "SCA_TimeEventManager.h"
 #include "SCA_IScene.h"
-
 #include "KX_FontObject.h"
-#include "DNA_curve_types.h"
-
-/* This little block needed for linking to Blender... */
-#ifdef WIN32
-#  include "BLI_winstuff.h"
-#endif
-
-extern "C" {
-#include "BKE_property.h"
-}
-
 #include "CM_Message.h"
-
-#include <sstream>
-#include <fstream>
 
 /* prototype */
 void BL_ConvertTextProperty(Object *object,

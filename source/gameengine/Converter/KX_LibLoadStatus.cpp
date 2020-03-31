@@ -25,6 +25,7 @@
  */
 
 #include "KX_LibLoadStatus.h"
+
 #include "PIL_time.h"
 
 KX_LibLoadStatus::KX_LibLoadStatus(class KX_BlenderConverter *kx_converter,

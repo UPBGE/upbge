@@ -29,13 +29,17 @@
  *  \ingroup bgeconv
  */
 
-#include "DNA_armature_types.h"
 #include "BL_ArmatureChannel.h"
-#include "BL_ArmatureObject.h"
-#include "BL_ArmatureConstraint.h"
+
+#include <stddef.h>
+
+#include "DNA_armature_types.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
-#include <stddef.h>
+
+#include "BL_ArmatureObject.h"
+#include "BL_ArmatureConstraint.h"
+
 
 #ifdef WITH_PYTHON
 

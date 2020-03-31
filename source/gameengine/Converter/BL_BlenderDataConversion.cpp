@@ -55,6 +55,63 @@
 #include <vector>
 #include <algorithm>
 
+/* This little block needed for linking to Blender... */
+#ifdef WIN32
+#  include "BLI_winstuff.h"
+#endif
+
+/* This list includes only data type definitions */
+#include "BKE_DerivedMesh.h"
+#include "BKE_armature.h"
+#include "BKE_cdderivedmesh.h"
+#include "BKE_context.h"
+#include "BKE_customdata.h"
+#include "BKE_displist.h"
+#include "BKE_image.h"
+#include "BKE_key.h"
+#include "BKE_layer.h"
+#include "BKE_main.h"
+#include "BKE_material.h" /* give_current_material */
+#include "BKE_mesh.h"
+#include "BKE_mesh_runtime.h"
+#include "BKE_object.h"
+#include "BKE_scene.h"
+#include "BLI_listbase.h"
+#include "BLI_math.h"
+#include "BLI_threads.h"
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
+#include "DNA_action_types.h"
+#include "DNA_actuator_types.h"
+#include "DNA_armature_types.h"
+#include "DNA_camera_types.h"
+#include "DNA_constraint_types.h"
+#include "DNA_controller_types.h"
+#include "DNA_image_types.h"
+#include "DNA_key_types.h"
+#include "DNA_layer_types.h"
+#include "DNA_light_types.h"
+#include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
+#include "DNA_object_force_types.h"
+#include "DNA_object_types.h"
+#include "DNA_property_types.h"
+#include "DNA_python_component_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_sensor_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_text_types.h"
+#include "DNA_texture_types.h"
+#include "DNA_view3d_types.h"
+#include "DNA_world_types.h"
+#include "GPU_texture.h"
+#include "IMB_imbuf_types.h"
+#include "MEM_guardedalloc.h"
+#include "wm_event_types.h"
+
+/* end of blender include block */
+
 #include "MT_Transform.h"
 #include "MT_MinMax.h"
 #include "PHY_Pro.h"
@@ -99,71 +156,6 @@
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"
 #endif
-
-/* This little block needed for linking to Blender... */
-#ifdef WIN32
-#  include "BLI_winstuff.h"
-#endif
-
-/* This list includes only data type definitions */
-#include "DNA_object_types.h"
-#include "DNA_material_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_image_types.h"
-#include "DNA_light_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_camera_types.h"
-#include "DNA_property_types.h"
-#include "DNA_text_types.h"
-#include "DNA_sensor_types.h"
-#include "DNA_controller_types.h"
-#include "DNA_actuator_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_view3d_types.h"
-#include "DNA_world_types.h"
-#include "DNA_sound_types.h"
-#include "DNA_key_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_action_types.h"
-#include "DNA_object_force_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_python_component_types.h"
-#include "DNA_layer_types.h"
-#include "MEM_guardedalloc.h"
-#include "BKE_key.h"
-#include "BKE_main.h"
-#include "BKE_mesh.h"
-#include "BLI_listbase.h"
-#include "BLI_math.h"
-#include "BLI_threads.h"
-#include "BKE_armature.h"
-#include "BKE_object.h"
-#include "BKE_scene.h"
-#include "BKE_context.h"
-#include "BKE_customdata.h"
-#include "BKE_cdderivedmesh.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_layer.h"
-#include "BKE_material.h" /* give_current_material */
-#include "BKE_mesh_runtime.h"
-#include "BKE_image.h"
-#include "IMB_imbuf_types.h"
-#include "BKE_displist.h"
-#include "wm_event_types.h"
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
-#include "GPU_texture.h"
-
-/* end of blender include block */
-
-
-
-
-
-
-
-
 
 static bool default_light_mode = 0;
 
