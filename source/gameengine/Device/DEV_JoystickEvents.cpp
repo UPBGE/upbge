@@ -31,7 +31,6 @@
 
 #include "DEV_Joystick.h"
 #include "DEV_JoystickPrivate.h"
-
 #include "CM_Message.h"
 
 #ifdef WITH_SDL

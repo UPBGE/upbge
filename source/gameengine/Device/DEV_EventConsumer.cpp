@@ -25,17 +25,16 @@
  */
 
 #include "DEV_EventConsumer.h"
-#include "DEV_InputDevice.h"
 
+#include <iostream>
+
+#include "BLI_string_utf8.h"
 #include "GHOST_IEvent.h"
 #include "GHOST_IWindow.h"
 #include "GHOST_ISystem.h"
 
+#include "DEV_InputDevice.h"
 #include "RAS_ICanvas.h"
-
-#include "BLI_string_utf8.h"
-
-#include <iostream>
 
 DEV_EventConsumer::DEV_EventConsumer(GHOST_ISystem *system,
                                      DEV_InputDevice *device,
