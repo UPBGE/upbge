@@ -1377,6 +1377,20 @@ struct DRWTextStore *DRW_text_cache_ensure(void)
 /** \name Main Draw Loops (DRW_draw)
  * \{ */
 
+/* Game engine transition */
+static void update_lods(Depsgraph *depsgraph, Scene *scene, Object *ob_eval, float camera_pos[3])
+{
+  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+  Object *ob_orig = DEG_get_original_object(ob_eval);
+  BKE_object_lod_update(ob_orig, camera_pos);
+
+  if (ob_orig->currentlod) {
+    Object *lod_ob = BKE_object_lod_meshob_get(ob_orig, view_layer);
+    ob_eval->data = DEG_get_evaluated_object(depsgraph, lod_ob)->data;
+  }
+}
+/* End of Game engine transition */
+
 /* Everything starts here.
  * This function takes care of calling all cache and rendering functions
  * for each relevant engine / mode engine. */
@@ -1476,6 +1490,11 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
         if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
           continue;
         }
+
+        /* Game engine transition */
+        update_lods(depsgraph, scene, ob, DST.draw_ctx.rv3d->viewinv[3]);
+        /* End of Game engine transition */
+
         DST.dupli_parent = data_.dupli_parent;
         DST.dupli_source = data_.dupli_object_current;
         drw_duplidata_load(DST.dupli_source);

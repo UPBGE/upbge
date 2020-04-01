@@ -1586,26 +1586,6 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
 /** \name Draw Viewport Contents
  * \{ */
 
-/* Game engine transition */
-#ifdef WITH_GAMEENGINE
-static void update_lods(Depsgraph *depsgraph, Scene *scene, float camera_pos[3])
-{
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-
-  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (
-      depsgraph, ob_eval) {  // Here ob is evaluated object from depsgraph which will be rendered
-    BKE_object_lod_update(DEG_get_original_object(ob_eval), camera_pos);
-
-    if (DEG_get_original_object(ob_eval)->currentlod) {
-      Object *lod_ob = BKE_object_lod_meshob_get(DEG_get_original_object(ob_eval), view_layer);
-      ob_eval->data = DEG_get_evaluated_object(depsgraph, lod_ob)->data;
-    }
-  }
-  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
-}
-#endif
-/* End of Game engine transition */
-
 static void view3d_draw_view(const bContext *C, ARegion *region)
 {
   ED_view3d_draw_setup_view(CTX_wm_manager(C),
@@ -1617,15 +1597,6 @@ static void view3d_draw_view(const bContext *C, ARegion *region)
                             NULL,
                             NULL,
                             NULL);
-/* Game engine transition */
-#ifdef WITH_GAMEENGINE
-  // if (STREQ(CTX_data_scene(C)->r.engine, RE_engine_id_BLENDER_EEVEE)) {
-  /* Make sure LoDs are up to date */
-  RegionView3D *rv3d = region->regiondata;
-  update_lods(CTX_data_expect_evaluated_depsgraph(C), CTX_data_scene(C), rv3d->viewinv[3]);
-  //}
-#endif
-  /* End of Game engine transition */
 
   /* Only 100% compliant on new spec goes below */
   DRW_draw_view(C);

@@ -1032,10 +1032,7 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
     RAS_MeshObject *currentMeshObject = currentLodLevel->GetMesh();
 
     bContext *C = KX_GetActiveEngine()->GetContext();
-    Main *bmain = CTX_data_main(C);
-    Scene *sc = GetScene()->GetBlenderScene();
-    ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, sc, view_layer, false);
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
     /* Here we want to change the object which will be rendered, then the evaluated object by the
      * depsgraph */
