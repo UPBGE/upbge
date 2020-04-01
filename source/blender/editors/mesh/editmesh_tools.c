@@ -731,8 +731,10 @@ static int edbm_collapse_edge_exec(bContext *C, wmOperator *op)
 void MESH_OT_edge_collapse(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Edge Collapse";
-  ot->description = "Collapse selected edges";
+  ot->name = "Collapse Edges & Faces";
+  ot->description =
+      "Collapse isolated edges & faces regions, merging data such as UV's and vertex colors. "
+      "This can collapse edge-rings as well as regions of connected faces into vertices";
   ot->idname = "MESH_OT_edge_collapse";
 
   /* api callbacks */

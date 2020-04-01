@@ -87,7 +87,7 @@ static void requiredDataMask(Object *UNUSED(ob),
 }
 
 static void matrix_from_obj_pchan(float mat[4][4],
-                                  float obinv[4][4],
+                                  const float obinv[4][4],
                                   Object *ob,
                                   const char *bonename)
 {
