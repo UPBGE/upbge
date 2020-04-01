@@ -33,8 +33,8 @@
 #ifndef __SCA_ObjectActuator_H__
 #define __SCA_ObjectActuator_H__
 
-#include "SCA_IActuator.h"
 #include "MT_Vector3.h"
+#include "SCA_IActuator.h"
 
 #ifdef USE_MATHUTILS
 void SCA_ObjectActuator_Mathutils_Callback_Init(void);

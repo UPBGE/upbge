@@ -21,8 +21,16 @@
  * \ingroup pygen
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <Python.h>
 
 PyObject *BPyInit_blf(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BLF_PY_API_H__ */

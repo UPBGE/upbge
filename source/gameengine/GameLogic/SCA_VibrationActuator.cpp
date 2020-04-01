@@ -28,6 +28,7 @@
  */
 
 #include "SCA_VibrationActuator.h"
+
 #include "SCA_JoystickManager.h"
 
 SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj,

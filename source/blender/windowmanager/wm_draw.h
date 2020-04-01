@@ -24,6 +24,10 @@
 #ifndef __WM_DRAW_H__
 #define __WM_DRAW_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "GPU_glew.h"
 
 struct GPUOffScreen;
@@ -49,5 +53,9 @@ void wm_draw_region_blend(struct ARegion *region, int view, bool blend);
 void wm_draw_region_test(struct bContext *C, struct ScrArea *sa, struct ARegion *region);
 
 struct GPUTexture *wm_draw_region_texture(struct ARegion *region, int view);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __WM_DRAW_H__ */

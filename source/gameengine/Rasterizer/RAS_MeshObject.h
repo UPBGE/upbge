@@ -37,14 +37,14 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include <vector>
 #include <list>
+#include <vector>
 
+#include "MT_Transform.h"
+#include "MT_Vector2.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshMaterial.h"
 #include "RAS_Texture.h"
-#include "MT_Transform.h"
-#include "MT_Vector2.h"
 #include <string>
 
 class RAS_Polygon;

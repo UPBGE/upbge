@@ -35,55 +35,48 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "wm_event_types.h"
-#include "KX_BlenderSceneConverter.h"
 #include "KX_ConvertSensors.h"
 
-/* This little block needed for linking to Blender... */
+#include "DNA_actuator_types.h" /* for SENS_ALL_KEYS ? this define is */
+#include "DNA_controller_types.h"
+/* #include "DNA_material_types.h"
+#include "DNA_object_types.h"
+#include "DNA_sensor_types.h"
+#include "wm_event_types.h"
+                                 * probably misplaced */
 #ifdef _MSC_VER
 //#  include "BLI_winstuff.h"
 #endif
 
-#include "DNA_object_types.h"
-#include "DNA_material_types.h"
-#include "DNA_sensor_types.h"
-#include "DNA_controller_types.h"
-#include "DNA_actuator_types.h" /* for SENS_ALL_KEYS ? this define is
-                                 * probably misplaced */
-/* end of blender include block */
-
-#include "RAS_IPolygonMaterial.h"
-// Sensors
+#include "BL_BlenderDataConversion.h"
+#include "CM_Message.h"
+#include "EXP_IntValue.h"
+#include "KX_BlenderSceneConverter.h"
 #include "KX_GameObject.h"
-#include "RAS_MeshObject.h"
-#include "SCA_KeyboardSensor.h"
-#include "SCA_MouseSensor.h"
-#include "SCA_AlwaysSensor.h"
-#include "SCA_CollisionSensor.h"
-#include "SCA_NearSensor.h"
-#include "SCA_RadarSensor.h"
-#include "SCA_MouseFocusSensor.h"
-#include "SCA_ArmatureSensor.h"
-#include "SCA_JoystickSensor.h"
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
 #include "KX_NetworkMessageSensor.h"
+#include "KX_Scene.h"
+#include "PHY_IPhysicsEnvironment.h"
+#include "RAS_ICanvas.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_MeshObject.h"
 #include "SCA_ActuatorSensor.h"
+#include "SCA_AlwaysSensor.h"
+#include "SCA_ArmatureSensor.h"
+#include "SCA_CollisionSensor.h"
 #include "SCA_DelaySensor.h"
-
+#include "SCA_EventManager.h"
+#include "SCA_JoystickSensor.h"
+#include "SCA_KeyboardSensor.h"
+#include "SCA_LogicManager.h"
+#include "SCA_MouseFocusSensor.h"
+#include "SCA_MouseSensor.h"
+#include "SCA_NearSensor.h"
 #include "SCA_PropertySensor.h"
+#include "SCA_RadarSensor.h"
 #include "SCA_RandomSensor.h"
 #include "SCA_RaySensor.h"
-#include "SCA_EventManager.h"
-#include "SCA_LogicManager.h"
-#include "KX_Scene.h"
-#include "EXP_IntValue.h"
-#include "RAS_ICanvas.h"
-#include "PHY_IPhysicsEnvironment.h"
-
-#include "KX_KetsjiEngine.h"
-#include "KX_Globals.h"
-#include "BL_BlenderDataConversion.h"
-
-#include "CM_Message.h"
 
 void BL_ConvertSensors(struct Object *blenderobject,
                        class KX_GameObject *gameobj,

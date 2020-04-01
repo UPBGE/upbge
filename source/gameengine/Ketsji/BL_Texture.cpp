@@ -24,19 +24,16 @@
 
 #include "BL_Texture.h"
 
-#include "KX_PyMath.h"
-
-#include "BLI_math.h"
-
-extern "C" {
 #include "BKE_image.h"
+#include "BLI_math.h"
 #include "DNA_texture_types.h"
 #include "GPU_draw.h"
 #include "GPU_glew.h"
 #include "GPU_material.h"
 #include "GPU_texture.h"
 #include "gpu/intern/gpu_codegen.h"
-}
+
+#include "KX_PyMath.h"
 
 BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, int textarget)
     : CValue(), m_isCubeMap(false), m_gpuMatTex(gpumattex), m_textarget(textarget)

@@ -30,8 +30,9 @@
  */
 
 #include "KX_ScalingInterpolator.h"
-#include "MT_Vector3.h"
+
 #include "KX_IScalarInterpolator.h"
+#include "MT_Vector3.h"
 
 void KX_ScalingInterpolator::Execute(float currentTime) const
 {

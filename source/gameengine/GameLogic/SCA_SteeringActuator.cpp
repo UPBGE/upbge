@@ -28,16 +28,17 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "BLI_math.h"
 #include "SCA_SteeringActuator.h"
-#include "KX_GameObject.h"
-#include "KX_NavMeshObject.h"
-#include "KX_ObstacleSimulation.h"
-#include "KX_Globals.h"
-#include "KX_PyMath.h"
-#include "Recast.h"
+
+#include "BLI_math.h"
 
 #include "EXP_ListWrapper.h"
+#include "KX_GameObject.h"
+#include "KX_Globals.h"
+#include "KX_NavMeshObject.h"
+#include "KX_ObstacleSimulation.h"
+#include "KX_PyMath.h"
+#include "Recast.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

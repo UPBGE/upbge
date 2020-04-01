@@ -30,12 +30,12 @@
 
 #include <stddef.h>
 
-#include "DNA_object_types.h"
-#include "DNA_sensor_types.h"
-#include "DNA_controller_types.h"
 #include "DNA_actuator_types.h"
-#include "DNA_scene_types.h"
+#include "DNA_controller_types.h"
+#include "DNA_object_types.h"
 #include "DNA_python_component_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_sensor_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_string_utils.h"
@@ -45,8 +45,8 @@
 
 #include "BKE_context.h"
 #include "BKE_main.h"
-#include "BKE_sca.h"
 #include "BKE_python_component.h"
+#include "BKE_sca.h"
 
 #include "ED_logic.h"
 #include "ED_object.h"

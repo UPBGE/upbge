@@ -43,11 +43,13 @@ typedef unsigned long uint_ptr;
 #endif
 
 #include "KX_IPO_SGController.h"
-#include "KX_ScalarInterpolator.h"
-#include "KX_GameObject.h"
-#include "PHY_IPhysicsController.h"
-#include "DNA_ipo_types.h"
+
 #include "BLI_math.h"
+#include "DNA_ipo_types.h"
+
+#include "KX_GameObject.h"
+#include "KX_ScalarInterpolator.h"
+#include "PHY_IPhysicsController.h"
 
 // All objects should start on frame 1! Will we ever need an object to
 // start on another frame, the 1.0 should change.

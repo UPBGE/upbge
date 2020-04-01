@@ -25,8 +25,8 @@
 
 #include "CM_RefCount.h"
 
-#include <vector>
 #include <map>
+#include <vector>
 
 #include "PHY_IPhysicsController.h"
 
@@ -34,12 +34,12 @@
 
 ///	PHY_IPhysicsController is the abstract simplified Interface to a physical object.
 ///	It contains the IMotionState and IDeformableMesh Interfaces.
-#include "btBulletDynamicsCommon.h"
 #include "BulletDynamics/Character/btKinematicCharacterController.h"
 #include "LinearMath/btTransform.h"
+#include "btBulletDynamicsCommon.h"
 
-#include "PHY_IMotionState.h"
 #include "PHY_ICharacter.h"
+#include "PHY_IMotionState.h"
 
 extern float gDeactivationTime;
 extern float gLinearSleepingTreshold;

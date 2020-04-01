@@ -39,9 +39,10 @@
 // Please look here for revision history.
 
 #include "KX_SCA_ReplaceMeshActuator.h"
-#include "KX_Scene.h"
+
 #include "KX_GameObject.h"
 #include "KX_MeshProxy.h"
+#include "KX_Scene.h"
 
 #ifdef WITH_PYTHON
 

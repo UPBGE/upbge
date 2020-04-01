@@ -30,12 +30,13 @@
  */
 
 #include "KX_CollisionEventManager.h"
-#include "SCA_ISensor.h"
-#include "SCA_CollisionSensor.h"
-#include "KX_GameObject.h"
+
 #include "KX_CollisionContactPoints.h"
-#include "PHY_IPhysicsEnvironment.h"
+#include "KX_GameObject.h"
 #include "PHY_IPhysicsController.h"
+#include "PHY_IPhysicsEnvironment.h"
+#include "SCA_CollisionSensor.h"
+#include "SCA_ISensor.h"
 
 KX_CollisionEventManager::KX_CollisionEventManager(class SCA_LogicManager *logicmgr,
                                                    PHY_IPhysicsEnvironment *physEnv)

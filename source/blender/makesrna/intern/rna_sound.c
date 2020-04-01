@@ -24,8 +24,8 @@
 
 #include "rna_internal.h"
 
-#include "DNA_sound_types.h"
 #include "DNA_property_types.h"
+#include "DNA_sound_types.h"
 
 #ifdef RNA_RUNTIME
 

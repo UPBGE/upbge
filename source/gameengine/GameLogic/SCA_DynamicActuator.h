@@ -34,8 +34,8 @@
 #define __SCA_DynamicActuator_H__
 
 #include "SCA_IActuator.h"
-#include "SCA_PropertyActuator.h"
 #include "SCA_LogicManager.h"
+#include "SCA_PropertyActuator.h"
 
 #include "KX_GameObject.h"
 

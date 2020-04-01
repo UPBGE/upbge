@@ -23,13 +23,15 @@
  * \ingroup bke
  */
 
-#include "BLI_compiler_attrs.h"
-
-#include "RNA_types.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "BLI_compiler_attrs.h"
+
+#include "DNA_listBase.h"
+
+#include "RNA_types.h"
 
 struct ARegion;
 struct Header;

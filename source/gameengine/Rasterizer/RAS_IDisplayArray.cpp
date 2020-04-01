@@ -25,9 +25,10 @@
  */
 
 #include "RAS_DisplayArray.h"
-#include "RAS_MeshObject.h"
 
 #include "GPU_glew.h"
+
+#include "RAS_MeshObject.h"
 
 RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat &format)
     : m_type(type), m_modifiedFlag(NONE_MODIFIED), m_format(format)

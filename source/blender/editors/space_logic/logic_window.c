@@ -28,21 +28,21 @@
  *  \ingroup splogic
  */
 
-#include <string.h>
-#include <stdio.h>
-#include <stddef.h>
 #include <float.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "DNA_actuator_types.h"
+#include "DNA_constraint_types.h"
 #include "DNA_controller_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 #include "DNA_property_types.h"
-#include "DNA_space_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sensor_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
+#include "DNA_space_types.h"
 
 #include "MEM_guardedalloc.h"
 

@@ -24,6 +24,10 @@
 #ifndef __WM_H__
 #define __WM_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ARegion;
 struct ReportList;
 struct wmWindow;
@@ -104,6 +108,10 @@ bool wm_xr_init(wmWindowManager *wm);
 void wm_xr_exit(wmWindowManager *wm);
 void wm_xr_session_toggle(wmWindowManager *wm, wmXrSessionExitFn session_exit_fn);
 bool wm_xr_events_handle(wmWindowManager *wm);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* __WM_H__ */

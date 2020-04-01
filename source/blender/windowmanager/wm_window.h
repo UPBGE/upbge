@@ -24,6 +24,10 @@
 #ifndef __WM_WINDOW_H__
 #define __WM_WINDOW_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct wmOperator;
 
 /* *************** internal api ************** */
@@ -95,5 +99,9 @@ void wm_window_ghostwindow_blenderplayer_ensure(struct wmWindowManager *wm,
                                                 void *ghostwin,
                                                 bool first_time_window);
 /* End of Game engine transition */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __WM_WINDOW_H__ */

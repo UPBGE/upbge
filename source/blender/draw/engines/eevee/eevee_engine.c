@@ -354,7 +354,7 @@ static void eevee_draw_scene(void *vedata)
     EEVEE_renderpasses_draw(sldata, vedata);
   }
 
-  /* Game engine transition */    
+  /* Game engine transition */
   EEVEE_antialiasing_draw_pass(vedata);
   /* End of Game engine transition */
 

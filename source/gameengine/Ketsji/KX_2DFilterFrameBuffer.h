@@ -27,8 +27,8 @@
 #ifndef __KX_2DFILTER_FRAMEBUFFER_H__
 #define __KX_2DFILTER_FRAMEBUFFER_H__
 
-#include "RAS_2DFilterFrameBuffer.h"
 #include "EXP_Value.h"
+#include "RAS_2DFilterFrameBuffer.h"
 
 class KX_2DFilterFrameBuffer : public CValue, public RAS_2DFilterFrameBuffer {
   Py_Header public : KX_2DFilterFrameBuffer(unsigned short colorSlots,

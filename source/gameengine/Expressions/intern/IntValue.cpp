@@ -16,14 +16,14 @@
  */
 
 #include "EXP_IntValue.h"
-#include "EXP_ErrorValue.h"
-#include "EXP_FloatValue.h"
-#include "EXP_BoolValue.h"
-#include "EXP_StringValue.h"
-
-#include "CM_Message.h"
 
 #include <boost/format.hpp>
+
+#include "CM_Message.h"
+#include "EXP_BoolValue.h"
+#include "EXP_ErrorValue.h"
+#include "EXP_FloatValue.h"
+#include "EXP_StringValue.h"
 
 CIntValue::CIntValue()
 {

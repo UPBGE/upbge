@@ -33,8 +33,8 @@
 #ifndef __SCA_KEYBOARDSENSOR_H__
 #define __SCA_KEYBOARDSENSOR_H__
 
-#include "SCA_ISensor.h"
 #include "EXP_BoolValue.h"
+#include "SCA_ISensor.h"
 #include <list>
 
 /**

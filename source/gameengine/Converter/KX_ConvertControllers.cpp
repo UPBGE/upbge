@@ -29,43 +29,35 @@
  *  \ingroup bgeconv
  */
 
-#include "MEM_guardedalloc.h"
-
-#include "KX_BlenderSceneConverter.h"
 #include "KX_ConvertControllers.h"
-#include "EXP_Python.h"
-
-// Controller
-#include "SCA_ANDController.h"
-#include "SCA_ORController.h"
-#include "SCA_NANDController.h"
-#include "SCA_NORController.h"
-#include "SCA_XORController.h"
-#include "SCA_XNORController.h"
-#include "SCA_PythonController.h"
-#include "SCA_ExpressionController.h"
-
-#include "SCA_LogicManager.h"
-#include "KX_GameObject.h"
-#include "KX_Globals.h"
-#include "EXP_IntValue.h"
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
 #  include "BLI_winstuff.h"
 #endif
 
-#include "DNA_object_types.h"
-#include "DNA_controller_types.h"
-#include "DNA_text_types.h"
-
 #include "BKE_text.h"
-
 #include "BLI_blenlib.h"
-
-/* end of blender include block */
+#include "DNA_controller_types.h"
+#include "DNA_object_types.h"
+#include "DNA_text_types.h"
+#include "MEM_guardedalloc.h"
 
 #include "CM_Message.h"
+#include "EXP_IntValue.h"
+#include "EXP_Python.h"
+#include "KX_BlenderSceneConverter.h"
+#include "KX_GameObject.h"
+#include "KX_Globals.h"
+#include "SCA_ANDController.h"
+#include "SCA_ExpressionController.h"
+#include "SCA_LogicManager.h"
+#include "SCA_NANDController.h"
+#include "SCA_NORController.h"
+#include "SCA_ORController.h"
+#include "SCA_PythonController.h"
+#include "SCA_XNORController.h"
+#include "SCA_XORController.h"
 
 static void LinkControllerToActuators(SCA_IController *game_controller,
                                       bController *bcontr,

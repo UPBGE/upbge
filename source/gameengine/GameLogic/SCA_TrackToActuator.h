@@ -32,10 +32,10 @@
 #ifndef __SCA_TrackToActuator_H__
 #define __SCA_TrackToActuator_H__
 
+#include "KX_GameObject.h"
+#include "MT_Matrix3x3.h"
 #include "SCA_IActuator.h"
 #include "SCA_IObject.h"
-#include "MT_Matrix3x3.h"
-#include "KX_GameObject.h"
 
 class SCA_TrackToActuator : public SCA_IActuator {
   Py_Header

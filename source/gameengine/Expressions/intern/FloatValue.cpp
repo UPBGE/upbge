@@ -16,10 +16,11 @@
  */
 
 #include "EXP_FloatValue.h"
-#include "EXP_IntValue.h"
-#include "EXP_StringValue.h"
+
 #include "EXP_BoolValue.h"
 #include "EXP_ErrorValue.h"
+#include "EXP_IntValue.h"
+#include "EXP_StringValue.h"
 
 #include <boost/format.hpp>
 

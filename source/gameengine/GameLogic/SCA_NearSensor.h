@@ -33,8 +33,8 @@
 #ifndef __SCA_NearSensor_H__
 #define __SCA_NearSensor_H__
 
-#include "SCA_CollisionSensor.h"
 #include "KX_ClientObjectInfo.h"
+#include "SCA_CollisionSensor.h"
 
 class KX_Scene;
 class PHY_CollData;

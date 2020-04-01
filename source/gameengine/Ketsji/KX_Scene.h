@@ -34,14 +34,14 @@
 
 #include "KX_PhysicsEngineEnums.h"
 
-#include <vector>
-#include <set>
 #include <list>
+#include <set>
+#include <vector>
 
-#include "SG_Node.h"
-#include "SG_Frustum.h"
-#include "SCA_IScene.h"
 #include "MT_Transform.h"
+#include "SCA_IScene.h"
+#include "SG_Frustum.h"
+#include "SG_Node.h"
 
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"

@@ -51,54 +51,9 @@
 
 #include "BL_BlenderDataConversion.h"
 
+#include <algorithm>
 #include <math.h>
 #include <vector>
-#include <algorithm>
-
-#include "MT_Transform.h"
-#include "MT_MinMax.h"
-#include "PHY_Pro.h"
-#include "PHY_IPhysicsEnvironment.h"
-#include "RAS_MeshObject.h"
-#include "RAS_Rasterizer.h"
-#include "KX_ConvertActuators.h"
-#include "KX_ConvertControllers.h"
-#include "KX_ConvertSensors.h"
-#include "SCA_LogicManager.h"
-#include "SCA_TimeEventManager.h"
-#include "KX_ClientObjectInfo.h"
-#include "KX_Scene.h"
-#include "KX_GameObject.h"
-#include "KX_Light.h"
-#include "KX_Camera.h"
-#include "KX_EmptyObject.h"
-#include "KX_FontObject.h"
-#include "KX_LodManager.h"
-#include "KX_PythonComponent.h"
-#include "RAS_ICanvas.h"
-#include "RAS_Polygon.h"
-#include "RAS_TexVert.h"
-#include "RAS_BucketManager.h"
-#include "RAS_IPolygonMaterial.h"
-#include "KX_BlenderMaterial.h"
-#include "BL_Texture.h"
-#include "KX_KetsjiEngine.h"
-#include "KX_BlenderSceneConverter.h"
-#include "KX_Globals.h"
-#include "KX_PyConstraintBinding.h"
-#include "KX_ConvertProperties.h"
-#include "SG_Node.h"
-#include "SG_BBox.h"
-#include "KX_SG_NodeRelationships.h"
-#include "KX_SG_BoneParentNodeRelationship.h"
-#include "KX_MotionState.h"
-#include "BL_ArmatureObject.h"
-#include "KX_NavMeshObject.h"
-#include "KX_ObstacleSimulation.h"
-#include "CM_Message.h"
-#ifdef WITH_BULLET
-#  include "CcdPhysicsEnvironment.h"
-#endif
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
@@ -106,64 +61,101 @@
 #endif
 
 /* This list includes only data type definitions */
-#include "DNA_object_types.h"
-#include "DNA_material_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_image_types.h"
-#include "DNA_light_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_camera_types.h"
-#include "DNA_property_types.h"
-#include "DNA_text_types.h"
-#include "DNA_sensor_types.h"
-#include "DNA_controller_types.h"
-#include "DNA_actuator_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_view3d_types.h"
-#include "DNA_world_types.h"
-#include "DNA_sound_types.h"
-#include "DNA_key_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_action_types.h"
-#include "DNA_object_force_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_python_component_types.h"
-#include "DNA_layer_types.h"
-#include "MEM_guardedalloc.h"
+#include "BKE_DerivedMesh.h"
+#include "BKE_armature.h"
+#include "BKE_cdderivedmesh.h"
+#include "BKE_context.h"
+#include "BKE_customdata.h"
+#include "BKE_displist.h"
+#include "BKE_image.h"
 #include "BKE_key.h"
+#include "BKE_layer.h"
 #include "BKE_main.h"
+#include "BKE_material.h" /* give_current_material */
 #include "BKE_mesh.h"
+#include "BKE_mesh_runtime.h"
+#include "BKE_object.h"
+#include "BKE_scene.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_threads.h"
-#include "BKE_armature.h"
-#include "BKE_object.h"
-#include "BKE_scene.h"
-#include "BKE_context.h"
-#include "BKE_customdata.h"
-#include "BKE_cdderivedmesh.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_layer.h"
-#include "BKE_material.h" /* give_current_material */
-#include "BKE_mesh_runtime.h"
-#include "BKE_image.h"
-#include "IMB_imbuf_types.h"
-#include "BKE_displist.h"
-#include "wm_event_types.h"
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
+#include "DNA_action_types.h"
+#include "DNA_actuator_types.h"
+#include "DNA_armature_types.h"
+#include "DNA_camera_types.h"
+#include "DNA_constraint_types.h"
+#include "DNA_controller_types.h"
+#include "DNA_image_types.h"
+#include "DNA_key_types.h"
+#include "DNA_layer_types.h"
+#include "DNA_light_types.h"
+#include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
+#include "DNA_object_force_types.h"
+#include "DNA_object_types.h"
+#include "DNA_property_types.h"
+#include "DNA_python_component_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_sensor_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_text_types.h"
+#include "DNA_texture_types.h"
+#include "DNA_view3d_types.h"
+#include "DNA_world_types.h"
 #include "GPU_texture.h"
+#include "IMB_imbuf_types.h"
+#include "MEM_guardedalloc.h"
+#include "wm_event_types.h"
 
 /* end of blender include block */
 
-
-
-
-
-
-
-
+#include "BL_ArmatureObject.h"
+#include "BL_Texture.h"
+#include "CM_Message.h"
+#include "KX_BlenderMaterial.h"
+#include "KX_BlenderSceneConverter.h"
+#include "KX_Camera.h"
+#include "KX_ClientObjectInfo.h"
+#include "KX_ConvertActuators.h"
+#include "KX_ConvertControllers.h"
+#include "KX_ConvertProperties.h"
+#include "KX_ConvertSensors.h"
+#include "KX_EmptyObject.h"
+#include "KX_FontObject.h"
+#include "KX_GameObject.h"
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
+#include "KX_Light.h"
+#include "KX_LodManager.h"
+#include "KX_MotionState.h"
+#include "KX_NavMeshObject.h"
+#include "KX_ObstacleSimulation.h"
+#include "KX_PyConstraintBinding.h"
+#include "KX_PythonComponent.h"
+#include "KX_SG_BoneParentNodeRelationship.h"
+#include "KX_SG_NodeRelationships.h"
+#include "KX_Scene.h"
+#include "MT_MinMax.h"
+#include "MT_Transform.h"
+#include "PHY_IPhysicsEnvironment.h"
+#include "PHY_Pro.h"
+#include "RAS_BucketManager.h"
+#include "RAS_ICanvas.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_MeshObject.h"
+#include "RAS_Polygon.h"
+#include "RAS_Rasterizer.h"
+#include "RAS_TexVert.h"
+#include "SCA_LogicManager.h"
+#include "SCA_TimeEventManager.h"
+#include "SG_BBox.h"
+#include "SG_Node.h"
+#ifdef WITH_BULLET
+#  include "CcdPhysicsEnvironment.h"
+#endif
 
 static bool default_light_mode = 0;
 
@@ -751,10 +743,8 @@ static KX_LodManager *lodmanager_from_blenderobject(Object *ob,
   return lodManager;
 }
 
-static KX_LightObject *gamelight_from_blamp(KX_Scene *kxscene,
-                                            Object *ob)
+static KX_LightObject *gamelight_from_blamp(KX_Scene *kxscene, Object *ob)
 {
-  
 
   KX_LightObject *gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, ob);
 
@@ -905,8 +895,10 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
       bContext *C = KX_GetActiveEngine()->GetContext();
       if (ob->runtime.curve_cache == nullptr) {
         ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
-        Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), blenderscene, view_layer, false);
-        BKE_displist_make_curveTypes(depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);
+        Depsgraph *depsgraph = BKE_scene_get_depsgraph(
+            CTX_data_main(C), blenderscene, view_layer, false);
+        BKE_displist_make_curveTypes(
+            depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);
       }
       // eevee add curves to scene.objects list
       gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);

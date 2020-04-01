@@ -23,6 +23,10 @@
 #ifndef __RE_RENDER_EXT_H__
 #define __RE_RENDER_EXT_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is for non-render pipeline exports (still old cruft here) */
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
@@ -73,5 +77,9 @@ void RE_point_density_sample(struct Depsgraph *depsgraph,
 void RE_point_density_free(struct PointDensity *pd);
 
 void RE_point_density_fix_linking(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __RE_RENDER_EXT_H__ */

@@ -35,8 +35,8 @@
 #ifndef __SCA_CameraActuator_H__
 #define __SCA_CameraActuator_H__
 
-#include "SCA_IActuator.h"
 #include "MT_Scalar.h"
+#include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
 
 /**

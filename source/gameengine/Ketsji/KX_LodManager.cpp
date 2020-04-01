@@ -25,15 +25,15 @@
  */
 
 #include "KX_LodManager.h"
-#include "KX_LodLevel.h"
-#include "KX_Scene.h"
 
-#include "EXP_ListWrapper.h"
-
-#include "BL_BlenderDataConversion.h"
-#include "DNA_object_types.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
+#include "DNA_object_types.h"
+
+#include "BL_BlenderDataConversion.h"
+#include "EXP_ListWrapper.h"
+#include "KX_LodLevel.h"
+#include "KX_Scene.h"
 
 KX_LodManager::LodLevelIterator::LodLevelIterator(const std::vector<KX_LodLevel *> &levels,
                                                   unsigned short index,

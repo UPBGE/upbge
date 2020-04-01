@@ -32,30 +32,30 @@
 
 #include "ImageRender.h"
 
-#include <structmember.h>
 #include <float.h>
 #include <math.h>
+#include <structmember.h>
 
-#include "EXP_PyObjectPlus.h"
-#include "KX_Globals.h"
 #include "DNA_scene_types.h"
-#include "RAS_FrameBuffer.h"
+#include "EXP_PyObjectPlus.h"
+#include "Exception.h"
+#include "ImageBase.h"
+#include "KX_Globals.h"
 #include "RAS_CameraData.h"
+#include "RAS_FrameBuffer.h"
+#include "RAS_ITexVert.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
-#include "RAS_ITexVert.h"
-#include "ImageBase.h"
-#include "Exception.h"
 #include "Texture.h"
 
-#include "GPU_framebuffer.h"
-#include "GPU_texture.h"
-#include "GPU_glew.h"
-#include "BLI_math.h"
-#include "eevee_private.h"
-#include "BKE_global.h"
 #include "../depsgraph/DEG_depsgraph_query.h"
+#include "BKE_global.h"
+#include "BLI_math.h"
+#include "GPU_framebuffer.h"
+#include "GPU_glew.h"
+#include "GPU_texture.h"
 #include "GPU_viewport.h"
+#include "eevee_private.h"
 
 ExceptionID SceneInvalid, CameraInvalid, ObserverInvalid, FrameBufferInvalid;
 ExceptionID MirrorInvalid, MirrorSizeInvalid, MirrorNormalInvalid, MirrorHorizontal,

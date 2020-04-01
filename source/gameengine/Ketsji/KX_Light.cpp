@@ -33,9 +33,10 @@
 #  pragma warning(disable : 4786)
 #endif
 
+#include "KX_Light.h"
+
 #include <stdio.h>
 
-#include "KX_Light.h"
 #include "DNA_light_types.h"
 
 KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, Object *obLight)
@@ -114,7 +115,7 @@ PyTypeObject KX_LightObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_Light
                                      py_base_new};
 
 PyMethodDef KX_LightObject::Methods[] = {
-    // KX_PYMETHODTABLE_NOARGS(KX_LightObject, updateShadow), 
+    // KX_PYMETHODTABLE_NOARGS(KX_LightObject, updateShadow),
     {nullptr, nullptr}  // Sentinel
 };
 

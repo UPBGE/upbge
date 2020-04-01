@@ -17,13 +17,14 @@
  *
  */
 
-#include <stdio.h>
 #include <regex>
+#include <stdio.h>
 
 #include "EXP_ListValue.h"
+
+#include "EXP_BoolValue.h"
 #include "EXP_StringValue.h"
 #include <algorithm>
-#include "EXP_BoolValue.h"
 
 #include "BLI_sys_types.h"  // For intptr_t support.
 

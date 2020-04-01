@@ -33,20 +33,21 @@
  */
 
 #include "SCA_RaySensor.h"
-#include "SCA_EventManager.h"
-#include "SCA_LogicManager.h"
-#include "SCA_IObject.h"
-#include "KX_ClientObjectInfo.h"
-#include "KX_GameObject.h"
-#include "KX_Scene.h"
-#include "KX_RayCast.h"
-#include "KX_PyMath.h"
-#include "PHY_IPhysicsEnvironment.h"
-#include "PHY_IPhysicsController.h"
+
 #include "DNA_sensor_types.h"
-#include "RAS_MeshObject.h"
 
 #include "CM_Message.h"
+#include "KX_ClientObjectInfo.h"
+#include "KX_GameObject.h"
+#include "KX_PyMath.h"
+#include "KX_RayCast.h"
+#include "KX_Scene.h"
+#include "PHY_IPhysicsController.h"
+#include "PHY_IPhysicsEnvironment.h"
+#include "RAS_MeshObject.h"
+#include "SCA_EventManager.h"
+#include "SCA_IObject.h"
+#include "SCA_LogicManager.h"
 
 SCA_RaySensor::SCA_RaySensor(class SCA_EventManager *eventmgr,
                              SCA_IObject *gameobj,

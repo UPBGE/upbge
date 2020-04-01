@@ -23,8 +23,8 @@
 #ifndef __RAS_2DFILTERDATA__
 #define __RAS_2DFILTERDATA__
 
-#include <vector>
 #include <string>
+#include <vector>
 
 class CValue;
 

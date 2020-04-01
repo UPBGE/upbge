@@ -30,8 +30,9 @@
  */
 
 #include "KX_OrientationInterpolator.h"
-#include "MT_Matrix3x3.h"
+
 #include "KX_IScalarInterpolator.h"
+#include "MT_Matrix3x3.h"
 
 void KX_OrientationInterpolator::Execute(float currentTime) const
 {

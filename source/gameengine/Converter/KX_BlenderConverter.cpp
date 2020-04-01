@@ -35,23 +35,43 @@
 
 #include "KX_BlenderConverter.h"
 
-#include "KX_Scene.h"
-#include "KX_GameObject.h"
-#include "RAS_MeshObject.h"
-#include "RAS_BucketManager.h"
-#include "KX_PhysicsEngineEnums.h"
-#include "KX_KetsjiEngine.h"
-#include "KX_PythonInit.h"  // So we can handle adding new text datablocks for Python to import
-#include "KX_LibLoadStatus.h"
+#include <cstring>
+
+#include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_idtype.h"
+#include "BKE_layer.h"
+#include "BKE_lib_id.h"
+#include "BKE_main.h"
+#include "BKE_material.h"  // BKE_material_copy
+#include "BKE_mesh.h"      // BKE_mesh_copy
+#include "BKE_report.h"
+#include "BKE_scene.h"
+#include "BLI_blenlib.h"
+#include "BLI_linklist.h"
+#include "BLI_task.h"
+#include "BLO_readfile.h"
+#include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_scene_types.h"
+
+#include "BL_ActionActuator.h"
+#include "BL_BlenderDataConversion.h"
+#include "CM_Message.h"
+#include "DummyPhysicsEnvironment.h"
+#include "EXP_StringValue.h"
+#include "KX_BlenderMaterial.h"
 #include "KX_BlenderScalarInterpolator.h"
 #include "KX_BlenderSceneConverter.h"
-#include "BL_BlenderDataConversion.h"
-#include "BL_ActionActuator.h"
-#include "KX_BlenderMaterial.h"
-#include "CM_Message.h"
-#include "EXP_StringValue.h"
+#include "KX_GameObject.h"
+#include "KX_KetsjiEngine.h"
+#include "KX_LibLoadStatus.h"
+#include "KX_PhysicsEngineEnums.h"
+#include "KX_PythonInit.h"  // So we can handle adding new text datablocks for Python to import
+#include "KX_Scene.h"
 #include "LA_SystemCommandLine.h"
-#include "DummyPhysicsEnvironment.h"
+#include "RAS_BucketManager.h"
+#include "RAS_MeshObject.h"
 
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"
@@ -60,27 +80,6 @@
 #ifdef WITH_PYTHON
 #  include "Texture.h"  // For FreeAllTextures.
 #endif                  // WITH_PYTHON
-
-// This list includes only data type definitions
-#include "DNA_scene_types.h"
-#include "BKE_main.h"
-#include "DNA_mesh_types.h"
-#include "DNA_material_types.h"
-#include "BLI_blenlib.h"
-#include "BLI_linklist.h"
-#include "BLO_readfile.h"
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_idtype.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_material.h"  // BKE_material_copy
-#include "BKE_mesh.h"      // BKE_mesh_copy
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BLI_task.h"
-
-#include <cstring>
 
 KX_BlenderConverter::SceneSlot::SceneSlot() = default;
 

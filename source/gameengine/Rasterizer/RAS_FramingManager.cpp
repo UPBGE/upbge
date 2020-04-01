@@ -30,6 +30,7 @@
  */
 
 #include "RAS_FramingManager.h"
+
 #include "RAS_Rect.h"
 
 void RAS_FramingManager::ComputeDefaultFrustum(const float camnear,

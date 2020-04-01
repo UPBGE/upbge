@@ -25,9 +25,10 @@
  */
 
 #include "DEV_InputDevice.h"
-#include "GHOST_Types.h"
 
 #include <iostream>
+
+#include "GHOST_Types.h"
 
 DEV_InputDevice::DEV_InputDevice()
 {

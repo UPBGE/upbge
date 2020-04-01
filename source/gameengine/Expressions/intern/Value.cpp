@@ -17,13 +17,15 @@
  * purpose.  It is provided "as is" without express or implied warranty.
  *
  */
+
 #include "EXP_Value.h"
+
 #include "EXP_BoolValue.h"
+#include "EXP_ErrorValue.h"
 #include "EXP_FloatValue.h"
 #include "EXP_IntValue.h"
-#include "EXP_StringValue.h"
-#include "EXP_ErrorValue.h"
 #include "EXP_ListValue.h"
+#include "EXP_StringValue.h"
 
 #ifdef WITH_PYTHON
 

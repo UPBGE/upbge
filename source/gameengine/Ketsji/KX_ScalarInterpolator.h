@@ -32,8 +32,8 @@
 #ifndef __KX_SCALARINTERPOLATOR_H__
 #define __KX_SCALARINTERPOLATOR_H__
 
-#include "MT_Scalar.h"
 #include "KX_IInterpolator.h"
+#include "MT_Scalar.h"
 
 class KX_IScalarInterpolator;
 

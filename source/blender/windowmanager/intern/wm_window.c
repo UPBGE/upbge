@@ -2477,7 +2477,10 @@ void *WM_opengl_context_create_blenderplayer(void *syshandle)
 /* Reuse wm->message_bus when we restart game or load a new .blend */
 static void *runtime_msgbus;
 
-void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm, wmWindow *win, void *ghostwin, bool first_time_window)
+void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
+                                                wmWindow *win,
+                                                void *ghostwin,
+                                                bool first_time_window)
 {
   win->ghostwin = ghostwin;
   GHOST_RectangleHandle bounds;

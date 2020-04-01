@@ -25,8 +25,8 @@
  *  \ingroup splogic
  */
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"

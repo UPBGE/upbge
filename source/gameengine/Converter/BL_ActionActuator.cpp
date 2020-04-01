@@ -29,35 +29,33 @@
  *  \ingroup bgeconv
  */
 
-#include "SCA_LogicManager.h"
 #include "BL_ActionActuator.h"
-#include "BL_ArmatureObject.h"
-#include "BL_Action.h"
-#include "BL_ActionManager.h"
-#include "KX_GameObject.h"
-#include "KX_Globals.h"
+
 #include <string>
-#include "MEM_guardedalloc.h"
-#include "DNA_nla_types.h"
-#include "DNA_action_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_scene_types.h"
+
+#include "BKE_action.h"
+#include "BKE_animsys.h"
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "MT_Matrix4x4.h"
-
-#include "BKE_action.h"
-#include "EXP_FloatValue.h"
-#include "EXP_PyObjectPlus.h"
-#include "KX_PyMath.h"
-
-extern "C" {
-#include "BKE_animsys.h"
-#include "BKE_action.h"
+#include "DNA_action_types.h"
+#include "DNA_armature_types.h"
+#include "DNA_nla_types.h"
+#include "DNA_scene_types.h"
+#include "MEM_guardedalloc.h"
 #include "RNA_access.h"
 #include "RNA_define.h"
-}
+
+#include "BL_Action.h"
+#include "BL_ActionManager.h"
+#include "BL_ArmatureObject.h"
+#include "EXP_FloatValue.h"
+#include "EXP_PyObjectPlus.h"
+#include "KX_GameObject.h"
+#include "KX_Globals.h"
+#include "KX_PyMath.h"
+#include "MT_Matrix4x4.h"
+#include "SCA_LogicManager.h"
 
 BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
                                      const std::string &propname,

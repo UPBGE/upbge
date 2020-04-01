@@ -32,9 +32,9 @@
 #ifndef __KX_OBCOLORIPOSGCONTROLLER_H__
 #define __KX_OBCOLORIPOSGCONTROLLER_H__
 
+#include "KX_IInterpolator.h"
 #include "SG_Controller.h"
 #include "SG_Node.h"
-#include "KX_IInterpolator.h"
 
 class KX_ObColorIpoSGController : public SG_Controller {
  public:

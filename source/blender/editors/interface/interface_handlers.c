@@ -31,13 +31,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_brush_types.h"
-#include "DNA_sensor_types.h"
-#include "DNA_controller_types.h"
 #include "DNA_actuator_types.h"
+#include "DNA_brush_types.h"
+#include "DNA_controller_types.h"
 #include "DNA_curveprofile_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_sensor_types.h"
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
@@ -9012,12 +9012,11 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
             if (but->flag & UI_SELECT) {
               if (len_manhattan_v2v2_int(&event->x, &event->prevx) <=
                   WM_EVENT_CURSOR_MOTION_THRESHOLD) {
-                 /* pass */
+                /* pass */
               }
               else {
                 WM_event_remove_timer(data->wm, data->window, data->hold_action_timer);
-                data->hold_action_timer = WM_event_add_timer(
-                    data->wm, data->window, TIMER, 0.0f);
+                data->hold_action_timer = WM_event_add_timer(data->wm, data->window, TIMER, 0.0f);
               }
             }
           }

@@ -29,14 +29,14 @@
  *  \ingroup ketsji
  */
 
+#include "KX_SG_BoneParentNodeRelationship.h"
+
 #include <iostream>
 
 #include "BLI_utildefines.h"
 
-#include "KX_SG_BoneParentNodeRelationship.h"
-
-#include "MT_Matrix4x4.h"
 #include "BL_ArmatureObject.h"
+#include "MT_Matrix4x4.h"
 
 /**
  * Implementation of classes defined in KX_SG_BoneParentNodeRelationship.h

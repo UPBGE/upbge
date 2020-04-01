@@ -24,8 +24,9 @@
  *  \ingroup ketsji
  */
 
-#include "BL_Action.h"
 #include "BL_ActionManager.h"
+
+#include "BL_Action.h"
 #include "DNA_ID.h"
 
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))

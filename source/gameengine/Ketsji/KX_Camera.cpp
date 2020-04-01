@@ -30,22 +30,18 @@
  *  \ingroup ketsji
  */
 
+#include "KX_Camera.h"
+
 #include "GPU_glew.h"
 #include "GPU_matrix.h"
-#include "KX_Camera.h"
-#include "KX_Scene.h"
-#include "KX_Globals.h"
-#include "EXP_Python.h"
-#include "KX_PyMath.h"
-
-#include "MT_Frustum.h"
-
-#include "RAS_ICanvas.h"
-
-#include "GPU_glew.h"
-extern "C" {
 #include "GPU_viewport.h"
-}
+
+#include "EXP_Python.h"
+#include "KX_Globals.h"
+#include "KX_PyMath.h"
+#include "KX_Scene.h"
+#include "MT_Frustum.h"
+#include "RAS_ICanvas.h"
 
 KX_Camera::KX_Camera(void *sgReplicationInfo,
                      SG_Callbacks callbacks,

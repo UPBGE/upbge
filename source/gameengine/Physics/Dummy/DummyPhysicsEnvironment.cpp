@@ -29,9 +29,10 @@
  *  \ingroup physdummy
  */
 
+#include "DummyPhysicsEnvironment.h"
+
 #include <stddef.h>
 
-#include "DummyPhysicsEnvironment.h"
 #include "PHY_IMotionState.h"
 
 DummyPhysicsEnvironment::DummyPhysicsEnvironment()

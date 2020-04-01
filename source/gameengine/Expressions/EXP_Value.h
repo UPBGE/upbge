@@ -25,9 +25,9 @@
 
 #include "CM_RefCount.h"
 
-#include <map>  // Array functionality for the property list.
-#include <vector>
+#include <map>     // Array functionality for the property list.
 #include <string>  // std::string class.
+#include <vector>
 
 #ifndef GEN_NO_TRACE
 #  undef trace

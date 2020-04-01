@@ -31,25 +31,25 @@
  *  \ingroup bke
  */
 
+#include <float.h>
 #include <stdio.h>
 #include <string.h>
-#include <float.h>
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_actuator_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_controller_types.h"
-#include "DNA_sensor_types.h"
-#include "DNA_actuator_types.h"
 #include "DNA_object_types.h"
+#include "DNA_sensor_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_math.h"
 
 #include "BKE_global.h"
-#include "BKE_main.h"
 #include "BKE_lib_query.h"
+#include "BKE_main.h"
 #include "BKE_sca.h"
 
 /* ******************* SENSORS ************************ */

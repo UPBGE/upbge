@@ -35,99 +35,80 @@
 #endif
 
 #include "KX_Scene.h"
-#include "KX_Globals.h"
-#include "BLI_utildefines.h"
-#include "KX_KetsjiEngine.h"
-#include "KX_BlenderMaterial.h"
-#include "KX_FontObject.h"
-#include "RAS_IPolygonMaterial.h"
-#include "EXP_ListValue.h"
-#include "SCA_LogicManager.h"
-#include "SCA_TimeEventManager.h"
-#include "SCA_2DFilterActuator.h"
-#include "SCA_PythonController.h"
-#include "KX_CollisionEventManager.h"
-#include "SCA_KeyboardManager.h"
-#include "SCA_MouseManager.h"
-#include "SCA_ActuatorEventManager.h"
-#include "SCA_BasicEventManager.h"
-#include "KX_Camera.h"
-#include "SCA_JoystickManager.h"
-#include "KX_PyMath.h"
-#include "RAS_MeshObject.h"
-#include "SCA_IScene.h"
-#include "KX_LodManager.h"
 
-#include "RAS_Rasterizer.h"
-#include "RAS_ICanvas.h"
-#include "RAS_2DFilterData.h"
-#include "RAS_2DFilter.h"
-#include "KX_2DFilterManager.h"
-#include "RAS_BucketManager.h"
-
-#include "GPU_framebuffer.h"
-
-#include "EXP_FloatValue.h"
-#include "SCA_IController.h"
-#include "SCA_IActuator.h"
-#include "SG_Node.h"
-#include "SG_Controller.h"
-#include "SG_Node.h"
-#include "DNA_scene_types.h"
-#include "DNA_property_types.h"
-#include "DNA_lightprobe_types.h"
-
-#include "GPU_texture.h"
-
-#include "KX_SG_NodeRelationships.h"
-
-#include "KX_NetworkMessageScene.h"
-#include "PHY_IPhysicsEnvironment.h"
-#include "PHY_IPhysicsController.h"
-#include "KX_BlenderConverter.h"
-#include "KX_MotionState.h"
-#include "KX_ObstacleSimulation.h"
-
-#include "KX_BlenderCanvas.h"
-
-#ifdef WITH_PYTHON
-#  include "EXP_PythonCallBack.h"
-#endif
-
-#include "KX_Light.h"
-
-#include "BLI_math.h"
-#include "BLI_task.h"
-
-#include "CM_Message.h"
-
-/**************************EEVEE INTEGRATION*****************************/
-#include "MEM_guardedalloc.h"
-
-extern "C" {
 #include "BKE_camera.h"
 #include "BKE_collection.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
-#include "depsgraph/DEG_depsgraph_query.h"
-#include "ED_view3d.h"
+#include "BLI_math.h"
+#include "BLI_task.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_property_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DRW_render.h"
-#include "GPU_matrix.h"
-#include "WM_api.h"
-
-// TEST USE_VIEWPORT_RENDER
 #include "ED_screen.h"
+#include "ED_view3d.h"
+#include "GPU_framebuffer.h"
+#include "GPU_matrix.h"
+#include "GPU_texture.h"
 #include "GPU_viewport.h"
+#include "MEM_guardedalloc.h"
+#include "WM_api.h"
+#include "depsgraph/DEG_depsgraph_query.h"
 #include "windowmanager/wm_draw.h"
-// END OF TEST USE VIEWPORT RENDER
-}
 
+#include "BLI_utildefines.h"
+#include "CM_Message.h"
+#include "EXP_FloatValue.h"
+#include "EXP_ListValue.h"
+#include "KX_2DFilterManager.h"
+#include "KX_BlenderCanvas.h"
+#include "KX_BlenderConverter.h"
+#include "KX_BlenderMaterial.h"
+#include "KX_Camera.h"
+#include "KX_CollisionEventManager.h"
+#include "KX_FontObject.h"
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
+#include "KX_Light.h"
+#include "KX_LodManager.h"
+#include "KX_MotionState.h"
+#include "KX_NetworkMessageScene.h"
+#include "KX_ObstacleSimulation.h"
+#include "KX_PyMath.h"
+#include "KX_SG_NodeRelationships.h"
+#include "PHY_IPhysicsController.h"
+#include "PHY_IPhysicsEnvironment.h"
+#include "RAS_2DFilter.h"
+#include "RAS_2DFilterData.h"
+#include "RAS_BucketManager.h"
 #include "RAS_FrameBuffer.h"
-/*********************END OF EEVEE INTEGRATION***************************/
+#include "RAS_ICanvas.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_MeshObject.h"
+#include "RAS_Rasterizer.h"
+#include "SCA_2DFilterActuator.h"
+#include "SCA_ActuatorEventManager.h"
+#include "SCA_BasicEventManager.h"
+#include "SCA_IActuator.h"
+#include "SCA_IController.h"
+#include "SCA_IScene.h"
+#include "SCA_JoystickManager.h"
+#include "SCA_KeyboardManager.h"
+#include "SCA_LogicManager.h"
+#include "SCA_MouseManager.h"
+#include "SCA_PythonController.h"
+#include "SCA_TimeEventManager.h"
+#include "SG_Controller.h"
+#include "SG_Node.h"
+
+#ifdef WITH_PYTHON
+#  include "EXP_PythonCallBack.h"
+#endif
 
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
@@ -279,8 +260,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    */
   InitBlenderContextVariables();
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-       canvas->IsBlenderPlayer()) {
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
@@ -319,8 +299,7 @@ KX_Scene::~KX_Scene()
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-       canvas->IsBlenderPlayer()) {
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
     if (m_shadingTypeBackup != 0) {
       View3D *v3d = CTX_wm_view3d(KX_GetActiveEngine()->GetContext());
       v3d->shading.type = m_shadingTypeBackup;
@@ -479,7 +458,8 @@ void KX_Scene::InitBlenderContextVariables()
               win->scene = scene;
 
               /* Only if we are not in viewport render, modify + backup shading types */
-              if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || KX_GetActiveEngine()->GetCanvas()->IsBlenderPlayer()) {
+              if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
+                  KX_GetActiveEngine()->GetCanvas()->IsBlenderPlayer()) {
 
                 View3D *v3d = CTX_wm_view3d(C);
 
@@ -547,9 +527,7 @@ void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collecti
       replica->GetBlenderObject()->gameflag |= OB_OVERLAY_COLLECTION;
       bContext *C = KX_GetActiveEngine()->GetContext();
       Main *bmain = CTX_data_main(C);
-      BKE_collection_object_add(bmain,
-                                collection,
-                                replica->GetBlenderObject());
+      BKE_collection_object_add(bmain, collection, replica->GetBlenderObject());
       // release here because AddReplicaObject AddRef's
       // the object is added to the scene so we don't want python to own a reference
       replica->Release();
@@ -577,10 +555,7 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
         if (gameobj->IsReplica()) {
           bContext *C = KX_GetActiveEngine()->GetContext();
           Main *bmain = CTX_data_main(C);
-          BKE_collection_object_remove(bmain,
-                                       collection,
-                                       gameobj->GetBlenderObject(),
-                                       false);
+          BKE_collection_object_remove(bmain, collection, gameobj->GetBlenderObject(), false);
           DelayedRemoveObject(gameobj);
         }
       }

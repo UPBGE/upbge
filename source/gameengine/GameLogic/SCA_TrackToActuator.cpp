@@ -35,16 +35,17 @@
  * m_upflag for the up direction
  * normal situation is +y for forward, +z for up */
 
-#include "MT_Scalar.h"
-#include "SCA_IActuator.h"
 #include "SCA_TrackToActuator.h"
-#include "SCA_IScene.h"
-#include "SCA_LogicManager.h"
-#include <math.h>
+
 #include <iostream>
-#include "KX_GameObject.h"
+#include <math.h>
 
 #include "EXP_PyObjectPlus.h"
+#include "KX_GameObject.h"
+#include "MT_Scalar.h"
+#include "SCA_IActuator.h"
+#include "SCA_IScene.h"
+#include "SCA_LogicManager.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

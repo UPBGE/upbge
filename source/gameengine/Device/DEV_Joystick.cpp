@@ -29,17 +29,17 @@
  *  \ingroup device
  */
 
+#include "DEV_Joystick.h"
+
 #ifdef WITH_SDL
 #  include <SDL.h>
 #endif
 
 #include <cmath>
 
-#include "DEV_Joystick.h"
-#include "DEV_JoystickPrivate.h"
-#include "DEV_JoystickMappingdb.h"
-
 #include "CM_Message.h"
+#include "DEV_JoystickMappingdb.h"
+#include "DEV_JoystickPrivate.h"
 
 #ifdef WITH_SDL
 #  define SDL_CHECK(x) ((x) != (void *)0)

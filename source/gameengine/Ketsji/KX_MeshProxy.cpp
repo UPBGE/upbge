@@ -32,24 +32,19 @@
 #ifdef WITH_PYTHON
 
 #  include "KX_MeshProxy.h"
-#  include "KX_Scene.h"
-#  include "RAS_IPolygonMaterial.h"
-#  include "RAS_DisplayArray.h"
-#  include "RAS_MeshObject.h"
-#  include "RAS_BucketManager.h"
-#  include "SCA_LogicManager.h"
 
-#  include "KX_VertexProxy.h"
-#  include "KX_PolyProxy.h"
-
-#  include "KX_BlenderMaterial.h"
-
-#  include "KX_PyMath.h"
-
-#  include "SCA_LogicManager.h"
-
-#  include "EXP_PyObjectPlus.h"
 #  include "EXP_ListWrapper.h"
+#  include "EXP_PyObjectPlus.h"
+#  include "KX_BlenderMaterial.h"
+#  include "KX_PolyProxy.h"
+#  include "KX_PyMath.h"
+#  include "KX_Scene.h"
+#  include "KX_VertexProxy.h"
+#  include "RAS_BucketManager.h"
+#  include "RAS_DisplayArray.h"
+#  include "RAS_IPolygonMaterial.h"
+#  include "RAS_MeshObject.h"
+#  include "SCA_LogicManager.h"
 
 PyTypeObject KX_MeshProxy::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_MeshProxy",
                                    sizeof(PyObjectPlus_Proxy),

@@ -37,7 +37,13 @@
 
 #include "BLI_utildefines.h"
 
+#include "KX_Scene.h"
+
+class KX_Camera;
+class KX_KetsjiEngine;
 class KX_RayCast;
+
+struct KX_ClientObjectInfo;
 
 /**
  * The mouse focus sensor extends the basic SCA_MouseSensor. It has

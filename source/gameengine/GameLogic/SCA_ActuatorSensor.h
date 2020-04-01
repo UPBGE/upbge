@@ -32,8 +32,8 @@
  *  \ingroup gamelogic
  */
 
-#include "SCA_ISensor.h"
 #include "SCA_IActuator.h"
+#include "SCA_ISensor.h"
 
 class SCA_ActuatorSensor : public SCA_ISensor {
   Py_Header std::string m_checkactname;

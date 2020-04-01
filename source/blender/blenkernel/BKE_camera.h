@@ -28,6 +28,8 @@
 extern "C" {
 #endif
 
+#include "BLI_rect.h"
+
 struct Camera;
 struct Depsgraph;
 struct Main;
@@ -36,7 +38,6 @@ struct RegionView3D;
 struct RenderData;
 struct Scene;
 struct View3D;
-struct rctf;
 
 /* Camera Datablock */
 

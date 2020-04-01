@@ -31,6 +31,7 @@
  */
 
 #include "SCA_StateActuator.h"
+
 #include "KX_GameObject.h"
 
 SCA_StateActuator::SCA_StateActuator(SCA_IObject *gameobj, int operation, unsigned int mask)

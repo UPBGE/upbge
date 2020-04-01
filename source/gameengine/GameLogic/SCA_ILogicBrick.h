@@ -32,9 +32,9 @@
 #ifndef __SCA_ILOGICBRICK_H__
 #define __SCA_ILOGICBRICK_H__
 
+#include "EXP_BoolValue.h"
 #include "EXP_Value.h"
 #include "SCA_IObject.h"
-#include "EXP_BoolValue.h"
 
 class KX_NetworkMessageScene;
 class SCA_IScene;

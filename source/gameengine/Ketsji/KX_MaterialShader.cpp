@@ -1,4 +1,5 @@
 #include "KX_MaterialShader.h"
+
 #include "BL_Shader.h"
 
 KX_MaterialShader::KX_MaterialShader() : m_shader(new BL_Shader())

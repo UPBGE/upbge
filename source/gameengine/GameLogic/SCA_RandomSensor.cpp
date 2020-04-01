@@ -32,13 +32,14 @@
  *  \ingroup gamelogic
  */
 
+#include "SCA_RandomSensor.h"
+
+#include <iostream>
 #include <stddef.h>
 
-#include "SCA_RandomSensor.h"
+#include "EXP_ConstExpr.h"
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"
-#include "EXP_ConstExpr.h"
-#include <iostream>
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

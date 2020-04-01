@@ -25,8 +25,8 @@
 #ifndef __BL_TEXTURE_H__
 #define __BL_TEXTURE_H__
 
-#include "RAS_Texture.h"
 #include "EXP_Value.h"
+#include "RAS_Texture.h"
 
 struct GPUMaterialTexture;
 

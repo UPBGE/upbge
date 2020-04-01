@@ -25,11 +25,11 @@
  */
 
 #include "CM_Message.h"
-#include "SCA_ILogicBrick.h"
 
 #include "BLI_path_util.h"
-
 #include "termcolor.hpp"
+
+#include "SCA_ILogicBrick.h"
 
 #ifdef WITH_PYTHON
 

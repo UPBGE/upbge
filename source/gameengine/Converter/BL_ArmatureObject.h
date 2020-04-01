@@ -32,9 +32,9 @@
 #ifndef __BL_ARMATUREOBJECT_H__
 #define __BL_ARMATUREOBJECT_H__
 
-#include "KX_GameObject.h"
-#include "BL_ArmatureConstraint.h"
 #include "BL_ArmatureChannel.h"
+#include "BL_ArmatureConstraint.h"
+#include "KX_GameObject.h"
 
 struct bArmature;
 struct Bone;

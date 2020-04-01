@@ -33,9 +33,9 @@
 
 #include "Common.h"
 
-#include "KX_Scene.h"
-#include "KX_Camera.h"
 #include "DNA_screen_types.h"
+#include "KX_Camera.h"
+#include "KX_Scene.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
 

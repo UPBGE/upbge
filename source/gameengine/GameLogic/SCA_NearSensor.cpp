@@ -33,13 +33,14 @@
  */
 
 #include "SCA_NearSensor.h"
-#include "SCA_LogicManager.h"
-#include "KX_GameObject.h"
+
 #include "KX_CollisionEventManager.h"
+#include "KX_GameObject.h"
 #include "KX_Scene.h"  // needed to create a replica
-#include "PHY_IPhysicsEnvironment.h"
-#include "PHY_IPhysicsController.h"
 #include "PHY_IMotionState.h"
+#include "PHY_IPhysicsController.h"
+#include "PHY_IPhysicsEnvironment.h"
+#include "SCA_LogicManager.h"
 
 SCA_NearSensor::SCA_NearSensor(SCA_EventManager *eventmgr,
                                KX_GameObject *gameobj,

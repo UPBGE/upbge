@@ -23,6 +23,10 @@
 #ifndef __BPY_INTERNAL_IMPORT_H__
 #define __BPY_INTERNAL_IMPORT_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* python redefines :/ */
 #ifdef _POSIX_C_SOURCE
 #  undef _POSIX_C_SOURCE
@@ -51,5 +55,9 @@ void bpy_import_main_set(struct Main *maggie);
 /* This is used for importing text from dynamically loaded libraries in the game engine */
 void bpy_import_main_extra_add(struct Main *maggie);
 void bpy_import_main_extra_remove(struct Main *maggie);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BPY_INTERNAL_IMPORT_H__ */

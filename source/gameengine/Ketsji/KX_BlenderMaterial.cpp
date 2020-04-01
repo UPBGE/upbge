@@ -23,27 +23,22 @@
  */
 
 #include "KX_BlenderMaterial.h"
+
+#include "../gpu/intern/gpu_codegen.h"
+#include "DNA_material_types.h"
+#include "GPU_material.h"
+#include "eevee_private.h"
+
+#include "BL_Shader.h"
+#include "EXP_ListWrapper.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
-#include "KX_Scene.h"
-#include "KX_PyMath.h"
-
 #include "KX_MaterialShader.h"
-#include "BL_Shader.h"
-
-#include "EXP_ListWrapper.h"
-
+#include "KX_PyMath.h"
+#include "KX_Scene.h"
 #include "RAS_BucketManager.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
-
-#include "eevee_private.h"
-
-extern "C" {
-#include "DNA_material_types.h"
-#include "GPU_material.h"
-#include "../gpu/intern/gpu_codegen.h"
-}
 
 KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
                                        KX_Scene *scene,
@@ -64,7 +59,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
 
   if (m_material->use_nodes && m_material->nodetree) {
     RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-    if ((m_scene->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
+    if ((m_scene->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
+        canvas->IsBlenderPlayer()) {
       EEVEE_Data *vedata = EEVEE_engine_data_get();
       EEVEE_EffectsInfo *effects = vedata->stl->effects;
       const bool use_ssrefract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) &&

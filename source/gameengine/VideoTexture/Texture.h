@@ -35,8 +35,8 @@
 
 #include "DNA_image_types.h"
 
-#include "ImageBase.h"
 #include "Exception.h"
+#include "ImageBase.h"
 
 struct ImBuf;
 class RAS_Texture;

@@ -30,6 +30,7 @@
  */
 
 #include "KX_BlenderSceneConverter.h"
+
 #include "KX_GameObject.h"
 
 void KX_BlenderSceneConverter::RegisterGameObject(KX_GameObject *gameobject,

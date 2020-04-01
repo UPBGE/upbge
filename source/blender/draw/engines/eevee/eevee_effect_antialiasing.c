@@ -125,7 +125,6 @@ int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata)
   DrawEngineType *owner = (DrawEngineType *)&EEVEE_antialiasing_engine_init;
   g_data->view = NULL;
 
-  
   eevee_taa_jitter_init();
 
   DRW_texture_ensure_fullscreen_2d(&txl->history_buffer_tx, GPU_RGBA16F, DRW_TEX_FILTER);
@@ -313,7 +312,7 @@ void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata)
     return;
   }
 
-  //eevee_antialiasing_setup(vedata);
+  // eevee_antialiasing_setup(vedata);
 
   /**
    * We always do SMAA on top of TAA accumulation, unless the number of samples of TAA is already
@@ -323,14 +322,14 @@ void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata)
   if (vedata->stl->effects->taa_current_sample < SMAA_THRESHOLD) {
     /* In playback mode, we are sure the next redraw will not use the same viewmatrix.
      * In this case no need to save the depth buffer. */
-    eGPUFrameBufferBits bits = vedata->stl->effects->taa_current_sample == 1 ? GPU_COLOR_BIT :
-                                                                               GPU_COLOR_BIT | GPU_DEPTH_BIT;
+    eGPUFrameBufferBits bits = vedata->stl->effects->taa_current_sample == 1 ?
+                                   GPU_COLOR_BIT :
+                                   GPU_COLOR_BIT | GPU_DEPTH_BIT;
     GPU_framebuffer_blit(dfbl->default_fb, 0, fbl->antialiasing_fb, 0, bits);
 
     /* After a certain point SMAA is no longer necessary. */
-    g_data->smaa_mix_factor = 1.0f - clamp_f(vedata->stl->effects->taa_current_sample / 4.0f,
-                                             0.0f,
-                                             1.0f);
+    g_data->smaa_mix_factor = 1.0f -
+                              clamp_f(vedata->stl->effects->taa_current_sample / 4.0f, 0.0f, 1.0f);
     g_data->taa_sample_inv = 1.0f /
                              clamp_f((vedata->stl->effects->taa_current_sample + 1), 0.0f, 1.0f);
 

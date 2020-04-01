@@ -30,8 +30,9 @@
  */
 
 #include "KX_ObColorIpoSGController.h"
-#include "KX_ScalarInterpolator.h"
+
 #include "KX_GameObject.h"
+#include "KX_ScalarInterpolator.h"
 
 #if defined(_WIN64)
 typedef unsigned __int64 uint_ptr;

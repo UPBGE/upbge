@@ -33,8 +33,8 @@
 
 #include "Common.h"
 
-#include "ImageBase.h"
 #include "GPU_glew.h"
+#include "ImageBase.h"
 
 /// class for viewport access
 class ImageViewport : public ImageBase {

@@ -801,7 +801,7 @@ void WM_script_tag_reload(void)
 void WM_init_opengl_blenderplayer(Main *bmain, void *syshandle)
 {
   /* must be called only once */
-  //BLI_assert(opengl_is_init == false);
+  // BLI_assert(opengl_is_init == false);
   /* Ghost is still not init elsewhere in background mode. */
   ////////// wm_ghost_init(NULL);
   /* Needs to be first to have an ogl context bound. */

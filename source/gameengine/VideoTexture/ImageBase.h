@@ -33,8 +33,8 @@
 
 #include "Common.h"
 
-#include <vector>
 #include "EXP_PyObjectPlus.h"
+#include <vector>
 
 #include "PyTypeList.h"
 

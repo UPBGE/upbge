@@ -25,6 +25,7 @@
  */
 
 #include "SCA_PythonJoystick.h"
+
 #include "DEV_Joystick.h"
 #include "SCA_IInputDevice.h"
 

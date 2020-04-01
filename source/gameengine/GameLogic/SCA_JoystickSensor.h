@@ -32,8 +32,8 @@
 #ifndef __JOYSENSOR_H__
 #define __JOYSENSOR_H__
 
-#include "SCA_ISensor.h"
 #include "DEV_JoystickDefines.h"
+#include "SCA_ISensor.h"
 
 class SCA_JoystickSensor : public SCA_ISensor {
   Py_Header

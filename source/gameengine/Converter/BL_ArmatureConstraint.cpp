@@ -34,15 +34,15 @@
 #include "BL_ArmatureObject.h"
 #include "KX_Globals.h"
 
-#include "DNA_constraint_types.h"
-#include "DNA_action_types.h"
-#include "BKE_context.h"
-#include "BKE_object.h"
 #include "BKE_constraint.h"
+#include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_lib_id.h"
+#include "BKE_object.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
+#include "DNA_action_types.h"
+#include "DNA_constraint_types.h"
 
 #ifdef WITH_PYTHON
 
@@ -146,7 +146,8 @@ void BL_ArmatureConstraint::CopyBlenderTargets()
   // Create the fake blender object target.
   bContext *C = KX_GetActiveEngine()->GetContext();
   if (m_target) {
-    m_blendtarget = BKE_object_add_only_object(CTX_data_main(C), OB_EMPTY, m_target->GetName().c_str());
+    m_blendtarget = BKE_object_add_only_object(
+        CTX_data_main(C), OB_EMPTY, m_target->GetName().c_str());
   }
   if (m_subtarget) {
     m_blendsubtarget = BKE_object_add_only_object(

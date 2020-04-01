@@ -38,11 +38,12 @@
 #  pragma warning(disable : 4786)
 #endif
 
+#include "SCA_DelaySensor.h"
+
 #include <stddef.h>
 
-#include "SCA_DelaySensor.h"
-#include "SCA_LogicManager.h"
 #include "SCA_EventManager.h"
+#include "SCA_LogicManager.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

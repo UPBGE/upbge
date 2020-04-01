@@ -21,6 +21,10 @@
 #ifndef __IDPROP_PY_API_H__
 #define __IDPROP_PY_API_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct BPy_IDGroup_Iter;
 struct ID;
 struct IDProperty;
@@ -68,5 +72,9 @@ PyObject *BPyInit_idprop(void);
 
 #define IDPROP_ITER_KEYS 0
 #define IDPROP_ITER_ITEMS 1
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __IDPROP_PY_API_H__ */

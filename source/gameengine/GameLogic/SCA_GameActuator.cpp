@@ -32,15 +32,14 @@
  *  \ingroup ketsji
  */
 
-#include "SCA_IActuator.h"
 #include "SCA_GameActuator.h"
-//#include <iostream>
-#include "KX_Scene.h"
-#include "KX_KetsjiEngine.h"
-#include "KX_PythonInit.h" /* for config load/saving */
-#include "RAS_ICanvas.h"
 
 #include "CM_Message.h"
+#include "KX_KetsjiEngine.h"
+#include "KX_PythonInit.h" /* for config load/saving */
+#include "KX_Scene.h"
+#include "RAS_ICanvas.h"
+#include "SCA_IActuator.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
