@@ -247,7 +247,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, SCA_AddObjectActuator, init_getset);
     PyType_Ready_Attr(dict, SCA_DynamicActuator, init_getset);
     PyType_Ready_Attr(dict, SCA_EndObjectActuator, init_getset);
-    PyType_Ready_Attr(dict, KX_SCA_ReplaceMeshActuator, init_getset);
+    PyType_Ready_Attr(dict, SCA_ReplaceMeshActuator, init_getset);
     PyType_Ready_Attr(dict, KX_Scene, init_getset);
     PyType_Ready_Attr(dict, KX_NavMeshObject, init_getset);
     PyType_Ready_Attr(dict, SCA_SceneActuator, init_getset);

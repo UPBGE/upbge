@@ -441,7 +441,7 @@ void BL_ConvertActuators(const char *maggiename,
                          << "\".");
             }
 
-            KX_SCA_ReplaceMeshActuator *tmpreplaceact = new KX_SCA_ReplaceMeshActuator(
+            SCA_ReplaceMeshActuator *tmpreplaceact = new SCA_ReplaceMeshActuator(
                 gameobj,
                 tmpmesh,
                 scene,
