@@ -82,7 +82,7 @@ set(SRC
 	KX_2DFilter.cpp
 	KX_2DFilterManager.cpp
 	KX_2DFilterFrameBuffer.cpp
-        KX_BlenderCanvas.cpp
+	KX_BlenderCanvas.cpp
 	KX_BlenderMaterial.cpp
 	KX_Camera.cpp
 	KX_CameraIpoSGController.cpp
@@ -111,12 +111,11 @@ set(SRC
 	KX_PositionInterpolator.cpp
 	KX_PyConstraintBinding.cpp
 	KX_PyMath.cpp
-        KX_PythonComponent.cpp
+	KX_PythonComponent.cpp
 	KX_PythonInit.cpp
 	KX_PythonInitTypes.cpp
 	KX_PythonMain.cpp
 	KX_RayCast.cpp
-	KX_SCA_ReplaceMeshActuator.cpp
 	KX_SG_BoneParentNodeRelationship.cpp
 	KX_SG_NodeRelationships.cpp
 	KX_ScalarInterpolator.cpp
@@ -135,7 +134,7 @@ set(SRC
 	KX_2DFilter.h
 	KX_2DFilterManager.h
 	KX_2DFilterFrameBuffer.h
-        KX_BlenderCanvas.h
+	KX_BlenderCanvas.h
 	KX_BlenderMaterial.h
 	KX_Camera.h
 	KX_CameraIpoSGController.h
@@ -169,12 +168,11 @@ set(SRC
 	KX_PositionInterpolator.h
 	KX_PyConstraintBinding.h
 	KX_PyMath.h
-        KX_PythonComponent.h
+	KX_PythonComponent.h
 	KX_PythonInit.h
 	KX_PythonInitTypes.h
 	KX_PythonMain.h
 	KX_RayCast.h
-	KX_SCA_ReplaceMeshActuator.h
 	KX_SG_BoneParentNodeRelationship.h
 	KX_SG_NodeRelationships.h
 	KX_ScalarInterpolator.h

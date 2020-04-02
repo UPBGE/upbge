@@ -74,7 +74,6 @@
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_NetworkMessageActuator.h"
-#include "KX_SCA_ReplaceMeshActuator.h"
 #include "KX_Scene.h"
 #include "RAS_2DFilterManager.h"  // for filter type.
 #include "SCA_2DFilterActuator.h"
@@ -91,6 +90,7 @@
 #include "SCA_ParentActuator.h"
 #include "SCA_PropertyActuator.h"
 #include "SCA_RandomActuator.h"
+#include "SCA_ReplaceMeshActuator.h"
 #include "SCA_SceneActuator.h"
 #include "SCA_SoundActuator.h"
 #include "SCA_StateActuator.h"
