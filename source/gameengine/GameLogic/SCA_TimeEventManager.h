@@ -32,9 +32,10 @@
 #ifndef __SCA_TIMEEVENTMANAGER_H__
 #define __SCA_TIMEEVENTMANAGER_H__
 
+#include <vector>
+
 #include "EXP_Value.h"
 #include "SCA_EventManager.h"
-#include <vector>
 
 class SCA_TimeEventManager : public SCA_EventManager {
   std::vector<CValue *> m_timevalues;  // values that need their time updated regularly

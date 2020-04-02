@@ -31,11 +31,10 @@
 #ifndef __PYTYPELIST_H__
 #define __PYTYPELIST_H__
 
-#include "Common.h"
-
 #include <memory>
 #include <vector>
 
+#include "Common.h"
 #include "EXP_PyObjectPlus.h"
 
 // forward declaration

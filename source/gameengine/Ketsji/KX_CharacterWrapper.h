@@ -8,6 +8,7 @@
 
 #include "EXP_Value.h"
 #include "PHY_DynamicTypes.h"
+
 class PHY_ICharacter;
 
 /// Python interface to character physics

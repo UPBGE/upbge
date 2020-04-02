@@ -27,8 +27,9 @@
 #ifndef __RAS_2DFILTERMANAGER_H__
 #define __RAS_2DFILTERMANAGER_H__
 
-#include "RAS_2DFilterData.h"
 #include <map>
+
+#include "RAS_2DFilterData.h"
 
 class RAS_ICanvas;
 class RAS_Rasterizer;

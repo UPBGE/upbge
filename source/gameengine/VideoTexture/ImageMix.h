@@ -32,7 +32,6 @@
 #define __IMAGEMIX_H__
 
 #include "Common.h"
-
 #include "FilterBase.h"
 #include "ImageBase.h"
 

@@ -32,10 +32,10 @@
 #ifndef __KX_BLENDERSCENECONVERTER_H__
 #define __KX_BLENDERSCENECONVERTER_H__
 
-#include "CM_Message.h"
-
 #include <map>
 #include <vector>
+
+#include "CM_Message.h"
 
 class SCA_IActuator;
 class SCA_IController;

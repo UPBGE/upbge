@@ -42,6 +42,7 @@
 #endif
 
 #ifdef WITH_PYTHON
+
 #  include "Python.h"
 
 #  define USE_MATHUTILS  // Blender 2.5x api will use mathutils, for a while we might want to test

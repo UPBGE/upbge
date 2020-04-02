@@ -34,6 +34,7 @@
 #define __KX_NETWORKMESSAGEACTUATOR_H__
 
 #include "SCA_IActuator.h"
+
 #include <string>
 
 class KX_NetworkMessageActuator : public SCA_IActuator {

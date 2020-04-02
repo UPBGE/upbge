@@ -37,11 +37,11 @@
 
 #include <list>
 #include <map>
+#include <string>
 #include <vector>
 
 #include "EXP_Value.h"
 #include "SG_QList.h"
-#include <string>
 
 typedef std::list<class SCA_IController *> controllerlist;
 typedef std::map<class SCA_ISensor *, controllerlist> sensormap_t;

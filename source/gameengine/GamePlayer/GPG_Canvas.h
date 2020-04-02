@@ -36,10 +36,10 @@
 #  pragma warning(disable : 4786)
 #endif  // WIN32
 
+#include "GHOST_IWindow.h"
+
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
-
-#include "GHOST_IWindow.h"
 
 class RAS_Rasterizer;
 struct ARegion;

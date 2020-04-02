@@ -32,12 +32,12 @@
 #ifndef __SCA_ConstraintActuator_H__
 #define __SCA_ConstraintActuator_H__
 
+#include "BLI_utildefines.h"
+
 #include "KX_ClientObjectInfo.h"
 #include "MT_Scalar.h"
 #include "MT_Vector3.h"
 #include "SCA_IActuator.h"
-
-#include "BLI_utildefines.h"
 
 class KX_RayCast;
 class KX_GameObject;

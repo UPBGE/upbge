@@ -35,11 +35,10 @@
 #ifndef __SCA_REPLACEMESHACTUATOR_H__
 #define __SCA_REPLACEMESHACTUATOR_H__
 
+#include "RAS_MeshObject.h"
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
 #include "SCA_PropertyActuator.h"
-
-#include "RAS_MeshObject.h"
 
 class KX_Scene;
 class KX_GameObject;

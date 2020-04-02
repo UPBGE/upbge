@@ -33,9 +33,10 @@
 #ifndef __SCA_KEYBOARDSENSOR_H__
 #define __SCA_KEYBOARDSENSOR_H__
 
+#include <list>
+
 #include "EXP_BoolValue.h"
 #include "SCA_ISensor.h"
-#include <list>
 
 /**
  * The keyboard sensor listens to the keyboard, and passes on events

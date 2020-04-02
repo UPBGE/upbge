@@ -7,12 +7,10 @@
 #define __KX_BLENDERMATERIAL_H__
 
 #include "BL_Texture.h"
-#include "RAS_IPolygonMaterial.h"
-
 #include "EXP_Value.h"
-
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
+#include "RAS_IPolygonMaterial.h"
 
 class SCA_IScene;
 class KX_Scene;

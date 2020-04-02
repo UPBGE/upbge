@@ -27,9 +27,10 @@
 #ifndef __KX_GLOBALS_H__
 #define __KX_GLOBALS_H__
 
+#include <string>
+
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
-#include <string>
 
 class KX_KetsjiEngine;
 class KX_Scene;

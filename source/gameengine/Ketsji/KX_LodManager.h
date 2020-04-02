@@ -27,8 +27,9 @@
 #ifndef __KX_LOD_MANAGER_H__
 #define __KX_LOD_MANAGER_H__
 
-#include "EXP_Value.h"
 #include <vector>
+
+#include "EXP_Value.h"
 
 class KX_Scene;
 class RAS_Rasterizer;

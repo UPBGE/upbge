@@ -32,7 +32,6 @@
 #define __IMAGEBUFF_H__
 
 #include "Common.h"
-
 #include "ImageBase.h"
 
 struct ImBuf;

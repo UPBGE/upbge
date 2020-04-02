@@ -33,9 +33,8 @@
 #ifndef __SCA_GameActuator_H__
 #define __SCA_GameActuator_H__
 
+#include "KX_Scene.h" /* Replace_IScene only */
 #include "SCA_IActuator.h"
-
-#include "KX_Scene.h"   /* Replace_IScene only */
 #include "SCA_IScene.h" /* Replace_IScene only */
 
 class SCA_GameActuator : public SCA_IActuator {

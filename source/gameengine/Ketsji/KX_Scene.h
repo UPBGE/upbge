@@ -32,22 +32,19 @@
 #ifndef __KX_SCENE_H__
 #define __KX_SCENE_H__
 
-#include "KX_PhysicsEngineEnums.h"
-
 #include <list>
 #include <set>
 #include <vector>
 
+#include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
+#include "KX_PhysicsEngineEnums.h"
 #include "MT_Transform.h"
+#include "RAS_FramingManager.h"
+#include "RAS_Rect.h"
 #include "SCA_IScene.h"
 #include "SG_Frustum.h"
 #include "SG_Node.h"
-
-#include "RAS_FramingManager.h"
-#include "RAS_Rect.h"
-
-#include "EXP_PyObjectPlus.h"
-#include "EXP_Value.h"
 
 /**
  * \section Forward declarations

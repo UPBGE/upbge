@@ -32,13 +32,12 @@
 #ifndef __RAS_IPOLYGONMATERIAL_H__
 #define __RAS_IPOLYGONMATERIAL_H__
 
-#include "RAS_MeshObject.h"
-#include "RAS_Texture.h"
-
-#include "MT_Vector4.h"
-
 #include <map>
 #include <string>
+
+#include "MT_Vector4.h"
+#include "RAS_MeshObject.h"
+#include "RAS_Texture.h"
 
 class RAS_Rasterizer;
 class RAS_MaterialShader;

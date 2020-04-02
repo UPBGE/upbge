@@ -32,10 +32,9 @@
 #ifndef __KX_CAMERAIPOSGCONTROLLER_H__
 #define __KX_CAMERAIPOSGCONTROLLER_H__
 
+#include "KX_IInterpolator.h"
 #include "SG_Controller.h"
 #include "SG_Node.h"
-
-#include "KX_IInterpolator.h"
 
 struct RAS_CameraData;
 

@@ -32,7 +32,6 @@
 #define __FILTERCOLOR_H__
 
 #include "Common.h"
-
 #include "FilterBase.h"
 
 /// pixel filter for grayscale

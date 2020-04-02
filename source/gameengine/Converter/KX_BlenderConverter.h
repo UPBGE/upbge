@@ -35,13 +35,11 @@
 #include <map>
 #include <vector>
 
-#include "KX_BlenderMaterial.h"
-#include "RAS_MeshObject.h"
-
-#include "KX_BlenderScalarInterpolator.h"
-
 #include "CM_Thread.h"
 #include "EXP_ListValue.h"
+#include "KX_BlenderMaterial.h"
+#include "KX_BlenderScalarInterpolator.h"
+#include "RAS_MeshObject.h"
 
 class CStringValue;
 class KX_BlenderSceneConverter;

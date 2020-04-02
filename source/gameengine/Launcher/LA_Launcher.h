@@ -27,14 +27,12 @@
 #ifndef __LA_LAUNCHER_H__
 #define __LA_LAUNCHER_H__
 
+#include <string>
+
 #include "KX_ISystem.h"
 #include "KX_KetsjiEngine.h"
-
 #include "RAS_Rasterizer.h"
-
 #include "SCA_IInputDevice.h"
-
-#include <string>
 
 class KX_Scene;
 class KX_ISystem;

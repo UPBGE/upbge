@@ -24,26 +24,23 @@
 #ifndef __CCDPHYSICSENVIRONMENT_H__
 #define __CCDPHYSICSENVIRONMENT_H__
 
-#include "KX_Globals.h"
-#include "KX_KetsjiEngine.h"
-#include "PHY_IPhysicsEnvironment.h"
-
-#include "CcdPhysicsController.h"
-
 #include <map>
 #include <set>
 #include <vector>
-class CcdGraphicController;
+
+#include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
 #include "LinearMath/btTransform.h"
 #include "LinearMath/btVector3.h"
+
+#include "CcdPhysicsController.h"
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
+#include "PHY_IPhysicsEnvironment.h"
 
 class btTypedConstraint;
 class btSimulationIslandManager;
 class btCollisionDispatcher;
 class btDispatcher;
-
-#include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
-
 class WrapperVehicle;
 class btPersistentManifold;
 class btBroadphaseInterface;
@@ -52,6 +49,7 @@ class btOverlappingPairCache;
 class btIDebugDraw;
 class btDynamicsWorld;
 class PHY_IVehicle;
+class CcdGraphicController;
 class CcdOverlapFilterCallBack;
 class CcdShapeConstructionInfo;
 

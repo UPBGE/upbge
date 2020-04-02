@@ -32,7 +32,6 @@
 #define __FILTERNORMAL_H__
 
 #include "Common.h"
-
 #include "FilterBase.h"
 
 // scale constants for normals

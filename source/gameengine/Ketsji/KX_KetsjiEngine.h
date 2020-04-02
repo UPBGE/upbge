@@ -33,6 +33,9 @@
 #ifndef __KX_KETSJIENGINE_H__
 #define __KX_KETSJIENGINE_H__
 
+#include <string>
+#include <vector>
+
 #include "EXP_Python.h"
 #include "KX_ISystem.h"
 #include "KX_Scene.h"
@@ -40,8 +43,6 @@
 #include "MT_Matrix4x4.h"
 #include "RAS_CameraData.h"
 #include "RAS_Rasterizer.h"
-#include <string>
-#include <vector>
 
 struct TaskScheduler;
 class KX_ISystem;

@@ -32,7 +32,6 @@
 #define __FILTERBLUESCREEN_H__
 
 #include "Common.h"
-
 #include "FilterBase.h"
 
 /// pixel filter for blue screen

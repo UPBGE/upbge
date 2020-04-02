@@ -33,12 +33,12 @@
 #ifndef __SCA_RaySensor_H__
 #define __SCA_RaySensor_H__
 
+#include "BLI_utildefines.h"
+
 #include "KX_Scene.h" /* only for scene replace */
 #include "MT_Vector3.h"
 #include "SCA_IScene.h" /* only for scene replace */
 #include "SCA_ISensor.h"
-
-#include "BLI_utildefines.h"
 
 struct KX_ClientObjectInfo;
 class KX_RayCast;

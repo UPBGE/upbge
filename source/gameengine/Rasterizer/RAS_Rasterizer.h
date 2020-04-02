@@ -36,16 +36,15 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "MT_Matrix4x4.h"
-
-#include "RAS_DebugDraw.h"
-#include "RAS_Rect.h"
-
 #include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "MT_Matrix4x4.h"
+#include "RAS_DebugDraw.h"
+#include "RAS_Rect.h"
 
 class RAS_OpenGLRasterizer;
 class RAS_FrameBuffer;

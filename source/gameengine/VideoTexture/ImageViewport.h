@@ -31,9 +31,9 @@
 #ifndef __IMAGEVIEWPORT_H__
 #define __IMAGEVIEWPORT_H__
 
-#include "Common.h"
-
 #include "GPU_glew.h"
+
+#include "Common.h"
 #include "ImageBase.h"
 
 /// class for viewport access

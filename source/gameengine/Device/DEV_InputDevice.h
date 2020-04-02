@@ -27,9 +27,9 @@
 #ifndef __DEV_INPUTDEVICE_H__
 #define __DEV_INPUTDEVICE_H__
 
-#include "SCA_IInputDevice.h"
-
 #include <map>
+
+#include "SCA_IInputDevice.h"
 
 class DEV_InputDevice : public SCA_IInputDevice {
  protected:

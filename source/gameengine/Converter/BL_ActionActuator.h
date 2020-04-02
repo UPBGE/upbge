@@ -33,6 +33,7 @@
 #define __BL_ACTIONACTUATOR_H__
 
 #include "DNA_actuator_types.h"
+
 #include "MT_Vector3.h"
 #include "SCA_IActuator.h"
 

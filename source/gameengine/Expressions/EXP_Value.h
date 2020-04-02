@@ -23,11 +23,11 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "CM_RefCount.h"
-
 #include <map>     // Array functionality for the property list.
 #include <string>  // std::string class.
 #include <vector>
+
+#include "CM_RefCount.h"
 
 #ifndef GEN_NO_TRACE
 #  undef trace

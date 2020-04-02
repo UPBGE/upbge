@@ -1,9 +1,9 @@
 #ifndef __SG_FRUSTUM_H__
 #define __SG_FRUSTUM_H__
 
-#include "MT_Matrix4x4.h"
-
 #include <array>
+
+#include "MT_Matrix4x4.h"
 
 /// \brief Camera frustum data.
 class SG_Frustum {

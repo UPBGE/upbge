@@ -31,10 +31,9 @@
 #ifndef __TEXTURE_H__
 #define __TEXTURE_H__
 
-#include "EXP_Value.h"
-
 #include "DNA_image_types.h"
 
+#include "EXP_Value.h"
 #include "Exception.h"
 #include "ImageBase.h"
 

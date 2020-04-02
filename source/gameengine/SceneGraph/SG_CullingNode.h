@@ -1,9 +1,9 @@
 #ifndef __SG_CULLING_OBJECT_H__
 #define __SG_CULLING_OBJECT_H__
 
-#include "SG_BBox.h"
-
 #include <vector>
+
+#include "SG_BBox.h"
 
 /// \brief Node used for the culling of a scene graph node, then a scene object.
 class SG_CullingNode {

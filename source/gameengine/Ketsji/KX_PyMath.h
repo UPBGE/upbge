@@ -33,14 +33,13 @@
 #ifndef __KX_PYMATH_H__
 #define __KX_PYMATH_H__
 
+#include "EXP_PyObjectPlus.h"
+#include "EXP_Python.h"
 #include "MT_Matrix3x3.h"
 #include "MT_Matrix4x4.h"
 #include "MT_Vector2.h"
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
-
-#include "EXP_PyObjectPlus.h"
-#include "EXP_Python.h"
 
 #ifdef WITH_PYTHON
 #  ifdef USE_MATHUTILS

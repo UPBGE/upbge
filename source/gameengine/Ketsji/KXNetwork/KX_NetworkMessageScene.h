@@ -39,6 +39,7 @@ conflicts with KX_NetworkMessageScene::SendMessage */
 #endif
 
 #include "KX_NetworkMessageManager.h"
+
 #include <map>
 #include <string>
 #include <vector>

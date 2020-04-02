@@ -26,9 +26,10 @@
 #ifndef __KX_OBSTACLESIMULATION_H__
 #define __KX_OBSTACLESIMULATION_H__
 
+#include <vector>
+
 #include "MT_Vector2.h"
 #include "MT_Vector3.h"
-#include <vector>
 
 class KX_GameObject;
 class KX_NavMeshObject;

@@ -32,10 +32,11 @@
 #ifndef __BL_BLENDERDATACONVERSION_H__
 #define __BL_BLENDERDATACONVERSION_H__
 
+#include <string>
+
 #include "EXP_Python.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "SCA_IInputDevice.h"
-#include <string>
 
 class RAS_MeshObject *BL_ConvertMesh(struct Mesh *mesh,
                                      struct Object *lightobj,

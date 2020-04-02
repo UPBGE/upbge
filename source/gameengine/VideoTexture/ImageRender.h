@@ -31,15 +31,14 @@
 #ifndef __IMAGERENDER_H__
 #define __IMAGERENDER_H__
 
-#include "Common.h"
-
 #include "DNA_screen_types.h"
+
+#include "Common.h"
+#include "ImageViewport.h"
 #include "KX_Camera.h"
 #include "KX_Scene.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
-
-#include "ImageViewport.h"
 
 class RAS_FrameBuffer;
 struct GPUFrameBuffer;

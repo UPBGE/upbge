@@ -92,20 +92,18 @@ PyTypeObject SCA_ReplaceMeshActuator::Type = {
     py_base_new};
 
 PyMethodDef SCA_ReplaceMeshActuator::Methods[] = {
-    KX_PYMETHODTABLE(SCA_ReplaceMeshActuator, instantReplaceMesh),
-    {nullptr, nullptr}  // Sentinel
+    KX_PYMETHODTABLE(SCA_ReplaceMeshActuator, instantReplaceMesh), {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_ReplaceMeshActuator::Attributes[] = {
-    KX_PYATTRIBUTE_RW_FUNCTION(
-        "mesh", SCA_ReplaceMeshActuator, pyattr_get_mesh, pyattr_set_mesh),
+    KX_PYATTRIBUTE_RW_FUNCTION("mesh", SCA_ReplaceMeshActuator, pyattr_get_mesh, pyattr_set_mesh),
     KX_PYATTRIBUTE_BOOL_RW("useDisplayMesh", SCA_ReplaceMeshActuator, m_use_gfx),
     KX_PYATTRIBUTE_BOOL_RW("usePhysicsMesh", SCA_ReplaceMeshActuator, m_use_phys),
     KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
 PyObject *SCA_ReplaceMeshActuator::pyattr_get_mesh(PyObjectPlus *self,
-                                                      const struct KX_PYATTRIBUTE_DEF *attrdef)
+                                                   const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ReplaceMeshActuator *actuator = static_cast<SCA_ReplaceMeshActuator *>(self);
   if (!actuator->m_mesh)
@@ -115,8 +113,8 @@ PyObject *SCA_ReplaceMeshActuator::pyattr_get_mesh(PyObjectPlus *self,
 }
 
 int SCA_ReplaceMeshActuator::pyattr_set_mesh(PyObjectPlus *self,
-                                                const struct KX_PYATTRIBUTE_DEF *attrdef,
-                                                PyObject *value)
+                                             const struct KX_PYATTRIBUTE_DEF *attrdef,
+                                             PyObject *value)
 {
   SCA_ReplaceMeshActuator *actuator = static_cast<SCA_ReplaceMeshActuator *>(self);
   RAS_MeshObject *new_mesh;

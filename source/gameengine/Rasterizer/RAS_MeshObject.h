@@ -38,6 +38,7 @@
 #endif
 
 #include <list>
+#include <string>
 #include <vector>
 
 #include "MT_Transform.h"
@@ -45,7 +46,6 @@
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshMaterial.h"
 #include "RAS_Texture.h"
-#include <string>
 
 class RAS_Polygon;
 class RAS_ITexVert;

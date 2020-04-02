@@ -34,11 +34,10 @@
 #define __KX_TOUCHSENSOR_H__
 
 #include "EXP_ListValue.h"
+#include "KX_ClientObjectInfo.h"
 #include "SCA_ISensor.h"
 
 class PHY_CollData;
-
-#include "KX_ClientObjectInfo.h"
 
 #if defined(_WIN64)
 typedef unsigned __int64 uint_ptr;

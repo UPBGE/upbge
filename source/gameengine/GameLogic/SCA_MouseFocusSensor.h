@@ -33,11 +33,10 @@
 #ifndef __SCA_MouseFocusSensor_H__
 #define __SCA_MouseFocusSensor_H__
 
-#include "SCA_MouseSensor.h"
-
 #include "BLI_utildefines.h"
 
 #include "KX_Scene.h"
+#include "SCA_MouseSensor.h"
 
 class KX_Camera;
 class KX_KetsjiEngine;

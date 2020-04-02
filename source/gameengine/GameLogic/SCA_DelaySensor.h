@@ -34,6 +34,7 @@
 
 #ifndef __SCA_DELAYSENSOR_H__
 #define __SCA_DELAYSENSOR_H__
+
 #include "SCA_ISensor.h"
 
 class SCA_DelaySensor : public SCA_ISensor {

@@ -27,9 +27,9 @@
 #ifndef __SCA_INPUTEVENT_H__
 #define __SCA_INPUTEVENT_H__
 
-#include "EXP_Value.h"
-
 #include <vector>
+
+#include "EXP_Value.h"
 
 class SCA_InputEvent : public CValue {
   Py_Header public : enum SCA_EnumInputs {
