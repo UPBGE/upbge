@@ -903,7 +903,16 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         col = flow.column()
         col.prop(sculpt, "show_low_resolution")
         col = flow.column()
+        col.prop(sculpt, "use_sculpt_delay_updates")
+        col = flow.column()
         col.prop(sculpt, "use_deform_only")
+
+        col = flow.column()
+        col.separator()
+        col.prop(sculpt, "use_automasking_topology")
+        col.prop(sculpt, "use_automasking_face_sets")
+        col.prop(sculpt, "use_automasking_boundary_edges")
+        col.prop(sculpt, "use_automasking_boundary_face_sets")
 
 
 class VIEW3D_PT_sculpt_options_gravity(Panel, View3DPaintPanel):
@@ -1492,7 +1501,7 @@ class VIEW3D_PT_tools_grease_pencil_brush_advanced(View3DPanel, Panel):
                     ma = brush.gpencil_settings.material
 
                 col.separator()
-                col.prop(gp_settings, "hardeness", slider=True)
+                col.prop(gp_settings, "hardness", slider=True)
                 subcol = col.column(align=True)
                 if ma and ma.grease_pencil.mode == 'LINE':
                     subcol.enabled = False

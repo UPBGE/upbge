@@ -67,6 +67,45 @@
 #include "bmesh.h"
 #include "sculpt_intern.h"
 
+/* Implementation of undo system for objects in sculpt mode.
+ *
+ * Each undo step in sculpt mode consists of list of nodes, each node contains:
+ *  - Node type
+ *  - Data for this type.
+ *
+ * Node type used for undo depends on specific operation and active sculpt mode
+ * ("regular" or dynamic topology).
+ *
+ * Regular sculpt brushes will use COORDS, HIDDEN or MASK nodes. These nodes are
+ * created for every BVH node which is affected by the brush. The undo push for
+ * the node happens BEFORE modifications. This makes the operation undo to work
+ * in the following way: for every node in the undo step swap happens between
+ * node in the undo stack and the corresponding value in the BVH. This is how
+ * redo is possible after undo.
+ *
+ * The COORDS, HIDDEN or MASK type of nodes contains arrays of the corresponding
+ * values.
+ *
+ * Operations like Symmetrize are using GEOMETRY type of nodes which pushes the
+ * entire state of the mesh to the undo stack. This node contains all CustomData
+ * layers.
+ *
+ * The tricky aspect of this undo node type is that it stores mesh before and
+ * after modification. This allows the undo system to both undo and redo the
+ * symmetrize operation within the pre-modified-push of other node type
+ * behavior, but it uses more memory that it seems it should be.
+ *
+ * The dynamic topology undo nodes are handled somewhat separately from all
+ * other ones and the idea there is to store log of operations: which verticies
+ * and faces have been added or removed.
+ *
+ * Begin of dynamic topology sculpting mode have own node type. It contains an
+ * entire copy of mesh since just enabling the dynamic topology mode already
+ * does modifications on it.
+ *
+ * End of dynamic topology and symmetrize in this mode are handled in a special
+ * manner as well. */
+
 typedef struct UndoSculpt {
   ListBase nodes;
 
@@ -583,12 +622,7 @@ static void sculpt_undo_restore_list(bContext *C, Depsgraph *depsgraph, ListBase
 
   if (lb->first) {
     unode = lb->first;
-    if (unode->type == SCULPT_UNDO_GEOMETRY) {
-      sculpt_undo_geometry_restore(unode, ob);
-      BKE_sculpt_update_object_for_edit(depsgraph, ob, false, need_mask);
-      return;
-    }
-    else if (unode->type == SCULPT_UNDO_FACE_SETS) {
+    if (unode->type == SCULPT_UNDO_FACE_SETS) {
       sculpt_undo_restore_face_sets(C, unode);
 
       rebuild = true;
@@ -614,10 +648,18 @@ static void sculpt_undo_restore_list(bContext *C, Depsgraph *depsgraph, ListBase
     }
   }
 
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, false, need_mask);
+  if (lb->first != NULL) {
+    /* Only do early object update for edits if first node needs this.
+     * Undo steps like geometry does not need object to be updated before they run and will
+     * ensure object is updated after the node is handled. */
+    const SculptUndoNode *first_unode = (const SculptUndoNode *)lb->first;
+    if (first_unode->type != SCULPT_UNDO_GEOMETRY) {
+      BKE_sculpt_update_object_for_edit(depsgraph, ob, false, need_mask);
+    }
 
-  if (lb->first && sculpt_undo_bmesh_restore(C, lb->first, ob, ss)) {
-    return;
+    if (sculpt_undo_bmesh_restore(C, lb->first, ob, ss)) {
+      return;
+    }
   }
 
   char *undo_modified_grids = NULL;
@@ -666,22 +708,32 @@ static void sculpt_undo_restore_list(bContext *C, Depsgraph *depsgraph, ListBase
       case SCULPT_UNDO_FACE_SETS:
         break;
 
+      case SCULPT_UNDO_GEOMETRY:
+        sculpt_undo_geometry_restore(unode, ob);
+        BKE_sculpt_update_object_for_edit(depsgraph, ob, false, need_mask);
+        break;
+
       case SCULPT_UNDO_DYNTOPO_BEGIN:
       case SCULPT_UNDO_DYNTOPO_END:
       case SCULPT_UNDO_DYNTOPO_SYMMETRIZE:
         BLI_assert(!"Dynamic topology should've already been handled");
         break;
-      case SCULPT_UNDO_GEOMETRY:
-        break;
     }
   }
 
   if (use_multires_undo) {
-    int max_grid;
-    unode = lb->first;
-    max_grid = unode->maxgrid;
-    undo_modified_grids = MEM_callocN(sizeof(char) * max_grid, "undo_grids");
     for (unode = lb->first; unode; unode = unode->next) {
+      if (!STREQ(unode->idname, ob->id.name)) {
+        continue;
+      }
+      if (unode->maxgrid == 0) {
+        continue;
+      }
+
+      if (undo_modified_grids == NULL) {
+        undo_modified_grids = MEM_callocN(sizeof(char) * unode->maxgrid, "undo_grids");
+      }
+
       for (int i = 0; i < unode->totgrid; i++) {
         undo_modified_grids[unode->grids[i]] = 1;
       }
