@@ -24,84 +24,84 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	../BlenderRoutines
-	../Common
-	../Device
-	../Expressions
-	../GameLogic
-	../Ketsji
-	../Rasterizer
-	../Rasterizer/RAS_OpenGLRasterizer
-	../SceneGraph
-	../../blender/blenkernel
-	../../blender/blenlib
-	../../blender/blentranslation
-	../../blender/draw
-	../../blender/draw/intern
-	../../blender/draw/engines/eevee
-	../../blender/editors/include
-	../../blender/gpu
-	../../blender/imbuf
-	../../blender/makesrna
-	../../blender/makesdna
-	../../blender/python
-	../../blender/python/generic
-	../../blender/render/extern/include
-	../../../intern/ffmpeg
-	../../../intern/glew-mx
-	../../../intern/guardedalloc
-	../../../intern/decklink
-	../../../intern/gpudirect
-	../../../intern/atomic
+  .
+  ../BlenderRoutines
+  ../Common
+  ../Device
+  ../Expressions
+  ../GameLogic
+  ../Ketsji
+  ../Rasterizer
+  ../Rasterizer/RAS_OpenGLRasterizer
+  ../SceneGraph
+  ../../blender/blenkernel
+  ../../blender/blenlib
+  ../../blender/blentranslation
+  ../../blender/draw
+  ../../blender/draw/intern
+  ../../blender/draw/engines/eevee
+  ../../blender/editors/include
+  ../../blender/gpu
+  ../../blender/imbuf
+  ../../blender/makesrna
+  ../../blender/makesdna
+  ../../blender/python
+  ../../blender/python/generic
+  ../../blender/render/extern/include
+  ../../../intern/ffmpeg
+  ../../../intern/glew-mx
+  ../../../intern/guardedalloc
+  ../../../intern/decklink
+  ../../../intern/gpudirect
+  ../../../intern/atomic
 )
 
 set(INC_SYS
-	../../../intern/moto/include
-	${GLEW_INCLUDE_PATH}
-	${BOOST_INCLUDE_DIR}
+  ../../../intern/moto/include
+  ${GLEW_INCLUDE_PATH}
+  ${BOOST_INCLUDE_DIR}
 )
 
 add_definitions(${GL_DEFINITIONS})
 
 set(SRC
-	Exception.cpp
-	FilterBase.cpp
-	FilterBlueScreen.cpp
-	FilterColor.cpp
-	FilterNormal.cpp
-	FilterSource.cpp
-	ImageBase.cpp
-	ImageBuff.cpp
-	ImageMix.cpp
-	ImageRender.cpp
-	ImageViewport.cpp
-	PyTypeList.cpp
-	Texture.cpp
-	DeckLink.cpp
-	VideoBase.cpp
-	VideoFFmpeg.cpp
-	VideoDeckLink.cpp
-	blendVideoTex.cpp
+  Exception.cpp
+  FilterBase.cpp
+  FilterBlueScreen.cpp
+  FilterColor.cpp
+  FilterNormal.cpp
+  FilterSource.cpp
+  ImageBase.cpp
+  ImageBuff.cpp
+  ImageMix.cpp
+  ImageRender.cpp
+  ImageViewport.cpp
+  PyTypeList.cpp
+  Texture.cpp
+  DeckLink.cpp
+  VideoBase.cpp
+  VideoFFmpeg.cpp
+  VideoDeckLink.cpp
+  blendVideoTex.cpp
 
-	Common.h
-	Exception.h
-	FilterBase.h
-	FilterBlueScreen.h
-	FilterColor.h
-	FilterNormal.h
-	FilterSource.h
-	ImageBase.h
-	ImageBuff.h
-	ImageMix.h
-	ImageRender.h
-	ImageViewport.h
-	PyTypeList.h
-	Texture.h
-	DeckLink.h
-	VideoBase.h
-	VideoFFmpeg.h
-	VideoDeckLink.h
+  Common.h
+  Exception.h
+  FilterBase.h
+  FilterBlueScreen.h
+  FilterColor.h
+  FilterNormal.h
+  FilterSource.h
+  ImageBase.h
+  ImageBuff.h
+  ImageMix.h
+  ImageRender.h
+  ImageViewport.h
+  PyTypeList.h
+  Texture.h
+  DeckLink.h
+  VideoBase.h
+  VideoFFmpeg.h
+  VideoDeckLink.h
 )
 
 set(LIB
@@ -123,11 +123,11 @@ if(WIN32)
 endif()
 
 if(WITH_CODEC_FFMPEG)
-	list(APPEND INC_SYS
-		${FFMPEG_INCLUDE_DIRS}
-		${PTHREADS_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_FFMPEG)
+  list(APPEND INC_SYS
+    ${FFMPEG_INCLUDE_DIRS}
+    ${PTHREADS_INCLUDE_DIRS}
+  )
+  add_definitions(-DWITH_FFMPEG)
 endif()
 
 blender_add_lib(ge_videotexture "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

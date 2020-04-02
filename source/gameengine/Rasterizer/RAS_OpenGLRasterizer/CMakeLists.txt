@@ -24,43 +24,43 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	..
-	# XXX Remove these <<<
-	../../BlenderRoutines
-	../../Common
-	../../Expressions
-	../../GameLogic
-	../../Ketsji
-	../../Physics/Common
-	# >>>
-	../../SceneGraph
-	../../../blender/blenfont
-	../../../blender/blenkernel
-	../../../blender/blenlib
-	../../../blender/blentranslation
-	../../../blender/draw/intern
-	../../../blender/draw/engines/eevee/
-	../../../blender/gpu
-	../../../blender/makesdna
-	../../../blender/makesrna
-	../../../blender/render/extern/include
-	../../../blender/render/intern/include
-	../../../../intern/glew-mx
-	../../../../intern/guardedalloc
+  ..
+  # XXX Remove these <<<
+  ../../BlenderRoutines
+  ../../Common
+  ../../Expressions
+  ../../GameLogic
+  ../../Ketsji
+  ../../Physics/Common
+  # >>>
+  ../../SceneGraph
+  ../../../blender/blenfont
+  ../../../blender/blenkernel
+  ../../../blender/blenlib
+  ../../../blender/blentranslation
+  ../../../blender/draw/intern
+  ../../../blender/draw/engines/eevee/
+  ../../../blender/gpu
+  ../../../blender/makesdna
+  ../../../blender/makesrna
+  ../../../blender/render/extern/include
+  ../../../blender/render/intern/include
+  ../../../../intern/glew-mx
+  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
-	../../../../intern/moto/include
-	${GLEW_INCLUDE_PATH}
-	${BOOST_INCLUDE_DIR}
+  ../../../../intern/moto/include
+  ${GLEW_INCLUDE_PATH}
+  ${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
-	RAS_OpenGLDebugDraw.cpp
-	RAS_OpenGLRasterizer.cpp
+  RAS_OpenGLDebugDraw.cpp
+  RAS_OpenGLRasterizer.cpp
 
-	RAS_OpenGLDebugDraw.h
-	RAS_OpenGLRasterizer.h
+  RAS_OpenGLDebugDraw.h
+  RAS_OpenGLRasterizer.h
 )
 
 set(LIB

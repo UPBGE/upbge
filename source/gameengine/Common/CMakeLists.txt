@@ -24,29 +24,29 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	../Expressions
-	../GameLogic
-	../SceneGraph
-	../../blender/blenlib
-	../../blender/python/generic
-	../../../intern/guardedalloc
-	../../../intern/string
-	../../../intern/termcolor
+  .
+  ../Expressions
+  ../GameLogic
+  ../SceneGraph
+  ../../blender/blenlib
+  ../../blender/python/generic
+  ../../../intern/guardedalloc
+  ../../../intern/string
+  ../../../intern/termcolor
 )
 
 set(INC_SYS
-	../../../intern/moto/include
+  ../../../intern/moto/include
 )
 
 set(SRC
-	CM_Message.cpp
-	CM_Thread.cpp
+  CM_Message.cpp
+  CM_Thread.cpp
 
-	CM_Format.h
-	CM_Message.h
-	CM_RefCount.h
-	CM_Thread.h
+  CM_Format.h
+  CM_Message.h
+  CM_RefCount.h
+  CM_Thread.h
 )
 
 set(LIB

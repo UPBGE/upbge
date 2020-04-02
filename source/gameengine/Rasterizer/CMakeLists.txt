@@ -24,86 +24,86 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	RAS_OpenGLRasterizer
-	../Common
-	../Expressions
-	../Ketsji
-	../Physics/Common
-	../SceneGraph
-	../GameLogic
-	../../blender/blenfont
-	../../blender/blenlib
-	../../blender/blenkernel
-	../../blender/blentranslation
-	../../blender/draw
-	../../blender/draw/intern
-	../../blender/draw/engines/eevee/
-	../../blender/gpu
-	../../blender/imbuf
-	../../blender/makesdna
-	../../blender/makesrna
-	../../blender/render/extern/include
-	../../blender/render/intern/include
-	../../../intern/glew-mx
-	../../../intern/guardedalloc
-	../../../intern/termcolor
+  .
+  RAS_OpenGLRasterizer
+  ../Common
+  ../Expressions
+  ../Ketsji
+  ../Physics/Common
+  ../SceneGraph
+  ../GameLogic
+  ../../blender/blenfont
+  ../../blender/blenlib
+  ../../blender/blenkernel
+  ../../blender/blentranslation
+  ../../blender/draw
+  ../../blender/draw/intern
+  ../../blender/draw/engines/eevee/
+  ../../blender/gpu
+  ../../blender/imbuf
+  ../../blender/makesdna
+  ../../blender/makesrna
+  ../../blender/render/extern/include
+  ../../blender/render/intern/include
+  ../../../intern/glew-mx
+  ../../../intern/guardedalloc
+  ../../../intern/termcolor
 )
 
 set(INC_SYS
-	../../../intern/moto/include
-	${GLEW_INCLUDE_PATH}
-	${PYTHON_INCLUDE_DIRS}
-	${BOOST_INCLUDE_DIR}
+  ../../../intern/moto/include
+  ${GLEW_INCLUDE_PATH}
+  ${PYTHON_INCLUDE_DIRS}
+  ${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
-	RAS_2DFilter.cpp
-	RAS_2DFilterData.cpp
-	RAS_2DFilterManager.cpp
-	RAS_2DFilterFrameBuffer.cpp
-	RAS_BucketManager.cpp
-	RAS_DebugDraw.cpp
-	RAS_DisplayArrayBucket.cpp
-	RAS_FrameBuffer.cpp
-	RAS_FramingManager.cpp
-	RAS_ICanvas.cpp
-	RAS_IDisplayArray.cpp
-	RAS_IPolygonMaterial.cpp
-	RAS_Rasterizer.cpp
-	RAS_ITexVert.cpp
-	RAS_MaterialBucket.cpp
-	RAS_MeshMaterial.cpp
-	RAS_MeshObject.cpp
-	RAS_Polygon.cpp
-	RAS_Shader.cpp
-	RAS_Texture.cpp
- 	
-	RAS_2DFilterData.h
-	RAS_2DFilter.h
-	RAS_2DFilterManager.h
-	RAS_2DFilterFrameBuffer.h
-	RAS_BucketManager.h
-	RAS_CameraData.h
-	RAS_DebugDraw.h
-	RAS_DisplayArray.h
-	RAS_DisplayArrayBucket.h
-	RAS_FrameBuffer.h
-	RAS_FramingManager.h
-	RAS_ICanvas.h
-	RAS_IDisplayArray.h
-	RAS_IPolygonMaterial.h
-	RAS_Rasterizer.h
-	RAS_ITexVert.h
-	RAS_MaterialBucket.h
-	RAS_MaterialShader.h
-	RAS_MeshMaterial.h
-	RAS_MeshObject.h
-	RAS_Polygon.h
-	RAS_Rect.h
-	RAS_Shader.h
-	RAS_Texture.h
-	RAS_TexVert.h
+  RAS_2DFilter.cpp
+  RAS_2DFilterData.cpp
+  RAS_2DFilterManager.cpp
+  RAS_2DFilterFrameBuffer.cpp
+  RAS_BucketManager.cpp
+  RAS_DebugDraw.cpp
+  RAS_DisplayArrayBucket.cpp
+  RAS_FrameBuffer.cpp
+  RAS_FramingManager.cpp
+  RAS_ICanvas.cpp
+  RAS_IDisplayArray.cpp
+  RAS_IPolygonMaterial.cpp
+  RAS_Rasterizer.cpp
+  RAS_ITexVert.cpp
+  RAS_MaterialBucket.cpp
+  RAS_MeshMaterial.cpp
+  RAS_MeshObject.cpp
+  RAS_Polygon.cpp
+  RAS_Shader.cpp
+  RAS_Texture.cpp
+
+  RAS_2DFilterData.h
+  RAS_2DFilter.h
+  RAS_2DFilterManager.h
+  RAS_2DFilterFrameBuffer.h
+  RAS_BucketManager.h
+  RAS_CameraData.h
+  RAS_DebugDraw.h
+  RAS_DisplayArray.h
+  RAS_DisplayArrayBucket.h
+  RAS_FrameBuffer.h
+  RAS_FramingManager.h
+  RAS_ICanvas.h
+  RAS_IDisplayArray.h
+  RAS_IPolygonMaterial.h
+  RAS_Rasterizer.h
+  RAS_ITexVert.h
+  RAS_MaterialBucket.h
+  RAS_MaterialShader.h
+  RAS_MeshMaterial.h
+  RAS_MeshObject.h
+  RAS_Polygon.h
+  RAS_Rect.h
+  RAS_Shader.h
+  RAS_Texture.h
+  RAS_TexVert.h
 )
 
 set(LIB
@@ -128,7 +128,7 @@ add_definitions(${GL_DEFINITIONS})
 # ----------------------------------------------------------------------------------------------------------------
 # workaround to increase the number of sections for object file format in MSVC 2015 compiler when we DEBUG
 if(MSVC14)
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj /Zi /Od /Ob0")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj /Zi /Od /Ob0")
 endif()
 
 blender_add_lib(ge_rasterizer "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

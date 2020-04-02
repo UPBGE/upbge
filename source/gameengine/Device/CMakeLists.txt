@@ -19,51 +19,51 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	../Common
-	../Expressions
-	../GameLogic
-	../Ketsji
-	../Rasterizer
-	../SceneGraph
-	../../blender/blenlib
-	../../../intern/ghost
-	../../../intern/string
-	../../../intern/termcolor
+  .
+  ../Common
+  ../Expressions
+  ../GameLogic
+  ../Ketsji
+  ../Rasterizer
+  ../SceneGraph
+  ../../blender/blenlib
+  ../../../intern/ghost
+  ../../../intern/string
+  ../../../intern/termcolor
 )
 
 set(INC_SYS
-	../../../intern/moto/include
+  ../../../intern/moto/include
 )
 
 set(SRC
-	DEV_EventConsumer.cpp
-	DEV_InputDevice.cpp
-	DEV_Joystick.cpp
-	DEV_JoystickEvents.cpp
-	DEV_JoystickVibration.cpp
+  DEV_EventConsumer.cpp
+  DEV_InputDevice.cpp
+  DEV_Joystick.cpp
+  DEV_JoystickEvents.cpp
+  DEV_JoystickVibration.cpp
 
-	DEV_EventConsumer.h
-	DEV_InputDevice.h
-	DEV_Joystick.h
-	DEV_JoystickDefines.h
-	DEV_JoystickPrivate.h
-	DEV_JoystickMappingdb.h
+  DEV_EventConsumer.h
+  DEV_InputDevice.h
+  DEV_Joystick.h
+  DEV_JoystickDefines.h
+  DEV_JoystickPrivate.h
+  DEV_JoystickMappingdb.h
 )
 
 set(LIB
 )
 
 if(WITH_SDL)
-	list(APPEND INC_SYS
-		${SDL_INCLUDE_DIR}
-	)
+  list(APPEND INC_SYS
+    ${SDL_INCLUDE_DIR}
+  )
 
-	add_definitions(-DWITH_SDL)
+  add_definitions(-DWITH_SDL)
 endif()
 
 if(WITH_INPUT_NDOF)
-	add_definitions(-DWITH_INPUT_NDOF)
+  add_definitions(-DWITH_INPUT_NDOF)
 endif()
 
 blender_add_lib(ge_device "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

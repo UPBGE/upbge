@@ -24,19 +24,19 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	../Common
-	../../../blender/blenlib
+  .
+  ../Common
+  ../../../blender/blenlib
 )
 
 set(INC_SYS
-	../../../../intern/moto/include
+  ../../../../intern/moto/include
 )
 
 set(SRC
-	DummyPhysicsEnvironment.cpp
+  DummyPhysicsEnvironment.cpp
 
-	DummyPhysicsEnvironment.h
+  DummyPhysicsEnvironment.h
 )
 
 set(LIB
