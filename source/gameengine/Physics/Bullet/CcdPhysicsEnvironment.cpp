@@ -45,12 +45,12 @@
 #include "LinearMath/btQuickprof.h"
 #include "btBulletDynamicsCommon.h"
 
+#include "BL_BlenderSceneConverter.h"
 #include "CM_Message.h"
 #include "CcdConstraint.h"
 #include "CcdGraphicController.h"
 #include "CcdMathUtils.h"
 #include "CcdPhysicsController.h"
-#include "KX_BlenderSceneConverter.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"  // for KX_RasterizerDrawDebugLine
 #include "MT_MinMax.h"
@@ -2758,7 +2758,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
   return ccdPhysEnv;
 }
 
-void CcdPhysicsEnvironment::ConvertObject(KX_BlenderSceneConverter &converter,
+void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter &converter,
                                           KX_GameObject *gameobj,
                                           RAS_MeshObject *meshobj,
                                           DerivedMesh *dm,

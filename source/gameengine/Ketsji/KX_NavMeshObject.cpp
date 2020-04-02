@@ -43,10 +43,10 @@
 #include "DNA_meshdata_types.h"
 #include "MEM_guardedalloc.h"
 
+#include "BL_BlenderConverter.h"
 #include "CM_Message.h"
 #include "DetourStatNavMeshBuilder.h"
 #include "EXP_Value.h"
-#include "KX_BlenderConverter.h"
 #include "KX_Globals.h"
 #include "KX_ObstacleSimulation.h"
 #include "KX_PyMath.h"

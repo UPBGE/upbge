@@ -27,11 +27,11 @@
 #include "BL_Action.h"
 
 #include "BL_ArmatureObject.h"
+#include "BL_BlenderConverter.h"
+#include "BL_IpoConvert.h"
 #include "CM_Message.h"
-#include "KX_BlenderConverter.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
-#include "KX_IpoConvert.h"
 #include "KX_Scene.h"
 #include "RAS_MeshObject.h"
 #include "SCA_LogicManager.h"

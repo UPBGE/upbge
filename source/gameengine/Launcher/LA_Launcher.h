@@ -36,7 +36,7 @@
 
 class KX_Scene;
 class KX_ISystem;
-class KX_BlenderConverter;
+class BL_BlenderConverter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class DEV_EventConsumer;
@@ -73,7 +73,7 @@ class LA_Launcher {
   /// The rasterizer.
   RAS_Rasterizer *m_rasterizer;
   /// Converts Blender data files.
-  KX_BlenderConverter *m_converter;
+  BL_BlenderConverter *m_converter;
   /// Manage messages.
   KX_NetworkMessageManager *m_networkMessageManager;
 

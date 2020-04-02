@@ -90,12 +90,12 @@
 #include "BL_Action.h"
 #include "BL_ActionActuator.h"
 #include "BL_ArmatureObject.h"
+#include "BL_BlenderConverter.h"
 #include "BL_Shader.h"
 #include "CM_Message.h"
 #include "EXP_InputParser.h"
 #include "EXP_ListValue.h"
 #include "EXP_PyObjectPlus.h"
-#include "KX_BlenderConverter.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_LibLoadStatus.h"
@@ -618,15 +618,15 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 
   /* setup options */
   if (load_actions != 0)
-    options |= KX_BlenderConverter::LIB_LOAD_LOAD_ACTIONS;
+    options |= BL_BlenderConverter::LIB_LOAD_LOAD_ACTIONS;
   if (verbose != 0)
-    options |= KX_BlenderConverter::LIB_LOAD_VERBOSE;
+    options |= BL_BlenderConverter::LIB_LOAD_VERBOSE;
   if (load_scripts != 0)
-    options |= KX_BlenderConverter::LIB_LOAD_LOAD_SCRIPTS;
+    options |= BL_BlenderConverter::LIB_LOAD_LOAD_SCRIPTS;
   if (asynchronous != 0)
-    options |= KX_BlenderConverter::LIB_LOAD_ASYNC;
+    options |= BL_BlenderConverter::LIB_LOAD_ASYNC;
 
-  KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+  BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
 
   if (!py_buffer.buf) {
     char abs_path[FILE_MAX];
@@ -669,7 +669,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
   if (!PyArg_ParseTuple(args, "ssO!:LibNew", &path, &group, &PyList_Type, &names))
     return nullptr;
 
-  KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+  BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
 
   if (converter->GetMainDynamicPath(path)) {
     PyErr_SetString(PyExc_KeyError, "the name of the path given exists");

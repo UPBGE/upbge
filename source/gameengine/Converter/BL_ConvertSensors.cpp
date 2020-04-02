@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Converter/KX_ConvertSensors.cpp
+/** \file gameengine/Converter/BL_ConvertSensors.cpp
  *  \ingroup bgeconv
  *
  * Conversion of Blender data blocks to KX sensor system
@@ -35,7 +35,7 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "KX_ConvertSensors.h"
+#include "BL_ConvertSensors.h"
 
 #include "DNA_actuator_types.h" /* for SENS_ALL_KEYS ? this define is */
 #include "DNA_controller_types.h"
@@ -49,9 +49,9 @@
 #endif
 
 #include "BL_BlenderDataConversion.h"
+#include "BL_BlenderSceneConverter.h"
 #include "CM_Message.h"
 #include "EXP_IntValue.h"
-#include "KX_BlenderSceneConverter.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
@@ -86,7 +86,7 @@ void BL_ConvertSensors(struct Object *blenderobject,
                        int activeLayerBitInfo,
                        bool isInActiveLayer,
                        RAS_ICanvas *canvas,
-                       KX_BlenderSceneConverter &converter)
+                       BL_BlenderSceneConverter &converter)
 {
 
   int executePriority = 0;

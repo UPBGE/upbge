@@ -42,7 +42,7 @@ struct bPose;
 struct bConstraint;
 struct Object;
 class MT_Matrix4x4;
-class KX_BlenderSceneConverter;
+class BL_BlenderSceneConverter;
 class RAS_DebugDraw;
 
 class BL_ArmatureObject : public KX_GameObject {
@@ -110,7 +110,7 @@ class BL_ArmatureObject : public KX_GameObject {
   void DrawDebug(RAS_DebugDraw &debugDraw);
 
   // for constraint python API
-  void LoadConstraints(KX_BlenderSceneConverter &converter);
+  void LoadConstraints(BL_BlenderSceneConverter &converter);
   size_t GetConstraintNumber() const;
   BL_ArmatureConstraint *GetConstraint(const std::string &posechannel,
                                        const std::string &constraint);

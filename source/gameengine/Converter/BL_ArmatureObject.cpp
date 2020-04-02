@@ -52,10 +52,10 @@
 
 #include "BL_Action.h"
 #include "BL_ActionActuator.h"
+#include "BL_BlenderConverter.h"
+#include "BL_BlenderSceneConverter.h"
 #include "CM_Message.h"
 #include "EXP_ListWrapper.h"
-#include "KX_BlenderConverter.h"
-#include "KX_BlenderSceneConverter.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "MT_Matrix4x4.h"
@@ -246,7 +246,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
   //}
 }
 
-void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter &converter)
+void BL_ArmatureObject::LoadConstraints(BL_BlenderSceneConverter &converter)
 {
   // first delete any existing constraint (should not have any)
   m_controlledConstraints->ReleaseAndRemoveAll();

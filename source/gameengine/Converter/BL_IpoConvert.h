@@ -25,14 +25,14 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_IpoConvert.h
+/** \file BL_IpoConvert.h
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_IPOCONVERT_H__
-#define __KX_IPOCONVERT_H__
+#ifndef __BL_IPOCONVERT_H__
+#define __BL_IPOCONVERT_H__
 
-/** \file gameengine/Converter/KX_IpoConvert.h
+/** \file gameengine/Converter/BL_IpoConvert.h
  *  \ingroup bgeconv
  */
 
@@ -51,8 +51,8 @@
 #include "DNA_object_types.h"
 #include "DNA_world_types.h"
 
-#include "KX_BlenderConverter.h"
-#include "KX_BlenderScalarInterpolator.h"
+#include "BL_BlenderConverter.h"
+#include "BL_BlenderScalarInterpolator.h"
 #include "KX_CameraIpoSGController.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
@@ -82,7 +82,7 @@ SG_Controller *BL_CreateMaterialIpo(struct bAction *action,
 /* Definitions */
 static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 {
-  KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+  BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
   BL_InterpolatorList *adtList = converter->FindInterpolatorList(scene, for_act);
 
   if (!adtList) {
@@ -390,4 +390,4 @@ SG_Controller *BL_CreateMaterialIpo(struct bAction *action,
   return ipocontr;
 }
 
-#endif /* __KX_IPOCONVERT_H__ */
+#endif /* __BL_IPOCONVERT_H__ */

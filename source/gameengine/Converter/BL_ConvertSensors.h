@@ -25,21 +25,21 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_ConvertControllers.h
+/** \file BL_ConvertSensors.h
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_CONVERTCONTROLLERS_H__
-#define __KX_CONVERTCONTROLLERS_H__
+#ifndef __BL_CONVERTSENSORS_H__
+#define __BL_CONVERTSENSORS_H__
 
-#include "EXP_Python.h"
+void BL_ConvertSensors(struct Object *blenderobject,
+                       class KX_GameObject *gameobj,
+                       class SCA_LogicManager *logicmgr,
+                       class KX_Scene *kxscene,
+                       class KX_KetsjiEngine *kxengine,
+                       int activeLayerBitInfo,
+                       bool isInActiveLayer,
+                       class RAS_ICanvas *canvas,
+                       class BL_BlenderSceneConverter &converter);
 
-void BL_ConvertControllers(struct Object *blenderobject,
-                           class KX_GameObject *gameobj,
-                           class SCA_LogicManager *logicmgr,
-                           int activeLayerBitInfo,
-                           bool isInActiveLayer,
-                           class KX_BlenderSceneConverter &converter,
-                           bool libloading);
-
-#endif /* __KX_CONVERTCONTROLLERS_H__ */
+#endif /* __BL_CONVERTSENSORS_H__ */

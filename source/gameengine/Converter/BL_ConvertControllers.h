@@ -25,17 +25,21 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_ConvertProperties.h
+/** \file BL_ConvertControllers.h
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_CONVERTPROPERTIES_H__
-#define __KX_CONVERTPROPERTIES_H__
+#ifndef __BL_CONVERTCONTROLLERS_H__
+#define __BL_CONVERTCONTROLLERS_H__
 
-void BL_ConvertProperties(struct Object *object,
-                          class KX_GameObject *gameobj,
-                          class SCA_TimeEventManager *timemgr,
-                          class SCA_IScene *scene,
-                          bool isInActiveLayer);
+#include "EXP_Python.h"
 
-#endif /* __KX_CONVERTPROPERTIES_H__ */
+void BL_ConvertControllers(struct Object *blenderobject,
+                           class KX_GameObject *gameobj,
+                           class SCA_LogicManager *logicmgr,
+                           int activeLayerBitInfo,
+                           bool isInActiveLayer,
+                           class BL_BlenderSceneConverter &converter,
+                           bool libloading);
+
+#endif /* __BL_CONVERTCONTROLLERS_H__ */

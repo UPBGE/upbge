@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_ConvertActuators.h
+/** \file BL_ConvertActuators.h
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_CONVERTACTUATORS_H__
-#define __KX_CONVERTACTUATORS_H__
+#ifndef __BL_CONVERTACTUATORS_H__
+#define __BL_CONVERTACTUATORS_H__
 
 void BL_ConvertActuators(const char *maggiename,
                          struct Object *blenderobject,
@@ -40,6 +40,6 @@ void BL_ConvertActuators(const char *maggiename,
                          class KX_KetsjiEngine *ketsjiEngine,
                          int activeLayerBitInfo,
                          bool isInActiveLayer,
-                         class KX_BlenderSceneConverter &converter);
+                         class BL_BlenderSceneConverter &converter);
 
-#endif /* __KX_CONVERTACTUATORS_H__ */
+#endif /* __BL_CONVERTACTUATORS_H__ */

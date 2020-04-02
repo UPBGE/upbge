@@ -26,7 +26,7 @@
  * Convert Blender actuators for use in the GameEngine
  */
 
-/** \file gameengine/Converter/KX_ConvertActuators.cpp
+/** \file gameengine/Converter/BL_ConvertActuators.cpp
  *  \ingroup bgeconv
  */
 
@@ -34,7 +34,7 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "KX_ConvertActuators.h"
+#include "BL_ConvertActuators.h"
 
 #include <math.h>
 
@@ -67,9 +67,9 @@
 #include "BL_ActionActuator.h"
 #include "BL_ArmatureActuator.h"
 #include "BL_BlenderDataConversion.h"
+#include "BL_BlenderSceneConverter.h"
 #include "CM_Message.h"
 #include "EXP_IntValue.h"
-#include "KX_BlenderSceneConverter.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
@@ -117,7 +117,7 @@ void BL_ConvertActuators(const char *maggiename,
                          KX_KetsjiEngine *ketsjiEngine,
                          int activeLayerBitInfo,
                          bool isInActiveLayer,
-                         KX_BlenderSceneConverter &converter)
+                         BL_BlenderSceneConverter &converter)
 {
 
   int uniqueint = 0;
