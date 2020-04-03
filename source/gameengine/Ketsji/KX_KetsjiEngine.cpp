@@ -411,8 +411,6 @@ bool KX_KetsjiEngine::NextFrame()
 #endif
       KX_SetActiveScene(scene);
 
-      scene->GetPhysicsEnvironment()->EndFrame();
-
       // Process sensors, and controllers
       m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
       scene->LogicBeginFrame(m_frameTime, framestep);
@@ -435,7 +433,6 @@ bool KX_KetsjiEngine::NextFrame()
       scene->UpdateParents(m_frameTime);
 
       m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
-      scene->GetPhysicsEnvironment()->BeginFrame();
 
       // Perform physics calculations on the scene. This can involve
       // many iterations of the physics solver.

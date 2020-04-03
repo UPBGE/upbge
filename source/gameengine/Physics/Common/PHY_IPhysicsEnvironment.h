@@ -111,8 +111,6 @@ class PHY_IPhysicsEnvironment {
   virtual ~PHY_IPhysicsEnvironment()
   {
   }
-  virtual void BeginFrame() = 0;
-  virtual void EndFrame() = 0;
   /// Perform an integration step of duration 'timeStep'.
   virtual bool ProceedDeltaTime(double curTime, float timeStep, float interval) = 0;
   /// draw debug lines (make sure to call this during the render phase, otherwise lines are not

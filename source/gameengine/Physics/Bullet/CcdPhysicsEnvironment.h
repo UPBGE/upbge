@@ -133,10 +133,6 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
     return m_numTimeSubSteps;
   }
 
-  virtual void BeginFrame();
-  virtual void EndFrame()
-  {
-  }
   /// Perform an integration step of duration 'timeStep'.
   virtual bool ProceedDeltaTime(double curTime, float timeStep, float interval);
 
