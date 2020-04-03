@@ -214,8 +214,8 @@ class WrapperVehicle : public PHY_IVehicle {
                         bool hasSteering)
   {
     btWheelInfo &info = m_vehicle->addWheel(ToBullet(connectionPoint),
-                                            ToBullet(downDirection),
-                                            ToBullet(axleDirection),
+                                            ToBullet(downDirection.normalized()),
+                                            ToBullet(axleDirection.normalized()),
                                             suspensionRestLength,
                                             wheelRadius,
                                             gTuning,
