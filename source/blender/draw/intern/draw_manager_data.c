@@ -22,8 +22,8 @@
 
 #include "draw_manager.h"
 
-#include "BKE_anim.h"
 #include "BKE_curve.h"
+#include "BKE_duplilist.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_mesh.h"
@@ -38,6 +38,7 @@
 #include "BLI_alloca.h"
 #include "BLI_hash.h"
 #include "BLI_link_utils.h"
+#include "BLI_listbase.h"
 #include "BLI_memblock.h"
 #include "BLI_mempool.h"
 
@@ -657,17 +658,14 @@ static void drw_command_draw_range(
   cmd->vert_count = count;
 }
 
-static void drw_command_draw_instance(DRWShadingGroup *shgroup,
-                                      GPUBatch *batch,
-                                      DRWResourceHandle handle,
-                                      uint count,
-                                      bool use_attrib)
+static void drw_command_draw_instance(
+    DRWShadingGroup *shgroup, GPUBatch *batch, DRWResourceHandle handle, uint count, bool use_attr)
 {
   DRWCommandDrawInstance *cmd = drw_command_create(shgroup, DRW_CMD_DRAW_INSTANCE);
   cmd->batch = batch;
   cmd->handle = handle;
   cmd->inst_count = count;
-  cmd->use_attribs = use_attrib;
+  cmd->use_attrs = use_attr;
 }
 
 static void drw_command_draw_intance_range(
@@ -841,10 +839,10 @@ void DRW_shgroup_call_instances(DRWShadingGroup *shgroup,
   drw_command_draw_instance(shgroup, geom, handle, count, false);
 }
 
-void DRW_shgroup_call_instances_with_attribs(DRWShadingGroup *shgroup,
-                                             Object *ob,
-                                             struct GPUBatch *geom,
-                                             struct GPUBatch *inst_attributes)
+void DRW_shgroup_call_instances_with_attrs(DRWShadingGroup *shgroup,
+                                           Object *ob,
+                                           struct GPUBatch *geom,
+                                           struct GPUBatch *inst_attributes)
 {
   BLI_assert(geom != NULL);
   BLI_assert(inst_attributes != NULL);
@@ -1302,7 +1300,7 @@ static DRWShadingGroup *drw_shgroup_material_inputs(DRWShadingGroup *grp,
   ListBase textures = GPU_material_textures(material);
 
   /* Bind all textures needed by the material. */
-  for (GPUMaterialTexture *tex = textures.first; tex; tex = tex->next) {
+  LISTBASE_FOREACH (GPUMaterialTexture *, tex, &textures) {
     if (tex->ima) {
       /* Image */
       if (tex->tiled_mapping_name[0]) {
@@ -1905,7 +1903,7 @@ DRWPass *DRW_pass_create(const char *name, DRWState state)
 
 bool DRW_pass_is_empty(DRWPass *pass)
 {
-  for (DRWShadingGroup *shgroup = pass->shgroups.first; shgroup; shgroup = shgroup->next) {
+  LISTBASE_FOREACH (DRWShadingGroup *, shgroup, &pass->shgroups) {
     if (!DRW_shgroup_is_empty(shgroup)) {
       return false;
     }
@@ -1932,7 +1930,7 @@ void DRW_pass_foreach_shgroup(DRWPass *pass,
                               void (*callback)(void *userData, DRWShadingGroup *shgrp),
                               void *userData)
 {
-  for (DRWShadingGroup *shgroup = pass->shgroups.first; shgroup; shgroup = shgroup->next) {
+  LISTBASE_FOREACH (DRWShadingGroup *, shgroup, &pass->shgroups) {
     callback(userData, shgroup);
   }
 }

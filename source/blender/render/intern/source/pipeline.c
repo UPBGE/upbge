@@ -51,6 +51,7 @@
 
 #include "BLT_translation.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_animsys.h" /* <------ should this be here?, needed for sequencer update */
 #include "BKE_callbacks.h"
 #include "BKE_camera.h"
@@ -2094,14 +2095,13 @@ void RE_RenderFreestyleExternal(Render *re)
 
   FRS_init_stroke_renderer(re);
 
-  for (RenderView *rv = re->result->views.first; rv; rv = rv->next) {
+  LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
     RE_SetActiveRenderView(re, rv->name);
 
     ViewLayer *active_view_layer = BLI_findlink(&re->view_layers, re->active_view_layer);
     FRS_begin_stroke_rendering(re);
 
-    for (ViewLayer *view_layer = (ViewLayer *)re->view_layers.first; view_layer;
-         view_layer = view_layer->next) {
+    LISTBASE_FOREACH (ViewLayer *, view_layer, &re->view_layers) {
       if ((re->r.scemode & R_SINGLE_LAYER) && view_layer != active_view_layer) {
         continue;
       }
@@ -2865,7 +2865,7 @@ bool RE_layers_have_name(struct RenderResult *rr)
 
 bool RE_passes_have_name(struct RenderLayer *rl)
 {
-  for (RenderPass *rp = rl->passes.first; rp; rp = rp->next) {
+  LISTBASE_FOREACH (RenderPass *, rp, &rl->passes) {
     if (!STREQ(rp->name, "Combined")) {
       return true;
     }

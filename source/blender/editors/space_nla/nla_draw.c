@@ -150,7 +150,7 @@ static void nla_action_draw_keyframes(
     /* - disregard the selection status of keyframes so they draw a certain way
      * - size is 6.0f which is smaller than the editable keyframes, so that there is a distinction
      */
-    for (ActKeyColumn *ak = keys.first; ak; ak = ak->next) {
+    LISTBASE_FOREACH (ActKeyColumn *, ak, &keys) {
       draw_keyframe_shape(ak->cfra,
                           y,
                           6.0f,
@@ -207,7 +207,7 @@ static void nla_actionclip_draw_markers(
   immUniformThemeColorShade(TH_STRIP_SELECT, shade);
 
   immBeginAtMost(GPU_PRIM_LINES, BLI_listbase_count(&act->markers) * 2);
-  for (TimeMarker *marker = act->markers.first; marker; marker = marker->next) {
+  LISTBASE_FOREACH (TimeMarker *, marker, &act->markers) {
     if ((marker->frame > strip->actstart) && (marker->frame < strip->actend)) {
       float frame = nlastrip_get_frame(strip, marker->frame, NLATIME_CONVERT_MAP);
 
@@ -238,7 +238,7 @@ static void nla_strip_draw_markers(NlaStrip *strip, float yminc, float ymaxc)
     /* just a solid color, so that it is very easy to spot */
     int shade = 20;
     /* draw the markers in the first level of strips only (if they are actions) */
-    for (NlaStrip *nls = strip->strips.first; nls; nls = nls->next) {
+    LISTBASE_FOREACH (NlaStrip *, nls, &strip->strips) {
       if (nls->type == NLASTRIP_TYPE_CLIP) {
         nla_actionclip_draw_markers(nls, yminc, ymaxc, shade, false);
       }
@@ -313,7 +313,7 @@ static void nla_strip_get_color_inside(AnimData *adt, NlaStrip *strip, float col
 }
 
 /* helper call for drawing influence/time control curves for a given NLA-strip */
-static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc, unsigned int pos)
+static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc, uint pos)
 {
   const float yheight = ymaxc - yminc;
 
@@ -565,7 +565,7 @@ static void nla_draw_strip(SpaceNla *snla,
     immBeginAtMost(GPU_PRIM_LINES, 4 * BLI_listbase_count(&strip->strips));
 
     /* only draw first-level of child-strips, but don't draw any lines on the endpoints */
-    for (NlaStrip *cs = strip->strips.first; cs; cs = cs->next) {
+    LISTBASE_FOREACH (NlaStrip *, cs, &strip->strips) {
       /* draw start-line if not same as end of previous (and only if not the first strip)
        * - on upper half of strip
        */
@@ -828,7 +828,7 @@ void draw_nla_channel_list(const bContext *C, bAnimContext *ac, ARegion *region)
 
   /* need to do a view-sync here, so that the keys area doesn't jump around
    * (it must copy this) */
-  UI_view2d_sync(NULL, ac->sa, v2d, V2D_LOCK_COPY);
+  UI_view2d_sync(NULL, ac->area, v2d, V2D_LOCK_COPY);
 
   /* draw channels */
   { /* first pass: just the standard GL-drawing for backdrop + text */

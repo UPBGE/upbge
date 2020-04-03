@@ -36,7 +36,7 @@
 #include "BLT_translation.h"
 
 #include "BKE_action.h"
-#include "BKE_animsys.h"
+#include "BKE_anim_data.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_displist.h"
@@ -3884,182 +3884,6 @@ void CURVE_OT_subdivide(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Cursor Picking API
- * \{ */
-
-static void ED_curve_pick_vert__doClosest(
-    void *userData, Nurb *nu, BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
-{
-  struct {
-    BPoint *bp;
-    BezTriple *bezt;
-    Nurb *nurb;
-    float dist;
-    int hpoint, select;
-    float mval_fl[2];
-    bool is_changed;
-  } *data = userData;
-
-  short flag;
-  float dist_test;
-
-  if (bp) {
-    flag = bp->f1;
-  }
-  else {
-    if (beztindex == 0) {
-      flag = bezt->f1;
-    }
-    else if (beztindex == 1) {
-      flag = bezt->f2;
-    }
-    else {
-      flag = bezt->f3;
-    }
-  }
-
-  dist_test = len_manhattan_v2v2(data->mval_fl, screen_co);
-  if ((flag & SELECT) == data->select) {
-    dist_test += 5.0f;
-  }
-  if (bezt && beztindex == 1) {
-    dist_test += 3.0f; /* middle points get a small disadvantage */
-  }
-
-  if (dist_test < data->dist) {
-    data->dist = dist_test;
-
-    data->bp = bp;
-    data->bezt = bezt;
-    data->nurb = nu;
-    data->hpoint = bezt ? beztindex : 0;
-    data->is_changed = true;
-  }
-}
-
-bool ED_curve_pick_vert(ViewContext *vc,
-                        short sel,
-                        Nurb **r_nurb,
-                        BezTriple **r_bezt,
-                        BPoint **r_bp,
-                        short *r_handle,
-                        Base **r_base)
-{
-  /* (sel == 1): selected gets a disadvantage */
-  /* in nurb and bezt or bp the nearest is written */
-  /* return 0 1 2: handlepunt */
-  struct {
-    BPoint *bp;
-    BezTriple *bezt;
-    Nurb *nurb;
-    float dist;
-    int hpoint, select;
-    float mval_fl[2];
-    bool is_changed;
-  } data = {NULL};
-
-  data.dist = ED_view3d_select_dist_px();
-  data.hpoint = 0;
-  data.select = sel;
-  data.mval_fl[0] = vc->mval[0];
-  data.mval_fl[1] = vc->mval[1];
-
-  uint bases_len;
-  Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      vc->view_layer, vc->v3d, &bases_len);
-  for (uint base_index = 0; base_index < bases_len; base_index++) {
-    Base *base = bases[base_index];
-    data.is_changed = false;
-
-    ED_view3d_viewcontext_init_object(vc, base->object);
-    ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
-    nurbs_foreachScreenVert(vc, ED_curve_pick_vert__doClosest, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
-
-    if (r_base && data.is_changed) {
-      *r_base = base;
-    }
-  }
-  MEM_freeN(bases);
-
-  *r_nurb = data.nurb;
-  *r_bezt = data.bezt;
-  *r_bp = data.bp;
-
-  if (r_handle) {
-    *r_handle = data.hpoint;
-  }
-
-  return (data.bezt || data.bp);
-}
-
-static void findselectedNurbvert(
-    Curve *cu, View3D *v3d, Nurb **r_nu, BezTriple **r_bezt, BPoint **r_bp)
-{
-  /* in nu and (bezt or bp) selected are written if there's 1 sel.  */
-  /* if more points selected in 1 spline: return only nu, bezt and bp are 0 */
-  ListBase *editnurb = &cu->editnurb->nurbs;
-  Nurb *nu1;
-  BezTriple *bezt1;
-  BPoint *bp1;
-  int a;
-
-  *r_nu = NULL;
-  *r_bezt = NULL;
-  *r_bp = NULL;
-
-  for (nu1 = editnurb->first; nu1; nu1 = nu1->next) {
-    if (nu1->type == CU_BEZIER) {
-      bezt1 = nu1->bezt;
-      a = nu1->pntsu;
-      while (a--) {
-        if (BEZT_ISSEL_ANY_HIDDENHANDLES(v3d, bezt1)) {
-          if (*r_nu != NULL && *r_nu != nu1) {
-            *r_nu = NULL;
-            *r_bp = NULL;
-            *r_bezt = NULL;
-            return;
-          }
-          else if (*r_bezt || *r_bp) {
-            *r_bp = NULL;
-            *r_bezt = NULL;
-          }
-          else {
-            *r_bezt = bezt1;
-            *r_nu = nu1;
-          }
-        }
-        bezt1++;
-      }
-    }
-    else {
-      bp1 = nu1->bp;
-      a = nu1->pntsu * nu1->pntsv;
-      while (a--) {
-        if (bp1->f1 & SELECT) {
-          if (*r_nu != NULL && *r_nu != nu1) {
-            *r_bp = NULL;
-            *r_bezt = NULL;
-            *r_nu = NULL;
-            return;
-          }
-          else if (*r_bezt || *r_bp) {
-            *r_bp = NULL;
-            *r_bezt = NULL;
-          }
-          else {
-            *r_bp = bp1;
-            *r_nu = nu1;
-          }
-        }
-        bp1++;
-      }
-    }
-  }
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Set Spline Type Operator
  * \{ */
 
@@ -4372,10 +4196,7 @@ typedef struct NurbSort {
   float vec[3];
 } NurbSort;
 
-static ListBase nsortbase = {NULL, NULL};
-/*  static NurbSort *nusmain; */ /* this var seems to go unused... at least in this file */
-
-static void make_selection_list_nurb(View3D *v3d, ListBase *editnurb)
+static void make_selection_list_nurb(View3D *v3d, ListBase *editnurb, ListBase *nsortbase)
 {
   ListBase nbase = {NULL, NULL};
   NurbSort *nus, *nustest, *headdo, *taildo;
@@ -4404,7 +4225,7 @@ static void make_selection_list_nurb(View3D *v3d, ListBase *editnurb)
   /* just add the first one */
   nus = nbase.first;
   BLI_remlink(&nbase, nus);
-  BLI_addtail(&nsortbase, nus);
+  BLI_addtail(nsortbase, nus);
 
   /* now add, either at head or tail, the closest one */
   while (nbase.first) {
@@ -4414,13 +4235,13 @@ static void make_selection_list_nurb(View3D *v3d, ListBase *editnurb)
 
     nustest = nbase.first;
     while (nustest) {
-      dist = len_v3v3(nustest->vec, ((NurbSort *)nsortbase.first)->vec);
+      dist = len_v3v3(nustest->vec, ((NurbSort *)nsortbase->first)->vec);
 
       if (dist < headdist) {
         headdist = dist;
         headdo = nustest;
       }
-      dist = len_v3v3(nustest->vec, ((NurbSort *)nsortbase.last)->vec);
+      dist = len_v3v3(nustest->vec, ((NurbSort *)nsortbase->last)->vec);
 
       if (dist < taildist) {
         taildist = dist;
@@ -4431,11 +4252,11 @@ static void make_selection_list_nurb(View3D *v3d, ListBase *editnurb)
 
     if (headdist < taildist) {
       BLI_remlink(&nbase, headdo);
-      BLI_addhead(&nsortbase, headdo);
+      BLI_addhead(nsortbase, headdo);
     }
     else {
       BLI_remlink(&nbase, taildo);
-      BLI_addtail(&nsortbase, taildo);
+      BLI_addtail(nsortbase, taildo);
     }
   }
 }
@@ -4612,8 +4433,9 @@ static int merge_nurb(View3D *v3d, Object *obedit)
   ListBase *editnurb = object_editcurve_get(obedit);
   NurbSort *nus1, *nus2;
   bool ok = true;
+  ListBase nsortbase = {NULL, NULL};
 
-  make_selection_list_nurb(v3d, editnurb);
+  make_selection_list_nurb(v3d, editnurb, &nsortbase);
 
   if (nsortbase.first == nsortbase.last) {
     BLI_freelistN(&nsortbase);
@@ -5346,7 +5168,7 @@ static bool ed_editcurve_extrude(Curve *cu, EditNurb *editnurb, View3D *v3d)
   BKE_curve_nurb_vert_active_get(cu, &cu_actnu, &cu_actvert.p);
   int act_offset = 0;
 
-  for (Nurb *nu = editnurb->nurbs.first; nu; nu = nu->next) {
+  LISTBASE_FOREACH (Nurb *, nu, &editnurb->nurbs) {
     BLI_assert(nu->pntsu > 0);
     int i;
     int pnt_len = nu->pntsu;
@@ -5736,7 +5558,7 @@ static int add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
     cu = vc.obedit->data;
 
-    findselectedNurbvert(cu, vc.v3d, &nu, &bezt, &bp);
+    ED_curve_nurb_vert_selected_find(cu, vc.v3d, &nu, &bezt, &bp);
 
     if (bezt) {
       mul_v3_m4v3(location, vc.obedit->obmat, bezt->vec[1]);
@@ -6727,8 +6549,8 @@ static int curve_dissolve_exec(bContext *C, wmOperator *UNUSED(op))
 
     for (nu = editnurb->first; nu; nu = nu->next) {
       if ((nu->type == CU_BEZIER) && (nu->pntsu > 2)) {
-        unsigned int span_step[2] = {nu->pntsu, nu->pntsu};
-        unsigned int span_len;
+        uint span_step[2] = {nu->pntsu, nu->pntsu};
+        uint span_len;
 
         while (BLI_array_iter_span(nu->bezt,
                                    nu->pntsu,
@@ -6742,9 +6564,9 @@ static int curve_dissolve_exec(bContext *C, wmOperator *UNUSED(op))
           BezTriple *bezt_next = &nu->bezt[mod_i(span_step[1] + 1, nu->pntsu)];
 
           int i_span_edge_len = span_len + 1;
-          const unsigned int dims = 3;
+          const uint dims = 3;
 
-          const unsigned int points_len = ((cu->resolu - 1) * i_span_edge_len) + 1;
+          const uint points_len = ((cu->resolu - 1) * i_span_edge_len) + 1;
           float *points = MEM_mallocN(points_len * dims * sizeof(float), __func__);
           float *points_stride = points;
           const int points_stride_len = (cu->resolu - 1);
@@ -6769,7 +6591,7 @@ static int curve_dissolve_exec(bContext *C, wmOperator *UNUSED(op))
           BLI_assert(points_stride + dims == points + (points_len * dims));
 
           float tan_l[3], tan_r[3], error_sq_dummy;
-          unsigned int error_index_dummy;
+          uint error_index_dummy;
 
           sub_v3_v3v3(tan_l, bezt_prev->vec[1], bezt_prev->vec[2]);
           normalize_v3(tan_l);
@@ -6953,7 +6775,7 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    for (Nurb *nu = editnurb->first; nu; nu = nu->next) {
+    LISTBASE_FOREACH (Nurb *, nu, editnurb) {
       if (ED_curve_nurb_select_check(v3d, nu)) {
         if (!clear) {
           nu->flag |= CU_SMOOTH;
@@ -7196,27 +7018,6 @@ void ED_curve_bpcpy(EditNurb *editnurb, BPoint *dst, BPoint *src, int count)
 {
   memcpy(dst, src, count * sizeof(BPoint));
   keyIndex_updateBP(editnurb, src, dst, count);
-}
-
-bool ED_curve_active_center(Curve *cu, float center[3])
-{
-  Nurb *nu = NULL;
-  void *vert = NULL;
-
-  if (!BKE_curve_nurb_vert_active_get(cu, &nu, &vert)) {
-    return false;
-  }
-
-  if (nu->type == CU_BEZIER) {
-    BezTriple *bezt = (BezTriple *)vert;
-    copy_v3_v3(center, bezt->vec[1]);
-  }
-  else {
-    BPoint *bp = (BPoint *)vert;
-    copy_v3_v3(center, bp->vec);
-  }
-
-  return true;
 }
 
 /** \} */

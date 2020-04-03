@@ -42,6 +42,7 @@
 
 #include "BLT_translation.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_brush.h"
 #include "BKE_context.h"
@@ -100,15 +101,15 @@
  */
 static Object **object_array_for_shading(bContext *C, uint *r_objects_len)
 {
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
   SpaceProperties *sbuts = NULL;
   View3D *v3d = NULL;
-  if (sa != NULL) {
-    if (sa->spacetype == SPACE_PROPERTIES) {
-      sbuts = sa->spacedata.first;
+  if (area != NULL) {
+    if (area->spacetype == SPACE_PROPERTIES) {
+      sbuts = area->spacedata.first;
     }
-    else if (sa->spacetype == SPACE_VIEW3D) {
-      v3d = sa->spacedata.first;
+    else if (area->spacetype == SPACE_VIEW3D) {
+      v3d = area->spacedata.first;
     }
   }
 
@@ -506,7 +507,7 @@ static int material_slot_move_exec(bContext *C, wmOperator *op)
 {
   Object *ob = ED_object_context(C);
 
-  unsigned int *slot_remap;
+  uint *slot_remap;
   int index_pair[2];
 
   int dir = RNA_enum_get(op->ptr, "direction");
@@ -531,7 +532,7 @@ static int material_slot_move_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  slot_remap = MEM_mallocN(sizeof(unsigned int) * ob->totcol, __func__);
+  slot_remap = MEM_mallocN(sizeof(uint) * ob->totcol, __func__);
 
   range_vn_u(slot_remap, ob->totcol, 0);
 

@@ -30,6 +30,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h" /* windows needs for M_PI */
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
@@ -3165,7 +3166,6 @@ void BKE_sequence_effect_speed_rebuild_map(Scene *scene, Sequence *seq, bool for
   /* XXX - new in 2.5x. should we use the animation system this way?
    * The fcurve is needed because many frames need evaluating at once - campbell */
   fcu = id_data_find_fcurve(&scene->id, seq, &RNA_Sequence, "speed_factor", 0, NULL);
-
   if (!v->frameMap || v->length != seq->len) {
     if (v->frameMap) {
       MEM_freeN(v->frameMap);

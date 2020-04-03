@@ -50,6 +50,7 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_brush.h"
 #include "BKE_context.h"
@@ -240,10 +241,10 @@ static int gp_layer_add_exec(bContext *C, wmOperator *op)
     if ((ob != NULL) && (ob->type == OB_GPENCIL)) {
       gpd = (bGPdata *)ob->data;
       bGPDlayer *gpl = BKE_gpencil_layer_addnew(gpd, DATA_("GP_Layer"), true);
-      ScrArea *sa = CTX_wm_area(C);
+      ScrArea *area = CTX_wm_area(C);
 
       /* In dopesheet add a new frame. */
-      if ((gpl != NULL) && (sa->spacetype == SPACE_ACTION)) {
+      if ((gpl != NULL) && (area->spacetype == SPACE_ACTION)) {
         gpl->actframe = BKE_gpencil_layer_frame_get(gpl, CFRA, GP_GETFRAME_ADD_NEW);
       }
     }
@@ -331,6 +332,7 @@ static int gp_layer_remove_exec(bContext *C, wmOperator *op)
   /* notifiers */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, NULL);
 
   return OPERATOR_FINISHED;
 }
@@ -478,6 +480,7 @@ static int gp_layer_copy_exec(bContext *C, wmOperator *UNUSED(op))
   /* notifiers */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, NULL);
 
   return OPERATOR_FINISHED;
 }
@@ -519,7 +522,7 @@ static bool gp_layer_duplicate_object_poll(bContext *C)
   }
 
   /* check there are more grease pencil objects */
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if ((base->object != ob) && (base->object->type == OB_GPENCIL)) {
       return true;
     }
@@ -568,7 +571,7 @@ static int gp_layer_duplicate_object_exec(bContext *C, wmOperator *op)
   gpl_dst->opacity = gpl_src->opacity;
 
   /* Create all frames. */
-  for (bGPDframe *gpf_src = gpl_src->frames.first; gpf_src; gpf_src = gpf_src->next) {
+  LISTBASE_FOREACH (bGPDframe *, gpf_src, &gpl_src->frames) {
 
     if ((mode == GP_LAYER_COPY_OBJECT_ACT_FRAME) && (gpf_src != gpl_src->actframe)) {
       continue;
@@ -578,7 +581,7 @@ static int gp_layer_duplicate_object_exec(bContext *C, wmOperator *op)
     bGPDframe *gpf_dst = BKE_gpencil_frame_addnew(gpl_dst, gpf_src->framenum);
 
     /* Copy strokes. */
-    for (bGPDstroke *gps_src = gpf_src->strokes.first; gps_src; gps_src = gps_src->next) {
+    LISTBASE_FOREACH (bGPDstroke *, gps_src, &gpf_src->strokes) {
 
       /* Make copy of source stroke. */
       bGPDstroke *gps_dst = BKE_gpencil_stroke_duplicate(gps_src, true);
@@ -1181,12 +1184,12 @@ static int gp_merge_layer_exec(bContext *C, wmOperator *op)
 
   /* Collect frames of gpl_current in hash table to avoid O(n^2) lookups */
   GHash *gh_frames_cur = BLI_ghash_int_new_ex(__func__, 64);
-  for (bGPDframe *gpf = gpl_current->frames.first; gpf; gpf = gpf->next) {
+  LISTBASE_FOREACH (bGPDframe *, gpf, &gpl_current->frames) {
     BLI_ghash_insert(gh_frames_cur, POINTER_FROM_INT(gpf->framenum), gpf);
   }
 
   /* read all frames from next layer and add any missing in current layer */
-  for (bGPDframe *gpf = gpl_next->frames.first; gpf; gpf = gpf->next) {
+  LISTBASE_FOREACH (bGPDframe *, gpf, &gpl_next->frames) {
     /* try to find frame in current layer */
     bGPDframe *frame = BLI_ghash_lookup(gh_frames_cur, POINTER_FROM_INT(gpf->framenum));
     if (!frame) {
@@ -1228,6 +1231,7 @@ static int gp_merge_layer_exec(bContext *C, wmOperator *op)
   /* notifiers */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, NULL);
 
   return OPERATOR_FINISHED;
 }
@@ -1291,6 +1295,7 @@ static int gp_layer_change_exec(bContext *C, wmOperator *op)
   /* updates */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, NULL);
 
   return OPERATOR_FINISHED;
 }
@@ -1336,6 +1341,7 @@ static int gp_layer_active_exec(bContext *C, wmOperator *op)
   /* updates */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, NULL);
 
   return OPERATOR_FINISHED;
 }
@@ -1433,7 +1439,7 @@ static int gp_stroke_arrange_exec(bContext *C, wmOperator *op)
           switch (direction) {
             /* Bring to Front */
             case GP_STROKE_MOVE_TOP:
-              for (LinkData *link = selected.first; link; link = link->next) {
+              LISTBASE_FOREACH (LinkData *, link, &selected) {
                 gps = link->data;
                 BLI_remlink(&gpf->strokes, gps);
                 BLI_addtail(&gpf->strokes, gps);
@@ -1448,7 +1454,7 @@ static int gp_stroke_arrange_exec(bContext *C, wmOperator *op)
               break;
             /* Send Backward */
             case GP_STROKE_MOVE_DOWN:
-              for (LinkData *link = selected.first; link; link = link->next) {
+              LISTBASE_FOREACH (LinkData *, link, &selected) {
                 gps = link->data;
                 BLI_listbase_link_move(&gpf->strokes, gps, -1);
               }
@@ -2523,7 +2529,7 @@ static void joined_gpencil_fix_animdata_cb(ID *id, FCurve *fcu, void *user_data)
   /* Fix driver targets */
   if (fcu->driver) {
     /* Fix driver references to invalid ID's */
-    for (DriverVar *dvar = fcu->driver->variables.first; dvar; dvar = dvar->next) {
+    LISTBASE_FOREACH (DriverVar *, dvar, &fcu->driver->variables) {
       /* Only change the used targets, since the others will need fixing manually anyway. */
       DRIVER_TARGETS_USED_LOOPER_BEGIN (dvar) {
         /* Change the ID's used. */
@@ -2614,7 +2620,7 @@ int ED_gpencil_join_objects_exec(bContext *C, wmOperator *op)
         bGPdata *gpd_src = ob_iter->data;
 
         /* Apply all GP modifiers before */
-        for (GpencilModifierData *md = ob_iter->greasepencil_modifiers.first; md; md = md->next) {
+        LISTBASE_FOREACH (GpencilModifierData *, md, &ob_iter->greasepencil_modifiers) {
           const GpencilModifierTypeInfo *mti = BKE_gpencil_modifierType_getInfo(md->type);
           if (mti->bakeModifier) {
             mti->bakeModifier(bmain, depsgraph, md, ob_iter);
@@ -2623,7 +2629,7 @@ int ED_gpencil_join_objects_exec(bContext *C, wmOperator *op)
 
         /* copy vertex groups to the base one's */
         int old_idx = 0;
-        for (bDeformGroup *dg = ob_iter->defbase.first; dg; dg = dg->next) {
+        LISTBASE_FOREACH (bDeformGroup *, dg, &ob_iter->defbase) {
           bDeformGroup *vgroup = MEM_dupallocN(dg);
           int idx = BLI_listbase_count(&ob_active->defbase);
           BKE_object_defgroup_unique_name(vgroup, ob_active);
@@ -2675,7 +2681,7 @@ int ED_gpencil_join_objects_exec(bContext *C, wmOperator *op)
         mul_m3_v3(imat, offset_global);
         mul_v3_m3v3(offset_local, imat, offset_global);
 
-        for (bGPDlayer *gpl_src = gpd_src->layers.first; gpl_src; gpl_src = gpl_src->next) {
+        LISTBASE_FOREACH (bGPDlayer *, gpl_src, &gpd_src->layers) {
           bGPDlayer *gpl_new = BKE_gpencil_layer_duplicate(gpl_src);
           float diff_mat[4][4];
           float inverse_diff_mat[4][4];
@@ -2685,7 +2691,7 @@ int ED_gpencil_join_objects_exec(bContext *C, wmOperator *op)
           invert_m4_m4(inverse_diff_mat, diff_mat);
 
           Material *ma_src = NULL;
-          for (bGPDframe *gpf = gpl_new->frames.first; gpf; gpf = gpf->next) {
+          LISTBASE_FOREACH (bGPDframe *, gpf, &gpl_new->frames) {
             LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
 
               /* Reassign material. Look old material and try to find in destination. */

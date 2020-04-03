@@ -1663,14 +1663,14 @@ void UI_panels_end(const struct bContext *C, struct ARegion *region, int *r_x, i
 void UI_panels_draw(const struct bContext *C, struct ARegion *region);
 
 struct Panel *UI_panel_find_by_type(struct ListBase *lb, struct PanelType *pt);
-struct Panel *UI_panel_begin(struct ScrArea *sa,
+struct Panel *UI_panel_begin(struct ScrArea *area,
                              struct ARegion *region,
                              struct ListBase *lb,
                              uiBlock *block,
                              struct PanelType *pt,
                              struct Panel *pa,
                              bool *r_open);
-void UI_panel_end(const struct ScrArea *sa,
+void UI_panel_end(const struct ScrArea *area,
                   const struct ARegion *region,
                   uiBlock *block,
                   int width,
@@ -2489,7 +2489,7 @@ struct ARegion *UI_tooltip_create_from_button(struct bContext *C,
                                               uiBut *but,
                                               bool is_label);
 struct ARegion *UI_tooltip_create_from_gizmo(struct bContext *C, struct wmGizmo *gz);
-void UI_tooltip_free(struct bContext *C, struct bScreen *sc, struct ARegion *region);
+void UI_tooltip_free(struct bContext *C, struct bScreen *screen, struct ARegion *region);
 
 /* How long before a tool-tip shows. */
 #define UI_TOOLTIP_DELAY 0.5

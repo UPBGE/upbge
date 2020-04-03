@@ -68,7 +68,7 @@ WorkSpaceLayout *ED_workspace_layout_duplicate(Main *bmain,
   screen_new = BKE_workspace_layout_screen_get(layout_new);
 
   if (BKE_screen_is_fullscreen_area(screen_old)) {
-    for (ScrArea *area_old = screen_old->areabase.first; area_old; area_old = area_old->next) {
+    LISTBASE_FOREACH (ScrArea *, area_old, &screen_old->areabase) {
       if (area_old->full) {
         ScrArea *area_new = (ScrArea *)screen_new->areabase.first;
         ED_area_data_copy(area_new, area_old, true);
@@ -172,9 +172,9 @@ bool ED_workspace_layout_cycle(WorkSpace *workspace, const short direction, bCon
   WorkSpaceLayout *old_layout = BKE_workspace_active_layout_get(win->workspace_hook);
   WorkSpaceLayout *new_layout;
   const bScreen *old_screen = BKE_workspace_layout_screen_get(old_layout);
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
 
-  if (old_screen->temp || (sa && sa->full && sa->full->temp)) {
+  if (old_screen->temp || (area && area->full && area->full->temp)) {
     return false;
   }
 
@@ -188,9 +188,9 @@ bool ED_workspace_layout_cycle(WorkSpace *workspace, const short direction, bCon
   if (new_layout && (old_layout != new_layout)) {
     bScreen *new_screen = BKE_workspace_layout_screen_get(new_layout);
 
-    if (sa && sa->full) {
+    if (area && area->full) {
       /* return to previous state before switching screens */
-      ED_screen_full_restore(C, sa); /* may free screen of old_layout */
+      ED_screen_full_restore(C, area); /* may free screen of old_layout */
     }
 
     ED_screen_change(C, new_screen);

@@ -31,6 +31,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_dlrbTree.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
@@ -505,14 +506,14 @@ static void update_keyblocks(DLRBT_Tree *keys, BezTriple *bezt, int bezt_len)
   /* Find the curve count */
   int max_curve = 0;
 
-  for (ActKeyColumn *col = keys->first; col; col = col->next) {
+  LISTBASE_FOREACH (ActKeyColumn *, col, keys) {
     max_curve = MAX2(max_curve, col->totcurve);
   }
 
   /* Propagate blocks to inserted keys */
   ActKeyColumn *prev_ready = NULL;
 
-  for (ActKeyColumn *col = keys->first; col; col = col->next) {
+  LISTBASE_FOREACH (ActKeyColumn *, col, keys) {
     /* Pre-existing column. */
     if (col->totcurve > 0) {
       prev_ready = col;
@@ -558,11 +559,11 @@ void draw_keyframe_shape(float x,
                          short key_type,
                          short mode,
                          float alpha,
-                         unsigned int pos_id,
-                         unsigned int size_id,
-                         unsigned int color_id,
-                         unsigned int outline_color_id,
-                         unsigned int flags_id,
+                         uint pos_id,
+                         uint size_id,
+                         uint color_id,
+                         uint outline_color_id,
+                         uint flags_id,
                          short handle_type,
                          short extreme_type)
 {
@@ -595,9 +596,9 @@ void draw_keyframe_shape(float x,
       size -= 0.8f * key_type;
   }
 
-  unsigned char fill_col[4];
-  unsigned char outline_col[4];
-  unsigned int flags = 0;
+  uchar fill_col[4];
+  uchar outline_col[4];
+  uint flags = 0;
 
   /* draw! */
   if (draw_fill) {
@@ -730,7 +731,7 @@ static void draw_keylist(View2D *v2d,
     ipo_color_mix[3] *= 0.5f;
 
     uint block_len = 0;
-    for (ActKeyColumn *ab = keys->first; ab; ab = ab->next) {
+    LISTBASE_FOREACH (ActKeyColumn *, ab, keys) {
       if (actkeyblock_get_valid_hold(ab)) {
         block_len++;
       }
@@ -746,7 +747,7 @@ static void draw_keylist(View2D *v2d,
       immBindBuiltinProgram(GPU_SHADER_2D_FLAT_COLOR);
 
       immBegin(GPU_PRIM_TRIS, 6 * block_len);
-      for (ActKeyColumn *ab = keys->first; ab; ab = ab->next) {
+      LISTBASE_FOREACH (ActKeyColumn *, ab, keys) {
         int valid_hold = actkeyblock_get_valid_hold(ab);
         if (valid_hold != 0) {
           if ((valid_hold & ACTKEYBLOCK_FLAG_STATIC_HOLD) == 0) {
@@ -791,7 +792,7 @@ static void draw_keylist(View2D *v2d,
   if (keys) {
     /* count keys */
     uint key_len = 0;
-    for (ActKeyColumn *ak = keys->first; ak; ak = ak->next) {
+    LISTBASE_FOREACH (ActKeyColumn *, ak, keys) {
       /* Optimization: if keyframe doesn't appear within 5 units (screenspace)
        * in visible area, don't draw.
        * This might give some improvements,
@@ -822,7 +823,7 @@ static void draw_keylist(View2D *v2d,
 
       short handle_type = KEYFRAME_HANDLE_NONE, extreme_type = KEYFRAME_EXTREME_NONE;
 
-      for (ActKeyColumn *ak = keys->first; ak; ak = ak->next) {
+      LISTBASE_FOREACH (ActKeyColumn *, ak, keys) {
         if (IN_RANGE_INCL(ak->cfra, v2d->cur.xmin, v2d->cur.xmax)) {
           if (show_ipo) {
             handle_type = ak->handle_type;
@@ -1153,7 +1154,7 @@ void cachefile_to_keylist(bDopeSheet *ads,
   ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   /* loop through each F-Curve, grabbing the keyframes */
-  for (bAnimListElem *ale = anim_data.first; ale; ale = ale->next) {
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     fcurve_to_keylist(ale->adt, ale->data, keys, saction_flag);
   }
 

@@ -36,6 +36,7 @@
 
 #include "IMB_imbuf_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 
 #include "BLT_translation.h"
@@ -1679,10 +1680,10 @@ void rna_Scene_glsl_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA
 
 static void rna_Scene_world_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Scene *sc = (Scene *)ptr->owner_id;
+  Scene *screen = (Scene *)ptr->owner_id;
 
   rna_Scene_glsl_update(bmain, scene, ptr);
-  WM_main_add_notifier(NC_WORLD | ND_WORLD, &sc->id);
+  WM_main_add_notifier(NC_WORLD | ND_WORLD, &screen->id);
   DEG_relations_tag_update(bmain);
 }
 
@@ -1810,7 +1811,7 @@ static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const bool *valu
 
     /* Update select mode in all the workspaces in mesh edit mode. */
     wmWindowManager *wm = G_MAIN->wm.first;
-    for (wmWindow *win = wm->windows.first; win; win = win->next) {
+    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       ViewLayer *view_layer = WM_window_get_active_view_layer(win);
 
       if (view_layer && view_layer->basact) {
@@ -2455,7 +2456,7 @@ static const EnumPropertyItem *rna_TransformOrientation_impl_itemf(Scene *scene,
   if (transform_orientations && (BLI_listbase_is_empty(transform_orientations) == false)) {
     RNA_enum_item_add_separator(&item, &totitem);
 
-    for (TransformOrientation *ts = transform_orientations->first; ts; ts = ts->next) {
+    LISTBASE_FOREACH (TransformOrientation *, ts, transform_orientations) {
       tmp.identifier = ts->name;
       tmp.name = ts->name;
       tmp.value = i++;

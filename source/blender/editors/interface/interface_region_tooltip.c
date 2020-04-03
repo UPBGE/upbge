@@ -42,6 +42,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -318,7 +319,7 @@ static bool ui_tooltip_data_append_from_keymap(bContext *C, uiTooltipData *data,
   const int fields_len_init = data->fields_len;
   char buf[512];
 
-  for (wmKeyMapItem *kmi = keymap->items.first; kmi; kmi = kmi->next) {
+  LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
     wmOperatorType *ot = WM_operatortype_find(kmi->idname, true);
     if (ot != NULL) {
       /* Tip */
@@ -393,15 +394,15 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
   bool has_valid_context = true;
   const char *has_valid_context_error = IFACE_("Unsupported context");
   {
-    ScrArea *sa = CTX_wm_area(C);
-    if (sa == NULL) {
+    ScrArea *area = CTX_wm_area(C);
+    if (area == NULL) {
       has_valid_context = false;
     }
     else {
       PropertyRNA *prop = RNA_struct_find_property(but->opptr, "space_type");
       if (RNA_property_is_set(but->opptr, prop)) {
         const int space_type_prop = RNA_property_enum_get(but->opptr, prop);
-        if (space_type_prop != sa->spacetype) {
+        if (space_type_prop != area->spacetype) {
           has_valid_context = false;
         }
       }
@@ -596,7 +597,7 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
         else if (BPY_execute_string_as_intptr(C, expr_imports, expr, true, &expr_result)) {
           if (expr_result != 0) {
             wmKeyMap *keymap = (wmKeyMap *)expr_result;
-            for (wmKeyMapItem *kmi = keymap->items.first; kmi; kmi = kmi->next) {
+            LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
               if (STREQ(kmi->idname, but->optype->idname)) {
                 char tool_id_test[MAX_NAME];
                 RNA_string_get(kmi->ptr, "name", tool_id_test);
@@ -1480,9 +1481,9 @@ ARegion *UI_tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
   return ui_tooltip_create_with_data(C, data, init_position, NULL, aspect);
 }
 
-void UI_tooltip_free(bContext *C, bScreen *sc, ARegion *region)
+void UI_tooltip_free(bContext *C, bScreen *screen, ARegion *region)
 {
-  ui_region_temp_remove(C, sc, region);
+  ui_region_temp_remove(C, screen, region);
 }
 
 /** \} */

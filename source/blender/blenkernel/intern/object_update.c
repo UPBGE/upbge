@@ -37,7 +37,6 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_action.h"
-#include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
@@ -273,7 +272,7 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
 
 /**
  * TODO(sergey): Ensure that bounding box is already calculated, and move this
- * into #BKE_object_synchronize_to_original().
+ * into #BKE_object_sync_to_original().
  */
 void BKE_object_eval_boundbox(Depsgraph *depsgraph, Object *object)
 {
@@ -290,7 +289,7 @@ void BKE_object_eval_boundbox(Depsgraph *depsgraph, Object *object)
   }
 }
 
-void BKE_object_synchronize_to_original(Depsgraph *depsgraph, Object *object)
+void BKE_object_sync_to_original(Depsgraph *depsgraph, Object *object)
 {
   if (!DEG_is_active(depsgraph)) {
     return;

@@ -58,6 +58,7 @@
 
 #include "BLT_translation.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
@@ -1458,7 +1459,7 @@ static int evaluate_seq_frame_gen(Sequence **seq_arr, ListBase *seqbase, int cfr
 
   memset(seq_arr, 0, sizeof(Sequence *) * (MAXSEQ + 1));
 
-  for (Sequence *seq = seqbase->first; seq; seq = seq->next) {
+  LISTBASE_FOREACH (Sequence *, seq, seqbase) {
     if ((seq->startdisp <= cfra) && (seq->enddisp > cfra)) {
       if ((seq->type & SEQ_TYPE_EFFECT) && !(seq->flag & SEQ_MUTE)) {
 

@@ -29,6 +29,7 @@
 #include "DNA_object_types.h"
 
 #include "BLI_array_utils.h"
+#include "BLI_listbase.h"
 
 #include "BKE_context.h"
 #include "BKE_layer.h"
@@ -94,7 +95,7 @@ static void *undoarm_from_editarm(UndoArmature *uarm, bArmature *arm)
 
   ED_armature_ebone_listbase_temp_clear(&uarm->lb);
 
-  for (EditBone *ebone = uarm->lb.first; ebone; ebone = ebone->next) {
+  LISTBASE_FOREACH (EditBone *, ebone, &uarm->lb) {
     uarm->undo_size += sizeof(EditBone);
   }
 

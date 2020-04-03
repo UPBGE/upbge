@@ -26,6 +26,7 @@
 #include "DNA_node_types.h"
 
 #include "BLI_lasso_2d.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -284,7 +285,7 @@ static bool node_select_grouped_name(SpaceNode *snode, bNode *node_act, const bo
 {
   bNode *node;
   bool changed = false;
-  const unsigned int delims[] = {'.', '-', '_', '\0'};
+  const uint delims[] = {'.', '-', '_', '\0'};
   size_t pref_len_act, pref_len_curr;
   const char *sep, *suf_act, *suf_curr;
 
@@ -622,7 +623,7 @@ static int node_box_select_exec(bContext *C, wmOperator *op)
     ED_node_select_all(&snode->edittree->nodes, SEL_DESELECT);
   }
 
-  for (bNode *node = snode->edittree->nodes.first; node; node = node->next) {
+  LISTBASE_FOREACH (bNode *, node, &snode->edittree->nodes) {
     bool is_inside;
     if (node->type == NODE_FRAME) {
       is_inside = BLI_rctf_inside_rctf(&rectf, &node->totr);

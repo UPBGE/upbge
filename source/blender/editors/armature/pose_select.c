@@ -141,7 +141,7 @@ void ED_pose_bone_select(Object *ob, bPoseChannel *pchan, bool select)
 bool ED_armature_pose_select_pick_with_buffer(ViewLayer *view_layer,
                                               View3D *v3d,
                                               Base *base,
-                                              const unsigned int *buffer,
+                                              const uint *buffer,
                                               short hits,
                                               bool extend,
                                               bool deselect,
@@ -156,12 +156,12 @@ bool ED_armature_pose_select_pick_with_buffer(ViewLayer *view_layer,
   }
 
   Object *ob_act = OBACT(view_layer);
-  Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
+  BLI_assert(OBEDIT_FROM_VIEW_LAYER(view_layer) == NULL);
 
   /* Callers happen to already get the active base */
   Base *base_dummy = NULL;
-  nearBone = get_bone_from_selectbuffer(
-      &base, 1, obedit != NULL, buffer, hits, 1, do_nearest, &base_dummy);
+  nearBone = ED_armature_pick_bone_from_selectbuffer(
+      &base, 1, buffer, hits, 1, do_nearest, &base_dummy);
 
   /* if the bone cannot be affected, don't do anything */
   if ((nearBone) && !(nearBone->flag & BONE_UNSELECTABLE)) {
@@ -323,7 +323,7 @@ bool ED_pose_deselect_all(Object *ob, int select_mode, const bool ignore_visibil
 static bool ed_pose_is_any_selected(Object *ob, bool ignore_visibility)
 {
   bArmature *arm = ob->data;
-  for (bPoseChannel *pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+  LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
     if (ignore_visibility || PBONE_VISIBLE(arm, pchan->bone)) {
       if (pchan->bone->flag & BONE_SELECTED) {
         return true;
@@ -413,7 +413,7 @@ static int pose_select_connected_invoke(bContext *C, wmOperator *op, const wmEve
   view3d_operator_needs_opengl(C);
 
   Base *base = NULL;
-  bone = get_nearest_bone(C, event->mval, !extend, &base);
+  bone = ED_armature_pick_bone(C, event->mval, !extend, &base);
 
   if (!bone) {
     return OPERATOR_CANCELLED;

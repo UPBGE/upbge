@@ -118,7 +118,7 @@ static void ui_popup_block_position(wmWindow *window,
     if (block->buttons.first) {
       BLI_rctf_init_minmax(&block->rect);
 
-      for (uiBut *bt = block->buttons.first; bt; bt = bt->next) {
+      LISTBASE_FOREACH (uiBut *, bt, &block->buttons) {
         if (block->content_hints & UI_BLOCK_CONTAINS_SUBMENU_BUT) {
           bt->rect.xmax += UI_MENU_SUBMENU_PADDING;
         }
@@ -294,7 +294,7 @@ static void ui_popup_block_position(wmWindow *window,
   }
 
   /* Apply offset, buttons in window coords. */
-  for (uiBut *bt = block->buttons.first; bt; bt = bt->next) {
+  LISTBASE_FOREACH (uiBut *, bt, &block->buttons) {
     ui_block_to_window_rctf(butregion, but->block, &bt->rect, &bt->rect);
 
     BLI_rctf_translate(&bt->rect, offset_x, offset_y);
@@ -420,7 +420,7 @@ static void ui_block_region_draw(const bContext *C, ARegion *region)
  * Use to refresh centered popups on screen resizing (for splash).
  */
 static void ui_block_region_popup_window_listener(wmWindow *UNUSED(win),
-                                                  ScrArea *UNUSED(sa),
+                                                  ScrArea *UNUSED(area),
                                                   ARegion *region,
                                                   wmNotifier *wmn,
                                                   const Scene *UNUSED(scene))
@@ -525,36 +525,36 @@ void ui_popup_block_scrolltest(uiBlock *block)
 static void ui_popup_block_remove(bContext *C, uiPopupBlockHandle *handle)
 {
   wmWindow *ctx_win = CTX_wm_window(C);
-  ScrArea *ctx_sa = CTX_wm_area(C);
-  ARegion *ctx_ar = CTX_wm_region(C);
+  ScrArea *ctx_area = CTX_wm_area(C);
+  ARegion *ctx_region = CTX_wm_region(C);
 
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = ctx_win;
-  bScreen *sc = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(C);
 
   /* There may actually be a different window active than the one showing the popup, so lookup real
    * one. */
-  if (BLI_findindex(&sc->regionbase, handle->region) == -1) {
+  if (BLI_findindex(&screen->regionbase, handle->region) == -1) {
     for (win = wm->windows.first; win; win = win->next) {
-      sc = WM_window_get_active_screen(win);
-      if (BLI_findindex(&sc->regionbase, handle->region) != -1) {
+      screen = WM_window_get_active_screen(win);
+      if (BLI_findindex(&screen->regionbase, handle->region) != -1) {
         break;
       }
     }
   }
 
-  BLI_assert(win && sc);
+  BLI_assert(win && screen);
 
   CTX_wm_window_set(C, win);
-  ui_region_temp_remove(C, sc, handle->region);
+  ui_region_temp_remove(C, screen, handle->region);
 
   /* Reset context (area and region were NULL'ed when chaning context window). */
   CTX_wm_window_set(C, ctx_win);
-  CTX_wm_area_set(C, ctx_sa);
-  CTX_wm_region_set(C, ctx_ar);
+  CTX_wm_area_set(C, ctx_area);
+  CTX_wm_region_set(C, ctx_region);
 
   /* reset to region cursor (only if there's not another menu open) */
-  if (BLI_listbase_is_empty(&sc->regionbase)) {
+  if (BLI_listbase_is_empty(&screen->regionbase)) {
     win->tag_cursor_refresh = true;
   }
 
@@ -698,7 +698,7 @@ uiBlock *ui_popup_block_refresh(bContext *C,
 
     /* lastly set the buttons at the center of the pie menu, ready for animation */
     if (U.pie_animation_timeout > 0) {
-      for (uiBut *but_iter = block->buttons.first; but_iter; but_iter = but_iter->next) {
+      LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
         if (but_iter->pie_dir != UI_RADIAL_NONE) {
           BLI_rctf_recenter(&but_iter->rect, UNPACK2(block->pie_data.pie_center_spawned));
         }
@@ -742,7 +742,7 @@ uiBlock *ui_popup_block_refresh(bContext *C,
 
     /* apply scroll offset */
     if (handle->scrolloffset != 0.0f) {
-      for (uiBut *bt = block->buttons.first; bt; bt = bt->next) {
+      LISTBASE_FOREACH (uiBut *, bt, &block->buttons) {
         bt->rect.ymin += handle->scrolloffset;
         bt->rect.ymax += handle->scrolloffset;
       }
@@ -846,7 +846,7 @@ void ui_popup_block_free(bContext *C, uiPopupBlockHandle *handle)
    * then close the popover too. We could extend this to other popup types too. */
   ARegion *region = handle->popup_create_vars.butregion;
   if (region != NULL) {
-    for (uiBlock *block = region->uiblocks.first; block; block = block->next) {
+    LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
       if (block->handle && (block->flag & UI_BLOCK_POPOVER) &&
           (block->flag & UI_BLOCK_KEEP_OPEN) == 0) {
         uiPopupBlockHandle *menu = block->handle;

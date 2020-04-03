@@ -1160,7 +1160,7 @@ static void template_ID_tabs(bContext *C,
   ListBase ordered;
   BKE_id_ordered_list(&ordered, template->idlb);
 
-  for (LinkData *link = ordered.first; link; link = link->next) {
+  LISTBASE_FOREACH (LinkData *, link, &ordered) {
     ID *id = link->data;
     const int name_width = UI_fontstyle_string_width(&style->widgetlabel, id->name + 2);
     const int but_width = name_width + UI_UNIT_X;
@@ -2429,7 +2429,7 @@ static void template_operator_redo_property_buts_draw(
     const bContext *C, wmOperator *op, uiLayout *layout, int layout_flags, bool *r_has_advanced)
 {
   if (op->type->flag & OPTYPE_MACRO) {
-    for (wmOperator *macro_op = op->macro.first; macro_op; macro_op = macro_op->next) {
+    LISTBASE_FOREACH (wmOperator *, macro_op, &op->macro) {
       template_operator_redo_property_buts_draw(C, macro_op, layout, layout_flags, r_has_advanced);
     }
   }
@@ -6910,7 +6910,7 @@ static bool menu_items_from_ui_create_item_from_button(struct MenuSearch_Data *d
  */
 static void menu_types_add_from_keymap_items(bContext *C,
                                              wmWindow *win,
-                                             ScrArea *sa,
+                                             ScrArea *area,
                                              ARegion *region,
                                              LinkNode **menuid_stack_p,
                                              GHash *menu_to_kmi,
@@ -6919,7 +6919,7 @@ static void menu_types_add_from_keymap_items(bContext *C,
   wmWindowManager *wm = CTX_wm_manager(C);
   ListBase *handlers[] = {
       region ? &region->handlers : NULL,
-      sa ? &sa->handlers : NULL,
+      area ? &area->handlers : NULL,
       &win->handlers,
   };
 
@@ -6974,7 +6974,7 @@ static void menu_types_add_from_keymap_items(bContext *C,
  */
 static struct MenuSearch_Data *menu_items_from_ui_create(bContext *C,
                                                          wmWindow *win,
-                                                         ScrArea *sa,
+                                                         ScrArea *area,
                                                          ARegion *region)
 {
   MemArena *memarena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
@@ -7032,8 +7032,8 @@ static struct MenuSearch_Data *menu_items_from_ui_create(bContext *C,
   case space_type: \
     break
 
-    if (sa != NULL) {
-      switch (sa->spacetype) {
+    if (area != NULL) {
+      switch (area->spacetype) {
         SPACE_MENU_MAP(SPACE_VIEW3D, "VIEW3D_MT_editor_menus");
         SPACE_MENU_MAP(SPACE_GRAPH, "GRAPH_MT_editor_menus");
         SPACE_MENU_MAP(SPACE_OUTLINER, "OUTLINER_MT_editor_menus");
@@ -7049,13 +7049,13 @@ static struct MenuSearch_Data *menu_items_from_ui_create(bContext *C,
         SPACE_MENU_MAP(SPACE_CONSOLE, "CONSOLE_MT_editor_menus");
         SPACE_MENU_MAP(SPACE_USERPREF, "USERPREF_MT_editor_menus");
         SPACE_MENU_MAP(SPACE_CLIP,
-                       (((const SpaceClip *)sa->spacedata.first)->mode == SC_MODE_TRACKING) ?
+                       (((const SpaceClip *)area->spacedata.first)->mode == SC_MODE_TRACKING) ?
                            "CLIP_MT_tracking_editor_menus" :
                            "CLIP_MT_masking_editor_menus");
         SPACE_MENU_NOP(SPACE_TOPBAR);
         SPACE_MENU_NOP(SPACE_STATUSBAR);
         default:
-          printf("Unknown space type '%d'\n", sa->spacetype);
+          printf("Unknown space type '%d'\n", area->spacetype);
       }
     }
     for (int i = 0; i < idname_array_len; i++) {
@@ -7201,7 +7201,8 @@ static struct MenuSearch_Data *menu_items_from_ui_create(bContext *C,
      * so all menus are accessed from the header & top-bar before key shortcuts are expanded. */
     if ((menu_stack == NULL) && (has_keymap_menu_items == false)) {
       has_keymap_menu_items = true;
-      menu_types_add_from_keymap_items(C, win, sa, region, &menu_stack, menu_to_kmi, menu_tagged);
+      menu_types_add_from_keymap_items(
+          C, win, area, region, &menu_stack, menu_to_kmi, menu_tagged);
     }
   }
 
@@ -7390,9 +7391,9 @@ void UI_but_func_menu_search(uiBut *but)
 {
   bContext *C = but->block->evil_C;
   wmWindow *win = CTX_wm_window(C);
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
-  struct MenuSearch_Data *data = menu_items_from_ui_create(C, win, sa, region);
+  struct MenuSearch_Data *data = menu_items_from_ui_create(C, win, area, region);
   UI_but_func_search_set(but,
                          ui_searchbox_create_menu,
                          menu_search_cb,
@@ -7677,7 +7678,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
   uiBlock *block;
   void *owner = NULL;
   int handle_event, icon = 0;
@@ -7751,7 +7752,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
        * progress bar which is not being updated (bake jobs only need
        * to update NC_IMAGE context.
        */
-      if (sa->spacetype != SPACE_NODE) {
+      if (area->spacetype != SPACE_NODE) {
         handle_event = B_STOPOTHER;
         icon = ICON_IMAGE;
         break;

@@ -20,6 +20,7 @@
  * \ingroup draw
  */
 
+#include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 
@@ -250,7 +251,7 @@ void DRW_stats_draw(const rcti *rect)
 
   /* Engines rows */
   char time_to_txt[16];
-  for (LinkData *link = DST.enabled_engines.first; link; link = link->next) {
+  LISTBASE_FOREACH (LinkData *, link, &DST.enabled_engines) {
     u = 0;
     DrawEngineType *engine = link->data;
     ViewportEngineData *data = drw_viewport_engine_data_ensure(engine);

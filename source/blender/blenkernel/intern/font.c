@@ -48,7 +48,7 @@
 #include "DNA_packedFile_types.h"
 #include "DNA_vfont_types.h"
 
-#include "BKE_anim.h"
+#include "BKE_anim_path.h"
 #include "BKE_curve.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
@@ -734,7 +734,7 @@ static bool vfont_to_curve(Object *ob,
   float twidth = 0, maxlen = 0;
   int i, slen, j;
   int curbox;
-  int selstart, selend;
+  int selstart = 0, selend = 0;
   int cnr = 0, lnr = 0, wsnr = 0;
   const char32_t *mem = NULL;
   char32_t ascii;

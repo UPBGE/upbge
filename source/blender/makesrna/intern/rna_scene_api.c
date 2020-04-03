@@ -50,7 +50,6 @@ const EnumPropertyItem rna_enum_abc_compression_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_animsys.h"
 #  include "BKE_editmesh.h"
 #  include "BKE_global.h"
 #  include "BKE_image.h"
@@ -89,8 +88,8 @@ static void rna_Scene_frame_set(Scene *scene, Main *bmain, int frame, float subf
 #  endif
 
   if (BKE_scene_camera_switch_update(scene)) {
-    for (bScreen *sc = bmain->screens.first; sc; sc = sc->id.next) {
-      BKE_screen_view3d_scene_sync(sc, scene);
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      BKE_screen_view3d_scene_sync(screen, scene);
     }
   }
 

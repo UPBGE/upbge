@@ -33,6 +33,7 @@
 #include "BKE_global.h" /* for G.debug */
 
 #include "BLI_link_utils.h"
+#include "BLI_listbase.h"
 #include "BLI_memblock.h"
 
 #include "DNA_camera_types.h"
@@ -743,8 +744,8 @@ static void GPENCIL_draw_scene_depth_only(void *ved)
     GPU_framebuffer_bind(dfbl->depth_only_fb);
   }
 
-  for (GPENCIL_tObject *ob = pd->tobjects.first; ob; ob = ob->next) {
-    for (GPENCIL_tLayer *layer = ob->layers.first; layer; layer = layer->next) {
+  LISTBASE_FOREACH (GPENCIL_tObject *, ob, &pd->tobjects) {
+    LISTBASE_FOREACH (GPENCIL_tLayer *, layer, &ob->layers) {
       DRW_draw_pass(layer->geom_ps);
     }
   }
@@ -825,7 +826,7 @@ static void GPENCIL_draw_object(GPENCIL_Data *vedata, GPENCIL_tObject *ob)
     GPU_framebuffer_multi_clear(fb_object, clear_cols);
   }
 
-  for (GPENCIL_tLayer *layer = ob->layers.first; layer; layer = layer->next) {
+  LISTBASE_FOREACH (GPENCIL_tLayer *, layer, &ob->layers) {
     if (layer->mask_bits) {
       gpencil_draw_mask(vedata, ob, layer);
     }
@@ -846,7 +847,7 @@ static void GPENCIL_draw_object(GPENCIL_Data *vedata, GPENCIL_tObject *ob)
     }
   }
 
-  for (GPENCIL_tVfx *vfx = ob->vfx.first; vfx; vfx = vfx->next) {
+  LISTBASE_FOREACH (GPENCIL_tVfx *, vfx, &ob->vfx) {
     GPU_framebuffer_bind(*(vfx->target_fb));
     DRW_draw_pass(vfx->vfx_ps);
   }
@@ -892,7 +893,7 @@ static void GPENCIL_fast_draw_end(GPENCIL_Data *vedata)
     pd->snapshot_buffer_dirty = false;
   }
   /* Draw the sbuffer stroke(s). */
-  for (GPENCIL_tObject *ob = pd->sbuffer_tobjects.first; ob; ob = ob->next) {
+  LISTBASE_FOREACH (GPENCIL_tObject *, ob, &pd->sbuffer_tobjects) {
     GPENCIL_draw_object(vedata, ob);
   }
 }
@@ -933,7 +934,7 @@ void GPENCIL_draw_scene(void *ved)
     GPU_framebuffer_multi_clear(fbl->gpencil_fb, clear_cols);
   }
 
-  for (GPENCIL_tObject *ob = pd->tobjects.first; ob; ob = ob->next) {
+  LISTBASE_FOREACH (GPENCIL_tObject *, ob, &pd->tobjects) {
     GPENCIL_draw_object(vedata, ob);
   }
 

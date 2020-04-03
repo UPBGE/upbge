@@ -45,6 +45,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_collection.h"
 #include "BKE_constraint.h"
@@ -517,7 +518,7 @@ static void merged_element_search_cb_recursive(
   char name[64];
   int iconid;
 
-  for (TreeElement *te = tree->first; te; te = te->next) {
+  LISTBASE_FOREACH (TreeElement *, te, tree) {
     TreeStoreElem *tselem = TREESTORE(te);
 
     if (tree_element_id_type_to_index(te) == type && tselem_type == tselem->type) {

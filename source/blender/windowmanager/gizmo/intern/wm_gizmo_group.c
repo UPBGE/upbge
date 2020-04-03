@@ -222,7 +222,7 @@ wmGizmo *wm_gizmogroup_find_intersected_gizmo(wmWindowManager *wm,
 {
   int gzgroup_keymap_uses_modifier = -1;
 
-  for (wmGizmo *gz = gzgroup->gizmos.first; gz; gz = gz->next) {
+  LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
     if (gz->type->test_select && (gz->flag & (WM_GIZMO_HIDDEN | WM_GIZMO_HIDDEN_SELECT)) == 0) {
 
       if (!wm_gizmo_keymap_uses_event_modifier(
@@ -298,10 +298,10 @@ void WM_gizmo_group_remove_by_tool(bContext *C,
                                    const bToolRef *tref)
 {
   wmGizmoMapType *gzmap_type = WM_gizmomaptype_find(&gzgt->gzmap_params);
-  for (bScreen *sc = bmain->screens.first; sc; sc = sc->id.next) {
-    for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-      if (sa->runtime.tool == tref) {
-        for (ARegion *region = sa->regionbase.first; region; region = region->next) {
+  for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (area->runtime.tool == tref) {
+        LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
           wmGizmoMap *gzmap = region->gizmo_map;
           if (gzmap && gzmap->type == gzmap_type) {
             wmGizmoGroup *gzgroup, *gzgroup_next;
@@ -337,7 +337,7 @@ bool wm_gizmogroup_is_visible_in_drawstep(const wmGizmoGroup *gzgroup,
 bool wm_gizmogroup_is_any_selected(const wmGizmoGroup *gzgroup)
 {
   if (gzgroup->type->flag & WM_GIZMOGROUPTYPE_SELECT) {
-    for (const wmGizmo *gz = gzgroup->gizmos.first; gz; gz = gz->next) {
+    LISTBASE_FOREACH (const wmGizmo *, gz, &gzgroup->gizmos) {
       if (gz->state & WM_GIZMO_STATE_SELECT) {
         return true;
       }
@@ -850,8 +850,7 @@ struct wmGizmoGroupTypeRef *WM_gizmomaptype_group_find_ptr(struct wmGizmoMapType
                                                            const wmGizmoGroupType *gzgt)
 {
   /* could use hash lookups as operator types do, for now simple search. */
-  for (wmGizmoGroupTypeRef *gzgt_ref = gzmap_type->grouptype_refs.first; gzgt_ref;
-       gzgt_ref = gzgt_ref->next) {
+  LISTBASE_FOREACH (wmGizmoGroupTypeRef *, gzgt_ref, &gzmap_type->grouptype_refs) {
     if (gzgt_ref->type == gzgt) {
       return gzgt_ref;
     }
@@ -863,8 +862,7 @@ struct wmGizmoGroupTypeRef *WM_gizmomaptype_group_find(struct wmGizmoMapType *gz
                                                        const char *idname)
 {
   /* could use hash lookups as operator types do, for now simple search. */
-  for (wmGizmoGroupTypeRef *gzgt_ref = gzmap_type->grouptype_refs.first; gzgt_ref;
-       gzgt_ref = gzgt_ref->next) {
+  LISTBASE_FOREACH (wmGizmoGroupTypeRef *, gzgt_ref, &gzmap_type->grouptype_refs) {
     if (STREQ(idname, gzgt_ref->type->idname)) {
       return gzgt_ref;
     }
@@ -908,11 +906,11 @@ void WM_gizmomaptype_group_init_runtime(const Main *bmain,
   }
 
   /* now create a gizmo for all existing areas */
-  for (bScreen *sc = bmain->screens.first; sc; sc = sc->id.next) {
-    for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-      for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-        ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
-        for (ARegion *region = lb->first; region; region = region->next) {
+  for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        ListBase *lb = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
+        LISTBASE_FOREACH (ARegion *, region, lb) {
           wmGizmoMap *gzmap = region->gizmo_map;
           if (gzmap && gzmap->type == gzmap_type) {
             WM_gizmomaptype_group_init_runtime_with_region(gzmap_type, gzgt, region);
@@ -963,11 +961,11 @@ void WM_gizmomaptype_group_unlink(bContext *C,
                                   const wmGizmoGroupType *gzgt)
 {
   /* Free instances. */
-  for (bScreen *sc = bmain->screens.first; sc; sc = sc->id.next) {
-    for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-      for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-        ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
-        for (ARegion *region = lb->first; region; region = region->next) {
+  for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        ListBase *lb = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
+        LISTBASE_FOREACH (ARegion *, region, lb) {
           wmGizmoMap *gzmap = region->gizmo_map;
           if (gzmap && gzmap->type == gzmap_type) {
             wmGizmoGroup *gzgroup, *gzgroup_next;
@@ -1132,12 +1130,12 @@ void WM_gizmo_group_type_unlink_delayed(const char *idname)
 
 void WM_gizmo_group_unlink_delayed_ptr_from_space(wmGizmoGroupType *gzgt,
                                                   wmGizmoMapType *gzmap_type,
-                                                  ScrArea *sa)
+                                                  ScrArea *area)
 {
-  for (ARegion *region = sa->regionbase.first; region; region = region->next) {
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     wmGizmoMap *gzmap = region->gizmo_map;
     if (gzmap && gzmap->type == gzmap_type) {
-      for (wmGizmoGroup *gzgroup = gzmap->groups.first; gzgroup; gzgroup = gzgroup->next) {
+      LISTBASE_FOREACH (wmGizmoGroup *, gzgroup, &gzmap->groups) {
         if (gzgroup->type == gzgt) {
           WM_gizmo_group_tag_remove(gzgroup);
         }

@@ -66,6 +66,7 @@ extern "C" {
 #include "DNA_world_types.h"
 
 #include "BKE_action.h"
+#include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_cachefile.h"
@@ -652,7 +653,7 @@ void DepsgraphNodeBuilder::build_object(int base_index,
   add_operation_node(&object->id,
                      NodeType::SYNCHRONIZATION,
                      OperationCode::SYNCHRONIZE_TO_ORIGINAL,
-                     function_bind(BKE_object_synchronize_to_original, _1, object_cow));
+                     function_bind(BKE_object_sync_to_original, _1, object_cow));
 }
 
 void DepsgraphNodeBuilder::build_object_flags(int base_index,

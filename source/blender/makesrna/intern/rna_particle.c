@@ -41,6 +41,8 @@
 
 #include "BKE_mesh.h"
 
+#include "BLI_listbase.h"
+
 #include "BLT_translation.h"
 
 #include "rna_internal.h"
@@ -695,7 +697,7 @@ static void rna_Particle_change_type(Main *bmain, Scene *UNUSED(scene), PointerR
 
   /* Iterating over all object is slow, but no better solution exists at the moment. */
   for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-    for (ParticleSystem *psys = ob->particlesystem.first; psys; psys = psys->next) {
+    LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
       if (psys->part == part) {
         psys_changed_type(ob, psys);
         psys->recalc |= ID_RECALC_PSYS_RESET;

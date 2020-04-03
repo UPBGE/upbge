@@ -119,7 +119,7 @@ static int ed_undo_step_impl(
   CLOG_INFO(&LOG, 1, "name='%s', step=%d", undoname, step);
   wmWindowManager *wm = CTX_wm_manager(C);
   Scene *scene = CTX_data_scene(C);
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
 
   /* undo during jobs are running can easily lead to freeing data using by jobs,
    * or they can just lead to freezing job in some other cases */
@@ -138,7 +138,7 @@ static int ed_undo_step_impl(
   if (ED_gpencil_session_active()) {
     return ED_undo_gpencil_step(C, step, undoname);
   }
-  if (sa && (sa->spacetype == SPACE_VIEW3D)) {
+  if (area && (area->spacetype == SPACE_VIEW3D)) {
     Object *obact = CTX_data_active_object(C);
     if (obact && (obact->type == OB_GPENCIL)) {
       ED_gpencil_toggle_brush_cursor(C, false, NULL);
@@ -195,7 +195,7 @@ static int ed_undo_step_impl(
     }
 
     /* Set special modes for grease pencil */
-    if (sa && (sa->spacetype == SPACE_VIEW3D)) {
+    if (area && (area->spacetype == SPACE_VIEW3D)) {
       Object *obact = CTX_data_active_object(C);
       if (obact && (obact->type == OB_GPENCIL)) {
         /* set cursor */
@@ -558,11 +558,11 @@ int ED_undo_operator_repeat(bContext *C, wmOperator *op)
     struct Scene *scene = CTX_data_scene(C);
 
     /* keep in sync with logic in view3d_panel_operator_redo() */
-    ARegion *ar_orig = CTX_wm_region(C);
-    ARegion *ar_win = BKE_area_find_region_active_win(CTX_wm_area(C));
+    ARegion *region_orig = CTX_wm_region(C);
+    ARegion *region_win = BKE_area_find_region_active_win(CTX_wm_area(C));
 
-    if (ar_win) {
-      CTX_wm_region_set(C, ar_win);
+    if (region_win) {
+      CTX_wm_region_set(C, region_win);
     }
 
     if ((WM_operator_repeat_check(C, op)) && (WM_operator_poll(C, op->type)) &&
@@ -585,9 +585,9 @@ int ED_undo_operator_repeat(bContext *C, wmOperator *op)
       if (op->type->check) {
         if (op->type->check(C, op)) {
           /* check for popup and re-layout buttons */
-          ARegion *ar_menu = CTX_wm_menu(C);
-          if (ar_menu) {
-            ED_region_tag_refresh_ui(ar_menu);
+          ARegion *region_menu = CTX_wm_menu(C);
+          if (region_menu) {
+            ED_region_tag_refresh_ui(region_menu);
           }
         }
       }
@@ -610,7 +610,7 @@ int ED_undo_operator_repeat(bContext *C, wmOperator *op)
     }
 
     /* set region back */
-    CTX_wm_region_set(C, ar_orig);
+    CTX_wm_region_set(C, region_orig);
   }
   else {
     CLOG_WARN(&LOG, "called with NULL 'op'");
@@ -816,7 +816,7 @@ static int undo_editmode_objects_from_view_layer_prepare(ViewLayer *view_layer,
 {
   const short object_type = obact->type;
 
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     Object *ob = base->object;
     if ((ob->type == object_type) && (ob->mode & OB_MODE_EDIT)) {
       ID *id = ob->data;
@@ -825,7 +825,7 @@ static int undo_editmode_objects_from_view_layer_prepare(ViewLayer *view_layer,
   }
 
   int len = 0;
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     Object *ob = base->object;
     if ((ob->type == object_type) && (ob->mode & OB_MODE_EDIT)) {
       if (ob == obact) {
@@ -852,7 +852,7 @@ Object **ED_undo_editmode_objects_from_view_layer(ViewLayer *view_layer, uint *r
   const short object_type = obact->type;
   int i = 0;
   Object **objects = MEM_malloc_arrayN(len, sizeof(*objects), __func__);
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     Object *ob = base->object;
     if ((ob->type == object_type) && (ob->mode & OB_MODE_EDIT)) {
       ID *id = ob->data;
@@ -881,7 +881,7 @@ Base **ED_undo_editmode_bases_from_view_layer(ViewLayer *view_layer, uint *r_len
   const short object_type = obact->type;
   int i = 0;
   Base **base_array = MEM_malloc_arrayN(len, sizeof(*base_array), __func__);
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     Object *ob = base->object;
     if ((ob->type == object_type) && (ob->mode & OB_MODE_EDIT)) {
       ID *id = ob->data;

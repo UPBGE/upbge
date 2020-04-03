@@ -29,6 +29,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_kdopbvh.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_math_color.h"
 #include "BLI_utildefines.h"
@@ -49,7 +50,6 @@
 
 #include "BKE_main.h"
 
-#include "BKE_animsys.h"
 #include "BKE_colorband.h"
 #include "BKE_colortools.h"
 #include "BKE_icons.h"
@@ -697,7 +697,7 @@ static void texture_nodes_fetch_images_for_pool(Tex *texture,
                                                 bNodeTree *ntree,
                                                 struct ImagePool *pool)
 {
-  for (bNode *node = ntree->nodes.first; node; node = node->next) {
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (node->type == SH_NODE_TEX_IMAGE && node->id != NULL) {
       Image *image = (Image *)node->id;
       BKE_image_pool_acquire_ibuf(image, &texture->iuser, pool);

@@ -137,7 +137,7 @@ void ED_view3d_smooth_view_ex(
     const Depsgraph *depsgraph,
     wmWindowManager *wm,
     wmWindow *win,
-    ScrArea *sa,
+    ScrArea *area,
     View3D *v3d,
     ARegion *region,
     const int smooth_viewtx,
@@ -302,7 +302,7 @@ void ED_view3d_smooth_view_ex(
     }
 
     if (RV3D_LOCK_FLAGS(rv3d) & RV3D_BOXVIEW) {
-      view3d_boxview_copy(sa, region);
+      view3d_boxview_copy(area, region);
     }
 
     ED_region_tag_redraw(region);
@@ -318,9 +318,9 @@ void ED_view3d_smooth_view(bContext *C,
   const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
 
-  ED_view3d_smooth_view_ex(depsgraph, wm, win, sa, v3d, region, smooth_viewtx, sview);
+  ED_view3d_smooth_view_ex(depsgraph, wm, win, area, v3d, region, smooth_viewtx, sview);
 }
 
 /* only meant for timer usage */
@@ -624,17 +624,18 @@ static void sync_viewport_camera_smoothview(bContext *C,
           if (v3d->scenelock) {
             ListBase *lb = (space_link == area->spacedata.first) ? &area->regionbase :
                                                                    &space_link->regionbase;
-            for (ARegion *other_ar = lb->first; other_ar != NULL; other_ar = other_ar->next) {
-              if (other_ar->regiontype == RGN_TYPE_WINDOW) {
-                if (other_ar->regiondata) {
-                  RegionView3D *other_rv3d = other_ar->regiondata;
+            for (ARegion *other_region = lb->first; other_region != NULL;
+                 other_region = other_region->next) {
+              if (other_region->regiontype == RGN_TYPE_WINDOW) {
+                if (other_region->regiondata) {
+                  RegionView3D *other_rv3d = other_region->regiondata;
                   if (other_rv3d->persp == RV3D_CAMOB) {
                     Object *other_camera_old = other_v3d->camera;
                     other_v3d->camera = ob;
                     ED_view3d_lastview_store(other_rv3d);
                     ED_view3d_smooth_view(C,
                                           other_v3d,
-                                          other_ar,
+                                          other_region,
                                           smooth_viewtx,
                                           &(const V3D_SmoothParams){
                                               .camera_old = other_camera_old,
@@ -713,9 +714,9 @@ static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
 bool ED_operator_rv3d_user_region_poll(bContext *C)
 {
   View3D *v3d_dummy;
-  ARegion *ar_dummy;
+  ARegion *region_dummy;
 
-  return ED_view3d_context_user_region(C, &v3d_dummy, &ar_dummy);
+  return ED_view3d_context_user_region(C, &v3d_dummy, &region_dummy);
 }
 
 void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
@@ -1208,16 +1209,16 @@ finally:
 
 static uint free_localview_bit(Main *bmain)
 {
-  ScrArea *sa;
-  bScreen *sc;
+  ScrArea *area;
+  bScreen *screen;
 
   ushort local_view_bits = 0;
 
   /* sometimes we loose a localview: when an area is closed */
   /* check all areas: which localviews are in use? */
-  for (sc = bmain->screens.first; sc; sc = sc->id.next) {
-    for (sa = sc->areabase.first; sa; sa = sa->next) {
-      SpaceLink *sl = sa->spacedata.first;
+  for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+    for (area = screen->areabase.first; area; area = area->next) {
+      SpaceLink *sl = area->spacedata.first;
       for (; sl; sl = sl->next) {
         if (sl->spacetype == SPACE_VIEW3D) {
           View3D *v3d = (View3D *)sl;
@@ -1243,12 +1244,12 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
                                   wmWindow *win,
                                   Main *bmain,
                                   ViewLayer *view_layer,
-                                  ScrArea *sa,
+                                  ScrArea *area,
                                   const bool frame_selected,
                                   const int smooth_viewtx,
                                   ReportList *reports)
 {
-  View3D *v3d = sa->spacedata.first;
+  View3D *v3d = area->spacedata.first;
   Base *base;
   float min[3], max[3], box[3];
   float size = 0.0f;
@@ -1310,7 +1311,7 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
   memcpy(v3d->localvd, v3d, sizeof(View3D));
   v3d->local_view_uuid = local_view_bit;
 
-  for (region = sa->regionbase.first; region; region = region->next) {
+  for (region = area->regionbase.first; region; region = region->next) {
     if (region->regiontype == RGN_TYPE_WINDOW) {
       RegionView3D *rv3d = region->regiondata;
       bool ok_dist = true;
@@ -1351,7 +1352,7 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
         ED_view3d_smooth_view_ex(depsgraph,
                                  wm,
                                  win,
-                                 sa,
+                                 area,
                                  v3d,
                                  region,
                                  smooth_viewtx,
@@ -1373,11 +1374,11 @@ static void view3d_localview_exit(const Depsgraph *depsgraph,
                                   wmWindowManager *wm,
                                   wmWindow *win,
                                   ViewLayer *view_layer,
-                                  ScrArea *sa,
+                                  ScrArea *area,
                                   const bool frame_selected,
                                   const int smooth_viewtx)
 {
-  View3D *v3d = sa->spacedata.first;
+  View3D *v3d = area->spacedata.first;
 
   if (v3d->localvd == NULL) {
     return;
@@ -1398,7 +1399,7 @@ static void view3d_localview_exit(const Depsgraph *depsgraph,
   MEM_freeN(v3d->localvd);
   v3d->localvd = NULL;
 
-  for (ARegion *region = sa->regionbase.first; region; region = region->next) {
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     if (region->regiontype == RGN_TYPE_WINDOW) {
       RegionView3D *rv3d = region->regiondata;
 
@@ -1419,7 +1420,7 @@ static void view3d_localview_exit(const Depsgraph *depsgraph,
         ED_view3d_smooth_view_ex(depsgraph,
                                  wm,
                                  win,
-                                 sa,
+                                 area,
                                  v3d,
                                  region,
                                  smooth_viewtx,
@@ -1447,23 +1448,23 @@ static int localview_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
   View3D *v3d = CTX_wm_view3d(C);
   bool frame_selected = RNA_boolean_get(op->ptr, "frame_selected");
   bool changed;
 
   if (v3d->localvd) {
-    view3d_localview_exit(depsgraph, wm, win, view_layer, sa, frame_selected, smooth_viewtx);
+    view3d_localview_exit(depsgraph, wm, win, view_layer, area, frame_selected, smooth_viewtx);
     changed = true;
   }
   else {
     changed = view3d_localview_init(
-        depsgraph, wm, win, bmain, view_layer, sa, frame_selected, smooth_viewtx, op->reports);
+        depsgraph, wm, win, bmain, view_layer, area, frame_selected, smooth_viewtx, op->reports);
   }
 
   if (changed) {
     DEG_id_type_tag(bmain, ID_OB);
-    ED_area_tag_redraw(sa);
+    ED_area_tag_redraw(area);
 
     /* Unselected objects become selected when exiting. */
     if (v3d->localvd == NULL) {
@@ -1564,19 +1565,17 @@ void VIEW3D_OT_localview_remove_from(wmOperatorType *ot)
 /** \name Local Collections
  * \{ */
 
-static uint free_localcollection_bit(Main *bmain,
-                                     unsigned short local_collections_uuid,
-                                     bool *r_reset)
+static uint free_localcollection_bit(Main *bmain, ushort local_collections_uuid, bool *r_reset)
 {
-  ScrArea *sa;
-  bScreen *sc;
+  ScrArea *area;
+  bScreen *screen;
 
   ushort local_view_bits = 0;
 
   /* Check all areas: which localviews are in use? */
-  for (sc = bmain->screens.first; sc; sc = sc->id.next) {
-    for (sa = sc->areabase.first; sa; sa = sa->next) {
-      SpaceLink *sl = sa->spacedata.first;
+  for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+    for (area = screen->areabase.first; area; area = area->next) {
+      SpaceLink *sl = area->spacedata.first;
       for (; sl; sl = sl->next) {
         if (sl->spacetype == SPACE_VIEW3D) {
           View3D *v3d = (View3D *)sl;
@@ -1605,7 +1604,7 @@ static uint free_localcollection_bit(Main *bmain,
 }
 
 static void local_collections_reset_uuid(LayerCollection *layer_collection,
-                                         const unsigned short local_view_bit)
+                                         const ushort local_view_bit)
 {
   if (layer_collection->flag & LAYER_COLLECTION_HIDE) {
     layer_collection->local_collections_bits &= ~local_view_bit;

@@ -51,7 +51,6 @@
 
 #include "PIL_time.h"
 
-#include "BKE_anim.h"
 #include "BKE_appdir.h"
 #include "BKE_cloth.h"
 #include "BKE_collection.h"
@@ -1840,7 +1839,7 @@ PTCacheID BKE_ptcache_id_find(Object *ob, Scene *scene, PointCache *cache)
   ListBase pidlist;
   BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
 
-  for (PTCacheID *pid = pidlist.first; pid; pid = pid->next) {
+  LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
     if (pid->cache == cache) {
       result = *pid;
       break;

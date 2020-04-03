@@ -55,6 +55,8 @@
 #  include "BKE_node.h"
 #  include "BKE_scene.h"
 
+#  include "BLI_listbase.h"
+
 #  include "DEG_depsgraph_build.h"
 #  include "DEG_depsgraph_query.h"
 
@@ -299,7 +301,7 @@ static void rna_LayerCollection_hide_viewport_set(PointerRNA *ptr, bool value)
 
 static void rna_LayerCollection_exclude_update_recursive(ListBase *lb, const bool exclude)
 {
-  for (LayerCollection *lc = lb->first; lc; lc = lc->next) {
+  LISTBASE_FOREACH (LayerCollection *, lc, lb) {
     if (exclude) {
       lc->flag |= LAYER_COLLECTION_EXCLUDE;
     }

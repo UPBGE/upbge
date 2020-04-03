@@ -62,7 +62,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_anim.h"
+#include "BKE_anim_visualization.h"
 #include "BKE_armature.h"
 #include "BKE_colortools.h"
 #include "BKE_global.h"  // for G
@@ -90,13 +90,13 @@
 #define U (*((const UserDef *)&U))
 
 /* 2.50 patch */
-static void area_add_header_region(ScrArea *sa, ListBase *lb)
+static void area_add_header_region(ScrArea *area, ListBase *lb)
 {
   ARegion *region = MEM_callocN(sizeof(ARegion), "area region from do_versions");
 
   BLI_addtail(lb, region);
   region->regiontype = RGN_TYPE_HEADER;
-  if (sa->headertype == 1) {
+  if (area->headertype == 1) {
     region->alignment = RGN_ALIGN_BOTTOM;
   }
   else {
@@ -135,10 +135,10 @@ static void sequencer_init_preview_region(ARegion *region)
   region->v2d.keeptot = V2D_KEEPTOT_FREE;
 }
 
-static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
+static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
 {
   ARegion *region;
-  ARegion *ar_main;
+  ARegion *region_main;
 
   if (sl) {
     /* first channels for ipo action nla... */
@@ -207,14 +207,14 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
         region->alignment = RGN_ALIGN_TOP;
         break;
       case SPACE_SEQ:
-        ar_main = (ARegion *)lb->first;
-        for (; ar_main; ar_main = ar_main->next) {
-          if (ar_main->regiontype == RGN_TYPE_WINDOW) {
+        region_main = (ARegion *)lb->first;
+        for (; region_main; region_main = region_main->next) {
+          if (region_main->regiontype == RGN_TYPE_WINDOW) {
             break;
           }
         }
         region = MEM_callocN(sizeof(ARegion), "preview area for sequencer");
-        BLI_insertlinkbefore(lb, ar_main, region);
+        BLI_insertlinkbefore(lb, region_main, region);
         sequencer_init_preview_region(region);
         break;
       case SPACE_VIEW3D:
@@ -258,7 +258,7 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
   region = MEM_callocN(sizeof(ARegion), "area region from do_versions");
 
   BLI_addtail(lb, region);
-  region->winrct = sa->totrct;
+  region->winrct = area->totrct;
 
   region->regiontype = RGN_TYPE_WINDOW;
 
@@ -305,7 +305,7 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
         SpaceNla *snla = (SpaceNla *)sl;
         memcpy(&region->v2d, &snla->v2d, sizeof(View2D));
 
-        region->v2d.tot.ymin = (float)(-sa->winy) / 3.0f;
+        region->v2d.tot.ymin = (float)(-area->winy) / 3.0f;
         region->v2d.tot.ymax = 0.0f;
 
         region->v2d.scroll |= (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
@@ -320,8 +320,8 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
         /* We totally reinit the view for the Action Editor,
          * as some old instances had some weird cruft set. */
         region->v2d.tot.xmin = -20.0f;
-        region->v2d.tot.ymin = (float)(-sa->winy) / 3.0f;
-        region->v2d.tot.xmax = (float)((sa->winx > 120) ? (sa->winx) : 120);
+        region->v2d.tot.ymin = (float)(-area->winy) / 3.0f;
+        region->v2d.tot.xmax = (float)((area->winx > 120) ? (area->winx) : 120);
         region->v2d.tot.ymax = 0.0f;
 
         region->v2d.cur = region->v2d.tot;
@@ -399,40 +399,40 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 
 static void do_versions_windowmanager_2_50(bScreen *screen)
 {
-  ScrArea *sa;
+  ScrArea *area;
   SpaceLink *sl;
 
   /* add regions */
-  for (sa = screen->areabase.first; sa; sa = sa->next) {
+  for (area = screen->areabase.first; area; area = area->next) {
     /* we keep headertype variable to convert old files only */
-    if (sa->headertype) {
-      area_add_header_region(sa, &sa->regionbase);
+    if (area->headertype) {
+      area_add_header_region(area, &area->regionbase);
     }
 
-    area_add_window_regions(sa, sa->spacedata.first, &sa->regionbase);
+    area_add_window_regions(area, area->spacedata.first, &area->regionbase);
 
     /* space imageselect is deprecated */
-    for (sl = sa->spacedata.first; sl; sl = sl->next) {
+    for (sl = area->spacedata.first; sl; sl = sl->next) {
       if (sl->spacetype == SPACE_IMASEL) {
         sl->spacetype = SPACE_EMPTY; /* spacedata then matches */
       }
     }
 
     /* space sound is deprecated */
-    for (sl = sa->spacedata.first; sl; sl = sl->next) {
+    for (sl = area->spacedata.first; sl; sl = sl->next) {
       if (sl->spacetype == SPACE_SOUND) {
         sl->spacetype = SPACE_EMPTY; /* spacedata then matches */
       }
     }
 
     /* pushed back spaces also need regions! */
-    if (sa->spacedata.first) {
-      sl = sa->spacedata.first;
+    if (area->spacedata.first) {
+      sl = area->spacedata.first;
       for (sl = sl->next; sl; sl = sl->next) {
-        if (sa->headertype) {
-          area_add_header_region(sa, &sl->regionbase);
+        if (area->headertype) {
+          area_add_header_region(area, &sl->regionbase);
         }
-        area_add_window_regions(sa, sl, &sl->regionbase);
+        area_add_window_regions(area, sl, &sl->regionbase);
       }
     }
   }
@@ -457,12 +457,12 @@ static void versions_gpencil_add_main(ListBase *lb, ID *id, const char *name)
 
 static void do_versions_gpencil_2_50(Main *main, bScreen *screen)
 {
-  ScrArea *sa;
+  ScrArea *area;
   SpaceLink *sl;
 
   /* add regions */
-  for (sa = screen->areabase.first; sa; sa = sa->next) {
-    for (sl = sa->spacedata.first; sl; sl = sl->next) {
+  for (area = screen->areabase.first; area; area = area->next) {
+    for (sl = area->spacedata.first; sl; sl = sl->next) {
       if (sl->spacetype == SPACE_VIEW3D) {
         View3D *v3d = (View3D *)sl;
         if (v3d->gpd) {
@@ -1085,12 +1085,12 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 
     {
       bScreen *screen;
-      ScrArea *sa;
+      ScrArea *area;
       SpaceLink *sl;
 
       for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-        for (sa = screen->areabase.first; sa; sa = sa->next) {
-          for (sl = sa->spacedata.first; sl; sl = sl->next) {
+        for (area = screen->areabase.first; area; area = area->next) {
+          for (sl = area->spacedata.first; sl; sl = sl->next) {
             if (sl->spacetype == SPACE_VIEW3D) {
               View3D *v3d = (View3D *)sl;
               if (v3d->drawtype == OB_MATERIAL) {
@@ -1194,19 +1194,19 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
   if (bmain->versionfile == 250 && bmain->subversionfile == 10) {
     /* fix for new view type in sequencer */
     bScreen *screen;
-    ScrArea *sa;
+    ScrArea *area;
     SpaceLink *sl;
 
     /* remove all preview window in wrong spaces */
     for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-      for (sa = screen->areabase.first; sa; sa = sa->next) {
-        for (sl = sa->spacedata.first; sl; sl = sl->next) {
+      for (area = screen->areabase.first; area; area = area->next) {
+        for (sl = area->spacedata.first; sl; sl = sl->next) {
           if (sl->spacetype != SPACE_SEQ) {
             ARegion *region;
             ListBase *regionbase;
 
-            if (sl == sa->spacedata.first) {
-              regionbase = &sa->regionbase;
+            if (sl == area->spacedata.first) {
+              regionbase = &area->regionbase;
             }
             else {
               regionbase = &sl->regionbase;
@@ -1233,20 +1233,20 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     {
       /* fix for new view type in sequencer */
       bScreen *screen;
-      ScrArea *sa;
+      ScrArea *area;
       SpaceLink *sl;
 
       for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-        for (sa = screen->areabase.first; sa; sa = sa->next) {
-          for (sl = sa->spacedata.first; sl; sl = sl->next) {
+        for (area = screen->areabase.first; area; area = area->next) {
+          for (sl = area->spacedata.first; sl; sl = sl->next) {
             if (sl->spacetype == SPACE_SEQ) {
               ARegion *region;
-              ARegion *ar_main;
+              ARegion *region_main;
               ListBase *regionbase;
               SpaceSeq *sseq = (SpaceSeq *)sl;
 
-              if (sl == sa->spacedata.first) {
-                regionbase = &sa->regionbase;
+              if (sl == area->spacedata.first) {
+                regionbase = &area->regionbase;
               }
               else {
                 regionbase = &sl->regionbase;
@@ -1259,14 +1259,14 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
                 sseq->mainb = SEQ_DRAW_IMG_IMBUF;
               }
 
-              ar_main = (ARegion *)regionbase->first;
-              for (; ar_main; ar_main = ar_main->next) {
-                if (ar_main->regiontype == RGN_TYPE_WINDOW) {
+              region_main = (ARegion *)regionbase->first;
+              for (; region_main; region_main = region_main->next) {
+                if (region_main->regiontype == RGN_TYPE_WINDOW) {
                   break;
                 }
               }
               region = MEM_callocN(sizeof(ARegion), "preview area for sequencer");
-              BLI_insertlinkbefore(regionbase, ar_main, region);
+              BLI_insertlinkbefore(regionbase, region_main, region);
               sequencer_init_preview_region(region);
             }
           }
@@ -1366,17 +1366,17 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
   if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 14)) {
     /* fix for bad View2D extents for Animation Editors */
     bScreen *screen;
-    ScrArea *sa;
+    ScrArea *area;
     SpaceLink *sl;
 
     for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-      for (sa = screen->areabase.first; sa; sa = sa->next) {
-        for (sl = sa->spacedata.first; sl; sl = sl->next) {
+      for (area = screen->areabase.first; area; area = area->next) {
+        for (sl = area->spacedata.first; sl; sl = sl->next) {
           ListBase *regionbase;
           ARegion *region;
 
-          if (sl == sa->spacedata.first) {
-            regionbase = &sa->regionbase;
+          if (sl == area->spacedata.first) {
+            regionbase = &area->regionbase;
           }
           else {
             regionbase = &sl->regionbase;
@@ -1386,7 +1386,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
             for (region = (ARegion *)regionbase->first; region; region = region->next) {
               if (region->regiontype == RGN_TYPE_WINDOW) {
                 region->v2d.cur.ymax = region->v2d.tot.ymax = 0.0f;
-                region->v2d.cur.ymin = region->v2d.tot.ymin = (float)(-sa->winy) / 3.0f;
+                region->v2d.cur.ymin = region->v2d.tot.ymin = (float)(-area->winy) / 3.0f;
               }
             }
           }
@@ -1432,31 +1432,31 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     /* sequencer changes */
     {
       bScreen *screen;
-      ScrArea *sa;
+      ScrArea *area;
       SpaceLink *sl;
 
       for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-        for (sa = screen->areabase.first; sa; sa = sa->next) {
-          for (sl = sa->spacedata.first; sl; sl = sl->next) {
+        for (area = screen->areabase.first; area; area = area->next) {
+          for (sl = area->spacedata.first; sl; sl = sl->next) {
             if (sl->spacetype == SPACE_SEQ) {
-              ARegion *ar_preview;
+              ARegion *region_preview;
               ListBase *regionbase;
 
-              if (sl == sa->spacedata.first) {
-                regionbase = &sa->regionbase;
+              if (sl == area->spacedata.first) {
+                regionbase = &area->regionbase;
               }
               else {
                 regionbase = &sl->regionbase;
               }
 
-              ar_preview = (ARegion *)regionbase->first;
-              for (; ar_preview; ar_preview = ar_preview->next) {
-                if (ar_preview->regiontype == RGN_TYPE_PREVIEW) {
+              region_preview = (ARegion *)regionbase->first;
+              for (; region_preview; region_preview = region_preview->next) {
+                if (region_preview->regiontype == RGN_TYPE_PREVIEW) {
                   break;
                 }
               }
-              if (ar_preview && (ar_preview->regiontype == RGN_TYPE_PREVIEW)) {
-                sequencer_init_preview_region(ar_preview);
+              if (region_preview && (region_preview->regiontype == RGN_TYPE_PREVIEW)) {
+                sequencer_init_preview_region(region_preview);
               }
             }
           }
@@ -1466,17 +1466,17 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
   }
 
   if (bmain->versionfile <= 251) { /* 2.5.1 had no subversions */
-    bScreen *sc;
+    bScreen *screen;
 
     /* Blender 2.5.2 - subversion 0 introduced a new setting: V3D_HIDE_OVERLAYS.
      * This bit was used in the past for V3D_TRANSFORM_SNAP, which is now deprecated.
      * Here we clear it for old files so they don't come in with V3D_HIDE_OVERLAYS set,
      * which would cause cameras, lights, etc to become invisible */
-    for (sc = bmain->screens.first; sc; sc = sc->id.next) {
-      ScrArea *sa;
-      for (sa = sc->areabase.first; sa; sa = sa->next) {
+    for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+      ScrArea *area;
+      for (area = screen->areabase.first; area; area = area->next) {
         SpaceLink *sl;
-        for (sl = sa->spacedata.first; sl; sl = sl->next) {
+        for (sl = area->spacedata.first; sl; sl = sl->next) {
           if (sl->spacetype == SPACE_VIEW3D) {
             View3D *v3d = (View3D *)sl;
             v3d->flag2 &= ~V3D_HIDE_OVERLAYS;
@@ -1553,16 +1553,16 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
   }
 
   if (bmain->versionfile < 252 || (bmain->versionfile == 252 && bmain->subversionfile < 5)) {
-    bScreen *sc;
+    bScreen *screen;
 
     /* Image editor scopes */
-    for (sc = bmain->screens.first; sc; sc = sc->id.next) {
-      ScrArea *sa;
+    for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+      ScrArea *area;
 
-      for (sa = sc->areabase.first; sa; sa = sa->next) {
+      for (area = screen->areabase.first; area; area = area->next) {
         SpaceLink *sl;
 
-        for (sl = sa->spacedata.first; sl; sl = sl->next) {
+        for (sl = area->spacedata.first; sl; sl = sl->next) {
           if (sl->spacetype == SPACE_IMAGE) {
             SpaceImage *sima = (SpaceImage *)sl;
             BKE_scopes_new(&sima->scopes);
@@ -1575,23 +1575,23 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
   if (bmain->versionfile < 253) {
     Object *ob;
     Scene *scene;
-    bScreen *sc;
+    bScreen *screen;
     Tex *tex;
     Brush *brush;
 
-    for (sc = bmain->screens.first; sc; sc = sc->id.next) {
-      ScrArea *sa;
-      for (sa = sc->areabase.first; sa; sa = sa->next) {
+    for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+      ScrArea *area;
+      for (area = screen->areabase.first; area; area = area->next) {
         SpaceLink *sl;
 
-        for (sl = sa->spacedata.first; sl; sl = sl->next) {
+        for (sl = area->spacedata.first; sl; sl = sl->next) {
           if (sl->spacetype == SPACE_NODE) {
             SpaceNode *snode = (SpaceNode *)sl;
             ListBase *regionbase;
             ARegion *region;
 
-            if (sl == sa->spacedata.first) {
-              regionbase = &sa->regionbase;
+            if (sl == area->spacedata.first) {
+              regionbase = &area->regionbase;
             }
             else {
               regionbase = &sl->regionbase;
@@ -1839,7 +1839,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
   if (bmain->versionfile < 255 || (bmain->versionfile == 255 && bmain->subversionfile < 1)) {
     Brush *br;
     ParticleSettings *part;
-    bScreen *sc;
+    bScreen *screen;
 
     for (br = bmain->brushes.first; br; br = br->id.next) {
       if (br->ob_mode == 0) {
@@ -1856,18 +1856,18 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       part->kink_amp_clump = 1.f;      /* keep old files looking similar */
     }
 
-    for (sc = bmain->screens.first; sc; sc = sc->id.next) {
-      ScrArea *sa;
-      for (sa = sc->areabase.first; sa; sa = sa->next) {
+    for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+      ScrArea *area;
+      for (area = screen->areabase.first; area; area = area->next) {
         SpaceLink *sl;
-        for (sl = sa->spacedata.first; sl; sl = sl->next) {
+        for (sl = area->spacedata.first; sl; sl = sl->next) {
           if (sl->spacetype == SPACE_INFO) {
             SpaceInfo *sinfo = (SpaceInfo *)sl;
             ARegion *region;
 
             sinfo->rpt_mask = INFO_RPT_OP;
 
-            for (region = sa->regionbase.first; region; region = region->next) {
+            for (region = area->regionbase.first; region; region = region->next) {
               if (region->regiontype == RGN_TYPE_WINDOW) {
                 region->v2d.scroll = (V2D_SCROLL_RIGHT);
                 region->v2d.align = V2D_ALIGN_NO_NEG_X |
@@ -1902,16 +1902,16 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
   }
 
   if (bmain->versionfile < 256) {
-    bScreen *sc;
-    ScrArea *sa;
+    bScreen *screen;
+    ScrArea *area;
     Key *key;
 
     /* Fix for sample line scope initializing with no height */
-    for (sc = bmain->screens.first; sc; sc = sc->id.next) {
-      sa = sc->areabase.first;
-      while (sa) {
+    for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+      area = screen->areabase.first;
+      while (area) {
         SpaceLink *sl;
-        for (sl = sa->spacedata.first; sl; sl = sl->next) {
+        for (sl = area->spacedata.first; sl; sl = sl->next) {
           if (sl->spacetype == SPACE_IMAGE) {
             SpaceImage *sima = (SpaceImage *)sl;
             if (sima->sample_line_hist.height == 0) {
@@ -1919,7 +1919,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
             }
           }
         }
-        sa = sa->next;
+        area = area->next;
       }
     }
 
@@ -2046,18 +2046,18 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
   }
 
   if (bmain->versionfile < 256 || (bmain->versionfile == 256 && bmain->subversionfile < 3)) {
-    bScreen *sc;
+    bScreen *screen;
     Brush *brush;
     Object *ob;
     ParticleSettings *part;
 
     /* redraws flag in SpaceTime has been moved to Screen level */
-    for (sc = bmain->screens.first; sc; sc = sc->id.next) {
-      if (sc->redraws_flag == 0) {
+    for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+      if (screen->redraws_flag == 0) {
         /* just initialize to default? */
         /* XXX: we could also have iterated through areas,
          * and taken them from the first timeline available... */
-        sc->redraws_flag = TIME_ALL_3D_WIN | TIME_ALL_ANIM_WIN;
+        screen->redraws_flag = TIME_ALL_3D_WIN | TIME_ALL_ANIM_WIN;
       }
     }
 
@@ -2123,13 +2123,13 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     bScreen *screen;
 
     for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-      ScrArea *sa;
+      ScrArea *area;
       /* add regions */
-      for (sa = screen->areabase.first; sa; sa = sa->next) {
-        SpaceLink *sl = sa->spacedata.first;
+      for (area = screen->areabase.first; area; area = area->next) {
+        SpaceLink *sl = area->spacedata.first;
         if (sl->spacetype == SPACE_IMAGE) {
           ARegion *region;
-          for (region = sa->regionbase.first; region; region = region->next) {
+          for (region = area->regionbase.first; region; region = region->next) {
             if (region->regiontype == RGN_TYPE_WINDOW) {
               View2D *v2d = &region->v2d;
               v2d->minzoom = v2d->maxzoom = v2d->scroll = v2d->keeptot = v2d->keepzoom =
@@ -2138,7 +2138,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
           }
         }
 
-        for (sl = sa->spacedata.first; sl; sl = sl->next) {
+        for (sl = area->spacedata.first; sl; sl = sl->next) {
           if (sl->spacetype == SPACE_IMAGE) {
             ARegion *region;
             for (region = sl->regionbase.first; region; region = region->next) {
@@ -2180,14 +2180,14 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     {
       bScreen *screen;
       for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-        ScrArea *sa;
+        ScrArea *area;
 
         /* add regions */
-        for (sa = screen->areabase.first; sa; sa = sa->next) {
-          SpaceLink *sl = sa->spacedata.first;
+        for (area = screen->areabase.first; area; area = area->next) {
+          SpaceLink *sl = area->spacedata.first;
           if (sl->spacetype == SPACE_SEQ) {
             ARegion *region;
-            for (region = sa->regionbase.first; region; region = region->next) {
+            for (region = area->regionbase.first; region; region = region->next) {
               if (region->regiontype == RGN_TYPE_WINDOW) {
                 if (region->v2d.min[1] == 4.0f) {
                   region->v2d.min[1] = 0.5f;
@@ -2195,7 +2195,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
               }
             }
           }
-          for (sl = sa->spacedata.first; sl; sl = sl->next) {
+          for (sl = area->spacedata.first; sl; sl = sl->next) {
             if (sl->spacetype == SPACE_SEQ) {
               ARegion *region;
               for (region = sl->regionbase.first; region; region = region->next) {

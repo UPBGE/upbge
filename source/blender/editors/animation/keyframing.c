@@ -45,6 +45,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_action.h"
+#include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_context.h"
@@ -494,7 +495,7 @@ int insert_vert_fcurve(
     FCurve *fcu, float x, float y, eBezTriple_KeyframeType keyframe_type, eInsertKeyFlags flag)
 {
   BezTriple beztr = {{{0}}};
-  unsigned int oldTot = fcu->totvert;
+  uint oldTot = fcu->totvert;
   int a;
 
   /* set all three points, for nicer start position
@@ -1793,11 +1794,11 @@ enum {
  */
 static bool modify_key_op_poll(bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
   Scene *scene = CTX_data_scene(C);
 
   /* if no area or active scene */
-  if (ELEM(NULL, sa, scene)) {
+  if (ELEM(NULL, area, scene)) {
     return false;
   }
 

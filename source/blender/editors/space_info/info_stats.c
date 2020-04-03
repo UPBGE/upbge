@@ -40,7 +40,6 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_anim.h"
 #include "BKE_blender_version.h"
 #include "BKE_curve.h"
 #include "BKE_displist.h"
@@ -588,8 +587,8 @@ void ED_info_stats_clear(ViewLayer *view_layer)
 
 const char *ED_info_stats_string(Main *bmain, Scene *scene, ViewLayer *view_layer)
 {
-  /* Looping through dependency graph when interface is locked in not safe.
-   * Thew interface is marked as locked when jobs wants to modify the
+  /* Looping through dependency graph when interface is locked is not safe.
+   * The interface is marked as locked when jobs wants to modify the
    * dependency graph. */
   wmWindowManager *wm = bmain->wm.first;
   if (wm->is_interface_locked) {

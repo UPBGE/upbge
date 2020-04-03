@@ -79,9 +79,9 @@ static bool view2d_poll(bContext *C)
  */
 typedef struct v2dViewPanData {
   /** screen where view pan was initiated */
-  bScreen *sc;
+  bScreen *screen;
   /** area where view pan was initiated */
-  ScrArea *sa;
+  ScrArea *area;
   /** region where view pan was initiated */
   ARegion *region;
   /** view2d we're operating in */
@@ -126,8 +126,8 @@ static int view_pan_init(bContext *C, wmOperator *op)
   op->customdata = vpd;
 
   /* set pointers to owners */
-  vpd->sc = CTX_wm_screen(C);
-  vpd->sa = CTX_wm_area(C);
+  vpd->screen = CTX_wm_screen(C);
+  vpd->area = CTX_wm_area(C);
   vpd->v2d = v2d;
   vpd->region = region;
 
@@ -190,7 +190,7 @@ static void view_pan_apply_ex(bContext *C, v2dViewPanData *vpd, float dx, float 
   /* request updates to be done... */
   WM_event_add_mousemove(CTX_wm_window(C));
 
-  UI_view2d_sync(vpd->sc, vpd->sa, v2d, V2D_LOCK_COPY);
+  UI_view2d_sync(vpd->screen, vpd->area, v2d, V2D_LOCK_COPY);
 }
 
 static void view_pan_apply(bContext *C, wmOperator *op)
@@ -589,13 +589,13 @@ typedef struct v2dViewZoomData {
  */
 static void view_zoom_axis_lock_defaults(bContext *C, bool r_do_zoom_xy[2])
 {
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
 
   r_do_zoom_xy[0] = true;
   r_do_zoom_xy[1] = true;
 
   /* default not to zoom the sequencer vertically */
-  if (sa && sa->spacetype == SPACE_SEQ) {
+  if (area && area->spacetype == SPACE_SEQ) {
     ARegion *region = CTX_wm_region(C);
 
     if (region && region->regiontype == RGN_TYPE_WINDOW) {
@@ -758,8 +758,8 @@ static void view_zoomstep_apply_ex(
   UI_view2d_curRect_validate(v2d);
 
   if (ED_region_snap_size_apply(region, snap_test)) {
-    ScrArea *sa = CTX_wm_area(C);
-    ED_area_tag_redraw(sa);
+    ScrArea *area = CTX_wm_area(C);
+    ED_area_tag_redraw(area);
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
   }
 
@@ -1017,8 +1017,8 @@ static void view_zoomdrag_apply(bContext *C, wmOperator *op)
   UI_view2d_curRect_validate(v2d);
 
   if (ED_region_snap_size_apply(vzd->region, snap_test)) {
-    ScrArea *sa = CTX_wm_area(C);
-    ED_area_tag_redraw(sa);
+    ScrArea *area = CTX_wm_area(C);
+    ED_area_tag_redraw(area);
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
   }
 
@@ -2211,8 +2211,8 @@ static int reset_exec(bContext *C, wmOperator *UNUSED(op))
   UI_view2d_curRect_validate(v2d);
 
   if (ED_region_snap_size_apply(region, snap_test)) {
-    ScrArea *sa = CTX_wm_area(C);
-    ED_area_tag_redraw(sa);
+    ScrArea *area = CTX_wm_area(C);
+    ED_area_tag_redraw(area);
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
   }
 

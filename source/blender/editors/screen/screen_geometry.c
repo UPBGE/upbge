@@ -57,9 +57,9 @@ ScrVert *screen_geom_vertex_add_ex(ScrAreaMap *area_map, short x, short y)
   BLI_addtail(&area_map->vertbase, sv);
   return sv;
 }
-ScrVert *screen_geom_vertex_add(bScreen *sc, short x, short y)
+ScrVert *screen_geom_vertex_add(bScreen *screen, short x, short y)
 {
-  return screen_geom_vertex_add_ex(AREAMAP_FROM_SCREEN(sc), x, y);
+  return screen_geom_vertex_add_ex(AREAMAP_FROM_SCREEN(screen), x, y);
 }
 
 ScrEdge *screen_geom_edge_add_ex(ScrAreaMap *area_map, ScrVert *v1, ScrVert *v2)
@@ -73,9 +73,9 @@ ScrEdge *screen_geom_edge_add_ex(ScrAreaMap *area_map, ScrVert *v1, ScrVert *v2)
   BLI_addtail(&area_map->edgebase, se);
   return se;
 }
-ScrEdge *screen_geom_edge_add(bScreen *sc, ScrVert *v1, ScrVert *v2)
+ScrEdge *screen_geom_edge_add(bScreen *screen, ScrVert *v1, ScrVert *v2)
 {
-  return screen_geom_edge_add_ex(AREAMAP_FROM_SCREEN(sc), v1, v2);
+  return screen_geom_edge_add_ex(AREAMAP_FROM_SCREEN(screen), v1, v2);
 }
 
 bool screen_geom_edge_is_horizontal(ScrEdge *se)
@@ -96,7 +96,7 @@ ScrEdge *screen_geom_area_map_find_active_scredge(const ScrAreaMap *area_map,
 
   CLAMP_MIN(safety, 2);
 
-  for (ScrEdge *se = area_map->edgebase.first; se; se = se->next) {
+  LISTBASE_FOREACH (ScrEdge *, se, &area_map->edgebase) {
     if (screen_geom_edge_is_horizontal(se)) {
       if ((se->v1->vec.y > bounds_rect->ymin) && (se->v1->vec.y < (bounds_rect->ymax - 1))) {
         short min, max;
@@ -153,7 +153,7 @@ ScrEdge *screen_geom_find_active_scredge(const wmWindow *win,
  * * Ensure areas have a minimum height.
  * * Correctly set global areas to their fixed height.
  */
-void screen_geom_vertices_scale(const wmWindow *win, bScreen *sc)
+void screen_geom_vertices_scale(const wmWindow *win, bScreen *screen)
 {
   rcti window_rect, screen_rect;
 
@@ -163,7 +163,6 @@ void screen_geom_vertices_scale(const wmWindow *win, bScreen *sc)
   const int screen_size_x = BLI_rcti_size_x(&screen_rect);
   const int screen_size_y = BLI_rcti_size_y(&screen_rect);
   ScrVert *sv = NULL;
-  ScrArea *sa;
   int screen_size_x_prev, screen_size_y_prev;
   float min[2], max[2];
 
@@ -171,7 +170,7 @@ void screen_geom_vertices_scale(const wmWindow *win, bScreen *sc)
   min[0] = min[1] = 20000.0f;
   max[0] = max[1] = 0.0f;
 
-  for (sv = sc->vertbase.first; sv; sv = sv->next) {
+  for (sv = screen->vertbase.first; sv; sv = sv->next) {
     const float fv[2] = {(float)sv->vec.x, (float)sv->vec.y};
     minmax_v2v2_v2(min, max, fv);
   }
@@ -184,7 +183,7 @@ void screen_geom_vertices_scale(const wmWindow *win, bScreen *sc)
     const float facy = ((float)screen_size_y - 1) / ((float)screen_size_y_prev - 1);
 
     /* make sure it fits! */
-    for (sv = sc->vertbase.first; sv; sv = sv->next) {
+    for (sv = screen->vertbase.first; sv; sv = sv->next) {
       sv->vec.x = screen_rect.xmin + round_fl_to_short((sv->vec.x - min[0]) * facx);
       CLAMP(sv->vec.x, screen_rect.xmin, screen_rect.xmax - 1);
 
@@ -199,19 +198,19 @@ void screen_geom_vertices_scale(const wmWindow *win, bScreen *sc)
 
     if (facy > 1) {
       /* Keep timeline small in video edit workspace. */
-      for (sa = sc->areabase.first; sa; sa = sa->next) {
-        if (sa->spacetype == SPACE_ACTION && sa->v1->vec.y == screen_rect.ymin &&
-            screen_geom_area_height(sa) <= headery * facy + 1) {
-          ScrEdge *se = BKE_screen_find_edge(sc, sa->v2, sa->v3);
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        if (area->spacetype == SPACE_ACTION && area->v1->vec.y == screen_rect.ymin &&
+            screen_geom_area_height(area) <= headery * facy + 1) {
+          ScrEdge *se = BKE_screen_find_edge(screen, area->v2, area->v3);
           if (se) {
-            const int yval = sa->v1->vec.y + headery - 1;
+            const int yval = area->v1->vec.y + headery - 1;
 
             screen_geom_select_connected_edge(win, se);
 
             /* all selected vertices get the right offset */
-            for (sv = sc->vertbase.first; sv; sv = sv->next) {
+            for (sv = screen->vertbase.first; sv; sv = sv->next) {
               /* if is a collapsed area */
-              if (sv != sa->v1 && sv != sa->v4) {
+              if (sv != area->v1 && sv != area->v4) {
                 if (sv->flag) {
                   sv->vec.y = yval;
                 }
@@ -223,19 +222,19 @@ void screen_geom_vertices_scale(const wmWindow *win, bScreen *sc)
     }
     if (facy < 1) {
       /* make each window at least ED_area_headersize() high */
-      for (sa = sc->areabase.first; sa; sa = sa->next) {
-        if (screen_geom_area_height(sa) < headery) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        if (screen_geom_area_height(area) < headery) {
           /* lower edge */
-          ScrEdge *se = BKE_screen_find_edge(sc, sa->v4, sa->v1);
-          if (se && sa->v1 != sa->v2) {
-            const int yval = sa->v2->vec.y - headery + 1;
+          ScrEdge *se = BKE_screen_find_edge(screen, area->v4, area->v1);
+          if (se && area->v1 != area->v2) {
+            const int yval = area->v2->vec.y - headery + 1;
 
             screen_geom_select_connected_edge(win, se);
 
             /* all selected vertices get the right offset */
-            for (sv = sc->vertbase.first; sv; sv = sv->next) {
+            for (sv = screen->vertbase.first; sv; sv = sv->next) {
               /* if is not a collapsed area */
-              if (sv != sa->v2 && sv != sa->v3) {
+              if (sv != area->v2 && sv != area->v3) {
                 if (sv->flag) {
                   sv->vec.y = yval;
                 }
@@ -249,7 +248,7 @@ void screen_geom_vertices_scale(const wmWindow *win, bScreen *sc)
 
   /* Global areas have a fixed size that only changes with the DPI.
    * Here we ensure that exactly this size is set. */
-  for (ScrArea *area = win->global_areas.areabase.first; area; area = area->next) {
+  LISTBASE_FOREACH (ScrArea *, area, &win->global_areas.areabase) {
     if (area->global->flag & GLOBAL_AREA_IS_HIDDEN) {
       continue;
     }
@@ -284,14 +283,14 @@ void screen_geom_vertices_scale(const wmWindow *win, bScreen *sc)
 /**
  * \return 0 if no split is possible, otherwise the screen-coordinate at which to split.
  */
-short screen_geom_find_area_split_point(const ScrArea *sa,
+short screen_geom_find_area_split_point(const ScrArea *area,
                                         const rcti *window_rect,
                                         char dir,
                                         float fac)
 {
   short x, y;
-  const int cur_area_width = screen_geom_area_width(sa);
-  const int cur_area_height = screen_geom_area_height(sa);
+  const int cur_area_width = screen_geom_area_width(area);
+  const int cur_area_height = screen_geom_area_height(area);
   const short area_min_x = AREAMINX;
   const short area_min_y = ED_area_headersize();
   int area_min;
@@ -308,43 +307,43 @@ short screen_geom_find_area_split_point(const ScrArea *sa,
   CLAMP(fac, 0.0f, 1.0f);
 
   if (dir == 'h') {
-    y = sa->v1->vec.y + round_fl_to_short(fac * cur_area_height);
+    y = area->v1->vec.y + round_fl_to_short(fac * cur_area_height);
 
     area_min = area_min_y;
 
-    if (sa->v1->vec.y > window_rect->ymin) {
+    if (area->v1->vec.y > window_rect->ymin) {
       area_min += U.pixelsize;
     }
-    if (sa->v2->vec.y < (window_rect->ymax - 1)) {
+    if (area->v2->vec.y < (window_rect->ymax - 1)) {
       area_min += U.pixelsize;
     }
 
-    if (y - sa->v1->vec.y < area_min) {
-      y = sa->v1->vec.y + area_min;
+    if (y - area->v1->vec.y < area_min) {
+      y = area->v1->vec.y + area_min;
     }
-    else if (sa->v2->vec.y - y < area_min) {
-      y = sa->v2->vec.y - area_min;
+    else if (area->v2->vec.y - y < area_min) {
+      y = area->v2->vec.y - area_min;
     }
 
     return y;
   }
   else {
-    x = sa->v1->vec.x + round_fl_to_short(fac * cur_area_width);
+    x = area->v1->vec.x + round_fl_to_short(fac * cur_area_width);
 
     area_min = area_min_x;
 
-    if (sa->v1->vec.x > window_rect->xmin) {
+    if (area->v1->vec.x > window_rect->xmin) {
       area_min += U.pixelsize;
     }
-    if (sa->v4->vec.x < (window_rect->xmax - 1)) {
+    if (area->v4->vec.x < (window_rect->xmax - 1)) {
       area_min += U.pixelsize;
     }
 
-    if (x - sa->v1->vec.x < area_min) {
-      x = sa->v1->vec.x + area_min;
+    if (x - area->v1->vec.x < area_min) {
+      x = area->v1->vec.x + area_min;
     }
-    else if (sa->v4->vec.x - x < area_min) {
-      x = sa->v4->vec.x - area_min;
+    else if (area->v4->vec.x - x < area_min) {
+      x = area->v4->vec.x - area_min;
     }
 
     return x;
@@ -356,7 +355,7 @@ short screen_geom_find_area_split_point(const ScrArea *sa,
  */
 void screen_geom_select_connected_edge(const wmWindow *win, ScrEdge *edge)
 {
-  bScreen *sc = WM_window_get_active_screen(win);
+  bScreen *screen = WM_window_get_active_screen(win);
   bool oneselected = true;
   char dir;
 
@@ -370,7 +369,7 @@ void screen_geom_select_connected_edge(const wmWindow *win, ScrEdge *edge)
     dir = 'h';
   }
 
-  ED_screen_verts_iter(win, sc, sv)
+  ED_screen_verts_iter(win, screen, sv)
   {
     sv->flag = 0;
   }
@@ -380,7 +379,7 @@ void screen_geom_select_connected_edge(const wmWindow *win, ScrEdge *edge)
 
   while (oneselected) {
     oneselected = false;
-    for (ScrEdge *se = sc->edgebase.first; se; se = se->next) {
+    LISTBASE_FOREACH (ScrEdge *, se, &screen->edgebase) {
       if (se->v1->flag + se->v2->flag == 1) {
         if (dir == 'h') {
           if (se->v1->vec.y == se->v2->vec.y) {

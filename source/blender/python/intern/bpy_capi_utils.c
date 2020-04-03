@@ -24,6 +24,7 @@
 #include <Python.h>
 
 #include "BLI_dynstr.h"
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "bpy_capi_utils.h"
@@ -91,7 +92,7 @@ void BPy_reports_write_stdout(const ReportList *reports, const char *header)
     PySys_WriteStdout("%s\n", header);
   }
 
-  for (const Report *report = reports->list.first; report; report = report->next) {
+  LISTBASE_FOREACH (const Report *, report, &reports->list) {
     PySys_WriteStdout("%s: %s\n", report->typestr, report->message);
   }
 }

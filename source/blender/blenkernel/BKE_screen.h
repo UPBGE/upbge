@@ -74,25 +74,25 @@ typedef struct SpaceType {
 
   /* Initial allocation, after this WM will call init() too. Some editors need
    * area and scene data (e.g. frame range) to set their initial scrolling. */
-  struct SpaceLink *(*new)(const struct ScrArea *sa, const struct Scene *scene);
+  struct SpaceLink *(*new)(const struct ScrArea *area, const struct Scene *scene);
   /* not free spacelink itself */
   void (*free)(struct SpaceLink *sl);
 
   /* init is to cope with file load, screen (size) changes, check handlers */
-  void (*init)(struct wmWindowManager *wm, struct ScrArea *sa);
+  void (*init)(struct wmWindowManager *wm, struct ScrArea *area);
   /* exit is called when the area is hidden or removed */
-  void (*exit)(struct wmWindowManager *wm, struct ScrArea *sa);
+  void (*exit)(struct wmWindowManager *wm, struct ScrArea *area);
   /* Listeners can react to bContext changes */
   void (*listener)(struct wmWindow *win,
-                   struct ScrArea *sa,
+                   struct ScrArea *area,
                    struct wmNotifier *wmn,
                    struct Scene *scene);
 
   /* called when the mouse moves out of the area */
-  void (*deactivate)(struct ScrArea *sa);
+  void (*deactivate)(struct ScrArea *area);
 
   /* refresh context, called after filereads, ED_area_tag_refresh() */
-  void (*refresh)(const struct bContext *C, struct ScrArea *sa);
+  void (*refresh)(const struct bContext *C, struct ScrArea *area);
 
   /* after a spacedata copy, an init should result in exact same situation */
   struct SpaceLink *(*duplicate)(struct SpaceLink *sl);
@@ -111,10 +111,13 @@ typedef struct SpaceType {
   int (*context)(const struct bContext *C, const char *member, struct bContextDataResult *result);
 
   /* Used when we want to replace an ID by another (or NULL). */
-  void (*id_remap)(struct ScrArea *sa, struct SpaceLink *sl, struct ID *old_id, struct ID *new_id);
+  void (*id_remap)(struct ScrArea *area,
+                   struct SpaceLink *sl,
+                   struct ID *old_id,
+                   struct ID *new_id);
 
-  int (*space_subtype_get)(struct ScrArea *sa);
-  void (*space_subtype_set)(struct ScrArea *sa, int value);
+  int (*space_subtype_get)(struct ScrArea *area);
+  void (*space_subtype_set)(struct ScrArea *area, int value);
   void (*space_subtype_item_extend)(struct bContext *C, EnumPropertyItem **item, int *totitem);
 
   /* region type definitions */
@@ -146,7 +149,7 @@ typedef struct ARegionType {
   int (*snap_size)(const struct ARegion *region, int size, int axis);
   /* contextual changes should be handled here */
   void (*listener)(struct wmWindow *win,
-                   struct ScrArea *sa,
+                   struct ScrArea *area,
                    struct ARegion *region,
                    struct wmNotifier *wmn,
                    const struct Scene *scene);
@@ -154,8 +157,8 @@ typedef struct ARegionType {
   void (*message_subscribe)(const struct bContext *C,
                             struct WorkSpace *workspace,
                             struct Scene *scene,
-                            struct bScreen *sc,
-                            struct ScrArea *sa,
+                            struct bScreen *screen,
+                            struct ScrArea *area,
                             struct ARegion *region,
                             struct wmMsgBus *mbus);
 
@@ -169,7 +172,7 @@ typedef struct ARegionType {
   /* add own items to keymap */
   void (*keymap)(struct wmKeyConfig *keyconf);
   /* allows default cursor per region */
-  void (*cursor)(struct wmWindow *win, struct ScrArea *sa, struct ARegion *region);
+  void (*cursor)(struct wmWindow *win, struct ScrArea *area, struct ARegion *region);
 
   /* return context data */
   int (*context)(const struct bContext *C, const char *member, struct bContextDataResult *result);
@@ -232,7 +235,7 @@ typedef struct PanelType {
   ListBase children;
 
   /* RNA integration */
-  ExtensionRNA ext;
+  ExtensionRNA rna_ext;
 } PanelType;
 
 /* uilist types */
@@ -270,7 +273,7 @@ typedef struct uiListType {
   uiListFilterItemsFunc filter_items;
 
   /* RNA integration */
-  ExtensionRNA ext;
+  ExtensionRNA rna_ext;
 } uiListType;
 
 /* header types */
@@ -287,7 +290,7 @@ typedef struct HeaderType {
   void (*draw)(const struct bContext *C, struct Header *header);
 
   /* RNA integration */
-  ExtensionRNA ext;
+  ExtensionRNA rna_ext;
 } HeaderType;
 
 typedef struct Header {
@@ -312,7 +315,7 @@ typedef struct MenuType {
   void (*draw)(const struct bContext *C, struct Menu *menu);
 
   /* RNA integration */
-  ExtensionRNA ext;
+  ExtensionRNA rna_ext;
 } MenuType;
 
 typedef struct Menu {
@@ -335,44 +338,48 @@ void BKE_spacedata_copylist(ListBase *lb1, ListBase *lb2);
 void BKE_spacedata_draw_locks(int set);
 
 struct ARegion *BKE_spacedata_find_region_type(const struct SpaceLink *slink,
-                                               const struct ScrArea *sa,
+                                               const struct ScrArea *area,
                                                int region_type) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL();
 
-void BKE_spacedata_callback_id_remap_set(
-    void (*func)(struct ScrArea *sa, struct SpaceLink *sl, struct ID *old_id, struct ID *new_id));
-void BKE_spacedata_id_unref(struct ScrArea *sa, struct SpaceLink *sl, struct ID *id);
+void BKE_spacedata_callback_id_remap_set(void (*func)(
+    struct ScrArea *area, struct SpaceLink *sl, struct ID *old_id, struct ID *new_id));
+void BKE_spacedata_id_unref(struct ScrArea *area, struct SpaceLink *sl, struct ID *id);
 
 /* area/regions */
 struct ARegion *BKE_area_region_copy(struct SpaceType *st, struct ARegion *region);
 void BKE_area_region_free(struct SpaceType *st, struct ARegion *region);
 void BKE_area_region_panels_free(struct ListBase *panels);
-void BKE_screen_area_free(struct ScrArea *sa);
+void BKE_screen_area_free(struct ScrArea *area);
 /* Gizmo-maps of a region need to be freed with the region.
  * Uses callback to avoid low-level call. */
 void BKE_region_callback_free_gizmomap_set(void (*callback)(struct wmGizmoMap *));
 void BKE_region_callback_refresh_tag_gizmomap_set(void (*callback)(struct wmGizmoMap *));
 
-struct ARegion *BKE_area_find_region_type(const struct ScrArea *sa, int type);
-struct ARegion *BKE_area_find_region_active_win(struct ScrArea *sa);
-struct ARegion *BKE_area_find_region_xy(struct ScrArea *sa, const int regiontype, int x, int y);
-struct ARegion *BKE_screen_find_region_xy(struct bScreen *sc, const int regiontype, int x, int y)
-    ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
+struct ARegion *BKE_area_find_region_type(const struct ScrArea *area, int type);
+struct ARegion *BKE_area_find_region_active_win(struct ScrArea *area);
+struct ARegion *BKE_area_find_region_xy(struct ScrArea *area, const int regiontype, int x, int y);
+struct ARegion *BKE_screen_find_region_xy(struct bScreen *screen,
+                                          const int regiontype,
+                                          int x,
+                                          int y) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
 
-struct ScrArea *BKE_screen_find_area_from_space(struct bScreen *sc,
+struct ScrArea *BKE_screen_find_area_from_space(struct bScreen *screen,
                                                 struct SpaceLink *sl) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1, 2);
-struct ScrArea *BKE_screen_find_big_area(struct bScreen *sc, const int spacetype, const short min);
+struct ScrArea *BKE_screen_find_big_area(struct bScreen *screen,
+                                         const int spacetype,
+                                         const short min);
 struct ScrArea *BKE_screen_area_map_find_area_xy(const struct ScrAreaMap *areamap,
                                                  const int spacetype,
                                                  int x,
                                                  int y);
-struct ScrArea *BKE_screen_find_area_xy(struct bScreen *sc, const int spacetype, int x, int y);
+struct ScrArea *BKE_screen_find_area_xy(struct bScreen *screen, const int spacetype, int x, int y);
 
-void BKE_screen_gizmo_tag_refresh(struct bScreen *sc);
+void BKE_screen_gizmo_tag_refresh(struct bScreen *screen);
 
 void BKE_screen_view3d_sync(struct View3D *v3d, struct Scene *scene);
-void BKE_screen_view3d_scene_sync(struct bScreen *sc, struct Scene *scene);
+void BKE_screen_view3d_scene_sync(struct bScreen *screen, struct Scene *scene);
 bool BKE_screen_is_fullscreen_area(const struct bScreen *screen) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL();
 bool BKE_screen_is_used(const struct bScreen *screen) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
@@ -384,15 +391,17 @@ float BKE_screen_view3d_zoom_from_fac(float zoomfac);
 void BKE_screen_view3d_shading_init(struct View3DShading *shading);
 
 /* screen */
-void BKE_screen_free(struct bScreen *sc);
+void BKE_screen_free(struct bScreen *screen);
 void BKE_screen_area_map_free(struct ScrAreaMap *area_map) ATTR_NONNULL();
 
-struct ScrEdge *BKE_screen_find_edge(struct bScreen *sc, struct ScrVert *v1, struct ScrVert *v2);
+struct ScrEdge *BKE_screen_find_edge(struct bScreen *screen,
+                                     struct ScrVert *v1,
+                                     struct ScrVert *v2);
 void BKE_screen_sort_scrvert(struct ScrVert **v1, struct ScrVert **v2);
-void BKE_screen_remove_double_scrverts(struct bScreen *sc);
-void BKE_screen_remove_double_scredges(struct bScreen *sc);
-void BKE_screen_remove_unused_scredges(struct bScreen *sc);
-void BKE_screen_remove_unused_scrverts(struct bScreen *sc);
+void BKE_screen_remove_double_scrverts(struct bScreen *screen);
+void BKE_screen_remove_double_scredges(struct bScreen *screen);
+void BKE_screen_remove_unused_scredges(struct bScreen *screen);
+void BKE_screen_remove_unused_scrverts(struct bScreen *screen);
 
 void BKE_screen_header_alignment_reset(struct bScreen *screen);
 

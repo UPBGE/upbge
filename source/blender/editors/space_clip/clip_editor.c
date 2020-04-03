@@ -37,6 +37,7 @@
 #include "DNA_mask_types.h"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_task.h"
@@ -282,7 +283,7 @@ bool ED_space_clip_color_sample(SpaceClip *sc, ARegion *region, int mval[2], flo
 
   if (fx >= 0.0f && fy >= 0.0f && fx < 1.0f && fy < 1.0f) {
     const float *fp;
-    unsigned char *cp;
+    uchar *cp;
     int x = (int)(fx * ibuf->x), y = (int)(fy * ibuf->y);
 
     CLAMP(x, 0, ibuf->x - 1);
@@ -294,7 +295,7 @@ bool ED_space_clip_color_sample(SpaceClip *sc, ARegion *region, int mval[2], flo
       ret = true;
     }
     else if (ibuf->rect) {
-      cp = (unsigned char *)(ibuf->rect + y * ibuf->x + x);
+      cp = (uchar *)(ibuf->rect + y * ibuf->x + x);
       rgb_uchar_to_float(r_col, cp);
       IMB_colormanagement_colorspace_to_scene_linear_v3(r_col, ibuf->rect_colorspace);
       ret = true;
@@ -310,12 +311,12 @@ void ED_clip_update_frame(const Main *mainp, int cfra)
 {
   /* image window, compo node users */
   for (wmWindowManager *wm = mainp->wm.first; wm; wm = wm->id.next) { /* only 1 wm */
-    for (wmWindow *win = wm->windows.first; win; win = win->next) {
+    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       bScreen *screen = WM_window_get_active_screen(win);
 
-      for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-        if (sa->spacetype == SPACE_CLIP) {
-          SpaceClip *sc = sa->spacedata.first;
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        if (area->spacetype == SPACE_CLIP) {
+          SpaceClip *sc = area->spacedata.first;
 
           sc->scopes.ok = false;
 
@@ -744,7 +745,7 @@ static bool check_prefetch_break(void)
 }
 
 /* read file for specified frame number to the memory */
-static unsigned char *prefetch_read_file_to_memory(
+static uchar *prefetch_read_file_to_memory(
     MovieClip *clip, int current_frame, short render_size, short render_flag, size_t *r_size)
 {
   MovieClipUser user = {0};
@@ -766,7 +767,7 @@ static unsigned char *prefetch_read_file_to_memory(
     return NULL;
   }
 
-  unsigned char *mem = MEM_mallocN(size, "movieclip prefetch memory file");
+  uchar *mem = MEM_mallocN(size, "movieclip prefetch memory file");
   if (mem == NULL) {
     close(file);
     return NULL;
@@ -822,12 +823,12 @@ static int prefetch_find_uncached_frame(MovieClip *clip,
 }
 
 /* get memory buffer for first uncached frame within prefetch frame range */
-static unsigned char *prefetch_thread_next_frame(PrefetchQueue *queue,
-                                                 MovieClip *clip,
-                                                 size_t *r_size,
-                                                 int *r_current_frame)
+static uchar *prefetch_thread_next_frame(PrefetchQueue *queue,
+                                         MovieClip *clip,
+                                         size_t *r_size,
+                                         int *r_current_frame)
 {
-  unsigned char *mem = NULL;
+  uchar *mem = NULL;
 
   BLI_spin_lock(&queue->spin);
   if (!*queue->stop && !check_prefetch_break() &&
@@ -888,7 +889,7 @@ static void prefetch_task_func(TaskPool *__restrict pool, void *task_data, int U
 {
   PrefetchQueue *queue = (PrefetchQueue *)BLI_task_pool_userdata(pool);
   MovieClip *clip = (MovieClip *)task_data;
-  unsigned char *mem;
+  uchar *mem;
   size_t size;
   int current_frame;
 

@@ -27,6 +27,8 @@
 #include "BKE_movieclip.h"
 #include "BKE_object.h"
 
+#include "BLI_listbase.h"
+
 #include "DNA_camera_types.h"
 #include "DNA_screen_types.h"
 
@@ -311,7 +313,7 @@ void OVERLAY_image_camera_cache_populate(OVERLAY_Data *vedata, Object *ob)
   float norm_obmat[4][4];
   normalize_m4_m4(norm_obmat, ob->obmat);
 
-  for (CameraBGImage *bgpic = cam->bg_images.first; bgpic; bgpic = bgpic->next) {
+  LISTBASE_FOREACH (CameraBGImage *, bgpic, &cam->bg_images) {
     if (bgpic->flag & CAM_BGIMG_FLAG_DISABLED) {
       continue;
     }

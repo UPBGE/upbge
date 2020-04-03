@@ -113,6 +113,7 @@ const EnumPropertyItem rna_enum_keying_flag_items_api[] = {
 
 #  include "BLI_math_base.h"
 
+#  include "BKE_anim_data.h"
 #  include "BKE_animsys.h"
 #  include "BKE_fcurve.h"
 #  include "BKE_nla.h"
@@ -193,7 +194,7 @@ static bool RKS_POLL_rna_internal(KeyingSetInfo *ksi, bContext *C)
   void *ret;
   int ok;
 
-  RNA_pointer_create(NULL, ksi->ext.srna, ksi, &ptr);
+  RNA_pointer_create(NULL, ksi->rna_ext.srna, ksi, &ptr);
   func = &rna_KeyingSetInfo_poll_func; /* RNA_struct_find_function(&ptr, "poll"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -203,7 +204,7 @@ static bool RKS_POLL_rna_internal(KeyingSetInfo *ksi, bContext *C)
     RNA_parameter_set_lookup(&list, "context", &C);
 
     /* execute the function */
-    ksi->ext.call(C, &ptr, func, &list);
+    ksi->rna_ext.call(C, &ptr, func, &list);
 
     /* read the result */
     RNA_parameter_get_lookup(&list, "ok", &ret);
@@ -223,7 +224,7 @@ static void RKS_ITER_rna_internal(KeyingSetInfo *ksi, bContext *C, KeyingSet *ks
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(NULL, ksi->ext.srna, ksi, &ptr);
+  RNA_pointer_create(NULL, ksi->rna_ext.srna, ksi, &ptr);
   func = &rna_KeyingSetInfo_iterator_func; /* RNA_struct_find_function(&ptr, "poll"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -234,7 +235,7 @@ static void RKS_ITER_rna_internal(KeyingSetInfo *ksi, bContext *C, KeyingSet *ks
     RNA_parameter_set_lookup(&list, "ks", &ks);
 
     /* execute the function */
-    ksi->ext.call(C, &ptr, func, &list);
+    ksi->rna_ext.call(C, &ptr, func, &list);
   }
   RNA_parameter_list_free(&list);
 }
@@ -248,7 +249,7 @@ static void RKS_GEN_rna_internal(KeyingSetInfo *ksi, bContext *C, KeyingSet *ks,
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(NULL, ksi->ext.srna, ksi, &ptr);
+  RNA_pointer_create(NULL, ksi->rna_ext.srna, ksi, &ptr);
   func = &rna_KeyingSetInfo_generate_func; /* RNA_struct_find_generate(&ptr, "poll"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -260,7 +261,7 @@ static void RKS_GEN_rna_internal(KeyingSetInfo *ksi, bContext *C, KeyingSet *ks,
     RNA_parameter_set_lookup(&list, "data", data);
 
     /* execute the function */
-    ksi->ext.call(C, &ptr, func, &list);
+    ksi->rna_ext.call(C, &ptr, func, &list);
   }
   RNA_parameter_list_free(&list);
 }
@@ -272,7 +273,7 @@ static void RKS_GEN_rna_internal(KeyingSetInfo *ksi, bContext *C, KeyingSet *ks,
 static StructRNA *rna_KeyingSetInfo_refine(PointerRNA *ptr)
 {
   KeyingSetInfo *ksi = (KeyingSetInfo *)ptr->data;
-  return (ksi->ext.srna) ? ksi->ext.srna : &RNA_KeyingSetInfo;
+  return (ksi->rna_ext.srna) ? ksi->rna_ext.srna : &RNA_KeyingSetInfo;
 }
 
 static void rna_KeyingSetInfo_unregister(Main *bmain, StructRNA *type)
@@ -284,7 +285,7 @@ static void rna_KeyingSetInfo_unregister(Main *bmain, StructRNA *type)
   }
 
   /* free RNA data referencing this */
-  RNA_struct_free_extension(type, &ksi->ext);
+  RNA_struct_free_extension(type, &ksi->rna_ext);
   RNA_struct_free(&BLENDER_RNA, type);
 
   WM_main_add_notifier(NC_WINDOW, NULL);
@@ -327,8 +328,8 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
 
   /* check if we have registered this info before, and remove it */
   ksi = ANIM_keyingset_info_find_name(dummyksi.idname);
-  if (ksi && ksi->ext.srna) {
-    rna_KeyingSetInfo_unregister(bmain, ksi->ext.srna);
+  if (ksi && ksi->rna_ext.srna) {
+    rna_KeyingSetInfo_unregister(bmain, ksi->rna_ext.srna);
   }
 
   /* create a new KeyingSetInfo type */
@@ -336,11 +337,11 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
   memcpy(ksi, &dummyksi, sizeof(KeyingSetInfo));
 
   /* set RNA-extensions info */
-  ksi->ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, ksi->idname, &RNA_KeyingSetInfo);
-  ksi->ext.data = data;
-  ksi->ext.call = call;
-  ksi->ext.free = free;
-  RNA_struct_blender_type_set(ksi->ext.srna, ksi);
+  ksi->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, ksi->idname, &RNA_KeyingSetInfo);
+  ksi->rna_ext.data = data;
+  ksi->rna_ext.call = call;
+  ksi->rna_ext.free = free;
+  RNA_struct_blender_type_set(ksi->rna_ext.srna, ksi);
 
   /* set callbacks */
   /* NOTE: we really should have all of these...  */
@@ -354,7 +355,7 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
   WM_main_add_notifier(NC_WINDOW, NULL);
 
   /* return the struct-rna added */
-  return ksi->ext.srna;
+  return ksi->rna_ext.srna;
 }
 
 /* ****************************** */

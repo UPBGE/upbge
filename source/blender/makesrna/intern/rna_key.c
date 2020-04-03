@@ -46,6 +46,7 @@
 
 #  include "DNA_object_types.h"
 
+#  include "BLI_listbase.h"
 #  include "BLI_string_utils.h"
 
 #  include "BKE_animsys.h"
@@ -575,7 +576,7 @@ static void rna_ShapeKey_data_begin(CollectionPropertyIterator *iter, PointerRNA
     NurbInfo info = {0};
 
     /* Check if all sub-curves have the same type. */
-    for (Nurb *nu = cu->nurb.first; nu; nu = nu->next) {
+    LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
       if (type == NULL) {
         type = rna_ShapeKey_curve_point_type(nu);
         rna_ShapeKey_NurbInfo_init(&info, nu);

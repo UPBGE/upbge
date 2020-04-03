@@ -32,21 +32,21 @@
 
 static void rna_RegionView3D_update(ID *id, RegionView3D *rv3d, bContext *C)
 {
-  bScreen *sc = (bScreen *)id;
+  bScreen *screen = (bScreen *)id;
 
-  ScrArea *sa;
+  ScrArea *area;
   ARegion *region;
 
-  area_region_from_regiondata(sc, rv3d, &sa, &region);
+  area_region_from_regiondata(screen, rv3d, &area, &region);
 
-  if (sa && region && sa->spacetype == SPACE_VIEW3D) {
+  if (area && region && area->spacetype == SPACE_VIEW3D) {
     Main *bmain = CTX_data_main(C);
-    View3D *v3d = sa->spacedata.first;
+    View3D *v3d = area->spacedata.first;
     wmWindowManager *wm = CTX_wm_manager(C);
     wmWindow *win;
 
     for (win = wm->windows.first; win; win = win->next) {
-      if (WM_window_get_active_screen(win) == sc) {
+      if (WM_window_get_active_screen(win) == screen) {
         Scene *scene = WM_window_get_active_scene(win);
         ViewLayer *view_layer = WM_window_get_active_view_layer(win);
         Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
@@ -61,10 +61,10 @@ static void rna_RegionView3D_update(ID *id, RegionView3D *rv3d, bContext *C)
 static void rna_SpaceTextEditor_region_location_from_cursor(
     ID *id, SpaceText *st, int line, int column, int r_pixel_pos[2])
 {
-  bScreen *sc = (bScreen *)id;
-  ScrArea *sa = BKE_screen_find_area_from_space(sc, (SpaceLink *)st);
-  if (sa) {
-    ARegion *region = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+  bScreen *screen = (bScreen *)id;
+  ScrArea *area = BKE_screen_find_area_from_space(screen, (SpaceLink *)st);
+  if (area) {
+    ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
     const int cursor_co[2] = {line, column};
     ED_text_region_location_from_cursor(st, region, cursor_co, r_pixel_pos);
   }

@@ -22,6 +22,7 @@
 
 #include "DRW_render.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "DNA_armature_types.h"
@@ -211,7 +212,7 @@ void OVERLAY_motion_path_cache_populate(OVERLAY_Data *vedata, Object *ob)
 
   if (ob->type == OB_ARMATURE) {
     if (OVERLAY_armature_is_pose_mode(ob, draw_ctx)) {
-      for (bPoseChannel *pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+      LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
         if (pchan->mpath) {
           motion_path_cache(vedata, ob, pchan, &ob->pose->avs, pchan->mpath);
         }

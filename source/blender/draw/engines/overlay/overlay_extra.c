@@ -24,7 +24,7 @@
 
 #include "UI_resources.h"
 
-#include "BKE_anim.h"
+#include "BKE_anim_path.h"
 #include "BKE_camera.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
@@ -35,6 +35,8 @@
 #include "BKE_movieclip.h"
 #include "BKE_object.h"
 #include "BKE_tracking.h"
+
+#include "BLI_listbase.h"
 
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
@@ -931,7 +933,7 @@ static void camera_view3d_reconstruction(OVERLAY_ExtraCallBuffers *cb,
     }
 
     ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, tracking_object);
-    for (MovieTrackingTrack *track = tracksbase->first; track; track = track->next) {
+    LISTBASE_FOREACH (MovieTrackingTrack *, track, tracksbase) {
       if ((track->flag & TRACK_HAS_BUNDLE) == 0) {
         continue;
       }

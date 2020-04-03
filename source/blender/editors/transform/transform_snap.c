@@ -44,8 +44,8 @@
 #include "GPU_immediate.h"
 #include "GPU_state.h"
 
-#include "BKE_anim.h" /* for duplis */
 #include "BKE_context.h"
+#include "BKE_duplilist.h"
 #include "BKE_editmesh.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
@@ -158,7 +158,7 @@ static bool doForceIncrementSnap(const TransInfo *t)
 
 void drawSnapping(const struct bContext *C, TransInfo *t)
 {
-  unsigned char col[4], selectedCol[4], activeCol[4];
+  uchar col[4], selectedCol[4], activeCol[4];
 
   if (!activeSnap(t)) {
     return;
@@ -1106,7 +1106,7 @@ static void CalcSnapGeometry(TransInfo *t, float *UNUSED(vec))
   }
   else if (t->spacetype == SPACE_IMAGE && t->obedit_type == OB_MESH) {
     if (t->tsnap.mode & SCE_SNAP_MODE_VERTEX) {
-      Image *ima = ED_space_image(t->sa->spacedata.first);
+      Image *ima = ED_space_image(t->area->spacedata.first);
       float co[2];
 
       UI_view2d_region_to_view(&t->region->v2d, t->mval[0], t->mval[1], &co[0], &co[1]);
@@ -1581,7 +1581,7 @@ bool snapNodesTransform(
     TransInfo *t, const int mval[2], float r_loc[2], float *r_dist_px, char *r_node_border)
 {
   return snapNodes(t->settings,
-                   t->sa->spacedata.first,
+                   t->area->spacedata.first,
                    t->region,
                    mval,
                    t->tsnap.modeSelect,
@@ -1716,7 +1716,7 @@ static void applyGridIncrement(
     if (t->spacetype == SPACE_GRAPH) {
       View2D *v2d = &t->region->v2d;
       Scene *scene = t->scene;
-      SpaceGraph *sipo = t->sa->spacedata.first;
+      SpaceGraph *sipo = t->area->spacedata.first;
       asp_local[0] = UI_view2d_grid_resolution_x__frames_or_seconds(
           v2d, scene, sipo->flag & SIPO_DRAWTIME);
       asp_local[1] = UI_view2d_grid_resolution_y__values(v2d);

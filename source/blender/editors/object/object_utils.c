@@ -28,6 +28,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
@@ -193,7 +194,7 @@ void ED_object_xform_skip_child_container_item_ensure_from_array(
     BLI_gset_add(objects_in_transdata, ob);
   }
 
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     Object *ob = base->object;
     if (ob->parent != NULL) {
       if (!BLI_gset_haskey(objects_in_transdata, ob)) {
@@ -223,7 +224,7 @@ void ED_object_xform_skip_child_container_item_ensure_from_array(
     }
   }
 
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     Object *ob = base->object;
 
     if (BLI_gset_haskey(objects_in_transdata, ob)) {

@@ -1275,7 +1275,7 @@ static Image *image_open_single(Main *bmain,
     if ((range->length > 1) && (ima->source == IMA_SRC_FILE)) {
       if (range->udim_tiles.first && range->offset == 1001) {
         ima->source = IMA_SRC_TILED;
-        for (LinkData *node = range->udim_tiles.first; node; node = node->next) {
+        LISTBASE_FOREACH (LinkData *, node, &range->udim_tiles) {
           BKE_image_add_tile(ima, POINTER_AS_INT(node->data), NULL);
         }
       }
@@ -1291,7 +1291,7 @@ static Image *image_open_single(Main *bmain,
 static int image_open_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
   Scene *scene = CTX_data_scene(C);
   Object *obedit = CTX_data_edit_object(C);
   ImageUser *iuser = NULL;
@@ -1309,7 +1309,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
   }
 
   ListBase ranges = ED_image_filesel_detect_sequences(bmain, op, use_udim);
-  for (ImageFrameRange *range = ranges.first; range; range = range->next) {
+  LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
     Image *ima_range = image_open_single(
         bmain, op, range, BKE_main_blendfile_path(bmain), is_relative_path, use_multiview);
 
@@ -1345,8 +1345,8 @@ static int image_open_exec(bContext *C, wmOperator *op)
   if (iod->iuser) {
     iuser = iod->iuser;
   }
-  else if (sa && sa->spacetype == SPACE_IMAGE) {
-    SpaceImage *sima = sa->spacedata.first;
+  else if (area && area->spacetype == SPACE_IMAGE) {
+    SpaceImage *sima = area->spacedata.first;
     ED_space_image_set(bmain, sima, obedit, ima, false);
     iuser = &sima->iuser;
   }
@@ -1359,7 +1359,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
     if (iuser == NULL) {
       Camera *cam = CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data;
       if (cam) {
-        for (CameraBGImage *bgpic = cam->bg_images.first; bgpic; bgpic = bgpic->next) {
+        LISTBASE_FOREACH (CameraBGImage *, bgpic, &cam->bg_images) {
           if (bgpic->ima == ima) {
             iuser = &bgpic->iuser;
             break;
@@ -3107,13 +3107,13 @@ typedef struct ImageSampleInfo {
   int width, height;
   int sample_size;
 
-  unsigned char col[4];
+  uchar col[4];
   float colf[4];
   float linearcol[4];
   int z;
   float zf;
 
-  unsigned char *colp;
+  uchar *colp;
   const float *colfp;
   int *zp;
   float *zfp;
@@ -3198,7 +3198,7 @@ bool ED_space_image_color_sample(SpaceImage *sima, ARegion *region, int mval[2],
 
   if (uv[0] >= 0.0f && uv[1] >= 0.0f && uv[0] < 1.0f && uv[1] < 1.0f) {
     const float *fp;
-    unsigned char *cp;
+    uchar *cp;
     int x = (int)(uv[0] * ibuf->x), y = (int)(uv[1] * ibuf->y);
 
     CLAMP(x, 0, ibuf->x - 1);
@@ -3210,7 +3210,7 @@ bool ED_space_image_color_sample(SpaceImage *sima, ARegion *region, int mval[2],
       ret = true;
     }
     else if (ibuf->rect) {
-      cp = (unsigned char *)(ibuf->rect + y * ibuf->x + x);
+      cp = (uchar *)(ibuf->rect + y * ibuf->x + x);
       rgb_uchar_to_float(r_col, cp);
       IMB_colormanagement_colorspace_to_scene_linear_v3(r_col, ibuf->rect_colorspace);
       ret = true;
@@ -3230,7 +3230,7 @@ static void image_sample_pixel_color_ubyte(const ImBuf *ibuf,
                                            uchar r_col[4],
                                            float r_col_linear[4])
 {
-  const uchar *cp = (unsigned char *)(ibuf->rect + coord[1] * ibuf->x + coord[0]);
+  const uchar *cp = (uchar *)(ibuf->rect + coord[1] * ibuf->x + coord[0]);
   copy_v4_v4_uchar(r_col, cp);
   rgba_uchar_to_float(r_col_linear, r_col);
   IMB_colormanagement_colorspace_to_scene_linear_v4(r_col_linear, false, ibuf->rect_colorspace);
@@ -3409,13 +3409,13 @@ static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event
     // XXX node curve integration ..
 #if 0
     {
-      ScrArea *sa, *cur = curarea;
+      ScrArea *area, *cur = curarea;
 
       node_curvemap_sample(fp); /* sends global to node editor */
-      for (sa = G.curscreen->areabase.first; sa; sa = sa->next) {
-        if (sa->spacetype == SPACE_NODE) {
-          areawinset(sa->win);
-          scrarea_do_windraw(sa);
+      for (area = G.curscreen->areabase.first; area; area = area->next) {
+        if (area->spacetype == SPACE_NODE) {
+          areawinset(area->win);
+          scrarea_do_windraw(area);
         }
       }
       node_curvemap_sample(NULL); /* clears global in node editor */

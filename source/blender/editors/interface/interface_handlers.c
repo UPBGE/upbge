@@ -1280,7 +1280,7 @@ static void ui_multibut_states_create(uiBut *but_active, uiHandleButtonData *dat
 
   data->multi_data.bs_mbuts = UI_butstore_create(but_active->block);
 
-  for (uiBut *but = but_active->block->buttons.first; but; but = but->next) {
+  LISTBASE_FOREACH (uiBut *, but, &but_active->block->buttons) {
     if (but->flag & UI_BUT_DRAG_MULTI) {
       ui_multibut_add(data, but);
     }
@@ -1882,7 +1882,7 @@ static bool ui_but_drag_init(bContext *C,
 #ifdef USE_DRAG_TOGGLE
     if (ui_drag_toggle_but_is_supported(but)) {
       uiDragToggleHandle *drag_info = MEM_callocN(sizeof(*drag_info), __func__);
-      ARegion *ar_prev;
+      ARegion *region_prev;
 
       /* call here because regular mouse-up event wont run,
        * typically 'button_activate_exit()' handles this */
@@ -1895,7 +1895,7 @@ static bool ui_but_drag_init(bContext *C,
       copy_v2_v2_int(drag_info->xy_last, &event->x);
 
       /* needed for toggle drag on popups */
-      ar_prev = CTX_wm_region(C);
+      region_prev = CTX_wm_region(C);
       CTX_wm_region_set(C, data->region);
 
       WM_event_add_ui_handler(C,
@@ -1905,7 +1905,7 @@ static bool ui_but_drag_init(bContext *C,
                               drag_info,
                               WM_HANDLER_BLOCKING);
 
-      CTX_wm_region_set(C, ar_prev);
+      CTX_wm_region_set(C, region_prev);
 
       /* Initialize alignment for single row/column regions,
        * otherwise we use the relative position of the first other button dragged over. */
@@ -1914,13 +1914,13 @@ static bool ui_but_drag_init(bContext *C,
                RGN_TYPE_HEADER,
                RGN_TYPE_TOOL_HEADER,
                RGN_TYPE_FOOTER)) {
-        const int ar_alignment = RGN_ALIGN_ENUM_FROM_MASK(data->region->alignment);
+        const int region_alignment = RGN_ALIGN_ENUM_FROM_MASK(data->region->alignment);
         int lock_axis = -1;
 
-        if (ELEM(ar_alignment, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) {
+        if (ELEM(region_alignment, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) {
           lock_axis = 0;
         }
-        else if (ELEM(ar_alignment, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM)) {
+        else if (ELEM(region_alignment, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM)) {
           lock_axis = 1;
         }
         if (lock_axis != -1) {
@@ -7979,8 +7979,8 @@ void UI_but_tooltip_refresh(bContext *C, uiBut *but)
 {
   uiHandleButtonData *data = but->active;
   if (data) {
-    bScreen *sc = WM_window_get_active_screen(data->window);
-    if (sc->tool_tip && sc->tool_tip->region) {
+    bScreen *screen = WM_window_get_active_screen(data->window);
+    if (screen->tool_tip && screen->tool_tip->region) {
       WM_tooltip_refresh(C, data->window);
     }
   }
@@ -8040,9 +8040,9 @@ static void button_tooltip_timer_reset(bContext *C, uiBut *but)
         WM_tooltip_timer_init_ex(
             C, data->window, data->area, data->region, ui_but_tooltip_init, delay);
         if (is_label) {
-          bScreen *sc = WM_window_get_active_screen(data->window);
-          if (sc->tool_tip) {
-            sc->tool_tip->pass = 1;
+          bScreen *screen = WM_window_get_active_screen(data->window);
+          if (screen->tool_tip) {
+            screen->tool_tip->pass = 1;
           }
         }
       }
@@ -8328,11 +8328,11 @@ static void button_activate_init(bContext *C,
 
   if (UI_but_has_tooltip_label(but)) {
     /* Show a label for this button. */
-    bScreen *sc = WM_window_get_active_screen(data->window);
+    bScreen *screen = WM_window_get_active_screen(data->window);
     if ((PIL_check_seconds_timer() - WM_tooltip_time_closed()) < 0.1) {
       WM_tooltip_immediate_init(C, CTX_wm_window(C), data->area, region, ui_but_tooltip_init);
-      if (sc->tool_tip) {
-        sc->tool_tip->pass = 1;
+      if (screen->tool_tip) {
+        screen->tool_tip->pass = 1;
       }
     }
   }
@@ -8598,16 +8598,16 @@ void UI_context_active_but_prop_handle(bContext *C)
 
 wmOperator *UI_context_active_operator_get(const struct bContext *C)
 {
-  ARegion *ar_ctx = CTX_wm_region(C);
+  ARegion *region_ctx = CTX_wm_region(C);
   uiBlock *block;
 
   /* background mode */
-  if (ar_ctx == NULL) {
+  if (region_ctx == NULL) {
     return NULL;
   }
 
   /* scan active regions ui */
-  for (block = ar_ctx->uiblocks.first; block; block = block->next) {
+  for (block = region_ctx->uiblocks.first; block; block = block->next) {
     if (block->ui_operator) {
       return block->ui_operator;
     }
@@ -8615,11 +8615,11 @@ wmOperator *UI_context_active_operator_get(const struct bContext *C)
 
   /* scan popups */
   {
-    bScreen *sc = CTX_wm_screen(C);
+    bScreen *screen = CTX_wm_screen(C);
     ARegion *region;
 
-    for (region = sc->regionbase.first; region; region = region->next) {
-      if (region == ar_ctx) {
+    for (region = screen->regionbase.first; region; region = region->next) {
+      if (region == region_ctx) {
         continue;
       }
       for (block = region->uiblocks.first; block; block = block->next) {
@@ -8742,10 +8742,10 @@ void ui_but_activate_event(bContext *C, ARegion *region, uiBut *but)
   event.customdata = but;
   event.customdatafree = false;
 
-  ARegion *ar_ctx = CTX_wm_region(C);
+  ARegion *region_ctx = CTX_wm_region(C);
   CTX_wm_region_set(C, region);
   ui_do_button(C, but->block, but, &event);
-  CTX_wm_region_set(C, ar_ctx);
+  CTX_wm_region_set(C, region_ctx);
 }
 
 /**
@@ -9517,7 +9517,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, uiBlock *block, float
     if (dy < 0.0f) {
       /* Stop at top item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
       float ymax = -FLT_MAX;
-      for (uiBut *bt = block->buttons.first; bt; bt = bt->next) {
+      LISTBASE_FOREACH (uiBut *, bt, &block->buttons) {
         ymax = max_ff(ymax, bt->rect.ymax);
       }
       if (ymax + dy - UI_UNIT_Y * 0.5f < block->rect.ymax - UI_MENU_SCROLL_PAD) {
@@ -9527,7 +9527,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, uiBlock *block, float
     else {
       /* Stop at bottom item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
       float ymin = FLT_MAX;
-      for (uiBut *bt = block->buttons.first; bt; bt = bt->next) {
+      LISTBASE_FOREACH (uiBut *, bt, &block->buttons) {
         ymin = min_ff(ymin, bt->rect.ymin);
       }
       if (ymin + dy + UI_UNIT_Y * 0.5f > block->rect.ymin + UI_MENU_SCROLL_PAD) {
@@ -9540,7 +9540,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, uiBlock *block, float
   block->handle->scrolloffset += dy;
 
   /* apply scroll offset */
-  for (uiBut *bt = block->buttons.first; bt; bt = bt->next) {
+  LISTBASE_FOREACH (uiBut *, bt, &block->buttons) {
     bt->rect.ymin += dy;
     bt->rect.ymax += dy;
   }
@@ -9621,7 +9621,7 @@ static bool ui_menu_scroll_step(ARegion *region, uiBlock *block, const int scrol
 
 static void ui_region_auto_open_clear(ARegion *region)
 {
-  for (uiBlock *block = region->uiblocks.first; block; block = block->next) {
+  LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
     block->auto_open = false;
   }
 }
@@ -10916,7 +10916,7 @@ static int ui_region_handler(bContext *C, const wmEvent *event, void *UNUSED(use
 
 static void ui_region_handler_remove(bContext *C, void *UNUSED(userdata))
 {
-  bScreen *sc;
+  bScreen *screen;
   ARegion *region;
 
   region = CTX_wm_region(C);
@@ -10926,15 +10926,15 @@ static void ui_region_handler_remove(bContext *C, void *UNUSED(userdata))
 
   UI_blocklist_free(C, &region->uiblocks);
 
-  sc = CTX_wm_screen(C);
-  if (sc == NULL) {
+  screen = CTX_wm_screen(C);
+  if (screen == NULL) {
     return;
   }
 
   /* delayed apply callbacks, but not for screen level regions, those
    * we rather do at the very end after closing them all, which will
    * be done in ui_region_handler/window */
-  if (BLI_findindex(&sc->regionbase, region) == -1) {
+  if (BLI_findindex(&screen->regionbase, region) == -1) {
     ui_apply_but_funcs_after(C);
   }
 }
@@ -11260,7 +11260,7 @@ void UI_screen_free_active_but(const bContext *C, bScreen *screen)
 
   ED_screen_areas_iter(win, screen, area)
   {
-    for (ARegion *region = area->regionbase.first; region; region = region->next) {
+    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
       uiBut *but = ui_region_find_active_but(region);
       if (but) {
         uiHandleButtonData *data = but->active;
