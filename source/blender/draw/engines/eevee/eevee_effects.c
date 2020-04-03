@@ -161,7 +161,6 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
   effects->enabled_effects |= EEVEE_screen_raytrace_init(sldata, vedata);
 
   /* Game engine transition */
-  EEVEE_shader_library_ensure();
   effects->enabled_effects |= EEVEE_antialiasing_engine_init(vedata);
   /* End of Game engine transition */
 

@@ -79,7 +79,6 @@ set(SRC
   engines/eevee/eevee_data.c
   engines/eevee/eevee_depth_of_field.c
   engines/eevee/eevee_effects.c
-  engines/eevee/eevee_effect_antialiasing.c
   engines/eevee/eevee_engine.c
   engines/eevee/eevee_lightcache.c
   engines/eevee/eevee_lightprobes.c
@@ -98,6 +97,7 @@ set(SRC
   engines/eevee/eevee_shadows.c
   engines/eevee/eevee_shadows_cascade.c
   engines/eevee/eevee_shadows_cube.c
+  engines/eevee/eevee_smaa.c
   engines/eevee/eevee_subsurface.c
   engines/eevee/eevee_temporal_sampling.c
   engines/eevee/eevee_volumes.c
@@ -217,6 +217,7 @@ data_to_c_simple(engines/eevee/shaders/effect_velocity_resolve_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_minmaxz_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_mist_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_motion_blur_frag.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/effect_smaa_accum.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_smaa_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_smaa_vert.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_ssr_frag.glsl SRC)
