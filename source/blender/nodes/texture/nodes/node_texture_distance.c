@@ -21,20 +21,20 @@
  * \ingroup texnodes
  */
 
-#include <math.h>
 #include "BLI_math.h"
-#include "node_texture_util.h"
 #include "NOD_texture.h"
+#include "node_texture_util.h"
+#include <math.h>
 
 static bNodeSocketTemplate inputs[] = {
-    {SOCK_VECTOR, 1, N_("Coordinate 1"), 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE},
-    {SOCK_VECTOR, 1, N_("Coordinate 2"), 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE},
-    {-1, 0, ""},
+    {SOCK_VECTOR, N_("Coordinate 1"), 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE},
+    {SOCK_VECTOR, N_("Coordinate 2"), 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE},
+    {-1, ""},
 };
 
 static bNodeSocketTemplate outputs[] = {
-    {SOCK_FLOAT, 0, N_("Value")},
-    {-1, 0, ""},
+    {SOCK_FLOAT, N_("Value")},
+    {-1, ""},
 };
 
 static void valuefn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)

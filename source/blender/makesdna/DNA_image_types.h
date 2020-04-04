@@ -24,9 +24,9 @@
 #ifndef __DNA_IMAGE_TYPES_H__
 #define __DNA_IMAGE_TYPES_H__
 
-#include "DNA_defs.h"
 #include "DNA_ID.h"
 #include "DNA_color_types.h" /* for color management */
+#include "DNA_defs.h"
 
 struct GPUTexture;
 struct MovieCache;
@@ -133,8 +133,8 @@ typedef struct Image {
 
   /** Not written in file. */
   struct MovieCache *cache;
-  /** Not written in file 4 = TEXTARGET_COUNT. */
-  struct GPUTexture *gputexture[4];
+  /** Not written in file 4 = TEXTARGET_COUNT, 2 = stereo eyes. */
+  struct GPUTexture *gputexture[4][2];
 
   /* sources from: */
   ListBase anims;

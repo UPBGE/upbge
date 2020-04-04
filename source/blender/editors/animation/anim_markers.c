@@ -25,8 +25,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_scene_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -56,30 +56,30 @@
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
-#include "UI_view2d.h"
 #include "UI_resources.h"
+#include "UI_view2d.h"
 
 #include "ED_anim_api.h"
 #include "ED_markers.h"
-#include "ED_screen.h"
-#include "ED_select_utils.h"
-#include "ED_util.h"
 #include "ED_numinput.h"
 #include "ED_object.h"
+#include "ED_screen.h"
+#include "ED_select_utils.h"
 #include "ED_transform.h"
 #include "ED_types.h"
+#include "ED_util.h"
 
 #include "DEG_depsgraph.h"
 
 /* ************* Marker API **************** */
 
 /* helper function for getting the list of markers to work on */
-static ListBase *context_get_markers(Scene *scene, ScrArea *sa)
+static ListBase *context_get_markers(Scene *scene, ScrArea *area)
 {
   /* local marker sets... */
-  if (sa) {
-    if (sa->spacetype == SPACE_ACTION) {
-      SpaceAction *saction = (SpaceAction *)sa->spacedata.first;
+  if (area) {
+    if (area->spacetype == SPACE_ACTION) {
+      SpaceAction *saction = (SpaceAction *)area->spacedata.first;
 
       /* local markers can only be shown when there's only a single active action to grab them from
        * - flag only takes effect when there's an action, otherwise it can get too confusing?
@@ -108,7 +108,7 @@ ListBase *ED_context_get_markers(const bContext *C)
 ListBase *ED_animcontext_get_markers(const bAnimContext *ac)
 {
   if (ac) {
-    return context_get_markers(ac->scene, ac->sa);
+    return context_get_markers(ac->scene, ac->area);
   }
   else {
     return NULL;
@@ -197,7 +197,7 @@ int ED_markers_find_nearest_marker_time(ListBase *markers, float x)
   return (nearest) ? (nearest->frame) : round_fl_to_int(x);
 }
 
-void ED_markers_get_minmax(ListBase *markers, short sel, float *first, float *last)
+void ED_markers_get_minmax(ListBase *markers, short sel, float *r_first, float *r_last)
 {
   TimeMarker *marker;
   float min, max;
@@ -205,8 +205,8 @@ void ED_markers_get_minmax(ListBase *markers, short sel, float *first, float *la
   /* sanity check */
   // printf("markers = %p -  %p, %p\n", markers, markers->first, markers->last);
   if (ELEM(NULL, markers, markers->first, markers->last)) {
-    *first = 0.0f;
-    *last = 0.0f;
+    *r_first = 0.0f;
+    *r_last = 0.0f;
     return;
   }
 
@@ -224,8 +224,8 @@ void ED_markers_get_minmax(ListBase *markers, short sel, float *first, float *la
   }
 
   /* set the min/max values */
-  *first = min;
-  *last = max;
+  *r_first = min;
+  *r_last = max;
 }
 
 /**
@@ -234,32 +234,35 @@ void ED_markers_get_minmax(ListBase *markers, short sel, float *first, float *la
  */
 static bool ED_operator_markers_region_active(bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
+  if (area == NULL) {
+    return false;
+  }
 
-  switch (sa->spacetype) {
+  switch (area->spacetype) {
     case SPACE_ACTION: {
-      SpaceAction *saction = sa->spacedata.first;
+      SpaceAction *saction = area->spacedata.first;
       if (saction->flag & SACTION_SHOW_MARKERS) {
         return true;
       }
       break;
     }
     case SPACE_GRAPH: {
-      SpaceGraph *sipo = sa->spacedata.first;
+      SpaceGraph *sipo = area->spacedata.first;
       if (sipo->mode != SIPO_MODE_DRIVERS && sipo->flag & SIPO_SHOW_MARKERS) {
         return true;
       }
       break;
     }
     case SPACE_NLA: {
-      SpaceNla *snla = sa->spacedata.first;
+      SpaceNla *snla = area->spacedata.first;
       if (snla->flag & SNLA_SHOW_MARKERS) {
         return true;
       }
       break;
     }
     case SPACE_SEQ: {
-      SpaceSeq *seq = sa->spacedata.first;
+      SpaceSeq *seq = area->spacedata.first;
       if (seq->flag & SEQ_SHOW_MARKERS) {
         return true;
       }
@@ -355,7 +358,7 @@ void ED_markers_deselect_all(ListBase *markers, int action)
     action = ED_markers_get_first_selected(markers) ? SEL_DESELECT : SEL_SELECT;
   }
 
-  for (TimeMarker *marker = markers->first; marker; marker = marker->next) {
+  LISTBASE_FOREACH (TimeMarker *, marker, markers) {
     if (action == SEL_SELECT) {
       marker->flag |= SELECT;
     }
@@ -525,7 +528,7 @@ static void draw_markers_background(rctf *rect)
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
-  unsigned char shade[4];
+  uchar shade[4];
   UI_GetThemeColor4ubv(TH_TIME_SCRUB_BACKGROUND, shade);
 
   immUniformColor4ubv(shade);
@@ -575,7 +578,7 @@ void ED_markers_draw(const bContext *C, int flag)
     return;
   }
 
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   View2D *v2d = UI_view2d_fromcontext(C);
   int cfra = CTX_data_scene(C)->r.cfra;
 
@@ -596,17 +599,17 @@ void ED_markers_draw(const bContext *C, int flag)
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 
   /* Separate loops in order to draw selected markers on top */
-  for (TimeMarker *marker = markers->first; marker; marker = marker->next) {
+  LISTBASE_FOREACH (TimeMarker *, marker, markers) {
     if ((marker->flag & SELECT) == 0) {
       if (marker_is_in_frame_range(marker, clip_frame_range)) {
-        draw_marker(fstyle, marker, cfra, marker->frame * xscale, flag, ar->winy);
+        draw_marker(fstyle, marker, cfra, marker->frame * xscale, flag, region->winy);
       }
     }
   }
-  for (TimeMarker *marker = markers->first; marker; marker = marker->next) {
+  LISTBASE_FOREACH (TimeMarker *, marker, markers) {
     if (marker->flag & SELECT) {
       if (marker_is_in_frame_range(marker, clip_frame_range)) {
-        draw_marker(fstyle, marker, cfra, marker->frame * xscale, flag, ar->winy);
+        draw_marker(fstyle, marker, cfra, marker->frame * xscale, flag, region->winy);
       }
     }
   }
@@ -870,10 +873,10 @@ static int ed_marker_move_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 {
   bool tweak = RNA_boolean_get(op->ptr, "tweak");
   if (tweak) {
-    ARegion *ar = CTX_wm_region(C);
-    View2D *v2d = &ar->v2d;
+    ARegion *region = CTX_wm_region(C);
+    View2D *v2d = &region->v2d;
     ListBase *markers = ED_context_get_markers(C);
-    if (!region_position_is_over_marker(v2d, markers, event->x - ar->winrct.xmin)) {
+    if (!region_position_is_over_marker(v2d, markers, event->x - region->winrct.xmin)) {
       return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
     }
   }
@@ -903,7 +906,7 @@ static int ed_marker_move_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 static void ed_marker_move_apply(bContext *C, wmOperator *op)
 {
 #ifdef DURIAN_CAMERA_SWITCH
-  bScreen *sc = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(C);
   Scene *scene = CTX_data_scene(C);
   Object *camera = scene->camera;
 #endif
@@ -927,7 +930,7 @@ static void ed_marker_move_apply(bContext *C, wmOperator *op)
   BKE_scene_camera_switch_update(scene);
 
   if (camera != scene->camera) {
-    BKE_screen_view3d_scene_sync(sc, scene);
+    BKE_screen_view3d_scene_sync(screen, scene);
     WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
   }
 #endif
@@ -965,7 +968,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
   else {
     bool handled = false;
     switch (event->type) {
-      case ESCKEY:
+      case EVT_ESCKEY:
         ed_marker_move_cancel(C, op);
         return OPERATOR_CANCELLED;
       case RIGHTMOUSE:
@@ -977,8 +980,8 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
         /* else continue; <--- see if release event should be caught for tweak-end */
         ATTR_FALLTHROUGH;
 
-      case RETKEY:
-      case PADENTER:
+      case EVT_RETKEY:
+      case EVT_PADENTER:
       case LEFTMOUSE:
       case MIDDLEMOUSE:
         if (WM_event_is_modal_tweak_exit(event, mm->event_type)) {
@@ -1153,7 +1156,7 @@ static void MARKER_OT_duplicate(wmOperatorType *ot)
 
 static void deselect_markers(ListBase *markers)
 {
-  for (TimeMarker *marker = markers->first; marker; marker = marker->next) {
+  LISTBASE_FOREACH (TimeMarker *, marker, markers) {
     marker->flag &= ~SELECT;
   }
 }
@@ -1337,11 +1340,11 @@ static void MARKER_OT_select(wmOperatorType *ot)
 
 static int ed_marker_box_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *ar = CTX_wm_region(C);
-  View2D *v2d = &ar->v2d;
+  ARegion *region = CTX_wm_region(C);
+  View2D *v2d = &region->v2d;
 
   ListBase *markers = ED_context_get_markers(C);
-  bool over_marker = region_position_is_over_marker(v2d, markers, event->x - ar->winrct.xmin);
+  bool over_marker = region_position_is_over_marker(v2d, markers, event->x - region->winrct.xmin);
 
   bool tweak = RNA_boolean_get(op->ptr, "tweak");
   if (tweak && over_marker) {
@@ -1370,7 +1373,7 @@ static int ed_marker_box_select_exec(bContext *C, wmOperator *op)
     ED_markers_deselect_all(markers, SEL_DESELECT);
   }
 
-  for (TimeMarker *marker = markers->first; marker; marker = marker->next) {
+  LISTBASE_FOREACH (TimeMarker *, marker, markers) {
     if (BLI_rctf_isect_x(&rect, marker->frame)) {
       SET_FLAG_FROM_TEST(marker->flag, select, SELECT);
     }
@@ -1618,7 +1621,7 @@ static void MARKER_OT_make_links_scene(wmOperatorType *ot)
 
 static int ed_marker_camera_bind_exec(bContext *C, wmOperator *op)
 {
-  bScreen *sc = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(C);
   Scene *scene = CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
   ListBase *markers = ED_context_get_markers(C);
@@ -1643,7 +1646,7 @@ static int ed_marker_camera_bind_exec(bContext *C, wmOperator *op)
     BLI_addtail(markers, marker);
 
     /* deselect all others, so that the user can then move it without problems */
-    for (TimeMarker *m = markers->first; m; m = m->next) {
+    LISTBASE_FOREACH (TimeMarker *, m, markers) {
       if (m != marker) {
         m->flag &= ~SELECT;
       }
@@ -1655,7 +1658,7 @@ static int ed_marker_camera_bind_exec(bContext *C, wmOperator *op)
 
   /* camera may have changes */
   BKE_scene_camera_switch_update(scene);
-  BKE_screen_view3d_scene_sync(sc, scene);
+  BKE_screen_view3d_scene_sync(screen, scene);
 
   WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, NULL);
   WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, NULL);

@@ -25,8 +25,8 @@
 
 #include <string.h>
 
-#include "DNA_windowmanager_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -37,7 +37,7 @@
 #include "BIF_glutil.h"
 
 #include "BKE_context.h"
-#include "BKE_idcode.h"
+#include "BKE_idtype.h"
 
 #include "GPU_glew.h"
 #include "GPU_shader.h"
@@ -204,7 +204,7 @@ static const char *dropbox_active(bContext *C,
     if (handler_base->type == WM_HANDLER_TYPE_DROPBOX) {
       wmEventHandler_Dropbox *handler = (wmEventHandler_Dropbox *)handler_base;
       if (handler->dropboxes) {
-        for (wmDropBox *drop = handler->dropboxes->first; drop; drop = drop->next) {
+        LISTBASE_FOREACH (wmDropBox *, drop, handler->dropboxes) {
           const char *tooltip = NULL;
           if (drop->poll(C, drag, event, &tooltip)) {
             /* XXX Doing translation here might not be ideal, but later we have no more
@@ -222,8 +222,8 @@ static const char *dropbox_active(bContext *C,
 static const char *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
-  ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
   const char *name;
 
   name = dropbox_active(C, &win->handlers, drag, event);
@@ -231,12 +231,12 @@ static const char *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *e
     return name;
   }
 
-  name = dropbox_active(C, &sa->handlers, drag, event);
+  name = dropbox_active(C, &area->handlers, drag, event);
   if (name) {
     return name;
   }
 
-  name = dropbox_active(C, &ar->handlers, drag, event);
+  name = dropbox_active(C, &region->handlers, drag, event);
   if (name) {
     return name;
   }
@@ -290,7 +290,7 @@ void wm_drags_check_ops(bContext *C, const wmEvent *event)
 void WM_drag_add_ID(wmDrag *drag, ID *id, ID *from_parent)
 {
   /* Don't drag the same ID twice. */
-  for (wmDragID *drag_id = drag->ids.first; drag_id; drag_id = drag_id->next) {
+  LISTBASE_FOREACH (wmDragID *, drag_id, &drag->ids) {
     if (drag_id->id == id) {
       if (drag_id->from_parent == NULL) {
         drag_id->from_parent = from_parent;
@@ -357,7 +357,7 @@ static const char *wm_drag_name(wmDrag *drag)
         return id->name + 2;
       }
       else if (id) {
-        return BKE_idcode_to_name_plural(GS(id->name));
+        return BKE_idtype_idcode_to_name_plural(GS(id->name));
       }
       break;
     }

@@ -21,32 +21,32 @@
  * \ingroup spview3d
  */
 
-#include <string.h>
-#include <stdio.h>
-#include <math.h>
-#include <float.h>
 #include <assert.h>
+#include <float.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_meta_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_tracking_types.h"
-#include "DNA_gpencil_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.h"
 #include "BLI_bitmap.h"
-#include "BLI_math.h"
 #include "BLI_lasso_2d.h"
-#include "BLI_rect.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_math.h"
+#include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -55,20 +55,20 @@
 #endif
 
 /* vertex box select */
-#include "IMB_imbuf_types.h"
-#include "IMB_imbuf.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 
 #include "BKE_armature.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
+#include "BKE_editmesh.h"
 #include "BKE_layer.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
-#include "BKE_editmesh.h"
 #include "BKE_scene.h"
 #include "BKE_tracking.h"
 #include "BKE_workspace.h"
@@ -84,16 +84,16 @@
 
 #include "ED_armature.h"
 #include "ED_curve.h"
+#include "ED_gpencil.h"
 #include "ED_lattice.h"
-#include "ED_particle.h"
+#include "ED_mball.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
 #include "ED_outliner.h"
+#include "ED_particle.h"
 #include "ED_screen.h"
-#include "ED_select_utils.h"
 #include "ED_sculpt.h"
-#include "ED_mball.h"
-#include "ED_gpencil.h"
+#include "ED_select_utils.h"
 
 #include "UI_interface.h"
 
@@ -124,7 +124,7 @@ void ED_view3d_viewcontext_init(bContext *C, ViewContext *vc, Depsgraph *depsgra
 {
   memset(vc, 0, sizeof(ViewContext));
   vc->C = C;
-  vc->ar = CTX_wm_region(C);
+  vc->region = CTX_wm_region(C);
   vc->bmain = CTX_data_main(C);
   vc->depsgraph = depsgraph;
   vc->scene = CTX_data_scene(C);
@@ -157,7 +157,7 @@ void ED_view3d_viewcontext_init_object(ViewContext *vc, Object *obact)
 static bool object_deselect_all_visible(ViewLayer *view_layer, View3D *v3d)
 {
   bool changed = false;
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if (base->flag & BASE_SELECTED) {
       if (BASE_SELECTABLE(v3d, base)) {
         ED_object_base_select(base, BA_DESELECT);
@@ -172,7 +172,7 @@ static bool object_deselect_all_visible(ViewLayer *view_layer, View3D *v3d)
 static bool object_deselect_all_except(ViewLayer *view_layer, Base *b)
 {
   bool changed = false;
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if (base->flag & BASE_SELECTED) {
       if (b != base) {
         ED_object_base_select(base, BA_DESELECT);
@@ -589,7 +589,7 @@ static bool do_lasso_select_objects(ViewContext *vc,
   for (base = vc->view_layer->object_bases.first; base; base = base->next) {
     if (BASE_SELECTABLE(v3d, base)) { /* use this to avoid un-needed lasso lookups */
       const bool is_select = base->flag & BASE_SELECTED;
-      const bool is_inside = ((ED_view3d_project_base(vc->ar, base) == V3D_PROJ_RET_OK) &&
+      const bool is_inside = ((ED_view3d_project_base(vc->region, base) == V3D_PROJ_RET_OK) &&
                               BLI_lasso_is_point_inside(
                                   mcords, moves, base->sx, base->sy, IS_CLIPPED));
       const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
@@ -617,7 +617,7 @@ static Base **do_pose_tag_select_op_prepare(ViewContext *vc, uint *r_bases_len)
   FOREACH_BASE_IN_MODE_BEGIN (vc->view_layer, vc->v3d, OB_ARMATURE, OB_MODE_POSE, base_iter) {
     Object *ob_iter = base_iter->object;
     bArmature *arm = ob_iter->data;
-    for (bPoseChannel *pchan = ob_iter->pose->chanbase.first; pchan; pchan = pchan->next) {
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
       Bone *bone = pchan->bone;
       bone->flag &= ~BONE_DONE;
     }
@@ -659,7 +659,7 @@ static bool do_pose_tag_select_op_exec(Base **bases, const uint bases_len, const
     }
 
     bool changed = true;
-    for (bPoseChannel *pchan = ob_iter->pose->chanbase.first; pchan; pchan = pchan->next) {
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
       Bone *bone = pchan->bone;
       if ((bone->flag & BONE_UNSELECTABLE) == 0) {
         const bool is_select = bone->flag & BONE_SELECTED;
@@ -836,7 +836,7 @@ static bool do_lasso_select_mesh(ViewContext *vc,
       editselect_buf_cache_init_with_generic_userdata(wm_userdata, vc, ts->selectmode);
       esel = wm_userdata->data;
       esel->select_bitmap = DRW_select_buffer_bitmap_from_poly(
-          vc->depsgraph, vc->ar, vc->v3d, mcords, moves, &rect, NULL);
+          vc->depsgraph, vc->region, vc->v3d, mcords, moves, &rect, NULL);
     }
   }
 
@@ -1151,7 +1151,7 @@ static bool do_lasso_select_paintvert(ViewContext *vc,
       editselect_buf_cache_init_with_generic_userdata(wm_userdata, vc, SCE_SELECT_VERTEX);
       esel = wm_userdata->data;
       esel->select_bitmap = DRW_select_buffer_bitmap_from_poly(
-          vc->depsgraph, vc->ar, vc->v3d, mcords, moves, &rect, NULL);
+          vc->depsgraph, vc->region, vc->v3d, mcords, moves, &rect, NULL);
     }
   }
 
@@ -1210,7 +1210,7 @@ static bool do_lasso_select_paintface(ViewContext *vc,
     editselect_buf_cache_init_with_generic_userdata(wm_userdata, vc, SCE_SELECT_FACE);
     esel = wm_userdata->data;
     esel->select_bitmap = DRW_select_buffer_bitmap_from_poly(
-        vc->depsgraph, vc->ar, vc->v3d, mcords, moves, &rect, NULL);
+        vc->depsgraph, vc->region, vc->v3d, mcords, moves, &rect, NULL);
   }
 
   if (esel->select_bitmap) {
@@ -1226,7 +1226,7 @@ static bool do_lasso_select_paintface(ViewContext *vc,
 #if 0
 static void do_lasso_select_node(int mcords[][2], short moves, const eSelectOp sel_op)
 {
-  SpaceNode *snode = sa->spacedata.first;
+  SpaceNode *snode = area->spacedata.first;
 
   bNode *node;
   rcti rect;
@@ -1566,7 +1566,7 @@ static Base *object_mouse_select_menu(bContext *C,
     }
     else {
       const int dist = 15 * U.pixelsize;
-      if (ED_view3d_project_base(vc->ar, base) == V3D_PROJ_RET_OK) {
+      if (ED_view3d_project_base(vc->region, base) == V3D_PROJ_RET_OK) {
         const int delta_px[2] = {base->sx - mval[0], base->sy - mval[1]};
         if (len_manhattan_v2_int(delta_px) < dist) {
           ok = true;
@@ -1971,7 +1971,7 @@ static bool ed_object_select_pick(bContext *C,
   /* setup view context for argument to callbacks */
   ED_view3d_viewcontext_init(C, &vc, depsgraph);
 
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -1987,7 +1987,7 @@ static bool ed_object_select_pick(bContext *C,
 
   is_obedit = (vc.obedit != NULL);
   if (object) {
-    /* signal for view3d_opengl_select to skip editmode objects */
+    /* Signal for #view3d_opengl_select to skip edit-mode objects. */
     vc.obedit = NULL;
   }
 
@@ -2003,7 +2003,7 @@ static bool ed_object_select_pick(bContext *C,
   /* This block uses the control key to make the object selected
    * by its center point rather than its contents */
 
-  /* in editmode do not activate */
+  /* In edit-mode do not activate. */
   if (obcenter) {
 
     /* note; shift+alt goes to group-flush-selecting */
@@ -2015,7 +2015,7 @@ static bool ed_object_select_pick(bContext *C,
       while (base) {
         if (BASE_SELECTABLE(v3d, base)) {
           float screen_co[2];
-          if (ED_view3d_project_float_global(ar,
+          if (ED_view3d_project_float_global(region,
                                              base->object->obmat[3],
                                              screen_co,
                                              V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN |
@@ -2265,7 +2265,8 @@ static bool ed_object_select_pick(bContext *C,
         if (ELEM(basact->object->mode,
                  OB_MODE_PAINT_GPENCIL,
                  OB_MODE_SCULPT_GPENCIL,
-                 OB_MODE_WEIGHT_GPENCIL)) {
+                 OB_MODE_WEIGHT_GPENCIL,
+                 OB_MODE_VERTEX_GPENCIL)) {
           ED_gpencil_toggle_brush_cursor(C, true, NULL);
         }
         else {
@@ -2336,11 +2337,11 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
   bool toggle = RNA_boolean_get(op->ptr, "toggle");
   bool center = RNA_boolean_get(op->ptr, "center");
   bool enumerate = RNA_boolean_get(op->ptr, "enumerate");
-  /* only force object select for editmode to support vertex parenting,
-   * or paint-select to allow pose bone select with vert/face select */
+  /* Only force object select for edit-mode to support vertex parenting,
+   * or paint-select to allow pose bone select with vert/face select. */
   bool object = (RNA_boolean_get(op->ptr, "object") &&
                  (obedit || BKE_paint_select_elem_test(obact) ||
-                  /* so its possible to select bones in weightpaint mode (LMB select) */
+                  /* so its possible to select bones in weight-paint mode (LMB select) */
                   (obact && (obact->mode & OB_MODE_WEIGHT_PAINT) &&
                    BKE_object_pose_armature_get(obact))));
 
@@ -2357,8 +2358,8 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
     obact = NULL;
 
     /* ack, this is incorrect but to do this correctly we would need an
-     * alternative editmode/objectmode keymap, this copies the functionality
-     * from 2.4x where Ctrl+Select in editmode does object select only */
+     * alternative edit-mode/object-mode keymap, this copies the functionality
+     * from 2.4x where Ctrl+Select in edit-mode does object select only. */
     center = false;
   }
 
@@ -2492,12 +2493,12 @@ void VIEW3D_OT_select(wmOperatorType *ot)
       "center",
       0,
       "Center",
-      "Use the object center when selecting, in editmode used to extend object selection");
+      "Use the object center when selecting, in edit-mode used to extend object selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_boolean(
       ot->srna, "enumerate", 0, "Enumerate", "List objects under the mouse (object mode only)");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(ot->srna, "object", 0, "Object", "Use object selection (editmode only)");
+  prop = RNA_def_boolean(ot->srna, "object", 0, "Object", "Use object selection (edit-mode only)");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_int_vector(ot->srna,
@@ -2600,7 +2601,7 @@ static bool do_paintvert_box_select(ViewContext *vc,
       editselect_buf_cache_init_with_generic_userdata(wm_userdata, vc, SCE_SELECT_VERTEX);
       esel = wm_userdata->data;
       esel->select_bitmap = DRW_select_buffer_bitmap_from_rect(
-          vc->depsgraph, vc->ar, vc->v3d, rect, NULL);
+          vc->depsgraph, vc->region, vc->v3d, rect, NULL);
     }
     if (esel->select_bitmap != NULL) {
       changed |= edbm_backbuf_check_and_select_verts_obmode(me, esel, sel_op);
@@ -2655,7 +2656,7 @@ static bool do_paintface_box_select(ViewContext *vc,
       editselect_buf_cache_init_with_generic_userdata(wm_userdata, vc, SCE_SELECT_FACE);
       esel = wm_userdata->data;
       esel->select_bitmap = DRW_select_buffer_bitmap_from_rect(
-          vc->depsgraph, vc->ar, vc->v3d, rect, NULL);
+          vc->depsgraph, vc->region, vc->v3d, rect, NULL);
     }
     if (esel->select_bitmap != NULL) {
       changed |= edbm_backbuf_check_and_select_faces_obmode(me, esel, sel_op);
@@ -2857,7 +2858,7 @@ static bool do_mesh_box_select(ViewContext *vc,
       editselect_buf_cache_init_with_generic_userdata(wm_userdata, vc, ts->selectmode);
       esel = wm_userdata->data;
       esel->select_bitmap = DRW_select_buffer_bitmap_from_rect(
-          vc->depsgraph, vc->ar, vc->v3d, rect, NULL);
+          vc->depsgraph, vc->region, vc->v3d, rect, NULL);
     }
   }
 
@@ -3075,7 +3076,7 @@ static bool do_object_box_select(bContext *C, ViewContext *vc, rcti *rect, const
   const int hits = view3d_opengl_select(
       vc, vbuffer, 4 * (totobj + MAXPICKELEMS), rect, VIEW3D_SELECT_ALL, select_filter);
 
-  for (Base *base = vc->view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &vc->view_layer->object_bases) {
     base->object->id.tag &= ~LIB_TAG_DOIT;
   }
 
@@ -3091,7 +3092,7 @@ static bool do_object_box_select(bContext *C, ViewContext *vc, rcti *rect, const
     goto finally;
   }
 
-  for (Base *base = vc->view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &vc->view_layer->object_bases) {
     if (BASE_SELECTABLE(v3d, base)) {
       if ((base->object->runtime.select_id & 0x0000FFFF) != 0) {
         BLI_array_append(bases, base);
@@ -3103,9 +3104,9 @@ static bool do_object_box_select(bContext *C, ViewContext *vc, rcti *rect, const
   qsort(vbuffer, hits, sizeof(uint[4]), opengl_bone_select_buffer_cmp);
 
   for (const uint *col = vbuffer + 3, *col_end = col + (hits * 4); col < col_end; col += 4) {
-    Bone *bone;
-    Base *base = ED_armature_base_and_bone_from_select_buffer(
-        bases, BLI_array_len(bases), *col, &bone);
+    bPoseChannel *pchan_dummy;
+    Base *base = ED_armature_base_and_pchan_from_select_buffer(
+        bases, BLI_array_len(bases), *col, &pchan_dummy);
     if (base != NULL) {
       base->object->id.tag |= LIB_TAG_DOIT;
     }
@@ -3285,7 +3286,7 @@ static int view3d_box_select_exec(bContext *C, wmOperator *op)
     }
     FOREACH_OBJECT_IN_MODE_END;
   }
-  else { /* no editmode, unified for bones and objects */
+  else { /* No edit-mode, unified for bones and objects. */
     if (vc.obact && vc.obact->mode & OB_MODE_SCULPT) {
       /* XXX, this is not selection, could be it's own operator. */
       changed_multi = ED_sculpt_mask_box_select(
@@ -3456,7 +3457,7 @@ static bool mesh_circle_select(ViewContext *vc,
   if (use_zbuf) {
     if (esel->select_bitmap == NULL) {
       esel->select_bitmap = DRW_select_buffer_bitmap_from_circle(
-          vc->depsgraph, vc->ar, vc->v3d, mval, (int)(rad + 1.0f), NULL);
+          vc->depsgraph, vc->region, vc->v3d, mval, (int)(rad + 1.0f), NULL);
     }
   }
 
@@ -3528,7 +3529,7 @@ static bool paint_facesel_circle_select(ViewContext *vc,
   {
     struct EditSelectBuf_Cache *esel = wm_userdata->data;
     esel->select_bitmap = DRW_select_buffer_bitmap_from_circle(
-        vc->depsgraph, vc->ar, vc->v3d, mval, (int)(rad + 1.0f), NULL);
+        vc->depsgraph, vc->region, vc->v3d, mval, (int)(rad + 1.0f), NULL);
     if (esel->select_bitmap != NULL) {
       changed |= edbm_backbuf_check_and_select_faces_obmode(me, esel, sel_op);
       MEM_freeN(esel->select_bitmap);
@@ -3583,7 +3584,7 @@ static bool paint_vertsel_circle_select(ViewContext *vc,
   if (use_zbuf) {
     struct EditSelectBuf_Cache *esel = wm_userdata->data;
     esel->select_bitmap = DRW_select_buffer_bitmap_from_circle(
-        vc->depsgraph, vc->ar, vc->v3d, mval, (int)(rad + 1.0f), NULL);
+        vc->depsgraph, vc->region, vc->v3d, mval, (int)(rad + 1.0f), NULL);
     if (esel->select_bitmap != NULL) {
       changed |= edbm_backbuf_check_and_select_verts_obmode(me, esel, sel_op);
       MEM_freeN(esel->select_bitmap);
@@ -3999,7 +4000,7 @@ static bool object_circle_select(ViewContext *vc,
   for (base = FIRSTBASE(view_layer); base; base = base->next) {
     if (BASE_SELECTABLE(v3d, base) && ((base->flag & BASE_SELECTED) != select_flag)) {
       float screen_co[2];
-      if (ED_view3d_project_float_global(vc->ar,
+      if (ED_view3d_project_float_global(vc->region,
                                          base->object->obmat[3],
                                          screen_co,
                                          V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN |

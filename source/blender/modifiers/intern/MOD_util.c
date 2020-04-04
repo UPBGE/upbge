@@ -26,12 +26,12 @@
 #include "BLI_utildefines.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_math_vector.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "DNA_image_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -49,8 +49,8 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
-#include "MOD_util.h"
 #include "MOD_modifiertypes.h"
+#include "MOD_util.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -235,7 +235,7 @@ Mesh *MOD_deform_mesh_eval_get(Object *ob,
 void MOD_get_vgroup(
     Object *ob, struct Mesh *mesh, const char *name, MDeformVert **dvert, int *defgrp_index)
 {
-  *defgrp_index = defgroup_name_index(ob, name);
+  *defgrp_index = BKE_object_defgroup_name_index(ob, name);
   *dvert = NULL;
 
   if (*defgrp_index != -1) {

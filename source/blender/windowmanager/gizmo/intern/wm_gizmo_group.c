@@ -52,8 +52,8 @@
 #include "ED_undo.h"
 
 /* own includes */
-#include "wm_gizmo_wmapi.h"
 #include "wm_gizmo_intern.h"
+#include "wm_gizmo_wmapi.h"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
@@ -222,7 +222,7 @@ wmGizmo *wm_gizmogroup_find_intersected_gizmo(wmWindowManager *wm,
 {
   int gzgroup_keymap_uses_modifier = -1;
 
-  for (wmGizmo *gz = gzgroup->gizmos.first; gz; gz = gz->next) {
+  LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
     if (gz->type->test_select && (gz->flag & (WM_GIZMO_HIDDEN | WM_GIZMO_HIDDEN_SELECT)) == 0) {
 
       if (!wm_gizmo_keymap_uses_event_modifier(
@@ -298,11 +298,11 @@ void WM_gizmo_group_remove_by_tool(bContext *C,
                                    const bToolRef *tref)
 {
   wmGizmoMapType *gzmap_type = WM_gizmomaptype_find(&gzgt->gzmap_params);
-  for (bScreen *sc = bmain->screens.first; sc; sc = sc->id.next) {
-    for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-      if (sa->runtime.tool == tref) {
-        for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
-          wmGizmoMap *gzmap = ar->gizmo_map;
+  for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (area->runtime.tool == tref) {
+        LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+          wmGizmoMap *gzmap = region->gizmo_map;
           if (gzmap && gzmap->type == gzmap_type) {
             wmGizmoGroup *gzgroup, *gzgroup_next;
             for (gzgroup = gzmap->groups.first; gzgroup; gzgroup = gzgroup_next) {
@@ -310,7 +310,7 @@ void WM_gizmo_group_remove_by_tool(bContext *C,
               if (gzgroup->type == gzgt) {
                 BLI_assert(gzgroup->parent_gzmap == gzmap);
                 wm_gizmogroup_free(C, gzgroup);
-                ED_region_tag_redraw_editor_overlays(ar);
+                ED_region_tag_redraw_editor_overlays(region);
               }
             }
           }
@@ -337,7 +337,7 @@ bool wm_gizmogroup_is_visible_in_drawstep(const wmGizmoGroup *gzgroup,
 bool wm_gizmogroup_is_any_selected(const wmGizmoGroup *gzgroup)
 {
   if (gzgroup->type->flag & WM_GIZMOGROUPTYPE_SELECT) {
-    for (const wmGizmo *gz = gzgroup->gizmos.first; gz; gz = gz->next) {
+    LISTBASE_FOREACH (const wmGizmo *, gz, &gzgroup->gizmos) {
       if (gz->state & WM_GIZMO_STATE_SELECT) {
         return true;
       }
@@ -356,8 +356,8 @@ bool wm_gizmogroup_is_any_selected(const wmGizmoGroup *gzgroup)
 
 static int gizmo_select_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-  ARegion *ar = CTX_wm_region(C);
-  wmGizmoMap *gzmap = ar->gizmo_map;
+  ARegion *region = CTX_wm_region(C);
+  wmGizmoMap *gzmap = region->gizmo_map;
   wmGizmoMapSelectState *msel = &gzmap->gzmap_context.select;
   wmGizmo *highlight = gzmap->gzmap_context.highlight;
 
@@ -391,7 +391,7 @@ static int gizmo_select_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
     }
 
     if (redraw) {
-      ED_region_tag_redraw_editor_overlays(ar);
+      ED_region_tag_redraw_editor_overlays(region);
     }
 
     return OPERATOR_FINISHED;
@@ -583,8 +583,8 @@ static int gizmo_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 static int gizmo_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *ar = CTX_wm_region(C);
-  wmGizmoMap *gzmap = ar->gizmo_map;
+  ARegion *region = CTX_wm_region(C);
+  wmGizmoMap *gzmap = region->gizmo_map;
   wmGizmo *gz = gzmap->gzmap_context.highlight;
 
   /* Needed for single click actions which don't enter modal state. */
@@ -665,31 +665,34 @@ wmKeyMap *wm_gizmogroup_tweak_modal_keymap(wmKeyConfig *kc)
   };
 
   STRNCPY(name, "Generic Gizmo Tweak Modal Map");
-  keymap = WM_modalkeymap_get(kc, name);
+  keymap = WM_modalkeymap_find(kc, name);
 
   /* this function is called for each spacetype, only needs to add map once */
   if (keymap && keymap->modal_items) {
     return NULL;
   }
 
-  keymap = WM_modalkeymap_add(kc, name, modal_items);
+  keymap = WM_modalkeymap_ensure(kc, name, modal_items);
 
   /* items for modal map */
-  WM_modalkeymap_add_item(keymap, ESCKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_CANCEL);
+  WM_modalkeymap_add_item(keymap, EVT_ESCKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_CANCEL);
   WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_CANCEL);
 
-  WM_modalkeymap_add_item(keymap, RETKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_CONFIRM);
-  WM_modalkeymap_add_item(keymap, PADENTER, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_CONFIRM);
+  WM_modalkeymap_add_item(keymap, EVT_RETKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_CONFIRM);
+  WM_modalkeymap_add_item(keymap, EVT_PADENTER, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_CONFIRM);
 
-  WM_modalkeymap_add_item(keymap, RIGHTSHIFTKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_PRECISION_ON);
-  WM_modalkeymap_add_item(keymap, RIGHTSHIFTKEY, KM_RELEASE, KM_ANY, 0, TWEAK_MODAL_PRECISION_OFF);
-  WM_modalkeymap_add_item(keymap, LEFTSHIFTKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_PRECISION_ON);
-  WM_modalkeymap_add_item(keymap, LEFTSHIFTKEY, KM_RELEASE, KM_ANY, 0, TWEAK_MODAL_PRECISION_OFF);
+  WM_modalkeymap_add_item(
+      keymap, EVT_RIGHTSHIFTKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_PRECISION_ON);
+  WM_modalkeymap_add_item(
+      keymap, EVT_RIGHTSHIFTKEY, KM_RELEASE, KM_ANY, 0, TWEAK_MODAL_PRECISION_OFF);
+  WM_modalkeymap_add_item(keymap, EVT_LEFTSHIFTKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_PRECISION_ON);
+  WM_modalkeymap_add_item(
+      keymap, EVT_LEFTSHIFTKEY, KM_RELEASE, KM_ANY, 0, TWEAK_MODAL_PRECISION_OFF);
 
-  WM_modalkeymap_add_item(keymap, RIGHTCTRLKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_SNAP_ON);
-  WM_modalkeymap_add_item(keymap, RIGHTCTRLKEY, KM_RELEASE, KM_ANY, 0, TWEAK_MODAL_SNAP_OFF);
-  WM_modalkeymap_add_item(keymap, LEFTCTRLKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_SNAP_ON);
-  WM_modalkeymap_add_item(keymap, LEFTCTRLKEY, KM_RELEASE, KM_ANY, 0, TWEAK_MODAL_SNAP_OFF);
+  WM_modalkeymap_add_item(keymap, EVT_RIGHTCTRLKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_SNAP_ON);
+  WM_modalkeymap_add_item(keymap, EVT_RIGHTCTRLKEY, KM_RELEASE, KM_ANY, 0, TWEAK_MODAL_SNAP_OFF);
+  WM_modalkeymap_add_item(keymap, EVT_LEFTCTRLKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_SNAP_ON);
+  WM_modalkeymap_add_item(keymap, EVT_LEFTCTRLKEY, KM_RELEASE, KM_ANY, 0, TWEAK_MODAL_SNAP_OFF);
 
   WM_modalkeymap_assign(keymap, "GIZMOGROUP_OT_gizmo_tweak");
 
@@ -847,8 +850,7 @@ struct wmGizmoGroupTypeRef *WM_gizmomaptype_group_find_ptr(struct wmGizmoMapType
                                                            const wmGizmoGroupType *gzgt)
 {
   /* could use hash lookups as operator types do, for now simple search. */
-  for (wmGizmoGroupTypeRef *gzgt_ref = gzmap_type->grouptype_refs.first; gzgt_ref;
-       gzgt_ref = gzgt_ref->next) {
+  LISTBASE_FOREACH (wmGizmoGroupTypeRef *, gzgt_ref, &gzmap_type->grouptype_refs) {
     if (gzgt_ref->type == gzgt) {
       return gzgt_ref;
     }
@@ -860,8 +862,7 @@ struct wmGizmoGroupTypeRef *WM_gizmomaptype_group_find(struct wmGizmoMapType *gz
                                                        const char *idname)
 {
   /* could use hash lookups as operator types do, for now simple search. */
-  for (wmGizmoGroupTypeRef *gzgt_ref = gzmap_type->grouptype_refs.first; gzgt_ref;
-       gzgt_ref = gzgt_ref->next) {
+  LISTBASE_FOREACH (wmGizmoGroupTypeRef *, gzgt_ref, &gzmap_type->grouptype_refs) {
     if (STREQ(idname, gzgt_ref->type->idname)) {
       return gzgt_ref;
     }
@@ -905,14 +906,14 @@ void WM_gizmomaptype_group_init_runtime(const Main *bmain,
   }
 
   /* now create a gizmo for all existing areas */
-  for (bScreen *sc = bmain->screens.first; sc; sc = sc->id.next) {
-    for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-      for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-        ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
-        for (ARegion *ar = lb->first; ar; ar = ar->next) {
-          wmGizmoMap *gzmap = ar->gizmo_map;
+  for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        ListBase *lb = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
+        LISTBASE_FOREACH (ARegion *, region, lb) {
+          wmGizmoMap *gzmap = region->gizmo_map;
           if (gzmap && gzmap->type == gzmap_type) {
-            WM_gizmomaptype_group_init_runtime_with_region(gzmap_type, gzgt, ar);
+            WM_gizmomaptype_group_init_runtime_with_region(gzmap_type, gzgt, region);
           }
         }
       }
@@ -922,9 +923,9 @@ void WM_gizmomaptype_group_init_runtime(const Main *bmain,
 
 wmGizmoGroup *WM_gizmomaptype_group_init_runtime_with_region(wmGizmoMapType *gzmap_type,
                                                              wmGizmoGroupType *gzgt,
-                                                             ARegion *ar)
+                                                             ARegion *region)
 {
-  wmGizmoMap *gzmap = ar->gizmo_map;
+  wmGizmoMap *gzmap = region->gizmo_map;
   BLI_assert(gzmap && gzmap->type == gzmap_type);
   UNUSED_VARS_NDEBUG(gzmap_type);
 
@@ -941,7 +942,7 @@ wmGizmoGroup *WM_gizmomaptype_group_init_runtime_with_region(wmGizmoMapType *gzm
 
   wm_gizmomap_highlight_set(gzmap, NULL, NULL, 0);
 
-  ED_region_tag_redraw_editor_overlays(ar);
+  ED_region_tag_redraw_editor_overlays(region);
 
   return gzgroup;
 }
@@ -960,12 +961,12 @@ void WM_gizmomaptype_group_unlink(bContext *C,
                                   const wmGizmoGroupType *gzgt)
 {
   /* Free instances. */
-  for (bScreen *sc = bmain->screens.first; sc; sc = sc->id.next) {
-    for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-      for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-        ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
-        for (ARegion *ar = lb->first; ar; ar = ar->next) {
-          wmGizmoMap *gzmap = ar->gizmo_map;
+  for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        ListBase *lb = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
+        LISTBASE_FOREACH (ARegion *, region, lb) {
+          wmGizmoMap *gzmap = region->gizmo_map;
           if (gzmap && gzmap->type == gzmap_type) {
             wmGizmoGroup *gzgroup, *gzgroup_next;
             for (gzgroup = gzmap->groups.first; gzgroup; gzgroup = gzgroup_next) {
@@ -973,7 +974,7 @@ void WM_gizmomaptype_group_unlink(bContext *C,
               if (gzgroup->type == gzgt) {
                 BLI_assert(gzgroup->parent_gzmap == gzmap);
                 wm_gizmogroup_free(C, gzgroup);
-                ED_region_tag_redraw_editor_overlays(ar);
+                ED_region_tag_redraw_editor_overlays(region);
               }
             }
           }
@@ -1129,12 +1130,12 @@ void WM_gizmo_group_type_unlink_delayed(const char *idname)
 
 void WM_gizmo_group_unlink_delayed_ptr_from_space(wmGizmoGroupType *gzgt,
                                                   wmGizmoMapType *gzmap_type,
-                                                  ScrArea *sa)
+                                                  ScrArea *area)
 {
-  for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
-    wmGizmoMap *gzmap = ar->gizmo_map;
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    wmGizmoMap *gzmap = region->gizmo_map;
     if (gzmap && gzmap->type == gzmap_type) {
-      for (wmGizmoGroup *gzgroup = gzmap->groups.first; gzgroup; gzgroup = gzgroup->next) {
+      LISTBASE_FOREACH (wmGizmoGroup *, gzgroup, &gzmap->groups) {
         if (gzgroup->type == gzgt) {
           WM_gizmo_group_tag_remove(gzgroup);
         }
@@ -1172,10 +1173,10 @@ void WM_gizmo_group_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     wmGizmo *gz = wm_gizmomap_highlight_get(gzmap);
     if (!gz || gz->parent_gzgroup != gzgroup) {
       wmWindow *win = CTX_wm_window(C);
-      ARegion *ar = CTX_wm_region(C);
-      BLI_assert(ar->gizmo_map == gzmap);
+      ARegion *region = CTX_wm_region(C);
+      BLI_assert(region->gizmo_map == gzmap);
       /* Check if the tweak event originated from this region. */
-      if ((win->tweak != NULL) && BLI_rcti_compare(&ar->winrct, &win->tweak->winrct)) {
+      if ((win->tweak != NULL) && BLI_rcti_compare(&region->winrct, &win->tweak->winrct)) {
         /* We need to run refresh again. */
         gzgroup->init_flag &= ~WM_GIZMOGROUP_INIT_REFRESH;
         WM_gizmomap_tag_refresh_drawstep(gzmap, WM_gizmomap_drawstep_from_gizmo_group(gzgroup));

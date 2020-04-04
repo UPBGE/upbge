@@ -17,8 +17,9 @@
  */
 
 #include "EXP_BoolValue.h"
-#include "EXP_StringValue.h"
+
 #include "EXP_ErrorValue.h"
+#include "EXP_StringValue.h"
 
 const std::string CBoolValue::sTrueString = "TRUE";
 const std::string CBoolValue::sFalseString = "FALSE";

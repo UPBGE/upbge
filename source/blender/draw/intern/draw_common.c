@@ -27,9 +27,9 @@
 
 #include "UI_resources.h"
 
-#include "BKE_object.h"
-#include "BKE_global.h"
 #include "BKE_colorband.h"
+#include "BKE_global.h"
+#include "BKE_object.h"
 
 #include "BIF_glutil.h"
 
@@ -72,6 +72,8 @@ void DRW_globals_update(void)
   UI_COLOR_RGBA_FROM_U8(0xB0, 0x00, 0xB0, 0xFF, gb->colorVertexMissingData);
   UI_GetThemeColor4fv(TH_EDITMESH_ACTIVE, gb->colorEditMeshActive);
   UI_GetThemeColor4fv(TH_EDGE_SELECT, gb->colorEdgeSelect);
+  UI_GetThemeColor4fv(TH_GP_VERTEX, gb->colorGpencilVertex);
+  UI_GetThemeColor4fv(TH_GP_VERTEX_SELECT, gb->colorGpencilVertexSelect);
 
   UI_GetThemeColor4fv(TH_EDGE_SEAM, gb->colorEdgeSeam);
   UI_GetThemeColor4fv(TH_EDGE_SHARP, gb->colorEdgeSharp);
@@ -89,8 +91,9 @@ void DRW_globals_update(void)
   UI_GetThemeColor4fv(TH_SKIN_ROOT, gb->colorSkinRoot);
   UI_GetThemeColor4fv(TH_BACK, gb->colorBackground);
   UI_GetThemeColor4fv(TH_BACK_GRAD, gb->colorBackgroundGradient);
-  UI_COLOR_RGBA_FROM_U8(0x26, 0x26, 0x26, 0xFF, gb->colorCheckerLow);
-  UI_COLOR_RGBA_FROM_U8(0x33, 0x33, 0x33, 0xFF, gb->colorCheckerHigh);
+  UI_GetThemeColor4fv(TH_TRANSPARENT_CHECKER_PRIMARY, gb->colorCheckerPrimary);
+  UI_GetThemeColor4fv(TH_TRANSPARENT_CHECKER_SECONDARY, gb->colorCheckerSecondary);
+  gb->sizeChecker = UI_GetThemeValuef(TH_TRANSPARENT_CHECKER_SIZE);
   UI_GetThemeColor4fv(TH_V3D_CLIPPING_BORDER, gb->colorClippingBorder);
 
   /* Custom median color to slightly affect the edit mesh colors. */
@@ -435,7 +438,15 @@ bool DRW_object_is_flat(Object *ob, int *r_axis)
 {
   float dim[3];
 
-  if (!ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
+  if (!ELEM(ob->type,
+            OB_MESH,
+            OB_CURVE,
+            OB_SURF,
+            OB_FONT,
+            OB_MBALL,
+            OB_HAIR,
+            OB_POINTCLOUD,
+            OB_VOLUME)) {
     /* Non-meshes object cannot be considered as flat. */
     return false;
   }

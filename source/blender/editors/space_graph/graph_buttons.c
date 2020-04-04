@@ -21,10 +21,10 @@
  * \ingroup spgraph
  */
 
-#include <string.h>
-#include <stdio.h>
-#include <math.h>
 #include <float.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
@@ -32,18 +32,18 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
-#include "BKE_animsys.h"
+#include "BKE_anim_data.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_fcurve.h"
-#include "BKE_main.h"
 #include "BKE_global.h"
+#include "BKE_main.h"
 #include "BKE_screen.h"
 #include "BKE_unit.h"
 
@@ -113,7 +113,7 @@ static bool graph_panel_poll(const bContext *C, PanelType *UNUSED(pt))
 
 static void graph_panel_cursor_header(const bContext *C, Panel *pa)
 {
-  bScreen *sc = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(C);
   SpaceGraph *sipo = CTX_wm_space_graph(C);
   Scene *scene = CTX_data_scene(C);
   PointerRNA spaceptr, sceneptr;
@@ -121,7 +121,7 @@ static void graph_panel_cursor_header(const bContext *C, Panel *pa)
 
   /* get RNA pointers for use when creating the UI elements */
   RNA_id_pointer_create(&scene->id, &sceneptr);
-  RNA_pointer_create(&sc->id, &RNA_SpaceGraphEditor, sipo, &spaceptr);
+  RNA_pointer_create(&screen->id, &RNA_SpaceGraphEditor, sipo, &spaceptr);
 
   /* 2D-Cursor */
   col = uiLayoutColumn(pa->layout, false);
@@ -130,7 +130,7 @@ static void graph_panel_cursor_header(const bContext *C, Panel *pa)
 
 static void graph_panel_cursor(const bContext *C, Panel *pa)
 {
-  bScreen *sc = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(C);
   SpaceGraph *sipo = CTX_wm_space_graph(C);
   Scene *scene = CTX_data_scene(C);
   PointerRNA spaceptr, sceneptr;
@@ -139,7 +139,7 @@ static void graph_panel_cursor(const bContext *C, Panel *pa)
 
   /* get RNA pointers for use when creating the UI elements */
   RNA_id_pointer_create(&scene->id, &sceneptr);
-  RNA_pointer_create(&sc->id, &RNA_SpaceGraphEditor, sipo, &spaceptr);
+  RNA_pointer_create(&screen->id, &RNA_SpaceGraphEditor, sipo, &spaceptr);
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
@@ -352,9 +352,9 @@ static void graph_panel_key_properties(const bContext *C, Panel *pa)
   BezTriple *bezt, *prevbezt;
 
   uiLayout *layout = pa->layout;
-  const ARegion *ar = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(C);
   /* Just a width big enough so buttons use entire layout width (will be clamped by it then). */
-  const int but_max_width = ar->winx;
+  const int but_max_width = region->winx;
   uiLayout *col;
   uiBlock *block;
 

@@ -27,8 +27,8 @@
 #ifndef __KX_2DFILTER_MANAGER_H__
 #define __KX_2DFILTER_MANAGER_H__
 
-#include "RAS_2DFilterManager.h"
 #include "EXP_PyObjectPlus.h"
+#include "RAS_2DFilterManager.h"
 
 class KX_2DFilterManager : public RAS_2DFilterManager, public PyObjectPlus {
   Py_Header public : KX_2DFilterManager();

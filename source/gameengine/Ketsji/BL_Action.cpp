@@ -24,38 +24,29 @@
  *  \ingroup ketsji
  */
 
-#include "CM_Message.h"
-
 #include "BL_Action.h"
+
 #include "BL_ArmatureObject.h"
-#include "KX_IpoConvert.h"
+#include "BL_BlenderConverter.h"
+#include "BL_IpoConvert.h"
+#include "CM_Message.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
-
+#include "KX_Scene.h"
 #include "RAS_MeshObject.h"
-
+#include "SCA_LogicManager.h"
 #include "SG_Controller.h"
 
-// These three are for getting the action from the logic manager
-#include "KX_Scene.h"
-#include "KX_BlenderConverter.h"
-#include "SCA_LogicManager.h"
-
-extern "C" {
-#include "BKE_animsys.h"
 #include "BKE_action.h"
+#include "BKE_animsys.h"
 #include "BKE_context.h"
-
+#include "BKE_global.h"
 #include "BKE_layer.h"
-#include "BKE_scene.h"
-
-#include "RNA_access.h"
-#include "RNA_define.h"
-
-// Needed for material IPOs
+#include "BKE_library.h"
 #include "BKE_material.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
+#include "BKE_scene.h"
 #include "DNA_anim_types.h"
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
@@ -63,13 +54,11 @@ extern "C" {
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+#include "MEM_guardedalloc.h"
+#include "RNA_access.h"
+#include "RNA_define.h"
 #include "depsgraph/DEG_depsgraph.h"
 #include "depsgraph/DEG_depsgraph_query.h"
-}
-
-#include "MEM_guardedalloc.h"
-#include "BKE_library.h"
-#include "BKE_global.h"
 
 BL_Action::BL_Action(class KX_GameObject *gameobj)
     : m_action(nullptr),
@@ -219,7 +208,7 @@ bool BL_Action::Play(const std::string &name,
   }
 
   // Now that we have an action, we have something we can play
-  m_starttime = KX_GetActiveEngine()->GetFrameTime() - kxscene->GetSuspendedDelta();
+  m_starttime = KX_GetActiveEngine()->GetFrameTime();
   m_startframe = m_localframe = start;
   m_endframe = end;
   m_blendin = blendin;
@@ -372,7 +361,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
   m_prevUpdate = curtime;
 
   KX_Scene *scene = m_obj->GetScene();
-  curtime -= (float)scene->GetSuspendedDelta();
 
   if (m_calc_localtime)
     SetLocalTime(curtime);
@@ -381,9 +369,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
     m_calc_localtime = true;
   }
 
+  // Compute minimum and maximum action frame.
+  const float minFrame = std::min(m_startframe, m_endframe);
+  const float maxFrame = std::max(m_startframe, m_endframe);
+
   // Handle wrap around
-  if (m_localframe < std::min(m_startframe, m_endframe) ||
-      m_localframe > std::max(m_startframe, m_endframe)) {
+  if (m_localframe < minFrame || m_localframe > maxFrame) {
     switch (m_playmode) {
       case ACT_MODE_PLAY:
         // Clamp
@@ -396,16 +387,18 @@ void BL_Action::Update(float curtime, bool applyToObject)
         m_starttime = curtime;
         break;
       case ACT_MODE_PING_PONG:
+        m_localframe = m_endframe;
+        m_starttime = curtime;
+
         // Swap the start and end frames
         float temp = m_startframe;
         m_startframe = m_endframe;
         m_endframe = temp;
-
-        m_starttime = curtime;
-
         break;
     }
   }
+
+  BLI_assert(m_localframe < minFrame || m_localframe > maxFrame);
 
   m_appliedToObject = applyToObject;
   // In case of culled armatures (doesn't requesting to transform the object) we only manages time.
@@ -415,7 +408,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   m_requestIpo = true;
 
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(KX_GetActiveEngine()->GetContext());
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   Object *ob = m_obj->GetBlenderObject();  // eevee
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
@@ -433,7 +427,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
     // Extract the pose from the action
     obj->SetPoseByAction(m_action, m_localframe);
 
-    ignore_parent_tx_bge(G_MAIN, depsgraph, scene, ob);
+    ignore_parent_tx_bge(CTX_data_main(C), depsgraph, scene, ob);
 
     // Handle blending between armature actions
     if (m_blendin && m_blendframe < m_blendin) {
@@ -485,7 +479,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           RNA_id_pointer_create(&ob->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
 
-          ignore_parent_tx_bge(G_MAIN, depsgraph, scene, ob);
+          ignore_parent_tx_bge(CTX_data_main(C), depsgraph, scene, ob);
 
           scene->ResetTaaSamples();
           break;

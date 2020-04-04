@@ -27,22 +27,22 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_kdtree.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
-#include "BLI_kdtree.h"
 
 #include "DNA_defs.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "RNA_define.h"
 #include "RNA_access.h"
+#include "RNA_define.h"
 
 #include "BKE_context.h"
-#include "BKE_mball.h"
 #include "BKE_layer.h"
+#include "BKE_mball.h"
 #include "BKE_object.h"
 
 #include "DEG_depsgraph.h"
@@ -456,7 +456,7 @@ static int select_random_metaelems_exec(bContext *C, wmOperator *op)
 
     RNG *rng = BLI_rng_new_srandom(seed_iter);
 
-    for (MetaElem *ml = mb->editelems->first; ml; ml = ml->next) {
+    LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
       if (BLI_rng_get_float(rng) < randfac) {
         if (select) {
           ml->flag |= SELECT;
@@ -656,7 +656,7 @@ static int reveal_metaelems_exec(bContext *C, wmOperator *op)
   const bool select = RNA_boolean_get(op->ptr, "select");
   bool changed = false;
 
-  for (MetaElem *ml = mb->editelems->first; ml; ml = ml->next) {
+  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
     if (ml->flag & MB_HIDE) {
       SET_FLAG_FROM_TEST(ml->flag, select, SELECT);
       ml->flag &= ~MB_HIDE;
@@ -697,7 +697,7 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], bool extend, bool dese
   static MetaElem *startelem = NULL;
   ViewContext vc;
   int a, hits;
-  unsigned int buffer[MAXPICKBUF];
+  uint buffer[MAXPICKBUF];
   rcti rect;
 
   ED_view3d_viewcontext_init(C, &vc, depsgraph);

@@ -33,6 +33,7 @@
 #define __BL_BLENDERDATACONVERSION_H__
 
 #include <string>
+
 #include "EXP_Python.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "SCA_IInputDevice.h"
@@ -41,7 +42,7 @@ class RAS_MeshObject *BL_ConvertMesh(struct Mesh *mesh,
                                      struct Object *lightobj,
                                      class KX_Scene *scene,
                                      class RAS_Rasterizer *rasty,
-                                     class KX_BlenderSceneConverter &converter,
+                                     class BL_BlenderSceneConverter &converter,
                                      bool libloading);
 
 void BL_ConvertBlenderObjects(struct Main *maggie,
@@ -51,7 +52,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                               e_PhysicsEngine physics_engine,
                               class RAS_Rasterizer *rendertools,
                               class RAS_ICanvas *canvas,
-                              class KX_BlenderSceneConverter &sceneconverter,
+                              class BL_BlenderSceneConverter &sceneconverter,
                               bool alwaysUseExpandFraming,
                               bool libloading = false);
 

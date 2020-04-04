@@ -39,8 +39,8 @@
 #  include "util/util_path.h"
 #  include "util/util_string.h"
 #  include "util/util_system.h"
-#  include "util/util_types.h"
 #  include "util/util_time.h"
+#  include "util/util_types.h"
 #  include "util/util_windows.h"
 
 #  include "kernel/split/kernel_split_data_types.h"
@@ -185,7 +185,7 @@ void CUDADevice::cuda_error_message(const string &message)
 }
 
 CUDADevice::CUDADevice(DeviceInfo &info, Stats &stats, Profiler &profiler, bool background_)
-    : Device(info, stats, profiler, background_), texture_info(this, "__texture_info", MEM_TEXTURE)
+    : Device(info, stats, profiler, background_), texture_info(this, "__texture_info", MEM_GLOBAL)
 {
   first_error = true;
   background = background_;
@@ -684,7 +684,8 @@ void CUDADevice::move_textures_to_host(size_t size, bool for_texture)
       device_memory &mem = *pair.first;
       CUDAMem *cmem = &pair.second;
 
-      bool is_texture = (mem.type == MEM_TEXTURE) && (&mem != &texture_info);
+      bool is_texture = (mem.type == MEM_TEXTURE || mem.type == MEM_GLOBAL) &&
+                        (&mem != &texture_info);
       bool is_image = is_texture && (mem.data_height > 1);
 
       /* Can't move this type of memory. */
@@ -724,8 +725,7 @@ void CUDADevice::move_textures_to_host(size_t size, bool for_texture)
       device_ptr prev_pointer = max_mem->device_pointer;
       size_t prev_size = max_mem->device_size;
 
-      tex_free(*max_mem);
-      tex_alloc(*max_mem);
+      mem_copy_to(*max_mem);
       size = (max_size >= size) ? 0 : size - max_size;
 
       max_mem->device_pointer = prev_pointer;
@@ -759,7 +759,7 @@ CUDADevice::CUDAMem *CUDADevice::generic_alloc(device_memory &mem, size_t pitch_
    * If there is not enough room for working memory, we will try to move
    * textures to host memory, assuming the performance impact would have
    * been worse for working memory. */
-  bool is_texture = (mem.type == MEM_TEXTURE) && (&mem != &texture_info);
+  bool is_texture = (mem.type == MEM_TEXTURE || mem.type == MEM_GLOBAL) && (&mem != &texture_info);
   bool is_image = is_texture && (mem.data_height > 1);
 
   size_t headroom = (is_texture) ? device_texture_headroom : device_working_headroom;
@@ -922,6 +922,9 @@ void CUDADevice::mem_alloc(device_memory &mem)
   else if (mem.type == MEM_TEXTURE) {
     assert(!"mem_alloc not supported for textures.");
   }
+  else if (mem.type == MEM_GLOBAL) {
+    assert(!"mem_alloc not supported for global memory.");
+  }
   else {
     generic_alloc(mem);
   }
@@ -932,9 +935,13 @@ void CUDADevice::mem_copy_to(device_memory &mem)
   if (mem.type == MEM_PIXELS) {
     assert(!"mem_copy_to not supported for pixels.");
   }
+  else if (mem.type == MEM_GLOBAL) {
+    global_free(mem);
+    global_alloc(mem);
+  }
   else if (mem.type == MEM_TEXTURE) {
-    tex_free(mem);
-    tex_alloc(mem);
+    tex_free((device_texture &)mem);
+    tex_alloc((device_texture &)mem);
   }
   else {
     if (!mem.device_pointer) {
@@ -950,7 +957,7 @@ void CUDADevice::mem_copy_from(device_memory &mem, int y, int w, int h, int elem
   if (mem.type == MEM_PIXELS && !background) {
     pixels_copy_from(mem, y, w, h);
   }
-  else if (mem.type == MEM_TEXTURE) {
+  else if (mem.type == MEM_TEXTURE || mem.type == MEM_GLOBAL) {
     assert(!"mem_copy_from not supported for textures.");
   }
   else if (mem.host_pointer) {
@@ -993,8 +1000,11 @@ void CUDADevice::mem_free(device_memory &mem)
   if (mem.type == MEM_PIXELS && !background) {
     pixels_free(mem);
   }
+  else if (mem.type == MEM_GLOBAL) {
+    global_free(mem);
+  }
   else if (mem.type == MEM_TEXTURE) {
-    tex_free(mem);
+    tex_free((device_texture &)mem);
   }
   else {
     generic_free(mem);
@@ -1017,7 +1027,25 @@ void CUDADevice::const_copy_to(const char *name, void *host, size_t size)
   cuda_assert(cuMemcpyHtoD(mem, host, size));
 }
 
-void CUDADevice::tex_alloc(device_memory &mem)
+void CUDADevice::global_alloc(device_memory &mem)
+{
+  CUDAContextScope scope(this);
+
+  generic_alloc(mem);
+  generic_copy_to(mem);
+
+  const_copy_to(mem.name, &mem.device_pointer, sizeof(mem.device_pointer));
+}
+
+void CUDADevice::global_free(device_memory &mem)
+{
+  if (mem.device_pointer) {
+    CUDAContextScope scope(this);
+    generic_free(mem);
+  }
+}
+
+void CUDADevice::tex_alloc(device_texture &mem)
 {
   CUDAContextScope scope(this);
 
@@ -1027,7 +1055,7 @@ void CUDADevice::tex_alloc(device_memory &mem)
   size_t size = mem.memory_size();
 
   CUaddress_mode address_mode = CU_TR_ADDRESS_MODE_WRAP;
-  switch (mem.extension) {
+  switch (mem.info.extension) {
     case EXTENSION_REPEAT:
       address_mode = CU_TR_ADDRESS_MODE_WRAP;
       break;
@@ -1043,20 +1071,11 @@ void CUDADevice::tex_alloc(device_memory &mem)
   }
 
   CUfilter_mode filter_mode;
-  if (mem.interpolation == INTERPOLATION_CLOSEST) {
+  if (mem.info.interpolation == INTERPOLATION_CLOSEST) {
     filter_mode = CU_TR_FILTER_MODE_POINT;
   }
   else {
     filter_mode = CU_TR_FILTER_MODE_LINEAR;
-  }
-
-  /* Data Storage */
-  if (mem.interpolation == INTERPOLATION_NONE) {
-    generic_alloc(mem);
-    generic_copy_to(mem);
-
-    const_copy_to(bind_name.c_str(), &mem.device_pointer, sizeof(mem.device_pointer));
-    return;
   }
 
   /* Image Texture Storage */
@@ -1169,15 +1188,6 @@ void CUDADevice::tex_alloc(device_memory &mem)
   }
 
   /* Kepler+, bindless textures. */
-  int flat_slot = 0;
-  if (string_startswith(mem.name, "__tex_image")) {
-    int pos = string(mem.name).rfind("_");
-    flat_slot = atoi(mem.name + pos + 1);
-  }
-  else {
-    assert(0);
-  }
-
   CUDA_RESOURCE_DESC resDesc;
   memset(&resDesc, 0, sizeof(resDesc));
 
@@ -1214,25 +1224,20 @@ void CUDADevice::tex_alloc(device_memory &mem)
   cuda_assert(cuTexObjectCreate(&cmem->texobject, &resDesc, &texDesc, NULL));
 
   /* Resize once */
-  if (flat_slot >= texture_info.size()) {
+  const uint slot = mem.slot;
+  if (slot >= texture_info.size()) {
     /* Allocate some slots in advance, to reduce amount
      * of re-allocations. */
-    texture_info.resize(flat_slot + 128);
+    texture_info.resize(slot + 128);
   }
 
   /* Set Mapping and tag that we need to (re-)upload to device */
-  TextureInfo &info = texture_info[flat_slot];
-  info.data = (uint64_t)cmem->texobject;
-  info.cl_buffer = 0;
-  info.interpolation = mem.interpolation;
-  info.extension = mem.extension;
-  info.width = mem.data_width;
-  info.height = mem.data_height;
-  info.depth = mem.data_depth;
+  texture_info[slot] = mem.info;
+  texture_info[slot].data = (uint64_t)cmem->texobject;
   need_texture_info = true;
 }
 
-void CUDADevice::tex_free(device_memory &mem)
+void CUDADevice::tex_free(device_texture &mem)
 {
   if (mem.device_pointer) {
     CUDAContextScope scope(this);
@@ -1708,8 +1713,8 @@ void CUDADevice::adaptive_sampling_filter(uint filter_sample,
 {
   const int num_threads_per_block = functions.adaptive_num_threads_per_block;
 
-  /* These are a series of tiny kernels because there is no grid synchronisation
-   * from within a kernel, so multiple kernel launches it is.*/
+  /* These are a series of tiny kernels because there is no grid synchronization
+   * from within a kernel, so multiple kernel launches it is. */
   uint total_work_size = wtile->h * wtile->w;
   void *args2[] = {&d_wtile, &filter_sample, &total_work_size};
   uint num_blocks = divide_up(total_work_size, num_threads_per_block);

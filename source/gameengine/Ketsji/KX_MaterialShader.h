@@ -1,9 +1,9 @@
 #ifndef __KX_MATERIAL_SHADER__
 #define __KX_MATERIAL_SHADER__
 
-#include "RAS_MaterialShader.h"
-
 #include <memory>
+
+#include "RAS_MaterialShader.h"
 
 class BL_Shader;
 class KX_GameObject;

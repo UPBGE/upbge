@@ -14,18 +14,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_ID.h"
 
-#include "BKE_idcode.h"
+#include "BKE_idtype.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_main_idmap.h" /* own include */
@@ -110,7 +110,7 @@ struct IDNameLib_Map *BKE_main_idmap_create(struct Main *bmain,
   while (index < MAX_LIBARRAY) {
     struct IDNameLib_TypeMap *type_map = &id_map->type_maps[index];
     type_map->map = NULL;
-    type_map->id_type = BKE_idcode_iter_step(&index);
+    type_map->id_type = BKE_idtype_idcode_iter_step(&index);
     BLI_assert(type_map->id_type != 0);
   }
   BLI_assert(index == MAX_LIBARRAY);
@@ -124,6 +124,8 @@ struct IDNameLib_Map *BKE_main_idmap_create(struct Main *bmain,
       const bool existing_key = BLI_ghash_ensure_p(
           id_map->uuid_map, POINTER_FROM_UINT(id->session_uuid), &id_ptr_v);
       BLI_assert(existing_key == false);
+      UNUSED_VARS_NDEBUG(existing_key);
+
       *id_ptr_v = id;
     }
     FOREACH_MAIN_ID_END;

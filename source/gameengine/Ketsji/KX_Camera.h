@@ -34,10 +34,8 @@
 #define __KX_CAMERA_H__
 
 #include "KX_GameObject.h"
-
-#include "SG_Frustum.h"
-
 #include "RAS_CameraData.h"
+#include "SG_Frustum.h"
 
 #ifdef WITH_PYTHON
 /* utility conversion function */

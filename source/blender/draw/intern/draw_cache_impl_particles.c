@@ -27,16 +27,16 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_ghash.h"
+#include "BLI_utildefines.h"
 
+#include "DNA_customdata_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_customdata_types.h"
 
 #include "BKE_mesh.h"
 #include "BKE_particle.h"
@@ -179,7 +179,7 @@ static void particle_batch_cache_clear_point(ParticlePointCache *point_cache)
   GPU_VERTBUF_DISCARD_SAFE(point_cache->pos);
 }
 
-static void particle_batch_cache_clear_hair(ParticleHairCache *hair_cache)
+void particle_batch_cache_clear_hair(ParticleHairCache *hair_cache)
 {
   /* TODO more granular update tagging. */
   GPU_VERTBUF_DISCARD_SAFE(hair_cache->proc_point_buf);
@@ -877,9 +877,9 @@ static void particle_batch_cache_ensure_procedural_strand_data(PTCacheEdit *edit
     GPU_vertbuf_data_alloc(cache->proc_uv_buf[i], cache->strands_len);
     GPU_vertbuf_attr_get_raw_data(cache->proc_uv_buf[i], uv_id, &uv_step[i]);
 
-    char attr_safe_name[GPU_MAX_SAFE_ATTRIB_NAME];
+    char attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
     const char *name = CustomData_get_layer_name(&psmd->mesh_final->ldata, CD_MLOOPUV, i);
-    GPU_vertformat_safe_attrib_name(name, attr_safe_name, GPU_MAX_SAFE_ATTRIB_NAME);
+    GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
     int n = 0;
     BLI_snprintf(cache->uv_layer_names[i][n++], MAX_LAYER_NAME_LEN, "u%s", attr_safe_name);
@@ -898,9 +898,9 @@ static void particle_batch_cache_ensure_procedural_strand_data(PTCacheEdit *edit
     GPU_vertbuf_data_alloc(cache->proc_col_buf[i], cache->strands_len);
     GPU_vertbuf_attr_get_raw_data(cache->proc_col_buf[i], col_id, &col_step[i]);
 
-    char attr_safe_name[GPU_MAX_SAFE_ATTRIB_NAME];
+    char attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
     const char *name = CustomData_get_layer_name(&psmd->mesh_final->ldata, CD_MLOOPCOL, i);
-    GPU_vertformat_safe_attrib_name(name, attr_safe_name, GPU_MAX_SAFE_ATTRIB_NAME);
+    GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
     int n = 0;
     BLI_snprintf(cache->col_layer_names[i][n++], MAX_LAYER_NAME_LEN, "c%s", attr_safe_name);
@@ -1164,9 +1164,9 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
 
     for (int i = 0; i < num_uv_layers; i++) {
 
-      char uuid[32], attr_safe_name[GPU_MAX_SAFE_ATTRIB_NAME];
+      char uuid[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
       const char *name = CustomData_get_layer_name(&psmd->mesh_final->ldata, CD_MLOOPUV, i);
-      GPU_vertformat_safe_attrib_name(name, attr_safe_name, GPU_MAX_SAFE_ATTRIB_NAME);
+      GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
       BLI_snprintf(uuid, sizeof(uuid), "u%s", attr_safe_name);
       uv_id[i] = GPU_vertformat_attr_add(&format, uuid, GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -1177,9 +1177,9 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
     }
 
     for (int i = 0; i < num_col_layers; i++) {
-      char uuid[32], attr_safe_name[GPU_MAX_SAFE_ATTRIB_NAME];
+      char uuid[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
       const char *name = CustomData_get_layer_name(&psmd->mesh_final->ldata, CD_MLOOPCOL, i);
-      GPU_vertformat_safe_attrib_name(name, attr_safe_name, GPU_MAX_SAFE_ATTRIB_NAME);
+      GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
       BLI_snprintf(uuid, sizeof(uuid), "c%s", attr_safe_name);
       col_id[i] = GPU_vertformat_attr_add(&format, uuid, GPU_COMP_U16, 4, GPU_FETCH_FLOAT);

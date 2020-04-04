@@ -32,9 +32,9 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "DRW_engine.h"
 
@@ -105,31 +105,31 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, int update
   wm = bmain->wm.first;
 
   for (win = wm->windows.first; win; win = win->next) {
-    bScreen *sc = WM_window_get_active_screen(win);
-    ScrArea *sa;
-    ARegion *ar;
+    bScreen *screen = WM_window_get_active_screen(win);
+    ScrArea *area;
+    ARegion *region;
 
     CTX_wm_window_set(C, win);
 
-    for (sa = sc->areabase.first; sa; sa = sa->next) {
-      if (sa->spacetype != SPACE_VIEW3D) {
+    for (area = screen->areabase.first; area; area = area->next) {
+      if (area->spacetype != SPACE_VIEW3D) {
         continue;
       }
-      View3D *v3d = sa->spacedata.first;
-      for (ar = sa->regionbase.first; ar; ar = ar->next) {
-        if (ar->regiontype != RGN_TYPE_WINDOW) {
+      View3D *v3d = area->spacedata.first;
+      for (region = area->regionbase.first; region; region = region->next) {
+        if (region->regiontype != RGN_TYPE_WINDOW) {
           continue;
         }
-        RegionView3D *rv3d = ar->regiondata;
+        RegionView3D *rv3d = region->regiondata;
         RenderEngine *engine = rv3d->render_engine;
         /* call update if the scene changed, or if the render engine
          * tagged itself for update (e.g. because it was busy at the
          * time of the last update) */
         if (engine && (updated || (engine->flag & RE_ENGINE_DO_UPDATE))) {
 
-          CTX_wm_screen_set(C, sc);
-          CTX_wm_area_set(C, sa);
-          CTX_wm_region_set(C, ar);
+          CTX_wm_screen_set(C, screen);
+          CTX_wm_area_set(C, area);
+          CTX_wm_region_set(C, region);
 
           engine->flag &= ~RE_ENGINE_DO_UPDATE;
           /* NOTE: Important to pass non-updated depsgraph, This is because this function is called
@@ -145,8 +145,8 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, int update
                 .depsgraph = update_ctx->depsgraph,
                 .scene = scene,
                 .view_layer = view_layer,
-                .ar = ar,
-                .v3d = (View3D *)sa->spacedata.first,
+                .region = region,
+                .v3d = (View3D *)area->spacedata.first,
                 .engine_type = engine_type,
             }));
           }
@@ -160,30 +160,30 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, int update
   recursive_check = false;
 }
 
-void ED_render_engine_area_exit(Main *bmain, ScrArea *sa)
+void ED_render_engine_area_exit(Main *bmain, ScrArea *area)
 {
   /* clear all render engines in this area */
-  ARegion *ar;
+  ARegion *region;
   wmWindowManager *wm = bmain->wm.first;
 
-  if (sa->spacetype != SPACE_VIEW3D) {
+  if (area->spacetype != SPACE_VIEW3D) {
     return;
   }
 
-  for (ar = sa->regionbase.first; ar; ar = ar->next) {
-    if (ar->regiontype != RGN_TYPE_WINDOW || !(ar->regiondata)) {
+  for (region = area->regionbase.first; region; region = region->next) {
+    if (region->regiontype != RGN_TYPE_WINDOW || !(region->regiondata)) {
       continue;
     }
-    ED_view3d_stop_render_preview(wm, ar);
+    ED_view3d_stop_render_preview(wm, region);
   }
 }
 
 void ED_render_engine_changed(Main *bmain)
 {
   /* on changing the render engine type, clear all running render engines */
-  for (bScreen *sc = bmain->screens.first; sc; sc = sc->id.next) {
-    for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-      ED_render_engine_area_exit(bmain, sa);
+  for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      ED_render_engine_area_exit(bmain, area);
     }
   }
   RE_FreePersistentData();
@@ -204,10 +204,10 @@ void ED_render_engine_changed(Main *bmain)
   }
 }
 
-void ED_render_view_layer_changed(Main *bmain, bScreen *sc)
+void ED_render_view_layer_changed(Main *bmain, bScreen *screen)
 {
-  for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-    ED_render_engine_area_exit(bmain, sa);
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    ED_render_engine_area_exit(bmain, area);
   }
 }
 

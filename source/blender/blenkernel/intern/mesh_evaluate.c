@@ -29,21 +29,21 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_object_types.h"
 
-#include "BLI_utildefines.h"
-#include "BLI_memarena.h"
-#include "BLI_math.h"
-#include "BLI_edgehash.h"
+#include "BLI_alloca.h"
 #include "BLI_bitmap.h"
-#include "BLI_polyfill_2d.h"
+#include "BLI_edgehash.h"
 #include "BLI_linklist.h"
 #include "BLI_linklist_stack.h"
-#include "BLI_alloca.h"
+#include "BLI_math.h"
+#include "BLI_memarena.h"
+#include "BLI_polyfill_2d.h"
 #include "BLI_stack.h"
 #include "BLI_task.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_customdata.h"
 #include "BKE_global.h"
@@ -1279,7 +1279,7 @@ static void split_loop_nor_fan_do(LoopSplitTaskDataCommon *common_data, LoopSpli
         copy_v3_v3(nor, lnor);
       }
     }
-    /* Extra bonus: since small-stack is local to this funcion,
+    /* Extra bonus: since small-stack is local to this function,
      * no more need to empty it at all cost! */
   }
 }
@@ -3576,6 +3576,7 @@ void BKE_mesh_convert_mfaces_to_mpolys_ex(ID *id,
 
   if (id) {
     /* ensure external data is transferred */
+    /* TODO(sergey): Use multiresModifier_ensure_external_read(). */
     CustomData_external_read(fdata, id, CD_MASK_MDISPS, totface_i);
   }
 

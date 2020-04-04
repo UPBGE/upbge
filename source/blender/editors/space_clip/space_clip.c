@@ -21,43 +21,43 @@
  * \ingroup spclip
  */
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
-#include "DNA_scene_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_movieclip_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_view3d_types.h" /* for pivot point */
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_lib_id.h"
 #include "BKE_movieclip.h"
-#include "BKE_tracking.h"
 #include "BKE_screen.h"
+#include "BKE_tracking.h"
 
 #include "IMB_imbuf_types.h"
 
 #include "ED_anim_api.h" /* for timeline cursor drawing */
-#include "ED_mask.h"
-#include "ED_space_api.h"
-#include "ED_screen.h"
-#include "ED_time_scrub_ui.h"
-#include "ED_select_utils.h"
 #include "ED_clip.h"
+#include "ED_mask.h"
+#include "ED_screen.h"
+#include "ED_select_utils.h"
+#include "ED_space_api.h"
+#include "ED_time_scrub_ui.h"
 #include "ED_transform.h"
 #include "ED_uvedit.h" /* just for ED_image_draw_cursor */
 
 #include "IMB_imbuf.h"
 
+#include "GPU_framebuffer.h"
 #include "GPU_glew.h"
 #include "GPU_matrix.h"
-#include "GPU_framebuffer.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -71,128 +71,128 @@
 #include "clip_intern.h" /* own include */
 
 static void init_preview_region(const Scene *scene,
-                                const ScrArea *sa,
+                                const ScrArea *area,
                                 const SpaceClip *sc,
-                                ARegion *ar)
+                                ARegion *region)
 {
-  ar->regiontype = RGN_TYPE_PREVIEW;
-  ar->alignment = RGN_ALIGN_TOP;
-  ar->flag |= RGN_FLAG_HIDDEN;
+  region->regiontype = RGN_TYPE_PREVIEW;
+  region->alignment = RGN_ALIGN_TOP;
+  region->flag |= RGN_FLAG_HIDDEN;
 
   if (sc->view == SC_VIEW_DOPESHEET) {
-    ar->v2d.tot.xmin = -10.0f;
-    ar->v2d.tot.ymin = (float)(-sa->winy) / 3.0f;
-    ar->v2d.tot.xmax = (float)(sa->winx);
-    ar->v2d.tot.ymax = 0.0f;
+    region->v2d.tot.xmin = -10.0f;
+    region->v2d.tot.ymin = (float)(-area->winy) / 3.0f;
+    region->v2d.tot.xmax = (float)(area->winx);
+    region->v2d.tot.ymax = 0.0f;
 
-    ar->v2d.cur = ar->v2d.tot;
+    region->v2d.cur = region->v2d.tot;
 
-    ar->v2d.min[0] = 0.0f;
-    ar->v2d.min[1] = 0.0f;
+    region->v2d.min[0] = 0.0f;
+    region->v2d.min[1] = 0.0f;
 
-    ar->v2d.max[0] = MAXFRAMEF;
-    ar->v2d.max[1] = FLT_MAX;
+    region->v2d.max[0] = MAXFRAMEF;
+    region->v2d.max[1] = FLT_MAX;
 
-    ar->v2d.minzoom = 0.01f;
-    ar->v2d.maxzoom = 50;
-    ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
-    ar->v2d.scroll |= (V2D_SCROLL_RIGHT);
-    ar->v2d.keepzoom = V2D_LOCKZOOM_Y;
-    ar->v2d.keepofs = V2D_KEEPOFS_Y;
-    ar->v2d.align = V2D_ALIGN_NO_POS_Y;
-    ar->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
+    region->v2d.minzoom = 0.01f;
+    region->v2d.maxzoom = 50;
+    region->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
+    region->v2d.scroll |= (V2D_SCROLL_RIGHT);
+    region->v2d.keepzoom = V2D_LOCKZOOM_Y;
+    region->v2d.keepofs = V2D_KEEPOFS_Y;
+    region->v2d.align = V2D_ALIGN_NO_POS_Y;
+    region->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
   }
   else {
-    ar->v2d.tot.xmin = 0.0f;
-    ar->v2d.tot.ymin = -10.0f;
-    ar->v2d.tot.xmax = (float)scene->r.efra;
-    ar->v2d.tot.ymax = 10.0f;
+    region->v2d.tot.xmin = 0.0f;
+    region->v2d.tot.ymin = -10.0f;
+    region->v2d.tot.xmax = (float)scene->r.efra;
+    region->v2d.tot.ymax = 10.0f;
 
-    ar->v2d.cur = ar->v2d.tot;
+    region->v2d.cur = region->v2d.tot;
 
-    ar->v2d.min[0] = FLT_MIN;
-    ar->v2d.min[1] = FLT_MIN;
+    region->v2d.min[0] = FLT_MIN;
+    region->v2d.min[1] = FLT_MIN;
 
-    ar->v2d.max[0] = MAXFRAMEF;
-    ar->v2d.max[1] = FLT_MAX;
+    region->v2d.max[0] = MAXFRAMEF;
+    region->v2d.max[1] = FLT_MAX;
 
-    ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
-    ar->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HANDLES);
+    region->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
+    region->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HANDLES);
 
-    ar->v2d.minzoom = 0.0f;
-    ar->v2d.maxzoom = 0.0f;
-    ar->v2d.keepzoom = 0;
-    ar->v2d.keepofs = 0;
-    ar->v2d.align = 0;
-    ar->v2d.flag = 0;
+    region->v2d.minzoom = 0.0f;
+    region->v2d.maxzoom = 0.0f;
+    region->v2d.keepzoom = 0;
+    region->v2d.keepofs = 0;
+    region->v2d.align = 0;
+    region->v2d.flag = 0;
 
-    ar->v2d.keeptot = 0;
+    region->v2d.keeptot = 0;
   }
 }
 
-static void reinit_preview_region(const bContext *C, ARegion *ar)
+static void reinit_preview_region(const bContext *C, ARegion *region)
 {
   Scene *scene = CTX_data_scene(C);
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
   SpaceClip *sc = CTX_wm_space_clip(C);
 
   if (sc->view == SC_VIEW_DOPESHEET) {
-    if ((ar->v2d.flag & V2D_VIEWSYNC_AREA_VERTICAL) == 0) {
-      init_preview_region(scene, sa, sc, ar);
+    if ((region->v2d.flag & V2D_VIEWSYNC_AREA_VERTICAL) == 0) {
+      init_preview_region(scene, area, sc, region);
     }
   }
   else {
-    if (ar->v2d.flag & V2D_VIEWSYNC_AREA_VERTICAL) {
-      init_preview_region(scene, sa, sc, ar);
+    if (region->v2d.flag & V2D_VIEWSYNC_AREA_VERTICAL) {
+      init_preview_region(scene, area, sc, region);
     }
   }
 }
 
-static ARegion *ED_clip_has_preview_region(const bContext *C, ScrArea *sa)
+static ARegion *ED_clip_has_preview_region(const bContext *C, ScrArea *area)
 {
-  ARegion *ar, *arnew;
+  ARegion *region, *arnew;
 
-  ar = BKE_area_find_region_type(sa, RGN_TYPE_PREVIEW);
-  if (ar) {
-    return ar;
+  region = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
+  if (region) {
+    return region;
   }
 
   /* add subdiv level; after header */
-  ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+  region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   /* is error! */
-  if (ar == NULL) {
+  if (region == NULL) {
     return NULL;
   }
 
   arnew = MEM_callocN(sizeof(ARegion), "clip preview region");
 
-  BLI_insertlinkbefore(&sa->regionbase, ar, arnew);
-  init_preview_region(CTX_data_scene(C), sa, CTX_wm_space_clip(C), arnew);
+  BLI_insertlinkbefore(&area->regionbase, region, arnew);
+  init_preview_region(CTX_data_scene(C), area, CTX_wm_space_clip(C), arnew);
 
   return arnew;
 }
 
-static ARegion *ED_clip_has_channels_region(ScrArea *sa)
+static ARegion *ED_clip_has_channels_region(ScrArea *area)
 {
-  ARegion *ar, *arnew;
+  ARegion *region, *arnew;
 
-  ar = BKE_area_find_region_type(sa, RGN_TYPE_CHANNELS);
-  if (ar) {
-    return ar;
+  region = BKE_area_find_region_type(area, RGN_TYPE_CHANNELS);
+  if (region) {
+    return region;
   }
 
   /* add subdiv level; after header */
-  ar = BKE_area_find_region_type(sa, RGN_TYPE_PREVIEW);
+  region = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
 
   /* is error! */
-  if (ar == NULL) {
+  if (region == NULL) {
     return NULL;
   }
 
   arnew = MEM_callocN(sizeof(ARegion), "clip channels region");
 
-  BLI_insertlinkbefore(&sa->regionbase, ar, arnew);
+  BLI_insertlinkbefore(&area->regionbase, region, arnew);
   arnew->regiontype = RGN_TYPE_CHANNELS;
   arnew->alignment = RGN_ALIGN_LEFT;
 
@@ -202,18 +202,18 @@ static ARegion *ED_clip_has_channels_region(ScrArea *sa)
   return arnew;
 }
 
-static void clip_scopes_tag_refresh(ScrArea *sa)
+static void clip_scopes_tag_refresh(ScrArea *area)
 {
-  SpaceClip *sc = (SpaceClip *)sa->spacedata.first;
-  ARegion *ar;
+  SpaceClip *sc = (SpaceClip *)area->spacedata.first;
+  ARegion *region;
 
   if (sc->mode != SC_MODE_TRACKING) {
     return;
   }
 
   /* only while properties are visible */
-  for (ar = sa->regionbase.first; ar; ar = ar->next) {
-    if (ar->regiontype == RGN_TYPE_UI && ar->flag & RGN_FLAG_HIDDEN) {
+  for (region = area->regionbase.first; region; region = region->next) {
+    if (region->regiontype == RGN_TYPE_UI && region->flag & RGN_FLAG_HIDDEN) {
       return;
     }
   }
@@ -221,26 +221,26 @@ static void clip_scopes_tag_refresh(ScrArea *sa)
   sc->scopes.ok = false;
 }
 
-static void clip_scopes_check_gpencil_change(ScrArea *sa)
+static void clip_scopes_check_gpencil_change(ScrArea *area)
 {
-  SpaceClip *sc = (SpaceClip *)sa->spacedata.first;
+  SpaceClip *sc = (SpaceClip *)area->spacedata.first;
 
   if (sc->gpencil_src == SC_GPENCIL_SRC_TRACK) {
-    clip_scopes_tag_refresh(sa);
+    clip_scopes_tag_refresh(area);
   }
 }
 
-static void clip_area_sync_frame_from_scene(ScrArea *sa, Scene *scene)
+static void clip_area_sync_frame_from_scene(ScrArea *area, Scene *scene)
 {
-  SpaceClip *space_clip = (SpaceClip *)sa->spacedata.first;
+  SpaceClip *space_clip = (SpaceClip *)area->spacedata.first;
   BKE_movieclip_user_set_frame(&space_clip->user, scene->r.cfra);
 }
 
 /* ******************** default callbacks for clip space ***************** */
 
-static SpaceLink *clip_new(const ScrArea *sa, const Scene *scene)
+static SpaceLink *clip_new(const ScrArea *area, const Scene *scene)
 {
-  ARegion *ar;
+  ARegion *region;
   SpaceClip *sc;
 
   sc = MEM_callocN(sizeof(SpaceClip), "initclip");
@@ -253,47 +253,47 @@ static SpaceLink *clip_new(const ScrArea *sa, const Scene *scene)
   sc->around = V3D_AROUND_CENTER_MEDIAN;
 
   /* header */
-  ar = MEM_callocN(sizeof(ARegion), "header for clip");
+  region = MEM_callocN(sizeof(ARegion), "header for clip");
 
-  BLI_addtail(&sc->regionbase, ar);
-  ar->regiontype = RGN_TYPE_HEADER;
-  ar->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
+  BLI_addtail(&sc->regionbase, region);
+  region->regiontype = RGN_TYPE_HEADER;
+  region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
   /* tools view */
-  ar = MEM_callocN(sizeof(ARegion), "tools for clip");
+  region = MEM_callocN(sizeof(ARegion), "tools for clip");
 
-  BLI_addtail(&sc->regionbase, ar);
-  ar->regiontype = RGN_TYPE_TOOLS;
-  ar->alignment = RGN_ALIGN_LEFT;
+  BLI_addtail(&sc->regionbase, region);
+  region->regiontype = RGN_TYPE_TOOLS;
+  region->alignment = RGN_ALIGN_LEFT;
 
   /* properties view */
-  ar = MEM_callocN(sizeof(ARegion), "properties for clip");
+  region = MEM_callocN(sizeof(ARegion), "properties for clip");
 
-  BLI_addtail(&sc->regionbase, ar);
-  ar->regiontype = RGN_TYPE_UI;
-  ar->alignment = RGN_ALIGN_RIGHT;
+  BLI_addtail(&sc->regionbase, region);
+  region->regiontype = RGN_TYPE_UI;
+  region->alignment = RGN_ALIGN_RIGHT;
 
   /* channels view */
-  ar = MEM_callocN(sizeof(ARegion), "channels for clip");
+  region = MEM_callocN(sizeof(ARegion), "channels for clip");
 
-  BLI_addtail(&sc->regionbase, ar);
-  ar->regiontype = RGN_TYPE_CHANNELS;
-  ar->alignment = RGN_ALIGN_LEFT;
+  BLI_addtail(&sc->regionbase, region);
+  region->regiontype = RGN_TYPE_CHANNELS;
+  region->alignment = RGN_ALIGN_LEFT;
 
-  ar->v2d.scroll = V2D_SCROLL_BOTTOM;
-  ar->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
+  region->v2d.scroll = V2D_SCROLL_BOTTOM;
+  region->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
 
   /* preview view */
-  ar = MEM_callocN(sizeof(ARegion), "preview for clip");
+  region = MEM_callocN(sizeof(ARegion), "preview for clip");
 
-  BLI_addtail(&sc->regionbase, ar);
-  init_preview_region(scene, sa, sc, ar);
+  BLI_addtail(&sc->regionbase, region);
+  init_preview_region(scene, area, sc, region);
 
   /* main region */
-  ar = MEM_callocN(sizeof(ARegion), "main region for clip");
+  region = MEM_callocN(sizeof(ARegion), "main region for clip");
 
-  BLI_addtail(&sc->regionbase, ar);
-  ar->regiontype = RGN_TYPE_WINDOW;
+  BLI_addtail(&sc->regionbase, region);
+  region->regiontype = RGN_TYPE_WINDOW;
 
   return (SpaceLink *)sc;
 }
@@ -315,12 +315,12 @@ static void clip_free(SpaceLink *sl)
 }
 
 /* spacetype; init callback */
-static void clip_init(struct wmWindowManager *UNUSED(wm), ScrArea *sa)
+static void clip_init(struct wmWindowManager *UNUSED(wm), ScrArea *area)
 {
   ListBase *lb = WM_dropboxmap_find("Clip", SPACE_CLIP, 0);
 
   /* add drop boxes */
-  WM_event_add_dropbox_handler(&sa->handlers, lb);
+  WM_event_add_dropbox_handler(&area->handlers, lb);
 }
 
 static SpaceLink *clip_duplicate(SpaceLink *sl)
@@ -335,18 +335,18 @@ static SpaceLink *clip_duplicate(SpaceLink *sl)
   return (SpaceLink *)scn;
 }
 
-static void clip_listener(wmWindow *UNUSED(win), ScrArea *sa, wmNotifier *wmn, Scene *scene)
+static void clip_listener(wmWindow *UNUSED(win), ScrArea *area, wmNotifier *wmn, Scene *scene)
 {
   /* context changes */
   switch (wmn->category) {
     case NC_SCENE:
       switch (wmn->data) {
         case ND_FRAME:
-          clip_scopes_tag_refresh(sa);
+          clip_scopes_tag_refresh(area);
           ATTR_FALLTHROUGH;
 
         case ND_FRAME_RANGE:
-          ED_area_tag_redraw(sa);
+          ED_area_tag_redraw(area);
           break;
       }
       break;
@@ -354,8 +354,8 @@ static void clip_listener(wmWindow *UNUSED(win), ScrArea *sa, wmNotifier *wmn, S
       switch (wmn->data) {
         case ND_DISPLAY:
         case ND_SELECT:
-          clip_scopes_tag_refresh(sa);
-          ED_area_tag_redraw(sa);
+          clip_scopes_tag_refresh(area);
+          ED_area_tag_redraw(area);
           break;
       }
       switch (wmn->action) {
@@ -365,8 +365,8 @@ static void clip_listener(wmWindow *UNUSED(win), ScrArea *sa, wmNotifier *wmn, S
           /* fall-through */
 
         case NA_SELECTED:
-          clip_scopes_tag_refresh(sa);
-          ED_area_tag_redraw(sa);
+          clip_scopes_tag_refresh(area);
+          ED_area_tag_redraw(area);
           break;
       }
       break;
@@ -375,56 +375,56 @@ static void clip_listener(wmWindow *UNUSED(win), ScrArea *sa, wmNotifier *wmn, S
         case ND_SELECT:
         case ND_DATA:
         case ND_DRAW:
-          ED_area_tag_redraw(sa);
+          ED_area_tag_redraw(area);
           break;
       }
       switch (wmn->action) {
         case NA_SELECTED:
-          ED_area_tag_redraw(sa);
+          ED_area_tag_redraw(area);
           break;
         case NA_EDITED:
-          ED_area_tag_redraw(sa);
+          ED_area_tag_redraw(area);
           break;
       }
       break;
     case NC_GEOM:
       switch (wmn->data) {
         case ND_SELECT:
-          clip_scopes_tag_refresh(sa);
-          ED_area_tag_redraw(sa);
+          clip_scopes_tag_refresh(area);
+          ED_area_tag_redraw(area);
           break;
       }
       break;
     case NC_SCREEN:
       switch (wmn->data) {
         case ND_ANIMPLAY:
-          ED_area_tag_redraw(sa);
+          ED_area_tag_redraw(area);
           break;
         case ND_LAYOUTSET:
-          clip_area_sync_frame_from_scene(sa, scene);
+          clip_area_sync_frame_from_scene(area, scene);
           break;
       }
       break;
     case NC_SPACE:
       if (wmn->data == ND_SPACE_CLIP) {
-        clip_scopes_tag_refresh(sa);
-        ED_area_tag_redraw(sa);
+        clip_scopes_tag_refresh(area);
+        ED_area_tag_redraw(area);
       }
       break;
     case NC_GPENCIL:
       if (wmn->action == NA_EDITED) {
-        clip_scopes_check_gpencil_change(sa);
-        ED_area_tag_redraw(sa);
+        clip_scopes_check_gpencil_change(area);
+        ED_area_tag_redraw(area);
       }
       else if (wmn->data & ND_GPENCIL_EDITMODE) {
-        ED_area_tag_redraw(sa);
+        ED_area_tag_redraw(area);
       }
       break;
     case NC_WM:
       switch (wmn->data) {
         case ND_FILEREAD:
         case ND_UNDO:
-          clip_area_sync_frame_from_scene(sa, scene);
+          clip_area_sync_frame_from_scene(area, scene);
           break;
       }
       break;
@@ -605,7 +605,7 @@ static int clip_context(const bContext *C, const char *member, bContextDataResul
 static bool clip_drop_poll(bContext *UNUSED(C),
                            wmDrag *drag,
                            const wmEvent *UNUSED(event),
-                           const char **UNUSED(tooltip))
+                           const char **UNUSED(r_tooltip))
 {
   if (drag->type == WM_DRAG_PATH) {
     /* rule might not work? */
@@ -639,17 +639,17 @@ static void clip_dropboxes(void)
   WM_dropbox_add(lb, "CLIP_OT_open", clip_drop_poll, clip_drop_copy);
 }
 
-static void clip_refresh(const bContext *C, ScrArea *sa)
+static void clip_refresh(const bContext *C, ScrArea *area)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *window = CTX_wm_window(C);
   Scene *scene = CTX_data_scene(C);
-  SpaceClip *sc = (SpaceClip *)sa->spacedata.first;
-  ARegion *ar_main = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-  ARegion *ar_tools = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
-  ARegion *ar_preview = ED_clip_has_preview_region(C, sa);
-  ARegion *ar_properties = ED_clip_has_properties_region(sa);
-  ARegion *ar_channels = ED_clip_has_channels_region(sa);
+  SpaceClip *sc = (SpaceClip *)area->spacedata.first;
+  ARegion *region_main = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  ARegion *region_tools = BKE_area_find_region_type(area, RGN_TYPE_TOOLS);
+  ARegion *region_preview = ED_clip_has_preview_region(C, area);
+  ARegion *region_properties = ED_clip_has_properties_region(area);
+  ARegion *region_channels = ED_clip_has_channels_region(area);
   bool main_visible = false, preview_visible = false, tools_visible = false;
   bool properties_visible = false, channels_visible = false;
   bool view_changed = false;
@@ -669,7 +669,7 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
       properties_visible = false;
       channels_visible = false;
 
-      reinit_preview_region(C, ar_preview);
+      reinit_preview_region(C, region_preview);
       break;
     case SC_VIEW_DOPESHEET:
       main_visible = false;
@@ -678,135 +678,135 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
       properties_visible = false;
       channels_visible = true;
 
-      reinit_preview_region(C, ar_preview);
+      reinit_preview_region(C, region_preview);
       break;
   }
 
   if (main_visible) {
-    if (ar_main && (ar_main->flag & RGN_FLAG_HIDDEN)) {
-      ar_main->flag &= ~RGN_FLAG_HIDDEN;
-      ar_main->v2d.flag &= ~V2D_IS_INITIALISED;
+    if (region_main && (region_main->flag & RGN_FLAG_HIDDEN)) {
+      region_main->flag &= ~RGN_FLAG_HIDDEN;
+      region_main->v2d.flag &= ~V2D_IS_INITIALISED;
       view_changed = true;
     }
 
-    if (ar_main && ar_main->alignment != RGN_ALIGN_NONE) {
-      ar_main->alignment = RGN_ALIGN_NONE;
+    if (region_main && region_main->alignment != RGN_ALIGN_NONE) {
+      region_main->alignment = RGN_ALIGN_NONE;
       view_changed = true;
     }
   }
   else {
-    if (ar_main && !(ar_main->flag & RGN_FLAG_HIDDEN)) {
-      ar_main->flag |= RGN_FLAG_HIDDEN;
-      ar_main->v2d.flag &= ~V2D_IS_INITIALISED;
-      WM_event_remove_handlers((bContext *)C, &ar_main->handlers);
+    if (region_main && !(region_main->flag & RGN_FLAG_HIDDEN)) {
+      region_main->flag |= RGN_FLAG_HIDDEN;
+      region_main->v2d.flag &= ~V2D_IS_INITIALISED;
+      WM_event_remove_handlers((bContext *)C, &region_main->handlers);
       view_changed = true;
     }
-    if (ar_main && ar_main->alignment != RGN_ALIGN_NONE) {
-      ar_main->alignment = RGN_ALIGN_NONE;
+    if (region_main && region_main->alignment != RGN_ALIGN_NONE) {
+      region_main->alignment = RGN_ALIGN_NONE;
       view_changed = true;
     }
   }
 
   if (properties_visible) {
-    if (ar_properties && (ar_properties->flag & RGN_FLAG_HIDDEN)) {
-      ar_properties->flag &= ~RGN_FLAG_HIDDEN;
-      ar_properties->v2d.flag &= ~V2D_IS_INITIALISED;
+    if (region_properties && (region_properties->flag & RGN_FLAG_HIDDEN)) {
+      region_properties->flag &= ~RGN_FLAG_HIDDEN;
+      region_properties->v2d.flag &= ~V2D_IS_INITIALISED;
       view_changed = true;
     }
-    if (ar_properties && ar_properties->alignment != RGN_ALIGN_RIGHT) {
-      ar_properties->alignment = RGN_ALIGN_RIGHT;
+    if (region_properties && region_properties->alignment != RGN_ALIGN_RIGHT) {
+      region_properties->alignment = RGN_ALIGN_RIGHT;
       view_changed = true;
     }
   }
   else {
-    if (ar_properties && !(ar_properties->flag & RGN_FLAG_HIDDEN)) {
-      ar_properties->flag |= RGN_FLAG_HIDDEN;
-      ar_properties->v2d.flag &= ~V2D_IS_INITIALISED;
-      WM_event_remove_handlers((bContext *)C, &ar_properties->handlers);
+    if (region_properties && !(region_properties->flag & RGN_FLAG_HIDDEN)) {
+      region_properties->flag |= RGN_FLAG_HIDDEN;
+      region_properties->v2d.flag &= ~V2D_IS_INITIALISED;
+      WM_event_remove_handlers((bContext *)C, &region_properties->handlers);
       view_changed = true;
     }
-    if (ar_properties && ar_properties->alignment != RGN_ALIGN_NONE) {
-      ar_properties->alignment = RGN_ALIGN_NONE;
+    if (region_properties && region_properties->alignment != RGN_ALIGN_NONE) {
+      region_properties->alignment = RGN_ALIGN_NONE;
       view_changed = true;
     }
   }
 
   if (tools_visible) {
-    if (ar_tools && (ar_tools->flag & RGN_FLAG_HIDDEN)) {
-      ar_tools->flag &= ~RGN_FLAG_HIDDEN;
-      ar_tools->v2d.flag &= ~V2D_IS_INITIALISED;
+    if (region_tools && (region_tools->flag & RGN_FLAG_HIDDEN)) {
+      region_tools->flag &= ~RGN_FLAG_HIDDEN;
+      region_tools->v2d.flag &= ~V2D_IS_INITIALISED;
       view_changed = true;
     }
-    if (ar_tools && ar_tools->alignment != RGN_ALIGN_LEFT) {
-      ar_tools->alignment = RGN_ALIGN_LEFT;
+    if (region_tools && region_tools->alignment != RGN_ALIGN_LEFT) {
+      region_tools->alignment = RGN_ALIGN_LEFT;
       view_changed = true;
     }
   }
   else {
-    if (ar_tools && !(ar_tools->flag & RGN_FLAG_HIDDEN)) {
-      ar_tools->flag |= RGN_FLAG_HIDDEN;
-      ar_tools->v2d.flag &= ~V2D_IS_INITIALISED;
-      WM_event_remove_handlers((bContext *)C, &ar_tools->handlers);
+    if (region_tools && !(region_tools->flag & RGN_FLAG_HIDDEN)) {
+      region_tools->flag |= RGN_FLAG_HIDDEN;
+      region_tools->v2d.flag &= ~V2D_IS_INITIALISED;
+      WM_event_remove_handlers((bContext *)C, &region_tools->handlers);
       view_changed = true;
     }
-    if (ar_tools && ar_tools->alignment != RGN_ALIGN_NONE) {
-      ar_tools->alignment = RGN_ALIGN_NONE;
+    if (region_tools && region_tools->alignment != RGN_ALIGN_NONE) {
+      region_tools->alignment = RGN_ALIGN_NONE;
       view_changed = true;
     }
   }
 
   if (preview_visible) {
-    if (ar_preview && (ar_preview->flag & RGN_FLAG_HIDDEN)) {
-      ar_preview->flag &= ~RGN_FLAG_HIDDEN;
-      ar_preview->v2d.flag &= ~V2D_IS_INITIALISED;
-      ar_preview->v2d.cur = ar_preview->v2d.tot;
+    if (region_preview && (region_preview->flag & RGN_FLAG_HIDDEN)) {
+      region_preview->flag &= ~RGN_FLAG_HIDDEN;
+      region_preview->v2d.flag &= ~V2D_IS_INITIALISED;
+      region_preview->v2d.cur = region_preview->v2d.tot;
       view_changed = true;
     }
-    if (ar_preview && ar_preview->alignment != RGN_ALIGN_NONE) {
-      ar_preview->alignment = RGN_ALIGN_NONE;
+    if (region_preview && region_preview->alignment != RGN_ALIGN_NONE) {
+      region_preview->alignment = RGN_ALIGN_NONE;
       view_changed = true;
     }
   }
   else {
-    if (ar_preview && !(ar_preview->flag & RGN_FLAG_HIDDEN)) {
-      ar_preview->flag |= RGN_FLAG_HIDDEN;
-      ar_preview->v2d.flag &= ~V2D_IS_INITIALISED;
-      WM_event_remove_handlers((bContext *)C, &ar_preview->handlers);
+    if (region_preview && !(region_preview->flag & RGN_FLAG_HIDDEN)) {
+      region_preview->flag |= RGN_FLAG_HIDDEN;
+      region_preview->v2d.flag &= ~V2D_IS_INITIALISED;
+      WM_event_remove_handlers((bContext *)C, &region_preview->handlers);
       view_changed = true;
     }
-    if (ar_preview && ar_preview->alignment != RGN_ALIGN_NONE) {
-      ar_preview->alignment = RGN_ALIGN_NONE;
+    if (region_preview && region_preview->alignment != RGN_ALIGN_NONE) {
+      region_preview->alignment = RGN_ALIGN_NONE;
       view_changed = true;
     }
   }
 
   if (channels_visible) {
-    if (ar_channels && (ar_channels->flag & RGN_FLAG_HIDDEN)) {
-      ar_channels->flag &= ~RGN_FLAG_HIDDEN;
-      ar_channels->v2d.flag &= ~V2D_IS_INITIALISED;
+    if (region_channels && (region_channels->flag & RGN_FLAG_HIDDEN)) {
+      region_channels->flag &= ~RGN_FLAG_HIDDEN;
+      region_channels->v2d.flag &= ~V2D_IS_INITIALISED;
       view_changed = true;
     }
-    if (ar_channels && ar_channels->alignment != RGN_ALIGN_LEFT) {
-      ar_channels->alignment = RGN_ALIGN_LEFT;
+    if (region_channels && region_channels->alignment != RGN_ALIGN_LEFT) {
+      region_channels->alignment = RGN_ALIGN_LEFT;
       view_changed = true;
     }
   }
   else {
-    if (ar_channels && !(ar_channels->flag & RGN_FLAG_HIDDEN)) {
-      ar_channels->flag |= RGN_FLAG_HIDDEN;
-      ar_channels->v2d.flag &= ~V2D_IS_INITIALISED;
-      WM_event_remove_handlers((bContext *)C, &ar_channels->handlers);
+    if (region_channels && !(region_channels->flag & RGN_FLAG_HIDDEN)) {
+      region_channels->flag |= RGN_FLAG_HIDDEN;
+      region_channels->v2d.flag &= ~V2D_IS_INITIALISED;
+      WM_event_remove_handlers((bContext *)C, &region_channels->handlers);
       view_changed = true;
     }
-    if (ar_channels && ar_channels->alignment != RGN_ALIGN_NONE) {
-      ar_channels->alignment = RGN_ALIGN_NONE;
+    if (region_channels && region_channels->alignment != RGN_ALIGN_NONE) {
+      region_channels->alignment = RGN_ALIGN_NONE;
       view_changed = true;
     }
   }
 
   if (view_changed) {
-    ED_area_initialize(wm, window, sa);
-    ED_area_tag_redraw(sa);
+    ED_area_initialize(wm, window, area);
+    ED_area_tag_redraw(area);
   }
 
   BKE_movieclip_user_set_frame(&sc->user, scene->r.cfra);
@@ -828,7 +828,7 @@ static void clip_gizmos(void)
 /********************* main region ********************/
 
 /* sets up the fields of the View2D from zoom and offset */
-static void movieclip_main_area_set_view2d(const bContext *C, ARegion *ar)
+static void movieclip_main_area_set_view2d(const bContext *C, ARegion *region)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   float x1, y1, w, h, aspx, aspy;
@@ -840,60 +840,60 @@ static void movieclip_main_area_set_view2d(const bContext *C, ARegion *ar)
   w = width * aspx;
   h = height * aspy;
 
-  winx = BLI_rcti_size_x(&ar->winrct) + 1;
-  winy = BLI_rcti_size_y(&ar->winrct) + 1;
+  winx = BLI_rcti_size_x(&region->winrct) + 1;
+  winy = BLI_rcti_size_y(&region->winrct) + 1;
 
-  ar->v2d.tot.xmin = 0;
-  ar->v2d.tot.ymin = 0;
-  ar->v2d.tot.xmax = w;
-  ar->v2d.tot.ymax = h;
+  region->v2d.tot.xmin = 0;
+  region->v2d.tot.ymin = 0;
+  region->v2d.tot.xmax = w;
+  region->v2d.tot.ymax = h;
 
-  ar->v2d.mask.xmin = ar->v2d.mask.ymin = 0;
-  ar->v2d.mask.xmax = winx;
-  ar->v2d.mask.ymax = winy;
+  region->v2d.mask.xmin = region->v2d.mask.ymin = 0;
+  region->v2d.mask.xmax = winx;
+  region->v2d.mask.ymax = winy;
 
   /* which part of the image space do we see? */
-  x1 = ar->winrct.xmin + (winx - sc->zoom * w) / 2.0f;
-  y1 = ar->winrct.ymin + (winy - sc->zoom * h) / 2.0f;
+  x1 = region->winrct.xmin + (winx - sc->zoom * w) / 2.0f;
+  y1 = region->winrct.ymin + (winy - sc->zoom * h) / 2.0f;
 
   x1 -= sc->zoom * sc->xof;
   y1 -= sc->zoom * sc->yof;
 
   /* relative display right */
-  ar->v2d.cur.xmin = (ar->winrct.xmin - (float)x1) / sc->zoom;
-  ar->v2d.cur.xmax = ar->v2d.cur.xmin + ((float)winx / sc->zoom);
+  region->v2d.cur.xmin = (region->winrct.xmin - (float)x1) / sc->zoom;
+  region->v2d.cur.xmax = region->v2d.cur.xmin + ((float)winx / sc->zoom);
 
   /* relative display left */
-  ar->v2d.cur.ymin = (ar->winrct.ymin - (float)y1) / sc->zoom;
-  ar->v2d.cur.ymax = ar->v2d.cur.ymin + ((float)winy / sc->zoom);
+  region->v2d.cur.ymin = (region->winrct.ymin - (float)y1) / sc->zoom;
+  region->v2d.cur.ymax = region->v2d.cur.ymin + ((float)winy / sc->zoom);
 
   /* normalize 0.0..1.0 */
-  ar->v2d.cur.xmin /= w;
-  ar->v2d.cur.xmax /= w;
-  ar->v2d.cur.ymin /= h;
-  ar->v2d.cur.ymax /= h;
+  region->v2d.cur.xmin /= w;
+  region->v2d.cur.xmax /= w;
+  region->v2d.cur.ymin /= h;
+  region->v2d.cur.ymax /= h;
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void clip_main_region_init(wmWindowManager *wm, ARegion *ar)
+static void clip_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_STANDARD, ar->winx, ar->winy);
+  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
 
   /* mask polls mode */
   keymap = WM_keymap_ensure(wm->defaultconf, "Mask Editing", 0, 0);
-  WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, 0);
-  WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Clip Editor", SPACE_CLIP, 0);
-  WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
 }
 
-static void clip_main_region_draw(const bContext *C, ARegion *ar)
+static void clip_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   SpaceClip *sc = CTX_wm_space_clip(C);
@@ -915,7 +915,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *ar)
       tmpibuf = ED_space_clip_get_stable_buffer(sc, NULL, NULL, NULL);
     }
 
-    if (ED_clip_view_selection(C, ar, 0)) {
+    if (ED_clip_view_selection(C, region, 0)) {
       sc->xof += sc->xlockof;
       sc->yof += sc->ylockof;
     }
@@ -930,28 +930,28 @@ static void clip_main_region_draw(const bContext *C, ARegion *ar)
   GPU_clear(GPU_COLOR_BIT);
 
   /* data... */
-  movieclip_main_area_set_view2d(C, ar);
+  movieclip_main_area_set_view2d(C, region);
 
   /* callback */
-  ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
+  ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
-  clip_draw_main(C, sc, ar);
+  clip_draw_main(C, sc, region);
 
   /* TODO(sergey): would be nice to find a way to de-duplicate all this space conversions */
-  UI_view2d_view_to_region_fl(&ar->v2d, 0.0f, 0.0f, &x, &y);
+  UI_view2d_view_to_region_fl(&region->v2d, 0.0f, 0.0f, &x, &y);
   ED_space_clip_get_size(sc, &width, &height);
-  ED_space_clip_get_zoom(sc, ar, &zoomx, &zoomy);
+  ED_space_clip_get_zoom(sc, region, &zoomx, &zoomy);
   ED_space_clip_get_aspect(sc, &aspx, &aspy);
 
   if (sc->mode == SC_MODE_MASKEDIT) {
     Mask *mask = CTX_data_edit_mask(C);
     if (mask && clip) {
-      ScrArea *sa = CTX_wm_area(C);
+      ScrArea *area = CTX_wm_area(C);
       int mask_width, mask_height;
-      ED_mask_get_size(sa, &mask_width, &mask_height);
+      ED_mask_get_size(area, &mask_width, &mask_height);
       ED_mask_draw_region(CTX_data_expect_evaluated_depsgraph(C),
                           mask,
-                          ar,
+                          region,
                           sc->mask_info.draw_flag,
                           sc->mask_info.draw_type,
                           sc->mask_info.overlay_mode,
@@ -975,11 +975,11 @@ static void clip_main_region_draw(const bContext *C, ARegion *ar)
     GPU_matrix_scale_2f(zoomx, zoomy);
     GPU_matrix_mul(sc->stabmat);
     GPU_matrix_scale_2f(width, height);
-    ED_image_draw_cursor(ar, sc->cursor);
+    ED_image_draw_cursor(region, sc->cursor);
     GPU_matrix_pop();
   }
 
-  clip_draw_cache_and_notes(C, sc, ar);
+  clip_draw_cache_and_notes(C, sc, region);
 
   if (sc->flag & SC_SHOW_ANNOTATION) {
     /* Grease Pencil */
@@ -987,7 +987,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *ar)
   }
 
   /* callback */
-  ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
+  ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_VIEW);
 
   /* reset view matrix */
   UI_view2d_view_restore(C);
@@ -997,12 +997,12 @@ static void clip_main_region_draw(const bContext *C, ARegion *ar)
     clip_draw_grease_pencil((bContext *)C, false);
   }
 
-  WM_gizmomap_draw(ar->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
+  WM_gizmomap_draw(region->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
 }
 
 static void clip_main_region_listener(wmWindow *UNUSED(win),
-                                      ScrArea *UNUSED(sa),
-                                      ARegion *ar,
+                                      ScrArea *UNUSED(area),
+                                      ARegion *region,
                                       wmNotifier *wmn,
                                       const Scene *UNUSED(scene))
 {
@@ -1010,10 +1010,10 @@ static void clip_main_region_listener(wmWindow *UNUSED(win),
   switch (wmn->category) {
     case NC_GPENCIL:
       if (wmn->action == NA_EDITED) {
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       }
       else if (wmn->data & ND_GPENCIL_EDITMODE) {
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       }
       break;
   }
@@ -1021,37 +1021,37 @@ static void clip_main_region_listener(wmWindow *UNUSED(win),
 
 /****************** preview region ******************/
 
-static void clip_preview_region_init(wmWindowManager *wm, ARegion *ar)
+static void clip_preview_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
+  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, 0);
-  WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Clip Time Scrub", SPACE_CLIP, RGN_TYPE_PREVIEW);
-  WM_event_add_keymap_handler_poll(&ar->handlers, keymap, ED_time_scrub_event_in_region);
+  WM_event_add_keymap_handler_poll(&region->handlers, keymap, ED_time_scrub_event_in_region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Clip Graph Editor", SPACE_CLIP, 0);
-  WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Clip Dopesheet Editor", SPACE_CLIP, 0);
-  WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
 }
 
-static void graph_region_draw(const bContext *C, ARegion *ar)
+static void graph_region_draw(const bContext *C, ARegion *region)
 {
-  View2D *v2d = &ar->v2d;
+  View2D *v2d = &region->v2d;
   View2DScrollers *scrollers;
   SpaceClip *sc = CTX_wm_space_clip(C);
   Scene *scene = CTX_data_scene(C);
   short cfra_flag = 0;
 
   if (sc->flag & SC_LOCK_TIMECURSOR) {
-    ED_clip_graph_center_current_frame(scene, ar);
+    ED_clip_graph_center_current_frame(scene, region);
   }
 
   /* clear and setup matrix */
@@ -1061,7 +1061,7 @@ static void graph_region_draw(const bContext *C, ARegion *ar)
   UI_view2d_view_ortho(v2d);
 
   /* data... */
-  clip_draw_graph(sc, ar, scene);
+  clip_draw_graph(sc, region, scene);
 
   /* current frame indicator line */
   if (sc->flag & SC_SHOW_SECONDS) {
@@ -1073,7 +1073,7 @@ static void graph_region_draw(const bContext *C, ARegion *ar)
   UI_view2d_view_restore(C);
 
   /* time-scrubbing */
-  ED_time_scrub_draw(ar, scene, sc->flag & SC_SHOW_SECONDS, true);
+  ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true);
 
   /* scrollers */
   scrollers = UI_view2d_scrollers_calc(v2d, NULL);
@@ -1083,17 +1083,18 @@ static void graph_region_draw(const bContext *C, ARegion *ar)
   /* scale indicators */
   {
     rcti rect;
-    BLI_rcti_init(&rect, 0, 15 * UI_DPI_FAC, 15 * UI_DPI_FAC, ar->winy - UI_TIME_SCRUB_MARGIN_Y);
-    UI_view2d_draw_scale_y__values(ar, v2d, &rect, TH_TEXT);
+    BLI_rcti_init(
+        &rect, 0, 15 * UI_DPI_FAC, 15 * UI_DPI_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
+    UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_TEXT);
   }
 }
 
-static void dopesheet_region_draw(const bContext *C, ARegion *ar)
+static void dopesheet_region_draw(const bContext *C, ARegion *region)
 {
   Scene *scene = CTX_data_scene(C);
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  View2D *v2d = &ar->v2d;
+  View2D *v2d = &region->v2d;
   View2DScrollers *scrollers;
   short cfra_flag = 0;
 
@@ -1111,7 +1112,7 @@ static void dopesheet_region_draw(const bContext *C, ARegion *ar)
   UI_view2d_draw_lines_x__discrete_frames_or_seconds(v2d, scene, sc->flag & SC_SHOW_SECONDS);
 
   /* data... */
-  clip_draw_dopesheet_main(sc, ar, scene);
+  clip_draw_dopesheet_main(sc, region, scene);
 
   /* current frame indicator line */
   if (sc->flag & SC_SHOW_SECONDS) {
@@ -1123,7 +1124,7 @@ static void dopesheet_region_draw(const bContext *C, ARegion *ar)
   UI_view2d_view_restore(C);
 
   /* time-scrubbing */
-  ED_time_scrub_draw(ar, scene, sc->flag & SC_SHOW_SECONDS, true);
+  ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true);
 
   /* scrollers */
   scrollers = UI_view2d_scrollers_calc(v2d, NULL);
@@ -1131,21 +1132,21 @@ static void dopesheet_region_draw(const bContext *C, ARegion *ar)
   UI_view2d_scrollers_free(scrollers);
 }
 
-static void clip_preview_region_draw(const bContext *C, ARegion *ar)
+static void clip_preview_region_draw(const bContext *C, ARegion *region)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
 
   if (sc->view == SC_VIEW_GRAPH) {
-    graph_region_draw(C, ar);
+    graph_region_draw(C, region);
   }
   else if (sc->view == SC_VIEW_DOPESHEET) {
-    dopesheet_region_draw(C, ar);
+    dopesheet_region_draw(C, region);
   }
 }
 
 static void clip_preview_region_listener(wmWindow *UNUSED(win),
-                                         ScrArea *UNUSED(sa),
-                                         ARegion *UNUSED(ar),
+                                         ScrArea *UNUSED(area),
+                                         ARegion *UNUSED(region),
                                          wmNotifier *UNUSED(wmn),
                                          const Scene *UNUSED(scene))
 {
@@ -1153,24 +1154,24 @@ static void clip_preview_region_listener(wmWindow *UNUSED(win),
 
 /****************** channels region ******************/
 
-static void clip_channels_region_init(wmWindowManager *wm, ARegion *ar)
+static void clip_channels_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
   /* ensure the 2d view sync works - main region has bottom scroller */
-  ar->v2d.scroll = V2D_SCROLL_BOTTOM;
+  region->v2d.scroll = V2D_SCROLL_BOTTOM;
 
-  UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_LIST, ar->winx, ar->winy);
+  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Clip Dopesheet Editor", SPACE_CLIP, 0);
-  WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
 }
 
-static void clip_channels_region_draw(const bContext *C, ARegion *ar)
+static void clip_channels_region_draw(const bContext *C, ARegion *region)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  View2D *v2d = &ar->v2d;
+  View2D *v2d = &region->v2d;
 
   if (clip) {
     BKE_tracking_dopesheet_update(&clip->tracking);
@@ -1183,15 +1184,15 @@ static void clip_channels_region_draw(const bContext *C, ARegion *ar)
   UI_view2d_view_ortho(v2d);
 
   /* data... */
-  clip_draw_dopesheet_channels(C, ar);
+  clip_draw_dopesheet_channels(C, region);
 
   /* reset view matrix */
   UI_view2d_view_restore(C);
 }
 
 static void clip_channels_region_listener(wmWindow *UNUSED(win),
-                                          ScrArea *UNUSED(sa),
-                                          ARegion *UNUSED(ar),
+                                          ScrArea *UNUSED(area),
+                                          ARegion *UNUSED(region),
                                           wmNotifier *UNUSED(wmn),
                                           const Scene *UNUSED(scene))
 {
@@ -1200,19 +1201,19 @@ static void clip_channels_region_listener(wmWindow *UNUSED(win),
 /****************** header region ******************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void clip_header_region_init(wmWindowManager *UNUSED(wm), ARegion *ar)
+static void clip_header_region_init(wmWindowManager *UNUSED(wm), ARegion *region)
 {
-  ED_region_header_init(ar);
+  ED_region_header_init(region);
 }
 
-static void clip_header_region_draw(const bContext *C, ARegion *ar)
+static void clip_header_region_draw(const bContext *C, ARegion *region)
 {
-  ED_region_header(C, ar);
+  ED_region_header(C, region);
 }
 
 static void clip_header_region_listener(wmWindow *UNUSED(win),
-                                        ScrArea *UNUSED(sa),
-                                        ARegion *ar,
+                                        ScrArea *UNUSED(area),
+                                        ARegion *region,
                                         wmNotifier *wmn,
                                         const Scene *UNUSED(scene))
 {
@@ -1225,7 +1226,7 @@ static void clip_header_region_listener(wmWindow *UNUSED(win),
           /* TODO - should do this when in mask mode only but no data available */
           // if (sc->mode == SC_MODE_MASKEDIT)
           {
-            ED_region_tag_redraw(ar);
+            ED_region_tag_redraw(region);
             break;
           }
       }
@@ -1236,26 +1237,26 @@ static void clip_header_region_listener(wmWindow *UNUSED(win),
 /****************** tools region ******************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void clip_tools_region_init(wmWindowManager *wm, ARegion *ar)
+static void clip_tools_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  ED_region_panels_init(wm, ar);
+  ED_region_panels_init(wm, region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, 0);
-  WM_event_add_keymap_handler(&ar->handlers, keymap);
+  WM_event_add_keymap_handler(&region->handlers, keymap);
 }
 
-static void clip_tools_region_draw(const bContext *C, ARegion *ar)
+static void clip_tools_region_draw(const bContext *C, ARegion *region)
 {
-  ED_region_panels(C, ar);
+  ED_region_panels(C, region);
 }
 
 /****************** tool properties region ******************/
 
 static void clip_props_region_listener(wmWindow *UNUSED(win),
-                                       ScrArea *UNUSED(sa),
-                                       ARegion *ar,
+                                       ScrArea *UNUSED(area),
+                                       ARegion *region,
                                        wmNotifier *wmn,
                                        const Scene *UNUSED(scene))
 {
@@ -1263,22 +1264,22 @@ static void clip_props_region_listener(wmWindow *UNUSED(win),
   switch (wmn->category) {
     case NC_WM:
       if (wmn->data == ND_HISTORY) {
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       }
       break;
     case NC_SCENE:
       if (wmn->data == ND_MODE) {
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       }
       break;
     case NC_SPACE:
       if (wmn->data == ND_SPACE_CLIP) {
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       }
       break;
     case NC_GPENCIL:
       if (wmn->action == NA_EDITED) {
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       }
       break;
   }
@@ -1287,28 +1288,28 @@ static void clip_props_region_listener(wmWindow *UNUSED(win),
 /****************** properties region ******************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void clip_properties_region_init(wmWindowManager *wm, ARegion *ar)
+static void clip_properties_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  ED_region_panels_init(wm, ar);
+  ED_region_panels_init(wm, region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, 0);
-  WM_event_add_keymap_handler(&ar->handlers, keymap);
+  WM_event_add_keymap_handler(&region->handlers, keymap);
 }
 
-static void clip_properties_region_draw(const bContext *C, ARegion *ar)
+static void clip_properties_region_draw(const bContext *C, ARegion *region)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
 
   BKE_movieclip_update_scopes(sc->clip, &sc->user, &sc->scopes);
 
-  ED_region_panels(C, ar);
+  ED_region_panels(C, region);
 }
 
 static void clip_properties_region_listener(wmWindow *UNUSED(win),
-                                            ScrArea *UNUSED(sa),
-                                            ARegion *ar,
+                                            ScrArea *UNUSED(area),
+                                            ARegion *region,
                                             wmNotifier *wmn,
                                             const Scene *UNUSED(scene))
 {
@@ -1316,12 +1317,12 @@ static void clip_properties_region_listener(wmWindow *UNUSED(win),
   switch (wmn->category) {
     case NC_GPENCIL:
       if (ELEM(wmn->data, ND_DATA, ND_GPENCIL_EDITMODE)) {
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       }
       break;
     case NC_BRUSH:
       if (wmn->action == NA_EDITED) {
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       }
       break;
   }
@@ -1329,7 +1330,7 @@ static void clip_properties_region_listener(wmWindow *UNUSED(win),
 
 /********************* registration ********************/
 
-static void clip_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+static void clip_id_remap(ScrArea *UNUSED(area), SpaceLink *slink, ID *old_id, ID *new_id)
 {
   SpaceClip *sclip = (SpaceClip *)slink;
 

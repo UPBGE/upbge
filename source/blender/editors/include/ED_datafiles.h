@@ -48,6 +48,9 @@ extern char datatoc_blender_icons32_png[];
 extern int datatoc_prvicons_png_size;
 extern char datatoc_prvicons_png[];
 
+extern int datatoc_alert_icons_png_size;
+extern char datatoc_alert_icons_png[];
+
 extern int datatoc_splash_png_size;
 extern char datatoc_splash_png[];
 
@@ -56,12 +59,6 @@ extern char datatoc_splash_2x_png[];
 
 extern int datatoc_bfont_pfb_size;
 extern char datatoc_bfont_pfb[];
-
-extern int datatoc_bfont_ttf_size;
-extern char datatoc_bfont_ttf[];
-
-extern int datatoc_bmonofont_ttf_size;
-extern char datatoc_bmonofont_ttf[];
 
 /* Brush icon datafiles */
 /* TODO: this could be simplified by putting all

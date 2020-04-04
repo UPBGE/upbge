@@ -34,10 +34,10 @@
 #ifndef __SCA_IOBJECT_H__
 #define __SCA_IOBJECT_H__
 
-#include "EXP_Value.h"
-
-#include "SG_QList.h"
 #include <vector>
+
+#include "EXP_Value.h"
+#include "SG_QList.h"
 
 class SCA_IObject;
 class SCA_ISensor;

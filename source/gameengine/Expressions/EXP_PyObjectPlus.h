@@ -35,10 +35,11 @@
 // For now keep weakrefs optional.
 #define USE_WEAKREFS
 
-#include "EXP_Python.h"
-#include <string>
-#include "MT_Vector3.h"
 #include <stddef.h>
+#include <string>
+
+#include "EXP_Python.h"
+#include "MT_Vector3.h"
 
 #ifdef WITH_PYTHON
 #  ifdef USE_MATHUTILS

@@ -21,10 +21,10 @@
  * \ingroup edtransform
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -37,9 +37,9 @@
 #include "GPU_state.h"
 
 #include "BLI_math.h"
-#include "BLI_utildefines.h"
-#include "BLI_string.h"
 #include "BLI_rect.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 
@@ -171,7 +171,7 @@ static void postConstraintChecks(TransInfo *t, float vec[3], float pvec[3])
 static void viewAxisCorrectCenter(const TransInfo *t, float t_con_center[3])
 {
   if (t->spacetype == SPACE_VIEW3D) {
-    // View3D *v3d = t->sa->spacedata.first;
+    // View3D *v3d = t->area->spacedata.first;
     const float min_dist = 1.0f; /* v3d->clip_start; */
     float dir[3];
     float l;
@@ -846,8 +846,8 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
     }
     else if (ELEM(t->spacetype, SPACE_GRAPH, SPACE_ACTION)) {
       /* only scale y */
-      rcti *mask = &t->ar->v2d.mask;
-      rctf *datamask = &t->ar->v2d.cur;
+      rcti *mask = &t->region->v2d.mask;
+      rctf *datamask = &t->region->v2d.cur;
       float xsize = BLI_rctf_size_x(datamask);
       float ysize = BLI_rctf_size_y(datamask);
       float xmask = BLI_rcti_size_x(mask);
@@ -1055,7 +1055,7 @@ static void setNearestAxis3d(TransInfo *t)
    * projecting them with ED_view3d_win_to_delta and then get the length of that vector.
    */
   zfac = mul_project_m4_v3_zfac(t->persmat, t->center_global);
-  zfac = len_v3(t->persinv[0]) * 2.0f / t->ar->winx * zfac * 30.0f;
+  zfac = len_v3(t->persinv[0]) * 2.0f / t->region->winx * zfac * 30.0f;
 
   for (i = 0; i < 3; i++) {
     float axis[3], axis_2d[2];

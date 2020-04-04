@@ -21,8 +21,16 @@
  * \ingroup pygen
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 PyObject *BPyInit_imbuf(void);
 
 extern PyTypeObject Py_ImBuf_Type;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __IMBUF_PY_API_H__ */

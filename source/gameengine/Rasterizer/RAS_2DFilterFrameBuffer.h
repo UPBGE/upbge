@@ -27,9 +27,9 @@
 #ifndef __RAS_2DFILTER_FRAMEBUFFER_H__
 #define __RAS_2DFILTER_FRAMEBUFFER_H__
 
-#include "RAS_Rasterizer.h"
-
 #include <memory>
+
+#include "RAS_Rasterizer.h"
 
 class RAS_ICanvas;
 class RAS_FrameBuffer;

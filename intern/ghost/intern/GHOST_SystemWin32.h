@@ -30,8 +30,8 @@
 #endif  // WIN32
 
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <ole2.h>  // for drag-n-drop
+#include <windows.h>
 
 #include "GHOST_System.h"
 
@@ -42,6 +42,7 @@ class GHOST_EventWheel;
 class GHOST_EventWindow;
 class GHOST_EventDragnDrop;
 
+class GHOST_ContextD3D;
 class GHOST_WindowWin32;
 
 /**
@@ -131,18 +132,28 @@ class GHOST_SystemWin32 : public GHOST_System {
   GHOST_IContext *createOffscreenContext();
 
   /**
-   * Create a new offscreen context.
-   * Never explicitly delete the window, use disposeContext() instead.
-   * \return  The new context (or 0 if creation failed).
-   */
-  GHOST_IContext *createOffscreenContext(GHOST_TDrawingContextType type);
-
-  /**
    * Dispose of a context.
    * \param   context Pointer to the context to be disposed.
    * \return  Indication of success.
    */
   GHOST_TSuccess disposeContext(GHOST_IContext *context);
+
+  /**
+   * Create a new offscreen DirectX context.
+   * Never explicitly delete the context, use disposeContext() instead.
+   * This is for GHOST internal, Win32 specific use, so it can be called statically.
+   *
+   * \return  The new context (or 0 if creation failed).
+   */
+  static GHOST_ContextD3D *createOffscreenContextD3D();
+
+  /**
+   * Dispose of a DirectX context.
+   * This is for GHOST internal, Win32 specific use, so it can be called statically.
+   * \param   context Pointer to the context to be disposed.
+   * \return  Indication of success.
+   */
+  static GHOST_TSuccess disposeContextD3D(GHOST_ContextD3D *context);
 
   /***************************************************************************************
    ** Event management functionality
@@ -256,13 +267,6 @@ class GHOST_SystemWin32 : public GHOST_System {
   GHOST_TSuccess exit();
 
   /**
-   * Create a new offscreen DirectX context.
-   * Never explicitly delete the window, use disposeContext() instead.
-   * \return  The new context (or 0 if creation failed).
-   */
-  GHOST_IContext *createOffscreenContextD3D();
-
-  /**
    * Converts raw WIN32 key codes from the wndproc to GHOST keys.
    * \param vKey      The virtual key from hardKey
    * \param ScanCode  The ScanCode of pressed key (similar to PS/2 Set 1)
@@ -278,7 +282,7 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param vk        Pointer to virtual key
    * \return The GHOST key (GHOST_kKeyUnknown if no match).
    */
-  GHOST_TKey hardKey(RAWINPUT const &raw, int *keyDown, char *vk);
+  GHOST_TKey hardKey(RAWINPUT const &raw, bool *r_keyDown, bool *r_is_repeated_modifier);
 
   /**
    * Creates mouse button event.
@@ -414,6 +418,8 @@ class GHOST_SystemWin32 : public GHOST_System {
 
   /** The current state of the modifier keys. */
   GHOST_ModifierKeys m_modifierKeys;
+  /** The virtual-key code (VKey) of the last press event. Used to detect repeat events. */
+  unsigned short m_keycode_last_repeat_key;
   /** State variable set at initialization. */
   bool m_hasPerformanceCounter;
   /** High frequency timer variable. */

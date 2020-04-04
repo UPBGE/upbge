@@ -48,8 +48,8 @@
 
 #include "transform.h"
 #include "transform_convert.h"
-#include "transform_snap.h"
 #include "transform_mode.h"
+#include "transform_snap.h"
 
 /* -------------------------------------------------------------------- */
 /* Transform (Vert Slide) */
@@ -98,8 +98,8 @@ static void calcVertSlideCustomPoints(struct TransInfo *t)
 
   int mval_ofs[2], mval_start[2], mval_end[2];
 
-  ED_view3d_project_float_v2_m4(t->ar, co_orig_3d, co_orig_2d, sld->proj_mat);
-  ED_view3d_project_float_v2_m4(t->ar, co_curr_3d, co_curr_2d, sld->proj_mat);
+  ED_view3d_project_float_v2_m4(t->region, co_orig_3d, co_orig_2d, sld->proj_mat);
+  ED_view3d_project_float_v2_m4(t->region, co_curr_3d, co_curr_2d, sld->proj_mat);
 
   ARRAY_SET_ITEMS(mval_ofs, t->mouse.imval[0] - co_orig_2d[0], t->mouse.imval[1] - co_orig_2d[1]);
   ARRAY_SET_ITEMS(mval_start, co_orig_2d[0] + mval_ofs[0], co_orig_2d[1] + mval_ofs[1]);
@@ -136,7 +136,7 @@ static void calcVertSlideMouseActiveVert(struct TransInfo *t, const int mval[2])
   for (i = 0, sv = sld->sv; i < sld->totsv; i++, sv++) {
     float co_2d[2];
 
-    ED_view3d_project_float_v2_m4(t->ar, sv->co_orig_3d, co_2d, sld->proj_mat);
+    ED_view3d_project_float_v2_m4(t->region, sv->co_orig_3d, co_2d, sld->proj_mat);
 
     dist_sq = len_squared_v2v2(mval_fl, co_2d);
     if (dist_sq < dist_min_sq) {
@@ -165,7 +165,7 @@ static void calcVertSlideMouseActiveEdges(struct TransInfo *t, const int mval[2]
 
   /* first get the direction of the original mouse position */
   sub_v2_v2v2(dir, imval_fl, mval_fl);
-  ED_view3d_win_to_delta(t->ar, dir, dir, t->zfac);
+  ED_view3d_win_to_delta(t->region, dir, dir, t->zfac);
   normalize_v3(dir);
 
   for (i = 0, sv = sld->sv; i < sld->totsv; i++, sv++) {
@@ -280,9 +280,9 @@ static bool createVertSlideVerts(TransInfo *t, TransDataContainer *tc)
   if (t->spacetype == SPACE_VIEW3D) {
     /* view vars */
     RegionView3D *rv3d = NULL;
-    ARegion *ar = t->ar;
+    ARegion *region = t->region;
 
-    rv3d = ar ? ar->regiondata : NULL;
+    rv3d = region ? region->regiondata : NULL;
     if (rv3d) {
       ED_view3d_ob_project_mat_get(rv3d, tc->obedit, sld->proj_mat);
     }
@@ -328,7 +328,7 @@ static eRedrawFlag handleEventVertSlide(struct TransInfo *t, const struct wmEven
 
     if (slp) {
       switch (event->type) {
-        case EKEY:
+        case EVT_EKEY:
           if (event->val == KM_PRESS) {
             slp->use_even = !slp->use_even;
             if (slp->flipped) {
@@ -337,14 +337,14 @@ static eRedrawFlag handleEventVertSlide(struct TransInfo *t, const struct wmEven
             return TREDRAW_HARD;
           }
           break;
-        case FKEY:
+        case EVT_FKEY:
           if (event->val == KM_PRESS) {
             slp->flipped = !slp->flipped;
             calcVertSlideCustomPoints(t);
             return TREDRAW_HARD;
           }
           break;
-        case CKEY:
+        case EVT_CKEY:
           /* use like a modifier key */
           if (event->val == KM_PRESS) {
             t->flag ^= T_ALT_TRANSFORM;
@@ -468,9 +468,9 @@ void drawVertSlide(TransInfo *t)
 
         mul_v3_m4v3(
             co_orig_3d, TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->obmat, curr_sv->co_orig_3d);
-        zfac = ED_view3d_calc_zfac(t->ar->regiondata, co_orig_3d, NULL);
+        zfac = ED_view3d_calc_zfac(t->region->regiondata, co_orig_3d, NULL);
 
-        ED_view3d_win_to_delta(t->ar, mval_ofs, co_dest_3d, zfac);
+        ED_view3d_win_to_delta(t->region, mval_ofs, co_dest_3d, zfac);
 
         invert_m4_m4(TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->imat,
                      TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->obmat);
@@ -602,7 +602,7 @@ static void applyVertSlide(TransInfo *t, const int UNUSED(mval[2]))
 
   recalcData(t);
 
-  ED_area_status_text(t->sa, str);
+  ED_area_status_text(t->area, str);
 }
 
 void initVertSlide_ex(TransInfo *t, bool use_even, bool flipped, bool use_clamp)

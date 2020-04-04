@@ -28,8 +28,8 @@
 /* exposed internal in render module only! */
 /* ------------------------------------------------------------------------- */
 
-#include "DNA_scene_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_threads.h"
 
@@ -122,11 +122,6 @@ struct Render {
    * layer visibility and use for post-precessing (compositor and sequencer). */
   Depsgraph *pipeline_depsgraph;
   Scene *pipeline_scene_eval;
-
-#ifdef WITH_FREESTYLE
-  struct Main *freestyle_bmain;
-  ListBase freestyle_renders;
-#endif
 
   /* callbacks */
   void (*display_init)(void *handle, RenderResult *rr);

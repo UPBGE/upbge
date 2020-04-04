@@ -20,10 +20,10 @@
  * \ingroup spaction
  */
 
+#include <float.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <float.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -34,27 +34,27 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_gpencil_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_mask_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "BKE_fcurve.h"
-#include "BKE_nla.h"
 #include "BKE_context.h"
+#include "BKE_fcurve.h"
 #include "BKE_gpencil.h"
+#include "BKE_nla.h"
 
-#include "UI_view2d.h"
 #include "UI_interface.h"
+#include "UI_view2d.h"
 
 #include "ED_anim_api.h"
 #include "ED_gpencil.h"
-#include "ED_mask.h"
 #include "ED_keyframes_draw.h"
 #include "ED_keyframes_edit.h"
 #include "ED_markers.h"
+#include "ED_mask.h"
 #include "ED_screen.h"
 #include "ED_select_utils.h"
 
@@ -71,7 +71,7 @@ static bAnimListElem *actkeys_find_list_element_at_position(bAnimContext *ac,
                                                             float region_x,
                                                             float region_y)
 {
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
 
   float view_x, view_y;
   int channel_index;
@@ -158,7 +158,7 @@ static void actkeys_find_key_in_list_element(bAnimContext *ac,
 {
   *r_found = false;
 
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
 
   DLRBT_Tree anim_keys;
   BLI_dlrbTree_init(&anim_keys);
@@ -437,7 +437,7 @@ static void box_select_elem(
         ListBase anim_data = {NULL, NULL};
         ANIM_animdata_filter(ac, &anim_data, ANIMFILTER_DATA_VISIBLE, ac->data, ac->datatype);
 
-        for (bAnimListElem *ale2 = anim_data.first; ale2; ale2 = ale2->next) {
+        LISTBASE_FOREACH (bAnimListElem *, ale2, &anim_data) {
           box_select_elem(sel_data, ale2, xmin, xmax, true);
         }
 
@@ -458,7 +458,7 @@ static void box_select_action(bAnimContext *ac, const rcti rect, short mode, sho
   int filter;
 
   BoxSelectData sel_data = {.ac = ac, .selectmode = selectmode};
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   rctf rectf;
 
   /* Convert mouse coordinates to frame ranges and channel
@@ -675,7 +675,7 @@ static void region_select_elem(RegionSelectData *sel_data, bAnimListElem *ale, b
         ListBase anim_data = {NULL, NULL};
         ANIM_animdata_filter(ac, &anim_data, ANIMFILTER_DATA_VISIBLE, ac->data, ac->datatype);
 
-        for (bAnimListElem *ale2 = anim_data.first; ale2; ale2 = ale2->next) {
+        LISTBASE_FOREACH (bAnimListElem *, ale2, &anim_data) {
           region_select_elem(sel_data, ale2, true);
         }
 
@@ -697,7 +697,7 @@ static void region_select_action_keys(
   int filter;
 
   RegionSelectData sel_data = {.ac = ac, .mode = mode, .selectmode = selectmode};
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   rctf rectf, scaled_rectf;
 
   /* Convert mouse coordinates to frame ranges and channel
@@ -1470,8 +1470,8 @@ static int actkeys_select_leftright_invoke(bContext *C, wmOperator *op, const wm
   /* handle mode-based testing */
   if (leftright == ACTKEYS_LRSEL_TEST) {
     Scene *scene = ac.scene;
-    ARegion *ar = ac.ar;
-    View2D *v2d = &ar->v2d;
+    ARegion *region = ac.region;
+    View2D *v2d = &region->v2d;
     float x;
 
     /* determine which side of the current frame mouse is on */
@@ -1759,8 +1759,8 @@ static int mouse_action_keys(bAnimContext *ac,
 
           gpl->flag |= GP_LAYER_SELECT;
           /* Update other layer status. */
-          if (BKE_gpencil_layer_getactive(gpd) != gpl) {
-            BKE_gpencil_layer_setactive(gpd, gpl);
+          if (BKE_gpencil_layer_active_get(gpd) != gpl) {
+            BKE_gpencil_layer_active_set(gpd, gpl);
             BKE_gpencil_layer_autolock_set(gpd, false);
             WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
           }
@@ -1825,7 +1825,7 @@ static int actkeys_clickselect_exec(bContext *C, wmOperator *op)
   }
 
   /* get useful pointers from animation context data */
-  /* ar = ac.ar; */ /* UNUSED */
+  /* region = ac.region; */ /* UNUSED */
 
   /* select mode is either replace (deselect all, then add) or add/extend */
   const short selectmode = RNA_boolean_get(op->ptr, "extend") ? SELECT_INVERT : SELECT_REPLACE;

@@ -25,10 +25,10 @@
  */
 
 #include "KX_2DFilterManager.h"
-#include "KX_2DFilter.h"
-#include "KX_2DFilterFrameBuffer.h"
 
 #include "CM_Message.h"
+#include "KX_2DFilter.h"
+#include "KX_2DFilterFrameBuffer.h"
 
 KX_2DFilterManager::KX_2DFilterManager()
 {

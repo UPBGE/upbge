@@ -32,7 +32,6 @@
 #define __FILTERSOURCE_H__
 
 #include "Common.h"
-
 #include "FilterBase.h"
 
 /// class for RGB24 conversion

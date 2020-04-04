@@ -32,9 +32,9 @@
 #ifndef __SCA_SceneActuator_H__
 #define __SCA_SceneActuator_H__
 
+#include "KX_Scene.h" /* Replace_IScene only */
 #include "SCA_IActuator.h"
 #include "SCA_IScene.h" /* Replace_IScene only */
-#include "KX_Scene.h"   /* Replace_IScene only */
 
 class SCA_SceneActuator : public SCA_IActuator {
   Py_Header
@@ -58,11 +58,7 @@ class SCA_SceneActuator : public SCA_IActuator {
     KX_SCENE_RESTART,
     KX_SCENE_SET_SCENE,
     KX_SCENE_SET_CAMERA,
-    KX_SCENE_ADD_FRONT_SCENE,
-    KX_SCENE_ADD_BACK_SCENE,
     KX_SCENE_REMOVE_SCENE,
-    KX_SCENE_SUSPEND,
-    KX_SCENE_RESUME,
     KX_SCENE_MAX
   };
 

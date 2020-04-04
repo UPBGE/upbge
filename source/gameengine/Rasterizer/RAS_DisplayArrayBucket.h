@@ -32,13 +32,11 @@
 #ifndef __RAS_DISPLAY_MATERIAL_BUCKET_H__
 #define __RAS_DISPLAY_MATERIAL_BUCKET_H__
 
-#include "CM_RefCount.h"
-
-#include "RAS_Rasterizer.h"
-
-#include "MT_Transform.h"
-
 #include <vector>
+
+#include "CM_RefCount.h"
+#include "MT_Transform.h"
+#include "RAS_Rasterizer.h"
 
 class RAS_MaterialBucket;
 class RAS_IDisplayArray;

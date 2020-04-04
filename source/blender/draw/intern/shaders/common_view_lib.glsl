@@ -60,11 +60,11 @@ vec4 pack_line_data(vec2 frag_co, vec2 edge_start, vec2 edge_pos)
     vec2 perp = vec2(-edge.y, edge.x);
     float dist = dot(perp, frag_co - edge_start);
     /* Add 0.1 to diffenrentiate with cleared pixels. */
-    return vec4(perp * 0.5 + 0.5, dist * 0.25 + 0.5 + 0.1, 0.0);
+    return vec4(perp * 0.5 + 0.5, dist * 0.25 + 0.5 + 0.1, 1.0);
   }
   else {
     /* Default line if the origin is perfectly aligned with a pixel. */
-    return vec4(1.0, 0.0, 0.5 + 0.1, 0.0);
+    return vec4(1.0, 0.0, 0.5 + 0.1, 1.0);
   }
 }
 
@@ -77,19 +77,26 @@ uniform int resourceChunk;
 uniform int baseInstance;
 #  endif
 
-#  if defined(IN_PLACE_INSTANCES) || defined(INSTANCED_ATTRIB)
+#  if defined(IN_PLACE_INSTANCES) || defined(INSTANCED_ATTR)
 /* When drawing instances of an object at the same position. */
 #    define instanceId 0
 #  elif defined(GPU_DEPRECATED_AMD_DRIVER)
 /* A driver bug make it so that when using an attribute with GL_INT_2_10_10_10_REV as format,
- * the gl_InstanceID is incremented by the 2 bit component of the attrib.
+ * the gl_InstanceID is incremented by the 2 bit component of the attribute.
  * Ignore gl_InstanceID then. */
 #    define instanceId 0
 #  else
 #    define instanceId gl_InstanceID
 #  endif
 
-#  define resource_id (baseInstance + instanceId)
+#  ifdef UNIFORM_RESOURCE_ID
+/* This is in the case we want to do a special instance drawcall but still want to have the
+ * right resourceId and all the correct ubo datas. */
+uniform int resourceId;
+#    define resource_id resourceId
+#  else
+#    define resource_id (baseInstance + instanceId)
+#  endif
 
 /* Use this to declare and pass the value if
  * the fragment shader uses the resource_id. */
@@ -117,7 +124,7 @@ flat in int resourceIDFrag;
 
 /* Breaking this across multiple lines causes issues for some older GLSL compilers. */
 /* clang-format off */
-#if !defined(GPU_INTEL) && !defined(GPU_DEPRECATED_AMD_DRIVER) && !defined(OS_MAC) && !defined(INSTANCED_ATTRIB)
+#if !defined(GPU_INTEL) && !defined(GPU_DEPRECATED_AMD_DRIVER) && !defined(OS_MAC) && !defined(INSTANCED_ATTR)
 /* clang-format on */
 struct ObjectMatrices {
   mat4 drw_modelMatrix;

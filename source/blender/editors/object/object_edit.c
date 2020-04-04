@@ -21,21 +21,21 @@
  * \ingroup edobj
  */
 
+#include <ctype.h>
+#include <float.h>
+#include <math.h>
+#include <stddef.h>  //for offsetof
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <time.h>
-#include <float.h>
-#include <ctype.h>
-#include <stddef.h>  //for offsetof
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_math.h"
 #include "BLI_string_utils.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
@@ -43,26 +43,27 @@
 #include "DNA_collection_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_gpencil_types.h"
+#include "DNA_lattice_types.h"
 #include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_object_force_types.h"
+#include "DNA_object_types.h"
 #include "DNA_property_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_object_types.h"
-#include "DNA_object_force_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_vfont_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_lattice_types.h"
 #include "DNA_workspace_types.h"
 
 #include "IMB_imbuf_types.h"
 
-#include "BKE_anim.h"
+#include "BKE_anim_visualization.h"
 #include "BKE_collection.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_editlattice.h"
+#include "BKE_editmesh.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
@@ -79,11 +80,10 @@
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_property.h"
-#include "BKE_sca.h"
-#include "BKE_softbody.h"
-#include "BKE_editmesh.h"
 #include "BKE_report.h"
+#include "BKE_sca.h"
 #include "BKE_scene.h"
+#include "BKE_softbody.h"
 #include "BKE_workspace.h"
 
 #include "DEG_depsgraph.h"
@@ -92,15 +92,15 @@
 #include "ED_anim_api.h"
 #include "ED_armature.h"
 #include "ED_curve.h"
-#include "ED_mesh.h"
-#include "ED_mball.h"
+#include "ED_gpencil.h"
+#include "ED_image.h"
 #include "ED_lattice.h"
+#include "ED_mball.h"
+#include "ED_mesh.h"
 #include "ED_object.h"
 #include "ED_outliner.h"
 #include "ED_screen.h"
 #include "ED_undo.h"
-#include "ED_image.h"
-#include "ED_gpencil.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -112,9 +112,9 @@
 #include "UI_resources.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
 #include "WM_message.h"
 #include "WM_toolsystem.h"
+#include "WM_types.h"
 
 #include "object_intern.h"  // own include
 
@@ -176,7 +176,7 @@ static int object_hide_view_clear_exec(bContext *C, wmOperator *op)
   const bool select = RNA_boolean_get(op->ptr, "select");
   bool changed = false;
 
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if (base->flag & BASE_HIDDEN) {
       base->flag &= ~BASE_HIDDEN;
       changed = true;
@@ -227,7 +227,7 @@ static int object_hide_view_set_exec(bContext *C, wmOperator *op)
   bool changed = false;
 
   /* Hide selected or unselected objects. */
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if (!(base->flag & BASE_VISIBLE_VIEWLAYER)) {
       continue;
     }
@@ -331,7 +331,7 @@ void ED_collection_hide_menu_draw(const bContext *C, uiLayout *layout)
 
   uiLayoutSetOperatorContext(layout, WM_OP_EXEC_REGION_WIN);
 
-  for (LayerCollection *lc = lc_scene->layer_collections.first; lc; lc = lc->next) {
+  LISTBASE_FOREACH (LayerCollection *, lc, &lc_scene->layer_collections) {
     int index = BKE_layer_collection_findindex(view_layer, lc);
     uiLayout *row = uiLayoutRow(layout, false);
 
@@ -424,7 +424,7 @@ static bool mesh_needs_keyindex(Main *bmain, const Mesh *me)
       return true;
     }
     if (ob->data == me) {
-      for (const ModifierData *md = ob->modifiers.first; md; md = md->next) {
+      LISTBASE_FOREACH (const ModifierData *, md, &ob->modifiers) {
         if (md->type == eModifierType_Hook) {
           return true;
         }
@@ -464,8 +464,8 @@ static bool ED_object_editmode_load_ex(Main *bmain, Object *obedit, const bool f
     }
     /* will be recalculated as needed. */
     {
-      ED_mesh_mirror_spatial_table(NULL, NULL, NULL, NULL, 'e');
-      ED_mesh_mirror_topo_table(NULL, NULL, 'e');
+      ED_mesh_mirror_spatial_table_end(obedit);
+      ED_mesh_mirror_topo_table_end(obedit);
     }
   }
   else if (obedit->type == OB_ARMATURE) {
@@ -639,7 +639,7 @@ bool ED_object_editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag
     bArmature *arm = ob->data;
     ok = 1;
     ED_armature_to_edit(arm);
-    /* to ensure all goes in restposition and without striding */
+    /* To ensure all goes in rest-position and without striding. */
 
     arm->needs_flush_to_id = 0;
 
@@ -1830,7 +1830,8 @@ static const EnumPropertyItem *object_mode_set_itemsf(bContext *C,
                 OB_MODE_EDIT_GPENCIL,
                 OB_MODE_PAINT_GPENCIL,
                 OB_MODE_SCULPT_GPENCIL,
-                OB_MODE_WEIGHT_GPENCIL) &&
+                OB_MODE_WEIGHT_GPENCIL,
+                OB_MODE_VERTEX_GPENCIL) &&
            (ob->type == OB_GPENCIL)) ||
           (input->value == OB_MODE_OBJECT)) {
         RNA_enum_item_add(&item, &totitem, input);
@@ -2457,7 +2458,7 @@ static int move_to_collection_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  for (LinkData *link = objects.first; link; link = link->next) {
+  LISTBASE_FOREACH (LinkData *, link, &objects) {
     Object *ob = link->data;
 
     if (!is_link) {

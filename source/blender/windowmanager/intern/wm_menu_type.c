@@ -27,8 +27,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -87,8 +87,8 @@ void WM_menutype_free(void)
 
   GHASH_ITER (gh_iter, menutypes_hash) {
     MenuType *mt = BLI_ghashIterator_getValue(&gh_iter);
-    if (mt->ext.free) {
-      mt->ext.free(mt->ext.data);
+    if (mt->rna_ext.free) {
+      mt->rna_ext.free(mt->rna_ext.data);
     }
   }
 

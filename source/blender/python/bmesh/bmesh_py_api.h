@@ -24,6 +24,14 @@
 #ifndef __BMESH_PY_API_H__
 #define __BMESH_PY_API_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 PyObject *BPyInit_bmesh(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BMESH_PY_API_H__ */

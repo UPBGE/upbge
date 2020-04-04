@@ -24,28 +24,28 @@
 
 #include <stddef.h>
 
+#include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <math.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_genfile.h"
 #include "DNA_sdna_types.h"
 
+#include "BKE_idtype.h"
 #include "BKE_main.h"
-#include "BKE_idcode.h"
 
+#include "BLO_blend_defs.h"
 #include "BLO_readfile.h"
 #include "BLO_undofile.h"
-#include "BLO_blend_defs.h"
 
 #include "readfile.h"
 
@@ -272,9 +272,9 @@ LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
     if (bhead->code == ENDB) {
       break;
     }
-    else if (BKE_idcode_is_valid(bhead->code)) {
-      if (BKE_idcode_is_linkable(bhead->code)) {
-        const char *str = BKE_idcode_to_name(bhead->code);
+    else if (BKE_idtype_idcode_is_valid(bhead->code)) {
+      if (BKE_idtype_idcode_is_linkable(bhead->code)) {
+        const char *str = BKE_idtype_idcode_to_name(bhead->code);
 
         if (BLI_gset_add(gathered, (void *)str)) {
           BLI_linklist_prepend(&names, strdup(str));
@@ -374,17 +374,17 @@ BlendFileData *BLO_read_from_memory(const void *mem,
 BlendFileData *BLO_read_from_memfile(Main *oldmain,
                                      const char *filename,
                                      MemFile *memfile,
-                                     eBLOReadSkip skip_flags,
+                                     const struct BlendFileReadParams *params,
                                      ReportList *reports)
 {
   BlendFileData *bfd = NULL;
   FileData *fd;
   ListBase old_mainlist;
 
-  fd = blo_filedata_from_memfile(memfile, reports);
+  fd = blo_filedata_from_memfile(memfile, params, reports);
   if (fd) {
     fd->reports = reports;
-    fd->skip_flags = skip_flags;
+    fd->skip_flags = params->skip_flags;
     BLI_strncpy(fd->relabase, filename, sizeof(fd->relabase));
 
     /* clear ob->proxy_from pointers in old main */
@@ -394,6 +394,12 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
     blo_split_main(&old_mainlist, oldmain);
     /* add the library pointers in oldmap lookup */
     blo_add_library_pointer_map(&old_mainlist, fd);
+
+    if ((params->skip_flags & BLO_READ_SKIP_UNDO_OLD_MAIN) == 0) {
+      /* Build idmap of old main (we only care about local data here, so we can do that after
+       * split_main() call. */
+      blo_make_old_idmap_from_main(fd, old_mainlist.first);
+    }
 
     /* makes lookup of existing images in old main */
     blo_make_image_pointer_map(fd, oldmain);
@@ -406,6 +412,9 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
 
     /* make lookups of existing sound data in old main */
     blo_make_sound_pointer_map(fd, oldmain);
+
+    /* make lookups of existing volume data in old main */
+    blo_make_volume_pointer_map(fd, oldmain);
 
     /* removed packed data from this trick - it's internal data that needs saves */
 
@@ -422,6 +431,9 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
 
     /* ensures relinked sounds are not freed */
     blo_end_sound_pointer_map(fd, oldmain);
+
+    /* ensures relinked volumes are not freed */
+    blo_end_volume_pointer_map(fd, oldmain);
 
     /* Still in-use libraries have already been moved from oldmain to new mainlist,
      * but oldmain itself shall *never* be 'transferred' to new mainlist! */

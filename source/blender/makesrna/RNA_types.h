@@ -121,6 +121,8 @@ typedef enum PropertySubType {
   PROP_PASSWORD = 6,
 
   /* numbers */
+  /** A dimension in pixel units, possibly before DPI scaling (so value may not be the final pixel
+   * value but the one to apply DPI scale to). */
   PROP_PIXEL = 12,
   PROP_UNSIGNED = 13,
   PROP_PERCENTAGE = 14,
@@ -180,8 +182,8 @@ typedef enum PropertyFlag {
    */
   PROP_ANIMATABLE = (1 << 1),
   /**
-   * This flag means when the property's widget is in 'textedit' mode, it will be updated
-   * after every typed char, instead of waiting final validation. Used e.g. for text searchbox.
+   * This flag means when the property's widget is in 'text-edit' mode, it will be updated
+   * after every typed char, instead of waiting final validation. Used e.g. for text search-box.
    * It will also cause UI_BUT_VALUE_CLEAR to be set for text buttons. We could add an own flag
    * for search/filter properties, but this works just fine for now.
    */
@@ -360,6 +362,11 @@ typedef struct ArrayIterator {
   IteratorSkipFunc skip;
 } ArrayIterator;
 
+typedef struct CountIterator {
+  void *ptr;
+  int item;
+} CountIterator;
+
 typedef struct CollectionPropertyIterator {
   /* internal */
   PointerRNA parent;
@@ -368,6 +375,7 @@ typedef struct CollectionPropertyIterator {
   union {
     ArrayIterator array;
     ListBaseIterator listbase;
+    CountIterator count;
     void *custom;
   } internal;
   int idprop;

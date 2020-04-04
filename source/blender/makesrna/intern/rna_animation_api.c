@@ -21,8 +21,8 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -36,18 +36,18 @@
 #ifdef RNA_RUNTIME
 
 #  include "BKE_context.h"
-#  include "BKE_report.h"
 #  include "BKE_nla.h"
+#  include "BKE_report.h"
 
 #  include "ED_keyframing.h"
 
 static void rna_KeyingSet_context_refresh(KeyingSet *ks, bContext *C, ReportList *reports)
 {
   /* TODO: enable access to providing a list of overrides (dsources)? */
-  int success = ANIM_validate_keyingset(C, NULL, ks);
+  const eModifyKey_Returns error = ANIM_validate_keyingset(C, NULL, ks);
 
-  if (success != 0) {
-    switch (success) {
+  if (error != 0) {
+    switch (error) {
       case MODIFYKEY_INVALID_CONTEXT:
         BKE_report(reports, RPT_ERROR, "Invalid context for keying set");
         break;

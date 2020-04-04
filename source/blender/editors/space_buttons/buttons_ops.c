@@ -28,10 +28,10 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
@@ -227,7 +227,7 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
           is_relative = false;
         }
 
-        /* annoying exception!, if were dealing with the user prefs, default relative to be off */
+        /* annoying exception!, if we're dealing with the user prefs, default relative to be off */
         RNA_property_boolean_set(op->ptr, prop_relpath, is_relative);
       }
     }

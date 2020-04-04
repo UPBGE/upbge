@@ -24,10 +24,10 @@
 
 #include "CLG_log.h"
 
-#include "BLI_utildefines.h"
-#include "BLI_sys_types.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_sys_types.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
@@ -110,7 +110,7 @@ static ListBase g_undo_types = {NULL, NULL};
 
 static const UndoType *BKE_undosys_type_from_context(bContext *C)
 {
-  for (const UndoType *ut = g_undo_types.first; ut; ut = ut->next) {
+  LISTBASE_FOREACH (const UndoType *, ut, &g_undo_types) {
     /* No poll means we don't check context. */
     if (ut->poll && ut->poll(C)) {
       return ut;
@@ -143,7 +143,7 @@ static void undosys_id_ref_resolve(void *user_data, UndoRefID *id_ref)
    * for now it's not too bad since it only runs when we access undo! */
   Main *bmain = user_data;
   ListBase *lb = which_libbase(bmain, GS(id_ref->name));
-  for (ID *id = lb->first; id; id = id->next) {
+  LISTBASE_FOREACH (ID *, id, lb) {
     if (STREQ(id_ref->name, id->name) && (id->lib == NULL)) {
       id_ref->ptr = id;
       break;
@@ -163,6 +163,7 @@ static bool undosys_step_encode(bContext *C, Main *bmain, UndoStack *ustack, Und
        * not all members are filled in. */
       us->type->step_foreach_ID_ref(us, undosys_id_ref_store, bmain);
     }
+
 #ifdef WITH_GLOBAL_UNDO_CORRECT_ORDER
     if (us->type == BKE_UNDOSYS_TYPE_MEMFILE) {
       ustack->step_active_memfile = us;
@@ -193,7 +194,7 @@ static void undosys_step_decode(
              * undo step will be correctly resolved, see: T56163. */
             undosys_step_decode(C, bmain, ustack, us_iter, dir, false);
             /* May have been freed on memfile read. */
-            bmain = G.main;
+            bmain = G_MAIN;
           }
           break;
         }
@@ -463,12 +464,12 @@ UndoStep *BKE_undosys_step_push_init_with_type(UndoStack *ustack,
     }
 
     UndoStep *us = MEM_callocN(ut->step_size, __func__);
-    CLOG_INFO(&LOG, 1, "addr=%p, name='%s', type='%s'", us, name, ut->name);
     if (name != NULL) {
       BLI_strncpy(us->name, name, sizeof(us->name));
     }
     us->type = ut;
     ustack->step_init = us;
+    CLOG_INFO(&LOG, 1, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
     ut->step_encode_init(C, us);
     undosys_stack_validate(ustack, false);
     return us;
@@ -550,6 +551,8 @@ bool BKE_undosys_step_push_with_type(UndoStack *ustack,
     }
     us->type = ut;
     /* Initialized, not added yet. */
+
+    CLOG_INFO(&LOG, 1, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
 
     if (!undosys_step_encode(C, G_MAIN, ustack, us)) {
       MEM_freeN(us);
@@ -854,7 +857,7 @@ static void UNUSED_FUNCTION(BKE_undosys_foreach_ID_ref(UndoStack *ustack,
                                                        UndoTypeForEachIDRefFn foreach_ID_ref_fn,
                                                        void *user_data))
 {
-  for (UndoStep *us = ustack->steps.first; us; us = us->next) {
+  LISTBASE_FOREACH (UndoStep *, us, &ustack->steps) {
     const UndoType *ut = us->type;
     if (ut->step_foreach_ID_ref != NULL) {
       ut->step_foreach_ID_ref(us, foreach_ID_ref_fn, user_data);
@@ -873,13 +876,14 @@ void BKE_undosys_print(UndoStack *ustack)
   printf("Undo %d Steps (*: active, #=applied, M=memfile-active, S=skip)\n",
          BLI_listbase_count(&ustack->steps));
   int index = 0;
-  for (UndoStep *us = ustack->steps.first; us; us = us->next) {
-    printf("[%c%c%c%c] %3d type='%s', name='%s'\n",
+  LISTBASE_FOREACH (UndoStep *, us, &ustack->steps) {
+    printf("[%c%c%c%c] %3d {%p} type='%s', name='%s'\n",
            (us == ustack->step_active) ? '*' : ' ',
            us->is_applied ? '#' : ' ',
            (us == ustack->step_active_memfile) ? 'M' : ' ',
            us->skip ? 'S' : ' ',
            index,
+           (void *)us,
            us->type->name,
            us->name);
     index++;

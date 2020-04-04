@@ -30,37 +30,32 @@
 
 // implementation
 
-#include "EXP_PyObjectPlus.h"
-#include <structmember.h>
+#include "ImageRender.h"
+
 #include <float.h>
 #include <math.h>
+#include <structmember.h>
 
-#include "GPU_framebuffer.h"
-#include "GPU_texture.h"
-
-#include "GPU_glew.h"
-
-#include "KX_Globals.h"
 #include "DNA_scene_types.h"
-#include "RAS_FrameBuffer.h"
+#include "EXP_PyObjectPlus.h"
+#include "Exception.h"
+#include "ImageBase.h"
+#include "KX_Globals.h"
 #include "RAS_CameraData.h"
+#include "RAS_FrameBuffer.h"
+#include "RAS_ITexVert.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
-#include "RAS_ITexVert.h"
-#include "BLI_math.h"
-
-#include "ImageRender.h"
-#include "ImageBase.h"
-#include "Exception.h"
 #include "Texture.h"
 
-#include "eevee_private.h"
-
-extern "C" {
-#include "BKE_global.h"
 #include "../depsgraph/DEG_depsgraph_query.h"
+#include "BKE_global.h"
+#include "BLI_math.h"
+#include "GPU_framebuffer.h"
+#include "GPU_glew.h"
+#include "GPU_texture.h"
 #include "GPU_viewport.h"
-}
+#include "eevee_private.h"
 
 ExceptionID SceneInvalid, CameraInvalid, ObserverInvalid, FrameBufferInvalid;
 ExceptionID MirrorInvalid, MirrorSizeInvalid, MirrorNormalInvalid, MirrorHorizontal,
@@ -121,7 +116,7 @@ ImageRender::~ImageRender(void)
 int ImageRender::GetColorBindCode() const
 {
   if (m_camera->GetGPUViewport()) {
-    return GPU_texture_opengl_bindcode(GPU_viewport_color_texture(m_camera->GetGPUViewport()));
+    return GPU_texture_opengl_bindcode(GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0));
   }
   return -1;
 }
@@ -131,7 +126,8 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
 {
   Scene *scene = m_scene->GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, scene, view_layer, false);
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), scene, view_layer, false);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   scene_eval->flag |= SCE_INTERACTIVE_IMAGE_RENDER;
 
@@ -150,7 +146,7 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
       viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
 
   GPU_framebuffer_texture_attach(
-      m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport()), 0, 0);
+      m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0), 0, 0);
   GPU_framebuffer_texture_attach(m_targetfb, DRW_viewport_texture_list_get()->depth, 0, 0);
   GPU_framebuffer_bind(m_targetfb);
 
@@ -158,7 +154,7 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
   ImageViewport::calcViewport(texId, ts, format);
 
   GPU_framebuffer_texture_detach(m_targetfb,
-                                 GPU_viewport_color_texture(m_camera->GetGPUViewport()));
+                                 GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0));
   GPU_framebuffer_texture_detach(m_targetfb, DRW_viewport_texture_list_get()->depth);
 
   GPU_framebuffer_restore();

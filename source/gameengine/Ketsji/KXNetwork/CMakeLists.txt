@@ -24,29 +24,29 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	..
-	../../Common
-	../../Expressions
-	../../GameLogic
-	../../SceneGraph
-	../../../blender/blenlib
+  .
+  ..
+  ../../Common
+  ../../Expressions
+  ../../GameLogic
+  ../../SceneGraph
+  ../../../blender/blenlib
 )
 
 set(INC_SYS
-	../../../../intern/moto/include
+  ../../../../intern/moto/include
 )
 
 set(SRC
-	KX_NetworkMessageManager.cpp
-	KX_NetworkMessageScene.cpp
-	KX_NetworkMessageActuator.cpp
-	KX_NetworkMessageSensor.cpp
+  KX_NetworkMessageManager.cpp
+  KX_NetworkMessageScene.cpp
+  KX_NetworkMessageActuator.cpp
+  KX_NetworkMessageSensor.cpp
 
-	KX_NetworkMessageManager.h
-	KX_NetworkMessageScene.h
-	KX_NetworkMessageActuator.h
-	KX_NetworkMessageSensor.h
+  KX_NetworkMessageManager.h
+  KX_NetworkMessageScene.h
+  KX_NetworkMessageActuator.h
+  KX_NetworkMessageSensor.h
 )
 
 set(LIB

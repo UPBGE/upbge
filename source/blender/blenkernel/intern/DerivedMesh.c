@@ -21,8 +21,8 @@
  * \ingroup bke
  */
 
-#include <string.h>
 #include <limits.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -36,40 +36,40 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_array.h"
-#include "BLI_blenlib.h"
 #include "BLI_bitmap.h"
-#include "BLI_math.h"
-#include "BLI_utildefines.h"
+#include "BLI_blenlib.h"
 #include "BLI_linklist.h"
+#include "BLI_math.h"
 #include "BLI_task.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_bvhutils.h"
+#include "BKE_cdderivedmesh.h"
 #include "BKE_colorband.h"
+#include "BKE_deform.h"
 #include "BKE_editmesh.h"
+#include "BKE_global.h" /* For debug flag, DM_update_tessface_data() func. */
 #include "BKE_key.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_material.h"
-#include "BKE_modifier.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_iterators.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_mesh_runtime.h"
 #include "BKE_mesh_tangent.h"
+#include "BKE_modifier.h"
+#include "BKE_multires.h"
 #include "BKE_object.h"
 #include "BKE_object_deform.h"
 #include "BKE_paint.h"
-#include "BKE_multires.h"
-#include "BKE_bvhutils.h"
-#include "BKE_deform.h"
-#include "BKE_global.h" /* For debug flag, DM_update_tessface_data() func. */
 
 #include "BLI_sys_types.h" /* for intptr_t support */
 
+#include "BKE_shrinkwrap.h"
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
-#include "BKE_shrinkwrap.h"
 
 #include "CLG_log.h"
 
@@ -1400,6 +1400,7 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
 
       /* grab modifiers until index i */
       if ((index != -1) && (BLI_findindex(&ob->modifiers, md) >= index)) {
+        md = NULL;
         break;
       }
     }
@@ -1466,7 +1467,7 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
         continue;
       }
       else {
-        modifier_setError(md, "Hide, Mask and optimized display disabled");
+        modifier_setError(md, "Sculpt: Hide, Mask and optimized display disabled");
       }
     }
 

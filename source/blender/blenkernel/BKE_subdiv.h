@@ -66,7 +66,7 @@ typedef struct SubdivSettings {
 
   /* This refers to an adaptive isolation when creating patches for the subdivided surface.
    *
-   * When is set to to false (aka uniform subdivision) fixed depth of isolation is used, which
+   * When is set to false (aka uniform subdivision) fixed depth of isolation is used, which
    * allows to iteratively add more subdivisions (uniform subdivision level 2 = uniform subdivision
    * level 1 + uniform subdivision level 1). Uniform subdivisions will progressively go to a limit
    * surface.
@@ -286,6 +286,10 @@ BLI_INLINE int BKE_subdiv_rotate_quad_to_corner(const float quad_u,
  * normalized ptex coordinates. */
 BLI_INLINE void BKE_subdiv_rotate_grid_to_quad(
     const int corner, const float grid_u, const float grid_v, float *r_quad_u, float *r_quad_v);
+
+/* Convert Blender edge crease value to OpenSubdiv sharpness. */
+BLI_INLINE float BKE_subdiv_edge_crease_to_sharpness_f(float edge_crease);
+BLI_INLINE float BKE_subdiv_edge_crease_to_sharpness_char(char edge_crease);
 
 #ifdef __cplusplus
 }

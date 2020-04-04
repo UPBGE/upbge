@@ -22,6 +22,7 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_volume_types.h"
 
 #include "BKE_curve.h"
 #include "BKE_displist.h"
@@ -32,8 +33,8 @@
 
 #include "BLI_hash.h"
 
-#include "GPU_shader.h"
 #include "DRW_render.h"
+#include "GPU_shader.h"
 
 #include "ED_view3d.h"
 
@@ -50,6 +51,7 @@ void OVERLAY_wireframe_init(OVERLAY_Data *vedata)
 void OVERLAY_wireframe_cache_init(OVERLAY_Data *vedata)
 {
   OVERLAY_PassList *psl = vedata->psl;
+  OVERLAY_TextureList *txl = vedata->txl;
   OVERLAY_PrivateData *pd = vedata->stl->pd;
   const DRWContextState *draw_ctx = DRW_context_state_get();
   DRWShadingGroup *grp = NULL;
@@ -65,46 +67,43 @@ void OVERLAY_wireframe_cache_init(OVERLAY_Data *vedata)
 
   const bool use_select = (DRW_state_is_select() || DRW_state_is_depth());
   GPUShader *wires_sh = use_select ? OVERLAY_shader_wireframe_select() :
-                                     OVERLAY_shader_wireframe();
+                                     OVERLAY_shader_wireframe(pd->antialiasing.enabled);
 
   for (int xray = 0; xray < (is_material_shmode ? 1 : 2); xray++) {
-    /* Only do stencil test if stencil buffer is written by the render engine. */
-    DRWState stencil_state = is_material_shmode ? 0 : DRW_STATE_STENCIL_EQUAL;
     DRWState state = DRW_STATE_FIRST_VERTEX_CONVENTION | DRW_STATE_WRITE_COLOR |
                      DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL;
     DRWPass *pass;
-    uint stencil_mask;
+    GPUTexture **depth_tx = (pd->xray_enabled || pd->xray_opacity > 0.0f) ? &txl->temp_depth_tx :
+                                                                            &txl->dummy_depth_tx;
 
     if (xray == 0) {
-      DRW_PASS_CREATE(psl->wireframe_ps, state | stencil_state | pd->clipping_state);
+      DRW_PASS_CREATE(psl->wireframe_ps, state | pd->clipping_state);
       pass = psl->wireframe_ps;
-      stencil_mask = 0xFF;
     }
     else {
       DRW_PASS_CREATE(psl->wireframe_xray_ps, state | pd->clipping_state);
       pass = psl->wireframe_xray_ps;
-      stencil_mask = 0x00;
     }
 
     for (int use_coloring = 0; use_coloring < 2; use_coloring++) {
       pd->wires_grp[xray][use_coloring] = grp = DRW_shgroup_create(wires_sh, pass);
       DRW_shgroup_uniform_block_persistent(grp, "globalsBlock", G_draw.block_ubo);
+      DRW_shgroup_uniform_texture_ref(grp, "depthTex", depth_tx);
       DRW_shgroup_uniform_float_copy(grp, "wireStepParam", pd->shdata.wire_step_param);
       DRW_shgroup_uniform_bool_copy(grp, "useColoring", use_coloring);
       DRW_shgroup_uniform_bool_copy(grp, "isTransform", (G.moving & G_TRANSFORM_OBJ) != 0);
       DRW_shgroup_uniform_bool_copy(grp, "isObjectColor", is_object_color);
       DRW_shgroup_uniform_bool_copy(grp, "isRandomColor", is_random_color);
-      DRW_shgroup_stencil_mask(grp, stencil_mask);
 
       pd->wires_all_grp[xray][use_coloring] = grp = DRW_shgroup_create(wires_sh, pass);
+      DRW_shgroup_uniform_texture_ref(grp, "depthTex", depth_tx);
       DRW_shgroup_uniform_float_copy(grp, "wireStepParam", 1.0f);
-      DRW_shgroup_stencil_mask(grp, stencil_mask);
     }
 
     pd->wires_sculpt_grp[xray] = grp = DRW_shgroup_create(wires_sh, pass);
+    DRW_shgroup_uniform_texture_ref(grp, "depthTex", depth_tx);
     DRW_shgroup_uniform_float_copy(grp, "wireStepParam", 10.0f);
     DRW_shgroup_uniform_bool_copy(grp, "useColoring", false);
-    DRW_shgroup_stencil_mask(grp, stencil_mask);
   }
 
   if (is_material_shmode) {
@@ -129,8 +128,10 @@ void OVERLAY_wireframe_cache_populate(OVERLAY_Data *vedata,
   const bool all_wires = (ob->dtx & OB_DRAW_ALL_EDGES) != 0;
   const bool is_xray = (ob->dtx & OB_DRAWXRAY) != 0;
   const bool is_mesh = ob->type == OB_MESH;
-  const bool use_wire = (pd->overlay.flag & V3D_OVERLAY_WIREFRAMES) || (ob->dtx & OB_DRAWWIRE) ||
-                        (ob->dt == OB_WIRE);
+  const bool is_mesh_verts_only = is_mesh && (((Mesh *)ob->data)->totedge == 0 &&
+                                              ((Mesh *)ob->data)->totvert > 0);
+  const bool use_wire = !is_mesh_verts_only && ((pd->overlay.flag & V3D_OVERLAY_WIREFRAMES) ||
+                                                (ob->dtx & OB_DRAWWIRE) || (ob->dt == OB_WIRE));
 
   if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
     OVERLAY_ExtraCallBuffers *cb = OVERLAY_extra_call_buffer_get(vedata, ob);
@@ -169,6 +170,22 @@ void OVERLAY_wireframe_cache_populate(OVERLAY_Data *vedata,
     }
   }
 
+  if (use_wire && ob->type == OB_VOLUME) {
+    /* Volume object as points exception. */
+    Volume *volume = ob->data;
+    if (volume->display.wireframe_type == VOLUME_WIREFRAME_POINTS) {
+      float *color;
+      OVERLAY_ExtraCallBuffers *cb = OVERLAY_extra_call_buffer_get(vedata, ob);
+      DRW_object_wire_theme_get(ob, draw_ctx->view_layer, &color);
+
+      struct GPUBatch *geom = DRW_cache_object_face_wireframe_get(ob);
+      if (geom) {
+        OVERLAY_extra_loose_points(cb, geom, ob->obmat, color);
+      }
+      return;
+    }
+  }
+
   const bool is_edit_mode = DRW_object_is_in_edit_mode(ob);
   bool has_edit_mesh_cage = false;
   if (is_mesh && is_edit_mode) {
@@ -201,7 +218,11 @@ void OVERLAY_wireframe_cache_populate(OVERLAY_Data *vedata,
         shgrp = pd->wires_grp[is_xray][use_coloring];
       }
 
-      if (use_sculpt_pbvh) {
+      if (ob->type == OB_GPENCIL) {
+        /* TODO (fclem) Make GPencil objects have correct boundbox. */
+        DRW_shgroup_call_no_cull(shgrp, geom, ob);
+      }
+      else if (use_sculpt_pbvh) {
         DRW_shgroup_call_sculpt(shgrp, ob, true, false, false);
       }
       else {
@@ -216,12 +237,11 @@ void OVERLAY_wireframe_cache_populate(OVERLAY_Data *vedata,
   }
   else if (is_mesh && (!is_edit_mode || has_edit_mesh_cage)) {
     OVERLAY_ExtraCallBuffers *cb = OVERLAY_extra_call_buffer_get(vedata, ob);
-    Mesh *me = ob->data;
     float *color;
     DRW_object_wire_theme_get(ob, draw_ctx->view_layer, &color);
 
     /* Draw loose geometry. */
-    if (me->totedge == 0 && me->totvert > 0) {
+    if (is_mesh_verts_only) {
       struct GPUBatch *geom = DRW_cache_mesh_all_verts_get(ob);
       if (geom) {
         OVERLAY_extra_loose_points(cb, geom, ob->obmat, color);

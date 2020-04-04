@@ -30,37 +30,31 @@
 
 // implementation
 
-#include "EXP_PyObjectPlus.h"
-#include <structmember.h>
-
-#include "KX_GameObject.h"
-#include "KX_Light.h"
-#include "RAS_MeshObject.h"
-#include "RAS_ILightObject.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_image_types.h"
-#include "IMB_imbuf_types.h"
-#include "BKE_image.h"
-
-#include "MEM_guardedalloc.h"
-
-#include "RAS_IPolygonMaterial.h"
-#include "RAS_Texture.h"
-
-#include "KX_KetsjiEngine.h"
-#include "KX_Globals.h"
 #include "Texture.h"
-#include "ImageBase.h"
-#include "Exception.h"
 
 #include <memory.h>
+#include <structmember.h>
+
+#include "BKE_image.h"
+#include "DNA_image_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "GPU_glew.h"
 #include "GPU_texture.h"
-
-extern "C" {
 #include "IMB_imbuf.h"
-}
+#include "IMB_imbuf_types.h"
+#include "MEM_guardedalloc.h"
+
+#include "EXP_PyObjectPlus.h"
+#include "Exception.h"
+#include "ImageBase.h"
+#include "KX_GameObject.h"
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
+#include "KX_Light.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_MeshObject.h"
+#include "RAS_Texture.h"
 
 static std::vector<Texture *> textures;
 
@@ -139,12 +133,12 @@ void Texture::Close()
       m_matTexture->SetBindCode(m_orgTex);
       if (m_imgTexture) {
         // This is requierd for texture used in blender material.
-        GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D];
+        GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D][0];
         GPU_texture_set_opengl_bindcode(tex, m_orgImg);
       }
     }
     else {
-      GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D];
+      GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D][0];
       GPU_texture_set_opengl_bindcode(tex, m_orgImg);
       BKE_image_release_ibuf(m_imgTexture, m_imgBuf, nullptr);
       m_imgBuf = nullptr;
@@ -328,8 +322,8 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
         tex->m_useMatTexture = true;
       }
       else if (lamp != nullptr) {
-        tex->m_imgTexture = lamp->GetLightData()->GetTextureImage(texID);
-        tex->m_useMatTexture = false;
+        // tex->m_imgTexture = lamp->GetLightData()->GetTextureImage(texID);
+        // tex->m_useMatTexture = false;
       }
 
       // check if texture is available, if not, initialization failed
@@ -399,7 +393,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
             GPU_texture_set_opengl_bindcode(m_matTexture->GetGPUTexture(), m_actTex);
             m_matTexture->SetBindCode(m_actTex);
             if (m_imgTexture) {
-              GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D];
+              GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D][0];
               m_orgImg = GPU_texture_opengl_bindcode(tex);
               GPU_texture_set_opengl_bindcode(tex, m_actTex);
             }
@@ -411,7 +405,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
             // WARNING: GPU has a ImageUser to pass, we don't. Using nullptr
             // works on image file, not necessarily on other type of image.
             m_imgBuf = BKE_image_acquire_ibuf(m_imgTexture, nullptr, nullptr);
-            GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D];
+            GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_TEXTURE_2D][0];
             m_orgImg = GPU_texture_opengl_bindcode(tex);
             GPU_texture_set_opengl_bindcode(tex, m_actTex);
           }

@@ -148,9 +148,9 @@ static void drawArc(float angle_start, float angle_end, int segments, float size
  */
 bool transform_draw_cursor_poll(bContext *C)
 {
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
 
-  if (ar && ar->regiontype == RGN_TYPE_WINDOW) {
+  if (region && region->regiontype == RGN_TYPE_WINDOW) {
     return 1;
   }
   return 0;
@@ -181,8 +181,8 @@ void transform_draw_cursor_draw(bContext *UNUSED(C), int x, int y, void *customd
     projectFloatViewEx(t, t->center_global, cent, V3D_PROJ_TEST_CLIP_ZERO);
     /* Offset the values for the area region. */
     const float offset[2] = {
-        t->ar->winrct.xmin,
-        t->ar->winrct.ymin,
+        t->region->winrct.xmin,
+        t->region->winrct.ymin,
     };
 
     for (int i = 0; i < 2; i++) {
@@ -313,7 +313,7 @@ void transform_draw_cursor_draw(bContext *UNUSED(C), int x, int y, void *customd
         break;
       }
       case HLP_TRACKBALL: {
-        unsigned char col[3], col2[3];
+        uchar col[3], col2[3];
         UI_GetThemeColor3ubv(TH_GRID, col);
 
         GPU_matrix_translate_3fv(mval);

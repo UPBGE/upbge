@@ -27,12 +27,13 @@
 #ifndef __KX_LOD_MANAGER_H__
 #define __KX_LOD_MANAGER_H__
 
-#include "EXP_Value.h"
 #include <vector>
+
+#include "EXP_Value.h"
 
 class KX_Scene;
 class RAS_Rasterizer;
-class KX_BlenderSceneConverter;
+class BL_BlenderSceneConverter;
 class KX_LodLevel;
 struct Object;
 
@@ -82,7 +83,7 @@ class KX_LodManager : public CValue {
   KX_LodManager(Object *ob,
                 KX_Scene *scene,
                 RAS_Rasterizer *rasty,
-                KX_BlenderSceneConverter &converter,
+                BL_BlenderSceneConverter &converter,
                 bool libloading);
   KX_LodManager(class RAS_MeshObject *meshObj);  // just to use for ReplaceMesh
   virtual ~KX_LodManager();

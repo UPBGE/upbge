@@ -33,16 +33,16 @@
  * (where they get converted into C++ classes - CValue and subclasses)
  */
 
+#include <ctype.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
 #include <string.h>
-#include <ctype.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_property_types.h"
 #include "DNA_object_types.h"
+#include "DNA_property_types.h"
 
 #include "BLI_blenlib.h"
 

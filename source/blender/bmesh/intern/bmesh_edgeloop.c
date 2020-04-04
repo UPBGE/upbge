@@ -25,11 +25,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_vector.h"
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_mempool.h"
-#include "BLI_utildefines_iter.h"
 #include "BLI_stack.h"
+#include "BLI_utildefines_iter.h"
 
 #include "bmesh.h"
 
@@ -82,7 +82,7 @@ static bool bm_loop_build(BMEdgeLoopStore *el_store, BMVert *v_prev, BMVert *v, 
   BMVert *v_next;
   BMVert *v_first = v;
 
-  BLI_assert(ABS(dir) == 1);
+  BLI_assert(abs(dir) == 1);
 
   if (!BM_elem_flag_test(v, BM_ELEM_INTERNAL_TAG)) {
     return true;
@@ -224,7 +224,7 @@ static bool bm_loop_path_build_step(BLI_mempool *vs_pool,
 {
   ListBase lb_tmp = {NULL, NULL};
   struct VertStep *vs, *vs_next;
-  BLI_assert(ABS(dir) == 1);
+  BLI_assert(abs(dir) == 1);
 
   for (vs = lb->first; vs; vs = vs_next) {
     BMIter iter;

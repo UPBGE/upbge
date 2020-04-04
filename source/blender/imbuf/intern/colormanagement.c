@@ -24,8 +24,8 @@
 #include "IMB_colormanagement.h"
 #include "IMB_colormanagement_intern.h"
 
-#include <string.h>
 #include <math.h>
+#include <string.h>
 
 #include "DNA_color_types.h"
 #include "DNA_image_types.h"
@@ -33,21 +33,21 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
 #include "IMB_filetype.h"
 #include "IMB_filter.h"
-#include "IMB_moviecache.h"
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 #include "IMB_metadata.h"
+#include "IMB_moviecache.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_math_color.h"
+#include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
-#include "BLI_rect.h"
 
 #include "BKE_appdir.h"
 #include "BKE_colortools.h"
@@ -789,18 +789,18 @@ void colormanage_cache_free(ImBuf *ibuf)
 
 void IMB_colormanagement_display_settings_from_ctx(
     const bContext *C,
-    ColorManagedViewSettings **view_settings_r,
-    ColorManagedDisplaySettings **display_settings_r)
+    ColorManagedViewSettings **r_view_settings,
+    ColorManagedDisplaySettings **r_display_settings)
 {
   Scene *scene = CTX_data_scene(C);
   SpaceImage *sima = CTX_wm_space_image(C);
 
-  *view_settings_r = &scene->view_settings;
-  *display_settings_r = &scene->display_settings;
+  *r_view_settings = &scene->view_settings;
+  *r_display_settings = &scene->display_settings;
 
   if (sima && sima->image) {
     if ((sima->image->flag & IMA_VIEW_AS_RENDER) == 0) {
-      *view_settings_r = NULL;
+      *r_view_settings = NULL;
     }
   }
 }
@@ -2293,7 +2293,7 @@ void IMB_colormanagement_imbuf_to_float_texture(float *out_buffer,
   for (int y = 0; y < height; y++) {
     const size_t in_offset = (offset_y + y) * ibuf->x + offset_x;
     const size_t out_offset = y * width;
-    const float *in = in_buffer + in_offset * 4;
+    const float *in = in_buffer + in_offset * in_channels;
     float *out = out_buffer + out_offset * 4;
 
     if (in_channels == 1) {

@@ -20,17 +20,17 @@
 
 #include <math.h>
 
-#include "BLI_utildefines.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_image.h"
 #include "BKE_main.h"
 
-#include "ED_screen.h"
 #include "ED_gizmo_library.h"
+#include "ED_screen.h"
 
 #include "IMB_imbuf_types.h"
 
@@ -48,26 +48,26 @@
  * \{ */
 
 static void node_gizmo_calc_matrix_space(const SpaceNode *snode,
-                                         const ARegion *ar,
+                                         const ARegion *region,
                                          float matrix_space[4][4])
 {
   unit_m4(matrix_space);
   mul_v3_fl(matrix_space[0], snode->zoom);
   mul_v3_fl(matrix_space[1], snode->zoom);
-  matrix_space[3][0] = (ar->winx / 2) + snode->xof;
-  matrix_space[3][1] = (ar->winy / 2) + snode->yof;
+  matrix_space[3][0] = (region->winx / 2) + snode->xof;
+  matrix_space[3][1] = (region->winy / 2) + snode->yof;
 }
 
 static void node_gizmo_calc_matrix_space_with_image_dims(const SpaceNode *snode,
-                                                         const ARegion *ar,
+                                                         const ARegion *region,
                                                          const float image_dims[2],
                                                          float matrix_space[4][4])
 {
   unit_m4(matrix_space);
   mul_v3_fl(matrix_space[0], snode->zoom * image_dims[0]);
   mul_v3_fl(matrix_space[1], snode->zoom * image_dims[1]);
-  matrix_space[3][0] = ((ar->winx / 2) + snode->xof) - ((image_dims[0] / 2.0f) * snode->zoom);
-  matrix_space[3][1] = ((ar->winy / 2) + snode->yof) - ((image_dims[1] / 2.0f) * snode->zoom);
+  matrix_space[3][0] = ((region->winx / 2) + snode->xof) - ((image_dims[0] / 2.0f) * snode->zoom);
+  matrix_space[3][1] = ((region->winy / 2) + snode->yof) - ((image_dims[1] / 2.0f) * snode->zoom);
 }
 
 /** \} */
@@ -138,12 +138,12 @@ static void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *
 {
   Main *bmain = CTX_data_main(C);
   wmGizmo *cage = ((wmGizmoWrapper *)gzgroup->customdata)->gizmo;
-  const ARegion *ar = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(C);
   /* center is always at the origin */
-  const float origin[3] = {ar->winx / 2, ar->winy / 2};
+  const float origin[3] = {region->winx / 2, region->winy / 2};
 
   void *lock;
-  Image *ima = BKE_image_verify_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 
   if (ibuf) {
@@ -352,12 +352,12 @@ static void WIDGETGROUP_node_crop_setup(const bContext *UNUSED(C), wmGizmoGroup 
 
 static void WIDGETGROUP_node_crop_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   wmGizmo *gz = gzgroup->gizmos.first;
 
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  node_gizmo_calc_matrix_space(snode, ar, gz->matrix_space);
+  node_gizmo_calc_matrix_space(snode, region, gz->matrix_space);
 }
 
 static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
@@ -367,7 +367,7 @@ static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgro
   wmGizmo *gz = crop_group->border;
 
   void *lock;
-  Image *ima = BKE_image_verify_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 
   if (ibuf) {
@@ -459,7 +459,7 @@ static void WIDGETGROUP_node_sbeam_setup(const bContext *UNUSED(C), wmGizmoGroup
 
   RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_MOVE_STYLE_CROSS_2D);
 
-  gz->scale_basis = 0.05f;
+  gz->scale_basis = 0.05f / 75.0f;
 
   gzgroup->customdata = sbeam_group;
 }
@@ -467,13 +467,13 @@ static void WIDGETGROUP_node_sbeam_setup(const bContext *UNUSED(C), wmGizmoGroup
 static void WIDGETGROUP_node_sbeam_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   struct NodeSunBeamsWidgetGroup *sbeam_group = gzgroup->customdata;
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   wmGizmo *gz = gzgroup->gizmos.first;
 
   SpaceNode *snode = CTX_wm_space_node(C);
 
   node_gizmo_calc_matrix_space_with_image_dims(
-      snode, ar, sbeam_group->state.dims, gz->matrix_space);
+      snode, region, sbeam_group->state.dims, gz->matrix_space);
 }
 
 static void WIDGETGROUP_node_sbeam_refresh(const bContext *C, wmGizmoGroup *gzgroup)
@@ -483,7 +483,7 @@ static void WIDGETGROUP_node_sbeam_refresh(const bContext *C, wmGizmoGroup *gzgr
   wmGizmo *gz = sbeam_group->gizmo;
 
   void *lock;
-  Image *ima = BKE_image_verify_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 
   if (ibuf) {
@@ -566,7 +566,7 @@ static void WIDGETGROUP_node_corner_pin_setup(const bContext *UNUSED(C), wmGizmo
 
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_MOVE_STYLE_CROSS_2D);
 
-    gz->scale_basis = 0.01f;
+    gz->scale_basis = 0.01f / 75.0;
   }
 
   gzgroup->customdata = cpin_group;
@@ -575,12 +575,13 @@ static void WIDGETGROUP_node_corner_pin_setup(const bContext *UNUSED(C), wmGizmo
 static void WIDGETGROUP_node_corner_pin_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   struct NodeCornerPinWidgetGroup *cpin_group = gzgroup->customdata;
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
 
   SpaceNode *snode = CTX_wm_space_node(C);
 
   float matrix_space[4][4];
-  node_gizmo_calc_matrix_space_with_image_dims(snode, ar, cpin_group->state.dims, matrix_space);
+  node_gizmo_calc_matrix_space_with_image_dims(
+      snode, region, cpin_group->state.dims, matrix_space);
 
   for (int i = 0; i < 4; i++) {
     wmGizmo *gz = cpin_group->gizmos[i];
@@ -594,7 +595,7 @@ static void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup 
   struct NodeCornerPinWidgetGroup *cpin_group = gzgroup->customdata;
 
   void *lock;
-  Image *ima = BKE_image_verify_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 
   if (ibuf) {

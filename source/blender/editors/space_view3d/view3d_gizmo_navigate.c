@@ -26,8 +26,8 @@
 
 #include "DNA_object_types.h"
 
-#include "ED_screen.h"
 #include "ED_gizmo_library.h"
+#include "ED_screen.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -239,27 +239,27 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
 static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   struct NavigateWidgetGroup *navgroup = gzgroup->customdata;
-  ARegion *ar = CTX_wm_region(C);
-  const RegionView3D *rv3d = ar->regiondata;
+  ARegion *region = CTX_wm_region(C);
+  const RegionView3D *rv3d = region->regiondata;
 
   for (int i = 0; i < 3; i++) {
     copy_v3_v3(navgroup->gz_array[GZ_INDEX_ROTATE]->matrix_offset[i], rv3d->viewmat[i]);
   }
 
-  const rcti *rect_visible = ED_region_visible_rect(ar);
+  const rcti *rect_visible = ED_region_visible_rect(region);
 
   if ((navgroup->state.rect_visible.xmax == rect_visible->xmax) &&
       (navgroup->state.rect_visible.ymax == rect_visible->ymax) &&
       (navgroup->state.rv3d.is_persp == rv3d->is_persp) &&
       (navgroup->state.rv3d.is_camera == (rv3d->persp == RV3D_CAMOB)) &&
-      (navgroup->state.rv3d.viewlock == rv3d->viewlock)) {
+      (navgroup->state.rv3d.viewlock == RV3D_LOCK_FLAGS(rv3d))) {
     return;
   }
 
   navgroup->state.rect_visible = *rect_visible;
   navgroup->state.rv3d.is_persp = rv3d->is_persp;
   navgroup->state.rv3d.is_camera = (rv3d->persp == RV3D_CAMOB);
-  navgroup->state.rv3d.viewlock = rv3d->viewlock;
+  navgroup->state.rv3d.viewlock = RV3D_LOCK_FLAGS(rv3d);
 
   const bool show_navigate = (U.uiflag & USER_SHOW_GIZMO_NAVIGATE) != 0;
   const bool show_rotate_gizmo = (U.mini_axis_type == USER_MINI_AXIS_TYPE_GIZMO);
@@ -296,7 +296,6 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
   }
 
-  /* RV3D_LOCKED or Camera: only show supported buttons. */
   if (show_rotate_gizmo) {
     gz = navgroup->gz_array[GZ_INDEX_ROTATE];
     gz->matrix_basis[3][0] = co_rotate[0];
@@ -306,26 +305,30 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
 
   if (show_navigate) {
     int icon_mini_slot = 0;
-    gz = navgroup->gz_array[GZ_INDEX_ZOOM];
-    gz->matrix_basis[3][0] = co[0];
-    gz->matrix_basis[3][1] = co[1] - (icon_offset_mini * icon_mini_slot++);
-    WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
+    if ((RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ZOOM_AND_DOLLY) == 0) {
+      gz = navgroup->gz_array[GZ_INDEX_ZOOM];
+      gz->matrix_basis[3][0] = roundf(co[0]);
+      gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
+      WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
+    }
 
-    gz = navgroup->gz_array[GZ_INDEX_MOVE];
-    gz->matrix_basis[3][0] = co[0];
-    gz->matrix_basis[3][1] = co[1] - (icon_offset_mini * icon_mini_slot++);
-    WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
+    if ((RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_LOCATION) == 0) {
+      gz = navgroup->gz_array[GZ_INDEX_MOVE];
+      gz->matrix_basis[3][0] = roundf(co[0]);
+      gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
+      WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
+    }
 
-    if ((rv3d->viewlock & RV3D_LOCKED) == 0) {
+    if ((RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION) == 0) {
       gz = navgroup->gz_array[GZ_INDEX_CAMERA];
-      gz->matrix_basis[3][0] = co[0];
-      gz->matrix_basis[3][1] = co[1] - (icon_offset_mini * icon_mini_slot++);
+      gz->matrix_basis[3][0] = roundf(co[0]);
+      gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
 
       if (navgroup->state.rv3d.is_camera == false) {
         gz = navgroup->gz_array[rv3d->is_persp ? GZ_INDEX_PERSP : GZ_INDEX_ORTHO];
-        gz->matrix_basis[3][0] = co[0];
-        gz->matrix_basis[3][1] = co[1] - (icon_offset_mini * icon_mini_slot++);
+        gz->matrix_basis[3][0] = roundf(co[0]);
+        gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
         WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
       }
     }

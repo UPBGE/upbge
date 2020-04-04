@@ -34,105 +34,32 @@
 
 #include "KX_GameObject.h"
 
-struct GPULamp;
-struct Scene;
-struct BaseLegacy;
-class KX_Scene;
-class KX_Camera;
-class RAS_ILightObject;
-class MT_Transform;
+struct Light;
+struct Object;
 
 class KX_LightObject : public KX_GameObject {
-  Py_Header protected : RAS_ILightObject *m_lightobj;
+  Py_Header
 
-  bool m_showShadowFrustum;
+      protected :
+
+      Object *m_obLight;
+  Light *m_light;
 
  public:
-  KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, RAS_ILightObject *lightobj);
+  KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, Object *ob);
   virtual ~KX_LightObject();
 
+  virtual void ProcessReplica();
   virtual CValue *GetReplica();
-  RAS_ILightObject *GetLightData()
-  {
-    return m_lightobj;
-  }
-
-  MT_Matrix4x4 GetShadowFrustumMatrix() const;
-
-  bool GetShowShadowFrustum() const;
-  void SetShowShadowFrustum(bool show);
-
-  virtual void SetLayer(int layer);
 
   virtual int GetGameObjectType() const
   {
     return OBJ_LIGHT;
   }
 
-#ifdef WITH_PYTHON
-  // functions
-  KX_PYMETHOD_DOC_NOARGS(KX_LightObject, updateShadow);
+  Light *GetLight();
 
-  // attributes
-  static PyObject *pyattr_get_energy(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_energy(PyObjectPlus *self_v,
-                               const KX_PYATTRIBUTE_DEF *attrdef,
-                               PyObject *value);
-  static PyObject *pyattr_get_shadow_clip_start(PyObjectPlus *self_v,
-                                                const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_shadow_clip_end(PyObjectPlus *self_v,
-                                              const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_shadow_frustum_size(PyObjectPlus *self_v,
-                                                  const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_shadow_bind_code(PyObjectPlus *self_v,
-                                               const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_shadow_bias(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_shadow_bleed_bias(PyObjectPlus *self_v,
-                                                const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_shadow_map_type(PyObjectPlus *self_v,
-                                              const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_shadow_color(PyObjectPlus *self_v,
-                                           const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_shadow_active(PyObjectPlus *self_v,
-                                            const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_shadow_matrix(PyObjectPlus *self_v,
-                                            const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_distance(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_distance(PyObjectPlus *self_v,
-                                 const KX_PYATTRIBUTE_DEF *attrdef,
-                                 PyObject *value);
-  static PyObject *pyattr_get_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_color(PyObjectPlus *self_v,
-                              const KX_PYATTRIBUTE_DEF *attrdef,
-                              PyObject *value);
-  static PyObject *pyattr_get_lin_attenuation(PyObjectPlus *self_v,
-                                              const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_lin_attenuation(PyObjectPlus *self_v,
-                                        const KX_PYATTRIBUTE_DEF *attrdef,
-                                        PyObject *value);
-  static PyObject *pyattr_get_quad_attenuation(PyObjectPlus *self_v,
-                                               const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_quad_attenuation(PyObjectPlus *self_v,
-                                         const KX_PYATTRIBUTE_DEF *attrdef,
-                                         PyObject *value);
-  static PyObject *pyattr_get_spotsize(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_spotsize(PyObjectPlus *self_v,
-                                 const KX_PYATTRIBUTE_DEF *attrdef,
-                                 PyObject *value);
-  static PyObject *pyattr_get_spotblend(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_spotblend(PyObjectPlus *self_v,
-                                  const KX_PYATTRIBUTE_DEF *attrdef,
-                                  PyObject *value);
-  static PyObject *pyattr_get_typeconst(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_type(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_type(PyObjectPlus *self_v,
-                             const KX_PYATTRIBUTE_DEF *attrdef,
-                             PyObject *value);
-  static PyObject *pyattr_get_static_shadow(PyObjectPlus *self_v,
-                                            const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_static_shadow(PyObjectPlus *self_v,
-                                      const KX_PYATTRIBUTE_DEF *attrdef,
-                                      PyObject *value);
+#ifdef WITH_PYTHON
 #endif
 };
 

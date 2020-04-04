@@ -16,15 +16,16 @@
 
 #ifdef WITH_OPENCL
 
-#  include "device/opencl/device_opencl.h"
 #  include "device/device_intern.h"
+#  include "device/opencl/device_opencl.h"
 
 #  include "util/util_debug.h"
 #  include "util/util_logging.h"
 #  include "util/util_md5.h"
 #  include "util/util_path.h"
-#  include "util/util_time.h"
+#  include "util/util_semaphore.h"
 #  include "util/util_system.h"
+#  include "util/util_time.h"
 
 using std::cerr;
 using std::endl;
@@ -390,8 +391,27 @@ static void escape_python_string(string &str)
   string_replace(str, "'", "\'");
 }
 
+static int opencl_compile_process_limit()
+{
+  /* Limit number of concurrent processes compiling, with a heuristic based
+   * on total physical RAM and estimate of memory usage needed when compiling
+   * with all Cycles features enabled.
+   *
+   * This is somewhat arbitrary as we don't know the actual available RAM or
+   * how much the kernel compilation will needed depending on the features, but
+   * better than not limiting at all. */
+  static const int64_t GB = 1024LL * 1024LL * 1024LL;
+  static const int64_t process_memory = 2 * GB;
+  static const int64_t base_memory = 2 * GB;
+  static const int64_t system_memory = system_physical_ram();
+  static const int64_t process_limit = (system_memory - base_memory) / process_memory;
+
+  return max((int)process_limit, 1);
+}
+
 bool OpenCLDevice::OpenCLProgram::compile_separate(const string &clbin)
 {
+  /* Construct arguments. */
   vector<string> args;
   args.push_back("--background");
   args.push_back("--factory-startup");
@@ -419,14 +439,23 @@ bool OpenCLDevice::OpenCLProgram::compile_separate(const string &clbin)
       kernel_file_escaped.c_str(),
       clbin_escaped.c_str()));
 
-  double starttime = time_dt();
+  /* Limit number of concurrent processes compiling. */
+  static thread_counting_semaphore semaphore(opencl_compile_process_limit());
+  semaphore.acquire();
+
+  /* Compile. */
+  const double starttime = time_dt();
   add_log(string("Cycles: compiling OpenCL program ") + program_name + "...", false);
   add_log(string("Build flags: ") + kernel_build_options, true);
-  if (!system_call_self(args) || !path_exists(clbin)) {
+  const bool success = system_call_self(args);
+  const double elapsed = time_dt() - starttime;
+
+  semaphore.release();
+
+  if (!success || !path_exists(clbin)) {
     return false;
   }
 
-  double elapsed = time_dt() - starttime;
   add_log(
       string_printf("Kernel compilation of %s finished in %.2lfs.", program_name.c_str(), elapsed),
       false);
@@ -747,6 +776,10 @@ bool OpenCLInfo::device_supported(const string &platform_name, const cl_device_i
   }
   VLOG(3) << "OpenCL driver version " << driver_major << "." << driver_minor;
 
+  if (getenv("CYCLES_OPENCL_TEST")) {
+    return true;
+  }
+
   /* It is possible to have Iris GPU on AMD/Apple OpenCL framework
    * (aka, it will not be on Intel framework). This isn't supported
    * and needs an explicit blacklist.
@@ -806,18 +839,30 @@ bool OpenCLInfo::platform_version_check(cl_platform_id platform, string *error)
   return true;
 }
 
-bool OpenCLInfo::device_version_check(cl_device_id device, string *error)
+bool OpenCLInfo::get_device_version(cl_device_id device, int *r_major, int *r_minor, string *error)
 {
-  const int req_major = 1, req_minor = 1;
-  int major, minor;
   char version[256];
   clGetDeviceInfo(device, CL_DEVICE_OPENCL_C_VERSION, sizeof(version), &version, NULL);
-  if (sscanf(version, "OpenCL C %d.%d", &major, &minor) < 2) {
+  if (sscanf(version, "OpenCL C %d.%d", r_major, r_minor) < 2) {
     if (error != NULL) {
       *error = string_printf("OpenCL: failed to parse OpenCL C version string (%s).", version);
     }
     return false;
   }
+  if (error != NULL) {
+    *error = "";
+  }
+  return true;
+}
+
+bool OpenCLInfo::device_version_check(cl_device_id device, string *error)
+{
+  const int req_major = 1, req_minor = 1;
+  int major, minor;
+  if (!get_device_version(device, &major, &minor, error)) {
+    return false;
+  }
+
   if (!((major == req_major && minor >= req_minor) || (major > req_major))) {
     if (error != NULL) {
       *error = string_printf("OpenCL: C version 1.1 or later required, found %d.%d", major, minor);
@@ -858,7 +903,7 @@ string OpenCLInfo::get_hardware_id(const string &platform_name, cl_device_id dev
   return "";
 }
 
-void OpenCLInfo::get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices, bool force_all)
+void OpenCLInfo::get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices)
 {
   const cl_device_type device_type = OpenCLInfo::device_type();
   static bool first_time = true;
@@ -924,7 +969,7 @@ void OpenCLInfo::get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices
         FIRST_VLOG(2) << "Ignoring device " << device_name << " due to old compiler version.";
         continue;
       }
-      if (force_all || device_supported(platform_name, device_id)) {
+      if (device_supported(platform_name, device_id)) {
         cl_device_type device_type;
         if (!get_device_type(device_id, &device_type, &error)) {
           FIRST_VLOG(2) << "Ignoring device " << device_name

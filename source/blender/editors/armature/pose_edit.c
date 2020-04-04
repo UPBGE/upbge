@@ -24,24 +24,24 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_math.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_action.h"
-#include "BKE_anim.h"
+#include "BKE_anim_visualization.h"
 #include "BKE_armature.h"
 #include "BKE_context.h"
 #include "BKE_deform.h"
 #include "BKE_global.h"
+#include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_report.h"
-#include "BKE_layer.h"
 #include "BKE_scene.h"
 
 #include "DEG_depsgraph.h"
@@ -57,8 +57,8 @@
 #include "ED_anim_api.h"
 #include "ED_armature.h"
 #include "ED_keyframing.h"
-#include "ED_screen.h"
 #include "ED_object.h"
+#include "ED_screen.h"
 #include "ED_view3d.h"
 
 #include "UI_interface.h"
@@ -75,12 +75,12 @@
 /* matches logic with ED_operator_posemode_context() */
 Object *ED_pose_object_from_context(bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
   Object *ob;
 
   /* Since this call may also be used from the buttons window,
    * we need to check for where to get the object. */
-  if (sa && sa->spacetype == SPACE_PROPERTIES) {
+  if (area && area->spacetype == SPACE_PROPERTIES) {
     ob = ED_object_context(C);
   }
   else {

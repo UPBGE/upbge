@@ -29,8 +29,8 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_workspace.h"
 #include "BKE_keyconfig.h"
+#include "BKE_workspace.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -198,128 +198,128 @@ const EnumPropertyItem rna_enum_event_type_items[] = {
     {EVT_TWEAK_M, "EVT_TWEAK_M", 0, "Tweak Middle", "TwkM"},
     {EVT_TWEAK_R, "EVT_TWEAK_R", 0, "Tweak Right", "TwkR"},
     {0, "", 0, NULL, NULL},
-    {AKEY, "A", 0, "A", ""},
-    {BKEY, "B", 0, "B", ""},
-    {CKEY, "C", 0, "C", ""},
-    {DKEY, "D", 0, "D", ""},
-    {EKEY, "E", 0, "E", ""},
-    {FKEY, "F", 0, "F", ""},
-    {GKEY, "G", 0, "G", ""},
-    {HKEY, "H", 0, "H", ""},
-    {IKEY, "I", 0, "I", ""},
-    {JKEY, "J", 0, "J", ""},
-    {KKEY, "K", 0, "K", ""},
-    {LKEY, "L", 0, "L", ""},
-    {MKEY, "M", 0, "M", ""},
-    {NKEY, "N", 0, "N", ""},
-    {OKEY, "O", 0, "O", ""},
-    {PKEY, "P", 0, "P", ""},
-    {QKEY, "Q", 0, "Q", ""},
-    {RKEY, "R", 0, "R", ""},
-    {SKEY, "S", 0, "S", ""},
-    {TKEY, "T", 0, "T", ""},
-    {UKEY, "U", 0, "U", ""},
-    {VKEY, "V", 0, "V", ""},
-    {WKEY, "W", 0, "W", ""},
-    {XKEY, "X", 0, "X", ""},
-    {YKEY, "Y", 0, "Y", ""},
-    {ZKEY, "Z", 0, "Z", ""},
+    {EVT_AKEY, "A", 0, "A", ""},
+    {EVT_BKEY, "B", 0, "B", ""},
+    {EVT_CKEY, "C", 0, "C", ""},
+    {EVT_DKEY, "D", 0, "D", ""},
+    {EVT_EKEY, "E", 0, "E", ""},
+    {EVT_FKEY, "F", 0, "F", ""},
+    {EVT_GKEY, "G", 0, "G", ""},
+    {EVT_HKEY, "H", 0, "H", ""},
+    {EVT_IKEY, "I", 0, "I", ""},
+    {EVT_JKEY, "J", 0, "J", ""},
+    {EVT_KKEY, "K", 0, "K", ""},
+    {EVT_LKEY, "L", 0, "L", ""},
+    {EVT_MKEY, "M", 0, "M", ""},
+    {EVT_NKEY, "N", 0, "N", ""},
+    {EVT_OKEY, "O", 0, "O", ""},
+    {EVT_PKEY, "P", 0, "P", ""},
+    {EVT_QKEY, "Q", 0, "Q", ""},
+    {EVT_RKEY, "R", 0, "R", ""},
+    {EVT_SKEY, "S", 0, "S", ""},
+    {EVT_TKEY, "T", 0, "T", ""},
+    {EVT_UKEY, "U", 0, "U", ""},
+    {EVT_VKEY, "V", 0, "V", ""},
+    {EVT_WKEY, "W", 0, "W", ""},
+    {EVT_XKEY, "X", 0, "X", ""},
+    {EVT_YKEY, "Y", 0, "Y", ""},
+    {EVT_ZKEY, "Z", 0, "Z", ""},
     {0, "", 0, NULL, NULL},
-    {ZEROKEY, "ZERO", 0, "0", ""},
-    {ONEKEY, "ONE", 0, "1", ""},
-    {TWOKEY, "TWO", 0, "2", ""},
-    {THREEKEY, "THREE", 0, "3", ""},
-    {FOURKEY, "FOUR", 0, "4", ""},
-    {FIVEKEY, "FIVE", 0, "5", ""},
-    {SIXKEY, "SIX", 0, "6", ""},
-    {SEVENKEY, "SEVEN", 0, "7", ""},
-    {EIGHTKEY, "EIGHT", 0, "8", ""},
-    {NINEKEY, "NINE", 0, "9", ""},
+    {EVT_ZEROKEY, "ZERO", 0, "0", ""},
+    {EVT_ONEKEY, "ONE", 0, "1", ""},
+    {EVT_TWOKEY, "TWO", 0, "2", ""},
+    {EVT_THREEKEY, "THREE", 0, "3", ""},
+    {EVT_FOURKEY, "FOUR", 0, "4", ""},
+    {EVT_FIVEKEY, "FIVE", 0, "5", ""},
+    {EVT_SIXKEY, "SIX", 0, "6", ""},
+    {EVT_SEVENKEY, "SEVEN", 0, "7", ""},
+    {EVT_EIGHTKEY, "EIGHT", 0, "8", ""},
+    {EVT_NINEKEY, "NINE", 0, "9", ""},
     {0, "", 0, NULL, NULL},
-    {LEFTCTRLKEY, "LEFT_CTRL", 0, "Left Ctrl", "CtrlL"},
-    {LEFTALTKEY, "LEFT_ALT", 0, "Left Alt", "AltL"},
-    {LEFTSHIFTKEY, "LEFT_SHIFT", 0, "Left Shift", "ShiftL"},
-    {RIGHTALTKEY, "RIGHT_ALT", 0, "Right Alt", "AltR"},
-    {RIGHTCTRLKEY, "RIGHT_CTRL", 0, "Right Ctrl", "CtrlR"},
-    {RIGHTSHIFTKEY, "RIGHT_SHIFT", 0, "Right Shift", "ShiftR"},
+    {EVT_LEFTCTRLKEY, "LEFT_CTRL", 0, "Left Ctrl", "CtrlL"},
+    {EVT_LEFTALTKEY, "LEFT_ALT", 0, "Left Alt", "AltL"},
+    {EVT_LEFTSHIFTKEY, "LEFT_SHIFT", 0, "Left Shift", "ShiftL"},
+    {EVT_RIGHTALTKEY, "RIGHT_ALT", 0, "Right Alt", "AltR"},
+    {EVT_RIGHTCTRLKEY, "RIGHT_CTRL", 0, "Right Ctrl", "CtrlR"},
+    {EVT_RIGHTSHIFTKEY, "RIGHT_SHIFT", 0, "Right Shift", "ShiftR"},
     {0, "", 0, NULL, NULL},
-    {OSKEY, "OSKEY", 0, "OS Key", "Cmd"},
-    {APPKEY, "APP", 0, "Application", "App"},
-    {GRLESSKEY, "GRLESS", 0, "Grless", ""},
-    {ESCKEY, "ESC", 0, "Esc", ""},
-    {TABKEY, "TAB", 0, "Tab", ""},
-    {RETKEY, "RET", 0, "Return", "Enter"},
-    {SPACEKEY, "SPACE", 0, "Spacebar", "Space"},
-    {LINEFEEDKEY, "LINE_FEED", 0, "Line Feed", ""},
-    {BACKSPACEKEY, "BACK_SPACE", 0, "Back Space", "BkSpace"},
-    {DELKEY, "DEL", 0, "Delete", "Del"},
-    {SEMICOLONKEY, "SEMI_COLON", 0, ";", ""},
-    {PERIODKEY, "PERIOD", 0, ".", ""},
-    {COMMAKEY, "COMMA", 0, ",", ""},
-    {QUOTEKEY, "QUOTE", 0, "\"", ""},
-    {ACCENTGRAVEKEY, "ACCENT_GRAVE", 0, "`", ""},
-    {MINUSKEY, "MINUS", 0, "-", ""},
-    {PLUSKEY, "PLUS", 0, "+", ""},
-    {SLASHKEY, "SLASH", 0, "/", ""},
-    {BACKSLASHKEY, "BACK_SLASH", 0, "\\", ""},
-    {EQUALKEY, "EQUAL", 0, "=", ""},
-    {LEFTBRACKETKEY, "LEFT_BRACKET", 0, "[", ""},
-    {RIGHTBRACKETKEY, "RIGHT_BRACKET", 0, "]", ""},
-    {LEFTARROWKEY, "LEFT_ARROW", 0, "Left Arrow", "←"},
-    {DOWNARROWKEY, "DOWN_ARROW", 0, "Down Arrow", "↓"},
-    {RIGHTARROWKEY, "RIGHT_ARROW", 0, "Right Arrow", "→"},
-    {UPARROWKEY, "UP_ARROW", 0, "Up Arrow", "↑"},
-    {PAD2, "NUMPAD_2", 0, "Numpad 2", "Pad2"},
-    {PAD4, "NUMPAD_4", 0, "Numpad 4", "Pad4"},
-    {PAD6, "NUMPAD_6", 0, "Numpad 6", "Pad6"},
-    {PAD8, "NUMPAD_8", 0, "Numpad 8", "Pad8"},
-    {PAD1, "NUMPAD_1", 0, "Numpad 1", "Pad1"},
-    {PAD3, "NUMPAD_3", 0, "Numpad 3", "Pad3"},
-    {PAD5, "NUMPAD_5", 0, "Numpad 5", "Pad5"},
-    {PAD7, "NUMPAD_7", 0, "Numpad 7", "Pad7"},
-    {PAD9, "NUMPAD_9", 0, "Numpad 9", "Pad9"},
-    {PADPERIOD, "NUMPAD_PERIOD", 0, "Numpad .", "Pad."},
-    {PADSLASHKEY, "NUMPAD_SLASH", 0, "Numpad /", "Pad/"},
-    {PADASTERKEY, "NUMPAD_ASTERIX", 0, "Numpad *", "Pad*"},
-    {PAD0, "NUMPAD_0", 0, "Numpad 0", "Pad0"},
-    {PADMINUS, "NUMPAD_MINUS", 0, "Numpad -", "Pad-"},
-    {PADENTER, "NUMPAD_ENTER", 0, "Numpad Enter", "PadEnter"},
-    {PADPLUSKEY, "NUMPAD_PLUS", 0, "Numpad +", "Pad+"},
-    {F1KEY, "F1", 0, "F1", ""},
-    {F2KEY, "F2", 0, "F2", ""},
-    {F3KEY, "F3", 0, "F3", ""},
-    {F4KEY, "F4", 0, "F4", ""},
-    {F5KEY, "F5", 0, "F5", ""},
-    {F6KEY, "F6", 0, "F6", ""},
-    {F7KEY, "F7", 0, "F7", ""},
-    {F8KEY, "F8", 0, "F8", ""},
-    {F9KEY, "F9", 0, "F9", ""},
-    {F10KEY, "F10", 0, "F10", ""},
-    {F11KEY, "F11", 0, "F11", ""},
-    {F12KEY, "F12", 0, "F12", ""},
-    {F13KEY, "F13", 0, "F13", ""},
-    {F14KEY, "F14", 0, "F14", ""},
-    {F15KEY, "F15", 0, "F15", ""},
-    {F16KEY, "F16", 0, "F16", ""},
-    {F17KEY, "F17", 0, "F17", ""},
-    {F18KEY, "F18", 0, "F18", ""},
-    {F19KEY, "F19", 0, "F19", ""},
-    {F20KEY, "F20", 0, "F20", ""},
-    {F21KEY, "F21", 0, "F21", ""},
-    {F22KEY, "F22", 0, "F22", ""},
-    {F23KEY, "F23", 0, "F23", ""},
-    {F24KEY, "F24", 0, "F24", ""},
-    {PAUSEKEY, "PAUSE", 0, "Pause", ""},
-    {INSERTKEY, "INSERT", 0, "Insert", "Ins"},
-    {HOMEKEY, "HOME", 0, "Home", ""},
-    {PAGEUPKEY, "PAGE_UP", 0, "Page Up", "PgUp"},
-    {PAGEDOWNKEY, "PAGE_DOWN", 0, "Page Down", "PgDown"},
-    {ENDKEY, "END", 0, "End", ""},
+    {EVT_OSKEY, "OSKEY", 0, "OS Key", "Cmd"},
+    {EVT_APPKEY, "APP", 0, "Application", "App"},
+    {EVT_GRLESSKEY, "GRLESS", 0, "Grless", ""},
+    {EVT_ESCKEY, "ESC", 0, "Esc", ""},
+    {EVT_TABKEY, "TAB", 0, "Tab", ""},
+    {EVT_RETKEY, "RET", 0, "Return", "Enter"},
+    {EVT_SPACEKEY, "SPACE", 0, "Spacebar", "Space"},
+    {EVT_LINEFEEDKEY, "LINE_FEED", 0, "Line Feed", ""},
+    {EVT_BACKSPACEKEY, "BACK_SPACE", 0, "Back Space", "BkSpace"},
+    {EVT_DELKEY, "DEL", 0, "Delete", "Del"},
+    {EVT_SEMICOLONKEY, "SEMI_COLON", 0, ";", ""},
+    {EVT_PERIODKEY, "PERIOD", 0, ".", ""},
+    {EVT_COMMAKEY, "COMMA", 0, ",", ""},
+    {EVT_QUOTEKEY, "QUOTE", 0, "\"", ""},
+    {EVT_ACCENTGRAVEKEY, "ACCENT_GRAVE", 0, "`", ""},
+    {EVT_MINUSKEY, "MINUS", 0, "-", ""},
+    {EVT_PLUSKEY, "PLUS", 0, "+", ""},
+    {EVT_SLASHKEY, "SLASH", 0, "/", ""},
+    {EVT_BACKSLASHKEY, "BACK_SLASH", 0, "\\", ""},
+    {EVT_EQUALKEY, "EQUAL", 0, "=", ""},
+    {EVT_LEFTBRACKETKEY, "LEFT_BRACKET", 0, "[", ""},
+    {EVT_RIGHTBRACKETKEY, "RIGHT_BRACKET", 0, "]", ""},
+    {EVT_LEFTARROWKEY, "LEFT_ARROW", 0, "Left Arrow", "←"},
+    {EVT_DOWNARROWKEY, "DOWN_ARROW", 0, "Down Arrow", "↓"},
+    {EVT_RIGHTARROWKEY, "RIGHT_ARROW", 0, "Right Arrow", "→"},
+    {EVT_UPARROWKEY, "UP_ARROW", 0, "Up Arrow", "↑"},
+    {EVT_PAD2, "NUMPAD_2", 0, "Numpad 2", "Pad2"},
+    {EVT_PAD4, "NUMPAD_4", 0, "Numpad 4", "Pad4"},
+    {EVT_PAD6, "NUMPAD_6", 0, "Numpad 6", "Pad6"},
+    {EVT_PAD8, "NUMPAD_8", 0, "Numpad 8", "Pad8"},
+    {EVT_PAD1, "NUMPAD_1", 0, "Numpad 1", "Pad1"},
+    {EVT_PAD3, "NUMPAD_3", 0, "Numpad 3", "Pad3"},
+    {EVT_PAD5, "NUMPAD_5", 0, "Numpad 5", "Pad5"},
+    {EVT_PAD7, "NUMPAD_7", 0, "Numpad 7", "Pad7"},
+    {EVT_PAD9, "NUMPAD_9", 0, "Numpad 9", "Pad9"},
+    {EVT_PADPERIOD, "NUMPAD_PERIOD", 0, "Numpad .", "Pad."},
+    {EVT_PADSLASHKEY, "NUMPAD_SLASH", 0, "Numpad /", "Pad/"},
+    {EVT_PADASTERKEY, "NUMPAD_ASTERIX", 0, "Numpad *", "Pad*"},
+    {EVT_PAD0, "NUMPAD_0", 0, "Numpad 0", "Pad0"},
+    {EVT_PADMINUS, "NUMPAD_MINUS", 0, "Numpad -", "Pad-"},
+    {EVT_PADENTER, "NUMPAD_ENTER", 0, "Numpad Enter", "PadEnter"},
+    {EVT_PADPLUSKEY, "NUMPAD_PLUS", 0, "Numpad +", "Pad+"},
+    {EVT_F1KEY, "F1", 0, "F1", ""},
+    {EVT_F2KEY, "F2", 0, "F2", ""},
+    {EVT_F3KEY, "F3", 0, "F3", ""},
+    {EVT_F4KEY, "F4", 0, "F4", ""},
+    {EVT_F5KEY, "F5", 0, "F5", ""},
+    {EVT_F6KEY, "F6", 0, "F6", ""},
+    {EVT_F7KEY, "F7", 0, "F7", ""},
+    {EVT_F8KEY, "F8", 0, "F8", ""},
+    {EVT_F9KEY, "F9", 0, "F9", ""},
+    {EVT_F10KEY, "F10", 0, "F10", ""},
+    {EVT_F11KEY, "F11", 0, "F11", ""},
+    {EVT_F12KEY, "F12", 0, "F12", ""},
+    {EVT_F13KEY, "F13", 0, "F13", ""},
+    {EVT_F14KEY, "F14", 0, "F14", ""},
+    {EVT_F15KEY, "F15", 0, "F15", ""},
+    {EVT_F16KEY, "F16", 0, "F16", ""},
+    {EVT_F17KEY, "F17", 0, "F17", ""},
+    {EVT_F18KEY, "F18", 0, "F18", ""},
+    {EVT_F19KEY, "F19", 0, "F19", ""},
+    {EVT_F20KEY, "F20", 0, "F20", ""},
+    {EVT_F21KEY, "F21", 0, "F21", ""},
+    {EVT_F22KEY, "F22", 0, "F22", ""},
+    {EVT_F23KEY, "F23", 0, "F23", ""},
+    {EVT_F24KEY, "F24", 0, "F24", ""},
+    {EVT_PAUSEKEY, "PAUSE", 0, "Pause", ""},
+    {EVT_INSERTKEY, "INSERT", 0, "Insert", "Ins"},
+    {EVT_HOMEKEY, "HOME", 0, "Home", ""},
+    {EVT_PAGEUPKEY, "PAGE_UP", 0, "Page Up", "PgUp"},
+    {EVT_PAGEDOWNKEY, "PAGE_DOWN", 0, "Page Down", "PgDown"},
+    {EVT_ENDKEY, "END", 0, "End", ""},
     {0, "", 0, NULL, NULL},
-    {MEDIAPLAY, "MEDIA_PLAY", 0, "Media Play/Pause", ">/||"},
-    {MEDIASTOP, "MEDIA_STOP", 0, "Media Stop", "Stop"},
-    {MEDIAFIRST, "MEDIA_FIRST", 0, "Media First", "|<<"},
-    {MEDIALAST, "MEDIA_LAST", 0, "Media Last", ">>|"},
+    {EVT_MEDIAPLAY, "MEDIA_PLAY", 0, "Media Play/Pause", ">/||"},
+    {EVT_MEDIASTOP, "MEDIA_STOP", 0, "Media Stop", "Stop"},
+    {EVT_MEDIAFIRST, "MEDIA_FIRST", 0, "Media First", "|<<"},
+    {EVT_MEDIALAST, "MEDIA_LAST", 0, "Media Last", ">>|"},
     {0, "", 0, NULL, NULL},
     {KM_TEXTINPUT, "TEXTINPUT", 0, "Text Input", "TxtIn"},
     {0, "", 0, NULL, NULL},
@@ -652,6 +652,12 @@ static int rna_Event_unicode_length(PointerRNA *ptr)
   }
 }
 
+static bool rna_Event_is_repeat_get(PointerRNA *ptr)
+{
+  const wmEvent *event = ptr->data;
+  return event->is_repeat;
+}
+
 static float rna_Event_pressure_get(PointerRNA *ptr)
 {
   const wmEvent *event = ptr->data;
@@ -877,7 +883,7 @@ static void rna_wmKeyMapItem_map_type_set(PointerRNA *ptr, int value)
   if (value != map_type) {
     switch (value) {
       case KMI_TYPE_KEYBOARD:
-        kmi->type = AKEY;
+        kmi->type = EVT_AKEY;
         kmi->val = KM_PRESS;
         break;
       case KMI_TYPE_TWEAK:
@@ -913,10 +919,10 @@ static void rna_wmKeyMapItem_keymodifier_set(PointerRNA *ptr, int value)
   /* XXX, this should really be managed in an _itemf function,
    * giving a list of valid enums, then silently changing them when they are set is not
    * a good precedent, don't do this unless you have a good reason! */
-  if (value == ESCKEY) {
+  if (value == EVT_ESCKEY) {
     /* pass */
   }
-  else if (value >= AKEY) {
+  else if (value >= EVT_AKEY) {
     kmi->keymodifier = value;
   }
   else {
@@ -1079,7 +1085,7 @@ static PointerRNA rna_wmKeyConfig_preferences_get(PointerRNA *ptr)
   wmKeyConfigPrefType_Runtime *kpt_rt = BKE_keyconfig_pref_type_find(kc->idname, true);
   if (kpt_rt) {
     wmKeyConfigPref *kpt = BKE_keyconfig_pref_ensure(&U, kc->idname);
-    return rna_pointer_inherit_refine(ptr, kpt_rt->ext.srna, kpt->prop);
+    return rna_pointer_inherit_refine(ptr, kpt_rt->rna_ext.srna, kpt->prop);
   }
   else {
     return PointerRNA_NULL;
@@ -1103,7 +1109,7 @@ static void rna_wmKeyConfigPref_unregister(Main *UNUSED(bmain), StructRNA *type)
     return;
   }
 
-  RNA_struct_free_extension(type, &kpt_rt->ext);
+  RNA_struct_free_extension(type, &kpt_rt->rna_ext);
   RNA_struct_free(&BLENDER_RNA, type);
 
   /* Possible we're not in the preferences if they have been reset. */
@@ -1146,8 +1152,8 @@ static StructRNA *rna_wmKeyConfigPref_register(Main *bmain,
 
   /* check if we have registered this keyconf-prefs type before, and remove it */
   kpt_rt = BKE_keyconfig_pref_type_find(dummy_kpt.idname, true);
-  if (kpt_rt && kpt_rt->ext.srna) {
-    rna_wmKeyConfigPref_unregister(bmain, kpt_rt->ext.srna);
+  if (kpt_rt && kpt_rt->rna_ext.srna) {
+    rna_wmKeyConfigPref_unregister(bmain, kpt_rt->rna_ext.srna);
   }
 
   /* create a new keyconf-prefs type */
@@ -1156,18 +1162,18 @@ static StructRNA *rna_wmKeyConfigPref_register(Main *bmain,
 
   BKE_keyconfig_pref_type_add(kpt_rt);
 
-  kpt_rt->ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, identifier, &RNA_KeyConfigPreferences);
-  kpt_rt->ext.data = data;
-  kpt_rt->ext.call = call;
-  kpt_rt->ext.free = free;
-  RNA_struct_blender_type_set(kpt_rt->ext.srna, kpt_rt);
+  kpt_rt->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, identifier, &RNA_KeyConfigPreferences);
+  kpt_rt->rna_ext.data = data;
+  kpt_rt->rna_ext.call = call;
+  kpt_rt->rna_ext.free = free;
+  RNA_struct_blender_type_set(kpt_rt->rna_ext.srna, kpt_rt);
 
   //  kpt_rt->draw = (have_function[0]) ? header_draw : NULL;
 
   /* update while blender is running */
   WM_main_add_notifier(NC_WINDOW, NULL);
 
-  return kpt_rt->ext.srna;
+  return kpt_rt->rna_ext.srna;
 }
 
 /* placeholder, doesn't do anything useful yet */
@@ -1260,6 +1266,20 @@ static void rna_wmClipboard_set(PointerRNA *UNUSED(ptr), const char *value)
   WM_clipboard_text_set((void *)value, false);
 }
 
+static PointerRNA rna_WindowManager_xr_session_state_get(PointerRNA *ptr)
+{
+  wmWindowManager *wm = ptr->data;
+  struct wmXrSessionState *state =
+#  ifdef WITH_XR_OPENXR
+      WM_xr_session_state_handle_get(&wm->xr);
+#  else
+      NULL;
+  UNUSED_VARS(wm);
+#  endif
+
+  return rna_pointer_inherit_refine(ptr, &RNA_XrSessionState, state);
+}
+
 #  ifdef WITH_PYTHON
 
 static bool rna_operator_poll_cb(bContext *C, wmOperatorType *ot)
@@ -1272,12 +1292,12 @@ static bool rna_operator_poll_cb(bContext *C, wmOperatorType *ot)
   void *ret;
   bool visible;
 
-  RNA_pointer_create(NULL, ot->ext.srna, NULL, &ptr); /* dummy */
-  func = &rna_Operator_poll_func;                     /* RNA_struct_find_function(&ptr, "poll"); */
+  RNA_pointer_create(NULL, ot->rna_ext.srna, NULL, &ptr); /* dummy */
+  func = &rna_Operator_poll_func; /* RNA_struct_find_function(&ptr, "poll"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  ot->ext.call(C, &ptr, func, &list);
+  ot->rna_ext.call(C, &ptr, func, &list);
 
   RNA_parameter_get_lookup(&list, "visible", &ret);
   visible = *(bool *)ret;
@@ -1297,12 +1317,12 @@ static int rna_operator_execute_cb(bContext *C, wmOperator *op)
   void *ret;
   int result;
 
-  RNA_pointer_create(NULL, op->type->ext.srna, op, &opr);
+  RNA_pointer_create(NULL, op->type->rna_ext.srna, op, &opr);
   func = &rna_Operator_execute_func; /* RNA_struct_find_function(&opr, "execute"); */
 
   RNA_parameter_list_create(&list, &opr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  op->type->ext.call(C, &opr, func, &list);
+  op->type->rna_ext.call(C, &opr, func, &list);
 
   RNA_parameter_get_lookup(&list, "result", &ret);
   result = *(int *)ret;
@@ -1323,12 +1343,12 @@ static bool rna_operator_check_cb(bContext *C, wmOperator *op)
   void *ret;
   bool result;
 
-  RNA_pointer_create(NULL, op->type->ext.srna, op, &opr);
+  RNA_pointer_create(NULL, op->type->rna_ext.srna, op, &opr);
   func = &rna_Operator_check_func; /* RNA_struct_find_function(&opr, "check"); */
 
   RNA_parameter_list_create(&list, &opr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  op->type->ext.call(C, &opr, func, &list);
+  op->type->rna_ext.call(C, &opr, func, &list);
 
   RNA_parameter_get_lookup(&list, "result", &ret);
   result = (*(bool *)ret) != 0;
@@ -1348,13 +1368,13 @@ static int rna_operator_invoke_cb(bContext *C, wmOperator *op, const wmEvent *ev
   void *ret;
   int result;
 
-  RNA_pointer_create(NULL, op->type->ext.srna, op, &opr);
+  RNA_pointer_create(NULL, op->type->rna_ext.srna, op, &opr);
   func = &rna_Operator_invoke_func; /* RNA_struct_find_function(&opr, "invoke"); */
 
   RNA_parameter_list_create(&list, &opr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
   RNA_parameter_set_lookup(&list, "event", &event);
-  op->type->ext.call(C, &opr, func, &list);
+  op->type->rna_ext.call(C, &opr, func, &list);
 
   RNA_parameter_get_lookup(&list, "result", &ret);
   result = *(int *)ret;
@@ -1375,13 +1395,13 @@ static int rna_operator_modal_cb(bContext *C, wmOperator *op, const wmEvent *eve
   void *ret;
   int result;
 
-  RNA_pointer_create(NULL, op->type->ext.srna, op, &opr);
+  RNA_pointer_create(NULL, op->type->rna_ext.srna, op, &opr);
   func = &rna_Operator_modal_func; /* RNA_struct_find_function(&opr, "modal"); */
 
   RNA_parameter_list_create(&list, &opr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
   RNA_parameter_set_lookup(&list, "event", &event);
-  op->type->ext.call(C, &opr, func, &list);
+  op->type->rna_ext.call(C, &opr, func, &list);
 
   RNA_parameter_get_lookup(&list, "result", &ret);
   result = *(int *)ret;
@@ -1399,12 +1419,12 @@ static void rna_operator_draw_cb(bContext *C, wmOperator *op)
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(NULL, op->type->ext.srna, op, &opr);
+  RNA_pointer_create(NULL, op->type->rna_ext.srna, op, &opr);
   func = &rna_Operator_draw_func; /* RNA_struct_find_function(&opr, "draw"); */
 
   RNA_parameter_list_create(&list, &opr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  op->type->ext.call(C, &opr, func, &list);
+  op->type->rna_ext.call(C, &opr, func, &list);
 
   RNA_parameter_list_free(&list);
 }
@@ -1418,12 +1438,12 @@ static void rna_operator_cancel_cb(bContext *C, wmOperator *op)
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(NULL, op->type->ext.srna, op, &opr);
+  RNA_pointer_create(NULL, op->type->rna_ext.srna, op, &opr);
   func = &rna_Operator_cancel_func; /* RNA_struct_find_function(&opr, "cancel"); */
 
   RNA_parameter_list_create(&list, &opr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  op->type->ext.call(C, &opr, func, &list);
+  op->type->rna_ext.call(C, &opr, func, &list);
 
   RNA_parameter_list_free(&list);
 }
@@ -1438,13 +1458,13 @@ static char *rna_operator_description_cb(bContext *C, wmOperatorType *ot, Pointe
   void *ret;
   char *result;
 
-  RNA_pointer_create(NULL, ot->ext.srna, NULL, &ptr); /* dummy */
+  RNA_pointer_create(NULL, ot->rna_ext.srna, NULL, &ptr); /* dummy */
   func = &rna_Operator_description_func; /* RNA_struct_find_function(&ptr, "description"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
   RNA_parameter_set_lookup(&list, "properties", prop_ptr);
-  ot->ext.call(C, &ptr, func, &list);
+  ot->rna_ext.call(C, &ptr, func, &list);
 
   RNA_parameter_get_lookup(&list, "result", &ret);
   result = (char *)ret;
@@ -1512,8 +1532,8 @@ static StructRNA *rna_Operator_register(Main *bmain,
   /* check if we have registered this operator type before, and remove it */
   {
     wmOperatorType *ot = WM_operatortype_find(dummyot.idname, true);
-    if (ot && ot->ext.srna) {
-      rna_Operator_unregister(bmain, ot->ext.srna);
+    if (ot && ot->rna_ext.srna) {
+      rna_Operator_unregister(bmain, ot->rna_ext.srna);
     }
   }
 
@@ -1554,16 +1574,16 @@ static StructRNA *rna_Operator_register(Main *bmain,
    * for now just remove from dir(bpy.types) */
 
   /* create a new operator type */
-  dummyot.ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummyot.idname, &RNA_Operator);
+  dummyot.rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummyot.idname, &RNA_Operator);
 
   /* Operator properties are registered separately. */
-  RNA_def_struct_flag(dummyot.ext.srna, STRUCT_NO_IDPROPERTIES);
+  RNA_def_struct_flag(dummyot.rna_ext.srna, STRUCT_NO_IDPROPERTIES);
 
-  RNA_def_struct_property_tags(dummyot.ext.srna, rna_enum_operator_property_tags);
-  RNA_def_struct_translation_context(dummyot.ext.srna, dummyot.translation_context);
-  dummyot.ext.data = data;
-  dummyot.ext.call = call;
-  dummyot.ext.free = free;
+  RNA_def_struct_property_tags(dummyot.rna_ext.srna, rna_enum_operator_property_tags);
+  RNA_def_struct_translation_context(dummyot.rna_ext.srna, dummyot.translation_context);
+  dummyot.rna_ext.data = data;
+  dummyot.rna_ext.call = call;
+  dummyot.rna_ext.free = free;
 
   dummyot.pyop_poll = (have_function[0]) ? rna_operator_poll_cb : NULL;
   dummyot.exec = (have_function[1]) ? rna_operator_execute_cb : NULL;
@@ -1578,7 +1598,7 @@ static StructRNA *rna_Operator_register(Main *bmain,
   /* update while blender is running */
   WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
 
-  return dummyot.ext.srna;
+  return dummyot.rna_ext.srna;
 }
 
 static void rna_Operator_unregister(struct Main *bmain, StructRNA *type)
@@ -1600,7 +1620,7 @@ static void rna_Operator_unregister(struct Main *bmain, StructRNA *type)
   }
   WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
 
-  RNA_struct_free_extension(type, &ot->ext);
+  RNA_struct_free_extension(type, &ot->rna_ext);
 
   idname = ot->idname;
   WM_operatortype_remove_ptr(ot);
@@ -1672,8 +1692,8 @@ static StructRNA *rna_MacroOperator_register(Main *bmain,
   /* check if we have registered this operator type before, and remove it */
   {
     wmOperatorType *ot = WM_operatortype_find(dummyot.idname, true);
-    if (ot && ot->ext.srna) {
-      rna_Operator_unregister(bmain, ot->ext.srna);
+    if (ot && ot->rna_ext.srna) {
+      rna_Operator_unregister(bmain, ot->rna_ext.srna);
     }
   }
 
@@ -1714,11 +1734,11 @@ static StructRNA *rna_MacroOperator_register(Main *bmain,
    * for now just remove from dir(bpy.types) */
 
   /* create a new operator type */
-  dummyot.ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummyot.idname, &RNA_Operator);
-  RNA_def_struct_translation_context(dummyot.ext.srna, dummyot.translation_context);
-  dummyot.ext.data = data;
-  dummyot.ext.call = call;
-  dummyot.ext.free = free;
+  dummyot.rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummyot.idname, &RNA_Operator);
+  RNA_def_struct_translation_context(dummyot.rna_ext.srna, dummyot.translation_context);
+  dummyot.rna_ext.data = data;
+  dummyot.rna_ext.call = call;
+  dummyot.rna_ext.free = free;
 
   dummyot.pyop_poll = (have_function[0]) ? rna_operator_poll_cb : NULL;
   dummyot.ui = (have_function[3]) ? rna_operator_draw_cb : NULL;
@@ -1728,20 +1748,20 @@ static StructRNA *rna_MacroOperator_register(Main *bmain,
   /* update while blender is running */
   WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
 
-  return dummyot.ext.srna;
+  return dummyot.rna_ext.srna;
 }
 #  endif /* WITH_PYTHON */
 
 static StructRNA *rna_Operator_refine(PointerRNA *opr)
 {
   wmOperator *op = (wmOperator *)opr->data;
-  return (op->type && op->type->ext.srna) ? op->type->ext.srna : &RNA_Operator;
+  return (op->type && op->type->rna_ext.srna) ? op->type->rna_ext.srna : &RNA_Operator;
 }
 
 static StructRNA *rna_MacroOperator_refine(PointerRNA *opr)
 {
   wmOperator *op = (wmOperator *)opr->data;
-  return (op->type && op->type->ext.srna) ? op->type->ext.srna : &RNA_Macro;
+  return (op->type && op->type->rna_ext.srna) ? op->type->rna_ext.srna : &RNA_Macro;
 }
 
 /* just to work around 'const char *' warning and to ensure this is a python op */
@@ -2131,6 +2151,12 @@ static void rna_def_event(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Type", "");
 
+  /* keyboard */
+  prop = RNA_def_property(srna, "is_repeat", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(prop, "rna_Event_is_repeat_get", NULL);
+  RNA_def_property_ui_text(prop, "Is Repeat", "The event is generated by holding a key down");
+
   /* mouse */
   prop = RNA_def_property(srna, "mouse_x", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "x");
@@ -2472,6 +2498,18 @@ static void rna_def_windowmanager(BlenderRNA *brna)
       prop, "rna_wmClipboard_get", "rna_wmClipboard_length", "rna_wmClipboard_set");
   RNA_def_property_ui_text(prop, "Text Clipboard", "");
 
+  prop = RNA_def_property(srna, "xr_session_settings", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "xr.session_settings");
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_ui_text(prop, "XR Session Settings", "");
+
+  prop = RNA_def_property(srna, "xr_session_state", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "XrSessionState");
+  RNA_def_property_pointer_funcs(prop, "rna_WindowManager_xr_session_state_get", NULL, NULL, NULL);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "XR Session State", "Runtime state information about the VR session");
+
   RNA_api_wm(srna);
 }
 
@@ -2726,6 +2764,12 @@ static void rna_def_keyconfig(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
   RNA_def_property_enum_funcs(prop, NULL, "rna_wmKeyMapItem_keymodifier_set", NULL);
   RNA_def_property_ui_text(prop, "Key Modifier", "Regular key pressed as a modifier");
+  RNA_def_property_update(prop, 0, "rna_KeyMapItem_update");
+
+  prop = RNA_def_property(srna, "repeat", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", KMI_REPEAT_IGNORE);
+  RNA_def_property_ui_text(prop, "Repeat", "Active on key-repeat events (when a key is held)");
   RNA_def_property_update(prop, 0, "rna_KeyMapItem_update");
 
   prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);

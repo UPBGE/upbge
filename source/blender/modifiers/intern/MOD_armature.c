@@ -23,12 +23,12 @@
 
 #include <string.h>
 
-#include "BLI_utildefines.h"
 #include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_armature_types.h"
-#include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_action.h"
 #include "BKE_editmesh.h"
@@ -234,7 +234,7 @@ static void deformMatrices(ModifierData *md,
                         amd->defgrp_name,
                         NULL);
 
-  if (mesh_src != mesh) {
+  if (!ELEM(mesh_src, NULL, mesh)) {
     BKE_id_free(NULL, mesh_src);
   }
 }

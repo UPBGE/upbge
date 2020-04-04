@@ -33,14 +33,15 @@
  *  \ingroup ketsji
  */
 
+#include "SCA_CameraActuator.h"
+
+#include <float.h>
+#include <math.h>
+
 #include "BLI_math_vector.h"
 
-#include "SCA_CameraActuator.h"
-#include <math.h>
-#include <float.h>
-#include "KX_GameObject.h"
-
 #include "EXP_PyObjectPlus.h"
+#include "KX_GameObject.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

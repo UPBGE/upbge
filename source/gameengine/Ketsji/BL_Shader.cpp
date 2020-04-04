@@ -24,19 +24,18 @@
 
 #include "BL_Shader.h"
 
-#include "KX_PyMath.h"
-#include "KX_PythonInit.h"
-#include "KX_GameObject.h"
+#include <boost/format.hpp>
 
 #include "DNA_material_types.h"
+
+#include "CM_Message.h"
+#include "KX_GameObject.h"
+#include "KX_PyMath.h"
+#include "KX_PythonInit.h"
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
 #endif  // WITH_PYTHON
-
-#include <boost/format.hpp>
-
-#include "CM_Message.h"
 
 BL_Shader::BL_Shader()
 {

@@ -39,8 +39,9 @@ conflicts with KX_NetworkMessageScene::SendMessage */
 #endif
 
 #include "KX_NetworkMessageManager.h"
-#include <string>
+
 #include <map>
+#include <string>
 #include <vector>
 
 class SCA_IObject;

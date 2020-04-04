@@ -1992,25 +1992,25 @@ typedef struct EdgeVertLambda {
 /* For sorting first by edge id, then by lambda, then by vert id. */
 static int evl_cmp(const void *a, const void *b)
 {
-  const EdgeVertLambda *sa = a;
+  const EdgeVertLambda *area = a;
   const EdgeVertLambda *sb = b;
 
-  if (sa->e_id < sb->e_id) {
+  if (area->e_id < sb->e_id) {
     return -1;
   }
-  else if (sa->e_id > sb->e_id) {
+  else if (area->e_id > sb->e_id) {
     return 1;
   }
-  else if (sa->lambda < sb->lambda) {
+  else if (area->lambda < sb->lambda) {
     return -1;
   }
-  else if (sa->lambda > sb->lambda) {
+  else if (area->lambda > sb->lambda) {
     return 1;
   }
-  else if (sa->v_id < sb->v_id) {
+  else if (area->v_id < sb->v_id) {
     return -1;
   }
-  else if (sa->v_id > sb->v_id) {
+  else if (area->v_id > sb->v_id) {
     return 1;
   }
   return 0;
@@ -2226,7 +2226,7 @@ static const CDT_input *modify_input_for_near_edge_ends(const CDT_input *input, 
     }
 
     /* Allocate new CDT_input, now we know sizes needed (perhaps overestimated a bit).
-     * Caller will be reponsible for freeing it and its arrays.
+     * Caller will be responsible for freeing it and its arrays.
      */
     new_input = MEM_callocN(sizeof(CDT_input), __func__);
     new_input->epsilon = input->epsilon;

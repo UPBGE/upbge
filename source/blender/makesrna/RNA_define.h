@@ -23,8 +23,8 @@
  * Functions used during preprocess and runtime, for defining the RNA.
  */
 
-#include <inttypes.h>
 #include <float.h>
+#include <inttypes.h>
 #include <limits.h>
 
 #include "DNA_listBase.h"
@@ -76,7 +76,7 @@ void RNA_def_struct_identifier_no_struct_map(StructRNA *srna, const char *identi
 void RNA_def_struct_identifier(BlenderRNA *brna, StructRNA *srna, const char *identifier);
 void RNA_def_struct_ui_text(StructRNA *srna, const char *name, const char *description);
 void RNA_def_struct_ui_icon(StructRNA *srna, int icon);
-void RNA_struct_free_extension(StructRNA *srna, ExtensionRNA *ext);
+void RNA_struct_free_extension(StructRNA *srna, ExtensionRNA *rna_ext);
 void RNA_struct_free(BlenderRNA *brna, StructRNA *srna);
 
 void RNA_def_struct_translation_context(StructRNA *srna, const char *context);
@@ -369,6 +369,7 @@ void RNA_def_property_multi_array(PropertyRNA *prop, int dimension, const int le
 void RNA_def_property_range(PropertyRNA *prop, double min, double max);
 
 void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item);
+void RNA_def_property_enum_native_type(PropertyRNA *prop, const char *native_enum_type);
 void RNA_def_property_string_maxlength(PropertyRNA *prop, int maxlength);
 void RNA_def_property_struct_type(PropertyRNA *prop, const char *type);
 void RNA_def_property_struct_runtime(PropertyRNA *prop, StructRNA *type);

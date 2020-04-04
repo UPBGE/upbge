@@ -30,20 +30,21 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 
-#include "DNA_meshdata_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_object_types.h"
-#include "DNA_gpencil_types.h"
 #include "DNA_gpencil_modifier_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_meshdata_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_gpencil.h"
+#include "BKE_gpencil_geom.h"
 #include "BKE_gpencil_modifier.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
-#include "MOD_gpencil_util.h"
 #include "MOD_gpencil_modifiertypes.h"
+#include "MOD_gpencil_util.h"
 
 static void initData(GpencilModifierData *md)
 {
@@ -115,7 +116,7 @@ static void reduce_stroke_points(bGPDstroke *gps,
 {
   bGPDspoint *new_points = MEM_callocN(sizeof(bGPDspoint) * num_points, __func__);
   MDeformVert *new_dvert = NULL;
-  if (gps->dvert != NULL) {
+  if ((gps->dvert != NULL) && (num_points > 0)) {
     new_dvert = MEM_callocN(sizeof(MDeformVert) * num_points, __func__);
   }
 
@@ -129,7 +130,7 @@ static void reduce_stroke_points(bGPDstroke *gps,
     {
       /* copy over point data */
       memcpy(new_points, gps->points, sizeof(bGPDspoint) * num_points);
-      if (gps->dvert != NULL) {
+      if ((gps->dvert != NULL) && (num_points > 0)) {
         memcpy(new_dvert, gps->dvert, sizeof(MDeformVert) * num_points);
 
         /* free unused point weights */
@@ -150,7 +151,7 @@ static void reduce_stroke_points(bGPDstroke *gps,
 
       /* copy over point data */
       memcpy(new_points, gps->points + offset, sizeof(bGPDspoint) * num_points);
-      if (gps->dvert != NULL) {
+      if ((gps->dvert != NULL) && (num_points > 0)) {
         memcpy(new_dvert, gps->dvert + offset, sizeof(MDeformVert) * num_points);
 
         /* free unused weights */
@@ -174,10 +175,8 @@ static void reduce_stroke_points(bGPDstroke *gps,
   gps->dvert = new_dvert;
   gps->totpoints = num_points;
 
-  /* mark stroke as needing to have its geometry caches rebuilt */
-  gps->flag |= GP_STROKE_RECALC_GEOMETRY;
-  gps->tot_triangles = 0;
-  MEM_SAFE_FREE(gps->triangles);
+  /* Calc geometry data. */
+  BKE_gpencil_stroke_geometry_update(gps);
 }
 
 /* --------------------------------------------- */
@@ -400,19 +399,15 @@ static void build_concurrent(BuildGpencilModifierData *mmd, bGPDframe *gpf, floa
 }
 
 /* --------------------------------------------- */
-
-/* Entry-point for Build Modifier */
-static void generateStrokes(GpencilModifierData *md,
-                            Depsgraph *depsgraph,
-                            Object *UNUSED(ob),
-                            bGPDlayer *gpl,
-                            bGPDframe *gpf)
+static void generate_geometry(GpencilModifierData *md,
+                              Depsgraph *depsgraph,
+                              bGPDlayer *gpl,
+                              bGPDframe *gpf)
 {
   BuildGpencilModifierData *mmd = (BuildGpencilModifierData *)md;
   const bool reverse = (mmd->transition != GP_BUILD_TRANSITION_GROW);
 
   const float ctime = DEG_get_ctime(depsgraph);
-  // printf("GP Build Modifier - %f\n", ctime);
 
   /* Early exit if it's an empty frame */
   if (gpf->strokes.first == NULL) {
@@ -459,7 +454,7 @@ static void generateStrokes(GpencilModifierData *md,
    * By default, the upper bound is given by the "maximum length" setting
    */
   float start_frame = gpf->framenum + mmd->start_delay;
-  float end_frame = gpf->framenum + mmd->length;
+  float end_frame = start_frame + mmd->length;
 
   if (gpf->next) {
     /* Use the next frame or upper bound as end frame, whichever is lower/closer */
@@ -506,7 +501,6 @@ static void generateStrokes(GpencilModifierData *md,
 
   /* Determine how far along we are between the keyframes */
   float fac = (ctime - start_frame) / (end_frame - start_frame);
-  // printf("  Progress on %d = %f (%f - %f)\n", gpf->framenum, fac, start_frame, end_frame);
 
   /* Time management mode */
   switch (mmd->mode) {
@@ -523,6 +517,21 @@ static void generateStrokes(GpencilModifierData *md,
              mmd->mode,
              mmd->modifier.name);
       break;
+  }
+}
+
+/* Entry-point for Build Modifier */
+static void generateStrokes(GpencilModifierData *md, Depsgraph *depsgraph, Object *ob)
+{
+  Scene *scene = DEG_get_evaluated_scene(depsgraph);
+  bGPdata *gpd = (bGPdata *)ob->data;
+
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+    bGPDframe *gpf = BKE_gpencil_frame_retime_get(depsgraph, scene, ob, gpl);
+    if (gpf == NULL) {
+      continue;
+    }
+    generate_geometry(md, depsgraph, gpl, gpf);
   }
 }
 

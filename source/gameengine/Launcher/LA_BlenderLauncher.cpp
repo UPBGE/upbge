@@ -26,33 +26,25 @@
 
 #include "LA_BlenderLauncher.h"
 
-#include "KX_BlenderCanvas.h"
-
-#include "KX_PythonInit.h"
-
-#include "CM_Message.h"
-
-extern "C" {
-#include "BKE_context.h"
-#include "BKE_undo_system.h"
-
 // avoid c++ conflict with 'new'
 #define new _new
 #include "BKE_screen.h"
 #undef new
 
+#include "BKE_context.h"
+#include "BLI_rect.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_object_types.h"
 #include "DNA_view3d_types.h"
-
-#include "WM_types.h"
 #include "WM_api.h"
+#include "WM_types.h"
 #include "wm_event_system.h"
 #include "wm_window.h"
 
-#include "BLI_rect.h"
-}
+#include "CM_Message.h"
+#include "KX_BlenderCanvas.h"
+#include "KX_PythonInit.h"
 
 LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system,
                                        Main *maggie,
@@ -148,10 +140,6 @@ void LA_BlenderLauncher::InitEngine()
   m_savedBlenderData.sceneLayer = m_startScene->lay;
   m_savedBlenderData.camera = m_startScene->camera;
 
-  if (m_startScene->gm.flag & GAME_USE_UNDO) {
-    BKE_undosys_step_push(m_windowManager->undo_stack, m_context, "bge_start");
-  }
-
   if (m_view3d->scenelock == 0) {
     m_startScene->lay = m_view3d->local_view_uuid;
     m_startScene->camera = m_view3d->camera;
@@ -168,18 +156,6 @@ void LA_BlenderLauncher::ExitEngine()
   if (m_view3d->scenelock == 0) {
     m_startScene->lay = m_savedBlenderData.sceneLayer;
     m_startScene->camera = m_savedBlenderData.camera;
-  }
-
-  /* Undo System */
-  if (m_startScene->gm.flag & GAME_USE_UNDO) {
-    UndoStep *step_data_from_name = NULL;
-    step_data_from_name = BKE_undosys_step_find_by_name(m_windowManager->undo_stack, "bge_start");
-    if (step_data_from_name) {
-      BKE_undosys_step_undo_with_data(m_windowManager->undo_stack, m_context, step_data_from_name);
-    }
-    else {
-      BKE_undosys_step_undo(m_windowManager->undo_stack, m_context);
-    }
   }
 
   // Free all window manager events unused.

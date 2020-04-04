@@ -655,7 +655,7 @@ float dist_squared_ray_to_seg_v3(const float ray_origin[3],
     *r_depth = depth;
   }
 
-  return len_squared_v3(dvec) - SQUARE(depth);
+  return len_squared_v3(dvec) - square_f(depth);
 }
 
 /* Returns the coordinates of the nearest vertex and
@@ -1311,7 +1311,7 @@ int isect_seg_seg_v2_point_ex(const float v0[2],
       float u_a, u_b;
 
       if (equals_v2v2(v0, v1)) {
-        if (len_squared_v2v2(v2, v3) > SQUARE(eps)) {
+        if (len_squared_v2v2(v2, v3) > square_f(eps)) {
           /* use non-point segment as basis */
           SWAP(const float *, v0, v2);
           SWAP(const float *, v1, v3);
@@ -4709,6 +4709,25 @@ void perspective_m4(float mat[4][4],
       mat[3][3] = 0.0f;
 }
 
+void perspective_m4_fov(float mat[4][4],
+                        const float angle_left,
+                        const float angle_right,
+                        const float angle_up,
+                        const float angle_down,
+                        const float nearClip,
+                        const float farClip)
+{
+  const float tan_angle_left = tanf(angle_left);
+  const float tan_angle_right = tanf(angle_right);
+  const float tan_angle_bottom = tanf(angle_up);
+  const float tan_angle_top = tanf(angle_down);
+
+  perspective_m4(
+      mat, tan_angle_left, tan_angle_right, tan_angle_top, tan_angle_bottom, nearClip, farClip);
+  mat[0][0] /= nearClip;
+  mat[1][1] /= nearClip;
+}
+
 /* translate a matrix created by orthographic_m4 or perspective_m4 in XY coords
  * (used to jitter the view) */
 void window_translate_m4(float winmat[4][4], float perspmat[4][4], const float x, const float y)
@@ -5337,7 +5356,7 @@ void vcloud_estimate_transform_v3(const int list_size,
     }
     if (lrot || lscale) { /* caller does not want rot nor scale, strange but legal */
       /* so now do some reverse engineering and see if we can
-       * split rotation from scale -> Polardecompose */
+       * split rotation from scale -> Polar-decompose. */
       /* build 'projection' matrix */
       float m[3][3], mr[3][3], q[3][3], qi[3][3];
       float va[3], vb[3], stunt[3];
@@ -5724,7 +5743,7 @@ static float ff_quad_form_factor(float *p, float *n, float *q0, float *q1, float
 
 static __m128 sse_approx_acos(__m128 x)
 {
-  /* needs a better approximation than taylor expansion of acos, since that
+  /* needs a better approximation than Taylor expansion of acos, since that
    * gives big errors for near 1.0 values, sqrt(2 * x) * acos(1 - x) should work
    * better, see http://www.tom.womack.net/projects/sse-fast-arctrig.html */
 

@@ -54,20 +54,22 @@
  * mapping to the real vertex index (in case the weight tables do not cover the whole vertices...).
  * cmap might be NULL, in which case curve mapping mode will return unmodified data.
  */
-void weightvg_do_map(int num, float *new_w, short falloff_type, CurveMapping *cmap, RNG *rng)
+void weightvg_do_map(
+    int num, float *new_w, short falloff_type, const bool do_invert, CurveMapping *cmap, RNG *rng)
 {
   int i;
 
   /* Return immediately, if we have nothing to do! */
   /* Also security checks... */
-  if (((falloff_type == MOD_WVG_MAPPING_CURVE) && (cmap == NULL)) || !ELEM(falloff_type,
-                                                                           MOD_WVG_MAPPING_CURVE,
-                                                                           MOD_WVG_MAPPING_SHARP,
-                                                                           MOD_WVG_MAPPING_SMOOTH,
-                                                                           MOD_WVG_MAPPING_ROOT,
-                                                                           MOD_WVG_MAPPING_SPHERE,
-                                                                           MOD_WVG_MAPPING_RANDOM,
-                                                                           MOD_WVG_MAPPING_STEP)) {
+  if (!do_invert && (((falloff_type == MOD_WVG_MAPPING_CURVE) && (cmap == NULL)) ||
+                     !ELEM(falloff_type,
+                           MOD_WVG_MAPPING_CURVE,
+                           MOD_WVG_MAPPING_SHARP,
+                           MOD_WVG_MAPPING_SMOOTH,
+                           MOD_WVG_MAPPING_ROOT,
+                           MOD_WVG_MAPPING_SPHERE,
+                           MOD_WVG_MAPPING_RANDOM,
+                           MOD_WVG_MAPPING_STEP))) {
     return;
   }
 
@@ -103,9 +105,14 @@ void weightvg_do_map(int num, float *new_w, short falloff_type, CurveMapping *cm
       case MOD_WVG_MAPPING_STEP:
         fac = (fac >= 0.5f) ? 1.0f : 0.0f;
         break;
+      case MOD_WVG_MAPPING_NONE:
+        BLI_assert(do_invert);
+        break;
+      default:
+        BLI_assert(0);
     }
 
-    new_w[i] = fac;
+    new_w[i] = do_invert ? 1.0f - fac : fac;
   }
 }
 
@@ -212,7 +219,7 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
 
     MEM_freeN(tex_co);
   }
-  else if ((ref_didx = defgroup_name_index(ob, defgrp_name)) != -1) {
+  else if ((ref_didx = BKE_object_defgroup_name_index(ob, defgrp_name)) != -1) {
     MDeformVert *dvert = NULL;
 
     /* Check whether we want to set vgroup weights from a constant weight factor or a vertex
@@ -232,8 +239,8 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
     for (i = 0; i < num; i++) {
       int idx = indices ? indices[i] : i;
       const float f = invert_vgroup_mask ?
-                          1.0f - defvert_find_weight(&dvert[idx], ref_didx) * fact :
-                          defvert_find_weight(&dvert[idx], ref_didx) * fact;
+                          1.0f - BKE_defvert_find_weight(&dvert[idx], ref_didx) * fact :
+                          BKE_defvert_find_weight(&dvert[idx], ref_didx) * fact;
       org_w[i] = (new_w[i] * f) + (org_w[i] * (1.0f - f));
       /* If that vertex is not in ref vgroup, assume null factor, and hence do nothing! */
     }
@@ -271,7 +278,7 @@ void weightvg_update_vg(MDeformVert *dvert,
     float w = weights[i];
     MDeformVert *dv = &dvert[indices ? indices[i] : i];
     MDeformWeight *dw = dws ? dws[i] :
-                              ((defgrp_idx >= 0) ? defvert_find_index(dv, defgrp_idx) : NULL);
+                              ((defgrp_idx >= 0) ? BKE_defvert_find_index(dv, defgrp_idx) : NULL);
 
     /* Never allow weights out of [0.0, 1.0] range. */
     CLAMP(w, 0.0f, 1.0f);
@@ -279,7 +286,7 @@ void weightvg_update_vg(MDeformVert *dvert,
     /* If the vertex is in this vgroup, remove it if needed, or just update it. */
     if (dw != NULL) {
       if (do_rem && w < rem_thresh) {
-        defvert_remove_group(dv, dw);
+        BKE_defvert_remove_group(dv, dw);
       }
       else {
         dw->weight = w;
@@ -287,7 +294,7 @@ void weightvg_update_vg(MDeformVert *dvert,
     }
     /* Else, add it if needed! */
     else if (do_add && w > add_thresh) {
-      defvert_add_index_notest(dv, defgrp_idx, w);
+      BKE_defvert_add_index_notest(dv, defgrp_idx, w);
     }
   }
 }

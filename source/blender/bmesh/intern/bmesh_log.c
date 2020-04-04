@@ -31,11 +31,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_mempool.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_customdata.h"
 
@@ -788,7 +788,7 @@ void BM_log_redo(BMesh *bm, BMLog *log)
     /* Currently at the beginning of the undo stack, move to first entry */
     entry = log->entries.first;
   }
-  else if (entry && entry->next) {
+  else if (entry->next) {
     /* Move to next undo entry */
     entry = entry->next;
   }

@@ -24,8 +24,9 @@
 #include "DNA_constraint_types.h"
 #include "DNA_modifier_types.h"
 
-#include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 // #define DEBUG_OVERRIDE_TIMEIT
 
@@ -41,8 +42,8 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
-#include "rna_internal.h"
 #include "rna_access_internal.h"
+#include "rna_internal.h"
 
 int RNA_property_override_flag(PropertyRNA *prop)
 {
@@ -57,7 +58,7 @@ bool RNA_property_overridable_get(PointerRNA *ptr, PropertyRNA *prop)
     /* Special handling for insertions of constraints or modifiers... */
     /* TODO Note We may want to add a more generic system to RNA
      * (like a special property in struct of items)
-     * if we get more overrideable collections,
+     * if we get more override-able collections,
      * for now we can live with those special-cases handling I think. */
     if (RNA_struct_is_a(ptr->type, &RNA_Constraint)) {
       bConstraint *con = ptr->data;
@@ -437,7 +438,7 @@ static bool rna_property_override_operation_store(Main *bmain,
     return changed;
   }
 
-  for (IDOverrideLibraryPropertyOperation *opop = op->operations.first; opop; opop = opop->next) {
+  LISTBASE_FOREACH (IDOverrideLibraryPropertyOperation *, opop, &op->operations) {
     /* Only needed for diff operations. */
     if (!ELEM(opop->operation,
               IDOVERRIDE_LIBRARY_OP_ADD,
@@ -831,7 +832,7 @@ bool RNA_struct_override_store(Main *bmain,
 #ifdef DEBUG_OVERRIDE_TIMEIT
   TIMEIT_START_AVERAGED(RNA_struct_override_store);
 #endif
-  for (IDOverrideLibraryProperty *op = override->properties.first; op; op = op->next) {
+  LISTBASE_FOREACH (IDOverrideLibraryProperty *, op, &override->properties) {
     /* Simplified for now! */
     PointerRNA data_reference, data_local;
     PropertyRNA *prop_reference, *prop_local;
@@ -879,7 +880,7 @@ static void rna_property_override_apply_ex(Main *bmain,
                                            IDOverrideLibraryProperty *op,
                                            const bool do_insert)
 {
-  for (IDOverrideLibraryPropertyOperation *opop = op->operations.first; opop; opop = opop->next) {
+  LISTBASE_FOREACH (IDOverrideLibraryPropertyOperation *, opop, &op->operations) {
     if (!do_insert != !ELEM(opop->operation,
                             IDOVERRIDE_LIBRARY_OP_INSERT_AFTER,
                             IDOVERRIDE_LIBRARY_OP_INSERT_BEFORE)) {
@@ -998,7 +999,7 @@ void RNA_struct_override_apply(Main *bmain,
    */
   bool do_insert = false;
   for (int i = 0; i < 2; i++, do_insert = true) {
-    for (IDOverrideLibraryProperty *op = override->properties.first; op; op = op->next) {
+    LISTBASE_FOREACH (IDOverrideLibraryProperty *, op, &override->properties) {
       /* Simplified for now! */
       PointerRNA data_src, data_dst;
       PointerRNA data_item_src, data_item_dst;

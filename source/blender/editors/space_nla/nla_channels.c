@@ -21,10 +21,10 @@
  * \ingroup spnla
  */
 
-#include <string.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+#include <string.h>
 
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
@@ -33,13 +33,13 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_animsys.h"
-#include "BKE_nla.h"
+#include "BKE_anim_data.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_nla.h"
+#include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_report.h"
 
 #include "ED_anim_api.h"
 #include "ED_keyframes_edit.h"
@@ -81,7 +81,7 @@ static int mouse_nla_channels(
   bAnimListElem *ale;
   int filter;
 
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   int notifierFlags = 0;
 
   /* get the channel that was clicked on */
@@ -146,7 +146,7 @@ static int mouse_nla_channels(
         else {
           /* deselect all */
           /* TODO: should this deselect all other types of channels too? */
-          for (Base *b = view_layer->object_bases.first; b; b = b->next) {
+          LISTBASE_FOREACH (Base *, b, &view_layer->object_bases) {
             ED_object_base_select(b, BA_DESELECT);
             if (b->object->adt) {
               b->object->adt->flag &= ~(ADT_UI_SELECTED | ADT_UI_ACTIVE);
@@ -190,7 +190,10 @@ static int mouse_nla_channels(
     case ANIMTYPE_DSLINESTYLE:
     case ANIMTYPE_DSSPK:
     case ANIMTYPE_DSGPENCIL:
-    case ANIMTYPE_PALETTE: {
+    case ANIMTYPE_PALETTE:
+    case ANIMTYPE_DSHAIR:
+    case ANIMTYPE_DSPOINTCLOUD:
+    case ANIMTYPE_DSVOLUME: {
       /* sanity checking... */
       if (ale->adt) {
         /* select/deselect */
@@ -361,7 +364,7 @@ static int nlachannels_mouseclick_invoke(bContext *C, wmOperator *op, const wmEv
 {
   bAnimContext ac;
   SpaceNla *snla;
-  ARegion *ar;
+  ARegion *region;
   View2D *v2d;
   int channel_index;
   int notifierFlags = 0;
@@ -375,8 +378,8 @@ static int nlachannels_mouseclick_invoke(bContext *C, wmOperator *op, const wmEv
 
   /* get useful pointers from animation context data */
   snla = (SpaceNla *)ac.sl;
-  ar = ac.ar;
-  v2d = &ar->v2d;
+  region = ac.region;
+  v2d = &region->v2d;
 
   /* select mode is either replace (deselect all, then add) or add/extend */
   if (RNA_boolean_get(op->ptr, "extend")) {

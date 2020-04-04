@@ -20,16 +20,18 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
 #include "BLI_system.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_camera_types.h"
 #include "DNA_curveprofile_types.h"
 #include "DNA_gpencil_types.h"
+#include "DNA_light_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -37,22 +39,21 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_light_types.h"
 
 #include "BKE_appdir.h"
 #include "BKE_brush.h"
 #include "BKE_colortools.h"
+#include "BKE_curveprofile.h"
+#include "BKE_gpencil.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
+#include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
 #include "BKE_paint.h"
 #include "BKE_screen.h"
 #include "BKE_workspace.h"
-#include "BKE_curveprofile.h"
 
 #include "BLO_readfile.h"
 
@@ -70,7 +71,7 @@ static ID *rename_id_for_versioning(Main *bmain,
   /* We can ignore libraries */
   ListBase *lb = which_libbase(bmain, id_type);
   ID *id = NULL;
-  for (ID *idtest = lb->first; idtest; idtest = idtest->next) {
+  LISTBASE_FOREACH (ID *, idtest, lb) {
     if (idtest->lib == NULL) {
       if (STREQ(idtest->name + 2, name_src)) {
         id = idtest;
@@ -100,17 +101,17 @@ static void blo_update_defaults_screen(bScreen *screen,
                                        const char *workspace_name)
 {
   /* For all app templates. */
-  for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-    for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
       /* Some toolbars have been saved as initialized,
        * we don't want them to have odd zoom-level or scrolling set, see: T47047 */
-      if (ELEM(ar->regiontype, RGN_TYPE_UI, RGN_TYPE_TOOLS, RGN_TYPE_TOOL_PROPS)) {
-        ar->v2d.flag &= ~V2D_IS_INITIALISED;
+      if (ELEM(region->regiontype, RGN_TYPE_UI, RGN_TYPE_TOOLS, RGN_TYPE_TOOL_PROPS)) {
+        region->v2d.flag &= ~V2D_IS_INITIALISED;
       }
     }
 
     /* Set default folder. */
-    for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+    LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
       if (sl->spacetype == SPACE_FILE) {
         SpaceFile *sfile = (SpaceFile *)sl;
         if (sfile->params) {
@@ -129,60 +130,60 @@ static void blo_update_defaults_screen(bScreen *screen,
     return;
   }
 
-  for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-    for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
       /* Remove all stored panels, we want to use defaults
        * (order, open/closed) as defined by UI code here! */
-      BKE_area_region_panels_free(&ar->panels);
-      BLI_freelistN(&ar->panels_category_active);
+      BKE_area_region_panels_free(&region->panels);
+      BLI_freelistN(&region->panels_category_active);
 
       /* Reset size so it uses consistent defaults from the region types. */
-      ar->sizex = 0;
-      ar->sizey = 0;
+      region->sizex = 0;
+      region->sizey = 0;
     }
 
-    if (sa->spacetype == SPACE_IMAGE) {
+    if (area->spacetype == SPACE_IMAGE) {
       if (STREQ(workspace_name, "UV Editing")) {
-        SpaceImage *sima = sa->spacedata.first;
+        SpaceImage *sima = area->spacedata.first;
         if (sima->mode == SI_MODE_VIEW) {
           sima->mode = SI_MODE_UV;
         }
       }
     }
-    else if (sa->spacetype == SPACE_ACTION) {
+    else if (area->spacetype == SPACE_ACTION) {
       /* Show markers region, hide channels and collapse summary in timelines. */
-      SpaceAction *saction = sa->spacedata.first;
+      SpaceAction *saction = area->spacedata.first;
       saction->flag |= SACTION_SHOW_MARKERS;
       if (saction->mode == SACTCONT_TIMELINE) {
         saction->ads.flag |= ADS_FLAG_SUMMARY_COLLAPSED;
 
-        for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
-          if (ar->regiontype == RGN_TYPE_CHANNELS) {
-            ar->flag |= RGN_FLAG_HIDDEN;
+        LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+          if (region->regiontype == RGN_TYPE_CHANNELS) {
+            region->flag |= RGN_FLAG_HIDDEN;
           }
         }
       }
     }
-    else if (sa->spacetype == SPACE_GRAPH) {
-      SpaceGraph *sipo = sa->spacedata.first;
+    else if (area->spacetype == SPACE_GRAPH) {
+      SpaceGraph *sipo = area->spacedata.first;
       sipo->flag |= SIPO_SHOW_MARKERS;
     }
-    else if (sa->spacetype == SPACE_NLA) {
-      SpaceNla *snla = sa->spacedata.first;
+    else if (area->spacetype == SPACE_NLA) {
+      SpaceNla *snla = area->spacedata.first;
       snla->flag |= SNLA_SHOW_MARKERS;
     }
-    else if (sa->spacetype == SPACE_SEQ) {
-      SpaceSeq *seq = sa->spacedata.first;
+    else if (area->spacetype == SPACE_SEQ) {
+      SpaceSeq *seq = area->spacedata.first;
       seq->flag |= SEQ_SHOW_MARKERS;
     }
-    else if (sa->spacetype == SPACE_TEXT) {
+    else if (area->spacetype == SPACE_TEXT) {
       /* Show syntax and line numbers in Script workspace text editor. */
-      SpaceText *stext = sa->spacedata.first;
+      SpaceText *stext = area->spacedata.first;
       stext->showsyntax = true;
       stext->showlinenrs = true;
     }
-    else if (sa->spacetype == SPACE_VIEW3D) {
-      View3D *v3d = sa->spacedata.first;
+    else if (area->spacetype == SPACE_VIEW3D) {
+      View3D *v3d = area->spacedata.first;
       /* Screen space cavity by default for faster performance. */
       v3d->shading.cavity_type = V3D_SHADING_CAVITY_CURVATURE;
       v3d->shading.flag |= V3D_SHADING_SPECULAR_HIGHLIGHT;
@@ -201,25 +202,25 @@ static void blo_update_defaults_screen(bScreen *screen,
         copy_v3_fl(v3d->shading.background_color, 0.05f);
       }
     }
-    else if (sa->spacetype == SPACE_CLIP) {
-      SpaceClip *sclip = sa->spacedata.first;
+    else if (area->spacetype == SPACE_CLIP) {
+      SpaceClip *sclip = area->spacedata.first;
       sclip->around = V3D_AROUND_CENTER_MEDIAN;
     }
   }
 
   /* Show tool-header by default (for most cases at least, hide for others). */
   const bool hide_image_tool_header = STREQ(workspace_name, "Rendering");
-  for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-    for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-      ListBase *regionbase = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+      ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
 
-      for (ARegion *ar = regionbase->first; ar; ar = ar->next) {
-        if (ar->regiontype == RGN_TYPE_TOOL_HEADER) {
+      LISTBASE_FOREACH (ARegion *, region, regionbase) {
+        if (region->regiontype == RGN_TYPE_TOOL_HEADER) {
           if ((sl->spacetype == SPACE_IMAGE) && hide_image_tool_header) {
-            ar->flag |= RGN_FLAG_HIDDEN;
+            region->flag |= RGN_FLAG_HIDDEN;
           }
           else {
-            ar->flag &= ~(RGN_FLAG_HIDDEN | RGN_FLAG_HIDDEN_BY_USER);
+            region->flag &= ~(RGN_FLAG_HIDDEN | RGN_FLAG_HIDDEN_BY_USER);
           }
         }
       }
@@ -228,12 +229,19 @@ static void blo_update_defaults_screen(bScreen *screen,
 
   /* 2D animation template. */
   if (app_template && STREQ(app_template, "2D_Animation")) {
-    for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-      for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
-        if (sa->spacetype == SPACE_ACTION) {
-          SpaceAction *saction = sa->spacedata.first;
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+        if (area->spacetype == SPACE_ACTION) {
+          SpaceAction *saction = area->spacedata.first;
           /* Enable Sliders. */
           saction->flag |= SACTION_SLIDERS;
+        }
+        else if (area->spacetype == SPACE_VIEW3D) {
+          View3D *v3d = area->spacedata.first;
+          /* Set Material Color by default. */
+          v3d->shading.color_type = V3D_SHADING_MATERIAL_COLOR;
+          /* Enable Annotations. */
+          v3d->flag2 |= V3D_SHOW_ANNOTATION;
         }
       }
     }
@@ -243,7 +251,7 @@ static void blo_update_defaults_screen(bScreen *screen,
 void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_template)
 {
   ListBase *layouts = BKE_workspace_layouts_get(workspace);
-  for (WorkSpaceLayout *layout = layouts->first; layout; layout = layout->next) {
+  LISTBASE_FOREACH (WorkSpaceLayout *, layout, layouts) {
     if (layout->screen) {
       blo_update_defaults_screen(layout->screen, app_template, workspace->id.name + 2);
     }
@@ -262,13 +270,13 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
 
     /* For Sculpting template. */
     if (STREQ(workspace->id.name + 2, "Sculpting")) {
-      for (WorkSpaceLayout *layout = layouts->first; layout; layout = layout->next) {
+      LISTBASE_FOREACH (WorkSpaceLayout *, layout, layouts) {
         bScreen *screen = layout->screen;
         if (screen) {
-          for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
-            for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
-              if (sa->spacetype == SPACE_VIEW3D) {
-                View3D *v3d = sa->spacedata.first;
+          LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+            LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+              if (area->spacetype == SPACE_VIEW3D) {
+                View3D *v3d = area->spacedata.first;
                 v3d->shading.flag &= ~V3D_SHADING_CAVITY;
                 copy_v3_fl(v3d->shading.single_color, 1.0f);
                 STRNCPY(v3d->shading.matcap, "basic_1");
@@ -545,7 +553,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ma->roughness = 0.4f;
 
     if (ma->nodetree) {
-      for (bNode *node = ma->nodetree->nodes.first; node; node = node->next) {
+      LISTBASE_FOREACH (bNode *, node, &ma->nodetree->nodes) {
         if (node->type == SH_NODE_BSDF_PRINCIPLED) {
           bNodeSocket *roughness_socket = nodeFindSocket(node, SOCK_IN, "Roughness");
           bNodeSocketValueFloat *roughness_data = roughness_socket->default_value;
@@ -655,6 +663,14 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       brush->sculpt_tool = SCULPT_TOOL_SIMPLIFY;
     }
 
+    brush_name = "Draw Face Sets";
+    brush = BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2);
+    if (!brush) {
+      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
+      id_us_min(&brush->id);
+      brush->sculpt_tool = SCULPT_TOOL_DRAW_FACE_SETS;
+    }
+
     /* Use the same tool icon color in the brush cursor */
     for (brush = bmain->brushes.first; brush; brush = brush->id.next) {
       if (brush->ob_mode & OB_MODE_SCULPT) {
@@ -664,7 +680,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     }
   }
 
-  if (app_template && STREQ(app_template, "2D_Animation")) {
+  /* New grease pencil brushes and vertex paint setup. */
+  {
     /* Update Grease Pencil brushes. */
     Brush *brush;
 
@@ -698,8 +715,54 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       BKE_id_delete(bmain, brush);
     }
 
+    /* Rename and fix materials and enable default object lights on. */
+    if (app_template && STREQ(app_template, "2D_Animation")) {
+      Material *ma = NULL;
+      rename_id_for_versioning(bmain, ID_MA, "Black", "Solid Stroke");
+      rename_id_for_versioning(bmain, ID_MA, "Red", "Squares Stroke");
+      rename_id_for_versioning(bmain, ID_MA, "Grey", "Solid Fill");
+      rename_id_for_versioning(bmain, ID_MA, "Black Dots", "Dots Stroke");
+
+      /* Dots Stroke. */
+      ma = BLI_findstring(&bmain->materials, "Dots Stroke", offsetof(ID, name) + 2);
+      if (ma == NULL) {
+        ma = BKE_gpencil_material_add(bmain, "Dots Stroke");
+      }
+      ma->gp_style->mode = GP_MATERIAL_MODE_DOT;
+
+      /* Squares Stroke. */
+      ma = BLI_findstring(&bmain->materials, "Squares Stroke", offsetof(ID, name) + 2);
+      if (ma == NULL) {
+        ma = BKE_gpencil_material_add(bmain, "Squares Stroke");
+      }
+      ma->gp_style->mode = GP_MATERIAL_MODE_SQUARE;
+
+      /* Change Solid Fill settings. */
+      ma = BLI_findstring(&bmain->materials, "Solid Fill", offsetof(ID, name) + 2);
+      if (ma != NULL) {
+        ma->gp_style->flag &= ~GP_MATERIAL_STROKE_SHOW;
+      }
+
+      Object *ob = BLI_findstring(&bmain->objects, "Stroke", offsetof(ID, name) + 2);
+      if (ob && ob->type == OB_GPENCIL) {
+        ob->dtx |= OB_USE_GPENCIL_LIGHTS;
+      }
+    }
+
     /* Reset all grease pencil brushes. */
     Scene *scene = bmain->scenes.first;
-    BKE_brush_gpencil_presets(bmain, scene->toolsettings);
+    BKE_brush_gpencil_paint_presets(bmain, scene->toolsettings);
+
+    /* Ensure new Paint modes. */
+    BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_VERTEX_GPENCIL);
+    BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_SCULPT_GPENCIL);
+    BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_WEIGHT_GPENCIL);
+
+    /* Enable cursor. */
+    GpPaint *gp_paint = scene->toolsettings->gp_paint;
+    gp_paint->paint.flags |= PAINT_SHOW_BRUSH;
+
+    /* Ensure Palette by default. */
+    BKE_gpencil_palette_ensure(bmain, scene);
   }
 }

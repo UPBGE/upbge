@@ -21,11 +21,11 @@
  * \ingroup edcurve
  */
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
 #include <wchar.h>
-#include <errno.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -36,9 +36,9 @@
 
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
-#include "DNA_vfont_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_text_types.h"
+#include "DNA_vfont_types.h"
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
@@ -76,7 +76,7 @@ static int kill_selection(Object *obedit, int ins);
 /** \name Internal Utilities
  * \{ */
 
-static wchar_t findaccent(wchar_t char1, unsigned int code)
+static wchar_t findaccent(wchar_t char1, uint code)
 {
   wchar_t new = 0;
 
@@ -1684,7 +1684,7 @@ static int insert_text_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   /* tab should exit editmode, but we allow it to be typed using modifier keys */
-  if (event_type == TABKEY) {
+  if (event_type == EVT_TABKEY) {
     if ((alt || ctrl || shift) == 0) {
       return OPERATOR_PASS_THROUGH;
     }
@@ -1693,7 +1693,7 @@ static int insert_text_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     }
   }
 
-  if (event_type == BACKSPACEKEY) {
+  if (event_type == EVT_BACKSPACEKEY) {
     if (alt && ef->len != 0 && ef->pos > 0) {
       accentcode = 1;
     }
@@ -2256,7 +2256,7 @@ bool ED_curve_editfont_select_pick(
 
     for (j = 0; j < 4; j++) {
       if (ED_view3d_project_float_object(
-              vc.ar, obedit_co[j], screen_co[j], V3D_PROJ_TEST_CLIP_BB) == V3D_PROJ_RET_OK) {
+              vc.region, obedit_co[j], screen_co[j], V3D_PROJ_TEST_CLIP_BB) == V3D_PROJ_RET_OK) {
         project_ok |= (1 << j);
       }
     }

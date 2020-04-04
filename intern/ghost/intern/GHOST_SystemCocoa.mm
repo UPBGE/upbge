@@ -20,17 +20,17 @@
 #include "GHOST_SystemCocoa.h"
 
 #include "GHOST_DisplayManagerCocoa.h"
-#include "GHOST_EventKey.h"
 #include "GHOST_EventButton.h"
 #include "GHOST_EventCursor.h"
-#include "GHOST_EventWheel.h"
-#include "GHOST_EventTrackpad.h"
 #include "GHOST_EventDragnDrop.h"
+#include "GHOST_EventKey.h"
 #include "GHOST_EventString.h"
+#include "GHOST_EventTrackpad.h"
+#include "GHOST_EventWheel.h"
 #include "GHOST_TimerManager.h"
 #include "GHOST_TimerTask.h"
-#include "GHOST_WindowManager.h"
 #include "GHOST_WindowCocoa.h"
+#include "GHOST_WindowManager.h"
 
 #if defined(WITH_GL_EGL)
 #  include "GHOST_ContextEGL.h"
@@ -49,9 +49,9 @@
 /* For the currently not ported to Cocoa keyboard layout functions (64bit & 10.6 compatible) */
 #include <Carbon/Carbon.h>
 
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/sysctl.h>
 
 #pragma mark KeyMap, mouse converters
 
@@ -580,7 +580,7 @@ GHOST_TSuccess GHOST_SystemCocoa::init()
                              keyEquivalent:@"h"];
       [menuItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand];
 
-      menuItem = [appMenu addItemWithTitle:@"Hide others"
+      menuItem = [appMenu addItemWithTitle:@"Hide Others"
                                     action:@selector(hideOtherApplications:)
                              keyEquivalent:@"h"];
       [menuItem
@@ -1001,28 +1001,32 @@ GHOST_TSuccess GHOST_SystemCocoa::handleApplicationBecomeActiveEvent()
                                  (modifiers & NSEventModifierFlagShift) ? GHOST_kEventKeyDown :
                                                                           GHOST_kEventKeyUp,
                                  window,
-                                 GHOST_kKeyLeftShift));
+                                 GHOST_kKeyLeftShift,
+                                 false));
   }
   if ((modifiers & NSEventModifierFlagControl) != (m_modifierMask & NSEventModifierFlagControl)) {
     pushEvent(new GHOST_EventKey(getMilliSeconds(),
                                  (modifiers & NSEventModifierFlagControl) ? GHOST_kEventKeyDown :
                                                                             GHOST_kEventKeyUp,
                                  window,
-                                 GHOST_kKeyLeftControl));
+                                 GHOST_kKeyLeftControl,
+                                 false));
   }
   if ((modifiers & NSEventModifierFlagOption) != (m_modifierMask & NSEventModifierFlagOption)) {
     pushEvent(new GHOST_EventKey(getMilliSeconds(),
                                  (modifiers & NSEventModifierFlagOption) ? GHOST_kEventKeyDown :
                                                                            GHOST_kEventKeyUp,
                                  window,
-                                 GHOST_kKeyLeftAlt));
+                                 GHOST_kKeyLeftAlt,
+                                 false));
   }
   if ((modifiers & NSEventModifierFlagCommand) != (m_modifierMask & NSEventModifierFlagCommand)) {
     pushEvent(new GHOST_EventKey(getMilliSeconds(),
                                  (modifiers & NSEventModifierFlagCommand) ? GHOST_kEventKeyDown :
                                                                             GHOST_kEventKeyUp,
                                  window,
-                                 GHOST_kKeyOS));
+                                 GHOST_kKeyOS,
+                                 false));
   }
 
   m_modifierMask = modifiers;
@@ -1805,8 +1809,13 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
       }
 
       if ([event type] == NSEventTypeKeyDown) {
-        pushEvent(new GHOST_EventKey(
-            [event timestamp] * 1000, GHOST_kEventKeyDown, window, keyCode, ascii, utf8_buf));
+        pushEvent(new GHOST_EventKey([event timestamp] * 1000,
+                                     GHOST_kEventKeyDown,
+                                     window,
+                                     keyCode,
+                                     ascii,
+                                     utf8_buf,
+                                     false));
 #if 0
         printf("Key down rawCode=0x%x charsIgnoringModifiers=%c keyCode=%u ascii=%i %c utf8=%s\n",
                [event keyCode],
@@ -1820,7 +1829,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
       }
       else {
         pushEvent(new GHOST_EventKey(
-            [event timestamp] * 1000, GHOST_kEventKeyUp, window, keyCode, 0, NULL));
+            [event timestamp] * 1000, GHOST_kEventKeyUp, window, keyCode, 0, NULL, false));
 #if 0
         printf("Key up rawCode=0x%x charsIgnoringModifiers=%c keyCode=%u ascii=%i %c utf8=%s\n",
                [event keyCode],
@@ -1843,7 +1852,8 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
                                      (modifiers & NSEventModifierFlagShift) ? GHOST_kEventKeyDown :
                                                                               GHOST_kEventKeyUp,
                                      window,
-                                     GHOST_kKeyLeftShift));
+                                     GHOST_kKeyLeftShift,
+                                     false));
       }
       if ((modifiers & NSEventModifierFlagControl) !=
           (m_modifierMask & NSEventModifierFlagControl)) {
@@ -1851,7 +1861,8 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
             [event timestamp] * 1000,
             (modifiers & NSEventModifierFlagControl) ? GHOST_kEventKeyDown : GHOST_kEventKeyUp,
             window,
-            GHOST_kKeyLeftControl));
+            GHOST_kKeyLeftControl,
+            false));
       }
       if ((modifiers & NSEventModifierFlagOption) !=
           (m_modifierMask & NSEventModifierFlagOption)) {
@@ -1859,7 +1870,8 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
             [event timestamp] * 1000,
             (modifiers & NSEventModifierFlagOption) ? GHOST_kEventKeyDown : GHOST_kEventKeyUp,
             window,
-            GHOST_kKeyLeftAlt));
+            GHOST_kKeyLeftAlt,
+            false));
       }
       if ((modifiers & NSEventModifierFlagCommand) !=
           (m_modifierMask & NSEventModifierFlagCommand)) {
@@ -1867,7 +1879,8 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
             [event timestamp] * 1000,
             (modifiers & NSEventModifierFlagCommand) ? GHOST_kEventKeyDown : GHOST_kEventKeyUp,
             window,
-            GHOST_kKeyOS));
+            GHOST_kKeyOS,
+            false));
       }
 
       m_modifierMask = modifiers;

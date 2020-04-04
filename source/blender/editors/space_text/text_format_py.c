@@ -21,8 +21,8 @@
 
 #include "BLI_blenlib.h"
 
-#include "DNA_text_types.h"
 #include "DNA_space_types.h"
+#include "DNA_text_types.h"
 
 #include "BKE_text.h"
 
@@ -291,7 +291,7 @@ static int txtfmt_py_literal_numeral(const char *string, char prev_fmt)
     }
     /* Previous was a number; if immediately followed by '.' it's a floating point decimal number.
      * Note: keep the decimal point, it's needed to allow leading zeros. */
-    if ((prev_fmt == FMT_TYPE_NUMERAL) && (first == '.')) {
+    if (first == '.') {
       return txtfmt_py_find_numeral_inner(string);
     }
     /* "Imaginary" part of a complex number ends with 'j' */

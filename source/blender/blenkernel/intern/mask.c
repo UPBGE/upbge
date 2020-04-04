@@ -28,36 +28,72 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
-#include "BLI_string.h"
-#include "BLI_string_utils.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
+#include "BLI_string.h"
+#include "BLI_string_utils.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
 #include "DNA_mask_types.h"
-#include "DNA_node_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_sequence_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_curve.h"
+#include "BKE_idtype.h"
 
+#include "BKE_image.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_mask.h"
-#include "BKE_node.h"
-#include "BKE_sequencer.h"
-#include "BKE_tracking.h"
 #include "BKE_movieclip.h"
-#include "BKE_image.h"
+#include "BKE_tracking.h"
 
 #include "DEG_depsgraph_build.h"
 
 static CLG_LogRef LOG = {"bke.mask"};
+
+static void mask_copy_data(Main *UNUSED(bmain),
+                           ID *id_dst,
+                           const ID *id_src,
+                           const int UNUSED(flag))
+{
+  Mask *mask_dst = (Mask *)id_dst;
+  const Mask *mask_src = (const Mask *)id_src;
+
+  BLI_listbase_clear(&mask_dst->masklayers);
+
+  /* TODO add unused flag to those as well. */
+  BKE_mask_layer_copy_list(&mask_dst->masklayers, &mask_src->masklayers);
+
+  /* enable fake user by default */
+  id_fake_user_set(&mask_dst->id);
+}
+
+static void mask_free_data(ID *id)
+{
+  Mask *mask = (Mask *)id;
+
+  /* free mask data */
+  BKE_mask_layer_free_list(&mask->masklayers);
+}
+
+IDTypeInfo IDType_ID_MSK = {
+    .id_code = ID_MSK,
+    .id_filter = FILTER_ID_MSK,
+    .main_listbase_index = INDEX_ID_MSK,
+    .struct_size = sizeof(Mask),
+    .name = "Mask",
+    .name_plural = "masks",
+    .translation_context = BLT_I18NCONTEXT_ID_MASK,
+    .flags = 0,
+
+    .init_data = NULL,
+    .copy_data = mask_copy_data,
+    .free_data = mask_free_data,
+    .make_local = NULL,
+};
 
 static struct {
   ListBase splines;
@@ -398,7 +434,7 @@ float BKE_mask_spline_project_co(MaskSpline *spline,
   float u = -1.0f, du = 1.0f / N, u1 = start_u, u2 = start_u;
   float ang = -1.0f;
 
-  BLI_assert(ABS(sign) <= 1); /* (-1, 0, 1) */
+  BLI_assert(abs(sign) <= 1); /* (-1, 0, 1) */
 
   while (u1 > 0.0f || u2 < 1.0f) {
     float n1[2], n2[2], co1[2], co2[2];
@@ -466,9 +502,9 @@ float BKE_mask_spline_project_co(MaskSpline *spline,
 
 /* point */
 
-eMaskhandleMode BKE_mask_point_handles_mode_get(MaskSplinePoint *point)
+eMaskhandleMode BKE_mask_point_handles_mode_get(const MaskSplinePoint *point)
 {
-  BezTriple *bezt = &point->bezt;
+  const BezTriple *bezt = &point->bezt;
 
   if (bezt->h1 == bezt->h2 && bezt->h1 == HD_ALIGN) {
     return MASK_HANDLE_MODE_STICK;
@@ -477,23 +513,25 @@ eMaskhandleMode BKE_mask_point_handles_mode_get(MaskSplinePoint *point)
   return MASK_HANDLE_MODE_INDIVIDUAL_HANDLES;
 }
 
-void BKE_mask_point_handle(MaskSplinePoint *point, eMaskWhichHandle which_handle, float handle[2])
+void BKE_mask_point_handle(const MaskSplinePoint *point,
+                           eMaskWhichHandle which_handle,
+                           float r_handle[2])
 {
-  BezTriple *bezt = &point->bezt;
+  const BezTriple *bezt = &point->bezt;
 
   if (which_handle == MASK_WHICH_HANDLE_STICK) {
     float vec[2];
 
     sub_v2_v2v2(vec, bezt->vec[0], bezt->vec[1]);
 
-    handle[0] = (bezt->vec[1][0] + vec[1]);
-    handle[1] = (bezt->vec[1][1] - vec[0]);
+    r_handle[0] = (bezt->vec[1][0] + vec[1]);
+    r_handle[1] = (bezt->vec[1][1] - vec[0]);
   }
   else if (which_handle == MASK_WHICH_HANDLE_LEFT) {
-    copy_v2_v2(handle, bezt->vec[0]);
+    copy_v2_v2(r_handle, bezt->vec[0]);
   }
   else if (which_handle == MASK_WHICH_HANDLE_RIGHT) {
-    copy_v2_v2(handle, bezt->vec[2]);
+    copy_v2_v2(r_handle, bezt->vec[2]);
   }
   else {
     BLI_assert(!"Unknown handle passed to BKE_mask_point_handle");
@@ -875,40 +913,11 @@ Mask *BKE_mask_copy_nolib(Mask *mask)
   return mask_new;
 }
 
-/**
- * Only copy internal data of Mask ID from source
- * to already allocated/initialized destination.
- * You probably never want to use that directly,
- * use #BKE_id_copy or #BKE_id_copy_ex for typical needs.
- *
- * WARNING! This function will not handle ID user count!
- *
- * \param flag: Copying options (see BKE_lib_id.h's LIB_ID_COPY_... flags for more).
- */
-void BKE_mask_copy_data(Main *UNUSED(bmain),
-                        Mask *mask_dst,
-                        const Mask *mask_src,
-                        const int UNUSED(flag))
-{
-  BLI_listbase_clear(&mask_dst->masklayers);
-
-  /* TODO add unused flag to those as well. */
-  BKE_mask_layer_copy_list(&mask_dst->masklayers, &mask_src->masklayers);
-
-  /* enable fake user by default */
-  id_fake_user_set(&mask_dst->id);
-}
-
 Mask *BKE_mask_copy(Main *bmain, const Mask *mask)
 {
   Mask *mask_copy;
   BKE_id_copy(bmain, &mask->id, (ID **)&mask_copy);
   return mask_copy;
-}
-
-void BKE_mask_make_local(Main *bmain, Mask *mask, const int flags)
-{
-  BKE_lib_id_make_local_generic(bmain, &mask->id, flags);
 }
 
 void BKE_mask_point_free(MaskSplinePoint *point)
@@ -1059,10 +1068,7 @@ void BKE_mask_layer_free_list(ListBase *masklayers)
 /** Free (or release) any data used by this mask (does not free the mask itself). */
 void BKE_mask_free(Mask *mask)
 {
-  BKE_animdata_free((ID *)mask, false);
-
-  /* free mask data */
-  BKE_mask_layer_free_list(&mask->masklayers);
+  mask_free_data(&mask->id);
 }
 
 void BKE_mask_coord_from_frame(float r_co[2], const float co[2], const float frame_size[2])

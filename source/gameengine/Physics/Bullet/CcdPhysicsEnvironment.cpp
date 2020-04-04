@@ -20,62 +20,55 @@
  */
 
 #include "CcdPhysicsEnvironment.h"
-#include "CcdPhysicsController.h"
-#include "CcdGraphicController.h"
-#include "CcdConstraint.h"
-#include "CcdMathUtils.h"
 
 #include <algorithm>
-#include "btBulletDynamicsCommon.h"
-#include "LinearMath/btIDebugDraw.h"
-#include "BulletCollision/CollisionDispatch/btGhostObject.h"
-#include "BulletCollision/CollisionDispatch/btSimulationIslandManager.h"
-#include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
-#include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
-#include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
-#include "BulletCollision/NarrowPhaseCollision/btRaycastCallback.h"
 
-// profiling/timings
-#include "LinearMath/btQuickprof.h"
-
-#include "PHY_IMotionState.h"
-#include "PHY_ICharacter.h"
-#include "PHY_Pro.h"
-#include "KX_GameObject.h"
-#include "KX_Globals.h"  // for KX_RasterizerDrawDebugLine
-#include "KX_BlenderSceneConverter.h"
-#include "RAS_MeshObject.h"
-#include "RAS_Polygon.h"
-#include "RAS_ITexVert.h"
-
+#include "BKE_object.h"
+#include "BLI_utildefines.h"
+#include "DNA_object_force_types.h"
+#include "DNA_object_types.h"  // for OB_MAX_COL_MASKS
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
-#include "DNA_object_types.h"  // for OB_MAX_COL_MASKS
-#include "DNA_object_force_types.h"
 
-extern "C" {
-#include "BLI_utildefines.h"
-#include "BKE_object.h"
-}
-
-#define CCD_CONSTRAINT_DISABLE_LINKED_COLLISION 0x80
-
+#include "BulletCollision/CollisionDispatch/btGhostObject.h"
+#include "BulletCollision/CollisionDispatch/btSimulationIslandManager.h"
+#include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
+#include "BulletCollision/NarrowPhaseCollision/btRaycastCallback.h"
+#include "BulletDynamics/ConstraintSolver/btContactConstraint.h"
 #include "BulletDynamics/Vehicle/btRaycastVehicle.h"
 #include "BulletDynamics/Vehicle/btVehicleRaycaster.h"
 #include "BulletDynamics/Vehicle/btWheelInfo.h"
-#include "PHY_IVehicle.h"
-static btRaycastVehicle::btVehicleTuning gTuning;
-
+#include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
+#include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
 #include "LinearMath/btAabbUtil2.h"
+#include "LinearMath/btIDebugDraw.h"
+#include "LinearMath/btQuickprof.h"
+#include "btBulletDynamicsCommon.h"
+
+#include "BL_BlenderSceneConverter.h"
+#include "CM_Message.h"
+#include "CcdConstraint.h"
+#include "CcdGraphicController.h"
+#include "CcdMathUtils.h"
+#include "CcdPhysicsController.h"
+#include "KX_GameObject.h"
+#include "KX_Globals.h"  // for KX_RasterizerDrawDebugLine
 #include "MT_MinMax.h"
+#include "PHY_ICharacter.h"
+#include "PHY_IMotionState.h"
+#include "PHY_IVehicle.h"
+#include "PHY_Pro.h"
+#include "RAS_ITexVert.h"
+#include "RAS_MeshObject.h"
+#include "RAS_Polygon.h"
+
+#define CCD_CONSTRAINT_DISABLE_LINKED_COLLISION 0x80
+
+static btRaycastVehicle::btVehicleTuning gTuning;
 
 #ifdef WIN32
 void DrawRasterizerLine(const float *from, const float *to, int color);
 #endif
-
-#include "BulletDynamics/ConstraintSolver/btContactConstraint.h"
-
-#include "CM_Message.h"
 
 // This was copied from the old KX_ConvertPhysicsObjects
 #ifdef WIN32
@@ -221,8 +214,8 @@ class WrapperVehicle : public PHY_IVehicle {
                         bool hasSteering)
   {
     btWheelInfo &info = m_vehicle->addWheel(ToBullet(connectionPoint),
-                                            ToBullet(downDirection),
-                                            ToBullet(axleDirection),
+                                            ToBullet(downDirection.normalized()),
+                                            ToBullet(axleDirection.normalized()),
                                             suspensionRestLength,
                                             wheelRadius,
                                             gTuning,
@@ -542,8 +535,24 @@ void CcdPhysicsEnvironment::RemoveVehicle(WrapperVehicle *vehicle, bool free)
   m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
   if (free) {
     m_wrapperVehicles.erase(
-        std::remove(m_wrapperVehicles.begin(), m_wrapperVehicles.end(), vehicle));
+        std::find(m_wrapperVehicles.begin(), m_wrapperVehicles.end(), vehicle));
     delete vehicle;
+  }
+}
+
+void CcdPhysicsEnvironment::RemoveVehicle(CcdPhysicsController *ctrl, bool free)
+{
+  for (std::vector<WrapperVehicle *>::iterator it = m_wrapperVehicles.begin(); it != m_wrapperVehicles.end();) {
+    WrapperVehicle *vehicle = *it;
+      if (vehicle->GetChassis() == ctrl) {
+        m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
+        if (free) {
+          it = m_wrapperVehicles.erase(it);
+          delete vehicle;
+          continue;
+        }
+      }
+      ++it;
   }
 }
 
@@ -599,11 +608,7 @@ bool CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController *ctr
     m_dynamicsWorld->removeRigidBody(ctrl->GetRigidBody());
 
     // Handle potential vehicle constraints
-    for (WrapperVehicle *vehicle : m_wrapperVehicles) {
-      if (vehicle->GetChassis() == ctrl) {
-        RemoveVehicle(vehicle, freeConstraints);
-      }
-    }
+    RemoveVehicle(ctrl, freeConstraints);
   }
   else {
     // if a softbody
@@ -719,10 +724,6 @@ void CcdPhysicsEnvironment::UpdateCcdPhysicsControllerShape(CcdShapeConstruction
     ctrl->ReplaceControllerShape(nullptr);
     RefreshCcdPhysicsController(ctrl);
   }
-}
-
-void CcdPhysicsEnvironment::BeginFrame()
-{
 }
 
 void CcdPhysicsEnvironment::DebugDrawWorld()
@@ -2765,7 +2766,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
   return ccdPhysEnv;
 }
 
-void CcdPhysicsEnvironment::ConvertObject(KX_BlenderSceneConverter &converter,
+void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter &converter,
                                           KX_GameObject *gameobj,
                                           RAS_MeshObject *meshobj,
                                           DerivedMesh *dm,
@@ -3000,7 +3001,7 @@ void CcdPhysicsEnvironment::ConvertObject(KX_BlenderSceneConverter &converter,
     }
     case OB_BOUND_CAPSULE: {
       shapeInfo->m_radius = MT_max(bounds_extends[0], bounds_extends[1]);
-      shapeInfo->m_height = 2.0f * (bounds_extends[2] - shapeInfo->m_radius);
+      shapeInfo->m_height = 2.0f * bounds_extends[2];
       if (shapeInfo->m_height < 0.0f)
         shapeInfo->m_height = 0.0f;
       shapeInfo->m_shapeType = PHY_SHAPE_CAPSULE;
@@ -3033,6 +3034,11 @@ void CcdPhysicsEnvironment::ConvertObject(KX_BlenderSceneConverter &converter,
       // should we compute inertia for dynamic shape?
       // bm->calculateLocalInertia(ci.m_mass,ci.m_localInertiaTensor);
 
+      break;
+    }
+    case OB_BOUND_EMPTY: {
+      shapeInfo->m_shapeType = PHY_SHAPE_EMPTY;
+      bm = shapeInfo->CreateBulletShape(ci.m_margin);
       break;
     }
   }

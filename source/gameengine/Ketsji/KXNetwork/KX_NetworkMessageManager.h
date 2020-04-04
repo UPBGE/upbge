@@ -35,8 +35,8 @@ conflicts with KX_NetworkMessageManager::SendMessage */
 #  undef SendMessage
 #endif
 
-#include <string>
 #include <map>
+#include <string>
 #include <vector>
 
 class SCA_IObject;

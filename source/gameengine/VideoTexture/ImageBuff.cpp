@@ -30,20 +30,18 @@
 
 // implementation
 
-#include "EXP_PyObjectPlus.h"
+#include "ImageBuff.h"
+
 #include <structmember.h>
 
-#include "ImageBuff.h"
-#include "Exception.h"
-#include "ImageBase.h"
-#include "FilterSource.h"
-
-// use ImBuf API for image manipulation
-extern "C" {
-#include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 #include "bgl.h"
-};
+
+#include "EXP_PyObjectPlus.h"
+#include "Exception.h"
+#include "FilterSource.h"
+#include "ImageBase.h"
 
 // default filter
 FilterRGB24 defFilter;

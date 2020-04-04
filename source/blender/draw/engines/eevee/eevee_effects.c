@@ -26,11 +26,11 @@
 
 #include "BKE_global.h" /* for G.debug_value */
 
-#include "eevee_private.h"
-#include "GPU_texture.h"
 #include "GPU_extensions.h"
 #include "GPU_platform.h"
 #include "GPU_state.h"
+#include "GPU_texture.h"
+#include "eevee_private.h"
 
 static struct {
   /* Downsample Depth */
@@ -160,6 +160,10 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
   effects->enabled_effects |= EEVEE_occlusion_init(sldata, vedata);
   effects->enabled_effects |= EEVEE_screen_raytrace_init(sldata, vedata);
 
+  /* Game engine transition */
+  effects->enabled_effects |= EEVEE_antialiasing_engine_init(vedata);
+  /* End of Game engine transition */
+
   if ((effects->enabled_effects & EFFECT_TAA) && effects->taa_current_sample > 1) {
     /* Update matrices here because EEVEE_screen_raytrace_init can have reset the
      * taa_current_sample. (See T66811) */
@@ -269,6 +273,10 @@ void EEVEE_effects_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   EEVEE_EffectsInfo *effects = stl->effects;
   DRWState downsample_write = DRW_STATE_WRITE_DEPTH;
   DRWShadingGroup *grp;
+
+  /* Game engine transition */
+  EEVEE_antialiasing_cache_init(vedata);
+  /* End of Game engine transition */
 
   /* Intel gpu seems to have problem rendering to only depth format.
    * Use color texture instead. */

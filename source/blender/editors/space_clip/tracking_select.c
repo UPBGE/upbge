@@ -26,10 +26,10 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_utildefines.h"
+#include "BLI_lasso_2d.h"
 #include "BLI_math.h"
 #include "BLI_rect.h"
-#include "BLI_lasso_2d.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_tracking.h"
@@ -49,10 +49,10 @@
 
 #include "DEG_depsgraph.h"
 
-#include "tracking_ops_intern.h" /* own include */
 #include "clip_intern.h"         /* own include */
+#include "tracking_ops_intern.h" /* own include */
 
-static float dist_to_crns(float co[2], float pos[2], float crns[4][2]);
+static float dist_to_crns(const float co[2], const float pos[2], const float crns[4][2]);
 
 /********************** mouse select operator *********************/
 
@@ -70,8 +70,12 @@ static int mouse_on_side(
   return (co[0] >= x1 - epsx && co[0] <= x2 + epsx) && (co[1] >= y1 - epsy && co[1] <= y2 + epsy);
 }
 
-static int mouse_on_rect(
-    const float co[2], float pos[2], float min[2], float max[2], float epsx, float epsy)
+static int mouse_on_rect(const float co[2],
+                         const float pos[2],
+                         const float min[2],
+                         const float max[2],
+                         float epsx,
+                         float epsy)
 {
   return mouse_on_side(
              co, pos[0] + min[0], pos[1] + min[1], pos[0] + max[0], pos[1] + min[1], epsx, epsy) ||
@@ -83,14 +87,15 @@ static int mouse_on_rect(
              co, pos[0] + max[0], pos[1] + min[1], pos[0] + max[0], pos[1] + max[1], epsx, epsy);
 }
 
-static int mouse_on_crns(float co[2], float pos[2], float crns[4][2], float epsx, float epsy)
+static int mouse_on_crns(
+    const float co[2], const float pos[2], const float crns[4][2], float epsx, float epsy)
 {
   float dist = dist_to_crns(co, pos, crns);
 
   return dist < max_ff(epsx, epsy);
 }
 
-static int track_mouse_area(const bContext *C, float co[2], MovieTrackingTrack *track)
+static int track_mouse_area(const bContext *C, const float co[2], MovieTrackingTrack *track)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   int framenr = ED_space_clip_get_clip_frame_number(sc);
@@ -142,7 +147,10 @@ static int track_mouse_area(const bContext *C, float co[2], MovieTrackingTrack *
   return TRACK_AREA_NONE;
 }
 
-static float dist_to_rect(float co[2], float pos[2], float min[2], float max[2])
+static float dist_to_rect(const float co[2],
+                          const float pos[2],
+                          const float min[2],
+                          const float max[2])
 {
   float d1, d2, d3, d4;
   float p[2] = {co[0] - pos[0], co[1] - pos[1]};
@@ -158,7 +166,7 @@ static float dist_to_rect(float co[2], float pos[2], float min[2], float max[2])
 }
 
 /* Distance to quad defined by it's corners, corners are relative to pos */
-static float dist_to_crns(float co[2], float pos[2], float crns[4][2])
+static float dist_to_crns(const float co[2], const float pos[2], const float crns[4][2])
 {
   float d1, d2, d3, d4;
   float p[2] = {co[0] - pos[0], co[1] - pos[1]};
@@ -174,7 +182,7 @@ static float dist_to_crns(float co[2], float pos[2], float crns[4][2])
 }
 
 /* Same as above, but all the coordinates are absolute */
-static float dist_to_crns_abs(float co[2], float corners[4][2])
+static float dist_to_crns_abs(const float co[2], const float corners[4][2])
 {
   float d1, d2, d3, d4;
   const float *v1 = corners[0], *v2 = corners[1];
@@ -190,8 +198,8 @@ static float dist_to_crns_abs(float co[2], float corners[4][2])
 
 static MovieTrackingTrack *find_nearest_track(SpaceClip *sc,
                                               ListBase *tracksbase,
-                                              float co[2],
-                                              float *distance_r)
+                                              const float co[2],
+                                              float *r_distance)
 {
   MovieTrackingTrack *track = NULL, *cur;
   float mindist = 0.0f;
@@ -231,15 +239,15 @@ static MovieTrackingTrack *find_nearest_track(SpaceClip *sc,
     cur = cur->next;
   }
 
-  *distance_r = mindist;
+  *r_distance = mindist;
 
   return track;
 }
 
 static MovieTrackingPlaneTrack *find_nearest_plane_track(SpaceClip *sc,
                                                          ListBase *plane_tracks_base,
-                                                         float co[2],
-                                                         float *distance_r)
+                                                         const float co[2],
+                                                         float *r_distance)
 {
   MovieTrackingPlaneTrack *plane_track = NULL, *current_plane_track;
   float min_distance = 0.0f;
@@ -259,7 +267,7 @@ static MovieTrackingPlaneTrack *find_nearest_plane_track(SpaceClip *sc,
     }
   }
 
-  *distance_r = min_distance;
+  *r_distance = min_distance;
 
   return plane_track;
 }
@@ -281,7 +289,7 @@ void ed_tracking_deselect_all_plane_tracks(ListBase *plane_tracks_base)
   }
 }
 
-static int mouse_select(bContext *C, float co[2], const bool extend, const bool deselect_all)
+static int mouse_select(bContext *C, const float co[2], const bool extend, const bool deselect_all)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -407,7 +415,7 @@ static int select_exec(bContext *C, wmOperator *op)
 static int select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
 
   float co[2];
   const bool extend = RNA_boolean_get(op->ptr, "extend");
@@ -427,7 +435,7 @@ static int select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     }
   }
 
-  ED_clip_mouse_pos(sc, ar, event->mval, co);
+  ED_clip_mouse_pos(sc, region, event->mval, co);
   RNA_float_set_array(op->ptr, "location", co);
 
   return select_exec(C, op);
@@ -486,7 +494,7 @@ bool ED_clip_can_select(bContext *C)
 static int box_select_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
 
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
@@ -502,8 +510,8 @@ static int box_select_exec(bContext *C, wmOperator *op)
   /* get rectangle from operator */
   WM_operator_properties_border_to_rcti(op, &rect);
 
-  ED_clip_point_stable_pos(sc, ar, rect.xmin, rect.ymin, &rectf.xmin, &rectf.ymin);
-  ED_clip_point_stable_pos(sc, ar, rect.xmax, rect.ymax, &rectf.xmax, &rectf.ymax);
+  ED_clip_point_stable_pos(sc, region, rect.xmin, rect.ymin, &rectf.xmin, &rectf.ymin);
+  ED_clip_point_stable_pos(sc, region, rect.xmax, rect.ymax, &rectf.xmax, &rectf.ymax);
 
   const eSelectOp sel_op = RNA_enum_get(op->ptr, "mode");
   const bool select = (sel_op != SEL_OP_SUB);
@@ -594,7 +602,7 @@ static int do_lasso_select_marker(bContext *C,
                                   bool select)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
 
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
@@ -619,7 +627,7 @@ static int do_lasso_select_marker(bContext *C,
         float screen_co[2];
 
         /* marker in screen coords */
-        ED_clip_point_stable_pos__reverse(sc, ar, marker->pos, screen_co);
+        ED_clip_point_stable_pos__reverse(sc, region, marker->pos, screen_co);
 
         if (BLI_rcti_isect_pt(&rect, screen_co[0], screen_co[1]) &&
             BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], V2D_IS_CLIPPED)) {
@@ -647,7 +655,7 @@ static int do_lasso_select_marker(bContext *C,
         float screen_co[2];
 
         /* marker in screen coords */
-        ED_clip_point_stable_pos__reverse(sc, ar, plane_marker->corners[i], screen_co);
+        ED_clip_point_stable_pos__reverse(sc, region, plane_marker->corners[i], screen_co);
 
         if (BLI_rcti_isect_pt(&rect, screen_co[0], screen_co[1]) &&
             BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], V2D_IS_CLIPPED)) {
@@ -739,7 +747,7 @@ static int marker_inside_ellipse(MovieTrackingMarker *marker, float offset[2], f
 static int circle_select_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
 
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
@@ -767,12 +775,12 @@ static int circle_select_exec(bContext *C, wmOperator *op)
 
   /* compute ellipse and position in unified coordinates */
   ED_space_clip_get_size(sc, &width, &height);
-  ED_space_clip_get_zoom(sc, ar, &zoomx, &zoomy);
+  ED_space_clip_get_zoom(sc, region, &zoomx, &zoomy);
 
   ellipse[0] = width * zoomx / radius;
   ellipse[1] = height * zoomy / radius;
 
-  ED_clip_point_stable_pos(sc, ar, x, y, &offset[0], &offset[1]);
+  ED_clip_point_stable_pos(sc, region, x, y, &offset[0], &offset[1]);
 
   /* do selection */
   track = tracksbase->first;

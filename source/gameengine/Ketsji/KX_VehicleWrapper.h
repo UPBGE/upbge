@@ -7,6 +7,7 @@
 #define __KX_VEHICLEWRAPPER_H__
 
 #include "EXP_Value.h"
+
 class PHY_IVehicle;
 
 /// Python interface to physics vehicles (primarily 4-wheel cars and 2wheel bikes)

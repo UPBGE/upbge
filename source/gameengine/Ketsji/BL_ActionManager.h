@@ -27,6 +27,7 @@
 #ifndef __BL_ACTIONMANAGER_H__
 #define __BL_ACTIONMANAGER_H__
 
+#include <iostream>
 #include <map>
 
 // Currently, we use the max value of a short.

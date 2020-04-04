@@ -18,9 +18,9 @@
  * \ingroup wm
  */
 
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_main.h"
@@ -42,8 +42,8 @@
 #include "wm.h"
 
 /* own includes */
-#include "wm_gizmo_wmapi.h"
 #include "wm_gizmo_intern.h"
+#include "wm_gizmo_wmapi.h"
 
 /** \name Gizmo Type Append
  *
@@ -120,7 +120,7 @@ void WM_gizmotype_append_ptr(void (*gtfunc)(struct wmGizmoType *, void *), void 
  */
 static void gizmotype_free(wmGizmoType *gzt)
 {
-  if (gzt->ext.srna) { /* python gizmo, allocs own string */
+  if (gzt->rna_ext.srna) { /* python gizmo, allocs own string */
     MEM_freeN((void *)gzt->idname);
   }
 
@@ -134,12 +134,12 @@ static void gizmotype_free(wmGizmoType *gzt)
 static void gizmotype_unlink(bContext *C, Main *bmain, wmGizmoType *gzt)
 {
   /* Free instances. */
-  for (bScreen *sc = bmain->screens.first; sc; sc = sc->id.next) {
-    for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-      for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-        ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
-        for (ARegion *ar = lb->first; ar; ar = ar->next) {
-          wmGizmoMap *gzmap = ar->gizmo_map;
+  for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        ListBase *lb = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
+        LISTBASE_FOREACH (ARegion *, region, lb) {
+          wmGizmoMap *gzmap = region->gizmo_map;
           if (gzmap) {
             wmGizmoGroup *gzgroup;
             for (gzgroup = gzmap->groups.first; gzgroup; gzgroup = gzgroup->next) {
@@ -148,7 +148,7 @@ static void gizmotype_unlink(bContext *C, Main *bmain, wmGizmoType *gzt)
                 BLI_assert(gzgroup->parent_gzmap == gzmap);
                 if (gz->type == gzt) {
                   WM_gizmo_unlink(&gzgroup->gizmos, gzgroup->parent_gzmap, gz, C);
-                  ED_region_tag_redraw_editor_overlays(ar);
+                  ED_region_tag_redraw_editor_overlays(region);
                 }
               }
             }

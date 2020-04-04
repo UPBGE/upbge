@@ -38,7 +38,10 @@ bool BKE_subdiv_eval_begin(struct Subdiv *subdiv);
 
 /* coarse_vertex_cos is an optional argument which allows to override coordinates of the coarse
  * mesh. */
-bool BKE_subdiv_eval_update_from_mesh(struct Subdiv *subdiv,
+bool BKE_subdiv_eval_begin_from_mesh(struct Subdiv *subdiv,
+                                     const struct Mesh *mesh,
+                                     const float (*coarse_vertex_cos)[3]);
+bool BKE_subdiv_eval_refine_from_mesh(struct Subdiv *subdiv,
                                       const struct Mesh *mesh,
                                       const float (*coarse_vertex_cos)[3]);
 
@@ -49,6 +52,8 @@ bool BKE_subdiv_eval_update_from_mesh(struct Subdiv *subdiv,
 void BKE_subdiv_eval_init_displacement(struct Subdiv *subdiv);
 
 /* Single point queries. */
+
+/* Evaluate point at a limit surface, with optional derivatives and normal. */
 
 void BKE_subdiv_eval_limit_point(
     struct Subdiv *subdiv, const int ptex_face_index, const float u, const float v, float r_P[3]);
@@ -72,6 +77,7 @@ void BKE_subdiv_eval_limit_point_and_short_normal(struct Subdiv *subdiv,
                                                   float r_P[3],
                                                   short r_N[3]);
 
+/* Evaluate face-varying layer (such as UV). */
 void BKE_subdiv_eval_face_varying(struct Subdiv *subdiv,
                                   const int face_varying_channel,
                                   const int ptex_face_index,
@@ -93,6 +99,7 @@ void BKE_subdiv_eval_displacement(struct Subdiv *subdiv,
                                   const float dPdv[3],
                                   float r_D[3]);
 
+/* Evaluate point on a limit surface with displacement applied to it. */
 void BKE_subdiv_eval_final_point(
     struct Subdiv *subdiv, const int ptex_face_index, const float u, const float v, float r_P[3]);
 

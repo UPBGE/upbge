@@ -30,19 +30,15 @@
  */
 
 #include "KX_FontObject.h"
-#include "EXP_StringValue.h"
 
-#include "MEM_guardedalloc.h"
-
-extern "C" {
-/* paths needed for font load */
-#include "BLI_blenlib.h"
 #include "BKE_font.h"
-#include "depsgraph/DEG_depsgraph.h"
+#include "BLI_blenlib.h"
 #include "DNA_curve_types.h"
-}
+#include "MEM_guardedalloc.h"
+#include "depsgraph/DEG_depsgraph.h"
 
 #include "CM_Message.h"
+#include "EXP_StringValue.h"
 
 #define MAX_BGE_TEXT_LEN 1024  // eevee
 

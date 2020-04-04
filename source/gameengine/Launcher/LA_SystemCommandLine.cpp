@@ -26,10 +26,10 @@
  *  \ingroup blroutines
  */
 
-#include <string>
 #include "LA_SystemCommandLine.h"
 
 #include <map>
+#include <string>
 
 struct SingletonSystem {
   std::map<std::string, int> int_params;

@@ -18,23 +18,23 @@
  * \ingroup RNA
  */
 
+#include <ctype.h>
 #include <float.h>
 #include <limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
 #include <string.h>
-#include <ctype.h>
 
 #include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
 
+#include "DNA_defaults.h"
 #include "DNA_genfile.h"
 #include "DNA_sdna_types.h"
-#include "DNA_defaults.h"
 
-#include "BLI_listbase.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 
 #include "BLT_translation.h"
 
@@ -760,10 +760,10 @@ void RNA_define_fallback_property_update(int noteflag, const char *updatefunc)
 }
 #endif
 
-void RNA_struct_free_extension(StructRNA *srna, ExtensionRNA *ext)
+void RNA_struct_free_extension(StructRNA *srna, ExtensionRNA *rna_ext)
 {
 #ifdef RNA_RUNTIME
-  ext->free(ext->data);                    /* decref's the PyObject that the srna owns */
+  rna_ext->free(rna_ext->data);            /* decref's the PyObject that the srna owns */
   RNA_struct_blender_type_set(srna, NULL); /* this gets accessed again - XXX fixme */
 
   /* NULL the srna's value so RNA_struct_free wont complain of a leak */
@@ -771,7 +771,7 @@ void RNA_struct_free_extension(StructRNA *srna, ExtensionRNA *ext)
 
 #else
   (void)srna;
-  (void)ext;
+  (void)rna_ext;
 #endif
 }
 
@@ -1819,6 +1819,23 @@ void RNA_def_property_struct_runtime(PropertyRNA *prop, StructRNA *type)
   }
 }
 
+void RNA_def_property_enum_native_type(PropertyRNA *prop, const char *native_enum_type)
+{
+  StructRNA *srna = DefRNA.laststruct;
+  switch (prop->type) {
+    case PROP_ENUM: {
+      EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
+      eprop->native_enum_type = native_enum_type;
+      break;
+    }
+    default:
+      CLOG_ERROR(
+          &LOG, "\"%s.%s\", invalid type for struct type.", srna->identifier, prop->identifier);
+      DefRNA.error = 1;
+      break;
+  }
+}
+
 void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item)
 {
   StructRNA *srna = DefRNA.laststruct;
@@ -1833,7 +1850,8 @@ void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item
         eprop->totitem++;
 
         if (item[i].identifier[0]) {
-          if (strstr(item[i].identifier, " ")) {
+          /* Don't allow spaces in internal enum items (it's fine for Python ones). */
+          if (DefRNA.preprocess && strstr(item[i].identifier, " ")) {
             CLOG_ERROR(&LOG,
                        "\"%s.%s\", enum identifiers must not contain spaces.",
                        srna->identifier,

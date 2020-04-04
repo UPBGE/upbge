@@ -25,8 +25,8 @@
  * Also Blenders main event loop (WM_main)
  */
 
-#include <string.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "BLI_sys_types.h"
 
@@ -34,33 +34,57 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
+
+#include "BLT_translation.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
+#include "BKE_idtype.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_workspace.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
 #include "WM_message.h"
-#include "wm_window.h"
-#include "wm_event_system.h"
-#include "wm_draw.h"
+#include "WM_types.h"
 #include "wm.h"
+#include "wm_draw.h"
+#include "wm_event_system.h"
+#include "wm_window.h"
 
-#include "ED_screen.h"
 #include "BKE_undo_system.h"
+#include "ED_screen.h"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
 #endif
 
 /* ****************************************************** */
+
+static void window_manager_free_data(ID *id)
+{
+  wm_close_and_free(NULL, (wmWindowManager *)id);
+}
+
+IDTypeInfo IDType_ID_WM = {
+    .id_code = ID_WM,
+    .id_filter = 0,
+    .main_listbase_index = INDEX_ID_WM,
+    .struct_size = sizeof(wmWindowManager),
+    .name = "WindowManager",
+    .name_plural = "window_managers",
+    .translation_context = BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+    .flags = IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_MAKELOCAL,
+
+    .init_data = NULL,
+    .copy_data = NULL,
+    .free_data = window_manager_free_data,
+    .make_local = NULL,
+};
 
 #define MAX_OP_REGISTERED 32
 
@@ -332,7 +356,7 @@ void wm_add_default(Main *bmain, bContext *C)
   WorkSpaceLayout *layout = BKE_workspace_layout_find_global(bmain, screen, &workspace);
 
   CTX_wm_manager_set(C, wm);
-  win = wm_window_new(C, NULL);
+  win = wm_window_new(bmain, wm, NULL);
   win->scene = CTX_data_scene(C);
   STRNCPY(win->view_layer_name, CTX_data_view_layer(C)->name);
   BKE_workspace_active_set(win->workspace_hook, workspace);
@@ -354,6 +378,11 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
   if (wm->autosavetimer) {
     wm_autosave_timer_ended(wm);
   }
+
+#ifdef WITH_XR_OPENXR
+  /* May send notifier, so do before freeing notifier queue. */
+  wm_xr_exit(wm);
+#endif
 
   while ((win = BLI_pophead(&wm->windows))) {
     /* prevent draw clear to use screen */

@@ -24,6 +24,10 @@
 #ifndef __OBJECT_INTERN_H__
 #define __OBJECT_INTERN_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Object;
 struct StructRNA;
 struct bContext;
@@ -119,6 +123,8 @@ void OBJECT_OT_light_add(struct wmOperatorType *ot);
 void OBJECT_OT_effector_add(struct wmOperatorType *ot);
 void OBJECT_OT_camera_add(struct wmOperatorType *ot);
 void OBJECT_OT_speaker_add(struct wmOperatorType *ot);
+void OBJECT_OT_hair_add(struct wmOperatorType *ot);
+void OBJECT_OT_pointcloud_add(struct wmOperatorType *ot);
 void OBJECT_OT_collection_instance_add(struct wmOperatorType *ot);
 
 void OBJECT_OT_duplicates_make_real(struct wmOperatorType *ot);
@@ -127,6 +133,10 @@ void OBJECT_OT_delete(struct wmOperatorType *ot);
 void OBJECT_OT_join(struct wmOperatorType *ot);
 void OBJECT_OT_join_shapes(struct wmOperatorType *ot);
 void OBJECT_OT_convert(struct wmOperatorType *ot);
+
+/* object_volume.c */
+void OBJECT_OT_volume_add(struct wmOperatorType *ot);
+void OBJECT_OT_volume_import(struct wmOperatorType *ot);
 
 /* object_hook.c */
 void OBJECT_OT_hook_add_selob(struct wmOperatorType *ot);
@@ -293,10 +303,15 @@ void TRANSFORM_OT_vertex_random(struct wmOperatorType *ot);
 
 /* object_remesh.c */
 void OBJECT_OT_voxel_remesh(struct wmOperatorType *ot);
+void OBJECT_OT_voxel_size_edit(struct wmOperatorType *ot);
 void OBJECT_OT_quadriflow_remesh(struct wmOperatorType *ot);
 
 /* object_transfer_data.c */
 void OBJECT_OT_data_transfer(struct wmOperatorType *ot);
 void OBJECT_OT_datalayout_transfer(struct wmOperatorType *ot);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __OBJECT_INTERN_H__ */

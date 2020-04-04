@@ -39,6 +39,7 @@
 #include "util/util_logging.h"
 #include "util/util_string.h"
 
+// clang-format off
 #include "kernel/kernel_compat_cpu.h"
 #include "kernel/split/kernel_split_data_types.h"
 #include "kernel/kernel_globals.h"
@@ -56,6 +57,7 @@
 #include "kernel/kernel_projection.h"
 #include "kernel/kernel_accumulate.h"
 #include "kernel/kernel_shader.h"
+// clang-format on
 
 CCL_NAMESPACE_BEGIN
 
@@ -1220,8 +1222,8 @@ bool OSLRenderServices::texture3d(ustring filename,
       ShaderData *sd = (ShaderData *)(sg->renderstate);
       KernelGlobals *kernel_globals = sd->osl_globals;
       int slot = handle->svm_slot;
-      float4 rgba = kernel_tex_image_interp_3d(
-          kernel_globals, slot, P.x, P.y, P.z, INTERPOLATION_NONE);
+      float3 P_float3 = make_float3(P.x, P.y, P.z);
+      float4 rgba = kernel_tex_image_interp_3d(kernel_globals, slot, P_float3, INTERPOLATION_NONE);
 
       result[0] = rgba[0];
       if (nchannels > 1)

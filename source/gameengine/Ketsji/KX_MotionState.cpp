@@ -30,6 +30,7 @@
  */
 
 #include "KX_MotionState.h"
+
 #include "SG_Node.h"
 
 KX_MotionState::KX_MotionState(SG_Node *node) : m_node(node)

@@ -34,8 +34,8 @@
 #include "CLG_log.h"
 
 #include "DNA_ID.h"
-#include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -49,8 +49,8 @@
 
 #include "BLF_api.h"
 
-#include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 
 #include "ED_screen.h"
 
@@ -67,12 +67,12 @@ static void wm_block_splash_close(bContext *C, void *arg_block, void *UNUSED(arg
   UI_popup_block_close(C, win, arg_block);
 }
 
-static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unused);
+static uiBlock *wm_block_create_splash(bContext *C, ARegion *region, void *arg_unused);
 
 static void wm_block_splash_refreshmenu(bContext *C, void *UNUSED(arg_block), void *UNUSED(arg))
 {
-  ARegion *ar_menu = CTX_wm_menu(C);
-  ED_region_tag_refresh_ui(ar_menu);
+  ARegion *region_menu = CTX_wm_menu(C);
+  ED_region_tag_refresh_ui(region_menu);
 }
 
 static void wm_block_splash_add_label(uiBlock *block, const char *label, int x, int *y)
@@ -81,7 +81,7 @@ static void wm_block_splash_add_label(uiBlock *block, const char *label, int x, 
     return;
   }
 
-  uiStyle *style = UI_style_get();
+  const uiStyle *style = UI_style_get();
 
   BLF_size(style->widgetlabel.uifont_id, style->widgetlabel.points, U.pixelsize * U.dpi);
   int label_width = BLF_width(style->widgetlabel.uifont_id, label, strlen(label));
@@ -269,13 +269,13 @@ static ImBuf *wm_block_splash_image(int r_unit_size[2])
 #endif
 }
 
-static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(arg))
+static uiBlock *wm_block_create_splash(bContext *C, ARegion *region, void *UNUSED(arg))
 {
   uiBlock *block;
   uiBut *but;
-  uiStyle *style = UI_style_get_dpi();
+  const uiStyle *style = UI_style_get_dpi();
 
-  block = UI_block_begin(C, ar, "splash", UI_EMBOSS);
+  block = UI_block_begin(C, region, "splash", UI_EMBOSS);
 
   /* note on UI_BLOCK_NO_WIN_CLIP, the window size is not always synchronized
    * with the OS when the splash shows, window clipping in this case gives
@@ -286,21 +286,13 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
   /* Size before dpi scaling (halved for hi-dpi image). */
   int ibuf_unit_size[2];
   ImBuf *ibuf = wm_block_splash_image(ibuf_unit_size);
-  but = uiDefBut(block,
-                 UI_BTYPE_IMAGE,
-                 0,
-                 "",
-                 0,
-                 0.5f * U.widget_unit,
-                 U.dpi_fac * ibuf_unit_size[0],
-                 U.dpi_fac * ibuf_unit_size[1],
-                 /* Button owns the imbuf now. */
-                 ibuf,
-                 0.0,
-                 0.0,
-                 0,
-                 0,
-                 "");
+  but = uiDefButImage(block,
+                      ibuf,
+                      0,
+                      0.5f * U.widget_unit,
+                      U.dpi_fac * ibuf_unit_size[0],
+                      U.dpi_fac * ibuf_unit_size[1],
+                      NULL);
   UI_but_func_set(but, wm_block_splash_close, block, NULL);
   UI_block_func_set(block, wm_block_splash_refreshmenu, block, NULL);
 

@@ -35,25 +35,24 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "KX_PythonInit.h"
-#include "KX_Globals.h"
-
-#include "GHOST_ISystem.h"
-
-#include "LA_BlenderLauncher.h"
-
-#include "CM_Message.h"
-
-extern "C" {
-#include "DNA_scene_types.h"
-
-#include "BKE_report.h"
-#include "BKE_main.h"
 #include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_main.h"
+#include "BKE_report.h"
 #include "BKE_sound.h"
-
+#include "BKE_undo_system.h"
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
+#include "DNA_scene_types.h"
+#include "WM_api.h"
+
+#include "CM_Message.h"
+#include "GHOST_ISystem.h"
+#include "KX_Globals.h"
+#include "KX_PythonInit.h"
+#include "LA_BlenderLauncher.h"
+
+extern "C" {
 
 void StartKetsjiShell(struct bContext *C,
                       struct ARegion *ar,
@@ -97,10 +96,12 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
   char *startscenename = startscene->id.name + 2;
   char pathname[FILE_MAXDIR + FILE_MAXFILE];
+  char prevPathName[FILE_MAXDIR + FILE_MAXFILE];
   std::string exitstring = "";
   BlendFileData *bfd = nullptr;
 
   BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
+  BLI_strncpy(prevPathName, G.main->name, sizeof(prevPathName));
 
   KX_SetOrigPath(std::string(blenderdata->name));
 
@@ -116,6 +117,10 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
   GlobalSettings gs;
   gs.glslflag = startscene->gm.flag;
+
+  if (startscene->gm.flag & GAME_USE_UNDO) {
+    BKE_undosys_step_push(CTX_wm_manager(C)->undo_stack, C, "bge_start");
+  }
 
   do {
     // if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
@@ -156,8 +161,13 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         blenderdata = bfd->main;
         startscenename = bfd->curscene->id.name + 2;
 
+        CTX_data_main_set(C, bfd->main);
+        CTX_data_scene_set(C, bfd->curscene);
+
         if (blenderdata) {
           BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
+          // Change G.main path to ensure loading of data using relative paths.
+          BLI_strncpy(G.main->name, pathname, sizeof(G.main->name));
         }
       }
       // else forget it, we can't find it
@@ -169,6 +179,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     Scene *scene = bfd ? bfd->curscene :
                          (Scene *)BLI_findstring(
                              &blenderdata->scenes, startscenename, offsetof(ID, name) + 2);
+
+    // WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene);
 
     RAS_Rasterizer::StereoMode stereoMode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
     if (scene) {
@@ -242,6 +254,27 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
   if (bfd) {
     BLO_blendfiledata_free(bfd);
+
+    /* Warning: If we work on game restart/load blend actuator and that we change of
+     * wmWindowManager during runtime, we'd have to restore the right wmWindowManager/win/scene...
+     * before doing undo.
+     */
+    /* Restore Main and Scene used before ge start */
+    CTX_data_main_set(C, maggie1);
+    CTX_data_scene_set(C, startscene);
+  }
+
+  /* Undo System */
+  if (startscene->gm.flag & GAME_USE_UNDO) {
+    UndoStep *step_data_from_name = NULL;
+    step_data_from_name = BKE_undosys_step_find_by_name(CTX_wm_manager(C)->undo_stack,
+                                                        "bge_start");
+    if (step_data_from_name) {
+      BKE_undosys_step_undo_with_data(CTX_wm_manager(C)->undo_stack, C, step_data_from_name);
+    }
+    else {
+      BKE_undosys_step_undo(CTX_wm_manager(C)->undo_stack, C);
+    }
   }
 
 #ifdef WITH_PYTHON
@@ -252,4 +285,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   // Release Python's GIL
   PyGILState_Release(gilstate);
 #endif
+
+  // Restore G.main path.
+  BLI_strncpy(G.main->name, prevPathName, sizeof(G.main->name));
 }

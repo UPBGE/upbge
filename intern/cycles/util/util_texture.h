@@ -17,6 +17,8 @@
 #ifndef __UTIL_TEXTURE_H__
 #define __UTIL_TEXTURE_H__
 
+#include "util_transform.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Texture limits on devices. */
@@ -91,12 +93,17 @@ typedef enum ExtensionType {
 typedef struct TextureInfo {
   /* Pointer, offset or texture depending on device. */
   uint64_t data;
+  /* Data Type */
+  uint data_type;
   /* Buffer number for OpenCL. */
   uint cl_buffer;
   /* Interpolation and extension type. */
   uint interpolation, extension;
   /* Dimensions. */
   uint width, height, depth;
+  /* Transform for 3D textures. */
+  uint use_transform_3d;
+  Transform transform_3d;
 } TextureInfo;
 
 CCL_NAMESPACE_END

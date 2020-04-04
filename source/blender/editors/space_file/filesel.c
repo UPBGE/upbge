@@ -21,33 +21,33 @@
  * \ingroup spfile
  */
 
-#include <string.h>
-#include <stdio.h>
 #include <math.h>
+#include <stdio.h>
+#include <string.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
 
 /* path/file handling stuff */
 #ifdef WIN32
-#  include <io.h>
-#  include <direct.h>
 #  include "BLI_winstuff.h"
+#  include <direct.h>
+#  include <io.h>
 #else
-#  include <unistd.h>
-#  include <sys/times.h>
 #  include <dirent.h>
+#  include <sys/times.h>
+#  include <unistd.h>
 #endif
 
-#include "DNA_space_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_fnmatch.h"
+#include "BLI_utildefines.h"
 
 #include "BLO_readfile.h"
 
@@ -217,6 +217,9 @@ short ED_fileselect_set_params(SpaceFile *sfile)
     }
     if ((prop = RNA_struct_find_property(op->ptr, "filter_usd"))) {
       params->filter |= RNA_property_boolean_get(op->ptr, prop) ? FILE_TYPE_USD : 0;
+    }
+    if ((prop = RNA_struct_find_property(op->ptr, "filter_volume"))) {
+      params->filter |= RNA_property_boolean_get(op->ptr, prop) ? FILE_TYPE_VOLUME : 0;
     }
     if ((prop = RNA_struct_find_property(op->ptr, "filter_glob"))) {
       /* Protection against pyscripts not setting proper size limit... */
@@ -413,7 +416,7 @@ void fileselect_file_set(SpaceFile *sfile, const int index)
   }
 }
 
-int ED_fileselect_layout_numfiles(FileLayout *layout, ARegion *ar)
+int ED_fileselect_layout_numfiles(FileLayout *layout, ARegion *region)
 {
   int numfiles;
 
@@ -429,14 +432,14 @@ int ED_fileselect_layout_numfiles(FileLayout *layout, ARegion *ar)
    */
   if (layout->flag & FILE_LAYOUT_HOR) {
     const int x_item = layout->tile_w + (2 * layout->tile_border_x);
-    const int x_view = (int)(BLI_rctf_size_x(&ar->v2d.cur));
+    const int x_view = (int)(BLI_rctf_size_x(&region->v2d.cur));
     const int x_over = x_item - (x_view % x_item);
     numfiles = (int)((float)(x_view + x_over) / (float)(x_item));
     return numfiles * layout->rows;
   }
   else {
     const int y_item = layout->tile_h + (2 * layout->tile_border_y);
-    const int y_view = (int)(BLI_rctf_size_y(&ar->v2d.cur)) - layout->offset_top;
+    const int y_view = (int)(BLI_rctf_size_y(&region->v2d.cur)) - layout->offset_top;
     const int y_over = y_item - (y_view % y_item);
     numfiles = (int)((float)(y_view + y_over) / (float)(y_item));
     return numfiles * layout->flow_columns;
@@ -639,7 +642,7 @@ FileAttributeColumnType file_attribute_column_type_find_isect(const View2D *v2d,
 
 float file_string_width(const char *str)
 {
-  uiStyle *style = UI_style_get();
+  const uiStyle *style = UI_style_get();
   float width;
 
   UI_fontstyle_set(&style->widget);
@@ -661,12 +664,12 @@ float file_font_pointsize(void)
 #if 0
   float s;
   char tmp[2] = "X";
-  uiStyle *style = UI_style_get();
+  const uiStyle *style = UI_style_get();
   UI_fontstyle_set(&style->widget);
   s = BLF_height(style->widget.uifont_id, tmp);
   return style->widget.points;
 #else
-  uiStyle *style = UI_style_get();
+  const uiStyle *style = UI_style_get();
   UI_fontstyle_set(&style->widget);
   return style->widget.points * UI_DPI_FAC;
 #endif
@@ -720,11 +723,11 @@ static void file_attribute_columns_init(const FileSelectParams *params, FileLayo
   layout->attribute_columns[COLUMN_SIZE].text_align = UI_STYLE_TEXT_RIGHT;
 }
 
-void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)
+void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *region)
 {
   FileSelectParams *params = ED_fileselect_get_params(sfile);
   FileLayout *layout = NULL;
-  View2D *v2d = &ar->v2d;
+  View2D *v2d = &region->v2d;
   int numfiles;
   int textheight;
 
@@ -817,10 +820,10 @@ void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)
   layout->dirty = false;
 }
 
-FileLayout *ED_fileselect_get_layout(struct SpaceFile *sfile, ARegion *ar)
+FileLayout *ED_fileselect_get_layout(struct SpaceFile *sfile, ARegion *region)
 {
   if (!sfile->layout) {
-    ED_fileselect_init_layout(sfile, ar);
+    ED_fileselect_init_layout(sfile, region);
   }
   return sfile->layout;
 }
@@ -829,10 +832,9 @@ void ED_file_change_dir(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
-  ScrArea *sa = CTX_wm_area(C);
 
   if (sfile->params) {
-    ED_fileselect_clear(wm, sa, sfile);
+    ED_fileselect_clear(wm, CTX_data_scene(C), sfile);
 
     /* Clear search string, it is very rare to want to keep that filter while changing dir,
      * and usually very annoying to keep it actually! */
@@ -951,11 +953,11 @@ int autocomplete_file(struct bContext *C, char *str, void *UNUSED(arg_v))
   return match;
 }
 
-void ED_fileselect_clear(wmWindowManager *wm, ScrArea *sa, SpaceFile *sfile)
+void ED_fileselect_clear(wmWindowManager *wm, Scene *owner_scene, SpaceFile *sfile)
 {
   /* only NULL in rare cases - [#29734] */
   if (sfile->files) {
-    filelist_readjob_stop(wm, sa);
+    filelist_readjob_stop(wm, owner_scene);
     filelist_freelib(sfile->files);
     filelist_clear(sfile->files);
   }
@@ -964,7 +966,7 @@ void ED_fileselect_clear(wmWindowManager *wm, ScrArea *sa, SpaceFile *sfile)
   WM_main_add_notifier(NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 }
 
-void ED_fileselect_exit(wmWindowManager *wm, ScrArea *sa, SpaceFile *sfile)
+void ED_fileselect_exit(wmWindowManager *wm, Scene *owner_scene, SpaceFile *sfile)
 {
   if (!sfile) {
     return;
@@ -990,7 +992,7 @@ void ED_fileselect_exit(wmWindowManager *wm, ScrArea *sa, SpaceFile *sfile)
   folderlist_free(sfile->folders_next);
 
   if (sfile->files) {
-    ED_fileselect_clear(wm, sa, sfile);
+    ED_fileselect_clear(wm, owner_scene, sfile);
     filelist_free(sfile->files);
     MEM_freeN(sfile->files);
     sfile->files = NULL;

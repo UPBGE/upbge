@@ -35,10 +35,9 @@
 #define __SCA_AddObjectActuator_H__
 
 /* Actuator tree */
+#include "MT_Vector3.h"
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
-
-#include "MT_Vector3.h"
 
 class KX_Scene;
 class KX_GameObject;

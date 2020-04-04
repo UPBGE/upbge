@@ -20,20 +20,20 @@
  * \ingroup RNA
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 
+#include "DNA_boid_types.h"
+#include "DNA_cloth_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_cloth_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_boid_types.h"
 #include "DNA_texture_types.h"
 
 #include "RNA_define.h"
@@ -41,12 +41,14 @@
 
 #include "BKE_mesh.h"
 
+#include "BLI_listbase.h"
+
 #include "BLT_translation.h"
 
 #include "rna_internal.h"
 
-#include "WM_types.h"
 #include "WM_api.h"
+#include "WM_types.h"
 
 #ifdef RNA_RUNTIME
 static const EnumPropertyItem part_from_items[] = {
@@ -149,9 +151,9 @@ static const EnumPropertyItem part_fluid_type_items[] = {
 #  include "BLI_string_utils.h"
 
 #  include "BKE_boids.h"
-#  include "BKE_context.h"
 #  include "BKE_cloth.h"
 #  include "BKE_colortools.h"
+#  include "BKE_context.h"
 #  include "BKE_deform.h"
 #  include "BKE_effect.h"
 #  include "BKE_material.h"
@@ -188,9 +190,9 @@ static void rna_ParticleHairKey_location_object_info(PointerRNA *ptr,
    * not a very efficient way of getting hair key location data,
    * but it's the best we've got at the present
    *
-   * IDEAS: include additional information in pointerRNA beforehand,
-   * for example a pointer to the ParticleStstemModifierData to which the
-   * hairkey belongs.
+   * IDEAS: include additional information in PointerRNA beforehand,
+   * for example a pointer to the ParticleSystemModifierData to which the
+   * hair-key belongs.
    */
 
   for (md = ob->modifiers.first; md; md = md->next) {
@@ -199,9 +201,9 @@ static void rna_ParticleHairKey_location_object_info(PointerRNA *ptr,
       if (psmd && psmd->mesh_final && psmd->psys) {
         psys = psmd->psys;
         for (i = 0, pa = psys->particles; i < psys->totpart; i++, pa++) {
-          /* hairkeys are stored sequentially in memory, so we can
+          /* Hair-keys are stored sequentially in memory, so we can
            * find if it's the same particle by comparing pointers,
-           * without having to iterate over them all */
+           * without having to iterate over them all. */
           if ((hkey >= pa->hair) && (hkey < pa->hair + pa->totkey)) {
             *psmd_pt = psmd;
             *pa_pt = pa;
@@ -695,7 +697,7 @@ static void rna_Particle_change_type(Main *bmain, Scene *UNUSED(scene), PointerR
 
   /* Iterating over all object is slow, but no better solution exists at the moment. */
   for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-    for (ParticleSystem *psys = ob->particlesystem.first; psys; psys = psys->next) {
+    LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
       if (psys->part == part) {
         psys_changed_type(ob, psys);
         psys->recalc |= ID_RECALC_PSYS_RESET;
@@ -1396,7 +1398,7 @@ static void psys_vg_name_set__internal(PointerRNA *ptr, const char *value, int i
     psys->vgroup[index] = 0;
   }
   else {
-    int defgrp_index = defgroup_name_index(ob, value);
+    int defgrp_index = BKE_object_defgroup_name_index(ob, value);
 
     if (defgrp_index == -1) {
       return;

@@ -37,9 +37,9 @@
  * - updating can optionally keyframe the camera object.
  */
 
-#include "DNA_scene_types.h"
-#include "DNA_object_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -89,7 +89,7 @@ typedef struct View3DCameraControl {
 
   /* backup the views quat in case the user cancels flying in non camera mode. */
   float rot_backup[4];
-  /* remember if were ortho or not, only used for restoring the view if it was a ortho view */
+  /* remember if we're ortho or not, only used for restoring the view if it was a ortho view */
   char persp_backup;
 
   /* are we flying an ortho camera in perspective view,
@@ -101,7 +101,7 @@ typedef struct View3DCameraControl {
   void *obtfm;
 } View3DCameraControl;
 
-BLI_INLINE Object *view3d_cameracontrol_object(View3DCameraControl *vctrl)
+BLI_INLINE Object *view3d_cameracontrol_object(const View3DCameraControl *vctrl)
 {
   return vctrl->root_parent ? vctrl->root_parent : vctrl->ctx_v3d->camera;
 }

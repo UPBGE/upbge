@@ -22,15 +22,15 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_brush_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_brush_types.h"
 
 #include "BLI_utildefines.h"
 
-#include "BKE_main.h"
-#include "BKE_lib_id.h"
 #include "BKE_brush.h"
+#include "BKE_lib_id.h"
+#include "BKE_main.h"
 #include "BKE_paint.h"
 
 void BKE_paint_toolslots_len_ensure(Paint *paint, int len)
@@ -81,6 +81,15 @@ void BKE_paint_toolslots_init_from_main(struct Main *bmain)
     }
     if (ts->gp_paint) {
       paint_toolslots_init(bmain, &ts->gp_paint->paint);
+    }
+    if (ts->gp_vertexpaint) {
+      paint_toolslots_init(bmain, &ts->gp_vertexpaint->paint);
+    }
+    if (ts->gp_sculptpaint) {
+      paint_toolslots_init(bmain, &ts->gp_sculptpaint->paint);
+    }
+    if (ts->gp_weightpaint) {
+      paint_toolslots_init(bmain, &ts->gp_weightpaint->paint);
     }
   }
 }

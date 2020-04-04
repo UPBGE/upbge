@@ -24,26 +24,23 @@
 #ifndef __CCDPHYSICSENVIRONMENT_H__
 #define __CCDPHYSICSENVIRONMENT_H__
 
-#include "PHY_IPhysicsEnvironment.h"
-#include "KX_KetsjiEngine.h"
-#include "KX_Globals.h"
+#include <map>
+#include <set>
+#include <vector>
+
+#include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
+#include "LinearMath/btTransform.h"
+#include "LinearMath/btVector3.h"
 
 #include "CcdPhysicsController.h"
-
-#include <vector>
-#include <set>
-#include <map>
-class CcdGraphicController;
-#include "LinearMath/btVector3.h"
-#include "LinearMath/btTransform.h"
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
+#include "PHY_IPhysicsEnvironment.h"
 
 class btTypedConstraint;
 class btSimulationIslandManager;
 class btCollisionDispatcher;
 class btDispatcher;
-
-#include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
-
 class WrapperVehicle;
 class btPersistentManifold;
 class btBroadphaseInterface;
@@ -52,6 +49,7 @@ class btOverlappingPairCache;
 class btIDebugDraw;
 class btDynamicsWorld;
 class PHY_IVehicle;
+class CcdGraphicController;
 class CcdOverlapFilterCallBack;
 class CcdShapeConstructionInfo;
 
@@ -68,6 +66,8 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   void RemoveConstraint(btTypedConstraint *con, bool free);
   /// Remove a vehicle wrapper.
   void RemoveVehicle(WrapperVehicle *vehicle, bool free);
+  /// Remove vehicle wrapper used by a physics controller used as chassis.
+  void RemoveVehicle(CcdPhysicsController *ctrl, bool free);
   /// Restore the constraint if the owner and target are presents.
   void RestoreConstraint(CcdPhysicsController *ctrl, btTypedConstraint *con);
 
@@ -135,10 +135,6 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
     return m_numTimeSubSteps;
   }
 
-  virtual void BeginFrame();
-  virtual void EndFrame()
-  {
-  }
   /// Perform an integration step of duration 'timeStep'.
   virtual bool ProceedDeltaTime(double curTime, float timeStep, float interval);
 
@@ -288,7 +284,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   static CcdPhysicsEnvironment *Create(struct Scene *blenderscene, bool visualizePhysics);
 
-  virtual void ConvertObject(KX_BlenderSceneConverter &converter,
+  virtual void ConvertObject(BL_BlenderSceneConverter &converter,
                              KX_GameObject *gameobj,
                              RAS_MeshObject *meshobj,
                              DerivedMesh *dm,

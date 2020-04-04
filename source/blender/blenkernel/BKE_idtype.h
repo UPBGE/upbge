@@ -26,6 +26,8 @@
  * ID type structure, helping to factorize common operations and data for all data-block types.
  */
 
+#include "BLI_sys_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -70,7 +72,7 @@ typedef struct IDTypeInfo {
    * Bitflag matching id_code, used for filtering (e.g. in file browser), see DNA_ID.h's
    * FILTER_ID_XX enums.
    */
-  int id_filter;
+  int64_t id_filter;
 
   /**
    * Define the position of this data-block type in the virtual list of all data in a Main that is
@@ -124,7 +126,47 @@ typedef struct IDTypeInfo {
 /* ********** Declaration of each IDTypeInfo. ********** */
 
 /* Those are defined in the respective BKE files. */
+extern IDTypeInfo IDType_ID_SCE;
+extern IDTypeInfo IDType_ID_LI;
 extern IDTypeInfo IDType_ID_OB;
+extern IDTypeInfo IDType_ID_ME;
+extern IDTypeInfo IDType_ID_CU;
+extern IDTypeInfo IDType_ID_MB;
+extern IDTypeInfo IDType_ID_MA;
+extern IDTypeInfo IDType_ID_TE;
+extern IDTypeInfo IDType_ID_IM;
+extern IDTypeInfo IDType_ID_LT;
+extern IDTypeInfo IDType_ID_LA;
+extern IDTypeInfo IDType_ID_CA;
+extern IDTypeInfo IDType_ID_IP;
+extern IDTypeInfo IDType_ID_KE;
+extern IDTypeInfo IDType_ID_WO;
+extern IDTypeInfo IDType_ID_SCR;
+extern IDTypeInfo IDType_ID_VF;
+extern IDTypeInfo IDType_ID_TXT;
+extern IDTypeInfo IDType_ID_SPK;
+extern IDTypeInfo IDType_ID_SO;
+extern IDTypeInfo IDType_ID_GR;
+extern IDTypeInfo IDType_ID_AR;
+extern IDTypeInfo IDType_ID_AC;
+extern IDTypeInfo IDType_ID_NT;
+extern IDTypeInfo IDType_ID_BR;
+extern IDTypeInfo IDType_ID_PA;
+extern IDTypeInfo IDType_ID_GD;
+extern IDTypeInfo IDType_ID_WM;
+extern IDTypeInfo IDType_ID_MC;
+extern IDTypeInfo IDType_ID_MSK;
+extern IDTypeInfo IDType_ID_LS;
+extern IDTypeInfo IDType_ID_PAL;
+extern IDTypeInfo IDType_ID_PC;
+extern IDTypeInfo IDType_ID_CF;
+extern IDTypeInfo IDType_ID_WS;
+extern IDTypeInfo IDType_ID_LP;
+extern IDTypeInfo IDType_ID_HA;
+extern IDTypeInfo IDType_ID_PT;
+extern IDTypeInfo IDType_ID_VO;
+
+extern IDTypeInfo IDType_ID_LINK_PLACEHOLDER;
 
 /* ********** Helpers/Utils API. ********** */
 
@@ -134,6 +176,22 @@ void BKE_idtype_init(void);
 /* General helpers. */
 const struct IDTypeInfo *BKE_idtype_get_info_from_idcode(const short id_code);
 const struct IDTypeInfo *BKE_idtype_get_info_from_id(const struct ID *id);
+
+const char *BKE_idtype_idcode_to_name(const short idcode);
+const char *BKE_idtype_idcode_to_name_plural(const short idcode);
+const char *BKE_idtype_idcode_to_translation_context(const short idcode);
+bool BKE_idtype_idcode_is_linkable(const short idcode);
+bool BKE_idtype_idcode_is_valid(const short idcode);
+
+short BKE_idtype_idcode_from_name(const char *idtype_name);
+
+uint64_t BKE_idtype_idcode_to_idfilter(const short idcode);
+short BKE_idtype_idcode_from_idfilter(const uint64_t idfilter);
+
+int BKE_idtype_idcode_to_index(const short idcode);
+short BKE_idtype_idcode_from_index(const int index);
+
+short BKE_idtype_idcode_iter_step(int *index);
 
 #ifdef __cplusplus
 }

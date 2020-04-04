@@ -186,8 +186,7 @@ if(APPLE)
   option(WITH_XR_OPENXR   "Enable VR features through the OpenXR specification" OFF)
   mark_as_advanced(WITH_XR_OPENXR)
 else()
-  # Disabled until there's more than just the build system stuff. Should be enabled soon.
-  option(WITH_XR_OPENXR   "Enable VR features through the OpenXR specification" OFF)
+  option(WITH_XR_OPENXR   "Enable VR features through the OpenXR specification" ON)
 endif()
 
 option(WITH_GAMEENGINE    "Enable Game Engine" ON)
@@ -336,6 +335,10 @@ mark_as_advanced(WITH_SYSTEM_GLOG)
 
 # Freestyle
 option(WITH_FREESTYLE     "Enable Freestyle (advanced edges rendering)" ON)
+
+# New object types
+option(WITH_NEW_OBJECT_TYPES "Enable new hair and pointcloud objects (use for development only, don't save in files)" OFF)
+mark_as_advanced(WITH_NEW_OBJECT_TYPES)
 
 # Misc
 if(WIN32)
@@ -668,9 +671,10 @@ set_and_warn_dependency(WITH_BOOST WITH_OPENVDB        OFF)
 set_and_warn_dependency(WITH_BOOST WITH_OPENCOLORIO    OFF)
 set_and_warn_dependency(WITH_BOOST WITH_QUADRIFLOW     OFF)
 set_and_warn_dependency(WITH_BOOST WITH_USD            OFF)
+set_and_warn_dependency(WITH_BOOST WITH_ALEMBIC        OFF)
 
 if(WITH_BOOST AND NOT (WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_INTERNATIONAL OR
-   WITH_OPENVDB OR WITH_OPENCOLORIO OR WITH_USD))
+   WITH_OPENVDB OR WITH_OPENCOLORIO OR WITH_USD OR WITH_ALEMBIC))
   message(STATUS "No dependencies need 'WITH_BOOST' forcing WITH_BOOST=OFF")
   set(WITH_BOOST OFF)
 endif()
@@ -712,14 +716,15 @@ if(WITH_INSTALL_PORTABLE)
 endif()
 
 if(WITH_GHOST_SDL OR WITH_HEADLESS)
-	set(WITH_X11           OFF)
-	set(WITH_X11_XINPUT    OFF)
-	set(WITH_X11_XINERAMA  OFF)
-	set(WITH_X11_XF86VMODE OFF)
-	set(WITH_X11_XFIXES    OFF)
-	set(WITH_X11_ALPHA     OFF)
-	set(WITH_GHOST_XDND    OFF)
-	set(WITH_INPUT_IME     OFF)
+  set(WITH_X11           OFF)
+  set(WITH_X11_XINPUT    OFF)
+  set(WITH_X11_XINERAMA  OFF)
+  set(WITH_X11_XF86VMODE OFF)
+  set(WITH_X11_XFIXES    OFF)
+  set(WITH_X11_ALPHA     OFF)
+  set(WITH_GHOST_XDND    OFF)
+  set(WITH_INPUT_IME     OFF)
+  set(WITH_XR_OPENXR     OFF)
 endif()
 
 if(WITH_CPU_SSE)

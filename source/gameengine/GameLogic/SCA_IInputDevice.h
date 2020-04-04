@@ -32,9 +32,10 @@
 #ifndef __SCA_IINPUTDEVICE_H__
 #define __SCA_IINPUTDEVICE_H__
 
+#include <map>
+
 #include "SCA_InputEvent.h"
 
-#include <map>
 // #include <pair>
 
 #define MOUSEX MOUSEMOVE

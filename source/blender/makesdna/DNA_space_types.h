@@ -25,15 +25,15 @@
 #ifndef __DNA_SPACE_TYPES_H__
 #define __DNA_SPACE_TYPES_H__
 
-#include "DNA_defs.h"
-#include "DNA_listBase.h"
 #include "DNA_color_types.h" /* for Histogram */
-#include "DNA_vec_types.h"
-#include "DNA_outliner_types.h"  /* for TreeStoreElem */
-#include "DNA_image_types.h"     /* ImageUser */
+#include "DNA_defs.h"
+#include "DNA_image_types.h" /* ImageUser */
+#include "DNA_listBase.h"
 #include "DNA_movieclip_types.h" /* MovieClipUser */
-#include "DNA_sequence_types.h"  /* SequencerScopes */
 #include "DNA_node_types.h"      /* for bNodeInstanceKey */
+#include "DNA_outliner_types.h"  /* for TreeStoreElem */
+#include "DNA_sequence_types.h"  /* SequencerScopes */
+#include "DNA_vec_types.h"
 /* Hum ... Not really nice... but needed for spacebuts. */
 #include "DNA_view2d_types.h"
 
@@ -450,7 +450,7 @@ typedef struct SpaceGraph {
 
 /* SpaceGraph.flag (Graph Editor Settings) */
 typedef enum eGraphEdit_Flag {
-  /* OLD DEPRECEATED SETTING */
+  /* OLD DEPRECATED SETTING */
   /* SIPO_LOCK_VIEW            = (1 << 0), */
 
   /* don't merge keyframes on the same frame after a transform */
@@ -872,6 +872,7 @@ typedef enum eFileSel_File_Types {
   /** For all kinds of recognized import/export formats. No need for specialized types. */
   FILE_TYPE_OBJECT_IO = (1 << 17),
   FILE_TYPE_USD = (1 << 18),
+  FILE_TYPE_VOLUME = (1 << 19),
 
   /** An FS directory (i.e. S_ISDIR on its path is true). */
   FILE_TYPE_DIR = (1 << 30),
@@ -968,7 +969,10 @@ typedef struct FileDirEntry {
   /** ID type, in case typeflag has FILE_TYPE_BLENDERLIB set. */
   int blentype;
 
+  /* Path to item that is relative to current folder root. */
   char *relpath;
+  /** Optional argument for shortcuts, aliases etc. */
+  char *redirection_path;
 
   /** TODO: make this a real ID pointer? */
   void *poin;

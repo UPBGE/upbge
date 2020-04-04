@@ -17,21 +17,21 @@
  */
 
 #include "COM_ViewerOperation.h"
-#include "BLI_listbase.h"
 #include "BKE_image.h"
 #include "BKE_scene.h"
-#include "WM_api.h"
-#include "WM_types.h"
-#include "PIL_time.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
+#include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
+#include "PIL_time.h"
+#include "WM_api.h"
+#include "WM_types.h"
 
 extern "C" {
+#include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
-#include "IMB_colormanagement.h"
 }
 
 ViewerOperation::ViewerOperation() : NodeOperation()
@@ -129,7 +129,7 @@ void ViewerOperation::initImage()
 
   /* make sure the image has the correct number of views */
   if (ima && BKE_scene_multiview_is_render_view_first(this->m_rd, this->m_viewName)) {
-    BKE_image_verify_viewer_views(this->m_rd, ima, this->m_imageUser);
+    BKE_image_ensure_viewer_views(this->m_rd, ima, this->m_imageUser);
   }
 
   BLI_thread_lock(LOCK_DRAW_IMAGE);

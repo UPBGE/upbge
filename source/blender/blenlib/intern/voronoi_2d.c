@@ -28,8 +28,8 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
-#include "BLI_voronoi_2d.h"
 #include "BLI_utildefines.h"
+#include "BLI_voronoi_2d.h"
 
 #define VORONOI_EPS 1e-2f
 
@@ -766,24 +766,25 @@ static int voronoi_addTriangulationPoint(const float coord[2],
   return (*triangulated_points_total) - 1;
 }
 
-static void voronoi_addTriangle(int v1, int v2, int v3, int (**triangles)[3], int *triangles_total)
+static void voronoi_addTriangle(
+    int v1, int v2, int v3, int (**r_triangles)[3], int *r_triangles_total)
 {
   int *triangle;
 
-  if (*triangles) {
-    *triangles = MEM_reallocN(*triangles, sizeof(int[3]) * (*triangles_total + 1));
+  if (*r_triangles) {
+    *r_triangles = MEM_reallocN(*r_triangles, sizeof(int[3]) * (*r_triangles_total + 1));
   }
   else {
-    *triangles = MEM_callocN(sizeof(int[3]), "trianglulation triangles");
+    *r_triangles = MEM_callocN(sizeof(int[3]), "trianglulation triangles");
   }
 
-  triangle = (int *)&(*triangles)[(*triangles_total)];
+  triangle = (int *)&(*r_triangles)[(*r_triangles_total)];
 
   triangle[0] = v1;
   triangle[1] = v2;
   triangle[2] = v3;
 
-  (*triangles_total)++;
+  (*r_triangles_total)++;
 }
 
 void BLI_voronoi_triangulate(const VoronoiSite *sites,
@@ -791,10 +792,10 @@ void BLI_voronoi_triangulate(const VoronoiSite *sites,
                              ListBase *edges,
                              int width,
                              int height,
-                             VoronoiTriangulationPoint **triangulated_points_r,
-                             int *triangulated_points_total_r,
-                             int (**triangles_r)[3],
-                             int *triangles_total_r)
+                             VoronoiTriangulationPoint **r_triangulated_points,
+                             int *r_triangulated_points_total,
+                             int (**r_triangles)[3],
+                             int *r_triangles_total)
 {
   VoronoiTriangulationPoint *triangulated_points = NULL;
   int(*triangles)[3] = NULL;
@@ -852,11 +853,11 @@ void BLI_voronoi_triangulate(const VoronoiSite *sites,
     mul_v3_fl(triangulation_point->color, 1.0f / triangulation_point->power);
   }
 
-  *triangulated_points_r = triangulated_points;
-  *triangulated_points_total_r = triangulated_points_total;
+  *r_triangulated_points = triangulated_points;
+  *r_triangulated_points_total = triangulated_points_total;
 
-  *triangles_r = triangles;
-  *triangles_total_r = triangles_total;
+  *r_triangles = triangles;
+  *r_triangles_total = triangles_total;
 
   BLI_freelistN(&boundary_edges);
 }

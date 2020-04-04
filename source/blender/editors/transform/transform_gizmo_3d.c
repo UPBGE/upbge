@@ -22,58 +22,58 @@
  * Used for 3D View
  */
 
+#include <float.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include <float.h>
 
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_meta_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 
 #include "BLI_array_utils.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
-#include "BLI_utildefines.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_action.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
-#include "BKE_global.h"
-#include "BKE_layer.h"
-#include "BKE_particle.h"
-#include "BKE_pointcache.h"
 #include "BKE_editmesh.h"
-#include "BKE_lattice.h"
+#include "BKE_global.h"
 #include "BKE_gpencil.h"
-#include "BKE_scene.h"
-#include "BKE_workspace.h"
+#include "BKE_lattice.h"
+#include "BKE_layer.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
+#include "BKE_particle.h"
+#include "BKE_pointcache.h"
+#include "BKE_scene.h"
+#include "BKE_workspace.h"
 
 #include "DEG_depsgraph.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
 #include "WM_message.h"
 #include "WM_toolsystem.h"
+#include "WM_types.h"
 #include "wm.h"
 
 #include "ED_armature.h"
 #include "ED_curve.h"
-#include "ED_object.h"
-#include "ED_particle.h"
-#include "ED_view3d.h"
-#include "ED_gpencil.h"
-#include "ED_screen.h"
 #include "ED_gizmo_library.h"
 #include "ED_gizmo_utils.h"
+#include "ED_gpencil.h"
+#include "ED_object.h"
+#include "ED_particle.h"
+#include "ED_screen.h"
+#include "ED_view3d.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -397,7 +397,7 @@ static void gizmo_get_axis_color(const int axis_idx,
     case MAN_AXIS_ROT_C:
     case MAN_AXIS_SCALE_C:
     case MAN_AXIS_ROT_T:
-      copy_v4_fl(r_col, 1.0f);
+      UI_GetThemeColor4fv(TH_GIZMO_VIEW_ALIGN, r_col);
       break;
   }
 
@@ -637,11 +637,11 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
 
 void ED_transform_calc_orientation_from_type(const bContext *C, float r_mat[3][3])
 {
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Object *obedit = CTX_data_edit_object(C);
-  RegionView3D *rv3d = ar->regiondata;
+  RegionView3D *rv3d = region->regiondata;
   Object *ob = OBACT(view_layer);
   const short orientation_type = scene->orientation_slots[SCE_ORIENT_DEFAULT].type;
   const short orientation_index_custom = scene->orientation_slots[SCE_ORIENT_DEFAULT].index_custom;
@@ -734,16 +734,16 @@ int ED_transform_calc_gizmo_stats(const bContext *C,
                                   const struct TransformCalcParams *params,
                                   struct TransformBounds *tbounds)
 {
-  ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
   Scene *scene = CTX_data_scene(C);
   /* TODO(sergey): This function is used from operator's modal() and from gizmo's refresh().
    * Is it fine to possibly evaluate dependency graph here? */
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = sa->spacedata.first;
+  View3D *v3d = area->spacedata.first;
   Object *obedit = CTX_data_edit_object(C);
-  RegionView3D *rv3d = ar->regiondata;
+  RegionView3D *rv3d = region->regiondata;
   Base *base;
   Object *ob = OBACT(view_layer);
   bGPdata *gpd = CTX_data_gpencil_data(C);
@@ -792,15 +792,15 @@ int ED_transform_calc_gizmo_stats(const bContext *C,
   if (is_gp_edit) {
     float diff_mat[4][4];
     const bool use_mat_local = true;
-    for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
       /* only editable and visible layers are considered */
 
-      if (gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL)) {
+      if (BKE_gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL)) {
 
         /* calculate difference matrix */
-        ED_gpencil_parent_location(depsgraph, ob, gpd, gpl, diff_mat);
+        BKE_gpencil_parent_matrix_get(depsgraph, ob, gpl, diff_mat);
 
-        for (bGPDstroke *gps = gpl->actframe->strokes.first; gps; gps = gps->next) {
+        LISTBASE_FOREACH (bGPDstroke *, gps, &gpl->actframe->strokes) {
           /* skip strokes that are invalid for current view */
           if (ED_gpencil_stroke_can_use(C, gps) == false) {
             continue;
@@ -883,7 +883,7 @@ int ED_transform_calc_gizmo_stats(const bContext *C,
         if (use_mat_local) {
           mul_m4_m4m4(mat_local, obedit->imat, ob_iter->obmat);
         }
-        for (EditBone *ebo = arm->edbo->first; ebo; ebo = ebo->next) {
+        LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
           if (EBONE_VISIBLE(arm, ebo)) {
             if (ebo->flag & BONE_TIPSEL) {
               calc_tw_center_with_matrix(tbounds, ebo->tail, use_mat_local, mat_local);
@@ -977,7 +977,7 @@ int ED_transform_calc_gizmo_stats(const bContext *C,
           mul_m4_m4m4(mat_local, obedit->imat, ob_iter->obmat);
         }
 
-        for (MetaElem *ml = mb->editelems->first; ml; ml = ml->next) {
+        LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
           if (ml->flag & SELECT) {
             calc_tw_center_with_matrix(tbounds, &ml->x, use_mat_local, mat_local);
             totsel++;
@@ -1244,13 +1244,13 @@ static void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
                                           struct wmMsgBus *mbus,
                                           Scene *scene,
                                           bScreen *screen,
-                                          ScrArea *sa,
-                                          ARegion *ar,
+                                          ScrArea *area,
+                                          ARegion *region,
                                           const void *type_fn)
 {
   /* Subscribe to view properties */
   wmMsgSubscribeValue msg_sub_value_gz_tag_refresh = {
-      .owner = ar,
+      .owner = region,
       .user_data = gzgroup->parent_gzmap,
       .notify = WM_gizmo_do_msg_notify_tag_refresh,
   };
@@ -1334,7 +1334,7 @@ static void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   }
 
   PointerRNA view3d_ptr;
-  RNA_pointer_create(&screen->id, &RNA_SpaceView3D, sa->spacedata.first, &view3d_ptr);
+  RNA_pointer_create(&screen->id, &RNA_SpaceView3D, area->spacedata.first, &view3d_ptr);
 
   if (type_fn == VIEW3D_GGT_xform_gizmo) {
     GizmoGroup *ggd = gzgroup->customdata;
@@ -1369,7 +1369,7 @@ static void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
 void drawDial3d(const TransInfo *t)
 {
   if (t->mode == TFM_ROTATION && t->spacetype == SPACE_VIEW3D) {
-    wmGizmo *gz = wm_gizmomap_modal_get(t->ar->gizmo_map);
+    wmGizmo *gz = wm_gizmomap_modal_get(t->region->gizmo_map);
     if (gz == NULL) {
       /* We only draw Dial3d if the operator has been called by a gizmo. */
       return;
@@ -1411,7 +1411,7 @@ void drawDial3d(const TransInfo *t)
     mat_basis[2][3] = -dot_v3v3(mat_basis[2], mat_basis[3]);
 
     if (ED_view3d_win_to_3d_on_plane(
-            t->ar, mat_basis[2], (float[2]){UNPACK2(t->mouse.imval)}, false, mat_basis[1])) {
+            t->region, mat_basis[2], (float[2]){UNPACK2(t->mouse.imval)}, false, mat_basis[1])) {
       sub_v3_v3(mat_basis[1], mat_basis[3]);
       normalize_v3(mat_basis[1]);
       cross_v3_v3v3(mat_basis[0], mat_basis[1], mat_basis[2]);
@@ -1428,7 +1428,7 @@ void drawDial3d(const TransInfo *t)
     mat_basis[3][3] = 1.0f;
 
     copy_m4_m4(mat_final, mat_basis);
-    scale *= ED_view3d_pixel_size_no_ui_scale(t->ar->regiondata, mat_final[3]);
+    scale *= ED_view3d_pixel_size_no_ui_scale(t->region->regiondata, mat_final[3]);
     mul_mat3_m4_fl(mat_final, scale);
 
     if (activeSnap(t) && (!transformModeUseSnap(t) ||
@@ -1554,8 +1554,8 @@ static int gizmo_modal(bContext *C,
     return OPERATOR_RUNNING_MODAL;
   }
 
-  ARegion *ar = CTX_wm_region(C);
-  RegionView3D *rv3d = ar->regiondata;
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = region->regiondata;
   struct TransformBounds tbounds;
 
   if (ED_transform_calc_gizmo_stats(C,
@@ -1567,7 +1567,7 @@ static int gizmo_modal(bContext *C,
     WM_gizmo_set_matrix_location(widget, rv3d->twmat[3]);
   }
 
-  ED_region_tag_redraw_editor_overlays(ar);
+  ED_region_tag_redraw_editor_overlays(region);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1701,8 +1701,8 @@ static void WIDGETGROUP_gizmo_setup(const bContext *C, wmGizmoGroup *gzgroup)
   gzgroup->customdata = ggd;
 
   {
-    ScrArea *sa = CTX_wm_area(C);
-    const bToolRef *tref = sa->runtime.tool;
+    ScrArea *area = CTX_wm_area(C);
+    const bToolRef *tref = area->runtime.tool;
 
     ggd->twtype = 0;
     if (tref && STREQ(tref->idname, "builtin.move")) {
@@ -1737,10 +1737,10 @@ static void WIDGETGROUP_gizmo_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   GizmoGroup *ggd = gzgroup->customdata;
   Scene *scene = CTX_data_scene(C);
-  ScrArea *sa = CTX_wm_area(C);
-  View3D *v3d = sa->spacedata.first;
-  ARegion *ar = CTX_wm_region(C);
-  RegionView3D *rv3d = ar->regiondata;
+  ScrArea *area = CTX_wm_area(C);
+  View3D *v3d = area->spacedata.first;
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = region->regiondata;
   struct TransformBounds tbounds;
 
   if (scene->toolsettings->workspace_tool_type == SCE_WORKSPACE_TOOL_FALLBACK) {
@@ -1844,18 +1844,19 @@ static void WIDGETGROUP_gizmo_message_subscribe(const bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
   bScreen *screen = CTX_wm_screen(C);
-  ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = CTX_wm_region(C);
-  gizmo_xform_message_subscribe(gzgroup, mbus, scene, screen, sa, ar, VIEW3D_GGT_xform_gizmo);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
+  gizmo_xform_message_subscribe(
+      gzgroup, mbus, scene, screen, area, region, VIEW3D_GGT_xform_gizmo);
 }
 
 static void WIDGETGROUP_gizmo_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   GizmoGroup *ggd = gzgroup->customdata;
-  // ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = CTX_wm_region(C);
-  // View3D *v3d = sa->spacedata.first;
-  RegionView3D *rv3d = ar->regiondata;
+  // ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
+  // View3D *v3d = area->spacedata.first;
+  RegionView3D *rv3d = region->regiondata;
   float viewinv_m3[3][3];
   copy_m3_m4(viewinv_m3, rv3d->viewinv);
   float idot[3];
@@ -1997,13 +1998,13 @@ static bool WIDGETGROUP_gizmo_poll_generic(View3D *v3d)
 static bool WIDGETGROUP_gizmo_poll_context(const struct bContext *C,
                                            struct wmGizmoGroupType *UNUSED(gzgt))
 {
-  ScrArea *sa = CTX_wm_area(C);
-  View3D *v3d = sa->spacedata.first;
+  ScrArea *area = CTX_wm_area(C);
+  View3D *v3d = area->spacedata.first;
   if (!WIDGETGROUP_gizmo_poll_generic(v3d)) {
     return false;
   }
 
-  const bToolRef *tref = sa->runtime.tool;
+  const bToolRef *tref = area->runtime.tool;
   if (v3d->gizmo_flag & V3D_GIZMO_HIDE_CONTEXT) {
     return false;
   }
@@ -2025,8 +2026,8 @@ static bool WIDGETGROUP_gizmo_poll_tool(const struct bContext *C, struct wmGizmo
     return false;
   }
 
-  ScrArea *sa = CTX_wm_area(C);
-  View3D *v3d = sa->spacedata.first;
+  ScrArea *area = CTX_wm_area(C);
+  View3D *v3d = area->spacedata.first;
   if (!WIDGETGROUP_gizmo_poll_generic(v3d)) {
     return false;
   }
@@ -2168,8 +2169,8 @@ static void WIDGETGROUP_xform_cage_setup(const bContext *UNUSED(C), wmGizmoGroup
 
 static void WIDGETGROUP_xform_cage_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  ARegion *ar = CTX_wm_region(C);
-  RegionView3D *rv3d = ar->regiondata;
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = region->regiondata;
   Scene *scene = CTX_data_scene(C);
 
   struct XFormCageWidgetGroup *xgzgroup = gzgroup->customdata;
@@ -2247,9 +2248,9 @@ static void WIDGETGROUP_xform_cage_message_subscribe(const bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
   bScreen *screen = CTX_wm_screen(C);
-  ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = CTX_wm_region(C);
-  gizmo_xform_message_subscribe(gzgroup, mbus, scene, screen, sa, ar, VIEW3D_GGT_xform_cage);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
+  gizmo_xform_message_subscribe(gzgroup, mbus, scene, screen, area, region, VIEW3D_GGT_xform_cage);
 }
 
 static void WIDGETGROUP_xform_cage_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
@@ -2384,8 +2385,8 @@ static void WIDGETGROUP_xform_shear_setup(const bContext *UNUSED(C), wmGizmoGrou
 static void WIDGETGROUP_xform_shear_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Scene *scene = CTX_data_scene(C);
-  ARegion *ar = CTX_wm_region(C);
-  RegionView3D *rv3d = ar->regiondata;
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = region->regiondata;
 
   struct XFormShearWidgetGroup *xgzgroup = gzgroup->customdata;
   struct TransformBounds tbounds;
@@ -2460,9 +2461,10 @@ static void WIDGETGROUP_xform_shear_message_subscribe(const bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
   bScreen *screen = CTX_wm_screen(C);
-  ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = CTX_wm_region(C);
-  gizmo_xform_message_subscribe(gzgroup, mbus, scene, screen, sa, ar, VIEW3D_GGT_xform_shear);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
+  gizmo_xform_message_subscribe(
+      gzgroup, mbus, scene, screen, area, region, VIEW3D_GGT_xform_shear);
 }
 
 static void WIDGETGROUP_xform_shear_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)

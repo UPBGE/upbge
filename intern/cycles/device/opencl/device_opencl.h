@@ -88,9 +88,12 @@ class OpenCLInfo {
   static bool device_supported(const string &platform_name, const cl_device_id device_id);
   static bool platform_version_check(cl_platform_id platform, string *error = NULL);
   static bool device_version_check(cl_device_id device, string *error = NULL);
+  static bool get_device_version(cl_device_id device,
+                                 int *r_major,
+                                 int *r_minor,
+                                 string *error = NULL);
   static string get_hardware_id(const string &platform_name, cl_device_id device_id);
-  static void get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices,
-                                 bool force_all = false);
+  static void get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices);
 
   /* ** Some handy shortcuts to low level cl*GetInfo() functions. ** */
 
@@ -428,8 +431,10 @@ class OpenCLDevice : public Device {
   int mem_sub_ptr_alignment();
 
   void const_copy_to(const char *name, void *host, size_t size);
-  void tex_alloc(device_memory &mem);
-  void tex_free(device_memory &mem);
+  void global_alloc(device_memory &mem);
+  void global_free(device_memory &mem);
+  void tex_alloc(device_texture &mem);
+  void tex_free(device_texture &mem);
 
   size_t global_size_round_up(int group_size, int global_size);
   void enqueue_kernel(cl_kernel kernel,

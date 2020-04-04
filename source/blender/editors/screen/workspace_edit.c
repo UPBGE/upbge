@@ -21,10 +21,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "BLI_utildefines.h"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_appdir.h"
 #include "BKE_blendfile.h"
@@ -198,8 +198,7 @@ WorkSpace *ED_workspace_duplicate(WorkSpace *workspace_old, Main *bmain, wmWindo
 
   /* TODO(campbell): tools */
 
-  for (WorkSpaceLayout *layout_old = layouts_old->first; layout_old;
-       layout_old = layout_old->next) {
+  LISTBASE_FOREACH (WorkSpaceLayout *, layout_old, layouts_old) {
     WorkSpaceLayout *layout_new = ED_workspace_layout_duplicate(
         bmain, workspace_new, layout_old, win);
 
@@ -222,7 +221,7 @@ bool ED_workspace_delete(WorkSpace *workspace, Main *bmain, bContext *C, wmWindo
   ListBase ordered;
   BKE_id_ordered_list(&ordered, &bmain->workspaces);
   WorkSpace *prev = NULL, *next = NULL;
-  for (LinkData *link = ordered.first; link; link = link->next) {
+  LISTBASE_FOREACH (LinkData *, link, &ordered) {
     if (link->data == workspace) {
       prev = link->prev ? link->prev->data : NULL;
       next = link->next ? link->next->data : NULL;
@@ -232,7 +231,7 @@ bool ED_workspace_delete(WorkSpace *workspace, Main *bmain, bContext *C, wmWindo
   BLI_freelistN(&ordered);
   BLI_assert((prev != NULL) || (next != NULL));
 
-  for (wmWindow *win = wm->windows.first; win; win = win->next) {
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     WorkSpace *workspace_active = WM_window_get_active_workspace(win);
     if (workspace_active == workspace) {
       ED_workspace_change((prev != NULL) ? prev : next, C, wm, win);
@@ -266,8 +265,7 @@ static WorkSpace *workspace_context_get(bContext *C)
     return (WorkSpace *)id;
   }
 
-  wmWindow *win = CTX_wm_window(C);
-  return WM_window_get_active_workspace(win);
+  return CTX_wm_workspace(C);
 }
 
 static bool workspace_context_poll(bContext *C)
@@ -334,7 +332,7 @@ static int workspace_append_activate_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "filepath", filepath);
 
   WorkSpace *appended_workspace = (WorkSpace *)WM_file_append_datablock(
-      C, filepath, ID_WS, idname);
+      bmain, CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C), filepath, ID_WS, idname);
 
   if (appended_workspace) {
     /* Set defaults. */
@@ -482,7 +480,7 @@ static int workspace_add_invoke(bContext *C, wmOperator *op, const wmEvent *UNUS
   ListBase templates;
   BKE_appdir_app_templates(&templates);
 
-  for (LinkData *link = templates.first; link; link = link->next) {
+  LISTBASE_FOREACH (LinkData *, link, &templates) {
     char *template = link->data;
     char display_name[FILE_MAX];
 

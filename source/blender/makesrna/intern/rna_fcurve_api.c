@@ -21,8 +21,8 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -39,7 +39,6 @@
 
 #  include <stddef.h>
 
-#  include "BKE_animsys.h"
 #  include "BKE_fcurve.h"
 
 #  include "BLI_math.h"

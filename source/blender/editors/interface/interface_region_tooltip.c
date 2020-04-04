@@ -32,19 +32,20 @@
  * For now it's not a priority, so leave as-is.
  */
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_userdef_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_userdef_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
-#include "BLI_string.h"
 #include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
@@ -148,10 +149,10 @@ static void rgb_tint(float col[3], float h, float h_strength, float v, float v_s
   hsv_to_rgb_v(col_hsv_to, col);
 }
 
-static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
+static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *region)
 {
   const float pad_px = UI_TIP_PADDING;
-  uiTooltipData *data = ar->regiondata;
+  uiTooltipData *data = region->regiondata;
   const uiWidgetColors *theme = ui_tooltip_get_theme();
   rcti bbox = data->bbox;
   float tip_colors[UI_TIP_LC_MAX][3];
@@ -168,7 +169,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
   float tone_bg;
   int i;
 
-  wmOrtho2_region_pixelspace(ar);
+  wmOrtho2_region_pixelspace(region);
 
   /* draw background */
   ui_draw_tooltip_background(UI_style_get(), NULL, &bbox);
@@ -271,11 +272,11 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
   BLF_disable(blf_mono_font, BLF_WORD_WRAP);
 }
 
-static void ui_tooltip_region_free_cb(ARegion *ar)
+static void ui_tooltip_region_free_cb(ARegion *region)
 {
   uiTooltipData *data;
 
-  data = ar->regiondata;
+  data = region->regiondata;
 
   for (int i = 0; i < data->fields_len; i++) {
     const uiTooltipField *field = &data->fields[i];
@@ -286,7 +287,7 @@ static void ui_tooltip_region_free_cb(ARegion *ar)
   }
   MEM_freeN(data->fields);
   MEM_freeN(data);
-  ar->regiondata = NULL;
+  region->regiondata = NULL;
 }
 
 /** \} */
@@ -318,7 +319,7 @@ static bool ui_tooltip_data_append_from_keymap(bContext *C, uiTooltipData *data,
   const int fields_len_init = data->fields_len;
   char buf[512];
 
-  for (wmKeyMapItem *kmi = keymap->items.first; kmi; kmi = kmi->next) {
+  LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
     wmOperatorType *ot = WM_operatortype_find(kmi->idname, true);
     if (ot != NULL) {
       /* Tip */
@@ -393,15 +394,15 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
   bool has_valid_context = true;
   const char *has_valid_context_error = IFACE_("Unsupported context");
   {
-    ScrArea *sa = CTX_wm_area(C);
-    if (sa == NULL) {
+    ScrArea *area = CTX_wm_area(C);
+    if (area == NULL) {
       has_valid_context = false;
     }
     else {
       PropertyRNA *prop = RNA_struct_find_property(but->opptr, "space_type");
       if (RNA_property_is_set(but->opptr, prop)) {
         const int space_type_prop = RNA_property_enum_get(but->opptr, prop);
-        if (space_type_prop != sa->spacetype) {
+        if (space_type_prop != area->spacetype) {
           has_valid_context = false;
         }
       }
@@ -596,7 +597,7 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
         else if (BPY_execute_string_as_intptr(C, expr_imports, expr, true, &expr_result)) {
           if (expr_result != 0) {
             wmKeyMap *keymap = (wmKeyMap *)expr_result;
-            for (wmKeyMapItem *kmi = keymap->items.first; kmi; kmi = kmi->next) {
+            LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
               if (STREQ(kmi->idname, but->optype->idname)) {
                 char tool_id_test[MAX_NAME];
                 RNA_string_get(kmi->ptr, "name", tool_id_test);
@@ -1158,22 +1159,22 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
   wmWindow *win = CTX_wm_window(C);
   const int winx = WM_window_pixels_x(win);
   const int winy = WM_window_pixels_y(win);
-  uiStyle *style = UI_style_get();
+  const uiStyle *style = UI_style_get();
   static ARegionType type;
-  ARegion *ar;
+  ARegion *region;
   int fonth, fontw;
   int h, i;
   rcti rect_i;
   int font_flag = 0;
 
   /* create area region */
-  ar = ui_region_temp_add(CTX_wm_screen(C));
+  region = ui_region_temp_add(CTX_wm_screen(C));
 
   memset(&type, 0, sizeof(ARegionType));
   type.draw = ui_tooltip_region_draw_cb;
   type.free = ui_tooltip_region_free_cb;
   type.regionid = RGN_TYPE_TEMPORARY;
-  ar->type = &type;
+  region->type = &type;
 
   /* set font, get bb */
   data->fstyle = style->widget; /* copy struct */
@@ -1237,7 +1238,7 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
   BLF_disable(data->fstyle.uifont_id, font_flag);
   BLF_disable(blf_mono_font, font_flag);
 
-  ar->regiondata = data;
+  region->regiondata = data;
 
   data->toth = fonth;
   data->lineh = h;
@@ -1384,19 +1385,19 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
     data->bbox.ymax = BLI_rcti_size_y(&rect_i);
 
     /* region bigger for shadow */
-    ar->winrct.xmin = rect_i.xmin - margin;
-    ar->winrct.xmax = rect_i.xmax + margin;
-    ar->winrct.ymin = rect_i.ymin - margin;
-    ar->winrct.ymax = rect_i.ymax + margin;
+    region->winrct.xmin = rect_i.xmin - margin;
+    region->winrct.xmax = rect_i.xmax + margin;
+    region->winrct.ymin = rect_i.ymin - margin;
+    region->winrct.ymax = rect_i.ymax + margin;
   }
 
   /* adds subwindow */
-  ED_region_floating_initialize(ar);
+  ED_region_floating_initialize(region);
 
   /* notify change and redraw */
-  ED_region_tag_redraw(ar);
+  ED_region_tag_redraw(region);
 
-  return ar;
+  return region;
 }
 
 /** \} */
@@ -1457,10 +1458,10 @@ ARegion *UI_tooltip_create_from_button(bContext *C, ARegion *butregion, uiBut *b
     }
   }
 
-  ARegion *ar = ui_tooltip_create_with_data(
+  ARegion *region = ui_tooltip_create_with_data(
       C, data, init_position, is_no_overlap ? &init_rect : NULL, aspect);
 
-  return ar;
+  return region;
 }
 
 ARegion *UI_tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
@@ -1480,9 +1481,9 @@ ARegion *UI_tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
   return ui_tooltip_create_with_data(C, data, init_position, NULL, aspect);
 }
 
-void UI_tooltip_free(bContext *C, bScreen *sc, ARegion *ar)
+void UI_tooltip_free(bContext *C, bScreen *screen, ARegion *region)
 {
-  ui_region_temp_remove(C, sc, ar);
+  ui_region_temp_remove(C, screen, region);
 }
 
 /** \} */

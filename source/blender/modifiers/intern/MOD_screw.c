@@ -26,8 +26,8 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_math.h"
 #include "BLI_alloca.h"
+#include "BLI_math.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -39,8 +39,8 @@
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
 
-#include "MOD_modifiertypes.h"
 #include "MEM_guardedalloc.h"
+#include "MOD_modifiertypes.h"
 
 #include "BLI_strict_flags.h"
 
@@ -112,7 +112,7 @@ static Mesh *mesh_remove_doubles_on_axis(Mesh *result,
                                          const float axis_offset[3],
                                          const float merge_threshold)
 {
-  const float merge_threshold_sq = SQUARE(merge_threshold);
+  const float merge_threshold_sq = square_f(merge_threshold);
   const bool use_offset = axis_offset != NULL;
   uint tot_doubles = 0;
   for (uint i = 0; i < totvert; i += 1) {
@@ -352,12 +352,9 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
    * Note! smaller then `FLT_EPSILON * 100`
    * gives problems with float precision so its never closed. */
   if (fabsf(screw_ofs) <= (FLT_EPSILON * 100.0f) &&
-      fabsf(fabsf(angle) - ((float)M_PI * 2.0f)) <= (FLT_EPSILON * 100.0f)) {
+      fabsf(fabsf(angle) - ((float)M_PI * 2.0f)) <= (FLT_EPSILON * 100.0f) && step_tot > 3) {
     close = 1;
     step_tot--;
-    if (step_tot < 3) {
-      step_tot = 3;
-    }
 
     maxVerts = totvert * step_tot;    /* -1 because we're joining back up */
     maxEdges = (totvert * step_tot) + /* these are the edges between new verts */
@@ -368,8 +365,8 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   }
   else {
     close = 0;
-    if (step_tot < 3) {
-      step_tot = 3;
+    if (step_tot < 2) {
+      step_tot = 2;
     }
 
     maxVerts = totvert * step_tot;          /* -1 because we're joining back up */

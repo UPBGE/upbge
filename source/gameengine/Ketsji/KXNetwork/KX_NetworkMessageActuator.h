@@ -33,8 +33,9 @@
 #ifndef __KX_NETWORKMESSAGEACTUATOR_H__
 #define __KX_NETWORKMESSAGEACTUATOR_H__
 
-#include <string>
 #include "SCA_IActuator.h"
+
+#include <string>
 
 class KX_NetworkMessageActuator : public SCA_IActuator {
   Py_Header bool m_lastEvent;

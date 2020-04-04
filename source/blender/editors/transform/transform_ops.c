@@ -30,10 +30,10 @@
 #include "BLT_translation.h"
 
 #include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_report.h"
 #include "BKE_editmesh.h"
+#include "BKE_global.h"
 #include "BKE_layer.h"
+#include "BKE_report.h"
 #include "BKE_scene.h"
 
 #include "RNA_access.h"
@@ -42,8 +42,8 @@
 
 #include "WM_api.h"
 #include "WM_message.h"
-#include "WM_types.h"
 #include "WM_toolsystem.h"
+#include "WM_types.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -893,8 +893,8 @@ static bool transform_shear_poll(bContext *C)
     return false;
   }
 
-  ScrArea *sa = CTX_wm_area(C);
-  return sa && !ELEM(sa->spacetype, SPACE_ACTION);
+  ScrArea *area = CTX_wm_area(C);
+  return area && !ELEM(area->spacetype, SPACE_ACTION);
 }
 
 static void TRANSFORM_OT_shear(struct wmOperatorType *ot)
@@ -1031,7 +1031,7 @@ static void TRANSFORM_OT_bbone_resize(struct wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_screenactive;
+  ot->poll = ED_operator_editarmature;
   ot->poll_property = transform_poll_property;
 
   RNA_def_float_translation(
@@ -1248,8 +1248,8 @@ static int transform_from_gizmo_invoke(bContext *C,
 {
   bToolRef *tref = WM_toolsystem_ref_from_context(C);
   if (tref) {
-    ARegion *ar = CTX_wm_region(C);
-    wmGizmoMap *gzmap = ar->gizmo_map;
+    ARegion *region = CTX_wm_region(C);
+    wmGizmoMap *gzmap = region->gizmo_map;
     wmGizmoGroup *gzgroup = gzmap ? WM_gizmomap_group_find(gzmap, "VIEW3D_GGT_xform_gizmo") : NULL;
     if (gzgroup != NULL) {
       PointerRNA gzg_ptr;

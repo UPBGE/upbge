@@ -21,17 +21,17 @@
  * \ingroup spview3d
  */
 
-#include <string.h>
-#include <stdio.h>
-#include <math.h>
 #include <float.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_meta_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -39,20 +39,20 @@
 
 #include "BLT_translation.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_customdata.h"
-#include "BKE_screen.h"
-#include "BKE_editmesh.h"
 #include "BKE_deform.h"
+#include "BKE_editmesh.h"
 #include "BKE_object.h"
 #include "BKE_object_deform.h"
 #include "BKE_report.h"
+#include "BKE_screen.h"
 
 #include "DEG_depsgraph.h"
 
@@ -62,8 +62,8 @@
 #include "RNA_access.h"
 
 #include "ED_armature.h"
-#include "ED_object.h"
 #include "ED_mesh.h"
+#include "ED_object.h"
 #include "ED_screen.h"
 
 #include "UI_interface.h"
@@ -1184,7 +1184,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
     for (i = 0, dg = ob->defbase.first; dg; i++, dg = dg->next) {
       bool locked = (dg->flag & DG_LOCK_WEIGHT) != 0;
       if (vgroup_validmap[i]) {
-        MDeformWeight *dw = defvert_find_index(dv, i);
+        MDeformWeight *dw = BKE_defvert_find_index(dv, i);
         if (dw) {
           int x, xco = 0;
           int icon;
@@ -1591,8 +1591,8 @@ static void view3d_panel_transform(const bContext *C, Panel *pa)
     RNA_id_pointer_create(&ob->id, &obptr);
     v3d_transform_butsR(col, &obptr);
 
-    /* dimensions and editmode just happen to be the same checks */
-    if (OB_TYPE_SUPPORT_EDITMODE(ob->type)) {
+    /* Dimensions and editmode are mostly the same check. */
+    if (OB_TYPE_SUPPORT_EDITMODE(ob->type) || ELEM(ob->type, OB_VOLUME, OB_HAIR, OB_POINTCLOUD)) {
       View3D *v3d = CTX_wm_view3d(C);
       v3d_object_dimension_buts(NULL, col, v3d, ob);
     }

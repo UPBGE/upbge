@@ -21,15 +21,15 @@
  * \ingroup bke
  */
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
 #include <string.h>
 
-#include "BLI_utildefines.h"
-#include "BLI_string.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_idprop.h"
 #include "BKE_lib_id.h"
@@ -800,7 +800,7 @@ void IDP_RelinkProperty(struct IDProperty *prop)
 
   switch (prop->type) {
     case IDP_GROUP: {
-      for (IDProperty *loop = prop->data.group.first; loop; loop = loop->next) {
+      LISTBASE_FOREACH (IDProperty *, loop, &prop->data.group) {
         IDP_RelinkProperty(loop);
       }
       break;

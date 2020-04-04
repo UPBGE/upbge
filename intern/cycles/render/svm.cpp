@@ -25,8 +25,8 @@
 #include "render/shader.h"
 #include "render/svm.h"
 
-#include "util/util_logging.h"
 #include "util/util_foreach.h"
+#include "util/util_logging.h"
 #include "util/util_progress.h"
 #include "util/util_task.h"
 
@@ -84,9 +84,6 @@ void SVMShaderManager::device_update(Device *device,
 
   /* test if we need to update */
   device_free(device, dscene, scene);
-
-  /* determine which shaders are in use */
-  device_update_shaders_used(scene);
 
   /* Build all shaders. */
   TaskPool task_pool;
@@ -447,14 +444,12 @@ void SVMCompiler::generate_node(ShaderNode *node, ShaderNodeSet &done)
   else if (current_type == SHADER_TYPE_VOLUME) {
     if (node->has_spatial_varying())
       current_shader->has_volume_spatial_varying = true;
+    if (node->has_attribute_dependency())
+      current_shader->has_volume_attribute_dependency = true;
   }
 
   if (node->has_object_dependency()) {
     current_shader->has_object_dependency = true;
-  }
-
-  if (node->has_attribute_dependency()) {
-    current_shader->has_attribute_dependency = true;
   }
 
   if (node->has_integrator_dependency()) {
@@ -867,8 +862,8 @@ void SVMCompiler::compile(Shader *shader, array<int4> &svm_nodes, int index, Sum
   shader->has_displacement = false;
   shader->has_surface_spatial_varying = false;
   shader->has_volume_spatial_varying = false;
+  shader->has_volume_attribute_dependency = false;
   shader->has_object_dependency = false;
-  shader->has_attribute_dependency = false;
   shader->has_integrator_dependency = false;
 
   /* generate bump shader */

@@ -24,15 +24,15 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "ED_screen.h"
 #include "ED_clip.h"
+#include "ED_screen.h"
 
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
@@ -52,7 +52,7 @@ typedef struct TrackMotionCurveUserData {
   MovieTrackingTrack *act_track;
   bool sel;
   float xscale, yscale, hsize;
-  unsigned int pos;
+  uint pos;
 } TrackMotionCurveUserData;
 
 static void tracking_segment_point_cb(void *userdata,
@@ -159,7 +159,7 @@ static void tracking_segment_knot_cb(void *userdata,
   }
 }
 
-static void draw_tracks_motion_and_error_curves(View2D *v2d, SpaceClip *sc, unsigned int pos)
+static void draw_tracks_motion_and_error_curves(View2D *v2d, SpaceClip *sc, uint pos)
 {
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
@@ -215,7 +215,7 @@ static void draw_tracks_motion_and_error_curves(View2D *v2d, SpaceClip *sc, unsi
   }
 }
 
-static void draw_frame_curves(SpaceClip *sc, unsigned int pos)
+static void draw_frame_curves(SpaceClip *sc, uint pos)
 {
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
@@ -249,10 +249,10 @@ static void draw_frame_curves(SpaceClip *sc, unsigned int pos)
   }
 }
 
-void clip_draw_graph(SpaceClip *sc, ARegion *ar, Scene *scene)
+void clip_draw_graph(SpaceClip *sc, ARegion *region, Scene *scene)
 {
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  View2D *v2d = &ar->v2d;
+  View2D *v2d = &region->v2d;
 
   /* grid */
   UI_view2d_draw_lines_x__values(v2d);

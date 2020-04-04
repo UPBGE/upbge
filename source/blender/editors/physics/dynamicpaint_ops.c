@@ -37,11 +37,11 @@
 
 #include "BKE_context.h"
 #include "BKE_deform.h"
-#include "BKE_object_deform.h"
 #include "BKE_dynamicpaint.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
+#include "BKE_object_deform.h"
 #include "BKE_report.h"
 #include "BKE_screen.h"
 
@@ -50,8 +50,8 @@
 #include "DEG_depsgraph_query.h"
 
 #include "ED_mesh.h"
-#include "ED_screen.h"
 #include "ED_object.h"
+#include "ED_screen.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -59,8 +59,8 @@
 
 #include "PIL_time.h"
 
-#include "WM_types.h"
 #include "WM_api.h"
+#include "WM_types.h"
 
 #include "physics_intern.h" /* own include */
 
@@ -259,7 +259,7 @@ static int output_toggle_exec(bContext *C, wmOperator *op)
         DEG_relations_tag_update(CTX_data_main(C));
       }
       else {
-        bDeformGroup *defgroup = defgroup_find_name(ob, name);
+        bDeformGroup *defgroup = BKE_object_defgroup_find_name(ob, name);
         if (defgroup) {
           BKE_object_defgroup_remove(ob, defgroup);
           DEG_relations_tag_update(CTX_data_main(C));

@@ -37,10 +37,10 @@
 #include "BKE_lib_remap.h"
 #include "BKE_main.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"
@@ -153,7 +153,7 @@ void BKE_lib_override_library_clear(IDOverrideLibrary *override, const bool do_i
     BLI_ghash_clear(override->runtime, NULL, NULL);
   }
 
-  for (IDOverrideLibraryProperty *op = override->properties.first; op; op = op->next) {
+  LISTBASE_FOREACH (IDOverrideLibraryProperty *, op, &override->properties) {
     lib_override_library_property_clear(op);
   }
   BLI_freelistN(&override->properties);
@@ -371,7 +371,7 @@ void lib_override_library_property_clear(IDOverrideLibraryProperty *op)
 
   MEM_freeN(op->rna_path);
 
-  for (IDOverrideLibraryPropertyOperation *opop = op->operations.first; opop; opop = opop->next) {
+  LISTBASE_FOREACH (IDOverrideLibraryPropertyOperation *, opop, &op->operations) {
     lib_override_library_property_operation_clear(opop);
   }
   BLI_freelistN(&op->operations);
@@ -813,7 +813,7 @@ void BKE_lib_override_library_update(Main *bmain, ID *local)
 
   /* This also transfers all pointers (memory) owned by local to tmp_id, and vice-versa.
    * So when we'll free tmp_id, we'll actually free old, outdated data from local. */
-  BKE_id_swap(bmain, local, tmp_id);
+  BKE_lib_id_swap(bmain, local, tmp_id);
 
   /* Again, horribly inn-efficient in our case, we need something off-Main
    * (aka more generic nolib copy/free stuff)! */

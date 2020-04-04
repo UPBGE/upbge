@@ -42,10 +42,10 @@
 #  include <set>
 
 extern "C" {
-#  include <pthread.h>
-#  include "DNA_listBase.h"
-#  include "BLI_threads.h"
 #  include "BLI_blenlib.h"
+#  include "BLI_threads.h"
+#  include "DNA_listBase.h"
+#  include <pthread.h>
 }
 #  include "GPU_glew.h"
 #  ifdef WIN32

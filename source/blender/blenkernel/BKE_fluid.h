@@ -52,7 +52,7 @@ void BKE_fluid_modifier_copy(const struct FluidModifierData *mmd,
                              struct FluidModifierData *tmmd,
                              const int flag);
 
-void BKE_fluid_reallocate_fluid(struct FluidDomainSettings *mds, int res[3], int free_old);
+bool BKE_fluid_reallocate_fluid(struct FluidDomainSettings *mds, int res[3], int free_old);
 void BKE_fluid_reallocate_copy_fluid(struct FluidDomainSettings *mds,
                                      int o_res[3],
                                      int n_res[3],
@@ -62,6 +62,7 @@ void BKE_fluid_reallocate_copy_fluid(struct FluidDomainSettings *mds,
                                      int o_shift[3],
                                      int n_shift[3]);
 void BKE_fluid_cache_free(struct FluidDomainSettings *mds, struct Object *ob, int cache_map);
+void BKE_fluid_cache_new_name_for_current_session(int maxlen, char *r_name);
 
 float BKE_fluid_get_velocity_at(struct Object *ob, float position[3], float velocity[3]);
 int BKE_fluid_get_data_flags(struct FluidDomainSettings *mds);
@@ -73,6 +74,9 @@ void BKE_fluid_particle_system_create(struct Main *bmain,
                                       const char *psys_name,
                                       const int psys_type);
 void BKE_fluid_particle_system_destroy(struct Object *ob, const int particle_type);
+
+void BKE_fluid_cache_startframe_set(struct FluidDomainSettings *settings, int value);
+void BKE_fluid_cache_endframe_set(struct FluidDomainSettings *settings, int value);
 
 void BKE_fluid_cachetype_mesh_set(struct FluidDomainSettings *settings, int cache_mesh_format);
 void BKE_fluid_cachetype_data_set(struct FluidDomainSettings *settings, int cache_data_format);

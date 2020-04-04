@@ -23,8 +23,10 @@
 
 #include "intern/eval/deg_eval_runtime_backup_scene.h"
 
-#include "DNA_scene_types.h"
+#include "BKE_sound.h"
+
 #include "DNA_rigidbody_types.h"
+#include "DNA_scene_types.h"
 
 namespace DEG {
 
@@ -44,6 +46,8 @@ void SceneBackup::reset()
 
 void SceneBackup::init_from_scene(Scene *scene)
 {
+  BKE_sound_lock();
+
   sound_scene = scene->sound_scene;
   playback_handle = scene->playback_handle;
   sound_scrub_handle = scene->sound_scrub_handle;
@@ -75,6 +79,8 @@ void SceneBackup::restore_to_scene(Scene *scene)
   }
 
   sequencer_backup.restore_to_scene(scene);
+
+  BKE_sound_unlock();
 
   reset();
 }

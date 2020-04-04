@@ -27,11 +27,11 @@
 
 #include "DNA_object_enums.h"
 
-#include "DNA_defs.h"
-#include "DNA_customdata_types.h"
-#include "DNA_listBase.h"
 #include "DNA_ID.h"
 #include "DNA_action_types.h" /* bAnimVizSettings */
+#include "DNA_customdata_types.h"
+#include "DNA_defs.h"
+#include "DNA_listBase.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -166,6 +166,18 @@ typedef struct Object_Runtime {
   struct Mesh *mesh_deform_eval;
 
   /**
+   * Original grease pencil bGPdata pointer, before object->data was changed to point
+   * to gpd_eval.
+   * Is assigned by dependency graph's copy-on-write evaluation.
+   */
+  struct bGPdata *gpd_orig;
+  /**
+   * bGPdata structure created during object evaluation.
+   * It has all modifiers applied.
+   */
+  struct bGPdata *gpd_eval;
+
+  /**
    * This is a mesh representation of corresponding object.
    * It created when Python calls `object.to_mesh()`.
    */
@@ -173,14 +185,6 @@ typedef struct Object_Runtime {
 
   /** Runtime evaluated curve-specific data, not stored in the file. */
   struct CurveCache *curve_cache;
-
-  /** Runtime grease pencil drawing data */
-  struct GpencilBatchCache *gpencil_cache;
-  /** Runtime grease pencil total layers used for evaluated data created by modifiers */
-  int gpencil_tot_layers;
-  char _pad4[4];
-  /** Runtime grease pencil evaluated data created by modifiers */
-  struct bGPDframe *gpencil_evaluated_frames;
 
   unsigned short local_collections_bits;
   short _pad2[3];
@@ -524,12 +528,18 @@ enum {
   /** Grease Pencil object used in 3D view but not used for annotation in 2D. */
   OB_GPENCIL = 26,
 
+  OB_HAIR = 27,
+
+  OB_POINTCLOUD = 28,
+
+  OB_VOLUME = 29,
+
   OB_TYPE_MAX,
 };
 
 /* check if the object type supports materials */
 #define OB_TYPE_SUPPORT_MATERIAL(_type) \
-  (((_type) >= OB_MESH && (_type) <= OB_MBALL) || ((_type) == OB_GPENCIL))
+  (((_type) >= OB_MESH && (_type) <= OB_MBALL) || ((_type) >= OB_GPENCIL && (_type) <= OB_VOLUME))
 #define OB_TYPE_SUPPORT_VGROUP(_type) (ELEM(_type, OB_MESH, OB_LATTICE, OB_GPENCIL))
 #define OB_TYPE_SUPPORT_EDITMODE(_type) \
   (ELEM(_type, OB_MESH, OB_FONT, OB_CURVE, OB_SURF, OB_MBALL, OB_LATTICE, OB_ARMATURE))
@@ -540,7 +550,20 @@ enum {
 
 /* is this ID type used as object data */
 #define OB_DATA_SUPPORT_ID(_id_type) \
-  (ELEM(_id_type, ID_ME, ID_CU, ID_MB, ID_LA, ID_SPK, ID_LP, ID_CA, ID_LT, ID_GD, ID_AR))
+  (ELEM(_id_type, \
+        ID_ME, \
+        ID_CU, \
+        ID_MB, \
+        ID_LA, \
+        ID_SPK, \
+        ID_LP, \
+        ID_CA, \
+        ID_LT, \
+        ID_GD, \
+        ID_AR, \
+        ID_HA, \
+        ID_PT, \
+        ID_VO))
 
 #define OB_DATA_SUPPORT_ID_CASE \
 ID_ME: \
@@ -552,7 +575,10 @@ case ID_LP: \
 case ID_CA: \
 case ID_LT: \
 case ID_GD: \
-case ID_AR
+case ID_AR: \
+case ID_HA: \
+case ID_PT: \
+case ID_VO
 
 /* partype: first 4 bits: type */
 enum {
@@ -602,16 +628,6 @@ enum {
   OB_NEGZ = 5,
 };
 
-/* dt: no flags */
-enum {
-  OB_BOUNDBOX = 1,
-  OB_WIRE = 2,
-  OB_SOLID = 3,
-  OB_MATERIAL = 4,
-  OB_TEXTURE = 5,
-  OB_RENDER = 6,
-};
-
 /* dtx: flags (short) */
 enum {
   OB_DRAWBOUNDOX = 1 << 0,
@@ -627,6 +643,8 @@ enum {
   OB_DRAWTRANSP = 1 << 7,
   OB_DRAW_ALL_EDGES = 1 << 8, /* only for meshes currently */
   OB_DRAW_NO_SHADOW_CAST = 1 << 9,
+  /* Enable lights for grease pencil. */
+  OB_USE_GPENCIL_LIGHTS = 1 << 10,
 };
 
 /* empty_drawtype: no flags */
@@ -658,6 +676,7 @@ enum {
   OB_BOUND_CONVEX_HULL = 5,
   /*  OB_BOUND_DYN_MESH      = 6, */ /*UNUSED*/
   OB_BOUND_CAPSULE = 7,
+  OB_BOUND_EMPTY = 8,
 };
 
 /* lod flags */

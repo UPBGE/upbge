@@ -20,6 +20,8 @@
 
 /** \file
  * \ingroup edarmature
+ *
+ * This file contains functions/API's for renaming bones and/or working with them.
  */
 
 #include <string.h>
@@ -28,9 +30,9 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_object_types.h"
-#include "DNA_gpencil_types.h"
 #include "DNA_gpencil_modifier_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
@@ -39,16 +41,16 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_animsys.h"
 #include "BKE_action.h"
+#include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_deform.h"
+#include "BKE_gpencil_modifier.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
-#include "BKE_gpencil_modifier.h"
 
 #include "DEG_depsgraph.h"
 
@@ -63,12 +65,11 @@
 
 #include "armature_intern.h"
 
-/* This file contains functions/API's for renaming bones and/or working with them */
+/* -------------------------------------------------------------------- */
+/** \name Unique Bone Name Utility (Edit Mode)
+ * \{ */
 
-/* ************************************************** */
-/* EditBone Names */
-
-/* note: there's a unique_bone_name() too! */
+/* note: there's a ed_armature_bone_unique_name() too! */
 static bool editbone_unique_check(void *arg, const char *name)
 {
   struct {
@@ -92,19 +93,28 @@ void ED_armature_ebone_unique_name(ListBase *edbo, char *name, EditBone *bone)
   BLI_uniquename_cb(editbone_unique_check, &data, DATA_("Bone"), '.', name, sizeof(bone->name));
 }
 
-/* ************************************************** */
-/* Bone Renaming - API */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Unique Bone Name Utility (Object Mode)
+ * \{ */
 
 static bool bone_unique_check(void *arg, const char *name)
 {
   return BKE_armature_find_bone_name((bArmature *)arg, name) != NULL;
 }
 
-static void unique_bone_name(bArmature *arm, char *name)
+static void ed_armature_bone_unique_name(bArmature *arm, char *name)
 {
   BLI_uniquename_cb(
       bone_unique_check, (void *)arm, DATA_("Bone"), '.', name, sizeof(((Bone *)NULL)->name));
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Bone Renaming (Object & Edit Mode API)
+ * \{ */
 
 /* helper call for armature_bone_rename */
 static void constraint_bone_name_fix(Object *ob,
@@ -180,7 +190,7 @@ void ED_armature_bone_rename(Main *bmain,
       Bone *bone = BKE_armature_find_bone_name(arm, oldname);
 
       if (bone) {
-        unique_bone_name(arm, newname);
+        ed_armature_bone_unique_name(arm, newname);
 
         if (arm->bonehash) {
           BLI_assert(BLI_ghash_haskey(arm->bonehash, bone->name));
@@ -256,7 +266,7 @@ void ED_armature_bone_rename(Main *bmain,
       }
 
       if (modifiers_usesArmature(ob, arm)) {
-        bDeformGroup *dg = defgroup_find_name(ob, oldname);
+        bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname);
         if (dg) {
           BLI_strncpy(dg->name, newname, MAXBONENAME);
         }
@@ -299,7 +309,7 @@ void ED_armature_bone_rename(Main *bmain,
       if (ob->type == OB_GPENCIL) {
 
         bGPdata *gpd = (bGPdata *)ob->data;
-        for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+        LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
           if ((gpl->parent != NULL) && (gpl->parent->data == arm)) {
             if (STREQ(gpl->parsubstr, oldname)) {
               BLI_strncpy(gpl->parsubstr, newname, MAXBONENAME);
@@ -307,13 +317,12 @@ void ED_armature_bone_rename(Main *bmain,
           }
         }
 
-        for (GpencilModifierData *gp_md = ob->greasepencil_modifiers.first; gp_md;
-             gp_md = gp_md->next) {
+        LISTBASE_FOREACH (GpencilModifierData *, gp_md, &ob->greasepencil_modifiers) {
           switch (gp_md->type) {
             case eGpencilModifierType_Armature: {
               ArmatureGpencilModifierData *mmd = (ArmatureGpencilModifierData *)gp_md;
               if (mmd->object && mmd->object->data == arm) {
-                bDeformGroup *dg = defgroup_find_name(ob, oldname);
+                bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname);
                 if (dg) {
                   BLI_strncpy(dg->name, newname, MAXBONENAME);
                 }
@@ -352,16 +361,16 @@ void ED_armature_bone_rename(Main *bmain,
     {
       bScreen *screen;
       for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-        ScrArea *sa;
+        ScrArea *area;
         /* add regions */
-        for (sa = screen->areabase.first; sa; sa = sa->next) {
+        for (area = screen->areabase.first; area; area = area->next) {
           SpaceLink *sl;
-          for (sl = sa->spacedata.first; sl; sl = sl->next) {
+          for (sl = area->spacedata.first; sl; sl = sl->next) {
             if (sl->spacetype == SPACE_VIEW3D) {
               View3D *v3d = (View3D *)sl;
-              if (v3d->ob_centre && v3d->ob_centre->data == arm) {
-                if (STREQ(v3d->ob_centre_bone, oldname)) {
-                  BLI_strncpy(v3d->ob_centre_bone, newname, MAXBONENAME);
+              if (v3d->ob_center && v3d->ob_center->data == arm) {
+                if (STREQ(v3d->ob_center_bone, oldname)) {
+                  BLI_strncpy(v3d->ob_center_bone, newname, MAXBONENAME);
                 }
               }
             }
@@ -371,6 +380,12 @@ void ED_armature_bone_rename(Main *bmain,
     }
   }
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Bone Flipping (Object & Edit Mode API)
+ * \{ */
 
 typedef struct BoneFlipNameData {
   struct BoneFlipNameData *next, *prev;
@@ -399,7 +414,7 @@ void ED_armature_bones_flip_names(Main *bmain,
   /* First pass: generate flip names, and blindly rename.
    * If rename did not yield expected result,
    * store both bone's name and expected flipped one into temp list for second pass. */
-  for (LinkData *link = bones_names->first; link; link = link->next) {
+  LISTBASE_FOREACH (LinkData *, link, bones_names) {
     char name_flip[MAXBONENAME];
     char *name = link->data;
 
@@ -426,8 +441,11 @@ void ED_armature_bones_flip_names(Main *bmain,
   }
 }
 
-/* ************************************************** */
-/* Bone Renaming - EditMode */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Flip Bone Names (Edit Mode Operator)
+ * \{ */
 
 static int armature_flip_names_exec(bContext *C, wmOperator *op)
 {
@@ -451,7 +469,7 @@ static int armature_flip_names_exec(bContext *C, wmOperator *op)
 
     ListBase bones_names = {NULL};
 
-    for (EditBone *ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+    LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
       if (EBONE_VISIBLE(arm, ebone)) {
         if (ebone->flag & BONE_SELECTED) {
           BLI_addtail(&bones_names, BLI_genericNodeN(ebone->name));
@@ -511,6 +529,12 @@ void ARMATURE_OT_flip_names(wmOperatorType *ot)
                   "(WARNING: may result in incoherent naming in some cases)");
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Bone Auto Side Names (Edit Mode Operator)
+ * \{ */
+
 static int armature_autoside_names_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -532,7 +556,7 @@ static int armature_autoside_names_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    for (EditBone *ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+    LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
       if (EBONE_EDITABLE(ebone)) {
 
         /* We first need to do the flipped bone, then the original one.
@@ -599,3 +623,5 @@ void ARMATURE_OT_autoside_names(wmOperatorType *ot)
   /* settings */
   ot->prop = RNA_def_enum(ot->srna, "type", axis_items, 0, "Axis", "Axis tag names with");
 }
+
+/** \} */

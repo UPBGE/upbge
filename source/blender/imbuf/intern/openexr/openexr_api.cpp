@@ -21,41 +21,41 @@
  * \ingroup openexr
  */
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <algorithm>
+#include <errno.h>
+#include <fstream>
+#include <iostream>
+#include <set>
 #include <stddef.h>
 #include <stdexcept>
-#include <fstream>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string>
-#include <set>
-#include <errno.h>
-#include <algorithm>
-#include <iostream>
 
-#include <half.h>
 #include <Iex.h>
-#include <ImfVersion.h>
 #include <ImathBox.h>
 #include <ImfArray.h>
-#include <ImfIO.h>
 #include <ImfChannelList.h>
-#include <ImfPixelType.h>
-#include <ImfInputFile.h>
-#include <ImfOutputFile.h>
 #include <ImfCompression.h>
 #include <ImfCompressionAttribute.h>
-#include <ImfStringAttribute.h>
+#include <ImfIO.h>
+#include <ImfInputFile.h>
+#include <ImfOutputFile.h>
+#include <ImfPixelType.h>
 #include <ImfStandardAttributes.h>
+#include <ImfStringAttribute.h>
+#include <ImfVersion.h>
+#include <half.h>
 
 /* multiview/multipart */
-#include <ImfMultiView.h>
-#include <ImfMultiPartInputFile.h>
 #include <ImfInputPart.h>
-#include <ImfOutputPart.h>
+#include <ImfMultiPartInputFile.h>
 #include <ImfMultiPartOutputFile.h>
-#include <ImfTiledOutputPart.h>
-#include <ImfPartType.h>
+#include <ImfMultiView.h>
+#include <ImfOutputPart.h>
 #include <ImfPartHelper.h>
+#include <ImfPartType.h>
+#include <ImfTiledOutputPart.h>
 
 #include "DNA_scene_types.h" /* For OpenEXR compression constants */
 
@@ -83,9 +83,9 @@ _CRTIMP void __cdecl _invalid_parameter_noinfo(void)
 #include "BKE_idprop.h"
 #include "BKE_image.h"
 
-#include "IMB_imbuf_types.h"
-#include "IMB_imbuf.h"
 #include "IMB_allocimbuf.h"
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 #include "IMB_metadata.h"
 
 #include "openexr_multi.h"
@@ -1938,12 +1938,12 @@ struct ImBuf *imb_load_openexr(const unsigned char *mem,
 
           IMB_metadata_ensure(&ibuf->metadata);
           for (iter = header.begin(); iter != header.end(); iter++) {
-            const StringAttribute *attrib = file->header(0).findTypedAttribute<StringAttribute>(
+            const StringAttribute *attr = file->header(0).findTypedAttribute<StringAttribute>(
                 iter.name());
 
             /* not all attributes are string attributes so we might get some NULLs here */
-            if (attrib) {
-              IMB_metadata_set_field(ibuf->metadata, iter.name(), attrib->value().c_str());
+            if (attr) {
+              IMB_metadata_set_field(ibuf->metadata, iter.name(), attr->value().c_str());
               ibuf->flags |= IB_metadata;
             }
           }

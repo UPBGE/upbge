@@ -21,11 +21,11 @@
  * \ingroup spscript
  */
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
-#include "BLI_utildefines.h"
 #include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_report.h"
@@ -51,8 +51,8 @@ static int run_pyfile_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "filepath", path);
 #ifdef WITH_PYTHON
   if (BPY_execute_filepath(C, path, op->reports)) {
-    ARegion *ar = CTX_wm_region(C);
-    ED_region_tag_redraw(ar);
+    ARegion *region = CTX_wm_region(C);
+    ED_region_tag_redraw(region);
     return OPERATOR_FINISHED;
   }
 #else
@@ -67,12 +67,12 @@ void SCRIPT_OT_python_file_run(wmOperatorType *ot)
   ot->name = "Run Python File";
   ot->description = "Run Python file";
   ot->idname = "SCRIPT_OT_python_file_run";
-  ot->flag = OPTYPE_UNDO;
 
   /* api callbacks */
   ot->exec = run_pyfile_exec;
   ot->poll = ED_operator_areaactive;
 
+  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
   RNA_def_string_file_path(ot->srna, "filepath", NULL, FILE_MAX, "Path", "");
@@ -92,7 +92,7 @@ static bool script_test_modal_operators(bContext *C)
         wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
         if (handler->op != NULL) {
           wmOperatorType *ot = handler->op->type;
-          if (ot->ext.srna) {
+          if (ot->rna_ext.srna) {
             return true;
           }
         }

@@ -23,8 +23,8 @@
  * Manage initializing resources and correctly shutting down.
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -45,36 +45,36 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
-#include "BLI_utildefines.h"
 #include "BLI_timer.h"
+#include "BLI_utildefines.h"
 
-#include "BLO_writefile.h"
 #include "BLO_undofile.h"
+#include "BLO_writefile.h"
 
-#include "BKE_blendfile.h"
 #include "BKE_blender.h"
+#include "BKE_blendfile.h"
 #include "BKE_callbacks.h"
 #include "BKE_context.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_icons.h"
+#include "BKE_keyconfig.h"
 #include "BKE_lib_remap.h"
 #include "BKE_main.h"
 #include "BKE_mball_tessellate.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
-#include "BKE_screen.h"
 #include "BKE_scene.h"
+#include "BKE_screen.h"
 #include "BKE_sound.h"
-#include "BKE_keyconfig.h"
 
 #include "BKE_addon.h"
 #include "BKE_appdir.h"
+#include "BKE_mask.h"      /* free mask clipboard */
+#include "BKE_material.h"  /* BKE_material_copybuf_clear */
 #include "BKE_sequencer.h" /* free seq clipboard */
 #include "BKE_studiolight.h"
-#include "BKE_material.h" /* BKE_material_copybuf_clear */
 #include "BKE_tracking.h" /* free tracking clipboard */
-#include "BKE_mask.h"     /* free mask clipboard */
 
 #include "RE_engine.h"
 #include "RE_pipeline.h" /* RE_ free stuff */
@@ -88,42 +88,44 @@
 #ifdef WITH_GAMEENGINE
 #  include "LA_SystemCommandLine.h"
 #endif
-#include "GHOST_Path-api.h"
+
 #include "GHOST_C-api.h"
+#include "GHOST_Path-api.h"
 
 #include "RNA_define.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
 #include "WM_message.h"
+#include "WM_types.h"
 
+#include "wm.h"
 #include "wm_cursors.h"
 #include "wm_event_system.h"
-#include "wm.h"
 #include "wm_files.h"
-#include "wm_window.h"
 #include "wm_platform_support.h"
+#include "wm_surface.h"
+#include "wm_window.h"
 
 #include "ED_anim_api.h"
 #include "ED_armature.h"
 #include "ED_gpencil.h"
-#include "ED_keyframing.h"
 #include "ED_keyframes_edit.h"
+#include "ED_keyframing.h"
 #include "ED_node.h"
 #include "ED_render.h"
-#include "ED_space_api.h"
 #include "ED_screen.h"
-#include "ED_util.h"
+#include "ED_space_api.h"
 #include "ED_undo.h"
+#include "ED_util.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
 #include "BLF_api.h"
 #include "BLT_lang.h"
+#include "UI_interface.h"
+#include "UI_resources.h"
 
-#include "GPU_material.h"
 #include "GPU_draw.h"
 #include "GPU_init_exit.h"
+#include "GPU_material.h"
 
 #include "BKE_sound.h"
 #include "COM_compositor.h"
@@ -153,11 +155,9 @@ static void wm_init_reports(bContext *C)
 
   BKE_reports_init(reports, RPT_STORE);
 }
-static void wm_free_reports(bContext *C)
+static void wm_free_reports(wmWindowManager *wm)
 {
-  ReportList *reports = CTX_wm_reports(C);
-
-  BKE_reports_clear(reports);
+  BKE_reports_clear(&wm->reports);
 }
 
 static bool wm_start_with_console = false;
@@ -221,8 +221,10 @@ static void sound_jack_sync_callback(Main *bmain, int mode, float time)
     if (depsgraph == NULL) {
       continue;
     }
+    BKE_sound_lock();
     Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
     BKE_sound_jack_scene_update(scene_eval, mode, time);
+    BKE_sound_unlock();
   }
 }
 
@@ -252,7 +254,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 
   ED_undosys_type_init();
 
-  BKE_library_callback_free_window_manager_set(wm_close_and_free); /* lib_id.c */
   BKE_library_callback_free_notifier_reference_set(
       WM_main_remove_notifier_reference);                    /* lib_id.c */
   BKE_region_callback_free_gizmomap_set(wm_gizmomap_remove); /* screen.c */
@@ -363,7 +364,8 @@ void WM_init(bContext *C, int argc, const char **argv)
   /* allow a path of "", this is what happens when making a new file */
 #if 0
   if (BKE_main_blendfile_path_from_global()[0] == '\0') {
-    BLI_make_file_string("/", G_MAIN->name, BKE_appdir_folder_default(), "untitled.blend");
+    BLI_join_dirfile(
+        G_MAIN->name, sizeof(G_MAIN->name), BKE_appdir_folder_default(), "untitled.blend");
   }
 #endif
 
@@ -563,7 +565,7 @@ void wm_exit_schedule_delayed(const bContext *C)
   /* Use modal UI handler for now.
    * Could add separate WM handlers or so, but probably not worth it. */
   WM_event_add_ui_handler(C, &win->modalhandlers, wm_exit_handler, NULL, NULL, 0);
-  WM_event_add_mousemove(C); /* ensure handler actually gets called */
+  WM_event_add_mousemove(win); /* ensure handler actually gets called */
 }
 
 /**
@@ -590,7 +592,7 @@ void WM_exit_ex(bContext *C, const bool do_python)
         bool has_edited;
         int fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY | G_FILE_HISTORY);
 
-        BLI_make_file_string("/", filename, BKE_tempdir_base(), BLENDER_QUIT_FILE);
+        BLI_join_dirfile(filename, sizeof(filename), BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
         has_edited = ED_editors_flush_edits(bmain);
 
@@ -629,6 +631,7 @@ void WM_exit_ex(bContext *C, const bool do_python)
   BKE_materials_exit();
 
   wm_operatortype_free();
+  wm_surfaces_free();
   wm_dropbox_free();
   WM_menutype_free();
   WM_uilisttype_free();
@@ -651,9 +654,9 @@ void WM_exit_ex(bContext *C, const bool do_python)
 
   ED_preview_free_dbase(); /* frees a Main dbase, before BKE_blender_free! */
 
-  if (C && wm) {
+  if (wm) {
     /* Before BKE_blender_free! - since the ListBases get freed there. */
-    wm_free_reports(C);
+    wm_free_reports(wm);
   }
 
   BKE_sequencer_free_clipboard(); /* sequencer.c */
@@ -700,8 +703,6 @@ void WM_exit_ex(bContext *C, const bool do_python)
   }
 
 #ifdef WITH_INTERNATIONAL
-  BLF_free_unifont();
-  BLF_free_unifont_mono();
   BLT_lang_free();
 #endif
 
@@ -800,7 +801,7 @@ void WM_script_tag_reload(void)
 void WM_init_opengl_blenderplayer(Main *bmain, void *syshandle)
 {
   /* must be called only once */
-  BLI_assert(opengl_is_init == false);
+  // BLI_assert(opengl_is_init == false);
   /* Ghost is still not init elsewhere in background mode. */
   ////////// wm_ghost_init(NULL);
   /* Needs to be first to have an ogl context bound. */

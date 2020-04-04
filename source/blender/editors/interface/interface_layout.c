@@ -18,32 +18,32 @@
  * \ingroup edinterface
  */
 
+#include <assert.h>
 #include <limits.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_screen_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_alloca.h"
 #include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_rect.h"
-#include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_rect.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_screen.h"
-#include "BKE_animsys.h"
 
 #include "RNA_access.h"
 
@@ -91,7 +91,7 @@ typedef struct uiLayoutRoot {
   uiMenuHandleFunc handlefunc;
   void *argv;
 
-  uiStyle *style;
+  const uiStyle *style;
   uiBlock *block;
   uiLayout *layout;
 } uiLayoutRoot;
@@ -499,7 +499,7 @@ static void ui_item_array(uiLayout *layout,
                           bool compact,
                           bool show_text)
 {
-  uiStyle *style = layout->root->style;
+  const uiStyle *style = layout->root->style;
   uiBut *but;
   PropertyType type;
   PropertySubType subtype;
@@ -1067,7 +1067,7 @@ void UI_context_active_but_prop_get_filebrowser(const bContext *C,
                                                 PropertyRNA **r_prop,
                                                 bool *r_is_undo)
 {
-  ARegion *ar = CTX_wm_menu(C) ? CTX_wm_menu(C) : CTX_wm_region(C);
+  ARegion *region = CTX_wm_menu(C) ? CTX_wm_menu(C) : CTX_wm_region(C);
   uiBlock *block;
   uiBut *but, *prevbut = NULL;
 
@@ -1075,11 +1075,11 @@ void UI_context_active_but_prop_get_filebrowser(const bContext *C,
   *r_prop = NULL;
   *r_is_undo = false;
 
-  if (!ar) {
+  if (!region) {
     return;
   }
 
-  for (block = ar->uiblocks.first; block; block = block->next) {
+  for (block = region->uiblocks.first; block; block = block->next) {
     for (but = block->buttons.first; but; but = but->next) {
       if (but && but->rnapoin.data) {
         if (RNA_property_type(but->rnaprop) == PROP_STRING) {
@@ -2183,7 +2183,11 @@ void uiItemFullR(uiLayout *layout,
     }
 
     if (flag & UI_ITEM_R_CHECKBOX_INVERT) {
-      if (ELEM(but->type, UI_BTYPE_CHECKBOX, UI_BTYPE_CHECKBOX_N)) {
+      if (ELEM(but->type,
+               UI_BTYPE_CHECKBOX,
+               UI_BTYPE_CHECKBOX_N,
+               UI_BTYPE_ICON_TOGGLE,
+               UI_BTYPE_ICON_TOGGLE_N)) {
         but->drawflag |= UI_BUT_CHECKBOX_INVERT;
       }
     }
@@ -2325,7 +2329,7 @@ void uiItemFullR_with_popover(uiLayout *layout,
   uiItemFullR(layout, ptr, prop, index, value, flag, name, icon);
   but = but->next;
   while (but) {
-    if (but->rnaprop == prop && but->type == UI_BTYPE_MENU) {
+    if (but->rnaprop == prop && ELEM(but->type, UI_BTYPE_MENU, UI_BTYPE_COLOR)) {
       ui_but_rna_menu_convert_to_panel_type(but, panel_type);
       break;
     }
@@ -2606,7 +2610,7 @@ void ui_but_add_search(
                            ui_searchbox_create_generic,
                            ui_rna_collection_search_cb,
                            coll_search,
-                           true,
+                           MEM_freeN,
                            NULL,
                            NULL);
   }
@@ -2767,7 +2771,7 @@ static uiBut *ui_item_menu(uiLayout *layout,
   }
   else if (icon) {
     but = uiDefIconMenuBut(block, func, arg, icon, 0, 0, w, h, tip);
-    if (force_menu) {
+    if (force_menu && name[0]) {
       UI_but_drawflag_enable(but, UI_BUT_ICON_LEFT);
     }
   }
@@ -2893,7 +2897,7 @@ void uiItemPopoverPanelFromGroup(uiLayout *layout,
     return;
   }
 
-  for (PanelType *pt = art->paneltypes.first; pt; pt = pt->next) {
+  LISTBASE_FOREACH (PanelType *, pt, &art->paneltypes) {
     /* Causes too many panels, check context. */
     if (pt->parent_id[0] == '\0') {
       if (/* (*context == '\0') || */ STREQ(pt->context, context)) {
@@ -3703,7 +3707,7 @@ static void ui_litem_layout_root(uiLayout *litem)
 /* box layout */
 static void ui_litem_estimate_box(uiLayout *litem)
 {
-  uiStyle *style = litem->root->style;
+  const uiStyle *style = litem->root->style;
 
   ui_litem_estimate_column(litem, true);
 
@@ -3718,7 +3722,7 @@ static void ui_litem_estimate_box(uiLayout *litem)
 static void ui_litem_layout_box(uiLayout *litem)
 {
   uiLayoutItemBx *box = (uiLayoutItemBx *)litem;
-  uiStyle *style = litem->root->style;
+  const uiStyle *style = litem->root->style;
   uiBut *but;
   int w, h;
 
@@ -3763,7 +3767,7 @@ static void ui_litem_layout_box(uiLayout *litem)
 /* multi-column layout, automatically flowing to the next */
 static void ui_litem_estimate_column_flow(uiLayout *litem)
 {
-  uiStyle *style = litem->root->style;
+  const uiStyle *style = litem->root->style;
   uiLayoutItemFlow *flow = (uiLayoutItemFlow *)litem;
   uiItem *item;
   int col, x, y, emh, emy, miny, itemw, itemh, maxw = 0;
@@ -3828,7 +3832,7 @@ static void ui_litem_estimate_column_flow(uiLayout *litem)
 
 static void ui_litem_layout_column_flow(uiLayout *litem)
 {
-  uiStyle *style = litem->root->style;
+  const uiStyle *style = litem->root->style;
   uiLayoutItemFlow *flow = (uiLayoutItemFlow *)litem;
   uiItem *item;
   int col, x, y, w, emh, emy, miny, itemw, itemh;
@@ -4067,7 +4071,7 @@ static void ui_litem_grid_flow_compute(ListBase *items,
 
 static void ui_litem_estimate_grid_flow(uiLayout *litem)
 {
-  uiStyle *style = litem->root->style;
+  const uiStyle *style = litem->root->style;
   uiLayoutItemGridFlow *gflow = (uiLayoutItemGridFlow *)litem;
 
   const int space_x = style->columnspace;
@@ -4195,7 +4199,7 @@ static void ui_litem_estimate_grid_flow(uiLayout *litem)
 static void ui_litem_layout_grid_flow(uiLayout *litem)
 {
   int i;
-  uiStyle *style = litem->root->style;
+  const uiStyle *style = litem->root->style;
   uiLayoutItemGridFlow *gflow = (uiLayoutItemGridFlow *)litem;
   uiItem *item;
 
@@ -5088,8 +5092,15 @@ static void ui_layout_add_padding_button(uiLayoutRoot *root)
   }
 }
 
-uiLayout *UI_block_layout(
-    uiBlock *block, int dir, int type, int x, int y, int size, int em, int padding, uiStyle *style)
+uiLayout *UI_block_layout(uiBlock *block,
+                          int dir,
+                          int type,
+                          int x,
+                          int y,
+                          int size,
+                          int em,
+                          int padding,
+                          const uiStyle *style)
 {
   uiLayout *layout;
   uiLayoutRoot *root;
@@ -5341,7 +5352,7 @@ static void ui_paneltype_draw_impl(bContext *C, PanelType *pt, uiLayout *layout,
   MEM_freeN(panel);
 
   /* Draw child panels. */
-  for (LinkData *link = pt->children.first; link; link = link->next) {
+  LISTBASE_FOREACH (LinkData *, link, &pt->children) {
     PanelType *child_pt = link->data;
 
     if (child_pt->poll == NULL || child_pt->poll(C, child_pt)) {

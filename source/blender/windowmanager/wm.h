@@ -24,6 +24,10 @@
 #ifndef __WM_H__
 #define __WM_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ARegion;
 struct ReportList;
 struct wmWindow;
@@ -62,17 +66,17 @@ void wm_operatortypes_register(void);
 /* wm_gesture.c */
 void wm_gesture_draw(struct wmWindow *win);
 int wm_gesture_evaluate(wmGesture *gesture, const struct wmEvent *event);
-void wm_gesture_tag_redraw(bContext *C);
+void wm_gesture_tag_redraw(struct wmWindow *win);
 
 /* wm_gesture_ops.c */
 void wm_tweakevent_test(bContext *C, const wmEvent *event, int action);
 
 /* wm_jobs.c */
-void wm_jobs_timer(const bContext *C, wmWindowManager *wm, wmTimer *wt);
+void wm_jobs_timer(wmWindowManager *wm, wmTimer *wt);
 void wm_jobs_timer_ended(wmWindowManager *wm, wmTimer *wt);
 
 /* wm_files.c */
-void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *wt);
+void wm_autosave_timer(struct Main *bmain, wmWindowManager *wm, wmTimer *wt);
 void wm_autosave_timer_ended(wmWindowManager *wm);
 void wm_autosave_delete(void);
 void wm_autosave_read(bContext *C, struct ReportList *reports);
@@ -82,8 +86,6 @@ void wm_autosave_location(char *filepath);
 void WM_OT_splash(wmOperatorType *ot);
 
 /* wm_stereo.c */
-void wm_stereo3d_draw_interlace(wmWindow *win, struct ARegion *ar);
-void wm_stereo3d_draw_anaglyph(wmWindow *win, struct ARegion *ar);
 void wm_stereo3d_draw_sidebyside(wmWindow *win, int view);
 void wm_stereo3d_draw_topbottom(wmWindow *win, int view);
 
@@ -97,5 +99,19 @@ void wm_stereo3d_set_cancel(bContext *C, wmOperator *op);
 /* init operator properties */
 void wm_open_init_load_ui(wmOperator *op, bool use_prefs);
 void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
+
+#ifdef WITH_XR_OPENXR
+typedef void (*wmXrSessionExitFn)(const wmXrData *xr_data);
+
+/* wm_xr.c */
+bool wm_xr_init(wmWindowManager *wm);
+void wm_xr_exit(wmWindowManager *wm);
+void wm_xr_session_toggle(wmWindowManager *wm, wmXrSessionExitFn session_exit_fn);
+bool wm_xr_events_handle(wmWindowManager *wm);
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __WM_H__ */

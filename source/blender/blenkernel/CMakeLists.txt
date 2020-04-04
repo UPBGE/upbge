@@ -71,8 +71,10 @@ set(SRC
   intern/DerivedMesh.c
   intern/action.c
   intern/addon.c
-  intern/anim.c
+  intern/anim_data.c
+  intern/anim_path.c
   intern/anim_sys.c
+  intern/anim_visualization.c
   intern/appdir.c
   intern/armature.c
   intern/armature_update.c
@@ -121,10 +123,11 @@ set(SRC
   intern/font.c
   intern/freestyle.c
   intern/gpencil.c
+  intern/gpencil_geom.c
   intern/gpencil_modifier.c
+  intern/hair.c
   intern/icons.c
   intern/icons_rasterize.c
-  intern/idcode.c
   intern/idprop.c
   intern/idprop_utils.c
   intern/idtype.c
@@ -170,7 +173,12 @@ set(SRC
   intern/modifier.c
   intern/movieclip.c
   intern/multires.c
-  intern/multires_reshape_legacy.c
+  intern/multires_reshape.c
+  intern/multires_reshape_apply_base.c
+  intern/multires_reshape_ccg.c
+  intern/multires_reshape_smooth.c
+  intern/multires_reshape_util.c
+  intern/multires_reshape_vertcos.c
   intern/multires_subdiv.c
   intern/nla.c
   intern/node.c
@@ -180,6 +188,7 @@ set(SRC
   intern/object_facemap.c
   intern/object_update.c
   intern/ocean.c
+  intern/ocean_spectrum.c
   intern/outliner_treehash.c
   intern/packedFile.c
   intern/paint.c
@@ -192,6 +201,7 @@ set(SRC
   intern/pbvh_bmesh.c
   intern/pbvh_parallel.cc
   intern/pointcache.c
+  intern/pointcloud.c
   intern/property.c
   intern/python_component.c
   intern/report.c
@@ -238,6 +248,8 @@ set(SRC
   intern/tracking_util.c
   intern/undo_system.c
   intern/unit.c
+  intern/volume.cc
+  intern/volume_render.cc
   intern/workspace.c
   intern/world.c
   intern/writeavi.c
@@ -245,7 +257,9 @@ set(SRC
   BKE_DerivedMesh.h
   BKE_action.h
   BKE_addon.h
-  BKE_anim.h
+  BKE_anim_data.h
+  BKE_anim_path.h
+  BKE_anim_visualization.h
   BKE_animsys.h
   BKE_appdir.h
   BKE_armature.h
@@ -282,6 +296,7 @@ set(SRC
   BKE_deform.h
   BKE_displist.h
   BKE_displist_tangent.h
+  BKE_duplilist.h
   BKE_dynamicpaint.h
   BKE_editlattice.h
   BKE_editmesh.h
@@ -295,13 +310,13 @@ set(SRC
   BKE_freestyle.h
   BKE_global.h
   BKE_gpencil.h
+  BKE_gpencil_geom.h
   BKE_gpencil_modifier.h
+  BKE_hair.h
   BKE_icons.h
-  BKE_idcode.h
   BKE_idprop.h
   BKE_idtype.h
   BKE_image.h
-  BKE_image_save.h
   BKE_ipo.h
   BKE_kelvinlet.h
   BKE_key.h
@@ -345,6 +360,7 @@ set(SRC
   BKE_particle.h
   BKE_pbvh.h
   BKE_pointcache.h
+  BKE_pointcloud.h
   BKE_property.h
   BKE_python_component.h
   BKE_report.h
@@ -373,6 +389,8 @@ set(SRC
   BKE_tracking.h
   BKE_undo_system.h
   BKE_unit.h
+  BKE_volume.h
+  BKE_volume_render.h
   BKE_workspace.h
   BKE_world.h
   BKE_writeavi.h
@@ -386,6 +404,7 @@ set(SRC
   intern/data_transfer_intern.h
   intern/lib_intern.h
   intern/multires_inline.h
+  intern/multires_reshape.h
   intern/pbvh_intern.h
   intern/subdiv_converter.h
   intern/subdiv_inline.h
@@ -496,7 +515,7 @@ endif()
 
 if(WITH_CODEC_AVI)
   list(APPEND INC
-    ../avi
+    ../io/avi
   )
   add_definitions(-DWITH_AVI)
 endif()
@@ -621,7 +640,7 @@ endif()
 
 if(WITH_ALEMBIC)
   list(APPEND INC
-    ../alembic
+    ../io/alembic
   )
   add_definitions(-DWITH_ALEMBIC)
 endif()
@@ -640,16 +659,14 @@ if(WITH_OPENVDB)
   list(APPEND INC
      ../../../intern/openvdb
   )
-  list(APPEND LIB
-     bf_intern_openvdb
+  list(APPEND INC_SYS
+    ${OPENVDB_INCLUDE_DIRS}
   )
-  add_definitions(-DWITH_OPENVDB)
-
-  if(WITH_OPENVDB_BLOSC)
-    add_definitions(
-      -DWITH_OPENVDB_BLOSC
-    )
-  endif()
+  list(APPEND LIB
+    bf_intern_openvdb
+    ${OPENVDB_LIBRARIES}
+  )
+  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 if(WITH_QUADRIFLOW)
@@ -671,6 +688,10 @@ if(WITH_TBB)
   list(APPEND LIB
     ${TBB_LIBRARIES}
   )
+endif()
+
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
 endif()
 
 # # Warnings as errors, this is too strict!

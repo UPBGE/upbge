@@ -24,19 +24,16 @@
 
 #include "BL_Texture.h"
 
-#include "KX_PyMath.h"
-
-#include "BLI_math.h"
-
-extern "C" {
 #include "BKE_image.h"
+#include "BLI_math.h"
 #include "DNA_texture_types.h"
 #include "GPU_draw.h"
 #include "GPU_glew.h"
 #include "GPU_material.h"
 #include "GPU_texture.h"
 #include "gpu/intern/gpu_codegen.h"
-}
+
+#include "KX_PyMath.h"
 
 BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, int textarget)
     : CValue(), m_isCubeMap(false), m_gpuMatTex(gpumattex), m_textarget(textarget)
@@ -76,7 +73,7 @@ void BL_Texture::CheckValidTexture()
    * gpu texture. In both cases we call GPU_texture_from_blender.
    */
   int target = m_isCubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
-  GPUTexture *tex = m_gpuMatTex->ima->gputexture[target];
+  GPUTexture *tex = m_gpuMatTex->ima->gputexture[target][0];
   if (m_gpuTex != tex) {
     // Restore gpu texture original bind cdoe to make sure we will delete the right opengl texture.
     GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);

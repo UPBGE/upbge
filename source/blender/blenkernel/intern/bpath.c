@@ -27,52 +27,53 @@
 
 #include <sys/stat.h>
 
-#include <string.h>
 #include <assert.h>
+#include <string.h>
 
 /* path/file handling stuff */
 #ifndef WIN32
 #  include <dirent.h>
 #  include <unistd.h>
 #else
-#  include <io.h>
 #  include "BLI_winstuff.h"
+#  include <io.h>
 #endif
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
+#include "DNA_fluid_types.h"
+#include "DNA_freestyle_types.h"
 #include "DNA_image_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_movieclip_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_text_types.h"
-#include "DNA_material_types.h"
-#include "DNA_node_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_vfont_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_fluid_types.h"
-#include "DNA_freestyle_types.h"
+#include "DNA_volume_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_font.h"
+#include "BKE_image.h"
 #include "BKE_lib_id.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
-#include "BKE_image.h"
 
 #include "BKE_bpath.h" /* own include */
 
@@ -645,6 +646,13 @@ void BKE_bpath_traverse_id(
       }
       break;
     }
+    case ID_VO: {
+      Volume *volume = (Volume *)id;
+      if (volume->packedfile == NULL || (flag & BKE_BPATH_TRAVERSE_SKIP_PACKED) == 0) {
+        rewrite_path_fixed(volume->filepath, visit_cb, absbase, bpath_user_data);
+      }
+      break;
+    }
     case ID_TXT:
       if (((Text *)id)->name) {
         rewrite_path_alloc(&((Text *)id)->name, visit_cb, absbase, bpath_user_data);
@@ -807,13 +815,13 @@ bool BKE_bpath_relocate_visitor(void *pathbase_v, char *path_dst, const char *pa
   }
 
   /* Make referenced file absolute. This would be a side-effect of
-   * BLI_cleanup_file, but we do it explicitly so we know if it changed. */
+   * BLI_cleanup_path, but we do it explicitly so we know if it changed. */
   BLI_strncpy(filepath, path_src, FILE_MAX);
   if (BLI_path_abs(filepath, base_old)) {
     /* Path was relative and is now absolute. Remap.
-     * Important BLI_cleanup_dir runs before the path is made relative
+     * Important BLI_cleanup_path runs before the path is made relative
      * because it wont work for paths that start with "//../" */
-    BLI_cleanup_file(base_new, filepath);
+    BLI_cleanup_path(base_new, filepath);
     BLI_path_rel(filepath, base_new);
     BLI_strncpy(path_dst, filepath, FILE_MAX);
     return true;

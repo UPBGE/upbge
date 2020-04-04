@@ -27,18 +27,16 @@
 #ifndef __LA_LAUNCHER_H__
 #define __LA_LAUNCHER_H__
 
-#include "KX_KetsjiEngine.h"
-#include "KX_ISystem.h"
-
-#include "RAS_Rasterizer.h"
-
-#include "SCA_IInputDevice.h"
-
 #include <string>
+
+#include "KX_ISystem.h"
+#include "KX_KetsjiEngine.h"
+#include "RAS_Rasterizer.h"
+#include "SCA_IInputDevice.h"
 
 class KX_Scene;
 class KX_ISystem;
-class KX_BlenderConverter;
+class BL_BlenderConverter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class DEV_EventConsumer;
@@ -75,7 +73,7 @@ class LA_Launcher {
   /// The rasterizer.
   RAS_Rasterizer *m_rasterizer;
   /// Converts Blender data files.
-  KX_BlenderConverter *m_converter;
+  BL_BlenderConverter *m_converter;
   /// Manage messages.
   KX_NetworkMessageManager *m_networkMessageManager;
 

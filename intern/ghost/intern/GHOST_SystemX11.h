@@ -25,11 +25,11 @@
 #ifndef __GHOST_SYSTEMX11_H__
 #define __GHOST_SYSTEMX11_H__
 
-#include <X11/Xlib.h>
 #include <X11/XKBlib.h> /* allow detectable autorepeate */
+#include <X11/Xlib.h>
 
-#include "GHOST_System.h"
 #include "../GHOST_Types.h"
+#include "GHOST_System.h"
 
 // For tablets
 #ifdef WITH_X11_XINPUT
@@ -365,6 +365,8 @@ class GHOST_SystemX11 : public GHOST_System {
   /* detect autorepeat glitch */
   unsigned int m_last_release_keycode;
   Time m_last_release_time;
+
+  uint m_keycode_last_repeat_key;
 
   /**
    * Return the ghost window associated with the

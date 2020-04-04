@@ -41,8 +41,8 @@
 
 #include "NOD_socket.h"
 
-#include "UI_interface.h"
 #include "../interface/interface_intern.h" /* XXX bad level */
+#include "UI_interface.h"
 
 #include "ED_node.h" /* own include */
 
@@ -263,7 +263,7 @@ static void node_socket_add_replace(const bContext *C,
 
     for (sock_prev = node_prev->inputs.first; sock_prev; sock_prev = sock_prev->next) {
       for (sock_from = node_from->inputs.first; sock_from; sock_from = sock_from->next) {
-        if (nodeCountSocketLinks(ntree, sock_from) >= sock_from->limit) {
+        if (nodeCountSocketLinks(ntree, sock_from) >= nodeSocketLinkLimit(sock_from)) {
           continue;
         }
 

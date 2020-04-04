@@ -81,6 +81,9 @@ typedef struct PBVHFrustumPlanes {
   int num_planes;
 } PBVHFrustumPlanes;
 
+void BKE_pbvh_set_frustum_planes(PBVH *bvh, PBVHFrustumPlanes *planes);
+void BKE_pbvh_get_frustum_planes(PBVH *bvh, PBVHFrustumPlanes *planes);
+
 /* Callbacks */
 
 /* returns 1 if the search should continue from this node, 0 otherwise */
@@ -155,6 +158,7 @@ bool BKE_pbvh_node_raycast(PBVH *bvh,
                            struct IsectRayPrecalc *isect_precalc,
                            float *depth,
                            int *active_vertex_index,
+                           int *active_face_grid_index,
                            float *face_normal);
 
 bool BKE_pbvh_bmesh_node_raycast_detail(PBVHNode *node,
@@ -189,7 +193,8 @@ bool BKE_pbvh_node_find_nearest_to_ray(PBVH *bvh,
 void BKE_pbvh_draw_cb(PBVH *bvh,
                       bool show_vcol,
                       bool update_only_visible,
-                      PBVHFrustumPlanes *frustum,
+                      PBVHFrustumPlanes *update_frustum,
+                      PBVHFrustumPlanes *draw_frustum,
                       void (*draw_fn)(void *user_data, struct GPU_PBVH_Buffers *buffers),
                       void *user_data);
 
@@ -218,6 +223,8 @@ int BKE_pbvh_count_grid_quads(BLI_bitmap **grid_hidden,
                               int *grid_indices,
                               int totgrid,
                               int gridsize);
+
+void BKE_pbvh_sync_face_sets_to_grids(PBVH *bvh);
 
 /* multires level, only valid for type == PBVH_GRIDS */
 const struct CCGKey *BKE_pbvh_get_grid_key(const PBVH *pbvh);
@@ -298,8 +305,10 @@ void BKE_pbvh_grids_update(PBVH *bvh,
                            void **gridfaces,
                            struct DMFlagMat *flagmats,
                            unsigned int **grid_hidden);
+void BKE_pbvh_subdiv_cgg_set(PBVH *bvh, struct SubdivCCG *subdiv_ccg);
+void BKE_pbvh_face_sets_set(PBVH *bvh, int *face_sets);
 
-void BKE_pbvh_face_sets_color_seed_set(PBVH *bvh, int seed);
+void BKE_pbvh_face_sets_color_set(PBVH *bvh, int seed, int color_default);
 
 /* Layer displacement */
 

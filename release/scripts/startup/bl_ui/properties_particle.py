@@ -136,13 +136,13 @@ class PARTICLE_UL_particle_systems(bpy.types.UIList):
             if md:
                 row.prop(
                     md,
-                    "show_viewport",
+                    "show_render",
                     emboss=False,
                     icon_only=True,
                 )
                 row.prop(
                     md,
-                    "show_render",
+                    "show_viewport",
                     emboss=False,
                     icon_only=True,
                 )
@@ -417,6 +417,38 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
             box.label(text="Error: %.5f .. %.5f (avg. %.5f)" % (result.min_error, result.max_error, result.avg_error))
 
 
+class PARTICLE_PT_hair_dynamics_collision(ParticleButtonsPanel, Panel):
+    bl_label = "Collisions"
+    bl_parent_id = "PARTICLE_PT_hair_dynamics"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.particle_system.cloth is not None
+
+    def draw(self, context):
+        layout = self.layout
+
+        psys = context.particle_system
+        cloth_md = psys.cloth
+        cloth_collision = cloth_md.collision_settings
+
+        layout.enabled = psys.use_hair_dynamics and psys.point_cache.is_baked is False
+
+        layout.use_property_split = True
+
+        col = layout.column()
+        col.prop(cloth_collision, "collision_quality", text="Quality")
+
+        layout.separator()
+
+        col = layout.column()
+        col.prop(cloth_collision, "distance_min", slider=True, text="Distance")
+        col.prop(cloth_collision, "impulse_clamp")
+        col.prop(cloth_collision, "collection")
+
+
 class PARTICLE_PT_hair_dynamics_structure(ParticleButtonsPanel, Panel):
     bl_label = "Structure"
     bl_parent_id = "PARTICLE_PT_hair_dynamics"
@@ -611,7 +643,7 @@ class PARTICLE_PT_rotation(ParticleButtonsPanel, Panel):
         col.separator()
 
         col.prop(part, "phase_factor", slider=True)
-        col.prop(part, "phase_factor_random", text="Randomize Phase ", slider=True)
+        col.prop(part, "phase_factor_random", text="Randomize Phase", slider=True)
 
         if part.type != 'HAIR':
             col.prop(part, "use_dynamic_rotation")
@@ -1990,6 +2022,7 @@ classes = (
     PARTICLE_PT_emission,
     PARTICLE_PT_emission_source,
     PARTICLE_PT_hair_dynamics,
+    PARTICLE_PT_hair_dynamics_collision,
     PARTICLE_PT_hair_dynamics_structure,
     PARTICLE_PT_hair_dynamics_volume,
     PARTICLE_PT_cache,

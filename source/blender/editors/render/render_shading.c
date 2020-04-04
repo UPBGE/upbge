@@ -36,12 +36,13 @@
 #include "DNA_space_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_brush.h"
 #include "BKE_context.h"
@@ -76,10 +77,10 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "ED_object.h"
 #include "ED_curve.h"
 #include "ED_mesh.h"
 #include "ED_node.h"
+#include "ED_object.h"
 #include "ED_render.h"
 #include "ED_scene.h"
 #include "ED_screen.h"
@@ -100,15 +101,15 @@
  */
 static Object **object_array_for_shading(bContext *C, uint *r_objects_len)
 {
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
   SpaceProperties *sbuts = NULL;
   View3D *v3d = NULL;
-  if (sa != NULL) {
-    if (sa->spacetype == SPACE_PROPERTIES) {
-      sbuts = sa->spacedata.first;
+  if (area != NULL) {
+    if (area->spacetype == SPACE_PROPERTIES) {
+      sbuts = area->spacedata.first;
     }
-    else if (sa->spacetype == SPACE_VIEW3D) {
-      v3d = sa->spacedata.first;
+    else if (area->spacetype == SPACE_VIEW3D) {
+      v3d = area->spacedata.first;
     }
   }
 
@@ -506,7 +507,7 @@ static int material_slot_move_exec(bContext *C, wmOperator *op)
 {
   Object *ob = ED_object_context(C);
 
-  unsigned int *slot_remap;
+  uint *slot_remap;
   int index_pair[2];
 
   int dir = RNA_enum_get(op->ptr, "direction");
@@ -531,7 +532,7 @@ static int material_slot_move_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  slot_remap = MEM_mallocN(sizeof(unsigned int) * ob->totcol, __func__);
+  slot_remap = MEM_mallocN(sizeof(uint) * ob->totcol, __func__);
 
   range_vn_u(slot_remap, ob->totcol, 0);
 
@@ -814,14 +815,16 @@ void WORLD_OT_new(wmOperatorType *ot)
 
 /********************** render layer operators *********************/
 
-static int view_layer_add_exec(bContext *C, wmOperator *UNUSED(op))
+static int view_layer_add_exec(bContext *C, wmOperator *op)
 {
   wmWindow *win = CTX_wm_window(C);
   Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = BKE_view_layer_add(scene, NULL);
+  ViewLayer *view_layer_current = WM_window_get_active_view_layer(win);
+  ViewLayer *view_layer_new = BKE_view_layer_add(
+      scene, view_layer_current->name, view_layer_current, RNA_enum_get(op->ptr, "type"));
 
   if (win) {
-    WM_window_set_active_view_layer(win, view_layer);
+    WM_window_set_active_view_layer(win, view_layer_new);
   }
 
   DEG_id_tag_update(&scene->id, 0);
@@ -833,6 +836,17 @@ static int view_layer_add_exec(bContext *C, wmOperator *UNUSED(op))
 
 void SCENE_OT_view_layer_add(wmOperatorType *ot)
 {
+  static EnumPropertyItem type_items[] = {
+      {VIEWLAYER_ADD_NEW, "NEW", 0, "New", "Add a new view layer"},
+      {VIEWLAYER_ADD_COPY, "COPY", 0, "Copy Settings", "Copy settings of current view layer"},
+      {VIEWLAYER_ADD_EMPTY,
+       "EMPTY",
+       0,
+       "Blank",
+       "Add a new view layer with all collections disabled"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
   /* identifiers */
   ot->name = "Add View Layer";
   ot->idname = "SCENE_OT_view_layer_add";
@@ -840,9 +854,13 @@ void SCENE_OT_view_layer_add(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = view_layer_add_exec;
+  ot->invoke = WM_menu_invoke;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  /* properties */
+  ot->prop = RNA_def_enum(ot->srna, "type", type_items, 0, "Type", "");
 }
 
 static bool view_layer_remove_poll(bContext *C)
@@ -890,14 +908,14 @@ enum {
 
 static void light_cache_bake_tag_cache(Scene *scene, wmOperator *op)
 {
-  if (scene->eevee.light_cache != NULL) {
+  if (scene->eevee.light_cache_data != NULL) {
     int subset = RNA_enum_get(op->ptr, "subset");
     switch (subset) {
       case LIGHTCACHE_SUBSET_ALL:
-        scene->eevee.light_cache->flag |= LIGHTCACHE_UPDATE_GRID | LIGHTCACHE_UPDATE_CUBE;
+        scene->eevee.light_cache_data->flag |= LIGHTCACHE_UPDATE_GRID | LIGHTCACHE_UPDATE_CUBE;
         break;
       case LIGHTCACHE_SUBSET_CUBE:
-        scene->eevee.light_cache->flag |= LIGHTCACHE_UPDATE_CUBE;
+        scene->eevee.light_cache_data->flag |= LIGHTCACHE_UPDATE_CUBE;
         break;
       case LIGHTCACHE_SUBSET_DIRTY:
         /* Leave tag untouched. */
@@ -918,7 +936,7 @@ static int light_cache_bake_modal(bContext *C, wmOperator *op, const wmEvent *ev
 
   /* running render */
   switch (event->type) {
-    case ESCKEY:
+    case EVT_ESCKEY:
       return OPERATOR_RUNNING_MODAL;
   }
   return OPERATOR_PASS_THROUGH;
@@ -1046,7 +1064,7 @@ static bool light_cache_free_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
 
-  return scene->eevee.light_cache;
+  return scene->eevee.light_cache_data;
 }
 
 static int light_cache_free_exec(bContext *C, wmOperator *UNUSED(op))
@@ -1057,12 +1075,12 @@ static int light_cache_free_exec(bContext *C, wmOperator *UNUSED(op))
   wmWindowManager *wm = CTX_wm_manager(C);
   WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_LIGHT_BAKE);
 
-  if (!scene->eevee.light_cache) {
+  if (!scene->eevee.light_cache_data) {
     return OPERATOR_CANCELLED;
   }
 
-  EEVEE_lightcache_free(scene->eevee.light_cache);
-  scene->eevee.light_cache = NULL;
+  EEVEE_lightcache_free(scene->eevee.light_cache_data);
+  scene->eevee.light_cache_data = NULL;
 
   EEVEE_lightcache_info_update(&scene->eevee);
 

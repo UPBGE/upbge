@@ -30,19 +30,20 @@
 
 // implementation
 
-#include "EXP_PyObjectPlus.h"
+#include "ImageViewport.h"
+
 #include <structmember.h>
 
 #include "GPU_glew.h"
 
+#include "EXP_PyObjectPlus.h"
+#include "FilterSource.h"
+#include "ImageBase.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "RAS_ICanvas.h"
 #include "Texture.h"
-#include "ImageBase.h"
 #include "VideoBase.h"
-#include "FilterSource.h"
-#include "ImageViewport.h"
 
 ImageViewport::ImageViewport() : m_alpha(false), m_texInit(false)
 {

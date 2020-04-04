@@ -30,6 +30,7 @@
 #include "intern/eval/deg_eval_runtime_backup_object.h"
 #include "intern/eval/deg_eval_runtime_backup_scene.h"
 #include "intern/eval/deg_eval_runtime_backup_sound.h"
+#include "intern/eval/deg_eval_runtime_backup_volume.h"
 
 namespace DEG {
 
@@ -45,6 +46,17 @@ class RuntimeBackup {
   /* Restore fields to the given ID. */
   void restore_to_id(ID *id);
 
+  /* Denotes whether init_from_id did put anything into the backup storage.
+   * This will not be the case when init_from_id() is called for an ID which has never been
+   * copied-on-write. In this case there is no need to backup or restore anything.
+   *
+   * It also allows to have restore() logic to be symmetrical to init() without need to worry
+   * that init() might not have happened.
+   *
+   * In practice this is used by audio system to lock audio while scene is going through
+   * copy-on-write mechanism. */
+  bool have_backup;
+
   AnimationBackup animation_backup;
   SceneBackup scene_backup;
   SoundBackup sound_backup;
@@ -52,6 +64,7 @@ class RuntimeBackup {
   DrawDataList drawdata_backup;
   DrawDataList *drawdata_ptr;
   MovieClipBackup movieclip_backup;
+  VolumeBackup volume_backup;
 };
 
 }  // namespace DEG

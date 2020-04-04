@@ -25,21 +25,21 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.h"
+#include "BLI_utildefines.h"
 
-#include "DNA_scene_types.h"
 #include "DNA_anim_types.h"
+#include "DNA_scene_types.h"
 
-#include "ED_keyframing.h"
 #include "ED_keyframes_edit.h"
+#include "ED_keyframing.h"
 
-#include "BKE_animsys.h"
+#include "BKE_anim_data.h"
 #include "BKE_context.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
-#include "BKE_idcode.h"
+#include "BKE_idtype.h"
 #include "BKE_lib_id.h"
 #include "BKE_report.h"
 
@@ -49,8 +49,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "bpy_rna.h"
 #include "bpy_capi_utils.h"
+#include "bpy_rna.h"
 #include "bpy_rna_anim.h"
 
 #include "../generic/python_utildefines.h"
@@ -338,7 +338,7 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
      * not have any effect.
      */
     ReportList reports;
-    short result = 0;
+    bool result = false;
 
     PointerRNA ptr = self->ptr;
     PropertyRNA *prop = NULL;
@@ -372,13 +372,22 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
   else {
     ID *id = self->ptr.owner_id;
     ReportList reports;
-    short result;
+    bool result;
 
     BKE_reports_init(&reports, RPT_STORE);
 
     BLI_assert(BKE_id_is_in_global_main(id));
-    result = insert_keyframe(
-        G_MAIN, &reports, id, NULL, group_name, path_full, index, cfra, keytype, NULL, options);
+    result = (insert_keyframe(G_MAIN,
+                              &reports,
+                              id,
+                              NULL,
+                              group_name,
+                              path_full,
+                              index,
+                              cfra,
+                              keytype,
+                              NULL,
+                              options) != 0);
     MEM_freeN((void *)path_full);
 
     if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {
@@ -436,7 +445,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
      * not have any effect.
      */
     ReportList reports;
-    short result = 0;
+    bool result = false;
 
     PointerRNA ptr = self->ptr;
     PropertyRNA *prop = NULL;
@@ -464,7 +473,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
             RPT_WARNING,
             "Not deleting keyframe for locked F-Curve for NLA Strip influence on %s - %s '%s'",
             strip->name,
-            BKE_idcode_to_name(GS(id->name)),
+            BKE_idtype_idcode_to_name(GS(id->name)),
             id->name + 2);
       }
       else {
@@ -496,13 +505,13 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
     return PyBool_FromLong(result);
   }
   else {
-    short result;
+    bool result;
     ReportList reports;
 
     BKE_reports_init(&reports, RPT_STORE);
 
-    result = delete_keyframe(
-        G.main, &reports, (ID *)self->ptr.owner_id, NULL, group_name, path_full, index, cfra, 0);
+    result = (delete_keyframe(
+                  G.main, &reports, self->ptr.owner_id, NULL, path_full, index, cfra) != 0);
     MEM_freeN((void *)path_full);
 
     if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {

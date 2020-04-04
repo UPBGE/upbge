@@ -20,10 +20,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
 #include "BLI_kdtree_impl.h"
-#include "BLI_utildefines.h"
+#include "BLI_math.h"
 #include "BLI_strict_flags.h"
+#include "BLI_utildefines.h"
 
 #define _CONCAT_AUX(MACRO_ARG1, MACRO_ARG2) MACRO_ARG1##MACRO_ARG2
 #define _CONCAT(MACRO_ARG1, MACRO_ARG2) _CONCAT_AUX(MACRO_ARG1, MACRO_ARG2)
@@ -79,7 +79,7 @@ static float len_squared_vnvn(const float v0[KD_DIMS], const float v1[KD_DIMS])
 {
   float d = 0.0f;
   for (uint j = 0; j < KD_DIMS; j++) {
-    d += SQUARE(v0[j] - v1[j]);
+    d += square_f(v0[j] - v1[j]);
   }
   return d;
 }
@@ -893,7 +893,7 @@ int BLI_kdtree_nd_(calc_duplicates_fast)(const KDTree *tree,
   struct DeDuplicateParams p = {
       .nodes = tree->nodes,
       .range = range,
-      .range_sq = SQUARE(range),
+      .range_sq = square_f(range),
       .duplicates = duplicates,
       .duplicates_found = &found,
   };

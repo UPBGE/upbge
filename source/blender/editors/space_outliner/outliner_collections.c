@@ -20,14 +20,14 @@
 
 #include <string.h>
 
-#include "BLI_utildefines.h"
 #include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_context.h"
 #include "BKE_collection.h"
+#include "BKE_context.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
@@ -41,8 +41,8 @@
 #include "ED_screen.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
 #include "WM_message.h"
+#include "WM_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -53,6 +53,8 @@
 #include "outliner_intern.h" /* own include */
 
 /* -------------------------------------------------------------------- */
+/** \name Utility API
+ * \{ */
 
 bool outliner_is_collection_tree_element(const TreeElement *te)
 {
@@ -133,8 +135,30 @@ TreeTraversalAction outliner_find_selected_objects(TreeElement *te, void *custom
   return TRAVERSE_CONTINUE;
 }
 
+/**
+ * Populates the \param objects: ListBase with all the outliner selected objects
+ * We store it as (Object *)LinkData->data
+ * \param objects: expected to be empty
+ */
+void ED_outliner_selected_objects_get(const bContext *C, ListBase *objects)
+{
+  SpaceOutliner *soops = CTX_wm_space_outliner(C);
+  struct IDsSelectedData data = {{NULL}};
+  outliner_tree_traverse(
+      soops, &soops->tree, 0, TSE_SELECTED, outliner_find_selected_objects, &data);
+  LISTBASE_FOREACH (LinkData *, link, &data.selected_array) {
+    TreeElement *ten_selected = (TreeElement *)link->data;
+    Object *ob = (Object *)TREESTORE(ten_selected)->id;
+    BLI_addtail(objects, BLI_genericNodeN(ob));
+  }
+  BLI_freelistN(&data.selected_array);
+}
+
+/** \} */
+
 /* -------------------------------------------------------------------- */
-/* Poll functions. */
+/** \name Poll Functions
+ * \{ */
 
 bool ED_outliner_collections_editor_poll(bContext *C)
 {
@@ -148,7 +172,11 @@ static bool outliner_view_layer_collections_editor_poll(bContext *C)
   return (so != NULL) && (so->outlinevis == SO_VIEW_LAYER);
 }
 
-/********************************* New Collection ****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name New Collection
+ * \{ */
 
 struct CollectionNewData {
   bool error;
@@ -176,7 +204,7 @@ static TreeTraversalAction collection_find_selected_to_add(TreeElement *te, void
 static int collection_new_exec(bContext *C, wmOperator *op)
 {
   SpaceOutliner *soops = CTX_wm_space_outliner(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -187,7 +215,7 @@ static int collection_new_exec(bContext *C, wmOperator *op)
   };
 
   if (RNA_boolean_get(op->ptr, "nested")) {
-    outliner_build_tree(bmain, scene, view_layer, soops, ar);
+    outliner_build_tree(bmain, scene, view_layer, soops, region);
 
     outliner_tree_traverse(
         soops, &soops->tree, 0, TSE_SELECTED, collection_find_selected_to_add, &data);
@@ -237,7 +265,11 @@ void OUTLINER_OT_collection_new(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-/**************************** Delete Collection ******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Delete Collection
+ * \{ */
 
 struct CollectionEditData {
   Scene *scene;
@@ -304,8 +336,7 @@ static int collection_delete_exec(bContext *C, wmOperator *op)
           skip = true;
         }
         else {
-          for (CollectionParent *cparent = collection->parents.first; cparent;
-               cparent = cparent->next) {
+          LISTBASE_FOREACH (CollectionParent *, cparent, &collection->parents) {
             Collection *parent = cparent->collection;
             if (ID_IS_LINKED(parent)) {
               skip = true;
@@ -369,7 +400,11 @@ void OUTLINER_OT_collection_delete(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-/****************************** Select Objects *******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select/Deselect Collection Objects
+ * \{ */
 
 struct CollectionObjectsSelectData {
   bool error;
@@ -457,7 +492,11 @@ void OUTLINER_OT_collection_objects_deselect(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/************************** Duplicate Collection *****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Duplicate Collection
+ * \{ */
 
 struct CollectionDuplicateData {
   TreeElement *te;
@@ -578,7 +617,11 @@ void OUTLINER_OT_collection_duplicate(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/**************************** Link Collection ******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Link Collection
+ * \{ */
 
 static int collection_link_exec(bContext *C, wmOperator *op)
 {
@@ -636,7 +679,11 @@ void OUTLINER_OT_collection_link(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/************************** Instance Collection ******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Instance Collection
+ * \{ */
 
 static int collection_instance_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -703,7 +750,11 @@ void OUTLINER_OT_collection_instance(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/************************** Exclude Collection ******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Exclude Collection
+ * \{ */
 
 static TreeTraversalAction layer_collection_find_data_to_edit(TreeElement *te, void *customdata)
 {
@@ -796,7 +847,7 @@ static bool collections_indirect_only_clear_poll(bContext *C)
 
 static void layer_collection_flag_recursive_set(LayerCollection *lc, int flag)
 {
-  for (LayerCollection *nlc = lc->layer_collections.first; nlc; nlc = nlc->next) {
+  LISTBASE_FOREACH (LayerCollection *, nlc, &lc->layer_collections) {
     if (lc->flag & flag) {
       nlc->flag |= flag;
     }
@@ -945,7 +996,11 @@ void OUTLINER_OT_collection_indirect_only_clear(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/************************** Visibility Operators ******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Visibility for Collection Operators
+ * \{ */
 
 static int collection_isolate_exec(bContext *C, wmOperator *op)
 {
@@ -1129,6 +1184,12 @@ void OUTLINER_OT_collection_hide_inside(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Enable/Disable Collection Operators
+ * \{ */
+
 static bool collection_flag_poll(bContext *C, bool clear, int flag)
 {
   if (!ED_outliner_collections_editor_poll(C)) {
@@ -1310,6 +1371,12 @@ struct OutlinerHideEditData {
   GSet *bases_to_edit;
 };
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Visibility for Collection & Object Operators
+ * \{ */
+
 static TreeTraversalAction outliner_hide_find_data_to_edit(TreeElement *te, void *customdata)
 {
   struct OutlinerHideEditData *data = customdata;
@@ -1400,14 +1467,13 @@ static int outliner_unhide_all_exec(bContext *C, wmOperator *UNUSED(op))
 
   /* Unhide all the collections. */
   LayerCollection *lc_master = view_layer->layer_collections.first;
-  for (LayerCollection *lc_iter = lc_master->layer_collections.first; lc_iter;
-       lc_iter = lc_iter->next) {
+  LISTBASE_FOREACH (LayerCollection *, lc_iter, &lc_master->layer_collections) {
     lc_iter->flag &= ~LAYER_COLLECTION_HIDE;
     layer_collection_flag_recursive_set(lc_iter, LAYER_COLLECTION_HIDE);
   }
 
   /* Unhide all objects. */
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     base->flag &= ~BASE_HIDDEN;
   }
 
@@ -1433,21 +1499,4 @@ void OUTLINER_OT_unhide_all(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/**
- * Populates the \param objects: ListBase with all the outliner selected objects
- * We store it as (Object *)LinkData->data
- * \param objects: expected to be empty
- */
-void ED_outliner_selected_objects_get(const bContext *C, ListBase *objects)
-{
-  SpaceOutliner *soops = CTX_wm_space_outliner(C);
-  struct IDsSelectedData data = {{NULL}};
-  outliner_tree_traverse(
-      soops, &soops->tree, 0, TSE_SELECTED, outliner_find_selected_objects, &data);
-  LISTBASE_FOREACH (LinkData *, link, &data.selected_array) {
-    TreeElement *ten_selected = (TreeElement *)link->data;
-    Object *ob = (Object *)TREESTORE(ten_selected)->id;
-    BLI_addtail(objects, BLI_genericNodeN(ob));
-  }
-  BLI_freelistN(&data.selected_array);
-}
+/** \} */

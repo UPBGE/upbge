@@ -1,14 +1,14 @@
 #ifndef __CCD_MATH_UTILS__
 #define __CCD_MATH_UTILS__
 
+#include "LinearMath/btMatrix3x3.h"
+#include "LinearMath/btQuaternion.h"
+#include "LinearMath/btVector3.h"
+
+#include "MT_Matrix3x3.h"
+#include "MT_Quaternion.h"
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
-#include "MT_Quaternion.h"
-#include "MT_Matrix3x3.h"
-
-#include "LinearMath/btVector3.h"
-#include "LinearMath/btQuaternion.h"
-#include "LinearMath/btMatrix3x3.h"
 
 inline MT_Vector3 ToMoto(const btVector3 &vec)
 {

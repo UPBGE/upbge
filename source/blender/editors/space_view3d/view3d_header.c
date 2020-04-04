@@ -21,13 +21,13 @@
  * \ingroup spview3d
  */
 
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include "DNA_scene_types.h"
-#include "DNA_object_types.h"
 #include "DNA_gpencil_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
@@ -47,8 +47,8 @@
 #include "WM_types.h"
 
 #include "ED_mesh.h"
-#include "ED_undo.h"
 #include "ED_screen.h"
+#include "ED_undo.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -105,7 +105,7 @@ static void do_view3d_header_buttons(bContext *C, void *UNUSED(arg), int event)
   wmWindow *win = CTX_wm_window(C);
   const int ctrl = win->eventstate->ctrl, shift = win->eventstate->shift;
 
-  /* watch it: if sa->win does not exist, check that when calling direct drawing routines */
+  /* watch it: if area->win does not exist, check that when calling direct drawing routines */
 
   switch (event) {
     case B_SEL_VERT:

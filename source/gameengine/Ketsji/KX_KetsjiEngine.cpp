@@ -34,48 +34,39 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include "CM_Message.h"
+#include "KX_KetsjiEngine.h"
 
 #include <boost/format.hpp>
 
 #include "BLI_task.h"
+#include "DNA_scene_types.h"
+#include "DNA_world_types.h"
+#include "GPU_framebuffer.h"
+#include "GPU_matrix.h"
 
-#include "KX_KetsjiEngine.h"
-
-#include "EXP_ListValue.h"
-#include "EXP_IntValue.h"
+#include "BL_BlenderConverter.h"
+#include "CM_Message.h"
+#include "DEV_Joystick.h"  // for DEV_Joystick::HandleEvents
 #include "EXP_BoolValue.h"
 #include "EXP_FloatValue.h"
-
-#include "RAS_BucketManager.h"
-#include "RAS_Rasterizer.h"
-#include "RAS_ICanvas.h"
-#include "RAS_FrameBuffer.h"
-#include "MT_Vector3.h"
-#include "MT_Transform.h"
-#include "SCA_IInputDevice.h"
+#include "EXP_IntValue.h"
+#include "EXP_ListValue.h"
 #include "KX_Camera.h"
-#include "KX_Light.h"
 #include "KX_Globals.h"
-#include "KX_PyConstraintBinding.h"
-#include "PHY_IPhysicsEnvironment.h"
-
-#include "KX_NetworkMessageScene.h"
-
-#include "DEV_Joystick.h"   // for DEV_Joystick::HandleEvents
-#include "KX_PythonInit.h"  // for updatePythonJoysticks
-
-#include "KX_BlenderConverter.h"
-
-#include "RAS_FramingManager.h"
-#include "DNA_world_types.h"
-#include "DNA_scene_types.h"
-
+#include "KX_Light.h"
 #include "KX_NavMeshObject.h"
-
-extern "C" {
-#include "GPU_matrix.h"
-}
+#include "KX_NetworkMessageScene.h"
+#include "KX_PyConstraintBinding.h"
+#include "KX_PythonInit.h"  // for updatePythonJoysticks
+#include "MT_Transform.h"
+#include "MT_Vector3.h"
+#include "PHY_IPhysicsEnvironment.h"
+#include "RAS_BucketManager.h"
+#include "RAS_FrameBuffer.h"
+#include "RAS_FramingManager.h"
+#include "RAS_ICanvas.h"
+#include "RAS_Rasterizer.h"
+#include "SCA_IInputDevice.h"
 
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 
@@ -85,14 +76,6 @@ extern "C" {
 #    undef DrawText
 #  endif
 #endif
-
-/* EEVEE INTEGRATION */
-#include "DRW_render.h"
-
-extern "C" {
-#include "GPU_framebuffer.h"
-}
-/* End of EEVEE INTEGRATION */
 
 KX_KetsjiEngine::CameraRenderData::CameraRenderData(KX_Camera *rendercam,
                                                     KX_Camera *cullingcam,
@@ -134,6 +117,7 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
     "Physics:",     // tc_physics
     "Logic:",       // tc_logic
     "Animations:",  // tc_animations
+    "Depsgraph:",   // tc_depsgraph
     "Network:",     // tc_network
     "Scenegraph:",  // tc_scenegraph
     "Rasterizer:",  // tc_rasterizer
@@ -205,10 +189,25 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
   m_scenes->Release();
 }
 
+/* EEVEE integration */
 bContext *KX_KetsjiEngine::GetContext()
 {
   return m_context;
 }
+
+/* include Depsgraph update time in tc_depsgraph category
+ * (it can include part of animations time too I guess).
+ */
+void KX_KetsjiEngine::CountDepsgraphTime()
+{
+  m_logger.StartLog(tc_depsgraph, m_kxsystem->GetTimeInSeconds());
+}
+
+void KX_KetsjiEngine::EndCountDepsgraphTime()
+{
+  m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+}
+/* End of EEVEE integration */
 
 void KX_KetsjiEngine::SetInputDevice(SCA_IInputDevice *inputDevice)
 {
@@ -241,7 +240,7 @@ PyObject *KX_KetsjiEngine::GetPyProfileDict()
 }
 #endif
 
-void KX_KetsjiEngine::SetConverter(KX_BlenderConverter *converter)
+void KX_KetsjiEngine::SetConverter(BL_BlenderConverter *converter)
 {
   BLI_assert(converter);
   m_converter = converter;
@@ -266,7 +265,6 @@ void KX_KetsjiEngine::EndFrame()
   // Show profiling info
   m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
   if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
-    /* TEMP: DISABLE TEXT DRAWING in 2.8 WAITING FOR REFACTOR */
     RenderDebugProperties();
   }
 
@@ -406,48 +404,43 @@ bool KX_KetsjiEngine::NextFrame()
 
       scene->UpdateObjectActivity();
 
-      if (!scene->IsSuspended()) {
-        m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
-        // set Python hooks for each scene
+      m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
+      // set Python hooks for each scene
 #ifdef WITH_PYTHON
-        PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
+      PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 #endif
-        KX_SetActiveScene(scene);
+      KX_SetActiveScene(scene);
 
-        scene->GetPhysicsEnvironment()->EndFrame();
+      // Process sensors, and controllers
+      m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
+      scene->LogicBeginFrame(m_frameTime, framestep);
 
-        // Process sensors, and controllers
-        m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
-        scene->LogicBeginFrame(m_frameTime, framestep);
+      // Scenegraph needs to be updated again, because Logic Controllers
+      // can affect the local matrices.
+      m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
+      scene->UpdateParents(m_frameTime);
 
-        // Scenegraph needs to be updated again, because Logic Controllers
-        // can affect the local matrices.
-        m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-        scene->UpdateParents(m_frameTime);
+      // Process actuators
 
-        // Process actuators
+      // Do some cleanup work for this logic frame
+      m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
+      scene->LogicUpdateFrame(m_frameTime);
 
-        // Do some cleanup work for this logic frame
-        m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
-        scene->LogicUpdateFrame(m_frameTime);
+      scene->LogicEndFrame();
 
-        scene->LogicEndFrame();
+      // Actuators can affect the scenegraph
+      m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
+      scene->UpdateParents(m_frameTime);
 
-        // Actuators can affect the scenegraph
-        m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-        scene->UpdateParents(m_frameTime);
+      m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
 
-        m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
-        scene->GetPhysicsEnvironment()->BeginFrame();
+      // Perform physics calculations on the scene. This can involve
+      // many iterations of the physics solver.
+      scene->GetPhysicsEnvironment()->ProceedDeltaTime(
+          m_frameTime, timestep, framestep);  // m_deltatimerealDeltaTime);
 
-        // Perform physics calculations on the scene. This can involve
-        // many iterations of the physics solver.
-        scene->GetPhysicsEnvironment()->ProceedDeltaTime(
-            m_frameTime, timestep, framestep);  // m_deltatimerealDeltaTime);
-
-        m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
-        scene->UpdateParents(m_frameTime);
-      }
+      m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
+      scene->UpdateParents(m_frameTime);
 
       m_logger.StartLog(tc_services, m_kxsystem->GetTimeInSeconds());
     }
@@ -463,7 +456,6 @@ bool KX_KetsjiEngine::NextFrame()
       m_inputDevice->ClearInputs();
     }
 
-    UpdateSuspendedScenes(framestep);
     // scene management
     ProcessScheduledScenes();
 
@@ -474,15 +466,6 @@ bool KX_KetsjiEngine::NextFrame()
   m_logger.StartLog(tc_outside, m_kxsystem->GetTimeInSeconds());
 
   return doRender && m_doRender;
-}
-
-void KX_KetsjiEngine::UpdateSuspendedScenes(double framestep)
-{
-  for (KX_Scene *scene : m_scenes) {
-    if (scene->IsSuspended()) {
-      scene->SetSuspendedDelta(scene->GetSuspendedDelta() + framestep);
-    }
-  }
 }
 
 KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
@@ -702,7 +685,7 @@ void KX_KetsjiEngine::Render()
     }
   }
   Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
-  if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER && m_canvas->GetARegion())) {
+  if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !m_canvas->IsBlenderPlayer())) {
     GPU_matrix_reset();
     EndFrame();
   }
@@ -812,10 +795,6 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene,
 
 void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 {
-  if (scene->IsSuspended()) {
-    return;
-  }
-
   // Handle the animations independently of the logic time step
   if (m_flags & RESTRICT_ANIMATION) {
     double anim_timestep = 1.0 / scene->GetAnimationFPS();
@@ -1194,11 +1173,11 @@ void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw &deb
     return;
   }
 
-  for (KX_LightObject *light : scene->GetLightList()) {
+  /*for (KX_LightObject *light : scene->GetLightList()) {
     if (m_showShadowFrustum == KX_DebugOption::FORCE || light->GetShowShadowFrustum()) {
       debugDraw.DrawCameraFrustum(light->GetShadowFrustumMatrix().inverse());
     }
-  }
+  }*/
 }
 
 CListValue<KX_Scene> *KX_KetsjiEngine::CurrentScenes()
@@ -1209,30 +1188,6 @@ CListValue<KX_Scene> *KX_KetsjiEngine::CurrentScenes()
 KX_Scene *KX_KetsjiEngine::FindScene(const std::string &scenename)
 {
   return m_scenes->FindValue(scenename);
-}
-
-void KX_KetsjiEngine::ConvertAndAddScene(const std::string &scenename, bool overlay)
-{
-  /****************EEVEE INTEGRATION*****************/
-  // DISABLE OVERLAY AND BACKGROUND SCENES FOR NOW
-  std::cout << "KX_KetsjiEngine::ConvertAndAddScene: Overlay and Background Scenes are temporarly "
-               "disabled during eevee integration"
-            << std::endl;
-  return;
-  /**************************************************/
-
-  // only add scene when it doesn't exist!
-  if (FindScene(scenename)) {
-    CM_Warning("scene " << scenename << " already exists, not added!");
-  }
-  else {
-    if (overlay) {
-      m_addingOverlayScenes.push_back(scenename);
-    }
-    else {
-      m_addingBackgroundScenes.push_back(scenename);
-    }
-  }
 }
 
 void KX_KetsjiEngine::RemoveScene(const std::string &scenename)
@@ -1289,46 +1244,6 @@ KX_Scene *KX_KetsjiEngine::CreateScene(const std::string &scenename)
   return CreateScene(scene, false);
 }
 
-void KX_KetsjiEngine::AddScheduledScenes()
-{
-  std::vector<std::string>::iterator scenenameit;
-
-  if (m_addingOverlayScenes.size()) {
-    for (scenenameit = m_addingOverlayScenes.begin(); scenenameit != m_addingOverlayScenes.end();
-         scenenameit++) {
-      std::string scenename = *scenenameit;
-      KX_Scene *tmpscene = CreateScene(scenename);
-      if (tmpscene) {
-        m_scenes->Add(CM_AddRef(tmpscene));
-        PostProcessScene(tmpscene);
-        tmpscene->Release();
-      }
-      else {
-        CM_Warning("scene " << scenename << " could not be found, not added!");
-      }
-    }
-    m_addingOverlayScenes.clear();
-  }
-
-  if (m_addingBackgroundScenes.size()) {
-    for (scenenameit = m_addingBackgroundScenes.begin();
-         scenenameit != m_addingBackgroundScenes.end();
-         scenenameit++) {
-      std::string scenename = *scenenameit;
-      KX_Scene *tmpscene = CreateScene(scenename);
-      if (tmpscene) {
-        m_scenes->Insert(0, CM_AddRef(tmpscene));
-        PostProcessScene(tmpscene);
-        tmpscene->Release();
-      }
-      else {
-        CM_Warning("scene " << scenename << " could not be found, not added!");
-      }
-    }
-    m_addingBackgroundScenes.clear();
-  }
-}
-
 bool KX_KetsjiEngine::ReplaceScene(const std::string &oldscene, const std::string &newscene)
 {
   // Don't allow replacement if the new scene doesn't exist.
@@ -1379,22 +1294,6 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
       }
     }
     m_replace_scenes.clear();
-  }
-}
-
-void KX_KetsjiEngine::SuspendScene(const std::string &scenename)
-{
-  KX_Scene *scene = FindScene(scenename);
-  if (scene) {
-    scene->Suspend();
-  }
-}
-
-void KX_KetsjiEngine::ResumeScene(const std::string &scenename)
-{
-  KX_Scene *scene = FindScene(scenename);
-  if (scene) {
-    scene->Resume();
   }
 }
 
@@ -1511,13 +1410,11 @@ bool KX_KetsjiEngine::GetRender()
 void KX_KetsjiEngine::ProcessScheduledScenes(void)
 {
   // Check whether there will be changes to the list of scenes
-  if (m_addingOverlayScenes.size() || m_addingBackgroundScenes.size() || m_replace_scenes.size() ||
-      m_removingScenes.size()) {
+  if (m_replace_scenes.size() || m_removingScenes.size()) {
 
     // Change the scene list
     ReplaceScheduledScenes();
     RemoveScheduledScenes();
-    AddScheduledScenes();
   }
 }
 

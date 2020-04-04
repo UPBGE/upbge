@@ -24,8 +24,8 @@
 #ifndef __BKE_SUBDIV_CCG_H__
 #define __BKE_SUBDIV_CCG_H__
 
-#include "BKE_customdata.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_customdata.h"
 #include "BLI_bitmap.h"
 #include "BLI_sys_types.h"
 
@@ -216,7 +216,10 @@ typedef struct SubdivCCG {
   } dirty;
 } SubdivCCG;
 
-/* Create real hi-res CCG from subdivision.
+/* Create CCG representation of subdivision surface.
+ *
+ * NOTE: CCG stores dense vertices in a grid-like storage. There is no edges or
+ * polygons information's for the high-poly surface.
  *
  * NOTE: Subdiv is expected to be refined and ready for evaluation.
  * NOTE: CCG becomes an owner of subdiv.
@@ -301,6 +304,8 @@ void BKE_subdiv_ccg_neighbor_coords_get(const SubdivCCG *subdiv_ccg,
                                         const SubdivCCGCoord *coord,
                                         const bool include_duplicates,
                                         SubdivCCGNeighbors *r_neighbors);
+
+int BKE_subdiv_cgg_grid_to_face_index(const SubdivCCG *subdiv_ccg, const int grid_index);
 
 #ifdef __cplusplus
 }

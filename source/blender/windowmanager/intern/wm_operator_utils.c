@@ -22,8 +22,8 @@
 
 #include <math.h>
 
-#include "BLI_utildefines.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -62,8 +62,8 @@ typedef struct ValueInteraction {
   float range[2];
 
   struct {
-    ScrArea *sa;
-    ARegion *ar;
+    ScrArea *area;
+    ARegion *region;
   } context_vars;
 } ValueInteraction;
 
@@ -74,8 +74,8 @@ static void interactive_value_init(bContext *C,
                                    const float range[2])
 {
 
-  inter->context_vars.sa = CTX_wm_area(C);
-  inter->context_vars.ar = CTX_wm_region(C);
+  inter->context_vars.area = CTX_wm_area(C);
+  inter->context_vars.region = CTX_wm_region(C);
 
   inter->init.mval[0] = event->mval[0];
   inter->init.mval[1] = event->mval[1];
@@ -97,7 +97,7 @@ static void interactive_value_init_from_property(
 
 static void interactive_value_exit(ValueInteraction *inter)
 {
-  ED_area_status_text(inter->context_vars.sa, NULL);
+  ED_area_status_text(inter->context_vars.area, NULL);
 }
 
 static bool interactive_value_update(ValueInteraction *inter,
@@ -111,7 +111,7 @@ static bool interactive_value_update(ValueInteraction *inter,
   const int mval_curr = event->mval[mval_axis];
   const int mval_init = inter->init.mval[mval_axis];
   float value_delta = (inter->init.prop_value +
-                       (((float)(mval_curr - mval_init) / inter->context_vars.ar->winx) *
+                       (((float)(mval_curr - mval_init) / inter->context_vars.region->winx) *
                         value_range)) *
                       value_scale;
   if (event->ctrl) {
@@ -128,7 +128,7 @@ static bool interactive_value_update(ValueInteraction *inter,
     /* set the property for the operator and call its modal function */
     char str[64];
     SNPRINTF(str, "%.4f", value_final);
-    ED_area_status_text(inter->context_vars.sa, str);
+    ED_area_status_text(inter->context_vars.area, str);
   }
 
   inter->prev.prop_value = value_final;
@@ -252,10 +252,10 @@ static int op_generic_value_modal(bContext *C, wmOperator *op, const wmEvent *ev
 
   switch (event->type) {
     case MOUSEMOVE:
-    case LEFTCTRLKEY:
-    case RIGHTCTRLKEY:
-    case LEFTSHIFTKEY:
-    case RIGHTSHIFTKEY: {
+    case EVT_LEFTCTRLKEY:
+    case EVT_RIGHTCTRLKEY:
+    case EVT_LEFTSHIFTKEY:
+    case EVT_RIGHTSHIFTKEY: {
       float value_final;
       if (cd->is_active && interactive_value_update(&cd->inter, event, &value_final)) {
         wmWindowManager *wm = CTX_wm_manager(C);
@@ -279,8 +279,8 @@ static int op_generic_value_modal(bContext *C, wmOperator *op, const wmEvent *ev
       }
       break;
     }
-    case RETKEY:
-    case PADENTER:
+    case EVT_RETKEY:
+    case EVT_PADENTER:
     case LEFTMOUSE: {
       if (cd->wait_for_input) {
         if (event->val == KM_PRESS) {
@@ -304,7 +304,7 @@ static int op_generic_value_modal(bContext *C, wmOperator *op, const wmEvent *ev
       }
       break;
     }
-    case ESCKEY:
+    case EVT_ESCKEY:
     case RIGHTMOUSE: {
       if (event->val == KM_PRESS) {
         if (cd->is_active == true) {

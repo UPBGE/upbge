@@ -20,8 +20,8 @@
  */
 
 #ifdef WITH_FFMPEG
-#  include <string.h>
 #  include <stdio.h>
+#  include <string.h>
 
 #  include <stdlib.h>
 
@@ -52,8 +52,8 @@
 
 /* This needs to be included after BLI_math_base.h otherwise it will redefine some math defines
  * like M_SQRT1_2 leading to warnings with MSVC */
-#  include <libavformat/avformat.h>
 #  include <libavcodec/avcodec.h>
+#  include <libavformat/avformat.h>
 #  include <libavutil/imgutils.h>
 #  include <libavutil/rational.h>
 #  include <libavutil/samplefmt.h>
@@ -114,8 +114,11 @@ typedef struct FFMpegContext {
 static void ffmpeg_dict_set_int(AVDictionary **dict, const char *key, int value);
 static void ffmpeg_dict_set_float(AVDictionary **dict, const char *key, float value);
 static void ffmpeg_set_expert_options(RenderData *rd);
-static void ffmpeg_filepath_get(
-    FFMpegContext *context, char *string, struct RenderData *rd, bool preview, const char *suffix);
+static void ffmpeg_filepath_get(FFMpegContext *context,
+                                char *string,
+                                const struct RenderData *rd,
+                                bool preview,
+                                const char *suffix);
 
 /* Delete a picture buffer */
 
@@ -338,7 +341,7 @@ static const char **get_file_extensions(int format)
 
 /* Write a frame to the output file */
 static int write_video_frame(
-    FFMpegContext *context, RenderData *rd, int cfra, AVFrame *frame, ReportList *reports)
+    FFMpegContext *context, const RenderData *rd, int cfra, AVFrame *frame, ReportList *reports)
 {
   int got_output;
   int ret, success = 1;
@@ -1217,7 +1220,7 @@ static void flush_ffmpeg(FFMpegContext *context)
 
 /* Get the output filename-- similar to the other output formats */
 static void ffmpeg_filepath_get(
-    FFMpegContext *context, char *string, RenderData *rd, bool preview, const char *suffix)
+    FFMpegContext *context, char *string, const RenderData *rd, bool preview, const char *suffix)
 {
   char autosplit[20];
 
@@ -1282,13 +1285,13 @@ static void ffmpeg_filepath_get(
   BLI_path_suffix(string, FILE_MAX, suffix, "");
 }
 
-void BKE_ffmpeg_filepath_get(char *string, RenderData *rd, bool preview, const char *suffix)
+void BKE_ffmpeg_filepath_get(char *string, const RenderData *rd, bool preview, const char *suffix)
 {
   ffmpeg_filepath_get(NULL, string, rd, preview, suffix);
 }
 
 int BKE_ffmpeg_start(void *context_v,
-                     struct Scene *scene,
+                     const struct Scene *scene,
                      RenderData *rd,
                      int rectx,
                      int recty,
@@ -1846,7 +1849,7 @@ void BKE_ffmpeg_codec_settings_verify(RenderData *rd)
   ffmpeg_set_expert_options(rd);
 }
 
-bool BKE_ffmpeg_alpha_channel_is_supported(RenderData *rd)
+bool BKE_ffmpeg_alpha_channel_is_supported(const RenderData *rd)
 {
   int codec = rd->ffcodecdata.codec;
 

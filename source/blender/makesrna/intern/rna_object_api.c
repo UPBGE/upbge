@@ -21,13 +21,13 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#include "BLI_utildefines.h"
 #include "BLI_kdopbvh.h"
+#include "BLI_utildefines.h"
 
 #include "RNA_define.h"
 
@@ -36,8 +36,8 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_gpencil_geom.h"
 #include "BKE_layer.h"
-#include "BKE_gpencil.h"
 
 #include "DEG_depsgraph.h"
 
@@ -63,7 +63,6 @@ static const EnumPropertyItem space_items[] = {
 
 #  include "BLI_math.h"
 
-#  include "BKE_anim.h"
 #  include "BKE_bvhutils.h"
 #  include "BKE_constraint.h"
 #  include "BKE_context.h"
@@ -72,8 +71,8 @@ static const EnumPropertyItem space_items[] = {
 #  include "BKE_global.h"
 #  include "BKE_layer.h"
 #  include "BKE_main.h"
-#  include "BKE_mesh.h"
 #  include "BKE_mball.h"
+#  include "BKE_mesh.h"
 #  include "BKE_modifier.h"
 #  include "BKE_object.h"
 #  include "BKE_report.h"
@@ -222,7 +221,7 @@ static bool rna_Object_indirect_only_get(Object *ob, bContext *C, ViewLayer *vie
   return ((base->flag & BASE_INDIRECT_ONLY) != 0);
 }
 
-static Base *rna_Object_local_view_property_helper(bScreen *sc,
+static Base *rna_Object_local_view_property_helper(bScreen *screen,
                                                    View3D *v3d,
                                                    ViewLayer *view_layer,
                                                    Object *ob,
@@ -236,7 +235,7 @@ static Base *rna_Object_local_view_property_helper(bScreen *sc,
   }
 
   if (view_layer == NULL) {
-    win = ED_screen_window_find(sc, G_MAIN->wm.first);
+    win = ED_screen_window_find(screen, G_MAIN->wm.first);
     view_layer = WM_window_get_active_view_layer(win);
   }
 
@@ -266,10 +265,10 @@ static void rna_Object_local_view_set(Object *ob,
                                       PointerRNA *v3d_ptr,
                                       bool state)
 {
-  bScreen *sc = (bScreen *)v3d_ptr->owner_id;
+  bScreen *screen = (bScreen *)v3d_ptr->owner_id;
   View3D *v3d = v3d_ptr->data;
   Scene *scene;
-  Base *base = rna_Object_local_view_property_helper(sc, v3d, NULL, ob, reports, &scene);
+  Base *base = rna_Object_local_view_property_helper(screen, v3d, NULL, ob, reports, &scene);
   if (base == NULL) {
     return; /* Error reported. */
   }
@@ -277,9 +276,9 @@ static void rna_Object_local_view_set(Object *ob,
   SET_FLAG_FROM_TEST(base->local_view_bits, state, v3d->local_view_uuid);
   if (local_view_bits_prev != base->local_view_bits) {
     DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-    ScrArea *sa = ED_screen_area_find_with_spacedata(sc, (SpaceLink *)v3d, true);
-    if (sa) {
-      ED_area_tag_redraw(sa);
+    ScrArea *area = ED_screen_area_find_with_spacedata(screen, (SpaceLink *)v3d, true);
+    if (area) {
+      ED_area_tag_redraw(area);
     }
   }
 }
@@ -323,7 +322,7 @@ static void rna_Object_mat_convert_space(Object *ob,
     }
   }
 
-  BKE_constraint_mat_convertspace(ob, pchan, (float(*)[4])mat_ret, from, to);
+  BKE_constraint_mat_convertspace(ob, pchan, (float(*)[4])mat_ret, from, to, false);
 }
 
 static void rna_Object_calc_matrix_camera(Object *ob,

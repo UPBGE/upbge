@@ -21,11 +21,11 @@
  * \ingroup bke
  */
 
-#include <math.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <string.h>
 #include <float.h>
+#include <math.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -37,8 +37,8 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
-#include "BLI_noise.h"
 #include "BLI_math.h" /* windows needs for M_PI */
+#include "BLI_noise.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_fcurve.h"
@@ -1358,7 +1358,7 @@ uint evaluate_fmodifiers_storage_size_per_modifier(ListBase *modifiers)
 
   uint max_size = 0;
 
-  for (FModifier *fcm = modifiers->first; fcm; fcm = fcm->next) {
+  LISTBASE_FOREACH (FModifier *, fcm, modifiers) {
     const FModifierTypeInfo *fmi = fmodifier_get_typeinfo(fcm);
 
     if (fmi == NULL) {

@@ -27,6 +27,8 @@
 #include "BKE_movieclip.h"
 #include "BKE_object.h"
 
+#include "BLI_listbase.h"
+
 #include "DNA_camera_types.h"
 #include "DNA_screen_types.h"
 
@@ -116,6 +118,9 @@ static void camera_background_images_stereo_setup(Scene *scene,
     else if (v3d->stereo3d_camera != STEREO_3D_ID) {
       /* show only left or right camera */
       iuser->multiview_eye = v3d->stereo3d_camera;
+    }
+    else {
+      iuser->multiview_eye = v3d->multiview_eye;
     }
 
     BKE_image_multiview_index(ima, iuser);
@@ -241,7 +246,7 @@ static void image_camera_background_matrix_get(const Camera *cam,
   unit_m4(scale);
   unit_m4(translate);
 
-  /*  Normalized Object space camera frame corners. */
+  /* Normalized Object space camera frame corners. */
   float cam_corners[4][3];
   BKE_camera_view_frame(draw_ctx->scene, cam, cam_corners);
   float cam_width = fabsf(cam_corners[0][0] - cam_corners[3][0]);
@@ -308,7 +313,7 @@ void OVERLAY_image_camera_cache_populate(OVERLAY_Data *vedata, Object *ob)
   float norm_obmat[4][4];
   normalize_m4_m4(norm_obmat, ob->obmat);
 
-  for (CameraBGImage *bgpic = cam->bg_images.first; bgpic; bgpic = bgpic->next) {
+  LISTBASE_FOREACH (CameraBGImage *, bgpic, &cam->bg_images) {
     if (bgpic->flag & CAM_BGIMG_FLAG_DISABLED) {
       continue;
     }
@@ -366,7 +371,9 @@ void OVERLAY_image_empty_cache_populate(OVERLAY_Data *vedata, Object *ob)
      * see: T59347 */
     int size[2] = {0};
     if (ima != NULL) {
-      tex = GPU_texture_from_blender(ima, ob->iuser, NULL, GL_TEXTURE_2D);
+      ImageUser iuser = *ob->iuser;
+      camera_background_images_stereo_setup(draw_ctx->scene, draw_ctx->v3d, ima, &iuser);
+      tex = GPU_texture_from_blender(ima, &iuser, NULL, GL_TEXTURE_2D);
       if (tex) {
         size[0] = GPU_texture_orig_width(tex);
         size[1] = GPU_texture_orig_height(tex);

@@ -26,18 +26,18 @@
 #include "DNA_cloth_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_effect_types.h"
-#include "DNA_object_types.h"
-#include "DNA_object_force_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_object_force_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
+#include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
-#include "BLI_ghash.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_cloth.h"
 #include "BKE_collection.h"
@@ -46,8 +46,8 @@
 #include "BKE_modifier.h"
 #include "BKE_scene.h"
 
-#include "BLI_kdopbvh.h"
 #include "BKE_collision.h"
+#include "BLI_kdopbvh.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_physics.h"
@@ -625,7 +625,7 @@ static void collision_compute_barycentric(const float pv[3],
 
   d = (a * c - b * b);
 
-  if (ABS(d) < (double)ALMOST_ZERO) {
+  if (fabs(d) < (double)ALMOST_ZERO) {
     *w1 = *w2 = *w3 = 1.0 / 3.0;
     return;
   }
@@ -856,18 +856,18 @@ static int cloth_collision_response_static(ClothModifierData *clmd,
 
       for (int j = 0; j < 3; j++) {
         if (cloth1->verts[collpair->ap1].impulse_count > 0 &&
-            ABS(cloth1->verts[collpair->ap1].impulse[j]) < ABS(i1[j])) {
+            fabsf(cloth1->verts[collpair->ap1].impulse[j]) < fabsf(i1[j])) {
           cloth1->verts[collpair->ap1].impulse[j] = i1[j];
         }
 
         if (cloth1->verts[collpair->ap2].impulse_count > 0 &&
-            ABS(cloth1->verts[collpair->ap2].impulse[j]) < ABS(i2[j])) {
+            fabsf(cloth1->verts[collpair->ap2].impulse[j]) < fabsf(i2[j])) {
           cloth1->verts[collpair->ap2].impulse[j] = i2[j];
         }
 
         if (!is_hair) {
           if (cloth1->verts[collpair->ap3].impulse_count > 0 &&
-              ABS(cloth1->verts[collpair->ap3].impulse[j]) < ABS(i3[j])) {
+              fabsf(cloth1->verts[collpair->ap3].impulse[j]) < fabsf(i3[j])) {
             cloth1->verts[collpair->ap3].impulse[j] = i3[j];
           }
         }
@@ -888,15 +888,15 @@ static void cloth_selfcollision_impulse_vert(const float clamp_sq,
     return;
   }
 
-  if (ABS(vert->impulse[0]) < ABS(impulse[0])) {
+  if (fabsf(vert->impulse[0]) < fabsf(impulse[0])) {
     vert->impulse[0] = impulse[0];
   }
 
-  if (ABS(vert->impulse[1]) < ABS(impulse[1])) {
+  if (fabsf(vert->impulse[1]) < fabsf(impulse[1])) {
     vert->impulse[1] = impulse[1];
   }
 
-  if (ABS(vert->impulse[2]) < ABS(impulse[2])) {
+  if (fabsf(vert->impulse[2]) < fabsf(impulse[2])) {
     vert->impulse[2] = impulse[2];
   }
 
@@ -1380,7 +1380,7 @@ Object **BKE_collision_objects_create(Depsgraph *depsgraph,
   int num = 0;
   Object **objects = MEM_callocN(sizeof(Object *) * maxnum, __func__);
 
-  for (CollisionRelation *relation = relations->first; relation; relation = relation->next) {
+  LISTBASE_FOREACH (CollisionRelation *, relation, relations) {
     /* Get evaluated object. */
     Object *ob = (Object *)DEG_get_evaluated_id(depsgraph, &relation->ob->id);
 
@@ -1418,7 +1418,7 @@ ListBase *BKE_collider_cache_create(Depsgraph *depsgraph, Object *self, Collecti
     return NULL;
   }
 
-  for (CollisionRelation *relation = relations->first; relation; relation = relation->next) {
+  LISTBASE_FOREACH (CollisionRelation *, relation, relations) {
     /* Get evaluated object. */
     Object *ob = (Object *)DEG_get_evaluated_id(depsgraph, &relation->ob->id);
 

@@ -24,19 +24,19 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math.h"
 #include "BLI_listbase.h"
+#include "BLI_math.h"
 
-#include "BKE_layer.h"
 #include "BKE_context.h"
-#include "BKE_report.h"
 #include "BKE_editmesh.h"
+#include "BKE_layer.h"
+#include "BKE_report.h"
 
-#include "RNA_define.h"
 #include "RNA_access.h"
+#include "RNA_define.h"
 
-#include "WM_types.h"
 #include "WM_api.h"
+#include "WM_types.h"
 
 #include "ED_mesh.h"
 #include "ED_screen.h"
@@ -274,11 +274,27 @@ static bool edbm_extrude_ex(Object *obedit,
 
 static int edbm_extrude_repeat_exec(bContext *C, wmOperator *op)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "offset");
   const int steps = RNA_int_get(op->ptr, "steps");
-  const float offs = RNA_float_get(op->ptr, "offset");
-  float dvec[3], tmat[3][3], bmat[3][3];
-  short a;
+  const float scale_offset = RNA_float_get(op->ptr, "scale_offset");
+  float offset[3];
+
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    if (rv3d != NULL) {
+      normalize_v3_v3(offset, rv3d->persinv[2]);
+    }
+    else {
+      copy_v3_v3(offset, (const float[3]){0, 0, 1});
+    }
+    RNA_property_float_set_array(op->ptr, prop, offset);
+  }
+  else {
+    RNA_property_float_get_array(op->ptr, prop, offset);
+  }
+
+  mul_v3_fl(offset, scale_offset);
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
@@ -286,22 +302,19 @@ static int edbm_extrude_repeat_exec(bContext *C, wmOperator *op)
       view_layer, CTX_wm_view3d(C), &objects_len);
 
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+    float offset_local[3], tmat[3][3];
 
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-    /* dvec */
-    normalize_v3_v3_length(dvec, rv3d->persinv[2], offs);
+    copy_m3_m4(tmat, obedit->obmat);
+    invert_m3(tmat);
+    mul_v3_m3v3(offset_local, tmat, offset);
 
-    /* base correction */
-    copy_m3_m4(bmat, obedit->obmat);
-    invert_m3_m3(tmat, bmat);
-    mul_m3_v3(tmat, dvec);
-
-    for (a = 0; a < steps; a++) {
-      edbm_extrude_ex(obedit, em, BM_ALL_NOLOOP, BM_ELEM_SELECT, false, false, false);
-
-      BMO_op_callf(em->bm, BMO_FLAG_DEFAULTS, "translate vec=%v verts=%hv", dvec, BM_ELEM_SELECT);
+    for (int a = 0; a < steps; a++) {
+      edbm_extrude_ex(obedit, em, BM_ALL_NOLOOP, BM_ELEM_SELECT, false, false, true);
+      BMO_op_callf(
+          em->bm, BMO_FLAG_DEFAULTS, "translate vec=%v verts=%hv", offset_local, BM_ELEM_SELECT);
     }
 
     EDBM_mesh_normals_update(em);
@@ -317,20 +330,23 @@ static int edbm_extrude_repeat_exec(bContext *C, wmOperator *op)
 void MESH_OT_extrude_repeat(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Extrude Repeat Mesh";
+  ot->name = "Extrude Repeat";
   ot->description = "Extrude selected vertices, edges or faces repeatedly";
   ot->idname = "MESH_OT_extrude_repeat";
 
   /* api callbacks */
   ot->exec = edbm_extrude_repeat_exec;
-  ot->poll = ED_operator_editmesh_view3d;
+  ot->poll = ED_operator_editmesh;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* props */
-  RNA_def_float_distance(ot->srna, "offset", 2.0f, 0.0f, 1e12f, "Offset", "", 0.0f, 100.0f);
   RNA_def_int(ot->srna, "steps", 10, 0, 1000000, "Steps", "", 0, 180);
+  PropertyRNA *prop = RNA_def_float_vector_xyz(
+      ot->srna, "offset", 3, NULL, -100000, 100000, "Offset", "Offset vector", -1000.0f, 1000.0f);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  RNA_def_float(ot->srna, "scale_offset", 1.0f, 0.0f, 1e12f, "Scale Offset", "", 0.0f, 100.0f);
 }
 
 /** \} */
@@ -746,9 +762,9 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
         if (BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
           float co1[2], co2[2];
 
-          if ((ED_view3d_project_float_object(vc.ar, eed->v1->co, co1, V3D_PROJ_TEST_NOP) ==
+          if ((ED_view3d_project_float_object(vc.region, eed->v1->co, co1, V3D_PROJ_TEST_NOP) ==
                V3D_PROJ_RET_OK) &&
-              (ED_view3d_project_float_object(vc.ar, eed->v2->co, co2, V3D_PROJ_TEST_NOP) ==
+              (ED_view3d_project_float_object(vc.region, eed->v2->co, co2, V3D_PROJ_TEST_NOP) ==
                V3D_PROJ_RET_OK)) {
             /* 2D rotate by 90d while adding.
              *  (x, y) = (y, -x)
@@ -786,7 +802,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
       copy_v3_v3(ofs, local_center);
 
       mul_m4_v3(vc.obedit->obmat, ofs); /* view space */
-      ED_view3d_win_to_3d_int(vc.v3d, vc.ar, ofs, event->mval, ofs);
+      ED_view3d_win_to_3d_int(vc.v3d, vc.region, ofs, event->mval, ofs);
       mul_m4_v3(vc.obedit->imat, ofs);  // back in object space
 
       sub_v3_v3(ofs, local_center);
@@ -820,7 +836,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
 
         /* also project the source, for retopo workflow */
         if (use_proj) {
-          EDBM_project_snap_verts(C, depsgraph, vc.ar, vc.obedit, vc.em);
+          EDBM_project_snap_verts(C, depsgraph, vc.region, vc.obedit, vc.em);
         }
       }
 
@@ -836,7 +852,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
       BMOIter oiter;
 
       copy_v3_v3(local_center, cursor);
-      ED_view3d_win_to_3d_int(vc.v3d, vc.ar, local_center, event->mval, local_center);
+      ED_view3d_win_to_3d_int(vc.v3d, vc.region, local_center, event->mval, local_center);
 
       mul_m4_v3(vc.obedit->imat, local_center);  // back in object space
 
@@ -853,7 +869,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
     }
 
     if (use_proj) {
-      EDBM_project_snap_verts(C, depsgraph, vc.ar, vc.obedit, vc.em);
+      EDBM_project_snap_verts(C, depsgraph, vc.region, vc.obedit, vc.em);
     }
 
     /* This normally happens when pushing undo but modal operators

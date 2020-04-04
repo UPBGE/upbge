@@ -21,6 +21,10 @@
  * \ingroup pymathutils
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Can cast different mathutils types to this, use for generic funcs */
 
 #include "BLI_compiler_attrs.h"
@@ -67,11 +71,11 @@ typedef struct {
 } BaseMathObject;
 
 /* types */
-#include "mathutils_Vector.h"
+#include "mathutils_Color.h"
+#include "mathutils_Euler.h"
 #include "mathutils_Matrix.h"
 #include "mathutils_Quaternion.h"
-#include "mathutils_Euler.h"
-#include "mathutils_Color.h"
+#include "mathutils_Vector.h"
 
 /* avoid checking all types */
 #define BaseMathObject_CheckExact(v) (Py_TYPE(v)->tp_dealloc == (destructor)BaseMathObject_dealloc)
@@ -192,6 +196,10 @@ int column_vector_multiplication(float rvec[4], VectorObject *vec, MatrixObject 
 #ifndef MATH_STANDALONE
 /* dynstr as python string utility functions */
 PyObject *mathutils_dynstr_to_py(struct DynStr *ds);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* __MATHUTILS_H__ */

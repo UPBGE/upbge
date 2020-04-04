@@ -21,10 +21,10 @@
  * \ingroup spnla
  */
 
-#include <string.h>
-#include <stdio.h>
-#include <math.h>
 #include <float.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "DNA_anim_types.h"
 
@@ -36,8 +36,8 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_nla.h"
 #include "BKE_context.h"
+#include "BKE_nla.h"
 #include "BKE_screen.h"
 
 #include "WM_api.h"
@@ -140,7 +140,10 @@ bool nla_panel_context(const bContext *C,
       case ANIMTYPE_DSLINESTYLE:
       case ANIMTYPE_DSSPK:
       case ANIMTYPE_DSGPENCIL:
-      case ANIMTYPE_PALETTE: {
+      case ANIMTYPE_PALETTE:
+      case ANIMTYPE_DSHAIR:
+      case ANIMTYPE_DSPOINTCLOUD:
+      case ANIMTYPE_DSVOLUME: {
         /* for these channels, we only do AnimData */
         if (ale->adt && adt_ptr) {
           ID *id;

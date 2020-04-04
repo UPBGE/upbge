@@ -18,8 +18,8 @@
  * \ingroup RNA
  */
 
-#include "DNA_scene_types.h"
 #include "DNA_layer_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"
 
 #include "BLT_translation.h"
@@ -51,9 +51,11 @@
 
 #  include "BKE_idprop.h"
 #  include "BKE_layer.h"
+#  include "BKE_mesh.h"
 #  include "BKE_node.h"
 #  include "BKE_scene.h"
-#  include "BKE_mesh.h"
+
+#  include "BLI_listbase.h"
 
 #  include "DEG_depsgraph_build.h"
 #  include "DEG_depsgraph_query.h"
@@ -299,7 +301,7 @@ static void rna_LayerCollection_hide_viewport_set(PointerRNA *ptr, bool value)
 
 static void rna_LayerCollection_exclude_update_recursive(ListBase *lb, const bool exclude)
 {
-  for (LayerCollection *lc = lb->first; lc; lc = lc->next) {
+  LISTBASE_FOREACH (LayerCollection *, lc, lb) {
     if (exclude) {
       lc->flag |= LAYER_COLLECTION_EXCLUDE;
     }

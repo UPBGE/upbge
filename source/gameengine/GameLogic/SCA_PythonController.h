@@ -33,11 +33,11 @@
 #ifndef __SCA_PYTHONCONTROLLER_H__
 #define __SCA_PYTHONCONTROLLER_H__
 
+#include <vector>
+
+#include "EXP_BoolValue.h"
 #include "SCA_IController.h"
 #include "SCA_LogicManager.h"
-#include "EXP_BoolValue.h"
-
-#include <vector>
 
 class SCA_IObject;
 class SCA_PythonController : public SCA_IController {

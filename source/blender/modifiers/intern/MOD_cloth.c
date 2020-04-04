@@ -30,8 +30,8 @@
 #include "DNA_cloth_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -179,7 +179,11 @@ static void copyData(const ModifierData *md, ModifierData *target, const int fla
   }
   else {
     tclmd->point_cache = BKE_ptcache_add(&tclmd->ptcaches);
-    tclmd->point_cache->step = 1;
+    if (clmd->point_cache != NULL) {
+      tclmd->point_cache->step = clmd->point_cache->step;
+      tclmd->point_cache->startframe = clmd->point_cache->startframe;
+      tclmd->point_cache->endframe = clmd->point_cache->endframe;
+    }
   }
 
   tclmd->sim_parms = MEM_dupallocN(clmd->sim_parms);

@@ -31,20 +31,20 @@
 #include "BLI_ghash.h"
 #include "BLI_math_vector.h"
 
-#include "DNA_meshdata_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_object_types.h"
-#include "DNA_gpencil_types.h"
 #include "DNA_gpencil_modifier_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_meshdata_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
+#include "BKE_colortools.h"
 #include "BKE_deform.h"
-#include "BKE_main.h"
-#include "BKE_object.h"
-#include "BKE_lattice.h"
-#include "BKE_material.h"
 #include "BKE_gpencil.h"
 #include "BKE_gpencil_modifier.h"
-#include "BKE_colortools.h"
+#include "BKE_lattice.h"
+#include "BKE_main.h"
+#include "BKE_material.h"
+#include "BKE_object.h"
 
 #include "DEG_depsgraph.h"
 
@@ -158,7 +158,7 @@ float get_modifier_point_weight(MDeformVert *dvert, bool inverse, int def_nr)
   float weight = 1.0f;
 
   if ((dvert != NULL) && (def_nr != -1)) {
-    MDeformWeight *dw = defvert_find_index(dvert, def_nr);
+    MDeformWeight *dw = BKE_defvert_find_index(dvert, def_nr);
     weight = dw ? dw->weight : -1.0f;
     if ((weight >= 0.0f) && (inverse == 1)) {
       return -1.0f;
@@ -185,45 +185,4 @@ float get_modifier_point_weight(MDeformVert *dvert, bool inverse, int def_nr)
   }
 
   return weight;
-}
-
-/* set material when apply modifiers (used in tint and color modifier) */
-void gpencil_apply_modifier_material(
-    Main *bmain, Object *ob, Material *mat, GHash *gh_color, bGPDstroke *gps, bool crt_material)
-{
-  MaterialGPencilStyle *gp_style = mat->gp_style;
-
-  /* look for color */
-  if (crt_material) {
-    Material *newmat = BLI_ghash_lookup(gh_color, mat->id.name);
-    if (newmat == NULL) {
-      BKE_object_material_slot_add(bmain, ob);
-      newmat = BKE_material_copy(bmain, mat);
-      newmat->preview = NULL;
-
-      BKE_object_material_assign(bmain, ob, newmat, ob->totcol, BKE_MAT_ASSIGN_USERPREF);
-
-      copy_v4_v4(newmat->gp_style->stroke_rgba, gps->runtime.tmp_stroke_rgba);
-      copy_v4_v4(newmat->gp_style->fill_rgba, gps->runtime.tmp_fill_rgba);
-
-      BLI_ghash_insert(gh_color, mat->id.name, newmat);
-      DEG_id_tag_update(&newmat->id, ID_RECALC_COPY_ON_WRITE);
-    }
-    /* Reassign color index. */
-    gps->mat_nr = BKE_gpencil_object_material_get_index(ob, newmat);
-  }
-  else {
-    /* reuse existing color (but update only first time) */
-    if (BLI_ghash_lookup(gh_color, mat->id.name) == NULL) {
-      copy_v4_v4(gp_style->stroke_rgba, gps->runtime.tmp_stroke_rgba);
-      copy_v4_v4(gp_style->fill_rgba, gps->runtime.tmp_fill_rgba);
-      BLI_ghash_insert(gh_color, mat->id.name, mat);
-    }
-    /* update previews (icon and thumbnail) */
-    if (mat->preview != NULL) {
-      mat->preview->flag[ICON_SIZE_ICON] |= PRV_CHANGED;
-      mat->preview->flag[ICON_SIZE_PREVIEW] |= PRV_CHANGED;
-    }
-    DEG_id_tag_update(&mat->id, ID_RECALC_COPY_ON_WRITE);
-  }
 }

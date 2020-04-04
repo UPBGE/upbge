@@ -37,13 +37,13 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_main.h"
 #include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_deform.h"
 #include "BKE_gpencil.h"
-#include "BKE_object.h"
+#include "BKE_main.h"
 #include "BKE_material.h"
+#include "BKE_object.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -51,8 +51,8 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "ED_object.h"
 #include "ED_gpencil.h"
+#include "ED_object.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -117,9 +117,8 @@ static int gpencil_convert_old_files_exec(bContext *C, wmOperator *op)
     DEG_relations_tag_update(bmain); /* added object */
 
     /* convert grease pencil palettes (version >= 2.78)  to materials and weights */
-    for (const bGPDpalette *palette = gpd->palettes.first; palette; palette = palette->next) {
-      for (bGPDpalettecolor *palcolor = palette->colors.first; palcolor;
-           palcolor = palcolor->next) {
+    LISTBASE_FOREACH (const bGPDpalette *, palette, &gpd->palettes) {
+      LISTBASE_FOREACH (bGPDpalettecolor *, palcolor, &palette->colors) {
 
         /* create material slot */
         Material *ma = BKE_gpencil_object_material_new(bmain, ob, palcolor->info, NULL);
@@ -130,21 +129,19 @@ static int gpencil_convert_old_files_exec(bContext *C, wmOperator *op)
         copy_v4_v4(gp_style->fill_rgba, palcolor->fill);
 
         /* set basic settings */
-        gp_style->pattern_gridsize = 0.1f;
         gp_style->gradient_radius = 0.5f;
         ARRAY_SET_ITEMS(gp_style->mix_rgba, 1.0f, 1.0f, 1.0f, 0.2f);
         ARRAY_SET_ITEMS(gp_style->gradient_scale, 1.0f, 1.0f);
         ARRAY_SET_ITEMS(gp_style->texture_scale, 1.0f, 1.0f);
-        gp_style->texture_opacity = 1.0f;
         gp_style->texture_pixsize = 100.0f;
 
-        gp_style->flag |= GP_STYLE_STROKE_SHOW;
-        gp_style->flag |= GP_STYLE_FILL_SHOW;
+        gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
+        gp_style->flag |= GP_MATERIAL_FILL_SHOW;
 
         /* fix strokes */
-        for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-          for (bGPDframe *gpf = gpl->frames.first; gpf; gpf = gpf->next) {
-            for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+        LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+          LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
+            LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
               if ((gps->colorname[0] != '\0') && (STREQ(gps->colorname, palcolor->info))) {
                 gps->mat_nr = ob->totcol - 1;
                 gps->colorname[0] = '\0';
@@ -170,11 +167,10 @@ static int gpencil_convert_old_files_exec(bContext *C, wmOperator *op)
   }
 
   if (is_annotation) {
-    for (const bGPDpalette *palette = gpd->palettes.first; palette; palette = palette->next) {
-      for (bGPDpalettecolor *palcolor = palette->colors.first; palcolor;
-           palcolor = palcolor->next) {
+    LISTBASE_FOREACH (const bGPDpalette *, palette, &gpd->palettes) {
+      LISTBASE_FOREACH (bGPDpalettecolor *, palcolor, &palette->colors) {
         /* fix layers */
-        for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+        LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
           /* unlock/unhide layer */
           gpl->flag &= ~GP_LAYER_LOCKED;
           gpl->flag &= ~GP_LAYER_HIDE;
@@ -182,8 +178,8 @@ static int gpencil_convert_old_files_exec(bContext *C, wmOperator *op)
           gpl->opacity = 1.0f;
           /* disable tint */
           gpl->tintcolor[3] = 0.0f;
-          for (bGPDframe *gpf = gpl->frames.first; gpf; gpf = gpf->next) {
-            for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+          LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
+            LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
               if ((gps->colorname[0] != '\0') && (STREQ(gps->colorname, palcolor->info))) {
                 /* copy color settings */
                 copy_v4_v4(gpl->color, palcolor->color);

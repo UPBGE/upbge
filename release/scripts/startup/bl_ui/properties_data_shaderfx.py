@@ -56,27 +56,30 @@ class DATA_PT_shader_fx(ShaderFxButtonsPanel, Panel):
 
     def FX_BLUR(self, layout, fx):
 
-        layout.prop(fx, "factor", text="Factor")
+        layout.prop(fx, "use_dof_mode", text="Use Depth of Field")
+        layout.separator()
+
+        col = layout.column()
+        col.enabled = not fx.use_dof_mode
+        col.prop(fx, "size", text="Size")
+        col.separator()
+        col.prop(fx, "rotation")
+
         layout.prop(fx, "samples", text="Samples")
 
-        layout.separator()
-        layout.prop(fx, "use_dof_mode")
-        if fx.use_dof_mode:
-            layout.prop(fx, "coc")
 
     def FX_COLORIZE(self, layout, fx):
         layout.prop(fx, "mode", text="Mode")
 
-        if fx.mode == 'BITONE':
+        if fx.mode == 'DUOTONE':
             layout.prop(fx, "low_color", text="Low Color")
         if fx.mode == 'CUSTOM':
             layout.prop(fx, "low_color", text="Color")
 
-        if fx.mode == 'BITONE':
+        if fx.mode == 'DUOTONE':
             layout.prop(fx, "high_color", text="High Color")
 
-        if fx.mode in {'BITONE', 'CUSTOM', 'TRANSPARENT'}:
-            layout.prop(fx, "factor")
+        layout.prop(fx, "factor")
 
     def FX_WAVE(self, layout, fx):
         row = layout.row(align=True)
@@ -95,7 +98,7 @@ class DATA_PT_shader_fx(ShaderFxButtonsPanel, Panel):
 
         layout.prop(fx, "rim_color")
         layout.prop(fx, "mask_color")
-        layout.prop(fx, "mode")
+        layout.prop(fx, "mode", text="Blend")
         layout.prop(fx, "blur")
         layout.prop(fx, "samples")
 
@@ -111,7 +114,7 @@ class DATA_PT_shader_fx(ShaderFxButtonsPanel, Panel):
         layout.prop(fx, "samples")
 
         layout.separator()
-        layout.prop(fx, "use_object", text="Use Object As Pivot")
+        layout.prop(fx, "use_object", text="Use Object as Pivot")
         if fx.use_object:
             row = layout.row()
             row.prop(fx, "object", text="Object")
@@ -127,16 +130,21 @@ class DATA_PT_shader_fx(ShaderFxButtonsPanel, Panel):
 
     def FX_GLOW(self, layout, fx):
         layout.prop(fx, "mode")
-        layout.prop(fx, "glow_color")
         if fx.mode == 'LUMINANCE':
             layout.prop(fx, "threshold")
         else:
             layout.prop(fx, "select_color")
 
+        layout.prop(fx, "glow_color")
         layout.separator()
-        layout.prop(fx, "radius")
+        layout.prop(fx, "blend_mode", text="Blend")
+        layout.prop(fx, "opacity")
+
+        layout.prop(fx, "size")
+        layout.prop(fx, "rotation")
         layout.prop(fx, "samples")
-        layout.prop(fx, "use_alpha_mode", text="Use Alpha Mode")
+
+        layout.prop(fx, "use_glow_under", text="Glow Under")
 
     def FX_SWIRL(self, layout, fx):
         layout.prop(fx, "object", text="Object")
@@ -144,17 +152,9 @@ class DATA_PT_shader_fx(ShaderFxButtonsPanel, Panel):
         layout.prop(fx, "radius")
         layout.prop(fx, "angle")
 
-        layout.prop(fx, "use_transparent")
-
     def FX_FLIP(self, layout, fx):
         layout.prop(fx, "flip_horizontal")
         layout.prop(fx, "flip_vertical")
-
-    def FX_LIGHT(self, layout, fx):
-        layout.prop(fx, "object", text="Object")
-
-        layout.prop(fx, "energy")
-        layout.prop(fx, "ambient")
 
 
 classes = (

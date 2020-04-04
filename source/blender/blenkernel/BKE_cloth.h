@@ -23,8 +23,8 @@
  * \ingroup bke
  */
 
-#include <float.h>
 #include "BLI_math_inline.h"
+#include <float.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,10 +33,10 @@ extern "C" {
 struct ClothModifierData;
 struct CollisionModifierData;
 struct Depsgraph;
+struct GHash;
 struct Mesh;
 struct Object;
 struct Scene;
-struct GHash;
 
 #define DO_INLINE MALWAYS_INLINE
 

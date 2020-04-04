@@ -68,6 +68,8 @@ typedef struct GlobalsUboStorage {
   float colorFace[4];
   float colorFaceSelect[4];
   float colorFaceFreestyle[4];
+  float colorGpencilVertex[4];
+  float colorGpencilVertexSelect[4];
   float colorNormal[4];
   float colorVNormal[4];
   float colorLNormal[4];
@@ -80,8 +82,8 @@ typedef struct GlobalsUboStorage {
 
   float colorBackground[4];
   float colorBackgroundGradient[4];
-  float colorCheckerLow[4];
-  float colorCheckerHigh[4];
+  float colorCheckerPrimary[4];
+  float colorCheckerSecondary[4];
   float colorClippingBorder[4];
   float colorEditMeshMiddle[4];
 
@@ -146,8 +148,9 @@ typedef struct GlobalsUboStorage {
   float sizePixel, pixelFac;
   float sizeObjectCenter, sizeLightCenter, sizeLightCircle, sizeLightCircleShadow;
   float sizeVertex, sizeEdge, sizeEdgeFix, sizeFaceDot;
+  float sizeChecker;
 
-  float pad_globalsBlock[2];
+  float pad_globalsBlock;
 } GlobalsUboStorage;
 /* Keep in sync with globalsBlock in shaders */
 BLI_STATIC_ASSERT_ALIGN(GlobalsUboStorage, 16)
@@ -174,6 +177,11 @@ struct DRWShadingGroup *DRW_shgroup_hair_create(struct Object *object,
                                                 struct ModifierData *md,
                                                 struct DRWPass *hair_pass,
                                                 struct GPUShader *shader);
+
+struct DRWShadingGroup *DRW_shgroup_hair_create_sub(struct Object *object,
+                                                    struct ParticleSystem *psys,
+                                                    struct ModifierData *md,
+                                                    struct DRWShadingGroup *shgrp);
 
 struct DRWShadingGroup *DRW_shgroup_material_hair_create(struct Object *object,
                                                          struct ParticleSystem *psys,

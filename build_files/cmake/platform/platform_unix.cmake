@@ -195,8 +195,14 @@ endif()
 if(WITH_OPENCOLLADA)
   find_package_wrapper(OpenCOLLADA)
   if(OPENCOLLADA_FOUND)
+    if(WITH_STATIC_LIBS)
+      # PCRE is bundled with OpenCollada without headers, so can't use
+      # find_package reliably to detect it.
+      set(PCRE_LIBRARIES ${LIBDIR}/opencollada/lib/libpcre.a)
+    else()
+      find_package_wrapper(PCRE)
+    endif()
     find_package_wrapper(XML2)
-    find_package_wrapper(PCRE)
   else()
     set(WITH_OPENCOLLADA OFF)
   endif()
@@ -405,13 +411,6 @@ if(WITH_LLVM)
   endif()
 endif()
 
-if(WITH_LLVM OR WITH_SDL_DYNLOAD)
-  # Fix for conflict with Mesa llvmpipe
-  set(PLATFORM_LINKFLAGS
-    "${PLATFORM_LINKFLAGS} -Wl,--version-script='${CMAKE_SOURCE_DIR}/source/creator/blender.map'"
-  )
-endif()
-
 if(WITH_OPENSUBDIV)
   find_package_wrapper(OpenSubdiv)
 
@@ -601,3 +600,10 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
   set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
   set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -static-intel")
 endif()
+
+# Avoid conflicts with Mesa llvmpipe, Luxrender, and other plug-ins that may
+# use the same libraries as Blender with a different version or build options.
+set(PLATFORM_CFLAGS "${PLATFORM_CFLAGS} -fvisibility=hidden")
+set(PLATFORM_LINKFLAGS
+  "${PLATFORM_LINKFLAGS} -Wl,--version-script='${CMAKE_SOURCE_DIR}/source/creator/blender.map'"
+)

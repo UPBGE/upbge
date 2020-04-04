@@ -29,8 +29,8 @@
  *   (optionally when using the #BLI_MEMPOOL_ALLOW_ITER flag).
  */
 
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "atomic_ops.h"
 
@@ -526,7 +526,7 @@ void BLI_mempool_as_array(BLI_mempool *pool, void *data)
  */
 void *BLI_mempool_as_arrayN(BLI_mempool *pool, const char *allocstr)
 {
-  char *data = MEM_mallocN((size_t)(pool->totused * pool->esize), allocstr);
+  char *data = MEM_malloc_arrayN(pool->totused, pool->esize, allocstr);
   BLI_mempool_as_array(pool, data);
   return data;
 }

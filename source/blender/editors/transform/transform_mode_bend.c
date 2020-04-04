@@ -43,8 +43,8 @@
 #include "BLT_translation.h"
 
 #include "transform.h"
-#include "transform_snap.h"
 #include "transform_mode.h"
+#include "transform_snap.h"
 
 /* -------------------------------------------------------------------- */
 /* Transform (Bend) */
@@ -246,7 +246,7 @@ static void Bend(TransInfo *t, const int UNUSED(mval[2]))
 
   recalcData(t);
 
-  ED_area_status_text(t->sa, str);
+  ED_area_status_text(t->area, str);
 }
 
 void initBend(TransInfo *t)
@@ -289,7 +289,8 @@ void initBend(TransInfo *t)
 
   curs = t->scene->cursor.location;
   copy_v3_v3(data->warp_sta, curs);
-  ED_view3d_win_to_3d((View3D *)t->sa->spacedata.first, t->ar, curs, mval_fl, data->warp_end);
+  ED_view3d_win_to_3d(
+      (View3D *)t->area->spacedata.first, t->region, curs, mval_fl, data->warp_end);
 
   copy_v3_v3(data->warp_nor, t->viewinv[2]);
   normalize_v3(data->warp_nor);

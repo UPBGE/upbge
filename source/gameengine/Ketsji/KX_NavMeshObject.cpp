@@ -25,40 +25,35 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_utildefines.h"
-#include "BLI_math.h"
-#include "BLI_math_vector.h"
 #include "KX_NavMeshObject.h"
-#include "RAS_MeshObject.h"
-#include "RAS_Polygon.h"
-#include "RAS_ITexVert.h"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
-extern "C" {
+#include "BKE_DerivedMesh.h"
+#include "BKE_cdderivedmesh.h"
+#include "BKE_context.h"
+#include "BKE_customdata.h"
 #include "BKE_global.h"
+#include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_scene.h"
-#include "BKE_customdata.h"
-#include "BKE_cdderivedmesh.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_layer.h"
-
+#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_sort.h"
-}
+#include "BLI_utildefines.h"
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
+#include "MEM_guardedalloc.h"
 
-#include "KX_BlenderConverter.h"
-#include "KX_Globals.h"
-#include "KX_PyMath.h"
-#include "EXP_Value.h"
-#include "Recast.h"
-#include "DetourStatNavMeshBuilder.h"
-#include "KX_ObstacleSimulation.h"
-
+#include "BL_BlenderConverter.h"
 #include "CM_Message.h"
+#include "DetourStatNavMeshBuilder.h"
+#include "EXP_Value.h"
+#include "KX_Globals.h"
+#include "KX_ObstacleSimulation.h"
+#include "KX_PyMath.h"
+#include "RAS_ITexVert.h"
+#include "RAS_MeshObject.h"
+#include "RAS_Polygon.h"
+#include "Recast.h"
 
 #define MAX_PATH_LEN 256
 static const float polyPickExt[3] = {2, 4, 2};
@@ -634,7 +629,8 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
   /* TODO: This doesn't work currently because of eval_ctx. */
   Scene *scene = GetScene()->GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, scene, view_layer, false);
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), scene, view_layer, false);
   DerivedMesh *dm = mesh_create_derived_no_virtual(
       depsgraph, GetScene()->GetBlenderScene(), GetBlenderObject(), nullptr, &CD_MASK_MESH);
   CustomData *pdata = dm->getPolyDataLayout(dm);

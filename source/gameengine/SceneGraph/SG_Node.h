@@ -32,15 +32,13 @@
 #ifndef __SG_NODE_H__
 #define __SG_NODE_H__
 
-#include "SG_QList.h"
-#include "SG_ParentRelation.h"
-
-#include "MT_Transform.h"
+#include <memory>
+#include <vector>
 
 #include "CM_Thread.h"
-
-#include <vector>
-#include <memory>
+#include "MT_Transform.h"
+#include "SG_ParentRelation.h"
+#include "SG_QList.h"
 
 class SG_Controller;
 class SG_Familly;

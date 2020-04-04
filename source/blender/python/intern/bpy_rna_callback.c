@@ -27,12 +27,12 @@
 
 #include "BLI_utildefines.h"
 
+#include "bpy_capi_utils.h"
 #include "bpy_rna.h"
 #include "bpy_rna_callback.h"
-#include "bpy_capi_utils.h"
 
-#include "DNA_space_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 
 #include "RNA_access.h"
 #include "RNA_enum_types.h"
@@ -58,7 +58,7 @@ static const EnumPropertyItem region_draw_mode_items[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
-static void cb_region_draw(const bContext *C, ARegion *UNUSED(ar), void *customdata)
+static void cb_region_draw(const bContext *C, ARegion *UNUSED(region), void *customdata)
 {
   PyObject *cb_func, *cb_args, *result;
   PyGILState_STATE gilstate;

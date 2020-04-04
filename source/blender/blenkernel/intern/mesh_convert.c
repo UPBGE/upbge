@@ -22,32 +22,32 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_scene_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_curve_types.h"
+#include "DNA_scene_types.h"
 
-#include "BLI_utildefines.h"
-#include "BLI_math.h"
-#include "BLI_listbase.h"
 #include "BLI_edgehash.h"
+#include "BLI_listbase.h"
+#include "BLI_math.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_main.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_displist.h"
 #include "BKE_editmesh.h"
 #include "BKE_key.h"
+#include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
+#include "BKE_main.h"
+#include "BKE_material.h"
+#include "BKE_mball.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_runtime.h"
 #include "BKE_modifier.h"
-#include "BKE_displist.h"
-#include "BKE_lib_id.h"
-#include "BKE_material.h"
-#include "BKE_mball.h"
 /* these 2 are only used by conversion functions */
 #include "BKE_curve.h"
 /* -- */
@@ -1304,7 +1304,7 @@ Mesh *BKE_mesh_create_derived_for_modifier(struct Depsgraph *depsgraph,
   const ModifierTypeInfo *mti = modifierType_getInfo(md_eval->type);
   Mesh *result;
   KeyBlock *kb;
-  ModifierEvalContext mectx = {depsgraph, ob_eval, 0};
+  ModifierEvalContext mectx = {depsgraph, ob_eval, MOD_APPLY_TO_BASE_MESH};
 
   if (!(md_eval->mode & eModifierMode_Realtime)) {
     return NULL;
@@ -1420,6 +1420,8 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src,
                              const CustomData_MeshMasks *mask,
                              bool take_ownership)
 {
+  BLI_assert(mesh_src->id.tag & LIB_TAG_NO_MAIN);
+
   /* mesh_src might depend on mesh_dst, so we need to do everything with a local copy */
   /* TODO(Sybren): the above claim came from 2.7x derived-mesh code (DM_to_mesh);
    * check whether it is still true with Mesh */
@@ -1571,6 +1573,8 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src,
 
 void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb)
 {
+  BLI_assert(mesh_src->id.tag & LIB_TAG_NO_MAIN);
+
   int a, totvert = mesh_src->totvert;
   float *fp;
   MVert *mvert;

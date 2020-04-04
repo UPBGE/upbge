@@ -36,12 +36,12 @@
 
 #include "DNA_meshdata_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_math.h"
 #include "BLI_sort.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_navmesh_conversion.h"
 #include "BKE_cdderivedmesh.h"
+#include "BKE_navmesh_conversion.h"
 
 #include "recast-capi.h"
 

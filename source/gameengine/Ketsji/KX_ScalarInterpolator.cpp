@@ -30,6 +30,7 @@
  */
 
 #include "KX_ScalarInterpolator.h"
+
 #include "KX_IScalarInterpolator.h"
 
 void KX_ScalarInterpolator::Execute(float currentTime) const

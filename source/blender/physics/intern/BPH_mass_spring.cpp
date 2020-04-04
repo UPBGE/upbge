@@ -25,14 +25,14 @@
 
 extern "C" {
 #include "DNA_cloth_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_object_force_types.h"
-#include "DNA_object_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_force_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
-#include "BLI_math.h"
 #include "BLI_linklist.h"
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_cloth.h"
@@ -570,7 +570,7 @@ static void cloth_calc_force(
       float f;
       float vol = cloth_calc_volume(clmd);
 
-      /* Calculate an artifical maximum value for cloth pressure. */
+      /* Calculate an artificial maximum value for cloth pressure. */
       f = fabs(clmd->sim_parms->uniform_pressure_force) + 200.0f;
 
       /* Clamp the cloth pressure to the calculated maximum value. */

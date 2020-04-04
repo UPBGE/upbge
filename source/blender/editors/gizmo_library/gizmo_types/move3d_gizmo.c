@@ -46,10 +46,10 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "ED_screen.h"
-#include "ED_view3d.h"
 #include "ED_gizmo_library.h"
+#include "ED_screen.h"
 #include "ED_transform_snap_object_context.h"
+#include "ED_view3d.h"
 
 /* own includes */
 #include "../gizmo_geometry.h"
@@ -119,21 +119,25 @@ static void move_geom_draw(const wmGizmo *gz,
 
   immUniformColor4fv(color);
 
+  /* Use the final scale as a radius if it's not already applied to the final matrix. */
+  const float radius = (gz->flag & WM_GIZMO_DRAW_NO_SCALE) ? gz->scale_final : 1.0f;
+
   if (draw_style == ED_GIZMO_MOVE_STYLE_RING_2D) {
     if (filled) {
-      imm_draw_circle_fill_2d(pos, 0, 0, 1.0f, DIAL_RESOLUTION);
+      imm_draw_circle_fill_2d(pos, 0, 0, radius, DIAL_RESOLUTION);
     }
     else {
-      imm_draw_circle_wire_2d(pos, 0, 0, 1.0f, DIAL_RESOLUTION);
+      imm_draw_circle_wire_2d(pos, 0, 0, radius, DIAL_RESOLUTION);
     }
   }
   else if (draw_style == ED_GIZMO_MOVE_STYLE_CROSS_2D) {
+    const float radius_diag = M_SQRT1_2 * radius;
     immBegin(GPU_PRIM_LINES, 4);
-    immVertex2f(pos, 1.0f, 1.0f);
-    immVertex2f(pos, -1.0f, -1.0f);
+    immVertex2f(pos, radius_diag, radius_diag);
+    immVertex2f(pos, -radius_diag, -radius_diag);
 
-    immVertex2f(pos, -1.0f, 1.0f);
-    immVertex2f(pos, 1.0f, -1.0f);
+    immVertex2f(pos, -radius_diag, radius_diag);
+    immVertex2f(pos, radius_diag, -radius_diag);
     immEnd();
   }
   else {
@@ -148,7 +152,7 @@ static void move_geom_draw(const wmGizmo *gz,
 
 static void move3d_get_translate(const wmGizmo *gz,
                                  const wmEvent *event,
-                                 const ARegion *ar,
+                                 const ARegion *region,
                                  float co_delta[3])
 {
   MoveInteraction *inter = gz->interaction_data;
@@ -157,12 +161,12 @@ static void move3d_get_translate(const wmGizmo *gz,
       event->mval[1] - inter->init.mval[1],
   };
 
-  RegionView3D *rv3d = ar->regiondata;
+  RegionView3D *rv3d = region->regiondata;
   float co_ref[3];
   mul_v3_mat3_m4v3(co_ref, gz->matrix_space, inter->init.prop_co);
   const float zfac = ED_view3d_calc_zfac(rv3d, co_ref, NULL);
 
-  ED_view3d_win_to_delta(ar, mval_delta, co_delta, zfac);
+  ED_view3d_win_to_delta(region, mval_delta, co_delta, zfac);
 
   float matrix_space_inv[3][3];
   copy_m3_m4(matrix_space_inv, gz->matrix_space);
@@ -246,11 +250,11 @@ static int gizmo_move_modal(bContext *C,
     return OPERATOR_RUNNING_MODAL;
   }
   MoveGizmo3D *move = (MoveGizmo3D *)gz;
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
 
   float prop_delta[3];
   if (CTX_wm_area(C)->spacetype == SPACE_VIEW3D) {
-    move3d_get_translate(gz, event, ar, prop_delta);
+    move3d_get_translate(gz, event, region, prop_delta);
   }
   else {
     float mval_proj_init[2], mval_proj_curr[2];
@@ -260,6 +264,9 @@ static int gizmo_move_modal(bContext *C,
       return OPERATOR_RUNNING_MODAL;
     }
     sub_v2_v2v2(prop_delta, mval_proj_curr, mval_proj_init);
+    if ((gz->flag & WM_GIZMO_DRAW_NO_SCALE) == 0) {
+      mul_v2_fl(prop_delta, gz->scale_final);
+    }
     prop_delta[2] = 0.0f;
   }
 
@@ -276,6 +283,7 @@ static int gizmo_move_modal(bContext *C,
       float co[3];
       if (ED_transform_snap_object_project_view3d(
               inter->snap_context_v3d,
+              CTX_data_ensure_evaluated_depsgraph(C),
               (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE),
               &(const struct SnapObjectParams){
                   .snap_select = SNAP_ALL,
@@ -303,7 +311,7 @@ static int gizmo_move_modal(bContext *C,
     zero_v3(move->prop_co);
   }
 
-  ED_region_tag_redraw_editor_overlays(ar);
+  ED_region_tag_redraw_editor_overlays(region);
 
   inter->prev.tweak_flag = tweak_flag;
 
@@ -364,17 +372,12 @@ static int gizmo_move_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
   WM_gizmo_calc_matrix_final(gz, inter->init.matrix_final);
 
   if (use_snap) {
-    ScrArea *sa = CTX_wm_area(C);
-    if (sa) {
-      switch (sa->spacetype) {
+    ScrArea *area = CTX_wm_area(C);
+    if (area) {
+      switch (area->spacetype) {
         case SPACE_VIEW3D: {
           inter->snap_context_v3d = ED_transform_snap_object_context_create_view3d(
-              CTX_data_main(C),
-              CTX_data_scene(C),
-              CTX_data_ensure_evaluated_depsgraph(C),
-              0,
-              CTX_wm_region(C),
-              CTX_wm_view3d(C));
+              CTX_data_main(C), CTX_data_scene(C), 0, CTX_wm_region(C), CTX_wm_view3d(C));
           break;
         }
         default:
@@ -398,8 +401,10 @@ static int gizmo_move_test_select(bContext *C, wmGizmo *gz, const int mval[2])
     return -1;
   }
 
-  /* The 'gz->scale_final' is already applied when projecting. */
-  if (len_squared_v2(point_local) < 1.0f) {
+  /* The 'gz->scale_final' is already applied to the projection
+   * when #WM_GIZMO_DRAW_NO_SCALE isn't set. */
+  const float radius = (gz->flag & WM_GIZMO_DRAW_NO_SCALE) ? gz->scale_final : 1.0f;
+  if (len_squared_v2(point_local) < radius) {
     return 0;
   }
 

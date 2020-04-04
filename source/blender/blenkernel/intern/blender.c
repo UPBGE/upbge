@@ -23,23 +23,23 @@
  * Application level startup/shutdown functionality.
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_string.h"
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
 
 #include "BKE_addon.h"
-#include "BKE_blender.h"         /* own include */
-#include "BKE_blender_version.h" /* own include */
+#include "BKE_blender.h" /* own include */
 #include "BKE_blender_user_menu.h"
+#include "BKE_blender_version.h" /* own include */
 #include "BKE_blendfile.h"
 #include "BKE_brush.h"
 #include "BKE_cachefile.h"
@@ -202,7 +202,7 @@ static void userdef_free_keymaps(UserDef *userdef)
 {
   for (wmKeyMap *km = userdef->user_keymaps.first, *km_next; km; km = km_next) {
     km_next = km->next;
-    for (wmKeyMapDiffItem *kmdi = km->diff_items.first; kmdi; kmdi = kmdi->next) {
+    LISTBASE_FOREACH (wmKeyMapDiffItem *, kmdi, &km->diff_items) {
       if (kmdi->add_item) {
         keymap_item_free(kmdi->add_item);
         MEM_freeN(kmdi->add_item);
@@ -213,7 +213,7 @@ static void userdef_free_keymaps(UserDef *userdef)
       }
     }
 
-    for (wmKeyMapItem *kmi = km->items.first; kmi; kmi = kmi->next) {
+    LISTBASE_FOREACH (wmKeyMapItem *, kmi, &km->items) {
       keymap_item_free(kmi);
     }
 
@@ -270,7 +270,7 @@ void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
   userdef_free_addons(userdef);
 
   if (clear_fonts) {
-    for (uiFont *font = userdef->uifonts.first; font; font = font->next) {
+    LISTBASE_FOREACH (uiFont *, font, &userdef->uifonts) {
       BLF_unload_id(font->blf_id);
     }
     BLF_default_set(-1);

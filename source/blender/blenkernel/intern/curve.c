@@ -22,37 +22,39 @@
  */
 
 #include <math.h>  // floor
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
+
+#include "BLT_translation.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_material_types.h"
 #include "DNA_defaults.h"
+#include "DNA_material_types.h"
 
 /* for dereferencing pointers */
 #include "DNA_key_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vfont_types.h"
-#include "DNA_object_types.h"
 
-#include "BKE_animsys.h"
 #include "BKE_curve.h"
 #include "BKE_displist.h"
 #include "BKE_font.h"
+#include "BKE_idtype.h"
 #include "BKE_key.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
-#include "BKE_object.h"
 #include "BKE_material.h"
+#include "BKE_object.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -63,6 +65,73 @@
 
 /* local */
 static CLG_LogRef LOG = {"bke.curve"};
+
+static void curve_init_data(ID *id)
+{
+  Curve *curve = (Curve *)id;
+
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(curve, id));
+
+  MEMCPY_STRUCT_AFTER(curve, DNA_struct_default_get(Curve), id);
+}
+
+static void curve_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int flag)
+{
+  Curve *curve_dst = (Curve *)id_dst;
+  const Curve *curve_src = (const Curve *)id_src;
+
+  BLI_listbase_clear(&curve_dst->nurb);
+  BKE_nurbList_duplicate(&(curve_dst->nurb), &(curve_src->nurb));
+
+  curve_dst->mat = MEM_dupallocN(curve_src->mat);
+
+  curve_dst->str = MEM_dupallocN(curve_src->str);
+  curve_dst->strinfo = MEM_dupallocN(curve_src->strinfo);
+  curve_dst->tb = MEM_dupallocN(curve_src->tb);
+  curve_dst->batch_cache = NULL;
+
+  if (curve_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
+    BKE_id_copy_ex(bmain, &curve_src->key->id, (ID **)&curve_dst->key, flag);
+    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
+    curve_dst->key->from = &curve_dst->id;
+  }
+
+  curve_dst->editnurb = NULL;
+  curve_dst->editfont = NULL;
+}
+
+static void curve_free_data(ID *id)
+{
+  Curve *curve = (Curve *)id;
+
+  BKE_curve_batch_cache_free(curve);
+
+  BKE_nurbList_free(&curve->nurb);
+  BKE_curve_editfont_free(curve);
+
+  BKE_curve_editNurb_free(curve);
+
+  MEM_SAFE_FREE(curve->mat);
+  MEM_SAFE_FREE(curve->str);
+  MEM_SAFE_FREE(curve->strinfo);
+  MEM_SAFE_FREE(curve->tb);
+}
+
+IDTypeInfo IDType_ID_CU = {
+    .id_code = ID_CU,
+    .id_filter = FILTER_ID_CU,
+    .main_listbase_index = INDEX_ID_CU,
+    .struct_size = sizeof(Curve),
+    .name = "Curve",
+    .name_plural = "curves",
+    .translation_context = BLT_I18NCONTEXT_ID_CURVE,
+    .flags = 0,
+
+    .init_data = curve_init_data,
+    .copy_data = curve_copy_data,
+    .free_data = curve_free_data,
+    .make_local = NULL,
+};
 
 static int cu_isectLL(const float v1[3],
                       const float v2[3],
@@ -127,29 +196,9 @@ void BKE_curve_editNurb_free(Curve *cu)
   }
 }
 
-/** Free (or release) any data used by this curve (does not free the curve itself). */
-void BKE_curve_free(Curve *cu)
-{
-  BKE_animdata_free((ID *)cu, false);
-
-  BKE_curve_batch_cache_free(cu);
-
-  BKE_nurbList_free(&cu->nurb);
-  BKE_curve_editfont_free(cu);
-
-  BKE_curve_editNurb_free(cu);
-
-  MEM_SAFE_FREE(cu->mat);
-  MEM_SAFE_FREE(cu->str);
-  MEM_SAFE_FREE(cu->strinfo);
-  MEM_SAFE_FREE(cu->tb);
-}
-
 void BKE_curve_init(Curve *cu, const short curve_type)
 {
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(cu, id));
-
-  MEMCPY_STRUCT_AFTER(cu, DNA_struct_default_get(Curve), id);
+  curve_init_data(&cu->id);
 
   cu->type = curve_type;
 
@@ -181,48 +230,11 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
   return cu;
 }
 
-/**
- * Only copy internal data of Curve ID from source
- * to already allocated/initialized destination.
- * You probably never want to use that directly,
- * use #BKE_id_copy or #BKE_id_copy_ex for typical needs.
- *
- * WARNING! This function will not handle ID user count!
- *
- * \param flag: Copying options (see BKE_lib_id.h's LIB_ID_COPY_... flags for more).
- */
-void BKE_curve_copy_data(Main *bmain, Curve *cu_dst, const Curve *cu_src, const int flag)
-{
-  BLI_listbase_clear(&cu_dst->nurb);
-  BKE_nurbList_duplicate(&(cu_dst->nurb), &(cu_src->nurb));
-
-  cu_dst->mat = MEM_dupallocN(cu_src->mat);
-
-  cu_dst->str = MEM_dupallocN(cu_src->str);
-  cu_dst->strinfo = MEM_dupallocN(cu_src->strinfo);
-  cu_dst->tb = MEM_dupallocN(cu_src->tb);
-  cu_dst->batch_cache = NULL;
-
-  if (cu_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
-    BKE_id_copy_ex(bmain, &cu_src->key->id, (ID **)&cu_dst->key, flag);
-    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
-    cu_dst->key->from = &cu_dst->id;
-  }
-
-  cu_dst->editnurb = NULL;
-  cu_dst->editfont = NULL;
-}
-
 Curve *BKE_curve_copy(Main *bmain, const Curve *cu)
 {
   Curve *cu_copy;
   BKE_id_copy(bmain, &cu->id, (ID **)&cu_copy);
   return cu_copy;
-}
-
-void BKE_curve_make_local(Main *bmain, Curve *cu, const int flags)
-{
-  BKE_lib_id_make_local_generic(bmain, &cu->id, flags);
 }
 
 /* Get list of nurbs from editnurbs structure */
@@ -4600,7 +4612,7 @@ void BKE_nurb_direction_switch(Nurb *nu)
 void BKE_curve_nurbs_vert_coords_get(ListBase *lb, float (*vert_coords)[3], int vert_len)
 {
   float *co = vert_coords[0];
-  for (Nurb *nu = lb->first; nu; nu = nu->next) {
+  LISTBASE_FOREACH (Nurb *, nu, lb) {
     if (nu->type == CU_BEZIER) {
       BezTriple *bezt = nu->bezt;
       for (int i = 0; i < nu->pntsu; i++, bezt++) {
@@ -4680,7 +4692,7 @@ void BKE_curve_nurbs_vert_coords_apply(ListBase *lb,
 {
   const float *co = vert_coords[0];
 
-  for (Nurb *nu = lb->first; nu; nu = nu->next) {
+  LISTBASE_FOREACH (Nurb *, nu, lb) {
     if (nu->type == CU_BEZIER) {
       BezTriple *bezt = nu->bezt;
 
@@ -4718,7 +4730,7 @@ float (*BKE_curve_nurbs_key_vert_coords_alloc(ListBase *lb, float *key, int *r_v
   float(*cos)[3] = MEM_malloc_arrayN(vert_len, sizeof(*cos), __func__);
 
   float *co = cos[0];
-  for (Nurb *nu = lb->first; nu; nu = nu->next) {
+  LISTBASE_FOREACH (Nurb *, nu, lb) {
     if (nu->type == CU_BEZIER) {
       BezTriple *bezt = nu->bezt;
 
@@ -5156,7 +5168,7 @@ bool BKE_curve_minmax(Curve *cu, bool use_radius, float min[3], float max[3])
     use_radius = false;
   }
   /* Do bounding box based on splines. */
-  for (Nurb *nu = nurb_lb->first; nu; nu = nu->next) {
+  LISTBASE_FOREACH (Nurb *, nu, nurb_lb) {
     BKE_nurb_minmax(nu, use_radius, min, max);
   }
   const bool result = (BLI_listbase_is_empty(nurb_lb) == false);

@@ -24,9 +24,9 @@
 
 #include "RNA_define.h"
 
-#include "rna_internal.h"
-#include "DNA_python_component_types.h"
 #include "DNA_property_types.h"
+#include "DNA_python_component_types.h"
+#include "rna_internal.h"
 
 #include "WM_types.h"
 

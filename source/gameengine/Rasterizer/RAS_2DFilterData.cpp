@@ -20,6 +20,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 #include "RAS_2DFilterData.h"
+
 #include <string>
 
 RAS_2DFilterData::RAS_2DFilterData()

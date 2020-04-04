@@ -31,6 +31,7 @@
 
 #ifndef __KX_EMPTYOBJECT_H__
 #define __KX_EMPTYOBJECT_H__
+
 #include "KX_GameObject.h"
 
 class KX_EmptyObject : public KX_GameObject {

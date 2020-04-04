@@ -34,11 +34,11 @@
 
 #include "BKE_context.h"
 
-#include "GPU_matrix.h"
-#include "GPU_shader.h"
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
+#include "GPU_matrix.h"
 #include "GPU_select.h"
+#include "GPU_shader.h"
 #include "GPU_state.h"
 
 #include "RNA_access.h"
@@ -47,9 +47,9 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "ED_gizmo_library.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
-#include "ED_gizmo_library.h"
 
 /* own includes */
 #include "../gizmo_library_intern.h"
@@ -402,15 +402,15 @@ static void gizmo_cage3d_draw_intern(
  */
 static void gizmo_cage3d_draw_select(const bContext *C, wmGizmo *gz, int select_id)
 {
-  ARegion *ar = CTX_wm_region(C);
-  RegionView3D *rv3d = ar->regiondata;
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = region->regiondata;
   gizmo_cage3d_draw_intern(rv3d, gz, true, false, select_id);
 }
 
 static void gizmo_cage3d_draw(const bContext *C, wmGizmo *gz)
 {
-  ARegion *ar = CTX_wm_region(C);
-  RegionView3D *rv3d = ar->regiondata;
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = region->regiondata;
   const bool is_highlight = (gz->state & WM_GIZMO_STATE_HIGHLIGHT) != 0;
   gizmo_cage3d_draw_intern(rv3d, gz, false, is_highlight, -1);
 }
@@ -586,7 +586,7 @@ static int gizmo_cage3d_modal(bContext *C,
 
   /* tag the region for redraw */
   ED_region_tag_redraw_editor_overlays(CTX_wm_region(C));
-  WM_event_add_mousemove(C);
+  WM_event_add_mousemove(CTX_wm_window(C));
 
   return OPERATOR_RUNNING_MODAL;
 }

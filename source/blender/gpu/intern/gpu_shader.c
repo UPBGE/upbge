@@ -23,12 +23,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_math_base.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_appdir.h"
 #include "BKE_global.h"
@@ -36,8 +36,8 @@
 #include "DNA_space_types.h"
 
 #include "GPU_extensions.h"
-#include "GPU_platform.h"
 #include "GPU_matrix.h"
+#include "GPU_platform.h"
 #include "GPU_shader.h"
 #include "GPU_texture.h"
 #include "GPU_uniformbuffer.h"
@@ -46,7 +46,7 @@
 
 /* Adjust these constants as needed. */
 #define MAX_DEFINE_LENGTH 256
-#define MAX_EXT_DEFINE_LENGTH 256
+#define MAX_EXT_DEFINE_LENGTH 512
 
 /* Non-generated shaders */
 extern char datatoc_gpu_shader_depth_only_frag_glsl[];
@@ -54,9 +54,6 @@ extern char datatoc_gpu_shader_uniform_color_frag_glsl[];
 extern char datatoc_gpu_shader_checker_frag_glsl[];
 extern char datatoc_gpu_shader_diag_stripes_frag_glsl[];
 extern char datatoc_gpu_shader_simple_lighting_frag_glsl[];
-extern char datatoc_gpu_shader_simple_lighting_flat_color_frag_glsl[];
-extern char datatoc_gpu_shader_simple_lighting_smooth_color_frag_glsl[];
-extern char datatoc_gpu_shader_simple_lighting_smooth_color_alpha_frag_glsl[];
 extern char datatoc_gpu_shader_flat_color_frag_glsl[];
 extern char datatoc_gpu_shader_flat_color_alpha_test_0_frag_glsl[];
 extern char datatoc_gpu_shader_flat_id_frag_glsl[];
@@ -67,7 +64,6 @@ extern char datatoc_gpu_shader_2D_flat_color_vert_glsl[];
 extern char datatoc_gpu_shader_2D_smooth_color_uniform_alpha_vert_glsl[];
 extern char datatoc_gpu_shader_2D_smooth_color_vert_glsl[];
 extern char datatoc_gpu_shader_2D_smooth_color_frag_glsl[];
-extern char datatoc_gpu_shader_2D_smooth_color_dithered_frag_glsl[];
 extern char datatoc_gpu_shader_2D_image_vert_glsl[];
 extern char datatoc_gpu_shader_2D_image_rect_vert_glsl[];
 extern char datatoc_gpu_shader_2D_image_multi_rect_vert_glsl[];
@@ -82,23 +78,18 @@ extern char datatoc_gpu_shader_3D_image_vert_glsl[];
 extern char datatoc_gpu_shader_image_frag_glsl[];
 extern char datatoc_gpu_shader_image_linear_frag_glsl[];  // Game engine transition
 extern char datatoc_gpu_shader_image_overlays_merge_frag_glsl[];
+extern char datatoc_gpu_shader_image_overlays_stereo_merge_frag_glsl[];
 extern char datatoc_gpu_shader_image_color_frag_glsl[];
 extern char datatoc_gpu_shader_image_desaturate_frag_glsl[];
 extern char datatoc_gpu_shader_image_varying_color_frag_glsl[];
 extern char datatoc_gpu_shader_image_alpha_color_frag_glsl[];
 extern char datatoc_gpu_shader_image_shuffle_color_frag_glsl[];
-extern char datatoc_gpu_shader_image_interlace_frag_glsl[];
 extern char datatoc_gpu_shader_image_mask_uniform_color_frag_glsl[];
 extern char datatoc_gpu_shader_image_modulate_alpha_frag_glsl[];
-extern char datatoc_gpu_shader_image_depth_linear_frag_glsl[];
-extern char datatoc_gpu_shader_image_depth_copy_frag_glsl[];
-extern char datatoc_gpu_shader_image_multisample_resolve_frag_glsl[];
 extern char datatoc_gpu_shader_3D_vert_glsl[];
 extern char datatoc_gpu_shader_3D_normal_vert_glsl[];
 extern char datatoc_gpu_shader_3D_flat_color_vert_glsl[];
 extern char datatoc_gpu_shader_3D_smooth_color_vert_glsl[];
-extern char datatoc_gpu_shader_3D_normal_flat_color_vert_glsl[];
-extern char datatoc_gpu_shader_3D_normal_smooth_color_vert_glsl[];
 extern char datatoc_gpu_shader_3D_smooth_color_frag_glsl[];
 extern char datatoc_gpu_shader_3D_passthrough_vert_glsl[];
 extern char datatoc_gpu_shader_3D_clipped_uniform_color_vert_glsl[];
@@ -242,6 +233,10 @@ static void gpu_shader_standard_extensions(char defines[MAX_EXT_DEFINE_LENGTH])
   }
   if (GLEW_ARB_shader_draw_parameters) {
     strcat(defines, "#extension GL_ARB_shader_draw_parameters : enable\n");
+  }
+  if (GPU_arb_texture_cube_map_array_is_supported()) {
+    strcat(defines, "#extension GL_ARB_texture_cube_map_array : enable\n");
+    strcat(defines, "#define GPU_ARB_texture_cube_map_array\n");
   }
 }
 
@@ -888,23 +883,6 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
             .vert = datatoc_gpu_shader_3D_normal_vert_glsl,
             .frag = datatoc_gpu_shader_simple_lighting_frag_glsl,
         },
-    /* Use 'USE_FLAT_NORMAL' to make flat shader from smooth  */
-    [GPU_SHADER_SIMPLE_LIGHTING_FLAT_COLOR] =
-        {
-            .vert = datatoc_gpu_shader_3D_normal_smooth_color_vert_glsl,
-            .frag = datatoc_gpu_shader_simple_lighting_smooth_color_frag_glsl,
-            .defs = "#define USE_FLAT_NORMAL\n",
-        },
-    [GPU_SHADER_SIMPLE_LIGHTING_SMOOTH_COLOR] =
-        {
-            .vert = datatoc_gpu_shader_3D_normal_smooth_color_vert_glsl,
-            .frag = datatoc_gpu_shader_simple_lighting_smooth_color_frag_glsl,
-        },
-    [GPU_SHADER_SIMPLE_LIGHTING_SMOOTH_COLOR_ALPHA] =
-        {
-            .vert = datatoc_gpu_shader_3D_normal_smooth_color_vert_glsl,
-            .frag = datatoc_gpu_shader_simple_lighting_smooth_color_alpha_frag_glsl,
-        },
 
     [GPU_SHADER_2D_IMAGE_MASK_UNIFORM_COLOR] =
         {
@@ -915,74 +893,6 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
         {
             .vert = datatoc_gpu_shader_3D_image_vert_glsl,
             .frag = datatoc_gpu_shader_image_modulate_alpha_frag_glsl,
-        },
-    [GPU_SHADER_3D_IMAGE_DEPTH] =
-        {
-            .vert = datatoc_gpu_shader_3D_image_vert_glsl,
-            .frag = datatoc_gpu_shader_image_depth_linear_frag_glsl,
-        },
-    [GPU_SHADER_3D_IMAGE_DEPTH_COPY] =
-        {
-            .vert = datatoc_gpu_shader_3D_image_vert_glsl,
-            .frag = datatoc_gpu_shader_image_depth_copy_frag_glsl,
-        },
-    [GPU_SHADER_2D_IMAGE_MULTISAMPLE_2] =
-        {
-            .vert = datatoc_gpu_shader_2D_vert_glsl,
-            .frag = datatoc_gpu_shader_image_multisample_resolve_frag_glsl,
-            .defs = "#define SAMPLES 2\n",
-        },
-    [GPU_SHADER_2D_IMAGE_MULTISAMPLE_4] =
-        {
-            .vert = datatoc_gpu_shader_2D_vert_glsl,
-            .frag = datatoc_gpu_shader_image_multisample_resolve_frag_glsl,
-            .defs = "#define SAMPLES 4\n",
-        },
-    [GPU_SHADER_2D_IMAGE_MULTISAMPLE_8] =
-        {
-            .vert = datatoc_gpu_shader_2D_vert_glsl,
-            .frag = datatoc_gpu_shader_image_multisample_resolve_frag_glsl,
-            .defs = "#define SAMPLES 8\n",
-        },
-    [GPU_SHADER_2D_IMAGE_MULTISAMPLE_16] =
-        {
-            .vert = datatoc_gpu_shader_2D_vert_glsl,
-            .frag = datatoc_gpu_shader_image_multisample_resolve_frag_glsl,
-            .defs = "#define SAMPLES 16\n",
-        },
-    [GPU_SHADER_2D_IMAGE_MULTISAMPLE_2_DEPTH_TEST] =
-        {
-            .vert = datatoc_gpu_shader_2D_vert_glsl,
-            .frag = datatoc_gpu_shader_image_multisample_resolve_frag_glsl,
-            .defs = "#define SAMPLES 2\n"
-                    "#define USE_DEPTH\n",
-        },
-    [GPU_SHADER_2D_IMAGE_MULTISAMPLE_4_DEPTH_TEST] =
-        {
-            .vert = datatoc_gpu_shader_2D_vert_glsl,
-            .frag = datatoc_gpu_shader_image_multisample_resolve_frag_glsl,
-            .defs = "#define SAMPLES 4\n"
-                    "#define USE_DEPTH\n",
-        },
-    [GPU_SHADER_2D_IMAGE_MULTISAMPLE_8_DEPTH_TEST] =
-        {
-            .vert = datatoc_gpu_shader_2D_vert_glsl,
-            .frag = datatoc_gpu_shader_image_multisample_resolve_frag_glsl,
-            .defs = "#define SAMPLES 8\n"
-                    "#define USE_DEPTH\n",
-        },
-    [GPU_SHADER_2D_IMAGE_MULTISAMPLE_16_DEPTH_TEST] =
-        {
-            .vert = datatoc_gpu_shader_2D_vert_glsl,
-            .frag = datatoc_gpu_shader_image_multisample_resolve_frag_glsl,
-            .defs = "#define SAMPLES 16\n"
-                    "#define USE_DEPTH\n",
-        },
-
-    [GPU_SHADER_2D_IMAGE_INTERLACE] =
-        {
-            .vert = datatoc_gpu_shader_2D_image_vert_glsl,
-            .frag = datatoc_gpu_shader_image_interlace_frag_glsl,
         },
     [GPU_SHADER_2D_CHECKER] =
         {
@@ -1011,15 +921,15 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
             .vert = datatoc_gpu_shader_2D_smooth_color_vert_glsl,
             .frag = datatoc_gpu_shader_2D_smooth_color_frag_glsl,
         },
-    [GPU_SHADER_2D_SMOOTH_COLOR_DITHER] =
-        {
-            .vert = datatoc_gpu_shader_2D_smooth_color_vert_glsl,
-            .frag = datatoc_gpu_shader_2D_smooth_color_dithered_frag_glsl,
-        },
     [GPU_SHADER_2D_IMAGE_OVERLAYS_MERGE] =
         {
             .vert = datatoc_gpu_shader_2D_image_vert_glsl,
             .frag = datatoc_gpu_shader_image_overlays_merge_frag_glsl,
+        },
+    [GPU_SHADER_2D_IMAGE_OVERLAYS_STEREO_MERGE] =
+        {
+            .vert = datatoc_gpu_shader_2D_vert_glsl,
+            .frag = datatoc_gpu_shader_image_overlays_stereo_merge_frag_glsl,
         },
     [GPU_SHADER_2D_IMAGE] =
         {
@@ -1061,12 +971,6 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
         {
             .vert = datatoc_gpu_shader_3D_vert_glsl,
             .frag = datatoc_gpu_shader_uniform_color_frag_glsl,
-        },
-    [GPU_SHADER_3D_UNIFORM_COLOR_BACKGROUND] =
-        {
-            .vert = datatoc_gpu_shader_3D_vert_glsl,
-            .frag = datatoc_gpu_shader_uniform_color_frag_glsl,
-            .defs = "#define USE_BACKGROUND\n",
         },
     [GPU_SHADER_3D_FLAT_COLOR] =
         {

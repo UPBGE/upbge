@@ -44,12 +44,16 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_camera_types.h"
+#include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
-#include "DNA_light_types.h"
-#include "DNA_lattice_types.h"
-#include "DNA_linestyle_types.h"
+#include "DNA_camera_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_hair_types.h"
 #include "DNA_key_types.h"
+#include "DNA_lattice_types.h"
+#include "DNA_layer_types.h"
+#include "DNA_light_types.h"
+#include "DNA_linestyle_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -57,29 +61,28 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_force_types.h"
+#include "DNA_object_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_space_types.h"
-#include "DNA_sequence_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_sequence_types.h"
+#include "DNA_space_types.h"
 #include "DNA_speaker_types.h"
-#include "DNA_world_types.h"
-#include "DNA_gpencil_types.h"
-#include "DNA_brush_types.h"
-#include "DNA_object_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_layer_types.h"
+#include "DNA_volume_types.h"
+#include "DNA_world_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_alloca.h"
+#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_action.h"
-#include "BKE_animsys.h"
+#include "BKE_anim_data.h"
 #include "BKE_collection.h"
 #include "BKE_context.h"
 #include "BKE_fcurve.h"
@@ -87,10 +90,10 @@
 #include "BKE_key.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
+#include "BKE_mask.h"
 #include "BKE_material.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
-#include "BKE_mask.h"
 #include "BKE_sequencer.h"
 
 #include "ED_anim_api.h"
@@ -396,8 +399,8 @@ bool ANIM_animdata_context_getdata(bAnimContext *ac)
 bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac)
 {
   Main *bmain = CTX_data_main(C);
-  ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
   SpaceLink *sl = CTX_wm_space_data(C);
   Scene *scene = CTX_data_scene(C);
 
@@ -415,11 +418,11 @@ bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac)
   }
   ac->view_layer = CTX_data_view_layer(C);
   ac->obact = (ac->view_layer->basact) ? ac->view_layer->basact->object : NULL;
-  ac->sa = sa;
-  ac->ar = ar;
+  ac->area = area;
+  ac->region = region;
   ac->sl = sl;
-  ac->spacetype = (sa) ? sa->spacetype : 0;
-  ac->regiontype = (ar) ? ar->regiontype : 0;
+  ac->spacetype = (area) ? area->spacetype : 0;
+  ac->regiontype = (region) ? region->regiontype : 0;
 
   /* initialise default y-scale factor */
   animedit_get_yscale_factor(ac);
@@ -780,6 +783,42 @@ static bAnimListElem *make_new_animlistelem(void *data,
         AnimData *adt = spk->adt;
 
         ale->flag = FILTER_SPK_OBJD(spk);
+
+        ale->key_data = (adt) ? adt->action : NULL;
+        ale->datatype = ALE_ACT;
+
+        ale->adt = BKE_animdata_from_id(data);
+        break;
+      }
+      case ANIMTYPE_DSHAIR: {
+        Hair *hair = (Hair *)data;
+        AnimData *adt = hair->adt;
+
+        ale->flag = FILTER_HAIR_OBJD(hair);
+
+        ale->key_data = (adt) ? adt->action : NULL;
+        ale->datatype = ALE_ACT;
+
+        ale->adt = BKE_animdata_from_id(data);
+        break;
+      }
+      case ANIMTYPE_DSPOINTCLOUD: {
+        PointCloud *pointcloud = (PointCloud *)data;
+        AnimData *adt = pointcloud->adt;
+
+        ale->flag = FILTER_POINTS_OBJD(pointcloud);
+
+        ale->key_data = (adt) ? adt->action : NULL;
+        ale->datatype = ALE_ACT;
+
+        ale->adt = BKE_animdata_from_id(data);
+        break;
+      }
+      case ANIMTYPE_DSVOLUME: {
+        Volume *volume = (Volume *)data;
+        AnimData *adt = volume->adt;
+
+        ale->flag = FILTER_VOLUME_OBJD(volume);
 
         ale->key_data = (adt) ? adt->action : NULL;
         ale->datatype = ALE_ACT;
@@ -1715,22 +1754,33 @@ static size_t animdata_filter_gpencil_layers_data(ListBase *anim_data,
   /* loop over layers as the conditions are acceptable (top-Down order) */
   for (gpl = gpd->layers.last; gpl; gpl = gpl->prev) {
     /* only if selected */
-    if (ANIMCHANNEL_SELOK(SEL_GPL(gpl))) {
-      /* only if editable */
-      if (!(filter_mode & ANIMFILTER_FOREDIT) || EDITABLE_GPL(gpl)) {
-        /* active... */
-        if (!(filter_mode & ANIMFILTER_ACTIVE) || (gpl->flag & GP_LAYER_ACTIVE)) {
-          /* skip layer if the name doesn't match the filter string */
-          if ((ads) && (ads->searchstr[0] != '\0')) {
-            if (name_matches_dopesheet_filter(ads, gpl->info) == false) {
-              continue;
-            }
-          }
-          /* add to list */
-          ANIMCHANNEL_NEW_CHANNEL(gpl, ANIMTYPE_GPLAYER, gpd, NULL);
-        }
-      }
+    if (!ANIMCHANNEL_SELOK(SEL_GPL(gpl))) {
+      continue;
     }
+
+    /* only if editable */
+    if ((filter_mode & ANIMFILTER_FOREDIT) && !EDITABLE_GPL(gpl)) {
+      continue;
+    }
+
+    /* active... */
+    if ((filter_mode & ANIMFILTER_ACTIVE) && (gpl->flag & GP_LAYER_ACTIVE) == 0) {
+      continue;
+    }
+
+    /* skip layer if the name doesn't match the filter string */
+    if (ads != NULL && ads->searchstr[0] != '\0' &&
+        name_matches_dopesheet_filter(ads, gpl->info) == false) {
+      continue;
+    }
+
+    /* Skip empty layers. */
+    if (BLI_listbase_is_empty(&gpl->frames)) {
+      continue;
+    }
+
+    /* add to list */
+    ANIMCHANNEL_NEW_CHANNEL(gpl, ANIMTYPE_GPLAYER, gpd, NULL);
   }
 
   return items;
@@ -1790,81 +1840,63 @@ static size_t animdata_filter_gpencil(bAnimContext *ac,
   bDopeSheet *ads = ac->ads;
   size_t items = 0;
 
-  if (ads->filterflag & ADS_FILTER_GP_3DONLY) {
-    Scene *scene = (Scene *)ads->source;
-    ViewLayer *view_layer = (ViewLayer *)ac->view_layer;
-    Base *base;
+  Scene *scene = (Scene *)ads->source;
+  ViewLayer *view_layer = (ViewLayer *)ac->view_layer;
+  Base *base;
 
-    /* Active scene's GPencil block first - No parent item needed... */
-    if (scene->gpd) {
-      items += animdata_filter_gpencil_data(anim_data, ads, scene->gpd, filter_mode);
-    }
-
-    /* Objects in the scene */
-    for (base = view_layer->object_bases.first; base; base = base->next) {
-      /* Only consider this object if it has got some GP data (saving on all the other tests) */
-      if (base->object && (base->object->type == OB_GPENCIL)) {
-        Object *ob = base->object;
-
-        /* firstly, check if object can be included, by the following factors:
-         * - if only visible, must check for layer and also viewport visibility
-         *   --> while tools may demand only visible, user setting takes priority
-         *       as user option controls whether sets of channels get included while
-         *       tool-flag takes into account collapsed/open channels too
-         * - if only selected, must check if object is selected
-         * - there must be animation data to edit (this is done recursively as we
-         *   try to add the channels)
-         */
-        if ((filter_mode & ANIMFILTER_DATA_VISIBLE) &&
-            !(ads->filterflag & ADS_FILTER_INCL_HIDDEN)) {
-          /* Layer visibility - we check both object and base,
-           * since these may not be in sync yet. */
-          if ((base->flag & BASE_VISIBLE_DEPSGRAPH) == 0) {
-            continue;
-          }
-
-          /* outliner restrict-flag */
-          if (ob->restrictflag & OB_RESTRICT_VIEWPORT) {
-            continue;
-          }
-        }
-
-        /* check selection and object type filters only for Object mode */
-        if (ob->mode == OB_MODE_OBJECT) {
-          if ((ads->filterflag & ADS_FILTER_ONLYSEL) && !((base->flag & BASE_SELECTED))) {
-            /* only selected should be shown */
-            continue;
-          }
-        }
-        /* check if object belongs to the filtering group if option to filter
-         * objects by the grouped status is on
-         * - used to ease the process of doing multiple-character choreographies
-         */
-        if (ads->filter_grp != NULL) {
-          if (BKE_collection_has_object_recursive(ads->filter_grp, ob) == 0) {
-            continue;
-          }
-        }
-
-        /* finally, include this object's grease pencil data-block. */
-        /* XXX: Should we store these under expanders per item? */
-        items += animdata_filter_gpencil_data(anim_data, ads, ob->data, filter_mode);
-      }
-    }
+  /* Active scene's GPencil block first - No parent item needed... */
+  if (scene->gpd) {
+    items += animdata_filter_gpencil_data(anim_data, ads, scene->gpd, filter_mode);
   }
-  else {
-    bGPdata *gpd;
 
-    /* Grab all Grease Pencil data-blocks directly from main,
-     * but only those that seem to be useful somewhere */
-    for (gpd = ac->bmain->gpencils.first; gpd; gpd = gpd->id.next) {
-      /* only show if gpd is used by something... */
-      if (ID_REAL_USERS(gpd) < 1) {
-        continue;
+  /* Objects in the scene */
+  for (base = view_layer->object_bases.first; base; base = base->next) {
+    /* Only consider this object if it has got some GP data (saving on all the other tests) */
+    if (base->object && (base->object->type == OB_GPENCIL)) {
+      Object *ob = base->object;
+
+      /* firstly, check if object can be included, by the following factors:
+       * - if only visible, must check for layer and also viewport visibility
+       *   --> while tools may demand only visible, user setting takes priority
+       *       as user option controls whether sets of channels get included while
+       *       tool-flag takes into account collapsed/open channels too
+       * - if only selected, must check if object is selected
+       * - there must be animation data to edit (this is done recursively as we
+       *   try to add the channels)
+       */
+      if ((filter_mode & ANIMFILTER_DATA_VISIBLE) && !(ads->filterflag & ADS_FILTER_INCL_HIDDEN)) {
+        /* Layer visibility - we check both object and base,
+         * since these may not be in sync yet. */
+        if ((base->flag & BASE_VISIBLE_DEPSGRAPH) == 0) {
+          continue;
+        }
+
+        /* outliner restrict-flag */
+        if (ob->restrictflag & OB_RESTRICT_VIEWPORT) {
+          continue;
+        }
       }
 
-      /* add GP frames from this data-block. */
-      items += animdata_filter_gpencil_data(anim_data, ads, gpd, filter_mode);
+      /* check selection and object type filters only for Object mode */
+      if (ob->mode == OB_MODE_OBJECT) {
+        if ((ads->filterflag & ADS_FILTER_ONLYSEL) && !((base->flag & BASE_SELECTED))) {
+          /* only selected should be shown */
+          continue;
+        }
+      }
+      /* check if object belongs to the filtering group if option to filter
+       * objects by the grouped status is on
+       * - used to ease the process of doing multiple-character choreographies
+       */
+      if (ads->filter_grp != NULL) {
+        if (BKE_collection_has_object_recursive(ads->filter_grp, ob) == 0) {
+          continue;
+        }
+      }
+
+      /* finally, include this object's grease pencil data-block. */
+      /* XXX: Should we store these under expanders per item? */
+      items += animdata_filter_gpencil_data(anim_data, ads, ob->data, filter_mode);
     }
   }
 
@@ -2551,6 +2583,39 @@ static size_t animdata_filter_ds_obdata(
       expanded = FILTER_SPK_OBJD(spk);
       break;
     }
+    case OB_HAIR: /* ---------- Hair ----------- */
+    {
+      Hair *hair = (Hair *)ob->data;
+
+      if (ads->filterflag2 & ADS_FILTER_NOHAIR)
+        return 0;
+
+      type = ANIMTYPE_DSHAIR;
+      expanded = FILTER_HAIR_OBJD(hair);
+      break;
+    }
+    case OB_POINTCLOUD: /* ---------- PointCloud ----------- */
+    {
+      PointCloud *pointcloud = (PointCloud *)ob->data;
+
+      if (ads->filterflag2 & ADS_FILTER_NOPOINTCLOUD)
+        return 0;
+
+      type = ANIMTYPE_DSPOINTCLOUD;
+      expanded = FILTER_POINTS_OBJD(pointcloud);
+      break;
+    }
+    case OB_VOLUME: /* ---------- Volume ----------- */
+    {
+      Volume *volume = (Volume *)ob->data;
+
+      if (ads->filterflag2 & ADS_FILTER_NOVOLUME)
+        return 0;
+
+      type = ANIMTYPE_DSVOLUME;
+      expanded = FILTER_VOLUME_OBJD(volume);
+      break;
+    }
   }
 
   /* add object data animation channels */
@@ -3074,7 +3139,7 @@ static Base **animdata_filter_ds_sorted_bases(bDopeSheet *ads,
   size_t num_bases = 0;
 
   Base **sorted_bases = MEM_mallocN(sizeof(Base *) * tot_bases, "Dopesheet Usable Sorted Bases");
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if (animdata_filter_base_is_ok(ads, base, filter_mode)) {
       sorted_bases[num_bases++] = base;
     }
@@ -3168,7 +3233,7 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
     /* Filter and add contents of each base (i.e. object) without them sorting first
      * NOTE: This saves performance in cases where order doesn't matter
      */
-    for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+    LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
       if (animdata_filter_base_is_ok(ads, base, filter_mode)) {
         /* since we're still here, this object should be usable */
         items += animdata_filter_dopesheet_ob(ac, anim_data, ads, base, filter_mode);

@@ -21,37 +21,37 @@
  * \ingroup bke
  */
 
-#include <string.h>
+#include <assert.h>
 #include <float.h>
 #include <math.h>
 #include <memory.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
-#include <assert.h>
 
-#include "DNA_object_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_math.h"
-#include "BLI_utildefines.h"
-#include "BLI_task.h"
 #include "BLI_math_solvers.h"
+#include "BLI_task.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-#include "BKE_shrinkwrap.h"
-#include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_cdderivedmesh.h"
+#include "BKE_context.h"
 #include "BKE_lattice.h"
 #include "BKE_lib_id.h"
 #include "BKE_modifier.h"
+#include "BKE_shrinkwrap.h"
 
 #include "BKE_deform.h"
 #include "BKE_editmesh.h"
 #include "BKE_mesh.h" /* for OMP limits. */
-#include "BKE_subsurf.h"
 #include "BKE_mesh_runtime.h"
+#include "BKE_subsurf.h"
 
 #include "DEG_depsgraph_query.h"
 
@@ -355,7 +355,7 @@ static void shrinkwrap_calc_nearest_vertex_cb_ex(void *__restrict userdata,
 
   float *co = calc->vertexCos[i];
   float tmp_co[3];
-  float weight = defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
+  float weight = BKE_defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
 
   if (calc->invert_vgroup) {
     weight = 1.0f - weight;
@@ -527,7 +527,7 @@ static void shrinkwrap_calc_normal_projection_cb_ex(void *__restrict userdata,
   const float proj_limit_squared = calc->smd->projLimit * calc->smd->projLimit;
   float *co = calc->vertexCos[i];
   float tmp_co[3], tmp_no[3];
-  float weight = defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
+  float weight = BKE_defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
 
   if (calc->invert_vgroup) {
     weight = 1.0f - weight;
@@ -1130,7 +1130,7 @@ static void shrinkwrap_calc_nearest_surface_point_cb_ex(void *__restrict userdat
 
   float *co = calc->vertexCos[i];
   float tmp_co[3];
-  float weight = defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
+  float weight = BKE_defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
 
   if (calc->invert_vgroup) {
     weight = 1.0f - weight;

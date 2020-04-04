@@ -41,8 +41,8 @@
 
 #  include "DeckLinkAPI.h"
 
-#  include "ImageBase.h"
 #  include "Exception.h"
+#  include "ImageBase.h"
 
 // type DeckLink declaration
 struct DeckLink {

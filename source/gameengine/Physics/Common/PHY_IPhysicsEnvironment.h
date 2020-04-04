@@ -32,11 +32,11 @@
 #ifndef __PHY_IPHYSICSENVIRONMENT_H__
 #define __PHY_IPHYSICSENVIRONMENT_H__
 
-#include "PHY_DynamicTypes.h"
 #include "MT_Matrix4x4.h"
 #include "MT_Vector2.h"
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
+#include "PHY_DynamicTypes.h"
 
 #include <array>
 
@@ -50,7 +50,7 @@ class RAS_MeshObject;
 struct DerivedMesh;
 class KX_GameObject;
 class KX_Scene;
-class KX_BlenderSceneConverter;
+class BL_BlenderSceneConverter;
 
 struct PHY_ShapeProps;
 struct PHY_MaterialProps;
@@ -111,8 +111,6 @@ class PHY_IPhysicsEnvironment {
   virtual ~PHY_IPhysicsEnvironment()
   {
   }
-  virtual void BeginFrame() = 0;
-  virtual void EndFrame() = 0;
   /// Perform an integration step of duration 'timeStep'.
   virtual bool ProceedDeltaTime(double curTime, float timeStep, float interval) = 0;
   /// draw debug lines (make sure to call this during the render phase, otherwise lines are not
@@ -259,7 +257,7 @@ class PHY_IPhysicsEnvironment {
 
   virtual void MergeEnvironment(PHY_IPhysicsEnvironment *other_env) = 0;
 
-  virtual void ConvertObject(KX_BlenderSceneConverter &converter,
+  virtual void ConvertObject(BL_BlenderSceneConverter &converter,
                              KX_GameObject *gameobj,
                              RAS_MeshObject *meshobj,
                              DerivedMesh *dm,

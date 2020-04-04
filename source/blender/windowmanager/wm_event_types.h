@@ -40,7 +40,12 @@ enum {
   EVT_TABLET_ERASER = 2,
 };
 
-/* ********** wmEvent.type ********** */
+/**
+ * #wmEvent.type
+ *
+ * \note Also used for #wmKeyMapItem.type which is saved in key-map files,
+ * do not change the values of existing values which can be used in key-maps.
+ */
 enum {
   /* non-event, for example disabled timer */
   EVENT_NONE = 0x0000,
@@ -89,154 +94,150 @@ enum {
 
   /* *** Start of keyboard codes. *** */
 
-  /* standard keyboard.
-   * XXX from 0x0020 to 0x00ff, and 0x012c to 0x013f for function keys! */
+  /* Standard keyboard.
+   * From 0x0020 to 0x00ff, and 0x012c to 0x0143 for function keys! */
 
-  /* NOTE: these values are saved in keymap files, do not change them but just add new ones */
-  AKEY = 0x0061, /* 'a' */
-  BKEY = 0x0062, /* 'b' */
-  CKEY = 0x0063, /* 'c' */
-  DKEY = 0x0064, /* 'd' */
-  EKEY = 0x0065, /* 'e' */
-  FKEY = 0x0066, /* 'f' */
-  GKEY = 0x0067, /* 'g' */
-#ifndef WIN32
-  HKEY = 0x0068, /* 'h' */
-#else
-#  define HKEY 0x0068
-#endif
-  IKEY = 0x0069, /* 'i' */
-  JKEY = 0x006a, /* 'j' */
-  KKEY = 0x006b, /* 'k' */
-  LKEY = 0x006c, /* 'l' */
-  MKEY = 0x006d, /* 'm' */
-  NKEY = 0x006e, /* 'n' */
-  OKEY = 0x006f, /* 'o' */
-  PKEY = 0x0070, /* 'p' */
-  QKEY = 0x0071, /* 'q' */
-  RKEY = 0x0072, /* 'r' */
-  SKEY = 0x0073, /* 's' */
-  TKEY = 0x0074, /* 't' */
-  UKEY = 0x0075, /* 'u' */
-  VKEY = 0x0076, /* 'v' */
-  WKEY = 0x0077, /* 'w' */
-  XKEY = 0x0078, /* 'x' */
-  YKEY = 0x0079, /* 'y' */
-  ZKEY = 0x007a, /* 'z' */
+  EVT_ZEROKEY = 0x0030,  /* '0' (48). */
+  EVT_ONEKEY = 0x0031,   /* '1' (49). */
+  EVT_TWOKEY = 0x0032,   /* '2' (50). */
+  EVT_THREEKEY = 0x0033, /* '3' (51). */
+  EVT_FOURKEY = 0x0034,  /* '4' (52). */
+  EVT_FIVEKEY = 0x0035,  /* '5' (53). */
+  EVT_SIXKEY = 0x0036,   /* '6' (54). */
+  EVT_SEVENKEY = 0x0037, /* '7' (55). */
+  EVT_EIGHTKEY = 0x0038, /* '8' (56). */
+  EVT_NINEKEY = 0x0039,  /* '9' (57). */
 
-  ZEROKEY = 0x0030,  /* '0' */
-  ONEKEY = 0x0031,   /* '1' */
-  TWOKEY = 0x0032,   /* '2' */
-  THREEKEY = 0x0033, /* '3' */
-  FOURKEY = 0x0034,  /* '4' */
-  FIVEKEY = 0x0035,  /* '5' */
-  SIXKEY = 0x0036,   /* '6' */
-  SEVENKEY = 0x0037, /* '7' */
-  EIGHTKEY = 0x0038, /* '8' */
-  NINEKEY = 0x0039,  /* '9' */
+  EVT_AKEY = 0x0061, /* 'a' (97). */
+  EVT_BKEY = 0x0062, /* 'b' (98). */
+  EVT_CKEY = 0x0063, /* 'c' (99). */
+  EVT_DKEY = 0x0064, /* 'd' (100). */
+  EVT_EKEY = 0x0065, /* 'e' (101). */
+  EVT_FKEY = 0x0066, /* 'f' (102). */
+  EVT_GKEY = 0x0067, /* 'g' (103). */
+  EVT_HKEY = 0x0068, /* 'h' (104). */
+  EVT_IKEY = 0x0069, /* 'i' (105). */
+  EVT_JKEY = 0x006a, /* 'j' (106). */
+  EVT_KKEY = 0x006b, /* 'k' (107). */
+  EVT_LKEY = 0x006c, /* 'l' (108). */
+  EVT_MKEY = 0x006d, /* 'm' (109). */
+  EVT_NKEY = 0x006e, /* 'n' (110). */
+  EVT_OKEY = 0x006f, /* 'o' (111). */
+  EVT_PKEY = 0x0070, /* 'p' (112). */
+  EVT_QKEY = 0x0071, /* 'q' (113). */
+  EVT_RKEY = 0x0072, /* 'r' (114). */
+  EVT_SKEY = 0x0073, /* 's' (115). */
+  EVT_TKEY = 0x0074, /* 't' (116). */
+  EVT_UKEY = 0x0075, /* 'u' (117). */
+  EVT_VKEY = 0x0076, /* 'v' (118). */
+  EVT_WKEY = 0x0077, /* 'w' (119). */
+  EVT_XKEY = 0x0078, /* 'x' (120). */
+  EVT_YKEY = 0x0079, /* 'y' (121). */
+  EVT_ZKEY = 0x007a, /* 'z' (122). */
 
-  CAPSLOCKKEY = 0x00d3, /* 211 */
+  EVT_LEFTARROWKEY = 0x0089,  /* 137 */
+  EVT_DOWNARROWKEY = 0x008a,  /* 138 */
+  EVT_RIGHTARROWKEY = 0x008b, /* 139 */
+  EVT_UPARROWKEY = 0x008c,    /* 140 */
 
-  LEFTCTRLKEY = 0x00d4,   /* 212 */
-  LEFTALTKEY = 0x00d5,    /* 213 */
-  RIGHTALTKEY = 0x00d6,   /* 214 */
-  RIGHTCTRLKEY = 0x00d7,  /* 215 */
-  RIGHTSHIFTKEY = 0x00d8, /* 216 */
-  LEFTSHIFTKEY = 0x00d9,  /* 217 */
+  EVT_PAD0 = 0x0096, /* 150 */
+  EVT_PAD1 = 0x0097, /* 151 */
+  EVT_PAD2 = 0x0098, /* 152 */
+  EVT_PAD3 = 0x0099, /* 153 */
+  EVT_PAD4 = 0x009a, /* 154 */
+  EVT_PAD5 = 0x009b, /* 155 */
+  EVT_PAD6 = 0x009c, /* 156 */
+  EVT_PAD7 = 0x009d, /* 157 */
+  EVT_PAD8 = 0x009e, /* 158 */
+  EVT_PAD9 = 0x009f, /* 159 */
+  /* Key-pad keys. */
+  EVT_PADASTERKEY = 0x00a0, /* 160 */
+  EVT_PADSLASHKEY = 0x00a1, /* 161 */
+  EVT_PADMINUS = 0x00a2,    /* 162 */
+  EVT_PADENTER = 0x00a3,    /* 163 */
+  EVT_PADPLUSKEY = 0x00a4,  /* 164 */
 
-  ESCKEY = 0x00da,          /* 218 */
-  TABKEY = 0x00db,          /* 219 */
-  RETKEY = 0x00dc,          /* 220 */
-  SPACEKEY = 0x00dd,        /* 221 */
-  LINEFEEDKEY = 0x00de,     /* 222 */
-  BACKSPACEKEY = 0x00df,    /* 223 */
-  DELKEY = 0x00e0,          /* 224 */
-  SEMICOLONKEY = 0x00e1,    /* 225 */
-  PERIODKEY = 0x00e2,       /* 226 */
-  COMMAKEY = 0x00e3,        /* 227 */
-  QUOTEKEY = 0x00e4,        /* 228 */
-  ACCENTGRAVEKEY = 0x00e5,  /* 229 */
-  MINUSKEY = 0x00e6,        /* 230 */
-  PLUSKEY = 0x00e7,         /* 231 */
-  SLASHKEY = 0x00e8,        /* 232 */
-  BACKSLASHKEY = 0x00e9,    /* 233 */
-  EQUALKEY = 0x00ea,        /* 234 */
-  LEFTBRACKETKEY = 0x00eb,  /* 235 */
-  RIGHTBRACKETKEY = 0x00ec, /* 236 */
+  EVT_PAUSEKEY = 0x00a5,    /* 165 */
+  EVT_INSERTKEY = 0x00a6,   /* 166 */
+  EVT_HOMEKEY = 0x00a7,     /* 167 */
+  EVT_PAGEUPKEY = 0x00a8,   /* 168 */
+  EVT_PAGEDOWNKEY = 0x00a9, /* 169 */
+  EVT_ENDKEY = 0x00aa,      /* 170 */
+  /* Note that 'PADPERIOD' is defined out-of-order. */
+  EVT_UNKNOWNKEY = 0x00ab, /* 171 */
+  EVT_OSKEY = 0x00ac,      /* 172 */
+  EVT_GRLESSKEY = 0x00ad,  /* 173 */
+  /* Media keys. */
+  EVT_MEDIAPLAY = 0x00ae,  /* 174 */
+  EVT_MEDIASTOP = 0x00af,  /* 175 */
+  EVT_MEDIAFIRST = 0x00b0, /* 176 */
+  EVT_MEDIALAST = 0x00b1,  /* 177 */
+  /* Menu/App key. */
+  EVT_APPKEY = 0x00b2, /* 178 */
 
-  LEFTARROWKEY = 0x0089,  /* 137 */
-  DOWNARROWKEY = 0x008a,  /* 138 */
-  RIGHTARROWKEY = 0x008b, /* 139 */
-  UPARROWKEY = 0x008c,    /* 140 */
+  EVT_PADPERIOD = 0x00c7, /* 199 */
 
-  PAD0 = 0x0096, /* 150 */
-  PAD1 = 0x0097, /* 151 */
-  PAD2 = 0x0098, /* 152 */
-  PAD3 = 0x0099, /* 153 */
-  PAD4 = 0x009a, /* 154 */
-  PAD5 = 0x009b, /* 155 */
-  PAD6 = 0x009c, /* 156 */
-  PAD7 = 0x009d, /* 157 */
-  PAD8 = 0x009e, /* 158 */
-  PAD9 = 0x009f, /* 159 */
+  EVT_CAPSLOCKKEY = 0x00d3, /* 211 */
 
-  PADPERIOD = 0x00c7,   /* 199 */
-  PADASTERKEY = 0x00a0, /* 160 */
-  PADSLASHKEY = 0x00a1, /* 161 */
-  PADMINUS = 0x00a2,    /* 162 */
-  PADENTER = 0x00a3,    /* 163 */
-  PADPLUSKEY = 0x00a4,  /* 164 */
+  /* Modifier keys. */
+  EVT_LEFTCTRLKEY = 0x00d4,   /* 212 */
+  EVT_LEFTALTKEY = 0x00d5,    /* 213 */
+  EVT_RIGHTALTKEY = 0x00d6,   /* 214 */
+  EVT_RIGHTCTRLKEY = 0x00d7,  /* 215 */
+  EVT_RIGHTSHIFTKEY = 0x00d8, /* 216 */
+  EVT_LEFTSHIFTKEY = 0x00d9,  /* 217 */
+  /* Special characters. */
+  EVT_ESCKEY = 0x00da,          /* 218 */
+  EVT_TABKEY = 0x00db,          /* 219 */
+  EVT_RETKEY = 0x00dc,          /* 220 */
+  EVT_SPACEKEY = 0x00dd,        /* 221 */
+  EVT_LINEFEEDKEY = 0x00de,     /* 222 */
+  EVT_BACKSPACEKEY = 0x00df,    /* 223 */
+  EVT_DELKEY = 0x00e0,          /* 224 */
+  EVT_SEMICOLONKEY = 0x00e1,    /* 225 */
+  EVT_PERIODKEY = 0x00e2,       /* 226 */
+  EVT_COMMAKEY = 0x00e3,        /* 227 */
+  EVT_QUOTEKEY = 0x00e4,        /* 228 */
+  EVT_ACCENTGRAVEKEY = 0x00e5,  /* 229 */
+  EVT_MINUSKEY = 0x00e6,        /* 230 */
+  EVT_PLUSKEY = 0x00e7,         /* 231 */
+  EVT_SLASHKEY = 0x00e8,        /* 232 */
+  EVT_BACKSLASHKEY = 0x00e9,    /* 233 */
+  EVT_EQUALKEY = 0x00ea,        /* 234 */
+  EVT_LEFTBRACKETKEY = 0x00eb,  /* 235 */
+  EVT_RIGHTBRACKETKEY = 0x00ec, /* 236 */
 
-  PAUSEKEY = 0x00a5,    /* 165 */
-  INSERTKEY = 0x00a6,   /* 166 */
-  HOMEKEY = 0x00a7,     /* 167 */
-  PAGEUPKEY = 0x00a8,   /* 168 */
-  PAGEDOWNKEY = 0x00a9, /* 169 */
-  ENDKEY = 0x00aa,      /* 170 */
-
-  UNKNOWNKEY = 0x00ab, /* 171 */
-  OSKEY = 0x00ac,      /* 172 */
-  GRLESSKEY = 0x00ad,  /* 173 */
-
-  /* XXX: are these codes ok? */
-  MEDIAPLAY = 0x00ae,  /* 174 */
-  MEDIASTOP = 0x00af,  /* 175 */
-  MEDIAFIRST = 0x00b0, /* 176 */
-  MEDIALAST = 0x00b1,  /* 177 */
-
-  APPKEY = 0x00b2, /* 178 */
-
-  F1KEY = 0x012c,  /* 300 */
-  F2KEY = 0x012d,  /* 301 */
-  F3KEY = 0x012e,  /* 302 */
-  F4KEY = 0x012f,  /* 303 */
-  F5KEY = 0x0130,  /* 304 */
-  F6KEY = 0x0131,  /* 305 */
-  F7KEY = 0x0132,  /* 306 */
-  F8KEY = 0x0133,  /* 307 */
-  F9KEY = 0x0134,  /* 308 */
-  F10KEY = 0x0135, /* 309 */
-  F11KEY = 0x0136, /* 310 */
-  F12KEY = 0x0137, /* 311 */
-  F13KEY = 0x0138, /* 312 */
-  F14KEY = 0x0139, /* 313 */
-  F15KEY = 0x013a, /* 314 */
-  F16KEY = 0x013b, /* 315 */
-  F17KEY = 0x013c, /* 316 */
-  F18KEY = 0x013d, /* 317 */
-  F19KEY = 0x013e, /* 318 */
-  F20KEY = 0x013f, /* 319 */
-  F21KEY = 0x0140, /* 320 */
-  F22KEY = 0x0141, /* 321 */
-  F23KEY = 0x0142, /* 322 */
-  F24KEY = 0x0143, /* 323 */
+  EVT_F1KEY = 0x012c,  /* 300 */
+  EVT_F2KEY = 0x012d,  /* 301 */
+  EVT_F3KEY = 0x012e,  /* 302 */
+  EVT_F4KEY = 0x012f,  /* 303 */
+  EVT_F5KEY = 0x0130,  /* 304 */
+  EVT_F6KEY = 0x0131,  /* 305 */
+  EVT_F7KEY = 0x0132,  /* 306 */
+  EVT_F8KEY = 0x0133,  /* 307 */
+  EVT_F9KEY = 0x0134,  /* 308 */
+  EVT_F10KEY = 0x0135, /* 309 */
+  EVT_F11KEY = 0x0136, /* 310 */
+  EVT_F12KEY = 0x0137, /* 311 */
+  EVT_F13KEY = 0x0138, /* 312 */
+  EVT_F14KEY = 0x0139, /* 313 */
+  EVT_F15KEY = 0x013a, /* 314 */
+  EVT_F16KEY = 0x013b, /* 315 */
+  EVT_F17KEY = 0x013c, /* 316 */
+  EVT_F18KEY = 0x013d, /* 317 */
+  EVT_F19KEY = 0x013e, /* 318 */
+  EVT_F20KEY = 0x013f, /* 319 */
+  EVT_F21KEY = 0x0140, /* 320 */
+  EVT_F22KEY = 0x0141, /* 321 */
+  EVT_F23KEY = 0x0142, /* 322 */
+  EVT_F24KEY = 0x0143, /* 323 */
 
   /* *** End of keyboard codes. *** */
 
   /* NDOF (from SpaceNavigator & friends)
    * These should be kept in sync with GHOST_NDOFManager.h
    * Ordering matters, exact values do not. */
-  NDOF_MOTION = 0x0190,
+  NDOF_MOTION = 0x0190, /* 400 */
   /* used internally, never sent */
   NDOF_BUTTON_NONE = NDOF_MOTION,
   /* these two are available from any 3Dconnexion device */
@@ -294,25 +295,25 @@ enum {
 
   /* XXX Those are mixed inside keyboard 'area'! */
   /* System: 0x010x */
-  INPUTCHANGE = 0x0103,   /* input connected or disconnected */
-  WINDEACTIVATE = 0x0104, /* window is deactivated, focus lost */
+  INPUTCHANGE = 0x0103,   /* Input connected or disconnected, (259). */
+  WINDEACTIVATE = 0x0104, /* Window is deactivated, focus lost, (260). */
   /* Timer: 0x011x */
-  TIMER = 0x0110,         /* timer event, passed on to all queues */
-  TIMER0 = 0x0111,        /* timer event, slot for internal use */
-  TIMER1 = 0x0112,        /* timer event, slot for internal use */
-  TIMER2 = 0x0113,        /* timer event, slot for internal use */
-  TIMERJOBS = 0x0114,     /* timer event, jobs system */
-  TIMERAUTOSAVE = 0x0115, /* timer event, autosave */
-  TIMERREPORT = 0x0116,   /* timer event, reports */
-  TIMERREGION = 0x0117,   /* timer event, region slide in/out */
-  TIMERNOTIFIER = 0x0118, /* timer event, notifier sender */
-  TIMERF = 0x011F,        /* last timer */
+  TIMER = 0x0110,         /* Timer event, passed on to all queues (272). */
+  TIMER0 = 0x0111,        /* Timer event, slot for internal use (273). */
+  TIMER1 = 0x0112,        /* Timer event, slot for internal use (274). */
+  TIMER2 = 0x0113,        /* Timer event, slot for internal use (275). */
+  TIMERJOBS = 0x0114,     /* Timer event, jobs system (276). */
+  TIMERAUTOSAVE = 0x0115, /* Timer event, autosave (277). */
+  TIMERREPORT = 0x0116,   /* Timer event, reports (278). */
+  TIMERREGION = 0x0117,   /* Timer event, region slide in/out (279). */
+  TIMERNOTIFIER = 0x0118, /* Timer event, notifier sender (280). */
+  TIMERF = 0x011F,        /* Last timer (287). */
 
   /* Actionzones, tweak, gestures: 0x500x, 0x501x */
   /* Keep in sync with IS_EVENT_ACTIONZONE(...). */
-  EVT_ACTIONZONE_AREA = 0x5000,
-  EVT_ACTIONZONE_REGION = 0x5001,
-  EVT_ACTIONZONE_FULLSCREEN = 0x5011,
+  EVT_ACTIONZONE_AREA = 0x5000,       /* 20480 */
+  EVT_ACTIONZONE_REGION = 0x5001,     /* 20481 */
+  EVT_ACTIONZONE_FULLSCREEN = 0x5011, /* 20497 */
 
   /* NOTE: these values are saved in keymap files, do not change them but just add new ones */
 
@@ -321,22 +322,22 @@ enum {
    * from where the initial click was placed. */
 
   /* tweak events for L M R mousebuttons */
-  EVT_TWEAK_L = 0x5002,
-  EVT_TWEAK_M = 0x5003,
-  EVT_TWEAK_R = 0x5004,
+  EVT_TWEAK_L = 0x5002, /* 20482 */
+  EVT_TWEAK_M = 0x5003, /* 20483 */
+  EVT_TWEAK_R = 0x5004, /* 20484 */
   /* 0x5010 (and lower) should be left to add other tweak types in the future. */
 
   /* 0x5011 is taken, see EVT_ACTIONZONE_FULLSCREEN */
 
   /* Misc Blender internals: 0x502x */
-  EVT_FILESELECT = 0x5020,
-  EVT_BUT_OPEN = 0x5021,
-  EVT_MODAL_MAP = 0x5022,
-  EVT_DROP = 0x5023,
-  EVT_BUT_CANCEL = 0x5024,
+  EVT_FILESELECT = 0x5020, /* 20512 */
+  EVT_BUT_OPEN = 0x5021,   /* 20513 */
+  EVT_MODAL_MAP = 0x5022,  /* 20514 */
+  EVT_DROP = 0x5023,       /* 20515 */
+  EVT_BUT_CANCEL = 0x5024, /* 20516 */
 
   /* could become gizmo callback */
-  EVT_GIZMO_UPDATE = 0x5025,
+  EVT_GIZMO_UPDATE = 0x5025, /* 20517 */
   /* ********** End of Blender internal events. ********** */
 };
 
@@ -358,7 +359,8 @@ enum {
 
 /* test whether the event is a modifier key */
 #define ISKEYMODIFIER(event_type) \
-  (((event_type) >= LEFTCTRLKEY && (event_type) <= LEFTSHIFTKEY) || (event_type) == OSKEY)
+  (((event_type) >= EVT_LEFTCTRLKEY && (event_type) <= EVT_LEFTSHIFTKEY) || \
+   (event_type) == EVT_OSKEY)
 
 /* test whether the event is a mouse button */
 #define ISMOUSE(event_type) \

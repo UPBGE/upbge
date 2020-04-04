@@ -21,10 +21,10 @@
  * \ingroup edsnd
  */
 
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -33,9 +33,9 @@
 
 #include "DNA_packedFile_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
+#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
@@ -800,7 +800,7 @@ static int sound_unpack_exec(bContext *C, wmOperator *op)
   int method = RNA_enum_get(op->ptr, "method");
   bSound *sound = NULL;
 
-  /* find the suppplied image by name */
+  /* find the supplied image by name */
   if (RNA_struct_property_is_set(op->ptr, "id")) {
     char sndname[MAX_ID_NAME - 2];
     RNA_string_get(op->ptr, "id", sndname);

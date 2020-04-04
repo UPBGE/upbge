@@ -32,8 +32,8 @@
 #ifndef __PHY_IPHYSICSCONTROLLER_H__
 #define __PHY_IPHYSICSCONTROLLER_H__
 
-#include <vector>
 #include "PHY_IController.h"
+#include <vector>
 
 class PHY_IMotionState;
 class PHY_IPhysicsEnvironment;

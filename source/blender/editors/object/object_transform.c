@@ -26,54 +26,55 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_collection_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_lattice_types.h"
+#include "DNA_light_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
-#include "DNA_light_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_gpencil_types.h"
-#include "DNA_collection_types.h"
-#include "DNA_lattice_types.h"
 
-#include "BLI_math.h"
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 #include "BLI_array.h"
+#include "BLI_listbase.h"
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
 
+#include "BKE_armature.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
-#include "BKE_main.h"
-#include "BKE_idcode.h"
+#include "BKE_editmesh.h"
+#include "BKE_gpencil.h"
+#include "BKE_gpencil_geom.h"
+#include "BKE_idtype.h"
+#include "BKE_lattice.h"
 #include "BKE_layer.h"
+#include "BKE_lib_id.h"
+#include "BKE_main.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"
-#include "BKE_object.h"
-#include "BKE_scene.h"
-#include "BKE_report.h"
-#include "BKE_editmesh.h"
 #include "BKE_multires.h"
-#include "BKE_armature.h"
-#include "BKE_lattice.h"
-#include "BKE_lib_id.h"
+#include "BKE_object.h"
+#include "BKE_report.h"
+#include "BKE_scene.h"
 #include "BKE_tracking.h"
-#include "BKE_gpencil.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
-#include "RNA_define.h"
 #include "RNA_access.h"
+#include "RNA_define.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
 #include "ED_armature.h"
+#include "ED_gpencil.h"
 #include "ED_keyframing.h"
 #include "ED_mesh.h"
+#include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
-#include "ED_gpencil.h"
-#include "ED_object.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -638,7 +639,7 @@ static int apply_objects_internal(bContext *C,
                     RPT_ERROR,
                     "Cannot apply to a multi user: Object \"%s\", %s \"%s\", aborting",
                     ob->id.name + 2,
-                    BKE_idcode_to_name(GS(obdata->name)),
+                    BKE_idtype_idcode_to_name(GS(obdata->name)),
                     obdata->name + 2);
         changed = false;
       }
@@ -648,7 +649,7 @@ static int apply_objects_internal(bContext *C,
                     RPT_ERROR,
                     "Cannot apply to library data: Object \"%s\", %s \"%s\", aborting",
                     ob->id.name + 2,
-                    BKE_idcode_to_name(GS(obdata->name)),
+                    BKE_idtype_idcode_to_name(GS(obdata->name)),
                     obdata->name + 2);
         changed = false;
       }
@@ -666,7 +667,7 @@ static int apply_objects_internal(bContext *C,
             RPT_ERROR,
             "Rotation/Location can't apply to a 2D curve: Object \"%s\", %s \"%s\", aborting",
             ob->id.name + 2,
-            BKE_idcode_to_name(GS(obdata->name)),
+            BKE_idtype_idcode_to_name(GS(obdata->name)),
             obdata->name + 2);
         changed = false;
       }
@@ -675,7 +676,7 @@ static int apply_objects_internal(bContext *C,
                     RPT_ERROR,
                     "Can't apply to a curve with shape-keys: Object \"%s\", %s \"%s\", aborting",
                     ob->id.name + 2,
-                    BKE_idcode_to_name(GS(obdata->name)),
+                    BKE_idtype_idcode_to_name(GS(obdata->name)),
                     obdata->name + 2);
         changed = false;
       }
@@ -696,7 +697,7 @@ static int apply_objects_internal(bContext *C,
           /* Unsupported configuration */
           bool has_unparented_layers = false;
 
-          for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+          LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
             /* Parented layers aren't supported as we can't easily re-evaluate
              * the scene to sample parent movement */
             if (gpl->parent == NULL) {
@@ -711,7 +712,7 @@ static int apply_objects_internal(bContext *C,
                         "Can't apply to a GP datablock where all layers are parented: Object "
                         "\"%s\", %s \"%s\", aborting",
                         ob->id.name + 2,
-                        BKE_idcode_to_name(ID_GD),
+                        BKE_idtype_idcode_to_name(ID_GD),
                         gpd->id.name + 2);
             changed = false;
           }
@@ -723,7 +724,7 @@ static int apply_objects_internal(bContext *C,
               RPT_ERROR,
               "Can't apply to GP datablock with no layers: Object \"%s\", %s \"%s\", aborting",
               ob->id.name + 2,
-              BKE_idcode_to_name(ID_GD),
+              BKE_idtype_idcode_to_name(ID_GD),
               gpd->id.name + 2);
         }
       }
@@ -1394,13 +1395,13 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
             /* recalculate all strokes
              * (all layers are considered without evaluating lock attributes) */
-            for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+            LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
               /* calculate difference matrix */
-              ED_gpencil_parent_location(depsgraph, obact, gpd, gpl, diff_mat);
+              BKE_gpencil_parent_matrix_get(depsgraph, obact, gpl, diff_mat);
               /* undo matrix */
               invert_m4_m4(inverse_diff_mat, diff_mat);
-              for (bGPDframe *gpf = gpl->frames.first; gpf; gpf = gpf->next) {
-                for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+              LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
+                LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
                   for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
                     float mpt[3];
                     mul_v3_m4v3(mpt, inverse_diff_mat, &pt->x);
@@ -1637,7 +1638,7 @@ static void object_transform_axis_target_calc_depth_init(struct XFormAxisData *x
   struct XFormAxisItem *item = xfd->object_data;
   float view_co_a[3], view_co_b[3];
   const float mval_fl[2] = {UNPACK2(mval)};
-  ED_view3d_win_to_ray(xfd->vc.ar, mval_fl, view_co_a, view_co_b);
+  ED_view3d_win_to_ray(xfd->vc.region, mval_fl, view_co_a, view_co_b);
   add_v3_v3(view_co_b, view_co_a);
   float center[3] = {0.0f};
   int center_tot = 0;
@@ -1655,7 +1656,7 @@ static void object_transform_axis_target_calc_depth_init(struct XFormAxisData *x
   if (center_tot) {
     mul_v3_fl(center, 1.0f / center_tot);
     float center_proj[3];
-    ED_view3d_project(xfd->vc.ar, center, center_proj);
+    ED_view3d_project(xfd->vc.region, center, center_proj);
     xfd->prev.depth = center_proj[2];
     xfd->prev.is_depth_valid = true;
   }
@@ -1777,12 +1778,12 @@ static int object_transform_axis_target_invoke(bContext *C, wmOperator *op, cons
   vc.v3d->flag2 |= V3D_HIDE_OVERLAYS;
 #endif
 
-  ED_view3d_autodist_init(vc.depsgraph, vc.ar, vc.v3d, 0);
+  ED_view3d_autodist_init(vc.depsgraph, vc.region, vc.v3d, 0);
 
   if (vc.rv3d->depths != NULL) {
     vc.rv3d->depths->damaged = true;
   }
-  ED_view3d_depth_update(vc.ar);
+  ED_view3d_depth_update(vc.region);
 
 #ifdef USE_RENDER_OVERRIDE
   vc.v3d->flag2 = flag2_prev;
@@ -1793,7 +1794,7 @@ static int object_transform_axis_target_invoke(bContext *C, wmOperator *op, cons
     return OPERATOR_CANCELLED;
   }
 
-  ED_region_tag_redraw(vc.ar);
+  ED_region_tag_redraw(vc.region);
 
   struct XFormAxisData *xfd;
   xfd = op->customdata = MEM_callocN(sizeof(struct XFormAxisData), __func__);
@@ -1850,7 +1851,7 @@ static int object_transform_axis_target_invoke(bContext *C, wmOperator *op, cons
 static int object_transform_axis_target_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   struct XFormAxisData *xfd = op->customdata;
-  ARegion *ar = xfd->vc.ar;
+  ARegion *region = xfd->vc.region;
 
   view3d_operator_needs_opengl(C);
 
@@ -1859,8 +1860,7 @@ static int object_transform_axis_target_modal(bContext *C, wmOperator *op, const
 
   if (event->type == MOUSEMOVE || is_translate_init) {
     const ViewDepths *depths = xfd->vc.rv3d->depths;
-    if (depths && ((unsigned int)event->mval[0] < depths->w) &&
-        ((unsigned int)event->mval[1] < depths->h)) {
+    if (depths && ((uint)event->mval[0] < depths->w) && ((uint)event->mval[1] < depths->h)) {
       double depth = (double)ED_view3d_depth_read_cached(&xfd->vc, event->mval);
       float location_world[3];
       if (depth == 1.0f) {
@@ -1884,7 +1884,7 @@ static int object_transform_axis_target_modal(bContext *C, wmOperator *op, const
       if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
         xfd->prev.depth = depth;
         xfd->prev.is_depth_valid = true;
-        if (ED_view3d_depth_unproject(ar, event->mval, depth, location_world)) {
+        if (ED_view3d_depth_unproject(region, event->mval, depth, location_world)) {
           if (is_translate) {
 
             float normal[3];
@@ -1984,7 +1984,7 @@ static int object_transform_axis_target_modal(bContext *C, wmOperator *op, const
     }
     xfd->is_translate = is_translate;
 
-    ED_region_tag_redraw(xfd->vc.ar);
+    ED_region_tag_redraw(xfd->vc.region);
   }
 
   bool is_finished = false;
@@ -1995,7 +1995,7 @@ static int object_transform_axis_target_modal(bContext *C, wmOperator *op, const
     }
   }
   else {
-    if (ELEM(event->type, LEFTMOUSE, RETKEY, PADENTER)) {
+    if (ELEM(event->type, LEFTMOUSE, EVT_RETKEY, EVT_PADENTER)) {
       is_finished = true;
     }
   }
@@ -2004,7 +2004,7 @@ static int object_transform_axis_target_modal(bContext *C, wmOperator *op, const
     object_transform_axis_target_free_data(op);
     return OPERATOR_FINISHED;
   }
-  else if (ELEM(event->type, ESCKEY, RIGHTMOUSE)) {
+  else if (ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE)) {
     object_transform_axis_target_cancel(C, op);
     return OPERATOR_CANCELLED;
   }

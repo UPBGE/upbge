@@ -37,8 +37,8 @@
 
 #include "SCA_TimeEventManager.h"
 
-#include "SCA_LogicManager.h"
 #include "EXP_FloatValue.h"
+#include "SCA_LogicManager.h"
 
 SCA_TimeEventManager::SCA_TimeEventManager(SCA_LogicManager *logicmgr)
     : SCA_EventManager(nullptr, TIME_EVENTMGR)

@@ -22,29 +22,23 @@
  *  \ingroup bgerast
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "RAS_ICanvas.h"
-#include "DNA_scene_types.h"
-
-#include "BKE_image.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
-
-#include "BLI_task.h"
-#include "BLI_path_util.h"
-#include "BLI_string.h"
-
-#include "KX_KetsjiEngine.h"
-
-extern "C" {
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-}
-
-#include "CM_Message.h"
 
 #include <stdlib.h>  // for free()
+
+#include "BKE_global.h"
+#include "BKE_image.h"
+#include "BKE_main.h"
+#include "BLI_path_util.h"
+#include "BLI_string.h"
+#include "BLI_task.h"
+#include "DNA_scene_types.h"
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
+#include "MEM_guardedalloc.h"
+
+#include "CM_Message.h"
+#include "KX_KetsjiEngine.h"
 
 // Task data for saving screenshots in a different thread.
 struct ScreenshotTaskData {

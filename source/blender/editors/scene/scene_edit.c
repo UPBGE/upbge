@@ -99,7 +99,7 @@ bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene)
     return false;
   }
 
-  for (wmWindow *win = wm->windows.first; win; win = win->next) {
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     if (win->parent != NULL) { /* We only care about main windows here... */
       continue;
     }
@@ -175,12 +175,14 @@ bool ED_scene_view_layer_delete(Main *bmain, Scene *scene, ViewLayer *layer, Rep
 
   /* Remove from windows. */
   wmWindowManager *wm = bmain->wm.first;
-  for (wmWindow *win = wm->windows.first; win; win = win->next) {
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     if (win->scene == scene && STREQ(win->view_layer_name, layer->name)) {
       ViewLayer *first_layer = BKE_view_layer_default_view(scene);
       STRNCPY(win->view_layer_name, first_layer->name);
     }
   }
+
+  BKE_scene_free_view_layer_depsgraph(scene, layer);
 
   BKE_view_layer_free(layer);
 

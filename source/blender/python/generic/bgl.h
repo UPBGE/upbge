@@ -21,6 +21,10 @@
 #ifndef __BGL_H__
 #define __BGL_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 PyObject *BPyInit_bgl(void);
 
 struct _Buffer *BGL_MakeBuffer(int type, int ndimensions, int *dimensions, void *initbuffer);
@@ -52,5 +56,9 @@ typedef struct _Buffer {
 
 /** The type object */
 extern PyTypeObject BGL_bufferType;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BGL_H__ */

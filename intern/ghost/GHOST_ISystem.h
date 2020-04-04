@@ -27,10 +27,10 @@
 #ifndef __GHOST_ISYSTEM_H__
 #define __GHOST_ISYSTEM_H__
 
-#include "GHOST_Types.h"
 #include "GHOST_IContext.h"
 #include "GHOST_ITimerTask.h"
 #include "GHOST_IWindow.h"
+#include "GHOST_Types.h"
 
 class GHOST_IEventConsumer;
 
@@ -265,12 +265,6 @@ class GHOST_ISystem {
    * \return  The new context (or 0 if creation failed).
    */
   virtual GHOST_IContext *createOffscreenContext() = 0;
-
-  /**
-   * Overload to allow requesting a different context type. By default only OpenGL is supported.
-   * However by explicitly overloading this a system may add support for others.
-   */
-  virtual GHOST_IContext *createOffscreenContext(GHOST_TDrawingContextType type) = 0;
 
   /**
    * Dispose of a context.

@@ -27,14 +27,14 @@
 #include <string.h>
 
 #include "DNA_listBase.h"
-#include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_windowmanager_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 
@@ -67,7 +67,7 @@ void WM_event_print(const wmEvent *event)
 
     printf(
         "wmEvent  type:%d / %s, val:%d / %s,\n"
-        "         shift:%d, ctrl:%d, alt:%d, oskey:%d, keymodifier:%d,\n"
+        "         shift:%d, ctrl:%d, alt:%d, oskey:%d, keymodifier:%d, is_repeat:%d,\n"
         "         mouse:(%d,%d), ascii:'%c', utf8:'%.*s', pointer:%p\n",
         event->type,
         type_id,
@@ -78,6 +78,7 @@ void WM_event_print(const wmEvent *event)
         event->alt,
         event->oskey,
         event->keymodifier,
+        event->is_repeat,
         event->x,
         event->y,
         event->ascii,
@@ -419,7 +420,7 @@ bool WM_event_is_tablet(const struct wmEvent *event)
 /* most os using ctrl/oskey + space to switch ime, avoid added space */
 bool WM_event_is_ime_switch(const struct wmEvent *event)
 {
-  return event->val == KM_PRESS && event->type == SPACEKEY &&
+  return event->val == KM_PRESS && event->type == EVT_SPACEKEY &&
          (event->ctrl || event->oskey || event->shift || event->alt);
 }
 #endif

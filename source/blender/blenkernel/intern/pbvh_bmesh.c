@@ -20,15 +20,15 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_buffer.h"
 #include "BLI_ghash.h"
 #include "BLI_heap_simple.h"
 #include "BLI_math.h"
 #include "BLI_memarena.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_ccg.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_ccg.h"
 #include "BKE_pbvh.h"
 
 #include "GPU_buffers.h"
@@ -872,7 +872,7 @@ static void long_edge_queue_edge_add(EdgeQueueContext *eq_ctx, BMEdge *e)
 static void long_edge_queue_edge_add_recursive(
     EdgeQueueContext *eq_ctx, BMLoop *l_edge, BMLoop *l_end, const float len_sq, float limit_len)
 {
-  BLI_assert(len_sq > SQUARE(limit_len));
+  BLI_assert(len_sq > square_f(limit_len));
 
 #  ifdef USE_EDGEQUEUE_FRONTFACE
   if (eq_ctx->q->use_view_normal) {
@@ -895,17 +895,17 @@ static void long_edge_queue_edge_add_recursive(
   }
 
   if ((l_edge->radial_next != l_edge)) {
-    /* how much longer we need to be to consider for subdividing
+    /* How much longer we need to be to consider for subdividing
      * (avoids subdividing faces which are only *slightly* skinny) */
 #  define EVEN_EDGELEN_THRESHOLD 1.2f
-    /* how much the limit increases per recursion
-     * (avoids performing subdvisions too far away) */
+    /* How much the limit increases per recursion
+     * (avoids performing subdivisions too far away). */
 #  define EVEN_GENERATION_SCALE 1.6f
 
     const float len_sq_cmp = len_sq * EVEN_EDGELEN_THRESHOLD;
 
     limit_len *= EVEN_GENERATION_SCALE;
-    const float limit_len_sq = SQUARE(limit_len);
+    const float limit_len_sq = square_f(limit_len);
 
     BMLoop *l_iter = l_edge;
     do {
@@ -1687,7 +1687,7 @@ struct FastNodeBuildInfo {
 
 /**
  * Recursively split the node if it exceeds the leaf_limit.
- * This function is multi-threadabe since each invocation applies
+ * This function is multi-thread-able since each invocation applies
  * to a sub part of the arrays.
  */
 static void pbvh_bmesh_node_limit_ensure_fast(
@@ -1811,7 +1811,7 @@ static void pbvh_bmesh_create_nodes_fast_recursive(
   }
   else {
     /* node does not have children so it's a leaf node, populate with faces and tag accordingly
-     * this is an expensive part but it's not so easily threadable due to vertex node indices */
+     * this is an expensive part but it's not so easily thread-able due to vertex node indices */
     const int cd_vert_node_offset = bvh->cd_vert_node_offset;
     const int cd_face_node_offset = bvh->cd_face_node_offset;
 

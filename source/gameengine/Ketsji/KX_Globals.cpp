@@ -25,12 +25,11 @@
  */
 
 #include "KX_Globals.h"
+
+#include "BLI_blenlib.h"
+
 #include "KX_KetsjiEngine.h"
 #include "RAS_Rasterizer.h"
-
-extern "C" {
-#include "BLI_blenlib.h"
-}
 
 static KX_KetsjiEngine *g_engine = nullptr;
 static KX_Scene *g_scene = nullptr;
@@ -51,7 +50,7 @@ void KX_SetMainPath(const std::string &path)
 {
   char cpath[FILE_MAX];
   BLI_strncpy(cpath, path.c_str(), sizeof(cpath));
-  BLI_cleanup_file(nullptr, cpath);
+  BLI_cleanup_path(nullptr, cpath);
   g_mainPath = std::string(cpath);
 }
 
@@ -59,7 +58,7 @@ void KX_SetOrigPath(const std::string &path)
 {
   char cpath[FILE_MAX];
   BLI_strncpy(cpath, path.c_str(), sizeof(cpath));
-  BLI_cleanup_file(nullptr, cpath);
+  BLI_cleanup_path(nullptr, cpath);
   g_origPath = std::string(cpath);
 }
 

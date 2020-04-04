@@ -21,12 +21,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "BLI_utildefines.h"
-#include "BLI_string.h"
 #include "BLI_dynstr.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_idprop.h"
-#include "BKE_idcode.h"
+#include "BKE_idtype.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -166,7 +167,7 @@ static void idp_repr_fn_recursive(struct ReprState *state, const IDProperty *pro
     }
     case IDP_GROUP: {
       STR_APPEND_STR("{");
-      for (const IDProperty *subprop = prop->data.group.first; subprop; subprop = subprop->next) {
+      LISTBASE_FOREACH (const IDProperty *, subprop, &prop->data.group) {
         if (subprop != prop->data.group.first) {
           STR_APPEND_STR(", ");
         }
@@ -181,7 +182,7 @@ static void idp_repr_fn_recursive(struct ReprState *state, const IDProperty *pro
       const ID *id = prop->data.pointer;
       if (id != NULL) {
         STR_APPEND_STR("bpy.data.");
-        STR_APPEND_STR(BKE_idcode_to_name_plural(GS(id->name)));
+        STR_APPEND_STR(BKE_idtype_idcode_to_name_plural(GS(id->name)));
         STR_APPEND_STR("[");
         STR_APPEND_STR_QUOTE(id->name + 2);
         STR_APPEND_STR("]");

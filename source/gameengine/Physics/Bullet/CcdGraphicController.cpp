@@ -18,10 +18,11 @@
    being the original software.
    3. This notice may not be removed or altered from any source distribution.
  */
+#include "CcdGraphicController.h"
+
+#include "btBulletDynamicsCommon.h"
 
 #include "CcdPhysicsEnvironment.h"
-#include "CcdGraphicController.h"
-#include "btBulletDynamicsCommon.h"
 #include "MT_Vector3.h"
 
 CcdGraphicController::CcdGraphicController(CcdPhysicsEnvironment *phyEnv,

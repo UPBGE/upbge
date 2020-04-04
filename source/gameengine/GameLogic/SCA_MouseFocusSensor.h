@@ -33,11 +33,16 @@
 #ifndef __SCA_MouseFocusSensor_H__
 #define __SCA_MouseFocusSensor_H__
 
-#include "SCA_MouseSensor.h"
-
 #include "BLI_utildefines.h"
 
+#include "KX_Scene.h"
+#include "SCA_MouseSensor.h"
+
+class KX_Camera;
+class KX_KetsjiEngine;
 class KX_RayCast;
+
+struct KX_ClientObjectInfo;
 
 /**
  * The mouse focus sensor extends the basic SCA_MouseSensor. It has

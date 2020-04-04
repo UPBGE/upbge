@@ -35,100 +35,80 @@
 #endif
 
 #include "KX_Scene.h"
-#include "KX_Globals.h"
-#include "BLI_utildefines.h"
-#include "KX_KetsjiEngine.h"
-#include "KX_BlenderMaterial.h"
-#include "KX_FontObject.h"
-#include "RAS_IPolygonMaterial.h"
-#include "EXP_ListValue.h"
-#include "SCA_LogicManager.h"
-#include "SCA_TimeEventManager.h"
-#include "SCA_2DFilterActuator.h"
-#include "SCA_PythonController.h"
-#include "KX_CollisionEventManager.h"
-#include "SCA_KeyboardManager.h"
-#include "SCA_MouseManager.h"
-#include "SCA_ActuatorEventManager.h"
-#include "SCA_BasicEventManager.h"
-#include "KX_Camera.h"
-#include "SCA_JoystickManager.h"
-#include "KX_PyMath.h"
-#include "RAS_MeshObject.h"
-#include "SCA_IScene.h"
-#include "KX_LodManager.h"
 
-#include "RAS_Rasterizer.h"
-#include "RAS_ICanvas.h"
-#include "RAS_2DFilterData.h"
-#include "RAS_2DFilter.h"
-#include "KX_2DFilterManager.h"
-#include "RAS_BucketManager.h"
-#include "RAS_ILightObject.h"
-
-#include "GPU_framebuffer.h"
-
-#include "EXP_FloatValue.h"
-#include "SCA_IController.h"
-#include "SCA_IActuator.h"
-#include "SG_Node.h"
-#include "SG_Controller.h"
-#include "SG_Node.h"
-#include "DNA_scene_types.h"
-#include "DNA_property_types.h"
-#include "DNA_lightprobe_types.h"
-
-#include "GPU_texture.h"
-
-#include "KX_SG_NodeRelationships.h"
-
-#include "KX_NetworkMessageScene.h"
-#include "PHY_IPhysicsEnvironment.h"
-#include "PHY_IPhysicsController.h"
-#include "KX_BlenderConverter.h"
-#include "KX_MotionState.h"
-#include "KX_ObstacleSimulation.h"
-
-#include "KX_BlenderCanvas.h"
-
-#ifdef WITH_PYTHON
-#  include "EXP_PythonCallBack.h"
-#endif
-
-#include "KX_Light.h"
-
-#include "BLI_math.h"
-#include "BLI_task.h"
-
-#include "CM_Message.h"
-
-/**************************EEVEE INTEGRATION*****************************/
-#include "MEM_guardedalloc.h"
-
-extern "C" {
 #include "BKE_camera.h"
 #include "BKE_collection.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
-#include "depsgraph/DEG_depsgraph_query.h"
-#include "ED_view3d.h"
+#include "BLI_math.h"
+#include "BLI_task.h"
+#include "BLI_utildefines.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_property_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DRW_render.h"
-#include "GPU_matrix.h"
-#include "WM_api.h"
-
-// TEST USE_VIEWPORT_RENDER
 #include "ED_screen.h"
+#include "ED_view3d.h"
+#include "GPU_framebuffer.h"
+#include "GPU_matrix.h"
+#include "GPU_texture.h"
 #include "GPU_viewport.h"
+#include "MEM_guardedalloc.h"
+#include "WM_api.h"
+#include "depsgraph/DEG_depsgraph_query.h"
 #include "windowmanager/wm_draw.h"
-// END OF TEST USE VIEWPORT RENDER
-}
 
+#include "BL_BlenderConverter.h"
+#include "CM_Message.h"
+#include "EXP_FloatValue.h"
+#include "EXP_ListValue.h"
+#include "KX_2DFilterManager.h"
+#include "KX_BlenderCanvas.h"
+#include "KX_BlenderMaterial.h"
+#include "KX_Camera.h"
+#include "KX_CollisionEventManager.h"
+#include "KX_FontObject.h"
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
+#include "KX_Light.h"
+#include "KX_LodManager.h"
+#include "KX_MotionState.h"
+#include "KX_NetworkMessageScene.h"
+#include "KX_ObstacleSimulation.h"
+#include "KX_PyMath.h"
+#include "KX_SG_NodeRelationships.h"
+#include "PHY_IPhysicsController.h"
+#include "PHY_IPhysicsEnvironment.h"
+#include "RAS_2DFilter.h"
+#include "RAS_2DFilterData.h"
+#include "RAS_BucketManager.h"
 #include "RAS_FrameBuffer.h"
-/*********************END OF EEVEE INTEGRATION***************************/
+#include "RAS_ICanvas.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_MeshObject.h"
+#include "RAS_Rasterizer.h"
+#include "SCA_2DFilterActuator.h"
+#include "SCA_ActuatorEventManager.h"
+#include "SCA_BasicEventManager.h"
+#include "SCA_IActuator.h"
+#include "SCA_IController.h"
+#include "SCA_IScene.h"
+#include "SCA_JoystickManager.h"
+#include "SCA_KeyboardManager.h"
+#include "SCA_LogicManager.h"
+#include "SCA_MouseManager.h"
+#include "SCA_PythonController.h"
+#include "SCA_TimeEventManager.h"
+#include "SG_Controller.h"
+#include "SG_Node.h"
+
+#ifdef WITH_PYTHON
+#  include "EXP_PythonCallBack.h"
+#endif
 
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
@@ -185,7 +165,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_active_camera(nullptr),
       m_overrideCullingCamera(nullptr),
       m_ueberExecutionPriority(0),
-      m_suspendeddelta(0.0),
       m_blenderScene(scene),
       m_isActivedHysteresis(false),
       m_lodHysteresisValue(0),
@@ -195,7 +174,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_dbvt_culling = false;
   m_dbvt_occlusion_res = 0;
   m_activity_culling = false;
-  m_suspend = false;
   m_objectlist = new CListValue<KX_GameObject>();
   m_parentlist = new CListValue<KX_GameObject>();
   m_lightlist = new CListValue<KX_LightObject>();
@@ -249,7 +227,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    * INTEGRATION***********************************************************/
   m_staticObjects = {};
 
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 
   m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
@@ -281,11 +260,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    */
   InitBlenderContextVariables();
 
-  /* If there is no Aregion, we know that we're in blenderplayer (for now) */
-  ARegion *ar = canvas->GetARegion();
-
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-      !ar) {  // if no ar, we are in blenderplayer
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
@@ -293,14 +268,12 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     RenderAfterCameraSetup(nullptr, false);
   }
   else {
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(
-        KX_GetActiveEngine()->GetConverter()->GetMain(), scene, view_layer, false);
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
     if (!depsgraph) {
       /* If we don't have a depsgraph for this view_layer, allocate one (last arg (true))
        * We'll need it during BlenderDataConversion.
        */
-      BKE_scene_get_depsgraph(
-          KX_GetActiveEngine()->GetConverter()->GetMain(), scene, view_layer, true);
+      BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
     }
   }
   /******************************************************************************************************************************/
@@ -322,12 +295,11 @@ KX_Scene::~KX_Scene()
 
   Scene *scene = GetBlenderScene();
   RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-  ARegion *ar = canvas->GetARegion();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-      !ar) {  // if no ar, we are in blenderplayer
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
     if (m_shadingTypeBackup != 0) {
       View3D *v3d = CTX_wm_view3d(KX_GetActiveEngine()->GetContext());
       v3d->shading.type = m_shadingTypeBackup;
@@ -449,14 +421,18 @@ void KX_Scene::ResetLastReplicatedParentObject()
 void KX_Scene::InitBlenderContextVariables()
 {
   ARegion *ar;
-  wmWindowManager *wm = CTX_wm_manager(KX_GetActiveEngine()->GetContext());
+  /* Warning here: The bContext is not updated with the right bmain
+   * in embedded if we restart scene/load new .blend.
+   */
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win;
   for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
     bScreen *screen = WM_window_get_active_screen(win);
     if (!screen) {
       continue;
     }
-    CTX_wm_screen_set(KX_GetActiveEngine()->GetContext(), screen);
+    CTX_wm_screen_set(C, screen);
 
     for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
       if (sa->spacetype == SPACE_VIEW3D) {
@@ -464,25 +440,6 @@ void KX_Scene::InitBlenderContextVariables()
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
             if (ar->regiondata) {
-              /* If we are in EMBEDDED and at FIRST SCENE START and that we have several
-               * viewports opened, there can be several SPACE_VIEW3D and corresponding ARegions.
-               * In this case we have to ensure that the ARegion set at embedded start
-               * (canvas->GetARegion()) is the same than the current ar. If not, we continue the
-               * loop. But if we ReplaceScene, We can't know which ARegion we have to choose, then
-               * we choose the first valid ARegion/SPACE_VIEW3D we find in the new scene. If no
-               * ARegion is set, then we are in blenderplayer. Then we choose the the first valid
-               * ARegion/SPACE_VIEW3D we find in the scene.
-               */
-              RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-              bContext *C = KX_GetActiveEngine()->GetContext();
-              bool isStartScene = (GetBlenderScene() == canvas->GetStartScene());
-              /* In embedded, canvas->GetARegion will always return the first scene ARegion,
-               * but the bContext's ARegion will change if we replace scene.
-               */
-              ARegion *firstSceneAregion = canvas->GetARegion();
-              if (isStartScene && firstSceneAregion && firstSceneAregion != ar) {
-                continue;
-              }
               /* Here we try to set the valid scene ARegion, wmWindow, ScrArea...
                * This can be useful to have the correct settings when we do scripts
                * with bpy or this can also be useful for render when evil_C is used
@@ -502,7 +459,7 @@ void KX_Scene::InitBlenderContextVariables()
 
               /* Only if we are not in viewport render, modify + backup shading types */
               if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-                  !KX_GetActiveEngine()->GetCanvas()->GetARegion()) {
+                  KX_GetActiveEngine()->GetCanvas()->IsBlenderPlayer()) {
 
                 View3D *v3d = CTX_wm_view3d(C);
 
@@ -516,8 +473,13 @@ void KX_Scene::InitBlenderContextVariables()
                   v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER |
                                         V3D_SHADING_SCENE_WORLD_RENDER);
                 }
-              }
 
+                /* The following line is needed to fix a crash
+                 * when restart/load new blend file in embedded.
+                 * Why? Don'tKnow
+                 */
+                WM_redraw_windows(C);
+              }
               return;
             }
           }
@@ -526,7 +488,6 @@ void KX_Scene::InitBlenderContextVariables()
     }
   }
 }
-
 Object *KX_Scene::GetGameDefaultCamera()
 {
   return m_gameDefaultCamera;
@@ -564,9 +525,9 @@ void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collecti
     if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
       KX_GameObject *replica = AddReplicaObject(gameobj, nullptr, 0);
       replica->GetBlenderObject()->gameflag |= OB_OVERLAY_COLLECTION;
-      BKE_collection_object_add(KX_GetActiveEngine()->GetConverter()->GetMain(),
-                                collection,
-                                replica->GetBlenderObject());
+      bContext *C = KX_GetActiveEngine()->GetContext();
+      Main *bmain = CTX_data_main(C);
+      BKE_collection_object_add(bmain, collection, replica->GetBlenderObject());
       // release here because AddReplicaObject AddRef's
       // the object is added to the scene so we don't want python to own a reference
       replica->Release();
@@ -592,10 +553,9 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
     for (KX_GameObject *gameobj : GetObjectList()) {
       if (BKE_collection_has_object(collection, gameobj->GetBlenderObject())) {
         if (gameobj->IsReplica()) {
-          BKE_collection_object_remove(KX_GetActiveEngine()->GetConverter()->GetMain(),
-                                       collection,
-                                       gameobj->GetBlenderObject(),
-                                       false);
+          bContext *C = KX_GetActiveEngine()->GetContext();
+          Main *bmain = CTX_data_main(C);
+          BKE_collection_object_remove(bmain, collection, gameobj->GetBlenderObject(), false);
           DelayedRemoveObject(gameobj);
         }
       }
@@ -677,10 +637,13 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  bContext *C = engine->GetContext();
+  Main *bmain = CTX_data_main(C);
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+
+  engine->CountDepsgraphTime();
 
   if (!depsgraph) {
     depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
@@ -691,6 +654,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate(is_overlay_pass);
   }
+
+  engine->EndCountDepsgraphTime();
 
   bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
   m_resetTaaSamples = false;
@@ -704,13 +669,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
 
-  ARegion *ar = canvas->GetARegion();
-  bContext *C = engine->GetContext();
-
-  /* Ensure there is a valid ARegion *ar (this is not the case in blenderplayer)
-   * Here we'll render directly the scene with viewport code.
-   */
-  if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && ar) {
+  /* Here we'll render directly the scene with viewport code. */
+  if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !canvas->IsBlenderPlayer()) {
     if (cam) {
       DRW_view_set_active(NULL);
 
@@ -718,8 +678,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
       CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
 
-      ED_region_tag_redraw(ar);
-      wm_draw_update(engine->GetContext());
+      ED_region_tag_redraw(CTX_wm_region(C));
+      wm_draw_update(C);
       return;
     }
   }
@@ -731,7 +691,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     float winmat[4][4];
     cam->GetProjectionMatrix().getValue(&winmat[0][0]);
     CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-    ED_view3d_draw_setup_view(CTX_wm_window(C),
+    ED_view3d_draw_setup_view(CTX_wm_manager(C),
+                              CTX_wm_window(C),
                               CTX_data_expect_evaluated_depsgraph(C),
                               CTX_data_scene(C),
                               CTX_wm_region(C),
@@ -764,7 +725,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
   /* And replace it with color and depth textures from viewport */
   GPU_framebuffer_texture_attach(
-      input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport), 0, 0);
+      input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport, 0), 0, 0);
   GPU_framebuffer_texture_attach(
       input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
 
@@ -779,12 +740,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
   DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
-                           CTX_wm_view3d(engine->GetContext()),
+                           CTX_wm_view3d(C),
                            GetOverlayCamera() && !is_overlay_pass ? false : true);
 
   /* Detach viewport textures from input framebuffer... */
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
-                                 GPU_viewport_color_texture(m_currentGPUViewport));
+                                 GPU_viewport_color_texture(m_currentGPUViewport, 0));
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
   /* And restore defaults attachments */
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
@@ -799,7 +760,8 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                                                  RAS_Rasterizer *rasty,
                                                  const rcti *window)
 {
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
@@ -816,11 +778,11 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
 
   SetCurrentGPUViewport(cam->GetGPUViewport());
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
   CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-  ED_view3d_draw_setup_view(CTX_wm_window(C),
+  ED_view3d_draw_setup_view(CTX_wm_manager(C),
+                            CTX_wm_window(C),
                             CTX_data_expect_evaluated_depsgraph(C),
                             CTX_data_scene(C),
                             CTX_wm_region(C),
@@ -911,24 +873,9 @@ const RAS_FrameSettings &KX_Scene::GetFramingType() const
   return m_frame_settings;
 }
 
-void KX_Scene::Suspend()
-{
-  m_suspend = true;
-}
-
-void KX_Scene::Resume()
-{
-  m_suspend = false;
-}
-
 void KX_Scene::SetActivityCulling(bool b)
 {
   m_activity_culling = b;
-}
-
-bool KX_Scene::IsSuspended()
-{
-  return m_suspend;
 }
 
 void KX_Scene::AddObjectDebugProperties(class KX_GameObject *gameobj)
@@ -1975,15 +1922,6 @@ void KX_Scene::SetPhysicsEnvironment(class PHY_IPhysicsEnvironment *physEnv)
   }
 }
 
-void KX_Scene::SetSuspendedDelta(double suspendeddelta)
-{
-  m_suspendeddelta = suspendeddelta;
-}
-double KX_Scene::GetSuspendedDelta() const
-{
-  return m_suspendeddelta;
-}
-
 short KX_Scene::GetAnimationFPS()
 {
   return m_blenderScene->r.frs_sec;
@@ -2259,8 +2197,6 @@ PyMethodDef KX_Scene::Methods[] = {
     KX_PYMETHODTABLE(KX_Scene, end),
     KX_PYMETHODTABLE(KX_Scene, restart),
     KX_PYMETHODTABLE(KX_Scene, replace),
-    KX_PYMETHODTABLE(KX_Scene, suspend),
-    KX_PYMETHODTABLE(KX_Scene, resume),
     KX_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
 
     /* dict style access */
@@ -2565,7 +2501,6 @@ PyAttributeDef KX_Scene::Attributes[] = {
     KX_PYATTRIBUTE_RW_FUNCTION(
         "pre_draw_setup", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
     KX_PYATTRIBUTE_RW_FUNCTION("gravity", KX_Scene, pyattr_get_gravity, pyattr_set_gravity),
-    KX_PYATTRIBUTE_BOOL_RO("suspended", KX_Scene, m_suspend),
     KX_PYATTRIBUTE_BOOL_RO("activity_culling", KX_Scene, m_activity_culling),
     KX_PYATTRIBUTE_FLOAT_RW(
         "activity_culling_radius", 0.5f, FLT_MAX, KX_Scene, m_activity_box_radius),
@@ -2652,26 +2587,6 @@ KX_PYMETHODDEF_DOC(
     Py_RETURN_TRUE;
 
   Py_RETURN_FALSE;
-}
-
-KX_PYMETHODDEF_DOC(KX_Scene,
-                   suspend,
-                   "suspend()\n"
-                   "Suspends this scene.\n")
-{
-  Suspend();
-
-  Py_RETURN_NONE;
-}
-
-KX_PYMETHODDEF_DOC(KX_Scene,
-                   resume,
-                   "resume()\n"
-                   "Resumes this scene.\n")
-{
-  Resume();
-
-  Py_RETURN_NONE;
 }
 
 KX_PYMETHODDEF_DOC(KX_Scene,

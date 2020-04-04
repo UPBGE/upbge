@@ -27,50 +27,51 @@
 remove_strict_flags()
 
 set(INC
-	.
-	../Common
-	../../Common
-	../../Converter
-	../../Expressions
-	../../GameLogic
-	../../Ketsji
-	../../Rasterizer
-	../../SceneGraph
-	../../../blender/blenkernel
-	../../../blender/blenlib
-	../../../blender/draw/engines/eevee/
-	../../../blender/gpu
-	../../../blender/makesdna
-	../../../../intern/guardedalloc
+  .
+  ../Common
+  ../../Common
+  ../../Converter
+  ../../Expressions
+  ../../GameLogic
+  ../../Ketsji
+  ../../Rasterizer
+  ../../SceneGraph
+  ../../../blender/blenkernel
+  ../../../blender/blenlib
+  ../../../blender/draw/engines/eevee/
+  ../../../blender/gpu
+  ../../../blender/makesdna
+  ../../../blender/makesrna
+  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
-	../../../../intern/moto/include
-	${PYTHON_INCLUDE_DIRS}
-	${BOOST_INCLUDE_DIR}
+  ../../../../intern/moto/include
+  ${PYTHON_INCLUDE_DIRS}
+  ${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
-	CcdConstraint.cpp
-	CcdPhysicsEnvironment.cpp
-	CcdPhysicsController.cpp
-	CcdGraphicController.cpp
+  CcdConstraint.cpp
+  CcdPhysicsEnvironment.cpp
+  CcdPhysicsController.cpp
+  CcdGraphicController.cpp
 
-	CcdConstraint.h
-	CcdMathUtils.h
-	CcdGraphicController.h
-	CcdPhysicsController.h
-	CcdPhysicsEnvironment.h
+  CcdConstraint.h
+  CcdMathUtils.h
+  CcdGraphicController.h
+  CcdPhysicsController.h
+  CcdPhysicsEnvironment.h
 )
 
 set(LIB
 )
 
 if(WITH_BULLET)
-	list(APPEND INC_SYS
-		${BULLET_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_BULLET)
+  list(APPEND INC_SYS
+    ${BULLET_INCLUDE_DIRS}
+  )
+  add_definitions(-DWITH_BULLET)
         list(APPEND LIB
           extern_bullet
         )

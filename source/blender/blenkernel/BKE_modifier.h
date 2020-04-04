@@ -20,9 +20,9 @@
  * \ingroup bke
  */
 
-#include "DNA_modifier_types.h" /* needed for all enum typdefs */
-#include "BLI_compiler_attrs.h"
 #include "BKE_customdata.h"
+#include "BLI_compiler_attrs.h"
+#include "DNA_modifier_types.h" /* needed for all enum typdefs */
 
 #ifdef __cplusplus
 extern "C" {
@@ -125,6 +125,11 @@ typedef enum ModifierApplyFlag {
   /** Ignore scene simplification flag and use subdivisions
    * level set in multires modifier. */
   MOD_APPLY_IGNORE_SIMPLIFY = 1 << 3,
+  /** The effect of this modifier will be applied to the base mesh
+   * The modifier itself will be removed from the modifier stack.
+   * This flag can be checked to ignore rendering display data to the mesh.
+   * See `OBJECT_OT_modifier_apply` operator. */
+  MOD_APPLY_TO_BASE_MESH = 1 << 4,
 } ModifierApplyFlag;
 
 typedef struct ModifierUpdateDepsgraphContext {

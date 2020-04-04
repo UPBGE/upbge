@@ -21,14 +21,14 @@
  * \ingroup bli
  */
 
-#include <stdlib.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
 #include "BLI_gsqueue.h"
+#include "BLI_listbase.h"
 #include "BLI_system.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -37,14 +37,14 @@
 
 /* for checking system threads - BLI_system_thread_count */
 #ifdef WIN32
-#  include <windows.h>
 #  include <sys/timeb.h>
+#  include <windows.h>
 #elif defined(__APPLE__)
-#  include <sys/types.h>
 #  include <sys/sysctl.h>
+#  include <sys/types.h>
 #else
-#  include <unistd.h>
 #  include <sys/time.h>
+#  include <unistd.h>
 #endif
 
 #include "atomic_ops.h"
@@ -93,11 +93,9 @@ static TaskScheduler *task_scheduler = NULL;
  *         for (go over all jobs)
  *             if (job is ready) {
  *                 if (job was not removed) {
- *                     BLI_threadpool_remove(&lb, job);
- *                 }
+ *                     BLI_threadpool_remove(&lb, job); *                 }
  *             }
- *             else cont = 1;
- *         }
+ *             else cont = 1; *         }
  *         // conditions to exit loop
  *         if (if escape loop event) {
  *             if (BLI_available_threadslots(&lb) == maxthreads) {
@@ -862,7 +860,7 @@ void BLI_threaded_malloc_end(void)
 #if 0  /* UNUSED */
 static bool check_is_threadripper2_alike_topology(void)
 {
-  /* NOTE: We hope operating system does not support CPU hotswap to
+  /* NOTE: We hope operating system does not support CPU hot-swap to
    * a different brand. And that SMP of different types is also not
    * encouraged by the system. */
   static bool is_initialized = false;

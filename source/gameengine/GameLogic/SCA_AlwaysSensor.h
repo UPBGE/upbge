@@ -34,6 +34,7 @@
 
 #ifndef __SCA_ALWAYSSENSOR_H__
 #define __SCA_ALWAYSSENSOR_H__
+
 #include "SCA_ISensor.h"
 
 class SCA_AlwaysSensor : public SCA_ISensor {

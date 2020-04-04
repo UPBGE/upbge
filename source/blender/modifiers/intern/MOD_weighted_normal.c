@@ -143,7 +143,7 @@ static void aggregate_item_normal(WeightedNormalModifierData *wnmd,
 
   const bool has_vgroup = dvert != NULL;
   const bool vert_of_group = has_vgroup &&
-                             defvert_find_index(&dvert[mv_index], defgrp_index) != NULL;
+                             BKE_defvert_find_index(&dvert[mv_index], defgrp_index) != NULL;
 
   if (has_vgroup &&
       ((vert_of_group && use_invert_vgroup) || (!vert_of_group && !use_invert_vgroup))) {
@@ -562,7 +562,7 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   if (!(((Mesh *)ob->data)->flag & ME_AUTOSMOOTH))
 #endif
   {
-    modifier_setError((ModifierData *)wnmd, "Enable 'Auto Smooth' option in mesh settings");
+    modifier_setError((ModifierData *)wnmd, "Enable 'Auto Smooth' in Object Data Properties");
     return mesh;
   }
 

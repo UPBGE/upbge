@@ -21,17 +21,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.h"
-#include "BLI_listbase.h"
+#include "BLI_utildefines.h"
+
+#include "BLT_translation.h"
 
 #include "BKE_global.h"
 #include "BKE_idprop.h"
+#include "BKE_idtype.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
-#include "BKE_scene.h"
 #include "BKE_object.h"
+#include "BKE_scene.h"
 #include "BKE_workspace.h"
 
 #include "DNA_object_types.h"
@@ -45,6 +48,39 @@
 #include "MEM_guardedalloc.h"
 
 /* -------------------------------------------------------------------- */
+
+static void workspace_free_data(ID *id)
+{
+  WorkSpace *workspace = (WorkSpace *)id;
+
+  BKE_workspace_relations_free(&workspace->hook_layout_relations);
+
+  BLI_freelistN(&workspace->owner_ids);
+  BLI_freelistN(&workspace->layouts);
+
+  while (!BLI_listbase_is_empty(&workspace->tools)) {
+    BKE_workspace_tool_remove(workspace, workspace->tools.first);
+  }
+
+  MEM_SAFE_FREE(workspace->status_text);
+}
+
+IDTypeInfo IDType_ID_WS = {
+    .id_code = ID_WS,
+    .id_filter = FILTER_ID_WS,
+    .main_listbase_index = INDEX_ID_WS,
+    .struct_size = sizeof(WorkSpace),
+    .name = "WorkSpace",
+    .name_plural = "workspaces",
+    .translation_context = BLT_I18NCONTEXT_ID_WORKSPACE,
+    .flags = IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_MAKELOCAL,
+
+    .init_data = NULL,
+    .copy_data = NULL,
+    .free_data = workspace_free_data,
+    .make_local = NULL,
+};
+
 /** \name Internal Utils
  * \{ */
 
@@ -151,32 +187,8 @@ WorkSpace *BKE_workspace_add(Main *bmain, const char *name)
 }
 
 /**
- * The function that actually frees the workspace data (not workspace itself).
- * It shouldn't be called directly, instead #BKE_workspace_remove should be,
- * which calls this through #BKE_id_free then.
- *
- * Should something like a bke_internal.h be added, this should go there!
- */
-void BKE_workspace_free(WorkSpace *workspace)
-{
-  BKE_workspace_relations_free(&workspace->hook_layout_relations);
-
-  BLI_freelistN(&workspace->owner_ids);
-  BLI_freelistN(&workspace->layouts);
-
-  while (!BLI_listbase_is_empty(&workspace->tools)) {
-    BKE_workspace_tool_remove(workspace, workspace->tools.first);
-  }
-
-  if (workspace->status_text) {
-    MEM_freeN(workspace->status_text);
-    workspace->status_text = NULL;
-  }
-}
-
-/**
  * Remove \a workspace by freeing itself and its data. This is a higher-level wrapper that
- * calls #BKE_workspace_free (through #BKE_id_free) to free the workspace data, and frees
+ * calls #workspace_free_data (through #BKE_id_free) to free the workspace data, and frees
  * other data-blocks owned by \a workspace and its layouts (currently that is screens only).
  *
  * Always use this to remove (and free) workspaces. Don't free non-ID workspace members here.
@@ -384,7 +396,7 @@ void BKE_workspace_id_tag_all_visible(Main *bmain, int tag)
 {
   BKE_main_id_tag_listbase(&bmain->workspaces, tag, false);
   wmWindowManager *wm = bmain->wm.first;
-  for (wmWindow *win = wm->windows.first; win; win = win->next) {
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
     workspace->id.tag |= tag;
   }

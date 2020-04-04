@@ -25,9 +25,9 @@
 #ifndef __BLI_FILEOPS_H__
 #define __BLI_FILEOPS_H__
 
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/stat.h>
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +39,7 @@ extern "C" {
 #include <limits.h> /* for PATH_MAX */
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_utildefines.h"
 
 #ifndef PATH_MAX
 #  define PATH_MAX 4096
@@ -69,6 +70,10 @@ typedef struct stat BLI_stat_t;
 
 int BLI_fstat(int fd, BLI_stat_t *buffer) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 int BLI_stat(const char *path, BLI_stat_t *buffer) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+int64_t BLI_ftell(FILE *stream) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+int BLI_fseek(FILE *stream, int64_t offset, int whence);
+int64_t BLI_lseek(int fd, int64_t offset, int whence);
+
 #ifdef WIN32
 int BLI_wstat(const wchar_t *path, BLI_stat_t *buffer);
 #endif
@@ -142,13 +147,20 @@ int BLI_access(const char *filename, int mode) ATTR_WARN_UNUSED_RESULT ATTR_NONN
 
 bool BLI_file_is_writable(const char *file) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 bool BLI_file_touch(const char *file) ATTR_NONNULL();
+bool BLI_file_alias_target(char *target, const char *filepath);
 
 #if 0 /* UNUSED */
 int BLI_file_gzip(const char *from, const char *to) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 #endif
 char *BLI_file_ungzip_to_mem(const char *from_file, int *r_size) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL();
-
+size_t BLI_gzip_mem_to_file_at_pos(void *buf,
+                                   size_t len,
+                                   FILE *file,
+                                   size_t gz_stream_offset,
+                                   int compression_level) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+size_t BLI_ungzip_file_to_mem_at_pos(void *buf, size_t len, FILE *file, size_t gz_stream_offset)
+    ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 size_t BLI_file_descriptor_size(int file) ATTR_WARN_UNUSED_RESULT;
 size_t BLI_file_size(const char *file) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 

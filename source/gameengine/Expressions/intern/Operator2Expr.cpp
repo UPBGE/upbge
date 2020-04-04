@@ -16,6 +16,7 @@
  */
 
 #include "EXP_Operator2Expr.h"
+
 #include "EXP_StringValue.h"
 
 COperator2Expr::COperator2Expr(VALUE_OPERATOR op, CExpression *lhs, CExpression *rhs)

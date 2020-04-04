@@ -22,12 +22,12 @@
  * \ingroup blenloader
  */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <math.h>
-#include <fcntl.h>
-#include <errno.h>
 
 /* open/close */
 #ifndef _WIN32
@@ -42,8 +42,8 @@
 
 #include "BLI_blenlib.h"
 
-#include "BLO_undofile.h"
 #include "BLO_readfile.h"
+#include "BLO_undofile.h"
 
 #include "BKE_main.h"
 
@@ -92,12 +92,21 @@ void BLO_memfile_merge(MemFile *first, MemFile *second)
   BLO_memfile_free(first);
 }
 
+/* Clear is_identical_future before adding next memfile. */
+void BLO_memfile_clear_future(MemFile *memfile)
+{
+  LISTBASE_FOREACH (MemFileChunk *, chunk, &memfile->chunks) {
+    chunk->is_identical_future = false;
+  }
+}
+
 void memfile_chunk_add(MemFile *memfile, const char *buf, uint size, MemFileChunk **compchunk_step)
 {
   MemFileChunk *curchunk = MEM_mallocN(sizeof(MemFileChunk), "MemFileChunk");
   curchunk->size = size;
   curchunk->buf = NULL;
   curchunk->is_identical = false;
+  curchunk->is_identical_future = false;
   BLI_addtail(&memfile->chunks, curchunk);
 
   /* we compare compchunk with buf */
@@ -107,6 +116,7 @@ void memfile_chunk_add(MemFile *memfile, const char *buf, uint size, MemFileChun
       if (memcmp(compchunk->buf, buf, size) == 0) {
         curchunk->buf = compchunk->buf;
         curchunk->is_identical = true;
+        compchunk->is_identical_future = true;
       }
     }
     *compchunk_step = compchunk->next;
@@ -126,8 +136,11 @@ struct Main *BLO_memfile_main_get(struct MemFile *memfile,
                                   struct Scene **r_scene)
 {
   struct Main *bmain_undo = NULL;
-  BlendFileData *bfd = BLO_read_from_memfile(
-      oldmain, BKE_main_blendfile_path(oldmain), memfile, BLO_READ_SKIP_NONE, NULL);
+  BlendFileData *bfd = BLO_read_from_memfile(oldmain,
+                                             BKE_main_blendfile_path(oldmain),
+                                             memfile,
+                                             &(const struct BlendFileReadParams){0},
+                                             NULL);
 
   if (bfd) {
     bmain_undo = bfd->main;

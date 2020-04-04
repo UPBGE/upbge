@@ -27,19 +27,19 @@
 #include <string.h>
 
 #include "DNA_anim_types.h"
+#include "DNA_armature_types.h"
 #include "DNA_collection_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_property_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_light_types.h"
 #include "DNA_workspace_types.h"
-#include "DNA_gpencil_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_math_bits.h"
-#include "BLI_listbase.h"
 #include "BLI_rand.h"
 #include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
@@ -66,15 +66,15 @@
 #include "DEG_depsgraph.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
 #include "WM_message.h"
+#include "WM_types.h"
 
 #include "ED_armature.h"
+#include "ED_keyframing.h"
 #include "ED_object.h"
 #include "ED_outliner.h"
 #include "ED_screen.h"
 #include "ED_select_utils.h"
-#include "ED_keyframing.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -248,7 +248,7 @@ Base *ED_object_find_first_by_data_id(ViewLayer *view_layer, ID *id)
   Base *base_best = NULL;
   int priority_best = 0;
 
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if (base->object && base->object->data == id) {
       if (base->flag & BASE_SELECTED) {
         return base;
@@ -1358,7 +1358,7 @@ static bool object_select_more_less(bContext *C, const bool select)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     Object *ob = base->object;
     ob->flag &= ~OB_DONE;
     ob->id.tag &= ~LIB_TAG_DOIT;

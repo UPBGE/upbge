@@ -21,14 +21,14 @@
  * \ingroup spgraph
  */
 
-#include <stdlib.h>
 #include <math.h>
+#include <stdlib.h>
 
 #include "DNA_scene_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_math_base.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -38,10 +38,10 @@
 
 #include "ED_anim_api.h"
 #include "ED_markers.h"
+#include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_select_utils.h"
 #include "ED_transform.h"
-#include "ED_object.h"
 
 #include "graph_intern.h"
 
@@ -129,16 +129,16 @@ static int graphview_cursor_exec(bContext *C, wmOperator *op)
 /* set the operator properties from the initial event */
 static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   float viewx, viewy;
 
   /* abort if not active region (should not really be possible) */
-  if (ar == NULL) {
+  if (region == NULL) {
     return;
   }
 
   /* convert from region coordinates to View2D 'tot' space */
-  UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
+  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
 
   /* store the values in the operator properties */
   /* NOTE: we don't clamp frame here, as it might be used for the drivers cursor */
@@ -176,7 +176,7 @@ static int graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *ev
 
   /* execute the events */
   switch (event->type) {
-    case ESCKEY:
+    case EVT_ESCKEY:
       if (screen) {
         screen->scrubbing = false;
       }

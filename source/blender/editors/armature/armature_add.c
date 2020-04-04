@@ -30,15 +30,15 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_ghash.h"
+#include "BLI_math.h"
 #include "BLI_string_utils.h"
 
 #include "BKE_action.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
-#include "BKE_idprop.h"
 #include "BKE_deform.h"
+#include "BKE_idprop.h"
 #include "BKE_layer.h"
 
 #include "RNA_access.h"
@@ -228,13 +228,13 @@ static int armature_click_extrude_invoke(bContext *C, wmOperator *op, const wmEv
 
   /* temporarily change 3d cursor position */
   Scene *scene;
-  ARegion *ar;
+  ARegion *region;
   View3D *v3d;
   float tvec[3], oldcurs[3], mval_f[2];
   int retv;
 
   scene = CTX_data_scene(C);
-  ar = CTX_wm_region(C);
+  region = CTX_wm_region(C);
   v3d = CTX_wm_view3d(C);
 
   View3DCursor *cursor = &scene->cursor;
@@ -242,7 +242,7 @@ static int armature_click_extrude_invoke(bContext *C, wmOperator *op, const wmEv
   copy_v3_v3(oldcurs, cursor->location);
 
   copy_v2fl_v2i(mval_f, event->mval);
-  ED_view3d_win_to_3d(v3d, ar, cursor->location, mval_f, tvec);
+  ED_view3d_win_to_3d(v3d, region, cursor->location, mval_f, tvec);
   copy_v3_v3(cursor->location, tvec);
 
   /* extrude to the where new cursor is and store the operation result */
@@ -341,7 +341,7 @@ void postEditBoneDuplicate(struct ListBase *editbones, Object *ob)
 
   GHash *name_map = BLI_ghash_str_new(__func__);
 
-  for (EditBone *ebone_src = editbones->first; ebone_src; ebone_src = ebone_src->next) {
+  LISTBASE_FOREACH (EditBone *, ebone_src, editbones) {
     EditBone *ebone_dst = ebone_src->temp.ebone;
     if (!ebone_dst) {
       ebone_dst = ED_armature_ebone_get_mirrored(editbones, ebone_src);
@@ -351,7 +351,7 @@ void postEditBoneDuplicate(struct ListBase *editbones, Object *ob)
     }
   }
 
-  for (EditBone *ebone_src = editbones->first; ebone_src; ebone_src = ebone_src->next) {
+  LISTBASE_FOREACH (EditBone *, ebone_src, editbones) {
     EditBone *ebone_dst = ebone_src->temp.ebone;
     if (ebone_dst) {
       bPoseChannel *pchan_src = BKE_pose_channel_find_name(ob->pose, ebone_src->name);
@@ -742,7 +742,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
       }
     }
 
-    /*  Find the selected bones and duplicate them as needed, with mirrored name */
+    /* Find the selected bones and duplicate them as needed, with mirrored name. */
     for (ebone_iter = arm->edbo->first; ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next) {
       if (EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED) &&
@@ -765,7 +765,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
       }
     }
 
-    /*  Run through the list and fix the pointers */
+    /* Run through the list and fix the pointers. */
     for (ebone_iter = arm->edbo->first; ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next) {
       if (ebone_iter->temp.ebone) {
@@ -1116,7 +1116,7 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 
   ED_armature_edit_deselect_all(obedit);
 
-  /*  Create a bone */
+  /* Create a bone. */
   bone = ED_armature_ebone_add(obedit->data, name);
 
   copy_v3_v3(bone->head, curs);

@@ -32,7 +32,10 @@
 #ifndef __DEV_JOYSTICK_H__
 #define __DEV_JOYSTICK_H__
 
+#include <string>
+
 #include "DEV_JoystickDefines.h"
+
 #ifdef WITH_SDL
 /* SDL force defines __SSE__ and __SSE2__ flags, which generates warnings
  * because we pass those defines via command line as well. For until there's
@@ -47,8 +50,6 @@
 #    pragma warning(pop)
 #  endif
 #endif
-
-#include <string>
 
 /**
  * Basic Joystick class

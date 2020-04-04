@@ -20,28 +20,33 @@
 #include "../node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_volume_info_out[] = {
-    {SOCK_RGBA, 0, N_("Color")},
-    {SOCK_FLOAT, 0, N_("Density")},
-    {SOCK_FLOAT, 0, N_("Flame")},
-    {SOCK_FLOAT, 0, N_("Temperature")},
-    {-1, 0, ""},
+    {SOCK_RGBA, N_("Color")},
+    {SOCK_FLOAT, N_("Density")},
+    {SOCK_FLOAT, N_("Flame")},
+    {SOCK_FLOAT, N_("Temperature")},
+    {-1, ""},
 };
 
 static int node_shader_gpu_volume_info(GPUMaterial *mat,
-                                       bNode *node,
+                                       bNode *UNUSED(node),
                                        bNodeExecData *UNUSED(execdata),
-                                       GPUNodeStack *in,
+                                       GPUNodeStack *UNUSED(in),
                                        GPUNodeStack *out)
 {
+  if (out[0].hasoutput) {
+    out[0].link = GPU_volume_grid(mat, "color");
+  }
+  if (out[1].hasoutput) {
+    out[1].link = GPU_volume_grid(mat, "density");
+  }
+  if (out[2].hasoutput) {
+    out[2].link = GPU_volume_grid(mat, "flame");
+  }
+  if (out[3].hasoutput) {
+    out[3].link = GPU_volume_grid(mat, "temperature");
+  }
 
-  return GPU_stack_link(mat,
-                        node,
-                        "node_volume_info",
-                        in,
-                        out,
-                        GPU_builtin(GPU_VOLUME_DENSITY),
-                        GPU_builtin(GPU_VOLUME_FLAME),
-                        GPU_builtin(GPU_VOLUME_TEMPERATURE));
+  return true;
 }
 
 void register_node_type_sh_volume_info(void)

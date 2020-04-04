@@ -32,8 +32,8 @@
 #ifndef __DUMMYPHYSICSENVIRONMENT_H__
 #define __DUMMYPHYSICSENVIRONMENT_H__
 
-#include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IMotionState.h"
+#include "PHY_IPhysicsEnvironment.h"
 
 /**
  * DummyPhysicsEnvironment  is an empty placeholder
@@ -48,8 +48,6 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
  public:
   DummyPhysicsEnvironment();
   virtual ~DummyPhysicsEnvironment();
-  virtual void BeginFrame();
-  virtual void EndFrame();
   // Perform an integration step of duration 'timeStep'.
   virtual bool ProceedDeltaTime(double curTime, float timeStep, float interval);
   virtual void SetFixedTimeStep(bool useFixedTimeStep, float fixedTimeStep);
@@ -142,7 +140,7 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
     // Dummy, nothing to do here
   }
 
-  virtual void ConvertObject(KX_BlenderSceneConverter &converter,
+  virtual void ConvertObject(BL_BlenderSceneConverter &converter,
                              KX_GameObject *gameobj,
                              RAS_MeshObject *meshobj,
                              DerivedMesh *dm,

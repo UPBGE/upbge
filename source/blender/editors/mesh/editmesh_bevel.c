@@ -22,24 +22,24 @@
 
 #include "DNA_object_types.h"
 
-#include "BLI_string.h"
 #include "BLI_math.h"
+#include "BLI_string.h"
 
 #include "BLT_translation.h"
 
 #include "BKE_context.h"
-#include "BKE_global.h"
+#include "BKE_curveprofile.h"
 #include "BKE_editmesh.h"
-#include "BKE_unit.h"
+#include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_mesh.h"
-#include "BKE_curveprofile.h"
+#include "BKE_unit.h"
 
-#include "DNA_mesh_types.h"
 #include "DNA_curveprofile_types.h"
+#include "DNA_mesh_types.h"
 
-#include "RNA_define.h"
 #include "RNA_access.h"
+#include "RNA_define.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -299,7 +299,7 @@ static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
   /* avoid the cost of allocating a bm copy */
   if (is_modal) {
     View3D *v3d = CTX_wm_view3d(C);
-    ARegion *ar = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(C);
 
     for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
       Object *obedit = opdata->ob_store[ob_index].ob;
@@ -307,7 +307,7 @@ static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
       opdata->ob_store[ob_index].mesh_backup = EDBM_redo_state_store(em);
     }
     opdata->draw_handle_pixel = ED_region_draw_cb_activate(
-        ar->type, ED_region_draw_mouse_line_cb, opdata->mcenter, REGION_DRAW_POST_PIXEL);
+        region->type, ED_region_draw_mouse_line_cb, opdata->mcenter, REGION_DRAW_POST_PIXEL);
     G.moving = G_TRANSFORM_EDIT;
 
     if (v3d) {
@@ -416,10 +416,10 @@ static bool edbm_bevel_calc(wmOperator *op)
 static void edbm_bevel_exit(bContext *C, wmOperator *op)
 {
   BevelData *opdata = op->customdata;
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
 
-  if (sa) {
-    ED_area_status_text(sa, NULL);
+  if (area) {
+    ED_area_status_text(area, NULL);
   }
 
   for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
@@ -433,11 +433,11 @@ static void edbm_bevel_exit(bContext *C, wmOperator *op)
 
   if (opdata->is_modal) {
     View3D *v3d = CTX_wm_view3d(C);
-    ARegion *ar = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(C);
     for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
       EDBM_redo_state_free(&opdata->ob_store[ob_index].mesh_backup, NULL, false);
     }
-    ED_region_draw_cb_exit(ar->type, opdata->draw_handle_pixel);
+    ED_region_draw_cb_exit(region->type, opdata->draw_handle_pixel);
     if (v3d) {
       v3d->gizmo_flag = opdata->gizmo_flag;
     }
@@ -690,14 +690,14 @@ wmKeyMap *bevel_modal_keymap(wmKeyConfig *keyconf)
       {0, NULL, 0, NULL, NULL},
   };
 
-  wmKeyMap *keymap = WM_modalkeymap_get(keyconf, "Bevel Modal Map");
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Bevel Modal Map");
 
   /* This function is called for each spacetype, only needs to add map once */
   if (keymap && keymap->modal_items) {
     return NULL;
   }
 
-  keymap = WM_modalkeymap_add(keyconf, "Bevel Modal Map", modal_items);
+  keymap = WM_modalkeymap_ensure(keyconf, "Bevel Modal Map", modal_items);
 
   WM_modalkeymap_assign(keymap, "MESH_OT_bevel");
 

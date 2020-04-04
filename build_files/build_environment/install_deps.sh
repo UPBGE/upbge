@@ -63,8 +63,8 @@ build-ffmpeg,build-opencollada,build-alembic,build-embree,build-oidn,build-usd,\
 build-xr-openxr,\
 skip-python,skip-numpy,skip-boost,\
 skip-ocio,skip-openexr,skip-oiio,skip-llvm,skip-osl,skip-osd,skip-openvdb,\
-skip-ffmpeg,skip-opencollada,skip-alembic,skip-embree,skip-oidn,skip-usd, \
-skip-xr-openxr\
+skip-ffmpeg,skip-opencollada,skip-alembic,skip-embree,skip-oidn,skip-usd,\
+skip-xr-openxr \
 -- "$@" \
 )
 
@@ -1289,7 +1289,7 @@ compile_Python() {
 
     ./configure --prefix=$_inst --libdir=$_inst/lib --enable-ipv6 \
         --enable-loadable-sqlite-extensions --with-dbmliborder=bdb \
-        --with-computed-gotos --with-pymalloc
+        --with-computed-gotos --with-pymalloc --enable-shared
 
     make -j$THREADS && make install
     make clean
@@ -1310,6 +1310,8 @@ compile_Python() {
     INFO "Own Python-$PYTHON_VERSION is up to date, nothing to do!"
     INFO "If you want to force rebuild of this lib, use the --force-python option."
   fi
+
+  run_ldconfig "python-$PYTHON_VERSION_MIN"
 }
 
 # ----------------------------------------------------------------------------
@@ -3128,7 +3130,7 @@ compile_XR_OpenXR_SDK() {
   fi
 
   # To be changed each time we make edits that would modify the compiled result!
-  xr_openxr_magic=0
+  xr_openxr_magic=2
   _init_xr_openxr_sdk
 
   # Clean install if needed!
@@ -3185,8 +3187,9 @@ compile_XR_OpenXR_SDK() {
     cmake_d="$cmake_d -D BUILD_WITH_WAYLAND_HEADERS=OFF"
     cmake_d="$cmake_d -D BUILD_WITH_XCB_HEADERS=OFF"
     cmake_d="$cmake_d -D BUILD_WITH_XLIB_HEADERS=ON"
+    cmake_d="$cmake_d -D BUILD_WITH_SYSTEM_JSONCPP=OFF"
 
-    cmake $cmake_d ..
+    cmake $cmake_d "-DCMAKE_CXX_FLAGS=-DDISABLE_STD_FILESYSTEM=1" ..
 
     make -j$THREADS && make install
     make clean
@@ -5188,7 +5191,7 @@ print_info() {
   PRINT ""
   PRINT "If you're using CMake add this to your configuration flags:"
 
-  _buildargs="-U *SNDFILE* -U *PYTHON* -U *BOOST* -U *Boost*"
+  _buildargs="-U *SNDFILE* -U PYTHON* -U *BOOST* -U *Boost*"
   _buildargs="$_buildargs -U *OPENCOLORIO* -U *OPENEXR* -U *OPENIMAGEIO* -U *LLVM* -U *CYCLES*"
   _buildargs="$_buildargs -U *OPENSUBDIV* -U *OPENVDB* -U *COLLADA* -U *FFMPEG* -U *ALEMBIC* -U *USD*"
 
@@ -5377,7 +5380,7 @@ print_info() {
     PRINT "  $_1"
     _buildargs="$_buildargs $_1"
     if [ -d $INST/xr-openxr-sdk ]; then
-      _1="-D XR_OPENXR_ROOT_DIR=$INST/xr-openxr-sdk"
+      _1="-D XR_OPENXR_SDK_ROOT_DIR=$INST/xr-openxr-sdk"
       PRINT "  $_1"
       _buildargs="$_buildargs $_1"
     fi

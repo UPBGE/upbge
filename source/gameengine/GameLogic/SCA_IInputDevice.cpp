@@ -29,8 +29,9 @@
  *  \ingroup gamelogic
  */
 
-#include "BLI_utildefines.h"
 #include "SCA_IInputDevice.h"
+
+#include "BLI_utildefines.h"
 
 /** Initialize conversion table key to char (shifted too), this function is a long function but
  * is easier to maintain than key index conversion way.

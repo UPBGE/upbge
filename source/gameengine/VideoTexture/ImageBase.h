@@ -31,14 +31,12 @@
 #ifndef __IMAGEBASE_H__
 #define __IMAGEBASE_H__
 
-#include "Common.h"
-
 #include <vector>
+
+#include "Common.h"
 #include "EXP_PyObjectPlus.h"
-
-#include "PyTypeList.h"
-
 #include "FilterBase.h"
+#include "PyTypeList.h"
 
 // forward declarations
 struct PyImage;

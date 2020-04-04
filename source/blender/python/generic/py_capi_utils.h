@@ -21,6 +21,10 @@
 #ifndef __PY_CAPI_UTILS_H__
 #define __PY_CAPI_UTILS_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "BLI_sys_types.h"
 #include "BLI_utildefines_variadic.h"
 
@@ -38,8 +42,8 @@ PyObject *PyC_Err_SetString_Prefix(PyObject *exception_type_prefix, const char *
 
 void PyC_Err_PrintWithFunc(PyObject *py_func);
 
-void PyC_FileAndNum(const char **filename, int *lineno);
-void PyC_FileAndNum_Safe(const char **filename, int *lineno); /* checks python is running */
+void PyC_FileAndNum(const char **r_filename, int *r_lineno);
+void PyC_FileAndNum_Safe(const char **r_filename, int *r_lineno); /* checks python is running */
 int PyC_AsArray_FAST(void *array,
                      PyObject *value_fast,
                      const Py_ssize_t length,
@@ -180,5 +184,9 @@ bool PyC_StructFmt_type_is_float_any(char format);
 bool PyC_StructFmt_type_is_int_any(char format);
 bool PyC_StructFmt_type_is_byte(char format);
 bool PyC_StructFmt_type_is_bool(char format);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __PY_CAPI_UTILS_H__ */

@@ -34,10 +34,11 @@ struct bGPdata;
 struct wmTimer;
 
 #include "DNA_defs.h"
-#include "DNA_listBase.h"
 #include "DNA_image_types.h"
-#include "DNA_object_types.h"
+#include "DNA_listBase.h"
 #include "DNA_movieclip_types.h"
+#include "DNA_object_types.h"
+#include "DNA_view3d_enums.h"
 
 typedef struct RegionView3D {
 
@@ -105,10 +106,12 @@ typedef struct RegionView3D {
   char persp;
   char view;
   char view_axis_roll;
-  char viewlock;
+  char viewlock; /* Should usually be accessed with RV3D_LOCK_FLAGS()! */
+  /** Options for runtime only locking (cleared on file read) */
+  char runtime_viewlock; /* Should usually be accessed with RV3D_LOCK_FLAGS()! */
   /** Options for quadview (store while out of quad view). */
   char viewlock_quad;
-  char _pad[2];
+  char _pad[1];
   /** Normalized offset for locked view: (-1, -1) bottom left, (1, 1) upper right. */
   float ofs_lock[2];
 
@@ -223,11 +226,18 @@ typedef struct View3DOverlay {
   float gpencil_grid_opacity;
   float gpencil_fade_layer;
 
+  /** Factor for mixing vertex paint with original color */
+  float gpencil_vertex_paint_opacity;
+  char _pad4[4];
 } View3DOverlay;
 
 typedef struct View3D_Runtime {
   /** Nkey panel stores stuff here. */
   void *properties_storage;
+  /** Runtime only flags. */
+  int flag;
+
+  char _pad1[4];
 } View3D_Runtime;
 
 /** 3D ViewPort Struct. */
@@ -261,14 +271,14 @@ typedef struct View3D {
   short persp DNA_DEPRECATED;
   short view DNA_DEPRECATED;
 
-  struct Object *camera, *ob_centre;
+  struct Object *camera, *ob_center;
   rctf render_border;
 
   /** Allocated backup of its self while in localview. */
   struct View3D *localvd;
 
   /** Optional string for armature bone to define center, MAXBONENAME. */
-  char ob_centre_bone[64];
+  char ob_center_bone[64];
 
   unsigned short local_view_uuid;
   char _pad6[2];
@@ -277,7 +287,7 @@ typedef struct View3D {
   short _pad7[3];
 
   /** Optional bool for 3d cursor to define center. */
-  short ob_centre_cursor;
+  short ob_center_cursor;
   short scenelock;
   short gp_flag;
   short flag;
@@ -338,12 +348,19 @@ typedef struct View3D {
 #define V3D_FLAG_UNUSED_1 (1 << 1) /* cleared */
 #define V3D_HIDE_HELPLINES (1 << 2)
 #define V3D_INVALID_BACKBUF (1 << 3)
+#define V3D_XR_SESSION_MIRROR (1 << 4)
 
 #define V3D_FLAG_UNUSED_10 (1 << 10) /* cleared */
 #define V3D_SELECT_OUTLINE (1 << 11)
 #define V3D_FLAG_UNUSED_12 (1 << 12) /* cleared */
 #define V3D_GLOBAL_STATS (1 << 13)
 #define V3D_DRAW_CENTERS (1 << 15)
+
+/** #View3D_Runtime.flag */
+enum {
+  /** The 3D view which the XR session was created in is flagged with this. */
+  V3D_RUNTIME_XR_SESSION_ROOT = (1 << 0),
+};
 
 /** #RegionView3D.persp */
 #define RV3D_ORTHO 0
@@ -363,9 +380,19 @@ typedef struct View3D {
 #define RV3D_ZOFFSET_DISABLED 64
 
 /** #RegionView3D.viewlock */
-#define RV3D_LOCKED (1 << 0)
-#define RV3D_BOXVIEW (1 << 1)
-#define RV3D_BOXCLIP (1 << 2)
+enum {
+  RV3D_LOCK_ROTATION = (1 << 0),
+  RV3D_BOXVIEW = (1 << 1),
+  RV3D_BOXCLIP = (1 << 2),
+  RV3D_LOCK_LOCATION = (1 << 3),
+  RV3D_LOCK_ZOOM_AND_DOLLY = (1 << 4),
+
+  RV3D_LOCK_ANY_TRANSFORM = (RV3D_LOCK_LOCATION | RV3D_LOCK_ROTATION | RV3D_LOCK_ZOOM_AND_DOLLY),
+};
+
+/* Bitwise OR of the regular lock-flags with runtime only lock-flags. */
+#define RV3D_LOCK_FLAGS(rv3d) ((rv3d)->viewlock | ((rv3d)->runtime_viewlock))
+
 /** #RegionView3D.viewlock_quad */
 #define RV3D_VIEWLOCK_INIT (1 << 7)
 
@@ -414,20 +441,15 @@ enum {
 #define V3D_FLAG2_UNUSED_15 (1 << 15) /* cleared */
 
 /** #View3D.gp_flag (short) */
-#define V3D_GP_SHOW_PAPER (1 << 0) /* Activate paper to cover all viewport */
-#define V3D_GP_SHOW_GRID (1 << 1)  /* Activate paper grid */
+#define V3D_GP_FADE_OBJECTS (1 << 0) /* Fade all non GP objects */
+#define V3D_GP_SHOW_GRID (1 << 1)    /* Activate paper grid */
 #define V3D_GP_SHOW_EDIT_LINES (1 << 2)
 #define V3D_GP_SHOW_MULTIEDIT_LINES (1 << 3)
 #define V3D_GP_SHOW_ONION_SKIN (1 << 4)       /* main switch at view level */
 #define V3D_GP_FADE_NOACTIVE_LAYERS (1 << 5)  /* fade layers not active */
 #define V3D_GP_FADE_NOACTIVE_GPENCIL (1 << 6) /* Fade other GPencil objects */
-
-/** #View3DShading.light */
-enum {
-  V3D_LIGHTING_FLAT = 0,
-  V3D_LIGHTING_STUDIO = 1,
-  V3D_LIGHTING_MATCAP = 2,
-};
+#define V3D_GP_SHOW_STROKE_DIRECTION (1 << 7) /* Show Strokes Directions */
+#define V3D_GP_SHOW_MATERIAL_NAME (1 << 8)    /* Show Material names */
 
 /** #View3DShading.flag */
 enum {
@@ -445,27 +467,6 @@ enum {
   V3D_SHADING_DEPTH_OF_FIELD = (1 << 11),
   V3D_SHADING_SCENE_LIGHTS_RENDER = (1 << 12),
   V3D_SHADING_SCENE_WORLD_RENDER = (1 << 13),
-};
-
-/** #View3DShading.color_type */
-enum {
-  V3D_SHADING_MATERIAL_COLOR = 0,
-  V3D_SHADING_RANDOM_COLOR = 1,
-  V3D_SHADING_SINGLE_COLOR = 2,
-  V3D_SHADING_TEXTURE_COLOR = 3,
-  V3D_SHADING_OBJECT_COLOR = 4,
-  V3D_SHADING_VERTEX_COLOR = 5,
-
-  /* Is used to display the object using the error color. For example when in
-   * solid texture paint mode without any textures configured */
-  V3D_SHADING_ERROR_COLOR = 999,
-};
-
-/** #View3DShading.background_type */
-enum {
-  V3D_SHADING_BACKGROUND_THEME = 0,
-  V3D_SHADING_BACKGROUND_WORLD = 1,
-  V3D_SHADING_BACKGROUND_VIEWPORT = 2,
 };
 
 /** #View3DShading.cavity_type */
@@ -605,13 +606,6 @@ enum {
   /** Also used for ortho size. */
   V3D_GIZMO_SHOW_CAMERA_LENS = (1 << 0),
   V3D_GIZMO_SHOW_CAMERA_DOF_DIST = (1 << 2),
-};
-
-/** Settings for offscreen rendering */
-enum {
-  V3D_OFSDRAW_NONE = (0),
-  V3D_OFSDRAW_SHOW_ANNOTATION = (1 << 0),
-  V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS = (1 << 1),
 };
 
 #define RV3D_CAMZOOM_MIN -30

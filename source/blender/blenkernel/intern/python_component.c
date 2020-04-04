@@ -20,28 +20,28 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "DNA_python_component_types.h"
-#include "DNA_property_types.h" /* For MAX_PROPSTRING */
-#include "DNA_windowmanager_types.h"
-#include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_path_util.h"
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
+#include "BLI_path_util.h"
+#include "BLI_string.h"
+#include "DNA_property_types.h" /* For MAX_PROPSTRING */
+#include "DNA_python_component_types.h"
+#include "DNA_windowmanager_types.h"
 #include "MEM_guardedalloc.h"
 
-#include "BKE_python_component.h"
-#include "BKE_report.h"
+#include "BKE_appdir.h"
 #include "BKE_context.h"
 #include "BKE_main.h"
+#include "BKE_python_component.h"
+#include "BKE_report.h"
 #include "BKE_text.h"
-#include "BKE_appdir.h"
 
 #include "RNA_types.h"
 
 #ifdef WITH_PYTHON
 #  include "Python.h"
-#  include "generic/py_capi_utils.h"
 #  include "generic/bpy_internal_import.h"
+#  include "generic/py_capi_utils.h"
 #endif
 
 #include <string.h>

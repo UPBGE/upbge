@@ -25,8 +25,8 @@
 
 #include "util/util_function.h"
 #include "util/util_string.h"
-#include "util/util_time.h"
 #include "util/util_thread.h"
+#include "util/util_time.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -204,6 +204,8 @@ class Progress {
 
   float get_progress()
   {
+    thread_scoped_lock lock(progress_mutex);
+
     if (total_pixel_samples > 0) {
       return ((float)pixel_samples) / total_pixel_samples;
     }

@@ -33,17 +33,21 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLT_translation.h"
 #include "BLT_lang.h"
+#include "BLT_translation.h"
 
 #include "RNA_types.h"
 
 #include "../generic/python_utildefines.h"
 
 #ifdef WITH_INTERNATIONAL
-#  include "BLI_string.h"
 #  include "BLI_ghash.h"
+#  include "BLI_string.h"
 #endif
+
+/* ------------------------------------------------------------------- */
+/** \name Local Struct to Store Translation
+ * \{ */
 
 typedef struct {
   PyObject_HEAD
@@ -63,9 +67,14 @@ typedef struct {
 /* Our singleton instance pointer */
 static BlenderAppTranslations *_translations = NULL;
 
+/** \} */
+
 #ifdef WITH_INTERNATIONAL
 
-/***** Helpers for ghash *****/
+/* ------------------------------------------------------------------- */
+/** \name Helpers for GHash
+ * \{ */
+
 typedef struct GHashKey {
   const char *msgctxt;
   const char *msgid;
@@ -111,7 +120,11 @@ static void _ghashutil_keyfree(void *ptr)
 
 #  define _ghashutil_valfree MEM_freeN
 
-/***** Python's messages cache *****/
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Python'S Messages Cache
+ * \{ */
 
 /* We cache all messages available for a given locale from all py dicts into a single ghash.
  * Changing of locale is not so common, while looking for a message translation is,
@@ -389,7 +402,12 @@ static PyObject *app_translations_py_messages_unregister(BlenderAppTranslations 
   Py_RETURN_NONE;
 }
 
-/***** C-defined contexts *****/
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name C-defined Contexts
+ * \{ */
+
 /* This is always available (even when WITH_INTERNATIONAL is not defined). */
 
 static PyTypeObject BlenderAppTranslationsContextsType;
@@ -439,7 +457,11 @@ static PyObject *app_translations_contexts_make(void)
   return translations_contexts;
 }
 
-/***** Main BlenderAppTranslations Py object definition *****/
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Main #BlenderAppTranslations #PyObject Definition
+ * \{ */
 
 PyDoc_STRVAR(app_translations_contexts_doc,
              "A named tuple containing all pre-defined translation contexts.\n"
@@ -887,3 +909,5 @@ void BPY_app_translations_end(void)
   _clear_translations_cache();
 #endif
 }
+
+/** \} */

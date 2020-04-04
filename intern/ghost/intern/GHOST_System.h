@@ -27,10 +27,10 @@
 
 #include "GHOST_ISystem.h"
 
-#include "GHOST_Debug.h"
 #include "GHOST_Buttons.h"
-#include "GHOST_ModifierKeys.h"
+#include "GHOST_Debug.h"
 #include "GHOST_EventManager.h"
+#include "GHOST_ModifierKeys.h"
 #ifdef GHOST_DEBUG
 #  include "GHOST_EventPrinter.h"
 #endif  // GHOST_DEBUG
@@ -117,12 +117,6 @@ class GHOST_System : public GHOST_ISystem {
    * \return  The new context (or 0 if creation failed).
    */
   virtual GHOST_IContext *createOffscreenContext() = 0;
-
-  /**
-   * Overload to allow requesting a different context type. By default only OpenGL is supported.
-   * However by explicitly overloading this a system may add support for others.
-   */
-  GHOST_IContext *createOffscreenContext(GHOST_TDrawingContextType type);
 
   /**
    * Returns whether a window is valid.

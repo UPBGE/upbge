@@ -25,10 +25,10 @@
 #define __DNA_NODE_TYPES_H__
 
 #include "DNA_ID.h"
-#include "DNA_vec_types.h"
 #include "DNA_listBase.h"
-#include "DNA_texture_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_texture_types.h"
+#include "DNA_vec_types.h"
 
 struct AnimData;
 struct ID;
@@ -94,7 +94,8 @@ typedef struct bNodeSocket {
   void *storage;
 
   short type, flag;
-  /** Max. number of links. */
+  /** Max. number of links. Read via nodeSocketLinkLimit, because the limit might be defined on the
+   * socket type. */
   short limit;
   /** Input/output type. */
   short in_out;

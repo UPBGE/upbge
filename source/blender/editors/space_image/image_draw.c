@@ -27,26 +27,26 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_object_types.h"
-#include "DNA_space_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_brush_types.h"
-#include "DNA_mask_types.h"
+#include "DNA_space_types.h"
 
 #include "PIL_time.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_rect.h"
-#include "BLI_threads.h"
 #include "BLI_string.h"
+#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
-#include "IMB_colormanagement.h"
 #include "IMB_moviecache.h"
 
 #include "BKE_context.h"
@@ -72,13 +72,13 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "RE_pipeline.h"
 #include "RE_engine.h"
+#include "RE_pipeline.h"
 
 #include "image_intern.h"
 
 static void draw_render_info(
-    const bContext *C, Scene *scene, Image *ima, ARegion *ar, float zoomx, float zoomy)
+    const bContext *C, Scene *scene, Image *ima, ARegion *region, float zoomx, float zoomy)
 {
   Render *re = RE_GetSceneRender(scene);
   RenderData *rd = RE_engine_get_render_data(re);
@@ -91,7 +91,7 @@ static void draw_render_info(
 
   if (rr && rr->text) {
     float fill_color[4] = {0.0f, 0.0f, 0.0f, 0.25f};
-    ED_region_info_draw(ar, rr->text, fill_color, true);
+    ED_region_info_draw(region, rr->text, fill_color, true);
   }
 
   BKE_image_release_renderresult(stats_scene, ima);
@@ -104,7 +104,7 @@ static void draw_render_info(
     if (total_tiles) {
       /* find window pixel coordinates of origin */
       int x, y;
-      UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &x, &y);
+      UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
 
       GPU_matrix_push();
       GPU_matrix_translate_2f(x, y);
@@ -141,7 +141,7 @@ static void draw_render_info(
 
 /* used by node view too */
 void ED_image_draw_info(Scene *scene,
-                        ARegion *ar,
+                        ARegion *region,
                         bool color_manage,
                         bool use_default_view,
                         int channels,
@@ -157,7 +157,7 @@ void ED_image_draw_info(Scene *scene,
   char str[256];
   int dx = 6;
   /* local coordinate visible rect inside region, to accommodate overlapping ui */
-  const rcti *rect = ED_region_visible_rect(ar);
+  const rcti *rect = ED_region_visible_rect(region);
   const int ymin = rect->ymin;
   const int dy = ymin + 0.3f * UI_UNIT_Y;
 
@@ -185,7 +185,7 @@ void ED_image_draw_info(Scene *scene,
 
   /* noisy, high contrast make impossible to read if lower alpha is used. */
   immUniformColor4ub(0, 0, 0, 190);
-  immRecti(pos, 0, ymin, BLI_rcti_size_x(&ar->winrct) + 1, ymin + UI_UNIT_Y);
+  immRecti(pos, 0, ymin, BLI_rcti_size_x(&region->winrct) + 1, ymin + UI_UNIT_Y);
 
   immUnbindProgram();
 
@@ -532,7 +532,7 @@ static void sima_draw_zbuffloat_pixels(Scene *scene,
   MEM_freeN(rectf);
 }
 
-static void draw_udim_label(ARegion *ar, float fx, float fy, const char *label)
+static void draw_udim_label(ARegion *region, float fx, float fy, const char *label)
 {
   if (label == NULL || !label[0]) {
     return;
@@ -540,14 +540,14 @@ static void draw_udim_label(ARegion *ar, float fx, float fy, const char *label)
 
   /* find window pixel coordinates of origin */
   int x, y;
-  UI_view2d_view_to_region(&ar->v2d, fx, fy, &x, &y);
+  UI_view2d_view_to_region(&region->v2d, fx, fy, &x, &y);
 
   GPU_blend_set_func_separate(
       GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
   GPU_blend(true);
 
   int textwidth = BLF_width(blf_mono_font, label, strlen(label)) + 10;
-  float stepx = BLI_rcti_size_x(&ar->v2d.mask) / BLI_rctf_size_x(&ar->v2d.cur);
+  float stepx = BLI_rcti_size_x(&region->v2d.mask) / BLI_rctf_size_x(&region->v2d.cur);
   float opacity;
   if (textwidth < 0.5f * (stepx - 10)) {
     opacity = 1.0f;
@@ -567,7 +567,7 @@ static void draw_udim_label(ARegion *ar, float fx, float fy, const char *label)
 
 static void draw_image_buffer(const bContext *C,
                               SpaceImage *sima,
-                              ARegion *ar,
+                              ARegion *region,
                               Scene *scene,
                               ImBuf *ibuf,
                               float fx,
@@ -576,12 +576,13 @@ static void draw_image_buffer(const bContext *C,
                               float zoomy)
 {
   int x, y;
+  int sima_flag = sima->flag & ED_space_image_get_display_channel_mask(ibuf);
 
   /* find window pixel coordinates of origin */
-  UI_view2d_view_to_region(&ar->v2d, fx, fy, &x, &y);
+  UI_view2d_view_to_region(&region->v2d, fx, fy, &x, &y);
 
   /* this part is generic image display */
-  if (sima->flag & SI_SHOW_ZBUF && (ibuf->zbuf || ibuf->zbuf_float || (ibuf->channels == 1))) {
+  if (sima_flag & SI_SHOW_ZBUF && (ibuf->zbuf || ibuf->zbuf_float || (ibuf->channels == 1))) {
     if (ibuf->zbuf) {
       sima_draw_zbuf_pixels(x, y, ibuf->x, ibuf->y, ibuf->zbuf, zoomx, zoomy);
     }
@@ -595,9 +596,9 @@ static void draw_image_buffer(const bContext *C,
   else {
     int clip_max_x, clip_max_y;
     UI_view2d_view_to_region(
-        &ar->v2d, ar->v2d.cur.xmax, ar->v2d.cur.ymax, &clip_max_x, &clip_max_y);
+        &region->v2d, region->v2d.cur.xmax, region->v2d.cur.ymax, &clip_max_x, &clip_max_y);
 
-    if (sima->flag & SI_USE_ALPHA) {
+    if (sima_flag & SI_USE_ALPHA) {
       imm_draw_box_checker_2d(x, y, x + ibuf->x * zoomx, y + ibuf->y * zoomy);
 
       GPU_blend(true);
@@ -606,7 +607,7 @@ static void draw_image_buffer(const bContext *C,
     }
 
     /* If RGBA display with color management */
-    if ((sima->flag & (SI_SHOW_R | SI_SHOW_G | SI_SHOW_B | SI_SHOW_ALPHA)) == 0) {
+    if ((sima_flag & (SI_SHOW_R | SI_SHOW_G | SI_SHOW_B | SI_SHOW_ALPHA)) == 0) {
 
       ED_draw_imbuf_ctx_clipping(
           C, ibuf, x, y, GL_NEAREST, 0, 0, clip_max_x, clip_max_y, zoomx, zoomy);
@@ -618,16 +619,16 @@ static void draw_image_buffer(const bContext *C,
       ColorManagedViewSettings *view_settings;
       ColorManagedDisplaySettings *display_settings;
 
-      if (sima->flag & SI_SHOW_R) {
+      if (sima_flag & SI_SHOW_R) {
         shuffle[0] = 1.0f;
       }
-      else if (sima->flag & SI_SHOW_G) {
+      else if (sima_flag & SI_SHOW_G) {
         shuffle[1] = 1.0f;
       }
-      else if (sima->flag & SI_SHOW_B) {
+      else if (sima_flag & SI_SHOW_B) {
         shuffle[2] = 1.0f;
       }
-      else if (sima->flag & SI_SHOW_ALPHA) {
+      else if (sima_flag & SI_SHOW_ALPHA) {
         shuffle[3] = 1.0f;
       }
 
@@ -661,7 +662,7 @@ static void draw_image_buffer(const bContext *C,
       IMB_display_buffer_release(cache_handle);
     }
 
-    if (sima->flag & SI_USE_ALPHA) {
+    if (sima_flag & SI_USE_ALPHA) {
       GPU_blend(false);
     }
   }
@@ -692,7 +693,7 @@ static unsigned int *get_part_from_buffer(
 
 static void draw_image_buffer_repeated(const bContext *C,
                                        SpaceImage *sima,
-                                       ARegion *ar,
+                                       ARegion *region,
                                        Scene *scene,
                                        ImBuf *ibuf,
                                        float zoomx,
@@ -700,17 +701,14 @@ static void draw_image_buffer_repeated(const bContext *C,
 {
   const double time_current = PIL_check_seconds_timer();
 
-  const int xmax = ceil(ar->v2d.cur.xmax);
-  const int ymax = ceil(ar->v2d.cur.ymax);
-  const int xmin = floor(ar->v2d.cur.xmin);
-  const int ymin = floor(ar->v2d.cur.ymin);
+  const int xmax = ceil(region->v2d.cur.xmax);
+  const int ymax = ceil(region->v2d.cur.ymax);
+  const int xmin = floor(region->v2d.cur.xmin);
+  const int ymin = floor(region->v2d.cur.ymin);
 
-  int x;
-
-  for (x = xmin; x < xmax; x++) {
-    int y;
-    for (y = ymin; y < ymax; y++) {
-      draw_image_buffer(C, sima, ar, scene, ibuf, x, y, zoomx, zoomy);
+  for (int x = xmin; x < xmax; x++) {
+    for (int y = ymin; y < ymax; y++) {
+      draw_image_buffer(C, sima, region, scene, ibuf, x, y, zoomx, zoomy);
 
       /* only draw until running out of time */
       if ((PIL_check_seconds_timer() - time_current) > 0.25) {
@@ -770,7 +768,7 @@ void draw_image_sample_line(SpaceImage *sima)
 }
 
 static void draw_image_paint_helpers(
-    const bContext *C, ARegion *ar, Scene *scene, float zoomx, float zoomy)
+    const bContext *C, ARegion *region, Scene *scene, float zoomx, float zoomy)
 {
   Brush *brush;
   int x, y;
@@ -784,7 +782,8 @@ static void draw_image_paint_helpers(
     if (ibuf) {
       void *cache_handle = NULL;
       float col[4] = {1.0f, 1.0f, 1.0f, brush->clone.alpha};
-      UI_view2d_view_to_region(&ar->v2d, brush->clone.offset[0], brush->clone.offset[1], &x, &y);
+      UI_view2d_view_to_region(
+          &region->v2d, brush->clone.offset[0], brush->clone.offset[1], &x, &y);
 
       uchar *display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
 
@@ -822,7 +821,7 @@ static void draw_image_paint_helpers(
 
 static void draw_udim_tile_grid(uint pos_attr,
                                 uint color_attr,
-                                ARegion *ar,
+                                ARegion *region,
                                 int x,
                                 int y,
                                 float stepx,
@@ -830,7 +829,7 @@ static void draw_udim_tile_grid(uint pos_attr,
                                 const float color[3])
 {
   float x1, y1;
-  UI_view2d_view_to_region_fl(&ar->v2d, x, y, &x1, &y1);
+  UI_view2d_view_to_region_fl(&region->v2d, x, y, &x1, &y1);
   int gridpos[5][2] = {{0, 0}, {0, 1}, {1, 1}, {1, 0}, {0, 0}};
   for (int i = 0; i < 4; i++) {
     immAttr3fv(color_attr, color);
@@ -840,7 +839,7 @@ static void draw_udim_tile_grid(uint pos_attr,
   }
 }
 
-static void draw_udim_tile_grids(ARegion *ar, SpaceImage *sima, Image *ima)
+static void draw_udim_tile_grids(ARegion *region, SpaceImage *sima, Image *ima)
 {
   int num_tiles;
   if (ima != NULL) {
@@ -854,8 +853,8 @@ static void draw_udim_tile_grids(ARegion *ar, SpaceImage *sima, Image *ima)
     num_tiles = sima->tile_grid_shape[0] * sima->tile_grid_shape[1];
   }
 
-  float stepx = BLI_rcti_size_x(&ar->v2d.mask) / BLI_rctf_size_x(&ar->v2d.cur);
-  float stepy = BLI_rcti_size_y(&ar->v2d.mask) / BLI_rctf_size_y(&ar->v2d.cur);
+  float stepx = BLI_rcti_size_x(&region->v2d.mask) / BLI_rctf_size_x(&region->v2d.cur);
+  float stepy = BLI_rcti_size_y(&region->v2d.mask) / BLI_rctf_size_y(&region->v2d.cur);
 
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -875,20 +874,20 @@ static void draw_udim_tile_grids(ARegion *ar, SpaceImage *sima, Image *ima)
       if (tile != cur_tile) {
         int x = (tile->tile_number - 1001) % 10;
         int y = (tile->tile_number - 1001) / 10;
-        draw_udim_tile_grid(pos, color, ar, x, y, stepx, stepy, theme_color);
+        draw_udim_tile_grid(pos, color, region, x, y, stepx, stepy, theme_color);
       }
     }
 
     if (cur_tile != NULL) {
       int cur_x = (cur_tile->tile_number - 1001) % 10;
       int cur_y = (cur_tile->tile_number - 1001) / 10;
-      draw_udim_tile_grid(pos, color, ar, cur_x, cur_y, stepx, stepy, selected_color);
+      draw_udim_tile_grid(pos, color, region, cur_x, cur_y, stepx, stepy, selected_color);
     }
   }
   else {
     for (int y = 0; y < sima->tile_grid_shape[1]; y++) {
       for (int x = 0; x < sima->tile_grid_shape[0]; x++) {
-        draw_udim_tile_grid(pos, color, ar, x, y, stepx, stepy, theme_color);
+        draw_udim_tile_grid(pos, color, region, x, y, stepx, stepy, theme_color);
       }
     }
   }
@@ -899,7 +898,7 @@ static void draw_udim_tile_grids(ARegion *ar, SpaceImage *sima, Image *ima)
 
 /* draw main image region */
 
-void draw_image_main(const bContext *C, ARegion *ar)
+void draw_image_main(const bContext *C, ARegion *region)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
   Scene *scene = CTX_data_scene(C);
@@ -931,7 +930,7 @@ void draw_image_main(const bContext *C, ARegion *ar)
 
   /* retrieve the image and information about it */
   ima = ED_space_image(sima);
-  ED_space_image_get_zoom(sima, ar, &zoomx, &zoomy);
+  ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
 
   /* Tag image as in active use for garbage collector. */
   if (ima) {
@@ -975,31 +974,31 @@ void draw_image_main(const bContext *C, ARegion *ar)
       LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
         int x = (tile->tile_number - 1001) % 10;
         int y = (tile->tile_number - 1001) / 10;
-        ED_region_grid_draw(ar, zoomx, zoomy, x, y);
+        ED_region_grid_draw(region, zoomx, zoomy, x, y);
       }
     }
     else {
       for (int y = 0; y < sima->tile_grid_shape[1]; y++) {
         for (int x = 0; x < sima->tile_grid_shape[0]; x++) {
-          ED_region_grid_draw(ar, zoomx, zoomy, x, y);
+          ED_region_grid_draw(region, zoomx, zoomy, x, y);
         }
       }
     }
   }
   else {
     if (sima->flag & SI_DRAW_TILE) {
-      draw_image_buffer_repeated(C, sima, ar, scene, ibuf, zoomx, zoomy);
+      draw_image_buffer_repeated(C, sima, region, scene, ibuf, zoomx, zoomy);
     }
     else {
       main_w = ibuf->x;
       main_h = ibuf->y;
 
-      draw_image_buffer(C, sima, ar, scene, ibuf, 0.0f, 0.0f, zoomx, zoomy);
+      draw_image_buffer(C, sima, region, scene, ibuf, 0.0f, 0.0f, zoomx, zoomy);
       if (ima->source == IMA_SRC_TILED) {
         ImageTile *tile = BKE_image_get_tile(ima, 0);
         char label[sizeof(tile->label)];
         BKE_image_get_tile_label(ima, tile, label, sizeof(label));
-        draw_udim_label(ar, 0.0f, 0.0f, label);
+        draw_udim_label(region, 0.0f, 0.0f, label);
       }
     }
 
@@ -1008,7 +1007,7 @@ void draw_image_main(const bContext *C, ARegion *ar)
       rctf frame;
 
       BLI_rctf_init(&frame, 0.0f, ibuf->x, 0.0f, ibuf->y);
-      UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &x, &y);
+      UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
 
       ED_region_image_metadata_draw(x, y, ibuf, &frame, zoomx, zoomy);
     }
@@ -1031,18 +1030,18 @@ void draw_image_main(const bContext *C, ARegion *ar)
 
         float tile_zoomx = (zoomx * main_w) / ibuf->x;
         float tile_zoomy = (zoomy * main_h) / ibuf->y;
-        draw_image_buffer(C, sima, ar, scene, ibuf, x_pos, y_pos, tile_zoomx, tile_zoomy);
-        draw_udim_label(ar, x_pos, y_pos, label);
+        draw_image_buffer(C, sima, region, scene, ibuf, x_pos, y_pos, tile_zoomx, tile_zoomy);
+        draw_udim_label(region, x_pos, y_pos, label);
       }
       ED_space_image_release_buffer(sima, ibuf, lock);
     }
   }
 
-  draw_udim_tile_grids(ar, sima, ima);
+  draw_udim_tile_grids(region, sima, ima);
 
   /* paint helpers */
   if (show_paint) {
-    draw_image_paint_helpers(C, ar, scene, zoomx, zoomy);
+    draw_image_paint_helpers(C, region, scene, zoomx, zoomy);
   }
 
   if (show_viewer) {
@@ -1051,7 +1050,7 @@ void draw_image_main(const bContext *C, ARegion *ar)
 
   /* render info */
   if (ima && show_render) {
-    draw_render_info(C, sima->iuser.scene, ima, ar, zoomx, zoomy);
+    draw_render_info(C, sima->iuser.scene, ima, region, zoomx, zoomy);
   }
 }
 
@@ -1071,12 +1070,12 @@ bool ED_space_image_show_cache(SpaceImage *sima)
   return true;
 }
 
-void draw_image_cache(const bContext *C, ARegion *ar)
+void draw_image_cache(const bContext *C, ARegion *region)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
   Scene *scene = CTX_data_scene(C);
   Image *image = ED_space_image(sima);
-  float x, cfra = CFRA, sfra = SFRA, efra = EFRA, framelen = ar->winx / (efra - sfra + 1);
+  float x, cfra = CFRA, sfra = SFRA, efra = EFRA, framelen = region->winx / (efra - sfra + 1);
   Mask *mask = NULL;
 
   if (!ED_space_image_show_cache(sima)) {
@@ -1088,7 +1087,7 @@ void draw_image_cache(const bContext *C, ARegion *ar)
   }
 
   /* Local coordinate visible rect inside region, to accommodate overlapping ui. */
-  const rcti *rect_visible = ED_region_visible_rect(ar);
+  const rcti *rect_visible = ED_region_visible_rect(region);
   const int region_bottom = rect_visible->ymin;
 
   GPU_blend(true);
@@ -1096,7 +1095,7 @@ void draw_image_cache(const bContext *C, ARegion *ar)
       GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 
   /* Draw cache background. */
-  ED_region_cache_draw_background(ar);
+  ED_region_cache_draw_background(region);
 
   /* Draw cached segments. */
   if (image != NULL && image->cache != NULL &&
@@ -1106,13 +1105,13 @@ void draw_image_cache(const bContext *C, ARegion *ar)
 
     IMB_moviecache_get_cache_segments(image->cache, IMB_PROXY_NONE, 0, &num_segments, &points);
     ED_region_cache_draw_cached_segments(
-        ar, num_segments, points, sfra + sima->iuser.offset, efra + sima->iuser.offset);
+        region, num_segments, points, sfra + sima->iuser.offset, efra + sima->iuser.offset);
   }
 
   GPU_blend(false);
 
   /* Draw current frame. */
-  x = (cfra - sfra) / (efra - sfra + 1) * ar->winx;
+  x = (cfra - sfra) / (efra - sfra + 1) * region->winx;
 
   uint pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
@@ -1124,6 +1123,6 @@ void draw_image_cache(const bContext *C, ARegion *ar)
   ED_region_cache_draw_curfra_label(cfra, x, region_bottom + 8.0f * UI_DPI_FAC);
 
   if (mask != NULL) {
-    ED_mask_draw_frames(mask, ar, cfra, sfra, efra);
+    ED_mask_draw_frames(mask, region, cfra, sfra, efra);
   }
 }

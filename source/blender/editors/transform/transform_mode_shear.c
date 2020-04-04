@@ -40,8 +40,8 @@
 #include "BLT_translation.h"
 
 #include "transform.h"
-#include "transform_snap.h"
 #include "transform_mode.h"
+#include "transform_snap.h"
 
 /* -------------------------------------------------------------------- */
 /* Transform (Shear) */
@@ -101,13 +101,13 @@ static eRedrawFlag handleEventShear(TransInfo *t, const wmEvent *event)
 
     status = TREDRAW_HARD;
   }
-  else if (event->type == XKEY && event->val == KM_PRESS) {
+  else if (event->type == EVT_XKEY && event->val == KM_PRESS) {
     t->orient_axis_ortho = (t->orient_axis + 1) % 3;
     initShear_mouseInputMode(t);
 
     status = TREDRAW_HARD;
   }
-  else if (event->type == YKEY && event->val == KM_PRESS) {
+  else if (event->type == EVT_YKEY && event->val == KM_PRESS) {
     t->orient_axis_ortho = (t->orient_axis + 2) % 3;
     initShear_mouseInputMode(t);
 
@@ -217,7 +217,7 @@ static void applyShear(TransInfo *t, const int UNUSED(mval[2]))
 
   recalcData(t);
 
-  ED_area_status_text(t->sa, str);
+  ED_area_status_text(t->area, str);
 }
 
 void initShear(TransInfo *t)

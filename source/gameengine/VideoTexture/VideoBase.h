@@ -32,10 +32,8 @@
 #define __VIDEOBASE_H__
 
 #include "EXP_PyObjectPlus.h"
-
-#include "ImageBase.h"
-
 #include "Exception.h"
+#include "ImageBase.h"
 
 // source states
 const int SourceError = -1;

@@ -46,13 +46,13 @@ void ED_region_generic_tools_region_message_subscribe(const struct bContext *UNU
                                                       struct WorkSpace *UNUSED(workspace),
                                                       struct Scene *UNUSED(scene),
                                                       struct bScreen *UNUSED(screen),
-                                                      struct ScrArea *UNUSED(sa),
-                                                      struct ARegion *ar,
+                                                      struct ScrArea *UNUSED(area),
+                                                      struct ARegion *region,
                                                       struct wmMsgBus *mbus)
 {
   wmMsgSubscribeValue msg_sub_value_region_tag_redraw = {
-      .owner = ar,
-      .user_data = ar,
+      .owner = region,
+      .user_data = region,
       .notify = ED_region_do_msg_notify_tag_redraw,
   };
   WM_msg_subscribe_rna_anon_prop(mbus, WorkSpace, tools, &msg_sub_value_region_tag_redraw);
@@ -61,11 +61,12 @@ void ED_region_generic_tools_region_message_subscribe(const struct bContext *UNU
 /**
  * Callback for #ARegionType.snap_size
  */
-int ED_region_generic_tools_region_snap_size(const ARegion *ar, int size, int axis)
+int ED_region_generic_tools_region_snap_size(const ARegion *region, int size, int axis)
 {
   if (axis == 0) {
     /* Using Y axis avoids slight feedback loop when adjusting X. */
-    const float aspect = BLI_rctf_size_y(&ar->v2d.cur) / (BLI_rcti_size_y(&ar->v2d.mask) + 1);
+    const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                         (BLI_rcti_size_y(&region->v2d.mask) + 1);
     const float icon_size = ICON_DEFAULT_HEIGHT_TOOLBAR / aspect;
     const float column = 1.25f * icon_size;
     const float margin = 0.5f * icon_size;
@@ -80,7 +81,7 @@ int ED_region_generic_tools_region_snap_size(const ARegion *ar, int size, int ax
     if (size <= snap_units[ARRAY_SIZE(snap_units) - 1]) {
       for (uint i = 0; i < ARRAY_SIZE(snap_units); i += 1) {
         const int test_size = snap_units[i];
-        const int test_diff = ABS(test_size - size);
+        const int test_diff = abs(test_size - size);
         if (test_diff < best_diff) {
           best_size = test_size;
           best_diff = test_diff;

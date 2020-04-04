@@ -25,12 +25,16 @@
 
 #include <stdlib.h>
 
-#include "intern/GHOST_Debug.h"
 #include "GHOST_C-api.h"
-#include "GHOST_ISystem.h"
 #include "GHOST_IEvent.h"
 #include "GHOST_IEventConsumer.h"
+#include "GHOST_ISystem.h"
+#include "intern/GHOST_Debug.h"
+#ifdef WITH_XR_OPENXR
+#  include "GHOST_IXrContext.h"
+#endif
 #include "intern/GHOST_CallbackEventConsumer.h"
+#include "intern/GHOST_XrException.h"
 
 GHOST_SystemHandle GHOST_CreateSystem(void)
 {
@@ -145,25 +149,6 @@ GHOST_TSuccess GHOST_DisposeOpenGLContext(GHOST_SystemHandle systemhandle,
 
   return system->disposeContext(context);
 }
-
-#ifdef WIN32
-GHOST_ContextHandle GHOST_CreateDirectXContext(GHOST_SystemHandle systemhandle)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  return (GHOST_ContextHandle)system->createOffscreenContext(GHOST_kDrawingContextTypeD3D);
-}
-
-GHOST_TSuccess GHOST_DisposeDirectXContext(GHOST_SystemHandle systemhandle,
-                                           GHOST_ContextHandle contexthandle)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-  GHOST_IContext *context = (GHOST_IContext *)contexthandle;
-
-  return system->disposeContext(context);
-}
-
-#endif
 
 GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
                                       const char *title,
@@ -705,6 +690,13 @@ GHOST_TSuccess GHOST_ReleaseOpenGLContext(GHOST_ContextHandle contexthandle)
   return context->releaseDrawingContext();
 }
 
+unsigned int GHOST_GetContextDefaultOpenGLFramebuffer(GHOST_ContextHandle contexthandle)
+{
+  GHOST_IContext *context = (GHOST_IContext *)contexthandle;
+
+  return context->getDefaultFramebuffer();
+}
+
 unsigned int GHOST_GetDefaultOpenGLFramebuffer(GHOST_WindowHandle windowhandle)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
@@ -914,3 +906,71 @@ void GHOST_EndIME(GHOST_WindowHandle windowhandle)
 }
 
 #endif /* WITH_INPUT_IME */
+
+#ifdef WITH_XR_OPENXR
+
+#  define GHOST_XR_CAPI_CALL(call, ctx) \
+    try { \
+      call; \
+    } \
+    catch (GHOST_XrException & e) { \
+      (ctx)->dispatchErrorMessage(&e); \
+    }
+
+#  define GHOST_XR_CAPI_CALL_RET(call, ctx) \
+    try { \
+      return call; \
+    } \
+    catch (GHOST_XrException & e) { \
+      (ctx)->dispatchErrorMessage(&e); \
+    }
+
+void GHOST_XrSessionStart(GHOST_XrContextHandle xr_contexthandle,
+                          const GHOST_XrSessionBeginInfo *begin_info)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XR_CAPI_CALL(xr_context->startSession(begin_info), xr_context);
+}
+
+void GHOST_XrSessionEnd(GHOST_XrContextHandle xr_contexthandle)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XR_CAPI_CALL(xr_context->endSession(), xr_context);
+}
+
+void GHOST_XrSessionDrawViews(GHOST_XrContextHandle xr_contexthandle, void *draw_customdata)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XR_CAPI_CALL(xr_context->drawSessionViews(draw_customdata), xr_context);
+}
+
+int GHOST_XrSessionIsRunning(const GHOST_XrContextHandle xr_contexthandle)
+{
+  const GHOST_IXrContext *xr_context = (const GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XR_CAPI_CALL_RET(xr_context->isSessionRunning(), xr_context);
+  return 0; /* Only reached if exception is thrown. */
+}
+
+void GHOST_XrGraphicsContextBindFuncs(GHOST_XrContextHandle xr_contexthandle,
+                                      GHOST_XrGraphicsContextBindFn bind_fn,
+                                      GHOST_XrGraphicsContextUnbindFn unbind_fn)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XR_CAPI_CALL(xr_context->setGraphicsContextBindFuncs(bind_fn, unbind_fn), xr_context);
+}
+
+void GHOST_XrDrawViewFunc(GHOST_XrContextHandle xr_contexthandle, GHOST_XrDrawViewFn draw_view_fn)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XR_CAPI_CALL(xr_context->setDrawViewFunc(draw_view_fn), xr_context);
+}
+
+int GHOST_XrSessionNeedsUpsideDownDrawing(const GHOST_XrContextHandle xr_contexthandle)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+
+  GHOST_XR_CAPI_CALL_RET(xr_context->needsUpsideDownDrawing(), xr_context);
+  return 0; /* Only reached if exception is thrown. */
+}
+
+#endif

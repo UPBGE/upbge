@@ -34,6 +34,10 @@ typedef struct {
   unsigned int size;
   /** When true, this chunk doesn't own the memory, it's shared with a previous #MemFileChunk */
   bool is_identical;
+  /** When true, this chunk is also identical to the one in the next step (used by undo code to
+   * detect unchanged IDs).
+   * Defined when writing the next step (i.e. last undo step has those always false). */
+  bool is_identical_future;
 } MemFileChunk;
 
 typedef struct MemFile {
@@ -56,6 +60,7 @@ extern void memfile_chunk_add(MemFile *memfile,
 /* exports */
 extern void BLO_memfile_free(MemFile *memfile);
 extern void BLO_memfile_merge(MemFile *first, MemFile *second);
+extern void BLO_memfile_clear_future(MemFile *memfile);
 
 /* utilities */
 extern struct Main *BLO_memfile_main_get(struct MemFile *memfile,

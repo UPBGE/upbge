@@ -24,50 +24,50 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	..
-	../BlenderRoutines
-	../Common
-	../Converter
-	../Device
-	../Expressions
-	../GameLogic
-	../Ketsji
-	../Ketsji/KXNetwork
-	../Launcher
-	../Physics/Common
-	../Rasterizer
-	../Rasterizer/RAS_OpenGLRasterizer
-	../SceneGraph
-	../../blender
-	../../blender/blenfont
-	../../blender/blenkernel
-	../../blender/blenlib
-	../../blender/blenloader
-	../../blender/blentranslation
-	../../blender/depsgraph
-	../../blender/draw/engines/eevee/
-	../../blender/gpu
-	../../blender/imbuf
-	../../blender/makesdna
-	../../blender/makesrna
-	../../../intern/ghost
-	../../../intern/guardedalloc
-	../../../intern/string
-	../../../intern/memutil
+  .
+  ..
+  ../BlenderRoutines
+  ../Common
+  ../Converter
+  ../Device
+  ../Expressions
+  ../GameLogic
+  ../Ketsji
+  ../Ketsji/KXNetwork
+  ../Launcher
+  ../Physics/Common
+  ../Rasterizer
+  ../Rasterizer/RAS_OpenGLRasterizer
+  ../SceneGraph
+  ../../blender
+  ../../blender/blenfont
+  ../../blender/blenkernel
+  ../../blender/blenlib
+  ../../blender/blenloader
+  ../../blender/blentranslation
+  ../../blender/depsgraph
+  ../../blender/draw/engines/eevee/
+  ../../blender/gpu
+  ../../blender/imbuf
+  ../../blender/makesdna
+  ../../blender/makesrna
+  ../../../intern/ghost
+  ../../../intern/guardedalloc
+  ../../../intern/string
+  ../../../intern/memutil
 )
 
 set(INC_SYS
-	../../../intern/moto/include
-	${PYTHON_INCLUDE_DIRS}
-	${BOOST_INCLUDE_DIR}
+  ../../../intern/moto/include
+  ${PYTHON_INCLUDE_DIRS}
+  ${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
-	GPG_Canvas.cpp
-	GPG_ghost.cpp
+  GPG_Canvas.cpp
+  GPG_ghost.cpp
 
-	GPG_Canvas.h
+  GPG_Canvas.h
 )
 
 set(LIB
@@ -76,19 +76,19 @@ set(LIB
 add_definitions(${GL_DEFINITIONS})
 
 if(WIN32)
-	blender_include_dirs(../../../intern/utfconv)
+  blender_include_dirs(../../../intern/utfconv)
 endif()
 
 if(WITH_INPUT_NDOF)
-	add_definitions(-DWITH_INPUT_NDOF)
+  add_definitions(-DWITH_INPUT_NDOF)
 endif(WITH_INPUT_NDOF)
 
 if(WITH_CODEC_FFMPEG)
-	add_definitions(-DWITH_FFMPEG)
+  add_definitions(-DWITH_FFMPEG)
 endif()
 
 if(WITH_INTERNATIONAL)
-	add_definitions(-DWITH_INTERNATIONAL)
+  add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
 if(WITH_AUDASPACE)
@@ -105,17 +105,17 @@ if(WITH_AUDASPACE)
 endif()
 
 if(WITH_SDL AND WITH_SDL_DYNLOAD)
-	list(APPEND INC
-		../../../extern/sdlew/include
-	)
-	add_definitions(-DWITH_SDL_DYNLOAD)
+  list(APPEND INC
+    ../../../extern/sdlew/include
+  )
+  add_definitions(-DWITH_SDL_DYNLOAD)
 endif()
 
 if(WITH_GAMEENGINE_BPPLAYER)
-	list(APPEND INC
-		../../../intern/spindle
-	)
-	add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
+  list(APPEND INC
+    ../../../intern/spindle
+  )
+  add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
 endif()
 
 blender_add_lib_nolist(ge_player "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

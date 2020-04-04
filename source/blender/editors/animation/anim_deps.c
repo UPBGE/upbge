@@ -28,17 +28,17 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_gpencil_types.h"
-#include "DNA_object_types.h"
-#include "DNA_node_types.h"
 #include "DNA_mask_types.h"
+#include "DNA_node_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_animsys.h"
 #include "BKE_action.h"
+#include "BKE_anim_data.h"
 #include "BKE_context.h"
 #include "BKE_fcurve.h"
 #include "BKE_gpencil.h"
@@ -368,9 +368,7 @@ void ANIM_animdata_update(bAnimContext *ac, ListBase *anim_data)
       if (ale->update & ANIM_UPDATE_ORDER) {
         ale->update &= ~ANIM_UPDATE_ORDER;
         if (gpl) {
-          /* While correct & we could enable it: 'posttrans_gpd_clean' currently
-           * both sorts and removes doubles, so this is not necessary here. */
-          // gpencil_sort_frames(gpl);
+          BKE_gpencil_layer_frames_sort(gpl, NULL);
         }
       }
 

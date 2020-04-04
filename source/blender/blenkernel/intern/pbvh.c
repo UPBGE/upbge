@@ -23,19 +23,19 @@
 #include "BLI_utildefines.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_math.h"
 #include "BLI_ghash.h"
-#include "BLI_task.h"
+#include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_task.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
-#include "BKE_pbvh.h"
 #include "BKE_ccg.h"
-#include "BKE_subdiv_ccg.h"
 #include "BKE_mesh.h" /* for BKE_mesh_calc_normals */
 #include "BKE_paint.h"
+#include "BKE_pbvh.h"
+#include "BKE_subdiv_ccg.h"
 
 #include "PIL_time.h"
 
@@ -383,6 +383,25 @@ int BKE_pbvh_count_grid_quads(BLI_bitmap **grid_hidden,
   return totquad;
 }
 
+void BKE_pbvh_sync_face_sets_to_grids(PBVH *bvh)
+{
+  const int gridsize = bvh->gridkey.grid_size;
+  for (int i = 0; i < bvh->totgrid; i++) {
+    BLI_bitmap *gh = bvh->grid_hidden[i];
+    const int face_index = BKE_subdiv_cgg_grid_to_face_index(bvh->subdiv_ccg, i);
+    if (!gh && bvh->face_sets[face_index] < 0) {
+      gh = bvh->grid_hidden[i] = BLI_BITMAP_NEW(bvh->gridkey.grid_area, "partialvis_update_grids");
+    }
+    if (gh) {
+      for (int y = 0; y < gridsize; y++) {
+        for (int x = 0; x < gridsize; x++) {
+          BLI_BITMAP_SET(gh, y * gridsize + x, bvh->face_sets[face_index] < 0);
+        }
+      }
+    }
+  }
+}
+
 static void build_grid_leaf_node(PBVH *bvh, PBVHNode *node)
 {
   int totquads = BKE_pbvh_count_grid_quads(
@@ -565,6 +584,7 @@ void BKE_pbvh_build_mesh(PBVH *bvh,
   bvh->pdata = pdata;
 
   bvh->face_sets_color_seed = mesh->face_sets_color_seed;
+  bvh->face_sets_color_default = mesh->face_sets_color_default;
 
   BB_reset(&cb);
 
@@ -1288,10 +1308,14 @@ static void pbvh_update_draw_buffer_cb(void *__restrict userdata,
     switch (bvh->type) {
       case PBVH_GRIDS:
         GPU_pbvh_grid_buffers_update(node->draw_buffers,
+                                     bvh->subdiv_ccg,
                                      bvh->grids,
                                      bvh->grid_flag_mats,
                                      node->prim_indices,
                                      node->totprim,
+                                     bvh->face_sets,
+                                     bvh->face_sets_color_seed,
+                                     bvh->face_sets_color_default,
                                      &bvh->gridkey,
                                      update_flags);
         break;
@@ -1304,6 +1328,7 @@ static void pbvh_update_draw_buffer_cb(void *__restrict userdata,
                                      CustomData_get_layer(bvh->ldata, CD_MLOOPCOL),
                                      CustomData_get_layer(bvh->pdata, CD_SCULPT_FACE_SETS),
                                      bvh->face_sets_color_seed,
+                                     bvh->face_sets_color_default,
                                      node->face_vert_indices,
                                      update_flags);
         break;
@@ -2096,6 +2121,7 @@ static bool pbvh_faces_node_raycast(PBVH *bvh,
                                     struct IsectRayPrecalc *isect_precalc,
                                     float *depth,
                                     int *r_active_vertex_index,
+                                    int *r_active_face_index,
                                     float *r_face_normal)
 {
   const MVert *vert = bvh->verts;
@@ -2141,6 +2167,7 @@ static bool pbvh_faces_node_raycast(PBVH *bvh,
           if (len_squared_v3v3(location, co[j]) < len_squared_v3v3(location, nearest_vertex_co)) {
             copy_v3_v3(nearest_vertex_co, co[j]);
             *r_active_vertex_index = mloop[lt->tri[j]].v;
+            *r_active_face_index = lt->poly;
           }
         }
       }
@@ -2158,6 +2185,7 @@ static bool pbvh_grids_node_raycast(PBVH *bvh,
                                     struct IsectRayPrecalc *isect_precalc,
                                     float *depth,
                                     int *r_active_vertex_index,
+                                    int *r_active_grid_index,
                                     float *r_face_normal)
 {
   const int totgrid = node->totprim;
@@ -2211,14 +2239,22 @@ static bool pbvh_grids_node_raycast(PBVH *bvh,
           if (r_active_vertex_index) {
             float location[3] = {0.0};
             madd_v3_v3v3fl(location, ray_start, ray_normal, *depth);
+
+            const int x_it[4] = {0, 1, 1, 0};
+            const int y_it[4] = {0, 0, 1, 1};
+
             for (int j = 0; j < 4; j++) {
               if (len_squared_v3v3(location, co[j]) <
                   len_squared_v3v3(location, nearest_vertex_co)) {
                 copy_v3_v3(nearest_vertex_co, co[j]);
-                *r_active_vertex_index = gridkey->grid_area * grid_index + y * gridkey->grid_size +
-                                         x;
+
+                *r_active_vertex_index = gridkey->grid_area * grid_index +
+                                         (y + y_it[j]) * gridkey->grid_size + (x + x_it[j]);
               }
             }
+          }
+          if (r_active_grid_index) {
+            *r_active_grid_index = grid_index;
           }
         }
       }
@@ -2241,6 +2277,7 @@ bool BKE_pbvh_node_raycast(PBVH *bvh,
                            struct IsectRayPrecalc *isect_precalc,
                            float *depth,
                            int *active_vertex_index,
+                           int *active_face_grid_index,
                            float *face_normal)
 {
   bool hit = false;
@@ -2259,6 +2296,7 @@ bool BKE_pbvh_node_raycast(PBVH *bvh,
                                      isect_precalc,
                                      depth,
                                      active_vertex_index,
+                                     active_face_grid_index,
                                      face_normal);
       break;
     case PBVH_GRIDS:
@@ -2270,6 +2308,7 @@ bool BKE_pbvh_node_raycast(PBVH *bvh,
                                      isect_precalc,
                                      depth,
                                      active_vertex_index,
+                                     active_face_grid_index,
                                      face_normal);
       break;
     case PBVH_BMESH:
@@ -2615,9 +2654,10 @@ void BKE_pbvh_update_normals(PBVH *bvh, struct SubdivCCG *subdiv_ccg)
   MEM_SAFE_FREE(nodes);
 }
 
-void BKE_pbvh_face_sets_color_seed_set(PBVH *bvh, int seed)
+void BKE_pbvh_face_sets_color_set(PBVH *bvh, int seed, int color_default)
 {
   bvh->face_sets_color_seed = seed;
+  bvh->face_sets_color_default = color_default;
 }
 
 /**
@@ -2643,7 +2683,8 @@ static bool pbvh_draw_search_cb(PBVHNode *node, void *data_v)
 void BKE_pbvh_draw_cb(PBVH *bvh,
                       bool show_vcol,
                       bool update_only_visible,
-                      PBVHFrustumPlanes *frustum,
+                      PBVHFrustumPlanes *update_frustum,
+                      PBVHFrustumPlanes *draw_frustum,
                       void (*draw_fn)(void *user_data, GPU_PBVH_Buffers *buffers),
                       void *user_data)
 {
@@ -2664,7 +2705,7 @@ void BKE_pbvh_draw_cb(PBVH *bvh,
   }
 
   /* Gather visible nodes. */
-  PBVHDrawSearchData data = {.frustum = frustum, .accum_update_flag = 0};
+  PBVHDrawSearchData data = {.frustum = update_frustum, .accum_update_flag = 0};
   BKE_pbvh_search_gather(bvh, pbvh_draw_search_cb, &data, &nodes, &totnode);
 
   if (update_only_visible && (data.accum_update_flag & update_flag)) {
@@ -2682,7 +2723,15 @@ void BKE_pbvh_draw_cb(PBVH *bvh,
     }
 
     node->flag &= ~(PBVH_RebuildDrawBuffers | PBVH_UpdateDrawBuffers);
+  }
 
+  MEM_SAFE_FREE(nodes);
+
+  PBVHDrawSearchData draw_data = {.frustum = draw_frustum, .accum_update_flag = 0};
+  BKE_pbvh_search_gather(bvh, pbvh_draw_search_cb, &draw_data, &nodes, &totnode);
+
+  for (int a = 0; a < totnode; a++) {
+    PBVHNode *node = nodes[a];
     if (!(node->flag & PBVH_FullyHidden)) {
       draw_fn(user_data, node->draw_buffers);
     }
@@ -2958,6 +3007,22 @@ void pbvh_show_face_sets_set(PBVH *bvh, bool show_face_sets)
   bvh->show_face_sets = show_face_sets;
 }
 
+void BKE_pbvh_set_frustum_planes(PBVH *bvh, PBVHFrustumPlanes *planes)
+{
+  bvh->num_planes = planes->num_planes;
+  for (int i = 0; i < bvh->num_planes; i++) {
+    copy_v4_v4(bvh->planes[i], planes->planes[i]);
+  }
+}
+
+void BKE_pbvh_get_frustum_planes(PBVH *bvh, PBVHFrustumPlanes *planes)
+{
+  planes->num_planes = bvh->num_planes;
+  for (int i = 0; i < planes->num_planes; i++) {
+    copy_v4_v4(planes->planes[i], bvh->planes[i]);
+  }
+}
+
 void BKE_pbvh_parallel_range_settings(PBVHParallelSettings *settings,
                                       bool use_threading,
                                       int totnode)
@@ -2970,4 +3035,14 @@ MVert *BKE_pbvh_get_verts(const PBVH *bvh)
 {
   BLI_assert(bvh->type == PBVH_FACES);
   return bvh->verts;
+}
+
+void BKE_pbvh_subdiv_cgg_set(PBVH *bvh, SubdivCCG *subdiv_ccg)
+{
+  bvh->subdiv_ccg = subdiv_ccg;
+}
+
+void BKE_pbvh_face_sets_set(PBVH *bvh, int *face_sets)
+{
+  bvh->face_sets = face_sets;
 }

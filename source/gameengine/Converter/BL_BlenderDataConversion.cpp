@@ -49,66 +49,11 @@
 /* TODO: Disabled for now, because of eval_ctx. */
 #define THREADED_DAG_WORKAROUND
 
-#include <math.h>
-#include <vector>
-#include <algorithm>
-
 #include "BL_BlenderDataConversion.h"
 
-#include "MT_Transform.h"
-#include "MT_MinMax.h"
-
-#include "GPU_texture.h"
-
-#include "PHY_Pro.h"
-#include "PHY_IPhysicsEnvironment.h"
-
-#include "RAS_MeshObject.h"
-#include "RAS_Rasterizer.h"
-#include "RAS_OpenGLLight.h"
-#include "RAS_ILightObject.h"
-
-#include "KX_ConvertActuators.h"
-#include "KX_ConvertControllers.h"
-#include "KX_ConvertSensors.h"
-#include "SCA_LogicManager.h"
-#include "SCA_TimeEventManager.h"
-
-#include "KX_ClientObjectInfo.h"
-#include "KX_Scene.h"
-#include "KX_GameObject.h"
-#include "KX_Light.h"
-#include "KX_Camera.h"
-#include "KX_EmptyObject.h"
-#include "KX_FontObject.h"
-#include "KX_LodManager.h"
-#include "KX_PythonComponent.h"
-
-#include "RAS_ICanvas.h"
-#include "RAS_Polygon.h"
-#include "RAS_TexVert.h"
-#include "RAS_BucketManager.h"
-#include "RAS_IPolygonMaterial.h"
-#include "KX_BlenderMaterial.h"
-#include "BL_Texture.h"
-
-#include "BKE_collection.h"
-#include "BKE_main.h"
-#include "BKE_global.h"
-#include "BKE_object.h"
-#include "BKE_python_component.h"
-#include "BLI_utildefines.h"
-#include "BLI_listbase.h"
-#include "BLI_iterator.h"
-
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
-
-#include "KX_KetsjiEngine.h"
-#include "KX_BlenderSceneConverter.h"
-
-#include "KX_Globals.h"
-#include "KX_PyConstraintBinding.h"
+#include <algorithm>
+#include <math.h>
+#include <vector>
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
@@ -116,77 +61,101 @@
 #endif
 
 /* This list includes only data type definitions */
-#include "DNA_object_types.h"
-#include "DNA_material_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_image_types.h"
-#include "DNA_light_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_camera_types.h"
-#include "DNA_property_types.h"
-#include "DNA_text_types.h"
-#include "DNA_sensor_types.h"
-#include "DNA_controller_types.h"
+#include "BKE_DerivedMesh.h"
+#include "BKE_armature.h"
+#include "BKE_cdderivedmesh.h"
+#include "BKE_context.h"
+#include "BKE_customdata.h"
+#include "BKE_displist.h"
+#include "BKE_image.h"
+#include "BKE_key.h"
+#include "BKE_layer.h"
+#include "BKE_main.h"
+#include "BKE_material.h" /* give_current_material */
+#include "BKE_mesh.h"
+#include "BKE_mesh_runtime.h"
+#include "BKE_object.h"
+#include "BKE_scene.h"
+#include "BLI_listbase.h"
+#include "BLI_math.h"
+#include "BLI_threads.h"
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
+#include "DNA_action_types.h"
 #include "DNA_actuator_types.h"
+#include "DNA_armature_types.h"
+#include "DNA_camera_types.h"
+#include "DNA_constraint_types.h"
+#include "DNA_controller_types.h"
+#include "DNA_image_types.h"
+#include "DNA_key_types.h"
+#include "DNA_layer_types.h"
+#include "DNA_light_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_object_force_types.h"
+#include "DNA_object_types.h"
+#include "DNA_property_types.h"
+#include "DNA_python_component_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_sensor_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_text_types.h"
+#include "DNA_texture_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
-#include "DNA_sound_types.h"
-#include "DNA_key_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_action_types.h"
-#include "DNA_object_force_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_python_component_types.h"
-#include "DNA_layer_types.h"
-
-#include "MEM_guardedalloc.h"
-
-#include "BKE_key.h"
-#include "BKE_mesh.h"
-
-#include "BLI_math.h"
-
-extern "C" {
-#include "BKE_armature.h"
-#include "BKE_scene.h"
-#include "BKE_customdata.h"
-#include "BKE_cdderivedmesh.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_layer.h"
-#include "BKE_material.h" /* give_current_material */
-#include "BKE_mesh_runtime.h"
-#include "BKE_image.h"
+#include "GPU_texture.h"
 #include "IMB_imbuf_types.h"
-#include "BKE_displist.h"
-}
-
+#include "MEM_guardedalloc.h"
 #include "wm_event_types.h"
 
 /* end of blender include block */
 
-#include "KX_ConvertProperties.h"
-
-#include "SG_Node.h"
-#include "SG_BBox.h"
-#include "KX_SG_NodeRelationships.h"
+#include "BL_ArmatureObject.h"
+#include "BL_BlenderSceneConverter.h"
+#include "BL_ConvertActuators.h"
+#include "BL_ConvertControllers.h"
+#include "BL_ConvertProperties.h"
+#include "BL_ConvertSensors.h"
+#include "BL_Texture.h"
+#include "CM_Message.h"
+#include "KX_BlenderMaterial.h"
+#include "KX_Camera.h"
+#include "KX_ClientObjectInfo.h"
+#include "KX_EmptyObject.h"
+#include "KX_FontObject.h"
+#include "KX_GameObject.h"
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
+#include "KX_Light.h"
+#include "KX_LodManager.h"
+#include "KX_MotionState.h"
+#include "KX_NavMeshObject.h"
+#include "KX_ObstacleSimulation.h"
+#include "KX_PyConstraintBinding.h"
+#include "KX_PythonComponent.h"
 #include "KX_SG_BoneParentNodeRelationship.h"
-
+#include "KX_SG_NodeRelationships.h"
+#include "KX_Scene.h"
+#include "MT_MinMax.h"
+#include "MT_Transform.h"
+#include "PHY_IPhysicsEnvironment.h"
+#include "PHY_Pro.h"
+#include "RAS_BucketManager.h"
+#include "RAS_ICanvas.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_MeshObject.h"
+#include "RAS_Polygon.h"
+#include "RAS_Rasterizer.h"
+#include "RAS_TexVert.h"
+#include "SCA_LogicManager.h"
+#include "SCA_TimeEventManager.h"
+#include "SG_BBox.h"
+#include "SG_Node.h"
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"
 #endif
-
-#include "KX_MotionState.h"
-
-#include "BL_ArmatureObject.h"
-
-#include "KX_NavMeshObject.h"
-#include "KX_ObstacleSimulation.h"
-
-#include "CM_Message.h"
-
-#include "BLI_threads.h"
 
 static bool default_light_mode = 0;
 
@@ -206,125 +175,125 @@ static std::map<int, SCA_IInputDevice::SCA_EnumInputs> create_translate_table()
 
   // standard keyboard
 
-  m[AKEY] = SCA_IInputDevice::AKEY;
-  m[BKEY] = SCA_IInputDevice::BKEY;
-  m[CKEY] = SCA_IInputDevice::CKEY;
-  m[DKEY] = SCA_IInputDevice::DKEY;
-  m[EKEY] = SCA_IInputDevice::EKEY;
-  m[FKEY] = SCA_IInputDevice::FKEY;
-  m[GKEY] = SCA_IInputDevice::GKEY;
-  m[HKEY] = SCA_IInputDevice::HKEY_;
-  m[IKEY] = SCA_IInputDevice::IKEY;
-  m[JKEY] = SCA_IInputDevice::JKEY;
-  m[KKEY] = SCA_IInputDevice::KKEY;
-  m[LKEY] = SCA_IInputDevice::LKEY;
-  m[MKEY] = SCA_IInputDevice::MKEY;
-  m[NKEY] = SCA_IInputDevice::NKEY;
-  m[OKEY] = SCA_IInputDevice::OKEY;
-  m[PKEY] = SCA_IInputDevice::PKEY;
-  m[QKEY] = SCA_IInputDevice::QKEY;
-  m[RKEY] = SCA_IInputDevice::RKEY;
-  m[SKEY] = SCA_IInputDevice::SKEY;
-  m[TKEY] = SCA_IInputDevice::TKEY;
-  m[UKEY] = SCA_IInputDevice::UKEY;
-  m[VKEY] = SCA_IInputDevice::VKEY;
-  m[WKEY] = SCA_IInputDevice::WKEY;
-  m[XKEY] = SCA_IInputDevice::XKEY;
-  m[YKEY] = SCA_IInputDevice::YKEY;
-  m[ZKEY] = SCA_IInputDevice::ZKEY;
+  m[EVT_AKEY] = SCA_IInputDevice::AKEY;
+  m[EVT_BKEY] = SCA_IInputDevice::BKEY;
+  m[EVT_CKEY] = SCA_IInputDevice::CKEY;
+  m[EVT_DKEY] = SCA_IInputDevice::DKEY;
+  m[EVT_EKEY] = SCA_IInputDevice::EKEY;
+  m[EVT_FKEY] = SCA_IInputDevice::FKEY;
+  m[EVT_GKEY] = SCA_IInputDevice::GKEY;
+  m[EVT_HKEY] = SCA_IInputDevice::HKEY_;
+  m[EVT_IKEY] = SCA_IInputDevice::IKEY;
+  m[EVT_JKEY] = SCA_IInputDevice::JKEY;
+  m[EVT_KKEY] = SCA_IInputDevice::KKEY;
+  m[EVT_LKEY] = SCA_IInputDevice::LKEY;
+  m[EVT_MKEY] = SCA_IInputDevice::MKEY;
+  m[EVT_NKEY] = SCA_IInputDevice::NKEY;
+  m[EVT_OKEY] = SCA_IInputDevice::OKEY;
+  m[EVT_PKEY] = SCA_IInputDevice::PKEY;
+  m[EVT_QKEY] = SCA_IInputDevice::QKEY;
+  m[EVT_RKEY] = SCA_IInputDevice::RKEY;
+  m[EVT_SKEY] = SCA_IInputDevice::SKEY;
+  m[EVT_TKEY] = SCA_IInputDevice::TKEY;
+  m[EVT_UKEY] = SCA_IInputDevice::UKEY;
+  m[EVT_VKEY] = SCA_IInputDevice::VKEY;
+  m[EVT_WKEY] = SCA_IInputDevice::WKEY;
+  m[EVT_XKEY] = SCA_IInputDevice::XKEY;
+  m[EVT_YKEY] = SCA_IInputDevice::YKEY;
+  m[EVT_ZKEY] = SCA_IInputDevice::ZKEY;
 
-  m[ZEROKEY] = SCA_IInputDevice::ZEROKEY;
-  m[ONEKEY] = SCA_IInputDevice::ONEKEY;
-  m[TWOKEY] = SCA_IInputDevice::TWOKEY;
-  m[THREEKEY] = SCA_IInputDevice::THREEKEY;
-  m[FOURKEY] = SCA_IInputDevice::FOURKEY;
-  m[FIVEKEY] = SCA_IInputDevice::FIVEKEY;
-  m[SIXKEY] = SCA_IInputDevice::SIXKEY;
-  m[SEVENKEY] = SCA_IInputDevice::SEVENKEY;
-  m[EIGHTKEY] = SCA_IInputDevice::EIGHTKEY;
-  m[NINEKEY] = SCA_IInputDevice::NINEKEY;
+  m[EVT_ZEROKEY] = SCA_IInputDevice::ZEROKEY;
+  m[EVT_ONEKEY] = SCA_IInputDevice::ONEKEY;
+  m[EVT_TWOKEY] = SCA_IInputDevice::TWOKEY;
+  m[EVT_THREEKEY] = SCA_IInputDevice::THREEKEY;
+  m[EVT_FOURKEY] = SCA_IInputDevice::FOURKEY;
+  m[EVT_FIVEKEY] = SCA_IInputDevice::FIVEKEY;
+  m[EVT_SIXKEY] = SCA_IInputDevice::SIXKEY;
+  m[EVT_SEVENKEY] = SCA_IInputDevice::SEVENKEY;
+  m[EVT_EIGHTKEY] = SCA_IInputDevice::EIGHTKEY;
+  m[EVT_NINEKEY] = SCA_IInputDevice::NINEKEY;
 
-  m[CAPSLOCKKEY] = SCA_IInputDevice::CAPSLOCKKEY;
+  m[EVT_CAPSLOCKKEY] = SCA_IInputDevice::CAPSLOCKKEY;
 
-  m[LEFTCTRLKEY] = SCA_IInputDevice::LEFTCTRLKEY;
-  m[LEFTALTKEY] = SCA_IInputDevice::LEFTALTKEY;
-  m[RIGHTALTKEY] = SCA_IInputDevice::RIGHTALTKEY;
-  m[RIGHTCTRLKEY] = SCA_IInputDevice::RIGHTCTRLKEY;
-  m[RIGHTSHIFTKEY] = SCA_IInputDevice::RIGHTSHIFTKEY;
-  m[LEFTSHIFTKEY] = SCA_IInputDevice::LEFTSHIFTKEY;
+  m[EVT_LEFTCTRLKEY] = SCA_IInputDevice::LEFTCTRLKEY;
+  m[EVT_LEFTALTKEY] = SCA_IInputDevice::LEFTALTKEY;
+  m[EVT_RIGHTALTKEY] = SCA_IInputDevice::RIGHTALTKEY;
+  m[EVT_RIGHTCTRLKEY] = SCA_IInputDevice::RIGHTCTRLKEY;
+  m[EVT_RIGHTSHIFTKEY] = SCA_IInputDevice::RIGHTSHIFTKEY;
+  m[EVT_LEFTSHIFTKEY] = SCA_IInputDevice::LEFTSHIFTKEY;
 
-  m[ESCKEY] = SCA_IInputDevice::ESCKEY;
-  m[TABKEY] = SCA_IInputDevice::TABKEY;
-  m[RETKEY] = SCA_IInputDevice::RETKEY;
-  m[SPACEKEY] = SCA_IInputDevice::SPACEKEY;
-  m[LINEFEEDKEY] = SCA_IInputDevice::LINEFEEDKEY;
-  m[BACKSPACEKEY] = SCA_IInputDevice::BACKSPACEKEY;
-  m[DELKEY] = SCA_IInputDevice::DELKEY;
-  m[SEMICOLONKEY] = SCA_IInputDevice::SEMICOLONKEY;
-  m[PERIODKEY] = SCA_IInputDevice::PERIODKEY;
-  m[COMMAKEY] = SCA_IInputDevice::COMMAKEY;
-  m[QUOTEKEY] = SCA_IInputDevice::QUOTEKEY;
-  m[ACCENTGRAVEKEY] = SCA_IInputDevice::ACCENTGRAVEKEY;
-  m[MINUSKEY] = SCA_IInputDevice::MINUSKEY;
-  m[SLASHKEY] = SCA_IInputDevice::SLASHKEY;
-  m[BACKSLASHKEY] = SCA_IInputDevice::BACKSLASHKEY;
-  m[EQUALKEY] = SCA_IInputDevice::EQUALKEY;
-  m[LEFTBRACKETKEY] = SCA_IInputDevice::LEFTBRACKETKEY;
-  m[RIGHTBRACKETKEY] = SCA_IInputDevice::RIGHTBRACKETKEY;
+  m[EVT_ESCKEY] = SCA_IInputDevice::ESCKEY;
+  m[EVT_TABKEY] = SCA_IInputDevice::TABKEY;
+  m[EVT_RETKEY] = SCA_IInputDevice::RETKEY;
+  m[EVT_SPACEKEY] = SCA_IInputDevice::SPACEKEY;
+  m[EVT_LINEFEEDKEY] = SCA_IInputDevice::LINEFEEDKEY;
+  m[EVT_BACKSPACEKEY] = SCA_IInputDevice::BACKSPACEKEY;
+  m[EVT_DELKEY] = SCA_IInputDevice::DELKEY;
+  m[EVT_SEMICOLONKEY] = SCA_IInputDevice::SEMICOLONKEY;
+  m[EVT_PERIODKEY] = SCA_IInputDevice::PERIODKEY;
+  m[EVT_COMMAKEY] = SCA_IInputDevice::COMMAKEY;
+  m[EVT_QUOTEKEY] = SCA_IInputDevice::QUOTEKEY;
+  m[EVT_ACCENTGRAVEKEY] = SCA_IInputDevice::ACCENTGRAVEKEY;
+  m[EVT_MINUSKEY] = SCA_IInputDevice::MINUSKEY;
+  m[EVT_SLASHKEY] = SCA_IInputDevice::SLASHKEY;
+  m[EVT_BACKSLASHKEY] = SCA_IInputDevice::BACKSLASHKEY;
+  m[EVT_EQUALKEY] = SCA_IInputDevice::EQUALKEY;
+  m[EVT_LEFTBRACKETKEY] = SCA_IInputDevice::LEFTBRACKETKEY;
+  m[EVT_RIGHTBRACKETKEY] = SCA_IInputDevice::RIGHTBRACKETKEY;
 
-  m[LEFTARROWKEY] = SCA_IInputDevice::LEFTARROWKEY;
-  m[DOWNARROWKEY] = SCA_IInputDevice::DOWNARROWKEY;
-  m[RIGHTARROWKEY] = SCA_IInputDevice::RIGHTARROWKEY;
-  m[UPARROWKEY] = SCA_IInputDevice::UPARROWKEY;
+  m[EVT_LEFTARROWKEY] = SCA_IInputDevice::LEFTARROWKEY;
+  m[EVT_DOWNARROWKEY] = SCA_IInputDevice::DOWNARROWKEY;
+  m[EVT_RIGHTARROWKEY] = SCA_IInputDevice::RIGHTARROWKEY;
+  m[EVT_UPARROWKEY] = SCA_IInputDevice::UPARROWKEY;
 
-  m[PAD2] = SCA_IInputDevice::PAD2;
-  m[PAD4] = SCA_IInputDevice::PAD4;
-  m[PAD6] = SCA_IInputDevice::PAD6;
-  m[PAD8] = SCA_IInputDevice::PAD8;
+  m[EVT_PAD2] = SCA_IInputDevice::PAD2;
+  m[EVT_PAD4] = SCA_IInputDevice::PAD4;
+  m[EVT_PAD6] = SCA_IInputDevice::PAD6;
+  m[EVT_PAD8] = SCA_IInputDevice::PAD8;
 
-  m[PAD1] = SCA_IInputDevice::PAD1;
-  m[PAD3] = SCA_IInputDevice::PAD3;
-  m[PAD5] = SCA_IInputDevice::PAD5;
-  m[PAD7] = SCA_IInputDevice::PAD7;
-  m[PAD9] = SCA_IInputDevice::PAD9;
+  m[EVT_PAD1] = SCA_IInputDevice::PAD1;
+  m[EVT_PAD3] = SCA_IInputDevice::PAD3;
+  m[EVT_PAD5] = SCA_IInputDevice::PAD5;
+  m[EVT_PAD7] = SCA_IInputDevice::PAD7;
+  m[EVT_PAD9] = SCA_IInputDevice::PAD9;
 
-  m[PADPERIOD] = SCA_IInputDevice::PADPERIOD;
-  m[PADSLASHKEY] = SCA_IInputDevice::PADSLASHKEY;
-  m[PADASTERKEY] = SCA_IInputDevice::PADASTERKEY;
+  m[EVT_PADPERIOD] = SCA_IInputDevice::PADPERIOD;
+  m[EVT_PADSLASHKEY] = SCA_IInputDevice::PADSLASHKEY;
+  m[EVT_PADASTERKEY] = SCA_IInputDevice::PADASTERKEY;
 
-  m[PAD0] = SCA_IInputDevice::PAD0;
-  m[PADMINUS] = SCA_IInputDevice::PADMINUS;
-  m[PADENTER] = SCA_IInputDevice::PADENTER;
-  m[PADPLUSKEY] = SCA_IInputDevice::PADPLUSKEY;
+  m[EVT_PAD0] = SCA_IInputDevice::PAD0;
+  m[EVT_PADMINUS] = SCA_IInputDevice::PADMINUS;
+  m[EVT_PADENTER] = SCA_IInputDevice::PADENTER;
+  m[EVT_PADPLUSKEY] = SCA_IInputDevice::PADPLUSKEY;
 
-  m[F1KEY] = SCA_IInputDevice::F1KEY;
-  m[F2KEY] = SCA_IInputDevice::F2KEY;
-  m[F3KEY] = SCA_IInputDevice::F3KEY;
-  m[F4KEY] = SCA_IInputDevice::F4KEY;
-  m[F5KEY] = SCA_IInputDevice::F5KEY;
-  m[F6KEY] = SCA_IInputDevice::F6KEY;
-  m[F7KEY] = SCA_IInputDevice::F7KEY;
-  m[F8KEY] = SCA_IInputDevice::F8KEY;
-  m[F9KEY] = SCA_IInputDevice::F9KEY;
-  m[F10KEY] = SCA_IInputDevice::F10KEY;
-  m[F11KEY] = SCA_IInputDevice::F11KEY;
-  m[F12KEY] = SCA_IInputDevice::F12KEY;
-  m[F13KEY] = SCA_IInputDevice::F13KEY;
-  m[F14KEY] = SCA_IInputDevice::F14KEY;
-  m[F15KEY] = SCA_IInputDevice::F15KEY;
-  m[F16KEY] = SCA_IInputDevice::F16KEY;
-  m[F17KEY] = SCA_IInputDevice::F17KEY;
-  m[F18KEY] = SCA_IInputDevice::F18KEY;
-  m[F19KEY] = SCA_IInputDevice::F19KEY;
+  m[EVT_F1KEY] = SCA_IInputDevice::F1KEY;
+  m[EVT_F2KEY] = SCA_IInputDevice::F2KEY;
+  m[EVT_F3KEY] = SCA_IInputDevice::F3KEY;
+  m[EVT_F4KEY] = SCA_IInputDevice::F4KEY;
+  m[EVT_F5KEY] = SCA_IInputDevice::F5KEY;
+  m[EVT_F6KEY] = SCA_IInputDevice::F6KEY;
+  m[EVT_F7KEY] = SCA_IInputDevice::F7KEY;
+  m[EVT_F8KEY] = SCA_IInputDevice::F8KEY;
+  m[EVT_F9KEY] = SCA_IInputDevice::F9KEY;
+  m[EVT_F10KEY] = SCA_IInputDevice::F10KEY;
+  m[EVT_F11KEY] = SCA_IInputDevice::F11KEY;
+  m[EVT_F12KEY] = SCA_IInputDevice::F12KEY;
+  m[EVT_F13KEY] = SCA_IInputDevice::F13KEY;
+  m[EVT_F14KEY] = SCA_IInputDevice::F14KEY;
+  m[EVT_F15KEY] = SCA_IInputDevice::F15KEY;
+  m[EVT_F16KEY] = SCA_IInputDevice::F16KEY;
+  m[EVT_F17KEY] = SCA_IInputDevice::F17KEY;
+  m[EVT_F18KEY] = SCA_IInputDevice::F18KEY;
+  m[EVT_F19KEY] = SCA_IInputDevice::F19KEY;
 
-  m[OSKEY] = SCA_IInputDevice::OSKEY;
+  m[EVT_OSKEY] = SCA_IInputDevice::OSKEY;
 
-  m[PAUSEKEY] = SCA_IInputDevice::PAUSEKEY;
-  m[INSERTKEY] = SCA_IInputDevice::INSERTKEY;
-  m[HOMEKEY] = SCA_IInputDevice::HOMEKEY;
-  m[PAGEUPKEY] = SCA_IInputDevice::PAGEUPKEY;
-  m[PAGEDOWNKEY] = SCA_IInputDevice::PAGEDOWNKEY;
-  m[ENDKEY] = SCA_IInputDevice::ENDKEY;
+  m[EVT_PAUSEKEY] = SCA_IInputDevice::PAUSEKEY;
+  m[EVT_INSERTKEY] = SCA_IInputDevice::INSERTKEY;
+  m[EVT_HOMEKEY] = SCA_IInputDevice::HOMEKEY;
+  m[EVT_PAGEUPKEY] = SCA_IInputDevice::PAGEUPKEY;
+  m[EVT_PAGEDOWNKEY] = SCA_IInputDevice::PAGEDOWNKEY;
+  m[EVT_ENDKEY] = SCA_IInputDevice::ENDKEY;
 
   return m;
 }
@@ -401,7 +370,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma,
                                               int lightlayer,
                                               KX_Scene *scene,
                                               RAS_Rasterizer *rasty,
-                                              KX_BlenderSceneConverter &converter)
+                                              BL_BlenderSceneConverter &converter)
 {
   KX_BlenderMaterial *mat = converter.FindMaterial(ma);
 
@@ -424,7 +393,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                Object *blenderobj,
                                KX_Scene *scene,
                                RAS_Rasterizer *rasty,
-                               KX_BlenderSceneConverter &converter,
+                               BL_BlenderSceneConverter &converter,
                                bool libloading)
 {
   RAS_MeshObject *meshobj;
@@ -441,9 +410,10 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   }
 
   // Get DerivedMesh data
+  bContext *C = KX_GetActiveEngine()->GetContext();
   Scene *bl_scene = scene->GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(bl_scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, bl_scene, view_layer, false);
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), bl_scene, view_layer, false);
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, blenderobj);
   Mesh *final_me = (Mesh *)ob_eval->data;
   DerivedMesh *dm = CDDM_from_mesh(final_me);
@@ -681,7 +651,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
                                       RAS_MeshObject *meshobj,
                                       KX_Scene *kxscene,
                                       int activeLayerBitInfo,
-                                      KX_BlenderSceneConverter &converter,
+                                      BL_BlenderSceneConverter &converter,
                                       bool processCompoundChildren)
 
 {
@@ -756,7 +726,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
 static KX_LodManager *lodmanager_from_blenderobject(Object *ob,
                                                     KX_Scene *scene,
                                                     RAS_Rasterizer *rasty,
-                                                    KX_BlenderSceneConverter &converter,
+                                                    BL_BlenderSceneConverter &converter,
                                                     bool libloading)
 {
   if (BLI_listbase_count_at_most(&ob->lodlevels, 2) <= 1) {
@@ -773,66 +743,10 @@ static KX_LodManager *lodmanager_from_blenderobject(Object *ob,
   return lodManager;
 }
 
-static KX_LightObject *gamelight_from_blamp(Object *ob,
-                                            Light *la,
-                                            unsigned int layerflag,
-                                            KX_Scene *kxscene)
+static KX_LightObject *gamelight_from_blamp(KX_Scene *kxscene, Object *ob)
 {
-  RAS_ILightObject *lightobj = new RAS_OpenGLLight();
 
-  lightobj->m_att1 = la->att1;
-  lightobj->m_att2 = 0.0f;
-  lightobj->m_coeff_const = la->coeff_const;
-  lightobj->m_coeff_lin = la->coeff_lin;
-  lightobj->m_coeff_quad = la->coeff_quad;
-  lightobj->m_color[0] = la->r;
-  lightobj->m_color[1] = la->g;
-  lightobj->m_color[2] = la->b;
-  lightobj->m_distance = la->dist;
-  lightobj->m_energy = la->energy;
-  lightobj->m_hasShadow = true;
-  lightobj->m_shadowclipstart = la->clipsta;
-  lightobj->m_shadowclipend = la->clipend;
-  lightobj->m_shadowbias = la->bias;
-  lightobj->m_shadowBleedExp = la->bleedexp;
-  lightobj->m_shadowbleedbias = la->bleedbias;
-  lightobj->m_shadowmaptype = 0;
-  lightobj->m_shadowfrustumsize = 0;
-  lightobj->m_shadowcolor[0] = la->shdwr;
-  lightobj->m_shadowcolor[1] = la->shdwg;
-  lightobj->m_shadowcolor[2] = la->shdwb;
-  lightobj->m_layer = layerflag;
-  lightobj->m_spotblend = la->spotblend;
-  lightobj->m_spotsize = la->spotsize;
-  // Set to true to make at least one shadow render in static mode.
-  lightobj->m_staticShadow = false;
-  lightobj->m_requestShadowUpdate = true;
-
-  lightobj->m_nodiffuse = false;
-  lightobj->m_nospecular = false;
-
-  lightobj->m_areaSize = MT_Vector2(la->area_size, la->area_sizey);
-
-  static RAS_ILightObject::LightType convertTypeTable[] = {
-      RAS_ILightObject::LIGHT_NORMAL,  // LA_LOCAL
-      RAS_ILightObject::LIGHT_SUN,     // LA_SUN
-      RAS_ILightObject::LIGHT_SPOT,    // LA_SPOT
-      RAS_ILightObject::LIGHT_HEMI,    // LA_HEMI
-      RAS_ILightObject::LIGHT_AREA     // LA_AREA
-  };
-  lightobj->m_type = convertTypeTable[la->type];
-
-  static RAS_ILightObject::AreaShapeType convertAreaShapeTable[] = {
-      RAS_ILightObject::AREA_SQUARE,  // LA_AREA_SQUARE
-      RAS_ILightObject::AREA_RECT,    // LA_AREA_RECT
-      RAS_ILightObject::AREA_CUBE,    // LA_AREA_CUBE
-      RAS_ILightObject::AREA_BOX      // LA_AREA_BOX
-  };
-  lightobj->m_areaShape = convertAreaShapeTable[la->area_shape];
-
-  KX_LightObject *gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, lightobj);
-
-  gamelight->SetShowShadowFrustum(false);
+  KX_LightObject *gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, ob);
 
   return gamelight;
 }
@@ -863,7 +777,7 @@ static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene)
 static KX_GameObject *gameobject_from_blenderobject(Object *ob,
                                                     KX_Scene *kxscene,
                                                     RAS_Rasterizer *rasty,
-                                                    KX_BlenderSceneConverter &converter,
+                                                    BL_BlenderSceneConverter &converter,
                                                     bool libloading)
 {
   KX_GameObject *gameobj = nullptr;
@@ -871,8 +785,7 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
 
   switch (ob->type) {
     case OB_LAMP: {
-      KX_LightObject *gamelight = gamelight_from_blamp(
-          ob, static_cast<Light *>(ob->data), ob->lay, kxscene);
+      KX_LightObject *gamelight = gamelight_from_blamp(kxscene, ob);
       gameobj = gamelight;
       gamelight->AddRef();
       kxscene->GetLightList()->Add(gamelight);
@@ -979,10 +892,13 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
 
 #ifdef THREADED_DAG_WORKAROUND
     case OB_CURVE: {
+      bContext *C = KX_GetActiveEngine()->GetContext();
       if (ob->runtime.curve_cache == nullptr) {
         ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
-        Depsgraph *depsgraph = BKE_scene_get_depsgraph(G_MAIN, blenderscene, view_layer, false);
-        BKE_displist_make_curveTypes(depsgraph, blenderscene, ob, false, false);
+        Depsgraph *depsgraph = BKE_scene_get_depsgraph(
+            CTX_data_main(C), blenderscene, view_layer, false);
+        BKE_displist_make_curveTypes(
+            depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);
       }
       // eevee add curves to scene.objects list
       gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
@@ -1118,7 +1034,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
-static void bl_ConvertBlenderObject_Single(KX_BlenderSceneConverter &converter,
+static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter &converter,
                                            Object *blenderobject,
                                            std::vector<parentChildLink> &vec_parent_child,
                                            CListValue<KX_GameObject> *logicbrick_conversionlist,
@@ -1237,7 +1153,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                               e_PhysicsEngine physics_engine,
                               RAS_Rasterizer *rendertools,
                               RAS_ICanvas *canvas,
-                              KX_BlenderSceneConverter &converter,
+                              BL_BlenderSceneConverter &converter,
                               bool alwaysUseExpandFraming,
                               bool libloading)
 {

@@ -21,6 +21,10 @@
 #ifndef __BPY_RNA_H__
 #define __BPY_RNA_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* --- bpy build options --- */
 #ifdef WITH_PYTHON_SAFETY
 
@@ -261,5 +265,9 @@ extern PyMethodDef meth_bpy_owner_id_set;
 extern PyMethodDef meth_bpy_owner_id_get;
 
 extern BPy_StructRNA *bpy_context_module;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -18,13 +18,13 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "DNA_ID.h"
-#include "DNA_vfont_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
+#include "DNA_vfont_types.h"
 
 #include "BLI_utildefines.h"
 
@@ -75,6 +75,11 @@ const EnumPropertyItem rna_enum_id_type_items[] = {
     {ID_SPK, "SPEAKER", ICON_SPEAKER, "Speaker", ""},
     {ID_TXT, "TEXT", ICON_TEXT, "Text", ""},
     {ID_TE, "TEXTURE", ICON_TEXTURE_DATA, "Texture", ""},
+#ifdef WITH_NEW_OBJECT_TYPES
+    {ID_HA, "HAIR", ICON_HAIR_DATA, "Hair", ""},
+    {ID_PT, "POINTCLOUD", ICON_POINTCLOUD_DATA, "PointCloud", ""},
+#endif
+    {ID_VO, "VOLUME", ICON_VOLUME_DATA, "Volume", ""},
     {ID_WM, "WINDOWMANAGER", ICON_WINDOW, "Window Manager", ""},
     {ID_WO, "WORLD", ICON_WORLD_DATA, "World", ""},
     {ID_WS, "WORKSPACE", ICON_WORKSPACE, "Workspace", ""},
@@ -88,15 +93,15 @@ const EnumPropertyItem rna_enum_id_type_items[] = {
 #  include "BLI_listbase.h"
 #  include "BLI_math_base.h"
 
+#  include "BKE_anim_data.h"
 #  include "BKE_font.h"
+#  include "BKE_global.h" /* XXX, remove me */
 #  include "BKE_idprop.h"
-#  include "BKE_lib_query.h"
 #  include "BKE_lib_override.h"
+#  include "BKE_lib_query.h"
 #  include "BKE_lib_remap.h"
 #  include "BKE_library.h"
-#  include "BKE_animsys.h"
 #  include "BKE_material.h"
-#  include "BKE_global.h" /* XXX, remove me */
 
 #  include "DEG_depsgraph.h"
 #  include "DEG_depsgraph_build.h"
@@ -246,6 +251,11 @@ short RNA_type_to_ID_code(const StructRNA *type)
   if (base_type == &RNA_FreestyleLineStyle) {
     return ID_LS;
   }
+#  ifdef WITH_NEW_OBJECT_TYPES
+  if (base_type == &RNA_Hair) {
+    return ID_HA;
+  }
+#  endif
   if (base_type == &RNA_Lattice) {
     return ID_LT;
   }
@@ -279,6 +289,11 @@ short RNA_type_to_ID_code(const StructRNA *type)
   if (base_type == &RNA_PaintCurve) {
     return ID_PC;
   }
+#  ifdef WITH_NEW_OBJECT_TYPES
+  if (base_type == &RNA_PointCloud) {
+    return ID_PT;
+  }
+#  endif
   if (base_type == &RNA_LightProbe) {
     return ID_LP;
   }
@@ -302,6 +317,9 @@ short RNA_type_to_ID_code(const StructRNA *type)
   }
   if (base_type == &RNA_VectorFont) {
     return ID_VF;
+  }
+  if (base_type == &RNA_Volume) {
+    return ID_VO;
   }
   if (base_type == &RNA_WorkSpace) {
     return ID_WS;
@@ -337,6 +355,12 @@ StructRNA *ID_code_to_RNA_type(short idcode)
       return &RNA_GreasePencil;
     case ID_GR:
       return &RNA_Collection;
+    case ID_HA:
+#  ifdef WITH_NEW_OBJECT_TYPES
+      return &RNA_Hair;
+#  else
+      return &RNA_ID;
+#  endif
     case ID_IM:
       return &RNA_Image;
     case ID_KE:
@@ -369,6 +393,12 @@ StructRNA *ID_code_to_RNA_type(short idcode)
       return &RNA_Palette;
     case ID_PC:
       return &RNA_PaintCurve;
+    case ID_PT:
+#  ifdef WITH_NEW_OBJECT_TYPES
+      return &RNA_PointCloud;
+#  else
+      return &RNA_ID;
+#  endif
     case ID_LP:
       return &RNA_LightProbe;
     case ID_SCE:
@@ -385,6 +415,8 @@ StructRNA *ID_code_to_RNA_type(short idcode)
       return &RNA_Text;
     case ID_VF:
       return &RNA_VectorFont;
+    case ID_VO:
+      return &RNA_Volume;
     case ID_WM:
       return &RNA_WindowManager;
     case ID_WO:
@@ -1467,6 +1499,15 @@ static void rna_def_ID(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Fake User", "Save this data-block even if it has no users");
   RNA_def_property_ui_icon(prop, ICON_FAKE_USER_OFF, true);
   RNA_def_property_boolean_funcs(prop, NULL, "rna_ID_fake_user_set");
+
+  prop = RNA_def_property(srna, "is_embedded_data", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", LIB_EMBEDDED_DATA);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop,
+      "Embedded Data",
+      "This data-block is not an independant one, but is actually a sub-data of another ID "
+      "(typical example: root node trees or master collections)");
 
   prop = RNA_def_property(srna, "tag", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "tag", LIB_TAG_DOIT);

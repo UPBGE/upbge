@@ -23,13 +23,12 @@
 #ifndef __CCDGRAPHICCONTROLLER_H__
 #define __CCDGRAPHICCONTROLLER_H__
 
-#include "PHY_IGraphicController.h"
-
-#include "btBulletDynamicsCommon.h"
 #include "LinearMath/btTransform.h"
+#include "btBulletDynamicsCommon.h"
 
-#include "PHY_IMotionState.h"
 #include "MT_Vector3.h"
+#include "PHY_IGraphicController.h"
+#include "PHY_IMotionState.h"
 
 class CcdPhysicsEnvironment;
 class btCollisionObject;

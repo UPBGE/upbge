@@ -32,10 +32,11 @@
 #ifndef __BL_ARMATURECONSTRAINT_H__
 #define __BL_ARMATURECONSTRAINT_H__
 
-#include "DNA_constraint_types.h"
-#include "EXP_Value.h"
-
 #include <map>
+
+#include "DNA_constraint_types.h"
+
+#include "EXP_Value.h"
 
 class SCA_IObject;
 class KX_GameObject;

@@ -27,10 +27,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_math.h"
-#include "BLI_rand.h"
 #include "BLI_heap_simple.h"
 #include "BLI_kdtree.h"
+#include "BLI_listbase.h"
+#include "BLI_math.h"
+#include "BLI_rand.h"
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
@@ -41,12 +42,12 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "ED_curve.h"
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_select_utils.h"
 #include "ED_types.h"
 #include "ED_view3d.h"
-#include "ED_curve.h"
 
 #include "curve_intern.h"
 
@@ -198,7 +199,7 @@ bool ED_curve_nurb_select_all(const Nurb *nu)
 bool ED_curve_select_all(EditNurb *editnurb)
 {
   bool changed = false;
-  for (Nurb *nu = editnurb->nurbs.first; nu; nu = nu->next) {
+  LISTBASE_FOREACH (Nurb *, nu, &editnurb->nurbs) {
     changed |= ED_curve_nurb_select_all(nu);
   }
   return changed;
@@ -257,7 +258,7 @@ bool ED_curve_select_check(View3D *v3d, struct EditNurb *editnurb)
 bool ED_curve_deselect_all(EditNurb *editnurb)
 {
   bool changed = false;
-  for (Nurb *nu = editnurb->nurbs.first; nu; nu = nu->next) {
+  LISTBASE_FOREACH (Nurb *, nu, &editnurb->nurbs) {
     changed |= ED_curve_nurb_deselect_all(nu);
   }
   return changed;
@@ -1825,7 +1826,7 @@ static float curve_calc_dist_span(Nurb *nu, int vert_src, int vert_dst)
   int i_prev, i;
   float dist = 0.0f;
 
-  BLI_assert(nu->pntsv == 1);
+  BLI_assert(nu->pntsv <= 1);
 
   i_prev = vert_src;
   i = (i_prev + 1) % u;

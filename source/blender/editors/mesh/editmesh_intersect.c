@@ -22,17 +22,17 @@
 
 #include "DNA_object_types.h"
 
+#include "BLI_buffer.h"
+#include "BLI_linklist_stack.h"
 #include "BLI_math.h"
 #include "BLI_memarena.h"
 #include "BLI_stack.h"
-#include "BLI_buffer.h"
-#include "BLI_linklist_stack.h"
 
-#include "BKE_layer.h"
-#include "BKE_editmesh_bvh.h"
 #include "BKE_context.h"
-#include "BKE_report.h"
 #include "BKE_editmesh.h"
+#include "BKE_editmesh_bvh.h"
+#include "BKE_layer.h"
+#include "BKE_report.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -479,7 +479,7 @@ static bool bm_vert_in_faces_radial(BMVert *v, BMEdge *e_radial, BMFace *f_ignor
 
 struct LinkBase {
   LinkNode *list;
-  unsigned int list_len;
+  uint list_len;
 };
 
 static void ghash_insert_face_edge_link(GHash *gh,
@@ -535,7 +535,7 @@ static void bm_face_split_by_edges_island_connect(
   }
 
   {
-    unsigned int edge_arr_holes_len;
+    uint edge_arr_holes_len;
     BMEdge **edge_arr_holes;
     if (BM_face_split_edgenet_connect_islands(bm,
                                               f,
@@ -765,7 +765,7 @@ static int edbm_face_split_by_edges_exec(bContext *C, wmOperator *UNUSED(op))
           BMIter liter;
           BMLoop *l;
 
-          unsigned int loop_stack_len;
+          uint loop_stack_len;
           BMLoop *l_best = NULL;
 
           BLI_assert(BLI_SMALLSTACK_IS_EMPTY(loop_stack));

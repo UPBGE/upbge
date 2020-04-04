@@ -23,8 +23,8 @@
 #include "BLF_api.h"
 
 #include "BLI_math.h"
-#include "BLI_utildefines.h"
 #include "BLI_string_utf8.h"
+#include "BLI_utildefines.h"
 
 #include "GPU_immediate.h"
 #include "GPU_state.h"
@@ -102,28 +102,29 @@ static void textview_draw_sel(const char *str,
 }
 
 /**
- * \warning Allocated memory for 'offsets' must be freed by caller.
+ * \warning Allocated memory for 'r_offsets' must be freed by caller.
  * \return The length in bytes.
  */
-static int textview_wrap_offsets(const char *str, int len, int width, int *lines, int **offsets)
+static int textview_wrap_offsets(
+    const char *str, int len, int width, int *r_lines, int **r_offsets)
 {
   int i, end; /* Offset as unicode code-point. */
   int j;      /* Offset as bytes. */
 
-  *lines = 1;
+  *r_lines = 1;
 
-  *offsets = MEM_callocN(
-      sizeof(**offsets) *
+  *r_offsets = MEM_callocN(
+      sizeof(**r_offsets) *
           (len * BLI_UTF8_WIDTH_MAX / MAX2(1, width - (BLI_UTF8_WIDTH_MAX - 1)) + 1),
       __func__);
-  (*offsets)[0] = 0;
+  (*r_offsets)[0] = 0;
 
   for (i = 0, end = width, j = 0; j < len && str[j]; j += BLI_str_utf8_size_safe(str + j)) {
     int columns = BLI_str_utf8_char_width_safe(str + j);
 
     if (i + columns > end) {
-      (*offsets)[*lines] = j;
-      (*lines)++;
+      (*r_offsets)[*r_lines] = j;
+      (*r_lines)++;
 
       end = i + width;
     }
@@ -285,7 +286,7 @@ static bool textview_draw_string(TextViewDrawState *tds,
 
     tds->xy[1] += tds->lheight;
 
-    /* Check if were out of view bounds. */
+    /* Check if we're out of view bounds. */
     if (tds->xy[1] > tds->scroll_ymax) {
       MEM_freeN(offsets);
       return false;

@@ -50,6 +50,7 @@ set(SRC
   intern/builder/deg_builder_relations_rig.cc
   intern/builder/deg_builder_relations_scene.cc
   intern/builder/deg_builder_relations_view_layer.cc
+  intern/builder/deg_builder_remove_noop.cc
   intern/builder/deg_builder_rna.cc
   intern/builder/deg_builder_transitive.cc
   intern/debug/deg_debug.cc
@@ -68,6 +69,7 @@ set(SRC
   intern/eval/deg_eval_runtime_backup_sequence.cc
   intern/eval/deg_eval_runtime_backup_sequencer.cc
   intern/eval/deg_eval_runtime_backup_sound.cc
+  intern/eval/deg_eval_runtime_backup_volume.cc
   intern/eval/deg_eval_stats.cc
   intern/node/deg_node.cc
   intern/node/deg_node_component.cc
@@ -103,6 +105,7 @@ set(SRC
   intern/builder/deg_builder_pchanmap.h
   intern/builder/deg_builder_relations.h
   intern/builder/deg_builder_relations_impl.h
+  intern/builder/deg_builder_remove_noop.h
   intern/builder/deg_builder_rna.h
   intern/builder/deg_builder_transitive.h
   intern/debug/deg_debug.h
@@ -120,6 +123,7 @@ set(SRC
   intern/eval/deg_eval_runtime_backup_sequence.h
   intern/eval/deg_eval_runtime_backup_sequencer.h
   intern/eval/deg_eval_runtime_backup_sound.h
+  intern/eval/deg_eval_runtime_backup_volume.h
   intern/eval/deg_eval_stats.h
   intern/node/deg_node.h
   intern/node/deg_node_component.h

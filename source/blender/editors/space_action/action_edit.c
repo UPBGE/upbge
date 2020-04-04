@@ -21,10 +21,10 @@
  * \ingroup spaction
  */
 
+#include <float.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <float.h>
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -35,9 +35,9 @@
 #include "DNA_anim_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_key_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_mask_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -47,8 +47,8 @@
 #include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_fcurve.h"
-#include "BKE_gpencil.h"
 #include "BKE_global.h"
+#include "BKE_gpencil.h"
 #include "BKE_key.h"
 #include "BKE_nla.h"
 #include "BKE_report.h"
@@ -57,11 +57,11 @@
 
 #include "ED_anim_api.h"
 #include "ED_gpencil.h"
-#include "ED_keyframing.h"
 #include "ED_keyframes_edit.h"
-#include "ED_screen.h"
+#include "ED_keyframing.h"
 #include "ED_markers.h"
 #include "ED_mask.h"
+#include "ED_screen.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -372,7 +372,7 @@ static int actkeys_viewall(bContext *C, const bool only_sel)
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
-  v2d = &ac.ar->v2d;
+  v2d = &ac.region->v2d;
 
   /* set the horizontal range, with an extra offset so that the extreme keys will be in view */
   found = get_keyframe_extents(&ac, &min, &max, only_sel);
@@ -707,7 +707,7 @@ static void insert_action_keys(bAnimContext *ac, short mode)
   ReportList *reports = ac->reports;
   Scene *scene = ac->scene;
   ToolSettings *ts = scene->toolsettings;
-  short flag = 0;
+  eInsertKeyFlags flag;
 
   /* filter data */
   filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
@@ -721,8 +721,8 @@ static void insert_action_keys(bAnimContext *ac, short mode)
 
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
-  /* init keyframing flag */
-  flag = ANIM_get_keyframing_flags(scene, 1);
+  /* Init keyframing flag. */
+  flag = ANIM_get_keyframing_flags(scene, true);
 
   /* insert keyframes */
   for (ale = anim_data.first; ale; ale = ale->next) {
@@ -803,7 +803,7 @@ static void insert_gpencil_keys(bAnimContext *ac, short mode)
   /* insert gp frames */
   for (ale = anim_data.first; ale; ale = ale->next) {
     bGPDlayer *gpl = (bGPDlayer *)ale->data;
-    BKE_gpencil_layer_getframe(gpl, CFRA, add_frame_mode);
+    BKE_gpencil_layer_frame_get(gpl, CFRA, add_frame_mode);
   }
 
   ANIM_animdata_update(ac, &anim_data);
@@ -1311,35 +1311,6 @@ void ACTION_OT_extrapolation_type(wmOperatorType *ot)
 
 /* ******************** Set Interpolation-Type Operator *********************** */
 
-/* this function is responsible for setting interpolation mode for keyframes */
-static void setipo_action_keys(bAnimContext *ac, short mode)
-{
-  ListBase anim_data = {NULL, NULL};
-  bAnimListElem *ale;
-  int filter;
-  KeyframeEditFunc set_cb = ANIM_editkeyframes_ipo(mode);
-
-  /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-            ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
-  ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
-
-  /* Loop through setting BezTriple interpolation
-   * Note: we do not supply KeyframeEditData to the looper yet.
-   * Currently that's not necessary here.
-   */
-  for (ale = anim_data.first; ale; ale = ale->next) {
-    ANIM_fcurve_keyframes_loop(NULL, ale->key_data, NULL, set_cb, calchandles_fcurve);
-
-    ale->update |= ANIM_UPDATE_DEFAULT;
-  }
-
-  ANIM_animdata_update(ac, &anim_data);
-  ANIM_animdata_freelist(&anim_data);
-}
-
-/* ------------------- */
-
 static int actkeys_ipo_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
@@ -1359,7 +1330,10 @@ static int actkeys_ipo_exec(bContext *C, wmOperator *op)
   mode = RNA_enum_get(op->ptr, "type");
 
   /* set handle type */
-  setipo_action_keys(&ac, mode);
+  ANIM_animdata_keyframe_callback(&ac,
+                                  (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE |
+                                   ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS),
+                                  ANIM_editkeyframes_ipo(mode));
 
   /* set notifier that keyframe properties have changed */
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
@@ -1386,6 +1360,54 @@ void ACTION_OT_interpolation_type(wmOperatorType *ot)
   /* id-props */
   ot->prop = RNA_def_enum(
       ot->srna, "type", rna_enum_beztriple_interpolation_mode_items, 0, "Type", "");
+}
+
+/* ******************** Set Easing Operator *********************** */
+
+static int actkeys_easing_exec(bContext *C, wmOperator *op)
+{
+  bAnimContext ac;
+  short mode;
+
+  /* get editor data */
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* get handle setting mode */
+  mode = RNA_enum_get(op->ptr, "type");
+
+  /* set handle type */
+  ANIM_animdata_keyframe_callback(&ac,
+                                  (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE |
+                                   ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS),
+                                  ANIM_editkeyframes_easing(mode));
+
+  /* set notifier that keyframe properties have changed */
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+void ACTION_OT_easing_type(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Set Keyframe Easing Type";
+  ot->idname = "ACTION_OT_easing_type";
+  ot->description =
+      "Set easing type for the F-Curve segments starting from the selected keyframes";
+
+  /* api callbacks */
+  ot->invoke = WM_menu_invoke;
+  ot->exec = actkeys_easing_exec;
+  ot->poll = ED_operator_action_active;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* id-props */
+  ot->prop = RNA_def_enum(
+      ot->srna, "type", rna_enum_beztriple_interpolation_easing_items, 0, "Type", "");
 }
 
 /* ******************** Set Handle-Type Operator *********************** */

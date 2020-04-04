@@ -21,38 +21,38 @@
  * \ingroup bke
  */
 
-#include <stdio.h>
-#include <stddef.h>
-#include <string.h>
-#include <math.h>
 #include <float.h>
+#include <math.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_kdopbvh.h"
-#include "BLI_utildefines.h"
+#include "BLI_math.h"
 #include "BLI_string_utils.h"
+#include "BLI_utildefines.h"
 #include "BLT_translation.h"
 
+#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
-#include "DNA_action_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 
 #include "DNA_lattice_types.h"
+#include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_tracking_types.h"
-#include "DNA_movieclip_types.h"
 
 #include "BKE_action.h"
-#include "BKE_anim.h" /* for the curve calculation part */
+#include "BKE_anim_path.h"
 #include "BKE_armature.h"
 #include "BKE_bvhutils.h"
 #include "BKE_cachefile.h"
@@ -255,7 +255,7 @@ void BKE_constraints_clear_evalob(bConstraintOb *cob)
  * For now, this is only implemented for Objects and PoseChannels.
  */
 void BKE_constraint_mat_convertspace(
-    Object *ob, bPoseChannel *pchan, float mat[4][4], short from, short to)
+    Object *ob, bPoseChannel *pchan, float mat[4][4], short from, short to, const bool keep_scale)
 {
   float diff_mat[4][4];
   float imat[4][4];
@@ -282,7 +282,7 @@ void BKE_constraint_mat_convertspace(
         /* use pose-space as stepping stone for other spaces... */
         if (ELEM(to, CONSTRAINT_SPACE_LOCAL, CONSTRAINT_SPACE_PARLOCAL)) {
           /* call self with slightly different values */
-          BKE_constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, to);
+          BKE_constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, to, keep_scale);
         }
         break;
       }
@@ -318,7 +318,7 @@ void BKE_constraint_mat_convertspace(
         /* use pose-space as stepping stone for other spaces */
         if (ELEM(to, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_PARLOCAL)) {
           /* call self with slightly different values */
-          BKE_constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, to);
+          BKE_constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, to, keep_scale);
         }
         break;
       }
@@ -332,7 +332,7 @@ void BKE_constraint_mat_convertspace(
         /* use pose-space as stepping stone for other spaces */
         if (ELEM(to, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL)) {
           /* call self with slightly different values */
-          BKE_constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, to);
+          BKE_constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, to, keep_scale);
         }
         break;
       }
@@ -348,12 +348,46 @@ void BKE_constraint_mat_convertspace(
         invert_m4_m4_safe(imat, diff_mat);
         mul_m4_m4m4(mat, imat, mat);
       }
+      else {
+        /* Local space in this case will have to be defined as local to the owner's
+         * transform-property-rotated axes. So subtract this rotation component.
+         */
+        /* XXX This is actually an ugly hack, local space of a parent-less object *is* the same as
+         *     global space!
+         *     Think what we want actually here is some kind of 'Final Space', i.e
+         *     . once transformations are applied - users are often confused about this too,
+         *     this is not consistent with bones
+         *     local space either... Meh :|
+         *     --mont29
+         */
+        BKE_object_to_mat4(ob, diff_mat);
+        if (!keep_scale) {
+          normalize_m4(diff_mat);
+        }
+        zero_v3(diff_mat[3]);
+
+        invert_m4_m4_safe(imat, diff_mat);
+        mul_m4_m4m4(mat, imat, mat);
+      }
     }
     else if (from == CONSTRAINT_SPACE_LOCAL && to == CONSTRAINT_SPACE_WORLD) {
       /* check that object has a parent - otherwise this won't work */
       if (ob->parent) {
         /* 'add' parent's effect back to owner */
         mul_m4_m4m4(diff_mat, ob->parent->obmat, ob->parentinv);
+        mul_m4_m4m4(mat, diff_mat, mat);
+      }
+      else {
+        /* Local space in this case will have to be defined as local to the owner's
+         * transform-property-rotated axes. So add back this rotation component.
+         */
+        /* XXX See comment above for world->local case... */
+        BKE_object_to_mat4(ob, diff_mat);
+        if (!keep_scale) {
+          normalize_m4(diff_mat);
+        }
+        zero_v3(diff_mat[3]);
+
         mul_m4_m4m4(mat, diff_mat, mat);
       }
     }
@@ -372,7 +406,7 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   float plane[3];
   float imat[3][3], tmat[3][3];
-  const int defgroup = defgroup_name_index(ob, substring);
+  const int defgroup = BKE_object_defgroup_name_index(ob, substring);
 
   /* initialize target matrix using target matrix */
   copy_m4_m4(mat, ob->obmat);
@@ -396,7 +430,7 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
 
       /* get the average of all verts with that are in the vertex-group */
       for (int i = 0; i < numVerts; i++, dv++, mv++) {
-        MDeformWeight *dw = defvert_find_index(dv, defgroup);
+        MDeformWeight *dw = BKE_defvert_find_index(dv, defgroup);
 
         if (dw && dw->weight > 0.0f) {
           float nor[3];
@@ -415,7 +449,7 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
 
       BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
         MDeformVert *dv = CustomData_bmesh_get(&em->bm->vdata, v->head.data, CD_MDEFORMVERT);
-        MDeformWeight *dw = defvert_find_index(dv, defgroup);
+        MDeformWeight *dw = BKE_defvert_find_index(dv, defgroup);
 
         if (dw && dw->weight > 0.0f) {
           madd_v3_v3fl(vec, v->co, dw->weight);
@@ -438,9 +472,9 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
 
   /* derive the rotation from the average normal:
    * - code taken from transform_gizmo.c,
-   *   calc_gizmo_stats, V3D_ORIENT_NORMAL case
-   */
-  /*  we need the transpose of the inverse for a normal... */
+   *   calc_gizmo_stats, V3D_ORIENT_NORMAL case */
+
+  /* We need the transpose of the inverse for a normal. */
   copy_m3_m4(imat, ob->obmat);
 
   invert_m3_m3(tmat, imat);
@@ -451,7 +485,7 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
   copy_v3_v3(plane, tmat[1]);
 
   cross_v3_v3v3(mat[0], normal, plane);
-  if (len_squared_v3(mat[0]) < SQUARE(1e-3f)) {
+  if (len_squared_v3(mat[0]) < square_f(1e-3f)) {
     copy_v3_v3(plane, tmat[0]);
     cross_v3_v3v3(mat[0], normal, plane);
   }
@@ -481,7 +515,7 @@ static void contarget_get_lattice_mat(Object *ob, const char *substring, float m
   float vec[3] = {0.0f, 0.0f, 0.0f}, tvec[3];
   int grouped = 0;
   int i, n;
-  const int defgroup = defgroup_name_index(ob, substring);
+  const int defgroup = BKE_object_defgroup_name_index(ob, substring);
 
   /* initialize target matrix using target matrix */
   copy_m4_m4(mat, ob->obmat);
@@ -499,7 +533,7 @@ static void contarget_get_lattice_mat(Object *ob, const char *substring, float m
    */
   for (i = 0; i < tot_verts; i++, dv++) {
     for (n = 0; n < dv->totweight; n++) {
-      MDeformWeight *dw = defvert_find_index(dv, defgroup);
+      MDeformWeight *dw = BKE_defvert_find_index(dv, defgroup);
       if (dw && dw->weight > 0.0f) {
         /* copy coordinates of point to temporary vector, then add to find average */
         memcpy(tvec, co ? co : bp->vec, 3 * sizeof(float));
@@ -541,9 +575,9 @@ static void constraint_target_to_mat4(Object *ob,
   /* Case OBJECT */
   if (substring[0] == '\0') {
     copy_m4_m4(mat, ob->obmat);
-    BKE_constraint_mat_convertspace(ob, NULL, mat, from, to);
+    BKE_constraint_mat_convertspace(ob, NULL, mat, from, to, false);
   }
-  /*  Case VERTEXGROUP */
+  /* Case VERTEXGROUP */
   /* Current method just takes the average location of all the points in the
    * VertexGroup, and uses that as the location value of the targets. Where
    * possible, the orientation will also be calculated, by calculating an
@@ -554,11 +588,11 @@ static void constraint_target_to_mat4(Object *ob,
    */
   else if (ob->type == OB_MESH) {
     contarget_get_mesh_mat(ob, substring, mat);
-    BKE_constraint_mat_convertspace(ob, NULL, mat, from, to);
+    BKE_constraint_mat_convertspace(ob, NULL, mat, from, to, false);
   }
   else if (ob->type == OB_LATTICE) {
     contarget_get_lattice_mat(ob, substring, mat);
-    BKE_constraint_mat_convertspace(ob, NULL, mat, from, to);
+    BKE_constraint_mat_convertspace(ob, NULL, mat, from, to, false);
   }
   /* Case BONE */
   else {
@@ -622,7 +656,7 @@ static void constraint_target_to_mat4(Object *ob,
     }
 
     /* convert matrix space as required */
-    BKE_constraint_mat_convertspace(ob, pchan, mat, from, to);
+    BKE_constraint_mat_convertspace(ob, pchan, mat, from, to, false);
   }
 }
 
@@ -707,8 +741,8 @@ static void default_get_tarmat_full_bbone(struct Depsgraph *UNUSED(depsgraph),
 
 /* This following macro should be used for all standard single-target *_get_tars functions
  * to save typing and reduce maintenance woes.
- * (Hopefully all compilers will be happy with the lines with just a space on them. Those are
- *  really just to help this code easier to read)
+ * (Hopefully all compilers will be happy with the lines with just a space on them.
+ * Those are really just to help this code easier to read).
  */
 // TODO: cope with getting rotation order...
 #define SINGLETARGET_GET_TARS(con, datatar, datasubtarget, ct, list) \
@@ -2479,7 +2513,7 @@ static void armdef_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *targ
 
   /* Process all targets. This can't use ct->matrix, as armdef_get_tarmat is not
    * called in solve for efficiency because the constraint needs bone data anyway. */
-  for (bConstraintTarget *ct = targets->first; ct; ct = ct->next) {
+  LISTBASE_FOREACH (bConstraintTarget *, ct, targets) {
     if (ct->weight <= 0.0f) {
       continue;
     }
@@ -4111,9 +4145,12 @@ static void shrinkwrap_get_tarmat(struct Depsgraph *UNUSED(depsgraph),
           }
 
           /* Transform normal into requested space */
+          /* Note that in this specific case, we need to keep scaling in non-parented 'local2world'
+           * object case, because SpaceTransform also takes it into account when handling normals.
+           * See T42447. */
           unit_m4(mat);
           BKE_constraint_mat_convertspace(
-              cob->ob, cob->pchan, mat, CONSTRAINT_SPACE_LOCAL, scon->projAxisSpace);
+              cob->ob, cob->pchan, mat, CONSTRAINT_SPACE_LOCAL, scon->projAxisSpace, true);
           invert_m4(mat);
           mul_mat3_m4_v3(mat, no);
 
@@ -4845,7 +4882,7 @@ static bConstraintTypeInfo CTI_FOLLOWTRACK = {
     followtrack_evaluate,           /* evaluate */
 };
 
-/* ----------- Camre Solver ------------- */
+/* ----------- Camera Solver ------------- */
 
 static void camerasolver_new_data(void *cdata)
 {
@@ -5337,9 +5374,6 @@ static bConstraint *add_new_constraint(Object *ob,
       }
       break;
     }
-    case CONSTRAINT_TYPE_TRANSFORM_CACHE:
-      con->ownspace = CONSTRAINT_SPACE_LOCAL;
-      break;
   }
 
   return con;
@@ -5523,7 +5557,7 @@ void BKE_constraints_active_set(ListBase *list, bConstraint *con)
 
 static bConstraint *constraint_list_find_from_target(ListBase *constraints, bConstraintTarget *tgt)
 {
-  for (bConstraint *con = constraints->first; con; con = con->next) {
+  LISTBASE_FOREACH (bConstraint *, con, constraints) {
     ListBase *targets = NULL;
 
     if (con->type == CONSTRAINT_TYPE_PYTHON) {
@@ -5557,7 +5591,7 @@ bConstraint *BKE_constraint_find_from_target(Object *ob,
   }
 
   if (ob->pose != NULL) {
-    for (bPoseChannel *pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       result = constraint_list_find_from_target(&pchan->constraints, tgt);
 
       if (result != NULL) {
@@ -5858,7 +5892,7 @@ void BKE_constraints_solve(struct Depsgraph *depsgraph,
 
     /* move owner matrix into right space */
     BKE_constraint_mat_convertspace(
-        cob->ob, cob->pchan, cob->matrix, CONSTRAINT_SPACE_WORLD, con->ownspace);
+        cob->ob, cob->pchan, cob->matrix, CONSTRAINT_SPACE_WORLD, con->ownspace, false);
 
     /* prepare targets for constraint solving */
     BKE_constraint_targets_for_solving_get(depsgraph, con, cob, &targets, ctime);
@@ -5877,7 +5911,7 @@ void BKE_constraints_solve(struct Depsgraph *depsgraph,
     /* move owner back into worldspace for next constraint/other business */
     if ((con->flag & CONSTRAINT_SPACEONCE) == 0) {
       BKE_constraint_mat_convertspace(
-          cob->ob, cob->pchan, cob->matrix, con->ownspace, CONSTRAINT_SPACE_WORLD);
+          cob->ob, cob->pchan, cob->matrix, con->ownspace, CONSTRAINT_SPACE_WORLD, false);
     }
 
     /* Interpolate the enforcement, to blend result of constraint into final owner transform

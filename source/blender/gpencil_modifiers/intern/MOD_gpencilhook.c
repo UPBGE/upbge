@@ -23,32 +23,33 @@
 
 #include <stdio.h>
 
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "BLI_math.h"
 
-#include "DNA_meshdata_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_object_types.h"
-#include "DNA_gpencil_types.h"
 #include "DNA_gpencil_modifier_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_action.h"
 #include "BKE_colortools.h"
 #include "BKE_deform.h"
-#include "BKE_gpencil.h"
+#include "BKE_gpencil_geom.h"
 #include "BKE_gpencil_modifier.h"
-#include "BKE_modifier.h"
-#include "BKE_lib_query.h"
-#include "BKE_scene.h"
-#include "BKE_main.h"
 #include "BKE_layer.h"
+#include "BKE_lib_query.h"
+#include "BKE_main.h"
+#include "BKE_modifier.h"
+#include "BKE_scene.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "MOD_gpencil_util.h"
 #include "MOD_gpencil_modifiertypes.h"
+#include "MOD_gpencil_util.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -199,7 +200,7 @@ static void deformStroke(GpencilModifierData *md,
     return;
   }
 
-  const int def_nr = defgroup_name_index(ob, mmd->vgname);
+  const int def_nr = BKE_object_defgroup_name_index(ob, mmd->vgname);
 
   bPoseChannel *pchan = BKE_pose_channel_find_name(mmd->object->pose, mmd->subtarget);
   float dmat[4][4];
@@ -224,7 +225,7 @@ static void deformStroke(GpencilModifierData *md,
   tData.curfalloff = mmd->curfalloff;
   tData.falloff_type = mmd->falloff_type;
   tData.falloff = (mmd->falloff_type == eHook_Falloff_None) ? 0.0f : mmd->falloff;
-  tData.falloff_sq = SQUARE(tData.falloff);
+  tData.falloff_sq = square_f(tData.falloff);
   tData.fac_orig = mmd->force;
   tData.use_falloff = (tData.falloff_sq != 0.0f);
   tData.use_uniform = (mmd->flag & GP_HOOK_UNIFORM_SPACE) != 0;
@@ -263,6 +264,8 @@ static void deformStroke(GpencilModifierData *md,
     }
     gp_hook_co_apply(&tData, weight, pt);
   }
+  /* Calc geometry data. */
+  BKE_gpencil_stroke_geometry_update(gps);
 }
 
 /* FIXME: Ideally we be doing this on a copy of the main depsgraph
@@ -279,8 +282,8 @@ static void bakeModifier(Main *bmain, Depsgraph *depsgraph, GpencilModifierData 
     return;
   }
 
-  for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-    for (bGPDframe *gpf = gpl->frames.first; gpf; gpf = gpf->next) {
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
       /* apply hook effects on this frame
        * NOTE: this assumes that we don't want hook animation on non-keyframed frames
        */
@@ -288,7 +291,7 @@ static void bakeModifier(Main *bmain, Depsgraph *depsgraph, GpencilModifierData 
       BKE_scene_graph_update_for_newframe(depsgraph, bmain);
 
       /* compute hook effects on this frame */
-      for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+      LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
         deformStroke(md, depsgraph, ob, gpl, gpf, gps);
       }
     }

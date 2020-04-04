@@ -32,9 +32,11 @@
 #ifndef __BL_ACTIONACTUATOR_H__
 #define __BL_ACTIONACTUATOR_H__
 
-#include "SCA_IActuator.h"
 #include "DNA_actuator_types.h"
+
+#include "BL_Action.h" // For BL_Action::PlayMode.
 #include "MT_Vector3.h"
+#include "SCA_IActuator.h"
 
 class BL_ActionActuator : public SCA_IActuator {
  public:
@@ -51,8 +53,7 @@ class BL_ActionActuator : public SCA_IActuator {
                               short layer,
                               float layer_weight,
                               short ipo_flags,
-                              short end_reset,
-                              float stride);
+                              short end_reset);
 
   virtual ~BL_ActionActuator();
   virtual bool Update(double curtime);
@@ -73,17 +74,14 @@ class BL_ActionActuator : public SCA_IActuator {
 
   virtual void DecLink();
 
-#ifdef WITH_PYTHON
+  bool Play(KX_GameObject *obj, float start, float end, short mode);
 
-  KX_PYMETHOD_O(BL_ActionActuator, GetChannel)
-  KX_PYMETHOD_DOC(BL_ActionActuator, setChannel)
+#ifdef WITH_PYTHON
 
   static PyObject *pyattr_get_action(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_action(PyObjectPlus *self_v,
                                const KX_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
-  static PyObject *pyattr_get_channel_names(PyObjectPlus *self_v,
-                                            const KX_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_use_continue(PyObjectPlus *self_v,
                                            const KX_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_use_continue(PyObjectPlus *self_v,
@@ -93,16 +91,6 @@ class BL_ActionActuator : public SCA_IActuator {
   static int pyattr_set_frame(PyObjectPlus *self_v,
                               const KX_PYATTRIBUTE_DEF *attrdef,
                               PyObject *value);
-
-  static int CheckBlendTime(PyObjectPlus *self, const PyAttributeDef *)
-  {
-    BL_ActionActuator *act = reinterpret_cast<BL_ActionActuator *>(self);
-
-    if (act->m_blendframe > act->m_blendin)
-      act->m_blendframe = act->m_blendin;
-
-    return 0;
-  }
 
   static int CheckType(PyObjectPlus *self, const PyAttributeDef *)
   {
@@ -124,22 +112,15 @@ class BL_ActionActuator : public SCA_IActuator {
 #endif /* WITH_PYTHON */
 
  protected:
-  MT_Vector3 m_lastpos;
-  float m_blendframe;
   int m_flag;
   /** The frame this action starts */
   float m_startframe;
   /** The frame this action ends */
   float m_endframe;
-  /** The time this action started */
-  float m_starttime;
   /** The current time of the action */
   float m_localtime;
-
-  float m_lastUpdate;
   float m_blendin;
   float m_blendstart;
-  float m_stridelength;
   float m_layer_weight;
   short m_playtype;
   short m_blendmode;
@@ -152,11 +133,9 @@ class BL_ActionActuator : public SCA_IActuator {
 };
 
 enum {
-  ACT_FLAG_REVERSE = 1 << 0,
   ACT_FLAG_ACTIVE = 1 << 1,
   ACT_FLAG_CONTINUE = 1 << 2,
   ACT_FLAG_PLAY_END = 1 << 3,
-  ACT_FLAG_ATTEMPT_PLAY = 1 << 4,
 };
 
 #endif

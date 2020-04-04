@@ -50,12 +50,12 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "WM_types.h"
 #include "WM_api.h"
+#include "WM_types.h"
 
-#include "ED_view3d.h"
-#include "ED_screen.h"
 #include "ED_gizmo_library.h"
+#include "ED_screen.h"
+#include "ED_view3d.h"
 
 #include "UI_interface.h"
 
@@ -242,7 +242,7 @@ static int gizmo_arrow_test_select(bContext *UNUSED(C), wmGizmo *gz, const int m
   const float arrow_head_threshold_px = 12 * UI_DPI_FAC;
 
   /* Distance to arrow head. */
-  if (len_squared_v2v2(mval_fl, arrow_end) < SQUARE(arrow_head_threshold_px)) {
+  if (len_squared_v2v2(mval_fl, arrow_end) < square_f(arrow_head_threshold_px)) {
     return 0;
   }
 
@@ -252,7 +252,7 @@ static int gizmo_arrow_test_select(bContext *UNUSED(C), wmGizmo *gz, const int m
   /* Clamp inside the line, to avoid overlapping with other gizmos,
    * especially around the start of the arrow. */
   if (lambda >= 0.0 && lambda <= 1.0) {
-    if (len_squared_v2v2(mval_fl, co_isect) < SQUARE(arrow_stem_threshold_px)) {
+    if (len_squared_v2v2(mval_fl, co_isect) < square_f(arrow_stem_threshold_px)) {
       return 0;
     }
   }
@@ -274,8 +274,8 @@ static int gizmo_arrow_modal(bContext *C,
   }
   ArrowGizmo3D *arrow = (ArrowGizmo3D *)gz;
   GizmoInteraction *inter = gz->interaction_data;
-  ARegion *ar = CTX_wm_region(C);
-  RegionView3D *rv3d = ar->regiondata;
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = region->regiondata;
 
   float offset[3];
   float facdir = 1.0f;
@@ -298,7 +298,7 @@ static int gizmo_arrow_modal(bContext *C,
   int ok = 0;
 
   for (int j = 0; j < 2; j++) {
-    ED_view3d_win_to_ray(ar, proj[j].mval, proj[j].ray_origin, proj[j].ray_direction);
+    ED_view3d_win_to_ray(region, proj[j].mval, proj[j].ray_origin, proj[j].ray_direction);
     /* Force Y axis if we're view aligned */
     if (j == 0) {
       if (RAD2DEGF(acosf(dot_v3v3(proj[j].ray_direction, arrow->gizmo.matrix_basis[2]))) < 5.0f) {
@@ -353,8 +353,8 @@ static int gizmo_arrow_modal(bContext *C,
   }
 
   /* tag the region for redraw */
-  ED_region_tag_redraw_editor_overlays(ar);
-  WM_event_add_mousemove(C);
+  ED_region_tag_redraw_editor_overlays(region);
+  WM_event_add_mousemove(CTX_wm_window(C));
 
   return OPERATOR_RUNNING_MODAL;
 }

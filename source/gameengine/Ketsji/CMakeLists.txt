@@ -24,168 +24,168 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	KXNetwork
-	../BlenderRoutines
-	../Common
-	../Converter
-	../Device
-	../Expressions
-	../GameLogic
-	../Launcher
-	../Physics/Common
-	../Rasterizer
-	../Rasterizer/RAS_OpenGLRasterizer
-	../SceneGraph
-	../VideoTexture
-	../../blender
-	../../blender/blenfont
-	../../blender/blenkernel
-	../../blender/blenlib
-	../../blender/blenloader
-	../../blender/blentranslation
-	../../blender/draw
-	../../blender/draw/intern
-	../../blender/draw/engines/eevee
-	../../blender/editors/include
-	../../blender/gpu
-	../../blender/imbuf
-	../../blender/makesdna
-	../../blender/makesrna
-	../../blender/python
-	../../blender/python/generic
-	../../blender/python/mathutils
-	../../blender/python/intern
-	../../blender/render/extern/include
-	../../blender/render/intern/include
-        ../../blender/windowmanager
-        ../../../intern/ghost
-	../../../intern/glew-mx
-	../../../intern/guardedalloc
-        ../../../intern/string
+  .
+  KXNetwork
+  ../BlenderRoutines
+  ../Common
+  ../Converter
+  ../Device
+  ../Expressions
+  ../GameLogic
+  ../Launcher
+  ../Physics/Common
+  ../Rasterizer
+  ../Rasterizer/RAS_OpenGLRasterizer
+  ../SceneGraph
+  ../VideoTexture
+  ../../blender
+  ../../blender/blenfont
+  ../../blender/blenkernel
+  ../../blender/blenlib
+  ../../blender/blenloader
+  ../../blender/blentranslation
+  ../../blender/draw
+  ../../blender/draw/intern
+  ../../blender/draw/engines/eevee
+  ../../blender/editors/include
+  ../../blender/gpu
+  ../../blender/imbuf
+  ../../blender/makesdna
+  ../../blender/makesrna
+  ../../blender/python
+  ../../blender/python/generic
+  ../../blender/python/mathutils
+  ../../blender/python/intern
+  ../../blender/render/extern/include
+  ../../blender/render/intern/include
+  ../../blender/windowmanager
+  ../../../intern/ghost
+  ../../../intern/glew-mx
+  ../../../intern/guardedalloc
+  ../../../intern/string
 )
 
 set(INC_SYS
-	../../../intern/moto/include
-	../../../extern/recastnavigation/Recast/Include
-	../../../extern/recastnavigation/Detour/Include
-	${PTHREADS_INCLUDE_DIRS}
-	${GLEW_INCLUDE_PATH}
-	${BOOST_INCLUDE_DIR}
+  ../../../intern/moto/include
+  ../../../extern/recastnavigation/Recast/Include
+  ../../../extern/recastnavigation/Detour/Include
+  ${PTHREADS_INCLUDE_DIRS}
+  ${GLEW_INCLUDE_PATH}
+  ${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
-	BL_Action.cpp
-	BL_ActionManager.cpp
-	BL_Shader.cpp
-	BL_Texture.cpp
-	KX_2DFilter.cpp
-	KX_2DFilterManager.cpp
-	KX_2DFilterFrameBuffer.cpp
-        KX_BlenderCanvas.cpp
-	KX_BlenderMaterial.cpp
-	KX_Camera.cpp
-	KX_CameraIpoSGController.cpp
-	KX_CharacterWrapper.cpp
-	KX_CollisionEventManager.cpp
-	KX_ConstraintWrapper.cpp
-	KX_EmptyObject.cpp
-	KX_FontObject.cpp
-	KX_GameObject.cpp
-	KX_Globals.cpp
-	KX_IPO_SGController.cpp
-	KX_KetsjiEngine.cpp
-	KX_Light.cpp
-	KX_LightIpoSGController.cpp
-	KX_LodLevel.cpp
-	KX_LodManager.cpp
-	KX_MaterialIpoController.cpp
-	KX_MaterialShader.cpp
-	KX_MeshProxy.cpp
-	KX_MotionState.cpp
-	KX_NavMeshObject.cpp
-	KX_ObColorIpoSGController.cpp
-	KX_ObstacleSimulation.cpp
-	KX_OrientationInterpolator.cpp
-	KX_PolyProxy.cpp
-	KX_PositionInterpolator.cpp
-	KX_PyConstraintBinding.cpp
-	KX_PyMath.cpp
-        KX_PythonComponent.cpp
-	KX_PythonInit.cpp
-	KX_PythonInitTypes.cpp
-	KX_PythonMain.cpp
-	KX_RayCast.cpp
-	KX_SCA_ReplaceMeshActuator.cpp
-	KX_SG_BoneParentNodeRelationship.cpp
-	KX_SG_NodeRelationships.cpp
-	KX_ScalarInterpolator.cpp
-	KX_ScalingInterpolator.cpp
-	KX_Scene.cpp
-	KX_TimeCategoryLogger.cpp
-	KX_TimeLogger.cpp
-	KX_VehicleWrapper.cpp
-	KX_VertexProxy.cpp
-	KX_CollisionContactPoints.cpp
+  BL_Action.cpp
+  BL_ActionManager.cpp
+  BL_Shader.cpp
+  BL_Texture.cpp
+  KX_2DFilter.cpp
+  KX_2DFilterManager.cpp
+  KX_2DFilterFrameBuffer.cpp
+  KX_BlenderCanvas.cpp
+  KX_BlenderMaterial.cpp
+  KX_Camera.cpp
+  KX_CameraIpoSGController.cpp
+  KX_CharacterWrapper.cpp
+  KX_CollisionEventManager.cpp
+  KX_ConstraintWrapper.cpp
+  KX_EmptyObject.cpp
+  KX_FontObject.cpp
+  KX_GameObject.cpp
+  KX_Globals.cpp
+  KX_IPO_SGController.cpp
+  KX_KetsjiEngine.cpp
+  KX_LibLoadStatus.cpp
+  KX_Light.cpp
+  KX_LightIpoSGController.cpp
+  KX_LodLevel.cpp
+  KX_LodManager.cpp
+  KX_MaterialIpoController.cpp
+  KX_MaterialShader.cpp
+  KX_MeshProxy.cpp
+  KX_MotionState.cpp
+  KX_NavMeshObject.cpp
+  KX_ObColorIpoSGController.cpp
+  KX_ObstacleSimulation.cpp
+  KX_OrientationInterpolator.cpp
+  KX_PolyProxy.cpp
+  KX_PositionInterpolator.cpp
+  KX_PyConstraintBinding.cpp
+  KX_PyMath.cpp
+  KX_PythonComponent.cpp
+  KX_PythonInit.cpp
+  KX_PythonInitTypes.cpp
+  KX_PythonMain.cpp
+  KX_RayCast.cpp
+  KX_SG_BoneParentNodeRelationship.cpp
+  KX_SG_NodeRelationships.cpp
+  KX_ScalarInterpolator.cpp
+  KX_ScalingInterpolator.cpp
+  KX_Scene.cpp
+  KX_TimeCategoryLogger.cpp
+  KX_TimeLogger.cpp
+  KX_VehicleWrapper.cpp
+  KX_VertexProxy.cpp
+  KX_CollisionContactPoints.cpp
 
-	BL_Action.h
-	BL_ActionManager.h
-	BL_Shader.h
-	BL_Texture.h
-	KX_2DFilter.h
-	KX_2DFilterManager.h
-	KX_2DFilterFrameBuffer.h
-        KX_BlenderCanvas.h
-	KX_BlenderMaterial.h
-	KX_Camera.h
-	KX_CameraIpoSGController.h
-	KX_CharacterWrapper.h
-	KX_ClientObjectInfo.h
-	KX_ConstraintWrapper.h
-	KX_EmptyObject.h
-	KX_FontObject.h
-	KX_GameObject.h
-	KX_Globals.h
-	KX_IInterpolator.h
-	KX_IPOTransform.h
-	KX_IPO_SGController.h
-	KX_IScalarInterpolator.h
-	KX_ISystem.h
-	KX_KetsjiEngine.h
-	KX_Light.h
-	KX_LightIpoSGController.h
-	KX_LodLevel.h
-	KX_LodManager.h
-	KX_MaterialIpoController.h
-	KX_MaterialShader.h
-	KX_MeshProxy.h
-	KX_MotionState.h
-	KX_NavMeshObject.h
-	KX_ObColorIpoSGController.h
-	KX_ObstacleSimulation.h
-	KX_OrientationInterpolator.h
-	KX_PhysicsEngineEnums.h
-	KX_PolyProxy.h
-	KX_PositionInterpolator.h
-	KX_PyConstraintBinding.h
-	KX_PyMath.h
-        KX_PythonComponent.h
-	KX_PythonInit.h
-	KX_PythonInitTypes.h
-	KX_PythonMain.h
-	KX_RayCast.h
-	KX_SCA_ReplaceMeshActuator.h
-	KX_SG_BoneParentNodeRelationship.h
-	KX_SG_NodeRelationships.h
-	KX_ScalarInterpolator.h
-	KX_ScalingInterpolator.h
-	KX_Scene.h
-	KX_TimeCategoryLogger.h
-	KX_TimeLogger.h
-	KX_CollisionEventManager.h
-	KX_VehicleWrapper.h
-	KX_VertexProxy.h
-	KX_CollisionContactPoints.h
+  BL_Action.h
+  BL_ActionManager.h
+  BL_Shader.h
+  BL_Texture.h
+  KX_2DFilter.h
+  KX_2DFilterManager.h
+  KX_2DFilterFrameBuffer.h
+  KX_BlenderCanvas.h
+  KX_BlenderMaterial.h
+  KX_Camera.h
+  KX_CameraIpoSGController.h
+  KX_CharacterWrapper.h
+  KX_ClientObjectInfo.h
+  KX_ConstraintWrapper.h
+  KX_EmptyObject.h
+  KX_FontObject.h
+  KX_GameObject.h
+  KX_Globals.h
+  KX_IInterpolator.h
+  KX_IPOTransform.h
+  KX_IPO_SGController.h
+  KX_IScalarInterpolator.h
+  KX_ISystem.h
+  KX_KetsjiEngine.h
+  KX_LibLoadStatus.h
+  KX_Light.h
+  KX_LightIpoSGController.h
+  KX_LodLevel.h
+  KX_LodManager.h
+  KX_MaterialIpoController.h
+  KX_MaterialShader.h
+  KX_MeshProxy.h
+  KX_MotionState.h
+  KX_NavMeshObject.h
+  KX_ObColorIpoSGController.h
+  KX_ObstacleSimulation.h
+  KX_OrientationInterpolator.h
+  KX_PhysicsEngineEnums.h
+  KX_PolyProxy.h
+  KX_PositionInterpolator.h
+  KX_PyConstraintBinding.h
+  KX_PyMath.h
+  KX_PythonComponent.h
+  KX_PythonInit.h
+  KX_PythonInitTypes.h
+  KX_PythonMain.h
+  KX_RayCast.h
+  KX_SG_BoneParentNodeRelationship.h
+  KX_SG_NodeRelationships.h
+  KX_ScalarInterpolator.h
+  KX_ScalingInterpolator.h
+  KX_Scene.h
+  KX_TimeCategoryLogger.h
+  KX_TimeLogger.h
+  KX_CollisionEventManager.h
+  KX_VehicleWrapper.h
+  KX_VertexProxy.h
+  KX_CollisionContactPoints.h
 )
 
 set(LIB
@@ -202,28 +202,28 @@ set(LIB
 add_definitions(${GL_DEFINITIONS})
 
 if(WITH_IMAGE_DDS)
-	add_definitions(-DWITH_DDS)
+  add_definitions(-DWITH_DDS)
 endif()
 
 if(WITH_SDL)
-	list(APPEND INC_SYS
-		${SDL_INCLUDE_DIR}
-	)
-	add_definitions(-DWITH_SDL)
+  list(APPEND INC_SYS
+    ${SDL_INCLUDE_DIR}
+  )
+  add_definitions(-DWITH_SDL)
 endif()
 
 if(WITH_CODEC_FFMPEG)
-	add_definitions(-DWITH_FFMPEG)
+  add_definitions(-DWITH_FFMPEG)
 endif()
 
 if(WITH_BULLET)
-	list(APPEND INC
-		../Physics/Bullet
-	)
-	list(APPEND INC_SYS
-		${BULLET_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_BULLET)
+  list(APPEND INC
+    ../Physics/Bullet
+  )
+  list(APPEND INC_SYS
+    ${BULLET_INCLUDE_DIRS}
+  )
+  add_definitions(-DWITH_BULLET)
 endif()
 
 if(WITH_AUDASPACE)
@@ -238,7 +238,7 @@ if(WITH_AUDASPACE)
 endif()
 
 if(WITH_GAMEENGINE)
-    add_definitions(-DWITH_GAMEENGINE)
+  add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 blender_add_lib(ge_ketsji "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

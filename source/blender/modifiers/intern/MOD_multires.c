@@ -33,8 +33,8 @@
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_mesh.h"
-#include "BKE_multires.h"
 #include "BKE_modifier.h"
+#include "BKE_multires.h"
 #include "BKE_paint.h"
 #include "BKE_subdiv.h"
 #include "BKE_subdiv_ccg.h"
@@ -60,8 +60,8 @@ static void initData(ModifierData *md)
   mmd->renderlvl = 0;
   mmd->totlvl = 0;
   mmd->uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_CORNERS;
-  mmd->quality = 3;
-  mmd->flags |= eMultiresModifierFlag_UseCrease;
+  mmd->quality = 4;
+  mmd->flags |= (eMultiresModifierFlag_UseCrease | eMultiresModifierFlag_ControlEdges);
 }
 
 static void copyData(const ModifierData *md_src, ModifierData *md_dst, const int flag)
@@ -119,11 +119,17 @@ static Mesh *multires_as_mesh(MultiresModifierData *mmd,
   Mesh *result = mesh;
   const bool use_render_params = (ctx->flag & MOD_APPLY_RENDER);
   const bool ignore_simplify = (ctx->flag & MOD_APPLY_IGNORE_SIMPLIFY);
+  const bool ignore_control_edges = (ctx->flag & MOD_APPLY_TO_BASE_MESH);
   const Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
   Object *object = ctx->object;
   SubdivToMeshSettings mesh_settings;
-  BKE_multires_subdiv_mesh_settings_init(
-      &mesh_settings, scene, object, mmd, use_render_params, ignore_simplify);
+  BKE_multires_subdiv_mesh_settings_init(&mesh_settings,
+                                         scene,
+                                         object,
+                                         mmd,
+                                         use_render_params,
+                                         ignore_simplify,
+                                         ignore_control_edges);
   if (mesh_settings.resolution < 3) {
     return result;
   }
@@ -205,7 +211,9 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
     if (ctx->object->sculpt != NULL) {
       SculptSession *sculpt_session = ctx->object->sculpt;
       sculpt_session->subdiv_ccg = result->runtime.subdiv_ccg;
-      sculpt_session->multires = mmd;
+      sculpt_session->multires.active = true;
+      sculpt_session->multires.modifier = mmd;
+      sculpt_session->multires.level = mmd->sculptlvl;
       sculpt_session->totvert = mesh->totvert;
       sculpt_session->totpoly = mesh->totpoly;
       sculpt_session->mvert = NULL;

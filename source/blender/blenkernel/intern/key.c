@@ -22,8 +22,8 @@
  */
 
 #include <math.h>
-#include <string.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -34,6 +34,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_ID.h"
 #include "DNA_anim_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
@@ -42,19 +43,69 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_animsys.h"
 #include "BKE_curve.h"
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
+#include "BKE_editmesh.h"
+#include "BKE_idtype.h"
 #include "BKE_key.h"
 #include "BKE_lattice.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
-#include "BKE_editmesh.h"
 #include "BKE_scene.h"
 
 #include "RNA_access.h"
+
+static void shapekey_copy_data(Main *UNUSED(bmain),
+                               ID *id_dst,
+                               const ID *id_src,
+                               const int UNUSED(flag))
+{
+  Key *key_dst = (Key *)id_dst;
+  const Key *key_src = (const Key *)id_src;
+  BLI_duplicatelist(&key_dst->block, &key_src->block);
+
+  KeyBlock *kb_dst, *kb_src;
+  for (kb_src = key_src->block.first, kb_dst = key_dst->block.first; kb_dst;
+       kb_src = kb_src->next, kb_dst = kb_dst->next) {
+    if (kb_dst->data) {
+      kb_dst->data = MEM_dupallocN(kb_dst->data);
+    }
+    if (kb_src == key_src->refkey) {
+      key_dst->refkey = kb_dst;
+    }
+  }
+}
+
+static void shapekey_free_data(ID *id)
+{
+  Key *key = (Key *)id;
+  KeyBlock *kb;
+
+  while ((kb = BLI_pophead(&key->block))) {
+    if (kb->data) {
+      MEM_freeN(kb->data);
+    }
+    MEM_freeN(kb);
+  }
+}
+
+IDTypeInfo IDType_ID_KE = {
+    .id_code = ID_KE,
+    .id_filter = 0,
+    .main_listbase_index = INDEX_ID_KE,
+    .struct_size = sizeof(Key),
+    .name = "Key",
+    .name_plural = "shape_keys",
+    .translation_context = BLT_I18NCONTEXT_ID_SHAPEKEY,
+    .flags = IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_MAKELOCAL,
+
+    .init_data = NULL,
+    .copy_data = shapekey_copy_data,
+    .free_data = shapekey_free_data,
+    .make_local = NULL,
+};
 
 #define KEY_MODE_DUMMY 0 /* use where mode isn't checked for */
 #define KEY_MODE_BPOINT 1
@@ -74,16 +125,7 @@ typedef struct WeightsArrayCache {
 /** Free (or release) any data used by this shapekey (does not free the key itself). */
 void BKE_key_free(Key *key)
 {
-  KeyBlock *kb;
-
-  BKE_animdata_free((ID *)key, false);
-
-  while ((kb = BLI_pophead(&key->block))) {
-    if (kb->data) {
-      MEM_freeN(kb->data);
-    }
-    MEM_freeN(kb);
-  }
+  shapekey_free_data(&key->id);
 }
 
 void BKE_key_free_nolib(Key *key)
@@ -148,35 +190,6 @@ Key *BKE_key_add(Main *bmain, ID *id) /* common function */
   }
 
   return key;
-}
-
-/**
- * Only copy internal data of ShapeKey ID from source
- * to already allocated/initialized destination.
- * You probably never want to use that directly,
- * use #BKE_id_copy or #BKE_id_copy_ex for typical needs.
- *
- * WARNING! This function will not handle ID user count!
- *
- * \param flag: Copying options (see BKE_lib_id.h's LIB_ID_COPY_... flags for more).
- */
-void BKE_key_copy_data(Main *UNUSED(bmain),
-                       Key *key_dst,
-                       const Key *key_src,
-                       const int UNUSED(flag))
-{
-  BLI_duplicatelist(&key_dst->block, &key_src->block);
-
-  KeyBlock *kb_dst, *kb_src;
-  for (kb_src = key_src->block.first, kb_dst = key_dst->block.first; kb_dst;
-       kb_src = kb_src->next, kb_dst = kb_dst->next) {
-    if (kb_dst->data) {
-      kb_dst->data = MEM_dupallocN(kb_dst->data);
-    }
-    if (kb_src == key_src->refkey) {
-      key_dst->refkey = kb_dst;
-    }
-  }
 }
 
 Key *BKE_key_copy(Main *bmain, const Key *key)
@@ -938,7 +951,7 @@ static void do_key(const int start,
   k3 = key_block_get_data(key, actkb, k[2], &freek3);
   k4 = key_block_get_data(key, actkb, k[3], &freek4);
 
-  /*  test for more or less points (per key!) */
+  /* Test for more or less points (per key!) */
   if (tot != k[0]->totelem) {
     k1tot = 0.0;
     flagflo |= 1;
@@ -1206,7 +1219,7 @@ static float *get_weights_array(Object *ob, char *vgroup, WeightsArrayCache *cac
   }
 
   /* find the group (weak loop-in-loop) */
-  defgrp_index = defgroup_name_index(ob, vgroup);
+  defgrp_index = BKE_object_defgroup_name_index(ob, vgroup);
   if (defgrp_index != -1) {
     float *weights;
     int i;
@@ -1230,12 +1243,12 @@ static float *get_weights_array(Object *ob, char *vgroup, WeightsArrayCache *cac
       const int cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
       BM_ITER_MESH_INDEX (eve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         dvert = BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset);
-        weights[i] = defvert_find_weight(dvert, defgrp_index);
+        weights[i] = BKE_defvert_find_weight(dvert, defgrp_index);
       }
     }
     else {
       for (i = 0; i < totvert; i++, dvert++) {
-        weights[i] = defvert_find_weight(dvert, defgrp_index);
+        weights[i] = BKE_defvert_find_weight(dvert, defgrp_index);
       }
     }
 

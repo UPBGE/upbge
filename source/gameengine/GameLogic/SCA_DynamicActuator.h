@@ -33,11 +33,10 @@
 #ifndef __SCA_DynamicActuator_H__
 #define __SCA_DynamicActuator_H__
 
-#include "SCA_IActuator.h"
-#include "SCA_PropertyActuator.h"
-#include "SCA_LogicManager.h"
-
 #include "KX_GameObject.h"
+#include "SCA_IActuator.h"
+#include "SCA_LogicManager.h"
+#include "SCA_PropertyActuator.h"
 
 class SCA_DynamicActuator : public SCA_IActuator {
   Py_Header

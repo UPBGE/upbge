@@ -21,23 +21,24 @@
  * \ingroup edutil
  */
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
+#include "DNA_packedFile_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_packedFile_types.h"
 
-#include "BLI_utildefines.h"
-#include "BLI_string.h"
+#include "BLI_listbase.h"
 #include "BLI_path_util.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
@@ -45,6 +46,7 @@
 #include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
+#include "BKE_material.h"
 #include "BKE_multires.h"
 #include "BKE_object.h"
 #include "BKE_packedFile.h"
@@ -52,7 +54,6 @@
 #include "BKE_screen.h"
 #include "BKE_undo_system.h"
 #include "BKE_workspace.h"
-#include "BKE_material.h"
 
 #include "DEG_depsgraph.h"
 
@@ -73,16 +74,16 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
-#include "WM_types.h"
-#include "WM_api.h"
 #include "RNA_access.h"
+#include "WM_api.h"
+#include "WM_types.h"
 
 /* ********* general editor util funcs, not BKE stuff please! ********* */
 
 void ED_editors_init_for_undo(Main *bmain)
 {
   wmWindowManager *wm = bmain->wm.first;
-  for (wmWindow *win = wm->windows.first; win; win = win->next) {
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     ViewLayer *view_layer = WM_window_get_active_view_layer(win);
     Base *base = BASACT(view_layer);
     if (base != NULL) {
@@ -127,7 +128,7 @@ void ED_editors_init(bContext *C)
     }
     else if (ob->type == OB_GPENCIL) {
       /* For multi-edit mode we may already have mode data (grease pencil does not need it).
-       * However we may have a non-active object stuck in a greasepencil edit mode. */
+       * However we may have a non-active object stuck in a grease-pencil edit mode. */
       if (ob != obact) {
         ob->mode = OB_MODE_OBJECT;
         DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
@@ -224,8 +225,8 @@ void ED_editors_exit(Main *bmain, bool do_undo_system)
   }
 
   /* global in meshtools... */
-  ED_mesh_mirror_spatial_table(NULL, NULL, NULL, NULL, 'e');
-  ED_mesh_mirror_topo_table(NULL, NULL, 'e');
+  ED_mesh_mirror_spatial_table_end(NULL);
+  ED_mesh_mirror_topo_table_end(NULL);
 }
 
 bool ED_editors_flush_edits_for_object_ex(Main *bmain,
@@ -238,7 +239,7 @@ bool ED_editors_flush_edits_for_object_ex(Main *bmain,
     /* Don't allow flushing while in the middle of a stroke (frees data in use).
      * Auto-save prevents this from happening but scripts
      * may cause a flush on saving: T53986. */
-    if (!ELEM(NULL, ob->sculpt, ob->sculpt->cache)) {
+    if (ob->sculpt != NULL && ob->sculpt->cache == NULL) {
       char *needs_flush_ptr = &ob->sculpt->needs_flush_to_id;
       if (check_needs_flush && (*needs_flush_ptr == 0)) {
         return false;
@@ -434,13 +435,13 @@ void unpack_menu(bContext *C,
 /**
  * Callback that draws a line between the mouse and a position given as the initial argument.
  */
-void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info)
+void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *region, void *arg_info)
 {
   wmWindow *win = CTX_wm_window(C);
   const float *mval_src = (float *)arg_info;
   const float mval_dst[2] = {
-      win->eventstate->x - ar->winrct.xmin,
-      win->eventstate->y - ar->winrct.ymin,
+      win->eventstate->x - region->winrct.xmin,
+      win->eventstate->y - region->winrct.ymin,
   };
 
   const uint shdr_pos = GPU_vertformat_attr_add(
@@ -472,12 +473,12 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
  *
  * \param new_id: may be NULL to unlink \a old_id.
  */
-void ED_spacedata_id_remap(struct ScrArea *sa, struct SpaceLink *sl, ID *old_id, ID *new_id)
+void ED_spacedata_id_remap(struct ScrArea *area, struct SpaceLink *sl, ID *old_id, ID *new_id)
 {
   SpaceType *st = BKE_spacetype_from_id(sl->spacetype);
 
   if (st && st->id_remap) {
-    st->id_remap(sa, sl, old_id, new_id);
+    st->id_remap(area, sl, old_id, new_id);
   }
 }
 

@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-#include <string.h>
 #include <limits.h>
+#include <string.h>
 
+#include "device/device.h"
+#include "render/bake.h"
 #include "render/buffers.h"
 #include "render/camera.h"
-#include "device/device.h"
 #include "render/graph.h"
 #include "render/integrator.h"
 #include "render/light.h"
@@ -27,7 +28,6 @@
 #include "render/object.h"
 #include "render/scene.h"
 #include "render/session.h"
-#include "render/bake.h"
 
 #include "util/util_foreach.h"
 #include "util/util_function.h"
@@ -987,7 +987,8 @@ bool Session::update_scene()
 
   /* update scene */
   if (scene->need_update()) {
-    bool new_kernels_needed = load_kernels(false);
+    /* Updated used shader tag so we know which features are need for the kernel. */
+    scene->shader_manager->update_shaders_used(scene);
 
     /* Update max_closures. */
     KernelIntegrator *kintegrator = &scene->dscene.data.integrator;
@@ -998,6 +999,9 @@ bool Session::update_scene()
       /* Currently viewport render is faster with higher max_closures, needs investigating. */
       kintegrator->max_closures = MAX_CLOSURE;
     }
+
+    /* Load render kernels, before device update where we upload data to the GPU. */
+    bool new_kernels_needed = load_kernels(false);
 
     progress.set_status("Updating Scene");
     MEM_GUARDED_CALL(&progress, scene->device_update, device, progress);
@@ -1271,8 +1275,11 @@ int Session::get_max_closure_count()
 
   int max_closures = 0;
   for (int i = 0; i < scene->shaders.size(); i++) {
-    int num_closures = scene->shaders[i]->graph->get_num_closures();
-    max_closures = max(max_closures, num_closures);
+    Shader *shader = scene->shaders[i];
+    if (shader->used) {
+      int num_closures = shader->graph->get_num_closures();
+      max_closures = max(max_closures, num_closures);
+    }
   }
   max_closure_global = max(max_closure_global, max_closures);
 

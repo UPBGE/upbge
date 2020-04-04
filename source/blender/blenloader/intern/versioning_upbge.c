@@ -25,26 +25,25 @@
  *  \ingroup blenloader
  */
 
-#include "BLI_utildefines.h"
 #include "BLI_compiler_attrs.h"
+#include "BLI_utildefines.h"
 
 #include <stdio.h>
 
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
+#include "DNA_camera_types.h"
 #include "DNA_genfile.h"
 #include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
-#include "DNA_camera_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_material_types.h"
 #include "DNA_world_types.h"
 
 #include "BKE_main.h"
@@ -187,6 +186,15 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
             mouseSensor->mask = 0xFFFF;
           }
         }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 3, 0)) {
+    /* In this case we check against GameData to maintain previous behaviour */
+    if (DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
+      for (Scene *sce = main->scenes.first; sce; sce = sce->id.next) {
+        sce->gm.flag |= GAME_USE_UNDO;
       }
     }
   }

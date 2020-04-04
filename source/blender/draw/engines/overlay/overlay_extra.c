@@ -24,28 +24,30 @@
 
 #include "UI_resources.h"
 
-#include "BKE_anim.h"
+#include "BKE_anim_path.h"
 #include "BKE_camera.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
 #include "BKE_global.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"
-#include "BKE_movieclip.h"
 #include "BKE_modifier.h"
+#include "BKE_movieclip.h"
 #include "BKE_object.h"
 #include "BKE_tracking.h"
 
+#include "BLI_listbase.h"
+
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_gpencil_types.h"
+#include "DNA_curve_types.h"
+#include "DNA_fluid_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_rigidbody_types.h"
-#include "DNA_fluid_types.h"
 
 #include "DEG_depsgraph_query.h"
 
@@ -495,13 +497,25 @@ static void OVERLAY_texture_space(OVERLAY_ExtraCallBuffers *cb, Object *ob, cons
       texcosize = mb->size;
       break;
     }
+    case ID_HA:
+    case ID_PT:
+    case ID_VO: {
+      /* No user defined texture space support. */
+      break;
+    }
     default:
       BLI_assert(0);
   }
 
   float mat[4][4];
-  size_to_mat4(mat, texcosize);
-  copy_v3_v3(mat[3], texcoloc);
+
+  if (texcoloc != NULL && texcosize != NULL) {
+    size_to_mat4(mat, texcosize);
+    copy_v3_v3(mat[3], texcoloc);
+  }
+  else {
+    unit_m4(mat);
+  }
 
   mul_m4_m4m4(mat, ob->obmat, mat);
 
@@ -895,10 +909,8 @@ static void camera_view3d_reconstruction(OVERLAY_ExtraCallBuffers *cb,
   UI_GetThemeColor4ubv(TH_SELECT, text_color_selected);
   UI_GetThemeColor4ubv(TH_TEXT, text_color_unselected);
 
-  float camera_mat[4][4], normal_mat[4][4];
+  float camera_mat[4][4];
   BKE_tracking_get_camera_object_matrix(ob, camera_mat);
-
-  normalize_m4_m4(normal_mat, ob->obmat);
 
   LISTBASE_FOREACH (MovieTrackingObject *, tracking_object, &tracking->objects) {
     float tracking_object_mat[4][4];
@@ -909,16 +921,19 @@ static void camera_view3d_reconstruction(OVERLAY_ExtraCallBuffers *cb,
     else {
       const int framenr = BKE_movieclip_remap_scene_to_clip_frame(
           clip, DEG_get_ctime(draw_ctx->depsgraph));
+
       float object_mat[4][4];
       BKE_tracking_camera_get_reconstructed_interpolate(
           tracking, tracking_object, framenr, object_mat);
 
-      invert_m4(object_mat);
-      mul_m4_m4m4(tracking_object_mat, normal_mat, object_mat);
+      float object_imat[4][4];
+      invert_m4_m4(object_imat, object_mat);
+
+      mul_m4_m4m4(tracking_object_mat, ob->obmat, object_imat);
     }
 
     ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, tracking_object);
-    for (MovieTrackingTrack *track = tracksbase->first; track; track = track->next) {
+    LISTBASE_FOREACH (MovieTrackingTrack *, track, tracksbase) {
       if ((track->flag & TRACK_HAS_BUNDLE) == 0) {
         continue;
       }
@@ -1345,89 +1360,6 @@ static void OVERLAY_relationship_lines(OVERLAY_ExtraCallBuffers *cb,
       }
     }
     BKE_constraints_clear_evalob(cob);
-  }
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name GPencil.
- * \{ */
-
-static void OVERLAY_gpencil_color_names(Object *ob)
-{
-  if (ob->mode != OB_MODE_EDIT_GPENCIL) {
-    return;
-  }
-
-  bGPdata *gpd = (bGPdata *)ob->data;
-  if (gpd == NULL) {
-    return;
-  }
-
-  const DRWContextState *draw_ctx = DRW_context_state_get();
-  ViewLayer *view_layer = draw_ctx->view_layer;
-  int theme_id = DRW_object_wire_theme_get(ob, view_layer, NULL);
-  uchar color[4];
-  /* Color Management: Exception here as texts are drawn in sRGB space directly.  */
-  UI_GetThemeColor3ubv(theme_id, color);
-  color[3] = 255;
-  struct DRWTextStore *dt = DRW_text_cache_ensure();
-
-  for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-    if (gpl->flag & GP_LAYER_HIDE) {
-      continue;
-    }
-    bGPDframe *gpf = gpl->actframe;
-    if (gpf == NULL) {
-      continue;
-    }
-    for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
-      Material *ma = BKE_object_material_get(ob, gps->mat_nr + 1);
-      if (ma == NULL) {
-        continue;
-      }
-
-      MaterialGPencilStyle *gp_style = ma->gp_style;
-      /* skip stroke if it doesn't have any valid data */
-      if ((gps->points == NULL) || (gps->totpoints < 1) || (gp_style == NULL)) {
-        continue;
-      }
-      /* check if the color is visible */
-      if (gp_style->flag & GP_STYLE_COLOR_HIDE) {
-        continue;
-      }
-
-      /* only if selected */
-      if (gps->flag & GP_STROKE_SELECT) {
-        float fpt[3];
-        for (int i = 0; i < gps->totpoints; i++) {
-          bGPDspoint *pt = &gps->points[i];
-          if (pt->flag & GP_SPOINT_SELECT) {
-            mul_v3_m4v3(fpt, ob->obmat, &pt->x);
-            DRW_text_cache_add(dt,
-                               fpt,
-                               ma->id.name + 2,
-                               strlen(ma->id.name + 2),
-                               10,
-                               0,
-                               DRW_TEXT_CACHE_GLOBALSPACE | DRW_TEXT_CACHE_STRING_PTR,
-                               color);
-            break;
-          }
-        }
-      }
-    }
-  }
-}
-
-void OVERLAY_gpencil_cache_populate(OVERLAY_Data *UNUSED(vedata), Object *ob)
-{
-  /* don't show object extras in set's */
-  if ((ob->base_flag & (BASE_FROM_SET | BASE_FROM_DUPLI)) == 0) {
-    if ((ob->dtx & OB_DRAWNAME) && DRW_state_show_text()) {
-      OVERLAY_gpencil_color_names(ob);
-    }
   }
 }
 

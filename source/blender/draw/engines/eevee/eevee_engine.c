@@ -127,6 +127,12 @@ void EEVEE_cache_populate(void *vedata, Object *ob)
     if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
       EEVEE_materials_cache_populate(vedata, sldata, ob, &cast_shadow);
     }
+    else if (ob->type == OB_HAIR) {
+      EEVEE_object_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
+    }
+    else if (ob->type == OB_VOLUME) {
+      EEVEE_volumes_cache_object_add(sldata, vedata, draw_ctx->scene, ob);
+    }
     else if (!USE_SCENE_LIGHT(draw_ctx->v3d)) {
       /* do not add any scene light sources to the cache */
     }
@@ -348,6 +354,10 @@ static void eevee_draw_scene(void *vedata)
     EEVEE_renderpasses_draw(sldata, vedata);
   }
 
+  /* Game engine transition */
+  EEVEE_antialiasing_draw_pass(vedata);
+  /* End of Game engine transition */
+
   EEVEE_renderpasses_draw_debug(vedata);
 
   EEVEE_volumes_free_smoke_textures();
@@ -473,7 +483,7 @@ RenderEngineType DRW_engine_viewport_eevee_type = {
     NULL,
     EEVEE_ENGINE,
     N_("Eevee"),
-    RE_INTERNAL | RE_USE_PREVIEW,
+    RE_INTERNAL | RE_USE_PREVIEW | RE_USE_STEREO_VIEWPORT,
     NULL,
     &DRW_render_to_image,
     NULL,

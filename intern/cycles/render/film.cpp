@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include "render/camera.h"
-#include "device/device.h"
 #include "render/film.h"
+#include "device/device.h"
+#include "render/camera.h"
 #include "render/integrator.h"
 #include "render/mesh.h"
 #include "render/scene.h"
@@ -76,7 +76,6 @@ void Pass::add(PassType type, vector<Pass> &passes, const char *name)
   Pass pass;
 
   pass.type = type;
-  pass.filter = true;
   pass.exposure = false;
   pass.divide_type = PASS_NONE;
   if (name) {
@@ -93,7 +92,6 @@ void Pass::add(PassType type, vector<Pass> &passes, const char *name)
       break;
     case PASS_DEPTH:
       pass.components = 1;
-      pass.filter = false;
       break;
     case PASS_MIST:
       pass.components = 1;
@@ -114,7 +112,6 @@ void Pass::add(PassType type, vector<Pass> &passes, const char *name)
     case PASS_OBJECT_ID:
     case PASS_MATERIAL_ID:
       pass.components = 1;
-      pass.filter = false;
       break;
 
     case PASS_EMISSION:
@@ -203,9 +200,10 @@ void Pass::add(PassType type, vector<Pass> &passes, const char *name)
 
   passes.push_back(pass);
 
-  /* order from by components, to ensure alignment so passes with size 4
-   * come first and then passes with size 1 */
-  sort(&passes[0], &passes[0] + passes.size(), compare_pass_order);
+  /* Order from by components, to ensure alignment so passes with size 4
+   * come first and then passes with size 1. Note this must use stable sort
+   * so cryptomatte passes remain in the right order. */
+  stable_sort(&passes[0], &passes[0] + passes.size(), compare_pass_order);
 
   if (pass.divide_type != PASS_NONE)
     Pass::add(pass.divide_type, passes);

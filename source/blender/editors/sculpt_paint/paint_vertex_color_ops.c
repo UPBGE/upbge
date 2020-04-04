@@ -29,8 +29,8 @@
 #include "BLI_math_color.h"
 
 #include "BKE_context.h"
-#include "BKE_mesh.h"
 #include "BKE_deform.h"
+#include "BKE_mesh.h"
 
 #include "DEG_depsgraph.h"
 
@@ -109,7 +109,7 @@ static int vertex_color_set_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Scene *scene = CTX_data_scene(C);
   Object *obact = CTX_data_active_object(C);
-  unsigned int paintcol = vpaint_get_current_col(scene, scene->toolsettings->vpaint, false);
+  uint paintcol = vpaint_get_current_col(scene, scene->toolsettings->vpaint, false);
 
   if (vertex_color_set(obact, paintcol)) {
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obact);
@@ -160,7 +160,7 @@ static bool vertex_paint_from_weight(Object *ob)
     uint j = 0;
     do {
       uint vidx = me->mloop[mp->loopstart + j].v;
-      const float weight = defvert_find_weight(&me->dvert[vidx], vgroup_active);
+      const float weight = BKE_defvert_find_weight(&me->dvert[vidx], vgroup_active);
       const uchar grayscale = weight * 255;
       lcol->r = grayscale;
       lcol->b = grayscale;

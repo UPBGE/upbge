@@ -24,42 +24,42 @@
 #include <stdlib.h> /* malloc */
 #include <string.h>
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <errno.h>
 
 #include "zlib.h"
 
 #ifdef WIN32
-#  include <windows.h>
-#  include <shellapi.h>
-#  include <shobjidl.h>
-#  include <io.h>
-#  include "BLI_winstuff.h"
 #  include "BLI_fileops_types.h"
+#  include "BLI_winstuff.h"
 #  include "utf_winfunc.h"
 #  include "utfconv.h"
+#  include <io.h>
+#  include <shellapi.h>
+#  include <shobjidl.h>
+#  include <windows.h>
 #else
 #  if defined(__APPLE__)
 #    include <CoreFoundation/CoreFoundation.h>
-#    include <objc/runtime.h>
 #    include <objc/message.h>
+#    include <objc/runtime.h>
 #  endif
-#  include <sys/param.h>
 #  include <dirent.h>
-#  include <unistd.h>
+#  include <sys/param.h>
 #  include <sys/wait.h>
+#  include <unistd.h>
 #endif
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
-#include "BLI_string.h"
-#include "BLI_path_util.h"
 #include "BLI_fileops.h"
+#include "BLI_path_util.h"
+#include "BLI_string.h"
 #include "BLI_sys_types.h"  // for intptr_t support
+#include "BLI_utildefines.h"
 
 #if 0 /* UNUSED */
 /* gzip the file in from and write it to "to".
@@ -157,6 +157,101 @@ char *BLI_file_ungzip_to_mem(const char *from_file, int *r_size)
 
   return mem;
 }
+
+#define CHUNK 256 * 1024
+
+/* gzip byte array from memory and write it to file at certain position.
+ * return size of gzip stream.
+ */
+size_t BLI_gzip_mem_to_file_at_pos(
+    void *buf, size_t len, FILE *file, size_t gz_stream_offset, int compression_level)
+{
+  int ret, flush;
+  unsigned have;
+  z_stream strm;
+  unsigned char out[CHUNK];
+
+  fseek(file, gz_stream_offset, 0);
+
+  strm.zalloc = Z_NULL;
+  strm.zfree = Z_NULL;
+  strm.opaque = Z_NULL;
+  ret = deflateInit(&strm, compression_level);
+  if (ret != Z_OK)
+    return 0;
+
+  strm.avail_in = len;
+  strm.next_in = (Bytef *)buf;
+  flush = Z_FINISH;
+
+  do {
+    strm.avail_out = CHUNK;
+    strm.next_out = out;
+    ret = deflate(&strm, flush);
+    if (ret == Z_STREAM_ERROR) {
+      return 0;
+    }
+    have = CHUNK - strm.avail_out;
+    if (fwrite(out, 1, have, file) != have || ferror(file)) {
+      deflateEnd(&strm);
+      return 0;
+    }
+  } while (strm.avail_out == 0);
+
+  if (strm.avail_in != 0 || ret != Z_STREAM_END) {
+    return 0;
+  }
+
+  deflateEnd(&strm);
+  return (size_t)strm.total_out;
+}
+
+/* read and decompress gzip stream from file at certain position to buffer.
+ * return size of decompressed data.
+ */
+size_t BLI_ungzip_file_to_mem_at_pos(void *buf, size_t len, FILE *file, size_t gz_stream_offset)
+{
+  int ret;
+  z_stream strm;
+  size_t chunk = 256 * 1024;
+  unsigned char in[CHUNK];
+
+  fseek(file, gz_stream_offset, 0);
+
+  strm.zalloc = Z_NULL;
+  strm.zfree = Z_NULL;
+  strm.opaque = Z_NULL;
+  strm.avail_in = 0;
+  strm.next_in = Z_NULL;
+  ret = inflateInit(&strm);
+  if (ret != Z_OK)
+    return 0;
+
+  do {
+    strm.avail_in = fread(in, 1, chunk, file);
+    strm.next_in = in;
+    if (ferror(file)) {
+      inflateEnd(&strm);
+      return 0;
+    }
+
+    do {
+      strm.avail_out = len;
+      strm.next_out = (Bytef *)buf + strm.total_out;
+
+      ret = inflate(&strm, Z_NO_FLUSH);
+      if (ret == Z_STREAM_ERROR) {
+        return 0;
+      }
+    } while (strm.avail_out == 0);
+
+  } while (ret != Z_STREAM_END);
+
+  inflateEnd(&strm);
+  return (size_t)strm.total_out;
+}
+
+#undef CHUNK
 
 /**
  * Returns true if the file with the specified name can be written.

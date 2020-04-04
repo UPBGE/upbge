@@ -25,8 +25,8 @@
 #ifndef __GHOST_IContext_H__
 #define __GHOST_IContext_H__
 
-#include "STR_String.h"
 #include "GHOST_Types.h"
+#include "STR_String.h"
 
 /**
  * Interface for GHOST context.
@@ -55,6 +55,10 @@ class GHOST_IContext {
    * \return  A boolean success indicator.
    */
   virtual GHOST_TSuccess releaseDrawingContext() = 0;
+
+  virtual unsigned int getDefaultFramebuffer() = 0;
+
+  virtual GHOST_TSuccess swapBuffers() = 0;
 
 #ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_IContext")

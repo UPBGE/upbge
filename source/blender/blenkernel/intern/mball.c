@@ -26,62 +26,98 @@
  * \ingroup bke
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <math.h>
-#include <stdlib.h>
 #include <ctype.h>
 #include <float.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_material_types.h"
-#include "DNA_object_types.h"
-#include "DNA_meta_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_defaults.h"
+#include "DNA_material_types.h"
+#include "DNA_meta_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.h"
+
 #include "BKE_main.h"
 
-#include "BKE_animsys.h"
 #include "BKE_curve.h"
-#include "BKE_scene.h"
-#include "BKE_lib_id.h"
 #include "BKE_displist.h"
+#include "BKE_idtype.h"
+#include "BKE_lib_id.h"
+#include "BKE_material.h"
 #include "BKE_mball.h"
 #include "BKE_object.h"
-#include "BKE_material.h"
+#include "BKE_scene.h"
 
 #include "DEG_depsgraph.h"
 
-/* Functions */
-
-/** Free (or release) any data used by this mball (does not free the mball itself). */
-void BKE_mball_free(MetaBall *mb)
+static void metaball_init_data(ID *id)
 {
-  BKE_animdata_free((ID *)mb, false);
+  MetaBall *metaball = (MetaBall *)id;
 
-  BKE_mball_batch_cache_free(mb);
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(metaball, id));
 
-  MEM_SAFE_FREE(mb->mat);
+  MEMCPY_STRUCT_AFTER(metaball, DNA_struct_default_get(MetaBall), id);
+}
 
-  BLI_freelistN(&mb->elems);
-  if (mb->disp.first) {
-    BKE_displist_free(&mb->disp);
+static void metaball_copy_data(Main *UNUSED(bmain),
+                               ID *id_dst,
+                               const ID *id_src,
+                               const int UNUSED(flag))
+{
+  MetaBall *metaball_dst = (MetaBall *)id_dst;
+  const MetaBall *metaball_src = (const MetaBall *)id_src;
+
+  BLI_duplicatelist(&metaball_dst->elems, &metaball_src->elems);
+
+  metaball_dst->mat = MEM_dupallocN(metaball_src->mat);
+
+  metaball_dst->editelems = NULL;
+  metaball_dst->lastelem = NULL;
+  metaball_dst->batch_cache = NULL;
+}
+
+static void metaball_free_data(ID *id)
+{
+  MetaBall *metaball = (MetaBall *)id;
+
+  BKE_mball_batch_cache_free(metaball);
+
+  MEM_SAFE_FREE(metaball->mat);
+
+  BLI_freelistN(&metaball->elems);
+  if (metaball->disp.first) {
+    BKE_displist_free(&metaball->disp);
   }
 }
 
-void BKE_mball_init(MetaBall *mb)
-{
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mb, id));
+IDTypeInfo IDType_ID_MB = {
+    .id_code = ID_MB,
+    .id_filter = FILTER_ID_MB,
+    .main_listbase_index = INDEX_ID_MB,
+    .struct_size = sizeof(MetaBall),
+    .name = "Metaball",
+    .name_plural = "metaballs",
+    .translation_context = BLT_I18NCONTEXT_ID_METABALL,
+    .flags = 0,
 
-  MEMCPY_STRUCT_AFTER(mb, DNA_struct_default_get(MetaBall), id);
-}
+    .init_data = metaball_init_data,
+    .copy_data = metaball_copy_data,
+    .free_data = metaball_free_data,
+    .make_local = NULL,
+};
+
+/* Functions */
 
 MetaBall *BKE_mball_add(Main *bmain, const char *name)
 {
@@ -89,33 +125,9 @@ MetaBall *BKE_mball_add(Main *bmain, const char *name)
 
   mb = BKE_libblock_alloc(bmain, ID_MB, name, 0);
 
-  BKE_mball_init(mb);
+  metaball_init_data(&mb->id);
 
   return mb;
-}
-
-/**
- * Only copy internal data of MetaBall ID from source
- * to already allocated/initialized destination.
- * You probably never want to use that directly,
- * use #BKE_id_copy or #BKE_id_copy_ex for typical needs.
- *
- * WARNING! This function will not handle ID user count!
- *
- * \param flag: Copying options (see BKE_lib_id.h's LIB_ID_COPY_... flags for more).
- */
-void BKE_mball_copy_data(Main *UNUSED(bmain),
-                         MetaBall *mb_dst,
-                         const MetaBall *mb_src,
-                         const int UNUSED(flag))
-{
-  BLI_duplicatelist(&mb_dst->elems, &mb_src->elems);
-
-  mb_dst->mat = MEM_dupallocN(mb_src->mat);
-
-  mb_dst->editelems = NULL;
-  mb_dst->lastelem = NULL;
-  mb_dst->batch_cache = NULL;
 }
 
 MetaBall *BKE_mball_copy(Main *bmain, const MetaBall *mb)
@@ -123,11 +135,6 @@ MetaBall *BKE_mball_copy(Main *bmain, const MetaBall *mb)
   MetaBall *mb_copy;
   BKE_id_copy(bmain, &mb->id, (ID **)&mb_copy);
   return mb_copy;
-}
-
-void BKE_mball_make_local(Main *bmain, MetaBall *mb, const int flags)
-{
-  BKE_lib_id_make_local_generic(bmain, &mb->id, flags);
 }
 
 /* most simple meta-element adding function
@@ -423,9 +430,8 @@ Object *BKE_mball_basis_find(Scene *scene, Object *basis)
 
   BLI_split_name_num(basisname, &basisnr, basis->id.name + 2, '.');
 
-  for (ViewLayer *view_layer = scene->view_layers.first; view_layer;
-       view_layer = view_layer->next) {
-    for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+    LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
       Object *ob = base->object;
       if ((ob->type == OB_MBALL) && !(base->flag & BASE_FROM_DUPLI)) {
         if (ob != bob) {
@@ -456,7 +462,7 @@ bool BKE_mball_minmax_ex(
 
   INIT_MINMAX(min, max);
 
-  for (const MetaElem *ml = mb->elems.first; ml; ml = ml->next) {
+  LISTBASE_FOREACH (const MetaElem *, ml, &mb->elems) {
     if ((ml->flag & flag) == flag) {
       const float scale_mb = (ml->rad * 0.5f) * scale;
       int i;
@@ -486,7 +492,7 @@ bool BKE_mball_minmax(const MetaBall *mb, float min[3], float max[3])
 {
   INIT_MINMAX(min, max);
 
-  for (const MetaElem *ml = mb->elems.first; ml; ml = ml->next) {
+  LISTBASE_FOREACH (const MetaElem *, ml, &mb->elems) {
     minmax_v3v3_v3(min, max, &ml->x);
   }
 
@@ -499,7 +505,7 @@ bool BKE_mball_center_median(const MetaBall *mb, float r_cent[3])
 
   zero_v3(r_cent);
 
-  for (const MetaElem *ml = mb->elems.first; ml; ml = ml->next) {
+  LISTBASE_FOREACH (const MetaElem *, ml, &mb->elems) {
     add_v3_v3(r_cent, &ml->x);
     total++;
   }
@@ -531,7 +537,7 @@ void BKE_mball_transform(MetaBall *mb, const float mat[4][4], const bool do_prop
 
   mat4_to_quat(quat, mat);
 
-  for (MetaElem *ml = mb->elems.first; ml; ml = ml->next) {
+  LISTBASE_FOREACH (MetaElem *, ml, &mb->elems) {
     mul_m4_v3(mat, &ml->x);
     mul_qt_qtqt(ml->quat, quat, ml->quat);
 
@@ -551,7 +557,7 @@ void BKE_mball_transform(MetaBall *mb, const float mat[4][4], const bool do_prop
 
 void BKE_mball_translate(MetaBall *mb, const float offset[3])
 {
-  for (MetaElem *ml = mb->elems.first; ml; ml = ml->next) {
+  LISTBASE_FOREACH (MetaElem *, ml, &mb->elems) {
     add_v3_v3(&ml->x, offset);
   }
 }
@@ -560,7 +566,7 @@ void BKE_mball_translate(MetaBall *mb, const float offset[3])
 int BKE_mball_select_count(const MetaBall *mb)
 {
   int sel = 0;
-  for (const MetaElem *ml = mb->editelems->first; ml; ml = ml->next) {
+  LISTBASE_FOREACH (const MetaElem *, ml, mb->editelems) {
     if (ml->flag & SELECT) {
       sel++;
     }
@@ -582,7 +588,7 @@ int BKE_mball_select_count_multi(Base **bases, int bases_len)
 bool BKE_mball_select_all(MetaBall *mb)
 {
   bool changed = false;
-  for (MetaElem *ml = mb->editelems->first; ml; ml = ml->next) {
+  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
     if ((ml->flag & SELECT) == 0) {
       ml->flag |= SELECT;
       changed = true;
@@ -605,7 +611,7 @@ bool BKE_mball_select_all_multi_ex(Base **bases, int bases_len)
 bool BKE_mball_deselect_all(MetaBall *mb)
 {
   bool changed = false;
-  for (MetaElem *ml = mb->editelems->first; ml; ml = ml->next) {
+  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
     if ((ml->flag & SELECT) != 0) {
       ml->flag &= ~SELECT;
       changed = true;
@@ -629,7 +635,7 @@ bool BKE_mball_deselect_all_multi_ex(Base **bases, int bases_len)
 bool BKE_mball_select_swap(MetaBall *mb)
 {
   bool changed = false;
-  for (MetaElem *ml = mb->editelems->first; ml; ml = ml->next) {
+  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
     ml->flag ^= SELECT;
     changed = true;
   }

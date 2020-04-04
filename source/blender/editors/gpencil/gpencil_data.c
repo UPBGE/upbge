@@ -23,19 +23,19 @@
  * Operators for dealing with GP data-blocks and layers.
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stddef.h>
 #include <math.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_math.h"
 #include "BLI_string_utils.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
@@ -50,6 +50,7 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_brush.h"
 #include "BKE_context.h"
@@ -76,8 +77,8 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
-#include "ED_object.h"
 #include "ED_gpencil.h"
+#include "ED_object.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -214,6 +215,7 @@ static int gp_layer_add_exec(bContext *C, wmOperator *op)
 
   PointerRNA gpd_owner = {NULL};
   Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
   bGPdata *gpd = NULL;
 
   if (is_annotation) {
@@ -238,7 +240,13 @@ static int gp_layer_add_exec(bContext *C, wmOperator *op)
     Object *ob = CTX_data_active_object(C);
     if ((ob != NULL) && (ob->type == OB_GPENCIL)) {
       gpd = (bGPdata *)ob->data;
-      BKE_gpencil_layer_addnew(gpd, DATA_("GP_Layer"), true);
+      bGPDlayer *gpl = BKE_gpencil_layer_addnew(gpd, DATA_("GP_Layer"), true);
+      ScrArea *area = CTX_wm_area(C);
+
+      /* In dopesheet add a new frame. */
+      if ((gpl != NULL) && (area->spacetype == SPACE_ACTION)) {
+        gpl->actframe = BKE_gpencil_layer_frame_get(gpl, CFRA, GP_GETFRAME_ADD_NEW);
+      }
     }
   }
 
@@ -292,7 +300,7 @@ static int gp_layer_remove_exec(bContext *C, wmOperator *op)
 
   bGPdata *gpd = (!is_annotation) ? ED_gpencil_data_get_active(C) :
                                     ED_annotation_data_get_active(C);
-  bGPDlayer *gpl = BKE_gpencil_layer_getactive(gpd);
+  bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
   /* sanity checks */
   if (ELEM(NULL, gpd, gpl)) {
@@ -309,18 +317,22 @@ static int gp_layer_remove_exec(bContext *C, wmOperator *op)
    * - if this is the only layer, this naturally becomes NULL
    */
   if (gpl->prev) {
-    BKE_gpencil_layer_setactive(gpd, gpl->prev);
+    BKE_gpencil_layer_active_set(gpd, gpl->prev);
   }
   else {
-    BKE_gpencil_layer_setactive(gpd, gpl->next);
+    BKE_gpencil_layer_active_set(gpd, gpl->next);
   }
 
   /* delete the layer now... */
   BKE_gpencil_layer_delete(gpd, gpl);
 
+  /* Reorder masking. */
+  BKE_gpencil_layer_mask_sort_all(gpd);
+
   /* notifiers */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, NULL);
 
   return OPERATOR_FINISHED;
 }
@@ -342,7 +354,7 @@ void GPENCIL_OT_layer_remove(wmOperatorType *ot)
 static bool gp_active_layer_annotation_poll(bContext *C)
 {
   bGPdata *gpd = ED_annotation_data_get_active(C);
-  bGPDlayer *gpl = BKE_gpencil_layer_getactive(gpd);
+  bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
   return (gpl != NULL);
 }
@@ -373,7 +385,7 @@ static int gp_layer_move_exec(bContext *C, wmOperator *op)
 
   bGPdata *gpd = (!is_annotation) ? ED_gpencil_data_get_active(C) :
                                     ED_annotation_data_get_active(C);
-  bGPDlayer *gpl = BKE_gpencil_layer_getactive(gpd);
+  bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
   const int direction = RNA_enum_get(op->ptr, "type") * -1;
 
@@ -384,6 +396,9 @@ static int gp_layer_move_exec(bContext *C, wmOperator *op)
 
   BLI_assert(ELEM(direction, -1, 0, 1)); /* we use value below */
   if (BLI_listbase_link_move(&gpd->layers, gpl, direction)) {
+    /* Reorder masking. */
+    BKE_gpencil_layer_mask_sort_all(gpd);
+
     DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
   }
@@ -441,7 +456,7 @@ void GPENCIL_OT_layer_annotation_move(wmOperatorType *ot)
 static int gp_layer_copy_exec(bContext *C, wmOperator *UNUSED(op))
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  bGPDlayer *gpl = BKE_gpencil_layer_getactive(gpd);
+  bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
   bGPDlayer *new_layer;
 
   /* sanity checks */
@@ -460,11 +475,12 @@ static int gp_layer_copy_exec(bContext *C, wmOperator *UNUSED(op))
                  '.',
                  offsetof(bGPDlayer, info),
                  sizeof(new_layer->info));
-  BKE_gpencil_layer_setactive(gpd, new_layer);
+  BKE_gpencil_layer_active_set(gpd, new_layer);
 
   /* notifiers */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, NULL);
 
   return OPERATOR_FINISHED;
 }
@@ -499,14 +515,14 @@ static bool gp_layer_duplicate_object_poll(bContext *C)
   }
 
   bGPdata *gpd = (bGPdata *)ob->data;
-  bGPDlayer *gpl = BKE_gpencil_layer_getactive(gpd);
+  bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
   if (gpl == NULL) {
     return false;
   }
 
   /* check there are more grease pencil objects */
-  for (Base *base = view_layer->object_bases.first; base; base = base->next) {
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if ((base->object != ob) && (base->object->type == OB_GPENCIL)) {
       return true;
     }
@@ -532,7 +548,7 @@ static int gp_layer_duplicate_object_exec(bContext *C, wmOperator *op)
 
   Object *ob_src = CTX_data_active_object(C);
   bGPdata *gpd_src = (bGPdata *)ob_src->data;
-  bGPDlayer *gpl_src = BKE_gpencil_layer_getactive(gpd_src);
+  bGPDlayer *gpl_src = BKE_gpencil_layer_active_get(gpd_src);
 
   /* Sanity checks. */
   if (ELEM(NULL, gpd_src, gpl_src, ob_dst)) {
@@ -555,7 +571,7 @@ static int gp_layer_duplicate_object_exec(bContext *C, wmOperator *op)
   gpl_dst->opacity = gpl_src->opacity;
 
   /* Create all frames. */
-  for (bGPDframe *gpf_src = gpl_src->frames.first; gpf_src; gpf_src = gpf_src->next) {
+  LISTBASE_FOREACH (bGPDframe *, gpf_src, &gpl_src->frames) {
 
     if ((mode == GP_LAYER_COPY_OBJECT_ACT_FRAME) && (gpf_src != gpl_src->actframe)) {
       continue;
@@ -565,10 +581,10 @@ static int gp_layer_duplicate_object_exec(bContext *C, wmOperator *op)
     bGPDframe *gpf_dst = BKE_gpencil_frame_addnew(gpl_dst, gpf_src->framenum);
 
     /* Copy strokes. */
-    for (bGPDstroke *gps_src = gpf_src->strokes.first; gps_src; gps_src = gps_src->next) {
+    LISTBASE_FOREACH (bGPDstroke *, gps_src, &gpf_src->strokes) {
 
       /* Make copy of source stroke. */
-      bGPDstroke *gps_dst = BKE_gpencil_stroke_duplicate(gps_src);
+      bGPDstroke *gps_dst = BKE_gpencil_stroke_duplicate(gps_src, true);
 
       /* Check if material is in destination object,
        * otherwise add the slot with the material. */
@@ -630,21 +646,21 @@ enum {
 static int gp_frame_duplicate_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  bGPDlayer *gpl = BKE_gpencil_layer_getactive(gpd);
+  bGPDlayer *gpl_active = BKE_gpencil_layer_active_get(gpd);
   Scene *scene = CTX_data_scene(C);
 
   int mode = RNA_enum_get(op->ptr, "mode");
 
   /* sanity checks */
-  if (ELEM(NULL, gpd, gpl)) {
+  if (ELEM(NULL, gpd, gpl_active)) {
     return OPERATOR_CANCELLED;
   }
 
   if (mode == 0) {
-    BKE_gpencil_frame_addcopy(gpl, CFRA);
+    BKE_gpencil_frame_addcopy(gpl_active, CFRA);
   }
   else {
-    for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
       if ((gpl->flag & GP_LAYER_LOCKED) == 0) {
         BKE_gpencil_frame_addcopy(gpl, CFRA);
       }
@@ -700,16 +716,13 @@ static int gp_frame_clean_fill_exec(bContext *C, wmOperator *op)
 
     for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {
       if ((gpf == gpl->actframe) || (mode == GP_FRAME_CLEAN_FILL_ALL)) {
-        bGPDstroke *gps, *gpsn;
 
         if (gpf == NULL) {
           continue;
         }
 
         /* simply delete strokes which are no fill */
-        for (gps = gpf->strokes.first; gps; gps = gpsn) {
-          gpsn = gps->next;
-
+        LISTBASE_FOREACH_MUTABLE (bGPDstroke *, gps, &gpf->strokes) {
           /* skip strokes that are invalid for current view */
           if (ED_gpencil_stroke_can_use(C, gps) == false) {
             continue;
@@ -778,8 +791,6 @@ static int gp_frame_clean_loose_exec(bContext *C, wmOperator *op)
 
   CTX_DATA_BEGIN (C, bGPDlayer *, gpl, editable_gpencil_layers) {
     bGPDframe *init_gpf = (is_multiedit) ? gpl->frames.first : gpl->actframe;
-    bGPDstroke *gps = NULL;
-    bGPDstroke *gpsn = NULL;
 
     for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {
       if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
@@ -788,9 +799,7 @@ static int gp_frame_clean_loose_exec(bContext *C, wmOperator *op)
         }
 
         /* simply delete strokes which are no loose */
-        for (gps = gpf->strokes.first; gps; gps = gpsn) {
-          gpsn = gps->next;
-
+        LISTBASE_FOREACH_MUTABLE (bGPDstroke *, gps, &gpf->strokes) {
           /* skip strokes that are invalid for current view */
           if (ED_gpencil_stroke_can_use(C, gps) == false) {
             continue;
@@ -861,7 +870,7 @@ void GPENCIL_OT_frame_clean_loose(wmOperatorType *ot)
 static int gp_hide_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  bGPDlayer *layer = BKE_gpencil_layer_getactive(gpd);
+  bGPDlayer *layer = BKE_gpencil_layer_active_get(gpd);
   bool unselected = RNA_boolean_get(op->ptr, "unselected");
 
   /* sanity checks */
@@ -870,10 +879,8 @@ static int gp_hide_exec(bContext *C, wmOperator *op)
   }
 
   if (unselected) {
-    bGPDlayer *gpl;
-
     /* hide unselected */
-    for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
       if (gpl != layer) {
         gpl->flag |= GP_LAYER_HIDE;
       }
@@ -946,7 +953,6 @@ static void gp_reveal_select_frame(bContext *C, bGPDframe *frame, bool select)
 static int gp_reveal_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  bGPDlayer *gpl;
   const bool select = RNA_boolean_get(op->ptr, "select");
 
   /* sanity checks */
@@ -954,8 +960,7 @@ static int gp_reveal_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
     if (gpl->flag & GP_LAYER_HIDE) {
       gpl->flag &= ~GP_LAYER_HIDE;
 
@@ -1008,7 +1013,6 @@ void GPENCIL_OT_reveal(wmOperatorType *ot)
 static int gp_lock_all_exec(bContext *C, wmOperator *UNUSED(op))
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  bGPDlayer *gpl;
 
   /* sanity checks */
   if (gpd == NULL) {
@@ -1016,7 +1020,7 @@ static int gp_lock_all_exec(bContext *C, wmOperator *UNUSED(op))
   }
 
   /* make all layers non-editable */
-  for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
     gpl->flag |= GP_LAYER_LOCKED;
   }
 
@@ -1048,7 +1052,6 @@ void GPENCIL_OT_lock_all(wmOperatorType *ot)
 static int gp_unlock_all_exec(bContext *C, wmOperator *UNUSED(op))
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  bGPDlayer *gpl;
 
   /* sanity checks */
   if (gpd == NULL) {
@@ -1056,7 +1059,7 @@ static int gp_unlock_all_exec(bContext *C, wmOperator *UNUSED(op))
   }
 
   /* make all layers editable again */
-  for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
     gpl->flag &= ~GP_LAYER_LOCKED;
   }
 
@@ -1087,8 +1090,7 @@ void GPENCIL_OT_unlock_all(wmOperatorType *ot)
 static int gp_isolate_layer_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  bGPDlayer *layer = BKE_gpencil_layer_getactive(gpd);
-  bGPDlayer *gpl;
+  bGPDlayer *layer = BKE_gpencil_layer_active_get(gpd);
   int flags = GP_LAYER_LOCKED;
   bool isolate = false;
 
@@ -1102,7 +1104,7 @@ static int gp_isolate_layer_exec(bContext *C, wmOperator *op)
   }
 
   /* Test whether to isolate or clear all flags */
-  for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
     /* Skip if this is the active layer */
     if (gpl == layer) {
       continue;
@@ -1121,7 +1123,7 @@ static int gp_isolate_layer_exec(bContext *C, wmOperator *op)
   /* TODO: Include onion-skinning on this list? */
   if (isolate) {
     /* Set flags on all "other" layers */
-    for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
       if (gpl == layer) {
         continue;
       }
@@ -1132,7 +1134,7 @@ static int gp_isolate_layer_exec(bContext *C, wmOperator *op)
   }
   else {
     /* Clear flags - Restore everything else */
-    for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
       gpl->flag &= ~flags;
     }
   }
@@ -1172,7 +1174,7 @@ void GPENCIL_OT_layer_isolate(wmOperatorType *ot)
 static int gp_merge_layer_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  bGPDlayer *gpl_next = BKE_gpencil_layer_getactive(gpd);
+  bGPDlayer *gpl_next = BKE_gpencil_layer_active_get(gpd);
   bGPDlayer *gpl_current = gpl_next->prev;
 
   if (ELEM(NULL, gpd, gpl_current, gpl_next)) {
@@ -1182,16 +1184,16 @@ static int gp_merge_layer_exec(bContext *C, wmOperator *op)
 
   /* Collect frames of gpl_current in hash table to avoid O(n^2) lookups */
   GHash *gh_frames_cur = BLI_ghash_int_new_ex(__func__, 64);
-  for (bGPDframe *gpf = gpl_current->frames.first; gpf; gpf = gpf->next) {
+  LISTBASE_FOREACH (bGPDframe *, gpf, &gpl_current->frames) {
     BLI_ghash_insert(gh_frames_cur, POINTER_FROM_INT(gpf->framenum), gpf);
   }
 
   /* read all frames from next layer and add any missing in current layer */
-  for (bGPDframe *gpf = gpl_next->frames.first; gpf; gpf = gpf->next) {
+  LISTBASE_FOREACH (bGPDframe *, gpf, &gpl_next->frames) {
     /* try to find frame in current layer */
     bGPDframe *frame = BLI_ghash_lookup(gh_frames_cur, POINTER_FROM_INT(gpf->framenum));
     if (!frame) {
-      bGPDframe *actframe = BKE_gpencil_layer_getframe(
+      bGPDframe *actframe = BKE_gpencil_layer_frame_get(
           gpl_current, gpf->framenum, GP_GETFRAME_USE_PREV);
       frame = BKE_gpencil_frame_addnew(gpl_current, gpf->framenum);
       /* duplicate strokes of current active frame */
@@ -1203,13 +1205,33 @@ static int gp_merge_layer_exec(bContext *C, wmOperator *op)
     BLI_movelisttolist(&frame->strokes, &gpf->strokes);
   }
 
+  /* Add Masks to destination layer. */
+  LISTBASE_FOREACH (bGPDlayer_Mask *, mask, &gpl_next->mask_layers) {
+    /* Don't add merged layers or missing layer names. */
+    if (!BKE_gpencil_layer_named_get(gpd, mask->name) || STREQ(mask->name, gpl_next->info) ||
+        STREQ(mask->name, gpl_current->info)) {
+      continue;
+    }
+    if (!BKE_gpencil_layer_mask_named_get(gpl_current, mask->name)) {
+      bGPDlayer_Mask *mask_new = MEM_dupallocN(mask);
+      BLI_addtail(&gpl_current->mask_layers, mask_new);
+      gpl_current->act_mask++;
+    }
+  }
+  /* Set destination layer as active. */
+  BKE_gpencil_layer_active_set(gpd, gpl_current);
+
   /* Now delete next layer */
   BKE_gpencil_layer_delete(gpd, gpl_next);
   BLI_ghash_free(gh_frames_cur, NULL, NULL);
 
+  /* Reorder masking. */
+  BKE_gpencil_layer_mask_sort(gpd, gpl_current);
+
   /* notifiers */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, NULL);
 
   return OPERATOR_FINISHED;
 }
@@ -1268,11 +1290,12 @@ static int gp_layer_change_exec(bContext *C, wmOperator *op)
   }
 
   /* Set active layer */
-  BKE_gpencil_layer_setactive(gpd, gpl);
+  BKE_gpencil_layer_active_set(gpd, gpl);
 
   /* updates */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, NULL);
 
   return OPERATOR_FINISHED;
 }
@@ -1297,6 +1320,50 @@ void GPENCIL_OT_layer_change(wmOperatorType *ot)
   RNA_def_enum_funcs(ot->prop, ED_gpencil_layers_with_new_enum_itemf);
 }
 
+static int gp_layer_active_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = CTX_data_active_object(C);
+  bGPdata *gpd = (bGPdata *)ob->data;
+  int layer_num = RNA_int_get(op->ptr, "layer");
+
+  /* Try to get layer */
+  bGPDlayer *gpl = BLI_findlink(&gpd->layers, layer_num);
+
+  if (gpl == NULL) {
+    BKE_reportf(
+        op->reports, RPT_ERROR, "Cannot change to non-existent layer (index = %d)", layer_num);
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Set active layer */
+  BKE_gpencil_layer_active_set(gpd, gpl);
+
+  /* updates */
+  DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_layer_active(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Active Layer";
+  ot->idname = "GPENCIL_OT_layer_active";
+  ot->description = "Active Grease Pencil layer";
+
+  /* callbacks */
+  ot->exec = gp_layer_active_exec;
+  ot->poll = gp_active_layer_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* GPencil layer to use. */
+  ot->prop = RNA_def_int(ot->srna, "layer", 0, 0, INT_MAX, "Grease Pencil Layer", "", 0, INT_MAX);
+  RNA_def_property_flag(ot->prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+}
 /* ************************************************ */
 
 /* ******************* Arrange Stroke Up/Down in drawing order ************************** */
@@ -1312,7 +1379,7 @@ static int gp_stroke_arrange_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  bGPDlayer *gpl_act = BKE_gpencil_layer_getactive(gpd);
+  bGPDlayer *gpl_act = BKE_gpencil_layer_active_get(gpd);
 
   /* sanity checks */
   if (ELEM(NULL, gpd, gpl_act, gpl_act->actframe)) {
@@ -1372,7 +1439,7 @@ static int gp_stroke_arrange_exec(bContext *C, wmOperator *op)
           switch (direction) {
             /* Bring to Front */
             case GP_STROKE_MOVE_TOP:
-              for (LinkData *link = selected.first; link; link = link->next) {
+              LISTBASE_FOREACH (LinkData *, link, &selected) {
                 gps = link->data;
                 BLI_remlink(&gpf->strokes, gps);
                 BLI_addtail(&gpf->strokes, gps);
@@ -1387,7 +1454,7 @@ static int gp_stroke_arrange_exec(bContext *C, wmOperator *op)
               break;
             /* Send Backward */
             case GP_STROKE_MOVE_DOWN:
-              for (LinkData *link = selected.first; link; link = link->next) {
+              LISTBASE_FOREACH (LinkData *, link, &selected) {
                 gps = link->data;
                 BLI_listbase_link_move(&gpf->strokes, gps, -1);
               }
@@ -1469,7 +1536,7 @@ static int gp_stroke_change_color_exec(bContext *C, wmOperator *op)
     }
   }
   /* try to find slot */
-  int idx = BKE_gpencil_object_material_get_index(ob, ma);
+  int idx = BKE_gpencil_object_material_index_get(ob, ma);
   if (idx < 0) {
     return OPERATOR_CANCELLED;
   }
@@ -1494,7 +1561,7 @@ static int gp_stroke_change_color_exec(bContext *C, wmOperator *op)
           continue;
         }
 
-        for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+        LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
           /* only if selected */
           if (gps->flag & GP_STROKE_SELECT) {
             /* skip strokes that are invalid for current view */
@@ -1545,7 +1612,7 @@ void GPENCIL_OT_stroke_change_color(wmOperatorType *ot)
 
 /* ******************* Lock color of non selected Strokes colors ************************** */
 
-static int gp_stroke_lock_color_exec(bContext *C, wmOperator *UNUSED(op))
+static int gp_material_lock_unsused_exec(bContext *C, wmOperator *UNUSED(op))
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
 
@@ -1562,15 +1629,15 @@ static int gp_stroke_lock_color_exec(bContext *C, wmOperator *UNUSED(op))
   for (short i = 0; i < *totcol; i++) {
     Material *tmp_ma = BKE_object_material_get(ob, i + 1);
     if (tmp_ma) {
-      tmp_ma->gp_style->flag |= GP_STYLE_COLOR_LOCKED;
+      tmp_ma->gp_style->flag |= GP_MATERIAL_LOCKED;
       DEG_id_tag_update(&tmp_ma->id, ID_RECALC_COPY_ON_WRITE);
     }
   }
 
   /* loop all selected strokes and unlock any color */
-  for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
     /* only editable and visible layers are considered */
-    if (gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL)) {
+    if (BKE_gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL)) {
       for (bGPDstroke *gps = gpl->actframe->strokes.last; gps; gps = gps->prev) {
         /* only if selected */
         if (gps->flag & GP_STROKE_SELECT) {
@@ -1581,7 +1648,7 @@ static int gp_stroke_lock_color_exec(bContext *C, wmOperator *UNUSED(op))
           /* unlock color */
           Material *tmp_ma = BKE_object_material_get(ob, gps->mat_nr + 1);
           if (tmp_ma) {
-            tmp_ma->gp_style->flag &= ~GP_STYLE_COLOR_LOCKED;
+            tmp_ma->gp_style->flag &= ~GP_MATERIAL_LOCKED;
             DEG_id_tag_update(&tmp_ma->id, ID_RECALC_COPY_ON_WRITE);
           }
         }
@@ -1601,15 +1668,15 @@ static int gp_stroke_lock_color_exec(bContext *C, wmOperator *UNUSED(op))
   return OPERATOR_FINISHED;
 }
 
-void GPENCIL_OT_stroke_lock_color(wmOperatorType *ot)
+void GPENCIL_OT_material_lock_unused(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Lock Unused Colors";
-  ot->idname = "GPENCIL_OT_stroke_lock_color";
-  ot->description = "Lock any color not used in any selected stroke";
+  ot->name = "Lock Unused Materials";
+  ot->idname = "GPENCIL_OT_material_lock_unused";
+  ot->description = "Lock any material not used in any selected stroke";
 
   /* api callbacks */
-  ot->exec = gp_stroke_lock_color_exec;
+  ot->exec = gp_material_lock_unsused_exec;
   ot->poll = gp_active_layer_poll;
 
   /* flags */
@@ -1619,28 +1686,273 @@ void GPENCIL_OT_stroke_lock_color(wmOperatorType *ot)
 /* ************************************************ */
 /* Drawing Brushes Operators */
 
-/* ******************* Brush create presets ************************** */
-static int gp_brush_presets_create_exec(bContext *C, wmOperator *UNUSED(op))
+/* ******************* Brush resets ************************** */
+static int gp_brush_reset_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Main *bmain = CTX_data_main(C);
   ToolSettings *ts = CTX_data_tool_settings(C);
-  BKE_brush_gpencil_presets(bmain, ts);
+  const enum eContextObjectMode mode = CTX_data_mode_enum(C);
+  Brush *brush = NULL;
+
+  switch (mode) {
+    case CTX_MODE_PAINT_GPENCIL: {
+      Paint *paint = &ts->gp_paint->paint;
+      brush = paint->brush;
+      if (brush && brush->gpencil_settings) {
+        BKE_gpencil_brush_preset_set(bmain, brush, brush->gpencil_settings->preset_type);
+      }
+      break;
+    }
+    case CTX_MODE_SCULPT_GPENCIL: {
+      Paint *paint = &ts->gp_sculptpaint->paint;
+      brush = paint->brush;
+      if (brush && brush->gpencil_settings) {
+        BKE_gpencil_brush_preset_set(bmain, brush, brush->gpencil_settings->preset_type);
+      }
+      break;
+    }
+    case CTX_MODE_WEIGHT_GPENCIL: {
+      Paint *paint = &ts->gp_weightpaint->paint;
+      brush = paint->brush;
+      if (brush && brush->gpencil_settings) {
+        BKE_gpencil_brush_preset_set(bmain, brush, brush->gpencil_settings->preset_type);
+      }
+      break;
+    }
+    case CTX_MODE_VERTEX_GPENCIL: {
+      Paint *paint = &ts->gp_vertexpaint->paint;
+      brush = paint->brush;
+      if (brush && brush->gpencil_settings) {
+        BKE_gpencil_brush_preset_set(bmain, brush, brush->gpencil_settings->preset_type);
+      }
+      break;
+    }
+    default:
+      break;
+  }
 
   /* notifiers */
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+  WM_main_add_notifier(NC_BRUSH | NA_EDITED, NULL);
 
   return OPERATOR_FINISHED;
 }
 
-void GPENCIL_OT_brush_presets_create(wmOperatorType *ot)
+void GPENCIL_OT_brush_reset(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Create Preset Brushes";
-  ot->idname = "GPENCIL_OT_brush_presets_create";
-  ot->description = "Create a set of predefined Grease Pencil drawing brushes";
+  ot->name = "Reset Brush";
+  ot->idname = "GPENCIL_OT_brush_reset";
+  ot->description = "Reset Brush to default parameters";
 
   /* api callbacks */
-  ot->exec = gp_brush_presets_create_exec;
+  ot->exec = gp_brush_reset_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static Brush *gp_brush_get_first_by_mode(Main *bmain,
+                                         Paint *UNUSED(paint),
+                                         const enum eContextObjectMode mode,
+                                         char tool)
+{
+  Brush *brush_next = NULL;
+  for (Brush *brush = bmain->brushes.first; brush; brush = brush_next) {
+    brush_next = brush->id.next;
+
+    if (brush->gpencil_settings == NULL) {
+      continue;
+    }
+
+    if ((mode == CTX_MODE_PAINT_GPENCIL) && (brush->gpencil_tool == tool)) {
+      return brush;
+    }
+
+    if ((mode == CTX_MODE_SCULPT_GPENCIL) && (brush->gpencil_sculpt_tool == tool)) {
+      return brush;
+    }
+
+    if ((mode == CTX_MODE_WEIGHT_GPENCIL) && (brush->gpencil_weight_tool == tool)) {
+      return brush;
+    }
+
+    if ((mode == CTX_MODE_VERTEX_GPENCIL) && (brush->gpencil_vertex_tool == tool)) {
+      return brush;
+    }
+  }
+
+  return NULL;
+}
+
+static void gp_brush_delete_mode_brushes(Main *bmain,
+                                         Paint *paint,
+                                         const enum eContextObjectMode mode)
+{
+  Brush *brush_active = paint->brush;
+  Brush *brush_next = NULL;
+  for (Brush *brush = bmain->brushes.first; brush; brush = brush_next) {
+    brush_next = brush->id.next;
+
+    if ((brush->gpencil_settings == NULL) && (brush->ob_mode != OB_MODE_PAINT_GPENCIL)) {
+      continue;
+    }
+
+    short preset = (brush->gpencil_settings) ? brush->gpencil_settings->preset_type :
+                                               GP_BRUSH_PRESET_UNKNOWN;
+
+    if (preset != GP_BRUSH_PRESET_UNKNOWN) {
+      /* Verify to delete only the brushes of the current mode. */
+      if (mode == CTX_MODE_PAINT_GPENCIL) {
+        if ((preset < GP_BRUSH_PRESET_AIRBRUSH) || (preset > GP_BRUSH_PRESET_TINT)) {
+          continue;
+        }
+        if ((brush_active) && (brush_active->gpencil_tool != brush->gpencil_tool)) {
+          continue;
+        }
+      }
+
+      if (mode == CTX_MODE_SCULPT_GPENCIL) {
+        if ((preset < GP_BRUSH_PRESET_SMOOTH_STROKE) || (preset > GP_BRUSH_PRESET_CLONE_STROKE)) {
+          continue;
+        }
+        if ((brush_active) && (brush_active->gpencil_sculpt_tool != brush->gpencil_sculpt_tool)) {
+          continue;
+        }
+      }
+
+      if (mode == CTX_MODE_WEIGHT_GPENCIL) {
+        if (preset != GP_BRUSH_PRESET_DRAW_WEIGHT) {
+          continue;
+        }
+        if ((brush_active) && (brush_active->gpencil_weight_tool != brush->gpencil_weight_tool)) {
+          continue;
+        }
+      }
+
+      if (mode == CTX_MODE_VERTEX_GPENCIL) {
+        if ((preset < GP_BRUSH_PRESET_VERTEX_DRAW) || (preset > GP_BRUSH_PRESET_VERTEX_REPLACE)) {
+          continue;
+        }
+        if ((brush_active) && (brush_active->gpencil_vertex_tool != brush->gpencil_vertex_tool)) {
+          continue;
+        }
+      }
+    }
+
+    /* Before delete, unpinn any material of the brush. */
+    if ((brush->gpencil_settings) && (brush->gpencil_settings->material != NULL)) {
+      brush->gpencil_settings->material = NULL;
+      brush->gpencil_settings->flag &= ~GP_BRUSH_MATERIAL_PINNED;
+    }
+
+    BKE_brush_delete(bmain, brush);
+  }
+}
+
+static int gp_brush_reset_all_exec(bContext *C, wmOperator *UNUSED(op))
+{
+  Main *bmain = CTX_data_main(C);
+  ToolSettings *ts = CTX_data_tool_settings(C);
+  const enum eContextObjectMode mode = CTX_data_mode_enum(C);
+  Paint *paint = NULL;
+
+  switch (mode) {
+    case CTX_MODE_PAINT_GPENCIL: {
+      paint = &ts->gp_paint->paint;
+      break;
+    }
+    case CTX_MODE_SCULPT_GPENCIL: {
+      paint = &ts->gp_sculptpaint->paint;
+      break;
+    }
+    case CTX_MODE_WEIGHT_GPENCIL: {
+      paint = &ts->gp_weightpaint->paint;
+      break;
+    }
+    case CTX_MODE_VERTEX_GPENCIL: {
+      paint = &ts->gp_vertexpaint->paint;
+      break;
+    }
+    default:
+      break;
+  }
+
+  char tool = '0';
+  if (paint) {
+    Brush *brush_active = paint->brush;
+    if (brush_active) {
+      switch (mode) {
+        case CTX_MODE_PAINT_GPENCIL: {
+          tool = brush_active->gpencil_tool;
+          break;
+        }
+        case CTX_MODE_SCULPT_GPENCIL: {
+          tool = brush_active->gpencil_sculpt_tool;
+          break;
+        }
+        case CTX_MODE_WEIGHT_GPENCIL: {
+          tool = brush_active->gpencil_weight_tool;
+          break;
+        }
+        case CTX_MODE_VERTEX_GPENCIL: {
+          tool = brush_active->gpencil_vertex_tool;
+          break;
+        }
+        default: {
+          tool = brush_active->gpencil_tool;
+          break;
+        }
+      }
+    }
+
+    gp_brush_delete_mode_brushes(bmain, paint, mode);
+
+    switch (mode) {
+      case CTX_MODE_PAINT_GPENCIL: {
+        BKE_brush_gpencil_paint_presets(bmain, ts);
+        break;
+      }
+      case CTX_MODE_SCULPT_GPENCIL: {
+        BKE_brush_gpencil_sculpt_presets(bmain, ts);
+        break;
+      }
+      case CTX_MODE_WEIGHT_GPENCIL: {
+        BKE_brush_gpencil_weight_presets(bmain, ts);
+        break;
+      }
+      case CTX_MODE_VERTEX_GPENCIL: {
+        BKE_brush_gpencil_vertex_presets(bmain, ts);
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+
+    BKE_paint_toolslots_brush_validate(bmain, paint);
+
+    /* Set Again the first brush of the mode. */
+    Brush *deft_brush = gp_brush_get_first_by_mode(bmain, paint, mode, tool);
+    if (deft_brush) {
+      BKE_paint_brush_set(paint, deft_brush);
+    }
+    /* notifiers */
+    DEG_relations_tag_update(bmain);
+    WM_main_add_notifier(NC_BRUSH | NA_EDITED, NULL);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_brush_reset_all(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Reset All Brushes";
+  ot->idname = "GPENCIL_OT_brush_reset_all";
+  ot->description = "Delete all mode brushes and recreate a default set";
+
+  /* api callbacks */
+  ot->exec = gp_brush_reset_all_exec;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1846,12 +2158,12 @@ static int gpencil_vertex_group_invert_exec(bContext *C, wmOperator *op)
 
     for (int i = 0; i < gps->totpoints; i++) {
       dvert = &gps->dvert[i];
-      MDeformWeight *dw = defvert_find_index(dvert, def_nr);
+      MDeformWeight *dw = BKE_defvert_find_index(dvert, def_nr);
       if (dw == NULL) {
-        defvert_add_index_notest(dvert, def_nr, 1.0f);
+        BKE_defvert_add_index_notest(dvert, def_nr, 1.0f);
       }
       else if (dw->weight == 1.0f) {
-        defvert_remove_group(dvert, dw);
+        BKE_defvert_remove_group(dvert, dw);
       }
       else {
         dw->weight = 1.0f - dw->weight;
@@ -1938,8 +2250,8 @@ static int gpencil_vertex_group_smooth_exec(bContext *C, wmOperator *op)
           ptc = &gps->points[i];
         }
 
-        float wa = defvert_find_weight(dverta, def_nr);
-        float wb = defvert_find_weight(dvertb, def_nr);
+        float wa = BKE_defvert_find_weight(dverta, def_nr);
+        float wb = BKE_defvert_find_weight(dvertb, def_nr);
 
         /* the optimal value is the corresponding to the interpolation of the weight
          * at the distance of point b
@@ -1947,7 +2259,7 @@ static int gpencil_vertex_group_smooth_exec(bContext *C, wmOperator *op)
         const float opfac = line_point_factor_v3(&ptb->x, &pta->x, &ptc->x);
         const float optimal = interpf(wa, wb, opfac);
         /* Based on influence factor, blend between original and optimal */
-        MDeformWeight *dw = defvert_verify_index(dvertb, def_nr);
+        MDeformWeight *dw = BKE_defvert_ensure_index(dvertb, def_nr);
         if (dw) {
           dw->weight = interpf(wb, optimal, fac);
           CLAMP(dw->weight, 0.0, 1.0f);
@@ -2016,7 +2328,7 @@ static int gpencil_vertex_group_normalize_exec(bContext *C, wmOperator *op)
     float maxvalue = 0.0f;
     for (int i = 0; i < gps->totpoints; i++) {
       dvert = &gps->dvert[i];
-      dw = defvert_find_index(dvert, def_nr);
+      dw = BKE_defvert_find_index(dvert, def_nr);
       if ((dw != NULL) && (dw->weight > maxvalue)) {
         maxvalue = dw->weight;
       }
@@ -2026,7 +2338,7 @@ static int gpencil_vertex_group_normalize_exec(bContext *C, wmOperator *op)
     if (maxvalue > 0.0f) {
       for (int i = 0; i < gps->totpoints; i++) {
         dvert = &gps->dvert[i];
-        dw = defvert_find_index(dvert, def_nr);
+        dw = BKE_defvert_find_index(dvert, def_nr);
         if (dw != NULL) {
           dw->weight = dw->weight / maxvalue;
         }
@@ -2102,7 +2414,7 @@ static int gpencil_vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
           continue;
         }
 
-        dw = defvert_find_index(dvert, v);
+        dw = BKE_defvert_find_index(dvert, v);
         if (dw != NULL) {
           tot_values[i] += dw->weight;
         }
@@ -2128,7 +2440,7 @@ static int gpencil_vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
           continue;
         }
 
-        dw = defvert_find_index(dvert, v);
+        dw = BKE_defvert_find_index(dvert, v);
         if (dw != NULL) {
           dw->weight = dw->weight / tot_values[i];
         }
@@ -2217,7 +2529,7 @@ static void joined_gpencil_fix_animdata_cb(ID *id, FCurve *fcu, void *user_data)
   /* Fix driver targets */
   if (fcu->driver) {
     /* Fix driver references to invalid ID's */
-    for (DriverVar *dvar = fcu->driver->variables.first; dvar; dvar = dvar->next) {
+    LISTBASE_FOREACH (DriverVar *, dvar, &fcu->driver->variables) {
       /* Only change the used targets, since the others will need fixing manually anyway. */
       DRIVER_TARGETS_USED_LOOPER_BEGIN (dvar) {
         /* Change the ID's used. */
@@ -2308,7 +2620,7 @@ int ED_gpencil_join_objects_exec(bContext *C, wmOperator *op)
         bGPdata *gpd_src = ob_iter->data;
 
         /* Apply all GP modifiers before */
-        for (GpencilModifierData *md = ob_iter->greasepencil_modifiers.first; md; md = md->next) {
+        LISTBASE_FOREACH (GpencilModifierData *, md, &ob_iter->greasepencil_modifiers) {
           const GpencilModifierTypeInfo *mti = BKE_gpencil_modifierType_getInfo(md->type);
           if (mti->bakeModifier) {
             mti->bakeModifier(bmain, depsgraph, md, ob_iter);
@@ -2317,19 +2629,22 @@ int ED_gpencil_join_objects_exec(bContext *C, wmOperator *op)
 
         /* copy vertex groups to the base one's */
         int old_idx = 0;
-        for (bDeformGroup *dg = ob_iter->defbase.first; dg; dg = dg->next) {
+        LISTBASE_FOREACH (bDeformGroup *, dg, &ob_iter->defbase) {
           bDeformGroup *vgroup = MEM_dupallocN(dg);
           int idx = BLI_listbase_count(&ob_active->defbase);
-          defgroup_unique_name(vgroup, ob_active);
+          BKE_object_defgroup_unique_name(vgroup, ob_active);
           BLI_addtail(&ob_active->defbase, vgroup);
           /* update vertex groups in strokes in original data */
-          for (bGPDlayer *gpl_src = gpd->layers.first; gpl_src; gpl_src = gpl_src->next) {
-            for (bGPDframe *gpf = gpl_src->frames.first; gpf; gpf = gpf->next) {
-              for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+          LISTBASE_FOREACH (bGPDlayer *, gpl_src, &gpd->layers) {
+            LISTBASE_FOREACH (bGPDframe *, gpf, &gpl_src->frames) {
+              LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
                 MDeformVert *dvert;
                 int i;
+                if (gps->dvert == NULL) {
+                  continue;
+                }
                 for (i = 0, dvert = gps->dvert; i < gps->totpoints; i++, dvert++) {
-                  if ((dvert->dw) && (dvert->dw->def_nr == old_idx)) {
+                  if ((dvert->dw != NULL) && (dvert->dw->def_nr == old_idx)) {
                     dvert->dw->def_nr = idx;
                   }
                 }
@@ -2366,18 +2681,18 @@ int ED_gpencil_join_objects_exec(bContext *C, wmOperator *op)
         mul_m3_v3(imat, offset_global);
         mul_v3_m3v3(offset_local, imat, offset_global);
 
-        for (bGPDlayer *gpl_src = gpd_src->layers.first; gpl_src; gpl_src = gpl_src->next) {
+        LISTBASE_FOREACH (bGPDlayer *, gpl_src, &gpd_src->layers) {
           bGPDlayer *gpl_new = BKE_gpencil_layer_duplicate(gpl_src);
           float diff_mat[4][4];
           float inverse_diff_mat[4][4];
 
           /* recalculate all stroke points */
-          ED_gpencil_parent_location(depsgraph, ob_iter, gpd_src, gpl_src, diff_mat);
+          BKE_gpencil_parent_matrix_get(depsgraph, ob_iter, gpl_src, diff_mat);
           invert_m4_m4(inverse_diff_mat, diff_mat);
 
           Material *ma_src = NULL;
-          for (bGPDframe *gpf = gpl_new->frames.first; gpf; gpf = gpf->next) {
-            for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+          LISTBASE_FOREACH (bGPDframe *, gpf, &gpl_new->frames) {
+            LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
 
               /* Reassign material. Look old material and try to find in destination. */
               ma_src = BKE_gpencil_material(ob_src, gps->mat_nr + 1);
@@ -2458,7 +2773,7 @@ int ED_gpencil_join_objects_exec(bContext *C, wmOperator *op)
 }
 
 /* Color Handle operator */
-static bool gpencil_active_color_poll(bContext *C)
+static bool gpencil_active_material_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
   if (ob && ob->data && (ob->type == OB_GPENCIL)) {
@@ -2468,7 +2783,8 @@ static bool gpencil_active_color_poll(bContext *C)
   return false;
 }
 
-/* **************** Lock and hide any color non used in current layer ************************** */
+/* **************** Lock and hide any color non used in current layer **************************
+ */
 static int gpencil_lock_layer_exec(bContext *C, wmOperator *UNUSED(op))
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
@@ -2491,16 +2807,16 @@ static int gpencil_lock_layer_exec(bContext *C, wmOperator *UNUSED(op))
     ma = BKE_gpencil_material(ob, i + 1);
     if (ma) {
       gp_style = ma->gp_style;
-      gp_style->flag |= GP_STYLE_COLOR_LOCKED;
-      gp_style->flag |= GP_STYLE_COLOR_HIDE;
+      gp_style->flag |= GP_MATERIAL_LOCKED;
+      gp_style->flag |= GP_MATERIAL_HIDE;
       DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
     }
   }
 
   /* loop all selected strokes and unlock any color used in active layer */
-  for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
     /* only editable and visible layers are considered */
-    if (gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL) &&
+    if (BKE_gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL) &&
         (gpl->flag & GP_LAYER_ACTIVE)) {
       for (bGPDstroke *gps = gpl->actframe->strokes.last; gps; gps = gps->prev) {
         /* skip strokes that are invalid for current view */
@@ -2514,8 +2830,8 @@ static int gpencil_lock_layer_exec(bContext *C, wmOperator *UNUSED(op))
         gp_style = ma->gp_style;
         /* unlock/unhide color if not unlocked before */
         if (gp_style != NULL) {
-          gp_style->flag &= ~GP_STYLE_COLOR_LOCKED;
-          gp_style->flag &= ~GP_STYLE_COLOR_HIDE;
+          gp_style->flag &= ~GP_MATERIAL_LOCKED;
+          gp_style->flag &= ~GP_MATERIAL_HIDE;
         }
       }
     }
@@ -2547,7 +2863,7 @@ void GPENCIL_OT_lock_layer(wmOperatorType *ot)
 
 /* ********************** Isolate gpencil_ color **************************** */
 
-static int gpencil_color_isolate_exec(bContext *C, wmOperator *op)
+static int gpencil_material_isolate_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
   Object *ob = CTX_data_active_object(C);
@@ -2555,11 +2871,11 @@ static int gpencil_color_isolate_exec(bContext *C, wmOperator *op)
   MaterialGPencilStyle *active_color = BKE_gpencil_material_settings(ob, ob->actcol);
   MaterialGPencilStyle *gp_style;
 
-  int flags = GP_STYLE_COLOR_LOCKED;
+  int flags = GP_MATERIAL_LOCKED;
   bool isolate = false;
 
   if (RNA_boolean_get(op->ptr, "affect_visibility")) {
-    flags |= GP_STYLE_COLOR_HIDE;
+    flags |= GP_MATERIAL_HIDE;
   }
 
   if (ELEM(NULL, gpd, active_color)) {
@@ -2629,17 +2945,17 @@ static int gpencil_color_isolate_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-void GPENCIL_OT_color_isolate(wmOperatorType *ot)
+void GPENCIL_OT_material_isolate(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Isolate Color";
-  ot->idname = "GPENCIL_OT_color_isolate";
+  ot->name = "Isolate Material";
+  ot->idname = "GPENCIL_OT_material_isolate";
   ot->description =
-      "Toggle whether the active color is the only one that is editable and/or visible";
+      "Toggle whether the active material is the only one that is editable and/or visible";
 
   /* callbacks */
-  ot->exec = gpencil_color_isolate_exec;
-  ot->poll = gpencil_active_color_poll;
+  ot->exec = gpencil_material_isolate_exec;
+  ot->poll = gpencil_active_material_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2655,7 +2971,7 @@ void GPENCIL_OT_color_isolate(wmOperatorType *ot)
 
 /* *********************** Hide colors ******************************** */
 
-static int gpencil_color_hide_exec(bContext *C, wmOperator *op)
+static int gpencil_material_hide_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   bGPdata *gpd = (bGPdata *)ob->data;
@@ -2677,7 +2993,7 @@ static int gpencil_color_hide_exec(bContext *C, wmOperator *op)
       if (ma) {
         color = ma->gp_style;
         if (active_color != color) {
-          color->flag |= GP_STYLE_COLOR_HIDE;
+          color->flag |= GP_MATERIAL_HIDE;
           DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
         }
       }
@@ -2685,7 +3001,7 @@ static int gpencil_color_hide_exec(bContext *C, wmOperator *op)
   }
   else {
     /* hide selected/active */
-    active_color->flag |= GP_STYLE_COLOR_HIDE;
+    active_color->flag |= GP_MATERIAL_HIDE;
   }
 
   /* updates */
@@ -2700,16 +3016,16 @@ static int gpencil_color_hide_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-void GPENCIL_OT_color_hide(wmOperatorType *ot)
+void GPENCIL_OT_material_hide(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Hide Color(s)";
-  ot->idname = "GPENCIL_OT_color_hide";
-  ot->description = "Hide selected/unselected Grease Pencil colors";
+  ot->name = "Hide Material(s)";
+  ot->idname = "GPENCIL_OT_material_hide";
+  ot->description = "Hide selected/unselected Grease Pencil materials";
 
   /* callbacks */
-  ot->exec = gpencil_color_hide_exec;
-  ot->poll = gpencil_active_color_poll; /* NOTE: we need an active color to play with */
+  ot->exec = gpencil_material_hide_exec;
+  ot->poll = gpencil_active_material_poll; /* NOTE: we need an active color to play with */
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2721,7 +3037,7 @@ void GPENCIL_OT_color_hide(wmOperatorType *ot)
 
 /* ********************** Show All Colors ***************************** */
 
-static int gpencil_color_reveal_exec(bContext *C, wmOperator *UNUSED(op))
+static int gpencil_material_reveal_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Object *ob = CTX_data_active_object(C);
   bGPdata *gpd = (bGPdata *)ob->data;
@@ -2739,7 +3055,7 @@ static int gpencil_color_reveal_exec(bContext *C, wmOperator *UNUSED(op))
     ma = BKE_gpencil_material(ob, i + 1);
     if (ma) {
       gp_style = ma->gp_style;
-      gp_style->flag &= ~GP_STYLE_COLOR_HIDE;
+      gp_style->flag &= ~GP_MATERIAL_HIDE;
       DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
     }
   }
@@ -2756,16 +3072,16 @@ static int gpencil_color_reveal_exec(bContext *C, wmOperator *UNUSED(op))
   return OPERATOR_FINISHED;
 }
 
-void GPENCIL_OT_color_reveal(wmOperatorType *ot)
+void GPENCIL_OT_material_reveal(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Show All Colors";
-  ot->idname = "GPENCIL_OT_color_reveal";
-  ot->description = "Unhide all hidden Grease Pencil colors";
+  ot->name = "Show All Materials";
+  ot->idname = "GPENCIL_OT_material_reveal";
+  ot->description = "Unhide all hidden Grease Pencil materials";
 
   /* callbacks */
-  ot->exec = gpencil_color_reveal_exec;
-  ot->poll = gpencil_active_color_poll;
+  ot->exec = gpencil_material_reveal_exec;
+  ot->poll = gpencil_active_material_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2773,7 +3089,7 @@ void GPENCIL_OT_color_reveal(wmOperatorType *ot)
 
 /* ***************** Lock/Unlock All colors ************************ */
 
-static int gpencil_color_lock_all_exec(bContext *C, wmOperator *UNUSED(op))
+static int gpencil_material_lock_all_exec(bContext *C, wmOperator *UNUSED(op))
 {
 
   Object *ob = CTX_data_active_object(C);
@@ -2792,7 +3108,7 @@ static int gpencil_color_lock_all_exec(bContext *C, wmOperator *UNUSED(op))
     ma = BKE_gpencil_material(ob, i + 1);
     if (ma) {
       gp_style = ma->gp_style;
-      gp_style->flag |= GP_STYLE_COLOR_LOCKED;
+      gp_style->flag |= GP_MATERIAL_LOCKED;
       DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
     }
   }
@@ -2809,17 +3125,17 @@ static int gpencil_color_lock_all_exec(bContext *C, wmOperator *UNUSED(op))
   return OPERATOR_FINISHED;
 }
 
-void GPENCIL_OT_color_lock_all(wmOperatorType *ot)
+void GPENCIL_OT_material_lock_all(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Lock All Colors";
-  ot->idname = "GPENCIL_OT_color_lock_all";
+  ot->name = "Lock All Materials";
+  ot->idname = "GPENCIL_OT_material_lock_all";
   ot->description =
-      "Lock all Grease Pencil colors to prevent them from being accidentally modified";
+      "Lock all Grease Pencil materials to prevent them from being accidentally modified";
 
   /* callbacks */
-  ot->exec = gpencil_color_lock_all_exec;
-  ot->poll = gpencil_active_color_poll;
+  ot->exec = gpencil_material_lock_all_exec;
+  ot->poll = gpencil_active_material_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2827,7 +3143,7 @@ void GPENCIL_OT_color_lock_all(wmOperatorType *ot)
 
 /* -------------------------- */
 
-static int gpencil_color_unlock_all_exec(bContext *C, wmOperator *UNUSED(op))
+static int gpencil_material_unlock_all_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Object *ob = CTX_data_active_object(C);
   bGPdata *gpd = (bGPdata *)ob->data;
@@ -2845,7 +3161,7 @@ static int gpencil_color_unlock_all_exec(bContext *C, wmOperator *UNUSED(op))
     ma = BKE_gpencil_material(ob, i + 1);
     if (ma) {
       gp_style = ma->gp_style;
-      gp_style->flag &= ~GP_STYLE_COLOR_LOCKED;
+      gp_style->flag &= ~GP_MATERIAL_LOCKED;
       DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
     }
   }
@@ -2862,16 +3178,16 @@ static int gpencil_color_unlock_all_exec(bContext *C, wmOperator *UNUSED(op))
   return OPERATOR_FINISHED;
 }
 
-void GPENCIL_OT_color_unlock_all(wmOperatorType *ot)
+void GPENCIL_OT_material_unlock_all(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Unlock All Colors";
-  ot->idname = "GPENCIL_OT_color_unlock_all";
-  ot->description = "Unlock all Grease Pencil colors so that they can be edited";
+  ot->name = "Unlock All Materials";
+  ot->idname = "GPENCIL_OT_material_unlock_all";
+  ot->description = "Unlock all Grease Pencil materials so that they can be edited";
 
   /* callbacks */
-  ot->exec = gpencil_color_unlock_all_exec;
-  ot->poll = gpencil_active_color_poll;
+  ot->exec = gpencil_material_unlock_all_exec;
+  ot->poll = gpencil_active_material_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2879,7 +3195,7 @@ void GPENCIL_OT_color_unlock_all(wmOperatorType *ot)
 
 /* ***************** Select all strokes using color ************************ */
 
-static int gpencil_color_select_exec(bContext *C, wmOperator *op)
+static int gpencil_select_material_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
   Object *ob = CTX_data_active_object(C);
@@ -2900,7 +3216,7 @@ static int gpencil_color_select_exec(bContext *C, wmOperator *op)
       if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
 
         /* verify something to do */
-        for (bGPDstroke *gps = gpf->strokes.first; gps; gps = gps->next) {
+        LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
           /* skip strokes that are invalid for current view */
           if (ED_gpencil_stroke_can_use(C, gps) == false) {
             continue;
@@ -2949,16 +3265,16 @@ static int gpencil_color_select_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-void GPENCIL_OT_color_select(wmOperatorType *ot)
+void GPENCIL_OT_select_material(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Select Color";
-  ot->idname = "GPENCIL_OT_color_select";
-  ot->description = "Select all Grease Pencil strokes using current color";
+  ot->name = "Select Material";
+  ot->idname = "GPENCIL_OT_select_material";
+  ot->description = "Select/Deselect all Grease Pencil strokes using current material";
 
   /* callbacks */
-  ot->exec = gpencil_color_select_exec;
-  ot->poll = gpencil_active_color_poll;
+  ot->exec = gpencil_select_material_exec;
+  ot->poll = gpencil_active_material_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -3010,7 +3326,7 @@ void GPENCIL_OT_set_active_material(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = gpencil_set_active_material_exec;
-  ot->poll = gpencil_active_color_poll;
+  ot->poll = gpencil_active_material_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -3056,4 +3372,119 @@ bool ED_gpencil_add_lattice_modifier(const bContext *C,
   }
 
   return true;
+}
+
+/* Masking operators */
+static int gp_layer_mask_add_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = CTX_data_active_object(C);
+  if ((ob == NULL) || (ob->type != OB_GPENCIL)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bGPdata *gpd = (bGPdata *)ob->data;
+  bGPDlayer *gpl_active = BKE_gpencil_layer_active_get(gpd);
+  if (gpl_active == NULL) {
+    return OPERATOR_CANCELLED;
+  }
+  char name[128];
+  RNA_string_get(op->ptr, "name", name);
+  bGPDlayer *gpl = BKE_gpencil_layer_named_get(gpd, name);
+
+  if (gpl == NULL) {
+    BKE_report(op->reports, RPT_ERROR, "Unable to find layer to add");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (gpl == gpl_active) {
+    BKE_report(op->reports, RPT_ERROR, "Cannot add active layer as mask");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (BKE_gpencil_layer_mask_named_get(gpl_active, name)) {
+    BKE_report(op->reports, RPT_ERROR, "Layer already added");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (gpl_active->act_mask == 256) {
+    BKE_report(op->reports, RPT_ERROR, "Maximum number of masking layers reached");
+    return OPERATOR_CANCELLED;
+  }
+
+  BKE_gpencil_layer_mask_add(gpl_active, name);
+
+  /* Reorder masking. */
+  BKE_gpencil_layer_mask_sort(gpd, gpl_active);
+
+  /* notifiers */
+  if (gpd) {
+    DEG_id_tag_update(&gpd->id,
+                      ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  }
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_layer_mask_add(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add New Mask Layer";
+  ot->idname = "GPENCIL_OT_layer_mask_add";
+  ot->description = "Add new layer as masking";
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* callbacks */
+  ot->exec = gp_layer_mask_add_exec;
+  ot->poll = gp_add_poll;
+
+  /* properties */
+  RNA_def_string(ot->srna, "name", NULL, 128, "Layer", "Name of the layer");
+}
+
+static int gp_layer_mask_remove_exec(bContext *C, wmOperator *UNUSED(op))
+{
+  Object *ob = CTX_data_active_object(C);
+  if ((ob == NULL) || (ob->type != OB_GPENCIL)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bGPdata *gpd = (bGPdata *)ob->data;
+  bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
+  if (gpl == NULL) {
+    return OPERATOR_CANCELLED;
+  }
+  if (gpl->act_mask > 0) {
+    bGPDlayer_Mask *mask = BLI_findlink(&gpl->mask_layers, gpl->act_mask - 1);
+    if (mask != NULL) {
+      BKE_gpencil_layer_mask_remove(gpl, mask);
+      if ((gpl->mask_layers.first != NULL) && (gpl->act_mask == 0)) {
+        gpl->act_mask = 1;
+      }
+    }
+  }
+
+  /* Reorder masking. */
+  BKE_gpencil_layer_mask_sort(gpd, gpl);
+
+  /* notifiers */
+  DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_layer_mask_remove(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Remove Mask Layer";
+  ot->idname = "GPENCIL_OT_layer_mask_remove";
+  ot->description = "Remove Layer Mask";
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* callbacks */
+  ot->exec = gp_layer_mask_remove_exec;
+  ot->poll = gp_active_layer_poll;
 }

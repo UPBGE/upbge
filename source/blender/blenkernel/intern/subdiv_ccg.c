@@ -589,7 +589,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Subdiv *subdiv,
 {
   /* Make sure evaluator is ready. */
   BKE_subdiv_stats_begin(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_CCG);
-  if (!BKE_subdiv_eval_update_from_mesh(subdiv, coarse_mesh, NULL)) {
+  if (!BKE_subdiv_eval_begin_from_mesh(subdiv, coarse_mesh, NULL)) {
     if (coarse_mesh->totpoly) {
       return NULL;
     }
@@ -1779,4 +1779,15 @@ void BKE_subdiv_ccg_neighbor_coords_get(const SubdivCCG *subdiv_ccg,
     BLI_assert(BKE_subdiv_ccg_check_coord_valid(subdiv_ccg, &r_neighbors->coords[i]));
   }
 #endif
+}
+
+int BKE_subdiv_cgg_grid_to_face_index(const SubdivCCG *subdiv_ccg, const int grid_index)
+{
+  // Subdiv *subdiv = subdiv_ccg->subdiv; /* UNUSED */
+  // OpenSubdiv_TopologyRefiner *topology_refiner = subdiv->topology_refiner; /* UNUSED */
+  SubdivCCGFace *face = subdiv_ccg->grid_faces[grid_index];
+
+  // const int face_grid_index = grid_index - face->start_grid_index; /* UNUSED */
+  const int face_index = face - subdiv_ccg->faces;
+  return face_index;
 }

@@ -21,14 +21,14 @@
  * \ingroup spfile
  */
 
+#include <errno.h>
 #include <math.h>
 #include <string.h>
-#include <errno.h>
 
 #include "BLI_blenlib.h"
 #include "BLI_fileops_types.h"
-#include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -170,7 +170,6 @@ static void file_draw_string(int sx,
                              eFontStyle_Align align,
                              const uchar col[4])
 {
-  uiStyle *style;
   uiFontStyle fs;
   rcti rect;
   char fname[FILE_MAXFILE];
@@ -179,7 +178,7 @@ static void file_draw_string(int sx,
     return;
   }
 
-  style = UI_style_get();
+  const uiStyle *style = UI_style_get();
   fs = style->widgetlabel;
 
   BLI_strncpy(fname, string, FILE_MAXFILE);
@@ -201,12 +200,12 @@ static void file_draw_string(int sx,
                     });
 }
 
-void file_calc_previews(const bContext *C, ARegion *ar)
+void file_calc_previews(const bContext *C, ARegion *region)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
-  View2D *v2d = &ar->v2d;
+  View2D *v2d = &region->v2d;
 
-  ED_fileselect_init_layout(sfile, ar);
+  ED_fileselect_init_layout(sfile, region);
   UI_view2d_totRect_set(v2d, sfile->layout->width, sfile->layout->height);
 }
 
@@ -313,7 +312,7 @@ static void file_draw_preview(uiBlock *block,
   GPU_blend_set_func_separate(
       GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 
-  if (icon && (icon != ICON_FILE_FONT)) {
+  if (icon && !(typeflags & FILE_TYPE_FTFONT)) {
     /* size of center icon is scaled to fit container and UI scale */
     float icon_x, icon_y;
 
@@ -377,20 +376,17 @@ static void file_draw_preview(uiBlock *block,
 
 static void renamebutton_cb(bContext *C, void *UNUSED(arg1), char *oldname)
 {
-  Main *bmain = CTX_data_main(C);
   char newname[FILE_MAX + 12];
   char orgname[FILE_MAX + 12];
   char filename[FILE_MAX + 12];
   wmWindowManager *wm = CTX_wm_manager(C);
   SpaceFile *sfile = (SpaceFile *)CTX_wm_space_data(C);
-  ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
 
-  const char *blendfile_path = BKE_main_blendfile_path(bmain);
-  BLI_make_file_string(blendfile_path, orgname, sfile->params->dir, oldname);
+  BLI_join_dirfile(orgname, sizeof(orgname), sfile->params->dir, oldname);
   BLI_strncpy(filename, sfile->params->renamefile, sizeof(filename));
   BLI_filename_make_safe(filename);
-  BLI_make_file_string(blendfile_path, newname, sfile->params->dir, filename);
+  BLI_join_dirfile(newname, sizeof(newname), sfile->params->dir, filename);
 
   if (!STREQ(orgname, newname)) {
     if (!BLI_exists(newname)) {
@@ -412,10 +408,10 @@ static void renamebutton_cb(bContext *C, void *UNUSED(arg1), char *oldname)
       }
 
       /* to make sure we show what is on disk */
-      ED_fileselect_clear(wm, sa, sfile);
+      ED_fileselect_clear(wm, CTX_data_scene(C), sfile);
     }
 
-    ED_region_tag_redraw(ar);
+    ED_region_tag_redraw(region);
   }
 }
 
@@ -452,7 +448,7 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
 
   const int step = (layout->tile_w + 2 * layout->tile_border_x);
 
-  unsigned int vertex_len = 0;
+  uint vertex_len = 0;
   int sx = (int)v2d->tot.xmin;
   while (sx < v2d->cur.xmax) {
     sx += step;
@@ -461,7 +457,7 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
 
   if (vertex_len > 0) {
     int v1[2], v2[2];
-    unsigned char col_hi[3], col_lo[3];
+    uchar col_hi[3], col_lo[3];
 
     UI_GetThemeColorShade3ubv(TH_BACK, 30, col_hi);
     UI_GetThemeColorShade3ubv(TH_BACK, -30, col_lo);
@@ -669,17 +665,17 @@ static void draw_details_columns(const FileSelectParams *params,
   }
 }
 
-void file_draw_list(const bContext *C, ARegion *ar)
+void file_draw_list(const bContext *C, ARegion *region)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_params(sfile);
-  FileLayout *layout = ED_fileselect_get_layout(sfile, ar);
-  View2D *v2d = &ar->v2d;
+  FileLayout *layout = ED_fileselect_get_layout(sfile, region);
+  View2D *v2d = &region->v2d;
   struct FileList *files = sfile->files;
   struct FileDirEntry *file;
   const char *root = filelist_dir(files);
   ImBuf *imb;
-  uiBlock *block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
   int numfiles;
   int numfiles_layout;
   int sx, sy;
@@ -689,7 +685,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
   bool is_icon;
   eFontStyle_Align align;
   bool do_drag;
-  unsigned char text_col[4];
+  uchar text_col[4];
   const bool draw_columnheader = (params->display == FILE_VERTICALDISPLAY);
   const float thumb_icon_aspect = MIN2(64.0f / (float)(params->thumbnail_size), 1.0f);
 
@@ -700,12 +696,13 @@ void file_draw_list(const bContext *C, ARegion *ar)
     draw_dividers(layout, v2d);
   }
 
-  offset = ED_fileselect_layout_offset(layout, (int)ar->v2d.cur.xmin, (int)-ar->v2d.cur.ymax);
+  offset = ED_fileselect_layout_offset(
+      layout, (int)region->v2d.cur.xmin, (int)-region->v2d.cur.ymax);
   if (offset < 0) {
     offset = 0;
   }
 
-  numfiles_layout = ED_fileselect_layout_numfiles(layout, ar);
+  numfiles_layout = ED_fileselect_layout_numfiles(layout, region);
 
   /* adjust, so the next row is already drawn when scrolling */
   if (layout->flag & FILE_LAYOUT_HOR) {
@@ -756,7 +753,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
   UI_GetThemeColor4ubv(TH_TEXT, text_col);
 
   for (i = offset; (i < numfiles) && (i < offset + numfiles_layout); i++) {
-    unsigned int file_selflag;
+    uint file_selflag;
     char path[FILE_MAX_LIBEXTRA];
     int padx = 0.1f * UI_UNIT_X;
     int icon_ofs = 0;
@@ -851,7 +848,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
       UI_but_func_rename_set(but, renamebutton_cb, file);
       UI_but_flag_enable(but, UI_BUT_NO_UTF8); /* allow non utf8 names */
       UI_but_flag_disable(but, UI_BUT_UNDO);
-      if (false == UI_but_active_only(C, ar, block, but)) {
+      if (false == UI_but_active_only(C, region, block, but)) {
         file_selflag = filelist_entry_select_set(
             sfile->files, file, FILE_SEL_REMOVE, FILE_SEL_EDITING, CHECK_ALL);
       }

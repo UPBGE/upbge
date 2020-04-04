@@ -23,23 +23,23 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_scene_types.h"
-#include "DNA_object_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_crazyspace.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_modifier.h"
-#include "BKE_multires.h"
-#include "BKE_mesh.h"
+#include "BKE_crazyspace.h"
 #include "BKE_editmesh.h"
 #include "BKE_lib_id.h"
+#include "BKE_mesh.h"
+#include "BKE_modifier.h"
+#include "BKE_multires.h"
 
 #include "DEG_depsgraph_query.h"
 
@@ -287,13 +287,13 @@ int BKE_crazyspace_get_first_deform_matrices_editbmesh(struct Depsgraph *depsgra
     if (mti->type == eModifierTypeType_OnlyDeform && mti->deformMatricesEM) {
       if (!defmats) {
         const int required_mode = eModifierMode_Realtime | eModifierMode_Editmode;
-        CustomData_MeshMasks data_mask = CD_MASK_BAREMESH;
+        CustomData_MeshMasks cd_mask_extra = CD_MASK_BAREMESH;
         CDMaskLink *datamasks = modifiers_calcDataMasks(
-            scene, ob, md, &data_mask, required_mode, NULL, NULL);
-        data_mask = datamasks->mask;
+            scene, ob, md, &cd_mask_extra, required_mode, NULL, NULL);
+        cd_mask_extra = datamasks->mask;
         BLI_linklist_free((LinkNode *)datamasks, NULL);
 
-        me = BKE_mesh_from_editmesh_with_coords_thin_wrap(em, &data_mask, NULL, me_input);
+        me = BKE_mesh_from_editmesh_with_coords_thin_wrap(em, &cd_mask_extra, NULL, me_input);
         deformedVerts = editbmesh_vert_coords_alloc(em, &numVerts);
         defmats = MEM_mallocN(sizeof(*defmats) * numVerts, "defmats");
 

@@ -38,23 +38,38 @@
 #  ifdef _XOPEN_SOURCE
 #    undef _XOPEN_SOURCE
 #  endif
+
+#  include "KX_PythonInit.h"
+
 #  include <Python.h>
 
-#  include "MEM_guardedalloc.h"
-
-extern "C" {
-#  include "BLI_utildefines.h"
-#  include "python_utildefines.h"
-#  include "bpy_internal_import.h" /* from the blender python api, but we want to import text too! */
-#  include "py_capi_utils.h"
-#  include "mathutils.h"  // 'mathutils' module copied here so the blenderlayer can use.
-#  include "bgl.h"
-#  include "bpy.h"  // for bpy_sys_module_backup
-#  include "blf_py_api.h"
 #  include "../blender/python/BPY_extern.h"
-
-#  include "marshal.h" /* python header for loading/saving dicts */
-}
+#  include "BKE_appdir.h"
+#  include "BKE_blender_version.h"
+#  include "BKE_global.h"
+#  include "BKE_idtype.h"
+#  include "BKE_library.h"
+#  include "BKE_main.h"
+#  include "BLI_blenlib.h"
+#  include "BLI_utildefines.h"
+#  include "DNA_ID.h"
+#  include "DNA_scene_types.h"
+#  include "GPU_material.h"
+#  include "MEM_guardedalloc.h"
+#  include "bgl.h"
+#  include "blf_py_api.h"
+#  include "bmesh/bmesh_py_api.h"
+#  include "bpy.h"  // for bpy_sys_module_backup
+#  include "bpy_intern_string.h"
+#  include "bpy_internal_import.h" /* from the blender python api, but we want to import text too! */
+#  include "bpy_path.h"
+#  include "gpu/gpu_py_api.h"
+#  include "idprop_py_api.h"
+#  include "imbuf_py_api.h"
+#  include "marshal.h"    /* python header for loading/saving dicts */
+#  include "mathutils.h"  // 'mathutils' module copied here so the blenderlayer can use.
+#  include "py_capi_utils.h"
+#  include "python_utildefines.h"
 
 #  ifdef WITH_AUDASPACE
 #    include "../../../../intern/audaspace/intern/AUD_PyInit.h"
@@ -62,100 +77,63 @@ extern "C" {
 
 #endif /* WITH_PYTHON */
 
-#include "KX_PythonInit.h"
-
 // directory header for py function getBlendFileList
 #ifndef WIN32
 #  include <dirent.h>
 #  include <stdlib.h>
 #else
-#  include <io.h>
 #  include "BLI_winstuff.h"
+#  include <io.h>
 #endif
 
 // python physics binding
-#include "KX_PyConstraintBinding.h"
-
+#include "BL_Action.h"
+#include "BL_ActionActuator.h"
+#include "BL_ArmatureObject.h"
+#include "BL_BlenderConverter.h"
+#include "BL_Shader.h"
+#include "CM_Message.h"
+#include "EXP_InputParser.h"
+#include "EXP_ListValue.h"
+#include "EXP_PyObjectPlus.h"
+#include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
-#include "SCA_RadarSensor.h"
-#include "SCA_RaySensor.h"
-#include "SCA_ArmatureSensor.h"
-#include "SCA_SceneActuator.h"
-#include "SCA_GameActuator.h"
-#include "SCA_ParentActuator.h"
-#include "SCA_DynamicActuator.h"
-#include "SCA_SteeringActuator.h"
+#include "KX_LibLoadStatus.h"
+#include "KX_MeshProxy.h" /* for creating a new library of mesh objects */
 #include "KX_NavMeshObject.h"
-#include "SCA_MouseActuator.h"
-#include "SCA_TrackToActuator.h"
-
+#include "KX_NetworkMessageScene.h"  //Needed for sendMessage()
+#include "KX_PyConstraintBinding.h"
+#include "KX_PyMath.h"
+#include "KX_PythonInitTypes.h"
+#include "KX_Scene.h"
+#include "MT_Vector3.h"
+#include "MT_Vector4.h"
+#include "PHY_IPhysicsEnvironment.h"
+#include "RAS_2DFilterManager.h"
+#include "RAS_BucketManager.h"
+#include "RAS_ICanvas.h"
+#include "RAS_Rasterizer.h"
+#include "SCA_2DFilterActuator.h"
+#include "SCA_ArmatureSensor.h"
+#include "SCA_ConstraintActuator.h"
+#include "SCA_DynamicActuator.h"
+#include "SCA_GameActuator.h"
 #include "SCA_IInputDevice.h"
-#include "SCA_PropertySensor.h"
-#include "SCA_RandomActuator.h"
 #include "SCA_JoystickManager.h" /* JOYINDEX_MAX */
+#include "SCA_MouseActuator.h"
+#include "SCA_ParentActuator.h"
+#include "SCA_PropertySensor.h"
 #include "SCA_PythonJoystick.h"
 #include "SCA_PythonKeyboard.h"
 #include "SCA_PythonMouse.h"
-#include "SCA_2DFilterActuator.h"
-#include "SCA_ConstraintActuator.h"
+#include "SCA_RadarSensor.h"
+#include "SCA_RandomActuator.h"
+#include "SCA_RaySensor.h"
+#include "SCA_SceneActuator.h"
 #include "SCA_SoundActuator.h"
 #include "SCA_StateActuator.h"
-#include "BL_ActionActuator.h"
-#include "BL_ArmatureObject.h"
-#include "RAS_Rasterizer.h"
-#include "RAS_ICanvas.h"
-#include "RAS_BucketManager.h"
-#include "RAS_2DFilterManager.h"
-#include "MT_Vector3.h"
-#include "MT_Vector4.h"
-#include "EXP_ListValue.h"
-#include "EXP_InputParser.h"
-#include "KX_Scene.h"
-#include "KX_Globals.h"
-
-#include "KX_NetworkMessageScene.h"  //Needed for sendMessage()
-
-#include "BL_Shader.h"
-#include "BL_Action.h"
-
-#include "KX_PyMath.h"
-
-#include "EXP_PyObjectPlus.h"
-
-#include "KX_PythonInitTypes.h"
-
-#include "CM_Message.h"
-
-/* we only need this to get a list of libraries from the main struct */
-#include "DNA_ID.h"
-#include "DNA_scene_types.h"
-
-#include "PHY_IPhysicsEnvironment.h"
-
-extern "C" {
-#include "BKE_main.h"
-#include "BKE_global.h"
-#include "BKE_library.h"
-#include "BKE_appdir.h"
-#include "BKE_blender_version.h"
-#include "BLI_blenlib.h"
-#include "GPU_material.h"
-
-#include "bpy_path.h"
-#include "imbuf_py_api.h"
-#include "bmesh/bmesh_py_api.h"
-#include "gpu/gpu_py_api.h"
-#include "idprop_py_api.h"
-#include "bpy_intern_string.h"
-}
-
-/* for converting new scenes */
-#include "KX_BlenderConverter.h"
-#include "KX_LibLoadStatus.h"
-#include "KX_MeshProxy.h" /* for creating a new library of mesh objects */
-extern "C" {
-#include "BKE_idcode.h"
-}
+#include "SCA_SteeringActuator.h"
+#include "SCA_TrackToActuator.h"
 
 // 'local' copy of canvas ptr, for window height/width python scripts
 
@@ -550,24 +528,6 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
   return list;
 }
 
-PyDoc_STRVAR(gPyAddScene_doc,
-             "addScene(name, [overlay])\n"
-             "Adds a scene to the game engine.\n"
-             " name = Name of the scene\n"
-             " overlay = Overlay or underlay");
-static PyObject *gPyAddScene(PyObject *, PyObject *args)
-{
-  char *name;
-  int overlay = 1;
-
-  if (!PyArg_ParseTuple(args, "s|i:addScene", &name, &overlay))
-    return nullptr;
-
-  KX_GetActiveEngine()->ConvertAndAddScene(name, (overlay != 0));
-
-  Py_RETURN_NONE;
-}
-
 PyDoc_STRVAR(gPyGetCurrentScene_doc,
              "getCurrentScene()\n"
              "Gets a reference to the current scene.");
@@ -658,15 +618,15 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 
   /* setup options */
   if (load_actions != 0)
-    options |= KX_BlenderConverter::LIB_LOAD_LOAD_ACTIONS;
+    options |= BL_BlenderConverter::LIB_LOAD_LOAD_ACTIONS;
   if (verbose != 0)
-    options |= KX_BlenderConverter::LIB_LOAD_VERBOSE;
+    options |= BL_BlenderConverter::LIB_LOAD_VERBOSE;
   if (load_scripts != 0)
-    options |= KX_BlenderConverter::LIB_LOAD_LOAD_SCRIPTS;
+    options |= BL_BlenderConverter::LIB_LOAD_LOAD_SCRIPTS;
   if (asynchronous != 0)
-    options |= KX_BlenderConverter::LIB_LOAD_ASYNC;
+    options |= BL_BlenderConverter::LIB_LOAD_ASYNC;
 
-  KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+  BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
 
   if (!py_buffer.buf) {
     char abs_path[FILE_MAX];
@@ -709,14 +669,14 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
   if (!PyArg_ParseTuple(args, "ssO!:LibNew", &path, &group, &PyList_Type, &names))
     return nullptr;
 
-  KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+  BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
 
   if (converter->GetMainDynamicPath(path)) {
     PyErr_SetString(PyExc_KeyError, "the name of the path given exists");
     return nullptr;
   }
 
-  idcode = BKE_idcode_from_name(group);
+  idcode = BKE_idtype_idcode_from_name(group);
   if (idcode == 0) {
     PyErr_Format(PyExc_ValueError, "invalid group given \"%s\"", group);
     return nullptr;
@@ -823,7 +783,6 @@ static struct PyMethodDef game_methods[] = {
      METH_NOARGS,
      (const char *)gPyGetInactiveSceneNames_doc},
     {"getSceneList", (PyCFunction)gPyGetSceneList, METH_NOARGS, (const char *)gPyGetSceneList_doc},
-    {"addScene", (PyCFunction)gPyAddScene, METH_VARARGS, (const char *)gPyAddScene_doc},
     {"getRandomFloat",
      (PyCFunction)gPyGetRandomFloat,
      METH_NOARGS,
@@ -1828,12 +1787,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
   KX_MACRO_addTypesToDict(d, KX_SCENE_RESTART, SCA_SceneActuator::KX_SCENE_RESTART);
   KX_MACRO_addTypesToDict(d, KX_SCENE_SET_SCENE, SCA_SceneActuator::KX_SCENE_SET_SCENE);
   KX_MACRO_addTypesToDict(d, KX_SCENE_SET_CAMERA, SCA_SceneActuator::KX_SCENE_SET_CAMERA);
-  KX_MACRO_addTypesToDict(
-      d, KX_SCENE_ADD_FRONT_SCENE, SCA_SceneActuator::KX_SCENE_ADD_FRONT_SCENE);
-  KX_MACRO_addTypesToDict(d, KX_SCENE_ADD_BACK_SCENE, SCA_SceneActuator::KX_SCENE_ADD_BACK_SCENE);
   KX_MACRO_addTypesToDict(d, KX_SCENE_REMOVE_SCENE, SCA_SceneActuator::KX_SCENE_REMOVE_SCENE);
-  KX_MACRO_addTypesToDict(d, KX_SCENE_SUSPEND, SCA_SceneActuator::KX_SCENE_SUSPEND);
-  KX_MACRO_addTypesToDict(d, KX_SCENE_RESUME, SCA_SceneActuator::KX_SCENE_RESUME);
 
   /* Parent Actuator Modes */
   KX_MACRO_addTypesToDict(d, KX_PARENT_SET, SCA_ParentActuator::KX_PARENT_SET);
@@ -1984,7 +1938,7 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
   BLI_path_abs(expanded,
                KX_GetMainPath().c_str()); /* filename from lib->filename is (always?) absolute, so
                                              this may not be needed but it wont hurt */
-  BLI_cleanup_file(
+  BLI_cleanup_path(
       KX_GetMainPath().c_str(),
       expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
   item = PyC_UnicodeFromByte(expanded);
@@ -2189,12 +2143,15 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
   /* Initialize thread support (also acquires lock) */
   PyEval_InitThreads();
 
-  bpy_intern_string_init();
-  BPy_init_modules();
+  if (first_time) {
 
-  BPY_python_rna_alloc_types();
+    bpy_intern_string_init();
+    BPy_init_modules();
 
-  BPY_atexit_register(); /* this can init any time */
+    BPY_python_rna_alloc_types();
+
+    BPY_atexit_register(); /* this can init any time */
+  }
 
   bpy_import_init(PyEval_GetBuiltins());
 
@@ -2212,7 +2169,9 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
   /* accessing a SoundActuator's sound results in a crash if aud is not initialized... */
   {
     PyObject *mod = PyImport_ImportModuleLevel("aud", nullptr, nullptr, nullptr, 0);
-    Py_DECREF(mod);
+    if (mod) {  // avoiding crash if audio device can not be initialized
+      Py_DECREF(mod);
+    }
   }
 #  endif
 
@@ -2310,7 +2269,9 @@ void initGamePythonScripting(Main *maggie)
   /* accessing a SoundActuator's sound results in a crash if aud is not initialized... */
   {
     PyObject *mod = PyImport_ImportModuleLevel("aud", nullptr, nullptr, nullptr, 0);
-    Py_DECREF(mod);
+    if (mod) {  // avoiding crash if audio device can not be initialized
+      Py_DECREF(mod);
+    }
   }
 #  endif
 

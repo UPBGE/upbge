@@ -21,49 +21,54 @@
  * \ingroup bke
  */
 
-#include <string.h>
 #include <math.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_ID.h"
 #include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_customdata_types.h"
+#include "DNA_defaults.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_hair_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_customdata_types.h"
-#include "DNA_gpencil_types.h"
-#include "DNA_ID.h"
 #include "DNA_meta_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_defaults.h"
+#include "DNA_volume_types.h"
 
-#include "BLI_math.h"
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 #include "BLI_array_utils.h"
+#include "BLI_listbase.h"
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_animsys.h"
+#include "BLT_translation.h"
+
 #include "BKE_brush.h"
+#include "BKE_curve.h"
 #include "BKE_displist.h"
+#include "BKE_editmesh.h"
+#include "BKE_font.h"
 #include "BKE_gpencil.h"
 #include "BKE_icons.h"
+#include "BKE_idtype.h"
 #include "BKE_image.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
-#include "BKE_scene.h"
 #include "BKE_node.h"
-#include "BKE_curve.h"
-#include "BKE_editmesh.h"
-#include "BKE_font.h"
+#include "BKE_scene.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -74,28 +79,85 @@
 
 static CLG_LogRef LOG = {"bke.material"};
 
-/** Free (or release) any data used by this material (does not free the material itself). */
-void BKE_material_free(Material *ma)
+static void material_init_data(ID *id)
 {
-  BKE_animdata_free((ID *)ma, false);
+  Material *material = (Material *)id;
 
-  /* Free gpu material before the ntree */
-  GPU_material_free(&ma->gpumaterial);
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(material, id));
 
-  /* is no lib link block, but material extension */
-  if (ma->nodetree) {
-    ntreeFreeNestedTree(ma->nodetree);
-    MEM_freeN(ma->nodetree);
-    ma->nodetree = NULL;
+  MEMCPY_STRUCT_AFTER(material, DNA_struct_default_get(Material), id);
+}
+
+static void material_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int flag)
+{
+  Material *material_dst = (Material *)id_dst;
+  const Material *material_src = (const Material *)id_src;
+
+  /* We always need allocation of our private ID data. */
+  const int flag_private_id_data = flag & ~LIB_ID_CREATE_NO_ALLOCATE;
+
+  if (material_src->nodetree) {
+    BKE_id_copy_ex(
+        bmain, (ID *)material_src->nodetree, (ID **)&material_dst->nodetree, flag_private_id_data);
   }
 
-  MEM_SAFE_FREE(ma->texpaintslot);
+  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
+    BKE_previewimg_id_copy(&material_dst->id, &material_src->id);
+  }
+  else {
+    material_dst->preview = NULL;
+  }
 
-  MEM_SAFE_FREE(ma->gp_style);
+  if (material_src->texpaintslot != NULL) {
+    material_dst->texpaintslot = MEM_dupallocN(material_src->texpaintslot);
+  }
 
-  BKE_icon_id_delete((ID *)ma);
-  BKE_previewimg_free(&ma->preview);
+  if (material_src->gp_style != NULL) {
+    material_dst->gp_style = MEM_dupallocN(material_src->gp_style);
+  }
+
+  BLI_listbase_clear(&material_dst->gpumaterial);
+
+  /* TODO Duplicate Engine Settings and set runtime to NULL */
 }
+
+static void material_free_data(ID *id)
+{
+  Material *material = (Material *)id;
+
+  /* Free gpu material before the ntree */
+  GPU_material_free(&material->gpumaterial);
+
+  /* is no lib link block, but material extension */
+  if (material->nodetree) {
+    ntreeFreeNestedTree(material->nodetree);
+    MEM_freeN(material->nodetree);
+    material->nodetree = NULL;
+  }
+
+  MEM_SAFE_FREE(material->texpaintslot);
+
+  MEM_SAFE_FREE(material->gp_style);
+
+  BKE_icon_id_delete((ID *)material);
+  BKE_previewimg_free(&material->preview);
+}
+
+IDTypeInfo IDType_ID_MA = {
+    .id_code = ID_MA,
+    .id_filter = FILTER_ID_MA,
+    .main_listbase_index = INDEX_ID_MA,
+    .struct_size = sizeof(Material),
+    .name = "Material",
+    .name_plural = "materials",
+    .translation_context = BLT_I18NCONTEXT_ID_MATERIAL,
+    .flags = 0,
+
+    .init_data = material_init_data,
+    .copy_data = material_copy_data,
+    .free_data = material_free_data,
+    .make_local = NULL,
+};
 
 void BKE_gpencil_material_attr_init(Material *ma)
 {
@@ -106,23 +168,12 @@ void BKE_gpencil_material_attr_init(Material *ma)
     /* set basic settings */
     gp_style->stroke_rgba[3] = 1.0f;
     gp_style->fill_rgba[3] = 1.0f;
-    gp_style->pattern_gridsize = 0.1f;
-    gp_style->gradient_radius = 0.5f;
     ARRAY_SET_ITEMS(gp_style->mix_rgba, 1.0f, 1.0f, 1.0f, 0.2f);
-    ARRAY_SET_ITEMS(gp_style->gradient_scale, 1.0f, 1.0f);
     ARRAY_SET_ITEMS(gp_style->texture_scale, 1.0f, 1.0f);
-    gp_style->texture_opacity = 1.0f;
     gp_style->texture_pixsize = 100.0f;
 
-    gp_style->flag |= GP_STYLE_STROKE_SHOW;
+    gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
   }
-}
-
-void BKE_material_init(Material *ma)
-{
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(ma, id));
-
-  MEMCPY_STRUCT_AFTER(ma, DNA_struct_default_get(Material), id);
 }
 
 Material *BKE_material_add(Main *bmain, const char *name)
@@ -131,7 +182,7 @@ Material *BKE_material_add(Main *bmain, const char *name)
 
   ma = BKE_libblock_alloc(bmain, ID_MA, name, 0);
 
-  BKE_material_init(ma);
+  material_init_data(&ma->id);
 
   return ma;
 }
@@ -147,45 +198,6 @@ Material *BKE_gpencil_material_add(Main *bmain, const char *name)
     BKE_gpencil_material_attr_init(ma);
   }
   return ma;
-}
-
-/**
- * Only copy internal data of Material ID from source
- * to already allocated/initialized destination.
- * You probably never want to use that directly,
- * use #BKE_id_copy or #BKE_id_copy_ex for typical needs.
- *
- * WARNING! This function will not handle ID user count!
- *
- * \param flag: Copying options (see BKE_lib_id.h's LIB_ID_COPY_... flags for more).
- */
-void BKE_material_copy_data(Main *bmain, Material *ma_dst, const Material *ma_src, const int flag)
-{
-  /* We always need allocation of our private ID data. */
-  const int flag_private_id_data = flag & ~LIB_ID_CREATE_NO_ALLOCATE;
-
-  if (ma_src->nodetree) {
-    BKE_id_copy_ex(bmain, (ID *)ma_src->nodetree, (ID **)&ma_dst->nodetree, flag_private_id_data);
-  }
-
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
-    BKE_previewimg_id_copy(&ma_dst->id, &ma_src->id);
-  }
-  else {
-    ma_dst->preview = NULL;
-  }
-
-  if (ma_src->texpaintslot != NULL) {
-    ma_dst->texpaintslot = MEM_dupallocN(ma_src->texpaintslot);
-  }
-
-  if (ma_src->gp_style != NULL) {
-    ma_dst->gp_style = MEM_dupallocN(ma_src->gp_style);
-  }
-
-  BLI_listbase_clear(&ma_dst->gpumaterial);
-
-  /* TODO Duplicate Engine Settings and set runtime to NULL */
 }
 
 Material *BKE_material_copy(Main *bmain, const Material *ma)
@@ -230,59 +242,68 @@ Material *BKE_material_localize(Material *ma)
   return man;
 }
 
-void BKE_material_make_local(Main *bmain, Material *ma, const int flags)
-{
-  BKE_lib_id_make_local_generic(bmain, &ma->id, flags);
-}
-
 Material ***BKE_object_material_array_p(Object *ob)
 {
-  Mesh *me;
-  Curve *cu;
-  MetaBall *mb;
-  bGPdata *gpd;
-
   if (ob->type == OB_MESH) {
-    me = ob->data;
+    Mesh *me = ob->data;
     return &(me->mat);
   }
   else if (ELEM(ob->type, OB_CURVE, OB_FONT, OB_SURF)) {
-    cu = ob->data;
+    Curve *cu = ob->data;
     return &(cu->mat);
   }
   else if (ob->type == OB_MBALL) {
-    mb = ob->data;
+    MetaBall *mb = ob->data;
     return &(mb->mat);
   }
   else if (ob->type == OB_GPENCIL) {
-    gpd = ob->data;
+    bGPdata *gpd = ob->data;
     return &(gpd->mat);
+  }
+  else if (ob->type == OB_HAIR) {
+    Hair *hair = ob->data;
+    return &(hair->mat);
+  }
+  else if (ob->type == OB_POINTCLOUD) {
+    PointCloud *pointcloud = ob->data;
+    return &(pointcloud->mat);
+  }
+  else if (ob->type == OB_VOLUME) {
+    Volume *volume = ob->data;
+    return &(volume->mat);
   }
   return NULL;
 }
 
 short *BKE_object_material_len_p(Object *ob)
 {
-  Mesh *me;
-  Curve *cu;
-  MetaBall *mb;
-  bGPdata *gpd;
-
   if (ob->type == OB_MESH) {
-    me = ob->data;
+    Mesh *me = ob->data;
     return &(me->totcol);
   }
   else if (ELEM(ob->type, OB_CURVE, OB_FONT, OB_SURF)) {
-    cu = ob->data;
+    Curve *cu = ob->data;
     return &(cu->totcol);
   }
   else if (ob->type == OB_MBALL) {
-    mb = ob->data;
+    MetaBall *mb = ob->data;
     return &(mb->totcol);
   }
   else if (ob->type == OB_GPENCIL) {
-    gpd = ob->data;
+    bGPdata *gpd = ob->data;
     return &(gpd->totcol);
+  }
+  else if (ob->type == OB_HAIR) {
+    Hair *hair = ob->data;
+    return &(hair->totcol);
+  }
+  else if (ob->type == OB_POINTCLOUD) {
+    PointCloud *pointcloud = ob->data;
+    return &(pointcloud->totcol);
+  }
+  else if (ob->type == OB_VOLUME) {
+    Volume *volume = ob->data;
+    return &(volume->totcol);
   }
   return NULL;
 }
@@ -302,6 +323,12 @@ Material ***BKE_id_material_array_p(ID *id)
       return &(((MetaBall *)id)->mat);
     case ID_GD:
       return &(((bGPdata *)id)->mat);
+    case ID_HA:
+      return &(((Hair *)id)->mat);
+    case ID_PT:
+      return &(((PointCloud *)id)->mat);
+    case ID_VO:
+      return &(((Volume *)id)->mat);
     default:
       break;
   }
@@ -322,6 +349,12 @@ short *BKE_id_material_len_p(ID *id)
       return &(((MetaBall *)id)->totcol);
     case ID_GD:
       return &(((bGPdata *)id)->totcol);
+    case ID_HA:
+      return &(((Hair *)id)->totcol);
+    case ID_PT:
+      return &(((PointCloud *)id)->totcol);
+    case ID_VO:
+      return &(((Volume *)id)->totcol);
     default:
       break;
   }
@@ -341,7 +374,10 @@ static void material_data_index_remove_id(ID *id, short index)
       BKE_curve_material_index_remove((Curve *)id, index);
       break;
     case ID_MB:
-      /* meta-elems don't have materials atm */
+    case ID_HA:
+    case ID_PT:
+    case ID_VO:
+      /* No material indices for these object data types. */
       break;
     default:
       break;
@@ -381,7 +417,10 @@ static void material_data_index_clear_id(ID *id)
       BKE_curve_material_index_clear((Curve *)id);
       break;
     case ID_MB:
-      /* meta-elems don't have materials atm */
+    case ID_HA:
+    case ID_PT:
+    case ID_VO:
+      /* No material indices for these object data types. */
       break;
     default:
       break;
@@ -594,8 +633,7 @@ void BKE_object_material_resize(Main *bmain, Object *ob, const short totcol, boo
   char *newmatbits;
 
   if (do_id_user && totcol < ob->totcol) {
-    short i;
-    for (i = totcol; i < ob->totcol; i++) {
+    for (int i = totcol; i < ob->totcol; i++) {
       id_us_min((ID *)ob->mat[i]);
     }
   }
@@ -965,7 +1003,6 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
 {
   Material *mao, ***matarar;
   short *totcolp;
-  short a, actcol;
 
   if (ob == NULL || ob->totcol == 0) {
     return false;
@@ -1002,7 +1039,7 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
     id_us_min(&mao->id);
   }
 
-  for (a = ob->actcol; a < ob->totcol; a++) {
+  for (int a = ob->actcol; a < ob->totcol; a++) {
     (*matarar)[a - 1] = (*matarar)[a];
   }
   (*totcolp)--;
@@ -1012,7 +1049,7 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
     *matarar = NULL;
   }
 
-  actcol = ob->actcol;
+  const int actcol = ob->actcol;
 
   for (Object *obt = bmain->objects.first; obt; obt = obt->id.next) {
     if (obt->data == ob->data) {
@@ -1026,7 +1063,7 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
         id_us_min(&mao->id);
       }
 
-      for (a = actcol; a < obt->totcol; a++) {
+      for (int a = actcol; a < obt->totcol; a++) {
         obt->mat[a - 1] = obt->mat[a];
         obt->matbits[a - 1] = obt->matbits[a];
       }
@@ -1084,7 +1121,7 @@ static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
                                             ForEachTexNodeCallback callback,
                                             void *userdata)
 {
-  for (bNode *node = nodetree->nodes.first; node; node = node->next) {
+  LISTBASE_FOREACH (bNode *, node, &nodetree->nodes) {
     if (node->typeinfo->nclass == NODE_CLASS_TEXTURE &&
         node->typeinfo->type == SH_NODE_TEX_IMAGE && node->id) {
       if (!callback(node, userdata)) {
@@ -1688,7 +1725,7 @@ void BKE_material_defaults_free_gpu(void)
 void BKE_materials_init(void)
 {
   for (int i = 0; default_materials[i]; i++) {
-    BKE_material_init(default_materials[i]);
+    material_init_data(&default_materials[i]->id);
   }
 
   material_default_surface_init(&default_material_surface);
@@ -1699,6 +1736,6 @@ void BKE_materials_init(void)
 void BKE_materials_exit(void)
 {
   for (int i = 0; default_materials[i]; i++) {
-    BKE_material_free(default_materials[i]);
+    material_free_data(&default_materials[i]->id);
   }
 }

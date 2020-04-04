@@ -21,8 +21,8 @@
  * \ingroup nodes
  */
 
-#include <string.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "DNA_node_types.h"
 
@@ -38,9 +38,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "NOD_common.h"
 #include "node_common.h"
 #include "node_util.h"
-#include "NOD_common.h"
 
 enum {
   REFINE_FORWARD = 1 << 0,
@@ -301,11 +301,11 @@ static void node_reroute_inherit_type_recursive(bNodeTree *ntree, bNode *node, i
   }
 
   /* determine socket type from unambiguous input/output connection if possible */
-  if (input->limit == 1 && input->link) {
+  if (nodeSocketLinkLimit(input) == 1 && input->link) {
     type = input->link->fromsock->type;
     type_idname = nodeStaticSocketType(type, PROP_NONE);
   }
-  else if (output->limit == 1 && output->link) {
+  else if (nodeSocketLinkLimit(output) == 1 && output->link) {
     type = output->link->tosock->type;
     type_idname = nodeStaticSocketType(type, PROP_NONE);
   }

@@ -21,21 +21,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "BLI_utildefines.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h" /* Needed due to import of BLO_readfile.h */
+#include "BLI_utildefines.h"
 
 #include "BLO_blend_defs.h"
 #include "BLO_readfile.h"
 
-#include "BKE_idcode.h"
 #include "BKE_icons.h"
+#include "BKE_idtype.h"
 #include "BKE_main.h"
 
 #include "DNA_ID.h" /* For preview images... */
 
-#include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 #include "IMB_thumbs.h"
 
 #include "MEM_guardedalloc.h"
@@ -47,7 +47,7 @@ ImBuf *IMB_thumb_load_blend(const char *blen_path, const char *blen_group, const
   if (blen_group && blen_id) {
     LinkNode *ln, *names, *lp, *previews = NULL;
     struct BlendHandle *libfiledata = BLO_blendhandle_from_file(blen_path, NULL);
-    int idcode = BKE_idcode_from_name(blen_group);
+    int idcode = BKE_idtype_idcode_from_name(blen_group);
     int i, nprevs, nnames;
 
     if (libfiledata == NULL) {

@@ -24,14 +24,14 @@
 
 #include "rna_internal.h"
 
-#include "DNA_sound_types.h"
 #include "DNA_property_types.h"
+#include "DNA_sound_types.h"
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_sound.h"
 #  include "BKE_context.h"
 #  include "BKE_sequencer.h"
+#  include "BKE_sound.h"
 
 #  include "DEG_depsgraph.h"
 

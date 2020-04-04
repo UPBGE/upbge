@@ -25,12 +25,13 @@
 
 #include "DNA_node_types.h"
 
-#include "BLI_utildefines.h"
-#include "BLI_rect.h"
 #include "BLI_lasso_2d.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
+#include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_main.h"
@@ -104,9 +105,9 @@ static bool is_position_over_node_or_socket(SpaceNode *snode, float mouse[2])
 static bool is_event_over_node_or_socket(bContext *C, const wmEvent *event)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   float mouse[2];
-  UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &mouse[0], &mouse[1]);
+  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &mouse[0], &mouse[1]);
   return is_position_over_node_or_socket(snode, mouse);
 }
 
@@ -284,7 +285,7 @@ static bool node_select_grouped_name(SpaceNode *snode, bNode *node_act, const bo
 {
   bNode *node;
   bool changed = false;
-  const unsigned int delims[] = {'.', '-', '_', '\0'};
+  const uint delims[] = {'.', '-', '_', '\0'};
   size_t pref_len_act, pref_len_curr;
   const char *sep, *suf_act, *suf_curr;
 
@@ -436,7 +437,7 @@ static int node_mouse_select(bContext *C,
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   bNode *node, *tnode;
   bNodeSocket *sock = NULL;
   bNodeSocket *tsock;
@@ -454,7 +455,7 @@ static int node_mouse_select(bContext *C,
   }
 
   /* get mouse coordinates in view2d space */
-  UI_view2d_region_to_view(&ar->v2d, mval[0], mval[1], &cursor[0], &cursor[1]);
+  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &cursor[0], &cursor[1]);
 
   /* first do socket selection, these generally overlap with nodes. */
   if (socket_select) {
@@ -610,11 +611,11 @@ void NODE_OT_select(wmOperatorType *ot)
 static int node_box_select_exec(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   rctf rectf;
 
   WM_operator_properties_border_to_rctf(op, &rectf);
-  UI_view2d_region_to_view_rctf(&ar->v2d, &rectf, &rectf);
+  UI_view2d_region_to_view_rctf(&region->v2d, &rectf, &rectf);
 
   const eSelectOp sel_op = RNA_enum_get(op->ptr, "mode");
   const bool select = (sel_op != SEL_OP_SUB);
@@ -622,7 +623,7 @@ static int node_box_select_exec(bContext *C, wmOperator *op)
     ED_node_select_all(&snode->edittree->nodes, SEL_DESELECT);
   }
 
-  for (bNode *node = snode->edittree->nodes.first; node; node = node->next) {
+  LISTBASE_FOREACH (bNode *, node, &snode->edittree->nodes) {
     bool is_inside;
     if (node->type == NODE_FRAME) {
       is_inside = BLI_rctf_inside_rctf(&rectf, &node->totr);
@@ -692,13 +693,14 @@ void NODE_OT_select_box(wmOperatorType *ot)
 static int node_circleselect_exec(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   bNode *node;
 
   int x, y, radius;
   float offset[2];
 
-  float zoom = (float)(BLI_rcti_size_x(&ar->winrct)) / (float)(BLI_rctf_size_x(&ar->v2d.cur));
+  float zoom = (float)(BLI_rcti_size_x(&region->winrct)) /
+               (float)(BLI_rctf_size_x(&region->v2d.cur));
 
   const eSelectOp sel_op = ED_select_op_modal(RNA_enum_get(op->ptr, "mode"),
                                               WM_gesture_is_modal_first(op->customdata));
@@ -712,7 +714,7 @@ static int node_circleselect_exec(bContext *C, wmOperator *op)
   y = RNA_int_get(op->ptr, "y");
   radius = RNA_int_get(op->ptr, "radius");
 
-  UI_view2d_region_to_view(&ar->v2d, x, y, &offset[0], &offset[1]);
+  UI_view2d_region_to_view(&region->v2d, x, y, &offset[0], &offset[1]);
 
   for (node = snode->edittree->nodes.first; node; node = node->next) {
     if (BLI_rctf_isect_circle(&node->totr, offset, radius / zoom)) {
@@ -769,7 +771,7 @@ static bool do_lasso_select_node(bContext *C, const int mcords[][2], short moves
   SpaceNode *snode = CTX_wm_space_node(C);
   bNode *node;
 
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
 
   rcti rect;
   bool changed = false;
@@ -794,7 +796,8 @@ static bool do_lasso_select_node(bContext *C, const int mcords[][2], short moves
     const float cent[2] = {BLI_rctf_cent_x(&node->totr), BLI_rctf_cent_y(&node->totr)};
 
     /* marker in screen coords */
-    if (UI_view2d_view_to_region_clip(&ar->v2d, cent[0], cent[1], &screen_co[0], &screen_co[1]) &&
+    if (UI_view2d_view_to_region_clip(
+            &region->v2d, cent[0], cent[1], &screen_co[0], &screen_co[1]) &&
         BLI_rcti_isect_pt(&rect, screen_co[0], screen_co[1]) &&
         BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], INT_MAX)) {
       nodeSetSelected(node, select);
@@ -1004,7 +1007,7 @@ void NODE_OT_select_linked_from(wmOperatorType *ot)
 static int node_select_same_type_step_exec(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   bNode **node_array;
   bNode *active = nodeGetActive(snode->edittree);
   int totnodes;
@@ -1072,10 +1075,10 @@ static int node_select_same_type_step_exec(bContext *C, wmOperator *op)
     node_select_single(C, active);
 
     /* is note outside view? */
-    if (active->totr.xmax < ar->v2d.cur.xmin || active->totr.xmin > ar->v2d.cur.xmax ||
-        active->totr.ymax < ar->v2d.cur.ymin || active->totr.ymin > ar->v2d.cur.ymax) {
+    if (active->totr.xmax < region->v2d.cur.xmin || active->totr.xmin > region->v2d.cur.xmax ||
+        active->totr.ymax < region->v2d.cur.ymin || active->totr.ymin > region->v2d.cur.ymax) {
       const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-      space_node_view_flag(C, snode, ar, NODE_SELECT, smooth_viewtx);
+      space_node_view_flag(C, snode, region, NODE_SELECT, smooth_viewtx);
     }
   }
 
@@ -1129,7 +1132,7 @@ static void node_find_cb(const struct bContext *C,
       else {
         BLI_strncpy(name, node->name, 256);
       }
-      if (false == UI_search_item_add(items, name, node, 0)) {
+      if (!UI_search_item_add(items, name, node, ICON_NONE, 0)) {
         break;
       }
     }
@@ -1142,25 +1145,25 @@ static void node_find_call_cb(struct bContext *C, void *UNUSED(arg1), void *arg2
   bNode *active = arg2;
 
   if (active) {
-    ARegion *ar = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(C);
     node_select_single(C, active);
 
     /* is note outside view? */
-    if (active->totr.xmax < ar->v2d.cur.xmin || active->totr.xmin > ar->v2d.cur.xmax ||
-        active->totr.ymax < ar->v2d.cur.ymin || active->totr.ymin > ar->v2d.cur.ymax) {
-      space_node_view_flag(C, snode, ar, NODE_SELECT, U.smooth_viewtx);
+    if (active->totr.xmax < region->v2d.cur.xmin || active->totr.xmin > region->v2d.cur.xmax ||
+        active->totr.ymax < region->v2d.cur.ymin || active->totr.ymin > region->v2d.cur.ymax) {
+      space_node_view_flag(C, snode, region, NODE_SELECT, U.smooth_viewtx);
     }
   }
 }
 
-static uiBlock *node_find_menu(bContext *C, ARegion *ar, void *arg_op)
+static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_op)
 {
   static char search[256] = "";
   uiBlock *block;
   uiBut *but;
   wmOperator *op = (wmOperator *)arg_op;
 
-  block = UI_block_begin(C, ar, "_popup", UI_EMBOSS);
+  block = UI_block_begin(C, region, "_popup", UI_EMBOSS);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
@@ -1176,7 +1179,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *ar, void *arg_op)
                        0,
                        0,
                        "");
-  UI_but_func_search_set(but, NULL, node_find_cb, op->type, false, node_find_call_cb, NULL);
+  UI_but_func_search_set(but, NULL, node_find_cb, op->type, NULL, node_find_call_cb, NULL);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* fake button, it holds space for search items */

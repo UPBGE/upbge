@@ -26,9 +26,9 @@
  */
 
 #include "GHOST_WindowManager.h"
-#include <algorithm>
 #include "GHOST_Debug.h"
 #include "GHOST_Window.h"
+#include <algorithm>
 
 GHOST_WindowManager::GHOST_WindowManager()
     : m_fullScreenWindow(0), m_activeWindow(0), m_activeWindowBeforeFullScreen(0)
@@ -124,6 +124,7 @@ GHOST_TSuccess GHOST_WindowManager::endFullScreen(void)
       // GHOST_PRINT("GHOST_WindowManager::endFullScreen(): deleting full-screen window\n");
       setWindowInactive(m_fullScreenWindow);
       m_fullScreenWindow->endFullScreen();
+      m_windows.erase(std::find(m_windows.begin(), m_windows.end(), m_fullScreenWindow));
       delete m_fullScreenWindow;
       // GHOST_PRINT("GHOST_WindowManager::endFullScreen(): done\n");
       m_fullScreenWindow = NULL;

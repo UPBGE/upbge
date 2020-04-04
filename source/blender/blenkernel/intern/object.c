@@ -21,9 +21,9 @@
  * \ingroup bke
  */
 
-#include <string.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "CLG_log.h"
 
@@ -34,17 +34,22 @@
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_gpencil_types.h"
-#include "DNA_gpencil_modifier_types.h"
-#include "DNA_key_types.h"
-#include "DNA_light_types.h"
-#include "DNA_lattice_types.h"
+#include "DNA_defaults.h"
 #include "DNA_fluid_types.h"
+#include "DNA_gpencil_modifier_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_key_types.h"
+#include "DNA_lattice_types.h"
+#include "DNA_light_types.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_material_types.h"
-#include "DNA_meta_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_meta_types.h"
 #include "DNA_movieclip_types.h"
+#include "DNA_object_types.h"
+#include "DNA_property_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -52,53 +57,57 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
-#include "DNA_object_types.h"
-#include "DNA_lightprobe_types.h"
-#include "DNA_property_types.h"
-#include "DNA_rigidbody_types.h"
-#include "DNA_defaults.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_kdtree.h"
+#include "BLI_linklist.h"
 #include "BLI_math.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
-#include "BLI_linklist.h"
-#include "BLI_kdtree.h"
 
 #include "BLT_translation.h"
 
-#include "BKE_pbvh.h"
-#include "BKE_main.h"
-#include "BKE_global.h"
-#include "BKE_idprop.h"
-#include "BKE_armature.h"
-#include "BKE_action.h"
-#include "BKE_bullet.h"
-#include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_action.h"
+#include "BKE_anim_data.h"
+#include "BKE_anim_path.h"
+#include "BKE_anim_visualization.h"
 #include "BKE_animsys.h"
-#include "BKE_anim.h"
+#include "BKE_armature.h"
+#include "BKE_bullet.h"
+#include "BKE_camera.h"
 #include "BKE_collection.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
+#include "BKE_deform.h"
 #include "BKE_displist.h"
+#include "BKE_duplilist.h"
+#include "BKE_editmesh.h"
 #include "BKE_effect.h"
-#include "BKE_font.h"
 #include "BKE_fcurve.h"
+#include "BKE_font.h"
+#include "BKE_global.h"
+#include "BKE_gpencil.h"
+#include "BKE_gpencil_geom.h"
 #include "BKE_gpencil_modifier.h"
+#include "BKE_hair.h"
 #include "BKE_icons.h"
+#include "BKE_idprop.h"
 #include "BKE_idtype.h"
+#include "BKE_image.h"
 #include "BKE_key.h"
-#include "BKE_light.h"
-#include "BKE_layer.h"
 #include "BKE_lattice.h"
+#include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_lib_remap.h"
+#include "BKE_light.h"
+#include "BKE_lightprobe.h"
 #include "BKE_linestyle.h"
-#include "BKE_mesh.h"
-#include "BKE_editmesh.h"
+#include "BKE_main.h"
+#include "BKE_material.h"
 #include "BKE_mball.h"
+#include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_node.h"
@@ -106,23 +115,21 @@
 #include "BKE_object_facemap.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
+#include "BKE_pbvh.h"
 #include "BKE_pointcache.h"
-#include "BKE_lightprobe.h"
+#include "BKE_pointcloud.h"
 #include "BKE_property.h"
+#include "BKE_python_component.h"
 #include "BKE_rigidbody.h"
 #include "BKE_sca.h"
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 #include "BKE_shader_fx.h"
-#include "BKE_speaker.h"
 #include "BKE_softbody.h"
-#include "BKE_subsurf.h"
+#include "BKE_speaker.h"
 #include "BKE_subdiv_ccg.h"
-#include "BKE_material.h"
-#include "BKE_camera.h"
-#include "BKE_image.h"
-#include "BKE_gpencil.h"
-#include "BKE_python_component.h"
+#include "BKE_subsurf.h"
+#include "BKE_volume.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -162,8 +169,37 @@ static void object_init_data(ID *id)
 
   ob->type = OB_EMPTY;
 
-  ob->trackflag = OB_POSY;
-  ob->upflag = OB_POSZ;
+  if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
+    ob->trackflag = OB_NEGZ;
+    ob->upflag = OB_POSY;
+  }
+  else {
+    ob->trackflag = OB_POSY;
+    ob->upflag = OB_POSZ;
+  }
+
+  /* Game engine defaults*/
+  ob->mass = ob->inertia = 1.0f;
+  ob->formfactor = 0.4f;
+  ob->damping = 0.04f;
+  ob->rdamping = 0.1f;
+  ob->anisotropicFriction[0] = 1.0f;
+  ob->anisotropicFriction[1] = 1.0f;
+  ob->anisotropicFriction[2] = 1.0f;
+  ob->gameflag = OB_PROP | OB_COLLISION;
+  ob->gameflag2 = 0;
+  ob->margin = 0.04f;
+  ob->friction = 0.5;
+  ob->init_state = 1;
+  ob->state = 1;
+  ob->obstacleRad = 1.0f;
+  ob->step_height = 0.15f;
+  ob->jump_speed = 10.0f;
+  ob->fall_speed = 55.0f;
+  ob->max_jumps = 1;
+  // ob->max_slope = M_PI_2;
+  ob->col_group = 0x01;
+  ob->col_mask = 0xffff;
 
   /* Animation Visualization defaults */
   animviz_settings_init(&ob->avs);
@@ -244,7 +280,7 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
       BKE_pose_rebuild(bmain, ob_dst, ob_dst->data, do_pose_id_user);
     }
   }
-  defgroup_copy_list(&ob_dst->defbase, &ob_src->defbase);
+  BKE_defgroup_copy_list(&ob_dst->defbase, &ob_src->defbase);
   BKE_object_facemap_copy_list(&ob_dst->fmaps, &ob_src->fmaps);
   BKE_constraints_copy_ex(&ob_dst->constraints, &ob_src->constraints, flag_subdata, true);
 
@@ -283,7 +319,6 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
 static void object_free_data(ID *id)
 {
   Object *ob = (Object *)id;
-  BKE_animdata_free((ID *)ob, false);
 
   DRW_drawdata_free((ID *)ob);
 
@@ -551,7 +586,7 @@ bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
   return true;
 }
 
-void BKE_object_link_modifiers(Scene *scene, struct Object *ob_dst, const struct Object *ob_src)
+void BKE_object_link_modifiers(struct Object *ob_dst, const struct Object *ob_src)
 {
   ModifierData *md;
   BKE_object_free_modifiers(ob_dst, 0);
@@ -589,7 +624,7 @@ void BKE_object_link_modifiers(Scene *scene, struct Object *ob_dst, const struct
     if (md->type == eModifierType_Multires) {
       /* Has to be done after mod creation, but *before* we actually copy its settings! */
       multiresModifier_sync_levels_ex(
-          scene, ob_dst, (MultiresModifierData *)md, (MultiresModifierData *)nmd);
+          ob_dst, (MultiresModifierData *)md, (MultiresModifierData *)nmd);
     }
 
     modifier_copyData(md, nmd);
@@ -755,8 +790,11 @@ void BKE_object_free_derived_caches(Object *ob)
   BKE_object_to_mesh_clear(ob);
   BKE_object_free_curve_cache(ob);
 
-  /* clear grease pencil data */
-  DRW_gpencil_freecache(ob);
+  /* Clear grease pencil data. */
+  if (ob->runtime.gpd_eval != NULL) {
+    BKE_gpencil_eval_delete(ob->runtime.gpd_eval);
+    ob->runtime.gpd_eval = NULL;
+  }
 }
 
 void BKE_object_free_caches(Object *object)
@@ -808,12 +846,6 @@ void BKE_object_free_caches(Object *object)
   }
 }
 
-/** Free (or release) any data used by this object (does not free the object itself). */
-void BKE_object_free(Object *ob)
-{
-  object_free_data(&ob->id);
-}
-
 /* actual check for internal data, not context or flags */
 bool BKE_object_is_in_editmode(const Object *ob)
 {
@@ -835,6 +867,9 @@ bool BKE_object_is_in_editmode(const Object *ob)
     case OB_SURF:
     case OB_CURVE:
       return ((Curve *)ob->data)->editnurb != NULL;
+    case OB_GPENCIL:
+      /* Grease Pencil object has no edit mode data. */
+      return GPENCIL_EDIT_MODE((bGPdata *)ob->data);
     default:
       return false;
   }
@@ -1040,6 +1075,12 @@ static const char *get_obdata_defname(int type)
       return DATA_("Armature");
     case OB_SPEAKER:
       return DATA_("Speaker");
+    case OB_HAIR:
+      return DATA_("Hair");
+    case OB_POINTCLOUD:
+      return DATA_("PointCloud");
+    case OB_VOLUME:
+      return DATA_("Volume");
     case OB_EMPTY:
       return DATA_("Empty");
     case OB_GPENCIL:
@@ -1049,6 +1090,26 @@ static const char *get_obdata_defname(int type)
     default:
       CLOG_ERROR(&LOG, "Internal error, bad type: %d", type);
       return DATA_("Empty");
+  }
+}
+
+static void object_init(Object *ob, const short ob_type)
+{
+  object_init_data(&ob->id);
+
+  ob->type = ob_type;
+
+  if (ob->type != OB_EMPTY) {
+    zero_v2(ob->ima_ofs);
+  }
+
+  if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
+    ob->trackflag = OB_NEGZ;
+    ob->upflag = OB_POSY;
+  }
+
+  if (ob->type == OB_GPENCIL) {
+    ob->dtx |= OB_USE_GPENCIL_LIGHTS;
   }
 }
 
@@ -1083,55 +1144,18 @@ void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
       return BKE_lightprobe_add(bmain, name);
     case OB_GPENCIL:
       return BKE_gpencil_data_addnew(bmain, name);
+    case OB_HAIR:
+      return BKE_hair_add(bmain, name);
+    case OB_POINTCLOUD:
+      return BKE_pointcloud_add(bmain, name);
+    case OB_VOLUME:
+      return BKE_volume_add(bmain, name);
     case OB_EMPTY:
       return NULL;
     default:
       CLOG_ERROR(&LOG, "Internal error, bad type: %d", type);
       return NULL;
   }
-}
-
-void BKE_object_init(Object *ob, const short ob_type)
-{
-  object_init_data(&ob->id);
-
-  ob->type = ob_type;
-
-  if (ob->type != OB_EMPTY) {
-    zero_v2(ob->ima_ofs);
-  }
-
-  if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
-    ob->trackflag = OB_NEGZ;
-    ob->upflag = OB_POSY;
-  }
-  else {
-    ob->trackflag = OB_POSY;
-    ob->upflag = OB_POSZ;
-  }
-
-  /* Game engine defaults*/
-  ob->mass = ob->inertia = 1.0f;
-  ob->formfactor = 0.4f;
-  ob->damping = 0.04f;
-  ob->rdamping = 0.1f;
-  ob->anisotropicFriction[0] = 1.0f;
-  ob->anisotropicFriction[1] = 1.0f;
-  ob->anisotropicFriction[2] = 1.0f;
-  ob->gameflag = OB_PROP | OB_COLLISION;
-  ob->gameflag2 = 0;
-  ob->margin = 0.04f;
-  ob->friction = 0.5;
-  ob->init_state = 1;
-  ob->state = 1;
-  ob->obstacleRad = 1.0f;
-  ob->step_height = 0.15f;
-  ob->jump_speed = 10.0f;
-  ob->fall_speed = 55.0f;
-  ob->max_jumps = 1;
-  // ob->max_slope = M_PI_2;
-  ob->col_group = 0x01;
-  ob->col_mask = 0xffff;
 }
 
 /* more general add: creates minimum required data, but without vertices etc. */
@@ -1149,7 +1173,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
   id_us_min(&ob->id);
 
   /* default object vars */
-  BKE_object_init(ob, type);
+  object_init(ob, type);
 
   return ob;
 }
@@ -1382,15 +1406,15 @@ static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
 
   dist_sq = len_squared_v3v3(ob->obmat[3], camera_position);
 
-  if (dist_sq < SQUARE(current->distance)) {
+  if (dist_sq < square_f(current->distance)) {
     /* check for higher LoD */
-    while (current->prev && dist_sq < SQUARE(current->distance)) {
+    while (current->prev && dist_sq < square_f(current->distance)) {
       current = current->prev;
     }
   }
   else {
     /* check for lower LoD */
-    while (current->next && dist_sq > SQUARE(current->next->distance)) {
+    while (current->next && dist_sq > square_f(current->next->distance)) {
       current = current->next;
     }
   }
@@ -1782,21 +1806,6 @@ void BKE_object_transform_copy(Object *ob_tar, const Object *ob_src)
   copy_v3_v3(ob_tar->scale, ob_src->scale);
 }
 
-/**
- * Only copy internal data of Object ID from source
- * to already allocated/initialized destination.
- * You probably never want to use that directly,
- * use #BKE_id_copy or #BKE_id_copy_ex for typical needs.
- *
- * WARNING! This function will not handle ID user count!
- *
- * \param flag: Copying options (see BKE_lib_id.h's LIB_ID_COPY_... flags for more).
- */
-void BKE_object_copy_data(Main *bmain, Object *ob_dst, const Object *ob_src, const int flag)
-{
-  object_copy_data(bmain, &ob_dst->id, &ob_src->id, flag);
-}
-
 /* copy objects, will re-initialize cached simulation data */
 Object *BKE_object_copy(Main *bmain, const Object *ob)
 {
@@ -2025,6 +2034,39 @@ Object *BKE_object_duplicate(Main *bmain, const Object *ob, const int dupflag)
         id_us_min(id);
       }
       break;
+    case OB_HAIR:
+      if (dupflag & USER_DUP_HAIR) {
+        ID_NEW_REMAP_US2(obn->data)
+        else
+        {
+          obn->data = ID_NEW_SET(obn->data, BKE_hair_copy(bmain, obn->data));
+          didit = 1;
+        }
+        id_us_min(id);
+      }
+      break;
+    case OB_POINTCLOUD:
+      if (dupflag & USER_DUP_POINTCLOUD) {
+        ID_NEW_REMAP_US2(obn->data)
+        else
+        {
+          obn->data = ID_NEW_SET(obn->data, BKE_pointcloud_copy(bmain, obn->data));
+          didit = 1;
+        }
+        id_us_min(id);
+      }
+      break;
+    case OB_VOLUME:
+      if (dupflag & USER_DUP_VOLUME) {
+        ID_NEW_REMAP_US2(obn->data)
+        else
+        {
+          obn->data = ID_NEW_SET(obn->data, BKE_volume_copy(bmain, obn->data));
+          didit = 1;
+        }
+        id_us_min(id);
+      }
+      break;
   }
 
   /* Check if obdata is copied. */
@@ -2072,11 +2114,6 @@ Object *BKE_object_duplicate(Main *bmain, const Object *ob, const int dupflag)
   }
 
   return obn;
-}
-
-void BKE_object_make_local(Main *bmain, Object *ob, const int flags)
-{
-  object_make_local(bmain, &ob->id, flags);
 }
 
 /* Returns true if the Object is from an external blend file (libdata) */
@@ -2205,7 +2242,7 @@ void BKE_object_make_proxy(Main *bmain, Object *ob, Object *target, Object *cob)
   id_us_plus((ID *)ob->data); /* ensures lib data becomes LIB_TAG_EXTERN */
 
   /* copy vertex groups */
-  defgroup_copy_list(&ob->defbase, &target->defbase);
+  BKE_defgroup_copy_list(&ob->defbase, &target->defbase);
 
   /* copy material and index information */
   ob->actcol = ob->totcol = 0;
@@ -2942,7 +2979,8 @@ void BKE_object_workob_calc_parent(Depsgraph *depsgraph, Scene *scene, Object *o
 }
 
 /**
- * Applies the global transformation \a mat to the \a ob using a relative parent space if supplied.
+ * Applies the global transformation \a mat to the \a ob using a relative parent space if
+ * supplied.
  *
  * \param mat: the global transformation mat that the object should be set object to.
  * \param parent: the parent space in which this object will be set relative to
@@ -3070,6 +3108,15 @@ BoundBox *BKE_object_boundbox_get(Object *ob)
       break;
     case OB_GPENCIL:
       bb = BKE_gpencil_boundbox_get(ob);
+      break;
+    case OB_HAIR:
+      bb = BKE_hair_boundbox_get(ob);
+      break;
+    case OB_POINTCLOUD:
+      bb = BKE_pointcloud_boundbox_get(ob);
+      break;
+    case OB_VOLUME:
+      bb = BKE_volume_boundbox_get(ob);
       break;
     default:
       break;
@@ -3241,6 +3288,25 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3], const bool us
       }
       break;
     }
+    case OB_HAIR: {
+      bb = *BKE_hair_boundbox_get(ob);
+      BKE_boundbox_minmax(&bb, ob->obmat, min_r, max_r);
+      changed = true;
+      break;
+    }
+
+    case OB_POINTCLOUD: {
+      bb = *BKE_pointcloud_boundbox_get(ob);
+      BKE_boundbox_minmax(&bb, ob->obmat, min_r, max_r);
+      changed = true;
+      break;
+    }
+    case OB_VOLUME: {
+      bb = *BKE_volume_boundbox_get(ob);
+      BKE_boundbox_minmax(&bb, ob->obmat, min_r, max_r);
+      changed = true;
+      break;
+    }
   }
 
   if (changed == false) {
@@ -3386,6 +3452,7 @@ void BKE_object_foreach_display_point(Object *ob,
                                       void (*func_cb)(const float[3], void *),
                                       void *user_data)
 {
+  /* TODO: pointcloud and hair objects support */
   Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
   float co[3];
 
@@ -3445,7 +3512,8 @@ typedef struct ObTfmBack {
   float obmat[4][4];
   /** inverse result of parent, so that object doesn't 'stick' to parent. */
   float parentinv[4][4];
-  /** inverse result of constraints. doesn't include effect of parent or object local transform. */
+  /** inverse result of constraints. doesn't include effect of parent or object local transform.
+   */
   float constinv[4][4];
   /** inverse matrix of 'obmat' for during render, temporally: ipokeys of transform. */
   float imat[4][4];
@@ -4234,7 +4302,6 @@ void BKE_object_runtime_reset_on_copy(Object *object, const int UNUSED(flag))
   runtime->data_eval = NULL;
   runtime->mesh_deform_eval = NULL;
   runtime->curve_cache = NULL;
-  runtime->gpencil_cache = NULL;
 }
 
 /*

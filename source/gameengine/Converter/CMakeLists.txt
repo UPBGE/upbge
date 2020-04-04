@@ -24,82 +24,80 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	../BlenderRoutines
-	../Common
-	../Device
-	../Expressions
-	../GameLogic
-	../Ketsji
-	../Ketsji/KXNetwork
-	../Launcher
-	../Physics/Bullet
-	../Physics/Dummy
-	../Physics/Common
-	../Rasterizer
-	../Rasterizer/RAS_OpenGLRasterizer
-	../SceneGraph
-	../VideoTexture
-	../../blender
-	../../blender/blenkernel
-	../../blender/blenlib
-	../../blender/blenloader
-	../../blender/blentranslation
-	../../blender/depsgraph
-	../../blender/draw/engines/eevee
-	../../blender/draw/intern
-	../../blender/gpu
-	../../blender/ikplugin
-	../../blender/imbuf
-	../../blender/makesdna
-	../../blender/makesrna
-	../../blender/render/extern/include
-	../../blender/windowmanager
-	../../../intern/guardedalloc
-	../../../intern/termcolor
+  .
+  ../BlenderRoutines
+  ../Common
+  ../Device
+  ../Expressions
+  ../GameLogic
+  ../Ketsji
+  ../Ketsji/KXNetwork
+  ../Launcher
+  ../Physics/Bullet
+  ../Physics/Dummy
+  ../Physics/Common
+  ../Rasterizer
+  ../Rasterizer/RAS_OpenGLRasterizer
+  ../SceneGraph
+  ../VideoTexture
+  ../../blender
+  ../../blender/blenkernel
+  ../../blender/blenlib
+  ../../blender/blenloader
+  ../../blender/blentranslation
+  ../../blender/depsgraph
+  ../../blender/draw/engines/eevee
+  ../../blender/draw/intern
+  ../../blender/gpu
+  ../../blender/ikplugin
+  ../../blender/imbuf
+  ../../blender/makesdna
+  ../../blender/makesrna
+  ../../blender/render/extern/include
+  ../../blender/windowmanager
+  ../../../intern/guardedalloc
+  ../../../intern/termcolor
 )
 
 set(INC_SYS
-	../../../intern/moto/include
-	../../../extern/recastnavigation/Detour/Include
-	${EIGEN3_INCLUDE_DIRS}
-	${PTHREADS_INCLUDE_DIRS}
-	${BOOST_INCLUDE_DIR}
-	${GLEW_INCLUDE_PATH}
+  ../../../intern/moto/include
+  ../../../extern/recastnavigation/Detour/Include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${PTHREADS_INCLUDE_DIRS}
+  ${BOOST_INCLUDE_DIR}
+  ${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
-	BL_ActionActuator.cpp
-	BL_ArmatureActuator.cpp
-	BL_ArmatureChannel.cpp
-	BL_ArmatureConstraint.cpp
-	BL_ArmatureObject.cpp
-	BL_BlenderDataConversion.cpp
-	KX_BlenderConverter.cpp
-	KX_BlenderScalarInterpolator.cpp
-	KX_BlenderSceneConverter.cpp
-	KX_ConvertActuators.cpp
-	KX_ConvertControllers.cpp
-	KX_ConvertProperties.cpp
-	KX_ConvertSensors.cpp
-        #KX_IpoConvert.cpp (everything inside KX_IpoConvert.h)
-	KX_LibLoadStatus.cpp
+  BL_ActionActuator.cpp
+  BL_ArmatureActuator.cpp
+  BL_ArmatureChannel.cpp
+  BL_ArmatureConstraint.cpp
+  BL_ArmatureObject.cpp
+  BL_BlenderConverter.cpp
+  BL_BlenderDataConversion.cpp
+  BL_BlenderScalarInterpolator.cpp
+  BL_BlenderSceneConverter.cpp
+  BL_ConvertActuators.cpp
+  BL_ConvertControllers.cpp
+  BL_ConvertProperties.cpp
+  BL_ConvertSensors.cpp
+  #BL_IpoConvert.cpp (everything inside BL_IpoConvert.h)
 
-	BL_ActionActuator.h
-	BL_ArmatureActuator.h
-	BL_ArmatureChannel.h
-	BL_ArmatureConstraint.h
-	BL_ArmatureObject.h
-	BL_BlenderDataConversion.h
-	KX_BlenderConverter.h
-	KX_BlenderScalarInterpolator.h
-	KX_BlenderSceneConverter.h
-	KX_ConvertActuators.h
-	KX_ConvertControllers.h
-	KX_ConvertProperties.h
-	KX_ConvertSensors.h
-	KX_IpoConvert.h
-	KX_LibLoadStatus.h
+  BL_ActionActuator.h
+  BL_ArmatureActuator.h
+  BL_ArmatureChannel.h
+  BL_ArmatureConstraint.h
+  BL_ArmatureObject.h
+  BL_BlenderConverter.h
+  BL_BlenderDataConversion.h
+  BL_BlenderScalarInterpolator.h
+  BL_BlenderSceneConverter.h
+  BL_ConvertActuators.h
+  BL_ConvertControllers.h
+  BL_ConvertProperties.h
+  BL_ConvertSensors.h
+  BL_IpoConvert.h
 )
 
 set(LIB
@@ -111,10 +109,10 @@ set(LIB
 )
 
 if(WITH_BULLET)
-	list(APPEND INC_SYS
-		${BULLET_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_BULLET)
+  list(APPEND INC_SYS
+    ${BULLET_INCLUDE_DIRS}
+  )
+  add_definitions(-DWITH_BULLET)
 endif()
 
 if(WITH_AUDASPACE)

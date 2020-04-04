@@ -22,20 +22,21 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_collection_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_layer_types.h"
+#include "DNA_linestyle_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_layer_types.h"
-#include "DNA_linestyle_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_world_types.h"
-#include "DNA_gpencil_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_screen_types.h" /* TransformOrientation */
+#include "DNA_userdef_types.h"
+#include "DNA_view3d_types.h"
+#include "DNA_world_types.h"
 
 #include "IMB_imbuf_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 
 #include "BLT_translation.h"
@@ -44,8 +45,8 @@
 #include "BKE_editmesh.h"
 #include "BKE_paint.h"
 
-#include "ED_object.h"
 #include "ED_gpencil.h"
+#include "ED_object.h"
 
 #include "DRW_engine.h"
 
@@ -60,9 +61,9 @@
 
 #ifdef WITH_FFMPEG
 #  include "BKE_writeffmpeg.h"
+#  include "ffmpeg_compat.h"
 #  include <libavcodec/avcodec.h>
 #  include <libavformat/avformat.h>
-#  include "ffmpeg_compat.h"
 #endif
 
 #include "ED_render.h"
@@ -653,9 +654,9 @@ const EnumPropertyItem rna_enum_transform_orientation_items[] = {
 
 #  include "DNA_anim_types.h"
 #  include "DNA_color_types.h"
+#  include "DNA_mesh_types.h"
 #  include "DNA_node_types.h"
 #  include "DNA_object_types.h"
-#  include "DNA_mesh_types.h"
 #  include "DNA_text_types.h"
 #  include "DNA_workspace_types.h"
 
@@ -663,33 +664,33 @@ const EnumPropertyItem rna_enum_transform_orientation_items[] = {
 
 #  include "MEM_guardedalloc.h"
 
+#  include "BKE_animsys.h"
 #  include "BKE_brush.h"
 #  include "BKE_collection.h"
 #  include "BKE_colortools.h"
 #  include "BKE_context.h"
+#  include "BKE_freestyle.h"
 #  include "BKE_global.h"
+#  include "BKE_gpencil.h"
 #  include "BKE_idprop.h"
 #  include "BKE_image.h"
 #  include "BKE_layer.h"
 #  include "BKE_main.h"
+#  include "BKE_mesh.h"
 #  include "BKE_node.h"
 #  include "BKE_pointcache.h"
 #  include "BKE_scene.h"
-#  include "BKE_mesh.h"
 #  include "BKE_screen.h"
 #  include "BKE_sequencer.h"
-#  include "BKE_animsys.h"
-#  include "BKE_freestyle.h"
-#  include "BKE_gpencil.h"
 #  include "BKE_unit.h"
 
-#  include "ED_info.h"
-#  include "ED_node.h"
-#  include "ED_view3d.h"
-#  include "ED_mesh.h"
-#  include "ED_keyframing.h"
 #  include "ED_image.h"
+#  include "ED_info.h"
+#  include "ED_keyframing.h"
+#  include "ED_mesh.h"
+#  include "ED_node.h"
 #  include "ED_scene.h"
+#  include "ED_view3d.h"
 
 #  include "DEG_depsgraph_build.h"
 #  include "DEG_depsgraph_query.h"
@@ -733,14 +734,8 @@ static void rna_GPencilInterpolateSettings_type_set(PointerRNA *ptr, int value)
   }
 }
 
-static void rna_Gpencil_selectmode_update(bContext *C, PointerRNA *ptr)
+static void rna_Gpencil_extend_selection(bContext *C, PointerRNA *UNUSED(ptr))
 {
-  ToolSettings *ts = (ToolSettings *)ptr->data;
-  /* If the mode is not Stroke, don't extend selection. */
-  if ((ts->gpencil_selectmode_edit & GP_SELECTMODE_STROKE) == 0) {
-    return;
-  }
-
   /* Extend selection to all points in all selected strokes. */
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Object *ob = OBACT(view_layer);
@@ -762,9 +757,18 @@ static void rna_Gpencil_selectmode_update(bContext *C, PointerRNA *ptr)
   }
 }
 
-static void rna_Gpencil_mask_point_update(Main *UNUSED(bmain),
-                                          Scene *UNUSED(scene),
-                                          PointerRNA *ptr)
+static void rna_Gpencil_selectmode_update(bContext *C, PointerRNA *ptr)
+{
+  ToolSettings *ts = (ToolSettings *)ptr->data;
+  /* If the mode is not Stroke, don't extend selection. */
+  if ((ts->gpencil_selectmode_edit & GP_SELECTMODE_STROKE) == 0) {
+    return;
+  }
+
+  rna_Gpencil_extend_selection(C, ptr);
+}
+
+static void rna_Gpencil_mask_point_update(bContext *UNUSED(C), PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
@@ -772,24 +776,54 @@ static void rna_Gpencil_mask_point_update(Main *UNUSED(bmain),
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_SEGMENT;
 }
 
-static void rna_Gpencil_mask_stroke_update(Main *UNUSED(bmain),
-                                           Scene *UNUSED(scene),
-                                           PointerRNA *ptr)
+static void rna_Gpencil_mask_stroke_update(bContext *C, PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_SEGMENT;
+
+  rna_Gpencil_extend_selection(C, ptr);
 }
 
-static void rna_Gpencil_mask_segment_update(Main *UNUSED(bmain),
-                                            Scene *UNUSED(scene),
-                                            PointerRNA *ptr)
+static void rna_Gpencil_mask_segment_update(bContext *UNUSED(C), PointerRNA *ptr)
 {
   ToolSettings *ts = (ToolSettings *)ptr->data;
 
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_STROKE;
+}
+
+static void rna_Gpencil_vertex_mask_point_update(bContext *C, PointerRNA *ptr)
+{
+  ToolSettings *ts = (ToolSettings *)ptr->data;
+
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_STROKE;
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_SEGMENT;
+
+  ED_gpencil_tag_scene_gpencil(CTX_data_scene(C));
+}
+
+static void rna_Gpencil_vertex_mask_stroke_update(bContext *C, PointerRNA *ptr)
+{
+  ToolSettings *ts = (ToolSettings *)ptr->data;
+
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_POINT;
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_SEGMENT;
+
+  rna_Gpencil_extend_selection(C, ptr);
+
+  ED_gpencil_tag_scene_gpencil(CTX_data_scene(C));
+}
+
+static void rna_Gpencil_vertex_mask_segment_update(bContext *C, PointerRNA *ptr)
+{
+  ToolSettings *ts = (ToolSettings *)ptr->data;
+
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_POINT;
+  ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_STROKE;
+
+  ED_gpencil_tag_scene_gpencil(CTX_data_scene(C));
 }
 
 /* Read-only Iterator of all the scene objects. */
@@ -1646,10 +1680,10 @@ void rna_Scene_glsl_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA
 
 static void rna_Scene_world_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Scene *sc = (Scene *)ptr->owner_id;
+  Scene *screen = (Scene *)ptr->owner_id;
 
   rna_Scene_glsl_update(bmain, scene, ptr);
-  WM_main_add_notifier(NC_WORLD | ND_WORLD, &sc->id);
+  WM_main_add_notifier(NC_WORLD | ND_WORLD, &screen->id);
   DEG_relations_tag_update(bmain);
 }
 
@@ -1777,7 +1811,7 @@ static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const bool *valu
 
     /* Update select mode in all the workspaces in mesh edit mode. */
     wmWindowManager *wm = G_MAIN->wm.first;
-    for (wmWindow *win = wm->windows.first; win; win = win->next) {
+    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       ViewLayer *view_layer = WM_window_get_active_view_layer(win);
 
       if (view_layer && view_layer->basact) {
@@ -2328,7 +2362,7 @@ static void rna_Stereo3dFormat_update(Main *bmain, Scene *UNUSED(scene), Pointer
 static ViewLayer *rna_ViewLayer_new(ID *id, Scene *UNUSED(sce), Main *bmain, const char *name)
 {
   Scene *scene = (Scene *)id;
-  ViewLayer *view_layer = BKE_view_layer_add(scene, name);
+  ViewLayer *view_layer = BKE_view_layer_add(scene, name, NULL, VIEWLAYER_ADD_NEW);
 
   DEG_id_tag_update(&scene->id, 0);
   DEG_relations_tag_update(bmain);
@@ -2422,7 +2456,7 @@ static const EnumPropertyItem *rna_TransformOrientation_impl_itemf(Scene *scene,
   if (transform_orientations && (BLI_listbase_is_empty(transform_orientations) == false)) {
     RNA_enum_item_add_separator(&item, &totitem);
 
-    for (TransformOrientation *ts = transform_orientations->first; ts; ts = ts->next) {
+    LISTBASE_FOREACH (TransformOrientation *, ts, transform_orientations) {
       tmp.identifier = ts->name;
       tmp.name = ts->name;
       tmp.value = i++;
@@ -2490,7 +2524,9 @@ static const EnumPropertyItem *rna_UnitSettings_itemf_wrapper(const int system,
     }
   }
 
+  RNA_enum_item_end(&items, &totitem);
   *r_free = true;
+
   return items;
 }
 
@@ -2539,6 +2575,11 @@ static void rna_UnitSettings_system_update(Main *UNUSED(bmain),
 static char *rna_UnitSettings_path(PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("unit_settings");
+}
+
+static char *rna_FFmpegSettings_path(PointerRNA *UNUSED(ptr))
+{
+  return BLI_strdup("render.ffmpeg");
 }
 
 #else
@@ -2851,6 +2892,15 @@ static void rna_def_tool_settings(BlenderRNA *brna)
                            "to 1.0 while weight painting");
   RNA_def_property_update(prop, 0, "rna_Scene_update_active_object_data");
 
+  prop = RNA_def_property(srna, "use_lock_relative", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_boolean_sdna(prop, NULL, "wpaint_lock_relative", 1);
+  RNA_def_property_ui_text(prop,
+                           "WPaint Lock-Relative",
+                           "Display bone-deforming groups as if all locked deform groups "
+                           "were deleted, and the remaining ones were re-normalized");
+  RNA_def_property_update(prop, 0, "rna_Scene_update_active_object_data");
+
   prop = RNA_def_property(srna, "use_multipaint", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_boolean_sdna(prop, NULL, "multipaint", 1);
@@ -2893,6 +2943,18 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "gpencil_paint", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "gp_paint");
   RNA_def_property_ui_text(prop, "Grease Pencil Paint", "");
+
+  prop = RNA_def_property(srna, "gpencil_vertex_paint", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "gp_vertexpaint");
+  RNA_def_property_ui_text(prop, "Grease Pencil Vertex Paint", "");
+
+  prop = RNA_def_property(srna, "gpencil_sculpt_paint", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "gp_sculptpaint");
+  RNA_def_property_ui_text(prop, "Grease Pencil Sculpt Paint", "");
+
+  prop = RNA_def_property(srna, "gpencil_weight_paint", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "gp_weightpaint");
+  RNA_def_property_ui_text(prop, "Grease Pencil Weight Paint", "");
 
   prop = RNA_def_property(srna, "particle_edit", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "particle");
@@ -3211,6 +3273,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Selection Mask", "Only sculpt selected stroke points");
   RNA_def_property_ui_icon(prop, ICON_GP_SELECT_POINTS, 0);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_mask_point_update");
 
   prop = RNA_def_property(srna, "use_gpencil_select_mask_stroke", PROP_BOOLEAN, PROP_NONE);
@@ -3219,6 +3282,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Selection Mask", "Only sculpt selected stroke");
   RNA_def_property_ui_icon(prop, ICON_GP_SELECT_STROKES, 0);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_mask_stroke_update");
 
   prop = RNA_def_property(srna, "use_gpencil_select_mask_segment", PROP_BOOLEAN, PROP_NONE);
@@ -3228,7 +3292,40 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       prop, "Selection Mask", "Only sculpt selected stroke points between other strokes");
   RNA_def_property_ui_icon(prop, ICON_GP_SELECT_BETWEEN_STROKES, 0);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_mask_segment_update");
+
+  /* Grease Pencil - Select mode Vertex Paint */
+  prop = RNA_def_property(srna, "use_gpencil_vertex_select_mask_point", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, NULL, "gpencil_selectmode_vertex", GP_VERTEX_MASK_SELECTMODE_POINT);
+  RNA_def_property_ui_text(prop, "Selection Mask", "Only paint selected stroke points");
+  RNA_def_property_ui_icon(prop, ICON_GP_SELECT_POINTS, 0);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_vertex_mask_point_update");
+
+  prop = RNA_def_property(srna, "use_gpencil_vertex_select_mask_stroke", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, NULL, "gpencil_selectmode_vertex", GP_VERTEX_MASK_SELECTMODE_STROKE);
+  RNA_def_property_ui_text(prop, "Selection Mask", "Only paint selected stroke");
+  RNA_def_property_ui_icon(prop, ICON_GP_SELECT_STROKES, 0);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_vertex_mask_stroke_update");
+
+  prop = RNA_def_property(srna, "use_gpencil_vertex_select_mask_segment", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, NULL, "gpencil_selectmode_vertex", GP_VERTEX_MASK_SELECTMODE_SEGMENT);
+  RNA_def_property_ui_text(
+      prop, "Selection Mask", "Only paint selected stroke points between other strokes");
+  RNA_def_property_ui_icon(prop, ICON_GP_SELECT_BETWEEN_STROKES, 0);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Gpencil_vertex_mask_segment_update");
 
   /* Annotations - 2D Views Stroke Placement */
   prop = RNA_def_property(srna, "annotation_stroke_placement_view2d", PROP_ENUM, PROP_NONE);
@@ -3952,6 +4049,16 @@ void rna_def_view_layer_common(StructRNA *srna, const bool scene)
   prop = RNA_def_property(srna, "use_strand", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "layflag", SCE_LAY_STRAND);
   RNA_def_property_ui_text(prop, "Strand", "Render Strands in this Layer");
+  if (scene) {
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+  }
+  else {
+    RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  }
+
+  prop = RNA_def_property(srna, "use_volumes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "layflag", SCE_LAY_VOLUMES);
+  RNA_def_property_ui_text(prop, "Volumes", "Render volumes in this Layer");
   if (scene) {
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
   }
@@ -5151,7 +5258,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, NULL, "exitkey");
   RNA_def_property_enum_items(prop, rna_enum_event_type_items);
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
-  RNA_def_property_enum_default(prop, ESCKEY);
+  RNA_def_property_enum_default(prop, EVT_ESCKEY);
   RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
   RNA_def_property_ui_text(prop, "Exit Key", "The key that exits the Game Engine");
   RNA_def_property_update(prop, NC_SCENE, NULL);
@@ -5993,6 +6100,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "FFmpegSettings", NULL);
   RNA_def_struct_sdna(srna, "FFMpegCodecData");
+  RNA_def_struct_path_func(srna, "rna_FFmpegSettings_path");
   RNA_def_struct_ui_text(srna, "FFmpeg Settings", "FFmpeg related settings for the scene");
 
 #  ifdef WITH_FFMPEG
@@ -6265,14 +6373,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Resolution %", "Percentage scale for render resolution");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_SceneSequencer_update");
 
-  prop = RNA_def_property(srna, "tile_x", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "tile_x", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, NULL, "tilex");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 8, 65536);
   RNA_def_property_ui_text(prop, "Tile X", "Horizontal tile size to use while rendering");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-  prop = RNA_def_property(srna, "tile_y", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "tile_y", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, NULL, "tiley");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 8, 65536);
@@ -6906,12 +7014,6 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
       prop, "Simplify Child Particles", "Global child particles percentage during rendering");
   RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
 
-  prop = RNA_def_property(srna, "use_simplify_smoke_highres", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "simplify_smoke_ignore_highres", 1);
-  RNA_def_property_ui_text(
-      prop, "Use High-resolution Smoke", "Display high-resolution smoke in the viewport");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
-
   /* Grease Pencil - Simplify Options */
   prop = RNA_def_property(srna, "simplify_gpencil", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_ENABLE);
@@ -6921,7 +7023,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "simplify_gpencil_onplay", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_ON_PLAY);
   RNA_def_property_ui_text(
-      prop, "Simplify Playback", "Simplify Grease Pencil only during animation playback");
+      prop, "Playback Only", "Simplify Grease Pencil only during animation playback");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+
+  prop = RNA_def_property(srna, "simplify_gpencil_antialiasing", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_AA);
+  RNA_def_property_ui_text(prop, "Antialiasing", "Use Antialiasing to smooth stroke edges");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_view_fill", PROP_BOOLEAN, PROP_NONE);
@@ -6929,26 +7036,15 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Fill", "Display fill strokes in the viewport");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
-  prop = RNA_def_property(srna, "simplify_gpencil_remove_lines", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(
-      prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_REMOVE_FILL_LINE);
-  RNA_def_property_ui_text(prop, "Disable Lines", "Display external lines of fill strokes");
-  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
-
-  prop = RNA_def_property(srna, "simplify_gpencil_view_modifier", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "simplify_gpencil_modifier", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(
       prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_MODIFIER);
-  RNA_def_property_ui_text(prop, "Disable Modifiers", "Display modifiers in the viewport");
+  RNA_def_property_ui_text(prop, "Modifiers", "Display modifiers");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_shader_fx", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_FX);
-  RNA_def_property_ui_text(prop, "Simplify Shaders", "Display Shader FX");
-  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
-
-  prop = RNA_def_property(srna, "simplify_gpencil_blend", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_BLEND);
-  RNA_def_property_ui_text(prop, "Layers Blending", "Display blend layers");
+  RNA_def_property_ui_text(prop, "ShadersFX", "Display Shader FX");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_tint", PROP_BOOLEAN, PROP_NONE);
@@ -7261,29 +7357,29 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem eevee_shadow_size_items[] = {
-      {64, "64", 0, "64px", ""},
-      {128, "128", 0, "128px", ""},
-      {256, "256", 0, "256px", ""},
-      {512, "512", 0, "512px", ""},
-      {1024, "1024", 0, "1024px", ""},
-      {2048, "2048", 0, "2048px", ""},
-      {4096, "4096", 0, "4096px", ""},
+      {64, "64", 0, "64 px", ""},
+      {128, "128", 0, "128 px", ""},
+      {256, "256", 0, "256 px", ""},
+      {512, "512", 0, "512 px", ""},
+      {1024, "1024", 0, "1024 px", ""},
+      {2048, "2048", 0, "2048 px", ""},
+      {4096, "4096", 0, "4096 px", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
   static const EnumPropertyItem eevee_gi_visibility_size_items[] = {
-      {8, "8", 0, "8px", ""},
-      {16, "16", 0, "16px", ""},
-      {32, "32", 0, "32px", ""},
-      {64, "64", 0, "64px", ""},
+      {8, "8", 0, "8 px", ""},
+      {16, "16", 0, "16 px", ""},
+      {32, "32", 0, "32 px", ""},
+      {64, "64", 0, "64 px", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
   static const EnumPropertyItem eevee_volumetric_tile_size_items[] = {
-      {2, "2", 0, "2px", ""},
-      {4, "4", 0, "4px", ""},
-      {8, "8", 0, "8px", ""},
-      {16, "16", 0, "16px", ""},
+      {2, "2", 0, "2 px", ""},
+      {4, "4", 0, "4 px", ""},
+      {8, "8", 0, "8 px", ""},
+      {16, "16", 0, "16 px", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -7396,6 +7492,14 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
                            "(can leave some ghosting)");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  /* Game engine transition */
+  prop = RNA_def_property(srna, "use_eevee_smaa", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_SMAA);
+  RNA_def_property_ui_text(prop, "SMAA", "SMAA filter");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+  /* Game engine transition */
 
   /* Screen Space Subsurface Scattering */
   prop = RNA_def_property(srna, "sss_samples", PROP_INT, PROP_NONE);

@@ -17,16 +17,16 @@
  */
 
 #include "COM_CompositorOperation.h"
-#include "MEM_guardedalloc.h"
-#include "BLI_listbase.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
+#include "BLI_listbase.h"
+#include "MEM_guardedalloc.h"
 
 extern "C" {
 #include "BLI_threads.h"
 #include "RE_pipeline.h"
-#include "RE_shader_ext.h"
 #include "RE_render_ext.h"
+#include "RE_shader_ext.h"
 #include "render_types.h"
 }
 #include "PIL_time.h"
@@ -111,7 +111,7 @@ void CompositorOperation::deinitExecution()
 
     BLI_thread_lock(LOCK_DRAW_IMAGE);
     BKE_image_signal(G.main,
-                     BKE_image_verify_viewer(G.main, IMA_TYPE_R_RESULT, "Render Result"),
+                     BKE_image_ensure_viewer(G.main, IMA_TYPE_R_RESULT, "Render Result"),
                      NULL,
                      IMA_SIGNAL_FREE);
     BLI_thread_unlock(LOCK_DRAW_IMAGE);

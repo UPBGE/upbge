@@ -24,9 +24,9 @@
  * with checks for drivers and GPU support.
  */
 
-#include "BLI_utildefines.h"
 #include "BLI_math_base.h"
 #include "BLI_math_vector.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_global.h"
 #include "MEM_guardedalloc.h"
@@ -34,13 +34,13 @@
 #include "GPU_extensions.h"
 #include "GPU_framebuffer.h"
 #include "GPU_glew.h"
-#include "GPU_texture.h"
 #include "GPU_platform.h"
+#include "GPU_texture.h"
 
 #include "intern/gpu_private.h"
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef WIN32
@@ -78,6 +78,8 @@ static struct GPUGlobal {
   /* Some Intel drivers have limited support for `GLEW_ARB_base_instance` so in
    * these cases it is best to indicate that it is not supported. See T67951 */
   bool glew_arb_base_instance_is_supported;
+  /* Cubemap Array support. */
+  bool glew_arb_texture_cube_map_array_is_supported;
   /* Some Intel drivers have issues with using mips as framebuffer targets if
    * GL_TEXTURE_MAX_LEVEL is higher than the target mip.
    * We need a workaround in this cases. */
@@ -197,6 +199,11 @@ bool GPU_arb_base_instance_is_supported(void)
   return GG.glew_arb_base_instance_is_supported;
 }
 
+bool GPU_arb_texture_cube_map_array_is_supported(void)
+{
+  return GG.glew_arb_texture_cube_map_array_is_supported;
+}
+
 bool GPU_mip_render_workaround(void)
 {
   return GG.mip_render_workaround;
@@ -281,6 +288,7 @@ void gpu_extensions_init(void)
   }
 
   GG.glew_arb_base_instance_is_supported = GLEW_ARB_base_instance;
+  GG.glew_arb_texture_cube_map_array_is_supported = GLEW_ARB_texture_cube_map_array;
   gpu_detect_mip_render_workaround();
 
   if (G.debug & G_DEBUG_GPU_FORCE_WORKAROUNDS) {
@@ -348,7 +356,11 @@ void gpu_extensions_exit(void)
 
 bool GPU_mem_stats_supported(void)
 {
+#ifndef GPU_STANDALONE
   return (GLEW_NVX_gpu_memory_info || GLEW_ATI_meminfo) && (G.debug & G_DEBUG_GPU_MEM);
+#else
+  return false;
+#endif
 }
 
 void GPU_mem_stats_get(int *totalmem, int *freemem)

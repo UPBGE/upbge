@@ -23,8 +23,8 @@
 #include "util/util_array.h"
 #include "util/util_boundbox.h"
 #include "util/util_param.h"
-#include "util/util_transform.h"
 #include "util/util_thread.h"
+#include "util/util_transform.h"
 #include "util/util_types.h"
 #include "util/util_vector.h"
 
@@ -96,6 +96,9 @@ class Object : public Node {
 
   /* Returns the index that is used in the kernel for this object. */
   int get_device_index() const;
+
+  /* Compute step size from attributes, shaders, transforms. */
+  float compute_volume_step_size() const;
 
  protected:
   /* Specifies the position of the object in scene->objects and

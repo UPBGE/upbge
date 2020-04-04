@@ -22,6 +22,7 @@
 #define __EXP_INPUTPARSER_H__
 
 class CParser;
+
 #include "EXP_Expression.h"
 
 class CParser {

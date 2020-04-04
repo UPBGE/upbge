@@ -21,18 +21,18 @@
  * \ingroup bke
  */
 
+#include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
-#include <assert.h>
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
 #include "BLI_threads.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_bvhutils.h"
 #include "BKE_editmesh.h"
@@ -375,7 +375,7 @@ static void mesh_edges_spherecast(void *userdata,
   const MVert *vert = data->vert;
   const MEdge *edge = &data->edge[index];
 
-  const float radius_sq = SQUARE(ray->radius);
+  const float radius_sq = square_f(ray->radius);
   float dist;
   const float *v1, *v2, *r1;
   float r2[3], i1[3], i2[3];

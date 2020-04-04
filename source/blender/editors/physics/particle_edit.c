@@ -21,26 +21,26 @@
  * \ingroup edphys
  */
 
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
 #include <assert.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_scene_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_view3d_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_view3d_types.h"
 
-#include "BLI_math.h"
+#include "BLI_kdtree.h"
 #include "BLI_lasso_2d.h"
 #include "BLI_listbase.h"
-#include "BLI_rect.h"
-#include "BLI_kdtree.h"
+#include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_rect.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
@@ -59,10 +59,10 @@
 
 #include "DEG_depsgraph.h"
 
-#include "ED_object.h"
-#include "ED_physics.h"
 #include "ED_mesh.h"
+#include "ED_object.h"
 #include "ED_particle.h"
+#include "ED_physics.h"
 #include "ED_screen.h"
 #include "ED_select_utils.h"
 #include "ED_view3d.h"
@@ -74,9 +74,9 @@
 #include "UI_resources.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
 #include "WM_message.h"
 #include "WM_toolsystem.h"
+#include "WM_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -135,11 +135,11 @@ bool PE_hair_poll(bContext *C)
 
 bool PE_poll_view3d(bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
 
-  return (PE_poll(C) && (sa && sa->spacetype == SPACE_VIEW3D) &&
-          (ar && ar->regiontype == RGN_TYPE_WINDOW));
+  return (PE_poll(C) && (area && area->spacetype == SPACE_VIEW3D) &&
+          (region && region->regiontype == RGN_TYPE_WINDOW));
 }
 
 void PE_free_ptcache_edit(PTCacheEdit *edit)
@@ -481,7 +481,7 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
       /* we may need to force an update here by setting the rv3d as dirty
        * for now it seems ok, but take care!:
        * rv3d->depths->dirty = 1; */
-      ED_view3d_depth_update(data->vc.ar);
+      ED_view3d_depth_update(data->vc.region);
     }
   }
 }
@@ -536,7 +536,7 @@ static bool key_test_depth(const PEData *data, const float co[3], const int scre
 
   /* used to calculate here but all callers have  the screen_co already, so pass as arg */
 #if 0
-  if (ED_view3d_project_int_global(data->vc.ar,
+  if (ED_view3d_project_int_global(data->vc.region,
                                    co,
                                    screen_co,
                                    V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN |
@@ -556,7 +556,7 @@ static bool key_test_depth(const PEData *data, const float co[3], const int scre
   }
 
   float win[3];
-  ED_view3d_project(data->vc.ar, co, win);
+  ED_view3d_project(data->vc.region, co, win);
 
   if (win[2] - 0.00001f > depth) {
     return 0;
@@ -572,7 +572,7 @@ static bool key_inside_circle(const PEData *data, float rad, const float co[3], 
   int screen_co[2];
 
   /* TODO, should this check V3D_PROJ_TEST_CLIP_BB too? */
-  if (ED_view3d_project_int_global(data->vc.ar, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) !=
+  if (ED_view3d_project_int_global(data->vc.region, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) !=
       V3D_PROJ_RET_OK) {
     return 0;
   }
@@ -600,7 +600,7 @@ static bool key_inside_rect(PEData *data, const float co[3])
 {
   int screen_co[2];
 
-  if (ED_view3d_project_int_global(data->vc.ar, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) !=
+  if (ED_view3d_project_int_global(data->vc.region, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) !=
       V3D_PROJ_RET_OK) {
     return 0;
   }
@@ -2261,7 +2261,7 @@ int PE_lasso_select(bContext *C, const int mcords[][2], const short moves, const
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   ParticleEditSettings *pset = PE_settings(scene);
   PTCacheEdit *edit = PE_get_current(depsgraph, scene, ob);
   ParticleSystem *psys = edit->psys;
@@ -2298,7 +2298,7 @@ int PE_lasso_select(bContext *C, const int mcords[][2], const short moves, const
         mul_m4_v3(mat, co);
         const bool is_select = key->flag & PEK_SELECT;
         const bool is_inside =
-            ((ED_view3d_project_int_global(ar, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) ==
+            ((ED_view3d_project_int_global(region, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) ==
               V3D_PROJ_RET_OK) &&
              BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], IS_CLIPPED) &&
              key_test_depth(&data, co, screen_co));
@@ -2317,7 +2317,7 @@ int PE_lasso_select(bContext *C, const int mcords[][2], const short moves, const
         mul_m4_v3(mat, co);
         const bool is_select = key->flag & PEK_SELECT;
         const bool is_inside =
-            ((ED_view3d_project_int_global(ar, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) ==
+            ((ED_view3d_project_int_global(region, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) ==
               V3D_PROJ_RET_OK) &&
              BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], IS_CLIPPED) &&
              key_test_depth(&data, co, screen_co));
@@ -3551,7 +3551,7 @@ static void brush_comb(PEData *data,
 static void brush_cut(PEData *data, int pa_index)
 {
   PTCacheEdit *edit = data->edit;
-  ARegion *ar = data->vc.ar;
+  ARegion *region = data->vc.region;
   Object *ob = data->ob;
   ParticleEditSettings *pset = PE_settings(data->scene);
   ParticleCacheKey *key = edit->pathcache[pa_index];
@@ -3571,7 +3571,7 @@ static void brush_cut(PEData *data, int pa_index)
     return;
   }
 
-  if (ED_view3d_project_int_global(ar, key->co, screen_co, V3D_PROJ_TEST_CLIP_NEAR) !=
+  if (ED_view3d_project_int_global(region, key->co, screen_co, V3D_PROJ_TEST_CLIP_NEAR) !=
       V3D_PROJ_RET_OK) {
     return;
   }
@@ -3598,7 +3598,7 @@ static void brush_cut(PEData *data, int pa_index)
     /* calculate path time closest to root that was inside the circle */
     for (k = 1, key++; k <= keys; k++, key++) {
 
-      if ((ED_view3d_project_int_global(ar, key->co, screen_co, V3D_PROJ_TEST_CLIP_NEAR) !=
+      if ((ED_view3d_project_int_global(region, key->co, screen_co, V3D_PROJ_TEST_CLIP_NEAR) !=
            V3D_PROJ_RET_OK) ||
           key_test_depth(data, key->co, screen_co) == 0) {
         x0 = (float)screen_co[0];
@@ -4131,7 +4131,7 @@ static void brush_add_count_iter(void *__restrict iter_data_v,
   mco[1] = data->mval[1] + dmy;
 
   float co1[3], co2[3];
-  ED_view3d_win_to_segment_clipped(depsgraph, data->vc.ar, data->vc.v3d, mco, co1, co2, true);
+  ED_view3d_win_to_segment_clipped(depsgraph, data->vc.region, data->vc.v3d, mco, co1, co2, true);
 
   mul_m4_v3(iter_data->imat, co1);
   mul_m4_v3(iter_data->imat, co2);
@@ -4487,7 +4487,7 @@ static int brush_edit_init(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Object *ob = CTX_data_active_object(C);
   PTCacheEdit *edit = PE_get_current(depsgraph, scene, ob);
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   BrushEdit *bedit;
   float min[3], max[3];
 
@@ -4509,7 +4509,7 @@ static int brush_edit_init(bContext *C, wmOperator *op)
   bedit->ob = ob;
   bedit->edit = edit;
 
-  bedit->zfac = ED_view3d_calc_zfac(ar->regiondata, min, NULL);
+  bedit->zfac = ED_view3d_calc_zfac(region->regiondata, min, NULL);
 
   /* cache view depths and settings for re-use */
   PE_set_view3d_data(C, &bedit->data);
@@ -4528,7 +4528,7 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
   ParticleEditSettings *pset = PE_settings(scene);
   ParticleSystemModifierData *psmd_eval = edit->psmd_eval;
   ParticleBrushData *brush = &pset->brush[pset->brushtype];
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   float vec[3], mousef[2];
   int mval[2];
   int flip, mouse[2], removed = 0, added = 0, selected = 0, tot_steps = 1, step = 1;
@@ -4596,7 +4596,7 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 
           invert_m4_m4(ob->imat, ob->obmat);
 
-          ED_view3d_win_to_delta(ar, mval_f, vec, bedit->zfac);
+          ED_view3d_win_to_delta(region, mval_f, vec, bedit->zfac);
           data.dvec = vec;
 
           foreach_mouse_hit_key(&data, brush_comb, selected);
@@ -4890,7 +4890,7 @@ static void point_inside_bvh_cb(void *userdata,
 }
 
 /* true if the point is inside the shape mesh */
-static bool shape_cut_test_point(PEData *data, ParticleCacheKey *key)
+static bool shape_cut_test_point(PEData *data, ParticleEditSettings *pset, ParticleCacheKey *key)
 {
   BVHTreeFromMesh *shape_bvh = &data->shape_bvh;
   const float dir[3] = {1.0f, 0.0f, 0.0f};
@@ -4899,8 +4899,11 @@ static bool shape_cut_test_point(PEData *data, ParticleCacheKey *key)
   userdata.bvhdata = data->shape_bvh;
   userdata.num_hits = 0;
 
+  float co_shape[3];
+  mul_v3_m4v3(co_shape, pset->shape_object->imat, key->co);
+
   BLI_bvhtree_ray_cast_all(
-      shape_bvh->tree, key->co, dir, 0.0f, BVH_RAYCAST_DIST_MAX, point_inside_bvh_cb, &userdata);
+      shape_bvh->tree, co_shape, dir, 0.0f, BVH_RAYCAST_DIST_MAX, point_inside_bvh_cb, &userdata);
 
   /* for any point inside a watertight mesh the number of hits is uneven */
   return (userdata.num_hits % 2) == 1;
@@ -4926,32 +4929,37 @@ static void shape_cut(PEData *data, int pa_index)
 
   /* check if root is inside the cut shape */
   key = edit->pathcache[pa_index];
-  if (!shape_cut_test_point(data, key)) {
+  if (!shape_cut_test_point(data, pset, key)) {
     cut_time = -1.0f;
     cut = true;
   }
   else {
     for (k = 0; k < totkeys; k++, key++) {
       BVHTreeRayHit hit;
-      float dir[3];
-      float len;
 
-      sub_v3_v3v3(dir, (key + 1)->co, key->co);
-      len = normalize_v3(dir);
+      float co_curr_shape[3], co_next_shape[3];
+      float dir_shape[3];
+      float len_shape;
+
+      mul_v3_m4v3(co_curr_shape, pset->shape_object->imat, key->co);
+      mul_v3_m4v3(co_next_shape, pset->shape_object->imat, (key + 1)->co);
+
+      sub_v3_v3v3(dir_shape, co_next_shape, co_curr_shape);
+      len_shape = normalize_v3(dir_shape);
 
       memset(&hit, 0, sizeof(hit));
       hit.index = -1;
-      hit.dist = len;
+      hit.dist = len_shape;
       BLI_bvhtree_ray_cast(data->shape_bvh.tree,
-                           key->co,
-                           dir,
+                           co_curr_shape,
+                           dir_shape,
                            0.0f,
                            &hit,
                            data->shape_bvh.raycast_callback,
                            &data->shape_bvh);
       if (hit.index >= 0) {
-        if (hit.dist < len) {
-          cut_time = (hit.dist / len + (float)k) / (float)totkeys;
+        if (hit.dist < len_shape) {
+          cut_time = ((hit.dist / len_shape) + (float)k) / (float)totkeys;
           cut = true;
           break;
         }

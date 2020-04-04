@@ -17,28 +17,28 @@
 
 #ifdef WITH_OPTIX
 
-#  include "device/cuda/device_cuda.h"
-#  include "device/device_intern.h"
-#  include "device/device_denoising.h"
 #  include "bvh/bvh.h"
-#  include "render/scene.h"
+#  include "device/cuda/device_cuda.h"
+#  include "device/device_denoising.h"
+#  include "device/device_intern.h"
+#  include "render/buffers.h"
 #  include "render/hair.h"
 #  include "render/mesh.h"
 #  include "render/object.h"
-#  include "render/buffers.h"
+#  include "render/scene.h"
+#  include "util/util_debug.h"
+#  include "util/util_logging.h"
 #  include "util/util_md5.h"
 #  include "util/util_path.h"
 #  include "util/util_time.h"
-#  include "util/util_debug.h"
-#  include "util/util_logging.h"
 
 #  ifdef WITH_CUDA_DYNLOAD
 #    include <cuew.h>
 // Do not use CUDA SDK headers when using CUEW
 #    define OPTIX_DONT_INCLUDE_CUDA
 #  endif
-#  include <optix_stubs.h>
 #  include <optix_function_table_definition.h>
+#  include <optix_stubs.h>
 
 // TODO(pmours): Disable this once drivers have native support
 #  define OPTIX_DENOISER_NO_PIXEL_STRIDE 1
@@ -477,9 +477,9 @@ class OptiXDevice : public CUDADevice {
     // Calculate maximum trace continuation stack size
     unsigned int trace_css = stack_size[PG_HITD].cssCH;
     // This is based on the maximum of closest-hit and any-hit/intersection programs
-    trace_css = max(trace_css, stack_size[PG_HITD].cssIS + stack_size[PG_HITD].cssAH);
-    trace_css = max(trace_css, stack_size[PG_HITL].cssIS + stack_size[PG_HITL].cssAH);
-    trace_css = max(trace_css, stack_size[PG_HITS].cssIS + stack_size[PG_HITS].cssAH);
+    trace_css = std::max(trace_css, stack_size[PG_HITD].cssIS + stack_size[PG_HITD].cssAH);
+    trace_css = std::max(trace_css, stack_size[PG_HITL].cssIS + stack_size[PG_HITL].cssAH);
+    trace_css = std::max(trace_css, stack_size[PG_HITS].cssIS + stack_size[PG_HITS].cssAH);
 
     OptixPipelineLinkOptions link_options;
     link_options.maxTraceDepth = 1;
@@ -548,8 +548,9 @@ class OptiXDevice : public CUDADevice {
                               &pipelines[PIP_SHADER_EVAL]));
 
       // Calculate continuation stack size based on the maximum of all ray generation stack sizes
-      const unsigned int css = max(stack_size[PG_BAKE].cssRG,
-                                   max(stack_size[PG_DISP].cssRG, stack_size[PG_BACK].cssRG)) +
+      const unsigned int css = std::max(stack_size[PG_BAKE].cssRG,
+                                        std::max(stack_size[PG_DISP].cssRG,
+                                                 stack_size[PG_BACK].cssRG)) +
                                link_options.maxTraceDepth * trace_css;
 
       check_result_optix_ret(optixPipelineSetStackSize(
@@ -1557,7 +1558,7 @@ void device_optix_info(vector<DeviceInfo> &devices)
     }
 
     // Only add devices with RTX support
-    if (rtcore_version == 0)
+    if (rtcore_version == 0 && !getenv("CYCLES_OPTIX_TEST"))
       it = cuda_devices.erase(it);
     else
       ++it;

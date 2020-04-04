@@ -24,8 +24,8 @@
 #include "BKE_camera.h"
 #include "BKE_studiolight.h"
 
-#include "BLI_rect.h"
 #include "BLI_rand.h"
+#include "BLI_rect.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_world_types.h"
@@ -36,8 +36,8 @@
 
 #include "UI_resources.h"
 
-#include "eevee_private.h"
 #include "eevee_lightcache.h"
+#include "eevee_private.h"
 
 #include "draw_common.h"
 
@@ -76,7 +76,7 @@ void EEVEE_lookdev_cache_init(EEVEE_Data *vedata,
 
   effects->lookdev_view = NULL;
 
-  if (LOOK_DEV_OVERLAY_ENABLED(v3d)) {
+  if (eevee_hdri_preview_overlay_enabled(v3d)) {
     /* Viewport / Spheres size. */
     const rcti *rect;
     rcti fallback_rect;
@@ -88,7 +88,7 @@ void EEVEE_lookdev_cache_init(EEVEE_Data *vedata,
       rect = &fallback_rect;
     }
     else {
-      rect = ED_region_visible_rect(draw_ctx->ar);
+      rect = ED_region_visible_rect(draw_ctx->region);
     }
 
     /* Make the viewport width scale the lookdev spheres a bit.
@@ -116,7 +116,7 @@ void EEVEE_lookdev_cache_init(EEVEE_Data *vedata,
                                          EEVEE_shaders_background_studiolight_sh_get();
 
       const Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
-      int cube_res = octahedral_size_from_cubesize(scene_eval->eevee.gi_cubemap_resolution);
+      int cube_res = scene_eval->eevee.gi_cubemap_resolution;
 
       /* If one of the component is missing we start from scratch. */
       if ((stl->lookdev_grid_data == NULL) || (stl->lookdev_cube_data == NULL) ||
@@ -228,7 +228,7 @@ void EEVEE_lookdev_draw(EEVEE_Data *vedata)
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
 
-  if (psl->lookdev_diffuse_pass && LOOK_DEV_OVERLAY_ENABLED(draw_ctx->v3d)) {
+  if (psl->lookdev_diffuse_pass && eevee_hdri_preview_overlay_enabled(draw_ctx->v3d)) {
     /* Config renderer. */
     EEVEE_CommonUniformBuffer *common = &sldata->common_data;
     common->la_num_light = 0;

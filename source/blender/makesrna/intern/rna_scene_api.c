@@ -21,12 +21,12 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#include "BLI_utildefines.h"
 #include "BLI_kdopbvh.h"
 #include "BLI_path_util.h"
+#include "BLI_utildefines.h"
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -38,7 +38,7 @@
 #include "rna_internal.h" /* own include */
 
 #ifdef WITH_ALEMBIC
-#  include "../../alembic/ABC_alembic.h"
+#  include "ABC_alembic.h"
 #endif
 
 const EnumPropertyItem rna_enum_abc_compression_items[] = {
@@ -50,7 +50,6 @@ const EnumPropertyItem rna_enum_abc_compression_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_animsys.h"
 #  include "BKE_editmesh.h"
 #  include "BKE_global.h"
 #  include "BKE_image.h"
@@ -89,8 +88,8 @@ static void rna_Scene_frame_set(Scene *scene, Main *bmain, int frame, float subf
 #  endif
 
   if (BKE_scene_camera_switch_update(scene)) {
-    for (bScreen *sc = bmain->screens.first; sc; sc = sc->id.next) {
-      BKE_screen_view3d_scene_sync(sc, scene);
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      BKE_screen_view3d_scene_sync(screen, scene);
     }
   }
 
@@ -161,9 +160,10 @@ static void rna_Scene_ray_cast(Scene *scene,
   normalize_v3(direction);
 
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
-  SnapObjectContext *sctx = ED_transform_snap_object_context_create(bmain, scene, depsgraph, 0);
+  SnapObjectContext *sctx = ED_transform_snap_object_context_create(bmain, scene, 0);
 
   bool ret = ED_transform_snap_object_project_ray_ex(sctx,
+                                                     depsgraph,
                                                      &(const struct SnapObjectParams){
                                                          .snap_select = SNAP_ALL,
                                                      },

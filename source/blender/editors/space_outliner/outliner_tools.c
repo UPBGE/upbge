@@ -26,27 +26,30 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_collection_types.h"
+#include "DNA_constraint_types.h"
 #include "DNA_gpencil_types.h"
+#include "DNA_hair_types.h"
 #include "DNA_light_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_volume_types.h"
 #include "DNA_world_types.h"
-#include "DNA_object_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_modifier_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_collection.h"
-#include "BKE_context.h"
 #include "BKE_constraint.h"
-#include "BKE_object.h"
+#include "BKE_context.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_layer.h"
@@ -54,6 +57,7 @@
 #include "BKE_lib_override.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
+#include "BKE_object.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
@@ -71,12 +75,12 @@
 #include "ED_undo.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
 #include "WM_message.h"
+#include "WM_types.h"
 
 #include "UI_interface.h"
-#include "UI_view2d.h"
 #include "UI_resources.h"
+#include "UI_view2d.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -153,6 +157,9 @@ static void set_operation_types(SpaceOutliner *soops,
           case ID_CF:
           case ID_WS:
           case ID_LP:
+          case ID_HA:
+          case ID_PT:
+          case ID_VO:
             is_standard_id = true;
             break;
           case ID_WM:
@@ -229,6 +236,21 @@ static void unlink_material_cb(bContext *UNUSED(C),
     MetaBall *mb = (MetaBall *)tsep->id;
     totcol = mb->totcol;
     matar = mb->mat;
+  }
+  else if (GS(tsep->id->name) == ID_HA) {
+    Hair *hair = (Hair *)tsep->id;
+    totcol = hair->totcol;
+    matar = hair->mat;
+  }
+  else if (GS(tsep->id->name) == ID_PT) {
+    PointCloud *pointcloud = (PointCloud *)tsep->id;
+    totcol = pointcloud->totcol;
+    matar = pointcloud->mat;
+  }
+  else if (GS(tsep->id->name) == ID_VO) {
+    Volume *volume = (Volume *)tsep->id;
+    totcol = volume->totcol;
+    matar = volume->mat;
   }
   else {
     BLI_assert(0);
@@ -496,7 +518,7 @@ static void merged_element_search_cb_recursive(
   char name[64];
   int iconid;
 
-  for (TreeElement *te = tree->first; te; te = te->next) {
+  LISTBASE_FOREACH (TreeElement *, te, tree) {
     TreeStoreElem *tselem = TREESTORE(te);
 
     if (tree_element_id_type_to_index(te) == type && tselem_type == tselem->type) {
@@ -507,7 +529,7 @@ static void merged_element_search_cb_recursive(
 
         /* Don't allow duplicate named items */
         if (UI_search_items_find_index(items, name) == -1) {
-          if (!UI_search_item_add(items, name, te, iconid)) {
+          if (!UI_search_item_add(items, name, te, iconid, 0)) {
             break;
           }
         }
@@ -551,7 +573,7 @@ static void merged_element_search_call_cb(struct bContext *C, void *UNUSED(arg1)
  * Merged element search menu
  * Created on activation of a merged or aggregated icon-row icon.
  */
-static uiBlock *merged_element_search_menu(bContext *C, ARegion *ar, void *data)
+static uiBlock *merged_element_search_menu(bContext *C, ARegion *region, void *data)
 {
   static char search[64] = "";
   uiBlock *block;
@@ -560,7 +582,7 @@ static uiBlock *merged_element_search_menu(bContext *C, ARegion *ar, void *data)
   /* Clear search on each menu creation */
   *search = '\0';
 
-  block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
+  block = UI_block_begin(C, region, __func__, UI_EMBOSS);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
@@ -568,7 +590,7 @@ static uiBlock *merged_element_search_menu(bContext *C, ARegion *ar, void *data)
   but = uiDefSearchBut(
       block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 10, menu_width, UI_UNIT_Y, 0, 0, "");
   UI_but_func_search_set(
-      but, NULL, merged_element_search_cb, data, false, merged_element_search_call_cb, NULL);
+      but, NULL, merged_element_search_cb, data, NULL, merged_element_search_call_cb, NULL);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* Fake button to hold space for search items */
@@ -678,8 +700,8 @@ static void object_delete_cb(bContext *C,
       return;
     }
 
-    // check also library later
-    if ((ob->mode && OB_MODE_EDIT) && BKE_object_is_in_editmode(ob)) {
+    /* Check also library later. */
+    if ((ob->mode & OB_MODE_EDIT) && BKE_object_is_in_editmode(ob)) {
       ED_object_editmode_exit_ex(bmain, scene, ob, EM_FREEDATA);
     }
     BKE_id_delete(bmain, ob);
@@ -832,7 +854,7 @@ void outliner_do_object_operation_ex(bContext *C,
     if (tselem->flag & TSE_SELECTED) {
       if (tselem->type == 0 && te->idcode == ID_OB) {
         // when objects selected in other scenes... dunno if that should be allowed
-        Scene *scene_owner = (Scene *)outliner_search_back(soops, te, ID_SCE);
+        Scene *scene_owner = (Scene *)outliner_search_back(te, ID_SCE);
         if (scene_owner && scene_act != scene_owner) {
           WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene_owner);
         }
@@ -1048,9 +1070,8 @@ static void constraint_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tsel
 {
   bContext *C = C_v;
   Main *bmain = CTX_data_main(C);
-  SpaceOutliner *soops = CTX_wm_space_outliner(C);
   bConstraint *constraint = (bConstraint *)te->directdata;
-  Object *ob = (Object *)outliner_search_back(soops, te, ID_OB);
+  Object *ob = (Object *)outliner_search_back(te, ID_OB);
 
   if (event == OL_CONSTRAINTOP_ENABLE) {
     constraint->flag &= ~CONSTRAINT_OFF;
@@ -1089,9 +1110,8 @@ static void modifier_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem
 {
   bContext *C = (bContext *)Carg;
   Main *bmain = CTX_data_main(C);
-  SpaceOutliner *soops = CTX_wm_space_outliner(C);
   ModifierData *md = (ModifierData *)te->directdata;
-  Object *ob = (Object *)outliner_search_back(soops, te, ID_OB);
+  Object *ob = (Object *)outliner_search_back(te, ID_OB);
 
   if (event == OL_MODIFIER_OP_TOGVIS) {
     md->mode ^= eModifierMode_Realtime;
@@ -2324,7 +2344,7 @@ static int outliner_operator_menu(bContext *C, const char *opname)
 }
 
 static int do_outliner_operation_event(
-    bContext *C, ARegion *ar, SpaceOutliner *soops, TreeElement *te, const float mval[2])
+    bContext *C, ARegion *region, SpaceOutliner *soops, TreeElement *te, const float mval[2])
 {
   ReportList *reports = CTX_wm_reports(C);  // XXX...
 
@@ -2343,7 +2363,7 @@ static int do_outliner_operation_event(
 
       /* Only redraw, don't rebuild here because TreeElement pointers will
        * become invalid and operations will crash. */
-      ED_region_tag_redraw_no_rebuild(ar);
+      ED_region_tag_redraw_no_rebuild(region);
     }
 
     set_operation_types(soops, &soops->tree, &scenelevel, &objectlevel, &idlevel, &datalevel);
@@ -2421,7 +2441,7 @@ static int do_outliner_operation_event(
   }
 
   for (te = te->subtree.first; te; te = te->next) {
-    int retval = do_outliner_operation_event(C, ar, soops, te, mval);
+    int retval = do_outliner_operation_event(C, region, soops, te, mval);
     if (retval) {
       return retval;
     }
@@ -2432,7 +2452,7 @@ static int do_outliner_operation_event(
 
 static int outliner_operation(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
 {
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
   SpaceOutliner *soops = CTX_wm_space_outliner(C);
   uiBut *but = UI_context_active_but_get(C);
   TreeElement *te;
@@ -2442,10 +2462,10 @@ static int outliner_operation(bContext *C, wmOperator *UNUSED(op), const wmEvent
     UI_but_tooltip_timer_remove(C, but);
   }
 
-  UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
   for (te = soops->tree.first; te; te = te->next) {
-    int retval = do_outliner_operation_event(C, ar, soops, te, fmval);
+    int retval = do_outliner_operation_event(C, region, soops, te, fmval);
     if (retval) {
       return retval;
     }

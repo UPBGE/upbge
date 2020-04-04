@@ -20,8 +20,8 @@
 
 #include <stdlib.h>
 
-#include "BLI_utildefines.h"
 #include "BLI_path_util.h"
+#include "BLI_utildefines.h"
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -43,7 +43,7 @@
 #  include "BLI_iterator.h"
 #  include "BLI_math.h"
 
-#  include "BKE_anim.h"
+#  include "BKE_duplilist.h"
 #  include "BKE_object.h"
 #  include "BKE_scene.h"
 

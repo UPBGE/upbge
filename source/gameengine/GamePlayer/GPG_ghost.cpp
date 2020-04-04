@@ -30,9 +30,10 @@
  *  \ingroup player
  */
 
-#include <math.h>
+#include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <iostream>
+#include <math.h>
 
 #ifdef __linux__
 #  ifdef __alpha__
@@ -40,52 +41,68 @@
 #  endif /* __alpha__ */
 #endif   /* __linux__ */
 
-#include "MEM_guardedalloc.h"
+#define new _new
+#include "BKE_screen.h"
+#undef new
 
-extern "C" {
-#include "MEM_CacheLimiterC-Api.h"
-
-#include "BLI_threads.h"
-#include "BLI_mempool.h"
-#include "BLI_blenlib.h"
-
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_genfile.h"
-
-#include "BLO_readfile.h"
-#include "BLO_runtime.h"
-
+#include "../../../intern/clog/CLG_log.h"
+#include "../../../intern/ghost/GHOST_Path-api.h"
+#include "../../blender/python/BPY_extern.h"
+#include "../render/extern/include/RE_render_ext.h"
+#include "BKE_addon.h"
 #include "BKE_appdir.h"
 #include "BKE_blender.h"
+#include "BKE_blendfile.h"
+#include "BKE_brush.h"
+#include "BKE_cachefile.h"
+#include "BKE_callbacks.h"
+#include "BKE_context.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
+#include "BKE_gpencil_modifier.h"
 #include "BKE_icons.h"
-#include "BKE_image.h"
-#include "BKE_node.h"
-#include "BKE_report.h"
-#include "BKE_lib_remap.h"
-#include "BKE_modifier.h"
-#include "BKE_material.h"
-#include "BKE_object.h"
-#include "BKE_text.h"
-#include "BKE_sound.h"
-#include "BKE_scene.h"
-#include "BKE_layer.h"
 #include "BKE_idprop.h"
-
-#include "windowmanager/wm_window.h"
-#include "GPU_material.h"
-
-#include "draw/DRW_engine.h"
-
-#include "IMB_imbuf.h"
-#include "IMB_moviecache.h"
-
+#include "BKE_idtype.h"
+#include "BKE_image.h"
+#include "BKE_keyconfig.h"
+#include "BKE_layer.h"
+#include "BKE_lib_remap.h"
+#include "BKE_main.h"
+#include "BKE_material.h"
+#include "BKE_modifier.h"
+#include "BKE_node.h"
+#include "BKE_object.h"
+#include "BKE_report.h"
+#include "BKE_scene.h"
+#include "BKE_shader_fx.h"
+#include "BKE_sound.h"
+#include "BKE_studiolight.h"
+#include "BKE_text.h"
+#include "BLF_api.h"
+#include "BLI_blenlib.h"
+#include "BLI_mempool.h"
+#include "BLI_system.h"
+#include "BLI_threads.h"
+#include "BLO_readfile.h"
+#include "BLO_runtime.h"
+#include "BLT_lang.h"
+#include "BLT_translation.h"
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
-
+#include "DNA_genfile.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+#include "GHOST_ISystem.h"
+#include "GPU_draw.h"
+#include "GPU_init_exit.h"
+#include "GPU_material.h"
+#include "IMB_imbuf.h"
+#include "IMB_moviecache.h"
+#include "MEM_CacheLimiterC-Api.h"
+#include "MEM_guardedalloc.h"
+#include "RNA_define.h"
+#include "draw/DRW_engine.h"
 #include "editors/include/ED_datafiles.h"
 #include "editors/include/ED_node.h"
 #include "editors/include/ED_render.h"
@@ -94,58 +111,19 @@ extern "C" {
 #include "editors/include/ED_util.h"
 #include "editors/include/UI_interface.h"
 #include "editors/include/UI_resources.h"
-
-#include "BKE_addon.h"
-#include "BKE_blendfile.h"
-#include "BKE_brush.h"
-#include "BKE_context.h"
-#include "BKE_keyconfig.h"
-#include "BKE_cachefile.h"
-#include "BKE_callbacks.h"
-#include "BKE_gpencil_modifier.h"
-#include "BKE_shader_fx.h"
-//#include "BKE_screen.h"
-#include "BKE_studiolight.h"
-
-#include "BLI_system.h"
-
 #include "windowmanager/WM_api.h"
-#include "windowmanager/wm.h"
 #include "windowmanager/message_bus/wm_message_bus.h"
+#include "windowmanager/wm.h"
+#include "windowmanager/wm_window.h"
 
-#include "../../../intern/ghost/GHOST_Path-api.h"
-#include "../../../intern/clog/CLG_log.h"
-#include "../../blender/python/BPY_extern.h"
-#include "../render/extern/include/RE_render_ext.h"
+#include "CM_Message.h"
+#include "KX_Globals.h"
+#include "LA_PlayerLauncher.h"
+#include "LA_SystemCommandLine.h"
 
 #ifdef __APPLE__
 int GHOST_HACK_getFirstFile(char buf[]);
 #endif
-
-// For BLF
-#include "BLF_api.h"
-#include "BLT_translation.h"
-#include "BLT_lang.h"
-
-extern int datatoc_bfont_ttf_size;
-extern char datatoc_bfont_ttf[];
-extern int datatoc_bmonofont_ttf_size;
-extern char datatoc_bmonofont_ttf[];
-}
-
-#include "GPU_init_exit.h"
-#include "GPU_draw.h"
-
-#include "KX_Globals.h"
-
-#include "LA_SystemCommandLine.h"
-#include "LA_PlayerLauncher.h"
-
-#include "GHOST_ISystem.h"
-
-#include "BKE_main.h"
-
-#include "RNA_define.h"
 
 #ifdef WIN32
 #  include <windows.h>
@@ -165,10 +143,6 @@ extern char datatoc_bmonofont_ttf[];
 #ifdef WITH_GAMEENGINE_BPPLAYER
 #  include "SpindleEncryption.h"
 #endif  // WITH_GAMEENGINE_BPPLAYER
-
-#include <boost/algorithm/string.hpp>
-
-#include "CM_Message.h"
 
 const int kMinWindowWidth = 100;
 const int kMinWindowHeight = 100;
@@ -579,7 +553,7 @@ static void get_filename(int argc, char **argv, char *filename)
     }
   }
 
-  srclen -= ::strlen("MacOS/blenderplayer");
+  srclen -= ::strlen("MacOS/Blenderplayer");
   if (srclen > 0) {
     len = srclen + ::strlen("Resources/game.blend");
     gamefile = new char[len + 1];
@@ -803,6 +777,7 @@ int main(int argc,
 
   MEM_CacheLimiter_set_disabled(true);
   BKE_cachefiles_init();
+  BKE_idtype_init();
   IMB_init();
 
   BKE_images_init();
@@ -834,12 +809,11 @@ int main(int argc,
 
   ED_undosys_type_init();
 
-  BKE_library_callback_free_window_manager_set(wm_close_and_free); /* library.c */
   BKE_library_callback_free_notifier_reference_set(
       WM_main_remove_notifier_reference); /* library.c */
   BKE_library_callback_remap_editor_id_reference_set(
-      WM_main_remap_editor_id_reference); /* library.c */
-  // BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
+      WM_main_remap_editor_id_reference);                     /* library.c */
+  BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
   DEG_editors_set_update_cb(ED_render_id_flush_update, ED_render_scene_update);
 
   ED_spacetypes_init(); /* editors/space_api/spacetype.c */
@@ -882,10 +856,10 @@ int main(int argc,
   /* background render uses this font too */
   BKE_vfont_builtin_register(datatoc_bfont_pfb, datatoc_bfont_pfb_size);
 
-  BLF_load_mem("default", (unsigned char *)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
+  const bool unique = false;
+  BLF_load_default(unique);
   if (blf_mono_font == -1)
-    blf_mono_font = BLF_load_mem_unique(
-        "monospace", (unsigned char *)datatoc_bmonofont_ttf, datatoc_bmonofont_ttf_size);
+    blf_mono_font = BLF_load_mono_default(true);
 
     // Parse command line options
 #if defined(DEBUG)
@@ -1252,11 +1226,28 @@ int main(int argc,
         PyObject *globalDict = nullptr;
 #endif  // WITH_PYTHON
 
+        DRW_engines_register();
+
+        bool first_time_window = true;
+
         do {
           // Read the Blender file
 
           // if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
-          if (exitcode == KX_ExitRequest::START_OTHER_GAME) {
+          if (exitcode == KX_ExitRequest::START_OTHER_GAME ||
+              exitcode == KX_ExitRequest::RESTART_GAME) {
+
+            /* This normally exits/close the GHOST_IWindow */
+            if (bfd) {
+              /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
+               * .blend */
+              CTX_wm_window(C)->ghostwin = nullptr;
+              /* Hack to not free wm->message_bus when we restart/load new .blend */
+              CTX_wm_manager(C)->message_bus = nullptr;
+
+              BLO_blendfiledata_free(bfd);
+            }
+
             char basedpath[FILE_MAX];
 
             // base the actuator filename relative to the last file
@@ -1314,14 +1305,13 @@ int main(int argc,
 #endif    // WIN32
             Main *maggie = bfd->main;
             Scene *scene = bfd->curscene;
-            G.main = maggie;
-            G_MAIN = G.main;
             CTX_data_main_set(C, maggie);
             CTX_data_scene_set(C, scene);
+            G.main = maggie;
+            G_MAIN = G.main;
 
             if (firstTimeRunning) {
               G.fileflags = bfd->fileflags;
-
               gs.glslflag = scene->gm.flag;
             }
 
@@ -1473,13 +1463,19 @@ int main(int argc,
                 }
               }
               /* wm context */
-              wmWindowManager *wm = (wmWindowManager *)CTX_data_main(C)->wm.first;
+              wmWindowManager *wm = (wmWindowManager *)G_MAIN->wm.first;
+              wmWindow *win = (wmWindow *)wm->windows.first;
               CTX_wm_manager_set(C, wm);
-              wm->message_bus = WM_msgbus_create();
+              CTX_wm_window_set(C, win);
               WM_init_opengl_blenderplayer(G_MAIN, system);
-              wm_window_ghostwindow_blenderplayer_ensure(
-                  wm, (wmWindow *)wm->windows.first, window);
             }
+
+            wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
+            wmWindow *win = (wmWindow *)wm->windows.first;
+            CTX_wm_manager_set(C, wm);
+            CTX_wm_window_set(C, win);
+            wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
+            first_time_window = false;
 
             // This argc cant be argc_py_clamped, since python uses it.
             LA_PlayerLauncher launcher(system,
@@ -1499,7 +1495,6 @@ int main(int argc,
             }
             launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
-            DRW_engines_register();
 
             launcher.InitEngine();
 
@@ -1523,8 +1518,6 @@ int main(int argc,
 #endif
             }
             launcher.ExitEngine();
-
-            DRW_engines_free();
           }
         } while (!quitGame(exitcode));
       }
@@ -1534,6 +1527,8 @@ int main(int argc,
       CM_Error("couldn't create a system.");
     }
   }
+
+  DRW_engines_free();
 
   /* refer to WM_exit_ext() and BKE_blender_free(),
    * these are not called in the player but we need to match some of there behavior here,
@@ -1616,8 +1611,6 @@ int main(int argc,
   SYS_DeleteSystem(syshandle);
 
 #ifdef WITH_INTERNATIONAL
-  BLF_free_unifont();
-  BLF_free_unifont_mono();
   BLT_lang_free();
 #endif
 

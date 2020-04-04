@@ -22,6 +22,7 @@
 
 #include "DRW_render.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "DNA_armature_types.h"
@@ -155,7 +156,7 @@ static void motion_path_cache(OVERLAY_Data *vedata,
     DRW_shgroup_uniform_bool_copy(grp, "selected", selected);
     DRW_shgroup_uniform_vec3_copy(grp, "customColor", color);
     /* Only draw the required range. */
-    DRW_shgroup_call_range(grp, mpath_batch_line_get(mpath), start_index, len);
+    DRW_shgroup_call_range(grp, NULL, mpath_batch_line_get(mpath), start_index, len);
   }
 
   /* Draw points. */
@@ -167,7 +168,7 @@ static void motion_path_cache(OVERLAY_Data *vedata,
     DRW_shgroup_uniform_bool_copy(grp, "showKeyFrames", show_keyframes);
     DRW_shgroup_uniform_vec3_copy(grp, "customColor", color);
     /* Only draw the required range. */
-    DRW_shgroup_call_range(grp, mpath_batch_points_get(mpath), start_index, len);
+    DRW_shgroup_call_range(grp, NULL, mpath_batch_points_get(mpath), start_index, len);
   }
 
   /* Draw frame numbers at each frame-step value. */
@@ -211,7 +212,7 @@ void OVERLAY_motion_path_cache_populate(OVERLAY_Data *vedata, Object *ob)
 
   if (ob->type == OB_ARMATURE) {
     if (OVERLAY_armature_is_pose_mode(ob, draw_ctx)) {
-      for (bPoseChannel *pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+      LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
         if (pchan->mpath) {
           motion_path_cache(vedata, ob, pchan, &ob->pose->avs, pchan->mpath);
         }

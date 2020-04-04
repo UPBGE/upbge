@@ -21,11 +21,11 @@
  * \ingroup bke
  */
 
-#include <math.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <string.h>
 #include <float.h>
+#include <math.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -33,27 +33,28 @@
 #include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
-#include "BLI_easing.h"
-#include "BLI_threads.h"
-#include "BLI_string_utils.h"
-#include "BLI_utildefines.h"
-#include "BLI_expr_pylike_eval.h"
 #include "BLI_alloca.h"
+#include "BLI_blenlib.h"
+#include "BLI_easing.h"
+#include "BLI_expr_pylike_eval.h"
+#include "BLI_math.h"
+#include "BLI_string_utils.h"
+#include "BLI_threads.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
-#include "BKE_fcurve.h"
-#include "BKE_animsys.h"
 #include "BKE_action.h"
+#include "BKE_anim_data.h"
+#include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
+#include "BKE_fcurve.h"
 #include "BKE_global.h"
-#include "BKE_object.h"
 #include "BKE_nla.h"
+#include "BKE_object.h"
 
 #include "RNA_access.h"
 
@@ -1546,7 +1547,7 @@ static float dvar_eval_rotDiff(ChannelDriver *driver, DriverVar *dvar)
   invert_qt_normalized(q1);
   mul_qt_qtqt(quat, q1, q2);
   angle = 2.0f * (saacos(quat[0]));
-  angle = ABS(angle);
+  angle = fabsf(angle);
 
   return (angle > (float)M_PI) ? (float)((2.0f * (float)M_PI) - angle) : (float)(angle);
 }
@@ -1595,7 +1596,7 @@ static float dvar_eval_locDiff(ChannelDriver *driver, DriverVar *dvar)
           /* extract transform just like how the constraints do it! */
           copy_m4_m4(mat, pchan->pose_mat);
           BKE_constraint_mat_convertspace(
-              ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL);
+              ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL, false);
 
           /* ... and from that, we get our transform */
           copy_v3_v3(tmp_loc, mat[3]);
@@ -1621,7 +1622,7 @@ static float dvar_eval_locDiff(ChannelDriver *driver, DriverVar *dvar)
           /* extract transform just like how the constraints do it! */
           copy_m4_m4(mat, ob->obmat);
           BKE_constraint_mat_convertspace(
-              ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL);
+              ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL, false);
 
           /* ... and from that, we get our transform */
           copy_v3_v3(tmp_loc, mat[3]);
@@ -1698,7 +1699,7 @@ static float dvar_eval_transChan(ChannelDriver *driver, DriverVar *dvar)
         /* just like how the constraints do it! */
         copy_m4_m4(mat, pchan->pose_mat);
         BKE_constraint_mat_convertspace(
-            ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL);
+            ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL, false);
       }
       else {
         /* specially calculate local matrix, since chan_mat is not valid
@@ -1726,7 +1727,7 @@ static float dvar_eval_transChan(ChannelDriver *driver, DriverVar *dvar)
         /* just like how the constraints do it! */
         copy_m4_m4(mat, ob->obmat);
         BKE_constraint_mat_convertspace(
-            ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL);
+            ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL, false);
       }
       else {
         /* transforms to matrix */
@@ -1943,7 +1944,7 @@ void driver_variables_copy(ListBase *dst_vars, const ListBase *src_vars)
   BLI_assert(BLI_listbase_is_empty(dst_vars));
   BLI_duplicatelist(dst_vars, src_vars);
 
-  for (DriverVar *dvar = dst_vars->first; dvar; dvar = dvar->next) {
+  LISTBASE_FOREACH (DriverVar *, dvar, dst_vars) {
     /* need to go over all targets so that we don't leave any dangling paths */
     DRIVER_TARGETS_LOOPER_BEGIN (dvar) {
       /* make a copy of target's rna path if available */
@@ -2166,7 +2167,7 @@ static ExprPyLike_Parsed *driver_compile_simple_expr_impl(ChannelDriver *driver)
 
   names[VAR_INDEX_FRAME] = "frame";
 
-  for (DriverVar *dvar = driver->variables.first; dvar; dvar = dvar->next) {
+  LISTBASE_FOREACH (DriverVar *, dvar, &driver->variables) {
     names[i++] = dvar->name;
   }
 
@@ -2191,7 +2192,7 @@ static bool driver_evaluate_simple_expr(ChannelDriver *driver,
 
   vars[VAR_INDEX_FRAME] = time;
 
-  for (DriverVar *dvar = driver->variables.first; dvar; dvar = dvar->next) {
+  LISTBASE_FOREACH (DriverVar *, dvar, &driver->variables) {
     vars[i++] = driver_get_variable_value(driver, dvar);
   }
 

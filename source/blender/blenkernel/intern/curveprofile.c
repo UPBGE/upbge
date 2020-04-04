@@ -21,24 +21,24 @@
  * \ingroup bke
  */
 
-#include <string.h>
+#include <float.h>
 #include <math.h>
 #include <stdlib.h>
-#include <float.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_curveprofile_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_curveprofile_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_utildefines.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_curveprofile.h"
 #include "BKE_curve.h"
+#include "BKE_curveprofile.h"
 #include "BKE_fcurve.h"
 
 void BKE_curveprofile_free_data(CurveProfile *profile)
@@ -932,8 +932,8 @@ void BKE_curveprofile_initialize(CurveProfile *profile, short segments_len)
 }
 
 /**
- * Gives the distance to the next point in the widget's sampled table, in other words the length
- * of the ith edge of the table.
+ * Gives the distance to the next point in the widgets sampled table, in other words the length
+ * of the \a 'i' edge of the table.
  *
  * \note Requires curveprofile_initialize or #BKE_curveprofile_update call before to fill table.
  */

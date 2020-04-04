@@ -28,10 +28,10 @@
 #include "BLI_task.h"
 
 #include "DNA_customdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_lib_id.h"
@@ -91,6 +91,10 @@ static void initData(ModifierData *md)
 
   omd->seed = 0;
   omd->time = 1.0;
+
+  omd->spectrum = MOD_OCEAN_SPECTRUM_PHILLIPS;
+  omd->sharpen_peak_jonswap = 0.0f;
+  omd->fetch_jonswap = 120.0f;
 
   omd->size = 1.0;
   omd->repeat_x = 1;

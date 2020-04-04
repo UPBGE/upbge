@@ -21,8 +21,8 @@
  * \ingroup bke
  */
 
-#include <stddef.h>
 #include <stdarg.h>
+#include <stddef.h>
 
 #include <math.h>
 #include <stdlib.h>
@@ -34,35 +34,35 @@
 #include "DNA_listBase.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_object_force_types.h"
+#include "DNA_object_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_texture_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_texture_types.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_ghash.h"
+#include "BLI_math.h"
 #include "BLI_noise.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
-#include "BLI_ghash.h"
 
 #include "PIL_time.h"
 
-#include "BKE_anim.h" /* needed for where_on_path */
+#include "BKE_anim_path.h" /* needed for where_on_path */
 #include "BKE_bvhutils.h"
 #include "BKE_collection.h"
 #include "BKE_collision.h"
 #include "BKE_curve.h"
 #include "BKE_displist.h"
 #include "BKE_effect.h"
+#include "BKE_fluid.h"
 #include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
-#include "BKE_fluid.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_physics.h"
@@ -247,7 +247,7 @@ ListBase *BKE_effector_relations_create(Depsgraph *depsgraph,
       add_effector_relation(relations, ob, NULL, ob->pd);
     }
 
-    for (ParticleSystem *psys = ob->particlesystem.first; psys; psys = psys->next) {
+    LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
       ParticleSettings *part = psys->part;
 
       if (psys_check_enabled(ob, psys, for_render)) {
@@ -286,7 +286,7 @@ ListBase *BKE_effectors_create(Depsgraph *depsgraph,
     return NULL;
   }
 
-  for (EffectorRelation *relation = relations->first; relation; relation = relation->next) {
+  LISTBASE_FOREACH (EffectorRelation *, relation, relations) {
     /* Get evaluated object. */
     Object *ob = (Object *)DEG_get_evaluated_id(depsgraph, &relation->ob->id);
 
@@ -329,7 +329,7 @@ ListBase *BKE_effectors_create(Depsgraph *depsgraph,
 void BKE_effectors_free(ListBase *lb)
 {
   if (lb) {
-    for (EffectorCache *eff = lb->first; eff; eff = eff->next) {
+    LISTBASE_FOREACH (EffectorCache *, eff, lb) {
       if (eff->guide_data) {
         MEM_freeN(eff->guide_data);
       }
@@ -570,7 +570,7 @@ float effector_falloff(EffectorCache *eff,
         break;
 
       case PFIELD_FALL_TUBE:
-        falloff *= falloff_func_dist(eff->pd, ABS(fac));
+        falloff *= falloff_func_dist(eff->pd, fabsf(fac));
         if (falloff == 0.0f) {
           break;
         }
@@ -580,7 +580,7 @@ float effector_falloff(EffectorCache *eff,
         falloff *= falloff_func_rad(eff->pd, r_fac);
         break;
       case PFIELD_FALL_CONE:
-        falloff *= falloff_func_dist(eff->pd, ABS(fac));
+        falloff *= falloff_func_dist(eff->pd, fabsf(fac));
         if (falloff == 0.0f) {
           break;
         }
@@ -656,6 +656,7 @@ int get_effector_data(EffectorCache *eff,
     efd->size = 0.0f;
   }
   else if (eff->pd && eff->pd->shape == PFIELD_SHAPE_POINTS) {
+    /* TODO: hair and points object support */
     Mesh *me_eval = BKE_object_get_evaluated_mesh(eff->ob);
     if (me_eval != NULL) {
       copy_v3_v3(efd->loc, me_eval->mvert[*efd->index].co);
@@ -769,6 +770,7 @@ static void get_effector_tot(
   efd->index = p;
 
   if (eff->pd->shape == PFIELD_SHAPE_POINTS) {
+    /* TODO: hair and points object support */
     Mesh *me_eval = BKE_object_get_evaluated_mesh(eff->ob);
     *tot = me_eval != NULL ? me_eval->totvert : 1;
 

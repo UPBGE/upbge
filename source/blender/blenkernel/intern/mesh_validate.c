@@ -21,10 +21,10 @@
  * \ingroup bke
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 
 #include "CLG_log.h"
 
@@ -34,10 +34,10 @@
 
 #include "BLI_sys_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_edgehash.h"
 #include "BLI_math_base.h"
 #include "BLI_math_vector.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
@@ -803,7 +803,7 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
         if (dw->def_nr >= INT_MAX) {
           PRINT_ERR("\tVertex deform %u, has invalid group %u", i, dw->def_nr);
           if (do_fixes) {
-            defvert_remove_group(dv, dw);
+            BKE_defvert_remove_group(dv, dw);
             fix_flag.verts_weight = true;
 
             if (dv->dw) {

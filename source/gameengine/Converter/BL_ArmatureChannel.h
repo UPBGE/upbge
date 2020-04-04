@@ -33,6 +33,7 @@
 #define __BL_ARMATURECHANNEL_H__
 
 #include "DNA_action_types.h"
+
 #include "EXP_Value.h"
 
 class SCA_IObject;

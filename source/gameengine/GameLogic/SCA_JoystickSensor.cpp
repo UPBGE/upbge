@@ -29,17 +29,15 @@
  *  \ingroup gamelogic
  */
 
-#include "SCA_JoystickManager.h"
 #include "SCA_JoystickSensor.h"
 
-#include "SCA_EventManager.h"
-#include "SCA_LogicManager.h"
-
-#include "EXP_PyObjectPlus.h"
+#include "BLI_compiler_attrs.h"
 
 #include "CM_Message.h"
-
-#include "BLI_compiler_attrs.h"
+#include "EXP_PyObjectPlus.h"
+#include "SCA_EventManager.h"
+#include "SCA_JoystickManager.h"
+#include "SCA_LogicManager.h"
 
 SCA_JoystickSensor::SCA_JoystickSensor(class SCA_JoystickManager *eventmgr,
                                        SCA_IObject *gameobj,

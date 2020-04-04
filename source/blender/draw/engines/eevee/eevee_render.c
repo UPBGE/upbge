@@ -38,8 +38,8 @@
 
 #include "DEG_depsgraph_query.h"
 
-#include "GPU_framebuffer.h"
 #include "GPU_extensions.h"
+#include "GPU_framebuffer.h"
 #include "GPU_state.h"
 
 #include "RE_pipeline.h"
@@ -135,9 +135,8 @@ bool EEVEE_render_init(EEVEE_Data *ved, RenderEngine *engine, struct Depsgraph *
   float winmat[4][4], viewmat[4][4], viewinv[4][4];
   /* TODO(sergey): Shall render hold pointer to an evaluated camera instead? */
   struct Object *ob_camera_eval = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
-  float frame = BKE_scene_frame_get(scene);
 
-  RE_GetCameraWindow(engine->re, ob_camera_eval, frame, winmat);
+  RE_GetCameraWindow(engine->re, ob_camera_eval, winmat);
   RE_GetCameraWindowWithOverscan(engine->re, winmat, g_data->overscan);
   RE_GetCameraModelMatrix(engine->re, ob_camera_eval, viewinv);
 
@@ -177,7 +176,7 @@ bool EEVEE_render_init(EEVEE_Data *ved, RenderEngine *engine, struct Depsgraph *
 void EEVEE_render_cache(void *vedata,
                         struct Object *ob,
                         struct RenderEngine *engine,
-                        struct Depsgraph *UNUSED(depsgraph))
+                        struct Depsgraph *depsgraph)
 {
   EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
   EEVEE_LightProbesInfo *pinfo = sldata->probes;
@@ -210,6 +209,13 @@ void EEVEE_render_cache(void *vedata,
   if (ob_visibility & OB_VISIBLE_SELF) {
     if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
       EEVEE_materials_cache_populate(vedata, sldata, ob, &cast_shadow);
+    }
+    else if (ob->type == OB_HAIR) {
+      EEVEE_object_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
+    }
+    else if (ob->type == OB_VOLUME) {
+      Scene *scene = DEG_get_evaluated_scene(depsgraph);
+      EEVEE_volumes_cache_object_add(sldata, vedata, scene, ob);
     }
     else if (ob->type == OB_LIGHTPROBE) {
       EEVEE_lightprobes_cache_add(sldata, vedata, ob);

@@ -23,9 +23,9 @@
  * Some really low-level file operations.
  */
 
-#include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include <sys/stat.h>
 
@@ -38,8 +38,8 @@
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || \
     defined(__DragonFly__)
 /* For statfs */
-#  include <sys/param.h>
 #  include <sys/mount.h>
+#  include <sys/param.h>
 #endif
 
 #if defined(__linux__) || defined(__hpux) || defined(__GNU__) || defined(__GLIBC__)
@@ -50,26 +50,26 @@
 #include <string.h> /* strcpy etc.. */
 
 #ifdef WIN32
-#  include <io.h>
-#  include <direct.h>
-#  include <stdbool.h>
-#  include "BLI_winstuff.h"
 #  include "BLI_string_utf8.h"
+#  include "BLI_winstuff.h"
 #  include "utfconv.h"
+#  include <direct.h>
+#  include <io.h>
+#  include <stdbool.h>
 #else
+#  include <pwd.h>
 #  include <sys/ioctl.h>
 #  include <unistd.h>
-#  include <pwd.h>
 #endif
 
 /* lib includes */
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
-#include "BLI_linklist.h"
-#include "BLI_string.h"
 #include "BLI_fileops.h"
+#include "BLI_linklist.h"
 #include "BLI_path_util.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 /**
  * Copies the current working directory into *dir (max size maxncpy), and
@@ -115,7 +115,7 @@ double BLI_dir_free_space(const char *dir)
 
   tmp[0] = '\\';
   tmp[1] = 0; /* Just a failsafe */
-  if (dir[0] == '/' || dir[0] == '\\') {
+  if (ELEM(dir[0] == '/', '\\')) {
     tmp[0] = '\\';
     tmp[1] = 0;
   }
@@ -175,6 +175,33 @@ double BLI_dir_free_space(const char *dir)
 #endif
 }
 
+int64_t BLI_ftell(FILE *stream)
+{
+#ifdef WIN32
+  return _ftelli64(stream);
+#else
+  return ftell(stream);
+#endif
+}
+
+int BLI_fseek(FILE *stream, int64_t offset, int whence)
+{
+#ifdef WIN32
+  return _fseeki64(stream, offset, whence);
+#else
+  return fseek(stream, offset, whence);
+#endif
+}
+
+int64_t BLI_lseek(int fd, int64_t offset, int whence)
+{
+#ifdef WIN32
+  return _lseeki64(fd, offset, whence);
+#else
+  return lseek(fd, offset, whence);
+#endif
+}
+
 /**
  * Returns the file size of an opened file descriptor.
  */
@@ -199,11 +226,12 @@ size_t BLI_file_size(const char *path)
   return stats.st_size;
 }
 
+#ifndef __APPLE__
 eFileAttributes BLI_file_attributes(const char *path)
 {
   int ret = 0;
 
-#ifdef WIN32
+#  ifdef WIN32
   wchar_t wline[FILE_MAXDIR];
   BLI_strncpy_wchar_from_utf8(wline, path, ARRAY_SIZE(wline));
   DWORD attr = GetFileAttributesW(wline);
@@ -238,19 +266,9 @@ eFileAttributes BLI_file_attributes(const char *path)
     ret |= FILE_ATTR_REPARSE_POINT;
   }
 
-#endif
+#  endif
 
-#ifdef __APPLE__
-
-  /* TODO:
-   * If Hidden (Invisible) set FILE_ATTR_HIDDEN
-   * If Locked set FILE_ATTR_READONLY
-   * If Restricted set FILE_ATTR_RESTRICTED
-   */
-
-#endif
-
-#ifdef __linux__
+#  ifdef __linux__
   UNUSED_VARS(path);
 
   /* TODO:
@@ -258,10 +276,23 @@ eFileAttributes BLI_file_attributes(const char *path)
    * If Archived set FILE_ATTR_ARCHIVE
    */
 
-#endif
+#  endif
 
   return ret;
 }
+#endif
+
+/**
+ * Returns the target path of a file-based redirection, like Mac Alias or Win32 Shortcut file.
+ */
+#ifndef __APPLE__
+bool BLI_file_alias_target(char UNUSED(target[FILE_MAXDIR]), const char *UNUSED(filepath))
+{
+  /* TODO: Find target in Win32 Shortcut - Shell Link (.lnk) file.
+   * Format: https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-shllink/ */
+  return false;
+}
+#endif
 
 /**
  * Returns the st_mode from stat-ing the specified path name, or 0 if stat fails
@@ -277,7 +308,7 @@ int BLI_exists(const char *name)
   len = wcslen(tmp_16);
   /* in Windows #stat doesn't recognize dir ending on a slash
    * so we remove it here */
-  if (len > 3 && (tmp_16[len - 1] == L'\\' || tmp_16[len - 1] == L'/')) {
+  if ((len > 3) && ELEM(tmp_16[len - 1], L'\\', L'/')) {
     tmp_16[len - 1] = '\0';
   }
   /* two special cases where the trailing slash is needed:
@@ -383,15 +414,15 @@ static void *file_read_data_as_mem_impl(FILE *fp,
   if (S_ISDIR(st.st_mode)) {
     return NULL;
   }
-  if (fseek(fp, 0L, SEEK_END) == -1) {
+  if (BLI_fseek(fp, 0L, SEEK_END) == -1) {
     return NULL;
   }
   /* Don't use the 'st_size' because it may be the symlink. */
-  const long int filelen = ftell(fp);
+  const long int filelen = BLI_ftell(fp);
   if (filelen == -1) {
     return NULL;
   }
-  if (fseek(fp, 0L, SEEK_SET) == -1) {
+  if (BLI_fseek(fp, 0L, SEEK_SET) == -1) {
     return NULL;
   }
 
@@ -519,9 +550,9 @@ LinkNode *BLI_file_read_as_lines(const char *name)
     return NULL;
   }
 
-  fseek(fp, 0, SEEK_END);
-  size = (size_t)ftell(fp);
-  fseek(fp, 0, SEEK_SET);
+  BLI_fseek(fp, 0, SEEK_END);
+  size = (size_t)BLI_ftell(fp);
+  BLI_fseek(fp, 0, SEEK_SET);
 
   if (UNLIKELY(size == (size_t)-1)) {
     fclose(fp);

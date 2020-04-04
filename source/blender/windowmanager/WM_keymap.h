@@ -25,8 +25,8 @@
  */
 
 /* dna-savable wmStructs here */
-#include "DNA_windowmanager_types.h"
 #include "BLI_utildefines.h"
+#include "DNA_windowmanager_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,11 +74,11 @@ wmKeyMap *WM_keymap_ensure(struct wmKeyConfig *keyconf,
                            const char *idname,
                            int spaceid,
                            int regionid);
-wmKeyMap *WM_keymap_find_all(const struct bContext *C,
+wmKeyMap *WM_keymap_find_all(struct wmWindowManager *wm,
                              const char *idname,
                              int spaceid,
                              int regionid);
-wmKeyMap *WM_keymap_find_all_spaceid_or_empty(const struct bContext *C,
+wmKeyMap *WM_keymap_find_all_spaceid_or_empty(struct wmWindowManager *wm,
                                               const char *idname,
                                               int spaceid,
                                               int regionid);
@@ -135,10 +135,10 @@ char *WM_modalkeymap_operator_items_to_string_buf(struct wmOperatorType *ot,
                                                   int *r_available_len,
                                                   char **r_result);
 
-wmKeyMap *WM_modalkeymap_add(struct wmKeyConfig *keyconf,
-                             const char *idname,
-                             const struct EnumPropertyItem *items);
-wmKeyMap *WM_modalkeymap_get(struct wmKeyConfig *keyconf, const char *idname);
+wmKeyMap *WM_modalkeymap_ensure(struct wmKeyConfig *keyconf,
+                                const char *idname,
+                                const struct EnumPropertyItem *items);
+wmKeyMap *WM_modalkeymap_find(struct wmKeyConfig *keyconf, const char *idname);
 wmKeyMapItem *WM_modalkeymap_add_item(
     struct wmKeyMap *km, int type, int val, int modifier, int keymodifier, int value);
 wmKeyMapItem *WM_modalkeymap_add_item_str(
@@ -148,9 +148,9 @@ void WM_modalkeymap_assign(struct wmKeyMap *km, const char *opname);
 
 /* Keymap Editor */
 
-void WM_keymap_restore_to_default(struct wmKeyMap *keymap, struct bContext *C);
+void WM_keymap_restore_to_default(struct wmKeyMap *keymap, struct wmWindowManager *wm);
 void WM_keymap_item_properties_reset(struct wmKeyMapItem *kmi, struct IDProperty *properties);
-void WM_keymap_item_restore_to_default(struct bContext *C,
+void WM_keymap_item_restore_to_default(wmWindowManager *wm,
                                        struct wmKeyMap *keymap,
                                        struct wmKeyMapItem *kmi);
 int WM_keymap_item_map_type_get(const struct wmKeyMapItem *kmi);

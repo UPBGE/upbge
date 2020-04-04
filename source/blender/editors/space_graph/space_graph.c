@@ -21,8 +21,8 @@
  * \ingroup spgraph
  */
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
@@ -38,35 +38,35 @@
 #include "BKE_fcurve.h"
 #include "BKE_screen.h"
 
-#include "ED_space_api.h"
-#include "ED_screen.h"
 #include "ED_anim_api.h"
 #include "ED_markers.h"
+#include "ED_screen.h"
+#include "ED_space_api.h"
 #include "ED_time_scrub_ui.h"
 
+#include "GPU_framebuffer.h"
 #include "GPU_immediate.h"
 #include "GPU_state.h"
-#include "GPU_framebuffer.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
 #include "WM_message.h"
+#include "WM_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
+#include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
-#include "UI_interface.h"
 
 #include "graph_intern.h"  // own include
 
 /* ******************** default callbacks for ipo space ***************** */
 
-static SpaceLink *graph_new(const ScrArea *UNUSED(sa), const Scene *scene)
+static SpaceLink *graph_new(const ScrArea *UNUSED(area), const Scene *scene)
 {
-  ARegion *ar;
+  ARegion *region;
   SpaceGraph *sipo;
 
   /* Graph Editor - general stuff */
@@ -84,52 +84,52 @@ static SpaceLink *graph_new(const ScrArea *UNUSED(sa), const Scene *scene)
   sipo->flag |= SIPO_SELVHANDLESONLY | SIPO_SHOW_MARKERS;
 
   /* header */
-  ar = MEM_callocN(sizeof(ARegion), "header for graphedit");
+  region = MEM_callocN(sizeof(ARegion), "header for graphedit");
 
-  BLI_addtail(&sipo->regionbase, ar);
-  ar->regiontype = RGN_TYPE_HEADER;
-  ar->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
+  BLI_addtail(&sipo->regionbase, region);
+  region->regiontype = RGN_TYPE_HEADER;
+  region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
   /* channels */
-  ar = MEM_callocN(sizeof(ARegion), "channels region for graphedit");
+  region = MEM_callocN(sizeof(ARegion), "channels region for graphedit");
 
-  BLI_addtail(&sipo->regionbase, ar);
-  ar->regiontype = RGN_TYPE_CHANNELS;
-  ar->alignment = RGN_ALIGN_LEFT;
+  BLI_addtail(&sipo->regionbase, region);
+  region->regiontype = RGN_TYPE_CHANNELS;
+  region->alignment = RGN_ALIGN_LEFT;
 
-  ar->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
+  region->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
 
   /* ui buttons */
-  ar = MEM_callocN(sizeof(ARegion), "buttons region for graphedit");
+  region = MEM_callocN(sizeof(ARegion), "buttons region for graphedit");
 
-  BLI_addtail(&sipo->regionbase, ar);
-  ar->regiontype = RGN_TYPE_UI;
-  ar->alignment = RGN_ALIGN_RIGHT;
-  ar->flag = RGN_FLAG_HIDDEN;
+  BLI_addtail(&sipo->regionbase, region);
+  region->regiontype = RGN_TYPE_UI;
+  region->alignment = RGN_ALIGN_RIGHT;
+  region->flag = RGN_FLAG_HIDDEN;
 
   /* main region */
-  ar = MEM_callocN(sizeof(ARegion), "main region for graphedit");
+  region = MEM_callocN(sizeof(ARegion), "main region for graphedit");
 
-  BLI_addtail(&sipo->regionbase, ar);
-  ar->regiontype = RGN_TYPE_WINDOW;
+  BLI_addtail(&sipo->regionbase, region);
+  region->regiontype = RGN_TYPE_WINDOW;
 
-  ar->v2d.tot.xmin = 0.0f;
-  ar->v2d.tot.ymin = (float)scene->r.sfra - 10.0f;
-  ar->v2d.tot.xmax = (float)scene->r.efra;
-  ar->v2d.tot.ymax = 10.0f;
+  region->v2d.tot.xmin = 0.0f;
+  region->v2d.tot.ymin = (float)scene->r.sfra - 10.0f;
+  region->v2d.tot.xmax = (float)scene->r.efra;
+  region->v2d.tot.ymax = 10.0f;
 
-  ar->v2d.cur = ar->v2d.tot;
+  region->v2d.cur = region->v2d.tot;
 
-  ar->v2d.min[0] = FLT_MIN;
-  ar->v2d.min[1] = FLT_MIN;
+  region->v2d.min[0] = FLT_MIN;
+  region->v2d.min[1] = FLT_MIN;
 
-  ar->v2d.max[0] = MAXFRAMEF;
-  ar->v2d.max[1] = FLT_MAX;
+  region->v2d.max[0] = MAXFRAMEF;
+  region->v2d.max[1] = FLT_MAX;
 
-  ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
-  ar->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HANDLES);
+  region->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
+  region->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HANDLES);
 
-  ar->v2d.keeptot = 0;
+  region->v2d.keeptot = 0;
 
   return (SpaceLink *)sipo;
 }
@@ -150,9 +150,9 @@ static void graph_free(SpaceLink *sl)
 }
 
 /* spacetype; init callback */
-static void graph_init(struct wmWindowManager *wm, ScrArea *sa)
+static void graph_init(struct wmWindowManager *wm, ScrArea *area)
 {
-  SpaceGraph *sipo = (SpaceGraph *)sa->spacedata.first;
+  SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
 
   /* init dopesheet data if non-existent (i.e. for old files) */
   if (sipo->ads == NULL) {
@@ -165,7 +165,7 @@ static void graph_init(struct wmWindowManager *wm, ScrArea *sa)
    * as this is run on each region resize; setting this here will cause selection
    * state to be lost on area/region resizing. [#35744]
    */
-  ED_area_tag_refresh(sa);
+  ED_area_tag_refresh(area);
 }
 
 static SpaceLink *graph_duplicate(SpaceLink *sl)
@@ -180,26 +180,26 @@ static SpaceLink *graph_duplicate(SpaceLink *sl)
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void graph_main_region_init(wmWindowManager *wm, ARegion *ar)
+static void graph_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
+  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor", SPACE_GRAPH, 0);
-  WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, 0);
-  WM_event_add_keymap_handler(&ar->handlers, keymap);
+  WM_event_add_keymap_handler(&region->handlers, keymap);
 }
 
-static void graph_main_region_draw(const bContext *C, ARegion *ar)
+static void graph_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   SpaceGraph *sipo = CTX_wm_space_graph(C);
   Scene *scene = CTX_data_scene(C);
   bAnimContext ac;
-  View2D *v2d = &ar->v2d;
+  View2D *v2d = &region->v2d;
   View2DScrollers *scrollers;
   float col[3];
   short cfra_flag = 0;
@@ -216,7 +216,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *ar)
   UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
   UI_view2d_draw_lines_y__values(v2d);
 
-  ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
+  ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
   /* start and end frame (in F-Curve mode only) */
   if (sipo->mode != SIPO_MODE_DRIVERS) {
@@ -226,11 +226,11 @@ static void graph_main_region_draw(const bContext *C, ARegion *ar)
   /* draw data */
   if (ANIM_animdata_get_context(C, &ac)) {
     /* draw ghost curves */
-    graph_draw_ghost_curves(&ac, sipo, ar);
+    graph_draw_ghost_curves(&ac, sipo, region);
 
     /* draw curves twice - unselected, then selected, so that the are fewer occlusion problems */
-    graph_draw_curves(&ac, sipo, ar, 0);
-    graph_draw_curves(&ac, sipo, ar, 1);
+    graph_draw_curves(&ac, sipo, region, 0);
+    graph_draw_curves(&ac, sipo, region, 1);
 
     /* XXX the slow way to set tot rect... but for nice sliders needed (ton) */
     get_graph_keyframe_extents(
@@ -294,7 +294,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *ar)
 
   /* markers */
   if (sipo->mode != SIPO_MODE_DRIVERS) {
-    UI_view2d_view_orthoSpecial(ar, v2d, 1);
+    UI_view2d_view_orthoSpecial(region, v2d, 1);
     int marker_draw_flag = DRAW_MARKERS_MARGIN;
     if (sipo->flag & SIPO_SHOW_MARKERS) {
       ED_markers_draw(C, marker_draw_flag);
@@ -309,13 +309,13 @@ static void graph_main_region_draw(const bContext *C, ARegion *ar)
 
   /* callback */
   UI_view2d_view_ortho(v2d);
-  ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
+  ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_VIEW);
 
   /* reset view matrix */
   UI_view2d_view_restore(C);
 
   /* time-scrubbing */
-  ED_time_scrub_draw(ar, scene, display_seconds, false);
+  ED_time_scrub_draw(region, scene, display_seconds, false);
 
   /* scrollers */
   // FIXME: args for scrollers depend on the type of data being shown...
@@ -326,37 +326,38 @@ static void graph_main_region_draw(const bContext *C, ARegion *ar)
   /* scale numbers */
   {
     rcti rect;
-    BLI_rcti_init(&rect, 0, 15 * UI_DPI_FAC, 15 * UI_DPI_FAC, ar->winy - UI_TIME_SCRUB_MARGIN_Y);
-    UI_view2d_draw_scale_y__values(ar, v2d, &rect, TH_SCROLL_TEXT);
+    BLI_rcti_init(
+        &rect, 0, 15 * UI_DPI_FAC, 15 * UI_DPI_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
+    UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT);
   }
 }
 
-static void graph_channel_region_init(wmWindowManager *wm, ARegion *ar)
+static void graph_channel_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
   /* make sure we keep the hide flags */
-  ar->v2d.scroll |= V2D_SCROLL_RIGHT;
+  region->v2d.scroll |= V2D_SCROLL_RIGHT;
 
   /* prevent any noise of past */
-  ar->v2d.scroll &= ~(V2D_SCROLL_LEFT | V2D_SCROLL_TOP | V2D_SCROLL_BOTTOM);
+  region->v2d.scroll &= ~(V2D_SCROLL_LEFT | V2D_SCROLL_TOP | V2D_SCROLL_BOTTOM);
 
-  ar->v2d.scroll |= V2D_SCROLL_HORIZONTAL_HIDE;
-  ar->v2d.scroll |= V2D_SCROLL_VERTICAL_HIDE;
+  region->v2d.scroll |= V2D_SCROLL_HORIZONTAL_HIDE;
+  region->v2d.scroll |= V2D_SCROLL_VERTICAL_HIDE;
 
-  UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_LIST, ar->winx, ar->winy);
+  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Animation Channels", 0, 0);
-  WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, 0);
-  WM_event_add_keymap_handler(&ar->handlers, keymap);
+  WM_event_add_keymap_handler(&region->handlers, keymap);
 }
 
-static void graph_channel_region_draw(const bContext *C, ARegion *ar)
+static void graph_channel_region_draw(const bContext *C, ARegion *region)
 {
   bAnimContext ac;
-  View2D *v2d = &ar->v2d;
+  View2D *v2d = &region->v2d;
   View2DScrollers *scrollers;
   float col[3];
 
@@ -369,11 +370,11 @@ static void graph_channel_region_draw(const bContext *C, ARegion *ar)
 
   /* draw channels */
   if (ANIM_animdata_get_context(C, &ac)) {
-    graph_draw_channel_names((bContext *)C, &ac, ar);
+    graph_draw_channel_names((bContext *)C, &ac, region);
   }
 
   /* channel filter next to scrubbing area */
-  ED_time_scrub_channel_search_draw(C, ar, ac.ads);
+  ED_time_scrub_channel_search_draw(C, region, ac.ads);
 
   /* reset view matrix */
   UI_view2d_view_restore(C);
@@ -385,42 +386,42 @@ static void graph_channel_region_draw(const bContext *C, ARegion *ar)
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void graph_header_region_init(wmWindowManager *UNUSED(wm), ARegion *ar)
+static void graph_header_region_init(wmWindowManager *UNUSED(wm), ARegion *region)
 {
-  ED_region_header_init(ar);
+  ED_region_header_init(region);
 }
 
-static void graph_header_region_draw(const bContext *C, ARegion *ar)
+static void graph_header_region_draw(const bContext *C, ARegion *region)
 {
-  ED_region_header(C, ar);
+  ED_region_header(C, region);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void graph_buttons_region_init(wmWindowManager *wm, ARegion *ar)
+static void graph_buttons_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  ED_region_panels_init(wm, ar);
+  ED_region_panels_init(wm, region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, 0);
-  WM_event_add_keymap_handler_v2d_mask(&ar->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
 }
 
-static void graph_buttons_region_draw(const bContext *C, ARegion *ar)
+static void graph_buttons_region_draw(const bContext *C, ARegion *region)
 {
-  ED_region_panels(C, ar);
+  ED_region_panels(C, region);
 }
 
 static void graph_region_listener(wmWindow *UNUSED(win),
-                                  ScrArea *UNUSED(sa),
-                                  ARegion *ar,
+                                  ScrArea *UNUSED(area),
+                                  ARegion *region,
                                   wmNotifier *wmn,
                                   const Scene *UNUSED(scene))
 {
   /* context changes */
   switch (wmn->category) {
     case NC_ANIMATION:
-      ED_region_tag_redraw(ar);
+      ED_region_tag_redraw(region);
       break;
     case NC_SCENE:
       switch (wmn->data) {
@@ -429,11 +430,11 @@ static void graph_region_listener(wmWindow *UNUSED(win),
         case ND_FRAME:
         case ND_FRAME_RANGE:
         case ND_MARKERS:
-          ED_region_tag_redraw(ar);
+          ED_region_tag_redraw(region);
           break;
         case ND_SEQUENCER:
           if (wmn->action == NA_SELECTED) {
-            ED_region_tag_redraw(ar);
+            ED_region_tag_redraw(region);
           }
           break;
       }
@@ -443,11 +444,11 @@ static void graph_region_listener(wmWindow *UNUSED(win),
         case ND_BONE_ACTIVE:
         case ND_BONE_SELECT:
         case ND_KEYS:
-          ED_region_tag_redraw(ar);
+          ED_region_tag_redraw(region);
           break;
         case ND_MODIFIER:
           if (wmn->action == NA_RENAME) {
-            ED_region_tag_redraw(ar);
+            ED_region_tag_redraw(region);
           }
           break;
       }
@@ -456,23 +457,23 @@ static void graph_region_listener(wmWindow *UNUSED(win),
       switch (wmn->action) {
         case NA_EDITED:
         case NA_SELECTED:
-          ED_region_tag_redraw(ar);
+          ED_region_tag_redraw(region);
           break;
       }
       break;
     case NC_ID:
       if (wmn->action == NA_RENAME) {
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       }
       break;
     case NC_SCREEN:
       if (ELEM(wmn->data, ND_LAYER)) {
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       }
       break;
     default:
       if (wmn->data == ND_KEYS) {
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
       }
       break;
   }
@@ -482,16 +483,16 @@ static void graph_region_message_subscribe(const struct bContext *UNUSED(C),
                                            struct WorkSpace *UNUSED(workspace),
                                            struct Scene *scene,
                                            struct bScreen *screen,
-                                           struct ScrArea *sa,
-                                           struct ARegion *ar,
+                                           struct ScrArea *area,
+                                           struct ARegion *region,
                                            struct wmMsgBus *mbus)
 {
   PointerRNA ptr;
-  RNA_pointer_create(&screen->id, &RNA_SpaceGraphEditor, sa->spacedata.first, &ptr);
+  RNA_pointer_create(&screen->id, &RNA_SpaceGraphEditor, area->spacedata.first, &ptr);
 
   wmMsgSubscribeValue msg_sub_value_region_tag_redraw = {
-      .owner = ar,
-      .user_data = ar,
+      .owner = region,
+      .user_data = region,
       .notify = ED_region_do_msg_notify_tag_redraw,
   };
 
@@ -555,11 +556,11 @@ static void graph_region_message_subscribe(const struct bContext *UNUSED(C),
 
 /* editor level listener */
 static void graph_listener(wmWindow *UNUSED(win),
-                           ScrArea *sa,
+                           ScrArea *area,
                            wmNotifier *wmn,
                            Scene *UNUSED(scene))
 {
-  SpaceGraph *sipo = (SpaceGraph *)sa->spacedata.first;
+  SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
 
   /* context changes */
   switch (wmn->category) {
@@ -567,10 +568,10 @@ static void graph_listener(wmWindow *UNUSED(win),
       /* for selection changes of animation data, we can just redraw...
        * otherwise autocolor might need to be done again */
       if (ELEM(wmn->data, ND_KEYFRAME, ND_ANIMCHAN) && (wmn->action == NA_SELECTED)) {
-        ED_area_tag_redraw(sa);
+        ED_area_tag_redraw(area);
       }
       else {
-        ED_area_tag_refresh(sa);
+        ED_area_tag_refresh(area);
       }
       break;
     case NC_SCENE:
@@ -579,11 +580,11 @@ static void graph_listener(wmWindow *UNUSED(win),
                             * (needs flag set to do syncing). */
         case ND_OB_SELECT:
           sipo->runtime.flag |= SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC;
-          ED_area_tag_refresh(sa);
+          ED_area_tag_refresh(area);
           break;
 
         default: /* just redrawing the view will do */
-          ED_area_tag_redraw(sa);
+          ED_area_tag_redraw(area);
           break;
       }
       break;
@@ -593,13 +594,13 @@ static void graph_listener(wmWindow *UNUSED(win),
                               * (needs flag set to do syncing). */
         case ND_BONE_ACTIVE:
           sipo->runtime.flag |= SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC;
-          ED_area_tag_refresh(sa);
+          ED_area_tag_refresh(area);
           break;
         case ND_TRANSFORM:
           break; /*do nothing*/
 
         default: /* just redrawing the view will do */
-          ED_area_tag_redraw(sa);
+          ED_area_tag_redraw(area);
           break;
       }
       break;
@@ -607,26 +608,26 @@ static void graph_listener(wmWindow *UNUSED(win),
       if (wmn->action == NA_SELECTED) {
         /* selection changed, so force refresh to flush (needs flag set to do syncing) */
         sipo->runtime.flag |= SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC;
-        ED_area_tag_refresh(sa);
+        ED_area_tag_refresh(area);
       }
       break;
     case NC_SPACE:
       if (wmn->data == ND_SPACE_GRAPH) {
-        ED_area_tag_redraw(sa);
+        ED_area_tag_redraw(area);
       }
       break;
     case NC_WINDOW:
       if (sipo->runtime.flag &
           (SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC | SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC_COLOR)) {
         /* force redraw/refresh after undo/redo - prevents "black curve" problem */
-        ED_area_tag_refresh(sa);
+        ED_area_tag_refresh(area);
       }
       break;
 
       // XXX: restore the case below if not enough updates occur...
       // default:
       //  if (wmn->data == ND_KEYS)
-      //      ED_area_tag_redraw(sa);
+      //      ED_area_tag_redraw(area);
   }
 }
 
@@ -753,9 +754,9 @@ static void graph_refresh_fcurve_colors(const bContext *C)
   ANIM_animdata_freelist(&anim_data);
 }
 
-static void graph_refresh(const bContext *C, ScrArea *sa)
+static void graph_refresh(const bContext *C, ScrArea *area)
 {
-  SpaceGraph *sipo = (SpaceGraph *)sa->spacedata.first;
+  SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
 
   /* updates to data needed depends on Graph Editor mode... */
   switch (sipo->mode) {
@@ -779,7 +780,7 @@ static void graph_refresh(const bContext *C, ScrArea *sa)
   if (sipo->runtime.flag & SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC) {
     ANIM_sync_animchannels_to_data(C);
     sipo->runtime.flag &= ~SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC;
-    ED_area_tag_redraw(sa);
+    ED_area_tag_redraw(area);
   }
 
   /* We could check 'SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC_COLOR', but color is recalculated anyway. */
@@ -788,7 +789,7 @@ static void graph_refresh(const bContext *C, ScrArea *sa)
 #if 0 /* Done below. */
     graph_refresh_fcurve_colors(C);
 #endif
-    ED_area_tag_redraw(sa);
+    ED_area_tag_redraw(area);
   }
 
   sipo->runtime.flag &= ~(SIPO_RUNTIME_FLAG_TWEAK_HANDLES_LEFT |
@@ -798,7 +799,7 @@ static void graph_refresh(const bContext *C, ScrArea *sa)
   graph_refresh_fcurve_colors(C);
 }
 
-static void graph_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+static void graph_id_remap(ScrArea *UNUSED(area), SpaceLink *slink, ID *old_id, ID *new_id)
 {
   SpaceGraph *sgraph = (SpaceGraph *)slink;
 
@@ -812,15 +813,15 @@ static void graph_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID
   }
 }
 
-static int graph_space_subtype_get(ScrArea *sa)
+static int graph_space_subtype_get(ScrArea *area)
 {
-  SpaceGraph *sgraph = sa->spacedata.first;
+  SpaceGraph *sgraph = area->spacedata.first;
   return sgraph->mode;
 }
 
-static void graph_space_subtype_set(ScrArea *sa, int value)
+static void graph_space_subtype_set(ScrArea *area, int value)
 {
-  SpaceGraph *sgraph = sa->spacedata.first;
+  SpaceGraph *sgraph = area->spacedata.first;
   sgraph->mode = value;
 }
 

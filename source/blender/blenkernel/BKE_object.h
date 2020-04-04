@@ -73,7 +73,6 @@ void BKE_object_free_softbody(struct Object *ob);
 void BKE_object_free_bulletsoftbody(struct Object *ob);
 void BKE_object_free_curve_cache(struct Object *ob);
 
-void BKE_object_free(struct Object *ob);
 void BKE_object_free_derived_caches(struct Object *ob);
 void BKE_object_free_caches(struct Object *object);
 
@@ -86,9 +85,7 @@ bool BKE_object_shaderfx_use_time(struct Object *ob, struct ShaderFxData *md);
 
 bool BKE_object_support_modifier_type_check(const struct Object *ob, int modifier_type);
 
-void BKE_object_link_modifiers(struct Scene *scene,
-                               struct Object *ob_dst,
-                               const struct Object *ob_src);
+void BKE_object_link_modifiers(struct Object *ob_dst, const struct Object *ob_src);
 void BKE_object_free_modifiers(struct Object *ob, const int flag);
 void BKE_object_free_shaderfx(struct Object *ob, const int flag);
 
@@ -120,7 +117,6 @@ typedef enum eObjectVisibilityResult {
 
 int BKE_object_visibility(const struct Object *ob, const int dag_eval_mode);
 
-void BKE_object_init(struct Object *ob, const short ob_type);
 struct Object *BKE_object_add_only_object(struct Main *bmain, int type, const char *name)
     ATTR_NONNULL(1) ATTR_RETURNS_NONNULL;
 struct Object *BKE_object_add(struct Main *bmain,
@@ -157,7 +153,6 @@ void BKE_object_copy_data(struct Main *bmain,
                           const struct Object *ob_src,
                           const int flag);
 struct Object *BKE_object_copy(struct Main *bmain, const struct Object *ob);
-void BKE_object_make_local(struct Main *bmain, struct Object *ob, const int flags);
 bool BKE_object_is_libdata(const struct Object *ob);
 bool BKE_object_obdata_is_libdata(const struct Object *ob);
 
@@ -303,7 +298,7 @@ void BKE_object_eval_uber_data(struct Depsgraph *depsgraph,
 void BKE_object_eval_assign_data(struct Object *object, struct ID *data, bool is_owned);
 
 void BKE_object_eval_boundbox(struct Depsgraph *depsgraph, struct Object *object);
-void BKE_object_synchronize_to_original(struct Depsgraph *depsgraph, struct Object *object);
+void BKE_object_sync_to_original(struct Depsgraph *depsgraph, struct Object *object);
 
 void BKE_object_eval_ptcache_reset(struct Depsgraph *depsgraph,
                                    struct Scene *scene,
@@ -420,7 +415,7 @@ bool BKE_object_empty_image_data_is_visible_in_view3d(const struct Object *ob,
  * The result is owned by the object.
  *
  * The mesh will be freed when object is re-evaluated or is destroyed. It is possible to force to
- * clear memory sued by this mesh by calling BKE_object_to_mesh_clear().
+ * clear memory used by this mesh by calling BKE_object_to_mesh_clear().
  *
  * If preserve_all_data_layers is truth then the modifier stack is re-evaluated to ensure it
  * preserves all possible custom data layers.

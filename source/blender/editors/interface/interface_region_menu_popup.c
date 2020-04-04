@@ -23,26 +23,26 @@
  * PopUp Menu Region
  */
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_math.h"
 #include "BLI_listbase.h"
+#include "BLI_math.h"
 
-#include "BLI_string.h"
-#include "BLI_rect.h"
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
+#include "BLI_rect.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
-#include "BKE_screen.h"
 #include "BKE_report.h"
+#include "BKE_screen.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -276,17 +276,17 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
   else {
     /* for a header menu we set the direction automatic */
     if (!pup->slideout && flip) {
-      ScrArea *sa = CTX_wm_area(C);
-      ARegion *ar = CTX_wm_region(C);
-      if (sa && ar) {
-        if (ELEM(ar->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
-          if (RGN_ALIGN_ENUM_FROM_MASK(ED_area_header_alignment(sa)) == RGN_ALIGN_BOTTOM) {
+      ScrArea *area = CTX_wm_area(C);
+      ARegion *region = CTX_wm_region(C);
+      if (area && region) {
+        if (ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
+          if (RGN_ALIGN_ENUM_FROM_MASK(ED_area_header_alignment(area)) == RGN_ALIGN_BOTTOM) {
             UI_block_direction_set(block, UI_DIR_UP);
             UI_block_order_flip(block);
           }
         }
-        if (ar->regiontype == RGN_TYPE_FOOTER) {
-          if (RGN_ALIGN_ENUM_FROM_MASK(ED_area_footer_alignment(sa)) == RGN_ALIGN_BOTTOM) {
+        if (region->regiontype == RGN_TYPE_FOOTER) {
+          if (RGN_ALIGN_ENUM_FROM_MASK(ED_area_footer_alignment(area)) == RGN_ALIGN_BOTTOM) {
             UI_block_direction_set(block, UI_DIR_UP);
             UI_block_order_flip(block);
           }
@@ -310,7 +310,7 @@ uiPopupBlockHandle *ui_popup_menu_create(
     bContext *C, ARegion *butregion, uiBut *but, uiMenuCreateFunc menu_func, void *arg)
 {
   wmWindow *window = CTX_wm_window(C);
-  uiStyle *style = UI_style_get_dpi();
+  const uiStyle *style = UI_style_get_dpi();
   uiPopupBlockHandle *handle;
   uiPopupMenu *pup;
 
@@ -357,7 +357,7 @@ uiPopupBlockHandle *ui_popup_menu_create(
     handle->popup = true;
 
     UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
-    WM_event_add_mousemove(C);
+    WM_event_add_mousemove(window);
   }
 
   MEM_freeN(pup);
@@ -380,7 +380,7 @@ uiPopupMenu *UI_popup_menu_begin_ex(bContext *C,
                                     const char *block_name,
                                     int icon)
 {
-  uiStyle *style = UI_style_get_dpi();
+  const uiStyle *style = UI_style_get_dpi();
   uiPopupMenu *pup = MEM_callocN(sizeof(uiPopupMenu), "popup menu");
   uiBut *but;
 
@@ -467,7 +467,7 @@ void UI_popup_menu_end(bContext *C, uiPopupMenu *pup)
   menu->popup = true;
 
   UI_popup_handlers_add(C, &window->modalhandlers, menu, 0);
-  WM_event_add_mousemove(C);
+  WM_event_add_mousemove(window);
 
   MEM_freeN(pup);
 }
@@ -599,7 +599,7 @@ void UI_popup_block_invoke_ex(bContext *C,
 
   UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
   UI_block_active_only_flagged_buttons(C, handle->region, handle->region->uiblocks.first);
-  WM_event_add_mousemove(C);
+  WM_event_add_mousemove(window);
 }
 
 void UI_popup_block_invoke(bContext *C,
@@ -633,7 +633,7 @@ void UI_popup_block_ex(bContext *C,
 
   UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
   UI_block_active_only_flagged_buttons(C, handle->region, handle->region->uiblocks.first);
-  WM_event_add_mousemove(C);
+  WM_event_add_mousemove(window);
 }
 
 #if 0 /* UNUSED */
@@ -669,21 +669,17 @@ void UI_popup_block_close(bContext *C, wmWindow *win, uiBlock *block)
 
       /* In the case we have nested popups,
        * closing one may need to redraw another, see: T48874 */
-      for (ARegion *ar = screen->regionbase.first; ar; ar = ar->next) {
-        ED_region_tag_refresh_ui(ar);
+      LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
+        ED_region_tag_refresh_ui(region);
       }
     }
   }
 }
 
-bool UI_popup_block_name_exists(bContext *C, const char *name)
+bool UI_popup_block_name_exists(const bScreen *screen, const char *name)
 {
-  bScreen *sc = CTX_wm_screen(C);
-  uiBlock *block;
-  ARegion *ar;
-
-  for (ar = sc->regionbase.first; ar; ar = ar->next) {
-    for (block = ar->uiblocks.first; block; block = block->next) {
+  LISTBASE_FOREACH (const ARegion *, region, &screen->regionbase) {
+    LISTBASE_FOREACH (const uiBlock *, block, &region->uiblocks) {
       if (STREQ(block->name, name)) {
         return true;
       }

@@ -40,8 +40,8 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 
-#include "WM_types.h"
 #include "WM_api.h"
+#include "WM_types.h"
 #include "wm_cursors.h"
 #include "wm_window.h"
 
@@ -183,13 +183,13 @@ void WM_cursor_set(wmWindow *win, int curs)
   }
 }
 
-bool WM_cursor_set_from_tool(struct wmWindow *win, const ScrArea *sa, const ARegion *ar)
+bool WM_cursor_set_from_tool(struct wmWindow *win, const ScrArea *area, const ARegion *region)
 {
-  if (ar && (ar->regiontype != RGN_TYPE_WINDOW)) {
+  if (region && (region->regiontype != RGN_TYPE_WINDOW)) {
     return false;
   }
 
-  bToolRef_Runtime *tref_rt = (sa && sa->runtime.tool) ? sa->runtime.tool->runtime : NULL;
+  bToolRef_Runtime *tref_rt = (area && area->runtime.tool) ? area->runtime.tool->runtime : NULL;
   if (tref_rt && tref_rt->cursor != WM_CURSOR_DEFAULT) {
     if (win->modalcursor == 0) {
       WM_cursor_set(win, tref_rt->cursor);
@@ -311,19 +311,19 @@ bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event)
     /* Must move at least this much to avoid rounding in WM_cursor_warp. */
     float fac = GHOST_GetNativePixelSize(win->ghostwin);
 
-    if (event->type == UPARROWKEY) {
+    if (event->type == EVT_UPARROWKEY) {
       wm_cursor_warp_relative(win, 0, fac);
       return 1;
     }
-    else if (event->type == DOWNARROWKEY) {
+    else if (event->type == EVT_DOWNARROWKEY) {
       wm_cursor_warp_relative(win, 0, -fac);
       return 1;
     }
-    else if (event->type == LEFTARROWKEY) {
+    else if (event->type == EVT_LEFTARROWKEY) {
       wm_cursor_warp_relative(win, -fac, 0);
       return 1;
     }
-    else if (event->type == RIGHTARROWKEY) {
+    else if (event->type == EVT_RIGHTARROWKEY) {
       wm_cursor_warp_relative(win, fac, 0);
       return 1;
     }

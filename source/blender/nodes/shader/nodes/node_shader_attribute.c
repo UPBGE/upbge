@@ -22,10 +22,10 @@
 /* **************** OUTPUT ******************** */
 
 static bNodeSocketTemplate sh_node_attribute_out[] = {
-    {SOCK_RGBA, 0, N_("Color")},
-    {SOCK_VECTOR, 0, N_("Vector"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-    {SOCK_FLOAT, 0, N_("Fac"), 0.0f, 0.0f, 0.0f, 0.0f, -FLT_MAX, FLT_MAX, PROP_FACTOR},
-    {-1, 0, ""},
+    {SOCK_RGBA, N_("Color")},
+    {SOCK_VECTOR, N_("Vector"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_FLOAT, N_("Fac"), 0.0f, 0.0f, 0.0f, 0.0f, -FLT_MAX, FLT_MAX, PROP_FACTOR},
+    {-1, ""},
 };
 
 static void node_shader_init_attribute(bNodeTree *UNUSED(ntree), bNode *node)
@@ -42,28 +42,18 @@ static int node_shader_gpu_attribute(GPUMaterial *mat,
 {
   NodeShaderAttribute *attr = node->storage;
 
-  /* FIXME : if an attribute layer (like vertex color) has one of these names,
-   * it will not work as expected. */
-  if (strcmp(attr->name, "density") == 0) {
-    return GPU_stack_link(
-        mat, node, "node_attribute_volume_density", in, out, GPU_builtin(GPU_VOLUME_DENSITY));
-  }
-  else if (strcmp(attr->name, "color") == 0) {
-    return GPU_stack_link(
-        mat, node, "node_attribute_volume_color", in, out, GPU_builtin(GPU_VOLUME_DENSITY));
-  }
-  else if (strcmp(attr->name, "flame") == 0) {
-    return GPU_stack_link(
-        mat, node, "node_attribute_volume_flame", in, out, GPU_builtin(GPU_VOLUME_FLAME));
-  }
-  else if (strcmp(attr->name, "temperature") == 0) {
-    return GPU_stack_link(mat,
-                          node,
-                          "node_attribute_volume_temperature",
-                          in,
-                          out,
-                          GPU_builtin(GPU_VOLUME_FLAME),
-                          GPU_builtin(GPU_VOLUME_TEMPERATURE));
+  if (GPU_material_is_volume_shader(mat)) {
+    if (out[0].hasoutput) {
+      out[0].link = GPU_volume_grid(mat, attr->name);
+    }
+    if (out[1].hasoutput) {
+      out[1].link = GPU_volume_grid(mat, attr->name);
+    }
+    if (out[2].hasoutput) {
+      out[2].link = GPU_volume_grid(mat, attr->name);
+    }
+
+    return 1;
   }
   else {
     GPUNodeLink *cd_attr = GPU_attribute(mat, CD_AUTO_FROM_NAME, attr->name);

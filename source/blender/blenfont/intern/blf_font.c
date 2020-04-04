@@ -25,10 +25,10 @@
  * Also low level functions for managing \a FontBLF.
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 #include <ft2build.h>
 
@@ -50,11 +50,11 @@
 
 #include "UI_interface.h"
 
-#include "GPU_matrix.h"
 #include "GPU_batch.h"
+#include "GPU_matrix.h"
 
-#include "blf_internal_types.h"
 #include "blf_internal.h"
+#include "blf_internal_types.h"
 
 #include "BLI_strict_flags.h"
 
@@ -99,7 +99,7 @@ static void blf_batch_draw_init(void)
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.glyph_size_loc, &g_batch.glyph_size_step);
   g_batch.glyph_len = 0;
 
-  /* A dummy vbo containing 4 points, attribs are not used.  */
+  /* A dummy VBO containing 4 points, attributes are not used. */
   GPUVertBuf *vbo = GPU_vertbuf_create_with_format(&format);
   GPU_vertbuf_data_alloc(vbo, 4);
 
@@ -230,8 +230,10 @@ void blf_batch_draw(void)
   GPU_blend_set_func_separate(
       GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 
+#ifndef BLF_STANDALONE
   /* We need to flush widget base first to ensure correct ordering. */
   UI_widgetbase_draw_cache_flush();
+#endif
 
   GPUTexture *texture = blf_batch_cache_texture_load();
   GPU_texture_bind(texture, 0);

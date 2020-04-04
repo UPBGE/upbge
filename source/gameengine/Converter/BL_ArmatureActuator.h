@@ -32,8 +32,8 @@
 #ifndef __BL_ARMATUREACTUATOR_H__
 #define __BL_ARMATUREACTUATOR_H__
 
-#include "SCA_IActuator.h"
 #include "BL_ArmatureConstraint.h"
+#include "SCA_IActuator.h"
 
 /**
  * This class is the conversion of the Pose channel constraint.

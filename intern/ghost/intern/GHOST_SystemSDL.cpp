@@ -26,9 +26,9 @@
 
 #include "GHOST_WindowManager.h"
 
+#include "GHOST_EventButton.h"
 #include "GHOST_EventCursor.h"
 #include "GHOST_EventKey.h"
-#include "GHOST_EventButton.h"
 #include "GHOST_EventWheel.h"
 
 GHOST_SystemSDL::GHOST_SystemSDL() : GHOST_System()
@@ -591,7 +591,7 @@ void GHOST_SystemSDL::processEvent(SDL_Event *sdl_event)
         }
       }
 
-      g_event = new GHOST_EventKey(getMilliSeconds(), type, window, gkey, sym, NULL);
+      g_event = new GHOST_EventKey(getMilliSeconds(), type, window, gkey, sym, NULL, false);
       break;
     }
   }

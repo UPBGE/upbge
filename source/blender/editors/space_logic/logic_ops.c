@@ -30,12 +30,12 @@
 
 #include <stddef.h>
 
-#include "DNA_object_types.h"
-#include "DNA_sensor_types.h"
-#include "DNA_controller_types.h"
 #include "DNA_actuator_types.h"
-#include "DNA_scene_types.h"
+#include "DNA_controller_types.h"
+#include "DNA_object_types.h"
 #include "DNA_python_component_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_sensor_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_string_utils.h"
@@ -45,8 +45,8 @@
 
 #include "BKE_context.h"
 #include "BKE_main.h"
-#include "BKE_sca.h"
 #include "BKE_python_component.h"
+#include "BKE_sca.h"
 
 #include "ED_logic.h"
 #include "ED_object.h"
@@ -792,7 +792,7 @@ static int logic_region_flip_exec(bContext *C, wmOperator *op)
   }
 
   ED_area_tag_redraw(CTX_wm_area(C));
-  WM_event_add_mousemove(C);
+  WM_event_add_mousemove(CTX_wm_window(C));
   WM_event_add_notifier(C, NC_LOGIC, NULL);
   ED_region_toggle_hidden(C, ar);
 

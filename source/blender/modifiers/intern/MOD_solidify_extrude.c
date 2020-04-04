@@ -29,13 +29,13 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BKE_deform.h"
 #include "BKE_mesh.h"
 #include "BKE_particle.h"
-#include "BKE_deform.h"
 
 #include "MOD_modifiertypes.h"
-#include "MOD_util.h"
 #include "MOD_solidify_util.h" /* own include */
+#include "MOD_util.h"
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic error "-Wsign-conversion"
@@ -240,6 +240,9 @@ Mesh *MOD_solidify_extrude_applyModifier(ModifierData *md,
   MDeformVert *dvert;
   const bool defgrp_invert = (smd->flag & MOD_SOLIDIFY_VGROUP_INV) != 0;
   int defgrp_index;
+  const int shell_defgrp_index = BKE_object_defgroup_name_index(ctx->object,
+                                                                smd->shell_defgrp_name);
+  const int rim_defgrp_index = BKE_object_defgroup_name_index(ctx->object, smd->rim_defgrp_name);
 
   /* array size is doubled in case of using a shell */
   const uint stride = do_shell ? 2 : 1;
@@ -578,10 +581,10 @@ Mesh *MOD_solidify_extrude_applyModifier(ModifierData *md,
         if (dvert) {
           MDeformVert *dv = &dvert[i];
           if (defgrp_invert) {
-            scalar_short_vgroup = 1.0f - defvert_find_weight(dv, defgrp_index);
+            scalar_short_vgroup = 1.0f - BKE_defvert_find_weight(dv, defgrp_index);
           }
           else {
-            scalar_short_vgroup = defvert_find_weight(dv, defgrp_index);
+            scalar_short_vgroup = BKE_defvert_find_weight(dv, defgrp_index);
           }
           scalar_short_vgroup = (offset_fac_vg + (scalar_short_vgroup * offset_fac_vg_inv)) *
                                 scalar_short;
@@ -625,10 +628,10 @@ Mesh *MOD_solidify_extrude_applyModifier(ModifierData *md,
         if (dvert) {
           MDeformVert *dv = &dvert[i];
           if (defgrp_invert) {
-            scalar_short_vgroup = 1.0f - defvert_find_weight(dv, defgrp_index);
+            scalar_short_vgroup = 1.0f - BKE_defvert_find_weight(dv, defgrp_index);
           }
           else {
-            scalar_short_vgroup = defvert_find_weight(dv, defgrp_index);
+            scalar_short_vgroup = BKE_defvert_find_weight(dv, defgrp_index);
           }
           scalar_short_vgroup = (offset_fac_vg + (scalar_short_vgroup * offset_fac_vg_inv)) *
                                 scalar_short;
@@ -740,14 +743,14 @@ Mesh *MOD_solidify_extrude_applyModifier(ModifierData *md,
 
       if (defgrp_invert) {
         for (i = 0; i < numVerts; i++, dv++) {
-          scalar = 1.0f - defvert_find_weight(dv, defgrp_index);
+          scalar = 1.0f - BKE_defvert_find_weight(dv, defgrp_index);
           scalar = offset_fac_vg + (scalar * offset_fac_vg_inv);
           vert_angles[i] *= scalar;
         }
       }
       else {
         for (i = 0; i < numVerts; i++, dv++) {
-          scalar = defvert_find_weight(dv, defgrp_index);
+          scalar = BKE_defvert_find_weight(dv, defgrp_index);
           scalar = offset_fac_vg + (scalar * offset_fac_vg_inv);
           vert_angles[i] *= scalar;
         }
@@ -886,6 +889,36 @@ Mesh *MOD_solidify_extrude_applyModifier(ModifierData *md,
     }
   }
 
+  /* Add vertex weights for rim and shell vgroups. */
+  if (shell_defgrp_index != -1 || rim_defgrp_index != -1) {
+    dvert = CustomData_duplicate_referenced_layer(&result->vdata, CD_MDEFORMVERT, result->totvert);
+    /* If no vertices were ever added to an object's vgroup, dvert might be NULL. */
+    if (dvert == NULL) {
+      /* Add a valid data layer! */
+      dvert = CustomData_add_layer(
+          &result->vdata, CD_MDEFORMVERT, CD_CALLOC, NULL, result->totvert);
+    }
+    /* Ultimate security check. */
+    if (!dvert) {
+      return result;
+    }
+    result->dvert = dvert;
+
+    if (rim_defgrp_index != -1) {
+      for (uint i = 0; i < rimVerts; i++) {
+        BKE_defvert_ensure_index(&result->dvert[new_vert_arr[i]], rim_defgrp_index)->weight = 1.0f;
+        BKE_defvert_ensure_index(&result->dvert[(do_shell ? new_vert_arr[i] : i) + numVerts],
+                                 rim_defgrp_index)
+            ->weight = 1.0f;
+      }
+    }
+
+    if (shell_defgrp_index != -1) {
+      for (uint i = numVerts; i < result->totvert; i++) {
+        BKE_defvert_ensure_index(&result->dvert[i], shell_defgrp_index)->weight = 1.0f;
+      }
+    }
+  }
   if (smd->flag & MOD_SOLIDIFY_RIM) {
     uint i;
 

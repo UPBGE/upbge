@@ -1,41 +1,41 @@
 
 set(INC
-	.
-	../Common
-	../Converter
-	../Device
-	../Expressions
-	../GameLogic
-	../Ketsji
-	../Ketsji/KXNetwork
-	../Launcher
-	../Physics/Bullet
-	../Physics/Common
-	../Rasterizer
-	../Rasterizer/RAS_OpenGLRasterizer
-	../SceneGraph
-	../../blender
-	../../blender/blenfont
-	../../blender/blenkernel
-	../../blender/blenlib
-	../../blender/blenloader
-	../../blender/draw/engines/eevee/
-	../../blender/editors/include
-	../../blender/gpu
-	../../blender/imbuf
-	../../blender/makesdna
-	../../blender/makesrna
-	../../blender/windowmanager
-	../../../intern/guardedalloc
-	../../../intern/string
-	../../../intern/termcolor
-	../../../intern/ghost
+  .
+  ../Common
+  ../Converter
+  ../Device
+  ../Expressions
+  ../GameLogic
+  ../Ketsji
+  ../Ketsji/KXNetwork
+  ../Launcher
+  ../Physics/Bullet
+  ../Physics/Common
+  ../Rasterizer
+  ../Rasterizer/RAS_OpenGLRasterizer
+  ../SceneGraph
+  ../../blender
+  ../../blender/blenfont
+  ../../blender/blenkernel
+  ../../blender/blenlib
+  ../../blender/blenloader
+  ../../blender/draw/engines/eevee/
+  ../../blender/editors/include
+  ../../blender/gpu
+  ../../blender/imbuf
+  ../../blender/makesdna
+  ../../blender/makesrna
+  ../../blender/windowmanager
+  ../../../intern/guardedalloc
+  ../../../intern/string
+  ../../../intern/termcolor
+  ../../../intern/ghost
 )
 
 set(INC_SYS
-	../../../intern/moto/include
-	${PTHREADS_INCLUDE_DIRS}
-	${BOOST_INCLUDE_DIR}
+  ../../../intern/moto/include
+  ${PTHREADS_INCLUDE_DIRS}
+  ${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
@@ -62,14 +62,14 @@ if(WITH_AUDASPACE)
 endif()
 
 if(WITH_CODEC_FFMPEG)
-	add_definitions(-DWITH_FFMPEG)
+  add_definitions(-DWITH_FFMPEG)
 endif()
 
 if(WITH_BULLET)
-	list(APPEND INC_SYS
-		${BULLET_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_BULLET)
+  list(APPEND INC_SYS
+    ${BULLET_INCLUDE_DIRS}
+  )
+  add_definitions(-DWITH_BULLET)
 endif()
 
 

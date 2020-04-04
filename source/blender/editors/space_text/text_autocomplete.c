@@ -29,16 +29,16 @@
 #include "BLI_ghash.h"
 
 #include "BKE_context.h"
+#include "BKE_screen.h"
 #include "BKE_text.h"
 #include "BKE_text_suggestions.h"
-#include "BKE_screen.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "ED_screen.h"
 #include "ED_text.h"
 #include "ED_undo.h"
-#include "ED_screen.h"
 
 #include "UI_interface.h"
 
@@ -49,7 +49,7 @@
 /** \name Public API
  * \{ */
 
-int text_do_suggest_select(SpaceText *st, ARegion *ar)
+int text_do_suggest_select(SpaceText *st, ARegion *region)
 {
   SuggItem *item, *first, *last /* , *sel */ /* UNUSED */;
   TextLine *tmp;
@@ -84,7 +84,7 @@ int text_do_suggest_select(SpaceText *st, ARegion *ar)
   text_update_character_width(st);
 
   x = TXT_BODY_LEFT(st) + (st->runtime.cwidth_px * (st->text->curc - st->left));
-  y = ar->winy - st->runtime.lheight_px * l - 2;
+  y = region->winy - st->runtime.lheight_px * l - 2;
 
   w = SUGG_LIST_WIDTH * st->runtime.cwidth_px + U.widget_unit;
   h = SUGG_LIST_SIZE * st->runtime.lheight_px + 0.4f * U.widget_unit;
@@ -335,8 +335,8 @@ static int doc_scroll = 0;
 static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceText *st = CTX_wm_space_text(C);
-  ScrArea *sa = CTX_wm_area(C);
-  ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   int draw = 0, tools = 0, swallow = 0, scroll = 1;
   Text *text = CTX_data_edit_text(C);
@@ -356,7 +356,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
   switch (event->type) {
     case LEFTMOUSE:
       if (event->val == KM_PRESS) {
-        if (text_do_suggest_select(st, ar)) {
+        if (text_do_suggest_select(st, region)) {
           swallow = 1;
         }
         else {
@@ -374,7 +374,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
       break;
     case MIDDLEMOUSE:
       if (event->val == KM_PRESS) {
-        if (text_do_suggest_select(st, ar)) {
+        if (text_do_suggest_select(st, region)) {
           ED_text_undo_push_init(C);
           confirm_suggestion(st->text);
           text_update_line_edited(st->text->curl);
@@ -394,7 +394,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
         draw = 1;
       }
       break;
-    case ESCKEY:
+    case EVT_ESCKEY:
       if (event->val == KM_PRESS) {
         draw = swallow = 1;
         if (tools & TOOL_SUGG_LIST) {
@@ -410,8 +410,8 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
         retval = OPERATOR_CANCELLED;
       }
       break;
-    case RETKEY:
-    case PADENTER:
+    case EVT_RETKEY:
+    case EVT_PADENTER:
       if (event->val == KM_PRESS) {
         if (tools & TOOL_SUGG_LIST) {
           ED_text_undo_push_init(C);
@@ -429,8 +429,8 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
         retval = OPERATOR_FINISHED;
       }
       break;
-    case LEFTARROWKEY:
-    case BACKSPACEKEY:
+    case EVT_LEFTARROWKEY:
+    case EVT_BACKSPACEKEY:
       if (event->val == KM_PRESS) {
         if (tools & TOOL_SUGG_LIST) {
           if (event->ctrl) {
@@ -462,7 +462,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
         }
       }
       break;
-    case RIGHTARROWKEY:
+    case EVT_RIGHTARROWKEY:
       if (event->val == KM_PRESS) {
         if (tools & TOOL_SUGG_LIST) {
           if (event->ctrl) {
@@ -494,11 +494,11 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
         }
       }
       break;
-    case PAGEDOWNKEY:
+    case EVT_PAGEDOWNKEY:
       scroll = SUGG_LIST_SIZE - 1;
       ATTR_FALLTHROUGH;
     case WHEELDOWNMOUSE:
-    case DOWNARROWKEY:
+    case EVT_DOWNARROWKEY:
       if (event->val == KM_PRESS) {
         if (tools & TOOL_DOCUMENT) {
           doc_scroll++;
@@ -528,11 +528,11 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
         }
       }
       break;
-    case PAGEUPKEY:
+    case EVT_PAGEUPKEY:
       scroll = SUGG_LIST_SIZE - 1;
       ATTR_FALLTHROUGH;
     case WHEELUPMOUSE:
-    case UPARROWKEY:
+    case EVT_UPARROWKEY:
       if (event->val == KM_PRESS) {
         if (tools & TOOL_DOCUMENT) {
           if (doc_scroll > 0) {
@@ -559,8 +559,8 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
         }
       }
       break;
-    case RIGHTSHIFTKEY:
-    case LEFTSHIFTKEY:
+    case EVT_RIGHTSHIFTKEY:
+    case EVT_LEFTSHIFTKEY:
       break;
 #if 0
     default:
@@ -577,7 +577,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
   }
 
   if (draw) {
-    ED_area_tag_redraw(sa);
+    ED_area_tag_redraw(area);
   }
 
   //  if (swallow) {

@@ -25,17 +25,17 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_math_vector.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BKE_lattice.h"
-#include "BKE_deform.h"
 #include "BKE_colorband.h"
+#include "BKE_deform.h"
+#include "BKE_lattice.h"
 
 #include "GPU_batch.h"
 
@@ -366,7 +366,7 @@ static GPUVertBuf *lattice_batch_cache_get_pos(LatticeRenderData *rdata,
 
       if (use_weight) {
         const float no_active_weight = 666.0f;
-        float weight = (actdef > -1) ? defvert_find_weight(rdata->dvert + i, actdef) :
+        float weight = (actdef > -1) ? BKE_defvert_find_weight(rdata->dvert + i, actdef) :
                                        no_active_weight;
         GPU_vertbuf_attr_set(cache->pos, attr_id.col, i, &weight);
       }

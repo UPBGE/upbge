@@ -22,17 +22,17 @@
  */
 
 #include <math.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
-#include "BLI_noise.h"
 #include "BLI_kdopbvh.h"
-#include "BLI_utildefines.h"
+#include "BLI_math.h"
+#include "BLI_noise.h"
 #include "BLI_task.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
@@ -43,12 +43,12 @@
 #include "DNA_texture_types.h"
 
 #include "BKE_colorband.h"
+#include "BKE_colortools.h"
 #include "BKE_deform.h"
 #include "BKE_lattice.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
-#include "BKE_colortools.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -347,7 +347,7 @@ static void pointdensity_cache_vertex_weight(PointDensity *pd,
   if (!mdef) {
     return;
   }
-  mdef_index = defgroup_name_index(ob, pd->vertex_attribute_name);
+  mdef_index = BKE_object_defgroup_name_index(ob, pd->vertex_attribute_name);
   if (mdef_index < 0) {
     mdef_index = ob->actdef - 1;
   }

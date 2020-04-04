@@ -24,53 +24,53 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	../BlenderRoutines
-	../Common
-	../Converter
-	../Device
-	../Expressions
-	../GameLogic
-	../GamePlayer
-	../Ketsji
-	../Ketsji/KXNetwork
-	../Rasterizer
-	../SceneGraph
-	../VideoTexture
-	../../blender/blenkernel
-	../../blender/blenlib
-	../../blender/blentranslation
-	../../blender/draw/engines/eevee/
-	../../blender/draw/intern
-	../../blender/gpu
-	../../blender/makesdna
-	../../blender/makesrna
-	../../blender/render/extern/include
-	../../blender/windowmanager
-	../../../intern/guardedalloc
-	../../../intern/ghost
-	../../../intern/string
-	../../../intern/termcolor
+  .
+  ../BlenderRoutines
+  ../Common
+  ../Converter
+  ../Device
+  ../Expressions
+  ../GameLogic
+  ../GamePlayer
+  ../Ketsji
+  ../Ketsji/KXNetwork
+  ../Rasterizer
+  ../SceneGraph
+  ../VideoTexture
+  ../../blender/blenkernel
+  ../../blender/blenlib
+  ../../blender/blentranslation
+  ../../blender/draw/engines/eevee/
+  ../../blender/draw/intern
+  ../../blender/gpu
+  ../../blender/makesdna
+  ../../blender/makesrna
+  ../../blender/render/extern/include
+  ../../blender/windowmanager
+  ../../../intern/guardedalloc
+  ../../../intern/ghost
+  ../../../intern/string
+  ../../../intern/termcolor
 )
 
 set(INC_SYS
-	../../../intern/moto/include
-	${BOOST_INCLUDE_DIR}
-	${GLEW_INCLUDE_PATH}
+  ../../../intern/moto/include
+  ${BOOST_INCLUDE_DIR}
+  ${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
-	LA_BlenderLauncher.cpp
-	LA_Launcher.cpp
-	LA_PlayerLauncher.cpp
-	LA_SystemCommandLine.cpp
-	LA_System.cpp
+  LA_BlenderLauncher.cpp
+  LA_Launcher.cpp
+  LA_PlayerLauncher.cpp
+  LA_SystemCommandLine.cpp
+  LA_System.cpp
 
-	LA_BlenderLauncher.h
-	LA_Launcher.h
-	LA_PlayerLauncher.h
-	LA_SystemCommandLine.h
-	LA_System.h
+  LA_BlenderLauncher.h
+  LA_Launcher.h
+  LA_PlayerLauncher.h
+  LA_SystemCommandLine.h
+  LA_System.h
 )
 
 set(LIB
@@ -84,7 +84,7 @@ set(LIB
 )
 
 if(WITH_GAMEENGINE_SECURITY)
-	add_definitions(-DWITH_GAMEENGINE_SECURITY)
+  add_definitions(-DWITH_GAMEENGINE_SECURITY)
 endif()
 
 if(WITH_PLAYER)

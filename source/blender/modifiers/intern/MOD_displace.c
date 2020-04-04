@@ -31,15 +31,15 @@
 #include "DNA_object_types.h"
 
 #include "BKE_customdata.h"
+#include "BKE_deform.h"
 #include "BKE_editmesh.h"
+#include "BKE_image.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
-#include "BKE_image.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
-#include "BKE_texture.h"
-#include "BKE_deform.h"
 #include "BKE_object.h"
+#include "BKE_texture.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -193,8 +193,8 @@ static void displaceModifier_do_task(void *__restrict userdata,
   float local_vec[3];
 
   if (dvert) {
-    weight = invert_vgroup ? 1.0f - defvert_find_weight(dvert + iter, defgrp_index) :
-                             defvert_find_weight(dvert + iter, defgrp_index);
+    weight = invert_vgroup ? 1.0f - BKE_defvert_find_weight(dvert + iter, defgrp_index) :
+                             BKE_defvert_find_weight(dvert + iter, defgrp_index);
     if (weight == 0.0f) {
       return;
     }

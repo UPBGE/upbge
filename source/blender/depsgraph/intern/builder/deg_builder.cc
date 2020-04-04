@@ -25,31 +25,28 @@
 
 #include <cstring>
 
+#include "DNA_ID.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_layer_types.h"
-#include "DNA_ID.h"
 #include "DNA_object_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_stack.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_action.h"
 
-extern "C" {
-#include "BKE_animsys.h"
-}
-
+#include "intern/builder/deg_builder_cache.h"
+#include "intern/builder/deg_builder_remove_noop.h"
 #include "intern/depsgraph.h"
 #include "intern/depsgraph_relation.h"
 #include "intern/depsgraph_tag.h"
 #include "intern/depsgraph_type.h"
-#include "intern/builder/deg_builder_cache.h"
 #include "intern/eval/deg_eval_copy_on_write.h"
 #include "intern/node/deg_node.h"
-#include "intern/node/deg_node_id.h"
 #include "intern/node/deg_node_component.h"
+#include "intern/node/deg_node_id.h"
 #include "intern/node/deg_node_operation.h"
 
 #include "DEG_depsgraph.h"
@@ -212,6 +209,8 @@ void deg_graph_build_finalize(Main *bmain, Depsgraph *graph)
 {
   /* Make sure dependencies of visible ID datablocks are visible. */
   deg_graph_build_flush_visibility(graph);
+  deg_graph_remove_unused_noops(graph);
+
   /* Re-tag IDs for update if it was tagged before the relations
    * update tag. */
   for (IDNode *id_node : graph->id_nodes) {

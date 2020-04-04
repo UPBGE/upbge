@@ -106,10 +106,10 @@ float BKE_mask_spline_project_co(struct MaskSpline *spline,
                                  const eMaskSign sign);
 
 /* point */
-eMaskhandleMode BKE_mask_point_handles_mode_get(struct MaskSplinePoint *point);
-void BKE_mask_point_handle(struct MaskSplinePoint *point,
+eMaskhandleMode BKE_mask_point_handles_mode_get(const struct MaskSplinePoint *point);
+void BKE_mask_point_handle(const struct MaskSplinePoint *point,
                            eMaskWhichHandle which_handle,
-                           float handle[2]);
+                           float r_handle[2]);
 void BKE_mask_point_set_handle(struct MaskSplinePoint *point,
                                eMaskWhichHandle which_handle,
                                float loc[2],
@@ -142,14 +142,8 @@ void BKE_mask_point_select_set_handle(struct MaskSplinePoint *point,
 
 /* general */
 struct Mask *BKE_mask_new(struct Main *bmain, const char *name);
-void BKE_mask_copy_data(struct Main *bmain,
-                        struct Mask *mask_dst,
-                        const struct Mask *mask_src,
-                        const int flag);
 struct Mask *BKE_mask_copy_nolib(struct Mask *mask);
 struct Mask *BKE_mask_copy(struct Main *bmain, const struct Mask *mask);
-
-void BKE_mask_make_local(struct Main *bmain, struct Mask *mask, const int flags);
 
 void BKE_mask_free(struct Mask *mask);
 

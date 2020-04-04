@@ -18,6 +18,7 @@
 set(INC
   ../include
   ../../blenkernel
+  ../../blenfont
   ../../blenlib
   ../../blentranslation
   ../../bmesh
@@ -66,6 +67,7 @@ set(SRC
   object_transform.c
   object_utils.c
   object_vgroup.c
+  object_volume.c
   object_warp.c
 
   object_intern.h
@@ -91,6 +93,10 @@ endif()
 
 if(WITH_INTERNATIONAL)
   add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_NEW_OBJECT_TYPES)
+  add_definitions(-DWITH_NEW_OBJECT_TYPES)
 endif()
 
 blender_add_lib(bf_editor_object "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

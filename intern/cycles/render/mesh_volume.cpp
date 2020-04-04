@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "render/mesh.h"
 #include "render/attribute.h"
+#include "render/mesh.h"
 #include "render/scene.h"
 
 #include "util/util_foreach.h"
@@ -362,7 +362,7 @@ struct VoxelAttributeGrid {
   int channels;
 };
 
-void GeometryManager::create_volume_mesh(Scene *scene, Mesh *mesh, Progress &progress)
+void GeometryManager::create_volume_mesh(Mesh *mesh, Progress &progress)
 {
   string msg = string_printf("Computing Volume Mesh %s", mesh->name.c_str());
   progress.set_status("Updating Mesh", msg);
@@ -373,13 +373,15 @@ void GeometryManager::create_volume_mesh(Scene *scene, Mesh *mesh, Progress &pro
   VolumeParams volume_params;
   volume_params.resolution = make_int3(0, 0, 0);
 
+  Transform transform = transform_identity();
+
   foreach (Attribute &attr, mesh->attributes.attributes) {
     if (attr.element != ATTR_ELEMENT_VOXEL) {
       continue;
     }
 
-    VoxelAttribute *voxel = attr.data_voxel();
-    device_memory *image_memory = scene->image_manager->image_memory(voxel->slot);
+    ImageHandle &handle = attr.data_voxel();
+    device_texture *image_memory = handle.image_memory();
     int3 resolution = make_int3(
         image_memory->data_width, image_memory->data_height, image_memory->data_depth);
 
@@ -387,14 +389,20 @@ void GeometryManager::create_volume_mesh(Scene *scene, Mesh *mesh, Progress &pro
       volume_params.resolution = resolution;
     }
     else if (volume_params.resolution != resolution) {
-      VLOG(1) << "Can't create volume mesh, all voxel grid resolutions must be equal\n";
-      return;
+      /* TODO: support this as it's common for OpenVDB. */
+      VLOG(1) << "Can't create accurate volume mesh, all voxel grid resolutions must be equal\n";
+      continue;
     }
 
     VoxelAttributeGrid voxel_grid;
     voxel_grid.data = static_cast<float *>(image_memory->host_pointer);
     voxel_grid.channels = image_memory->data_elements;
     voxel_grids.push_back(voxel_grid);
+
+    /* TODO: support multiple transforms. */
+    if (image_memory->info.use_transform_3d) {
+      transform = image_memory->info.transform_3d;
+    }
   }
 
   if (voxel_grids.empty()) {
@@ -427,17 +435,14 @@ void GeometryManager::create_volume_mesh(Scene *scene, Mesh *mesh, Progress &pro
   }
 
   /* Compute start point and cell size from transform. */
-  Attribute *attr = mesh->attributes.find(ATTR_STD_GENERATED_TRANSFORM);
   const int3 resolution = volume_params.resolution;
   float3 start_point = make_float3(0.0f, 0.0f, 0.0f);
   float3 cell_size = make_float3(1.0f / resolution.x, 1.0f / resolution.y, 1.0f / resolution.z);
 
-  if (attr) {
-    const Transform *tfm = attr->data_transform();
-    const Transform itfm = transform_inverse(*tfm);
-    start_point = transform_point(&itfm, start_point);
-    cell_size = transform_direction(&itfm, cell_size);
-  }
+  /* TODO: support arbitrary transforms, not just scale + translate. */
+  const Transform itfm = transform_inverse(transform);
+  start_point = transform_point(&itfm, start_point);
+  cell_size = transform_direction(&itfm, cell_size);
 
   volume_params.start_point = start_point;
   volume_params.cell_size = cell_size;
@@ -445,7 +450,7 @@ void GeometryManager::create_volume_mesh(Scene *scene, Mesh *mesh, Progress &pro
 
   /* Build bounding mesh around non-empty volume cells. */
   VolumeMeshBuilder builder(&volume_params);
-  const float isovalue = mesh->volume_isovalue;
+  const float clipping = mesh->volume_clipping;
 
   for (int z = 0; z < resolution.z; ++z) {
     for (int y = 0; y < resolution.y; ++y) {
@@ -457,7 +462,7 @@ void GeometryManager::create_volume_mesh(Scene *scene, Mesh *mesh, Progress &pro
           const int channels = voxel_grid.channels;
 
           for (int c = 0; c < channels; c++) {
-            if (voxel_grid.data[voxel_index * channels + c] >= isovalue) {
+            if (voxel_grid.data[voxel_index * channels + c] >= clipping) {
               builder.add_node_with_padding(x, y, z);
               break;
             }

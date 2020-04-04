@@ -173,15 +173,15 @@ class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
             col = flow.column()
             col.enabled = not domain.has_cache_baked_guide
             col.prop(domain, "resolution_max", text="Resolution Divisions")
-            col = flow.column()
             col.prop(domain, "time_scale", text="Time Scale")
             col.prop(domain, "cfl_condition", text="CFL Number")
 
-            col = flow.column(align=True)
+            col = flow.column()
             col.prop(domain, "use_adaptive_timesteps")
-            col.active = domain.use_adaptive_timesteps
-            col.prop(domain, "timesteps_max", text="Timesteps Maximum")
-            col.prop(domain, "timesteps_min", text="Minimum")
+            sub = col.column(align=True)
+            sub.active = domain.use_adaptive_timesteps
+            sub.prop(domain, "timesteps_max", text="Timesteps Maximum")
+            sub.prop(domain, "timesteps_min", text="Minimum")
 
             col.separator()
 
@@ -192,8 +192,11 @@ class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
                 sub.prop(domain, "gravity", text="Using Scene Gravity", icon='SCENE_DATA')
             else:
                 col.prop(domain, "gravity", text="Gravity")
-            # TODO (sebbas): Clipping var useful for manta openvdb caching?
-            # col.prop(domain, "clipping", text="Empty Space")
+
+            col = flow.column()
+            if PhysicButtonsPanel.poll_gas_domain(context):
+                col.prop(domain, "clipping", text="Empty Space")
+            col.prop(domain, "delete_in_obstacle", text="Delete In Obstacle")
 
             if domain.cache_type == 'MODULAR':
                 col.separator()
@@ -262,13 +265,16 @@ class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
             row = layout.row()
             row.prop(effector_settings, "effector_type")
 
-            flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
+            grid = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
 
-            col = flow.column()
-
-            col.prop(effector_settings, "use_plane_init", text="Is Planar")
+            col = grid.column()
+            col.prop(effector_settings, "subframes", text="Sampling Substeps")
             col.prop(effector_settings, "surface_distance", text="Surface Thickness")
-            col.prop(effector_settings, "delete_in_obstacle", text="Delete In Obstacle")
+
+            col = grid.column()
+
+            col.prop(effector_settings, "use_effector", text="Use Effector")
+            col.prop(effector_settings, "use_plane_init", text="Is Planar")
 
             if effector_settings.effector_type == 'GUIDE':
                 col.prop(effector_settings, "velocity_factor", text="Velocity Factor")
@@ -418,14 +424,16 @@ class PHYSICS_PT_fire(PhysicButtonsPanel, Panel):
 
         col = flow.column()
         col.prop(domain, "burning_rate", text="Reaction Speed")
-        col = flow.column(align=True)
-        col.prop(domain, "flame_smoke", text="Flame Smoke")
-        col.prop(domain, "flame_vorticity", text="Vorticity")
+        row = col.row()
+        sub = row.column(align=True)
+        sub.prop(domain, "flame_smoke", text="Flame Smoke")
+        sub.prop(domain, "flame_vorticity", text="Vorticity")
+
         col = flow.column(align=True)
         col.prop(domain, "flame_max_temp", text="Temperature Maximum")
         col.prop(domain, "flame_ignition", text="Minimum")
-        col = flow.column()
-        col.prop(domain, "flame_smoke_color", text="Flame Color")
+        row = col.row()
+        row.prop(domain, "flame_smoke_color", text="Flame Color")
 
 
 class PHYSICS_PT_liquid(PhysicButtonsPanel, Panel):
@@ -465,21 +473,26 @@ class PHYSICS_PT_liquid(PhysicButtonsPanel, Panel):
         col = flow.column()
         col.prop(domain, "simulation_method", expand=False)
         col.prop(domain, "flip_ratio", text="FLIP Ratio")
+        col = col.column(align=True)
         col.prop(domain, "particle_radius", text="Particle Radius")
+        col.prop(domain, "particle_number", text="Sampling")
+        col.prop(domain, "particle_randomness", text="Randomness")
 
         col = flow.column()
+        col = col.column(align=True)
         col.prop(domain, "particle_max", text="Particles Maximum")
         col.prop(domain, "particle_min", text="Minimum")
 
-        col = flow.column()
-        col.prop(domain, "particle_number", text="Particle Sampling")
-        col.prop(domain, "particle_band_width", text="Narrow Band Width")
-        col.prop(domain, "particle_randomness", text="Particle Randomness")
+        col.separator()
 
-        col = flow.column()
+        col = col.column()
+        col.prop(domain, "particle_band_width", text="Narrow Band Width")
+
+        col = col.column()
         col.prop(domain, "use_fractions", text="Fractional Obstacles")
-        col.active = domain.use_fractions
-        col.prop(domain, "fractions_threshold", text="Obstacle-Fluid Threshold")
+        sub = col.column()
+        sub.active = domain.use_fractions
+        sub.prop(domain, "fractions_threshold", text="Obstacle-Fluid Threshold")
 
 
 class PHYSICS_PT_flow_source(PhysicButtonsPanel, Panel):
@@ -852,13 +865,15 @@ class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
         flow.enabled = not is_baking_any
 
         sndparticle_combined_export = domain.sndparticle_combined_export
-        row = flow.row()
+        col = flow.column()
+        row = col.row()
         row.enabled = sndparticle_combined_export in {'OFF', 'FOAM + BUBBLES'}
         row.prop(domain, "use_spray_particles", text="Spray")
         row.prop(domain, "use_foam_particles", text="Foam")
         row.prop(domain, "use_bubble_particles", text="Bubbles")
 
-        col = flow.column()
+        col.separator()
+
         col.prop(domain, "sndparticle_combined_export")
 
         flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
@@ -1120,35 +1135,37 @@ class PHYSICS_PT_cache(PhysicButtonsPanel, Panel):
         col.prop(domain, "cache_type", expand=False)
         col.enabled = not is_baking_any
 
-        col = flow.column(align=True)
         col.separator()
 
+        row = col.row()
+        col = row.column(align=True)
         col.prop(domain, "cache_frame_start", text="Frame Start")
         col.prop(domain, "cache_frame_end", text="End")
-        col.enabled = not is_baking_any
+        row.enabled = not is_baking_any
 
         col.separator()
 
         col = flow.column()
-        col.enabled = not is_baking_any and not has_baked_data
-        col.prop(domain, "cache_data_format", text="Data File Format")
+        row = col.row()
+        row.enabled = not is_baking_any and not has_baked_data
+        row.prop(domain, "cache_data_format", text="Data File Format")
 
         if md.domain_settings.domain_type in {'GAS'}:
             if domain.use_noise:
-                col = flow.column()
-                col.enabled = not is_baking_any and not has_baked_noise
-                col.prop(domain, "cache_noise_format", text="Noise File Format")
+                row = col.row()
+                row.enabled = not is_baking_any and not has_baked_noise
+                row.prop(domain, "cache_noise_format", text="Noise File Format")
 
         if md.domain_settings.domain_type in {'LIQUID'}:
             # File format for all particle systemes (FLIP and secondary)
-            col = flow.column()
-            col.enabled = not is_baking_any and not has_baked_particles and not has_baked_data
-            col.prop(domain, "cache_particle_format", text="Particle File Format")
+            row = col.row()
+            row.enabled = not is_baking_any and not has_baked_particles and not has_baked_data
+            row.prop(domain, "cache_particle_format", text="Particle File Format")
 
             if domain.use_mesh:
-                col = flow.column()
-                col.enabled = not is_baking_any and not has_baked_mesh
-                col.prop(domain, "cache_mesh_format", text="Mesh File Format")
+                row = col.row()
+                row.enabled = not is_baking_any and not has_baked_mesh
+                row.prop(domain, "cache_mesh_format", text="Mesh File Format")
 
         if domain.cache_type == 'FINAL':
 

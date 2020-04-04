@@ -284,6 +284,17 @@ class TEXT_MT_templates_py(Menu):
             filter_ext=lambda ext: (ext.lower() == ".py")
         )
 
+class TEXT_MT_templates_py_components(Menu):
+    bl_label = "Python Component"
+
+    def draw(self, _context):
+        self.path_menu(
+            bpy.utils.script_paths("templates_py_components"),
+            "text.open",
+            props_default={"internal": True},
+            filter_ext=lambda ext: (ext.lower() == ".py")
+        )
+
 
 class TEXT_MT_templates_osl(Menu):
     bl_label = "Open Shading Language"
@@ -315,6 +326,7 @@ class TEXT_MT_templates(Menu):
     def draw(self, _context):
         layout = self.layout
         layout.menu("TEXT_MT_templates_py")
+        layout.menu("TEXT_MT_templates_py_components")
         layout.menu("TEXT_MT_templates_osl")
         layout.menu("TEXT_MT_templates_glsl")
 
@@ -466,6 +478,7 @@ classes = (
     TEXT_MT_text,
     TEXT_MT_templates,
     TEXT_MT_templates_py,
+    TEXT_MT_templates_py_components,
     TEXT_MT_templates_osl,
     TEXT_MT_templates_glsl,
     TEXT_MT_select,

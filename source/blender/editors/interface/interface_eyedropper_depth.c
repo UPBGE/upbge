@@ -28,14 +28,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_space_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_object_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_object_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BLI_string.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -54,8 +54,8 @@
 #include "ED_space_api.h"
 #include "ED_view3d.h"
 
-#include "interface_intern.h"
 #include "interface_eyedropper_intern.h"
+#include "interface_intern.h"
 
 /**
  * \note #DepthDropper is only internal name to avoid confusion with other kinds of eye-droppers.
@@ -77,10 +77,10 @@ typedef struct DepthDropper {
   char name[200];
 } DepthDropper;
 
-static void depthdropper_draw_cb(const struct bContext *C, ARegion *ar, void *arg)
+static void depthdropper_draw_cb(const struct bContext *C, ARegion *region, void *arg)
 {
   DepthDropper *ddr = arg;
-  eyedropper_draw_cursor_text(C, ar, ddr->name);
+  eyedropper_draw_cursor_text(C, region, ddr->name);
 }
 
 static int depthdropper_init(bContext *C, wmOperator *op)
@@ -156,40 +156,40 @@ static void depthdropper_depth_sample_pt(
 {
   /* we could use some clever */
   bScreen *screen = CTX_wm_screen(C);
-  ScrArea *sa = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, mx, my);
+  ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, mx, my);
   Scene *scene = CTX_data_scene(C);
 
   ScrArea *area_prev = CTX_wm_area(C);
-  ARegion *ar_prev = CTX_wm_region(C);
+  ARegion *region_prev = CTX_wm_region(C);
 
   ddr->name[0] = '\0';
 
-  if (sa) {
-    if (sa->spacetype == SPACE_VIEW3D) {
-      ARegion *ar = BKE_area_find_region_xy(sa, RGN_TYPE_WINDOW, mx, my);
-      if (ar) {
+  if (area) {
+    if (area->spacetype == SPACE_VIEW3D) {
+      ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_WINDOW, mx, my);
+      if (region) {
         struct Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-        View3D *v3d = sa->spacedata.first;
-        RegionView3D *rv3d = ar->regiondata;
+        View3D *v3d = area->spacedata.first;
+        RegionView3D *rv3d = region->regiondata;
         /* weak, we could pass in some reference point */
         const float *view_co = v3d->camera ? v3d->camera->obmat[3] : rv3d->viewinv[3];
-        const int mval[2] = {mx - ar->winrct.xmin, my - ar->winrct.ymin};
+        const int mval[2] = {mx - region->winrct.xmin, my - region->winrct.ymin};
         float co[3];
 
-        CTX_wm_area_set(C, sa);
-        CTX_wm_region_set(C, ar);
+        CTX_wm_area_set(C, area);
+        CTX_wm_region_set(C, region);
 
         /* grr, always draw else we leave stale text */
-        ED_region_tag_redraw(ar);
+        ED_region_tag_redraw(region);
 
         view3d_operator_needs_opengl(C);
 
-        if (ED_view3d_autodist(depsgraph, ar, v3d, mval, co, true, NULL)) {
-          const float mval_center_fl[2] = {(float)ar->winx / 2, (float)ar->winy / 2};
+        if (ED_view3d_autodist(depsgraph, region, v3d, mval, co, true, NULL)) {
+          const float mval_center_fl[2] = {(float)region->winx / 2, (float)region->winy / 2};
           float co_align[3];
 
           /* quick way to get view-center aligned point */
-          ED_view3d_win_to_3d(v3d, ar, co, mval_center_fl, co_align);
+          ED_view3d_win_to_3d(v3d, region, co, mval_center_fl, co_align);
 
           *r_depth = len_v3v3(view_co, co_align);
 
@@ -209,7 +209,7 @@ static void depthdropper_depth_sample_pt(
   }
 
   CTX_wm_area_set(C, area_prev);
-  CTX_wm_region_set(C, ar_prev);
+  CTX_wm_region_set(C, region_prev);
 }
 
 /* sets the sample depth RGB, maintaining A */

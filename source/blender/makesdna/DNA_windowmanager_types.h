@@ -26,8 +26,9 @@
 
 #include "DNA_listBase.h"
 #include "DNA_screen_types.h"
-#include "DNA_vec_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_vec_types.h"
+#include "DNA_xr_types.h"
 
 #include "DNA_ID.h"
 
@@ -119,6 +120,16 @@ typedef struct ReportTimerInfo {
   float widthfac;
 } ReportTimerInfo;
 
+//#ifdef WITH_XR_OPENXR
+typedef struct wmXrData {
+  /** Runtime information for managing Blender specific behaviors. */
+  struct wmXrRuntimeData *runtime;
+  /** Permanent session settings (draw mode, feature toggles, etc). Stored in files and accessible
+   * even before the session runs. */
+  XrSessionSettings session_settings;
+} wmXrData;
+//#endif
+
 /* reports need to be before wmWindowManager */
 
 /* windowmanager is saved, tag WMAN */
@@ -180,6 +191,9 @@ typedef struct wmWindowManager {
 
   struct wmMsgBus *message_bus;
 
+  //#ifdef WITH_XR_OPENXR
+  wmXrData xr;
+  //#endif
 } wmWindowManager;
 
 /* wmWindowManager.initialized */
@@ -370,6 +384,7 @@ enum {
   KMI_EXPANDED = (1 << 1),
   KMI_USER_MODIFIED = (1 << 2),
   KMI_UPDATE = (1 << 3),
+  KMI_REPEAT_IGNORE = (1 << 4),
 };
 
 /** #wmKeyMapItem.maptype */

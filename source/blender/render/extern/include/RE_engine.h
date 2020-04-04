@@ -25,10 +25,10 @@
 #define __RE_ENGINE_H__
 
 #include "DNA_listBase.h"
-#include "DNA_scene_types.h"
 #include "DNA_node_types.h"
-#include "RNA_types.h"
+#include "DNA_scene_types.h"
 #include "RE_bake.h"
+#include "RNA_types.h"
 
 #include "BLI_threads.h"
 
@@ -59,6 +59,7 @@ struct bNodeTree;
 #define RE_USE_SAVE_BUFFERS 32
 #define RE_USE_SHADING_NODES_CUSTOM 64
 #define RE_USE_SPHERICAL_STEREO 128
+#define RE_USE_STEREO_VIEWPORT 256
 
 /* RenderEngine.flag */
 #define RE_ENGINE_ANIMATION 1
@@ -109,7 +110,7 @@ typedef struct RenderEngineType {
   struct DrawEngineType *draw_engine;
 
   /* RNA integration */
-  ExtensionRNA ext;
+  ExtensionRNA rna_ext;
 } RenderEngineType;
 
 typedef void (*update_render_passes_cb_t)(void *userdata,
@@ -198,7 +199,7 @@ void RE_engine_set_error_message(RenderEngine *engine, const char *msg);
 
 int RE_engine_render(struct Render *re, int do_all);
 
-bool RE_engine_is_external(struct Render *re);
+bool RE_engine_is_external(const struct Render *re);
 
 void RE_engine_frame_set(struct RenderEngine *engine, int frame, float subframe);
 

@@ -37,85 +37,67 @@
 #endif
 
 #include "KX_GameObject.h"
-#include "KX_PythonComponent.h"
-#include "KX_Camera.h"      // only for their ::Type
-#include "KX_Light.h"       // only for their ::Type
-#include "KX_FontObject.h"  // only for their ::Type
-#include "RAS_MeshObject.h"
-#include "RAS_IDisplayArray.h"
-#include "RAS_Polygon.h"
-#include "KX_NavMeshObject.h"
-#include "KX_MeshProxy.h"
-#include "KX_PolyProxy.h"
-#include "SG_Controller.h"
-#include "SG_Node.h"
-#include "SG_Familly.h"
-#include "KX_ClientObjectInfo.h"
-#include "RAS_BucketManager.h"
-#include "KX_RayCast.h"
-#include "KX_Globals.h"
-#include "KX_PyMath.h"
-#include "SCA_IActuator.h"
-#include "SCA_ISensor.h"
-#include "SCA_IController.h"
-#include "KX_NetworkMessageScene.h"  //Needed for sendMessage()
-#include "KX_ObstacleSimulation.h"
-#include "KX_Scene.h"
-#include "KX_LodLevel.h"
-#include "KX_LodManager.h"
-#include "KX_CollisionContactPoints.h"
 
-#include "BKE_object.h"
-
-#include "BL_ActionManager.h"
-#include "BL_Action.h"
-
-#include "EXP_PyObjectPlus.h" /* python stuff */
-#include "EXP_ListWrapper.h"
-#include "BLI_utildefines.h"
-
-#ifdef WITH_PYTHON
-#  include "EXP_PythonCallBack.h"
-#  include "python_utildefines.h"
-#endif
-
-// Component stuff
-#include "DNA_python_component_types.h"
-
-// This file defines relationships between parents and children
-// in the game engine.
-
-#include "KX_SG_NodeRelationships.h"
-
-#include "BLI_math.h"
-
-#include "CM_Message.h"
-
-/* eevee integration */
-#include "DRW_render.h"
-
-extern "C" {
 #include "BKE_DerivedMesh.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"
+#include "BKE_object.h"
 #include "BLI_alloca.h"
 #include "BLI_listbase.h"
-#include "depsgraph/DEG_depsgraph_build.h"
-#include "depsgraph/DEG_depsgraph_query.h"
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
-#include "eevee_private.h"
+#include "DNA_python_component_types.h"
+#include "DRW_render.h"
 #include "GPU_immediate.h"
+#include "bpy_rna.h"
+#include "depsgraph/DEG_depsgraph_build.h"
+#include "depsgraph/DEG_depsgraph_query.h"
+#include "eevee_private.h"
 #include "windowmanager/WM_api.h"
 #include "windowmanager/WM_types.h"
 
-#include "bpy_rna.h"
-}
+#include "BL_Action.h"
+#include "BL_ActionManager.h"
+#include "CM_Message.h"
+#include "EXP_ListWrapper.h"
+#include "EXP_PyObjectPlus.h" /* python stuff */
+#include "KX_Camera.h"        // only for their ::Type
+#include "KX_ClientObjectInfo.h"
+#include "KX_CollisionContactPoints.h"
+#include "KX_FontObject.h"  // only for their ::Type
+#include "KX_Globals.h"
+#include "KX_Light.h"  // only for their ::Type
+#include "KX_LodLevel.h"
+#include "KX_LodManager.h"
+#include "KX_MeshProxy.h"
+#include "KX_NavMeshObject.h"
+#include "KX_NetworkMessageScene.h"  //Needed for sendMessage()
+#include "KX_ObstacleSimulation.h"
+#include "KX_PolyProxy.h"
+#include "KX_PyMath.h"
+#include "KX_PythonComponent.h"
+#include "KX_RayCast.h"
+#include "KX_SG_NodeRelationships.h"
+#include "KX_Scene.h"
+#include "RAS_BucketManager.h"
+#include "RAS_IDisplayArray.h"
+#include "RAS_MeshObject.h"
+#include "RAS_Polygon.h"
+#include "SCA_IActuator.h"
+#include "SCA_IController.h"
+#include "SCA_ISensor.h"
+#include "SG_Controller.h"
+#include "SG_Familly.h"
+#include "SG_Node.h"
 
-#include "KX_BlenderConverter.h"
-/* End of eevee integration */
+#ifdef WITH_PYTHON
+#  include "EXP_PythonCallBack.h"
+#  include "python_utildefines.h"
+#endif
 
 static MT_Vector3 dummy_point = MT_Vector3(0.0f, 0.0f, 0.0f);
 static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);
@@ -274,7 +256,8 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
 
   Scene *sc = GetScene()->GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-  Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, sc, view_layer, false);
 
   if (m_staticObject) {
@@ -332,7 +315,8 @@ void KX_GameObject::ReplicateBlenderObject()
   Object *ob = GetBlenderObject();
 
   if (ob) {
-    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Main *bmain = CTX_data_main(C);
     Object *newob;
     BKE_id_copy_ex(bmain, &ob->id, (ID **)&newob, 0);
     Scene *scene = GetScene()->GetBlenderScene();
@@ -374,7 +358,8 @@ void KX_GameObject::RemoveReplicaObject()
 {
   Object *ob = GetBlenderObject();
   if (ob && m_isReplica) {
-    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Main *bmain = CTX_data_main(C);
     Scene *scene = GetScene()->GetBlenderScene();
     BKE_scene_collections_object_remove(bmain, scene, ob, true);
     BKE_id_free(bmain, &ob->id);
@@ -987,7 +972,7 @@ void KX_GameObject::UpdateBuckets()
 
 void KX_GameObject::RemoveMeshes()
 {
-  // note: meshes can be shared, and are deleted by KX_BlenderSceneConverter
+  // note: meshes can be shared, and are deleted by BL_BlenderSceneConverter
   m_meshes.clear();
 }
 
@@ -1046,10 +1031,8 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
   if (currentLodLevel) {
     RAS_MeshObject *currentMeshObject = currentLodLevel->GetMesh();
 
-    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-    Scene *sc = GetScene()->GetBlenderScene();
-    ViewLayer *view_layer = BKE_view_layer_default_view(sc);
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, sc, view_layer, false);
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
     /* Here we want to change the object which will be rendered, then the evaluated object by the
      * depsgraph */

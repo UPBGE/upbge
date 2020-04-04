@@ -23,10 +23,10 @@
 #ifndef __RAS_2DFILTER_H__
 #define __RAS_2DFILTER_H__
 
+#include <memory>
+
 #include "RAS_2DFilterData.h"
 #include "RAS_Shader.h"
-
-#include <memory>
 
 class RAS_2DFilterManager;
 class RAS_Rasterizer;

@@ -30,9 +30,9 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "BLI_utildefines.h"
-#include "BLI_string.h"
 #include "BLI_ghash.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #define PACK_DEBUG 0
 
@@ -206,6 +206,47 @@ void GPU_vertformat_alias_add(GPUVertFormat *format, const char *alias)
   attr->names[attr->name_len++] = copy_attr_name(format, alias);
 }
 
+/**
+ * Makes vertex attribute from the next vertices to be accessible in the vertex shader.
+ * For an attribute named "attr" you can access the next nth vertex using "attr{number}".
+ * Use this function after specifying all the attributes in the format.
+ *
+ * NOTE: This does NOT work when using indexed rendering.
+ * NOTE: Only works for first attribute name. (this limitation can be changed if needed)
+ *
+ * WARNING: this function creates a lot of aliases/attributes, make sure to keep the attribute
+ * name short to avoid overflowing the name-buffer.
+ * */
+void GPU_vertformat_multiload_enable(GPUVertFormat *format, int load_count)
+{
+  /* Sanity check. Maximum can be upgraded if needed. */
+  BLI_assert(load_count > 1 && load_count < 5);
+  /* We need a packed format because of format->stride. */
+  if (!format->packed) {
+    VertexFormat_pack(format);
+  }
+
+  BLI_assert((format->name_len + 1) * load_count < GPU_VERT_FORMAT_MAX_NAMES);
+  BLI_assert(format->attr_len * load_count <= GPU_VERT_ATTR_MAX_LEN);
+  BLI_assert(format->name_offset * load_count < GPU_VERT_ATTR_NAMES_BUF_LEN);
+
+  const GPUVertAttr *attr = format->attrs;
+  int attr_len = format->attr_len;
+  for (int i = 0; i < attr_len; i++, attr++) {
+    const char *attr_name = GPU_vertformat_attr_name_get(format, attr, 0);
+    for (int j = 1; j < load_count; j++) {
+      char load_name[64];
+      BLI_snprintf(load_name, sizeof(load_name), "%s%d", attr_name, j);
+      GPUVertAttr *dst_attr = &format->attrs[format->attr_len++];
+      *dst_attr = *attr;
+
+      dst_attr->names[0] = copy_attr_name(format, load_name);
+      dst_attr->name_len = 1;
+      dst_attr->offset += format->stride * j;
+    }
+  }
+}
+
 int GPU_vertformat_attr_id_get(const GPUVertFormat *format, const char *name)
 {
   for (int i = 0; i < format->attr_len; i++) {
@@ -235,28 +276,26 @@ static void safe_bytes(char out[11], const char data[8])
 
 /* Warning: Always add a prefix to the result of this function as
  * the generated string can start with a number and not be a valid attribute name. */
-void GPU_vertformat_safe_attrib_name(const char *attrib_name,
-                                     char *r_safe_name,
-                                     uint UNUSED(max_len))
+void GPU_vertformat_safe_attr_name(const char *attr_name, char *r_safe_name, uint UNUSED(max_len))
 {
   char data[8] = {0};
-  uint len = strlen(attrib_name);
+  uint len = strlen(attr_name);
 
   if (len > 8) {
     /* Start with the first 4 chars of the name; */
     for (int i = 0; i < 4; i++) {
-      data[i] = attrib_name[i];
+      data[i] = attr_name[i];
     }
     /* We use a hash to identify each data layer based on its name.
      * NOTE: This is still prone to hash collision but the risks are very low.*/
     /* Start hashing after the first 2 chars. */
-    *(uint *)&data[4] = BLI_ghashutil_strhash_p_murmur(attrib_name + 4);
+    *(uint *)&data[4] = BLI_ghashutil_strhash_p_murmur(attr_name + 4);
   }
   else {
     /* Copy the whole name. Collision is barely possible
      * (hash would have to be equal to the last 4 bytes). */
-    for (int i = 0; i < 8 && attrib_name[i] != '\0'; i++) {
-      data[i] = attrib_name[i];
+    for (int i = 0; i < 8 && attr_name[i] != '\0'; i++) {
+      data[i] = attr_name[i];
     }
   }
   /* Convert to safe bytes characters. */
@@ -264,9 +303,9 @@ void GPU_vertformat_safe_attrib_name(const char *attrib_name,
   /* End the string */
   r_safe_name[11] = '\0';
 
-  BLI_assert(GPU_MAX_SAFE_ATTRIB_NAME >= 12);
+  BLI_assert(GPU_MAX_SAFE_ATTR_NAME >= 12);
 #if 0 /* For debugging */
-  printf("%s > %lx > %s\n", attrib_name, *(uint64_t *)data, r_safe_name);
+  printf("%s > %lx > %s\n", attr_name, *(uint64_t *)data, r_safe_name);
 #endif
 }
 
@@ -275,13 +314,13 @@ void GPU_vertformat_safe_attrib_name(const char *attrib_name,
  * Use direct buffer access to fill the data.
  * This is for advanced usage.
  *
- * Deinterleaved data means all attrib data for each attrib
- * is stored continuously like this :
+ * De-interleaved data means all attribute data for each attribute
+ * is stored continuously like this:
  * 000011112222
  * instead of :
  * 012012012012
  *
- * Note this is per attrib deinterleaving, NOT per component.
+ * Note this is per attribute de-interleaving, NOT per component.
  *  */
 void GPU_vertformat_deinterleave(GPUVertFormat *format)
 {

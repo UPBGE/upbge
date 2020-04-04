@@ -14,8 +14,8 @@
  * purpose.  It is provided "as is" without express or implied warranty.
  *
  */
-
 #include "EXP_Expression.h"
+
 #include "EXP_ErrorValue.h"
 
 CExpression::CExpression()

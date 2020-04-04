@@ -21,12 +21,12 @@
  * \ingroup texnodes
  */
 
-#include "node_texture_util.h"
 #include "NOD_texture.h"
+#include "node_texture_util.h"
 
 static bNodeSocketTemplate outputs[] = {
-    {SOCK_VECTOR, 0, N_("Coordinates")},
-    {-1, 0, ""},
+    {SOCK_VECTOR, N_("Coordinates")},
+    {-1, ""},
 };
 
 static void vectorfn(

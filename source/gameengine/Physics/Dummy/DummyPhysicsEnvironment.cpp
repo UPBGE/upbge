@@ -29,9 +29,10 @@
  *  \ingroup physdummy
  */
 
+#include "DummyPhysicsEnvironment.h"
+
 #include <stddef.h>
 
-#include "DummyPhysicsEnvironment.h"
 #include "PHY_IMotionState.h"
 
 DummyPhysicsEnvironment::DummyPhysicsEnvironment()
@@ -42,16 +43,6 @@ DummyPhysicsEnvironment::DummyPhysicsEnvironment()
 DummyPhysicsEnvironment::~DummyPhysicsEnvironment()
 {
   // destroy physicsengine data
-}
-
-void DummyPhysicsEnvironment::BeginFrame()
-{
-  // beginning of logic frame: apply forces
-}
-
-void DummyPhysicsEnvironment::EndFrame()
-{
-  // end of logic frame: clear forces
 }
 
 bool DummyPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, float interval)

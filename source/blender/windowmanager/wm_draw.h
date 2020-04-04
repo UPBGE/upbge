@@ -24,6 +24,10 @@
 #ifndef __WM_DRAW_H__
 #define __WM_DRAW_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "GPU_glew.h"
 
 struct GPUOffScreen;
@@ -31,8 +35,8 @@ struct GPUTexture;
 struct GPUViewport;
 
 typedef struct wmDrawBuffer {
-  struct GPUOffScreen *offscreen[2];
-  struct GPUViewport *viewport[2];
+  struct GPUOffScreen *offscreen;
+  struct GPUViewport *viewport;
   bool stereo;
   int bound_view;
 } wmDrawBuffer;
@@ -44,10 +48,14 @@ struct wmWindow;
 
 /* wm_draw.c */
 void wm_draw_update(struct bContext *C);
-void wm_draw_region_clear(struct wmWindow *win, struct ARegion *ar);
-void wm_draw_region_blend(struct ARegion *ar, int view, bool blend);
-void wm_draw_region_test(struct bContext *C, struct ScrArea *sa, struct ARegion *ar);
+void wm_draw_region_clear(struct wmWindow *win, struct ARegion *region);
+void wm_draw_region_blend(struct ARegion *region, int view, bool blend);
+void wm_draw_region_test(struct bContext *C, struct ScrArea *area, struct ARegion *region);
 
-struct GPUTexture *wm_draw_region_texture(struct ARegion *ar, int view);
+struct GPUTexture *wm_draw_region_texture(struct ARegion *region, int view);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __WM_DRAW_H__ */

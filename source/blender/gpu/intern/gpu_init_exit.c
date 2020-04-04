@@ -21,12 +21,12 @@
  * \ingroup gpu
  */
 
-#include "BLI_sys_types.h"
-#include "GPU_buffers.h"
 #include "GPU_init_exit.h" /* interface */
-#include "GPU_immediate.h"
-#include "GPU_batch.h"
 #include "BKE_global.h"
+#include "BLI_sys_types.h"
+#include "GPU_batch.h"
+#include "GPU_buffers.h"
+#include "GPU_immediate.h"
 
 #include "intern/gpu_codegen.h"
 #include "intern/gpu_material_library.h"
@@ -64,12 +64,16 @@ void GPU_init(void)
     immInit();
   }
 
+#ifndef GPU_STANDALONE
   gpu_pbvh_init();
+#endif
 }
 
 void GPU_exit(void)
 {
+#ifndef GPU_STANDALONE
   gpu_pbvh_exit();
+#endif
 
   if (!G.background) {
     immDestroy();

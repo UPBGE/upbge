@@ -32,23 +32,23 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_collection_types.h"
+#include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_collection_types.h"
-#include "DNA_lattice_types.h"
 
-#include "BLI_math.h"
 #include "BLI_listbase.h"
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_armature.h"
 #include "BKE_curve.h"
 #include "BKE_editmesh.h"
+#include "BKE_lattice.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"
-#include "BKE_armature.h"
-#include "BKE_lattice.h"
 #include "BKE_scene.h"
 
 #include "bmesh.h"
@@ -58,9 +58,9 @@
 
 #include "WM_types.h"
 
-#include "ED_object.h"
-#include "ED_mesh.h"
 #include "ED_armature.h"
+#include "ED_mesh.h"
+#include "ED_object.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -92,7 +92,7 @@ static struct ElemData_Armature *armature_coords_and_quats_get_recurse(
     const ListBase *bone_base, struct ElemData_Armature *elem_array)
 {
   struct ElemData_Armature *elem = elem_array;
-  for (const Bone *bone = bone_base->first; bone; bone = bone->next) {
+  LISTBASE_FOREACH (const Bone *, bone, bone_base) {
 
 #define COPY_PTR(member) memcpy(elem->member, bone->member, sizeof(bone->member))
 #define COPY_VAL(member) memcpy(&elem->member, &bone->member, sizeof(bone->member))
@@ -125,7 +125,7 @@ static const struct ElemData_Armature *armature_coords_and_quats_apply_with_mat4
     ListBase *bone_base, const struct ElemData_Armature *elem_array, const float mat[4][4])
 {
   const struct ElemData_Armature *elem = elem_array;
-  for (Bone *bone = bone_base->first; bone; bone = bone->next) {
+  LISTBASE_FOREACH (Bone *, bone, bone_base) {
 
 #define COPY_PTR(member) memcpy(bone->member, elem->member, sizeof(bone->member))
 #define COPY_VAL(member) memcpy(&bone->member, &elem->member, sizeof(bone->member))

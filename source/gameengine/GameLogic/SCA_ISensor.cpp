@@ -33,12 +33,11 @@
  */
 
 #include "SCA_ISensor.h"
-#include "SCA_EventManager.h"
-#include "SCA_LogicManager.h"
-// needed for IsTriggered()
-#include "SCA_PythonController.h"
 
 #include "CM_Message.h"
+#include "SCA_EventManager.h"
+#include "SCA_LogicManager.h"
+#include "SCA_PythonController.h"
 
 void SCA_ISensor::ReParent(SCA_IObject *parent)
 {

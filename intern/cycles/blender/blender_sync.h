@@ -18,9 +18,9 @@
 #define __BLENDER_SYNC_H__
 
 #include "MEM_guardedalloc.h"
-#include "RNA_types.h"
 #include "RNA_access.h"
 #include "RNA_blender_cpp.h"
+#include "RNA_types.h"
 
 #include "blender/blender_id_map.h"
 #include "blender/blender_viewport.h"
@@ -157,6 +157,7 @@ class BlenderSync {
                         BL::Object b_ob,
                         Geometry *geom,
                         int motion_step);
+  void sync_hair(Hair *hair, BL::Object &b_ob, bool motion, int motion_step = 0);
   void sync_particle_hair(
       Geometry *geom, BL::Mesh &b_mesh, BL::Object &b_ob, bool motion, int motion_step = 0);
   void sync_curve_settings();
@@ -236,6 +237,7 @@ class BlenderSync {
           use_background_ao(true),
           use_surfaces(true),
           use_hair(true),
+          use_volumes(true),
           samples(0),
           bound_samples(false)
     {
@@ -247,6 +249,7 @@ class BlenderSync {
     bool use_background_ao;
     bool use_surfaces;
     bool use_hair;
+    bool use_volumes;
     int samples;
     bool bound_samples;
   } view_layer;

@@ -23,13 +23,13 @@
 
 #include "GHOST_System.h"
 
-#include <time.h>
 #include <stdio.h> /* just for printf */
+#include <time.h>
 
 #include "GHOST_DisplayManager.h"
 #include "GHOST_EventManager.h"
-#include "GHOST_TimerTask.h"
 #include "GHOST_TimerManager.h"
+#include "GHOST_TimerTask.h"
 #include "GHOST_WindowManager.h"
 
 #ifdef WITH_INPUT_NDOF
@@ -120,16 +120,6 @@ GHOST_TSuccess GHOST_System::disposeWindow(GHOST_IWindow *window)
     }
   }
   return success;
-}
-
-GHOST_IContext *GHOST_System::createOffscreenContext(GHOST_TDrawingContextType type)
-{
-  switch (type) {
-    case GHOST_kDrawingContextTypeOpenGL:
-      return createOffscreenContext();
-    default:
-      return NULL;
-  }
 }
 
 bool GHOST_System::validWindow(GHOST_IWindow *window)

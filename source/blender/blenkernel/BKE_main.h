@@ -100,6 +100,11 @@ typedef struct Main {
    * use "needs_flush_to_id" in edit data to flag data which needs updating.
    */
   char is_memfile_undo_flush_needed;
+  /**
+   * Indicates that next memfile undo step should not allow to re-use old bmain when re-read, but
+   * instead do a complete full re-read/update from stored memfile.
+   */
+  char use_memfile_full_barrier;
 
   BlendThumbnail *blen_thumb;
 
@@ -140,6 +145,9 @@ typedef struct Main {
   ListBase linestyles;
   ListBase cachefiles;
   ListBase workspaces;
+  ListBase hairs;
+  ListBase pointclouds;
+  ListBase volumes;
 
   /**
    * Must be generated, used and freed by same code - never assume this is valid data unless you
@@ -213,7 +221,7 @@ const char *BKE_main_blendfile_path_from_global(void);
 
 struct ListBase *which_libbase(struct Main *mainlib, short type);
 
-#define MAX_LIBARRAY 37
+#define MAX_LIBARRAY 40
 int set_listbasepointers(struct Main *main, struct ListBase *lb[MAX_LIBARRAY]);
 
 #define MAIN_VERSION_ATLEAST(main, ver, subver) \

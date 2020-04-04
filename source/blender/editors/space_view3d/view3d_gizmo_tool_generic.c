@@ -24,10 +24,10 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 
-#include "ED_screen.h"
-#include "ED_transform.h"
 #include "ED_gizmo_library.h"
 #include "ED_gizmo_utils.h"
+#include "ED_screen.h"
+#include "ED_transform.h"
 
 #include "UI_resources.h"
 
@@ -38,9 +38,9 @@
 #include "RNA_access.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
-#include "WM_toolsystem.h"
 #include "WM_message.h"
+#include "WM_toolsystem.h"
+#include "WM_types.h"
 
 #include "view3d_intern.h" /* own include */
 
@@ -164,10 +164,10 @@ static void WIDGETGROUP_gizmo_message_subscribe(const bContext *C,
                                                 wmGizmoGroup *gzgroup,
                                                 struct wmMsgBus *mbus)
 {
-  ARegion *ar = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(C);
 
   wmMsgSubscribeValue msg_sub_value_gz_tag_refresh = {
-      .owner = ar,
+      .owner = region,
       .user_data = gzgroup->parent_gzmap,
       .notify = WM_gizmo_do_msg_notify_tag_refresh,
   };

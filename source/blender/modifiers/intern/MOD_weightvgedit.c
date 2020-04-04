@@ -44,8 +44,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "MOD_weightvg_util.h"
 #include "MOD_modifiertypes.h"
+#include "MOD_weightvg_util.h"
 
 /**************************************
  * Modifiers functions.               *
@@ -188,7 +188,7 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   }
 
   /* Get vgroup idx from its name. */
-  const int defgrp_index = defgroup_name_index(ctx->object, wmd->defgrp_name);
+  const int defgrp_index = BKE_object_defgroup_name_index(ctx->object, wmd->defgrp_name);
   if (defgrp_index == -1) {
     return mesh;
   }
@@ -220,7 +220,7 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   new_w = MEM_malloc_arrayN(numVerts, sizeof(float), "WeightVGEdit Modifier, new_w");
   dw = MEM_malloc_arrayN(numVerts, sizeof(MDeformWeight *), "WeightVGEdit Modifier, dw");
   for (i = 0; i < numVerts; i++) {
-    dw[i] = defvert_find_index(&dvert[i], defgrp_index);
+    dw[i] = BKE_defvert_find_index(&dvert[i], defgrp_index);
     if (dw[i]) {
       org_w[i] = new_w[i] = dw[i]->weight;
     }
@@ -230,14 +230,15 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   }
 
   /* Do mapping. */
-  if (wmd->falloff_type != MOD_WVG_MAPPING_NONE) {
+  const bool do_invert_mapping = (wmd->edit_flags & MOD_WVG_INVERT_FALLOFF) != 0;
+  if (do_invert_mapping || wmd->falloff_type != MOD_WVG_MAPPING_NONE) {
     RNG *rng = NULL;
 
     if (wmd->falloff_type == MOD_WVG_MAPPING_RANDOM) {
       rng = BLI_rng_new_srandom(BLI_ghashutil_strhash(ctx->object->id.name + 2));
     }
 
-    weightvg_do_map(numVerts, new_w, wmd->falloff_type, wmd->cmap_curve, rng);
+    weightvg_do_map(numVerts, new_w, wmd->falloff_type, do_invert_mapping, wmd->cmap_curve, rng);
 
     if (rng) {
       BLI_rng_free(rng);

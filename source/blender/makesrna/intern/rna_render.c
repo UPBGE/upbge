@@ -21,16 +21,16 @@
 #include <stdlib.h>
 
 #include "DNA_node_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_path_util.h"
+#include "BLI_utildefines.h"
 
 #include "DEG_depsgraph.h"
 
-#include "BKE_scene.h"
 #include "BKE_image.h"
+#include "BKE_scene.h"
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -98,9 +98,9 @@ const EnumPropertyItem rna_enum_bake_pass_type_items[] = {
 #  include "BKE_context.h"
 #  include "BKE_report.h"
 
-#  include "IMB_colormanagement.h"
 #  include "GPU_extensions.h"
 #  include "GPU_shader.h"
+#  include "IMB_colormanagement.h"
 
 #  include "DEG_depsgraph_query.h"
 
@@ -148,13 +148,13 @@ static void engine_update(RenderEngine *engine, Main *bmain, Depsgraph *depsgrap
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+  RNA_pointer_create(NULL, engine->type->rna_ext.srna, engine, &ptr);
   func = &rna_RenderEngine_update_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
   RNA_parameter_set_lookup(&list, "data", &bmain);
   RNA_parameter_set_lookup(&list, "depsgraph", &depsgraph);
-  engine->type->ext.call(NULL, &ptr, func, &list);
+  engine->type->rna_ext.call(NULL, &ptr, func, &list);
 
   RNA_parameter_list_free(&list);
 }
@@ -166,12 +166,12 @@ static void engine_render(RenderEngine *engine, Depsgraph *depsgraph)
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+  RNA_pointer_create(NULL, engine->type->rna_ext.srna, engine, &ptr);
   func = &rna_RenderEngine_render_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
   RNA_parameter_set_lookup(&list, "depsgraph", &depsgraph);
-  engine->type->ext.call(NULL, &ptr, func, &list);
+  engine->type->rna_ext.call(NULL, &ptr, func, &list);
 
   RNA_parameter_list_free(&list);
 }
@@ -192,7 +192,7 @@ static void engine_bake(RenderEngine *engine,
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+  RNA_pointer_create(NULL, engine->type->rna_ext.srna, engine, &ptr);
   func = &rna_RenderEngine_bake_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -205,7 +205,7 @@ static void engine_bake(RenderEngine *engine,
   RNA_parameter_set_lookup(&list, "num_pixels", &num_pixels);
   RNA_parameter_set_lookup(&list, "depth", &depth);
   RNA_parameter_set_lookup(&list, "result", &result);
-  engine->type->ext.call(NULL, &ptr, func, &list);
+  engine->type->rna_ext.call(NULL, &ptr, func, &list);
 
   RNA_parameter_list_free(&list);
 }
@@ -219,13 +219,13 @@ static void engine_view_update(RenderEngine *engine,
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+  RNA_pointer_create(NULL, engine->type->rna_ext.srna, engine, &ptr);
   func = &rna_RenderEngine_view_update_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
   RNA_parameter_set_lookup(&list, "context", &context);
   RNA_parameter_set_lookup(&list, "depsgraph", &depsgraph);
-  engine->type->ext.call(NULL, &ptr, func, &list);
+  engine->type->rna_ext.call(NULL, &ptr, func, &list);
 
   RNA_parameter_list_free(&list);
 }
@@ -239,13 +239,13 @@ static void engine_view_draw(RenderEngine *engine,
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+  RNA_pointer_create(NULL, engine->type->rna_ext.srna, engine, &ptr);
   func = &rna_RenderEngine_view_draw_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
   RNA_parameter_set_lookup(&list, "context", &context);
   RNA_parameter_set_lookup(&list, "depsgraph", &depsgraph);
-  engine->type->ext.call(NULL, &ptr, func, &list);
+  engine->type->rna_ext.call(NULL, &ptr, func, &list);
 
   RNA_parameter_list_free(&list);
 }
@@ -259,13 +259,13 @@ static void engine_update_script_node(RenderEngine *engine,
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+  RNA_pointer_create(NULL, engine->type->rna_ext.srna, engine, &ptr);
   RNA_pointer_create((ID *)ntree, &RNA_Node, node, &nodeptr);
   func = &rna_RenderEngine_update_script_node_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
   RNA_parameter_set_lookup(&list, "node", &nodeptr);
-  engine->type->ext.call(NULL, &ptr, func, &list);
+  engine->type->rna_ext.call(NULL, &ptr, func, &list);
 
   RNA_parameter_list_free(&list);
 }
@@ -279,13 +279,13 @@ static void engine_update_render_passes(RenderEngine *engine,
   ParameterList list;
   FunctionRNA *func;
 
-  RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+  RNA_pointer_create(NULL, engine->type->rna_ext.srna, engine, &ptr);
   func = &rna_RenderEngine_update_render_passes_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
   RNA_parameter_set_lookup(&list, "scene", &scene);
   RNA_parameter_set_lookup(&list, "renderlayer", &view_layer);
-  engine->type->ext.call(NULL, &ptr, func, &list);
+  engine->type->rna_ext.call(NULL, &ptr, func, &list);
 
   RNA_parameter_list_free(&list);
 }
@@ -300,7 +300,7 @@ static void rna_RenderEngine_unregister(Main *bmain, StructRNA *type)
     return;
   }
 
-  RNA_struct_free_extension(type, &et->ext);
+  RNA_struct_free_extension(type, &et->rna_ext);
   RNA_struct_free(&BLENDER_RNA, type);
   BLI_freelinkN(&R_engines, et);
 
@@ -343,8 +343,8 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   /* check if we have registered this engine type before, and remove it */
   for (et = R_engines.first; et; et = et->next) {
     if (STREQ(et->idname, dummyet.idname)) {
-      if (et->ext.srna) {
-        rna_RenderEngine_unregister(bmain, et->ext.srna);
+      if (et->rna_ext.srna) {
+        rna_RenderEngine_unregister(bmain, et->rna_ext.srna);
       }
       break;
     }
@@ -354,11 +354,11 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   et = MEM_mallocN(sizeof(RenderEngineType), "python render engine");
   memcpy(et, &dummyet, sizeof(dummyet));
 
-  et->ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, et->idname, &RNA_RenderEngine);
-  et->ext.data = data;
-  et->ext.call = call;
-  et->ext.free = free;
-  RNA_struct_blender_type_set(et->ext.srna, et);
+  et->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, et->idname, &RNA_RenderEngine);
+  et->rna_ext.data = data;
+  et->rna_ext.call = call;
+  et->rna_ext.free = free;
+  RNA_struct_blender_type_set(et->rna_ext.srna, et);
 
   et->update = (have_function[0]) ? engine_update : NULL;
   et->render = (have_function[1]) ? engine_render : NULL;
@@ -370,7 +370,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
 
   RE_engines_register(et);
 
-  return et->ext.srna;
+  return et->rna_ext.srna;
 }
 
 static void **rna_RenderEngine_instance(PointerRNA *ptr)
@@ -382,7 +382,8 @@ static void **rna_RenderEngine_instance(PointerRNA *ptr)
 static StructRNA *rna_RenderEngine_refine(PointerRNA *ptr)
 {
   RenderEngine *engine = (RenderEngine *)ptr->data;
-  return (engine->type && engine->type->ext.srna) ? engine->type->ext.srna : &RNA_RenderEngine;
+  return (engine->type && engine->type->rna_ext.srna) ? engine->type->rna_ext.srna :
+                                                        &RNA_RenderEngine;
 }
 
 static PointerRNA rna_RenderEngine_render_get(PointerRNA *ptr)
@@ -833,6 +834,7 @@ static void rna_def_render_engine(BlenderRNA *brna)
   parm = RNA_def_string(func, "chanid", NULL, 8, "Channel IDs", "");
   RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
   parm = RNA_def_enum(func, "type", render_pass_type_items, SOCK_FLOAT, "Type", "");
+  RNA_def_property_enum_native_type(parm, "eNodeSocketDatatype");
   RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 
   /* registration */
@@ -883,6 +885,11 @@ static void rna_def_render_engine(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "type->flag", RE_USE_SPHERICAL_STEREO);
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
   RNA_def_property_ui_text(prop, "Use Spherical Stereo", "Support spherical stereo camera models");
+
+  prop = RNA_def_property(srna, "bl_use_stereo_viewport", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "type->flag", RE_USE_STEREO_VIEWPORT);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(prop, "Use Stereo Viewport", "Support rendering stereo 3D viewport");
 
   RNA_define_verify_sdna(1);
 }

@@ -23,8 +23,8 @@
 #  include <OSL/oslexec.h>
 #endif
 
-#include "render/attribute.h"
 #include "kernel/kernel_types.h"
+#include "render/attribute.h"
 
 #include "graph/node.h"
 
@@ -92,6 +92,8 @@ class Shader : public Node {
   bool heterogeneous_volume;
   VolumeSampling volume_sampling_method;
   int volume_interpolation_method;
+  float volume_step_rate;
+  float prev_volume_step_rate;
 
   /* synchronization */
   bool need_update;
@@ -118,8 +120,8 @@ class Shader : public Node {
   bool has_bssrdf_bump;
   bool has_surface_spatial_varying;
   bool has_volume_spatial_varying;
+  bool has_volume_attribute_dependency;
   bool has_object_dependency;
-  bool has_attribute_dependency;
   bool has_integrator_dependency;
 
   /* displacement */
@@ -163,7 +165,7 @@ class ShaderManager {
  public:
   bool need_update;
 
-  static ShaderManager *create(Scene *scene, int shadingsystem);
+  static ShaderManager *create(int shadingsystem);
   virtual ~ShaderManager();
 
   virtual void reset(Scene *scene) = 0;
@@ -180,7 +182,6 @@ class ShaderManager {
                              Progress &progress) = 0;
   virtual void device_free(Device *device, DeviceScene *dscene, Scene *scene) = 0;
 
-  void device_update_shaders_used(Scene *scene);
   void device_update_common(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress);
   void device_free_common(Device *device, DeviceScene *dscene, Scene *scene);
 
@@ -196,6 +197,7 @@ class ShaderManager {
   static void add_default(Scene *scene);
 
   /* Selective nodes compilation. */
+  void update_shaders_used(Scene *scene);
   void get_requested_features(Scene *scene, DeviceRequestedFeatures *requested_features);
 
   static void free_memory();

@@ -23,9 +23,9 @@
 
 #include <string.h>
 
-#include "DNA_texture_types.h"
 #include "DNA_node_types.h"
 #include "DNA_space_types.h"
+#include "DNA_texture_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_threads.h"
@@ -38,11 +38,11 @@
 #include "BKE_node.h"
 #include "BKE_paint.h"
 
+#include "NOD_texture.h"
 #include "node_common.h"
 #include "node_exec.h"
-#include "node_util.h"
-#include "NOD_texture.h"
 #include "node_texture_util.h"
+#include "node_util.h"
 
 #include "DEG_depsgraph.h"
 
@@ -172,7 +172,7 @@ void register_node_tree_type_tex(void)
   tt->local_merge = local_merge;
   tt->get_from_context = texture_get_from_context;
 
-  tt->ext.srna = &RNA_TextureNodeTree;
+  tt->rna_ext.srna = &RNA_TextureNodeTree;
 
   ntreeTypeAdd(tt);
 }

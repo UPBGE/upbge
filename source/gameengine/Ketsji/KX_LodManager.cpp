@@ -25,14 +25,15 @@
  */
 
 #include "KX_LodManager.h"
-#include "KX_LodLevel.h"
-#include "KX_Scene.h"
 
-#include "EXP_ListWrapper.h"
+#include "BLI_listbase.h"
+#include "BLI_math.h"
+#include "DNA_object_types.h"
 
 #include "BL_BlenderDataConversion.h"
-#include "DNA_object_types.h"
-#include "BLI_listbase.h"
+#include "EXP_ListWrapper.h"
+#include "KX_LodLevel.h"
+#include "KX_Scene.h"
 
 KX_LodManager::LodLevelIterator::LodLevelIterator(const std::vector<KX_LodLevel *> &levels,
                                                   unsigned short index,
@@ -85,18 +86,18 @@ inline bool KX_LodManager::LodLevelIterator::operator<=(float distance2) const
     return false;
   }
 
-  return SQUARE(m_levels[m_index + 1]->GetDistance() + GetHysteresis(m_index + 1)) <= distance2;
+  return square_f(m_levels[m_index + 1]->GetDistance() + GetHysteresis(m_index + 1)) <= distance2;
 }
 
 inline bool KX_LodManager::LodLevelIterator::operator>(float distance2) const
 {
-  return SQUARE(m_levels[m_index]->GetDistance() - GetHysteresis(m_index)) > distance2;
+  return square_f(m_levels[m_index]->GetDistance() - GetHysteresis(m_index)) > distance2;
 }
 
 KX_LodManager::KX_LodManager(Object *ob,
                              KX_Scene *scene,
                              RAS_Rasterizer *rasty,
-                             KX_BlenderSceneConverter &converter,
+                             BL_BlenderSceneConverter &converter,
                              bool libloading)
     : m_refcount(1), m_distanceFactor(1.0f)
 {

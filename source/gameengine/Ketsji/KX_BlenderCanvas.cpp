@@ -29,29 +29,22 @@
  *  \ingroup blroutines
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "KX_BlenderCanvas.h"
-#include "KX_Globals.h"
-
-#include "DNA_screen_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_windowmanager_types.h"
-
-#include "BLI_string.h"
-#include "BLI_path_util.h"
 
 #include "BKE_image.h"
-
-#include "RAS_Rasterizer.h"
-
+#include "BLI_path_util.h"
+#include "BLI_string.h"
+#include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_windowmanager_types.h"
 #include "GHOST_IWindow.h"
-
-extern "C" {
+#include "MEM_guardedalloc.h"
 #include "WM_api.h"
 #include "wm_cursors.h"
 #include "wm_window.h"
-}
+
+#include "KX_Globals.h"
+#include "RAS_Rasterizer.h"
 
 KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty,
                                    wmWindowManager *wm,
@@ -210,9 +203,9 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
   AddScreenshot(path, x, y, width, height, im_format);
 }
 
-ARegion *KX_BlenderCanvas::GetARegion()
+bool KX_BlenderCanvas::IsBlenderPlayer()
 {
-  return m_ar;
+  return false;
 }
 
 Scene *KX_BlenderCanvas::GetStartScene()

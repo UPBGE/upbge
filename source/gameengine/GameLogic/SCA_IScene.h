@@ -32,10 +32,8 @@
 #ifndef __SCA_ISCENE_H__
 #define __SCA_ISCENE_H__
 
-#include <vector>
 #include <string>
-
-class SCA_IObject;
+#include <vector>
 
 class SCA_IObject;
 

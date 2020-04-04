@@ -27,10 +27,10 @@
 #ifndef __RAS_IDISPLAY_ARRAY_H__
 #define __RAS_IDISPLAY_ARRAY_H__
 
-#include "RAS_TexVert.h"
-
-#include <vector>
 #include <memory>
+#include <vector>
+
+#include "RAS_TexVert.h"
 
 class RAS_IDisplayArray {
  public:

@@ -16,8 +16,8 @@
 
 #include "render/background.h"
 #include "device/device.h"
-#include "render/integrator.h"
 #include "render/graph.h"
+#include "render/integrator.h"
 #include "render/nodes.h"
 #include "render/scene.h"
 #include "render/shader.h"
@@ -43,6 +43,8 @@ NODE_DEFINE(Background)
   SOCKET_BOOLEAN(transparent_glass, "Transparent Glass", false);
   SOCKET_FLOAT(transparent_roughness_threshold, "Transparent Roughness Threshold", 0.0f);
 
+  SOCKET_FLOAT(volume_step_size, "Volume Step Size", 0.1f);
+
   SOCKET_NODE(shader, "Shader", &Shader::node_type);
 
   return type;
@@ -51,6 +53,7 @@ NODE_DEFINE(Background)
 Background::Background() : Node(node_type)
 {
   need_update = true;
+  shader = NULL;
 }
 
 Background::~Background()
@@ -90,6 +93,8 @@ void Background::device_update(Device *device, DeviceScene *dscene, Scene *scene
     kbackground->volume_shader = kbackground->surface_shader;
   else
     kbackground->volume_shader = SHADER_NONE;
+
+  kbackground->volume_step_size = volume_step_size * scene->integrator->volume_step_rate;
 
   /* No background node, make world shader invisible to all rays, to skip evaluation in kernel. */
   if (bg_shader->graph->nodes.size() <= 1) {

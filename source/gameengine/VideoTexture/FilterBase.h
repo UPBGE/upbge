@@ -34,7 +34,6 @@
 #include "Common.h"
 
 #include "EXP_PyObjectPlus.h"
-
 #include "PyTypeList.h"
 
 #define VT_C(v, idx) ((unsigned char *)&v)[idx]

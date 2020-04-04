@@ -35,8 +35,9 @@
 
 struct bConstraint;
 
-#include "SCA_ISensor.h"
 #include "DNA_sensor_types.h"
+
+#include "SCA_ISensor.h"
 
 class SCA_ArmatureSensor : public SCA_ISensor {
   Py_Header

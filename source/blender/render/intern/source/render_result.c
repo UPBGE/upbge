@@ -21,22 +21,22 @@
  * \ingroup render
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
-#include "BLI_listbase.h"
 #include "BLI_hash_md5.h"
+#include "BLI_listbase.h"
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.h"
 #include "BLI_threads.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_appdir.h"
 #include "BKE_camera.h"
@@ -45,9 +45,9 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 
+#include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
-#include "IMB_colormanagement.h"
 
 #include "intern/openexr/openexr_multi.h"
 
@@ -798,7 +798,7 @@ void render_result_view_new(RenderResult *rr, const char *viewname)
   BLI_strncpy(rv->name, viewname, sizeof(rv->name));
 }
 
-void render_result_views_new(RenderResult *rr, RenderData *rd)
+void render_result_views_new(RenderResult *rr, const RenderData *rd)
 {
   SceneRenderView *srv;
 
@@ -917,7 +917,7 @@ bool RE_WriteRenderResult(ReportList *reports,
 
   /* First add views since IMB_exr_add_channel checks number of views. */
   if (render_result_has_views(rr)) {
-    for (RenderView *rview = rr->views.first; rview; rview = rview->next) {
+    LISTBASE_FOREACH (RenderView *, rview, &rr->views) {
       if (!view || STREQ(view, rview->name)) {
         IMB_exr_add_view(exrhandle, rview->name);
       }
@@ -926,7 +926,7 @@ bool RE_WriteRenderResult(ReportList *reports,
 
   /* Compositing result. */
   if (rr->have_combined) {
-    for (RenderView *rview = rr->views.first; rview; rview = rview->next) {
+    LISTBASE_FOREACH (RenderView *, rview, &rr->views) {
       if (!rview->rectf) {
         continue;
       }
@@ -986,7 +986,7 @@ bool RE_WriteRenderResult(ReportList *reports,
       continue;
     }
 
-    for (RenderPass *rp = rl->passes.first; rp; rp = rp->next) {
+    LISTBASE_FOREACH (RenderPass *, rp, &rl->passes) {
       /* Skip non-RGBA and Z passes if not using multi layer. */
       if (!multi_layer && !(STREQ(rp->name, RE_PASSNAME_COMBINED) || STREQ(rp->name, "") ||
                             (STREQ(rp->name, RE_PASSNAME_Z) && write_z))) {
@@ -1206,7 +1206,7 @@ static void templates_register_pass_cb(void *userdata,
                                        const char *name,
                                        int channels,
                                        const char *chan_id,
-                                       int UNUSED(type))
+                                       eNodeSocketDatatype UNUSED(type))
 {
   ListBase *templates = userdata;
   RenderPass *pass = MEM_callocN(sizeof(RenderPass), "RenderPassTemplate");
@@ -1240,7 +1240,7 @@ void render_result_exr_file_begin(Render *re, RenderEngine *engine)
   char str[FILE_MAX];
 
   for (RenderResult *rr = re->result; rr; rr = rr->next) {
-    for (RenderLayer *rl = rr->layers.first; rl; rl = rl->next) {
+    LISTBASE_FOREACH (RenderLayer *, rl, &rr->layers) {
       /* Get passes needed by engine. Normally we would wait for the
        * engine to create them, but for EXR file we need to know in
        * advance. */
@@ -1250,7 +1250,7 @@ void render_result_exr_file_begin(Render *re, RenderEngine *engine)
       /* Create render passes requested by engine. Only this part is
        * mutex locked to avoid deadlock with Python GIL. */
       BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-      for (RenderPass *pass = templates.first; pass; pass = pass->next) {
+      LISTBASE_FOREACH (RenderPass *, pass, &templates) {
         RE_create_render_pass(
             re->result, pass->name, pass->channels, pass->chan_id, rl->name, NULL);
       }
@@ -1271,7 +1271,7 @@ void render_result_exr_file_end(Render *re, RenderEngine *engine)
 {
   /* Close EXR files. */
   for (RenderResult *rr = re->result; rr; rr = rr->next) {
-    for (RenderLayer *rl = rr->layers.first; rl; rl = rl->next) {
+    LISTBASE_FOREACH (RenderLayer *, rl, &rr->layers) {
       IMB_exr_close(rl->exrhandle);
       rl->exrhandle = NULL;
     }
@@ -1285,7 +1285,7 @@ void render_result_exr_file_end(Render *re, RenderEngine *engine)
   re->result = render_result_new(re, &re->disprect, 0, RR_USE_MEM, RR_ALL_LAYERS, RR_ALL_VIEWS);
   BLI_rw_mutex_unlock(&re->resultmutex);
 
-  for (RenderLayer *rl = re->result->layers.first; rl; rl = rl->next) {
+  LISTBASE_FOREACH (RenderLayer *, rl, &re->result->layers) {
     /* Get passes needed by engine. */
     ListBase templates;
     render_result_get_pass_templates(engine, re, rl, &templates);
@@ -1293,7 +1293,7 @@ void render_result_exr_file_end(Render *re, RenderEngine *engine)
     /* Create render passes requested by engine. Only this part is
      * mutex locked to avoid deadlock with Python GIL. */
     BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-    for (RenderPass *pass = templates.first; pass; pass = pass->next) {
+    LISTBASE_FOREACH (RenderPass *, pass, &templates) {
       RE_create_render_pass(re->result, pass->name, pass->channels, pass->chan_id, rl->name, NULL);
     }
 
@@ -1335,7 +1335,7 @@ void render_result_exr_file_path(Scene *scene, const char *layname, int sample, 
   /* Make name safe for paths, see T43275. */
   BLI_filename_make_safe(name);
 
-  BLI_make_file_string("/", filepath, BKE_tempdir_session(), name);
+  BLI_join_dirfile(filepath, FILE_MAX, BKE_tempdir_session(), name);
 }
 
 /* called for reading temp files, and for external engines */
@@ -1459,7 +1459,7 @@ bool render_result_exr_file_cache_read(Render *re)
 
 /*************************** Combined Pixel Rect *****************************/
 
-ImBuf *render_result_rect_to_ibuf(RenderResult *rr, RenderData *rd, const int view_id)
+ImBuf *render_result_rect_to_ibuf(RenderResult *rr, const RenderData *rd, const int view_id)
 {
   ImBuf *ibuf = IMB_allocImBuf(rr->rectx, rr->recty, rd->im_format.planes, 0);
   RenderView *rv = RE_RenderViewGetById(rr, view_id);

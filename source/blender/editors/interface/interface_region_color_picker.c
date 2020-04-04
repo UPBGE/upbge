@@ -23,19 +23,19 @@
  * Color Picker Region & Color Utils
  */
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_utildefines.h"
-#include "BLI_math.h"
 #include "BLI_listbase.h"
+#include "BLI_math.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 
@@ -332,7 +332,7 @@ static void ui_popup_close_cb(bContext *UNUSED(C), void *bt1, void *UNUSED(arg))
 static void ui_colorpicker_hide_reveal(uiBlock *block, enum ePickerType colormode)
 {
   /* tag buttons */
-  for (uiBut *bt = block->buttons.first; bt; bt = bt->next) {
+  LISTBASE_FOREACH (uiBut *, bt, &block->buttons) {
     if ((bt->func == ui_colorpicker_rna_cb) && (bt->type == UI_BTYPE_NUM_SLIDER) &&
         (bt->rnaindex != 3)) {
       /* RGB sliders (color circle and alpha are always shown) */

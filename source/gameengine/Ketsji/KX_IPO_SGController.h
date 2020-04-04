@@ -32,11 +32,10 @@
 #ifndef __KX_IPO_SGCONTROLLER_H__
 #define __KX_IPO_SGCONTROLLER_H__
 
+#include "KX_IInterpolator.h"
+#include "KX_IPOTransform.h"
 #include "SG_Controller.h"
 #include "SG_Node.h"
-
-#include "KX_IPOTransform.h"
-#include "KX_IInterpolator.h"
 
 #define KX_MAX_IPO_CHANNELS 19  // note- [0] is not used
 

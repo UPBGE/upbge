@@ -22,18 +22,18 @@
  * \ingroup edgpencil
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stddef.h>
 #include <math.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
@@ -54,6 +54,7 @@
 #include "BKE_deform.h"
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
+#include "BKE_gpencil_geom.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_paint.h"
@@ -72,8 +73,8 @@
 #include "ED_gpencil.h"
 #include "ED_object.h"
 #include "ED_screen.h"
-#include "ED_view3d.h"
 #include "ED_space_api.h"
+#include "ED_view3d.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -122,6 +123,10 @@ static void gp_session_validatebuffer(tGPDprimitive *p)
   gpd->runtime.sbuffer_sflag = 0;
   gpd->runtime.sbuffer_sflag |= GP_STROKE_3DSPACE;
 
+  /* Set vertex colors for buffer. */
+  ED_gpencil_sbuffer_vertex_color_set(
+      p->depsgraph, p->ob, p->scene->toolsettings, p->brush, p->material);
+
   if (ELEM(p->type, GP_STROKE_BOX, GP_STROKE_CIRCLE)) {
     gpd->runtime.sbuffer_sflag |= GP_STROKE_CYCLIC;
   }
@@ -132,34 +137,11 @@ static void gp_init_colors(tGPDprimitive *p)
   bGPdata *gpd = p->gpd;
   Brush *brush = p->brush;
 
-  MaterialGPencilStyle *gp_style = NULL;
-
   /* use brush material */
-  p->mat = BKE_gpencil_object_material_ensure_from_active_input_brush(p->bmain, p->ob, brush);
+  p->material = BKE_gpencil_object_material_ensure_from_active_input_brush(p->bmain, p->ob, brush);
 
-  /* assign color information to temp data */
-  gp_style = p->mat->gp_style;
-  if (gp_style) {
-
-    /* set colors */
-    if (gp_style->flag & GP_STYLE_STROKE_SHOW) {
-      copy_v4_v4(gpd->runtime.scolor, gp_style->stroke_rgba);
-    }
-    else {
-      /* if no stroke, use fill */
-      copy_v4_v4(gpd->runtime.scolor, gp_style->fill_rgba);
-    }
-
-    copy_v4_v4(gpd->runtime.sfill, gp_style->fill_rgba);
-    /* add some alpha to make easy the filling without hide strokes */
-    if (gpd->runtime.sfill[3] > 0.8f) {
-      gpd->runtime.sfill[3] = 0.8f;
-    }
-
-    gpd->runtime.mode = (short)gp_style->mode;
-    gpd->runtime.bstroke_style = gp_style->stroke_style;
-    gpd->runtime.bfill_style = gp_style->fill_style;
-  }
+  gpd->runtime.matid = BKE_object_material_slot_find_index(p->ob, p->material);
+  gpd->runtime.sbuffer_brush = brush;
 }
 
 /* Helper to square a primitive */
@@ -221,7 +203,7 @@ static void gp_rotate_v2_v2v2fl(float v[2],
   add_v2_v2v2(v, r, origin);
 }
 
-/* Helper to rotate line around line centre */
+/* Helper to rotate line around line center. */
 static void gp_primitive_rotate_line(
     float va[2], float vb[2], const float a[2], const float b[2], const float angle)
 {
@@ -254,24 +236,12 @@ static void gp_primitive_update_cps(tGPDprimitive *tgpi)
   }
 }
 
-/* Helper to reflect point */
-static void UNUSED_FUNCTION(gp_reflect_point_v2_v2v2v2)(float va[2],
-                                                        const float p[2],
-                                                        const float a[2],
-                                                        const float b[2])
-{
-  float point[2];
-  closest_to_line_v2(point, p, a, b);
-  va[0] = point[0] - (p[0] - point[0]);
-  va[1] = point[1] - (p[1] - point[1]);
-}
-
 /* Poll callback for primitive operators */
 static bool gpencil_primitive_add_poll(bContext *C)
 {
   /* only 3D view */
-  ScrArea *sa = CTX_wm_area(C);
-  if (sa && sa->spacetype != SPACE_VIEW3D) {
+  ScrArea *area = CTX_wm_area(C);
+  if (area && area->spacetype != SPACE_VIEW3D) {
     return 0;
   }
 
@@ -294,7 +264,7 @@ static bool gpencil_primitive_add_poll(bContext *C)
   /* don't allow operator to function if the active layer is locked/hidden
    * (BUT, if there isn't an active layer, we are free to add new layer when the time comes)
    */
-  bGPDlayer *gpl = BKE_gpencil_layer_getactive(gpd);
+  bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
   if ((gpl) && (gpl->flag & (GP_LAYER_LOCKED | GP_LAYER_HIDE))) {
     CTX_wm_operator_poll_msg_set(C,
                                  "Primitives cannot be added as active layer is locked or hidden");
@@ -322,6 +292,8 @@ static void gpencil_primitive_allocate_memory(tGPDprimitive *tgpi)
 static void gp_primitive_set_initdata(bContext *C, tGPDprimitive *tgpi)
 {
   Scene *scene = CTX_data_scene(C);
+  ToolSettings *ts = scene->toolsettings;
+  Brush *brush = tgpi->brush;
   int cfra = CFRA;
 
   bGPDlayer *gpl = CTX_data_active_gpencil_layer(C);
@@ -339,13 +311,15 @@ static void gp_primitive_set_initdata(bContext *C, tGPDprimitive *tgpi)
   /* create new temp stroke */
   bGPDstroke *gps = MEM_callocN(sizeof(bGPDstroke), "Temp bGPDstroke");
   gps->thickness = 2.0f;
-  gps->gradient_f = 1.0f;
-  gps->gradient_s[0] = 1.0f;
-  gps->gradient_s[1] = 1.0f;
+  gps->fill_opacity_fac = 1.0f;
+  gps->hardeness = 1.0f;
+  copy_v2_fl(gps->aspect_ratio, 1.0f);
+  gps->uv_scale = 1.0f;
   gps->inittime = 0.0f;
 
-  /* enable recalculation flag by default */
-  gps->flag |= GP_STROKE_RECALC_GEOMETRY;
+  /* Apply the vertex color to fill. */
+  ED_gpencil_fill_vertex_color_set(ts, brush, gps);
+
   gps->flag &= ~GP_STROKE_SELECT;
   /* the polygon must be closed, so enabled cyclic */
   if (ELEM(tgpi->type, GP_STROKE_BOX, GP_STROKE_CIRCLE)) {
@@ -367,10 +341,11 @@ static void gp_primitive_set_initdata(bContext *C, tGPDprimitive *tgpi)
   /* allocate memory for storage points, but keep empty */
   gps->totpoints = 0;
   gps->points = MEM_callocN(sizeof(bGPDspoint), "gp_stroke_points");
+  gps->dvert = NULL;
+
   /* initialize triangle memory to dummy data */
   gps->tot_triangles = 0;
   gps->triangles = NULL;
-  gps->flag |= GP_STROKE_RECALC_GEOMETRY;
 
   /* add to strokes */
   BLI_addtail(&tgpi->gpf->strokes, gps);
@@ -381,6 +356,8 @@ static void gp_primitive_set_initdata(bContext *C, tGPDprimitive *tgpi)
   /* Random generator, only init once. */
   uint rng_seed = (uint)(PIL_check_seconds_timer_i() & UINT_MAX);
   tgpi->rng = BLI_rng_new(rng_seed);
+
+  DEG_id_tag_update(&tgpi->gpd->id, ID_RECALC_COPY_ON_WRITE);
 }
 
 /* add new segment to curve */
@@ -774,9 +751,9 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
     bool found_depth = false;
 
     /* need to restore the original projection settings before packing up */
-    view3d_region_operator_needs_opengl(tgpi->win, tgpi->ar);
+    view3d_region_operator_needs_opengl(tgpi->win, tgpi->region);
     ED_view3d_autodist_init(tgpi->depsgraph,
-                            tgpi->ar,
+                            tgpi->region,
                             tgpi->v3d,
                             (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 1 : 0);
 
@@ -784,9 +761,9 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
     tGPspoint *ptc = &points2D[0];
     for (i = 0; i < gps->totpoints; i++, ptc++) {
       round_v2i_v2fl(mval_i, &ptc->x);
-      if ((ED_view3d_autodist_depth(tgpi->ar, mval_i, depth_margin, depth_arr + i) == 0) &&
+      if ((ED_view3d_autodist_depth(tgpi->region, mval_i, depth_margin, depth_arr + i) == 0) &&
           (i && (ED_view3d_autodist_depth_seg(
-                     tgpi->ar, mval_i, mval_prev, depth_margin + 1, depth_arr + i) == 0))) {
+                     tgpi->region, mval_i, mval_prev, depth_margin + 1, depth_arr + i) == 0))) {
         interp_depth = true;
       }
       else {
@@ -898,14 +875,13 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
       if (brush->gpencil_settings->flag & GP_BRUSH_USE_JITTER_PRESSURE) {
         jitter = BKE_curvemapping_evaluateF(
             brush->gpencil_settings->curve_jitter, 0, curve_pressure);
-        jitter *= brush->gpencil_settings->draw_sensitivity;
       }
       else {
         jitter = brush->gpencil_settings->draw_jitter;
       }
 
       /* exponential value */
-      const float exfactor = SQUARE(brush->gpencil_settings->draw_jitter + 2.0f);
+      const float exfactor = square_f(brush->gpencil_settings->draw_jitter + 2.0f);
       const float fac = p2d->rnd[0] * exfactor * jitter;
 
       /* vector */
@@ -934,10 +910,10 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
     if ((brush->gpencil_settings->flag & GP_BRUSH_GROUP_RANDOM) &&
         (brush->gpencil_settings->draw_random_press > 0.0f)) {
       if (p2d->rnd[0] > 0.5f) {
-        pressure -= brush->gpencil_settings->draw_random_press * p2d->rnd[1];
+        pressure -= (brush->gpencil_settings->draw_random_press * 2.0f) * p2d->rnd[1];
       }
       else {
-        pressure += brush->gpencil_settings->draw_random_press * p2d->rnd[2];
+        pressure += (brush->gpencil_settings->draw_random_press * 2.0f) * p2d->rnd[2];
       }
     }
 
@@ -945,7 +921,7 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
     if (brush->gpencil_settings->flag & GP_BRUSH_USE_STENGTH_PRESSURE) {
       float curvef = BKE_curvemapping_evaluateF(
           brush->gpencil_settings->curve_strength, 0, curve_pressure);
-      strength *= curvef * brush->gpencil_settings->draw_sensitivity;
+      strength *= curvef;
       strength *= brush->gpencil_settings->draw_strength;
     }
 
@@ -973,28 +949,23 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
 
     /* point uv */
     if (gpd->runtime.sbuffer_used > 0) {
-      MaterialGPencilStyle *gp_style = tgpi->mat->gp_style;
-      const float pixsize = gp_style->texture_pixsize / 1000000.0f;
       tGPspoint *tptb = (tGPspoint *)gpd->runtime.sbuffer + gpd->runtime.sbuffer_used - 1;
       bGPDspoint spt, spt2;
 
       /* get origin to reproject point */
       float origin[3];
-      ED_gp_get_drawing_reference(tgpi->scene, tgpi->ob, tgpi->gpl, ts->gpencil_v3d_align, origin);
+      ED_gpencil_drawing_reference_get(tgpi->scene, tgpi->ob, ts->gpencil_v3d_align, origin);
       /* reproject current */
-      ED_gpencil_tpoint_to_point(tgpi->ar, origin, tpt, &spt);
+      ED_gpencil_tpoint_to_point(tgpi->region, origin, tpt, &spt);
       ED_gp_project_point_to_plane(
           tgpi->scene, tgpi->ob, tgpi->rv3d, origin, tgpi->lock_axis - 1, &spt);
 
       /* reproject previous */
-      ED_gpencil_tpoint_to_point(tgpi->ar, origin, tptb, &spt2);
+      ED_gpencil_tpoint_to_point(tgpi->region, origin, tptb, &spt2);
       ED_gp_project_point_to_plane(
           tgpi->scene, tgpi->ob, tgpi->rv3d, origin, tgpi->lock_axis - 1, &spt2);
-      tgpi->totpixlen += len_v3v3(&spt.x, &spt2.x) / pixsize;
+      tgpi->totpixlen += len_v3v3(&spt.x, &spt2.x);
       tpt->uv_fac = tgpi->totpixlen;
-      if ((gp_style) && (gp_style->sima)) {
-        tpt->uv_fac /= gp_style->sima->gen_x;
-      }
     }
     else {
       tgpi->totpixlen = 0.0f;
@@ -1016,13 +987,15 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
 
     /* convert screen-coordinates to 3D coordinates */
     gp_stroke_convertcoords_tpoint(
-        tgpi->scene, tgpi->ar, tgpi->ob, tgpi->gpl, p2d, depth_arr ? depth_arr + i : NULL, &pt->x);
+        tgpi->scene, tgpi->region, tgpi->ob, p2d, depth_arr ? depth_arr + i : NULL, &pt->x);
 
     pt->pressure = pressure;
     pt->strength = strength;
     pt->time = 0.0f;
     pt->flag = 0;
     pt->uv_fac = tpt->uv_fac;
+    /* Apply the vertex color to point. */
+    ED_gpencil_point_vertex_color_set(ts, brush, pt);
 
     if (gps->dvert != NULL) {
       MDeformVert *dvert = &gps->dvert[i];
@@ -1040,14 +1013,14 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
     for (int i = 0; i < tgpi->gpd->runtime.tot_cp_points; i++) {
       bGPDcontrolpoint *cp = &cps[i];
       gp_stroke_convertcoords_tpoint(
-          tgpi->scene, tgpi->ar, tgpi->ob, tgpi->gpl, (tGPspoint *)cp, NULL, &cp->x);
+          tgpi->scene, tgpi->region, tgpi->ob, (tGPspoint *)cp, NULL, &cp->x);
     }
   }
 
   /* reproject to plane */
   if (!is_depth) {
     float origin[3];
-    ED_gp_get_drawing_reference(tgpi->scene, tgpi->ob, tgpi->gpl, ts->gpencil_v3d_align, origin);
+    ED_gpencil_drawing_reference_get(tgpi->scene, tgpi->ob, ts->gpencil_v3d_align, origin);
     ED_gp_project_stroke_to_plane(
         tgpi->scene, tgpi->ob, tgpi->rv3d, gps, origin, ts->gp_sculpt.lock_axis - 1);
   }
@@ -1055,7 +1028,7 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
   /* if parented change position relative to parent object */
   for (int i = 0; i < gps->totpoints; i++) {
     bGPDspoint *pt = &gps->points[i];
-    gp_apply_parent_point(tgpi->depsgraph, tgpi->ob, tgpi->gpd, tgpi->gpl, pt);
+    gp_apply_parent_point(tgpi->depsgraph, tgpi->ob, tgpi->gpl, pt);
   }
 
   /* if camera view, reproject flat to view to avoid perspective effect */
@@ -1063,8 +1036,11 @@ static void gp_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
     ED_gpencil_project_stroke_to_view(C, tgpi->gpl, gps);
   }
 
-  /* force fill recalc */
-  gps->flag |= GP_STROKE_RECALC_GEOMETRY;
+  /* Calc geometry data. */
+  BKE_gpencil_stroke_geometry_update(gps);
+
+  /* Update evaluated data. */
+  ED_gpencil_sbuffer_update_eval(tgpi->gpd, tgpi->ob_eval);
 
   MEM_SAFE_FREE(depth_arr);
 
@@ -1157,13 +1133,14 @@ static void gpencil_primitive_init(bContext *C, wmOperator *op)
 
   /* set current scene and window info */
   tgpi->bmain = CTX_data_main(C);
+  tgpi->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   tgpi->scene = scene;
   tgpi->ob = CTX_data_active_object(C);
-  tgpi->sa = CTX_wm_area(C);
-  tgpi->ar = CTX_wm_region(C);
-  tgpi->rv3d = tgpi->ar->regiondata;
-  tgpi->v3d = tgpi->sa->spacedata.first;
-  tgpi->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  tgpi->ob_eval = (Object *)DEG_get_evaluated_object(tgpi->depsgraph, tgpi->ob);
+  tgpi->area = CTX_wm_area(C);
+  tgpi->region = CTX_wm_region(C);
+  tgpi->rv3d = tgpi->region->regiondata;
+  tgpi->v3d = tgpi->area->spacedata.first;
   tgpi->win = CTX_wm_window(C);
 
   /* save original type */
@@ -1174,12 +1151,10 @@ static void gpencil_primitive_init(bContext *C, wmOperator *op)
 
   /* set GP datablock */
   tgpi->gpd = gpd;
-  /* region where paint was originated */
-  tgpi->gpd->runtime.ar = tgpi->ar;
 
   /* if brush doesn't exist, create a new set (fix damaged files from old versions) */
   if ((paint->brush == NULL) || (paint->brush->gpencil_settings == NULL)) {
-    BKE_brush_gpencil_presets(bmain, ts);
+    BKE_brush_gpencil_paint_presets(bmain, ts);
   }
 
   /* Set Draw brush. */
@@ -1194,7 +1169,7 @@ static void gpencil_primitive_init(bContext *C, wmOperator *op)
   tgpi->gpd->runtime.tot_cp_points = 0;
 
   /* getcolor info */
-  tgpi->mat = BKE_gpencil_object_material_ensure_from_active_input_toolsettings(
+  tgpi->material = BKE_gpencil_object_material_ensure_from_active_input_toolsettings(
       bmain, tgpi->ob, ts);
 
   /* set parameters */
@@ -1304,20 +1279,17 @@ static void gpencil_primitive_interaction_end(bContext *C,
     add_frame_mode = GP_GETFRAME_ADD_NEW;
   }
 
-  gpf = BKE_gpencil_layer_getframe(tgpi->gpl, tgpi->cframe, add_frame_mode);
+  gpf = BKE_gpencil_layer_frame_get(tgpi->gpl, tgpi->cframe, add_frame_mode);
 
   /* prepare stroke to get transferred */
   gps = tgpi->gpf->strokes.first;
   if (gps) {
     gps->thickness = brush->size;
-    gps->gradient_f = brush->gpencil_settings->gradient_f;
-    copy_v2_v2(gps->gradient_s, brush->gpencil_settings->gradient_s);
+    gps->hardeness = brush->gpencil_settings->hardeness;
+    copy_v2_v2(gps->aspect_ratio, brush->gpencil_settings->aspect_ratio);
 
-    gps->flag |= GP_STROKE_RECALC_GEOMETRY;
-    gps->tot_triangles = 0;
-
-    /* calculate UVs along the stroke */
-    ED_gpencil_calc_stroke_uv(tgpi->ob, gps);
+    /* Calc geometry data. */
+    BKE_gpencil_stroke_geometry_update(gps);
   }
 
   /* transfer stroke from temporary buffer to the actual frame */
@@ -1334,7 +1306,7 @@ static void gpencil_primitive_interaction_end(bContext *C,
     BKE_gpencil_dvert_ensure(gps);
     for (int i = 0; i < gps->totpoints; i++) {
       MDeformVert *ve = &gps->dvert[i];
-      MDeformWeight *dw = defvert_verify_index(ve, def_nr);
+      MDeformWeight *dw = BKE_defvert_ensure_index(ve, def_nr);
       if (dw) {
         dw->weight = ts->vgroup_weight;
       }
@@ -1343,7 +1315,7 @@ static void gpencil_primitive_interaction_end(bContext *C,
 
   /* Close stroke with geometry */
   if ((tgpi->type == GP_STROKE_BOX) || (tgpi->type == GP_STROKE_CIRCLE)) {
-    BKE_gpencil_close_stroke(gps);
+    BKE_gpencil_stroke_close(gps);
   }
 
   DEG_id_tag_update(&tgpi->gpd->id, ID_RECALC_COPY_ON_WRITE);
@@ -1451,7 +1423,7 @@ static void gpencil_primitive_edit_event_handling(
       }
       break;
     }
-    case MKEY: {
+    case EVT_MKEY: {
       if ((event->val == KM_PRESS) && (tgpi->curve) && (ELEM(tgpi->orign_type, GP_STROKE_ARC))) {
         tgpi->flip ^= 1;
         gp_primitive_update_cps(tgpi);
@@ -1459,7 +1431,7 @@ static void gpencil_primitive_edit_event_handling(
       }
       break;
     }
-    case EKEY: {
+    case EVT_EKEY: {
       if (tgpi->flag == IN_CURVE_EDIT && !ELEM(tgpi->type, GP_STROKE_BOX, GP_STROKE_CIRCLE)) {
         tgpi->flag = IN_PROGRESS;
         WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
@@ -1566,7 +1538,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
         gpencil_primitive_update(C, op, tgpi);
         break;
       }
-      case ESCKEY:
+      case EVT_ESCKEY:
       case LEFTMOUSE: {
         zero_v2(tgpi->move);
         tgpi->flag = IN_CURVE_EDIT;
@@ -1588,7 +1560,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
 
     switch (event->type) {
 
-      case ESCKEY: {
+      case EVT_ESCKEY: {
         /* return to normal cursor and header status */
         ED_workspace_status_text(C, NULL);
         WM_cursor_modal_restore(win);
@@ -1610,9 +1582,9 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
         }
         break;
       }
-      case SPACEKEY: /* confirm */
+      case EVT_SPACEKEY: /* confirm */
       case MIDDLEMOUSE:
-      case RETKEY:
+      case EVT_RETKEY:
       case RIGHTMOUSE: {
         if (event->val == KM_PRESS) {
           tgpi->flag = IDLE;
@@ -1634,7 +1606,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
         gpencil_primitive_update(C, op, tgpi);
         break;
       }
-      case PADPLUSKEY:
+      case EVT_PADPLUSKEY:
       case WHEELUPMOUSE: {
         if ((event->val != KM_RELEASE)) {
           tgpi->tot_edges = tgpi->tot_edges + 1;
@@ -1644,7 +1616,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
         }
         break;
       }
-      case PADMINUS:
+      case EVT_PADMINUS:
       case WHEELDOWNMOUSE: {
         if ((event->val != KM_RELEASE)) {
           tgpi->tot_edges = tgpi->tot_edges - 1;
@@ -1654,7 +1626,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
         }
         break;
       }
-      case FKEY: /* brush thickness/ brush strength */
+      case EVT_FKEY: /* brush thickness/ brush strength */
       {
         if ((event->val == KM_PRESS)) {
           if (event->shift) {
@@ -1680,7 +1652,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
         gpencil_primitive_size(tgpi, false);
         gpencil_primitive_update(C, op, tgpi);
         break;
-      case ESCKEY:
+      case EVT_ESCKEY:
       case MIDDLEMOUSE:
       case LEFTMOUSE:
         tgpi->brush_size = 0;
@@ -1703,7 +1675,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
         gpencil_primitive_strength(tgpi, false);
         gpencil_primitive_update(C, op, tgpi);
         break;
-      case ESCKEY:
+      case EVT_ESCKEY:
       case MIDDLEMOUSE:
       case LEFTMOUSE:
         tgpi->brush_strength = 0.0f;
@@ -1770,10 +1742,10 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
       }
       break;
     }
-    case SPACEKEY: /* confirm */
+    case EVT_SPACEKEY: /* confirm */
     case MIDDLEMOUSE:
-    case PADENTER:
-    case RETKEY: {
+    case EVT_PADENTER:
+    case EVT_RETKEY: {
       tgpi->flag = IDLE;
       gpencil_primitive_interaction_end(C, op, win, tgpi);
       /* done! */
@@ -1791,7 +1763,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
       }
       ATTR_FALLTHROUGH;
     }
-    case ESCKEY: {
+    case EVT_ESCKEY: {
       /* return to normal cursor and header status */
       ED_workspace_status_text(C, NULL);
       WM_cursor_modal_restore(win);
@@ -1802,7 +1774,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
       /* canceled! */
       return OPERATOR_CANCELLED;
     }
-    case PADPLUSKEY:
+    case EVT_PADPLUSKEY:
     case WHEELUPMOUSE: {
       if ((event->val != KM_RELEASE)) {
         tgpi->tot_edges = tgpi->tot_edges + 1;
@@ -1814,7 +1786,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
       }
       break;
     }
-    case PADMINUS:
+    case EVT_PADMINUS:
     case WHEELDOWNMOUSE: {
       if ((event->val != KM_RELEASE)) {
         tgpi->tot_edges = tgpi->tot_edges - 1;
@@ -1826,7 +1798,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
       }
       break;
     }
-    case GKEY: /* grab mode */
+    case EVT_GKEY: /* grab mode */
     {
       if ((event->val == KM_PRESS)) {
         tgpi->flag = IN_MOVE;
@@ -1834,7 +1806,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
       }
       break;
     }
-    case FKEY: /* brush thickness/ brush strength */
+    case EVT_FKEY: /* brush thickness/ brush strength */
     {
       if ((event->val == KM_PRESS)) {
         if (event->shift) {
@@ -1849,7 +1821,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
       }
       break;
     }
-    case CKEY: /* curve mode */
+    case EVT_CKEY: /* curve mode */
     {
       if ((event->val == KM_PRESS) && (tgpi->orign_type == GP_STROKE_CURVE)) {
         switch (tgpi->type) {
@@ -1868,7 +1840,7 @@ static int gpencil_primitive_modal(bContext *C, wmOperator *op, const wmEvent *e
       }
       break;
     }
-    case TABKEY: {
+    case EVT_TABKEY: {
       if (tgpi->flag == IN_CURVE_EDIT) {
         tgpi->flag = IN_PROGRESS;
         WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);

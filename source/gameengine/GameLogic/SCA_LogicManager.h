@@ -35,11 +35,11 @@
 #  pragma warning(disable : 4786)
 #endif
 
-#include <vector>
-#include <map>
 #include <list>
-
+#include <map>
 #include <string>
+#include <vector>
+
 #include "EXP_Value.h"
 #include "SG_QList.h"
 
@@ -59,9 +59,9 @@ typedef std::map<class SCA_ISensor *, controllerlist> sensormap_t;
  * (actuators may be active during a longer timeframe)
  */
 
-#include "SCA_ILogicBrick.h"
-#include "SCA_IActuator.h"
 #include "SCA_EventManager.h"
+#include "SCA_IActuator.h"
+#include "SCA_ILogicBrick.h"
 
 class SCA_LogicManager {
   std::vector<class SCA_EventManager *> m_eventmanagers;

@@ -61,6 +61,11 @@ static struct {
   struct GPUShader *taa_resolve_sh;
   struct GPUShader *taa_resolve_reproject_sh;
 
+  /* Game engine transition */
+  struct GPUShader *aa_accum_sh;
+  struct GPUShader *smaa_sh[3];
+  /* End of Game engine transition */
+
 } e_data = {NULL}; /* Engine data */
 
 extern char datatoc_bsdf_common_lib_glsl[];
@@ -88,12 +93,71 @@ extern char datatoc_lightprobe_planar_downsample_vert_glsl[];
 extern char datatoc_irradiance_lib_glsl[];
 extern char datatoc_lightprobe_lib_glsl[];
 extern char datatoc_octahedron_lib_glsl[];
+extern char datatoc_cubemap_lib_glsl[];
 
 /* Velocity Resolve */
 extern char datatoc_effect_velocity_resolve_frag_glsl[];
 
 /* Temporal Sampling */
 extern char datatoc_effect_temporal_aa_glsl[];
+
+/* Game engine transition */
+extern char datatoc_common_smaa_lib_glsl[];
+extern char datatoc_effect_smaa_frag_glsl[];
+extern char datatoc_effect_smaa_vert_glsl[];
+extern char datatoc_effect_smaa_accum_glsl[];
+
+GPUShader *eevee_shader_antialiasing_accumulation_get(void)
+{
+  if (e_data.aa_accum_sh == NULL) {
+    e_data.aa_accum_sh = DRW_shader_create_fullscreen(datatoc_effect_smaa_accum_glsl,
+                                                      NULL);
+  }
+  return e_data.aa_accum_sh;
+}
+
+GPUShader *eevee_shader_antialiasing_get(int stage)
+{
+  BLI_assert(stage < 3);
+  if (!e_data.smaa_sh[stage]) {
+    char stage_define[32];
+    BLI_snprintf(stage_define, sizeof(stage_define), "#define SMAA_STAGE %d\n", stage);
+
+    e_data.smaa_sh[stage] = GPU_shader_create_from_arrays({
+        .vert =
+            (const char *[]){
+                "#define SMAA_INCLUDE_VS 1\n",
+                "#define SMAA_INCLUDE_PS 0\n",
+                "uniform vec4 viewportMetrics;\n",
+                datatoc_common_smaa_lib_glsl,
+                datatoc_effect_smaa_vert_glsl,
+                NULL,
+            },
+        .frag =
+            (const char *[]){
+                "#define SMAA_INCLUDE_VS 0\n",
+                "#define SMAA_INCLUDE_PS 1\n",
+                "uniform vec4 viewportMetrics;\n",
+                datatoc_common_smaa_lib_glsl,
+                datatoc_effect_smaa_frag_glsl,
+                NULL,
+            },
+        .defs =
+            (const char *[]){
+                "#define SMAA_GLSL_3\n",
+                "#define SMAA_RT_METRICS viewportMetrics\n",
+                "#define SMAA_PRESET_HIGH\n",
+                "#define SMAA_LUMA_WEIGHT float4(1.0, 1.0, 1.0, 1.0)\n",
+                "#define SMAA_NO_DISCARD\n",
+                stage_define,
+                NULL,
+            },
+    });
+  }
+  return e_data.smaa_sh[stage];
+}
+
+/* End of Game engine transition */
 
 /* *********** FUNCTIONS *********** */
 
@@ -196,6 +260,7 @@ GPUShader *EEVEE_shaders_background_studiolight_sh_get(void)
 {
   if (e_data.probe_background_studiolight_sh == NULL) {
     char *frag_str = BLI_string_joinN(datatoc_octahedron_lib_glsl,
+                                      datatoc_cubemap_lib_glsl,
                                       datatoc_common_uniforms_lib_glsl,
                                       datatoc_bsdf_common_lib_glsl,
                                       datatoc_lightprobe_lib_glsl,
@@ -217,6 +282,7 @@ GPUShader *EEVEE_shaders_probe_cube_display_sh_get(void)
 {
   if (e_data.probe_cube_display_sh == NULL) {
     char *shader_str = BLI_string_joinN(datatoc_octahedron_lib_glsl,
+                                        datatoc_cubemap_lib_glsl,
                                         datatoc_common_view_lib_glsl,
                                         datatoc_common_uniforms_lib_glsl,
                                         datatoc_bsdf_common_lib_glsl,
@@ -238,6 +304,7 @@ GPUShader *EEVEE_shaders_probe_grid_display_sh_get(void)
 {
   if (e_data.probe_grid_display_sh == NULL) {
     char *shader_str = BLI_string_joinN(datatoc_octahedron_lib_glsl,
+                                        datatoc_cubemap_lib_glsl,
                                         datatoc_common_view_lib_glsl,
                                         datatoc_common_uniforms_lib_glsl,
                                         datatoc_bsdf_common_lib_glsl,
@@ -328,4 +395,12 @@ void EEVEE_shaders_free(void)
   DRW_SHADER_FREE_SAFE(e_data.velocity_resolve_sh);
   DRW_SHADER_FREE_SAFE(e_data.taa_resolve_sh);
   DRW_SHADER_FREE_SAFE(e_data.taa_resolve_reproject_sh);
+
+  /* Game engine transition */
+  for (int j = 0; j < sizeof(e_data.smaa_sh) / sizeof(void *); j++) {
+    struct GPUShader **sh_array = &e_data.smaa_sh[0];
+    DRW_SHADER_FREE_SAFE(sh_array[j]);
+  }
+  DRW_SHADER_FREE_SAFE(e_data.aa_accum_sh);
+  /* End of Game engine transition */
 }

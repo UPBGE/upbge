@@ -49,9 +49,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "MOD_weightvg_util.h"
 #include "MOD_modifiertypes.h"
 #include "MOD_util.h"
+#include "MOD_weightvg_util.h"
 
 //#define USE_TIMEIT
 
@@ -239,8 +239,13 @@ static float get_ob2ob_distance(const Object *ob, const Object *obr)
 /**
  * Maps distances to weights, with an optional "smoothing" mapping.
  */
-static void do_map(
-    Object *ob, float *weights, const int nidx, const float min_d, const float max_d, short mode)
+static void do_map(Object *ob,
+                   float *weights,
+                   const int nidx,
+                   const float min_d,
+                   const float max_d,
+                   short mode,
+                   const bool do_invert_mapping)
 {
   const float range_inv = 1.0f / (max_d - min_d); /* invert since multiplication is faster */
   uint i = nidx;
@@ -276,14 +281,15 @@ static void do_map(
     }
   }
 
-  if (!ELEM(mode, MOD_WVG_MAPPING_NONE, MOD_WVG_MAPPING_CURVE)) {
+  BLI_assert(mode != MOD_WVG_MAPPING_CURVE);
+  if (do_invert_mapping || mode != MOD_WVG_MAPPING_NONE) {
     RNG *rng = NULL;
 
     if (mode == MOD_WVG_MAPPING_RANDOM) {
       rng = BLI_rng_new_srandom(BLI_ghashutil_strhash(ob->id.name + 2));
     }
 
-    weightvg_do_map(nidx, weights, mode, NULL, rng);
+    weightvg_do_map(nidx, weights, mode, do_invert_mapping, NULL, rng);
 
     if (rng) {
       BLI_rng_free(rng);
@@ -439,7 +445,7 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   }
 
   /* Get vgroup idx from its name. */
-  defgrp_index = defgroup_name_index(ob, wmd->defgrp_name);
+  defgrp_index = BKE_object_defgroup_name_index(ob, wmd->defgrp_name);
   if (defgrp_index == -1) {
     return mesh;
   }
@@ -463,7 +469,7 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   tw = MEM_malloc_arrayN(numVerts, sizeof(float), "WeightVGProximity Modifier, tw");
   tdw = MEM_malloc_arrayN(numVerts, sizeof(MDeformWeight *), "WeightVGProximity Modifier, tdw");
   for (i = 0; i < numVerts; i++) {
-    MDeformWeight *_dw = defvert_find_index(&dvert[i], defgrp_index);
+    MDeformWeight *_dw = BKE_defvert_find_index(&dvert[i], defgrp_index);
     if (_dw) {
       tidx[numIdx] = i;
       tw[numIdx] = _dw->weight;
@@ -559,7 +565,13 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   }
 
   /* Map distances to weights. */
-  do_map(ob, new_w, numIdx, wmd->min_dist, wmd->max_dist, wmd->falloff_type);
+  do_map(ob,
+         new_w,
+         numIdx,
+         wmd->min_dist,
+         wmd->max_dist,
+         wmd->falloff_type,
+         (wmd->proximity_flags & MOD_WVG_PROXIMITY_INVERT_FALLOFF) != 0);
 
   /* Do masking. */
   struct Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);

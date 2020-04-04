@@ -21,11 +21,11 @@
  * \ingroup spnla
  */
 
-#include <string.h>
+#include <float.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
-#include <float.h>
+#include <string.h>
 
 #include "DNA_anim_types.h"
 #include "DNA_node_types.h"
@@ -37,9 +37,9 @@
 #include "BLI_dlrbTree.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_context.h"
 #include "BKE_fcurve.h"
 #include "BKE_nla.h"
-#include "BKE_context.h"
 #include "BKE_screen.h"
 
 #include "ED_anim_api.h"
@@ -55,8 +55,8 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "nla_private.h"
 #include "nla_intern.h" /* own include */
+#include "nla_private.h"
 
 /* *********************************************** */
 /* Strips */
@@ -150,7 +150,7 @@ static void nla_action_draw_keyframes(
     /* - disregard the selection status of keyframes so they draw a certain way
      * - size is 6.0f which is smaller than the editable keyframes, so that there is a distinction
      */
-    for (ActKeyColumn *ak = keys.first; ak; ak = ak->next) {
+    LISTBASE_FOREACH (ActKeyColumn *, ak, &keys) {
       draw_keyframe_shape(ak->cfra,
                           y,
                           6.0f,
@@ -207,7 +207,7 @@ static void nla_actionclip_draw_markers(
   immUniformThemeColorShade(TH_STRIP_SELECT, shade);
 
   immBeginAtMost(GPU_PRIM_LINES, BLI_listbase_count(&act->markers) * 2);
-  for (TimeMarker *marker = act->markers.first; marker; marker = marker->next) {
+  LISTBASE_FOREACH (TimeMarker *, marker, &act->markers) {
     if ((marker->frame > strip->actstart) && (marker->frame < strip->actend)) {
       float frame = nlastrip_get_frame(strip, marker->frame, NLATIME_CONVERT_MAP);
 
@@ -238,7 +238,7 @@ static void nla_strip_draw_markers(NlaStrip *strip, float yminc, float ymaxc)
     /* just a solid color, so that it is very easy to spot */
     int shade = 20;
     /* draw the markers in the first level of strips only (if they are actions) */
-    for (NlaStrip *nls = strip->strips.first; nls; nls = nls->next) {
+    LISTBASE_FOREACH (NlaStrip *, nls, &strip->strips) {
       if (nls->type == NLASTRIP_TYPE_CLIP) {
         nla_actionclip_draw_markers(nls, yminc, ymaxc, shade, false);
       }
@@ -313,7 +313,7 @@ static void nla_strip_get_color_inside(AnimData *adt, NlaStrip *strip, float col
 }
 
 /* helper call for drawing influence/time control curves for a given NLA-strip */
-static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc, unsigned int pos)
+static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc, uint pos)
 {
   const float yheight = ymaxc - yminc;
 
@@ -565,7 +565,7 @@ static void nla_draw_strip(SpaceNla *snla,
     immBeginAtMost(GPU_PRIM_LINES, 4 * BLI_listbase_count(&strip->strips));
 
     /* only draw first-level of child-strips, but don't draw any lines on the endpoints */
-    for (NlaStrip *cs = strip->strips.first; cs; cs = cs->next) {
+    LISTBASE_FOREACH (NlaStrip *, cs, &strip->strips) {
       /* draw start-line if not same as end of previous (and only if not the first strip)
        * - on upper half of strip
        */
@@ -604,7 +604,7 @@ static void nla_draw_strip_text(AnimData *adt,
                          (nlt->flag & NLATRACK_SOLO) == 0);
   char str[256];
   size_t str_len;
-  char col[4];
+  uchar col[4];
 
   /* just print the name and the range */
   if (strip->flag & NLASTRIP_FLAG_TEMP_META) {
@@ -652,7 +652,7 @@ static void nla_draw_strip_frames_text(
     NlaTrack *UNUSED(nlt), NlaStrip *strip, View2D *v2d, float UNUSED(yminc), float ymaxc)
 {
   const float ytol = 1.0f; /* small offset to vertical positioning of text, for legibility */
-  const char col[4] = {220, 220, 220, 255}; /* light gray */
+  const uchar col[4] = {220, 220, 220, 255}; /* light gray */
   char numstr[32];
   size_t numstr_len;
 
@@ -673,9 +673,9 @@ static void nla_draw_strip_frames_text(
 
 /* ---------------------- */
 
-void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
+void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
 {
-  View2D *v2d = &ar->v2d;
+  View2D *v2d = &region->v2d;
   const float pixelx = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
   const float text_margin_x = (8 * UI_DPI_FAC) * pixelx;
 
@@ -803,14 +803,14 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 /* *********************************************** */
 /* Channel List */
 
-void draw_nla_channel_list(const bContext *C, bAnimContext *ac, ARegion *ar)
+void draw_nla_channel_list(const bContext *C, bAnimContext *ac, ARegion *region)
 {
   ListBase anim_data = {NULL, NULL};
   bAnimListElem *ale;
   int filter;
 
   SpaceNla *snla = (SpaceNla *)ac->sl;
-  View2D *v2d = &ar->v2d;
+  View2D *v2d = &region->v2d;
   size_t items;
 
   /* build list of channels to draw */
@@ -828,7 +828,7 @@ void draw_nla_channel_list(const bContext *C, bAnimContext *ac, ARegion *ar)
 
   /* need to do a view-sync here, so that the keys area doesn't jump around
    * (it must copy this) */
-  UI_view2d_sync(NULL, ac->sa, v2d, V2D_LOCK_COPY);
+  UI_view2d_sync(NULL, ac->area, v2d, V2D_LOCK_COPY);
 
   /* draw channels */
   { /* first pass: just the standard GL-drawing for backdrop + text */
@@ -848,7 +848,7 @@ void draw_nla_channel_list(const bContext *C, bAnimContext *ac, ARegion *ar)
     }
   }
   { /* second pass: UI widgets */
-    uiBlock *block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
+    uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
     size_t channel_index = 0;
     float ymax = NLACHANNEL_FIRST_TOP(ac);
 

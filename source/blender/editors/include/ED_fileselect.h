@@ -30,6 +30,7 @@ extern "C" {
 
 struct ARegion;
 struct FileSelectParams;
+struct Scene;
 struct ScrArea;
 struct SpaceFile;
 struct bContext;
@@ -110,11 +111,11 @@ void ED_fileselect_params_to_userdef(struct SpaceFile *sfile,
 
 void ED_fileselect_reset_params(struct SpaceFile *sfile);
 
-void ED_fileselect_init_layout(struct SpaceFile *sfile, struct ARegion *ar);
+void ED_fileselect_init_layout(struct SpaceFile *sfile, struct ARegion *region);
 
-FileLayout *ED_fileselect_get_layout(struct SpaceFile *sfile, struct ARegion *ar);
+FileLayout *ED_fileselect_get_layout(struct SpaceFile *sfile, struct ARegion *region);
 
-int ED_fileselect_layout_numfiles(FileLayout *layout, struct ARegion *ar);
+int ED_fileselect_layout_numfiles(FileLayout *layout, struct ARegion *region);
 int ED_fileselect_layout_offset(FileLayout *layout, int x, int y);
 FileSelection ED_fileselect_layout_offset_rect(FileLayout *layout, const struct rcti *rect);
 
@@ -133,9 +134,13 @@ void ED_fileselect_layout_tilepos(FileLayout *layout, int tile, int *x, int *y);
 
 void ED_operatormacros_file(void);
 
-void ED_fileselect_clear(struct wmWindowManager *wm, struct ScrArea *sa, struct SpaceFile *sfile);
+void ED_fileselect_clear(struct wmWindowManager *wm,
+                         struct Scene *owner_scene,
+                         struct SpaceFile *sfile);
 
-void ED_fileselect_exit(struct wmWindowManager *wm, struct ScrArea *sa, struct SpaceFile *sfile);
+void ED_fileselect_exit(struct wmWindowManager *wm,
+                        struct Scene *owner_scene,
+                        struct SpaceFile *sfile);
 
 void ED_fileselect_window_params_get(const struct wmWindow *win,
                                      int win_size[2],

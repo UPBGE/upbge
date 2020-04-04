@@ -36,8 +36,8 @@
 
 #  include "DEG_depsgraph.h"
 
-#  include "ED_screen.h"
 #  include "ED_object.h"
+#  include "ED_screen.h"
 
 #  include "RNA_access.h"
 #  include "RNA_define.h"
@@ -48,7 +48,7 @@
 #  include "WM_api.h"
 #  include "WM_types.h"
 
-#  include "../../collada/collada.h"
+#  include "collada.h"
 
 #  include "io_collada.h"
 

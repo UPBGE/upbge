@@ -14,14 +14,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "GHOST_Debug.h"
 #include "GHOST_NDOFManager.h"
-#include "GHOST_EventNDOF.h"
+#include "GHOST_Debug.h"
 #include "GHOST_EventKey.h"
+#include "GHOST_EventNDOF.h"
 #include "GHOST_WindowManager.h"
-#include <string.h>  // for memory functions
-#include <stdio.h>   // for error/info reporting
 #include <math.h>
+#include <stdio.h>   // for error/info reporting
+#include <string.h>  // for memory functions
 
 #ifdef DEBUG_NDOF_MOTION
 // printable version of each GHOST_TProgress value
@@ -318,7 +318,7 @@ void GHOST_NDOFManager::sendKeyEvent(GHOST_TKey key,
                                      GHOST_IWindow *window)
 {
   GHOST_TEventType type = press ? GHOST_kEventKeyDown : GHOST_kEventKeyUp;
-  GHOST_EventKey *event = new GHOST_EventKey(time, type, window, key);
+  GHOST_EventKey *event = new GHOST_EventKey(time, type, window, key, false);
 
 #ifdef DEBUG_NDOF_BUTTONS
   printf("keyboard %s\n", press ? "down" : "up");

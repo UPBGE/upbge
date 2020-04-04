@@ -36,8 +36,8 @@
 #include "BLT_translation.h"
 
 #include "transform.h"
-#include "transform_snap.h"
 #include "transform_mode.h"
+#include "transform_snap.h"
 
 /* -------------------------------------------------------------------- */
 /* Transform (GPencil Opacity) */
@@ -90,7 +90,7 @@ static void applyGPOpacity(TransInfo *t, const int UNUSED(mval[2]))
     }
   }
 
-  ED_area_status_text(t->sa, str);
+  ED_area_status_text(t->area, str);
 }
 
 void initGPOpacity(TransInfo *t)

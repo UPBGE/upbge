@@ -26,8 +26,8 @@
 
 #include "DNA_space_types.h"
 
-#include "BLI_rect.h"
 #include "BLI_math_base.h"
+#include "BLI_rect.h"
 
 #include "UI_resources.h"
 
@@ -160,6 +160,12 @@ void WM_operator_properties_filesel(wmOperatorType *ot,
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(
       ot->srna, "filter_usd", (filter & FILE_TYPE_USD) != 0, "Filter USD files", "");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna,
+                         "filter_volume",
+                         (filter & FILE_TYPE_VOLUME) != 0,
+                         "Filter OpenVDB volume files",
+                         "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(
       ot->srna, "filter_folder", (filter & FILE_TYPE_FOLDER) != 0, "Filter folders", "");

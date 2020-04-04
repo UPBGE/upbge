@@ -133,9 +133,8 @@ pLifeSnd_pp$ID$      = ppSnd_sp$ID$.create(PdataReal)\n\
 vel_sp$ID$           = sp$ID$.create(MACGrid)\n\
 flags_sp$ID$         = sp$ID$.create(FlagGrid)\n\
 phi_sp$ID$           = sp$ID$.create(LevelsetGrid)\n\
-phiIn_sp$ID$         = sp$ID$.create(LevelsetGrid)\n\
 phiObs_sp$ID$        = sp$ID$.create(LevelsetGrid)\n\
-phiObsIn_sp$ID$      = sp$ID$.create(LevelsetGrid)\n\
+phiOut_sp$ID$        = sp$ID$.create(LevelsetGrid)\n\
 normal_sp$ID$        = sp$ID$.create(VecGrid)\n\
 neighborRatio_sp$ID$ = sp$ID$.create(RealGrid)\n\
 trappedAir_sp$ID$    = sp$ID$.create(RealGrid)\n\
@@ -144,9 +143,8 @@ kineticEnergy_sp$ID$ = sp$ID$.create(RealGrid)\n\
 \n\
 # Set some initial values\n\
 phi_sp$ID$.setConst(9999)\n\
-phiIn_sp$ID$.setConst(9999)\n\
 phiObs_sp$ID$.setConst(9999)\n\
-phiObsIn_sp$ID$.setConst(9999)\n\
+phiOut_sp$ID$.setConst(9999)\n\
 \n\
 # Keep track of important objects in dict to load them later on\n\
 liquid_particles_dict_final_s$ID$  = dict(ppSnd=ppSnd_sp$ID$, pVelSnd=pVelSnd_pp$ID$, pLifeSnd=pLifeSnd_pp$ID$)\n\
@@ -192,15 +190,16 @@ def liquid_adaptive_step_$ID$(framenr):\n\
     extrapolateLsSimple(phi=phiIn_s$ID$, distance=3)\n\
     phi_s$ID$.join(phiIn_s$ID$)\n\
     \n\
-    if using_obstacle_s$ID$:\n\
-        phi_s$ID$.subtract(o=phiObsIn_s$ID$, flags=flags_s$ID$, subtractType=FlagObstacle)\n\
-    \n\
     if using_outflow_s$ID$:\n\
         phiOut_s$ID$.join(phiOutIn_s$ID$)\n\
     \n\
     if using_fractions_s$ID$:\n\
         updateFractions(flags=flags_s$ID$, phiObs=phiObs_s$ID$, fractions=fractions_s$ID$, boundaryWidth=boundaryWidth_s$ID$, fracThreshold=fracThreshold_s$ID$)\n\
     setObstacleFlags(flags=flags_s$ID$, phiObs=phiObs_s$ID$, phiOut=phiOut_s$ID$, fractions=fractions_s$ID$, phiIn=phiIn_s$ID$)\n\
+    \n\
+    if using_obstacle_s$ID$:\n\
+        # TODO (sebbas): Enable flags check again, currently produces unstable particle behavior\n\
+        phi_s$ID$.subtract(o=phiObsIn_s$ID$) #, flags=flags_s$ID$, subtractType=FlagObstacle)\n\
     \n\
     # add initial velocity: set invel as source grid to ensure const vels in inflow region, sampling makes use of this\n\
     if using_invel_s$ID$:\n\
@@ -229,12 +228,14 @@ def liquid_step_$ID$():\n\
     mantaMsg('Pushing particles out of obstacles')\n\
     pushOutofObs(parts=pp_s$ID$, flags=flags_s$ID$, phiObs=phiObs_s$ID$)\n\
     \n\
+    # save original states for later (used during mesh / secondary particle creation)\n\
+    phiTmp_s$ID$.copyFrom(phi_s$ID$)\n\
+    velTmp_s$ID$.copyFrom(vel_s$ID$)\n\
+    \n\
     mantaMsg('Advecting phi')\n\
     advectSemiLagrange(flags=flags_s$ID$, vel=vel_s$ID$, grid=phi_s$ID$, order=1) # first order is usually enough\n\
     mantaMsg('Advecting velocity')\n\
     advectSemiLagrange(flags=flags_s$ID$, vel=vel_s$ID$, grid=vel_s$ID$, order=2)\n\
-    \n\
-    phiTmp_s$ID$.copyFrom(phi_s$ID$) # save original phi for later use in mesh creation\n\
     \n\
     # create level set of particles\n\
     gridParticleIndex(parts=pp_s$ID$, flags=flags_s$ID$, indexSys=pindex_s$ID$, index=gpi_s$ID$)\n\
@@ -308,7 +309,13 @@ const std::string liquid_step_mesh =
 def liquid_step_mesh_$ID$():\n\
     mantaMsg('Liquid step mesh')\n\
     \n\
-    interpolateGrid(target=phi_sm$ID$, source=phiTmp_s$ID$)\n\
+    # no upres: just use the loaded grids\n\
+    if upres_sm$ID$ <= 1:\n\
+        phi_sm$ID$.copyFrom(phi_s$ID$)\n\
+    \n\
+    # with upres: recreate grids\n\
+    else:\n\
+        interpolateGrid(target=phi_sm$ID$, source=phi_s$ID$)\n\
     \n\
     # create surface\n\
     pp_sm$ID$.readParticles(pp_s$ID$)\n\
@@ -342,30 +349,36 @@ def liquid_step_particles_$ID$():\n\
     \n\
     # no upres: just use the loaded grids\n\
     if upres_sp$ID$ <= 1:\n\
-        flags_sp$ID$.copyFrom(flags_s$ID$)\n\
-        vel_sp$ID$.copyFrom(vel_s$ID$)\n\
+        vel_sp$ID$.copyFrom(velTmp_s$ID$)\n\
         phiObs_sp$ID$.copyFrom(phiObs_s$ID$)\n\
-        phi_sp$ID$.copyFrom(phi_s$ID$)\n\
+        phi_sp$ID$.copyFrom(phiTmp_s$ID$)\n\
+        phiOut_sp$ID$.copyFrom(phiOut_s$ID$)\n\
     \n\
     # with upres: recreate grids\n\
     else:\n\
         # create highres grids by interpolation\n\
-        interpolateMACGrid(target=vel_sp$ID$, source=vel_s$ID$)\n\
-        interpolateGrid(target=phi_sp$ID$, source=phi_s$ID$)\n\
-        flags_sp$ID$.initDomain(boundaryWidth=boundaryWidth_s$ID$, phiWalls=phiObs_sp$ID$, outflow=boundConditions_s$ID$)\n\
-        flags_sp$ID$.updateFromLevelset(levelset=phi_sp$ID$)\n\
+        interpolateMACGrid(target=vel_sp$ID$, source=velTmp_s$ID$)\n\
+        interpolateGrid(target=phiObs_sp$ID$, source=phiObs_s$ID$)\n\
+        interpolateGrid(target=phi_sp$ID$, source=phiTmp_s$ID$)\n\
+        interpolateGrid(target=phiOut_sp$ID$, source=phiOut_s$ID$)\n\
     \n\
-    # actual secondary simulation\n\
-    #extrapolateLsSimple(phi=phi_sp$ID$, distance=radius+1, inside=True)\n\
+    # phiIn not needed, bwidth to 0 because we are omitting flags.initDomain()\n\
+    setObstacleFlags(flags=flags_sp$ID$, phiObs=phiObs_sp$ID$, phiOut=None, phiIn=None, boundaryWidth=0)\n\
+    flags_sp$ID$.updateFromLevelset(levelset=phi_sp$ID$)\n\
+    \n\
+    # Actual secondary particle simulation\n\
     flipComputeSecondaryParticlePotentials(potTA=trappedAir_sp$ID$, potWC=waveCrest_sp$ID$, potKE=kineticEnergy_sp$ID$, neighborRatio=neighborRatio_sp$ID$, flags=flags_sp$ID$, v=vel_sp$ID$, normal=normal_sp$ID$, phi=phi_sp$ID$, radius=pot_radius_sp$ID$, tauMinTA=tauMin_ta_sp$ID$, tauMaxTA=tauMax_ta_sp$ID$, tauMinWC=tauMin_wc_sp$ID$, tauMaxWC=tauMax_wc_sp$ID$, tauMinKE=tauMin_k_sp$ID$, tauMaxKE=tauMax_k_sp$ID$, scaleFromManta=scaleFromManta_sp$ID$)\n\
-    flipSampleSecondaryParticles(mode='single', flags=flags_sp$ID$, v=vel_sp$ID$, pts_sec=ppSnd_sp$ID$, v_sec=pVelSnd_pp$ID$, l_sec=pLifeSnd_pp$ID$, lMin=lMin_sp$ID$, lMax=lMax_sp$ID$, potTA=trappedAir_sp$ID$, potWC=waveCrest_sp$ID$, potKE=kineticEnergy_sp$ID$, neighborRatio=neighborRatio_sp$ID$, c_s=c_s_sp$ID$, c_b=c_b_sp$ID$, k_ta=k_ta_sp$ID$, k_wc=k_wc_sp$ID$, dt=s$ID$.frameLength)\n\
-    flipUpdateSecondaryParticles(mode='linear', pts_sec=ppSnd_sp$ID$, v_sec=pVelSnd_pp$ID$, l_sec=pLifeSnd_pp$ID$, f_sec=pForceSnd_pp$ID$, flags=flags_sp$ID$, v=vel_sp$ID$, neighborRatio=neighborRatio_sp$ID$, radius=update_radius_sp$ID$, gravity=gravity_s$ID$, k_b=k_b_sp$ID$, k_d=k_d_sp$ID$, c_s=c_s_sp$ID$, c_b=c_b_sp$ID$, dt=s$ID$.frameLength)\n\
+    flipSampleSecondaryParticles(mode='single', flags=flags_sp$ID$, v=vel_sp$ID$, pts_sec=ppSnd_sp$ID$, v_sec=pVelSnd_pp$ID$, l_sec=pLifeSnd_pp$ID$, lMin=lMin_sp$ID$, lMax=lMax_sp$ID$, potTA=trappedAir_sp$ID$, potWC=waveCrest_sp$ID$, potKE=kineticEnergy_sp$ID$, neighborRatio=neighborRatio_sp$ID$, c_s=c_s_sp$ID$, c_b=c_b_sp$ID$, k_ta=k_ta_sp$ID$, k_wc=k_wc_sp$ID$, dt=sp$ID$.timestep)\n\
+    flipUpdateSecondaryParticles(mode='linear', pts_sec=ppSnd_sp$ID$, v_sec=pVelSnd_pp$ID$, l_sec=pLifeSnd_pp$ID$, f_sec=pForceSnd_pp$ID$, flags=flags_sp$ID$, v=vel_sp$ID$, neighborRatio=neighborRatio_sp$ID$, radius=update_radius_sp$ID$, gravity=gravity_s$ID$, k_b=k_b_sp$ID$, k_d=k_d_sp$ID$, c_s=c_s_sp$ID$, c_b=c_b_sp$ID$, dt=sp$ID$.timestep)\n\
     if $SNDPARTICLE_BOUNDARY_PUSHOUT$:\n\
-        pushOutofObs(parts = ppSnd_sp$ID$, flags = flags_sp$ID$, phiObs = phiObs_sp$ID$, shift = 1.0)\n\
-    flipDeleteParticlesInObstacle(pts=ppSnd_sp$ID$, flags=flags_sp$ID$)\n\
-    #debugGridInfo(flags = flags_sp$ID$, grid = trappedAir_sp$ID$, name = 'Trapped Air')\n\
-    #debugGridInfo(flags = flags_sp$ID$, grid = waveCrest_sp$ID$, name = 'Wave Crest')\n\
-    #debugGridInfo(flags = flags_sp$ID$, grid = kineticEnergy_sp$ID$, name = 'Kinetic Energy')\n";
+        pushOutofObs(parts=ppSnd_sp$ID$, flags=flags_sp$ID$, phiObs=phiObs_sp$ID$, shift=1.0)\n\
+    flipDeleteParticlesInObstacle(pts=ppSnd_sp$ID$, flags=flags_sp$ID$) # delete particles inside obstacle and outflow cells\n\
+    \n\
+    # Print debug information in the console\n\
+    if 0:\n\
+        debugGridInfo(flags=flags_sp$ID$, grid=trappedAir_sp$ID$, name='Trapped Air')\n\
+        debugGridInfo(flags=flags_sp$ID$, grid=waveCrest_sp$ID$, name='Wave Crest')\n\
+        debugGridInfo(flags=flags_sp$ID$, grid=kineticEnergy_sp$ID$, name='Kinetic Energy')\n";
 
 //////////////////////////////////////////////////////////////////////
 // IMPORT

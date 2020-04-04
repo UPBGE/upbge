@@ -32,14 +32,14 @@
 #ifndef __SCA_SoundActuator_H__
 #define __SCA_SoundActuator_H__
 
+#include "BKE_sound.h"
+
 #include "SCA_IActuator.h"
 
 #ifdef WITH_AUDASPACE
-#  include <AUD_Sound.h>
 #  include <AUD_Handle.h>
+#  include <AUD_Sound.h>
 #endif
-
-#include "BKE_sound.h"
 
 typedef struct KX_3DSoundSettings {
   float min_gain;

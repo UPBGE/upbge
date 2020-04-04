@@ -25,7 +25,6 @@
  */
 
 #include "LA_Launcher.h"
-
 #include "RAS_Rect.h"
 
 struct Object;

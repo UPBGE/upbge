@@ -37,18 +37,19 @@
 
 #ifdef WITH_AUDASPACE
 typedef float sample_t;
-#  include <python/PyAPI.h>
-#  include <AUD_Sound.h>
-#  include <AUD_Special.h>
 #  include <AUD_Device.h>
 #  include <AUD_Handle.h>
+#  include <AUD_Sound.h>
+#  include <AUD_Special.h>
+#  include <python/PyAPI.h>
 #endif
 
-#include "KX_GameObject.h"
-#include "KX_PyMath.h"  // needed for PyObjectFrom()
-#include "KX_Globals.h"
-#include "KX_Camera.h"
 #include <iostream>
+
+#include "KX_Camera.h"
+#include "KX_GameObject.h"
+#include "KX_Globals.h"
+#include "KX_PyMath.h"  // needed for PyObjectFrom()
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

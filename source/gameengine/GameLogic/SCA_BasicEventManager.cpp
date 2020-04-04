@@ -34,8 +34,9 @@
  */
 
 #include "SCA_BasicEventManager.h"
-#include "SCA_LogicManager.h"
+
 #include "SCA_ISensor.h"
+#include "SCA_LogicManager.h"
 
 SCA_BasicEventManager::SCA_BasicEventManager(class SCA_LogicManager *logicmgr)
     : SCA_EventManager(logicmgr, BASIC_EVENTMGR)

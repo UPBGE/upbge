@@ -28,34 +28,34 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_key_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_key_types.h"
-#include "DNA_gpencil_types.h"
-#include "DNA_mask_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "BKE_animsys.h"
 #include "BKE_action.h"
-#include "BKE_fcurve.h"
-#include "BKE_gpencil.h"
+#include "BKE_anim_data.h"
 #include "BKE_context.h"
+#include "BKE_fcurve.h"
+#include "BKE_global.h"
+#include "BKE_gpencil.h"
 #include "BKE_lib_id.h"
 #include "BKE_mask.h"
-#include "BKE_global.h"
 #include "BKE_scene.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
-#include "UI_view2d.h"
 #include "UI_interface.h"
+#include "UI_view2d.h"
 
 #include "ED_anim_api.h"
 #include "ED_armature.h"
@@ -135,7 +135,10 @@ void ANIM_set_active_channel(bAnimContext *ac,
       case ANIMTYPE_DSLINESTYLE:
       case ANIMTYPE_DSSPK:
       case ANIMTYPE_DSGPENCIL:
-      case ANIMTYPE_DSMCLIP: {
+      case ANIMTYPE_DSMCLIP:
+      case ANIMTYPE_DSHAIR:
+      case ANIMTYPE_DSPOINTCLOUD:
+      case ANIMTYPE_DSVOLUME: {
         /* need to verify that this data is valid for now */
         if (ale->adt) {
           ACHANNEL_SET_FLAG(ale->adt, ACHANNEL_SETFLAG_CLEAR, ADT_UI_ACTIVE);
@@ -188,7 +191,10 @@ void ANIM_set_active_channel(bAnimContext *ac,
       case ANIMTYPE_DSNTREE:
       case ANIMTYPE_DSTEX:
       case ANIMTYPE_DSGPENCIL:
-      case ANIMTYPE_DSMCLIP: {
+      case ANIMTYPE_DSMCLIP:
+      case ANIMTYPE_DSHAIR:
+      case ANIMTYPE_DSPOINTCLOUD:
+      case ANIMTYPE_DSVOLUME: {
         /* need to verify that this data is valid for now */
         if (ale && ale->adt) {
           ale->adt->flag |= ADT_UI_ACTIVE;
@@ -323,7 +329,10 @@ void ANIM_deselect_anim_channels(
         case ANIMTYPE_DSLINESTYLE:
         case ANIMTYPE_DSSPK:
         case ANIMTYPE_DSGPENCIL:
-        case ANIMTYPE_DSMCLIP: {
+        case ANIMTYPE_DSMCLIP:
+        case ANIMTYPE_DSHAIR:
+        case ANIMTYPE_DSPOINTCLOUD:
+        case ANIMTYPE_DSVOLUME: {
           if ((ale->adt) && (ale->adt->flag & ADT_UI_SELECTED)) {
             sel = ACHANNEL_SETFLAG_CLEAR;
           }
@@ -416,7 +425,10 @@ void ANIM_deselect_anim_channels(
       case ANIMTYPE_DSLINESTYLE:
       case ANIMTYPE_DSSPK:
       case ANIMTYPE_DSGPENCIL:
-      case ANIMTYPE_DSMCLIP: {
+      case ANIMTYPE_DSMCLIP:
+      case ANIMTYPE_DSHAIR:
+      case ANIMTYPE_DSPOINTCLOUD:
+      case ANIMTYPE_DSVOLUME: {
         /* need to verify that this data is valid for now */
         if (ale->adt) {
           ACHANNEL_SET_FLAG(ale->adt, sel, ADT_UI_SELECTED);
@@ -683,15 +695,15 @@ bool ANIM_remove_empty_action_from_animdata(struct AnimData *adt)
 /* poll callback for being in an Animation Editor channels list region */
 static bool animedit_poll_channels_active(bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(NULL, sa, CTX_wm_region(C))) {
+  if (ELEM(NULL, area, CTX_wm_region(C))) {
     return 0;
   }
   /* animation editor test */
-  if (ELEM(sa->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA) == 0) {
+  if (ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA) == 0) {
     return 0;
   }
 
@@ -701,21 +713,21 @@ static bool animedit_poll_channels_active(bContext *C)
 /* poll callback for Animation Editor channels list region + not in NLA-tweakmode for NLA */
 static bool animedit_poll_channels_nla_tweakmode_off(bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
   Scene *scene = CTX_data_scene(C);
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(NULL, sa, CTX_wm_region(C))) {
+  if (ELEM(NULL, area, CTX_wm_region(C))) {
     return 0;
   }
   /* animation editor test */
-  if (ELEM(sa->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA) == 0) {
+  if (ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA) == 0) {
     return 0;
   }
 
   /* NLA TweakMode test */
-  if (sa->spacetype == SPACE_NLA) {
+  if (area->spacetype == SPACE_NLA) {
     if ((scene == NULL) || (scene->flag & SCE_NLA_EDIT_ON)) {
       return 0;
     }
@@ -1506,19 +1518,19 @@ static void ANIM_OT_channels_move(wmOperatorType *ot)
 
 static bool animchannels_grouping_poll(bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
   SpaceLink *sl;
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(NULL, sa, CTX_wm_region(C))) {
+  if (ELEM(NULL, area, CTX_wm_region(C))) {
     return 0;
   }
 
   /* animation editor test - must be suitable modes only */
   sl = CTX_wm_space_data(C);
 
-  switch (sa->spacetype) {
+  switch (area->spacetype) {
     /* supported... */
     case SPACE_ACTION: {
       SpaceAction *saction = (SpaceAction *)sl;
@@ -2341,16 +2353,16 @@ static void ANIM_OT_channels_clean_empty(wmOperatorType *ot)
 
 static bool animchannels_enable_poll(bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(NULL, sa, CTX_wm_region(C))) {
+  if (ELEM(NULL, area, CTX_wm_region(C))) {
     return 0;
   }
 
   /* animation editor test - Action/Dopesheet/etc. and Graph only */
-  if (ELEM(sa->spacetype, SPACE_ACTION, SPACE_GRAPH) == 0) {
+  if (ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH) == 0) {
     return 0;
   }
 
@@ -2419,14 +2431,14 @@ static void ANIM_OT_channels_fcurves_enable(wmOperatorType *ot)
 /* XXX: make this generic? */
 static bool animchannels_find_poll(bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(C);
 
-  if (sa == NULL) {
+  if (area == NULL) {
     return 0;
   }
 
   /* animation editor with dopesheet */
-  return ELEM(sa->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
+  return ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
 }
 
 /* find_invoke() - Get initial channels */
@@ -2553,7 +2565,7 @@ static void box_select_anim_channels(bAnimContext *ac, rcti *rect, short selectm
   int filter;
 
   SpaceNla *snla = (SpaceNla *)ac->sl;
-  View2D *v2d = &ac->ar->v2d;
+  View2D *v2d = &ac->region->v2d;
   rctf rectf;
 
   /* convert border-region to view coordinates */
@@ -2736,20 +2748,20 @@ static bool rename_anim_channels(bAnimContext *ac, int channel_index)
 
   /* free temp data and tag for refresh */
   ANIM_animdata_freelist(&anim_data);
-  ED_region_tag_redraw(ac->ar);
+  ED_region_tag_redraw(ac->region);
   return success;
 }
 
 static int animchannels_channel_get(bAnimContext *ac, const int mval[2])
 {
-  ARegion *ar;
+  ARegion *region;
   View2D *v2d;
   int channel_index;
   float x, y;
 
   /* get useful pointers from animation context data */
-  ar = ac->ar;
-  v2d = &ar->v2d;
+  region = ac->region;
+  v2d = &region->v2d;
 
   /* Figure out which channel user clicked in. */
   UI_view2d_region_to_view(v2d, mval[0], mval[1], &x, &y);
@@ -2949,7 +2961,10 @@ static int mouse_anim_channels(bContext *C, bAnimContext *ac, int channel_index,
     case ANIMTYPE_DSLINESTYLE:
     case ANIMTYPE_DSSPK:
     case ANIMTYPE_DSGPENCIL:
-    case ANIMTYPE_DSMCLIP: {
+    case ANIMTYPE_DSMCLIP:
+    case ANIMTYPE_DSHAIR:
+    case ANIMTYPE_DSPOINTCLOUD:
+    case ANIMTYPE_DSVOLUME: {
       /* sanity checking... */
       if (ale->adt) {
         /* select/deselect */
@@ -3135,7 +3150,7 @@ static int mouse_anim_channels(bContext *C, bAnimContext *ac, int channel_index,
       if (gpl->flag & GP_LAYER_SELECT) {
         ANIM_set_active_channel(ac, ac->data, ac->datatype, filter, gpl, ANIMTYPE_GPLAYER);
         /* update other layer status */
-        BKE_gpencil_layer_setactive(gpd, gpl);
+        BKE_gpencil_layer_active_set(gpd, gpl);
         BKE_gpencil_layer_autolock_set(gpd, false);
         DEG_id_tag_update(&gpd->id, ID_RECALC_GEOMETRY);
       }
@@ -3194,7 +3209,7 @@ static int mouse_anim_channels(bContext *C, bAnimContext *ac, int channel_index,
 static int animchannels_mouseclick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bAnimContext ac;
-  ARegion *ar;
+  ARegion *region;
   View2D *v2d;
   int channel_index;
   int notifierFlags = 0;
@@ -3207,8 +3222,8 @@ static int animchannels_mouseclick_invoke(bContext *C, wmOperator *op, const wmE
   }
 
   /* get useful pointers from animation context data */
-  ar = ac.ar;
-  v2d = &ar->v2d;
+  region = ac.region;
+  v2d = &region->v2d;
 
   /* select mode is either replace (deselect all, then add) or add/extend */
   if (RNA_boolean_get(op->ptr, "extend")) {
@@ -3327,7 +3342,7 @@ static bool select_anim_channel_keys(bAnimContext *ac, int channel_index, bool e
   }
 
   /* free temp data and tag for refresh */
-  ED_region_tag_redraw(ac->ar);
+  ED_region_tag_redraw(ac->region);
   return success;
 }
 
