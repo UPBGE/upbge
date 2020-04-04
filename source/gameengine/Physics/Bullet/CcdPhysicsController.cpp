@@ -1648,9 +1648,6 @@ PHY_IPhysicsController *CcdPhysicsController::GetReplicaForSensors()
   // KX_BulletPhysicsController::GetReplica()
   CcdConstructionInfo cinfo = m_cci;
 
-  // Controllers used by sensors aren't using shape info.
-  BLI_assert(m_shapeInfo);
-
   if (m_collisionShape) {
     switch (m_collisionShape->getShapeType()) {
       case SPHERE_SHAPE_PROXYTYPE: {
