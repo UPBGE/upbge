@@ -46,6 +46,7 @@ static std::string predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_T
     "bgl_RenderedTexture",         // RENDERED_TEXTURE_UNIFORM
     "bgl_DepthTexture",            // DEPTH_TEXTURE_UNIFORM
     "bgl_UtilTexture",             // UTIL_TEXTURE_UNIFORM
+    "bgl_NoiseTexture",            // NOISE_TEXTURE_UNIFORM
     "bgl_ProjectionMatrix",        // PROJ_MATRIX_UNIFORM
     "bgl_ViewMatrix",              // VIEW_MATRIX_UNIFORM
     "bgl_RenderedTextureWidth",    // RENDERED_TEXTURE_WIDTH_UNIFORM
@@ -234,6 +235,9 @@ void RAS_2DFilter::BindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *color
   if (m_predefinedUniforms[UTIL_TEXTURE_UNIFORM] != -1) {
     GPU_texture_bind(EEVEE_materials_get_util_tex(), 10);
   }
+  if (m_predefinedUniforms[NOISE_TEXTURE_UNIFORM] != -1) {
+    GPU_texture_bind(EEVEE_materials_get_noise_tex(), 11);
+  }
 
   // Bind custom textures.
   for (const auto &pair : m_textures) {
@@ -256,6 +260,9 @@ void RAS_2DFilter::UnbindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *col
   if (m_predefinedUniforms[UTIL_TEXTURE_UNIFORM] != -1) {
     GPU_texture_unbind(EEVEE_materials_get_util_tex());
   }
+  if (m_predefinedUniforms[NOISE_TEXTURE_UNIFORM] != -1) {
+    GPU_texture_unbind(EEVEE_materials_get_noise_tex());
+  }
 
   // Unbind custom textures.
   for (const auto &pair : m_textures) {
@@ -276,6 +283,9 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas, KX_Scene *kxscene)
   }
   if (m_predefinedUniforms[UTIL_TEXTURE_UNIFORM] != -1) {
     SetUniform(m_predefinedUniforms[UTIL_TEXTURE_UNIFORM], 10);
+  }
+  if (m_predefinedUniforms[NOISE_TEXTURE_UNIFORM] != -1) {
+    SetUniform(m_predefinedUniforms[NOISE_TEXTURE_UNIFORM], 11);
   }
   if (m_predefinedUniforms[PROJ_MATRIX_UNIFORM] != -1) {
     KX_Camera *cam = kxscene->GetActiveCamera();
