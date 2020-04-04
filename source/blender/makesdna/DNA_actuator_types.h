@@ -61,9 +61,9 @@ typedef struct bActionActuator {
                          frame */
   short strideaxis;   /* Displacement axis */
   short blend_mode;   /* Layer blending mode */
-  float stridelength; /* Displacement incurred by cycle */  // not in use
   float layer_weight; /* How much of the previous layer to use for blending. (<0 = disable, 0 = add
                          mode) */
+  int _pad1;
 } bActionActuator;
 
 typedef struct Sound3D {

@@ -53,8 +53,7 @@ class BL_ActionActuator : public SCA_IActuator {
                               short layer,
                               float layer_weight,
                               short ipo_flags,
-                              short end_reset,
-                              float stride);
+                              short end_reset);
 
   virtual ~BL_ActionActuator();
   virtual bool Update(double curtime);
@@ -93,16 +92,6 @@ class BL_ActionActuator : public SCA_IActuator {
                               const KX_PYATTRIBUTE_DEF *attrdef,
                               PyObject *value);
 
-  static int CheckBlendTime(PyObjectPlus *self, const PyAttributeDef *)
-  {
-    BL_ActionActuator *act = reinterpret_cast<BL_ActionActuator *>(self);
-
-    if (act->m_blendframe > act->m_blendin)
-      act->m_blendframe = act->m_blendin;
-
-    return 0;
-  }
-
   static int CheckType(PyObjectPlus *self, const PyAttributeDef *)
   {
     BL_ActionActuator *act = reinterpret_cast<BL_ActionActuator *>(self);
@@ -123,8 +112,6 @@ class BL_ActionActuator : public SCA_IActuator {
 #endif /* WITH_PYTHON */
 
  protected:
-  MT_Vector3 m_lastpos;
-  float m_blendframe;
   int m_flag;
   /** The frame this action starts */
   float m_startframe;
@@ -132,11 +119,8 @@ class BL_ActionActuator : public SCA_IActuator {
   float m_endframe;
   /** The current time of the action */
   float m_localtime;
-
-  float m_lastUpdate;
   float m_blendin;
   float m_blendstart;
-  float m_stridelength;
   float m_layer_weight;
   short m_playtype;
   short m_blendmode;
