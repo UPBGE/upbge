@@ -7495,13 +7495,13 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
 
   /* Game engine transition */
   prop = RNA_def_property(srna, "use_eevee_smaa", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_SMAA);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_SMAA_ENABLED);
   RNA_def_property_ui_text(prop, "SMAA", "SMAA filter");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "use_hbao", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_HBAO);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_HBAO_ENABLED);
   RNA_def_property_ui_text(prop,
                            "HBAO",
                            "Indirect shadowing");
@@ -7512,7 +7512,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Strength", "Strength");
   RNA_def_property_range(prop, 0.0f, 100000.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 20.0f, 1, 3);
+  RNA_def_property_ui_range(prop, 0.0f, 100.0f, 1, 3);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
   /* Game engine transition */

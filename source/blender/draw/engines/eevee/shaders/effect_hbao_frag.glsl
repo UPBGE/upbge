@@ -11,7 +11,7 @@ uniform float bgl_RenderedTextureHeight;
 uniform float near = 0.1;
 uniform float far = 100.0;
 uniform float flen = 50.0;
-uniform float AOStrength = 1.9;
+uniform float AOStrength = 5.0;
 
 const float PI = 3.14159265;
 

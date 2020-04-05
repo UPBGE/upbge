@@ -113,7 +113,7 @@ int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata)
   const DRWContextState *draw_ctx = DRW_context_state_get();
   Scene *scene_eval = draw_ctx->scene;
 
-  if (!(scene_eval->eevee.flag & SCE_EEVEE_SMAA)) {
+  if (!(scene_eval->eevee.flag & SCE_EEVEE_SMAA_ENABLED)) {
     /* Cleanup */
     DRW_TEXTURE_FREE_SAFE(txl->history_buffer_tx);
     DRW_TEXTURE_FREE_SAFE(txl->depth_buffer_tx);

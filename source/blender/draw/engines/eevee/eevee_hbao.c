@@ -74,7 +74,7 @@ int EEVEE_hbao_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     return 0;
   }
 
-  if (scene_eval->eevee.flag & SCE_EEVEE_HBAO) {
+  if (scene_eval->eevee.flag & SCE_EEVEE_HBAO_ENABLED) {
 
     /* Shaders */
     eevee_create_shader_hbao();
