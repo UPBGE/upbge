@@ -42,7 +42,7 @@ static void rgb_to_yuv_normalized(const float rgb[3], float yuv[3])
   yuv[1] = 0.492f * (rgb[2] - yuv[0]);
   yuv[2] = 0.877f * (rgb[0] - yuv[0]);
 
-  /* Normalize */
+  /* Normalize. */
   yuv[1] *= 255.0f / (122 * 2.0f);
   yuv[1] += 0.5f;
 
@@ -450,7 +450,7 @@ typedef struct MakeHistogramViewData {
   uint32_t (*bins)[HIS_STEPS];
 } MakeHistogramViewData;
 
-static void make_histogram_view_from_ibuf_byte_cb_ex(void *__restrict userdata,
+static void make_histogram_view_from_ibuf_byte_fn(void *__restrict userdata,
                                                      const int y,
                                                      const TaskParallelTLS *__restrict tls)
 {
@@ -504,7 +504,7 @@ static ImBuf *make_histogram_view_from_ibuf_byte(ImBuf *ibuf)
   settings.userdata_chunk = bins;
   settings.userdata_chunk_size = sizeof(bins);
   settings.func_finalize = make_histogram_view_from_ibuf_finalize;
-  BLI_task_parallel_range(0, ibuf->y, &data, make_histogram_view_from_ibuf_byte_cb_ex, &settings);
+  BLI_task_parallel_range(0, ibuf->y, &data, make_histogram_view_from_ibuf_byte_fn, &settings);
 
   nr = nb = ng = 0;
   for (x = 0; x < HIS_STEPS; x++) {
@@ -551,7 +551,7 @@ BLI_INLINE int get_bin_float(float f)
   return (int)(((f + 0.25f) / 1.5f) * 512);
 }
 
-static void make_histogram_view_from_ibuf_float_cb_ex(void *__restrict userdata,
+static void make_histogram_view_from_ibuf_float_fn(void *__restrict userdata,
                                                       const int y,
                                                       const TaskParallelTLS *__restrict tls)
 {
@@ -590,7 +590,7 @@ static ImBuf *make_histogram_view_from_ibuf_float(ImBuf *ibuf)
   settings.userdata_chunk = bins;
   settings.userdata_chunk_size = sizeof(bins);
   settings.func_finalize = make_histogram_view_from_ibuf_finalize;
-  BLI_task_parallel_range(0, ibuf->y, &data, make_histogram_view_from_ibuf_float_cb_ex, &settings);
+  BLI_task_parallel_range(0, ibuf->y, &data, make_histogram_view_from_ibuf_float_fn, &settings);
 
   nr = nb = ng = 0;
   for (x = 0; x < HIS_STEPS; x++) {

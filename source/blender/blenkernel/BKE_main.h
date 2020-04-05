@@ -226,7 +226,7 @@ int set_listbasepointers(struct Main *main, struct ListBase *lb[MAX_LIBARRAY]);
 
 #define MAIN_VERSION_ATLEAST(main, ver, subver) \
   ((main)->versionfile > (ver) || \
-   (main->versionfile == (ver) && (main)->subversionfile >= (subver)))
+   ((main)->versionfile == (ver) && (main)->subversionfile >= (subver)))
 
 #define MAIN_VERSION_UPBGE_ATLEAST(main, ver, subver) \
   ((main)->upbgeversionfile > (ver) || \
@@ -234,7 +234,7 @@ int set_listbasepointers(struct Main *main, struct ListBase *lb[MAX_LIBARRAY]);
 
 #define MAIN_VERSION_OLDER(main, ver, subver) \
   ((main)->versionfile < (ver) || \
-   (main->versionfile == (ver) && (main)->subversionfile < (subver)))
+   ((main)->versionfile == (ver) && (main)->subversionfile < (subver)))
 
 #define BLEN_THUMB_SIZE 128
 
