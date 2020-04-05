@@ -365,6 +365,9 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *smaa_weight_fb;
 
   struct GPUFrameBuffer *hbao_fb;
+  struct GPUFrameBuffer *hbao_blurx_fb;
+  struct GPUFrameBuffer *hbao_blury_fb;
+  struct GPUFrameBuffer *hbao_composite_fb;
   /* End of Game engine transition */
 } EEVEE_FramebufferList;
 
