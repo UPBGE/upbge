@@ -7,12 +7,12 @@ vec2 InvFullRes = 1.0 / FullRes;
 
 #define KERNEL_RADIUS 8.0
 
-in vec4 bgl_TexCoord;
+in vec4 uvcoordsvar;
 out vec4 fragColor;
 
 vec2 SampleAOZ(vec2 uv)
 {
-    return texture(bufA, bgl_TexCoord.xy + uv * InvFullRes).rg;
+    return texture(bufA, uvcoordsvar.xy + uv * InvFullRes).rg;
 }
 
 vec2 PointSampleAOZ(vec2 uv)

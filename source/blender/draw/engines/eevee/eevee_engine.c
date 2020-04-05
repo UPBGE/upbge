@@ -327,6 +327,10 @@ static void eevee_draw_scene(void *vedata)
     GPU_framebuffer_bind(fbl->main_fb);
     GPU_framebuffer_texture_detach(fbl->main_color_fb, dtxl->depth);
 
+    /* Game engine transition */
+    EEVEE_hbao_compute(sldata, vedata);
+    /* Game engine transition */
+
     /* Post Process */
     DRW_stats_group_start("Post FX");
     EEVEE_draw_effects(sldata, vedata);
@@ -454,6 +458,9 @@ static void eevee_engine_free(void)
   EEVEE_mist_free();
   EEVEE_motion_blur_free();
   EEVEE_occlusion_free();
+  /* Game engine transition */
+  EEVEE_hbao_free();
+  /* End of Game engine transition */
   EEVEE_screen_raytrace_free();
   EEVEE_subsurface_free();
   EEVEE_volumes_free();

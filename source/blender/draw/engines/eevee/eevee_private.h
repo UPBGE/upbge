@@ -305,6 +305,11 @@ typedef struct EEVEE_PassList {
   struct DRWPass *aa_edge_ps;
   struct DRWPass *aa_weight_ps;
   struct DRWPass *aa_resolve_ps;
+
+  struct DRWPass *hbao_ps;
+  struct DRWPass *hbao_blurx_ps;
+  struct DRWPass *hbao_blury_ps;
+  struct DRWPass *hbao_composite_ps;
   /* End of Game engine transition */
 } EEVEE_PassList;
 
@@ -358,6 +363,8 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *antialiasing_fb;
   struct GPUFrameBuffer *smaa_edge_fb;
   struct GPUFrameBuffer *smaa_weight_fb;
+
+  struct GPUFrameBuffer *hbao_fb;
   /* End of Game engine transition */
 } EEVEE_FramebufferList;
 
@@ -594,6 +601,7 @@ typedef enum EEVEE_EffectsFlag {
   EFFECT_TAA_REPROJECT = (1 << 13),       /* should be mutually exclusive with EFFECT_TAA */
   EFFECT_DEPTH_DOUBLE_BUFFER = (1 << 14), /* Not really an effect but a feature */
   EFFECT_SMAA = (1 << 15),
+  EFFECT_HBAO = (1 << 16),
 } EEVEE_EffectsFlag;
 
 typedef struct EEVEE_EffectsInfo {
@@ -1303,6 +1311,11 @@ int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata);
 void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata);
 void eevee_antialiasing_setup(EEVEE_Data *vedata);
 void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata);
+
+int EEVEE_hbao_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_hbao_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_hbao_compute(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_hbao_free(void);
 /* End of Game engine transition */
 
 #ifdef __cplusplus

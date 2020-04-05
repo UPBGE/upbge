@@ -162,6 +162,7 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
 
   /* Game engine transition */
   effects->enabled_effects |= EEVEE_antialiasing_engine_init(vedata);
+  effects->enabled_effects |= EEVEE_hbao_init(sldata, vedata);
   /* End of Game engine transition */
 
   if ((effects->enabled_effects & EFFECT_TAA) && effects->taa_current_sample > 1) {
@@ -276,6 +277,7 @@ void EEVEE_effects_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 
   /* Game engine transition */
   EEVEE_antialiasing_cache_init(vedata);
+  EEVEE_hbao_cache_init(sldata, vedata);
   /* End of Game engine transition */
 
   /* Intel gpu seems to have problem rendering to only depth format.

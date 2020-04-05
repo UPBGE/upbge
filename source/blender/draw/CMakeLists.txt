@@ -80,6 +80,7 @@ set(SRC
   engines/eevee/eevee_depth_of_field.c
   engines/eevee/eevee_effects.c
   engines/eevee/eevee_engine.c
+  engines/eevee/eevee_hbao.c
   engines/eevee/eevee_lightcache.c
   engines/eevee/eevee_lightprobes.c
   engines/eevee/eevee_lights.c

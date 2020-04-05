@@ -7,16 +7,16 @@ uniform sampler2D bgl_DepthTexture;
 uniform sampler2D bgl_NoiseTexture;
 uniform float bgl_RenderedTextureWidth;
 uniform float bgl_RenderedTextureHeight;
+//Camera Settings
+uniform float near = 0.1;
+uniform float far = 100.0;
+uniform float flen = 50.0;
+uniform float AOStrength = 1.9;
 
 const float PI = 3.14159265;
 
-in vec4 bgl_TexCoord;
+in vec4 uvcoordsvar;
 out vec4 fragColor;
-
-//Camera Settings
-float near = 0.1;
-float far = 100.0;
-float flen = 50.0;
 
 vec2 resolution = vec2(bgl_RenderedTextureWidth, bgl_RenderedTextureHeight);
 
@@ -30,7 +30,6 @@ vec2 AORes = resolution;
 vec2 InvAORes = 1.0 / resolution;
 vec2 NoiseScale = resolution / 4.0;
 
-float AOStrength = 1.9;
 float R = 0.3;
 float R2 = 0.3*0.3;
 float NegInvR2 = - 1.0 / (0.3*0.3);
@@ -126,7 +125,7 @@ float HorizonOcclusion(	vec2 deltaUV,
     float ao = 0.0;
 
     // Offset the first coord with some noise
-    vec2 uv = bgl_TexCoord.xy + SnapUVOffset(randstep*deltaUV);
+    vec2 uv = uvcoordsvar.xy + SnapUVOffset(randstep*deltaUV);
     deltaUV = SnapUVOffset( deltaUV );
 
     // Calculate the tangent vector
@@ -196,20 +195,20 @@ void main(void)
     float numDirections = NumDirections;
 
     vec3 P, Pr, Pl, Pt, Pb;
-    P 	= GetViewPos(bgl_TexCoord.xy);
+    P 	= GetViewPos(uvcoordsvar.xy);
 
     // Sample neighboring pixels
-    Pr 	= GetViewPos(bgl_TexCoord.xy + vec2( InvAORes.x, 0));
-    Pl 	= GetViewPos(bgl_TexCoord.xy + vec2(-InvAORes.x, 0));
-    Pt 	= GetViewPos(bgl_TexCoord.xy + vec2( 0, InvAORes.y));
-    Pb 	= GetViewPos(bgl_TexCoord.xy + vec2( 0,-InvAORes.y));
+    Pr 	= GetViewPos(uvcoordsvar.xy + vec2( InvAORes.x, 0));
+    Pl 	= GetViewPos(uvcoordsvar.xy + vec2(-InvAORes.x, 0));
+    Pt 	= GetViewPos(uvcoordsvar.xy + vec2( 0, InvAORes.y));
+    Pb 	= GetViewPos(uvcoordsvar.xy + vec2( 0,-InvAORes.y));
 
     // Calculate tangent basis vectors using the minimu difference
     vec3 dPdu = MinDiff(P, Pr, Pl);
     vec3 dPdv = MinDiff(P, Pt, Pb) * (AORes.y * InvAORes.x);
 
     // Get the random samples from the noise texture
-    vec3 random = texture(bgl_NoiseTexture, bgl_TexCoord.xy * NoiseScale).rgb;
+    vec3 random = texture(bgl_NoiseTexture, uvcoordsvar.xy * NoiseScale).rgb;
 
     // Calculate the projected size of the hemisphere
     vec2 rayRadiusUV = 0.5 * R * FocalLen / -P.z;
