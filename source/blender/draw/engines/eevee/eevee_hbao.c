@@ -185,9 +185,6 @@ void EEVEE_hbao_compute(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
     GPU_framebuffer_texture_detach(fbl->hbao_fb, e_data.hbao_tx);
     GPU_framebuffer_texture_detach(fbl->hbao_blurx_fb, e_data.hbao_tx);
     GPU_framebuffer_texture_detach(fbl->hbao_blury_fb, e_data.hbao_tx);
-
-    /* Restore */
-    GPU_framebuffer_bind(fbl->main_fb);
   }
 }
 
