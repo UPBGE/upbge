@@ -185,6 +185,11 @@ void EEVEE_hbao_compute(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
     GPU_framebuffer_bind(fbl->hbao_composite_fb);
     DRW_draw_pass(psl->hbao_composite_ps);
 
+    GPU_framebuffer_texture_detach(fbl->hbao_fb, e_data.hbao_tx);
+    GPU_framebuffer_texture_detach(fbl->hbao_blurx_fb, e_data.hbao_tx);
+    GPU_framebuffer_texture_detach(fbl->hbao_blury_fb, e_data.hbao_tx);
+    GPU_framebuffer_texture_detach(fbl->hbao_composite_fb, e_data.hbao_tx);
+
     SWAP(GPUTexture *, vedata->txl->color, e_data.hbao_tx);
 
     /* Restore */
