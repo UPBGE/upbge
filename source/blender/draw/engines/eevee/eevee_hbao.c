@@ -87,8 +87,6 @@ int EEVEE_hbao_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
                                   {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(e_data.hbao_tx)});
     GPU_framebuffer_ensure_config(&fbl->hbao_blury_fb,
                                   {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(e_data.hbao_tx)});
-    GPU_framebuffer_ensure_config(&fbl->hbao_composite_fb,
-                                  {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(e_data.hbao_tx)});
 
     float clear[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     GPU_texture_clear(e_data.hbao_tx, GPU_DATA_FLOAT, clear);
@@ -100,7 +98,6 @@ int EEVEE_hbao_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   GPU_FRAMEBUFFER_FREE_SAFE(fbl->hbao_fb);
   GPU_FRAMEBUFFER_FREE_SAFE(fbl->hbao_blurx_fb);
   GPU_FRAMEBUFFER_FREE_SAFE(fbl->hbao_blury_fb);
-  GPU_FRAMEBUFFER_FREE_SAFE(fbl->hbao_composite_fb);
 
   return 0;
 }
@@ -182,15 +179,12 @@ void EEVEE_hbao_compute(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
     DRW_draw_pass(psl->hbao_blurx_ps);
     GPU_framebuffer_bind(fbl->hbao_blury_fb);
     DRW_draw_pass(psl->hbao_blury_ps);
-    GPU_framebuffer_bind(fbl->hbao_composite_fb);
+    GPU_framebuffer_bind(fbl->main_fb);
     DRW_draw_pass(psl->hbao_composite_ps);
 
     GPU_framebuffer_texture_detach(fbl->hbao_fb, e_data.hbao_tx);
     GPU_framebuffer_texture_detach(fbl->hbao_blurx_fb, e_data.hbao_tx);
     GPU_framebuffer_texture_detach(fbl->hbao_blury_fb, e_data.hbao_tx);
-    GPU_framebuffer_texture_detach(fbl->hbao_composite_fb, e_data.hbao_tx);
-
-    SWAP(GPUTexture *, vedata->txl->color, e_data.hbao_tx);
 
     /* Restore */
     GPU_framebuffer_bind(fbl->main_fb);
