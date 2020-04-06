@@ -106,7 +106,6 @@ void EEVEE_hbao_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 {
   EEVEE_PassList *psl = vedata->psl;
   EEVEE_EffectsInfo *effects = vedata->stl->effects;
-  EEVEE_TextureList *txl = vedata->txl;
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
