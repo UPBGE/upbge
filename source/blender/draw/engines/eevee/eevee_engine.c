@@ -312,10 +312,6 @@ static void eevee_draw_scene(void *vedata)
     DRW_draw_pass(psl->refract_pass);
     DRW_stats_group_end();
 
-    /* Game engine transition */
-    EEVEE_hbao_compute(sldata, vedata);
-    /* Game engine transition */
-
     /* Volumetrics Resolve Opaque */
     EEVEE_volumes_resolve(sldata, vedata);
 
@@ -330,6 +326,10 @@ static void eevee_draw_scene(void *vedata)
     DRW_draw_pass(psl->transparent_pass);
     GPU_framebuffer_bind(fbl->main_fb);
     GPU_framebuffer_texture_detach(fbl->main_color_fb, dtxl->depth);
+
+    /* Game engine transition */
+    EEVEE_hbao_compute(sldata, vedata);
+    /* Game engine transition */
 
     /* Post Process */
     DRW_stats_group_start("Post FX");
