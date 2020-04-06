@@ -419,7 +419,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.lodflag = SCE_LOD_USE_HYST;
     sce->gm.scehysteresis = 10;
 
-    sce->eevee.hbao_strength = 5.0f;
+    sce->eevee.hbao_strength = 1.0f;
 
     // sce->gm.pythonkeys[0] = LEFTCTRLKEY;
     // sce->gm.pythonkeys[1] = LEFTSHIFTKEY;

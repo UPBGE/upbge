@@ -1770,7 +1770,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
       sce->gm.flag |= GAME_USE_UNDO;
 
-      sce->eevee.hbao_strength = 5.0f;
+      sce->eevee.hbao_strength = 1.0f;
 
       // sce->gm.pythonkeys[0] = LEFTCTRLKEY;
       // sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
@@ -2284,7 +2284,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         scene->eevee.gtao_factor = 1.0f;
         scene->eevee.gtao_quality = 0.25f;
 
-        scene->eevee.hbao_strength = 5.0f;
+        scene->eevee.hbao_strength = 1.0f;
 
         scene->eevee.bokeh_max_size = 100.0f;
         scene->eevee.bokeh_threshold = 1.0f;

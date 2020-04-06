@@ -1800,6 +1800,7 @@ typedef struct SceneEEVEE {
 
   /* Game engine transition */
   float hbao_strength, _pad2;
+  /* End of Game engine transition */
 } SceneEEVEE;
 
 /* *************************************************************** */

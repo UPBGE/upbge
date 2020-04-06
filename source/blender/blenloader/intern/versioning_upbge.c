@@ -201,7 +201,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
   if (!MAIN_VERSION_UPBGE_ATLEAST(main, 3, 1)) {
     if (!DNA_struct_elem_find(fd->filesdna, "Scene", "SceneEEVEE", "use_hbao")) {
       for (Scene *sce = main->scenes.first; sce; sce = sce->id.next) {
-        sce->eevee.hbao_strength = 5.0f;
+        sce->eevee.hbao_strength = 1.0f;
       }
     }
   }
