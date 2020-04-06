@@ -90,7 +90,7 @@ int EEVEE_hbao_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     GPU_framebuffer_ensure_config(&fbl->hbao_composite_fb,
                                   {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(e_data.hbao_tx)});
 
-    float clear[4] = {0.0, 0.0, 0.0, 0.0};
+    float clear[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     GPU_texture_clear(e_data.hbao_tx, GPU_DATA_FLOAT, clear);
 
     return EFFECT_HBAO;
