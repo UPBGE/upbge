@@ -152,7 +152,7 @@ void EEVEE_hbao_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     DRW_PASS_CREATE(psl->hbao_composite_ps, DRW_STATE_WRITE_COLOR);
     grp = DRW_shgroup_create(e_data.hbao_composite_sh, psl->hbao_composite_ps);
     DRW_shgroup_uniform_texture_ref(grp, "bufC", &e_data.hbao_tx);
-    DRW_shgroup_uniform_texture_ref(grp, "bgl_RenderedTexture", &txl->color);
+    DRW_shgroup_uniform_texture_ref(grp, "bgl_RenderedTexture", &effects->source_buffer);
     DRW_shgroup_call_procedural_triangles(grp, NULL, 1);
   }
 }
@@ -162,6 +162,7 @@ void EEVEE_hbao_compute(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
   EEVEE_PassList *psl = vedata->psl;
   EEVEE_FramebufferList *fbl = vedata->fbl;
   EEVEE_EffectsInfo *effects = vedata->stl->effects;
+  EEVEE_TextureList *txl = vedata->txl;
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
   View3D *v3d = draw_ctx->v3d;
@@ -179,8 +180,10 @@ void EEVEE_hbao_compute(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
     DRW_draw_pass(psl->hbao_blurx_ps);
     GPU_framebuffer_bind(fbl->hbao_blury_fb);
     DRW_draw_pass(psl->hbao_blury_ps);
-    GPU_framebuffer_bind(fbl->main_fb);
+    GPU_framebuffer_bind(effects->target_buffer);
     DRW_draw_pass(psl->hbao_composite_ps);
+
+    SWAP_BUFFERS();
 
     GPU_framebuffer_texture_detach(fbl->hbao_fb, e_data.hbao_tx);
     GPU_framebuffer_texture_detach(fbl->hbao_blurx_fb, e_data.hbao_tx);

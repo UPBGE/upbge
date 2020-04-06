@@ -551,6 +551,11 @@ void EEVEE_draw_effects(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   EEVEE_velocity_resolve(vedata);
 
   EEVEE_temporal_sampling_draw(vedata);
+
+  /* Game engine transition */
+  EEVEE_hbao_compute(sldata, vedata);
+  /* Game engine transition */
+
   EEVEE_bloom_draw(vedata);
 
   /* Post effect render passes are done here just after the drawing of the effects and just before

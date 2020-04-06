@@ -327,10 +327,6 @@ static void eevee_draw_scene(void *vedata)
     GPU_framebuffer_bind(fbl->main_fb);
     GPU_framebuffer_texture_detach(fbl->main_color_fb, dtxl->depth);
 
-    /* Game engine transition */
-    EEVEE_hbao_compute(sldata, vedata);
-    /* Game engine transition */
-
     /* Post Process */
     DRW_stats_group_start("Post FX");
     EEVEE_draw_effects(sldata, vedata);
