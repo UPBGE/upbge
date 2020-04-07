@@ -549,6 +549,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   KX_PYMETHOD_DOC(KX_Scene, replace);
   KX_PYMETHOD_DOC(KX_Scene, get);
   KX_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
+  KX_PYMETHOD_DOC(KX_Scene, convertBlenderObject);
 
   /* attributes */
   static PyObject *pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
