@@ -63,6 +63,7 @@
 #include "windowmanager/wm_draw.h"
 
 #include "BL_BlenderConverter.h"
+#include "BL_BlenderDataConversion.h"
 #include "CM_Message.h"
 #include "EXP_FloatValue.h"
 #include "EXP_ListValue.h"
@@ -792,6 +793,31 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             NULL);
 
   DRW_game_render_loop(C, m_currentGPUViewport, bmain, scene, window, false, true, false);
+}
+
+void KX_Scene::ConvertBlenderObject(Object *ob)
+{
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  e_PhysicsEngine physics_engine = UseBullet;
+  RAS_Rasterizer *rasty = engine->GetRasterizer();
+  RAS_ICanvas *canvas = engine->GetCanvas();
+  BL_BlenderConverter *converter = engine->GetConverter();
+  BL_BlenderSceneConverter *sc_converter = (BL_BlenderSceneConverter *)converter;
+  bContext *C = engine->GetContext();
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  Main *bmain = CTX_data_main(C);
+  BL_ConvertBlenderObjects(bmain,
+                           depsgraph,
+                           this,
+                           engine,
+                           physics_engine,
+                           rasty,
+                           canvas,
+                           *sc_converter,
+                           ob,
+                           false,
+                           false);
+
 }
 
 /******************End of EEVEE INTEGRATION****************************/

@@ -310,6 +310,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   void AppendToStaticObjects(KX_GameObject *gameobj);
   bool ObjectsAreStatic();
   void ResetTaaSamples();
+  void ConvertBlenderObject(struct Object *ob);
 
   bool m_isRuntime;  // Too lazy to put that in protected
   std::vector<Object *> m_hiddenObjectsDuringRuntime;

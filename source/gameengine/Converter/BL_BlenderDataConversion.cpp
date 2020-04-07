@@ -1154,6 +1154,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                               RAS_Rasterizer *rendertools,
                               RAS_ICanvas *canvas,
                               BL_BlenderSceneConverter &converter,
+                              Object *single_object,
                               bool alwaysUseExpandFraming,
                               bool libloading)
 {
@@ -1192,45 +1193,48 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
    * and both are on the active layer. */
   CListValue<KX_GameObject> *convertedlist = new CListValue<KX_GameObject>();
 
-  if (alwaysUseExpandFraming) {
-    frame_type = RAS_FrameSettings::e_frame_extend;
-    aspect_width = canvas->GetWidth();
-    aspect_height = canvas->GetHeight();
-  }
-  else {
-    // if (blenderscene->gm.framing.type == SCE_GAMEFRAMING_BARS) {
-    frame_type = RAS_FrameSettings::e_frame_extend;  // RAS_FrameSettings::e_frame_bars;
-    //} else if (blenderscene->gm.framing.type == SCE_GAMEFRAMING_EXTEND) {
-    // frame_type = RAS_FrameSettings::e_frame_extend;
-    //} else {
-    // frame_type = RAS_FrameSettings::e_frame_scale;
-    //}
+  if (!single_object) {
 
-    aspect_width = (int)(blenderscene->r.xsch * blenderscene->r.xasp);
-    aspect_height = (int)(blenderscene->r.ysch * blenderscene->r.yasp);
-  }
+    if (alwaysUseExpandFraming) {
+      frame_type = RAS_FrameSettings::e_frame_extend;
+      aspect_width = canvas->GetWidth();
+      aspect_height = canvas->GetHeight();
+    }
+    else {
+      // if (blenderscene->gm.framing.type == SCE_GAMEFRAMING_BARS) {
+      frame_type = RAS_FrameSettings::e_frame_extend;  // RAS_FrameSettings::e_frame_bars;
+      //} else if (blenderscene->gm.framing.type == SCE_GAMEFRAMING_EXTEND) {
+      // frame_type = RAS_FrameSettings::e_frame_extend;
+      //} else {
+      // frame_type = RAS_FrameSettings::e_frame_scale;
+      //}
 
-  RAS_FrameSettings frame_settings(frame_type,
-                                   blenderscene->gm.framing.col[0],
-                                   blenderscene->gm.framing.col[1],
-                                   blenderscene->gm.framing.col[2],
-                                   aspect_width,
-                                   aspect_height);
-  kxscene->SetFramingType(frame_settings);
+      aspect_width = (int)(blenderscene->r.xsch * blenderscene->r.xasp);
+      aspect_height = (int)(blenderscene->r.ysch * blenderscene->r.yasp);
+    }
 
-  kxscene->SetGravity(MT_Vector3(0, 0, -blenderscene->gm.gravity));
+    RAS_FrameSettings frame_settings(frame_type,
+                                     blenderscene->gm.framing.col[0],
+                                     blenderscene->gm.framing.col[1],
+                                     blenderscene->gm.framing.col[2],
+                                     aspect_width,
+                                     aspect_height);
+    kxscene->SetFramingType(frame_settings);
 
-  /* set activity culling parameters */
-  kxscene->SetActivityCulling(false);
-  kxscene->SetActivityCullingRadius(blenderscene->gm.activityBoxRadius);
-  kxscene->SetDbvtCulling(false);
+    kxscene->SetGravity(MT_Vector3(0, 0, -blenderscene->gm.gravity));
 
-  // no occlusion culling by default
-  kxscene->SetDbvtOcclusionRes(0);
+    /* set activity culling parameters */
+    kxscene->SetActivityCulling(false);
+    kxscene->SetActivityCullingRadius(blenderscene->gm.activityBoxRadius);
+    kxscene->SetDbvtCulling(false);
 
-  if (blenderscene->gm.lodflag & SCE_LOD_USE_HYST) {
-    kxscene->SetLodHysteresis(true);
-    kxscene->SetLodHysteresisValue(blenderscene->gm.scehysteresis);
+    // no occlusion culling by default
+    kxscene->SetDbvtOcclusionRes(0);
+
+    if (blenderscene->gm.lodflag & SCE_LOD_USE_HYST) {
+      kxscene->SetLodHysteresis(true);
+      kxscene->SetLodHysteresisValue(blenderscene->gm.scehysteresis);
+    }
   }
 
   int activeLayerBitInfo = blenderscene->lay;
@@ -1249,13 +1253,16 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   CListValue<KX_GameObject> *logicbrick_conversionlist = new CListValue<KX_GameObject>();
 
-  // Convert actions to actionmap
-  bAction *curAct;
-  for (curAct = (bAction *)maggie->actions.first; curAct; curAct = (bAction *)curAct->id.next) {
-    logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
-  }
+  if (!single_object) {
 
-  blenderSceneSetBackground(blenderscene);
+    // Convert actions to actionmap
+    bAction *curAct;
+    for (curAct = (bAction *)maggie->actions.first; curAct; curAct = (bAction *)curAct->id.next) {
+      logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
+    }
+
+    blenderSceneSetBackground(blenderscene);
+  }
 
   // Let's support scene set.
   // Beware of name conflict in linked data, it will not crash but will create confusion
@@ -1266,6 +1273,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
     if (blenderobject == kxscene->GetGameDefaultCamera()) {
       continue;
+    }
+
+    if (single_object) {
+      if (blenderobject != single_object) {
+        continue;
+      }
     }
 
     bool isInActiveLayer = (blenderobject->base_flag &
@@ -1311,6 +1324,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
         Collection *group = *git;
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (group, blenderobject) {
           if (converter.FindGameObject(blenderobject) == nullptr) {
+
+            if (single_object) {
+              if (blenderobject != single_object) {
+                continue;
+              }
+            }
             groupobj.insert(blenderobject);
             KX_GameObject *gameobj = gameobject_from_blenderobject(
                 blenderobject, kxscene, rendertools, converter, libloading);
@@ -1345,7 +1364,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   if (blenderscene->camera && blenderscene->camera->type == OB_CAMERA) {
     KX_Camera *gamecamera = (KX_Camera *)converter.FindGameObject(blenderscene->camera);
 
-    if (gamecamera)
+    if (gamecamera && !single_object)
       kxscene->SetActiveCamera(gamecamera);
   }
 
@@ -1355,6 +1374,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   for (pcit = vec_parent_child.begin(); !(pcit == vec_parent_child.end()); ++pcit) {
 
     struct Object *blenderchild = pcit->m_blenderchild;
+    if (single_object) {
+      if (blenderchild != single_object) {
+        continue;
+      }
+    }
     struct Object *blenderparent = blenderchild->parent;
     KX_GameObject *parentobj = converter.FindGameObject(blenderparent);
     KX_GameObject *childobj = converter.FindGameObject(blenderchild);
@@ -1434,19 +1458,31 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   // find 'root' parents (object that has not parents in SceneGraph)
   for (KX_GameObject *gameobj : sumolist) {
+    if (single_object) {
+      if (gameobj->GetBlenderObject() != single_object) {
+        continue;
+      }
+    }
     if (gameobj->GetSGNode()->GetSGParent() == 0) {
       parentlist->Add(CM_AddRef(gameobj));
       gameobj->NodeUpdateGS(0);
     }
   }
 
-  if (blenderscene->world)
-    kxscene->GetPhysicsEnvironment()->SetNumTimeSubSteps(blenderscene->gm.physubstep);
+  if (!single_object) {
+    if (blenderscene->world)
+      kxscene->GetPhysicsEnvironment()->SetNumTimeSubSteps(blenderscene->gm.physubstep);
+  }
 
   bool processCompoundChildren = false;
   // create physics information
   for (KX_GameObject *gameobj : sumolist) {
     struct Object *blenderobject = gameobj->GetBlenderObject();
+    if (single_object) {
+      if (blenderobject != single_object) {
+        continue;
+      }
+    }
     int nummeshes = gameobj->GetMeshCount();
     RAS_MeshObject *meshobj = 0;
     if (nummeshes > 0) {
@@ -1461,6 +1497,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   for (KX_GameObject *gameobj : sumolist) {
     PHY_IPhysicsEnvironment *physEnv = kxscene->GetPhysicsEnvironment();
     struct Object *blenderobject = gameobj->GetBlenderObject();
+    if (single_object) {
+      if (blenderobject != single_object) {
+        continue;
+      }
+    }
     ListBase *conlist = get_active_constraints2(blenderobject);
     bConstraint *curcon;
 
@@ -1502,14 +1543,21 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     }
   }
 
-  KX_SetActiveScene(kxscene);
-  PHY_SetActiveEnvironment(kxscene->GetPhysicsEnvironment());
+  if (!single_object) {
+    KX_SetActiveScene(kxscene);
+    PHY_SetActiveEnvironment(kxscene->GetPhysicsEnvironment());
+  }
 
   // create object representations for obstacle simulation
   KX_ObstacleSimulation *obssimulation = kxscene->GetObstacleSimulation();
   if (obssimulation) {
     for (KX_GameObject *gameobj : objectlist) {
       struct Object *blenderobject = gameobj->GetBlenderObject();
+      if (single_object) {
+        if (blenderobject != single_object) {
+          continue;
+        }
+      }
       if (blenderobject->gameflag & OB_HASOBSTACLE) {
         obssimulation->AddObstacleForObj(gameobj);
       }
@@ -1519,6 +1567,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // process navigation mesh objects
   for (KX_GameObject *gameobj : objectlist) {
     struct Object *blenderobject = gameobj->GetBlenderObject();
+    if (single_object) {
+      if (blenderobject != single_object) {
+        continue;
+      }
+    }
     if (blenderobject->type == OB_MESH && (blenderobject->gameflag & OB_NAVMESH)) {
       KX_NavMeshObject *navmesh = static_cast<KX_NavMeshObject *>(gameobj);
       navmesh->SetVisible(0, true);
@@ -1529,6 +1582,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
   for (KX_GameObject *gameobj : inactivelist) {
     struct Object *blenderobject = gameobj->GetBlenderObject();
+    if (single_object) {
+      if (blenderobject != single_object) {
+        continue;
+      }
+    }
     if (blenderobject->type == OB_MESH && (blenderobject->gameflag & OB_NAVMESH)) {
       KX_NavMeshObject *navmesh = static_cast<KX_NavMeshObject *>(gameobj);
       navmesh->SetVisible(0, true);
@@ -1538,6 +1596,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // convert logic bricks, sensors, controllers and actuators
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
     struct Object *blenderobj = gameobj->GetBlenderObject();
+    if (single_object) {
+      if (blenderobj != single_object) {
+        continue;
+      }
+    }
     int layerMask = (groupobj.find(blenderobj) == groupobj.end()) ? activeLayerBitInfo : 0;
     bool isInActiveLayer = (blenderobj->lay & layerMask) != 0;
     BL_ConvertActuators(maggie->name,
@@ -1552,6 +1615,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
     struct Object *blenderobj = gameobj->GetBlenderObject();
+    if (single_object) {
+      if (blenderobj != single_object) {
+        continue;
+      }
+    }
     int layerMask = (groupobj.find(blenderobj) == groupobj.end()) ? activeLayerBitInfo : 0;
     bool isInActiveLayer = (blenderobj->lay & layerMask) != 0;
     BL_ConvertControllers(
@@ -1559,6 +1627,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
     struct Object *blenderobj = gameobj->GetBlenderObject();
+    if (single_object) {
+      if (blenderobj != single_object) {
+        continue;
+      }
+    }
     int layerMask = (groupobj.find(blenderobj) == groupobj.end()) ? activeLayerBitInfo : 0;
     bool isInActiveLayer = (blenderobj->lay & layerMask) != 0;
     BL_ConvertSensors(blenderobj,
@@ -1576,12 +1649,22 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // apply the initial state to controllers, only on the active objects as this registers the
   // sensors
   for (KX_GameObject *gameobj : objectlist) {
+    if (single_object) {
+      if (gameobj->GetBlenderObject() != single_object) {
+        continue;
+      }
+    }
     gameobj->ResetState();
   }
 
   // Convert the python components of each object.
   for (KX_GameObject *gameobj : sumolist) {
     Object *blenderobj = gameobj->GetBlenderObject();
+    if (single_object) {
+      if (blenderobj != single_object) {
+        continue;
+      }
+    }
     BL_ConvertComponentsObject(gameobj, blenderobj);
   }
 
@@ -1601,6 +1684,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   int objcount = objectlist->GetCount();
   for (unsigned int i = 0; i < objcount; ++i) {
     KX_GameObject *gameobj = objectlist->GetValue(i);
+    if (single_object) {
+      if (gameobj->GetBlenderObject() != single_object) {
+        continue;
+      }
+    }
     if (gameobj->IsDupliGroup()) {
       kxscene->DupliGroupRecurse(gameobj, 0);
     }
@@ -1608,6 +1696,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   // We check for spawn instance tag to remove duplicated gameobj
   for (KX_GameObject *gameobj : spawnlist) { // TODO: is it necessary to clear spawnlist?
+    if (single_object) {
+      if (gameobj->GetBlenderObject() != single_object) {
+        continue;
+      }
+    }
     kxscene->RemoveObjectSpawn(gameobj);
   }
 }

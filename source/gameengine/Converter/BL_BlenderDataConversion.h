@@ -53,6 +53,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                               class RAS_Rasterizer *rendertools,
                               class RAS_ICanvas *canvas,
                               class BL_BlenderSceneConverter &sceneconverter,
+                              struct Object *single_obj,
                               bool alwaysUseExpandFraming,
                               bool libloading = false);
 

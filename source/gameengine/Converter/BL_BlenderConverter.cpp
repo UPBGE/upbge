@@ -227,6 +227,7 @@ void BL_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
                            rasty,
                            canvas,
                            sceneConverter,
+                           nullptr,
                            m_alwaysUseExpandFraming,
                            libloading);
 
