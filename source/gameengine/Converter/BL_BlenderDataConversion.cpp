@@ -1183,7 +1183,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   int aspect_width;
   int aspect_height;
   std::set<Collection *> grouplist;  // list of groups to be converted
-  std::set<Object *> allblobj;       // all objects converted
   std::set<Object *> groupobj;       // objects from groups (never in active layer)
   CListValue<KX_GameObject> *spawnlist = new CListValue<KX_GameObject>();
 
@@ -1269,8 +1268,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       continue;
     }
 
-    allblobj.insert(blenderobject);
-
     bool isInActiveLayer = (blenderobject->base_flag &
                             (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0;
     blenderobject->lay = (blenderobject->base_flag &
@@ -1314,7 +1311,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
         Collection *group = *git;
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (group, blenderobject) {
           if (converter.FindGameObject(blenderobject) == nullptr) {
-            allblobj.insert(blenderobject);
             groupobj.insert(blenderobject);
             KX_GameObject *gameobj = gameobject_from_blenderobject(
                 blenderobject, kxscene, rendertools, converter, libloading);
