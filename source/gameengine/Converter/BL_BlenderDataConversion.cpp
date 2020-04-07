@@ -1184,7 +1184,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   int aspect_height;
   std::set<Collection *> grouplist;  // list of groups to be converted
   std::set<Object *> groupobj;       // objects from groups (never in active layer)
-  CListValue<KX_GameObject> *spawnlist = new CListValue<KX_GameObject>();
+  std::vector<KX_GameObject *> spawnlist;
 
   /* We have to ensure that group definitions are only converted once
    * push all converted group members to this set.
@@ -1282,7 +1282,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
       if (gameobj->IsDupliGroup()) {
         grouplist.insert(blenderobject->instance_collection);
-        spawnlist->Add(gameobj); /* to collect gameobj to be removed if Instance Spawn is checked */
+        spawnlist.push_back(gameobj); /* to collect gameobj to be removed if Instance Spawn is checked */
       }
 
       /* Note about memory leak issues:
@@ -1607,7 +1607,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
 
   // We check for spawn instance tag to remove duplicated gameobj
-  for (KX_GameObject *gameobj : spawnlist) { // TODO: is it necessary to clear spawnlist?
+  for (KX_GameObject *gameobj : spawnlist) {
     kxscene->RemoveObjectSpawn(gameobj);
   }
+  spawnlist.clear();
 }
