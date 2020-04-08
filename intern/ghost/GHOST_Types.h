@@ -117,8 +117,8 @@ typedef struct GHOST_TabletData {
   float Ytilt; /* as above */
 } GHOST_TabletData;
 
-static const GHOST_TabletData GHOST_TABLET_DATA_DEFAULT = {
-    GHOST_kTabletModeNone, /* No tablet connected. */
+static const GHOST_TabletData GHOST_TABLET_DATA_NONE = {
+    GHOST_kTabletModeNone, /* No cursor in range */
     1.0f,                  /* Pressure */
     0.0f,                  /* Xtilt */
     0.0f};                 /* Ytilt */

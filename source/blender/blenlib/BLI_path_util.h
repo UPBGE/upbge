@@ -100,7 +100,7 @@ bool BLI_path_frame_range(char *path, int sta, int end, int digits) ATTR_NONNULL
 bool BLI_path_frame_get(char *path, int *r_frame, int *numdigits) ATTR_NONNULL();
 void BLI_path_frame_strip(char *path, char *ext) ATTR_NONNULL();
 bool BLI_path_frame_check_chars(const char *path) ATTR_NONNULL();
-bool BLI_path_cwd(char *path, const size_t maxlen) ATTR_NONNULL();
+bool BLI_path_abs_from_cwd(char *path, const size_t maxlen) ATTR_NONNULL();
 void BLI_path_rel(char *file, const char *relfile) ATTR_NONNULL();
 
 bool BLI_path_is_rel(const char *path) ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
@@ -109,7 +109,7 @@ bool BLI_path_is_unc(const char *path);
 void BLI_path_to_display_name(char *display_name, int maxlen, const char *name) ATTR_NONNULL();
 
 #if defined(WIN32)
-void BLI_cleanup_unc_16(wchar_t *path_16);
+void BLI_path_normalize_unc_16(wchar_t *path_16);
 void BLI_path_normalize_unc(char *path_16, int maxlen);
 #endif
 
