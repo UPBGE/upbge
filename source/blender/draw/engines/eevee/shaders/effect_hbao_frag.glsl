@@ -3,6 +3,8 @@
 // The slides describing the implementation is available at
 // http://www.nvidia.co.uk/object/siggraph-2008-HBAO.html
 
+#define hbao_textureLod(a, b, c) textureLod(a, b, c)
+
 uniform sampler2D bgl_DepthTexture;
 uniform sampler2D bgl_NoiseTexture;
 uniform float bgl_RenderedTextureWidth;
@@ -250,5 +252,13 @@ void main(void)
         ao = 1.0 - ao / numDirections * AOStrength;
     }
 
-    fragColor = vec4(ao, 30.0 * P.z, 0.0, 1.0);
+    float depth = hbao_textureLod(bgl_DepthTexture, uvcoordsvar.xy, 0.0).r;
+
+    if (depth == 1.0) {
+        /* Do not trace for background */
+        fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    }
+    else {
+        fragColor = vec4(ao, 30.0 * P.z, 0.0, 1.0);
+    }
 }
