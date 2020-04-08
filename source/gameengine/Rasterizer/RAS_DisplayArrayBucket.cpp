@@ -53,12 +53,12 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket,
                                                RAS_MeshMaterial *meshmat)
     : m_bucket(bucket), m_displayArray(array), m_mesh(mesh), m_meshMaterial(meshmat)
 {
-  // m_bucket->AddDisplayArrayBucket(this);
+
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 {
-  // m_bucket->RemoveDisplayArrayBucket(this);
+
 }
 
 RAS_MaterialBucket *RAS_DisplayArrayBucket::GetBucket() const
@@ -81,21 +81,9 @@ RAS_MeshMaterial *RAS_DisplayArrayBucket::GetMeshMaterial() const
   return m_meshMaterial;
 }
 
-void RAS_DisplayArrayBucket::ActivateMesh()
-{
-}
-
-void RAS_DisplayArrayBucket::RemoveActiveMeshSlots()
-{
-}
-
 bool RAS_DisplayArrayBucket::UseBatching() const
 {
   return false;
-}
-
-void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_MaterialShader *shader)
-{
 }
 
 void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)
