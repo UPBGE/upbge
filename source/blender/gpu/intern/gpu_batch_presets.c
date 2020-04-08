@@ -37,6 +37,10 @@
 #include "GPU_batch_utils.h"
 #include "gpu_shader_private.h"
 
+/* -------------------------------------------------------------------- */
+/** \name Local Structures
+ * \{ */
+
 /* Struct to store 3D Batches and their format */
 static struct {
   struct {
@@ -74,6 +78,8 @@ static struct {
 } g_presets_2d = {{0}};
 
 static ListBase presets_list = {NULL, NULL};
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name 3D Primitives
@@ -228,6 +234,7 @@ static GPUBatch *batch_sphere_wire(int lat_res, int lon_res)
 /* -------------------------------------------------------------------- */
 /** \name Panel Drag Widget
  * \{ */
+
 static void gpu_batch_preset_rectf_tris_color_ex(GPUVertBufRaw *pos_step,
                                                  float x1,
                                                  float y1,
@@ -310,6 +317,7 @@ GPUBatch *GPU_batch_preset_panel_drag_widget(const float pixelsize,
 
   if (g_presets_2d.batch.panel_drag_widget && parameters_changed) {
     gpu_batch_presets_unregister(g_presets_2d.batch.panel_drag_widget);
+    GPU_batch_discard(g_presets_2d.batch.panel_drag_widget);
     g_presets_2d.batch.panel_drag_widget = NULL;
   }
 
@@ -326,6 +334,10 @@ GPUBatch *GPU_batch_preset_panel_drag_widget(const float pixelsize,
 }
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Preset Registration Management
+ * \{ */
 
 void gpu_batch_presets_init(void)
 {
@@ -393,3 +405,5 @@ void gpu_batch_presets_exit(void)
 
   BLI_mutex_end(&g_presets_3d.mutex);
 }
+
+/** \} */

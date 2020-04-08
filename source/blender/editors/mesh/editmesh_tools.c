@@ -71,7 +71,6 @@
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
-#include "ED_transform_snap_object_context.h"
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
 
@@ -408,45 +407,6 @@ void MESH_OT_unsubdivide(wmOperatorType *ot)
   /* props */
   RNA_def_int(
       ot->srna, "iterations", 2, 1, 1000, "Iterations", "Number of times to unsubdivide", 1, 100);
-}
-
-void EDBM_project_snap_verts(
-    bContext *C, Depsgraph *depsgraph, ARegion *region, Object *obedit, BMEditMesh *em)
-{
-  Main *bmain = CTX_data_main(C);
-  BMIter iter;
-  BMVert *eve;
-
-  ED_view3d_init_mats_rv3d(obedit, region->regiondata);
-
-  struct SnapObjectContext *snap_context = ED_transform_snap_object_context_create_view3d(
-      bmain, CTX_data_scene(C), 0, region, CTX_wm_view3d(C));
-
-  BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
-    if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
-      float mval[2], co_proj[3];
-      if (ED_view3d_project_float_object(region, eve->co, mval, V3D_PROJ_TEST_NOP) ==
-          V3D_PROJ_RET_OK) {
-        if (ED_transform_snap_object_project_view3d(snap_context,
-                                                    depsgraph,
-                                                    SCE_SNAP_MODE_FACE,
-                                                    &(const struct SnapObjectParams){
-                                                        .snap_select = SNAP_NOT_ACTIVE,
-                                                        .use_object_edit_cage = false,
-                                                        .use_occlusion_test = true,
-                                                    },
-                                                    mval,
-                                                    NULL,
-                                                    NULL,
-                                                    co_proj,
-                                                    NULL)) {
-          mul_v3_m4v3(eve->co, obedit->imat, co_proj);
-        }
-      }
-    }
-  }
-
-  ED_transform_snap_object_context_destroy(snap_context);
 }
 
 /** \} */
@@ -1186,6 +1146,12 @@ void MESH_OT_mark_sharp(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Connect Vertex Path Operator
+ * \{ */
+
 static bool edbm_connect_vert_pair(BMEditMesh *em, struct Mesh *me, wmOperator *op)
 {
   BMesh *bm = em->bm;
@@ -1311,7 +1277,7 @@ void MESH_OT_vert_connect(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Split Concave Faces Operator
+/** \name Connect Vertex Path Operator
  * \{ */
 
 /**
@@ -1599,6 +1565,12 @@ void MESH_OT_vert_connect_path(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Connect Concave Operator
+ * \{ */
 
 static int edbm_vert_connect_concave_exec(bContext *C, wmOperator *op)
 {
@@ -3210,7 +3182,7 @@ void MESH_OT_merge(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Remove Doubles Operator
+/** \name Merge By Distance Operator
  * \{ */
 
 static int edbm_remove_doubles_exec(bContext *C, wmOperator *op)
@@ -7812,7 +7784,11 @@ wmKeyMap *point_normals_modal_keymap(wmKeyConfig *keyconf)
 
 #define CLNORS_VALID_VEC_LEN (1e-4f)
 
-/********************** 'Point to' Loop Normals **********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Loop Normals 'Point To' Operator
+ * \{ */
 
 enum {
   EDBM_CLNOR_POINTTO_MODE_COORDINATES = 1,
@@ -7830,7 +7806,7 @@ static EnumPropertyItem clnors_pointto_mode_items[] = {
 };
 
 /* Initialize loop normal data */
-static int point_normals_init(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static bool point_normals_init(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -7842,14 +7818,29 @@ static int point_normals_init(bContext *C, wmOperator *op, const wmEvent *UNUSED
 
   op->customdata = lnors_ed_arr;
 
-  return lnors_ed_arr->totloop;
+  return (lnors_ed_arr->totloop != 0);
 }
 
-static void point_normals_free(bContext *C, wmOperator *op)
+static bool point_normals_ensure(bContext *C, wmOperator *op)
 {
-  BMLoopNorEditDataArray *lnors_ed_arr = op->customdata;
-  BM_loop_normal_editdata_array_free(lnors_ed_arr);
-  op->customdata = NULL;
+  if (op->customdata != NULL) {
+    return true;
+  }
+  return point_normals_init(C, op);
+}
+
+static void point_normals_free(wmOperator *op)
+{
+  if (op->customdata != NULL) {
+    BMLoopNorEditDataArray *lnors_ed_arr = op->customdata;
+    BM_loop_normal_editdata_array_free(lnors_ed_arr);
+    op->customdata = NULL;
+  }
+}
+
+static void point_normals_cancel(bContext *C, wmOperator *op)
+{
+  point_normals_free(op);
   ED_area_status_text(CTX_wm_area(C), NULL);
 }
 
@@ -7966,6 +7957,13 @@ static void point_normals_apply(bContext *C, wmOperator *op, float target[3], co
 
 static int edbm_point_normals_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  /* As this operator passes events through, we can't be sure the user didn't exit edit-mode.
+   * or performed some other operation. */
+  if (!WM_operator_poll(C, op->type)) {
+    point_normals_cancel(C, op);
+    return OPERATOR_CANCELLED;
+  }
+
   View3D *v3d = CTX_wm_view3d(C);
   Scene *scene = CTX_data_scene(C);
   Object *obedit = CTX_data_edit_object(C);
@@ -8136,23 +8134,37 @@ static int edbm_point_normals_modal(bContext *C, wmOperator *op, const wmEvent *
     if (!ELEM(ret, OPERATOR_CANCELLED, OPERATOR_FINISHED)) {
       RNA_property_float_set_array(op->ptr, prop_target, target);
     }
-    point_normals_apply(C, op, target, do_reset);
-    EDBM_update_generic(obedit->data, true, false); /* Recheck bools. */
 
-    point_normals_update_header(C, op);
+    if (point_normals_ensure(C, op)) {
+      point_normals_apply(C, op, target, do_reset);
+      EDBM_update_generic(obedit->data, true, false); /* Recheck bools. */
+      point_normals_update_header(C, op);
+    }
+    else {
+      ret = OPERATOR_CANCELLED;
+    }
   }
 
   if (ELEM(ret, OPERATOR_CANCELLED, OPERATOR_FINISHED)) {
-    point_normals_free(C, op);
+    point_normals_cancel(C, op);
   }
 
+  /* If we allow other tools to run, we can't be sure if they will re-allocate
+   * the data this operator uses, see: T68159.
+   * Free the data here, then use #point_normals_ensure to add it back on demand. */
+  if (ret == OPERATOR_PASS_THROUGH) {
+    /* Don't free on mouse-move, causes creation/freeing of the loop data in an inefficient way. */
+    if (!ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
+      point_normals_free(op);
+    }
+  }
   return ret;
 }
 
-static int edbm_point_normals_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int edbm_point_normals_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-  if (!point_normals_init(C, op, event)) {
-    point_normals_free(C, op);
+  if (!point_normals_init(C, op)) {
+    point_normals_cancel(C, op);
     return OPERATOR_CANCELLED;
   }
 
@@ -8169,8 +8181,8 @@ static int edbm_point_normals_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
 
-  if (!point_normals_init(C, op, NULL)) {
-    point_normals_free(C, op);
+  if (!point_normals_init(C, op)) {
+    point_normals_cancel(C, op);
     return OPERATOR_CANCELLED;
   }
 
@@ -8183,7 +8195,7 @@ static int edbm_point_normals_exec(bContext *C, wmOperator *op)
   point_normals_apply(C, op, target, false);
 
   EDBM_update_generic(obedit->data, true, false);
-  point_normals_free(C, op);
+  point_normals_cancel(C, op);
 
   return OPERATOR_FINISHED;
 }
@@ -8228,7 +8240,7 @@ void MESH_OT_point_normals(struct wmOperatorType *ot)
   ot->modal = edbm_point_normals_modal;
   ot->poll = ED_operator_editmesh;
   ot->ui = edbm_point_normals_ui;
-  ot->cancel = point_normals_free;
+  ot->cancel = point_normals_cancel;
 
   /* flags */
   ot->flag = OPTYPE_BLOCKING | OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -8273,7 +8285,7 @@ void MESH_OT_point_normals(struct wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Split/Merge Loop Normals
+/** \name Split/Merge Loop Normals Operator
  * \{ */
 
 static void normals_merge(BMesh *bm, BMLoopNorEditDataArray *lnors_ed_arr)
@@ -8484,7 +8496,7 @@ void MESH_OT_split_normals(struct wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Average Loop Normals
+/** \name Average Loop Normals Operator
  * \{ */
 
 enum {
@@ -8716,7 +8728,7 @@ void MESH_OT_average_normals(struct wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Custom Normal Interface Tools
+/** \name Custom Normal Interface Tools Operator
  * \{ */
 
 enum {
@@ -8952,6 +8964,12 @@ void MESH_OT_normals_tools(struct wmOperatorType *ot)
                   "Copy Absolute coordinates or Normal vector");
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Set Normals from Faces Operator
+ * \{ */
+
 static int edbm_set_normals_from_faces_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -9059,7 +9077,13 @@ void MESH_OT_set_normals_from_faces(struct wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "keep_sharp", 0, "Keep Sharp Edges", "Do not set sharp edges to face");
 }
 
-static int edbm_smoothen_normals_exec(bContext *C, wmOperator *op)
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Smooth Normal Vectors Operator
+ * \{ */
+
+static int edbm_smooth_normals_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
@@ -9112,7 +9136,7 @@ static int edbm_smoothen_normals_exec(bContext *C, wmOperator *op)
       float current_normal[3];
 
       if (normalize_v3(smooth_normal[i]) < CLNORS_VALID_VEC_LEN) {
-        /* Skip in case smoothen normal is invalid... */
+        /* Skip in case the smooth normal is invalid. */
         continue;
       }
 
@@ -9126,7 +9150,7 @@ static int edbm_smoothen_normals_exec(bContext *C, wmOperator *op)
       add_v3_v3(current_normal, smooth_normal[i]);
 
       if (normalize_v3(current_normal) < CLNORS_VALID_VEC_LEN) {
-        /* Skip in case smoothen normal is invalid... */
+        /* Skip in case the smoothed normal is invalid. */
         continue;
       }
 
@@ -9144,15 +9168,15 @@ static int edbm_smoothen_normals_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-void MESH_OT_smoothen_normals(struct wmOperatorType *ot)
+void MESH_OT_smooth_normals(struct wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Smooth Normals Vectors";
-  ot->description = "Smoothen custom normals based on adjacent vertex normals";
-  ot->idname = "MESH_OT_smoothen_normals";
+  ot->description = "Smooth custom normals based on adjacent vertex normals";
+  ot->idname = "MESH_OT_smooth_normals";
 
   /* api callbacks */
-  ot->exec = edbm_smoothen_normals_exec;
+  ot->exec = edbm_smooth_normals_exec;
   ot->poll = ED_operator_editmesh;
 
   /* flags */
