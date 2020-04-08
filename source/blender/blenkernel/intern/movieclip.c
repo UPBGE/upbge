@@ -197,14 +197,14 @@ static void get_sequence_fname(const MovieClip *clip, const int framenr, char *n
   int offset;
 
   BLI_strncpy(name, clip->name, sizeof(clip->name));
-  BLI_stringdec(name, head, tail, &numlen);
+  BLI_path_sequence_decode(name, head, tail, &numlen);
 
   /* Movie-clips always points to first image from sequence, auto-guess offset for now.
    * Could be something smarter in the future. */
   offset = sequence_guess_offset(clip->name, strlen(head), numlen);
 
   if (numlen) {
-    BLI_stringenc(
+    BLI_path_sequence_encode(
         name, head, tail, numlen, offset + framenr - clip->start_frame + clip->frame_offset);
   }
   else {
@@ -421,7 +421,7 @@ static void movieclip_calc_length(MovieClip *clip)
     unsigned short numlen;
     char name[FILE_MAX], head[FILE_MAX], tail[FILE_MAX];
 
-    BLI_stringdec(clip->name, head, tail, &numlen);
+    BLI_path_sequence_decode(clip->name, head, tail, &numlen);
 
     if (numlen == 0) {
       /* there's no number group in file name, assume it's single framed sequence */
@@ -457,8 +457,8 @@ typedef struct MovieClipCache {
 
     /* cache for undistorted shot */
     float principal[2];
-    float polynomial_k1;
-    float division_k1;
+    float polynomial_k[3];
+    float division_k[2];
     short distortion_model;
     bool undistortion_used;
 
@@ -505,7 +505,7 @@ static int user_frame_to_cache_frame(MovieClip *clip, int framenr)
       unsigned short numlen;
       char head[FILE_MAX], tail[FILE_MAX];
 
-      BLI_stringdec(clip->name, head, tail, &numlen);
+      BLI_path_sequence_decode(clip->name, head, tail, &numlen);
 
       /* see comment in get_sequence_fname */
       clip->cache->sequence_offset = sequence_guess_offset(clip->name, strlen(head), numlen);
@@ -648,7 +648,7 @@ static bool put_imbuf_cache(
     clip->cache->sequence_offset = -1;
     if (clip->source == MCLIP_SRC_SEQUENCE) {
       unsigned short numlen;
-      BLI_stringdec(clip->name, NULL, NULL, &numlen);
+      BLI_path_sequence_decode(clip->name, NULL, NULL, &numlen);
       clip->cache->is_still_sequence = (numlen == 0);
     }
   }
@@ -896,11 +896,11 @@ static bool check_undistortion_cache_flags(const MovieClip *clip)
     return false;
   }
 
-  if (!equals_v3v3(&camera->k1, &cache->postprocessed.polynomial_k1)) {
+  if (!equals_v3v3(&camera->k1, cache->postprocessed.polynomial_k)) {
     return false;
   }
 
-  if (!equals_v2v2(&camera->division_k1, &cache->postprocessed.division_k1)) {
+  if (!equals_v2v2(&camera->division_k1, cache->postprocessed.division_k)) {
     return false;
   }
 
@@ -1002,8 +1002,8 @@ static void put_postprocessed_frame_to_cache(
   if (need_undistortion_postprocess(user, flag)) {
     cache->postprocessed.distortion_model = camera->distortion_model;
     copy_v2_v2(cache->postprocessed.principal, camera->principal);
-    copy_v3_v3(&cache->postprocessed.polynomial_k1, &camera->k1);
-    copy_v2_v2(&cache->postprocessed.division_k1, &camera->division_k1);
+    copy_v3_v3(cache->postprocessed.polynomial_k, &camera->k1);
+    copy_v2_v2(cache->postprocessed.division_k, &camera->division_k1);
     cache->postprocessed.undistortion_used = true;
   }
   else {

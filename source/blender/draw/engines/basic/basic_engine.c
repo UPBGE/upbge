@@ -91,7 +91,9 @@ static void basic_engine_init(void *UNUSED(vedata))
   /* Depth prepass */
   if (!sh_data->depth) {
     sh_data->depth = DRW_shader_create_3d_depth_only(draw_ctx->sh_cfg);
+  }
 
+  if (!sh_data->depth_conservative) { /* Game Engine transition */
     const GPUShaderConfigData *sh_cfg = &GPU_shader_cfg_data[draw_ctx->sh_cfg];
     sh_data->depth_conservative = GPU_shader_create_from_arrays({
         .vert = (const char *[]){sh_cfg->lib,
