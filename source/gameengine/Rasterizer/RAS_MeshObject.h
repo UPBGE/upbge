@@ -90,11 +90,6 @@ class RAS_MeshObject {
 
   std::vector<RAS_Polygon> m_polygons;
 
-  /* polygon sorting */
-  struct polygonSlot;
-  struct backtofront;
-  struct fronttoback;
-
  protected:
   RAS_MeshMaterialList m_materials;
   Mesh *m_mesh;
@@ -156,11 +151,6 @@ class RAS_MeshObject {
 
   /// Return the list of blender's layers.
   const LayersInfo &GetLayersInfo() const;
-
-  // polygon sorting by Z for alpha
-  void SortPolygons(RAS_IDisplayArray *array,
-                    const MT_Transform &transform,
-                    unsigned int *indexmap);
 
   bool HasColliderPolygon();
 

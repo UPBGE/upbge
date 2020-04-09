@@ -1216,7 +1216,7 @@ int main(int argc,
 
         get_filename(argc_py_clamped, argv, filename);
         if (filename[0])
-          BLI_path_cwd(filename, sizeof(filename));
+          BLI_path_abs_from_cwd(filename, sizeof(filename));
 
         // fill the GlobalSettings with the first scene files
         // those may change during the game and persist after using Game Actuator

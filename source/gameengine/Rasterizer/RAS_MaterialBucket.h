@@ -59,8 +59,6 @@ class RAS_MaterialBucket {
   /// Set the shader after its conversion or when changing to custom shader.
   void UpdateShader();
 
-  void RemoveActiveMeshSlots();
-
   void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
   void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 
