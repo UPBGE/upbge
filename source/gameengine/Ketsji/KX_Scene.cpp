@@ -221,7 +221,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   }
 
   m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(),
-                                         &m_animationPoolData);
+                                         &m_animationPoolData, TASK_PRIORITY_LOW);
 
   /*************************************************EEVEE
    * INTEGRATION***********************************************************/
