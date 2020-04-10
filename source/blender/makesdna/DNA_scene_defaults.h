@@ -208,6 +208,8 @@
     .gtao_factor = 1.0f, \
     .gtao_quality = 0.25f, \
  \
+    .hbao_strength = 1.0f, \
+ \
     .bokeh_max_size = 100.0f, \
     .bokeh_threshold = 1.0f, \
  \

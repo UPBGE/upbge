@@ -25,9 +25,12 @@
 #include "../gpu/GPU_framebuffer.h"
 #include "../gpu/GPU_texture.h"
 #include "DRW_render.h"
+#include "eevee_private.h"
 #include "GPU_glew.h"
 
 #include "EXP_Value.h"
+#include "KX_Camera.h"
+#include "KX_Scene.h"
 #include "RAS_2DFilterFrameBuffer.h"
 #include "RAS_2DFilterManager.h"
 #include "RAS_FrameBuffer.h"
@@ -42,6 +45,10 @@ extern char datatoc_RAS_VertexShader2DFilter_glsl[];
 static std::string predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE] = {
     "bgl_RenderedTexture",         // RENDERED_TEXTURE_UNIFORM
     "bgl_DepthTexture",            // DEPTH_TEXTURE_UNIFORM
+    "bgl_UtilTexture",             // UTIL_TEXTURE_UNIFORM
+    "bgl_NoiseTexture",            // NOISE_TEXTURE_UNIFORM
+    "bgl_ProjectionMatrix",        // PROJ_MATRIX_UNIFORM
+    "bgl_ViewMatrix",              // VIEW_MATRIX_UNIFORM
     "bgl_RenderedTextureWidth",    // RENDERED_TEXTURE_WIDTH_UNIFORM
     "bgl_RenderedTextureHeight",   // RENDERED_TEXTURE_HEIGHT_UNIFORM
     "bgl_TextureCoordinateOffset"  // TEXTURE_COORDINATE_OFFSETS_UNIFORM
@@ -104,6 +111,7 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 
 RAS_FrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty,
                                      RAS_ICanvas *canvas,
+                                     KX_Scene *kxscene,
                                      RAS_FrameBuffer *depthfb,
                                      RAS_FrameBuffer *colorfb,
                                      RAS_FrameBuffer *targetfb)
@@ -136,7 +144,7 @@ RAS_FrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty,
   SetProg(true);
 
   BindTextures(depthfb, colorfb);
-  BindUniforms(canvas);
+  BindUniforms(canvas, kxscene);
 
   Update(rasty, MT_Matrix4x4::Identity());
 
@@ -224,6 +232,12 @@ void RAS_2DFilter::BindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *color
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
     GPU_texture_bind(GPU_framebuffer_depth_texture(depthfb->GetFrameBuffer()), 9);
   }
+  if (m_predefinedUniforms[UTIL_TEXTURE_UNIFORM] != -1) {
+    GPU_texture_bind(EEVEE_materials_get_util_tex(), 10);
+  }
+  if (m_predefinedUniforms[NOISE_TEXTURE_UNIFORM] != -1) {
+    GPU_texture_bind(EEVEE_materials_get_noise_tex(), 11);
+  }
 
   // Bind custom textures.
   for (const auto &pair : m_textures) {
@@ -243,6 +257,12 @@ void RAS_2DFilter::UnbindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *col
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
     GPU_texture_unbind(GPU_framebuffer_color_texture(depthfb->GetFrameBuffer()));
   }
+  if (m_predefinedUniforms[UTIL_TEXTURE_UNIFORM] != -1) {
+    GPU_texture_unbind(EEVEE_materials_get_util_tex());
+  }
+  if (m_predefinedUniforms[NOISE_TEXTURE_UNIFORM] != -1) {
+    GPU_texture_unbind(EEVEE_materials_get_noise_tex());
+  }
 
   // Unbind custom textures.
   for (const auto &pair : m_textures) {
@@ -253,13 +273,27 @@ void RAS_2DFilter::UnbindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *col
   glActiveTexture(GL_TEXTURE0);
 }
 
-void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
+void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas, KX_Scene *kxscene)
 {
   if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
     SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM], 8);
   }
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
     SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 9);
+  }
+  if (m_predefinedUniforms[UTIL_TEXTURE_UNIFORM] != -1) {
+    SetUniform(m_predefinedUniforms[UTIL_TEXTURE_UNIFORM], 10);
+  }
+  if (m_predefinedUniforms[NOISE_TEXTURE_UNIFORM] != -1) {
+    SetUniform(m_predefinedUniforms[NOISE_TEXTURE_UNIFORM], 11);
+  }
+  if (m_predefinedUniforms[PROJ_MATRIX_UNIFORM] != -1) {
+    KX_Camera *cam = kxscene->GetActiveCamera();
+    SetUniform(m_predefinedUniforms[PROJ_MATRIX_UNIFORM], cam->GetProjectionMatrix(), false);
+  }
+  if (m_predefinedUniforms[VIEW_MATRIX_UNIFORM] != -1) {
+    KX_Camera *cam = kxscene->GetActiveCamera();
+    SetUniform(m_predefinedUniforms[VIEW_MATRIX_UNIFORM], cam->GetModelviewMatrix(), false);
   }
   if (m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM] != -1) {
     // Bind rendered texture width.
