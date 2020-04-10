@@ -145,7 +145,7 @@ RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty,
     /* Get the output off screen of the filter, could be the same as the input off screen
      * if no modifications were made or the targeted off screen.
      * This output off screen is used for the next filter as input off screen */
-    previousfb = filter->Start(rasty, canvas, scene, depthfb, colorfb, ftargetfb);
+    previousfb = filter->Start(rasty, canvas, depthfb, colorfb, ftargetfb);
     filter->End();
   }
 
