@@ -217,30 +217,6 @@ class RENDER_PT_eevee_ambient_occlusion(RenderButtonsPanel, Panel):
         col.prop(props, "use_gtao_bent_normals")
         col.prop(props, "use_gtao_bounce")
 
-class RENDER_PT_eevee_hbao(RenderButtonsPanel, Panel):
-    bl_label = "HBAO"
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
-
-    @classmethod
-    def poll(cls, context):
-        return (context.engine in cls.COMPAT_ENGINES)
-
-    def draw_header(self, context):
-        scene = context.scene
-        props = scene.eevee
-        self.layout.prop(props, "use_hbao", text="")
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        scene = context.scene
-        props = scene.eevee
-
-        layout.active = props.use_hbao
-        col = layout.column()
-        col.prop(props, "hbao_strength")
-
 
 class RENDER_PT_eevee_motion_blur(RenderButtonsPanel, Panel):
     bl_label = "Motion Blur"
@@ -778,7 +754,6 @@ classes = (
     RENDER_PT_game_debug,
     RENDER_PT_eevee_sampling,
     RENDER_PT_eevee_ambient_occlusion,
-    RENDER_PT_eevee_hbao,
     RENDER_PT_eevee_bloom,
     RENDER_PT_eevee_depth_of_field,
     RENDER_PT_eevee_subsurface_scattering,

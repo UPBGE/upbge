@@ -2436,10 +2436,3 @@ int EEVEE_material_output_color_pass_index_get(EEVEE_ViewLayerData *sldata,
   return EEVEE_material_output_pass_index_get(sldata, vedata, color_pass_type);
 }
 /* \} */
-
-/* Game engine transition */
-GPUTexture *EEVEE_materials_get_noise_tex(void)
-{
-  return e_data.noise_tex;
-}
-/* End of Game engine transition */
