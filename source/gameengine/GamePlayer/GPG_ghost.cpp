@@ -122,7 +122,7 @@
 #include "LA_SystemCommandLine.h"
 
 #ifdef __APPLE__
-int GHOST_HACK_getFirstFile(char buf[]);
+extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 #endif
 
 #ifdef WIN32
