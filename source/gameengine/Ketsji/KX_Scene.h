@@ -135,6 +135,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   struct GPUViewport *m_initMaterialsGPUViewport;
   KX_Camera *m_overlayCamera;
   std::vector<KX_Camera *> m_imageRenderCameraList;
+  BL_BlenderSceneConverter *m_sceneConverter;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;

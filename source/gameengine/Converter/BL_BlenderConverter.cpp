@@ -214,7 +214,7 @@ void BL_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
 
   destinationscene->SetPhysicsEnvironment(phy_env);
 
-  BL_BlenderSceneConverter sceneConverter;
+  BL_BlenderSceneConverter *sceneConverter = new BL_BlenderSceneConverter();
   bContext *C = KX_GetActiveEngine()->GetContext();
   ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
   Depsgraph *graph = BKE_scene_get_depsgraph(CTX_data_main(C), blenderscene, view_layer, false);
@@ -226,12 +226,13 @@ void BL_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
                            physics_engine,
                            rasty,
                            canvas,
-                           sceneConverter,
+                           *sceneConverter,
                            nullptr,
                            m_alwaysUseExpandFraming,
                            libloading);
 
-  m_sceneSlots.emplace(destinationscene, sceneConverter);
+  m_sceneSlots.emplace(destinationscene, *sceneConverter);
+  destinationscene->SetBlenderSceneConverter(sceneConverter);
 }
 
 /** This function removes all entities stored in the converter for that scene
@@ -483,7 +484,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
     // Convert all new meshes into BGE meshes
     ID *mesh;
 
-    BL_BlenderSceneConverter sceneConverter;
+    BL_BlenderSceneConverter *sceneConverter = new BL_BlenderSceneConverter();
     for (mesh = (ID *)main_newlib->meshes.first; mesh; mesh = (ID *)mesh->next) {
       if (options & LIB_LOAD_VERBOSE) {
         CM_Debug("mesh name: " << mesh->name + 2);
@@ -493,12 +494,13 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
           nullptr,
           scene_merge,
           m_ketsjiEngine->GetRasterizer(),
-          sceneConverter,
+          *sceneConverter,
           false);  // For now only use the libloading option for scenes, which need to handle
                    // materials/shaders
       scene_merge->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
     }
-    m_sceneSlots[scene_merge].Merge(sceneConverter);
+    m_sceneSlots[scene_merge].Merge(*sceneConverter);
+    scene_merge->SetBlenderSceneConverter(sceneConverter);
   }
   else if (idcode == ID_AC) {
     // Convert all actions
@@ -867,13 +869,14 @@ RAS_MeshObject *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
     }
   }
 
-  BL_BlenderSceneConverter sceneConverter;
+  BL_BlenderSceneConverter *sceneConverter = new BL_BlenderSceneConverter();
 
   RAS_MeshObject *meshobj = BL_ConvertMesh(
-      (Mesh *)me, nullptr, kx_scene, m_ketsjiEngine->GetRasterizer(), sceneConverter, false);
+      (Mesh *)me, nullptr, kx_scene, m_ketsjiEngine->GetRasterizer(), *sceneConverter, false);
   kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 
-  m_sceneSlots[kx_scene].Merge(sceneConverter);
+  m_sceneSlots[kx_scene].Merge(*sceneConverter);
+  kx_scene->SetBlenderSceneConverter(sceneConverter);
 
   return meshobj;
 }

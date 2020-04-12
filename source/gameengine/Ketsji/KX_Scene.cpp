@@ -161,6 +161,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_currentGPUViewport(nullptr),          // eevee
       m_initMaterialsGPUViewport(nullptr),    // eevee (See comment in .h)
       m_overlayCamera(nullptr),               // eevee (For overlay collections)
+      m_sceneConverter(nullptr),
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -389,6 +390,9 @@ KX_Scene::~KX_Scene()
 
   if (m_bucketmanager) {
     delete m_bucketmanager;
+  }
+  if (m_sceneConverter) {
+    delete m_sceneConverter;
   }
 
 #ifdef WITH_PYTHON
@@ -797,14 +801,22 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
   DRW_game_render_loop(C, m_currentGPUViewport, bmain, scene, window, false, true, false);
 }
 
+void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)
+{
+  m_sceneConverter = sc_converter;
+}
+
+BL_BlenderSceneConverter *KX_Scene::GetBlenderSceneConverter()
+{
+  return m_sceneConverter;
+}
+
 void KX_Scene::ConvertBlenderObject(Object *ob)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   e_PhysicsEngine physics_engine = UseBullet;
   RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
-  BL_BlenderConverter *converter = engine->GetConverter();
-  BL_BlenderSceneConverter *sc_converter = (BL_BlenderSceneConverter *)converter;
   bContext *C = engine->GetContext();
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   Main *bmain = CTX_data_main(C);
@@ -815,7 +827,7 @@ void KX_Scene::ConvertBlenderObject(Object *ob)
                            physics_engine,
                            rasty,
                            canvas,
-                           *sc_converter,
+                           *m_sceneConverter,
                            ob,
                            false,
                            false);
@@ -2274,6 +2286,7 @@ PyMethodDef KX_Scene::Methods[] = {
     KX_PYMETHODTABLE(KX_Scene, restart),
     KX_PYMETHODTABLE(KX_Scene, replace),
     KX_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
+    KX_PYMETHODTABLE(KX_Scene, convertBlenderObject),
 
     /* dict style access */
     KX_PYMETHODTABLE(KX_Scene, get),
