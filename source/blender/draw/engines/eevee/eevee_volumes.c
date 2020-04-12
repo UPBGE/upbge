@@ -228,7 +228,7 @@ void EEVEE_volumes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   uint current_sample = 0;
 
   /* If TAA is in use do not use the history buffer. */
-#if 0 /* Game engine transition */ /* Force to use history buffer */
+#if 0 /* Game engine transition */ /* Force to use history buffer always to avoid ugly banding */
   bool do_taa = ((effects->enabled_effects & EFFECT_TAA) != 0);
 
   if (draw_ctx->evil_C != NULL) {
