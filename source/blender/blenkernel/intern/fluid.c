@@ -1250,7 +1250,8 @@ static void update_obstacles(Depsgraph *depsgraph,
 
         /* Set scene time */
         /* Handle emission subframe */
-        if (subframe < subframes || time_per_frame + dt + FLT_EPSILON < frame_length) {
+        if ((subframe < subframes || time_per_frame + dt + FLT_EPSILON < frame_length) &&
+            !is_first_frame) {
           scene->r.subframe = (time_per_frame + (subframe + 1.0f) * subframe_dt) / frame_length;
           scene->r.cfra = frame - 1;
         }
@@ -2763,7 +2764,8 @@ static void update_flowsfluids(struct Depsgraph *depsgraph,
         FluidObjectBB bb_temp = {NULL};
 
         /* Set scene time */
-        if (subframe < subframes || time_per_frame + dt + FLT_EPSILON < frame_length) {
+        if ((subframe < subframes || time_per_frame + dt + FLT_EPSILON < frame_length) &&
+            !is_first_frame) {
           scene->r.subframe = (time_per_frame + (subframe + 1.0f) * subframe_dt) / frame_length;
           scene->r.cfra = frame - 1;
         }
@@ -3785,6 +3787,13 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
   prev_mesh = manta_has_mesh(mds->fluid, mmd, scene_framenr - 1);
   prev_particles = manta_has_particles(mds->fluid, mmd, scene_framenr - 1);
   prev_guide = manta_has_guiding(mds->fluid, mmd, scene_framenr - 1, guide_parent);
+
+  /* Unused for now, but needed for proper caching. */
+  UNUSED_VARS(prev_guide);
+  UNUSED_VARS(next_noise);
+  UNUSED_VARS(next_mesh);
+  UNUSED_VARS(next_particles);
+  UNUSED_VARS(next_guide);
 
   bool with_gdomain;
   with_gdomain = (mds->guide_source == FLUID_DOMAIN_GUIDE_SRC_DOMAIN);

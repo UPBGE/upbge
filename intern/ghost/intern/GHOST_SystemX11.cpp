@@ -960,11 +960,7 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
     case MotionNotify: {
       XMotionEvent &xme = xe->xmotion;
 
-#ifdef WITH_X11_XINPUT
       bool is_tablet = window->GetTabletData().Active != GHOST_kTabletModeNone;
-#else
-      bool is_tablet = false;
-#endif
 
       if (is_tablet == false && window->getCursorGrabModeIsWarp()) {
         GHOST_TInt32 x_new = xme.x_root;
@@ -1000,12 +996,17 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
                                           GHOST_kEventCursorMove,
                                           window,
                                           xme.x_root + x_accum,
-                                          xme.y_root + y_accum);
+                                          xme.y_root + y_accum,
+                                          window->GetTabletData());
         }
       }
       else {
-        g_event = new GHOST_EventCursor(
-            getMilliSeconds(), GHOST_kEventCursorMove, window, xme.x_root, xme.y_root);
+        g_event = new GHOST_EventCursor(getMilliSeconds(),
+                                        GHOST_kEventCursorMove,
+                                        window,
+                                        xme.x_root,
+                                        xme.y_root,
+                                        window->GetTabletData());
       }
       break;
     }
@@ -1272,7 +1273,8 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
       else
         break;
 
-      g_event = new GHOST_EventButton(getMilliSeconds(), type, window, gbmask);
+      g_event = new GHOST_EventButton(
+          getMilliSeconds(), type, window, gbmask, window->GetTabletData());
       break;
     }
 
@@ -1373,8 +1375,12 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
        */
       XCrossingEvent &xce = xe->xcrossing;
       if (xce.mode == NotifyNormal) {
-        g_event = new GHOST_EventCursor(
-            getMilliSeconds(), GHOST_kEventCursorMove, window, xce.x_root, xce.y_root);
+        g_event = new GHOST_EventCursor(getMilliSeconds(),
+                                        GHOST_kEventCursorMove,
+                                        window,
+                                        xce.x_root,
+                                        xce.y_root,
+                                        window->GetTabletData());
       }
 
       // printf("X: %s window %d\n",
@@ -1563,7 +1569,7 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
 GHOST_TSuccess GHOST_SystemX11::getModifierKeys(GHOST_ModifierKeys &keys) const
 {
 
-  /* Analyze the masks retuned from XQueryPointer. */
+  /* Analyze the masks returned from XQueryPointer. */
 
   memset((void *)m_keyboard_vector, 0, sizeof(m_keyboard_vector));
 

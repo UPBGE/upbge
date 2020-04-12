@@ -66,6 +66,20 @@ class GHOST_SystemWin32 : public GHOST_System {
    ***************************************************************************************/
 
   /**
+   * This method converts performance counter measurements into milliseconds since the start of the
+   * system process.
+   * \return The number of milliseconds since the start of the system process.
+   */
+  GHOST_TUns64 performanceCounterToMillis(__int64 perf_ticks) const;
+
+  /**
+   * This method converts system ticks into milliseconds since the start of the
+   * system process.
+   * \return The number of milliseconds since the start of the system process.
+   */
+  GHOST_TUns64 tickCountToMillis(__int64 ticks) const;
+
+  /**
    * Returns the system time.
    * Returns the number of milliseconds since the start of the system process.
    * This overloaded method uses the high frequency timer if available.
@@ -252,6 +266,16 @@ class GHOST_SystemWin32 : public GHOST_System {
                                           int mouseY,
                                           void *data);
 
+  /***************************************************************************************
+   ** Modify tablet API
+   ***************************************************************************************/
+
+  /**
+   * Set which tablet API to use.
+   * \param api Enum indicating which API to use.
+   */
+  void setTabletAPI(GHOST_TTabletAPI api) override;
+
  protected:
   /**
    * Initializes the system.
@@ -296,27 +320,29 @@ class GHOST_SystemWin32 : public GHOST_System {
                                                GHOST_TButtonMask mask);
 
   /**
-   * Creates pointer event.
-   * \param type      The type of event to create.
+   * Creates tablet events from Wintab events.
+   * \param type      The type of pointer event
+   * \param window    The window receiving the event (the active window).
+   */
+  static GHOST_TSuccess processWintabEvents(GHOST_TEventType type, GHOST_WindowWin32 *window);
+
+  /**
+   * Creates tablet events from pointer events.
+   * \param type      The type of pointer event
    * \param window    The window receiving the event (the active window).
    * \param wParam    The wParam from the wndproc
    * \param lParam    The lParam from the wndproc
    * \param eventhandled true if the method handled the event
-   * \return The event created.
    */
-  static GHOST_Event *processPointerEvent(GHOST_TEventType type,
-                                          GHOST_WindowWin32 *window,
-                                          WPARAM wParam,
-                                          LPARAM lParam,
-                                          bool &eventhandled);
+  static void processPointerEvents(
+      UINT type, GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam, bool &eventhandled);
 
   /**
    * Creates cursor event.
-   * \param type      The type of event to create.
    * \param window    The window receiving the event (the active window).
    * \return The event created.
    */
-  static GHOST_EventCursor *processCursorEvent(GHOST_TEventType type, GHOST_WindowWin32 *window);
+  static GHOST_EventCursor *processCursorEvent(GHOST_WindowWin32 *window);
 
   /**
    * Handles a mouse wheel event.
@@ -426,6 +452,8 @@ class GHOST_SystemWin32 : public GHOST_System {
   __int64 m_freq;
   /** High frequency timer variable. */
   __int64 m_start;
+  /** Low frequency timer variable. */
+  __int64 m_lfstart;
   /** AltGr on current keyboard layout. */
   bool m_hasAltGr;
   /** language identifier. */

@@ -81,16 +81,8 @@ class RAS_DisplayArrayBucket {
   RAS_MeshObject *GetMesh() const;
   RAS_MeshMaterial *GetMeshMaterial() const;
 
-  /// \section Active Mesh Slots Management.
-  void ActivateMesh();
-  /// Remove all mesh slots from the list.
-  void RemoveActiveMeshSlots();
-
   /// \section Render Infos
   bool UseBatching() const;
-
-  /// Update render infos.
-  void UpdateActiveMeshSlots(RAS_MaterialShader *shader);
 
   /// Replace the material bucket of this display array bucket by the one given.
   void ChangeMaterialBucket(RAS_MaterialBucket *bucket);

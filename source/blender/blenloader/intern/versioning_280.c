@@ -4230,7 +4230,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
             v3d->shading.flag |= V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER;
 
             /* files by default don't have studio lights selected unless interacted
-             * with the shading popover. When no studiolight could be read, we will
+             * with the shading popover. When no studio-light could be read, we will
              * select the default world one. */
             StudioLight *studio_light = BKE_studiolight_find(v3d->shading.lookdev_light,
                                                              STUDIOLIGHT_TYPE_WORLD);
@@ -4299,7 +4299,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       }
     }
 
-    /* Added studiolight intensity */
+    /* Added studio-light intensity. */
     if (!DNA_struct_elem_find(fd->filesdna, "View3DShading", "float", "studiolight_intensity")) {
       for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
         LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
@@ -4510,6 +4510,17 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 283, 3)) {
+    /* Color Management Look. */
+    for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      ColorManagedViewSettings *view_settings;
+      view_settings = &scene->view_settings;
+      if (BLI_str_startswith(view_settings->look, "Filmic - ")) {
+        STRNCPY(view_settings->look, view_settings->look + strlen("Filmic - "));
+      }
+      else if (BLI_str_startswith(view_settings->look, "Standard - ")) {
+        STRNCPY(view_settings->look, view_settings->look + strlen("Standard - "));
+      }
+    }
 
     /* Sequencer Tool region */
     do_versions_area_ensure_tool_region(bmain, SPACE_SEQ, RGN_FLAG_HIDDEN);

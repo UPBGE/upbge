@@ -315,6 +315,9 @@ static void layerInterp_mdeformvert(const void **sources,
   if (totweight) {
     dvert->totweight = totweight;
     for (i = 0, node = dest_dwlink; node; node = node->next, i++) {
+      if (node->dw.weight > 1.0f) {
+        node->dw.weight = 1.0f;
+      }
       dvert->dw[i] = node->dw;
     }
   }
@@ -3556,10 +3559,9 @@ void CustomData_bmesh_copy_data_exclude_by_type(const CustomData *source,
     /* if we found a matching layer, copy the data */
     if (dest->layers[dest_i].type == source->layers[src_i].type &&
         STREQ(dest->layers[dest_i].name, source->layers[src_i].name)) {
-      const void *src_data = POINTER_OFFSET(src_block, source->layers[src_i].offset);
-      void *dest_data = POINTER_OFFSET(*dest_block, dest->layers[dest_i].offset);
-
       if (no_mask || ((CD_TYPE_AS_MASK(dest->layers[dest_i].type) & mask_exclude) == 0)) {
+        const void *src_data = POINTER_OFFSET(src_block, source->layers[src_i].offset);
+        void *dest_data = POINTER_OFFSET(*dest_block, dest->layers[dest_i].offset);
         const LayerTypeInfo *typeInfo = layerType_getInfo(source->layers[src_i].type);
         if (typeInfo->copy) {
           typeInfo->copy(src_data, dest_data, 1);

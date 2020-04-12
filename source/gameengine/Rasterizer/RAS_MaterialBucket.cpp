@@ -89,16 +89,6 @@ void RAS_MaterialBucket::UpdateShader()
   m_shader = m_material->GetShader();
 }
 
-void RAS_MaterialBucket::RemoveActiveMeshSlots()
-{
-  for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(),
-                                            end = m_displayArrayBucketList.end();
-       it != end;
-       ++it) {
-    (*it)->RemoveActiveMeshSlots();
-  }
-}
-
 void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
 {
   m_displayArrayBucketList.push_back(bucket);
