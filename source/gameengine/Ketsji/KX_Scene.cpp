@@ -107,6 +107,8 @@
 #include "SG_Controller.h"
 #include "SG_Node.h"
 
+#include "bpy_rna.h"
+
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
 #endif
@@ -2691,6 +2693,28 @@ KX_PYMETHODDEF_DOC(KX_Scene, get, "")
 
   Py_INCREF(def);
   return def;
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene,
+                   convertBlenderObject,
+                   "convertBlenderObject()\n"
+                   "\n")
+{
+  PyObject *bl_object = Py_None;
+
+  if (!PyArg_ParseTuple(args, "O:", &bl_object)) {
+    std::cout << "pyargsparsetupl" << std::endl;
+    return nullptr;
+  }
+
+  ID *id;
+  if (!pyrna_id_FromPyObject(bl_object, &id)) {
+    std::cout << "failed to convert object" << std::endl;
+    return nullptr;
+  }
+  Object *ob = (Object *)id;
+  ConvertBlenderObject(ob);
+  Py_RETURN_NONE;
 }
 
 bool ConvertPythonToScene(PyObject *value,

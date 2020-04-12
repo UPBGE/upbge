@@ -504,7 +504,8 @@ class KX_Scene : public CValue, public SCA_IScene {
     return m_dbvt_occlusion_res;
   }
 
-  void SetSceneConverter(class BL_BlenderSceneConverter *sceneConverter);
+  void SetBlenderSceneConverter(class BL_BlenderSceneConverter *sceneConverter);
+  class BL_BlenderSceneConverter *GetBlenderSceneConverter();
 
   class PHY_IPhysicsEnvironment *GetPhysicsEnvironment()
   {
