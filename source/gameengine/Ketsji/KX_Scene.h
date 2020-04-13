@@ -135,6 +135,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   struct GPUViewport *m_initMaterialsGPUViewport;
   KX_Camera *m_overlayCamera;
   std::vector<KX_Camera *> m_imageRenderCameraList;
+  BL_BlenderSceneConverter *m_sceneConverter;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -310,6 +311,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   void AppendToStaticObjects(KX_GameObject *gameobj);
   bool ObjectsAreStatic();
   void ResetTaaSamples();
+  void ConvertBlenderObject(struct Object *ob);
 
   bool m_isRuntime;  // Too lazy to put that in protected
   std::vector<Object *> m_hiddenObjectsDuringRuntime;
@@ -503,7 +505,7 @@ class KX_Scene : public CValue, public SCA_IScene {
     return m_dbvt_occlusion_res;
   }
 
-  void SetSceneConverter(class BL_BlenderSceneConverter *sceneConverter);
+  void SetBlenderSceneConverter(class BL_BlenderSceneConverter *sceneConverter);
 
   class PHY_IPhysicsEnvironment *GetPhysicsEnvironment()
   {
@@ -548,6 +550,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   KX_PYMETHOD_DOC(KX_Scene, replace);
   KX_PYMETHOD_DOC(KX_Scene, get);
   KX_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
+  KX_PYMETHOD_DOC(KX_Scene, convertBlenderObject);
 
   /* attributes */
   static PyObject *pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

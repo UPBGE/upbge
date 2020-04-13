@@ -42,8 +42,9 @@ class RAS_MeshObject *BL_ConvertMesh(struct Mesh *mesh,
                                      struct Object *lightobj,
                                      class KX_Scene *scene,
                                      class RAS_Rasterizer *rasty,
-                                     class BL_BlenderSceneConverter &converter,
-                                     bool libloading);
+                                     class BL_BlenderSceneConverter *converter,
+                                     bool libloading,
+                                     bool converting_during_runtime);
 
 void BL_ConvertBlenderObjects(struct Main *maggie,
                               struct Depsgraph *depsgraph,
@@ -52,7 +53,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                               e_PhysicsEngine physics_engine,
                               class RAS_Rasterizer *rendertools,
                               class RAS_ICanvas *canvas,
-                              class BL_BlenderSceneConverter &sceneconverter,
+                              class BL_BlenderSceneConverter *sceneconverter,
+                              struct Object *single_obj,
                               bool alwaysUseExpandFraming,
                               bool libloading = false);
 

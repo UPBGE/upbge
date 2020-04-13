@@ -86,7 +86,7 @@ void BL_ConvertSensors(struct Object *blenderobject,
                        int activeLayerBitInfo,
                        bool isInActiveLayer,
                        RAS_ICanvas *canvas,
-                       BL_BlenderSceneConverter &converter)
+                       BL_BlenderSceneConverter *converter)
 {
 
   int executePriority = 0;
@@ -565,7 +565,7 @@ void BL_ConvertSensors(struct Object *blenderobject,
           if (linkedcont) {
             // If the controller is deactived doesn't register it
             if (!(linkedcont->flag & CONT_DEACTIVATE)) {
-              SCA_IController *gamecont = converter.FindGameController(linkedcont);
+              SCA_IController *gamecont = converter->FindGameController(linkedcont);
 
               if (gamecont) {
                 logicmgr->RegisterToSensor(gamecont, gamesensor);

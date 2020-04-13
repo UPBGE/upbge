@@ -257,7 +257,7 @@ class PHY_IPhysicsEnvironment {
 
   virtual void MergeEnvironment(PHY_IPhysicsEnvironment *other_env) = 0;
 
-  virtual void ConvertObject(BL_BlenderSceneConverter &converter,
+  virtual void ConvertObject(BL_BlenderSceneConverter *converter,
                              KX_GameObject *gameobj,
                              RAS_MeshObject *meshobj,
                              DerivedMesh *dm,

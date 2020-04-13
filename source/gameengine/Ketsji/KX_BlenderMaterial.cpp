@@ -45,7 +45,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
                                        Material *mat,
                                        const std::string &name,
                                        GameSettings *game,
-                                       int lightlayer)
+                                       int lightlayer,
+                                       bool converting_during_runtime)
     : RAS_IPolyMaterial(name, game),
       m_material(mat),
       m_shader(nullptr),
@@ -57,7 +58,12 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
 {
   m_alphablend = mat->blend_method;
 
-  if (m_material->use_nodes && m_material->nodetree) {
+  /* For object converted during runtime,
+   * we don't call EEVEE_engine_data_get
+   * because it is causing a crash
+   * (m_textures list won't be available for these object)
+   */
+  if (m_material->use_nodes && m_material->nodetree && !converting_during_runtime) {
     RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
     if ((m_scene->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
         canvas->IsBlenderPlayer()) {

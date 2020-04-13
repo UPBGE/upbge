@@ -83,7 +83,7 @@
 
 BL_BlenderConverter::SceneSlot::SceneSlot() = default;
 
-BL_BlenderConverter::SceneSlot::SceneSlot(const BL_BlenderSceneConverter &converter)
+BL_BlenderConverter::SceneSlot::SceneSlot(const BL_BlenderSceneConverter *converter)
 {
   Merge(converter);
 }
@@ -104,12 +104,12 @@ void BL_BlenderConverter::SceneSlot::Merge(BL_BlenderConverter::SceneSlot &other
   m_actionToInterp.insert(other.m_actionToInterp.begin(), other.m_actionToInterp.end());
 }
 
-void BL_BlenderConverter::SceneSlot::Merge(const BL_BlenderSceneConverter &converter)
+void BL_BlenderConverter::SceneSlot::Merge(const BL_BlenderSceneConverter *converter)
 {
-  for (KX_BlenderMaterial *mat : converter.m_materials) {
+  for (KX_BlenderMaterial *mat : converter->m_materials) {
     m_materials.emplace_back(mat);
   }
-  for (RAS_MeshObject *meshobj : converter.m_meshobjects) {
+  for (RAS_MeshObject *meshobj : converter->m_meshobjects) {
     m_meshobjects.emplace_back(meshobj);
   }
 }
@@ -214,7 +214,7 @@ void BL_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
 
   destinationscene->SetPhysicsEnvironment(phy_env);
 
-  BL_BlenderSceneConverter sceneConverter;
+  BL_BlenderSceneConverter *sceneConverter = new BL_BlenderSceneConverter();
   bContext *C = KX_GetActiveEngine()->GetContext();
   ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
   Depsgraph *graph = BKE_scene_get_depsgraph(CTX_data_main(C), blenderscene, view_layer, false);
@@ -227,10 +227,12 @@ void BL_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
                            rasty,
                            canvas,
                            sceneConverter,
+                           nullptr,
                            m_alwaysUseExpandFraming,
                            libloading);
 
   m_sceneSlots.emplace(destinationscene, sceneConverter);
+  destinationscene->SetBlenderSceneConverter(sceneConverter);
 }
 
 /** This function removes all entities stored in the converter for that scene
@@ -482,7 +484,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
     // Convert all new meshes into BGE meshes
     ID *mesh;
 
-    BL_BlenderSceneConverter sceneConverter;
+    BL_BlenderSceneConverter *sceneConverter = new BL_BlenderSceneConverter();
     for (mesh = (ID *)main_newlib->meshes.first; mesh; mesh = (ID *)mesh->next) {
       if (options & LIB_LOAD_VERBOSE) {
         CM_Debug("mesh name: " << mesh->name + 2);
@@ -493,11 +495,13 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
           scene_merge,
           m_ketsjiEngine->GetRasterizer(),
           sceneConverter,
-          false);  // For now only use the libloading option for scenes, which need to handle
+          false,
+          true);  // For now only use the libloading option for scenes, which need to handle
                    // materials/shaders
       scene_merge->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
     }
     m_sceneSlots[scene_merge].Merge(sceneConverter);
+    scene_merge->SetBlenderSceneConverter(sceneConverter);
   }
   else if (idcode == ID_AC) {
     // Convert all actions
@@ -866,13 +870,14 @@ RAS_MeshObject *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
     }
   }
 
-  BL_BlenderSceneConverter sceneConverter;
+  BL_BlenderSceneConverter *sceneConverter = new BL_BlenderSceneConverter();
 
   RAS_MeshObject *meshobj = BL_ConvertMesh(
-      (Mesh *)me, nullptr, kx_scene, m_ketsjiEngine->GetRasterizer(), sceneConverter, false);
+      (Mesh *)me, nullptr, kx_scene, m_ketsjiEngine->GetRasterizer(), sceneConverter, false, true);
   kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 
   m_sceneSlots[kx_scene].Merge(sceneConverter);
+  kx_scene->SetBlenderSceneConverter(sceneConverter);
 
   return meshobj;
 }

@@ -117,7 +117,7 @@ void BL_ConvertActuators(const char *maggiename,
                          KX_KetsjiEngine *ketsjiEngine,
                          int activeLayerBitInfo,
                          bool isInActiveLayer,
-                         BL_BlenderSceneConverter &converter)
+                         BL_BlenderSceneConverter *converter)
 {
 
   int uniqueint = 0;
@@ -172,7 +172,7 @@ void BL_ConvertActuators(const char *maggiename,
         bitLocalFlag.AddOrSetLinV = bool((obact->flag & ACT_ADD_LIN_VEL) != 0);
         bitLocalFlag.AddOrSetCharLoc = bool((obact->flag & ACT_ADD_CHAR_LOC) != 0);
         if (obact->reference && bitLocalFlag.ServoControl) {
-          obref = converter.FindGameObject(obact->reference);
+          obref = converter->FindGameObject(obact->reference);
         }
 
         SCA_ObjectActuator *tmpbaseact = new SCA_ObjectActuator(gameobj,
@@ -230,7 +230,7 @@ void BL_ConvertActuators(const char *maggiename,
       case ACT_CAMERA: {
         bCameraActuator *camact = (bCameraActuator *)bact->data;
         if (camact->ob) {
-          KX_GameObject *tmpgob = converter.FindGameObject(camact->ob);
+          KX_GameObject *tmpgob = converter->FindGameObject(camact->ob);
 
           /* visifac, fac and axis are not copied from the struct...   */
           /* that's some internal state...                             */
@@ -379,7 +379,7 @@ void BL_ConvertActuators(const char *maggiename,
          * - let the object-with-property report itself to the act when converted
          */
         if (propact->ob)
-          destinationObj = converter.FindGameObject(propact->ob);
+          destinationObj = converter->FindGameObject(propact->ob);
 
         SCA_PropertyActuator *tmppropact = new SCA_PropertyActuator(
             gameobj,
@@ -408,7 +408,7 @@ void BL_ConvertActuators(const char *maggiename,
                                        << uniquename << "\" is not in a hidden layer.");
               }
               else {
-                originalval = converter.FindGameObject(editobact->ob);
+                originalval = converter->FindGameObject(editobact->ob);
               }
             }
 
@@ -430,7 +430,7 @@ void BL_ConvertActuators(const char *maggiename,
             baseact = tmpendact;
           } break;
           case ACT_EDOB_REPLACE_MESH: {
-            RAS_MeshObject *tmpmesh = converter.FindGameMesh(editobact->me);
+            RAS_MeshObject *tmpmesh = converter->FindGameMesh(editobact->me);
 
             if (!tmpmesh) {
               CM_Warning("object \""
@@ -451,7 +451,7 @@ void BL_ConvertActuators(const char *maggiename,
           case ACT_EDOB_TRACK_TO: {
             SCA_IObject *originalval = nullptr;
             if (editobact->ob)
-              originalval = converter.FindGameObject(editobact->ob);
+              originalval = converter->FindGameObject(editobact->ob);
 
             SCA_TrackToActuator *tmptrackact = new SCA_TrackToActuator(gameobj,
                                                                        originalval,
@@ -654,7 +654,7 @@ void BL_ConvertActuators(const char *maggiename,
           case ACT_SCENE_CAMERA:
             mode = SCA_SceneActuator::KX_SCENE_SET_CAMERA;
             if (sceneact->camera) {
-              KX_GameObject *tmp = converter.FindGameObject(sceneact->camera);
+              KX_GameObject *tmp = converter->FindGameObject(sceneact->camera);
               if (tmp && tmp->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
                 cam = (KX_Camera *)tmp;
             }
@@ -691,7 +691,7 @@ void BL_ConvertActuators(const char *maggiename,
           case ACT_COLLECTION_ADD_OVERLAY:
             mode = SCA_CollectionActuator::KX_COLLECTION_ADD_OVERLAY;
             if (colact->camera) {
-              KX_GameObject *tmp = converter.FindGameObject(colact->camera);
+              KX_GameObject *tmp = converter->FindGameObject(colact->camera);
               if (tmp && tmp->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
                 cam = (KX_Camera *)tmp;
             }
@@ -958,7 +958,7 @@ void BL_ConvertActuators(const char *maggiename,
         switch (parAct->type) {
           case ACT_PARENT_SET:
             mode = SCA_ParentActuator::KX_PARENT_SET;
-            tmpgob = converter.FindGameObject(parAct->ob);
+            tmpgob = converter->FindGameObject(parAct->ob);
             addToCompound = !(parAct->flag & ACT_PARENT_COMPOUND);
             ghost = !(parAct->flag & ACT_PARENT_GHOST);
             break;
@@ -976,8 +976,8 @@ void BL_ConvertActuators(const char *maggiename,
 
       case ACT_ARMATURE: {
         bArmatureActuator *armAct = (bArmatureActuator *)bact->data;
-        KX_GameObject *tmpgob = converter.FindGameObject(armAct->target);
-        KX_GameObject *subgob = converter.FindGameObject(armAct->subtarget);
+        KX_GameObject *tmpgob = converter->FindGameObject(armAct->target);
+        KX_GameObject *subgob = converter->FindGameObject(armAct->subtarget);
         BL_ArmatureActuator *tmparmact = new BL_ArmatureActuator(gameobj,
                                                                  armAct->type,
                                                                  armAct->posechannel,
@@ -997,9 +997,9 @@ void BL_ConvertActuators(const char *maggiename,
           RNA_pointer_create(
               (ID *)stAct->navmesh, &RNA_GameObjectSettings, stAct->navmesh, &settings_ptr);
           if (RNA_enum_get(&settings_ptr, "physics_type") == OB_BODY_TYPE_NAVMESH)
-            navmeshob = converter.FindGameObject(stAct->navmesh);
+            navmeshob = converter->FindGameObject(stAct->navmesh);
         }
-        KX_GameObject *targetob = converter.FindGameObject(stAct->target);
+        KX_GameObject *targetob = converter->FindGameObject(stAct->target);
 
         int mode = SCA_SteeringActuator::KX_STEERING_NODEF;
         switch (stAct->type) {
@@ -1095,7 +1095,7 @@ void BL_ConvertActuators(const char *maggiename,
       // gameobj->SetProperty(uniquename,baseact);
       gameobj->AddActuator(baseact);
 
-      converter.RegisterGameActuator(baseact, bact);
+      converter->RegisterGameActuator(baseact, bact);
       // done with baseact, release it
       baseact->Release();
     }
