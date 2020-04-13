@@ -228,6 +228,7 @@ void EEVEE_volumes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   uint current_sample = 0;
 
   /* If TAA is in use do not use the history buffer. */
+#if 0 /* Game engine transition */ /* Force to use history buffer always to avoid ugly banding */
   bool do_taa = ((effects->enabled_effects & EFFECT_TAA) != 0);
 
   if (draw_ctx->evil_C != NULL) {
@@ -241,13 +242,16 @@ void EEVEE_volumes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     effects->volume_current_sample = -1;
   }
   else if (DRW_state_is_image_render()) {
+#endif
     const uint max_sample = (ht_primes[0] * ht_primes[1] * ht_primes[2]);
     current_sample = effects->volume_current_sample = (effects->volume_current_sample + 1) %
                                                       max_sample;
     if (current_sample != max_sample - 1) {
       DRW_viewport_request_redraw();
     }
+#if 0 /* Game engine transition */
   }
+#endif
 
   EEVEE_volumes_set_jitter(sldata, current_sample);
 
