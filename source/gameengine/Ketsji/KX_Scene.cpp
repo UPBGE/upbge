@@ -2712,13 +2712,13 @@ KX_PYMETHODDEF_DOC(KX_Scene,
   PyObject *bl_object = Py_None;
 
   if (!PyArg_ParseTuple(args, "O:", &bl_object)) {
-    std::cout << "pyargsparsetupl" << std::endl;
+    std::cout << "Expected a bpy.types.Object." << std::endl;
     return nullptr;
   }
 
   ID *id;
   if (!pyrna_id_FromPyObject(bl_object, &id)) {
-    std::cout << "failed to convert object" << std::endl;
+    std::cout << "Failed to convert object." << std::endl;
     return nullptr;
   }
   Object *ob = (Object *)id;
