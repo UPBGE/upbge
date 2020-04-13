@@ -62,14 +62,14 @@
 static void LinkControllerToActuators(SCA_IController *game_controller,
                                       bController *bcontr,
                                       SCA_LogicManager *logicmgr,
-                                      BL_BlenderSceneConverter &converter)
+                                      BL_BlenderSceneConverter *converter)
 {
   // Iterate through the actuators of the game blender
   // controller and find the corresponding ketsji actuator.
 
   for (int i = 0; i < bcontr->totlinks; i++) {
     bActuator *bact = (bActuator *)bcontr->links[i];
-    SCA_IActuator *game_actuator = converter.FindGameActuator(bact);
+    SCA_IActuator *game_actuator = converter->FindGameActuator(bact);
     if (game_actuator) {
       logicmgr->RegisterToActuator(game_controller, game_actuator);
     }
@@ -81,7 +81,7 @@ void BL_ConvertControllers(struct Object *blenderobject,
                            SCA_LogicManager *logicmgr,
                            int activeLayerBitInfo,
                            bool isInActiveLayer,
-                           BL_BlenderSceneConverter &converter,
+                           BL_BlenderSceneConverter *converter,
                            bool libloading)
 {
   int uniqueint = 0;
@@ -186,7 +186,7 @@ void BL_ConvertControllers(struct Object *blenderobject,
       gamecontroller->SetLogicManager(logicmgr);
       gameobj->AddController(gamecontroller);
 
-      converter.RegisterGameController(gamecontroller, bcontr);
+      converter->RegisterGameController(gamecontroller, bcontr);
 
 #ifdef WITH_PYTHON
       // When libloading, this is delayed to KX_Scene::MergeScene_LogicBrick to avoid GIL issues

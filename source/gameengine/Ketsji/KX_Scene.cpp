@@ -64,6 +64,7 @@
 
 #include "BL_BlenderConverter.h"
 #include "BL_BlenderDataConversion.h"
+#include "BL_BlenderSceneConverter.h"
 #include "CM_Message.h"
 #include "EXP_FloatValue.h"
 #include "EXP_ListValue.h"
@@ -806,11 +807,6 @@ void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)
   m_sceneConverter = sc_converter;
 }
 
-BL_BlenderSceneConverter *KX_Scene::GetBlenderSceneConverter()
-{
-  return m_sceneConverter;
-}
-
 void KX_Scene::ConvertBlenderObject(Object *ob)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
@@ -827,7 +823,7 @@ void KX_Scene::ConvertBlenderObject(Object *ob)
                            physics_engine,
                            rasty,
                            canvas,
-                           *m_sceneConverter,
+                           m_sceneConverter,
                            ob,
                            false,
                            false);

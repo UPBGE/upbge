@@ -506,7 +506,6 @@ class KX_Scene : public CValue, public SCA_IScene {
   }
 
   void SetBlenderSceneConverter(class BL_BlenderSceneConverter *sceneConverter);
-  class BL_BlenderSceneConverter *GetBlenderSceneConverter();
 
   class PHY_IPhysicsEnvironment *GetPhysicsEnvironment()
   {

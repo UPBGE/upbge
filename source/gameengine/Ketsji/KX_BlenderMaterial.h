@@ -27,7 +27,8 @@ class KX_BlenderMaterial : public CValue, public RAS_IPolyMaterial {
                                   Material *mat,
                                   const std::string &name,
                                   GameSettings *game,
-                                  int lightlayer);
+                                  int lightlayer,
+                                  bool converting_during_runtime);
 
   virtual ~KX_BlenderMaterial();
 

@@ -2766,7 +2766,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
   return ccdPhysEnv;
 }
 
-void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter &converter,
+void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
                                           KX_GameObject *gameobj,
                                           RAS_MeshObject *meshobj,
                                           DerivedMesh *dm,
@@ -2796,7 +2796,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter &converter,
 
   KX_GameObject *parent = nullptr;
   if (blenderparent) {
-    parent = converter.FindGameObject(blenderparent);
+    parent = converter->FindGameObject(blenderparent);
     isbulletsoftbody = false;
   }
 

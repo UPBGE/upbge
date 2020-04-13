@@ -245,7 +245,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
   //}
 }
 
-void BL_ArmatureObject::LoadConstraints(BL_BlenderSceneConverter &converter)
+void BL_ArmatureObject::LoadConstraints(BL_BlenderSceneConverter *converter)
 {
   // first delete any existing constraint (should not have any)
   m_controlledConstraints->ReleaseAndRemoveAll();
@@ -284,14 +284,14 @@ void BL_ArmatureObject::LoadConstraints(BL_BlenderSceneConverter &converter)
               bConstraintTarget *target = (bConstraintTarget *)listb.first;
               if (target->tar && target->tar != m_objArma) {
                 // only remember external objects, self target is handled automatically
-                gametarget = converter.FindGameObject(target->tar);
+                gametarget = converter->FindGameObject(target->tar);
               }
               if (target->next != nullptr) {
                 // secondary target
                 target = target->next;
                 if (target->tar && target->tar != m_objArma) {
                   // only track external object
-                  gamesubtarget = converter.FindGameObject(target->tar);
+                  gamesubtarget = converter->FindGameObject(target->tar);
                 }
               }
             }

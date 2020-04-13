@@ -75,11 +75,11 @@ class BL_BlenderConverter {
     std::map<bAction *, BL_InterpolatorList *> m_actionToInterp;
 
     SceneSlot();
-    SceneSlot(const BL_BlenderSceneConverter &converter);
+    SceneSlot(const BL_BlenderSceneConverter *converter);
     ~SceneSlot();
 
     void Merge(SceneSlot &other);
-    void Merge(const BL_BlenderSceneConverter &converter);
+    void Merge(const BL_BlenderSceneConverter *converter);
   };
 
   std::map<KX_Scene *, SceneSlot> m_sceneSlots;

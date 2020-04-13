@@ -83,8 +83,9 @@ class KX_LodManager : public CValue {
   KX_LodManager(Object *ob,
                 KX_Scene *scene,
                 RAS_Rasterizer *rasty,
-                BL_BlenderSceneConverter &converter,
-                bool libloading);
+                BL_BlenderSceneConverter *converter,
+                bool libloading,
+                bool converting_during_runtime);
   KX_LodManager(class RAS_MeshObject *meshObj);  // just to use for ReplaceMesh
   virtual ~KX_LodManager();
 
