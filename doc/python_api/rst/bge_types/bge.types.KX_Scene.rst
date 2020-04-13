@@ -200,3 +200,13 @@ base class --- :class:`PyObjectPlus`
    .. method:: drawObstacleSimulation()
 
       Draw debug visualization of obstacle simulation.
+
+   .. method:: convertBlenderObject(blenderObject)
+
+      Converts a bpy.types.Object into a :class:`KX_GameObject` during runtime.
+      For example, you can append an Object from another .blend file during bge runtime
+      using: bpy.ops.wm.append(...) then convert this Object into a KX_GameObject to have
+      logic bricks, physics... converted. This is meant to replace libload.
+
+      Note: When you append an Object with a "module" python controller, you need to append
+      the script (Text) corresponding to the module too.
