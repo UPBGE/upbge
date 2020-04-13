@@ -312,6 +312,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   bool ObjectsAreStatic();
   void ResetTaaSamples();
   void ConvertBlenderObject(struct Object *ob);
+  void ConvertBlenderCollection(struct Collection *co);
 
   bool m_isRuntime;  // Too lazy to put that in protected
   std::vector<Object *> m_hiddenObjectsDuringRuntime;
@@ -551,6 +552,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   KX_PYMETHOD_DOC(KX_Scene, get);
   KX_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
   KX_PYMETHOD_DOC(KX_Scene, convertBlenderObject);
+  KX_PYMETHOD_DOC(KX_Scene, convertBlenderCollection);
 
   /* attributes */
   static PyObject *pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
