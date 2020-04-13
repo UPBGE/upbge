@@ -6535,6 +6535,16 @@ def km_sequencer_editor_tool_select_box(params):
     )
 
 
+def km_sequencer_editor_tool_generic_sample(params):
+    return (
+        "Sequencer Tool: Sample",
+        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("sequencer.sample", {"type": params.tool_mouse, "value": 'PRESS'}, None),
+        ]},
+    )
+
+
 def km_sequencer_editor_tool_blade(_params):
     return (
         "Sequencer Tool: Blade",
@@ -6780,6 +6790,7 @@ def generate_keymaps(params=None):
         km_sequencer_editor_tool_select(params),
         km_sequencer_editor_tool_select_box(params),
         km_sequencer_editor_tool_blade(params),
+        km_sequencer_editor_tool_generic_sample(params),
     ]
 
 # ------------------------------------------------------------------------------

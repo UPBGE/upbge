@@ -236,7 +236,8 @@ static void seq_free_strip(Strip *strip)
 static void BKE_sequence_free_ex(Scene *scene,
                                  Sequence *seq,
                                  const bool do_cache,
-                                 const bool do_id_user)
+                                 const bool do_id_user,
+                                 const bool do_clean_animdata)
 {
   if (seq->strip) {
     seq_free_strip(seq->strip);
@@ -271,7 +272,10 @@ static void BKE_sequence_free_ex(Scene *scene,
       BKE_sound_remove_scene_sound(scene, seq->scene_sound);
     }
 
-    seq_free_animdata(scene, seq);
+    /* XXX This must not be done in BKE code. */
+    if (do_clean_animdata) {
+      seq_free_animdata(scene, seq);
+    }
   }
 
   if (seq->prop) {
@@ -299,9 +303,9 @@ static void BKE_sequence_free_ex(Scene *scene,
   MEM_freeN(seq);
 }
 
-void BKE_sequence_free(Scene *scene, Sequence *seq)
+void BKE_sequence_free(Scene *scene, Sequence *seq, const bool do_clean_animdata)
 {
-  BKE_sequence_free_ex(scene, seq, true, true);
+  BKE_sequence_free_ex(scene, seq, true, true, do_clean_animdata);
 }
 
 /* Function to free imbuf and anim data on changes */
@@ -331,7 +335,7 @@ static void seq_free_sequence_recurse(Scene *scene, Sequence *seq, const bool do
     seq_free_sequence_recurse(scene, iseq, do_id_user);
   }
 
-  BKE_sequence_free_ex(scene, seq, false, do_id_user);
+  BKE_sequence_free_ex(scene, seq, false, do_id_user, true);
 }
 
 Editing *BKE_sequencer_editing_get(Scene *scene, bool alloc)
@@ -501,7 +505,7 @@ void BKE_sequencer_editing_free(Scene *scene, const bool do_id_user)
 
   SEQ_BEGIN (ed, seq) {
     /* handle cache freeing above */
-    BKE_sequence_free_ex(scene, seq, false, do_id_user);
+    BKE_sequence_free_ex(scene, seq, false, do_id_user, false);
   }
   SEQ_END;
 
@@ -4162,8 +4166,15 @@ static void sequence_do_invalidate_dependent(Scene *scene, Sequence *seq, ListBa
     }
 
     if (BKE_sequence_check_depend(seq, cur)) {
-      BKE_sequencer_cache_cleanup_sequence(
-          scene, cur, seq, SEQ_CACHE_STORE_COMPOSITE | SEQ_CACHE_STORE_FINAL_OUT);
+      /* Effect must be invalidated completely if they depend on invalidated seq. */
+      if ((cur->type & SEQ_TYPE_EFFECT) != 0) {
+        BKE_sequencer_cache_cleanup_sequence(scene, cur, seq, SEQ_CACHE_ALL_TYPES, false);
+      }
+      else {
+        /* In case of alpha over for example only invalidate composite image */
+        BKE_sequencer_cache_cleanup_sequence(
+            scene, cur, seq, SEQ_CACHE_STORE_COMPOSITE | SEQ_CACHE_STORE_FINAL_OUT, false);
+      }
     }
 
     if (cur->seqbase.first) {
@@ -4181,7 +4192,7 @@ static void sequence_invalidate_cache(Scene *scene,
 
   if (invalidate_self) {
     BKE_sequence_free_anim(seq);
-    BKE_sequencer_cache_cleanup_sequence(scene, seq, seq, invalidate_types);
+    BKE_sequencer_cache_cleanup_sequence(scene, seq, seq, invalidate_types, false);
   }
 
   if (seq->effectdata && seq->type == SEQ_TYPE_SPEED) {
@@ -4191,6 +4202,14 @@ static void sequence_invalidate_cache(Scene *scene,
   sequence_do_invalidate_dependent(scene, seq, &ed->seqbase);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   BKE_sequencer_prefetch_stop(scene);
+}
+
+void BKE_sequence_invalidate_cache_in_range(Scene *scene,
+                                            Sequence *seq,
+                                            Sequence *range_mask,
+                                            int invalidate_types)
+{
+  BKE_sequencer_cache_cleanup_sequence(scene, seq, range_mask, invalidate_types, true);
 }
 
 void BKE_sequence_invalidate_cache_raw(Scene *scene, Sequence *seq)
