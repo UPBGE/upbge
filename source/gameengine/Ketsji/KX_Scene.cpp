@@ -839,7 +839,6 @@ void KX_Scene::ConvertBlenderCollection(Collection *co)
   bContext *C = engine->GetContext();
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   Main *bmain = CTX_data_main(C);
-  Object *obj;
 
   FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (co, obj) {
     BL_ConvertBlenderObjects(bmain,
