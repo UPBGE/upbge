@@ -1175,6 +1175,9 @@ typedef struct SolidifyModifierData {
   int flag;
   short mat_ofs;
   short mat_ofs_rim;
+
+  float merge_tolerance;
+  float bevel_convex;
 } SolidifyModifierData;
 
 /** #SolidifyModifierData.flag */
@@ -1189,6 +1192,7 @@ enum {
   MOD_SOLIDIFY_FLIP = (1 << 5),
   MOD_SOLIDIFY_NOSHELL = (1 << 6),
   MOD_SOLIDIFY_OFFSET_ANGLE_CLAMP = (1 << 7),
+  MOD_SOLIDIFY_NONMANIFOLD_FLAT_FACES = (1 << 8),
 };
 
 /** #SolidifyModifierData.mode */

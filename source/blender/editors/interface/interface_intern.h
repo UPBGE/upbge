@@ -222,6 +222,7 @@ struct uiBut {
   uiButSearchFunc search_func;
   void *search_arg;
   uiButSearchArgFreeFunc search_arg_free_func;
+  const char *search_sep_string;
 
   uiButHandleRenameFunc rename_func;
   void *rename_arg1;
@@ -877,7 +878,8 @@ void ui_draw_menu_item(const struct uiFontStyle *fstyle,
                        const char *name,
                        int iconid,
                        int state,
-                       bool use_sep);
+                       bool use_sep,
+                       int *r_name_width);
 void ui_draw_preview_item(
     const struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state);
 
@@ -941,6 +943,7 @@ bool ui_but_is_toggle(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 bool ui_but_is_interactive(const uiBut *but, const bool labeledit) ATTR_WARN_UNUSED_RESULT;
 bool ui_but_is_popover_once_compat(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 bool ui_but_has_array_value(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+int ui_but_icon(const uiBut *but);
 void ui_but_pie_dir(RadialDirection dir, float vec[2]);
 
 bool ui_but_is_cursor_warp(const uiBut *but) ATTR_WARN_UNUSED_RESULT;

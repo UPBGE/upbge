@@ -1043,12 +1043,23 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         sub = col.row()
         sub.active = bool(md.vertex_group)
         sub.prop(md, "thickness_vertex_group", text="Factor")
+        if solidify_mode == 'NON_MANIFOLD':
+            sub = col.row()
+            sub.active = bool(md.vertex_group)
+            sub.prop(md, "use_flat_faces")
 
         if solidify_mode == 'EXTRUDE':
             col.label(text="Crease:")
             col.prop(md, "edge_crease_inner", text="Inner")
             col.prop(md, "edge_crease_outer", text="Outer")
             col.prop(md, "edge_crease_rim", text="Rim")
+            col.label(text="Bevel:")
+            col.prop(md, "bevel_convex")
+        else:
+            col.label(text="Bevel:")
+            col.prop(md, "bevel_convex")
+            col.separator()
+            col.prop(md, "nonmanifold_merge_threshold")
 
         col = split.column()
 

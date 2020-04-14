@@ -49,6 +49,7 @@ struct PanelType;
 struct PointerRNA;
 struct PropertyRNA;
 struct ReportList;
+struct ResultBLF;
 struct ScrArea;
 struct bContext;
 struct bContextStore;
@@ -1589,6 +1590,7 @@ void UI_but_func_search_set(uiBut *but,
                             void *arg,
                             uiButSearchArgFreeFunc search_arg_free_func,
                             uiButHandleFunc bfunc,
+                            const char *search_sep_string,
                             void *active);
 /* height in pixels, it's using hardcoded values still */
 int UI_searchbox_size_y(void);
@@ -2434,8 +2436,9 @@ void UI_fontstyle_draw_ex(const struct uiFontStyle *fs,
                           const uchar col[4],
                           const struct uiFontStyleDraw_Params *fs_params,
                           size_t len,
-                          float *r_xofs,
-                          float *r_yofs);
+                          int *r_xofs,
+                          int *r_yofs,
+                          struct ResultBLF *r_info);
 void UI_fontstyle_draw(const struct uiFontStyle *fs,
                        const struct rcti *rect,
                        const char *str,

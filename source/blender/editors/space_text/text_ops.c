@@ -2902,7 +2902,6 @@ void TEXT_OT_scroll_bar(wmOperatorType *ot)
  * \{ */
 
 typedef struct SetSelection {
-  int selecting;
   int selc, sell;
   short mval_prev[2];
   wmTimer *timer; /* needed for scrolling when mouse at region bounds */

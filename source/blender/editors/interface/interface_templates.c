@@ -288,8 +288,14 @@ static uiBlock *template_common_search_menu(const bContext *C,
                          0,
                          "");
   }
-  UI_but_func_search_set(
-      but, ui_searchbox_create_generic, search_func, search_arg, NULL, handle_func, active_item);
+  UI_but_func_search_set(but,
+                         ui_searchbox_create_generic,
+                         search_func,
+                         search_arg,
+                         NULL,
+                         handle_func,
+                         NULL,
+                         active_item);
 
   UI_block_bounds_set_normal(block, 0.3f * U.widget_unit);
   UI_block_direction_set(block, UI_DIR_DOWN);
@@ -6751,8 +6757,14 @@ static void operator_search_cb(const bContext *C,
 
 void UI_but_func_operator_search(uiBut *but)
 {
-  UI_but_func_search_set(
-      but, ui_searchbox_create_operator, operator_search_cb, NULL, false, operator_call_cb, NULL);
+  UI_but_func_search_set(but,
+                         ui_searchbox_create_operator,
+                         operator_search_cb,
+                         NULL,
+                         false,
+                         operator_call_cb,
+                         NULL,
+                         NULL);
 }
 
 void uiTemplateOperatorSearch(uiLayout *layout)
@@ -6774,6 +6786,9 @@ void uiTemplateOperatorSearch(uiLayout *layout)
 /* -------------------------------------------------------------------- */
 /** \name Menu Search Template
  * \{ */
+
+/* Unicode arrow. */
+#define MENU_SEP "\xe2\x96\xb6"
 
 struct MenuSearch_Parent {
   struct MenuSearch_Parent *parent;
@@ -6894,7 +6909,7 @@ static bool menu_items_from_ui_create_item_from_button(struct MenuSearch_Data *d
   if (item != NULL) {
     /* Handle shared settings. */
     item->drawstr = strdup_memarena(memarena, but->drawstr);
-    item->icon = but->icon;
+    item->icon = ui_but_icon(but);
     item->state = (but->flag & (UI_BUT_DISABLED | UI_BUT_INACTIVE | UI_BUT_REDALERT));
     item->mt = mt;
     item->drawstr_submenu = drawstr_submenu ? strdup_memarena(memarena, drawstr_submenu) : NULL;
@@ -7043,7 +7058,7 @@ static struct MenuSearch_Data *menu_items_from_ui_create(bContext *C,
         SPACE_MENU_MAP(SPACE_INFO, "INFO_MT_editor_menus");
         SPACE_MENU_MAP(SPACE_SEQ, "SEQUENCER_MT_editor_menus");
         SPACE_MENU_MAP(SPACE_TEXT, "TEXT_MT_editor_menus");
-        SPACE_MENU_MAP(SPACE_ACTION, "ACTION_MT_editor_menus");
+        SPACE_MENU_MAP(SPACE_ACTION, "DOPESHEET_MT_editor_menus");
         SPACE_MENU_MAP(SPACE_NLA, "NLA_MT_editor_menus");
         SPACE_MENU_MAP(SPACE_NODE, "NODE_MT_editor_menus");
         SPACE_MENU_MAP(SPACE_CONSOLE, "CONSOLE_MT_editor_menus");
@@ -7218,9 +7233,6 @@ static struct MenuSearch_Data *menu_items_from_ui_create(bContext *C,
   /* NOTE: currently this builds the full path for each menu item,
    * that could be moved into the parent menu. */
 
-  /* Unicode arrow. */
-#define MENU_SEP "\xe2\x86\x92"
-
   /* Set names as full paths. */
   LISTBASE_FOREACH (struct MenuSearch_Item *, item, &data->items) {
     if (item->menu_parent != NULL) {
@@ -7267,7 +7279,6 @@ static struct MenuSearch_Data *menu_items_from_ui_create(bContext *C,
     BLI_dynstr_clear(dyn_str);
   }
   BLI_dynstr_free(dyn_str);
-#undef MENU_SEP
 
   /* Finally sort menu items.
    *
@@ -7400,6 +7411,7 @@ void UI_but_func_menu_search(uiBut *but)
                          data,
                          menu_items_from_ui_destroy,
                          menu_call_fn,
+                         MENU_SEP,
                          NULL);
 }
 
@@ -7416,6 +7428,8 @@ void uiTemplateMenuSearch(uiLayout *layout)
       block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, UI_UNIT_X * 6, UI_UNIT_Y, 0, 0, "");
   UI_but_func_menu_search(but);
 }
+
+#undef MENU_SEP
 
 /** \} */
 

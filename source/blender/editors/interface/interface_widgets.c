@@ -2301,7 +2301,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
   if (!use_right_only) {
     /* for underline drawing */
-    float font_xofs, font_yofs;
+    int font_xofs, font_yofs;
 
     int drawlen = (drawstr_left_len == INT_MAX) ? strlen(drawstr + but->ofs) :
                                                   (drawstr_left_len - but->ofs);
@@ -2316,7 +2316,8 @@ static void widget_draw_text(const uiFontStyle *fstyle,
                            },
                            drawlen,
                            &font_xofs,
-                           &font_yofs);
+                           &font_yofs,
+                           NULL);
 
       if (but->menu_key != '\0') {
         char fixedbuf[128];
@@ -2343,7 +2344,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
           ul_advance = BLF_width(fstyle->uifont_id, fixedbuf, ul_index) + (1.0f * UI_DPI_FAC);
 
           BLF_position(fstyle->uifont_id,
-                       rect->xmin + font_xofs + ul_advance,
+                       rect->xmin + font_xofs + (int)ul_advance,
                        rect->ymin + font_yofs,
                        0.0f);
           BLF_color4ubv(fstyle->uifont_id, wcol->text);
@@ -2373,21 +2374,6 @@ static void widget_draw_text(const uiFontStyle *fstyle,
                       &(struct uiFontStyleDraw_Params){
                           .align = UI_STYLE_TEXT_RIGHT,
                       });
-  }
-}
-
-static BIFIconID widget_icon_id(uiBut *but)
-{
-  if (!(but->flag & UI_HAS_ICON)) {
-    return ICON_NONE;
-  }
-
-  /* Consecutive icons can be toggle between. */
-  if (but->drawflag & UI_BUT_ICON_REVERSE) {
-    return but->icon - but->iconadd;
-  }
-  else {
-    return but->icon + but->iconadd;
   }
 }
 
@@ -2433,7 +2419,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
 
   /* Big previews with optional text label below */
   if (but->flag & UI_BUT_ICON_PREVIEW && ui_block_is_menu(but->block)) {
-    const BIFIconID icon = widget_icon_id(but);
+    const BIFIconID icon = ui_but_icon(but);
     int icon_size = BLI_rcti_size_y(rect);
     int text_size = 0;
 
@@ -2470,7 +2456,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     }
 #endif
 
-    const BIFIconID icon = widget_icon_id(but);
+    const BIFIconID icon = ui_but_icon(but);
     int icon_size_init = is_tool ? ICON_DEFAULT_HEIGHT_TOOLBAR : ICON_DEFAULT_HEIGHT;
     const float icon_size = icon_size_init / (but->block->aspect * U.inv_dpi_fac);
     const float icon_padding = 2 * UI_DPI_FAC;
@@ -5352,8 +5338,13 @@ void ui_draw_tooltip_background(const uiStyle *UNUSED(style), uiBlock *UNUSED(bl
 
 /* helper call to draw a menu item without button */
 /* state: UI_ACTIVE or 0 */
-void ui_draw_menu_item(
-    const uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state, bool use_sep)
+void ui_draw_menu_item(const uiFontStyle *fstyle,
+                       rcti *rect,
+                       const char *name,
+                       int iconid,
+                       int state,
+                       bool use_sep,
+                       int *r_name_width)
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
   rcti _rect = *rect;
@@ -5403,13 +5394,22 @@ void ui_draw_menu_item(
       UI_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len, '\0');
     }
 
-    UI_fontstyle_draw(fstyle,
-                      rect,
-                      drawstr,
-                      wt->wcol.text,
-                      &(struct uiFontStyleDraw_Params){
-                          .align = UI_STYLE_TEXT_LEFT,
-                      });
+    int xofs = 0, yofs = 0;
+    struct ResultBLF info;
+    UI_fontstyle_draw_ex(fstyle,
+                         rect,
+                         drawstr,
+                         wt->wcol.text,
+                         &(struct uiFontStyleDraw_Params){
+                             .align = UI_STYLE_TEXT_LEFT,
+                         },
+                         BLF_DRAW_STR_DUMMY_MAX,
+                         &xofs,
+                         &yofs,
+                         &info);
+    if (r_name_width != NULL) {
+      *r_name_width = xofs + info.width;
+    }
   }
 
   /* part text right aligned */
