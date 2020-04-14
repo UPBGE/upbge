@@ -1248,8 +1248,7 @@ void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
   Object *ob = GetBlenderObject();
   if (ob && ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
     copy_v4_v4(ob->color, m_objectColor.getValue());
-    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-    BKE_object_apply_mat4(ob, ob->obmat, false, true);
+    DEG_id_tag_update(&ob->id, ID_RECALC_SHADING);
     GetScene()->ResetTaaSamples();
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
   }
