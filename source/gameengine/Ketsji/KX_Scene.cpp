@@ -830,6 +830,32 @@ void KX_Scene::ConvertBlenderObject(Object *ob)
 
 }
 
+void KX_Scene::ConvertBlenderCollection(Collection *co)
+{
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  e_PhysicsEngine physics_engine = UseBullet;
+  RAS_Rasterizer *rasty = engine->GetRasterizer();
+  RAS_ICanvas *canvas = engine->GetCanvas();
+  bContext *C = engine->GetContext();
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  Main *bmain = CTX_data_main(C);
+  Object *obj;
+
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (co, obj) {
+    BL_ConvertBlenderObjects(bmain,
+                             depsgraph,
+                             this,
+                             engine,
+                             physics_engine,
+                             rasty,
+                             canvas,
+                             m_sceneConverter,
+                             obj,
+                             false,
+                             false);
+  }
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+}
 /******************End of EEVEE INTEGRATION****************************/
 
 std::string KX_Scene::GetName()
@@ -2283,6 +2309,7 @@ PyMethodDef KX_Scene::Methods[] = {
     KX_PYMETHODTABLE(KX_Scene, replace),
     KX_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
     KX_PYMETHODTABLE(KX_Scene, convertBlenderObject),
+    KX_PYMETHODTABLE(KX_Scene, convertBlenderCollection),
 
     /* dict style access */
     KX_PYMETHODTABLE(KX_Scene, get),
@@ -2723,6 +2750,29 @@ KX_PYMETHODDEF_DOC(KX_Scene,
   }
   Object *ob = (Object *)id;
   ConvertBlenderObject(ob);
+  Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene,
+                   convertBlenderCollection,
+                   "convertBlenderCollection()\n"
+                   "\n")
+{
+  PyObject *bl_collection = Py_None;
+
+  if (!PyArg_ParseTuple(args, "O:", &bl_collection)) {
+    std::cout << "Expected a bpy.types.Collection." << std::endl;
+    return nullptr;
+  }
+
+  ID *id;
+  if (!pyrna_id_FromPyObject(bl_collection, &id)) {
+    std::cout << "Failed to convert collection." << std::endl;
+    return nullptr;
+  }
+
+  Collection *co = (Collection *)id;
+  ConvertBlenderCollection(co);
   Py_RETURN_NONE;
 }
 

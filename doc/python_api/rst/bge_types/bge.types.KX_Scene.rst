@@ -210,3 +210,13 @@ base class --- :class:`PyObjectPlus`
 
       Note: When you append an Object with a "module" python controller, you need to append
       the script (Text) corresponding to the module too.
+
+   .. method:: convertBlenderCollection(blenderCollection)
+
+      Converts all bpy.types.Object inside a Collection into its correspondent :class:`KX_GameObject` during runtime.
+      For example, you can append a Collection from another .blend file during bge runtime
+      using: bpy.ops.wm.append(...) then convert the Objects inside the Collection into several KX_GameObject to have
+      logic bricks, physics... converted. This is meant to replace libload.
+
+      Note: When you append an Object with a "module" python controller, you need to append
+      the script (Text) corresponding to the module too.
