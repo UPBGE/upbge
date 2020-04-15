@@ -135,6 +135,8 @@ extern char datatoc_gpu_shader_gpencil_fill_vert_glsl[];
 extern char datatoc_gpu_shader_gpencil_fill_frag_glsl[];
 extern char datatoc_gpu_shader_cfg_world_clip_lib_glsl[];
 
+extern char datatoc_gpu_shader_colorspace_lib_glsl[];
+
 /********************Game engine*********************/
 extern char datatoc_gpu_shader_black_frag_glsl[];
 extern char datatoc_gpu_shader_black_vert_glsl[];
@@ -146,17 +148,19 @@ const struct GPUShaderConfigData GPU_shader_cfg_data[GPU_SHADER_CFG_LEN] = {
     [GPU_SHADER_CFG_DEFAULT] =
         {
             .lib = "",
-            .def = "",
+            .def = "#define blender_srgb_to_framebuffer_space(a) a\n",
         },
     [GPU_SHADER_CFG_CLIPPED] =
         {
             .lib = datatoc_gpu_shader_cfg_world_clip_lib_glsl,
-            .def = "#define USE_WORLD_CLIP_PLANES\n",
+            .def = "#define USE_WORLD_CLIP_PLANES\n"
+                   "#define blender_srgb_to_framebuffer_space(a) a\n",
         },
 };
 
 /* cache of built-in shaders (each is created on first use) */
 static GPUShader *builtin_shaders[GPU_SHADER_CFG_LEN][GPU_SHADER_BUILTIN_LEN] = {{NULL}};
+static int g_shader_builtin_srgb_transform = 0;
 
 #ifndef NDEBUG
 static uint g_shaderid = 0;
@@ -295,6 +299,28 @@ GPUShader *GPU_shader_create(const char *vertexcode,
 {
   return GPU_shader_create_ex(
       vertexcode, fragcode, geocode, libcode, defines, GPU_SHADER_TFB_NONE, NULL, 0, shname);
+}
+
+GPUShader *GPU_shader_create_from_python(const char *vertexcode,
+                                         const char *fragcode,
+                                         const char *geocode,
+                                         const char *libcode,
+                                         const char *defines)
+{
+  char *libcodecat = NULL;
+
+  if (libcode == NULL) {
+    libcode = datatoc_gpu_shader_colorspace_lib_glsl;
+  }
+  else {
+    libcode = libcodecat = BLI_strdupcat(libcode, datatoc_gpu_shader_colorspace_lib_glsl);
+  }
+
+  GPUShader *sh = GPU_shader_create_ex(
+      vertexcode, fragcode, geocode, libcode, defines, GPU_SHADER_TFB_NONE, NULL, 0, NULL);
+
+  MEM_SAFE_FREE(libcodecat);
+  return sh;
 }
 
 GPUShader *GPU_shader_load_from_binary(const char *binary,
@@ -637,6 +663,7 @@ void GPU_shader_bind(GPUShader *shader)
 
   glUseProgram(shader->program);
   GPU_matrix_bind(shader->interface);
+  GPU_shader_set_srgb_uniform(shader->interface);
 }
 
 void GPU_shader_unbind(void)
@@ -843,6 +870,15 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
   glUniform1i(location, number);
 }
 
+void GPU_shader_set_srgb_uniform(const GPUShaderInterface *interface)
+{
+  const GPUShaderInput *srgb_uniform = GPU_shaderinterface_uniform_builtin(
+      interface, GPU_UNIFORM_SRGB_TRANSFORM);
+  if (srgb_uniform) {
+    glUniform1i(srgb_uniform->location, g_shader_builtin_srgb_transform);
+  }
+}
+
 int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 {
   BLI_assert(shader && shader->program);
@@ -865,6 +901,11 @@ char *GPU_shader_get_binary(GPUShader *shader, uint *r_binary_format, int *r_bin
   }
 
   return r_binary;
+}
+
+void GPU_shader_set_framebuffer_srgb_target(int use_srgb_to_linear)
+{
+  g_shader_builtin_srgb_transform = use_srgb_to_linear;
 }
 
 static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
@@ -1204,8 +1245,12 @@ GPUShader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShader shader,
 
     /* common case */
     if (sh_cfg == GPU_SHADER_CFG_DEFAULT) {
-      *sh_p = GPU_shader_create(
-          stages->vert, stages->frag, stages->geom, NULL, stages->defs, __func__);
+      *sh_p = GPU_shader_create_from_arrays({
+          .vert = (const char *[]){stages->vert, NULL},
+          .geom = (const char *[]){stages->geom, NULL},
+          .frag = (const char *[]){datatoc_gpu_shader_colorspace_lib_glsl, stages->frag, NULL},
+          .defs = (const char *[]){stages->defs, NULL},
+      });
     }
     else if (sh_cfg == GPU_SHADER_CFG_CLIPPED) {
       /* Remove eventually, for now ensure support for each shader has been added. */
@@ -1224,7 +1269,7 @@ GPUShader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShader shader,
       *sh_p = GPU_shader_create_from_arrays({
           .vert = (const char *[]){world_clip_lib, stages->vert, NULL},
           .geom = (const char *[]){stages->geom ? world_clip_lib : NULL, stages->geom, NULL},
-          .frag = (const char *[]){stages->frag, NULL},
+          .frag = (const char *[]){datatoc_gpu_shader_colorspace_lib_glsl, stages->frag, NULL},
           .defs = (const char *[]){world_clip_def, stages->defs, NULL},
       });
     }

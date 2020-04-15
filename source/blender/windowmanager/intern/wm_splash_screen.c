@@ -40,6 +40,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.h"
@@ -55,6 +56,7 @@
 #include "ED_screen.h"
 
 #include "UI_interface.h"
+#include "UI_resources.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -81,28 +83,12 @@ static void wm_block_splash_add_label(uiBlock *block, const char *label, int x, 
     return;
   }
 
-  const uiStyle *style = UI_style_get();
-
-  BLF_size(style->widgetlabel.uifont_id, style->widgetlabel.points, U.pixelsize * U.dpi);
-  int label_width = BLF_width(style->widgetlabel.uifont_id, label, strlen(label));
-  label_width = label_width + U.widget_unit;
-
   UI_block_emboss_set(block, UI_EMBOSS_NONE);
 
-  uiBut *but = uiDefBut(block,
-                        UI_BTYPE_LABEL,
-                        0,
-                        label,
-                        x - label_width,
-                        *y,
-                        label_width,
-                        UI_UNIT_Y,
-                        NULL,
-                        0,
-                        0,
-                        0,
-                        0,
-                        NULL);
+  uiBut *but = uiDefBut(
+      block, UI_BTYPE_LABEL, 0, label, 0, *y, x, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+  UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+  UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
 
   /* 1 = UI_SELECT, internal flag to draw in white. */
   UI_but_flag_enable(but, 1);
@@ -192,75 +178,93 @@ static void wm_block_splash_add_labels(uiBlock *block, int x, int y)
 #endif /* WITH_BUILDINFO */
 }
 
-static ImBuf *wm_block_splash_image(int r_unit_size[2])
+static void wm_block_splash_image_roundcorners_add(ImBuf *ibuf)
+{
+  uchar *rct = (uchar *)ibuf->rect;
+
+  if (rct) {
+    bTheme *btheme = UI_GetTheme();
+    const float roundness = btheme->tui.wcol_menu_back.roundness * U.dpi_fac;
+    const int size = roundness * 20;
+
+    if (size < ibuf->x && size < ibuf->y) {
+      /* Y-axis initial offset. */
+      rct += 4 * (ibuf->y - size) * ibuf->x;
+
+      for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++, rct += 4) {
+          const float pixel = 1.0 / size;
+          const float u = pixel * x;
+          const float v = pixel * y;
+          const float distance = sqrt(u * u + v * v);
+
+          /* Pointer offset to the alpha value of pixel. */
+          /* Note, the left corner is flipped in the X-axis. */
+          const int offset_l = 4 * (size - x - x - 1) + 3;
+          const int offset_r = 4 * (ibuf->x - size) + 3;
+
+          if (distance > 1.0) {
+            rct[offset_l] = 0;
+            rct[offset_r] = 0;
+          }
+          else {
+            /* Create a single pixel wide transition for anti-aliasing.
+             * Invert the distance and map its range [0, 1] to [0, pixel]. */
+            const float fac = (1.0 - distance) * size;
+
+            if (fac > 1.0) {
+              continue;
+            }
+
+            const uchar alpha = unit_float_to_uchar_clamp(fac);
+            rct[offset_l] = alpha;
+            rct[offset_r] = alpha;
+          }
+        }
+
+        /* X-axis offset to the next row. */
+        rct += 4 * (ibuf->x - size);
+      }
+    }
+  }
+}
+
+static ImBuf *wm_block_splash_image(int width, int *r_height)
 {
 #ifndef WITH_HEADLESS
   extern char datatoc_splash_png[];
   extern int datatoc_splash_png_size;
-  extern char datatoc_splash_2x_png[];
-  extern int datatoc_splash_2x_png_size;
-  const bool is_2x = U.dpi_fac > 1.0;
-  const int imb_scale = is_2x ? 2 : 1;
-
-  /* We could allow this to be variable,
-   * for now don't since allowing it might create layout issues.
-   *
-   * Only check width because splashes sometimes change height
-   * and we don't want to break app-templates. */
-  const int x_expect = 501 * imb_scale;
 
   ImBuf *ibuf = NULL;
+  int height = 0;
 
   if (U.app_template[0] != '\0') {
     char splash_filepath[FILE_MAX];
     char template_directory[FILE_MAX];
     if (BKE_appdir_app_template_id_search(
             U.app_template, template_directory, sizeof(template_directory))) {
-      BLI_join_dirfile(splash_filepath,
-                       sizeof(splash_filepath),
-                       template_directory,
-                       is_2x ? "splash_2x.png" : "splash.png");
+      BLI_join_dirfile(splash_filepath, sizeof(splash_filepath), template_directory, "splash.png");
       ibuf = IMB_loadiffname(splash_filepath, IB_rect, NULL);
-
-      /* We could skip this check, see comment about 'x_expect' above. */
-      if (ibuf && ibuf->x != x_expect) {
-        CLOG_ERROR(WM_LOG_OPERATORS,
-                   "Splash expected %d width found %d, ignoring: %s\n",
-                   x_expect,
-                   ibuf->x,
-                   splash_filepath);
-        IMB_freeImBuf(ibuf);
-        ibuf = NULL;
-      }
     }
   }
 
   if (ibuf == NULL) {
-    const uchar *splash_data;
-    size_t splash_data_size;
-
-    if (is_2x) {
-      splash_data = (const uchar *)datatoc_splash_2x_png;
-      splash_data_size = datatoc_splash_2x_png_size;
-    }
-    else {
-      splash_data = (const uchar *)datatoc_splash_png;
-      splash_data_size = datatoc_splash_png_size;
-    }
-
+    const uchar *splash_data = (const uchar *)datatoc_splash_png;
+    size_t splash_data_size = datatoc_splash_png_size;
     ibuf = IMB_ibImageFromMemory(splash_data, splash_data_size, IB_rect, NULL, "<splash screen>");
-
-    BLI_assert(ibuf->x == x_expect);
   }
 
-  if (is_2x) {
-    r_unit_size[0] = ibuf->x / 2;
-    r_unit_size[1] = ibuf->y / 2;
+  if (ibuf) {
+    height = (width * ibuf->y) / ibuf->x;
+    if (width != ibuf->x || height != ibuf->y) {
+      IMB_scaleImBuf(ibuf, width, height);
+    }
+
+    wm_block_splash_image_roundcorners_add(ibuf);
+    IMB_premultiply_alpha(ibuf);
   }
-  else {
-    r_unit_size[0] = ibuf->x;
-    r_unit_size[1] = ibuf->y;
-  }
+
+  *r_height = height;
 
   return ibuf;
 #else
@@ -283,23 +287,19 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *region, void *UNUSE
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
-  /* Size before dpi scaling (halved for hi-dpi image). */
-  int ibuf_unit_size[2];
-  ImBuf *ibuf = wm_block_splash_image(ibuf_unit_size);
-  but = uiDefButImage(block,
-                      ibuf,
-                      0,
-                      0.5f * U.widget_unit,
-                      U.dpi_fac * ibuf_unit_size[0],
-                      U.dpi_fac * ibuf_unit_size[1],
-                      NULL);
+  int splash_width = 500.0f * U.dpi_fac;
+  int splash_height;
+
+  /* Would be nice to support caching this, so it only has to be re-read (and likely resized) on
+   * first draw or if the image changed. */
+  ImBuf *ibuf = wm_block_splash_image(splash_width, &splash_height);
+
+  but = uiDefButImage(block, ibuf, 0, 0.5f * U.widget_unit, splash_width, splash_height, NULL);
+
   UI_but_func_set(but, wm_block_splash_close, block, NULL);
   UI_block_func_set(block, wm_block_splash_refreshmenu, block, NULL);
 
-  int x = U.dpi_fac * (ibuf_unit_size[0] + 1);
-  int y = U.dpi_fac * (ibuf_unit_size[1] - 13);
-
-  wm_block_splash_add_labels(block, x, y);
+  wm_block_splash_add_labels(block, splash_width, splash_height - 13 * U.dpi_fac);
 
   const int layout_margin_x = U.dpi_fac * 26;
   uiLayout *layout = UI_block_layout(block,
@@ -307,7 +307,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *region, void *UNUSE
                                      UI_LAYOUT_PANEL,
                                      layout_margin_x,
                                      0,
-                                     (U.dpi_fac * ibuf_unit_size[0]) - (layout_margin_x * 2),
+                                     splash_width - (layout_margin_x * 2),
                                      U.dpi_fac * 110,
                                      0,
                                      style);
