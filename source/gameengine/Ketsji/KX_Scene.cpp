@@ -225,7 +225,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_obstacleSimulation = nullptr;
   }
 
-  m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(),
+  m_animationPool = BLI_task_pool_create(BLI_task_scheduler_get(),
                                          &m_animationPoolData, TASK_PRIORITY_LOW);
 
 #ifdef WITH_PYTHON

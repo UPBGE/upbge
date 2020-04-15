@@ -40,7 +40,6 @@ struct ARegion;
 struct ImageFormatData;
 struct Scene;
 struct TaskPool;
-struct TaskScheduler;
 
 /**
  * 2D rendering device context. The connection from 3d rendercontext to 2d surface.
@@ -148,7 +147,6 @@ class RAS_ICanvas {
   RAS_MouseState m_mousestate;
   /// frame number for screenshots.
   int m_frame;
-  TaskScheduler *m_taskscheduler;
   TaskPool *m_taskpool;
 
   RAS_Rect m_windowArea;

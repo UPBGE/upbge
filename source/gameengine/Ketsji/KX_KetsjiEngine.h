@@ -228,9 +228,6 @@ class KX_KetsjiEngine {
   /// Settings that doesn't go away with Game Actuator
   GlobalSettings m_globalsettings;
 
-  /// Task scheduler for multi-threading
-  TaskScheduler *m_taskscheduler;
-
   /// Update and return the projection matrix of a camera depending on the viewport.
   MT_Matrix4x4 GetCameraProjectionMatrix(KX_Scene *scene,
                                          KX_Camera *cam,
@@ -319,11 +316,6 @@ class KX_KetsjiEngine {
   KX_NetworkMessageManager *GetNetworkMessageManager() const
   {
     return m_networkMessageManager;
-  }
-
-  TaskScheduler *GetTaskScheduler()
-  {
-    return m_taskscheduler;
   }
 
   /// returns true if an update happened to indicate -> Render
