@@ -169,8 +169,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system, bContext *C)
   m_pyprofiledict = PyDict_New();
 #endif
 
-  m_taskscheduler = BLI_task_scheduler_create(1);
-
   m_scenes = new CListValue<KX_Scene>();
 }
 
@@ -182,9 +180,6 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 #ifdef WITH_PYTHON
   Py_CLEAR(m_pyprofiledict);
 #endif
-
-  if (m_taskscheduler)
-    BLI_task_scheduler_free(m_taskscheduler);
 
   m_scenes->Release();
 }

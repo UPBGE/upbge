@@ -32,6 +32,7 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_task.h"
+#include "BLI_threads.h"
 #include "DNA_scene_types.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -60,8 +61,7 @@ void save_screenshot_thread_func(TaskPool *__restrict pool, void *taskdata, int 
 
 RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty) : m_rasterizer(rasty), m_samples(0)
 {
-  m_taskscheduler = BLI_task_scheduler_create(1);
-  m_taskpool = BLI_task_pool_create(m_taskscheduler, nullptr, TASK_PRIORITY_LOW);
+  m_taskpool = BLI_task_pool_create(BLI_task_scheduler_get(), nullptr, TASK_PRIORITY_LOW);
 }
 
 RAS_ICanvas::~RAS_ICanvas()
@@ -70,11 +70,6 @@ RAS_ICanvas::~RAS_ICanvas()
     BLI_task_pool_work_and_wait(m_taskpool);
     BLI_task_pool_free(m_taskpool);
     m_taskpool = nullptr;
-  }
-
-  if (m_taskscheduler) {
-    BLI_task_scheduler_free(m_taskscheduler);
-    m_taskscheduler = nullptr;
   }
 }
 
