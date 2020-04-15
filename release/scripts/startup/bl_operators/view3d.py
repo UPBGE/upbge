@@ -72,13 +72,19 @@ class VIEW3D_OT_edit_mesh_extrude_move(Operator):
     bl_label = "Extrude and Move on Normals"
     bl_idname = "view3d.edit_mesh_extrude_move_normal"
 
+    dissolve_and_intersect: BoolProperty(
+            name="dissolve_and_intersect",
+            default=False,
+            description="Dissolves adjacent faces and intersects new geometry"
+            )
+
     @classmethod
     def poll(cls, context):
         obj = context.active_object
         return (obj is not None and obj.mode == 'EDIT')
 
     @staticmethod
-    def extrude_region(context, use_vert_normals):
+    def extrude_region(context, use_vert_normals, dissolve_and_intersect):
         mesh = context.object.data
 
         totface = mesh.total_face_sel
@@ -90,6 +96,17 @@ class VIEW3D_OT_edit_mesh_extrude_move(Operator):
                 bpy.ops.mesh.extrude_region_shrink_fatten(
                     'INVOKE_REGION_WIN',
                     TRANSFORM_OT_shrink_fatten={},
+                )
+            elif dissolve_and_intersect:
+                bpy.ops.mesh.extrude_region_dissolve_move_intersect(
+                    'INVOKE_REGION_WIN',
+                    MESH_OT_extrude_region={
+                        "use_dissolve_ortho_edges": True,
+                    },
+                    TRANSFORM_OT_translate={
+                        "orient_type": 'NORMAL',
+                        "constraint_axis": (False, False, True),
+                    },
                 )
             else:
                 bpy.ops.mesh.extrude_region_move(
@@ -119,69 +136,7 @@ class VIEW3D_OT_edit_mesh_extrude_move(Operator):
         return {'FINISHED'}
 
     def execute(self, context):
-        return VIEW3D_OT_edit_mesh_extrude_move.extrude_region(context, False)
-
-    def invoke(self, context, _event):
-        return self.execute(context)
-
-
-class VIEW3D_OT_edit_mesh_extrude_dissolve_and_intersect(Operator):
-    """Extrude region together along the average normal"""
-    bl_label = "Extrude, Dissolve, Move and Intersect"
-    bl_idname = "view3d.edit_mesh_extrude_dissolve_and_intersect"
-
-    @classmethod
-    def poll(cls, context):
-        obj = context.active_object
-        return (obj is not None and obj.mode == 'EDIT')
-
-    @staticmethod
-    def extrude_region(context, use_vert_normals):
-        mesh = context.object.data
-
-        totface = mesh.total_face_sel
-        totedge = mesh.total_edge_sel
-        # totvert = mesh.total_vert_sel
-
-        if totface >= 1:
-            if use_vert_normals:
-                bpy.ops.mesh.extrude_region_shrink_fatten(
-                    'INVOKE_REGION_WIN',
-                    TRANSFORM_OT_shrink_fatten={},
-                )
-            else:
-                bpy.ops.mesh.extrude_region_dissolve_move_intersect(
-                    'INVOKE_REGION_WIN',
-                    MESH_OT_extrude_region_move={
-                        "use_dissolve_ortho_edges": True,
-                    },
-                    TRANSFORM_OT_translate={
-                        "orient_type": 'NORMAL',
-                        "constraint_axis": (False, False, True),
-                        "use_automerge_and_split": True,
-                    },
-                )
-
-        elif totedge == 1:
-            bpy.ops.mesh.extrude_region_move(
-                'INVOKE_REGION_WIN',
-                TRANSFORM_OT_translate={
-                    # Don't set the constraint axis since users will expect MMB
-                    # to use the user setting, see: T61637
-                    # "orient_type": 'NORMAL',
-                    # Not a popular choice, too restrictive for retopo.
-                    # "constraint_axis": (True, True, False)})
-                    "constraint_axis": (False, False, False),
-                })
-        else:
-            bpy.ops.mesh.extrude_region_move('INVOKE_REGION_WIN')
-
-        # ignore return from operators above because they are 'RUNNING_MODAL',
-        # and cause this one not to be freed. [#24671]
-        return {'FINISHED'}
-
-    def execute(self, context):
-        return VIEW3D_OT_edit_mesh_extrude_dissolve_and_intersect.extrude_region(context, False)
+        return VIEW3D_OT_edit_mesh_extrude_move.extrude_region(context, False, self.dissolve_and_intersect)
 
     def invoke(self, context, _event):
         return self.execute(context)
@@ -252,7 +207,6 @@ class VIEW3D_OT_transform_gizmo_set(Operator):
 classes = (
     VIEW3D_OT_edit_mesh_extrude_individual_move,
     VIEW3D_OT_edit_mesh_extrude_move,
-    VIEW3D_OT_edit_mesh_extrude_dissolve_and_intersect,
     VIEW3D_OT_edit_mesh_extrude_shrink_fatten,
     VIEW3D_OT_transform_gizmo_set,
 )
