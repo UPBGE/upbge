@@ -681,11 +681,9 @@ void KX_KetsjiEngine::Render()
       }
     }
   }
-  KX_Scene *first_kxscene = m_scenes->GetFront();
-  Scene *first_scene = first_kxscene->GetBlenderScene();
+  Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
   if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !m_canvas->IsBlenderPlayer())) {
     GPU_matrix_reset();
-
     EndFrame();
   }
 }
