@@ -297,6 +297,10 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
   DRW_state_reset();
 
+#ifdef WITH_PYTHON
+  KX_GetActiveScene()->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
+#endif
+
   BLF_size(blf_mono_font, 11, 72);
 
   BLF_enable(blf_mono_font, BLF_SHADOW);

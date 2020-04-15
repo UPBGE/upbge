@@ -228,6 +228,14 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(),
                                          &m_animationPoolData, TASK_PRIORITY_LOW);
 
+#ifdef WITH_PYTHON
+  m_attr_dict = nullptr;
+
+  for (unsigned short i = 0; i < MAX_DRAW_CALLBACK; ++i) {
+    m_drawCallbacks[i] = nullptr;
+  }
+#endif
+
   /*************************************************EEVEE
    * INTEGRATION***********************************************************/
   m_staticObjects = {};
@@ -282,14 +290,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     }
   }
   /******************************************************************************************************************************/
-
-#ifdef WITH_PYTHON
-  m_attr_dict = nullptr;
-
-  for (unsigned short i = 0; i < MAX_DRAW_CALLBACK; ++i) {
-    m_drawCallbacks[i] = nullptr;
-  }
-#endif
 }
 
 KX_Scene::~KX_Scene()
