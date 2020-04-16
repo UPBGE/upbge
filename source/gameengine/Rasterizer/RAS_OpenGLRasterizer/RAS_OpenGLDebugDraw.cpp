@@ -278,7 +278,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
   const unsigned int width = canvas->GetWidth();
   const unsigned int height = canvas->GetHeight();
-  GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
 
   GPUVertFormat *format = immVertexFormat();
   unsigned int pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
