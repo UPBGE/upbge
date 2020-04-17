@@ -2125,6 +2125,13 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
   /* find local python installation */
   PyC_SetHomePath(py_path_bundle);
 
+  /* without this the sys.stdout may be set to 'ascii'
+   * (it is on my system at least), where printing unicode values will raise
+   * an error, this is highly annoying, another stumbling block for devs,
+   * so use a more relaxed error handler and enforce utf-8 since the rest of
+   * blender is utf-8 too - campbell */
+  Py_SetStandardStreamEncoding("utf-8", "surrogateescape");
+
   Py_Initialize();
 
   if (argv && first_time) { /* browser plugins don't currently set this */
@@ -2247,6 +2254,13 @@ void initGamePythonScripting(Main *maggie)
 
   /* find local python installation */
   PyC_SetHomePath(py_path_bundle);
+
+  /* without this the sys.stdout may be set to 'ascii'
+   * (it is on my system at least), where printing unicode values will raise
+   * an error, this is highly annoying, another stumbling block for devs,
+   * so use a more relaxed error handler and enforce utf-8 since the rest of
+   * blender is utf-8 too - campbell */
+  Py_SetStandardStreamEncoding("utf-8", "surrogateescape");
 
   Py_Initialize();
 
