@@ -948,8 +948,9 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   }
   scene->RenderAfterCameraSetup(rendercam, is_overlay_pass);
 
-  if (scene->GetPhysicsEnvironment())
+  if (scene->GetPhysicsEnvironment()) {
     scene->GetPhysicsEnvironment()->DebugDrawWorld();
+  }
 }
 
 /*
