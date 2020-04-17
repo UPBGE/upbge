@@ -45,6 +45,7 @@
 #include "UI_interface.h"
 
 #include "ED_node.h" /* own include */
+#include "node_intern.h"
 
 #include "ED_undo.h"
 
@@ -662,16 +663,22 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
   ui_node_menu_column(arg, NODE_CLASS_GROUP, N_("Group"));
 }
 
-void uiTemplateNodeLink(uiLayout *layout, bNodeTree *ntree, bNode *node, bNodeSocket *sock)
+void uiTemplateNodeLink(
+    uiLayout *layout, bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *sock)
 {
   uiBlock *block = uiLayoutGetBlock(layout);
   NodeLinkArg *arg;
   uiBut *but;
+  float socket_col[4];
 
   arg = MEM_callocN(sizeof(NodeLinkArg), "NodeLinkArg");
   arg->ntree = ntree;
   arg->node = node;
   arg->sock = sock;
+
+  PointerRNA node_ptr;
+  RNA_pointer_create((ID *)ntree, &RNA_Node, node, &node_ptr);
+  node_socket_color_get(C, ntree, &node_ptr, sock, socket_col);
 
   UI_block_layout_set_current(block, layout);
 
@@ -687,8 +694,9 @@ void uiTemplateNodeLink(uiLayout *layout, bNodeTree *ntree, bNode *node, bNodeSo
   }
 
   UI_but_type_set_menu_from_pulldown(but);
+  UI_but_node_link_set(but, sock, socket_col);
+  UI_but_drawflag_enable(but, UI_BUT_ICON_LEFT);
 
-  but->flag |= UI_BUT_NODE_LINK;
   but->poin = (char *)but;
   but->func_argN = arg;
 
@@ -798,7 +806,7 @@ static void ui_node_draw_input(
   }
   else if (lnode) {
     /* input linked to a node */
-    uiTemplateNodeLink(split, ntree, node, input);
+    uiTemplateNodeLink(split, C, ntree, node, input);
 
     if (depth == 0 || !(input->flag & SOCK_COLLAPSED)) {
       if (depth == 0) {
@@ -809,6 +817,10 @@ static void ui_node_draw_input(
     }
   }
   else {
+    row = uiLayoutRow(split, true);
+
+    uiTemplateNodeLink(row, C, ntree, node, input);
+
     /* input not linked, show value */
     if (!(input->flag & SOCK_HIDE_VALUE)) {
       switch (input->type) {
@@ -817,25 +829,15 @@ static void ui_node_draw_input(
         case SOCK_BOOLEAN:
         case SOCK_RGBA:
         case SOCK_STRING:
-          row = uiLayoutRow(split, true);
           uiItemR(row, &inputptr, "default_value", 0, "", ICON_NONE);
           break;
         case SOCK_VECTOR:
-          row = uiLayoutRow(split, false);
+          uiItemS(row);
           col = uiLayoutColumn(row, false);
           uiItemR(col, &inputptr, "default_value", 0, "", ICON_NONE);
           break;
-
-        default:
-          row = uiLayoutRow(split, false);
-          break;
       }
     }
-    else {
-      row = uiLayoutRow(split, false);
-    }
-
-    uiTemplateNodeLink(row, ntree, node, input);
   }
 
   /* clear */

@@ -2791,6 +2791,8 @@ static void direct_link_id_override_property_operation_cb(FileData *fd, void *da
 
   opop->subitem_reference_name = newdataadr(fd, opop->subitem_reference_name);
   opop->subitem_local_name = newdataadr(fd, opop->subitem_local_name);
+
+  opop->tag = 0; /* Runtime only. */
 }
 
 static void direct_link_id_override_property_cb(FileData *fd, void *data)
@@ -2798,6 +2800,9 @@ static void direct_link_id_override_property_cb(FileData *fd, void *data)
   IDOverrideLibraryProperty *op = data;
 
   op->rna_path = newdataadr(fd, op->rna_path);
+
+  op->tag = 0; /* Runtime only. */
+
   link_list_ex(fd, &op->operations, direct_link_id_override_property_operation_cb);
 }
 
@@ -10146,6 +10151,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   blo_do_versions_260(fd, lib, main);
   blo_do_versions_270(fd, lib, main);
   blo_do_versions_280(fd, lib, main);
+  blo_do_versions_290(fd, lib, main);
   blo_do_versions_cycles(fd, lib, main);
   blo_do_versions_upbge(fd, lib, main);
 

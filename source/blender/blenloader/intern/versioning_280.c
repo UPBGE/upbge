@@ -1666,6 +1666,19 @@ void do_versions_after_linking_280(Main *bmain, ReportList *UNUSED(reports))
     LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
       BKE_fcurves_id_cb(&ob->id, do_version_fcurve_hide_viewport_fix, NULL);
     }
+
+    /* Reset all grease pencil brushes. */
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      BKE_brush_gpencil_paint_presets(bmain, scene->toolsettings);
+      BKE_brush_gpencil_sculpt_presets(bmain, scene->toolsettings);
+      BKE_brush_gpencil_weight_presets(bmain, scene->toolsettings);
+      BKE_brush_gpencil_vertex_presets(bmain, scene->toolsettings);
+
+      /* Ensure new Paint modes. */
+      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_VERTEX_GPENCIL);
+      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_SCULPT_GPENCIL);
+      BKE_paint_ensure_from_paintmode(scene, PAINT_MODE_WEIGHT_GPENCIL);
+    }
   }
 
   /**
@@ -4515,10 +4528,12 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       ColorManagedViewSettings *view_settings;
       view_settings = &scene->view_settings;
       if (BLI_str_startswith(view_settings->look, "Filmic - ")) {
-        STRNCPY(view_settings->look, view_settings->look + strlen("Filmic - "));
+        char *src = view_settings->look + strlen("Filmic - ");
+        memmove(view_settings->look, src, strlen(src) + 1);
       }
       else if (BLI_str_startswith(view_settings->look, "Standard - ")) {
-        STRNCPY(view_settings->look, view_settings->look + strlen("Standard - "));
+        char *src = view_settings->look + strlen("Standard - ");
+        memmove(view_settings->look, src, strlen(src) + 1);
       }
     }
 

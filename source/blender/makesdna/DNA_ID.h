@@ -135,7 +135,10 @@ typedef struct IDOverrideLibraryPropertyOperation {
   /* Type of override. */
   short operation;
   short flag;
-  char _pad0[4];
+
+  /** Runtime, tags are common to both IDOverrideProperty and IDOverridePropertyOperation. */
+  short tag;
+  char _pad0[2];
 
   /* Sub-item references, if needed (for arrays or collections only).
    * We need both reference and local values to allow e.g. insertion into collections
@@ -189,7 +192,17 @@ typedef struct IDOverrideLibraryProperty {
 
   /** List of overriding operations (IDOverridePropertyOperation) applied to this property. */
   ListBase operations;
+
+  /** Runtime, tags are common to both IDOverrideProperty and IDOverridePropertyOperation. */
+  short tag;
+  char _pad0[6];
 } IDOverrideLibraryProperty;
+
+/* IDOverrideProperty->tag and IDOverridePropertyOperation->tag. */
+enum {
+  /** This override property (operation) is unused and should be removed by cleanup process. */
+  IDOVERRIDE_LIBRARY_TAG_UNUSED = 1 << 0,
+};
 
 /* We do not need a full struct for that currently, just a GHash. */
 typedef struct GHash IDOverrideLibraryRuntime;
@@ -539,9 +552,9 @@ enum {
   /* RESET_NEVER tag data-block as needing an auto-override execution, if enabled. */
   LIB_TAG_OVERRIDE_LIBRARY_AUTOREFRESH = 1 << 17,
 
-  /* tag data-block has having an extra user. */
+  /* tag data-block as having an extra user. */
   LIB_TAG_EXTRAUSER = 1 << 2,
-  /* tag data-block has having actually increased usercount for the extra virtual user. */
+  /* tag data-block as having actually increased usercount for the extra virtual user. */
   LIB_TAG_EXTRAUSER_SET = 1 << 7,
 
   /* RESET_AFTER_USE tag newly duplicated/copied IDs.

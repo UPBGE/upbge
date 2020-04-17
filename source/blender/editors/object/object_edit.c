@@ -106,6 +106,8 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
+#include "CLG_log.h"
+
 /* for menu/popup icons etc etc*/
 
 #include "UI_interface.h"
@@ -117,6 +119,8 @@
 #include "WM_types.h"
 
 #include "object_intern.h"  // own include
+
+static CLG_LogRef LOG = {"ed.object.edit"};
 
 /* prototypes */
 typedef struct MoveToCollectionData MoveToCollectionData;
@@ -138,6 +142,10 @@ static void error_libdata(void)
 {
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Internal Utilities
+ * \{ */
+
 Object *ED_object_context(bContext *C)
 {
   return CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
@@ -157,7 +165,11 @@ Object *ED_object_active_context(bContext *C)
   return ob;
 }
 
-/* ********************** object hiding *************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Hide Operator
+ * \{ */
 
 static bool object_hide_poll(bContext *C)
 {
@@ -411,7 +423,11 @@ void OBJECT_OT_hide_collection(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
-/* ******************* toggle editmode operator  ***************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Toggle Edit-Mode Operator
+ * \{ */
 
 static bool mesh_needs_keyindex(Main *bmain, const Mesh *me)
 {
@@ -451,7 +467,11 @@ static bool ED_object_editmode_load_ex(Main *bmain, Object *obedit, const bool f
     }
 
     if (me->edit_mesh->bm->totvert > MESH_MAX_VERTS) {
-      error("Too many vertices");
+      /* This used to be warned int the UI, we could warn again although it's quite rare. */
+      CLOG_WARN(&LOG,
+                "Too many vertices for mesh '%s' (%d)",
+                me->id.name + 2,
+                me->edit_mesh->bm->totvert);
       return false;
     }
 
@@ -610,7 +630,8 @@ bool ED_object_editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag
   }
 
   if (BKE_object_obdata_is_libdata(ob)) {
-    error_libdata();
+    /* Ideally the caller should check this. */
+    CLOG_WARN(&LOG, "Unable to enter edit-mode on library data for object '%s'", ob->id.name + 2);
     return false;
   }
 
@@ -787,7 +808,11 @@ void OBJECT_OT_editmode_toggle(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* *************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Toggle Pose-Mode Operator
+ * \{ */
 
 static int posemode_exec(bContext *C, wmOperator *op)
 {
@@ -1321,7 +1346,11 @@ static void UNUSED_FUNCTION(copy_attr_menu)(
   copy_attr(bmain, scene, view_layer, v3d, event);
 }
 
-/* ******************* force field toggle operator ***************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Force Field Toggle Operator
+ * \{ */
 
 void ED_object_check_force_modifiers(Main *bmain, Scene *scene, Object *object)
 {
@@ -1384,8 +1413,11 @@ void OBJECT_OT_forcefield_toggle(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* ********************************************** */
-/* Motion Paths */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Calculate Motion Paths Operator
+ * \{ */
 
 static eAnimvizCalcRange object_path_convert_range(eObjectPathCalcRange range)
 {
@@ -1479,7 +1511,7 @@ static int object_calculate_paths_invoke(bContext *C, wmOperator *op, const wmEv
   }
 
   /* show popup dialog to allow editing of range... */
-  /* FIXME: hardcoded dimensions here are just arbitrary */
+  /* FIXME: hard-coded dimensions here are just arbitrary. */
   return WM_operator_props_dialog_popup(C, op, 200);
 }
 
@@ -1548,7 +1580,11 @@ void OBJECT_OT_paths_calculate(wmOperatorType *ot)
               MAXFRAME / 2.0);
 }
 
-/* --------- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Update Motion Paths Operator
+ * \{ */
 
 static bool object_update_paths_poll(bContext *C)
 {
@@ -1592,7 +1628,11 @@ void OBJECT_OT_paths_update(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* --------- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Clear Motion Paths Operator
+ * \{ */
 
 /* Helper for ED_objects_clear_paths() */
 static void object_clear_mpath(Object *ob)
@@ -1611,14 +1651,14 @@ static void object_clear_mpath(Object *ob)
 void ED_objects_clear_paths(bContext *C, bool only_selected)
 {
   if (only_selected) {
-    /* loop over all selected + sedtiable objects in scene */
+    /* Loop over all selected + editable objects in scene. */
     CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
       object_clear_mpath(ob);
     }
     CTX_DATA_END;
   }
   else {
-    /* loop over all edtiable objects in scene */
+    /* Loop over all editable objects in scene. */
     CTX_DATA_BEGIN (C, Object *, ob, editable_objects) {
       object_clear_mpath(ob);
     }
@@ -1670,13 +1710,17 @@ void OBJECT_OT_paths_clear(wmOperatorType *ot)
   RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
 }
 
-/* --------- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Update Motion Paths Range from Scene Operator
+ * \{ */
 
 static int object_update_paths_range_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Scene *scene = CTX_data_scene(C);
 
-  /* loop over all edtiable objects in scene */
+  /* Loop over all editable objects in scene. */
   CTX_DATA_BEGIN (C, Object *, ob, editable_objects) {
     /* use Preview Range or Full Frame Range - whichever is in use */
     ob->avs.path_sf = PSFRA;
@@ -1706,63 +1750,99 @@ void OBJECT_OT_paths_range_update(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/********************** Smooth/Flat *********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Shade Smooth/Flat Operator
+ * \{ */
 
 static int shade_smooth_exec(bContext *C, wmOperator *op)
 {
-  ID *data;
-  Curve *cu;
-  Nurb *nu;
-  int clear = (STREQ(op->idname, "OBJECT_OT_shade_flat"));
-  bool done = false, linked_data = false;
+  const bool use_smooth = STREQ(op->idname, "OBJECT_OT_shade_smooth");
+  bool changed_multi = false;
+  bool has_linked_data = false;
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    data = ob->data;
+  ListBase ctx_objects = {NULL, NULL};
+  CollectionPointerLink ctx_ob_single_active = {NULL};
+
+  /* For modes that only use an active object, don't handle the whole selection. */
+  {
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    Object *obact = OBACT(view_layer);
+    if (obact && ((obact->mode & OB_MODE_ALL_PAINT))) {
+      ctx_ob_single_active.ptr.data = obact;
+      BLI_addtail(&ctx_objects, &ctx_ob_single_active);
+    }
+  }
+
+  if (ctx_objects.first != &ctx_ob_single_active) {
+    CTX_data_selected_editable_objects(C, &ctx_objects);
+  }
+
+  for (CollectionPointerLink *ctx_ob = ctx_objects.first; ctx_ob; ctx_ob = ctx_ob->next) {
+    Object *ob = ctx_ob->ptr.data;
+    ID *data = ob->data;
+    if (data != NULL) {
+      data->tag |= LIB_TAG_DOIT;
+    }
+  }
+
+  for (CollectionPointerLink *ctx_ob = ctx_objects.first; ctx_ob; ctx_ob = ctx_ob->next) {
+    /* Always un-tag all object data-blocks irrespective of our ability to operate on them. */
+    Object *ob = ctx_ob->ptr.data;
+    ID *data = ob->data;
+    if ((data == NULL) || ((data->tag & LIB_TAG_DOIT) == 0)) {
+      continue;
+    }
+    data->tag &= ~LIB_TAG_DOIT;
+    /* Finished un-tagging, continue with regular logic. */
 
     if (data && ID_IS_LINKED(data)) {
-      linked_data = true;
+      has_linked_data = true;
       continue;
     }
 
+    bool changed = false;
     if (ob->type == OB_MESH) {
-      BKE_mesh_smooth_flag_set(ob->data, !clear);
-
+      BKE_mesh_smooth_flag_set(ob->data, use_smooth);
       BKE_mesh_batch_cache_dirty_tag(ob->data, BKE_MESH_BATCH_DIRTY_ALL);
-      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
-
-      done = true;
+      changed = true;
     }
     else if (ELEM(ob->type, OB_SURF, OB_CURVE)) {
-      cu = ob->data;
+      BKE_curve_smooth_flag_set(ob->data, use_smooth);
+      changed = true;
+    }
 
-      for (nu = cu->nurb.first; nu; nu = nu->next) {
-        if (!clear) {
-          nu->flag |= ME_SMOOTH;
-        }
-        else {
-          nu->flag &= ~ME_SMOOTH;
-        }
-      }
+    if (changed) {
+      changed_multi = true;
 
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
-
-      done = true;
     }
   }
-  CTX_DATA_END;
 
-  if (linked_data) {
+  if (ctx_objects.first != &ctx_ob_single_active) {
+    BLI_freelistN(&ctx_objects);
+  }
+
+  if (has_linked_data) {
     BKE_report(op->reports, RPT_WARNING, "Can't edit linked mesh or curve data");
   }
 
-  return (done) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+  return (changed_multi) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 static bool shade_poll(bContext *C)
 {
-  return (CTX_data_edit_object(C) == NULL);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *obact = OBACT(view_layer);
+  if (obact != NULL) {
+    /* Doesn't handle edit-data, sculpt dynamic-topology, or their undo systems. */
+    if (obact->mode & (OB_MODE_EDIT | OB_MODE_SCULPT)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 void OBJECT_OT_shade_flat(wmOperatorType *ot)
@@ -1795,7 +1875,11 @@ void OBJECT_OT_shade_smooth(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* ********************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Mode Set Operator
+ * \{ */
 
 static const EnumPropertyItem *object_mode_set_itemsf(bContext *C,
                                                       PointerRNA *UNUSED(ptr),
@@ -1975,6 +2059,12 @@ void OBJECT_OT_mode_set_with_submode(wmOperatorType *ot)
       ot->srna, "mesh_select_mode", rna_enum_mesh_select_mode_items, 0, "Mesh Mode", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Link/Move to Collection Operator
+ * \{ */
 
 static ListBase selected_objects_get(bContext *C)
 {
@@ -2721,3 +2811,5 @@ void OBJECT_OT_link_to_collection(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   ot->prop = prop;
 }
+
+/** \} */
