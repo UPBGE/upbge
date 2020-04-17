@@ -103,7 +103,15 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
   BLI_strncpy(prevPathName, G.main->name, sizeof(prevPathName));
 
-  KX_SetOrigPath(std::string(blenderdata->name));
+  /* Without this step, the bmain->name can be ".blend~"
+   * and as I don't understand why and as the bug has been
+   * reported, we ensure the extension is ".blend"
+   * else this is causing issues with globalDict. (youle)
+   */
+  char *blend_name = blenderdata->name;
+  BLI_path_extension_ensure(blend_name, FILE_MAX, ".blend");
+
+  KX_SetOrigPath(std::string(blend_name));
 
 #ifdef WITH_PYTHON
 

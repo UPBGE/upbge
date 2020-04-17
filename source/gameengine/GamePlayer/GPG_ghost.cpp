@@ -1280,8 +1280,18 @@ int main(int argc,
             {
               bfd = load_game_data(BKE_appdir_program_path(), filename[0] ? filename : NULL);
               // The file is valid and it's the original file name.
-              if (bfd)
-                KX_SetOrigPath(bfd->main->name);
+              if (bfd) {
+
+                /* Without this step, the bmain->name can be ".blend~"
+                 * and as I don't understand why and as the bug has been
+                 * reported, we ensure the extension is ".blend"
+                 * else this is causing issues with globalDict. (youle)
+                 */
+                char *blend_name = bfd->main->name;
+                BLI_path_extension_ensure(blend_name, FILE_MAX, ".blend");
+
+                KX_SetOrigPath(blend_name);
+              }
             }
           }
 
