@@ -44,6 +44,7 @@
 #include "BKE_object.h"
 #include "BLI_math.h"
 #include "BLI_task.h"
+#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_mesh_types.h"
@@ -113,6 +114,15 @@
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
 #endif
+
+// Task data for convertBlenderCollection in a different thread.
+struct ConvertBlenderCollectionTaskData {
+  Collection *co;
+  KX_KetsjiEngine *engine;
+  e_PhysicsEngine physics_engine;
+  KX_Scene *scene;
+  BL_BlenderSceneConverter *converter;
+};
 
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
@@ -830,30 +840,57 @@ void KX_Scene::ConvertBlenderObject(Object *ob)
 
 }
 
-void KX_Scene::ConvertBlenderCollection(Collection *co)
+void convert_blender_collection_thread_func(TaskPool *__restrict UNUSED(pool),
+                                 void *taskdata,
+                                 int UNUSED(threadid))
 {
-  KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  e_PhysicsEngine physics_engine = UseBullet;
-  RAS_Rasterizer *rasty = engine->GetRasterizer();
-  RAS_ICanvas *canvas = engine->GetCanvas();
-  bContext *C = engine->GetContext();
+  ConvertBlenderCollectionTaskData *task = static_cast<ConvertBlenderCollectionTaskData *>(taskdata);
+
+  RAS_Rasterizer *rasty = task->engine->GetRasterizer();
+  RAS_ICanvas *canvas = task->engine->GetCanvas();
+  bContext *C = task->engine->GetContext();
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   Main *bmain = CTX_data_main(C);
 
-  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (co, obj) {
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (task->co, obj) {
     BL_ConvertBlenderObjects(bmain,
                              depsgraph,
-                             this,
-                             engine,
-                             physics_engine,
+                             task->scene,
+                             task->engine,
+                             task->physics_engine,
                              rasty,
                              canvas,
-                             m_sceneConverter,
+                             task->converter,
                              obj,
                              false,
                              false);
   }
   FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+}
+
+void KX_Scene::ConvertBlenderCollection(Collection *co)
+{
+  TaskPool *taskpool = BLI_task_pool_create(BLI_task_scheduler_get(), nullptr, TASK_PRIORITY_LOW);
+
+  /* Convert the Blender collection in a different thread, so that the
+   * game engine can keep running at full speed. */
+  ConvertBlenderCollectionTaskData *task = (ConvertBlenderCollectionTaskData *)MEM_mallocN(sizeof(ConvertBlenderCollectionTaskData),
+                                                               "convertblendercollection-data");
+
+  task->engine = KX_GetActiveEngine();
+  task->physics_engine = UseBullet;
+  task->co = co;
+  task->scene = this;
+  task->converter = m_sceneConverter;
+
+  BLI_task_pool_push(taskpool,
+                     convert_blender_collection_thread_func,
+                     task,
+                     true,  // free task data
+                     NULL);
+  BLI_task_pool_work_and_wait(taskpool);
+  BLI_task_pool_free(taskpool);
+  taskpool = nullptr;
 }
 /******************End of EEVEE INTEGRATION****************************/
 
