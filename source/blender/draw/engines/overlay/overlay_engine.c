@@ -69,6 +69,7 @@ static void OVERLAY_engine_init(void *vedata)
     pd->overlay.flag = V3D_OVERLAY_HIDE_TEXT | V3D_OVERLAY_HIDE_MOTION_PATHS |
                        V3D_OVERLAY_HIDE_BONES | V3D_OVERLAY_HIDE_OBJECT_XTRAS |
                        V3D_OVERLAY_HIDE_OBJECT_ORIGINS;
+    pd->overlay.wireframe_threshold = v3d->overlay.wireframe_threshold;
   }
 
   if (v3d->shading.type == OB_WIRE) {
@@ -495,7 +496,7 @@ static void OVERLAY_draw_scene(void *vedata)
   OVERLAY_motion_path_draw(vedata);
   OVERLAY_extra_centers_draw(vedata);
 
-  if (DRW_state_is_select()) {
+  if (DRW_state_is_select() || DRW_state_is_depth()) {
     /* Edit modes have their own selection code. */
     return;
   }

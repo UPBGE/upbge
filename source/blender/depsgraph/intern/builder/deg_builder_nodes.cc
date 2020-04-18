@@ -506,8 +506,7 @@ void DepsgraphNodeBuilder::build_collection(LayerCollection *from_layer_collecti
     }
     else if (from_layer_collection == nullptr && !id_node->is_collection_fully_expanded) {
       /* Initially collection was built from layer now, and was requested
-       * to not recurs into object. But nw it's asked to recurs into all
-       * objects. */
+       * to not recurs into object. But now it's asked to recurs into all objects. */
     }
     else {
       return;
@@ -1736,7 +1735,14 @@ void DepsgraphNodeBuilder::build_scene_audio(Scene *scene)
   if (built_map_.checkIsBuiltAndTag(scene, BuilderMap::TAG_SCENE_AUDIO)) {
     return;
   }
+
   add_operation_node(&scene->id, NodeType::AUDIO, OperationCode::SOUND_EVAL);
+
+  Scene *scene_cow = get_cow_datablock(scene);
+  add_operation_node(&scene->id,
+                     NodeType::AUDIO,
+                     OperationCode::AUDIO_VOLUME,
+                     function_bind(BKE_scene_update_tag_audio_volume, _1, scene_cow));
 }
 
 void DepsgraphNodeBuilder::build_scene_speakers(Scene * /*scene*/, ViewLayer *view_layer)

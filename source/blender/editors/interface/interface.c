@@ -724,6 +724,26 @@ static void ui_draw_links(uiBlock *block)
 
 /* ************** BLOCK ENDING FUNCTION ************* */
 
+bool ui_but_rna_equals(const uiBut *a, const uiBut *b)
+{
+  return ui_but_rna_equals_ex(a, &b->rnapoin, b->rnaprop, b->rnaindex);
+}
+
+bool ui_but_rna_equals_ex(const uiBut *but,
+                          const PointerRNA *ptr,
+                          const PropertyRNA *prop,
+                          int index)
+{
+  if (but->rnapoin.data != ptr->data) {
+    return false;
+  }
+  if (but->rnaprop != prop || but->rnaindex != index) {
+    return false;
+  }
+
+  return true;
+}
+
 /* NOTE: if but->poin is allocated memory for every defbut, things fail... */
 static bool ui_but_equals_old(const uiBut *but, const uiBut *oldbut)
 {
@@ -732,10 +752,7 @@ static bool ui_but_equals_old(const uiBut *but, const uiBut *oldbut)
   if (but->retval != oldbut->retval) {
     return false;
   }
-  if (but->rnapoin.data != oldbut->rnapoin.data) {
-    return false;
-  }
-  if (but->rnaprop != oldbut->rnaprop || but->rnaindex != oldbut->rnaindex) {
+  if (!ui_but_rna_equals(but, oldbut)) {
     return false;
   }
   if (but->func != oldbut->func) {
@@ -1099,7 +1116,9 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
                 UI_BTYPE_BUT_MENU,
                 UI_BTYPE_MENU,
                 UI_BTYPE_BLOCK,
-                UI_BTYPE_PULLDOWN) ||
+                UI_BTYPE_PULLDOWN,
+                /* For PIE-menus. */
+                UI_BTYPE_ROW) ||
           (but->flag & UI_HIDDEN)) {
         /* pass */
       }
