@@ -98,6 +98,8 @@ void wm_window_ghostwindow_blenderplayer_ensure(struct wmWindowManager *wm,
                                                 struct wmWindow *win,
                                                 void *ghostwin,
                                                 bool first_time_window);
+
+void wm_window_ghostwindow_embedded_ensure(struct wmWindowManager *wm, struct wmWindow *win);
 /* End of Game engine transition */
 
 #ifdef __cplusplus

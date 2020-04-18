@@ -2534,5 +2534,13 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   /* standard state vars for window */
   GPU_state_init();
 }
+
+void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
+{
+  wm_window_clear_drawable(wm);
+  GPU_exit();
+  GPU_init();
+  wm_window_set_drawable(wm, win, true);
+}
 /* End of Game engine transition */
 /** \} */

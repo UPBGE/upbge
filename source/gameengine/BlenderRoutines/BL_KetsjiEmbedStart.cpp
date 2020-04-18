@@ -224,6 +224,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         win->gpuctx = gpuctx_backup;
         wm->message_bus = (wmMsgBus *)msgbus_backup;
         InitBlenderContextVariables(C, wm, bfd->curscene);
+        wm_window_ghostwindow_embedded_ensure(wm, win);
         WM_check(C);
 
         if (blenderdata) {
