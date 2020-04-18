@@ -326,7 +326,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   Object *GetLastReplicatedParentObject();
   void ResetLastReplicatedParentObject();
   Object *GetGameDefaultCamera();
-  void InitBlenderContextVariables();
+  void BackupShadingType();
   void AddOverlayCollection(KX_Camera *overlay_cam, struct Collection *collection);
   void RemoveOverlayCollection(struct Collection *collection);
   void SetCurrentGPUViewport(struct GPUViewport *viewport);

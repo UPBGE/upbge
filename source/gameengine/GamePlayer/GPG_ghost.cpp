@@ -93,6 +93,7 @@
 #include "DNA_genfile.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 #include "GHOST_ISystem.h"
 #include "GPU_draw.h"
 #include "GPU_init_exit.h"
@@ -670,6 +671,36 @@ static void wm_free_reports(bContext *C)
 static void callback_clg_fatal(void *fp)
 {
   BLI_system_backtrace((FILE *)fp);
+}
+
+static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene *scene)
+{
+  ARegion *ar;
+  wmWindow *win;
+  for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
+    bScreen *screen = WM_window_get_active_screen(win);
+    if (!screen) {
+      continue;
+    }
+    CTX_wm_screen_set(C, screen);
+
+    for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
+      if (sa->spacetype == SPACE_VIEW3D) {
+        ListBase *regionbase = &sa->regionbase;
+        for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
+          if (ar->regiontype == RGN_TYPE_WINDOW) {
+            if (ar->regiondata) {
+              CTX_wm_area_set(C, sa);
+              CTX_wm_region_set(C, ar);
+              CTX_data_scene_set(C, scene);
+              win->scene = scene;
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 int main(int argc,
@@ -1484,6 +1515,7 @@ int main(int argc,
             wmWindow *win = (wmWindow *)wm->windows.first;
             CTX_wm_manager_set(C, wm);
             CTX_wm_window_set(C, win);
+            InitBlenderContextVariables(C, wm, bfd->curscene);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
             first_time_window = false;
 
