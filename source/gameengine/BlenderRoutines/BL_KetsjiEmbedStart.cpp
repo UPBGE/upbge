@@ -336,7 +336,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     win_backup->ghostwin = ghostwin_backup;
     win_backup->gpuctx = gpuctx_backup;
     wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
-    InitBlenderContextVariables(C, wm_backup, bfd->curscene);
+    InitBlenderContextVariables(C, wm_backup, startscene);
+    wm_window_ghostwindow_embedded_ensure(wm_backup, win_backup);
     WM_check(C);
   }
 

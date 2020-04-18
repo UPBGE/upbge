@@ -2535,11 +2535,15 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   GPU_state_init();
 }
 
+#include "DRW_engine.h"
+
 void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
 {
   wm_window_clear_drawable(wm);
+  DRW_opengl_context_enable_ex(false);
   GPU_exit();
   GPU_init();
+  DRW_opengl_context_disable_ex(false);
   wm_window_set_drawable(wm, win, true);
 }
 /* End of Game engine transition */
