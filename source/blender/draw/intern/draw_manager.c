@@ -2998,6 +2998,11 @@ void DRW_game_render_loop(bContext *C,
   }
   else {
     DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
+      Object *orig_ob = DEG_get_original_object(ob);
+      /* Don't render objects in overlay collections in main pass */
+      if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
+        continue;
+      }
       drw_engines_cache_populate(ob);
     }
     DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
