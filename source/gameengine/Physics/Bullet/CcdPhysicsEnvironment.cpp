@@ -2210,6 +2210,8 @@ PHY_IPhysicsController *CcdPhysicsEnvironment::CreateSphereController(float radi
 	// we will add later the possibility to select the filter from option
 	cinfo.m_collisionFilterMask = CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::SensorFilter;
 	cinfo.m_collisionFilterGroup = CcdConstructionInfo::SensorFilter;
+	cinfo.m_collisionGroup = 0xFFFF;
+	cinfo.m_collisionMask = 0xFFFF;
 	cinfo.m_bSensor = true;
 	motionState->m_worldTransform.setIdentity();
 	motionState->m_worldTransform.setOrigin(ToBullet(position));
