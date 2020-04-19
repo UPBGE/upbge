@@ -2,7 +2,7 @@
 	path = release/scripts/addons
 	url = https://github.com/UPBGE/blender-addons.git
 	ignore = all
-	branch = blender2.7
+        branch = upbge0.2.4
 [submodule "release/scripts/addons_contrib"]
 	path = release/scripts/addons_contrib
 	url = git://git.blender.org/blender-addons-contrib.git
