@@ -416,10 +416,6 @@ void KX_Scene::ResetLastReplicatedParentObject()
 /*******************EEVEE INTEGRATION******************/
 void KX_Scene::BackupShadingType()
 {
-  ARegion *ar;
-  /* Warning here: The bContext is not updated with the right bmain
-   * in embedded if we restart scene/load new .blend.
-   */
   bContext *C = KX_GetActiveEngine()->GetContext();
 
   Scene *scene = GetBlenderScene();
