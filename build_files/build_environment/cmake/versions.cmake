@@ -151,7 +151,7 @@ set(PYTHON_HASH eb8c2a6b1447d50813c02714af4681f3)
 
 set(TBB_VERSION 2018_U5)
 set(TBB_URI https://github.com/01org/tbb/archive/${TBB_VERSION}.tar.gz)
-set(TBB_HASH ff3ae09f8c23892fbc3008c39f78288f)
+set(TBB_HASH d180f4b025ff8432a447dd2f917cb3f6)
 
 set(OPENVDB_VERSION 5.1.0)
 set(OPENVDB_URI https://github.com/dreamworksanimation/openvdb/archive/v${OPENVDB_VERSION}.tar.gz)
