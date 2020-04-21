@@ -1387,7 +1387,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
                 if md.mask_tex_mapping == 'OBJECT':
                     layout.prop(md, "mask_tex_map_object", text="Object")
-                    obj = md.mask_text_map_object
+                    obj = md.mask_tex_map_object
                     if obj and obj.type == 'ARMATURE':
                         layout.prop_search(md, "mask_tex_map_bone", obj.data, "bones", text="Bone")
                 elif md.mask_tex_mapping == 'UV' and ob.type == 'MESH':
@@ -1975,6 +1975,27 @@ class DATA_PT_gpencil_modifiers(ModifierButtonsPanel, Panel):
             col.prop(md, "thickness_factor")
 
         self.gpencil_masking(layout, ob, md, True, True)
+
+    def GP_TEXTURE(self, layout, ob, md):
+        col = layout.column()
+
+        col.prop(md, "mode")
+        if md.mode in {'STROKE', 'STROKE_AND_FILL'}:
+            col.label(text="Stroke Texture Control:")
+            col.prop(md, "fit_method")
+            col.prop(md, "uv_offset")
+            col.prop(md, "uv_scale")
+
+        if md.mode == 'STROKE_AND_FILL':
+            col.separator()
+
+        if md.mode in {'FILL', 'STROKE_AND_FILL'}:
+            col.label(text="Fill Texture Control:")
+            col.prop(md, "fill_rotation", text="Rotation")
+            col.prop(md, "fill_offset", text="Location")
+            col.prop(md, "fill_scale", text="Scale")
+
+        self.gpencil_masking(layout, ob, md, True)
 
     def GP_TINT(self, layout, ob, md):
         layout.row().prop(md, "tint_type", expand=True)

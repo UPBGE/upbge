@@ -30,6 +30,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_lib_id.h"
 #include "BKE_node.h"
 
 #include "RNA_access.h"
@@ -259,6 +260,22 @@ void node_socket_init_default_value(bNodeSocket *sock)
       sock->default_value = dval;
       break;
     }
+    case SOCK_OBJECT: {
+      bNodeSocketValueObject *dval = MEM_callocN(sizeof(bNodeSocketValueObject),
+                                                 "node socket value object");
+      dval->value = NULL;
+
+      sock->default_value = dval;
+      break;
+    }
+    case SOCK_IMAGE: {
+      bNodeSocketValueImage *dval = MEM_callocN(sizeof(bNodeSocketValueImage),
+                                                "node socket value image");
+      dval->value = NULL;
+
+      sock->default_value = dval;
+      break;
+    }
   }
 }
 
@@ -315,6 +332,20 @@ void node_socket_copy_default_value(bNodeSocket *to, const bNodeSocket *from)
       bNodeSocketValueString *toval = to->default_value;
       bNodeSocketValueString *fromval = from->default_value;
       *toval = *fromval;
+      break;
+    }
+    case SOCK_OBJECT: {
+      bNodeSocketValueObject *toval = to->default_value;
+      bNodeSocketValueObject *fromval = from->default_value;
+      *toval = *fromval;
+      id_us_plus(&toval->value->id);
+      break;
+    }
+    case SOCK_IMAGE: {
+      bNodeSocketValueImage *toval = to->default_value;
+      bNodeSocketValueImage *fromval = from->default_value;
+      *toval = *fromval;
+      id_us_plus(&toval->value->id);
       break;
     }
   }
@@ -467,6 +498,19 @@ static bNodeSocketType *make_socket_type_virtual(void)
   return stype;
 }
 
+static bNodeSocketType *make_socket_type_effector(int type)
+{
+  bNodeSocketType *stype = make_standard_socket_type(type, PROP_NONE);
+  stype->input_link_limit = 0xFFF;
+  return stype;
+}
+
+static bNodeSocketType *make_socket_type_control_flow(int type)
+{
+  bNodeSocketType *stype = make_standard_socket_type(type, PROP_NONE);
+  return stype;
+}
+
 void register_standard_node_socket_types(void)
 {
   /* draw callbacks are set in drawnode.c to avoid bad-level calls */
@@ -498,6 +542,16 @@ void register_standard_node_socket_types(void)
   nodeRegisterSocketType(make_standard_socket_type(SOCK_STRING, PROP_NONE));
 
   nodeRegisterSocketType(make_standard_socket_type(SOCK_SHADER, PROP_NONE));
+
+  nodeRegisterSocketType(make_standard_socket_type(SOCK_OBJECT, PROP_NONE));
+
+  nodeRegisterSocketType(make_standard_socket_type(SOCK_IMAGE, PROP_NONE));
+
+  nodeRegisterSocketType(make_socket_type_effector(SOCK_EMITTERS));
+  nodeRegisterSocketType(make_socket_type_effector(SOCK_EVENTS));
+  nodeRegisterSocketType(make_socket_type_effector(SOCK_FORCES));
+
+  nodeRegisterSocketType(make_socket_type_control_flow(SOCK_CONTROL_FLOW));
 
   nodeRegisterSocketType(make_socket_type_virtual());
 }

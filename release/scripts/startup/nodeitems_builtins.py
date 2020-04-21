@@ -58,6 +58,13 @@ class TextureNodeCategory(SortedNodeCategory):
                 context.space_data.tree_type == 'TextureNodeTree')
 
 
+class SimulationNodeCategory(SortedNodeCategory):
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.type == 'NODE_EDITOR' and
+                context.space_data.tree_type == 'SimulationNodeTree')
+
+
 # menu entry for node group tools
 def group_tools_draw(self, layout, context):
     layout.operator("node.group_make")
@@ -70,6 +77,7 @@ node_tree_group_type = {
     'CompositorNodeTree': 'CompositorNodeGroup',
     'ShaderNodeTree': 'ShaderNodeGroup',
     'TextureNodeTree': 'TextureNodeGroup',
+    'SimulationNodeTree': 'SimulationNodeGroup',
 }
 
 
@@ -467,17 +475,79 @@ texture_node_categories = [
     ]),
 ]
 
+simulation_node_categories = [
+    # Simulation Nodes
+    SimulationNodeCategory("SIM_OUTPUT", "Output", items=[
+        NodeItem("SimulationNodeParticleSimulation"),
+    ]),
+    SimulationNodeCategory("SIM_INPUTS", "Input", items=[
+        NodeItem("SimulationNodeTime"),
+        NodeItem("SimulationNodeParticleAttribute"),
+    ]),
+    SimulationNodeCategory("SIM_EMITTERS", "Emitters", items=[
+        NodeItem("SimulationNodeParticleMeshEmitter"),
+        NodeItem("SimulationNodeEmitParticles"),
+    ]),
+    SimulationNodeCategory("SIM_EVENTS", "Events", items=[
+        NodeItem("SimulationNodeParticleBirthEvent"),
+        NodeItem("SimulationNodeParticleTimeStepEvent"),
+        NodeItem("SimulationNodeParticleMeshCollisionEvent"),
+    ]),
+    SimulationNodeCategory("SIM_FORCES", "Forces", items=[
+        NodeItem("SimulationNodeForce"),
+    ]),
+    SimulationNodeCategory("SIM_EXECUTE", "Execute", items=[
+        NodeItem("SimulationNodeSetParticleAttribute"),
+        NodeItem("SimulationNodeExecuteCondition"),
+        NodeItem("SimulationNodeMultiExecute"),
+    ]),
+    SimulationNodeCategory("SIM_NOISE", "Noise", items=[
+        NodeItem("ShaderNodeTexNoise"),
+        NodeItem("ShaderNodeTexWhiteNoise"),
+    ]),
+    SimulationNodeCategory("SIM_COLOR", "Color", items=[
+        NodeItem("ShaderNodeMixRGB"),
+        NodeItem("ShaderNodeInvert"),
+        NodeItem("ShaderNodeHueSaturation"),
+        NodeItem("ShaderNodeGamma"),
+        NodeItem("ShaderNodeBrightContrast"),
+    ]),
+    SimulationNodeCategory("SIM_CONVERTER", "Converter", items=[
+        NodeItem("ShaderNodeMapRange"),
+        NodeItem("ShaderNodeClamp"),
+        NodeItem("ShaderNodeMath"),
+        NodeItem("ShaderNodeValToRGB"),
+        NodeItem("ShaderNodeVectorMath"),
+        NodeItem("ShaderNodeSeparateRGB"),
+        NodeItem("ShaderNodeCombineRGB"),
+        NodeItem("ShaderNodeSeparateXYZ"),
+        NodeItem("ShaderNodeCombineXYZ"),
+        NodeItem("ShaderNodeSeparateHSV"),
+        NodeItem("ShaderNodeCombineHSV"),
+        NodeItem("FunctionNodeBooleanMath"),
+        NodeItem("FunctionNodeFloatCompare"),
+        NodeItem("FunctionNodeSwitch"),
+    ]),
+    SimulationNodeCategory("SIM_GROUP", "Group", items=node_group_items),
+    SimulationNodeCategory("SIM_LAYOUT", "Layout", items=[
+        NodeItem("NodeFrame"),
+        NodeItem("NodeReroute"),
+    ]),
+]
+
 
 def register():
     nodeitems_utils.register_node_categories('SHADER', shader_node_categories)
     nodeitems_utils.register_node_categories('COMPOSITING', compositor_node_categories)
     nodeitems_utils.register_node_categories('TEXTURE', texture_node_categories)
+    nodeitems_utils.register_node_categories('SIMULATION', simulation_node_categories)
 
 
 def unregister():
     nodeitems_utils.unregister_node_categories('SHADER')
     nodeitems_utils.unregister_node_categories('COMPOSITING')
     nodeitems_utils.unregister_node_categories('TEXTURE')
+    nodeitems_utils.unregister_node_categories('SIMULATION')
 
 
 if __name__ == "__main__":

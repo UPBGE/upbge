@@ -37,6 +37,7 @@
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_simulation_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 
@@ -66,7 +67,9 @@
 
 #include "NOD_common.h"
 #include "NOD_composite.h"
+#include "NOD_function.h"
 #include "NOD_shader.h"
+#include "NOD_simulation.h"
 #include "NOD_socket.h"
 #include "NOD_texture.h"
 
@@ -86,7 +89,9 @@ static void ntree_set_typeinfo(bNodeTree *ntree, bNodeTreeType *typeinfo);
 static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src, const int flag);
 static void free_localized_node_groups(bNodeTree *ntree);
 static void node_free_node(bNodeTree *ntree, bNode *node);
-static void node_socket_interface_free(bNodeTree *UNUSED(ntree), bNodeSocket *sock);
+static void node_socket_interface_free(bNodeTree *UNUSED(ntree),
+                                       bNodeSocket *sock,
+                                       const bool do_id_user);
 
 static void ntree_init_data(ID *id)
 {
@@ -229,12 +234,12 @@ static void ntree_free_data(ID *id)
   /* free interface sockets */
   for (sock = ntree->inputs.first; sock; sock = nextsock) {
     nextsock = sock->next;
-    node_socket_interface_free(ntree, sock);
+    node_socket_interface_free(ntree, sock, false);
     MEM_freeN(sock);
   }
   for (sock = ntree->outputs.first; sock; sock = nextsock) {
     nextsock = sock->next;
-    node_socket_interface_free(ntree, sock);
+    node_socket_interface_free(ntree, sock, false);
     MEM_freeN(sock);
   }
 
@@ -744,6 +749,66 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
   return sock;
 }
 
+static void socket_id_user_increment(bNodeSocket *sock)
+{
+  switch ((eNodeSocketDatatype)sock->type) {
+    case SOCK_OBJECT: {
+      bNodeSocketValueObject *default_value = sock->default_value;
+      id_us_plus(&default_value->value->id);
+      break;
+    }
+    case SOCK_IMAGE: {
+      bNodeSocketValueImage *default_value = sock->default_value;
+      id_us_plus(&default_value->value->id);
+      break;
+    }
+    case SOCK_FLOAT:
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+    case SOCK_BOOLEAN:
+    case SOCK_INT:
+    case SOCK_STRING:
+    case __SOCK_MESH:
+    case SOCK_CUSTOM:
+    case SOCK_SHADER:
+    case SOCK_EMITTERS:
+    case SOCK_EVENTS:
+    case SOCK_FORCES:
+    case SOCK_CONTROL_FLOW:
+      break;
+  }
+}
+
+static void socket_id_user_decrement(bNodeSocket *sock)
+{
+  switch ((eNodeSocketDatatype)sock->type) {
+    case SOCK_OBJECT: {
+      bNodeSocketValueObject *default_value = sock->default_value;
+      id_us_min(&default_value->value->id);
+      break;
+    }
+    case SOCK_IMAGE: {
+      bNodeSocketValueImage *default_value = sock->default_value;
+      id_us_min(&default_value->value->id);
+      break;
+    }
+    case SOCK_FLOAT:
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+    case SOCK_BOOLEAN:
+    case SOCK_INT:
+    case SOCK_STRING:
+    case __SOCK_MESH:
+    case SOCK_CUSTOM:
+    case SOCK_SHADER:
+    case SOCK_EMITTERS:
+    case SOCK_EVENTS:
+    case SOCK_FORCES:
+    case SOCK_CONTROL_FLOW:
+      break;
+  }
+}
+
 void nodeModifySocketType(
     bNodeTree *ntree, bNode *UNUSED(node), bNodeSocket *sock, int type, int subtype)
 {
@@ -755,6 +820,7 @@ void nodeModifySocketType(
   }
 
   if (sock->default_value) {
+    socket_id_user_decrement(sock);
     MEM_freeN(sock->default_value);
     sock->default_value = NULL;
   }
@@ -858,6 +924,18 @@ const char *nodeStaticSocketType(int type, int subtype)
       return "NodeSocketString";
     case SOCK_SHADER:
       return "NodeSocketShader";
+    case SOCK_OBJECT:
+      return "NodeSocketObject";
+    case SOCK_IMAGE:
+      return "NodeSocketImage";
+    case SOCK_EMITTERS:
+      return "NodeSocketEmitters";
+    case SOCK_EVENTS:
+      return "NodeSocketEvents";
+    case SOCK_FORCES:
+      return "NodeSocketForces";
+    case SOCK_CONTROL_FLOW:
+      return "NodeSocketControlFlow";
   }
   return NULL;
 }
@@ -919,6 +997,18 @@ const char *nodeStaticSocketInterfaceType(int type, int subtype)
       return "NodeSocketInterfaceString";
     case SOCK_SHADER:
       return "NodeSocketInterfaceShader";
+    case SOCK_OBJECT:
+      return "NodeSocketInterfaceObject";
+    case SOCK_IMAGE:
+      return "NodeSocketInterfaceImage";
+    case SOCK_EMITTERS:
+      return "NodeSocketInterfaceEmitters";
+    case SOCK_EVENTS:
+      return "NodeSocketInterfaceEvents";
+    case SOCK_FORCES:
+      return "NodeSocketInterfaceForces";
+    case SOCK_CONTROL_FLOW:
+      return "NodeSocketInterfaceControlFlow";
   }
   return NULL;
 }
@@ -977,6 +1067,9 @@ static void node_socket_free(bNodeTree *UNUSED(ntree),
   }
 
   if (sock->default_value) {
+    if (do_id_user) {
+      socket_id_user_decrement(sock);
+    }
     MEM_freeN(sock->default_value);
   }
 }
@@ -1263,6 +1356,10 @@ static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src,
 
   if (sock_src->default_value) {
     sock_dst->default_value = MEM_dupallocN(sock_src->default_value);
+
+    if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+      socket_id_user_increment(sock_dst);
+    }
   }
 
   sock_dst->stack_index = 0;
@@ -2083,6 +2180,13 @@ void nodeRemoveNode(Main *bmain, bNodeTree *ntree, bNode *node, bool do_id_user)
     if (node->id) {
       id_us_min(node->id);
     }
+
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+      socket_id_user_decrement(sock);
+    }
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
+      socket_id_user_decrement(sock);
+    }
   }
 
   /* Remove animation data. */
@@ -2102,13 +2206,18 @@ void nodeRemoveNode(Main *bmain, bNodeTree *ntree, bNode *node, bool do_id_user)
   node_free_node(ntree, node);
 }
 
-static void node_socket_interface_free(bNodeTree *UNUSED(ntree), bNodeSocket *sock)
+static void node_socket_interface_free(bNodeTree *UNUSED(ntree),
+                                       bNodeSocket *sock,
+                                       const bool do_id_user)
 {
   if (sock->prop) {
-    IDP_FreeProperty(sock->prop);
+    IDP_FreeProperty_ex(sock->prop, do_id_user);
   }
 
   if (sock->default_value) {
+    if (do_id_user) {
+      socket_id_user_decrement(sock);
+    }
     MEM_freeN(sock->default_value);
   }
 }
@@ -2143,7 +2252,7 @@ void ntreeFreeTree(bNodeTree *ntree)
   BKE_animdata_free(&ntree->id, false);
 }
 
-void ntreeFreeNestedTree(bNodeTree *ntree)
+void ntreeFreeEmbeddedTree(bNodeTree *ntree)
 {
   ntreeFreeTree(ntree);
   BKE_libblock_free_data(&ntree->id, true);
@@ -2266,6 +2375,8 @@ bNodeTree **BKE_ntree_ptr_from_id(ID *id)
       return &((Scene *)id)->nodetree;
     case ID_LS:
       return &((FreestyleLineStyle *)id)->nodetree;
+    case ID_SIM:
+      return &((Simulation *)id)->nodetree;
     default:
       return NULL;
   }
@@ -2529,7 +2640,7 @@ void ntreeRemoveSocketInterface(bNodeTree *ntree, bNodeSocket *sock)
   BLI_remlink(&ntree->inputs, sock);
   BLI_remlink(&ntree->outputs, sock);
 
-  node_socket_interface_free(ntree, sock);
+  node_socket_interface_free(ntree, sock, true);
   MEM_freeN(sock);
 
   ntree->update |= NTREE_UPDATE_GROUP;
@@ -4114,6 +4225,31 @@ static void registerTextureNodes(void)
   register_node_type_tex_proc_distnoise();
 }
 
+static void registerSimulationNodes(void)
+{
+  register_node_type_sim_group();
+
+  register_node_type_sim_particle_simulation();
+  register_node_type_sim_force();
+  register_node_type_sim_set_particle_attribute();
+  register_node_type_sim_particle_birth_event();
+  register_node_type_sim_particle_time_step_event();
+  register_node_type_sim_execute_condition();
+  register_node_type_sim_multi_execute();
+  register_node_type_sim_particle_mesh_emitter();
+  register_node_type_sim_particle_mesh_collision_event();
+  register_node_type_sim_emit_particles();
+  register_node_type_sim_time();
+  register_node_type_sim_particle_attribute();
+}
+
+static void registerFunctionNodes(void)
+{
+  register_node_type_fn_boolean_math();
+  register_node_type_fn_float_compare();
+  register_node_type_fn_switch();
+}
+
 void init_nodesystem(void)
 {
   nodetreetypes_hash = BLI_ghash_str_new("nodetreetypes_hash gh");
@@ -4127,6 +4263,7 @@ void init_nodesystem(void)
   register_node_tree_type_cmp();
   register_node_tree_type_sh();
   register_node_tree_type_tex();
+  register_node_tree_type_sim();
 
   register_node_type_frame();
   register_node_type_reroute();
@@ -4136,6 +4273,8 @@ void init_nodesystem(void)
   registerCompositNodes();
   registerShaderNodes();
   registerTextureNodes();
+  registerSimulationNodes();
+  registerFunctionNodes();
 }
 
 void free_nodesystem(void)
@@ -4192,6 +4331,7 @@ void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *b
   ntreeiter->light = bmain->lights.first;
   ntreeiter->world = bmain->worlds.first;
   ntreeiter->linestyle = bmain->linestyles.first;
+  ntreeiter->simulation = bmain->simulations.first;
 }
 bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
                              bNodeTree **r_nodetree,
@@ -4231,6 +4371,11 @@ bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
     *r_nodetree = ntreeiter->linestyle->nodetree;
     *r_id = (ID *)ntreeiter->linestyle;
     ntreeiter->linestyle = ntreeiter->linestyle->id.next;
+  }
+  else if (ntreeiter->simulation) {
+    *r_nodetree = ntreeiter->simulation->nodetree;
+    *r_id = (ID *)ntreeiter->simulation;
+    ntreeiter->simulation = ntreeiter->simulation->id.next;
   }
   else {
     return false;
