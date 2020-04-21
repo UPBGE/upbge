@@ -71,7 +71,7 @@ typedef enum TaskPriority {
 
 typedef struct TaskPool TaskPool;
 typedef void (*TaskRunFunction)(TaskPool *__restrict pool, void *taskdata, int threadid);
-typedef void (*TaskFreeFunction)(TaskPool *__restrict pool, void *taskdata, int threadid);
+typedef void (*TaskFreeFunction)(TaskPool *__restrict pool, void *taskdata);
 
 TaskPool *BLI_task_pool_create(TaskScheduler *scheduler, void *userdata, TaskPriority priority);
 TaskPool *BLI_task_pool_create_background(TaskScheduler *scheduler,
@@ -105,7 +105,7 @@ void BLI_task_pool_cancel(TaskPool *pool);
 bool BLI_task_pool_canceled(TaskPool *pool);
 
 /* optional userdata pointer to pass along to run function */
-void *BLI_task_pool_userdata(TaskPool *pool);
+void *BLI_task_pool_user_data(TaskPool *pool);
 
 /* optional mutex to use from run function */
 ThreadMutex *BLI_task_pool_user_mutex(TaskPool *pool);

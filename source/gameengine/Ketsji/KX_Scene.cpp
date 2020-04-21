@@ -1737,7 +1737,7 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
   KX_GameObject *gameobj, *parent;
   CListValue<KX_GameObject> *children;
   bool needs_update;
-  KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData *)BLI_task_pool_userdata(pool);
+  KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData *)BLI_task_pool_user_data(pool);
   double curtime = data->curtime;
 
   gameobj = (KX_GameObject *)taskdata;

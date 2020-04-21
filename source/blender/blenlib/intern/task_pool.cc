@@ -230,11 +230,11 @@ typedef struct TaskThread {
 } TaskThread;
 
 /* Helper */
-BLI_INLINE void task_data_free(Task *task, const int thread_id)
+BLI_INLINE void task_data_free(Task *task, const int UNUSED(thread_id))
 {
   if (task->free_taskdata) {
     if (task->freedata) {
-      task->freedata(task->pool, task->taskdata, thread_id);
+      task->freedata(task->pool, task->taskdata);
     }
     else {
       MEM_freeN(task->taskdata);
@@ -992,7 +992,7 @@ bool BLI_task_pool_canceled(TaskPool *pool)
   return pool->do_cancel;
 }
 
-void *BLI_task_pool_userdata(TaskPool *pool)
+void *BLI_task_pool_user_data(TaskPool *pool)
 {
   return pool->userdata;
 }
