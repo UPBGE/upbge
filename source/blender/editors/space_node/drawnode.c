@@ -69,6 +69,7 @@
 
 #include "NOD_composite.h"
 #include "NOD_shader.h"
+#include "NOD_simulation.h"
 #include "NOD_texture.h"
 #include "node_intern.h" /* own include */
 
@@ -3122,6 +3123,96 @@ static void node_texture_set_butfunc(bNodeType *ntype)
   }
 }
 
+/* ****************** BUTTON CALLBACKS FOR SIMULATION NODES ***************** */
+
+static void node_simulation_buts_particle_simulation(uiLayout *layout,
+                                                     bContext *UNUSED(C),
+                                                     PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "name", 0, "", ICON_NONE);
+}
+
+static void node_simulation_buts_particle_time_step_event(uiLayout *layout,
+                                                          bContext *UNUSED(C),
+                                                          PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "mode", 0, "", ICON_NONE);
+}
+
+static void node_simulation_buts_particle_attribute(uiLayout *layout,
+                                                    bContext *UNUSED(C),
+                                                    PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "data_type", 0, "", ICON_NONE);
+}
+
+static void node_simulation_buts_set_particle_attribute(uiLayout *layout,
+                                                        bContext *UNUSED(C),
+                                                        PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "data_type", 0, "", ICON_NONE);
+}
+
+static void node_simulation_buts_time(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "mode", 0, "", ICON_NONE);
+}
+
+static void node_simulation_set_butfunc(bNodeType *ntype)
+{
+  switch (ntype->type) {
+    case SIM_NODE_PARTICLE_SIMULATION:
+      ntype->draw_buttons = node_simulation_buts_particle_simulation;
+      break;
+    case SIM_NODE_PARTICLE_TIME_STEP_EVENT:
+      ntype->draw_buttons = node_simulation_buts_particle_time_step_event;
+      break;
+    case SIM_NODE_PARTICLE_ATTRIBUTE:
+      ntype->draw_buttons = node_simulation_buts_particle_attribute;
+      break;
+    case SIM_NODE_SET_PARTICLE_ATTRIBUTE:
+      ntype->draw_buttons = node_simulation_buts_set_particle_attribute;
+      break;
+    case SIM_NODE_TIME:
+      ntype->draw_buttons = node_simulation_buts_time;
+      break;
+  }
+}
+
+/* ****************** BUTTON CALLBACKS FOR FUNCTION NODES ***************** */
+
+static void node_function_buts_boolean_math(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "operation", 0, "", ICON_NONE);
+}
+
+static void node_function_buts_float_compare(uiLayout *layout,
+                                             bContext *UNUSED(C),
+                                             PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "operation", 0, "", ICON_NONE);
+}
+
+static void node_function_buts_switch(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "data_type", 0, "", ICON_NONE);
+}
+
+static void node_function_set_butfunc(bNodeType *ntype)
+{
+  switch (ntype->type) {
+    case FN_NODE_BOOLEAN_MATH:
+      ntype->draw_buttons = node_function_buts_boolean_math;
+      break;
+    case FN_NODE_FLOAT_COMPARE:
+      ntype->draw_buttons = node_function_buts_float_compare;
+      break;
+    case FN_NODE_SWITCH:
+      ntype->draw_buttons = node_function_buts_switch;
+      break;
+  }
+}
+
 /* ****** init draw callbacks for all tree types, only called in usiblender.c, once ************ */
 
 static void node_property_update_default(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
@@ -3230,6 +3321,8 @@ void ED_node_init_butfuncs(void)
     node_composit_set_butfunc(ntype);
     node_shader_set_butfunc(ntype);
     node_texture_set_butfunc(ntype);
+    node_simulation_set_butfunc(ntype);
+    node_function_set_butfunc(ntype);
 
     /* define update callbacks for socket properties */
     node_template_properties_update(ntype);
@@ -3240,6 +3333,7 @@ void ED_node_init_butfuncs(void)
   ntreeType_Composite->ui_icon = ICON_NODE_COMPOSITING;
   ntreeType_Shader->ui_icon = ICON_NODE_MATERIAL;
   ntreeType_Texture->ui_icon = ICON_NODE_TEXTURE;
+  ntreeType_Simulation->ui_icon = ICON_PHYSICS; /* TODO: Use correct icon. */
 }
 
 void ED_init_custom_node_type(bNodeType *ntype)
@@ -3268,6 +3362,12 @@ static const float std_node_socket_colors[][4] = {
     {0.0, 0.0, 0.0, 1.0},    /*__SOCK_MESH (deprecated) */
     {0.06, 0.52, 0.15, 1.0}, /* SOCK_INT */
     {0.39, 0.39, 0.39, 1.0}, /* SOCK_STRING */
+    {0.40, 0.10, 0.10, 1.0}, /* SOCK_OBJECT */
+    {0.10, 0.40, 0.10, 1.0}, /* SOCK_IMAGE */
+    {0.80, 0.80, 0.20, 1.0}, /* SOCK_EMITTERS */
+    {0.80, 0.20, 0.80, 1.0}, /* SOCK_EVENTS */
+    {0.20, 0.80, 0.80, 1.0}, /* SOCK_FORCES */
+    {0.30, 0.30, 0.30, 1.0}, /* SOCK_CONTROL_FLOW */
 };
 
 /* common color callbacks for standard types */
@@ -3383,6 +3483,14 @@ static void std_node_socket_draw(
       uiLayout *row = uiLayoutSplit(layout, 0.5f, false);
       uiItemL(row, text, 0);
       uiItemR(row, ptr, "default_value", 0, "", 0);
+      break;
+    }
+    case SOCK_OBJECT: {
+      uiItemR(layout, ptr, "default_value", 0, text, 0);
+      break;
+    }
+    case SOCK_IMAGE: {
+      uiItemR(layout, ptr, "default_value", 0, text, 0);
       break;
     }
     default:

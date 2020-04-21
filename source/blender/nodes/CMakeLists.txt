@@ -21,8 +21,10 @@
 set(INC
   .
   composite
+  function
   intern
   shader
+  simulation
   texture
   ../blenkernel
   ../blenlib
@@ -127,6 +129,11 @@ set(SRC
   composite/node_composite_tree.c
   composite/node_composite_util.c
 
+  function/nodes/node_fn_boolean_math.cc
+  function/nodes/node_fn_float_compare.cc
+  function/nodes/node_fn_switch.cc
+  function/node_function_util.cc
+
   shader/nodes/node_shader_add_shader.c
   shader/nodes/node_shader_ambient_occlusion.c
   shader/nodes/node_shader_attribute.c
@@ -220,6 +227,22 @@ set(SRC
   shader/node_shader_tree.c
   shader/node_shader_util.c
 
+  simulation/nodes/node_sim_common.cc
+  simulation/nodes/node_sim_emit_particles.cc
+  simulation/nodes/node_sim_execute_condition.cc
+  simulation/nodes/node_sim_force.cc
+  simulation/nodes/node_sim_multi_execute.cc
+  simulation/nodes/node_sim_particle_attribute.cc
+  simulation/nodes/node_sim_particle_birth_event.cc
+  simulation/nodes/node_sim_particle_mesh_collision_event.cc
+  simulation/nodes/node_sim_particle_mesh_emitter.cc
+  simulation/nodes/node_sim_particle_simulation.cc
+  simulation/nodes/node_sim_particle_time_step_event.cc
+  simulation/nodes/node_sim_set_particle_attribute.cc
+  simulation/nodes/node_sim_simulation_time.cc
+  simulation/node_simulation_tree.cc
+  simulation/node_simulation_util.cc
+
   texture/nodes/node_texture_at.c
   texture/nodes/node_texture_bricks.c
   texture/nodes/node_texture_checker.c
@@ -252,12 +275,16 @@ set(SRC
   intern/node_util.c
 
   composite/node_composite_util.h
+  function/node_function_util.h
   shader/node_shader_util.h
+  simulation/node_simulation_util.h
   texture/node_texture_util.h
 
   NOD_common.h
   NOD_composite.h
+  NOD_function.h
   NOD_shader.h
+  NOD_simulation.h
   NOD_socket.h
   NOD_static_types.h
   NOD_texture.h

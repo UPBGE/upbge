@@ -66,18 +66,82 @@ enum {
 
 namespace {
 
-// Cost functor which computes reprojection error of 3D point X
-// on camera defined by angle-axis rotation and it's translation
-// (which are in the same block due to optimization reasons).
+// Apply distortion model (aka distort the input) for the given input in the
+// normalized space.
+// Only use for distortion models which are analytically defined for their
+// Apply() function.
 //
-// This functor uses a radial distortion model.
-struct OpenCVReprojectionError {
-  OpenCVReprojectionError(const DistortionModelType distortion_model,
-                          const double observed_x,
-                          const double observed_y,
-                          const double weight)
-      : distortion_model_(distortion_model),
-        observed_x_(observed_x), observed_y_(observed_y),
+// The invariant_intrinsics are used to access intrinsics which are never
+// packed into their parameter block: for example, image dimension.
+template<typename T>
+void ApplyIntrinsicsOnNormalizedPoint(
+    const CameraIntrinsics * invariant_intrinsics,
+    const T* const intrinsics,
+    const T& normalized_x, const T& normalized_y,
+    T* distorted_x, T* distorted_y) {
+  // Unpack the intrinsics.
+  const T& focal_length      = intrinsics[OFFSET_FOCAL_LENGTH];
+  const T& principal_point_x = intrinsics[OFFSET_PRINCIPAL_POINT_X];
+  const T& principal_point_y = intrinsics[OFFSET_PRINCIPAL_POINT_Y];
+
+  // Apply distortion to the normalized points to get (xd, yd).
+  //
+  // TODO(keir): Do early bailouts for zero distortion; these are expensive
+  // jet operations.
+  switch (invariant_intrinsics->GetDistortionModelType()) {
+    case DISTORTION_MODEL_POLYNOMIAL:
+      {
+        const T& k1 = intrinsics[OFFSET_K1];
+        const T& k2 = intrinsics[OFFSET_K2];
+        const T& k3 = intrinsics[OFFSET_K3];
+        const T& p1 = intrinsics[OFFSET_P1];
+        const T& p2 = intrinsics[OFFSET_P2];
+
+        ApplyPolynomialDistortionModel(focal_length,
+                                       focal_length,
+                                       principal_point_x,
+                                       principal_point_y,
+                                       k1, k2, k3,
+                                       p1, p2,
+                                       normalized_x, normalized_y,
+                                       distorted_x, distorted_y);
+        return;
+      }
+
+    case DISTORTION_MODEL_DIVISION:
+      {
+        const T& k1 = intrinsics[OFFSET_K1];
+        const T& k2 = intrinsics[OFFSET_K2];
+
+        ApplyDivisionDistortionModel(focal_length,
+                                     focal_length,
+                                     principal_point_x,
+                                     principal_point_y,
+                                     k1, k2,
+                                     normalized_x, normalized_y,
+                                     distorted_x, distorted_y);
+        return;
+      }
+  }
+
+  LOG(FATAL) << "Unknown distortion model.";
+}
+
+// Cost functor which computes reprojection error of 3D point X on camera
+// defined by angle-axis rotation and it's translation (which are in the same
+// block due to optimization reasons).
+//
+// This functor can only be used for distortion models which have analytically
+// defined Apply() function.
+struct OpenCVReprojectionErrorApplyIntrinsics {
+  OpenCVReprojectionErrorApplyIntrinsics(
+      const CameraIntrinsics *invariant_intrinsics,
+      const double observed_distorted_x,
+      const double observed_distorted_y,
+      const double weight)
+      : invariant_intrinsics_(invariant_intrinsics),
+        observed_distorted_x_(observed_distorted_x),
+        observed_distorted_y_(observed_distorted_y),
         weight_(weight) {}
 
   template <typename T>
@@ -86,11 +150,6 @@ struct OpenCVReprojectionError {
                                        // followed with translation
                   const T* const X,    // Point coordinates 3x1.
                   T* residuals) const {
-    // Unpack the intrinsics.
-    const T& focal_length      = intrinsics[OFFSET_FOCAL_LENGTH];
-    const T& principal_point_x = intrinsics[OFFSET_PRINCIPAL_POINT_X];
-    const T& principal_point_y = intrinsics[OFFSET_PRINCIPAL_POINT_Y];
-
     // Compute projective coordinates: x = RX + t.
     T x[3];
 
@@ -108,63 +167,26 @@ struct OpenCVReprojectionError {
     T xn = x[0] / x[2];
     T yn = x[1] / x[2];
 
-    T predicted_x, predicted_y;
-
-    // Apply distortion to the normalized points to get (xd, yd).
-    // TODO(keir): Do early bailouts for zero distortion; these are expensive
-    // jet operations.
-    switch (distortion_model_) {
-      case DISTORTION_MODEL_POLYNOMIAL:
-        {
-          const T& k1 = intrinsics[OFFSET_K1];
-          const T& k2 = intrinsics[OFFSET_K2];
-          const T& k3 = intrinsics[OFFSET_K3];
-          const T& p1 = intrinsics[OFFSET_P1];
-          const T& p2 = intrinsics[OFFSET_P2];
-
-          ApplyPolynomialDistortionModel(focal_length,
-                                         focal_length,
-                                         principal_point_x,
-                                         principal_point_y,
-                                         k1, k2, k3,
-                                         p1, p2,
-                                         xn, yn,
-                                         &predicted_x,
-                                         &predicted_y);
-          break;
-        }
-      case DISTORTION_MODEL_DIVISION:
-        {
-          const T& k1 = intrinsics[OFFSET_K1];
-          const T& k2 = intrinsics[OFFSET_K2];
-
-          ApplyDivisionDistortionModel(focal_length,
-                                       focal_length,
-                                       principal_point_x,
-                                       principal_point_y,
-                                       k1, k2,
-                                       xn, yn,
-                                       &predicted_x,
-                                       &predicted_y);
-          break;
-        }
-      default:
-        LOG(FATAL) << "Unknown distortion model";
-    }
+    T predicted_distorted_x, predicted_distorted_y;
+    ApplyIntrinsicsOnNormalizedPoint(
+        invariant_intrinsics_,
+        intrinsics,
+        xn, yn,
+        &predicted_distorted_x, &predicted_distorted_y);
 
     // The error is the difference between the predicted and observed position.
-    residuals[0] = (predicted_x - T(observed_x_)) * weight_;
-    residuals[1] = (predicted_y - T(observed_y_)) * weight_;
+    residuals[0] = (predicted_distorted_x - T(observed_distorted_x_)) * weight_;
+    residuals[1] = (predicted_distorted_y - T(observed_distorted_y_)) * weight_;
     return true;
   }
 
-  const DistortionModelType distortion_model_;
-  const double observed_x_;
-  const double observed_y_;
+  const CameraIntrinsics *invariant_intrinsics_;
+  const double observed_distorted_x_;
+  const double observed_distorted_y_;
   const double weight_;
 };
 
-// Print a message to the log which camera intrinsics are gonna to be optimixed.
+// Print a message to the log which camera intrinsics are gonna to be optimized.
 void BundleIntrinsicsLogMessage(const int bundle_intrinsics) {
   if (bundle_intrinsics == BUNDLE_NO_INTRINSICS) {
     LOG(INFO) << "Bundling only camera positions.";
@@ -302,68 +324,106 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
                                        vector<Vec6> *all_cameras_R_t,
                                        ceres::Problem *problem,
                                        BundleEvaluation *evaluation) {
-    int max_track = tracks.MaxTrack();
-    // Number of camera rotations equals to number of translation,
-    int num_cameras = all_cameras_R_t->size();
-    int num_points = 0;
+  int max_track = tracks.MaxTrack();
+  // Number of camera rotations equals to number of translation,
+  int num_cameras = all_cameras_R_t->size();
+  int num_points = 0;
 
-    vector<EuclideanPoint*> minimized_points;
-    for (int i = 0; i <= max_track; i++) {
-      EuclideanPoint *point = reconstruction->PointForTrack(i);
-      if (point) {
-        // We need to know whether the track is constant zero weight,
-        // and it so it wouldn't have parameter block in the problem.
-        //
-        // Getting all markers for track is not so bac currently since
-        // this code is only used by keyframe selection when there are
-        // not so much tracks and only 2 frames anyway.
-        vector<Marker> markera_of_track = tracks.MarkersForTrack(i);
-        for (int j = 0; j < markera_of_track.size(); j++) {
-          if (markera_of_track.at(j).weight != 0.0) {
-            minimized_points.push_back(point);
-            num_points++;
-            break;
-          }
+  vector<EuclideanPoint*> minimized_points;
+  for (int i = 0; i <= max_track; i++) {
+    EuclideanPoint *point = reconstruction->PointForTrack(i);
+    if (point) {
+      // We need to know whether the track is a constant zero weight.
+      // If it is so it wouldn't have a parameter block in the problem.
+      //
+      // Usually getting all markers of a track is considered slow, but this
+      // code is only used by the keyframe selection code where there aren't
+      // that many tracks in the storage and there are only 2 frames for each
+      // of the tracks.
+      vector<Marker> markera_of_track = tracks.MarkersForTrack(i);
+      for (int j = 0; j < markera_of_track.size(); j++) {
+        if (markera_of_track.at(j).weight != 0.0) {
+          minimized_points.push_back(point);
+          num_points++;
+          break;
         }
       }
     }
+  }
 
-    LG << "Number of cameras " << num_cameras;
-    LG << "Number of points " << num_points;
+  LG << "Number of cameras " << num_cameras;
+  LG << "Number of points " << num_points;
 
-    evaluation->num_cameras = num_cameras;
-    evaluation->num_points = num_points;
+  evaluation->num_cameras = num_cameras;
+  evaluation->num_points = num_points;
 
-    if (evaluation->evaluate_jacobian) {      // Evaluate jacobian matrix.
-      ceres::CRSMatrix evaluated_jacobian;
-      ceres::Problem::EvaluateOptions eval_options;
+  if (evaluation->evaluate_jacobian) {      // Evaluate jacobian matrix.
+    ceres::CRSMatrix evaluated_jacobian;
+    ceres::Problem::EvaluateOptions eval_options;
 
-      // Cameras goes first in the ordering.
-      int max_image = tracks.MaxImage();
-      for (int i = 0; i <= max_image; i++) {
-        const EuclideanCamera *camera = reconstruction->CameraForImage(i);
-        if (camera) {
-          double *current_camera_R_t = &(*all_cameras_R_t)[i](0);
+    // Cameras goes first in the ordering.
+    int max_image = tracks.MaxImage();
+    for (int i = 0; i <= max_image; i++) {
+      const EuclideanCamera *camera = reconstruction->CameraForImage(i);
+      if (camera) {
+        double *current_camera_R_t = &(*all_cameras_R_t)[i](0);
 
-          // All cameras are variable now.
-          problem->SetParameterBlockVariable(current_camera_R_t);
+        // All cameras are variable now.
+        problem->SetParameterBlockVariable(current_camera_R_t);
 
-          eval_options.parameter_blocks.push_back(current_camera_R_t);
-        }
+        eval_options.parameter_blocks.push_back(current_camera_R_t);
       }
-
-      // Points goes at the end of ordering,
-      for (int i = 0; i < minimized_points.size(); i++) {
-        EuclideanPoint *point = minimized_points.at(i);
-        eval_options.parameter_blocks.push_back(&point->X(0));
-      }
-
-      problem->Evaluate(eval_options,
-                        NULL, NULL, NULL,
-                        &evaluated_jacobian);
-
-      CRSMatrixToEigenMatrix(evaluated_jacobian, &evaluation->jacobian);
     }
+
+    // Points goes at the end of ordering,
+    for (int i = 0; i < minimized_points.size(); i++) {
+      EuclideanPoint *point = minimized_points.at(i);
+      eval_options.parameter_blocks.push_back(&point->X(0));
+    }
+
+    problem->Evaluate(eval_options,
+                      NULL, NULL, NULL,
+                      &evaluated_jacobian);
+
+    CRSMatrixToEigenMatrix(evaluated_jacobian, &evaluation->jacobian);
+  }
+}
+
+template<typename CostFunction>
+void AddResidualBlockToProblemImpl(const CameraIntrinsics *intrinsics,
+                                   double observed_x, double observed_y,
+                                   double weight,
+                                   double ceres_intrinsics[OFFSET_MAX],
+                                   double *camera_R_t,
+                                   EuclideanPoint *point,
+                                   ceres::Problem* problem) {
+  problem->AddResidualBlock(new ceres::AutoDiffCostFunction<
+      CostFunction, 2, OFFSET_MAX, 6, 3>(
+          new CostFunction(
+              intrinsics,
+              observed_x, observed_y,
+              weight)),
+      NULL,
+      ceres_intrinsics,
+      camera_R_t,
+      &point->X(0));
+}
+
+void AddResidualBlockToProblem(const CameraIntrinsics *invariant_intrinsics,
+                               const Marker &marker,
+                               double marker_weight,
+                               double ceres_intrinsics[OFFSET_MAX],
+                               double *camera_R_t,
+                               EuclideanPoint *point,
+                               ceres::Problem* problem) {
+    AddResidualBlockToProblemImpl<OpenCVReprojectionErrorApplyIntrinsics>(
+            invariant_intrinsics,
+            marker.x, marker.y,
+            marker_weight,
+            ceres_intrinsics,
+            camera_R_t,
+            point,
+            problem);
 }
 
 // This is an utility function to only bundle 3D position of
@@ -375,7 +435,7 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
 //
 // At this point we only need to bundle points positions, cameras
 // are to be totally still here.
-void EuclideanBundlePointsOnly(const DistortionModelType distortion_model,
+void EuclideanBundlePointsOnly(const CameraIntrinsics *invariant_intrinsics,
                                const vector<Marker> &markers,
                                vector<Vec6> &all_cameras_R_t,
                                double ceres_intrinsics[OFFSET_MAX],
@@ -392,20 +452,16 @@ void EuclideanBundlePointsOnly(const DistortionModelType distortion_model,
     }
 
     // Rotation of camera denoted in angle axis followed with
-    // camera translaiton.
+    // camera translation.
     double *current_camera_R_t = &all_cameras_R_t[camera->image](0);
 
-    problem.AddResidualBlock(new ceres::AutoDiffCostFunction<
-        OpenCVReprojectionError, 2, OFFSET_MAX, 6, 3>(
-            new OpenCVReprojectionError(
-                distortion_model,
-                marker.x,
-                marker.y,
-                1.0)),
-        NULL,
-        ceres_intrinsics,
-        current_camera_R_t,
-        &point->X(0));
+    AddResidualBlockToProblem(invariant_intrinsics,
+                              marker,
+                              1.0,
+                              ceres_intrinsics,
+                              current_camera_R_t,
+                              point,
+                              &problem);
 
     problem.SetParameterBlockConstant(current_camera_R_t);
     num_residuals++;
@@ -438,7 +494,6 @@ void EuclideanBundlePointsOnly(const DistortionModelType distortion_model,
   ceres::Solve(options, &problem, &summary);
 
   LG << "Final report:\n" << summary.FullReport();
-
 }
 
 }  // namespace
@@ -509,24 +564,20 @@ void EuclideanBundleCommonIntrinsics(
     }
 
     // Rotation of camera denoted in angle axis followed with
-    // camera translaiton.
+    // camera translation.
     double *current_camera_R_t = &all_cameras_R_t[camera->image](0);
 
     // Skip residual block for markers which does have absolutely
     // no affect on the final solution.
     // This way ceres is not gonna to go crazy.
     if (marker.weight != 0.0) {
-      problem.AddResidualBlock(new ceres::AutoDiffCostFunction<
-          OpenCVReprojectionError, 2, OFFSET_MAX, 6, 3>(
-              new OpenCVReprojectionError(
-                  intrinsics->GetDistortionModelType(),
-                  marker.x,
-                  marker.y,
-                  marker.weight)),
-          NULL,
-          ceres_intrinsics,
-          current_camera_R_t,
-          &point->X(0));
+      AddResidualBlockToProblem(intrinsics,
+                                marker,
+                                marker.weight,
+                                ceres_intrinsics,
+                                current_camera_R_t,
+                                point,
+                                &problem);
 
       // We lock the first camera to better deal with scene orientation ambiguity.
       if (!have_locked_camera) {
@@ -641,7 +692,7 @@ void EuclideanBundleCommonIntrinsics(
 
   if (zero_weight_markers.size()) {
     LG << "Refining position of constant zero-weighted tracks";
-    EuclideanBundlePointsOnly(intrinsics->GetDistortionModelType(),
+    EuclideanBundlePointsOnly(intrinsics,
                               zero_weight_markers,
                               all_cameras_R_t,
                               ceres_intrinsics,

@@ -52,6 +52,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_simulation_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 #include "DNA_speaker_types.h"
@@ -203,6 +204,40 @@ static void library_foreach_idproperty_ID_link(LibraryForeachIDData *data,
       break;
     default:
       break; /* Nothing to do here with other types of IDProperties... */
+  }
+
+  FOREACH_FINALIZE_VOID;
+}
+
+static void library_foreach_node_socket(LibraryForeachIDData *data, bNodeSocket *sock)
+{
+  library_foreach_idproperty_ID_link(data, sock->prop, IDWALK_CB_USER);
+
+  switch ((eNodeSocketDatatype)sock->type) {
+    case SOCK_OBJECT: {
+      bNodeSocketValueObject *default_value = sock->default_value;
+      FOREACH_CALLBACK_INVOKE_ID_PP(data, (ID **)&default_value->value, IDWALK_CB_USER);
+      break;
+    }
+    case SOCK_IMAGE: {
+      bNodeSocketValueImage *default_value = sock->default_value;
+      FOREACH_CALLBACK_INVOKE_ID_PP(data, (ID **)&default_value->value, IDWALK_CB_USER);
+      break;
+    }
+    case SOCK_FLOAT:
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+    case SOCK_BOOLEAN:
+    case SOCK_INT:
+    case SOCK_STRING:
+    case __SOCK_MESH:
+    case SOCK_CUSTOM:
+    case SOCK_SHADER:
+    case SOCK_EMITTERS:
+    case SOCK_EVENTS:
+    case SOCK_FORCES:
+    case SOCK_CONTROL_FLOW:
+      break;
   }
 
   FOREACH_FINALIZE_VOID;
@@ -1059,7 +1094,6 @@ static void library_foreach_ID_link(Main *bmain,
       case ID_NT: {
         bNodeTree *ntree = (bNodeTree *)id;
         bNode *node;
-        bNodeSocket *sock;
 
         CALLBACK_INVOKE(ntree->gpd, IDWALK_CB_USER);
 
@@ -1067,19 +1101,19 @@ static void library_foreach_ID_link(Main *bmain,
           CALLBACK_INVOKE_ID(node->id, IDWALK_CB_USER);
 
           library_foreach_idproperty_ID_link(&data, node->prop, IDWALK_CB_USER);
-          for (sock = node->inputs.first; sock; sock = sock->next) {
-            library_foreach_idproperty_ID_link(&data, sock->prop, IDWALK_CB_USER);
+          LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+            library_foreach_node_socket(&data, sock);
           }
-          for (sock = node->outputs.first; sock; sock = sock->next) {
-            library_foreach_idproperty_ID_link(&data, sock->prop, IDWALK_CB_USER);
+          LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
+            library_foreach_node_socket(&data, sock);
           }
         }
 
-        for (sock = ntree->inputs.first; sock; sock = sock->next) {
-          library_foreach_idproperty_ID_link(&data, sock->prop, IDWALK_CB_USER);
+        LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->inputs) {
+          library_foreach_node_socket(&data, sock);
         }
-        for (sock = ntree->outputs.first; sock; sock = sock->next) {
-          library_foreach_idproperty_ID_link(&data, sock->prop, IDWALK_CB_USER);
+        LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->outputs) {
+          library_foreach_node_socket(&data, sock);
         }
         break;
       }
@@ -1327,6 +1361,15 @@ static void library_foreach_ID_link(Main *bmain,
         }
         break;
       }
+      case ID_SIM: {
+        Simulation *simulation = (Simulation *)id;
+        if (simulation->nodetree) {
+          /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
+          library_foreach_ID_as_subdata_link(
+              (ID **)&simulation->nodetree, callback, user_data, flag, &data);
+        }
+        break;
+      }
 
       /* Nothing needed for those... */
       case ID_IM:
@@ -1498,6 +1541,7 @@ bool BKE_library_id_can_use_idtype(ID *id_owner, const short id_type_used)
     case ID_PAL:
     case ID_PC:
     case ID_CF:
+    case ID_SIM:
       /* Those types never use/reference other IDs... */
       return false;
     case ID_IP:

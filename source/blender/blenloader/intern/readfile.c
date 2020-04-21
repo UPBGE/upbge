@@ -91,6 +91,7 @@
 #include "DNA_sensor_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_shader_fx_types.h"
+#include "DNA_simulation_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 #include "DNA_speaker_types.h"
@@ -152,6 +153,7 @@
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
 #include "BKE_shader_fx.h"
+#include "BKE_simulation.h"
 #include "BKE_sound.h"
 #include "BKE_volume.h"
 #include "BKE_workspace.h"
@@ -3629,6 +3631,45 @@ static void lib_link_workspace_instance_hook(FileData *fd, WorkSpaceInstanceHook
 /** \name Read ID: Node Tree
  * \{ */
 
+static void lib_link_node_socket(FileData *fd, Library *lib, bNodeSocket *sock)
+{
+  IDP_LibLinkProperty(sock->prop, fd);
+
+  switch ((eNodeSocketDatatype)sock->type) {
+    case SOCK_OBJECT: {
+      bNodeSocketValueObject *default_value = sock->default_value;
+      default_value->value = newlibadr(fd, lib, default_value->value);
+      break;
+    }
+    case SOCK_IMAGE: {
+      bNodeSocketValueImage *default_value = sock->default_value;
+      default_value->value = newlibadr(fd, lib, default_value->value);
+      break;
+    }
+    case SOCK_FLOAT:
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+    case SOCK_BOOLEAN:
+    case SOCK_INT:
+    case SOCK_STRING:
+    case __SOCK_MESH:
+    case SOCK_CUSTOM:
+    case SOCK_SHADER:
+    case SOCK_EMITTERS:
+    case SOCK_EVENTS:
+    case SOCK_FORCES:
+    case SOCK_CONTROL_FLOW:
+      break;
+  }
+}
+
+static void lib_link_node_sockets(FileData *fd, Library *lib, ListBase *sockets)
+{
+  LISTBASE_FOREACH (bNodeSocket *, sock, sockets) {
+    lib_link_node_socket(fd, lib, sock);
+  }
+}
+
 /* Single node tree (also used for material/scene trees), ntree is not NULL */
 static void lib_link_ntree(FileData *fd, Library *lib, bNodeTree *ntree)
 {
@@ -3643,20 +3684,12 @@ static void lib_link_ntree(FileData *fd, Library *lib, bNodeTree *ntree)
 
     node->id = newlibadr(fd, lib, node->id);
 
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-      IDP_LibLinkProperty(sock->prop, fd);
-    }
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-      IDP_LibLinkProperty(sock->prop, fd);
-    }
+    lib_link_node_sockets(fd, lib, &node->inputs);
+    lib_link_node_sockets(fd, lib, &node->outputs);
   }
 
-  LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->inputs) {
-    IDP_LibLinkProperty(sock->prop, fd);
-  }
-  LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->outputs) {
-    IDP_LibLinkProperty(sock->prop, fd);
-  }
+  lib_link_node_sockets(fd, lib, &ntree->inputs);
+  lib_link_node_sockets(fd, lib, &ntree->outputs);
 
   /* Set node->typeinfo pointers. This is done in lib linking, after the
    * first versioning that can change types still without functions that
@@ -9374,6 +9407,24 @@ static void direct_link_volume(FileData *fd, Volume *volume)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Read ID: Simulation
+ * \{ */
+
+static void lib_link_simulation(FileData *UNUSED(fd),
+                                Main *UNUSED(main),
+                                Simulation *UNUSED(simulation))
+{
+}
+
+static void direct_link_simulation(FileData *fd, Simulation *simulation)
+{
+  simulation->adt = newdataadr(fd, simulation->adt);
+  direct_link_animdata(fd, simulation->adt);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Read Library Data Block
  * \{ */
 
@@ -9491,6 +9542,8 @@ static const char *dataname(short id_code)
       return "Data from PT";
     case ID_VO:
       return "Data from VO";
+    case ID_SIM:
+      return "Data from SIM";
   }
   return "Data from Lib Block";
 }
@@ -9641,6 +9694,9 @@ static bool direct_link_id(FileData *fd, Main *main, const int tag, ID *id, ID *
       break;
     case ID_VO:
       direct_link_volume(fd, (Volume *)id);
+      break;
+    case ID_SIM:
+      direct_link_simulation(fd, (Simulation *)id);
       break;
   }
 
@@ -10324,6 +10380,9 @@ static void lib_link_all(FileData *fd, Main *bmain)
         break;
       case ID_AC:
         lib_link_action(fd, bmain, (bAction *)id);
+        break;
+      case ID_SIM:
+        lib_link_simulation(fd, bmain, (Simulation *)id);
         break;
       case ID_IP:
         /* XXX deprecated... still needs to be maintained for version patches still. */
@@ -11167,10 +11226,51 @@ static void expand_key(FileData *fd, Main *mainvar, Key *key)
   expand_doit(fd, mainvar, key->ipo);  // XXX deprecated - old animation system
 }
 
+static void expand_node_socket(FileData *fd, Main *mainvar, bNodeSocket *sock)
+{
+  expand_idprops(fd, mainvar, sock->prop);
+
+  if (sock->default_value != NULL) {
+
+    switch ((eNodeSocketDatatype)sock->type) {
+      case SOCK_OBJECT: {
+        bNodeSocketValueObject *default_value = sock->default_value;
+        expand_doit(fd, mainvar, default_value->value);
+        break;
+      }
+      case SOCK_IMAGE: {
+        bNodeSocketValueImage *default_value = sock->default_value;
+        expand_doit(fd, mainvar, default_value->value);
+        break;
+      }
+      case SOCK_FLOAT:
+      case SOCK_VECTOR:
+      case SOCK_RGBA:
+      case SOCK_BOOLEAN:
+      case SOCK_INT:
+      case SOCK_STRING:
+      case __SOCK_MESH:
+      case SOCK_CUSTOM:
+      case SOCK_SHADER:
+      case SOCK_EMITTERS:
+      case SOCK_EVENTS:
+      case SOCK_FORCES:
+      case SOCK_CONTROL_FLOW:
+        break;
+    }
+  }
+}
+
+static void expand_node_sockets(FileData *fd, Main *mainvar, ListBase *sockets)
+{
+  LISTBASE_FOREACH (bNodeSocket *, sock, sockets) {
+    expand_node_socket(fd, mainvar, sock);
+  }
+}
+
 static void expand_nodetree(FileData *fd, Main *mainvar, bNodeTree *ntree)
 {
   bNode *node;
-  bNodeSocket *sock;
 
   if (ntree->gpd) {
     expand_doit(fd, mainvar, ntree->gpd);
@@ -11183,20 +11283,12 @@ static void expand_nodetree(FileData *fd, Main *mainvar, bNodeTree *ntree)
 
     expand_idprops(fd, mainvar, node->prop);
 
-    for (sock = node->inputs.first; sock; sock = sock->next) {
-      expand_idprops(fd, mainvar, sock->prop);
-    }
-    for (sock = node->outputs.first; sock; sock = sock->next) {
-      expand_idprops(fd, mainvar, sock->prop);
-    }
+    expand_node_sockets(fd, mainvar, &node->inputs);
+    expand_node_sockets(fd, mainvar, &node->outputs);
   }
 
-  for (sock = ntree->inputs.first; sock; sock = sock->next) {
-    expand_idprops(fd, mainvar, sock->prop);
-  }
-  for (sock = ntree->outputs.first; sock; sock = sock->next) {
-    expand_idprops(fd, mainvar, sock->prop);
-  }
+  expand_node_sockets(fd, mainvar, &ntree->inputs);
+  expand_node_sockets(fd, mainvar, &ntree->outputs);
 }
 
 static void expand_texture(FileData *fd, Main *mainvar, Tex *tex)
@@ -11833,6 +11925,13 @@ static void expand_volume(FileData *fd, Main *mainvar, Volume *volume)
   }
 }
 
+static void expand_simulation(FileData *fd, Main *mainvar, Simulation *simulation)
+{
+  if (simulation->adt) {
+    expand_animdata(fd, mainvar, simulation->adt);
+  }
+}
+
 /**
  * Set the callback func used over all ID data found by \a BLO_expand_main func.
  *
@@ -11961,6 +12060,9 @@ void BLO_expand_main(void *fdhandle, Main *mainvar)
               break;
             case ID_VO:
               expand_volume(fd, mainvar, (Volume *)id);
+              break;
+            case ID_SIM:
+              expand_simulation(fd, mainvar, (Simulation *)id);
               break;
             default:
               break;
