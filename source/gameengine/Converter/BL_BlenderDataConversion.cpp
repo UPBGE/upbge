@@ -1265,9 +1265,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     for (curAct = (bAction *)maggie->actions.first; curAct; curAct = (bAction *)curAct->id.next) {
       logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
     }
-
-    blenderSceneSetBackground(blenderscene);
   }
+
+  /* Ensure objects base flags are up to date each time we call BL_ConvertObjects */
+  BKE_scene_set_background(maggie, blenderscene);
 
   // Let's support scene set.
   // Beware of name conflict in linked data, it will not crash but will create confusion
