@@ -845,9 +845,9 @@ int main(int argc,
 
   init_nodesystem();
 
-  // We load our own G.main, so free the one that BKE_blender_globals_init() gives us
-  BKE_main_free(G.main);
-  G.main = nullptr;
+  // We load our own G_MAIN, so free the one that BKE_blender_globals_init() gives us
+  BKE_main_free(G_MAIN);
+  G_MAIN = nullptr;
 
 #ifdef WITH_FFMPEG
   IMB_ffmpeg_init();
@@ -1581,9 +1581,9 @@ int main(int argc,
   }
 
   MEM_freeN(bfd);
-  /* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer
+  /* G_MAIN == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer
    */
-  G.main = nullptr;
+  G_MAIN = nullptr;
 
   /* free gizmo-maps after freeing blender,
    * so no deleted data get accessed during cleaning up of areas. */
