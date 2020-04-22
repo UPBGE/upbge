@@ -5506,6 +5506,12 @@ static void lib_link_object(FileData *fd, Main *bmain, Object *ob)
       /* Flag for refreshing the simulation after loading */
       mmd->domain->flags |= FLUID_DOMAIN_FILE_LOAD;
     }
+    else if (mmd && (mmd->type == MOD_FLUID_TYPE_FLOW) && mmd->flow) {
+      mmd->flow->flags &= ~FLUID_FLOW_NEEDS_UPDATE;
+    }
+    else if (mmd && (mmd->type == MOD_FLUID_TYPE_EFFEC) && mmd->effector) {
+      mmd->effector->flags &= ~FLUID_EFFECTOR_NEEDS_UPDATE;
+    }
   }
 
   /* texture field */
@@ -9945,10 +9951,10 @@ static bool read_libblock_undo_restore(
     const int id_tag = tag | LIB_TAG_NEED_LINK | LIB_TAG_UNDO_OLD_ID_REUSED;
     read_libblock_undo_restore_identical(fd, main, id, id_old, id_tag);
 
-    /* Insert into library map for lookup by newly read datablocks (with pointer
-     * value bhead->old) or existing datablocks in memory (pointer value id_old). */
+    /* Insert into library map for lookup by newly read datablocks (with pointer value bhead->old).
+     * Note that existing datablocks in memory (which pointer value would be id_old) are not
+     * remapped anymore, so no need to store this info here. */
     oldnewmap_insert(fd->libmap, bhead->old, id_old, bhead->code);
-    oldnewmap_insert(fd->libmap, id_old, id_old, bhead->code);
 
     *r_id_old = id_old;
     return true;
@@ -10019,11 +10025,11 @@ static BHead *read_libblock(FileData *fd,
    * direct_link_library() may remove it from there in case of duplicates. */
   BLI_addtail(lb, id);
 
-  /* Insert into library map for lookup by newly read datablocks (with pointer
-   * value bhead->old) or existing datablocks in memory (pointer value id_old). */
+  /* Insert into library map for lookup by newly read datablocks (with pointer value bhead->old).
+   * Note that existing datablocks in memory (which pointer value would be id_old) are not remapped
+   * remapped anymore, so no need to store this info here. */
   ID *id_target = id_old ? id_old : id;
   oldnewmap_insert(fd->libmap, bhead->old, id_target, bhead->code);
-  oldnewmap_insert(fd->libmap, id_old, id_target, bhead->code);
 
   if (r_id) {
     *r_id = id_target;

@@ -14,21 +14,23 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** \file
- * \ingroup modifiers
- */
+#include "BLI_timeit.hh"
 
-#ifndef __MOD_SOLIDIFY_UTIL_H__
-#define __MOD_SOLIDIFY_UTIL_H__
+namespace BLI {
+namespace Timeit {
 
-/* MOD_solidify_extrude.c */
-Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md,
-                                      const ModifierEvalContext *ctx,
-                                      Mesh *mesh);
+void print_duration(Nanoseconds duration)
+{
+  if (duration < std::chrono::microseconds(100)) {
+    std::cout << duration.count() << " ns";
+  }
+  else if (duration < std::chrono::seconds(5)) {
+    std::cout << duration.count() / 1.0e6 << " ms";
+  }
+  else {
+    std::cout << duration.count() / 1.0e9 << " s";
+  }
+}
 
-/* MOD_solidify_nonmanifold.c */
-Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
-                                          const ModifierEvalContext *ctx,
-                                          Mesh *mesh);
-
-#endif /* __MOD_SOLIDIFY_UTIL_H__ */
+}  // namespace Timeit
+}  // namespace BLI
