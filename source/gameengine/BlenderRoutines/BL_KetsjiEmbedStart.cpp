@@ -101,7 +101,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   BlendFileData *bfd = nullptr;
 
   BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
-  BLI_strncpy(prevPathName, G.main->name, sizeof(prevPathName));
+  BLI_strncpy(prevPathName, G_MAIN->name, sizeof(prevPathName));
 
   /* Without this step, the bmain->name can be ".blend~"
    * and as I don't understand why and as the bug has been
@@ -174,8 +174,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
         if (blenderdata) {
           BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
-          // Change G.main path to ensure loading of data using relative paths.
-          BLI_strncpy(G.main->name, pathname, sizeof(G.main->name));
+          // Change G_MAIN path to ensure loading of data using relative paths.
+          BLI_strncpy(G_MAIN->name, pathname, sizeof(G_MAIN->name));
         }
       }
       // else forget it, we can't find it
@@ -294,6 +294,6 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   PyGILState_Release(gilstate);
 #endif
 
-  // Restore G.main path.
-  BLI_strncpy(G.main->name, prevPathName, sizeof(G.main->name));
+  // Restore G_MAIN path.
+  BLI_strncpy(G_MAIN->name, prevPathName, sizeof(G_MAIN->name));
 }
