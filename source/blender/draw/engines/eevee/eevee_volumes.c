@@ -243,15 +243,14 @@ void EEVEE_volumes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   }
   else if (DRW_state_is_image_render()) {
 #endif
+  if (DRW_state_is_image_render()) {
     const uint max_sample = (ht_primes[0] * ht_primes[1] * ht_primes[2]);
     current_sample = effects->volume_current_sample = (effects->volume_current_sample + 1) %
                                                       max_sample;
     if (current_sample != max_sample - 1) {
       DRW_viewport_request_redraw();
     }
-#if 0 /* Game engine transition */
   }
-#endif
 
   EEVEE_volumes_set_jitter(sldata, current_sample);
 
