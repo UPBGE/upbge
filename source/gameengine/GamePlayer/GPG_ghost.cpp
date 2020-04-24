@@ -682,7 +682,6 @@ static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene 
     if (!screen) {
       continue;
     }
-    CTX_wm_screen_set(C, screen);
 
     for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
       if (sa->spacetype == SPACE_VIEW3D) {
@@ -690,6 +689,7 @@ static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene 
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
             if (ar->regiondata) {
+              CTX_wm_screen_set(C, screen);
               CTX_wm_area_set(C, sa);
               CTX_wm_region_set(C, ar);
               CTX_data_scene_set(C, scene);

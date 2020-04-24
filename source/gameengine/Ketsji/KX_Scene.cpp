@@ -259,6 +259,12 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
 
+  /* In the case of SetScene actuator (not game restart or load .blend)
+   * We might need to Set bContext Variables here to be sure to have
+   * the good environment.
+   */
+  ReinitBlenderContextVariables();
+
   BackupShadingType();
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
@@ -433,6 +439,8 @@ void KX_Scene::ReinitBlenderContextVariables()
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
             if (ar->regiondata) {
+              CTX_wm_window_set(C, win);
+              CTX_wm_screen_set(C, screen);
               CTX_wm_area_set(C, sa);
               CTX_wm_region_set(C, ar);
               CTX_data_scene_set(C, GetBlenderScene());

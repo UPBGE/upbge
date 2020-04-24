@@ -93,7 +93,6 @@ static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene 
     if (!screen) {
       continue;
     }
-    CTX_wm_screen_set(C, screen);
 
     for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
       if (sa->spacetype == SPACE_VIEW3D) {
@@ -101,6 +100,7 @@ static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene 
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
             if (ar->regiondata) {
+              CTX_wm_screen_set(C, screen);
               CTX_wm_area_set(C, sa);
               CTX_wm_region_set(C, ar);
               CTX_data_scene_set(C, scene);
@@ -213,9 +213,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         blenderdata = bfd->main;
         startscenename = bfd->curscene->id.name + 2;
 
+        /* If we don't change G_MAIN, bpy won't work in loaded .blends */
         G_MAIN = G.main = bfd->main;
         CTX_data_main_set(C, bfd->main);
-        CTX_data_scene_set(C, bfd->curscene);
         wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
         wmWindow *win = (wmWindow *)wm->windows.first;
         CTX_wm_manager_set(C, wm);
@@ -223,6 +223,10 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         win->ghostwin = ghostwin_backup;
         win->gpuctx = gpuctx_backup;
         wm->message_bus = (wmMsgBus *)msgbus_backup;
+        /* We need to init Blender bContext environment here
+         * to because in embedded, ar, v3d...
+         * are needed for launcher creation
+         */
         InitBlenderContextVariables(C, wm, bfd->curscene);
         wm_window_ghostwindow_embedded_ensure(wm, win);
         WM_check(C);
@@ -321,14 +325,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     CTX_wm_manager(C)->message_bus = nullptr;
     BLO_blendfiledata_free(bfd);
 
-    /* Warning: If we work on game restart/load blend actuator and that we change of
-     * wmWindowManager during runtime, we'd have to restore the right wmWindowManager/win/scene...
-     * before doing undo.
-     */
     /* Restore Main and Scene used before ge start */
     G_MAIN = G.main = maggie1;
     CTX_data_main_set(C, maggie1);
-    CTX_data_scene_set(C, startscene);
     CTX_wm_manager_set(C, wm_backup);
     CTX_wm_window_set(C, win_backup);
     win_backup->ghostwin = ghostwin_backup;
