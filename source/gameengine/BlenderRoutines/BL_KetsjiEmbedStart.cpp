@@ -243,8 +243,6 @@ extern "C" void StartKetsjiShell(struct bContext *C,
                          (Scene *)BLI_findstring(
                              &blenderdata->scenes, startscenename, offsetof(ID, name) + 2);
 
-    // WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene);
-
     RAS_Rasterizer::StereoMode stereoMode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
     if (scene) {
       // Quad buffered needs a special window.
@@ -337,7 +335,6 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     win_backup->gpuctx = gpuctx_backup;
     wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
     InitBlenderContextVariables(C, wm_backup, startscene);
-    wm_window_ghostwindow_embedded_ensure(wm_backup, win_backup);
     WM_check(C);
   }
 
