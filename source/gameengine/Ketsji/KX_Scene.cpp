@@ -414,6 +414,38 @@ void KX_Scene::ResetLastReplicatedParentObject()
 }
 
 /*******************EEVEE INTEGRATION******************/
+
+void KX_Scene::ReinitBlenderContextVariables()
+{
+  ARegion *ar;
+  wmWindow *win;
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  wmWindowManager *wm = CTX_wm_manager(C);
+  for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
+    bScreen *screen = WM_window_get_active_screen(win);
+    if (!screen) {
+      continue;
+    }
+
+    for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
+      if (sa->spacetype == SPACE_VIEW3D) {
+        ListBase *regionbase = &sa->regionbase;
+        for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
+          if (ar->regiontype == RGN_TYPE_WINDOW) {
+            if (ar->regiondata) {
+              CTX_wm_area_set(C, sa);
+              CTX_wm_region_set(C, ar);
+              CTX_data_scene_set(C, GetBlenderScene());
+              win->scene = GetBlenderScene();
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 void KX_Scene::BackupShadingType()
 {
   bContext *C = KX_GetActiveEngine()->GetContext();
@@ -623,7 +655,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     if (cam) {
       DRW_view_set_active(NULL);
 
-      //InitBlenderContextVariables();
+      /* When we call wm_draw_update, bContext variables are unset,
+       * then we need to set it again correctly to render the next frame.
+       */
+      ReinitBlenderContextVariables();
 
       CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
 
