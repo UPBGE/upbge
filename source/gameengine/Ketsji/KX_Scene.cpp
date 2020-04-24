@@ -259,6 +259,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
 
+  /* REMINDER TO SET bContext */
+  /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
+
   /* In the case of SetScene actuator (not game restart or load .blend)
    * We might need to Set bContext Variables here to be sure to have
    * the good environment.
