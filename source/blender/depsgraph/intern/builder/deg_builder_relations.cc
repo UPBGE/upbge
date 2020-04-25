@@ -28,7 +28,6 @@
 #include <cstring> /* required for STREQ later on. */
 #include <stdio.h>
 #include <stdlib.h>
-#include <unordered_set>
 
 #include "MEM_guardedalloc.h"
 
@@ -121,8 +120,6 @@ extern "C" {
 #include "intern/depsgraph_type.h"
 
 namespace DEG {
-
-using std::unordered_set;
 
 /* ***************** */
 /* Relations Builder */
@@ -2678,7 +2675,7 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDNode *id_node)
       rel->flag |= rel_flag;
     }
     /* All dangling operations should also be executed after copy-on-write. */
-    GHASH_FOREACH_BEGIN (OperationNode *, op_node, comp_node->operations_map) {
+    for (OperationNode *op_node : comp_node->operations_map->values()) {
       if (op_node == op_entry) {
         continue;
       }
@@ -2704,7 +2701,6 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDNode *id_node)
         }
       }
     }
-    GHASH_FOREACH_END();
     /* NOTE: We currently ignore implicit relations to an external
      * data-blocks for copy-on-write operations. This means, for example,
      * copy-on-write component of Object will not wait for copy-on-write
@@ -2762,7 +2758,7 @@ static bool is_reachable(const Node *const from, const Node *const to)
   // Perform a graph walk from 'to' towards its incoming connections.
   // Walking from 'from' towards its outgoing connections is 10x slower on the Spring rig.
   deque<const Node *> queue;
-  unordered_set<const Node *> seen;
+  Set<const Node *> seen;
   queue.push_back(to);
   while (!queue.empty()) {
     // Visit the next node to inspect.
@@ -2776,7 +2772,7 @@ static bool is_reachable(const Node *const from, const Node *const to)
     // Queue all incoming relations that we haven't seen before.
     for (Relation *relation : visit->inlinks) {
       const Node *prev_node = relation->from;
-      if (seen.insert(prev_node).second) {
+      if (seen.add(prev_node)) {
         queue.push_back(prev_node);
       }
     }
