@@ -259,19 +259,16 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
 
-  /* The following code is to ensure that when we create a new KX_Scene,
-   * some blender variables like bScreen, wmWindow, ScrArea, Aregion
-   * are correctly set. In embedded player, normally these variables
-   * are already set, but not in blenderplayer.
-   *
-   * Parenthesis:
-   * If later we want to work on viewport render in blenderplayer,
-   * I noticed that when we use viewport render in blenderplayer,
-   * the variables are not correctly set in the next frame then we have to call
-   * InitBlenderContextVariables(); each frame before wm_draw_update
-   * (blenderplayer_viewport branch).
+  /* REMINDER TO SET bContext */
+  /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
+
+  /* In the case of SetScene actuator (not game restart or load .blend)
+   * We might need to Set bContext Variables here to be sure to have
+   * the good environment.
    */
-  InitBlenderContextVariables();
+  ReinitBlenderContextVariables();
+
+  BackupShadingType();
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
@@ -426,21 +423,18 @@ void KX_Scene::ResetLastReplicatedParentObject()
 }
 
 /*******************EEVEE INTEGRATION******************/
-void KX_Scene::InitBlenderContextVariables()
+
+void KX_Scene::ReinitBlenderContextVariables()
 {
   ARegion *ar;
-  /* Warning here: The bContext is not updated with the right bmain
-   * in embedded if we restart scene/load new .blend.
-   */
+  wmWindow *win;
   bContext *C = KX_GetActiveEngine()->GetContext();
   wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win;
   for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
     bScreen *screen = WM_window_get_active_screen(win);
     if (!screen) {
       continue;
     }
-    CTX_wm_screen_set(C, screen);
 
     for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
       if (sa->spacetype == SPACE_VIEW3D) {
@@ -448,46 +442,12 @@ void KX_Scene::InitBlenderContextVariables()
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
             if (ar->regiondata) {
-              /* Here we try to set the valid scene ARegion, wmWindow, ScrArea...
-               * This can be useful to have the correct settings when we do scripts
-               * with bpy or this can also be useful for render when evil_C is used
-               * in render code... An example is that when we didn't use blender
-               * ARegion or things like that, depth of field was not working correctly.
-               * If we manage to find the right ARegion..., this can fix some issues.
-               * Furthermore, this opens new possibilities to adapt render loop, try to
-               * use more directly blender code, try to add support of grease pencil...
-               * + new possibilities in bpy I guess...
-               */
-              Scene *scene = GetBlenderScene();
               CTX_wm_window_set(C, win);
+              CTX_wm_screen_set(C, screen);
               CTX_wm_area_set(C, sa);
               CTX_wm_region_set(C, ar);
-              CTX_data_scene_set(C, scene);
-              win->scene = scene;
-
-              /* Only if we are not in viewport render, modify + backup shading types */
-              if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-                  KX_GetActiveEngine()->GetCanvas()->IsBlenderPlayer()) {
-
-                View3D *v3d = CTX_wm_view3d(C);
-
-                bool not_eevee = (v3d->shading.type != OB_RENDER) &&
-                                 (v3d->shading.type != OB_MATERIAL);
-
-                if (not_eevee) {
-                  m_shadingTypeBackup = v3d->shading.type;
-                  m_shadingFlagBackup = v3d->shading.flag;
-                  v3d->shading.type = OB_RENDER;
-                  v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER |
-                                        V3D_SHADING_SCENE_WORLD_RENDER);
-                }
-
-                /* The following line is needed to fix a crash
-                 * when restart/load new blend file in embedded.
-                 * Why? Don'tKnow
-                 */
-                WM_redraw_windows(C);
-              }
+              CTX_data_scene_set(C, GetBlenderScene());
+              win->scene = GetBlenderScene();
               return;
             }
           }
@@ -496,6 +456,30 @@ void KX_Scene::InitBlenderContextVariables()
     }
   }
 }
+
+void KX_Scene::BackupShadingType()
+{
+  bContext *C = KX_GetActiveEngine()->GetContext();
+
+  Scene *scene = GetBlenderScene();
+
+  /* Only if we are not in viewport render, modify + backup shading types */
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
+      KX_GetActiveEngine()->GetCanvas()->IsBlenderPlayer()) {
+
+    View3D *v3d = CTX_wm_view3d(C);
+
+    bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
+
+    if (not_eevee) {
+      m_shadingTypeBackup = v3d->shading.type;
+      m_shadingFlagBackup = v3d->shading.flag;
+      v3d->shading.type = OB_RENDER;
+      v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
+    }
+  }
+}
+
 Object *KX_Scene::GetGameDefaultCamera()
 {
   return m_gameDefaultCamera;
@@ -682,7 +666,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     if (cam) {
       DRW_view_set_active(NULL);
 
-      InitBlenderContextVariables();
+      /* When we call wm_draw_update, bContext variables are unset,
+       * then we need to set it again correctly to render the next frame.
+       */
+      ReinitBlenderContextVariables();
 
       CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
 

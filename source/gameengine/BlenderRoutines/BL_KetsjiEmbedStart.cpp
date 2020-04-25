@@ -44,7 +44,9 @@
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 #include "WM_api.h"
+#include "wm_window.h"
 
 #include "CM_Message.h"
 #include "GHOST_ISystem.h"
@@ -80,6 +82,36 @@ static BlendFileData *load_game_data(const char *filename)
   BKE_reports_clear(&reports);
 
   return bfd;
+}
+
+static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene *scene)
+{
+  ARegion *ar;
+  wmWindow *win;
+  for (win = (wmWindow *)wm->windows.first; win; win = win->next) {
+    bScreen *screen = WM_window_get_active_screen(win);
+    if (!screen) {
+      continue;
+    }
+
+    for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
+      if (sa->spacetype == SPACE_VIEW3D) {
+        ListBase *regionbase = &sa->regionbase;
+        for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
+          if (ar->regiontype == RGN_TYPE_WINDOW) {
+            if (ar->regiondata) {
+              CTX_wm_screen_set(C, screen);
+              CTX_wm_area_set(C, sa);
+              CTX_wm_region_set(C, ar);
+              CTX_data_scene_set(C, scene);
+              win->scene = scene;
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 extern "C" void StartKetsjiShell(struct bContext *C,
@@ -130,12 +162,24 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     BKE_undosys_step_push(CTX_wm_manager(C)->undo_stack, C, "bge_start");
   }
 
+
+  wmWindowManager *wm_backup = CTX_wm_manager(C);
+  wmWindow *win_backup = CTX_wm_window(C);
+  void *msgbus_backup = wm_backup->message_bus;
+  void *gpuctx_backup = win_backup->gpuctx;
+  void *ghostwin_backup = win_backup->ghostwin;
+
   do {
     // if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
     if (exitrequested == KX_ExitRequest::START_OTHER_GAME ||
         exitrequested == KX_ExitRequest::RESTART_GAME) {
       exitrequested = KX_ExitRequest::NO_REQUEST;
       if (bfd) {
+        /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
+         * .blend */
+        CTX_wm_window(C)->ghostwin = nullptr;
+        /* Hack to not free wm->message_bus when we restart/load new .blend */
+        CTX_wm_manager(C)->message_bus = nullptr;
         BLO_blendfiledata_free(bfd);
       }
 
@@ -169,8 +213,23 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         blenderdata = bfd->main;
         startscenename = bfd->curscene->id.name + 2;
 
+        /* If we don't change G_MAIN, bpy won't work in loaded .blends */
+        G_MAIN = G.main = bfd->main;
         CTX_data_main_set(C, bfd->main);
-        CTX_data_scene_set(C, bfd->curscene);
+        wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
+        wmWindow *win = (wmWindow *)wm->windows.first;
+        CTX_wm_manager_set(C, wm);
+        CTX_wm_window_set(C, win);
+        win->ghostwin = ghostwin_backup;
+        win->gpuctx = gpuctx_backup;
+        wm->message_bus = (wmMsgBus *)msgbus_backup;
+        /* We need to init Blender bContext environment here
+         * to because in embedded, ar, v3d...
+         * are needed for launcher creation
+         */
+        InitBlenderContextVariables(C, wm, bfd->curscene);
+        wm_window_ghostwindow_embedded_ensure(wm, win);
+        WM_check(C);
 
         if (blenderdata) {
           BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
@@ -187,8 +246,6 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     Scene *scene = bfd ? bfd->curscene :
                          (Scene *)BLI_findstring(
                              &blenderdata->scenes, startscenename, offsetof(ID, name) + 2);
-
-    // WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene);
 
     RAS_Rasterizer::StereoMode stereoMode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
     if (scene) {
@@ -239,7 +296,7 @@ extern "C" void StartKetsjiShell(struct bContext *C,
                                                      nullptr,
                                                      C,
                                                      cam_frame,
-                                                     ar,
+                                                     CTX_wm_region(C),
                                                      always_use_expand_framing);
 #ifdef WITH_PYTHON
     launcher.SetPythonGlobalDict(globalDict);
@@ -261,15 +318,23 @@ extern "C" void StartKetsjiShell(struct bContext *C,
            exitrequested == KX_ExitRequest::START_OTHER_GAME);
 
   if (bfd) {
+    /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
+     * .blend */
+    CTX_wm_window(C)->ghostwin = nullptr;
+    /* Hack to not free wm->message_bus when we restart/load new .blend */
+    CTX_wm_manager(C)->message_bus = nullptr;
     BLO_blendfiledata_free(bfd);
 
-    /* Warning: If we work on game restart/load blend actuator and that we change of
-     * wmWindowManager during runtime, we'd have to restore the right wmWindowManager/win/scene...
-     * before doing undo.
-     */
     /* Restore Main and Scene used before ge start */
+    G_MAIN = G.main = maggie1;
     CTX_data_main_set(C, maggie1);
-    CTX_data_scene_set(C, startscene);
+    CTX_wm_manager_set(C, wm_backup);
+    CTX_wm_window_set(C, win_backup);
+    win_backup->ghostwin = ghostwin_backup;
+    win_backup->gpuctx = gpuctx_backup;
+    wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
+    InitBlenderContextVariables(C, wm_backup, startscene);
+    WM_check(C);
   }
 
   /* Undo System */
