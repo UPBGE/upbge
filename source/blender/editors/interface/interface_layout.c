@@ -1874,6 +1874,15 @@ static void ui_item_rna_size(uiLayout *layout,
   *r_h = h;
 }
 
+static bool ui_item_rna_is_expand(PropertyRNA *prop, int index, int item_flag)
+{
+  const bool is_array = RNA_property_array_check(prop);
+  const int subtype = RNA_property_subtype(prop);
+  return is_array && (index == RNA_NO_INDEX) &&
+         ((item_flag & UI_ITEM_R_EXPAND) ||
+          !ELEM(subtype, PROP_COLOR, PROP_COLOR_GAMMA, PROP_DIRECTION));
+}
+
 /**
  * Find first layout ancestor (or self) with a heading set.
  *
@@ -1960,7 +1969,7 @@ void uiItemFullR(uiLayout *layout,
    * Keep using 'use_prop_sep' instead of disabling it entirely because
    * we need the ability to have decorators still. */
   bool use_prop_sep_split_label = use_prop_sep;
-  bool forbid_single_col = false;
+  bool use_split_empty_name = (flag & UI_ITEM_R_SPLIT_EMPTY_NAME);
 
 #ifdef UI_PROP_DECORATE
   struct {
@@ -2073,7 +2082,7 @@ void uiItemFullR(uiLayout *layout,
       use_prop_sep_split_label = false;
       /* For checkboxes we make an expection: We allow showing them in a split row even without
        * label. It typically relates to its neighbor items, so no need for an extra label. */
-      forbid_single_col = true;
+      use_split_empty_name = true;
     }
   }
 #endif
@@ -2111,7 +2120,7 @@ void uiItemFullR(uiLayout *layout,
     }
 #endif /* UI_PROP_DECORATE */
 
-    if ((name[0] == '\0') && !forbid_single_col) {
+    if ((name[0] == '\0') && !use_split_empty_name) {
       /* Ensure we get a column when text is not set. */
       layout = uiLayoutColumn(layout_row ? layout_row : layout, true);
       layout->space = 0;
@@ -2120,7 +2129,6 @@ void uiItemFullR(uiLayout *layout,
       }
     }
     else {
-      const PropertySubType subtype = RNA_property_subtype(prop);
       uiLayout *layout_split = uiLayoutSplit(
           layout_row ? layout_row : layout, UI_ITEM_PROP_SEP_DIVIDE, true);
       bool label_added = false;
@@ -2131,8 +2139,7 @@ void uiItemFullR(uiLayout *layout,
       if (!use_prop_sep_split_label) {
         /* Pass */
       }
-      else if ((index == RNA_NO_INDEX && is_array) &&
-               ((!expand && ELEM(subtype, PROP_COLOR, PROP_COLOR_GAMMA, PROP_DIRECTION)) == 0)) {
+      else if (ui_item_rna_is_expand(prop, index, flag)) {
         char name_with_suffix[UI_MAX_DRAW_STR + 2];
         char str[2] = {'\0'};
         for (int a = 0; a < len; a++) {
@@ -2934,16 +2941,38 @@ void uiItemMContents(uiLayout *layout, const char *menuname)
 void uiItemDecoratorR_prop(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index)
 {
   uiBlock *block = layout->root->block;
-  const bool is_anim = ptr && prop && RNA_property_animateable(ptr, prop);
   uiBut *but = NULL;
-  uiLayout *row;
 
+  uiLayout *col;
   UI_block_layout_set_current(block, layout);
-  row = uiLayoutRow(layout, false);
-  row->space = 0;
-  row->emboss = UI_EMBOSS_NONE;
+  col = uiLayoutColumn(layout, false);
+  col->space = 0;
+  col->emboss = UI_EMBOSS_NONE;
 
-  if (is_anim) {
+  if (ELEM(NULL, ptr, prop) || !RNA_property_animateable(ptr, prop)) {
+    but = uiDefIconBut(block,
+                       UI_BTYPE_BUT,
+                       0,
+                       ICON_BLANK1,
+                       0,
+                       0,
+                       UI_UNIT_X,
+                       UI_UNIT_Y,
+                       NULL,
+                       0.0,
+                       0.0,
+                       0.0,
+                       0.0,
+                       "");
+    but->flag |= UI_BUT_DISABLED;
+    return;
+  }
+
+  const bool is_expand = ui_item_rna_is_expand(prop, index, 0);
+  const bool is_array = RNA_property_array_check(prop);
+
+  /* Loop for the array-case, but only do in case of an expanded array. */
+  for (int i = 0; i < (is_expand ? RNA_property_array_length(ptr, prop) : 1); i++) {
     but = uiDefIconBut(block,
                        UI_BTYPE_BUT,
                        0,
@@ -2963,40 +2992,30 @@ void uiItemDecoratorR_prop(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop,
     /* Reusing RNA search members, setting actual RNA data has many side-effects. */
     but->rnasearchpoin = *ptr;
     but->rnasearchprop = prop;
-    but->custom_data = POINTER_FROM_INT(index);
-  }
-  else {
-    /* We may show other information here in future, for now use empty space. */
-    but = uiDefIconBut(block,
-                       UI_BTYPE_BUT,
-                       0,
-                       ICON_BLANK1,
-                       0,
-                       0,
-                       UI_UNIT_X,
-                       UI_UNIT_Y,
-                       NULL,
-                       0.0,
-                       0.0,
-                       0.0,
-                       0.0,
-                       "");
-    but->flag |= UI_BUT_DISABLED;
+    /* ui_def_but_rna() sets non-array buttons to have a RNA index of 0. */
+    but->custom_data = POINTER_FROM_INT((!is_array || is_expand) ? i : index);
   }
 }
 
+/**
+ * Insert a decorator item for a button with the same property as \a prop.
+ * To force inserting a blank dummy element, NULL can be passed for \a ptr and \a propname.
+ */
 void uiItemDecoratorR(uiLayout *layout, PointerRNA *ptr, const char *propname, int index)
 {
-  PropertyRNA *prop;
+  PropertyRNA *prop = NULL;
 
-  /* validate arguments */
-  prop = RNA_struct_find_property(ptr, propname);
-  if (!prop) {
-    ui_item_disabled(layout, propname);
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
-    return;
+  if (ptr && propname) {
+    /* validate arguments */
+    prop = RNA_struct_find_property(ptr, propname);
+    if (!prop) {
+      ui_item_disabled(layout, propname);
+      RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+      return;
+    }
   }
 
+  /* ptr and prop are allowed to be NULL here. */
   uiItemDecoratorR_prop(layout, ptr, prop, index);
 }
 
@@ -3143,35 +3162,40 @@ void uiItemL(uiLayout *layout, const char *name, int icon)
 }
 
 /**
- * Helper to add a label, which handles logic for split property layout if needed.
- *
- * Normally, we handle the split layout in #uiItemFullR(), but there are other cases where we may
- * want to use the logic. For those this helper was added, although it will likely have to be
- * extended to support more cases.
- * Ideally, #uiItemFullR() could just call this, but it currently has too many special needs.
- *
- * \return A layout placed in the row after the split layout. Used to place decorator items.
+ * Normally, we handle the split layout in #uiItemFullR(), but there are other cases where the
+ * logic is needed. Ideally, #uiItemFullR() could just call this, but it currently has too many
+ * special needs.
+ */
+uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout)
+{
+  uiPropertySplitWrapper split_wrapper = {NULL};
+
+  uiLayout *layout_row = uiLayoutRow(parent_layout, true);
+  uiLayout *layout_split = uiLayoutSplit(layout_row, UI_ITEM_PROP_SEP_DIVIDE, true);
+
+  layout_split->space = 0;
+  split_wrapper.label_column = uiLayoutColumn(layout_split, true);
+  split_wrapper.label_column->alignment = UI_LAYOUT_ALIGN_RIGHT;
+  split_wrapper.property_row = ui_item_prop_split_layout_hack(parent_layout, layout_split);
+  split_wrapper.decorate_column = uiLayoutColumn(layout_row, true);
+
+  return split_wrapper;
+}
+
+/*
+ * Helper to add a label and creates a property split layout if needed.
  */
 uiLayout *uiItemL_respect_property_split(uiLayout *layout, const char *text, int icon)
 {
   if (layout->item.flag & UI_ITEM_PROP_SEP) {
     uiBlock *block = uiLayoutGetBlock(layout);
+    uiPropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(layout);
+    /* Further items added to 'layout' will automatically be added to split_wrapper.property_row */
 
-    uiLayout *layout_row = uiLayoutRow(layout, true);
-    uiLayout *layout_split = uiLayoutSplit(layout_row, UI_ITEM_PROP_SEP_DIVIDE, true);
-    uiLayout *layout_sub = uiLayoutColumn(layout_split, true);
+    uiItemL_(split_wrapper.label_column, text, icon);
+    UI_block_layout_set_current(block, split_wrapper.property_row);
 
-    layout_split->space = layout_sub->space = layout_row->space = 0;
-    layout_sub->alignment = UI_LAYOUT_ALIGN_RIGHT;
-
-    uiItemL_(layout_sub, text, icon);
-
-    layout_split = ui_item_prop_split_layout_hack(layout, layout_split);
-    UI_block_layout_set_current(block, layout_split);
-
-    /* The decorator layout uses the row the split layout was inserted to.  */
-    uiLayout *layout_decorator = layout_row;
-    return layout_decorator;
+    return split_wrapper.decorate_column;
   }
   else {
     char namestr[UI_MAX_NAME_STR];

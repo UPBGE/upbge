@@ -1791,6 +1791,8 @@ enum {
   UI_ITEM_R_CHECKBOX_INVERT = 1 << 12,
   /** Don't add a real decorator item, just blank space. */
   UI_ITEM_R_FORCE_BLANK_DECORATE = 1 << 13,
+  /* Even create the property split layout if there's no name to show there. */
+  UI_ITEM_R_SPLIT_EMPTY_NAME = 1 << 14,
 };
 
 #define UI_HEADER_OFFSET ((void)0, 0.4f * UI_UNIT_X)
@@ -2327,6 +2329,14 @@ void uiItemsFullEnumO_items(uiLayout *layout,
                             int flag,
                             const EnumPropertyItem *item_array,
                             int totitem);
+
+typedef struct uiPropertySplitWrapper {
+  uiLayout *label_column;
+  uiLayout *property_row;
+  uiLayout *decorate_column;
+} uiPropertySplitWrapper;
+
+uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout);
 
 void uiItemL(uiLayout *layout, const char *name, int icon); /* label */
 void uiItemL_ex(
