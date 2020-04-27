@@ -873,12 +873,13 @@ typedef struct GameData {
   short physicsEngine;
   short exitkey;
   short vsync; /* Controls vsync: off, on, or adaptive (if supported) */
-  short ticrate, maxlogicstep, physubstep, maxphystep;
   short obstacleSimulation;
   short raster_storage;
+  short ticrate, maxlogicstep, physubstep, maxphystep;
+  float timeScale;
   float levelHeight;
   float deactivationtime, lineardeactthreshold, angulardeactthreshold;
-  int _pad;
+  int _pad[2];
 
   /* Scene LoD */
   short lodflag, _pad2;

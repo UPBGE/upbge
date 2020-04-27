@@ -223,6 +223,7 @@ void LA_Launcher::InitEngine()
   m_ketsjiEngine->SetTicRate(gm.ticrate);
   m_ketsjiEngine->SetMaxLogicFrame(gm.maxlogicstep);
   m_ketsjiEngine->SetMaxPhysicsFrame(gm.maxphystep);
+  m_ketsjiEngine->SetTimeScale(gm.timeScale);
 
   // Set the global settings (carried over if restart/load new files).
   m_ketsjiEngine->SetGlobalSettings(m_globalSettings);

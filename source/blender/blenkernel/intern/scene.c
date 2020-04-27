@@ -220,7 +220,7 @@ static void scene_init_data(ID *id)
   scene->gm.maxlogicstep = 5;
   scene->gm.physubstep = 1;
   scene->gm.maxphystep = 5;
-  // sce->gm.timeScale = 1.0f;
+  scene->gm.timeScale = 1.0f;
   scene->gm.lineardeactthreshold = 0.8f;
   scene->gm.angulardeactthreshold = 1.0f;
   scene->gm.deactivationtime = 2.0f;
