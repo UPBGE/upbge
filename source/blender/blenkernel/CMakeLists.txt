@@ -38,6 +38,7 @@ set(INC
   ../physics
   ../shader_fx
   ../render/extern/include
+  ../windowmanager
   ../../../intern/ghost
   ../../../intern/glew-mx
   ../../../intern/guardedalloc

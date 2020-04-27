@@ -146,6 +146,14 @@ void LA_Launcher::InitEngine()
   bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
   bool restrictAnimFPS = (gm.flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
+  // Setup python console keys used as shortcut.
+  for (unsigned short i = 0; i < 4; ++i) {
+	  if (gm.pythonkeys[i] != EVENT_NONE) {
+		  m_pythonConsole.keys.push_back(ConvertKeyCode(gm.pythonkeys[i]));
+	  }
+  }
+  m_pythonConsole.use = (gm.flag & GAME_PYTHON_CONSOLE);
+
   const KX_KetsjiEngine::FlagType flags = (KX_KetsjiEngine::FlagType)(
       (fixed_framerate ? KX_KetsjiEngine::FIXED_FRAMERATE : 0) |
       (frameRate ? KX_KetsjiEngine::SHOW_FRAMERATE : 0) |

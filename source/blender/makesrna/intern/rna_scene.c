@@ -2070,6 +2070,54 @@ static void rna_GameSettings_exit_key_set(PointerRNA *ptr, int value)
     gm->exitkey = value;
 }
 
+static void rna_GameSettings_python_key1_set(PointerRNA *ptr, int value)
+{
+	GameData *gm = (GameData *)ptr->data;
+
+	if (ISKEYBOARD(value)) {
+		gm->pythonkeys[0] = value;
+	}
+	else {
+		gm->pythonkeys[0] = EVENT_NONE;
+	}
+}
+
+static void rna_GameSettings_python_key2_set(PointerRNA *ptr, int value)
+{
+	GameData *gm = (GameData *)ptr->data;
+
+	if (ISKEYBOARD(value)) {
+		gm->pythonkeys[1] = value;
+	}
+	else {
+		gm->pythonkeys[1] = EVENT_NONE;
+	}
+}
+
+static void rna_GameSettings_python_key3_set(PointerRNA *ptr, int value)
+{
+	GameData *gm = (GameData *)ptr->data;
+
+	if (ISKEYBOARD(value)) {
+		gm->pythonkeys[2] = value;
+	}
+	else {
+		gm->pythonkeys[2] = EVENT_NONE;
+	}
+}
+
+static void rna_GameSettings_python_key4_set(PointerRNA *ptr, int value)
+{
+	GameData *gm = (GameData *)ptr->data;
+
+	if (ISKEYBOARD(value)) {
+		gm->pythonkeys[3] = value;
+	}
+	else {
+		gm->pythonkeys[3] = EVENT_NONE;
+	}
+}
+
 static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[], int frame)
 {
   TimeMarker *marker = MEM_callocN(sizeof(TimeMarker), "TimeMarker");
@@ -5536,6 +5584,42 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       "Restrict Animation Updates",
       "Restrict the number of animation updates to the animation FPS (this is "
       "better for performance, but can cause issues with smooth playback)");
+
+  prop = RNA_def_property(srna, "use_python_console", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_PYTHON_CONSOLE);
+  RNA_def_property_ui_text(prop, "Python Console", "Create a python interpreter console in game");
+
+  prop = RNA_def_property(srna, "python_console_key1", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[0]");
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key1_set", NULL);
+  RNA_def_property_enum_default(prop, EVT_LEFTCTRLKEY);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(prop, "Python Console Key", "First python console shortcut key");
+
+  prop = RNA_def_property(srna, "python_console_key2", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[1]");
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key2_set", NULL);
+  RNA_def_property_enum_default(prop, EVT_LEFTSHIFTKEY);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(prop, "Python Console Key", "Second python console shortcut key");
+
+  prop = RNA_def_property(srna, "python_console_key3", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[2]");
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key3_set", NULL);
+  RNA_def_property_enum_default(prop, EVT_LEFTALTKEY);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(prop, "Python Console Key", "Third python console shortcut key");
+
+  prop = RNA_def_property(srna, "python_console_key4", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[3]");
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key4_set", NULL);
+  RNA_def_property_enum_default(prop, EVT_TKEY);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(prop, "Python Console Key", "Fourth python console shortcut key");
 
   /* materials */
   prop = RNA_def_property(srna, "material_mode", PROP_ENUM, PROP_NONE);

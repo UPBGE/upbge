@@ -489,6 +489,32 @@ class SCENE_PT_game_hysteresis(SceneButtonsPanel, Panel):
         row.active = gs.use_scene_hysteresis
         row.prop(gs, "scene_hysteresis_percentage", text="")
 
+class SCENE_PT_game_console(SceneButtonsPanel, Panel):
+    bl_label = "Game Python Console"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return (scene and scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        gs = context.scene.game_settings
+
+        self.layout.prop(gs, "use_python_console", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        gs = context.scene.game_settings
+        row = layout.row(align=True)
+        row.active = gs.use_python_console
+        row.label(text="Keys:")
+        row.prop(gs, "python_console_key1", text="", event=True)
+        row.prop(gs, "python_console_key2", text="", event=True)
+        row.prop(gs, "python_console_key3", text="", event=True)
+        row.prop(gs, "python_console_key4", text="", event=True)
 
 class DataButtonsPanel:
     bl_space_type = 'PROPERTIES'
@@ -563,6 +589,7 @@ classes = (
     SCENE_PT_game_physics_obstacles,
     SCENE_PT_game_navmesh,
     SCENE_PT_game_hysteresis,
+    SCENE_PT_game_console,
     OBJECT_MT_lod_tools,
     OBJECT_PT_levels_of_detail,
 )

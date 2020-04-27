@@ -108,6 +108,7 @@
 #include "IMB_imbuf.h"
 
 #include "bmesh.h"
+#include "wm_event_types.h"
 
 static void scene_init_data(ID *id)
 {
@@ -249,10 +250,10 @@ static void scene_init_data(ID *id)
   scene->gm.lodflag = SCE_LOD_USE_HYST;
   scene->gm.scehysteresis = 10;
 
-  // scene->gm.pythonkeys[0] = LEFTCTRLKEY;
-  // scene->gm.pythonkeys[1] = LEFTSHIFTKEY;
-  // scene->gm.pythonkeys[2] = LEFTALTKEY;
-  // scene->gm.pythonkeys[3] = TKEY;
+  scene->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
+  scene->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
+  scene->gm.pythonkeys[2] = EVT_LEFTALTKEY;
+  scene->gm.pythonkeys[3] = EVT_TKEY;
 
   /* Curve Profile */
   scene->toolsettings->custom_bevel_profile_preset = BKE_curveprofile_add(PROF_PRESET_LINE);

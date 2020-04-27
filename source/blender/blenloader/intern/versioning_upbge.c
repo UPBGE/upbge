@@ -93,18 +93,6 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 #endif
   }
 
-#if 0 /* XXX UPBGE | we need to recover Python console first */
-    if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 9)) {
-        if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
-            for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
-                scene->gm.pythonkeys[0] = LEFTCTRLKEY;
-                scene->gm.pythonkeys[1] = LEFTSHIFTKEY;
-                scene->gm.pythonkeys[2] = LEFTALTKEY;
-                scene->gm.pythonkeys[3] = TKEY;
-            }
-        }
-    }
-#endif
 #if 0 /* XXX UPBGE | we need to increase upbge version and translate from do_versions_280 */
     if (!MAIN_VERSION_UPBGE_ATLEAST(main, 1, 2)) {
         if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "friction")) {
@@ -197,6 +185,14 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 	if (!DNA_struct_elem_find(fd->filesdna, "GameData", "float", "timeScale")) {
 		for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
 			scene->gm.timeScale = 1.0f;
+		}
+	}
+	if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
+		for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
+			scene->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
+			scene->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
+			scene->gm.pythonkeys[2] = EVT_LEFTALTKEY;
+			scene->gm.pythonkeys[3] = EVT_TKEY;
 		}
 	}
   }

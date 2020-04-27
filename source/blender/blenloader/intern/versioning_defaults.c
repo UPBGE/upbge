@@ -57,6 +57,8 @@
 
 #include "BLO_readfile.h"
 
+#include "wm_event_types.h"
+
 /* Make preferences read-only, use versioning_userdef.c. */
 #define U (*((const UserDef *)&U))
 
@@ -420,10 +422,10 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.lodflag = SCE_LOD_USE_HYST;
     sce->gm.scehysteresis = 10;
 
-    // sce->gm.pythonkeys[0] = LEFTCTRLKEY;
-    // sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
-    // sce->gm.pythonkeys[2] = LEFTALTKEY;
-    // sce->gm.pythonkeys[3] = TKEY;
+	sce->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
+	sce->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
+	sce->gm.pythonkeys[2] = EVT_LEFTALTKEY;
+	sce->gm.pythonkeys[3] = EVT_TKEY;
   }
   for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
     /* Game engine defaults*/

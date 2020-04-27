@@ -872,6 +872,7 @@ typedef struct GameData {
   short occlusionRes; /* resolution of occlusion Z buffer in pixel */
   short physicsEngine;
   short exitkey;
+  short pythonkeys[4];
   short vsync; /* Controls vsync: off, on, or adaptive (if supported) */
   short obstacleSimulation;
   short raster_storage;
@@ -943,6 +944,7 @@ typedef struct GameData {
 #define GAME_USE_UNDO (1 << 19)
 #define GAME_USE_UI_ANTI_FLICKER (1 << 20)
 #define GAME_USE_VIEWPORT_RENDER (1 << 21)
+#define GAME_PYTHON_CONSOLE (1 << 22)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
 
 /* GameData.playerflag */
