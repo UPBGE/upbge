@@ -38,11 +38,12 @@
 #include <map>
 #include <set>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "BLI_map.hh"
 #include "BLI_set.hh"
+#include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
 
 struct Depsgraph;
 
@@ -51,14 +52,18 @@ struct CustomData_MeshMasks;
 namespace DEG {
 
 /* Commonly used types. */
+using BLI::ArrayRef;
 using BLI::Map;
 using BLI::Set;
+using BLI::StringRef;
+using BLI::StringRefNull;
+using BLI::Vector;
 using std::deque;
 using std::map;
 using std::pair;
 using std::set;
 using std::string;
-using std::unordered_map;
+using std::unique_ptr;
 using std::vector;
 
 /* Commonly used functions. */

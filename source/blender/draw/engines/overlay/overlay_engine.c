@@ -76,6 +76,8 @@ static void OVERLAY_engine_init(void *vedata)
     pd->overlay.flag |= V3D_OVERLAY_WIREFRAMES;
   }
 
+  pd->use_in_front = (v3d->shading.type <= OB_SOLID) ||
+                     BKE_scene_uses_blender_workbench(draw_ctx->scene);
   pd->wireframe_mode = (v3d->shading.type == OB_WIRE);
   pd->clipping_state = RV3D_CLIPPING_ENABLED(v3d, rv3d) ? DRW_STATE_CLIP_PLANES : 0;
   pd->xray_opacity = XRAY_ALPHA(v3d);
@@ -478,6 +480,12 @@ static void OVERLAY_draw_scene(void *vedata)
   OVERLAY_grid_draw(vedata);
 
   OVERLAY_xray_depth_infront_copy(vedata);
+
+  if (DRW_state_is_fbo()) {
+    GPU_framebuffer_bind(fbl->overlay_in_front_fb);
+  }
+
+  OVERLAY_facing_infront_draw(vedata);
 
   if (DRW_state_is_fbo()) {
     GPU_framebuffer_bind(fbl->overlay_line_in_front_fb);

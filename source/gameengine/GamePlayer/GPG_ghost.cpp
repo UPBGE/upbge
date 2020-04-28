@@ -259,7 +259,7 @@ static GHOST_IWindow *startScreenSaverPreview(GHOST_ISystem *system,
   if (GetWindowRect(parentWindow, &rc)) {
     int windowWidth = rc.right - rc.left;
     int windowHeight = rc.bottom - rc.top;
-    STR_String title = "";
+    const char *title = "";
     GHOST_GLSettings glSettings = {0};
 
     if (stereoVisual) {
@@ -369,7 +369,7 @@ static GHOST_IWindow *startScreenSaverFullScreen(GHOST_ISystem *system,
 #endif  // WIN32
 
 static GHOST_IWindow *startWindow(GHOST_ISystem *system,
-                                  STR_String &title,
+                                  const char *title,
                                   int windowLeft,
                                   int windowTop,
                                   int windowWidth,
@@ -408,7 +408,7 @@ static GHOST_IWindow *startWindow(GHOST_ISystem *system,
 }
 
 static GHOST_IWindow *startEmbeddedWindow(GHOST_ISystem *system,
-                                          STR_String &title,
+                                          const char *title,
                                           const GHOST_TEmbedderWindowID parentWindow,
                                           const bool stereoVisual,
                                           const int alphaBackground)
@@ -1488,7 +1488,7 @@ int main(int argc,
                 else
 #endif
                 {
-                  STR_String strtitle(title.c_str());
+                  const char *strtitle = title.c_str();
                   if (parentWindow != 0)
                     window = startEmbeddedWindow(
                         system, strtitle, parentWindow, stereoWindow, alphaBackground);

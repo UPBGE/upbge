@@ -10,6 +10,7 @@ TEST(set, Defaultconstructor)
 {
   IntSet set;
   EXPECT_EQ(set.size(), 0);
+  EXPECT_TRUE(set.is_empty());
 }
 
 TEST(set, ContainsNotExistant)
@@ -22,8 +23,10 @@ TEST(set, ContainsExistant)
 {
   IntSet set;
   EXPECT_FALSE(set.contains(5));
+  EXPECT_TRUE(set.is_empty());
   set.add(5);
   EXPECT_TRUE(set.contains(5));
+  EXPECT_FALSE(set.is_empty());
 }
 
 TEST(set, AddMany)
@@ -190,4 +193,12 @@ TEST(set, UniquePtrValues)
   set.add(std::unique_ptr<int>(new int()));
 
   EXPECT_EQ(set.size(), 3);
+}
+
+TEST(set, Clear)
+{
+  Set<int> set = {3, 4, 6, 7};
+  EXPECT_EQ(set.size(), 4);
+  set.clear();
+  EXPECT_EQ(set.size(), 0);
 }

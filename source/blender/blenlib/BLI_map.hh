@@ -408,11 +408,32 @@ class Map {
   }
 
   /**
+   * Return the value that corresponds to the given key.
+   * If it does not exist yet, insert a new default constructed value and return that.
+   */
+  ValueT &lookup_or_add_default(const KeyT &key)
+  {
+    return this->lookup_or_add(key, []() { return ValueT(); });
+  }
+  ValueT &lookup_or_add_default(const KeyT &&key)
+  {
+    return this->lookup_or_add(std::move(key), []() { return ValueT(); });
+  }
+
+  /**
    * Get the number of elements in the map.
    */
   uint32_t size() const
   {
     return m_array.slots_set();
+  }
+
+  /**
+   * Returns true if there are no elements in the map.
+   */
+  bool is_empty() const
+  {
+    return this->size() == 0;
   }
 
   /**

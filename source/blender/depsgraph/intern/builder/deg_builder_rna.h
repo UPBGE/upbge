@@ -26,7 +26,6 @@
 #include "intern/node/deg_node.h"
 #include "intern/node/deg_node_operation.h"
 
-struct GHash;
 struct ID;
 struct PointerRNA;
 struct PropertyRNA;
@@ -83,7 +82,7 @@ class RNANodeQuery {
   DepsgraphBuilder *builder_;
 
   /* Indexed by an ID, returns RNANodeQueryIDData associated with that ID. */
-  GHash *id_data_map_;
+  Map<const ID *, unique_ptr<RNANodeQueryIDData>> id_data_map_;
 
   /* Construct identifier of the node which corresponds given configuration
    * of RNA property. */

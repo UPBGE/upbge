@@ -9,16 +9,20 @@ TEST(map, DefaultConstructor)
 {
   IntFloatMap map;
   EXPECT_EQ(map.size(), 0);
+  EXPECT_TRUE(map.is_empty());
 }
 
 TEST(map, AddIncreasesSize)
 {
   IntFloatMap map;
   EXPECT_EQ(map.size(), 0);
+  EXPECT_TRUE(map.is_empty());
   map.add(2, 5.0f);
   EXPECT_EQ(map.size(), 1);
+  EXPECT_FALSE(map.is_empty());
   map.add(6, 2.0f);
   EXPECT_EQ(map.size(), 2);
+  EXPECT_FALSE(map.is_empty());
 }
 
 TEST(map, Contains)
@@ -207,6 +211,17 @@ TEST(map, AddOverride)
   EXPECT_EQ(map.lookup(3), 7.0f);
   EXPECT_FALSE(map.add(3, 8.0f));
   EXPECT_EQ(map.lookup(3), 7.0f);
+}
+
+TEST(map, LookupOrAddDefault)
+{
+  IntFloatMap map;
+  map.lookup_or_add_default(3) = 6;
+  EXPECT_EQ(map.lookup(3), 6);
+  map.lookup_or_add_default(5) = 2;
+  EXPECT_EQ(map.lookup(5), 2);
+  map.lookup_or_add_default(3) += 4;
+  EXPECT_EQ(map.lookup(3), 10);
 }
 
 TEST(map, MoveConstructorSmall)

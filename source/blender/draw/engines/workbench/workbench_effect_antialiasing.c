@@ -141,18 +141,12 @@ static bool workbench_in_front_history_needed(WORKBENCH_Data *vedata)
   WORKBENCH_StorageList *stl = vedata->stl;
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const View3D *v3d = draw_ctx->v3d;
-  const Object *obact = draw_ctx->obact;
 
   if (!v3d || (v3d->flag2 & V3D_HIDE_OVERLAYS)) {
     return false;
   }
 
   if (stl->wpd->is_playback) {
-    return false;
-  }
-
-  if (!obact || draw_ctx->object_mode != OB_MODE_WEIGHT_PAINT ||
-      v3d->overlay.weight_paint_mode_opacity == 0.0) {
     return false;
   }
 

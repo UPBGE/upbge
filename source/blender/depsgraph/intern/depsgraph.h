@@ -43,8 +43,6 @@
 #include "intern/debug/deg_debug.h"
 #include "intern/depsgraph_type.h"
 
-struct GHash;
-struct GSet;
 struct ID;
 struct Scene;
 struct ViewLayer;
@@ -97,7 +95,7 @@ struct Depsgraph {
 
   /* <ID : IDNode> mapping from ID blocks to nodes representing these
    * blocks, used for quick lookups. */
-  GHash *id_hash;
+  Map<const ID *, IDNode *> id_hash;
 
   /* Ordered list of ID nodes, order matches ID allocation order.
    * Used for faster iteration, especially for areas which are critical to
@@ -119,7 +117,7 @@ struct Depsgraph {
   /* Quick-Access Temp Data ............. */
 
   /* Nodes which have been tagged as "directly modified". */
-  GSet *entry_tags;
+  Set<OperationNode *> entry_tags;
 
   /* Special entry tag for time source. Allows to tag invisible dependency graphs for update when
    * scene frame changes, so then when dependency graph becomes visible it is on a proper state. */
@@ -169,7 +167,7 @@ struct Depsgraph {
 
   /* Cached list of colliders/effectors for collections and the scene
    * created along with relations, for fast lookup during evaluation. */
-  GHash *physics_relations[DEG_PHYSICS_RELATIONS_NUM];
+  Map<const ID *, ListBase *> *physics_relations[DEG_PHYSICS_RELATIONS_NUM];
 };
 
 }  // namespace DEG

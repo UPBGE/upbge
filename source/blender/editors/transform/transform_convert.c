@@ -447,12 +447,12 @@ static void bone_children_clear_transflag(int mode, short around, ListBase *lb)
   }
 }
 
-/* sets transform flags in the bones
- * returns total number of bones with BONE_TRANSFORM */
-int count_set_pose_transflags(Object *ob,
-                              const int mode,
-                              const short around,
-                              bool has_translate_rotate[2])
+/* Sets transform flags in the bones.
+ * Returns total number of bones with `BONE_TRANSFORM`. */
+int transform_convert_pose_transflags_update(Object *ob,
+                                             const int mode,
+                                             const short around,
+                                             bool has_translate_rotate[2])
 {
   bArmature *arm = ob->data;
   bPoseChannel *pchan;
@@ -824,7 +824,6 @@ void clipUVData(TransInfo *t)
 char transform_convert_frame_side_dir_get(TransInfo *t, float cframe)
 {
   char r_dir;
-  Scene *scene = t->scene;
   float center[2];
   if (t->flag & T_MODAL) {
     UI_view2d_region_to_view(
@@ -2287,7 +2286,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 
       /* set BONE_TRANSFORM flags for autokey, gizmo draw might have changed them */
       if (!canceled && (t->mode != TFM_DUMMY)) {
-        count_set_pose_transflags(ob, t->mode, t->around, NULL);
+        transform_convert_pose_transflags_update(ob, t->mode, t->around, NULL);
       }
 
       /* if target-less IK grabbing, we calculate the pchan transforms and clear flag */

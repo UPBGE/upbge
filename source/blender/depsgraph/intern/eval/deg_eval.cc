@@ -28,7 +28,6 @@
 #include "PIL_time.h"
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_ghash.h"
 #include "BLI_gsqueue.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
@@ -364,7 +363,7 @@ void depsgraph_ensure_view_layer(Depsgraph *graph)
 void deg_evaluate_on_refresh(Depsgraph *graph)
 {
   /* Nothing to update, early out. */
-  if (BLI_gset_len(graph->entry_tags) == 0) {
+  if (graph->entry_tags.is_empty()) {
     return;
   }
 
