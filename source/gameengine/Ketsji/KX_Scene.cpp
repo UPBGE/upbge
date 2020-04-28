@@ -324,10 +324,6 @@ KX_Scene::~KX_Scene()
   // Put that before we flush depsgraph updates at scene exit
   scene->flag &= ~SCE_INTERACTIVE;
 
-  // Flush depsgraph updates a last time at ge exit
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
-
   /* End of EEVEE INTEGRATION */
 
   // The release of debug properties used to be in SCA_IScene::~SCA_IScene
@@ -392,6 +388,10 @@ KX_Scene::~KX_Scene()
   if (m_sceneConverter) {
     delete m_sceneConverter;
   }
+
+  // Flush depsgraph updates a last time at ge exit
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
 
 #ifdef WITH_PYTHON
   if (m_attr_dict) {

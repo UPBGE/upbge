@@ -139,7 +139,8 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
   KX_NormalParentRelation *parent_relation = KX_NormalParentRelation::New();
   m_pSGNode->SetParentRelation(parent_relation);
 
-  unit_m4(m_prevObmat);  // eevee
+  unit_m4(m_origObmat); // eevee
+  unit_m4(m_prevObmat); // eevee
 };
 
 KX_GameObject::~KX_GameObject()
@@ -167,6 +168,8 @@ KX_GameObject::~KX_GameObject()
   Object *ob = GetBlenderObject();
 
   if (ob) {
+    RestoreObmat(ob);
+
     if (ob->gameflag & OB_OVERLAY_COLLECTION) {
       ob->gameflag &= ~OB_OVERLAY_COLLECTION;
     }
@@ -514,6 +517,22 @@ void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj)
 bool KX_GameObject::IsReplica()
 {
   return m_isReplica;
+}
+
+void KX_GameObject::BackupObmat(Object *ob)
+{
+  if (ob) {
+    copy_m4_m4(m_origObmat, ob->obmat);
+  }
+}
+
+void KX_GameObject::RestoreObmat(Object *ob)
+{
+  if (ob) {
+    copy_m4_m4(ob->obmat, m_origObmat);
+    BKE_object_apply_mat4(ob, ob->obmat, false, true);
+    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+  }
 }
 
 /********************End of EEVEE INTEGRATION*********************/

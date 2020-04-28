@@ -88,8 +88,9 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 class KX_GameObject : public SCA_IObject {
   Py_Header protected :
 
-      /* EEVEE INTEGRATION */
-      float m_prevObmat[4][4];
+  /* EEVEE INTEGRATION */
+  float m_origObmat[4][4];
+  float m_prevObmat[4][4];
   bool m_castShadows;
   bool m_isReplica;
   bool m_staticObject;
@@ -150,6 +151,8 @@ class KX_GameObject : public SCA_IObject {
   void RestoreLogic(bool childrenRecursive);
   void AddDummyLodManager(RAS_MeshObject *meshObj);
   bool IsReplica();
+  void BackupObmat(Object *ob);
+  void RestoreObmat(Object *ob);
   /* END OF EEVEE INTEGRATION */
 
   /**
