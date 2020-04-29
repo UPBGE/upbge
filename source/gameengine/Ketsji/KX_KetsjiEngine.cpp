@@ -622,6 +622,9 @@ void KX_KetsjiEngine::Render()
 
 	BeginFrame();
 
+	// Set vsync one time per frame
+	m_canvas->SetSwapControl(m_canvas->GetSwapControl());
+
 	for (KX_Scene *scene : m_scenes) {
 		// shadow buffers
 		RenderShadowBuffers(scene);
