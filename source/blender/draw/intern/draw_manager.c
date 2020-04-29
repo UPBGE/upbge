@@ -3066,21 +3066,6 @@ void DRW_opengl_context_create_blenderplayer(void *syshandle)
   wm_window_reset_drawable();
 }
 
-void DRW_opengl_context_destroy_blenderplayer(void)
-{
-  BLI_assert(BLI_thread_is_main());
-  if (DST.gl_context != NULL) {
-    WM_opengl_context_activate(DST.gl_context);
-    GPU_context_active_set(DST.gpu_context);
-    GPU_context_discard(DST.gpu_context);
-    WM_opengl_context_dispose(DST.gl_context);
-    BLI_ticket_mutex_free(DST.gl_context_mutex);
-    DST.gl_context = NULL;
-    DST.gpu_context = NULL;
-    DST.gl_context_mutex = NULL;
-  }
-}
-
 /* Called instead of DRW_transform_to_display in eevee_engine
  * to avoid double tonemapping of rendered textures with ImageRender
  */
