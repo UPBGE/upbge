@@ -50,4 +50,7 @@ set(SRC
         include/enet/win32.h
 )
 
-blender_add_lib(extern_enet "${SRC}" "${INC}" "${INC_SYS}")
+set(LIB
+)
+
+blender_add_lib(extern_enet "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

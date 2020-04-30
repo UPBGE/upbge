@@ -203,6 +203,9 @@ endif()
 option(WITH_GAMEENGINE_BPPLAYER "Enable Blend encrypted (from BPPlayer application) reading capabilities" ON)
 mark_as_advanced(WITH_GAMEENGINE_BPPLAYER)
 
+option(WITH_GAMEENGINE_ENET "Enable Network capabilities for the Game Engine" ON)
+mark_as_advanced(WITH_GAMEENGINE_ENET)
+
 option(WITH_PLAYER        "Build Player" ON)
 
 # Compositor
@@ -626,8 +629,13 @@ if(NOT WITH_BLENDER AND NOT WITH_PLAYER AND NOT WITH_CYCLES_STANDALONE)
 	)
 endif()
 
-if(NOT WITH_GAMEENGINE AND WITH_PLAYER)
-	message(FATAL_ERROR "WITH_PLAYER requires WITH_GAMEENGINE")
+if(NOT WITH_GAMEENGINE)
+  if(WITH_PLAYER)
+    message(FATAL_ERROR "WITH_PLAYER requires WITH_GAMEENGINE")
+  endif()
+  if(WITH_GAMEENGINE_ENET)
+    message(FATAL_ERROR "WITH_GAMEENGINE_ENET requires WITH_GAMEENGINE")
+  endif()
 endif()
 
 if(NOT WITH_AUDASPACE)

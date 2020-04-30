@@ -52,4 +52,16 @@ set(SRC
 set(LIB
 )
 
+if(WITH_GAMEENGINE_ENET)
+  list(APPEND INC_SYS
+    ../../../../extern/enet
+  )
+
+  list(APPEND LIB
+    extern_enet
+  )
+
+  add_definitions(-DWITH_GAMEENGINE_ENET)
+endif()
+
 blender_add_lib(ge_msg_network "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
