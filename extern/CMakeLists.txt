@@ -58,7 +58,10 @@ if(NOT WITH_SYSTEM_GLEW)
 endif()
 
 if(WITH_GAMEENGINE)
-	add_subdirectory(recastnavigation)
+  add_subdirectory(recastnavigation)
+  if(WITH_GAMEENGINE_ENET)
+    add_subdirectory(enet)
+  endif()
 endif()
 
 if(WITH_LZO AND NOT WITH_SYSTEM_LZO)
