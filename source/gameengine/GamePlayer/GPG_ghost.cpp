@@ -82,6 +82,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_mempool.h"
 #include "BLI_system.h"
+#include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLO_readfile.h"
 #include "BLO_runtime.h"
