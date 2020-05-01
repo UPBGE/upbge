@@ -123,7 +123,7 @@
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
 #include "BKE_effect.h"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve_driver.h"
 #include "BKE_fluid.h"
 #include "BKE_global.h"  // for G
 #include "BKE_gpencil_modifier.h"

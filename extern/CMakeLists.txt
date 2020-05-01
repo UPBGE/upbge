@@ -76,7 +76,7 @@ if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
   endif()
 endif()
 
-if(WITH_X11 AND WITH_GHOST_XDND)
+if(WITH_GHOST_X11 AND WITH_GHOST_XDND)
   add_subdirectory(xdnd)
 endif()
 

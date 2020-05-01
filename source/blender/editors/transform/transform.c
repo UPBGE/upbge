@@ -828,7 +828,6 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, bool is
       if (ELEM(cmode, '\0', axis)) {
         /* Successive presses on existing axis, cycle orientation modes. */
         t->orientation.index = (t->orientation.index + 1) % ARRAY_SIZE(t->orientation.types);
-        BLI_assert(t->orientation.types[0] != V3D_ORIENT_CUSTOM_MATRIX);
         initTransformOrientation(t->context, t, t->orientation.types[t->orientation.index]);
       }
 
@@ -1895,9 +1894,12 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   initTransInfo(C, t, op, event);
 
-  /* Although `t->orientation.index` can be different from 0, always init the
-   * default orientation so that in redo the contraint uses the `orient_matrix` */
-  initTransformOrientation(C, t, t->orientation.types[0]);
+  /* Use the custom orientation when it is set. */
+  short orientation = t->orientation.types[0] == V3D_ORIENT_CUSTOM_MATRIX ?
+                          V3D_ORIENT_CUSTOM_MATRIX :
+                          t->orientation.types[t->orientation.index];
+
+  initTransformOrientation(C, t, orientation);
 
   if (t->spacetype == SPACE_VIEW3D) {
     t->draw_handle_apply = ED_region_draw_cb_activate(
