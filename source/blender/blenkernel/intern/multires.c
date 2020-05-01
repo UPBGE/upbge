@@ -407,7 +407,7 @@ int multires_get_level(const Scene *scene,
                              mmd->renderlvl;
   }
   else if (ob->mode == OB_MODE_SCULPT) {
-    return BKE_multires_sculpt_level_get(mmd);
+    return mmd->sculptlvl;
   }
   else if (ignore_simplify) {
     return mmd->lvl;
@@ -2234,7 +2234,14 @@ void multiresModifier_sync_levels_ex(Object *ob_dst,
   }
 
   if (mmd_src->totlvl > mmd_dst->totlvl) {
-    multiresModifier_subdivide_to_level(ob_dst, mmd_dst, mmd_src->totlvl);
+    if (mmd_dst->simple) {
+      multiresModifier_subdivide_to_level(
+          ob_dst, mmd_dst, mmd_src->totlvl, MULTIRES_SUBDIVIDE_SIMPLE);
+    }
+    else {
+      multiresModifier_subdivide_to_level(
+          ob_dst, mmd_dst, mmd_src->totlvl, MULTIRES_SUBDIVIDE_CATMULL_CLARK);
+    }
   }
   else {
     multires_del_higher(mmd_dst, ob_dst, mmd_src->totlvl);
@@ -2515,13 +2522,4 @@ int mdisp_rot_face_to_crn(struct MVert *UNUSED(mvert),
   }
 
   return S;
-}
-
-/* This is a workaround for T58473.
- * Force sculpting on the highest level for until the root of the issue is solved.
- *
- * When that issue is solved simple replace call of this function with mmd->sculptlvl. */
-int BKE_multires_sculpt_level_get(const struct MultiresModifierData *mmd)
-{
-  return mmd->totlvl;
 }

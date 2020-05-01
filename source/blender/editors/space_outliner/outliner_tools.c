@@ -89,9 +89,9 @@
 
 #include "outliner_intern.h"
 
-/* ****************************************************** */
-
-/* ************ SELECTION OPERATIONS ********* */
+/* -------------------------------------------------------------------- */
+/** \name ID/Library/Data Set/Un-link Utilities
+ * \{ */
 
 static void set_operation_types(SpaceOutliner *soops,
                                 ListBase *lb,
@@ -414,7 +414,12 @@ static void outliner_do_libdata_operation(bContext *C,
   }
 }
 
-/* ******************************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Scene Menu Operator
+ * \{ */
+
 typedef enum eOutliner_PropSceneOps {
   OL_SCENE_OP_DELETE = 1,
 } eOutliner_PropSceneOps;
@@ -502,7 +507,12 @@ void OUTLINER_OT_scene_operation(wmOperatorType *ot)
 
   ot->prop = RNA_def_enum(ot->srna, "type", prop_scene_op_types, 0, "Scene Operation", "");
 }
-/* ******************************************** */
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Search Utilities
+ * \{ */
 
 /**
  * Stores the parent and a child element of a merged icon-row icon for
@@ -643,6 +653,12 @@ static void object_select_cb(bContext *C,
   }
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Callbacks (Selection, Users & Library) Utilities
+ * \{ */
+
 static void object_select_hierarchy_cb(bContext *C,
                                        ReportList *UNUSED(reports),
                                        Scene *UNUSED(scene),
@@ -673,13 +689,10 @@ static void object_deselect_cb(bContext *C,
   }
 }
 
-static void object_delete_cb(bContext *C,
-                             ReportList *reports,
-                             Scene *scene,
-                             TreeElement *UNUSED(te),
-                             TreeStoreElem *UNUSED(tsep),
-                             TreeStoreElem *tselem,
-                             void *UNUSED(user_data))
+static void outliner_object_delete(bContext *C,
+                                   ReportList *reports,
+                                   Scene *scene,
+                                   TreeStoreElem *tselem)
 {
   Object *ob = (Object *)tselem->id;
   if (ob) {
@@ -885,7 +898,11 @@ void outliner_do_object_operation(bContext *C,
   outliner_do_object_operation_ex(C, reports, scene_act, soops, lb, operation_cb, NULL, true);
 }
 
-/* ******************************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Internal Tagging Utilities
+ * \{ */
 
 static void clear_animdata_cb(int UNUSED(event),
                               TreeElement *UNUSED(te),
@@ -937,7 +954,11 @@ static void refreshdrivers_animdata_cb(int UNUSED(event),
   }
 }
 
-/* --------------------------------- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Operation Utilities
+ * \{ */
 
 typedef enum eOutliner_PropDataOps {
   OL_DOP_SELECT = 1,
@@ -1310,13 +1331,16 @@ static void object_batch_delete_hierarchy_cb(bContext *C,
   }
 }
 
-/* **************************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Menu Operator
+ * \{ */
 
 enum {
   OL_OP_SELECT = 1,
   OL_OP_DESELECT,
   OL_OP_SELECT_HIERARCHY,
-  OL_OP_DELETE,
   OL_OP_DELETE_HIERARCHY,
   OL_OP_REMAP,
   OL_OP_LOCALIZED, /* disabled, see below */
@@ -1332,7 +1356,6 @@ static const EnumPropertyItem prop_object_op_types[] = {
     {OL_OP_SELECT, "SELECT", ICON_RESTRICT_SELECT_OFF, "Select", ""},
     {OL_OP_DESELECT, "DESELECT", 0, "Deselect", ""},
     {OL_OP_SELECT_HIERARCHY, "SELECT_HIERARCHY", 0, "Select Hierarchy", ""},
-    {OL_OP_DELETE, "DELETE", ICON_X, "Delete", ""},
     {OL_OP_DELETE_HIERARCHY, "DELETE_HIERARCHY", 0, "Delete Hierarchy", ""},
     {OL_OP_REMAP,
      "REMAP",
@@ -1388,29 +1411,6 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
     str = "Deselect Objects";
     selection_changed = true;
   }
-  else if (event == OL_OP_DELETE) {
-    ViewLayer *view_layer = CTX_data_view_layer(C);
-    const Base *basact_prev = BASACT(view_layer);
-
-    outliner_do_object_operation(C, op->reports, scene, soops, &soops->tree, object_delete_cb);
-
-    /* XXX: tree management normally happens from draw_outliner(), but when
-     *      you're clicking to fast on Delete object from context menu in
-     *      outliner several mouse events can be handled in one cycle without
-     *      handling notifiers/redraw which leads to deleting the same object twice.
-     *      cleanup tree here to prevent such cases. */
-    outliner_cleanup_tree(soops);
-
-    DEG_relations_tag_update(bmain);
-    str = "Delete Objects";
-    DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-    if (basact_prev != BASACT(view_layer)) {
-      WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
-      WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, LayerObjects, active);
-    }
-    selection_changed = true;
-  }
   else if (event == OL_OP_DELETE_HIERARCHY) {
     ViewLayer *view_layer = CTX_data_view_layer(C);
     const Base *basact_prev = BASACT(view_layer);
@@ -1435,7 +1435,7 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
       BKE_id_multi_tagged_delete(bmain);
     }
 
-    /* XXX: See OL_OP_DELETE comment above. */
+    /* XXX: See outliner_delete_exec comment below. */
     outliner_cleanup_tree(soops);
 
     DEG_relations_tag_update(bmain);
@@ -1502,7 +1502,85 @@ void OUTLINER_OT_object_operation(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna, "type", prop_object_op_types, 0, "Object Operation", "");
 }
 
-/* **************************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Delete Object/Collection Operator
+ * \{ */
+
+static void outliner_objects_delete(
+    bContext *C, Scene *scene, SpaceOutliner *soops, ReportList *reports, ListBase *lb)
+{
+  LISTBASE_FOREACH (TreeElement *, te, lb) {
+    TreeStoreElem *tselem = TREESTORE(te);
+
+    if (tselem->flag & TSE_SELECTED) {
+      if (tselem->type == 0 && te->idcode == ID_OB) {
+        outliner_object_delete(C, reports, scene, tselem);
+      }
+    }
+
+    if (TSELEM_OPEN(tselem, soops)) {
+      outliner_objects_delete(C, scene, soops, reports, &te->subtree);
+    }
+  }
+}
+
+static int outliner_delete_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  SpaceOutliner *soops = CTX_wm_space_outliner(C);
+  struct wmMsgBus *mbus = CTX_wm_message_bus(C);
+
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Base *basact_prev = BASACT(view_layer);
+
+  outliner_collection_delete(C, bmain, scene, op->reports, false);
+  outliner_objects_delete(C, scene, soops, op->reports, &soops->tree);
+
+  /* Tree management normally happens from draw_outliner(), but when
+   * you're clicking too fast on Delete object from context menu in
+   * outliner several mouse events can be handled in one cycle without
+   * handling notifiers/redraw which leads to deleting the same object twice.
+   * cleanup tree here to prevent such cases. */
+  outliner_cleanup_tree(soops);
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_relations_tag_update(bmain);
+
+  if (basact_prev != BASACT(view_layer)) {
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+    WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, LayerObjects, active);
+  }
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  ED_outliner_select_sync_from_object_tag(C);
+
+  return OPERATOR_FINISHED;
+}
+
+void OUTLINER_OT_delete(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Delete";
+  ot->idname = "OUTLINER_OT_delete";
+  ot->description = "Delete selected objects and collections";
+
+  /* callbacks */
+  ot->exec = outliner_delete_exec;
+  ot->poll = ED_operator_outliner_active;
+
+  /* flags */
+  ot->flag |= OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name ID-Data Menu Operator
+ * \{ */
 
 typedef enum eOutlinerIdOpTypes {
   OUTLINER_IDOP_INVALID = 0,
@@ -1802,7 +1880,11 @@ void OUTLINER_OT_id_operation(wmOperatorType *ot)
   RNA_def_enum_funcs(ot->prop, outliner_id_operation_itemf);
 }
 
-/* **************************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Library Menu Operator
+ * \{ */
 
 typedef enum eOutlinerLibOpTypes {
   OL_LIB_INVALID = 0,
@@ -1903,7 +1985,11 @@ void OUTLINER_OT_lib_operation(wmOperatorType *ot)
       ot->srna, "type", outliner_lib_op_type_items, 0, "Library Operation", "");
 }
 
-/* **************************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Outliner Set Active Action Operator
+ * \{ */
 
 static void outliner_do_id_set_operation(
     SpaceOutliner *soops,
@@ -1928,8 +2014,6 @@ static void outliner_do_id_set_operation(
     }
   }
 }
-
-/* ------------------------------------------ */
 
 static void actionset_id_cb(TreeElement *UNUSED(te),
                             TreeStoreElem *tselem,
@@ -2028,7 +2112,11 @@ void OUTLINER_OT_action_set(wmOperatorType *ot)
   ot->prop = prop;
 }
 
-/* **************************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Animation Menu Operator
+ * \{ */
 
 typedef enum eOutliner_AnimDataOps {
   OUTLINER_ANIMOP_INVALID = 0,
@@ -2144,7 +2232,11 @@ void OUTLINER_OT_animdata_operation(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna, "type", prop_animdata_op_types, 0, "Animation Operation", "");
 }
 
-/* **************************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Constraint Menu Operator
+ * \{ */
 
 static const EnumPropertyItem prop_constraint_op_types[] = {
     {OL_CONSTRAINTOP_ENABLE, "ENABLE", ICON_HIDE_OFF, "Enable", ""},
@@ -2190,7 +2282,11 @@ void OUTLINER_OT_constraint_operation(wmOperatorType *ot)
       ot->srna, "type", prop_constraint_op_types, 0, "Constraint Operation", "");
 }
 
-/* ******************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Modifier Menu Operator
+ * \{ */
 
 static const EnumPropertyItem prop_modifier_op_types[] = {
     {OL_MODIFIER_OP_TOGVIS, "TOGVIS", ICON_RESTRICT_VIEW_OFF, "Toggle viewport use", ""},
@@ -2235,7 +2331,11 @@ void OUTLINER_OT_modifier_operation(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna, "type", prop_modifier_op_types, 0, "Modifier Operation", "");
 }
 
-/* ******************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Data Menu Operator
+ * \{ */
 
 // XXX: select linked is for RNA structs only
 static const EnumPropertyItem prop_data_op_types[] = {
@@ -2328,7 +2428,11 @@ void OUTLINER_OT_data_operation(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna, "type", prop_data_op_types, 0, "Data Operation", "");
 }
 
-/* ******************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Context Menu Operator
+ * \{ */
 
 static int outliner_operator_menu(bContext *C, const char *opname)
 {
@@ -2493,4 +2597,4 @@ void OUTLINER_OT_operation(wmOperatorType *ot)
   ot->poll = ED_operator_outliner_active;
 }
 
-/* ****************************************************** */
+/** \} */

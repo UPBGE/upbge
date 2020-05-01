@@ -79,7 +79,7 @@ void RE_texture_rng_exit(void)
 /* ------------------------------------------------------------------------- */
 
 /* this allows colorbanded textures to control normals as well */
-static void tex_normal_derivate(Tex *tex, TexResult *texres)
+static void tex_normal_derivate(const Tex *tex, TexResult *texres)
 {
   if (tex->flag & TEX_COLORBAND) {
     float col[4];
@@ -106,7 +106,7 @@ static void tex_normal_derivate(Tex *tex, TexResult *texres)
   texres->nor[2] = texres->tin - texres->nor[2];
 }
 
-static int blend(Tex *tex, const float texvec[3], TexResult *texres)
+static int blend(const Tex *tex, const float texvec[3], TexResult *texres)
 {
   float x, y, t;
 
@@ -170,7 +170,7 @@ static int blend(Tex *tex, const float texvec[3], TexResult *texres)
 
 /* newnoise: all noisebased types now have different noisebases to choose from */
 
-static int clouds(Tex *tex, const float texvec[3], TexResult *texres)
+static int clouds(const Tex *tex, const float texvec[3], TexResult *texres)
 {
   int rv = TEX_INT;
 
@@ -271,7 +271,7 @@ static float tex_tri(float a)
 }
 
 /* computes basic wood intensity value at x,y,z */
-static float wood_int(Tex *tex, float x, float y, float z)
+static float wood_int(const Tex *tex, float x, float y, float z)
 {
   float wi = 0;
   /* wave form:   TEX_SIN=0,  TEX_SAW=1,  TEX_TRI=2 */
@@ -308,7 +308,7 @@ static float wood_int(Tex *tex, float x, float y, float z)
   return wi;
 }
 
-static int wood(Tex *tex, const float texvec[3], TexResult *texres)
+static int wood(const Tex *tex, const float texvec[3], TexResult *texres)
 {
   int rv = TEX_INT;
 
@@ -329,7 +329,7 @@ static int wood(Tex *tex, const float texvec[3], TexResult *texres)
 }
 
 /* computes basic marble intensity at x,y,z */
-static float marble_int(Tex *tex, float x, float y, float z)
+static float marble_int(const Tex *tex, float x, float y, float z)
 {
   float n, mi;
   short wf = tex->noisebasis2; /* wave form:   TEX_SIN=0, TEX_SAW=1, TEX_TRI=2 */
@@ -367,7 +367,7 @@ static float marble_int(Tex *tex, float x, float y, float z)
   return mi;
 }
 
-static int marble(Tex *tex, const float texvec[3], TexResult *texres)
+static int marble(const Tex *tex, const float texvec[3], TexResult *texres)
 {
   int rv = TEX_INT;
 
@@ -391,7 +391,7 @@ static int marble(Tex *tex, const float texvec[3], TexResult *texres)
 
 /* ------------------------------------------------------------------------- */
 
-static int magic(Tex *tex, const float texvec[3], TexResult *texres)
+static int magic(const Tex *tex, const float texvec[3], TexResult *texres)
 {
   float x, y, z, turb;
   int n;
@@ -467,7 +467,7 @@ static int magic(Tex *tex, const float texvec[3], TexResult *texres)
 /* ------------------------------------------------------------------------- */
 
 /* newnoise: stucci also modified to use different noisebasis */
-static int stucci(Tex *tex, const float texvec[3], TexResult *texres)
+static int stucci(const Tex *tex, const float texvec[3], TexResult *texres)
 {
   float nor[3], b2, ofs;
   int retval = TEX_INT;
@@ -533,7 +533,7 @@ static int stucci(Tex *tex, const float texvec[3], TexResult *texres)
 /* ------------------------------------------------------------------------- */
 /* newnoise: musgrave terrain noise types */
 
-static float mg_mFractalOrfBmTex(Tex *tex, const float texvec[3], TexResult *texres)
+static int mg_mFractalOrfBmTex(const Tex *tex, const float texvec[3], TexResult *texres)
 {
   int rv = TEX_INT;
   float (*mgravefunc)(float, float, float, float, float, float, int);
@@ -588,7 +588,7 @@ static float mg_mFractalOrfBmTex(Tex *tex, const float texvec[3], TexResult *tex
   return rv;
 }
 
-static float mg_ridgedOrHybridMFTex(Tex *tex, const float texvec[3], TexResult *texres)
+static int mg_ridgedOrHybridMFTex(const Tex *tex, const float texvec[3], TexResult *texres)
 {
   int rv = TEX_INT;
   float (*mgravefunc)(float, float, float, float, float, float, float, float, int);
@@ -651,7 +651,7 @@ static float mg_ridgedOrHybridMFTex(Tex *tex, const float texvec[3], TexResult *
   return rv;
 }
 
-static float mg_HTerrainTex(Tex *tex, const float texvec[3], TexResult *texres)
+static int mg_HTerrainTex(const Tex *tex, const float texvec[3], TexResult *texres)
 {
   int rv = TEX_INT;
 
@@ -702,7 +702,7 @@ static float mg_HTerrainTex(Tex *tex, const float texvec[3], TexResult *texres)
   return rv;
 }
 
-static float mg_distNoiseTex(Tex *tex, const float texvec[3], TexResult *texres)
+static int mg_distNoiseTex(const Tex *tex, const float texvec[3], TexResult *texres)
 {
   int rv = TEX_INT;
 
@@ -747,7 +747,7 @@ static float mg_distNoiseTex(Tex *tex, const float texvec[3], TexResult *texres)
  * probably the slowest, especially with minkovsky, bumpmapping, could be done another way.
  */
 
-static float voronoiTex(Tex *tex, const float texvec[3], TexResult *texres)
+static int voronoiTex(const Tex *tex, const float texvec[3], TexResult *texres)
 {
   int rv = TEX_INT;
   float da[4], pa[12]; /* distance and point coordinate arrays of 4 nearest neighbors */
@@ -835,7 +835,7 @@ static float voronoiTex(Tex *tex, const float texvec[3], TexResult *texres)
 
 /* ------------------------------------------------------------------------- */
 
-static int texnoise(Tex *tex, TexResult *texres, int thread)
+static int texnoise(const Tex *tex, TexResult *texres, int thread)
 {
   float div = 3.0;
   int val, ran, loop, shift = 29;
@@ -1724,17 +1724,20 @@ float texture_value_blend(float tex, float out, float fact, float facg, int blen
 
 /* ------------------------------------------------------------------------- */
 
-int externtex(const MTex *mtex,
-              const float vec[3],
-              float *tin,
-              float *tr,
-              float *tg,
-              float *tb,
-              float *ta,
-              const int thread,
-              struct ImagePool *pool,
-              const bool skip_load_image,
-              const bool texnode_preview)
+/**
+ * \param pool: Thread pool, may be NULL.
+ *
+ * \return True if the texture has color, otherwise false.
+ */
+bool RE_texture_evaluate(const MTex *mtex,
+                         const float vec[3],
+                         const int thread,
+                         struct ImagePool *pool,
+                         const bool skip_load_image,
+                         const bool texnode_preview,
+                         /* Return arguments. */
+                         float *r_intensity,
+                         float r_rgba[4])
 {
   Tex *tex;
   TexResult texr;
@@ -1796,11 +1799,11 @@ int externtex(const MTex *mtex,
     texr.tb = mtex->b;
   }
 
-  *tin = texr.tin;
-  *tr = texr.tr;
-  *tg = texr.tg;
-  *tb = texr.tb;
-  *ta = texr.ta;
+  *r_intensity = texr.tin;
+  r_rgba[0] = texr.tr;
+  r_rgba[1] = texr.tg;
+  r_rgba[2] = texr.tb;
+  r_rgba[3] = texr.ta;
 
   return (rgb != 0);
 }

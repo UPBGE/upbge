@@ -302,6 +302,9 @@ def smoke_adaptive_step_$ID$(framenr):\n\
     setObstacleFlags(flags=flags_s$ID$, phiObs=phiObs_s$ID$, phiOut=phiOut_s$ID$, phiIn=phiIn_s$ID$, boundaryWidth=1)\n\
     flags_s$ID$.fillGrid()\n\
     \n\
+    # reset emission accumulation at the beginning of an adaptive frame\n\
+    if not s$ID$.timePerFrame:\n\
+        emission_s$ID$.setConst(0.)\n\
     # accumulate emission value per adaptive step for later use in noise computation\n\
     emission_s$ID$.join(emissionIn_s$ID$)\n\
     \n\
@@ -373,9 +376,9 @@ def smoke_step_$ID$():\n\
     \n\
     if using_heat_s$ID$:\n\
         mantaMsg('Adding heat buoyancy')\n\
-        addBuoyancy(flags=flags_s$ID$, density=heat_s$ID$, vel=vel_s$ID$, gravity=gravity_s$ID$, coefficient=buoyancy_heat_s$ID$)\n\
+        addBuoyancy(flags=flags_s$ID$, density=heat_s$ID$, vel=vel_s$ID$, gravity=gravity_s$ID$, coefficient=buoyancy_heat_s$ID$, scale=False)\n\
     mantaMsg('Adding buoyancy')\n\
-    addBuoyancy(flags=flags_s$ID$, density=density_s$ID$, vel=vel_s$ID$, gravity=gravity_s$ID$, coefficient=buoyancy_dens_s$ID$)\n\
+    addBuoyancy(flags=flags_s$ID$, density=density_s$ID$, vel=vel_s$ID$, gravity=gravity_s$ID$, coefficient=buoyancy_dens_s$ID$, scale=False)\n\
     \n\
     mantaMsg('Adding forces')\n\
     addForceField(flags=flags_s$ID$, vel=vel_s$ID$, force=forces_s$ID$)\n\

@@ -572,14 +572,12 @@ static void library_foreach_screen_area(LibraryForeachIDData *data, ScrArea *are
   FOREACH_FINALIZE_VOID;
 }
 
-static void library_foreach_ID_as_subdata_link(ID **id_pp,
-                                               LibraryIDLinkCallback callback,
-                                               void *user_data,
-                                               int flag,
-                                               LibraryForeachIDData *data)
+static void library_foreach_ID_as_subdata_link(ID **id_pp, LibraryForeachIDData *data)
 {
   /* Needed e.g. for callbacks handling relationships... This call shall be absolutely readonly. */
   ID *id = *id_pp;
+  const int flag = data->flag;
+
   FOREACH_CALLBACK_INVOKE_ID_PP(data, id_pp, IDWALK_CB_EMBEDDED);
   BLI_assert(id == *id_pp);
 
@@ -596,7 +594,8 @@ static void library_foreach_ID_as_subdata_link(ID **id_pp,
     }
   }
   else {
-    library_foreach_ID_link(data->bmain, data->owner_id, id, callback, user_data, flag, data);
+    library_foreach_ID_link(
+        data->bmain, data->owner_id, id, data->callback, data->user_data, data->flag, data);
   }
 
   FOREACH_FINALIZE_VOID;
@@ -712,8 +711,7 @@ static void library_foreach_ID_link(Main *bmain,
         CALLBACK_INVOKE(scene->r.bake.cage_object, IDWALK_CB_NOP);
         if (scene->nodetree) {
           /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
-          library_foreach_ID_as_subdata_link(
-              (ID **)&scene->nodetree, callback, user_data, flag, &data);
+          library_foreach_ID_as_subdata_link((ID **)&scene->nodetree, &data);
         }
         if (scene->ed) {
           Sequence *seq;
@@ -971,8 +969,7 @@ static void library_foreach_ID_link(Main *bmain,
         Material *material = (Material *)id;
         if (material->nodetree) {
           /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
-          library_foreach_ID_as_subdata_link(
-              (ID **)&material->nodetree, callback, user_data, flag, &data);
+          library_foreach_ID_as_subdata_link((ID **)&material->nodetree, &data);
         }
         if (material->texpaintslot != NULL) {
           CALLBACK_INVOKE(material->texpaintslot->ima, IDWALK_CB_NOP);
@@ -988,8 +985,7 @@ static void library_foreach_ID_link(Main *bmain,
         Tex *texture = (Tex *)id;
         if (texture->nodetree) {
           /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
-          library_foreach_ID_as_subdata_link(
-              (ID **)&texture->nodetree, callback, user_data, flag, &data);
+          library_foreach_ID_as_subdata_link((ID **)&texture->nodetree, &data);
         }
         CALLBACK_INVOKE(texture->ima, IDWALK_CB_USER);
         break;
@@ -1005,8 +1001,7 @@ static void library_foreach_ID_link(Main *bmain,
         Light *lamp = (Light *)id;
         if (lamp->nodetree) {
           /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
-          library_foreach_ID_as_subdata_link(
-              (ID **)&lamp->nodetree, callback, user_data, flag, &data);
+          library_foreach_ID_as_subdata_link((ID **)&lamp->nodetree, &data);
         }
         break;
       }
@@ -1036,8 +1031,7 @@ static void library_foreach_ID_link(Main *bmain,
         World *world = (World *)id;
         if (world->nodetree) {
           /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
-          library_foreach_ID_as_subdata_link(
-              (ID **)&world->nodetree, callback, user_data, flag, &data);
+          library_foreach_ID_as_subdata_link((ID **)&world->nodetree, &data);
         }
         break;
       }
@@ -1193,8 +1187,7 @@ static void library_foreach_ID_link(Main *bmain,
         }
         if (linestyle->nodetree) {
           /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
-          library_foreach_ID_as_subdata_link(
-              (ID **)&linestyle->nodetree, callback, user_data, flag, &data);
+          library_foreach_ID_as_subdata_link((ID **)&linestyle->nodetree, &data);
         }
 
         LISTBASE_FOREACH (LineStyleModifier *, lsm, &linestyle->color_modifiers) {
@@ -1324,8 +1317,7 @@ static void library_foreach_ID_link(Main *bmain,
         Simulation *simulation = (Simulation *)id;
         if (simulation->nodetree) {
           /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
-          library_foreach_ID_as_subdata_link(
-              (ID **)&simulation->nodetree, callback, user_data, flag, &data);
+          library_foreach_ID_as_subdata_link((ID **)&simulation->nodetree, &data);
         }
         break;
       }

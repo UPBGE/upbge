@@ -26,6 +26,8 @@
 
 #include "BLI_sys_types.h"
 
+#include "BKE_multires.h"
+
 struct Depsgraph;
 struct GridPaintMask;
 struct MDisps;
@@ -156,6 +158,11 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
                                                  struct Object *object,
                                                  struct MultiresModifierData *mmd);
 
+bool multires_reshape_context_create_from_base_mesh(MultiresReshapeContext *reshape_context,
+                                                    struct Depsgraph *depsgraph,
+                                                    struct Object *object,
+                                                    struct MultiresModifierData *mmd);
+
 bool multires_reshape_context_create_from_ccg(MultiresReshapeContext *reshape_context,
                                               struct SubdivCCG *subdiv_ccg,
                                               struct Mesh *base_mesh,
@@ -284,7 +291,8 @@ void multires_reshape_smooth_object_grids_with_details(
  *
  * Makes it so surface on top level looks smooth. Details are not preserved
  */
-void multires_reshape_smooth_object_grids(const MultiresReshapeContext *reshape_context);
+void multires_reshape_smooth_object_grids(const MultiresReshapeContext *reshape_context,
+                                          const enum eMultiresSubdivideModeType mode);
 
 /* --------------------------------------------------------------------
  * Displacement, space conversion.
@@ -319,5 +327,4 @@ void multires_reshape_apply_base_refine_from_base(MultiresReshapeContext *reshap
  *
  * NOTE: Will re-evaluate all leading modifiers, so it's not cheap. */
 void multires_reshape_apply_base_refine_from_deform(MultiresReshapeContext *reshape_context);
-
 #endif /* __BKE_INTERN_MULTIRES_RESHAPE_H__ */

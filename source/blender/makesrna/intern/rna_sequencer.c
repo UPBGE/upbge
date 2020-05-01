@@ -2020,9 +2020,10 @@ static void rna_def_editor(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_prefetch", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "cache_flag", SEQ_CACHE_PREFETCH_ENABLE);
-  RNA_def_property_ui_text(prop,
-                           "Prefetch Frames",
-                           "Render frames ahead of playhead in the background for faster playback");
+  RNA_def_property_ui_text(
+      prop,
+      "Prefetch Frames",
+      "Render frames ahead of playhead in the background for faster playback");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, NULL);
 
   prop = RNA_def_property(srna, "recycle_max_cost", PROP_FLOAT, PROP_NONE);
@@ -2758,6 +2759,13 @@ static void rna_def_speed_control(StructRNA *srna)
   RNA_def_property_boolean_sdna(prop, NULL, "flags", SEQ_SPEED_COMPRESS_IPO_Y);
   RNA_def_property_ui_text(
       prop, "Scale to Length", "Scale values from 0.0 to 1.0 to target sequence length");
+  RNA_def_property_update(
+      prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
+
+  prop = RNA_def_property(srna, "frame_interpolation_mode", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flags", SEQ_SPEED_USE_INTERPOLATION);
+  RNA_def_property_ui_text(
+      prop, "Frame interpolation", "Do crossfade blending between current and next frame");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
 }
