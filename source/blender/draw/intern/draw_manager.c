@@ -3049,6 +3049,27 @@ void DRW_game_render_loop_end()
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
 
+void DRW_game_python_loop_end(ViewLayer *view_layer)
+{
+  /* When we run blenderplayer -p script.py
+   * the GPUViewport to render the scene is not
+   * created then it causes a crash if we try to free
+   * it. Are we in what people call HEADLESS mode?
+   */
+  //GPU_viewport_free(DST.viewport);
+
+  drw_state_prepare_clean_for_draw(&DST);
+
+  use_drw_engine(&draw_engine_eevee_type);
+
+  DST.draw_ctx.view_layer = view_layer;
+
+  EEVEE_view_layer_data_free(EEVEE_view_layer_data_ensure());
+  DRW_engines_free();
+
+  memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
+}
+
 void DRW_opengl_context_create_blenderplayer(void *syshandle)
 {
   BLI_assert(DST.gl_context == NULL); /* Ensure it's called once */

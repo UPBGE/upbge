@@ -494,6 +494,7 @@ void LA_Launcher::EngineMainLoop()
     // Set python environement variable.
     KX_SetActiveScene(m_kxStartScene);
     PHY_SetActiveEnvironment(m_kxStartScene->GetPhysicsEnvironment());
+    m_kxStartScene->SetIsPythonMainLoop(true);
 
     pynextframestate.state = this;
     pynextframestate.func = &PythonEngineNextFrame;

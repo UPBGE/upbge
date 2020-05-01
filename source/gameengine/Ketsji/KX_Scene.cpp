@@ -162,7 +162,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_currentGPUViewport(nullptr),          // eevee
       m_initMaterialsGPUViewport(nullptr),    // eevee (See comment in .h)
       m_overlayCamera(nullptr),               // eevee (For overlay collections)
-      m_sceneConverter(nullptr),
+      m_sceneConverter(nullptr),              // eevee
+      m_isPythonMainLoop(false),              // eevee
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -299,15 +300,25 @@ KX_Scene::~KX_Scene()
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  View3D *v3d = CTX_wm_view3d(C);
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
     if (m_shadingTypeBackup != 0) {
-      View3D *v3d = CTX_wm_view3d(KX_GetActiveEngine()->GetContext());
       v3d->shading.type = m_shadingTypeBackup;
       v3d->shading.flag = m_shadingFlagBackup;
     }
-    /* This will free m_gpuViewport and m_gpuOffScreen */
-    DRW_game_render_loop_end();
+    if (!m_isPythonMainLoop) {
+      /* This will free m_gpuViewport and m_gpuOffScreen */
+      DRW_game_render_loop_end();
+    }
+    else {
+      /* It has not been freed before because the main Render loop
+       * is not executed then we free it now.
+       */
+      GPU_viewport_free(m_initMaterialsGPUViewport);
+      DRW_game_python_loop_end(view_layer);
+    }
   }
 
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
@@ -389,7 +400,6 @@ KX_Scene::~KX_Scene()
   }
 
   // Flush depsgraph updates a last time at ge exit
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
 #ifdef WITH_PYTHON
@@ -840,6 +850,11 @@ void KX_Scene::ConvertBlenderCollection(Collection *co)
                              false);
   }
   FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+}
+
+void KX_Scene::SetIsPythonMainLoop(bool isPythonMainLoop)
+{
+  m_isPythonMainLoop = isPythonMainLoop;
 }
 /******************End of EEVEE INTEGRATION****************************/
 
