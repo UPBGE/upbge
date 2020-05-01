@@ -43,9 +43,9 @@
 
 #include "DEG_depsgraph_query.h"
 
-/* ================================================================================================
- * Construct/destruct reshape context.
- */
+/* -------------------------------------------------------------------- */
+/** \name Construct/destruct reshape context
+ * \{ */
 
 /* Create subdivision surface descriptor which is configured for surface evaluation at a given
  * multires modifier. */
@@ -150,6 +150,39 @@ static bool context_verify_or_free(MultiresReshapeContext *reshape_context)
     multires_reshape_context_free(reshape_context);
   }
   return is_valid;
+}
+
+bool multires_reshape_context_create_from_base_mesh(MultiresReshapeContext *reshape_context,
+                                                    Depsgraph *depsgraph,
+                                                    Object *object,
+                                                    MultiresModifierData *mmd)
+{
+  context_zero(reshape_context);
+
+  const bool use_render_params = false;
+  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+  Mesh *base_mesh = (Mesh *)object->data;
+
+  reshape_context->depsgraph = depsgraph;
+  reshape_context->object = object;
+  reshape_context->mmd = mmd;
+
+  reshape_context->base_mesh = base_mesh;
+
+  reshape_context->subdiv = multires_reshape_create_subdiv(NULL, object, mmd);
+  reshape_context->need_free_subdiv = true;
+
+  reshape_context->reshape.level = multires_get_level(
+      scene_eval, object, mmd, use_render_params, true);
+  reshape_context->reshape.grid_size = BKE_subdiv_grid_size_from_level(
+      reshape_context->reshape.level);
+
+  reshape_context->top.level = mmd->totlvl;
+  reshape_context->top.grid_size = BKE_subdiv_grid_size_from_level(reshape_context->top.level);
+
+  context_init_commoon(reshape_context);
+
+  return context_verify_or_free(reshape_context);
 }
 
 bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape_context,
@@ -272,14 +305,16 @@ void multires_reshape_context_free(MultiresReshapeContext *reshape_context)
 
   multires_reshape_free_original_grids(reshape_context);
 
-  MEM_freeN(reshape_context->face_start_grid_index);
-  MEM_freeN(reshape_context->ptex_start_grid_index);
-  MEM_freeN(reshape_context->grid_to_face_index);
+  MEM_SAFE_FREE(reshape_context->face_start_grid_index);
+  MEM_SAFE_FREE(reshape_context->ptex_start_grid_index);
+  MEM_SAFE_FREE(reshape_context->grid_to_face_index);
 }
 
-/* ================================================================================================
- * Helper accessors.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Helper accessors
+ * \{ */
 
 /* For the given grid index get index of face it was created for. */
 int multires_reshape_grid_to_face_index(const MultiresReshapeContext *reshape_context,
@@ -453,9 +488,11 @@ ReshapeConstGridElement multires_reshape_orig_grid_element_for_grid_coord(
   return grid_element;
 }
 
-/* ================================================================================================
- * Sample limit surface of the base mesh.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Sample limit surface of the base mesh
+ * \{ */
 
 void multires_reshape_evaluate_limit_at_grid(const MultiresReshapeContext *reshape_context,
                                              const GridCoord *grid_coord,
@@ -475,9 +512,11 @@ void multires_reshape_evaluate_limit_at_grid(const MultiresReshapeContext *resha
       reshape_context, face_index, corner, dPdu, dPdv, r_tangent_matrix);
 }
 
-/* ================================================================================================
- * Custom data preparation.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Custom data preparation
+ * \{ */
 
 static void allocate_displacement_grid(MDisps *displacement_grid, const int level)
 {
@@ -539,9 +578,11 @@ void multires_reshape_ensure_grids(Mesh *mesh, const int level)
   ensure_mask_grids(mesh, level);
 }
 
-/* ================================================================================================
- * Displacement, space conversion.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Displacement, space conversion
+ * \{ */
 
 void multires_reshape_store_original_grids(MultiresReshapeContext *reshape_context)
 {
@@ -678,10 +719,13 @@ void multires_reshape_object_grids_to_tangent_displacement(
                           NULL);
 }
 
-/* ================================================================================================
- * MDISPS
- *
- * TODO(sergey): Make foreach_grid_coordinate more accessible and move this functionality to
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name MDISPS
+ * \{ */
+
+/* TODO(sergey): Make foreach_grid_coordinate more accessible and move this functionality to
  * own file. */
 
 static void assign_final_coords_from_mdisps(const MultiresReshapeContext *reshape_context,
@@ -732,3 +776,5 @@ void multires_reshape_assign_final_coords_from_orig_mdisps(
   foreach_grid_coordinate(
       reshape_context, reshape_context->top.level, assign_final_coords_from_orig_mdisps, NULL);
 }
+
+/** \} */

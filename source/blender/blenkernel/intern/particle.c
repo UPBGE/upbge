@@ -2787,9 +2787,7 @@ static void psys_thread_create_path(ParticleTask *task,
   }
 }
 
-static void exec_child_path_cache(TaskPool *__restrict UNUSED(pool),
-                                  void *taskdata,
-                                  int UNUSED(threadid))
+static void exec_child_path_cache(TaskPool *__restrict UNUSED(pool), void *taskdata)
 {
   ParticleTask *task = taskdata;
   ParticleThreadContext *ctx = task->ctx;
@@ -2810,7 +2808,6 @@ void psys_cache_child_paths(ParticleSimulationData *sim,
                             const bool editupdate,
                             const bool use_render_params)
 {
-  TaskScheduler *task_scheduler;
   TaskPool *task_pool;
   ParticleThreadContext ctx;
   ParticleTask *tasks_parent, *tasks_child;
@@ -2826,8 +2823,7 @@ void psys_cache_child_paths(ParticleSimulationData *sim,
     return;
   }
 
-  task_scheduler = BLI_task_scheduler_get();
-  task_pool = BLI_task_pool_create(task_scheduler, &ctx, TASK_PRIORITY_LOW);
+  task_pool = BLI_task_pool_create(&ctx, TASK_PRIORITY_LOW);
   totchild = ctx.totchild;
   totparent = ctx.totparent;
 
@@ -3377,7 +3373,6 @@ void psys_cache_edit_paths(Depsgraph *depsgraph,
 
   TaskParallelSettings settings;
   BLI_parallel_range_settings_defaults(&settings);
-  settings.scheduling_mode = TASK_SCHEDULING_DYNAMIC;
   BLI_task_parallel_range(0, edit->totpoint, &iter_data, psys_cache_edit_paths_iter, &settings);
 
   edit->totcached = totpart;
@@ -4009,7 +4004,7 @@ static void get_cpa_texture(Mesh *mesh,
           break;
       }
 
-      externtex(mtex, texvec, &value, rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL, false, false);
+      RE_texture_evaluate(mtex, texvec, 0, NULL, false, false, &value, rgba);
 
       if ((event & mtex->mapto) & PAMAP_ROUGH) {
         ptex->rough1 = ptex->rough2 = ptex->roughe = texture_value_blend(
@@ -4124,7 +4119,7 @@ void psys_get_texture(
           break;
       }
 
-      externtex(mtex, texvec, &value, rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL, false, false);
+      RE_texture_evaluate(mtex, texvec, 0, NULL, false, false, &value, rgba);
 
       if ((event & mtex->mapto) & PAMAP_TIME) {
         /* the first time has to set the base value for time regardless of blend mode */

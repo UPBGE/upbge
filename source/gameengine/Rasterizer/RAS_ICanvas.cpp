@@ -61,7 +61,7 @@ void save_screenshot_thread_func(TaskPool *__restrict pool, void *taskdata, int 
 
 RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty) : m_rasterizer(rasty), m_samples(0)
 {
-  m_taskpool = BLI_task_pool_create(BLI_task_scheduler_get(), nullptr, TASK_PRIORITY_LOW);
+  m_taskpool = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW);
 }
 
 RAS_ICanvas::~RAS_ICanvas()
@@ -180,7 +180,7 @@ void RAS_ICanvas::SaveScreeshot(const Screenshot &screenshot)
   BKE_image_path_ensure_ext_from_imtype(task->path, task->im_format->imtype);
 
   BLI_task_pool_push(m_taskpool,
-                     save_screenshot_thread_func,
+                     (TaskRunFunction)save_screenshot_thread_func,
                      task,
                      true,  // free task data
                      NULL);

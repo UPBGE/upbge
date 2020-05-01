@@ -81,6 +81,8 @@
 
 #  include "RE_shader_ext.h"
 
+#  include "CLG_log.h"
+
 #  include "manta_fluid_API.h"
 
 #endif /* WITH_FLUID */
@@ -95,6 +97,8 @@ static void BKE_fluid_modifier_reset_ex(struct FluidModifierData *mmd, bool need
 
 #ifdef WITH_FLUID
 // #define DEBUG_PRINT
+
+static CLG_LogRef LOG = {"bke.fluid"};
 
 /* -------------------------------------------------------------------- */
 /** \name Fluid API
@@ -487,32 +491,6 @@ static void manta_set_domain_from_mesh(FluidDomainSettings *mds,
   mds->cell_size[2] /= (float)mds->base_res[2];
 }
 
-static void manta_set_domain_gravity(Scene *scene, FluidDomainSettings *mds)
-{
-  const float normalization_factor = 1.0f / 9.81f;
-
-  /* Use global gravity if enabled. */
-  if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
-    float gravity[3];
-    copy_v3_v3(gravity, scene->physics_settings.gravity);
-    /* Map default value to 1.0. */
-    mul_v3_fl(gravity, normalization_factor);
-
-    /* Convert gravity to domain space. */
-    float gravity_mag = len_v3(gravity);
-    mul_mat3_m4_v3(mds->imat, gravity);
-    normalize_v3(gravity);
-    mul_v3_fl(gravity, gravity_mag);
-
-    copy_v3_v3(mds->gravity, gravity);
-  }
-  else {
-    mul_v3_fl(mds->gravity, normalization_factor);
-  }
-
-  mul_v3_fl(mds->gravity, mds->effector_weights->global_gravity);
-}
-
 static bool BKE_fluid_modifier_init(
     FluidModifierData *mmd, Depsgraph *depsgraph, Object *ob, Scene *scene, Mesh *me)
 {
@@ -523,8 +501,11 @@ static bool BKE_fluid_modifier_init(
     int res[3];
     /* Set domain dimensions from mesh. */
     manta_set_domain_from_mesh(mds, ob, me, true);
-    /* Set domain gravity. */
-    manta_set_domain_gravity(scene, mds);
+    /* Set domain gravity, use global gravity if enabled. */
+    if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
+      copy_v3_v3(mds->gravity, scene->physics_settings.gravity);
+    }
+    mul_v3_fl(mds->gravity, mds->effector_weights->global_gravity);
     /* Reset domain values. */
     zero_v3_int(mds->shift);
     zero_v3(mds->shift_f);
@@ -948,11 +929,7 @@ static void sample_effector(FluidEffectorSettings *mes,
         velocity_map[index * 3 + 2] += hit_vel[2];
 #  ifdef DEBUG_PRINT
         /* Debugging: Print object velocities. */
-        printf("adding effector object vel: [%f, %f, %f], dx is: %f\n",
-               hit_vel[0],
-               hit_vel[1],
-               hit_vel[2],
-               mds->dx);
+        printf("adding effector object vel: [%f, %f, %f]\n", hit_vel[0], hit_vel[1], hit_vel[2]);
 #  endif
       }
     }
@@ -1996,9 +1973,9 @@ static void sample_mesh(FluidFlowSettings *mfs,
         normalize_v3(hit_normal);
 
         /* Apply normal directional velocity. */
-        velocity_map[index * 3] += hit_normal[0] * mfs->vel_normal * 0.25f;
-        velocity_map[index * 3 + 1] += hit_normal[1] * mfs->vel_normal * 0.25f;
-        velocity_map[index * 3 + 2] += hit_normal[2] * mfs->vel_normal * 0.25f;
+        velocity_map[index * 3] += hit_normal[0] * mfs->vel_normal;
+        velocity_map[index * 3 + 1] += hit_normal[1] * mfs->vel_normal;
+        velocity_map[index * 3 + 2] += hit_normal[2] * mfs->vel_normal;
       }
       /* Apply object velocity. */
       if (has_velocity && mfs->vel_multi) {
@@ -3773,6 +3750,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
 
   /* Fluid domain init must not fail in order to continue modifier evaluation. */
   if (!mds->fluid && !BKE_fluid_modifier_init(mmd, depsgraph, ob, scene, me)) {
+    CLOG_ERROR(&LOG, "Fluid initialization failed. Should not happen!");
     return;
   }
   BLI_assert(mds->fluid);
@@ -3793,6 +3771,12 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
   mds->time_per_frame = 0;
   /* Get distance between cache start and current frame for total time. */
   mds->time_total = abs(scene_framenr - mds->cache_frame_start) * mds->frame_length;
+
+  /* Ensure that gravity is copied over every frame (could be keyframed). */
+  if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
+    copy_v3_v3(mds->gravity, scene->physics_settings.gravity);
+    mul_v3_fl(mds->gravity, mds->effector_weights->global_gravity);
+  }
 
   int next_frame = scene_framenr + 1;
   int prev_frame = scene_framenr - 1;
@@ -4889,7 +4873,6 @@ void BKE_fluid_modifier_create_type_data(struct FluidModifierData *mmd)
     mmd->domain->surface_tension = 0.0f;
     mmd->domain->viscosity_base = 1.0f;
     mmd->domain->viscosity_exponent = 6.0f;
-    mmd->domain->domain_size = 0.5f;
 
     /* mesh options */
     mmd->domain->mesh_velocities = NULL;
@@ -5133,7 +5116,6 @@ void BKE_fluid_modifier_copy(const struct FluidModifierData *mmd,
     tmds->surface_tension = mds->surface_tension;
     tmds->viscosity_base = mds->viscosity_base;
     tmds->viscosity_exponent = mds->viscosity_exponent;
-    tmds->domain_size = mds->domain_size;
 
     /* mesh options */
     if (mds->mesh_velocities) {

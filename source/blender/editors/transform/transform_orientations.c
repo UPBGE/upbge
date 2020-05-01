@@ -438,12 +438,12 @@ static int armature_bone_transflags_update_recursive(bArmature *arm,
   return total;
 }
 
-void initTransformOrientation(bContext *C, TransInfo *t)
+void initTransformOrientation(bContext *C, TransInfo *t, short orientation)
 {
   Object *ob = CTX_data_active_object(C);
   Object *obedit = CTX_data_active_object(C);
 
-  switch (t->orientation.user) {
+  switch (orientation) {
     case V3D_ORIENT_GLOBAL:
       unit_m3(t->spacemtx);
       BLI_strncpy(t->spacename, TIP_("global"), sizeof(t->spacename));
@@ -476,28 +476,28 @@ void initTransformOrientation(bContext *C, TransInfo *t)
 
       break;
 
-    case V3D_ORIENT_VIEW:
+    case V3D_ORIENT_VIEW: {
+      float mat[3][3];
       if ((t->spacetype == SPACE_VIEW3D) && (t->region->regiontype == RGN_TYPE_WINDOW)) {
-        RegionView3D *rv3d = t->region->regiondata;
-        float mat[3][3];
-
         BLI_strncpy(t->spacename, TIP_("view"), sizeof(t->spacename));
-        copy_m3_m4(mat, rv3d->viewinv);
+        copy_m3_m4(mat, t->viewinv);
         normalize_m3(mat);
-        copy_m3_m3(t->spacemtx, mat);
       }
       else {
-        unit_m3(t->spacemtx);
+        unit_m3(mat);
       }
+      negate_v3(mat[2]);
+      copy_m3_m3(t->spacemtx, mat);
       break;
+    }
     case V3D_ORIENT_CURSOR: {
       BLI_strncpy(t->spacename, TIP_("cursor"), sizeof(t->spacename));
       BKE_scene_cursor_rot_to_mat3(&t->scene->cursor, t->spacemtx);
       break;
     }
     case V3D_ORIENT_CUSTOM_MATRIX:
-      /* Already set. */
       BLI_strncpy(t->spacename, TIP_("custom"), sizeof(t->spacename));
+      copy_m3_m3(t->spacemtx, t->orientation.custom_matrix);
       break;
     case V3D_ORIENT_CUSTOM:
       BLI_strncpy(t->spacename, t->orientation.custom->name, sizeof(t->spacename));
@@ -509,20 +509,6 @@ void initTransformOrientation(bContext *C, TransInfo *t)
         unit_m3(t->spacemtx);
       }
       break;
-  }
-
-  if (t->orient_matrix_is_set == false) {
-    t->orient_matrix_is_set = true;
-    if (t->flag & T_MODAL) {
-      /* Rotate for example defaults to operating on the view plane. */
-      t->orientation.unset = V3D_ORIENT_VIEW;
-      copy_m3_m4(t->orient_matrix, t->viewinv);
-      normalize_m3(t->orient_matrix);
-      negate_m3(t->orient_matrix);
-    }
-    else {
-      copy_m3_m3(t->orient_matrix, t->spacemtx);
-    }
   }
 }
 

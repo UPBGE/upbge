@@ -822,6 +822,9 @@ int main(int argc,
 
   BKE_callback_global_init();
 
+  /* After parsing number of threads argument. */
+  BLI_task_scheduler_init();
+
   RNA_init();
 
   GHOST_CreateSystemPaths();
@@ -1665,6 +1668,7 @@ int main(int argc,
   DNA_sdna_current_free();
 
   BLI_threadapi_exit();
+  BLI_task_scheduler_exit();
 
   /* No need to call this early, rather do it late so that other
    * pieces of Blender using sound may exit cleanly, see also T50676. */

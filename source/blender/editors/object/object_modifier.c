@@ -1433,6 +1433,25 @@ void OBJECT_OT_multires_higher_levels_delete(wmOperatorType *ot)
 /** \name Multires Subdivide Operator
  * \{ */
 
+static EnumPropertyItem prop_multires_subdivide_mode_type[] = {
+    {MULTIRES_SUBDIVIDE_CATMULL_CLARK,
+     "CATMULL_CLARK",
+     0,
+     "Catmull-Clark",
+     "Create a new level using Catmull-Clark subdivisions"},
+    {MULTIRES_SUBDIVIDE_SIMPLE,
+     "SIMPLE",
+     0,
+     "Simple",
+     "Create a new level using simple subdivisions"},
+    {MULTIRES_SUBDIVIDE_LINEAR,
+     "LINEAR",
+     0,
+     "Linear",
+     "Create a new level using linear interpolation of the sculpted displacement"},
+    {0, NULL, 0, NULL, NULL},
+};
+
 static int multires_subdivide_exec(bContext *C, wmOperator *op)
 {
   Object *object = ED_object_active_context(C);
@@ -1443,7 +1462,9 @@ static int multires_subdivide_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  multiresModifier_subdivide(object, mmd);
+  const eMultiresSubdivideModeType subdivide_mode = (eMultiresSubdivideModeType)(
+      RNA_enum_get(op->ptr, "mode"));
+  multiresModifier_subdivide(object, mmd, subdivide_mode);
 
   ED_object_iter_other(
       CTX_data_main(C), object, true, ED_object_multires_update_totlevels_cb, &mmd->totlvl);
@@ -1482,6 +1503,12 @@ void OBJECT_OT_multires_subdivide(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
+  RNA_def_enum(ot->srna,
+               "mode",
+               prop_multires_subdivide_mode_type,
+               MULTIRES_SUBDIVIDE_CATMULL_CLARK,
+               "Subdivision Mode",
+               "How the mesh is going to be subdivided to create a new level");
 }
 
 /** \} */
@@ -1733,6 +1760,119 @@ void OBJECT_OT_multires_base_apply(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
+  edit_modifier_properties(ot);
+}
+
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Multires Unsubdivide
+ * \{ */
+
+static int multires_unsubdivide_exec(bContext *C, wmOperator *op)
+{
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Object *object = ED_object_active_context(C);
+  MultiresModifierData *mmd = (MultiresModifierData *)edit_modifier_property_get(
+      op, object, eModifierType_Multires);
+
+  if (!mmd) {
+    return OPERATOR_CANCELLED;
+  }
+
+  int new_levels = multiresModifier_rebuild_subdiv(depsgraph, object, mmd, 1, true);
+  if (new_levels == 0) {
+    BKE_report(op->reports, RPT_ERROR, "Not valid subdivisions found to rebuild a lower level");
+    return OPERATOR_CANCELLED;
+  }
+
+  DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
+
+  return OPERATOR_FINISHED;
+}
+
+static int multires_unsubdivide_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+  if (edit_modifier_invoke_properties(C, op)) {
+    return multires_unsubdivide_exec(C, op);
+  }
+  else {
+    return OPERATOR_CANCELLED;
+  }
+}
+
+void OBJECT_OT_multires_unsubdivide(wmOperatorType *ot)
+{
+  ot->name = "Unsubdivide";
+  ot->description = "Rebuild a lower subdivision level of the current base mesh";
+  ot->idname = "OBJECT_OT_multires_unsubdivide";
+
+  ot->poll = multires_poll;
+  ot->invoke = multires_unsubdivide_invoke;
+  ot->exec = multires_unsubdivide_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+  edit_modifier_properties(ot);
+}
+
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Multires Rebuild Subdivisions
+ * \{ */
+
+static int multires_rebuild_subdiv_exec(bContext *C, wmOperator *op)
+{
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Object *object = ED_object_active_context(C);
+  MultiresModifierData *mmd = (MultiresModifierData *)edit_modifier_property_get(
+      op, object, eModifierType_Multires);
+
+  if (!mmd) {
+    return OPERATOR_CANCELLED;
+  }
+
+  int new_levels = multiresModifier_rebuild_subdiv(depsgraph, object, mmd, INT_MAX, false);
+  if (new_levels == 0) {
+    BKE_report(op->reports, RPT_ERROR, "Not valid subdivisions found to rebuild lower levels");
+    return OPERATOR_CANCELLED;
+  }
+
+  BKE_reportf(op->reports, RPT_INFO, "%d new levels rebuilt", new_levels);
+
+  DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
+
+  return OPERATOR_FINISHED;
+}
+
+static int multires_rebuild_subdiv_invoke(bContext *C,
+                                          wmOperator *op,
+                                          const wmEvent *UNUSED(event))
+{
+  if (edit_modifier_invoke_properties(C, op)) {
+    return multires_rebuild_subdiv_exec(C, op);
+  }
+  else {
+    return OPERATOR_CANCELLED;
+  }
+}
+
+void OBJECT_OT_multires_rebuild_subdiv(wmOperatorType *ot)
+{
+  ot->name = "Rebuild Lower Subdivisions";
+  ot->description =
+      "Rebuilds all possible subdivisions levels to generate a lower resolution base mesh";
+  ot->idname = "OBJECT_OT_multires_rebuild_subdiv";
+
+  ot->poll = multires_poll;
+  ot->invoke = multires_rebuild_subdiv_invoke;
+  ot->exec = multires_rebuild_subdiv_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
 }
 

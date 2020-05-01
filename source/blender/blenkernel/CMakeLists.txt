@@ -178,9 +178,11 @@ set(SRC
   intern/multires_reshape_apply_base.c
   intern/multires_reshape_ccg.c
   intern/multires_reshape_smooth.c
+  intern/multires_reshape_subdivide.c
   intern/multires_reshape_util.c
   intern/multires_reshape_vertcos.c
   intern/multires_subdiv.c
+  intern/multires_unsubdivide.c
   intern/nla.c
   intern/node.c
   intern/object.c
@@ -200,7 +202,6 @@ set(SRC
   intern/particle_system.c
   intern/pbvh.c
   intern/pbvh_bmesh.c
-  intern/pbvh_parallel.cc
   intern/pointcache.c
   intern/pointcloud.c
   intern/property.c
@@ -408,6 +409,7 @@ set(SRC
   intern/lib_intern.h
   intern/multires_inline.h
   intern/multires_reshape.h
+  intern/multires_unsubdivide.h
   intern/pbvh_intern.h
   intern/subdiv_converter.h
   intern/subdiv_inline.h
