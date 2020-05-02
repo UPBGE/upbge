@@ -2115,8 +2115,6 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
 	}
 #  endif
 
-  Py_FrozenFlag = 1;
-
   /* must run before python initializes */
   PyImport_ExtendInittab(bge_internal_modules);
   /* must run before python initializes */
@@ -2131,6 +2129,15 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
    * so use a more relaxed error handler and enforce utf-8 since the rest of
    * blender is utf-8 too - campbell */
   Py_SetStandardStreamEncoding("utf-8", "surrogateescape");
+
+  /* Suppress error messages when calculating the module search path.
+   * While harmless, it's noisy. */
+  Py_FrozenFlag = 1;
+
+  /* Only use the systems environment variables and site when explicitly requested.
+   * Since an incorrect 'PYTHONPATH' causes difficult to debug errors, see: T72807. */
+  Py_IgnoreEnvironmentFlag = !(BPY_python_get_use_system_env());
+  Py_NoUserSiteDirectory = !(BPY_python_get_use_system_env());
 
   Py_Initialize();
 
@@ -2247,8 +2254,6 @@ void initGamePythonScripting(Main *maggie)
 	}
 #  endif
 
-  Py_FrozenFlag = 1;
-
   /* must run before python initializes */
   PyImport_ExtendInittab(bge_internal_modules);
 
@@ -2261,6 +2266,15 @@ void initGamePythonScripting(Main *maggie)
    * so use a more relaxed error handler and enforce utf-8 since the rest of
    * blender is utf-8 too - campbell */
   Py_SetStandardStreamEncoding("utf-8", "surrogateescape");
+
+  /* Suppress error messages when calculating the module search path.
+   * While harmless, it's noisy. */
+  Py_FrozenFlag = 1;
+
+  /* Only use the systems environment variables and site when explicitly requested.
+   * Since an incorrect 'PYTHONPATH' causes difficult to debug errors, see: T72807. */
+  Py_IgnoreEnvironmentFlag = !(BPY_python_get_use_system_env());
+  Py_NoUserSiteDirectory = !(BPY_python_get_use_system_env());
 
   Py_Initialize();
 
