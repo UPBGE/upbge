@@ -425,6 +425,14 @@ void BPY_python_use_system_env(void)
   py_use_system_env = true;
 }
 
+/* Game Engine transition */
+bool BPY_python_get_use_system_env(void)
+{
+  BLI_assert(!Py_IsInitialized());
+  return py_use_system_env;
+}
+/* End Game Engine transition */
+
 static void python_script_error_jump_text(struct Text *text)
 {
   int lineno;
