@@ -428,7 +428,6 @@ void BPY_python_use_system_env(void)
 /* Game Engine transition */
 bool BPY_python_get_use_system_env(void)
 {
-  BLI_assert(!Py_IsInitialized());
   return py_use_system_env;
 }
 /* End Game Engine transition */
