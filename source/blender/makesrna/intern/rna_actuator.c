@@ -57,6 +57,7 @@ static const EnumPropertyItem actuator_type_items[] = {
     {ACT_MESSAGE, "MESSAGE", 0, "Message", ""},
     {ACT_OBJECT, "MOTION", 0, "Motion", ""},
     {ACT_MOUSE, "MOUSE", 0, "Mouse", ""},
+	{ACT_NET_CLIENT, "NET_CLIENT", 0, "Net Client", ""},
     {ACT_PARENT, "PARENT", 0, "Parent", ""},
     {ACT_PROPERTY, "PROPERTY", 0, "Property", ""},
     {ACT_RANDOM, "RANDOM", 0, "Random", ""},
@@ -118,6 +119,8 @@ static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
       return &RNA_SteeringActuator;
     case ACT_MOUSE:
       return &RNA_MouseActuator;
+	case ACT_NET_CLIENT:
+	  return &RNA_NetClientActuator;
     default:
       return &RNA_Actuator;
   }
@@ -518,6 +521,7 @@ const EnumPropertyItem *rna_Actuator_type_itemf(bContext *C,
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_GAME);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MESSAGE);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MOUSE);
+  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_NET_CLIENT);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_OBJECT);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_PARENT);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_PROPERTY);
@@ -525,7 +529,6 @@ const EnumPropertyItem *rna_Actuator_type_itemf(bContext *C,
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_SCENE);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_COLLECTION);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_STEERING);
-
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_SOUND);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_STATE);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_VIBRATION);
@@ -2435,6 +2438,53 @@ static void rna_def_mouse_actuator(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 
+static void rna_def_net_client_actuator(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  static EnumPropertyItem prop_type_items[] ={
+	{ACT_NETCLIENT_CONNECT, "CONNECT", 0, "Client Connect", ""},
+	{ACT_NETCLIENT_DISCONNECT, "DISCONNECT", 0, "Client Disconnect", ""},
+	{ACT_NETCLIENT_UPDATE, "UPDATE", 0, "Client Update", ""},
+	{0, NULL, 0, NULL, NULL}
+  };
+
+  srna= RNA_def_struct(brna, "NetClientActuator", "Actuator");
+  RNA_def_struct_ui_text(srna, "Net Client Actuator", "Actuator to handle client network conection");
+  RNA_def_struct_sdna_from(srna, "bNetClientActuator", "data");
+
+  prop= RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "type");
+  RNA_def_property_enum_items(prop, prop_type_items);
+  RNA_def_property_ui_text(prop, "Client Action", "");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop= RNA_def_property(srna, "address", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Server", "IP Server address, or localhost");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop= RNA_def_property(srna, "port", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, 65535);
+  RNA_def_property_ui_text(prop, "Port", "Server port");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop= RNA_def_property(srna, "password", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Password", "Optional server password. Left empty if no password required to connect to server");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop= RNA_def_property(srna, "channels", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, 1000);
+  RNA_def_property_ui_text(prop, "Channels", "Number of the channels");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop= RNA_def_property(srna, "time_out", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "timeout");
+  RNA_def_property_range(prop, 0, 10000);
+  RNA_def_property_ui_text(prop, "Timeout", "Server timeout");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+}
+
 void RNA_def_actuator(BlenderRNA *brna)
 {
   rna_def_actuator(brna);
@@ -2459,6 +2509,7 @@ void RNA_def_actuator(BlenderRNA *brna)
   rna_def_armature_actuator(brna);
   rna_def_steering_actuator(brna);
   rna_def_mouse_actuator(brna);
+  rna_def_net_client_actuator(brna);
 }
 
 #endif

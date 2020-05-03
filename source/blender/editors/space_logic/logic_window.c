@@ -454,6 +454,8 @@ static const char *actuator_name(int type)
       return N_("Steering");
     case ACT_MOUSE:
       return N_("Mouse");
+	case ACT_NET_CLIENT:
+	  return N_("Network Client");
   }
   return N_("Unknown");
 }
@@ -2469,6 +2471,30 @@ static void draw_actuator_mouse(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
+static void draw_actuator_net_client(uiLayout *layout, PointerRNA *ptr)
+{
+  uiLayout *row;
+
+  uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
+
+  if (RNA_enum_get(ptr, "mode") == ACT_NETCLIENT_CONNECT) {
+
+	row = uiLayoutRow(layout, 0);
+	uiItemR(row, ptr, "address", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "port", 0, NULL, ICON_NONE);
+
+	uiItemR(layout, ptr, "password", 0, NULL, ICON_NONE);
+
+	row = uiLayoutRow(layout, 0);
+	uiItemR(row, ptr, "channels", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "timeout", 0, NULL, ICON_NONE);
+
+	//row = uiLayoutRow(layout, 0);
+	//uiItemR(row, ptr, "use_data_compression", 0, NULL, ICON_NONE);
+	//uiItemR(row, ptr, "use_nat_punchthrough", 0, NULL, ICON_NONE);
+  }
+}
+
 static void draw_brick_actuator(uiLayout *layout, PointerRNA *ptr, bContext *C)
 {
   uiLayout *box;
@@ -2540,6 +2566,9 @@ static void draw_brick_actuator(uiLayout *layout, PointerRNA *ptr, bContext *C)
     case ACT_MOUSE:
       draw_actuator_mouse(box, ptr);
       break;
+	case ACT_NET_CLIENT:
+	  draw_actuator_net_client(box, ptr);
+	  break;
   }
 }
 

@@ -56,3 +56,7 @@ endif()
 if(WITH_PLAYER)
 	add_subdirectory(GamePlayer)
 endif()
+
+if(WITH_GAMEENGINE_ENET)
+  add_subdirectory(Network)
+endif()

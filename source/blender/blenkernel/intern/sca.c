@@ -419,6 +419,7 @@ void init_actuator(bActuator *act)
   bMouseActuator *ma;
   bEditObjectActuator *eoa;
   bVibrationActuator *via;
+  bNetClientActuator *nca;
 
   if (act->data)
     MEM_freeN(act->data);
@@ -523,7 +524,17 @@ void init_actuator(bActuator *act)
       ma->object_axis[1] = ACT_MOUSE_OBJECT_AXIS_X;
       ma->limit_y[0] = DEG2RADF(-90.0f);
       ma->limit_y[1] = DEG2RADF(90.0f);
-      break;
+	  break;
+	case ACT_NET_CLIENT:
+	  nca = act->data = MEM_callocN(sizeof(bNetClientActuator), "net client act");
+	  nca->type = ACT_NETCLIENT_CONNECT;
+	  nca->channels = 4; /* synchronization, messages, chat & file transfer */
+	  BLI_strncpy(nca->address, "127.0.0.1", sizeof(nca->address));
+	  BLI_strncpy(nca->password, "", sizeof(nca->password));
+	  nca->flag = 0;
+	  nca->port = 4667;
+	  nca->timeout = 10;
+	  break;
     default:; /* this is very severe... I cannot make any memory for this        */
               /* logic brick...                                                    */
   }

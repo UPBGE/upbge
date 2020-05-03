@@ -278,6 +278,15 @@ typedef struct bMouseActuator {
   float limit_y[2];
 } bMouseActuator;
 
+typedef struct bNetClientActuator {
+  short type;		/* 0=Connect, 1=Disconnect, 2=Update */
+  short flag;		/* Bit 0=Data compressed, Bit 1 = NAT Punchthrough enabled */
+  int channels;
+  int timeout;
+  char address[32], password[32];
+  short port, _pad[3];
+} bNetClientActuator;
+
 typedef struct bActuator {
   struct bActuator *next, *prev, *mynew;
   short type;
@@ -350,6 +359,7 @@ typedef struct bActuator {
 #define ACT_MOUSE 25
 #define ACT_VIBRATION 26
 #define ACT_COLLECTION 27
+#define ACT_NET_CLIENT 28
 
 /* actuator flag */
 #define ACT_SHOW 1
@@ -620,5 +630,10 @@ typedef struct bActuator {
 /* vibrationactuator->mode */
 #define ACT_VIBRATION_PLAY 0
 #define ACT_VIBRATION_STOP 1
+
+/* netclientactuator->type */
+#define ACT_NETCLIENT_CONNECT 0
+#define ACT_NETCLIENT_DISCONNECT 1
+#define ACT_NETCLIENT_UPDATE 2
 
 #endif /* __DNA_ACTUATOR_TYPES_H__ */

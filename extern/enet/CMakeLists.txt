@@ -53,4 +53,11 @@ set(SRC
 set(LIB
 )
 
+#ENET_TODO add right definitions
+if(WIN32)
+    add_definitions(-DWIN32)
+else(WIN32)
+    add_definitions(-DHAS_SOCKLEN_T)
+endif()
+
 blender_add_lib(extern_enet "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
