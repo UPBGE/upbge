@@ -24,6 +24,7 @@
 
 #include "RAS_Shader.h"
 
+#include <cstring>
 
 #include "BLI_alloca.h"
 #include "GPU_shader.h"

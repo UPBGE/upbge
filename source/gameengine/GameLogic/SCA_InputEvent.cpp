@@ -26,6 +26,7 @@
 
 #include "SCA_InputEvent.h"
 
+#include <algorithm>
 
 #include "EXP_ListWrapper.h"
 

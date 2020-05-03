@@ -31,6 +31,7 @@
 
 #include "SCA_IController.h"
 
+#include <algorithm>
 
 #include "CM_Message.h"
 #include "EXP_ListWrapper.h"

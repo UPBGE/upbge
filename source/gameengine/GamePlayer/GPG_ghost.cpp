@@ -72,6 +72,7 @@
 #include "BKE_studiolight.h"
 #include "BLF_api.h"
 #include "BLI_blenlib.h"
+#include "BLI_mempool.h"
 #include "BLI_system.h"
 #include "BLI_task.h"
 #include "BLO_readfile.h"

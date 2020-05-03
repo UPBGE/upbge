@@ -31,6 +31,7 @@
 
 #include "RAS_MaterialBucket.h"
 
+#include <algorithm>
 
 #include "RAS_IPolygonMaterial.h"
 

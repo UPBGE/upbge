@@ -30,6 +30,7 @@
 
 #include "SG_Node.h"
 
+#include <algorithm>
 
 #include "SG_Controller.h"
 #include "SG_Familly.h"
