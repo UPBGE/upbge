@@ -58,5 +58,5 @@ if(WITH_PLAYER)
 endif()
 
 if(WITH_GAMEENGINE_ENET)
-  add_subdirectory(Network)
+  #add_subdirectory(Network)
 endif()

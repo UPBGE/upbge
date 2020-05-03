@@ -2487,7 +2487,7 @@ static void draw_actuator_net_client(uiLayout *layout, PointerRNA *ptr)
 
 	row = uiLayoutRow(layout, 0);
 	uiItemR(row, ptr, "channels", 0, NULL, ICON_NONE);
-	uiItemR(row, ptr, "timeout", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "time_out", 0, NULL, ICON_NONE);
 
 	//row = uiLayoutRow(layout, 0);
 	//uiItemR(row, ptr, "use_data_compression", 0, NULL, ICON_NONE);
