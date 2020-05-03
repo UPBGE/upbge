@@ -33,9 +33,6 @@
 #include "KX_RayCast.h"
 
 #include "CM_Message.h"
-#include "MT_Vector3.h"
-#include "PHY_IPhysicsController.h"
-#include "PHY_IPhysicsEnvironment.h"
 
 KX_RayCast::KX_RayCast(PHY_IPhysicsController *ignoreController, bool faceNormal, bool faceUV)
     : PHY_IRayCastFilterCallback(ignoreController, faceNormal, faceUV)

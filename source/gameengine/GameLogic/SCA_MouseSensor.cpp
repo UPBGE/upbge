@@ -35,13 +35,7 @@
 
 #include "SCA_MouseSensor.h"
 
-#include <iostream>
-#include <stddef.h>
 
-#include "EXP_ConstExpr.h"
-#include "SCA_EventManager.h"
-#include "SCA_IInputDevice.h"
-#include "SCA_LogicManager.h"
 #include "SCA_MouseManager.h"
 
 /* ------------------------------------------------------------------------- */

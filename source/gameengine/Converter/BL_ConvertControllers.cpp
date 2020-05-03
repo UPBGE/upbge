@@ -37,21 +37,15 @@
 #endif
 
 #include "BKE_text.h"
-#include "BLI_blenlib.h"
 #include "DNA_controller_types.h"
-#include "DNA_object_types.h"
 #include "DNA_text_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BL_BlenderSceneConverter.h"
-#include "CM_Message.h"
 #include "EXP_IntValue.h"
-#include "EXP_Python.h"
 #include "KX_GameObject.h"
-#include "KX_Globals.h"
 #include "SCA_ANDController.h"
 #include "SCA_ExpressionController.h"
-#include "SCA_LogicManager.h"
 #include "SCA_NANDController.h"
 #include "SCA_NORController.h"
 #include "SCA_ORController.h"

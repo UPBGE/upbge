@@ -16,7 +16,6 @@
  */
 #include "EXP_Expression.h"
 
-#include "EXP_ErrorValue.h"
 
 CExpression::CExpression()
 {

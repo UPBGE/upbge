@@ -31,23 +31,16 @@
 
 #include "BL_ConvertProperties.h"
 
-#include <fstream>
 #include <sstream>
 
 #include "BKE_property.h"
 #include "DNA_curve_types.h"
-#include "DNA_object_types.h"
-#include "DNA_property_types.h"
 
 #include "CM_Message.h"
-#include "EXP_BoolValue.h"
 #include "EXP_FloatValue.h"
 #include "EXP_IntValue.h"
 #include "EXP_StringValue.h"
-#include "EXP_Value.h"
 #include "KX_FontObject.h"
-#include "KX_GameObject.h"
-#include "SCA_IScene.h"
 #include "SCA_TimeEventManager.h"
 
 /* prototype */

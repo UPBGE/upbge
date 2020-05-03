@@ -26,11 +26,7 @@
 
 #include "KX_2DFilter.h"
 
-#include "CM_Message.h"
 #include "KX_2DFilterFrameBuffer.h"
-#include "KX_Globals.h"
-#include "KX_KetsjiEngine.h"
-#include "RAS_Texture.h"  // for RAS_Texture::MaxUnits
 
 KX_2DFilter::KX_2DFilter(RAS_2DFilterData &data) : RAS_2DFilter(data)
 {

@@ -31,18 +31,13 @@
 
 #include "KX_PyConstraintBinding.h"
 
-#include "EXP_PyObjectPlus.h"
 #include "KX_CharacterWrapper.h"
 #include "KX_ConstraintWrapper.h"
 #include "KX_GameObject.h"  // ConvertPythonToGameObject()
 #include "KX_Globals.h"
 #include "KX_VehicleWrapper.h"
-#include "MT_Matrix3x3.h"
-#include "PHY_DynamicTypes.h"
 #include "PHY_IConstraint.h"
-#include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
-#include "PHY_IVehicle.h"
 
 #ifdef WITH_BULLET
 #  include "LinearMath/btIDebugDraw.h"

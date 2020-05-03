@@ -27,14 +27,10 @@
 #include "RAS_2DFilterManager.h"
 
 #include "DRW_render.h"
-#include "GPU_glew.h"
 
 #include "CM_Message.h"
-#include "KX_Scene.h"
 #include "RAS_2DFilter.h"
 #include "RAS_FrameBuffer.h"
-#include "RAS_ICanvas.h"
-#include "RAS_Rasterizer.h"
 
 extern "C" {
 extern char datatoc_RAS_Blur2DFilter_glsl[];

@@ -31,7 +31,6 @@
 
 #include "KX_SG_NodeRelationships.h"
 
-#include "BLI_utildefines.h"
 
 /**
  * Implementation of classes defined in KX_SG_NodeRelationships.h

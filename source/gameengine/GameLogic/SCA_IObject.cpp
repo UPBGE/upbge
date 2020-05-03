@@ -31,13 +31,8 @@
 
 #include "SCA_IObject.h"
 
-#include <algorithm>
-#include <iostream>
 
-#include "EXP_ListValue.h"
-#include "MT_Vector3.h"
 #include "SCA_IActuator.h"
-#include "SCA_IController.h"
 #include "SCA_ISensor.h"
 
 MT_Vector3 SCA_IObject::m_sDummy = MT_Vector3(0, 0, 0);

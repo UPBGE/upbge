@@ -24,7 +24,6 @@
 
 #include "KX_VehicleWrapper.h"
 
-#include "DNA_object_types.h"  // for OB_MAX_COL_MASKS
 
 #include "KX_GameObject.h"
 #include "KX_Globals.h"

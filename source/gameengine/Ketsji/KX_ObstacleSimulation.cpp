@@ -28,8 +28,6 @@
 
 #include "KX_ObstacleSimulation.h"
 
-#include "BLI_math.h"
-#include "DNA_object_types.h"
 
 #include "KX_Globals.h"
 #include "KX_NavMeshObject.h"

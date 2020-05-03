@@ -36,7 +36,6 @@
 
 #include "BL_ConvertActuators.h"
 
-#include <math.h>
 
 #ifdef WITH_AUDASPACE
 #  include <AUD_Sound.h>
@@ -44,37 +43,20 @@
 
 /* This little block needed for linking to Blender... */
 #include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_layer.h"
-#include "BKE_scene.h"
-#include "BKE_sound.h"
 #include "BKE_text.h"
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
-#include "BLI_path_util.h"
-#include "DEG_depsgraph_query.h"
-#include "DNA_actuator_types.h"
-#include "DNA_object_types.h"
-#include "DNA_packedFile_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 #include "MEM_guardedalloc.h"
 #include "RNA_access.h"
 
 // Actuators
 // SCA logiclibrary native logicbricks
-#include "BL_Action.h"
 #include "BL_ActionActuator.h"
 #include "BL_ArmatureActuator.h"
-#include "BL_BlenderDataConversion.h"
 #include "BL_BlenderSceneConverter.h"
-#include "CM_Message.h"
 #include "EXP_IntValue.h"
-#include "KX_GameObject.h"
 #include "KX_Globals.h"
-#include "KX_KetsjiEngine.h"
 #include "KX_NetworkMessageActuator.h"
-#include "KX_Scene.h"
 #include "RAS_2DFilterManager.h"  // for filter type.
 #include "SCA_2DFilterActuator.h"
 #include "SCA_AddObjectActuator.h"
@@ -84,11 +66,9 @@
 #include "SCA_DynamicActuator.h"
 #include "SCA_EndObjectActuator.h"
 #include "SCA_GameActuator.h"
-#include "SCA_LogicManager.h"
 #include "SCA_MouseActuator.h"
 #include "SCA_ObjectActuator.h"
 #include "SCA_ParentActuator.h"
-#include "SCA_PropertyActuator.h"
 #include "SCA_RandomActuator.h"
 #include "SCA_ReplaceMeshActuator.h"
 #include "SCA_SceneActuator.h"

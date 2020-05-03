@@ -30,9 +30,7 @@
 
 #include "FilterBase.h"
 
-#include <structmember.h>
 
-#include "EXP_PyObjectPlus.h"
 
 // FilterBase class implementation
 

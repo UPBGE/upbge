@@ -30,10 +30,7 @@
 
 #include "PyTypeList.h"
 
-#include <memory>
-#include <vector>
 
-#include "EXP_PyObjectPlus.h"
 
 /// destructor
 PyTypeList::~PyTypeList()

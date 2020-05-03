@@ -27,7 +27,6 @@
 #include "SCA_PythonJoystick.h"
 
 #include "DEV_Joystick.h"
-#include "SCA_IInputDevice.h"
 
 //#include "GHOST_C-api.h"
 

@@ -26,7 +26,6 @@
 
 #include "DEV_InputDevice.h"
 
-#include <iostream>
 
 #include "GHOST_Types.h"
 

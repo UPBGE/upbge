@@ -39,11 +39,9 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
-#include "BKE_sound.h"
 #include "BKE_undo_system.h"
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
-#include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 #include "WM_api.h"
 #include "wm_window.h"
@@ -51,7 +49,6 @@
 #include "CM_Message.h"
 #include "GHOST_ISystem.h"
 #include "KX_Globals.h"
-#include "KX_PythonInit.h"
 #include "LA_BlenderLauncher.h"
 
 extern "C" {

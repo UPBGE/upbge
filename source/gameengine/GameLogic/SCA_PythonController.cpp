@@ -41,10 +41,6 @@
 #endif  // WITH_PYTHON
 
 #include "CM_Message.h"
-#include "EXP_PyObjectPlus.h"
-#include "SCA_IActuator.h"
-#include "SCA_ISensor.h"
-#include "SCA_LogicManager.h"
 
 // initialize static member variables
 SCA_PythonController *SCA_PythonController::m_sCurrentController = nullptr;

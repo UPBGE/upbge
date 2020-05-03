@@ -34,17 +34,12 @@
 
 #include "SCA_CollisionSensor.h"
 
-#include <iostream>
 
-#include "BLI_utildefines.h"
 
 #include "KX_CollisionEventManager.h"
-#include "KX_GameObject.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_MeshObject.h"
-#include "SCA_EventManager.h"
-#include "SCA_LogicManager.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

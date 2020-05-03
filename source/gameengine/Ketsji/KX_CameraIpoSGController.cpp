@@ -33,7 +33,6 @@
 
 #include "KX_Camera.h"
 #include "KX_ScalarInterpolator.h"
-#include "RAS_CameraData.h"
 
 #if defined(_WIN64)
 typedef unsigned __int64 uint_ptr;

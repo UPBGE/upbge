@@ -32,7 +32,6 @@
 
 #include "KX_NetworkMessageActuator.h"
 
-#include <stddef.h>
 
 #include "KX_NetworkMessageScene.h"
 

@@ -32,11 +32,8 @@
 
 #include "ImageMix.h"
 
-#include <structmember.h>
 
-#include "EXP_PyObjectPlus.h"
 #include "Exception.h"
-#include "ImageBase.h"
 
 // cast ImageSource pointer to ImageSourceMix
 inline ImageSourceMix *getImageSourceMix(ImageSource *src)

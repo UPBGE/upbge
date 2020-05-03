@@ -31,34 +31,18 @@
 
 #include "RAS_Rasterizer.h"
 
-#include "CM_Message.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 #include "KX_RayCast.h"
-#include "RAS_DisplayArrayBucket.h"
 #include "RAS_FrameBuffer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_Polygon.h"
-#include "RAS_Rect.h"
 
-#include "BKE_context.h"
-#include "BLF_api.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "DNA_view3d_types.h"
 #include "DRW_render.h"
 #include "GPU_draw.h"
-#include "GPU_extensions.h"
-#include "GPU_framebuffer.h"
-#include "GPU_material.h"
 #include "GPU_matrix.h"
-#include "GPU_shader.h"
-#include "GPU_texture.h"
-#include "GPU_uniformbuffer.h"
-#include "GPU_viewport.h"
-#include "MEM_guardedalloc.h"
 
 RAS_Rasterizer::FrameBuffers::FrameBuffers() : m_width(0), m_height(0), m_samples(0)
 {

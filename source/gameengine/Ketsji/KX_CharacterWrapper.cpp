@@ -24,7 +24,6 @@
 
 #include "KX_CharacterWrapper.h"
 
-#include "BLI_utildefines.h"
 
 #include "KX_PyMath.h"
 #include "PHY_ICharacter.h"

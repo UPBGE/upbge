@@ -1,6 +1,5 @@
 #include "CcdConstraint.h"
 
-#include "BLI_utildefines.h"
 
 #include "btBulletDynamicsCommon.h"
 

@@ -31,9 +31,7 @@
 
 #include "SCA_ILogicBrick.h"
 
-#include <stddef.h>
 
-#include "EXP_PyObjectPlus.h"
 
 SCA_ILogicBrick::SCA_ILogicBrick(SCA_IObject *gameobj)
     : CValue(),

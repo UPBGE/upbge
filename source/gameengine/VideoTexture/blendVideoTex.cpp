@@ -30,11 +30,6 @@
 
 #include <RAS_IPolygonMaterial.h>
 
-#include "EXP_PyObjectPlus.h"
-#include "Exception.h"
-#include "FilterBase.h"
-#include "ImageBase.h"
-#include "KX_PythonInit.h"
 #include "Texture.h"
 #include "VideoBase.h"
 

@@ -33,12 +33,8 @@
 
 #include "SCA_CollectionActuator.h"
 
-#include <iostream>
 
 #include "KX_Camera.h"
-#include "KX_GameObject.h"
-#include "KX_Scene.h"
-#include "SCA_IActuator.h"
 
 #include "BKE_collection.h"
 

@@ -26,12 +26,10 @@
 
 #include <boost/format.hpp>
 
-#include "DNA_material_types.h"
 
 #include "CM_Message.h"
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"
-#include "KX_PythonInit.h"
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"

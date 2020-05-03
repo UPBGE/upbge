@@ -31,7 +31,6 @@
 
 #include "SCA_IScene.h"
 
-#include "SCA_IObject.h"
 
 #define DEBUG_MAX_DISPLAY 100
 

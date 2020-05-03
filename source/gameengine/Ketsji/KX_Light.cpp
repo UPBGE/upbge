@@ -35,9 +35,7 @@
 
 #include "KX_Light.h"
 
-#include <stdio.h>
 
-#include "DNA_light_types.h"
 
 KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, Object *obLight)
     : KX_GameObject(sgReplicationInfo, callbacks), m_obLight(obLight)

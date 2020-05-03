@@ -32,13 +32,10 @@
 
 #include "KX_NetworkMessageSensor.h"
 
-#include <stddef.h>
 
-#include "EXP_InputParser.h"
 #include "EXP_ListValue.h"
 #include "EXP_StringValue.h"
 #include "KX_NetworkMessageScene.h"
-#include "SCA_IObject.h"
 
 #ifdef NAN_NET_DEBUG
 #  include <iostream>

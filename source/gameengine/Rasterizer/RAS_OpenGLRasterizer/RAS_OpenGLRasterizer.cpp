@@ -31,21 +31,8 @@
 
 #include "RAS_OpenGLRasterizer.h"
 
-#include <cstring>  // For memcpy.
 
-#include "BKE_DerivedMesh.h"
-#include "BLF_api.h"
-#include "BLI_math.h"
-#include "DNA_material_types.h"
-#include "GPU_draw.h"
-#include "GPU_extensions.h"
 #include "GPU_glew.h"
-#include "GPU_immediate.h"
-#include "GPU_material.h"
-#include "GPU_matrix.h"
-#include "GPU_shader.h"
-#include "GPU_texture.h"
-#include "MEM_guardedalloc.h"
 
 #include "CM_Message.h"
 #include "RAS_IPolygonMaterial.h"

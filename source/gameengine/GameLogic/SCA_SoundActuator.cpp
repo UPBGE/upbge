@@ -44,12 +44,9 @@ typedef float sample_t;
 #  include <python/PyAPI.h>
 #endif
 
-#include <iostream>
 
 #include "KX_Camera.h"
-#include "KX_GameObject.h"
 #include "KX_Globals.h"
-#include "KX_PyMath.h"  // needed for PyObjectFrom()
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

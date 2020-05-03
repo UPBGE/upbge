@@ -34,12 +34,9 @@
 #include "DNA_mesh_types.h"
 
 #include "CM_Message.h"
-#include "MT_Vector3.h"
-#include "RAS_BucketManager.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_Polygon.h"
-#include "SCA_IScene.h"
 
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh, Object *originalOb, const LayersInfo &layersInfo)
     : m_name(mesh->id.name + 2), m_layersInfo(layersInfo), m_mesh(mesh), m_originalOb(originalOb)

@@ -40,8 +40,6 @@
 
 #include "SCA_AlwaysSensor.h"
 
-#include "SCA_EventManager.h"
-#include "SCA_LogicManager.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

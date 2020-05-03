@@ -35,7 +35,6 @@
 #  include <SDL.h>
 #endif
 
-#include <cmath>
 
 #include "BKE_appdir.h"
 #include "BLI_path_util.h"

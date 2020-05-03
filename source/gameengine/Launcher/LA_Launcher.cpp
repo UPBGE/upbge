@@ -30,16 +30,9 @@
 
 #include "LA_Launcher.h"
 
-#include "../../blender/python/BPY_extern.h"
-#include "BKE_idprop.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_sound.h"
-#include "DNA_material_types.h"
-#include "DNA_scene_types.h"
-#include "GPU_extensions.h"
-#include "GPU_framebuffer.h"
-#include "MEM_guardedalloc.h"
 #include "wm_event_types.h"
 
 #include "BL_BlenderConverter.h"
@@ -49,17 +42,14 @@
 #include "DEV_InputDevice.h"
 #include "DEV_Joystick.h"
 #include "GHOST_ISystem.h"
-#include "GHOST_IWindow.h"
 #include "GPG_Canvas.h"
 #include "KX_Globals.h"
-#include "KX_KetsjiEngine.h"
 #include "KX_NetworkMessageManager.h"
 #include "KX_PyConstraintBinding.h"
 #include "KX_PythonInit.h"
 #include "KX_PythonMain.h"
 #include "LA_System.h"
 #include "LA_SystemCommandLine.h"
-#include "RAS_ICanvas.h"
 
 #ifdef WITH_PYTHON
 #  include "Texture.h"  // For FreeAllTextures.
