@@ -201,7 +201,9 @@ void OVERLAY_gpencil_cache_init(OVERLAY_Data *vedata)
   }
 
   const bool show_overlays = (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0;
-  const bool show_grid = (v3d->gp_flag & V3D_GP_SHOW_GRID) != 0;
+  const bool show_grid = (v3d->gp_flag & V3D_GP_SHOW_GRID) != 0 &&
+                         ((ts->gpencil_v3d_align &
+                           (GP_PROJECT_DEPTH_VIEW | GP_PROJECT_DEPTH_STROKE)) == 0);
 
   if (show_grid && show_overlays) {
     const char *grid_unit = NULL;
@@ -236,6 +238,15 @@ void OVERLAY_gpencil_cache_init(OVERLAY_Data *vedata)
         copy_v3_v3(mat[0], viewinv[0]);
         copy_v3_v3(mat[1], viewinv[1]);
         break;
+    }
+
+    /* Move the grid to the right location depending of the align type.
+     * This is required only for 3D Cursor or Origin. */
+    if (ts->gpencil_v3d_align & GP_PROJECT_CURSOR) {
+      copy_v3_v3(mat[3], cursor->location);
+    }
+    else if (ts->gpencil_v3d_align & GP_PROJECT_VIEWSPACE) {
+      copy_v3_v3(mat[3], ob->obmat[3]);
     }
 
     translate_m4(mat, gpd->grid.offset[0], gpd->grid.offset[1], 0.0f);

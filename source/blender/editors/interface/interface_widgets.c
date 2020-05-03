@@ -2096,15 +2096,18 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
 #endif /* WITH_INPUT_IME */
 
 static bool widget_draw_text_underline_calc_center_x(const char *UNUSED(str),
-                                                     const size_t str_ofs,
-                                                     const rcti *glyph_bounds,
-                                                     const int glyph_advance_x,
+                                                     const size_t str_step_ofs,
+                                                     const rcti *glyph_step_bounds,
+                                                     const int UNUSED(glyph_advance_x),
+                                                     const rctf *glyph_bounds,
+                                                     const int glyph_bearing[2],
                                                      void *user_data)
 {
   /* The index of the character to get, set to the x-position. */
   int *ul_data = user_data;
-  if (ul_data[0] == (int)str_ofs) {
-    ul_data[1] = glyph_bounds->xmin + (glyph_advance_x / 2);
+  if (ul_data[0] == (int)str_step_ofs) {
+    ul_data[1] = glyph_step_bounds->xmin + glyph_bearing[0] +
+                 (BLI_rctf_size_x(glyph_bounds) / 2.0f);
     /* Early exit. */
     return false;
   }
