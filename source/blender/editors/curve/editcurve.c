@@ -58,6 +58,7 @@
 
 #include "ED_curve.h"
 #include "ED_object.h"
+#include "ED_outliner.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
 #include "ED_transform_snap_object_context.h"
@@ -1499,6 +1500,8 @@ static int separate_exec(bContext *C, wmOperator *op)
     }
     return OPERATOR_CANCELLED;
   }
+
+  ED_outliner_select_sync_from_object_tag(C);
 
   return OPERATOR_FINISHED;
 }
@@ -3589,6 +3592,7 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
 
               memcpy(bpn, nextbp, sizeof(BPoint));
               interp_v4_v4v4(bpn->vec, bp->vec, nextbp->vec, factor);
+              bpn->radius = interpf(bp->radius, nextbp->radius, factor);
               bpn++;
             }
           }
