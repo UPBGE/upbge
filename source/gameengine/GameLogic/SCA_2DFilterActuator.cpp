@@ -30,9 +30,7 @@
 
 #include "CM_Message.h"
 #include "RAS_2DFilter.h"
-#include "RAS_2DFilterData.h"
 #include "RAS_2DFilterManager.h"
-#include "SCA_IActuator.h"
 
 SCA_2DFilterActuator::SCA_2DFilterActuator(SCA_IObject *gameobj,
                                            int type,

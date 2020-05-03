@@ -20,10 +20,8 @@
  */
 #include "CcdGraphicController.h"
 
-#include "btBulletDynamicsCommon.h"
 
 #include "CcdPhysicsEnvironment.h"
-#include "MT_Vector3.h"
 
 CcdGraphicController::CcdGraphicController(CcdPhysicsEnvironment *phyEnv,
                                            PHY_IMotionState *motionState)

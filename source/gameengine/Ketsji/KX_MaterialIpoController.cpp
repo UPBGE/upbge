@@ -24,9 +24,7 @@
 
 #include "KX_MaterialIpoController.h"
 
-#include "BLI_sys_types.h"  // for intptr_t support
 
-#include "KX_GameObject.h"
 #include "KX_ScalarInterpolator.h"
 #include "RAS_IPolygonMaterial.h"
 

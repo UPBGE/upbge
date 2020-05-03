@@ -34,7 +34,6 @@
 #include "DNA_sensor_types.h"
 
 #include "KX_GameObject.h"
-#include "KX_PyMath.h"
 #include "PHY_IMotionState.h"
 #include "PHY_IPhysicsController.h"
 

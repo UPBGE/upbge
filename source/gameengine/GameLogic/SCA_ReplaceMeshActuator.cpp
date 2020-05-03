@@ -42,7 +42,6 @@
 
 #include "KX_GameObject.h"
 #include "KX_MeshProxy.h"
-#include "KX_Scene.h"
 
 #ifdef WITH_PYTHON
 

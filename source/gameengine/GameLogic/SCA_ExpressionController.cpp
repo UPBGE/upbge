@@ -35,9 +35,7 @@
 #include "SCA_ExpressionController.h"
 
 #include "CM_Message.h"
-#include "EXP_BoolValue.h"
 #include "EXP_InputParser.h"
-#include "MT_Transform.h"  // for fuzzyZero
 #include "SCA_ISensor.h"
 #include "SCA_LogicManager.h"
 

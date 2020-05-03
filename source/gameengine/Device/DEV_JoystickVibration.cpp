@@ -28,7 +28,6 @@
 
 #include "CM_Message.h"
 #include "DEV_Joystick.h"
-#include "DEV_JoystickDefines.h"
 #include "DEV_JoystickPrivate.h"
 #include "PIL_time.h"  // Module to get real time in Game Engine
 

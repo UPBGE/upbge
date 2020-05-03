@@ -36,9 +36,7 @@
 #include <locale>
 
 #include "EXP_StringValue.h"
-#include "SCA_IInputDevice.h"
 #include "SCA_KeyboardManager.h"
-#include "SCA_LogicManager.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

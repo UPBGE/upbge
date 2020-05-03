@@ -19,9 +19,7 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
-#include <stdlib.h>
 
-#include "BLI_utildefines.h"
 
 #include "CM_Message.h"
 #include "EXP_BoolValue.h"
@@ -34,7 +32,6 @@
 #include "EXP_Operator1Expr.h"
 #include "EXP_Operator2Expr.h"
 #include "EXP_StringValue.h"
-#include "EXP_Value.h"
 
 // this is disable at the moment, I expected a memleak from it, but the error-cleanup was the
 // reason well, looks we don't need it anyway, until maybe the Curved Surfaces are integrated into

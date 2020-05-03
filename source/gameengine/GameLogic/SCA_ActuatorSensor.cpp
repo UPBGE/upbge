@@ -34,11 +34,7 @@
 
 #include "SCA_ActuatorSensor.h"
 
-#include <iostream>
-#include <stddef.h>
 
-#include "SCA_EventManager.h"
-#include "SCA_LogicManager.h"
 
 SCA_ActuatorSensor::SCA_ActuatorSensor(SCA_EventManager *eventmgr,
                                        SCA_IObject *gameobj,

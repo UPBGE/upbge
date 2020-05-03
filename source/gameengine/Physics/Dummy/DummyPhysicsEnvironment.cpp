@@ -31,9 +31,7 @@
 
 #include "DummyPhysicsEnvironment.h"
 
-#include <stddef.h>
 
-#include "PHY_IMotionState.h"
 
 DummyPhysicsEnvironment::DummyPhysicsEnvironment()
 {

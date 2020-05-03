@@ -42,10 +42,8 @@
 
 #include "CM_Message.h"
 #include "DEV_InputDevice.h"
-#include "GHOST_ISystem.h"
 #include "GPG_Canvas.h"
 #include "KX_PythonInit.h"
-#include "LA_SystemCommandLine.h"
 
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system,
                                      GHOST_IWindow *window,

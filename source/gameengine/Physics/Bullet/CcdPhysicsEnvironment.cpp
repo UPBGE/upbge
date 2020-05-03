@@ -21,41 +21,22 @@
 
 #include "CcdPhysicsEnvironment.h"
 
-#include <algorithm>
 
 #include "BKE_object.h"
-#include "BLI_utildefines.h"
 #include "DNA_object_force_types.h"
-#include "DNA_object_types.h"  // for OB_MAX_COL_MASKS
 #include "DNA_scene_types.h"
-#include "DNA_world_types.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
-#include "BulletCollision/CollisionDispatch/btSimulationIslandManager.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/NarrowPhaseCollision/btRaycastCallback.h"
-#include "BulletDynamics/ConstraintSolver/btContactConstraint.h"
-#include "BulletDynamics/Vehicle/btRaycastVehicle.h"
-#include "BulletDynamics/Vehicle/btVehicleRaycaster.h"
-#include "BulletDynamics/Vehicle/btWheelInfo.h"
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
 #include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
-#include "LinearMath/btAabbUtil2.h"
-#include "LinearMath/btIDebugDraw.h"
-#include "LinearMath/btQuickprof.h"
-#include "btBulletDynamicsCommon.h"
 
 #include "BL_BlenderSceneConverter.h"
-#include "CM_Message.h"
 #include "CcdConstraint.h"
 #include "CcdGraphicController.h"
-#include "CcdMathUtils.h"
-#include "CcdPhysicsController.h"
 #include "KX_GameObject.h"
-#include "KX_Globals.h"  // for KX_RasterizerDrawDebugLine
 #include "MT_MinMax.h"
-#include "PHY_ICharacter.h"
-#include "PHY_IMotionState.h"
 #include "PHY_IVehicle.h"
 #include "PHY_Pro.h"
 #include "RAS_ITexVert.h"

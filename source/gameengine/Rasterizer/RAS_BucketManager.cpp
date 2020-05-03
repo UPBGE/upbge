@@ -36,13 +36,8 @@
 
 #include "RAS_BucketManager.h"
 
-#include <algorithm>
 
 #include "RAS_IPolygonMaterial.h"
-#include "RAS_MaterialBucket.h"
-#include "RAS_MeshObject.h"
-#include "RAS_Polygon.h"
-#include "RAS_Rasterizer.h"
 
 RAS_BucketManager::RAS_BucketManager()
 {

@@ -18,15 +18,10 @@
  */
 
 #include <regex>
-#include <stdio.h>
 
 #include "EXP_ListValue.h"
 
-#include "EXP_BoolValue.h"
-#include "EXP_StringValue.h"
-#include <algorithm>
 
-#include "BLI_sys_types.h"  // For intptr_t support.
 
 CBaseListValue::CBaseListValue() : m_bReleaseContents(true)
 {

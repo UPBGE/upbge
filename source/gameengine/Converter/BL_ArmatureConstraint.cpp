@@ -36,13 +36,8 @@
 
 #include "BKE_constraint.h"
 #include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_lib_id.h"
 #include "BKE_object.h"
-#include "BLI_math.h"
-#include "BLI_string.h"
-#include "DNA_action_types.h"
-#include "DNA_constraint_types.h"
 
 #ifdef WITH_PYTHON
 

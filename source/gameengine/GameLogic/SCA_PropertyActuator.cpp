@@ -34,7 +34,6 @@
 
 #include "SCA_PropertyActuator.h"
 
-#include <stddef.h>
 
 #include "EXP_ConstExpr.h"
 #include "EXP_InputParser.h"

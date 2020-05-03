@@ -33,14 +33,10 @@
 
 #include "BKE_context.h"
 #include "BLI_rect.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_view3d_types.h"
 #include "WM_api.h"
 #include "WM_types.h"
 #include "wm_event_system.h"
-#include "wm_window.h"
 
 #include "CM_Message.h"
 #include "KX_BlenderCanvas.h"

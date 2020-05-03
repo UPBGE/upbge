@@ -22,7 +22,6 @@
 #include "EXP_IntValue.h"
 #include "EXP_StringValue.h"
 
-#include <boost/format.hpp>
 
 CFloatValue::CFloatValue()
 {

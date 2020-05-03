@@ -30,11 +30,7 @@
 
 #include "FilterNormal.h"
 
-#include <structmember.h>
 
-#include "EXP_PyObjectPlus.h"
-#include "FilterBase.h"
-#include "PyTypeList.h"
 
 // implementation FilterNormal
 

@@ -36,7 +36,6 @@
 #include "RAS_Polygon.h"
 
 #include "RAS_IDisplayArray.h"
-#include "RAS_MaterialBucket.h"
 
 RAS_Polygon::RAS_Polygon(RAS_MaterialBucket *bucket, RAS_IDisplayArray *darray, int numvert)
     : m_bucket(bucket), m_darray(darray), m_numvert(numvert), m_polyflags(0)

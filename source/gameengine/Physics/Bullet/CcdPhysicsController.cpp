@@ -28,30 +28,18 @@
 #include "../depsgraph/DEG_depsgraph_query.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_layer.h"
-#include "BKE_mesh_runtime.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
-#include "BLI_utildefines.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
-#include "BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h"
-#include "BulletCollision/CollisionShapes/btTriangleIndexVertexArray.h"
 #include "BulletCollision/Gimpact/btGImpactShape.h"
-#include "BulletSoftBody/btSoftBody.h"
 #include "BulletSoftBody/btSoftBodyHelpers.h"
-#include "BulletSoftBody/btSoftBodyInternals.h"
 #include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
 #include "LinearMath/btConvexHull.h"
-#include "btBulletDynamicsCommon.h"
 
-#include "CM_Message.h"
 #include "CcdPhysicsEnvironment.h"
 #include "KX_GameObject.h"
-#include "PHY_IMotionState.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
@@ -294,7 +282,6 @@ btKinematicCharacterController *CcdPhysicsController::GetCharacterController()
   return m_characterController;
 }
 
-#include "BulletSoftBody/btSoftBodyHelpers.h"
 
 bool CcdPhysicsController::CreateSoftbody()
 {
@@ -2434,7 +2421,6 @@ cleanup_empty_mesh:
   return false;
 }
 
-#include <cstdio>
 
 /* Updates the arrays used by CreateBulletShape(),
  * take care that recalcLocalAabb() runs after CreateBulletShape is called.

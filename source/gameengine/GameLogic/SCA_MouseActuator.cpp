@@ -22,18 +22,11 @@
 
 #include "SCA_MouseActuator.h"
 
-#include "limits.h"
 
-#include "BLI_math.h"
-#include "BLI_utildefines.h"
 
 #include "KX_GameObject.h"
-#include "KX_KetsjiEngine.h"
 #include "KX_PyMath.h"
-#include "MT_Scalar.h"
-#include "MT_Vector3.h"
 #include "RAS_ICanvas.h"
-#include "SCA_IInputDevice.h"
 #include "SCA_MouseManager.h"
 
 #ifdef HAVE_CONFIG_H

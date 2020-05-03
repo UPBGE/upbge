@@ -35,8 +35,6 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_windowmanager_types.h"
 #include "GHOST_IWindow.h"
 #include "MEM_guardedalloc.h"
 #include "WM_api.h"
@@ -44,7 +42,6 @@
 #include "wm_window.h"
 
 #include "KX_Globals.h"
-#include "RAS_Rasterizer.h"
 
 KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty,
                                    wmWindowManager *wm,

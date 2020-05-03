@@ -26,12 +26,9 @@
 
 #include "DEV_EventConsumer.h"
 
-#include <iostream>
 
 #include "BLI_string_utf8.h"
-#include "GHOST_IEvent.h"
 #include "GHOST_ISystem.h"
-#include "GHOST_IWindow.h"
 
 #include "DEV_InputDevice.h"
 #include "RAS_ICanvas.h"

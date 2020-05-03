@@ -34,7 +34,6 @@
 
 #include "SCA_NORController.h"
 
-#include "EXP_BoolValue.h"
 #include "SCA_ISensor.h"
 #include "SCA_LogicManager.h"
 

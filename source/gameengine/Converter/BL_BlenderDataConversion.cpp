@@ -51,9 +51,6 @@
 
 #include "BL_BlenderDataConversion.h"
 
-#include <algorithm>
-#include <math.h>
-#include <vector>
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
@@ -61,53 +58,19 @@
 #endif
 
 /* This list includes only data type definitions */
-#include "BKE_DerivedMesh.h"
 #include "BKE_armature.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
-#include "BKE_customdata.h"
 #include "BKE_displist.h"
-#include "BKE_image.h"
-#include "BKE_key.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_material.h" /* give_current_material */
-#include "BKE_mesh.h"
-#include "BKE_mesh_runtime.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
-#include "BLI_listbase.h"
-#include "BLI_math.h"
-#include "BLI_threads.h"
-#include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
-#include "DNA_action_types.h"
-#include "DNA_actuator_types.h"
-#include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_controller_types.h"
-#include "DNA_image_types.h"
-#include "DNA_key_types.h"
-#include "DNA_layer_types.h"
-#include "DNA_light_types.h"
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_object_force_types.h"
-#include "DNA_object_types.h"
-#include "DNA_property_types.h"
 #include "DNA_python_component_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_sensor_types.h"
-#include "DNA_sound_types.h"
-#include "DNA_text_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_view3d_types.h"
-#include "DNA_world_types.h"
-#include "GPU_texture.h"
-#include "IMB_imbuf_types.h"
-#include "MEM_guardedalloc.h"
 #include "wm_event_types.h"
 
 /* end of blender include block */
@@ -118,16 +81,11 @@
 #include "BL_ConvertControllers.h"
 #include "BL_ConvertProperties.h"
 #include "BL_ConvertSensors.h"
-#include "BL_Texture.h"
-#include "CM_Message.h"
 #include "KX_BlenderMaterial.h"
 #include "KX_Camera.h"
 #include "KX_ClientObjectInfo.h"
 #include "KX_EmptyObject.h"
 #include "KX_FontObject.h"
-#include "KX_GameObject.h"
-#include "KX_Globals.h"
-#include "KX_KetsjiEngine.h"
 #include "KX_Light.h"
 #include "KX_LodManager.h"
 #include "KX_MotionState.h"
@@ -137,22 +95,9 @@
 #include "KX_PythonComponent.h"
 #include "KX_SG_BoneParentNodeRelationship.h"
 #include "KX_SG_NodeRelationships.h"
-#include "KX_Scene.h"
-#include "MT_MinMax.h"
-#include "MT_Transform.h"
-#include "PHY_IPhysicsEnvironment.h"
 #include "PHY_Pro.h"
-#include "RAS_BucketManager.h"
 #include "RAS_ICanvas.h"
-#include "RAS_IPolygonMaterial.h"
-#include "RAS_MeshObject.h"
-#include "RAS_Polygon.h"
-#include "RAS_Rasterizer.h"
 #include "RAS_TexVert.h"
-#include "SCA_LogicManager.h"
-#include "SCA_TimeEventManager.h"
-#include "SG_BBox.h"
-#include "SG_Node.h"
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"
 #endif

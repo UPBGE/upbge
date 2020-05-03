@@ -38,34 +38,19 @@
 
 #include <boost/format.hpp>
 
-#include "BLI_task.h"
 #include "DNA_scene_types.h"
-#include "DNA_world_types.h"
-#include "GPU_framebuffer.h"
 #include "GPU_matrix.h"
 
 #include "BL_BlenderConverter.h"
 #include "CM_Message.h"
 #include "DEV_Joystick.h"  // for DEV_Joystick::HandleEvents
-#include "EXP_BoolValue.h"
-#include "EXP_FloatValue.h"
-#include "EXP_IntValue.h"
-#include "EXP_ListValue.h"
 #include "KX_Camera.h"
 #include "KX_Globals.h"
-#include "KX_Light.h"
-#include "KX_NavMeshObject.h"
 #include "KX_NetworkMessageScene.h"
 #include "KX_PyConstraintBinding.h"
 #include "KX_PythonInit.h"  // for updatePythonJoysticks
-#include "MT_Transform.h"
-#include "MT_Vector3.h"
 #include "PHY_IPhysicsEnvironment.h"
-#include "RAS_BucketManager.h"
-#include "RAS_FrameBuffer.h"
-#include "RAS_FramingManager.h"
 #include "RAS_ICanvas.h"
-#include "RAS_Rasterizer.h"
 #include "SCA_IInputDevice.h"
 
 #define DEFAULT_LOGIC_TIC_RATE 60.0

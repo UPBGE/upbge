@@ -43,15 +43,8 @@
 #include "KX_ClientObjectInfo.h"
 #include "KX_PyMath.h"
 #include "KX_RayCast.h"
-#include "KX_Scene.h"
-#include "MT_Vector3.h"
-#include "PHY_IPhysicsController.h"
-#include "PHY_IPhysicsEnvironment.h"
-#include "RAS_FramingManager.h"
 #include "RAS_ICanvas.h"
 #include "RAS_MeshObject.h"
-#include "RAS_Rasterizer.h"
-#include "SCA_IScene.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

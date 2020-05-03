@@ -35,10 +35,8 @@
 
 #include "BL_BlenderConverter.h"
 
-#include <cstring>
 
 #include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_idtype.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
@@ -51,27 +49,18 @@
 #include "BLI_linklist.h"
 #include "BLI_task.h"
 #include "BLO_readfile.h"
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_scene_types.h"
 
 #include "BL_ActionActuator.h"
 #include "BL_BlenderDataConversion.h"
-#include "BL_BlenderScalarInterpolator.h"
 #include "BL_BlenderSceneConverter.h"
-#include "CM_Message.h"
 #include "DummyPhysicsEnvironment.h"
 #include "EXP_StringValue.h"
-#include "KX_BlenderMaterial.h"
 #include "KX_GameObject.h"
-#include "KX_KetsjiEngine.h"
 #include "KX_LibLoadStatus.h"
-#include "KX_PhysicsEngineEnums.h"
 #include "KX_PythonInit.h"  // So we can handle adding new text datablocks for Python to import
-#include "KX_Scene.h"
 #include "LA_SystemCommandLine.h"
 #include "RAS_BucketManager.h"
-#include "RAS_MeshObject.h"
 
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"

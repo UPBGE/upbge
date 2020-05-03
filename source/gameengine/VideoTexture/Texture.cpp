@@ -32,29 +32,16 @@
 
 #include "Texture.h"
 
-#include <memory.h>
-#include <structmember.h>
 
 #include "BKE_image.h"
-#include "DNA_image_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "GPU_glew.h"
 #include "GPU_texture.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
-#include "MEM_guardedalloc.h"
 
-#include "EXP_PyObjectPlus.h"
-#include "Exception.h"
-#include "ImageBase.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
-#include "KX_KetsjiEngine.h"
-#include "KX_Light.h"
 #include "RAS_IPolygonMaterial.h"
-#include "RAS_MeshObject.h"
-#include "RAS_Texture.h"
 
 static std::vector<Texture *> textures;
 

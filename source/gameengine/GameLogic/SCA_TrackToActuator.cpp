@@ -37,15 +37,7 @@
 
 #include "SCA_TrackToActuator.h"
 
-#include <iostream>
-#include <math.h>
 
-#include "EXP_PyObjectPlus.h"
-#include "KX_GameObject.h"
-#include "MT_Scalar.h"
-#include "SCA_IActuator.h"
-#include "SCA_IScene.h"
-#include "SCA_LogicManager.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */

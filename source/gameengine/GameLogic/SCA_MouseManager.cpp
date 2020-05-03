@@ -41,8 +41,6 @@
 
 #include "SCA_MouseManager.h"
 
-#include "EXP_BoolValue.h"
-#include "EXP_IntValue.h"
 #include "SCA_MouseSensor.h"
 
 SCA_MouseManager::SCA_MouseManager(SCA_LogicManager *logicmgr, SCA_IInputDevice *mousedev)

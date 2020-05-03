@@ -24,7 +24,6 @@
 #include "EXP_ErrorValue.h"
 #include "EXP_FloatValue.h"
 #include "EXP_IntValue.h"
-#include "EXP_ListValue.h"
 #include "EXP_StringValue.h"
 
 #ifdef WITH_PYTHON
