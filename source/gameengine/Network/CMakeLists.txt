@@ -16,7 +16,7 @@
 #
 # The Original Code is: all of this file.
 #
-# Contributor(s): Jorge Bernal
+# Contributor(s): none yet.
 #
 # ***** END GPL LICENSE BLOCK *****
 
