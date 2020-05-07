@@ -120,7 +120,7 @@ class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
         row.label(text="Exit Key")
         row.prop(gs, "exit_key", text="", event=True)
 
-        flow = layout.column_flow()
+        flow = layout.column()
         flow.prop(gs, "show_debug_properties", text="Debug Properties")
         flow.prop(gs, "show_framerate_profile", text="Framerate and Profile")
         flow.prop(gs, "show_physics_visualization", text="Physics Visualization")
