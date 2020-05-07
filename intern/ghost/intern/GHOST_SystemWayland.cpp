@@ -265,6 +265,7 @@ static GHOST_TKey xkb_map_gkey(const xkb_keysym_t &sym)
 
       GXMAP(gkey, XKB_KEY_Escape, GHOST_kKeyEsc);
       GXMAP(gkey, XKB_KEY_space, GHOST_kKeySpace);
+      GXMAP(gkey, XKB_KEY_apostrophe, GHOST_kKeyQuote);
       GXMAP(gkey, XKB_KEY_comma, GHOST_kKeyComma);
       GXMAP(gkey, XKB_KEY_minus, GHOST_kKeyMinus);
       GXMAP(gkey, XKB_KEY_plus, GHOST_kKeyPlus);
@@ -294,29 +295,19 @@ static GHOST_TKey xkb_map_gkey(const xkb_keysym_t &sym)
       GXMAP(gkey, XKB_KEY_Scroll_Lock, GHOST_kKeyScrollLock);
 
       GXMAP(gkey, XKB_KEY_Left, GHOST_kKeyLeftArrow);
-      GXMAP(gkey, XKB_KEY_KP_Left, GHOST_kKeyLeftArrow);
       GXMAP(gkey, XKB_KEY_Right, GHOST_kKeyRightArrow);
-      GXMAP(gkey, XKB_KEY_KP_Right, GHOST_kKeyRightArrow);
       GXMAP(gkey, XKB_KEY_Up, GHOST_kKeyUpArrow);
-      GXMAP(gkey, XKB_KEY_KP_Up, GHOST_kKeyUpArrow);
       GXMAP(gkey, XKB_KEY_Down, GHOST_kKeyDownArrow);
-      GXMAP(gkey, XKB_KEY_KP_Down, GHOST_kKeyDownArrow);
 
       GXMAP(gkey, XKB_KEY_Print, GHOST_kKeyPrintScreen);
       GXMAP(gkey, XKB_KEY_Pause, GHOST_kKeyPause);
 
       GXMAP(gkey, XKB_KEY_Insert, GHOST_kKeyInsert);
-      GXMAP(gkey, XKB_KEY_KP_Insert, GHOST_kKeyInsert);
       GXMAP(gkey, XKB_KEY_Delete, GHOST_kKeyDelete);
-      GXMAP(gkey, XKB_KEY_KP_Delete, GHOST_kKeyDelete);
       GXMAP(gkey, XKB_KEY_Home, GHOST_kKeyHome);
-      GXMAP(gkey, XKB_KEY_KP_Home, GHOST_kKeyHome);
       GXMAP(gkey, XKB_KEY_End, GHOST_kKeyEnd);
-      GXMAP(gkey, XKB_KEY_KP_End, GHOST_kKeyEnd);
       GXMAP(gkey, XKB_KEY_Page_Up, GHOST_kKeyUpPage);
-      GXMAP(gkey, XKB_KEY_KP_Page_Up, GHOST_kKeyUpPage);
       GXMAP(gkey, XKB_KEY_Page_Down, GHOST_kKeyDownPage);
-      GXMAP(gkey, XKB_KEY_KP_Page_Down, GHOST_kKeyDownPage);
 
       GXMAP(gkey, XKB_KEY_KP_Decimal, GHOST_kKeyNumpadPeriod);
       GXMAP(gkey, XKB_KEY_KP_Enter, GHOST_kKeyNumpadEnter);
@@ -330,7 +321,8 @@ static GHOST_TKey xkb_map_gkey(const xkb_keysym_t &sym)
       GXMAP(gkey, XKB_KEY_XF86AudioPrev, GHOST_kKeyMediaFirst);
       GXMAP(gkey, XKB_KEY_XF86AudioNext, GHOST_kKeyMediaLast);
       default:
-        GHOST_PRINT("unhandled key: " << sym << std::endl);
+        GHOST_PRINT("unhandled key: " << std::hex << std::showbase << sym << std::dec << " ("
+                                      << sym << ")" << std::endl);
         gkey = GHOST_kKeyUnknown;
     }
 #undef GXMAP
@@ -942,6 +934,32 @@ static void keyboard_leave(void * /*data*/,
   /* pass */
 }
 
+/**
+ * A version of #xkb_state_key_get_one_sym which returns the key without any modifiers pressed.
+ * Needed because #GHOST_TKey uses these values as key-codes.
+ */
+static xkb_keysym_t xkb_state_key_get_one_sym_without_modifiers(struct xkb_state *xkb_state,
+                                                                xkb_keycode_t key)
+{
+  /* Use an empty keyboard state to access key symbol without modifiers. */
+  xkb_state_get_keymap(xkb_state);
+  struct xkb_keymap *keymap = xkb_state_get_keymap(xkb_state);
+  struct xkb_state *xkb_state_empty = xkb_state_new(keymap);
+
+  /* Enable number-lock. */
+  {
+    const xkb_mod_index_t mod2 = xkb_keymap_mod_get_index(keymap, XKB_MOD_NAME_NUM);
+    const xkb_mod_index_t num = xkb_keymap_mod_get_index(keymap, "NumLock");
+    if (num != XKB_MOD_INVALID && mod2 != XKB_MOD_INVALID) {
+      xkb_state_update_mask(xkb_state_empty, (1 << mod2), 0, (1 << num), 0, 0, 0);
+    }
+  }
+
+  const xkb_keysym_t sym = xkb_state_key_get_one_sym(xkb_state_empty, key);
+  xkb_state_unref(xkb_state_empty);
+  return sym;
+}
+
 static void keyboard_key(void *data,
                          struct wl_keyboard * /*wl_keyboard*/,
                          uint32_t serial,
@@ -961,7 +979,8 @@ static void keyboard_key(void *data,
       break;
   }
 
-  const xkb_keysym_t sym = xkb_state_key_get_one_sym(input->xkb_state, key + 8);
+  const xkb_keysym_t sym = xkb_state_key_get_one_sym_without_modifiers(input->xkb_state, key + 8);
+
   if (sym == XKB_KEY_NoSymbol) {
     return;
   }
