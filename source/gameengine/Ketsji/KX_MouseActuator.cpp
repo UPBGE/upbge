@@ -37,6 +37,10 @@
 #include <config.h>
 #endif
 
+/* Global variables to assure that the events are analyzed by all mouse actuators */
+unsigned int mouact_total = 0;
+unsigned int mouact_count = 0;
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
@@ -64,16 +68,22 @@ KX_MouseActuator::KX_MouseActuator(SCA_IObject* gameobj, KX_KetsjiEngine* ketsji
 	}
 
 	m_canvas = m_ketsji->GetCanvas();
+	mouact_total++;
 }
 
 KX_MouseActuator::~KX_MouseActuator()
 {
+  mouact_total--;
 }
 
 bool KX_MouseActuator::Update()
 {
 	bool bNegativeEvent = IsNegativeEvent();
-	RemoveAllEvents();
+	mouact_count++;
+	if (mouact_count == mouact_total) {
+	  RemoveAllEvents();
+	  mouact_count = 0;
+	}
 
 	if (bNegativeEvent) {
 		// Reset initial skipping check on negative events.
