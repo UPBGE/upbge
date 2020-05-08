@@ -1128,7 +1128,7 @@ static PyObject *Vector_project(VectorObject *self, PyObject *value)
 	if (BaseMath_ReadCallback(self) == -1)
 		return NULL;
 
-	if (mathutils_array_parse_alloc(&tvec, size, value, "Vector.project(other), invalid 'other' arg") == -1) {
+	if (mathutils_array_parse_alloc(&tvec, size, INT_MAX, value, "Vector.project(other), invalid 'other' arg") == -1) {
 		return NULL;
 	}
 
