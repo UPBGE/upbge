@@ -462,6 +462,7 @@ class SCENE_PT_agent(SceneButtonsPanel, Panel):
 
 class SCENE_PT_region(SceneButtonsPanel, Panel):
     bl_label = "Region"
+    bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "SCENE_PT_game_navmesh"
     COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
 
@@ -480,6 +481,7 @@ class SCENE_PT_region(SceneButtonsPanel, Panel):
 
 class SCENE_PT_polygonization(SceneButtonsPanel, Panel):
     bl_label = "Polygonization"
+    bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "SCENE_PT_game_navmesh"
     COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
 
@@ -497,6 +499,7 @@ class SCENE_PT_polygonization(SceneButtonsPanel, Panel):
 
 class SCENE_PT_detail_mesh(SceneButtonsPanel, Panel):
     bl_label = "Detail Mesh"
+    bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "SCENE_PT_game_navmesh"
     COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
 
