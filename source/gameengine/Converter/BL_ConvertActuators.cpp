@@ -54,6 +54,7 @@
 #include "BL_ActionActuator.h"
 #include "BL_ArmatureActuator.h"
 #include "BL_BlenderSceneConverter.h"
+#include "CM_Utils.h"
 #include "EXP_IntValue.h"
 #include "KX_Globals.h"
 #include "KX_NetworkMessageActuator.h"
@@ -229,9 +230,9 @@ void BL_ConvertActuators(const char *maggiename,
         bMessageActuator *msgAct = (bMessageActuator *)bact->data;
 
         /* Get the name of the properties that objects must own that
-         * we're sending to, if present
-         */
-        std::string toPropName = msgAct->toPropName;
+		 * we're sending to, if present.
+		 */
+		std::string toPropName = CM_RemovePrefix(msgAct->toPropName);
 
         /* Get the Message Subject to send.
          */
