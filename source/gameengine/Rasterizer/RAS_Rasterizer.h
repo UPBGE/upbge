@@ -650,7 +650,7 @@ public:
 	/** Set the current off screen depth to the global depth texture used by materials.
 	 * In case of mutlisample off screen a blit to RAS_OFFSCREEN_BLIT_DEPTH is procceed.
 	 */
-	void UpdateGlobalDepthTexture(RAS_OffScreen *offScreen);
+	void UpdateGlobalDepthTexture(RAS_OffScreen *offScreen, RAS_ICanvas *canvas);
 	/// Set the global depth texture to an empty texture.
 	void ResetGlobalDepthTexture();
 

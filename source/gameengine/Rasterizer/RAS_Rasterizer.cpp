@@ -1320,19 +1320,19 @@ void RAS_Rasterizer::LoadIdentity()
 	m_impl->LoadIdentity();
 }
 
-void RAS_Rasterizer::UpdateGlobalDepthTexture(RAS_OffScreen *offScreen)
+void RAS_Rasterizer::UpdateGlobalDepthTexture(RAS_OffScreen *offScreen, RAS_ICanvas *canvas)
 {
 	/* In case of multisamples the depth off screen must be blit to be used in shader.
 	 * But the original off screen must be kept bound after the blit. */
-	/*if (offScreen->GetSamples()) {
-		RAS_OffScreen *dstOffScreen = GetOffScreen(RAS_Rasterizer::RAS_OFFSCREEN_BLIT_DEPTH);
-		offScreen->Blit(dstOffScreen, false, true);
+	if (offScreen->GetSamples()) {
+		RAS_OffScreen *dstOffScreen = canvas->GetOffScreen(RAS_OffScreen::RAS_OFFSCREEN_BLIT_DEPTH);
+		offScreen->Blit(dstOffScreen, true);
 		// Restore original off screen.
 		offScreen->Bind();
 		offScreen = dstOffScreen;
-	} TODO utiliser mulisample comme single sample ?*/
-
-	GPU_texture_set_global_depth(offScreen->GetDepthTexture());
+	}
+	GPUTexture* gputex = offScreen->GetDepthTexture();
+	GPU_texture_set_global_depth(gputex);
 }
 
 void RAS_Rasterizer::ResetGlobalDepthTexture()

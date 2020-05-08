@@ -34,9 +34,12 @@
 #  pragma warning (disable:4786)
 #endif
 
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_Mesh.h"
 #include "RAS_MeshUser.h"
+#include "RAS_ICanvas.h"
 #include "RAS_IMaterial.h"
 #include "RAS_Rasterizer.h"
 
@@ -44,6 +47,8 @@
 
 #include <algorithm>
 /* sorting */
+
+
 
 RAS_BucketManager::SortedMeshSlot::SortedMeshSlot(RAS_MeshSlot *ms, const mt::vec3& pnorm)
 	:m_ms(ms)
@@ -269,7 +274,6 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 			/* Rendering solid and alpha (regular and instancing) materials
 			 * with their shaders.
 			 */
-
 			m_nodeData.m_shaderOverride = false;
 			rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
 
@@ -280,7 +284,9 @@ void RAS_BucketManager::Renderbuckets(RAS_Rasterizer::DrawType drawingMode, cons
 
 			// Update depth transparency depth texture after rendering all solid materials.
 			if ((m_buckets[ALPHA_DEPTH_BUCKET].size() + m_buckets[ALPHA_DEPTH_INSTANCING_BUCKET].size()) > 0) {
-				rasty->UpdateGlobalDepthTexture(offScreen);
+				KX_KetsjiEngine *ketsji = KX_GetActiveEngine();
+				RAS_ICanvas* canvas = ketsji->GetCanvas();
+				rasty->UpdateGlobalDepthTexture(offScreen, canvas);
 			}
 			RenderBasicBuckets(rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(rasty, ALPHA_BUCKET);
