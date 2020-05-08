@@ -307,6 +307,8 @@ class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         game = context.active_object.game
 
@@ -314,7 +316,6 @@ class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
 
         row = layout.row()
         row.prop(game, "obstacle_radius", text="Radius")
-        row.label()
 
 
 class RenderButtonsPanel:
