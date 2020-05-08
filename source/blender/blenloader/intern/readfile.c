@@ -3030,6 +3030,19 @@ static void direct_link_brush(FileData *fd, Brush *brush)
                                                          brush->gpencil_settings->curve_strength);
     brush->gpencil_settings->curve_jitter = newdataadr(fd, brush->gpencil_settings->curve_jitter);
 
+    brush->gpencil_settings->curve_rand_pressure = newdataadr(
+        fd, brush->gpencil_settings->curve_rand_pressure);
+    brush->gpencil_settings->curve_rand_strength = newdataadr(
+        fd, brush->gpencil_settings->curve_rand_strength);
+    brush->gpencil_settings->curve_rand_uv = newdataadr(fd,
+                                                        brush->gpencil_settings->curve_rand_uv);
+    brush->gpencil_settings->curve_rand_hue = newdataadr(fd,
+                                                         brush->gpencil_settings->curve_rand_hue);
+    brush->gpencil_settings->curve_rand_saturation = newdataadr(
+        fd, brush->gpencil_settings->curve_rand_saturation);
+    brush->gpencil_settings->curve_rand_value = newdataadr(
+        fd, brush->gpencil_settings->curve_rand_value);
+
     if (brush->gpencil_settings->curve_sensitivity) {
       direct_link_curvemapping(fd, brush->gpencil_settings->curve_sensitivity);
     }
@@ -3040,6 +3053,30 @@ static void direct_link_brush(FileData *fd, Brush *brush)
 
     if (brush->gpencil_settings->curve_jitter) {
       direct_link_curvemapping(fd, brush->gpencil_settings->curve_jitter);
+    }
+
+    if (brush->gpencil_settings->curve_rand_pressure) {
+      direct_link_curvemapping(fd, brush->gpencil_settings->curve_rand_pressure);
+    }
+
+    if (brush->gpencil_settings->curve_rand_strength) {
+      direct_link_curvemapping(fd, brush->gpencil_settings->curve_rand_strength);
+    }
+
+    if (brush->gpencil_settings->curve_rand_uv) {
+      direct_link_curvemapping(fd, brush->gpencil_settings->curve_rand_uv);
+    }
+
+    if (brush->gpencil_settings->curve_rand_hue) {
+      direct_link_curvemapping(fd, brush->gpencil_settings->curve_rand_hue);
+    }
+
+    if (brush->gpencil_settings->curve_rand_saturation) {
+      direct_link_curvemapping(fd, brush->gpencil_settings->curve_rand_saturation);
+    }
+
+    if (brush->gpencil_settings->curve_rand_value) {
+      direct_link_curvemapping(fd, brush->gpencil_settings->curve_rand_value);
     }
   }
 
@@ -4841,7 +4878,7 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
       /* particle modifier must be removed before particle system */
       ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
       BLI_remlink(&ob->modifiers, psmd);
-      modifier_free((ModifierData *)psmd);
+      BKE_modifier_free((ModifierData *)psmd);
 
       BLI_remlink(particles, psys);
       MEM_freeN(psys);
@@ -5210,7 +5247,7 @@ static void lib_link_modifiers_common(void *userData, Object *ob, ID **idpoin, i
 
 static void lib_link_modifiers(FileData *fd, Object *ob)
 {
-  modifiers_foreachIDLink(ob, lib_link_modifiers_common, fd);
+  BKE_modifiers_foreach_ID_link(ob, lib_link_modifiers_common, fd);
 
   /* If linking from a library, clear 'local' library override flag. */
   if (ob->id.lib != NULL) {
@@ -5222,7 +5259,7 @@ static void lib_link_modifiers(FileData *fd, Object *ob)
 
 static void lib_link_gpencil_modifiers(FileData *fd, Object *ob)
 {
-  BKE_gpencil_modifiers_foreachIDLink(ob, lib_link_modifiers_common, fd);
+  BKE_gpencil_modifiers_foreach_ID_link(ob, lib_link_modifiers_common, fd);
 
   /* If linking from a library, clear 'local' library override flag. */
   if (ob->id.lib != NULL) {
@@ -5235,7 +5272,7 @@ static void lib_link_gpencil_modifiers(FileData *fd, Object *ob)
 
 static void lib_link_shaderfxs(FileData *fd, Object *ob)
 {
-  BKE_shaderfx_foreachIDLink(ob, lib_link_modifiers_common, fd);
+  BKE_shaderfx_foreach_ID_link(ob, lib_link_modifiers_common, fd);
 
   /* If linking from a library, clear 'local' library override flag. */
   if (ob->id.lib != NULL) {
@@ -5490,7 +5527,7 @@ static void lib_link_object(FileData *fd, Main *bmain, Object *ob)
   }
 
   {
-    FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(
+    FluidsimModifierData *fluidmd = (FluidsimModifierData *)BKE_modifiers_findby_type(
         ob, eModifierType_Fluidsim);
 
     if (fluidmd && fluidmd->fss) {
@@ -5500,7 +5537,8 @@ static void lib_link_object(FileData *fd, Main *bmain, Object *ob)
   }
 
   {
-    FluidModifierData *mmd = (FluidModifierData *)modifiers_findByType(ob, eModifierType_Fluid);
+    FluidModifierData *mmd = (FluidModifierData *)BKE_modifiers_findby_type(ob,
+                                                                            eModifierType_Fluid);
 
     if (mmd && (mmd->type == MOD_FLUID_TYPE_DOMAIN) && mmd->domain) {
       /* Flag for refreshing the simulation after loading */
@@ -5642,7 +5680,7 @@ static ModifierData *modifier_replace_with_fluid(FileData *fd,
                                                  ListBase *modifiers,
                                                  ModifierData *old_modifier_data)
 {
-  ModifierData *new_modifier_data = modifier_new(eModifierType_Fluid);
+  ModifierData *new_modifier_data = BKE_modifier_new(eModifierType_Fluid);
   FluidModifierData *fluid_modifier_data = (FluidModifierData *)new_modifier_data;
 
   if (old_modifier_data->type == eModifierType_Fluidsim) {
@@ -5765,7 +5803,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb, Object *ob)
       is_allocated = true;
     }
     /* if modifiers disappear, or for upward compatibility */
-    if (NULL == modifierType_getInfo(md->type)) {
+    if (NULL == BKE_modifier_get_info(md->type)) {
       md->type = eModifierType_None;
     }
 
@@ -6119,7 +6157,7 @@ static void direct_link_gpencil_modifiers(FileData *fd, ListBase *lb)
     md->error = NULL;
 
     /* if modifiers disappear, or for upward compatibility */
-    if (NULL == BKE_gpencil_modifierType_getInfo(md->type)) {
+    if (NULL == BKE_gpencil_modifier_get_info(md->type)) {
       md->type = eModifierType_None;
     }
 
@@ -6200,7 +6238,7 @@ static void direct_link_shaderfxs(FileData *fd, ListBase *lb)
     fx->error = NULL;
 
     /* if shader disappear, or for upward compatibility */
-    if (NULL == BKE_shaderfxType_getInfo(fx->type)) {
+    if (NULL == BKE_shaderfx_get_info(fx->type)) {
       fx->type = eShaderFxType_None;
     }
   }
@@ -6269,7 +6307,7 @@ static void direct_link_object(FileData *fd, Object *ob)
     if (paf->type == EFF_WAVE) {
       WaveEff *wav = (WaveEff *)paf;
       PartEff *next = paf->next;
-      WaveModifierData *wmd = (WaveModifierData *)modifier_new(eModifierType_Wave);
+      WaveModifierData *wmd = (WaveModifierData *)BKE_modifier_new(eModifierType_Wave);
 
       wmd->damp = wav->damp;
       wmd->flag = wav->flag;
@@ -6293,7 +6331,7 @@ static void direct_link_object(FileData *fd, Object *ob)
     if (paf->type == EFF_BUILD) {
       BuildEff *baf = (BuildEff *)paf;
       PartEff *next = paf->next;
-      BuildModifierData *bmd = (BuildModifierData *)modifier_new(eModifierType_Build);
+      BuildModifierData *bmd = (BuildModifierData *)BKE_modifier_new(eModifierType_Build);
 
       bmd->start = baf->sfra;
       bmd->length = baf->len;
@@ -6424,7 +6462,7 @@ static void direct_link_object(FileData *fd, Object *ob)
   link_list(fd, &ob->hooks);
   while (ob->hooks.first) {
     ObHook *hook = ob->hooks.first;
-    HookModifierData *hmd = (HookModifierData *)modifier_new(eModifierType_Hook);
+    HookModifierData *hmd = (HookModifierData *)BKE_modifier_new(eModifierType_Hook);
 
     hook->indexar = newdataadr(fd, hook->indexar);
     if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
@@ -6446,7 +6484,7 @@ static void direct_link_object(FileData *fd, Object *ob)
     BLI_addhead(&ob->modifiers, hmd);
     BLI_remlink(&ob->hooks, hook);
 
-    modifier_unique_name(&ob->modifiers, (ModifierData *)hmd);
+    BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)hmd);
 
     MEM_freeN(hook);
   }
@@ -11503,7 +11541,7 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
     data.fd = fd;
     data.mainvar = mainvar;
 
-    modifiers_foreachIDLink(ob, expand_object_expandModifiers, (void *)&data);
+    BKE_modifiers_foreach_ID_link(ob, expand_object_expandModifiers, (void *)&data);
   }
 
   /* expand_object_expandModifier() */
@@ -11515,7 +11553,7 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
     data.fd = fd;
     data.mainvar = mainvar;
 
-    BKE_gpencil_modifiers_foreachIDLink(ob, expand_object_expandModifiers, (void *)&data);
+    BKE_gpencil_modifiers_foreach_ID_link(ob, expand_object_expandModifiers, (void *)&data);
   }
 
   /* expand_object_expandShaderFx() */
@@ -11527,7 +11565,7 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
     data.fd = fd;
     data.mainvar = mainvar;
 
-    BKE_shaderfx_foreachIDLink(ob, expand_object_expandModifiers, (void *)&data);
+    BKE_shaderfx_foreach_ID_link(ob, expand_object_expandModifiers, (void *)&data);
   }
 
   expand_pose(fd, mainvar, ob->pose);

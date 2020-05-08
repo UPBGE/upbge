@@ -153,6 +153,9 @@ static void workbench_cache_texpaint_populate(WORKBENCH_PrivateData *wpd, Object
     if (geoms) {
       const int materials_len = DRW_cache_object_material_count_get(ob);
       for (int i = 0; i < materials_len; i++) {
+        if (geoms[i] == NULL) {
+          continue;
+        }
         DRWShadingGroup *grp = workbench_image_setup(wpd, ob, i + 1, NULL, NULL, 0);
         DRW_shgroup_call(grp, geoms[i], ob);
       }
@@ -184,6 +187,9 @@ static void workbench_cache_common_populate(WORKBENCH_PrivateData *wpd,
     if (geoms) {
       const int materials_len = DRW_cache_object_material_count_get(ob);
       for (int i = 0; i < materials_len; i++) {
+        if (geoms[i] == NULL) {
+          continue;
+        }
         DRWShadingGroup *grp = workbench_material_setup(wpd, ob, i + 1, color_type, r_transp);
         DRW_shgroup_call(grp, geoms[i], ob);
       }
@@ -315,8 +321,8 @@ void workbench_cache_populate(void *ved, Object *ob)
   }
 
   if (!(ob->base_flag & BASE_FROM_DUPLI)) {
-    ModifierData *md = modifiers_findByType(ob, eModifierType_Fluid);
-    if (md && modifier_isEnabled(wpd->scene, md, eModifierMode_Realtime)) {
+    ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Fluid);
+    if (md && BKE_modifier_is_enabled(wpd->scene, md, eModifierMode_Realtime)) {
       FluidModifierData *fmd = (FluidModifierData *)md;
       if (fmd->domain && fmd->domain->type == FLUID_DOMAIN_TYPE_GAS) {
         workbench_volume_cache_populate(vedata, wpd->scene, ob, md, V3D_SHADING_SINGLE_COLOR);

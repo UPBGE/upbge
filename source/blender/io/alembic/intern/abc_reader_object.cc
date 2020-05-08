@@ -19,9 +19,9 @@
  */
 
 #include "abc_reader_object.h"
+#include "abc_axis_conversion.h"
 #include "abc_util.h"
 
-extern "C" {
 #include "DNA_cachefile_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_modifier_types.h"
@@ -36,7 +36,6 @@ extern "C" {
 #include "BLI_math_geom.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
-}
 
 using Alembic::AbcGeom::IObject;
 using Alembic::AbcGeom::IXform;
@@ -295,7 +294,7 @@ void AbcObjectReader::read_matrix(float r_mat[4][4] /* local matrix */,
 
 void AbcObjectReader::addCacheModifier()
 {
-  ModifierData *md = modifier_new(eModifierType_MeshSequenceCache);
+  ModifierData *md = BKE_modifier_new(eModifierType_MeshSequenceCache);
   BLI_addtail(&m_object->modifiers, md);
 
   MeshSeqCacheModifierData *mcmd = reinterpret_cast<MeshSeqCacheModifierData *>(md);

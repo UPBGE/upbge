@@ -516,7 +516,7 @@ static void do_version_mdef_250(Main *main)
           mmd->bindcagecos = mmd->bindcos;
           mmd->bindcos = NULL;
 
-          modifier_mdef_compact_influences(md);
+          BKE_modifier_mdef_compact_influences(md);
         }
       }
     }
@@ -880,13 +880,15 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
         ts->uv_selectmode = UV_SELECT_VERTEX;
         ts->vgroup_weight = 1.0f;
       }
+    }
+  }
 
-      /* Stereo */
-      sce->gm.stereomode = sce->r.stereomode;
-      /* reassigning stereomode NO_STEREO to a separeted flag*/
-      if (sce->gm.stereomode == 1) {  // 1 = STEREO_NOSTEREO
-        sce->gm.stereoflag = STEREO_NOSTEREO;
-        sce->gm.stereomode = STEREO_ANAGLYPH;
+  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 2)) {
+    Object *ob;
+
+    for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+      if (ob->flag & 8192) {  // OB_POSEMODE = 8192
+        ob->mode |= OB_MODE_POSE;
       }
       else
         sce->gm.stereoflag = STEREO_ENABLED;
@@ -905,37 +907,79 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 2)) {
+  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 4)) {
     Scene *sce;
     Object *ob;
+    ParticleSettings *part;
+    bool do_gravity = false;
 
     for (sce = bmain->scenes.first; sce; sce = sce->id.next) {
-      if (fd->fileflags & G_FILE_ENABLE_ALL_FRAMES)
-        sce->gm.flag |= GAME_ENABLE_ALL_FRAMES;
-      if (fd->fileflags & G_FILE_SHOW_DEBUG_PROPS)
-        sce->gm.flag |= GAME_SHOW_DEBUG_PROPS;
-      if (fd->fileflags & G_FILE_SHOW_FRAMERATE)
-        sce->gm.flag |= GAME_SHOW_FRAMERATE;
-      sce->gm.matmode = GAME_MAT_GLSL;
+      if (sce->unit.scale_length == 0.0f) {
+        sce->unit.scale_length = 1.0f;
+      }
+    }
 
-      if (sce->audio.main == 0.0f)
+    for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+      /* fluid-sim stuff */
+      FluidsimModifierData *fluidmd = (FluidsimModifierData *)BKE_modifiers_findby_type(
+          ob, eModifierType_Fluidsim);
+      if (fluidmd) {
+        fluidmd->fss->fmd = fluidmd;
+      }
+
+      /* rotation modes were added,
+       * but old objects would now default to being 'quaternion based' */
+      ob->rotmode = ROT_MODE_EUL;
+    }
+
+    for (sce = bmain->scenes.first; sce; sce = sce->id.next) {
+      if (sce->audio.main == 0.0f) {
         sce->audio.main = 1.0f;
+      }
 
       sce->r.ffcodecdata.audio_mixrate = sce->audio.mixrate;
       sce->r.ffcodecdata.audio_volume = sce->audio.main;
       sce->audio.distance_model = 2;
       sce->audio.doppler_factor = 1.0f;
       sce->audio.speed_of_sound = 343.3f;
+    }
 
+    /* Add default gravity to scenes */
+    for (sce = bmain->scenes.first; sce; sce = sce->id.next) {
       if ((sce->physics_settings.flag & PHYS_GLOBAL_GRAVITY) == 0 &&
           is_zero_v3(sce->physics_settings.gravity)) {
         sce->physics_settings.gravity[0] = sce->physics_settings.gravity[1] = 0.0f;
         sce->physics_settings.gravity[2] = -9.81f;
         sce->physics_settings.flag = PHYS_GLOBAL_GRAVITY;
+        do_gravity = true;
+      }
+    }
+
+    /* Assign proper global gravity weights for dynamics
+     * (only z-coordinate is taken into account) */
+    if (do_gravity) {
+      for (part = bmain->particles.first; part; part = part->id.next) {
+        part->effector_weights->global_gravity = part->acc[2] / -9.81f;
       }
     }
 
     for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+      ModifierData *md;
+
+      if (do_gravity) {
+        for (md = ob->modifiers.first; md; md = md->next) {
+          ClothModifierData *clmd = (ClothModifierData *)BKE_modifiers_findby_type(
+              ob, eModifierType_Cloth);
+          if (clmd) {
+            clmd->sim_parms->effector_weights->global_gravity = clmd->sim_parms->gravity[2] /
+                                                                -9.81f;
+          }
+        }
+
+        if (ob->soft) {
+          ob->soft->effector_weights->global_gravity = ob->soft->grav / 9.81f;
+        }
+      }
 
       /* Normal wind shape is plane */
       if (ob->pd) {
@@ -1160,7 +1204,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       }
 
       for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-        MultiresModifierData *mmd = (MultiresModifierData *)modifiers_findByType(
+        MultiresModifierData *mmd = (MultiresModifierData *)BKE_modifiers_findby_type(
             ob, eModifierType_Multires);
 
         if (mmd) {
@@ -1631,7 +1675,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
             ArmatureModifierData *amd;
             bArmature *arm = (bArmature *)blo_do_versions_newlibadr(fd, lib, parent->data);
 
-            amd = (ArmatureModifierData *)modifier_new(eModifierType_Armature);
+            amd = (ArmatureModifierData *)BKE_modifier_new(eModifierType_Armature);
             amd->object = ob->parent;
             BLI_addtail((ListBase *)&ob->modifiers, amd);
             amd->deformflag = arm->deformflag;
@@ -1640,7 +1684,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
           else if (parent->type == OB_LATTICE && ob->partype == PARSKEL) {
             LatticeModifierData *lmd;
 
-            lmd = (LatticeModifierData *)modifier_new(eModifierType_Lattice);
+            lmd = (LatticeModifierData *)BKE_modifier_new(eModifierType_Lattice);
             lmd->object = ob->parent;
             BLI_addtail((ListBase *)&ob->modifiers, lmd);
             ob->partype = PAROBJECT;
@@ -1648,7 +1692,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
           else if (parent->type == OB_CURVE && ob->partype == PARCURVE) {
             CurveModifierData *cmd;
 
-            cmd = (CurveModifierData *)modifier_new(eModifierType_Curve);
+            cmd = (CurveModifierData *)BKE_modifier_new(eModifierType_Curve);
             cmd->object = ob->parent;
             BLI_addtail((ListBase *)&ob->modifiers, cmd);
             ob->partype = PAROBJECT;

@@ -34,7 +34,6 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-extern "C" {
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -105,7 +104,6 @@ extern "C" {
 
 #include "RNA_access.h"
 #include "RNA_types.h"
-} /* extern "C" */
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -606,21 +604,21 @@ void DepsgraphNodeBuilder::build_object(int base_index,
     BuilderWalkUserData data;
     data.builder = this;
     data.is_parent_visible = is_visible;
-    modifiers_foreachIDLink(object, modifier_walk, &data);
+    BKE_modifiers_foreach_ID_link(object, modifier_walk, &data);
   }
   /* Grease Pencil Modifiers. */
   if (object->greasepencil_modifiers.first != nullptr) {
     BuilderWalkUserData data;
     data.builder = this;
     data.is_parent_visible = is_visible;
-    BKE_gpencil_modifiers_foreachIDLink(object, modifier_walk, &data);
+    BKE_gpencil_modifiers_foreach_ID_link(object, modifier_walk, &data);
   }
   /* Shader FX. */
   if (object->shader_fx.first != nullptr) {
     BuilderWalkUserData data;
     data.builder = this;
     data.is_parent_visible = is_visible;
-    BKE_shaderfx_foreachIDLink(object, modifier_walk, &data);
+    BKE_shaderfx_foreach_ID_link(object, modifier_walk, &data);
   }
   /* Constraints. */
   if (object->constraints.first != nullptr) {

@@ -22,6 +22,7 @@
  */
 
 #include "abc_reader_curves.h"
+#include "abc_axis_conversion.h"
 #include "abc_reader_transform.h"
 #include "abc_util.h"
 
@@ -29,7 +30,6 @@
 
 #include "MEM_guardedalloc.h"
 
-extern "C" {
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 
@@ -38,7 +38,6 @@ extern "C" {
 #include "BKE_curve.h"
 #include "BKE_mesh.h"
 #include "BKE_object.h"
-}
 
 using Alembic::Abc::FloatArraySamplePtr;
 using Alembic::Abc::Int32ArraySamplePtr;

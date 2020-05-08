@@ -1927,7 +1927,7 @@ bool rna_Object_modifiers_override_apply(Main *bmain,
     return false;
   }
 
-  /* While it would be nicer to use lower-level modifier_new() here, this one is lacking
+  /* While it would be nicer to use lower-level BKE_modifier_new() here, this one is lacking
    * special-cases handling (particles and other physics modifiers mostly), so using the ED version
    * instead, to avoid duplicating code. */
   ModifierData *mod_dst = ED_object_modifier_add(
@@ -1942,7 +1942,7 @@ bool rna_Object_modifiers_override_apply(Main *bmain,
   ParticleSystem *psys_dst = (mod_dst->type == eModifierType_ParticleSystem) ?
                                  ((ParticleSystemModifierData *)mod_dst)->psys :
                                  NULL;
-  modifier_copyData(mod_src, mod_dst);
+  BKE_modifier_copydata(mod_src, mod_dst);
   if (mod_dst->type == eModifierType_ParticleSystem) {
     psys_dst->flag &= ~PSYS_DELETE;
     ((ParticleSystemModifierData *)mod_dst)->psys = psys_dst;
@@ -2034,7 +2034,7 @@ bool rna_Object_greasepencil_modifiers_override_apply(Main *bmain,
     return false;
   }
 
-  /* While it would be nicer to use lower-level modifier_new() here, this one is lacking
+  /* While it would be nicer to use lower-level BKE_modifier_new() here, this one is lacking
    * special-cases handling (particles and other physics modifiers mostly), so using the ED version
    * instead, to avoid duplicating code. */
   GpencilModifierData *mod_dst = ED_object_gpencil_modifier_add(

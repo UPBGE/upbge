@@ -56,7 +56,7 @@ class AbstractHierarchyWriter;
  * struct contains everything necessary to export a single object to a file. */
 struct HierarchyContext {
   /*********** Determined during hierarchy iteration: ***************/
-  Object *object;
+  Object *object; /* Evaluated object. */
   Object *export_parent;
   Object *duplicator;
   float matrix_world[4][4];
@@ -188,11 +188,14 @@ class AbstractHierarchyIterator {
                           const std::set<Object *> &dupli_set);
 
   ExportChildren &graph_children(const HierarchyContext *parent_context);
+  void context_update_for_graph_index(HierarchyContext *context,
+                                      const ExportGraph::key_type &graph_index) const;
 
   void determine_export_paths(const HierarchyContext *parent_context);
   void determine_duplication_references(const HierarchyContext *parent_context,
                                         std::string indent);
 
+  /* These three functions create writers and call their write() method. */
   void make_writers(const HierarchyContext *parent_context);
   void make_writer_object_data(const HierarchyContext *context);
   void make_writers_particle_systems(const HierarchyContext *context);
@@ -201,7 +204,7 @@ class AbstractHierarchyIterator {
   std::string get_object_name(const Object *object) const;
   std::string get_object_data_name(const Object *object) const;
 
-  AbstractHierarchyWriter *get_writer(const std::string &export_path);
+  AbstractHierarchyWriter *get_writer(const std::string &export_path) const;
 
   typedef AbstractHierarchyWriter *(AbstractHierarchyIterator::*create_writer_func)(
       const HierarchyContext *);
@@ -233,12 +236,19 @@ class AbstractHierarchyIterator {
 
   virtual bool should_visit_dupli_object(const DupliObject *dupli_object) const;
 
+  virtual ExportGraph::key_type determine_graph_index_object(const HierarchyContext *context);
+  virtual ExportGraph::key_type determine_graph_index_dupli(const HierarchyContext *context,
+                                                            const std::set<Object *> &dupli_set);
+
   /* These functions should create an AbstractHierarchyWriter subclass instance, or return
    * nullptr if the object or its data should not be exported. Returning a nullptr for
    * data/hair/particle will NOT prevent the transform to be written.
    *
    * The returned writer is owned by the AbstractHierarchyWriter, and should be freed in
-   * delete_object_writer(). */
+   * delete_object_writer().
+   *
+   * The created AbstractHierarchyWriter instances should NOT keep a copy of the context pointer.
+   * The context can be stack-allocated and go out of scope. */
   virtual AbstractHierarchyWriter *create_transform_writer(const HierarchyContext *context) = 0;
   virtual AbstractHierarchyWriter *create_data_writer(const HierarchyContext *context) = 0;
   virtual AbstractHierarchyWriter *create_hair_writer(const HierarchyContext *context) = 0;

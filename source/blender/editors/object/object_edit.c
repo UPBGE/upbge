@@ -1355,7 +1355,7 @@ static void UNUSED_FUNCTION(copy_attr_menu)(
 void ED_object_check_force_modifiers(Main *bmain, Scene *scene, Object *object)
 {
   PartDeflect *pd = object->pd;
-  ModifierData *md = modifiers_findByType(object, eModifierType_Surface);
+  ModifierData *md = BKE_modifiers_findby_type(object, eModifierType_Surface);
 
   /* add/remove modifier as needed */
   if (!md) {
@@ -1899,7 +1899,8 @@ static const EnumPropertyItem *object_mode_set_itemsf(bContext *C,
   if (ob) {
     const bool use_mode_particle_edit = (BLI_listbase_is_empty(&ob->particlesystem) == false) ||
                                         (ob->soft != NULL) ||
-                                        (modifiers_findByType(ob, eModifierType_Cloth) != NULL);
+                                        (BKE_modifiers_findby_type(ob, eModifierType_Cloth) !=
+                                         NULL);
     while (input->identifier) {
       if ((input->value == OB_MODE_EDIT && OB_TYPE_SUPPORT_EDITMODE(ob->type)) ||
           (input->value == OB_MODE_POSE && (ob->type == OB_ARMATURE)) ||
