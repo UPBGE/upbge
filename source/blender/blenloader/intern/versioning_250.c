@@ -890,8 +890,18 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       if (ob->flag & 8192) {  // OB_POSEMODE = 8192
         ob->mode |= OB_MODE_POSE;
       }
-      else
+    }
+    for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
+      /* Stereo */
+      sce->gm.stereomode = sce->r.stereomode;
+      /* reassigning stereomode NO_STEREO to a separeted flag*/
+      if (sce->gm.stereomode == 1) {  // 1 = STEREO_NOSTEREO
+        sce->gm.stereoflag = STEREO_NOSTEREO;
+        sce->gm.stereomode = STEREO_ANAGLYPH;
+      }
+      else {
         sce->gm.stereoflag = STEREO_ENABLED;
+      }
 
       /* Framing */
       // sce->gm.framing = sce->framing;

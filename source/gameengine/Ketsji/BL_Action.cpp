@@ -438,7 +438,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
     for (ModifierData *md = (ModifierData *)ob->modifiers.first; md;
          md = (ModifierData *)md->next) {
       // TODO: We need to find the good notifier per action
-      if (!modifier_isNonGeometrical(md) && ob->adt &&
+      if (!BKE_modifier_is_non_geometrical(md) && ob->adt &&
           ob->adt->action->id.name == m_action->id.name) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
         PointerRNA ptrrna;
