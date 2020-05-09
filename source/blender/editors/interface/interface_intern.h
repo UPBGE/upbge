@@ -162,6 +162,16 @@ typedef struct {
   ListBase lines;
 } uiLink;
 
+struct uiButSearchData {
+  uiButSearchCreateFn create_fn;
+  uiButSearchUpdateFn update_fn;
+  void *arg;
+  uiButSearchArgFreeFn arg_free_fn;
+  uiButSearchContextMenuFn context_menu_fn;
+
+  const char *sep_string;
+};
+
 struct uiBut {
   struct uiBut *next, *prev;
   int flag, drawflag;
@@ -218,11 +228,7 @@ struct uiBut {
   uiButCompleteFunc autocomplete_func;
   void *autofunc_arg;
 
-  uiButSearchCreateFunc search_create_func;
-  uiButSearchFunc search_func;
-  void *search_arg;
-  uiButSearchArgFreeFunc search_arg_free_func;
-  const char *search_sep_string;
+  struct uiButSearchData *search;
 
   uiButHandleRenameFunc rename_func;
   void *rename_arg1;
@@ -619,10 +625,8 @@ struct uiPopupBlockHandle {
 
   /* for operator popups */
   struct wmOperator *popup_op;
-  struct wmOperatorType *optype;
   ScrArea *ctx_area;
   ARegion *ctx_region;
-  int opcontext;
 
   /* return values */
   int butretval;
@@ -678,7 +682,7 @@ bool ui_searchbox_inside(struct ARegion *region, int x, int y);
 int ui_searchbox_find_index(struct ARegion *region, const char *name);
 void ui_searchbox_update(struct bContext *C, struct ARegion *region, uiBut *but, const bool reset);
 int ui_searchbox_autocomplete(struct bContext *C, struct ARegion *region, uiBut *but, char *str);
-void ui_searchbox_event(struct bContext *C,
+bool ui_searchbox_event(struct bContext *C,
                         struct ARegion *region,
                         uiBut *but,
                         const struct wmEvent *event);
@@ -1040,7 +1044,7 @@ void UI_OT_eyedropper_gpencil_color(struct wmOperatorType *ot);
 bool ui_str_has_word_prefix(const char *haystack, const char *needle, size_t needle_len);
 
 /**
- * For use with #ui_rna_collection_search_cb.
+ * For use with #ui_rna_collection_search_update_fn.
  */
 typedef struct uiRNACollectionSearch {
   PointerRNA target_ptr;
@@ -1055,10 +1059,10 @@ typedef struct uiRNACollectionSearch {
   /* Block has to be stored for freeing butstore (uiBut.block doesn't work with undo). */
   uiBlock *butstore_block;
 } uiRNACollectionSearch;
-void ui_rna_collection_search_cb(const struct bContext *C,
-                                 void *arg,
-                                 const char *str,
-                                 uiSearchItems *items);
+void ui_rna_collection_search_update_fn(const struct bContext *C,
+                                        void *arg,
+                                        const char *str,
+                                        uiSearchItems *items);
 
 /* interface_ops.c */
 bool ui_jump_to_target_button_poll(struct bContext *C);

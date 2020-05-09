@@ -1857,7 +1857,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
   }
 
   for (md = modbase->first; md; md = md->next) {
-    const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
     if (mti == NULL) {
       return;
     }
@@ -2040,7 +2040,7 @@ static void write_gpencil_modifiers(WriteData *wd, ListBase *modbase)
   }
 
   for (md = modbase->first; md; md = md->next) {
-    const GpencilModifierTypeInfo *mti = BKE_gpencil_modifierType_getInfo(md->type);
+    const GpencilModifierTypeInfo *mti = BKE_gpencil_modifier_get_info(md->type);
     if (mti == NULL) {
       return;
     }
@@ -2107,7 +2107,7 @@ static void write_shaderfxs(WriteData *wd, ListBase *fxbase)
   }
 
   for (fx = fxbase->first; fx; fx = fx->next) {
-    const ShaderFxTypeInfo *fxi = BKE_shaderfxType_getInfo(fx->type);
+    const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(fx->type);
     if (fxi == NULL) {
       return;
     }
@@ -3534,6 +3534,24 @@ static void write_brush(WriteData *wd, Brush *brush, const void *id_address)
       }
       if (brush->gpencil_settings->curve_jitter) {
         write_curvemapping(wd, brush->gpencil_settings->curve_jitter);
+      }
+      if (brush->gpencil_settings->curve_rand_pressure) {
+        write_curvemapping(wd, brush->gpencil_settings->curve_rand_pressure);
+      }
+      if (brush->gpencil_settings->curve_rand_strength) {
+        write_curvemapping(wd, brush->gpencil_settings->curve_rand_strength);
+      }
+      if (brush->gpencil_settings->curve_rand_uv) {
+        write_curvemapping(wd, brush->gpencil_settings->curve_rand_uv);
+      }
+      if (brush->gpencil_settings->curve_rand_hue) {
+        write_curvemapping(wd, brush->gpencil_settings->curve_rand_hue);
+      }
+      if (brush->gpencil_settings->curve_rand_saturation) {
+        write_curvemapping(wd, brush->gpencil_settings->curve_rand_saturation);
+      }
+      if (brush->gpencil_settings->curve_rand_value) {
+        write_curvemapping(wd, brush->gpencil_settings->curve_rand_value);
       }
     }
     if (brush->gradient) {

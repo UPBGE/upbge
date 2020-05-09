@@ -811,14 +811,14 @@ static Volume *volume_evaluate_modifiers(struct Depsgraph *depsgraph,
   /* Get effective list of modifiers to execute. Some effects like shape keys
    * are added as virtual modifiers before the user created modifiers. */
   VirtualModifierData virtualModifierData;
-  ModifierData *md = modifiers_getVirtualModifierList(object, &virtualModifierData);
+  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(object, &virtualModifierData);
 
   /* Evaluate modifiers. */
   for (; md; md = md->next) {
-    const ModifierTypeInfo *mti = (const ModifierTypeInfo *)modifierType_getInfo(
+    const ModifierTypeInfo *mti = (const ModifierTypeInfo *)BKE_modifier_get_info(
         (ModifierType)md->type);
 
-    if (!modifier_isEnabled(scene, md, required_mode)) {
+    if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
       continue;
     }
 
@@ -855,7 +855,10 @@ void BKE_volume_eval_geometry(struct Depsgraph *depsgraph, Volume *volume)
   /* Flush back to original. */
   if (DEG_is_active(depsgraph)) {
     Volume *volume_orig = (Volume *)DEG_get_original_id(&volume->id);
-    volume_orig->runtime.frame = volume->runtime.frame;
+    if (volume_orig->runtime.frame != volume->runtime.frame) {
+      BKE_volume_unload(volume_orig);
+      volume_orig->runtime.frame = volume->runtime.frame;
+    }
   }
 }
 

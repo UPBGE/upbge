@@ -204,9 +204,9 @@ static void template_add_button_search_menu(const bContext *C,
 
 static uiBlock *template_common_search_menu(const bContext *C,
                                             ARegion *region,
-                                            uiButSearchFunc search_func,
+                                            uiButSearchUpdateFn search_update_fn,
                                             void *search_arg,
-                                            uiButHandleFunc handle_func,
+                                            uiButHandleFunc search_exec_fn,
                                             void *active_item,
                                             const int preview_rows,
                                             const int preview_cols,
@@ -280,11 +280,10 @@ static uiBlock *template_common_search_menu(const bContext *C,
   }
   UI_but_func_search_set(but,
                          ui_searchbox_create_generic,
-                         search_func,
+                         search_update_fn,
                          search_arg,
                          NULL,
-                         handle_func,
-                         NULL,
+                         search_exec_fn,
                          active_item);
 
   UI_block_bounds_set_normal(block, 0.3f * U.widget_unit);
@@ -317,7 +316,7 @@ typedef struct TemplateID {
 } TemplateID;
 
 /* Search browse menu, assign  */
-static void template_ID_set_property_cb(bContext *C, void *arg_template, void *item)
+static void template_ID_set_property_exec_fn(bContext *C, void *arg_template, void *item)
 {
   TemplateID *template_ui = (TemplateID *)arg_template;
 
@@ -452,7 +451,8 @@ static uiBlock *id_search_menu(bContext *C, ARegion *region, void *arg_litem)
 {
   static TemplateID template_ui;
   PointerRNA active_item_ptr;
-  void (*id_search_cb_p)(const bContext *, void *, const char *, uiSearchItems *) = id_search_cb;
+  void (*id_search_update_fn)(
+      const bContext *, void *, const char *, uiSearchItems *) = id_search_cb;
 
   /* arg_litem is malloced, can be freed by parent button */
   template_ui = *((TemplateID *)arg_litem);
@@ -462,16 +462,16 @@ static uiBlock *id_search_menu(bContext *C, ARegion *region, void *arg_litem)
     /* Currently only used for objects. */
     if (template_ui.idcode == ID_OB) {
       if (template_ui.filter == UI_TEMPLATE_ID_FILTER_AVAILABLE) {
-        id_search_cb_p = id_search_cb_objects_from_scene;
+        id_search_update_fn = id_search_cb_objects_from_scene;
       }
     }
   }
 
   return template_common_search_menu(C,
                                      region,
-                                     id_search_cb_p,
+                                     id_search_update_fn,
                                      &template_ui,
-                                     template_ID_set_property_cb,
+                                     template_ID_set_property_exec_fn,
                                      active_item_ptr.data,
                                      template_ui.prv_rows,
                                      template_ui.prv_cols,
@@ -1183,7 +1183,7 @@ static void template_ID_tabs(bContext *C,
                                                0.0f,
                                                0.0f,
                                                "");
-    UI_but_funcN_set(&tab->but, template_ID_set_property_cb, MEM_dupallocN(template), id);
+    UI_but_funcN_set(&tab->but, template_ID_set_property_exec_fn, MEM_dupallocN(template), id);
     tab->but.custom_data = (void *)id;
     tab->but.dragpoin = id;
     tab->menu = mt;
@@ -1529,7 +1529,7 @@ typedef struct TemplateSearch {
   int preview_rows, preview_cols;
 } TemplateSearch;
 
-static void template_search_handle_cb(bContext *C, void *arg_template, void *item)
+static void template_search_exec_fn(bContext *C, void *arg_template, void *item)
 {
   TemplateSearch *template_search = arg_template;
   uiRNACollectionSearch *coll_search = &template_search->search_data;
@@ -1553,9 +1553,9 @@ static uiBlock *template_search_menu(bContext *C, ARegion *region, void *arg_tem
 
   return template_common_search_menu(C,
                                      region,
-                                     ui_rna_collection_search_cb,
+                                     ui_rna_collection_search_update_fn,
                                      &template_search,
-                                     template_search_handle_cb,
+                                     template_search_exec_fn,
                                      active_ptr.data,
                                      template_search.preview_rows,
                                      template_search.preview_cols,
@@ -1819,14 +1819,14 @@ static void modifiers_convertToReal(bContext *C, void *ob_v, void *md_v)
 {
   Object *ob = ob_v;
   ModifierData *md = md_v;
-  ModifierData *nmd = modifier_new(md->type);
+  ModifierData *nmd = BKE_modifier_new(md->type);
 
-  modifier_copyData(md, nmd);
+  BKE_modifier_copydata(md, nmd);
   nmd->mode &= ~eModifierMode_Virtual;
 
   BLI_addhead(&ob->modifiers, nmd);
 
-  modifier_unique_name(&ob->modifiers, nmd);
+  BKE_modifier_unique_name(&ob->modifiers, nmd);
 
   ob->partype = PAROBJECT;
 
@@ -1890,7 +1890,7 @@ static uiLayout *draw_modifier(uiLayout *layout,
                                int cageIndex,
                                int lastCageIndex)
 {
-  const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+  const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
   PointerRNA ptr;
   uiBut *but;
   uiBlock *block;
@@ -1984,9 +1984,9 @@ static uiLayout *draw_modifier(uiLayout *layout,
     }
 
     if (ob->type == OB_MESH) {
-      if (modifier_supportsCage(scene, md) && (index <= lastCageIndex)) {
+      if (BKE_modifier_supports_cage(scene, md) && (index <= lastCageIndex)) {
         sub = uiLayoutRow(row, true);
-        if (index < cageIndex || !modifier_couldBeCage(scene, md)) {
+        if (index < cageIndex || !BKE_modifier_couldbe_cage(scene, md)) {
           uiLayoutSetActive(sub, false);
         }
         uiItemR(sub, &ptr, "show_on_cage", 0, "", ICON_NONE);
@@ -2082,7 +2082,7 @@ static uiLayout *draw_modifier(uiLayout *layout,
                     "apply_as",
                     MODIFIER_APPLY_DATA);
 
-        if (modifier_isSameTopology(md) && !modifier_isNonGeometrical(md)) {
+        if (BKE_modifier_is_same_topology(md) && !BKE_modifier_is_non_geometrical(md)) {
           uiItemEnumO(row,
                       "OBJECT_OT_modifier_apply",
                       CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Apply as Shape Key"),
@@ -2149,10 +2149,10 @@ uiLayout *uiTemplateModifier(uiLayout *layout, bContext *C, PointerRNA *ptr)
   UI_block_lock_set(uiLayoutGetBlock(layout), (ob && ID_IS_LINKED(ob)), ERROR_LIBDATA_MESSAGE);
 
   /* find modifier and draw it */
-  cageIndex = modifiers_getCageIndex(scene, ob, &lastCageIndex, 0);
+  cageIndex = BKE_modifiers_get_cage_index(scene, ob, &lastCageIndex, 0);
 
   /* XXX virtual modifiers are not accessible for python */
-  vmd = modifiers_getVirtualModifierList(ob, &virtualModifierData);
+  vmd = BKE_modifiers_get_virtual_modifierlist(ob, &virtualModifierData);
 
   for (i = 0; vmd; i++, vmd = vmd->next) {
     if (md == vmd) {
@@ -2174,7 +2174,7 @@ uiLayout *uiTemplateModifier(uiLayout *layout, bContext *C, PointerRNA *ptr)
 
 static uiLayout *gpencil_draw_modifier(uiLayout *layout, Object *ob, GpencilModifierData *md)
 {
-  const GpencilModifierTypeInfo *mti = BKE_gpencil_modifierType_getInfo(md->type);
+  const GpencilModifierTypeInfo *mti = BKE_gpencil_modifier_get_info(md->type);
   PointerRNA ptr;
   uiBlock *block;
   uiLayout *box, *column, *row, *sub;
@@ -2317,7 +2317,7 @@ uiLayout *uiTemplateGpencilModifier(uiLayout *layout, bContext *UNUSED(C), Point
 
 static uiLayout *gpencil_draw_shaderfx(uiLayout *layout, Object *ob, ShaderFxData *md)
 {
-  const ShaderFxTypeInfo *mti = BKE_shaderfxType_getInfo(md->type);
+  const ShaderFxTypeInfo *mti = BKE_shaderfx_get_info(md->type);
   PointerRNA ptr;
   uiBlock *block;
   uiLayout *box, *column, *row, *sub;

@@ -19,12 +19,12 @@
 #ifndef __COM_COMPOSITOR_H__
 #define __COM_COMPOSITOR_H__
 
+#include "DNA_color_types.h"
+#include "DNA_node_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "DNA_color_types.h"
-#include "DNA_node_types.h"
 
 /* Keep ascii art. */
 /* clang-format off */
@@ -295,8 +295,6 @@ extern "C" {
  *
  * \section executePixel executing a pixel
  * Finally the last step, the node functionality :)
- *
- * \page newnode Creating new nodes
  */
 
 /**

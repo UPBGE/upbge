@@ -505,15 +505,20 @@ typedef void (*uiButHandleRenameFunc)(struct bContext *C, void *arg, char *origs
 typedef void (*uiButHandleNFunc)(struct bContext *C, void *argN, void *arg2);
 typedef void (*uiButHandleHoldFunc)(struct bContext *C, struct ARegion *butregion, uiBut *but);
 typedef int (*uiButCompleteFunc)(struct bContext *C, char *str, void *arg);
-typedef struct ARegion *(*uiButSearchCreateFunc)(struct bContext *C,
-                                                 struct ARegion *butregion,
-                                                 uiBut *but);
-typedef void (*uiButSearchFunc)(const struct bContext *C,
-                                void *arg,
-                                const char *str,
-                                uiSearchItems *items);
 
-typedef void (*uiButSearchArgFreeFunc)(void *arg);
+/* Search types. */
+typedef struct ARegion *(*uiButSearchCreateFn)(struct bContext *C,
+                                               struct ARegion *butregion,
+                                               uiBut *but);
+typedef void (*uiButSearchUpdateFn)(const struct bContext *C,
+                                    void *arg,
+                                    const char *str,
+                                    uiSearchItems *items);
+typedef void (*uiButSearchArgFreeFn)(void *arg);
+typedef bool (*uiButSearchContextMenuFn)(struct bContext *C,
+                                         void *arg,
+                                         void *active,
+                                         const struct wmEvent *event);
 
 /* Must return allocated string. */
 typedef char *(*uiButToolTipFunc)(struct bContext *C, void *argN, const char *tip);
@@ -624,8 +629,7 @@ void UI_popup_block_invoke_ex(struct bContext *C,
                               uiBlockCreateFunc func,
                               void *arg,
                               void (*arg_free)(void *arg),
-                              const char *opname,
-                              int opcontext);
+                              bool can_refresh);
 void UI_popup_block_ex(struct bContext *C,
                        uiBlockCreateFunc func,
                        uiBlockHandleFunc popup_func,
@@ -1585,15 +1589,16 @@ uiBut *UI_block_links_find_inlink(uiBlock *block, void *poin);
 
 /* use inside searchfunc to add items */
 bool UI_search_item_add(uiSearchItems *items, const char *name, void *poin, int iconid, int state);
-/* bfunc gets search item *poin as arg2, or if NULL the old string */
 void UI_but_func_search_set(uiBut *but,
-                            uiButSearchCreateFunc cfunc,
-                            uiButSearchFunc sfunc,
+                            uiButSearchCreateFn search_create_fn,
+                            uiButSearchUpdateFn search_update_fn,
                             void *arg,
-                            uiButSearchArgFreeFunc search_arg_free_func,
-                            uiButHandleFunc bfunc,
-                            const char *search_sep_string,
+                            uiButSearchArgFreeFn search_arg_free_fn,
+                            uiButHandleFunc search_exec_fn,
                             void *active);
+void UI_but_func_search_set_context_menu(uiBut *but, uiButSearchContextMenuFn context_menu_fn);
+void UI_but_func_search_set_sep_string(uiBut *but, const char *search_sep_string);
+
 /* height in pixels, it's using hardcoded values still */
 int UI_searchbox_size_y(void);
 int UI_searchbox_size_x(void);

@@ -2831,8 +2831,8 @@ static void remove_tagged_keys(Depsgraph *depsgraph, Object *ob, ParticleSystem 
   if (pe_x_mirror(ob)) {
     /* mirror key tags */
     ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
-    ParticleSystemModifierData *psmd_eval = (ParticleSystemModifierData *)modifier_get_evaluated(
-        depsgraph, ob, &psmd->modifier);
+    ParticleSystemModifierData *psmd_eval = (ParticleSystemModifierData *)
+        BKE_modifier_get_evaluated(depsgraph, ob, &psmd->modifier);
 
     LOOP_POINTS {
       LOOP_TAGGED_KEYS {
@@ -5127,7 +5127,8 @@ void PE_create_particle_edit(
   int totpoint;
 
   if (psmd != NULL) {
-    psmd_eval = (ParticleSystemModifierData *)modifiers_findByName(ob_eval, psmd->modifier.name);
+    psmd_eval = (ParticleSystemModifierData *)BKE_modifiers_findny_name(ob_eval,
+                                                                        psmd->modifier.name);
   }
 
   /* no psmd->dm happens in case particle system modifier is not enabled */
@@ -5254,8 +5255,8 @@ static bool particle_edit_toggle_poll(bContext *C)
     return 0;
   }
 
-  return (ob->particlesystem.first || modifiers_findByType(ob, eModifierType_Cloth) ||
-          modifiers_findByType(ob, eModifierType_Softbody));
+  return (ob->particlesystem.first || BKE_modifiers_findby_type(ob, eModifierType_Cloth) ||
+          BKE_modifiers_findby_type(ob, eModifierType_Softbody));
 }
 
 static void free_all_psys_edit(Object *object)
@@ -5300,7 +5301,7 @@ static int particle_edit_toggle_exec(bContext *C, wmOperator *op)
        * with possible changes applied when object was outside of the
        * edit mode. */
       Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
-      edit->psmd_eval = (ParticleSystemModifierData *)modifiers_findByName(
+      edit->psmd_eval = (ParticleSystemModifierData *)BKE_modifiers_findny_name(
           object_eval, edit->psmd->modifier.name);
       recalc_emitter_field(depsgraph, ob, edit->psys);
     }

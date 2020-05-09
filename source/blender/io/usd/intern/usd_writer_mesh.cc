@@ -23,7 +23,6 @@
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/materialBindingAPI.h>
 
-extern "C" {
 #include "BLI_assert.h"
 #include "BLI_math_vector.h"
 
@@ -42,7 +41,6 @@ extern "C" {
 #include "DNA_modifier_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_particle_types.h"
-}
 
 namespace USD {
 
@@ -441,7 +439,7 @@ void USDGenericMeshWriter::write_surface_velocity(Object *object,
   /* Only velocities from the fluid simulation are exported. This is the most important case,
    * though, as the baked mesh changes topology all the time, and thus computing the velocities
    * at import time in a post-processing step is hard. */
-  ModifierData *md = modifiers_findByType(object, eModifierType_Fluidsim);
+  ModifierData *md = BKE_modifiers_findby_type(object, eModifierType_Fluidsim);
   if (md == nullptr) {
     return;
   }
@@ -450,7 +448,7 @@ void USDGenericMeshWriter::write_surface_velocity(Object *object,
   const bool use_render = (DEG_get_mode(usd_export_context_.depsgraph) == DAG_EVAL_RENDER);
   const ModifierMode required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
   const Scene *scene = DEG_get_evaluated_scene(usd_export_context_.depsgraph);
-  if (!modifier_isEnabled(scene, md, required_mode)) {
+  if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
     return;
   }
   FluidsimModifierData *fsmd = reinterpret_cast<FluidsimModifierData *>(md);

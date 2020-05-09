@@ -925,8 +925,7 @@ static bool ui_but_update_from_old_block(const bContext *C,
 
     SWAP(ListBase, but->extra_op_icons, oldbut->extra_op_icons);
 
-    SWAP(uiButSearchArgFreeFunc, oldbut->search_arg_free_func, but->search_arg_free_func);
-    SWAP(void *, oldbut->search_arg, but->search_arg);
+    SWAP(struct uiButSearchData *, oldbut->search, but->search);
 
     /* copy hardmin for list rows to prevent 'sticking' highlight to mouse position
      * when scrolling without moving mouse (see [#28432]) */
@@ -3471,9 +3470,12 @@ static void ui_but_free(const bContext *C, uiBut *but)
     MEM_freeN(but->hold_argN);
   }
 
-  if (but->search_arg_free_func) {
-    but->search_arg_free_func(but->search_arg);
-    but->search_arg = NULL;
+  if (but->search != NULL) {
+    if (but->search->arg_free_fn) {
+      but->search->arg_free_fn(but->search->arg);
+      but->search->arg = NULL;
+    }
+    MEM_freeN(but->search);
   }
 
   if (but->active) {
@@ -6608,40 +6610,51 @@ uiBut *uiDefSearchBut(uiBlock *block,
 }
 
 /**
- * \param search_func, bfunc: both get it as \a arg.
- * \param arg: user value,
- * \param active: when set, button opens with this item visible and selected.
- * \param separator_string: when not NULL, this string is used as a separator,
- * showing the icon and highlighted text after the last instance of this string.
+ * \note The item-pointer (referred to below) is a per search item user pointer
+ * passed to #UI_search_item_add (stored in  #uiSearchItems.pointers).
+ *
+ * \param search_create_fn: Function to create the menu.
+ * \param search_update_fn: Function to refresh search content after the search text has changed.
+ * \param arg: user value.
+ * \param search_arg_free_fn: When non-null, use this function to free \a arg.
+ * \param search_exec_fn: Function that executes the action, gets \a arg as the first argument.
+ * The second argument as the active item-pointer
+ * \param active: When non-null, this item-pointer item will be visible and selected,
+ * otherwise the first item will be selected.
  */
 void UI_but_func_search_set(uiBut *but,
-                            uiButSearchCreateFunc search_create_func,
-                            uiButSearchFunc search_func,
+                            uiButSearchCreateFn search_create_fn,
+                            uiButSearchUpdateFn search_update_fn,
                             void *arg,
-                            uiButSearchArgFreeFunc search_arg_free_func,
-                            uiButHandleFunc bfunc,
-                            const char *search_sep_string,
+                            uiButSearchArgFreeFn search_arg_free_fn,
+                            uiButHandleFunc search_exec_fn,
                             void *active)
 {
   /* needed since callers don't have access to internal functions
    * (as an alternative we could expose it) */
-  if (search_create_func == NULL) {
-    search_create_func = ui_searchbox_create_generic;
+  if (search_create_fn == NULL) {
+    search_create_fn = ui_searchbox_create_generic;
   }
 
-  if (but->search_arg_free_func != NULL) {
-    but->search_arg_free_func(but->search_arg);
-    but->search_arg = NULL;
+  struct uiButSearchData *search = but->search;
+  if (search != NULL) {
+    if (search->arg_free_fn != NULL) {
+      search->arg_free_fn(but->search->arg);
+      search->arg = NULL;
+    }
+  }
+  else {
+    search = MEM_callocN(sizeof(*but->search), __func__);
+    but->search = search;
   }
 
-  but->search_create_func = search_create_func;
-  but->search_func = search_func;
+  search->create_fn = search_create_fn;
+  search->update_fn = search_update_fn;
 
-  but->search_arg = arg;
-  but->search_arg_free_func = search_arg_free_func;
-  but->search_sep_string = search_sep_string;
+  search->arg = arg;
+  search->arg_free_fn = search_arg_free_fn;
 
-  if (bfunc) {
+  if (search_exec_fn) {
 #ifdef DEBUG
     if (but->func) {
       /* watch this, can be cause of much confusion, see: T47691 */
@@ -6649,7 +6662,7 @@ void UI_but_func_search_set(uiBut *but,
              __func__);
     }
 #endif
-    UI_but_func_set(but, bfunc, arg, active);
+    UI_but_func_set(but, search_exec_fn, search->arg, active);
   }
 
   /* search buttons show red-alert if item doesn't exist, not for menus */
@@ -6661,11 +6674,27 @@ void UI_but_func_search_set(uiBut *but,
   }
 }
 
+void UI_but_func_search_set_context_menu(uiBut *but, uiButSearchContextMenuFn context_menu_fn)
+{
+  struct uiButSearchData *search = but->search;
+  search->context_menu_fn = context_menu_fn;
+}
+
+/**
+ * \param separator_string: when not NULL, this string is used as a separator,
+ * showing the icon and highlighted text after the last instance of this string.
+ */
+void UI_but_func_search_set_sep_string(uiBut *but, const char *search_sep_string)
+{
+  struct uiButSearchData *search = but->search;
+  search->sep_string = search_sep_string;
+}
+
 /* Callbacks for operator search button. */
-static void operator_enum_search_cb(const struct bContext *C,
-                                    void *but,
-                                    const char *str,
-                                    uiSearchItems *items)
+static void operator_enum_search_update_fn(const struct bContext *C,
+                                           void *but,
+                                           const char *str,
+                                           uiSearchItems *items)
 {
   wmOperatorType *ot = ((uiBut *)but)->optype;
   PropertyRNA *prop = ot->prop;
@@ -6702,7 +6731,7 @@ static void operator_enum_search_cb(const struct bContext *C,
   }
 }
 
-static void operator_enum_call_cb(struct bContext *UNUSED(C), void *but, void *arg2)
+static void operator_enum_search_exec_fn(struct bContext *UNUSED(C), void *but, void *arg2)
 {
   wmOperatorType *ot = ((uiBut *)but)->optype;
   PointerRNA *opptr = UI_but_operator_ptr_get(but); /* Will create it if needed! */
@@ -6745,11 +6774,10 @@ uiBut *uiDefSearchButO_ptr(uiBlock *block,
   but = uiDefSearchBut(block, arg, retval, icon, maxlen, x, y, width, height, a1, a2, tip);
   UI_but_func_search_set(but,
                          ui_searchbox_create_generic,
-                         operator_enum_search_cb,
+                         operator_enum_search_update_fn,
                          but,
                          NULL,
-                         operator_enum_call_cb,
-                         NULL,
+                         operator_enum_search_exec_fn,
                          NULL);
 
   but->optype = ot;

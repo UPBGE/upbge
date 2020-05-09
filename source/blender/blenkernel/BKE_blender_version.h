@@ -16,6 +16,10 @@
 #ifndef __BKE_BLENDER_VERSION_H__
 #define __BKE_BLENDER_VERSION_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** \file
  * \ingroup bke
  */
@@ -50,5 +54,9 @@
 /** Defined in from blender.c */
 extern char versionstr[];
 extern char upbge_versionstr[];
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BKE_BLENDER_VERSION_H__ */
