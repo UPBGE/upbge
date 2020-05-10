@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2017, Blender Foundation
@@ -462,8 +462,8 @@ static void generate_geometry(GpencilModifierData *md,
   }
 
   /* Early exit if current frame is outside start/end bounds */
-  /* NOTE: If we're beyond the next/prev frames (if existent), then we wouldn't have this problem
-   * anyway... */
+  /* NOTE: If we're beyond the next/previous frames (if existent),
+   * then we wouldn't have this problem anyway... */
   if (ctime < start_frame) {
     /* Before Start - Animation hasn't started. Display initial state. */
     if (reverse) {

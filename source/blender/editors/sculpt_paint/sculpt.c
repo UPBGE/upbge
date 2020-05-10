@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2006 by Nicholas Bishop
@@ -5300,7 +5300,7 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
 
   /* Draw Face Sets in draw mode makes a single undo push, in alt-smooth mode deforms the
    * vertices and uses regular coords undo. */
-  /* It also assings the paint_face_set here as it needs to be done regardless of the stroke type
+  /* It also assigns the paint_face_set here as it needs to be done regardless of the stroke type
    * and the number of nodes under the brush influence. */
   if (brush->sculpt_tool == SCULPT_TOOL_DRAW_FACE_SETS && ss->cache->first_time &&
       ss->cache->mirror_symmetry_pass == 0 && !ss->cache->alt_smooth) {
