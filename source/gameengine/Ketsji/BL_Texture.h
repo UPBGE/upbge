@@ -49,6 +49,8 @@ private:
 		float specintensfac;
 		float speccolorfac;
 		float hardnessfac;
+		float roughnessfac;
+		float metallicfac;
 		float emitfac;
 		float mirrorfac;
 		float normalfac;

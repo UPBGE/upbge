@@ -144,9 +144,11 @@ typedef struct Material {
 	float param[4];		/* size, smooth, size, smooth, for toonshader, 0 (fac) and 1 (fresnel) also for fresnel shader */
 	float rms;
 	float darkness;
+	float metallic_bsdf, roughness_bsdf;
 
 	/* runtime - OR'd from 'mtex' */
-	short texco, mapto;
+	short texco, pad6;
+	int mapto, pad7;
 
 	/* ramp colors */
 	struct ColorBand *ramp_col;
@@ -332,6 +334,7 @@ typedef struct Material {
 #define MA_APPROX_OCCLUSION	4
 #define MA_GROUP_LOCAL      8
 #define MA_INSTANCING		16
+#define MA_ENERGY_CONSERV	32
 
 /* diff_shader */
 #define MA_DIFF_LAMBERT		0
@@ -339,6 +342,8 @@ typedef struct Material {
 #define MA_DIFF_TOON		2
 #define MA_DIFF_MINNAERT    3
 #define MA_DIFF_FRESNEL     4
+#define MA_DIFF_LAMBERT_CUSTOM_BSDF 5
+#define MA_DIFF_BURLEY_BSDF 6
 
 /* spec_shader */
 #define MA_SPEC_COOKTORR	0
@@ -346,6 +351,7 @@ typedef struct Material {
 #define MA_SPEC_BLINN		2
 #define MA_SPEC_TOON		3
 #define MA_SPEC_WARDISO		4
+#define MA_SPEC_GGX_BSDF	5
 
 /* dynamode */
 #ifdef DNA_DEPRECATED
@@ -414,8 +420,9 @@ typedef struct Material {
 #define MAP_AMB         (1 << 11)
 #define MAP_DISPLACE    (1 << 12)
 #define MAP_WARP        (1 << 13)
-// #define MAP_LAYER    (1 << 14)       /* unused */
+#define MAP_ROUGHNESS   (1 << 14)
 #define MAP_PARALLAX	(1 << 15)
+#define MAP_METALLIC    (1 << 16)
 
 /* volume mapto - reuse definitions for now - a bit naughty! */
 #define MAP_DENSITY             (1 << 7)
