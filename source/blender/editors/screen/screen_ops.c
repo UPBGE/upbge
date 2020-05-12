@@ -1746,8 +1746,7 @@ static void area_move_apply_do(const bContext *C,
   /* only redraw if we actually moved a screen vert, for AREAGRID */
   if (doredraw) {
     bool redraw_all = false;
-    ED_screen_areas_iter(win, screen, area)
-    {
+    ED_screen_areas_iter (win, screen, area) {
       if (area->v1->editflag || area->v2->editflag || area->v3->editflag || area->v4->editflag) {
         if (ED_area_is_global(area)) {
           /* Snap to minimum or maximum for global areas. */
@@ -1766,8 +1765,7 @@ static void area_move_apply_do(const bContext *C,
       }
     }
     if (redraw_all) {
-      ED_screen_areas_iter(win, screen, area)
-      {
+      ED_screen_areas_iter (win, screen, area) {
         ED_area_tag_redraw(area);
       }
     }
@@ -3875,6 +3873,10 @@ static int region_quadview_exec(bContext *C, wmOperator *op)
 
       rv3d->viewlock_quad = RV3D_VIEWLOCK_INIT;
       rv3d->viewlock = 0;
+
+      /* FIXME: This fixes missing update to workbench TAA. (see T76216)
+       * However, it would be nice if the tagging should be done in a more conventional way. */
+      rv3d->rflag |= RV3D_GPULIGHT_UPDATE;
 
       /* Accumulate locks, in case they're mixed. */
       for (region_iter = area->regionbase.first; region_iter; region_iter = region_iter->next) {

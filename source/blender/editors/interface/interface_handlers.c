@@ -3703,7 +3703,7 @@ static void ui_do_but_textedit(
           /* pass */
         }
         else {
-          ui_searchbox_event(C, data->searchbox, but, event);
+          ui_searchbox_event(C, data->searchbox, but, data->region, event);
         }
 #else
         ui_searchbox_event(C, data->searchbox, but, event);
@@ -3717,7 +3717,7 @@ static void ui_do_but_textedit(
         /* Support search context menu. */
         if (event->type == RIGHTMOUSE) {
           if (data->searchbox) {
-            if (ui_searchbox_event(C, data->searchbox, but, event)) {
+            if (ui_searchbox_event(C, data->searchbox, but, data->region, event)) {
               /* Only break if the event was handled. */
               break;
             }
@@ -3832,7 +3832,7 @@ static void ui_do_but_textedit(
 #ifdef USE_KEYNAV_LIMIT
           ui_mouse_motion_keynav_init(&data->searchbox_keynav_state, event);
 #endif
-          ui_searchbox_event(C, data->searchbox, but, event);
+          ui_searchbox_event(C, data->searchbox, but, data->region, event);
           break;
         }
         if (event->type == WHEELDOWNMOUSE) {
@@ -3849,7 +3849,7 @@ static void ui_do_but_textedit(
 #ifdef USE_KEYNAV_LIMIT
           ui_mouse_motion_keynav_init(&data->searchbox_keynav_state, event);
 #endif
-          ui_searchbox_event(C, data->searchbox, but, event);
+          ui_searchbox_event(C, data->searchbox, but, data->region, event);
           break;
         }
         if (event->type == WHEELUPMOUSE) {
@@ -11220,8 +11220,7 @@ void UI_screen_free_active_but(const bContext *C, bScreen *screen)
 {
   wmWindow *win = CTX_wm_window(C);
 
-  ED_screen_areas_iter(win, screen, area)
-  {
+  ED_screen_areas_iter (win, screen, area) {
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
       uiBut *but = ui_region_find_active_but(region);
       if (but) {

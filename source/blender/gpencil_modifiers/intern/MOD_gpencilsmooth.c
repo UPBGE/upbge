@@ -35,6 +35,8 @@
 #include "BKE_deform.h"
 #include "BKE_gpencil_geom.h"
 #include "BKE_gpencil_modifier.h"
+#include "BKE_lib_query.h"
+#include "BKE_modifier.h"
 
 #include "DEG_depsgraph.h"
 
@@ -47,9 +49,7 @@ static void initData(GpencilModifierData *md)
   gpmd->pass_index = 0;
   gpmd->flag |= GP_SMOOTH_MOD_LOCATION;
   gpmd->factor = 0.5f;
-  gpmd->layername[0] = '\0';
-  gpmd->materialname[0] = '\0';
-  gpmd->vgname[0] = '\0';
+  gpmd->material = NULL;
   gpmd->step = 1;
 
   gpmd->curve_intensity = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -88,7 +88,7 @@ static void deformStroke(GpencilModifierData *md,
 
   if (!is_stroke_affected_by_modifier(ob,
                                       mmd->layername,
-                                      mmd->materialname,
+                                      mmd->material,
                                       mmd->pass_index,
                                       mmd->layer_pass,
                                       3,
@@ -167,6 +167,13 @@ static void freeData(GpencilModifierData *md)
   }
 }
 
+static void foreachIDLink(GpencilModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
+{
+  SmoothGpencilModifierData *mmd = (SmoothGpencilModifierData *)md;
+
+  walk(userData, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+}
+
 GpencilModifierTypeInfo modifierType_Gpencil_Smooth = {
     /* name */ "Smooth",
     /* structName */ "SmoothGpencilModifierData",
@@ -187,6 +194,6 @@ GpencilModifierTypeInfo modifierType_Gpencil_Smooth = {
     /* updateDepsgraph */ NULL,
     /* dependsOnTime */ NULL,
     /* foreachObjectLink */ NULL,
-    /* foreachIDLink */ NULL,
+    /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
 };
