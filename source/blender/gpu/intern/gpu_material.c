@@ -1055,7 +1055,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 				GPU_link(mat, "shade_diffuse_fresnel", vn, lv, view,
 				         GPU_uniform(&ma->param[0]), GPU_uniform(&ma->param[1]), &is);
 			else if (ma->diff_shader == MA_DIFF_LAMBERT_CUSTOM_BSDF)
-				GPU_link(mat, "shade_diffuse_BSDF_Custom_Lambert",
+				GPU_link(mat, "shade_diffuse_BSDF_Custom_Lambert", vn, lv,
 				         shi->metallic_bsdf, &is);
 			else if (ma->diff_shader == MA_DIFF_BURLEY_BSDF)
 				GPU_link(mat, "shade_diffuse_BSDF_Burley", vn, lv, view,

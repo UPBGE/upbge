@@ -2152,9 +2152,10 @@ void shade_diffuse_minnaert(float nl, vec3 n, vec3 v, float darkness, out float 
 
 // BSDF Burley diffuse shader from Urho3D https://github.com/urho3d/Urho3D (MIT License)
 
-void shade_diffuse_BSDF_Custom_Lambert(float reflectance, out float is)
+void shade_diffuse_BSDF_Custom_Lambert(vec3 n, vec3 l, float reflectance, out float is)
 {
-	is = (reflectance / M_PI);
+    float nl = clamp(dot(n, l), 0.001, 1.0);
+    is = (reflectance / M_PI) * nl ;
 }
 
 void shade_diffuse_BSDF_Burley(vec3 n, vec3 l, vec3 v, float roughness, out float is)
@@ -2170,7 +2171,7 @@ void shade_diffuse_BSDF_Burley(vec3 n, vec3 l, vec3 v, float roughness, out floa
 	float light_scatter = f0 + (fd90 - f0) * pow(1.0 - nl, 5.0);
 	float view_scatter = f0 + (fd90 - f0) * pow(1.0 - nv, 5.0);
 
-	is = light_scatter * view_scatter * (1 / M_PI);
+        is = light_scatter * view_scatter * (1 / M_PI) * nl;
 }
 
 
