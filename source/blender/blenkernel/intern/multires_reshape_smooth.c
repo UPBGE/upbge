@@ -118,6 +118,8 @@ typedef struct MultiresReshapeSmoothContext {
   /* Subdivision surface created for geometry at a reshape level. */
   Subdiv *reshape_subdiv;
 
+  /* Grids allocated at the top level storing state of the base mesh,
+   * Basically, lower memory footprint version of the base mesh limit surface. */
   SurfaceGrid *base_surface_grids;
 
   /* Defines how displacement is interpolated on the higher levels (for example, whether
@@ -141,7 +143,7 @@ static float interpolate_masks_grid(const MultiresReshapeSmoothContext *reshape_
                                     const GridCoord *grid_coord)
 {
   const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
-  if (reshape_context->grid_paint_masks == NULL) {
+  if (reshape_context->orig.grid_paint_masks == NULL) {
     return 0.0f;
   }
 

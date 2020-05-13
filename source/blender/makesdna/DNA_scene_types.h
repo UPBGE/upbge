@@ -1802,6 +1802,11 @@ typedef struct SceneEEVEE {
   float light_threshold;
 } SceneEEVEE;
 
+typedef struct SceneGpencil {
+  float smaa_threshold;
+  char _pad[4];
+} SceneGpencil;
+
 /* *************************************************************** */
 /* Scene ID-Block */
 
@@ -1936,6 +1941,7 @@ typedef struct Scene {
 
   struct SceneDisplay display;
   struct SceneEEVEE eevee;
+  struct SceneGpencil grease_pencil_settings;
 } Scene;
 
 /* **************** RENDERDATA ********************* */

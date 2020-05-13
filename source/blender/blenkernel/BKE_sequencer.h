@@ -286,6 +286,10 @@ void BKE_sequence_reload_new_file(struct Main *bmain,
                                   struct Sequence *seq,
                                   const bool lock_range);
 int BKE_sequencer_evaluate_frame(struct Scene *scene, int cfra);
+int BKE_sequencer_get_shown_sequences(struct ListBase *seqbasep,
+                                      int cfra,
+                                      int chanshown,
+                                      struct Sequence **seq_arr_out);
 
 struct StripElem *BKE_sequencer_give_stripelem(struct Sequence *seq, int cfra);
 
@@ -365,6 +369,7 @@ bool BKE_sequencer_cache_is_full(struct Scene *scene);
  * ********************************************************************** */
 
 void BKE_sequencer_prefetch_start(const SeqRenderData *context, float cfra, float cost);
+void BKE_sequencer_prefetch_stop_all();
 void BKE_sequencer_prefetch_stop(struct Scene *scene);
 void BKE_sequencer_prefetch_free(struct Scene *scene);
 bool BKE_sequencer_prefetch_need_redraw(struct Main *bmain, struct Scene *scene);
