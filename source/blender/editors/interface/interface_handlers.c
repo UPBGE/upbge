@@ -3598,6 +3598,9 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 
           /* ensure menu (popup) too is closed! */
           data->escapecancel = true;
+
+          WM_reportf(RPT_ERROR, "Failed to find '%s'", but->editstr);
+          WM_report_banner_show();
         }
       }
 
@@ -3947,9 +3950,9 @@ static void ui_do_but_textedit(
             but->selend = but->pos;
             changed = true;
           }
+          retval = WM_UI_HANDLER_BREAK;
+          skip_undo_push = true;
         }
-        skip_undo_push = true;
-        retval = WM_UI_HANDLER_BREAK;
         break;
       }
     }
@@ -4684,7 +4687,8 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, cons
         do_activate = (event->val == KM_RELEASE);
       }
       else {
-        do_activate = (event->val == KM_PRESS);
+        /* Also use double-clicks to prevent fast clicks to leak to other handlers (T76481). */
+        do_activate = ELEM(event->val, KM_PRESS, KM_DBL_CLICK);
       }
     }
 
@@ -9147,7 +9151,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
        * This is needed to make sure if a button was active,
        * it stays active while the mouse is over it.
        * This avoids adding mousemoves, see: [#33466] */
-      if (ELEM(state_orig, BUTTON_STATE_INIT, BUTTON_STATE_HIGHLIGHT)) {
+      if (ELEM(state_orig, BUTTON_STATE_INIT, BUTTON_STATE_HIGHLIGHT, BUTTON_STATE_WAIT_DRAG)) {
         if (ui_but_find_mouse_over(region, event) == but) {
           button_activate_init(C, region, but, BUTTON_ACTIVATE_OVER);
         }

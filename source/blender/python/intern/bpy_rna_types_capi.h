@@ -14,23 +14,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BKE_SIMULATION_H__
-#define __BKE_SIMULATION_H__
+/** \file
+ * \ingroup pythonintern
+ */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef __BPY_RNA_TYPES_CAPI_H__
+#define __BPY_RNA_TYPES_CAPI_H__
 
-struct Main;
-struct Simulation;
-struct Depsgraph;
+void BPY_rna_types_extend_capi(void);
 
-void *BKE_simulation_add(struct Main *bmain, const char *name);
-
-void BKE_simulation_data_update(struct Depsgraph *depsgraph, struct Scene *scene);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __BKE_SIMULATION_H__ */
+#endif /* __BPY_RNA_TYPES_CAPI_H__ */
