@@ -236,7 +236,9 @@ void EEVEE_volumes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   }
 
   if (do_taa) {
-	//common_data->vol_history_alpha = 0.0f; /* Game engine transition */ /* Force to use frostbite's paper solution to avoid ugly banding */
+    if (!(scene_eval->eevee.flag & SCE_EEVEE_VOLUMETRIC_BLENDING)) { /* Game engine transition, Force to use frostbite's paper solution to avoid ugly banding */
+      common_data->vol_history_alpha = 0.0f;
+    }
     current_sample = effects->taa_current_sample - 1;
     effects->volume_current_sample = -1;
   }
