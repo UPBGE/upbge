@@ -95,11 +95,15 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 		shi = shcd->shi;
 		shi->mat = (Material *)node->id;
 
-		if (hasinput[MAT_IN_ROUGHNESS] || hasinput[MAT_IN_METALLIC]) {
-			shi->mat->diff_shader = MA_DIFF_BURLEY_BSDF;
+		if (hasinput[MAT_IN_ROUGHNESS]) {
+			if (shi->mat->diff_shader != MA_DIFF_LAMBERT_CUSTOM_BSDF) {
+			  shi->mat->diff_shader = MA_DIFF_BURLEY_BSDF;
+			}
+		}
+		if (hasinput[MAT_IN_METALLIC]) {
 			shi->mat->spec_shader = MA_SPEC_GGX_BSDF;
 		}
-		
+
 		/* copy all relevant material vars, note, keep this synced with render_types.h */
 		memcpy(&shi->r, &shi->mat->r, 23 * sizeof(float));
 		shi->har = shi->mat->har;
