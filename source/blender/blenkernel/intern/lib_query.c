@@ -1004,127 +1004,22 @@ static void library_foreach_ID_link(Main *bmain,
       }
 
       case ID_PA: {
-        ParticleSettings *psett = (ParticleSettings *)id;
-        CALLBACK_INVOKE(psett->instance_collection, IDWALK_CB_USER);
-        CALLBACK_INVOKE(psett->instance_object, IDWALK_CB_NOP);
-        CALLBACK_INVOKE(psett->bb_ob, IDWALK_CB_NOP);
-        CALLBACK_INVOKE(psett->collision_group, IDWALK_CB_NOP);
-
-        for (i = 0; i < MAX_MTEX; i++) {
-          if (psett->mtex[i]) {
-            BKE_texture_mtex_foreach_id(&data, psett->mtex[i]);
-          }
-        }
-
-        if (psett->effector_weights) {
-          CALLBACK_INVOKE(psett->effector_weights->group, IDWALK_CB_NOP);
-        }
-
-        if (psett->pd) {
-          CALLBACK_INVOKE(psett->pd->tex, IDWALK_CB_USER);
-          CALLBACK_INVOKE(psett->pd->f_source, IDWALK_CB_NOP);
-        }
-        if (psett->pd2) {
-          CALLBACK_INVOKE(psett->pd2->tex, IDWALK_CB_USER);
-          CALLBACK_INVOKE(psett->pd2->f_source, IDWALK_CB_NOP);
-        }
-
-        if (psett->boids) {
-          LISTBASE_FOREACH (BoidState *, state, &psett->boids->states) {
-            LISTBASE_FOREACH (BoidRule *, rule, &state->rules) {
-              if (rule->type == eBoidRuleType_Avoid) {
-                BoidRuleGoalAvoid *gabr = (BoidRuleGoalAvoid *)rule;
-                CALLBACK_INVOKE(gabr->ob, IDWALK_CB_NOP);
-              }
-              else if (rule->type == eBoidRuleType_FollowLeader) {
-                BoidRuleFollowLeader *flbr = (BoidRuleFollowLeader *)rule;
-                CALLBACK_INVOKE(flbr->ob, IDWALK_CB_NOP);
-              }
-            }
-          }
-        }
-
-        LISTBASE_FOREACH (ParticleDupliWeight *, dw, &psett->instance_weights) {
-          CALLBACK_INVOKE(dw->ob, IDWALK_CB_NOP);
-        }
+        BLI_assert(0);
         break;
       }
 
       case ID_MC: {
-        MovieClip *clip = (MovieClip *)id;
-        MovieTracking *tracking = &clip->tracking;
-
-        CALLBACK_INVOKE(clip->gpd, IDWALK_CB_USER);
-
-        LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking->tracks) {
-          CALLBACK_INVOKE(track->gpd, IDWALK_CB_USER);
-        }
-        LISTBASE_FOREACH (MovieTrackingObject *, object, &tracking->objects) {
-          LISTBASE_FOREACH (MovieTrackingTrack *, track, &object->tracks) {
-            CALLBACK_INVOKE(track->gpd, IDWALK_CB_USER);
-          }
-        }
-
-        LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, &tracking->plane_tracks) {
-          CALLBACK_INVOKE(plane_track->image, IDWALK_CB_USER);
-        }
+        BLI_assert(0);
         break;
       }
 
       case ID_MSK: {
-        Mask *mask = (Mask *)id;
-
-        LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
-          LISTBASE_FOREACH (MaskSpline *, mask_spline, &mask_layer->splines) {
-            for (i = 0; i < mask_spline->tot_point; i++) {
-              MaskSplinePoint *point = &mask_spline->points[i];
-              CALLBACK_INVOKE_ID(point->parent.id, IDWALK_CB_USER);
-            }
-          }
-        }
+        BLI_assert(0);
         break;
       }
 
       case ID_LS: {
-        FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
-
-        for (i = 0; i < MAX_MTEX; i++) {
-          if (linestyle->mtex[i]) {
-            BKE_texture_mtex_foreach_id(&data, linestyle->mtex[i]);
-          }
-        }
-        if (linestyle->nodetree) {
-          /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
-          BKE_library_foreach_ID_embedded(&data, (ID **)&linestyle->nodetree);
-        }
-
-        LISTBASE_FOREACH (LineStyleModifier *, lsm, &linestyle->color_modifiers) {
-          if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-            LineStyleColorModifier_DistanceFromObject *p =
-                (LineStyleColorModifier_DistanceFromObject *)lsm;
-            if (p->target) {
-              CALLBACK_INVOKE(p->target, IDWALK_CB_NOP);
-            }
-          }
-        }
-        LISTBASE_FOREACH (LineStyleModifier *, lsm, &linestyle->alpha_modifiers) {
-          if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-            LineStyleAlphaModifier_DistanceFromObject *p =
-                (LineStyleAlphaModifier_DistanceFromObject *)lsm;
-            if (p->target) {
-              CALLBACK_INVOKE(p->target, IDWALK_CB_NOP);
-            }
-          }
-        }
-        LISTBASE_FOREACH (LineStyleModifier *, lsm, &linestyle->thickness_modifiers) {
-          if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-            LineStyleThicknessModifier_DistanceFromObject *p =
-                (LineStyleThicknessModifier_DistanceFromObject *)lsm;
-            if (p->target) {
-              CALLBACK_INVOKE(p->target, IDWALK_CB_NOP);
-            }
-          }
-        }
+        BLI_assert(0);
         break;
       }
 

@@ -507,7 +507,7 @@ const EnumPropertyItem *ED_gpencil_material_enum_itemf(bContext *C,
       item_tmp.identifier = ma->id.name + 2;
       item_tmp.name = ma->id.name + 2;
       item_tmp.value = i;
-      item_tmp.icon = ma->preview->icon_id;
+      item_tmp.icon = ma->preview ? ma->preview->icon_id : ICON_NONE;
 
       RNA_enum_item_add(&item, &totitem, &item_tmp);
     }
@@ -1365,7 +1365,7 @@ void ED_gpencil_add_defaults(bContext *C, Object *ob)
   /* if not exist, create a new one */
   if ((paint->brush == NULL) || (paint->brush->gpencil_settings == NULL)) {
     /* create new brushes */
-    BKE_brush_gpencil_paint_presets(bmain, ts);
+    BKE_brush_gpencil_paint_presets(bmain, ts, true);
   }
 
   /* ensure a color exists and is assigned to object */
