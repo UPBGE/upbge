@@ -60,6 +60,19 @@ struct MANTA {
     int flags;
   } Triangle;
 
+  // Cache helper typedefs
+  typedef struct GridItem {
+    void **pointer; /* Array of pointers for this grid.*/
+    int type;
+    int *res;
+    string name;
+  } GridItem;
+
+  typedef struct FileItem {
+    string filename;
+    vector<GridItem> grids;
+  } FileItem;
+
   // Manta step, handling everything
   void step(struct FluidModifierData *mmd, int startFrame);
 
@@ -72,6 +85,7 @@ struct MANTA {
   void initLiquid(FluidModifierData *mmd = NULL);
   void initLiquidMesh(FluidModifierData *mmd = NULL);
   void initObstacle(FluidModifierData *mmd = NULL);
+  void initCurvature(FluidModifierData *mmd = NULL);
   void initGuiding(FluidModifierData *mmd = NULL);
   void initFractions(FluidModifierData *mmd = NULL);
   void initInVelocity(FluidModifierData *mmd = NULL);
@@ -761,6 +775,7 @@ struct MANTA {
   bool mUsingOutflow;
   bool mUsingNoise;
   bool mUsingMesh;
+  bool mUsingDiffusion;
   bool mUsingMVel;
   bool mUsingLiquid;
   bool mUsingSmoke;
@@ -888,12 +903,12 @@ struct MANTA {
   bool updateMeshFromObj(string filename);
   bool updateMeshFromUni(string filename);
   bool updateParticlesFromUni(string filename, bool isSecondarySys, bool isVelData);
-  bool updateGridFromUni(string filename, float *grid, bool isNoise);
-  bool updateGridFromVDB(string filename, float *grid, bool isNoise);
-  bool updateGridFromRaw(string filename, float *grid, bool isNoise);
+  bool updateGridsFromUni(string filename, vector<GridItem> grids);
+  bool updateGridsFromVDB(string filename, vector<GridItem> grids);
+  bool updateGridsFromRaw(string filename, vector<GridItem> grids);
   bool updateMeshFromFile(string filename);
   bool updateParticlesFromFile(string filename, bool isSecondarySys, bool isVelData);
-  bool updateGridFromFile(string filename, float *grid, bool isNoise);
+  bool updateGridsFromFile(string filename, vector<GridItem> grids);
   string getDirectory(struct FluidModifierData *mmd, string subdirectory);
   string getFile(struct FluidModifierData *mmd,
                  string subdirectory,

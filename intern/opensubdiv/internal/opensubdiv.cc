@@ -24,7 +24,6 @@
 
 #include "opensubdiv_device_context_cuda.h"
 #include "opensubdiv_device_context_opencl.h"
-#include "opensubdiv_gl_mesh_capi.h"
 
 void openSubdiv_init(void)
 {
@@ -34,7 +33,6 @@ void openSubdiv_init(void)
 
 void openSubdiv_cleanup(void)
 {
-  openSubdiv_deinitGLMeshDrawingResources();
 }
 
 int openSubdiv_getAvailableEvaluators(void)
@@ -86,7 +84,7 @@ int openSubdiv_getVersionHex(void)
   }
   int major = 0, minor = 0, patch = 0;
   vector<string> tokens;
-  opensubdiv_capi::stringSplit(&tokens, version, "_", true);
+  blender::opensubdiv::stringSplit(&tokens, version, "_", true);
   if (tokens.size() == 3) {
     major = atoi(tokens[0].c_str());
     minor = atoi(tokens[1].c_str());
