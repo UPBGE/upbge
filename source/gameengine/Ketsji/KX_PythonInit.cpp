@@ -111,6 +111,7 @@
 #include "SCA_IInputDevice.h"
 #include "SCA_JoystickManager.h" /* JOYINDEX_MAX */
 #include "SCA_MouseActuator.h"
+#include "SCA_MovementSensor.h"
 #include "SCA_ParentActuator.h"
 #include "SCA_PropertySensor.h"
 #include "SCA_PythonJoystick.h"
@@ -1697,6 +1698,15 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
   KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_X, SCA_RaySensor::KX_RAY_AXIS_NEG_X);
   KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Y, SCA_RaySensor::KX_RAY_AXIS_NEG_Y);
   KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Z, SCA_RaySensor::KX_RAY_AXIS_NEG_Z);
+
+  /* Movement Sensor */
+  KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_POS_X, SCA_MovementSensor::KX_MOVEMENT_AXIS_POS_X);
+  KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_POS_Y, SCA_MovementSensor::KX_MOVEMENT_AXIS_POS_Y);
+  KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_POS_Z, SCA_MovementSensor::KX_MOVEMENT_AXIS_POS_Z);
+  KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_NEG_X, SCA_MovementSensor::KX_MOVEMENT_AXIS_NEG_X);
+  KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_NEG_Y, SCA_MovementSensor::KX_MOVEMENT_AXIS_NEG_Y);
+  KX_MACRO_addTypesToDict(d, KX_MOVEMENT_AXIS_NEG_Z, SCA_MovementSensor::KX_MOVEMENT_AXIS_NEG_Z);
+  KX_MACRO_addTypesToDict(d, KX_MOVEMENT_ALL_AXIS, SCA_MovementSensor::KX_MOVEMENT_ALL_AXIS);
 
   /* TrackTo Actuator */
   KX_MACRO_addTypesToDict(d, KX_TRACK_UPAXIS_POS_X, SCA_TrackToActuator::KX_TRACK_UPAXIS_POS_X);

@@ -64,6 +64,7 @@
 #include "SCA_JoystickSensor.h"
 #include "SCA_KeyboardSensor.h"
 #include "SCA_MouseFocusSensor.h"
+#include "SCA_MovementSensor.h"
 #include "SCA_PropertySensor.h"
 #include "SCA_RadarSensor.h"
 #include "SCA_RandomSensor.h"
@@ -469,6 +470,20 @@ void BL_ConvertSensors(struct Object *blenderobject,
           }
           break;
         }
+		case SENS_MOVEMENT: {
+		  bMovementSensor *blendermovsensor = (bMovementSensor *)sens->data;
+		  // some files didn't write movementsensor, avoid crash now for NULL ptr's
+		  if (blendermovsensor) {
+			SCA_EventManager *eventmgr = logicmgr->FindEventManager(SCA_EventManager::BASIC_EVENTMGR);
+			if (eventmgr) {
+			  bool localflag = (blendermovsensor->localflag & SENS_MOVEMENT_LOCAL);
+			  int axis = blendermovsensor->axisflag;
+			  float threshold = blendermovsensor->threshold;
+			  gamesensor = new SCA_MovementSensor(eventmgr, gameobj, axis, localflag, threshold);
+			}
+		  }
+		  break;
+		}
         case SENS_JOYSTICK: {
           int joysticktype = SCA_JoystickSensor::KX_JOYSENSORMODE_NODEF;
 
