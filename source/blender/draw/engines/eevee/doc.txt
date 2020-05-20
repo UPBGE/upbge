@@ -1,0 +1,23 @@
+eevee_render.c -> merge
+eevee_private.h -> merge
+eevee_engine.c -> merge
+eevee_data.c -> merge
+
+eevee_volumes_old.c -> add
+eevee_subsurface_old.c -> add
+eevee_materials_old.c -> add
+eevee_lights_old.c -> add
+
+
+shaders:
+
+bsdf_common_lib_old -> add
+default_frag_old -> add
+effect_subsurface_frag_old -> add
+lights_lib_old -> add
+lit_surface_frag_old -> add
+raytrace_lib_old -> add
+shadow_copy_frag_old -> add
+shadow_process_geom_old -> add
+shadow_process_vert_old -> add
+shadow_store_frag_old -> add
