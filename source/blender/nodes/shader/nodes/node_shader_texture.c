@@ -115,6 +115,7 @@ static void node_shader_exec_texture(void *data, int UNUSED(thread), bNode *node
 static int gpu_shader_texture(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
 	Tex *tex = (Tex *)node->id;
+	EnvMap *env = tex->env;
 
 	if (tex && tex->ima && (tex->type == TEX_IMAGE || tex->type == TEX_ENVMAP)) {
 		if (tex->type == TEX_IMAGE) {
@@ -129,8 +130,14 @@ static int gpu_shader_texture(GPUMaterial *mat, bNode *node, bNodeExecData *UNUS
 			}
 			if (!GPU_material_use_world_space_shading(mat))
 				GPU_link(mat, "direction_transform_m4v3", in[0].link, GPU_material_builtin(mat, GPU_INVERSE_VIEW_MATRIX), &in[0].link);
-			GPU_link(mat, "mtex_cube_map_refl_from_refldir",
-				GPU_cube_map(tex->ima, &tex->iuser, false), in[0].link, in[1].link, &out[0].link, &out[1].link);
+			if (env && env->stype == ENV_REALT && env->type == ENV_CUBE) {
+			  GPU_link(mat, "mtex_cube_map_refl_from_refldir_cubelod",
+				  GPU_cube_map(tex->ima, &tex->iuser, false), in[0].link, in[1].link, &out[0].link, &out[1].link);
+			}
+			else {
+			  GPU_link(mat, "mtex_cube_map_refl_from_refldir",
+				  GPU_cube_map(tex->ima, &tex->iuser, false), in[0].link, in[1].link, &out[0].link, &out[1].link);
+			}
 			GPU_link(mat, "color_to_normal", out[1].link, &out[2].link);
 		}
 

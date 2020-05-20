@@ -1461,6 +1461,13 @@ void mtex_cube_map_refl_from_refldir(
         value = color.a;
 }
 
+void mtex_cube_map_refl_from_refldir_cubelod(
+        samplerCube ima, vec3 reflecteddirection, float lodbias, out float value, out vec4 color)
+{
+        color = textureCubeLod(ima, reflecteddirection, lodbias);
+        value = color.a;
+}
+
 vec4 mtex_cube_map_refl_color(samplerCube ima, mat4 viewmatrixinverse, float lodbias, vec3 vn, vec3 viewdirection)
 {
 	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
