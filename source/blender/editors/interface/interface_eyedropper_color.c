@@ -82,11 +82,13 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
   eye->use_accum = RNA_boolean_get(op->ptr, "use_accumulate");
 
   uiBut *but = UI_context_active_but_prop_get(C, &eye->ptr, &eye->prop, &eye->index);
+  const enum PropertySubType prop_subtype = eye->prop ? RNA_property_subtype(eye->prop) : 0;
 
   if ((eye->ptr.data == NULL) || (eye->prop == NULL) ||
       (RNA_property_editable(&eye->ptr, eye->prop) == false) ||
       (RNA_property_array_length(&eye->ptr, eye->prop) < 3) ||
-      (RNA_property_type(eye->prop) != PROP_FLOAT)) {
+      (RNA_property_type(eye->prop) != PROP_FLOAT) ||
+      (ELEM(prop_subtype, PROP_COLOR, PROP_COLOR_GAMMA) == 0)) {
     MEM_freeN(eye);
     return false;
   }
@@ -96,7 +98,7 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
 
   float col[4];
   RNA_property_float_get_array(&eye->ptr, eye->prop, col);
-  if (RNA_property_subtype(eye->prop) != PROP_COLOR) {
+  if (prop_subtype != PROP_COLOR) {
     Scene *scene = CTX_data_scene(C);
     const char *display_device;
 
@@ -290,7 +292,10 @@ static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 {
   /* init */
   if (eyedropper_init(C, op)) {
-    WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_EYEDROPPER);
+    wmWindow *win = CTX_wm_window(C);
+    /* Workaround for de-activating the button clearing the cursor, see T76794 */
+    UI_context_active_but_clear(C, win, CTX_wm_region(C));
+    WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
     WM_event_add_modal_handler(C, op);

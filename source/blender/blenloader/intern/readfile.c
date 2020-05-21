@@ -8432,23 +8432,9 @@ static void lib_link_workspace_layout_restore(struct IDNameLib_Map *id_map,
       LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
         if (sl->spacetype == SPACE_VIEW3D) {
           View3D *v3d = (View3D *)sl;
-          ARegion *region;
 
           v3d->camera = restore_pointer_by_name(id_map, (ID *)v3d->camera, USER_REAL);
           v3d->ob_center = restore_pointer_by_name(id_map, (ID *)v3d->ob_center, USER_REAL);
-
-          /* Free render engines for now. */
-          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                 &sl->regionbase;
-          for (region = regionbase->first; region; region = region->next) {
-            if (region->regiontype == RGN_TYPE_WINDOW) {
-              RegionView3D *rv3d = region->regiondata;
-              if (rv3d && rv3d->render_engine) {
-                RE_engine_free(rv3d->render_engine);
-                rv3d->render_engine = NULL;
-              }
-            }
-          }
         }
         else if (sl->spacetype == SPACE_GRAPH) {
           SpaceGraph *sipo = (SpaceGraph *)sl;
@@ -9880,7 +9866,8 @@ static void read_libblock_undo_restore_identical(
   BLI_assert((fd->skip_flags & BLO_READ_SKIP_UNDO_OLD_MAIN) == 0);
   BLI_assert(id_old != NULL);
 
-  id_old->tag = tag;
+  /* Some tags need to be preserved here. */
+  id_old->tag = tag | (id_old->tag & LIB_TAG_EXTRAUSER);
   id_old->lib = main->curlib;
   id_old->us = ID_FAKE_USERS(id_old);
   /* Do not reset id->icon_id here, memory allocated for it remains valid. */
