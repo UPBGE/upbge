@@ -1180,7 +1180,6 @@ void EEVEE_lights_cache_shcaster_material_add_old(EEVEE_ViewLayerData *sldata,
                                                   struct Object *ob,
                                                   const float *alpha_threshold);
 void EEVEE_lights_cache_shcaster_object_add_old(EEVEE_ViewLayerData *sldata, struct Object *ob);
-void EEVEE_lights_cache_finish_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_lights_update_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_draw_shadows_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, struct DRWView *view);
 void EEVEE_lights_free_old(void);
