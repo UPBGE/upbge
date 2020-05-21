@@ -2556,8 +2556,8 @@ enum {
 
 /* SceneEEVEE->shadow_method */
 enum {
-  SHADOW_ESM = 1,
-  SHADOW_VSM = 2,        /* UNUSED */
+  NEW_SHADOWS = 1,
+  OLD_SHADOWS = 2,        /* UNUSED */
   SHADOW_METHOD_MAX = 3, /* UNUSED */
 };
 

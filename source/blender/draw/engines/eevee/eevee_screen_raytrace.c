@@ -226,7 +226,7 @@ void EEVEE_screen_raytrace_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *v
      *   We then evaluate the lighting from the probes and mix the results together.
      */
     /* Old Shadows */
-    bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == SHADOW_ESM;
+    bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == OLD_SHADOWS;
 
     DRW_PASS_CREATE(psl->ssr_raytrace, DRW_STATE_WRITE_COLOR);
     DRWShadingGroup *grp = DRW_shgroup_create(trace_shader, psl->ssr_raytrace);

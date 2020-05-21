@@ -824,7 +824,7 @@ static void eevee_lightbake_cache_create(EEVEE_Data *vedata, EEVEE_LightBake *lb
   EEVEE_effects_init(sldata, vedata, NULL, true);
 
   /* Old Shadows */
-  bool old_shadows = scene_eval->eevee.shadow_method == SHADOW_ESM;
+  bool old_shadows = scene_eval->eevee.shadow_method == OLD_SHADOWS;
   if (old_shadows) {
     EEVEE_materials_init_old(sldata, vedata->stl, fbl);
     EEVEE_lights_init_old(sldata);

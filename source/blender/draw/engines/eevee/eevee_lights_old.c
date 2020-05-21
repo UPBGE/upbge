@@ -147,7 +147,7 @@ void EEVEE_lights_init_old(EEVEE_ViewLayerData *sldata)
        sldata->lights->shcaster_frontbuffer,
        sldata->lights->shcaster_backbuffer);
 
-  const int sh_method = scene_eval->eevee.shadow_method;
+  const int sh_method = OLD_SHADOWS/*scene_eval->eevee.shadow_method*/;
   int sh_cube_size = scene_eval->eevee.shadow_cube_size;
   int sh_cascade_size = scene_eval->eevee.shadow_cascade_size;
   const bool sh_high_bitdepth = (scene_eval->eevee.flag & SCE_EEVEE_SHADOW_HIGH_BITDEPTH) != 0;
@@ -186,20 +186,20 @@ void EEVEE_lights_init_old(EEVEE_ViewLayerData *sldata)
   linfo->shadow_cascade_size = sh_cascade_size;
 
   /* only compile the ones needed. reduce startup time. */
-  if ((sh_method == SHADOW_ESM) && !e_data.shadow_copy_cube_sh[SHADOW_ESM]) {
-    e_data.shadow_copy_cube_sh[SHADOW_ESM] = DRW_shader_create(datatoc_shadow_process_vert_old_glsl,
+  if ((sh_method == OLD_SHADOWS) && !e_data.shadow_copy_cube_sh[OLD_SHADOWS]) {
+    e_data.shadow_copy_cube_sh[OLD_SHADOWS] = DRW_shader_create(datatoc_shadow_process_vert_old_glsl,
                                                                datatoc_shadow_process_geom_old_glsl,
                                                                datatoc_shadow_copy_frag_old_glsl,
                                                                "#define ESM\n"
                                                                "#define COPY\n");
-    e_data.shadow_copy_cascade_sh[SHADOW_ESM] = DRW_shader_create(datatoc_shadow_process_vert_old_glsl,
+    e_data.shadow_copy_cascade_sh[OLD_SHADOWS] = DRW_shader_create(datatoc_shadow_process_vert_old_glsl,
                                                                   datatoc_shadow_process_geom_old_glsl,
                                                                   datatoc_shadow_copy_frag_old_glsl,
                                                                   "#define ESM\n"
                                                                   "#define COPY\n"
                                                                   "#define CSM\n");
   }
-  else if ((sh_method == SHADOW_VSM) && !e_data.shadow_copy_cube_sh[SHADOW_VSM]) {
+  /*else if ((sh_method == SHADOW_VSM) && !e_data.shadow_copy_cube_sh[SHADOW_VSM]) {
     e_data.shadow_copy_cube_sh[SHADOW_VSM] = DRW_shader_create(datatoc_shadow_process_vert_old_glsl,
                                                                datatoc_shadow_process_geom_old_glsl,
                                                                datatoc_shadow_copy_frag_old_glsl,
@@ -211,7 +211,7 @@ void EEVEE_lights_init_old(EEVEE_ViewLayerData *sldata)
                                                                   "#define VSM\n"
                                                                   "#define COPY\n"
                                                                   "#define CSM\n");
-  }
+  }*/
 }
 
 static GPUShader *eevee_lights_get_store_sh(int shadow_method, bool high_blur, bool cascade)
@@ -235,7 +235,7 @@ static GPUShader *eevee_lights_get_store_sh(int shadow_method, bool high_blur, b
     BLI_dynstr_free(ds_frag);
 
     ds_frag = BLI_dynstr_new();
-    BLI_dynstr_append(ds_frag, (shadow_method == SHADOW_VSM) ? "#define VSM\n" : "#define ESM\n");
+    BLI_dynstr_append(ds_frag, (shadow_method == NEW_SHADOWS) ? "#define VSM\n" : "#define ESM\n");
     if (high_blur) {
       BLI_dynstr_append(ds_frag, "#define HIGH_BLUR\n");
     }
@@ -575,12 +575,12 @@ void EEVEE_lights_cache_finish_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *veda
   }
 
   switch (linfo->shadow_method) {
-    case SHADOW_ESM:
+    case OLD_SHADOWS:
       shadow_pool_format = ((linfo->shadow_high_bitdepth) ? GPU_R32F : GPU_R16F);
       break;
-    case SHADOW_VSM:
+    /*case SHADOW_VSM:
       shadow_pool_format = ((linfo->shadow_high_bitdepth) ? GPU_RG32F : GPU_RG16F);
-      break;
+      break;*/
     default:
       BLI_assert(!"Incorrect Shadow Method");
       break;
@@ -895,7 +895,7 @@ static void eevee_shadow_cube_setup(Object *ob,
   ubo_data->bias = 0.05f * la->bias;
   ubo_data->nearf = la->clipsta;
   ubo_data->farf = 1.0f / (evli->invsqrdist * evli->invsqrdist);
-  ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
+  ubo_data->exp = (linfo->shadow_method == NEW_SHADOWS) ? la->bleedbias : la->bleedexp;
 
   evli->shadow_id = (float)(sh_data->shadow_id);
   ubo_data->shadow_start = (float)(sh_data->layer_id);
@@ -1194,7 +1194,7 @@ static void eevee_shadow_cascade_setup(Object *ob,
   ubo_data->bias = 0.05f * la->bias;
   ubo_data->nearf = la->clipsta;
   ubo_data->farf = la->clipend;
-  ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
+  ubo_data->exp = (linfo->shadow_method == NEW_SHADOWS) ? la->bleedbias : la->bleedexp;
 
   evli->shadow_id = (float)(sh_data->shadow_id);
   ubo_data->shadow_start = (float)(sh_data->layer_id);

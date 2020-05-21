@@ -59,9 +59,9 @@ typedef struct Light {
 
   float clipsta, clipend;
   float bias;
-  float soft;      /* DEPRECATED kept for compatibility. */
-  float bleedbias; /* DEPRECATED kept for compatibility. */
-  float bleedexp;  /* DEPRECATED kept for compatibility. */
+  float soft;
+  float bleedbias;
+  float bleedexp;
   short bufsize, samp, buffers, filtertype;
   char bufflag, buftype;
 

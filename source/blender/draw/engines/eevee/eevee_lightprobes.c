@@ -918,8 +918,15 @@ static void lightbake_render_scene_face(int face, EEVEE_BakeRenderData *user_dat
 
   struct GPUFrameBuffer **face_fb = user_data->face_fb;
 
-  /* Be sure that cascaded shadow maps are updated. */
-  EEVEE_shadows_draw(sldata, user_data->vedata, views[face]);
+  bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == OLD_SHADOWS;
+
+  if (old_shadows) {
+    EEVEE_draw_shadows_old(sldata, user_data->vedata, views[face]);
+  }
+  else {
+    /* Be sure that cascaded shadow maps are updated. */
+    EEVEE_shadows_draw(sldata, user_data->vedata, views[face]);
+  }
 
   GPU_framebuffer_bind(face_fb[face]);
   GPU_framebuffer_clear_depth(face_fb[face], 1.0f);
@@ -927,9 +934,18 @@ static void lightbake_render_scene_face(int face, EEVEE_BakeRenderData *user_dat
   DRW_draw_pass(psl->depth_pass);
   DRW_draw_pass(psl->depth_pass_cull);
   DRW_draw_pass(psl->probe_background);
-  EEVEE_materials_draw_opaque(sldata, psl);
+  if (!old_shadows) {
+    EEVEE_materials_draw_opaque(sldata, psl);
+  }
+  else {
+    DRW_draw_pass(psl->material_pass);
+    DRW_draw_pass(psl->material_pass_cull);
+  }
   DRW_draw_pass(psl->sss_pass); /* Only output standard pass */
   DRW_draw_pass(psl->sss_pass_cull);
+  if (old_shadows) {
+    EEVEE_draw_default_passes_old(psl);
+  }
   DRW_draw_pass(psl->transparent_pass);
 }
 
@@ -976,8 +992,14 @@ static void lightbake_render_scene_reflected(int layer, EEVEE_BakeRenderData *us
 
   DRW_stats_group_start("Planar Reflection");
 
-  /* Be sure that cascaded shadow maps are updated. */
-  EEVEE_shadows_draw(sldata, vedata, stl->g_data->planar_views[layer]);
+  bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == OLD_SHADOWS;
+  if (old_shadows) {
+    EEVEE_draw_shadows_old(sldata, vedata, stl->g_data->planar_views[layer]);
+  }
+  else {
+    /* Be sure that cascaded shadow maps are updated. */
+    EEVEE_shadows_draw(sldata, vedata, stl->g_data->planar_views[layer]);
+  }
 
   GPU_framebuffer_bind(fbl->planarref_fb);
   GPU_framebuffer_clear_depth(fbl->planarref_fb, 1.0);

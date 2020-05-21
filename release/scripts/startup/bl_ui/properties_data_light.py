@@ -176,7 +176,16 @@ class DATA_PT_EEVEE_shadow(DataButtonsPanel, Panel):
         if light.type != 'SUN':
             sub.prop(light, "shadow_buffer_clip_start", text="Clip Start")
 
+        if light.type == 'SUN':
+            sub.prop(light, "shadow_buffer_clip_end", text="End")
+
+        col.prop(light, "shadow_buffer_soft", text="Softness")
+
+        col.separator()
+
         col.prop(light, "shadow_buffer_bias", text="Bias")
+        col.prop(light, "shadow_buffer_exp", text="Exponent")
+        col.prop(light, "shadow_buffer_bleed_bias", text="Bleed Bias")
 
 
 class DATA_PT_EEVEE_shadow_cascaded_shadow_map(DataButtonsPanel, Panel):
@@ -236,6 +245,7 @@ class DATA_PT_EEVEE_shadow_contact(DataButtonsPanel, Panel):
         col.active = light.use_shadow and light.use_contact_shadow
 
         col.prop(light, "contact_shadow_distance", text="Distance")
+        col.prop(light, "contact_shadow_soft_size", text="Softness")
         col.prop(light, "contact_shadow_bias", text="Bias")
         col.prop(light, "contact_shadow_thickness", text="Thickness")
 

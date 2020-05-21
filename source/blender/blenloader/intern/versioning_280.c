@@ -2491,7 +2491,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         scene->eevee.motion_blur_samples = 8;
         scene->eevee.motion_blur_shutter = 0.5f;
 
-        scene->eevee.shadow_method = SHADOW_ESM;
+        scene->eevee.shadow_method = NEW_SHADOWS;
         scene->eevee.shadow_cube_size = 512;
         scene->eevee.shadow_cascade_size = 1024;
 
@@ -2564,7 +2564,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         EEVEE_GET_BOOL(props, shadow_high_bitdepth, SCE_EEVEE_SHADOW_HIGH_BITDEPTH);
         EEVEE_GET_BOOL(props, taa_reprojection, SCE_EEVEE_TAA_REPROJECTION);
         // EEVEE_GET_BOOL(props, sss_enable, SCE_EEVEE_SSS_ENABLED);
-        // EEVEE_GET_BOOL(props, sss_separate_albedo, SCE_EEVEE_SSS_SEPARATE_ALBEDO);
+        EEVEE_GET_BOOL(props, sss_separate_albedo, SCE_EEVEE_SSS_SEPARATE_ALBEDO);
         EEVEE_GET_BOOL(props, ssr_enable, SCE_EEVEE_SSR_ENABLED);
         EEVEE_GET_BOOL(props, ssr_refraction, SCE_EEVEE_SSR_REFRACTION);
         EEVEE_GET_BOOL(props, ssr_halfres, SCE_EEVEE_SSR_HALF_RESOLUTION);

@@ -779,7 +779,7 @@ void EEVEE_volumes_compute(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 
     /* Old Shadows */
     const DRWContextState *draw_ctx = DRW_context_state_get();
-    if (draw_ctx->scene->eevee.shadow_method != SHADOW_ESM) {
+    if (draw_ctx->scene->eevee.shadow_method != OLD_SHADOWS) {
       /* We sample the shadow-maps using shadow sampler. We need to enable Comparison mode.
        * TODO(fclem) avoid this by using sampler objects.*/
       GPU_texture_bind(sldata->shadow_cube_pool, 0);

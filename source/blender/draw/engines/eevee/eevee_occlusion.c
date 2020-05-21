@@ -162,7 +162,7 @@ void EEVEE_occlusion_output_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata
 
     /* Accumulation pass */
     /* Old Shadows */
-    bool old_shadows = scene_eval->eevee.shadow_method == SHADOW_ESM;
+    bool old_shadows = scene_eval->eevee.shadow_method == OLD_SHADOWS;
 
     DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD;
     DRW_PASS_CREATE(psl->ao_accum_ps, state);
@@ -211,7 +211,7 @@ void EEVEE_occlusion_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
      */
 
     /* Old Shadows */
-    bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == SHADOW_ESM;
+    bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == OLD_SHADOWS;
 
     DRW_PASS_CREATE(psl->ao_horizon_search, DRW_STATE_WRITE_COLOR);
     DRWShadingGroup *grp = DRW_shgroup_create(e_data.gtao_sh, psl->ao_horizon_search);

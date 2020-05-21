@@ -276,10 +276,10 @@ struct GPUTexture *EEVEE_materials_get_util_tex_old(void)
 static int eevee_material_shadow_option(int shadow_method)
 {
   switch (shadow_method) {
-    case SHADOW_ESM:
+    case OLD_SHADOWS:
       return VAR_MAT_ESM;
-    case SHADOW_VSM:
-      return VAR_MAT_VSM;
+    /*case SHADOW_VSM:
+      return VAR_MAT_VSM;*/
     default:
       BLI_assert(!"Incorrect Shadow Method");
       break;

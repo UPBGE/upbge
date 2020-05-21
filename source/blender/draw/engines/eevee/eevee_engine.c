@@ -90,7 +90,7 @@ static void eevee_engine_init(void *ved)
   EEVEE_effects_init(sldata, vedata, camera, false);
 
   /* Old Shadows */
-  bool old_shadows = draw_ctx->scene->eevee.shadow_method == SHADOW_ESM;
+  bool old_shadows = draw_ctx->scene->eevee.shadow_method == OLD_SHADOWS;
   if (old_shadows) {
     EEVEE_materials_init_old(sldata, vedata->stl, fbl);
     EEVEE_lights_init_old(sldata);
@@ -106,7 +106,7 @@ static void eevee_engine_init(void *ved)
 static void eevee_cache_init(void *vedata)
 {
   EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
-  bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == SHADOW_ESM;
+  bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == OLD_SHADOWS;
 
   EEVEE_bloom_cache_init(sldata, vedata);
   EEVEE_depth_of_field_cache_init(sldata, vedata);
@@ -145,7 +145,7 @@ void EEVEE_cache_populate(void *vedata, Object *ob)
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const int ob_visibility = DRW_object_visibility_in_active_context(ob);
   bool cast_shadow = false;
-  bool old_shadows = draw_ctx->scene->eevee.shadow_method == SHADOW_ESM;
+  bool old_shadows = draw_ctx->scene->eevee.shadow_method == OLD_SHADOWS;
 
   if (ob_visibility & OB_VISIBLE_PARTICLES) {
     EEVEE_particle_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
@@ -210,7 +210,7 @@ static void eevee_cache_finish(void *vedata)
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
 
-  bool old_shadows = scene_eval->eevee.shadow_method == SHADOW_ESM;
+  bool old_shadows = scene_eval->eevee.shadow_method == OLD_SHADOWS;
 
   EEVEE_volumes_cache_finish(sldata, vedata);
   if (old_shadows) {
@@ -262,7 +262,7 @@ static void eevee_draw_scene(void *vedata)
   /* Old Shadows */
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const Scene *scene = draw_ctx->scene;
-  bool old_shadows = scene->eevee.shadow_method == SHADOW_ESM;
+  bool old_shadows = scene->eevee.shadow_method == OLD_SHADOWS;
 
   /* Sort transparents before the loop. */
   DRW_pass_sort_shgroup_z(psl->transparent_pass);
