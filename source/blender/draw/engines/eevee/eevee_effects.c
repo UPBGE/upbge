@@ -171,7 +171,14 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
   }
 
   EEVEE_volumes_init(sldata, vedata);
-  EEVEE_subsurface_init(sldata, vedata);
+
+  bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == SHADOW_ESM;
+  if (old_shadows) {
+    EEVEE_subsurface_init_old(sldata, vedata);
+  }
+  else {
+    EEVEE_subsurface_init(sldata, vedata);
+  }
 
   /* Force normal buffer creation. */
   if (!minimal && (stl->g_data->render_passes & EEVEE_RENDER_PASS_NORMAL) != 0) {

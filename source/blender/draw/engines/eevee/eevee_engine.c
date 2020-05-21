@@ -88,25 +88,52 @@ static void eevee_engine_init(void *ved)
    * `EEVEE_effects_init` needs to go second for TAA. */
   EEVEE_renderpasses_init(vedata);
   EEVEE_effects_init(sldata, vedata, camera, false);
-  EEVEE_materials_init(sldata, stl, fbl);
-  EEVEE_shadows_init(sldata);
+
+  /* Old Shadows */
+  bool old_shadows = draw_ctx->scene->eevee.shadow_method == SHADOW_ESM;
+  if (old_shadows) {
+    EEVEE_materials_init_old(sldata, vedata->stl, fbl);
+    EEVEE_lights_init_old(sldata);
+  }
+  else {
+    EEVEE_materials_init(sldata, stl, fbl);
+    EEVEE_shadows_init(sldata);
+  }
+
   EEVEE_lightprobes_init(sldata, vedata);
 }
 
 static void eevee_cache_init(void *vedata)
 {
   EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
+  bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == SHADOW_ESM;
 
   EEVEE_bloom_cache_init(sldata, vedata);
   EEVEE_depth_of_field_cache_init(sldata, vedata);
   EEVEE_effects_cache_init(sldata, vedata);
   EEVEE_lightprobes_cache_init(sldata, vedata);
-  EEVEE_lights_cache_init(sldata, vedata);
-  EEVEE_materials_cache_init(sldata, vedata);
+
+  /* Old Shadows */
+  if (old_shadows) {
+    EEVEE_lights_cache_init_old(sldata, vedata);
+    EEVEE_materials_cache_init_old(sldata, vedata);
+  }
+  else {
+    EEVEE_lights_cache_init(sldata, vedata);
+    EEVEE_materials_cache_init(sldata, vedata);
+  }
   EEVEE_motion_blur_cache_init(sldata, vedata);
   EEVEE_occlusion_cache_init(sldata, vedata);
   EEVEE_screen_raytrace_cache_init(sldata, vedata);
-  EEVEE_subsurface_cache_init(sldata, vedata);
+
+  /* Old Shadows */
+  if (old_shadows) {
+    EEVEE_subsurface_cache_init_old(sldata, vedata);
+  }
+  else {
+    EEVEE_subsurface_cache_init(sldata, vedata);
+  }
+
   EEVEE_temporal_sampling_cache_init(sldata, vedata);
   EEVEE_volumes_cache_init(sldata, vedata);
 }
@@ -118,6 +145,7 @@ void EEVEE_cache_populate(void *vedata, Object *ob)
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const int ob_visibility = DRW_object_visibility_in_active_context(ob);
   bool cast_shadow = false;
+  bool old_shadows = draw_ctx->scene->eevee.shadow_method == SHADOW_ESM;
 
   if (ob_visibility & OB_VISIBLE_PARTICLES) {
     EEVEE_particle_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
@@ -125,10 +153,20 @@ void EEVEE_cache_populate(void *vedata, Object *ob)
 
   if (DRW_object_is_renderable(ob) && (ob_visibility & OB_VISIBLE_SELF)) {
     if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
-      EEVEE_materials_cache_populate(vedata, sldata, ob, &cast_shadow);
+      if (old_shadows) {
+        EEVEE_materials_cache_populate_old(vedata, sldata, ob, &cast_shadow);
+      }
+      else {
+        EEVEE_materials_cache_populate(vedata, sldata, ob, &cast_shadow);
+      }
     }
     else if (ob->type == OB_HAIR) {
-      EEVEE_object_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
+      if (old_shadows) {
+        EEVEE_hair_cache_populate_old(vedata, sldata, ob, &cast_shadow);
+      }
+      else {
+        EEVEE_object_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
+      }
     }
     else if (ob->type == OB_VOLUME) {
       EEVEE_volumes_cache_object_add(sldata, vedata, draw_ctx->scene, ob);
@@ -145,12 +183,22 @@ void EEVEE_cache_populate(void *vedata, Object *ob)
       }
     }
     else if (ob->type == OB_LAMP) {
-      EEVEE_lights_cache_add(sldata, ob);
+      if (old_shadows) {
+        EEVEE_lights_cache_add_old(sldata, ob);
+      }
+      else {
+        EEVEE_lights_cache_add(sldata, ob);
+      }
     }
   }
 
   if (cast_shadow) {
-    EEVEE_shadows_caster_register(sldata, ob);
+    if (old_shadows) {
+      EEVEE_lights_cache_shcaster_object_add_old(sldata, ob);
+    }
+    else {
+      EEVEE_shadows_caster_register(sldata, ob);
+    }
   }
 }
 
@@ -162,9 +210,18 @@ static void eevee_cache_finish(void *vedata)
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
 
+  bool old_shadows = scene_eval->eevee.shadow_method == SHADOW_ESM;
+
   EEVEE_volumes_cache_finish(sldata, vedata);
-  EEVEE_materials_cache_finish(sldata, vedata);
-  EEVEE_lights_cache_finish(sldata, vedata);
+  if (old_shadows) {
+    EEVEE_materials_cache_finish_old(sldata, vedata);
+    EEVEE_lights_cache_finish_old(sldata, vedata);
+  }
+  else {
+    EEVEE_materials_cache_finish(sldata, vedata);
+    EEVEE_lights_cache_finish(sldata, vedata);
+  }
+
   EEVEE_lightprobes_cache_finish(sldata, vedata);
 
   EEVEE_effects_draw_init(sldata, vedata);
@@ -238,7 +295,14 @@ static void eevee_draw_scene(void *vedata)
         EEVEE_update_noise(psl, fbl, r);
       }
       EEVEE_volumes_set_jitter(sldata, samp - 1);
-      EEVEE_materials_init(sldata, stl, fbl);
+      /* Old Shadows */
+      /* Why EEVEE_materials_init is called both in eevee_engine_init and in eevee_draw_scene?? */
+      if (old_shadows) {
+        EEVEE_materials_init_old(sldata, stl, fbl);
+      }
+      else {
+        EEVEE_materials_init(sldata, stl, fbl);
+      }
     }
     /* Copy previous persmat to UBO data */
     copy_m4_m4(sldata->common_data.prev_persmat, stl->effects->prev_persmat);
@@ -253,7 +317,12 @@ static void eevee_draw_scene(void *vedata)
 
     /* Refresh shadows */
     DRW_stats_group_start("Shadows");
-    EEVEE_shadows_draw(sldata, vedata, stl->effects->taa_view);
+    if (old_shadows) {
+      EEVEE_draw_shadows_old(sldata, vedata, stl->effects->taa_view);
+    }
+    else {
+      EEVEE_shadows_draw(sldata, vedata, stl->effects->taa_view);
+    }
     DRW_stats_group_end();
 
     if (((stl->effects->enabled_effects & EFFECT_TAA) != 0) &&
@@ -301,11 +370,21 @@ static void eevee_draw_scene(void *vedata)
       DRW_draw_pass(psl->background_pass);
     }
     EEVEE_materials_draw_opaque(sldata, psl);
-    EEVEE_subsurface_data_render(sldata, vedata);
+    if (old_shadows) {
+      EEVEE_subsurface_data_render_old(sldata, vedata);
+    }
+    else {
+      EEVEE_subsurface_data_render(sldata, vedata);
+    }
     DRW_stats_group_end();
 
     /* Effects pre-transparency */
-    EEVEE_subsurface_compute(sldata, vedata);
+    if (old_shadows) {
+      EEVEE_subsurface_compute_old(sldata, vedata);
+    }
+    else {
+      EEVEE_subsurface_compute(sldata, vedata);
+    }
     EEVEE_reflection_compute(sldata, vedata);
     EEVEE_occlusion_draw_debug(sldata, vedata);
     if (psl->probe_display) {
@@ -458,12 +537,18 @@ static void eevee_engine_free(void)
   EEVEE_effects_free();
   EEVEE_lightprobes_free();
   EEVEE_shadows_free();
+  /* Old Shadows */
+  EEVEE_lights_free_old();
   EEVEE_materials_free();
+  /* Old Shadows */
+  EEVEE_materials_free_old();
   EEVEE_mist_free();
   EEVEE_motion_blur_free();
   EEVEE_occlusion_free();
   EEVEE_screen_raytrace_free();
   EEVEE_subsurface_free();
+  /* Old Shadows */
+  EEVEE_subsurface_free_old();
   EEVEE_volumes_free();
   EEVEE_renderpasses_free();
 }

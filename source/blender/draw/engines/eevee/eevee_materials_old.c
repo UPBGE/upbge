@@ -1149,7 +1149,7 @@ static void material_opaque(Material *ma,
             /* Limit of 8 bit stencil buffer. ID 255 is refraction. */
             if (e_data.sss_count < 254) {
               DRW_shgroup_stencil_mask(*shgrp, e_data.sss_count + 1);
-              EEVEE_subsurface_add_pass(sldata, vedata, e_data.sss_count + 1, sss_profile);
+              EEVEE_subsurface_add_pass_old(sldata, vedata, e_data.sss_count + 1, sss_profile);
               e_data.sss_count++;
             }
             else {
@@ -1628,7 +1628,7 @@ void EEVEE_materials_cache_finish_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *v
   SET_FLAG_FROM_TEST(stl->effects->enabled_effects, e_data.sss_count > 0, EFFECT_SSS);
 
   /* TODO(fclem) this is not really clean. Init should not be done in cache finish. */
-  EEVEE_subsurface_draw_init(sldata, vedata);
+  EEVEE_subsurface_draw_init_old(sldata, vedata);
 }
 
 void EEVEE_materials_free_old(void)

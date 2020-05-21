@@ -141,7 +141,7 @@ static void set_shgrp_stencil(void *UNUSED(userData), DRWShadingGroup *shgrp)
   DRW_shgroup_stencil_mask(shgrp, 255);
 }
 
-void EEVEE_subsurface_output_init_old(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
+void EEVEE_subsurface_output_init_old(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata) /* FOR EEVEE_RENDER.C */
 {
   EEVEE_FramebufferList *fbl = vedata->fbl;
   EEVEE_TextureList *txl = vedata->txl;

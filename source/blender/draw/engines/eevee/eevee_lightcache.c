@@ -822,15 +822,37 @@ static void eevee_lightbake_cache_create(EEVEE_Data *vedata, EEVEE_LightBake *lb
   DRW_render_viewport_size_set(viewport_size);
 
   EEVEE_effects_init(sldata, vedata, NULL, true);
-  EEVEE_materials_init(sldata, stl, fbl);
-  EEVEE_shadows_init(sldata);
+
+  /* Old Shadows */
+  bool old_shadows = scene_eval->eevee.shadow_method == SHADOW_ESM;
+  if (old_shadows) {
+    EEVEE_materials_init_old(sldata, vedata->stl, fbl);
+    EEVEE_lights_init_old(sldata);
+  }
+  else {
+    EEVEE_materials_init(sldata, stl, fbl);
+    EEVEE_shadows_init(sldata);
+  }
   EEVEE_lightprobes_init(sldata, vedata);
 
   EEVEE_effects_cache_init(sldata, vedata);
-  EEVEE_materials_cache_init(sldata, vedata);
-  EEVEE_subsurface_cache_init(sldata, vedata);
+
+  /* Old Shadows */
+  if (old_shadows) {
+    EEVEE_materials_cache_init_old(sldata, vedata);
+    EEVEE_subsurface_cache_init_old(sldata, vedata);
+  }
+  else {
+    EEVEE_materials_cache_init(sldata, vedata);
+    EEVEE_subsurface_cache_init(sldata, vedata);
+  }
   EEVEE_volumes_cache_init(sldata, vedata);
-  EEVEE_lights_cache_init(sldata, vedata);
+  if (old_shadows) {
+    EEVEE_lights_cache_init_old(sldata, vedata);
+  }
+  else {
+    EEVEE_lights_cache_init(sldata, vedata);
+  }
   EEVEE_lightprobes_cache_init(sldata, vedata);
 
   EEVEE_lightbake_cache_init(sldata, vedata, lbake->rt_color, lbake->rt_depth);
@@ -845,8 +867,15 @@ static void eevee_lightbake_cache_create(EEVEE_Data *vedata, EEVEE_LightBake *lb
   DRW_render_object_iter(vedata, NULL, lbake->depsgraph, EEVEE_render_cache);
 
   EEVEE_volumes_cache_finish(sldata, vedata);
-  EEVEE_materials_cache_finish(sldata, vedata);
-  EEVEE_lights_cache_finish(sldata, vedata);
+  if (old_shadows) {
+    EEVEE_materials_cache_finish_old(sldata, vedata);
+    EEVEE_lights_cache_finish_old(sldata, vedata);
+  }
+  else {
+    EEVEE_materials_cache_finish(sldata, vedata);
+    EEVEE_lights_cache_finish(sldata, vedata);
+  }
+
   EEVEE_lightprobes_cache_finish(sldata, vedata);
   EEVEE_shadows_update(sldata, vedata);
 
