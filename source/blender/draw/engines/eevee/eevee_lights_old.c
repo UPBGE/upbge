@@ -49,10 +49,10 @@ static struct {
 
 extern char datatoc_shadow_vert_glsl[];
 extern char datatoc_shadow_frag_glsl[];
-extern char datatoc_shadow_process_vert_glsl[];
-extern char datatoc_shadow_process_geom_glsl[];
-extern char datatoc_shadow_store_frag_glsl[];
-extern char datatoc_shadow_copy_frag_glsl[];
+extern char datatoc_shadow_process_vert_old_glsl[];
+extern char datatoc_shadow_process_geom_old_glsl[];
+extern char datatoc_shadow_store_frag_old_glsl[];
+extern char datatoc_shadow_copy_frag_old_glsl[];
 extern char datatoc_concentric_samples_lib_glsl[];
 
 extern char datatoc_common_view_lib_glsl[];
@@ -187,27 +187,27 @@ void EEVEE_lights_init_old(EEVEE_ViewLayerData *sldata)
 
   /* only compile the ones needed. reduce startup time. */
   if ((sh_method == SHADOW_ESM) && !e_data.shadow_copy_cube_sh[SHADOW_ESM]) {
-    e_data.shadow_copy_cube_sh[SHADOW_ESM] = DRW_shader_create(datatoc_shadow_process_vert_glsl,
-                                                               datatoc_shadow_process_geom_glsl,
-                                                               datatoc_shadow_copy_frag_glsl,
+    e_data.shadow_copy_cube_sh[SHADOW_ESM] = DRW_shader_create(datatoc_shadow_process_vert_old_glsl,
+                                                               datatoc_shadow_process_geom_old_glsl,
+                                                               datatoc_shadow_copy_frag_old_glsl,
                                                                "#define ESM\n"
                                                                "#define COPY\n");
-    e_data.shadow_copy_cascade_sh[SHADOW_ESM] = DRW_shader_create(datatoc_shadow_process_vert_glsl,
-                                                                  datatoc_shadow_process_geom_glsl,
-                                                                  datatoc_shadow_copy_frag_glsl,
+    e_data.shadow_copy_cascade_sh[SHADOW_ESM] = DRW_shader_create(datatoc_shadow_process_vert_old_glsl,
+                                                                  datatoc_shadow_process_geom_old_glsl,
+                                                                  datatoc_shadow_copy_frag_old_glsl,
                                                                   "#define ESM\n"
                                                                   "#define COPY\n"
                                                                   "#define CSM\n");
   }
   else if ((sh_method == SHADOW_VSM) && !e_data.shadow_copy_cube_sh[SHADOW_VSM]) {
-    e_data.shadow_copy_cube_sh[SHADOW_VSM] = DRW_shader_create(datatoc_shadow_process_vert_glsl,
-                                                               datatoc_shadow_process_geom_glsl,
-                                                               datatoc_shadow_copy_frag_glsl,
+    e_data.shadow_copy_cube_sh[SHADOW_VSM] = DRW_shader_create(datatoc_shadow_process_vert_old_glsl,
+                                                               datatoc_shadow_process_geom_old_glsl,
+                                                               datatoc_shadow_copy_frag_old_glsl,
                                                                "#define VSM\n"
                                                                "#define COPY\n");
-    e_data.shadow_copy_cascade_sh[SHADOW_VSM] = DRW_shader_create(datatoc_shadow_process_vert_glsl,
-                                                                  datatoc_shadow_process_geom_glsl,
-                                                                  datatoc_shadow_copy_frag_glsl,
+    e_data.shadow_copy_cascade_sh[SHADOW_VSM] = DRW_shader_create(datatoc_shadow_process_vert_old_glsl,
+                                                                  datatoc_shadow_process_geom_old_glsl,
+                                                                  datatoc_shadow_copy_frag_old_glsl,
                                                                   "#define VSM\n"
                                                                   "#define COPY\n"
                                                                   "#define CSM\n");
@@ -230,7 +230,7 @@ static GPUShader *eevee_lights_get_store_sh(int shadow_method, bool high_blur, b
   if (*shader == NULL) {
     DynStr *ds_frag = BLI_dynstr_new();
     BLI_dynstr_append(ds_frag, datatoc_concentric_samples_lib_glsl);
-    BLI_dynstr_append(ds_frag, datatoc_shadow_store_frag_glsl);
+    BLI_dynstr_append(ds_frag, datatoc_shadow_store_frag_old_glsl);
     char *store_shadow_shader_str = BLI_dynstr_get_cstring(ds_frag);
     BLI_dynstr_free(ds_frag);
 
@@ -245,8 +245,8 @@ static GPUShader *eevee_lights_get_store_sh(int shadow_method, bool high_blur, b
     char *define_str = BLI_dynstr_get_cstring(ds_frag);
     BLI_dynstr_free(ds_frag);
 
-    *shader = DRW_shader_create(datatoc_shadow_process_vert_glsl,
-                                datatoc_shadow_process_geom_glsl,
+    *shader = DRW_shader_create(datatoc_shadow_process_vert_old_glsl,
+                                datatoc_shadow_process_geom_old_glsl,
                                 store_shadow_shader_str,
                                 define_str);
 
@@ -882,7 +882,7 @@ static void eevee_shadow_cube_setup(Object *ob,
 {
   EEVEE_ShadowCubeData *sh_data = &led->data.scd;
   EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
-  EEVEE_Shadow_old *ubo_data = linfo->shadow_data + sh_data->shadow_id;
+  EEVEE_Shadow_old *ubo_data = linfo->shadow_data_old + sh_data->shadow_id;
   EEVEE_ShadowCube *cube_data = linfo->shadow_cube_data + sh_data->cube_id;
   Light *la = (Light *)ob->data;
 
@@ -1000,7 +1000,7 @@ static void eevee_shadow_cascade_setup(Object *ob,
 
   EEVEE_ShadowCascadeData *sh_data = &led->data.scad;
   EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
-  EEVEE_Shadow_old *ubo_data = linfo->shadow_data + sh_data->shadow_id;
+  EEVEE_Shadow_old *ubo_data = linfo->shadow_data_old + sh_data->shadow_id;
   EEVEE_ShadowCascade *cascade_data = linfo->shadow_cascade_data + sh_data->cascade_id;
 
   /* obmat = Object Space > World Space */
@@ -1562,7 +1562,7 @@ void EEVEE_draw_shadows_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, DRW
   DRW_view_set_active(view);
 
   DRW_uniformbuffer_update(sldata->light_ubo, &linfo->light_data);
-  DRW_uniformbuffer_update(sldata->shadow_ubo, &linfo->shadow_data); /* Update all data at once */
+  DRW_uniformbuffer_update(sldata->shadow_ubo, &linfo->shadow_data_old); /* Update all data at once */
 
   sldata->common_data.ray_type = saved_ray_type;
   DRW_uniformbuffer_update(sldata->common_ubo, &sldata->common_data);

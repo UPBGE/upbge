@@ -38,13 +38,13 @@ static struct {
 
 extern char datatoc_common_view_lib_glsl[];
 extern char datatoc_common_uniforms_lib_glsl[];
-extern char datatoc_effect_subsurface_frag_glsl[];
+extern char datatoc_effect_subsurface_frag_old_glsl[];
 
 static void eevee_create_shader_subsurface(void)
 {
   char *frag_str = BLI_string_joinN(datatoc_common_view_lib_glsl,
                                     datatoc_common_uniforms_lib_glsl,
-                                    datatoc_effect_subsurface_frag_glsl);
+                                    datatoc_effect_subsurface_frag_old_glsl);
 
   e_data.sss_sh[0] = DRW_shader_create_fullscreen(frag_str, "#define FIRST_PASS\n");
   e_data.sss_sh[1] = DRW_shader_create_fullscreen(frag_str, "#define SECOND_PASS\n");
@@ -59,7 +59,7 @@ static void eevee_create_shader_subsurface(void)
   MEM_freeN(frag_str);
 }
 
-void EEVEE_subsurface_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
+void EEVEE_subsurface_init_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 {
   EEVEE_CommonUniformBuffer *common_data = &sldata->common_data;
   EEVEE_StorageList *stl = vedata->stl;
@@ -73,7 +73,7 @@ void EEVEE_subsurface_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   common_data->sss_jitter_threshold = scene_eval->eevee.sss_jitter_threshold;
 }
 
-void EEVEE_subsurface_draw_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
+void EEVEE_subsurface_draw_init_old(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
 {
   EEVEE_EffectsInfo *effects = vedata->stl->effects;
   EEVEE_FramebufferList *fbl = vedata->fbl;
@@ -141,7 +141,7 @@ static void set_shgrp_stencil(void *UNUSED(userData), DRWShadingGroup *shgrp)
   DRW_shgroup_stencil_mask(shgrp, 255);
 }
 
-void EEVEE_subsurface_output_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
+void EEVEE_subsurface_output_init_old(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
 {
   EEVEE_FramebufferList *fbl = vedata->fbl;
   EEVEE_TextureList *txl = vedata->txl;
@@ -186,7 +186,7 @@ void EEVEE_subsurface_output_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Dat
   }
 }
 
-void EEVEE_subsurface_cache_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
+void EEVEE_subsurface_cache_init_old(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
 {
   EEVEE_PassList *psl = vedata->psl;
 
@@ -204,7 +204,7 @@ void EEVEE_subsurface_cache_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data
   DRW_PASS_CREATE(psl->sss_accum_ps, state | DRW_STATE_BLEND_ADD);
 }
 
-void EEVEE_subsurface_add_pass(EEVEE_ViewLayerData *sldata,
+void EEVEE_subsurface_add_pass_old(EEVEE_ViewLayerData *sldata,
                                EEVEE_Data *vedata,
                                uint sss_id,
                                struct GPUUniformBuffer *sss_profile)
@@ -255,7 +255,7 @@ void EEVEE_subsurface_add_pass(EEVEE_ViewLayerData *sldata,
   }
 }
 
-void EEVEE_subsurface_data_render(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
+void EEVEE_subsurface_data_render_old(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
 {
   EEVEE_PassList *psl = vedata->psl;
   EEVEE_FramebufferList *fbl = vedata->fbl;
@@ -291,7 +291,7 @@ void EEVEE_subsurface_data_render(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Dat
   }
 }
 
-void EEVEE_subsurface_compute(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
+void EEVEE_subsurface_compute_old(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
 {
   EEVEE_PassList *psl = vedata->psl;
   EEVEE_StorageList *stl = vedata->stl;
@@ -328,7 +328,7 @@ void EEVEE_subsurface_compute(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *v
   }
 }
 
-void EEVEE_subsurface_output_accumulate(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
+void EEVEE_subsurface_output_accumulate_old(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
 {
   EEVEE_PassList *psl = vedata->psl;
   EEVEE_FramebufferList *fbl = vedata->fbl;
@@ -348,7 +348,7 @@ void EEVEE_subsurface_output_accumulate(EEVEE_ViewLayerData *UNUSED(sldata), EEV
   }
 }
 
-void EEVEE_subsurface_free(void)
+void EEVEE_subsurface_free_old(void)
 {
   DRW_SHADER_FREE_SAFE(e_data.sss_sh[0]);
   DRW_SHADER_FREE_SAFE(e_data.sss_sh[1]);

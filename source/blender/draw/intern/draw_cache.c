@@ -940,6 +940,41 @@ GPUBatch **DRW_cache_object_surface_material_get(struct Object *ob,
   }
 }
 
+/* Old Shadows */
+GPUBatch **DRW_cache_object_surface_material_get_old(struct Object *ob,
+                                                 struct GPUMaterial **gpumat_array,
+                                                 uint gpumat_array_len,
+                                                 char **auto_layer_names,
+                                                 int **auto_layer_is_srgb,
+                                                 int *auto_layer_count)
+{
+  if (auto_layer_names != NULL) {
+    *auto_layer_names = NULL;
+    *auto_layer_is_srgb = NULL;
+    *auto_layer_count = 0;
+  }
+
+  switch (ob->type) {
+    case OB_MESH:
+      return DRW_cache_mesh_surface_shaded_get_old(ob,
+                                               gpumat_array,
+                                               gpumat_array_len,
+                                               auto_layer_names,
+                                               auto_layer_is_srgb,
+                                               auto_layer_count);
+    case OB_CURVE:
+      return DRW_cache_curve_surface_shaded_get(ob, gpumat_array, gpumat_array_len);
+    case OB_SURF:
+      return DRW_cache_surf_surface_shaded_get(ob, gpumat_array, gpumat_array_len);
+    case OB_FONT:
+      return DRW_cache_text_surface_shaded_get(ob, gpumat_array, gpumat_array_len);
+    case OB_MBALL:
+      return DRW_cache_mball_surface_shaded_get(ob, gpumat_array, gpumat_array_len);
+    default:
+      return NULL;
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2824,6 +2859,25 @@ GPUBatch **DRW_cache_mesh_surface_shaded_get(Object *ob,
   BLI_assert(ob->type == OB_MESH);
   return DRW_mesh_batch_cache_get_surface_shaded(ob->data, gpumat_array, gpumat_array_len);
 }
+
+/* Old Shadows */
+/* Return list of batches with length equal to max(1, totcol). */
+GPUBatch **DRW_cache_mesh_surface_shaded_get_old(Object *ob,
+                                             struct GPUMaterial **gpumat_array,
+                                             uint gpumat_array_len,
+                                             char **auto_layer_names,
+                                             int **auto_layer_is_srgb,
+                                             int *auto_layer_count)
+{
+  BLI_assert(ob->type == OB_MESH);
+  return DRW_mesh_batch_cache_get_surface_shaded_old(ob->data,
+                                                 gpumat_array,
+                                                 gpumat_array_len,
+                                                 auto_layer_names,
+                                                 auto_layer_is_srgb,
+                                                 auto_layer_count);
+}
+
 
 /* Return list of batches with length equal to max(1, totcol). */
 GPUBatch **DRW_cache_mesh_surface_texpaint_get(Object *ob)

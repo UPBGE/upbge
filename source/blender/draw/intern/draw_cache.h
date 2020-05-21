@@ -60,6 +60,15 @@ struct GPUBatch *DRW_cache_object_loose_edges_get(struct Object *ob);
 struct GPUBatch **DRW_cache_object_surface_material_get(struct Object *ob,
                                                         struct GPUMaterial **gpumat_array,
                                                         uint gpumat_array_len);
+
+/* Old Shadows */
+struct GPUBatch **DRW_cache_object_surface_material_get_old(struct Object *ob,
+                                                        struct GPUMaterial **gpumat_array,
+                                                        uint gpumat_array_len,
+                                                        char **auto_layer_names,
+                                                        int **auto_layer_is_srgb,
+                                                        int *auto_layer_count);
+
 struct GPUBatch *DRW_cache_object_face_wireframe_get(struct Object *ob);
 int DRW_cache_object_material_count_get(struct Object *ob);
 
@@ -131,6 +140,15 @@ struct GPUBatch *DRW_cache_mesh_surface_edges_get(struct Object *ob);
 struct GPUBatch **DRW_cache_mesh_surface_shaded_get(struct Object *ob,
                                                     struct GPUMaterial **gpumat_array,
                                                     uint gpumat_array_len);
+
+/* Old Shadows */
+struct GPUBatch **DRW_cache_mesh_surface_shaded_get_old(struct Object *ob,
+                                                    struct GPUMaterial **gpumat_array,
+                                                    uint gpumat_array_len,
+                                                    char **auto_layer_names,
+                                                    int **auto_layer_is_srgb,
+                                                    int *auto_layer_count);
+
 struct GPUBatch **DRW_cache_mesh_surface_texpaint_get(struct Object *ob);
 struct GPUBatch *DRW_cache_mesh_surface_texpaint_single_get(struct Object *ob);
 struct GPUBatch *DRW_cache_mesh_surface_vertpaint_get(struct Object *ob);

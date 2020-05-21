@@ -161,10 +161,16 @@ void EEVEE_occlusion_output_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata
     }
 
     /* Accumulation pass */
+    /* Old Shadows */
+    bool old_shadows = scene_eval->eevee.shadow_method == SHADOW_ESM;
+
     DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD;
     DRW_PASS_CREATE(psl->ao_accum_ps, state);
     DRWShadingGroup *grp = DRW_shgroup_create(e_data.gtao_debug_sh, psl->ao_accum_ps);
-    DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex());
+    DRW_shgroup_uniform_texture(grp,
+                                "utilTex",
+                                old_shadows ? EEVEE_materials_get_util_tex_old() :
+                                              EEVEE_materials_get_util_tex());
     DRW_shgroup_uniform_texture_ref(grp, "maxzBuffer", &txl->maxzbuffer);
     DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);
     DRW_shgroup_uniform_texture_ref(grp, "normalBuffer", &effects->ssr_normal_input);
@@ -203,9 +209,16 @@ void EEVEE_occlusion_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
      *   the shading stage. This let us do correct shadowing for each diffuse / specular
      *   lobe present in the shader using the correct normal.
      */
+
+    /* Old Shadows */
+    bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == SHADOW_ESM;
+
     DRW_PASS_CREATE(psl->ao_horizon_search, DRW_STATE_WRITE_COLOR);
     DRWShadingGroup *grp = DRW_shgroup_create(e_data.gtao_sh, psl->ao_horizon_search);
-    DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex());
+    DRW_shgroup_uniform_texture(grp,
+                                "utilTex",
+                                old_shadows ? EEVEE_materials_get_util_tex_old() :
+                                              EEVEE_materials_get_util_tex());
     DRW_shgroup_uniform_texture_ref(grp, "maxzBuffer", &txl->maxzbuffer);
     DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &effects->ao_src_depth);
     DRW_shgroup_uniform_block(grp, "common_block", sldata->common_ubo);
@@ -215,7 +228,10 @@ void EEVEE_occlusion_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 
     DRW_PASS_CREATE(psl->ao_horizon_search_layer, DRW_STATE_WRITE_COLOR);
     grp = DRW_shgroup_create(e_data.gtao_layer_sh, psl->ao_horizon_search_layer);
-    DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex());
+    DRW_shgroup_uniform_texture(grp,
+                                "utilTex",
+                                old_shadows ? EEVEE_materials_get_util_tex_old() :
+                                              EEVEE_materials_get_util_tex());
     DRW_shgroup_uniform_texture_ref(grp, "maxzBuffer", &txl->maxzbuffer);
     DRW_shgroup_uniform_texture_ref(grp, "depthBufferLayered", &effects->ao_src_depth);
     DRW_shgroup_uniform_block(grp, "common_block", sldata->common_ubo);
@@ -227,7 +243,10 @@ void EEVEE_occlusion_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     if (G.debug_value == 6) {
       DRW_PASS_CREATE(psl->ao_horizon_debug, DRW_STATE_WRITE_COLOR);
       grp = DRW_shgroup_create(e_data.gtao_debug_sh, psl->ao_horizon_debug);
-      DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex());
+      DRW_shgroup_uniform_texture(grp,
+                                  "utilTex",
+                                  old_shadows ? EEVEE_materials_get_util_tex_old() :
+                                                EEVEE_materials_get_util_tex());
       DRW_shgroup_uniform_texture_ref(grp, "maxzBuffer", &txl->maxzbuffer);
       DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);
       DRW_shgroup_uniform_texture_ref(grp, "normalBuffer", &effects->ssr_normal_input);

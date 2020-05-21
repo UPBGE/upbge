@@ -218,6 +218,13 @@ typedef struct MeshBatchCache {
 
   GPUBatch **surface_per_mat;
 
+  /* Old Shadows */
+  /* arrays of bool uniform names (and value) that will be use to
+   * set srgb conversion for auto attributes.*/
+  char *auto_layer_names;
+  int *auto_layer_is_srgb;
+  int auto_layer_len;
+
   DRWBatchFlag batch_requested;
   DRWBatchFlag batch_ready;
 

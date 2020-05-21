@@ -202,14 +202,17 @@ static void eevee_draw_scene(void *vedata)
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
+  /* Old Shadows */
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const Scene *scene = draw_ctx->scene;
+  bool old_shadows = scene->eevee.shadow_method == SHADOW_ESM;
+
   /* Sort transparents before the loop. */
   DRW_pass_sort_shgroup_z(psl->transparent_pass);
 
   /* Number of iteration: Use viewport taa_samples when using viewport rendering */
   int loop_len = 1;
   if (DRW_state_is_image_render()) {
-    const DRWContextState *draw_ctx = DRW_context_state_get();
-    const Scene *scene = draw_ctx->scene;
     loop_len = MAX2(1, scene->eevee.taa_samples);
   }
 
@@ -228,7 +231,12 @@ static void eevee_draw_scene(void *vedata)
       int samp = taa_use_reprojection ? stl->effects->taa_reproject_sample + 1 :
                                         stl->effects->taa_current_sample;
       BLI_halton_3d(primes, offset, samp, r);
-      EEVEE_update_noise(psl, fbl, r);
+      if (old_shadows) {
+        EEVEE_update_noise_old(psl, fbl, r);
+      }
+      else {
+        EEVEE_update_noise(psl, fbl, r);
+      }
       EEVEE_volumes_set_jitter(sldata, samp - 1);
       EEVEE_materials_init(sldata, stl, fbl);
     }

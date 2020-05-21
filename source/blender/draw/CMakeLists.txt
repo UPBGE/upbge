@@ -104,7 +104,6 @@ set(SRC
   engines/eevee/eevee_subsurface_old.c
   engines/eevee/eevee_temporal_sampling.c
   engines/eevee/eevee_volumes.c
-  engines/eevee/eevee_volumes_old.c
   engines/workbench/workbench_data.c
   engines/workbench/workbench_effect_antialiasing.c
   engines/workbench/workbench_effect_cavity.c

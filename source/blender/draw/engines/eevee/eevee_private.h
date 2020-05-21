@@ -163,6 +163,10 @@ BLI_INLINE bool eevee_hdri_preview_overlay_enabled(const View3D *v3d)
 #define MIN_CUBE_LOD_LEVEL 3
 #define MAX_PLANAR_LOD_LEVEL 9
 
+/* Old Shadows */
+#define OCTAHEDRAL_SIZE_FROM_CUBESIZE(cube_size) \
+  ((int)ceilf(sqrtf((cube_size * cube_size) * 6.0f)))
+
 /* All the renderpasses that use the GPUMaterial for accumulation */
 #define EEVEE_RENDERPASSES_MATERIAL \
   (EEVEE_RENDER_PASS_EMIT | EEVEE_RENDER_PASS_DIFFUSE_COLOR | EEVEE_RENDER_PASS_DIFFUSE_LIGHT | \
@@ -331,6 +335,9 @@ typedef struct EEVEE_PassList {
   struct DRWPass *aa_edge_ps;
   struct DRWPass *aa_weight_ps;
   struct DRWPass *aa_resolve_ps;
+
+  /* Old Shadows */
+  struct DRWPass *sss_accum_ps;
   /* End of Game engine transition */
 } EEVEE_PassList;
 
@@ -430,6 +437,10 @@ typedef struct EEVEE_TextureList {
   struct GPUTexture *depth_buffer_tx;
   struct GPUTexture *smaa_search_tx;
   struct GPUTexture *smaa_area_tx;
+
+  /* Old Shadows */
+  struct GPUTexture *sss_dir_accum;
+  struct GPUTexture *sss_col_accum;
   /* End of Game engine transition */
 } EEVEE_TextureList;
 
@@ -578,6 +589,7 @@ typedef struct EEVEE_LightsInfo {
   /* Lights tracking */
   int new_shadow_id[MAX_LIGHT]; /* To be able to convert old bitfield to new bitfield */
   struct EEVEE_BoundSphere shadow_bounds_old[MAX_LIGHT]; /* Tightly packed light bounds  */
+  struct EEVEE_Shadow_old shadow_data_old[MAX_SHADOW];
 
   int cube_len, cascade_len, shadow_len;
   int shadow_cube_size, shadow_cascade_size;
@@ -1094,18 +1106,6 @@ struct GPUMaterial *EEVEE_material_world_volume_get(struct Scene *scene, struct 
 struct GPUMaterial *EEVEE_material_mesh_get(
     struct Scene *scene, Material *ma, EEVEE_Data *vedata, bool use_blend, bool use_refract);
 
-/* Old Shadows */
-struct GPUMaterial *EEVEE_material_mesh_get_old(struct Scene *scene,
-                                            Material *ma,
-                                            EEVEE_Data *vedata,
-                                            bool use_blend,
-                                            bool use_refract,
-                                            bool use_translucency,
-                                            int shadow_method);
-struct GPUMaterial *EEVEE_material_hair_get_old(struct Scene *scene, Material *ma, int shadow_method);
-void EEVEE_draw_default_passes_old(EEVEE_PassList *psl);
-
-
 struct GPUMaterial *EEVEE_material_mesh_volume_get(struct Scene *scene, Material *ma);
 struct GPUMaterial *EEVEE_material_mesh_depth_get(struct Scene *scene,
                                                   Material *ma,
@@ -1126,32 +1126,64 @@ int EEVEE_material_output_pass_index_get(EEVEE_ViewLayerData *UNUSED(sldata),
 int EEVEE_material_output_color_pass_index_get(EEVEE_ViewLayerData *sldata,
                                                EEVEE_Data *vedata,
                                                eViewLayerEEVEEPassType renderpass_type);
+
+/* Old Shadows */
+struct GPUTexture *EEVEE_materials_get_util_tex_old(void); /* XXX */
+void EEVEE_update_noise_old(EEVEE_PassList *psl,
+                            EEVEE_FramebufferList *fbl,
+                            const double offsets[3]);
+struct GPUMaterial *EEVEE_material_mesh_get_old(struct Scene *scene,
+                                                Material *ma,
+                                                EEVEE_Data *vedata,
+                                                bool use_blend,
+                                                bool use_refract,
+                                                bool use_translucency,
+                                                int shadow_method);
+struct GPUMaterial *EEVEE_material_hair_get_old(struct Scene *scene,
+                                                Material *ma,
+                                                int shadow_method);
+void EEVEE_materials_init_old(EEVEE_ViewLayerData *sldata,
+                              EEVEE_StorageList *stl,
+                              EEVEE_FramebufferList *fbl);
+void EEVEE_materials_cache_init_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_materials_cache_populate_old(EEVEE_Data *vedata,
+                                        EEVEE_ViewLayerData *sldata,
+                                        Object *ob,
+                                        bool *cast_shadow);
+void EEVEE_hair_cache_populate_old(EEVEE_Data *vedata,
+                                   EEVEE_ViewLayerData *sldata,
+                                   Object *ob,
+                                   bool *cast_shadow);
+void EEVEE_materials_cache_finish_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_materials_free_old(void);
+void EEVEE_draw_default_passes_old(EEVEE_PassList *psl);
+
 /* eevee_lights.c */
+void eevee_light_matrix_get(const EEVEE_Light *evli, float r_mat[4][4]);
+void EEVEE_lights_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_lights_cache_add(EEVEE_ViewLayerData *sldata, struct Object *ob);
+void EEVEE_lights_cache_finish(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+
 /* Old Shadows */
 void EEVEE_lights_init_old(EEVEE_ViewLayerData *sldata);
 void EEVEE_lights_cache_init_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_lights_cache_add_old(EEVEE_ViewLayerData *sldata, struct Object *ob);
 void EEVEE_lights_cache_finish_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_lights_cache_shcaster_add_old(EEVEE_ViewLayerData *sldata,
-                                     EEVEE_StorageList *stl,
-                                     struct GPUBatch *geom,
-                                     Object *ob);
+                                         EEVEE_StorageList *stl,
+                                         struct GPUBatch *geom,
+                                         Object *ob);
 void EEVEE_lights_cache_shcaster_material_add_old(EEVEE_ViewLayerData *sldata,
-                                              EEVEE_PassList *psl,
-                                              struct GPUMaterial *gpumat,
-                                              struct GPUBatch *geom,
-                                              struct Object *ob,
-                                              const float *alpha_threshold);
+                                                  EEVEE_PassList *psl,
+                                                  struct GPUMaterial *gpumat,
+                                                  struct GPUBatch *geom,
+                                                  struct Object *ob,
+                                                  const float *alpha_threshold);
 void EEVEE_lights_cache_shcaster_object_add_old(EEVEE_ViewLayerData *sldata, struct Object *ob);
 void EEVEE_lights_cache_finish_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_lights_update_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_draw_shadows_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, struct DRWView *view);
 void EEVEE_lights_free_old(void);
-
-void eevee_light_matrix_get(const EEVEE_Light *evli, float r_mat[4][4]);
-void EEVEE_lights_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
-void EEVEE_lights_cache_add(EEVEE_ViewLayerData *sldata, struct Object *ob);
-void EEVEE_lights_cache_finish(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 
 /* eevee_shadows.c */
 void eevee_contact_shadow_setup(const Light *la, EEVEE_Shadow *evsh);
@@ -1330,6 +1362,22 @@ void EEVEE_subsurface_data_render(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedat
 void EEVEE_subsurface_compute(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_subsurface_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_subsurface_free(void);
+
+/* Old Shadows */
+void EEVEE_subsurface_init_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_subsurface_draw_init_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_subsurface_cache_init_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_subsurface_output_init_old(EEVEE_ViewLayerData *sldata,
+                                  EEVEE_Data *vedata);
+void EEVEE_subsurface_add_pass_old(EEVEE_ViewLayerData *sldata,
+                               EEVEE_Data *vedata,
+                               uint sss_id,
+                               struct GPUUniformBuffer *sss_profile);
+void EEVEE_subsurface_data_render_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_subsurface_compute_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_subsurface_output_accumulate_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
+void EEVEE_subsurface_free_old(void);
+
 
 /* eevee_motion_blur.c */
 int EEVEE_motion_blur_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, Object *camera);
