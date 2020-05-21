@@ -83,9 +83,11 @@ set(SRC
   engines/eevee/eevee_lightcache.c
   engines/eevee/eevee_lightprobes.c
   engines/eevee/eevee_lights.c
+  engines/eevee/eevee_lights_old.c
   engines/eevee/eevee_lookdev.c
   engines/eevee/eevee_lut.c
   engines/eevee/eevee_materials.c
+  engines/eevee/eevee_materials_old.c
   engines/eevee/eevee_mist.c
   engines/eevee/eevee_motion_blur.c
   engines/eevee/eevee_occlusion.c
@@ -99,8 +101,10 @@ set(SRC
   engines/eevee/eevee_shadows_cube.c
   engines/eevee/eevee_smaa.c
   engines/eevee/eevee_subsurface.c
+  engines/eevee/eevee_subsurface_old.c
   engines/eevee/eevee_temporal_sampling.c
   engines/eevee/eevee_volumes.c
+  engines/eevee/eevee_volumes_old.c
   engines/workbench/workbench_data.c
   engines/workbench/workbench_effect_antialiasing.c
   engines/workbench/workbench_effect_cavity.c
@@ -187,11 +191,13 @@ set(LIB
 
 data_to_c_simple(engines/eevee/shaders/ambient_occlusion_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/default_frag.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/default_frag_old.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/default_world_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/background_vert.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/concentric_samples_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/common_uniforms_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/lights_lib.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/lights_lib_old.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/lightprobe_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/lightprobe_filter_glossy_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/lightprobe_filter_diffuse_frag.glsl SRC)
@@ -206,6 +212,7 @@ data_to_c_simple(engines/eevee/shaders/lightprobe_grid_fill_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/lightprobe_planar_display_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/lightprobe_planar_display_vert.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/lit_surface_frag.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/lit_surface_frag_old.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/lit_surface_vert.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_bloom_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_dof_vert.glsl SRC)
@@ -222,6 +229,7 @@ data_to_c_simple(engines/eevee/shaders/effect_smaa_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_smaa_vert.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_ssr_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_subsurface_frag.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/effect_subsurface_frag_old.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_translucency_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/effect_temporal_aa.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/lightprobe_planar_downsample_frag.glsl SRC)
@@ -231,16 +239,22 @@ data_to_c_simple(engines/eevee/shaders/prepass_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/prepass_vert.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/shadow_accum_frag.glsl SRC)
 
+data_to_c_simple(engines/eevee/shaders/shadow_copy_frag_old.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/shadow_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/shadow_vert.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/shadow_process_geom_old.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/shadow_process_vert_old.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/shadow_store_frag_old.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/bsdf_lut_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/btdf_lut_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/bsdf_common_lib.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/bsdf_common_lib_old.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/irradiance_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/octahedron_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/cubemap_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/bsdf_sampling_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/raytrace_lib.glsl SRC)
+data_to_c_simple(engines/eevee/shaders/raytrace_lib_old.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/renderpass_postprocess_frag.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/ltc_lib.glsl SRC)
 data_to_c_simple(engines/eevee/shaders/ssr_lib.glsl SRC)

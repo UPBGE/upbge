@@ -105,9 +105,9 @@ static void lightbits_convert(EEVEE_LightBits *r,
 
 /* *********** FUNCTIONS *********** */
 
-void EEVEE_lights_init(EEVEE_ViewLayerData *sldata)
+void EEVEE_lights_init_old(EEVEE_ViewLayerData *sldata)
 {
-  const uint shadow_ubo_size = sizeof(EEVEE_Shadow) * MAX_SHADOW +
+  const uint shadow_ubo_size = sizeof(EEVEE_Shadow_old) * MAX_SHADOW +
                                sizeof(EEVEE_ShadowCube) * MAX_SHADOW_CUBE +
                                sizeof(EEVEE_ShadowCascade) * MAX_SHADOW_CASCADE;
 
@@ -296,7 +296,7 @@ static DRWPass *eevee_lights_cascade_store_pass_get(EEVEE_PassList *psl,
   return *pass;
 }
 
-void EEVEE_lights_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
+void EEVEE_lights_cache_init_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 {
   EEVEE_LightsInfo *linfo = sldata->lights;
   EEVEE_StorageList *stl = vedata->stl;
@@ -354,7 +354,7 @@ void EEVEE_lights_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   }
 }
 
-void EEVEE_lights_cache_add(EEVEE_ViewLayerData *sldata, Object *ob)
+void EEVEE_lights_cache_add_old(EEVEE_ViewLayerData *sldata, Object *ob)
 {
   EEVEE_LightsInfo *linfo = sldata->lights;
 
@@ -425,8 +425,8 @@ void EEVEE_lights_cache_add(EEVEE_ViewLayerData *sldata, Object *ob)
 
           /* Saving light bounds for later. */
           BLI_assert(linfo->cpu_cube_len >= 0 && linfo->cpu_cube_len < MAX_LIGHT);
-          copy_v3_v3(linfo->shadow_bounds[linfo->cpu_cube_len].center, ob->obmat[3]);
-          linfo->shadow_bounds[linfo->cpu_cube_len].radius = light_attenuation_radius_get(
+          copy_v3_v3(linfo->shadow_bounds_old[linfo->cpu_cube_len].center, ob->obmat[3]);
+          linfo->shadow_bounds_old[linfo->cpu_cube_len].radius = light_attenuation_radius_get(
               la, threshold);
 
           EEVEE_ShadowCubeData *data = &led->data.scd;
@@ -452,7 +452,7 @@ void EEVEE_lights_cache_add(EEVEE_ViewLayerData *sldata, Object *ob)
 }
 
 /* Add a shadow caster to the shadowpasses */
-void EEVEE_lights_cache_shcaster_add(EEVEE_ViewLayerData *UNUSED(sldata),
+void EEVEE_lights_cache_shcaster_add_old(EEVEE_ViewLayerData *UNUSED(sldata),
                                      EEVEE_StorageList *stl,
                                      struct GPUBatch *geom,
                                      Object *ob)
@@ -460,7 +460,7 @@ void EEVEE_lights_cache_shcaster_add(EEVEE_ViewLayerData *UNUSED(sldata),
   DRW_shgroup_call(stl->g_data->shadow_shgrp, geom, ob);
 }
 
-void EEVEE_lights_cache_shcaster_material_add(EEVEE_ViewLayerData *sldata,
+void EEVEE_lights_cache_shcaster_material_add_old(EEVEE_ViewLayerData *sldata,
                                               EEVEE_PassList *psl,
                                               struct GPUMaterial *gpumat,
                                               struct GPUBatch *geom,
@@ -491,7 +491,7 @@ void EEVEE_lights_cache_shcaster_material_add(EEVEE_ViewLayerData *sldata,
 }
 
 /* Make that object update shadow casting lights inside its influence bounding box. */
-void EEVEE_lights_cache_shcaster_object_add(EEVEE_ViewLayerData *sldata, Object *ob)
+void EEVEE_lights_cache_shcaster_object_add_old(EEVEE_ViewLayerData *sldata, Object *ob)
 {
   if ((ob->base_flag & BASE_FROM_DUPLI) != 0) {
     /* TODO: Special case for dupli objects because we cannot save the object pointer. */
@@ -554,7 +554,7 @@ void EEVEE_lights_cache_shcaster_object_add(EEVEE_ViewLayerData *sldata, Object 
   oedata->need_update = false;
 }
 
-void EEVEE_lights_cache_finish(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
+void EEVEE_lights_cache_finish_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 {
   EEVEE_LightsInfo *linfo = sldata->lights;
   eGPUTextureFormat shadow_pool_format = GPU_R32F;
@@ -645,7 +645,7 @@ void EEVEE_lights_cache_finish(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
       {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(sldata->shadow_cascade_pool)});
 
   /* Update Lights UBOs. */
-  EEVEE_lights_update(sldata, vedata);
+  EEVEE_lights_update_old(sldata, vedata);
 }
 
 float light_attenuation_radius_get(Light *la, float light_threshold)
@@ -774,7 +774,7 @@ static void eevee_light_setup(Object *ob, EEVEE_Light *evli)
   mul_v3_fl(evli->color, power * la->energy);
 
   /* No shadow by default */
-  evli->shadowid = -1.0f;
+  evli->shadow_id = -1.0f;
 }
 
 /**
@@ -882,7 +882,7 @@ static void eevee_shadow_cube_setup(Object *ob,
 {
   EEVEE_ShadowCubeData *sh_data = &led->data.scd;
   EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
-  EEVEE_Shadow *ubo_data = linfo->shadow_data + sh_data->shadow_id;
+  EEVEE_Shadow_old *ubo_data = linfo->shadow_data + sh_data->shadow_id;
   EEVEE_ShadowCube *cube_data = linfo->shadow_cube_data + sh_data->cube_id;
   Light *la = (Light *)ob->data;
 
@@ -893,11 +893,11 @@ static void eevee_shadow_cube_setup(Object *ob,
   }
 
   ubo_data->bias = 0.05f * la->bias;
-  ubo_data->near = la->clipsta;
-  ubo_data->far = 1.0f / (evli->invsqrdist * evli->invsqrdist);
+  ubo_data->nearf = la->clipsta;
+  ubo_data->farf = 1.0f / (evli->invsqrdist * evli->invsqrdist);
   ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
 
-  evli->shadowid = (float)(sh_data->shadow_id);
+  evli->shadow_id = (float)(sh_data->shadow_id);
   ubo_data->shadow_start = (float)(sh_data->layer_id);
   ubo_data->data_start = (float)(sh_data->cube_id);
   ubo_data->shadow_blur = la->soft * 0.02f; /* Used by translucence shadowmap blur */
@@ -1000,7 +1000,7 @@ static void eevee_shadow_cascade_setup(Object *ob,
 
   EEVEE_ShadowCascadeData *sh_data = &led->data.scad;
   EEVEE_Light *evli = linfo->light_data + sh_data->light_id;
-  EEVEE_Shadow *ubo_data = linfo->shadow_data + sh_data->shadow_id;
+  EEVEE_Shadow_old *ubo_data = linfo->shadow_data + sh_data->shadow_id;
   EEVEE_ShadowCascade *cascade_data = linfo->shadow_cascade_data + sh_data->cascade_id;
 
   /* obmat = Object Space > World Space */
@@ -1192,11 +1192,11 @@ static void eevee_shadow_cascade_setup(Object *ob,
   }
 
   ubo_data->bias = 0.05f * la->bias;
-  ubo_data->near = la->clipsta;
-  ubo_data->far = la->clipend;
+  ubo_data->nearf = la->clipsta;
+  ubo_data->farf = la->clipend;
   ubo_data->exp = (linfo->shadow_method == SHADOW_VSM) ? la->bleedbias : la->bleedexp;
 
-  evli->shadowid = (float)(sh_data->shadow_id);
+  evli->shadow_id = (float)(sh_data->shadow_id);
   ubo_data->shadow_start = (float)(sh_data->layer_id);
   ubo_data->data_start = (float)(sh_data->cascade_id);
   ubo_data->shadow_blur = la->soft * 0.02f; /* Used by translucence shadowmap blur */
@@ -1219,7 +1219,7 @@ static bool sphere_bbox_intersect(const EEVEE_BoundSphere *bs, const EEVEE_Bound
   return x && y && z;
 }
 
-void EEVEE_lights_update(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
+void EEVEE_lights_update_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 {
   EEVEE_StorageList *stl = vedata->stl;
   EEVEE_EffectsInfo *effects = stl->effects;
@@ -1263,7 +1263,7 @@ void EEVEE_lights_update(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   flag = frontbuffer->flags;
   for (i = 0; i < frontbuffer->count; i++, flag++, shcaster++) {
     /* Run intersection checks to fill the bitfields. */
-    bsphere = linfo->shadow_bounds;
+    bsphere = linfo->shadow_bounds_old;
     for (int j = 0; j < linfo->cpu_cube_len; j++, bsphere++) {
       bool iter = sphere_bbox_intersect(bsphere, &shcaster->bbox);
       lightbits_set_single(&shcaster->bits, j, iter);
@@ -1332,7 +1332,7 @@ static void eevee_ensure_cascade_views(EEVEE_ShadowCascadeData *cascade_data,
 }
 
 /* this refresh lights shadow buffers */
-void EEVEE_draw_shadows(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, DRWView *view)
+void EEVEE_draw_shadows_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, DRWView *view)
 {
   EEVEE_PassList *psl = vedata->psl;
   EEVEE_StorageList *stl = vedata->stl;
@@ -1568,7 +1568,7 @@ void EEVEE_draw_shadows(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, DRWView
   DRW_uniformbuffer_update(sldata->common_ubo, &sldata->common_data);
 }
 
-void EEVEE_lights_free(void)
+void EEVEE_lights_free_old(void)
 {
   DRW_SHADER_FREE_SAFE(e_data.shadow_sh);
   for (int i = 0; i < SHADOW_METHOD_MAX; ++i) {

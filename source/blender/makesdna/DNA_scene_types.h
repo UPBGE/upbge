@@ -2541,7 +2541,7 @@ enum {
   SCE_EEVEE_SHADOW_HIGH_BITDEPTH = (1 << 10),
   SCE_EEVEE_TAA_REPROJECTION = (1 << 11),
   // SCE_EEVEE_SSS_ENABLED = (1 << 12), /* Unused */
-  // SCE_EEVEE_SSS_SEPARATE_ALBEDO = (1 << 13), /* Unused */
+  SCE_EEVEE_SSS_SEPARATE_ALBEDO = (1 << 13), /* Unused */
   SCE_EEVEE_SSR_ENABLED = (1 << 14),
   SCE_EEVEE_SSR_REFRACTION = (1 << 15),
   SCE_EEVEE_SSR_HALF_RESOLUTION = (1 << 16),
@@ -2557,8 +2557,8 @@ enum {
 /* SceneEEVEE->shadow_method */
 enum {
   SHADOW_ESM = 1,
-  /* SHADOW_VSM = 2, */        /* UNUSED */
-  /* SHADOW_METHOD_MAX = 3, */ /* UNUSED */
+  SHADOW_VSM = 2,        /* UNUSED */
+  SHADOW_METHOD_MAX = 3, /* UNUSED */
 };
 
 /* SceneDisplay->render_aa, SceneDisplay->viewport_aa */

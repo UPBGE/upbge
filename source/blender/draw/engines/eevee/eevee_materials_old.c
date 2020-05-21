@@ -675,6 +675,7 @@ struct GPUMaterial *EEVEE_material_world_lightprobe_get(struct Scene *scene, Wor
                                       wo,
                                       engine,
                                       options,
+                                      false,
                                       datatoc_background_vert_glsl,
                                       NULL,
                                       e_data.frag_shader_lib,
@@ -695,6 +696,7 @@ struct GPUMaterial *EEVEE_material_world_background_get(struct Scene *scene, Wor
                                       wo,
                                       engine,
                                       options,
+                                      false,
                                       datatoc_background_vert_glsl,
                                       NULL,
                                       e_data.frag_shader_lib,
@@ -718,6 +720,7 @@ struct GPUMaterial *EEVEE_material_world_volume_get(struct Scene *scene, World *
                                      wo,
                                      engine,
                                      options,
+                                     true,
                                      datatoc_volumetric_vert_glsl,
                                      datatoc_volumetric_geom_glsl,
                                      e_data.volume_shader_lib,
@@ -729,7 +732,7 @@ struct GPUMaterial *EEVEE_material_world_volume_get(struct Scene *scene, World *
   return mat;
 }
 
-struct GPUMaterial *EEVEE_material_mesh_get(struct Scene *scene,
+struct GPUMaterial *EEVEE_material_mesh_get_old(struct Scene *scene,
                                             Material *ma,
                                             EEVEE_Data *vedata,
                                             bool use_blend,
@@ -759,6 +762,7 @@ struct GPUMaterial *EEVEE_material_mesh_get(struct Scene *scene,
                                         ma,
                                         engine,
                                         options,
+                                        false,
                                         e_data.vert_shader_str,
                                         NULL,
                                         e_data.frag_shader_lib,
@@ -786,6 +790,7 @@ struct GPUMaterial *EEVEE_material_mesh_volume_get(struct Scene *scene, Material
                                         ma,
                                         engine,
                                         options,
+                                        true,
                                         datatoc_volumetric_vert_glsl,
                                         datatoc_volumetric_geom_glsl,
                                         e_data.volume_shader_lib,
@@ -822,6 +827,7 @@ struct GPUMaterial *EEVEE_material_mesh_depth_get(struct Scene *scene,
                                         ma,
                                         engine,
                                         options,
+                                        false,
                                         (is_shadow) ? e_data.vert_shadow_shader_str :
                                                       e_data.vert_shader_str,
                                         NULL,
@@ -835,7 +841,7 @@ struct GPUMaterial *EEVEE_material_mesh_depth_get(struct Scene *scene,
   return mat;
 }
 
-struct GPUMaterial *EEVEE_material_hair_get(struct Scene *scene, Material *ma, int shadow_method)
+struct GPUMaterial *EEVEE_material_hair_get_old(struct Scene *scene, Material *ma, int shadow_method)
 {
   const void *engine = &DRW_engine_viewport_eevee_type;
   int options = VAR_MAT_MESH | VAR_MAT_HAIR;
@@ -853,6 +859,7 @@ struct GPUMaterial *EEVEE_material_hair_get(struct Scene *scene, Material *ma, i
                                         ma,
                                         engine,
                                         options,
+                                        false,
                                         e_data.vert_shader_str,
                                         NULL,
                                         e_data.frag_shader_lib,
@@ -970,7 +977,7 @@ void EEVEE_materials_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     const float *col = G_draw.block.colorBackground;
 
     EEVEE_lookdev_cache_init(
-        vedata, &grp, psl->background_pass, stl->g_data->background_alpha, wo, NULL);
+        vedata, sldata, &grp, psl->background_pass, wo, NULL);
 
     if (!grp && wo) {
       col = &wo->horr;
@@ -1188,7 +1195,7 @@ static void material_opaque(Material *ma,
     /* This will have been created already, just perform a lookup. */
     *gpumat =
         (use_gpumat) ?
-            EEVEE_material_mesh_get(
+            EEVEE_material_mesh_get_old(
                 scene, ma, vedata, false, use_ssrefract, use_translucency, linfo->shadow_method) :
             NULL;
     *gpumat_depth = (use_gpumat) ? EEVEE_material_mesh_depth_get(
@@ -1203,7 +1210,7 @@ static void material_opaque(Material *ma,
     static float half = 0.5f;
 
     /* Shading */
-    *gpumat = EEVEE_material_mesh_get(
+    *gpumat = EEVEE_material_mesh_get_old(
         scene, ma, vedata, false, use_ssrefract, use_translucency, linfo->shadow_method);
 
     eGPUMaterialStatus status_mat_surface = GPU_material_status(*gpumat);
@@ -1417,7 +1424,7 @@ static void material_transparent(Material *ma,
     static float half = 0.5f;
 
     /* Shading */
-    *gpumat = EEVEE_material_mesh_get(
+    *gpumat = EEVEE_material_mesh_get_old(
         scene, ma, vedata, true, use_ssrefract, false, linfo->shadow_method);
 
     switch (GPU_material_status(*gpumat)) {
@@ -1499,7 +1506,7 @@ BLI_INLINE Material *eevee_object_material_get(Object *ob, int slot)
 {
   Material *ma = give_current_material(ob, slot + 1);
   if (ma == NULL) {
-    ma = &defmaterial;
+    ma = BKE_material_default_empty();
   }
   return ma;
 }
@@ -1650,18 +1657,18 @@ void EEVEE_materials_cache_populate(EEVEE_Data *vedata,
           struct GPUMaterial *gpumat;
           switch (ma_array[i]->blend_shadow) {
             case MA_BS_SOLID:
-              EEVEE_lights_cache_shcaster_add(sldata, stl, mat_geom[i], ob);
+              EEVEE_lights_cache_shcaster_add_old(sldata, stl, mat_geom[i], ob);
               *cast_shadow = true;
               break;
             case MA_BS_CLIP:
               gpumat = EEVEE_material_mesh_depth_get(scene, ma_array[i], false, true);
-              EEVEE_lights_cache_shcaster_material_add(
+              EEVEE_lights_cache_shcaster_material_add_old(
                   sldata, psl, gpumat, mat_geom[i], ob, &ma_array[i]->alpha_threshold);
               *cast_shadow = true;
               break;
             case MA_BS_HASHED:
               gpumat = EEVEE_material_mesh_depth_get(scene, ma_array[i], true, true);
-              EEVEE_lights_cache_shcaster_material_add(sldata, psl, gpumat, mat_geom[i], ob, NULL);
+              EEVEE_lights_cache_shcaster_material_add_old(sldata, psl, gpumat, mat_geom[i], ob, NULL);
               *cast_shadow = true;
               break;
             case MA_BS_NONE:
@@ -1728,7 +1735,7 @@ void EEVEE_hair_cache_populate(EEVEE_Data *vedata,
           static float half = 0.5f;
           static float error_col[3] = {1.0f, 0.0f, 1.0f};
           static float compile_col[3] = {0.5f, 0.5f, 0.5f};
-          struct GPUMaterial *gpumat = EEVEE_material_hair_get(
+          struct GPUMaterial *gpumat = EEVEE_material_hair_get_old(
               scene, ma, sldata->lights->shadow_method);
 
           switch (GPU_material_status(gpumat)) {
@@ -1822,7 +1829,7 @@ void EEVEE_materials_free(void)
   DRW_UBO_FREE_SAFE(e_data.dummy_sss_profile);
 }
 
-void EEVEE_draw_default_passes(EEVEE_PassList *psl)
+void EEVEE_draw_default_passes_old(EEVEE_PassList *psl)
 {
   for (int i = 0; i < VAR_MAT_MAX; ++i) {
     if (psl->default_pass[i]) {
