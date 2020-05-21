@@ -640,11 +640,11 @@ static int wm_handler_ui_call(bContext *C,
   return WM_HANDLER_CONTINUE;
 }
 
-static void wm_handler_ui_cancel(bContext *C)
+void wm_event_handler_ui_cancel_ex(bContext *C,
+                                   wmWindow *win,
+                                   ARegion *region,
+                                   bool reactivate_button)
 {
-  wmWindow *win = CTX_wm_window(C);
-  ARegion *region = CTX_wm_region(C);
-
   if (!region) {
     return;
   }
@@ -656,9 +656,17 @@ static void wm_handler_ui_cancel(bContext *C)
       wmEvent event;
       wm_event_init_from_window(win, &event);
       event.type = EVT_BUT_CANCEL;
+      event.val = reactivate_button ? 0 : 1;
       handler->handle_fn(C, &event, handler->user_data);
     }
   }
+}
+
+static void wm_event_handler_ui_cancel(bContext *C)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(C);
+  wm_event_handler_ui_cancel_ex(C, win, region, true);
 }
 
 /** \} */
@@ -1365,7 +1373,7 @@ static int wm_operator_invoke(bContext *C,
        * while dragging the view or worse, that stay there permanently
        * after the modal operator has swallowed all events and passed
        * none to the UI handler */
-      wm_handler_ui_cancel(C);
+      wm_event_handler_ui_cancel(C);
     }
     else {
       WM_operator_free(op);
@@ -2661,6 +2669,12 @@ static int wm_handlers_do_gizmo_handler(bContext *C,
   return action;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Handle Single Event (All Handler Types)
+ * \{ */
+
 static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers)
 {
   const bool do_debug_handler =
@@ -2962,6 +2976,14 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
   return action;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Event Queue Utilities
+ *
+ * Utilities used by #wm_event_do_handlers.
+ * \{ */
+
 static bool wm_event_inside_rect(const wmEvent *event, const rcti *rect)
 {
   if (wm_event_always_pass(event)) {
@@ -3125,6 +3147,14 @@ static void wm_event_free_and_remove_from_queue_if_valid(wmEvent *event)
     }
   }
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Main Event Queue (Every Window)
+ *
+ * Handle events for all windows, run from the #WM_main event loop.
+ * \{ */
 
 /* called in main loop */
 /* goes over entire hierarchy:  events -> window -> screen -> area -> region */
@@ -3434,19 +3464,13 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   const bool is_temp_screen = WM_window_is_temp_screen(win);
-  const bool opens_window = (U.filebrowser_display_type == USER_TEMP_SPACE_DISPLAY_WINDOW);
-  /* Don't add the file handler to the temporary window if one is opened, or else it owns the
-   * handlers for itself, causing dangling pointers once it's destructed through a handler. It has
-   * a parent which should hold the handlers itself. */
-  ListBase *modalhandlers = (is_temp_screen && opens_window) ? &win->parent->modalhandlers :
-                                                               &win->modalhandlers;
 
   /* Close any popups, like when opening a file browser from the splash. */
-  UI_popup_handlers_remove_all(C, modalhandlers);
+  UI_popup_handlers_remove_all(C, &win->modalhandlers);
 
   if (!is_temp_screen) {
     /* only allow 1 file selector open per window */
-    LISTBASE_FOREACH_MUTABLE (wmEventHandler *, handler_base, modalhandlers) {
+    LISTBASE_FOREACH_MUTABLE (wmEventHandler *, handler_base, &win->modalhandlers) {
       if (handler_base->type == WM_HANDLER_TYPE_OP) {
         wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
         if (handler->is_fileselect == false) {
@@ -3487,7 +3511,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   handler->context.area = CTX_wm_area(C);
   handler->context.region = CTX_wm_region(C);
 
-  BLI_addhead(modalhandlers, handler);
+  BLI_addhead(&win->modalhandlers, handler);
 
   /* check props once before invoking if check is available
    * ensures initial properties are valid */

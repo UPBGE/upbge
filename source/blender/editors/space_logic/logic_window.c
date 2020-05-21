@@ -373,7 +373,9 @@ static const char *sensor_name(int type)
     case SENS_RANDOM:
       return N_("Random");
     case SENS_RAY:
-      return N_("Ray");
+	  return N_("Ray");
+	case SENS_MOVEMENT:
+	  return N_("Movement");
     case SENS_MESSAGE:
       return N_("Message");
     case SENS_JOYSTICK:
@@ -1431,6 +1433,15 @@ static void draw_sensor_ray(uiLayout *layout, PointerRNA *ptr, bContext *C)
   uiItemR(split, ptr, "mask", 0, NULL, ICON_NONE);
 }
 
+static void draw_sensor_movement(uiLayout *layout, PointerRNA *ptr)
+{
+  uiLayout *row;
+  uiItemR(layout, ptr, "axis", 0, NULL, ICON_NONE);
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, ptr, "use_local", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
+  uiItemR(row, ptr, "threshold", 0, NULL, ICON_NONE);
+}
+
 static void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)
 {
   uiLayout *box;
@@ -1483,6 +1494,9 @@ static void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)
     case SENS_RANDOM:
       draw_sensor_random(box, ptr);
       break;
+	case SENS_MOVEMENT:
+	  draw_sensor_movement(box, ptr);
+	  break;
     case SENS_RAY:
       draw_sensor_ray(box, ptr, C);
       break;

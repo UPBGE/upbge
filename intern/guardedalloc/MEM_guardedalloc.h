@@ -145,14 +145,6 @@ extern void *(*MEM_mallocN_aligned)(size_t len,
                                     const char *str) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT
     ATTR_ALLOC_SIZE(1) ATTR_NONNULL(3);
 
-/**
- * Same as callocN, clears memory and uses mmap (disk cached) if supported.
- * Can be free'd with MEM_freeN as usual.
- * */
-extern void *(*MEM_mapallocN)(size_t len,
-                              const char *str) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT
-    ATTR_ALLOC_SIZE(1) ATTR_NONNULL(2);
-
 /** Print a list of the names and sizes of all allocated memory
  * blocks. as a python dict for easy investigation */
 extern void (*MEM_printmemlist_pydict)(void);
@@ -176,20 +168,11 @@ extern void (*MEM_set_error_callback)(void (*func)(const char *));
  * @retval true for correct memory, false for corrupted memory. */
 extern bool (*MEM_consistency_check)(void);
 
-/** Set thread locking functions for safe memory allocation from multiple
- * threads, pass NULL pointers to disable thread locking again. */
-extern void (*MEM_set_lock_callback)(void (*lock)(void), void (*unlock)(void));
-
 /** Attempt to enforce OSX (or other OS's) to have malloc and stack nonzero */
 extern void (*MEM_set_memory_debug)(void);
 
-/**
- * Memory usage stats
- * - MEM_get_memory_in_use is all memory
- * - MEM_get_mapped_memory_in_use is a subset of all memory */
+/** Memory usage stats. */
 extern size_t (*MEM_get_memory_in_use)(void);
-/** Get mapped memory usage. */
-extern size_t (*MEM_get_mapped_memory_in_use)(void);
 /** Get amount of memory blocks in use. */
 extern unsigned int (*MEM_get_memory_blocks_in_use)(void);
 

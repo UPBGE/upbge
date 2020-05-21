@@ -128,7 +128,6 @@ void BLI_task_parallel_range(const int start,
     else {
       parallel_for(range, task);
     }
-
     return;
   }
 #endif

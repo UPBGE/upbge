@@ -1725,7 +1725,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
                            "resolution of the domain). For best meshing, it is recommended to "
                            "adjust the mesh particle radius alongside this value");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_domain_reset");
+  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_meshcache_reset");
 
   prop = RNA_def_property(srna, "mesh_generator", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "mesh_generator");
@@ -1754,7 +1754,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
                            "Caches velocities of mesh vertices. These will be used "
                            "(automatically) when rendering with motion blur enabled");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_domain_reset");
+  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_meshcache_reset");
 
   prop = RNA_def_property(srna, "mesh_particle_radius", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0, 10.0);
@@ -2516,7 +2516,7 @@ static void rna_def_fluid_flow_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_inflow", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flags", FLUID_FLOW_USE_INFLOW);
-  RNA_def_property_ui_text(prop, "Enabled", "Control when to apply inflow");
+  RNA_def_property_ui_text(prop, "Use Flow", "Control when to apply fluid flow");
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_flow_reset");
 
   prop = RNA_def_property(srna, "subframes", PROP_INT, PROP_NONE);

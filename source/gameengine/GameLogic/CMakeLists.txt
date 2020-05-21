@@ -84,6 +84,7 @@ set(SRC
   SCA_MouseFocusSensor.cpp
   SCA_MouseManager.cpp
   SCA_MouseSensor.cpp
+  SCA_MovementSensor.cpp
   SCA_NANDController.cpp
   SCA_NearSensor.cpp
   SCA_NORController.cpp
@@ -148,6 +149,7 @@ set(SRC
   SCA_MouseFocusSensor.h
   SCA_MouseManager.h
   SCA_MouseSensor.h
+  SCA_MovementSensor.h
   SCA_NANDController.h
   SCA_NearSensor.h
   SCA_NORController.h

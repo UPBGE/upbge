@@ -3208,7 +3208,6 @@ class VIEW3D_MT_face_sets_init(Menu):
         op.mode = 'FACE_MAPS'
 
 
-
 class VIEW3D_MT_particle(Menu):
     bl_label = "Particle"
 

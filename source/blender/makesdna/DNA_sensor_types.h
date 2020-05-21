@@ -196,6 +196,12 @@ typedef struct bJoystickSensor {
   int precision;
 } bJoystickSensor;
 
+typedef struct bMovementSensor {
+  int axisflag;
+  int localflag;
+  float threshold, _pad;
+} bMovementSensor;
+
 /* bMouseSensor->type: uses blender event defines */
 
 /* bMouseSensor->flag: only pulse for now */
@@ -219,6 +225,20 @@ typedef struct bJoystickSensor {
 #define SENS_RAY_NEG_Y_AXIS 4
 #define SENS_RAY_NEG_Z_AXIS 5
 //#define SENS_RAY_NEGATIVE_AXIS     1
+
+/* movementSensor->axisflag */
+/* flip x and y to make y default!!! */
+#define SENS_MOVEMENT_X_AXIS     0
+#define SENS_MOVEMENT_Y_AXIS     1
+#define SENS_MOVEMENT_Z_AXIS     2
+#define SENS_MOVEMENT_NEG_X_AXIS     3
+#define SENS_MOVEMENT_NEG_Y_AXIS     4
+#define SENS_MOVEMENT_NEG_Z_AXIS     5
+#define SENS_MOVEMENT_ALL_AXIS       6
+
+/* movementSensor->localflag */
+/* Flag to toggle local/global coordinates*/
+#define SENS_MOVEMENT_LOCAL 1
 
 /* bRadarSensor->axis */
 #define SENS_RADAR_X_AXIS 0
@@ -257,6 +277,7 @@ typedef struct bJoystickSensor {
 #define SENS_ACTUATOR 12
 #define SENS_DELAY 13
 #define SENS_ARMATURE 14
+#define SENS_MOVEMENT 15
 /* sensor->flag */
 #define SENS_SHOW 1
 #define SENS_DEL 2

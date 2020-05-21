@@ -52,6 +52,7 @@ static const EnumPropertyItem sensor_type_items[] = {
     {SENS_COLLISION, "COLLISION", 0, "Collision", ""},
     {SENS_DELAY, "DELAY", 0, "Delay", ""},
     {SENS_JOYSTICK, "JOYSTICK", 0, "Joystick", ""},
+	{SENS_MOVEMENT, "MOVEMENT", 0, "Movement", ""},
     {SENS_KEYBOARD, "KEYBOARD", 0, "Keyboard", ""},
     {SENS_MESSAGE, "MESSAGE", 0, "Message", ""},
     {SENS_MOUSE, "MOUSE", 0, "Mouse", ""},
@@ -92,6 +93,8 @@ static StructRNA *rna_Sensor_refine(struct PointerRNA *ptr)
       return &RNA_RandomSensor;
     case SENS_RAY:
       return &RNA_RaySensor;
+	case SENS_MOVEMENT:
+	  return &RNA_MovementSensor;
     case SENS_MESSAGE:
       return &RNA_MessageSensor;
     case SENS_JOYSTICK:
@@ -154,6 +157,7 @@ const EnumPropertyItem *rna_Sensor_type_itemf(bContext *C,
     ob = CTX_data_active_object(C);
   }
 
+  /* Keep the RNA items in alphabetic order */
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_ACTUATOR);
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_ALWAYS);
 
@@ -168,6 +172,7 @@ const EnumPropertyItem *rna_Sensor_type_itemf(bContext *C,
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_KEYBOARD);
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_MESSAGE);
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_MOUSE);
+  RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_MOVEMENT);
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_NEAR);
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_PROPERTY);
   RNA_enum_items_add_value(&item, &totitem, sensor_type_items, SENS_RADAR);
@@ -871,6 +876,44 @@ static void rna_def_ray_sensor(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 
+static void rna_def_movement_sensor(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+  static EnumPropertyItem axis_items[] = {
+	  {SENS_MOVEMENT_X_AXIS, "XAXIS", 0, "+X axis", ""},
+	  {SENS_MOVEMENT_Y_AXIS, "YAXIS", 0, "+Y axis", ""},
+	  {SENS_MOVEMENT_Z_AXIS, "ZAXIS", 0, "+Z axis", ""},
+	  {SENS_MOVEMENT_NEG_X_AXIS, "NEGXAXIS", 0, "-X axis", ""},
+	  {SENS_MOVEMENT_NEG_Y_AXIS, "NEGYAXIS", 0, "-Y axis", ""},
+	  {SENS_MOVEMENT_NEG_Z_AXIS, "NEGZAXIS", 0, "-Z axis", ""},
+	  {SENS_MOVEMENT_ALL_AXIS, "ALLAXIS", 0, "All axis", ""},
+	  {0, NULL, 0, NULL, NULL}};
+
+  srna = RNA_def_struct(brna, "MovementSensor", "Sensor");
+  RNA_def_struct_ui_text(srna, "Movement Sensor", "Sensor to detect if the owner has moved");
+  RNA_def_struct_sdna_from(srna, "bMovementSensor", "data");
+
+  prop = RNA_def_property(srna, "axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "axisflag");
+  RNA_def_property_enum_items(prop, axis_items);
+  RNA_def_property_ui_text(prop, "Axis", "Along which axis movement has to be detected");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "use_local", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "localflag", SENS_MOVEMENT_LOCAL);
+  RNA_def_property_ui_text(prop, "Local", "Toggle beetween local/global coordinates");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "threshold", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "threshold");
+  RNA_def_property_float_default(prop, 0.01f);
+  RNA_def_property_ui_text(prop, "Threshold", "Set Threshold");
+  RNA_def_property_range(prop, 0.001f, 10000.0f);
+  RNA_def_property_ui_range(prop, 0.001, 10000.0, 0.1, 3);
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+}
+
 static void rna_def_message_sensor(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -1025,6 +1068,7 @@ void RNA_def_sensor(BlenderRNA *brna)
   rna_def_radar_sensor(brna);
   rna_def_random_sensor(brna);
   rna_def_ray_sensor(brna);
+  rna_def_movement_sensor(brna);
   rna_def_message_sensor(brna);
   rna_def_joystick_sensor(brna);
 }

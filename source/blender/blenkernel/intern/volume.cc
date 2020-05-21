@@ -21,6 +21,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_defaults.h"
+#include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_volume_types.h"
@@ -442,26 +443,6 @@ static void volume_init_data(ID *id)
   BKE_volume_init_grids(volume);
 }
 
-void BKE_volume_init_grids(Volume *volume)
-{
-#ifdef WITH_OPENVDB
-  if (volume->runtime.grids == NULL) {
-    volume->runtime.grids = OBJECT_GUARDED_NEW(VolumeGridVector);
-  }
-#else
-  UNUSED_VARS(volume);
-#endif
-}
-
-void *BKE_volume_add(Main *bmain, const char *name)
-{
-  Volume *volume = (Volume *)BKE_libblock_alloc(bmain, ID_VO, name, 0);
-
-  volume_init_data(&volume->id);
-
-  return volume;
-}
-
 static void volume_copy_data(Main *UNUSED(bmain),
                              ID *id_dst,
                              const ID *id_src,
@@ -483,18 +464,6 @@ static void volume_copy_data(Main *UNUSED(bmain),
 #endif
 }
 
-Volume *BKE_volume_copy(Main *bmain, const Volume *volume)
-{
-  Volume *volume_copy;
-  BKE_id_copy(bmain, &volume->id, (ID **)&volume_copy);
-  return volume_copy;
-}
-
-static void volume_make_local(Main *bmain, ID *id, const int flags)
-{
-  BKE_lib_id_make_local_generic(bmain, id, flags);
-}
-
 static void volume_free_data(ID *id)
 {
   Volume *volume = (Volume *)id;
@@ -504,6 +473,14 @@ static void volume_free_data(ID *id)
 #ifdef WITH_OPENVDB
   OBJECT_GUARDED_SAFE_DELETE(volume->runtime.grids, VolumeGridVector);
 #endif
+}
+
+static void volume_foreach_id(ID *id, LibraryForeachIDData *data)
+{
+  Volume *volume = (Volume *)id;
+  for (int i = 0; i < volume->totcol; i++) {
+    BKE_LIB_FOREACHID_PROCESS(data, volume->mat[i], IDWALK_CB_USER);
+  }
 }
 
 IDTypeInfo IDType_ID_VO = {
@@ -519,8 +496,36 @@ IDTypeInfo IDType_ID_VO = {
     /* init_data */ volume_init_data,
     /* copy_data */ volume_copy_data,
     /* free_data */ volume_free_data,
-    /* make_local */ volume_make_local,
+    /* make_local */ nullptr,
+    /* foreach_id */ volume_foreach_id,
 };
+
+void BKE_volume_init_grids(Volume *volume)
+{
+#ifdef WITH_OPENVDB
+  if (volume->runtime.grids == NULL) {
+    volume->runtime.grids = OBJECT_GUARDED_NEW(VolumeGridVector);
+  }
+#else
+  UNUSED_VARS(volume);
+#endif
+}
+
+void *BKE_volume_add(Main *bmain, const char *name)
+{
+  Volume *volume = (Volume *)BKE_libblock_alloc(bmain, ID_VO, name, 0);
+
+  volume_init_data(&volume->id);
+
+  return volume;
+}
+
+Volume *BKE_volume_copy(Main *bmain, const Volume *volume)
+{
+  Volume *volume_copy;
+  BKE_id_copy(bmain, &volume->id, (ID **)&volume_copy);
+  return volume_copy;
+}
 
 /* Sequence */
 

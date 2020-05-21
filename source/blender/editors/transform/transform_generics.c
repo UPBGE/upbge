@@ -1660,15 +1660,18 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
       orient_type_scene += index_custom;
     }
 
-    short orient_type_default = V3D_ORIENT_GLOBAL;
+    short orient_type_default;
     short orient_type_constraint[2];
+    if ((t->flag & T_MODAL) && transform_mode_is_changeable(t->mode)) {
+      /* During modal, rotation starts with the View orientation. */
+      orient_type_default = V3D_ORIENT_VIEW;
+    }
+    else {
+      orient_type_default = orient_type_scene;
+    }
 
     if (op && (prop = RNA_struct_find_property(op->ptr, "orient_axis"))) {
       t->orient_axis = RNA_property_enum_get(op->ptr, prop);
-
-      /* For transfor modes that require "orient_axis" use
-       * `V3D_ORIENT_VIEW` as default. */
-      orient_type_default = V3D_ORIENT_VIEW;
     }
     if (op && (prop = RNA_struct_find_property(op->ptr, "orient_axis_ortho"))) {
       t->orient_axis_ortho = RNA_property_enum_get(op->ptr, prop);
@@ -1683,7 +1686,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
         }
         else {
           custom_orientation = BKE_scene_transform_orientation_find(
-              t->scene, orient_type_default - V3D_ORIENT_CUSTOM);
+              t->scene, orient_type_set - V3D_ORIENT_CUSTOM);
         }
       }
 
