@@ -225,6 +225,9 @@ void EEVEE_screen_raytrace_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *v
      *   mipmap for each ray using its pdf. (filtered importance sampling)
      *   We then evaluate the lighting from the probes and mix the results together.
      */
+    /* Old Shadows */
+    bool old_shadows = DRW_context_state_get()->scene->eevee.shadow_method == SHADOW_ESM;
+
     DRW_PASS_CREATE(psl->ssr_raytrace, DRW_STATE_WRITE_COLOR);
     DRWShadingGroup *grp = DRW_shgroup_create(trace_shader, psl->ssr_raytrace);
     DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &e_data.depth_src);
@@ -232,7 +235,10 @@ void EEVEE_screen_raytrace_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *v
     DRW_shgroup_uniform_texture_ref(grp, "specroughBuffer", &effects->ssr_specrough_input);
     DRW_shgroup_uniform_texture_ref(grp, "maxzBuffer", &txl->maxzbuffer);
     DRW_shgroup_uniform_texture_ref(grp, "planarDepth", &vedata->txl->planar_depth);
-    DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex());
+    DRW_shgroup_uniform_texture(grp,
+                                "utilTex",
+                                old_shadows ? EEVEE_materials_get_util_tex_old() :
+                                              EEVEE_materials_get_util_tex());
     DRW_shgroup_uniform_block(grp, "grid_block", sldata->grid_ubo);
     DRW_shgroup_uniform_block(grp, "probe_block", sldata->probe_ubo);
     DRW_shgroup_uniform_block(grp, "planar_block", sldata->planar_ubo);
@@ -263,7 +269,8 @@ void EEVEE_screen_raytrace_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *v
         grp, "renderpass_block", EEVEE_material_default_render_pass_ubo_get(sldata));
     DRW_shgroup_uniform_int(grp, "neighborOffset", &effects->ssr_neighbor_ofs, 1);
     if ((effects->enabled_effects & EFFECT_GTAO) != 0) {
-      DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex());
+      DRW_shgroup_uniform_texture(grp, "utilTex", old_shadows ? EEVEE_materials_get_util_tex_old() :
+                                                                EEVEE_materials_get_util_tex());
       DRW_shgroup_uniform_texture_ref(grp, "horizonBuffer", &effects->gtao_horizons);
     }
 

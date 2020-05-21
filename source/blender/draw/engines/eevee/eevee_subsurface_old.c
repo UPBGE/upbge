@@ -217,7 +217,7 @@ void EEVEE_subsurface_add_pass_old(EEVEE_ViewLayerData *sldata,
   GPUTexture **depth_src = GPU_depth_blitting_workaround() ? &effects->sss_stencil : &dtxl->depth;
 
   DRWShadingGroup *grp = DRW_shgroup_create(e_data.sss_sh[0], psl->sss_blur_ps);
-  DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex());
+  DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex_old());
   DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", depth_src);
   DRW_shgroup_uniform_texture_ref(grp, "sssData", &effects->sss_data);
   DRW_shgroup_uniform_block(grp, "sssProfile", sss_profile);
@@ -227,7 +227,7 @@ void EEVEE_subsurface_add_pass_old(EEVEE_ViewLayerData *sldata,
 
   struct GPUShader *sh = (effects->sss_separate_albedo) ? e_data.sss_sh[2] : e_data.sss_sh[1];
   grp = DRW_shgroup_create(sh, psl->sss_resolve_ps);
-  DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex());
+  DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex_old());
   DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", depth_src);
   DRW_shgroup_uniform_texture_ref(grp, "sssData", &effects->sss_blur);
   DRW_shgroup_uniform_block(grp, "sssProfile", sss_profile);
@@ -241,7 +241,7 @@ void EEVEE_subsurface_add_pass_old(EEVEE_ViewLayerData *sldata,
 
   if (DRW_state_is_image_render()) {
     grp = DRW_shgroup_create(e_data.sss_sh[3], psl->sss_accum_ps);
-    DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex());
+    DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex_old());
     DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", depth_src);
     DRW_shgroup_uniform_texture_ref(grp, "sssData", &effects->sss_blur);
     DRW_shgroup_uniform_block(grp, "sssProfile", sss_profile);
