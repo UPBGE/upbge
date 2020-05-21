@@ -310,7 +310,9 @@ static void eevee_draw_scene(void *vedata)
     /* Refresh Probes
      * Shadows needs to be updated for correct probes */
     DRW_stats_group_start("Probes Refresh");
-    EEVEE_shadows_update(sldata, vedata);
+    if (!old_shadows) {
+      EEVEE_shadows_update(sldata, vedata);
+    }
     EEVEE_lightprobes_refresh(sldata, vedata);
     EEVEE_lightprobes_refresh_planar(sldata, vedata);
     DRW_stats_group_end();
