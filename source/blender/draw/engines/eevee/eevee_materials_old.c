@@ -622,6 +622,45 @@ void EEVEE_materials_init_old(EEVEE_ViewLayerData *sldata,
         &fbl->update_noise_fb,
         {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE_LAYER(e_data.util_tex, 2)});
   }
+
+  /* Create RenderPass UBO */
+  if (sldata->renderpass_ubo[0] == NULL) {
+    /* EEVEE_RENDER_PASS_COMBINED */
+    sldata->renderpass_data[0] = (const EEVEE_RenderPassData){true, true, true, true, true, false};
+    /* EEVEE_RENDER_PASS_DIFFUSE_COLOR */
+    sldata->renderpass_data[1] = (const EEVEE_RenderPassData){
+        true, false, false, false, false, true};
+    /* EEVEE_RENDER_PASS_DIFFUSE_LIGHT */
+    sldata->renderpass_data[2] = (const EEVEE_RenderPassData){
+        true, true, false, false, false, false};
+    /* EEVEE_RENDER_PASS_SPECULAR_COLOR */
+    sldata->renderpass_data[3] = (const EEVEE_RenderPassData){
+        false, false, true, false, false, false};
+    /* EEVEE_RENDER_PASS_SPECULAR_LIGHT */
+    sldata->renderpass_data[4] = (const EEVEE_RenderPassData){
+        false, false, true, true, false, false};
+    /* EEVEE_RENDER_PASS_EMIT */
+    sldata->renderpass_data[5] = (const EEVEE_RenderPassData){
+        false, false, false, false, true, false};
+
+    for (int i = 0; i < MAX_MATERIAL_RENDER_PASSES_UBO; i++) {
+      sldata->renderpass_ubo[i] = DRW_uniformbuffer_create(sizeof(EEVEE_RenderPassData),
+                                                           &sldata->renderpass_data[i]);
+    }
+  }
+
+  /* HACK: EEVEE_material_world_background_get can create a new context. This can only be
+   * done when there is no active framebuffer. We do this here otherwise
+   * `EEVEE_renderpasses_output_init` will fail. It cannot be done in
+   * `EEVEE_renderpasses_init` as the `e_data.vertcode` can be uninitialized.
+   */
+  if (stl->g_data->render_passes & EEVEE_RENDER_PASS_ENVIRONMENT) {
+    struct Scene *scene = DRW_context_state_get()->scene;
+    struct World *wo = scene->world;
+    if (wo && wo->use_nodes) {
+      EEVEE_material_world_background_get(scene, wo);
+    }
+  }
 }
 
 struct GPUMaterial *EEVEE_material_mesh_get_old(struct Scene *scene,
