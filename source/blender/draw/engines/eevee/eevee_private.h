@@ -37,7 +37,6 @@ extern "C" {
 #include "DNA_object_types.h"  // For bge
 
 /* Old Shadows */
-struct EEVEE_BoundSphere;
 
 struct EEVEE_ShadowCasterBuffer;
 struct GPUFrameBuffer;
@@ -234,9 +233,6 @@ typedef struct EEVEE_PlanarReflection {
 /* --------------------------------------- */
 
 /* Old Shadows */
-typedef struct EEVEE_BoundSphere {
-  float center[3], radius;
-} EEVEE_BoundSphere;
 
 typedef struct EEVEE_BoundBox {
   float center[3], halfdim[3];
@@ -588,7 +584,6 @@ typedef struct EEVEE_LightsInfo {
   struct EEVEE_ShadowRender shadow_render_data;
   /* Lights tracking */
   int new_shadow_id[MAX_LIGHT]; /* To be able to convert old bitfield to new bitfield */
-  struct EEVEE_BoundSphere shadow_bounds_old[MAX_LIGHT]; /* Tightly packed light bounds  */
   struct EEVEE_Shadow_old shadow_data_old[MAX_SHADOW];
 
   int cube_len, cascade_len, shadow_len;

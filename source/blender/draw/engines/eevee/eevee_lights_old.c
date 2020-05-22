@@ -425,8 +425,8 @@ void EEVEE_lights_cache_add_old(EEVEE_ViewLayerData *sldata, Object *ob)
 
           /* Saving light bounds for later. */
           BLI_assert(linfo->cpu_cube_len >= 0 && linfo->cpu_cube_len < MAX_LIGHT);
-          copy_v3_v3(linfo->shadow_bounds_old[linfo->cpu_cube_len].center, ob->obmat[3]);
-          linfo->shadow_bounds_old[linfo->cpu_cube_len].radius = light_attenuation_radius_get(
+          copy_v3_v3(linfo->shadow_bounds[linfo->cpu_cube_len].center, ob->obmat[3]);
+          linfo->shadow_bounds[linfo->cpu_cube_len].radius = light_attenuation_radius_get(
               la, threshold);
 
           EEVEE_ShadowCubeData *data = &led->data.scd;
@@ -1208,7 +1208,7 @@ static void eevee_shadow_cascade_setup(Object *ob,
 }
 
 /* Used for checking if object is inside the shadow volume. */
-static bool sphere_bbox_intersect(const EEVEE_BoundSphere *bs, const EEVEE_BoundBox *bb)
+static bool sphere_bbox_intersect(const BoundSphere *bs, const EEVEE_BoundBox *bb)
 {
   /* We are testing using a rougher AABB vs AABB test instead of full AABB vs Sphere. */
   /* TODO test speed with AABB vs Sphere. */
@@ -1228,7 +1228,7 @@ void EEVEE_lights_update_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   int i;
   char *flag;
   EEVEE_ShadowCaster *shcaster;
-  EEVEE_BoundSphere *bsphere;
+  BoundSphere *bsphere;
   EEVEE_ShadowCasterBuffer *frontbuffer = linfo->shcaster_frontbuffer;
   EEVEE_ShadowCasterBuffer *backbuffer = linfo->shcaster_backbuffer;
 
@@ -1263,7 +1263,7 @@ void EEVEE_lights_update_old(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   flag = frontbuffer->flags;
   for (i = 0; i < frontbuffer->count; i++, flag++, shcaster++) {
     /* Run intersection checks to fill the bitfields. */
-    bsphere = linfo->shadow_bounds_old;
+    bsphere = linfo->shadow_bounds;
     for (int j = 0; j < linfo->cpu_cube_len; j++, bsphere++) {
       bool iter = sphere_bbox_intersect(bsphere, &shcaster->bbox);
       lightbits_set_single(&shcaster->bits, j, iter);
