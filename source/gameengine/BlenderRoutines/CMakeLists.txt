@@ -61,6 +61,10 @@ if(WITH_AUDASPACE)
   add_definitions(-DWITH_AUDASPACE)
 endif()
 
+if(WITH_GAMEENGINE_CEGUI)
+  add_definitions(-DWITH_GAMEENGINE_CEGUI)
+endif()
+
 if(WITH_CODEC_FFMPEG)
   add_definitions(-DWITH_FFMPEG)
 endif()

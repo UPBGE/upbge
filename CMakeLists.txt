@@ -207,6 +207,9 @@ endif()
 option(WITH_GAMEENGINE_BPPLAYER "Enable Blend encrypted (from BPPlayer application) reading capabilities" ON)
 mark_as_advanced(WITH_GAMEENGINE_BPPLAYER)
 
+option(WITH_GAMEENGINE_CEGUI "Enable CEGUI library for GUI capabilities in the gameengine" ON)
+mark_as_advanced(WITH_GAMEENGINE_CEGUI)
+
 option(WITH_PLAYER        "Build Player" ON)
 
 # Compositor
@@ -688,6 +691,10 @@ endif()
 
 if(NOT WITH_GAMEENGINE AND WITH_PLAYER)
 	message(FATAL_ERROR "WITH_PLAYER requires WITH_GAMEENGINE")
+endif()
+
+if(NOT WITH_GAMEENGINE AND WITH_GAMEENGINE_CEGUI)
+  message(FATAL_ERROR "WITH_GAMEENGINE_CEGUI requires WITH_GAMEENGINE")
 endif()
 
 if(NOT WITH_AUDASPACE)

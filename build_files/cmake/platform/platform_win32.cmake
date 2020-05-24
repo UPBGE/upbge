@@ -614,6 +614,18 @@ if(WITH_SDL)
   set(SDL_LIBRARY ${SDL_LIBPATH}/SDL2.lib)
 endif()
 
+if(WITH_GAMEENGINE_CEGUI)
+  set(CEGUI ${LIBDIR}/cegui)
+  set(CEGUI_INCLUDE_DIR ${CEGUI}/include)
+  set(CEGUI_LIBPATH ${CEGUI}/lib)
+  set(CEGUI_LIBRARIES
+    optimized ${CEGUI_LIBPATH}/CEGUIBase-0.lib
+    optimized ${CEGUI_LIBPATH}/CEGUIOpenGLRenderer-0.lib
+    debug ${CEGUI_LIBPATH}/CEGUIBase-0_d.lib
+    debug ${CEGUI_LIBPATH}/CEGUIOpenGLRenderer-0_d.lib
+  )
+endif()
+
 # Audio IO
 if(WITH_SYSTEM_AUDASPACE)
   set(AUDASPACE_INCLUDE_DIRS ${LIBDIR}/audaspace/include/audaspace)

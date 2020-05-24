@@ -51,6 +51,10 @@
 #include "KX_Globals.h"
 #include "LA_BlenderLauncher.h"
 
+#ifdef WITH_GAMEENGINE_CEGUI
+#include <CEGUI/CEGUI.h>
+#endif
+
 extern "C" {
 
 void StartKetsjiShell(struct bContext *C,

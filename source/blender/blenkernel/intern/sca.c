@@ -425,6 +425,7 @@ void init_actuator(bActuator *act)
   bMouseActuator *ma;
   bEditObjectActuator *eoa;
   bVibrationActuator *via;
+  bGUIActuator *guia;
 
   if (act->data)
     MEM_freeN(act->data);
@@ -529,6 +530,10 @@ void init_actuator(bActuator *act)
       ma->object_axis[1] = ACT_MOUSE_OBJECT_AXIS_X;
       ma->limit_y[0] = DEG2RADF(-90.0f);
       ma->limit_y[1] = DEG2RADF(90.0f);
+      break;
+    case ACT_GUI:
+      guia = act->data = MEM_callocN(sizeof(bGUIActuator), "gui act");
+      guia->flag = ACT_GUI_SET_DEFAULT_MOUSE | ACT_GUI_SET_MOUSE_HIDE;
       break;
     default:; /* this is very severe... I cannot make any memory for this        */
               /* logic brick...                                                    */
@@ -1182,6 +1187,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       case ACT_SHAPEACTION:
       case ACT_STATE:
       case ACT_MOUSE:
+      case ACT_GUI:
       default:
         break;
     }

@@ -281,6 +281,13 @@ typedef struct bMouseActuator {
   float limit_y[2];
 } bMouseActuator;
 
+typedef struct bGUIActuator {
+short type, flag;
+char layoutname[64];
+char cursorname[64];
+char prefix[64];
+} bGUIActuator;
+
 typedef struct bActuator {
   struct bActuator *next, *prev, *mynew;
   short type;
@@ -353,6 +360,7 @@ typedef struct bActuator {
 #define ACT_MOUSE 25
 #define ACT_VIBRATION 26
 #define ACT_COLLECTION 27
+#define ACT_GUI 28
 
 /* actuator flag */
 #define ACT_SHOW 1
@@ -623,6 +631,17 @@ typedef struct bActuator {
 /* vibrationactuator->mode */
 #define ACT_VIBRATION_PLAY 0
 #define ACT_VIBRATION_STOP 1
+
+/* guiactuator->type */
+#define ACT_GUI_LAYOUT_ADD 0
+#define ACT_GUI_LAYOUT_REMOVE 1
+#define ACT_GUI_MOUSE_CHANGE 2
+#define ACT_GUI_MOUSE_VISIBILITY 3
+#define ACT_GUI_SCHEME 4
+
+/* guiactuator->flag */
+#define ACT_GUI_SET_DEFAULT_MOUSE (1 << 0)
+#define ACT_GUI_SET_MOUSE_HIDE (1 << 1)
 
 #ifdef __cplusplus
 }

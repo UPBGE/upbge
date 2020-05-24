@@ -516,6 +516,7 @@ const EnumPropertyItem *rna_Actuator_type_itemf(bContext *C,
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_EDIT_OBJECT);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_2DFILTER);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_GAME);
+  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_GUI);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MESSAGE);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MOUSE);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_OBJECT);
@@ -1913,6 +1914,60 @@ static void rna_def_game_actuator(BlenderRNA *brna)
    * active */
 }
 
+static void rna_def_gui_actuator(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  static EnumPropertyItem prop_mode_items[] = {{ACT_GUI_LAYOUT_ADD, "LAYOUTADD", 0, "Layout Add", ""},
+                                               {ACT_GUI_LAYOUT_REMOVE, "LAYOUTREMOVE", 0, "Layout Remove", ""},
+                                               {ACT_GUI_MOUSE_CHANGE, "MOUSECHANGE", 0, "Mouse Arrow Edit", ""},
+                                               {ACT_GUI_MOUSE_VISIBILITY, "MOUSEVISIBILITY", 0, "Mouse Arrow Visibility", ""},
+                                               {ACT_GUI_SCHEME, "SCHEME", 0, "Scheme", ""},
+                                               {0, NULL, 0, NULL, NULL}};
+
+  srna = RNA_def_struct(brna, "GUIActuator", "Actuator");
+  RNA_def_struct_ui_text(srna, "GUI Actuator", "Actuator to set a GUI");
+  RNA_def_struct_sdna_from(srna, "bGUIActuator", "data");
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "type");
+  RNA_def_property_enum_items(prop, prop_mode_items);
+  RNA_def_property_ui_text(prop, "GUI Mode", "GUI mode");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "layout_name", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "layoutname");
+  RNA_def_property_struct_type(prop, "Text");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Layout Name", "");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "cursor_name", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "cursorname");
+  RNA_def_property_struct_type(prop, "Text");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Cursor Name", "");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "prefix", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "prefix");
+  RNA_def_property_struct_type(prop, "Text");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Prefix", "");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "cursor_default", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_GUI_SET_DEFAULT_MOUSE);
+  RNA_def_property_ui_text(prop, "Cursor Default", "Set The Cursor Default");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "invisible", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_GUI_SET_MOUSE_HIDE);
+  RNA_def_property_ui_text(prop, "Invisible", "Set The Cursor Invisibility");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+}
+
 static void rna_def_vibration_actuator(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2459,6 +2514,7 @@ void RNA_def_actuator(BlenderRNA *brna)
   rna_def_armature_actuator(brna);
   rna_def_steering_actuator(brna);
   rna_def_mouse_actuator(brna);
+  rna_def_gui_actuator(brna);
 }
 
 #endif

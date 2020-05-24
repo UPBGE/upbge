@@ -456,6 +456,8 @@ static const char *actuator_name(int type)
       return N_("Steering");
     case ACT_MOUSE:
       return N_("Mouse");
+    case ACT_GUI:
+      return N_("GUI");
   }
   return N_("Unknown");
 }
@@ -2483,6 +2485,29 @@ static void draw_actuator_mouse(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
+static void draw_actuator_gui(uiLayout *layout, PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
+  switch (RNA_enum_get(ptr, "mode")) {
+    case ACT_GUI_LAYOUT_ADD:
+    case ACT_GUI_LAYOUT_REMOVE:
+      uiItemR(layout, ptr, "layout_name", 0, NULL, ICON_NONE);
+      uiItemR(layout, ptr, "prefix", 0, NULL, ICON_NONE);
+      break;
+    case ACT_GUI_MOUSE_CHANGE:
+      uiItemR(layout, ptr, "layout_name", 0, NULL, ICON_NONE);
+      uiItemR(layout, ptr, "cursor_name", 0, NULL, ICON_NONE);
+      uiItemR(layout, ptr, "cursor_default", 0, NULL, ICON_NONE);
+      break;
+    case ACT_GUI_MOUSE_VISIBILITY:
+      uiItemR(layout, ptr, "invisible", 0, NULL, ICON_NONE);
+      break;
+    case ACT_GUI_SCHEME:
+      uiItemR(layout, ptr, "layout_name", 0, NULL, ICON_NONE);
+      break;
+  }
+}
+
 static void draw_brick_actuator(uiLayout *layout, PointerRNA *ptr, bContext *C)
 {
   uiLayout *box;
@@ -2553,6 +2578,9 @@ static void draw_brick_actuator(uiLayout *layout, PointerRNA *ptr, bContext *C)
       break;
     case ACT_MOUSE:
       draw_actuator_mouse(box, ptr);
+      break;
+    case ACT_GUI:
+      draw_actuator_gui(box, ptr);
       break;
   }
 }

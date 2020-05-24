@@ -38,6 +38,10 @@
 
 #include <boost/format.hpp>
 
+#ifdef WITH_GAMEENGINE_CEGUI
+#include <CEGUI/CEGUI.h>
+#endif
+
 #include "DNA_scene_types.h"
 #include "DRW_render.h"
 #include "GPU_framebuffer.h"
@@ -384,6 +388,11 @@ bool KX_KetsjiEngine::NextFrame()
   }
 
   double deltatime = m_clockTime - m_frameTime;
+
+#ifdef WITH_GAMEENGINE_CEGUI
+  CEGUI::System::getSingleton().injectTimePulse(deltatime); // for CEGUI animations, time is in seconds
+#endif
+
   if (deltatime < 0.0) {
     // We got here too quickly, which means there is nothing to do, just return and don't render.
     // Not sure if this is the best fix, but it seems to stop the jumping framerate issue (#33088)
@@ -724,6 +733,16 @@ void KX_KetsjiEngine::Render()
       }
     }
   }
+
+#ifdef WITH_GAMEENGINE_CEGUI
+  try {
+    CEGUI::System::getSingleton().renderGUI();
+  }
+  catch (CEGUI::Exception& rgui_error) {
+    std::cout << "Render GUI Error: " << rgui_error.getMessage() << std::endl;
+  }
+#endif
+
   Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
   if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER)) {
     int v[4];

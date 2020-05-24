@@ -67,6 +67,7 @@
 #include "SCA_DynamicActuator.h"
 #include "SCA_EndObjectActuator.h"
 #include "SCA_GameActuator.h"
+#include "SCA_GUIActuator.h"
 #include "SCA_MouseActuator.h"
 #include "SCA_ObjectActuator.h"
 #include "SCA_ParentActuator.h"
@@ -1059,6 +1060,65 @@ void BL_ConvertActuators(const char *maggiename,
                                                                 mouAct->limit_y);
           baseact = tmpbaseact;
         }
+        break;
+      }
+      case ACT_GUI: {
+        bGUIActuator *guiAct = (bGUIActuator *) bact->data;
+        std::string themename;
+        std::string cursorname;
+        std::string layoutname;
+        std::string prefix;
+        bool cursordefault = false;
+        int mode = SCA_GUIActuator::KX_GUI_NODEF;
+
+        switch (guiAct->type) {
+          case ACT_GUI_LAYOUT_ADD:
+          case ACT_GUI_LAYOUT_REMOVE: {
+            if (guiAct->type == ACT_GUI_LAYOUT_REMOVE) {
+              mode = SCA_GUIActuator::KX_GUI_LAYOUT_REMOVE;
+            }
+            else {
+              mode = SCA_GUIActuator::KX_GUI_LAYOUT_ADD;
+            }
+            layoutname = guiAct->layoutname;
+            prefix = guiAct->prefix;
+            break;
+          }
+          case ACT_GUI_SCHEME: {
+            mode = SCA_GUIActuator::KX_GUI_SCHEME_LOAD;
+            layoutname = guiAct->layoutname;
+            break;
+          }
+          case ACT_GUI_MOUSE_CHANGE:
+          case ACT_GUI_MOUSE_VISIBILITY: {
+            if (guiAct->type == ACT_GUI_MOUSE_CHANGE) {
+              mode = SCA_GUIActuator::KX_GUI_MOUSE_CHANGE;
+              themename = guiAct->layoutname;
+              cursorname = guiAct->cursorname;
+              cursordefault = guiAct->flag & ACT_GUI_SET_DEFAULT_MOUSE;
+            }
+            else {
+              if (guiAct->flag & ACT_GUI_SET_MOUSE_HIDE) {
+                mode = SCA_GUIActuator::KX_GUI_MOUSE_HIDE;
+              }
+              else {
+                mode = SCA_GUIActuator::KX_GUI_MOUSE_SHOW;
+              }
+            }
+            break;
+          }
+          default: ; /* flag error */
+        }
+        SCA_GUIActuator *tempguiact = new SCA_GUIActuator(gameobj,
+                                                      mode,
+                                                      themename,
+                                                      cursorname,
+                                                      layoutname,
+                                                      prefix,
+                                                      cursordefault,
+                                                      kxscene,
+                                                      ketsjiEngine);
+        baseact = tempguiact;
         break;
       }
       default:; /* generate some error */

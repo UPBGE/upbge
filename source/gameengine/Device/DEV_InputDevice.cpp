@@ -165,6 +165,131 @@ DEV_InputDevice::DEV_InputDevice()
   m_reverseWindowTranslateTable[GHOST_kEventWindowSize] = WINRESIZE;
   m_reverseWindowTranslateTable[GHOST_kEventQuitRequest] = WINQUIT;
   m_reverseWindowTranslateTable[GHOST_kEventWindowClose] = WINCLOSE;
+
+#ifdef WITH_GAMEENGINE_CEGUI
+  /* The reverse table. In order to not confuse ourselves, we
+   * immediately convert all events that come in to CEGUI codes. */
+
+  // standard keyboard
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyA] = CEGUI::Key::A;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyB] = CEGUI::Key::B;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyC] = CEGUI::Key::C;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyD] = CEGUI::Key::D;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyE] = CEGUI::Key::E;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF] = CEGUI::Key::F;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyG] = CEGUI::Key::G;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyH] = CEGUI::Key::H;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyI] = CEGUI::Key::I;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyJ] = CEGUI::Key::J;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyK] = CEGUI::Key::K;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyL] = CEGUI::Key::L;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyM] = CEGUI::Key::M;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyN] = CEGUI::Key::N;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyO] = CEGUI::Key::O;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyP] = CEGUI::Key::P;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyQ] = CEGUI::Key::Q;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyR] = CEGUI::Key::R;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyS] = CEGUI::Key::S;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyT] = CEGUI::Key::T;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyU] = CEGUI::Key::U;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyV] = CEGUI::Key::V;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyW] = CEGUI::Key::W;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyX] = CEGUI::Key::X;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyY] = CEGUI::Key::Y;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyZ] = CEGUI::Key::Z;
+
+  m_ceguiReverseKeyTranslateTable[GHOST_kKey0] = CEGUI::Key::Zero;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKey1] = CEGUI::Key::One;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKey2] = CEGUI::Key::Two;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKey3] = CEGUI::Key::Three;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKey4] = CEGUI::Key::Four;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKey5] = CEGUI::Key::Five;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKey6] = CEGUI::Key::Six;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKey7] = CEGUI::Key::Seven;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKey8] = CEGUI::Key::Eight;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKey9] = CEGUI::Key::Nine;
+
+  // Middle keyboard area keys
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyPause] = CEGUI::Key::Pause;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyInsert] = CEGUI::Key::Insert;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyDelete] = CEGUI::Key::Delete;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyHome] = CEGUI::Key::Home;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyEnd] = CEGUI::Key::End;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyUpPage] = CEGUI::Key::PageUp;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyDownPage] = CEGUI::Key::PageDown;
+
+  // Arrow keys
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyLeftArrow] = CEGUI::Key::ArrowLeft;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyDownArrow] = CEGUI::Key::ArrowDown;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyRightArrow] = CEGUI::Key::ArrowRight;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyUpArrow] = CEGUI::Key::ArrowUp;
+
+  // Function keys
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF1] = CEGUI::Key::F1;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF2] = CEGUI::Key::F2;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF3] = CEGUI::Key::F3;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF4] = CEGUI::Key::F4;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF5] = CEGUI::Key::F5;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF6] = CEGUI::Key::F6;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF7] = CEGUI::Key::F7;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF8] = CEGUI::Key::F8;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF9] = CEGUI::Key::F9;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF10] = CEGUI::Key::F10;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF11] = CEGUI::Key::F11;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF12] = CEGUI::Key::F12;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF13] = CEGUI::Key::F13;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF14] = CEGUI::Key::F14;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF15] = CEGUI::Key::F15;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF16] = CEGUI::Key::Unknown;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF17] = CEGUI::Key::Unknown;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF18] = CEGUI::Key::Unknown;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyF19] = CEGUI::Key::Unknown;
+
+  // Numpad keys
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpad0] = CEGUI::Key::Numpad0;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpad1] = CEGUI::Key::Numpad1;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpad2] = CEGUI::Key::Numpad2;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpad3] = CEGUI::Key::Numpad3;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpad4] = CEGUI::Key::Numpad4;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpad5] = CEGUI::Key::Numpad5;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpad6] = CEGUI::Key::Numpad6;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpad7] = CEGUI::Key::Numpad7;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpad8] = CEGUI::Key::Numpad8;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpad9] = CEGUI::Key::Numpad9;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpadAsterisk] = CEGUI::Key::Multiply;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpadPlus] = CEGUI::Key::Add;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpadPeriod] = CEGUI::Key::Decimal;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpadMinus] = CEGUI::Key::Subtract;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpadSlash] = CEGUI::Key::Divide;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyNumpadEnter] = CEGUI::Key::NumpadEnter;
+
+  // Other keys
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyCapsLock] = CEGUI::Key::Capital;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyEsc] = CEGUI::Key::Escape;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyTab] = CEGUI::Key::Tab;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyEnter] = CEGUI::Key::Return;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeySpace] = CEGUI::Key::Space;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyBackSpace] = CEGUI::Key::Backspace;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeySemicolon] = CEGUI::Key::Semicolon;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyPeriod] = CEGUI::Key::Period;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyComma] = CEGUI::Key::Comma;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyQuote] = CEGUI::Key::Apostrophe;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyAccentGrave] = CEGUI::Key::Grave;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyMinus] = CEGUI::Key::Minus;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeySlash] = CEGUI::Key::Slash;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyBackslash] = CEGUI::Key::Backslash;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyEqual] = CEGUI::Key::Equals;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyLeftBracket] = CEGUI::Key::LeftBracket;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyRightBracket] = CEGUI::Key::RightBracket;
+
+  // Modifier keys.
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyLeftControl] = CEGUI::Key::LeftControl;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyRightControl] = CEGUI::Key::RightControl;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyLeftAlt] = CEGUI::Key::LeftAlt;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyRightAlt] = CEGUI::Key::RightAlt;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyLeftShift] = CEGUI::Key::LeftShift;
+  m_ceguiReverseKeyTranslateTable[GHOST_kKeyRightShift] = CEGUI::Key::RightShift;
+#endif
 }
 
 DEV_InputDevice::~DEV_InputDevice()
@@ -174,6 +299,10 @@ DEV_InputDevice::~DEV_InputDevice()
 void DEV_InputDevice::ConvertKeyEvent(int incode, int val, unsigned int unicode)
 {
   ConvertEvent(m_reverseKeyTranslateTable[incode], val, unicode);
+
+#ifdef WITH_GAMEENGINE_CEGUI
+  ConvertEvent(m_ceguiReverseKeyTranslateTable[incode], val, unicode);
+#endif
 }
 
 void DEV_InputDevice::ConvertButtonEvent(int incode, int val)

@@ -809,6 +809,9 @@ static void write_actuators(BlendWriter *writer, ListBase *lb)
       case ACT_MOUSE:
         BLO_write_struct(writer, bMouseActuator, act->data);
         break;
+      case ACT_GUI:
+       BLO_write_struct(writer, bGUIActuator, act->data);
+       break;
       default:; /* error: don't know how to write this file */
     }
 

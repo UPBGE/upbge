@@ -67,6 +67,7 @@ set(SRC
   SCA_EventManager.cpp
   SCA_ExpressionController.cpp
   SCA_GameActuator.cpp
+  SCA_GUIActuator.cpp
   SCA_IActuator.cpp
   SCA_IController.cpp
   SCA_IInputDevice.cpp
@@ -132,6 +133,7 @@ set(SRC
   SCA_EventManager.h
   SCA_ExpressionController.h
   SCA_GameActuator.h
+  SCA_GUIActuator.h
   SCA_IActuator.h
   SCA_IController.h
   SCA_IInputDevice.h
@@ -194,6 +196,10 @@ if(WITH_AUDASPACE)
     ${AUDASPACE_PY_LIBRARIES}
   )
   add_definitions(-DWITH_AUDASPACE)
+endif()
+
+if(WITH_GAMEENGINE_CEGUI)
+  add_definitions(-DWITH_GAMEENGINE_CEGUI)
 endif()
 
 if(WITH_SDL)
