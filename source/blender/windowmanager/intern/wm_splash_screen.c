@@ -128,6 +128,7 @@ static void get_version_string(char *ver, const int max_length)
                version_cycle);
 }
 
+#ifndef WITH_HEADLESS
 static void wm_block_splash_image_roundcorners_add(ImBuf *ibuf)
 {
   uchar *rct = (uchar *)ibuf->rect;
@@ -178,6 +179,7 @@ static void wm_block_splash_image_roundcorners_add(ImBuf *ibuf)
     }
   }
 }
+#endif /* WITH_HEADLESS */
 
 static ImBuf *wm_block_splash_image(int width, int *r_height)
 {
@@ -218,6 +220,7 @@ static ImBuf *wm_block_splash_image(int width, int *r_height)
 
   return ibuf;
 #else
+  UNUSED_VARS(width, r_height);
   return NULL;
 #endif
 }
