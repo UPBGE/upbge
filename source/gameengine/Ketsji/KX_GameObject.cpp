@@ -228,17 +228,48 @@ void KX_GameObject::SetBlenderObject(Object *obj)
   }
 }
 
+/* Look at object_transform for original function */
+void KX_GameObject::IgnoreParentTxBGE(Main *bmain,
+                                      Depsgraph *depsgraph,
+                                      KX_Scene *kxscene,
+                                      Object *ob)
+{
+  Object workob;
+  Object *ob_child;
+
+  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+
+  /* a change was made, adjust the children to compensate */
+  for (KX_GameObject *gameobj : kxscene->GetObjectList()) {
+    if (gameobj->GetBlenderObject()->parent == ob) {
+      ob_child = gameobj->GetBlenderObject();
+      Object *ob_child_eval = DEG_get_evaluated_object(depsgraph, ob_child);
+      BKE_object_apply_mat4(ob_child_eval, ob_child_eval->obmat, true, false);
+      BKE_object_workob_calc_parent(depsgraph, kxscene->GetBlenderScene(), ob_child_eval, &workob);
+      invert_m4_m4(ob_child->parentinv, workob.obmat);
+      /* Copy result of BKE_object_apply_mat4(). */
+      BKE_object_transform_copy(ob_child, ob_child_eval);
+      /* Make sure evaluated object is in a consistent state with the original one.
+       * It might be needed for applying transform on its children. */
+      copy_m4_m4(ob_child_eval->parentinv, ob_child->parentinv);
+      BKE_object_eval_transform_all(depsgraph, scene_eval, ob_child_eval);
+      /* Tag for update.
+       * This is because parent matrix did change, so in theory the child object might now be
+       * evaluated to a different location in another editing context. */
+      DEG_id_tag_update(&ob_child->id, ID_RECALC_TRANSFORM);
+    }
+  }
+}
+
 void KX_GameObject::TagForUpdate(bool is_overlay_pass)
 {
   float obmat[4][4];
   NodeGetWorldTransform().getValue(&obmat[0][0]);
   m_staticObject = compare_m4m4(m_prevObmat, obmat, FLT_MIN);
 
-  Scene *sc = GetScene()->GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(sc);
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, sc, view_layer, false);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   if (m_staticObject) {
     GetScene()->AppendToStaticObjects(this);
@@ -252,6 +283,10 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
     copy_m4_m4(ob_eval->obmat, obmat);
     BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
     BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
+    NodeList &children = m_pSGNode->GetSGChildren();
+    if (children.size()) {
+      IgnoreParentTxBGE(bmain, depsgraph, GetScene(), ob_orig);
+    }
     /* NORMAL CASE */
     if (!m_staticObject && ob_orig->type != OB_MBALL) {
       DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);

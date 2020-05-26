@@ -153,6 +153,7 @@ class KX_GameObject : public SCA_IObject {
   bool IsReplica();
   void BackupObmat(Object *ob);
   void RestoreObmat(Object *ob);
+  void IgnoreParentTxBGE(struct Main *bmain, struct Depsgraph *depsgraph, KX_Scene *kxscene, Object *ob);
   /* END OF EEVEE INTEGRATION */
 
   /**
