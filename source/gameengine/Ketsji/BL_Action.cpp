@@ -359,8 +359,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   m_requestIpo = true;
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   Object *ob = m_obj->GetBlenderObject();  // eevee
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
@@ -377,9 +375,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
     // Extract the pose from the action
     obj->SetPoseByAction(m_action, m_localframe);
-
-    /* Armatures have children then fix transformation */
-    m_obj->IgnoreParentTxBGE(CTX_data_main(C), depsgraph, scene, ob);
 
     // Handle blending between armature actions
     if (m_blendin && m_blendframe < m_blendin) {
@@ -430,12 +425,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
-
-          /* If object has children, fix transformation */
-          NodeList &children = m_obj->GetSGNode()->GetSGChildren();
-          if (children.size()) {
-            m_obj->IgnoreParentTxBGE(CTX_data_main(C), depsgraph, scene, ob);
-          }
 
           scene->ResetTaaSamples();
           break;
