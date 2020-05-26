@@ -300,36 +300,6 @@ void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float> &blends
 {
 }
 
-/* Look at object_transform for original function */
-static void ignore_parent_tx_bge(Main *bmain, Depsgraph *depsgraph, KX_Scene *kxscene, Object *ob)
-{
-  Object workob;
-  Object *ob_child;
-
-  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-
-  /* a change was made, adjust the children to compensate */
-  for (KX_GameObject *gameobj : kxscene->GetObjectList()) {
-    if (gameobj->GetBlenderObject()->parent == ob) {
-      ob_child = gameobj->GetBlenderObject();
-      Object *ob_child_eval = DEG_get_evaluated_object(depsgraph, ob_child);
-      BKE_object_apply_mat4(ob_child_eval, ob_child_eval->obmat, true, false);
-      BKE_object_workob_calc_parent(depsgraph, kxscene->GetBlenderScene(), ob_child_eval, &workob);
-      invert_m4_m4(ob_child->parentinv, workob.obmat);
-      /* Copy result of BKE_object_apply_mat4(). */
-      BKE_object_transform_copy(ob_child, ob_child_eval);
-      /* Make sure evaluated object is in a consistent state with the original one.
-       * It might be needed for applying transform on its children. */
-      copy_m4_m4(ob_child_eval->parentinv, ob_child->parentinv);
-      BKE_object_eval_transform_all(depsgraph, scene_eval, ob_child_eval);
-      /* Tag for update.
-       * This is because parent matrix did change, so in theory the child object might now be
-       * evaluated to a different location in another editing context. */
-      DEG_id_tag_update(&ob_child->id, ID_RECALC_TRANSFORM);
-    }
-  }
-}
-
 void BL_Action::Update(float curtime, bool applyToObject)
 {
   /* Don't bother if we're done with the animation and if the animation was already applied to the
@@ -389,8 +359,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   m_requestIpo = true;
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   Object *ob = m_obj->GetBlenderObject();  // eevee
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
@@ -407,8 +375,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
     // Extract the pose from the action
     obj->SetPoseByAction(m_action, m_localframe);
-
-    ignore_parent_tx_bge(CTX_data_main(C), depsgraph, scene, ob);
 
     // Handle blending between armature actions
     if (m_blendin && m_blendframe < m_blendin) {
@@ -459,8 +425,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
-
-          ignore_parent_tx_bge(CTX_data_main(C), depsgraph, scene, ob);
 
           scene->ResetTaaSamples();
           break;
