@@ -101,6 +101,9 @@ typedef enum {
   /* For modifiers that use CD_PREVIEW_MCOL for preview. */
   eModifierTypeFlag_UsesPreview = (1 << 9),
   eModifierTypeFlag_AcceptsVertexCosOnly = (1 << 10),
+
+  /** Accepts #BMesh input (without conversion). */
+  eModifierTypeFlag_AcceptsBMesh = (1 << 11),
 } ModifierTypeFlag;
 
 /* IMPORTANT! Keep ObjectWalkFunc and IDWalkFunc signatures compatible. */
@@ -390,7 +393,7 @@ void BKE_modifiers_foreach_ID_link(struct Object *ob, IDWalkFunc walk, void *use
 void BKE_modifiers_foreach_tex_link(struct Object *ob, TexWalkFunc walk, void *userData);
 
 struct ModifierData *BKE_modifiers_findby_type(struct Object *ob, ModifierType type);
-struct ModifierData *BKE_modifiers_findny_name(struct Object *ob, const char *name);
+struct ModifierData *BKE_modifiers_findby_name(struct Object *ob, const char *name);
 void BKE_modifiers_clear_errors(struct Object *ob);
 int BKE_modifiers_get_cage_index(struct Scene *scene,
                                  struct Object *ob,

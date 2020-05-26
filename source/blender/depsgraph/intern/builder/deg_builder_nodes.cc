@@ -83,6 +83,7 @@
 #include "BKE_key.h"
 #include "BKE_lattice.h"
 #include "BKE_layer.h"
+#include "BKE_light.h"
 #include "BKE_mask.h"
 #include "BKE_material.h"
 #include "BKE_mball.h"
@@ -1441,6 +1442,12 @@ void DepsgraphNodeBuilder::build_light(Light *lamp)
   build_parameters(&lamp->id);
   /* light's nodetree */
   build_nodetree(lamp->nodetree);
+
+  Light *lamp_cow = get_cow_datablock(lamp);
+  add_operation_node(&lamp->id,
+                     NodeType::SHADING,
+                     OperationCode::LIGHT_UPDATE,
+                     function_bind(BKE_light_eval, _1, lamp_cow));
 }
 
 void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
@@ -1759,10 +1766,13 @@ void DepsgraphNodeBuilder::build_simulation(Simulation *simulation)
   build_animdata(&simulation->id);
   build_parameters(&simulation->id);
 
+  Simulation *simulation_cow = get_cow_datablock(simulation);
+  Scene *scene_cow = get_cow_datablock(scene_);
+
   add_operation_node(&simulation->id,
                      NodeType::SIMULATION,
                      OperationCode::SIMULATION_EVAL,
-                     function_bind(BKE_simulation_data_update, _1, get_cow_datablock(scene_)));
+                     function_bind(BKE_simulation_data_update, _1, scene_cow, simulation_cow));
 }
 
 void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)
