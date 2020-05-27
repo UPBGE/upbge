@@ -16,7 +16,7 @@
 //
 // Author: Sergey Sharybin
 
-#include "internal/opensubdiv_evaluator_internal.h"
+#include "internal/evaluator/evaluator_impl.h"
 
 #include <cassert>
 #include <cstdio>
@@ -37,8 +37,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "internal/opensubdiv_topology_refiner_internal.h"
-#include "internal/opensubdiv_util.h"
+#include "internal/base/type.h"
+#include "internal/topology/topology_refiner_impl.h"
 #include "opensubdiv_topology_refiner_capi.h"
 
 using OpenSubdiv::Far::PatchMap;
@@ -327,7 +327,7 @@ class VolatileEvalOutput {
     // Create evaluators for every face varying channel.
     face_varying_evaluators.reserve(all_face_varying_stencils.size());
     int face_varying_channel = 0;
-    foreach (const StencilTable *face_varying_stencils, all_face_varying_stencils) {
+    for (const StencilTable *face_varying_stencils : all_face_varying_stencils) {
       face_varying_evaluators.push_back(new FaceVaryingEval(face_varying_channel,
                                                             face_varying_stencils,
                                                             face_varying_width,
@@ -345,7 +345,7 @@ class VolatileEvalOutput {
     delete patch_table_;
     delete vertex_stencils_;
     delete varying_stencils_;
-    foreach (FaceVaryingEval *face_varying_evaluator, face_varying_evaluators) {
+    for (FaceVaryingEval *face_varying_evaluator : face_varying_evaluators) {
       delete face_varying_evaluator;
     }
   }
@@ -414,7 +414,7 @@ class VolatileEvalOutput {
     }
     // Evaluate face-varying data.
     if (hasFaceVaryingData()) {
-      foreach (FaceVaryingEval *face_varying_evaluator, face_varying_evaluators) {
+      for (FaceVaryingEval *face_varying_evaluator : face_varying_evaluators) {
         face_varying_evaluator->refine();
       }
     }
@@ -735,23 +735,23 @@ void CpuEvalOutputAPI::evaluatePatchesLimit(const OpenSubdiv_PatchCoord *patch_c
 }  // namespace opensubdiv
 }  // namespace blender
 
-OpenSubdiv_EvaluatorInternal::OpenSubdiv_EvaluatorInternal()
+OpenSubdiv_EvaluatorImpl::OpenSubdiv_EvaluatorImpl()
     : eval_output(NULL), patch_map(NULL), patch_table(NULL)
 {
 }
 
-OpenSubdiv_EvaluatorInternal::~OpenSubdiv_EvaluatorInternal()
+OpenSubdiv_EvaluatorImpl::~OpenSubdiv_EvaluatorImpl()
 {
   delete eval_output;
   delete patch_map;
   delete patch_table;
 }
 
-OpenSubdiv_EvaluatorInternal *openSubdiv_createEvaluatorInternal(
+OpenSubdiv_EvaluatorImpl *openSubdiv_createEvaluatorInternal(
     OpenSubdiv_TopologyRefiner *topology_refiner)
 {
   using blender::opensubdiv::vector;
-  TopologyRefiner *refiner = topology_refiner->internal->osd_topology_refiner;
+  TopologyRefiner *refiner = topology_refiner->impl->topology_refiner;
   if (refiner == NULL) {
     // Happens on bad topology.
     return NULL;
@@ -857,21 +857,21 @@ OpenSubdiv_EvaluatorInternal *openSubdiv_createEvaluatorInternal(
       vertex_stencils, varying_stencils, all_face_varying_stencils, 2, patch_table);
   OpenSubdiv::Far::PatchMap *patch_map = new PatchMap(*patch_table);
   // Wrap everything we need into an object which we control from our side.
-  OpenSubdiv_EvaluatorInternal *evaluator_descr;
-  evaluator_descr = OBJECT_GUARDED_NEW(OpenSubdiv_EvaluatorInternal);
+  OpenSubdiv_EvaluatorImpl *evaluator_descr;
+  evaluator_descr = new OpenSubdiv_EvaluatorImpl();
   evaluator_descr->eval_output = new blender::opensubdiv::CpuEvalOutputAPI(eval_output, patch_map);
   evaluator_descr->patch_map = patch_map;
   evaluator_descr->patch_table = patch_table;
   // TOOD(sergey): Look into whether we've got duplicated stencils arrays.
   delete vertex_stencils;
   delete varying_stencils;
-  foreach (const StencilTable *table, all_face_varying_stencils) {
+  for (const StencilTable *table : all_face_varying_stencils) {
     delete table;
   }
   return evaluator_descr;
 }
 
-void openSubdiv_deleteEvaluatorInternal(OpenSubdiv_EvaluatorInternal *evaluator)
+void openSubdiv_deleteEvaluatorInternal(OpenSubdiv_EvaluatorImpl *evaluator)
 {
-  OBJECT_GUARDED_DELETE(evaluator, OpenSubdiv_EvaluatorInternal);
+  delete evaluator;
 }

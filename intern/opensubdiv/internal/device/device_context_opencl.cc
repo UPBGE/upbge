@@ -1,4 +1,4 @@
-// Copyright 2015 Blender Foundation. All rights reserved.
+// Copyright 2020 Blender Foundation. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,15 +16,24 @@
 //
 // Author: Sergey Sharybin
 
-#ifndef OPENSUBDIV_INTERNAL_H_
-#define OPENSUBDIV_INTERNAL_H_
+#include "internal/device/device_context_opencl.h"
 
-// Perform full topology validation when exporting it to OpenSubdiv.
-#ifdef NDEBUG
-// Never do for release builds.
-#  undef OPENSUBDIV_VALIDATE_TOPOLOGY
-#else
-#  define OPENSUBDIV_VALIDATE_TOPOLOGY
-#endif
+namespace blender {
+namespace opensubdiv {
 
-#endif  // OPENSUBDIV_INTERNAL_H_
+bool OpenCLDeviceContext::isSupported()
+{
+  // TODO(sergey): Add support of OpenCL devices.
+  return false;
+}
+
+OpenCLDeviceContext::OpenCLDeviceContext()
+{
+}
+
+OpenCLDeviceContext::~OpenCLDeviceContext()
+{
+}
+
+}  // namespace opensubdiv
+}  // namespace blender

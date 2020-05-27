@@ -1151,7 +1151,7 @@ static void template_ID_tabs(bContext *C,
 {
   const ARegion *region = CTX_wm_region(C);
   const PointerRNA active_ptr = RNA_property_pointer_get(&template->ptr, template->prop);
-  MenuType *mt = WM_menutype_find(menu, false);
+  MenuType *mt = menu ? WM_menutype_find(menu, false) : NULL;
 
   const int but_align = ui_but_align_opposite_to_area_align_get(region);
   const int but_height = UI_UNIT_Y * 1.1;
@@ -1221,6 +1221,8 @@ static void ui_template_id(uiLayout *layout,
                            const char *newop,
                            const char *openop,
                            const char *unlinkop,
+                           /* Only respected by tabs (use_tabs). */
+                           const char *menu,
                            const char *text,
                            int flag,
                            int prv_rows,
@@ -1275,7 +1277,7 @@ static void ui_template_id(uiLayout *layout,
   if (template_ui->idlb) {
     if (use_tabs) {
       layout = uiLayoutRow(layout, true);
-      template_ID_tabs(C, layout, template_ui, type, flag, newop, unlinkop);
+      template_ID_tabs(C, layout, template_ui, type, flag, newop, menu);
     }
     else {
       layout = uiLayoutRow(layout, true);
@@ -1314,6 +1316,7 @@ void uiTemplateID(uiLayout *layout,
                  newop,
                  openop,
                  unlinkop,
+                 NULL,
                  text,
                  UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE,
                  0,
@@ -1342,6 +1345,7 @@ void uiTemplateIDBrowse(uiLayout *layout,
                  newop,
                  openop,
                  unlinkop,
+                 NULL,
                  text,
                  UI_ID_BROWSE | UI_ID_RENAME,
                  0,
@@ -1373,6 +1377,7 @@ void uiTemplateIDPreview(uiLayout *layout,
                  openop,
                  unlinkop,
                  NULL,
+                 NULL,
                  UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE | UI_ID_PREVIEWS,
                  rows,
                  cols,
@@ -1400,6 +1405,7 @@ void uiTemplateGpencilColorPreview(uiLayout *layout,
                  NULL,
                  NULL,
                  NULL,
+                 NULL,
                  UI_ID_BROWSE | UI_ID_PREVIEWS | UI_ID_DELETE,
                  rows,
                  cols,
@@ -1418,7 +1424,7 @@ void uiTemplateIDTabs(uiLayout *layout,
                       PointerRNA *ptr,
                       const char *propname,
                       const char *newop,
-                      const char *unlinkop,
+                      const char *menu,
                       int filter)
 {
   ui_template_id(layout,
@@ -1427,7 +1433,8 @@ void uiTemplateIDTabs(uiLayout *layout,
                  propname,
                  newop,
                  NULL,
-                 unlinkop,
+                 NULL,
+                 menu,
                  NULL,
                  UI_ID_BROWSE | UI_ID_RENAME,
                  0,

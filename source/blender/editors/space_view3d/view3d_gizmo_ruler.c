@@ -40,6 +40,7 @@
 #include "DNA_object_types.h"
 #include "DNA_view3d_types.h"
 
+#include "ED_gizmo_library.h"
 #include "ED_gizmo_utils.h"
 #include "ED_gpencil.h"
 #include "ED_screen.h"
@@ -56,11 +57,15 @@
 #include "WM_api.h"
 #include "WM_toolsystem.h"
 #include "WM_types.h"
+#include "wm.h"
+
+#include "DEG_depsgraph_query.h"
 
 #include "view3d_intern.h" /* own include */
 
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
+#include "GPU_matrix.h"
 #include "GPU_state.h"
 
 #include "BLF_api.h"
@@ -94,10 +99,6 @@ enum {
   RULER_STATE_DRAG,
 };
 
-enum {
-  RULER_SNAP_OK = (1 << 0),
-};
-
 struct RulerItem;
 
 typedef struct RulerInfo {
@@ -106,18 +107,24 @@ typedef struct RulerInfo {
   int snap_flag;
   int state;
 
-  struct SnapObjectContext *snap_context;
-
   /* wm state */
+  wmWindowManager *wm;
   wmWindow *win;
   ScrArea *area;
   ARegion *region; /* re-assigned every modal update */
 
   /* Track changes in state. */
   struct {
+#ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
     bool do_snap;
+#endif
     bool do_thickness;
   } drag_state_prev;
+
+  struct {
+    wmGizmo *gizmo;
+    PropertyRNA *prop_prevpoint;
+  } snap_data;
 
 } RulerInfo;
 
@@ -269,17 +276,10 @@ static bool view3d_ruler_pick(wmGizmoGroup *gzgroup,
  * Ensure the 'snap_context' is only cached while dragging,
  * needed since the user may toggle modes between tool use.
  */
-static void ruler_state_set(bContext *C, RulerInfo *ruler_info, int state)
+static void ruler_state_set(RulerInfo *ruler_info, int state)
 {
-  Main *bmain = CTX_data_main(C);
   if (state == ruler_info->state) {
     return;
-  }
-
-  /* always remove */
-  if (ruler_info->snap_context) {
-    ED_transform_snap_object_context_destroy(ruler_info->snap_context);
-    ruler_info->snap_context = NULL;
   }
 
   if (state == RULER_STATE_NORMAL) {
@@ -287,8 +287,6 @@ static void ruler_state_set(bContext *C, RulerInfo *ruler_info, int state)
   }
   else if (state == RULER_STATE_DRAG) {
     memset(&ruler_info->drag_state_prev, 0x0, sizeof(ruler_info->drag_state_prev));
-    ruler_info->snap_context = ED_transform_snap_object_context_create_view3d(
-        bmain, CTX_data_scene(C), 0, ruler_info->region, CTX_wm_view3d(C));
   }
   else {
     BLI_assert(0);
@@ -307,13 +305,18 @@ static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
                                         RulerInfo *ruler_info,
                                         RulerItem *ruler_item,
                                         const int mval[2],
-                                        const bool do_thickness,
-                                        const bool do_snap)
+                                        const bool do_thickness
+#ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
+                                        ,
+                                        const bool do_snap
+#endif
+)
 {
+  wmGizmo *snap_gizmo = ruler_info->snap_data.gizmo;
   const float eps_bias = 0.0002f;
   float dist_px = MVAL_MAX_PX_DIST * U.pixelsize; /* snap dist */
 
-  ruler_info->snap_flag &= ~RULER_SNAP_OK;
+  WM_gizmo_set_flag(snap_gizmo, WM_GIZMO_HIDDEN, true);
 
   if (ruler_item) {
     RulerInteraction *inter = ruler_item->gz.interaction_data;
@@ -322,8 +325,10 @@ static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
     copy_v3_v3(co, inter->drag_start_co);
     view3d_ruler_item_project(ruler_info, co, mval);
     if (do_thickness && inter->co_index != 1) {
-      // Scene *scene = CTX_data_scene(C);
-      // View3D *v3d = ruler_info->area->spacedata.first;
+      Scene *scene = DEG_get_input_scene(depsgraph);
+      View3D *v3d = ruler_info->area->spacedata.first;
+      SnapObjectContext *snap_context = ED_gizmotypes_snap_3d_context_ensure(
+          scene, ruler_info->region, v3d, snap_gizmo);
       const float mval_fl[2] = {UNPACK2(mval)};
       float ray_normal[3];
       float ray_start[3];
@@ -331,7 +336,7 @@ static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
 
       co_other = ruler_item->co[inter->co_index == 0 ? 2 : 0];
 
-      if (ED_transform_snap_object_project_view3d(ruler_info->snap_context,
+      if (ED_transform_snap_object_project_view3d(snap_context,
                                                   depsgraph,
                                                   SCE_SNAP_MODE_FACE,
                                                   &(const struct SnapObjectParams){
@@ -346,7 +351,7 @@ static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
         negate_v3(ray_normal);
         /* add some bias */
         madd_v3_v3v3fl(ray_start, co, ray_normal, eps_bias);
-        ED_transform_snap_object_project_ray(ruler_info->snap_context,
+        ED_transform_snap_object_project_ray(snap_context,
                                              depsgraph,
                                              &(const struct SnapObjectParams){
                                                  .snap_select = SNAP_ALL,
@@ -359,7 +364,12 @@ static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
                                              NULL);
       }
     }
-    else if (do_snap) {
+    else
+#ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
+        if (do_snap)
+#endif
+    {
+      View3D *v3d = ruler_info->area->spacedata.first;
       const float mval_fl[2] = {UNPACK2(mval)};
       float *prev_point = NULL;
 
@@ -374,23 +384,19 @@ static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
           prev_point = ruler_item->co[0];
         }
       }
+      if (prev_point != NULL) {
+        RNA_property_float_set_array(
+            snap_gizmo->ptr, ruler_info->snap_data.prop_prevpoint, prev_point);
+      }
 
-      if (ED_transform_snap_object_project_view3d(
-              ruler_info->snap_context,
-              depsgraph,
-              (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE |
-               SCE_SNAP_MODE_EDGE_MIDPOINT | SCE_SNAP_MODE_EDGE_PERPENDICULAR),
-              &(const struct SnapObjectParams){
-                  .snap_select = SNAP_ALL,
-                  .use_object_edit_cage = true,
-                  .use_occlusion_test = true,
-              },
-              mval_fl,
-              prev_point,
-              &dist_px,
-              co,
-              NULL)) {
-        ruler_info->snap_flag |= RULER_SNAP_OK;
+      short snap_elem = ED_gizmotypes_snap_3d_update(
+          snap_gizmo, depsgraph, ruler_info->region, v3d, ruler_info->wm, mval_fl, co, NULL);
+
+      if (snap_elem) {
+        WM_gizmo_set_flag(snap_gizmo, WM_GIZMO_HIDDEN, false);
+
+        /* Highlight snap_gizmo so that it is drawn. */
+        wm_gizmomap_highlight_set(snap_gizmo->parent_gzgroup->parent_gzmap, NULL, snap_gizmo, 0);
       }
     }
     return true;
@@ -415,6 +421,15 @@ static bGPDlayer *view3d_ruler_layer_get(bGPdata *gpd)
     }
   }
   return NULL;
+}
+
+static RulerItem *gzgroup_ruler_item_first_get(wmGizmoGroup *gzgroup)
+{
+#ifndef NDEBUG
+  RulerInfo *ruler_info = gzgroup->customdata;
+  BLI_assert(gzgroup->gizmos.first == ruler_info->snap_data.gizmo);
+#endif
+  return (RulerItem *)((wmGizmo *)gzgroup->gizmos.first)->next;
 }
 
 #define RULER_ID "RulerData3D"
@@ -448,7 +463,7 @@ static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
   gpf = BKE_gpencil_layer_frame_get(gpl, CFRA, GP_GETFRAME_ADD_NEW);
   BKE_gpencil_free_strokes(gpf);
 
-  for (ruler_item = gzgroup->gizmos.first; ruler_item;
+  for (ruler_item = gzgroup_ruler_item_first_get(gzgroup); ruler_item;
        ruler_item = (RulerItem *)ruler_item->gz.next) {
     bGPDspoint *pt;
     int j;
@@ -556,6 +571,12 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
   uchar color_wire[3];
   float color_back[4] = {1.0f, 1.0f, 1.0f, 0.5f};
 
+  /* Pixel Space. */
+  GPU_matrix_push_projection();
+  GPU_matrix_push();
+  GPU_matrix_identity_set();
+  wmOrtho2_region_pixelspace(region);
+
   /* anti-aliased lines for more consistent appearance */
   GPU_line_smooth(true);
   GPU_line_width(1.0f);
@@ -575,20 +596,30 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
   const bool is_act = (ruler_info->item_active == ruler_item);
   float dir_ruler[2];
   float co_ss[3][2];
+  bool proj_ok[3];
   int j;
 
-  /* should these be checked? - ok for now not to */
+  /* Check if each corner is behind the near plane. If it is, we do not draw certain lines. */
   for (j = 0; j < 3; j++) {
-    ED_view3d_project_float_global(region, ruler_item->co[j], co_ss[j], V3D_PROJ_TEST_NOP);
+    eV3DProjStatus status = ED_view3d_project_float_global(
+        region, ruler_item->co[j], co_ss[j], V3D_PROJ_TEST_CLIP_NEAR);
+    proj_ok[j] = (status == V3D_PROJ_RET_OK);
   }
+
+  /* 3d drawing. */
+
+  GPU_matrix_push_projection();
+  GPU_matrix_push();
+  GPU_matrix_projection_set(rv3d->winmat);
+  GPU_matrix_set(rv3d->viewmat);
 
   GPU_blend(true);
 
-  const uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint shdr_pos_3d = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
 
   if (ruler_item->flag & RULERITEM_USE_ANGLE) {
-    immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
     float viewport_size[4];
     GPU_viewport_size_get_f(viewport_size);
@@ -605,21 +636,20 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
 
     immBegin(GPU_PRIM_LINE_STRIP, 3);
 
-    immVertex2fv(shdr_pos, co_ss[0]);
-    immVertex2fv(shdr_pos, co_ss[1]);
-    immVertex2fv(shdr_pos, co_ss[2]);
+    immVertex3fv(shdr_pos_3d, ruler_item->co[0]);
+    immVertex3fv(shdr_pos_3d, ruler_item->co[1]);
+    immVertex3fv(shdr_pos_3d, ruler_item->co[2]);
 
     immEnd();
 
     immUnbindProgram();
 
-    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     /* arc */
     {
       float dir_tmp[3];
-      float co_tmp[3];
-      float arc_ss_coord[2];
+      float ar_coord[3];
 
       float dir_a[3];
       float dir_b[3];
@@ -648,16 +678,53 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
       immBegin(GPU_PRIM_LINE_STRIP, arc_steps + 1);
 
       for (j = 0; j <= arc_steps; j++) {
-        madd_v3_v3v3fl(co_tmp, ruler_item->co[1], dir_tmp, px_scale);
-        ED_view3d_project_float_global(region, co_tmp, arc_ss_coord, V3D_PROJ_TEST_NOP);
+        madd_v3_v3v3fl(ar_coord, ruler_item->co[1], dir_tmp, px_scale);
         mul_qt_v3(quat, dir_tmp);
 
-        immVertex2fv(shdr_pos, arc_ss_coord);
+        immVertex3fv(shdr_pos_3d, ar_coord);
       }
 
       immEnd();
     }
 
+    immUnbindProgram();
+  }
+  else {
+    immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
+
+    float viewport_size[4];
+    GPU_viewport_size_get_f(viewport_size);
+    immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
+
+    immUniform1i("colors_len", 2); /* "advanced" mode */
+    const float *col = is_act ? color_act : color_base;
+    immUniformArray4fv(
+        "colors",
+        (float *)(float[][4]){{0.67f, 0.67f, 0.67f, 1.0f}, {col[0], col[1], col[2], col[3]}},
+        2);
+    immUniform1f("dash_width", 6.0f);
+    immUniform1f("dash_factor", 0.5f);
+
+    immBegin(GPU_PRIM_LINES, 2);
+
+    immVertex3fv(shdr_pos_3d, ruler_item->co[0]);
+    immVertex3fv(shdr_pos_3d, ruler_item->co[2]);
+
+    immEnd();
+
+    immUnbindProgram();
+  }
+
+  /* 2d drawing. */
+
+  GPU_matrix_pop();
+  GPU_matrix_pop_projection();
+
+  const uint shdr_pos_2d = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+
+  if (ruler_item->flag & RULERITEM_USE_ANGLE) {
+    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
     /* capping */
     {
       float rot_90_vec_a[2];
@@ -676,15 +743,15 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
 
       GPU_blend(true);
 
-      if (is_act && (ruler_item->flag & RULERITEM_USE_ANGLE_ACTIVE)) {
+      if (proj_ok[1] && is_act && (ruler_item->flag & RULERITEM_USE_ANGLE_ACTIVE)) {
         GPU_line_width(3.0f);
         immUniformColor3fv(color_act);
         immBegin(GPU_PRIM_LINES, 4);
         /* angle vertex */
-        immVertex2f(shdr_pos, co_ss[1][0] - cap_size, co_ss[1][1] - cap_size);
-        immVertex2f(shdr_pos, co_ss[1][0] + cap_size, co_ss[1][1] + cap_size);
-        immVertex2f(shdr_pos, co_ss[1][0] - cap_size, co_ss[1][1] + cap_size);
-        immVertex2f(shdr_pos, co_ss[1][0] + cap_size, co_ss[1][1] - cap_size);
+        immVertex2f(shdr_pos_2d, co_ss[1][0] - cap_size, co_ss[1][1] - cap_size);
+        immVertex2f(shdr_pos_2d, co_ss[1][0] + cap_size, co_ss[1][1] + cap_size);
+        immVertex2f(shdr_pos_2d, co_ss[1][0] - cap_size, co_ss[1][1] + cap_size);
+        immVertex2f(shdr_pos_2d, co_ss[1][0] + cap_size, co_ss[1][1] - cap_size);
 
         immEnd();
         GPU_line_width(1.0f);
@@ -692,25 +759,33 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
 
       immUniformColor3ubv(color_wire);
 
-      immBegin(GPU_PRIM_LINES, 8);
+      if (proj_ok[0] || proj_ok[2] || proj_ok[1]) {
+        immBegin(GPU_PRIM_LINES, proj_ok[0] * 2 + proj_ok[2] * 2 + proj_ok[1] * 4);
 
-      madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec_a, cap_size);
-      immVertex2fv(shdr_pos, cap);
-      madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec_a, -cap_size);
-      immVertex2fv(shdr_pos, cap);
+        if (proj_ok[0]) {
+          madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec_a, cap_size);
+          immVertex2fv(shdr_pos_2d, cap);
+          madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec_a, -cap_size);
+          immVertex2fv(shdr_pos_2d, cap);
+        }
 
-      madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec_b, cap_size);
-      immVertex2fv(shdr_pos, cap);
-      madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec_b, -cap_size);
-      immVertex2fv(shdr_pos, cap);
+        if (proj_ok[2]) {
+          madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec_b, cap_size);
+          immVertex2fv(shdr_pos_2d, cap);
+          madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec_b, -cap_size);
+          immVertex2fv(shdr_pos_2d, cap);
+        }
 
-      /* angle vertex */
-      immVertex2f(shdr_pos, co_ss[1][0] - cap_size, co_ss[1][1] - cap_size);
-      immVertex2f(shdr_pos, co_ss[1][0] + cap_size, co_ss[1][1] + cap_size);
-      immVertex2f(shdr_pos, co_ss[1][0] - cap_size, co_ss[1][1] + cap_size);
-      immVertex2f(shdr_pos, co_ss[1][0] + cap_size, co_ss[1][1] - cap_size);
+        /* angle vertex */
+        if (proj_ok[1]) {
+          immVertex2f(shdr_pos_2d, co_ss[1][0] - cap_size, co_ss[1][1] - cap_size);
+          immVertex2f(shdr_pos_2d, co_ss[1][0] + cap_size, co_ss[1][1] + cap_size);
+          immVertex2f(shdr_pos_2d, co_ss[1][0] - cap_size, co_ss[1][1] + cap_size);
+          immVertex2f(shdr_pos_2d, co_ss[1][0] + cap_size, co_ss[1][1] - cap_size);
+        }
 
-      immEnd();
+        immEnd();
+      }
 
       GPU_blend(false);
     }
@@ -729,10 +804,10 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
     posit[1] = co_ss[1][1] - (numstr_size[1] / 2.0f);
 
     /* draw text (bg) */
-    {
+    if (proj_ok[1]) {
       immUniformColor4fv(color_back);
       GPU_blend(true);
-      immRectf(shdr_pos,
+      immRectf(shdr_pos_2d,
                posit[0] - bg_margin,
                posit[1] - bg_margin,
                posit[0] + bg_margin + numstr_size[0],
@@ -743,7 +818,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
     immUnbindProgram();
 
     /* draw text */
-    {
+    if (proj_ok[1]) {
       BLF_color3ubv(blf_mono_font, color_text);
       BLF_position(blf_mono_font, posit[0], posit[1], 0.0f);
       BLF_rotation(blf_mono_font, 0.0f);
@@ -751,30 +826,6 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
     }
   }
   else {
-    immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
-
-    float viewport_size[4];
-    GPU_viewport_size_get_f(viewport_size);
-    immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
-
-    immUniform1i("colors_len", 2); /* "advanced" mode */
-    const float *col = is_act ? color_act : color_base;
-    immUniformArray4fv(
-        "colors",
-        (float *)(float[][4]){{0.67f, 0.67f, 0.67f, 1.0f}, {col[0], col[1], col[2], col[3]}},
-        2);
-    immUniform1f("dash_width", 6.0f);
-    immUniform1f("dash_factor", 0.5f);
-
-    immBegin(GPU_PRIM_LINES, 2);
-
-    immVertex2fv(shdr_pos, co_ss[0]);
-    immVertex2fv(shdr_pos, co_ss[2]);
-
-    immEnd();
-
-    immUnbindProgram();
-
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
     sub_v2_v2v2(dir_ruler, co_ss[0], co_ss[2]);
@@ -790,19 +841,25 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
 
       immUniformColor3ubv(color_wire);
 
-      immBegin(GPU_PRIM_LINES, 4);
+      if (proj_ok[0] || proj_ok[2]) {
+        immBegin(GPU_PRIM_LINES, proj_ok[0] * 2 + proj_ok[2] * 2);
 
-      madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec, cap_size);
-      immVertex2fv(shdr_pos, cap);
-      madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec, -cap_size);
-      immVertex2fv(shdr_pos, cap);
+        if (proj_ok[0]) {
+          madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec, cap_size);
+          immVertex2fv(shdr_pos_2d, cap);
+          madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec, -cap_size);
+          immVertex2fv(shdr_pos_2d, cap);
+        }
 
-      madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec, cap_size);
-      immVertex2fv(shdr_pos, cap);
-      madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec, -cap_size);
-      immVertex2fv(shdr_pos, cap);
+        if (proj_ok[2]) {
+          madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec, cap_size);
+          immVertex2fv(shdr_pos_2d, cap);
+          madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec, -cap_size);
+          immVertex2fv(shdr_pos_2d, cap);
+        }
 
-      immEnd();
+        immEnd();
+      }
 
       GPU_blend(false);
     }
@@ -824,10 +881,10 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
     posit[1] -= numstr_size[1] / 2.0f;
 
     /* draw text (bg) */
-    {
+    if (proj_ok[0] && proj_ok[2]) {
       immUniformColor4fv(color_back);
       GPU_blend(true);
-      immRectf(shdr_pos,
+      immRectf(shdr_pos_2d,
                posit[0] - bg_margin,
                posit[1] - bg_margin,
                posit[0] + bg_margin + numstr_size[0],
@@ -838,7 +895,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
     immUnbindProgram();
 
     /* draw text */
-    {
+    if (proj_ok[0] && proj_ok[2]) {
       BLF_color3ubv(blf_mono_font, color_text);
       BLF_position(blf_mono_font, posit[0], posit[1], 0.0f);
       BLF_draw(blf_mono_font, numstr, sizeof(numstr));
@@ -849,27 +906,10 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
 
   BLF_disable(blf_mono_font, BLF_ROTATION);
 
+  GPU_matrix_pop();
+  GPU_matrix_pop_projection();
+
 #undef ARC_STEPS
-
-  /* draw snap */
-  if ((ruler_info->snap_flag & RULER_SNAP_OK) && (ruler_info->state == RULER_STATE_DRAG) &&
-      (ruler_item->gz.interaction_data != NULL)) {
-    RulerInteraction *inter = ruler_item->gz.interaction_data;
-    /* size from drawSnapping */
-    const float size = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
-    float co_ss_snap[3];
-    ED_view3d_project_float_global(
-        region, ruler_item->co[inter->co_index], co_ss_snap, V3D_PROJ_TEST_NOP);
-
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-
-    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-    immUniformThemeColor3(TH_GIZMO_VIEW_ALIGN);
-
-    imm_draw_circle_wire_2d(pos, co_ss_snap[0], co_ss_snap[1], size * U.pixelsize, 32);
-
-    immUnbindProgram();
-  }
 }
 
 static int gizmo_ruler_test_select(bContext *UNUSED(C), wmGizmo *gz, const int mval[2])
@@ -902,35 +942,36 @@ static int gizmo_ruler_modal(bContext *C,
   RulerInfo *ruler_info = gz->parent_gzgroup->customdata;
   RulerItem *ruler_item = (RulerItem *)gz;
   ARegion *region = CTX_wm_region(C);
-  bool do_cursor_update = false;
+  bool do_cursor_update = (event->val == KM_RELEASE) || (event->type == MOUSEMOVE);
 
   ruler_info->region = region;
 
-  switch (event->type) {
-    case MOUSEMOVE: {
-      do_cursor_update = true;
-      break;
-    }
-  }
-
-  const bool do_snap = tweak_flag & WM_GIZMO_TWEAK_SNAP;
+#ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
+  const bool do_snap = !(tweak_flag & WM_GIZMO_TWEAK_SNAP);
+#endif
   const bool do_thickness = tweak_flag & WM_GIZMO_TWEAK_PRECISE;
-  if ((ruler_info->drag_state_prev.do_snap != do_snap) ||
-      (ruler_info->drag_state_prev.do_thickness != do_thickness)) {
+  if ((ruler_info->drag_state_prev.do_thickness != do_thickness)) {
     do_cursor_update = true;
   }
 
   if (do_cursor_update) {
     if (ruler_info->state == RULER_STATE_DRAG) {
       struct Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      if (view3d_ruler_item_mousemove(
-              depsgraph, ruler_info, ruler_item, event->mval, do_thickness, do_snap)) {
+      if (view3d_ruler_item_mousemove(depsgraph,
+                                      ruler_info,
+                                      ruler_item,
+                                      event->mval,
+                                      do_thickness
+#ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
+                                      ,
+                                      do_snap
+#endif
+                                      )) {
         do_draw = true;
       }
     }
   }
 
-  ruler_info->drag_state_prev.do_snap = do_snap;
   ruler_info->drag_state_prev.do_thickness = do_thickness;
 
   if (do_draw) {
@@ -957,7 +998,7 @@ static int gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
       /* Add Center Point */
       ruler_item_pick->flag |= RULERITEM_USE_ANGLE;
       inter->co_index = 1;
-      ruler_state_set(C, ruler_info, RULER_STATE_DRAG);
+      ruler_state_set(ruler_info, RULER_STATE_DRAG);
 
       /* find the factor */
       {
@@ -978,13 +1019,21 @@ static int gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
 
       /* update the new location */
       struct Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      view3d_ruler_item_mousemove(
-          depsgraph, ruler_info, ruler_item_pick, event->mval, false, false);
+      view3d_ruler_item_mousemove(depsgraph,
+                                  ruler_info,
+                                  ruler_item_pick,
+                                  event->mval,
+                                  false
+#ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
+                                  ,
+                                  false
+#endif
+      );
     }
   }
   else {
     inter->co_index = gz->highlight_part;
-    ruler_state_set(C, ruler_info, RULER_STATE_DRAG);
+    ruler_state_set(ruler_info, RULER_STATE_DRAG);
 
     /* store the initial depth */
     copy_v3_v3(inter->drag_start_co, ruler_item_pick->co[inter->co_index]);
@@ -995,6 +1044,28 @@ static int gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
   }
   else {
     ruler_item_pick->flag &= ~RULERITEM_USE_ANGLE_ACTIVE;
+  }
+
+  {
+    /* Set Snap prev point. */
+    float *prev_point;
+    if (ruler_item_pick->flag & RULERITEM_USE_ANGLE) {
+      prev_point = (inter->co_index != 1) ? ruler_item_pick->co[1] : NULL;
+    }
+    else if (inter->co_index == 0) {
+      prev_point = ruler_item_pick->co[2];
+    }
+    else {
+      prev_point = ruler_item_pick->co[0];
+    }
+
+    if (prev_point) {
+      RNA_property_float_set_array(
+          ruler_info->snap_data.gizmo->ptr, ruler_info->snap_data.prop_prevpoint, prev_point);
+    }
+    else {
+      RNA_property_unset(ruler_info->snap_data.gizmo->ptr, ruler_info->snap_data.prop_prevpoint);
+    }
   }
 
   ruler_info->item_active = ruler_item_pick;
@@ -1009,10 +1080,9 @@ static void gizmo_ruler_exit(bContext *C, wmGizmo *gz, const bool cancel)
 
   if (!cancel) {
     if (ruler_info->state == RULER_STATE_DRAG) {
-      if (ruler_info->snap_flag & RULER_SNAP_OK) {
-        ruler_info->snap_flag &= ~RULER_SNAP_OK;
-      }
-      ruler_state_set(C, ruler_info, RULER_STATE_NORMAL);
+      WM_gizmo_set_flag(ruler_info->snap_data.gizmo, WM_GIZMO_HIDDEN, false);
+      RNA_property_unset(ruler_info->snap_data.gizmo->ptr, ruler_info->snap_data.prop_prevpoint);
+      ruler_state_set(ruler_info, RULER_STATE_NORMAL);
     }
     /* We could convert only the current gizmo, for now just re-generate. */
     view3d_ruler_to_gpencil(C, gzgroup);
@@ -1022,7 +1092,7 @@ static void gizmo_ruler_exit(bContext *C, wmGizmo *gz, const bool cancel)
     MEM_SAFE_FREE(gz->interaction_data);
   }
 
-  ruler_state_set(C, ruler_info, RULER_STATE_NORMAL);
+  ruler_state_set(ruler_info, RULER_STATE_NORMAL);
 }
 
 static int gizmo_ruler_cursor_get(wmGizmo *gz)
@@ -1059,16 +1129,39 @@ static void WIDGETGROUP_ruler_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
   RulerInfo *ruler_info = MEM_callocN(sizeof(RulerInfo), __func__);
 
+  wmGizmo *gizmo;
+  {
+    /* The gizmo snap has to be the first gizmo. */
+    const wmGizmoType *gzt_snap;
+    gzt_snap = WM_gizmotype_find("GIZMO_GT_snap_3d", true);
+    gizmo = WM_gizmo_new_ptr(gzt_snap, gzgroup, NULL);
+    RNA_enum_set(gizmo->ptr,
+                 "snap_elements_force",
+                 (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE |
+                  /* SCE_SNAP_MODE_VOLUME | SCE_SNAP_MODE_GRID | SCE_SNAP_MODE_INCREMENT | */
+                  SCE_SNAP_MODE_EDGE_PERPENDICULAR | SCE_SNAP_MODE_EDGE_MIDPOINT));
+
+    WM_gizmo_set_color(gizmo, (float[4]){1.0f, 1.0f, 1.0f, 1.0f});
+
+    wmOperatorType *ot = WM_operatortype_find("VIEW3D_OT_ruler_add", true);
+    WM_gizmo_operator_set(gizmo, 0, ot, NULL);
+  }
+
   if (view3d_ruler_from_gpencil(C, gzgroup)) {
     /* nop */
   }
 
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
+
+  ruler_info->wm = wm;
   ruler_info->win = win;
   ruler_info->area = area;
   ruler_info->region = region;
+  ruler_info->snap_data.gizmo = gizmo;
+  ruler_info->snap_data.prop_prevpoint = RNA_struct_find_property(gizmo->ptr, "prev_point");
 
   gzgroup->customdata = ruler_info;
 }
@@ -1078,7 +1171,7 @@ void VIEW3D_GGT_ruler(wmGizmoGroupType *gzgt)
   gzgt->name = "Ruler Widgets";
   gzgt->idname = view3d_gzgt_ruler_id;
 
-  gzgt->flag |= WM_GIZMOGROUPTYPE_SCALE | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
+  gzgt->flag |= WM_GIZMOGROUPTYPE_3D | WM_GIZMOGROUPTYPE_SCALE | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
 
   gzgt->gzmap_params.spaceid = SPACE_VIEW3D;
   gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;
@@ -1132,8 +1225,20 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
       struct Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
       /* snap the first point added, not essential but handy */
       inter->co_index = 0;
-      view3d_ruler_item_mousemove(depsgraph, ruler_info, ruler_item, event->mval, false, true);
+      view3d_ruler_item_mousemove(depsgraph,
+                                  ruler_info,
+                                  ruler_item,
+                                  event->mval,
+                                  false
+#ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
+                                  ,
+                                  true
+#endif
+      );
       copy_v3_v3(inter->drag_start_co, ruler_item->co[inter->co_index]);
+      RNA_property_float_set_array(ruler_info->snap_data.gizmo->ptr,
+                                   ruler_info->snap_data.prop_prevpoint,
+                                   inter->drag_start_co);
     }
     else {
       negate_v3_v3(inter->drag_start_co, rv3d->ofs);
@@ -1152,6 +1257,7 @@ void VIEW3D_OT_ruler_add(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Ruler Add";
   ot->idname = "VIEW3D_OT_ruler_add";
+  ot->description = "Add ruler";
 
   ot->invoke = view3d_ruler_add_invoke;
   ot->poll = view3d_ruler_poll;

@@ -1,4 +1,4 @@
-// Copyright 2016 Blender Foundation. All rights reserved.
+// Copyright 2020 Blender Foundation. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,14 +16,23 @@
 //
 // Author: Sergey Sharybin
 
-#include "internal/opensubdiv_topology_refiner_internal.h"
+#ifndef OPENSUBDIV_DEVICE_CONTEXT_OPENMP_H_
+#define OPENSUBDIV_DEVICE_CONTEXT_OPENMP_H_
 
-OpenSubdiv_TopologyRefinerInternal::OpenSubdiv_TopologyRefinerInternal()
-    : osd_topology_refiner(NULL)
-{
-}
+namespace blender {
+namespace opensubdiv {
 
-OpenSubdiv_TopologyRefinerInternal::~OpenSubdiv_TopologyRefinerInternal()
-{
-  delete osd_topology_refiner;
-}
+class OpenMPDeviceContext {
+ public:
+  // Stateless check to see whether OpenMP functionality is available on this
+  // platform.
+  static bool isSupported();
+
+  OpenMPDeviceContext();
+  ~OpenMPDeviceContext();
+};
+
+}  // namespace opensubdiv
+}  // namespace blender
+
+#endif  // _OPENSUBDIV_DEVICE_CONTEXT_OPENMP_H_

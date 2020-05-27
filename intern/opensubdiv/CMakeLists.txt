@@ -50,26 +50,41 @@ if(WITH_OPENSUBDIV)
   )
 
   list(APPEND SRC
-    internal/opensubdiv.cc
-    internal/opensubdiv_converter_factory.cc
-    internal/opensubdiv_converter_internal.cc
-    internal/opensubdiv_device_context_cuda.cc
-    internal/opensubdiv_device_context_opencl.cc
-    internal/opensubdiv_evaluator.cc
-    internal/opensubdiv_evaluator_internal.cc
-    internal/opensubdiv_topology_refiner.cc
-    internal/opensubdiv_topology_refiner_internal.cc
-    internal/opensubdiv_util.cc
+    # Base.
+    internal/base/memory.h
+    internal/base/opensubdiv_capi.cc
+    internal/base/type.h
+    internal/base/type_convert.cc
+    internal/base/type_convert.h
+    internal/base/util.cc
+    internal/base/util.h
 
-    internal/opensubdiv_converter_factory.h
-    internal/opensubdiv_converter_internal.h
-    internal/opensubdiv_device_context_cuda.h
-    internal/opensubdiv_device_context_opencl.h
-    internal/opensubdiv_edge_map.h
-    internal/opensubdiv_evaluator_internal.h
-    internal/opensubdiv_internal.h
-    internal/opensubdiv_topology_refiner_internal.h
-    internal/opensubdiv_util.h
+    # Device.
+    internal/device/device_context_cuda.cc
+    internal/device/device_context_cuda.h
+    internal/device/device_context_glsl_compute.cc
+    internal/device/device_context_glsl_compute.h
+    internal/device/device_context_glsl_transform_feedback.cc
+    internal/device/device_context_glsl_transform_feedback.h
+    internal/device/device_context_opencl.cc
+    internal/device/device_context_opencl.h
+    internal/device/device_context_openmp.cc
+    internal/device/device_context_openmp.h
+
+    # Evaluator.
+    internal/evaluator/evaluator_capi.cc
+    internal/evaluator/evaluator_impl.cc
+    internal/evaluator/evaluator_impl.h
+
+    # Topology.
+    internal/topology/mesh_topology.cc
+    internal/topology/mesh_topology_compare.cc
+    internal/topology/mesh_topology.h
+    internal/topology/topology_refiner_capi.cc
+    internal/topology/topology_refiner_factory.cc
+    internal/topology/topology_refiner_impl.cc
+    internal/topology/topology_refiner_impl_compare.cc
+    internal/topology/topology_refiner_impl.h
   )
 
   list(APPEND LIB
@@ -83,10 +98,8 @@ if(WITH_OPENSUBDIV)
   endif()
 
   OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENMP)
-  # TODO(sergey): OpenCL is not tested and totally unstable atm.
-  # OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENCL)
-  # TODO(sergey): CUDA stays disabled for util it's ported to drievr API.
-  # OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_CUDA)
+  OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENCL)
+  OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_CUDA)
   OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK)
   OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_GLSL_COMPUTE)
 
@@ -97,21 +110,6 @@ if(WITH_OPENSUBDIV)
     add_definitions(-DNOMINMAX)
     add_definitions(-D_USE_MATH_DEFINES)
   endif()
-
-  # TODO(sergey): Put CUEW back when CUDA is officially supported by OSD.
-  # if(OPENSUBDIV_HAS_CUDA)
-  #   list(APPEND INC
-  #     ../../extern/cuew/include
-  #   )
-  #   add_definitions(-DOPENSUBDIV_HAS_CUEW)
-  # endif()
-
-  if(OPENSUBDIV_HAS_OPENCL)
-    list(APPEND INC
-      ../../extern/clew/include
-    )
-    add_definitions(-DOPENSUBDIV_HAS_CLEW)
-  endif()
 else()
   list(APPEND SRC
     stub/opensubdiv_stub.cc
@@ -121,3 +119,15 @@ else()
 endif()
 
 blender_add_lib(bf_intern_opensubdiv "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# Tests.
+
+if(WITH_GTESTS AND WITH_OPENSUBDIV)
+  include(GTestTesting)
+
+  add_definitions(${GFLAGS_DEFINES})
+  add_definitions(${GLOG_DEFINES})
+  add_definitions(-DBLENDER_GFLAGS_NAMESPACE=${GFLAGS_NAMESPACE})
+
+  BLENDER_SRC_GTEST(opensubdiv_mesh_topology_test "internal/topology/mesh_topology_test.cc" "${LIB};bf_intern_opensubdiv")
+endif()

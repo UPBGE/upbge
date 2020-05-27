@@ -16,8 +16,8 @@
 //
 // Author: Sergey Sharybin
 
-#ifndef OPENSUBDIV_CONVERTER_INTERNAL_H_
-#define OPENSUBDIV_CONVERTER_INTERNAL_H_
+#ifndef OPENSUBDIV_BASE_TYPE_CONVERT_H_
+#define OPENSUBDIV_BASE_TYPE_CONVERT_H_
 
 #ifdef _MSC_VER
 #  include <iso646.h>
@@ -26,7 +26,7 @@
 #include <opensubdiv/sdc/options.h>
 #include <opensubdiv/sdc/types.h>
 
-#include "opensubdiv_converter_capi.h"
+#include "opensubdiv_capi_type.h"
 
 struct OpenSubdiv_Converter;
 
@@ -45,7 +45,10 @@ OpenSubdiv::Sdc::Options::FVarLinearInterpolation getFVarLinearInterpolationFrom
 OpenSubdiv_FVarLinearInterpolation getCAPIFVarLinearInterpolationFromOSD(
     OpenSubdiv::Sdc::Options::FVarLinearInterpolation linear_interpolation);
 
+OpenSubdiv::Sdc::Options::VtxBoundaryInterpolation getVtxBoundaryInterpolationFromCAPI(
+    OpenSubdiv_VtxBoundaryInterpolation boundary_interpolation);
+
 }  // namespace opensubdiv
 }  // namespace blender
 
-#endif  // OPENSUBDIV_CONVERTER_INTERNAL_H_
+#endif  // OPENSUBDIV_BASE_TYPE_CONVERT_H_

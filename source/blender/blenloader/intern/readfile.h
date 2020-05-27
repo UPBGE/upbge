@@ -204,7 +204,8 @@ void blo_do_versions_upbge(struct FileData *fd, struct Library *lib, struct Main
 void do_versions_after_linking_250(struct Main *bmain);
 void do_versions_after_linking_260(struct Main *bmain);
 void do_versions_after_linking_270(struct Main *bmain);
-void do_versions_after_linking_280(struct Main *bmain, ReportList *reports);
+void do_versions_after_linking_280(struct Main *bmain, struct ReportList *reports);
+void do_versions_after_linking_290(struct Main *bmain, struct ReportList *reports);
 void do_versions_after_linking_cycles(struct Main *bmain);
 
 #endif

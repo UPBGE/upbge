@@ -1,4 +1,4 @@
-// Copyright 2015 Blender Foundation. All rights reserved.
+// Copyright 2020 Blender Foundation. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -13,27 +13,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software Foundation,
 // Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-//
-// Author: Sergey Sharybin
 
-#ifndef OPENSUBDIV_CONVERTER_FACTORY_H_
-#define OPENSUBDIV_CONVERTER_FACTORY_H_
+#ifndef OPENSUBDIV_BASE_MEMORY_H_
+#define OPENSUBDIV_BASE_MEMORY_H_
 
-#ifdef _MSC_VER
-#  include <iso646.h>
-#endif
-
-#include <opensubdiv/far/topologyRefiner.h>
-
-struct OpenSubdiv_Converter;
+#include "MEM_guardedalloc.h"
 
 namespace blender {
 namespace opensubdiv {
 
-OpenSubdiv::Far::TopologyRefiner *createOSDTopologyRefinerFromConverter(
-    struct OpenSubdiv_Converter *converter);
-
 }  // namespace opensubdiv
 }  // namespace blender
 
-#endif  // OPENSUBDIV_CONVERTER_FACTORY_H_
+#endif  // OPENSUBDIV_BASE_MEMORY_H_

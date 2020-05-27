@@ -46,6 +46,8 @@ static void OVERLAY_engine_init(void *vedata)
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const RegionView3D *rv3d = draw_ctx->rv3d;
   const View3D *v3d = draw_ctx->v3d;
+  const Scene *scene = draw_ctx->scene;
+  const ToolSettings *ts = scene->toolsettings;
 
   if (!stl->pd) {
     /* Alloc transient pointers */
@@ -75,6 +77,15 @@ static void OVERLAY_engine_init(void *vedata)
 
   if (v3d->shading.type == OB_WIRE) {
     pd->overlay.flag |= V3D_OVERLAY_WIREFRAMES;
+  }
+
+  if (ts->sculpt) {
+    if (ts->sculpt->flags & SCULPT_HIDE_FACE_SETS) {
+      pd->overlay.sculpt_mode_face_sets_opacity = 0.0f;
+    }
+    if (ts->sculpt->flags & SCULPT_HIDE_MASK) {
+      pd->overlay.sculpt_mode_mask_opacity = 0.0f;
+    }
   }
 
   pd->use_in_front = (v3d->shading.type <= OB_SOLID) ||
@@ -235,7 +246,8 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
   const bool renderable = DRW_object_is_renderable(ob);
   const bool in_pose_mode = ob->type == OB_ARMATURE && OVERLAY_armature_is_pose_mode(ob, draw_ctx);
   const bool in_edit_mode = overlay_object_is_edit_mode(pd, ob);
-  const bool in_particle_edit_mode = ob->mode == OB_MODE_PARTICLE_EDIT;
+  const bool in_particle_edit_mode = (ob->mode == OB_MODE_PARTICLE_EDIT) &&
+                                     (pd->ctx_mode == CTX_MODE_PARTICLE);
   const bool in_paint_mode = (ob == draw_ctx->obact) &&
                              (draw_ctx->object_mode & OB_MODE_ALL_PAINT);
   const bool in_sculpt_mode = (ob == draw_ctx->obact) && (ob->sculpt != NULL) &&

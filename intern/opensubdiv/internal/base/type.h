@@ -14,13 +14,14 @@
 // along with this program; if not, write to the Free Software Foundation,
 // Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
-#ifndef OPENSUBDIV_UTIL_H_
-#define OPENSUBDIV_UTIL_H_
+#ifndef OPENSUBDIV_BASE_TYPE_H_
+#define OPENSUBDIV_BASE_TYPE_H_
 
 #include <stdint.h>
 
 #include <algorithm>
 #include <cassert>
+#include <map>
 #include <stack>
 #include <string>
 #include <unordered_map>
@@ -30,29 +31,21 @@
 namespace blender {
 namespace opensubdiv {
 
+using std::map;
+using std::pair;
+using std::stack;
+using std::string;
+using std::unordered_map;
+using std::vector;
+
 using std::fill;
 using std::make_pair;
 using std::max;
 using std::min;
-using std::pair;
-using std::stack;
-using std::string;
+using std::move;
 using std::swap;
-using std::unordered_map;
-using std::vector;
-
-#define foreach(x, y) for (x : y)
-
-#define STRINGIFY_ARG(x) "" #x
-#define STRINGIFY_APPEND(a, b) "" a #b
-#define STRINGIFY(x) STRINGIFY_APPEND("", x)
-
-void stringSplit(vector<string> *tokens,
-                 const string &str,
-                 const string &separators,
-                 bool skip_empty);
 
 }  // namespace opensubdiv
 }  // namespace blender
 
-#endif  // OPENSUBDIV_UTIL_H_
+#endif  // OPENSUBDIV_BASE_TYPE_H_
