@@ -161,7 +161,7 @@ void SCA_SoundActuator::ProcessReplica()
   SCA_IActuator::ProcessReplica();
 #ifdef WITH_AUDASPACE
   m_handle = nullptr;
-  m_sound = AUD_Sound_copy(m_sound);
+  m_sound = m_sound ? AUD_Sound_copy(m_sound) : nullptr;
 #endif  // WITH_AUDASPACE
 }
 
