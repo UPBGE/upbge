@@ -701,7 +701,7 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
   /* Important, consistency with main ID reading code from read_libblock(). */
   lib->id.us = ID_FAKE_USERS(lib);
 
-  /* Matches lib_link_library(). */
+  /* Matches direct_link_library(). */
   id_us_ensure_real(&lib->id);
 
   BLI_strncpy(lib->name, filepath, sizeof(lib->name));
@@ -3610,8 +3610,6 @@ static void lib_link_workspaces(FileData *fd, Main *bmain, WorkSpace *workspace)
 {
   ID *id = (ID *)workspace;
 
-  id_us_ensure_real(id);
-
   LISTBASE_FOREACH_MUTABLE (WorkSpaceLayout *, layout, &workspace->layouts) {
     layout->screen = newlibadr(fd, id->lib, layout->screen);
 
@@ -3660,6 +3658,8 @@ static void direct_link_workspace(FileData *fd, WorkSpace *workspace, const Main
   }
 
   workspace->status_text = NULL;
+
+  id_us_ensure_real(&workspace->id);
 }
 
 static void lib_link_workspace_instance_hook(FileData *fd, WorkSpaceInstanceHook *hook, ID *id)
@@ -8784,11 +8784,12 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
   newmain->curlib = lib;
 
   lib->parent = NULL;
+
+  id_us_ensure_real(&lib->id);
 }
 
-static void lib_link_library(FileData *UNUSED(fd), Main *UNUSED(bmain), Library *lib)
+static void lib_link_library(FileData *UNUSED(fd), Main *UNUSED(bmain), Library *UNUSED(lib))
 {
-  id_us_ensure_real(&lib->id);
 }
 
 /* Always call this once you have loaded new library data to set the relative paths correctly

@@ -297,6 +297,25 @@ static int sculpt_face_set_create_exec(bContext *C, wmOperator *op)
   }
 
   if (mode == SCULPT_FACE_SET_VISIBLE) {
+
+    /* If all vertices in the sculpt are visible, create the new face set and update the default
+     * color. This way the new face set will be white, which is a quick way of disabling all face
+     * sets and the performance hit of rendering the overlay. */
+    bool all_visible = true;
+    for (int i = 0; i < tot_vert; i++) {
+      if (!SCULPT_vertex_visible_get(ss, i)) {
+        all_visible = false;
+        break;
+      }
+    }
+
+    if (all_visible) {
+      Mesh *mesh = ob->data;
+      mesh->face_sets_color_default = next_face_set;
+      BKE_pbvh_face_sets_color_set(
+          ss->pbvh, mesh->face_sets_color_seed, mesh->face_sets_color_default);
+    }
+
     for (int i = 0; i < tot_vert; i++) {
       if (SCULPT_vertex_visible_get(ss, i)) {
         SCULPT_vertex_face_set_set(ss, i, next_face_set);
@@ -504,7 +523,7 @@ static void sculpt_face_sets_init_flood_fill(Object *ob,
                          .calc_face_normal = true,
                      }));
 
-  bool *visited_faces = MEM_callocN(sizeof(bool) * mesh->totpoly, "visited faces");
+  BLI_bitmap *visited_faces = BLI_BITMAP_NEW(mesh->totpoly, "visited faces");
   const int totfaces = mesh->totpoly;
 
   int *face_sets = ss->face_sets;
@@ -515,12 +534,12 @@ static void sculpt_face_sets_init_flood_fill(Object *ob,
   int next_face_set = 1;
 
   for (int i = 0; i < totfaces; i++) {
-    if (!visited_faces[i]) {
+    if (!BLI_BITMAP_TEST(visited_faces, i)) {
       GSQueue *queue;
       queue = BLI_gsqueue_new(sizeof(int));
 
       face_sets[i] = next_face_set;
-      visited_faces[i] = true;
+      BLI_BITMAP_ENABLE(visited_faces, i);
       BLI_gsqueue_push(queue, &i);
 
       while (!BLI_gsqueue_is_empty(queue)) {
@@ -537,10 +556,10 @@ static void sculpt_face_sets_init_flood_fill(Object *ob,
           BM_ITER_ELEM (f_neighbor, &iter_b, ed, BM_FACES_OF_EDGE) {
             if (f_neighbor != f) {
               int neighbor_face_index = BM_elem_index_get(f_neighbor);
-              if (!visited_faces[neighbor_face_index]) {
+              if (!BLI_BITMAP_TEST(visited_faces, neighbor_face_index)) {
                 if (test(bm, f, ed, f_neighbor, threshold)) {
                   face_sets[neighbor_face_index] = next_face_set;
-                  visited_faces[neighbor_face_index] = true;
+                  BLI_BITMAP_ENABLE(visited_faces, neighbor_face_index);
                   BLI_gsqueue_push(queue, &neighbor_face_index);
                 }
               }
