@@ -239,8 +239,10 @@ void KX_GameObject::IgnoreParentTxBGE(Main *bmain,
 
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
+  CListValue<KX_GameObject> *children = GetChildren();
+
   /* a change was made, adjust the children to compensate */
-  for (KX_GameObject *gameobj : kxscene->GetObjectList()) {
+  for (KX_GameObject *gameobj : children) {
     if (gameobj->GetBlenderObject()->parent == ob) {
       ob_child = gameobj->GetBlenderObject();
       Object *ob_child_eval = DEG_get_evaluated_object(depsgraph, ob_child);
