@@ -160,6 +160,11 @@ static void memfile_undosys_step_decode(struct bContext *C,
       use_old_bmain_data = false;
     }
   }
+  /* Game Engine transition (we force undo legacy while we try to fix new fast undo for UPBGE */
+  else if (true) {
+	use_old_bmain_data = false;
+  }
+  /* End game engine transition */
   else {
     /* Undo case.
      * Here we do not care whether current step is an undo barrier, since we are coming from
