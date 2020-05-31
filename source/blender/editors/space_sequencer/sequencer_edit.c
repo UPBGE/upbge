@@ -1652,10 +1652,10 @@ static void sequencer_slip_update_header(Scene *scene, ScrArea *area, SlipData *
     if (hasNumInput(&data->num_input)) {
       char num_str[NUM_STR_REP_LEN];
       outputNumInput(&data->num_input, num_str, &scene->unit);
-      BLI_snprintf(msg, sizeof(msg), TIP_("Trim offset: %s"), num_str);
+      BLI_snprintf(msg, sizeof(msg), TIP_("Slip offset: %s"), num_str);
     }
     else {
-      BLI_snprintf(msg, sizeof(msg), TIP_("Trim offset: %d"), offset);
+      BLI_snprintf(msg, sizeof(msg), TIP_("Slip offset: %d"), offset);
     }
   }
 
@@ -2508,7 +2508,7 @@ static int sequencer_delete_invoke(bContext *C, wmOperator *op, const wmEvent *e
     }
   }
 
-  return WM_operator_confirm(C, op, event);
+  return sequencer_delete_exec(C, op);
 }
 
 void SEQUENCER_OT_delete(wmOperatorType *ot)

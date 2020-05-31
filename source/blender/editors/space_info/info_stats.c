@@ -435,12 +435,11 @@ static const char *footer_string(ViewLayer *view_layer)
 
   BLI_snprintf(view_layer->footer_str,
                sizeof(view_layer->footer_str),
-               "%s%s | UPBGE %s %s (based on Blender %s)",
+			   "%s%s | %s (based on Blender %s)",
                memstr,
                gpumemstr,
-               upbge_versionstr,
-               "Alpha",  // Remove alpha when release
-               versionstr);
+			   BKE_upbge_version_string(),
+			   BKE_blender_version_string());
 
   return view_layer->footer_str;
 

@@ -2813,7 +2813,7 @@ static void rna_def_modifier_array(BlenderRNA *brna)
       prop, NULL, "rna_ArrayModifier_start_cap_set", NULL, "rna_Mesh_object_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+  RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
 
   prop = RNA_def_property(srna, "end_cap", PROP_POINTER, PROP_NONE);
   RNA_def_property_ui_text(prop, "End Cap", "Mesh object to use as an end cap");
@@ -5010,6 +5010,16 @@ static void rna_def_modifier_weightvgmix(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, NULL, "defgrp_name_b");
   RNA_def_property_ui_text(prop, "Vertex Group B", "Second vertex group name");
   RNA_def_property_string_funcs(prop, NULL, NULL, "rna_WeightVGMixModifier_defgrp_name_b_set");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "invert_vertex_group_a", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_WVG_MIX_INVERT_VGROUP_A);
+  RNA_def_property_ui_text(prop, "Invert Weights A", "Invert the influence of vertex group A");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "invert_vertex_group_b", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_WVG_MIX_INVERT_VGROUP_B);
+  RNA_def_property_ui_text(prop, "Invert Weights B", "Invert the influence of vertex group B");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "default_weight_a", PROP_FLOAT, PROP_FACTOR);

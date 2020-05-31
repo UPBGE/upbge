@@ -2717,13 +2717,12 @@ PyMODINIT_FUNC initApplicationPythonBinding()
   PyDict_SetItemString(
       d,
       "version",
-      Py_BuildValue("(iii)", BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION));
+	  Py_BuildValue("(iii)", BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_VERSION_PATCH));
   PyDict_SetItemString(
       d,
-      "version_string",
-      PyUnicode_FromFormat(
-          "%d.%02d (sub %d)", BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION));
-  PyDict_SetItemString(d, "version_char", PyUnicode_FromString(STRINGIFY(BLENDER_VERSION_CHAR)));
+	  "version_string",
+	  PyUnicode_FromFormat(
+		  "%d.%02d (sub %d)", BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_VERSION_PATCH));
 
   PyDict_SetItemString(d,
                        "has_texture_ffmpeg",

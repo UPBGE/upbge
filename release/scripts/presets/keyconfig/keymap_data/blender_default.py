@@ -4975,14 +4975,14 @@ def km_view3d_interactive_add_tool_modal_map(_params):
     )
 
     items.extend([
-        ("FIXED_ASPECT_ON", {"type": 'LEFT_ALT', "value": 'PRESS', "any": True}, None),
-        ("FIXED_ASPECT_OFF", {"type": 'LEFT_ALT', "value": 'RELEASE', "any": True}, None),
-        ("FIXED_ASPECT_ON", {"type": 'RIGHT_ALT', "value": 'PRESS', "any": True}, None),
-        ("FIXED_ASPECT_OFF", {"type": 'RIGHT_ALT', "value": 'RELEASE', "any": True}, None),
-        ("PIVOT_CENTER_ON", {"type": 'LEFT_SHIFT', "value": 'PRESS', "any": True}, None),
-        ("PIVOT_CENTER_OFF", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
-        ("PIVOT_CENTER_ON", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
-        ("PIVOT_CENTER_OFF", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
+        ("PIVOT_CENTER_ON", {"type": 'LEFT_ALT', "value": 'PRESS', "any": True}, None),
+        ("PIVOT_CENTER_OFF", {"type": 'LEFT_ALT', "value": 'RELEASE', "any": True}, None),
+        ("PIVOT_CENTER_ON", {"type": 'RIGHT_ALT', "value": 'PRESS', "any": True}, None),
+        ("PIVOT_CENTER_OFF", {"type": 'RIGHT_ALT', "value": 'RELEASE', "any": True}, None),
+        ("FIXED_ASPECT_ON", {"type": 'LEFT_SHIFT', "value": 'PRESS', "any": True}, None),
+        ("FIXED_ASPECT_OFF", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
+        ("FIXED_ASPECT_ON", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
+        ("FIXED_ASPECT_OFF", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
         ("SNAP_ON", {"type": 'LEFT_CTRL', "value": 'PRESS', "any": True}, None),
         ("SNAP_OFF", {"type": 'LEFT_CTRL', "value": 'RELEASE', "any": True}, None),
         ("SNAP_ON", {"type": 'RIGHT_CTRL', "value": 'PRESS', "any": True}, None),
@@ -5907,7 +5907,6 @@ def km_3d_view_tool_interactive_add(params):
         "3D View Tool: Object, Add Primitive",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
-            ("view3d.cursor3d", {"type": params.tool_mouse, "value": 'CLICK'}, None),
             ("view3d.interactive_add", {"type": params.tool_tweak, "value": 'ANY', "any": True},
              {"properties": [("wait_for_input", False)]}),
         ]},

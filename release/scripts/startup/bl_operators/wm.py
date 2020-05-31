@@ -1106,8 +1106,8 @@ class WM_OT_doc_view(Operator):
 
     doc_id: doc_id
     if bpy.app.version_cycle in {"release", "rc", "beta"}:
-        _prefix = ("https://docs.blender.org/api/%d.%d%s" %
-                   (bpy.app.version[0], bpy.app.version[1], bpy.app.version_char))
+        _prefix = ("https://docs.blender.org/api/%d.%d" %
+                   (bpy.app.version[0], bpy.app.version[1]))
     else:
         _prefix = ("https://docs.blender.org/api/master")
 
@@ -2612,7 +2612,7 @@ class WM_MT_splash_about(Menu):
         layout = self.layout
         layout.operator_context = 'EXEC_DEFAULT'
 
-        layout.label(text="Blender is free software")
+        layout.label(text="UPBGE is free software")
         layout.label(text="Licensed under the GNU General Public License")
         layout.separator()
         layout.separator()
@@ -2623,13 +2623,13 @@ class WM_MT_splash_about(Menu):
 
         col1 = split.column()
 
-        col1.operator("wm.url_open_preset", text="Release Notes", icon='URL').type = 'RELEASE_NOTES'
+        col1.operator("wm.url_open", text="Release Notes", icon='URL').url = "https://github.com/UPBGE/upbge/wiki/Release-notes"
         col1.operator("wm.url_open_preset", text="Credits", icon='URL').type = 'CREDITS'
         col1.operator("wm.url_open", text="License", icon='URL').url = "https://www.blender.org/about/license/"
 
         col2 = split.column()
 
-        col2.operator("wm.url_open_preset", text="Blender Website", icon='URL').type = 'BLENDER'
+        col2.operator("wm.url_open", text="UPBGE Website", icon='URL').url = "https://upbge.org"
         col2.operator("wm.url_open", text="Blender Store", icon='URL').url = "https://store.blender.org"
         col2.operator("wm.url_open_preset", text="Development Fund", icon='FUND').type = 'FUND'
 

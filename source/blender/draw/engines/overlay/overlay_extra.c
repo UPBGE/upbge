@@ -65,6 +65,7 @@ void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
   OVERLAY_PassList *psl = vedata->psl;
   OVERLAY_TextureList *txl = vedata->txl;
   OVERLAY_PrivateData *pd = vedata->stl->pd;
+  const bool is_select = DRW_state_is_select();
 
   DRWState state_blend = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA;
   DRW_PASS_CREATE(psl->extra_blend_ps, state_blend | pd->clipping_state);
@@ -108,7 +109,7 @@ void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
     /* Sorted by shader to avoid state changes during render. */
     {
       format = formats->instance_extra;
-      sh = OVERLAY_shader_extra();
+      sh = OVERLAY_shader_extra(is_select);
 
       grp = DRW_shgroup_create(sh, extra_ps);
       DRW_shgroup_uniform_block_persistent(grp, "globalsBlock", G_draw.block_ubo);
@@ -179,7 +180,7 @@ void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
       cb->groundline = BUF_INSTANCE(grp, format, DRW_cache_groundline_get());
     }
     {
-      sh = OVERLAY_shader_extra_wire(false);
+      sh = OVERLAY_shader_extra_wire(false, is_select);
 
       grp = DRW_shgroup_create(sh, extra_ps);
       DRW_shgroup_uniform_block_persistent(grp, "globalsBlock", G_draw.block_ubo);
@@ -188,7 +189,7 @@ void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
       cb->extra_lines = BUF_LINE(grp, formats->wire_extra);
     }
     {
-      sh = OVERLAY_shader_extra_wire(true);
+      sh = OVERLAY_shader_extra_wire(true, is_select);
 
       cb->extra_wire = grp = DRW_shgroup_create(sh, extra_ps);
       DRW_shgroup_uniform_block_persistent(grp, "globalsBlock", G_draw.block_ubo);
@@ -788,10 +789,7 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
 
         uint cell_count = prb->grid_resolution_x * prb->grid_resolution_y * prb->grid_resolution_z;
         DRWShadingGroup *grp = DRW_shgroup_create_sub(vedata->stl->pd->extra_grid_grp);
-        DRW_shgroup_uniform_vec4_copy(grp, "gridModelMatrix[0]", instdata.mat[0]);
-        DRW_shgroup_uniform_vec4_copy(grp, "gridModelMatrix[1]", instdata.mat[1]);
-        DRW_shgroup_uniform_vec4_copy(grp, "gridModelMatrix[2]", instdata.mat[2]);
-        DRW_shgroup_uniform_vec4_copy(grp, "gridModelMatrix[3]", instdata.mat[3]);
+        DRW_shgroup_uniform_vec4_array_copy(grp, "gridModelMatrix", instdata.mat, 4);
         DRW_shgroup_call_procedural_points(grp, NULL, cell_count);
       }
       break;
