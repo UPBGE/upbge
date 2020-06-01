@@ -137,6 +137,7 @@ set(ICON_NAMES
   node_compositing
   node_texture
   node_material
+  logic
   object_datamode
   editmode_hlt
   uv
