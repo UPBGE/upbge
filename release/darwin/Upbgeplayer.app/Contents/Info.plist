@@ -26,7 +26,7 @@
                 </dict>
         </array>
         <key>CFBundleExecutable</key>
-        <string>Blenderplayer</string>
+        <string>Upbgeplayer</string>
         <key>CFBundleGetInfoString</key>
         <string>${MACOSX_BUNDLE_LONG_VERSION_STRING}, UPBGE</string>
         <key>CFBundleIconFile</key>

@@ -3053,7 +3053,7 @@ void DRW_game_render_loop_end()
 
 void DRW_game_python_loop_end(ViewLayer *view_layer)
 {
-  /* When we run blenderplayer -p script.py
+  /* When we run upbgeplayer -p script.py
    * the GPUViewport to render the scene is not
    * created then it causes a crash if we try to free
    * it. Are we in what people call HEADLESS mode?

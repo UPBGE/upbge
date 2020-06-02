@@ -1594,11 +1594,11 @@ class WM_OT_blenderplayer_start(Operator):
         blender_bin_path = bpy.app.binary_path
         blender_bin_dir = os.path.dirname(blender_bin_path)
         ext = os.path.splitext(blender_bin_path)[-1]
-        player_path = os.path.join(blender_bin_dir, "blenderplayer" + ext)
+        player_path = os.path.join(blender_bin_dir, "upbgeplayer" + ext)
         # done static vars
 
         if sys.platform == "darwin":
-            player_path = os.path.join(blender_bin_dir, "../../../Blenderplayer.app/Contents/MacOS/blenderplayer")
+            player_path = os.path.join(blender_bin_dir, "../../../Upbgeplayer.app/Contents/MacOS/upbgeplayer")
 
         if not os.path.exists(player_path):
             self.report({'ERROR'}, "Player path: %r not found" % player_path)

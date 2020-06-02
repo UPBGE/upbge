@@ -22,7 +22,7 @@ bl_info = {
     "version": (0, 3, 1),
     "blender": (2, 80, 0),
     "location": "File > Import-Export",
-    "description": "Bundle a .blend file with the Blenderplayer",
+    "description": "Bundle a .blend file with the Upbgeplayer",
     "warning": "",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
                 "Scripts/Game_Engine/Save_As_Runtime",
@@ -103,7 +103,7 @@ def WriteRuntime(player_path, output_path, copy_python, overwrite_lib, copy_dlls
     offset = file.tell()
     file.close()
 
-    # Create a tmp blend file (Blenderplayer doesn't like compressed blends)
+    # Create a tmp blend file (Upbgeplayer doesn't like compressed blends)
     tempdir = tempfile.mkdtemp()
     blend_path = os.path.join(tempdir, bpy.path.clean_name(output_path))
     bpy.ops.wm.save_as_mainfile(filepath=blend_path,
@@ -224,7 +224,7 @@ class SaveAsRuntime(bpy.types.Operator):
         blender_bin_dir = os.path.dirname(blender_bin_path)
         ext = os.path.splitext(blender_bin_path)[-1].lower()
 
-    default_player_path = os.path.join(blender_bin_dir, 'blenderplayer' + ext)
+    default_player_path = os.path.join(blender_bin_dir, 'upbgeplayer' + ext)
     player_path: StringProperty(
             name="Player Path",
             description="The path to the player to use",

@@ -23,7 +23,7 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-# message(STATUS "Configuring blenderplayer")
+# message(STATUS "Configuring upbgeplayer")
 
 setup_libdirs()
 
@@ -140,7 +140,7 @@ if(WITH_BUILDINFO)
   add_dependencies(buildinfoobj_player buildinfo_player)
 endif()
 
-add_cc_flags_custom_test(blenderplayer)
+add_cc_flags_custom_test(upbgeplayer)
 
 # message(STATUS "Configuring blender")
 if(WITH_PYTHON_MODULE)
@@ -150,9 +150,9 @@ if(WITH_PYTHON_MODULE)
   #
   # note that 'SHARED' works on Linux and Windows,
   # but not OSX which _must_ be 'MODULE'
-  add_library(blenderplayer MODULE ${SRC})
+  add_library(upbgeplayer MODULE ${SRC})
   set_target_properties(
-    blenderplayer
+    upbgeplayer
     PROPERTIES
       PREFIX ""
       OUTPUT_NAME bpy
@@ -162,7 +162,7 @@ if(WITH_PYTHON_MODULE)
 
   if(APPLE)
     set_target_properties(
-      blenderplayer
+      upbgeplayer
       PROPERTIES
         MACOSX_BUNDLE TRUE
         LINK_FLAGS_RELEASE "${PLATFORM_LINKFLAGS}"
@@ -173,29 +173,29 @@ if(WITH_PYTHON_MODULE)
   if(WIN32)
     # python modules use this
     set_target_properties(
-      blenderplayer
+      upbgeplayer
       PROPERTIES
       SUFFIX ".pyd"
     )
   endif()
 
 else()
-  add_executable(blenderplayer ${EXETYPE} ${SRC})
+  add_executable(upbgeplayer ${EXETYPE} ${SRC})
 endif()
 
 if(WITH_BUILDINFO)
   # explicitly say that the executable depends on the buildinfo
-  add_dependencies(blenderplayer buildinfo_player)
+  add_dependencies(upbgeplayer buildinfo_player)
 endif()
 
 # Apple treats both executables in a self-contained manner.
-# Therefore we have to copy all the resources for the blenderplayer as well
+# Therefore we have to copy all the resources for the upbgeplayer as well
 if(APPLE)
 
-  set(PLAYER_TARGETDIR_VER Blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
+  set(PLAYER_TARGETDIR_VER Upbgeplayer.app/Contents/Resources/${BLENDER_VERSION})
 
   # Skip relinking on cpack / install
-  set_target_properties(blenderplayer PROPERTIES BUILD_WITH_INSTALL_RPATH true)
+  set_target_properties(upbgeplayer PROPERTIES BUILD_WITH_INSTALL_RPATH true)
 
   set(BLENDERPLAYER_TEXT_FILES
     ${CMAKE_SOURCE_DIR}/release/text/GPL-license.txt
@@ -296,7 +296,7 @@ if(APPLE)
 
   if(NOT WITH_PYTHON_MODULE)
     # Uppercase name for app bundle
-    set_target_properties(blenderplayer PROPERTIES OUTPUT_NAME Blenderplayer)
+    set_target_properties(upbgeplayer PROPERTIES OUTPUT_NAME Upbgeplayer)
   endif()
 
   # handy install macro to exclude files, we use \$ escape for the "to"
@@ -326,14 +326,14 @@ if(APPLE)
     )
   endmacro()
 
-  set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/Blenderplayer.app)
+  set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/Upbgeplayer.app)
 
   # setup Info.plist
   execute_process(COMMAND date "+%Y-%m-%d"
                   OUTPUT_VARIABLE BLENDER_DATE
                   OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-  set_target_properties(blenderplayer PROPERTIES
+  set_target_properties(upbgeplayer PROPERTIES
     MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR}"
     MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}${BLENDER_VERSION_CHAR} ${BLENDER_DATE}")
@@ -345,37 +345,37 @@ if(APPLE)
 
   # Give the bundle actual creation/modification date
   execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE}
-                  ${EXECUTABLE_OUTPUT_PATH}/Blenderplayer.app)
+                  ${EXECUTABLE_OUTPUT_PATH}/Upbgeplayer.app)
 
   install(
-    TARGETS blenderplayer
+    TARGETS upbgeplayer
     DESTINATION "."
   )
 
   # install release and app files
-  set(BLENDER_TEXT_FILES_DESTINATION Blenderplayer.app/Contents/Resources/text)
+  set(BLENDER_TEXT_FILES_DESTINATION Upbgeplayer.app/Contents/Resources/text)
 
   install(
     FILES ${OSX_APP_PLAYER_SOURCEDIR}/Contents/PkgInfo
-    DESTINATION Blenderplayer.app/Contents
+    DESTINATION Upbgeplayer.app/Contents
   )
 
   install_dir(
     ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Resources
-    Blenderplayer.app/Contents/
+    Upbgeplayer.app/Contents/
   )
 
   if(WITH_OPENMP AND OPENMP_CUSTOM)
     install(
       FILES ${LIBDIR}/openmp/lib/libomp.dylib
-      DESTINATION Blenderplayer.app/Contents/Resources/lib
+      DESTINATION Upbgeplayer.app/Contents/Resources/lib
     )
   endif()
 
   if(WITH_LLVM AND NOT LLVM_STATIC)
     install(
       FILES ${LIBDIR}/llvm/lib/libLLVM-3.4.dylib
-      DESTINATION Blenderplayer.app/Contents/MacOS
+      DESTINATION Upbgeplayer.app/Contents/MacOS
     )
   endif()
 
@@ -442,9 +442,9 @@ if(APPLE)
   )
 endif()
 
-add_dependencies(blenderplayer makesdna)
+add_dependencies(upbgeplayer makesdna)
 
-target_link_libraries(blenderplayer ${LIB})
+target_link_libraries(upbgeplayer ${LIB})
 unset(LIB)
 
-setup_liblinks(blenderplayer)
+setup_liblinks(upbgeplayer)

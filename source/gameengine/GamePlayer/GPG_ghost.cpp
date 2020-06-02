@@ -539,7 +539,7 @@ static void get_filename(int argc, char **argv, char *filename)
     }
   }
 
-  srclen -= ::strlen("MacOS/Blenderplayer");
+  srclen -= ::strlen("MacOS/Upbgeplayer");
   if (srclen > 0) {
     len = srclen + ::strlen("Resources/game.blend");
     gamefile = new char[len + 1];
@@ -1467,7 +1467,7 @@ int main(int argc,
                   }
                 }
                 else {
-                  title = "blenderplayer";
+                  title = "upbgeplayer";
                 }
 #ifdef WIN32
                 if (scr_saver_mode == SCREEN_SAVER_MODE_PREVIEW) {

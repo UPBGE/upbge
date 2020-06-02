@@ -1794,7 +1794,7 @@ if(WITH_BLENDER)
   openmp_delayload(blender)
 endif()
 if(WITH_PLAYER)
-	openmp_delayload(blenderplayer)
+  openmp_delayload(upbgeplayer)
 endif()
 
 #-----------------------------------------------------------------------------
