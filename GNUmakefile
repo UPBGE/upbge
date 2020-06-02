@@ -251,9 +251,9 @@ endif
 # Allow passing in own BLENDER_BIN so developers who don't
 # use the default build path can still use utility helpers.
 ifeq ($(OS), Darwin)
-	BLENDER_BIN?="$(BUILD_DIR)/bin/Blender.app/Contents/MacOS/Blender"
+  BLENDER_BIN?="$(BUILD_DIR)/bin/Upbge.app/Contents/MacOS/Upbge"
 else
-	BLENDER_BIN?="$(BUILD_DIR)/bin/blender"
+  BLENDER_BIN?="$(BUILD_DIR)/bin/upbge"
 endif
 
 

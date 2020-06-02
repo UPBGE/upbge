@@ -242,9 +242,9 @@ if(WITH_BUILDINFO)
   add_dependencies(buildinfoobj buildinfo)
 endif()
 
-add_cc_flags_custom_test(blender)
+add_cc_flags_custom_test(upbge)
 
-# message(STATUS "Configuring blender")
+# message(STATUS "Configuring upbge")
 if(WITH_PYTHON_MODULE)
   add_definitions(-DWITH_PYTHON_MODULE)
 
@@ -252,9 +252,9 @@ if(WITH_PYTHON_MODULE)
   #
   # note that 'SHARED' works on Linux and Windows,
   # but not OSX which _must_ be 'MODULE'
-  add_library(blender MODULE ${SRC})
+  add_library(upbge MODULE ${SRC})
   set_target_properties(
-    blender
+    upbge
     PROPERTIES
       PREFIX ""
       OUTPUT_NAME bpy
@@ -264,7 +264,7 @@ if(WITH_PYTHON_MODULE)
 
   if(APPLE)
     set_target_properties(
-      blender
+      upbge
       PROPERTIES
         MACOSX_BUNDLE TRUE
         LINK_FLAGS_RELEASE "${PLATFORM_LINKFLAGS}"
@@ -275,19 +275,19 @@ if(WITH_PYTHON_MODULE)
   if(WIN32)
     # python modules use this
     set_target_properties(
-      blender
+      upbge
       PROPERTIES
       SUFFIX ".pyd"
     )
   endif()
 
 else()
-  add_executable(blender ${EXETYPE} ${SRC})
+  add_executable(upbge ${EXETYPE} ${SRC})
 endif()
 
 if(WITH_BUILDINFO)
   # explicitly say that the executable depends on the buildinfo
-  add_dependencies(blender buildinfo)
+  add_dependencies(upbge buildinfo)
 endif()
 
 
@@ -338,7 +338,7 @@ if(UNIX AND NOT APPLE)
     if(WITH_INSTALL_PORTABLE)
       set(TARGETDIR_VER ${BLENDER_VERSION})
     else()
-      set(TARGETDIR_VER share/blender/${BLENDER_VERSION})
+      set(TARGETDIR_VER share/upbge/${BLENDER_VERSION})
     endif()
   endif()
 
@@ -349,10 +349,10 @@ elseif(APPLE)
   if(WITH_PYTHON_MODULE)
     set(TARGETDIR_VER ${BLENDER_VERSION})
   else()
-    set(TARGETDIR_VER Blender.app/Contents/Resources/${BLENDER_VERSION})
+    set(TARGETDIR_VER Upbge.app/Contents/Resources/${BLENDER_VERSION})
   endif()
   # Skip relinking on cpack / install
-  set_target_properties(blender PROPERTIES BUILD_WITH_INSTALL_RPATH true)
+  set_target_properties(upbge PROPERTIES BUILD_WITH_INSTALL_RPATH true)
 endif()
 
 
@@ -367,7 +367,7 @@ install(
 )
 
 if(WITH_PYTHON)
-  # install(CODE "message(\"copying blender scripts...\")")
+  # install(CODE "message(\"copying upbge scripts...\")")
 
   # exclude addons_contrib if release
   if("${BLENDER_VERSION_CYCLE}" STREQUAL "release" OR
@@ -421,7 +421,7 @@ if(WITH_INTERNATIONAL)
     locales
     DEPENDS ${_all_mo_files})
 
-  add_dependencies(blender locales)
+  add_dependencies(upbge locales)
 
   # Generate INSTALL rules
   install(
@@ -468,7 +468,7 @@ endif()
 if("${CMAKE_GENERATOR}" MATCHES ".*Makefiles.*")
   # message after building.
   add_custom_command(
-    TARGET blender POST_BUILD MAIN_DEPENDENCY blender
+    TARGET upbge POST_BUILD MAIN_DEPENDENCY upbge
     COMMAND ${CMAKE_COMMAND} -E
             echo 'now run: \"make install\" to copy runtime files and scripts to ${TARGETDIR_VER}'
   )
@@ -485,9 +485,9 @@ if(UNIX AND NOT APPLE)
       add_custom_target(
         blender_man_page ALL
         COMMAND ${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py
-                ${EXECUTABLE_OUTPUT_PATH}/blender
+                ${EXECUTABLE_OUTPUT_PATH}/upbge
                 ${CMAKE_CURRENT_BINARY_DIR}/blender.1)
-      add_dependencies(blender_man_page blender)
+      add_dependencies(blender_man_page upbge)
     endif()
   endif()
 
@@ -495,19 +495,19 @@ if(UNIX AND NOT APPLE)
   if(WITH_PYTHON_MODULE)
     if(WITH_INSTALL_PORTABLE)
       install(
-        TARGETS blender
+        TARGETS upbge
         DESTINATION "."
       )
     else()
       install(
-        TARGETS blender
+        TARGETS upbge
         LIBRARY DESTINATION ${PYTHON_SITE_PACKAGES}
       )
     endif()
     # none of the other files are needed currently
   elseif(WITH_INSTALL_PORTABLE)
     install(
-      TARGETS blender
+      TARGETS upbge
       DESTINATION "."
     )
 
@@ -543,9 +543,9 @@ if(UNIX AND NOT APPLE)
 
     set(BLENDER_TEXT_FILES_DESTINATION ".")
   else()
-    # main blender binary
+    # main upbge binary
     install(
-      TARGETS blender
+      TARGETS upbge
       DESTINATION bin
     )
     if(WITH_DOC_MANPAGE)
@@ -721,9 +721,9 @@ elseif(WIN32)
       # Icky hack for older cmake from https://stackoverflow.com/a/21198501
       # $<CONFIG> will work in newer cmake but the version currently (3.12)
       # on the buildbot does not support this endavour.
-      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}/blender_public.pdb DESTINATION . RENAME blender.pdb)
+      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}/blender_public.pdb DESTINATION . RENAME upbge.pdb)
     else()
-      install(FILES $<TARGET_PDB_FILE:blender> DESTINATION . RENAME blender.pdb)
+      install(FILES $<TARGET_PDB_FILE:blender> DESTINATION . RENAME upbge.pdb)
     endif()
   endif()
 
@@ -926,7 +926,7 @@ elseif(WIN32)
 elseif(APPLE)
   if(NOT WITH_PYTHON_MODULE)
     # Uppercase name for app bundle
-    set_target_properties(blender PROPERTIES OUTPUT_NAME Blender)
+    set_target_properties(upbge PROPERTIES OUTPUT_NAME Upbge)
   endif()
 
   # handy install macro to exclude files, we use \$ escape for the "to"
@@ -956,14 +956,14 @@ elseif(APPLE)
     )
   endmacro()
 
-  set(OSX_APP_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/Blender.app)
+  set(OSX_APP_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/Upbge.app)
 
   # setup Info.plist
   execute_process(COMMAND date "+%Y-%m-%d"
                   OUTPUT_VARIABLE BLENDER_DATE
                   OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-  set_target_properties(blender PROPERTIES
+  set_target_properties(upbge PROPERTIES
     MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_SOURCEDIR}/Contents/Info.plist
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH}"
     MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH} ${BLENDER_DATE}")
@@ -976,41 +976,41 @@ elseif(APPLE)
   # Give the bundle actual creation/modification date
   #
   # Note that the directory might not yet exist, which happens when CMake is first run.
-  if(NOT EXISTS ${EXECUTABLE_OUTPUT_PATH}/Blender.app)
-    file(MAKE_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}/Blender.app)
+  if(NOT EXISTS ${EXECUTABLE_OUTPUT_PATH}/Upbge.app)
+    file(MAKE_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}/Upbge.app)
   endif()
   execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE}
-                  ${EXECUTABLE_OUTPUT_PATH}/Blender.app)
+                  ${EXECUTABLE_OUTPUT_PATH}/Upbge.app)
 
   install(
-    TARGETS blender
+    TARGETS upbge
     DESTINATION "."
   )
 
   # install release and app files
-  set(BLENDER_TEXT_FILES_DESTINATION Blender.app/Contents/Resources/text)
+  set(BLENDER_TEXT_FILES_DESTINATION Upbge.app/Contents/Resources/text)
 
   install(
     FILES ${OSX_APP_SOURCEDIR}/Contents/PkgInfo
-    DESTINATION Blender.app/Contents
+    DESTINATION Upbge.app/Contents
   )
 
   install_dir(
     ${OSX_APP_SOURCEDIR}/Contents/Resources
-    Blender.app/Contents/
+    Upbge.app/Contents/
   )
 
   if(WITH_OPENMP AND OPENMP_CUSTOM)
     install(
       FILES ${LIBDIR}/openmp/lib/libomp.dylib
-      DESTINATION Blender.app/Contents/Resources/lib
+      DESTINATION Upbge.app/Contents/Resources/lib
     )
   endif()
 
   if(WITH_LLVM AND NOT LLVM_STATIC)
     install(
       FILES ${LIBDIR}/llvm/lib/libLLVM-3.4.dylib
-      DESTINATION Blender.app/Contents/MacOS
+      DESTINATION Upbge.app/Contents/MacOS
     )
   endif()
 
@@ -1108,16 +1108,16 @@ install(
 # -----------------------------------------------------------------------------
 # Setup link libs
 
-add_dependencies(blender makesdna)
-target_link_libraries(blender ${LIB})
+add_dependencies(upbge makesdna)
+target_link_libraries(upbge ${LIB})
 unset(LIB)
 
-setup_liblinks(blender)
+setup_liblinks(upbge)
 
 if(APPLE)
-  set_target_properties(blender PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/osx_locals.map)
+  set_target_properties(upbge PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/osx_locals.map)
 elseif(UNIX)
-  set_target_properties(blender PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/blender.map)
+  set_target_properties(upbge PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/blender.map)
 endif()
 
 # -----------------------------------------------------------------------------
@@ -1137,8 +1137,8 @@ endif()
 # you run these builds on other systems due to missing dlls. So we opt out
 # the use of vcpkg
 if(WIN32)
-  set_target_properties(blender PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
-  set_target_properties(blender PROPERTIES
+  set_target_properties(upbge PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
+  set_target_properties(upbge PROPERTIES
     PDB_NAME "blender_private"
     PDB_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
     if (WITH_WINDOWS_PDB AND WITH_WINDOWS_STRIPPED_PDB)
@@ -1147,9 +1147,9 @@ if(WIN32)
       # CMAKE_BUILD_TYPE. This can be simplified by target_link_options and the $<CONFIG>
       # generator expression in newer cmake (2.13+) but until that time this fill have suffice.
       if(CMAKE_BUILD_TYPE)
-        set_property(TARGET blender APPEND PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb")
+        set_property(TARGET upbge APPEND PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb")
       else()
-        set_property(TARGET blender APPEND PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/blender_public.pdb")
+        set_property(TARGET upbge APPEND PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/blender_public.pdb")
       endif()
   endif()
 endif()
@@ -1159,12 +1159,12 @@ endif()
 
 if(WIN32 AND NOT WITH_PYTHON_MODULE)
   install(
-    TARGETS blender
-    COMPONENT Blender
+    TARGETS upbge
+    COMPONENT Upbge
     DESTINATION "."
   )
   set_target_properties(
-    blender
+    upbge
     PROPERTIES
       VS_USER_PROPS "blender.Cpp.user.props"
   )

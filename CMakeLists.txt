@@ -1791,7 +1791,7 @@ include(build_files/cmake/packaging.cmake)
 #-----------------------------------------------------------------------------
 # Use dynamic loading for OpenMP
 if(WITH_BLENDER)
-  openmp_delayload(blender)
+  openmp_delayload(upbge)
 endif()
 if(WITH_PLAYER)
   openmp_delayload(upbgeplayer)
@@ -1802,7 +1802,7 @@ endif()
 
 if(FIRST_RUN)
 
-  set(_config_msg "\nBlender Configuration\n=====================")
+  set(_config_msg "\nUPBGE Configuration\n=====================")
 
   function(info_cfg_option
     _setting

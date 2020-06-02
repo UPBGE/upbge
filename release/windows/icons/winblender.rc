@@ -52,7 +52,7 @@ BEGIN
       VALUE "CompanyName", "UPBGE"
       VALUE "FileDescription", "UPBGE"
       VALUE "LegalCopyright", "GPLv3"
-      VALUE "OriginalFilename", "blender.exe"
+      VALUE "OriginalFilename", "upbge.exe"
       VALUE "ProductName", "UPBGE"
     END
   END
