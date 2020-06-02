@@ -112,7 +112,7 @@ class LightManager {
    * which doesn't contribute to the scene or which is only used for MIS
    * and scene doesn't need MIS.
    */
-  void disable_ineffective_light(Scene *scene);
+  void test_enabled_lights(Scene *scene);
 
   void device_update_points(Device *device, DeviceScene *dscene, Scene *scene);
   void device_update_distribution(Device *device,
@@ -136,6 +136,9 @@ class LightManager {
 
   vector<IESSlot *> ies_slots;
   thread_mutex ies_mutex;
+
+  bool last_background_enabled;
+  int last_background_resolution;
 };
 
 CCL_NAMESPACE_END

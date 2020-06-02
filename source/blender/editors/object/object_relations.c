@@ -2521,7 +2521,8 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
     ViewLayer *view_layer = CTX_data_view_layer(C);
     Collection *new_collection = (Collection *)collection->id.newid;
 
-    BKE_collection_child_add(bmain, scene->master_collection, new_collection);
+    BKE_collection_add_from_object(bmain, scene, obcollection, new_collection);
+
     FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (new_collection, new_ob) {
       if (new_ob != NULL && new_ob->id.override_library != NULL) {
         if ((base = BKE_view_layer_base_find(view_layer, new_ob)) == NULL) {
@@ -2529,14 +2530,7 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
           base = BKE_view_layer_base_find(view_layer, new_ob);
           DEG_id_tag_update_ex(bmain, &new_ob->id, ID_RECALC_TRANSFORM | ID_RECALC_BASE_FLAGS);
         }
-        /* parent to 'collection' empty */
-        /* Disabled for now, according to some artist this is probably not really useful anyway.
-         * And it breaks things like objects parented to bones
-         * (most likely due to missing proper setting of inverse parent matrix?)... */
-        /* Note: we might even actually want to get rid of that instantiating empty... */
-        if (0 && new_ob->parent == NULL) {
-          new_ob->parent = obcollection;
-        }
+
         if (new_ob == (Object *)obact->id.newid) {
           /* TODO: is setting active needed? */
           BKE_view_layer_base_select_and_set_active(view_layer, base);
@@ -2551,9 +2545,9 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
     }
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 
-    /* obcollection is no more duplicollection-ing,
-     * it merely parents whole collection of overriding instantiated objects. */
-    obcollection->instance_collection = NULL;
+    /* Remove the instance empty from this scene, the items now have an overriden collection
+     * instead. */
+    ED_object_base_free_and_unlink(bmain, scene, obcollection);
 
     /* Also, we'd likely want to lock by default things like
      * transformations of implicitly overridden objects? */

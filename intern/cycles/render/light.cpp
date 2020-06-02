@@ -184,6 +184,8 @@ LightManager::LightManager()
   need_update = true;
   need_update_background = true;
   use_light_visibility = false;
+  last_background_enabled = false;
+  last_background_resolution = 0;
 }
 
 LightManager::~LightManager()
@@ -203,7 +205,7 @@ bool LightManager::has_background_light(Scene *scene)
   return false;
 }
 
-void LightManager::disable_ineffective_light(Scene *scene)
+void LightManager::test_enabled_lights(Scene *scene)
 {
   /* Make all lights enabled by default, and perform some preliminary checks
    * needed for finer-tuning of settings (for example, check whether we've
@@ -216,6 +218,9 @@ void LightManager::disable_ineffective_light(Scene *scene)
     has_background |= light->type == LIGHT_BACKGROUND;
   }
 
+  bool background_enabled = false;
+  int background_resolution = 0;
+
   if (has_background) {
     /* Ignore background light if:
      * - If unsupported on a device
@@ -227,8 +232,17 @@ void LightManager::disable_ineffective_light(Scene *scene)
     foreach (Light *light, scene->lights) {
       if (light->type == LIGHT_BACKGROUND) {
         light->is_enabled = !disable_mis;
+        background_enabled = !disable_mis;
+        background_resolution = light->map_resolution;
       }
     }
+  }
+
+  if (last_background_enabled != background_enabled ||
+      last_background_resolution != background_resolution) {
+    last_background_enabled = background_enabled;
+    last_background_resolution = background_resolution;
+    need_update_background = true;
   }
 }
 
@@ -903,11 +917,12 @@ void LightManager::device_update(Device *device,
 
   VLOG(1) << "Total " << scene->lights.size() << " lights.";
 
+  /* Detect which lights are enabled, also determins if we need to update the background. */
+  test_enabled_lights(scene);
+
   device_free(device, dscene, need_update_background);
 
   use_light_visibility = false;
-
-  disable_ineffective_light(scene);
 
   device_update_points(device, dscene, scene);
   if (progress.get_cancel())

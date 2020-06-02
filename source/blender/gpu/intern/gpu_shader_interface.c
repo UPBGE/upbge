@@ -220,6 +220,12 @@ static int sampler_binding(int32_t program,
 
 GPUShaderInterface *GPU_shaderinterface_create(int32_t program)
 {
+#ifndef NDEBUG
+  GLint curr_program;
+  glGetIntegerv(GL_CURRENT_PROGRAM, &curr_program);
+  BLI_assert(curr_program == program);
+#endif
+
   GLint max_attr_name_len = 0, attr_len = 0;
   glGetProgramiv(program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &max_attr_name_len);
   glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES, &attr_len);
@@ -389,7 +395,7 @@ GPUShaderInterface *GPU_shaderinterface_create(int32_t program)
   }
   if (shaderface->enabled_tex_mask > 0) {
     printf("Samplers {\n");
-    for (int i = 0; i < shaderface->ubo_len; i++) {
+    for (int i = 0; i < shaderface->uniform_len; i++) {
       GPUShaderInput *input = shaderface->inputs + shaderface->attribute_len +
                               shaderface->ubo_len + i;
       if (input->binding != -1) {
