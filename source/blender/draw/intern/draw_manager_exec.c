@@ -931,13 +931,6 @@ static void draw_update_uniforms(DRWShadingGroup *shgroup,
     for (int i = 0; i < unichunk->uniform_used; i++, uni++) {
       GPUTexture *tex;
       GPUUniformBuffer *ubo;
-      if (uni->location == -2) {
-        uni->location = GPU_shader_get_uniform_ensure(shgroup->shader,
-                                                      DST.uniform_names.buffer + uni->name_ofs);
-        if (uni->location == -1) {
-          continue;
-        }
-      }
       const void *data = uni->pvalue;
       if (ELEM(uni->type, DRW_UNIFORM_INT_COPY, DRW_UNIFORM_FLOAT_COPY)) {
         data = uni->fvalue;
@@ -971,6 +964,12 @@ static void draw_update_uniforms(DRWShadingGroup *shgroup,
           bind_texture(tex, BIND_TEMP);
           GPU_shader_uniform_texture(shgroup->shader, uni->location, tex);
           break;
+        case DRW_UNIFORM_TEXTURE_REF_PERSIST:
+          tex = *((GPUTexture **)uni->pvalue);
+          BLI_assert(tex);
+          bind_texture(tex, BIND_PERSIST);
+          GPU_shader_uniform_texture(shgroup->shader, uni->location, tex);
+          break;
         case DRW_UNIFORM_BLOCK:
           ubo = (GPUUniformBuffer *)uni->pvalue;
           bind_ubo(ubo, BIND_TEMP);
@@ -978,6 +977,16 @@ static void draw_update_uniforms(DRWShadingGroup *shgroup,
           break;
         case DRW_UNIFORM_BLOCK_PERSIST:
           ubo = (GPUUniformBuffer *)uni->pvalue;
+          bind_ubo(ubo, BIND_PERSIST);
+          GPU_shader_uniform_buffer(shgroup->shader, uni->location, ubo);
+          break;
+        case DRW_UNIFORM_BLOCK_REF:
+          ubo = *((GPUUniformBuffer **)uni->pvalue);
+          bind_ubo(ubo, BIND_TEMP);
+          GPU_shader_uniform_buffer(shgroup->shader, uni->location, ubo);
+          break;
+        case DRW_UNIFORM_BLOCK_REF_PERSIST:
+          ubo = *((GPUUniformBuffer **)uni->pvalue);
           bind_ubo(ubo, BIND_PERSIST);
           GPU_shader_uniform_buffer(shgroup->shader, uni->location, ubo);
           break;
@@ -1426,6 +1435,11 @@ static void drw_draw_pass_ex(DRWPass *pass,
                              DRWShadingGroup *start_group,
                              DRWShadingGroup *end_group)
 {
+  if (pass->original) {
+    start_group = pass->original->shgroups.first;
+    end_group = pass->original->shgroups.last;
+  }
+
   if (start_group == NULL) {
     return;
   }
@@ -1511,7 +1525,9 @@ static void drw_draw_pass_ex(DRWPass *pass,
 
 void DRW_draw_pass(DRWPass *pass)
 {
-  drw_draw_pass_ex(pass, pass->shgroups.first, pass->shgroups.last);
+  for (; pass; pass = pass->next) {
+    drw_draw_pass_ex(pass, pass->shgroups.first, pass->shgroups.last);
+  }
 }
 
 /* Draw only a subset of shgroups. Used in special situations as grease pencil strokes */

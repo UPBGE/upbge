@@ -841,9 +841,7 @@ void RAS_Rasterizer::SetInvertFrontFace(bool invert)
 
 void RAS_Rasterizer::SetAnisotropicFiltering(short level)
 {
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Main *bmain = CTX_data_main(C);
-  GPU_set_anisotropic(bmain, (float)level);
+  GPU_set_anisotropic((float)level);
 }
 
 short RAS_Rasterizer::GetAnisotropicFiltering()

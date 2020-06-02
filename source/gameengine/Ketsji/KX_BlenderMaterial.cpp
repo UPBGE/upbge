@@ -66,8 +66,11 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
       EEVEE_EffectsInfo *effects = vedata->stl->effects;
       const bool use_ssrefract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) &&
                                  ((effects->enabled_effects & EFFECT_REFRACT) != 0);
-      m_gpuMat = EEVEE_material_mesh_get(
-          scene->GetBlenderScene(), m_material, vedata, false, use_ssrefract);
+
+      int mat_options = VAR_MAT_MESH;
+      SET_FLAG_FROM_TEST(mat_options, use_ssrefract, VAR_MAT_REFRACT);
+      m_gpuMat = EEVEE_material_get(
+          vedata, scene->GetBlenderScene(), m_material, NULL, mat_options);
     }
     else {
       m_gpuMat = nullptr;

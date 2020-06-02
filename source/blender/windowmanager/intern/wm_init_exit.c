@@ -191,7 +191,7 @@ void WM_init_opengl(Main *bmain)
   GPU_init();
   GPU_set_mipmap(bmain, true);
   GPU_set_linear_mipmap(true);
-  GPU_set_anisotropic(bmain, U.anisotropic_filter);
+  GPU_set_anisotropic(U.anisotropic_filter);
 
   GPU_pass_cache_init();
 
@@ -806,7 +806,7 @@ void WM_init_opengl_blenderplayer(Main *bmain, void *syshandle)
   GPU_init();
   GPU_set_mipmap(bmain, true);
   GPU_set_linear_mipmap(true);
-  GPU_set_anisotropic(bmain, U.anisotropic_filter);
+  GPU_set_anisotropic(U.anisotropic_filter);
   GPU_pass_cache_init();
 #ifdef WITH_OPENSUBDIV
   BKE_subsurf_osd_init();
