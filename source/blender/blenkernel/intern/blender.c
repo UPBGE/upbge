@@ -103,7 +103,7 @@ void BKE_blender_free(void)
   free_nodesystem();
 }
 
-static void blender_version_init()
+static void blender_version_init(void)
 {
   const char *version_cycle = "";
   if (STREQ(STRINGIFY(BLENDER_VERSION_CYCLE), "alpha")) {
@@ -131,8 +131,7 @@ static void blender_version_init()
                version_cycle);
 }
 
-
-const char *BKE_blender_version_string()
+const char *BKE_blender_version_string(void)
 {
   return blender_version_string;
 }

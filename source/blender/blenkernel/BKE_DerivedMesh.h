@@ -135,7 +135,6 @@ struct DerivedMesh {
   int numVertData, numEdgeData, numTessFaceData, numLoopData, numPolyData;
   int needsFree;    /* checked on ->release, is set to 0 for cached results */
   int deformedOnly; /* set by modifier stack if only deformed from original */
-  BVHCache *bvhCache;
   DerivedMeshType type;
   DMDirtyFlag dirty;
   int totmat;            /* total materials. Will be valid only before object drawing. */
