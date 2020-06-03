@@ -816,10 +816,10 @@ static void draw_update_uniforms(DRWShadingGroup *shgroup,
               shgroup->shader, uni->location, uni->length, uni->arraysize, uni->pvalue);
           break;
         case DRW_UNIFORM_TEXTURE:
-          GPU_texture_bind_ex(uni->texture, uni->location, false);
+          GPU_texture_bind_ex(uni->texture, uni->sampler_state, uni->location, false);
           break;
         case DRW_UNIFORM_TEXTURE_REF:
-          GPU_texture_bind_ex(*uni->texture_ref, uni->location, false);
+          GPU_texture_bind_ex(*uni->texture_ref, uni->sampler_state, uni->location, false);
           break;
         case DRW_UNIFORM_BLOCK:
           GPU_uniformbuffer_bind(uni->block, uni->location);
@@ -1109,7 +1109,11 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
   if (shader_changed) {
     if (DST.shader) {
       GPU_shader_unbind();
-      GPU_texture_unbind_all();
+
+      /* Unbinding can be costly. Skip in normal condition. */
+      if (G.debug & G_DEBUG_GPU) {
+        GPU_texture_unbind_all();
+      }
     }
     GPU_shader_bind(shgroup->shader);
     DST.shader = shgroup->shader;

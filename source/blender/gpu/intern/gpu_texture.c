@@ -1713,7 +1713,7 @@ void GPU_invalid_tex_free(void)
 }
 
 /* set_number is to save the the texture unit for setting texture parameters. */
-void GPU_texture_bind_ex(GPUTexture *tex, int unit, const bool set_number)
+void GPU_texture_bind_ex(GPUTexture *tex, eGPUSamplerState state, int unit, const bool set_number)
 {
   BLI_assert(unit >= 0);
 
@@ -1740,9 +1740,11 @@ void GPU_texture_bind_ex(GPUTexture *tex, int unit, const bool set_number)
 
   glActiveTexture(GL_TEXTURE0 + unit);
 
+  state = (state < GPU_SAMPLER_MAX) ? state : tex->sampler_state;
+
   if (tex->bindcode != 0) {
     glBindTexture(tex->target, tex->bindcode);
-    glBindSampler(unit, GG.samplers[tex->sampler_state]);
+    glBindSampler(unit, GG.samplers[state]);
   }
   else {
     GPU_invalid_tex_bind(tex->target_base);
@@ -1752,7 +1754,7 @@ void GPU_texture_bind_ex(GPUTexture *tex, int unit, const bool set_number)
 
 void GPU_texture_bind(GPUTexture *tex, int unit)
 {
-  GPU_texture_bind_ex(tex, unit, true);
+  GPU_texture_bind_ex(tex, GPU_SAMPLER_MAX, unit, true);
 }
 
 void GPU_texture_unbind(GPUTexture *tex)
@@ -1769,22 +1771,19 @@ void GPU_texture_unbind(GPUTexture *tex)
 
 void GPU_texture_unbind_all(void)
 {
-  /* Unbinding can be costly. Skip in normal condition. */
-  if (G.debug & G_DEBUG_GPU) {
-    for (int i = 0; i < GPU_max_textures(); i++) {
-      glActiveTexture(GL_TEXTURE0 + i);
-      glBindTexture(GL_TEXTURE_2D, 0);
-      glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-      glBindTexture(GL_TEXTURE_1D, 0);
-      glBindTexture(GL_TEXTURE_1D_ARRAY, 0);
-      glBindTexture(GL_TEXTURE_3D, 0);
-      glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-      glBindTexture(GL_TEXTURE_BUFFER, 0);
-      if (GPU_arb_texture_cube_map_array_is_supported()) {
-        glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY_ARB, 0);
-      }
-      glBindSampler(i, 0);
+  for (int i = 0; i < GPU_max_textures(); i++) {
+    glActiveTexture(GL_TEXTURE0 + i);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+    glBindTexture(GL_TEXTURE_1D, 0);
+    glBindTexture(GL_TEXTURE_1D_ARRAY, 0);
+    glBindTexture(GL_TEXTURE_3D, 0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    glBindTexture(GL_TEXTURE_BUFFER, 0);
+    if (GPU_arb_texture_cube_map_array_is_supported()) {
+      glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY_ARB, 0);
     }
+    glBindSampler(i, 0);
   }
 }
 
@@ -2132,9 +2131,9 @@ void GPU_samplers_init(void)
   for (int i = 0; i < GPU_SAMPLER_MAX; i++) {
     eGPUSamplerState state = i;
     GLenum clamp_type = (state & GPU_SAMPLER_CLAMP_BORDER) ? GL_CLAMP_TO_BORDER : GL_CLAMP_TO_EDGE;
-    GLenum wrap_s = (state & GPU_SAMPLER_REPEAT_R) ? GL_REPEAT : clamp_type;
-    GLenum wrap_t = (state & GPU_SAMPLER_REPEAT_S) ? GL_REPEAT : clamp_type;
-    GLenum wrap_r = (state & GPU_SAMPLER_REPEAT_T) ? GL_REPEAT : clamp_type;
+    GLenum wrap_s = (state & GPU_SAMPLER_REPEAT_S) ? GL_REPEAT : clamp_type;
+    GLenum wrap_t = (state & GPU_SAMPLER_REPEAT_T) ? GL_REPEAT : clamp_type;
+    GLenum wrap_r = (state & GPU_SAMPLER_REPEAT_R) ? GL_REPEAT : clamp_type;
     GLenum mag_filter = (state & GPU_SAMPLER_FILTER) ? GL_LINEAR : GL_NEAREST;
     GLenum min_filter = (state & GPU_SAMPLER_FILTER) ?
                             ((state & GPU_SAMPLER_MIPMAP) ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR) :
