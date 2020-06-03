@@ -216,10 +216,7 @@ struct GPUShader *DRW_shader_create_with_transform_feedback(const char *vert,
                                                             const eGPUShaderTFBType prim_type,
                                                             const char **varying_names,
                                                             const int varying_count);
-struct GPUShader *DRW_shader_create_2d(const char *frag, const char *defines);
-struct GPUShader *DRW_shader_create_3d(const char *frag, const char *defines);
 struct GPUShader *DRW_shader_create_fullscreen(const char *frag, const char *defines);
-struct GPUShader *DRW_shader_create_3d_depth_only(eGPUShaderConfig slot);
 struct GPUMaterial *DRW_shader_find_from_world(struct World *wo,
                                                const void *engine_type,
                                                const int options,
@@ -470,27 +467,15 @@ void DRW_shgroup_clear_framebuffer(DRWShadingGroup *shgroup,
 void DRW_shgroup_uniform_texture(DRWShadingGroup *shgroup,
                                  const char *name,
                                  const struct GPUTexture *tex);
-void DRW_shgroup_uniform_texture_persistent(DRWShadingGroup *shgroup,
-                                            const char *name,
-                                            const struct GPUTexture *tex);
 void DRW_shgroup_uniform_texture_ref(DRWShadingGroup *shgroup,
                                      const char *name,
                                      struct GPUTexture **tex);
-void DRW_shgroup_uniform_texture_ref_persistent(DRWShadingGroup *shgroup,
-                                                const char *name,
-                                                struct GPUTexture **tex);
 void DRW_shgroup_uniform_block(DRWShadingGroup *shgroup,
                                const char *name,
                                const struct GPUUniformBuffer *ubo);
-void DRW_shgroup_uniform_block_persistent(DRWShadingGroup *shgroup,
-                                          const char *name,
-                                          const struct GPUUniformBuffer *ubo);
 void DRW_shgroup_uniform_block_ref(DRWShadingGroup *shgroup,
                                    const char *name,
                                    struct GPUUniformBuffer **ubo);
-void DRW_shgroup_uniform_block_ref_persistent(DRWShadingGroup *shgroup,
-                                              const char *name,
-                                              struct GPUUniformBuffer **ubo);
 void DRW_shgroup_uniform_float(DRWShadingGroup *shgroup,
                                const char *name,
                                const float *value,
