@@ -454,6 +454,8 @@ void DRW_state_reset(void)
 {
   DRW_state_reset_ex(DRW_STATE_DEFAULT);
 
+  GPU_texture_unbind_all();
+
   /* Should stay constant during the whole rendering. */
   GPU_point_size(5);
   GPU_line_smooth(false);
@@ -953,7 +955,7 @@ static void draw_call_resource_bind(DRWCommandsState *state, const DRWResourceHa
     }
     if (state->obinfos_loc != -1) {
       GPU_uniformbuffer_unbind(DST.vmempool->obinfos_ubo[state->resource_chunk]);
-      GPU_uniformbuffer_bind(DST.vmempool->obinfos_ubo[chunk], 1);
+      GPU_uniformbuffer_bind(DST.vmempool->obinfos_ubo[chunk], state->obinfos_loc);
     }
     state->resource_chunk = chunk;
   }
@@ -1307,7 +1309,6 @@ static void drw_draw_pass_ex(DRWPass *pass,
 
   if (DST.shader) {
     GPU_shader_unbind();
-    GPU_texture_unbind_all();
     DST.shader = NULL;
   }
 

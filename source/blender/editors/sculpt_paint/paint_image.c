@@ -511,12 +511,8 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
   }
 
   if ((brush->imagepaint_tool == PAINT_TOOL_FILL) && (brush->flag & BRUSH_USE_GRADIENT)) {
-    pop->cursor = WM_paint_cursor_activate(CTX_wm_manager(C),
-                                           SPACE_TYPE_ANY,
-                                           RGN_TYPE_ANY,
-                                           image_paint_poll,
-                                           gradient_draw_line,
-                                           pop);
+    pop->cursor = WM_paint_cursor_activate(
+        SPACE_TYPE_ANY, RGN_TYPE_ANY, image_paint_poll, gradient_draw_line, pop);
   }
 
   settings->imapaint.flag |= IMAGEPAINT_DRAWING;
@@ -655,7 +651,7 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
   }
 
   if (pop->cursor) {
-    WM_paint_cursor_end(CTX_wm_manager(C), pop->cursor);
+    WM_paint_cursor_end(pop->cursor);
   }
 
   ED_image_undo_push_end();
@@ -785,19 +781,18 @@ bool get_imapaint_zoom(bContext *C, float *zoomx, float *zoomy)
 
 /************************ cursor drawing *******************************/
 
-static void toggle_paint_cursor(bContext *C, int enable)
+static void toggle_paint_cursor(Scene *scene, bool enable)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  Scene *scene = CTX_data_scene(C);
   ToolSettings *settings = scene->toolsettings;
+  Paint *p = &settings->imapaint.paint;
 
-  if (settings->imapaint.paintcursor && !enable) {
-    WM_paint_cursor_end(wm, settings->imapaint.paintcursor);
-    settings->imapaint.paintcursor = NULL;
+  if (p->paint_cursor && !enable) {
+    WM_paint_cursor_end(p->paint_cursor);
+    p->paint_cursor = NULL;
     paint_cursor_delete_textures();
   }
   else if (enable) {
-    paint_cursor_start(C, image_paint_poll);
+    paint_cursor_start(p, image_paint_poll);
   }
 }
 
@@ -827,7 +822,7 @@ void ED_space_image_paint_update(Main *bmain, wmWindowManager *wm, Scene *scene)
   if (enabled) {
     BKE_paint_init(bmain, scene, PAINT_MODE_TEXTURE_2D, PAINT_CURSOR_TEXTURE_PAINT);
 
-    paint_cursor_start_explicit(&imapaint->paint, wm, image_paint_poll);
+    paint_cursor_start(&imapaint->paint, image_paint_poll);
   }
   else {
     paint_cursor_delete_textures();
@@ -1121,6 +1116,100 @@ void PAINT_OT_sample_color(wmOperatorType *ot)
 
 /******************** texture paint toggle operator ********************/
 
+void ED_object_texture_paint_mode_enter_ex(Main *bmain, Scene *scene, Object *ob)
+{
+  bScreen *screen;
+  Image *ima = NULL;
+  ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
+
+  /* This has to stay here to regenerate the texture paint
+   * cache in case we are loading a file */
+  BKE_texpaint_slots_refresh_object(scene, ob);
+
+  BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
+
+  /* entering paint mode also sets image to editors */
+  if (imapaint->mode == IMAGEPAINT_MODE_MATERIAL) {
+    /* set the current material active paint slot on image editor */
+    Material *ma = BKE_object_material_get(ob, ob->actcol);
+
+    if (ma && ma->texpaintslot) {
+      ima = ma->texpaintslot[ma->paint_active_slot].ima;
+    }
+  }
+  else if (imapaint->mode == IMAGEPAINT_MODE_IMAGE) {
+    ima = imapaint->canvas;
+  }
+
+  if (ima) {
+    for (screen = bmain->screens.first; screen; screen = screen->id.next) {
+      ScrArea *area;
+      for (area = screen->areabase.first; area; area = area->next) {
+        SpaceLink *sl;
+        for (sl = area->spacedata.first; sl; sl = sl->next) {
+          if (sl->spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = (SpaceImage *)sl;
+
+            if (!sima->pin) {
+              ED_space_image_set(bmain, sima, NULL, ima, true);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  ob->mode |= OB_MODE_TEXTURE_PAINT;
+
+  BKE_paint_init(bmain, scene, PAINT_MODE_TEXTURE_3D, PAINT_CURSOR_TEXTURE_PAINT);
+
+  BKE_paint_toolslots_brush_validate(bmain, &imapaint->paint);
+
+  if (U.glreslimit != 0) {
+    GPU_free_images(bmain);
+  }
+  GPU_paint_set_mipmap(bmain, 0);
+
+  toggle_paint_cursor(scene, true);
+
+  Mesh *me = BKE_mesh_from_object(ob);
+  BLI_assert(me != NULL);
+  DEG_id_tag_update(&me->id, ID_RECALC_COPY_ON_WRITE);
+  WM_main_add_notifier(NC_SCENE | ND_MODE, scene);
+}
+
+void ED_object_texture_paint_mode_enter(bContext *C)
+{
+  Main *bmain = CTX_data_main(C);
+  Object *ob = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(C);
+  ED_object_texture_paint_mode_enter_ex(bmain, scene, ob);
+}
+
+void ED_object_texture_paint_mode_exit_ex(Main *bmain, Scene *scene, Object *ob)
+{
+  ob->mode &= ~OB_MODE_TEXTURE_PAINT;
+
+  if (U.glreslimit != 0) {
+    GPU_free_images(bmain);
+  }
+  GPU_paint_set_mipmap(bmain, 1);
+  toggle_paint_cursor(scene, false);
+
+  Mesh *me = BKE_mesh_from_object(ob);
+  BLI_assert(me != NULL);
+  DEG_id_tag_update(&me->id, ID_RECALC_COPY_ON_WRITE);
+  WM_main_add_notifier(NC_SCENE | ND_MODE, scene);
+}
+
+void ED_object_texture_paint_mode_exit(bContext *C)
+{
+  Main *bmain = CTX_data_main(C);
+  Object *ob = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(C);
+  ED_object_texture_paint_mode_exit_ex(bmain, scene, ob);
+}
+
 static bool texture_paint_toggle_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
@@ -1150,77 +1239,11 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
   }
 
   if (ob->mode & mode_flag) {
-    ob->mode &= ~mode_flag;
-
-    if (U.glreslimit != 0) {
-      GPU_free_images(bmain);
-    }
-    GPU_paint_set_mipmap(bmain, 1);
-
-    toggle_paint_cursor(C, 0);
+    ED_object_texture_paint_mode_exit_ex(bmain, scene, ob);
   }
   else {
-    bScreen *screen;
-    Image *ima = NULL;
-    ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
-
-    /* This has to stay here to regenerate the texture paint
-     * cache in case we are loading a file */
-    BKE_texpaint_slots_refresh_object(scene, ob);
-
-    BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
-
-    /* entering paint mode also sets image to editors */
-    if (imapaint->mode == IMAGEPAINT_MODE_MATERIAL) {
-      /* set the current material active paint slot on image editor */
-      Material *ma = BKE_object_material_get(ob, ob->actcol);
-
-      if (ma && ma->texpaintslot) {
-        ima = ma->texpaintslot[ma->paint_active_slot].ima;
-      }
-    }
-    else if (imapaint->mode == IMAGEPAINT_MODE_IMAGE) {
-      ima = imapaint->canvas;
-    }
-
-    if (ima) {
-      for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-        ScrArea *area;
-        for (area = screen->areabase.first; area; area = area->next) {
-          SpaceLink *sl;
-          for (sl = area->spacedata.first; sl; sl = sl->next) {
-            if (sl->spacetype == SPACE_IMAGE) {
-              SpaceImage *sima = (SpaceImage *)sl;
-
-              if (!sima->pin) {
-                Object *obedit = CTX_data_edit_object(C);
-                ED_space_image_set(bmain, sima, obedit, ima, true);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    ob->mode |= mode_flag;
-
-    BKE_paint_init(bmain, scene, PAINT_MODE_TEXTURE_3D, PAINT_CURSOR_TEXTURE_PAINT);
-
-    BKE_paint_toolslots_brush_validate(bmain, &imapaint->paint);
-
-    if (U.glreslimit != 0) {
-      GPU_free_images(bmain);
-    }
-    GPU_paint_set_mipmap(bmain, 0);
-
-    toggle_paint_cursor(C, 1);
+    ED_object_texture_paint_mode_enter_ex(bmain, scene, ob);
   }
-
-  Mesh *me = BKE_mesh_from_object(ob);
-  BLI_assert(me != NULL);
-  DEG_id_tag_update(&me->id, ID_RECALC_COPY_ON_WRITE);
-
-  WM_event_add_notifier(C, NC_SCENE | ND_MODE, scene);
 
   WM_msg_publish_rna_prop(mbus, &ob->id, ob, Object, mode);
 

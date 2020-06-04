@@ -743,8 +743,13 @@ int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 int GPU_shader_get_builtin_uniform(GPUShader *shader, int builtin)
 {
   BLI_assert(shader && shader->program);
-  const GPUShaderInput *uniform = GPU_shaderinterface_uniform_builtin(shader->interface, builtin);
-  return uniform ? uniform->location : -1;
+  return GPU_shaderinterface_uniform_builtin(shader->interface, builtin);
+}
+
+int GPU_shader_get_builtin_block(GPUShader *shader, int builtin)
+{
+  BLI_assert(shader && shader->program);
+  return GPU_shaderinterface_block_builtin(shader->interface, builtin);
 }
 
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name)
@@ -857,10 +862,9 @@ void GPU_shader_uniform_int(GPUShader *UNUSED(shader), int location, int value)
 
 void GPU_shader_set_srgb_uniform(const GPUShaderInterface *interface)
 {
-  const GPUShaderInput *srgb_uniform = GPU_shaderinterface_uniform_builtin(
-      interface, GPU_UNIFORM_SRGB_TRANSFORM);
-  if (srgb_uniform) {
-    glUniform1i(srgb_uniform->location, g_shader_builtin_srgb_transform);
+  int32_t loc = GPU_shaderinterface_uniform_builtin(interface, GPU_UNIFORM_SRGB_TRANSFORM);
+  if (loc != -1) {
+    glUniform1i(loc, g_shader_builtin_srgb_transform);
   }
 }
 
