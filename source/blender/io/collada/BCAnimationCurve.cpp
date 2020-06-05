@@ -89,12 +89,12 @@ void BCAnimationCurve::init_pointer_rna(Object *ob)
 
 void BCAnimationCurve::delete_fcurve(FCurve *fcu)
 {
-  free_fcurve(fcu);
+  BKE_fcurve_free(fcu);
 }
 
 FCurve *BCAnimationCurve::create_fcurve(int array_index, const char *rna_path)
 {
-  FCurve *fcu = (FCurve *)MEM_callocN(sizeof(FCurve), "FCurve");
+  FCurve *fcu = BKE_fcurve_create();
   fcu->flag = (FCURVE_VISIBLE | FCURVE_AUTO_HANDLES | FCURVE_SELECTED);
   fcu->rna_path = BLI_strdupn(rna_path, strlen(rna_path));
   fcu->array_index = array_index;

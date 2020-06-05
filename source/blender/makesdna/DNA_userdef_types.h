@@ -1190,7 +1190,7 @@ typedef enum eColorPicker_Types {
 } eColorPicker_Types;
 
 /**
- * Timecode display styles
+ * Time-code display styles.
  * #UserDef.timecode_style
  */
 typedef enum eTimecodeStyles {

@@ -2545,7 +2545,7 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
     }
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 
-    /* Remove the instance empty from this scene, the items now have an overriden collection
+    /* Remove the instance empty from this scene, the items now have an overridden collection
      * instead. */
     ED_object_base_free_and_unlink(bmain, scene, obcollection);
 

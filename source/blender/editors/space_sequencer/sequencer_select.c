@@ -52,10 +52,9 @@
 /* Own include. */
 #include "sequencer_intern.h"
 
-static void *find_nearest_marker(int UNUSED(d1), int UNUSED(d2))
-{
-  return NULL;
-}
+/* -------------------------------------------------------------------- */
+/** \name Selection Utilities
+ * \{ */
 
 static void select_surrounding_handles(Scene *scene, Sequence *test) /* XXX BRING BACK */
 {
@@ -253,6 +252,12 @@ static void select_neighbor_from_last(Scene *scene, int lr)
 }
 #endif
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name (De)select All Operator
+ * \{ */
+
 static int sequencer_de_select_all_exec(bContext *C, wmOperator *op)
 {
   int action = RNA_enum_get(op->ptr, "action");
@@ -316,6 +321,12 @@ void SEQUENCER_OT_select_all(struct wmOperatorType *ot)
   WM_operator_properties_select_all(ot);
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Inverse Operator
+ * \{ */
+
 static int sequencer_select_inverse_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Scene *scene = CTX_data_scene(C);
@@ -354,6 +365,12 @@ void SEQUENCER_OT_select_inverse(struct wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Operator
+ * \{ */
+
 static int sequencer_select_exec(bContext *C, wmOperator *op)
 {
   View2D *v2d = UI_view2d_fromcontext(C);
@@ -363,8 +380,8 @@ static int sequencer_select_exec(bContext *C, wmOperator *op)
   const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
   const bool linked_handle = RNA_boolean_get(op->ptr, "linked_handle");
   const bool linked_time = RNA_boolean_get(op->ptr, "linked_time");
+  bool side_of_frame = RNA_boolean_get(op->ptr, "side_of_frame");
   bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
-  int left_right = RNA_enum_get(op->ptr, "left_right");
   int mval[2];
   int ret_value = OPERATOR_CANCELLED;
 
@@ -373,7 +390,6 @@ static int sequencer_select_exec(bContext *C, wmOperator *op)
 
   Sequence *seq, *neighbor, *act_orig;
   int hand, sel_side;
-  TimeMarker *marker;
 
   if (ed == NULL) {
     return OPERATOR_CANCELLED;
@@ -383,73 +399,31 @@ static int sequencer_select_exec(bContext *C, wmOperator *op)
     wait_to_deselect_others = false;
   }
 
-  marker = find_nearest_marker(SCE_MARKERS, 1); /* XXX - dummy function for now */
-
   seq = find_nearest_seq(scene, v2d, &hand, mval);
 
-  /* XXX - not nice, Ctrl+RMB needs to do left_right only when not over a strip */
-  if (seq && linked_time && (left_right == SEQ_SELECT_LR_MOUSE)) {
-    left_right = SEQ_SELECT_LR_NONE;
+  /* XXX - not nice, Ctrl+RMB needs to do side_of_frame only when not over a strip */
+  if (seq && linked_time) {
+    side_of_frame = false;
   }
 
-  if (marker) {
-    int oldflag;
-    /* Select timeline marker. */
-    if (extend) {
-      oldflag = marker->flag;
-      if (oldflag & SELECT) {
-        marker->flag &= ~SELECT;
-      }
-      else {
-        marker->flag |= SELECT;
-      }
-    }
-    else {
-      /* XXX, in 2.4x, seq selection used to deselect all, need to re-thnik this for 2.5 */
-      /* deselect_markers(0, 0); */
-      marker->flag |= SELECT;
-    }
-
-    ret_value = OPERATOR_FINISHED;
-  }
   /* Select left, right or overlapping the current frame. */
-  else if (left_right != SEQ_SELECT_LR_NONE) {
+  if (side_of_frame) {
     /* Use different logic for this. */
     float x;
     if (extend == false) {
       ED_sequencer_deselect_all(scene);
     }
 
-    switch (left_right) {
-      case SEQ_SELECT_LR_MOUSE: {
-        /* 10px margin around current frame to select under the current frame with mouse. */
-        float margin = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask) * 10;
-        x = UI_view2d_region_to_view_x(v2d, mval[0]);
-        if (x >= CFRA - margin && x <= CFRA + margin) {
-          x = CFRA;
-        }
-        break;
-      }
-      case SEQ_SELECT_LR_LEFT:
-        x = CFRA - 1.0f;
-        break;
-      case SEQ_SELECT_LR_RIGHT:
-        x = CFRA + 1.0f;
-        break;
-      case SEQ_SELECT_LR_OVERLAP:
-      default:
-        x = CFRA;
-        break;
+    /* 10px margin around current frame to select under the current frame with mouse. */
+    float margin = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask) * 10;
+    x = UI_view2d_region_to_view_x(v2d, mval[0]);
+    if (x >= CFRA - margin && x <= CFRA + margin) {
+      x = CFRA;
     }
 
     SEQP_BEGIN (ed, seq) {
-      /* Select overlapping the current frame. */
-      if ((x == CFRA) && (seq->startdisp <= CFRA) && (seq->enddisp >= CFRA)) {
-        seq->flag = SELECT;
-        recurs_sel_seq(seq);
-      }
       /* Select left or right. */
-      else if ((x < CFRA && seq->enddisp <= CFRA) || (x > CFRA && seq->startdisp >= CFRA)) {
+      if ((x < CFRA && seq->enddisp <= CFRA) || (x > CFRA && seq->startdisp >= CFRA)) {
         seq->flag |= SELECT;
         recurs_sel_seq(seq);
       }
@@ -640,14 +614,6 @@ static int sequencer_select_exec(bContext *C, wmOperator *op)
 
 void SEQUENCER_OT_select(wmOperatorType *ot)
 {
-  static const EnumPropertyItem sequencer_select_left_right_types[] = {
-      {SEQ_SELECT_LR_NONE, "NONE", 0, "None", "Don't do left-right selection"},
-      {SEQ_SELECT_LR_MOUSE, "MOUSE", 0, "Mouse", "Use mouse position for selection"},
-      {SEQ_SELECT_LR_LEFT, "LEFT", 0, "Left", "Select to the left of the current frame"},
-      {SEQ_SELECT_LR_RIGHT, "RIGHT", 0, "Right", "Select to the right of the current frame"},
-      {SEQ_SELECT_LR_OVERLAP, "OVERLAP", 0, "Overlap", "Select overlapping the current frame"},
-      {0, NULL, 0, NULL, NULL},
-  };
   PropertyRNA *prop;
 
   /* Identifiers. */
@@ -666,25 +632,42 @@ void SEQUENCER_OT_select(wmOperatorType *ot)
 
   /* Properties. */
   WM_operator_properties_generic_select(ot);
-  RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend the selection");
+
+  prop = RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
   prop = RNA_def_boolean(ot->srna,
                          "deselect_all",
                          false,
                          "Deselect On Nothing",
                          "Deselect all when nothing under the cursor");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  RNA_def_boolean(
-      ot->srna, "linked_handle", 0, "Linked Handle", "Select handles next to the active strip");
-  /* For animation this is enum but atm having an enum isn't useful for us. */
-  RNA_def_enum(ot->srna,
-               "left_right",
-               sequencer_select_left_right_types,
-               0,
-               "Left/Right",
-               "Select based on the current frame side the cursor is on");
-  RNA_def_boolean(
-      ot->srna, "linked_time", 0, "Linked Time", "Select other strips at the same time");
+
+  prop = RNA_def_boolean(ot->srna,
+                         "linked_handle",
+                         false,
+                         "Linked Handle",
+                         "Select handles next to the active strip");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(
+      ot->srna, "linked_time", false, "Linked Time", "Select other strips at the same time");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(
+      ot->srna,
+      "side_of_frame",
+      false,
+      "Side of Frame",
+      "Select all strips on same side of the current frame as the mouse cursor");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select More Operator
+ * \{ */
 
 /* Run recursively to select linked. */
 static bool select_more_less_seq__internal(Scene *scene, bool sel, const bool linked)
@@ -783,6 +766,12 @@ void SEQUENCER_OT_select_more(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Less Operator
+ * \{ */
+
 static int sequencer_select_less_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Scene *scene = CTX_data_scene(C);
@@ -812,6 +801,12 @@ void SEQUENCER_OT_select_less(wmOperatorType *ot)
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Pick Linked Operator
+ * \{ */
 
 static int sequencer_select_linked_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -866,6 +861,12 @@ void SEQUENCER_OT_select_linked_pick(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend the selection");
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Linked Operator
+ * \{ */
+
 static int sequencer_select_linked_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Scene *scene = CTX_data_scene(C);
@@ -897,6 +898,12 @@ void SEQUENCER_OT_select_linked(wmOperatorType *ot)
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Handles Operator
+ * \{ */
 
 static int sequencer_select_handles_exec(bContext *C, wmOperator *op)
 {
@@ -952,6 +959,87 @@ void SEQUENCER_OT_select_handles(wmOperatorType *ot)
                "Side",
                "The side of the handle that is selected");
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Side of Frame Operator
+ * \{ */
+
+static int sequencer_select_side_of_frame_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  Editing *ed = BKE_sequencer_editing_get(scene, false);
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const int side = RNA_enum_get(op->ptr, "side");
+  Sequence *seq;
+
+  if (ed == NULL) {
+    return OPERATOR_CANCELLED;
+  }
+  if (extend == false) {
+    ED_sequencer_deselect_all(scene);
+  }
+  const int cfra = CFRA;
+  SEQP_BEGIN (ed, seq) {
+    bool test = false;
+    switch (side) {
+      case -1:
+        test = (cfra >= seq->startdisp);
+        break;
+      case 1:
+        test = (cfra <= seq->enddisp);
+        break;
+      case 0:
+        test = (cfra <= seq->enddisp) && (cfra >= seq->startdisp);
+        break;
+    }
+
+    if (test) {
+      seq->flag |= SELECT;
+      recurs_sel_seq(seq);
+    }
+  }
+  SEQ_END;
+
+  ED_outliner_select_sync_from_sequence_tag(C);
+
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+void SEQUENCER_OT_select_side_of_frame(wmOperatorType *ot)
+{
+  static const EnumPropertyItem sequencer_select_left_right_types[] = {
+      {0, "OVERLAP", 0, "Overlap", "Select overlapping the current frame"},
+      {-1, "LEFT", 0, "Left", "Select to the left of the current frame"},
+      {1, "RIGHT", 0, "Right", "Select to the right of the current frame"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  /* Identifiers. */
+  ot->name = "Select Side of Frame";
+  ot->idname = "SEQUENCER_OT_select_side_of_frame";
+  ot->description = "Select strips relative to the current frame";
+
+  /* Api callbacks. */
+  ot->exec = sequencer_select_side_of_frame_exec;
+  ot->poll = ED_operator_sequencer_active;
+
+  /* Flags. */
+  ot->flag = OPTYPE_UNDO;
+
+  /* Properties. */
+  RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend the selection");
+  ot->prop = RNA_def_enum(ot->srna, "side", sequencer_select_left_right_types, 0, "Side", "");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Side Operator
+ * \{ */
 
 static int sequencer_select_side_exec(bContext *C, wmOperator *op)
 {
@@ -1016,6 +1104,12 @@ void SEQUENCER_OT_select_side(wmOperatorType *ot)
                "Side",
                "The side to which the selection is applied");
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Box Select Operator
+ * \{ */
 
 static int sequencer_box_select_exec(bContext *C, wmOperator *op)
 {
@@ -1140,6 +1234,12 @@ void SEQUENCER_OT_select_box(wmOperatorType *ot)
       ot->srna, "include_handles", 0, "Select Handles", "Select the strips and their handles");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Grouped Operator
+ * \{ */
 
 enum {
   SEQ_SELECT_GROUP_TYPE,
@@ -1477,8 +1577,8 @@ void SEQUENCER_OT_select_grouped(wmOperatorType *ot)
 {
   /* Identifiers. */
   ot->name = "Select Grouped";
-  ot->description = "Select all strips grouped by various properties";
   ot->idname = "SEQUENCER_OT_select_grouped";
+  ot->description = "Select all strips grouped by various properties";
 
   /* Api callbacks. */
   ot->invoke = WM_menu_invoke;
@@ -1501,3 +1601,5 @@ void SEQUENCER_OT_select_grouped(wmOperatorType *ot)
                   "Same Channel",
                   "Only consider strips on the same channel as the active one");
 }
+
+/** \} */

@@ -316,15 +316,15 @@ void ED_objects_recalculate_paths(struct bContext *C,
                                   eObjectPathCalcRange range);
 
 /* constraints */
-struct ListBase *get_active_constraints(struct Object *ob);
-struct ListBase *get_constraint_lb(struct Object *ob,
-                                   struct bConstraint *con,
-                                   struct bPoseChannel **r_pchan);
-struct bConstraint *get_active_constraint(struct Object *ob);
+struct ListBase *ED_object_constraint_list_from_context(struct Object *ob);
+struct ListBase *ED_object_constraint_list_from_constraint(struct Object *ob,
+                                                           struct bConstraint *con,
+                                                           struct bPoseChannel **r_pchan);
+struct bConstraint *ED_object_constraint_active_get(struct Object *ob);
 
 void object_test_constraints(struct Main *bmain, struct Object *ob);
 
-void ED_object_constraint_set_active(struct Object *ob, struct bConstraint *con);
+void ED_object_constraint_active_set(struct Object *ob, struct bConstraint *con);
 void ED_object_constraint_update(struct Main *bmain, struct Object *ob);
 void ED_object_constraint_dependency_update(struct Main *bmain, struct Object *ob);
 
@@ -370,12 +370,17 @@ bool ED_object_modifier_remove(struct ReportList *reports,
                                struct Object *ob,
                                struct ModifierData *md);
 void ED_object_modifier_clear(struct Main *bmain, struct Object *ob);
-int ED_object_modifier_move_down(struct ReportList *reports,
-                                 struct Object *ob,
-                                 struct ModifierData *md);
-int ED_object_modifier_move_up(struct ReportList *reports,
-                               struct Object *ob,
-                               struct ModifierData *md);
+bool ED_object_modifier_move_down(struct ReportList *reports,
+                                  struct Object *ob,
+                                  struct ModifierData *md);
+bool ED_object_modifier_move_up(struct ReportList *reports,
+                                struct Object *ob,
+                                struct ModifierData *md);
+bool ED_object_modifier_move_to_index(struct ReportList *reports,
+                                      struct Object *ob,
+                                      struct ModifierData *md,
+                                      const int index);
+
 int ED_object_modifier_convert(struct ReportList *reports,
                                struct Main *bmain,
                                struct Depsgraph *depsgraph,
