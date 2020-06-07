@@ -87,6 +87,7 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
       m_isReplica(false),           // eevee
       m_staticObject(true),         // eevee
       m_visibleAtGameStart(false),  // eevee
+      m_forceIgnoreParentTx(false), // eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -263,6 +264,11 @@ void KX_GameObject::IgnoreParentTxBGE(Main *bmain,
   }
 }
 
+void KX_GameObject::ForceIgnoreParentTx()
+{
+  m_forceIgnoreParentTx = true;
+}
+
 void KX_GameObject::TagForUpdate(bool is_overlay_pass)
 {
   float obmat[4][4];
@@ -287,9 +293,11 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
     copy_m4_m4(ob_eval->obmat, obmat);
     BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
     BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
-    NodeList &children = m_pSGNode->GetSGChildren();
-    if (children.size()) {
-      IgnoreParentTxBGE(bmain, depsgraph, GetScene(), ob_orig);
+    if (!m_staticObject || m_forceIgnoreParentTx) {
+      NodeList &children = m_pSGNode->GetSGChildren();
+      if (children.size()) {
+        IgnoreParentTxBGE(bmain, depsgraph, GetScene(), ob_orig);
+      }
     }
     /* NORMAL CASE */
     if (!m_staticObject && ob_orig->type != OB_MBALL) {
@@ -327,6 +335,7 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
   else {
     copy_m4_m4(m_prevObmat, obmat);
   }
+  m_forceIgnoreParentTx = false;
 }
 
 void KX_GameObject::ReplicateBlenderObject()

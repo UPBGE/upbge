@@ -376,6 +376,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
     // Extract the pose from the action
     obj->SetPoseByAction(m_action, m_localframe);
 
+    m_obj->ForceIgnoreParentTx();
+
     // Handle blending between armature actions
     if (m_blendin && m_blendframe < m_blendin) {
       IncrementBlending(curtime);
@@ -425,6 +427,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
+
+          m_obj->ForceIgnoreParentTx();
 
           scene->ResetTaaSamples();
           break;

@@ -96,6 +96,7 @@ class KX_GameObject : public SCA_IObject {
   bool m_staticObject;
   bool m_useCopy;
   bool m_visibleAtGameStart;
+  bool m_forceIgnoreParentTx;
   /* END OF EEVEE INTEGRATION */
 
   KX_ClientObjectInfo *m_pClient_info;
@@ -154,6 +155,7 @@ class KX_GameObject : public SCA_IObject {
   void BackupObmat(Object *ob);
   void RestoreObmat(Object *ob);
   void IgnoreParentTxBGE(struct Main *bmain, struct Depsgraph *depsgraph, KX_Scene *kxscene, Object *ob);
+  void ForceIgnoreParentTx();
   /* END OF EEVEE INTEGRATION */
 
   /**
