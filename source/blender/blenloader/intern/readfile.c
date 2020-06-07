@@ -6358,23 +6358,22 @@ static void direct_link_object(BlendDataReader *reader, Object *ob)
           reader->fd, &sb->shared->ptcaches, &sb->shared->pointcache, false);
     }
   }
-  ob->bsoft = newdataadr(fd, ob->bsoft);
+  BLO_read_data_address(reader, &ob->bsoft);
 
-  link_list(fd, &ob->prop);
+  BLO_read_list(reader, &ob->prop);
   for (prop = ob->prop.first; prop; prop = prop->next) {
-    prop->poin = newdataadr(fd, prop->poin);
+    BLO_read_data_address(reader, &prop->poin);
     if (prop->poin == NULL)
       prop->poin = &prop->data;
   }
 
-  link_list(fd, &ob->sensors);
+  BLO_read_list(reader, &ob->sensors);
   for (sens = ob->sensors.first; sens; sens = sens->next) {
-    sens->data = newdataadr(fd, sens->data);
-    sens->links = newdataadr(fd, sens->links);
-    test_pointer_array(fd, (void **)&sens->links);
+    BLO_read_data_address(reader, &sens->data);
+    BLO_read_pointer_array(reader, (void **)&sens->links);
   }
 
-  link_glob_list(fd, &ob->controllers);
+  link_glob_list(reader->fd, &ob->controllers);
   if (ob->init_state) {
     /* if a known first state is specified, set it so that the game will start ok */
     ob->state = ob->init_state;
@@ -6386,27 +6385,26 @@ static void direct_link_object(BlendDataReader *reader, Object *ob)
     ob->init_state = 1;
   }
   for (cont = ob->controllers.first; cont; cont = cont->next) {
-    cont->data = newdataadr(fd, cont->data);
-    cont->links = newdataadr(fd, cont->links);
-    test_pointer_array(fd, (void **)&cont->links);
+    BLO_read_data_address(reader, &cont->data);
+    BLO_read_pointer_array(reader, (void **)&cont->links);
     if (cont->state_mask == 0)
       cont->state_mask = 1;
   }
 
-  link_glob_list(fd, &ob->actuators);
+  link_glob_list(reader->fd, &ob->actuators);
   for (act = ob->actuators.first; act; act = act->next) {
-    act->data = newdataadr(fd, act->data);
+    BLO_read_data_address(reader, &act->data);
   }
 
-  link_glob_list(fd, &ob->components);
+  link_glob_list(reader->fd, &ob->components);
   pc = ob->components.first;
   while (pc) {
-    link_glob_list(fd, &pc->properties);
+    link_glob_list(reader->fd, &pc->properties);
     cprop = pc->properties.first;
     while (cprop) {
-      link_list(fd, &cprop->enumval);
+      BLO_read_list(reader, &cprop->enumval);
       for (LinkData *link = cprop->enumval.first; link; link = link->next) {
-        link->data = newdataadr(fd, link->data);
+        BLO_read_data_address(reader, &link->data);
       }
       cprop = cprop->next;
     }
@@ -6465,9 +6463,6 @@ static void direct_link_object(BlendDataReader *reader, Object *ob)
 
   BKE_object_runtime_reset(ob);
   BLO_read_list(reader, &ob->pc_ids);
-
-  link_list(fd, &ob->lodlevels);
-  ob->currentlod = ob->lodlevels.first;
 
   /* in case this value changes in future, clamp else we get undefined behavior */
   CLAMP(ob->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
@@ -7729,8 +7724,8 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
 
       /* XXX: this is new stuff, which shouldn't be directly linking to gpd... */
       if (slogic->gpd) {
-        slogic->gpd = newdataadr(fd, slogic->gpd);
-        direct_link_gpencil(fd, slogic->gpd);
+        BLO_read_data_address(reader, &slogic->gpd);
+        direct_link_gpencil(reader, slogic->gpd);
       }
     }
 
