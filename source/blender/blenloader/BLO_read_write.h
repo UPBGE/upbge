@@ -98,6 +98,15 @@ void BLO_write_struct_by_id(BlendWriter *writer, int struct_id, const void *data
 #define BLO_write_struct(writer, struct_name, data_ptr) \
   BLO_write_struct_by_id(writer, BLO_get_struct_id(writer, struct_name), data_ptr)
 
+/* Write single struct at address. */
+void BLO_write_struct_at_address_by_id(BlendWriter *writer,
+                                       int struct_id,
+                                       const void *address,
+                                       const void *data_ptr);
+#define BLO_write_struct_at_address(writer, struct_name, address, data_ptr) \
+  BLO_write_struct_at_address_by_id( \
+      writer, BLO_get_struct_id(writer, struct_name), address, data_ptr)
+
 /* Write struct array. */
 void BLO_write_struct_array_by_name(BlendWriter *writer,
                                     const char *struct_name,
@@ -110,6 +119,13 @@ void BLO_write_struct_array_by_id(BlendWriter *writer,
 #define BLO_write_struct_array(writer, struct_name, array_size, data_ptr) \
   BLO_write_struct_array_by_id( \
       writer, BLO_get_struct_id(writer, struct_name), array_size, data_ptr)
+
+/* Write struct array at address. */
+void BLO_write_struct_array_at_address_by_id(
+    BlendWriter *writer, int struct_id, int array_size, const void *address, const void *data_ptr);
+#define BLO_write_struct_array_at_address(writer, struct_name, array_size, address, data_ptr) \
+  BLO_write_struct_array_at_address_by_id( \
+      writer, BLO_get_struct_id(writer, struct_name), array_size, address, data_ptr)
 
 /* Write struct list. */
 void BLO_write_struct_list_by_name(BlendWriter *writer,
@@ -155,7 +171,7 @@ bool BLO_write_is_undo(BlendWriter *writer);
  *   BLO_read_data_address(reader, &clmd->sim_parms);
  *
  *   BLO_write_struct_list(writer, TimeMarker, &action->markers);
- *   BLO_read_list(reader, &action->markers, NULL);
+ *   BLO_read_list(reader, &action->markers);
  *
  *   BLO_write_int32_array(writer, hmd->totindex, hmd->indexar);
  *   BLO_read_int32_array(reader, hmd->totindex, &hmd->indexar);
@@ -167,7 +183,8 @@ void *BLO_read_get_new_data_address(BlendDataReader *reader, const void *old_add
   *(ptr_p) = BLO_read_get_new_data_address((reader), *(ptr_p))
 
 typedef void (*BlendReadListFn)(BlendDataReader *reader, void *data);
-void BLO_read_list(BlendDataReader *reader, struct ListBase *list, BlendReadListFn callback);
+void BLO_read_list_cb(BlendDataReader *reader, struct ListBase *list, BlendReadListFn callback);
+void BLO_read_list(BlendDataReader *reader, struct ListBase *list);
 
 /* Update data pointers and correct byte-order if necessary. */
 void BLO_read_int32_array(BlendDataReader *reader, int array_size, int32_t **ptr_p);
