@@ -36,6 +36,29 @@
 #include "transform.h"
 #include "transform_convert.h"
 
+/** Used for sequencer transform. */
+typedef struct TransDataSeq {
+  struct Sequence *seq;
+  /** A copy of #Sequence.flag that may be modified for nested strips. */
+  int flag;
+  /** Use this so we can have transform data at the strips start,
+   * but apply correctly to the start frame. */
+  int start_offset;
+  /** one of #SELECT, #SEQ_LEFTSEL and #SEQ_RIGHTSEL. */
+  short sel_flag;
+
+} TransDataSeq;
+
+/**
+ * Sequencer transform customdata (stored in #TransCustomDataContainer).
+ */
+typedef struct TransSeq {
+  TransDataSeq *tdseq;
+  int min;
+  int max;
+  bool snap_left;
+} TransSeq;
+
 /* -------------------------------------------------------------------- */
 /** \name Sequencer Transform Creation
  *
@@ -625,7 +648,7 @@ BLI_INLINE void trans_update_seq(Scene *sce, Sequence *seq, int old_start, int s
   }
 }
 
-void flushTransSeq(TransInfo *t)
+static void flushTransSeq(TransInfo *t)
 {
   /* Editing null check already done */
   ListBase *seqbasep = BKE_sequencer_editing_get(t->scene, false)->seqbasep;
@@ -758,6 +781,37 @@ void flushTransSeq(TransInfo *t)
     }
     seq_prev = seq;
   }
+}
+
+/* helper for recalcData() - for sequencer transforms */
+void recalcData_sequencer(TransInfo *t)
+{
+  TransData *td;
+  int a;
+  Sequence *seq_prev = NULL;
+
+  TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
+
+  for (a = 0, td = tc->data; a < tc->data_len; a++, td++) {
+    TransDataSeq *tdsq = (TransDataSeq *)td->extra;
+    Sequence *seq = tdsq->seq;
+
+    if (seq != seq_prev) {
+      BKE_sequence_invalidate_cache_composite(t->scene, seq);
+    }
+
+    seq_prev = seq;
+  }
+
+  DEG_id_tag_update(&t->scene->id, ID_RECALC_SEQUENCER_STRIPS);
+
+  flushTransSeq(t);
+}
+
+int transform_convert_sequencer_get_snap_bound(TransInfo *t)
+{
+  TransSeq *ts = TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data;
+  return ts->snap_left ? ts->min : ts->max;
 }
 
 /** \} */

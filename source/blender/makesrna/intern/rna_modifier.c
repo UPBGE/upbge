@@ -389,7 +389,7 @@ static const EnumPropertyItem modifier_warp_falloff_items[] = {
 
 const EnumPropertyItem rna_enum_dt_method_vertex_items[] = {
     {MREMAP_MODE_TOPOLOGY, "TOPOLOGY", 0, "Topology", "Copy from identical topology meshes"},
-    {MREMAP_MODE_VERT_NEAREST, "NEAREST", 0, "Nearest vertex", "Copy from closest vertex"},
+    {MREMAP_MODE_VERT_NEAREST, "NEAREST", 0, "Nearest Vertex", "Copy from closest vertex"},
     {MREMAP_MODE_VERT_EDGE_NEAREST,
      "EDGE_NEAREST",
      0,
@@ -2193,7 +2193,7 @@ static void rna_def_modifier_mirror(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, FLT_MAX);
   RNA_def_property_ui_range(prop, 0, 1, 0.01, 6);
   RNA_def_property_ui_text(
-      prop, "Merge Limit", "Distance within which mirrored vertices are merged");
+      prop, "Merge Distance", "Distance within which mirrored vertices are merged");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "mirror_object", PROP_POINTER, PROP_NONE);
@@ -4250,7 +4250,7 @@ static void rna_def_modifier_shrinkwrap(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0, 6, 1, -1);
   RNA_def_property_ui_text(
       prop,
-      "Subsurf Levels",
+      "Subdivision Levels",
       "Number of subdivisions that must be performed before extracting vertices' "
       "positions and normals");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
@@ -5870,7 +5870,7 @@ static void rna_def_modifier_meshcache(BlenderRNA *brna)
   prop = RNA_def_property(srna, "play_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "play_mode");
   RNA_def_property_enum_items(prop, prop_time_play_items);
-  RNA_def_property_ui_text(prop, "Time Mode", "");
+  RNA_def_property_ui_text(prop, "Play Mode", "");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "deform_mode", PROP_ENUM, PROP_NONE);
@@ -6778,7 +6778,7 @@ static void rna_def_modifier_weightednormal(BlenderRNA *brna)
   RNA_define_lib_overridable(false);
 }
 
-static void rna_def_modifier_simulation_access(BlenderRNA *brna)
+static void rna_def_modifier_simulation(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -6930,7 +6930,7 @@ void RNA_def_modifier(BlenderRNA *brna)
   rna_def_modifier_meshseqcache(brna);
   rna_def_modifier_surfacedeform(brna);
   rna_def_modifier_weightednormal(brna);
-  rna_def_modifier_simulation_access(brna);
+  rna_def_modifier_simulation(brna);
 }
 
 #endif
