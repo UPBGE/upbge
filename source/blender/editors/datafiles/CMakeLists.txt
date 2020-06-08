@@ -131,13 +131,13 @@ set(ICON_NAMES
   preferences
   time
   nodetree
+  logic
   console
   clip
   asset_manager
   node_compositing
   node_texture
   node_material
-  logic
   object_datamode
   editmode_hlt
   uv
