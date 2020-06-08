@@ -155,7 +155,7 @@ void loadTexture(unsigned int texId,
 {
   // load texture for rendering
   glBindTexture(GL_TEXTURE_2D, texId);
-  if (mipmap) {
+  if (1/*mipmap*/) {
     int i;
     ImBuf *ibuf;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
