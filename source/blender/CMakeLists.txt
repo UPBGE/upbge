@@ -118,6 +118,7 @@ add_subdirectory(modifiers)
 add_subdirectory(gpencil_modifiers)
 add_subdirectory(shader_fx)
 add_subdirectory(io)
+add_subdirectory(functions)
 add_subdirectory(makesdna)
 add_subdirectory(makesrna)
 
