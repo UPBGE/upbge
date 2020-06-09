@@ -21,8 +21,11 @@
 #ifndef __BLI_UTILITY_MIXINS_HH__
 #define __BLI_UTILITY_MIXINS_HH__
 
-namespace BLI {
+namespace blender {
 
+/**
+ * A type that inherits from NonCopyable cannot be copied anymore.
+ */
 class NonCopyable {
  public:
   /* Disable copy construction and assignment. */
@@ -35,6 +38,9 @@ class NonCopyable {
   NonCopyable &operator=(NonCopyable &&other) = default;
 };
 
+/**
+ * A type that inherits from NonMovable cannot be moved anymore.
+ */
 class NonMovable {
  public:
   /* Disable move construction and assignment. */
@@ -47,6 +53,6 @@ class NonMovable {
   NonMovable &operator=(const NonMovable &other) = default;
 };
 
-}  // namespace BLI
+}  // namespace blender
 
 #endif /* __BLI_UTILITY_MIXINS_HH__ */

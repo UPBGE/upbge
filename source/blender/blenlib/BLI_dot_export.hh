@@ -27,7 +27,6 @@
 #include "BLI_map.hh"
 #include "BLI_optional.hh"
 #include "BLI_set.hh"
-#include "BLI_string_map.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
@@ -35,7 +34,7 @@
 
 #include <sstream>
 
-namespace BLI {
+namespace blender {
 namespace DotExport {
 
 class Graph;
@@ -57,7 +56,7 @@ class AttributeList {
 
   void set(StringRef key, StringRef value)
   {
-    m_attributes.add_override(key, value);
+    m_attributes.add_overwrite(key, value);
   }
 };
 
@@ -209,7 +208,7 @@ class NodePort {
   void to_dot_string(std::stringstream &ss) const;
 };
 
-class Edge : BLI::NonCopyable, BLI::NonMovable {
+class Edge : blender::NonCopyable, blender::NonMovable {
  protected:
   AttributeList m_attributes;
   NodePort m_a;
@@ -268,8 +267,8 @@ class NodeWithSocketsRef {
  public:
   NodeWithSocketsRef(Node &node,
                      StringRef name,
-                     ArrayRef<std::string> input_names,
-                     ArrayRef<std::string> output_names);
+                     Span<std::string> input_names,
+                     Span<std::string> output_names);
 
   NodePort input(uint index) const
   {
@@ -285,6 +284,6 @@ class NodeWithSocketsRef {
 };
 
 }  // namespace DotExport
-}  // namespace BLI
+}  // namespace blender
 
 #endif /* __BLI_DOT_EXPORT_HH__ */

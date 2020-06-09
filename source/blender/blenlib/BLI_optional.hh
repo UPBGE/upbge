@@ -29,7 +29,7 @@
 #include <algorithm>
 #include <memory>
 
-namespace BLI {
+namespace blender {
 
 template<typename T> class Optional {
  private:
@@ -37,16 +37,6 @@ template<typename T> class Optional {
   bool m_set;
 
  public:
-  static Optional FromPointer(const T *ptr)
-  {
-    if (ptr == nullptr) {
-      return Optional();
-    }
-    else {
-      return Optional(*ptr);
-    }
-  }
-
   Optional() : m_set(false)
   {
   }
@@ -194,6 +184,6 @@ template<typename T> class Optional {
   }
 };
 
-} /* namespace BLI */
+} /* namespace blender */
 
 #endif /* __BLI_OPTIONAL_HH__ */

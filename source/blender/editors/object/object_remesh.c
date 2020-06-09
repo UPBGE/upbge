@@ -338,7 +338,7 @@ static void voxel_size_edit_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar),
   char str[VOXEL_SIZE_EDIT_MAX_STR_LEN];
   short strdrawlen = 0;
 
-  BLI_snprintf(str, VOXEL_SIZE_EDIT_MAX_STR_LEN, "%3.4f%%", cd->voxel_size);
+  BLI_snprintf(str, VOXEL_SIZE_EDIT_MAX_STR_LEN, "%.4f", cd->voxel_size);
   strdrawlen = BLI_strlen_utf8(str);
 
   immUnbindProgram();
@@ -569,8 +569,8 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
   copy_v3_v3(cd->text_mat[3], text_pos);
 
   /* Scale the text.  */
-  unit_m4(scale_mat);
-  scale_m4_fl(scale_mat, 0.0008f);
+  const float pixelsize = ED_view3d_pixel_size(rv3d, text_pos);
+  scale_m4_fl(scale_mat, pixelsize * 0.5f);
   mul_m4_m4_post(cd->text_mat, scale_mat);
 
   WM_event_add_modal_handler(C, op);
