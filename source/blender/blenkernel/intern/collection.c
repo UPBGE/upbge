@@ -314,8 +314,17 @@ static Collection *collection_duplicate_recursive(Main *bmain,
   Collection *collection_new;
   bool do_full_process = false;
   const int object_dupflag = (do_obdata) ? U.dupflag : 0;
+  const bool is_collection_master = (collection_old->flag & COLLECTION_IS_MASTER) != 0;
+  const bool is_collection_liboverride = ID_IS_OVERRIDE_LIBRARY(collection_old);
 
-  if (!do_hierarchy || collection_old->id.newid == NULL) {
+  if (is_collection_master) {
+    /* We never duplicate master collections here, but we can still deep-copy their objects and
+     * collections. */
+    BLI_assert(parent == NULL);
+    collection_new = collection_old;
+    do_full_process = true;
+  }
+  else if (!do_hierarchy || collection_old->id.newid == NULL) {
     BKE_id_copy(bmain, &collection_old->id, (ID **)&collection_new);
 
     /* Copying add one user by default, need to get rid of that one. */
@@ -359,6 +368,12 @@ static Collection *collection_duplicate_recursive(Main *bmain,
       Object *ob_old = cob->ob;
       Object *ob_new = (Object *)ob_old->id.newid;
 
+      /* If collection is an override, we do not want to duplicate any linked data-block, as that
+       * would generate a purely local data. */
+      if (is_collection_liboverride && ID_IS_LINKED(ob_old)) {
+        continue;
+      }
+
       if (ob_new == NULL) {
         ob_new = BKE_object_duplicate(bmain, ob_old, object_dupflag);
         ID_NEW_SET(ob_old, ob_new);
@@ -371,8 +386,12 @@ static Collection *collection_duplicate_recursive(Main *bmain,
 
   /* We can loop on collection_old's children,
    * that list is currently identical the collection_new' children, and won't be changed here. */
-  LISTBASE_FOREACH (CollectionChild *, child, &collection_old->children) {
+  LISTBASE_FOREACH_MUTABLE (CollectionChild *, child, &collection_old->children) {
     Collection *child_collection_old = child->collection;
+
+    if (is_collection_liboverride && ID_IS_LINKED(child_collection_old)) {
+      continue;
+    }
 
     collection_duplicate_recursive(
         bmain, collection_new, child_collection_old, do_hierarchy, do_objects, do_obdata);
@@ -415,13 +434,6 @@ Collection *BKE_collection_duplicate(Main *bmain,
                                      const bool do_objects,
                                      const bool do_obdata)
 {
-  /* It's not allowed to copy the master collection. */
-  BLI_assert((collection->id.flag & LIB_EMBEDDED_DATA) == 0);
-  BLI_assert((collection->flag & COLLECTION_IS_MASTER) == 0);
-  if (collection->flag & COLLECTION_IS_MASTER) {
-    return NULL;
-  }
-
   if (do_hierarchy) {
     BKE_main_id_tag_all(bmain, LIB_TAG_NEW, false);
     BKE_main_id_clear_newpoins(bmain);
@@ -430,7 +442,7 @@ Collection *BKE_collection_duplicate(Main *bmain,
   Collection *collection_new = collection_duplicate_recursive(
       bmain, parent, collection, do_hierarchy, do_objects, do_obdata);
 
-  /* This code will follows into all ID links using an ID tagged with LIB_TAG_NEW.*/
+  /* This code will follow into all ID links using an ID tagged with LIB_TAG_NEW.*/
   BKE_libblock_relink_to_newid(&collection_new->id);
 
   if (do_hierarchy) {

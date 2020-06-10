@@ -82,6 +82,42 @@ TEST(map, PopItem)
   EXPECT_FALSE(map.contains(1));
 }
 
+TEST(map, PopTry)
+{
+  Map<int, int> map;
+  map.add(1, 5);
+  map.add(2, 7);
+  EXPECT_EQ(map.size(), 2);
+  Optional<int> value = map.pop_try(4);
+  EXPECT_EQ(map.size(), 2);
+  EXPECT_FALSE(value.has_value());
+  value = map.pop_try(2);
+  EXPECT_EQ(map.size(), 1);
+  EXPECT_TRUE(value.has_value());
+  EXPECT_EQ(value.value(), 7);
+  EXPECT_EQ(*map.pop_try(1), 5);
+  EXPECT_EQ(map.size(), 0);
+}
+
+TEST(map, PopDefault)
+{
+  Map<int, int> map;
+  map.add(1, 4);
+  map.add(2, 7);
+  map.add(3, 8);
+  EXPECT_EQ(map.size(), 3);
+  EXPECT_EQ(map.pop_default(4, 10), 10);
+  EXPECT_EQ(map.size(), 3);
+  EXPECT_EQ(map.pop_default(1, 10), 4);
+  EXPECT_EQ(map.size(), 2);
+  EXPECT_EQ(map.pop_default(2, 20), 7);
+  EXPECT_EQ(map.size(), 1);
+  EXPECT_EQ(map.pop_default(2, 20), 20);
+  EXPECT_EQ(map.size(), 1);
+  EXPECT_EQ(map.pop_default(3, 0), 8);
+  EXPECT_EQ(map.size(), 0);
+}
+
 TEST(map, PopItemMany)
 {
   Map<int, int> map;
@@ -197,25 +233,25 @@ static float return_42()
   return 42.0f;
 }
 
-TEST(map, LookupOrAdd_SeparateFunction)
+TEST(map, LookupOrAddCB_SeparateFunction)
 {
   Map<int, float> map;
-  EXPECT_EQ(map.lookup_or_add(0, return_42), 42.0f);
+  EXPECT_EQ(map.lookup_or_add_cb(0, return_42), 42.0f);
   EXPECT_EQ(map.lookup(0), 42);
 
   map.keys();
 }
 
-TEST(map, LookupOrAdd_Lambdas)
+TEST(map, LookupOrAddCB_Lambdas)
 {
   Map<int, float> map;
   auto lambda1 = []() { return 11.0f; };
-  EXPECT_EQ(map.lookup_or_add(0, lambda1), 11.0f);
+  EXPECT_EQ(map.lookup_or_add_cb(0, lambda1), 11.0f);
   auto lambda2 = []() { return 20.0f; };
-  EXPECT_EQ(map.lookup_or_add(1, lambda2), 20.0f);
+  EXPECT_EQ(map.lookup_or_add_cb(1, lambda2), 20.0f);
 
-  EXPECT_EQ(map.lookup_or_add(0, lambda2), 11.0f);
-  EXPECT_EQ(map.lookup_or_add(1, lambda1), 20.0f);
+  EXPECT_EQ(map.lookup_or_add_cb(0, lambda2), 11.0f);
+  EXPECT_EQ(map.lookup_or_add_cb(1, lambda1), 20.0f);
 }
 
 TEST(map, AddOrModify)
@@ -256,6 +292,15 @@ TEST(map, LookupOrAddDefault)
   EXPECT_EQ(map.lookup(5), 2);
   map.lookup_or_add_default(3) += 4;
   EXPECT_EQ(map.lookup(3), 10);
+}
+
+TEST(map, LookupOrAdd)
+{
+  Map<int, int> map;
+  EXPECT_EQ(map.lookup_or_add(6, 4), 4);
+  EXPECT_EQ(map.lookup_or_add(6, 5), 4);
+  map.lookup_or_add(6, 4) += 10;
+  EXPECT_EQ(map.lookup(6), 14);
 }
 
 TEST(map, MoveConstructorSmall)
@@ -342,10 +387,12 @@ TEST(map, UniquePtrValue)
   map.add_new(1, std::move(value1));
   map.add(2, std::move(value2));
   map.add_overwrite(3, std::move(value3));
-  map.lookup_or_add(4, []() { return std::unique_ptr<int>(new int()); });
+  map.lookup_or_add_cb(4, []() { return std::unique_ptr<int>(new int()); });
   map.add_new(5, std::unique_ptr<int>(new int()));
   map.add(6, std::unique_ptr<int>(new int()));
   map.add_overwrite(7, std::unique_ptr<int>(new int()));
+  map.lookup_or_add(8, std::unique_ptr<int>(new int()));
+  map.pop_default(9, std::unique_ptr<int>(new int()));
 
   EXPECT_EQ(map.lookup(1).get(), value1_ptr);
   EXPECT_EQ(map.lookup_ptr(100), nullptr);

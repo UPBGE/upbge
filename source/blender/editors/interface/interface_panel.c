@@ -486,10 +486,13 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
 
 /**
  * Recursive implementation for #UI_panel_set_expand_from_list_data.
+ *
+ * \return Whether the closed flag for the panel or any subpanels changed.
  */
-static void panel_set_expand_from_list_data_recursive(Panel *panel, short flag, short *flag_index)
+static bool panel_set_expand_from_list_data_recursive(Panel *panel, short flag, short *flag_index)
 {
   bool open = (flag & (1 << *flag_index));
+  bool changed = (open == (bool)(panel->flag & PNL_CLOSEDY));
   if (open) {
     panel->flag &= ~PNL_CLOSEDY;
   }
@@ -498,8 +501,9 @@ static void panel_set_expand_from_list_data_recursive(Panel *panel, short flag, 
   }
   LISTBASE_FOREACH (Panel *, child, &panel->children) {
     *flag_index = *flag_index + 1;
-    panel_set_expand_from_list_data_recursive(child, flag, flag_index);
+    changed |= panel_set_expand_from_list_data_recursive(child, flag, flag_index);
   }
+  return changed;
 }
 
 /**
@@ -518,7 +522,11 @@ void UI_panel_set_expand_from_list_data(const bContext *C, Panel *panel)
 
   short expand_flag = panel->type->get_list_data_expand_flag(C, panel);
   short flag_index = 0;
-  panel_set_expand_from_list_data_recursive(panel, expand_flag, &flag_index);
+
+  /* Start panel animation if the open state was changed. */
+  if (panel_set_expand_from_list_data_recursive(panel, expand_flag, &flag_index)) {
+    panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
+  }
 }
 
 /**
@@ -555,7 +563,8 @@ static void set_panels_list_data_expand_flag(const bContext *C, ARegion *region)
       continue;
     }
 
-    if (panel->type->flag & PNL_INSTANCED) {
+    /* Check for #PNL_ACTIVE so we only set the expand flag for active panels. */
+    if (panel_type->flag & PNL_INSTANCED && panel->runtime_flag & PNL_ACTIVE) {
       short expand_flag = 0; /* Initialize to quite complaining compiler, value not used. */
       short flag_index = 0;
       get_panel_expand_flag(panel, &expand_flag, &flag_index);

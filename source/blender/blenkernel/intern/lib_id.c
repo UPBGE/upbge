@@ -64,6 +64,7 @@
 #include "BKE_idtype.h"
 #include "BKE_key.h"
 #include "BKE_lib_id.h"
+#include "BKE_lib_override.h"
 #include "BKE_lib_query.h"
 #include "BKE_lib_remap.h"
 #include "BKE_main.h"
@@ -1153,14 +1154,13 @@ void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int ori
     new_id->properties = IDP_CopyProperty_ex(id->properties, copy_data_flag);
   }
 
-  /* XXX Again... We need a way to control what we copy in a much more refined way.
-   * We cannot always copy this, some internal copying will die on it! */
-  /* For now, upper level code will have to do that itself when required. */
-#if 0
-  if (id->override != NULL) {
-    BKE_override_copy(new_id, id);
+  /* We may need our own flag to control that at some point, but for now 'no main' one should be
+   * good enough. */
+  if ((orig_flag & LIB_ID_CREATE_NO_MAIN) == 0 && id->override_library != NULL) {
+    /* We do not want to copy existing override rules here, as they would break the proper
+     * remapping between IDs. Proper overrides rules will be re-generated anyway. */
+    BKE_lib_override_library_copy(new_id, id, false);
   }
-#endif
 
   if (id_can_have_animdata(new_id)) {
     IdAdtTemplate *iat = (IdAdtTemplate *)new_id;
@@ -2068,9 +2068,11 @@ void BKE_libblock_rename(Main *bmain, ID *id, const char *name)
  * \note Result is unique to a given ID type in a given Main database.
  *
  * \param name: An allocated string of minimal length #MAX_ID_FULL_NAME,
- * will be filled with generated string.
+ *              will be filled with generated string.
+ * \param separator_char: Character to use for separating name and library name. Can be 0 to use
+ *                        default (' ').
  */
-void BKE_id_full_name_get(char name[MAX_ID_FULL_NAME], const ID *id)
+void BKE_id_full_name_get(char name[MAX_ID_FULL_NAME], const ID *id, char separator_char)
 {
   strcpy(name, id->name + 2);
 
@@ -2078,7 +2080,7 @@ void BKE_id_full_name_get(char name[MAX_ID_FULL_NAME], const ID *id)
     const size_t idname_len = strlen(id->name + 2);
     const size_t libname_len = strlen(id->lib->id.name + 2);
 
-    name[idname_len] = ' ';
+    name[idname_len] = separator_char ? separator_char : ' ';
     name[idname_len + 1] = '[';
     strcpy(name + idname_len + 2, id->lib->id.name + 2);
     name[idname_len + 2 + libname_len] = ']';
@@ -2094,15 +2096,19 @@ void BKE_id_full_name_get(char name[MAX_ID_FULL_NAME], const ID *id)
  * \note Result is unique to a given ID type in a given Main database.
  *
  * \param name: An allocated string of minimal length #MAX_ID_FULL_NAME_UI,
- * will be filled with generated string.
+ *              will be filled with generated string.
+ * \param separator_char: Character to use for separating name and library name. Can be 0 to use
+ *                        default (' ').
  */
-void BKE_id_full_name_ui_prefix_get(char name[MAX_ID_FULL_NAME_UI], const ID *id)
+void BKE_id_full_name_ui_prefix_get(char name[MAX_ID_FULL_NAME_UI],
+                                    const ID *id,
+                                    char separator_char)
 {
   name[0] = id->lib ? (ID_MISSING(id) ? 'M' : 'L') : ID_IS_OVERRIDE_LIBRARY(id) ? 'O' : ' ';
   name[1] = (id->flag & LIB_FAKEUSER) ? 'F' : ((id->us == 0) ? '0' : ' ');
   name[2] = ' ';
 
-  BKE_id_full_name_get(name + 3, id);
+  BKE_id_full_name_get(name + 3, id, separator_char);
 }
 
 /**
