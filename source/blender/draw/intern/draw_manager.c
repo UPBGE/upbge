@@ -2941,7 +2941,6 @@ void DRW_game_render_loop(bContext *C,
                           Main *bmain,
                           Scene *scene,
                           const rcti *window,
-                          bool called_from_constructor,
                           bool reset_taa_samples,
                           bool is_overlay_pass)
 {
@@ -2950,11 +2949,6 @@ void DRW_game_render_loop(bContext *C,
 
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
-
-  if (called_from_constructor) {
-    // For blenderplayer, the depsgraph is not activated by default
-    DEG_make_active(depsgraph);
-  }
 
   ARegion *ar = CTX_wm_region(C);
 

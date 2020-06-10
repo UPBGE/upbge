@@ -734,7 +734,6 @@ void DRW_game_render_loop(struct bContext *C,
                           struct Main *bmain,
                           struct Scene *scene,
                           const struct rcti *window,
-                          bool called_from_constructor,
                           bool reset_taa_samples,
                           bool is_overlay_pass);
 

@@ -620,6 +620,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
   }
 
+  bool calledFromConstructor = cam == nullptr;
+  if (calledFromConstructor) {
+    DEG_make_active(depsgraph);
+  }
+
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   for (KX_GameObject *gameobj : GetObjectList()) {
@@ -676,7 +681,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
                               NULL);
   }
 
-  bool calledFromConstructor = cam == nullptr;
   if (calledFromConstructor) {
     m_currentGPUViewport = GPU_viewport_create();
     SetInitMaterialsGPUViewport(m_currentGPUViewport);
@@ -687,7 +691,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
                        bmain,
                        scene,
                        &window,
-                       calledFromConstructor,
                        reset_taa_samples,
                        is_overlay_pass);
 
@@ -765,7 +768,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, bmain, scene, window, false, true, false);
+  DRW_game_render_loop(C, m_currentGPUViewport, bmain, scene, window, true, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)
