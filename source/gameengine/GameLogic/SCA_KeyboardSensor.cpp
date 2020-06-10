@@ -213,6 +213,10 @@ void SCA_KeyboardSensor::LogKeystrokes()
 {
 	EXP_Value *tprop = GetParent()->GetProperty(m_targetprop);
 
+  if (tprop == nullptr) {
+    return;
+  }
+
 	SCA_IInputDevice *inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 
 	std::wstring_convert<std::codecvt_utf8<wchar_t> > converter;
