@@ -70,6 +70,7 @@
 #include "BKE_shader_fx.h"
 #include "BKE_sound.h"
 #include "BKE_studiolight.h"
+#include "BKE_subdiv.h"
 #include "BKE_volume.h"
 #include "BLF_api.h"
 #include "BLI_blenlib.h"
@@ -1499,6 +1500,7 @@ int main(int argc,
               CTX_wm_manager_set(C, wm);
               CTX_wm_window_set(C, win);
               WM_init_opengl_blenderplayer(G_MAIN, system);
+              BKE_subdiv_init();
             }
 
             wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
@@ -1592,6 +1594,8 @@ int main(int argc,
 
   BKE_vfont_clipboard_free();
   BKE_node_clipboard_free();
+
+  BKE_subdiv_exit();
 
   GPU_free_unused_buffers(G_MAIN);
 
