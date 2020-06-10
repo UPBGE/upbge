@@ -70,6 +70,7 @@
 #include "BKE_shader_fx.h"
 #include "BKE_sound.h"
 #include "BKE_studiolight.h"
+#include "BKE_volume.h"
 #include "BLF_api.h"
 #include "BLI_blenlib.h"
 #include "BLI_mempool.h"
@@ -800,6 +801,7 @@ int main(int argc,
   BKE_modifier_init();
   BKE_gpencil_modifier_init();
   BKE_shaderfx_init();
+  BKE_volumes_init();
   DEG_register_node_types();
 
   BKE_brush_system_init();
