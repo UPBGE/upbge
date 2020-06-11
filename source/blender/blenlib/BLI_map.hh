@@ -470,7 +470,7 @@ class Map {
                         const ModifyValueF &modify_value) -> decltype(create_value(nullptr))
   {
     return this->add_or_modify__impl(
-        std::forward<Key>(key), create_value, modify_value, m_hash(key));
+        std::forward<ForwardKey>(key), create_value, modify_value, m_hash(key));
   }
 
   /**
@@ -745,17 +745,27 @@ class Map {
     }
   };
 
+  struct Item {
+    const Key &key;
+    const Value &value;
+  };
+
+  struct MutableItem {
+    const Key &key;
+    Value &value;
+
+    operator Item() const
+    {
+      return Item{key, value};
+    }
+  };
+
   class ItemIterator final : public BaseIterator<ItemIterator> {
    public:
     ItemIterator(const Slot *slots, uint32_t total_slots, uint32_t current_slot)
         : BaseIterator<ItemIterator>(slots, total_slots, current_slot)
     {
     }
-
-    struct Item {
-      const Key &key;
-      const Value &value;
-    };
 
     Item operator*() const
     {
@@ -771,12 +781,7 @@ class Map {
     {
     }
 
-    struct Item {
-      const Key &key;
-      Value &value;
-    };
-
-    Item operator*() const
+    MutableItem operator*() const
     {
       Slot &slot = this->current_slot();
       return {*slot.key(), *slot.value()};
@@ -838,7 +843,7 @@ class Map {
   void print_stats(StringRef name = "") const
   {
     HashTableStats stats(*this, this->keys());
-    stats.print();
+    stats.print(name);
   }
 
   /**
@@ -889,7 +894,7 @@ class Map {
    */
   uint32_t size_in_bytes() const
   {
-    return sizeof(Slot) * m_slots.size();
+    return (uint32_t)(sizeof(Slot) * m_slots.size());
   }
 
   /**
@@ -1170,7 +1175,7 @@ class Map {
   bool add_overwrite__impl(ForwardKey &&key, ForwardValue &&value, uint32_t hash)
   {
     auto create_func = [&](Value *ptr) {
-      new (ptr) Value(std::forward<ForwardValue>(value));
+      new ((void *)ptr) Value(std::forward<ForwardValue>(value));
       return true;
     };
     auto modify_func = [&](Value *ptr) {
