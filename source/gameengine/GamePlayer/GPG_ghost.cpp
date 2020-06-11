@@ -64,6 +64,7 @@
 #include "BKE_lib_remap.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
+#include "BKE_mball_tessellate.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
@@ -1586,6 +1587,8 @@ int main(int argc,
   }
 
   ED_undosys_type_free();
+
+  BKE_mball_cubeTable_free();
 
   ED_preview_free_dbase(); /* frees a Main dbase, before BKE_blender_free! */
 
