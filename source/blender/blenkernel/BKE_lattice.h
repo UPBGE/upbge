@@ -45,47 +45,8 @@ struct Lattice *BKE_lattice_add(struct Main *bmain, const char *name);
 struct Lattice *BKE_lattice_copy(struct Main *bmain, const struct Lattice *lt);
 void calc_lat_fudu(int flag, int res, float *r_fu, float *r_du);
 
-struct LatticeDeformData *init_latt_deform(struct Object *oblatt,
-                                           struct Object *ob) ATTR_WARN_UNUSED_RESULT;
-void calc_latt_deform(struct LatticeDeformData *lattice_deform_data, float co[3], float weight);
-void end_latt_deform(struct LatticeDeformData *lattice_deform_data);
-
 bool object_deform_mball(struct Object *ob, struct ListBase *dispbase);
 void outside_lattice(struct Lattice *lt);
-
-void curve_deform_verts(struct Object *cuOb,
-                        struct Object *target,
-                        float (*vert_coords)[3],
-                        int numVerts,
-                        struct MDeformVert *dvert,
-                        const int defgrp_index,
-                        short flag,
-                        short defaxis);
-void curve_deform_vector(struct Object *cuOb,
-                         struct Object *target,
-                         float orco[3],
-                         float vec[3],
-                         float mat[3][3],
-                         int no_rot_axis);
-
-void lattice_deform_verts(struct Object *laOb,
-                          struct Object *target,
-                          struct Mesh *mesh,
-                          float (*vert_coords)[3],
-                          int numVerts,
-                          short flag,
-                          const char *vgroup,
-                          float influence);
-void armature_deform_verts(struct Object *armOb,
-                           struct Object *target,
-                           const struct Mesh *mesh,
-                           float (*vert_coords)[3],
-                           float (*defMats)[3][3],
-                           int numVerts,
-                           int deformflag,
-                           float (*prevCos)[3],
-                           const char *defgrp_name,
-                           struct bGPDstroke *gps);
 
 float (*BKE_lattice_vert_coords_alloc(const struct Lattice *lt, int *r_vert_len))[3];
 void BKE_lattice_vert_coords_get(const struct Lattice *lt, float (*vert_coords)[3]);
@@ -136,6 +97,33 @@ void BKE_lattice_batch_cache_free(struct Lattice *lt);
 
 extern void (*BKE_lattice_batch_cache_dirty_tag_cb)(struct Lattice *lt, int mode);
 extern void (*BKE_lattice_batch_cache_free_cb)(struct Lattice *lt);
+
+/* -------------------------------------------------------------------- */
+/** \name Deform 3D Coordinates by Lattice (lattice_deform.c)
+ * \{ */
+
+struct LatticeDeformData *init_latt_deform(struct Object *oblatt,
+                                           struct Object *ob) ATTR_WARN_UNUSED_RESULT;
+void calc_latt_deform(struct LatticeDeformData *lattice_deform_data, float co[3], float weight);
+void end_latt_deform(struct LatticeDeformData *lattice_deform_data);
+
+void BKE_lattice_deform_coords(struct Object *ob_lattice,
+                               struct Object *ob_target,
+                               float (*vert_coords)[3],
+                               const int vert_coords_len,
+                               const short flag,
+                               const char *defgrp_name,
+                               float influence);
+
+void BKE_lattice_deform_coords_with_mesh(struct Object *ob_lattice,
+                                         struct Object *ob_target,
+                                         float (*vert_coords)[3],
+                                         const int vert_coords_len,
+                                         const short flag,
+                                         const char *defgrp_name,
+                                         const float influence,
+                                         const struct Mesh *me_target);
+/** \} */
 
 #ifdef __cplusplus
 }

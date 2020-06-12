@@ -76,6 +76,7 @@ set(SRC
   intern/anim_visualization.c
   intern/appdir.c
   intern/armature.c
+  intern/armature_deform.c
   intern/armature_update.c
   intern/autoexec.c
   intern/blender.c
@@ -102,6 +103,7 @@ set(SRC
   intern/crazyspace.c
   intern/curve.c
   intern/curve_decimate.c
+  intern/curve_deform.c
   intern/curveprofile.c
   intern/customdata.c
   intern/customdata_file.c
@@ -141,6 +143,7 @@ set(SRC
   intern/key.c
   intern/keyconfig.c
   intern/lattice.c
+  intern/lattice_deform.c
   intern/layer.c
   intern/layer_utils.c
   intern/lib_id.c

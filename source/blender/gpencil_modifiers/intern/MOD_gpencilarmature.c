@@ -36,10 +36,10 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_armature.h"
 #include "BKE_gpencil.h"
 #include "BKE_gpencil_geom.h"
 #include "BKE_gpencil_modifier.h"
-#include "BKE_lattice.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
@@ -69,39 +69,34 @@ static void copyData(const GpencilModifierData *md, GpencilModifierData *target)
 static void gpencil_deform_verts(ArmatureGpencilModifierData *mmd, Object *target, bGPDstroke *gps)
 {
   bGPDspoint *pt = gps->points;
-  float *all_vert_coords = MEM_callocN(sizeof(float) * 3 * gps->totpoints, __func__);
+  float(*vert_coords)[3] = MEM_mallocN(sizeof(float[3]) * gps->totpoints, __func__);
   int i;
 
   BKE_gpencil_dvert_ensure(gps);
 
   /* prepare array of points */
   for (i = 0; i < gps->totpoints; i++, pt++) {
-    float *pt_coords = &all_vert_coords[3 * i];
-    float co[3];
-    copy_v3_v3(co, &pt->x);
-    copy_v3_v3(pt_coords, co);
+    copy_v3_v3(vert_coords[i], &pt->x);
   }
 
   /* deform verts */
-  armature_deform_verts(mmd->object,
-                        target,
-                        NULL,
-                        (float(*)[3])all_vert_coords,
-                        NULL,
-                        gps->totpoints,
-                        mmd->deformflag,
-                        (float(*)[3])mmd->prevCos,
-                        mmd->vgname,
-                        gps);
+  BKE_armature_deform_coords_with_gpencil_stroke(mmd->object,
+                                                 target,
+                                                 vert_coords,
+                                                 NULL,
+                                                 gps->totpoints,
+                                                 mmd->deformflag,
+                                                 mmd->vert_coords_prev,
+                                                 mmd->vgname,
+                                                 gps);
 
   /* Apply deformed coordinates */
   pt = gps->points;
   for (i = 0; i < gps->totpoints; i++, pt++) {
-    float *pt_coords = &all_vert_coords[3 * i];
-    copy_v3_v3(&pt->x, pt_coords);
+    copy_v3_v3(&pt->x, vert_coords[i]);
   }
 
-  MEM_SAFE_FREE(all_vert_coords);
+  MEM_freeN(vert_coords);
 }
 
 /* deform stroke */
