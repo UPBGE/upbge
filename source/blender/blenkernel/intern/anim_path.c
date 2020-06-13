@@ -42,9 +42,11 @@ static CLG_LogRef LOG = {"bke.anim"};
 /* ******************************************************************** */
 /* Curve Paths - for curve deforms and/or curve following */
 
-/* free curve path data
- * NOTE: frees the path itself!
- * NOTE: this is increasingly inaccurate with non-uniform BevPoint subdivisions [#24633]
+/**
+ * Free curve path data
+ *
+ * \note Frees the path itself!
+ * \note This is increasingly inaccurate with non-uniform #BevPoint subdivisions T24633.
  */
 void free_path(Path *path)
 {
@@ -54,8 +56,9 @@ void free_path(Path *path)
   MEM_freeN(path);
 }
 
-/* calculate a curve-deform path for a curve
- * - only called from displist.c -> do_makeDispListCurveTypes
+/**
+ * Calculate a curve-deform path for a curve
+ * - Only called from displist.c -> #do_makeDispListCurveTypes
  */
 void calc_curvepath(Object *ob, ListBase *nurbs)
 {
@@ -192,39 +195,40 @@ static int interval_test(const int min, const int max, int p1, const int cycl)
   return p1;
 }
 
-/* calculate the deformation implied by the curve path at a given parametric position,
+/**
+ * Calculate the deformation implied by the curve path at a given parametric position,
  * and returns whether this operation succeeded.
  *
- * note: ctime is normalized range <0-1>
+ * \param ctime: Time is normalized range <0-1>.
  *
- * returns OK: 1/0
+ * \return success.
  */
-int where_on_path(Object *ob,
-                  float ctime,
-                  float vec[4],
-                  float dir[3],
-                  float quat[4],
-                  float *radius,
-                  float *weight)
+bool where_on_path(const Object *ob,
+                   float ctime,
+                   float r_vec[4],
+                   float r_dir[3],
+                   float r_quat[4],
+                   float *r_radius,
+                   float *r_weight)
 {
   Curve *cu;
-  Nurb *nu;
-  BevList *bl;
-  Path *path;
-  PathPoint *pp, *p0, *p1, *p2, *p3;
+  const Nurb *nu;
+  const BevList *bl;
+  const Path *path;
+  const PathPoint *pp, *p0, *p1, *p2, *p3;
   float fac;
   float data[4];
   int cycl = 0, s0, s1, s2, s3;
-  ListBase *nurbs;
+  const ListBase *nurbs;
 
   if (ob == NULL || ob->type != OB_CURVE) {
-    return 0;
+    return false;
   }
   cu = ob->data;
   if (ob->runtime.curve_cache == NULL || ob->runtime.curve_cache->path == NULL ||
       ob->runtime.curve_cache->path->data == NULL) {
     CLOG_WARN(&LOG, "no path!");
-    return 0;
+    return false;
   }
   path = ob->runtime.curve_cache->path;
   pp = path->data;
@@ -232,10 +236,10 @@ int where_on_path(Object *ob,
   /* test for cyclic */
   bl = ob->runtime.curve_cache->bev.first;
   if (!bl) {
-    return 0;
+    return false;
   }
   if (!bl->nr) {
-    return 0;
+    return false;
   }
   if (bl->poly > -1) {
     cycl = 1;
@@ -270,10 +274,10 @@ int where_on_path(Object *ob,
 
   key_curve_tangent_weights(1.0f - fac, data, KEY_BSPLINE);
 
-  interp_v3_v3v3v3v3(dir, p0->vec, p1->vec, p2->vec, p3->vec, data);
+  interp_v3_v3v3v3v3(r_dir, p0->vec, p1->vec, p2->vec, p3->vec, data);
 
-  /* make compatible with vectoquat */
-  negate_v3(dir);
+  /* Make compatible with #vec_to_quat. */
+  negate_v3(r_dir);
   //}
 
   nurbs = BKE_curve_editNurbs_get(cu);
@@ -296,16 +300,16 @@ int where_on_path(Object *ob,
     key_curve_position_weights(1.0f - fac, data, KEY_BSPLINE);
   }
 
-  vec[0] = data[0] * p0->vec[0] + data[1] * p1->vec[0] + data[2] * p2->vec[0] +
-           data[3] * p3->vec[0]; /* X */
-  vec[1] = data[0] * p0->vec[1] + data[1] * p1->vec[1] + data[2] * p2->vec[1] +
-           data[3] * p3->vec[1]; /* Y */
-  vec[2] = data[0] * p0->vec[2] + data[1] * p1->vec[2] + data[2] * p2->vec[2] +
-           data[3] * p3->vec[2]; /* Z */
-  vec[3] = data[0] * p0->vec[3] + data[1] * p1->vec[3] + data[2] * p2->vec[3] +
-           data[3] * p3->vec[3]; /* Tilt, should not be needed since we have quat still used */
+  r_vec[0] = /* X */
+      data[0] * p0->vec[0] + data[1] * p1->vec[0] + data[2] * p2->vec[0] + data[3] * p3->vec[0];
+  r_vec[1] = /* Y */
+      data[0] * p0->vec[1] + data[1] * p1->vec[1] + data[2] * p2->vec[1] + data[3] * p3->vec[1];
+  r_vec[2] = /* Z */
+      data[0] * p0->vec[2] + data[1] * p1->vec[2] + data[2] * p2->vec[2] + data[3] * p3->vec[2];
+  r_vec[3] = /* Tilt, should not be needed since we have quat still used */
+      data[0] * p0->vec[3] + data[1] * p1->vec[3] + data[2] * p2->vec[3] + data[3] * p3->vec[3];
 
-  if (quat) {
+  if (r_quat) {
     float totfac, q1[4], q2[4];
 
     totfac = data[0] + data[3];
@@ -326,22 +330,22 @@ int where_on_path(Object *ob,
 
     totfac = data[0] + data[1] + data[2] + data[3];
     if (totfac > FLT_EPSILON) {
-      interp_qt_qtqt(quat, q1, q2, (data[1] + data[2]) / totfac);
+      interp_qt_qtqt(r_quat, q1, q2, (data[1] + data[2]) / totfac);
     }
     else {
-      copy_qt_qt(quat, q2);
+      copy_qt_qt(r_quat, q2);
     }
   }
 
-  if (radius) {
-    *radius = data[0] * p0->radius + data[1] * p1->radius + data[2] * p2->radius +
-              data[3] * p3->radius;
+  if (r_radius) {
+    *r_radius = data[0] * p0->radius + data[1] * p1->radius + data[2] * p2->radius +
+                data[3] * p3->radius;
   }
 
-  if (weight) {
-    *weight = data[0] * p0->weight + data[1] * p1->weight + data[2] * p2->weight +
-              data[3] * p3->weight;
+  if (r_weight) {
+    *r_weight = data[0] * p0->weight + data[1] * p1->weight + data[2] * p2->weight +
+                data[3] * p3->weight;
   }
 
-  return 1;
+  return true;
 }
