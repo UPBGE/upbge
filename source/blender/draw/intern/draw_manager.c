@@ -3030,9 +3030,10 @@ void DRW_game_render_loop(bContext *C,
   }
 
   drw_engines_cache_finish();
-  DRW_render_instance_buffer_finish();
 
   drw_task_graph_deinit();
+
+  DRW_render_instance_buffer_finish();
 
   GPU_framebuffer_bind(DST.default_framebuffer);
 
