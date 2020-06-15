@@ -47,8 +47,7 @@ bool clipUVTransform(TransInfo *t, float vec[2], const bool resize);
 void clipUVData(TransInfo *t);
 
 /* transform_convert_mesh.c */
-void trans_mesh_customdata_correction_init(TransInfo *t);
-void trans_mesh_customdata_correction_apply(struct TransDataContainer *tc, bool is_final);
+void trans_mesh_customdata_correction_init(TransInfo *t, struct TransDataContainer *tc);
 
 /* transform_convert_sequencer.c */
 int transform_convert_sequencer_get_snap_bound(TransInfo *t);
@@ -84,6 +83,7 @@ typedef enum eTransConvertType {
 
 /* transform_convert.c */
 bool transform_mode_use_local_origins(const TransInfo *t);
+void transform_around_single_fallback_ex(TransInfo *t, int data_len_all);
 void transform_around_single_fallback(TransInfo *t);
 void posttrans_fcurve_clean(struct FCurve *fcu, const int sel_flag, const bool use_handle);
 bool constraints_list_needinv(TransInfo *t, ListBase *list);

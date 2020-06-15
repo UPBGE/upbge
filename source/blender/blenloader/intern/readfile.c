@@ -5736,8 +5736,11 @@ static void direct_link_modifiers(BlendDataReader *reader, ListBase *lb, Object 
       md = modifier_replace_with_fluid(reader->fd, ob, lb, md);
       is_allocated = true;
     }
+
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
+
     /* if modifiers disappear, or for upward compatibility */
-    if (NULL == BKE_modifier_get_info(md->type)) {
+    if (mti == NULL) {
       md->type = eModifierType_None;
     }
 
@@ -5985,12 +5988,6 @@ static void direct_link_modifiers(BlendDataReader *reader, ListBase *lb, Object 
         direct_link_curvemapping(reader, wmd->cmap_curve);
       }
     }
-    else if (md->type == eModifierType_LaplacianDeform) {
-      LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
-
-      BLO_read_float3_array(reader, lmd->total_verts, &lmd->vertexco);
-      lmd->cache_system = NULL;
-    }
     else if (md->type == eModifierType_CorrectiveSmooth) {
       CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)md;
 
@@ -6040,6 +6037,10 @@ static void direct_link_modifiers(BlendDataReader *reader, ListBase *lb, Object 
       if (bmd->custom_profile) {
         direct_link_curveprofile(reader, bmd->custom_profile);
       }
+    }
+
+    if (mti->blendRead != NULL) {
+      mti->blendRead(reader, md);
     }
   }
 }
@@ -6582,8 +6583,6 @@ static void lib_link_collection_data(FileData *fd, Library *lib, Collection *col
   for (CollectionChild *child = collection->children.first; child != NULL; child = child->next) {
     child->collection = newlibadr(fd, lib, child->collection);
   }
-
-  BKE_collection_parent_relations_rebuild(collection);
 }
 
 static void lib_link_collection(FileData *fd, Main *UNUSED(bmain), Collection *collection)
@@ -10346,18 +10345,9 @@ static void lib_link_all(FileData *fd, Main *bmain)
    * so simpler to just use it directly in this single call. */
   BLO_main_validate_shapekeys(bmain, NULL);
 
-  if (fd->memfile != NULL) {
-    /* When doing redo, we perform a tremendous amount of esoteric magic tricks to avoid having to
-     * re-read all library data-blocks.
-     * Unfortunately, that means that we do not clear Collections' parents lists, which then get
-     * improperly extended in some cases by lib_link_scene() and lib_link_collection() calls above
-     * (when one local collection is parent of linked ones).
-     * I do not really see a way to address that issue, besides brute force call below which
-     * invalidates and re-creates all parenting relationships between collections. Yet another
-     * example of why it is such a bad idea to keep that kind of double-linked relationships info
-     * 'permanently' in our data structures... */
-    BKE_main_collections_parent_relations_rebuild(bmain);
-  }
+  /* We have to rebuild that runtime information *after* all data-blocks have been properly linked.
+   */
+  BKE_main_collections_parent_relations_rebuild(bmain);
 
 #ifndef NDEBUG
   /* Double check we do not have any 'need link' tag remaining, this should never be the case once

@@ -227,6 +227,9 @@ static void rna_Panel_unregister(Main *bmain, StructRNA *type)
                 }
               }
             }
+            /* The unregistered panel might have had a template that added instanced panels,
+             * so remove them just in case. They can be re-added on redraw anyway. */
+            UI_panels_free_instanced(NULL, region);
           }
         }
       }
@@ -1290,7 +1293,7 @@ static void rna_def_panel(BlenderRNA *brna)
        0,
        "Instanced Panel",
        "Multiple panels with this type can be used as part of a list depending on data external "
-       "to the UI. Used to create panels for the modifiers and other stacks."},
+       "to the UI. Used to create panels for the modifiers and other stacks"},
       {PNL_LAYOUT_HEADER_EXPAND,
        "HEADER_LAYOUT_EXPAND",
        0,

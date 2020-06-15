@@ -1070,6 +1070,26 @@ void BKE_collections_after_lib_link(Main *bmain)
 
 /********************** Collection Children *******************/
 
+static bool collection_find_instance_recursive(Collection *collection,
+                                               Collection *instance_collection)
+{
+  LISTBASE_FOREACH (CollectionObject *, collection_object, &collection->gobject) {
+    if (collection_object->ob != NULL &&
+        /* Object from a given collection should never instanciate that collection either. */
+        ELEM(collection_object->ob->instance_collection, instance_collection, collection)) {
+      return true;
+    }
+  }
+
+  LISTBASE_FOREACH (CollectionChild *, collection_child, &collection->children) {
+    if (collection_find_instance_recursive(collection_child->collection, instance_collection)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool BKE_collection_find_cycle(Collection *new_ancestor, Collection *collection)
 {
   if (collection == new_ancestor) {
@@ -1082,7 +1102,9 @@ bool BKE_collection_find_cycle(Collection *new_ancestor, Collection *collection)
     }
   }
 
-  return false;
+  /* Find possible objects in collection or its children, that would instanciate the given ancestor
+   * collection (that would also make a fully invalid cycle of dependencies) .*/
+  return collection_find_instance_recursive(collection, new_ancestor);
 }
 
 static CollectionChild *collection_find_child(Collection *parent, Collection *collection)
@@ -1239,7 +1261,11 @@ void BKE_main_collections_parent_relations_rebuild(Main *bmain)
   /* Scene's master collections will be 'root' parent of most of our collections, so start with
    * them. */
   for (Scene *scene = bmain->scenes.first; scene != NULL; scene = scene->id.next) {
-    collection_parents_rebuild_recursive(scene->master_collection);
+    /* This function can be called from readfile.c, when this pointer is not guaranteed to be NULL.
+     */
+    if (scene->master_collection != NULL) {
+      collection_parents_rebuild_recursive(scene->master_collection);
+    }
   }
 
   /* We may have parent chains outside of scene's master_collection context? At least, readfile's
