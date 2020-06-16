@@ -2910,27 +2910,6 @@ static void direct_link_id_common(
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Read CurveMapping
- * \{ */
-
-/* cuma itself has been read! */
-static void direct_link_curvemapping(BlendDataReader *reader, CurveMapping *cumap)
-{
-  int a;
-
-  /* flag seems to be able to hang? Maybe old files... not bad to clear anyway */
-  cumap->flag &= ~CUMA_PREMULLED;
-
-  for (a = 0; a < CM_TOT; a++) {
-    BLO_read_data_address(reader, &cumap->cm[a].curve);
-    cumap->cm[a].table = NULL;
-    cumap->cm[a].premultable = NULL;
-  }
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Read CurveProfile
  * \{ */
 
@@ -2983,7 +2962,7 @@ static void direct_link_brush(BlendDataReader *reader, Brush *brush)
   BLO_read_data_address(reader, &brush->gradient);
 
   if (brush->curve) {
-    direct_link_curvemapping(reader, brush->curve);
+    BKE_curvemapping_blend_read(reader, brush->curve);
   }
   else {
     BKE_brush_curve_preset(brush, CURVE_PRESET_SHARP);
@@ -3004,39 +2983,39 @@ static void direct_link_brush(BlendDataReader *reader, Brush *brush)
     BLO_read_data_address(reader, &brush->gpencil_settings->curve_rand_value);
 
     if (brush->gpencil_settings->curve_sensitivity) {
-      direct_link_curvemapping(reader, brush->gpencil_settings->curve_sensitivity);
+      BKE_curvemapping_blend_read(reader, brush->gpencil_settings->curve_sensitivity);
     }
 
     if (brush->gpencil_settings->curve_strength) {
-      direct_link_curvemapping(reader, brush->gpencil_settings->curve_strength);
+      BKE_curvemapping_blend_read(reader, brush->gpencil_settings->curve_strength);
     }
 
     if (brush->gpencil_settings->curve_jitter) {
-      direct_link_curvemapping(reader, brush->gpencil_settings->curve_jitter);
+      BKE_curvemapping_blend_read(reader, brush->gpencil_settings->curve_jitter);
     }
 
     if (brush->gpencil_settings->curve_rand_pressure) {
-      direct_link_curvemapping(reader, brush->gpencil_settings->curve_rand_pressure);
+      BKE_curvemapping_blend_read(reader, brush->gpencil_settings->curve_rand_pressure);
     }
 
     if (brush->gpencil_settings->curve_rand_strength) {
-      direct_link_curvemapping(reader, brush->gpencil_settings->curve_rand_strength);
+      BKE_curvemapping_blend_read(reader, brush->gpencil_settings->curve_rand_strength);
     }
 
     if (brush->gpencil_settings->curve_rand_uv) {
-      direct_link_curvemapping(reader, brush->gpencil_settings->curve_rand_uv);
+      BKE_curvemapping_blend_read(reader, brush->gpencil_settings->curve_rand_uv);
     }
 
     if (brush->gpencil_settings->curve_rand_hue) {
-      direct_link_curvemapping(reader, brush->gpencil_settings->curve_rand_hue);
+      BKE_curvemapping_blend_read(reader, brush->gpencil_settings->curve_rand_hue);
     }
 
     if (brush->gpencil_settings->curve_rand_saturation) {
-      direct_link_curvemapping(reader, brush->gpencil_settings->curve_rand_saturation);
+      BKE_curvemapping_blend_read(reader, brush->gpencil_settings->curve_rand_saturation);
     }
 
     if (brush->gpencil_settings->curve_rand_value) {
-      direct_link_curvemapping(reader, brush->gpencil_settings->curve_rand_value);
+      BKE_curvemapping_blend_read(reader, brush->gpencil_settings->curve_rand_value);
     }
   }
 
@@ -3749,7 +3728,7 @@ static void direct_link_nodetree(BlendDataReader *reader, bNodeTree *ntree)
         case CMP_NODE_HUECORRECT:
         case TEX_NODE_CURVE_RGB:
         case TEX_NODE_CURVE_TIME: {
-          direct_link_curvemapping(reader, node->storage);
+          BKE_curvemapping_blend_read(reader, node->storage);
           break;
         }
         case SH_NODE_SCRIPT: {
@@ -4129,7 +4108,7 @@ static void direct_link_light(BlendDataReader *reader, Light *la)
 
   BLO_read_data_address(reader, &la->curfalloff);
   if (la->curfalloff) {
-    direct_link_curvemapping(reader, la->curfalloff);
+    BKE_curvemapping_blend_read(reader, la->curfalloff);
   }
 
   la->preview = direct_link_preview_image(reader, la->preview);
@@ -4741,15 +4720,15 @@ static void direct_link_particlesettings(BlendDataReader *reader, ParticleSettin
 
   BLO_read_data_address(reader, &part->clumpcurve);
   if (part->clumpcurve) {
-    direct_link_curvemapping(reader, part->clumpcurve);
+    BKE_curvemapping_blend_read(reader, part->clumpcurve);
   }
   BLO_read_data_address(reader, &part->roughcurve);
   if (part->roughcurve) {
-    direct_link_curvemapping(reader, part->roughcurve);
+    BKE_curvemapping_blend_read(reader, part->roughcurve);
   }
   BLO_read_data_address(reader, &part->twistcurve);
   if (part->twistcurve) {
-    direct_link_curvemapping(reader, part->twistcurve);
+    BKE_curvemapping_blend_read(reader, part->twistcurve);
   }
 
   BLO_read_data_address(reader, &part->effector_weights);
@@ -5937,7 +5916,7 @@ static void direct_link_modifiers(BlendDataReader *reader, ListBase *lb, Object 
 
       BLO_read_data_address(reader, &hmd->curfalloff);
       if (hmd->curfalloff) {
-        direct_link_curvemapping(reader, hmd->curfalloff);
+        BKE_curvemapping_blend_read(reader, hmd->curfalloff);
       }
     }
     else if (md->type == eModifierType_ParticleSystem) {
@@ -5954,19 +5933,6 @@ static void direct_link_modifiers(BlendDataReader *reader, ListBase *lb, Object 
 
       psmd->facepa = NULL;
     }
-    else if (md->type == eModifierType_MeshDeform) {
-      MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
-
-      BLO_read_data_address(reader, &mmd->bindinfluences);
-      BLO_read_int32_array(reader, mmd->totvert + 1, &mmd->bindoffsets);
-      BLO_read_float3_array(reader, mmd->totcagevert, &mmd->bindcagecos);
-      BLO_read_data_address(reader, &mmd->dyngrid);
-      BLO_read_data_address(reader, &mmd->dyninfluences);
-      BLO_read_int32_array(reader, mmd->totvert, &mmd->dynverts);
-
-      BLO_read_float_array(reader, mmd->totvert, &mmd->bindweights);
-      BLO_read_float3_array(reader, mmd->totcagevert, &mmd->bindcos);
-    }
     else if (md->type == eModifierType_Ocean) {
       OceanModifierData *omd = (OceanModifierData *)md;
       omd->oceancache = NULL;
@@ -5977,7 +5943,7 @@ static void direct_link_modifiers(BlendDataReader *reader, ListBase *lb, Object 
 
       BLO_read_data_address(reader, &tmd->curfalloff);
       if (tmd->curfalloff) {
-        direct_link_curvemapping(reader, tmd->curfalloff);
+        BKE_curvemapping_blend_read(reader, tmd->curfalloff);
       }
     }
     else if (md->type == eModifierType_WeightVGEdit) {
@@ -5985,7 +5951,7 @@ static void direct_link_modifiers(BlendDataReader *reader, ListBase *lb, Object 
 
       BLO_read_data_address(reader, &wmd->cmap_curve);
       if (wmd->cmap_curve) {
-        direct_link_curvemapping(reader, wmd->cmap_curve);
+        BKE_curvemapping_blend_read(reader, wmd->cmap_curve);
       }
     }
     else if (md->type == eModifierType_CorrectiveSmooth) {
@@ -6068,7 +6034,7 @@ static void direct_link_gpencil_modifiers(BlendDataReader *reader, ListBase *lb)
 
       BLO_read_data_address(reader, &hmd->curfalloff);
       if (hmd->curfalloff) {
-        direct_link_curvemapping(reader, hmd->curfalloff);
+        BKE_curvemapping_blend_read(reader, hmd->curfalloff);
       }
     }
     else if (md->type == eGpencilModifierType_Noise) {
@@ -6076,7 +6042,7 @@ static void direct_link_gpencil_modifiers(BlendDataReader *reader, ListBase *lb)
 
       BLO_read_data_address(reader, &gpmd->curve_intensity);
       if (gpmd->curve_intensity) {
-        direct_link_curvemapping(reader, gpmd->curve_intensity);
+        BKE_curvemapping_blend_read(reader, gpmd->curve_intensity);
         /* initialize the curve. Maybe this could be moved to modififer logic */
         BKE_curvemapping_initialize(gpmd->curve_intensity);
       }
@@ -6086,7 +6052,7 @@ static void direct_link_gpencil_modifiers(BlendDataReader *reader, ListBase *lb)
 
       BLO_read_data_address(reader, &gpmd->curve_thickness);
       if (gpmd->curve_thickness) {
-        direct_link_curvemapping(reader, gpmd->curve_thickness);
+        BKE_curvemapping_blend_read(reader, gpmd->curve_thickness);
         BKE_curvemapping_initialize(gpmd->curve_thickness);
       }
     }
@@ -6095,7 +6061,7 @@ static void direct_link_gpencil_modifiers(BlendDataReader *reader, ListBase *lb)
       BLO_read_data_address(reader, &gpmd->colorband);
       BLO_read_data_address(reader, &gpmd->curve_intensity);
       if (gpmd->curve_intensity) {
-        direct_link_curvemapping(reader, gpmd->curve_intensity);
+        BKE_curvemapping_blend_read(reader, gpmd->curve_intensity);
         BKE_curvemapping_initialize(gpmd->curve_intensity);
       }
     }
@@ -6103,7 +6069,7 @@ static void direct_link_gpencil_modifiers(BlendDataReader *reader, ListBase *lb)
       SmoothGpencilModifierData *gpmd = (SmoothGpencilModifierData *)md;
       BLO_read_data_address(reader, &gpmd->curve_intensity);
       if (gpmd->curve_intensity) {
-        direct_link_curvemapping(reader, gpmd->curve_intensity);
+        BKE_curvemapping_blend_read(reader, gpmd->curve_intensity);
         BKE_curvemapping_initialize(gpmd->curve_intensity);
       }
     }
@@ -6111,7 +6077,7 @@ static void direct_link_gpencil_modifiers(BlendDataReader *reader, ListBase *lb)
       ColorGpencilModifierData *gpmd = (ColorGpencilModifierData *)md;
       BLO_read_data_address(reader, &gpmd->curve_intensity);
       if (gpmd->curve_intensity) {
-        direct_link_curvemapping(reader, gpmd->curve_intensity);
+        BKE_curvemapping_blend_read(reader, gpmd->curve_intensity);
         BKE_curvemapping_initialize(gpmd->curve_intensity);
       }
     }
@@ -6119,7 +6085,7 @@ static void direct_link_gpencil_modifiers(BlendDataReader *reader, ListBase *lb)
       OpacityGpencilModifierData *gpmd = (OpacityGpencilModifierData *)md;
       BLO_read_data_address(reader, &gpmd->curve_intensity);
       if (gpmd->curve_intensity) {
-        direct_link_curvemapping(reader, gpmd->curve_intensity);
+        BKE_curvemapping_blend_read(reader, gpmd->curve_intensity);
         BKE_curvemapping_initialize(gpmd->curve_intensity);
       }
     }
@@ -6412,7 +6378,7 @@ static void direct_link_view_settings(BlendDataReader *reader,
   BLO_read_data_address(reader, &view_settings->curve_mapping);
 
   if (view_settings->curve_mapping) {
-    direct_link_curvemapping(reader, view_settings->curve_mapping);
+    BKE_curvemapping_blend_read(reader, view_settings->curve_mapping);
   }
 }
 
@@ -6941,7 +6907,7 @@ static void direct_link_paint(BlendDataReader *reader, const Scene *scene, Paint
 
   BLO_read_data_address(reader, &p->cavity_curve);
   if (p->cavity_curve) {
-    direct_link_curvemapping(reader, p->cavity_curve);
+    BKE_curvemapping_blend_read(reader, p->cavity_curve);
   }
   else {
     BKE_paint_cavity_curve_preset(p, CURVE_PRESET_LINE);
@@ -6983,12 +6949,12 @@ static void direct_link_sequence_modifiers(BlendDataReader *reader, ListBase *lb
     if (smd->type == seqModifierType_Curves) {
       CurvesModifierData *cmd = (CurvesModifierData *)smd;
 
-      direct_link_curvemapping(reader, &cmd->curve_mapping);
+      BKE_curvemapping_blend_read(reader, &cmd->curve_mapping);
     }
     else if (smd->type == seqModifierType_HueCorrect) {
       HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
 
-      direct_link_curvemapping(reader, &hcmd->curve_mapping);
+      BKE_curvemapping_blend_read(reader, &hcmd->curve_mapping);
     }
   }
 }
@@ -7051,17 +7017,17 @@ static void direct_link_scene(BlendDataReader *reader, Scene *sce)
     /* relink grease pencil interpolation curves */
     BLO_read_data_address(reader, &sce->toolsettings->gp_interpolate.custom_ipo);
     if (sce->toolsettings->gp_interpolate.custom_ipo) {
-      direct_link_curvemapping(reader, sce->toolsettings->gp_interpolate.custom_ipo);
+      BKE_curvemapping_blend_read(reader, sce->toolsettings->gp_interpolate.custom_ipo);
     }
     /* relink grease pencil multiframe falloff curve */
     BLO_read_data_address(reader, &sce->toolsettings->gp_sculpt.cur_falloff);
     if (sce->toolsettings->gp_sculpt.cur_falloff) {
-      direct_link_curvemapping(reader, sce->toolsettings->gp_sculpt.cur_falloff);
+      BKE_curvemapping_blend_read(reader, sce->toolsettings->gp_sculpt.cur_falloff);
     }
     /* relink grease pencil primitive curve */
     BLO_read_data_address(reader, &sce->toolsettings->gp_sculpt.cur_primitive);
     if (sce->toolsettings->gp_sculpt.cur_primitive) {
-      direct_link_curvemapping(reader, sce->toolsettings->gp_sculpt.cur_primitive);
+      BKE_curvemapping_blend_read(reader, sce->toolsettings->gp_sculpt.cur_primitive);
     }
 
     /* Relink toolsettings curve profile */
@@ -7266,7 +7232,7 @@ static void direct_link_scene(BlendDataReader *reader, Scene *sce)
 
   sce->preview = direct_link_preview_image(reader, sce->preview);
 
-  direct_link_curvemapping(reader, &sce->r.mblur_shutter_curve);
+  BKE_curvemapping_blend_read(reader, &sce->r.mblur_shutter_curve);
 
 #ifdef USE_COLLECTION_COMPAT_28
   /* this runs before the very first doversion */
@@ -9102,51 +9068,51 @@ static void direct_link_linestyle_alpha_modifier(BlendDataReader *reader,
     case LS_MODIFIER_ALONG_STROKE: {
       LineStyleAlphaModifier_AlongStroke *m = (LineStyleAlphaModifier_AlongStroke *)modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_DISTANCE_FROM_CAMERA: {
       LineStyleAlphaModifier_DistanceFromCamera *m = (LineStyleAlphaModifier_DistanceFromCamera *)
           modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_DISTANCE_FROM_OBJECT: {
       LineStyleAlphaModifier_DistanceFromObject *m = (LineStyleAlphaModifier_DistanceFromObject *)
           modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_MATERIAL: {
       LineStyleAlphaModifier_Material *m = (LineStyleAlphaModifier_Material *)modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_TANGENT: {
       LineStyleAlphaModifier_Tangent *m = (LineStyleAlphaModifier_Tangent *)modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_NOISE: {
       LineStyleAlphaModifier_Noise *m = (LineStyleAlphaModifier_Noise *)modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_CREASE_ANGLE: {
       LineStyleAlphaModifier_CreaseAngle *m = (LineStyleAlphaModifier_CreaseAngle *)modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_CURVATURE_3D: {
       LineStyleAlphaModifier_Curvature_3D *m = (LineStyleAlphaModifier_Curvature_3D *)modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
   }
@@ -9160,47 +9126,47 @@ static void direct_link_linestyle_thickness_modifier(BlendDataReader *reader,
       LineStyleThicknessModifier_AlongStroke *m = (LineStyleThicknessModifier_AlongStroke *)
           modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_DISTANCE_FROM_CAMERA: {
       LineStyleThicknessModifier_DistanceFromCamera *m =
           (LineStyleThicknessModifier_DistanceFromCamera *)modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_DISTANCE_FROM_OBJECT: {
       LineStyleThicknessModifier_DistanceFromObject *m =
           (LineStyleThicknessModifier_DistanceFromObject *)modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_MATERIAL: {
       LineStyleThicknessModifier_Material *m = (LineStyleThicknessModifier_Material *)modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_TANGENT: {
       LineStyleThicknessModifier_Tangent *m = (LineStyleThicknessModifier_Tangent *)modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_CREASE_ANGLE: {
       LineStyleThicknessModifier_CreaseAngle *m = (LineStyleThicknessModifier_CreaseAngle *)
           modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
     case LS_MODIFIER_CURVATURE_3D: {
       LineStyleThicknessModifier_Curvature_3D *m = (LineStyleThicknessModifier_Curvature_3D *)
           modifier;
       BLO_read_data_address(reader, &m->curve);
-      direct_link_curvemapping(reader, m->curve);
+      BKE_curvemapping_blend_read(reader, m->curve);
       break;
     }
   }
