@@ -327,7 +327,7 @@ static PyObject *gPySetSolverType(PyObject *self, PyObject *args, PyObject *kwds
   int solverType;
   if (PyArg_ParseTuple(args, "i", &solverType)) {
     if (PHY_GetActiveEnvironment()) {
-      PHY_GetActiveEnvironment()->SetSolverType(solverType);
+      PHY_GetActiveEnvironment()->SetSolverType((PHY_SolverType)solverType);
     }
   }
   else {

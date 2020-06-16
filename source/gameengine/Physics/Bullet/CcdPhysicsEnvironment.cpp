@@ -27,6 +27,7 @@
 #include "DNA_scene_types.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
+#include "BulletDynamics/ConstraintSolver/btNNCGConstraintSolver.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/NarrowPhaseCollision/btRaycastCallback.h"
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
@@ -362,7 +363,8 @@ void CcdPhysicsEnvironment::SetDebugDrawer(btIDebugDraw *debugDrawer)
   m_debugDrawer = debugDrawer;
 }
 
-CcdPhysicsEnvironment::CcdPhysicsEnvironment(bool useDbvtCulling,
+CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType,
+                                             bool useDbvtCulling,
                                              btDispatcher *dispatcher,
                                              btOverlappingPairCache *pairCache)
     : m_cullingCache(nullptr),
@@ -370,7 +372,7 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(bool useDbvtCulling,
       m_numIterations(10),
       m_numTimeSubSteps(1),
       m_ccdMode(0),
-      m_solverType(-1),
+      m_solverType(PHY_SOLVER_NONE),
       m_deactivationTime(2.0f),
       m_linearDeactivationThreshold(0.8f),
       m_angularDeactivationThreshold(1.0f),
@@ -410,7 +412,7 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(bool useDbvtCulling,
   m_broadphase->getOverlappingPairCache()->setOverlapFilterCallback(m_filterCallback);
   m_broadphase->getOverlappingPairCache()->setInternalGhostPairCallback(m_ghostPairCallback);
 
-  SetSolverType(1);  // issues with quickstep and memory allocations
+  SetSolverType(solverType);  // issues with quickstep and memory allocations
   //	m_dynamicsWorld = new
   // btDiscreteDynamicsWorld(dispatcher,m_broadphase,m_solver,m_collisionConfiguration);
   m_dynamicsWorld = new btSoftRigidDynamicsWorld(
@@ -1010,22 +1012,26 @@ void CcdPhysicsEnvironment::SetUseEpa(bool epa)
   // gUseEpa = epa;
 }
 
-void CcdPhysicsEnvironment::SetSolverType(int solverType)
+void CcdPhysicsEnvironment::SetSolverType(PHY_SolverType solverType)
 {
+
+  if (m_solverType == solverType) {
+    return;
+  }
+
   switch (solverType) {
-    case 1: {
-      if (m_solverType != solverType) {
-        m_solver = new btSequentialImpulseConstraintSolver();
-        break;
-      }
+    case PHY_SOLVER_SEQUENTIAL: {
+      m_solver = new btSequentialImpulseConstraintSolver();
+      break;
     }
 
-    case 0:
-    default:
-      if (m_solverType != solverType) {
-        //			m_solver = new OdeConstraintSolver();
-        break;
-      }
+    case PHY_SOLVER_NNCG: {
+      m_solver = new btNNCGConstraintSolver();
+      break;
+    }
+    default: {
+      BLI_assert(false);
+    }
   };
   m_solverType = solverType;
 }
@@ -2732,7 +2738,13 @@ struct BlenderDebugDraw : public btIDebugDraw {
 
 CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool visualizePhysics)
 {
-  CcdPhysicsEnvironment *ccdPhysEnv = new CcdPhysicsEnvironment(false);
+
+  static const PHY_SolverType solverTypeTable[] = {
+      PHY_SOLVER_SEQUENTIAL,    // GAME_SOLVER_SEQUENTIAL
+      PHY_SOLVER_NNCG,          // GAME_SOLVER_NNGC
+  };
+  CcdPhysicsEnvironment *ccdPhysEnv = new CcdPhysicsEnvironment(
+      solverTypeTable[blenderscene->gm.solverType], false);
   ccdPhysEnv->SetDebugDrawer(new BlenderDebugDraw());
   ccdPhysEnv->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
   ccdPhysEnv->SetDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);

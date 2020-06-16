@@ -872,6 +872,7 @@ typedef struct GameData {
   short mode, matmode;
   short occlusionRes; /* resolution of occlusion Z buffer in pixel */
   short physicsEngine;
+  short solverType, _pad[3];
   short exitkey;
   short pythonkeys[4];
   short vsync; /* Controls vsync: off, on, or adaptive (if supported) */
@@ -881,10 +882,10 @@ typedef struct GameData {
   float timeScale;
   float levelHeight;
   float deactivationtime, lineardeactthreshold, angulardeactthreshold;
-  int _pad[2];
+  int _pad2[2];
 
   /* Scene LoD */
-  short lodflag, _pad2;
+  short lodflag, _pad3;
   int scehysteresis;
 } GameData;
 
@@ -905,6 +906,12 @@ typedef struct GameData {
 /* GameData.physicsEngine */
 #define WOPHY_NONE 0
 #define WOPHY_BULLET 5
+
+/* GameData.solverType */
+enum {
+  GAME_SOLVER_SEQUENTIAL = 0,
+  GAME_SOLVER_NNCG,
+};
 
 /* obstacleSimulation */
 #define OBSTSIMULATION_NONE 0

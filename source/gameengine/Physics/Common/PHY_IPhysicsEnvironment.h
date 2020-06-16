@@ -169,7 +169,7 @@ class PHY_IPhysicsEnvironment {
   }
   /// setSolverType, internal setting, chooses solvertype, PSOR, Dantzig, impulse based, penalty
   /// based
-  virtual void SetSolverType(int solverType)
+  virtual void SetSolverType(PHY_SolverType solverType)
   {
   }
   /// setTau sets the spring constant of a penalty based solver
