@@ -554,9 +554,12 @@ void KX_GameObject::BackupObmat(Object *ob)
 void KX_GameObject::RestoreObmat(Object *ob)
 {
   if (ob) {
-    copy_m4_m4(ob->obmat, m_origObmat);
-    BKE_object_apply_mat4(ob, ob->obmat, false, true);
-    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+    Scene *sce = GetScene()->GetBlenderScene();
+    if (sce->gm.flag & GAME_USE_UNDO) {
+      copy_m4_m4(ob->obmat, m_origObmat);
+      BKE_object_apply_mat4(ob, ob->obmat, false, true);
+      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+    }
   }
 }
 
