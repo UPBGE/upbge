@@ -28,6 +28,7 @@
 #include "BLI_threads.h"
 #include "BLT_translation.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_collection.h"
 #include "BKE_icons.h"
 #include "BKE_idprop.h"
@@ -326,15 +327,15 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy)
 static Collection *collection_duplicate_recursive(Main *bmain,
                                                   Collection *parent,
                                                   Collection *collection_old,
-                                                  const bool do_hierarchy,
-                                                  const bool do_objects,
-                                                  const bool do_obdata)
+                                                  const eDupli_ID_Flags duplicate_flags,
+                                                  const eLibIDDuplicateFlags duplicate_options)
 {
   Collection *collection_new;
   bool do_full_process = false;
-  const int object_dupflag = (do_obdata) ? U.dupflag : 0;
   const bool is_collection_master = (collection_old->flag & COLLECTION_IS_MASTER) != 0;
   const bool is_collection_liboverride = ID_IS_OVERRIDE_LIBRARY(collection_old);
+
+  const bool do_objects = (duplicate_flags & USER_DUP_OBJECT) != 0;
 
   if (is_collection_master) {
     /* We never duplicate master collections here, but we can still deep-copy their objects and
@@ -343,15 +344,9 @@ static Collection *collection_duplicate_recursive(Main *bmain,
     collection_new = collection_old;
     do_full_process = true;
   }
-  else if (!do_hierarchy || collection_old->id.newid == NULL) {
-    BKE_id_copy(bmain, &collection_old->id, (ID **)&collection_new);
-
-    /* Copying add one user by default, need to get rid of that one. */
-    id_us_min(&collection_new->id);
-
-    if (do_hierarchy) {
-      ID_NEW_SET(collection_old, collection_new);
-    }
+  else if (collection_old->id.newid == NULL) {
+    collection_new = (Collection *)BKE_id_copy_for_duplicate(
+        bmain, (ID *)collection_old, is_collection_liboverride, duplicate_flags);
     do_full_process = true;
   }
   else {
@@ -376,7 +371,7 @@ static Collection *collection_duplicate_recursive(Main *bmain,
   /* If we are not doing any kind of deep-copy, we can return immediately.
    * False do_full_process means collection_old had already been duplicated,
    * no need to redo some deep-copy on it. */
-  if (!do_hierarchy || !do_full_process) {
+  if (!do_full_process) {
     return collection_new;
   }
 
@@ -394,8 +389,8 @@ static Collection *collection_duplicate_recursive(Main *bmain,
       }
 
       if (ob_new == NULL) {
-        ob_new = BKE_object_duplicate(bmain, ob_old, object_dupflag);
-        ID_NEW_SET(ob_old, ob_new);
+        ob_new = BKE_object_duplicate(
+            bmain, ob_old, duplicate_flags, duplicate_options | LIB_ID_DUPLICATE_IS_SUBPROCESS);
       }
 
       collection_object_add(bmain, collection_new, ob_new, 0, true);
@@ -413,7 +408,7 @@ static Collection *collection_duplicate_recursive(Main *bmain,
     }
 
     collection_duplicate_recursive(
-        bmain, collection_new, child_collection_old, do_hierarchy, do_objects, do_obdata);
+        bmain, collection_new, child_collection_old, duplicate_flags, duplicate_options);
     collection_child_remove(collection_new, child_collection_old);
   }
 
@@ -421,56 +416,58 @@ static Collection *collection_duplicate_recursive(Main *bmain,
 }
 
 /**
- * Makes a standard (aka shallow) ID copy of a Collection.
+ * Make a deep copy (aka duplicate) of the given collection and all of its children, recusrsively.
  *
- * Add a new collection in the same level as the old one, link any nested collections
- * and finally link the objects to the new collection (as opposed to copying them).
- */
-Collection *BKE_collection_copy(Main *bmain, Collection *parent, Collection *collection)
-{
-  return BKE_collection_duplicate(bmain, parent, collection, false, false, false);
-}
-
-/**
- * Make either a shallow copy, or deeper duplicate of given collection.
+ * \warning This functions will clear all \a bmain #ID.idnew pointers, unless \a
+ * LIB_ID_DUPLICATE_IS_SUBPROCESS duplicate option is passed on, in which case caller is reponsible
+ * to reconstruct collection dependencies informations (i.e. call #BKE_main_collection_sync).
  *
- * If \a do_hierarchy and \a do_deep_copy are false, this is a regular (shallow) ID copy.
- *
- * \warning If any 'deep copy' behavior is enabled,
- * this functions will clear all \a bmain id.idnew pointers.
- *
- * \param do_hierarchy: If true, it will recursively make shallow copies of children collections.
- * \param do_objects: If true, it will also make duplicates of objects.
- * This one does nothing if \a do_hierarchy is not set.
- * \param do_obdata: If true, it will also make deep duplicates of objects,
+ * \param do_objects: If true, it will also make copies of objects.
+ * \param do_obdata: If true, it will also make duplicates of objects,
  * using behavior defined in user settings (#U.dupflag).
- * This one does nothing if \a do_hierarchy and \a do_objects are not set.
+ * This one does nothing if \a do_objects is not set.
  */
 Collection *BKE_collection_duplicate(Main *bmain,
                                      Collection *parent,
                                      Collection *collection,
-                                     const bool do_hierarchy,
-                                     const bool do_objects,
-                                     const bool do_obdata)
+                                     eDupli_ID_Flags duplicate_flags,
+                                     eLibIDDuplicateFlags duplicate_options)
 {
-  if (do_hierarchy) {
+  const bool is_subprocess = (duplicate_options & LIB_ID_DUPLICATE_IS_SUBPROCESS) != 0;
+
+  if (!is_subprocess) {
     BKE_main_id_tag_all(bmain, LIB_TAG_NEW, false);
     BKE_main_id_clear_newpoins(bmain);
   }
 
   Collection *collection_new = collection_duplicate_recursive(
-      bmain, parent, collection, do_hierarchy, do_objects, do_obdata);
+      bmain, parent, collection, duplicate_flags, duplicate_options);
 
-  /* This code will follow into all ID links using an ID tagged with LIB_TAG_NEW.*/
-  BKE_libblock_relink_to_newid(&collection_new->id);
+  if (!is_subprocess) {
+    /* `collection_duplicate_recursive` will also tag our 'root' collection, whic is not required
+     * unless its duplication is a subprocess of another one. */
+    collection_new->id.tag &= ~LIB_TAG_NEW;
 
-  if (do_hierarchy) {
+    /* This code will follow into all ID links using an ID tagged with LIB_TAG_NEW.*/
+    BKE_libblock_relink_to_newid(&collection_new->id);
+
+#ifndef NDEBUG
+    /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
+    ID *id_iter;
+    FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+      if (id_iter->tag & LIB_TAG_NEW) {
+        BLI_assert((id_iter->tag & LIB_TAG_NEW) == 0);
+      }
+    }
+    FOREACH_MAIN_ID_END;
+#endif
+
     /* Cleanup. */
     BKE_main_id_tag_all(bmain, LIB_TAG_NEW, false);
     BKE_main_id_clear_newpoins(bmain);
-  }
 
-  BKE_main_collection_sync(bmain);
+    BKE_main_collection_sync(bmain);
+  }
 
   return collection_new;
 }

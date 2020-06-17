@@ -24,6 +24,8 @@
 #include "BLI_compiler_compat.h"
 #include "BLI_ghash.h"
 #include "BLI_iterator.h"
+#include "BLI_sys_types.h"
+
 #include "DNA_listBase.h"
 
 #ifdef __cplusplus
@@ -57,16 +59,11 @@ void BKE_collection_add_from_object(struct Main *bmain,
 void BKE_collection_free(struct Collection *collection);
 bool BKE_collection_delete(struct Main *bmain, struct Collection *collection, bool hierarchy);
 
-struct Collection *BKE_collection_copy(struct Main *bmain,
-                                       struct Collection *parent,
-                                       struct Collection *collection);
-
 struct Collection *BKE_collection_duplicate(struct Main *bmain,
                                             struct Collection *parent,
                                             struct Collection *collection,
-                                            const bool do_hierarchy,
-                                            const bool do_objects,
-                                            const bool do_obdata);
+                                            const uint duplicate_flags,
+                                            const uint duplicate_options);
 
 /* Master Collection for Scene */
 
