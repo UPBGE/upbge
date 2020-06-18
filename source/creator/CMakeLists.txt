@@ -923,6 +923,15 @@ elseif(WIN32)
       DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
     )
   endif()
+
+  # Custom game icon for windows deployment
+  if(WITH_GAMEENGINE)
+    install(
+      DIRECTORY ${CMAKE_SOURCE_DIR}/release/windows/icons/rceditcustom/
+      DESTINATION ${TARGETDIR_VER}/rceditcustom
+    )
+  endif()
+
 elseif(APPLE)
   if(NOT WITH_PYTHON_MODULE)
     # Uppercase name for app bundle
