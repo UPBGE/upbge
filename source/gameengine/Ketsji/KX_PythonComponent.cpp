@@ -113,8 +113,10 @@ void KX_PythonComponent::Update()
 void KX_PythonComponent::Dispose()
 {
   PyObject *pycomp = GetProxy();
-  if (!PyObject_CallMethod(pycomp, "dispose", "")) {
-    PyErr_Print();
+  if (PyObject_GetAttrString(pycomp, "dispose")) {
+    if (!PyObject_CallMethod(pycomp, "dispose", "")) {
+      PyErr_Print();
+    }
   }
 }
 
