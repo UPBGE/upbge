@@ -1110,11 +1110,6 @@ void wm_homefile_read(bContext *C,
   }
 
   if (use_data) {
-    /* Prevent buggy files that had G_FILE_RELATIVE_REMAP written out by mistake.
-     * Screws up autosaves otherwise can remove this eventually,
-     * only in a 2.53 and older, now its not written. */
-    G.fileflags &= ~G_FILE_RELATIVE_REMAP;
-
     if (reset_app_template) {
       /* Always load UI when switching to another template. */
       G.fileflags &= ~G_FILE_NO_UI;
@@ -1411,11 +1406,13 @@ static ImBuf *blend_file_thumb(const bContext *C,
 bool write_crash_blend(void)
 {
   char path[FILE_MAX];
-  int fileflags = G.fileflags & ~(G_FILE_HISTORY); /* don't do file history on crash file */
+
+  /* Don't do file history on crash file. */
+  const int fileflags = G.fileflags & ~G_FILE_HISTORY;
 
   BLI_strncpy(path, BKE_main_blendfile_path_from_global(), sizeof(path));
   BLI_path_extension_replace(path, sizeof(path), "_crash.blend");
-  if (BLO_write_file(G_MAIN, path, fileflags, NULL, NULL)) {
+  if (BLO_write_file(G_MAIN, path, fileflags, NULL)) {
     printf("written: %s\n", path);
     return 1;
   }
@@ -1428,7 +1425,11 @@ bool write_crash_blend(void)
 /**
  * \see #wm_homefile_write_exec wraps #BLO_write_file in a similar way.
  */
-static bool wm_file_write(bContext *C, const char *filepath, int fileflags, ReportList *reports)
+static bool wm_file_write(bContext *C,
+                          const char *filepath,
+                          int fileflags,
+                          eBLO_WritePathRemap remap_mode,
+                          ReportList *reports)
 {
   Main *bmain = CTX_data_main(C);
   Library *li;
@@ -1505,7 +1506,7 @@ static bool wm_file_write(bContext *C, const char *filepath, int fileflags, Repo
   /* XXX temp solution to solve bug, real fix coming (ton) */
   bmain->recovered = 0;
 
-  if (BLO_write_file(CTX_data_main(C), filepath, fileflags, reports, thumb)) {
+  if (BLO_write_file_ex(CTX_data_main(C), filepath, fileflags, reports, remap_mode, thumb)) {
     const bool do_history = (G.background == false) && (CTX_wm_manager(C)->op_undo_depth == 0);
 
     if (!(fileflags & G_FILE_SAVE_COPY)) {
@@ -1639,7 +1640,7 @@ void wm_autosave_timer(Main *bmain, wmWindowManager *wm, wmTimer *UNUSED(wt))
     ED_editors_flush_edits(bmain);
 
     /* Error reporting into console */
-    BLO_write_file(bmain, filepath, fileflags, NULL, NULL);
+    BLO_write_file(bmain, filepath, fileflags, NULL);
   }
   /* do timer after file write, just in case file write takes a long time */
   wm->autosavetimer = WM_event_add_timer(wm, NULL, TIMERAUTOSAVE, U.savetime * 60.0);
@@ -1759,7 +1760,8 @@ static int wm_homefile_write_exec(bContext *C, wmOperator *op)
   /* Force save as regular blend file. */
   fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_HISTORY | G_FILE_AUTOPLAY);
 
-  if (BLO_write_file(bmain, filepath, fileflags, op->reports, NULL) == 0) {
+  if (BLO_write_file_ex(
+          bmain, filepath, fileflags, op->reports, BLO_WRITE_PATH_REMAP_RELATIVE, NULL) == 0) {
     printf("fail\n");
     return OPERATOR_CANCELLED;
   }
@@ -2675,6 +2677,12 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   char path[FILE_MAX];
   const bool is_save_as = (op->type->invoke == wm_save_as_mainfile_invoke);
 
+  /* We could expose all options to the users however in most cases remapping
+   * existing relative paths is a good default.
+   * Users can manually make their paths relative & absolute if they wish. */
+  const eBLO_WritePathRemap remap_mode = RNA_boolean_get(op->ptr, "relative_remap") ?
+                                             BLO_WRITE_PATH_REMAP_RELATIVE :
+                                             BLO_WRITE_PATH_REMAP_NONE;
   save_set_compress(op);
 
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
@@ -2690,13 +2698,12 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 
   /* set compression flag */
   SET_FLAG_FROM_TEST(fileflags, RNA_boolean_get(op->ptr, "compress"), G_FILE_COMPRESS);
-  SET_FLAG_FROM_TEST(fileflags, RNA_boolean_get(op->ptr, "relative_remap"), G_FILE_RELATIVE_REMAP);
   SET_FLAG_FROM_TEST(
       fileflags,
       (RNA_struct_property_is_set(op->ptr, "copy") && RNA_boolean_get(op->ptr, "copy")),
       G_FILE_SAVE_COPY);
 
-  const bool ok = wm_file_write(C, path, fileflags, op->reports);
+  const bool ok = wm_file_write(C, path, fileflags, remap_mode, op->reports);
 
   if ((op->flag & OP_IS_INVOKE) == 0) {
     /* OP_IS_INVOKE is set when the operator is called from the GUI.
