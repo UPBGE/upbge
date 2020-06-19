@@ -18,6 +18,8 @@
 # All rights reserved.
 # ***** END GPL LICENSE BLOCK *****
 
+add_subdirectory(common)
+
 if(WITH_ALEMBIC)
   add_subdirectory(alembic)
 endif()

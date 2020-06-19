@@ -32,6 +32,7 @@ add_definitions(-DPXR_STATIC)
 
 set(INC
   .
+  ../common
   ../../blenkernel
   ../../blenlib
   ../../blenloader
@@ -52,7 +53,6 @@ set(INC_SYS
 )
 
 set(SRC
-  intern/abstract_hierarchy_iterator.cc
   intern/usd_capi.cc
   intern/usd_hierarchy_iterator.cc
   intern/usd_writer_abstract.cc
@@ -64,7 +64,6 @@ set(SRC
   intern/usd_writer_transform.cc
 
   usd.h
-  intern/abstract_hierarchy_iterator.h
   intern/usd_exporter_context.h
   intern/usd_hierarchy_iterator.h
   intern/usd_writer_abstract.h
@@ -79,6 +78,7 @@ set(SRC
 set(LIB
   bf_blenkernel
   bf_blenlib
+  bf_io_common
 )
 
 list(APPEND LIB
@@ -100,10 +100,10 @@ endif()
 # Source: https://github.com/PixarAnimationStudios/USD/blob/master/BUILDING.md#linking-whole-archives
 if(WIN32)
   target_link_libraries(bf_usd INTERFACE ${USD_LIBRARIES})
-elseif(CMAKE_COMPILER_IS_GNUCXX)
-  target_link_libraries(bf_usd INTERFACE "-Wl,--whole-archive ${USD_LIBRARIES} -Wl,--no-whole-archive ${TBB_LIBRARIES}")
-elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+elseif(APPLE)
   target_link_libraries(bf_usd INTERFACE -Wl,-force_load ${USD_LIBRARIES})
+elseif(UNIX)
+  target_link_libraries(bf_usd INTERFACE "-Wl,--whole-archive ${USD_LIBRARIES} -Wl,--no-whole-archive ${TBB_LIBRARIES}")
 else()
   message(FATAL_ERROR "Unknown how to link USD with your compiler ${CMAKE_CXX_COMPILER_ID}")
 endif()

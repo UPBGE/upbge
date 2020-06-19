@@ -16,13 +16,11 @@
  * The Original Code is Copyright (C) 2016 Kévin Dietrich.
  * All rights reserved.
  */
+#pragma once
 
 /** \file
  * \ingroup balembic
  */
-
-#ifndef __ABC_READER_ARCHIVE_H__
-#define __ABC_READER_ARCHIVE_H__
 
 #include <Alembic/Abc/All.h>
 #include <Alembic/AbcCoreOgawa/All.h>
@@ -31,6 +29,10 @@
 
 struct Main;
 struct Scene;
+
+namespace blender {
+namespace io {
+namespace alembic {
 
 /* Wrappers around input and output archives. The goal is to be able to use
  * streams so that unicode paths work on Windows (T49112), and to make sure that
@@ -50,4 +52,6 @@ class ArchiveReader {
   Alembic::Abc::IObject getTop();
 };
 
-#endif /* __ABC_READER_ARCHIVE_H__ */
+}  // namespace alembic
+}  // namespace io
+}  // namespace blender

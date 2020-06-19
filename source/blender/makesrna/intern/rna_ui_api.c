@@ -1213,21 +1213,23 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   RNA_def_function_ui_description(func, "Generates the UI layout for the modifier stack");
 
-  func = RNA_def_function(srna, "template_greasepencil_modifier", "uiTemplateGpencilModifier");
+  func = RNA_def_function(srna, "template_constraints", "uiTemplateConstraints");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
-  RNA_def_function_ui_description(func, "Generates the UI layout for grease pencil modifiers");
-  parm = RNA_def_pointer(func, "data", "GpencilModifier", "", "Modifier data");
-  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
-  parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
-  RNA_def_function_return(func, parm);
+  RNA_def_function_ui_description(func, "Generates the panels for the constraint stack");
+  RNA_def_boolean(func,
+                  "use_bone_constraints",
+                  true,
+                  "",
+                  "Add panels for bone constraints instead of object constraints");
+
+  func = RNA_def_function(srna, "template_grease_pencil_modifiers", "uiTemplateGpencilModifiers");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  RNA_def_function_ui_description(func,
+                                  "Generates the panels for the grease pencil modifier stack");
 
   func = RNA_def_function(srna, "template_shaderfx", "uiTemplateShaderFx");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
-  RNA_def_function_ui_description(func, "Generates the UI layout for shader effect");
-  parm = RNA_def_pointer(func, "data", "ShaderFx", "", "Shader data");
-  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
-  parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
-  RNA_def_function_return(func, parm);
+  RNA_def_function_ui_description(func, "Generates the panels for the shader effect stack");
 
   func = RNA_def_function(srna, "template_greasepencil_color", "uiTemplateGpencilColorPreview");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
@@ -1251,12 +1253,10 @@ void RNA_api_ui_layout(StructRNA *srna)
                "",
                "Optionally limit the items which can be selected");
 
-  func = RNA_def_function(srna, "template_constraint", "uiTemplateConstraint");
-  RNA_def_function_ui_description(func, "Generates the UI layout for constraints");
+  func = RNA_def_function(srna, "template_constraint_header", "uiTemplateConstraintHeader");
+  RNA_def_function_ui_description(func, "Generates the header for constraint panels");
   parm = RNA_def_pointer(func, "data", "Constraint", "", "Constraint data");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
-  parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
-  RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "template_preview", "uiTemplatePreview");
   RNA_def_function_ui_description(

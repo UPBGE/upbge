@@ -13,22 +13,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+#pragma once
 
 /** \file
  * \ingroup balembic
  */
 
-#ifndef __ABC_UTIL_H__
-#define __ABC_UTIL_H__
-
 #include <Alembic/Abc/All.h>
 #include <Alembic/AbcGeom/All.h>
-
-#ifdef _MSC_VER
-#  define ABC_INLINE static __forceinline
-#else
-#  define ABC_INLINE static inline
-#endif
 
 /**
  * \brief The CacheReader struct is only used for anonymous pointers,
@@ -41,14 +33,19 @@ struct CacheReader {
 
 using Alembic::Abc::chrono_t;
 
-class AbcObjectReader;
-struct ImportSettings;
-
 struct ID;
 struct Object;
 
+namespace blender {
+namespace io {
+namespace alembic {
+
+class AbcObjectReader;
+struct ImportSettings;
+
 std::string get_id_name(const ID *const id);
 std::string get_id_name(const Object *const ob);
+std::string get_valid_abc_name(const char *name);
 std::string get_object_dag_path_name(const Object *const ob, Object *dupli_parent);
 
 /* Convert from float to Alembic matrix representations. Does NOT convert from Z-up to Y-up. */
@@ -164,4 +161,6 @@ class SimpleLogger {
  */
 std::ostream &operator<<(std::ostream &os, const SimpleLogger &logger);
 
-#endif /* __ABC_UTIL_H__ */
+}  // namespace alembic
+}  // namespace io
+}  // namespace blender

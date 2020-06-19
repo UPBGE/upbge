@@ -22,13 +22,13 @@
  * \ingroup Alembic
  */
 
+#include "BLI_compiler_compat.h"
+
 struct Object;
 
-#ifdef _MSC_VER
-#  define ABC_INLINE static __forceinline
-#else
-#  define ABC_INLINE static inline
-#endif
+namespace blender {
+namespace io {
+namespace alembic {
 
 /* TODO(kevin): for now keeping these transformations hardcoded to make sure
  * everything works properly, and also because Alembic is almost exclusively
@@ -37,7 +37,7 @@ struct Object;
 
 /* Copy from Y-up to Z-up. */
 
-ABC_INLINE void copy_zup_from_yup(float zup[3], const float yup[3])
+BLI_INLINE void copy_zup_from_yup(float zup[3], const float yup[3])
 {
   const float old_yup1 = yup[1]; /* in case zup == yup */
   zup[0] = yup[0];
@@ -45,7 +45,7 @@ ABC_INLINE void copy_zup_from_yup(float zup[3], const float yup[3])
   zup[2] = old_yup1;
 }
 
-ABC_INLINE void copy_zup_from_yup(short zup[3], const short yup[3])
+BLI_INLINE void copy_zup_from_yup(short zup[3], const short yup[3])
 {
   const short old_yup1 = yup[1]; /* in case zup == yup */
   zup[0] = yup[0];
@@ -55,7 +55,7 @@ ABC_INLINE void copy_zup_from_yup(short zup[3], const short yup[3])
 
 /* Copy from Z-up to Y-up. */
 
-ABC_INLINE void copy_yup_from_zup(float yup[3], const float zup[3])
+BLI_INLINE void copy_yup_from_zup(float yup[3], const float zup[3])
 {
   const float old_zup1 = zup[1]; /* in case yup == zup */
   yup[0] = zup[0];
@@ -63,7 +63,7 @@ ABC_INLINE void copy_yup_from_zup(float yup[3], const float zup[3])
   yup[2] = -old_zup1;
 }
 
-ABC_INLINE void copy_yup_from_zup(short yup[3], const short zup[3])
+BLI_INLINE void copy_yup_from_zup(short yup[3], const short zup[3])
 {
   const short old_zup1 = zup[1]; /* in case yup == zup */
   yup[0] = zup[0];
@@ -97,3 +97,7 @@ void create_transform_matrix(Object *obj,
                              float r_transform_mat[4][4],
                              AbcMatrixMode mode,
                              Object *proxy_from);
+
+}  // namespace alembic
+}  // namespace io
+}  // namespace blender

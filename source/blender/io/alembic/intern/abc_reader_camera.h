@@ -13,15 +13,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+#pragma once
 
 /** \file
  * \ingroup balembic
  */
 
-#ifndef __ABC_READER_CAMERA_H__
-#define __ABC_READER_CAMERA_H__
-
 #include "abc_reader_object.h"
+
+namespace blender {
+namespace io {
+namespace alembic {
 
 class AbcCameraReader : public AbcObjectReader {
   Alembic::AbcGeom::ICameraSchema m_schema;
@@ -37,4 +39,6 @@ class AbcCameraReader : public AbcObjectReader {
   void readObjectData(Main *bmain, const Alembic::Abc::ISampleSelector &sample_sel);
 };
 
-#endif /* __ABC_READER_CAMERA_H__ */
+}  // namespace alembic
+}  // namespace io
+}  // namespace blender

@@ -16,13 +16,11 @@
  * The Original Code is Copyright (C) 2016 Kévin Dietrich.
  * All rights reserved.
  */
+#pragma once
 
 /** \file
  * \ingroup balembic
  */
-
-#ifndef __ABC_READER_CURVES_H__
-#define __ABC_READER_CURVES_H__
 
 #include "abc_reader_mesh.h"
 #include "abc_reader_object.h"
@@ -30,6 +28,10 @@
 struct Curve;
 
 #define ABC_CURVE_RESOLUTION_U_PROPNAME "blender:resolution"
+
+namespace blender {
+namespace io {
+namespace alembic {
 
 class AbcCurveReader : public AbcObjectReader {
   Alembic::AbcGeom::ICurvesSchema m_curves_schema;
@@ -53,4 +55,6 @@ class AbcCurveReader : public AbcObjectReader {
                          const Alembic::Abc::ISampleSelector &sample_selector);
 };
 
-#endif /* __ABC_READER_CURVES_H__ */
+}  // namespace alembic
+}  // namespace io
+}  // namespace blender
