@@ -191,6 +191,7 @@ class KX_GameObject : public SCA_IObject {
   //
   PyObject *m_attr_dict;
   PyObject *m_collisionCallbacks;
+  PyObject *m_removeCallbacks;
 #endif
 
   virtual void /* This function should be virtual - derived classed override it */
@@ -716,6 +717,10 @@ class KX_GameObject : public SCA_IObject {
   void UnregisterCollisionCallbacks();
   void RunCollisionCallbacks(KX_GameObject *collider,
                              KX_CollisionContactPointList &contactPointList);
+
+  /* Run the registered python callbacks when the KX_GameObject is removed. */
+  void RunOnRemoveCallbacks();
+
   /**
    * Stop making progress
    */
@@ -987,6 +992,12 @@ class KX_GameObject : public SCA_IObject {
 
   static PyObject *pyattr_get_blender_object(PyObjectPlus *self_v,
                                              const KX_PYATTRIBUTE_DEF *attrdef);
+
+  static PyObject *pyattr_get_remove_callback(PyObjectPlus *self_v,
+                                              const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_remove_callback(PyObjectPlus *self_v,
+                                        const KX_PYATTRIBUTE_DEF *attrdef,
+                                        PyObject *value);
 
   /* Experimental! */
   static PyObject *pyattr_get_sensors(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

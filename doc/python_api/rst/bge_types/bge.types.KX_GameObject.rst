@@ -537,6 +537,27 @@ base class --- :class:`SCA_IObject`
 
       :type: :class:`KX_LodManager`
 
+   .. attribute:: onRemove
+
+      A list of callables to run when the KX_GameObject is destroyed.
+
+         .. code-block:: python
+            @gameobj.onRemove.append
+            def callback(gameobj):
+                print('exiting %s...' % gameobj.name)
+      or
+         .. code-block:: python
+            cont = bge.logic.getCurrentController()
+            gameobj = cont.owner
+
+            def callback():
+                print('exiting' %s...' % gameobj.name)
+
+            gameobj.onRemove.append(callback)
+      :type: list
+
+
+
    .. method:: endObject()
 
       Delete this object, can be used in place of the EndObject Actuator.
