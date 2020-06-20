@@ -76,6 +76,8 @@ class LA_Launcher {
   BL_BlenderConverter *m_converter;
   /// Manage messages.
   KX_NetworkMessageManager *m_networkMessageManager;
+  /// avoid to run audaspace code if audio device fails to initialize
+  bool m_audioDeviceIsInitialized;
 
 #ifdef WITH_PYTHON
   PyObject *m_globalDict;

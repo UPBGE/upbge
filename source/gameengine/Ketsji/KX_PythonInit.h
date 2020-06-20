@@ -47,8 +47,8 @@ PyMODINIT_FUNC initGameLogicPythonBinding(void);
 PyMODINIT_FUNC initGameKeysPythonBinding(void);
 PyMODINIT_FUNC initRasterizerPythonBinding(void);
 PyMODINIT_FUNC initVideoTexturePythonBinding(void);
-void initGamePlayerPythonScripting(struct Main *maggie, int argc, char **argv, struct bContext *C);
-void initGamePythonScripting(struct Main *maggie);
+void initGamePlayerPythonScripting(struct Main *maggie, int argc, char **argv, struct bContext *C, bool audioDeviceIsInitialized);
+void initGamePythonScripting(struct Main *maggie, bool audioDeviceIsInitialized);
 
 // Add a python include path.
 void appendPythonPath(const std::string &path);
@@ -61,7 +61,8 @@ void setupGamePython(KX_KetsjiEngine *ketsjiengine,
                      PyObject **gameLogic,
                      int argc,
                      char **argv,
-                     struct bContext *C);
+                     struct bContext *C,
+                     bool audioDeviceIsInitialized);
 std::string pathGamePythonConfig();
 void saveGamePythonConfig();
 void loadGamePythonConfig();
