@@ -2085,7 +2085,7 @@ static struct _inittab bpy_internal_modules[] = {
  * Python is not initialized.
  * see bpy_interface.c's BPY_python_start() which shares the same functionality in blender.
  */
-void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext *C)
+void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext *C, bool audioDeviveIsInitialized)
 {
   /* Yet another gotcha in the py api
    * Cant run PySys_SetArgv more than once because this adds the
@@ -2185,6 +2185,10 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
     PyObject *mod = PyImport_ImportModuleLevel("aud", nullptr, nullptr, nullptr, 0);
     if (mod) {  // avoiding crash if audio device can not be initialized
       Py_DECREF(mod);
+      audioDeviveIsInitialized = true;
+    }
+    else {
+      audioDeviveIsInitialized = false;
     }
   }
 #  endif
@@ -2226,7 +2230,7 @@ void exitGamePlayerPythonScripting()
 /**
  * Python is already initialized.
  */
-void initGamePythonScripting(Main *maggie)
+void initGamePythonScripting(Main *maggie, bool audioDeviceIsInitialized)
 {
   /* Yet another gotcha in the py api
    * Cant run PySys_SetArgv more than once because this adds the
@@ -2299,6 +2303,10 @@ void initGamePythonScripting(Main *maggie)
     PyObject *mod = PyImport_ImportModuleLevel("aud", nullptr, nullptr, nullptr, 0);
     if (mod) {  // avoiding crash if audio device can not be initialized
       Py_DECREF(mod);
+      audioDeviceIsInitialized = true;
+    }
+    else {
+      audioDeviceIsInitialized = false;
     }
   }
 #  endif
@@ -2339,14 +2347,15 @@ void setupGamePython(KX_KetsjiEngine *ketsjiengine,
                      PyObject **gameLogic,
                      int argc,
                      char **argv,
-                     bContext *C)
+                     bContext *C,
+                     bool audioDeviceIsInitialized)
 {
   PyObject *modules;
 
   if (argv) /* player only */
-    initGamePlayerPythonScripting(blenderdata, argc, argv, C);
+    initGamePlayerPythonScripting(blenderdata, argc, argv, C, audioDeviceIsInitialized);
   else
-    initGamePythonScripting(blenderdata);
+    initGamePythonScripting(blenderdata, audioDeviceIsInitialized);
 
   modules = PyImport_GetModuleDict();
 
