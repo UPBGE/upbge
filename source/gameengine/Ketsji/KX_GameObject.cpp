@@ -105,7 +105,8 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
 #ifdef WITH_PYTHON
       ,
       m_attr_dict(nullptr),
-      m_collisionCallbacks(nullptr)
+      m_collisionCallbacks(nullptr),
+      m_removeCallbacks(nullptr)
 #endif
 {
   m_ignore_activity_culling = false;
@@ -124,6 +125,11 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
 KX_GameObject::~KX_GameObject()
 {
 #ifdef WITH_PYTHON
+
+    /* onRemove callbacks */
+  RunOnRemoveCallbacks();
+  Py_CLEAR(m_removeCallbacks);
+
   if (m_attr_dict) {
     PyDict_Clear(m_attr_dict); /* in case of circular refs or other weird cases */
     /* Py_CLEAR: Py_DECREF's and nullptr's */
@@ -1695,6 +1701,21 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider,
 #endif
 }
 
+void KX_GameObject::RunOnRemoveCallbacks()
+{
+#ifdef WITH_PYTHON
+  PyObject *list = m_removeCallbacks;
+  if (!list || PyList_GET_SIZE(list) == 0) {
+    return;
+  }
+
+  PyObject *args[1] = {GetProxy()};
+  RunPythonCallBackList(list, args, 0, 1);
+#endif // WITH PYTHON
+}
+
+
+
 /* Suspend/ resume: for the dynamic behavior, there is a simple
  * method. For the residual motion, there is not. I wonder what the
  * correct solution is for Sumo. Remove from the motion-update tree?
@@ -2142,6 +2163,8 @@ PyAttributeDef KX_GameObject::Attributes[] = {
                                KX_GameObject,
                                pyattr_get_collisionCallbacks,
                                pyattr_set_collisionCallbacks),
+    KX_PYATTRIBUTE_RW_FUNCTION(
+        "onRemove", KX_GameObject, pyattr_get_remove_callback, pyattr_set_remove_callback),
     KX_PYATTRIBUTE_RW_FUNCTION(
         "collisionGroup", KX_GameObject, pyattr_get_collisionGroup, pyattr_set_collisionGroup),
     KX_PYATTRIBUTE_RW_FUNCTION(
@@ -2630,6 +2653,39 @@ int KX_GameObject::pyattr_set_collisionCallbacks(PyObjectPlus *self_v,
   Py_INCREF(value);
 
   self->m_collisionCallbacks = value;
+
+  return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_remove_callback(PyObjectPlus *self_v,
+                                               const KX_PYATTRIBUTE_DEF *attrdef)
+{
+  KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+
+  if (!self->m_removeCallbacks) {
+    self->m_removeCallbacks = PyList_New(0);
+  }
+
+  Py_INCREF(self->m_removeCallbacks);
+
+  return self->m_removeCallbacks;
+}
+
+int KX_GameObject::pyattr_set_remove_callback(PyObjectPlus *self_v,
+                                         const KX_PYATTRIBUTE_DEF *attrdef,
+                                         PyObject *value)
+{
+  KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+
+  if (!PyList_CheckExact(value)) {
+    PyErr_SetString(PyExc_ValueError, "Expected a list");
+    return PY_SET_ATTR_FAIL;
+  }
+
+  Py_XDECREF(self->m_removeCallbacks);
+
+  Py_INCREF(value);
+  self->m_removeCallbacks = value;
 
   return PY_SET_ATTR_SUCCESS;
 }
