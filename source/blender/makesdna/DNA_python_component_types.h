@@ -27,12 +27,12 @@
 
 typedef struct PythonComponentProperty {
   struct PythonComponentProperty *next, *prev;
-  char name[64];
+  char name[128]; /* 128 = MAX_PROPSTRING */
   short type;
   short boolval;
   int intval;
   float floatval;
-  char strval[64];
+  char strval[128]; /* 128 = MAX_PROPSTRING */
   int itemval;
   float vec[4];
   ListBase enumval;
@@ -41,8 +41,10 @@ typedef struct PythonComponentProperty {
 typedef struct PythonComponent {
   struct PythonComponent *next, *prev;
   ListBase properties;
-  char name[64];
-  char module[64];
+  char name[1024];   /* 1024 = FILE_MAX */
+  char module[1024]; /* 1024 = FILE_MAX */
+  int flag;
+  int _pad;
 } PythonComponent;
 
 /* PythonComponentProperty.type */
@@ -54,5 +56,9 @@ typedef struct PythonComponent {
 #define CPROP_TYPE_VEC2 5
 #define CPROP_TYPE_VEC3 6
 #define CPROP_TYPE_VEC4 7
+#define CPROP_TYPE_COL3 8
+#define CPROP_TYPE_COL4 9
+
+enum { COMPONENT_SHOW = (1 << 0) };
 
 #endif /* __DNA_COMPONENT_TYPES_H__ */

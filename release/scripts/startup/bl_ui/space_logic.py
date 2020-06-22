@@ -40,20 +40,24 @@ class LOGIC_PT_components(bpy.types.Panel):
         st = context.space_data
 
         row = layout.row()
-        row.operator("logic.add_python_component", text="Add Component", icon="PLUS")
+        row.operator("logic.python_component_register", text="Register Component", icon="PLUS")
+        row.operator("logic.python_component_create", text="Create Component", icon="PLUS")
 
         for i, c in enumerate(game.components):
             box = layout.box()
             row = box.row()
-            row.prop(c, "name", text="")
-            row.operator("logic.component_reload", text="", icon='RECOVER_LAST').index = i
-            row.operator("logic.component_remove", text="", icon='X').index = i
+            row.prop(c, "show_expanded", text="", emboss=False)
+            row.label(text=c.name)
+            row.operator("logic.python_component_reload", text="", icon='RECOVER_LAST').index = i
+            row.operator("logic.python_component_remove", text="", icon='X').index = i
 
-            for prop in c.properties:
-                row = box.row()
-                row.label(text=prop.name)
-                col = row.column()
-                col.prop(prop, "value", text="")
+            if c.show_expanded and len(c.properties) > 0:
+                box = box.box()
+                for prop in c.properties:
+                    row = box.row()
+                    row.label(text=prop.name)
+                    col = row.column()
+                    col.prop(prop, "value", text="")
 
 
 class LOGIC_PT_properties(Panel):
