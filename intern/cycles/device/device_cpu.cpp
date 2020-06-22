@@ -55,6 +55,7 @@
 #include "util/util_optimization.h"
 #include "util/util_progress.h"
 #include "util/util_system.h"
+#include "util/util_task.h"
 #include "util/util_thread.h"
 
 CCL_NAMESPACE_BEGIN
@@ -161,7 +162,7 @@ class CPUSplitKernel : public DeviceSplitKernel {
   virtual SplitKernelFunction *get_split_kernel_function(const string &kernel_name,
                                                          const DeviceRequestedFeatures &);
   virtual int2 split_kernel_local_size();
-  virtual int2 split_kernel_global_size(device_memory &kg, device_memory &data, DeviceTask *task);
+  virtual int2 split_kernel_global_size(device_memory &kg, device_memory &data, DeviceTask &task);
   virtual uint64_t state_buffer_size(device_memory &kg, device_memory &data, size_t num_threads);
 };
 
@@ -332,7 +333,7 @@ class CPUDevice : public Device {
 
   ~CPUDevice()
   {
-    task_pool.stop();
+    task_pool.cancel();
     texture_info.free();
   }
 
@@ -344,17 +345,6 @@ class CPUDevice : public Device {
   virtual BVHLayoutMask get_bvh_layout_mask() const
   {
     BVHLayoutMask bvh_layout_mask = BVH_LAYOUT_BVH2;
-    if (DebugFlags().cpu.has_sse2() && system_cpu_support_sse2()) {
-      bvh_layout_mask |= BVH_LAYOUT_BVH4;
-    }
-    /* MSVC does not support the -march=native switch and you always end up  */
-    /* with an sse2 kernel when you use WITH_KERNEL_NATIVE. We *cannot* feed */
-    /* that kernel BVH8 even if the CPU flags would allow for it. */
-#if (defined(__x86_64__) || defined(_M_X64)) && !(defined(_MSC_VER) && defined(WITH_KERNEL_NATIVE))
-    if (DebugFlags().cpu.has_avx2() && system_cpu_support_avx2()) {
-      bvh_layout_mask |= BVH_LAYOUT_BVH8;
-    }
-#endif
 #ifdef WITH_EMBREE
     bvh_layout_mask |= BVH_LAYOUT_EMBREE;
 #endif /* WITH_EMBREE */
@@ -527,25 +517,17 @@ class CPUDevice : public Device {
 #endif
   }
 
-  void thread_run(DeviceTask *task)
+  void thread_run(DeviceTask &task)
   {
-    if (task->type == DeviceTask::RENDER)
-      thread_render(*task);
-    else if (task->type == DeviceTask::SHADER)
-      thread_shader(*task);
-    else if (task->type == DeviceTask::FILM_CONVERT)
-      thread_film_convert(*task);
-    else if (task->type == DeviceTask::DENOISE_BUFFER)
-      thread_denoise(*task);
+    if (task.type == DeviceTask::RENDER)
+      thread_render(task);
+    else if (task.type == DeviceTask::SHADER)
+      thread_shader(task);
+    else if (task.type == DeviceTask::FILM_CONVERT)
+      thread_film_convert(task);
+    else if (task.type == DeviceTask::DENOISE_BUFFER)
+      thread_denoise(task);
   }
-
-  class CPUDeviceTask : public DeviceTask {
-   public:
-    CPUDeviceTask(CPUDevice *device, DeviceTask &task) : DeviceTask(task)
-    {
-      run = function_bind(&CPUDevice::thread_run, device, this);
-    }
-  };
 
   bool denoising_non_local_means(device_ptr image_ptr,
                                  device_ptr guide_ptr,
@@ -1027,7 +1009,7 @@ class CPUDevice : public Device {
       if (tile.task == RenderTile::PATH_TRACE) {
         if (use_split_kernel) {
           device_only_memory<uchar> void_buffer(this, "void_buffer");
-          split_kernel->path_trace(&task, tile, kgbuffer, void_buffer);
+          split_kernel->path_trace(task, tile, kgbuffer, void_buffer);
         }
         else {
           render(task, tile, kg);
@@ -1160,8 +1142,12 @@ class CPUDevice : public Device {
     else
       task.split(tasks, info.cpu_threads);
 
-    foreach (DeviceTask &task, tasks)
-      task_pool.push(new CPUDeviceTask(this, task));
+    foreach (DeviceTask &task, tasks) {
+      task_pool.push([=] {
+        DeviceTask task_copy = task;
+        thread_run(task_copy);
+      });
+    }
   }
 
   void task_wait()
@@ -1326,7 +1312,7 @@ int2 CPUSplitKernel::split_kernel_local_size()
 
 int2 CPUSplitKernel::split_kernel_global_size(device_memory & /*kg*/,
                                               device_memory & /*data*/,
-                                              DeviceTask * /*task*/)
+                                              DeviceTask & /*task*/)
 {
   return make_int2(1, 1);
 }

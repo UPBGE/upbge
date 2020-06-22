@@ -55,8 +55,7 @@ enum_displacement_methods = (
 
 enum_bvh_layouts = (
     ('BVH2', "BVH2", "", 1),
-    ('BVH4', "BVH4", "", 2),
-    ('BVH8', "BVH8", "", 4),
+    ('EMBREE', "Embree", "", 4),
 )
 
 enum_bvh_types = (
@@ -78,20 +77,9 @@ enum_panorama_types = (
     ('MIRRORBALL', "Mirror Ball", "Uses the mirror ball mapping"),
 )
 
-enum_curve_primitives = (
-    ('TRIANGLES', "Triangles", "Create triangle geometry around strands"),
-    ('LINE_SEGMENTS', "Line Segments", "Use line segment primitives"),
-    ('CURVE_SEGMENTS', "Curve Segments", "Use segmented cardinal curve primitives"),
-)
-
-enum_triangle_curves = (
-    ('CAMERA_TRIANGLES', "Planes", "Create individual triangles forming planes that face camera"),
-    ('TESSELLATED_TRIANGLES', "Tessellated", "Create mesh surrounding each strand"),
-)
-
 enum_curve_shape = (
-    ('RIBBONS', "Ribbons", "Ignore thickness of each strand"),
-    ('THICK', "Thick", "Use thickness of strand when rendering"),
+    ('RIBBONS', "Rounded Ribbons", "Render hair as flat ribbon with rounded normals, for fast rendering"),
+    ('THICK', "3D Curves", "Render hair as 3D curve, for accurate results when viewing hair close up"),
 )
 
 enum_tile_order = (
@@ -629,11 +617,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         items=enum_bvh_types,
         default='DYNAMIC_BVH',
     )
-    use_bvh_embree: BoolProperty(
-        name="Use Embree",
-        description="Use Embree as ray accelerator",
-        default=False,
-    )
     debug_use_spatial_splits: BoolProperty(
         name="Use Spatial Splits",
         description="Use BVH spatial splits: longer builder time, faster render",
@@ -786,7 +769,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     debug_bvh_layout: EnumProperty(
         name="BVH Layout",
         items=enum_bvh_layouts,
-        default='BVH8',
+        default='EMBREE',
     )
     debug_use_cpu_split_kernel: BoolProperty(name="Split Kernel", default=False)
 
@@ -1241,39 +1224,17 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
 
 class CyclesCurveRenderSettings(bpy.types.PropertyGroup):
 
-    primitive: EnumProperty(
-        name="Primitive",
-        description="Type of primitive used for hair rendering",
-        items=enum_curve_primitives,
-        default='LINE_SEGMENTS',
-    )
     shape: EnumProperty(
         name="Shape",
         description="Form of hair",
         items=enum_curve_shape,
-        default='THICK',
-    )
-    cull_backfacing: BoolProperty(
-        name="Cull Back-faces",
-        description="Do not test the back-face of each strand",
-        default=True,
-    )
-    use_curves: BoolProperty(
-        name="Use Cycles Hair Rendering",
-        description="Activate Cycles hair rendering for particle system",
-        default=True,
-    )
-    resolution: IntProperty(
-        name="Resolution",
-        description="Resolution of generated mesh",
-        min=3, max=64,
-        default=3,
+        default='RIBBONS',
     )
     subdivisions: IntProperty(
         name="Subdivisions",
         description="Number of subdivisions used in Cardinal curve intersection (power of 2)",
         min=0, max=24,
-        default=4,
+        default=2,
     )
 
     @classmethod

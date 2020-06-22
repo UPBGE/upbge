@@ -35,14 +35,6 @@ CCL_NAMESPACE_BEGIN
 
 #ifndef __KERNEL_OPTIX__
 
-/* Common QBVH functions. */
-#  ifdef __QBVH__
-#    include "kernel/bvh/qbvh_nodes.h"
-#    ifdef __KERNEL_AVX2__
-#      include "kernel/bvh/obvh_nodes.h"
-#    endif
-#  endif
-
 /* Regular BVH traversal */
 
 #  include "kernel/bvh/bvh_nodes.h"
@@ -51,27 +43,21 @@ CCL_NAMESPACE_BEGIN
 #  define BVH_FUNCTION_FEATURES 0
 #  include "kernel/bvh/bvh_traversal.h"
 
-#  if defined(__INSTANCING__)
-#    define BVH_FUNCTION_NAME bvh_intersect_instancing
-#    define BVH_FUNCTION_FEATURES BVH_INSTANCING
-#    include "kernel/bvh/bvh_traversal.h"
-#  endif
-
 #  if defined(__HAIR__)
 #    define BVH_FUNCTION_NAME bvh_intersect_hair
-#    define BVH_FUNCTION_FEATURES BVH_INSTANCING | BVH_HAIR
+#    define BVH_FUNCTION_FEATURES BVH_HAIR
 #    include "kernel/bvh/bvh_traversal.h"
 #  endif
 
 #  if defined(__OBJECT_MOTION__)
 #    define BVH_FUNCTION_NAME bvh_intersect_motion
-#    define BVH_FUNCTION_FEATURES BVH_INSTANCING | BVH_MOTION
+#    define BVH_FUNCTION_FEATURES BVH_MOTION
 #    include "kernel/bvh/bvh_traversal.h"
 #  endif
 
 #  if defined(__HAIR__) && defined(__OBJECT_MOTION__)
 #    define BVH_FUNCTION_NAME bvh_intersect_hair_motion
-#    define BVH_FUNCTION_FEATURES BVH_INSTANCING | BVH_HAIR | BVH_MOTION
+#    define BVH_FUNCTION_FEATURES BVH_HAIR | BVH_MOTION
 #    include "kernel/bvh/bvh_traversal.h"
 #  endif
 
@@ -96,15 +82,9 @@ CCL_NAMESPACE_BEGIN
 #    define BVH_FUNCTION_FEATURES BVH_HAIR
 #    include "kernel/bvh/bvh_volume.h"
 
-#    if defined(__INSTANCING__)
-#      define BVH_FUNCTION_NAME bvh_intersect_volume_instancing
-#      define BVH_FUNCTION_FEATURES BVH_INSTANCING | BVH_HAIR
-#      include "kernel/bvh/bvh_volume.h"
-#    endif
-
 #    if defined(__OBJECT_MOTION__)
 #      define BVH_FUNCTION_NAME bvh_intersect_volume_motion
-#      define BVH_FUNCTION_FEATURES BVH_INSTANCING | BVH_MOTION | BVH_HAIR
+#      define BVH_FUNCTION_FEATURES BVH_MOTION | BVH_HAIR
 #      include "kernel/bvh/bvh_volume.h"
 #    endif
 #  endif /* __VOLUME__ */
@@ -116,27 +96,21 @@ CCL_NAMESPACE_BEGIN
 #    define BVH_FUNCTION_FEATURES 0
 #    include "kernel/bvh/bvh_shadow_all.h"
 
-#    if defined(__INSTANCING__)
-#      define BVH_FUNCTION_NAME bvh_intersect_shadow_all_instancing
-#      define BVH_FUNCTION_FEATURES BVH_INSTANCING
-#      include "kernel/bvh/bvh_shadow_all.h"
-#    endif
-
 #    if defined(__HAIR__)
 #      define BVH_FUNCTION_NAME bvh_intersect_shadow_all_hair
-#      define BVH_FUNCTION_FEATURES BVH_INSTANCING | BVH_HAIR
+#      define BVH_FUNCTION_FEATURES BVH_HAIR
 #      include "kernel/bvh/bvh_shadow_all.h"
 #    endif
 
 #    if defined(__OBJECT_MOTION__)
 #      define BVH_FUNCTION_NAME bvh_intersect_shadow_all_motion
-#      define BVH_FUNCTION_FEATURES BVH_INSTANCING | BVH_MOTION
+#      define BVH_FUNCTION_FEATURES BVH_MOTION
 #      include "kernel/bvh/bvh_shadow_all.h"
 #    endif
 
 #    if defined(__HAIR__) && defined(__OBJECT_MOTION__)
 #      define BVH_FUNCTION_NAME bvh_intersect_shadow_all_hair_motion
-#      define BVH_FUNCTION_FEATURES BVH_INSTANCING | BVH_HAIR | BVH_MOTION
+#      define BVH_FUNCTION_FEATURES BVH_HAIR | BVH_MOTION
 #      include "kernel/bvh/bvh_shadow_all.h"
 #    endif
 #  endif /* __SHADOW_RECORD_ALL__ */
@@ -148,15 +122,9 @@ CCL_NAMESPACE_BEGIN
 #    define BVH_FUNCTION_FEATURES BVH_HAIR
 #    include "kernel/bvh/bvh_volume_all.h"
 
-#    if defined(__INSTANCING__)
-#      define BVH_FUNCTION_NAME bvh_intersect_volume_all_instancing
-#      define BVH_FUNCTION_FEATURES BVH_INSTANCING | BVH_HAIR
-#      include "kernel/bvh/bvh_volume_all.h"
-#    endif
-
 #    if defined(__OBJECT_MOTION__)
 #      define BVH_FUNCTION_NAME bvh_intersect_volume_all_motion
-#      define BVH_FUNCTION_FEATURES BVH_INSTANCING | BVH_MOTION | BVH_HAIR
+#      define BVH_FUNCTION_FEATURES BVH_MOTION | BVH_HAIR
 #      include "kernel/bvh/bvh_volume_all.h"
 #    endif
 #  endif /* __VOLUME_RECORD_ALL__ */
@@ -264,21 +232,8 @@ ccl_device_intersect bool scene_intersect(KernelGlobals *kg,
   }
 #  endif /* __HAIR__ */
 
-#  ifdef __KERNEL_CPU__
-#    ifdef __INSTANCING__
-  if (kernel_data.bvh.have_instancing) {
-    return bvh_intersect_instancing(kg, ray, isect, visibility);
-  }
-#    endif /* __INSTANCING__ */
   return bvh_intersect(kg, ray, isect, visibility);
-#  else    /* __KERNEL_CPU__ */
-#    ifdef __INSTANCING__
-  return bvh_intersect_instancing(kg, ray, isect, visibility);
-#    else
-  return bvh_intersect(kg, ray, isect, visibility);
-#    endif /* __INSTANCING__ */
-#  endif   /* __KERNEL_CPU__ */
-#endif     /* __KERNEL_OPTIX__ */
+#endif   /* __KERNEL_OPTIX__ */
 }
 
 #ifdef __BVH_LOCAL__
@@ -476,21 +431,8 @@ ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals *kg,
   }
 #    endif /* __HAIR__ */
 
-#    ifdef __KERNEL_CPU__
-#      ifdef __INSTANCING__
-  if (kernel_data.bvh.have_instancing) {
-    return bvh_intersect_shadow_all_instancing(kg, ray, isect, visibility, max_hits, num_hits);
-  }
-#      endif /* __INSTANCING__ */
   return bvh_intersect_shadow_all(kg, ray, isect, visibility, max_hits, num_hits);
-#    else
-#      ifdef __INSTANCING__
-  return bvh_intersect_shadow_all_instancing(kg, ray, isect, visibility, max_hits, num_hits);
-#      else
-  return bvh_intersect_shadow_all(kg, ray, isect, visibility, max_hits, num_hits);
-#      endif /* __INSTANCING__ */
-#    endif   /* __KERNEL_CPU__ */
-#  endif     /* __KERNEL_OPTIX__ */
+#  endif   /* __KERNEL_OPTIX__ */
 }
 #endif /* __SHADOW_RECORD_ALL__ */
 
@@ -548,21 +490,8 @@ ccl_device_intersect bool scene_intersect_volume(KernelGlobals *kg,
   }
 #    endif /* __OBJECT_MOTION__ */
 
-#    ifdef __KERNEL_CPU__
-#      ifdef __INSTANCING__
-  if (kernel_data.bvh.have_instancing) {
-    return bvh_intersect_volume_instancing(kg, ray, isect, visibility);
-  }
-#      endif /* __INSTANCING__ */
   return bvh_intersect_volume(kg, ray, isect, visibility);
-#    else    /* __KERNEL_CPU__ */
-#      ifdef __INSTANCING__
-  return bvh_intersect_volume_instancing(kg, ray, isect, visibility);
-#      else
-  return bvh_intersect_volume(kg, ray, isect, visibility);
-#      endif /* __INSTANCING__ */
-#    endif   /* __KERNEL_CPU__ */
-#  endif     /* __KERNEL_OPTIX__ */
+#  endif   /* __KERNEL_OPTIX__ */
 }
 #endif /* __VOLUME__ */
 
@@ -599,11 +528,6 @@ ccl_device_intersect uint scene_intersect_volume_all(KernelGlobals *kg,
   }
 #  endif /* __OBJECT_MOTION__ */
 
-#  ifdef __INSTANCING__
-  if (kernel_data.bvh.have_instancing) {
-    return bvh_intersect_volume_all_instancing(kg, ray, isect, max_hits, visibility);
-  }
-#  endif /* __INSTANCING__ */
   return bvh_intersect_volume_all(kg, ray, isect, max_hits, visibility);
 }
 #endif /* __VOLUME_RECORD_ALL__ */

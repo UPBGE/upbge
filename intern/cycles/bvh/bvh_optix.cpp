@@ -18,10 +18,14 @@
 #ifdef WITH_OPTIX
 
 #  include "bvh/bvh_optix.h"
+
+#  include "device/device.h"
+
 #  include "render/geometry.h"
 #  include "render/hair.h"
 #  include "render/mesh.h"
 #  include "render/object.h"
+
 #  include "util/util_foreach.h"
 #  include "util/util_logging.h"
 #  include "util/util_progress.h"
@@ -73,9 +77,12 @@ void BVHOptiX::pack_blas()
       // 'pack.prim_time' is only used in geom_curve_intersect.h
       // It is not needed because of OPTIX_MOTION_FLAG_[START|END]_VANISH
 
-      uint type = PRIMITIVE_CURVE;
-      if (hair->use_motion_blur && hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION))
-        type = PRIMITIVE_MOTION_CURVE;
+      uint type = (hair->use_motion_blur &&
+                   hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)) ?
+                      ((hair->curve_shape == CURVE_RIBBON) ? PRIMITIVE_MOTION_CURVE_RIBBON :
+                                                             PRIMITIVE_MOTION_CURVE_THICK) :
+                      ((hair->curve_shape == CURVE_RIBBON) ? PRIMITIVE_CURVE_RIBBON :
+                                                             PRIMITIVE_CURVE_THICK);
 
       for (size_t j = 0; j < num_curves; ++j) {
         const Hair::Curve curve = hair->get_curve(j);

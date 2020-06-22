@@ -206,9 +206,6 @@ ccl_device int bsdf_principled_hair_setup(ShaderData *sd, PrincipledHairBSDF *bs
   float3 X = safe_normalize(sd->dPdu);
   float3 Y = safe_normalize(cross(X, sd->I));
   float3 Z = safe_normalize(cross(X, Y));
-  /* TODO: the solution below works where sd->Ng is the normal
-   * pointing from the center of the curve to the shading point.
-   * It doesn't work for triangles, see https://developer.blender.org/T43625 */
 
   /* h -1..0..1 means the rays goes from grazing the hair, to hitting it at
    * the center, to grazing the other edge. This is the sine of the angle
@@ -216,7 +213,9 @@ ccl_device int bsdf_principled_hair_setup(ShaderData *sd, PrincipledHairBSDF *bs
 
   /* TODO: we convert this value to a cosine later and discard the sign, so
    * we could probably save some operations. */
-  float h = dot(cross(sd->Ng, X), Z);
+  float h = (sd->type & (PRIMITIVE_CURVE_RIBBON | PRIMITIVE_MOTION_CURVE_RIBBON)) ?
+                -sd->v :
+                dot(cross(sd->Ng, X), Z);
 
   kernel_assert(fabsf(h) < 1.0f + 1e-4f);
   kernel_assert(isfinite3_safe(Y));

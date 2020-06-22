@@ -212,7 +212,6 @@ void BlenderSync::sync_data(BL::RenderSettings &b_render,
   sync_film(b_v3d);
   sync_shaders(b_depsgraph, b_v3d);
   sync_images();
-  sync_curve_settings(b_depsgraph);
 
   geometry_synced.clear(); /* use for objects and motion sync */
 
@@ -732,6 +731,11 @@ SceneParams BlenderSync::get_scene_params(BL::Scene &b_scene, bool background)
   params.use_bvh_unaligned_nodes = RNA_boolean_get(&cscene, "debug_use_hair_bvh");
   params.num_bvh_time_steps = RNA_int_get(&cscene, "debug_bvh_time_steps");
 
+  PointerRNA csscene = RNA_pointer_get(&b_scene.ptr, "cycles_curves");
+  params.hair_subdivisions = get_int(csscene, "subdivisions");
+  params.hair_shape = (CurveShapeType)get_enum(
+      csscene, "shape", CURVE_NUM_SHAPE_TYPES, CURVE_THICK);
+
   if (background && params.shadingsystem != SHADINGSYSTEM_OSL)
     params.persistent_data = r.use_persistent_data();
   else
@@ -751,20 +755,7 @@ SceneParams BlenderSync::get_scene_params(BL::Scene &b_scene, bool background)
     params.texture_limit = 0;
   }
 
-  /* TODO(sergey): Once OSL supports per-microarchitecture optimization get
-   * rid of this.
-   */
-  if (params.shadingsystem == SHADINGSYSTEM_OSL) {
-    params.bvh_layout = BVH_LAYOUT_BVH4;
-  }
-  else {
-    params.bvh_layout = DebugFlags().cpu.bvh_layout;
-  }
-
-#ifdef WITH_EMBREE
-  params.bvh_layout = RNA_boolean_get(&cscene, "use_bvh_embree") ? BVH_LAYOUT_EMBREE :
-                                                                   params.bvh_layout;
-#endif
+  params.bvh_layout = DebugFlags().cpu.bvh_layout;
 
   params.background = background;
 

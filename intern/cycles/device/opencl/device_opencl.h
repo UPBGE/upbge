@@ -23,6 +23,7 @@
 #  include "util/util_map.h"
 #  include "util/util_param.h"
 #  include "util/util_string.h"
+#  include "util/util_task.h"
 
 #  include "clew.h"
 
@@ -258,6 +259,8 @@ class OpenCLDevice : public Device {
   TaskPool load_required_kernel_task_pool;
   /* Task pool for optional kernels (feature kernels during foreground rendering) */
   TaskPool load_kernel_task_pool;
+  std::atomic<int> load_kernel_num_compiling;
+
   cl_context cxContext;
   cl_command_queue cqCommandQueue;
   cl_platform_id cpPlatform;
@@ -455,14 +458,6 @@ class OpenCLDevice : public Device {
 
   void denoise(RenderTile &tile, DenoisingTask &denoising);
 
-  class OpenCLDeviceTask : public DeviceTask {
-   public:
-    OpenCLDeviceTask(OpenCLDevice *device, DeviceTask &task) : DeviceTask(task)
-    {
-      run = function_bind(&OpenCLDevice::thread_run, device, this);
-    }
-  };
-
   int get_split_task_count(DeviceTask & /*task*/)
   {
     return 1;
@@ -470,7 +465,10 @@ class OpenCLDevice : public Device {
 
   void task_add(DeviceTask &task)
   {
-    task_pool.push(new OpenCLDeviceTask(this, task));
+    task_pool.push([=] {
+      DeviceTask task_copy = task;
+      thread_run(task_copy);
+    });
   }
 
   void task_wait()
@@ -483,7 +481,7 @@ class OpenCLDevice : public Device {
     task_pool.cancel();
   }
 
-  void thread_run(DeviceTask *task);
+  void thread_run(DeviceTask &task);
 
   virtual BVHLayoutMask get_bvh_layout_mask() const
   {

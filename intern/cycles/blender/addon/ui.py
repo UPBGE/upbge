@@ -387,13 +387,6 @@ class CYCLES_RENDER_PT_hair(CyclesButtonsPanel, Panel):
     bl_label = "Hair"
     bl_options = {'DEFAULT_CLOSED'}
 
-    def draw_header(self, context):
-        layout = self.layout
-        scene = context.scene
-        ccscene = scene.cycles_curves
-
-        layout.prop(ccscene, "use_curves", text="")
-
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
@@ -402,17 +395,9 @@ class CYCLES_RENDER_PT_hair(CyclesButtonsPanel, Panel):
         scene = context.scene
         ccscene = scene.cycles_curves
 
-        layout.active = ccscene.use_curves
-
         col = layout.column()
         col.prop(ccscene, "shape", text="Shape")
-        if not (ccscene.primitive in {'CURVE_SEGMENTS', 'LINE_SEGMENTS'} and ccscene.shape == 'RIBBONS'):
-            col.prop(ccscene, "cull_backfacing", text="Cull back-faces")
-        col.prop(ccscene, "primitive", text="Primitive")
-
-        if ccscene.primitive == 'TRIANGLES' and ccscene.shape == 'THICK':
-            col.prop(ccscene, "resolution", text="Resolution")
-        elif ccscene.primitive == 'CURVE_SEGMENTS':
+        if ccscene.shape == 'RIBBONS':
             col.prop(ccscene, "subdivisions", text="Curve subdivisions")
 
 
@@ -693,16 +678,20 @@ class CYCLES_RENDER_PT_performance_acceleration_structure(CyclesButtonsPanel, Pa
 
         col = layout.column()
 
-        if _cycles.with_embree:
-            row = col.row()
-            row.active = use_cpu(context)
-            row.prop(cscene, "use_bvh_embree")
+        use_embree = False
+        if use_cpu(context):
+            use_embree = _cycles.with_embree
+            if not use_embree:
+              sub = col.column(align=True)
+              sub.label(text="Cycles built without Embree support")
+              sub.label(text="CPU raytracing performance will be poor")
+
         col.prop(cscene, "debug_use_spatial_splits")
         sub = col.column()
-        sub.active = not cscene.use_bvh_embree or not _cycles.with_embree
+        sub.active = not use_embree
         sub.prop(cscene, "debug_use_hair_bvh")
         sub = col.column()
-        sub.active = not cscene.debug_use_spatial_splits and not cscene.use_bvh_embree
+        sub.active = not cscene.debug_use_spatial_splits and not use_embree
         sub.prop(cscene, "debug_bvh_time_steps")
 
 

@@ -20,6 +20,8 @@
 #include "util/util_array.h"
 #include "util/util_types.h"
 
+#include "render/hair.h"
+
 CCL_NAMESPACE_BEGIN
 
 class Device;
@@ -28,33 +30,6 @@ class Progress;
 class Scene;
 
 void curvebounds(float *lower, float *upper, float3 *p, int dim);
-
-typedef enum CurvePrimitiveType {
-  CURVE_TRIANGLES = 0,
-  CURVE_LINE_SEGMENTS = 1,
-  CURVE_SEGMENTS = 2,
-  CURVE_RIBBONS = 3,
-
-  CURVE_NUM_PRIMITIVE_TYPES,
-} CurvePrimitiveType;
-
-typedef enum CurveShapeType {
-  CURVE_RIBBON = 0,
-  CURVE_THICK = 1,
-
-  CURVE_NUM_SHAPE_TYPES,
-} CurveShapeType;
-
-typedef enum CurveTriangleMethod {
-  CURVE_CAMERA_TRIANGLES,
-  CURVE_TESSELATED_TRIANGLES
-} CurveTriangleMethod;
-
-typedef enum CurveLineMethod {
-  CURVE_ACCURATE,
-  CURVE_CORRECTED,
-  CURVE_UNCORRECTED
-} CurveLineMethod;
 
 class ParticleCurveData {
 
@@ -79,37 +54,6 @@ class ParticleCurveData {
 
   array<float3> curvekey_co;
   array<float> curvekey_time;
-};
-
-/* HairSystem Manager */
-
-class CurveSystemManager {
- public:
-  CurvePrimitiveType primitive;
-  CurveShapeType curve_shape;
-  CurveLineMethod line_method;
-  CurveTriangleMethod triangle_method;
-  int resolution;
-  int subdivisions;
-
-  bool use_curves;
-  bool use_encasing;
-  bool use_backfacing;
-  bool use_tangent_normal_geometry;
-
-  bool need_update;
-  bool need_mesh_update;
-
-  CurveSystemManager();
-  ~CurveSystemManager();
-
-  void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress);
-  void device_free(Device *device, DeviceScene *dscene);
-  bool modified(const CurveSystemManager &CurveSystemManager);
-  bool modified_mesh(const CurveSystemManager &CurveSystemManager);
-
-  void tag_update(Scene *scene);
-  void tag_update_mesh();
 };
 
 CCL_NAMESPACE_END

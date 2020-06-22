@@ -256,11 +256,9 @@ extern "C" __global__ void __closesthit__kernel_optix_hit()
 }
 
 #ifdef __HAIR__
-extern "C" __global__ void __intersection__curve()
+ccl_device_inline void optix_intersection_curve(const uint prim, const uint type)
 {
-  const uint prim = optixGetPrimitiveIndex();
   const uint object = get_object_id<true>();
-  const uint type = kernel_tex_fetch(__prim_type, prim);
   const uint visibility = optixGetPayload_4();
 
   float3 P = optixGetObjectRayOrigin();
@@ -282,14 +280,30 @@ extern "C" __global__ void __intersection__curve()
   if (isect.t != FLT_MAX)
     isect.t *= len;
 
-  if (!(kernel_data.curve.curveflags & CURVE_KN_INTERPOLATE) ?
-          curve_intersect(NULL, &isect, P, dir, visibility, object, prim, time, type) :
-          cardinal_curve_intersect(NULL, &isect, P, dir, visibility, object, prim, time, type)) {
+  if (curve_intersect(NULL, &isect, P, dir, visibility, object, prim, time, type)) {
     optixReportIntersection(isect.t / len,
                             type & PRIMITIVE_ALL,
                             __float_as_int(isect.u),   // Attribute_0
                             __float_as_int(isect.v));  // Attribute_1
   }
+
+}
+
+extern "C" __global__ void __intersection__curve_ribbon()
+{
+  const uint prim = optixGetPrimitiveIndex();
+  const uint type = kernel_tex_fetch(__prim_type, prim);
+
+  if (type & (PRIMITIVE_CURVE_RIBBON | PRIMITIVE_MOTION_CURVE_RIBBON)) {
+    optix_intersection_curve(prim, type);
+  }
+}
+
+extern "C" __global__ void __intersection__curve_all()
+{
+  const uint prim = optixGetPrimitiveIndex();
+  const uint type = kernel_tex_fetch(__prim_type, prim);
+  optix_intersection_curve(prim, type);
 }
 #endif
 

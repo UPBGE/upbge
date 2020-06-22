@@ -39,48 +39,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-/* BVH Build Task */
-
-class BVHBuildTask : public Task {
- public:
-  BVHBuildTask(
-      BVHBuild *build, InnerNode *node, int child, const BVHObjectBinning &range, int level)
-      : range_(range)
-  {
-    run = function_bind(&BVHBuild::thread_build_node, build, node, child, &range_, level);
-  }
-
- private:
-  BVHObjectBinning range_;
-};
-
-class BVHSpatialSplitBuildTask : public Task {
- public:
-  BVHSpatialSplitBuildTask(BVHBuild *build,
-                           InnerNode *node,
-                           int child,
-                           const BVHRange &range,
-                           const vector<BVHReference> &references,
-                           int level)
-      : range_(range),
-        references_(references.begin() + range.start(), references.begin() + range.end())
-  {
-    range_.set_start(0);
-    run = function_bind(&BVHBuild::thread_build_spatial_split_node,
-                        build,
-                        node,
-                        child,
-                        &range_,
-                        &references_,
-                        level,
-                        _1);
-  }
-
- private:
-  BVHRange range_;
-  vector<BVHReference> references_;
-};
-
 /* Constructor / Destructor */
 
 BVHBuild::BVHBuild(const vector<Object *> &objects_,
@@ -201,6 +159,13 @@ void BVHBuild::add_reference_curves(BoundBox &root, BoundBox &center, Hair *hair
   if (hair->has_motion_blur()) {
     curve_attr_mP = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
   }
+
+  const PrimitiveType primitive_type =
+      (curve_attr_mP != NULL) ?
+          ((hair->curve_shape == CURVE_RIBBON) ? PRIMITIVE_MOTION_CURVE_RIBBON :
+                                                 PRIMITIVE_MOTION_CURVE_THICK) :
+          ((hair->curve_shape == CURVE_RIBBON) ? PRIMITIVE_CURVE_RIBBON : PRIMITIVE_CURVE_THICK);
+
   const size_t num_curves = hair->num_curves();
   for (uint j = 0; j < num_curves; j++) {
     const Hair::Curve curve = hair->get_curve(j);
@@ -211,7 +176,7 @@ void BVHBuild::add_reference_curves(BoundBox &root, BoundBox &center, Hair *hair
         BoundBox bounds = BoundBox::empty;
         curve.bounds_grow(k, &hair->curve_keys[0], curve_radius, bounds);
         if (bounds.valid()) {
-          int packed_type = PRIMITIVE_PACK_SEGMENT(PRIMITIVE_CURVE, k);
+          int packed_type = PRIMITIVE_PACK_SEGMENT(primitive_type, k);
           references.push_back(BVHReference(bounds, j, i, packed_type));
           root.grow(bounds);
           center.grow(bounds.center2());
@@ -232,7 +197,7 @@ void BVHBuild::add_reference_curves(BoundBox &root, BoundBox &center, Hair *hair
           curve.bounds_grow(k, key_steps + step * num_keys, curve_radius, bounds);
         }
         if (bounds.valid()) {
-          int packed_type = PRIMITIVE_PACK_SEGMENT(PRIMITIVE_MOTION_CURVE, k);
+          int packed_type = PRIMITIVE_PACK_SEGMENT(primitive_type, k);
           references.push_back(BVHReference(bounds, j, i, packed_type));
           root.grow(bounds);
           center.grow(bounds.center2());
@@ -288,7 +253,7 @@ void BVHBuild::add_reference_curves(BoundBox &root, BoundBox &center, Hair *hair
           bounds.grow(curr_bounds);
           if (bounds.valid()) {
             const float prev_time = (float)(bvh_step - 1) * num_bvh_steps_inv_1;
-            int packed_type = PRIMITIVE_PACK_SEGMENT(PRIMITIVE_MOTION_CURVE, k);
+            int packed_type = PRIMITIVE_PACK_SEGMENT(primitive_type, k);
             references.push_back(BVHReference(bounds, j, i, packed_type, prev_time, curr_time));
             root.grow(bounds);
             center.grow(bounds.center2());
@@ -423,22 +388,6 @@ BVHNode *BVHBuild::run()
   }
 
   spatial_min_overlap = root.bounds().safe_area() * params.spatial_split_alpha;
-  if (params.use_spatial_split) {
-    /* NOTE: The API here tries to be as much ready for multi-threaded build
-     * as possible, but at the same time it tries not to introduce any
-     * changes in behavior for until all refactoring needed for threading is
-     * finished.
-     *
-     * So we currently allocate single storage for now, which is only used by
-     * the only thread working on the spatial BVH build.
-     */
-    spatial_storage.resize(TaskScheduler::num_threads() + 1);
-    size_t num_bins = max(root.size(), (int)BVHParams::NUM_SPATIAL_BINS) - 1;
-    foreach (BVHSpatialStorage &storage, spatial_storage) {
-      storage.right_bounds.clear();
-    }
-    spatial_storage[0].right_bounds.resize(num_bins);
-  }
   spatial_free_index = 0;
 
   need_prim_time = params.num_motion_curve_steps > 0 || params.num_motion_triangle_steps > 0;
@@ -465,7 +414,8 @@ BVHNode *BVHBuild::run()
 
   if (params.use_spatial_split) {
     /* Perform multithreaded spatial split build. */
-    rootnode = build_node(root, &references, 0, 0);
+    BVHSpatialStorage *local_storage = &spatial_storage.local();
+    rootnode = build_node(root, references, 0, local_storage);
     task_pool.wait_work();
   }
   else {
@@ -474,6 +424,9 @@ BVHNode *BVHBuild::run()
     rootnode = build_node(rootbin, 0);
     task_pool.wait_work();
   }
+
+  /* clean up temporary memory usage by threads */
+  spatial_storage.clear();
 
   /* delete if we canceled */
   if (rootnode) {
@@ -529,41 +482,46 @@ void BVHBuild::progress_update()
   progress_start_time = time_dt();
 }
 
-void BVHBuild::thread_build_node(InnerNode *inner, int child, BVHObjectBinning *range, int level)
+void BVHBuild::thread_build_node(InnerNode *inner,
+                                 int child,
+                                 const BVHObjectBinning &range,
+                                 int level)
 {
   if (progress.get_cancel())
     return;
 
   /* build nodes */
-  BVHNode *node = build_node(*range, level);
+  BVHNode *node = build_node(range, level);
 
   /* set child in inner node */
   inner->children[child] = node;
 
   /* update progress */
-  if (range->size() < THREAD_TASK_SIZE) {
+  if (range.size() < THREAD_TASK_SIZE) {
     /*rotate(node, INT_MAX, 5);*/
 
     thread_scoped_lock lock(build_mutex);
 
-    progress_count += range->size();
+    progress_count += range.size();
     progress_update();
   }
 }
 
 void BVHBuild::thread_build_spatial_split_node(InnerNode *inner,
                                                int child,
-                                               BVHRange *range,
-                                               vector<BVHReference> *references,
-                                               int level,
-                                               int thread_id)
+                                               const BVHRange &range,
+                                               vector<BVHReference> &references,
+                                               int level)
 {
   if (progress.get_cancel()) {
     return;
   }
 
+  /* Get per-thread memory for spatial split. */
+  BVHSpatialStorage *local_storage = &spatial_storage.local();
+
   /* build nodes */
-  BVHNode *node = build_node(*range, references, level, thread_id);
+  BVHNode *node = build_node(range, references, level, local_storage);
 
   /* set child in inner node */
   inner->children[child] = node;
@@ -586,14 +544,22 @@ bool BVHBuild::range_within_max_leaf_size(const BVHRange &range,
   for (int i = 0; i < size; i++) {
     const BVHReference &ref = references[range.start() + i];
 
-    if (ref.prim_type() & PRIMITIVE_CURVE)
-      num_curves++;
-    if (ref.prim_type() & PRIMITIVE_MOTION_CURVE)
-      num_motion_curves++;
-    else if (ref.prim_type() & PRIMITIVE_TRIANGLE)
-      num_triangles++;
-    else if (ref.prim_type() & PRIMITIVE_MOTION_TRIANGLE)
-      num_motion_triangles++;
+    if (ref.prim_type() & PRIMITIVE_ALL_CURVE) {
+      if (ref.prim_type() & PRIMITIVE_ALL_MOTION) {
+        num_motion_curves++;
+      }
+      else {
+        num_curves++;
+      }
+    }
+    else if (ref.prim_type() & PRIMITIVE_ALL_TRIANGLE) {
+      if (ref.prim_type() & PRIMITIVE_ALL_MOTION) {
+        num_motion_triangles++;
+      }
+      else {
+        num_triangles++;
+      }
+    }
   }
 
   return (num_triangles <= params.max_triangle_leaf_size) &&
@@ -675,8 +641,8 @@ BVHNode *BVHBuild::build_node(const BVHObjectBinning &range, int level)
     /* Threaded build */
     inner = new InnerNode(bounds);
 
-    task_pool.push(new BVHBuildTask(this, inner, 0, left, level + 1), true);
-    task_pool.push(new BVHBuildTask(this, inner, 1, right, level + 1), true);
+    task_pool.push([=] { thread_build_node(inner, 0, left, level + 1); });
+    task_pool.push([=] { thread_build_node(inner, 1, right, level + 1); });
   }
 
   if (do_unalinged_split) {
@@ -688,9 +654,9 @@ BVHNode *BVHBuild::build_node(const BVHObjectBinning &range, int level)
 
 /* multithreaded spatial split builder */
 BVHNode *BVHBuild::build_node(const BVHRange &range,
-                              vector<BVHReference> *references,
+                              vector<BVHReference> &references,
                               int level,
-                              int thread_id)
+                              BVHSpatialStorage *storage)
 {
   /* Update progress.
    *
@@ -707,18 +673,17 @@ BVHNode *BVHBuild::build_node(const BVHRange &range,
   if (!(range.size() > 0 && params.top_level && level == 0)) {
     if (params.small_enough_for_leaf(range.size(), level)) {
       progress_count += range.size();
-      return create_leaf_node(range, *references);
+      return create_leaf_node(range, references);
     }
   }
 
   /* Perform splitting test. */
-  BVHSpatialStorage *storage = &spatial_storage[thread_id];
   BVHMixedSplit split(this, storage, range, references, level);
 
   if (!(range.size() > 0 && params.top_level && level == 0)) {
     if (split.no_split) {
       progress_count += range.size();
-      return create_leaf_node(range, *references);
+      return create_leaf_node(range, references);
     }
   }
   float leafSAH = params.sah_primitive_cost * split.leafSAH;
@@ -731,7 +696,7 @@ BVHNode *BVHBuild::build_node(const BVHRange &range,
   Transform aligned_space;
   bool do_unalinged_split = false;
   if (params.use_unaligned_nodes && splitSAH > params.unaligned_split_threshold * leafSAH) {
-    aligned_space = unaligned_heuristic.compute_aligned_space(range, &references->at(0));
+    aligned_space = unaligned_heuristic.compute_aligned_space(range, &references.at(0));
     unaligned_split = BVHMixedSplit(
         this, storage, range, references, level, &unaligned_heuristic, &aligned_space);
     /* unalignedLeafSAH = params.sah_primitive_cost * split.leafSAH; */
@@ -757,8 +722,7 @@ BVHNode *BVHBuild::build_node(const BVHRange &range,
 
   BoundBox bounds;
   if (do_unalinged_split) {
-    bounds = unaligned_heuristic.compute_aligned_boundbox(
-        range, &references->at(0), aligned_space);
+    bounds = unaligned_heuristic.compute_aligned_boundbox(range, &references.at(0), aligned_space);
   }
   else {
     bounds = range.bounds();
@@ -770,24 +734,35 @@ BVHNode *BVHBuild::build_node(const BVHRange &range,
     /* Local build. */
 
     /* Build left node. */
-    vector<BVHReference> copy(references->begin() + right.start(),
-                              references->begin() + right.end());
+    vector<BVHReference> right_references(references.begin() + right.start(),
+                                          references.begin() + right.end());
     right.set_start(0);
 
-    BVHNode *leftnode = build_node(left, references, level + 1, thread_id);
+    BVHNode *leftnode = build_node(left, references, level + 1, storage);
 
     /* Build right node. */
-    BVHNode *rightnode = build_node(right, &copy, level + 1, thread_id);
+    BVHNode *rightnode = build_node(right, right_references, level + 1, storage);
 
     inner = new InnerNode(bounds, leftnode, rightnode);
   }
   else {
     /* Threaded build. */
     inner = new InnerNode(bounds);
-    task_pool.push(new BVHSpatialSplitBuildTask(this, inner, 0, left, *references, level + 1),
-                   true);
-    task_pool.push(new BVHSpatialSplitBuildTask(this, inner, 1, right, *references, level + 1),
-                   true);
+
+    vector<BVHReference> left_references(references.begin() + left.start(),
+                                         references.begin() + left.end());
+    vector<BVHReference> right_references(references.begin() + right.start(),
+                                          references.begin() + right.end());
+    right.set_start(0);
+
+    /* Create tasks for left and right nodes, using copy for most arguments and
+     * move for reference to avoid memory copies. */
+    task_pool.push([=, refs = std::move(left_references)]() mutable {
+      thread_build_spatial_split_node(inner, 0, left, refs, level + 1);
+    });
+    task_pool.push([=, refs = std::move(right_references)]() mutable {
+      thread_build_spatial_split_node(inner, 1, right, refs, level + 1);
+    });
   }
 
   if (do_unalinged_split) {
