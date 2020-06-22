@@ -21,7 +21,9 @@
  */
 
 #include "BLI_fileops.h"
+
 #include "BLI_listbase.h"
+
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "DNA_property_types.h" /* For MAX_PROPSTRING */
@@ -34,6 +36,7 @@
 #include "BKE_main.h"
 #include "BKE_python_component.h"
 #include "BKE_report.h"
+
 #include "BKE_text.h"
 
 #include "RNA_types.h"
@@ -97,6 +100,7 @@ static PyTypeObject PythonComponentType = {
     NULL,                                                /* tp_subclasses */
     NULL,                                                /* tp_weaklist */
     NULL                                                 /* tp_del */
+
 };
 
 PyDoc_STRVAR(module_documentation,
@@ -365,6 +369,9 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 /* Macro used to release all python variable if the convertion fail or succeed.
  * The "value" argument is false on failure and true on succes.
  */
+/* Macro used to release all python variable if the convertion fail or succeed.
+ * The "value" argument is false on failure and true on succes.
+ */
 #  define FINISH(value) \
     PyErr_Print(); \
     if (mod) { \
@@ -562,7 +569,7 @@ PythonComponent *BKE_python_component_create_file(char *import,
   text = BKE_text_add(maggie, filename);
 
   BLI_strncpy(
-      respath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "templates_py"), sizeof(respath));
+      respath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "templates_py_components"), sizeof(respath));
   BLI_path_append(respath, sizeof(respath), "python_component.py");
 
   orgfilecontent = BLI_file_read_text_as_mem(respath, 0, &filesize);
