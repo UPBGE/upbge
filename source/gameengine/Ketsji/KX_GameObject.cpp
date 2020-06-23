@@ -2986,13 +2986,33 @@ int KX_GameObject::pyattr_set_localTransform(EXP_PyObjectPlus *self_v, const EXP
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	mt::mat4 temp;
+	mt::vec3 scale;
+
 	if (!PyMatTo(value, temp)) {
 		return PY_SET_ATTR_FAIL;
 	}
 
-	self->NodeSetLocalPosition(temp.TranslationVector3D());
-	self->NodeSetLocalOrientation(temp.RotationMatrix());
-	self->NodeSetLocalScale(temp.ScaleVector3D());
+	mt::vec3 position(temp.TranslationVector3D());
+	mt::vec3 rot1(temp(0, 0), temp(0, 1), temp(0, 2));
+	mt::vec3 rot2(temp(1, 0), temp(1, 1), temp(1, 2));
+	mt::vec3 rot3(temp(2, 0), temp(2, 1), temp(2, 2));
+
+  /* We need to normalize rotation matrix before to pass it */
+	scale[0] = rot1.Normalize();
+	scale[1] = rot2.Normalize();
+	scale[2] = rot3.Normalize();
+
+	mt::mat3 rotate(rot1, rot2, rot3);
+
+	/* Negate scale vector and rotate matrix if rotate matrix is negative */
+	if (mt::vec3::DotProduct(mt::vec3::CrossProduct(rot1, rot2), rot3) < 0.0f) {
+		rotate = -rotate;
+		scale = -scale;
+	}
+
+	self->NodeSetLocalPosition(position);
+	self->NodeSetLocalOrientation(rotate);
+	self->NodeSetLocalScale(scale);
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -3008,13 +3028,33 @@ int KX_GameObject::pyattr_set_worldTransform(EXP_PyObjectPlus *self_v, const EXP
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	mt::mat4 temp;
+	mt::vec3 scale;
+
 	if (!PyMatTo(value, temp)) {
 		return PY_SET_ATTR_FAIL;
 	}
 
-	self->NodeSetWorldPosition(temp.TranslationVector3D());
-	self->NodeSetGlobalOrientation(temp.RotationMatrix());
-	self->NodeSetWorldScale(temp.ScaleVector3D());
+	mt::vec3 position(temp.TranslationVector3D());
+	mt::vec3 rot1(temp(0, 0), temp(0, 1), temp(0, 2));
+	mt::vec3 rot2(temp(1, 0), temp(1, 1), temp(1, 2));
+	mt::vec3 rot3(temp(2, 0), temp(2, 1), temp(2, 2));
+
+  /* We need to normalize rotation matrix before to pass it */
+	scale[0] = rot1.Normalize();
+	scale[1] = rot2.Normalize();
+	scale[2] = rot3.Normalize();
+
+	mt::mat3 rotate(rot1, rot2, rot3);
+
+	/* Negate scale vector and rotate matrix if rotate matrix is negative */
+	if (mt::vec3::DotProduct(mt::vec3::CrossProduct(rot1, rot2), rot3) < 0.0f) {
+		rotate = -rotate;
+		scale = -scale;
+	}
+
+	self->NodeSetWorldPosition(position);
+	self->NodeSetGlobalOrientation(rotate);
+	self->NodeSetWorldScale(scale);
 
 	return PY_SET_ATTR_SUCCESS;
 }
