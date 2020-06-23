@@ -2010,8 +2010,9 @@ static void extract_tan_ex(const MeshRenderData *mr, GPUVertBuf *vbo, const bool
   }
 
   /* Start Fresh */
-  CustomData_free_layers(cd_ldata, CD_TANGENT, mr->loop_len);
-
+  CustomData loop_data;
+  CustomData_reset(&loop_data);
+  CustomData *ldata = cd_ldata;
   if (tan_len != 0 || use_orco_tan) {
     short tangent_mask = 0;
     bool calc_active_tangent = false;
@@ -2041,9 +2042,10 @@ static void extract_tan_ex(const MeshRenderData *mr, GPUVertBuf *vbo, const bool
                                     mr->poly_normals,
                                     mr->loop_normals,
                                     orco,
-                                    cd_ldata,
+                                    &loop_data,
                                     mr->loop_len,
                                     &tangent_mask);
+      ldata = &loop_data;
     }
   }
 
@@ -2075,7 +2077,7 @@ static void extract_tan_ex(const MeshRenderData *mr, GPUVertBuf *vbo, const bool
     short(*tan_data)[4] = (short(*)[4])vbo->data;
     for (int i = 0; i < tan_len; i++) {
       const char *name = tangent_names[i];
-      float(*layer_data)[4] = (float(*)[4])CustomData_get_layer_named(cd_ldata, CD_TANGENT, name);
+      float(*layer_data)[4] = (float(*)[4])CustomData_get_layer_named(ldata, CD_TANGENT, name);
       for (int l = 0; l < mr->loop_len; l++) {
         normal_float_to_short_v3(*tan_data, layer_data[l]);
         (*tan_data)[3] = (layer_data[l][3] > 0.0f) ? SHRT_MAX : SHRT_MIN;
@@ -2083,7 +2085,7 @@ static void extract_tan_ex(const MeshRenderData *mr, GPUVertBuf *vbo, const bool
       }
     }
     if (use_orco_tan) {
-      float(*layer_data)[4] = (float(*)[4])CustomData_get_layer_n(cd_ldata, CD_TANGENT, 0);
+      float(*layer_data)[4] = (float(*)[4])CustomData_get_layer_n(ldata, CD_TANGENT, 0);
       for (int l = 0; l < mr->loop_len; l++) {
         normal_float_to_short_v3(*tan_data, layer_data[l]);
         (*tan_data)[3] = (layer_data[l][3] > 0.0f) ? SHRT_MAX : SHRT_MIN;
@@ -2095,7 +2097,7 @@ static void extract_tan_ex(const MeshRenderData *mr, GPUVertBuf *vbo, const bool
     GPUPackedNormal *tan_data = (GPUPackedNormal *)vbo->data;
     for (int i = 0; i < tan_len; i++) {
       const char *name = tangent_names[i];
-      float(*layer_data)[4] = (float(*)[4])CustomData_get_layer_named(cd_ldata, CD_TANGENT, name);
+      float(*layer_data)[4] = (float(*)[4])CustomData_get_layer_named(ldata, CD_TANGENT, name);
       for (int l = 0; l < mr->loop_len; l++) {
         *tan_data = GPU_normal_convert_i10_v3(layer_data[l]);
         tan_data->w = (layer_data[l][3] > 0.0f) ? 1 : -2;
@@ -2103,7 +2105,7 @@ static void extract_tan_ex(const MeshRenderData *mr, GPUVertBuf *vbo, const bool
       }
     }
     if (use_orco_tan) {
-      float(*layer_data)[4] = (float(*)[4])CustomData_get_layer_n(cd_ldata, CD_TANGENT, 0);
+      float(*layer_data)[4] = (float(*)[4])CustomData_get_layer_n(ldata, CD_TANGENT, 0);
       for (int l = 0; l < mr->loop_len; l++) {
         *tan_data = GPU_normal_convert_i10_v3(layer_data[l]);
         tan_data->w = (layer_data[l][3] > 0.0f) ? 1 : -2;
@@ -2112,7 +2114,7 @@ static void extract_tan_ex(const MeshRenderData *mr, GPUVertBuf *vbo, const bool
     }
   }
 
-  CustomData_free_layers(cd_ldata, CD_TANGENT, mr->loop_len);
+  CustomData_free(&loop_data, mr->loop_len);
 }
 
 static void *extract_tan_init(const MeshRenderData *mr, void *buf)
@@ -2175,7 +2177,9 @@ static void *extract_vcol_init(const MeshRenderData *mr, void *buf)
   GPU_vertformat_deinterleave(&format);
 
   CustomData *cd_ldata = (mr->extract_type == MR_EXTRACT_BMESH) ? &mr->bm->ldata : &mr->me->ldata;
+  CustomData *cd_vdata = (mr->extract_type == MR_EXTRACT_BMESH) ? &mr->bm->vdata : &mr->me->vdata;
   uint32_t vcol_layers = mr->cache->cd_used.vcol;
+  uint32_t svcol_layers = mr->cache->cd_used.sculpt_vcol;
 
   for (int i = 0; i < MAX_MCOL; i++) {
     if (vcol_layers & (1 << i)) {
@@ -2192,6 +2196,33 @@ static void *extract_vcol_init(const MeshRenderData *mr, void *buf)
       if (i == CustomData_get_active_layer(cd_ldata, CD_MLOOPCOL)) {
         GPU_vertformat_alias_add(&format, "ac");
       }
+
+      /* Gather number of auto layers. */
+      /* We only do vcols that are not overridden by uvs and sculpt vertex colors */
+      if (CustomData_get_named_layer_index(cd_ldata, CD_MLOOPUV, layer_name) == -1 &&
+          CustomData_get_named_layer_index(cd_vdata, CD_PROP_COLOR, layer_name) == -1) {
+        BLI_snprintf(attr_name, sizeof(attr_name), "a%s", attr_safe_name);
+        GPU_vertformat_alias_add(&format, attr_name);
+      }
+    }
+  }
+
+  /* Sculpt Vertex Colors */
+  for (int i = 0; i < 8; i++) {
+    if (svcol_layers & (1 << i)) {
+      char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
+      const char *layer_name = CustomData_get_layer_name(cd_vdata, CD_PROP_COLOR, i);
+      GPU_vertformat_safe_attr_name(layer_name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
+
+      BLI_snprintf(attr_name, sizeof(attr_name), "c%s", attr_safe_name);
+      GPU_vertformat_attr_add(&format, attr_name, GPU_COMP_U16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+
+      if (i == CustomData_get_render_layer(cd_vdata, CD_PROP_COLOR)) {
+        GPU_vertformat_alias_add(&format, "c");
+      }
+      if (i == CustomData_get_active_layer(cd_vdata, CD_PROP_COLOR)) {
+        GPU_vertformat_alias_add(&format, "ac");
+      }
       /* Gather number of auto layers. */
       /* We only do vcols that are not overridden by uvs */
       if (CustomData_get_named_layer_index(cd_ldata, CD_MLOOPUV, layer_name) == -1) {
@@ -2200,6 +2231,7 @@ static void *extract_vcol_init(const MeshRenderData *mr, void *buf)
       }
     }
   }
+
   GPUVertBuf *vbo = buf;
   GPU_vertbuf_init_with_format(vbo, &format);
   GPU_vertbuf_data_alloc(vbo, mr->loop_len);
@@ -2209,6 +2241,8 @@ static void *extract_vcol_init(const MeshRenderData *mr, void *buf)
   } gpuMeshVcol;
 
   gpuMeshVcol *vcol_data = (gpuMeshVcol *)vbo->data;
+  MLoop *loops = CustomData_get_layer(cd_ldata, CD_MLOOP);
+
   for (int i = 0; i < MAX_MCOL; i++) {
     if (vcol_layers & (1 << i)) {
       if (mr->extract_type == MR_EXTRACT_BMESH) {
@@ -2236,6 +2270,36 @@ static void *extract_vcol_init(const MeshRenderData *mr, void *buf)
           vcol_data->a = unit_float_to_ushort_clamp(mloopcol->a * (1.0f / 255.0f));
         }
       }
+    }
+
+    if (svcol_layers & (1 << i)) {
+      if (mr->extract_type == MR_EXTRACT_BMESH) {
+        int cd_ofs = CustomData_get_n_offset(cd_vdata, CD_PROP_COLOR, i);
+        BMIter l_iter, f_iter;
+        BMLoop *loop;
+        BMFace *efa;
+        BM_ITER_MESH (efa, &f_iter, mr->bm, BM_FACES_OF_MESH) {
+          BM_ITER_ELEM (loop, &l_iter, efa, BM_LOOPS_OF_FACE) {
+            const MPropCol *prop_col = BM_ELEM_CD_GET_VOID_P(loop->v, cd_ofs);
+            vcol_data->r = unit_float_to_ushort_clamp(prop_col->color[0]);
+            vcol_data->g = unit_float_to_ushort_clamp(prop_col->color[1]);
+            vcol_data->b = unit_float_to_ushort_clamp(prop_col->color[2]);
+            vcol_data->a = unit_float_to_ushort_clamp(prop_col->color[3]);
+            vcol_data++;
+          }
+        }
+      }
+      else {
+        MPropCol *vcol = CustomData_get_layer_n(cd_vdata, CD_PROP_COLOR, i);
+        for (int l = 0; l < mr->loop_len; l++, vcol_data++) {
+          vcol_data->r = unit_float_to_ushort_clamp(vcol[loops[l].v].color[0]);
+          vcol_data->g = unit_float_to_ushort_clamp(vcol[loops[l].v].color[1]);
+          vcol_data->b = unit_float_to_ushort_clamp(vcol[loops[l].v].color[2]);
+          vcol_data->a = unit_float_to_ushort_clamp(vcol[loops[l].v].color[3]);
+        }
+      }
+
+      vcol_data += mr->loop_len;
     }
   }
   return NULL;

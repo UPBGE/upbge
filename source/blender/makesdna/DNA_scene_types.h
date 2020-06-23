@@ -1755,7 +1755,6 @@ typedef struct SceneEEVEE {
   float gi_irradiance_smoothing;
   float gi_glossy_clamp;
   float gi_filter_quality;
-  char _pad[4];
 
   float gi_cubemap_draw_size;
   float gi_irradiance_draw_size;
@@ -1795,6 +1794,7 @@ typedef struct SceneEEVEE {
 
   int motion_blur_samples DNA_DEPRECATED;
   int motion_blur_max;
+  int motion_blur_steps;
   float motion_blur_shutter;
   float motion_blur_depth_scale;
 

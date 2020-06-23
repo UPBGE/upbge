@@ -291,6 +291,12 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
     }
 
+    if (!DNA_struct_elem_find(fd->filesdna, "SceneEEVEE", "int", "motion_blur_steps")) {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        scene->eevee.motion_blur_steps = 1;
+      }
+    }
+
     /* Transition to saving expansion for all of a constraint's subpanels. */
     if (!DNA_struct_elem_find(fd->filesdna, "bConstraint", "short", "ui_expand_flag")) {
       for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
@@ -329,6 +335,20 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
           else {
             fx->ui_expand_flag = 0;
           }
+        }
+      }
+    }
+  }
+
+  /* Refactor bevel profile type to use an enum. */
+  if (!DNA_struct_elem_find(fd->filesdna, "BevelModifierData", "short", "profile_type")) {
+    for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
+      LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
+        if (md->type == eModifierType_Bevel) {
+          BevelModifierData *bmd = (BevelModifierData *)md;
+          bool use_custom_profile = bmd->flags & MOD_BEVEL_CUSTOM_PROFILE_DEPRECATED;
+          bmd->profile_type = use_custom_profile ? MOD_BEVEL_PROFILE_CUSTOM :
+                                                   MOD_BEVEL_PROFILE_SUPERELLIPSE;
         }
       }
     }

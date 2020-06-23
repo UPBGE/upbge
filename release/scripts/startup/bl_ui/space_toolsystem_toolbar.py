@@ -738,27 +738,40 @@ class _defs_edit_mesh:
     def bevel():
         def draw_settings(context, layout, tool, *, extra=False):
             props = tool.operator_properties("mesh.bevel")
-            region_type = context.region.type
+
+            region_is_header = context.region.type == 'TOOL_HEADER'
 
             if not extra:
-                if region_type == 'TOOL_HEADER':
+                if region_is_header:
                     layout.prop(props, "offset_type", text="")
                 else:
                     layout.prop(props, "offset_type")
 
                 layout.prop(props, "segments")
-                layout.prop(props, "profile", slider=True)
 
-                if region_type == 'TOOL_HEADER':
+                row = layout.row()
+                row.prop(props, "profile_type", text="" if region_is_header else None)
+                if props.profile_type == 'SUPERELLIPSE':
+                    layout.prop(props, "profile", text="Shape", slider=True)
+
+                if region_is_header:
                     layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
                 else:
                     extra = True
 
-            if extra or region_type != 'TOOL_HEADER':
-                layout.prop(props, "vertex_only")
-                layout.prop(props, "clamp_overlap")
-                layout.prop(props, "loop_slide")
-                layout.prop(props, "harden_normals")
+            if extra:
+                layout.use_property_split = True
+                layout.use_property_decorate = False
+
+                if props.profile_type == 'CUSTOM':
+                    layout.prop(props, "profile", text="Miter Shape", slider=True)
+
+                col = layout.column()
+                col.prop(props, "vertex_only")
+                col.prop(props, "clamp_overlap")
+                col.prop(props, "loop_slide")
+                col.prop(props, "harden_normals")
+
                 col = layout.column(heading="Mark")
                 col.prop(props, "mark_seam", text="Seam")
                 col.prop(props, "mark_sharp", text="Sharp")
@@ -770,8 +783,7 @@ class _defs_edit_mesh:
                 if props.miter_inner == 'ARC':
                     layout.prop(props, "spread")
 
-                layout.prop(props, "use_custom_profile")
-                if props.use_custom_profile:
+                if props.profile_type == 'CUSTOM':
                     tool_settings = context.tool_settings
                     layout.template_curveprofile(tool_settings, "custom_bevel_profile_preset")
 
@@ -1241,6 +1253,22 @@ class _defs_sculpt:
             idname="builtin.cloth_filter",
             label="Cloth Filter",
             icon="ops.sculpt.cloth_filter",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def color_filter():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sculpt.color_filter")
+            layout.prop(props, "type", expand=False)
+            layout.prop(props, "strength")
+
+        return dict(
+            idname="builtin.color_filter",
+            label="Color Filter",
+            icon="ops.sculpt.color_filter",
             widget=None,
             keymap=(),
             draw_settings=draw_settings,
@@ -2421,6 +2449,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             _defs_sculpt.mesh_filter,
             _defs_sculpt.cloth_filter,
+            _defs_sculpt.color_filter,
             None,
             _defs_transform.translate,
             _defs_transform.rotate,

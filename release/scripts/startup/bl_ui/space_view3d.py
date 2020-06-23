@@ -131,7 +131,7 @@ class VIEW3D_HT_tool_header(Header):
             if is_valid_context:
                 brush = context.tool_settings.gpencil_sculpt_paint.brush
                 tool = brush.gpencil_tool
-                if tool in ('SMOOTH', 'RANDOMIZE'):
+                if tool in {'SMOOTH', 'RANDOMIZE'}:
                     layout.popover("VIEW3D_PT_tools_grease_pencil_sculpt_options")
                 layout.popover("VIEW3D_PT_tools_grease_pencil_sculpt_appearance")
         elif tool_mode == 'WEIGHT_GPENCIL':
@@ -294,6 +294,11 @@ class _draw_tool_settings_context_mode:
         # direction
         if not capabilities.has_direction:
             layout.row().prop(brush, "direction", expand=True, text="")
+
+        if capabilities.has_color:
+            UnifiedPaintPanel.prop_unified_color(layout, context, brush, "color", text = "")
+            layout.prop(brush, "blend", text="", expand = False)
+
 
         return True
 
@@ -2171,9 +2176,9 @@ class VIEW3D_MT_add(Menu):
         layout.menu("VIEW3D_MT_surface_add", icon='OUTLINER_OB_SURFACE')
         layout.menu("VIEW3D_MT_metaball_add", text="Metaball", icon='OUTLINER_OB_META')
         layout.operator("object.text_add", text="Text", icon='OUTLINER_OB_FONT')
-        if hasattr(bpy.data, "hairs"):
+        if context.preferences.experimental.use_new_hair_type:
             layout.operator("object.hair_add", text="Hair", icon='OUTLINER_OB_HAIR')
-        if hasattr(bpy.data, "pointclouds"):
+        if context.preferences.experimental.use_new_particle_system:
             layout.operator("object.pointcloud_add", text="Point Cloud", icon='OUTLINER_OB_POINTCLOUD')
         layout.menu("VIEW3D_MT_volume_add", text="Volume", icon='OUTLINER_OB_VOLUME')
         layout.operator_menu_enum("object.gpencil_add", "type", text="Grease Pencil", icon='OUTLINER_OB_GREASEPENCIL')
@@ -7357,6 +7362,12 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
 
         brush = context.tool_settings.sculpt.brush
         capabilities = brush.sculpt_capabilities
+
+        if capabilities.has_color:
+            split = layout.split(factor=0.1)
+            UnifiedPaintPanel.prop_unified_color(split, context, brush, "color", text="")
+            UnifiedPaintPanel.prop_unified_color_picker(split, context, brush, "color", value_slider=True)
+            layout.prop(brush, "blend", text="")
 
         UnifiedPaintPanel.prop_unified(
             layout,

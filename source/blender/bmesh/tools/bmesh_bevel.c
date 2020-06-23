@@ -22,6 +22,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_curveprofile_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
@@ -32,14 +33,12 @@
 #include "BLI_memarena.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_curveprofile.h"
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
 #include "BKE_mesh.h"
 
 #include "eigen_capi.h"
-
-#include "BKE_curveprofile.h"
-#include "DNA_curveprofile_types.h"
 
 #include "bmesh.h"
 #include "bmesh_bevel.h" /* own include */
@@ -302,6 +301,8 @@ typedef struct BevelParams {
   float offset;
   /** How offset is measured; enum defined in bmesh_operators.h. */
   int offset_type;
+  /** Profile type: radius, superellipse, or custom */
+  int profile_type;
   /** Number of segments in beveled edge profile. */
   int seg;
   /** User profile setting. */
@@ -324,9 +325,7 @@ typedef struct BevelParams {
   bool mark_sharp;
   /** Should we harden normals? */
   bool harden_normals;
-  /** Should we use the custom profiles feature? */
-  bool use_custom_profile;
-  char _pad[3];
+  char _pad[1];
   /** The struct used to store the custom profile input. */
   const struct CurveProfile *custom_profile;
   /** Vertex group array, maybe set if vertex_only. */
@@ -1737,7 +1736,7 @@ static void calculate_profile(BevelParams *bp, BoundVert *bndv, bool reversed, b
     }
   }
   r = pro->super_r;
-  if (!bp->use_custom_profile && r == PRO_LINE_R) {
+  if (bp->profile_type == BEVEL_PROFILE_SUPERELLIPSE && r == PRO_LINE_R) {
     map_ok = false;
   }
   else {
@@ -1746,8 +1745,7 @@ static void calculate_profile(BevelParams *bp, BoundVert *bndv, bool reversed, b
 
   if (bp->vmesh_method == BEVEL_VMESH_CUTOFF && map_ok) {
     /* Calculate the "height" of the profile by putting the (0,0) and (1,1) corners of the
-     * un-transformed profile throughout the 2D->3D map and calculating the distance between them.
-     */
+     * un-transformed profile through the 2D->3D map and calculating the distance between them. */
     zero_v3(p);
     mul_v3_m4v3(bottom_corner, map, p);
     p[0] = 1.0f;
@@ -1784,14 +1782,8 @@ static void calculate_profile(BevelParams *bp, BoundVert *bndv, bool reversed, b
       }
       else {
         if (map_ok) {
-          if (reversed) {
-            p[0] = (float)yvals[ns - k];
-            p[1] = (float)xvals[ns - k];
-          }
-          else {
-            p[0] = (float)xvals[k];
-            p[1] = (float)yvals[k];
-          }
+          p[0] = reversed ? (float)yvals[ns - k] : (float)xvals[k];
+          p[1] = reversed ? (float)xvals[ns - k] : (float)yvals[k];
           p[2] = 0.0f;
           /* Do the 2D->3D transformation of the profile coordinates. */
           mul_v3_m4v3(co, map, p);
@@ -2334,7 +2326,7 @@ static void calculate_vm_profiles(BevelParams *bp, BevVert *bv, VMesh *vm)
     }
     bool miter_profile = false;
     bool reverse_profile = false;
-    if (bp->use_custom_profile) {
+    if (bp->profile_type == BEVEL_PROFILE_CUSTOM) {
       /* Use the miter profile spacing struct if the default is filled with the custom profile. */
       miter_profile = (bndv->is_arc_start || bndv->is_patch_start);
       /* Don't bother reversing the profile if it's a miter profile */
@@ -2464,7 +2456,7 @@ static void build_boundary_terminal_edge(BevelParams *bp,
     }
     /* For the edges not adjacent to the beveled edge, slide the bevel amount along. */
     d = efirst->offset_l_spec;
-    if (bp->use_custom_profile || bp->profile < 0.25f) {
+    if (bp->profile_type == BEVEL_PROFILE_CUSTOM || bp->profile < 0.25f) {
       d *= sqrtf(2.0f); /* Need to go further along the edge to make room for full profile area. */
     }
     for (e = e->next; e->next != efirst; e = e->next) {
@@ -2496,7 +2488,7 @@ static void build_boundary_terminal_edge(BevelParams *bp,
     }
     else if (vm->count == 3) {
       use_tri_fan = true;
-      if (bp->use_custom_profile) {
+      if (bp->profile_type == BEVEL_PROFILE_CUSTOM) {
         /* Prevent overhanging edges: use M_POLY if the extra point is planar with the profile. */
         bndv = efirst->leftv;
         float profile_plane[4];
@@ -3831,7 +3823,7 @@ static VMesh *cubic_subdiv(BevelParams *bp, VMesh *vm_in)
       copy_v3_v3(co, mesh_vert(vm_in, i, 0, k)->co);
 
       /* Smooth boundary rule. Custom profiles shouldn't be smoothed. */
-      if (!bp->use_custom_profile) {
+      if (bp->profile_type != BEVEL_PROFILE_CUSTOM) {
         copy_v3_v3(co1, mesh_vert(vm_in, i, 0, k - 1)->co);
         copy_v3_v3(co2, mesh_vert(vm_in, i, 0, k + 1)->co);
 
@@ -3850,7 +3842,7 @@ static VMesh *cubic_subdiv(BevelParams *bp, VMesh *vm_in)
       get_profile_point(bp, &bndv->profile, k, ns_out, co);
 
       /* Smooth if using a non-custom profile. */
-      if (!bp->use_custom_profile) {
+      if (bp->profile_type != BEVEL_PROFILE_CUSTOM) {
         copy_v3_v3(co1, mesh_vert_canon(vm_out, i, 0, k - 1)->co);
         copy_v3_v3(co2, mesh_vert_canon(vm_out, i, 0, k + 1)->co);
 
@@ -4078,7 +4070,7 @@ static VMesh *make_cube_corner_adj_vmesh(BevelParams *bp)
   int i, j, k, ns2;
   float co[3], coc[3];
 
-  if (!bp->use_custom_profile) {
+  if (bp->profile_type != BEVEL_PROFILE_CUSTOM) {
     if (r == PRO_SQUARE_R) {
       return make_cube_corner_square(mem_arena, nseg);
     }
@@ -4162,7 +4154,7 @@ static int tri_corner_test(BevelParams *bp, BevVert *bv)
   int in_plane_e = 0;
 
   /* The superellipse snapping of this case isn't helpful with custom profiles enabled. */
-  if (bp->vertex_only || bp->use_custom_profile) {
+  if (bp->vertex_only || bp->profile_type == BEVEL_PROFILE_CUSTOM) {
     return -1;
   }
   if (bv->vmesh->count != 3) {
@@ -4281,7 +4273,7 @@ static VMesh *adj_vmesh(BevelParams *bp, BevVert *bv)
   fullness = bp->pro_spacing.fullness;
   sub_v3_v3v3(center_direction, original_vertex, boundverts_center);
   if (len_squared_v3(center_direction) > BEVEL_EPSILON_SQ) {
-    if (bp->use_custom_profile) {
+    if (bp->profile_type == BEVEL_PROFILE_CUSTOM) {
       fullness *= 2.0f;
       madd_v3_v3v3fl(mesh_vert(vm0, 0, 1, 1)->co, negative_fullest, center_direction, fullness);
     }
@@ -4377,7 +4369,7 @@ static VMesh *pipe_adj_vmesh(BevelParams *bp, BevVert *bv, BoundVert *vpipe)
           continue;
         }
         /* With a custom profile just copy the shape of the profile at each ring. */
-        if (bp->use_custom_profile) {
+        if (bp->profile_type == BEVEL_PROFILE_CUSTOM) {
           /* Find both profile vertices that correspond to this point. */
           if (i == ipipe1 || i == ipipe2) {
             if (n_bndv == 3 && i == ipipe1) {
@@ -4832,7 +4824,8 @@ static void bevel_build_rings(BevelParams *bp, BMesh *bm, BevVert *bv, BoundVert
   odd = ns % 2;
   BLI_assert(n_bndv >= 3 && ns > 1);
 
-  if (bp->pro_super_r == PRO_SQUARE_R && bv->selcount >= 3 && !odd && !bp->use_custom_profile) {
+  if (bp->pro_super_r == PRO_SQUARE_R && bv->selcount >= 3 && !odd &&
+      bp->profile_type != BEVEL_PROFILE_CUSTOM) {
     vm1 = square_out_adj_vmesh(bp, bv);
   }
   else if (vpipe) {
@@ -4842,7 +4835,7 @@ static void bevel_build_rings(BevelParams *bp, BMesh *bm, BevVert *bv, BoundVert
     vm1 = tri_corner_adj_vmesh(bp, bv);
     /* The PRO_SQUARE_IN_R profile has boundary edges that merge
      * and no internal ring polys except possibly center ngon. */
-    if (bp->pro_super_r == PRO_SQUARE_IN_R && !bp->use_custom_profile) {
+    if (bp->pro_super_r == PRO_SQUARE_IN_R && bp->profile_type != BEVEL_PROFILE_CUSTOM) {
       build_square_in_vmesh(bp, bm, bv, vm1);
       return;
     }
@@ -5446,7 +5439,7 @@ static void build_vmesh(BevelParams *bp, BMesh *bm, BevVert *bv)
     for (k = 1; k < ns; k++) {
       v_weld1 = mesh_vert(bv->vmesh, weld1->index, 0, k)->co;
       v_weld2 = mesh_vert(bv->vmesh, weld2->index, 0, ns - k)->co;
-      if (bp->use_custom_profile) {
+      if (bp->profile_type == BEVEL_PROFILE_CUSTOM) {
         /* Don't bother with special case profile check from below. */
         mid_v3_v3v3(co, v_weld1, v_weld2);
       }
@@ -5771,9 +5764,8 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
   float vert_axis[3] = {0, 0, 0};
   int i, ccw_test_sum;
   int nsel = 0;
-  int ntot = 0;
-  int nwire = 0;
-  int fcnt;
+  int tot_edges = 0;
+  int tot_wire = 0;
 
   /* Gather input selected edges.
    * Only bevel selected edges that have exactly two incident faces.
@@ -5785,24 +5777,24 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 
   first_bme = NULL;
   BM_ITER_ELEM (bme, &iter, v, BM_EDGES_OF_VERT) {
-    fcnt = BM_edge_face_count(bme);
+    int face_count = BM_edge_face_count(bme);
     BM_BEVEL_EDGE_TAG_DISABLE(bme);
     if (BM_elem_flag_test(bme, BM_ELEM_TAG) && !bp->vertex_only) {
-      BLI_assert(fcnt == 2);
+      BLI_assert(face_count == 2);
       nsel++;
       if (!first_bme) {
         first_bme = bme;
       }
     }
-    if (fcnt == 1) {
+    if (face_count == 1) {
       /* Good to start face chain from this edge. */
       first_bme = bme;
     }
-    if (fcnt > 0 || bp->vertex_only) {
-      ntot++;
+    if (face_count > 0 || bp->vertex_only) {
+      tot_edges++;
     }
     if (BM_edge_is_wire(bme)) {
-      nwire++;
+      tot_wire++;
       /* If edge beveling, exclude wire edges from edges array.
        * Mark this edge as "chosen" so loop below won't choose it. */
       if (!bp->vertex_only) {
@@ -5814,7 +5806,7 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
     first_bme = v->e;
   }
 
-  if ((nsel == 0 && !bp->vertex_only) || (ntot < 2 && bp->vertex_only)) {
+  if ((nsel == 0 && !bp->vertex_only) || (tot_edges < 2 && bp->vertex_only)) {
     /* Signal this vert isn't being beveled. */
     BM_elem_flag_disable(v, BM_ELEM_TAG);
     return NULL;
@@ -5822,13 +5814,13 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 
   bv = (BevVert *)BLI_memarena_alloc(bp->mem_arena, (sizeof(BevVert)));
   bv->v = v;
-  bv->edgecount = ntot;
+  bv->edgecount = tot_edges;
   bv->selcount = nsel;
-  bv->wirecount = nwire;
+  bv->wirecount = tot_wire;
   bv->offset = bp->offset;
-  bv->edges = (EdgeHalf *)BLI_memarena_alloc(bp->mem_arena, ntot * sizeof(EdgeHalf));
-  if (nwire) {
-    bv->wire_edges = (BMEdge **)BLI_memarena_alloc(bp->mem_arena, nwire * sizeof(BMEdge *));
+  bv->edges = (EdgeHalf *)BLI_memarena_alloc(bp->mem_arena, tot_edges * sizeof(EdgeHalf));
+  if (tot_wire) {
+    bv->wire_edges = (BMEdge **)BLI_memarena_alloc(bp->mem_arena, tot_wire * sizeof(BMEdge *));
   }
   else {
     bv->wire_edges = NULL;
@@ -5841,7 +5833,7 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
   find_bevel_edge_order(bm, bv, first_bme);
 
   /* Fill in other attributes of EdgeHalfs. */
-  for (i = 0; i < ntot; i++) {
+  for (i = 0; i < tot_edges; i++) {
     e = &bv->edges[i];
     bme = e->e;
     if (BM_elem_flag_test(bme, BM_ELEM_TAG) && !bp->vertex_only) {
@@ -5864,27 +5856,27 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 
   /* If edge array doesn't go CCW around vertex from average normal side,
    * reverse the array, being careful to reverse face pointers too. */
-  if (ntot > 1) {
+  if (tot_edges > 1) {
     ccw_test_sum = 0;
-    for (i = 0; i < ntot; i++) {
+    for (i = 0; i < tot_edges; i++) {
       ccw_test_sum += bev_ccw_test(
-          bv->edges[i].e, bv->edges[(i + 1) % ntot].e, bv->edges[i].fnext);
+          bv->edges[i].e, bv->edges[(i + 1) % tot_edges].e, bv->edges[i].fnext);
     }
     if (ccw_test_sum < 0) {
-      for (i = 0; i <= (ntot / 2) - 1; i++) {
-        SWAP(EdgeHalf, bv->edges[i], bv->edges[ntot - i - 1]);
+      for (i = 0; i <= (tot_edges / 2) - 1; i++) {
+        SWAP(EdgeHalf, bv->edges[i], bv->edges[tot_edges - i - 1]);
         SWAP(BMFace *, bv->edges[i].fprev, bv->edges[i].fnext);
-        SWAP(BMFace *, bv->edges[ntot - i - 1].fprev, bv->edges[ntot - i - 1].fnext);
+        SWAP(BMFace *, bv->edges[tot_edges - i - 1].fprev, bv->edges[tot_edges - i - 1].fnext);
       }
-      if (ntot % 2 == 1) {
-        i = ntot / 2;
+      if (tot_edges % 2 == 1) {
+        i = tot_edges / 2;
         SWAP(BMFace *, bv->edges[i].fprev, bv->edges[i].fnext);
       }
     }
   }
 
   if (bp->vertex_only) {
-    /* If weighted, modify offset by weight. */
+    /* Modify the offset by the vertex group or bevel weight if they are specified. */
     if (bp->dvert != NULL && bp->vertex_group != -1) {
       weight = BKE_defvert_find_weight(bp->dvert + BM_elem_index_get(v), bp->vertex_group);
       bv->offset *= weight;
@@ -5896,7 +5888,7 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
     /* Find center axis. Note: Don't use vert normal, can give unwanted results. */
     if (ELEM(bp->offset_type, BEVEL_AMT_WIDTH, BEVEL_AMT_DEPTH)) {
       float edge_dir[3];
-      for (i = 0, e = bv->edges; i < ntot; i++, e++) {
+      for (i = 0, e = bv->edges; i < tot_edges; i++, e++) {
         v2 = BM_edge_other_vert(e->e, bv->v);
         sub_v3_v3v3(edge_dir, bv->v->co, v2->co);
         normalize_v3(edge_dir);
@@ -5905,14 +5897,14 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
     }
   }
 
-  for (i = 0, e = bv->edges; i < ntot; i++, e++) {
-    e->next = &bv->edges[(i + 1) % ntot];
-    e->prev = &bv->edges[(i + ntot - 1) % ntot];
+  /* Set offsets for each beveled edge. */
+  for (i = 0, e = bv->edges; i < tot_edges; i++, e++) {
+    e->next = &bv->edges[(i + 1) % tot_edges];
+    e->prev = &bv->edges[(i + tot_edges - 1) % tot_edges];
 
-    /* Set offsets.  */
     if (e->is_bev) {
       /* Convert distance as specified by user into offsets along
-       * faces on left side and right side of this edgehalf.
+       * faces on the left side and right sides of this edgehalf.
        * Except for percent method, offset will be same on each side. */
 
       switch (bp->offset_type) {
@@ -5938,8 +5930,7 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
           }
           break;
         case BEVEL_AMT_PERCENT:
-          /* Offset needs to be such that it meets adjacent edges at percentage of their lengths.
-           */
+          /* Offset needs to meet adjacent edges at percentage of their lengths. */
           v1 = BM_edge_other_vert(e->prev->e, v);
           v2 = BM_edge_other_vert(e->e, v);
           z = sinf(angle_v3v3v3(v1->co, v->co, v2->co));
@@ -6032,7 +6023,8 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
     }
   }
 
-  if (nwire) {
+  /* Collect wire edges if we found any earlier. */
+  if (tot_wire) {
     i = 0;
     BM_ITER_ELEM (bme, &iter, v, BM_EDGES_OF_VERT) {
       if (BM_edge_is_wire(bme)) {
@@ -6835,7 +6827,7 @@ static float find_profile_fullness(BevelParams *bp)
       0.647f, /* 11 */
   };
 
-  if (bp->use_custom_profile) {
+  if (bp->profile_type == BEVEL_PROFILE_CUSTOM) {
     /* Set fullness to the average "height" of the profile's sampled points. */
     fullness = 0.0f;
     for (int i = 0; i < nseg; i++) { /* Don't use the end points. */
@@ -7171,6 +7163,7 @@ static void bevel_limit_offset(BevelParams *bp, BMesh *bm)
 void BM_mesh_bevel(BMesh *bm,
                    const float offset,
                    const int offset_type,
+                   const int profile_type,
                    const int segments,
                    const float profile,
                    const bool vertex_only,
@@ -7188,7 +7181,6 @@ void BM_mesh_bevel(BMesh *bm,
                    const int miter_inner,
                    const float spread,
                    const float smoothresh,
-                   const bool use_custom_profile,
                    const struct CurveProfile *custom_profile,
                    const int vmesh_method)
 {
@@ -7209,7 +7201,7 @@ void BM_mesh_bevel(BMesh *bm,
   bp.use_weights = use_weights;
   bp.loop_slide = loop_slide;
   bp.limit_offset = limit_offset;
-  bp.offset_adjust = true;
+  bp.offset_adjust = !vertex_only && !ELEM(offset_type, BEVEL_AMT_PERCENT, BEVEL_AMT_ABSOLUTE);
   bp.dvert = dvert;
   bp.vertex_group = vertex_group;
   bp.mat_nr = mat;
@@ -7222,12 +7214,11 @@ void BM_mesh_bevel(BMesh *bm,
   bp.spread = spread;
   bp.smoothresh = smoothresh;
   bp.face_hash = NULL;
-  bp.use_custom_profile = use_custom_profile;
+  bp.profile_type = profile_type;
   bp.custom_profile = custom_profile;
   bp.vmesh_method = vmesh_method;
 
-  /* Disable the miters with the cutoff vertex mesh method, this combination isn't useful anyway.
-   */
+  /* Disable the miters with the cutoff vertex mesh method, the combination isn't useful anyway. */
   if (bp.vmesh_method == BEVEL_VMESH_CUTOFF) {
     bp.miter_outer = BEVEL_MITER_SHARP;
     bp.miter_inner = BEVEL_MITER_SHARP;
@@ -7257,13 +7248,15 @@ void BM_mesh_bevel(BMesh *bm,
     BLI_memarena_use_calloc(bp.mem_arena);
 
     /* Get the 2D profile point locations from either the superellipse or the custom profile. */
-    set_profile_spacing(&bp, &bp.pro_spacing, bp.use_custom_profile);
+    set_profile_spacing(&bp, &bp.pro_spacing, bp.profile_type == BEVEL_PROFILE_CUSTOM);
+
+    /* Get the 'fullness' of the profile for the ADJ vertex mesh method. */
     if (bp.seg > 1) {
       bp.pro_spacing.fullness = find_profile_fullness(&bp);
     }
 
-    /* Get separate non-custom profile samples for the miter profiles if they are needed. */
-    if (bp.use_custom_profile &&
+    /* Get separate non-custom profile samples for the miter profiles if they are needed */
+    if (bp.profile_type == BEVEL_PROFILE_CUSTOM &&
         (bp.miter_inner != BEVEL_MITER_SHARP || bp.miter_outer != BEVEL_MITER_SHARP)) {
       set_profile_spacing(&bp, &bp.pro_spacing_miter, false);
     }
@@ -7297,13 +7290,12 @@ void BM_mesh_bevel(BMesh *bm,
     }
 
     /* Perhaps do a pass to try to even out widths. */
-    if (!bp.vertex_only && bp.offset_adjust && bp.offset_type != BEVEL_AMT_PERCENT &&
-        bp.offset_type != BEVEL_AMT_ABSOLUTE) {
+    if (bp.offset_adjust) {
       adjust_offsets(&bp, bm);
     }
 
     /* Maintain consistent orientations for the asymmetrical custom profiles. */
-    if (bp.use_custom_profile) {
+    if (bp.profile_type == BEVEL_PROFILE_CUSTOM) {
       BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
         if (BM_elem_flag_test(e, BM_ELEM_TAG)) {
           regularize_profile_orientation(&bp, e);

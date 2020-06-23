@@ -163,6 +163,7 @@
 #include "BKE_colortools.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
+#include "BKE_curveprofile.h"
 #include "BKE_fcurve.h"
 #include "BKE_fcurve_driver.h"
 #include "BKE_global.h"  // for G
@@ -971,12 +972,6 @@ static void write_animdata(BlendWriter *writer, AnimData *adt)
 
   /* write NLA data */
   write_nladata(writer, &adt->nla_tracks);
-}
-
-static void write_CurveProfile(BlendWriter *writer, CurveProfile *profile)
-{
-  BLO_write_struct(writer, CurveProfile, profile);
-  BLO_write_struct_array(writer, CurveProfilePoint, profile->path_len, profile->path);
 }
 
 static void write_node_socket_default_value(BlendWriter *writer, bNodeSocket *sock)
@@ -1880,16 +1875,7 @@ static void write_modifiers(BlendWriter *writer, ListBase *modbase)
 
     BLO_write_struct_by_name(writer, mti->structName, md);
 
-    if (md->type == eModifierType_Hook) {
-      HookModifierData *hmd = (HookModifierData *)md;
-
-      if (hmd->curfalloff) {
-        BKE_curvemapping_blend_write(writer, hmd->curfalloff);
-      }
-
-      BLO_write_int32_array(writer, hmd->totindex, hmd->indexar);
-    }
-    else if (md->type == eModifierType_Cloth) {
+    if (md->type == eModifierType_Cloth) {
       ClothModifierData *clmd = (ClothModifierData *)md;
 
       BLO_write_struct(writer, ClothSimSettings, clmd->sim_parms);
@@ -1970,59 +1956,6 @@ static void write_modifiers(BlendWriter *writer, ListBase *modbase)
       writestruct(wd, DATA, MVert, collmd->numverts, collmd->xnew);
       writestruct(wd, DATA, MFace, collmd->numfaces, collmd->mfaces);
 #endif
-    }
-    else if (md->type == eModifierType_Warp) {
-      WarpModifierData *tmd = (WarpModifierData *)md;
-      if (tmd->curfalloff) {
-        BKE_curvemapping_blend_write(writer, tmd->curfalloff);
-      }
-    }
-    else if (md->type == eModifierType_WeightVGEdit) {
-      WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
-
-      if (wmd->cmap_curve) {
-        BKE_curvemapping_blend_write(writer, wmd->cmap_curve);
-      }
-    }
-    else if (md->type == eModifierType_CorrectiveSmooth) {
-      CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)md;
-
-      if (csmd->bind_coords) {
-        BLO_write_float3_array(writer, csmd->bind_coords_num, (float *)csmd->bind_coords);
-      }
-    }
-    else if (md->type == eModifierType_SurfaceDeform) {
-      SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
-
-      BLO_write_struct_array(writer, SDefVert, smd->numverts, smd->verts);
-
-      if (smd->verts) {
-        for (int i = 0; i < smd->numverts; i++) {
-          BLO_write_struct_array(writer, SDefBind, smd->verts[i].numbinds, smd->verts[i].binds);
-
-          if (smd->verts[i].binds) {
-            for (int j = 0; j < smd->verts[i].numbinds; j++) {
-              BLO_write_uint32_array(
-                  writer, smd->verts[i].binds[j].numverts, smd->verts[i].binds[j].vert_inds);
-
-              if (smd->verts[i].binds[j].mode == MOD_SDEF_MODE_CENTROID ||
-                  smd->verts[i].binds[j].mode == MOD_SDEF_MODE_LOOPTRI) {
-                BLO_write_float3_array(writer, 1, smd->verts[i].binds[j].vert_weights);
-              }
-              else {
-                BLO_write_float_array(
-                    writer, smd->verts[i].binds[j].numverts, smd->verts[i].binds[j].vert_weights);
-              }
-            }
-          }
-        }
-      }
-    }
-    else if (md->type == eModifierType_Bevel) {
-      BevelModifierData *bmd = (BevelModifierData *)md;
-      if (bmd->custom_profile) {
-        write_CurveProfile(writer, bmd->custom_profile);
-      }
     }
 
     if (mti->blendWrite != NULL) {
@@ -2872,7 +2805,7 @@ static void write_scene(BlendWriter *writer, Scene *sce, const void *id_address)
   }
   /* Write the curve profile to the file. */
   if (tos->custom_bevel_profile_preset) {
-    write_CurveProfile(writer, tos->custom_bevel_profile_preset);
+    BKE_curveprofile_blend_write(writer, tos->custom_bevel_profile_preset);
   }
 
   write_paint(writer, &tos->imapaint.paint);
@@ -3431,8 +3364,8 @@ static void write_text(BlendWriter *writer, Text *text, const void *id_address)
   BLO_write_id_struct(writer, Text, id_address, &text->id);
   write_iddata(writer, &text->id);
 
-  if (text->name) {
-    BLO_write_string(writer, text->name);
+  if (text->filepath) {
+    BLO_write_string(writer, text->filepath);
   }
 
   if (!(text->flags & TXT_ISEXT)) {
@@ -4199,7 +4132,7 @@ static void write_libraries(WriteData *wd, Main *main)
         writestruct(wd, DATA, PackedFile, 1, pf);
         writedata(wd, DATA, pf->size, pf->data);
         if (wd->use_memfile == false) {
-          printf("write packed .blend: %s\n", main->curlib->name);
+          printf("write packed .blend: %s\n", main->curlib->filepath);
         }
       }
 
@@ -4214,7 +4147,7 @@ static void write_libraries(WriteData *wd, Main *main)
                   "ERROR: write file: data-block '%s' from lib '%s' is not linkable "
                   "but is flagged as directly linked",
                   id->name,
-                  main->curlib->filepath);
+                  main->curlib->filepath_abs);
               BLI_assert(0);
             }
             writestruct(wd, ID_LINK_PLACEHOLDER, ID, 1, id);

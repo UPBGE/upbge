@@ -553,8 +553,7 @@ static void pose_mirror_info_init(PoseInitData_Mirror *pid,
 /** \name Convert Armature
  * \{ */
 
-static void add_pose_transdata(
-    TransInfo *t, bPoseChannel *pchan, Object *ob, TransDataContainer *tc, TransData *td)
+static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, TransData *td)
 {
   Bone *bone = pchan->bone;
   float pmat[3][3], omat[3][3];
@@ -667,20 +666,16 @@ static void add_pose_transdata(
   mul_m3_m3m3(td->axismtx, omat, pmat);
   normalize_m3(td->axismtx);
 
-  if (ELEM(t->mode, TFM_BONESIZE, TFM_BONE_ENVELOPE_DIST)) {
-    bArmature *arm = tc->poseobj->data;
-
-    if ((t->mode == TFM_BONE_ENVELOPE_DIST) || (arm->drawtype == ARM_ENVELOPE)) {
-      td->loc = NULL;
-      td->val = &bone->dist;
-      td->ival = bone->dist;
-    }
-    else {
-      // abusive storage of scale in the loc pointer :)
-      td->loc = &bone->xwidth;
-      copy_v3_v3(td->iloc, td->loc);
-      td->val = NULL;
-    }
+  if (t->mode == TFM_BONE_ENVELOPE_DIST) {
+    td->loc = NULL;
+    td->val = &bone->dist;
+    td->ival = bone->dist;
+  }
+  else if (t->mode == TFM_BONESIZE) {
+    // abusive storage of scale in the loc pointer :)
+    td->loc = &bone->xwidth;
+    copy_v3_v3(td->iloc, td->loc);
+    td->val = NULL;
   }
 
   /* in this case we can do target-less IK grabbing */
@@ -836,7 +831,7 @@ void createTransPose(TransInfo *t)
     td = tc->data;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       if (pchan->bone->flag & BONE_TRANSFORM) {
-        add_pose_transdata(t, pchan, ob, tc, td);
+        add_pose_transdata(t, pchan, ob, td);
         td++;
       }
     }
@@ -988,7 +983,7 @@ void createTransArmatureVerts(TransInfo *t)
         }
         else if (ELEM(t->mode, TFM_BONESIZE, TFM_BONE_ENVELOPE_DIST)) {
           if (ebo->flag & BONE_SELECTED) {
-            if ((t->mode == TFM_BONE_ENVELOPE_DIST) || (arm->drawtype == ARM_ENVELOPE)) {
+            if (t->mode == TFM_BONE_ENVELOPE_DIST) {
               td->loc = NULL;
               td->val = &ebo->dist;
               td->ival = ebo->dist;

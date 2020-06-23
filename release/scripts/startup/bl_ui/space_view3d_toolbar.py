@@ -806,6 +806,8 @@ class VIEW3D_PT_sculpt_voxel_remesh(Panel, View3DPaintPanel):
         col.prop(mesh, "use_remesh_preserve_volume", text="Volume")
         col.prop(mesh, "use_remesh_preserve_paint_mask", text="Paint Mask")
         col.prop(mesh, "use_remesh_preserve_sculpt_face_sets", text="Face Sets")
+        col.prop(mesh, "use_remesh_preserve_vertex_colors", text="Vertex Colors")
+
 
         layout.operator("object.voxel_remesh", text="Remesh")
 
@@ -1694,7 +1696,7 @@ class GreasePencilSculptPanel:
 
     @classmethod
     def poll(cls, context):
-        if context.space_data.type in ('VIEW_3D', 'PROPERTIES'):
+        if context.space_data.type in {'VIEW_3D', 'PROPERTIES'}:
             if context.gpencil_data is None:
                 return False
 
@@ -1768,7 +1770,7 @@ class GreasePencilWeightPanel:
 
     @classmethod
     def poll(cls, context):
-        if context.space_data.type in ('VIEW_3D', 'PROPERTIES'):
+        if context.space_data.type in {'VIEW_3D', 'PROPERTIES'}:
             if context.gpencil_data is None:
                 return False
 
@@ -1843,7 +1845,7 @@ class GreasePencilVertexPanel:
 
     @classmethod
     def poll(cls, context):
-        if context.space_data.type in ('VIEW_3D', 'PROPERTIES'):
+        if context.space_data.type in {'VIEW_3D', 'PROPERTIES'}:
             if context.gpencil_data is None:
                 return False
 
