@@ -561,7 +561,7 @@ void KX_GameObject::RestoreObmat(Object *ob)
 {
   if (ob) {
     Scene *sce = GetScene()->GetBlenderScene();
-    if (sce->gm.flag & GAME_USE_UNDO) {
+    if (sce->gm.flag & GAME_USE_UNDO && ob->type != OB_CAMERA) {
       copy_m4_m4(ob->obmat, m_origObmat);
       BKE_object_apply_mat4(ob, ob->obmat, false, true);
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
