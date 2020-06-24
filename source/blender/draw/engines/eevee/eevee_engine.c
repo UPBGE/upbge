@@ -166,6 +166,7 @@ static void eevee_cache_finish(void *vedata)
   EEVEE_materials_cache_finish(sldata, vedata);
   EEVEE_lights_cache_finish(sldata, vedata);
   EEVEE_lightprobes_cache_finish(sldata, vedata);
+  EEVEE_renderpasses_cache_finish(sldata, vedata);
 
   EEVEE_subsurface_draw_init(sldata, vedata);
   EEVEE_effects_draw_init(sldata, vedata);
@@ -212,6 +213,10 @@ static void eevee_draw_scene(void *vedata)
     const DRWContextState *draw_ctx = DRW_context_state_get();
     const Scene *scene = draw_ctx->scene;
     loop_len = MAX2(1, scene->eevee.taa_samples);
+  }
+
+  if (stl->effects->bypass_drawing) {
+    loop_len = 0;
   }
 
   while (loop_len--) {
@@ -350,6 +355,11 @@ static void eevee_draw_scene(void *vedata)
   }
   else {
     EEVEE_renderpasses_draw(sldata, vedata);
+  }
+
+  if (stl->effects->bypass_drawing) {
+    /* Restore the depth from sample 1. */
+    GPU_framebuffer_blit(fbl->double_buffer_depth_fb, 0, dfbl->default_fb, 0, GPU_DEPTH_BIT);
   }
 
   /* Game engine transition */
@@ -512,6 +522,7 @@ static void eevee_render_to_image(void *vedata,
       EEVEE_materials_cache_finish(sldata, vedata);
       EEVEE_lights_cache_finish(sldata, vedata);
       EEVEE_lightprobes_cache_finish(sldata, vedata);
+      EEVEE_renderpasses_cache_finish(sldata, vedata);
 
       EEVEE_subsurface_draw_init(sldata, vedata);
       EEVEE_effects_draw_init(sldata, vedata);
@@ -528,7 +539,11 @@ static void eevee_render_to_image(void *vedata,
       EEVEE_temporal_sampling_create_view(vedata);
       EEVEE_render_draw(vedata, engine, render_layer, rect);
 
-      DRW_cache_restart();
+      if (i < time_steps_tot - 1) {
+        /* Don't reset after the last loop. Since EEVEE_render_read_result
+         * might need some DRWPasses. */
+        DRW_cache_restart();
+      }
     }
   }
 

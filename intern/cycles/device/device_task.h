@@ -31,8 +31,33 @@ class RenderBuffers;
 class RenderTile;
 class Tile;
 
+enum DenoiserType {
+  DENOISER_NLM = 1,
+  DENOISER_OPTIX = 2,
+  DENOISER_OPENIMAGEDENOISE = 4,
+  DENOISER_NUM,
+
+  DENOISER_NONE = 0,
+  DENOISER_ALL = ~0,
+};
+
+typedef int DenoiserTypeMask;
+
 class DenoiseParams {
  public:
+  /* Apply denoiser to image. */
+  bool use;
+  /* Output denoising data passes (possibly without applying the denoiser). */
+  bool store_passes;
+
+  /* Denoiser type. */
+  DenoiserType type;
+
+  /* Viewport start sample. */
+  int start_sample;
+
+  /** Native Denoiser **/
+
   /* Pixel radius for neighboring pixels to take into account. */
   int radius;
   /* Controls neighbor pixel weighting for the denoising filter. */
@@ -46,18 +71,36 @@ class DenoiseParams {
   int neighbor_frames;
   /* Clamp the input to the range of +-1e8. Should be enough for any legitimate data. */
   bool clamp_input;
+
+  /** Optix Denoiser **/
+
   /* Passes handed over to the OptiX denoiser (default to color + albedo). */
   int optix_input_passes;
 
   DenoiseParams()
   {
+    use = false;
+    store_passes = false;
+
+    type = DENOISER_NLM;
+
     radius = 8;
     strength = 0.5f;
     feature_strength = 0.5f;
     relative_pca = false;
     neighbor_frames = 2;
     clamp_input = true;
+
     optix_input_passes = 2;
+
+    start_sample = 0;
+  }
+
+  /* Test if a denoising task needs to run, also to prefilter passes for the native
+   * denoiser when we are not applying denoising to the combined image. */
+  bool need_denoising_task() const
+  {
+    return (use || (store_passes && type == DENOISER_NLM));
   }
 };
 
@@ -114,10 +157,6 @@ class DeviceTask {
   DenoiseParams denoising;
   bool denoising_from_render;
   vector<int> denoising_frames;
-
-  bool denoising_do_filter;
-  bool denoising_use_optix;
-  bool denoising_write_passes;
 
   int pass_stride;
   int frame_stride;

@@ -3175,7 +3175,8 @@ static void update_effectors_task_cb(void *__restrict userdata,
 
       /* do effectors */
       pd_point_from_loc(data->scene, voxel_center, vel, index, &epoint);
-      BKE_effectors_apply(data->effectors, NULL, mds->effector_weights, &epoint, retvel, NULL, NULL);
+      BKE_effectors_apply(
+          data->effectors, NULL, mds->effector_weights, &epoint, retvel, NULL, NULL);
 
       /* convert retvel to local space */
       mag = len_v3(retvel);
@@ -3793,8 +3794,8 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
 
   int next_frame = scene_framenr + 1;
   int prev_frame = scene_framenr - 1;
-  /* Ensure positivity of previous frame. */
-  CLAMP(prev_frame, mds->cache_frame_start, prev_frame);
+  /* Ensure positive of previous frame. */
+  CLAMP_MIN(prev_frame, mds->cache_frame_start);
 
   int data_frame = scene_framenr, noise_frame = scene_framenr;
   int mesh_frame = scene_framenr, particles_frame = scene_framenr, guide_frame = scene_framenr;
@@ -3808,6 +3809,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
   bubble = mds->particle_type & FLUID_DOMAIN_PARTICLE_BUBBLE;
   floater = mds->particle_type & FLUID_DOMAIN_PARTICLE_FOAM;
 
+  bool with_resumable_cache = mds->flags & FLUID_DOMAIN_USE_RESUMABLE_CACHE;
   bool with_script, with_adaptive, with_noise, with_mesh, with_particles, with_guide;
   with_script = mds->flags & FLUID_DOMAIN_EXPORT_MANTA_SCRIPT;
   with_adaptive = mds->flags & FLUID_DOMAIN_USE_ADAPTIVE_DOMAIN;
@@ -3867,13 +3869,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
 
   /* Cache mode specific settings. */
   switch (mode) {
-    case FLUID_DOMAIN_CACHE_FINAL:
-      /* Just load the data that has already been baked */
-      if (!baking_data && !baking_noise && !baking_mesh && !baking_particles && !baking_guide) {
-        read_cache = true;
-        bake_cache = false;
-      }
-      break;
+    case FLUID_DOMAIN_CACHE_ALL:
     case FLUID_DOMAIN_CACHE_MODULAR:
       /* Just load the data that has already been baked */
       if (!baking_data && !baking_noise && !baking_mesh && !baking_particles && !baking_guide) {
@@ -3901,10 +3897,10 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
       }
 
       /* Noise, mesh and particles can never be baked more than data. */
-      CLAMP(noise_frame, noise_frame, data_frame);
-      CLAMP(mesh_frame, mesh_frame, data_frame);
-      CLAMP(particles_frame, particles_frame, data_frame);
-      CLAMP(guide_frame, guide_frame, mds->cache_frame_end);
+      CLAMP_MAX(noise_frame, data_frame);
+      CLAMP_MAX(mesh_frame, data_frame);
+      CLAMP_MAX(particles_frame, data_frame);
+      CLAMP_MAX(guide_frame, mds->cache_frame_end);
 
       /* Force to read cache as we're resuming the bake */
       read_cache = true;
@@ -3928,6 +3924,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
       break;
   }
 
+  bool read_partial = false, read_all = false;
   /* Try to read from cache and keep track of read success. */
   if (read_cache) {
 
@@ -3936,20 +3933,16 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
       has_config = manta_read_config(mds->fluid, mmd, mesh_frame);
 
       /* Update mesh data from file is faster than via Python (manta_read_mesh()). */
-      has_mesh = manta_update_mesh_structures(mds->fluid, mmd, mesh_frame);
+      has_mesh = manta_read_mesh(mds->fluid, mmd, mesh_frame);
     }
 
     /* Read particles cache. */
     if (with_liquid && with_particles) {
       has_config = manta_read_config(mds->fluid, mmd, particles_frame);
 
-      if (!baking_data && !baking_particles && next_particles) {
-        /* Update particle data from file is faster than via Python (manta_read_particles()). */
-        has_particles = manta_update_particle_structures(mds->fluid, mmd, particles_frame);
-      }
-      else {
-        has_particles = manta_read_particles(mds->fluid, mmd, particles_frame);
-      }
+      read_partial = !baking_data && !baking_particles && next_particles;
+      read_all = !read_partial && with_resumable_cache;
+      has_particles = manta_read_particles(mds->fluid, mmd, particles_frame, read_all);
     }
 
     /* Read guide cache. */
@@ -3967,12 +3960,10 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
           manta_needs_realloc(mds->fluid, mmd)) {
         BKE_fluid_reallocate_fluid(mds, mds->res, 1);
       }
-      if (!baking_data && !baking_noise && next_noise) {
-        has_noise = manta_update_noise_structures(mds->fluid, mmd, noise_frame);
-      }
-      else {
-        has_noise = manta_read_noise(mds->fluid, mmd, noise_frame);
-      }
+
+      read_partial = !baking_data && !baking_noise && next_noise;
+      read_all = !read_partial && with_resumable_cache;
+      has_noise = manta_read_noise(mds->fluid, mmd, noise_frame, read_all);
 
       /* When using the adaptive domain, copy all data that was read to a new fluid object. */
       if (with_adaptive && baking_noise) {
@@ -3986,12 +3977,10 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
               mds, o_res, mds->res, o_min, mds->res_min, o_max, o_shift, mds->shift);
         }
       }
-      if (!baking_data && !baking_noise && next_data && next_noise) {
-        /* Nothing to do here since we already loaded noise grids. */
-      }
-      else {
-        has_data = manta_read_data(mds->fluid, mmd, data_frame);
-      }
+
+      read_partial = !baking_data && !baking_noise && next_data && next_noise;
+      read_all = !read_partial && with_resumable_cache;
+      has_data = manta_read_data(mds->fluid, mmd, data_frame, read_all);
     }
     /* Read data cache only */
     else {
@@ -4002,28 +3991,17 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *mmd,
         if (has_config && manta_needs_realloc(mds->fluid, mmd)) {
           BKE_fluid_reallocate_fluid(mds, mds->res, 1);
         }
-        /* Read data cache */
-        if (!baking_data && !baking_particles && !baking_mesh && next_data) {
-          has_data = manta_update_smoke_structures(mds->fluid, mmd, data_frame);
-        }
-        else {
-          has_data = manta_read_data(mds->fluid, mmd, data_frame);
-        }
       }
-      if (with_liquid) {
-        if (!baking_data && !baking_particles && !baking_mesh && next_data) {
-          has_data = manta_update_liquid_structures(mds->fluid, mmd, data_frame);
-        }
-        else {
-          has_data = manta_read_data(mds->fluid, mmd, data_frame);
-        }
-      }
+
+      read_partial = !baking_data && !baking_particles && !baking_mesh && next_data;
+      read_all = !read_partial && with_resumable_cache;
+      has_data = manta_read_data(mds->fluid, mmd, data_frame, read_all);
     }
   }
 
   /* Cache mode specific settings */
   switch (mode) {
-    case FLUID_DOMAIN_CACHE_FINAL:
+    case FLUID_DOMAIN_CACHE_ALL:
     case FLUID_DOMAIN_CACHE_MODULAR:
       if (!baking_data && !baking_noise && !baking_mesh && !baking_particles && !baking_guide) {
         bake_cache = false;
@@ -4605,13 +4583,9 @@ void BKE_fluid_particles_set(FluidDomainSettings *settings, int value, bool clea
 
 void BKE_fluid_domain_type_set(Object *object, FluidDomainSettings *settings, int type)
 {
-  /* Set common values for liquid/smoke domain: cache type,
-   * border collision and viewport draw-type. */
+  /* Set values for border collision:
+   * Liquids should have a closed domain, smoke domains should be open. */
   if (type == FLUID_DOMAIN_TYPE_GAS) {
-    BKE_fluid_cachetype_mesh_set(settings, FLUID_DOMAIN_FILE_BIN_OBJECT);
-    BKE_fluid_cachetype_data_set(settings, FLUID_DOMAIN_FILE_UNI);
-    BKE_fluid_cachetype_particle_set(settings, FLUID_DOMAIN_FILE_UNI);
-    BKE_fluid_cachetype_noise_set(settings, FLUID_DOMAIN_FILE_UNI);
     BKE_fluid_collisionextents_set(settings, FLUID_DOMAIN_BORDER_FRONT, 1);
     BKE_fluid_collisionextents_set(settings, FLUID_DOMAIN_BORDER_BACK, 1);
     BKE_fluid_collisionextents_set(settings, FLUID_DOMAIN_BORDER_RIGHT, 1);
@@ -4621,10 +4595,6 @@ void BKE_fluid_domain_type_set(Object *object, FluidDomainSettings *settings, in
     object->dt = OB_WIRE;
   }
   else if (type == FLUID_DOMAIN_TYPE_LIQUID) {
-    BKE_fluid_cachetype_mesh_set(settings, FLUID_DOMAIN_FILE_BIN_OBJECT);
-    BKE_fluid_cachetype_data_set(settings, FLUID_DOMAIN_FILE_UNI);
-    BKE_fluid_cachetype_particle_set(settings, FLUID_DOMAIN_FILE_UNI);
-    BKE_fluid_cachetype_noise_set(settings, FLUID_DOMAIN_FILE_UNI);
     BKE_fluid_collisionextents_set(settings, FLUID_DOMAIN_BORDER_FRONT, 0);
     BKE_fluid_collisionextents_set(settings, FLUID_DOMAIN_BORDER_BACK, 0);
     BKE_fluid_collisionextents_set(settings, FLUID_DOMAIN_BORDER_RIGHT, 0);
@@ -4986,12 +4956,12 @@ void BKE_fluid_modifier_create_type_data(struct FluidModifierData *mmd)
 
     /* OpenVDB cache options */
 #ifdef WITH_OPENVDB_BLOSC
-    mmd->domain->openvdb_comp = VDB_COMPRESSION_BLOSC;
+    mmd->domain->openvdb_compression = VDB_COMPRESSION_BLOSC;
 #else
-    mmd->domain->openvdb_comp = VDB_COMPRESSION_ZIP;
+    mmd->domain->openvdb_compression = VDB_COMPRESSION_ZIP;
 #endif
     mmd->domain->clipping = 1e-6f;
-    mmd->domain->data_depth = 0;
+    mmd->domain->openvdb_data_depth = 0;
   }
   else if (mmd->type & MOD_FLUID_TYPE_FLOW) {
     if (mmd->flow) {
@@ -5228,9 +5198,9 @@ void BKE_fluid_modifier_copy(const struct FluidModifierData *mmd,
     }
 
     /* OpenVDB cache options */
-    tmds->openvdb_comp = mds->openvdb_comp;
+    tmds->openvdb_compression = mds->openvdb_compression;
     tmds->clipping = mds->clipping;
-    tmds->data_depth = mds->data_depth;
+    tmds->openvdb_data_depth = mds->openvdb_data_depth;
   }
   else if (tmmd->flow) {
     FluidFlowSettings *tmfs = tmmd->flow;

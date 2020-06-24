@@ -721,7 +721,7 @@ class OptiXDevice : public CUDADevice {
     const CUDAContextScope scope(cuContext);
 
     // Choose between OptiX and NLM denoising
-    if (task.denoising_use_optix) {
+    if (task.denoising.type == DENOISER_OPTIX) {
       // Map neighboring tiles onto this device, indices are as following:
       // Where index 4 is the center tile and index 9 is the target for the result.
       //   0 1 2
@@ -1445,21 +1445,21 @@ class OptiXDevice : public CUDADevice {
       KernelData *const data = (KernelData *)host;
       *(OptixTraversableHandle *)&data->bvh.scene = tlas_handle;
 
-      update_launch_params(name, offsetof(KernelParams, data), host, size);
+      update_launch_params(offsetof(KernelParams, data), host, size);
       return;
     }
 
     // Update data storage pointers in launch parameters
 #  define KERNEL_TEX(data_type, tex_name) \
     if (strcmp(name, #tex_name) == 0) { \
-      update_launch_params(name, offsetof(KernelParams, tex_name), host, size); \
+      update_launch_params(offsetof(KernelParams, tex_name), host, size); \
       return; \
     }
 #  include "kernel/kernel_textures.h"
 #  undef KERNEL_TEX
   }
 
-  void update_launch_params(const char *name, size_t offset, void *data, size_t data_size)
+  void update_launch_params(size_t offset, void *data, size_t data_size)
   {
     const CUDAContextScope scope(cuContext);
 
@@ -1561,6 +1561,7 @@ void device_optix_info(const vector<DeviceInfo> &cuda_devices, vector<DeviceInfo
 
     info.type = DEVICE_OPTIX;
     info.id += "_OptiX";
+    info.denoisers |= DENOISER_OPTIX;
 
     devices.push_back(info);
   }

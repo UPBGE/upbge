@@ -695,6 +695,7 @@ typedef struct EEVEE_EffectsInfo {
   int taa_render_sample;
   int taa_total_sample;
   float taa_alpha;
+  bool bypass_drawing;
   bool prev_drw_support;
   bool prev_is_navigating;
   float prev_drw_persmat[4][4]; /* Used for checking view validity and reprojection. */
@@ -1256,6 +1257,7 @@ void EEVEE_renderpasses_init(EEVEE_Data *vedata);
 void EEVEE_renderpasses_output_init(EEVEE_ViewLayerData *sldata,
                                     EEVEE_Data *vedata,
                                     uint tot_samples);
+void EEVEE_renderpasses_cache_finish(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_renderpasses_output_accumulate(EEVEE_ViewLayerData *sldata,
                                           EEVEE_Data *vedata,
                                           bool post_effect);
