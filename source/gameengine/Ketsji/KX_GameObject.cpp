@@ -81,6 +81,7 @@
 #include "EXP_PyObjectPlus.h" /* python stuff */
 #include "EXP_ListWrapper.h"
 #include "BLI_utildefines.h"
+#include "BLI_math.h"
 
 #ifdef WITH_PYTHON
 #  include "EXP_PythonCallBack.h"
@@ -2985,34 +2986,23 @@ PyObject *KX_GameObject::pyattr_get_localTransform(EXP_PyObjectPlus *self_v, con
 int KX_GameObject::pyattr_set_localTransform(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	mt::mat4 temp;
-	mt::vec3 scale;
+  mt::mat4 temp;
+  float position[3], rotation[3][3], size[3];
 
 	if (!PyMatTo(value, temp)) {
 		return PY_SET_ATTR_FAIL;
 	}
 
-	mt::vec3 position(temp.TranslationVector3D());
-	mt::vec3 rot1(temp(0, 0), temp(0, 1), temp(0, 2));
-	mt::vec3 rot2(temp(1, 0), temp(1, 1), temp(1, 2));
-	mt::vec3 rot3(temp(2, 0), temp(2, 1), temp(2, 2));
+	float transform[4][4] = {temp(0, 0), temp(1, 0), temp(2, 0), temp(3, 0),
+							 temp(0, 1), temp(1, 1), temp(2, 1), temp(3, 1),
+							 temp(0, 2), temp(1, 2), temp(2, 2), temp(3, 2),
+							 temp(0, 3), temp(1, 3), temp(2, 3), temp(3, 3)};
 
-  /* We need to normalize rotation matrix before to pass it */
-	scale[0] = rot1.Normalize();
-	scale[1] = rot2.Normalize();
-	scale[2] = rot3.Normalize();
+  mat4_to_loc_rot_size(position, rotation, size, transform);
 
-	mt::mat3 rotate(rot1, rot2, rot3);
-
-	/* Negate scale vector and rotate matrix if rotate matrix is negative */
-	if (mt::vec3::DotProduct(mt::vec3::CrossProduct(rot1, rot2), rot3) < 0.0f) {
-		rotate = -rotate;
-		scale = -scale;
-	}
-
-	self->NodeSetLocalPosition(position);
-	self->NodeSetLocalOrientation(rotate);
-	self->NodeSetLocalScale(scale);
+  self->NodeSetLocalPosition(mt::vec3(position));
+  self->NodeSetLocalOrientation(mt::mat3(rotation));
+  self->NodeSetLocalScale(mt::vec3(size));
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -3027,34 +3017,23 @@ PyObject *KX_GameObject::pyattr_get_worldTransform(EXP_PyObjectPlus *self_v, con
 int KX_GameObject::pyattr_set_worldTransform(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	mt::mat4 temp;
-	mt::vec3 scale;
+  mt::mat4 temp;
+  float position[3], rotation[3][3], size[3];
 
-	if (!PyMatTo(value, temp)) {
-		return PY_SET_ATTR_FAIL;
-	}
+  if (!PyMatTo(value, temp)) {
+    return PY_SET_ATTR_FAIL;
+  }
 
-	mt::vec3 position(temp.TranslationVector3D());
-	mt::vec3 rot1(temp(0, 0), temp(0, 1), temp(0, 2));
-	mt::vec3 rot2(temp(1, 0), temp(1, 1), temp(1, 2));
-	mt::vec3 rot3(temp(2, 0), temp(2, 1), temp(2, 2));
+  float transform[4][4] = {temp(0, 0), temp(1, 0), temp(2, 0), temp(3, 0),
+						   temp(0, 1), temp(1, 1), temp(2, 1), temp(3, 1),
+						   temp(0, 2), temp(1, 2), temp(2, 2), temp(3, 2),
+						   temp(0, 3), temp(1, 3), temp(2, 3), temp(3, 3)};
 
-  /* We need to normalize rotation matrix before to pass it */
-	scale[0] = rot1.Normalize();
-	scale[1] = rot2.Normalize();
-	scale[2] = rot3.Normalize();
+  mat4_to_loc_rot_size(position, rotation, size, transform);
 
-	mt::mat3 rotate(rot1, rot2, rot3);
-
-	/* Negate scale vector and rotate matrix if rotate matrix is negative */
-	if (mt::vec3::DotProduct(mt::vec3::CrossProduct(rot1, rot2), rot3) < 0.0f) {
-		rotate = -rotate;
-		scale = -scale;
-	}
-
-	self->NodeSetWorldPosition(position);
-	self->NodeSetGlobalOrientation(rotate);
-	self->NodeSetWorldScale(scale);
+  self->NodeSetWorldPosition(mt::vec3(position));
+  self->NodeSetGlobalOrientation(mt::mat3(rotation));
+  self->NodeSetWorldScale(mt::vec3(size));
 
 	return PY_SET_ATTR_SUCCESS;
 }
