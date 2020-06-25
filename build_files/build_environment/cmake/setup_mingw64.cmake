@@ -19,7 +19,7 @@
 ####################################################################################################################
 # Mingw64 Builds
 ####################################################################################################################
-# This installs mingw64+msys to compile ffmpeg/iconv/libsndfile/lapack/fftw3
+# This installs mingw64+msys to compile ffmpeg/iconv/libsndfile/fftw3
 ####################################################################################################################
 
 message("LIBDIR = ${LIBDIR}")
@@ -124,6 +124,14 @@ if((EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/bin/mingw-get.exe") AND (NOT EXISTS "$
   message("Installing mktemp")
   execute_process(
     COMMAND ${DOWNLOAD_DIR}/mingw/mingw64/bin/mingw-get install msys msys-mktemp
+    WORKING_DIRECTORY  ${DOWNLOAD_DIR}/mingw/mingw64/bin/
+  )
+endif()
+
+if((EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/bin/mingw-get.exe") AND (NOT EXISTS "${DOWNLOAD_DIR}/mingw/mingw64/msys/1.0/bin/m4.exe"))
+  message("Installing m4")
+  execute_process(
+    COMMAND ${DOWNLOAD_DIR}/mingw/mingw64/bin/mingw-get install msys msys-m4
     WORKING_DIRECTORY  ${DOWNLOAD_DIR}/mingw/mingw64/bin/
   )
 endif()

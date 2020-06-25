@@ -128,7 +128,7 @@ typedef struct MeshRenderData {
   BMEdge *eed_act;
   BMFace *efa_act;
   BMFace *efa_act_uv;
-  /* Data created on-demand (usually not for bmesh-based data). */
+  /* Data created on-demand (usually not for #BMesh based data). */
   MLoopTri *mlooptri;
   float (*loop_normals)[3];
   float (*poly_normals)[3];
@@ -145,7 +145,7 @@ static void mesh_render_data_update_loose_geom(MeshRenderData *mr,
       mr->vert_loose_len = 0;
       mr->edge_loose_len = 0;
 
-      BLI_bitmap *lvert_map = BLI_BITMAP_NEW(mr->vert_len, "lvert map");
+      BLI_bitmap *lvert_map = BLI_BITMAP_NEW(mr->vert_len, __func__);
 
       mr->ledges = MEM_mallocN(mr->edge_len * sizeof(int), __func__);
       const MEdge *medge = mr->medge;
@@ -177,7 +177,7 @@ static void mesh_render_data_update_loose_geom(MeshRenderData *mr,
     }
   }
   else {
-    /* BMesh */
+    /* #BMesh */
     BMesh *bm = mr->bm;
     if (iter_type & (MR_ITER_LEDGE | MR_ITER_LVERT)) {
       int elem_id;
@@ -212,7 +212,9 @@ static void mesh_render_data_update_loose_geom(MeshRenderData *mr,
   }
 }
 
-/* Part of the creation of the MeshRenderData that happens in a thread. */
+/**
+ * Part of the creation of the #MeshRenderData that happens in a thread.
+ */
 static void mesh_render_data_update_looptris(MeshRenderData *mr,
                                              const eMRIterType iter_type,
                                              const eMRDataType data_flag)
@@ -227,7 +229,7 @@ static void mesh_render_data_update_looptris(MeshRenderData *mr,
     }
   }
   else {
-    /* BMesh */
+    /* #BMesh */
     if ((iter_type & MR_ITER_LOOPTRI) || (data_flag & MR_DATA_LOOPTRI)) {
       /* Edit mode ensures this is valid, no need to calculate. */
       BLI_assert((mr->bm->totloop == 0) || (mr->edit_bmesh->looptris != NULL));
@@ -278,9 +280,9 @@ static void mesh_render_data_update_normals(MeshRenderData *mr,
     }
   }
   else {
-    /* BMesh */
+    /* #BMesh */
     if (data_flag & MR_DATA_POLY_NOR) {
-      /* Use bmface->no instead. */
+      /* Use #BMFace.no instead. */
     }
     if (((data_flag & MR_DATA_LOOP_NOR) && is_auto_smooth) || (data_flag & MR_DATA_TAN_LOOP_NOR)) {
 
@@ -419,7 +421,7 @@ static MeshRenderData *mesh_render_data_create(Mesh *me,
     mr->p_origindex = CustomData_get_layer(&mr->me->pdata, CD_ORIGINDEX);
   }
   else {
-    /* BMesh */
+    /* #BMesh */
     BMesh *bm = mr->bm;
 
     mr->vert_len = bm->totvert;
@@ -521,7 +523,7 @@ typedef void(ExtractLvertFn)(const MeshRenderData *mr, int v, const MVert *mvert
 typedef void(ExtractFinishFn)(const MeshRenderData *mr, void *buffer, void *data);
 
 typedef struct MeshExtract {
-  /** Executed on main thread and return user data for iter functions. */
+  /** Executed on main thread and return user data for iteration functions. */
   ExtractInitFn *init;
   /** Executed on one (or more if use_threading) worker thread(s). */
   ExtractEditTriFn *iter_looptri_bm;
@@ -536,7 +538,7 @@ typedef struct MeshExtract {
   ExtractFinishFn *finish;
   /** Used to request common data. */
   const eMRDataType data_flag;
-  /** Used to know if the element callbacks are threadsafe and can be parallelized. */
+  /** Used to know if the element callbacks are thread-safe and can be parallelized. */
   const bool use_threading;
 } MeshExtract;
 
@@ -591,7 +593,7 @@ static void *extract_tris_init(const MeshRenderData *mr, void *UNUSED(ibo))
       }
     }
   }
-  /* Accumulate tri len per mat to have correct offsets. */
+  /* Accumulate triangle lengths per material to have correct offsets. */
   int ofs = mat_tri_len[0];
   mat_tri_len[0] = 0;
   for (int i = 1; i < mr->mat_len; i++) {
@@ -644,7 +646,7 @@ static void extract_tris_finish(const MeshRenderData *mr, void *ibo, void *_data
 {
   MeshExtract_Tri_Data *data = _data;
   GPU_indexbuf_build_in_place(&data->elb, ibo);
-  /* HACK Create ibo subranges and assign them to each GPUBatch. */
+  /* HACK: Create ibo sub-ranges and assign them to each #GPUBatch. */
   if (mr->use_final_mesh && mr->cache->surface_per_mat && mr->cache->surface_per_mat[0]) {
     BLI_assert(mr->cache->surface_per_mat[0]->elem == ibo);
     for (int i = 0; i < mr->mat_len; i++) {
@@ -652,7 +654,7 @@ static void extract_tris_finish(const MeshRenderData *mr, void *ibo, void *_data
       int start = data->tri_mat_start[i] * 3;
       int len = data->tri_mat_end[i] * 3 - data->tri_mat_start[i] * 3;
       GPUIndexBuf *sub_ibo = GPU_indexbuf_create_subrange(ibo, start, len);
-      /* WARNING: We modify the GPUBatch here! */
+      /* WARNING: We modify the #GPUBatch here! */
       GPU_batch_elembuf_set(mr->cache->surface_per_mat[i], sub_ibo, true);
     }
   }
@@ -1031,7 +1033,7 @@ static void extract_lines_paint_mask_loop_mesh(const MeshRenderData *mr,
         GPU_indexbuf_set_line_restart(&data->elb, edge_idx);
       }
       else {
-        /* First selected loop. Set edge visible, overwritting any unsel loop. */
+        /* First selected loop. Set edge visible, overwriting any unselected loop. */
         GPU_indexbuf_set_line_verts(&data->elb, edge_idx, l, other_loop);
       }
     }
@@ -1090,7 +1092,7 @@ typedef struct MeshExtract_LineAdjacency_Data {
 static void *extract_lines_adjacency_init(const MeshRenderData *mr, void *UNUSED(buf))
 {
   /* Similar to poly_to_tri_count().
-   * There is always loop + tri - 1 edges inside a polygon.
+   * There is always (loop + triangle - 1) edges inside a polygon.
    * Accumulate for all polys and you get : */
   uint tess_edge_len = mr->loop_len + mr->tri_len - mr->poly_len;
 
@@ -1107,7 +1109,7 @@ BLI_INLINE void lines_adjacency_triangle(
     uint v1, uint v2, uint v3, uint l1, uint l2, uint l3, MeshExtract_LineAdjacency_Data *data)
 {
   GPUIndexBufBuilder *elb = &data->elb;
-  /* Iter around the triangle's edges. */
+  /* Iterate around the triangle's edges. */
   for (int e = 0; e < 3; e++) {
     SHIFT3(uint, v3, v2, v1);
     SHIFT3(uint, l3, l2, l1);
@@ -1118,7 +1120,7 @@ BLI_INLINE void lines_adjacency_triangle(
     int v_data = POINTER_AS_INT(*pval);
     if (!value_is_init || v_data == NO_EDGE) {
       /* Save the winding order inside the sign bit. Because the
-       * edgehash sort the keys and we need to compare winding later. */
+       * Edge-hash sort the keys and we need to compare winding later. */
       int value = (int)l1 + 1; /* 0 cannot be signed so add one. */
       *pval = POINTER_FROM_INT((inv_indices) ? -value : value);
       /* Store loop indices for remaining non-manifold edges. */
@@ -1130,7 +1132,7 @@ BLI_INLINE void lines_adjacency_triangle(
       *pval = POINTER_FROM_INT(NO_EDGE);
       bool inv_opposite = (v_data < 0);
       uint l_opposite = (uint)abs(v_data) - 1;
-      /* TODO Make this part threadsafe. */
+      /* TODO Make this part thread-safe. */
       if (inv_opposite == inv_indices) {
         /* Don't share edge if triangles have non matching winding. */
         GPU_indexbuf_add_line_adj_verts(elb, l1, l2, l3, l1);
@@ -1542,7 +1544,7 @@ static void *extract_pos_nor_init(const MeshRenderData *mr, void *buf)
 {
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
-    /* WARNING Adjust PosNorLoop struct accordingly. */
+    /* WARNING Adjust #PosNorLoop struct accordingly. */
     GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     GPU_vertformat_attr_add(&format, "nor", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     GPU_vertformat_alias_add(&format, "vnor");
@@ -1728,8 +1730,8 @@ static void extract_lnor_hq_loop_mesh(
   }
 
   /* Flag for paint mode overlay.
-   * Only use MR_EXTRACT_MAPPED in edit mode where it is used to display the edge-normals. In
-   * paint mode it will use the unmapped data to draw the wireframe. */
+   * Only use #MR_EXTRACT_MAPPED in edit mode where it is used to display the edge-normals.
+   * In paint mode it will use the un-mapped data to draw the wire-frame. */
   if (mpoly->flag & ME_HIDE ||
       (mr->edit_bmesh && mr->extract_type == MR_EXTRACT_MAPPED && (mr->v_origindex) &&
        mr->v_origindex[mloop->v] == ORIGINDEX_NONE)) {
@@ -1807,8 +1809,8 @@ static void extract_lnor_loop_mesh(
   }
 
   /* Flag for paint mode overlay.
-   * Only use MR_EXTRACT_MAPPED in edit mode where it is used to display the edge-normals. In
-   * paint mode it will use the unmapped data to draw the wireframe. */
+   * Only use MR_EXTRACT_MAPPED in edit mode where it is used to display the edge-normals.
+   * In paint mode it will use the un-mapped data to draw the wire-frame. */
   if (mpoly->flag & ME_HIDE ||
       (mr->edit_bmesh && mr->extract_type == MR_EXTRACT_MAPPED && (mr->v_origindex) &&
        mr->v_origindex[mloop->v] == ORIGINDEX_NONE)) {
@@ -1878,7 +1880,7 @@ static void *extract_uv_init(const MeshRenderData *mr, void *buf)
       /* Active display layer name. */
       if (i == CustomData_get_active_layer(cd_ldata, CD_MLOOPUV)) {
         GPU_vertformat_alias_add(&format, "au");
-        /* Alias to pos for edit uvs. */
+        /* Alias to `pos` for edit uvs. */
         GPU_vertformat_alias_add(&format, "pos");
       }
       /* Stencil mask uv layer name. */
@@ -1904,15 +1906,16 @@ static void *extract_uv_init(const MeshRenderData *mr, void *buf)
     if (uv_layers & (1 << i)) {
       if (mr->extract_type == MR_EXTRACT_BMESH) {
         int cd_ofs = CustomData_get_n_offset(cd_ldata, CD_MLOOPUV, i);
-        BMIter f_iter, l_iter;
+        BMIter f_iter;
         BMFace *efa;
-        BMLoop *loop;
         BM_ITER_MESH (efa, &f_iter, mr->bm, BM_FACES_OF_MESH) {
-          BM_ITER_ELEM (loop, &l_iter, efa, BM_LOOPS_OF_FACE) {
-            MLoopUV *luv = BM_ELEM_CD_GET_VOID_P(loop, cd_ofs);
+          BMLoop *l_iter, *l_first;
+          l_iter = l_first = BM_FACE_FIRST_LOOP(efa);
+          do {
+            MLoopUV *luv = BM_ELEM_CD_GET_VOID_P(l_iter, cd_ofs);
             memcpy(uv_data, luv->uv, sizeof(*uv_data));
             uv_data++;
-          }
+          } while ((l_iter = l_iter->next) != l_first);
         }
       }
       else {
@@ -1987,7 +1990,7 @@ static void extract_tan_ex(const MeshRenderData *mr, GPUVertBuf *vbo, const bool
     }
   }
   if (use_orco_tan && orco == NULL) {
-    /* If orco is not available compute it ourselves */
+    /* If `orco` is not available compute it ourselves */
     orco_allocated = true;
     orco = MEM_mallocN(sizeof(*orco) * mr->vert_len, __func__);
 
@@ -2198,7 +2201,7 @@ static void *extract_vcol_init(const MeshRenderData *mr, void *buf)
       }
 
       /* Gather number of auto layers. */
-      /* We only do vcols that are not overridden by uvs and sculpt vertex colors */
+      /* We only do `vcols` that are not overridden by `uvs` and sculpt vertex colors. */
       if (CustomData_get_named_layer_index(cd_ldata, CD_MLOOPUV, layer_name) == -1 &&
           CustomData_get_named_layer_index(cd_vdata, CD_PROP_COLOR, layer_name) == -1) {
         BLI_snprintf(attr_name, sizeof(attr_name), "a%s", attr_safe_name);
@@ -2224,7 +2227,7 @@ static void *extract_vcol_init(const MeshRenderData *mr, void *buf)
         GPU_vertformat_alias_add(&format, "ac");
       }
       /* Gather number of auto layers. */
-      /* We only do vcols that are not overridden by uvs */
+      /* We only do `vcols` that are not overridden by `uvs`. */
       if (CustomData_get_named_layer_index(cd_ldata, CD_MLOOPUV, layer_name) == -1) {
         BLI_snprintf(attr_name, sizeof(attr_name), "a%s", attr_safe_name);
         GPU_vertformat_alias_add(&format, attr_name);
@@ -2247,18 +2250,19 @@ static void *extract_vcol_init(const MeshRenderData *mr, void *buf)
     if (vcol_layers & (1 << i)) {
       if (mr->extract_type == MR_EXTRACT_BMESH) {
         int cd_ofs = CustomData_get_n_offset(cd_ldata, CD_MLOOPCOL, i);
-        BMIter f_iter, l_iter;
+        BMIter f_iter;
         BMFace *efa;
-        BMLoop *loop;
         BM_ITER_MESH (efa, &f_iter, mr->bm, BM_FACES_OF_MESH) {
-          BM_ITER_ELEM (loop, &l_iter, efa, BM_LOOPS_OF_FACE) {
-            const MLoopCol *mloopcol = BM_ELEM_CD_GET_VOID_P(loop, cd_ofs);
+          BMLoop *l_iter, *l_first;
+          l_iter = l_first = BM_FACE_FIRST_LOOP(efa);
+          do {
+            const MLoopCol *mloopcol = BM_ELEM_CD_GET_VOID_P(l_iter, cd_ofs);
             vcol_data->r = unit_float_to_ushort_clamp(BLI_color_from_srgb_table[mloopcol->r]);
             vcol_data->g = unit_float_to_ushort_clamp(BLI_color_from_srgb_table[mloopcol->g]);
             vcol_data->b = unit_float_to_ushort_clamp(BLI_color_from_srgb_table[mloopcol->b]);
             vcol_data->a = unit_float_to_ushort_clamp(mloopcol->a * (1.0f / 255.0f));
             vcol_data++;
-          }
+          } while ((l_iter = l_iter->next) != l_first);
         }
       }
       else {
@@ -2275,18 +2279,19 @@ static void *extract_vcol_init(const MeshRenderData *mr, void *buf)
     if (svcol_layers & (1 << i)) {
       if (mr->extract_type == MR_EXTRACT_BMESH) {
         int cd_ofs = CustomData_get_n_offset(cd_vdata, CD_PROP_COLOR, i);
-        BMIter l_iter, f_iter;
-        BMLoop *loop;
+        BMIter f_iter;
         BMFace *efa;
         BM_ITER_MESH (efa, &f_iter, mr->bm, BM_FACES_OF_MESH) {
-          BM_ITER_ELEM (loop, &l_iter, efa, BM_LOOPS_OF_FACE) {
-            const MPropCol *prop_col = BM_ELEM_CD_GET_VOID_P(loop->v, cd_ofs);
+          BMLoop *l_iter, *l_first;
+          l_iter = l_first = BM_FACE_FIRST_LOOP(efa);
+          do {
+            const MPropCol *prop_col = BM_ELEM_CD_GET_VOID_P(l_iter->v, cd_ofs);
             vcol_data->r = unit_float_to_ushort_clamp(prop_col->color[0]);
             vcol_data->g = unit_float_to_ushort_clamp(prop_col->color[1]);
             vcol_data->b = unit_float_to_ushort_clamp(prop_col->color[2]);
             vcol_data->a = unit_float_to_ushort_clamp(prop_col->color[3]);
             vcol_data++;
-          }
+          } while ((l_iter = l_iter->next) != l_first);
         }
       }
       else {
@@ -2335,7 +2340,7 @@ static void *extract_orco_init(const MeshRenderData *mr, void *buf)
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
     /* FIXME(fclem): We use the last component as a way to differentiate from generic vertex
-     * attributes. This is a substantial waste of Vram and should be done another way.
+     * attributes. This is a substantial waste of video-ram and should be done another way.
      * Unfortunately, at the time of writing, I did not found any other "non disruptive"
      * alternative. */
     GPU_vertformat_attr_add(&format, "orco", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
@@ -2350,7 +2355,7 @@ static void *extract_orco_init(const MeshRenderData *mr, void *buf)
   MeshExtract_Orco_Data *data = MEM_mallocN(sizeof(*data), __func__);
   data->vbo_data = (float(*)[4])vbo->data;
   data->orco = CustomData_get_layer(cd_vdata, CD_ORCO);
-  /* Make sure orco layer was requested only if needed! */
+  /* Make sure `orco` layer was requested only if needed! */
   BLI_assert(data->orco);
   return data;
 }
@@ -2423,7 +2428,7 @@ static float loop_edge_factor_get(const float f_no[3],
   cross_v3_v3v3(enor, v_no, evec);
   normalize_v3(enor);
   float d = fabsf(dot_v3v3(enor, f_no));
-  /* Rescale to the slider range. */
+  /* Re-scale to the slider range. */
   d *= (1.0f / 0.065f);
   CLAMP(d, 0.0f, 1.0f);
   return d;
@@ -2538,8 +2543,8 @@ static void extract_edge_fac_finish(const MeshRenderData *mr, void *buf, void *_
 
   if (GPU_crappy_amd_driver()) {
     GPUVertBuf *vbo = (GPUVertBuf *)buf;
-    /* Some AMD drivers strangely crash with VBOs with a one byte format.
-     * To workaround we reinit the vbo with another format and convert
+    /* Some AMD drivers strangely crash with VBO's with a one byte format.
+     * To workaround we reinitialize the VBO with another format and convert
      * all bytes to floats. */
     static GPUVertFormat format = {0};
     if (format.attr_len == 0) {
@@ -2586,8 +2591,8 @@ static const MeshExtract extract_edge_fac = {
 typedef struct MeshExtract_Weight_Data {
   float *vbo_data;
   const DRW_MeshWeightState *wstate;
-  const MDeformVert *dvert; /* For Mesh. */
-  int cd_ofs;               /* For BMesh. */
+  const MDeformVert *dvert; /* For #Mesh. */
+  int cd_ofs;               /* For #BMesh. */
 } MeshExtract_Weight_Data;
 
 static float evaluate_vertex_weight(const MDeformVert *dvert, const DRW_MeshWeightState *wstate)
@@ -2864,7 +2869,7 @@ static void *extract_edit_data_init(const MeshRenderData *mr, void *buf)
 {
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
-    /* WARNING Adjust EditLoopData struct accordingly. */
+    /* WARNING: Adjust #EditLoopData struct accordingly. */
     GPU_vertformat_attr_add(&format, "data", GPU_COMP_U8, 4, GPU_FETCH_INT);
     GPU_vertformat_alias_add(&format, "flag");
   }
@@ -2999,7 +3004,7 @@ static void *extract_edituv_data_init(const MeshRenderData *mr, void *buf)
 {
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
-    /* WARNING Adjust EditLoopData struct accordingly. */
+    /* WARNING: Adjust #EditLoopData struct accordingly. */
     GPU_vertformat_attr_add(&format, "data", GPU_COMP_U8, 4, GPU_FETCH_INT);
     GPU_vertformat_alias_add(&format, "flag");
   }
@@ -3254,7 +3259,7 @@ static short v2_to_short_angle(float v[2])
 
 static void edituv_get_stretch_angle(float auv[2][2], float av[2][3], UVStretchAngle *r_stretch)
 {
-  /* Send uvs to the shader and let it compute the aspect corrected angle. */
+  /* Send UV's to the shader and let it compute the aspect corrected angle. */
   r_stretch->uv_angles[0] = v2_to_short_angle(auv[0]);
   r_stretch->uv_angles[1] = v2_to_short_angle(auv[1]);
   /* Compute 3D angle here. */
@@ -3272,7 +3277,7 @@ static void *extract_stretch_angle_init(const MeshRenderData *mr, void *buf)
 {
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
-    /* WARNING Adjust UVStretchAngle struct accordingly. */
+    /* Waning: adjust #UVStretchAngle struct accordingly. */
     GPU_vertformat_attr_add(&format, "angle", GPU_COMP_I16, 1, GPU_FETCH_INT_TO_FLOAT_UNIT);
     GPU_vertformat_attr_add(&format, "uv_angles", GPU_COMP_I16, 2, GPU_FETCH_INT_TO_FLOAT_UNIT);
   }
@@ -3284,7 +3289,7 @@ static void *extract_stretch_angle_init(const MeshRenderData *mr, void *buf)
   MeshExtract_StretchAngle_Data *data = MEM_callocN(sizeof(*data), __func__);
   data->vbo_data = (UVStretchAngle *)vbo->data;
 
-  /* Special iter nneded to save about half of the computing cost. */
+  /* Special iterator needed to save about half of the computing cost. */
   if (mr->extract_type == MR_EXTRACT_BMESH) {
     data->cd_ofs = CustomData_get_offset(&mr->bm->ldata, CD_MLOOPUV);
   }
@@ -3308,7 +3313,7 @@ static void extract_stretch_angle_loop_bmesh(const MeshRenderData *mr,
   const MLoopUV *luv, *luv_next;
   BMLoop *l_next = loop->next;
   BMFace *efa = loop->f;
-  if (loop == efa->l_first) {
+  if (loop == BM_FACE_FIRST_LOOP(efa)) {
     /* First loop in face. */
     BMLoop *l_tmp = loop->prev;
     BMLoop *l_next_tmp = loop;
@@ -3324,7 +3329,7 @@ static void extract_stretch_angle_loop_bmesh(const MeshRenderData *mr,
     copy_v2_v2(last_auv, auv[1]);
     copy_v3_v3(last_av, av[1]);
   }
-  if (l_next == efa->l_first) {
+  if (l_next == BM_FACE_FIRST_LOOP(efa)) {
     /* Move previous edge. */
     copy_v2_v2(auv[0], auv[1]);
     copy_v3_v3(av[0], av[1]);
@@ -3499,7 +3504,9 @@ static void statvis_calc_overhang(const MeshRenderData *mr, float *r_overhang)
   }
 }
 
-/* so we can use jitter values for face interpolation */
+/**
+ * Needed so we can use jitter values for face interpolation.
+ */
 static void uv_from_jitter_v2(float uv[2])
 {
   uv[0] += 0.5f;
@@ -3889,11 +3896,10 @@ static void statvis_calc_sharp(const MeshRenderData *mr, float *r_sharp)
   copy_vn_fl(vert_angles, mr->vert_len, -M_PI);
 
   if (mr->extract_type == MR_EXTRACT_BMESH) {
-    BMIter iter, l_iter;
+    BMIter iter;
     BMesh *bm = em->bm;
     BMFace *efa;
     BMEdge *e;
-    BMLoop *loop;
     /* first assign float values to verts */
     BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
       float angle = BM_edge_calc_face_angle_signed(e);
@@ -3904,11 +3910,13 @@ static void statvis_calc_sharp(const MeshRenderData *mr, float *r_sharp)
     }
     /* Copy vert value to loops. */
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-      BM_ITER_ELEM (loop, &l_iter, efa, BM_LOOPS_OF_FACE) {
-        int l = BM_elem_index_get(loop);
-        int v = BM_elem_index_get(loop->v);
+      BMLoop *l_iter, *l_first;
+      l_iter = l_first = BM_FACE_FIRST_LOOP(efa);
+      do {
+        int l = BM_elem_index_get(l_iter);
+        int v = BM_elem_index_get(l_iter->v);
         r_sharp[l] = sharp_remap(vert_angles[v], min, max, minmax_irange);
-      }
+      } while ((l_iter = l_iter->next) != l_first);
     }
   }
   else {
@@ -4011,7 +4019,7 @@ static const MeshExtract extract_mesh_analysis = {
     NULL,
     NULL,
     extract_mesh_analysis_finish,
-    /* This is not needed for all vis type.
+    /* This is not needed for all visualization types.
      * Maybe split into different extract. */
     MR_DATA_POLY_NOR | MR_DATA_LOOPTRI,
     false,
@@ -4414,9 +4422,9 @@ static void *extract_select_idx_init(const MeshRenderData *mr, void *buf)
   return vbo->data;
 }
 
-/* TODO Use glVertexID to get loop index and use the data structure on the CPU to retrieve the
+/* TODO Use #glVertexID to get loop index and use the data structure on the CPU to retrieve the
  * select element associated with this loop ID. This would remove the need for this separate
- * index VBOs. We could upload the p/e/v_origindex as a buffer texture and sample it inside the
+ * index VBO's. We could upload the p/e/v_origindex as a buffer texture and sample it inside the
  * shader to output original index. */
 
 static void extract_poly_idx_loop_bmesh(const MeshRenderData *UNUSED(mr),
@@ -4653,9 +4661,9 @@ static ExtractTaskData *extract_task_data_create_mesh_extract(const MeshRenderDa
   taskdata->extract = extract;
   taskdata->buf = buf;
 
-  /* ExtractUserData is shared between the iterations as it holds counters to detect if the
-   * extraction is finished. To make sure the duplication of the userdata does not create a new
-   * instance of the counters we allocate the userdata in its own container.
+  /* #ExtractUserData is shared between the iterations as it holds counters to detect if the
+   * extraction is finished. To make sure the duplication of the user_data does not create a new
+   * instance of the counters we allocate the user_data in its own container.
    *
    * This structure makes sure that when extract_init is called, that the user data of all
    * iterations are updated. */
@@ -4702,11 +4710,11 @@ BLI_INLINE void mesh_extract_iter(const MeshRenderData *mr,
         int l_end = min_ii(mr->poly_len, end);
         for (int f = start; f < l_end; f++) {
           BMFace *efa = BM_face_at_index(mr->bm, f);
-          BMLoop *loop;
-          BMIter l_iter;
-          BM_ITER_ELEM (loop, &l_iter, efa, BM_LOOPS_OF_FACE) {
-            extract->iter_loop_bm(mr, BM_elem_index_get(loop), loop, user_data);
-          }
+          BMLoop *l_iter, *l_first;
+          l_iter = l_first = BM_FACE_FIRST_LOOP(efa);
+          do {
+            extract->iter_loop_bm(mr, BM_elem_index_get(l_iter), l_iter, user_data);
+          } while ((l_iter = l_iter->next) != l_first);
         }
       }
       if (iter_type & MR_ITER_LEDGE) {
@@ -5037,9 +5045,9 @@ void mesh_buffer_cache_create_requested(struct TaskGraph *task_graph,
    * `extract_single_threaded_task_node`.
    *
    * Other extractions will create a node for each loop exceeding 8192 items. these nodes are
-   * linked to the `user_data_init_task_node`. the `user_data_init_task_node` prepares the userdata
-   * needed for the extraction based on the data extracted from the mesh. counters are used to
-   * check if the finalize of a task has to be called.
+   * linked to the `user_data_init_task_node`. the `user_data_init_task_node` prepares the
+   * user_data needed for the extraction based on the data extracted from the mesh.
+   * counters are used to check if the finalize of a task has to be called.
    *
    *                           Mesh extraction sub graph
    *

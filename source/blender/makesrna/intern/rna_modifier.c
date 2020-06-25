@@ -1641,7 +1641,7 @@ static void rna_SimulationModifier_simulation_update(Main *bmain, Scene *scene, 
 
 /**
  * Special set callback that just changes the first bit of the expansion flag.
- * This way the expansion state of all the subpanels is not changed by RNA.
+ * This way the expansion state of all the sub-panels is not changed by RNA.
  */
 static void rna_Modifier_show_expanded_set(PointerRNA *ptr, bool value)
 {
@@ -5454,6 +5454,7 @@ static void rna_def_modifier_remesh(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "voxel_size", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_sdna(prop, NULL, "voxel_size");
+  RNA_def_property_range(prop, 0.0001f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.0001, 2, 0.1, 3);
   RNA_def_property_ui_text(prop,
                            "Voxel Size",

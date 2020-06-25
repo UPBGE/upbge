@@ -211,10 +211,10 @@ def liquid_adaptive_step_$ID$(framenr):\n\
     if using_invel_s$ID$:\n\
         extrapolateVec3Simple(vel=invelC_s$ID$, phi=phiIn_s$ID$, distance=6, inside=True)\n\
         resampleVec3ToMac(source=invelC_s$ID$, target=invel_s$ID$)\n\
-        pVel_pp$ID$.setSource(invel_s$ID$, isMAC=True)\n\
-    # ensure that pvel has vel as source (important when resuming bake jobs)\n\
+        pVel_pp$ID$.setSource(grid=invel_s$ID$, isMAC=True)\n\
+    # reset pvel grid source before sampling new particles - ensures that new particles are initialized with 0 velocity\n\
     else:\n\
-        pVel_pp$ID$.setSource(vel_s$ID$, isMAC=True)\n\
+        pVel_pp$ID$.setSource(grid=None, isMAC=False)\n\
     \n\
     sampleLevelsetWithParticles(phi=phiIn_s$ID$, flags=flags_s$ID$, parts=pp_s$ID$, discretization=particleNumber_s$ID$, randomness=randomness_s$ID$)\n\
     flags_s$ID$.updateFromLevelset(phi_s$ID$)\n\
@@ -257,7 +257,7 @@ def liquid_step_$ID$():\n\
     extrapolateLsSimple(phi=phi_s$ID$, distance=3)\n\
     phi_s$ID$.setBoundNeumann(0) # make sure no particles are placed at outer boundary\n\
     \n\
-    if doOpen_s$ID$ or using_outflow_s$ID$:\n\
+    if not domainClosed_s$ID$ or using_outflow_s$ID$:\n\
         resetOutflow(flags=flags_s$ID$, phi=phi_s$ID$, parts=pp_s$ID$, index=gpi_s$ID$, indexSys=pindex_s$ID$)\n\
     flags_s$ID$.updateFromLevelset(phi_s$ID$)\n\
     \n\
@@ -298,10 +298,10 @@ def liquid_step_$ID$():\n\
     \n\
     if using_guiding_s$ID$:\n\
         mantaMsg('Guiding and pressure')\n\
-        PD_fluid_guiding(vel=vel_s$ID$, velT=velT_s$ID$, flags=flags_s$ID$, phi=phi_s$ID$, curv=curvature_s$ID$, surfTens=surfaceTension_s$ID$, fractions=fractions_s$ID$, weight=weightGuide_s$ID$, blurRadius=beta_sg$ID$, pressure=pressure_s$ID$, tau=tau_sg$ID$, sigma=sigma_sg$ID$, theta=theta_sg$ID$, zeroPressureFixing=not doOpen_s$ID$)\n\
+        PD_fluid_guiding(vel=vel_s$ID$, velT=velT_s$ID$, flags=flags_s$ID$, phi=phi_s$ID$, curv=curvature_s$ID$, surfTens=surfaceTension_s$ID$, fractions=fractions_s$ID$, weight=weightGuide_s$ID$, blurRadius=beta_sg$ID$, pressure=pressure_s$ID$, tau=tau_sg$ID$, sigma=sigma_sg$ID$, theta=theta_sg$ID$, zeroPressureFixing=domainClosed_s$ID$)\n\
     else:\n\
         mantaMsg('Pressure')\n\
-        solvePressure(flags=flags_s$ID$, vel=vel_s$ID$, pressure=pressure_s$ID$, phi=phi_s$ID$, curv=curvature_s$ID$, surfTens=surfaceTension_s$ID$, fractions=fractions_s$ID$, obvel=obvel_s$ID$ if using_fractions_s$ID$ else None)\n\
+        solvePressure(flags=flags_s$ID$, vel=vel_s$ID$, pressure=pressure_s$ID$, phi=phi_s$ID$, curv=curvature_s$ID$, surfTens=surfaceTension_s$ID$, fractions=fractions_s$ID$, obvel=obvel_s$ID$ if using_fractions_s$ID$ else None, zeroPressureFixing=domainClosed_s$ID$)\n\
     \n\
     extrapolateMACSimple(flags=flags_s$ID$, vel=vel_s$ID$, distance=4, intoObs=True if using_fractions_s$ID$ else False)\n\
     setWallBcs(flags=flags_s$ID$, vel=vel_s$ID$, obvel=None if using_fractions_s$ID$ else obvel_s$ID$, phiObs=phiObs_s$ID$, fractions=fractions_s$ID$)\n\
@@ -310,7 +310,7 @@ def liquid_step_$ID$():\n\
         extrapolateMACSimple(flags=flags_s$ID$, vel=vel_s$ID$)\n\
     \n\
     # set source grids for resampling, used in adjustNumber!\n\
-    pVel_pp$ID$.setSource(vel_s$ID$, isMAC=True)\n\
+    pVel_pp$ID$.setSource(grid=vel_s$ID$, isMAC=True)\n\
     adjustNumber(parts=pp_s$ID$, vel=vel_s$ID$, flags=flags_s$ID$, minParticles=minParticles_s$ID$, maxParticles=maxParticles_s$ID$, phi=phi_s$ID$, exclude=phiObs_s$ID$, radiusFactor=radiusFactor_s$ID$, narrowBand=adjustedNarrowBandWidth_s$ID$)\n\
     flipVelocityUpdate(vel=vel_s$ID$, velOld=velOld_s$ID$, flags=flags_s$ID$, parts=pp_s$ID$, partVel=pVel_pp$ID$, flipRatio=flipRatio_s$ID$)\n";
 
@@ -347,7 +347,7 @@ def liquid_step_mesh_$ID$():\n\
     # Vert vel vector needs to pull data from vel grid with correct dim\n\
     if using_speedvectors_s$ID$:\n\
         interpolateMACGrid(target=vel_sm$ID$, source=vel_s$ID$)\n\
-        mVel_mesh$ID$.setSource(vel_sm$ID$, isMAC=True)\n\
+        mVel_mesh$ID$.setSource(grid=vel_sm$ID$, isMAC=True)\n\
     \n\
     # Set 0.5 boundary at walls + account for extra wall thickness in fractions mode + account for grid scaling:\n\
     # E.g. at upres=1 we expect 1 cell border (or 2 with fractions), at upres=2 we expect 2 cell border (or 4 with fractions), etc.\n\

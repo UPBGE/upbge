@@ -5475,10 +5475,10 @@ static bConstraint *add_new_constraint_internal(const char *name, short type)
   con->flag |= CONSTRAINT_OVERRIDE_LIBRARY_LOCAL;
   con->enforce = 1.0f;
 
-  /* Only open the main panel when constraints are created, not the subpanels. */
+  /* Only open the main panel when constraints are created, not the sub-panels. */
   con->ui_expand_flag = (1 << 0);
   if (ELEM(type, CONSTRAINT_TYPE_ACTION, CONSTRAINT_TYPE_SPLINEIK)) {
-    /* Expand the two subpanels in the cases where the main panel barely has any properties. */
+    /* Expand the two sub-panels in the cases where the main panel barely has any properties. */
     con->ui_expand_flag |= (1 << 1) | (1 << 2);
   }
 
@@ -5508,17 +5508,10 @@ static bConstraint *add_new_constraint_internal(const char *name, short type)
   return con;
 }
 
-/* if pchan is not NULL then assume we're adding a pose constraint */
-static bConstraint *add_new_constraint(Object *ob,
-                                       bPoseChannel *pchan,
-                                       const char *name,
-                                       short type)
+/* Add a newly created constraint to the constraint list. */
+static void add_new_constraint_to_list(Object *ob, bPoseChannel *pchan, bConstraint *con)
 {
-  bConstraint *con;
   ListBase *list;
-
-  /* add the constraint */
-  con = add_new_constraint_internal(name, type);
 
   /* find the constraint stack - bone or object? */
   list = (pchan) ? (&pchan->constraints) : (&ob->constraints);
@@ -5541,6 +5534,20 @@ static bConstraint *add_new_constraint(Object *ob,
     /* make this constraint the active one */
     BKE_constraints_active_set(list, con);
   }
+}
+
+/* if pchan is not NULL then assume we're adding a pose constraint */
+static bConstraint *add_new_constraint(Object *ob,
+                                       bPoseChannel *pchan,
+                                       const char *name,
+                                       short type)
+{
+  bConstraint *con;
+
+  /* add the constraint */
+  con = add_new_constraint_internal(name, type);
+
+  add_new_constraint_to_list(ob, pchan, con);
 
   /* set type+owner specific immutable settings */
   /* TODO: does action constraint need anything here - i.e. spaceonce? */
@@ -5672,6 +5679,26 @@ bConstraint *BKE_constraint_duplicate_ex(bConstraint *src, const int flag, const
   constraint_copy_data_ex(dst, src, flag, do_extern);
   dst->next = dst->prev = NULL;
   return dst;
+}
+
+/* Add a copy of the given constraint for the given bone */
+bConstraint *BKE_constraint_copy_for_pose(Object *ob, bPoseChannel *pchan, bConstraint *src)
+{
+  if (pchan == NULL) {
+    return NULL;
+  }
+
+  bConstraint *new_con = BKE_constraint_duplicate_ex(src, 0, !ID_IS_LINKED(ob));
+  add_new_constraint_to_list(ob, pchan, new_con);
+  return new_con;
+}
+
+/* Add a copy of the given constraint for the given object */
+bConstraint *BKE_constraint_copy_for_object(Object *ob, bConstraint *src)
+{
+  bConstraint *new_con = BKE_constraint_duplicate_ex(src, 0, !ID_IS_LINKED(ob));
+  add_new_constraint_to_list(ob, NULL, new_con);
+  return new_con;
 }
 
 /* duplicate all of the constraints in a constraint stack */
