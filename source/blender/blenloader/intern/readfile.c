@@ -5305,21 +5305,21 @@ static void lib_link_object(BlendLibReader *reader, Object *ob)
 
   for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
     for (a = 0; a < sens->totlinks; a++)
-      sens->links[a] = newglobadr(fd, sens->links[a]);
+      sens->links[a] = newglobadr(reader->fd, sens->links[a]);
 
     if (sens->type == SENS_MESSAGE) {
       bMessageSensor *ms = sens->data;
-      ms->fromObject = newlibadr(fd, ob->id.lib, ms->fromObject);
+      BLO_read_id_address(reader, ob->id.lib, &ms->fromObject);
     }
   }
 
   for (bController *cont = ob->controllers.first; cont; cont = cont->next) {
     for (a = 0; a < cont->totlinks; a++)
-      cont->links[a] = newglobadr(fd, cont->links[a]);
+      cont->links[a] = newglobadr(reader->fd, cont->links[a]);
 
     if (cont->type == CONT_PYTHON) {
       bPythonCont *pc = cont->data;
-      pc->text = newlibadr(fd, ob->id.lib, pc->text);
+      BLO_read_id_address(reader, ob->id.lib, &pc->text);
     }
     cont->slinks = NULL;
     cont->totslinks = 0;
@@ -5329,7 +5329,7 @@ static void lib_link_object(BlendLibReader *reader, Object *ob)
     switch (act->type) {
       case ACT_SOUND: {
         bSoundActuator *sa = act->data;
-        sa->sound = newlibadr(fd, ob->id.lib, sa->sound);
+        BLO_read_id_address(reader, ob->id.lib, &sa->sound);
         break;
       }
       case ACT_GAME:
@@ -5337,14 +5337,14 @@ static void lib_link_object(BlendLibReader *reader, Object *ob)
         break;
       case ACT_CAMERA: {
         bCameraActuator *ca = act->data;
-        ca->ob = newlibadr(fd, ob->id.lib, ca->ob);
+        BLO_read_id_address(reader, ob->id.lib, &ca->ob);
         break;
       }
       /* leave this one, it's obsolete but necessary to read for conversion */
       case ACT_ADD_OBJECT: {
         bAddObjectActuator *eoa = act->data;
         if (eoa)
-          eoa->ob = newlibadr(fd, ob->id.lib, eoa->ob);
+          BLO_read_id_address(reader, ob->id.lib, &eoa->ob);
         break;
       }
       case ACT_OBJECT: {
@@ -5353,7 +5353,7 @@ static void lib_link_object(BlendLibReader *reader, Object *ob)
           init_actuator(act);
         }
         else {
-          oa->reference = newlibadr(fd, ob->id.lib, oa->reference);
+          BLO_read_id_address(reader, ob->id.lib, &oa->reference);
         }
         break;
       }
@@ -5363,51 +5363,51 @@ static void lib_link_object(BlendLibReader *reader, Object *ob)
           init_actuator(act);
         }
         else {
-          eoa->ob = newlibadr(fd, ob->id.lib, eoa->ob);
-          eoa->me = newlibadr(fd, ob->id.lib, eoa->me);
+          BLO_read_id_address(reader, ob->id.lib, &eoa->ob);
+          BLO_read_id_address(reader, ob->id.lib, &eoa->me);
         }
         break;
       }
       case ACT_SCENE: {
         bSceneActuator *sa = act->data;
-        sa->camera = newlibadr(fd, ob->id.lib, sa->camera);
-        sa->scene = newlibadr(fd, ob->id.lib, sa->scene);
+        BLO_read_id_address(reader, ob->id.lib, &sa->camera);
+        BLO_read_id_address(reader, ob->id.lib, &sa->scene);
         break;
       }
       case ACT_COLLECTION: {
         bCollectionActuator *ca = act->data;
-        ca->collection = newlibadr(fd, ob->id.lib, ca->collection);
-        ca->camera = newlibadr(fd, ob->id.lib, ca->camera);
+        BLO_read_id_address(reader, ob->id.lib, &ca->collection);
+        BLO_read_id_address(reader, ob->id.lib, &ca->camera);
         break;
       }
       case ACT_ACTION: {
         bActionActuator *aa = act->data;
-        aa->act = newlibadr(fd, ob->id.lib, aa->act);
+        BLO_read_id_address(reader, ob->id.lib, &aa->act);
         break;
       }
       case ACT_SHAPEACTION: {
         bActionActuator *aa = act->data;
-        aa->act = newlibadr(fd, ob->id.lib, aa->act);
+        BLO_read_id_address(reader, ob->id.lib, &aa->act);
         break;
       }
       case ACT_PROPERTY: {
         bPropertyActuator *pa = act->data;
-        pa->ob = newlibadr(fd, ob->id.lib, pa->ob);
+        BLO_read_id_address(reader, ob->id.lib, &pa->ob);
         break;
       }
       case ACT_MESSAGE: {
         bMessageActuator *ma = act->data;
-        ma->toObject = newlibadr(fd, ob->id.lib, ma->toObject);
+        BLO_read_id_address(reader, ob->id.lib, &ma->toObject);
         break;
       }
       case ACT_2DFILTER: {
         bTwoDFilterActuator *_2dfa = act->data;
-        _2dfa->text = newlibadr(fd, ob->id.lib, _2dfa->text);
+        BLO_read_id_address(reader, ob->id.lib, &_2dfa->text);
         break;
       }
       case ACT_PARENT: {
         bParentActuator *parenta = act->data;
-        parenta->ob = newlibadr(fd, ob->id.lib, parenta->ob);
+        BLO_read_id_address(reader, ob->id.lib, &parenta->ob);
         break;
       }
       case ACT_STATE:
@@ -5415,14 +5415,14 @@ static void lib_link_object(BlendLibReader *reader, Object *ob)
         break;
       case ACT_ARMATURE: {
         bArmatureActuator *arma = act->data;
-        arma->target = newlibadr(fd, ob->id.lib, arma->target);
-        arma->subtarget = newlibadr(fd, ob->id.lib, arma->subtarget);
+        BLO_read_id_address(reader, ob->id.lib, &arma->target);
+        BLO_read_id_address(reader, ob->id.lib, &arma->subtarget);
         break;
       }
       case ACT_STEERING: {
         bSteeringActuator *steeringa = act->data;
-        steeringa->target = newlibadr(fd, ob->id.lib, steeringa->target);
-        steeringa->navmesh = newlibadr(fd, ob->id.lib, steeringa->navmesh);
+        BLO_read_id_address(reader, ob->id.lib, &steeringa->target);
+        BLO_read_id_address(reader, ob->id.lib,&steeringa->navmesh);
         break;
       }
       case ACT_MOUSE:
@@ -11277,83 +11277,83 @@ static void expand_object(BlendExpander *expander, Object *ob)
   for (sens = ob->sensors.first; sens; sens = sens->next) {
     if (sens->type == SENS_MESSAGE) {
       bMessageSensor *ms = sens->data;
-      expand_doit(fd, mainvar, ms->fromObject);
+      BLO_expand(expander, ms->fromObject);
     }
   }
 
   for (cont = ob->controllers.first; cont; cont = cont->next) {
     if (cont->type == CONT_PYTHON) {
       bPythonCont *pc = cont->data;
-      expand_doit(fd, mainvar, pc->text);
+      BLO_expand(expander, pc->text);
     }
   }
 
   for (act = ob->actuators.first; act; act = act->next) {
     if (act->type == ACT_SOUND) {
       bSoundActuator *sa = act->data;
-      expand_doit(fd, mainvar, sa->sound);
+      BLO_expand(expander, sa->sound);
     }
     else if (act->type == ACT_CAMERA) {
       bCameraActuator *ca = act->data;
-      expand_doit(fd, mainvar, ca->ob);
+      BLO_expand(expander, ca->ob);
     }
     else if (act->type == ACT_EDIT_OBJECT) {
       bEditObjectActuator *eoa = act->data;
       if (eoa) {
-        expand_doit(fd, mainvar, eoa->ob);
-        expand_doit(fd, mainvar, eoa->me);
+        BLO_expand(expander, eoa->ob);
+        BLO_expand(expander, eoa->me);
       }
     }
     else if (act->type == ACT_OBJECT) {
       bObjectActuator *oa = act->data;
-      expand_doit(fd, mainvar, oa->reference);
+      BLO_expand(expander, oa->reference);
     }
     else if (act->type == ACT_ADD_OBJECT) {
       bAddObjectActuator *aoa = act->data;
-      expand_doit(fd, mainvar, aoa->ob);
+      BLO_expand(expander, aoa->ob);
     }
     else if (act->type == ACT_SCENE) {
       bSceneActuator *sa = act->data;
-      expand_doit(fd, mainvar, sa->camera);
-      expand_doit(fd, mainvar, sa->scene);
+      BLO_expand(expander, sa->camera);
+      BLO_expand(expander, sa->scene);
     }
     else if (act->type == ACT_COLLECTION) {
       bCollectionActuator *ca = act->data;
-      expand_doit(fd, mainvar, ca->collection);
-      expand_doit(fd, mainvar, ca->camera);
+      BLO_expand(expander, ca->collection);
+      BLO_expand(expander, ca->camera);
     }
     else if (act->type == ACT_2DFILTER) {
       bTwoDFilterActuator *tdfa = act->data;
-      expand_doit(fd, mainvar, tdfa->text);
+      BLO_expand(expander, tdfa->text);
     }
     else if (act->type == ACT_ACTION) {
       bActionActuator *aa = act->data;
-      expand_doit(fd, mainvar, aa->act);
+      BLO_expand(expander, aa->act);
     }
     else if (act->type == ACT_SHAPEACTION) {
       bActionActuator *aa = act->data;
-      expand_doit(fd, mainvar, aa->act);
+      BLO_expand(expander, aa->act);
     }
     else if (act->type == ACT_PROPERTY) {
       bPropertyActuator *pa = act->data;
-      expand_doit(fd, mainvar, pa->ob);
+      BLO_expand(expander, pa->ob);
     }
     else if (act->type == ACT_MESSAGE) {
       bMessageActuator *ma = act->data;
-      expand_doit(fd, mainvar, ma->toObject);
+      BLO_expand(expander, ma->toObject);
     }
     else if (act->type == ACT_PARENT) {
       bParentActuator *pa = act->data;
-      expand_doit(fd, mainvar, pa->ob);
+      BLO_expand(expander, pa->ob);
     }
     else if (act->type == ACT_ARMATURE) {
       bArmatureActuator *arma = act->data;
-      expand_doit(fd, mainvar, arma->target);
+      BLO_expand(expander, arma->target);
     }
     else if (act->type == ACT_STEERING) {
       bSteeringActuator *sta = act->data;
-      expand_doit(fd, mainvar, sta->target);
-      expand_doit(fd, mainvar, sta->navmesh);
+      BLO_expand(expander, sta->target);
+      BLO_expand(expander, sta->navmesh);
     }
   }
 
