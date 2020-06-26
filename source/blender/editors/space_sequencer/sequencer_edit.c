@@ -3453,6 +3453,7 @@ static int sequencer_paste_exec(bContext *C, wmOperator *UNUSED(op))
    * on the actual data-blocks. */
   BKE_sequencer_base_clipboard_pointers_restore(&seqbase_clipboard, bmain);
   BKE_sequence_base_dupli_recursive(scene, scene, &nseqbase, &seqbase_clipboard, 0, 0);
+  BKE_sequencer_base_clipboard_pointers_store(bmain, &seqbase_clipboard);
 
   iseq_first = nseqbase.first;
 
@@ -3471,6 +3472,7 @@ static int sequencer_paste_exec(bContext *C, wmOperator *UNUSED(op))
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+  DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   ED_outliner_select_sync_from_sequence_tag(C);
 

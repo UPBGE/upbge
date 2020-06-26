@@ -36,7 +36,7 @@ __all__ = (
 # Support reloading icons.
 if "_icon_cache" in locals():
     release = bpy.app.icons.release
-    for icon_value in _icon_cache.values():
+    for icon_value in set(_icon_cache.values()):
         if icon_value != 0:
             release(icon_value)
     del release
@@ -450,7 +450,7 @@ class ToolSelectPanelHelper:
 
     @classmethod
     def _km_action_simple(cls, kc_default, kc, context_descr, label, keymap_fn):
-        km_idname = f"{cls.keymap_prefix:s} {context_descr:s}, {label:s}"
+        km_idname = "%s %s, %s" % (cls.keymap_prefix, context_descr, label)
         km = kc.keymaps.get(km_idname)
         km_kwargs = dict(space_type=cls.bl_space_type, region_type='WINDOW', tool=True)
         if km is None:

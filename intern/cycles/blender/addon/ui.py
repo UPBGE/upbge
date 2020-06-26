@@ -268,7 +268,7 @@ class CYCLES_RENDER_PT_sampling_denoising(CyclesButtonsPanel, Panel):
         sub.active = cscene.use_denoising
         sub.prop(cscene, "denoiser", text="")
 
-        heading = layout.column(align=True, heading="Viewport")
+        heading = layout.column(align=False, heading="Viewport")
         row = heading.row(align=True)
         row.prop(cscene, "use_preview_denoising", text="")
         sub = row.row()
@@ -1987,7 +1987,10 @@ class CYCLES_RENDER_PT_debug(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return CyclesButtonsPanel.poll(context) and bpy.app.debug_value == 256
+        prefs = bpy.context.preferences
+        return (CyclesButtonsPanel.poll(context)
+                and prefs.experimental.use_cycles_debug
+                and prefs.view.show_developer_ui)
 
     def draw(self, context):
         layout = self.layout

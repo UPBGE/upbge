@@ -912,6 +912,7 @@ static void seq_multiview_name(Scene *scene,
                                size_t r_size)
 {
   const char *suffix = BKE_scene_multiview_view_id_suffix_get(&scene->r, view_id);
+  BLI_assert(ext != NULL && suffix != NULL && prefix != NULL);
   BLI_snprintf(r_path, r_size, "%s%s%s", prefix, suffix, ext);
 }
 
@@ -1867,6 +1868,15 @@ static bool seq_proxy_get_fname(Editing *ed,
   return true;
 }
 
+static bool seq_can_use_proxy(Sequence *seq, IMB_Proxy_Size psize)
+{
+  if (seq->strip->proxy == NULL) {
+    return false;
+  }
+  short size_flags = seq->strip->proxy->build_size_flags;
+  return (seq->flag & SEQ_USE_PROXY) != 0 && psize != IMB_PROXY_NONE && (size_flags & psize) != 0;
+}
+
 static ImBuf *seq_proxy_fetch(const SeqRenderData *context, Sequence *seq, int cfra)
 {
   char name[PROXY_MAXFILE];
@@ -1877,7 +1887,7 @@ static ImBuf *seq_proxy_fetch(const SeqRenderData *context, Sequence *seq, int c
   Editing *ed = context->scene->ed;
   StripAnim *sanim;
 
-  if (!(seq->flag & SEQ_USE_PROXY)) {
+  if (!seq_can_use_proxy(seq, psize)) {
     return NULL;
   }
 
@@ -2241,15 +2251,6 @@ void BKE_sequencer_proxy_set(struct Sequence *seq, bool value)
   else {
     seq->flag &= ~SEQ_USE_PROXY;
   }
-}
-
-static bool seq_can_use_proxy(Sequence *seq, IMB_Proxy_Size psize)
-{
-  if (seq->strip->proxy == NULL) {
-    return false;
-  }
-  short size_flags = seq->strip->proxy->build_size_flags;
-  return (seq->flag & SEQ_USE_PROXY) != 0 && psize != IMB_PROXY_NONE && (size_flags & psize) != 0;
 }
 
 /*********************** color balance *************************/
@@ -3013,6 +3014,7 @@ static ImBuf *seq_render_image_strip_view(const SeqRenderData *context,
   }
   else {
     char str[FILE_MAX];
+    BKE_scene_multiview_view_prefix_get(context->scene, name, prefix, &ext);
     seq_multiview_name(context->scene, view_id, prefix, ext, str, FILE_MAX);
     ibuf = IMB_loadiffname(str, flag, seq->strip->colorspace_settings.name);
   }
@@ -3051,7 +3053,8 @@ static bool seq_image_strip_is_multiview_render(
 static ImBuf *seq_render_image_strip(const SeqRenderData *context,
                                      Sequence *seq,
                                      float UNUSED(nr),
-                                     float cfra)
+                                     float cfra,
+                                     bool *r_is_proxy_image)
 {
   char name[FILE_MAX];
   const char *ext = NULL;
@@ -3066,6 +3069,16 @@ static ImBuf *seq_render_image_strip(const SeqRenderData *context,
   BLI_join_dirfile(name, sizeof(name), seq->strip->dir, s_elem->name);
   BLI_path_abs(name, BKE_main_blendfile_path_from_global());
 
+  /* Try to get a proxy image. */
+  ibuf = seq_proxy_fetch(context, seq, cfra);
+  if (ibuf != NULL) {
+    s_elem->orig_width = ibuf->x;
+    s_elem->orig_height = ibuf->y;
+    *r_is_proxy_image = true;
+    return ibuf;
+  }
+
+  /* Proxy not found, render original. */
   const int totfiles = seq_num_files(context->scene, seq->views_format, true);
   bool is_multiview_render = seq_image_strip_is_multiview_render(
       context->scene, seq, totfiles, name, prefix, ext);
@@ -3128,7 +3141,8 @@ static ImBuf *seq_render_image_strip(const SeqRenderData *context,
 static ImBuf *seq_render_movie_strip_view(const SeqRenderData *context,
                                           Sequence *seq,
                                           float nr,
-                                          StripAnim *sanim)
+                                          StripAnim *sanim,
+                                          bool *r_is_proxy_image)
 {
   ImBuf *ibuf = NULL;
   IMB_Proxy_Size psize = seq_rendersize_to_proxysize(context->preview_render_size);
@@ -3140,6 +3154,9 @@ static ImBuf *seq_render_movie_strip_view(const SeqRenderData *context,
                              nr + seq->anim_startofs,
                              seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
                              psize);
+    if (ibuf != NULL) {
+      *r_is_proxy_image = true;
+    }
   }
 
   /* Fetching for requested proxy size failed, try fetching the original instead. */
@@ -3163,10 +3180,8 @@ static ImBuf *seq_render_movie_strip_view(const SeqRenderData *context,
   return ibuf;
 }
 
-static ImBuf *seq_render_movie_strip(const SeqRenderData *context,
-                                     Sequence *seq,
-                                     float nr,
-                                     float cfra)
+static ImBuf *seq_render_movie_strip(
+    const SeqRenderData *context, Sequence *seq, float nr, float cfra, bool *r_is_proxy_image)
 {
   /* Load all the videos. */
   seq_open_anim_file(context->scene, seq, false);
@@ -3186,7 +3201,8 @@ static ImBuf *seq_render_movie_strip(const SeqRenderData *context,
 
     for (ibuf_view_id = 0, sanim = seq->anims.first; sanim; sanim = sanim->next, ibuf_view_id++) {
       if (sanim->anim) {
-        ibuf_arr[ibuf_view_id] = seq_render_movie_strip_view(context, seq, nr, sanim);
+        ibuf_arr[ibuf_view_id] = seq_render_movie_strip_view(
+            context, seq, nr, sanim, r_is_proxy_image);
       }
     }
 
@@ -3223,7 +3239,7 @@ static ImBuf *seq_render_movie_strip(const SeqRenderData *context,
     MEM_freeN(ibuf_arr);
   }
   else {
-    ibuf = seq_render_movie_strip_view(context, seq, nr, sanim);
+    ibuf = seq_render_movie_strip_view(context, seq, nr, sanim, r_is_proxy_image);
   }
 
   if (ibuf == NULL) {
@@ -3236,11 +3252,26 @@ static ImBuf *seq_render_movie_strip(const SeqRenderData *context,
   return ibuf;
 }
 
-static ImBuf *seq_render_movieclip_strip(const SeqRenderData *context, Sequence *seq, float nr)
+static ImBuf *seq_get_movieclip_ibuf(Sequence *seq, MovieClipUser user)
+{
+  ImBuf *ibuf = NULL;
+  float tloc[2], tscale, tangle;
+  if (seq->clip_flag & SEQ_MOVIECLIP_RENDER_STABILIZED) {
+    ibuf = BKE_movieclip_get_stable_ibuf(seq->clip, &user, tloc, &tscale, &tangle, 0);
+  }
+  else {
+    ibuf = BKE_movieclip_get_ibuf_flag(seq->clip, &user, seq->clip->flag, MOVIECLIP_CACHE_SKIP);
+  }
+  return ibuf;
+}
+
+static ImBuf *seq_render_movieclip_strip(const SeqRenderData *context,
+                                         Sequence *seq,
+                                         float nr,
+                                         bool *r_is_proxy_image)
 {
   ImBuf *ibuf = NULL;
   MovieClipUser user;
-  float tloc[2], tscale, tangle;
   IMB_Proxy_Size psize = seq_rendersize_to_proxysize(context->preview_render_size);
 
   if (!seq->clip) {
@@ -3250,8 +3281,6 @@ static ImBuf *seq_render_movieclip_strip(const SeqRenderData *context, Sequence 
   memset(&user, 0, sizeof(MovieClipUser));
 
   BKE_movieclip_user_set_frame(&user, nr + seq->anim_startofs + seq->clip->start_frame);
-
-  user.render_flag |= MCLIP_PROXY_RENDER_USE_FALLBACK_RENDER;
 
   user.render_size = MCLIP_PROXY_RENDER_SIZE_FULL;
   switch (psize) {
@@ -3276,11 +3305,17 @@ static ImBuf *seq_render_movieclip_strip(const SeqRenderData *context, Sequence 
     user.render_flag |= MCLIP_PROXY_RENDER_UNDISTORT;
   }
 
-  if (seq->clip_flag & SEQ_MOVIECLIP_RENDER_STABILIZED) {
-    ibuf = BKE_movieclip_get_stable_ibuf(seq->clip, &user, tloc, &tscale, &tangle, 0);
+  /* Try to get a proxy image. */
+  ibuf = seq_get_movieclip_ibuf(seq, user);
+
+  if (ibuf != NULL && psize != IMB_PROXY_NONE) {
+    *r_is_proxy_image = true;
   }
-  else {
-    ibuf = BKE_movieclip_get_ibuf_flag(seq->clip, &user, seq->clip->flag, MOVIECLIP_CACHE_SKIP);
+
+  /* If proxy is not found, grab full-size frame. */
+  if (ibuf == NULL) {
+    user.render_flag |= MCLIP_PROXY_RENDER_USE_FALLBACK_RENDER;
+    ibuf = seq_get_movieclip_ibuf(seq, user);
   }
 
   return ibuf;
@@ -3658,7 +3693,8 @@ static ImBuf *do_render_strip_seqbase(const SeqRenderData *context,
 static ImBuf *do_render_strip_uncached(const SeqRenderData *context,
                                        SeqRenderState *state,
                                        Sequence *seq,
-                                       float cfra)
+                                       float cfra,
+                                       bool *r_is_proxy_image)
 {
   ImBuf *ibuf = NULL;
   float nr = BKE_sequencer_give_stripelem_index(seq, cfra);
@@ -3710,17 +3746,17 @@ static ImBuf *do_render_strip_uncached(const SeqRenderData *context,
     }
 
     case SEQ_TYPE_IMAGE: {
-      ibuf = seq_render_image_strip(context, seq, nr, cfra);
+      ibuf = seq_render_image_strip(context, seq, nr, cfra, r_is_proxy_image);
       break;
     }
 
     case SEQ_TYPE_MOVIE: {
-      ibuf = seq_render_movie_strip(context, seq, nr, cfra);
+      ibuf = seq_render_movie_strip(context, seq, nr, cfra, r_is_proxy_image);
       break;
     }
 
     case SEQ_TYPE_MOVIECLIP: {
-      ibuf = seq_render_movieclip_strip(context, seq, nr);
+      ibuf = seq_render_movieclip_strip(context, seq, nr, r_is_proxy_image);
 
       if (ibuf) {
         /* duplicate frame so movie cache wouldn't be confused by sequencer's stuff */
@@ -3815,40 +3851,26 @@ static ImBuf *seq_render_strip(const SeqRenderData *context,
   clock_t begin = seq_estimate_render_cost_begin();
 
   ibuf = BKE_sequencer_cache_get(context, seq, cfra, SEQ_CACHE_STORE_PREPROCESSED, false);
+  if (ibuf != NULL) {
+    return ibuf;
+  }
 
+  ibuf = BKE_sequencer_cache_get(context, seq, cfra, SEQ_CACHE_STORE_RAW, false);
   if (ibuf == NULL) {
-    ibuf = BKE_sequencer_cache_get(context, seq, cfra, SEQ_CACHE_STORE_RAW, false);
-    if (ibuf == NULL) {
-      /* MOVIECLIPs have their own proxy management */
-      if (seq->type != SEQ_TYPE_MOVIECLIP) {
-        ibuf = seq_proxy_fetch(context, seq, cfra);
-        is_proxy_image = (ibuf != NULL);
-      }
+    ibuf = do_render_strip_uncached(context, state, seq, cfra, &is_proxy_image);
+  }
 
-      if (ibuf == NULL) {
-        ibuf = do_render_strip_uncached(context, state, seq, cfra);
-      }
-
-      if (ibuf) {
-        if (ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_MOVIECLIP)) {
-          is_proxy_image = seq_rendersize_to_proxysize(context->preview_render_size) !=
-                           IMB_PROXY_NONE;
-        }
-      }
-    }
-
-    if (ibuf) {
-      use_preprocess = BKE_sequencer_input_have_to_preprocess(context, seq, cfra);
-    }
-
-    if (ibuf == NULL) {
-      ibuf = IMB_allocImBuf(context->rectx, context->recty, 32, IB_rect);
-      sequencer_imbuf_assign_spaces(context->scene, ibuf);
-    }
-
+  if (ibuf) {
+    use_preprocess = BKE_sequencer_input_have_to_preprocess(context, seq, cfra);
     ibuf = seq_render_preprocess_ibuf(
         context, seq, ibuf, cfra, begin, use_preprocess, is_proxy_image, is_preprocessed);
   }
+
+  if (ibuf == NULL) {
+    ibuf = IMB_allocImBuf(context->rectx, context->recty, 32, IB_rect);
+    sequencer_imbuf_assign_spaces(context->scene, ibuf);
+  }
+
   return ibuf;
 }
 
