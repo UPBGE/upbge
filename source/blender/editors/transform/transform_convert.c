@@ -1086,6 +1086,7 @@ void createTransData(bContext *C, TransInfo *t)
       convert_type = TC_MBALL_VERTS;
     }
     else if (t->obedit_type == OB_ARMATURE) {
+      t->flag &= ~T_PROP_EDIT;
       convert_type = TC_ARMATURE_VERTS;
     }
   }
@@ -1159,11 +1160,11 @@ void createTransData(bContext *C, TransInfo *t)
       break;
     case TC_POSE:
       createTransPose(t);
+      /* Disable PET, its not usable in pose mode yet [#32444] */
       init_prop_edit = false;
       break;
     case TC_ARMATURE_VERTS:
       createTransArmatureVerts(t);
-      init_prop_edit = false;
       break;
     case TC_CURSOR_IMAGE:
       createTransCursor_image(t);
@@ -1293,7 +1294,7 @@ void createTransData(bContext *C, TransInfo *t)
     }
 
     if (!init_prop_edit) {
-      t->flag &= ~T_PROP_EDIT;
+      t->flag &= ~T_PROP_EDIT_ALL;
     }
   }
 
