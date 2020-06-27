@@ -28,7 +28,7 @@ extern "C" {
 void BPy_init_modules(void);
 void BPy_end_modules(void);
 extern PyObject *bpy_package_py;
-PyObject *bpy_sys_module_backup;
+extern PyObject *bpy_sys_module_backup;
 
 /* bpy_interface_atexit.c */
 void BPY_atexit_register(void);

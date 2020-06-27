@@ -60,6 +60,7 @@
 #endif
 
 PyObject *bpy_package_py = NULL;
+PyObject *bpy_sys_module_backup = NULL;
 
 PyDoc_STRVAR(bpy_script_paths_doc,
              ".. function:: script_paths()\n"
