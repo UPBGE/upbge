@@ -431,7 +431,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
   Py_DECREF(pypath);
 
   // Setup BGE fake module and submodule.
-  sys_modules = PyThreadState_GET()->interp->modules;
+  sys_modules = PyImport_GetModuleDict();
   bgemod = PyModule_Create(&bge_module_def);
   bgesubmod = PyModule_Create(&bge_types_module_def);
 

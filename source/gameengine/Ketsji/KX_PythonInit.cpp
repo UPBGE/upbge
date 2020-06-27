@@ -2049,7 +2049,7 @@ static void addSubModule(PyObject *modules,
 
 PyMODINIT_FUNC initBGE()
 {
-  PyObject *modules = PyThreadState_GET()->interp->modules;
+  PyObject *modules = PyImport_GetModuleDict();
   PyObject *mod = PyModule_Create(&BGE_module_def);
 
   addSubModule(modules, mod, initApplicationPythonBinding(), "bge.app");
