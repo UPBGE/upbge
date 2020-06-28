@@ -138,6 +138,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   std::vector<KX_Camera *> m_imageRenderCameraList;
   BL_BlenderSceneConverter *m_sceneConverter;
   bool m_isPythonMainLoop;
+  std::vector<KX_GameObject *> m_kxobWithLod;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -344,6 +345,8 @@ class KX_Scene : public CValue, public SCA_IScene {
   void RemoveImageRenderCamera(KX_Camera *cam);
   bool CameraIsInactive(KX_Camera *cam);
   void SetIsPythonMainLoop(bool isPython);
+  void AddObjToLodObjList(KX_GameObject *gameobj);
+  void RemoveObjFromLodObjList(KX_GameObject *gameobj);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;
