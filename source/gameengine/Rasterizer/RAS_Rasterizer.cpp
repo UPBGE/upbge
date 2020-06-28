@@ -853,17 +853,24 @@ void RAS_Rasterizer::SetMipmapping(MipmapOption val)
 {
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
-  if (val == RAS_Rasterizer::RAS_MIPMAP_LINEAR) {
-    GPU_set_linear_mipmap(1);
-    GPU_set_mipmap(bmain, 1);
-  }
-  else if (val == RAS_Rasterizer::RAS_MIPMAP_NEAREST) {
-    GPU_set_linear_mipmap(0);
-    GPU_set_mipmap(bmain, 1);
-  }
-  else {
-    GPU_set_linear_mipmap(0);
-    GPU_set_mipmap(bmain, 0);
+  switch (val) {
+    case RAS_Rasterizer::RAS_MIPMAP_LINEAR:
+    {
+      GPU_set_linear_mipmap(1);
+      GPU_set_mipmap(bmain, 1);
+      break;
+    }
+    case RAS_Rasterizer::RAS_MIPMAP_NEAREST:
+    {
+      GPU_set_linear_mipmap(0);
+      GPU_set_mipmap(bmain, 1);
+      break;
+    }
+    default:
+    {
+      GPU_set_linear_mipmap(0);
+      GPU_set_mipmap(bmain, 0);
+    }
   }
 }
 
