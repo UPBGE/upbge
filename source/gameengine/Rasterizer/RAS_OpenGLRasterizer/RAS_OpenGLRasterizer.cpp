@@ -47,7 +47,6 @@ static const int openGLEnableBitEnums[] = {
     GL_BLEND,                // RAS_BLEND
     GL_COLOR_MATERIAL,       // RAS_COLOR_MATERIAL
     GL_CULL_FACE,            // RAS_CULL_FACE
-    GL_FOG,                  // RAS_FOG
     GL_LIGHTING,             // RAS_LIGHTING
     GL_MULTISAMPLE,          // RAS_MULTISAMPLE
     GL_POLYGON_STIPPLE,      // RAS_POLYGON_STIPPLE
