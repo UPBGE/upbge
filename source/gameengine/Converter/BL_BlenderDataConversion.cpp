@@ -1623,6 +1623,13 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     BL_ConvertComponentsObject(gameobj, blenderobj);
   }
 
+  for (KX_GameObject *gameobj : objectlist) {
+    if (gameobj->GetComponents()) {
+      // Register object for component update.
+      kxscene->GetPythonComponentManager().RegisterObject(gameobj);
+    }
+  }
+
   // cleanup converted set of group objects
   convertedlist->Release();
   sumolist->Release();

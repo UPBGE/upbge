@@ -39,6 +39,7 @@
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 #include "KX_PhysicsEngineEnums.h"
+#include "KX_PythonComponentManager.h"
 #include "MT_Transform.h"
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"
@@ -174,6 +175,8 @@ class KX_Scene : public CValue, public SCA_IScene {
   SCA_KeyboardManager *m_keyboardmgr;
   SCA_MouseManager *m_mousemgr;
   SCA_TimeEventManager *m_timemgr;
+
+  KX_PythonComponentManager m_componentManager;
 
   /**
    * physics engine abstraction
@@ -392,6 +395,8 @@ class KX_Scene : public CValue, public SCA_IScene {
   SCA_LogicManager *GetLogicManager() const;
 
   SCA_TimeEventManager *GetTimeEventManager() const;
+
+  KX_PythonComponentManager& GetPythonComponentManager();
 
   CListValue<KX_Camera> *GetCameraList() const;
   void SetCameraList(CListValue<KX_Camera> *camList);

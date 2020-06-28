@@ -877,6 +877,11 @@ SCA_TimeEventManager *KX_Scene::GetTimeEventManager() const
   return m_timemgr;
 }
 
+KX_PythonComponentManager& KX_Scene::GetPythonComponentManager()
+{
+  return m_componentManager;
+}
+
 CListValue<KX_Camera> *KX_Scene::GetCameraList() const
 {
   return m_cameralist;
@@ -989,6 +994,11 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
   // Add the object in the obstacle simulation if needed.
   if (m_obstacleSimulation && gameobj->GetBlenderObject()->gameflag & OB_HASOBSTACLE) {
     m_obstacleSimulation->AddObstacleForObj(newobj);
+  }
+
+  // Register object for component update.
+  if (gameobj->GetComponents()) {
+    m_componentManager.RegisterObject(newobj);
   }
 
   replicanode->SetSGClientObject(newobj);
@@ -1543,6 +1553,8 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
     m_obstacleSimulation->DestroyObstacleForObj(gameobj);
   }
 
+  m_componentManager.UnregisterObject(gameobj);
+
   gameobj->RemoveMeshes();
 
   bool ret = true;
@@ -1834,20 +1846,7 @@ void KX_Scene::UpdateAnimations(double curtime)
 
 void KX_Scene::LogicUpdateFrame(double curtime)
 {
-  /* Update object components, we copy the object pointer in a second list to make sure that we
-   * iterate on a list which will not be modified, indeed components can add objects in theirs
-   * initialization.
-   */
-
-  std::vector<KX_GameObject *> objects;
-  for (KX_GameObject *gameobj : m_objectlist) {
-    objects.push_back(gameobj);
-  }
-
-  for (std::vector<KX_GameObject *>::iterator it = objects.begin(), end = objects.end(); it != end;
-       ++it) {
-    (*it)->UpdateComponents();
-  }
+  m_componentManager.UpdateComponents();
 
   m_logicmgr->UpdateFrame(curtime);
 }
