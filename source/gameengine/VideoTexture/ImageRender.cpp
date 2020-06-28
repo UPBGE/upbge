@@ -245,7 +245,7 @@ bool ImageRender::Render()
   m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 
   m_rasterizer->SetAuxilaryClientInfo(m_scene);
-  // m_rasterizer->DisplayFog();
+
   // matrix calculation, don't apply any of the stereo mode
   m_rasterizer->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
 
