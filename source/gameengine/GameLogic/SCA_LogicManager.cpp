@@ -42,11 +42,10 @@ SCA_LogicManager::SCA_LogicManager()
 
 SCA_LogicManager::~SCA_LogicManager()
 {
-  for (std::vector<SCA_EventManager *>::iterator it = m_eventmanagers.begin();
-       !(it == m_eventmanagers.end());
-       ++it) {
-    delete (*it);
+  for (SCA_EventManager *mgr : m_eventmanagers) {
+    delete mgr;
   }
+
   m_eventmanagers.clear();
   BLI_assert(m_activeActuators.Empty());
 }

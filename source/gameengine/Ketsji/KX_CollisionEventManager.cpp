@@ -54,10 +54,8 @@ KX_CollisionEventManager::~KX_CollisionEventManager()
 
 void KX_CollisionEventManager::RemoveNewCollisions()
 {
-  for (std::set<NewCollision>::iterator it = m_newCollisions.begin(), end = m_newCollisions.end();
-       it != end;
-       ++it) {
-    delete it->colldata;
+  for (const NewCollision& collision : m_newCollisions) {
+    delete collision.colldata;
   }
   m_newCollisions.clear();
 }
@@ -133,11 +131,9 @@ bool KX_CollisionEventManager::newBroadphaseResponse(void *client_data,
     case KX_ClientObjectInfo::OBACTORSENSOR:
       // this object may have multiple collision sensors,
       // check is any of them is interested in this object
-      for (std::list<SCA_ISensor *>::iterator it = info1->m_sensors.begin();
-           it != info1->m_sensors.end();
-           ++it) {
-        if ((*it)->GetSensorType() == SCA_ISensor::ST_TOUCH) {
-          SCA_CollisionSensor *collisionsensor = static_cast<SCA_CollisionSensor *>(*it);
+      for (SCA_ISensor *sensor : info1->m_sensors) {
+        if (sensor->GetSensorType() == SCA_ISensor::ST_TOUCH) {
+          SCA_CollisionSensor *collisionsensor = static_cast<SCA_CollisionSensor *>(sensor);
           if (collisionsensor->BroadPhaseSensorFilterCollision(object1, object2)) {
             return true;
           }
@@ -193,12 +189,10 @@ void KX_CollisionEventManager::NextFrame()
     static_cast<SCA_CollisionSensor *>(sensor)->SynchronizeTransform();
   }
 
-  for (std::set<NewCollision>::iterator cit = m_newCollisions.begin();
-       cit != m_newCollisions.end();
-       ++cit) {
+  for (const NewCollision& collision : m_newCollisions) {
     // Controllers
-    PHY_IPhysicsController *ctrl1 = (*cit).first;
-    PHY_IPhysicsController *ctrl2 = (*cit).second;
+    PHY_IPhysicsController *ctrl1 = collision.first;
+    PHY_IPhysicsController *ctrl2 = collision.second;
     // Sensor iterator
     std::list<SCA_ISensor *>::iterator sit;
 
@@ -224,7 +218,7 @@ void KX_CollisionEventManager::NextFrame()
       }
     }
     // Run python callbacks
-    const PHY_CollData *colldata = cit->colldata;
+    const PHY_CollData *colldata = collision.colldata;
     KX_CollisionContactPointList contactPointList0 = KX_CollisionContactPointList(colldata, true);
     KX_CollisionContactPointList contactPointList1 = KX_CollisionContactPointList(colldata, false);
     kxObj1->RunCollisionCallbacks(kxObj2, contactPointList0);

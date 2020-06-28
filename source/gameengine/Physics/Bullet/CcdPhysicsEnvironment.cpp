@@ -696,11 +696,7 @@ void CcdPhysicsEnvironment::RemoveCcdGraphicController(CcdGraphicController *ctr
 
 void CcdPhysicsEnvironment::UpdateCcdPhysicsControllerShape(CcdShapeConstructionInfo *shapeInfo)
 {
-  for (std::set<CcdPhysicsController *>::iterator it = m_controllers.begin();
-       it != m_controllers.end();
-       ++it) {
-    CcdPhysicsController *ctrl = *it;
-
+  for (CcdPhysicsController *ctrl : m_controllers) {
     if (ctrl->GetShapeInfo() != shapeInfo)
       continue;
 
@@ -956,12 +952,11 @@ void CcdPhysicsEnvironment::SetDeactivationLinearTreshold(float linTresh)
   m_linearDeactivationThreshold = linTresh;
 
   // Update from all controllers.
-  for (std::set<CcdPhysicsController *>::iterator it = m_controllers.begin();
-       it != m_controllers.end();
-       it++) {
-    if ((*it)->GetRigidBody())
-      (*it)->GetRigidBody()->setSleepingThresholds(m_linearDeactivationThreshold,
-                                                   m_angularDeactivationThreshold);
+  for (CcdPhysicsController *ctrl : m_controllers) {
+    if (ctrl->GetRigidBody()) {
+      ctrl->GetRigidBody()->setSleepingThresholds(m_linearDeactivationThreshold,
+                                                  m_angularDeactivationThreshold);
+    }
   }
 }
 void CcdPhysicsEnvironment::SetDeactivationAngularTreshold(float angTresh)

@@ -176,11 +176,8 @@ void RAS_2DFilter::ParseShaderProgram()
 
   if (m_gameObject) {
     std::vector<std::string> foundProperties;
-    for (std::vector<std::string>::iterator it = m_properties.begin(), end = m_properties.end();
-         it != end;
-         ++it) {
-      std::string prop = *it;
-      unsigned int loc = GetUniformLocation(prop, false);
+    for (const std::string& prop : m_properties) {
+      const unsigned int loc = GetUniformLocation(prop, false);
       if (loc != -1) {
         m_propertiesLoc.push_back(loc);
         foundProperties.push_back(prop);

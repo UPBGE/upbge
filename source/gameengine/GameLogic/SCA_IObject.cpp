@@ -174,43 +174,32 @@ void SCA_IObject::ReParentLogic()
 
 SCA_ISensor *SCA_IObject::FindSensor(const std::string &sensorname)
 {
-  SCA_ISensor *foundsensor = nullptr;
-
-  for (SCA_SensorList::iterator its = m_sensors.begin(); !(its == m_sensors.end()); ++its) {
-    if ((*its)->GetName() == sensorname) {
-      foundsensor = (*its);
-      break;
+  for (SCA_ISensor *sensor : m_sensors) {
+    if (sensor->GetName() == sensorname) {
+      return sensor;
     }
   }
-  return foundsensor;
+  return nullptr;
 }
 
 SCA_IController *SCA_IObject::FindController(const std::string &controllername)
 {
-  SCA_IController *foundcontroller = nullptr;
-
-  for (SCA_ControllerList::iterator itc = m_controllers.begin(); !(itc == m_controllers.end());
-       ++itc) {
-    if ((*itc)->GetName() == controllername) {
-      foundcontroller = (*itc);
-      break;
+  for (SCA_IController *controller : m_controllers) {
+    if (controller->GetName() == controllername) {
+      return controller;
     }
   }
-  return foundcontroller;
+  return nullptr;
 }
 
 SCA_IActuator *SCA_IObject::FindActuator(const std::string &actuatorname)
 {
-  SCA_IActuator *foundactuator = nullptr;
-
-  for (SCA_ActuatorList::iterator ita = m_actuators.begin(); !(ita == m_actuators.end()); ++ita) {
-    if ((*ita)->GetName() == actuatorname) {
-      foundactuator = (*ita);
-      break;
+  for (SCA_IActuator *actuator : m_actuators) {
+    if (actuator->GetName() == actuatorname) {
+      return actuator;
     }
   }
-
-  return foundactuator;
+  return nullptr;
 }
 
 void SCA_IObject::SuspendSensors()
@@ -218,10 +207,8 @@ void SCA_IObject::SuspendSensors()
   if ((!m_ignore_activity_culling) && (!m_suspended)) {
     m_suspended = true;
     /* flag suspend for all sensors */
-    SCA_SensorList::iterator i = m_sensors.begin();
-    while (i != m_sensors.end()) {
-      (*i)->Suspend();
-      ++i;
+    for (SCA_ISensor *sensor : m_sensors) {
+      sensor->Suspend();
     }
   }
 }
@@ -231,36 +218,31 @@ void SCA_IObject::ResumeSensors(void)
   if (m_suspended) {
     m_suspended = false;
     /* unflag suspend for all sensors */
-    SCA_SensorList::iterator i = m_sensors.begin();
-    while (i != m_sensors.end()) {
-      (*i)->Resume();
-      ++i;
+    for (SCA_ISensor *sensor : m_sensors) {
+      sensor->Resume();
     }
   }
 }
 
 void SCA_IObject::SetState(unsigned int state)
 {
-  unsigned int tmpstate;
-  SCA_ControllerList::iterator contit;
-
   // we will update the state in two steps:
   // 1) set the new state bits that are 1
   // 2) clr the new state bits that are 0
   // This to ensure continuity if a sensor is attached to two states
   // that are switching state: no need to deactive and reactive the sensor
 
-  tmpstate = m_state | state;
+  unsigned int tmpstate = m_state | state;
   if (tmpstate != m_state) {
     // update the status of the controllers
-    for (contit = m_controllers.begin(); contit != m_controllers.end(); ++contit) {
-      (*contit)->ApplyState(tmpstate);
+    for (SCA_IController *controller : m_controllers) {
+      controller->ApplyState(tmpstate);
     }
   }
   m_state = state;
   if (m_state != tmpstate) {
-    for (contit = m_controllers.begin(); contit != m_controllers.end(); ++contit) {
-      (*contit)->ApplyState(m_state);
+    for (SCA_IController *controller : m_controllers) {
+      controller->ApplyState(m_state);
     }
   }
 }

@@ -45,20 +45,16 @@ RAS_BucketManager::RAS_BucketManager()
 
 RAS_BucketManager::~RAS_BucketManager()
 {
-  BucketList &buckets = m_buckets[ALL_BUCKET];
-  for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-    delete *it;
+  for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
+      delete bucket;
   }
-  buckets.clear();
 }
 
 RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated)
 {
   bucketCreated = false;
 
-  BucketList &buckets = m_buckets[ALL_BUCKET];
-  for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-    RAS_MaterialBucket *bucket = *it;
+  for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
     if (bucket->GetPolyMaterial() == material) {
       return bucket;
     }
@@ -74,9 +70,7 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 
 void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat)
 {
-  BucketList &buckets = m_buckets[ALL_BUCKET];
-  for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-    RAS_MaterialBucket *bucket = *it;
+  for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
     if (bucket->GetPolyMaterial() != mat && mat) {
       continue;
     }
@@ -86,9 +80,7 @@ void RAS_BucketManager::UpdateShaders(RAS_IPolyMaterial *mat)
 
 void RAS_BucketManager::ReleaseMaterials(RAS_IPolyMaterial *mat)
 {
-  BucketList &buckets = m_buckets[ALL_BUCKET];
-  for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-    RAS_MaterialBucket *bucket = *it;
+  for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
     if (mat == nullptr || (mat == bucket->GetPolyMaterial())) {
       bucket->GetPolyMaterial()->ReleaseMaterial();
     }

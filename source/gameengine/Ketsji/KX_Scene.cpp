@@ -1080,16 +1080,14 @@ void KX_Scene::ReplicateLogic(KX_GameObject *newobj)
     AddObjectDebugProperties(newobj);
   }
   // also relink the controller to sensors/actuators
-  SCA_ControllerList &controllers = newobj->GetControllers();
+  const SCA_ControllerList &controllers = newobj->GetControllers();
   // SCA_SensorList&     sensors     = newobj->GetSensors();
   // SCA_ActuatorList&   actuators   = newobj->GetActuators();
 
-  for (SCA_ControllerList::iterator itc = controllers.begin(); !(itc == controllers.end());
-       itc++) {
-    SCA_IController *cont = (*itc);
+  for (SCA_IController *cont : controllers) {
     cont->SetUeberExecutePriority(m_ueberExecutionPriority);
-    std::vector<SCA_ISensor *> linkedsensors = cont->GetLinkedSensors();
-    std::vector<SCA_IActuator *> linkedactuators = cont->GetLinkedActuators();
+    const SCA_SensorList& linkedsensors = cont->GetLinkedSensors();
+    const SCA_ActuatorList& linkedactuators = cont->GetLinkedActuators();
 
     // disconnect the sensors and actuators
     // do it directly on the list at this controller is not connected to anything at this stage
@@ -1097,10 +1095,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject *newobj)
     cont->GetLinkedActuators().clear();
 
     // now relink each sensor
-    for (std::vector<SCA_ISensor *>::iterator its = linkedsensors.begin();
-         !(its == linkedsensors.end());
-         its++) {
-      SCA_ISensor *oldsensor = (*its);
+    for (SCA_ISensor *oldsensor : linkedsensors) {
       SCA_IObject *oldsensorobj = oldsensor->GetParent();
       // the original owner of the sensor has been replicated?
       SCA_IObject *newsensorobj = m_map_gameobject_to_replica[oldsensorobj];
@@ -1131,10 +1126,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject *newobj)
     }
 
     // now relink each actuator
-    for (std::vector<SCA_IActuator *>::iterator ita = linkedactuators.begin();
-         !(ita == linkedactuators.end());
-         ita++) {
-      SCA_IActuator *oldactuator = (*ita);
+    for (SCA_IActuator *oldactuator : linkedactuators) {
       SCA_IObject *oldactuatorobj = oldactuator->GetParent();
       SCA_IObject *newactuatorobj = m_map_gameobject_to_replica[oldactuatorobj];
 
@@ -1233,11 +1225,10 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
     m_parentlist->Add(CM_AddRef(replica));
 
     // recurse replication into children nodes
-    NodeList &children = gameobj->GetSGNode()->GetSGChildren();
+    const NodeList &children = gameobj->GetSGNode()->GetSGChildren();
 
     replica->GetSGNode()->ClearSGChildren();
-    for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
-      SG_Node *orgnode = (*childit);
+    for (SG_Node *orgnode : children) {
       SG_Node *childreplicanode = orgnode->GetSGReplica();
       if (childreplicanode)
         replica->GetSGNode()->AddChild(childreplicanode);
@@ -1386,11 +1377,10 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
 
   // recurse replication into children nodes
 
-  NodeList &children = originalobj->GetSGNode()->GetSGChildren();
+  const NodeList &children = originalobj->GetSGNode()->GetSGChildren();
 
   replica->GetSGNode()->ClearSGChildren();
-  for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
-    SG_Node *orgnode = (*childit);
+  for (SG_Node *orgnode : children) {
     SG_Node *childreplicanode = orgnode->GetSGReplica();
     if (childreplicanode)
       replica->GetSGNode()->AddChild(childreplicanode);

@@ -48,9 +48,8 @@ RAS_MeshObject::~RAS_MeshObject()
   m_sharedvertex_map.clear();
   m_polygons.clear();
 
-  for (RAS_MeshMaterialList::iterator it = m_materials.begin(), end = m_materials.end(); it != end;
-       ++it) {
-    delete *it;
+  for (RAS_MeshMaterial *meshmat : m_materials) {
+    delete meshmat;
   }
   m_materials.clear();
 }
@@ -81,8 +80,7 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid) const
 
 RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterialBlenderIndex(unsigned int index)
 {
-  for (RAS_MeshMaterialList::iterator mit = m_materials.begin(); mit != m_materials.end(); mit++) {
-    RAS_MeshMaterial *meshmat = *mit;
+  for (RAS_MeshMaterial *meshmat : m_materials) {
     if (meshmat->GetIndex() == index) {
       return meshmat;
     }
@@ -269,10 +267,7 @@ void RAS_MeshObject::EndConversion()
   RAS_IDisplayArrayList arrayList;
 
   // Construct a list of all the display arrays used by this mesh.
-  for (RAS_MeshMaterialList::iterator it = m_materials.begin(), end = m_materials.end(); it != end;
-       ++it) {
-    RAS_MeshMaterial *meshmat = *it;
-
+  for (RAS_MeshMaterial *meshmat : m_materials) {
     RAS_IDisplayArray *array = meshmat->GetDisplayArray();
     if (array) {
       array->UpdateCache();

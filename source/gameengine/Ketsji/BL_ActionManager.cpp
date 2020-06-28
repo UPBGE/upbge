@@ -138,7 +138,7 @@ void BL_ActionManager::RemoveTaggedActions()
   for (BL_ActionMap::iterator it = m_layers.begin(); it != m_layers.end();) {
     if (IS_TAGGED(it->second->GetAction())) {
       delete it->second;
-      m_layers.erase(it++);
+      it = m_layers.erase(it);
     }
     else
       ++it;
