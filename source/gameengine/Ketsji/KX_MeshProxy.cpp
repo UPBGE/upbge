@@ -185,7 +185,7 @@ PyObject *KX_MeshProxy::PyGetVertex(PyObject *args, PyObject *kwds)
     return nullptr;
   }
 
-  RAS_ITexVert *vertex = array->GetVertex(vertexindex);
+  RAS_IVertex *vertex = array->GetVertex(vertexindex);
 
   return (new KX_VertexProxy(array, vertex))->NewProxy(true);
 }
@@ -247,7 +247,7 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
     ok = true;
 
     for (unsigned int j = 0, size = array->GetVertexCount(); j < size; ++j) {
-      RAS_ITexVert *vert = array->GetVertex(j);
+      RAS_IVertex *vert = array->GetVertex(j);
       vert->Transform(transform, ntransform);
     }
 
@@ -313,7 +313,7 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
     ok = true;
 
     for (unsigned int j = 0, size = array->GetVertexCount(); j < size; ++j) {
-      RAS_ITexVert *vert = array->GetVertex(j);
+      RAS_IVertex *vert = array->GetVertex(j);
       if (uvindex_from != -1) {
         vert->SetUV(uvindex, vert->getUV(uvindex_from));
       }

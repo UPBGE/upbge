@@ -40,7 +40,7 @@
 #include "MT_MinMax.h"
 #include "PHY_IVehicle.h"
 #include "PHY_Pro.h"
-#include "RAS_ITexVert.h"
+#include "RAS_IVertex.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 

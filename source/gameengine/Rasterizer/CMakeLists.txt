@@ -71,7 +71,7 @@ set(SRC
   RAS_IDisplayArray.cpp
   RAS_IPolygonMaterial.cpp
   RAS_Rasterizer.cpp
-  RAS_ITexVert.cpp
+  RAS_IVertex.cpp
   RAS_MaterialBucket.cpp
   RAS_MeshMaterial.cpp
   RAS_MeshObject.cpp
@@ -94,7 +94,7 @@ set(SRC
   RAS_IDisplayArray.h
   RAS_IPolygonMaterial.h
   RAS_Rasterizer.h
-  RAS_ITexVert.h
+  RAS_IVertex.h
   RAS_MaterialBucket.h
   RAS_MaterialShader.h
   RAS_MeshMaterial.h
@@ -103,7 +103,7 @@ set(SRC
   RAS_Rect.h
   RAS_Shader.h
   RAS_Texture.h
-  RAS_TexVert.h
+  RAS_Vertex.h
 )
 
 set(LIB

@@ -34,7 +34,7 @@
 
 
 #include "KX_Globals.h"
-#include "RAS_ITexVert.h"
+#include "RAS_IVertex.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 #include "Texture.h"
@@ -770,8 +770,8 @@ ImageRender::ImageRender(KX_Scene *scene,
   // create a camera, take all data by default, in any case we will recompute the frustum on each
   // frame
   RAS_CameraData camdata;
-  std::vector<RAS_ITexVert *> mirrorVerts;
-  std::vector<RAS_ITexVert *>::iterator it;
+  std::vector<RAS_IVertex *> mirrorVerts;
+  std::vector<RAS_IVertex *>::iterator it;
   float mirrorArea = 0.f;
   float mirrorNormal[3] = {0.f, 0.f, 0.f};
   float mirrorUp[3];
@@ -792,7 +792,7 @@ ImageRender::ImageRender(KX_Scene *scene,
     for (int polygonIndex = 0; polygonIndex < numPolygons; polygonIndex++) {
       RAS_Polygon *polygon = mesh->GetPolygon(polygonIndex);
       if (polygon->GetMaterial()->GetPolyMaterial() == mat) {
-        RAS_ITexVert *v1, *v2, *v3, *v4;
+        RAS_IVertex *v1, *v2, *v3, *v4;
         float normal[3];
         float area;
         // this polygon is part of the mirror

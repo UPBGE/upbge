@@ -44,7 +44,7 @@ template<class Vertex> class RAS_DisplayArray : public virtual RAS_IDisplayArray
   }
 
  public:
-  RAS_DisplayArray(PrimitiveType type, const RAS_TexVertFormat &format)
+  RAS_DisplayArray(PrimitiveType type, const RAS_VertexFormat &format)
       : RAS_IDisplayArray(type, format)
   {
   }
@@ -101,17 +101,17 @@ template<class Vertex> class RAS_DisplayArray : public virtual RAS_IDisplayArray
     return Vertex::ColorSize;
   }
 
-  virtual RAS_ITexVert *GetVertexNoCache(const unsigned int index) const
+  virtual RAS_IVertex *GetVertexNoCache(const unsigned int index) const
   {
-    return (RAS_ITexVert *)&m_vertexes[index];
+    return (RAS_IVertex *)&m_vertexes[index];
   }
 
-  virtual const RAS_ITexVert *GetVertexPointer() const
+  virtual const RAS_IVertex *GetVertexPointer() const
   {
-    return (RAS_ITexVert *)m_vertexes.data();
+    return (RAS_IVertex *)m_vertexes.data();
   }
 
-  virtual void AddVertex(RAS_ITexVert *vert)
+  virtual void AddVertex(RAS_IVertex *vert)
   {
     m_vertexes.push_back(*((Vertex *)vert));
   }
@@ -121,7 +121,7 @@ template<class Vertex> class RAS_DisplayArray : public virtual RAS_IDisplayArray
     return m_vertexes.size();
   }
 
-  virtual RAS_ITexVert *CreateVertex(const MT_Vector3 &xyz,
+  virtual RAS_IVertex *CreateVertex(const MT_Vector3 &xyz,
                                      const MT_Vector2 *const uvs,
                                      const MT_Vector4 &tangent,
                                      const unsigned int *rgba,
@@ -135,7 +135,7 @@ template<class Vertex> class RAS_DisplayArray : public virtual RAS_IDisplayArray
     const unsigned int size = GetVertexCount();
     m_vertexPtrs.resize(size);
     for (unsigned int i = 0; i < size; ++i) {
-      m_vertexPtrs[i] = (RAS_ITexVert *)&m_vertexes[i];
+      m_vertexPtrs[i] = (RAS_IVertex *)&m_vertexes[i];
     }
   }
 };

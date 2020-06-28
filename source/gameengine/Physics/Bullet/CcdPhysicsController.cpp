@@ -504,8 +504,8 @@ bool CcdPhysicsController::CreateSoftbody()
         RAS_IDisplayArray *array = mmat->GetDisplayArray();
 
         for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-          RAS_ITexVert *vertex = array->GetVertex(i);
-          RAS_TexVertInfo &vertexInfo = array->GetVertexInfo(i);
+          RAS_IVertex *vertex = array->GetVertex(i);
+          RAS_VertexInfo &vertexInfo = array->GetVertexInfo(i);
           // search closest index, and store it in vertex
           vertexInfo.setSoftBodyIndex(0);
           btScalar maxDistSqr = 1e30;
@@ -2620,7 +2620,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj)
           * */
     // Note!, gameobj can be nullptr here
 
-    /* transverts are only used for deformed RAS_Meshes, the RAS_TexVert data
+    /* transverts are only used for deformed RAS_Meshes, the RAS_Vertex data
      * is too hard to get at, see below for details */
     float(*transverts)[3] = nullptr;
 
@@ -2674,7 +2674,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj)
           v_orig = poly->GetVertexInfo(*fv_pt).getOrigIndex();
           if (vert_tag_array[v_orig]) {
             if (transverts) {
-              /* deformed mesh, using RAS_TexVert locations would be too troublesome
+              /* deformed mesh, using RAS_Vertex locations would be too troublesome
                * because they are use the gameob as a hash in the material slot */
               *bt++ = transverts[v_orig][0];
               *bt++ = transverts[v_orig][1];

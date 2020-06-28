@@ -25,33 +25,33 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Rasterizer/RAS_ITexVert.cpp
+/** \file gameengine/Rasterizer/RAS_IVertex.cpp
  *  \ingroup bgerast
  */
 
-#include "RAS_ITexVert.h"
+#include "RAS_IVertex.h"
 
-bool operator==(const RAS_TexVertFormat &format1, const RAS_TexVertFormat &format2)
+bool operator==(const RAS_VertexFormat &format1, const RAS_VertexFormat &format2)
 {
   return (format1.uvSize == format2.uvSize && format1.colorSize == format2.colorSize);
 }
 
-bool operator!=(const RAS_TexVertFormat &format1, const RAS_TexVertFormat &format2)
+bool operator!=(const RAS_VertexFormat &format1, const RAS_VertexFormat &format2)
 {
   return !(format1 == format2);
 }
 
-RAS_TexVertInfo::RAS_TexVertInfo(unsigned int origindex, bool flat)
+RAS_VertexInfo::RAS_VertexInfo(unsigned int origindex, bool flat)
     : m_origindex(origindex), m_softBodyIndex(-1)
 {
   m_flag = (flat) ? FLAT : 0;
 }
 
-RAS_TexVertInfo::~RAS_TexVertInfo()
+RAS_VertexInfo::~RAS_VertexInfo()
 {
 }
 
-RAS_ITexVert::RAS_ITexVert(const MT_Vector3 &xyz,
+RAS_IVertex::RAS_IVertex(const MT_Vector3 &xyz,
                            const MT_Vector4 &tangent,
                            const MT_Vector3 &normal)
 {
@@ -60,6 +60,6 @@ RAS_ITexVert::RAS_ITexVert(const MT_Vector3 &xyz,
   SetTangent(tangent);
 }
 
-RAS_ITexVert::~RAS_ITexVert()
+RAS_IVertex::~RAS_IVertex()
 {
 }

@@ -97,7 +97,7 @@
 #include "KX_SG_NodeRelationships.h"
 #include "PHY_Pro.h"
 #include "RAS_ICanvas.h"
-#include "RAS_TexVert.h"
+#include "RAS_Vertex.h"
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"
 #endif
@@ -254,7 +254,7 @@ SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code)
 static void GetUvRgba(const RAS_MeshObject::LayerList &layers,
                       unsigned int loop,
                       MT_Vector2 uvs[RAS_Texture::MaxUnits],
-                      unsigned int rgba[RAS_ITexVert::MAX_UNIT],
+                      unsigned int rgba[RAS_IVertex::MAX_UNIT],
                       unsigned short uvLayers,
                       unsigned short colorLayers)
 {
@@ -420,7 +420,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   meshobj->m_sharedvertex_map.resize(totverts);
 
   // Initialize vertex format with used uv and color layers.
-  RAS_TexVertFormat vertformat;
+  RAS_VertexFormat vertformat;
   vertformat.uvSize = max_ii(1, uvLayers);
   vertformat.colorSize = max_ii(1, colorLayers);
 

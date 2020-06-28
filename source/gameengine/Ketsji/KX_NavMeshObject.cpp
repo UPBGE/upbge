@@ -40,7 +40,7 @@
 #include "KX_Globals.h"
 #include "KX_ObstacleSimulation.h"
 #include "KX_PyMath.h"
-#include "RAS_ITexVert.h"
+#include "RAS_IVertex.h"
 #include "RAS_Polygon.h"
 #include "Recast.h"
 

@@ -36,20 +36,20 @@
 
 #  include "EXP_Value.h"
 
-class RAS_ITexVert;
+class RAS_IVertex;
 class RAS_IDisplayArray;
 
 class KX_VertexProxy : public CValue {
   Py_Header
 
-      protected : RAS_ITexVert *m_vertex;
+      protected : RAS_IVertex *m_vertex;
   RAS_IDisplayArray *m_array;
 
  public:
-  KX_VertexProxy(RAS_IDisplayArray *array, RAS_ITexVert *vertex);
+  KX_VertexProxy(RAS_IDisplayArray *array, RAS_IVertex *vertex);
   virtual ~KX_VertexProxy();
 
-  RAS_ITexVert *GetVertex();
+  RAS_IVertex *GetVertex();
   RAS_IDisplayArray *GetDisplayArray();
 
   // stuff for cvalue related things

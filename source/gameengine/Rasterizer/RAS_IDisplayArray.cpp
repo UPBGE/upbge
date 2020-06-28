@@ -29,7 +29,7 @@
 #include "GPU_glew.h"
 
 
-RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat &format)
+RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat &format)
     : m_type(type), m_modifiedFlag(NONE_MODIFIED), m_format(format)
 {
 }
@@ -49,7 +49,7 @@ RAS_IDisplayArray::~RAS_IDisplayArray()
 
 #define NEW_DISPLAY_ARRAY_UV(vertformat, uv, color, primtype) \
   if (vertformat.uvSize == uv && vertformat.colorSize == color) { \
-    return new RAS_DisplayArray<RAS_TexVert<uv, color>>(primtype, vertformat); \
+    return new RAS_DisplayArray<RAS_Vertex<uv, color>>(primtype, vertformat); \
   }
 
 #define NEW_DISPLAY_ARRAY_COLOR(vertformat, color, primtype) \
@@ -63,7 +63,7 @@ RAS_IDisplayArray::~RAS_IDisplayArray()
   NEW_DISPLAY_ARRAY_UV(format, 8, color, type);
 
 RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::PrimitiveType type,
-                                                     const RAS_TexVertFormat &format)
+                                                     const RAS_VertexFormat &format)
 {
   NEW_DISPLAY_ARRAY_COLOR(format, 1, type);
   NEW_DISPLAY_ARRAY_COLOR(format, 2, type);
@@ -147,7 +147,7 @@ void RAS_IDisplayArray::SetModifiedFlag(unsigned short flag)
   m_modifiedFlag = flag;
 }
 
-const RAS_TexVertFormat &RAS_IDisplayArray::GetFormat() const
+const RAS_VertexFormat &RAS_IDisplayArray::GetFormat() const
 {
   return m_format;
 }

@@ -48,7 +48,7 @@
 #include "RAS_Texture.h"
 
 class RAS_Polygon;
-class RAS_ITexVert;
+class RAS_IVertex;
 struct Mesh;
 struct MLoopUV;
 struct MLoopCol;
@@ -122,7 +122,7 @@ class RAS_MeshObject {
   // mesh construction
   RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket,
                                 unsigned int index,
-                                const RAS_TexVertFormat &format);
+                                const RAS_VertexFormat &format);
   void AddLine(RAS_MeshMaterial *meshmat, unsigned int v1, unsigned int v2);
   virtual RAS_Polygon *AddPolygon(RAS_MeshMaterial *meshmat,
                                   int numverts,
@@ -141,7 +141,7 @@ class RAS_MeshObject {
 
   // vertex and polygon acces
   RAS_IDisplayArray *GetDisplayArray(unsigned int matid) const;
-  RAS_ITexVert *GetVertex(unsigned int matid, unsigned int index);
+  RAS_IVertex *GetVertex(unsigned int matid, unsigned int index);
   const float *GetVertexLocation(unsigned int orig_index);
 
   int NumPolygons();

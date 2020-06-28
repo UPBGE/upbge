@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file RAS_ITexVert.h
+/** \file RAS_IVertex.h
  *  \ingroup bgerast
  */
 
@@ -39,16 +39,16 @@
 #include "MT_Vector3.h"
 
 /// Struct used to pass the vertex format to functions.
-struct RAS_TexVertFormat {
+struct RAS_VertexFormat {
   unsigned int uvSize;
   unsigned int colorSize;
 };
 
 /// Operators used to compare the contents (uv size, color size, ...) of two vertex formats.
-bool operator==(const RAS_TexVertFormat &format1, const RAS_TexVertFormat &format2);
-bool operator!=(const RAS_TexVertFormat &format1, const RAS_TexVertFormat &format2);
+bool operator==(const RAS_VertexFormat &format1, const RAS_VertexFormat &format2);
+bool operator!=(const RAS_VertexFormat &format1, const RAS_VertexFormat &format2);
 
-class RAS_TexVertInfo {
+class RAS_VertexInfo {
  public:
   enum {
     FLAT = 1,
@@ -60,8 +60,8 @@ class RAS_TexVertInfo {
   short m_flag;              // 2
 
  public:
-  RAS_TexVertInfo(unsigned int origindex, bool flat);
-  ~RAS_TexVertInfo();
+  RAS_VertexInfo(unsigned int origindex, bool flat);
+  ~RAS_VertexInfo();
 
   inline const unsigned int getOrigIndex() const
   {
@@ -89,7 +89,7 @@ class RAS_TexVertInfo {
   }
 };
 
-class RAS_ITexVert {
+class RAS_IVertex {
  public:
   enum { MAX_UNIT = 8 };
 
@@ -99,12 +99,12 @@ class RAS_ITexVert {
   float m_normal[3];    // 3*4 = 12
 
  public:
-  RAS_ITexVert()
+  RAS_IVertex()
   {
   }
-  RAS_ITexVert(const MT_Vector3 &xyz, const MT_Vector4 &tangent, const MT_Vector3 &normal);
+  RAS_IVertex(const MT_Vector3 &xyz, const MT_Vector4 &tangent, const MT_Vector3 &normal);
 
-  virtual ~RAS_ITexVert();
+  virtual ~RAS_IVertex();
 
   virtual const unsigned short getUvSize() const = 0;
   virtual const float *getUV(const int unit) const = 0;
@@ -161,7 +161,7 @@ class RAS_ITexVert {
 
   // compare two vertices, to test if they can be shared, used for
   // splitting up based on uv's, colors, etc
-  inline const bool closeTo(const RAS_ITexVert *other)
+  inline const bool closeTo(const RAS_IVertex *other)
   {
     BLI_assert(getUvSize() == other->getUvSize());
     BLI_assert(getColorSize() == other->getColorSize());

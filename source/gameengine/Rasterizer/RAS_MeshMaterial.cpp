@@ -28,7 +28,7 @@
 RAS_MeshMaterial::RAS_MeshMaterial(RAS_MeshObject *mesh,
                                    RAS_MaterialBucket *bucket,
                                    unsigned int index,
-                                   const RAS_TexVertFormat &format)
+                                   const RAS_VertexFormat &format)
     : m_bucket(bucket), m_index(index)
 {
   RAS_IDisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_IDisplayArray::LINES :

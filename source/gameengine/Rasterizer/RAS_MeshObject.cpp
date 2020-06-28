@@ -116,7 +116,7 @@ const std::string RAS_MeshObject::GetTextureName(unsigned int matid)
 
 RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket,
                                               unsigned int index,
-                                              const RAS_TexVertFormat &format)
+                                              const RAS_VertexFormat &format)
 {
   RAS_MeshMaterial *meshmat = GetMeshMaterialBlenderIndex(index);
 
@@ -187,7 +187,7 @@ unsigned int RAS_MeshObject::AddVertex(RAS_MeshMaterial *meshmat,
                                        const unsigned int origindex)
 {
   RAS_IDisplayArray *darray = meshmat->GetDisplayArray();
-  RAS_ITexVert *vertex = darray->CreateVertex(xyz, uvs, tangent, rgba, normal);
+  RAS_IVertex *vertex = darray->CreateVertex(xyz, uvs, tangent, rgba, normal);
 
   { /* Shared Vertex! */
     /* find vertices shared between faces, with the restriction
@@ -210,7 +210,7 @@ unsigned int RAS_MeshObject::AddVertex(RAS_MeshMaterial *meshmat,
 
   // no shared vertex found, add a new one
   darray->AddVertex(vertex);
-  const RAS_TexVertInfo info(origindex, flat);
+  const RAS_VertexInfo info(origindex, flat);
   darray->AddVertexInfo(info);
 
   int offset = darray->GetVertexCount() - 1;
@@ -238,7 +238,7 @@ RAS_IDisplayArray *RAS_MeshObject::GetDisplayArray(unsigned int matid) const
   return array;
 }
 
-RAS_ITexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
+RAS_IVertex *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
 {
   RAS_IDisplayArray *array = GetDisplayArray(matid);
 

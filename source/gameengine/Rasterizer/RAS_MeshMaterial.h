@@ -38,7 +38,7 @@ class RAS_MeshObject;
 class RAS_MaterialBucket;
 class RAS_DisplayArrayBucket;
 class RAS_IDisplayArray;
-struct RAS_TexVertFormat;
+struct RAS_VertexFormat;
 
 /** \brief Node between material and mesh.
  * Own the display array and the display array bucket used to draw the part of the mesh
@@ -57,7 +57,7 @@ class RAS_MeshMaterial {
   RAS_MeshMaterial(RAS_MeshObject *mesh,
                    RAS_MaterialBucket *bucket,
                    unsigned int index,
-                   const RAS_TexVertFormat &format);
+                   const RAS_VertexFormat &format);
   ~RAS_MeshMaterial();
 
   unsigned int GetIndex() const;
