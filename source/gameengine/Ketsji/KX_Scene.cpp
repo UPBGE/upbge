@@ -1080,14 +1080,14 @@ void KX_Scene::ReplicateLogic(KX_GameObject *newobj)
     AddObjectDebugProperties(newobj);
   }
   // also relink the controller to sensors/actuators
-  const SCA_ControllerList &controllers = newobj->GetControllers();
+  const SCA_ControllerList controllers = newobj->GetControllers();
   // SCA_SensorList&     sensors     = newobj->GetSensors();
   // SCA_ActuatorList&   actuators   = newobj->GetActuators();
 
   for (SCA_IController *cont : controllers) {
     cont->SetUeberExecutePriority(m_ueberExecutionPriority);
-    const SCA_SensorList& linkedsensors = cont->GetLinkedSensors();
-    const SCA_ActuatorList& linkedactuators = cont->GetLinkedActuators();
+    const SCA_SensorList linkedsensors = cont->GetLinkedSensors();
+    const SCA_ActuatorList linkedactuators = cont->GetLinkedActuators();
 
     // disconnect the sensors and actuators
     // do it directly on the list at this controller is not connected to anything at this stage
@@ -1225,7 +1225,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
     m_parentlist->Add(CM_AddRef(replica));
 
     // recurse replication into children nodes
-    const NodeList &children = gameobj->GetSGNode()->GetSGChildren();
+    const NodeList children = gameobj->GetSGNode()->GetSGChildren();
 
     replica->GetSGNode()->ClearSGChildren();
     for (SG_Node *orgnode : children) {
@@ -1377,7 +1377,7 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
 
   // recurse replication into children nodes
 
-  const NodeList &children = originalobj->GetSGNode()->GetSGChildren();
+  const NodeList children = originalobj->GetSGNode()->GetSGChildren();
 
   replica->GetSGNode()->ClearSGChildren();
   for (SG_Node *orgnode : children) {
