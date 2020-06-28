@@ -218,6 +218,7 @@ KX_GameObject::~KX_GameObject()
   }
   if (m_lodManager) {
     m_lodManager->Release();
+    GetScene()->RemoveObjFromLodObjList(this);
   }
 }
 
@@ -543,6 +544,7 @@ void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj)
 {
   m_lodManager = new KX_LodManager(meshObj);
   m_lodManager->AddRef();
+  GetScene()->AddObjToLodObjList(this);
 }
 
 bool KX_GameObject::IsReplica()
@@ -871,6 +873,7 @@ void KX_GameObject::ProcessReplica()
 
   if (m_lodManager) {
     m_lodManager->AddRef();
+    GetScene()->AddObjToLodObjList(this);
   }
 
 #ifdef WITH_PYTHON
@@ -3723,6 +3726,7 @@ int KX_GameObject::pyattr_set_lodManager(PyObjectPlus *self_v,
   }
 
   self->SetLodManager(lodManager);
+  self->GetScene()->AddObjToLodObjList(self);
 
   return PY_SET_ATTR_SUCCESS;
 }

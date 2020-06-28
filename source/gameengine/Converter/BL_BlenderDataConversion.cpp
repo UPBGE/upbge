@@ -778,6 +778,11 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
       gameobj->SetLodManager(lodManager);
       if (lodManager) {
         lodManager->Release();
+        kxscene->AddObjToLodObjList(gameobj);
+      }
+      else {
+        /* Just in case */
+        kxscene->RemoveObjFromLodObjList(gameobj);
       }
 
       // for all objects: check whether they want to

@@ -209,6 +209,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   /*************************************************EEVEE
    * INTEGRATION***********************************************************/
   m_staticObjects = {};
+  m_kxobWithLod = {};
 
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
@@ -829,6 +830,25 @@ void KX_Scene::SetIsPythonMainLoop(bool isPythonMainLoop)
 {
   m_isPythonMainLoop = isPythonMainLoop;
 }
+
+void KX_Scene::AddObjToLodObjList(KX_GameObject *gameobj)
+{
+  std::vector<KX_GameObject *>::iterator it = std::find(
+      m_kxobWithLod.begin(), m_kxobWithLod.end(), gameobj);
+  if (it == m_kxobWithLod.end()) {
+    m_kxobWithLod.push_back(gameobj);
+  }
+}
+
+void KX_Scene::RemoveObjFromLodObjList(KX_GameObject *gameobj)
+{
+  std::vector<KX_GameObject *>::iterator it = std::find(
+      m_kxobWithLod.begin(), m_kxobWithLod.end(), gameobj);
+  if (it != m_kxobWithLod.end()) {
+    m_kxobWithLod.erase(it);
+  }
+}
+
 /******************End of EEVEE INTEGRATION****************************/
 
 std::string KX_Scene::GetName()
@@ -1904,7 +1924,7 @@ void KX_Scene::UpdateObjectLods(KX_Camera *cam /*, const KX_CullingNodeList& nod
   const MT_Vector3 &cam_pos = cam->NodeGetWorldPosition();
   const float lodfactor = cam->GetLodDistanceFactor();
 
-  for (KX_GameObject *gameobj : GetObjectList()) {
+  for (KX_GameObject *gameobj : m_kxobWithLod) {
     gameobj->UpdateLod(cam_pos, 1.0f /*lodfactor*/);
   }
 }
