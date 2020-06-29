@@ -1684,6 +1684,12 @@ int main(int argc,
   // Dispose the system
   GHOST_ISystem::disposeSystem();
 
+#ifdef WITH_INTERNATIONAL
+  BLT_lang_free();
+#endif
+
+  ANIM_keyingset_infos_exit();
+
 #ifdef WITH_PYTHON
   BPY_python_end();
 #endif
@@ -1697,10 +1703,6 @@ int main(int argc,
   RNA_exit(); /* should be after BPY_python_end so struct python slots are cleared */
 
   SYS_DeleteSystem(syshandle);
-
-#ifdef WITH_INTERNATIONAL
-  BLT_lang_free();
-#endif
 
   wm_ghost_exit();
 
