@@ -788,8 +788,8 @@ class KX_GameObject : public SCA_IObject {
   KX_PYMETHOD_VARARGS(KX_GameObject, ApplyImpulse);
   KX_PYMETHOD_O(KX_GameObject, SetCollisionMargin);
   KX_PYMETHOD_NOARGS(KX_GameObject, GetParent);
-  KX_PYMETHOD_VARARGS(KX_GameObject, SetParent);
-  KX_PYMETHOD(KX_GameObject, RemoveParent);
+  KX_PYMETHOD(KX_GameObject, SetParent);
+  KX_PYMETHOD_NOARGS(KX_GameObject, RemoveParent);
   KX_PYMETHOD_NOARGS(KX_GameObject, GetChildren);
   KX_PYMETHOD_NOARGS(KX_GameObject, GetChildrenRecursive);
   KX_PYMETHOD_VARARGS(KX_GameObject, GetMesh);
