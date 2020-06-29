@@ -2092,16 +2092,16 @@ void CcdPhysicsEnvironment::CallbackTriggers()
   for (int i = 0; i < numManifolds; i++) {
     bool colliding_ctrl0 = true;
     btPersistentManifold *manifold = dispatcher->getManifoldByIndexInternal(i);
-    int numContacts = manifold->getNumContacts();
+    const int numContacts = manifold->getNumContacts();
     if (!numContacts) {
       continue;
     }
 
-    const btRigidBody *rb0 = static_cast<const btRigidBody *>(manifold->getBody0());
-    const btRigidBody *rb1 = static_cast<const btRigidBody *>(manifold->getBody1());
+    const btCollisionObject *col0 = manifold->getBody0();
+    const btCollisionObject *col1 = manifold->getBody1();
     if (draw_contact_points) {
       for (int j = 0; j < numContacts; j++) {
-        btVector3 color(1.0f, 1.0f, 0.0f);
+        static const btVector3 color(1.0f, 1.0f, 0.0f);
         const btManifoldPoint &cp = manifold->getContactPoint(j);
         m_debugDrawer->drawContactPoint(
             cp.m_positionWorldOnB, cp.m_normalWorldOnB, cp.getDistance(), cp.getLifeTime(), color);
@@ -2109,13 +2109,14 @@ void CcdPhysicsEnvironment::CallbackTriggers()
     }
 
     // m_internalOwner is set in 'addPhysicsController'
-    CcdPhysicsController *ctrl0 = static_cast<CcdPhysicsController *>(rb0->getUserPointer());
-    CcdPhysicsController *ctrl1 = static_cast<CcdPhysicsController *>(rb1->getUserPointer());
+    CcdPhysicsController *ctrl0 = static_cast<CcdPhysicsController *>(col0->getUserPointer());
+    CcdPhysicsController *ctrl1 = static_cast<CcdPhysicsController *>(col1->getUserPointer());
     bool usecallback = false;
 
     // Test if one of the controller is registered and use collision callback.
-    if (ctrl0->Registered())
+    if (ctrl0->Registered()) {
       usecallback = true;
+    }
     else if (ctrl1->Registered()) {
       colliding_ctrl0 = false;
       usecallback = true;
@@ -2131,7 +2132,7 @@ void CcdPhysicsEnvironment::CallbackTriggers()
     }
     // Bullet does not refresh the manifold contact point for object without contact response
     // may need to remove this when a newer Bullet version is integrated
-    if (!dispatcher->needsResponse(rb0, rb1)) {
+    if (!dispatcher->needsResponse(col0, col1)) {
       // Refresh algorithm fails sometimes when there is penetration
       // (usuall the case with ghost and sensor objects)
       // Let's just clear the manifold, in any case, it is recomputed on each frame.

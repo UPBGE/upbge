@@ -295,19 +295,6 @@ bool CcdPhysicsController::CreateSoftbody()
     return false;
   }
 
-  btRigidBody::btRigidBodyConstructionInfo rbci(m_cci.m_mass,
-                                                m_bulletMotionState,
-                                                m_collisionShape,
-                                                m_cci.m_localInertiaTensor *
-                                                    m_cci.m_inertiaFactor);
-  rbci.m_linearDamping = m_cci.m_linearDamping;
-  rbci.m_angularDamping = m_cci.m_angularDamping;
-  rbci.m_friction = m_cci.m_friction;
-  rbci.m_restitution = m_cci.m_restitution;
-
-  btVector3 p(0.0f, 0.0f, 0.0f);  // = getOrigin();
-  // btSoftBody*	psb=btSoftBodyHelpers::CreateRope(worldInfo,
-  // btVector3(-10,0,i*0.25),btVector3(10,0,i*0.25),	16,1+2);
   btSoftBody *psb = nullptr;
   btSoftBodyWorldInfo &worldInfo = m_cci.m_physicsEnv->GetDynamicsWorld()->getWorldInfo();
 
@@ -418,7 +405,6 @@ bool CcdPhysicsController::CreateSoftbody()
   }
   m_object = psb;
 
-  // btSoftBody::Material*	pm=psb->appendMaterial();
   btSoftBody::Material *pm = psb->m_materials[0];
   pm->m_kLST = m_cci.m_soft_linStiff;
   pm->m_kAST = m_cci.m_soft_angStiff;
@@ -526,7 +512,7 @@ bool CcdPhysicsController::CreateSoftbody()
   m_softbodyMappingDone = true;
 
   btTransform startTrans;
-  rbci.m_motionState->getWorldTransform(startTrans);
+  m_bulletMotionState->getWorldTransform(startTrans);
 
   m_MotionState->SetWorldPosition(ToMoto(startTrans.getOrigin()));
   m_MotionState->SetWorldOrientation(MT_Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
