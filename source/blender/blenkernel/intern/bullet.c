@@ -81,6 +81,7 @@ BulletSoftBody *bsbNew(void)
   bsb->collisionflags = 0;
   // bsb->collisionflags = OB_BSB_COL_CL_RS + OB_BSB_COL_CL_SS;
   bsb->numclusteriterations = 64;
+  bsb->bending_dist = 2;
   bsb->welding = 0.f;
 
   return bsb;

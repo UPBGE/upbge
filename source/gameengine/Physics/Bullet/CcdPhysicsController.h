@@ -241,6 +241,7 @@ struct CcdConstructionInfo {
         m_angularDamping(0.1f),
         m_margin(0.06f),
         m_gamesoftFlag(0),
+        m_softBendingDistance(2),
         m_soft_linStiff(1.0f),
         m_soft_angStiff(1.0f),
         m_soft_volume(1.0f),
@@ -317,6 +318,7 @@ struct CcdConstructionInfo {
   unsigned char m_maxJumps;
 
   int m_gamesoftFlag;
+  unsigned short m_softBendingDistance;
   /// linear stiffness 0..1
   float m_soft_linStiff;
   /// angular stiffness 0..1

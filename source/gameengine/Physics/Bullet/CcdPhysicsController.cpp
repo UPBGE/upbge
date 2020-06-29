@@ -451,7 +451,7 @@ bool CcdPhysicsController::CreateSoftbody()
   psb->m_cfg.kAHR = m_cci.m_soft_kAHR;  // Anchors hardness [0,1]
 
   if (m_cci.m_gamesoftFlag & CCD_BSB_BENDING_CONSTRAINTS) {
-    psb->generateBendingConstraints(2, pm);
+    psb->generateBendingConstraints(m_cci.m_softBendingDistance, pm);
   }
 
   psb->m_cfg.piterations = m_cci.m_soft_piterations;

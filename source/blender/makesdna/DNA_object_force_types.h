@@ -239,6 +239,7 @@ typedef struct BulletSoftBody {
   int collisionflags; /* Vertex/Face or Signed Distance Field(SDF) or Clusters, Soft versus Soft or
                          Rigid */
   int numclusteriterations; /* number of iterations to refine collision clusters*/
+  int bending_dist;         /* Bending constraint distance */
   float welding;            /* welding limit to remove duplicate/nearby vertices, 0.0..0.01 */
   float margin;             /* margin specific to softbody */
 } BulletSoftBody;

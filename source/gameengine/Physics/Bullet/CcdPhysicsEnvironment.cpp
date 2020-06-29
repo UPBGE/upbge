@@ -2827,6 +2827,8 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
       ci.m_margin = blenderobject->bsoft->margin;
       ci.m_gamesoftFlag = blenderobject->bsoft->flag;
 
+      ci.m_softBendingDistance = blenderobject->bsoft->bending_dist;
+
       ci.m_soft_linStiff = blenderobject->bsoft->linStiff;
       ci.m_soft_angStiff = blenderobject->bsoft->angStiff;  // angular stiffness 0..1
       ci.m_soft_volume = blenderobject->bsoft->volume;      // volume preservation 0..1
@@ -2874,6 +2876,8 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
     else {
       ci.m_margin = 0.0f;
       ci.m_gamesoftFlag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT;
+
+      ci.m_softBendingDistance = 2;
 
       ci.m_soft_linStiff = 0.5f;
       ci.m_soft_angStiff = 1.0f;  // angular stiffness 0..1

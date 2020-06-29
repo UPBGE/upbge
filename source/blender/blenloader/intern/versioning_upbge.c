@@ -182,18 +182,25 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
   }
 
   if (!MAIN_VERSION_UPBGE_ATLEAST(main, 3, 1)) {
-	if (!DNA_struct_elem_find(fd->filesdna, "GameData", "float", "timeScale")) {
-		for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
-			scene->gm.timeScale = 1.0f;
-		}
-	}
-	if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
-		for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
-			scene->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
-			scene->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
-			scene->gm.pythonkeys[2] = EVT_LEFTALTKEY;
-			scene->gm.pythonkeys[3] = EVT_TKEY;
-		}
-	}
+    if (!DNA_struct_elem_find(fd->filesdna, "GameData", "float", "timeScale")) {
+      for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
+        scene->gm.timeScale = 1.0f;
+      }
+    }
+    if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
+      for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
+        scene->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
+        scene->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
+        scene->gm.pythonkeys[2] = EVT_LEFTALTKEY;
+        scene->gm.pythonkeys[3] = EVT_TKEY;
+      }
+    }
+    if (!DNA_struct_elem_find(fd->filesdna, "BulletSoftBody", "int", "bending_dist")) {
+      for (Object *ob = main->objects.first; ob; ob = ob->id.next) {
+        if (ob->bsoft) {
+          ob->bsoft->bending_dist = 2;
+        }
+      }
+    }
   }
 }

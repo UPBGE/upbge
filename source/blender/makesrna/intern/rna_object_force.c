@@ -1829,6 +1829,10 @@ static void rna_def_game_softbody(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, 1000);
   RNA_def_property_ui_text(prop, "Cluster Iterations", "Number of cluster iterations");
 
+  prop = RNA_def_property(srna, "bending_distance", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "bending_dist");
+  RNA_def_property_range(prop, 1, 1000);
+  RNA_def_property_ui_text(prop, "Bending Distance", "Bending Constraint Distance");
   /* Booleans */
 
   prop = RNA_def_property(srna, "use_shape_match", PROP_BOOLEAN, PROP_NONE);

@@ -156,10 +156,9 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(soft, "collision_margin", slider=True)
 #            col.prop(soft, "kvcf", text="Velocity Correction", slider=True)
             col.prop(soft, "use_bending_constraints", text="Bending Constraints")
-
             sub = col.column()
             sub.active = soft.use_bending_constraints
-#            sub.prop(soft, "bending_distance")
+            sub.prop(soft, "bending_distance")
 
             col.prop(soft, "use_shape_match")
 
