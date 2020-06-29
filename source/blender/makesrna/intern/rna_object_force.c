@@ -1821,12 +1821,12 @@ static void rna_def_game_softbody(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "location_iterations", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "piterations");
-  RNA_def_property_range(prop, 0, 10);
+  RNA_def_property_range(prop, 0, 1000);
   RNA_def_property_ui_text(prop, "Position Iterations", "Position solver iterations");
 
   prop = RNA_def_property(srna, "cluster_iterations", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "numclusteriterations");
-  RNA_def_property_range(prop, 1, 128);
+  RNA_def_property_range(prop, 1, 1000);
   RNA_def_property_ui_text(prop, "Cluster Iterations", "Number of cluster iterations");
 
   /* Booleans */
