@@ -78,6 +78,7 @@
 #include "BLI_mempool.h"
 #include "BLI_system.h"
 #include "BLI_task.h"
+#include "BLI_timer.h"
 #include "BLO_readfile.h"
 #include "BLO_runtime.h"
 #include "BLT_lang.h"
@@ -100,9 +101,13 @@
 #include "editors/include/ED_util.h"
 #include "editors/include/UI_interface.h"
 #include "editors/include/UI_resources.h"
+#include "render/extern/include/RE_engine.h"
+#include "render/extern/include/RE_pipeline.h"
 #include "windowmanager/WM_api.h"
 #include "windowmanager/message_bus/wm_message_bus.h"
 #include "windowmanager/wm.h"
+#include "windowmanager/wm_event_system.h"
+#include "windowmanager/wm_surface.h"
 #include "windowmanager/wm_window.h"
 
 #include "CM_Message.h"
@@ -1582,6 +1587,10 @@ int main(int argc,
    * if the order of function calls or blenders state isn't matching that of blender proper,
    * we may get troubles later on */
 
+  WM_jobs_kill_all(CTX_wm_manager(C));
+
+  BLI_timer_free();
+
   WM_paneltype_clear();
 
   BKE_addon_pref_type_free();
@@ -1589,6 +1598,8 @@ int main(int argc,
   BKE_materials_exit();
 
   wm_operatortype_free();
+  wm_surfaces_free();
+  wm_dropbox_free();
   WM_menutype_free();
   WM_uilisttype_free();
 
@@ -1601,6 +1612,10 @@ int main(int argc,
   ED_undosys_type_free();
 
   BKE_mball_cubeTable_free();
+
+  /* render code might still access databases */
+  RE_FreeAllRender();
+  RE_engines_exit();
 
   ED_preview_free_dbase(); /* frees a Main dbase, before BKE_blender_free! */
 
