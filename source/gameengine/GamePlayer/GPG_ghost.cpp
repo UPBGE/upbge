@@ -63,15 +63,18 @@
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.h"
 #include "BKE_main.h"
+#include "BKE_mask.h"
 #include "BKE_material.h"
 #include "BKE_mball_tessellate.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
+#include "BKE_sequencer.h"
 #include "BKE_shader_fx.h"
 #include "BKE_sound.h"
 #include "BKE_studiolight.h"
 #include "BKE_subdiv.h"
+#include "BKE_tracking.h"
 #include "BKE_volume.h"
 #include "BLF_api.h"
 #include "BLI_blenlib.h"
@@ -95,6 +98,9 @@
 #include "RNA_define.h"
 #include "draw/DRW_engine.h"
 #include "editors/include/ED_datafiles.h"
+#include "editors/include/ED_gpencil.h"
+#include "editors/include/ED_keyframes_edit.h"
+#include "editors/include/ED_keyframing.h"
 #include "editors/include/ED_render.h"
 #include "editors/include/ED_space_api.h"
 #include "editors/include/ED_undo.h"
@@ -1619,11 +1625,20 @@ int main(int argc,
 
   ED_preview_free_dbase(); /* frees a Main dbase, before BKE_blender_free! */
 
-  /* Before BKE_blender_free! - since the ListBases get freed there. */
-  wm_free_reports(C);
+  if (CTX_wm_manager(C)) {
+    /* Before BKE_blender_free! - since the ListBases get freed there. */
+    wm_free_reports(C);
+  }
 
+  BKE_sequencer_free_clipboard(); /* sequencer.c */
+  BKE_tracking_clipboard_free();
+  BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
   BKE_node_clipboard_free();
+
+#ifdef WITH_COMPOSITOR
+  COM_deinitialize();
+#endif
 
   BKE_subdiv_exit();
 
@@ -1640,6 +1655,13 @@ int main(int argc,
   /* G_MAIN == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer
    */
   G_MAIN = nullptr;
+
+  ANIM_fcurves_copybuf_free();
+  ANIM_drivers_copybuf_free();
+  ANIM_driver_vars_copybuf_free();
+  ANIM_fmodifiers_copybuf_free();
+  ED_gpencil_anim_copybuf_free();
+  ED_gpencil_strokes_copybuf_free();
 
   /* free gizmo-maps after freeing blender,
    * so no deleted data get accessed during cleaning up of areas. */
