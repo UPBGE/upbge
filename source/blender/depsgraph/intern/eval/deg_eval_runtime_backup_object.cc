@@ -32,7 +32,8 @@
 #include "BKE_action.h"
 #include "BKE_object.h"
 
-namespace DEG {
+namespace blender {
+namespace deg {
 
 ObjectRuntimeBackup::ObjectRuntimeBackup(const Depsgraph * /*depsgraph*/)
     : base_flag(0), base_local_view_bits(0)
@@ -172,10 +173,10 @@ void ObjectRuntimeBackup::restore_pose_channel_runtime_data(Object *object)
     LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
       /* This is nullptr in Edit mode. */
       if (pchan->orig_pchan != nullptr) {
-        Optional<bPoseChannel_Runtime> runtime = pose_channel_runtime_data.pop_try(
+        optional<bPoseChannel_Runtime> runtime = pose_channel_runtime_data.pop_try(
             pchan->orig_pchan);
         if (runtime.has_value()) {
-          pchan->runtime = runtime.extract();
+          pchan->runtime = *runtime;
         }
       }
     }
@@ -185,4 +186,5 @@ void ObjectRuntimeBackup::restore_pose_channel_runtime_data(Object *object)
   }
 }
 
-}  // namespace DEG
+}  // namespace deg
+}  // namespace blender

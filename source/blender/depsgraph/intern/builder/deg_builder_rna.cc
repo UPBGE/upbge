@@ -48,7 +48,8 @@
 #include "intern/node/deg_node_id.h"
 #include "intern/node/deg_node_operation.h"
 
-namespace DEG {
+namespace blender {
+namespace deg {
 
 /* ********************************* ID Data ******************************** */
 
@@ -365,8 +366,9 @@ RNANodeIdentifier RNANodeQuery::construct_node_identifier(const PointerRNA *ptr,
 RNANodeQueryIDData *RNANodeQuery::ensure_id_data(const ID *id)
 {
   unique_ptr<RNANodeQueryIDData> &id_data = id_data_map_.lookup_or_add_cb(
-      id, [&]() { return blender::make_unique<RNANodeQueryIDData>(id); });
+      id, [&]() { return std::make_unique<RNANodeQueryIDData>(id); });
   return id_data.get();
 }
 
-}  // namespace DEG
+}  // namespace deg
+}  // namespace blender

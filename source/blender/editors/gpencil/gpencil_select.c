@@ -369,7 +369,7 @@ typedef enum eGP_SelectGrouped {
 /* ----------------------------------- */
 
 /* On each visible layer, check for selected strokes - if found, select all others */
-static void gp_select_same_layer(bContext *C)
+static void gpencil_select_same_layer(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -412,7 +412,7 @@ static void gp_select_same_layer(bContext *C)
 }
 
 /* Select all strokes with same colors as selected ones */
-static void gp_select_same_material(bContext *C)
+static void gpencil_select_same_material(bContext *C)
 {
   /* First, build set containing all the colors of selected strokes */
   GSet *selected_colors = BLI_gset_str_new("GP Selected Colors");
@@ -462,10 +462,10 @@ static int gpencil_select_grouped_exec(bContext *C, wmOperator *op)
 
   switch (mode) {
     case GP_SEL_SAME_LAYER:
-      gp_select_same_layer(C);
+      gpencil_select_same_layer(C);
       break;
     case GP_SEL_SAME_MATERIAL:
-      gp_select_same_material(C);
+      gpencil_select_same_material(C);
       break;
 
     default:
@@ -853,21 +853,21 @@ void GPENCIL_OT_select_less(wmOperatorType *ot)
  * Helper to check if a given stroke is within the area.
  *
  * \note Code here is adapted (i.e. copied directly)
- * from gpencil_paint.c #gp_stroke_eraser_dostroke().
+ * from gpencil_paint.c #gpencil_stroke_eraser_dostroke().
  * It would be great to de-duplicate the logic here sometime, but that can wait.
  */
-static bool gp_stroke_do_circle_sel(bGPdata *UNUSED(gpd),
-                                    bGPDlayer *gpl,
-                                    bGPDstroke *gps,
-                                    GP_SpaceConversion *gsc,
-                                    const int mx,
-                                    const int my,
-                                    const int radius,
-                                    const bool select,
-                                    rcti *rect,
-                                    const float diff_mat[4][4],
-                                    const int selectmode,
-                                    const float scale)
+static bool gpencil_stroke_do_circle_sel(bGPdata *UNUSED(gpd),
+                                         bGPDlayer *gpl,
+                                         bGPDstroke *gps,
+                                         GP_SpaceConversion *gsc,
+                                         const int mx,
+                                         const int my,
+                                         const int radius,
+                                         const bool select,
+                                         rcti *rect,
+                                         const float diff_mat[4][4],
+                                         const int selectmode,
+                                         const float scale)
 {
   bGPDspoint *pt = NULL;
   int x0 = 0, y0 = 0;
@@ -881,8 +881,8 @@ static bool gp_stroke_do_circle_sel(bGPdata *UNUSED(gpd),
     pt_active = (pt->runtime.pt_orig) ? pt->runtime.pt_orig : pt;
 
     bGPDspoint pt_temp;
-    gp_point_to_parent_space(pt_active, diff_mat, &pt_temp);
-    gp_point_to_xy(gsc, gps, &pt_temp, &x0, &y0);
+    gpencil_point_to_parent_space(pt_active, diff_mat, &pt_temp);
+    gpencil_point_to_xy(gsc, gps, &pt_temp, &x0, &y0);
 
     /* do boundbox check first */
     if ((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(rect, x0, y0)) {
@@ -988,7 +988,7 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
   }
 
   /* init space conversion stuff */
-  gp_point_conversion_init(C, &gsc);
+  gpencil_point_conversion_init(C, &gsc);
 
   /* rect is rectangle of selection circle */
   rect.xmin = mx - radius;
@@ -998,18 +998,18 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 
   /* find visible strokes, and select if hit */
   GP_EVALUATED_STROKES_BEGIN (gpstroke_iter, C, gpl, gps) {
-    changed |= gp_stroke_do_circle_sel(gpd,
-                                       gpl,
-                                       gps,
-                                       &gsc,
-                                       mx,
-                                       my,
-                                       radius,
-                                       select,
-                                       &rect,
-                                       gpstroke_iter.diff_mat,
-                                       selectmode,
-                                       scale);
+    changed |= gpencil_stroke_do_circle_sel(gpd,
+                                            gpl,
+                                            gps,
+                                            &gsc,
+                                            mx,
+                                            my,
+                                            radius,
+                                            select,
+                                            &rect,
+                                            gpstroke_iter.diff_mat,
+                                            selectmode,
+                                            scale);
   }
   GP_EVALUATED_STROKES_END(gpstroke_iter);
 
@@ -1102,7 +1102,7 @@ static int gpencil_generic_select_exec(
   }
 
   /* init space conversion stuff */
-  gp_point_conversion_init(C, &gsc);
+  gpencil_point_conversion_init(C, &gsc);
 
   /* deselect all strokes first? */
   if (SEL_OP_USE_PRE_DESELECT(sel_op) || (GPENCIL_PAINT_MODE(gpd))) {
@@ -1200,7 +1200,7 @@ static int gpencil_generic_select_exec(
 
   /* if paint mode,delete selected points */
   if (GPENCIL_PAINT_MODE(gpd)) {
-    gp_delete_selected_point_wrap(C);
+    gpencil_delete_selected_point_wrap(C);
     changed = true;
     DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   }
@@ -1237,8 +1237,8 @@ static bool gpencil_test_box(bGPDstroke *gps,
   const struct GP_SelectBoxUserData *data = user_data;
   bGPDspoint pt2;
   int x0, y0;
-  gp_point_to_parent_space(pt, diff_mat, &pt2);
-  gp_point_to_xy(gsc, gps, &pt2, &x0, &y0);
+  gpencil_point_to_parent_space(pt, diff_mat, &pt2);
+  gpencil_point_to_xy(gsc, gps, &pt2, &x0, &y0);
   return ((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(&data->rect, x0, y0));
 }
 
@@ -1294,8 +1294,8 @@ static bool gpencil_test_lasso(bGPDstroke *gps,
   const struct GP_SelectLassoUserData *data = user_data;
   bGPDspoint pt2;
   int x0, y0;
-  gp_point_to_parent_space(pt, diff_mat, &pt2);
-  gp_point_to_xy(gsc, gps, &pt2, &x0, &y0);
+  gpencil_point_to_parent_space(pt, diff_mat, &pt2);
+  gpencil_point_to_xy(gsc, gps, &pt2, &x0, &y0);
   /* test if in lasso boundbox + within the lasso noose */
   return ((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(&data->rect, x0, y0) &&
           BLI_lasso_is_point_inside(data->mcoords, data->mcoords_len, x0, y0, INT_MAX));
@@ -1417,7 +1417,7 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
   }
 
   /* init space conversion stuff */
-  gp_point_conversion_init(C, &gsc);
+  gpencil_point_conversion_init(C, &gsc);
 
   /* get mouse location */
   RNA_int_get_array(op->ptr, "location", mval);
@@ -1433,8 +1433,8 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
       int xy[2];
 
       bGPDspoint pt2;
-      gp_point_to_parent_space(pt, gpstroke_iter.diff_mat, &pt2);
-      gp_point_to_xy(&gsc, gps, &pt2, &xy[0], &xy[1]);
+      gpencil_point_to_parent_space(pt, gpstroke_iter.diff_mat, &pt2);
+      gpencil_point_to_xy(&gsc, gps, &pt2, &xy[0], &xy[1]);
 
       /* do boundbox check first */
       if (!ELEM(V2D_IS_CLIPPED, xy[0], xy[1])) {

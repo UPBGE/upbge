@@ -172,9 +172,14 @@ static void annotation_draw_stroke_buffer(bGPdata *gps,
     float oldpressure = points[0].pressure;
 
     /* draw stroke curve */
-    GPU_line_width(max_ff(oldpressure * thickness, 1.0));
+    immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
 
-    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+    float viewport[4];
+    GPU_viewport_size_get_f(viewport);
+    immUniform2fv("viewportSize", &viewport[2]);
+
+    immUniform1f("lineWidth", max_ff(oldpressure * thickness, 1.0) * U.pixelsize);
+
     immUniformColor3fvAlpha(ink, ink[3]);
 
     immBeginAtMost(GPU_PRIM_LINE_STRIP, totpoints);
@@ -193,7 +198,7 @@ static void annotation_draw_stroke_buffer(bGPdata *gps,
         immEnd();
         draw_points = 0;
 
-        GPU_line_width(max_ff(pt->pressure * thickness, 1.0f));
+        immUniform1f("lineWidth", max_ff(pt->pressure * thickness, 1.0) * U.pixelsize);
         immBeginAtMost(GPU_PRIM_LINE_STRIP, totpoints - i + 1);
 
         /* need to roll-back one point to ensure that there are no gaps in the stroke */
@@ -327,11 +332,17 @@ static void annotation_draw_stroke_3d(
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
 
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
+
+  float viewport[4];
+  GPU_viewport_size_get_f(viewport);
+  immUniform2fv("viewportSize", &viewport[2]);
+
+  immUniform1f("lineWidth", max_ff(curpressure * thickness, 1.0) * U.pixelsize);
+
   immUniformColor3fvAlpha(ink, ink[3]);
 
   /* draw stroke curve */
-  GPU_line_width(max_ff(curpressure * thickness, 1.0f));
   immBeginAtMost(GPU_PRIM_LINE_STRIP, totpoints + cyclic_add);
   const bGPDspoint *pt = points;
   for (int i = 0; i < totpoints; i++, pt++) {
@@ -351,7 +362,7 @@ static void annotation_draw_stroke_3d(
       draw_points = 0;
 
       curpressure = pt->pressure;
-      GPU_line_width(max_ff(curpressure * thickness, 1.0f));
+      immUniform1f("lineWidth", max_ff(curpressure * thickness, 1.0) * U.pixelsize);
       immBeginAtMost(GPU_PRIM_LINE_STRIP, totpoints - i + 1 + cyclic_add);
 
       /* need to roll-back one point to ensure that there are no gaps in the stroke */
@@ -424,10 +435,14 @@ static void annotation_draw_stroke_2d(const bGPDspoint *points,
   }
   else {
     /* draw stroke curve */
-    GPU_line_width(max_ff(oldpressure * thickness, 1.0));
-
-    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
     immUniformColor3fvAlpha(ink, ink[3]);
+
+    float viewport[4];
+    GPU_viewport_size_get_f(viewport);
+    immUniform2fv("viewportSize", &viewport[2]);
+
+    immUniform1f("lineWidth", max_ff(oldpressure * thickness, 1.0) * U.pixelsize);
 
     immBeginAtMost(GPU_PRIM_LINE_STRIP, totpoints);
 
@@ -448,7 +463,8 @@ static void annotation_draw_stroke_2d(const bGPDspoint *points,
         immEnd();
         draw_points = 0;
 
-        GPU_line_width(max_ff(pt->pressure * thickness, 1.0f));
+        immUniform1f("lineWidth", max_ff(pt->pressure * thickness, 1.0) * U.pixelsize);
+
         immBeginAtMost(GPU_PRIM_LINE_STRIP, totpoints - i + 1);
 
         /* need to roll-back one point to ensure that there are no gaps in the stroke */
@@ -683,9 +699,6 @@ static void annotation_draw_data_layers(
       continue;
     }
 
-    /* set basic stroke thickness */
-    GPU_line_width(lthick);
-
     /* Add layer drawing settings to the set of "draw flags"
      * NOTE: If the setting doesn't apply, it *must* be cleared,
      *       as dflag's carry over from the previous layer
@@ -774,13 +787,7 @@ static void annotation_draw_data_all(Scene *scene,
   }
 }
 
-/* ----- Grease Pencil Sketches Drawing API ------ */
-
-/* ............................
- * XXX
- * We need to review the calls below, since they may be/are not that suitable for
- * the new ways that we intend to be drawing data...
- * ............................ */
+/* ----- Annotation Sketches Drawing API ------ */
 
 /* draw grease-pencil sketches to specified 2d-view that uses ibuf corrections */
 void ED_annotation_draw_2dimage(const bContext *C)
