@@ -2777,15 +2777,20 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
   CcdConstructionInfo ci;
   class CcdShapeConstructionInfo *shapeInfo = new CcdShapeConstructionInfo();
 
-  // get Root Parent of blenderobject
   Object *blenderparent = blenderobject->parent;
-  while (blenderparent && blenderparent->parent) {
+  Object *rootparent = nullptr;
+  // Find the upper parent object using compound shape.
+  while (blenderparent) {
+    if ((blenderparent->gameflag & OB_CHILD) && (blenderobject->gameflag & (OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY)) &&
+        !(blenderobject->gameflag & OB_SOFT_BODY)) {
+      rootparent = blenderparent;
+    }
     blenderparent = blenderparent->parent;
   }
 
   KX_GameObject *parent = nullptr;
-  if (blenderparent) {
-    parent = converter->FindGameObject(blenderparent);
+  if (rootparent) {
+    parent = converter->FindGameObject(rootparent);
     isbulletsoftbody = false;
   }
 

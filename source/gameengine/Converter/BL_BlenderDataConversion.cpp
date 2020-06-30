@@ -619,26 +619,31 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
   gameobj->SetUserCollisionGroup(blenderobject->col_group);
   gameobj->SetUserCollisionMask(blenderobject->col_mask);
 
-  // get Root Parent of blenderobject
-  struct Object *parent = blenderobject->parent;
-  while (parent && parent->parent) {
-    parent = parent->parent;
-  }
+  Object *parent = blenderobject->parent;
 
   bool isCompoundChild = false;
-  bool hasCompoundChildren = !parent && (blenderobject->gameflag & OB_CHILD) &&
-                             !(blenderobject->gameflag & OB_SOFT_BODY);
+  bool hasCompoundChildren = false;
 
-  /* When the parent is not OB_DYNAMIC and has no OB_COLLISION then it gets no bullet controller
-   * and cant be apart of the parents compound shape, same goes for OB_SOFT_BODY */
-  if (parent && (parent->gameflag & (OB_DYNAMIC | OB_COLLISION))) {
-    if ((parent->gameflag & OB_CHILD) != 0 && (blenderobject->gameflag & OB_CHILD) &&
-        !(parent->gameflag & OB_SOFT_BODY)) {
-      isCompoundChild = true;
+  // Pretend for compound parent or child if the object has compound option and use a physics type with solid shape.
+  if ((blenderobject->gameflag & (OB_CHILD)) && (blenderobject->gameflag & (OB_DYNAMIC | OB_COLLISION | OB_RIGID_BODY)) &&
+      !(blenderobject->gameflag & OB_SOFT_BODY)) {
+    hasCompoundChildren = true;
+    while (parent) {
+      if ((parent->gameflag & OB_CHILD) && (parent->gameflag & (OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY)) &&
+          !(parent->gameflag & OB_SOFT_BODY)) {
+        // Found a parent in the tree with compound shape.
+        isCompoundChild = true;
+        /* The object is not a parent compound shape if it has a parent
+         * object with compound shape. */
+        hasCompoundChildren = false;
+        break;
+      }
+      parent = parent->parent;
     }
   }
-  if (processCompoundChildren != isCompoundChild)
+  if (processCompoundChildren != isCompoundChild) {
     return;
+  }
 
   PHY_ShapeProps *shapeprops = CreateShapePropsFromBlenderObject(blenderobject);
 
