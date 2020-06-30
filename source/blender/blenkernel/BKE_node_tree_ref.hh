@@ -67,7 +67,7 @@ class OutputSocketRef;
 class NodeRef;
 class NodeTreeRef;
 
-class SocketRef : blender::NonCopyable, blender::NonMovable {
+class SocketRef : NonCopyable, NonMovable {
  protected:
   NodeRef *m_node;
   bNodeSocket *m_bsocket;
@@ -120,7 +120,7 @@ class OutputSocketRef final : public SocketRef {
   Span<const InputSocketRef *> directly_linked_sockets() const;
 };
 
-class NodeRef : blender::NonCopyable, blender::NonMovable {
+class NodeRef : NonCopyable, NonMovable {
  private:
   NodeTreeRef *m_tree;
   bNode *m_bnode;
@@ -155,7 +155,7 @@ class NodeRef : blender::NonCopyable, blender::NonMovable {
   bool is_group_output_node() const;
 };
 
-class NodeTreeRef : blender::NonCopyable, blender::NonMovable {
+class NodeTreeRef : NonCopyable, NonMovable {
  private:
   LinearAllocator<> m_allocator;
   bNodeTree *m_btree;
@@ -163,14 +163,15 @@ class NodeTreeRef : blender::NonCopyable, blender::NonMovable {
   Vector<SocketRef *> m_sockets_by_id;
   Vector<InputSocketRef *> m_input_sockets;
   Vector<OutputSocketRef *> m_output_sockets;
-  Map<std::string, Vector<NodeRef *>> m_nodes_by_idname;
+  Map<const bNodeType *, Vector<NodeRef *>> m_nodes_by_type;
 
  public:
   NodeTreeRef(bNodeTree *btree);
   ~NodeTreeRef();
 
   Span<const NodeRef *> nodes() const;
-  Span<const NodeRef *> nodes_with_idname(StringRef idname) const;
+  Span<const NodeRef *> nodes_by_type(StringRefNull idname) const;
+  Span<const NodeRef *> nodes_by_type(const bNodeType *nodetype) const;
 
   Span<const SocketRef *> sockets() const;
   Span<const InputSocketRef *> input_sockets() const;
@@ -403,9 +404,15 @@ inline Span<const NodeRef *> NodeTreeRef::nodes() const
   return m_nodes_by_id.as_span();
 }
 
-inline Span<const NodeRef *> NodeTreeRef::nodes_with_idname(StringRef idname) const
+inline Span<const NodeRef *> NodeTreeRef::nodes_by_type(StringRefNull idname) const
 {
-  const Vector<NodeRef *> *nodes = m_nodes_by_idname.lookup_ptr(idname);
+  const bNodeType *nodetype = nodeTypeFind(idname.data());
+  return this->nodes_by_type(nodetype);
+}
+
+inline Span<const NodeRef *> NodeTreeRef::nodes_by_type(const bNodeType *nodetype) const
+{
+  const Vector<NodeRef *> *nodes = m_nodes_by_type.lookup_ptr(nodetype);
   if (nodes == nullptr) {
     return {};
   }

@@ -6,7 +6,7 @@
 #include "BLI_vector.hh"
 #include "testing/testing.h"
 
-using namespace blender;
+namespace blender {
 
 TEST(map, DefaultConstructor)
 {
@@ -94,7 +94,7 @@ TEST(map, PopTry)
   value = map.pop_try(2);
   EXPECT_EQ(map.size(), 1u);
   EXPECT_TRUE(value.has_value());
-  EXPECT_EQ(value.value(), 7);
+  EXPECT_EQ(*value, 7);
   EXPECT_EQ(*map.pop_try(1), 5);
   EXPECT_EQ(map.size(), 0u);
 }
@@ -584,3 +584,5 @@ TEST(map, Benchmark)
  */
 
 #endif /* Benchmark */
+
+}  // namespace blender

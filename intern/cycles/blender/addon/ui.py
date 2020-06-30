@@ -1202,6 +1202,7 @@ class CYCLES_OBJECT_PT_motion_blur(CyclesButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
 
         rd = context.scene.render
         # scene = context.scene
@@ -1211,10 +1212,10 @@ class CYCLES_OBJECT_PT_motion_blur(CyclesButtonsPanel, Panel):
 
         layout.active = (rd.use_motion_blur and cob.use_motion_blur)
 
-        row = layout.row()
+        col = layout.column()
+        col.prop(cob, "motion_steps", text="Steps")
         if ob.type != 'CAMERA':
-            row.prop(cob, "use_deform_motion", text="Deformation")
-        row.prop(cob, "motion_steps", text="Steps")
+            col.prop(cob, "use_deform_motion", text="Deformation")
 
 
 def has_geometry_visibility(ob):
@@ -1587,17 +1588,18 @@ class CYCLES_WORLD_PT_ray_visibility(CyclesButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         world = context.world
         visibility = world.cycles_visibility
 
-        flow = layout.column_flow()
-
-        flow.prop(visibility, "camera")
-        flow.prop(visibility, "diffuse")
-        flow.prop(visibility, "glossy")
-        flow.prop(visibility, "transmission")
-        flow.prop(visibility, "scatter")
+        col = layout.column()
+        col.prop(visibility, "camera")
+        col.prop(visibility, "diffuse")
+        col.prop(visibility, "glossy")
+        col.prop(visibility, "transmission")
+        col.prop(visibility, "scatter")
 
 
 class CYCLES_WORLD_PT_settings(CyclesButtonsPanel, Panel):

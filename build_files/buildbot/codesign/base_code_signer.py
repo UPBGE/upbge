@@ -168,12 +168,12 @@ class BaseCodeSigner(metaclass=abc.ABCMeta):
     def signed_archive_info_for_request_id(
             self, request_id: str) -> ArchiveWithIndicator:
         return self.archive_info_for_request_id(
-            self.signed_storage_dir, request_id);
+            self.signed_storage_dir, request_id)
 
     def unsigned_archive_info_for_request_id(
             self, request_id: str) -> ArchiveWithIndicator:
         return self.archive_info_for_request_id(
-            self.unsigned_storage_dir, request_id);
+            self.unsigned_storage_dir, request_id)
 
     ############################################################################
     # Buildbot worker side helpers.
@@ -336,6 +336,11 @@ class BaseCodeSigner(metaclass=abc.ABCMeta):
         """
 
         # TOOD(sergey): Support graceful shutdown on Ctrl-C.
+
+        logger_server.info(
+            f'Waiting for a request directory {self.unsigned_storage_dir} to appear.')
+        while not self.unsigned_storage_dir.exists():
+            time.sleep(1)
 
         logger_server.info(
             'Waiting for a READY indicator of any signing request.')

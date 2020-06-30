@@ -12,43 +12,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2016 Kévin Dietrich.
- * All rights reserved.
- */
-#pragma once
-
-/** \file
- * \ingroup balembic
  */
 
-#include <Alembic/Abc/All.h>
-#include <Alembic/AbcCoreOgawa/All.h>
-
-#include <fstream>
-
-struct Main;
-struct Scene;
+#include "FN_multi_function.hh"
 
 namespace blender {
-namespace io {
-namespace alembic {
+namespace fn {
 
-/* Wrappers around input and output archives. The goal is to be able to use
- * streams so that unicode paths work on Windows (T49112), and to make sure that
- * the stream objects remain valid as long as the archives are open.
- */
-
-class ArchiveWriter {
-  std::ofstream m_outfile;
-  Alembic::Abc::OArchive m_archive;
-
+class DummyMultiFunction : public MultiFunction {
  public:
-  ArchiveWriter(const char *filename, const std::string &abc_scene_name, const Scene *scene);
+  DummyMultiFunction()
+  {
+    this->get_builder("Dummy");
+  }
 
-  Alembic::Abc::OArchive &archive();
+  void call(IndexMask UNUSED(mask),
+            MFParams UNUSED(params),
+            MFContext UNUSED(context)) const override
+  {
+  }
 };
 
-}  // namespace alembic
-}  // namespace io
+static DummyMultiFunction dummy_multi_function_;
+const MultiFunction &dummy_multi_function = dummy_multi_function_;
+
+}  // namespace fn
 }  // namespace blender
