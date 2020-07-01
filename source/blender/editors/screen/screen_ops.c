@@ -371,19 +371,20 @@ bool ED_operator_object_active_editable_mesh(bContext *C)
 {
   Object *ob = ED_object_active_context(C);
   return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) && (ob->type == OB_MESH) &&
-          !ID_IS_LINKED(ob->data));
+          !ID_IS_LINKED(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
 bool ED_operator_object_active_editable_font(bContext *C)
 {
   Object *ob = ED_object_active_context(C);
-  return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) && (ob->type == OB_FONT));
+  return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) && (ob->type == OB_FONT) &&
+          !ID_IS_LINKED(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
 bool ED_operator_editable_mesh(bContext *C)
 {
   Mesh *mesh = ED_mesh_context(C);
-  return (mesh != NULL) && !ID_IS_LINKED(mesh);
+  return (mesh != NULL) && !ID_IS_LINKED(mesh) && !ID_IS_OVERRIDE_LIBRARY(mesh);
 }
 
 bool ED_operator_editmesh(bContext *C)
@@ -4403,8 +4404,9 @@ static void screen_animation_region_tag_redraw(ScrArea *area,
     }
   }
 
-  /* No need to do a full redraw as the playhead is only updated. We do need to redraw when this
-   * area is in full screen as no other areas will be tagged for redrawing. */
+  /* No need to do a full redraw as the current frame indicator is only updated.
+   * We do need to redraw when this area is in full screen as no other areas
+   * will be tagged for redrawing. */
   if ((region->regiontype == RGN_TYPE_WINDOW) &&
       (ELEM(area->spacetype, SPACE_GRAPH, SPACE_NLA, SPACE_ACTION, SPACE_SEQ)) && !area->full) {
     return;

@@ -1642,7 +1642,7 @@ int main(int argc,
 
   BKE_subdiv_exit();
 
-  GPU_free_unused_buffers(G_MAIN);
+  GPU_free_unused_buffers();
 
   BKE_blender_free(); /* blender.c, does entire library and spacetypes */
                       //  free_matcopybuf();

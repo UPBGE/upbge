@@ -556,13 +556,14 @@ static void vert_slide_snap_apply(TransInfo *t, float *value)
   getSnapPoint(t, dvec);
   sub_v3_v3(dvec, t->tsnap.snapTarget);
   if (t->tsnap.snapElem & (SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE)) {
-    float co_dir_3d[3];
-    sub_v3_v3v3(co_dir_3d, co_curr_3d, co_orig_3d);
+    float co_dir[3];
+    sub_v3_v3v3(co_dir, co_curr_3d, co_orig_3d);
+    normalize_v3(co_dir);
     if (t->tsnap.snapElem & SCE_SNAP_MODE_EDGE) {
-      transform_constraint_snap_axis_to_edge(t, co_dir_3d, dvec);
+      transform_constraint_snap_axis_to_edge(t, co_dir, dvec);
     }
     else {
-      transform_constraint_snap_axis_to_face(t, co_dir_3d, dvec);
+      transform_constraint_snap_axis_to_face(t, co_dir, dvec);
     }
   }
 
@@ -652,7 +653,6 @@ void initVertSlide_ex(TransInfo *t, bool use_even, bool flipped, bool use_clamp)
     if (sld) {
       tc->custom.mode.data = sld;
       tc->custom.mode.free_cb = freeVertSlideVerts;
-      trans_mesh_customdata_correction_init(t, tc);
       ok = true;
     }
   }
