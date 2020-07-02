@@ -204,7 +204,7 @@ void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb);
  */
 
 GPUOffScreen *GPU_offscreen_create(
-    int width, int height, int samples, bool depth, bool high_bitdepth, char err_out[256]);
+    int width, int height, bool depth, bool high_bitdepth, char err_out[256]);
 void GPU_offscreen_free(GPUOffScreen *ofs);
 void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
 void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore);

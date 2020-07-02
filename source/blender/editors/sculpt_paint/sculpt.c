@@ -106,7 +106,7 @@
  * This is read-only, for writing use PBVH vertex iterators. There vd.index matches
  * the indices used here.
  *
- * For multires, the same vertex in multiple grids is counted multiple times, with
+ * For multi-resolution, the same vertex in multiple grids is counted multiple times, with
  * different index for each grid. */
 
 void SCULPT_vertex_random_access_init(SculptSession *ss)
@@ -779,25 +779,32 @@ bool SCULPT_vertex_is_boundary(SculptSession *ss, const int index)
 
 /* Utils */
 
-/* Returns true when the step belongs to the stroke that is directly performend by the brush and
- * not by one of the symmetry passes. */
+/**
+ * Returns true when the step belongs to the stroke that is directly performed by the brush and
+ * not by one of the symmetry passes.
+ */
 bool SCULPT_stroke_is_main_symmetry_pass(StrokeCache *cache)
 {
   return cache->mirror_symmetry_pass == 0 && cache->radial_symmetry_pass == 0 &&
          cache->tile_pass == 0;
 }
 
-/* Return true only once per stroke on the first symmetry pass, regardless of the symmetry passes
- * enabled. */
-/* This should be used for functionality that needs to be computed once per stroke of a particular
- * tool (allocating memory, updating random seeds...). */
+/**
+ * Return true only once per stroke on the first symmetry pass, regardless of the symmetry passes
+ * enabled.
+ *
+ * This should be used for functionality that needs to be computed once per stroke of a particular
+ * tool (allocating memory, updating random seeds...).
+ */
 bool SCULPT_stroke_is_first_brush_step(StrokeCache *cache)
 {
   return cache->first_time && cache->mirror_symmetry_pass == 0 &&
          cache->radial_symmetry_pass == 0 && cache->tile_pass == 0;
 }
 
-/* Returnns true on the first brush step of each symmetry pass. */
+/**
+ * Returns true on the first brush step of each symmetry pass.
+ */
 bool SCULPT_stroke_is_first_brush_step_of_symmetry_pass(StrokeCache *cache)
 {
   return cache->first_time;
@@ -1119,8 +1126,10 @@ typedef enum StrokeFlags {
   CLIP_Z = 4,
 } StrokeFlags;
 
-/* Initialize a SculptOrigVertData for accessing original vertex data;
- * handles BMesh, mesh, and multires. */
+/**
+ * Initialize a #SculptOrigVertData for accessing original vertex data;
+ * handles #BMesh, #Mesh, and multi-resolution.
+ */
 void SCULPT_orig_vert_data_unode_init(SculptOrigVertData *data, Object *ob, SculptUndoNode *unode)
 {
   SculptSession *ss = ob->sculpt;
@@ -1140,8 +1149,10 @@ void SCULPT_orig_vert_data_unode_init(SculptOrigVertData *data, Object *ob, Scul
   }
 }
 
-/* Initialize a SculptOrigVertData for accessing original vertex data;
- * handles BMesh, mesh, and multires. */
+/**
+ * Initialize a #SculptOrigVertData for accessing original vertex data;
+ * handles #BMesh, #Mesh, and multi-resolution.
+ */
 void SCULPT_orig_vert_data_init(SculptOrigVertData *data, Object *ob, PBVHNode *node)
 {
   SculptUndoNode *unode;
@@ -1149,8 +1160,9 @@ void SCULPT_orig_vert_data_init(SculptOrigVertData *data, Object *ob, PBVHNode *
   SCULPT_orig_vert_data_unode_init(data, ob, unode);
 }
 
-/* Update a SculptOrigVertData for a particular vertex from the PBVH
- * iterator. */
+/**
+ * Update a #SculptOrigVertData for a particular vertex from the PBVH iterator.
+ */
 void SCULPT_orig_vert_data_update(SculptOrigVertData *orig_data, PBVHVertexIter *iter)
 {
   if (orig_data->unode->type == SCULPT_UNDO_COORDS) {
@@ -1286,8 +1298,8 @@ static void sculpt_project_v3(const SculptProjectVector *spvc, const float vec[3
  * otherwise.
  *
  * Factors: some brushes like grab cannot do dynamic topology.
- * Others, like smooth, are better without. Same goes for alt-
- * key smoothing. */
+ * Others, like smooth, are better without.
+ * Same goes for alt-key smoothing. */
 bool SCULPT_stroke_is_dynamic_topology(const SculptSession *ss, const Brush *brush)
 {
   return ((BKE_pbvh_type(ss->pbvh) == PBVH_BMESH) &&
@@ -2143,9 +2155,11 @@ static void calc_area_normal_and_center(
 
 /** \} */
 
-/* Return modified brush strength. Includes the direction of the brush, positive
+/**
+ * Return modified brush strength. Includes the direction of the brush, positive
  * values pull vertices, negative values push. Uses tablet pressure and a
- * special multiplier found experimentally to scale the strength factor. */
+ * special multiplier found experimentally to scale the strength factor.
+ */
 static float brush_strength(const Sculpt *sd,
                             const StrokeCache *cache,
                             const float feather,
@@ -2461,7 +2475,9 @@ bool SCULPT_search_circle_cb(PBVHNode *node, void *data_v)
   return dist_sq < data->radius_squared || true;
 }
 
-/* Handles clipping against a mirror modifier and SCULPT_LOCK axis flags. */
+/**
+ * Handles clipping against a mirror modifier and #SCULPT_LOCK_X/Y/Z axis flags.
+ */
 void SCULPT_clip(Sculpt *sd, SculptSession *ss, float co[3], const float val[3])
 {
   for (int i = 0; i < 3; i++) {
@@ -5967,9 +5983,10 @@ static void do_radial_symmetry(Sculpt *sd,
   }
 }
 
-/* Noise texture gives different values for the same input coord; this
- * can tear a multires mesh during sculpting so do a stitch in this
- * case. */
+/**
+ * Noise texture gives different values for the same input coord; this
+ * can tear a multi-resolution mesh during sculpting so do a stitch in this case.
+ */
 static void sculpt_fix_noise_tear(Sculpt *sd, Object *ob)
 {
   SculptSession *ss = ob->sculpt;
@@ -5996,7 +6013,7 @@ static void do_symmetrical_brush_actions(Sculpt *sd,
   cache->bstrength = brush_strength(sd, cache, feather, ups);
   cache->symmetry = symm;
 
-  /* symm is a bit combination of XYZ -
+  /* `symm` is a bit combination of XYZ -
    * 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
   for (int i = 0; i <= symm; i++) {
     if (i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5)))) {
@@ -8449,6 +8466,306 @@ void SCULPT_fake_neighbors_free(Object *ob)
   sculpt_pose_fake_neighbors_free(ss);
 }
 
+/* sculpt_mask_by_color_delta_get returns values in the (0,1) range that are used to generate the
+ * mask based on the diference between two colors (the active color and the color of any other
+ * vertex). Ideally, a threshold of 0 should mask only the colors that are equal to the active
+ * color and threshold of 1 should mask all colors. In order to avoid artifacts and produce softer
+ * falloffs in the mask, the MASK_BY_COLOR_SLOPE defines the size of the transition values between
+ * masked and unmasked vertices. The smaller this value is, the sharper the generated mask is going
+ * to be. */
+#define MASK_BY_COLOR_SLOPE 0.25f
+
+static float sculpt_mask_by_color_delta_get(const float *color_a,
+                                            const float *color_b,
+                                            const float threshold,
+                                            const bool invert)
+{
+  float len = len_v3v3(color_a, color_b);
+  /* Normalize len to the (0, 1) range. */
+  len = len / M_SQRT3;
+
+  if (len < threshold - MASK_BY_COLOR_SLOPE) {
+    len = 1.0f;
+  }
+  else if (len >= threshold) {
+    len = 0.0f;
+  }
+  else {
+    len = (-len + threshold) / MASK_BY_COLOR_SLOPE;
+  }
+
+  if (invert) {
+    return 1.0f - len;
+  }
+  return len;
+}
+
+static float sculpt_mask_by_color_final_mask_get(const float current_mask,
+                                                 const float new_mask,
+                                                 const bool invert,
+                                                 const bool preserve_mask)
+{
+  if (preserve_mask) {
+    if (invert) {
+      return min_ff(current_mask, new_mask);
+    }
+    return max_ff(current_mask, new_mask);
+  }
+  return new_mask;
+}
+
+typedef struct MaskByColorContiguousFloodFillData {
+  float threshold;
+  bool invert;
+  float *new_mask;
+  float initial_color[3];
+} MaskByColorContiguousFloodFillData;
+
+static void do_mask_by_color_contiguous_update_nodes_cb(
+    void *__restrict userdata, const int n, const TaskParallelTLS *__restrict UNUSED(tls))
+{
+  SculptThreadedTaskData *data = userdata;
+  SculptSession *ss = data->ob->sculpt;
+
+  SCULPT_undo_push_node(data->ob, data->nodes[n], SCULPT_UNDO_MASK);
+  bool update_node = false;
+
+  const bool invert = data->mask_by_color_invert;
+  const bool preserve_mask = data->mask_by_color_preserve_mask;
+
+  PBVHVertexIter vd;
+  BKE_pbvh_vertex_iter_begin(ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE)
+  {
+    const float current_mask = *vd.mask;
+    const float new_mask = data->mask_by_color_floodfill[vd.index];
+    *vd.mask = sculpt_mask_by_color_final_mask_get(current_mask, new_mask, invert, preserve_mask);
+    if (current_mask != *vd.mask) {
+      update_node = true;
+      if (vd.mvert) {
+        vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+      }
+    }
+  }
+  BKE_pbvh_vertex_iter_end;
+  if (update_node) {
+    BKE_pbvh_node_mark_redraw(data->nodes[n]);
+  }
+}
+
+static bool sculpt_mask_by_color_contiguous_floodfill_cb(
+    SculptSession *ss, int from_v, int to_v, bool is_duplicate, void *userdata)
+{
+  MaskByColorContiguousFloodFillData *data = userdata;
+  const float *current_color = SCULPT_vertex_color_get(ss, to_v);
+  float new_vertex_mask = sculpt_mask_by_color_delta_get(
+      current_color, data->initial_color, data->threshold, data->invert);
+  data->new_mask[to_v] = new_vertex_mask;
+
+  if (is_duplicate) {
+    data->new_mask[to_v] = data->new_mask[from_v];
+  }
+
+  float len = len_v3v3(current_color, data->initial_color);
+  len = len / M_SQRT3;
+  return len <= data->threshold;
+}
+
+static void sculpt_mask_by_color_contiguous(Object *object,
+                                            const int vertex,
+                                            const float threshold,
+                                            const bool invert,
+                                            const bool preserve_mask)
+{
+  SculptSession *ss = object->sculpt;
+  const int totvert = SCULPT_vertex_count_get(ss);
+
+  float *new_mask = MEM_calloc_arrayN(totvert, sizeof(float), "new mask");
+
+  if (invert) {
+    for (int i = 0; i < totvert; i++) {
+      new_mask[i] = 1.0f;
+    }
+  }
+
+  SculptFloodFill flood;
+  SCULPT_floodfill_init(ss, &flood);
+  SCULPT_floodfill_add_initial(&flood, vertex);
+
+  MaskByColorContiguousFloodFillData ffd;
+  ffd.threshold = threshold;
+  ffd.invert = invert;
+  ffd.new_mask = new_mask;
+  copy_v3_v3(ffd.initial_color, SCULPT_vertex_color_get(ss, vertex));
+
+  SCULPT_floodfill_execute(ss, &flood, sculpt_mask_by_color_contiguous_floodfill_cb, &ffd);
+  SCULPT_floodfill_free(&flood);
+
+  int totnode;
+  PBVHNode **nodes;
+  BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
+
+  SculptThreadedTaskData data = {
+      .ob = object,
+      .nodes = nodes,
+      .mask_by_color_floodfill = new_mask,
+      .mask_by_color_vertex = vertex,
+      .mask_by_color_threshold = threshold,
+      .mask_by_color_invert = invert,
+      .mask_by_color_preserve_mask = preserve_mask,
+  };
+
+  TaskParallelSettings settings;
+  BKE_pbvh_parallel_range_settings(&settings, true, totnode);
+  BLI_task_parallel_range(
+      0, totnode, &data, do_mask_by_color_contiguous_update_nodes_cb, &settings);
+
+  MEM_SAFE_FREE(nodes);
+
+  MEM_freeN(new_mask);
+}
+
+static void do_mask_by_color_task_cb(void *__restrict userdata,
+                                     const int n,
+                                     const TaskParallelTLS *__restrict UNUSED(tls))
+{
+  SculptThreadedTaskData *data = userdata;
+  SculptSession *ss = data->ob->sculpt;
+
+  SCULPT_undo_push_node(data->ob, data->nodes[n], SCULPT_UNDO_MASK);
+  bool update_node = false;
+
+  const float threshold = data->mask_by_color_threshold;
+  const bool invert = data->mask_by_color_invert;
+  const bool preserve_mask = data->mask_by_color_preserve_mask;
+  const float *active_color = SCULPT_vertex_color_get(ss, data->mask_by_color_vertex);
+
+  PBVHVertexIter vd;
+  BKE_pbvh_vertex_iter_begin(ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE)
+  {
+    const float current_mask = *vd.mask;
+    const float new_mask = sculpt_mask_by_color_delta_get(active_color, vd.col, threshold, invert);
+    *vd.mask = sculpt_mask_by_color_final_mask_get(current_mask, new_mask, invert, preserve_mask);
+
+    if (current_mask != *vd.mask) {
+      update_node = true;
+      if (vd.mvert) {
+        vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+      }
+    }
+  }
+  BKE_pbvh_vertex_iter_end;
+  if (update_node) {
+    BKE_pbvh_node_mark_redraw(data->nodes[n]);
+  }
+}
+
+static void sculpt_mask_by_color_full_mesh(Object *object,
+                                           const int vertex,
+                                           const float threshold,
+                                           const bool invert,
+                                           const bool preserve_mask)
+{
+  SculptSession *ss = object->sculpt;
+
+  int totnode;
+  PBVHNode **nodes;
+  BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
+
+  SculptThreadedTaskData data = {
+      .ob = object,
+      .nodes = nodes,
+      .mask_by_color_vertex = vertex,
+      .mask_by_color_threshold = threshold,
+      .mask_by_color_invert = invert,
+      .mask_by_color_preserve_mask = preserve_mask,
+  };
+
+  TaskParallelSettings settings;
+  BKE_pbvh_parallel_range_settings(&settings, true, totnode);
+  BLI_task_parallel_range(0, totnode, &data, do_mask_by_color_task_cb, &settings);
+
+  MEM_SAFE_FREE(nodes);
+}
+
+static int sculpt_mask_by_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Object *ob = CTX_data_active_object(C);
+  SculptSession *ss = ob->sculpt;
+
+  BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true, false);
+
+  if (!ss->vcol) {
+    return OPERATOR_CANCELLED;
+  }
+
+  SCULPT_vertex_random_access_init(ss);
+
+  /* Tools that are not brushes do not have the brush gizmo to update the vertex as the mouse move,
+   * so it needs to be updated here. */
+  SculptCursorGeometryInfo sgi;
+  float mouse[2];
+  mouse[0] = event->mval[0];
+  mouse[1] = event->mval[1];
+  SCULPT_cursor_geometry_info_update(C, &sgi, mouse, false);
+
+  SCULPT_undo_push_begin("Mask by color");
+
+  const int active_vertex = SCULPT_active_vertex_get(ss);
+  const float threshold = RNA_float_get(op->ptr, "threshold");
+  const bool invert = RNA_boolean_get(op->ptr, "invert");
+  const bool preserve_mask = RNA_boolean_get(op->ptr, "preserve_previous_mask");
+
+  if (RNA_boolean_get(op->ptr, "contiguous")) {
+    sculpt_mask_by_color_contiguous(ob, active_vertex, threshold, invert, preserve_mask);
+  }
+  else {
+    sculpt_mask_by_color_full_mesh(ob, active_vertex, threshold, invert, preserve_mask);
+  }
+
+  BKE_pbvh_update_vertex_data(ss->pbvh, PBVH_UpdateMask);
+  SCULPT_undo_push_end();
+
+  SCULPT_flush_update_done(C, ob, SCULPT_UPDATE_MASK);
+
+  return OPERATOR_FINISHED;
+}
+
+static void SCULPT_OT_mask_by_color(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Mask By Color";
+  ot->idname = "SCULPT_OT_mask_by_color";
+  ot->description = "Creates a mask based on the sculpt vertex colors";
+
+  /* api callbacks */
+  ot->invoke = sculpt_mask_by_color_invoke;
+  ot->poll = SCULPT_mode_poll;
+
+  ot->flag = OPTYPE_REGISTER;
+
+  ot->prop = RNA_def_boolean(
+      ot->srna, "contiguous", false, "Contiguous", "Mask only contiguos color areas");
+
+  ot->prop = RNA_def_boolean(ot->srna, "invert", false, "Invert", "Invert the generated mask");
+  ot->prop = RNA_def_boolean(
+      ot->srna,
+      "preserve_previous_mask",
+      false,
+      "Preserve Previous Mask",
+      "Preserve the previous mask and add or substract the new one generated by the colors");
+
+  RNA_def_float(ot->srna,
+                "threshold",
+                0.35f,
+                0.0f,
+                1.0f,
+                "Threshold",
+                "How much changes in color affect the mask generation",
+                0.0f,
+                1.0f);
+}
+
 void ED_operatortypes_sculpt(void)
 {
   WM_operatortype_append(SCULPT_OT_brush_stroke);
@@ -8475,4 +8792,5 @@ void ED_operatortypes_sculpt(void)
   WM_operatortype_append(SCULPT_OT_loop_to_vertex_colors);
   WM_operatortype_append(SCULPT_OT_vertex_to_loop_colors);
   WM_operatortype_append(SCULPT_OT_color_filter);
+  WM_operatortype_append(SCULPT_OT_mask_by_color);
 }
