@@ -1723,14 +1723,14 @@ int main(int argc,
 
   BKE_blender_atexit();
 
-  wm_autosave_delete();
-
   int totblock = MEM_get_memory_blocks_in_use();
   if (totblock != 0) {
     CM_Error("totblock: " << totblock);
     MEM_set_error_callback(mem_error_cb);
     MEM_printmemlist();
   }
+
+  wm_autosave_delete();
 
   BKE_tempdir_session_purge();
 
