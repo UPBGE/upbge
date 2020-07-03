@@ -102,6 +102,7 @@
 #include "editors/include/ED_keyframes_edit.h"
 #include "editors/include/ED_keyframing.h"
 #include "editors/include/ED_render.h"
+#include "editors/include/ED_screen.h"
 #include "editors/include/ED_space_api.h"
 #include "editors/include/ED_undo.h"
 #include "editors/include/ED_util.h"
@@ -1594,6 +1595,19 @@ int main(int argc,
    * we may get troubles later on */
 
   WM_jobs_kill_all(CTX_wm_manager(C));
+
+  for (wmWindow *win = (wmWindow *)CTX_wm_manager(C)->windows.first; win; win = win->next) {
+
+    CTX_wm_window_set(C, win); /* needed by operator close callbacks */
+    WM_event_remove_handlers(C, &win->handlers);
+    WM_event_remove_handlers(C, &win->modalhandlers);
+    ED_screen_exit(C, win, WM_window_get_active_screen(win));
+  }
+  if ((U.pref_flag & USER_PREF_FLAG_SAVE) && ((G.f & G_FLAG_USERPREF_NO_SAVE_ON_EXIT) == 0)) {
+    if (U.runtime.is_dirty) {
+      BKE_blendfile_userdef_write_all(NULL);
+    }
+  }
 
   BLI_timer_free();
 
