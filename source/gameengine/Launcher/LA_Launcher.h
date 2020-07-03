@@ -51,6 +51,7 @@ class LA_Launcher {
   std::string m_startSceneName;
   Scene *m_startScene;
   Main *m_maggie;
+  struct bContext *m_context;
   KX_Scene *m_kxStartScene;
 
   /// \section Exit state.
@@ -76,8 +77,6 @@ class LA_Launcher {
   BL_BlenderConverter *m_converter;
   /// Manage messages.
   KX_NetworkMessageManager *m_networkMessageManager;
-  /// avoid to run audaspace code if audio device fails to initialize
-  bool m_audioDeviceIsInitialized;
 
 #ifdef WITH_PYTHON
   PyObject *m_globalDict;
@@ -94,7 +93,8 @@ class LA_Launcher {
   int m_argc;
   char **m_argv;
 
-  struct bContext *m_context;
+  /// avoid to run audaspace code if audio device fails to initialize
+  bool m_audioDeviceIsInitialized;
 
   /// Saved data to restore at the game end.
   struct SavedData {

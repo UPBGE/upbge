@@ -67,6 +67,7 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system,
     : m_startSceneName(scene->id.name + 2),
       m_startScene(scene),
       m_maggie(maggie),
+      m_context(C),
       m_kxStartScene(nullptr),
       m_exitRequested(KX_ExitRequest::NO_REQUEST),
       m_globalSettings(gs),
@@ -86,7 +87,6 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system,
       m_stereoMode(stereoMode),
       m_argc(argc),
       m_argv(argv),
-      m_context(C),
       m_audioDeviceIsInitialized(false)
 {
   m_pythonConsole.use = false;
