@@ -256,7 +256,7 @@ SG_Controller *BL_CreateWorldIPO(BL_ActionData *action, struct World *blenderwor
 		for (int i = 0; i < 3; i++) {
 			if ((interp = action->GetScalarInterpolator("ambient_color", i))) {
 				if (!ipocontr) {
-					ipocontr = new KX_WorldIpoController();
+					ipocontr = new KX_WorldIpoController(scene);
 				}
 				SG_Interpolator interpolator(&ipocontr->m_ambi_rgb[i], interp);
 				ipocontr->AddInterpolator(interpolator);
@@ -267,7 +267,7 @@ SG_Controller *BL_CreateWorldIPO(BL_ActionData *action, struct World *blenderwor
 		for (int i = 0; i < 3; i++) {
 			if ((interp = action->GetScalarInterpolator("horizon_color", i))) {
 				if (!ipocontr) {
-					ipocontr = new KX_WorldIpoController();
+					ipocontr = new KX_WorldIpoController(scene);
 				}
 				SG_Interpolator interpolator(&ipocontr->m_hori_rgb[i], interp);
 				ipocontr->AddInterpolator(interpolator);
@@ -278,7 +278,7 @@ SG_Controller *BL_CreateWorldIPO(BL_ActionData *action, struct World *blenderwor
 		for (int i = 0; i < 3; i++) {
 			if ((interp = action->GetScalarInterpolator("zenith_color", i))) {
 				if (!ipocontr) {
-					ipocontr = new KX_WorldIpoController();
+					ipocontr = new KX_WorldIpoController(scene);
 				}
 				SG_Interpolator interpolator(&ipocontr->m_zeni_rgb[i], interp);
 				ipocontr->AddInterpolator(interpolator);
@@ -288,7 +288,7 @@ SG_Controller *BL_CreateWorldIPO(BL_ActionData *action, struct World *blenderwor
 
 		if ((interp = action->GetScalarInterpolator("mist_settings.start", 0))) {
 			if (!ipocontr) {
-				ipocontr = new KX_WorldIpoController();
+				ipocontr = new KX_WorldIpoController(scene);
 			}
 			SG_Interpolator interpolator(&ipocontr->m_mist_start, interp);
 			ipocontr->AddInterpolator(interpolator);
@@ -297,7 +297,7 @@ SG_Controller *BL_CreateWorldIPO(BL_ActionData *action, struct World *blenderwor
 
 		if ((interp = action->GetScalarInterpolator("mist_settings.depth", 0))) {
 			if (!ipocontr) {
-				ipocontr = new KX_WorldIpoController();
+				ipocontr = new KX_WorldIpoController(scene);
 			}
 			SG_Interpolator interpolator(&ipocontr->m_mist_dist, interp);
 			ipocontr->AddInterpolator(interpolator);
@@ -306,7 +306,7 @@ SG_Controller *BL_CreateWorldIPO(BL_ActionData *action, struct World *blenderwor
 
 		if ((interp = action->GetScalarInterpolator("mist_settings.intensity", 0))) {
 			if (!ipocontr) {
-				ipocontr = new KX_WorldIpoController();
+				ipocontr = new KX_WorldIpoController(scene);
 			}
 			SG_Interpolator interpolator(&ipocontr->m_mist_intensity, interp);
 			ipocontr->AddInterpolator(interpolator);

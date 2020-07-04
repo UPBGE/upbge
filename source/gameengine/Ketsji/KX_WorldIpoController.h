@@ -36,6 +36,8 @@
 #include "SG_Node.h"
 #include "SG_Interpolator.h"
 
+class KX_Scene;
+
 class KX_WorldIpoController : public SG_Controller, public mt::SimdClassAllocator
 {
 public:
@@ -54,17 +56,12 @@ private:
 	unsigned short		m_modify_zenith_color : 1;
 	unsigned short		m_modify_ambient_color	: 1;
 
-public:
-	KX_WorldIpoController() : 
-				m_modify_mist_start(false),
-				m_modify_mist_dist(false),
-				m_modify_mist_intensity(false),
-				m_modify_horizon_color(false),
-				m_modify_zenith_color(false),
-				m_modify_ambient_color(false)
-		{}
+	KX_Scene *m_kxscene;
 
-	virtual ~KX_WorldIpoController() = default;
+public:
+	KX_WorldIpoController(KX_Scene* scene);
+
+	virtual ~KX_WorldIpoController();
 
 	virtual bool Update(SG_Node *node);
 
