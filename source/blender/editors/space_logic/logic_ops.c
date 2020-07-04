@@ -270,10 +270,10 @@ static int sensor_remove_exec(bContext *C, wmOperator *op)
 
 static int sensor_remove_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-  if (edit_sensor_invoke_properties(C, op))
+  if (edit_sensor_invoke_properties(C, op)) {
     return sensor_remove_exec(C, op);
-  else
-    return OPERATOR_CANCELLED;
+  }
+  return OPERATOR_CANCELLED;
 }
 
 static void LOGIC_OT_sensor_remove(wmOperatorType *ot)
@@ -379,10 +379,10 @@ static int controller_remove_exec(bContext *C, wmOperator *op)
 
 static int controller_remove_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-  if (edit_controller_invoke_properties(C, op))
+  if (edit_controller_invoke_properties(C, op)) {
     return controller_remove_exec(C, op);
-  else
-    return OPERATOR_CANCELLED;
+  }
+  return OPERATOR_CANCELLED;
 }
 
 static void LOGIC_OT_controller_remove(wmOperatorType *ot)
@@ -510,10 +510,10 @@ static int actuator_remove_exec(bContext *C, wmOperator *op)
 
 static int actuator_remove_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-  if (edit_actuator_invoke_properties(C, op))
+  if (edit_actuator_invoke_properties(C, op)) {
     return actuator_remove_exec(C, op);
-  else
-    return OPERATOR_CANCELLED;
+  }
+  return OPERATOR_CANCELLED;
 }
 
 static void LOGIC_OT_actuator_remove(wmOperatorType *ot)
@@ -623,8 +623,7 @@ static int sensor_move_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED
   if (edit_sensor_invoke_properties(C, op)) {
     return sensor_move_exec(C, op);
   }
-  else
-    return OPERATOR_CANCELLED;
+  return OPERATOR_CANCELLED;
 }
 
 static void LOGIC_OT_sensor_move(wmOperatorType *ot)
@@ -669,8 +668,7 @@ static int controller_move_invoke(bContext *C, wmOperator *op, const wmEvent *UN
   if (edit_controller_invoke_properties(C, op)) {
     return controller_move_exec(C, op);
   }
-  else
-    return OPERATOR_CANCELLED;
+  return OPERATOR_CANCELLED;
 }
 
 static void LOGIC_OT_controller_move(wmOperatorType *ot)
@@ -715,8 +713,7 @@ static int actuator_move_invoke(bContext *C, wmOperator *op, const wmEvent *UNUS
   if (edit_actuator_invoke_properties(C, op)) {
     return actuator_move_exec(C, op);
   }
-  else
-    return OPERATOR_CANCELLED;
+  return OPERATOR_CANCELLED;
 }
 
 static void LOGIC_OT_actuator_move(wmOperatorType *ot)
