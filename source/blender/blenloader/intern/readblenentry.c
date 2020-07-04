@@ -60,7 +60,7 @@
 #endif
 
 /* local prototypes --------------------- */
-void BLO_blendhandle_print_sizes(BlendHandle *, void *);
+void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp);
 
 /* Access routines used by filesel. */
 
@@ -401,39 +401,28 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
       blo_make_old_idmap_from_main(fd, old_mainlist.first);
     }
 
+    /* TODO: Move handling of nodetree caches to new system as well... */
     /* makes lookup of existing images in old main */
     blo_make_image_pointer_map(fd, oldmain);
-
-    /* makes lookup of existing light caches in old main */
-    blo_make_scene_pointer_map(fd, oldmain);
-
     /* makes lookup of existing video clips in old main */
     blo_make_movieclip_pointer_map(fd, oldmain);
 
-    /* make lookups of existing sound data in old main */
-    blo_make_sound_pointer_map(fd, oldmain);
-
-    /* make lookups of existing volume data in old main */
-    blo_make_volume_pointer_map(fd, oldmain);
-
     /* removed packed data from this trick - it's internal data that needs saves */
+
+    /* Store all existing ID caches pointers into a mapping, to allow restoring them into newly
+     * read IDs whenever possible. */
+    blo_cache_storage_init(fd, oldmain);
 
     bfd = blo_read_file_internal(fd, filename);
 
-    /* ensures relinked light caches are not freed */
-    blo_end_scene_pointer_map(fd, oldmain);
+    /* Ensure relinked caches are not freed together with their old IDs. */
+    blo_cache_storage_old_bmain_clear(fd, oldmain);
 
+    /* TODO: Move handling of nodetree caches to new system as well... */
     /* ensures relinked images are not freed */
     blo_end_image_pointer_map(fd, oldmain);
-
     /* ensures relinked movie clips are not freed */
     blo_end_movieclip_pointer_map(fd, oldmain);
-
-    /* ensures relinked sounds are not freed */
-    blo_end_sound_pointer_map(fd, oldmain);
-
-    /* ensures relinked volumes are not freed */
-    blo_end_volume_pointer_map(fd, oldmain);
 
     /* Still in-use libraries have already been moved from oldmain to new mainlist,
      * but oldmain itself shall *never* be 'transferred' to new mainlist! */

@@ -1651,7 +1651,7 @@ static int object_delete_exec(bContext *C, wmOperator *op)
                   ob->id.name + 2);
       continue;
     }
-    else if (is_indirectly_used && ID_REAL_USERS(ob) <= 1 && ID_EXTRA_USERS(ob) == 0) {
+    if (is_indirectly_used && ID_REAL_USERS(ob) <= 1 && ID_EXTRA_USERS(ob) == 0) {
       BKE_reportf(op->reports,
                   RPT_WARNING,
                   "Cannot delete object '%s' from scene '%s', indirectly used objects need at "
@@ -1877,7 +1877,7 @@ static bool dupliobject_cmp(const void *a_, const void *b_)
       if (a->persistent_id[i] != b->persistent_id[i]) {
         return true;
       }
-      else if (a->persistent_id[i] == INT_MAX) {
+      if (a->persistent_id[i] == INT_MAX) {
         break;
       }
     }
@@ -1902,7 +1902,7 @@ static bool dupliobject_instancer_cmp(const void *a_, const void *b_)
     if (a->persistent_id[i] != b->persistent_id[i]) {
       return true;
     }
-    else if (a->persistent_id[i] == INT_MAX) {
+    if (a->persistent_id[i] == INT_MAX) {
       break;
     }
   }
@@ -3125,9 +3125,7 @@ static bool object_join_poll(bContext *C)
   if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_ARMATURE, OB_GPENCIL)) {
     return ED_operator_screenactive(C);
   }
-  else {
-    return false;
-  }
+  return false;
 }
 
 static int object_join_exec(bContext *C, wmOperator *op)
@@ -3138,11 +3136,11 @@ static int object_join_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "This data does not support joining in edit mode");
     return OPERATOR_CANCELLED;
   }
-  else if (BKE_object_obdata_is_libdata(ob)) {
+  if (BKE_object_obdata_is_libdata(ob)) {
     BKE_report(op->reports, RPT_ERROR, "Cannot edit external library data");
     return OPERATOR_CANCELLED;
   }
-  else if (ob->type == OB_GPENCIL) {
+  if (ob->type == OB_GPENCIL) {
     bGPdata *gpd = (bGPdata *)ob->data;
     if ((!gpd) || GPENCIL_ANY_MODE(gpd)) {
       BKE_report(op->reports, RPT_ERROR, "This data does not support joining in this mode");
@@ -3153,13 +3151,13 @@ static int object_join_exec(bContext *C, wmOperator *op)
   if (ob->type == OB_MESH) {
     return ED_mesh_join_objects_exec(C, op);
   }
-  else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
+  if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
     return ED_curve_join_objects_exec(C, op);
   }
-  else if (ob->type == OB_ARMATURE) {
+  if (ob->type == OB_ARMATURE) {
     return ED_armature_join_objects_exec(C, op);
   }
-  else if (ob->type == OB_GPENCIL) {
+  if (ob->type == OB_GPENCIL) {
     return ED_gpencil_join_objects_exec(C, op);
   }
 
@@ -3200,9 +3198,7 @@ static bool join_shapes_poll(bContext *C)
   if (ob->type == OB_MESH) {
     return ED_operator_screenactive(C);
   }
-  else {
-    return false;
-  }
+  return false;
 }
 
 static int join_shapes_exec(bContext *C, wmOperator *op)
@@ -3213,7 +3209,7 @@ static int join_shapes_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "This data does not support joining in edit mode");
     return OPERATOR_CANCELLED;
   }
-  else if (BKE_object_obdata_is_libdata(ob)) {
+  if (BKE_object_obdata_is_libdata(ob)) {
     BKE_report(op->reports, RPT_ERROR, "Cannot edit external library data");
     return OPERATOR_CANCELLED;
   }

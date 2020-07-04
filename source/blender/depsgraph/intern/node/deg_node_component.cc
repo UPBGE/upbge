@@ -98,9 +98,7 @@ void ComponentNode::init(const ID * /*id*/, const char * /*subdata*/)
 ComponentNode::~ComponentNode()
 {
   clear_operations();
-  if (operations_map != nullptr) {
-    delete operations_map;
-  }
+  delete operations_map;
 }
 
 string ComponentNode::identifier() const
@@ -221,12 +219,12 @@ void ComponentNode::clear_operations()
 {
   if (operations_map != nullptr) {
     for (OperationNode *op_node : operations_map->values()) {
-      OBJECT_GUARDED_DELETE(op_node, OperationNode);
+      delete op_node;
     }
     operations_map->clear();
   }
   for (OperationNode *op_node : operations) {
-    OBJECT_GUARDED_DELETE(op_node, OperationNode);
+    delete op_node;
   }
   operations.clear();
 }

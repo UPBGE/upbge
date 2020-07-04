@@ -46,6 +46,19 @@ enum {
   IDTYPE_FLAGS_NO_MAKELOCAL = 1 << 2,
 };
 
+typedef struct IDCacheKey {
+  /* The session uuid of the ID owning the cached data. */
+  unsigned int id_session_uuid;
+  /* Value uniquely indentifying the cache whithin its ID.
+   * Typically the offset of its member in the data-block struct, but can be anything. */
+  size_t offset_in_ID;
+  /* Actual address of the cached data to save and restore. */
+  void *cache_v;
+} IDCacheKey;
+
+uint BKE_idtype_cache_key_hash(const void *key_v);
+bool BKE_idtype_cache_key_cmp(const void *key_a_v, const void *key_b_v);
+
 /* ********** Prototypes for IDTypeInfo callbacks. ********** */
 
 typedef void (*IDTypeInitDataFunction)(struct ID *id);
@@ -62,6 +75,14 @@ typedef void (*IDTypeFreeDataFunction)(struct ID *id);
 typedef void (*IDTypeMakeLocalFunction)(struct Main *bmain, struct ID *id, const int flags);
 
 typedef void (*IDTypeForeachIDFunction)(struct ID *id, struct LibraryForeachIDData *data);
+
+typedef void (*IDTypeForeachCacheFunctionCallback)(struct ID *id,
+                                                   const struct IDCacheKey *cache_key,
+                                                   void **cache_p,
+                                                   void *user_data);
+typedef void (*IDTypeForeachCacheFunction)(struct ID *id,
+                                           IDTypeForeachCacheFunctionCallback function_callback,
+                                           void *user_data);
 
 typedef struct IDTypeInfo {
   /* ********** General IDType data. ********** */
@@ -130,6 +151,11 @@ typedef struct IDTypeInfo {
    * pointers) of given data-block.
    */
   IDTypeForeachIDFunction foreach_id;
+
+  /**
+   * Iterator over all cache pointers of given ID.
+   */
+  IDTypeForeachCacheFunction foreach_cache;
 } IDTypeInfo;
 
 /* ********** Declaration of each IDTypeInfo. ********** */

@@ -238,7 +238,7 @@ static int material_slot_assign_exec(bContext *C, wmOperator *UNUSED(op))
     else {
       /* Find the first matching material.
        * Note: there may be multiple but that's not a common use case. */
-      for (short i = 0; i < ob->totcol; i++) {
+      for (int i = 0; i < ob->totcol; i++) {
         const Material *mat = BKE_object_material_get(ob, i + 1);
         if (mat_active == mat) {
           mat_nr_active = i;
@@ -339,7 +339,7 @@ static int material_slot_de_select(bContext *C, bool select)
     else {
       /* Find the first matching material.
        * Note: there may be multiple but that's not a common use case. */
-      for (short i = 0; i < ob->totcol; i++) {
+      for (int i = 0; i < ob->totcol; i++) {
         const Material *mat = BKE_object_material_get(ob, i + 1);
         if (mat_active == mat) {
           mat_nr_active = i;
@@ -1666,13 +1666,13 @@ static int freestyle_get_modifier_type(PointerRNA *ptr)
   if (RNA_struct_is_a(ptr->type, &RNA_LineStyleColorModifier)) {
     return LS_MODIFIER_TYPE_COLOR;
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_LineStyleAlphaModifier)) {
+  if (RNA_struct_is_a(ptr->type, &RNA_LineStyleAlphaModifier)) {
     return LS_MODIFIER_TYPE_ALPHA;
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_LineStyleThicknessModifier)) {
+  if (RNA_struct_is_a(ptr->type, &RNA_LineStyleThicknessModifier)) {
     return LS_MODIFIER_TYPE_THICKNESS;
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_LineStyleGeometryModifier)) {
+  if (RNA_struct_is_a(ptr->type, &RNA_LineStyleGeometryModifier)) {
     return LS_MODIFIER_TYPE_GEOMETRY;
   }
   return -1;

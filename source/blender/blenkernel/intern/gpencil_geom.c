@@ -38,6 +38,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_gpencil_modifier_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -54,8 +55,12 @@
 
 /* GP Object - Boundbox Support */
 /**
- * Get min/max coordinate bounds for single stroke
- * \return Returns whether we found any selected points
+ *Get min/max coordinate bounds for single stroke.
+ * \param gps: Grease pencil stroke
+ * \param use_select: Include only selected points
+ * \param r_min: Result minimum coordinates
+ * \param r_max: Result maximum coordinates
+ * \return True if it was possible to calculate
  */
 bool BKE_gpencil_stroke_minmax(const bGPDstroke *gps,
                                const bool use_select,
@@ -79,7 +84,13 @@ bool BKE_gpencil_stroke_minmax(const bGPDstroke *gps,
   return changed;
 }
 
-/* get min/max bounds of all strokes in GP datablock */
+/**
+ * Get min/max bounds of all strokes in grease pencil data-block.
+ * \param gpd: Grease pencil datablock
+ * \param r_min: Result minimum coordinates
+ * \param r_max: Result maximum coordinates
+ * \return True if it was possible to calculate
+ */
 bool BKE_gpencil_data_minmax(const bGPdata *gpd, float r_min[3], float r_max[3])
 {
   bool changed = false;
@@ -103,7 +114,11 @@ bool BKE_gpencil_data_minmax(const bGPdata *gpd, float r_min[3], float r_max[3])
   return changed;
 }
 
-/* compute center of bounding box */
+/**
+ * Compute center of bounding box.
+ * \param gpd: Grease pencil data-block
+ * \param r_centroid: Location of the center
+ */
 void BKE_gpencil_centroid_3d(bGPdata *gpd, float r_centroid[3])
 {
   float min[3], max[3], tot[3];
@@ -114,14 +129,20 @@ void BKE_gpencil_centroid_3d(bGPdata *gpd, float r_centroid[3])
   mul_v3_v3fl(r_centroid, tot, 0.5f);
 }
 
-/* Compute stroke bounding box. */
+/**
+ * Compute stroke bounding box.
+ * \param gps: Grease pencil Stroke
+ */
 void BKE_gpencil_stroke_boundingbox_calc(bGPDstroke *gps)
 {
   INIT_MINMAX(gps->boundbox_min, gps->boundbox_max);
   BKE_gpencil_stroke_minmax(gps, false, gps->boundbox_min, gps->boundbox_max);
 }
 
-/* create bounding box values */
+/**
+ * Create bounding box values.
+ * \param ob: Grease pencil object
+ */
 static void boundbox_gpencil(Object *ob)
 {
   BoundBox *bb;
@@ -145,7 +166,11 @@ static void boundbox_gpencil(Object *ob)
   bb->flag &= ~BOUNDBOX_DIRTY;
 }
 
-/* get bounding box */
+/**
+ * Get grease pencil object bounding box.
+ * \param ob: Grease pencil object
+ * \return Bounding box
+ */
 BoundBox *BKE_gpencil_boundbox_get(Object *ob)
 {
   if (ELEM(NULL, ob, ob->data)) {
@@ -592,6 +617,14 @@ bool BKE_gpencil_stroke_trim_points(bGPDstroke *gps, const int index_from, const
   return true;
 }
 
+/**
+ * Split stroke.
+ * \param gpf: Grease pencil frame
+ * \param gps: Grease pencil original stroke
+ * \param before_index: Position of the point to split
+ * \param remaining_gps: Secondary stroke after split.
+ * \return True if the split was done
+ */
 bool BKE_gpencil_stroke_split(bGPDframe *gpf,
                               bGPDstroke *gps,
                               const int before_index,
@@ -718,7 +751,7 @@ bool BKE_gpencil_stroke_shrink(bGPDstroke *gps, const float dist)
 }
 
 /**
- * Apply smooth to stroke point
+ * Apply smooth position to stroke point.
  * \param gps: Stroke to smooth
  * \param i: Point index
  * \param inf: Amount of smoothing to apply
@@ -781,7 +814,11 @@ bool BKE_gpencil_stroke_smooth(bGPDstroke *gps, int i, float inf)
 }
 
 /**
- * Apply smooth for strength to stroke point */
+ * Apply smooth strength to stroke point.
+ * \param gps: Stroke to smooth
+ * \param point_index: Point index
+ * \param influence: Amount of smoothing to apply
+ */
 bool BKE_gpencil_stroke_smooth_strength(bGPDstroke *gps, int point_index, float influence)
 {
   bGPDspoint *ptb = &gps->points[point_index];
@@ -841,7 +878,11 @@ bool BKE_gpencil_stroke_smooth_strength(bGPDstroke *gps, int point_index, float 
 }
 
 /**
- * Apply smooth for thickness to stroke point (use pressure) */
+ * Apply smooth for thickness to stroke point (use pressure).
+ * \param gps: Stroke to smooth
+ * \param point_index: Point index
+ * \param influence: Amount of smoothing to apply
+ */
 bool BKE_gpencil_stroke_smooth_thickness(bGPDstroke *gps, int point_index, float influence)
 {
   bGPDspoint *ptb = &gps->points[point_index];
@@ -901,6 +942,9 @@ bool BKE_gpencil_stroke_smooth_thickness(bGPDstroke *gps, int point_index, float
 
 /**
  * Apply smooth for UV rotation to stroke point (use pressure).
+ * \param gps: Stroke to smooth
+ * \param point_index: Point index
+ * \param influence: Amount of smoothing to apply
  */
 bool BKE_gpencil_stroke_smooth_uv(bGPDstroke *gps, int point_index, float influence)
 {
@@ -938,7 +982,15 @@ bool BKE_gpencil_stroke_smooth_uv(bGPDstroke *gps, int point_index, float influe
 
   return true;
 }
-/* Get points of stroke always flat to view not affected by camera view or view position */
+
+/**
+ * Get points of stroke always flat to view not affected
+ * by camera view or view position.
+ * \param points: Array of grease pencil points (3D)
+ * \param totpoints: Total of points
+ * \param points2d: Result array of 2D points
+ * \param r_direction: Return Concave (-1), Convex (1), or Autodetect (0)
+ */
 void BKE_gpencil_stroke_2d_flat(const bGPDspoint *points,
                                 int totpoints,
                                 float (*points2d)[2],
@@ -995,8 +1047,16 @@ void BKE_gpencil_stroke_2d_flat(const bGPDspoint *points,
   *r_direction = (int)locy[2];
 }
 
-/* Get points of stroke always flat to view not affected by camera view or view position
- * using another stroke as reference
+/**
+ * Get points of stroke always flat to view not affected by camera view or view position
+ * using another stroke as reference.
+ * \param ref_points: Array of reference points (3D)
+ * \param ref_totpoints: Total reference points
+ * \param points: Array of points to flat (3D)
+ * \param totpoints: Total points
+ * \param points2d: Result array of 2D points
+ * \param scale: Scale factor
+ * \param r_direction: Return Concave (-1), Convex (1), or Autodetect (0)
  */
 void BKE_gpencil_stroke_2d_flat_ref(const bGPDspoint *ref_points,
                                     int ref_totpoints,
@@ -1082,7 +1142,7 @@ void BKE_gpencil_stroke_2d_flat_ref(const bGPDspoint *ref_points,
   *r_direction = (int)locy[2];
 }
 
-/* calc texture coordinates using flat projected points */
+/* Calc texture coordinates using flat projected points. */
 static void gpencil_calc_stroke_fill_uv(const float (*points2d)[2],
                                         bGPDstroke *gps,
                                         const float minv[2],
@@ -1121,8 +1181,10 @@ static void gpencil_calc_stroke_fill_uv(const float (*points2d)[2],
   }
 }
 
-/* Triangulate stroke for high quality fill (this is done only if cache is null or stroke was
- * modified) */
+/**
+ * Triangulate stroke to generate data for filling areas.
+ * \param gps: Grease pencil stroke
+ */
 void BKE_gpencil_stroke_fill_triangulate(bGPDstroke *gps)
 {
   BLI_assert(gps->totpoints >= 3);
@@ -1181,7 +1243,10 @@ void BKE_gpencil_stroke_fill_triangulate(bGPDstroke *gps)
   MEM_SAFE_FREE(uv);
 }
 
-/* texture coordinate utilities */
+/**
+ * Update Stroke UV data.
+ * \param gps: Grease pencil stroke
+ */
 void BKE_gpencil_stroke_uv_update(bGPDstroke *gps)
 {
   if (gps == NULL || gps->totpoints == 0) {
@@ -1197,7 +1262,10 @@ void BKE_gpencil_stroke_uv_update(bGPDstroke *gps)
   }
 }
 
-/* Recalc the internal geometry caches for fill and uvs. */
+/**
+ * Recalc all internal geometry data for the stroke
+ * \param gps: Grease pencil stroke
+ */
 void BKE_gpencil_stroke_geometry_update(bGPDstroke *gps)
 {
   if (gps == NULL) {
@@ -1219,6 +1287,12 @@ void BKE_gpencil_stroke_geometry_update(bGPDstroke *gps)
   BKE_gpencil_stroke_boundingbox_calc(gps);
 }
 
+/**
+ * Calculate grease pencil stroke length.
+ * @param gps Grease pencil stroke
+ * @param use_3d Set to true to use 3D points
+ * @return Length of the stroke
+ */
 float BKE_gpencil_stroke_length(const bGPDstroke *gps, bool use_3d)
 {
   if (!gps->points || gps->totpoints < 2) {
@@ -1242,7 +1316,7 @@ float BKE_gpencil_stroke_length(const bGPDstroke *gps, bool use_3d)
 }
 
 /**
- * Trim stroke to the first intersection or loop
+ * Trim stroke to the first intersection or loop.
  * \param gps: Stroke data
  */
 bool BKE_gpencil_stroke_trim(bGPDstroke *gps)
@@ -1339,7 +1413,7 @@ bool BKE_gpencil_stroke_trim(bGPDstroke *gps)
 }
 
 /**
- * Close stroke
+ * Close grease pencil stroke.
  * \param gps: Stroke to close
  */
 bool BKE_gpencil_stroke_close(bGPDstroke *gps)
@@ -1426,7 +1500,13 @@ bool BKE_gpencil_stroke_close(bGPDstroke *gps)
 
   return true;
 }
-/* Dissolve points in stroke */
+
+/**
+ * Dissolve points in stroke.
+ * \param gpf: Grease pencil frame
+ * \param gps: Grease pencil stroke
+ * \param tag: Type of tag for point
+ */
 void BKE_gpencil_dissolve_points(bGPDframe *gpf, bGPDstroke *gps, const short tag)
 {
   bGPDspoint *pt;
@@ -1505,6 +1585,337 @@ void BKE_gpencil_dissolve_points(bGPDframe *gpf, bGPDstroke *gps, const short ta
     /* triangles cache needs to be recalculated */
     BKE_gpencil_stroke_geometry_update(gps);
   }
+}
+
+/**
+ * Calculate stroke normals.
+ * \param gps: Grease pencil stroke
+ * \param r_normal: Return Normal vector normalized
+ */
+void BKE_gpencil_stroke_normal(const bGPDstroke *gps, float r_normal[3])
+{
+  if (gps->totpoints < 3) {
+    zero_v3(r_normal);
+    return;
+  }
+
+  bGPDspoint *points = gps->points;
+  int totpoints = gps->totpoints;
+
+  const bGPDspoint *pt0 = &points[0];
+  const bGPDspoint *pt1 = &points[1];
+  const bGPDspoint *pt3 = &points[(int)(totpoints * 0.75)];
+
+  float vec1[3];
+  float vec2[3];
+
+  /* initial vector (p0 -> p1) */
+  sub_v3_v3v3(vec1, &pt1->x, &pt0->x);
+
+  /* point vector at 3/4 */
+  sub_v3_v3v3(vec2, &pt3->x, &pt0->x);
+
+  /* vector orthogonal to polygon plane */
+  cross_v3_v3v3(r_normal, vec1, vec2);
+
+  /* Normalize vector */
+  normalize_v3(r_normal);
+}
+
+/* Stroke Simplify ------------------------------------- */
+
+/** Reduce a series of points to a simplified version, but
+ * maintains the general shape of the series
+ *
+ * Ramer - Douglas - Peucker algorithm
+ * by http ://en.wikipedia.org/wiki/Ramer-Douglas-Peucker_algorithm
+ * \param gps: Grease pencil stroke
+ * \param epsilon: Epsilon value to define precision of the algorithm
+ */
+void BKE_gpencil_stroke_simplify_adaptive(bGPDstroke *gps, float epsilon)
+{
+  bGPDspoint *old_points = MEM_dupallocN(gps->points);
+  int totpoints = gps->totpoints;
+  char *marked = NULL;
+  char work;
+
+  int start = 0;
+  int end = gps->totpoints - 1;
+
+  marked = MEM_callocN(totpoints, "GP marked array");
+  marked[start] = 1;
+  marked[end] = 1;
+
+  work = 1;
+  int totmarked = 0;
+  /* while still reducing */
+  while (work) {
+    int ls, le;
+    work = 0;
+
+    ls = start;
+    le = start + 1;
+
+    /* while not over interval */
+    while (ls < end) {
+      int max_i = 0;
+      /* divided to get more control */
+      float max_dist = epsilon / 10.0f;
+
+      /* find the next marked point */
+      while (marked[le] == 0) {
+        le++;
+      }
+
+      for (int i = ls + 1; i < le; i++) {
+        float point_on_line[3];
+        float dist;
+
+        closest_to_line_segment_v3(
+            point_on_line, &old_points[i].x, &old_points[ls].x, &old_points[le].x);
+
+        dist = len_v3v3(point_on_line, &old_points[i].x);
+
+        if (dist > max_dist) {
+          max_dist = dist;
+          max_i = i;
+        }
+      }
+
+      if (max_i != 0) {
+        work = 1;
+        marked[max_i] = 1;
+        totmarked++;
+      }
+
+      ls = le;
+      le = ls + 1;
+    }
+  }
+
+  /* adding points marked */
+  MDeformVert *old_dvert = NULL;
+  MDeformVert *dvert_src = NULL;
+
+  if (gps->dvert != NULL) {
+    old_dvert = MEM_dupallocN(gps->dvert);
+  }
+  /* resize gps */
+  int j = 0;
+  for (int i = 0; i < totpoints; i++) {
+    bGPDspoint *pt_src = &old_points[i];
+    bGPDspoint *pt = &gps->points[j];
+
+    if ((marked[i]) || (i == 0) || (i == totpoints - 1)) {
+      memcpy(pt, pt_src, sizeof(bGPDspoint));
+      if (gps->dvert != NULL) {
+        dvert_src = &old_dvert[i];
+        MDeformVert *dvert = &gps->dvert[j];
+        memcpy(dvert, dvert_src, sizeof(MDeformVert));
+        if (dvert_src->dw) {
+          memcpy(dvert->dw, dvert_src->dw, sizeof(MDeformWeight));
+        }
+      }
+      j++;
+    }
+    else {
+      if (gps->dvert != NULL) {
+        dvert_src = &old_dvert[i];
+        BKE_gpencil_free_point_weights(dvert_src);
+      }
+    }
+  }
+
+  gps->totpoints = j;
+
+  /* Calc geometry data. */
+  BKE_gpencil_stroke_geometry_update(gps);
+
+  MEM_SAFE_FREE(old_points);
+  MEM_SAFE_FREE(old_dvert);
+  MEM_SAFE_FREE(marked);
+}
+
+/**
+ * Simplify alternate vertex of stroke except extremes.
+ * \param gps: Grease pencil stroke
+ */
+void BKE_gpencil_stroke_simplify_fixed(bGPDstroke *gps)
+{
+  if (gps->totpoints < 5) {
+    return;
+  }
+
+  /* save points */
+  bGPDspoint *old_points = MEM_dupallocN(gps->points);
+  MDeformVert *old_dvert = NULL;
+  MDeformVert *dvert_src = NULL;
+
+  if (gps->dvert != NULL) {
+    old_dvert = MEM_dupallocN(gps->dvert);
+  }
+
+  /* resize gps */
+  int newtot = (gps->totpoints - 2) / 2;
+  if (((gps->totpoints - 2) % 2) > 0) {
+    newtot++;
+  }
+  newtot += 2;
+
+  gps->points = MEM_recallocN(gps->points, sizeof(*gps->points) * newtot);
+  if (gps->dvert != NULL) {
+    gps->dvert = MEM_recallocN(gps->dvert, sizeof(*gps->dvert) * newtot);
+  }
+
+  int j = 0;
+  for (int i = 0; i < gps->totpoints; i++) {
+    bGPDspoint *pt_src = &old_points[i];
+    bGPDspoint *pt = &gps->points[j];
+
+    if ((i == 0) || (i == gps->totpoints - 1) || ((i % 2) > 0.0)) {
+      memcpy(pt, pt_src, sizeof(bGPDspoint));
+      if (gps->dvert != NULL) {
+        dvert_src = &old_dvert[i];
+        MDeformVert *dvert = &gps->dvert[j];
+        memcpy(dvert, dvert_src, sizeof(MDeformVert));
+        if (dvert_src->dw) {
+          memcpy(dvert->dw, dvert_src->dw, sizeof(MDeformWeight));
+        }
+      }
+      j++;
+    }
+    else {
+      if (gps->dvert != NULL) {
+        dvert_src = &old_dvert[i];
+        BKE_gpencil_free_point_weights(dvert_src);
+      }
+    }
+  }
+
+  gps->totpoints = j;
+  /* Calc geometry data. */
+  BKE_gpencil_stroke_geometry_update(gps);
+
+  MEM_SAFE_FREE(old_points);
+  MEM_SAFE_FREE(old_dvert);
+}
+
+/**
+ * Subdivide grease pencil stroke.
+ * \param gps: Grease pencil stroke
+ * \param level: Level of subdivision
+ * \param type: Type of subdivision
+ */
+void BKE_gpencil_stroke_subdivide(bGPDstroke *gps, int level, int type)
+{
+  bGPDspoint *temp_points;
+  MDeformVert *temp_dverts = NULL;
+  MDeformVert *dvert = NULL;
+  MDeformVert *dvert_final = NULL;
+  MDeformVert *dvert_next = NULL;
+  int totnewpoints, oldtotpoints;
+  int i2;
+
+  for (int s = 0; s < level; s++) {
+    totnewpoints = gps->totpoints - 1;
+    /* duplicate points in a temp area */
+    temp_points = MEM_dupallocN(gps->points);
+    oldtotpoints = gps->totpoints;
+
+    /* resize the points arrays */
+    gps->totpoints += totnewpoints;
+    gps->points = MEM_recallocN(gps->points, sizeof(*gps->points) * gps->totpoints);
+    if (gps->dvert != NULL) {
+      temp_dverts = MEM_dupallocN(gps->dvert);
+      gps->dvert = MEM_recallocN(gps->dvert, sizeof(*gps->dvert) * gps->totpoints);
+    }
+
+    /* move points from last to first to new place */
+    i2 = gps->totpoints - 1;
+    for (int i = oldtotpoints - 1; i > 0; i--) {
+      bGPDspoint *pt = &temp_points[i];
+      bGPDspoint *pt_final = &gps->points[i2];
+
+      copy_v3_v3(&pt_final->x, &pt->x);
+      pt_final->pressure = pt->pressure;
+      pt_final->strength = pt->strength;
+      pt_final->time = pt->time;
+      pt_final->flag = pt->flag;
+      pt_final->runtime.pt_orig = pt->runtime.pt_orig;
+      pt_final->runtime.idx_orig = pt->runtime.idx_orig;
+      copy_v4_v4(pt_final->vert_color, pt->vert_color);
+
+      if (gps->dvert != NULL) {
+        dvert = &temp_dverts[i];
+        dvert_final = &gps->dvert[i2];
+        dvert_final->totweight = dvert->totweight;
+        dvert_final->dw = dvert->dw;
+      }
+      i2 -= 2;
+    }
+    /* interpolate mid points */
+    i2 = 1;
+    for (int i = 0; i < oldtotpoints - 1; i++) {
+      bGPDspoint *pt = &temp_points[i];
+      bGPDspoint *next = &temp_points[i + 1];
+      bGPDspoint *pt_final = &gps->points[i2];
+
+      /* add a half way point */
+      interp_v3_v3v3(&pt_final->x, &pt->x, &next->x, 0.5f);
+      pt_final->pressure = interpf(pt->pressure, next->pressure, 0.5f);
+      pt_final->strength = interpf(pt->strength, next->strength, 0.5f);
+      CLAMP(pt_final->strength, GPENCIL_STRENGTH_MIN, 1.0f);
+      pt_final->time = interpf(pt->time, next->time, 0.5f);
+      pt_final->runtime.pt_orig = NULL;
+      pt_final->flag = 0;
+      interp_v4_v4v4(pt_final->vert_color, pt->vert_color, next->vert_color, 0.5f);
+
+      if (gps->dvert != NULL) {
+        dvert = &temp_dverts[i];
+        dvert_next = &temp_dverts[i + 1];
+        dvert_final = &gps->dvert[i2];
+
+        dvert_final->totweight = dvert->totweight;
+        dvert_final->dw = MEM_dupallocN(dvert->dw);
+
+        /* interpolate weight values */
+        for (int d = 0; d < dvert->totweight; d++) {
+          MDeformWeight *dw_a = &dvert->dw[d];
+          if (dvert_next->totweight > d) {
+            MDeformWeight *dw_b = &dvert_next->dw[d];
+            MDeformWeight *dw_final = &dvert_final->dw[d];
+            dw_final->weight = interpf(dw_a->weight, dw_b->weight, 0.5f);
+          }
+        }
+      }
+
+      i2 += 2;
+    }
+
+    MEM_SAFE_FREE(temp_points);
+    MEM_SAFE_FREE(temp_dverts);
+
+    /* move points to smooth stroke (not simple type )*/
+    if (type != GP_SUBDIV_SIMPLE) {
+      /* duplicate points in a temp area with the new subdivide data */
+      temp_points = MEM_dupallocN(gps->points);
+
+      /* extreme points are not changed */
+      for (int i = 0; i < gps->totpoints - 2; i++) {
+        bGPDspoint *pt = &temp_points[i];
+        bGPDspoint *next = &temp_points[i + 1];
+        bGPDspoint *pt_final = &gps->points[i + 1];
+
+        /* move point */
+        interp_v3_v3v3(&pt_final->x, &pt->x, &next->x, 0.5f);
+      }
+      /* free temp memory */
+      MEM_SAFE_FREE(temp_points);
+    }
+  }
+
+  /* Calc geometry data. */
+  BKE_gpencil_stroke_geometry_update(gps);
 }
 
 /* Merge by distance ------------------------------------- */
@@ -1982,7 +2393,11 @@ void BKE_gpencil_convert_mesh(Main *bmain,
   DEG_id_tag_update(&gpd->id, ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
 }
 
-/* Apply Transforms */
+/**
+ * Apply grease pencil Transforms.
+ * @param gpd Grease pencil data-block
+ * @param mat Transformation matrix
+ */
 void BKE_gpencil_transform(bGPdata *gpd, float mat[4][4])
 {
   if (gpd == NULL) {

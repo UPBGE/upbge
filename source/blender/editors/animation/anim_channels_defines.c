@@ -322,9 +322,7 @@ static short acf_generic_basic_offset(bAnimContext *ac, bAnimListElem *ale)
   if (acf && acf->get_indent_level) {
     return acf->get_indent_level(ac, ale) * INDENT_STEP_SIZE;
   }
-  else {
-    return 0;
-  }
+  return 0;
 }
 
 /* offset based on nodetree type */
@@ -514,11 +512,10 @@ static int acf_summary_setting_flag(bAnimContext *UNUSED(ac),
     *neg = true;
     return ADS_FLAG_SUMMARY_COLLAPSED;
   }
-  else {
-    /* unsupported */
-    *neg = false;
-    return 0;
-  }
+
+  /* unsupported */
+  *neg = false;
+  return 0;
 }
 
 /* get pointer to the setting */
@@ -538,11 +535,10 @@ static void *acf_summary_setting_ptr(bAnimListElem *ale,
     /* return pointer to DopeSheet's flag */
     return GET_ACF_FLAG_PTR(ads->flag, type);
   }
-  else {
-    /* can't return anything useful - unsupported */
-    *type = 0;
-    return NULL;
-  }
+
+  /* can't return anything useful - unsupported */
+  *type = 0;
+  return NULL;
 }
 
 /* all animation summary (DopeSheet only) type define */
@@ -2846,8 +2842,9 @@ static void *acf_dshair_setting_ptr(bAnimListElem *ale, eAnimChannel_Settings se
     case ACHANNEL_SETTING_SELECT:  /* selected */
     case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
     case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
-      if (hair->adt)
+      if (hair->adt) {
         return GET_ACF_FLAG_PTR(hair->adt->flag, type);
+      }
       return NULL;
 
     default: /* unsupported */
@@ -2926,8 +2923,9 @@ static void *acf_dspointcloud_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_SELECT:  /* selected */
     case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
     case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
-      if (pointcloud->adt)
+      if (pointcloud->adt) {
         return GET_ACF_FLAG_PTR(pointcloud->adt->flag, type);
+      }
       return NULL;
 
     default: /* unsupported */
@@ -3006,8 +3004,9 @@ static void *acf_dsvolume_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_SELECT:  /* selected */
     case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
     case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
-      if (volume->adt)
+      if (volume->adt) {
         return GET_ACF_FLAG_PTR(volume->adt->flag, type);
+      }
       return NULL;
 
     default: /* unsupported */
@@ -3084,8 +3083,9 @@ static void *acf_dssimulation_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_SELECT:  /* selected */
     case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
     case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
-      if (simulation->adt)
+      if (simulation->adt) {
         return GET_ACF_FLAG_PTR(simulation->adt->flag, type);
+      }
       return NULL;
 
     default: /* unsupported */
@@ -3815,19 +3815,15 @@ static bool acf_nlatrack_setting_valid(bAnimContext *UNUSED(ac),
             /* ok - we've got a solo track, and this is it */
             return true;
           }
-          else {
-            /* not ok - we've got a solo track, but this isn't it, so make it more obvious */
-            return false;
-          }
+          /* not ok - we've got a solo track, but this isn't it, so make it more obvious */
+          return false;
         }
 
         /* ok - no tracks are solo'd, and this isn't being tweaked */
         return true;
       }
-      else {
-        /* unsupported - this track is being tweaked */
-        return false;
-      }
+      /* unsupported - this track is being tweaked */
+      return false;
 
     /* unsupported */
     default:
@@ -3901,9 +3897,8 @@ static int acf_nlaaction_icon(bAnimListElem *ale)
   if ((adt) && (adt->flag & ADT_NLA_EDIT_ON)) {
     return ICON_ACTION_TWEAK;
   }
-  else {
-    return ICON_ACTION;
-  }
+
+  return ICON_ACTION;
 }
 
 /* Backdrop color for nla action channel
@@ -4157,9 +4152,8 @@ const bAnimChannelType *ANIM_channel_get_typeinfo(bAnimListElem *ale)
   if ((ale->type >= 0) && (ale->type < ANIMTYPE_NUM_TYPES)) {
     return animchannelTypeInfo[ale->type];
   }
-  else {
-    return NULL;
-  }
+
+  return NULL;
 }
 
 /* --------------------------- */
@@ -4227,9 +4221,7 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, eAnimChanne
           if (negflag) {
             return ((*val) & flag) == 0;
           }
-          else {
-            return ((*val) & flag) != 0;
-          }
+          return ((*val) & flag) != 0;
         }
         case sizeof(short): /* short pointer for setting */
         {
@@ -4238,9 +4230,7 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, eAnimChanne
           if (negflag) {
             return ((*val) & flag) == 0;
           }
-          else {
-            return ((*val) & flag) != 0;
-          }
+          return ((*val) & flag) != 0;
         }
         case sizeof(char): /* char pointer for setting */
         {
@@ -4249,9 +4239,7 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, eAnimChanne
           if (negflag) {
             return ((*val) & flag) == 0;
           }
-          else {
-            return ((*val) & flag) != 0;
-          }
+          return ((*val) & flag) != 0;
         }
       }
     }

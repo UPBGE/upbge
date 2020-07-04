@@ -64,11 +64,9 @@ void WingedEdgeBuilder::visitNodeTransform(NodeTransform &tn)
   _current_matrix = new_matrix;
 }
 
-void WingedEdgeBuilder::visitNodeTransformAfter(NodeTransform &)
+void WingedEdgeBuilder::visitNodeTransformAfter(NodeTransform &UNUSED(transform))
 {
-  if (_current_matrix) {
-    delete _current_matrix;
-  }
+  delete _current_matrix;
 
   if (_matrices_stack.empty()) {
     _current_matrix = NULL;
@@ -200,7 +198,7 @@ bool WingedEdgeBuilder::buildWShape(WShape &shape, IndexedFaceSet &ifs)
   delete[] new_vertices;
   delete[] new_normals;
 
-  if (shape.GetFaceList().size() == 0) {  // this may happen due to degenerate triangles
+  if (shape.GetFaceList().empty()) {  // this may happen due to degenerate triangles
     return false;
   }
 
@@ -219,8 +217,8 @@ bool WingedEdgeBuilder::buildWShape(WShape &shape, IndexedFaceSet &ifs)
     if ((*wv)->isBoundary()) {
       continue;
     }
-    if ((*wv)->GetEdges().size() ==
-        0) {  // This means that the WVertex has no incoming edges... (12-Sep-2011 T.K.)
+    if ((*wv)->GetEdges().empty()) {
+      // This means that the WVertex has no incoming edges... (12-Sep-2011 T.K.)
       continue;
     }
     normalsSet.clear();

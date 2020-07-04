@@ -430,7 +430,7 @@ static bool pose_topology_floodfill_cb(
           co, data->pose_initial_co, data->radius, data->symm)) {
     return true;
   }
-  else if (SCULPT_check_vertex_pivot_symmetry(co, data->pose_initial_co, data->symm)) {
+  if (SCULPT_check_vertex_pivot_symmetry(co, data->pose_initial_co, data->symm)) {
     if (!is_duplicate) {
       add_v3_v3(data->pose_origin, co);
       data->tot_co++;
@@ -954,7 +954,7 @@ SculptPoseIKChain *SCULPT_pose_ik_chain_init(Sculpt *sd,
       ik_chain = pose_ik_chain_init_face_sets(sd, ob, ss, br, radius);
       break;
     case BRUSH_POSE_ORIGIN_FACE_SETS_FK:
-      return pose_ik_chain_init_face_sets_fk(sd, ob, ss, radius, initial_location);
+      ik_chain = pose_ik_chain_init_face_sets_fk(sd, ob, ss, radius, initial_location);
       break;
   }
 

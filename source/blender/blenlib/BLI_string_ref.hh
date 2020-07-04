@@ -59,10 +59,10 @@ class StringRef;
  */
 class StringRefBase {
  protected:
-  const char *m_data;
-  uint m_size;
+  const char *data_;
+  uint size_;
 
-  StringRefBase(const char *data, uint size) : m_data(data), m_size(size)
+  StringRefBase(const char *data, const uint size) : data_(data), size_(size)
   {
   }
 
@@ -72,7 +72,7 @@ class StringRefBase {
    */
   uint size() const
   {
-    return m_size;
+    return size_;
   }
 
   /**
@@ -80,12 +80,12 @@ class StringRefBase {
    */
   const char *data() const
   {
-    return m_data;
+    return data_;
   }
 
   operator Span<char>() const
   {
-    return Span<char>(m_data, m_size);
+    return Span<char>(data_, size_);
   }
 
   /**
@@ -94,17 +94,17 @@ class StringRefBase {
    */
   operator std::string() const
   {
-    return std::string(m_data, m_size);
+    return std::string(data_, size_);
   }
 
   const char *begin() const
   {
-    return m_data;
+    return data_;
   }
 
   const char *end() const
   {
-    return m_data + m_size;
+    return data_ + size_;
   }
 
   /**
@@ -114,17 +114,17 @@ class StringRefBase {
    */
   void unsafe_copy(char *dst) const
   {
-    memcpy(dst, m_data, m_size);
-    dst[m_size] = '\0';
+    memcpy(dst, data_, size_);
+    dst[size_] = '\0';
   }
 
   /**
    * Copy the string into a buffer. The copied string will be null-terminated. This invokes
    * undefined behavior when dst_size is too small. (Should we define the behavior?)
    */
-  void copy(char *dst, uint dst_size) const
+  void copy(char *dst, const uint dst_size) const
   {
-    if (m_size < dst_size) {
+    if (size_ < dst_size) {
       this->unsafe_copy(dst);
     }
     else {
@@ -152,7 +152,7 @@ class StringRefBase {
    */
   bool endswith(StringRef suffix) const;
 
-  StringRef substr(uint start, uint size) const;
+  StringRef substr(uint start, const uint size) const;
 };
 
 /**
@@ -171,14 +171,14 @@ class StringRefNull : public StringRefBase {
   StringRefNull(const char *str) : StringRefBase(str, (uint)strlen(str))
   {
     BLI_assert(str != NULL);
-    BLI_assert(m_data[m_size] == '\0');
+    BLI_assert(data_[size_] == '\0');
   }
 
   /**
    * Construct a StringRefNull from a null terminated c-string. This invokes undefined behavior
    * when the given size is not the correct size of the string.
    */
-  StringRefNull(const char *str, uint size) : StringRefBase(str, size)
+  StringRefNull(const char *str, const uint size) : StringRefBase(str, size)
   {
     BLI_assert((uint)strlen(str) == size);
   }
@@ -194,11 +194,11 @@ class StringRefNull : public StringRefBase {
   /**
    * Get the char at the given index.
    */
-  char operator[](uint index) const
+  char operator[](const uint index) const
   {
     /* Use '<=' instead of just '<', so that the null character can be accessed as well. */
-    BLI_assert(index <= m_size);
-    return m_data[index];
+    BLI_assert(index <= size_);
+    return data_[index];
   }
 };
 
@@ -225,7 +225,7 @@ class StringRef : public StringRefBase {
   {
   }
 
-  StringRef(const char *str, uint length) : StringRefBase(str, length)
+  StringRef(const char *str, const uint length) : StringRefBase(str, length)
   {
   }
 
@@ -250,10 +250,10 @@ class StringRef : public StringRefBase {
   /**
    * Return a new StringRef that does not contain the first n chars.
    */
-  StringRef drop_prefix(uint n) const
+  StringRef drop_prefix(const uint n) const
   {
-    BLI_assert(n <= m_size);
-    return StringRef(m_data + n, m_size - n);
+    BLI_assert(n <= size_);
+    return StringRef(data_ + n, size_ - n);
   }
 
   /**
@@ -271,8 +271,8 @@ class StringRef : public StringRefBase {
    */
   char operator[](uint index) const
   {
-    BLI_assert(index < m_size);
-    return m_data[index];
+    BLI_assert(index < size_);
+    return data_[index];
   }
 };
 
@@ -318,11 +318,11 @@ inline bool operator!=(StringRef a, StringRef b)
  */
 inline bool StringRefBase::startswith(StringRef prefix) const
 {
-  if (m_size < prefix.m_size) {
+  if (size_ < prefix.size_) {
     return false;
   }
-  for (uint i = 0; i < prefix.m_size; i++) {
-    if (m_data[i] != prefix.m_data[i]) {
+  for (uint i = 0; i < prefix.size_; i++) {
+    if (data_[i] != prefix.data_[i]) {
       return false;
     }
   }
@@ -334,12 +334,12 @@ inline bool StringRefBase::startswith(StringRef prefix) const
  */
 inline bool StringRefBase::endswith(StringRef suffix) const
 {
-  if (m_size < suffix.m_size) {
+  if (size_ < suffix.size_) {
     return false;
   }
-  uint offset = m_size - suffix.m_size;
-  for (uint i = 0; i < suffix.m_size; i++) {
-    if (m_data[offset + i] != suffix.m_data[i]) {
+  const uint offset = size_ - suffix.size_;
+  for (uint i = 0; i < suffix.size_; i++) {
+    if (data_[offset + i] != suffix.data_[i]) {
       return false;
     }
   }
@@ -349,10 +349,10 @@ inline bool StringRefBase::endswith(StringRef suffix) const
 /**
  * Return a new #StringRef containing only a sub-string of the original string.
  */
-inline StringRef StringRefBase::substr(uint start, uint size) const
+inline StringRef StringRefBase::substr(const uint start, const uint size) const
 {
-  BLI_assert(start + size <= m_size);
-  return StringRef(m_data + start, size);
+  BLI_assert(start + size <= size_);
+  return StringRef(data_ + start, size);
 }
 
 }  // namespace blender

@@ -455,7 +455,7 @@ static eOLDrawState tree_element_active_material(bContext *C,
 
   /* we search for the object parent */
   ob = (Object *)outliner_search_back(te, ID_OB);
-  // note: ob->matbits can be NULL when a local object points to a library mesh.
+  /* Note : ob->matbits can be NULL when a local object points to a library mesh. */
   if (ob == NULL || ob != OBACT(view_layer) || ob->matbits == NULL) {
     return OL_DRAWSEL_NONE; /* just paranoia */
   }
@@ -465,7 +465,7 @@ static eOLDrawState tree_element_active_material(bContext *C,
   if (tes->idcode == ID_OB) {
     if (set != OL_SETSEL_NONE) {
       ob->actcol = te->index + 1;
-      ob->matbits[te->index] = 1;  // make ob material active too
+      ob->matbits[te->index] = 1; /* Make ob material active too. */
     }
     else {
       if (ob->actcol == te->index + 1) {
@@ -479,7 +479,7 @@ static eOLDrawState tree_element_active_material(bContext *C,
   else {
     if (set != OL_SETSEL_NONE) {
       ob->actcol = te->index + 1;
-      ob->matbits[te->index] = 0;  // make obdata material active too
+      ob->matbits[te->index] = 0; /* Make obdata material active too. */
     }
     else {
       if (ob->actcol == te->index + 1) {
@@ -520,9 +520,7 @@ static eOLDrawState tree_element_active_camera(bContext *C,
 
     return OL_DRAWSEL_NONE;
   }
-  else {
-    return scene->camera == ob;
-  }
+  return scene->camera == ob;
 }
 
 static eOLDrawState tree_element_active_world(bContext *C,
@@ -552,10 +550,7 @@ static eOLDrawState tree_element_active_world(bContext *C,
   }
 
   if (tep == NULL || tselem->id == (ID *)scene) {
-    if (set != OL_SETSEL_NONE) {
-      // XXX          extern_set_butspace(F8KEY, 0);
-    }
-    else {
+    if (set == OL_SETSEL_NONE) {
       return OL_DRAWSEL_NORMAL;
     }
   }
@@ -767,14 +762,14 @@ static void tree_element_active_ebone__sel(bContext *C, bArmature *arm, EditBone
   if (sel) {
     ebone->flag |= BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL;
     arm->act_edbone = ebone;
-    // flush to parent?
+    /* Flush to parent? */
     if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
       ebone->parent->flag |= BONE_TIPSEL;
     }
   }
   else {
     ebone->flag &= ~(BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
-    // flush to parent?
+    /* Flush to parent? */
     if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
       ebone->parent->flag &= ~BONE_TIPSEL;
     }
@@ -842,8 +837,6 @@ static eOLDrawState tree_element_active_modifier(bContext *C,
     Object *ob = (Object *)tselem->id;
 
     WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
-
-    // XXX      extern_set_butspace(F9KEY, 0);
   }
 
   return OL_DRAWSEL_NONE;
@@ -859,8 +852,6 @@ static eOLDrawState tree_element_active_psys(bContext *C,
     Object *ob = (Object *)tselem->id;
 
     WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE | NA_EDITED, ob);
-
-    // XXX      extern_set_butspace(F7KEY, 0);
   }
 
   return OL_DRAWSEL_NONE;
@@ -877,20 +868,8 @@ static int tree_element_active_constraint(bContext *C,
     Object *ob = (Object *)tselem->id;
 
     WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
-    // XXX      extern_set_butspace(F7KEY, 0);
   }
 
-  return OL_DRAWSEL_NONE;
-}
-
-static eOLDrawState tree_element_active_text(bContext *UNUSED(C),
-                                             Scene *UNUSED(scene),
-                                             ViewLayer *UNUSED(sl),
-                                             SpaceOutliner *UNUSED(soops),
-                                             TreeElement *UNUSED(te),
-                                             int UNUSED(set))
-{
-  // XXX removed
   return OL_DRAWSEL_NONE;
 }
 
@@ -971,7 +950,7 @@ static eOLDrawState tree_element_active_sequence_dup(Scene *scene,
     return OL_DRAWSEL_NONE;
   }
 
-  // XXX  select_single_seq(seq, 1);
+  /* XXX  select_single_seq(seq, 1); */
   p = ed->seqbasep->first;
   while (p) {
     if ((!p->strip) || (!p->strip->stripdata) || (p->strip->stripdata->name[0] == '\0')) {
@@ -979,8 +958,8 @@ static eOLDrawState tree_element_active_sequence_dup(Scene *scene,
       continue;
     }
 
-    //      if (STREQ(p->strip->stripdata->name, seq->strip->stripdata->name))
-    // XXX          select_single_seq(p, 0);
+    /* XXX: if (STREQ(p->strip->stripdata->name, seq->strip->stripdata->name)) select_single_seq(p,
+     * 0); */
     p = p->next;
   }
   return OL_DRAWSEL_NONE;
@@ -1001,9 +980,7 @@ static eOLDrawState tree_element_active_keymap_item(bContext *UNUSED(C),
     }
     return OL_DRAWSEL_NORMAL;
   }
-  else {
-    kmi->flag ^= KMI_INACTIVE;
-  }
+  kmi->flag ^= KMI_INACTIVE;
   return OL_DRAWSEL_NONE;
 }
 
@@ -1075,8 +1052,6 @@ eOLDrawState tree_element_active(bContext *C,
       return tree_element_active_material(C, tvc->scene, tvc->view_layer, te, set);
     case ID_WO:
       return tree_element_active_world(C, tvc->scene, tvc->view_layer, soops, te, set);
-    case ID_TXT:
-      return tree_element_active_text(C, tvc->scene, tvc->view_layer, soops, te, set);
     case ID_CA:
       return tree_element_active_camera(C, tvc->scene, tvc->view_layer, te, set);
   }
@@ -1185,7 +1160,7 @@ static void do_outliner_item_activate_tree_element(bContext *C,
                                    recursive && tselem->type == 0);
   }
 
-  if (tselem->type == 0) {  // the lib blocks
+  if (tselem->type == 0) { /* The lib blocks. */
     if (do_activate_data == false) {
       /* Only select in outliner. */
     }
@@ -1234,7 +1209,7 @@ static void do_outliner_item_activate_tree_element(bContext *C,
       DEG_id_tag_update(&tvc->scene->id, ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, tvc->scene);
     }
-    else {  // rest of types
+    else { /* Rest of types. */
       tree_element_active(C, tvc, soops, te, OL_SETSEL_NORMAL, false);
     }
   }
@@ -1397,7 +1372,7 @@ static int outliner_item_do_activate_from_cursor(bContext *C,
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
   else {
-    /* The row may also contain children, if one is hovered we want this instead of current te */
+    /* The row may also contain children, if one is hovered we want this instead of current te. */
     bool merged_elements = false;
     TreeElement *activate_te = outliner_find_item_at_x_in_row(
         soops, te, view_mval[0], &merged_elements);
@@ -1620,9 +1595,7 @@ static TreeElement *outliner_element_find_successor_in_parents(TreeElement *te)
       te = successor->parent->next;
       break;
     }
-    else {
-      successor = successor->parent;
-    }
+    successor = successor->parent;
   }
 
   return te;

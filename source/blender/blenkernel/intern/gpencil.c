@@ -282,6 +282,10 @@ void BKE_gpencil_free(bGPdata *gpd, bool free_all)
   }
 }
 
+/**
+ * Delete grease pencil evaluated data
+ * \param gpd_eval: Grease pencil data-block
+ */
 void BKE_gpencil_eval_delete(bGPdata *gpd_eval)
 {
   BKE_gpencil_free(gpd_eval, true);
@@ -302,7 +306,12 @@ void BKE_gpencil_tag(bGPdata *gpd)
 /* ************************************************** */
 /* Container Creation */
 
-/* add a new gp-frame to the given layer */
+/**
+ * Add a new gp-frame to the given layer.
+ * \param gpl: Grease pencil layer
+ * \param cframe: Frame number
+ * \return Pointer to new frame
+ */
 bGPDframe *BKE_gpencil_frame_addnew(bGPDlayer *gpl, int cframe)
 {
   bGPDframe *gpf = NULL, *gf = NULL;
@@ -356,7 +365,12 @@ bGPDframe *BKE_gpencil_frame_addnew(bGPDlayer *gpl, int cframe)
   return gpf;
 }
 
-/* add a copy of the active gp-frame to the given layer */
+/**
+ * Add a copy of the active gp-frame to the given layer.
+ * \param gpl: Grease pencil layer
+ * \param cframe: Frame number
+ * \return Pointer to new frame
+ */
 bGPDframe *BKE_gpencil_frame_addcopy(bGPDlayer *gpl, int cframe)
 {
   bGPDframe *new_frame;
@@ -411,7 +425,13 @@ bGPDframe *BKE_gpencil_frame_addcopy(bGPDlayer *gpl, int cframe)
   return new_frame;
 }
 
-/* add a new gp-layer and make it the active layer */
+/**
+ * Add a new gp-layer and make it the active layer.
+ * \param gpd: Grease pencil data-block
+ * \param name: Name of the layer
+ * \param setactive: Set as active
+ * \return Pointer to new layer
+ */
 bGPDlayer *BKE_gpencil_layer_addnew(bGPdata *gpd, const char *name, bool setactive)
 {
   bGPDlayer *gpl = NULL;
@@ -481,6 +501,9 @@ bGPDlayer *BKE_gpencil_layer_addnew(bGPdata *gpd, const char *name, bool setacti
 
 /**
  * Add a new grease pencil data-block.
+ * \param bmain: Main pointer
+ * \param name: Name of the datablock
+ * \return Pointer to new data-block
  */
 bGPdata *BKE_gpencil_data_addnew(Main *bmain, const char name[])
 {
@@ -526,9 +549,10 @@ bGPdata *BKE_gpencil_data_addnew(Main *bmain, const char name[])
 /* Utilities for easier bulk-creation of geometry */
 
 /**
- * Populate stroke with point data from data buffers
- *
+ * Populate stroke with point data from data buffers.
+ * \param gps: Grease pencil stroke
  * \param array: Flat array of point data values. Each entry has #GP_PRIM_DATABUF_SIZE values.
+ * \param totpoints: Total of points
  * \param mat: 4x4 transform matrix to transform points into the right coordinate space.
  */
 void BKE_gpencil_stroke_add_points(bGPDstroke *gps,
@@ -550,7 +574,13 @@ void BKE_gpencil_stroke_add_points(bGPDstroke *gps,
   }
 }
 
-/* Create a new stroke, with pre-allocated data buffers. */
+/**
+ * Create a new stroke, with pre-allocated data buffers.
+ * \param mat_idx: Index of the material
+ * \param totpoints: Total points
+ * \param thickness: Stroke thickness
+ * \return Pointer to new stroke
+ */
 bGPDstroke *BKE_gpencil_stroke_new(int mat_idx, int totpoints, short thickness)
 {
   /* allocate memory for a new stroke */
@@ -584,7 +614,15 @@ bGPDstroke *BKE_gpencil_stroke_new(int mat_idx, int totpoints, short thickness)
   return gps;
 }
 
-/* Create a new stroke and add to frame. */
+/**
+ * Create a new stroke and add to frame.
+ * \param gpf: Grease pencil frame
+ * \param mat_idx: Material index
+ * \param totpoints: Total points
+ * \param thickness: Stroke thickness
+ * \param insert_at_head: Add to the head of the strokes list
+ * \return Pointer to new stroke
+ */
 bGPDstroke *BKE_gpencil_stroke_add(
     bGPDframe *gpf, int mat_idx, int totpoints, short thickness, const bool insert_at_head)
 {
@@ -603,7 +641,16 @@ bGPDstroke *BKE_gpencil_stroke_add(
   return gps;
 }
 
-/* Add a stroke and copy the temporary drawing color value from one of the existing stroke */
+/**
+ * Add a stroke and copy the temporary drawing color value
+ * from one of the existing stroke.
+ * \param gpf: Grease pencil frame
+ * \param existing: Stroke with the style to copy
+ * \param mat_idx: Material index
+ * \param totpoints: Total points
+ * \param thickness: Stroke thickness
+ * \return Pointer to new stroke
+ */
 bGPDstroke *BKE_gpencil_stroke_add_existing_style(
     bGPDframe *gpf, bGPDstroke *existing, int mat_idx, int totpoints, short thickness)
 {
@@ -618,7 +665,11 @@ bGPDstroke *BKE_gpencil_stroke_add_existing_style(
 /* ************************************************** */
 /* Data Duplication */
 
-/* make a copy of a given gpencil weights */
+/**
+ * Make a copy of a given gpencil weights.
+ * \param gps_src: Source grease pencil stroke
+ * \param gps_dst: Destination grease pencil stroke
+ */
 void BKE_gpencil_stroke_weights_duplicate(bGPDstroke *gps_src, bGPDstroke *gps_dst)
 {
   if (gps_src == NULL) {
@@ -629,7 +680,12 @@ void BKE_gpencil_stroke_weights_duplicate(bGPDstroke *gps_src, bGPDstroke *gps_d
   BKE_defvert_array_copy(gps_dst->dvert, gps_src->dvert, gps_src->totpoints);
 }
 
-/* make a copy of a given gpencil stroke */
+/**
+ * Make a copy of a given gpencil stroke.
+ * \param gps_src: Source grease pencil strokeyes
+ * \param dup_points: Duplicate points data
+ * \return Pointer to new stroke
+ */
 bGPDstroke *BKE_gpencil_stroke_duplicate(bGPDstroke *gps_src, const bool dup_points)
 {
   bGPDstroke *gps_dst = NULL;
@@ -654,7 +710,11 @@ bGPDstroke *BKE_gpencil_stroke_duplicate(bGPDstroke *gps_src, const bool dup_poi
   return gps_dst;
 }
 
-/* make a copy of a given gpencil frame */
+/**
+ * Make a copy of a given gpencil frame.
+ * \param gpf_src: Source grease pencil frame
+ * \return Pointer to new frame
+ */
 bGPDframe *BKE_gpencil_frame_duplicate(const bGPDframe *gpf_src)
 {
   bGPDstroke *gps_dst = NULL;
@@ -681,7 +741,11 @@ bGPDframe *BKE_gpencil_frame_duplicate(const bGPDframe *gpf_src)
   return gpf_dst;
 }
 
-/* make a copy of strokes between gpencil frames */
+/**
+ * Make a copy of strokes between gpencil frames.
+ * \param gpf_src: Source grease pencil frame
+ * \param gpf_dst: Destination grease pencil frame
+ */
 void BKE_gpencil_frame_copy_strokes(bGPDframe *gpf_src, struct bGPDframe *gpf_dst)
 {
   bGPDstroke *gps_dst = NULL;
@@ -699,7 +763,11 @@ void BKE_gpencil_frame_copy_strokes(bGPDframe *gpf_src, struct bGPDframe *gpf_ds
   }
 }
 
-/* make a copy of a given gpencil layer */
+/**
+ * Make a copy of a given gpencil layer.
+ * \param gpl_src: Source grease pencil layer
+ * \return Pointer to new layer
+ */
 bGPDlayer *BKE_gpencil_layer_duplicate(const bGPDlayer *gpl_src)
 {
   const bGPDframe *gpf_src;
@@ -742,6 +810,10 @@ bGPDlayer *BKE_gpencil_layer_duplicate(const bGPDlayer *gpl_src)
 
 /**
  * Standard API to make a copy of GP data-block, separate from copying its data.
+ *
+ * \param bmain: Main pointer
+ * \param gpd: Grease pencil data-block
+ * \return Pointer to new data-block
  */
 bGPdata *BKE_gpencil_copy(Main *bmain, const bGPdata *gpd)
 {
@@ -787,7 +859,10 @@ bGPdata *BKE_gpencil_data_duplicate(Main *bmain, const bGPdata *gpd_src, bool in
 /* ************************************************** */
 /* GP Stroke API */
 
-/* ensure selection status of stroke is in sync with its points */
+/**
+ * Ensure selection status of stroke is in sync with its points.
+ * \param gps: Grease pencil stroke
+ */
 void BKE_gpencil_stroke_sync_selection(bGPDstroke *gps)
 {
   bGPDspoint *pt;
@@ -814,7 +889,11 @@ void BKE_gpencil_stroke_sync_selection(bGPDstroke *gps)
 /* ************************************************** */
 /* GP Frame API */
 
-/* delete the last stroke of the given frame */
+/**
+ * Delete the last stroke of the given frame.
+ * \param gpl: Grease pencil layer
+ * \param gpf: Grease pencil frame
+ */
 void BKE_gpencil_frame_delete_laststroke(bGPDlayer *gpl, bGPDframe *gpf)
 {
   bGPDstroke *gps = (gpf) ? gpf->strokes.last : NULL;
@@ -846,7 +925,11 @@ void BKE_gpencil_frame_delete_laststroke(bGPDlayer *gpl, bGPDframe *gpf)
 /* ************************************************** */
 /* GP Layer API */
 
-/* Check if the given layer is able to be edited or not */
+/**
+ * Check if the given layer is able to be edited or not.
+ * \param gpl: Grease pencil layer
+ * \return True if layer is editable
+ */
 bool BKE_gpencil_layer_is_editable(const bGPDlayer *gpl)
 {
   /* Sanity check */
@@ -863,7 +946,12 @@ bool BKE_gpencil_layer_is_editable(const bGPDlayer *gpl)
   return false;
 }
 
-/* Look up the gp-frame on the requested frame number, but don't add a new one */
+/**
+ * Look up the gp-frame on the requested frame number, but don't add a new one.
+ * \param gpl: Grease pencil layer
+ * \param cframe: Frame number
+ * \return Pointer to frame
+ */
 bGPDframe *BKE_gpencil_layer_frame_find(bGPDlayer *gpl, int cframe)
 {
   bGPDframe *gpf;
@@ -880,9 +968,14 @@ bGPDframe *BKE_gpencil_layer_frame_find(bGPDlayer *gpl, int cframe)
   return NULL;
 }
 
-/* get the appropriate gp-frame from a given layer
+/** Get the appropriate gp-frame from a given layer
  * - this sets the layer's actframe var (if allowed to)
  * - extension beyond range (if first gp-frame is after all frame in interest and cannot add)
+ *
+ * \param gpl: Grease pencil layer
+ * \param cframe: Frame number
+ * \param addnew: Add option
+ * \return Pointer to new frame
  */
 bGPDframe *BKE_gpencil_layer_frame_get(bGPDlayer *gpl, int cframe, eGP_GetFrame_Mode addnew)
 {
@@ -1038,7 +1131,12 @@ bGPDframe *BKE_gpencil_layer_frame_get(bGPDlayer *gpl, int cframe, eGP_GetFrame_
   return gpl->actframe;
 }
 
-/* delete the given frame from a layer */
+/**
+ * Delete the given frame from a layer.
+ * \param gpl: Grease pencil layer
+ * \param gpf: Grease pencil frame
+ * \return True if delete was done
+ */
 bool BKE_gpencil_layer_frame_delete(bGPDlayer *gpl, bGPDframe *gpf)
 {
   bool changed = false;
@@ -1062,6 +1160,12 @@ bool BKE_gpencil_layer_frame_delete(bGPDlayer *gpl, bGPDframe *gpf)
   return changed;
 }
 
+/**
+ * Get layer by name
+ * \param gpd: Grease pencil data-block
+ * \param name: Layer name
+ * \return Pointer to layer
+ */
 bGPDlayer *BKE_gpencil_layer_named_get(bGPdata *gpd, const char *name)
 {
   if (name[0] == '\0') {
@@ -1070,6 +1174,12 @@ bGPDlayer *BKE_gpencil_layer_named_get(bGPdata *gpd, const char *name)
   return BLI_findstring(&gpd->layers, name, offsetof(bGPDlayer, info));
 }
 
+/**
+ * Get mask layer by name.
+ * \param gpl: Grease pencil layer
+ * \param name: Mask name
+ * \return Pointer to mask layer
+ */
 bGPDlayer_Mask *BKE_gpencil_layer_mask_named_get(bGPDlayer *gpl, const char *name)
 {
   if (name[0] == '\0') {
@@ -1078,6 +1188,12 @@ bGPDlayer_Mask *BKE_gpencil_layer_mask_named_get(bGPDlayer *gpl, const char *nam
   return BLI_findstring(&gpl->mask_layers, name, offsetof(bGPDlayer_Mask, name));
 }
 
+/**
+ * Add grease pencil mask layer.
+ * \param gpl: Grease pencil layer
+ * \param name: Name of the mask
+ * \return Pointer to new mask layer
+ */
 bGPDlayer_Mask *BKE_gpencil_layer_mask_add(bGPDlayer *gpl, const char *name)
 {
 
@@ -1089,6 +1205,11 @@ bGPDlayer_Mask *BKE_gpencil_layer_mask_add(bGPDlayer *gpl, const char *name)
   return mask;
 }
 
+/**
+ * Remove grease pencil mask layer.
+ * \param gpl: Grease pencil layer
+ * \param mask: Grease pencil mask layer
+ */
 void BKE_gpencil_layer_mask_remove(bGPDlayer *gpl, bGPDlayer_Mask *mask)
 {
   BLI_freelinkN(&gpl->mask_layers, mask);
@@ -1096,6 +1217,11 @@ void BKE_gpencil_layer_mask_remove(bGPDlayer *gpl, bGPDlayer_Mask *mask)
   CLAMP_MIN(gpl->act_mask, 0);
 }
 
+/**
+ * Remove any reference to mask layer.
+ * \param gpd: Grease pencil data-block
+ * \param name: Name of the mask layer
+ */
 void BKE_gpencil_layer_mask_remove_ref(bGPdata *gpd, const char *name)
 {
   bGPDlayer_Mask *mask_next;
@@ -1127,6 +1253,11 @@ static int gpencil_cb_sort_masks(const void *arg1, const void *arg2)
   return val;
 }
 
+/**
+ * Sort grease pencil mask layers.
+ * \param gpd: Grease pencil data-block
+ * \param gpl: Grease pencil layer
+ */
 void BKE_gpencil_layer_mask_sort(bGPdata *gpd, bGPDlayer *gpl)
 {
   /* Update sort index. */
@@ -1142,6 +1273,10 @@ void BKE_gpencil_layer_mask_sort(bGPdata *gpd, bGPDlayer *gpl)
   BLI_listbase_sort(&gpl->mask_layers, gpencil_cb_sort_masks);
 }
 
+/**
+ * Sort all grease pencil mask layer.
+ * \param gpd: Grease pencil data-block
+ */
 void BKE_gpencil_layer_mask_sort_all(bGPdata *gpd)
 {
   LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
@@ -1170,12 +1305,21 @@ static int gpencil_cb_cmp_frame(void *thunk, const void *a, const void *b)
   return 0;
 }
 
+/**
+ * Sort grease pencil frames.
+ * \param gpl: Grease pencil layer
+ * \param r_has_duplicate_frames: Duplicated frames flag
+ */
 void BKE_gpencil_layer_frames_sort(struct bGPDlayer *gpl, bool *r_has_duplicate_frames)
 {
   BLI_listbase_sort_r(&gpl->frames, gpencil_cb_cmp_frame, r_has_duplicate_frames);
 }
 
-/* get the active gp-layer for editing */
+/**
+ * Get the active grease pencil layer for editing.
+ * \param gpd: Grease pencil data-block
+ * \return Pointer to layer
+ */
 bGPDlayer *BKE_gpencil_layer_active_get(bGPdata *gpd)
 {
   /* error checking */
@@ -1194,7 +1338,11 @@ bGPDlayer *BKE_gpencil_layer_active_get(bGPdata *gpd)
   return NULL;
 }
 
-/* set the active gp-layer */
+/**
+ * Set active grease pencil layer.
+ * \param gpd: Grease pencil data-block
+ * \param active: Grease pencil layer to set as active
+ */
 void BKE_gpencil_layer_active_set(bGPdata *gpd, bGPDlayer *active)
 {
   /* error checking */
@@ -1217,7 +1365,11 @@ void BKE_gpencil_layer_active_set(bGPdata *gpd, bGPDlayer *active)
   }
 }
 
-/* Set locked layers for autolock mode. */
+/**
+ * Set locked layers for autolock mode.
+ * \param gpd: Grease pencil data-block
+ * \param unlock: Unlock flag
+ */
 void BKE_gpencil_layer_autolock_set(bGPdata *gpd, const bool unlock)
 {
   BLI_assert(gpd != NULL);
@@ -1248,7 +1400,11 @@ void BKE_gpencil_layer_autolock_set(bGPdata *gpd, const bool unlock)
   }
 }
 
-/* delete the active gp-layer */
+/**
+ * Delete grease pencil layer.
+ * \param gpd: Grease pencil data-block
+ * \param gpl: Grease pencil layer
+ */
 void BKE_gpencil_layer_delete(bGPdata *gpd, bGPDlayer *gpl)
 {
   /* error checking */
@@ -1271,6 +1427,11 @@ void BKE_gpencil_layer_delete(bGPdata *gpd, bGPDlayer *gpl)
   BLI_freelinkN(&gpd->layers, gpl);
 }
 
+/**
+ * Get grease pencil material from brush.
+ * \param brush: Brush
+ * \return Pointer to material
+ */
 Material *BKE_gpencil_brush_material_get(Brush *brush)
 {
   Material *ma = NULL;
@@ -1283,6 +1444,11 @@ Material *BKE_gpencil_brush_material_get(Brush *brush)
   return ma;
 }
 
+/**
+ * Set grease pencil brush material.
+ * \param brush: Brush
+ * \param ma: Material
+ */
 void BKE_gpencil_brush_material_set(Brush *brush, Material *ma)
 {
   BLI_assert(brush);
@@ -1298,7 +1464,13 @@ void BKE_gpencil_brush_material_set(Brush *brush, Material *ma)
   }
 }
 
-/* Adds the pinned material to the object if necessary. */
+/**
+ * Adds the pinned material to the object if necessary.
+ * \param bmain: Main pointer
+ * \param ob: Grease pencil object
+ * \param brush: Brush
+ * \return Pointer to material
+ */
 Material *BKE_gpencil_object_material_ensure_from_brush(Main *bmain, Object *ob, Brush *brush)
 {
   if (brush->gpencil_settings->flag & GP_BRUSH_MATERIAL_PINNED) {
@@ -1318,7 +1490,13 @@ Material *BKE_gpencil_object_material_ensure_from_brush(Main *bmain, Object *ob,
   }
 }
 
-/* Assigns the material to object (if not already present) and returns its index (mat_nr). */
+/**
+ * Assigns the material to object (if not already present) and returns its index (mat_nr).
+ * \param bmain: Main pointer
+ * \param ob: Grease pencil object
+ * \param material: Material
+ * \return Index of the material
+ */
 int BKE_gpencil_object_material_ensure(Main *bmain, Object *ob, Material *material)
 {
   if (!material) {
@@ -1335,8 +1513,11 @@ int BKE_gpencil_object_material_ensure(Main *bmain, Object *ob, Material *materi
 
 /**
  * Creates a new gpencil material and assigns it to object.
- *
- * \param *r_index: value is set to zero based index of the new material if \a r_index is not NULL.
+ * \param bmain: Main pointer
+ * \param ob: Grease pencil object
+ * \param name: Material name
+ * \param r_index: value is set to zero based index of the new material if \a r_index is not NULL.
+ * \return Materil pointer
  */
 Material *BKE_gpencil_object_material_new(Main *bmain, Object *ob, const char *name, int *r_index)
 {
@@ -1352,7 +1533,12 @@ Material *BKE_gpencil_object_material_new(Main *bmain, Object *ob, const char *n
   return ma;
 }
 
-/* Returns the material for a brush with respect to its pinned state. */
+/**
+ * Returns the material for a brush with respect to its pinned state.
+ * \param ob: Grease pencil object
+ * \param brush: Brush
+ * \return Material pointer
+ */
 Material *BKE_gpencil_object_material_from_brush_get(Object *ob, Brush *brush)
 {
   if ((brush) && (brush->gpencil_settings) &&
@@ -1365,7 +1551,12 @@ Material *BKE_gpencil_object_material_from_brush_get(Object *ob, Brush *brush)
   }
 }
 
-/* Returns the material index for a brush with respect to its pinned state. */
+/**
+ * Returns the material index for a brush with respect to its pinned state.
+ * \param ob: Grease pencil object
+ * \param brush: Brush
+ * \return Materil index
+ */
 int BKE_gpencil_object_material_get_index_from_brush(Object *ob, Brush *brush)
 {
   if ((brush) && (brush->gpencil_settings->flag & GP_BRUSH_MATERIAL_PINNED)) {
@@ -1376,7 +1567,13 @@ int BKE_gpencil_object_material_get_index_from_brush(Object *ob, Brush *brush)
   }
 }
 
-/* Guaranteed to return a material assigned to object. Returns never NULL. */
+/**
+ * Guaranteed to return a material assigned to object. Returns never NULL.
+ * \param bmain: Main pointer
+ * \param ob: Grease pencil object
+ * \param ts: Toolsettings
+ * \return Material pointer
+ */
 Material *BKE_gpencil_object_material_ensure_from_active_input_toolsettings(Main *bmain,
                                                                             Object *ob,
                                                                             ToolSettings *ts)
@@ -1390,7 +1587,13 @@ Material *BKE_gpencil_object_material_ensure_from_active_input_toolsettings(Main
   }
 }
 
-/* Guaranteed to return a material assigned to object. Returns never NULL. */
+/**
+ * Guaranteed to return a material assigned to object. Returns never NULL.
+ * \param bmain: Main pointer
+ * \param ob: Grease pencil obejct
+ * \param brush: Brush
+ * \return Material pointer
+ */
 Material *BKE_gpencil_object_material_ensure_from_active_input_brush(Main *bmain,
                                                                      Object *ob,
                                                                      Brush *brush)
@@ -1411,6 +1614,8 @@ Material *BKE_gpencil_object_material_ensure_from_active_input_brush(Main *bmain
 /**
  * Guaranteed to return a material assigned to object. Returns never NULL.
  * Only use this for materials unrelated to user input.
+ * \param ob: Grease pencil object
+ * \return Material pointer
  */
 Material *BKE_gpencil_object_material_ensure_from_active_input_material(Object *ob)
 {
@@ -1422,7 +1627,11 @@ Material *BKE_gpencil_object_material_ensure_from_active_input_material(Object *
   return BKE_material_default_gpencil();
 }
 
-/* Get active color, and add all default settings if we don't find anything */
+/**
+ * Get active color, and add all default settings if we don't find anything.
+ * \param ob: Grease pencil object
+ * \return Material pointer
+ */
 Material *BKE_gpencil_object_material_ensure_active(Object *ob)
 {
   Material *ma = NULL;
@@ -1441,6 +1650,11 @@ Material *BKE_gpencil_object_material_ensure_active(Object *ob)
 }
 
 /* ************************************************** */
+/**
+ * Check if stroke has any point selected
+ * \param gps: Grease pencil stroke
+ * \return True if selected
+ */
 bool BKE_gpencil_stroke_select_check(const bGPDstroke *gps)
 {
   const bGPDspoint *pt;
@@ -1456,7 +1670,11 @@ bool BKE_gpencil_stroke_select_check(const bGPDstroke *gps)
 /* ************************************************** */
 /* GP Object - Vertex Groups */
 
-/* remove a vertex group */
+/**
+ * Remove a vertex group.
+ * \param ob: Grease pencil object
+ * \param defgroup: deform group
+ */
 void BKE_gpencil_vgroup_remove(Object *ob, bDeformGroup *defgroup)
 {
   bGPdata *gpd = ob->data;
@@ -1495,6 +1713,10 @@ void BKE_gpencil_vgroup_remove(Object *ob, bDeformGroup *defgroup)
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 }
 
+/**
+ * Ensure stroke has vertex group.
+ * \param gps: Grease pencil stroke
+ */
 void BKE_gpencil_dvert_ensure(bGPDstroke *gps)
 {
   if (gps->dvert == NULL) {
@@ -1567,7 +1789,12 @@ float BKE_gpencil_multiframe_falloff_calc(
   return value;
 }
 
-/* reassign strokes using a material */
+/**
+ * Reassign strokes using a material.
+ * \param gpd: Grease pencil data-block
+ * \param totcol: Total materials
+ * \param index: Index of the material
+ */
 void BKE_gpencil_material_index_reassign(bGPdata *gpd, int totcol, int index)
 {
   LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
@@ -1583,7 +1810,12 @@ void BKE_gpencil_material_index_reassign(bGPdata *gpd, int totcol, int index)
   }
 }
 
-/* remove strokes using a material */
+/**
+ * Remove strokes using a material.
+ * \param gpd: Grease pencil data-block
+ * \param index: Index of the material
+ * \return True if removed
+ */
 bool BKE_gpencil_material_index_used(bGPdata *gpd, int index)
 {
   LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
@@ -1599,6 +1831,12 @@ bool BKE_gpencil_material_index_used(bGPdata *gpd, int index)
   return false;
 }
 
+/**
+ * Remap material
+ * \param gpd: Grease pencil data-block
+ * \param remap: Remap index
+ * \param remap_len: Remap length
+ */
 void BKE_gpencil_material_remap(struct bGPdata *gpd,
                                 const unsigned int *remap,
                                 unsigned int remap_len)
@@ -1624,7 +1862,15 @@ void BKE_gpencil_material_remap(struct bGPdata *gpd,
 #undef MAT_NR_REMAP
 }
 
-/* Load a table with material conversion index for merged materials. */
+/**
+ * Load a table with material conversion index for merged materials.
+ * \param ob: Grease pencil object
+ * \param hue_threshold: Threshold for Hue
+ * \param sat_threshold: Threshold for Saturation
+ * \param val_threshold: Threshold for Value
+ * \param r_mat_table : return material table
+ * \return True if done
+ */
 bool BKE_gpencil_merge_materials_table_get(Object *ob,
                                            const float hue_threshold,
                                            const float sat_threshold,
@@ -1720,7 +1966,10 @@ bool BKE_gpencil_merge_materials_table_get(Object *ob,
   return changed;
 }
 
-/* statistics functions */
+/**
+ * Calc grease pencil statistics functions.
+ * \param gpd: Grease pencil data-block
+ */
 void BKE_gpencil_stats_update(bGPdata *gpd)
 {
   gpd->totlayer = 0;
@@ -1740,7 +1989,12 @@ void BKE_gpencil_stats_update(bGPdata *gpd)
   }
 }
 
-/* get material index (0-based like mat_nr not actcol) */
+/**
+ * Get material index (0-based like mat_nr not actcol).
+ * \param ob: Grease pencil object
+ * \param ma: Material
+ * \return Index of the material
+ */
 int BKE_gpencil_object_material_index_get(Object *ob, Material *ma)
 {
   short *totcol = BKE_object_material_len_p(ob);
@@ -1755,7 +2009,11 @@ int BKE_gpencil_object_material_index_get(Object *ob, Material *ma)
   return -1;
 }
 
-/* Create a default palette */
+/**
+ * Create a default palette.
+ * \param bmain: Main pointer
+ * \param scene: Scene
+ */
 void BKE_gpencil_palette_ensure(Main *bmain, Scene *scene)
 {
   const int totcol = 120;
@@ -1805,6 +2063,14 @@ void BKE_gpencil_palette_ensure(Main *bmain, Scene *scene)
   }
 }
 
+/**
+ * Create grease pencil strokes from image
+ * \param sima: Image
+ * \param gpf: Grease pencil frame
+ * \param size: Size
+ * \param mask: Mask
+ * \return  True if done
+ */
 bool BKE_gpencil_from_image(SpaceImage *sima, bGPDframe *gpf, const float size, const bool mask)
 {
   Image *image = sima->image;
@@ -2062,6 +2328,11 @@ void BKE_gpencil_visible_stroke_iter(ViewLayer *view_layer,
   }
 }
 
+/**
+ * Update original pointers in evaluated frame.
+ * \param gpf_orig: Original greas epencil frame
+ * \param gpf_eval: Evaluated grease pencil frame
+ */
 void BKE_gpencil_frame_original_pointers_update(const struct bGPDframe *gpf_orig,
                                                 const struct bGPDframe *gpf_eval)
 {
@@ -2090,6 +2361,11 @@ void BKE_gpencil_frame_original_pointers_update(const struct bGPDframe *gpf_orig
   }
 }
 
+/**
+ * Update pointers of eval data to original data to keep references.
+ * \param ob_orig: Original grease pencil object
+ * \param ob_eval: Evaluated grease pencil object
+ */
 void BKE_gpencil_update_orig_pointers(const Object *ob_orig, const Object *ob_eval)
 {
   bGPdata *gpd_eval = (bGPdata *)ob_eval->data;
@@ -2120,6 +2396,13 @@ void BKE_gpencil_update_orig_pointers(const Object *ob_orig, const Object *ob_ev
   }
 }
 
+/**
+ * Get parent matrix, including layer parenting.
+ * \param depsgraph: Depsgraph
+ * \param obact: Grease pencil object
+ * \param gpl: Grease pencil layer
+ * \param diff_mat: Result parent matrix
+ */
 void BKE_gpencil_parent_matrix_get(const Depsgraph *depsgraph,
                                    Object *obact,
                                    bGPDlayer *gpl,
@@ -2169,6 +2452,11 @@ void BKE_gpencil_parent_matrix_get(const Depsgraph *depsgraph,
   }
 }
 
+/**
+ * Update parent matrix.
+ * \param depsgraph: Depsgraph
+ * \param ob: Grease pencil object
+ */
 void BKE_gpencil_update_layer_parent(const Depsgraph *depsgraph, Object *ob)
 {
   if (ob->type != OB_GPENCIL) {

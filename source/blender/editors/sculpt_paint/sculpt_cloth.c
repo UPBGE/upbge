@@ -194,15 +194,13 @@ static float cloth_brush_simulation_falloff_get(const Brush *brush,
     /* Outiside the limits. */
     return 0.0f;
   }
-  else if (distance < falloff) {
+  if (distance < falloff) {
     /* Before the falloff area. */
     return 1.0f;
   }
-  else {
-    /* Do a smoothstep transition inside the falloff area. */
-    float p = 1.0f - ((distance - falloff) / (limit - falloff));
-    return 3.0f * p * p - 2.0f * p * p * p;
-  }
+  /* Do a smoothstep transition inside the falloff area. */
+  float p = 1.0f - ((distance - falloff) / (limit - falloff));
+  return 3.0f * p * p - 2.0f * p * p * p;
 }
 
 static void cloth_brush_apply_force_to_vertex(SculptSession *UNUSED(ss),
@@ -671,8 +669,6 @@ void SCULPT_do_cloth_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 
   /* Update and write the simulation to the nodes. */
   cloth_brush_do_simulation_step(sd, ob, ss->cache->cloth_sim, nodes, totnode);
-
-  return;
 }
 
 void SCULPT_cloth_simulation_free(struct SculptClothSimulation *cloth_sim)

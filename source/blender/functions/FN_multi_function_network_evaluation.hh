@@ -23,15 +23,14 @@
 
 #include "FN_multi_function_network.hh"
 
-namespace blender {
-namespace fn {
+namespace blender::fn {
 
 class MFNetworkEvaluationStorage;
 
 class MFNetworkEvaluator : public MultiFunction {
  private:
-  Vector<const MFOutputSocket *> m_inputs;
-  Vector<const MFInputSocket *> m_outputs;
+  Vector<const MFOutputSocket *> inputs_;
+  Vector<const MFInputSocket *> outputs_;
 
  public:
   MFNetworkEvaluator(Vector<const MFOutputSocket *> inputs, Vector<const MFInputSocket *> outputs);
@@ -60,7 +59,6 @@ class MFNetworkEvaluator : public MultiFunction {
                                     Span<const MFInputSocket *> remaining_outputs) const;
 };
 
-}  // namespace fn
-}  // namespace blender
+}  // namespace blender::fn
 
 #endif /* __FN_MULTI_FUNCTION_NETWORK_EVALUATION_HH__ */
