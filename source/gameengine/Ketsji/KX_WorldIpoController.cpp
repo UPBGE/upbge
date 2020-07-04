@@ -35,13 +35,28 @@
 #include "KX_Globals.h"
 #include "KX_Scene.h"
 
+KX_WorldIpoController::KX_WorldIpoController(KX_Scene *scene) :
+	m_modify_mist_start(false),
+	m_modify_mist_dist(false),
+	m_modify_mist_intensity(false),
+	m_modify_horizon_color(false),
+	m_modify_zenith_color(false),
+	m_modify_ambient_color(false),
+	m_kxscene(scene)
+{
+}
+
+KX_WorldIpoController::~KX_WorldIpoController()
+{
+}
+
 bool KX_WorldIpoController::Update(SG_Node *node)
 {
 	if (!SG_Controller::Update(node)) {
 		return false;
 	}
 
-	KX_WorldInfo *world = KX_GetActiveScene()->GetWorldInfo();
+	KX_WorldInfo *world = m_kxscene->GetWorldInfo();
 
 	if (m_modify_mist_start) {
 		world->setMistStart(m_mist_start);
