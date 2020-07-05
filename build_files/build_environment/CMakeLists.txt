@@ -19,10 +19,10 @@
 ####################################################################################################
 #
 # This is a build system used by platform maintainers to build library dependencies on
-# Windows, macOS and Linux.
+# Windows and macOS. There is some support for Linux as well, but not ready for releases.
 #
-# For users building Blender, we recommend using the precompiled libraries from lib/ on
-# Windows and macOS, and install_deps.sh on Linux.
+# Windows and macOS users should download the precompiled libraries in lib/, Linux users
+# should run install_deps.sh for building dependencies.
 #
 # WINDOWS USAGE:
 #   Don't call this cmake file yourself, use build_deps.cmd
@@ -102,14 +102,13 @@ if(WITH_EMBREE)
 endif()
 
 if(WIN32)
-	# HMD branch deps
+	#hmd_branch_deps
 	include(cmake/hidapi.cmake)
-	# OCIO deps
+	#ocio deps
 	include(cmake/tinyxml.cmake)
 	include(cmake/yamlcpp.cmake)
-	# LCMS is an OCIO dep, but only if you build the apps, leaving it here for convenience
+	#lcms is an ocio dep, but only if you build the apps, leaving it here for convenience
 	#include(cmake/lcms.cmake)
-
 endif()
 
 if(NOT WIN32 OR ENABLE_MINGW64)
@@ -134,16 +133,16 @@ if(NOT WIN32 OR ENABLE_MINGW64)
 		endif()
 		if(UNIX)
 			include(cmake/flac.cmake)
-			include(cmake/xml2.cmake)
 			if(NOT APPLE)
 				include(cmake/spnav.cmake)
 				include(cmake/jemalloc.cmake)
+				include(cmake/xml2.cmake)
 			endif()
 		endif()
 	endif()
 endif()
 
-if(UNIX)
+if(UNIX AND NOT APPLE)
 	include(cmake/bzip2.cmake)
 	include(cmake/ffi.cmake)
 	include(cmake/lzma.cmake)
