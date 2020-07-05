@@ -41,6 +41,7 @@ KX_PythonComponent::KX_PythonComponent(const std::string& name)
 
 KX_PythonComponent::~KX_PythonComponent()
 {
+	Dispose();
 }
 
 std::string KX_PythonComponent::GetName()
@@ -110,6 +111,23 @@ void KX_PythonComponent::Update()
 	PyObject *pycomp = GetProxy();
 	if (!PyObject_CallMethod(pycomp, "update", "")) {
 		PyErr_Print();
+	}
+}
+
+void KX_PythonComponent::Dispose()
+{
+	PyObject* pycomp = GetProxy();
+
+	/* Check if the component has a method named "dispose" */
+	PyObject* item = PyObject_GetAttrString(pycomp, "dispose");
+	if (item) {
+		Py_XDECREF(item);
+		if (!PyObject_CallMethod(pycomp, "dispose", "")) {
+			PyErr_Print();
+		}
+	}
+	else {
+		PyErr_Clear();
 	}
 }
 
