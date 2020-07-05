@@ -142,13 +142,12 @@ if(WITH_IMAGE_OPENEXR)
 	set(OPENEXR ${LIBDIR}/openexr)
 	set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
 	set(OPENEXR_INCLUDE_DIRS ${OPENEXR_INCLUDE_DIR} ${OPENEXR}/include/OpenEXR)
-	set(OPENEXR_POSTFIX -2_2)
 	set(OPENEXR_LIBRARIES
-		Iex${OPENEXR_POSTFIX}
+    Iex
 		Half
-		IlmImf${OPENEXR_POSTFIX}
-		Imath${OPENEXR_POSTFIX}
-		IlmThread${OPENEXR_POSTFIX})
+    IlmImf
+    Imath
+    IlmThread
 	set(OPENEXR_LIBPATH ${OPENEXR}/lib)
 endif()
 
