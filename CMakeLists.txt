@@ -197,6 +197,8 @@ elseif(APPLE)
 	set(_init_OPENCOLORIO                    OFF)
 	set(_init_OPENSUBDIV                     OFF)
 	set(_init_SYSTEM_OPENJPG                 OFF)
+  set(_init_CYCLES_OSL                     OFF)
+  set(_init_OPENCOLLADA                    OFF)
 endif()
 
 
