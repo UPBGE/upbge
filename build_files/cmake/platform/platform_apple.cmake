@@ -147,7 +147,7 @@ if(WITH_IMAGE_OPENEXR)
 		Half
     IlmImf
     Imath
-    IlmThread
+    IlmThread)
 	set(OPENEXR_LIBPATH ${OPENEXR}/lib)
 endif()
 
