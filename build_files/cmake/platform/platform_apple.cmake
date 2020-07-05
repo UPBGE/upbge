@@ -85,8 +85,8 @@ if(WITH_CODEC_SNDFILE)
 endif()
 
 if(WITH_PYTHON)
-	# we use precompiled libraries for py 3.7 and up by default
-	set(PYTHON_VERSION 3.7)
+	# we use precompiled libraries for py 3.5 and up by default
+	set(PYTHON_VERSION 3.6)
 	if(NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
 		# normally cached but not since we include them with blender
 		set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}m")
@@ -142,12 +142,13 @@ if(WITH_IMAGE_OPENEXR)
 	set(OPENEXR ${LIBDIR}/openexr)
 	set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
 	set(OPENEXR_INCLUDE_DIRS ${OPENEXR_INCLUDE_DIR} ${OPENEXR}/include/OpenEXR)
+	set(OPENEXR_POSTFIX -2_2)
 	set(OPENEXR_LIBRARIES
-		Iex
+		Iex${OPENEXR_POSTFIX}
 		Half
-		IlmImf
-		Imath
-		IlmThread)
+		IlmImf${OPENEXR_POSTFIX}
+		Imath${OPENEXR_POSTFIX}
+		IlmThread${OPENEXR_POSTFIX})
 	set(OPENEXR_LIBPATH ${OPENEXR}/lib)
 endif()
 
@@ -156,10 +157,12 @@ if(WITH_CODEC_FFMPEG)
 	set(FFMPEG_INCLUDE_DIRS ${FFMPEG}/include)
 	set(FFMPEG_LIBRARIES
 		avcodec avdevice avformat avutil
-		mp3lame swscale x264 xvidcore
-		theora theoradec theoraenc
-		vorbis vorbisenc vorbisfile ogg
-		vpx swresample)
+		mp3lame swscale x264 xvidcore theora theoradec theoraenc vorbis vorbisenc vorbisfile ogg
+		)
+	      # commenting out until libs are updated on svn. schroedinger and orc
+	      # will be removed then
+	      #	set(FFMPEG_LIBRARIES ${FFMPEG_LIBRARIES} vpx webp swresample)
+	set(FFMPEG_LIBRARIES ${FFMPEG_LIBRARIES} schroedinger orc vpx webp swresample)
 	set(FFMPEG_LIBPATH ${FFMPEG}/lib)
 endif()
 
@@ -168,7 +171,9 @@ if(WITH_IMAGE_OPENJPEG OR WITH_CODEC_FFMPEG)
 	set(OPENJPEG ${LIBDIR}/openjpeg)
 	set(WITH_SYSTEM_OPENJPEG ON)
 	set(OPENJPEG_INCLUDE_DIRS ${OPENJPEG}/include)
-	set(OPENJPEG_LIBRARIES ${OPENJPEG}/lib/libopenjp2.a)
+	# same as with ffmpeg libs, update when svn are updated
+	#set(OPENJPEG_LIBRARIES ${OPENJPEG}/lib/libopenjp2.a)
+	set(OPENJPEG_LIBRARIES ${OPENJPEG}/lib/libopenjpeg.a)
 endif()
 
 find_library(SYSTEMSTUBS_LIBRARY
@@ -216,14 +221,17 @@ if(WITH_OPENCOLLADA)
 		-lOpenCOLLADAStreamWriter
 		-lMathMLSolver
 		-lGeneratedSaxParser
-		-lbuffer -lftoa -lUTF
-		${OPENCOLLADA_LIBPATH}/libxml2.a
+		-lxml2 -lbuffer -lftoa
 	)
-	# PCRE is bundled with openCollada
+	# Use UTF functions from collada if LLVM is not enabled
+	if(NOT WITH_LLVM)
+		list(APPEND OPENCOLLADA_LIBRARIES -lUTF)
+	endif()
+	# pcre is bundled with openCollada
 	#set(PCRE ${LIBDIR}/pcre)
 	#set(PCRE_LIBPATH ${PCRE}/lib)
 	set(PCRE_LIBRARIES pcre)
-	# libxml2 is used
+	#libxml2 is used
 	#set(EXPAT ${LIBDIR}/expat)
 	#set(EXPAT_LIBPATH ${EXPAT}/lib)
 	set(EXPAT_LIB)
@@ -293,6 +301,7 @@ if(WITH_OPENIMAGEIO)
 		${OPENJPEG_LIBRARIES}
 		${ZLIB_LIBRARIES}
 	)
+	set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO_LIBRARIES} ${LIBDIR}/ffmpeg/lib/libwebp.a)
 	set(OPENIMAGEIO_LIBPATH
 		${OPENIMAGEIO}/lib
 		${JPEG_LIBPATH}
