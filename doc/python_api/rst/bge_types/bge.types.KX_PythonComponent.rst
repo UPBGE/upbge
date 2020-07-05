@@ -147,3 +147,11 @@ base class --- :class:`EXP_Value`
       .. warning::
 
          This function must be inherited in the python component class.
+
+   .. method:: dispose()
+
+      Function called when the component is destroyed.
+
+      .. warning::
+
+         This function must be inherited in the python component class.
