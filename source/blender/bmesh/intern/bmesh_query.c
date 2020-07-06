@@ -34,6 +34,8 @@
 
 #include "BKE_customdata.h"
 
+#include "DNA_meshdata_types.h"
+
 #include "bmesh.h"
 #include "intern/bmesh_private.h"
 
@@ -155,6 +157,37 @@ BMLoop *BM_loop_other_vert_loop(BMLoop *l, BMVert *v)
   BLI_assert(l->next->v == v);
   return l->next->next;
 #endif
+}
+
+/**
+ * Return the other loop that uses this edge.
+ *
+ * In this case the loop defines the vertex,
+ * the edge passed in defines the direction to step.
+ *
+ * <pre>
+ *     +----------+ <-- Return the face-loop of this vertex.
+ *     |          |
+ *     |        e | <-- This edge defines the direction.
+ *     |          |
+ *     +----------+ <-- This loop defines the face and vertex..
+ *                l
+ * </pre>
+ *
+ */
+BMLoop *BM_loop_other_vert_loop_by_edge(BMLoop *l, BMEdge *e)
+{
+  BLI_assert(BM_vert_in_edge(e, l->v));
+  if (l->e == e) {
+    return l->next;
+  }
+  else if (l->prev->e == e) {
+    return l->prev;
+  }
+  else {
+    BLI_assert(0);
+    return NULL;
+  }
 }
 
 /**
@@ -1781,6 +1814,20 @@ void BM_edge_calc_face_tangent(const BMEdge *e, const BMLoop *e_loop, float r_ta
    * for non flat ngons it will give a better direction */
   cross_v3_v3v3(r_tangent, tvec, e_loop->f->no);
   normalize_v3(r_tangent);
+}
+
+float BM_face_calc_uv_cross(const BMFace *f, const int cd_loop_uv_offset)
+{
+  float(*uvs)[2] = BLI_array_alloca(uvs, f->len);
+  const BMLoop *l_iter;
+  const BMLoop *l_first;
+  int i = 0;
+  l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+  do {
+    const MLoopUV *luv = BM_ELEM_CD_GET_VOID_P(l_iter, cd_loop_uv_offset);
+    copy_v2_v2(uvs[i++], luv->uv);
+  } while ((l_iter = l_iter->next) != l_first);
+  return cross_poly_v2(uvs, f->len);
 }
 
 /**

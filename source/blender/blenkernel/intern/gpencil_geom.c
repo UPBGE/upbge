@@ -989,7 +989,7 @@ bool BKE_gpencil_stroke_smooth_uv(bGPDstroke *gps, int point_index, float influe
  * \param points: Array of grease pencil points (3D)
  * \param totpoints: Total of points
  * \param points2d: Result array of 2D points
- * \param r_direction: Return Concave (-1), Convex (1), or Autodetect (0)
+ * \param r_direction: Return Concave (-1), Convex (1), or Auto-detect (0)
  */
 void BKE_gpencil_stroke_2d_flat(const bGPDspoint *points,
                                 int totpoints,
@@ -1043,7 +1043,7 @@ void BKE_gpencil_stroke_2d_flat(const bGPDspoint *points,
     points2d[i][1] = dot_v3v3(loc, locy);
   }
 
-  /* Concave (-1), Convex (1), or Autodetect (0)? */
+  /* Concave (-1), Convex (1), or Auto-detect (0)? */
   *r_direction = (int)locy[2];
 }
 
@@ -1056,7 +1056,7 @@ void BKE_gpencil_stroke_2d_flat(const bGPDspoint *points,
  * \param totpoints: Total points
  * \param points2d: Result array of 2D points
  * \param scale: Scale factor
- * \param r_direction: Return Concave (-1), Convex (1), or Autodetect (0)
+ * \param r_direction: Return Concave (-1), Convex (1), or Auto-detect (0)
  */
 void BKE_gpencil_stroke_2d_flat_ref(const bGPDspoint *ref_points,
                                     int ref_totpoints,
@@ -1138,7 +1138,7 @@ void BKE_gpencil_stroke_2d_flat_ref(const bGPDspoint *ref_points,
     points2d[i][1] = dot_v3v3(loc, locy);
   }
 
-  /* Concave (-1), Convex (1), or Autodetect (0)? */
+  /* Concave (-1), Convex (1), or Auto-detect (0)? */
   *r_direction = (int)locy[2];
 }
 
@@ -1289,9 +1289,9 @@ void BKE_gpencil_stroke_geometry_update(bGPDstroke *gps)
 
 /**
  * Calculate grease pencil stroke length.
- * @param gps Grease pencil stroke
- * @param use_3d Set to true to use 3D points
- * @return Length of the stroke
+ * \param gps: Grease pencil stroke
+ * \param use_3d: Set to true to use 3D points
+ * \return Length of the stroke
  */
 float BKE_gpencil_stroke_length(const bGPDstroke *gps, bool use_3d)
 {
@@ -2395,8 +2395,8 @@ void BKE_gpencil_convert_mesh(Main *bmain,
 
 /**
  * Apply grease pencil Transforms.
- * @param gpd Grease pencil data-block
- * @param mat Transformation matrix
+ * \param gpd: Grease pencil data-block
+ * \param mat: Transformation matrix
  */
 void BKE_gpencil_transform(bGPdata *gpd, float mat[4][4])
 {

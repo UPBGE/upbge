@@ -161,6 +161,7 @@ void ED_spacemacros_init(void)
    * We need to have them go after python operators too */
   ED_operatormacros_armature();
   ED_operatormacros_mesh();
+  ED_operatormacros_uvedit();
   ED_operatormacros_metaball();
   ED_operatormacros_node();
   ED_operatormacros_object();
