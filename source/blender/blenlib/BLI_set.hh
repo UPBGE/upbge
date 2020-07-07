@@ -260,10 +260,6 @@ class Set {
   {
     return this->add_as(std::move(key));
   }
-
-  /**
-   * Same as `add`, but accepts other key types that are supported by the hash function.
-   */
   template<typename ForwardKey> bool add_as(ForwardKey &&key)
   {
     return this->add__impl(std::forward<ForwardKey>(key), hash_(key));
@@ -303,13 +299,53 @@ class Set {
   {
     return this->contains_as(key);
   }
-
-  /**
-   * Same as `contains`, but accepts other key types that are supported by the hash function.
-   */
   template<typename ForwardKey> bool contains_as(const ForwardKey &key) const
   {
     return this->contains__impl(key, hash_(key));
+  }
+
+  /**
+   * Returns the key that is stored in the set that compares equal to the given key. This invokes
+   * undefined behavior when the key is not in the set.
+   */
+  const Key &lookup_key(const Key &key) const
+  {
+    return this->lookup_key_as(key);
+  }
+  template<typename ForwardKey> const Key &lookup_key_as(const ForwardKey &key) const
+  {
+    return this->lookup_key__impl(key, hash_(key));
+  }
+
+  /**
+   * Returns the key that is stored in the set that compares equal to the given key. If the key is
+   * not in the set, the given default value is returned instead.
+   */
+  const Key &lookup_key_default(const Key &key, const Key &default_value) const
+  {
+    return this->lookup_key_default_as(key, default_value);
+  }
+  template<typename ForwardKey>
+  const Key &lookup_key_default_as(const ForwardKey &key, const Key &default_key) const
+  {
+    const Key *ptr = this->lookup_key_ptr__impl(key, hash_(key));
+    if (ptr == nullptr) {
+      return default_key;
+    }
+    return *ptr;
+  }
+
+  /**
+   * Returns a pointer to the key that is stored in the set that compares equal to the given key.
+   * If the key is not in the set, nullptr is returned instead.
+   */
+  const Key *lookup_key_ptr(const Key &key) const
+  {
+    return this->lookup_key_ptr_as(key);
+  }
+  template<typename ForwardKey> const Key *lookup_key_ptr_as(const ForwardKey &key) const
+  {
+    return this->lookup_key_ptr__impl(key, hash_(key));
   }
 
   /**
@@ -321,10 +357,6 @@ class Set {
   {
     return this->remove_as(key);
   }
-
-  /**
-   * Same as `remove`, but accepts other key types that are supported by the hash function.
-   */
   template<typename ForwardKey> bool remove_as(const ForwardKey &key)
   {
     return this->remove__impl(key, hash_(key));
@@ -337,11 +369,6 @@ class Set {
   {
     this->remove_contained_as(key);
   }
-
-  /**
-   * Same as `remove_contained`, but accepts other key types that are supported by the hash
-   * function.
-   */
   template<typename ForwardKey> void remove_contained_as(const ForwardKey &key)
   {
     this->remove_contained__impl(key, hash_(key));
@@ -591,6 +618,33 @@ class Set {
       }
       if (slot.contains(key, is_equal_, hash)) {
         return true;
+      }
+    }
+    SET_SLOT_PROBING_END();
+  }
+
+  template<typename ForwardKey>
+  const Key &lookup_key__impl(const ForwardKey &key, const uint32_t hash) const
+  {
+    BLI_assert(this->contains_as(key));
+
+    SET_SLOT_PROBING_BEGIN (hash, slot) {
+      if (slot.contains(key, is_equal_, hash)) {
+        return *slot.key();
+      }
+    }
+    SET_SLOT_PROBING_END();
+  }
+
+  template<typename ForwardKey>
+  const Key *lookup_key_ptr__impl(const ForwardKey &key, const uint32_t hash) const
+  {
+    SET_SLOT_PROBING_BEGIN (hash, slot) {
+      if (slot.contains(key, is_equal_, hash)) {
+        return slot.key();
+      }
+      if (slot.is_empty()) {
+        return nullptr;
       }
     }
     SET_SLOT_PROBING_END();

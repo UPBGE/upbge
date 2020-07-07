@@ -738,6 +738,9 @@ def km_property_editor(_params):
         ("object.gpencil_modifier_remove", {"type": 'DEL', "value": 'PRESS'}, {"properties": [("report", True)]}),
         ("object.gpencil_modifier_copy", {"type": 'D', "value": 'PRESS', "shift": True}, None),
         ("object.gpencil_modifier_apply", {"type": 'A', "value": 'PRESS', "ctrl": True}, {"properties": [("report", True)]}),
+        # ShaderFX panels
+        ("object.shaderfx_remove", {"type": 'X', "value": 'PRESS'}, {"properties": [("report", True)]}),
+        ("object.shaderfx_remove", {"type": 'DEL', "value": 'PRESS'}, {"properties": [("report", True)]}),
     ])
 
     return keymap
@@ -866,7 +869,9 @@ def km_uv_editor(params):
         ("uv.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True}, None),
         *_template_items_select_actions(params, "uv.select_all"),
         ("uv.select_pinned", {"type": 'P', "value": 'PRESS', "shift": True}, None),
-        op_menu("IMAGE_MT_uvs_weldalign", {"type": 'W', "value": 'PRESS', "shift": True}),
+        op_menu("IMAGE_MT_uvs_merge", {"type": 'M', "value": 'PRESS'}),
+        op_menu("IMAGE_MT_uvs_split", {"type": 'M', "value": 'PRESS', "alt": True}),
+        op_menu("IMAGE_MT_uvs_align", {"type": 'W', "value": 'PRESS', "shift": True}),
         ("uv.stitch", {"type": 'V', "value": 'PRESS', "alt": True}, None),
         ("uv.rip_move", {"type": 'V', "value": 'PRESS'}, None),
         ("uv.pin", {"type": 'P', "value": 'PRESS'},

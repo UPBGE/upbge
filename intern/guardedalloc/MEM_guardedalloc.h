@@ -243,6 +243,11 @@ void MEM_use_guarded_allocator(void);
     void *operator new(size_t /*count*/, void *ptr) \
     { \
       return ptr; \
+    } \
+    /* This is the matching delete operator to the placement-new operator above. Both parameters \
+     * will have the same value. Without this, we get the warning C4291 on windows. */ \
+    void operator delete(void * /*ptr_to_free*/, void * /*ptr*/) \
+    { \
     }
 
 /* Needed when type includes a namespace, then the namespace should not be

@@ -95,8 +95,6 @@ class MFNode : NonCopyable, NonMovable {
   Span<MFOutputSocket *> outputs();
   Span<const MFOutputSocket *> outputs() const;
 
-  template<typename FuncT> void foreach_origin_socket(const FuncT &func) const;
-
   bool all_inputs_have_origin() const;
 
  private:
@@ -216,10 +214,18 @@ class MFNetwork : NonCopyable, NonMovable {
   void relink(MFOutputSocket &old_output, MFOutputSocket &new_output);
 
   void remove(MFNode &node);
+  void remove(Span<MFNode *> nodes);
 
-  uint max_socket_id() const;
+  uint socket_id_amount() const;
+  uint node_id_amount() const;
 
-  std::string to_dot() const;
+  Span<MFDummyNode *> dummy_nodes();
+  Span<MFFunctionNode *> function_nodes();
+
+  MFNode *node_or_null_by_id(uint id);
+  const MFNode *node_or_null_by_id(uint id) const;
+
+  std::string to_dot(Span<const MFNode *> marked_nodes = {}) const;
 };
 
 /* --------------------------------------------------------------------
@@ -323,16 +329,6 @@ inline Span<MFOutputSocket *> MFNode::outputs()
 inline Span<const MFOutputSocket *> MFNode::outputs() const
 {
   return outputs_;
-}
-
-template<typename FuncT> void MFNode::foreach_origin_socket(const FuncT &func) const
-{
-  for (const MFInputSocket *socket : inputs_) {
-    const MFOutputSocket *origin = socket->origin();
-    if (origin != nullptr) {
-      func(*origin);
-    }
-  }
 }
 
 inline bool MFNode::all_inputs_have_origin() const
@@ -483,9 +479,34 @@ inline Span<const MFInputSocket *> MFOutputSocket::targets() const
  * MFNetwork inline methods.
  */
 
-inline uint MFNetwork::max_socket_id() const
+inline Span<MFDummyNode *> MFNetwork::dummy_nodes()
 {
-  return socket_or_null_by_id_.size() - 1;
+  return dummy_nodes_;
+}
+
+inline Span<MFFunctionNode *> MFNetwork::function_nodes()
+{
+  return function_nodes_;
+}
+
+inline MFNode *MFNetwork::node_or_null_by_id(uint id)
+{
+  return node_or_null_by_id_[id];
+}
+
+inline const MFNode *MFNetwork::node_or_null_by_id(uint id) const
+{
+  return node_or_null_by_id_[id];
+}
+
+inline uint MFNetwork::socket_id_amount() const
+{
+  return socket_or_null_by_id_.size();
+}
+
+inline uint MFNetwork::node_id_amount() const
+{
+  return node_or_null_by_id_.size();
 }
 
 }  // namespace blender::fn
