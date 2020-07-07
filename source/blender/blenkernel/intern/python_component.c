@@ -508,8 +508,18 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
 	}
 
 	// Extract the module name and the class name.
-	modulename = strtok(import, ".");
-	classname = strtok(NULL, ".");
+	modulename = strdup(import);
+
+	char *pos = strrchr(modulename, '.');
+
+	if (pos) {
+		*pos = '\0';
+		classname = pos + 1;
+	}
+	else {
+		BKE_report(reports, RPT_ERROR_INVALID_INPUT, "Invalid module name.");
+		return NULL;
+	}
 
 	pc = MEM_callocN(sizeof(PythonComponent), "PythonComponent");
 

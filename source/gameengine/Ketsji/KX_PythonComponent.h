@@ -57,6 +57,7 @@ public:
 
 	void Start();
 	void Update();
+	void Dispose();
 
 	static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
