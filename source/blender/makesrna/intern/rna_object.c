@@ -1868,7 +1868,8 @@ static void rna_Object_modifier_remove(Object *object,
                                        PointerRNA *md_ptr)
 {
   ModifierData *md = md_ptr->data;
-  if (ED_object_modifier_remove(reports, CTX_data_main(C), object, md) == false) {
+  if (ED_object_modifier_remove(reports, CTX_data_main(C), CTX_data_scene(C), object, md) ==
+      false) {
     /* error is already set */
     return;
   }
@@ -1880,7 +1881,7 @@ static void rna_Object_modifier_remove(Object *object,
 
 static void rna_Object_modifier_clear(Object *object, bContext *C)
 {
-  ED_object_modifier_clear(CTX_data_main(C), object);
+  ED_object_modifier_clear(CTX_data_main(C), CTX_data_scene(C), object);
 
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_REMOVED, object);
 }
