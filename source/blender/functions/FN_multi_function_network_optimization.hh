@@ -14,35 +14,19 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __FN_CPP_TYPES_HH__
-#define __FN_CPP_TYPES_HH__
+#ifndef __FN_MULTI_FUNCTION_NETWORK_OPTIMIZATION_HH__
+#define __FN_MULTI_FUNCTION_NETWORK_OPTIMIZATION_HH__
 
-/** \file
- * \ingroup fn
- *
- * This header provides convenient access to CPPType instances for some core types like integer
- * types.
- */
+#include "FN_multi_function_network.hh"
 
-#include "FN_cpp_type.hh"
+#include "BLI_resource_collector.hh"
 
-namespace blender::fn {
+namespace blender::fn::mf_network_optimization {
 
-extern const CPPType &CPPType_bool;
+void dead_node_removal(MFNetwork &network);
+void constant_folding(MFNetwork &network, ResourceCollector &resources);
+void common_subnetwork_elimination(MFNetwork &network);
 
-extern const CPPType &CPPType_float;
-extern const CPPType &CPPType_float3;
-extern const CPPType &CPPType_float4x4;
+}  // namespace blender::fn::mf_network_optimization
 
-extern const CPPType &CPPType_int32;
-extern const CPPType &CPPType_uint32;
-extern const CPPType &CPPType_uint8;
-
-extern const CPPType &CPPType_Color4f;
-extern const CPPType &CPPType_Color4b;
-
-extern const CPPType &CPPType_string;
-
-}  // namespace blender::fn
-
-#endif /* __FN_CPP_TYPES_HH__ */
+#endif /* __FN_MULTI_FUNCTION_NETWORK_OPTIMIZATION_HH__ */

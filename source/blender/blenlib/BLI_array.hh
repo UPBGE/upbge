@@ -89,17 +89,19 @@ class Array {
   /**
    * Create a new array that contains copies of all values.
    */
-  Array(Span<T> values)
+  template<typename U, typename std::enable_if_t<std::is_convertible_v<U, T>> * = nullptr>
+  Array(Span<U> values, Allocator allocator = {}) : allocator_(allocator)
   {
     size_ = values.size();
     data_ = this->get_buffer_for_size(values.size());
-    uninitialized_copy_n(values.data(), size_, data_);
+    uninitialized_convert_n<U, T>(values.data(), size_, data_);
   }
 
   /**
    * Create a new array that contains copies of all values.
    */
-  Array(const std::initializer_list<T> &values) : Array(Span<T>(values))
+  template<typename U, typename std::enable_if_t<std::is_convertible_v<U, T>> * = nullptr>
+  Array(const std::initializer_list<U> &values) : Array(Span<U>(values))
   {
   }
 
@@ -147,12 +149,8 @@ class Array {
     data_ = this->get_buffer_for_size(size);
   }
 
-  Array(const Array &other) : allocator_(other.allocator_)
+  Array(const Array &other) : Array(other.as_span(), other.allocator_)
   {
-    size_ = other.size();
-
-    data_ = this->get_buffer_for_size(other.size());
-    uninitialized_copy_n(other.data(), size_, data_);
   }
 
   Array(Array &&other) noexcept : allocator_(other.allocator_)
@@ -221,6 +219,18 @@ class Array {
   operator MutableSpan<T>()
   {
     return MutableSpan<T>(data_, size_);
+  }
+
+  template<typename U, typename std::enable_if_t<is_convertible_pointer_v<T, U>> * = nullptr>
+  operator Span<U>() const
+  {
+    return Span<U>(data_, size_);
+  }
+
+  template<typename U, typename std::enable_if_t<is_convertible_pointer_v<T, U>> * = nullptr>
+  operator MutableSpan<U>()
+  {
+    return MutableSpan<U>(data_, size_);
   }
 
   Span<T> as_span() const
