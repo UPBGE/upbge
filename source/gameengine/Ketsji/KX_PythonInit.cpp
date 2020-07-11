@@ -617,6 +617,19 @@ static PyObject *pyPrintStats(PyObject *, PyObject *, PyObject *)
 	Py_RETURN_NONE;
 }
 
+static PyObject *gPyGetGraphicsCardVendor(PyObject *, PyObject *, PyObject *)
+{
+  RAS_Rasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
+  if (rasterizer) {
+    const unsigned char *vendor = rasterizer->GetGraphicsCardVendor();
+    return PyUnicode_FromString(reinterpret_cast<const char *>(vendor));
+  }
+  else {
+    CM_Error("no rasterizer detected for getGraphicsCardVendor!");
+    Py_RETURN_NONE;
+  }
+}
+
 static PyObject *pyPrintExt(PyObject *, PyObject *, PyObject *)
 {
 	RAS_Rasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
@@ -845,7 +858,8 @@ static struct PyMethodDef game_methods[] = {
 	{"setTimeScale", (PyCFunction)gPySetTimeScale, METH_VARARGS, (const char *)"Set the time multiplier"},
 	{"getBlendFileList", (PyCFunction)gPyGetBlendFileList, METH_VARARGS, (const char *)"Gets a list of blend files in the same directory as the current blend file"},
 	{"PrintGLInfo", (PyCFunction)pyPrintExt, METH_NOARGS, (const char *)"Prints GL Extension Info"},
-	{"PrintMemInfo", (PyCFunction)pyPrintStats, METH_NOARGS, (const char *)"Print engine statistics"},
+  {"getGraphicsCardVendor", (PyCFunction) gPyGetGraphicsCardVendor, METH_NOARGS, (const char *)"Gets graphics card vendor name"},
+  {"PrintMemInfo", (PyCFunction)pyPrintStats, METH_NOARGS, (const char *)"Print engine statistics"},
 	{"NextFrame", (PyCFunction)gPyNextFrame, METH_NOARGS, (const char *)"Render next frame (if Python has control)"},
 	{"getProfileInfo", (PyCFunction)gPyGetProfileInfo, METH_NOARGS, gPyGetProfileInfo_doc},
 	/* library functions */
