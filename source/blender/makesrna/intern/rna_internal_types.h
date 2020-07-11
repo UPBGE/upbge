@@ -41,6 +41,8 @@ struct Scene;
 struct StructRNA;
 struct bContext;
 
+typedef struct IDProperty IDProperty;
+
 /* store local properties here */
 #define RNA_IDP_UI "_RNA_UI"
 
@@ -155,24 +157,55 @@ typedef void (*PropEnumSetFuncEx)(struct PointerRNA *ptr, struct PropertyRNA *pr
 
 /* Handling override operations, and also comparison. */
 
+/** Structure storing all needed data to process all three kinds of RNA properties. */
+typedef struct PropertyRNAOrID {
+  PointerRNA ptr;
+
+  /** The PropertyRNA passed as parameter, used to generate that structure's content:
+   * - Static RNA: The RNA property (same as `rnaprop`), never NULL.
+   * - Runtime RNA: The RNA property (same as `rnaprop`), never NULL.
+   * - IDProperty: The IDProperty, never NULL.
+   */
+  PropertyRNA *rawprop;
+  /** The real RNA property of this property, never NULL:
+   * - Static RNA: The rna property, also gives direct access to the data (from any matching
+   *               PointerRNA).
+   * - Runtime RNA: The rna property, does not directly gives access to the data.
+   * - IDProperty: The generic PropertyRNA matching its type.
+   */
+  PropertyRNA *rnaprop;
+  /** The IDProperty storing the data of this property, may be NULL:
+   * - Static RNA: Always NULL.
+   * - Runtime RNA: The IDProperty storing the data of that property, may be NULL if never set yet.
+   * - IDProperty: The IDProperty, never NULL.
+   */
+  IDProperty *idprop;
+  /** The name of the property. */
+  const char *identifier;
+
+  /** Whether this property is a 'pure' IDProperty or not. */
+  bool is_idprop;
+  /** For runtime RNA properties, whether it is set, defined, or not.
+   * WARNING: This DOES take into account the `IDP_FLAG_GHOST` flag, i.e. it matches result of
+   *          `RNA_property_is_set`. */
+  bool is_set;
+
+  bool is_array;
+  uint array_len;
+} PropertyRNAOrID;
+
 /**
- * If \a override is NULL, merely do comparison between prop_a from ptr_a and prop_b from ptr_b,
+ * If \a override is NULL, merely do comparison between prop_a and prop_b,
  * following comparison mode given.
  * If \a override and \a rna_path are not NULL, it will add a new override operation for
  * overridable properties that differ and have not yet been overridden
  * (and set accordingly \a r_override_changed if given).
  *
- * \note Given PropertyRNA are final (in case of IDProps...).
- * \note In non-array cases, \a len values are 0.
  * \note \a override, \a rna_path and \a r_override_changed may be NULL pointers.
  */
 typedef int (*RNAPropOverrideDiff)(struct Main *bmain,
-                                   struct PointerRNA *ptr_a,
-                                   struct PointerRNA *ptr_b,
-                                   struct PropertyRNA *prop_a,
-                                   struct PropertyRNA *prop_b,
-                                   const int len_a,
-                                   const int len_b,
+                                   struct PropertyRNAOrID *prop_a,
+                                   struct PropertyRNAOrID *prop_b,
                                    const int mode,
                                    struct IDOverrideLibrary *override,
                                    const char *rna_path,

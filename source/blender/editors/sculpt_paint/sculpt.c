@@ -547,7 +547,7 @@ void SCULPT_visibility_sync_all_vertex_to_face_sets(SculptSession *ss)
   }
 }
 
-bool sculpt_check_unique_face_set_in_base_mesh(SculptSession *ss, int index)
+static bool sculpt_check_unique_face_set_in_base_mesh(SculptSession *ss, int index)
 {
   MeshElemMap *vert_map = &ss->pmap[index];
   int face_set = -1;
@@ -564,9 +564,11 @@ bool sculpt_check_unique_face_set_in_base_mesh(SculptSession *ss, int index)
   return true;
 }
 
-/* Checks if the face sets of the adjacent faces to the edge between v1 and v2 in the base mesh are
- * equal. */
-bool sculpt_check_unique_face_set_for_edge_in_base_mesh(SculptSession *ss, int v1, int v2)
+/**
+ * Checks if the face sets of the adjacent faces to the edge between \a v1 and \a v2
+ * in the base mesh are equal.
+ */
+static bool sculpt_check_unique_face_set_for_edge_in_base_mesh(SculptSession *ss, int v1, int v2)
 {
   MeshElemMap *vert_map = &ss->pmap[v1];
   int p1 = -1, p2 = -1;
@@ -786,7 +788,7 @@ void SCULPT_vertex_neighbors_get(SculptSession *ss,
   }
 }
 
-bool sculpt_check_boundary_vertex_in_base_mesh(SculptSession *ss, const int index)
+static bool sculpt_check_boundary_vertex_in_base_mesh(SculptSession *ss, const int index)
 {
   const MeshElemMap *vert_map = &ss->pmap[index];
   if (vert_map->count <= 1) {
@@ -8821,7 +8823,7 @@ static void SCULPT_OT_mask_by_color(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER;
 
   ot->prop = RNA_def_boolean(
-      ot->srna, "contiguous", false, "Contiguous", "Mask only contiguos color areas");
+      ot->srna, "contiguous", false, "Contiguous", "Mask only contiguous color areas");
 
   ot->prop = RNA_def_boolean(ot->srna, "invert", false, "Invert", "Invert the generated mask");
   ot->prop = RNA_def_boolean(
