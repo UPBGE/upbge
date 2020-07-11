@@ -243,10 +243,49 @@ static GPUTexture *GPU_texture_create_nD(
 	return tex;
 }
 
+static bool gpu_texture_check_capacity(GPUTexture *tex,
+                                       GLenum internalformat,
+                                       GLenum data_format,
+                                       GLenum data_type)
+{
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_WIN, GPU_DRIVER_ANY) ||
+      GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_MAC, GPU_DRIVER_OFFICIAL) ||
+      GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OFFICIAL)) {
+    /* Some AMD drivers have a faulty `GL_PROXY_TEXTURE_..` check.
+     * (see T55888, T56185, T59351).
+     * Checking with `GL_PROXY_TEXTURE_..` doesn't prevent `Out Of Memory` issue,
+     * it just states that the OGL implementation can support the texture.
+     * So manually check the maximum size and maximum number of layers.
+     * Same thing happens on Nvidia/macOS 10.15 (T78175). */
+
+     if ((tex->depth < 0) || (tex->depth > GPU_max_texture_size())) {
+       return false;
+     }
+
+     if ((tex->h < 0) || (tex->h > GPU_max_texture_size())) {
+       return false;
+     }
+
+     if ((tex->w < 0) || (tex->w > GPU_max_texture_size())) {
+       return false;
+     }
+
+     return true;
+  }
+  else {
+    glTexImage3D(GL_PROXY_TEXTURE_3D, 0, internalformat, tex->w, tex->h, tex->depth, 0, data_format, data_type, NULL);
+    int width = 0;
+    glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, 0, GL_TEXTURE_WIDTH, &width);
+
+    return (width > 0);
+  }
+}
+
 GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, const float *fpixels)
 {
 	GLenum type, format, internalformat;
 	void *pixels = NULL;
+  bool ret;
 
 	GPUTexture *tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->w = w;
@@ -281,22 +320,21 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, const f
 		internalformat = GL_INTENSITY8;
 	}
 
-	/* 3D textures are quite heavy, test if it's possible to create them first */
-	glTexImage3D(GL_PROXY_TEXTURE_3D, 0, internalformat, tex->w, tex->h, tex->depth, 0, format, type, NULL);
+  bool rescale = false;
+  ret = gpu_texture_check_capacity(tex, internalformat, format, type);
 
-	bool rescale = false;
-	int r_width;
-
-	glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, 0, GL_TEXTURE_WIDTH, &r_width);
-
-	while (r_width == 0) {
-		rescale = true;
-		tex->w /= 2;
-		tex->h /= 2;
-		tex->depth /= 2;
-		glTexImage3D(GL_PROXY_TEXTURE_3D, 0, internalformat, tex->w, tex->h, tex->depth, 0, format, type, NULL);
-		glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, 0, GL_TEXTURE_WIDTH, &r_width);
-	}
+  /* Find largest texture possible */
+  while (ret == false) {
+    rescale = true;
+    tex->w /= 2;
+    tex->h /= 2;
+    tex->depth /= 2;
+    /* really unlikely to happen but keep this just in case */
+    if (tex->w == 0 || tex->depth == 0) {
+      break;
+    }
+    ret = gpu_texture_check_capacity(tex, internalformat, format, type);
+  }
 
 	/* really unlikely to happen but keep this just in case */
 	tex->w = max_ii(tex->w, 1);
