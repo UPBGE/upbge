@@ -551,6 +551,19 @@ static PyObject *pyPrintStats(PyObject *, PyObject *, PyObject *)
   Py_RETURN_NONE;
 }
 
+static PyObject *gPyGetGraphicsCardVendor(PyObject *, PyObject *, PyObject *)
+{
+  RAS_Rasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
+  if (rasterizer) {
+    const unsigned char *vendor = rasterizer->GetGraphicsCardVendor();
+    return PyUnicode_FromString(reinterpret_cast<const char *>(vendor));
+  }
+  else {
+    CM_Error("no rasterizer detected for getGraphicsCardVendor!");
+    Py_RETURN_NONE;
+  }
+}
+
 static PyObject *pyPrintExt(PyObject *, PyObject *, PyObject *)
 {
   RAS_Rasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
@@ -879,6 +892,10 @@ static struct PyMethodDef game_methods[] = {
      (PyCFunction)pyPrintExt,
      METH_NOARGS,
      (const char *)"Prints GL Extension Info"},
+    {"getGraphicsCardVendor",
+     (PyCFunction)gPyGetGraphicsCardVendor,
+     METH_NOARGS,
+     (const char *)"Gets graphics card vendor name"},
     {"PrintMemInfo",
      (PyCFunction)pyPrintStats,
      METH_NOARGS,

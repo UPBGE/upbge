@@ -1073,3 +1073,8 @@ void RAS_Rasterizer::PrintHardwareInfo()
 {
   m_impl->PrintHardwareInfo();
 }
+
+const unsigned char* RAS_Rasterizer::GetGraphicsCardVendor()
+{
+  return m_impl->GetGraphicsCardVendor();
+}

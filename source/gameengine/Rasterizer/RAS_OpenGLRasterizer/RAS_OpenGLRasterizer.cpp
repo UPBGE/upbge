@@ -317,6 +317,11 @@ void RAS_OpenGLRasterizer::DisableForText()
   glActiveTexture(GL_TEXTURE0);
 }
 
+const unsigned char *RAS_OpenGLRasterizer::GetGraphicsCardVendor()
+{
+  return (unsigned char *)glGetString(GL_VENDOR);
+}
+
 void RAS_OpenGLRasterizer::PrintHardwareInfo()
 {
   CM_Message("GL_VENDOR: " << glGetString(GL_VENDOR));
