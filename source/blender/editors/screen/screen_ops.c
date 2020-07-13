@@ -354,7 +354,7 @@ bool ED_operator_object_active(bContext *C)
   return ((ob != NULL) && !ed_object_hidden(ob));
 }
 
-bool ED_operator_object_active_editable_ex(bContext *UNUSED(C), const Object *ob)
+static bool operator_object_active_editable_ex(const Object *ob)
 {
   return ((ob != NULL) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob));
 }
@@ -362,7 +362,14 @@ bool ED_operator_object_active_editable_ex(bContext *UNUSED(C), const Object *ob
 bool ED_operator_object_active_editable(bContext *C)
 {
   Object *ob = ED_object_active_context(C);
-  return ED_operator_object_active_editable_ex(C, ob);
+  return operator_object_active_editable_ex(ob);
+}
+
+/** Object must be editable and fully local (i.e. not an override). */
+bool ED_operator_object_active_local_editable(bContext *C)
+{
+  Object *ob = ED_object_active_context(C);
+  return operator_object_active_editable_ex(ob) && !ID_IS_OVERRIDE_LIBRARY(ob);
 }
 
 bool ED_operator_object_active_editable_mesh(bContext *C)

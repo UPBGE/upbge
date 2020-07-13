@@ -57,7 +57,7 @@ typedef void (*modifier_apply_threaded_cb)(int width,
                                            unsigned char *rect,
                                            float *rect_float,
                                            unsigned char *mask_rect,
-                                           float *mask_rect_float,
+                                           const float *mask_rect_float,
                                            void *data_v);
 
 typedef struct ModifierInitData {
@@ -223,7 +223,7 @@ static void whiteBalance_apply_threaded(int width,
                                         unsigned char *rect,
                                         float *rect_float,
                                         unsigned char *mask_rect,
-                                        float *mask_rect_float,
+                                        const float *mask_rect_float,
                                         void *data_v)
 {
   int x, y;
@@ -331,7 +331,7 @@ static void curves_apply_threaded(int width,
                                   unsigned char *rect,
                                   float *rect_float,
                                   unsigned char *mask_rect,
-                                  float *mask_rect_float,
+                                  const float *mask_rect_float,
                                   void *data_v)
 {
   CurveMapping *curve_mapping = (CurveMapping *)data_v;
@@ -461,7 +461,7 @@ static void hue_correct_apply_threaded(int width,
                                        unsigned char *rect,
                                        float *rect_float,
                                        unsigned char *mask_rect,
-                                       float *mask_rect_float,
+                                       const float *mask_rect_float,
                                        void *data_v)
 {
   CurveMapping *curve_mapping = (CurveMapping *)data_v;
@@ -556,7 +556,7 @@ static void brightcontrast_apply_threaded(int width,
                                           unsigned char *rect,
                                           float *rect_float,
                                           unsigned char *mask_rect,
-                                          float *mask_rect_float,
+                                          const float *mask_rect_float,
                                           void *data_v)
 {
   BrightContrastThreadData *data = (BrightContrastThreadData *)data_v;
@@ -658,7 +658,7 @@ static void maskmodifier_apply_threaded(int width,
                                         unsigned char *rect,
                                         float *rect_float,
                                         unsigned char *mask_rect,
-                                        float *mask_rect_float,
+                                        const float *mask_rect_float,
                                         void *UNUSED(data_v))
 {
   int x, y;
@@ -755,7 +755,7 @@ static void tonemapmodifier_apply_threaded_simple(int width,
                                                   unsigned char *rect,
                                                   float *rect_float,
                                                   unsigned char *mask_rect,
-                                                  float *mask_rect_float,
+                                                  const float *mask_rect_float,
                                                   void *data_v)
 {
   AvgLogLum *avg = (AvgLogLum *)data_v;
@@ -814,7 +814,7 @@ static void tonemapmodifier_apply_threaded_photoreceptor(int width,
                                                          unsigned char *rect,
                                                          float *rect_float,
                                                          unsigned char *mask_rect,
-                                                         float *mask_rect_float,
+                                                         const float *mask_rect_float,
                                                          void *data_v)
 {
   AvgLogLum *avg = (AvgLogLum *)data_v;

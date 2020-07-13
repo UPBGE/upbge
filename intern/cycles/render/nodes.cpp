@@ -632,7 +632,7 @@ typedef struct SunSky {
 
   /* Parameter */
   float radiance_x, radiance_y, radiance_z;
-  float config_x[9], config_y[9], config_z[9], nishita_data[9];
+  float config_x[9], config_y[9], config_z[9], nishita_data[10];
 } SunSky;
 
 /* Preetham model */
@@ -749,18 +749,24 @@ static void sky_texture_precompute_hosek(SunSky *sunsky,
 static void sky_texture_precompute_nishita(SunSky *sunsky,
                                            bool sun_disc,
                                            float sun_size,
+                                           float sun_intensity,
                                            float sun_elevation,
                                            float sun_rotation,
-                                           int altitude,
+                                           float altitude,
                                            float air_density,
                                            float dust_density)
 {
   /* sample 2 sun pixels */
   float pixel_bottom[3];
   float pixel_top[3];
-  float altitude_f = (float)altitude;
   SKY_nishita_skymodel_precompute_sun(
-      sun_elevation, sun_size, altitude_f, air_density, dust_density, pixel_bottom, pixel_top);
+      sun_elevation, sun_size, altitude, air_density, dust_density, pixel_bottom, pixel_top);
+  /* limit sun rotation between 0 and 360 degrees */
+  sun_rotation = fmodf(sun_rotation, M_2PI_F);
+  if (sun_rotation < 0.0f) {
+    sun_rotation += M_2PI_F;
+  }
+  sun_rotation = M_2PI_F - sun_rotation;
   /* send data to svm_sky */
   sunsky->nishita_data[0] = pixel_bottom[0];
   sunsky->nishita_data[1] = pixel_bottom[1];
@@ -769,8 +775,9 @@ static void sky_texture_precompute_nishita(SunSky *sunsky,
   sunsky->nishita_data[4] = pixel_top[1];
   sunsky->nishita_data[5] = pixel_top[2];
   sunsky->nishita_data[6] = sun_elevation;
-  sunsky->nishita_data[7] = M_2PI_F - sun_rotation;
+  sunsky->nishita_data[7] = sun_rotation;
   sunsky->nishita_data[8] = sun_disc ? sun_size : 0.0f;
+  sunsky->nishita_data[9] = sun_intensity;
 }
 
 NODE_DEFINE(SkyTextureNode)
@@ -790,9 +797,10 @@ NODE_DEFINE(SkyTextureNode)
   SOCKET_FLOAT(ground_albedo, "Ground Albedo", 0.3f);
   SOCKET_BOOLEAN(sun_disc, "Sun Disc", true);
   SOCKET_FLOAT(sun_size, "Sun Size", 0.009512f);
+  SOCKET_FLOAT(sun_intensity, "Sun Intensity", 1.0f);
   SOCKET_FLOAT(sun_elevation, "Sun Elevation", M_PI_2_F);
   SOCKET_FLOAT(sun_rotation, "Sun Rotation", 0.0f);
-  SOCKET_INT(altitude, "Altitude", 0);
+  SOCKET_FLOAT(altitude, "Altitude", 1.0f);
   SOCKET_FLOAT(air_density, "Air", 1.0f);
   SOCKET_FLOAT(dust_density, "Dust", 1.0f);
   SOCKET_FLOAT(ozone_density, "Ozone", 1.0f);
@@ -820,12 +828,17 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
   else if (type == NODE_SKY_HOSEK)
     sky_texture_precompute_hosek(&sunsky, sun_direction, turbidity, ground_albedo);
   else if (type == NODE_SKY_NISHITA) {
+    /* Clamp altitude to reasonable values.
+     * Below 1m causes numerical issues and above 60km is space. */
+    float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
+
     sky_texture_precompute_nishita(&sunsky,
                                    sun_disc,
                                    sun_size,
+                                   sun_intensity,
                                    sun_elevation,
                                    sun_rotation,
-                                   altitude,
+                                   clamped_altitude,
                                    air_density,
                                    dust_density);
     /* precomputed texture image parameters */
@@ -837,7 +850,7 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
     /* precompute sky texture */
     if (handle.empty()) {
       SkyLoader *loader = new SkyLoader(
-          sun_elevation, altitude, air_density, dust_density, ozone_density);
+          sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
       handle = image_manager->add_image(loader, impar);
     }
   }
@@ -892,7 +905,10 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
                       __float_as_uint(sunsky.nishita_data[5]),
                       __float_as_uint(sunsky.nishita_data[6]),
                       __float_as_uint(sunsky.nishita_data[7]));
-    compiler.add_node(__float_as_uint(sunsky.nishita_data[8]), handle.svm_slot(), 0, 0);
+    compiler.add_node(__float_as_uint(sunsky.nishita_data[8]),
+                      __float_as_uint(sunsky.nishita_data[9]),
+                      handle.svm_slot(),
+                      0);
   }
 
   tex_mapping.compile_end(compiler, vector_in, vector_offset);
@@ -908,12 +924,17 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   else if (type == NODE_SKY_HOSEK)
     sky_texture_precompute_hosek(&sunsky, sun_direction, turbidity, ground_albedo);
   else if (type == NODE_SKY_NISHITA) {
+    /* Clamp altitude to reasonable values.
+     * Below 1m causes numerical issues and above 60km is space. */
+    float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
+
     sky_texture_precompute_nishita(&sunsky,
                                    sun_disc,
                                    sun_size,
+                                   sun_intensity,
                                    sun_elevation,
                                    sun_rotation,
-                                   altitude,
+                                   clamped_altitude,
                                    air_density,
                                    dust_density);
     /* precomputed texture image parameters */
@@ -925,7 +946,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
     /* precompute sky texture */
     if (handle.empty()) {
       SkyLoader *loader = new SkyLoader(
-          sun_elevation, altitude, air_density, dust_density, ozone_density);
+          sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
       handle = image_manager->add_image(loader, impar);
     }
   }
@@ -940,7 +961,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   compiler.parameter_array("config_x", sunsky.config_x, 9);
   compiler.parameter_array("config_y", sunsky.config_y, 9);
   compiler.parameter_array("config_z", sunsky.config_z, 9);
-  compiler.parameter_array("nishita_data", sunsky.nishita_data, 9);
+  compiler.parameter_array("nishita_data", sunsky.nishita_data, 10);
   /* nishita texture */
   if (type == NODE_SKY_NISHITA) {
     compiler.parameter_texture("filename", handle.svm_slot());

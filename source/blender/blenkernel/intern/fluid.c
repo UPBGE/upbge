@@ -137,9 +137,9 @@ bool BKE_fluid_reallocate_fluid(FluidDomainSettings *fds, int res[3], int free_o
 void BKE_fluid_reallocate_copy_fluid(FluidDomainSettings *fds,
                                      int o_res[3],
                                      int n_res[3],
-                                     int o_min[3],
-                                     int n_min[3],
-                                     int o_max[3],
+                                     const int o_min[3],
+                                     const int n_min[3],
+                                     const int o_max[3],
                                      int o_shift[3],
                                      int n_shift[3])
 {
@@ -559,7 +559,7 @@ static bool BKE_fluid_modifier_init(
 // forward declaration
 static void manta_smoke_calc_transparency(FluidDomainSettings *fds, ViewLayer *view_layer);
 static float calc_voxel_transp(
-    float *result, float *input, int res[3], int *pixel, float *t_ray, float correct);
+    float *result, const float *input, int res[3], int *pixel, float *t_ray, float correct);
 static void update_distances(int index,
                              float *fesh_distances,
                              BVHTreeFromMesh *tree_data,
@@ -594,8 +594,8 @@ static int get_light(ViewLayer *view_layer, float *light)
 static void clamp_bounds_in_domain(FluidDomainSettings *fds,
                                    int min[3],
                                    int max[3],
-                                   float *min_vel,
-                                   float *max_vel,
+                                   const float *min_vel,
+                                   const float *max_vel,
                                    int margin,
                                    float dt)
 {
@@ -1830,7 +1830,7 @@ static void sample_mesh(FluidFlowSettings *ffs,
                         float *velocity_map,
                         int index,
                         const int base_res[3],
-                        float flow_center[3],
+                        const float flow_center[3],
                         BVHTreeFromMesh *tree_data,
                         const float ray_start[3],
                         const float *vert_vel,
@@ -4118,42 +4118,46 @@ static void BKE_fluid_modifier_process(
 struct Mesh *BKE_fluid_modifier_do(
     FluidModifierData *fmd, Depsgraph *depsgraph, Scene *scene, Object *ob, Mesh *me)
 {
-  /* Lock so preview render does not read smoke data while it gets modified. */
-  if ((fmd->type & MOD_FLUID_TYPE_DOMAIN) && fmd->domain) {
-    BLI_rw_mutex_lock(fmd->domain->fluid_mutex, THREAD_LOCK_WRITE);
-  }
-
-  BKE_fluid_modifier_process(fmd, depsgraph, scene, ob, me);
-
-  if ((fmd->type & MOD_FLUID_TYPE_DOMAIN) && fmd->domain) {
-    BLI_rw_mutex_unlock(fmd->domain->fluid_mutex);
-  }
-
   /* Optimization: Do not update viewport during bakes (except in replay mode)
    * Reason: UI is locked and updated liquid / smoke geometry is not visible anyways. */
   bool needs_viewport_update = false;
-  if (fmd->domain) {
-    FluidDomainSettings *fds = fmd->domain;
 
-    /* Always update viewport in cache replay mode. */
-    if (fds->cache_type == FLUID_DOMAIN_CACHE_REPLAY ||
-        fds->flags & FLUID_DOMAIN_USE_ADAPTIVE_DOMAIN) {
-      needs_viewport_update = true;
+  /* Optimization: Only process modifier if object is not being altered. */
+  if (!G.moving) {
+    /* Lock so preview render does not read smoke data while it gets modified. */
+    if ((fmd->type & MOD_FLUID_TYPE_DOMAIN) && fmd->domain) {
+      BLI_rw_mutex_lock(fmd->domain->fluid_mutex, THREAD_LOCK_WRITE);
     }
-    /* In other cache modes, only update the viewport when no bake is going on. */
-    else {
-      bool with_mesh;
-      with_mesh = fds->flags & FLUID_DOMAIN_USE_MESH;
-      bool baking_data, baking_noise, baking_mesh, baking_particles, baking_guide;
-      baking_data = fds->cache_flag & FLUID_DOMAIN_BAKING_DATA;
-      baking_noise = fds->cache_flag & FLUID_DOMAIN_BAKING_NOISE;
-      baking_mesh = fds->cache_flag & FLUID_DOMAIN_BAKING_MESH;
-      baking_particles = fds->cache_flag & FLUID_DOMAIN_BAKING_PARTICLES;
-      baking_guide = fds->cache_flag & FLUID_DOMAIN_BAKING_GUIDE;
 
-      if (with_mesh && !baking_data && !baking_noise && !baking_mesh && !baking_particles &&
-          !baking_guide) {
+    BKE_fluid_modifier_process(fmd, depsgraph, scene, ob, me);
+
+    if ((fmd->type & MOD_FLUID_TYPE_DOMAIN) && fmd->domain) {
+      BLI_rw_mutex_unlock(fmd->domain->fluid_mutex);
+    }
+
+    if (fmd->domain) {
+      FluidDomainSettings *fds = fmd->domain;
+
+      /* Always update viewport in cache replay mode. */
+      if (fds->cache_type == FLUID_DOMAIN_CACHE_REPLAY ||
+          fds->flags & FLUID_DOMAIN_USE_ADAPTIVE_DOMAIN) {
         needs_viewport_update = true;
+      }
+      /* In other cache modes, only update the viewport when no bake is going on. */
+      else {
+        bool with_mesh;
+        with_mesh = fds->flags & FLUID_DOMAIN_USE_MESH;
+        bool baking_data, baking_noise, baking_mesh, baking_particles, baking_guide;
+        baking_data = fds->cache_flag & FLUID_DOMAIN_BAKING_DATA;
+        baking_noise = fds->cache_flag & FLUID_DOMAIN_BAKING_NOISE;
+        baking_mesh = fds->cache_flag & FLUID_DOMAIN_BAKING_MESH;
+        baking_particles = fds->cache_flag & FLUID_DOMAIN_BAKING_PARTICLES;
+        baking_guide = fds->cache_flag & FLUID_DOMAIN_BAKING_GUIDE;
+
+        if (with_mesh && !baking_data && !baking_noise && !baking_mesh && !baking_particles &&
+            !baking_guide) {
+          needs_viewport_update = true;
+        }
       }
     }
   }
@@ -4196,7 +4200,7 @@ struct Mesh *BKE_fluid_modifier_do(
 }
 
 static float calc_voxel_transp(
-    float *result, float *input, int res[3], int *pixel, float *t_ray, float correct)
+    float *result, const float *input, int res[3], int *pixel, float *t_ray, float correct)
 {
   const size_t index = manta_get_index(pixel[0], res[0], pixel[1], res[1], pixel[2]);
 

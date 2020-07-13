@@ -1509,7 +1509,7 @@ uiBut *uiDefHotKeyevtButS(uiBlock *block,
                           short width,
                           short height,
                           short *keypoin,
-                          short *modkeypoin,
+                          const short *modkeypoin,
                           const char *tip);
 
 uiBut *uiDefSearchBut(uiBlock *block,
