@@ -491,6 +491,17 @@ static void manta_set_domain_from_mesh(FluidDomainSettings *fds,
   fds->cell_size[2] /= (float)fds->base_res[2];
 }
 
+static void update_final_gravity(FluidDomainSettings *fds, Scene *scene)
+{
+  if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
+    copy_v3_v3(fds->gravity_final, scene->physics_settings.gravity);
+  }
+  else {
+    copy_v3_v3(fds->gravity_final, fds->gravity);
+  }
+  mul_v3_fl(fds->gravity_final, fds->effector_weights->global_gravity);
+}
+
 static bool BKE_fluid_modifier_init(
     FluidModifierData *fmd, Depsgraph *depsgraph, Object *ob, Scene *scene, Mesh *me)
 {
@@ -502,10 +513,7 @@ static bool BKE_fluid_modifier_init(
     /* Set domain dimensions from mesh. */
     manta_set_domain_from_mesh(fds, ob, me, true);
     /* Set domain gravity, use global gravity if enabled. */
-    if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
-      copy_v3_v3(fds->gravity, scene->physics_settings.gravity);
-    }
-    mul_v3_fl(fds->gravity, fds->effector_weights->global_gravity);
+    update_final_gravity(fds, scene);
     /* Reset domain values. */
     zero_v3_int(fds->shift);
     zero_v3(fds->shift_f);
@@ -3328,17 +3336,13 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds, Mesh *orgmesh, Obj
     mverts->co[1] = manta_liquid_get_vertex_y_at(fds->fluid, i);
     mverts->co[2] = manta_liquid_get_vertex_z_at(fds->fluid, i);
 
-    /* If reading raw data directly from manta, normalize now (e.g. during replay mode).
-     * If reading data from files from disk, omit this normalization. */
-    if (!manta_liquid_mesh_from_file(fds->fluid)) {
-      // normalize to unit cube around 0
-      mverts->co[0] -= ((float)fds->res[0] * fds->mesh_scale) * 0.5f;
-      mverts->co[1] -= ((float)fds->res[1] * fds->mesh_scale) * 0.5f;
-      mverts->co[2] -= ((float)fds->res[2] * fds->mesh_scale) * 0.5f;
-      mverts->co[0] *= fds->dx / fds->mesh_scale;
-      mverts->co[1] *= fds->dx / fds->mesh_scale;
-      mverts->co[2] *= fds->dx / fds->mesh_scale;
-    }
+    /* Adjust coordinates from Mantaflow to match viewport scaling. */
+    float tmp[3] = {(float)fds->res[0], (float)fds->res[1], (float)fds->res[2]};
+    /* Scale to unit cube around 0. */
+    mul_v3_fl(tmp, fds->mesh_scale * 0.5f);
+    sub_v3_v3(mverts->co, tmp);
+    /* Apply scaling of domain object. */
+    mul_v3_fl(mverts->co, fds->dx / fds->mesh_scale);
 
     mul_v3_v3(mverts->co, co_scale);
     add_v3_v3(mverts->co, co_offset);
@@ -3808,10 +3812,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
   fds->time_per_frame = 0;
 
   /* Ensure that gravity is copied over every frame (could be keyframed). */
-  if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
-    copy_v3_v3(fds->gravity, scene->physics_settings.gravity);
-    mul_v3_fl(fds->gravity, fds->effector_weights->global_gravity);
-  }
+  update_final_gravity(fds, scene);
 
   int next_frame = scene_framenr + 1;
   int prev_frame = scene_framenr - 1;

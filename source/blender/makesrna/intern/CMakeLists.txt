@@ -71,6 +71,7 @@ set(DEFSRC
   rna_packedfile.c
   rna_palette.c
   rna_particle.c
+  rna_pointcloud.c
   rna_pose.c
   rna_property.c
   rna_python_component.c
@@ -87,7 +88,6 @@ set(DEFSRC
   rna_sound.c
   rna_space.c
   rna_speaker.c
-  rna_pointcloud.c
   rna_test.c
   rna_text.c
   rna_texture.c
