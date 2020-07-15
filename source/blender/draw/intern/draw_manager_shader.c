@@ -328,6 +328,26 @@ GPUShader *DRW_shader_create_with_lib(
   return sh;
 }
 
+GPUShader *DRW_shader_create_with_shaderlib(const char *vert,
+                                            const char *geom,
+                                            const char *frag,
+                                            const DRWShaderLibrary *lib,
+                                            const char *defines)
+{
+  GPUShader *sh;
+  char *vert_with_lib = DRW_shader_library_create_shader_string(lib, vert);
+  char *frag_with_lib = DRW_shader_library_create_shader_string(lib, frag);
+  char *geom_with_lib = (geom) ? DRW_shader_library_create_shader_string(lib, geom) : NULL;
+
+  sh = GPU_shader_create(vert_with_lib, frag_with_lib, geom_with_lib, NULL, defines, __func__);
+
+  MEM_SAFE_FREE(vert_with_lib);
+  MEM_SAFE_FREE(frag_with_lib);
+  MEM_SAFE_FREE(geom_with_lib);
+
+  return sh;
+}
+
 GPUShader *DRW_shader_create_with_transform_feedback(const char *vert,
                                                      const char *geom,
                                                      const char *defines,
@@ -350,6 +370,22 @@ GPUShader *DRW_shader_create_fullscreen(const char *frag, const char *defines)
 {
   return GPU_shader_create(
       datatoc_common_fullscreen_vert_glsl, frag, NULL, NULL, defines, __func__);
+}
+
+GPUShader *DRW_shader_create_fullscreen_with_shaderlib(const char *frag,
+                                                       const DRWShaderLibrary *lib,
+                                                       const char *defines)
+{
+
+  GPUShader *sh;
+  char *vert = datatoc_common_fullscreen_vert_glsl;
+  char *frag_with_lib = DRW_shader_library_create_shader_string(lib, frag);
+
+  sh = GPU_shader_create(vert, frag_with_lib, NULL, NULL, defines, __func__);
+
+  MEM_SAFE_FREE(frag_with_lib);
+
+  return sh;
 }
 
 GPUMaterial *DRW_shader_find_from_world(World *wo,
@@ -505,7 +541,7 @@ void DRW_shader_library_free(DRWShaderLibrary *lib)
   MEM_SAFE_FREE(lib);
 }
 
-static int drw_shader_library_search(DRWShaderLibrary *lib, const char *name)
+static int drw_shader_library_search(const DRWShaderLibrary *lib, const char *name)
 {
   for (int i = 0; i < MAX_LIB; i++) {
     if (lib->libs[i]) {
@@ -521,18 +557,28 @@ static int drw_shader_library_search(DRWShaderLibrary *lib, const char *name)
 }
 
 /* Return bitmap of dependencies. */
-static uint32_t drw_shader_dependencies_get(DRWShaderLibrary *lib, char *lib_code)
+static uint32_t drw_shader_dependencies_get(const DRWShaderLibrary *lib, const char *lib_code)
 {
   /* Search dependencies. */
   uint32_t deps = 0;
-  char *haystack = lib_code;
+  const char *haystack = lib_code;
   while ((haystack = strstr(haystack, "BLENDER_REQUIRE("))) {
     haystack += 16;
     int dep = drw_shader_library_search(lib, haystack);
     if (dep == -1) {
+      char dbg_name[32];
+      int i = 0;
+      while ((haystack[0] != ')') && (i < 31)) {
+        dbg_name[i] = haystack[0];
+        haystack++;
+        i++;
+      }
+      dbg_name[i + 1] = '\0';
+
       printf(
-          "Error: Dependency not found.\n"
-          "This might be due to bad lib ordering.\n");
+          "Error: Dependency not found: %s\n"
+          "This might be due to bad lib ordering.\n",
+          dbg_name);
       BLI_assert(0);
     }
     else {
@@ -565,7 +611,7 @@ void DRW_shader_library_add_file(DRWShaderLibrary *lib, char *lib_code, const ch
 
 /* Return an allocN'ed string containing the shader code with its dependencies prepended.
  * Caller must free the string with MEM_freeN after use. */
-char *DRW_shader_library_create_shader_string(DRWShaderLibrary *lib, char *shader_code)
+char *DRW_shader_library_create_shader_string(const DRWShaderLibrary *lib, const char *shader_code)
 {
   uint32_t deps = drw_shader_dependencies_get(lib, shader_code);
 

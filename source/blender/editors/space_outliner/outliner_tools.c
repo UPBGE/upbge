@@ -763,8 +763,6 @@ static void id_override_library_cb(bContext *C,
 
     id_root->tag |= LIB_TAG_DOIT;
 
-    printf("%s: Tagging root id %s\n", __func__, id_root->name);
-
     /* For now, remapp all local usages of linked ID to local override one here. */
     ID *id_iter;
     FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
@@ -787,10 +785,9 @@ static void id_override_library_cb(bContext *C,
           break;
         }
         te->store_elem->id->tag |= LIB_TAG_DOIT;
-        printf("%s: Tagging parent id %s\n", __func__, te->store_elem->id->name);
       }
-      BKE_lib_override_library_dependencies_tag(bmain, id_root, LIB_TAG_DOIT, true);
-      BKE_lib_override_library_create_from_tag(bmain);
+      BKE_lib_override_library_create(
+          bmain, CTX_data_scene(C), CTX_data_view_layer(C), id_root, NULL);
     }
     else if (ID_IS_OVERRIDABLE_LIBRARY(id_root)) {
       BKE_lib_override_library_create_from_id(bmain, id_root, true);

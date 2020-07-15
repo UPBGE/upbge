@@ -210,6 +210,11 @@ struct GPUShader *DRW_shader_create(const char *vert,
                                     const char *defines);
 struct GPUShader *DRW_shader_create_with_lib(
     const char *vert, const char *geom, const char *frag, const char *lib, const char *defines);
+struct GPUShader *DRW_shader_create_with_shaderlib(const char *vert,
+                                                   const char *geom,
+                                                   const char *frag,
+                                                   const DRWShaderLibrary *lib,
+                                                   const char *defines);
 struct GPUShader *DRW_shader_create_with_transform_feedback(const char *vert,
                                                             const char *geom,
                                                             const char *defines,
@@ -217,6 +222,9 @@ struct GPUShader *DRW_shader_create_with_transform_feedback(const char *vert,
                                                             const char **varying_names,
                                                             const int varying_count);
 struct GPUShader *DRW_shader_create_fullscreen(const char *frag, const char *defines);
+struct GPUShader *DRW_shader_create_fullscreen_with_shaderlib(const char *frag,
+                                                              const DRWShaderLibrary *lib,
+                                                              const char *defines);
 struct GPUMaterial *DRW_shader_find_from_world(struct World *wo,
                                                const void *engine_type,
                                                const int options,
@@ -263,7 +271,8 @@ void DRW_shader_library_add_file(DRWShaderLibrary *lib, char *lib_code, const ch
 #define DRW_SHADER_LIB_ADD(lib, lib_name) \
   DRW_shader_library_add_file(lib, datatoc_##lib_name##_glsl, STRINGIFY(lib_name) ".glsl")
 
-char *DRW_shader_library_create_shader_string(DRWShaderLibrary *lib, char *shader_code);
+char *DRW_shader_library_create_shader_string(const DRWShaderLibrary *lib,
+                                              const char *shader_code);
 
 void DRW_shader_library_free(DRWShaderLibrary *lib);
 #define DRW_SHADER_LIB_FREE_SAFE(lib) \

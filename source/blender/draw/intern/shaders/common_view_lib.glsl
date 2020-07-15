@@ -14,6 +14,10 @@ layout(std140) uniform viewBlock
 
   vec4 clipPlanes[6];
 
+  /* View frustum corners [NDC(-1.0, -1.0, -1.0) & NDC(1.0, 1.0, 1.0)].
+   * Fourth components are near and far values. */
+  vec4 ViewVecs[2];
+
   /* TODO move it elsewhere. */
   vec4 CameraTexCoFactors;
 };
@@ -171,6 +175,7 @@ uniform mat4 ModelMatrixInverse;
 #define normal_object_to_world(n) (transpose(mat3(ModelMatrixInverse)) * n)
 #define normal_world_to_object(n) (transpose(mat3(ModelMatrix)) * n)
 #define normal_world_to_view(n) (mat3(ViewMatrix) * n)
+#define normal_view_to_world(n) (mat3(ViewMatrixInverse) * n)
 
 #define point_object_to_ndc(p) (ViewProjectionMatrix * vec4((ModelMatrix * vec4(p, 1.0)).xyz, 1.0))
 #define point_object_to_view(p) ((ViewMatrix * vec4((ModelMatrix * vec4(p, 1.0)).xyz, 1.0)).xyz)

@@ -53,9 +53,6 @@
 #if defined(IRRADIANCE_SH_L2)
 #  define IRRADIANCE_SAMPLE_SIZE_X 4 /* 3 in reality */
 #  define IRRADIANCE_SAMPLE_SIZE_Y 4 /* 3 in reality */
-#elif defined(IRRADIANCE_CUBEMAP)
-#  define IRRADIANCE_SAMPLE_SIZE_X 8
-#  define IRRADIANCE_SAMPLE_SIZE_Y 8
 #elif defined(IRRADIANCE_HL2)
 #  define IRRADIANCE_SAMPLE_SIZE_X 4 /* 3 in reality */
 #  define IRRADIANCE_SAMPLE_SIZE_Y 2
@@ -113,7 +110,7 @@ typedef struct EEVEE_LightBake {
   float samples_ct, invsamples_ct;
   /** Sampling bias during convolution step. */
   float lod_factor;
-  /** Max cubemap LOD to sample when convolving. */
+  /** Max cube-map LOD to sample when convolving. */
   float lod_max;
   /** Number of probes to render + world probe. */
   int cube_len, grid_len;
@@ -121,7 +118,7 @@ typedef struct EEVEE_LightBake {
   /* Irradiance grid */
   /** Current probe being rendered (UBO data). */
   EEVEE_LightGrid *grid;
-  /** Target cubemap at MIP 0. */
+  /** Target cube-map at MIP 0. */
   int irr_cube_res;
   /** Size of the irradiance texture. */
   int irr_size[3];
@@ -145,7 +142,7 @@ typedef struct EEVEE_LightBake {
   /* Reflection probe */
   /** Current probe being rendered (UBO data). */
   EEVEE_LightProbe *cube;
-  /** Target cubemap at MIP 0. */
+  /** Target cube-map at MIP 0. */
   int ref_cube_res;
   /** Index of the current cube. */
   int cube_offset;
