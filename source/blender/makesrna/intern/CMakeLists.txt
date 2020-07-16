@@ -374,7 +374,7 @@ blender_include_dirs(
   ../../imbuf
   ../../makesdna
   ../../nodes/
-  ../../physics
+  ../../simulation
   ../../windowmanager
   ../../editors/include
   ../../render/extern/include

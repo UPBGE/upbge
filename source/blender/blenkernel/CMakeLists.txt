@@ -36,7 +36,7 @@ set(INC
   ../makesrna
   ../modifiers
   ../nodes
-  ../physics
+  ../simulation
   ../shader_fx
   ../render/extern/include
   ../windowmanager
@@ -331,6 +331,7 @@ set(SRC
   BKE_idprop.h
   BKE_idtype.h
   BKE_image.h
+  BKE_image_save.h
   BKE_ipo.h
   BKE_kelvinlet.h
   BKE_key.h
@@ -386,6 +387,7 @@ set(SRC
   BKE_scene.h
   BKE_screen.h
   BKE_sequencer.h
+  BKE_sequencer_offscreen.h
   BKE_shader_fx.h
   BKE_shrinkwrap.h
   BKE_simulation.h
@@ -424,6 +426,7 @@ set(SRC
   intern/multires_inline.h
   intern/multires_reshape.h
   intern/multires_unsubdivide.h
+  intern/ocean_intern.h
   intern/pbvh_intern.h
   intern/subdiv_converter.h
   intern/subdiv_inline.h
@@ -450,7 +453,7 @@ set(LIB
   bf_intern_opensubdiv  # Uses stub when disabled.
   bf_modifiers
   bf_nodes
-  bf_physics
+  bf_simulation
   bf_rna
   bf_shader_fx
 )
@@ -712,3 +715,16 @@ blender_add_lib(bf_blenkernel "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 # Needed so we can use dna_type_offsets.h for defaults initialization.
 add_dependencies(bf_blenkernel bf_dna)
+
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    intern/armature_test.cc
+    intern/fcurve_test.cc
+  )
+  set(TEST_INC
+    ../editors/include
+  )
+  include(GTestTesting)
+  blender_add_test_lib(bf_blenkernel_tests "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB}")
+endif()

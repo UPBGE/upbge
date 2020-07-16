@@ -1002,7 +1002,7 @@ if(MSVC)
   # endianess-detection and auto-setting is counterproductive
   # so we just set endianness according CMAKE_OSX_ARCHITECTURES
 
-elseif(CMAKE_OSX_ARCHITECTURES MATCHES i386 OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
+elseif(CMAKE_OSX_ARCHITECTURES MATCHES i386 OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64 OR CMAKE_OSX_ARCHITECTURES MATCHES arm64)
   add_definitions(-D__LITTLE_ENDIAN__)
 elseif(CMAKE_OSX_ARCHITECTURES MATCHES ppc OR CMAKE_OSX_ARCHITECTURES MATCHES ppc64)
   add_definitions(-D__BIG_ENDIAN__)
@@ -1730,13 +1730,9 @@ endif()
 #-----------------------------------------------------------------------------
 # Libraries
 
-if(WITH_GTESTS)
-  include(GTestTesting)
-endif()
-
 if(WITH_BLENDER OR WITH_PLAYER)
-	add_subdirectory(intern)
-	add_subdirectory(extern)
+  add_subdirectory(intern)
+  add_subdirectory(extern)
 
   # source after intern and extern to gather all
   # internal and external library information first, for test linking
@@ -1762,7 +1758,7 @@ endif()
 #-----------------------------------------------------------------------------
 # Blender Player
 if(WITH_PLAYER)
-	add_subdirectory(source/blenderplayer)
+  add_subdirectory(source/blenderplayer)
 endif()
 
 
@@ -1786,7 +1782,7 @@ if(WITH_BLENDER)
   openmp_delayload(blender)
 endif()
 if(WITH_PLAYER)
-	openmp_delayload(blenderplayer)
+  openmp_delayload(blenderplayer)
 endif()
 
 #-----------------------------------------------------------------------------

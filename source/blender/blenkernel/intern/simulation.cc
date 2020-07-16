@@ -619,9 +619,12 @@ static const ParticleFunction *create_particle_function_for_inputs(
 
   Vector<const ParticleFunctionInput *> per_particle_inputs;
   for (const fn::MFOutputSocket *socket : dummy_deps) {
-    StringRef attribute_name = attribute_inputs.lookup(socket);
+    const std::string *attribute_name = attribute_inputs.lookup_ptr(socket);
+    if (attribute_name == nullptr) {
+      return nullptr;
+    }
     per_particle_inputs.append(&resources.construct<ParticleAttributeInput>(
-        AT, attribute_name, socket->data_type().single_type()));
+        AT, *attribute_name, socket->data_type().single_type()));
   }
 
   const fn::MultiFunction &per_particle_fn = resources.construct<fn::MFNetworkEvaluator>(
@@ -732,12 +735,12 @@ static void simulation_data_update(Depsgraph *depsgraph, Scene *scene, Simulatio
   fn::MFNetwork network;
   ResourceCollector resources;
   MFNetworkTreeMap network_map = insert_node_tree_into_mf_network(network, tree, resources);
-  // WM_clipboard_text_set(tree.to_dot().c_str(), false);
   Map<const fn::MFOutputSocket *, std::string> attribute_inputs = deduplicate_attribute_nodes(
       network, network_map, tree);
   fn::mf_network_optimization::constant_folding(network, resources);
   fn::mf_network_optimization::common_subnetwork_elimination(network);
   fn::mf_network_optimization::dead_node_removal(network);
+  // WM_clipboard_text_set(network.to_dot().c_str(), false);
 
   Map<std::string, Vector<const ParticleForce *>> forces_by_simulation = collect_forces(
       network_map, resources, attribute_inputs);
@@ -763,7 +766,7 @@ static void simulation_data_update(Depsgraph *depsgraph, Scene *scene, Simulatio
 
       for (uint i : positions.index_range()) {
         positions[i] = {i / 100.0f, 0, 0};
-        velocities[i] = {0, BLI_rng_get_float(rng), BLI_rng_get_float(rng) * 2 + 1};
+        velocities[i] = {0, BLI_rng_get_float(rng) - 0.5f, BLI_rng_get_float(rng) - 0.5f};
         ids[i] = i;
       }
     }

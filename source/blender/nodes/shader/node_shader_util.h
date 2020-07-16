@@ -42,6 +42,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_math_base_safe.h"
 #include "BLI_rand.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -74,6 +75,7 @@
 
 #  include "BKE_node_tree_multi_function.hh"
 
+#  include "BLI_color.hh"
 #  include "BLI_float3.hh"
 
 extern "C" {

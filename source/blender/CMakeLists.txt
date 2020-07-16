@@ -47,6 +47,7 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_modifier_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpu_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_hair_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_image_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_ipo_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_key_types.h
@@ -73,6 +74,7 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_packedFile_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_particle_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_pointcache_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_pointcloud_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_property_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_rigidbody_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sensor_types.h
@@ -81,6 +83,7 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sdna_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sequence_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_shader_fx_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_simulation_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sound_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_space_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_speaker_types.h
@@ -91,7 +94,9 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_vec_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_vfont_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_view2d_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_view3d_enums.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_view3d_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_volume_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_windowmanager_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_workspace_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_world_types.h
@@ -111,7 +116,7 @@ add_subdirectory(blentranslation)
 add_subdirectory(blenloader)
 add_subdirectory(depsgraph)
 add_subdirectory(ikplugin)
-add_subdirectory(physics)
+add_subdirectory(simulation)
 add_subdirectory(gpu)
 add_subdirectory(imbuf)
 add_subdirectory(nodes)

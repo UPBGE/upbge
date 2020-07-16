@@ -181,18 +181,37 @@ void GPU_finish(void)
   glFinish();
 }
 
-void GPU_logic_op_invert_set(bool enable)
+void GPU_logic_op_xor_set(bool enable)
 {
   if (enable) {
-    glLogicOp(GL_INVERT);
+    glLogicOp(GL_XOR);
     glEnable(GL_COLOR_LOGIC_OP);
-    glDisable(GL_DITHER);
   }
   else {
-    glLogicOp(GL_COPY);
     glDisable(GL_COLOR_LOGIC_OP);
-    glEnable(GL_DITHER);
   }
+}
+
+void GPU_color_mask(bool r, bool g, bool b, bool a)
+{
+  glColorMask(r, g, b, a);
+}
+
+void GPU_depth_mask(bool depth)
+{
+  glDepthMask(depth);
+}
+
+bool GPU_depth_mask_get(void)
+{
+  GLint mask;
+  glGetIntegerv(GL_DEPTH_WRITEMASK, &mask);
+  return mask == GL_TRUE;
+}
+
+void GPU_stencil_mask(uint stencil)
+{
+  glStencilMask(stencil);
 }
 
 /** \name GPU Push/Pop State
@@ -207,7 +226,6 @@ typedef struct {
   uint is_blend : 1;
   uint is_cull_face : 1;
   uint is_depth_test : 1;
-  uint is_dither : 1;
   /* uint is_lighting : 1; */ /* UNUSED */
   uint is_line_smooth : 1;
   uint is_color_logic_op : 1;
@@ -275,7 +293,6 @@ void gpuPushAttr(eGPUAttrMask mask)
 
     Attr.is_cull_face = glIsEnabled(GL_CULL_FACE);
     Attr.is_depth_test = glIsEnabled(GL_DEPTH_TEST);
-    Attr.is_dither = glIsEnabled(GL_DITHER);
     Attr.is_line_smooth = glIsEnabled(GL_LINE_SMOOTH);
     Attr.is_color_logic_op = glIsEnabled(GL_COLOR_LOGIC_OP);
     Attr.is_multisample = glIsEnabled(GL_MULTISAMPLE);
@@ -339,7 +356,6 @@ void gpuPopAttr(void)
 
     restore_mask(GL_CULL_FACE, Attr.is_cull_face);
     restore_mask(GL_DEPTH_TEST, Attr.is_depth_test);
-    restore_mask(GL_DITHER, Attr.is_dither);
     restore_mask(GL_LINE_SMOOTH, Attr.is_line_smooth);
     restore_mask(GL_COLOR_LOGIC_OP, Attr.is_color_logic_op);
     restore_mask(GL_MULTISAMPLE, Attr.is_multisample);

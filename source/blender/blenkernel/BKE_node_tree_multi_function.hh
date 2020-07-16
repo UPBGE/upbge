@@ -88,6 +88,7 @@ class MFNetworkTreeMap {
   void add(const DSocket &dsocket, fn::MFSocket &socket)
   {
     BLI_assert(dsocket.is_input() == socket.is_input());
+    BLI_assert(dsocket.is_input() || sockets_by_dsocket_id_[dsocket.id()].size() == 0);
     sockets_by_dsocket_id_[dsocket.id()].append(&socket);
   }
 
@@ -98,6 +99,8 @@ class MFNetworkTreeMap {
 
   void add(const DOutputSocket &dsocket, fn::MFOutputSocket &socket)
   {
+    /* There can be at most one matching output socket. */
+    BLI_assert(sockets_by_dsocket_id_[dsocket.id()].size() == 0);
     sockets_by_dsocket_id_[dsocket.id()].append(&socket);
   }
 
@@ -319,11 +322,11 @@ class SocketMFNetworkBuilder : public MFNetworkBuilderBase {
  */
 class NodeMFNetworkBuilder : public MFNetworkBuilderBase {
  private:
-  const DNode &node_;
+  const DNode &dnode_;
 
  public:
-  NodeMFNetworkBuilder(CommonMFNetworkBuilderData &common, const DNode &node)
-      : MFNetworkBuilderBase(common), node_(node)
+  NodeMFNetworkBuilder(CommonMFNetworkBuilderData &common, const DNode &dnode)
+      : MFNetworkBuilderBase(common), dnode_(dnode)
   {
   }
 
@@ -331,10 +334,23 @@ class NodeMFNetworkBuilder : public MFNetworkBuilderBase {
    * Tells the builder to build a function that corresponds to the node that is being built. It
    * will try to match up sockets.
    */
-  template<typename T, typename... Args> void construct_and_set_matching_fn(Args &&... args)
+  template<typename T, typename... Args> T &construct_and_set_matching_fn(Args &&... args)
   {
-    const fn::MultiFunction &function = this->construct_fn<T>(std::forward<Args>(args)...);
+    T &function = this->construct_fn<T>(std::forward<Args>(args)...);
     this->set_matching_fn(function);
+    return function;
+  }
+
+  const fn::MultiFunction &get_not_implemented_fn()
+  {
+    return this->get_default_fn("Not Implemented (" + dnode_.name() + ")");
+  }
+
+  const fn::MultiFunction &get_default_fn(StringRef name);
+
+  const void set_not_implemented()
+  {
+    this->set_matching_fn(this->get_not_implemented_fn());
   }
 
   /**
@@ -344,7 +360,7 @@ class NodeMFNetworkBuilder : public MFNetworkBuilderBase {
   void set_matching_fn(const fn::MultiFunction &function)
   {
     fn::MFFunctionNode &node = common_.network.add_function(function);
-    common_.network_map.add_try_match(node_, node);
+    common_.network_map.add_try_match(dnode_, node);
   }
 
   /**
@@ -352,7 +368,7 @@ class NodeMFNetworkBuilder : public MFNetworkBuilderBase {
    */
   bNode &bnode()
   {
-    return *node_.node_ref().bnode();
+    return *dnode_.node_ref().bnode();
   }
 
   /**
@@ -360,7 +376,7 @@ class NodeMFNetworkBuilder : public MFNetworkBuilderBase {
    */
   const DNode &dnode() const
   {
-    return node_;
+    return dnode_;
   }
 };
 

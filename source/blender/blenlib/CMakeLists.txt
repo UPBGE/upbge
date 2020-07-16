@@ -86,6 +86,7 @@ set(SRC
   intern/listbase.c
   intern/math_base.c
   intern/math_base_inline.c
+  intern/math_base_safe_inline.c
   intern/math_bits_inline.c
   intern/math_color.c
   intern/math_color_blend_inline.c
@@ -200,6 +201,7 @@ set(SRC
   BLI_kdtree.h
   BLI_kdtree_impl.h
   BLI_lasso_2d.h
+  BLI_linear_allocator.hh
   BLI_link_utils.h
   BLI_linklist.h
   BLI_linklist_lockfree.h
@@ -210,6 +212,7 @@ set(SRC
   BLI_map_slots.hh
   BLI_math.h
   BLI_math_base.h
+  BLI_math_base_safe.h
   BLI_math_bits.h
   BLI_math_color.h
   BLI_math_color_blend.h
@@ -234,6 +237,7 @@ set(SRC
   BLI_probing_strategies.hh
   BLI_quadric.h
   BLI_rand.h
+  BLI_rand.hh
   BLI_rect.h
   BLI_resource_collector.hh
   BLI_scanfill.h
@@ -330,6 +334,7 @@ endif()
 # no need to compile object files for inline headers.
 set_source_files_properties(
   intern/math_base_inline.c
+  intern/math_base_safe_inline.c
   intern/math_bits_inline.c
   intern/math_color_blend_inline.c
   intern/math_color_inline.c

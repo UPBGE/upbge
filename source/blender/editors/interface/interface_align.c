@@ -31,6 +31,8 @@
 
 #include "interface_intern.h"
 
+#include "MEM_guardedalloc.h"
+
 #ifdef USE_UIBUT_SPATIAL_ALIGN
 
 /**
@@ -120,26 +122,6 @@ bool ui_but_can_align(const uiBut *but)
                                      UI_BTYPE_SEPR_SPACER);
   return (btype_can_align && (BLI_rctf_size_x(&but->rect) > 0.0f) &&
           (BLI_rctf_size_y(&but->rect) > 0.0f));
-}
-
-int ui_but_align_opposite_to_area_align_get(const ARegion *region)
-{
-  const ARegion *align_region = (region->alignment & RGN_SPLIT_PREV && region->prev) ?
-                                    region->prev :
-                                    region;
-
-  switch (RGN_ALIGN_ENUM_FROM_MASK(align_region->alignment)) {
-    case RGN_ALIGN_TOP:
-      return UI_BUT_ALIGN_DOWN;
-    case RGN_ALIGN_BOTTOM:
-      return UI_BUT_ALIGN_TOP;
-    case RGN_ALIGN_LEFT:
-      return UI_BUT_ALIGN_RIGHT;
-    case RGN_ALIGN_RIGHT:
-      return UI_BUT_ALIGN_LEFT;
-  }
-
-  return 0;
 }
 
 /**
@@ -436,7 +418,16 @@ void ui_block_align_calc(uiBlock *block, const ARegion *region)
     return;
   }
 
-  butal_array = alloca(sizeof(*butal_array) * (size_t)num_buttons);
+  /* Note that this is typically less than ~20, and almost always under ~100.
+   * Even so, we can't ensure this value won't exceed available stack memory.
+   * Fallback to allocation instead of using #alloca, see: T78636. */
+  ButAlign butal_array_buf[256];
+  if (num_buttons <= ARRAY_SIZE(butal_array_buf)) {
+    butal_array = butal_array_buf;
+  }
+  else {
+    butal_array = MEM_mallocN(sizeof(*butal_array) * num_buttons, __func__);
+  }
   memset(butal_array, 0, sizeof(*butal_array) * (size_t)num_buttons);
 
   /* Second loop: we initialize our ButAlign data for each button. */
@@ -535,6 +526,9 @@ void ui_block_align_calc(uiBlock *block, const ARegion *region)
       }
     }
   }
+  if (butal_array_buf != butal_array) {
+    MEM_freeN(butal_array);
+  }
 }
 
 #  undef SIDE_TO_UI_BUT_ALIGN
@@ -545,9 +539,9 @@ void ui_block_align_calc(uiBlock *block, const ARegion *region)
 #  undef STITCH
 #  undef MAX_DELTA
 
-#else
+#else /* !USE_UIBUT_SPATIAL_ALIGN */
 
-bool ui_but_can_align(uiBut *but)
+bool ui_but_can_align(const uiBut *but)
 {
   return !ELEM(but->type,
                UI_BTYPE_LABEL,
@@ -730,7 +724,7 @@ static void ui_block_align_calc_but(uiBut *first, short nr)
   }
 }
 
-void ui_block_align_calc(uiBlock *block)
+void ui_block_align_calc(uiBlock *block, const struct ARegion *UNUSED(region))
 {
   uiBut *but;
   short nr;
@@ -755,4 +749,25 @@ void ui_block_align_calc(uiBlock *block)
     }
   }
 }
-#endif
+
+#endif /* !USE_UIBUT_SPATIAL_ALIGN */
+
+int ui_but_align_opposite_to_area_align_get(const ARegion *region)
+{
+  const ARegion *align_region = (region->alignment & RGN_SPLIT_PREV && region->prev) ?
+                                    region->prev :
+                                    region;
+
+  switch (RGN_ALIGN_ENUM_FROM_MASK(align_region->alignment)) {
+    case RGN_ALIGN_TOP:
+      return UI_BUT_ALIGN_DOWN;
+    case RGN_ALIGN_BOTTOM:
+      return UI_BUT_ALIGN_TOP;
+    case RGN_ALIGN_LEFT:
+      return UI_BUT_ALIGN_RIGHT;
+    case RGN_ALIGN_RIGHT:
+      return UI_BUT_ALIGN_LEFT;
+  }
+
+  return 0;
+}

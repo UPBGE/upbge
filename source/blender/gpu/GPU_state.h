@@ -65,11 +65,15 @@ void GPU_scissor_get_f(float coords[4]);
 void GPU_scissor_get_i(int coords[4]);
 void GPU_viewport_size_get_f(float coords[4]);
 void GPU_viewport_size_get_i(int coords[4]);
+void GPU_color_mask(bool r, bool g, bool b, bool a);
+void GPU_depth_mask(bool depth);
+bool GPU_depth_mask_get(void);
+void GPU_stencil_mask(uint stencil);
 
 void GPU_flush(void);
 void GPU_finish(void);
 
-void GPU_logic_op_invert_set(bool enable);
+void GPU_logic_op_xor_set(bool enable);
 
 /* Attribute push & pop. */
 typedef enum eGPUAttrMask {

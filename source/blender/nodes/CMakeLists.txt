@@ -176,7 +176,7 @@ set(SRC
   shader/nodes/node_shader_layer_weight.c
   shader/nodes/node_shader_light_falloff.c
   shader/nodes/node_shader_light_path.c
-  shader/nodes/node_shader_map_range.c
+  shader/nodes/node_shader_map_range.cc
   shader/nodes/node_shader_mapping.c
   shader/nodes/node_shader_math.cc
   shader/nodes/node_shader_mixRgb.c
@@ -193,7 +193,7 @@ set(SRC
   shader/nodes/node_shader_rgb.c
   shader/nodes/node_shader_script.c
   shader/nodes/node_shader_sepcombHSV.c
-  shader/nodes/node_shader_sepcombRGB.c
+  shader/nodes/node_shader_sepcombRGB.cc
   shader/nodes/node_shader_sepcombXYZ.cc
   shader/nodes/node_shader_shaderToRgb.c
   shader/nodes/node_shader_squeeze.c
@@ -215,7 +215,7 @@ set(SRC
   shader/nodes/node_shader_tex_white_noise.c
   shader/nodes/node_shader_uvAlongStroke.c
   shader/nodes/node_shader_uvmap.c
-  shader/nodes/node_shader_valToRgb.c
+  shader/nodes/node_shader_valToRgb.cc
   shader/nodes/node_shader_value.cc
   shader/nodes/node_shader_vectTransform.c
   shader/nodes/node_shader_vector_displacement.c
@@ -298,6 +298,7 @@ set(SRC
 )
 
 set(LIB
+  bf_blenkernel
   bf_functions
   bf_intern_sky
 )
