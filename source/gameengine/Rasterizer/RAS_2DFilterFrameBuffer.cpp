@@ -58,7 +58,9 @@ RAS_2DFilterFrameBuffer::RAS_2DFilterFrameBuffer(unsigned short colorSlots,
 
 RAS_2DFilterFrameBuffer::~RAS_2DFilterFrameBuffer()
 {
-  GPU_framebuffer_free(m_frameBuffer->GetFrameBuffer());
+  if (m_frameBuffer) {
+    GPU_framebuffer_free(m_frameBuffer->GetFrameBuffer());
+  }
   for (unsigned short i = 0; i < NUM_COLOR_SLOTS; ++i) {
     GPUTexture *texture = m_colorTextures[i];
     if (texture) {
