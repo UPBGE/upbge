@@ -29,6 +29,7 @@
 
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
@@ -37,6 +38,7 @@
 
 #include "BLT_translation.h"
 
+#include "BKE_context.h"
 #include "BKE_lib_id.h"
 #include "BKE_report.h"
 
@@ -480,11 +482,13 @@ void ui_rna_collection_search_update_fn(const struct bContext *C,
 
   BLI_listbase_sort(items_list, sort_search_items_list);
 
+  ScrArea *area = CTX_wm_area(C);
+
   /* add search items from temporary list */
   for (cis = items_list->first; cis; cis = cis->next) {
     /* If no item has an own icon to display, libraries can use the library icons rather than the
      * name prefix for showing the library status. */
-    if (!has_id_icon && cis->is_id) {
+    if (area && (area->spacetype != SPACE_LOGIC) && !has_id_icon && cis->is_id) {
       cis->iconid = UI_library_icon_get(cis->data);
       /* No need to re-allocate, string should be shorter than before (lib status prefix is
        * removed). */

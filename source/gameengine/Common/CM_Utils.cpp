@@ -33,11 +33,16 @@ std::string CM_RemovePrefix(const std::string &propname) {
   std::string temporal = propname;
   const char *p = temporal.c_str();
   if (*(p + 2) == ' ') {
-	if (*(p + 1) == ' ' || *(p + 1) == 'F' || *(p + 1) == '0') {
-	  if (*(p + 0) == ' ' || *(p + 0) == 'M' || *(p + 0) == 'L' || *(p + 0) == 'O') {
-		temporal.erase(0,3);
-	  }
-	}
+    if (*(p + 1) == ' ' || *(p + 1) == 'F' || *(p + 1) == '0') {
+      if (*(p + 0) == ' ' || *(p + 0) == 'M' || *(p + 0) == 'L' || *(p + 0) == 'O') {
+        temporal.erase(0,3);
+      }
+    }
+  }
+  if (*(p + 1) == ' ') {
+    if (*(p + 0) == ' ' || *(p + 1) == 'F' || *(p + 1) == '0') {
+      temporal.erase(0,2);
+    }
   }
   return temporal;
 }
