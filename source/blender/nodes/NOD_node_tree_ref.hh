@@ -14,11 +14,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BKE_NODE_TREE_REF_HH__
-#define __BKE_NODE_TREE_REF_HH__
+#ifndef __NOD_NODE_TREE_REF_HH__
+#define __NOD_NODE_TREE_REF_HH__
 
 /** \file
- * \ingroup bke
+ * \ingroup nodes
  *
  * NodeTreeRef makes querying information about a bNodeTree more efficient. It is an immutable data
  * structure. It should not be used after anymore, after the underlying node tree changed.
@@ -58,7 +58,7 @@
 
 #include "RNA_access.h"
 
-namespace blender::bke {
+namespace blender::nodes {
 
 class SocketRef;
 class InputSocketRef;
@@ -405,7 +405,7 @@ inline Span<const NodeRef *> NodeTreeRef::nodes() const
 
 inline Span<const NodeRef *> NodeTreeRef::nodes_by_type(StringRefNull idname) const
 {
-  const bNodeType *nodetype = nodeTypeFind(idname.data());
+  const bNodeType *nodetype = nodeTypeFind(idname.c_str());
   return this->nodes_by_type(nodetype);
 }
 
@@ -440,6 +440,6 @@ inline bNodeTree *NodeTreeRef::btree() const
   return btree_;
 }
 
-}  // namespace blender::bke
+}  // namespace blender::nodes
 
-#endif /* __BKE_NODE_TREE_REF_HH__ */
+#endif /* __NOD_NODE_TREE_REF_HH__ */

@@ -14,35 +14,19 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __FN_CPP_TYPES_HH__
-#define __FN_CPP_TYPES_HH__
+#ifndef __SIM_SIMULATION_UPDATE_HH__
+#define __SIM_SIMULATION_UPDATE_HH__
 
-/** \file
- * \ingroup fn
- *
- * This header provides convenient access to CPPType instances for some core types like integer
- * types.
- */
+struct Depsgraph;
+struct Scene;
+struct Simulation;
 
-#include "FN_cpp_type.hh"
+namespace blender::sim {
 
-namespace blender::fn {
+void update_simulation_in_depsgraph(Depsgraph *depsgraph,
+                                    Scene *scene_cow,
+                                    Simulation *simulation_cow);
 
-extern const CPPType &CPPType_bool;
+}
 
-extern const CPPType &CPPType_float;
-extern const CPPType &CPPType_float3;
-extern const CPPType &CPPType_float4x4;
-
-extern const CPPType &CPPType_int32;
-extern const CPPType &CPPType_uint32;
-extern const CPPType &CPPType_uint8;
-
-extern const CPPType &CPPType_Color4f;
-extern const CPPType &CPPType_Color4b;
-
-extern const CPPType &CPPType_string;
-
-}  // namespace blender::fn
-
-#endif /* __FN_CPP_TYPES_HH__ */
+#endif /* __SIM_SIMULATION_UPDATE_HH__ */

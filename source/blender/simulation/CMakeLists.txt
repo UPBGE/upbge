@@ -24,8 +24,11 @@ set(INC
   ../blenkernel
   ../blenlib
   ../depsgraph
+  ../functions
   ../imbuf
   ../makesdna
+  ../makesrna
+  ../nodes
   ../../../intern/guardedalloc
 )
 
@@ -35,17 +38,28 @@ set(INC_SYS
 
 set(SRC
   intern/SIM_mass_spring.cpp
-  intern/ConstrainedConjugateGradient.h
-  intern/eigen_utils.h
   intern/hair_volume.cpp
-  intern/implicit.h
   intern/implicit_blender.c
   intern/implicit_eigen.cpp
+  intern/particle_function.cc
+  intern/simulation_collect_influences.cc
+  intern/simulation_solver.cc
+  intern/simulation_update.cc
+
+  intern/ConstrainedConjugateGradient.h
+  intern/eigen_utils.h
+  intern/implicit.h
+  intern/simulation_collect_influences.hh
+  intern/simulation_solver.hh
 
   SIM_mass_spring.h
+  SIM_particle_function.hh
+  SIM_simulation_update.hh
 )
 
 set(LIB
+  bf_blenkernel
+  bf_nodes
 )
 
 if(WITH_OPENMP_STATIC)

@@ -35,15 +35,28 @@ set(MANTAVERSION "0.13")
 
 add_definitions(-DWITH_FLUID=1)
 
-set(MANTA_DEP
-  dependencies
-)
+# Compile Mantaflow dependencies too (e.g. cnpy for numpy file IO).
+# Make sure that dependencies exist before enabling this option by updating the source files in extern/
+set(WITH_MANTA_DEPENDENCIES 0)
+
+# Enable Mantaflow numpy support
+set(WITH_MANTA_NUMPY 0)
+
+if(NOT WITH_MANTA_DEPENDENCIES)
+  add_definitions(-DNO_CNPY=1)
+endif()
+
 set(MANTA_HLP
   helper
 )
 set(MANTA_PP
   preprocessed
 )
+if(WITH_MANTA_DEPENDENCIES)
+  set(MANTA_DEP
+    dependencies
+  )
+endif()
 
 if(WITH_TBB)
   add_definitions(-DTBB=1)
@@ -62,6 +75,10 @@ if(WIN32)
   add_definitions(-D_USE_MATH_DEFINES)
 endif()
 
+if(WITH_MANTA_NUMPY AND WITH_PYTHON_INSTALL_NUMPY)
+  add_definitions(-DNUMPY=1)
+endif()
+
 set(INC
   ${MANTA_PP}
   ${MANTA_PP}/fileio
@@ -69,13 +86,24 @@ set(INC
   ${MANTA_PP}/plugin
   ${MANTA_HLP}/pwrapper
   ${MANTA_HLP}/util
-  ${MANTA_DEP}/cnpy
 )
+
+if(WITH_MANTA_DEPENDENCIES)
+  list(APPEND INC
+    ${MANTA_DEP}/cnpy
+  )
+endif()
 
 set(INC_SYS
   ${PYTHON_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
 )
+
+if(WITH_MANTA_NUMPY AND WITH_PYTHON_INSTALL_NUMPY)
+  list(APPEND INC_SYS
+    ${PYTHON_NUMPY_INCLUDE_DIRS}
+  )
+endif()
 
 if(WITH_TBB)
   list(APPEND INC_SYS
@@ -96,9 +124,6 @@ if(WITH_OPENVDB)
 endif()
 
 set(SRC
-  ${MANTA_DEP}/cnpy/cnpy.cpp
-  ${MANTA_DEP}/cnpy/cnpy.h
-
   ${MANTA_PP}/commonkernels.h
   ${MANTA_PP}/commonkernels.h.reg.cpp
   ${MANTA_PP}/conjugategrad.cpp
@@ -161,14 +186,10 @@ set(SRC
   ${MANTA_PP}/plugin/initplugins.cpp
   ${MANTA_PP}/plugin/kepsilon.cpp
   ${MANTA_PP}/plugin/meshplugins.cpp
-# TODO (sebbas): add numpy to libraries
-#   ${MANTA_PP}/plugin/numpyconvert.cpp
   ${MANTA_PP}/plugin/pressure.cpp
   ${MANTA_PP}/plugin/ptsplugins.cpp
   ${MANTA_PP}/plugin/secondaryparticles.cpp
   ${MANTA_PP}/plugin/surfaceturbulence.cpp
-# TODO (sebbas): add numpy to libraries
-#   ${MANTA_PP}/plugin/tfplugins.cpp
   ${MANTA_PP}/plugin/vortexplugins.cpp
   ${MANTA_PP}/plugin/waveletturbulence.cpp
   ${MANTA_PP}/plugin/waves.cpp
@@ -193,9 +214,6 @@ set(SRC
   ${MANTA_PP}/vortexsheet.h.reg.cpp
 
   ${MANTA_HLP}/pwrapper/manta.h
-# TODO (sebbas): add numpy to libraries
-#  ${MANTA_HLP}/pwrapper/numpyWrap.cpp
-#  ${MANTA_HLP}/pwrapper/numpyWrap.h
   ${MANTA_HLP}/pwrapper/pclass.cpp
   ${MANTA_HLP}/pwrapper/pclass.h
   ${MANTA_HLP}/pwrapper/pconvert.cpp
@@ -220,6 +238,22 @@ set(SRC
   ${MANTA_HLP}/util/vectorbase.cpp
   ${MANTA_HLP}/util/vectorbase.h
 )
+
+if(WITH_MANTA_DEPENDENCIES)
+  list(APPEND SRC
+    ${MANTA_DEP}/cnpy/cnpy.cpp
+    ${MANTA_DEP}/cnpy/cnpy.h
+  )
+endif()
+
+if(WITH_MANTA_NUMPY AND WITH_PYTHON_INSTALL_NUMPY)
+  list(APPEND SRC
+    ${MANTA_PP}/plugin/numpyconvert.cpp
+    ${MANTA_PP}/plugin/tfplugins.cpp
+    ${MANTA_HLP}/pwrapper/numpyWrap.cpp
+    ${MANTA_HLP}/pwrapper/numpyWrap.h
+  )
+endif()
 
 set(LIB
   ${PYTHON_LINKFLAGS}
