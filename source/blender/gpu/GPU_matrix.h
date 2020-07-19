@@ -102,11 +102,15 @@ struct GPUMatrixUnproject_Precalc {
   float model_inverted[4][4];
   float view[4];
   bool is_persp;
-  /** Result of 'projmat_dimensions'. */
+  /**
+   * Result of #projmat_dimensions_db.
+   * Using double precision here is important as far clipping ranges
+   * can cause divide-by-zero when using float, see: T66937.
+   */
   struct {
-    float xmin, xmax;
-    float ymin, ymax;
-    float zmin, zmax;
+    double xmin, xmax;
+    double ymin, ymax;
+    double zmin, zmax;
   } dims;
 };
 
@@ -146,6 +150,10 @@ const float (*GPU_matrix_normal_inverse_get(float m[3][3]))[3];
 /* set uniform values for currently bound shader */
 void GPU_matrix_bind(const struct GPUShaderInterface *);
 bool GPU_matrix_dirty_get(void); /* since last bind */
+
+/* own working polygon offset */
+float GPU_polygon_offset_calc(const float (*winmat)[4], float viewdist, float dist);
+void GPU_polygon_offset(float viewdist, float dist);
 
 /* Python API needs to be able to inspect the stack so errors raise exceptions
  * instead of crashing. */

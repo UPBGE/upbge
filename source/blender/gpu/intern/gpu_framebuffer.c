@@ -979,10 +979,10 @@ void GPU_offscreen_bind(GPUOffScreen *ofs, bool save)
     GPUFrameBuffer *fb = GPU_framebuffer_active_get();
     gpuPushFrameBuffer(fb);
   }
-  glDisable(GL_SCISSOR_TEST);
   GPUFrameBuffer *ofs_fb = gpu_offscreen_fb_get(ofs);
   GPU_framebuffer_bind(ofs_fb);
   glDisable(GL_FRAMEBUFFER_SRGB);
+  GPU_scissor_test(false);
   GPU_shader_set_framebuffer_srgb_target(false);
 }
 
@@ -1079,6 +1079,20 @@ void GPU_frontbuffer_read_pixels(
 {
   glReadBuffer(GL_FRONT);
   gpu_framebuffer_read_color_ex(x, y, w, h, channels, GL_FRONT, format, data);
+}
+
+/* For stereo rendering. */
+void GPU_backbuffer_bind(eGPUBackBuffer buffer)
+{
+  if (buffer == GPU_BACKBUFFER) {
+    glDrawBuffer(GL_BACK);
+  }
+  else if (buffer == GPU_BACKBUFFER_LEFT) {
+    glDrawBuffer(GL_BACK_LEFT);
+  }
+  else if (buffer == GPU_BACKBUFFER_RIGHT) {
+    glDrawBuffer(GL_BACK_RIGHT);
+  }
 }
 
 /**************Game engine****************/

@@ -188,6 +188,7 @@ static const EnumPropertyItem rna_enum_userdef_viewport_aa_items[] = {
 #  include "DEG_depsgraph.h"
 
 #  include "GPU_draw.h"
+#  include "GPU_extensions.h"
 #  include "GPU_select.h"
 
 #  include "BLF_api.h"
@@ -439,13 +440,12 @@ static void rna_userdef_timecode_style_set(PointerRNA *ptr, int value)
   UserDef *userdef = (UserDef *)ptr->data;
   int required_size = userdef->v2d_min_gridsize;
 
-  /* set the timecode style */
+  /* Set the time-code style. */
   userdef->timecode_style = value;
 
-  /* adjust the v2d gridsize if needed so that timecodes don't overlap
+  /* Adjust the v2d grid-size if needed so that time-codes don't overlap
    * NOTE: most of these have been hand-picked to avoid overlaps while still keeping
-   * things from getting too blown out
-   */
+   * things from getting too blown out. */
   switch (value) {
     case USER_TIMECODE_MINIMAL:
     case USER_TIMECODE_SECONDS_ONLY:
@@ -1064,6 +1064,11 @@ static void rna_UserDef_studiolight_light_ambient_get(PointerRNA *ptr, float *va
 {
   StudioLight *sl = (StudioLight *)ptr->data;
   copy_v3_v3(values, sl->light_ambient);
+}
+
+int rna_show_statusbar_vram_editable(struct PointerRNA *UNUSED(ptr), const char **UNUSED(r_info))
+{
+  return GPU_mem_stats_supported() ? PROP_EDITABLE : 0;
 }
 
 #else
@@ -4794,6 +4799,29 @@ static void rna_def_userdef_view(BlenderRNA *brna)
                            "Translate New Names",
                            "Translate the names of new data-blocks (objects, materials...)");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  /* Statusbar. */
+
+  prop = RNA_def_property(srna, "show_statusbar_memory", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "statusbar_flag", STATUSBAR_SHOW_MEMORY);
+  RNA_def_property_ui_text(prop, "Show Memory", "Show Blender memory usage");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "show_statusbar_vram", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "statusbar_flag", STATUSBAR_SHOW_VRAM);
+  RNA_def_property_ui_text(prop, "Show VRAM", "Show GPU video memory usage");
+  RNA_def_property_editable_func(prop, "rna_show_statusbar_vram_editable");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "show_statusbar_version", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "statusbar_flag", STATUSBAR_SHOW_VERSION);
+  RNA_def_property_ui_text(prop, "Show Version", "Show Blender version string");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "show_statusbar_stats", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "statusbar_flag", STATUSBAR_SHOW_STATS);
+  RNA_def_property_ui_text(prop, "Show Statistics", "Show scene statistics");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO, "rna_userdef_update");
 }
 
 static void rna_def_userdef_edit(BlenderRNA *brna)

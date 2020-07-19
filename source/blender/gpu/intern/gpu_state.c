@@ -78,6 +78,28 @@ void GPU_blend_set_func_separate(eGPUBlendFunction src_rgb,
                       gpu_get_gl_blendfunction(dst_alpha));
 }
 
+void GPU_face_culling(eGPUFaceCull culling)
+{
+  if (culling == GPU_CULL_NONE) {
+    glDisable(GL_CULL_FACE);
+  }
+  else {
+    glEnable(GL_CULL_FACE);
+    glCullFace((culling == GPU_CULL_FRONT) ? GL_FRONT : GL_BACK);
+  }
+}
+
+void GPU_front_facing(bool invert)
+{
+  glFrontFace((invert) ? GL_CW : GL_CCW);
+}
+
+void GPU_provoking_vertex(eGPUProvokingVertex vert)
+{
+  glProvokingVertex((vert == GPU_VERTEX_FIRST) ? GL_FIRST_VERTEX_CONVENTION :
+                                                 GL_LAST_VERTEX_CONVENTION);
+}
+
 void GPU_depth_range(float near, float far)
 {
   /* glDepthRangef is only for OpenGL 4.1 or higher */
@@ -146,9 +168,24 @@ void GPU_program_point_size(bool enable)
   }
 }
 
+void GPU_scissor_test(bool enable)
+{
+  if (enable) {
+    glEnable(GL_SCISSOR_TEST);
+  }
+  else {
+    glDisable(GL_SCISSOR_TEST);
+  }
+}
+
 void GPU_scissor(int x, int y, int width, int height)
 {
   glScissor(x, y, width, height);
+}
+
+void GPU_viewport(int x, int y, int width, int height)
+{
+  glViewport(x, y, width, height);
 }
 
 void GPU_scissor_get_f(float coords[4])
@@ -179,6 +216,11 @@ void GPU_flush(void)
 void GPU_finish(void)
 {
   glFinish();
+}
+
+void GPU_unpack_row_length_set(uint len)
+{
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, len);
 }
 
 void GPU_logic_op_xor_set(bool enable)
@@ -212,6 +254,18 @@ bool GPU_depth_mask_get(void)
 void GPU_stencil_mask(uint stencil)
 {
   glStencilMask(stencil);
+}
+
+void GPU_clip_distances(int distances_new)
+{
+  static int distances_enabled = 0;
+  for (int i = 0; i < distances_new; i++) {
+    glEnable(GL_CLIP_DISTANCE0 + i);
+  }
+  for (int i = distances_new; i < distances_enabled; i++) {
+    glDisable(GL_CLIP_DISTANCE0 + i);
+  }
+  distances_enabled = distances_new;
 }
 
 /** \name GPU Push/Pop State
@@ -411,6 +465,9 @@ void GPU_state_init(void)
   glFrontFace(GL_CCW);
   glCullFace(GL_BACK);
   glDisable(GL_CULL_FACE);
+
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
   /* Is default but better be explicit. */
   glEnable(GL_MULTISAMPLE);

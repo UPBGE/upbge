@@ -14,26 +14,44 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __SIM_SIMULATION_COLLECT_INFLUENCES_HH__
-#define __SIM_SIMULATION_COLLECT_INFLUENCES_HH__
+#ifndef __SIM_TIME_INTERVAL_HH__
+#define __SIM_TIME_INTERVAL_HH__
 
-#include "NOD_derived_node_tree.hh"
-
-#include "BLI_resource_collector.hh"
-
-#include "simulation_solver.hh"
+#include "BLI_utildefines.h"
 
 namespace blender::sim {
 
-struct SimulationStatesInfo {
-  VectorSet<std::string> particle_simulation_names;
-};
+/**
+ * The start time is inclusive and the end time is exclusive. The duration is zero, the interval
+ * describes a single point in time.
+ */
+class TimeInterval {
+ private:
+  float start_;
+  float duration_;
 
-void collect_simulation_influences(Simulation &simulation,
-                                   ResourceCollector &resources,
-                                   SimulationInfluences &r_influences,
-                                   SimulationStatesInfo &r_states_info);
+ public:
+  TimeInterval(float start, float duration) : start_(start), duration_(duration)
+  {
+    BLI_assert(duration_ >= 0.0f);
+  }
+
+  float start() const
+  {
+    return start_;
+  }
+
+  float end() const
+  {
+    return start_ + duration_;
+  }
+
+  float duration() const
+  {
+    return duration_;
+  }
+};
 
 }  // namespace blender::sim
 
-#endif /* __SIM_SIMULATION_COLLECT_INFLUENCES_HH__ */
+#endif /* __SIM_TIME_INTERVAL_HH__ */

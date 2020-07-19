@@ -106,11 +106,11 @@ static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
 
       if (pc->poll == NULL || pc->poll(C)) {
         /* Prevent drawing outside region. */
-        glEnable(GL_SCISSOR_TEST);
-        glScissor(region->winrct.xmin,
-                  region->winrct.ymin,
-                  BLI_rcti_size_x(&region->winrct) + 1,
-                  BLI_rcti_size_y(&region->winrct) + 1);
+        GPU_scissor_test(true);
+        GPU_scissor(region->winrct.xmin,
+                    region->winrct.ymin,
+                    BLI_rcti_size_x(&region->winrct) + 1,
+                    BLI_rcti_size_y(&region->winrct) + 1);
 
         if (ELEM(win->grabcursor, GHOST_kGrabWrap, GHOST_kGrabHide)) {
           int x = 0, y = 0;
@@ -121,7 +121,7 @@ static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
           pc->draw(C, win->eventstate->x, win->eventstate->y, pc->customdata);
         }
 
-        glDisable(GL_SCISSOR_TEST);
+        GPU_scissor_test(false);
       }
     }
   }
@@ -135,7 +135,6 @@ static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
 
 static void wm_region_draw_overlay(bContext *C, ScrArea *area, ARegion *region)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
 
   wmViewport(&region->winrct);
@@ -461,8 +460,8 @@ static void wm_draw_region_bind(ARegion *region, int view)
 
     /* For now scissor is expected by region drawing, we could disable it
      * and do the enable/disable in the specific cases that setup scissor. */
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(0, 0, region->winx, region->winy);
+    GPU_scissor_test(true);
+    GPU_scissor(0, 0, region->winx, region->winy);
   }
 
   region->draw_buffer->bound_view = view;
@@ -480,7 +479,7 @@ static void wm_draw_region_unbind(ARegion *region)
     GPU_viewport_unbind(region->draw_buffer->viewport);
   }
   else {
-    glDisable(GL_SCISSOR_TEST);
+    GPU_scissor_test(false);
     GPU_offscreen_unbind(region->draw_buffer->offscreen, false);
   }
 }
@@ -831,11 +830,13 @@ static void wm_draw_window(bContext *C, wmWindow *win)
   }
   else if (win->stereo3d_format->display_mode == S3D_DISPLAY_PAGEFLIP) {
     /* For pageflip we simply draw to both back buffers. */
-    glDrawBuffer(GL_BACK_LEFT);
+    GPU_backbuffer_bind(GPU_BACKBUFFER_LEFT);
     wm_draw_window_onscreen(C, win, 0);
-    glDrawBuffer(GL_BACK_RIGHT);
+
+    GPU_backbuffer_bind(GPU_BACKBUFFER_RIGHT);
     wm_draw_window_onscreen(C, win, 1);
-    glDrawBuffer(GL_BACK);
+
+    GPU_backbuffer_bind(GPU_BACKBUFFER);
   }
   else if (ELEM(win->stereo3d_format->display_mode, S3D_DISPLAY_ANAGLYPH, S3D_DISPLAY_INTERLACE)) {
     /* For anaglyph and interlace, we draw individual regions with

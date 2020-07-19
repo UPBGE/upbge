@@ -1761,7 +1761,8 @@ void ED_gpencil_brush_draw_eraser(Brush *brush, int x, int y)
 
   GPU_line_smooth(true);
   GPU_blend(true);
-  glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+  GPU_blend_set_func_separate(
+      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 
   immUniformColor4ub(255, 100, 100, 20);
   imm_draw_circle_fill_2d(shdr_pos, x, y, radius, 40);
@@ -1771,7 +1772,7 @@ void ED_gpencil_brush_draw_eraser(Brush *brush, int x, int y)
   immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
 
   float viewport_size[4];
-  glGetFloatv(GL_VIEWPORT, viewport_size);
+  GPU_viewport_size_get_f(viewport_size);
   immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
 
   immUniformColor4f(1.0f, 0.39f, 0.39f, 0.78f);

@@ -272,10 +272,7 @@ void GPU_texture_compare_mode(GPUTexture *tex, bool use_compare);
 void GPU_texture_filter_mode(GPUTexture *tex, bool use_filter);
 void GPU_texture_mipmap_mode(GPUTexture *tex, bool use_mipmap, bool use_filter);
 void GPU_texture_wrap_mode(GPUTexture *tex, bool use_repeat, bool use_clamp);
-void GPU_texture_filters(GPUTexture *tex,
-                         eGPUFilterFunction min_filter,
-                         eGPUFilterFunction mag_filter);
-void GPU_texture_swizzle_channel_auto(GPUTexture *tex, int channels);
+void GPU_texture_swizzle_set(GPUTexture *tex, const char swizzle[4]);
 
 void GPU_texture_attach_framebuffer(GPUTexture *tex, struct GPUFrameBuffer *fb, int attachment);
 int GPU_texture_detach_framebuffer(GPUTexture *tex, struct GPUFrameBuffer *fb);
@@ -297,6 +294,8 @@ bool GPU_texture_integer(const GPUTexture *tex);
 int GPU_texture_opengl_bindcode(const GPUTexture *tex);
 
 void GPU_texture_get_mipmap_size(GPUTexture *tex, int lvl, int *size);
+
+void GPU_sampler_icon_bind(int number);
 
 /******************Game engine************************/
 void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode);
