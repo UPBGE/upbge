@@ -603,7 +603,7 @@ const char *ED_info_statusbar_string(Main *bmain, bScreen *screen, bContext *C)
     if (info[0]) {
       ofs += BLI_snprintf(info + ofs, len - ofs, " | ");
     }
-    ofs += BLI_snprintf(info + ofs, len - ofs, TIP_("%s"), BKE_blender_version_string());
+    ofs += BLI_snprintf(info + ofs, len - ofs, TIP_("%s"), BKE_upbge_version_string());
   }
 
   return info;
