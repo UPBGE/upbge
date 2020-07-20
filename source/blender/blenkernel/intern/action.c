@@ -1665,8 +1665,12 @@ void BKE_pose_tag_recalc(Main *bmain, bPose *pose)
 /* For the calculation of the effects of an Action at the given frame on an object
  * This is currently only used for the Action Constraint
  */
-void what_does_obaction(
-    Object *ob, Object *workob, bPose *pose, bAction *act, char groupname[], float cframe)
+void what_does_obaction(Object *ob,
+                        Object *workob,
+                        bPose *pose,
+                        bAction *act,
+                        char groupname[],
+                        const AnimationEvalContext *anim_eval_context)
 {
   bActionGroup *agrp = BKE_action_group_find_name(act, groupname);
 
@@ -1722,7 +1726,7 @@ void what_does_obaction(
     RNA_id_pointer_create(&workob->id, &id_ptr);
 
     /* execute action for this group only */
-    animsys_evaluate_action_group(&id_ptr, act, agrp, cframe);
+    animsys_evaluate_action_group(&id_ptr, act, agrp, anim_eval_context);
   }
   else {
     AnimData adt = {NULL};
@@ -1733,6 +1737,6 @@ void what_does_obaction(
     adt.action = act;
 
     /* execute effects of Action on to workob (or it's PoseChannels) */
-    BKE_animsys_evaluate_animdata(&workob->id, &adt, cframe, ADT_RECALC_ANIM, false);
+    BKE_animsys_evaluate_animdata(&workob->id, &adt, anim_eval_context, ADT_RECALC_ANIM, false);
   }
 }

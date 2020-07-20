@@ -60,7 +60,7 @@ template<typename T> struct StackChunk {
   /** Pointer to one element past the end of the referenced buffer. */
   T *capacity_end;
 
-  uint capacity() const
+  int64_t capacity() const
   {
     return capacity_end - begin;
   }
@@ -73,11 +73,8 @@ template<
      * The number of values that can be stored in this stack, without doing a heap allocation.
      * Sometimes it can make sense to increase this value a lot. The memory in the inline buffer is
      * not initialized when it is not needed.
-     *
-     * When T is large, the small buffer optimization is disabled by default to avoid large
-     * unexpected allocations on the stack. It can still be enabled explicitly though.
      */
-    uint InlineBufferCapacity = (sizeof(T) < 100) ? 4 : 0,
+    int64_t InlineBufferCapacity = default_inline_buffer_capacity(sizeof(T)),
     /**
      * The allocator used by this stack. Should rarely be changed, except when you don't want that
      * MEM_* is used internally.
@@ -103,7 +100,7 @@ class Stack {
   /**
    * Number of elements in the entire stack. The sum of initialized element counts in the chunks.
    */
-  uint size_;
+  int64_t size_;
 
   /** The buffer used to implement small object optimization. */
   TypedBuffer<T, InlineBufferCapacity> inline_buffer_;
@@ -298,8 +295,8 @@ class Stack {
         this->activate_next_chunk(remaining_values.size());
       }
 
-      const uint remaining_capacity = top_chunk_->capacity_end - top_;
-      const uint amount = std::min(remaining_values.size(), remaining_capacity);
+      const int64_t remaining_capacity = top_chunk_->capacity_end - top_;
+      const int64_t amount = std::min(remaining_values.size(), remaining_capacity);
       uninitialized_copy_n(remaining_values.data(), amount, top_);
       top_ += amount;
 
@@ -320,7 +317,7 @@ class Stack {
   /**
    * Returns the number of elements in the stack.
    */
-  uint size() const
+  int64_t size() const
   {
     return size_;
   }
@@ -344,11 +341,11 @@ class Stack {
    *
    * This invokes undefined behavior when the currently active chunk is not full.
    */
-  void activate_next_chunk(const uint size_hint)
+  void activate_next_chunk(const int64_t size_hint)
   {
     BLI_assert(top_ == top_chunk_->capacity_end);
     if (top_chunk_->above == nullptr) {
-      const uint new_capacity = std::max(size_hint, top_chunk_->capacity() * 2 + 10);
+      const int64_t new_capacity = std::max(size_hint, top_chunk_->capacity() * 2 + 10);
 
       /* Do a single memory allocation for the Chunk and the array it references. */
       void *buffer = allocator_.allocate(
@@ -380,6 +377,13 @@ class Stack {
     }
   }
 };
+
+/**
+ * Same as a normal Stack, but does not use Blender's guarded allocator. This is useful when
+ * allocating memory with static storage duration.
+ */
+template<typename T, int64_t InlineBufferCapacity = default_inline_buffer_capacity(sizeof(T))>
+using RawStack = Stack<T, InlineBufferCapacity, RawAllocator>;
 
 } /* namespace blender */
 

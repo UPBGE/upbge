@@ -624,10 +624,6 @@ void RE_engine_frame_set(RenderEngine *engine, int frame, float subframe)
     return;
   }
 
-#ifdef WITH_PYTHON
-  BPy_BEGIN_ALLOW_THREADS;
-#endif
-
   Render *re = engine->re;
   double cfra = (double)frame + (double)subframe;
 
@@ -636,10 +632,6 @@ void RE_engine_frame_set(RenderEngine *engine, int frame, float subframe)
   BKE_scene_graph_update_for_newframe(engine->depsgraph, re->main);
 
   BKE_scene_camera_switch_update(re->scene);
-
-#ifdef WITH_PYTHON
-  BPy_END_ALLOW_THREADS;
-#endif
 }
 
 /* Bake */
@@ -871,7 +863,15 @@ int RE_engine_render(Render *re, int do_all)
         re->draw_lock(re->dlh, 0);
       }
 
+      if (engine->type->flag & RE_USE_GPU_CONTEXT) {
+        DRW_render_context_enable(engine->re);
+      }
+
       type->render(engine, engine->depsgraph);
+
+      if (engine->type->flag & RE_USE_GPU_CONTEXT) {
+        DRW_render_context_disable(engine->re);
+      }
 
       /* Grease pencil render over previous render result.
        *

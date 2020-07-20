@@ -199,6 +199,9 @@ void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
 
       cb->extra_loose_points = grp = DRW_shgroup_create(sh, extra_ps);
       DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
+
+      /* Buffer access for drawing isolated points, matching `extra_lines`. */
+      cb->extra_points = BUF_POINT(grp, formats->point_extra);
     }
     {
       format = formats->pos;
@@ -228,6 +231,11 @@ void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
       cb->center_deselected_lib = BUF_POINT(grp_sub, format);
     }
   }
+}
+
+void OVERLAY_extra_point(OVERLAY_ExtraCallBuffers *cb, const float point[3], const float color[4])
+{
+  DRW_buffer_add_entry(cb->extra_points, point, color);
 }
 
 void OVERLAY_extra_line_dashed(OVERLAY_ExtraCallBuffers *cb,
@@ -1294,6 +1302,19 @@ static void OVERLAY_relationship_lines(OVERLAY_ExtraCallBuffers *cb,
   if (ob->parent && (DRW_object_visibility_in_active_context(ob->parent) & OB_VISIBLE_SELF)) {
     float *parent_pos = ob->runtime.parent_display_origin;
     OVERLAY_extra_line_dashed(cb, parent_pos, ob->obmat[3], relation_color);
+  }
+
+  /* Drawing the hook lines. */
+  for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
+    if (md->type == eModifierType_Hook) {
+      HookModifierData *hmd = (HookModifierData *)md;
+      float center[3];
+      mul_v3_m4v3(center, ob->obmat, hmd->cent);
+      if (hmd->object) {
+        OVERLAY_extra_line_dashed(cb, hmd->object->obmat[3], center, relation_color);
+      }
+      OVERLAY_extra_point(cb, center, relation_color);
+    }
   }
 
   if (ob->rigidbody_constraint) {

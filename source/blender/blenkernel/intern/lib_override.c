@@ -1120,11 +1120,11 @@ void BKE_lib_override_library_main_operations_create(Main *bmain, const bool for
   TaskPool *task_pool = BLI_task_pool_create(bmain, TASK_PRIORITY_HIGH);
 
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    if ((ID_IS_OVERRIDE_LIBRARY_REAL(id) && force_auto) ||
-        (id->tag & LIB_TAG_OVERRIDE_LIBRARY_AUTOREFRESH)) {
+    if (ID_IS_OVERRIDE_LIBRARY_REAL(id) &&
+        (force_auto || (id->tag & LIB_TAG_OVERRIDE_LIBRARY_AUTOREFRESH))) {
       BLI_task_pool_push(task_pool, lib_override_library_operations_create_cb, id, false, NULL);
-      id->tag &= ~LIB_TAG_OVERRIDE_LIBRARY_AUTOREFRESH;
     }
+    id->tag &= ~LIB_TAG_OVERRIDE_LIBRARY_AUTOREFRESH;
   }
   FOREACH_MAIN_ID_END;
 
@@ -1276,8 +1276,6 @@ void BKE_lib_override_library_update(Main *bmain, ID *local)
   Key *local_key = BKE_key_from_id(local);
   Key *tmp_key = BKE_key_from_id(tmp_id);
   if (local_key != NULL && tmp_key != NULL) {
-    /* This is some kind of hard-coded 'always enforced override'... */
-    tmp_key->from = local_key->from;
     tmp_key->id.flag |= (local_key->id.flag & LIB_EMBEDDED_DATA_LIB_OVERRIDE);
   }
 
@@ -1295,6 +1293,12 @@ void BKE_lib_override_library_update(Main *bmain, ID *local)
   /* This also transfers all pointers (memory) owned by local to tmp_id, and vice-versa.
    * So when we'll free tmp_id, we'll actually free old, outdated data from local. */
   BKE_lib_id_swap(bmain, local, tmp_id);
+
+  if (local_key != NULL && tmp_key != NULL) {
+    /* This is some kind of hard-coded 'always enforced override'... */
+    BKE_lib_id_swap(bmain, &local_key->id, &tmp_key->id);
+    tmp_key->id.flag |= (local_key->id.flag & LIB_EMBEDDED_DATA_LIB_OVERRIDE);
+  }
 
   /* Again, horribly inn-efficient in our case, we need something off-Main
    * (aka more generic nolib copy/free stuff)! */

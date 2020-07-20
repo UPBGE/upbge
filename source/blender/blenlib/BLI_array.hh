@@ -13,6 +13,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+
 #ifndef __BLI_ARRAY_HH__
 #define __BLI_ARRAY_HH__
 
@@ -52,11 +53,8 @@ template<
     typename T,
     /**
      * The number of values that can be stored in the array, without doing a heap allocation.
-     *
-     * When T is large, the small buffer optimization is disabled by default to avoid large
-     * unexpected allocations on the stack. It can still be enabled explicitly though.
      */
-    uint InlineBufferCapacity = (sizeof(T) < 100) ? 4 : 0,
+    int64_t InlineBufferCapacity = default_inline_buffer_capacity(sizeof(T)),
     /**
      * The allocator used by this array. Should rarely be changed, except when you don't want that
      * MEM_* functions are used internally.
@@ -68,7 +66,7 @@ class Array {
   T *data_;
 
   /** Number of elements in the array. */
-  uint size_;
+  int64_t size_;
 
   /** Used for allocations when the inline buffer is too small. */
   Allocator allocator_;
@@ -117,7 +115,7 @@ class Array {
    * even for non-trivial types. This should not be the default though, because one can easily mess
    * up when dealing with uninitialized memory.
    */
-  explicit Array(uint size)
+  explicit Array(int64_t size)
   {
     size_ = size;
     data_ = this->get_buffer_for_size(size);
@@ -128,8 +126,9 @@ class Array {
    * Create a new array with the given size. All values will be initialized by copying the given
    * default.
    */
-  Array(uint size, const T &value)
+  Array(int64_t size, const T &value)
   {
+    BLI_assert(size >= 0);
     size_ = size;
     data_ = this->get_buffer_for_size(size);
     uninitialized_fill_n(data_, size_, value);
@@ -147,8 +146,9 @@ class Array {
    * Usage:
    *  Array<std::string> my_strings(10, NoInitialization());
    */
-  Array(uint size, NoInitialization)
+  Array(int64_t size, NoInitialization)
   {
+    BLI_assert(size >= 0);
     size_ = size;
     data_ = this->get_buffer_for_size(size);
   }
@@ -203,14 +203,16 @@ class Array {
     return *this;
   }
 
-  T &operator[](uint index)
+  T &operator[](int64_t index)
   {
+    BLI_assert(index >= 0);
     BLI_assert(index < size_);
     return data_[index];
   }
 
-  const T &operator[](uint index) const
+  const T &operator[](int64_t index) const
   {
+    BLI_assert(index >= 0);
     BLI_assert(index < size_);
     return data_[index];
   }
@@ -250,7 +252,7 @@ class Array {
   /**
    * Returns the number of elements in the array.
    */
-  uint size() const
+  int64_t size() const
   {
     return size_;
   }
@@ -264,19 +266,11 @@ class Array {
   }
 
   /**
-   * Copies the value to all indices in the array.
+   * Copies the given value to every element in the array.
    */
-  void fill(const T &value)
+  void fill(const T &value) const
   {
     initialized_fill_n(data_, size_, value);
-  }
-
-  /**
-   * Copies the value to the given indices in the array.
-   */
-  void fill_indices(Span<uint> indices, const T &value)
-  {
-    MutableSpan<T>(*this).fill_indices(indices, value);
   }
 
   /**
@@ -340,13 +334,13 @@ class Array {
    * Get the value of the InlineBufferCapacity template argument. This is the number of elements
    * that can be stored without doing an allocation.
    */
-  static uint inline_buffer_capacity()
+  static int64_t inline_buffer_capacity()
   {
     return InlineBufferCapacity;
   }
 
  private:
-  T *get_buffer_for_size(uint size)
+  T *get_buffer_for_size(int64_t size)
   {
     if (size <= InlineBufferCapacity) {
       return inline_buffer_;
@@ -356,9 +350,9 @@ class Array {
     }
   }
 
-  T *allocate(uint size)
+  T *allocate(int64_t size)
   {
-    return (T *)allocator_.allocate(size * sizeof(T), alignof(T), AT);
+    return (T *)allocator_.allocate((size_t)size * sizeof(T), alignof(T), AT);
   }
 
   bool uses_inline_buffer() const
@@ -366,6 +360,13 @@ class Array {
     return data_ == inline_buffer_;
   }
 };
+
+/**
+ * Same as a normal Array, but does not use Blender's guarded allocator. This is useful when
+ * allocating memory with static storage duration.
+ */
+template<typename T, int64_t InlineBufferCapacity = default_inline_buffer_capacity(sizeof(T))>
+using RawArray = Array<T, InlineBufferCapacity, RawAllocator>;
 
 }  // namespace blender
 
