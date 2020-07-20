@@ -2732,7 +2732,7 @@ KX_PYMETHODDEF_DOC(KX_Scene,
   }
   Object *ob = (Object *)id;
   ConvertBlenderObject(ob);
-  Py_RETURN_NONE;
+  return GetObjectList()->GetBack()->GetProxy();
 }
 
 KX_PYMETHODDEF_DOC(KX_Scene,
