@@ -63,6 +63,16 @@ BL_Action::BL_Action(class KX_GameObject *gameobj)
       m_calc_localtime(true),
       m_prevUpdate(-1.0f)
 {
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  /* See: 686ab4c9401a90b22fb17e46c992eb513fe4f693
+   * This AnimtionEvalContext will not be used directly but
+   * will be used to create other AnimationEvalContext with
+   * localActionTime (m_localFrame) each frame. We need to
+   * construct a new AnimationEvalContext each frame because
+   * AnimationEvalContext->eval_time is const .
+   */
+  m_animEvalCtx = &BKE_animsys_eval_context_construct(depsgraph, 0.0);
 }
 
 BL_Action::~BL_Action()
@@ -361,6 +371,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   Object *ob = m_obj->GetBlenderObject();  // eevee
 
+  /* Create an AnimationEvalContext based on the current local frame time (See comment in constructor) */
+  AnimationEvalContext *animEvalContext = &BKE_animsys_eval_context_construct_at(m_animEvalCtx,
+                                                                                 m_localframe);
+
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
@@ -374,7 +388,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       obj->GetPose(&m_blendpose);
 
     // Extract the pose from the action
-    obj->SetPoseByAction(m_action, m_localframe);
+    obj->SetPoseByAction(m_action, animEvalContext);
 
     m_obj->ForceIgnoreParentTx();
 
@@ -411,7 +425,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
-        animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
+        animsys_evaluate_action(&ptrrna, m_action, animEvalContext, false);
         scene->ResetTaaSamples();
         break;
       }
@@ -426,7 +440,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
-          animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
+          animsys_evaluate_action(&ptrrna, m_action, animEvalContext, false);
 
           m_obj->ForceIgnoreParentTx();
 
@@ -448,7 +462,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
             DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
             PointerRNA ptrrna;
             RNA_id_pointer_create(&node_tree->id, &ptrrna);
-            animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
+            animsys_evaluate_action(&ptrrna, m_action, animEvalContext, false);
             scene->ResetTaaSamples();
             break;
           }
@@ -465,7 +479,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
         PointerRNA ptrrna;
         RNA_id_pointer_create(&key->id, &ptrrna);
-        animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
+        animsys_evaluate_action(&ptrrna, m_action, animEvalContext, false);
 
         // Handle blending between shape actions
         if (m_blendin && m_blendframe < m_blendin) {
@@ -502,7 +516,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
         DEG_id_tag_update(&world->id, ID_RECALC_SHADING);
         PointerRNA ptrrna;
         RNA_id_pointer_create(&node_tree->id, &ptrrna);
-        animsys_evaluate_action(&ptrrna, m_action, m_localframe, false);
+        animsys_evaluate_action(&ptrrna, m_action, animEvalContext, false);
         scene->ResetTaaSamples();
       }
     }

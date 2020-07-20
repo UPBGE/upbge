@@ -36,6 +36,7 @@
 #include "BL_ArmatureConstraint.h"
 #include "KX_GameObject.h"
 
+struct AnimationEvalContext;
 struct bArmature;
 struct Bone;
 struct bPose;
@@ -91,7 +92,7 @@ class BL_ArmatureObject : public KX_GameObject {
   /// Never edit this, only for accessing names.
   bPose *GetPose() const;
   void ApplyPose();
-  void SetPoseByAction(bAction *action, float localtime);
+  void SetPoseByAction(bAction *action, AnimationEvalContext *evalCtx);
   void BlendInPose(bPose *blend_pose, float weight, short mode);
 
   bool UpdateTimestep(double curtime);

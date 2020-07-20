@@ -30,6 +30,8 @@
 #include <string>
 #include <vector>
 
+struct AnimationEvalContext;
+
 class BL_Action {
  private:
   struct bAction *m_action;
@@ -39,6 +41,8 @@ class BL_Action {
   class KX_GameObject *m_obj;
   std::vector<float> m_blendshape;
   std::vector<float> m_blendinshape;
+
+  AnimationEvalContext *m_animEvalCtx;
 
   float m_startframe;
   float m_endframe;
