@@ -30,7 +30,7 @@
 #include <string>
 #include <vector>
 
-struct AnimationEvalContext;
+#include "BKE_animsys.h"
 
 class BL_Action {
  private:
@@ -42,7 +42,7 @@ class BL_Action {
   std::vector<float> m_blendshape;
   std::vector<float> m_blendinshape;
 
-  AnimationEvalContext *m_animEvalCtx;
+  AnimationEvalContext m_animEvalCtx;
 
   float m_startframe;
   float m_endframe;
