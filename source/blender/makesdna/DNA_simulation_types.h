@@ -37,16 +37,16 @@ typedef struct Simulation {
 
   /** List containing SimulationState objects. */
   struct ListBase states;
+
+  /** List containing PersistentDataHandleItem objects. */
+  struct ListBase persistent_data_handles;
 } Simulation;
 
 typedef struct SimulationState {
   struct SimulationState *next;
   struct SimulationState *prev;
 
-  /** eSimulationStateType */
-  int type;
-  int _pad;
-
+  char *type;
   char *name;
 } SimulationState;
 
@@ -57,21 +57,30 @@ typedef struct ParticleSimulationState {
   int tot_particles;
   int next_particle_id;
   struct CustomData attributes;
-
-  /** Caches the state of the particles over time. The cache only exists on the original data
-   * block, not on cow copies. */
-  struct PointCache *point_cache;
-  struct ListBase ptcaches;
 } ParticleSimulationState;
+
+typedef struct ParticleMeshEmitterSimulationState {
+  SimulationState head;
+
+  float last_birth_time;
+  char _pad[4];
+} ParticleMeshEmitterSimulationState;
+
+/** Stores a mapping between an integer handle and a corresponding ID data block. */
+typedef struct PersistentDataHandleItem {
+  struct PersistentDataHandleItem *next;
+  struct PersistentDataHandleItem *prev;
+  struct ID *id;
+  int handle;
+  char _pad[4];
+} PersistentDataHandleItem;
 
 /* Simulation.flag */
 enum {
   SIM_DS_EXPAND = (1 << 0),
 };
 
-/* SimulationCache.type */
-typedef enum eSimulationStateType {
-  SIM_STATE_TYPE_PARTICLES = 0,
-} eSimulationStateType;
+#define SIM_TYPE_NAME_PARTICLE_SIMULATION "Particle Simulation"
+#define SIM_TYPE_NAME_PARTICLE_MESH_EMITTER "Particle Mesh Emitter"
 
 #endif /* __DNA_SIMULATION_TYPES_H__ */

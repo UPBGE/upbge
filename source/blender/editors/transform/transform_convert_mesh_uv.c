@@ -92,7 +92,7 @@ static void UVsToTransData(const float aspect[2],
  */
 static void uv_set_connectivity_distance(BMesh *bm, float *dists, const float aspect[2])
 {
-  /* Mostly copied from editmesh_set_connectivity_distance. */
+  /* Mostly copied from #editmesh_set_connectivity_distance. */
   BLI_LINKSTACK_DECLARE(queue, BMLoop *);
 
   /* Any BM_ELEM_TAG'd loop is added to 'queue_next', this makes sure that we don't add things
@@ -110,7 +110,7 @@ static void uv_set_connectivity_distance(BMesh *bm, float *dists, const float as
   BM_mesh_elem_index_ensure(bm, BM_LOOP);
 
   BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
-    /* Visable faces was tagged in createTransUVs. */
+    /* Visible faces was tagged in #createTransUVs. */
     if (!BM_elem_flag_test(f, BM_ELEM_TAG)) {
       continue;
     }
@@ -178,9 +178,6 @@ static void uv_set_connectivity_distance(BMesh *bm, float *dists, const float as
           continue;
         }
 
-        float connected_uv[2];
-        float uvdiff[2];
-
         bool other_vert_sel, connected_vert_sel;
 
         other_vert_sel = luv_other->flag & MLOOPUV_VERTSEL;
@@ -189,23 +186,19 @@ static void uv_set_connectivity_distance(BMesh *bm, float *dists, const float as
           if (l_connected == l_other) {
             continue;
           }
-          /* Visable faces was tagged in createTransUVs. */
+          /* Visible faces was tagged in #createTransUVs. */
           if (!BM_elem_flag_test(l_connected->f, BM_ELEM_TAG)) {
             continue;
           }
 
           MLoopUV *luv_connected = BM_ELEM_CD_GET_VOID_P(l_connected, cd_loop_uv_offset);
           connected_vert_sel = luv_connected->flag & MLOOPUV_VERTSEL;
-          copy_v2_v2(connected_uv, luv_connected->uv);
-          mul_v2_v2(connected_uv, aspect);
 
-          sub_v2_v2v2(uvdiff, connected_uv, other_uv);
           /* Check if this loop is connected in UV space.
            * If the uv loops share the same selection state (if not, they are not connected as
            * they have been ripped or other edit commands have separated them). */
           bool connected = other_vert_sel == connected_vert_sel &&
-                           fabsf(uvdiff[0]) < STD_UV_CONNECT_LIMIT &&
-                           fabsf(uvdiff[1]) < STD_UV_CONNECT_LIMIT;
+                           equals_v2v2(luv_other->uv, luv_connected->uv);
           if (!connected) {
             continue;
           }
@@ -240,7 +233,7 @@ static void uv_set_connectivity_distance(BMesh *bm, float *dists, const float as
 #ifndef NDEBUG
   /* Check that we didn't leave any loops tagged */
   BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
-    /* Visable faces was tagged in createTransUVs. */
+    /* Visible faces was tagged in #createTransUVs. */
     if (!BM_elem_flag_test(f, BM_ELEM_TAG)) {
       continue;
     }

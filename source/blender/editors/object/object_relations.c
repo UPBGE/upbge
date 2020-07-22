@@ -2247,9 +2247,22 @@ void OBJECT_OT_make_local(wmOperatorType *ot)
 /** \name Make Library Override Operator
  * \{ */
 
+static bool make_override_library_ovject_overridable_check(Main *bmain, Object *object)
+{
+  /* An object is actually overrideable only if it is in at least one local collections.
+   * Unfortunately 'direct link' flag is not enough here. */
+  LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
+    if (!ID_IS_LINKED(collection) && BKE_collection_has_object(collection, object)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /* Set the object to override. */
 static int make_override_library_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Object *obact = ED_object_active_context(C);
 
@@ -2260,7 +2273,7 @@ static int make_override_library_invoke(bContext *C, wmOperator *op, const wmEve
 
   if ((!ID_IS_LINKED(obact) && obact->instance_collection != NULL &&
        ID_IS_OVERRIDABLE_LIBRARY(obact->instance_collection)) ||
-      ID_IS_OVERRIDABLE_LIBRARY(obact)) {
+      make_override_library_ovject_overridable_check(bmain, obact)) {
     uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("OK?"), ICON_QUESTION);
     uiLayout *layout = UI_popup_menu_layout(pup);
 
@@ -2295,6 +2308,7 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Object *obact = CTX_data_active_object(C);
   ID *id_root = NULL;
+  bool is_override_instancing_object = false;
 
   if (!ID_IS_LINKED(obact) && obact->instance_collection != NULL &&
       ID_IS_LINKED(obact->instance_collection)) {
@@ -2307,8 +2321,9 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
     }
 
     id_root = &obact->instance_collection->id;
+    is_override_instancing_object = true;
   }
-  else if (!ID_IS_OVERRIDABLE_LIBRARY(obact)) {
+  else if (!make_override_library_ovject_overridable_check(bmain, obact)) {
     const int i = RNA_property_enum_get(op->ptr, op->type->prop);
     const uint collection_session_uuid = *((uint *)&i);
     if (collection_session_uuid == MAIN_ID_SESSION_UUID_UNSET) {
@@ -2344,7 +2359,7 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
 
   /* Remove the instance empty from this scene, the items now have an overridden collection
    * instead. */
-  if (success && id_root != &obact->id) {
+  if (success && is_override_instancing_object) {
     ED_object_base_free_and_unlink(bmain, scene, obact);
   }
 

@@ -541,10 +541,15 @@ def brush_settings(layout, context, brush, popover=False):
     # Sculpt Mode #
     if mode == 'SCULPT':
         capabilities = brush.sculpt_capabilities
+        sculpt_tool = brush.sculpt_tool
 
         # normal_radius_factor
         layout.prop(brush, "normal_radius_factor", slider=True)
-        layout.prop(brush, "hardness", slider=True)
+
+        row = layout.row(align=True)
+        row.prop(brush, "hardness", slider=True)
+        row.prop(brush, "invert_hardness_pressure", text = "")
+        row.prop(brush, "use_hardness_pressure", text = "")
 
         # auto_smooth_factor and use_inverse_smooth_pressure
         if capabilities.has_auto_smooth:
@@ -571,7 +576,7 @@ def brush_settings(layout, context, brush, popover=False):
         # crease_pinch_factor
         if capabilities.has_pinch_factor:
             text = "Pinch"
-            if brush.sculpt_tool in {'BLOB', 'SNAKE_HOOK'}:
+            if sculpt_tool in {'BLOB', 'SNAKE_HOOK'}:
                 text = "Magnify"
             layout.prop(brush, "crease_pinch_factor", slider=True, text=text)
 
@@ -621,17 +626,19 @@ def brush_settings(layout, context, brush, popover=False):
             row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
             layout.prop(brush, "blend", text="Blend Mode")
 
-        if brush.sculpt_tool == 'CLAY_STRIPS':
+        # Per sculpt tool options.
+
+        if sculpt_tool == 'CLAY_STRIPS':
             row = layout.row()
             row.prop(brush, "tip_roundness")
 
-        if brush.sculpt_tool == 'ELASTIC_DEFORM':
+        elif sculpt_tool == 'ELASTIC_DEFORM':
             layout.separator()
             layout.prop(brush, "elastic_deform_type")
             layout.prop(brush, "elastic_deform_volume_preservation", slider=True)
             layout.separator()
 
-        if brush.sculpt_tool == 'POSE':
+        elif sculpt_tool == 'POSE':
             layout.separator()
             layout.prop(brush, "pose_deform_type")
             layout.prop(brush, "pose_origin_type")
@@ -643,10 +650,9 @@ def brush_settings(layout, context, brush, popover=False):
             layout.prop(brush, "use_connected_only")
             layout.prop(brush, "disconnected_distance_max")
 
-
             layout.separator()
 
-        if brush.sculpt_tool == 'CLOTH':
+        elif sculpt_tool == 'CLOTH':
             layout.separator()
             layout.prop(brush, "cloth_sim_limit")
             layout.prop(brush, "cloth_sim_falloff")
@@ -658,41 +664,63 @@ def brush_settings(layout, context, brush, popover=False):
             layout.prop(brush, "cloth_damping")
             layout.separator()
 
-        if brush.sculpt_tool == 'SCRAPE':
+        elif sculpt_tool == 'SCRAPE':
             row = layout.row()
             row.prop(brush, "area_radius_factor", slider=True)
             row = layout.row()
             row.prop(brush, "invert_to_scrape_fill", text="Invert to Fill")
 
-        if brush.sculpt_tool == 'FILL':
+        elif sculpt_tool == 'FILL':
             row = layout.row()
             row.prop(brush, "area_radius_factor", slider=True)
             row = layout.row()
             row.prop(brush, "invert_to_scrape_fill", text="Invert to Scrape")
 
-        if brush.sculpt_tool == 'GRAB':
+        elif sculpt_tool == 'GRAB':
             layout.prop(brush, "use_grab_active_vertex")
 
-        if brush.sculpt_tool == 'PAINT':
-            col = layout.column()
-            col.prop(brush, "flow")
-            col.prop(brush, "wet_mix")
-            col.prop(brush, "wet_persistence")
-            col.prop(brush, "density")
-            col.prop(brush, "tip_roundness")
-            col.prop(brush, "tip_scale_x")
+        elif sculpt_tool == 'PAINT':
+            row = layout.row(align=True)
+            row.prop(brush, "flow")
+            row.prop(brush, "invert_flow_pressure", text = "")
+            row.prop(brush, "use_flow_pressure", text= "")
 
-        if brush.sculpt_tool == 'SMEAR':
+            row = layout.row(align=True)
+            row.prop(brush, "wet_mix")
+            row.prop(brush, "invert_wet_mix_pressure", text = "")
+            row.prop(brush, "use_wet_mix_pressure", text = "")
+
+            row = layout.row(align=True)
+            row.prop(brush, "wet_persistence")
+            row.prop(brush, "invert_wet_persistence_pressure", text ="")
+            row.prop(brush, "use_wet_persistence_pressure", text= "")
+
+            row = layout.row(align=True)
+            row.prop(brush, "density")
+            row.prop(brush, "invert_density_pressure", text = "")
+            row.prop(brush, "use_density_pressure", text = "")
+
+            row = layout.row()
+            row.prop(brush, "tip_roundness")
+
+            row = layout.row()
+            row.prop(brush, "tip_scale_x")
+
+        elif sculpt_tool == 'SMEAR':
             col = layout.column()
             col.prop(brush, "smear_deform_type")
 
-        if brush.sculpt_tool == 'MULTIPLANE_SCRAPE':
+        elif sculpt_tool == 'TOPOLOGY':
+            col = layout.column()
+            col.prop(brush, "slide_deform_type")
+
+        elif sculpt_tool == 'MULTIPLANE_SCRAPE':
             col = layout.column()
             col.prop(brush, "multiplane_scrape_angle")
             col.prop(brush, "use_multiplane_scrape_dynamic")
             col.prop(brush, "show_multiplane_scrape_planes_preview")
 
-        if brush.sculpt_tool == 'SMOOTH':
+        elif sculpt_tool == 'SMOOTH':
             col = layout.column()
             col.prop(brush, "smooth_deform_type")
             if brush.smooth_deform_type == 'SURFACE':
@@ -700,8 +728,10 @@ def brush_settings(layout, context, brush, popover=False):
                 col.prop(brush, "surface_smooth_current_vertex")
                 col.prop(brush, "surface_smooth_iterations")
 
-        if brush.sculpt_tool == 'MASK':
+        elif sculpt_tool == 'MASK':
             layout.row().prop(brush, "mask_tool", expand=True)
+
+        # End sculpt_tool interface.
 
     # 3D and 2D Texture Paint Mode.
     elif mode in {'PAINT_TEXTURE', 'PAINT_2D'}:

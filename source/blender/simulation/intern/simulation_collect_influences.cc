@@ -23,6 +23,8 @@
 
 #include "NOD_node_tree_multi_function.hh"
 
+#include "DEG_depsgraph_query.h"
+
 #include "BLI_rand.hh"
 
 namespace blender::sim {
@@ -50,31 +52,51 @@ static Span<const nodes::DNode *> get_particle_simulation_nodes(const nodes::Der
   return tree.nodes_by_type("SimulationNodeParticleSimulation");
 }
 
-static std::optional<Array<std::string>> compute_global_string_inputs(
-    nodes::MFNetworkTreeMap &network_map, Span<const fn::MFInputSocket *> sockets)
+/* Returns true on success. */
+static bool compute_global_inputs(nodes::MFNetworkTreeMap &network_map,
+                                  ResourceCollector &resources,
+                                  Span<const fn::MFInputSocket *> sockets,
+                                  MutableSpan<fn::GMutableSpan> r_results)
 {
   int amount = sockets.size();
   if (amount == 0) {
-    return Array<std::string>();
+    return true;
   }
 
   if (network_map.network().have_dummy_or_unlinked_dependencies(sockets)) {
-    return {};
+    return false;
   }
 
   fn::MFNetworkEvaluator network_fn{{}, sockets};
-
   fn::MFParamsBuilder params{network_fn, 1};
+  for (int param_index : network_fn.param_indices()) {
+    fn::MFParamType param_type = network_fn.param_type(param_index);
+    BLI_assert(param_type.category() == fn::MFParamType::Category::SingleOutput); /* For now. */
+    const fn::CPPType &type = param_type.data_type().single_type();
+    void *buffer = resources.linear_allocator().allocate(type.size(), type.alignment());
+    resources.add(buffer, type.destruct_cb(), AT);
+    fn::GMutableSpan span{type, buffer, 1};
+    r_results[param_index] = span;
+    params.add_uninitialized_single_output(span);
+  }
+  fn::MFContextBuilder context;
+  network_fn.call(IndexRange(1), params, context);
+  return true;
+}
 
-  Array<std::string> strings(amount, NoInitialization());
-  for (int i : IndexRange(amount)) {
-    params.add_uninitialized_single_output(
-        fn::GMutableSpan(fn::CPPType::get<std::string>(), strings.data() + i, 1));
+static std::optional<Array<std::string>> compute_global_string_inputs(
+    nodes::MFNetworkTreeMap &network_map, Span<const fn::MFInputSocket *> sockets)
+{
+  ResourceCollector local_resources;
+  Array<fn::GMutableSpan> computed_values(sockets.size(), NoInitialization());
+  if (!compute_global_inputs(network_map, local_resources, sockets, computed_values)) {
+    return {};
   }
 
-  fn::MFContextBuilder context;
-  network_fn.call({0}, params, context);
-
+  Array<std::string> strings(sockets.size());
+  for (int i : sockets.index_range()) {
+    strings[i] = std::move(computed_values[i].typed<std::string>()[0]);
+  }
   return strings;
 }
 
@@ -203,7 +225,8 @@ class ParticleFunctionForce : public ParticleForce {
     IndexMask mask = context.particle_chunk().index_mask();
     MutableSpan<float3> r_combined_force = context.force_dst();
 
-    ParticleFunctionEvaluator evaluator{particle_fn_, context.particle_chunk()};
+    ParticleFunctionEvaluator evaluator{
+        particle_fn_, context.solve_context(), context.particle_chunk()};
     evaluator.compute();
     fn::VSpan<float3> forces = evaluator.get<float3>(0, "Force");
 
@@ -258,44 +281,141 @@ static void collect_forces(nodes::MFNetworkTreeMap &network_map,
 
 class MyBasicEmitter : public ParticleEmitter {
  private:
-  std::string name_;
+  Array<std::string> names_;
+  std::string my_state_;
+  const fn::MultiFunction &inputs_fn_;
+  uint32_t seed_;
 
  public:
-  MyBasicEmitter(std::string name) : name_(std::move(name))
+  MyBasicEmitter(Array<std::string> names,
+                 std::string my_state,
+                 const fn::MultiFunction &inputs_fn,
+                 uint32_t seed)
+      : names_(std::move(names)),
+        my_state_(std::move(my_state)),
+        inputs_fn_(inputs_fn),
+        seed_(seed)
   {
   }
 
   void emit(ParticleEmitterContext &context) const override
   {
-    ParticleAllocator *allocator = context.try_get_particle_allocator(name_);
-    if (allocator == nullptr) {
+    auto *state = context.solve_context().state_map().lookup<ParticleMeshEmitterSimulationState>(
+        my_state_);
+    if (state == nullptr) {
       return;
     }
 
-    fn::MutableAttributesRef attributes = allocator->allocate(10);
-    RandomNumberGenerator rng{(uint32_t)context.simulation_time_interval().start() ^
-                              (uint32_t)DefaultHash<std::string>{}(name_)};
+    fn::MFContextBuilder mf_context;
+    mf_context.add_global_context("PersistentDataHandleMap",
+                                  &context.solve_context().handle_map());
 
-    MutableSpan<float3> positions = attributes.get<float3>("Position");
-    MutableSpan<float3> velocities = attributes.get<float3>("Velocity");
-    MutableSpan<float> birth_times = attributes.get<float>("Birth Time");
+    fn::MFParamsBuilder mf_params{inputs_fn_, 1};
+    bke::PersistentObjectHandle object_handle;
+    float rate;
+    mf_params.add_uninitialized_single_output(&object_handle);
+    mf_params.add_uninitialized_single_output(&rate);
+    inputs_fn_.call(IndexRange(1), mf_params, mf_context);
 
-    for (int i : IndexRange(attributes.size())) {
-      positions[i] = rng.get_unit_float3();
-      velocities[i] = rng.get_unit_float3();
-      birth_times[i] = context.simulation_time_interval().start();
+    const Object *object = context.solve_context().handle_map().lookup(object_handle);
+    if (object == nullptr) {
+      return;
+    }
+
+    Vector<float3> new_positions;
+    Vector<float3> new_velocities;
+    Vector<float> new_birth_times;
+
+    TimeInterval time_interval = context.simulation_time_interval();
+    float start_time = time_interval.start();
+    RandomNumberGenerator rng{(*(uint32_t *)&start_time) ^ seed_};
+
+    const float time_between_particles = 1.0f / rate;
+    while (state->last_birth_time + time_between_particles < time_interval.end()) {
+      new_positions.append(rng.get_unit_float3() * 0.3 + float3(object->loc));
+      new_velocities.append(rng.get_unit_float3());
+      const float birth_time = state->last_birth_time + time_between_particles;
+      new_birth_times.append(birth_time);
+      state->last_birth_time = birth_time;
+    }
+
+    for (StringRef name : names_) {
+      ParticleAllocator *allocator = context.try_get_particle_allocator(name);
+      if (allocator == nullptr) {
+        return;
+      }
+
+      int amount = new_positions.size();
+      fn::MutableAttributesRef attributes = allocator->allocate(amount);
+
+      initialized_copy_n(new_positions.data(), amount, attributes.get<float3>("Position").data());
+      initialized_copy_n(new_velocities.data(), amount, attributes.get<float3>("Velocity").data());
+      initialized_copy_n(
+          new_birth_times.data(), amount, attributes.get<float>("Birth Time").data());
     }
   }
 };
 
+static Vector<const nodes::DNode *> find_linked_particle_simulations(
+    const nodes::DOutputSocket &output_socket)
+{
+  Vector<const nodes::DNode *> simulation_nodes;
+  for (const nodes::DInputSocket *target_socket : output_socket.linked_sockets()) {
+    if (target_socket->node().idname() == "SimulationNodeParticleSimulation") {
+      simulation_nodes.append(&target_socket->node());
+    }
+  }
+  return simulation_nodes;
+}
+
+static ParticleEmitter *create_particle_emitter(const nodes::DNode &dnode,
+                                                ResourceCollector &resources,
+                                                nodes::MFNetworkTreeMap &network_map,
+                                                RequiredStates &r_required_states)
+{
+  Vector<const nodes::DNode *> simulation_dnodes = find_linked_particle_simulations(
+      dnode.output(0));
+  if (simulation_dnodes.size() == 0) {
+    return nullptr;
+  }
+
+  Array<std::string> names{simulation_dnodes.size()};
+  for (int i : simulation_dnodes.index_range()) {
+    names[i] = dnode_to_path(*simulation_dnodes[i]);
+  }
+
+  Array<const fn::MFInputSocket *> input_sockets{dnode.inputs().size()};
+  for (int i : input_sockets.index_range()) {
+    input_sockets[i] = &network_map.lookup_dummy(dnode.input(i));
+  }
+
+  if (network_map.network().have_dummy_or_unlinked_dependencies(input_sockets)) {
+    return nullptr;
+  }
+
+  fn::MultiFunction &inputs_fn = resources.construct<fn::MFNetworkEvaluator>(
+      AT, Span<const fn::MFOutputSocket *>(), input_sockets.as_span());
+
+  std::string my_state_name = dnode_to_path(dnode);
+  r_required_states.add(my_state_name, SIM_TYPE_NAME_PARTICLE_MESH_EMITTER);
+  uint32_t seed = DefaultHash<std::string>{}(my_state_name);
+  ParticleEmitter &emitter = resources.construct<MyBasicEmitter>(
+      AT, std::move(names), std::move(my_state_name), inputs_fn, seed);
+  return &emitter;
+}
+
 static void collect_emitters(nodes::MFNetworkTreeMap &network_map,
                              ResourceCollector &resources,
-                             SimulationInfluences &r_influences)
+                             SimulationInfluences &r_influences,
+                             RequiredStates &r_required_states)
 {
-  for (const nodes::DNode *dnode : get_particle_simulation_nodes(network_map.tree())) {
-    std::string name = dnode_to_path(*dnode);
-    ParticleEmitter &emitter = resources.construct<MyBasicEmitter>(AT, name);
-    r_influences.particle_emitters.append(&emitter);
+  for (const nodes::DNode *dnode :
+       network_map.tree().nodes_by_type("SimulationNodeParticleMeshEmitter")) {
+    ParticleEmitter *emitter = create_particle_emitter(
+        *dnode, resources, network_map, r_required_states);
+    if (emitter != nullptr) {
+      r_influences.particle_emitters.append(emitter);
+    }
   }
 }
 
@@ -316,10 +436,28 @@ static void prepare_particle_attribute_builders(nodes::MFNetworkTreeMap &network
   }
 }
 
+static void find_used_persistent_data(const nodes::DerivedNodeTree &tree,
+                                      UsedPersistentData &r_used_persistent_data)
+{
+  const bNodeSocketType *socktype = nodeSocketTypeFind("NodeSocketObject");
+  BLI_assert(socktype != nullptr);
+
+  for (const nodes::DInputSocket *dsocket : tree.input_sockets()) {
+    const bNodeSocket *bsocket = dsocket->bsocket();
+    if (bsocket->typeinfo == socktype) {
+      Object *object = ((const bNodeSocketValueObject *)bsocket->default_value)->value;
+      if (object != nullptr) {
+        r_used_persistent_data.add(DEG_get_original_id(&object->id));
+      }
+    }
+  }
+}
+
 void collect_simulation_influences(Simulation &simulation,
                                    ResourceCollector &resources,
                                    SimulationInfluences &r_influences,
-                                   SimulationStatesInfo &r_states_info)
+                                   RequiredStates &r_required_states,
+                                   UsedPersistentData &r_used_persistent_data)
 {
   nodes::NodeTreeRefMap tree_refs;
   const nodes::DerivedNodeTree tree{simulation.nodetree, tree_refs};
@@ -338,11 +476,13 @@ void collect_simulation_influences(Simulation &simulation,
   // WM_clipboard_text_set(network.to_dot().c_str(), false);
 
   collect_forces(network_map, resources, data_sources, r_influences);
-  collect_emitters(network_map, resources, r_influences);
+  collect_emitters(network_map, resources, r_influences, r_required_states);
 
   for (const nodes::DNode *dnode : get_particle_simulation_nodes(tree)) {
-    r_states_info.particle_simulation_names.add(dnode_to_path(*dnode));
+    r_required_states.add(dnode_to_path(*dnode), SIM_TYPE_NAME_PARTICLE_SIMULATION);
   }
+
+  find_used_persistent_data(tree, r_used_persistent_data);
 }
 
 }  // namespace blender::sim

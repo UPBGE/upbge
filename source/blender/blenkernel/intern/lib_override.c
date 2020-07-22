@@ -463,7 +463,8 @@ static int lib_override_library_make_tag_ids_cb(LibraryIDLinkCallbackData *cb_da
  * \param id_root The root ID to create an override from.
  * \param id_reference some reference ID used to do some post-processing after overrides have been
  *                     created, may be NULL. Typically, the Empty object instantiating the linked
- * collection we override, currently. \return true if override was successfully created.
+ *                     collection we override, currently.
+ * \return true if override was successfully created.
  */
 bool BKE_lib_override_library_create(
     Main *bmain, Scene *scene, ViewLayer *view_layer, ID *id_root, ID *id_reference)
@@ -571,7 +572,8 @@ bool BKE_lib_override_library_create(
                 Object *ob_root = (Object *)id_root;
                 LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
                   if (BKE_collection_has_object(collection, ob_root) &&
-                      BKE_view_layer_has_collection(view_layer, collection)) {
+                      BKE_view_layer_has_collection(view_layer, collection) &&
+                      !ID_IS_LINKED(collection) && !ID_IS_OVERRIDE_LIBRARY(collection)) {
                     default_instantiating_collection = BKE_collection_add(
                         bmain, collection, "OVERRIDE_HIDDEN");
                   }

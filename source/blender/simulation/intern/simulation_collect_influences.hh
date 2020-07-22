@@ -25,14 +25,62 @@
 
 namespace blender::sim {
 
-struct SimulationStatesInfo {
-  VectorSet<std::string> particle_simulation_names;
+class RequiredStates {
+ private:
+  Map<std::string, const char *> state_type_by_state_name_;
+
+ public:
+  void add(std::string state_name, const char *state_type)
+  {
+    BLI_assert(state_type != nullptr);
+    const char *type_name = state_type_by_state_name_.lookup_default(state_name, nullptr);
+    if (type_name != nullptr) {
+      if (!STREQ(state_type, type_name)) {
+        std::cout << "Warning: Tried to have two different states with the same name.\n";
+        std::cout << "    Name: " << state_name << "\n";
+        std::cout << "    Type 1: " << state_type << "\n";
+        std::cout << "    Type 2: " << type_name << "\n";
+      }
+      return;
+    }
+
+    state_type_by_state_name_.add(std::move(state_name), state_type);
+  }
+
+  const Map<std::string, const char *> &states() const
+  {
+    return state_type_by_state_name_;
+  }
+
+  bool is_required(StringRef state_name, StringRef state_type) const
+  {
+    return state_type_by_state_name_.lookup_default_as(state_name, "") == state_type;
+  }
+};
+
+class UsedPersistentData {
+ private:
+  VectorSet<ID *> used_ids_;
+
+ public:
+  void add(ID *id)
+  {
+    BLI_assert(id != nullptr);
+    BLI_assert((id->tag & LIB_TAG_NO_MAIN) == 0);
+    used_ids_.add(id);
+  }
+
+  const VectorSet<ID *> &used_ids() const
+  {
+    return used_ids_;
+  }
 };
 
 void collect_simulation_influences(Simulation &simulation,
                                    ResourceCollector &resources,
                                    SimulationInfluences &r_influences,
-                                   SimulationStatesInfo &r_states_info);
+                                   RequiredStates &r_required_states,
+                                   UsedPersistentData &r_used_persistent_data);
 
 }  // namespace blender::sim
 

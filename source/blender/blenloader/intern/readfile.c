@@ -8907,8 +8907,12 @@ static void direct_link_volume(BlendDataReader *reader, Volume *volume)
 /** \name Read ID: Simulation
  * \{ */
 
-static void lib_link_simulation(BlendLibReader *UNUSED(reader), Simulation *UNUSED(simulation))
+static void lib_link_simulation(BlendLibReader *reader, Simulation *simulation)
 {
+  LISTBASE_FOREACH (
+      PersistentDataHandleItem *, handle_item, &simulation->persistent_data_handles) {
+    BLO_read_id_address(reader, simulation->id.lib, &handle_item->id);
+  }
 }
 
 static void direct_link_simulation(BlendDataReader *reader, Simulation *simulation)
@@ -8919,16 +8923,14 @@ static void direct_link_simulation(BlendDataReader *reader, Simulation *simulati
   BLO_read_list(reader, &simulation->states);
   LISTBASE_FOREACH (SimulationState *, state, &simulation->states) {
     BLO_read_data_address(reader, &state->name);
-    switch ((eSimulationStateType)state->type) {
-      case SIM_STATE_TYPE_PARTICLES: {
-        ParticleSimulationState *particle_state = (ParticleSimulationState *)state;
-        direct_link_customdata(reader, &particle_state->attributes, particle_state->tot_particles);
-        direct_link_pointcache_list(
-            reader, &particle_state->ptcaches, &particle_state->point_cache, 0);
-        break;
-      };
+    BLO_read_data_address(reader, &state->type);
+    if (STREQ(state->type, SIM_TYPE_NAME_PARTICLE_SIMULATION)) {
+      ParticleSimulationState *particle_state = (ParticleSimulationState *)state;
+      direct_link_customdata(reader, &particle_state->attributes, particle_state->tot_particles);
     }
   }
+
+  BLO_read_list(reader, &simulation->persistent_data_handles);
 }
 
 /** \} */
@@ -9214,18 +9216,23 @@ static BHead *read_data_into_datamap(FileData *fd, BHead *bhead, const char *all
   bhead = blo_bhead_next(fd, bhead);
 
   while (bhead && bhead->code == DATA) {
-    void *data;
+    /* The code below is useful for debugging leaks in data read from the blend file.
+     * Without this the messages only tell us what ID-type the memory came from,
+     * eg: `Data from OB len 64`, see #dataname.
+     * With the code below we get the struct-name to help tracking down the leak.
+     * This is kept disabled as the #malloc for the text always leaks memory. */
 #if 0
-    /* XXX DUMB DEBUGGING OPTION TO GIVE NAMES for guarded malloc errors */
-    short *sp = fd->filesdna->structs[bhead->SDNAnr];
-    char *tmp = malloc(100);
-    allocname = fd->filesdna->types[sp[0]];
-    strcpy(tmp, allocname);
-    data = read_struct(fd, bhead, tmp);
-#else
-    data = read_struct(fd, bhead, allocname);
+    {
+      const short *sp = fd->filesdna->structs[bhead->SDNAnr];
+      allocname = fd->filesdna->types[sp[0]];
+      size_t allocname_size = strlen(allocname) + 1;
+      char *allocname_buf = malloc(allocname_size);
+      memcpy(allocname_buf, allocname, allocname_size);
+      allocname = allocname_buf;
+    }
 #endif
 
+    void *data = read_struct(fd, bhead, allocname);
     if (data) {
       oldnewmap_insert(fd->datamap, bhead->old, data, 0);
     }
@@ -11420,6 +11427,10 @@ static void expand_simulation(BlendExpander *expander, Simulation *simulation)
 {
   if (simulation->adt) {
     expand_animdata(expander, simulation->adt);
+  }
+  LISTBASE_FOREACH (
+      PersistentDataHandleItem *, handle_item, &simulation->persistent_data_handles) {
+    BLO_expand(expander, handle_item->id);
   }
 }
 

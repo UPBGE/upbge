@@ -71,6 +71,7 @@ class TestingHierarchyIterator : public AbstractHierarchyIterator {
   }
   virtual ~TestingHierarchyIterator()
   {
+    release_writers();
   }
 
  protected:
@@ -91,7 +92,7 @@ class TestingHierarchyIterator : public AbstractHierarchyIterator {
     return new TestHierarchyWriter("particle", particle_writers);
   }
 
-  void delete_object_writer(AbstractHierarchyWriter *writer) override
+  void release_writer(AbstractHierarchyWriter *writer) override
   {
     delete writer;
   }

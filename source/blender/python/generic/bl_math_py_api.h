@@ -14,22 +14,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __NOD_FUNCTION_H__
-#define __NOD_FUNCTION_H__
+/**
+ * \file
+ * \ingroup pygen
+ */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef __BL_MATH_PY_API_H__
+#define __BL_MATH_PY_API_H__
 
-void register_node_type_fn_boolean_math(void);
-void register_node_type_fn_float_compare(void);
-void register_node_type_fn_switch(void);
-void register_node_type_fn_group_instance_id(void);
-void register_node_type_fn_combine_strings(void);
-void register_node_type_fn_object_transforms(void);
+PyMODINIT_FUNC BPyInit_bl_math(void);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __NOD_FUNCTION_H__ */
+#endif /* __BL_MATH_PY_API_H__ */

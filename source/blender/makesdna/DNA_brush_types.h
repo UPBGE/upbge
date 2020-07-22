@@ -349,6 +349,12 @@ typedef enum eBrushSmearDeformType {
   BRUSH_SMEAR_DEFORM_EXPAND = 2,
 } eBrushSmearDeformType;
 
+typedef enum eBrushSlideDeformType {
+  BRUSH_SLIDE_DEFORM_DRAG = 0,
+  BRUSH_SLIDE_DEFORM_PINCH = 1,
+  BRUSH_SLIDE_DEFORM_EXPAND = 2,
+} eBrushSlideDeformType;
+
 /* Gpencilsettings.Vertex_mode */
 typedef enum eGp_Vertex_Mode {
   /* Affect to Stroke only. */
@@ -387,6 +393,19 @@ typedef enum eAutomasking_flag {
   BRUSH_AUTOMASKING_BOUNDARY_EDGES = (1 << 2),
   BRUSH_AUTOMASKING_BOUNDARY_FACE_SETS = (1 << 3),
 } eAutomasking_flag;
+
+typedef enum ePaintBrush_flag {
+  BRUSH_PAINT_HARDNESS_PRESSURE = (1 << 0),
+  BRUSH_PAINT_HARDNESS_PRESSURE_INVERT = (1 << 1),
+  BRUSH_PAINT_FLOW_PRESSURE = (1 << 2),
+  BRUSH_PAINT_FLOW_PRESSURE_INVERT = (1 << 3),
+  BRUSH_PAINT_WET_MIX_PRESSURE = (1 << 4),
+  BRUSH_PAINT_WET_MIX_PRESSURE_INVERT = (1 << 5),
+  BRUSH_PAINT_WET_PERSISTENCE_PRESSURE = (1 << 6),
+  BRUSH_PAINT_WET_PERSISTENCE_PRESSURE_INVERT = (1 << 7),
+  BRUSH_PAINT_DENSITY_PRESSURE = (1 << 8),
+  BRUSH_PAINT_DENSITY_PRESSURE_INVERT = (1 << 9),
+} ePaintBrush_flag;
 
 typedef struct Brush {
   ID id;
@@ -454,6 +473,7 @@ typedef struct Brush {
   float wet_persistence;
   /** Density */
   float density;
+  int paint_flags;
 
   /** Tip Shape */
   /* Factor that controls the shape of the brush tip by rounding the corners of a square. */
@@ -563,6 +583,9 @@ typedef struct Brush {
 
   /* smear */
   int smear_deform_type;
+
+  /* slide/relax */
+  int slide_deform_type;
 
   /* overlay */
   int texture_overlay_alpha;

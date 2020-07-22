@@ -1818,6 +1818,12 @@ static void rna_def_modifier_subsurf(BlenderRNA *brna)
       prop, "Use Creases", "Use mesh edge crease information to sharpen edges");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  prop = RNA_def_property(srna, "use_custom_normals", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flags", eSubsurfModifierFlag_UseCustomNormals);
+  RNA_def_property_ui_text(
+      prop, "Use Custom Normals", "Interpolates existing custom normals to resulting mesh");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
   RNA_define_lib_overridable(false);
 }
 
@@ -2017,6 +2023,12 @@ static void rna_def_modifier_multires(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "flags", eMultiresModifierFlag_UseCrease);
   RNA_def_property_ui_text(
       prop, "Use Creases", "Use mesh edge crease information to sharpen edges");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "use_custom_normals", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flags", eMultiresModifierFlag_UseCustomNormals);
+  RNA_def_property_ui_text(
+      prop, "Use Custom Normals", "Interpolates existing custom normals to resulting mesh");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   RNA_define_lib_overridable(false);
@@ -3245,12 +3257,12 @@ static void rna_def_modifier_correctivesmooth(BlenderRNA *brna)
        "ORCO",
        0,
        "Original Coords",
-       "Use base mesh vert coords as the rest position"},
+       "Use base mesh vertex coords as the rest position"},
       {MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND,
        "BIND",
        0,
        "Bind Coords",
-       "Use bind vert coords for rest position"},
+       "Use bind vertex coords for rest position"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -4047,8 +4059,8 @@ static void rna_def_modifier_bevel(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem prop_affect_items[] = {
-      {0, "EDGES", 0, "Edges", "Affect only edges"},
-      {MOD_BEVEL_VERT, "VERTICES", 0, "Vertices", "Affect only vertices"},
+      {MOD_BEVEL_AFFECT_VERTICES, "VERTICES", 0, "Vertices", "Affect only vertices"},
+      {MOD_BEVEL_AFFECT_EDGES, "EDGES", 0, "Edges", "Affect only edges"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -4081,7 +4093,7 @@ static void rna_def_modifier_bevel(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_BevelModifier_update_segments");
 
   prop = RNA_def_property(srna, "affect", PROP_ENUM, PROP_NONE); /* as an enum */
-  RNA_def_property_enum_bitflag_sdna(prop, NULL, "flags");
+  RNA_def_property_enum_sdna(prop, NULL, "affect_type");
   RNA_def_property_enum_items(prop, prop_affect_items);
   RNA_def_property_ui_text(prop, "Affect", "Affect edges or vertices");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");

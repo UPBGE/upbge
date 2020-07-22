@@ -155,6 +155,7 @@ typedef enum {
   /* DEPRECATED, ONLY USED FOR DO-VERSIONS */
   eSubsurfModifierFlag_SubsurfUv_DEPRECATED = (1 << 3),
   eSubsurfModifierFlag_UseCrease = (1 << 4),
+  eSubsurfModifierFlag_UseCustomNormals = (1 << 5),
 } SubsurfModifierFlag;
 
 typedef enum {
@@ -409,7 +410,9 @@ typedef struct BevelModifierData {
   short miter_outer;
   /** The method to use for creating >2-way intersections */
   short vmesh_method;
-  char _pad0[2];
+  /** Whether to affect vertices or edges. */
+  char affect_type;
+  char _pad;
   /** Controls profile shape (0->1, .5 is round). */
   float profile;
   /** if the MOD_BEVEL_ANGLE is set,
@@ -428,7 +431,9 @@ typedef struct BevelModifierData {
 
 /* BevelModifierData->flags and BevelModifierData->lim_flags */
 enum {
-  MOD_BEVEL_VERT = (1 << 1),
+#ifdef DNA_DEPRECATED_ALLOW
+  MOD_BEVEL_VERT_DEPRECATED = (1 << 1),
+#endif
   MOD_BEVEL_INVERT_VGROUP = (1 << 2),
   MOD_BEVEL_ANGLE = (1 << 3),
   MOD_BEVEL_WEIGHT = (1 << 4),
@@ -487,6 +492,12 @@ enum {
 enum {
   MOD_BEVEL_VMESH_ADJ = 0,
   MOD_BEVEL_VMESH_CUTOFF = 1,
+};
+
+/* BevelModifier->affect_type */
+enum {
+  MOD_BEVEL_AFFECT_VERTICES = 0,
+  MOD_BEVEL_AFFECT_EDGES = 1,
 };
 
 typedef struct FluidModifierData {
@@ -1016,6 +1027,7 @@ typedef enum {
   /* DEPRECATED, only used for versioning. */
   eMultiresModifierFlag_PlainUv_DEPRECATED = (1 << 1),
   eMultiresModifierFlag_UseCrease = (1 << 2),
+  eMultiresModifierFlag_UseCustomNormals = (1 << 3),
 } MultiresModifierFlag;
 
 /* DEPRECATED, only used for versioning. */

@@ -17,6 +17,7 @@
 #include "SIM_simulation_update.hh"
 
 #include "BKE_customdata.h"
+#include "BKE_lib_id.h"
 #include "BKE_simulation.h"
 
 #include "DNA_scene_types.h"
@@ -29,6 +30,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_rand.h"
+#include "BLI_set.hh"
 #include "BLI_vector.hh"
 
 #include "particle_function.hh"
@@ -37,88 +39,105 @@
 
 namespace blender::sim {
 
-static void copy_states_to_cow(Simulation *simulation_orig, Simulation *simulation_cow)
+static void copy_states_to_cow(const Simulation *simulation_orig, Simulation *simulation_cow)
 {
   BKE_simulation_state_remove_all(simulation_cow);
   simulation_cow->current_frame = simulation_orig->current_frame;
 
-  LISTBASE_FOREACH (SimulationState *, state_orig, &simulation_orig->states) {
-    switch ((eSimulationStateType)state_orig->type) {
-      case SIM_STATE_TYPE_PARTICLES: {
-        ParticleSimulationState *particle_state_orig = (ParticleSimulationState *)state_orig;
-        ParticleSimulationState *particle_state_cow = (ParticleSimulationState *)
-            BKE_simulation_state_add(simulation_cow, SIM_STATE_TYPE_PARTICLES, state_orig->name);
-        particle_state_cow->tot_particles = particle_state_orig->tot_particles;
-        CustomData_copy(&particle_state_orig->attributes,
-                        &particle_state_cow->attributes,
-                        CD_MASK_ALL,
-                        CD_DUPLICATE,
-                        particle_state_orig->tot_particles);
-        break;
-      }
-    }
+  LISTBASE_FOREACH (const SimulationState *, state_orig, &simulation_orig->states) {
+    SimulationState *state_cow = BKE_simulation_state_add(
+        simulation_cow, state_orig->type, state_orig->name);
+    BKE_simulation_state_copy_data(state_orig, state_cow);
   }
 }
 
-static void remove_unused_states(Simulation *simulation, const VectorSet<std::string> &state_names)
+static void remove_unused_states(Simulation *simulation, const RequiredStates &required_states)
 {
   LISTBASE_FOREACH_MUTABLE (SimulationState *, state, &simulation->states) {
-    if (!state_names.contains(state->name)) {
+    if (!required_states.is_required(state->name, state->type)) {
       BKE_simulation_state_remove(simulation, state);
     }
   }
 }
 
-static void reset_states(Simulation *simulation)
+static void add_missing_states(Simulation *simulation, const RequiredStates &required_states)
 {
-  LISTBASE_FOREACH (SimulationState *, state, &simulation->states) {
-    switch ((eSimulationStateType)state->type) {
-      case SIM_STATE_TYPE_PARTICLES: {
-        ParticleSimulationState *particle_state = (ParticleSimulationState *)state;
-        CustomData_free(&particle_state->attributes, particle_state->tot_particles);
-        particle_state->tot_particles = 0;
-        break;
-      }
-    }
-  }
-}
+  for (auto &&item : required_states.states().items()) {
+    const char *name = item.key.c_str();
+    const char *type = item.value;
 
-static SimulationState *try_find_state_by_name(Simulation *simulation, StringRef name)
-{
-  LISTBASE_FOREACH (SimulationState *, state, &simulation->states) {
-    if (state->name == name) {
-      return state;
-    }
-  }
-  return nullptr;
-}
+    SimulationState *state = BKE_simulation_state_try_find_by_name_and_type(
+        simulation, name, type);
 
-static void add_missing_particle_states(Simulation *simulation, Span<std::string> state_names)
-{
-  for (StringRefNull name : state_names) {
-    SimulationState *state = try_find_state_by_name(simulation, name);
-    if (state != nullptr) {
-      BLI_assert(state->type == SIM_STATE_TYPE_PARTICLES);
-      continue;
+    if (state == nullptr) {
+      BKE_simulation_state_add(simulation, type, name);
     }
-
-    BKE_simulation_state_add(simulation, SIM_STATE_TYPE_PARTICLES, name.c_str());
   }
 }
 
 static void reinitialize_empty_simulation_states(Simulation *simulation,
-                                                 const SimulationStatesInfo &states_info)
+                                                 const RequiredStates &required_states)
 {
-  remove_unused_states(simulation, states_info.particle_simulation_names);
-  reset_states(simulation);
-  add_missing_particle_states(simulation, states_info.particle_simulation_names);
+  remove_unused_states(simulation, required_states);
+  BKE_simulation_state_reset_all(simulation);
+  add_missing_states(simulation, required_states);
 }
 
 static void update_simulation_state_list(Simulation *simulation,
-                                         const SimulationStatesInfo &states_info)
+                                         const RequiredStates &required_states)
 {
-  remove_unused_states(simulation, states_info.particle_simulation_names);
-  add_missing_particle_states(simulation, states_info.particle_simulation_names);
+  remove_unused_states(simulation, required_states);
+  add_missing_states(simulation, required_states);
+}
+
+/* TODO: It might be better to do this as part of ntreeUpdateTree, so that the information
+ * about referenced data blocks is available when building the depsgraph. */
+static void update_persistent_data_handles(Simulation &simulation_orig,
+                                           const UsedPersistentData &used_persistent_data)
+{
+  Set<ID *> contained_ids;
+  Set<int> used_handles;
+
+  /* Remove handles that have been invalidated. */
+  LISTBASE_FOREACH_MUTABLE (
+      PersistentDataHandleItem *, handle_item, &simulation_orig.persistent_data_handles) {
+    if (handle_item->id == nullptr) {
+      BLI_remlink(&simulation_orig.persistent_data_handles, handle_item);
+      MEM_freeN(handle_item);
+      continue;
+    }
+    if (!used_persistent_data.used_ids().contains(handle_item->id)) {
+      id_us_min(handle_item->id);
+      BLI_remlink(&simulation_orig.persistent_data_handles, handle_item);
+      MEM_freeN(handle_item);
+      continue;
+    }
+    contained_ids.add_new(handle_item->id);
+    used_handles.add_new(handle_item->handle);
+  }
+
+  /* Add new handles that are not in the list yet. */
+  int next_handle = 0;
+  for (ID *id : used_persistent_data.used_ids()) {
+    if (contained_ids.contains(id)) {
+      continue;
+    }
+
+    /* Find the next available handle. */
+    while (used_handles.contains(next_handle)) {
+      next_handle++;
+    }
+    used_handles.add_new(next_handle);
+
+    PersistentDataHandleItem *handle_item = (PersistentDataHandleItem *)MEM_callocN(
+        sizeof(*handle_item), AT);
+    /* Cannot store const pointers in DNA. */
+    id_us_plus(id);
+    handle_item->id = id;
+    handle_item->handle = next_handle;
+
+    BLI_addtail(&simulation_orig.persistent_data_handles, handle_item);
+  }
 }
 
 void update_simulation_in_depsgraph(Depsgraph *depsgraph,
@@ -139,24 +158,33 @@ void update_simulation_in_depsgraph(Depsgraph *depsgraph,
 
   ResourceCollector resources;
   SimulationInfluences influences;
-  SimulationStatesInfo states_info;
+  RequiredStates required_states;
+  UsedPersistentData used_persistent_data;
 
-  /* TODO: Use simulation_cow, but need to add depsgraph relations before that. */
-  collect_simulation_influences(*simulation_orig, resources, influences, states_info);
+  collect_simulation_influences(
+      *simulation_cow, resources, influences, required_states, used_persistent_data);
+  update_persistent_data_handles(*simulation_orig, used_persistent_data);
+
+  bke::PersistentDataHandleMap handle_map;
+  LISTBASE_FOREACH (
+      PersistentDataHandleItem *, handle_item, &simulation_orig->persistent_data_handles) {
+    ID *id_cow = DEG_get_evaluated_id(depsgraph, handle_item->id);
+    handle_map.add(handle_item->handle, *id_cow);
+  }
 
   if (current_frame == 1) {
-    reinitialize_empty_simulation_states(simulation_orig, states_info);
+    reinitialize_empty_simulation_states(simulation_orig, required_states);
 
-    initialize_simulation_states(*simulation_orig, *depsgraph, influences);
+    initialize_simulation_states(*simulation_orig, *depsgraph, influences, handle_map);
     simulation_orig->current_frame = 1;
 
     copy_states_to_cow(simulation_orig, simulation_cow);
   }
   else if (current_frame == simulation_orig->current_frame + 1) {
-    update_simulation_state_list(simulation_orig, states_info);
+    update_simulation_state_list(simulation_orig, required_states);
 
     float time_step = 1.0f / 24.0f;
-    solve_simulation_time_step(*simulation_orig, *depsgraph, influences, time_step);
+    solve_simulation_time_step(*simulation_orig, *depsgraph, influences, handle_map, time_step);
     simulation_orig->current_frame = current_frame;
 
     copy_states_to_cow(simulation_orig, simulation_cow);

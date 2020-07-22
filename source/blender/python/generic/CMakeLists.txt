@@ -37,6 +37,7 @@ set(SRC
   bpy_internal_import.c
   idprop_py_api.c
   imbuf_py_api.c
+  bl_math_py_api.c
   py_capi_utils.c
 
   bgl.h
@@ -44,6 +45,7 @@ set(SRC
   bpy_internal_import.h
   idprop_py_api.h
   imbuf_py_api.h
+  bl_math_py_api.h
   py_capi_utils.h
 
   # header-only
