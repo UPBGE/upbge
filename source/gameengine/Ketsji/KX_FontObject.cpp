@@ -106,9 +106,9 @@ void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
   if (cu->strinfo)
     MEM_freeN(cu->strinfo);
 
-  cu->len_wchar = strlen(newText.c_str());
+  cu->len_char32 = strlen(newText.c_str());
   cu->len = BLI_strlen_utf8(newText.c_str());
-  cu->strinfo = (CharInfo *)MEM_callocN((cu->len_wchar + 4) * sizeof(CharInfo), "texteditinfo");
+  cu->strinfo = (CharInfo *)MEM_callocN((cu->len_char32 + 4) * sizeof(CharInfo), "texteditinfo");
   cu->str = (char *)MEM_mallocN(cu->len + sizeof(wchar_t), "str");
   BLI_strncpy(cu->str, newText.c_str(), MAX_BGE_TEXT_LEN);
 

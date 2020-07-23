@@ -234,7 +234,7 @@ BLI_NOINLINE static void remove_dead_and_add_new_particles(ParticleSimulationSta
     if (layer.data != nullptr) {
       MEM_freeN(layer.data);
     }
-    layer.data = new_buffer.buffer();
+    layer.data = new_buffer.data();
   }
 
   BLI_assert(dead_layer != nullptr);
@@ -272,7 +272,6 @@ void solve_simulation_time_step(Simulation &simulation,
                                        TimeInterval(simulation.current_simulation_time, time_step),
                                        state_map,
                                        handle_map};
-  TimeInterval simulation_time_interval{simulation.current_simulation_time, time_step};
 
   Span<ParticleSimulationState *> particle_simulation_states =
       state_map.lookup<ParticleSimulationState>();
@@ -305,7 +304,7 @@ void solve_simulation_time_step(Simulation &simulation,
     remove_dead_and_add_new_particles(*state, allocator);
   }
 
-  simulation.current_simulation_time = simulation_time_interval.end();
+  simulation.current_simulation_time = solve_context.solve_interval().end();
 }
 
 }  // namespace blender::sim
