@@ -148,6 +148,7 @@ void KX_Camera::InvalidateProjectionMatrix()
 	for (unsigned short i = 0; i < RAS_Rasterizer::RAS_STEREO_MAXEYE; ++i) {
 		m_views[i].projectionDirty = true;
 	}
+	GetScene()->GetTextureRendererManager()->InvalidateRenderersProjectionMatrix();
 }
 
 void KX_Camera::UpdateView(RAS_Rasterizer* rasty, KX_Scene* scene, RAS_Rasterizer::StereoMode stereoMode,
