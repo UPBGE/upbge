@@ -39,6 +39,7 @@
 #include <boost/format.hpp>
 
 #include "DNA_scene_types.h"
+#include "GPU_state.h"
 #include "GPU_matrix.h"
 
 #include "BL_BlenderConverter.h"
@@ -928,8 +929,8 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
 
   bool is_overlay_pass = rendercam == scene->GetOverlayCamera();
   if (is_overlay_pass) {
-    m_rasterizer->Enable(RAS_Rasterizer::RAS_BLEND);
-    m_rasterizer->SetBlendFunc(RAS_Rasterizer::RAS_ONE, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
+    GPU_blend(true);
+    GPU_blend_set_func(GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
   }
   scene->RenderAfterCameraSetup(rendercam, is_overlay_pass);
 
