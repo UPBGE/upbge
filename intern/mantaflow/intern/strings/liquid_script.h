@@ -48,7 +48,8 @@ meshRadiusFactor_s$ID$ = $MESH_PARTICLE_RADIUS$\n\
 smoothenPos_s$ID$      = $MESH_SMOOTHEN_POS$\n\
 smoothenNeg_s$ID$      = $MESH_SMOOTHEN_NEG$\n\
 randomness_s$ID$       = $PARTICLE_RANDOMNESS$\n\
-surfaceTension_s$ID$   = $LIQUID_SURFACE_TENSION$\n";
+surfaceTension_s$ID$   = $LIQUID_SURFACE_TENSION$\n\
+maxSysParticles_s$ID$  = $PP_PARTICLE_MAXIMUM$\n";
 
 const std::string liquid_variables_particles =
     "\n\
@@ -216,6 +217,7 @@ def liquid_adaptive_step_$ID$(framenr):\n\
     else:\n\
         pVel_pp$ID$.setSource(grid=None, isMAC=False)\n\
     \n\
+    pp_s$ID$.maxParticles = maxSysParticles_s$ID$ # remember, 0 means no particle cap\n\
     sampleLevelsetWithParticles(phi=phiIn_s$ID$, flags=flags_s$ID$, parts=pp_s$ID$, discretization=particleNumber_s$ID$, randomness=randomness_s$ID$)\n\
     flags_s$ID$.updateFromLevelset(phi_s$ID$)\n\
     \n\
@@ -477,7 +479,7 @@ const std::string liquid_standalone =
 def load(frame, cache_resumable):\n\
     liquid_load_data_$ID$(os.path.join(cache_dir, 'data'), frame, file_format_data, cache_resumable)\n\
     if using_sndparts_s$ID$:\n\
-        liquid_load_particles_$ID$(os.path.join(cache_dir, 'particles'), frame, file_format_particles, cache_resumable)\n\
+        liquid_load_particles_$ID$(os.path.join(cache_dir, 'particles'), frame, file_format_data, cache_resumable)\n\
     if using_mesh_s$ID$:\n\
         liquid_load_mesh_$ID$(os.path.join(cache_dir, 'mesh'), frame, file_format_mesh)\n\
     if using_guiding_s$ID$:\n\

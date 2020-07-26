@@ -155,7 +155,7 @@ void KX_BlenderMaterial::InitTextures()
   int i = 0;
   for (GPUMaterialTexture *tex = (GPUMaterialTexture *)textures.first; tex; tex = tex->next) {
     /* Textures */
-    if (tex->ima && tex->ima->gputexture[TEXTARGET_TEXTURE_2D]) {
+    if (tex->ima && tex->ima->gputexture[TEXTARGET_2D]) {
       /* We keep BL_Texture, RAS_Texture.... only for ImageRender and backward compatibility
        * with old scripts from upbge which were using BL_Texture::bindCode.
        * Here we are only interested in GL_TEXTURE_2D textures

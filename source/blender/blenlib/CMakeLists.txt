@@ -269,6 +269,7 @@ set(SRC
   BLI_utility_mixins.hh
   BLI_uvproject.h
   BLI_vector.hh
+  BLI_vector_adaptor.hh
   BLI_vector_set.hh
   BLI_vector_set_slots.hh
   BLI_vfontdata.h
@@ -356,6 +357,7 @@ if(WITH_GTESTS)
     tests/BLI_map_test.cc
     tests/BLI_math_base_safe_test.cc
     tests/BLI_memory_utils_test.cc
+    tests/BLI_multi_value_map_test.cc
     tests/BLI_set_test.cc
     tests/BLI_span_test.cc
     tests/BLI_stack_cxx_test.cc

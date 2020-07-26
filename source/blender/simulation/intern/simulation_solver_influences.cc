@@ -14,36 +14,40 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __SIM_PARTICLE_MESH_EMITTER_HH__
-#define __SIM_PARTICLE_MESH_EMITTER_HH__
-
 #include "simulation_solver_influences.hh"
 
-#include "FN_multi_function.hh"
+#include "DNA_object_types.h"
 
 namespace blender::sim {
 
-class ParticleMeshEmitter final : public ParticleEmitter {
- private:
-  std::string own_state_name_;
-  Array<std::string> particle_names_;
-  const fn::MultiFunction &inputs_fn_;
+ParticleForce::~ParticleForce()
+{
+}
 
- public:
-  ParticleMeshEmitter(std::string own_state_name,
-                      Array<std::string> particle_names,
-                      const fn::MultiFunction &inputs_fn)
-      : own_state_name_(std::move(own_state_name)),
-        particle_names_(particle_names),
-        inputs_fn_(inputs_fn)
-  {
-  }
+ParticleEmitter::~ParticleEmitter()
+{
+}
 
-  ~ParticleMeshEmitter();
+ParticleAction::~ParticleAction()
+{
+}
 
-  void emit(ParticleEmitterContext &context) const override;
-};
+DependencyAnimations::~DependencyAnimations()
+{
+}
+
+bool DependencyAnimations::is_object_transform_changing(Object &UNUSED(object)) const
+{
+  return false;
+}
+
+void DependencyAnimations::get_object_transforms(Object &object,
+                                                 Span<float> simulation_times,
+                                                 MutableSpan<float4x4> r_transforms) const
+{
+  assert_same_size(simulation_times, r_transforms);
+  float4x4 world_matrix = object.obmat;
+  r_transforms.fill(world_matrix);
+}
 
 }  // namespace blender::sim
-
-#endif /* __SIM_PARTICLE_MESH_EMITTER_HH__ */

@@ -467,30 +467,6 @@ static bool seq_is_parent(Sequence *par, Sequence *seq)
   return ((par->seq1 == seq) || (par->seq2 == seq) || (par->seq3 == seq));
 }
 
-static bool seq_is_predecessor(Sequence *pred, Sequence *seq)
-{
-  if (!pred) {
-    return 0;
-  }
-  if (pred == seq) {
-    return 0;
-  }
-  if (seq_is_parent(pred, seq)) {
-    return 1;
-  }
-  if (pred->seq1 && seq_is_predecessor(pred->seq1, seq)) {
-    return 1;
-  }
-  if (pred->seq2 && seq_is_predecessor(pred->seq2, seq)) {
-    return 1;
-  }
-  if (pred->seq3 && seq_is_predecessor(pred->seq3, seq)) {
-    return 1;
-  }
-
-  return 0;
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -689,74 +665,6 @@ int seq_effect_find_selected(Scene *scene,
 /* -------------------------------------------------------------------- */
 /** \name Delete Utilities
  * \{ */
-
-static Sequence *del_seq_find_replace_recurs(Scene *scene, Sequence *seq)
-{
-  Sequence *seq1, *seq2, *seq3;
-
-  /* Try to find a replacement input sequence, and flag for later deletion if
-   * no replacement can be found. */
-
-  if (!seq) {
-    return NULL;
-  }
-  if (!(seq->type & SEQ_TYPE_EFFECT)) {
-    return ((seq->flag & SELECT) ? NULL : seq);
-  }
-  if (!(seq->flag & SELECT)) {
-    /* Try to find replacement for effect inputs. */
-    seq1 = del_seq_find_replace_recurs(scene, seq->seq1);
-    seq2 = del_seq_find_replace_recurs(scene, seq->seq2);
-    seq3 = del_seq_find_replace_recurs(scene, seq->seq3);
-
-    if (seq1 == seq->seq1 && seq2 == seq->seq2 && seq3 == seq->seq3) {
-      /* Pass. */
-    }
-    else if (seq1 || seq2 || seq3) {
-      seq->seq1 = (seq1) ? seq1 : (seq2) ? seq2 : seq3;
-      seq->seq2 = (seq2) ? seq2 : (seq1) ? seq1 : seq3;
-      seq->seq3 = (seq3) ? seq3 : (seq1) ? seq1 : seq2;
-
-      BKE_sequencer_update_changed_seq_and_deps(scene, seq, 1, 1);
-    }
-    else {
-      seq->flag |= SELECT; /* Mark for delete. */
-    }
-  }
-
-  if (seq->flag & SELECT) {
-    if ((seq1 = del_seq_find_replace_recurs(scene, seq->seq1))) {
-      return seq1;
-    }
-    if ((seq2 = del_seq_find_replace_recurs(scene, seq->seq2))) {
-      return seq2;
-    }
-    if ((seq3 = del_seq_find_replace_recurs(scene, seq->seq3))) {
-      return seq3;
-    }
-    return NULL;
-  }
-  return seq;
-}
-
-static void del_seq_clear_modifiers_recurs(Scene *scene, Sequence *deleting_sequence)
-{
-  Editing *ed = BKE_sequencer_editing_get(scene, false);
-  Sequence *current_sequence;
-
-  SEQP_BEGIN (ed, current_sequence) {
-    if (!(current_sequence->flag & SELECT) && current_sequence != deleting_sequence) {
-      SequenceModifierData *smd;
-
-      for (smd = current_sequence->modifiers.first; smd; smd = smd->next) {
-        if (smd->mask_sequence == deleting_sequence) {
-          smd->mask_sequence = NULL;
-        }
-      }
-    }
-  }
-  SEQ_END;
-}
 
 static void recurs_del_seq_flag(Scene *scene, ListBase *lb, short flag, short deleteall)
 {
@@ -2233,14 +2141,16 @@ static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
   }
 
   if (!seq_effect_find_selected(
-          scene, last_seq, last_seq->type, &seq1, &seq2, &seq3, &error_msg)) {
+          scene, last_seq, last_seq->type, &seq1, &seq2, &seq3, &error_msg) ||
+      BKE_sequence_effect_get_num_inputs(last_seq->type) == 0) {
     BKE_report(op->reports, RPT_ERROR, error_msg);
     return OPERATOR_CANCELLED;
   }
   /* Check if reassigning would create recursivity. */
-  if (seq_is_predecessor(seq1, last_seq) || seq_is_predecessor(seq2, last_seq) ||
-      seq_is_predecessor(seq3, last_seq)) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot reassign inputs: no cycles allowed");
+  if (BKE_sequencer_render_loop_check(seq1, last_seq) ||
+      BKE_sequencer_render_loop_check(seq2, last_seq) ||
+      BKE_sequencer_render_loop_check(seq3, last_seq)) {
+    BKE_report(op->reports, RPT_ERROR, "Cannot reassign inputs: recursion detected.");
     return OPERATOR_CANCELLED;
   }
 
@@ -2604,61 +2514,18 @@ static int sequencer_delete_exec(bContext *C, wmOperator *UNUSED(op))
   Scene *scene = CTX_data_scene(C);
   Editing *ed = BKE_sequencer_editing_get(scene, false);
   Sequence *seq;
-  MetaStack *ms;
-  bool nothing_selected = true;
 
-  BKE_sequencer_prefetch_stop(scene);
-
-  seq = BKE_sequencer_active_get(scene);
-  if (seq && seq->flag & SELECT) { /* Avoid a loop since this is likely to be selected. */
-    nothing_selected = false;
-  }
-  else {
-    for (seq = ed->seqbasep->first; seq; seq = seq->next) {
-      if (seq->flag & SELECT) {
-        nothing_selected = false;
-        break;
-      }
+  SEQP_BEGIN (scene->ed, seq) {
+    if (seq->flag & SELECT) {
+      BKE_sequencer_flag_for_removal(scene, ed->seqbasep, seq);
     }
   }
-
-  if (nothing_selected) {
-    return OPERATOR_FINISHED;
-  }
-
-  /* For effects and modifiers, try to find a replacement input. */
-  for (seq = ed->seqbasep->first; seq; seq = seq->next) {
-    if (!(seq->flag & SELECT)) {
-      if ((seq->type & SEQ_TYPE_EFFECT)) {
-        del_seq_find_replace_recurs(scene, seq);
-      }
-    }
-    else {
-      del_seq_clear_modifiers_recurs(scene, seq);
-    }
-  }
-
-  /* Delete all selected strips. */
-  recurs_del_seq_flag(scene, ed->seqbasep, SELECT, 0);
-
-  /* Update lengths, etc. */
-  seq = ed->seqbasep->first;
-  while (seq) {
-    BKE_sequence_calc(scene, seq);
-    seq = seq->next;
-  }
-
-  /* Free parent metas. */
-  ms = ed->metastack.last;
-  while (ms) {
-    BKE_sequence_calc(scene, ms->parseq);
-    ms = ms->prev;
-  }
+  SEQ_END;
+  BKE_sequencer_remove_flagged_sequences(scene, ed->seqbasep);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
-
   return OPERATOR_FINISHED;
 }
 

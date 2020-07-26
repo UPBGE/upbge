@@ -39,7 +39,6 @@
 #include "BKE_context.h"
 #include "BKE_idtype.h"
 
-#include "GPU_glew.h"
 #include "GPU_shader.h"
 #include "GPU_state.h"
 #include "GPU_viewport.h"
@@ -424,9 +423,8 @@ void wm_drags_draw(bContext *C, wmWindow *win, rcti *rect)
                                y,
                                drag->imb->x,
                                drag->imb->y,
-                               GL_RGBA,
-                               GL_UNSIGNED_BYTE,
-                               GL_NEAREST,
+                               GPU_RGBA8,
+                               false,
                                drag->imb->rect,
                                drag->scale,
                                drag->scale,
