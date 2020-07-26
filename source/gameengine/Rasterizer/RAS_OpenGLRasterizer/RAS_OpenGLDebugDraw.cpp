@@ -35,125 +35,19 @@
 #include "RAS_ICanvas.h"
 
 RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw()
-    : m_genericProg(-1), m_vbo(-1), m_wireibo(-1), m_solidibo(-1)
 {
-  /* program */
-  const char *v =
-      "#version 330\n"
-      "uniform mat4 ModelViewProjectionMatrix;\n"
-      "in vec4 bgeDebugPos;\n"
-      "void main()\n"
-      "{\n"
-      "	gl_Position = ModelViewProjectionMatrix * bgeDebugPos;\n"
-      "}\n";
-
-  const char *f =
-      "#version 330\n"
-      "uniform vec4 color;\n"
-      "out vec4 fragColor;\n"
-      "void main()\n"
-      "{\n"
-      "	fragColor = color;\n"
-      "}\n";
-
-  m_genericProg = glCreateProgram();
-
-  unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-  unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-
-  glShaderSource(vertexShader, 1, &v, NULL);
-  glShaderSource(fragmentShader, 1, &f, NULL);
-
-  glCompileShader(vertexShader);
-  glCompileShader(fragmentShader);
-
-  glAttachShader(m_genericProg, vertexShader);
-  glAttachShader(m_genericProg, fragmentShader);
-
-  glBindAttribLocation(m_genericProg, 0, "bgeDebugPos");
-
-  glLinkProgram(m_genericProg);
-
-  glDeleteShader(vertexShader);
-  glDeleteShader(fragmentShader);
-
-  /* check link */
-  GLint stat;
-  glGetProgramiv(m_genericProg, GL_LINK_STATUS, &stat);
-  if (!stat) {
-    GLchar log[1000];
-    GLsizei len;
-    glGetProgramInfoLog(m_genericProg, 1000, &len, log);
-    fprintf(stderr, "Shader link error:\n%s\n", log);
-  }
-  /* VAO */
-  glGenVertexArrays(1, &m_vao);
-
-  /* vbos/ibos */
-  glGenBuffers(1, &m_vbo);
-  glGenBuffers(1, &m_wireibo);
-  glGenBuffers(1, &m_solidibo);
-  glGenBuffers(1, &m_lineibo);
-
-  GLubyte wireIndices[24] = {0, 1, 1, 2, 2, 3, 3, 0, 0, 4, 4, 5,
-                             5, 6, 6, 7, 7, 4, 1, 5, 2, 6, 3, 7};
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_wireibo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 24, wireIndices, GL_STATIC_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-  const GLubyte solidIndices[36] = {0, 1, 2, 2, 3, 0, 1, 5, 6, 6, 2, 1, 7, 6, 5, 5, 4, 7,
-                                    4, 0, 3, 3, 7, 4, 4, 5, 1, 1, 0, 4, 3, 2, 6, 6, 7, 3};
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_solidibo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 36, solidIndices, GL_STATIC_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-  const GLubyte lineIndices[2] = {0, 1};
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lineibo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 2, lineIndices, GL_STATIC_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 RAS_OpenGLDebugDraw::~RAS_OpenGLDebugDraw()
 {
-  glDeleteBuffers(1, &m_vbo);
-  glDeleteBuffers(1, &m_wireibo);
-  glDeleteBuffers(1, &m_solidibo);
-  glDeleteBuffers(1, &m_lineibo);
-  glDeleteVertexArrays(1, &m_vao);
 }
 
 void RAS_OpenGLDebugDraw::BindVBO(float *mvp, float color[4], float *vertexes, unsigned int ibo)
 {
-  glUseProgram(m_genericProg);
-
-  glUniform4f(
-      glGetUniformLocation(m_genericProg, "color"), color[0], color[1], color[2], color[3]);
-  glUniformMatrix4fv(
-      glGetUniformLocation(m_genericProg, "ModelViewProjectionMatrix"), 1, false, mvp);
-
-  glBindVertexArray(m_vao);
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-
-  glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 24, vertexes, GL_STATIC_DRAW);
-
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 3, 0);
 }
 
 void RAS_OpenGLDebugDraw::UnbindVBO()
 {
-  glBindVertexArray(0);
-  glDisableVertexAttribArray(0);
-
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-  glUseProgram(0);
 }
 
 void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
@@ -163,12 +57,13 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   KX_Camera *cam = KX_GetActiveScene()->GetActiveCamera();
   MT_Matrix4x4 m_cameraMatrix(cam->GetProjectionMatrix() * cam->GetModelviewMatrix());
 
-  rasty->SetFrontFace(true);
+  //rasty->SetFrontFace(true);
+  GPU_front_facing(false);
 
   float mvp[16];
   m_cameraMatrix.getValue(&mvp[0]);
 
-  // draw lines
+  // draw lines USE imm API
   for (const RAS_DebugDraw::Line &line : debugDraw->m_lines) {
     float col[4];
     line.m_color.getValue(col);
@@ -183,12 +78,12 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
         (float)max[2],
     };
 
-    BindVBO(mvp, col, vertexes, m_lineibo);
+    /*BindVBO(mvp, col, vertexes, m_lineibo);
     glDrawElements(GL_LINES, 2, GL_UNSIGNED_BYTE, 0);
-    UnbindVBO();
+    UnbindVBO();*/
   }
 
-  // Draw aabbs
+  // Draw aabbs USE imm API
   for (const RAS_DebugDraw::Aabb &aabb : debugDraw->m_aabbs) {
 
     const MT_Matrix3x3 &rot = aabb.m_rot;
@@ -230,15 +125,13 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     MT_Matrix4x4 m(m_cameraMatrix * obmat);
     m.getValue(mvp);
 
-    BindVBO(mvp, c, vertexes, m_wireibo);
+    /*BindVBO(mvp, c, vertexes, m_wireibo);
     glDrawElements(GL_LINES, 24, GL_UNSIGNED_BYTE, 0);
-    UnbindVBO();
-
-    // rasty->PopMatrix();
+    UnbindVBO();*/
   }
 
   m_cameraMatrix.getValue(mvp);
-  // Draw boxes.
+  // Draw boxes. USE imm API
   for (const RAS_DebugDraw::SolidBox &box : debugDraw->m_solidBoxes) {
     GLfloat vertexes[24];
     int k = 0;
@@ -250,25 +143,30 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     }
     float c[4];
     box.m_color.getValue(c);
-    BindVBO(mvp, c, vertexes, m_wireibo);
+    /*BindVBO(mvp, c, vertexes, m_wireibo);
     glDrawElements(GL_LINES, 24, GL_UNSIGNED_BYTE, 0);
-    UnbindVBO();
+    UnbindVBO();*/
 
-    rasty->SetFrontFace(false);
+    //rasty->SetFrontFace(false);
+    //GPU_front_facing(bool invert)
     box.m_insideColor.getValue(c);
-    BindVBO(mvp, c, vertexes, m_solidibo);
+    /*BindVBO(mvp, c, vertexes, m_solidibo);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, 0);
-    UnbindVBO();
+    UnbindVBO();*/
 
-    rasty->SetFrontFace(true);
+    //rasty->SetFrontFace(true);
+    //GPU_front_facing(bool invert);
     box.m_outsideColor.getValue(c);
-    BindVBO(mvp, c, vertexes, m_solidibo);
+    /*BindVBO(mvp, c, vertexes, m_solidibo);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, 0);
-    UnbindVBO();
+    UnbindVBO();*/
   }
 
-  rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
-  rasty->DisableForText();
+  GPU_depth_test(false);
+  //rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
+  /* Warning: I didn't find the equivalent in GPU_ API */
+  //rasty->DisableForText();
+  GPU_face_culling(GPU_CULL_BACK);
 
   const unsigned int width = canvas->GetWidth();
   const unsigned int height = canvas->GetHeight();
@@ -311,5 +209,5 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   }
   BLF_disable(blf_mono_font, BLF_SHADOW);
 
-  rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
+  GPU_depth_test(true);
 }

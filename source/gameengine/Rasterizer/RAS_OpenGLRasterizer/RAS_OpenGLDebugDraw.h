@@ -36,12 +36,6 @@ class RAS_DebugDraw;
 class RAS_OpenGLDebugDraw {
 
  private:
-  unsigned int m_genericProg;
-  unsigned int m_vbo;
-  unsigned int m_vao;
-  unsigned int m_wireibo;
-  unsigned int m_solidibo;
-  unsigned int m_lineibo;
   MT_Matrix4x4 m_cameraMatrix;
 
  public:
