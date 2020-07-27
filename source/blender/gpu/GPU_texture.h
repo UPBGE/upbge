@@ -24,6 +24,8 @@
 #ifndef __GPU_TEXTURE_H__
 #define __GPU_TEXTURE_H__
 
+#include "BLI_sys_types.h" // Game engine transition
+
 #include "GPU_state.h"
 
 #ifdef __cplusplus

@@ -26,10 +26,9 @@
 
 #include "DNA_texture_types.h"
 #include "GPU_material.h"
-#include "GPU_texture.h"
 
 
-BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, int textarget)
+BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget)
     : CValue(), m_isCubeMap(false), m_gpuMatTex(gpumattex), m_textarget(textarget)
 {
   /* Normally input->textype is Kept in sync with GPU_DATATYPE_STR */

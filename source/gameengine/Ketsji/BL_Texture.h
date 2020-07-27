@@ -25,6 +25,8 @@
 #ifndef __BL_TEXTURE_H__
 #define __BL_TEXTURE_H__
 
+#include "GPU_texture.h"
+
 #include "EXP_Value.h"
 #include "RAS_Texture.h"
 
@@ -34,14 +36,14 @@ class BL_Texture : public CValue, public RAS_Texture {
   Py_Header private : bool m_isCubeMap;
   GPUMaterialTexture *m_gpuMatTex;
   GPUTexture *m_gpuTex;
-  int m_textarget;
+  eGPUTextureTarget m_textarget;
 
   struct {
     unsigned int bindcode;
   } m_savedData;
 
  public:
-  BL_Texture(GPUMaterialTexture *gpumattex, int textarget);
+  BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget);
   virtual ~BL_Texture();
 
   // stuff for cvalue related things
