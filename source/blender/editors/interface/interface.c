@@ -3036,25 +3036,39 @@ char *ui_but_string_get_dynamic(uiBut *but, int *r_str_size)
   return str;
 }
 
-static bool ui_set_but_string_eval_num_unit(bContext *C,
-                                            uiBut *but,
-                                            const char *str,
-                                            double *r_value)
+/**
+ * Report a generic error prefix when evaluating a string with #BPY_execute_string_as_number
+ * as the Python error on it's own doesn't provide enough context.
+ */
+#define UI_NUMBER_EVAL_ERROR_PREFIX IFACE_("Error evaluating number, see Info editor for details")
+
+static bool ui_number_from_string_units(
+    bContext *C, const char *str, const int unit_type, const UnitSettings *unit, double *r_value)
 {
+  return user_string_to_number(C, str, unit, unit_type, UI_NUMBER_EVAL_ERROR_PREFIX, r_value);
+}
+
+static bool ui_number_from_string_units_with_but(bContext *C,
+                                                 const char *str,
+                                                 const uiBut *but,
+                                                 double *r_value)
+{
+  const int unit_type = RNA_SUBTYPE_UNIT_VALUE(UI_but_unit_type_get(but));
   const UnitSettings *unit = but->block->unit;
-  int type = RNA_SUBTYPE_UNIT_VALUE(UI_but_unit_type_get(but));
-  return user_string_to_number(C, str, unit, type, r_value);
+  return ui_number_from_string_units(C, str, unit_type, unit, r_value);
 }
 
 static bool ui_number_from_string(bContext *C, const char *str, double *r_value)
 {
+  bool ok;
 #ifdef WITH_PYTHON
-  return BPY_execute_string_as_number(C, NULL, str, true, r_value);
+  ok = BPY_execute_string_as_number(C, NULL, str, UI_NUMBER_EVAL_ERROR_PREFIX, r_value);
 #else
   UNUSED_VARS(C);
   *r_value = atof(str);
-  return true;
+  ok = true;
 #endif
+  return ok;
 }
 
 static bool ui_number_from_string_factor(bContext *C, const char *str, double *r_value)
@@ -3088,7 +3102,7 @@ static bool ui_number_from_string_percentage(bContext *C, const char *str, doubl
   return ui_number_from_string(C, str, r_value);
 }
 
-bool ui_but_string_set_eval_num(bContext *C, uiBut *but, const char *str, double *r_value)
+bool ui_but_string_eval_number(bContext *C, const uiBut *but, const char *str, double *r_value)
 {
   if (str[0] == '\0') {
     *r_value = 0.0;
@@ -3102,7 +3116,7 @@ bool ui_but_string_set_eval_num(bContext *C, uiBut *but, const char *str, double
 
   if (ui_but_is_float(but)) {
     if (ui_but_is_unit(but)) {
-      return ui_set_but_string_eval_num_unit(C, but, str, r_value);
+      return ui_number_from_string_units_with_but(C, str, but, r_value);
     }
     if (subtype == PROP_FACTOR) {
       return ui_number_from_string_factor(C, str, r_value);
@@ -3242,7 +3256,7 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
     /* number editing */
     double value;
 
-    if (ui_but_string_set_eval_num(C, but, str, &value) == false) {
+    if (ui_but_string_eval_number(C, but, str, &value) == false) {
       WM_report_banner_show();
       return false;
     }

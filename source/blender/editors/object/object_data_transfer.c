@@ -420,8 +420,8 @@ static int data_transfer_exec(bContext *C, wmOperator *op)
   const float ray_radius = RNA_float_get(op->ptr, "ray_radius");
   const float islands_precision = RNA_float_get(op->ptr, "islands_precision");
 
-  const int layers_src = RNA_enum_get(op->ptr, "layers_select_src");
-  const int layers_dst = RNA_enum_get(op->ptr, "layers_select_dst");
+  int layers_src = RNA_enum_get(op->ptr, "layers_select_src");
+  int layers_dst = RNA_enum_get(op->ptr, "layers_select_dst");
   int layers_select_src[DT_MULTILAYER_INDEX_MAX] = {0};
   int layers_select_dst[DT_MULTILAYER_INDEX_MAX] = {0};
   const int fromto_idx = BKE_object_data_transfer_dttype_to_srcdst_index(data_type);
@@ -445,6 +445,10 @@ static int data_transfer_exec(bContext *C, wmOperator *op)
   if (reverse_transfer && (ID_IS_LINKED(ob_src->data) || ID_IS_OVERRIDE_LIBRARY(ob_src->data))) {
     /* Do not transfer to linked or override data, not supported. */
     return OPERATOR_CANCELLED;
+  }
+
+  if (reverse_transfer) {
+    SWAP(int, layers_src, layers_dst);
   }
 
   if (fromto_idx != DT_MULTILAYER_INDEX_INVALID) {
@@ -508,13 +512,15 @@ static int data_transfer_exec(bContext *C, wmOperator *op)
 
   BLI_freelistN(&ctx_objects);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, NULL);
+  if (changed) {
+    DEG_relations_tag_update(CTX_data_main(C));
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, NULL);
+  }
 
 #if 0 /* TODO */
   /* Note: issue with that is that if canceled, operator cannot be redone... Nasty in our case. */
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 #else
-  (void)changed;
   return OPERATOR_FINISHED;
 #endif
 }
