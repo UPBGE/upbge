@@ -25,7 +25,7 @@
 #ifndef __BL_TEXTURE_H__
 #define __BL_TEXTURE_H__
 
-#include "GPU_texture.h"
+#include "GPU_draw.h"
 
 #include "EXP_Value.h"
 #include "RAS_Texture.h"

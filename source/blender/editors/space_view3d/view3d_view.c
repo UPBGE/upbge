@@ -1829,7 +1829,7 @@ static void game_set_commmandline_options(GameData *gm)
   Main *bmain = G.main;
 
   if ((syshandle = SYS_GetSystem())) {
-    GPU_set_mipmap(bmain, true);
+    //GPU_set_mipmap(bmain, true);
 
     /* File specific settings: */
     /* Only test the first one. These two are switched

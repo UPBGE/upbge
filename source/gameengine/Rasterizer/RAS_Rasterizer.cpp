@@ -841,42 +841,42 @@ void RAS_Rasterizer::SetInvertFrontFace(bool invert)
 
 void RAS_Rasterizer::SetAnisotropicFiltering(short level)
 {
-  GPU_set_anisotropic((float)level);
+  //GPU_set_anisotropic_((float)level);
 }
 
 short RAS_Rasterizer::GetAnisotropicFiltering()
 {
-  return (short)GPU_get_anisotropic();
+  return false; //(short)GPU_get_anisotropic();
 }
 
 void RAS_Rasterizer::SetMipmapping(MipmapOption val)
 {
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Main *bmain = CTX_data_main(C);
+  /*bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);*/
   switch (val) {
     case RAS_Rasterizer::RAS_MIPMAP_LINEAR:
     {
-      GPU_set_linear_mipmap(1);
-      GPU_set_mipmap(bmain, 1);
+      //GPU_set_linear_mipmap(1);
+      //GPU_set_mipmap(bmain, 1);
       break;
     }
     case RAS_Rasterizer::RAS_MIPMAP_NEAREST:
     {
-      GPU_set_linear_mipmap(0);
-      GPU_set_mipmap(bmain, 1);
+      //GPU_set_linear_mipmap(0);
+      //GPU_set_mipmap(bmain, 1);
       break;
     }
     default:
     {
-      GPU_set_linear_mipmap(0);
-      GPU_set_mipmap(bmain, 0);
+      //GPU_set_linear_mipmap(0);
+      //GPU_set_mipmap(bmain, 0);
     }
   }
 }
 
 RAS_Rasterizer::MipmapOption RAS_Rasterizer::GetMipmapping()
 {
-  if (GPU_get_mipmap()) {
+  /*if (GPU_get_mipmap()) {
     if (GPU_get_linear_mipmap()) {
       return RAS_Rasterizer::RAS_MIPMAP_LINEAR;
     }
@@ -884,9 +884,9 @@ RAS_Rasterizer::MipmapOption RAS_Rasterizer::GetMipmapping()
       return RAS_Rasterizer::RAS_MIPMAP_NEAREST;
     }
   }
-  else {
-    return RAS_Rasterizer::RAS_MIPMAP_NONE;
-  }
+  else {*/
+  return RAS_Rasterizer::RAS_MIPMAP_LINEAR; //RAS_MIPMAP_NONE;
+  //}
 }
 
 bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client,
