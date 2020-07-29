@@ -718,9 +718,12 @@ BVHTree *bvhtree_from_mesh_verts_ex(BVHTreeFromMesh *data,
       /* printf("BVHTree built and saved on cache\n"); */
       BVHCache *bvh_cache = *bvh_cache_p;
       bvhcache_insert(bvh_cache, tree, bvh_cache_type);
-      bvhcache_unlock(bvh_cache, lock_started);
       in_cache = true;
     }
+  }
+
+  if (bvh_cache_p) {
+    bvhcache_unlock(*bvh_cache_p, lock_started);
   }
 
   /* Setup BVHTreeFromMesh */
@@ -930,9 +933,12 @@ BVHTree *bvhtree_from_mesh_edges_ex(BVHTreeFromMesh *data,
       /* Save on cache for later use */
       /* printf("BVHTree built and saved on cache\n"); */
       bvhcache_insert(bvh_cache, tree, bvh_cache_type);
-      bvhcache_unlock(bvh_cache, lock_started);
       in_cache = true;
     }
+  }
+
+  if (bvh_cache_p) {
+    bvhcache_unlock(*bvh_cache_p, lock_started);
   }
 
   /* Setup BVHTreeFromMesh */
@@ -1059,9 +1065,12 @@ BVHTree *bvhtree_from_mesh_faces_ex(BVHTreeFromMesh *data,
       /* printf("BVHTree built and saved on cache\n"); */
       BVHCache *bvh_cache = *bvh_cache_p;
       bvhcache_insert(bvh_cache, tree, bvh_cache_type);
-      bvhcache_unlock(bvh_cache, lock_started);
       in_cache = true;
     }
+  }
+
+  if (bvh_cache_p) {
+    bvhcache_unlock(*bvh_cache_p, lock_started);
   }
 
   /* Setup BVHTreeFromMesh */
@@ -1299,9 +1308,12 @@ BVHTree *bvhtree_from_mesh_looptri_ex(BVHTreeFromMesh *data,
     if (bvh_cache_p) {
       BVHCache *bvh_cache = *bvh_cache_p;
       bvhcache_insert(bvh_cache, tree, bvh_cache_type);
-      bvhcache_unlock(bvh_cache, lock_started);
       in_cache = true;
     }
+  }
+
+  if (bvh_cache_p) {
+    bvhcache_unlock(*bvh_cache_p, lock_started);
   }
 
   /* Setup BVHTreeFromMesh */
@@ -1429,8 +1441,6 @@ BVHTree *BKE_bvhtree_from_mesh_get(struct BVHTreeFromMesh *data,
               mesh->medge, mesh->totedge, mesh->mvert, verts_len, &loose_vert_len);
         }
 
-        /* TODO: a global mutex lock held during the expensive operation of
-         * building the BVH tree is really bad for performance. */
         tree = bvhtree_from_mesh_verts_ex(data,
                                           mesh->mvert,
                                           verts_len,

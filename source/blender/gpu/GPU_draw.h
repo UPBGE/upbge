@@ -25,6 +25,8 @@
 #define __GPU_DRAW_H__
 
 #include "BLI_utildefines.h"
+
+#include "DNA_image_types.h"
 #include "DNA_object_enums.h"
 
 #ifdef __cplusplus
@@ -32,47 +34,48 @@ extern "C" {
 #endif
 
 struct FluidModifierData;
-struct ImBuf;
+struct GPUTexture;
 struct Image;
 struct ImageUser;
+struct ImBuf;
 struct Main;
+struct MovieClip;
+struct MovieClipUser;
 
-/* OpenGL drawing functions related to shading. */
+/* Texture creation from blender datablocks. */
+struct GPUTexture *GPU_texture_from_blender(struct Image *ima,
+                                            struct ImageUser *iuser,
+                                            struct ImBuf *ibuf,
+                                            eGPUTextureTarget target);
 
-/* Mipmap settings
- * - these will free textures on changes */
+struct GPUTexture *GPU_texture_from_movieclip(struct MovieClip *clip,
+                                              struct MovieClipUser *cuser,
+                                              eGPUTextureTarget target);
 
-void GPU_set_mipmap(struct Main *bmain, bool mipmap);
-bool GPU_get_mipmap(void);
-void GPU_set_linear_mipmap(bool linear);
-bool GPU_get_linear_mipmap(void);
-void GPU_paint_set_mipmap(struct Main *bmain, bool mipmap);
-
-/* Anisotropic filtering settings
- * - these will free textures on changes */
-void GPU_set_anisotropic(float value);
-float GPU_get_anisotropic(void);
-
-/* Image updates and free
- * - these deal with images bound as opengl textures */
-
-void GPU_paint_update_image(
-    struct Image *ima, struct ImageUser *iuser, int x, int y, int w, int h);
-bool GPU_upload_dxt_texture(struct ImBuf *ibuf, bool use_srgb, uint *bindcode);
-void GPU_free_image(struct Image *ima);
-void GPU_free_images(struct Main *bmain);
-void GPU_free_images_anim(struct Main *bmain);
-void GPU_free_images_old(struct Main *bmain);
-
-/* gpu_draw_smoke.c  */
-void GPU_free_smoke(struct FluidModifierData *fmd);
-void GPU_free_smoke_velocity(struct FluidModifierData *fmd);
+/* Fluid simulation.  */
 void GPU_create_smoke(struct FluidModifierData *fmd, int highres);
 void GPU_create_smoke_coba_field(struct FluidModifierData *fmd);
 void GPU_create_smoke_velocity(struct FluidModifierData *fmd);
 
+/* Image updates and free. */
+void GPU_free_image(struct Image *ima);
+void GPU_free_movieclip(struct MovieClip *clip);
+void GPU_free_smoke(struct FluidModifierData *fmd);
+void GPU_free_smoke_velocity(struct FluidModifierData *fmd);
+
+void GPU_free_images(struct Main *bmain);
+void GPU_free_images_anim(struct Main *bmain);
+void GPU_free_images_old(struct Main *bmain);
+
+void GPU_paint_update_image(
+    struct Image *ima, struct ImageUser *iuser, int x, int y, int w, int h);
+void GPU_paint_set_mipmap(struct Main *bmain, bool mipmap);
+
 /* Delayed free of OpenGL buffers by main thread */
 void GPU_free_unused_buffers(void);
+
+/* For internal use. */
+struct GPUTexture *GPU_texture_create_error(eGPUTextureTarget target);
 
 #ifdef __cplusplus
 }
