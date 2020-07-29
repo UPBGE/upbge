@@ -4628,7 +4628,7 @@ static int ui_do_but_TEX(
       if (ELEM(event->type, EVT_PADENTER, EVT_RETKEY) && (!UI_but_is_utf8(but))) {
         /* pass - allow filesel, enter to execute */
       }
-      else if (but->dt == UI_EMBOSS_NONE && !event->ctrl) {
+      else if (but->emboss == UI_EMBOSS_NONE && !event->ctrl) {
         /* pass */
       }
       else {

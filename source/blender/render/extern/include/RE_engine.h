@@ -32,10 +32,6 @@
 
 #include "BLI_threads.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct BakePixel;
 struct Depsgraph;
 struct Main;
@@ -51,6 +47,10 @@ struct Scene;
 struct ViewLayer;
 struct bNode;
 struct bNodeTree;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* External Engine */
 

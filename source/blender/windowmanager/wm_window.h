@@ -24,11 +24,11 @@
 #ifndef __WM_WINDOW_H__
 #define __WM_WINDOW_H__
 
+struct wmOperator;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct wmOperator;
 
 /* *************** internal api ************** */
 void wm_ghost_init(bContext *C);

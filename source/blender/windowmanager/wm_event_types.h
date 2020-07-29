@@ -26,6 +26,10 @@
 #ifndef __WM_EVENT_TYPES_H__
 #define __WM_EVENT_TYPES_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* customdata type */
 enum {
   EVT_DATA_TIMER = 2,
@@ -489,5 +493,9 @@ enum {
   /** circle select: size brush (for trackpad event). */
   GESTURE_MODAL_CIRCLE_SIZE = 11,
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __WM_EVENT_TYPES_H__ */

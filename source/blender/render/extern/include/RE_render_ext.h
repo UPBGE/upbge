@@ -23,10 +23,6 @@
 #ifndef __RE_RENDER_EXT_H__
 #define __RE_RENDER_EXT_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is for non-render pipeline exports (still old cruft here) */
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
@@ -35,6 +31,10 @@ extern "C" {
 struct Depsgraph;
 struct ImagePool;
 struct MTex;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* render_texture.c */
 bool RE_texture_evaluate(const struct MTex *mtex,

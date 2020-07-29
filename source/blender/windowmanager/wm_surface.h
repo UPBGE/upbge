@@ -25,11 +25,11 @@
 #ifndef __WM_SURFACE_H__
 #define __WM_SURFACE_H__
 
+struct bContext;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct bContext;
 
 typedef struct wmSurface {
   struct wmSurface *next, *prev;

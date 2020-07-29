@@ -25,13 +25,13 @@
 #ifndef __DNA_GENFILE_H__
 #define __DNA_GENFILE_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "intern/dna_utils.h"
 
 struct SDNA;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * DNAstr contains the prebuilt SDNA structure defining the layouts of the types

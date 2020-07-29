@@ -24,10 +24,6 @@
 #ifndef __WM_EVENT_SYSTEM_H__
 #define __WM_EVENT_SYSTEM_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* return value of handler-operator call */
 #define WM_HANDLER_CONTINUE 0
 #define WM_HANDLER_BREAK 1
@@ -37,6 +33,10 @@ extern "C" {
 struct ARegion;
 struct GHOST_TabletData;
 struct ScrArea;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* wmKeyMap is in DNA_windowmanager.h, it's saveable */
 

@@ -24,13 +24,13 @@
 #ifndef __WM_DRAW_H__
 #define __WM_DRAW_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct GPUOffScreen;
 struct GPUTexture;
 struct GPUViewport;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct wmDrawBuffer {
   struct GPUOffScreen *offscreen;

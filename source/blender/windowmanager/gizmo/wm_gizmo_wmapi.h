@@ -31,14 +31,14 @@
 #ifndef __WM_GIZMO_WMAPI_H__
 #define __WM_GIZMO_WMAPI_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct wmEventHandler_Gizmo;
 struct wmEventHandler_Op;
 struct wmGizmoMap;
 struct wmOperatorType;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* -------------------------------------------------------------------- */
 /* wmGizmo */

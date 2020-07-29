@@ -21,10 +21,6 @@
 #ifndef __BPY_RNA_H__
 #define __BPY_RNA_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* --- bpy build options --- */
 #ifdef WITH_PYTHON_SAFETY
 
@@ -70,6 +66,10 @@ extern "C" {
 /* --- end bpy build options --- */
 
 struct ID;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern PyTypeObject pyrna_struct_meta_idprop_Type;
 extern PyTypeObject pyrna_struct_Type;
