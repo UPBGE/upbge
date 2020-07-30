@@ -341,7 +341,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
   gpu_shader_standard_extensions(standard_extensions);
 
   if (vertexcode) {
-    const char *source[6];
+    const char *source[7];
     /* custom limit, may be too small, beware */
     int num_source = 0;
 
@@ -352,6 +352,9 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
     source[num_source++] = standard_extensions;
     source[num_source++] = standard_defines;
 
+    if (geocode) {
+      source[num_source++] = "#define USE_GEOMETRY_SHADER\n";
+    }
     if (defines) {
       source[num_source++] = defines;
     }
@@ -375,7 +378,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
   }
 
   if (fragcode) {
-    const char *source[7];
+    const char *source[8];
     int num_source = 0;
 
     source[num_source++] = gpu_shader_version();
@@ -385,6 +388,9 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
     source[num_source++] = standard_extensions;
     source[num_source++] = standard_defines;
 
+    if (geocode) {
+      source[num_source++] = "#define USE_GEOMETRY_SHADER\n";
+    }
     if (defines) {
       source[num_source++] = defines;
     }
@@ -453,6 +459,9 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
   if (!status) {
     glGetProgramInfoLog(shader->program, sizeof(log), &length, log);
     /* print attached shaders in pipeline order */
+    if (defines) {
+      shader_print_errors("linking", log, &defines, 1);
+    }
     if (vertexcode) {
       shader_print_errors("linking", log, &vertexcode, 1);
     }
@@ -694,11 +703,6 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 /** \name Getters
  * \{ */
 
-void *GPU_shader_get_interface(GPUShader *shader)
-{
-  return shader->interface;
-}
-
 /* Clement : Temp */
 int GPU_shader_get_program(GPUShader *shader)
 {
@@ -807,14 +811,14 @@ void GPU_shader_uniform_vector_int(
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name sRGB rendering workaround.
+/** \name sRGB Rendering Workaround
  *
- * The viewport overlay framebuffer is sRGB and will expect shaders to output display refered
- * Linear colors. But other framebuffers (i.e: the area framebuffers) are not sRGB and require the
- * shader output color to be in sRGB space (assumed display encoded colorspace as the time of
- * writting).
+ * The viewport overlay frame-buffer is sRGB and will expect shaders to output display referred
+ * Linear colors. But other frame-buffers (i.e: the area frame-buffers) are not sRGB and require
+ * the shader output color to be in sRGB space
+ * (assumed display encoded color-space as the time of writing).
  * For this reason we have a uniform to switch the transform on and off depending on the current
- * framebuffer colorspace.
+ * frame-buffer color-space.
  * \{ */
 
 static int g_shader_builtin_srgb_transform = 0;

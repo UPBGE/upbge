@@ -41,7 +41,6 @@
 #include "RAS_Polygon.h"
 
 #include "DRW_render.h"
-#include "GPU_draw.h"
 #include "GPU_matrix.h"
 
 RAS_Rasterizer::FrameBuffers::FrameBuffers() : m_width(0), m_height(0), m_samples(0)

@@ -179,6 +179,7 @@ static const EnumPropertyItem rna_enum_userdef_viewport_aa_items[] = {
 #  include "BKE_blender.h"
 #  include "BKE_global.h"
 #  include "BKE_idprop.h"
+#  include "BKE_image.h"
 #  include "BKE_main.h"
 #  include "BKE_mesh_runtime.h"
 #  include "BKE_paint.h"
@@ -187,7 +188,6 @@ static const EnumPropertyItem rna_enum_userdef_viewport_aa_items[] = {
 
 #  include "DEG_depsgraph.h"
 
-#  include "GPU_draw.h"
 #  include "GPU_extensions.h"
 #  include "GPU_select.h"
 #  include "GPU_texture.h"
@@ -371,7 +371,7 @@ static void rna_userdef_anisotropic_update(Main *bmain, Scene *scene, PointerRNA
 
 static void rna_userdef_gl_texture_limit_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  GPU_free_images(bmain);
+  BKE_image_free_all_gputextures(bmain);
   rna_userdef_update(bmain, scene, ptr);
 }
 

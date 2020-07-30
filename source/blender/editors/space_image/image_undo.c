@@ -60,8 +60,6 @@
 #include "ED_undo.h"
 #include "ED_util.h"
 
-#include "GPU_draw.h"
-
 #include "WM_api.h"
 
 static CLG_LogRef LOG = {"ed.image.undo"};
@@ -295,7 +293,8 @@ static void ptile_restore_runtime_list(ListBase *paint_tiles)
       SWAP(uint *, ptile->rect.uint, tmpibuf->rect);
     }
 
-    GPU_free_image(image); /* force OpenGL reload (maybe partial update will operate better?) */
+    BKE_image_free_gputextures(
+        image); /* force OpenGL reload (maybe partial update will operate better?) */
     if (ibuf->rect_float) {
       ibuf->userflags |= IB_RECT_INVALID; /* force recreate of char rect */
     }
@@ -570,7 +569,7 @@ static void uhandle_restore_list(ListBase *undo_handles, bool use_init)
 
     if (changed) {
       BKE_image_mark_dirty(image, ibuf);
-      GPU_free_image(image); /* force OpenGL reload */
+      BKE_image_free_gputextures(image); /* force OpenGL reload */
 
       if (ibuf->rect_float) {
         ibuf->userflags |= IB_RECT_INVALID; /* force recreate of char rect */

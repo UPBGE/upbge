@@ -1026,8 +1026,10 @@ static void mesh_customdatacorrect_free_cb(struct TransInfo *UNUSED(t),
 
 #  define FACE_SUBSTITUTE_INDEX INT_MIN
 
-/* Search for a neighboring face with area and preferably without selected vertex.
- * Used to replace arealess faces in customdata correction. */
+/**
+ * Search for a neighboring face with area and preferably without selected vertex.
+ * Used to replace area-less faces in custom-data correction.
+ */
 static BMFace *mesh_customdatacorrect_find_best_face_substitute(BMFace *f)
 {
   BMFace *best_face = NULL;
@@ -1094,10 +1096,11 @@ static BMFace *mesh_customdatacorrect_face_substitute_get(BMFace *f_copy)
 #endif /* USE_FACE_SUBSTITUTE */
 
 static void mesh_customdatacorrect_init_vert(struct TransCustomDataLayer *tcld,
-                                             BMVert *v,
+                                             struct TransDataBasic *td,
                                              const int index)
 {
   BMesh *bm = tcld->bm;
+  BMVert *v = td->extra;
   BMIter liter;
   int j, l_num;
   float *loop_weights;
@@ -1149,7 +1152,7 @@ static void mesh_customdatacorrect_init_vert(struct TransCustomDataLayer *tcld,
       merge_data->cd_loop_groups = NULL;
     }
 
-    BLI_ghash_insert(tcld->merge_group.origverts, v, merge_data);
+    BLI_ghash_insert(tcld->merge_group.origverts, v, td);
   }
 }
 
@@ -1243,14 +1246,12 @@ static void mesh_customdatacorrect_init_container(TransDataContainer *tc,
 
     TransData *tob = tc->data;
     for (int j = tc->data_len; j--; tob++, i++) {
-      BMVert *v = tob->extra;
-      mesh_customdatacorrect_init_vert(tcld, v, i);
+      mesh_customdatacorrect_init_vert(tcld, (TransDataBasic *)tob, i);
     }
 
     TransDataMirror *td_mirror = tc->data_mirror;
     for (int j = tc->data_mirror_len; j--; td_mirror++, i++) {
-      BMVert *v = td_mirror->extra;
-      mesh_customdatacorrect_init_vert(tcld, v, i);
+      mesh_customdatacorrect_init_vert(tcld, (TransDataBasic *)td_mirror, i);
     }
   }
 

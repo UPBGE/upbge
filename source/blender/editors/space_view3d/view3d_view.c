@@ -67,9 +67,8 @@
 
 #ifdef WITH_GAMEENGINE
 #  include "BKE_callbacks.h"
+#  include "BKE_image.h"
 #  include "BLI_listbase.h"
-
-#  include "GPU_draw.h"
 
 #  include "LA_SystemCommandLine.h"
 #endif
@@ -1795,7 +1794,7 @@ static void game_engine_save_state(bContext *C, wmWindow *win)
               GPU_BLEND_BIT);
 
   if (obact && obact->mode & OB_MODE_TEXTURE_PAINT) {
-    GPU_paint_set_mipmap(bmain, 1);
+    BKE_image_paint_set_mipmap(bmain, 1);
   }
 
   queue_back = win->queue;
@@ -1809,7 +1808,7 @@ static void game_engine_restore_state(bContext *C, wmWindow *win)
   Main *bmain = CTX_data_main(C);
 
   if (obact && obact->mode & OB_MODE_TEXTURE_PAINT) {
-    GPU_paint_set_mipmap(bmain, 0);
+    BKE_image_paint_set_mipmap(bmain, 0);
   }
   /* check because closing win can set to NULL */
   if (win) {

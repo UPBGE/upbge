@@ -22,6 +22,8 @@
  *  \ingroup ketsji
  */
 
+#include "BKE_image.h"
+
 #include "BL_Texture.h"
 
 #include "DNA_texture_types.h"
@@ -36,7 +38,7 @@ BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarge
   ;
   m_name = m_gpuMatTex->ima->id.name;
 
-  m_gpuTex = GPU_texture_from_blender(m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr, m_textarget);
+  m_gpuTex = BKE_image_get_gpu_texture(m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr);
 
   if (m_gpuTex) {
     m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -73,8 +75,8 @@ void BL_Texture::CheckValidTexture()
     GPU_texture_free(m_gpuTex);
 
     m_gpuTex = (m_gpuMatTex->ima ?
-                    GPU_texture_from_blender(
-                        m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr, m_textarget) :
+                    BKE_image_get_gpu_texture(
+                        m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr) :
                     nullptr);
 
     if (m_gpuTex) {

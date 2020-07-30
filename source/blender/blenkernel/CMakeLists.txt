@@ -103,6 +103,7 @@ set(SRC
   intern/context.c
   intern/crazyspace.c
   intern/curve.c
+  intern/curve_bevel.c
   intern/curve_decimate.c
   intern/curve_deform.c
   intern/curveprofile.c
@@ -137,6 +138,7 @@ set(SRC
   intern/idtype.c
   intern/image.c
   intern/image_gen.c
+  intern/image_gpu.c
   intern/image_save.c
   intern/ipo.c
   intern/kelvinlet.c

@@ -365,7 +365,7 @@ static bool rna_BrushCapabilities_has_overlay_get(PointerRNA *ptr)
 static bool rna_BrushCapabilitiesSculpt_has_persistence_get(PointerRNA *ptr)
 {
   Brush *br = (Brush *)ptr->data;
-  return br->sculpt_tool == SCULPT_TOOL_LAYER;
+  return ELEM(br->sculpt_tool, SCULPT_TOOL_LAYER, SCULPT_TOOL_CLOTH);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_pinch_factor_get(PointerRNA *ptr)
@@ -2566,6 +2566,15 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Simulation Falloff",
                            "Area to apply deformation falloff to the effects of the simulation");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "cloth_constraint_softbody_strength", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "cloth_constraint_softbody_strength");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(
+      prop,
+      "Soft Body Influence",
+      "How much the simulation preserves the original shape, acting as a soft body");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "hardness", PROP_FLOAT, PROP_FACTOR);

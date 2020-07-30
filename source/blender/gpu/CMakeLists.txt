@@ -80,8 +80,6 @@ set(SRC
   intern/gpu_shader_interface.c
   intern/gpu_state.cc
   intern/gpu_texture.cc
-  intern/gpu_texture_image.c
-  intern/gpu_texture_fluid.c
   intern/gpu_uniformbuffer.cc
   intern/gpu_vertex_buffer.cc
   intern/gpu_vertex_format.cc
@@ -95,7 +93,6 @@ set(SRC
   GPU_common.h
   GPU_context.h
   GPU_debug.h
-  GPU_draw.h
   GPU_element.h
   GPU_extensions.h
   GPU_framebuffer.h
@@ -217,6 +214,8 @@ data_to_c_simple(shaders/gpu_shader_text_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_text_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_keyframe_diamond_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_keyframe_diamond_frag.glsl SRC)
+
+data_to_c_simple(shaders/gpu_shader_codegen_lib.glsl SRC)
 
 data_to_c_simple(shaders/gpu_shader_geometry.glsl SRC)
 

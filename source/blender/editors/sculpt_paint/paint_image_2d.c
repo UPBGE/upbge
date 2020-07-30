@@ -57,8 +57,6 @@
 
 #include "UI_view2d.h"
 
-#include "GPU_draw.h"
-
 #include "paint_intern.h"
 
 /* Brush Painting for 2D image editor */
@@ -1784,7 +1782,7 @@ void paint_2d_redraw(const bContext *C, void *ps, bool final)
 
   if (final) {
     if (s->image && !(s->sima && s->sima->lock)) {
-      GPU_free_image(s->image);
+      BKE_image_free_gputextures(s->image);
     }
 
     /* compositor listener deals with updating */

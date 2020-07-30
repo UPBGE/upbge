@@ -89,7 +89,6 @@
 #include "DNA_genfile.h"
 #include "DNA_space_types.h"
 #include "GHOST_ISystem.h"
-#include "GPU_draw.h"
 #include "GPU_init_exit.h"
 #include "GPU_material.h"
 #include "IMB_imbuf.h"
@@ -1656,7 +1655,7 @@ int main(int argc,
 
   BKE_subdiv_exit();
 
-  GPU_free_unused_buffers();
+  BKE_image_free_unused_gpu_textures();
 
   BKE_blender_free(); /* blender.c, does entire library and spacetypes */
                       //  free_matcopybuf();

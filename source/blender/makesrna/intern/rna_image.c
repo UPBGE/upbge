@@ -67,7 +67,6 @@ static const EnumPropertyItem image_source_items[] = {
 
 #  include "BKE_global.h"
 
-#  include "GPU_draw.h"
 #  include "GPU_texture.h"
 
 #  include "IMB_imbuf.h"
@@ -200,7 +199,7 @@ static void rna_Image_gpu_texture_update(Main *UNUSED(bmain),
   Image *ima = (Image *)ptr->owner_id;
 
   if (!G.background) {
-    GPU_free_image(ima);
+    BKE_image_free_gputextures(ima);
   }
 
   WM_main_add_notifier(NC_IMAGE | ND_DISPLAY, &ima->id);
@@ -516,7 +515,7 @@ static void rna_Image_pixels_set(PointerRNA *ptr, const float *values)
     ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID | IB_MIPMAP_INVALID;
     BKE_image_mark_dirty(ima, ibuf);
     if (!G.background) {
-      GPU_free_image(ima);
+      BKE_image_free_gputextures(ima);
     }
     WM_main_add_notifier(NC_IMAGE | ND_DISPLAY, &ima->id);
   }
