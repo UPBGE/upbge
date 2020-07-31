@@ -116,7 +116,7 @@ bool BL_ActionActuator::Update(double curtime)
     }
   }
 
-  const bool useContinue = (m_flag & ACT_FLAG_CONTINUE);
+  bool useContinue = (m_flag & ACT_FLAG_CONTINUE);
 
   // Handle events
   const bool negativeEvent = m_negevent;
@@ -167,6 +167,7 @@ bool BL_ActionActuator::Update(double curtime)
       case ACT_ACTION_PINGPONG: {
         if (!(m_flag & ACT_FLAG_ACTIVE) && Play(obj, start, end, playtype)) {
           m_flag |= ACT_FLAG_ACTIVE;
+          m_flag &= ~ACT_FLAG_PLAY_END;
           if (useContinue) {
             obj->SetActionFrame(m_layer, m_localtime);
           }
@@ -231,6 +232,16 @@ bool BL_ActionActuator::Update(double curtime)
         Play(obj, start, end, BL_Action::ACT_MODE_PLAY);
         m_flag |= ACT_FLAG_PLAY_END;
         break;
+    }
+  }
+  else if ((m_flag & ACT_FLAG_ACTIVE) && !positiveEvent && !useContinue) {
+    if (m_playtype == ACT_ACTION_PINGPONG) {
+      float curframe = obj->GetActionFrame(m_layer);
+      if (curframe >= (end - 1) &&
+               !(m_flag & ACT_FLAG_PLAY_END)) {
+        Play(obj, obj->GetActionFrame(m_layer), start, BL_Action::ACT_MODE_PLAY);
+        m_flag |= ACT_FLAG_PLAY_END;
+      }
     }
   }
 
