@@ -98,6 +98,7 @@ static const char *includefiles[] = {
     "DNA_sdna_types.h",
     "DNA_fileglobal_types.h",
     "DNA_sequence_types.h",
+    "DNA_session_uuid_types.h",
     "DNA_effect_types.h",
     "DNA_outliner_types.h",
     "DNA_property_types.h",
@@ -1552,6 +1553,7 @@ int main(int argc, char **argv)
 #  pragma GCC poison int8_t
 #endif
 
+#include "DNA_session_uuid_types.h"
 #include "DNA_ID.h"
 #include "DNA_action_types.h"
 #include "DNA_actuator_types.h"
