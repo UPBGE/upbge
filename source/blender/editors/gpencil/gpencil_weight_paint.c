@@ -295,7 +295,7 @@ static bool gpencil_weightpaint_brush_init(bContext *C, wmOperator *op)
   gso->bmain = CTX_data_main(C);
 
   gso->brush = paint->brush;
-  BKE_curvemapping_initialize(gso->brush->curve);
+  BKE_curvemapping_init(gso->brush->curve);
 
   gso->is_painting = false;
   gso->first = true;
@@ -326,7 +326,7 @@ static bool gpencil_weightpaint_brush_init(bContext *C, wmOperator *op)
   /* Init multi-edit falloff curve data before doing anything,
    * so we won't have to do it again later. */
   if (gso->is_multiframe) {
-    BKE_curvemapping_initialize(ts->gp_sculpt.cur_falloff);
+    BKE_curvemapping_init(ts->gp_sculpt.cur_falloff);
   }
 
   /* Setup space conversions. */
@@ -453,9 +453,9 @@ static void gpencil_weightpaint_select_stroke(tGP_BrushWeightpaintData *gso,
 
           /* To each point individually... */
           pt = &gps->points[i];
-          pt_active = (pt->runtime.pt_orig) ? pt->runtime.pt_orig : pt;
-          index = (pt->runtime.pt_orig) ? pt->runtime.idx_orig : i;
+          pt_active = pt->runtime.pt_orig;
           if (pt_active != NULL) {
+            index = (pt->runtime.pt_orig) ? pt->runtime.idx_orig : i;
             gpencil_save_selected_point(gso, gps_active, index, pc1);
           }
 
@@ -469,9 +469,9 @@ static void gpencil_weightpaint_select_stroke(tGP_BrushWeightpaintData *gso,
            */
           if (i + 1 == gps->totpoints - 1) {
             pt = &gps->points[i + 1];
-            pt_active = (pt->runtime.pt_orig) ? pt->runtime.pt_orig : pt;
-            index = (pt->runtime.pt_orig) ? pt->runtime.idx_orig : i + 1;
+            pt_active = pt->runtime.pt_orig;
             if (pt_active != NULL) {
+              index = (pt->runtime.pt_orig) ? pt->runtime.idx_orig : i + 1;
               gpencil_save_selected_point(gso, gps_active, index, pc2);
               include_last = false;
             }
@@ -487,9 +487,9 @@ static void gpencil_weightpaint_select_stroke(tGP_BrushWeightpaintData *gso,
            * (but wasn't added then, to avoid double-ups).
            */
           pt = &gps->points[i];
-          pt_active = (pt->runtime.pt_orig) ? pt->runtime.pt_orig : pt;
-          index = (pt->runtime.pt_orig) ? pt->runtime.idx_orig : i;
+          pt_active = pt->runtime.pt_orig;
           if (pt_active != NULL) {
+            index = (pt->runtime.pt_orig) ? pt->runtime.idx_orig : i;
             gpencil_save_selected_point(gso, gps_active, index, pc1);
 
             include_last = false;

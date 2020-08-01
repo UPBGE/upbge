@@ -282,7 +282,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->v2d.keepzoom |= (V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y | V2D_KEEPASPECT);
         region->v2d.keeptot = V2D_KEEPTOT_STRICT;
         region->v2d.minzoom = region->v2d.maxzoom = 1.0f;
-        // region->v2d.flag |= V2D_IS_INITIALISED;
+        // region->v2d.flag |= V2D_IS_INIT;
         break;
       }
       case SPACE_GRAPH: {
@@ -299,7 +299,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->v2d.max[0] = MAXFRAMEF;
         region->v2d.max[1] = FLT_MAX;
 
-        // region->v2d.flag |= V2D_IS_INITIALISED;
+        // region->v2d.flag |= V2D_IS_INIT;
         break;
       }
       case SPACE_NLA: {
@@ -357,7 +357,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->v2d.scroll |= (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
         region->v2d.scroll |= (V2D_SCROLL_LEFT | V2D_SCROLL_VERTICAL_HANDLES);
         region->v2d.align = V2D_ALIGN_NO_NEG_Y;
-        region->v2d.flag |= V2D_IS_INITIALISED;
+        region->v2d.flag |= V2D_IS_INIT;
         break;
       }
       case SPACE_NODE: {
@@ -1025,7 +1025,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
         bPoseChannel *pchan;
 
         for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-          /* just need to initialise rotation axis properly... */
+          /* Just need to initialize rotation axis properly. */
           pchan->rotAxis[1] = 1.0f;
         }
       }

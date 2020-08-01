@@ -477,7 +477,7 @@ static SculptClothSimulation *cloth_brush_simulation_create(SculptSession *ss,
   cloth_sim->length_constraint_tweak = MEM_calloc_arrayN(
       totverts, sizeof(float), "cloth sim length tweak");
 
-  /* Brush can be NULL for tools that neeed the solver but don't rely on constraint to deformation
+  /* Brush can be NULL for tools that need the solver but don't rely on constraint to deformation
    * positions. */
   if (brush && SCULPT_is_cloth_deform_brush(brush)) {
     cloth_sim->deformation_pos = MEM_calloc_arrayN(
@@ -680,7 +680,7 @@ static void cloth_brush_apply_brush_foces(Sculpt *sd, Object *ob, PBVHNode **nod
       .mat = imat,
   };
 
-  BKE_curvemapping_initialize(brush->curve);
+  BKE_curvemapping_init(brush->curve);
 
   /* Init the grab delta. */
   copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);

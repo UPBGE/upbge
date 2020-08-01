@@ -112,7 +112,7 @@ bands, you would need something like
 
     ArHosekSkyModelState  * skymodel_state[num_channels];
 
-You then have to allocate and initialise these states. In the following code
+You then have to allocate and initialize these states. In the following code
 snippet, we assume that 'albedo' is defined as
 
     double  albedo[num_channels];
@@ -228,7 +228,7 @@ actually not altered at all in this release. All we did was to add some support
 functionality for doing this more easily with the existing data and functions,
 and to add some explanations.
 
-Just use 'arhosekskymodelstate_alienworld_alloc_init()' to initialise the sky
+Just use 'arhosekskymodelstate_alienworld_alloc_init()' to initialize the sky
 model states (you will have to provide values for star temperature and solar
 intensity compared to the terrestrial sun), and do everything else as you
 did before.
@@ -351,7 +351,7 @@ typedef struct SKY_ArHosekSkyModelState {
     arhosekskymodelstate_alloc_init() function
     ------------------------------------------
 
-    Initialises an ArHosekSkyModelState struct for a terrestrial setting.
+    Initializes an #ArHosekSkyModelState struct for a terrestrial setting.
 
 ---------------------------------------------------------------------------- */
 
@@ -364,7 +364,7 @@ SKY_ArHosekSkyModelState *SKY_arhosekskymodelstate_alloc_init(const double solar
     arhosekskymodelstate_alienworld_alloc_init() function
     -----------------------------------------------------
 
-    Initialises an ArHosekSkyModelState struct for an "alien world" setting
+    Initializes an ArHosekSkyModelState struct for an "alien world" setting
     with a sun of a surface temperature given in 'kelvin'. The parameter
     'solar_intensity' controls the overall brightness of the sky, relative
     to the solar irradiance on Earth. A value of 1.0 yields a sky dome that

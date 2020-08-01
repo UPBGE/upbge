@@ -27,10 +27,6 @@
 #include <sstream>
 #include <zlib.h>
 
-#if OPENVDB == 1
-#  include "openvdb/openvdb.h"
-#endif
-
 #include "MANTA_main.h"
 #include "Python.h"
 #include "fluid_script.h"
@@ -59,13 +55,6 @@ using std::to_string;
 
 atomic<int> MANTA::solverID(0);
 int MANTA::with_debug(0);
-
-/* Number of particles that the cache reads at once (with zlib). */
-#define PARTICLE_CHUNK 20000
-/* Number of mesh nodes that the cache reads at once (with zlib). */
-#define NODE_CHUNK 20000
-/* Number of mesh triangles that the cache reads at once (with zlib). */
-#define TRIANGLE_CHUNK 20000
 
 MANTA::MANTA(int *res, FluidModifierData *fmd) : mCurrentID(++solverID)
 {
@@ -96,8 +85,7 @@ MANTA::MANTA(int *res, FluidModifierData *fmd) : mCurrentID(++solverID)
   mUsingInvel = (fds->active_fields & FLUID_DOMAIN_ACTIVE_INVEL);
   mUsingOutflow = (fds->active_fields & FLUID_DOMAIN_ACTIVE_OUTFLOW);
 
-  // Simulation constants
-  mTempAmb = 0;  // TODO: Maybe use this later for buoyancy calculation
+  /* Simulation constants. */
   mResX = res[0];
   mResY = res[1];
   mResZ = res[2];
@@ -105,7 +93,7 @@ MANTA::MANTA(int *res, FluidModifierData *fmd) : mCurrentID(++solverID)
   mTotalCells = mResX * mResY * mResZ;
   mResGuiding = fds->res;
 
-  // Smoke low res grids
+  /* Smoke low res grids. */
   mDensity = nullptr;
   mShadow = nullptr;
   mHeat = nullptr;
@@ -131,7 +119,7 @@ MANTA::MANTA(int *res, FluidModifierData *fmd) : mCurrentID(++solverID)
   mReactIn = nullptr;
   mEmissionIn = nullptr;
 
-  // Smoke high res grids
+  /* Smoke high res grids. */
   mDensityHigh = nullptr;
   mFlameHigh = nullptr;
   mFuelHigh = nullptr;
@@ -146,19 +134,19 @@ MANTA::MANTA(int *res, FluidModifierData *fmd) : mCurrentID(++solverID)
   mTextureV2 = nullptr;
   mTextureW2 = nullptr;
 
-  // Fluid low res grids
+  /* Fluid low res grids. */
   mPhiIn = nullptr;
   mPhiStaticIn = nullptr;
   mPhiOutIn = nullptr;
   mPhiOutStaticIn = nullptr;
   mPhi = nullptr;
 
-  // Mesh
+  /* Mesh. */
   mMeshNodes = nullptr;
   mMeshTriangles = nullptr;
   mMeshVelocities = nullptr;
 
-  // Fluid obstacle
+  /* Fluid obstacle. */
   mPhiObsIn = nullptr;
   mPhiObsStaticIn = nullptr;
   mNumObstacle = nullptr;
@@ -166,47 +154,48 @@ MANTA::MANTA(int *res, FluidModifierData *fmd) : mCurrentID(++solverID)
   mObVelocityY = nullptr;
   mObVelocityZ = nullptr;
 
-  // Fluid guiding
+  /* Fluid guiding. */
   mPhiGuideIn = nullptr;
   mNumGuide = nullptr;
   mGuideVelocityX = nullptr;
   mGuideVelocityY = nullptr;
   mGuideVelocityZ = nullptr;
 
-  // Fluid initial velocity
+  /* Fluid initial velocity. */
   mInVelocityX = nullptr;
   mInVelocityY = nullptr;
   mInVelocityZ = nullptr;
 
-  // Secondary particles
+  /* Secondary particles. */
   mFlipParticleData = nullptr;
   mFlipParticleVelocity = nullptr;
-  mSndParticleData = nullptr;
-  mSndParticleVelocity = nullptr;
-  mSndParticleLife = nullptr;
+  mParticleData = nullptr;
+  mParticleVelocity = nullptr;
+  mParticleLife = nullptr;
 
-  // Cache read success indicators
+  /* Cache read success indicators. */
   mFlipFromFile = false;
   mMeshFromFile = false;
   mParticlesFromFile = false;
 
-  // Setup Mantaflow in Python
+  /* Setup Mantaflow in Python. */
   initializeMantaflow();
 
-  // Initializa RNA map with values that Python will need
+  /* Initializa RNA map with values that Python will need. */
   initializeRNAMap(fmd);
 
-  // Initialize Mantaflow variables in Python
-  // Liquid
+  bool initSuccess = true;
+  /* Initialize Mantaflow variables in Python. */
+  /* Liquid. */
   if (mUsingLiquid) {
-    initDomain();
-    initLiquid();
+    initSuccess &= initDomain();
+    initSuccess &= initLiquid();
     if (mUsingObstacle)
-      initObstacle();
+      initSuccess &= initObstacle();
     if (mUsingInvel)
-      initInVelocity();
+      initSuccess &= initInVelocity();
     if (mUsingOutflow)
-      initOutflow();
+      initSuccess &= initOutflow();
 
     if (mUsingDrops || mUsingBubbles || mUsingFloats || mUsingTracers) {
       mUpresParticle = fds->particle_scale;
@@ -215,8 +204,8 @@ MANTA::MANTA(int *res, FluidModifierData *fmd) : mCurrentID(++solverID)
       mResZParticle = mUpresParticle * mResZ;
       mTotalCellsParticles = mResXParticle * mResYParticle * mResZParticle;
 
-      initSndParts();
-      initLiquidSndParts();
+      initSuccess &= initSndParts();
+      initSuccess &= initLiquidSndParts();
     }
 
     if (mUsingMesh) {
@@ -226,44 +215,44 @@ MANTA::MANTA(int *res, FluidModifierData *fmd) : mCurrentID(++solverID)
       mResZMesh = mUpresMesh * mResZ;
       mTotalCellsMesh = mResXMesh * mResYMesh * mResZMesh;
 
-      // Initialize Mantaflow variables in Python
-      initMesh();
-      initLiquidMesh();
+      /* Initialize Mantaflow variables in Python. */
+      initSuccess &= initMesh();
+      initSuccess &= initLiquidMesh();
     }
 
     if (mUsingDiffusion) {
-      initCurvature();
+      initSuccess &= initCurvature();
     }
 
     if (mUsingGuiding) {
       mResGuiding = (fds->guide_parent) ? fds->guide_res : fds->res;
-      initGuiding();
+      initSuccess &= initGuiding();
     }
     if (mUsingFractions) {
-      initFractions();
+      initSuccess &= initFractions();
     }
   }
 
-  // Smoke
+  /* Smoke. */
   if (mUsingSmoke) {
-    initDomain();
-    initSmoke();
+    initSuccess &= initDomain();
+    initSuccess &= initSmoke();
     if (mUsingHeat)
-      initHeat();
+      initSuccess &= initHeat();
     if (mUsingFire)
-      initFire();
+      initSuccess &= initFire();
     if (mUsingColors)
-      initColors();
+      initSuccess &= initColors();
     if (mUsingObstacle)
-      initObstacle();
+      initSuccess &= initObstacle();
     if (mUsingInvel)
-      initInVelocity();
+      initSuccess &= initInVelocity();
     if (mUsingOutflow)
-      initOutflow();
+      initSuccess &= initOutflow();
 
     if (mUsingGuiding) {
       mResGuiding = (fds->guide_parent) ? fds->guide_res : fds->res;
-      initGuiding();
+      initSuccess &= initGuiding();
     }
 
     if (mUsingNoise) {
@@ -273,31 +262,33 @@ MANTA::MANTA(int *res, FluidModifierData *fmd) : mCurrentID(++solverID)
       mResZNoise = amplify * mResZ;
       mTotalCellsHigh = mResXNoise * mResYNoise * mResZNoise;
 
-      // Initialize Mantaflow variables in Python
-      initNoise();
-      initSmokeNoise();
+      /* Initialize Mantaflow variables in Python. */
+      initSuccess &= initNoise();
+      initSuccess &= initSmokeNoise();
       if (mUsingFire)
-        initFireHigh();
+        initSuccess &= initFireHigh();
       if (mUsingColors)
-        initColorsHigh();
+        initSuccess &= initColorsHigh();
     }
   }
-  updatePointers();
+  /* All requested initializations must not fail in constructor. */
+  BLI_assert(initSuccess);
+  updatePointers(fmd);
 }
 
-void MANTA::initDomain(FluidModifierData *fmd)
+bool MANTA::initDomain(FluidModifierData *fmd)
 {
-  // Vector will hold all python commands that are to be executed
+  /* Vector will hold all python commands that are to be executed. */
   vector<string> pythonCommands;
 
-  // Set manta debug level first
+  /* Set manta debug level first. */
   pythonCommands.push_back(manta_import + manta_debuglevel);
 
   ostringstream ss;
   ss << "set_manta_debuglevel(" << with_debug << ")";
   pythonCommands.push_back(ss.str());
 
-  // Now init basic fluid domain
+  /* Now init basic fluid domain. */
   string tmpString = fluid_variables + fluid_solver + fluid_alloc + fluid_cache_helper +
                      fluid_bake_multiprocessing + fluid_bake_data + fluid_bake_noise +
                      fluid_bake_mesh + fluid_bake_particles + fluid_bake_guiding +
@@ -305,20 +296,20 @@ void MANTA::initDomain(FluidModifierData *fmd)
                      fluid_adapt_time_step + fluid_time_stepping;
   string finalString = parseScript(tmpString, fmd);
   pythonCommands.push_back(finalString);
-  runPythonString(pythonCommands);
+  return runPythonString(pythonCommands);
 }
 
-void MANTA::initNoise(FluidModifierData *fmd)
+bool MANTA::initNoise(FluidModifierData *fmd)
 {
   vector<string> pythonCommands;
   string tmpString = fluid_variables_noise + fluid_solver_noise;
   string finalString = parseScript(tmpString, fmd);
   pythonCommands.push_back(finalString);
 
-  runPythonString(pythonCommands);
+  return runPythonString(pythonCommands);
 }
 
-void MANTA::initSmoke(FluidModifierData *fmd)
+bool MANTA::initSmoke(FluidModifierData *fmd)
 {
   vector<string> pythonCommands;
   string tmpString = smoke_variables + smoke_alloc + smoke_adaptive_step + smoke_save_data +
@@ -326,10 +317,10 @@ void MANTA::initSmoke(FluidModifierData *fmd)
   string finalString = parseScript(tmpString, fmd);
   pythonCommands.push_back(finalString);
 
-  runPythonString(pythonCommands);
+  return runPythonString(pythonCommands);
 }
 
-void MANTA::initSmokeNoise(FluidModifierData *fmd)
+bool MANTA::initSmokeNoise(FluidModifierData *fmd)
 {
   vector<string> pythonCommands;
   string tmpString = smoke_variables_noise + smoke_alloc_noise + smoke_wavelet_noise +
@@ -337,11 +328,11 @@ void MANTA::initSmokeNoise(FluidModifierData *fmd)
   string finalString = parseScript(tmpString, fmd);
   pythonCommands.push_back(finalString);
 
-  runPythonString(pythonCommands);
   mUsingNoise = true;
+  return runPythonString(pythonCommands);
 }
 
-void MANTA::initHeat(FluidModifierData *fmd)
+bool MANTA::initHeat(FluidModifierData *fmd)
 {
   if (!mHeat) {
     vector<string> pythonCommands;
@@ -349,12 +340,13 @@ void MANTA::initHeat(FluidModifierData *fmd)
     string finalString = parseScript(tmpString, fmd);
     pythonCommands.push_back(finalString);
 
-    runPythonString(pythonCommands);
     mUsingHeat = true;
+    return runPythonString(pythonCommands);
   }
+  return false;
 }
 
-void MANTA::initFire(FluidModifierData *fmd)
+bool MANTA::initFire(FluidModifierData *fmd)
 {
   if (!mFuel) {
     vector<string> pythonCommands;
@@ -362,12 +354,13 @@ void MANTA::initFire(FluidModifierData *fmd)
     string finalString = parseScript(tmpString, fmd);
     pythonCommands.push_back(finalString);
 
-    runPythonString(pythonCommands);
     mUsingFire = true;
+    return runPythonString(pythonCommands);
   }
+  return false;
 }
 
-void MANTA::initFireHigh(FluidModifierData *fmd)
+bool MANTA::initFireHigh(FluidModifierData *fmd)
 {
   if (!mFuelHigh) {
     vector<string> pythonCommands;
@@ -375,12 +368,13 @@ void MANTA::initFireHigh(FluidModifierData *fmd)
     string finalString = parseScript(tmpString, fmd);
     pythonCommands.push_back(finalString);
 
-    runPythonString(pythonCommands);
     mUsingFire = true;
+    return runPythonString(pythonCommands);
   }
+  return false;
 }
 
-void MANTA::initColors(FluidModifierData *fmd)
+bool MANTA::initColors(FluidModifierData *fmd)
 {
   if (!mColorR) {
     vector<string> pythonCommands;
@@ -388,12 +382,13 @@ void MANTA::initColors(FluidModifierData *fmd)
     string finalString = parseScript(tmpString, fmd);
     pythonCommands.push_back(finalString);
 
-    runPythonString(pythonCommands);
     mUsingColors = true;
+    return runPythonString(pythonCommands);
   }
+  return false;
 }
 
-void MANTA::initColorsHigh(FluidModifierData *fmd)
+bool MANTA::initColorsHigh(FluidModifierData *fmd)
 {
   if (!mColorRHigh) {
     vector<string> pythonCommands;
@@ -401,12 +396,13 @@ void MANTA::initColorsHigh(FluidModifierData *fmd)
     string finalString = parseScript(tmpString, fmd);
     pythonCommands.push_back(finalString);
 
-    runPythonString(pythonCommands);
     mUsingColors = true;
+    return runPythonString(pythonCommands);
   }
+  return false;
 }
 
-void MANTA::initLiquid(FluidModifierData *fmd)
+bool MANTA::initLiquid(FluidModifierData *fmd)
 {
   if (!mPhiIn) {
     vector<string> pythonCommands;
@@ -415,44 +411,45 @@ void MANTA::initLiquid(FluidModifierData *fmd)
     string finalString = parseScript(tmpString, fmd);
     pythonCommands.push_back(finalString);
 
-    runPythonString(pythonCommands);
     mUsingLiquid = true;
+    return runPythonString(pythonCommands);
   }
+  return false;
 }
 
-void MANTA::initMesh(FluidModifierData *fmd)
+bool MANTA::initMesh(FluidModifierData *fmd)
 {
   vector<string> pythonCommands;
   string tmpString = fluid_variables_mesh + fluid_solver_mesh + liquid_load_mesh;
   string finalString = parseScript(tmpString, fmd);
   pythonCommands.push_back(finalString);
 
-  runPythonString(pythonCommands);
   mUsingMesh = true;
+  return runPythonString(pythonCommands);
 }
 
-void MANTA::initLiquidMesh(FluidModifierData *fmd)
+bool MANTA::initLiquidMesh(FluidModifierData *fmd)
 {
   vector<string> pythonCommands;
   string tmpString = liquid_alloc_mesh + liquid_step_mesh + liquid_save_mesh;
   string finalString = parseScript(tmpString, fmd);
   pythonCommands.push_back(finalString);
 
-  runPythonString(pythonCommands);
   mUsingMesh = true;
+  return runPythonString(pythonCommands);
 }
 
-void MANTA::initCurvature(FluidModifierData *fmd)
+bool MANTA::initCurvature(FluidModifierData *fmd)
 {
   std::vector<std::string> pythonCommands;
   std::string finalString = parseScript(liquid_alloc_curvature, fmd);
   pythonCommands.push_back(finalString);
 
-  runPythonString(pythonCommands);
   mUsingDiffusion = true;
+  return runPythonString(pythonCommands);
 }
 
-void MANTA::initObstacle(FluidModifierData *fmd)
+bool MANTA::initObstacle(FluidModifierData *fmd)
 {
   if (!mPhiObsIn) {
     vector<string> pythonCommands;
@@ -460,12 +457,13 @@ void MANTA::initObstacle(FluidModifierData *fmd)
     string finalString = parseScript(tmpString, fmd);
     pythonCommands.push_back(finalString);
 
-    runPythonString(pythonCommands);
     mUsingObstacle = true;
+    return runPythonString(pythonCommands);
   }
+  return false;
 }
 
-void MANTA::initGuiding(FluidModifierData *fmd)
+bool MANTA::initGuiding(FluidModifierData *fmd)
 {
   if (!mPhiGuideIn) {
     vector<string> pythonCommands;
@@ -474,23 +472,24 @@ void MANTA::initGuiding(FluidModifierData *fmd)
     string finalString = parseScript(tmpString, fmd);
     pythonCommands.push_back(finalString);
 
-    runPythonString(pythonCommands);
     mUsingGuiding = true;
+    return runPythonString(pythonCommands);
   }
+  return false;
 }
 
-void MANTA::initFractions(FluidModifierData *fmd)
+bool MANTA::initFractions(FluidModifierData *fmd)
 {
   vector<string> pythonCommands;
   string tmpString = fluid_alloc_fractions + fluid_with_fractions;
   string finalString = parseScript(tmpString, fmd);
   pythonCommands.push_back(finalString);
 
-  runPythonString(pythonCommands);
   mUsingFractions = true;
+  return runPythonString(pythonCommands);
 }
 
-void MANTA::initInVelocity(FluidModifierData *fmd)
+bool MANTA::initInVelocity(FluidModifierData *fmd)
 {
   if (!mInVelocityX) {
     vector<string> pythonCommands;
@@ -498,12 +497,13 @@ void MANTA::initInVelocity(FluidModifierData *fmd)
     string finalString = parseScript(tmpString, fmd);
     pythonCommands.push_back(finalString);
 
-    runPythonString(pythonCommands);
     mUsingInvel = true;
+    return runPythonString(pythonCommands);
   }
+  return false;
 }
 
-void MANTA::initOutflow(FluidModifierData *fmd)
+bool MANTA::initOutflow(FluidModifierData *fmd)
 {
   if (!mPhiOutIn) {
     vector<string> pythonCommands;
@@ -511,24 +511,25 @@ void MANTA::initOutflow(FluidModifierData *fmd)
     string finalString = parseScript(tmpString, fmd);
     pythonCommands.push_back(finalString);
 
-    runPythonString(pythonCommands);
     mUsingOutflow = true;
+    return runPythonString(pythonCommands);
   }
+  return false;
 }
 
-void MANTA::initSndParts(FluidModifierData *fmd)
+bool MANTA::initSndParts(FluidModifierData *fmd)
 {
   vector<string> pythonCommands;
   string tmpString = fluid_variables_particles + fluid_solver_particles;
   string finalString = parseScript(tmpString, fmd);
   pythonCommands.push_back(finalString);
 
-  runPythonString(pythonCommands);
+  return runPythonString(pythonCommands);
 }
 
-void MANTA::initLiquidSndParts(FluidModifierData *fmd)
+bool MANTA::initLiquidSndParts(FluidModifierData *fmd)
 {
-  if (!mSndParticleData) {
+  if (!mParticleData) {
     vector<string> pythonCommands;
     string tmpString = liquid_alloc_particles + liquid_variables_particles +
                        liquid_step_particles + fluid_with_sndparts + liquid_load_particles +
@@ -536,8 +537,9 @@ void MANTA::initLiquidSndParts(FluidModifierData *fmd)
     string finalString = parseScript(tmpString, fmd);
     pythonCommands.push_back(finalString);
 
-    runPythonString(pythonCommands);
+    return runPythonString(pythonCommands);
   }
+  return false;
 }
 
 MANTA::~MANTA()
@@ -546,7 +548,7 @@ MANTA::~MANTA()
     cout << "~FLUID: " << mCurrentID << " with res(" << mResX << ", " << mResY << ", " << mResZ
          << ")" << endl;
 
-  // Destruction string for Python
+  /* Destruction string for Python. */
   string tmpString = "";
   vector<string> pythonCommands;
   bool result = false;
@@ -554,10 +556,10 @@ MANTA::~MANTA()
   tmpString += manta_import;
   tmpString += fluid_delete_all;
 
-  // Initializa RNA map with values that Python will need
+  /* Initializa RNA map with values that Python will need. */
   initializeRNAMap();
 
-  // Leave out fmd argument in parseScript since only looking up IDs
+  /* Leave out fmd argument in parseScript since only looking up IDs. */
   string finalString = parseScript(tmpString);
   pythonCommands.push_back(finalString);
   result = runPythonString(pythonCommands);
@@ -619,10 +621,10 @@ void MANTA::initializeMantaflow()
   string filename = "manta_scene_" + to_string(mCurrentID) + ".py";
   vector<string> fill = vector<string>();
 
-  // Initialize extension classes and wrappers
+  /* Initialize extension classes and wrappers. */
   srand(0);
   PyGILState_STATE gilstate = PyGILState_Ensure();
-  Pb::setup(filename, fill);  // Namespace from Mantaflow (registry)
+  Pb::setup(filename, fill); /* Namespace from Mantaflow (registry). */
   PyGILState_Release(gilstate);
 }
 
@@ -632,7 +634,7 @@ void MANTA::terminateMantaflow()
     cout << "Fluid: Releasing Mantaflow framework" << endl;
 
   PyGILState_STATE gilstate = PyGILState_Ensure();
-  Pb::finalize();  // Namespace from Mantaflow (registry)
+  Pb::finalize(); /* Namespace from Mantaflow (registry). */
   PyGILState_Release(gilstate);
 }
 
@@ -1073,7 +1075,7 @@ string MANTA::parseScript(const string &setup_string, FluidModifierData *fmd)
   ostringstream res;
   string line = "";
 
-  // Update RNA map if modifier data is handed over
+  /* Update RNA map if modifier data is handed over. */
   if (fmd) {
     initializeRNAMap(fmd);
   }
@@ -1111,7 +1113,8 @@ bool MANTA::writeConfiguration(FluidModifierData *fmd, int framenr)
   /* Create 'config' subdir if it does not exist already. */
   BLI_dir_create_recursive(directory.c_str());
 
-  gzFile gzf = (gzFile)BLI_gzopen(file.c_str(), "wb1");  // do some compression
+  /* Open new file with some compression. */
+  gzFile gzf = (gzFile)BLI_gzopen(file.c_str(), "wb1");
   if (!gzf) {
     cerr << "Fluid Error -- Cannot open file " << file << endl;
     return false;
@@ -1615,10 +1618,10 @@ void MANTA::exportSmokeScript(FluidModifierData *fmd)
 
   string manta_script;
 
-  // Libraries
+  /* Libraries. */
   manta_script += header_libraries + manta_import;
 
-  // Variables
+  /* Variables. */
   manta_script += header_variables + fluid_variables + smoke_variables;
   if (noise) {
     manta_script += fluid_variables_noise + smoke_variables_noise;
@@ -1626,14 +1629,14 @@ void MANTA::exportSmokeScript(FluidModifierData *fmd)
   if (guiding)
     manta_script += fluid_variables_guiding;
 
-  // Solvers
+  /* Solvers. */
   manta_script += header_solvers + fluid_solver;
   if (noise)
     manta_script += fluid_solver_noise;
   if (guiding)
     manta_script += fluid_solver_guiding;
 
-  // Grids
+  /* Grids. */
   manta_script += header_grids + fluid_alloc + smoke_alloc;
   if (noise) {
     manta_script += smoke_alloc_noise;
@@ -1657,36 +1660,36 @@ void MANTA::exportSmokeScript(FluidModifierData *fmd)
   if (outflow)
     manta_script += fluid_alloc_outflow;
 
-  // Noise field
+  /* Noise field. */
   if (noise)
     manta_script += smoke_wavelet_noise;
 
-  // Time
+  /* Time. */
   manta_script += header_time + fluid_time_stepping + fluid_adapt_time_step;
 
-  // Import
+  /* Import. */
   manta_script += header_import + fluid_file_import + fluid_cache_helper + smoke_load_data;
   if (noise)
     manta_script += smoke_load_noise;
   if (guiding)
     manta_script += fluid_load_guiding;
 
-  // Pre/Post Steps
+  /* Pre/Post Steps. */
   manta_script += header_prepost + fluid_pre_step + fluid_post_step;
 
-  // Steps
+  /* Steps. */
   manta_script += header_steps + smoke_adaptive_step + smoke_step;
   if (noise) {
     manta_script += smoke_step_noise;
   }
 
-  // Main
+  /* Main. */
   manta_script += header_main + smoke_standalone + fluid_standalone;
 
-  // Fill in missing variables in script
+  /* Fill in missing variables in script. */
   string final_script = MANTA::parseScript(manta_script, fmd);
 
-  // Write script
+  /* Write script. */
   ofstream myfile;
   myfile.open(cacheDirScript);
   myfile << final_script;
@@ -1725,10 +1728,10 @@ void MANTA::exportLiquidScript(FluidModifierData *fmd)
 
   string manta_script;
 
-  // Libraries
+  /* Libraries. */
   manta_script += header_libraries + manta_import;
 
-  // Variables
+  /* Variables. */
   manta_script += header_variables + fluid_variables + liquid_variables;
   if (mesh)
     manta_script += fluid_variables_mesh;
@@ -1737,7 +1740,7 @@ void MANTA::exportLiquidScript(FluidModifierData *fmd)
   if (guiding)
     manta_script += fluid_variables_guiding;
 
-  // Solvers
+  /* Solvers. */
   manta_script += header_solvers + fluid_solver;
   if (mesh)
     manta_script += fluid_solver_mesh;
@@ -1746,7 +1749,7 @@ void MANTA::exportLiquidScript(FluidModifierData *fmd)
   if (guiding)
     manta_script += fluid_solver_guiding;
 
-  // Grids
+  /* Grids. */
   manta_script += header_grids + fluid_alloc + liquid_alloc;
   if (mesh)
     manta_script += liquid_alloc_mesh;
@@ -1763,13 +1766,13 @@ void MANTA::exportLiquidScript(FluidModifierData *fmd)
   if (outflow)
     manta_script += fluid_alloc_outflow;
 
-  // Domain init
+  /* Domain init. */
   manta_script += header_gridinit + liquid_init_phi;
 
-  // Time
+  /* Time. */
   manta_script += header_time + fluid_time_stepping + fluid_adapt_time_step;
 
-  // Import
+  /* Import. */
   manta_script += header_import + fluid_file_import + fluid_cache_helper + liquid_load_data;
   if (mesh)
     manta_script += liquid_load_mesh;
@@ -1778,23 +1781,23 @@ void MANTA::exportLiquidScript(FluidModifierData *fmd)
   if (guiding)
     manta_script += fluid_load_guiding;
 
-  // Pre/Post Steps
+  /* Pre/Post Steps. */
   manta_script += header_prepost + fluid_pre_step + fluid_post_step;
 
-  // Steps
+  /* Steps. */
   manta_script += header_steps + liquid_adaptive_step + liquid_step;
   if (mesh)
     manta_script += liquid_step_mesh;
   if (drops || bubble || floater || tracer)
     manta_script += liquid_step_particles;
 
-  // Main
+  /* Main. */
   manta_script += header_main + liquid_standalone + fluid_standalone;
 
-  // Fill in missing variables in script
+  /* Fill in missing variables in script. */
   string final_script = MANTA::parseScript(manta_script, fmd);
 
-  // Write script
+  /* Write script. */
   ofstream myfile;
   myfile.open(cacheDirScript);
   myfile << final_script;
@@ -1823,8 +1826,14 @@ static PyObject *callPythonFunction(string varName, string functionName, bool is
   /* Be sure to initialize Python before using it. */
   Py_Initialize();
 
-  // Get pyobject that holds result value
+  /* Get pyobject that holds result value. */
   if (!manta_main_module) {
+    PyGILState_Release(gilstate);
+    return nullptr;
+  }
+
+  /* Ensure that requested variable is present in module - avoid attribute errors later on. */
+  if (!PyObject_HasAttrString(manta_main_module, varName.c_str())) {
     PyGILState_Release(gilstate);
     return nullptr;
   }
@@ -1911,6 +1920,11 @@ static long pyObjectToLong(PyObject *inputObject)
   return result;
 }
 
+template<class T> static T *getPointer(string pyObjectName, string pyFunctionName)
+{
+  return static_cast<T *>(pyObjectToPointer(callPythonFunction(pyObjectName, pyFunctionName)));
+}
+
 int MANTA::getFrame()
 {
   if (with_debug)
@@ -1955,137 +1969,137 @@ void MANTA::adaptTimestep()
   runPythonString(pythonCommands);
 }
 
-void MANTA::updatePointers()
+void MANTA::updatePointers(FluidModifierData *fmd)
 {
   if (with_debug)
     cout << "MANTA::updatePointers()" << endl;
+
+  FluidDomainSettings *fds = fmd->domain;
+
+  bool liquid = (fds->type == FLUID_DOMAIN_TYPE_LIQUID);
+  bool smoke = (fds->type == FLUID_DOMAIN_TYPE_GAS);
+  bool noise = smoke && fds->flags & FLUID_DOMAIN_USE_NOISE;
+  bool heat = smoke && fds->active_fields & FLUID_DOMAIN_ACTIVE_HEAT;
+  bool colors = smoke && fds->active_fields & FLUID_DOMAIN_ACTIVE_COLORS;
+  bool fire = smoke && fds->active_fields & FLUID_DOMAIN_ACTIVE_FIRE;
+  bool obstacle = fds->active_fields & FLUID_DOMAIN_ACTIVE_OBSTACLE;
+  bool guiding = fds->active_fields & FLUID_DOMAIN_ACTIVE_GUIDE;
+  bool invel = fds->active_fields & FLUID_DOMAIN_ACTIVE_INVEL;
+  bool outflow = fds->active_fields & FLUID_DOMAIN_ACTIVE_OUTFLOW;
+  bool drops = liquid && fds->particle_type & FLUID_DOMAIN_PARTICLE_SPRAY;
+  bool bubble = liquid && fds->particle_type & FLUID_DOMAIN_PARTICLE_BUBBLE;
+  bool floater = liquid && fds->particle_type & FLUID_DOMAIN_PARTICLE_FOAM;
+  bool tracer = liquid && fds->particle_type & FLUID_DOMAIN_PARTICLE_TRACER;
+  bool parts = liquid && (drops | bubble | floater | tracer);
+  bool mesh = liquid && fds->flags & FLUID_DOMAIN_USE_MESH;
+  bool meshvel = liquid && mesh && fds->flags & FLUID_DOMAIN_USE_SPEED_VECTORS;
 
   string func = "getDataPointer";
   string funcNodes = "getNodesDataPointer";
   string funcTris = "getTrisDataPointer";
 
   string id = to_string(mCurrentID);
-  string solver = "s" + id;
-  string parts = "pp" + id;
-  string snd = "sp" + id;
-  string mesh = "sm" + id;
-  string mesh2 = "mesh" + id;
-  string noise = "sn" + id;
-  string solver_ext = "_" + solver;
-  string parts_ext = "_" + parts;
-  string snd_ext = "_" + snd;
-  string mesh_ext = "_" + mesh;
-  string mesh_ext2 = "_" + mesh2;
-  string noise_ext = "_" + noise;
+  string s_ext = "_s" + id;
+  string pp_ext = "_pp" + id;
+  string snd_ext = "_sp" + id;
+  string sm_ext = "_sm" + id;
+  string mesh_ext = "_mesh" + id;
+  string sn_ext = "_sn" + id;
 
-  mFlags = (int *)pyObjectToPointer(callPythonFunction("flags" + solver_ext, func));
-  mPhiIn = (float *)pyObjectToPointer(callPythonFunction("phiIn" + solver_ext, func));
-  mPhiStaticIn = (float *)pyObjectToPointer(callPythonFunction("phiSIn" + solver_ext, func));
-  mVelocityX = (float *)pyObjectToPointer(callPythonFunction("x_vel" + solver_ext, func));
-  mVelocityY = (float *)pyObjectToPointer(callPythonFunction("y_vel" + solver_ext, func));
-  mVelocityZ = (float *)pyObjectToPointer(callPythonFunction("z_vel" + solver_ext, func));
-  mForceX = (float *)pyObjectToPointer(callPythonFunction("x_force" + solver_ext, func));
-  mForceY = (float *)pyObjectToPointer(callPythonFunction("y_force" + solver_ext, func));
-  mForceZ = (float *)pyObjectToPointer(callPythonFunction("z_force" + solver_ext, func));
+  mFlags = getPointer<int>("flags" + s_ext, func);
+  mPhiIn = getPointer<float>("phiIn" + s_ext, func);
+  mPhiStaticIn = getPointer<float>("phiSIn" + s_ext, func);
+  mVelocityX = getPointer<float>("x_vel" + s_ext, func);
+  mVelocityY = getPointer<float>("y_vel" + s_ext, func);
+  mVelocityZ = getPointer<float>("z_vel" + s_ext, func);
+  mForceX = getPointer<float>("x_force" + s_ext, func);
+  mForceY = getPointer<float>("y_force" + s_ext, func);
+  mForceZ = getPointer<float>("z_force" + s_ext, func);
 
-  if (mUsingOutflow) {
-    mPhiOutIn = (float *)pyObjectToPointer(callPythonFunction("phiOutIn" + solver_ext, func));
-    mPhiOutStaticIn = (float *)pyObjectToPointer(
-        callPythonFunction("phiOutSIn" + solver_ext, func));
-  }
-  if (mUsingObstacle) {
-    mPhiObsIn = (float *)pyObjectToPointer(callPythonFunction("phiObsIn" + solver_ext, func));
-    mPhiObsStaticIn = (float *)pyObjectToPointer(
-        callPythonFunction("phiObsSIn" + solver_ext, func));
-    mObVelocityX = (float *)pyObjectToPointer(callPythonFunction("x_obvel" + solver_ext, func));
-    mObVelocityY = (float *)pyObjectToPointer(callPythonFunction("y_obvel" + solver_ext, func));
-    mObVelocityZ = (float *)pyObjectToPointer(callPythonFunction("z_obvel" + solver_ext, func));
-    mNumObstacle = (float *)pyObjectToPointer(callPythonFunction("numObs" + solver_ext, func));
-  }
-  if (mUsingGuiding) {
-    mPhiGuideIn = (float *)pyObjectToPointer(callPythonFunction("phiGuideIn" + solver_ext, func));
-    mGuideVelocityX = (float *)pyObjectToPointer(
-        callPythonFunction("x_guidevel" + solver_ext, func));
-    mGuideVelocityY = (float *)pyObjectToPointer(
-        callPythonFunction("y_guidevel" + solver_ext, func));
-    mGuideVelocityZ = (float *)pyObjectToPointer(
-        callPythonFunction("z_guidevel" + solver_ext, func));
-    mNumGuide = (float *)pyObjectToPointer(callPythonFunction("numGuides" + solver_ext, func));
-  }
-  if (mUsingInvel) {
-    mInVelocityX = (float *)pyObjectToPointer(callPythonFunction("x_invel" + solver_ext, func));
-    mInVelocityY = (float *)pyObjectToPointer(callPythonFunction("y_invel" + solver_ext, func));
-    mInVelocityZ = (float *)pyObjectToPointer(callPythonFunction("z_invel" + solver_ext, func));
-  }
-  if (mUsingSmoke) {
-    mDensity = (float *)pyObjectToPointer(callPythonFunction("density" + solver_ext, func));
-    mDensityIn = (float *)pyObjectToPointer(callPythonFunction("densityIn" + solver_ext, func));
-    mShadow = (float *)pyObjectToPointer(callPythonFunction("shadow" + solver_ext, func));
-    mEmissionIn = (float *)pyObjectToPointer(callPythonFunction("emissionIn" + solver_ext, func));
-  }
-  if (mUsingSmoke && mUsingHeat) {
-    mHeat = (float *)pyObjectToPointer(callPythonFunction("heat" + solver_ext, func));
-    mHeatIn = (float *)pyObjectToPointer(callPythonFunction("heatIn" + solver_ext, func));
-  }
-  if (mUsingSmoke && mUsingFire) {
-    mFlame = (float *)pyObjectToPointer(callPythonFunction("flame" + solver_ext, func));
-    mFuel = (float *)pyObjectToPointer(callPythonFunction("fuel" + solver_ext, func));
-    mReact = (float *)pyObjectToPointer(callPythonFunction("react" + solver_ext, func));
-    mFuelIn = (float *)pyObjectToPointer(callPythonFunction("fuelIn" + solver_ext, func));
-    mReactIn = (float *)pyObjectToPointer(callPythonFunction("reactIn" + solver_ext, func));
-  }
-  if (mUsingSmoke && mUsingColors) {
-    mColorR = (float *)pyObjectToPointer(callPythonFunction("color_r" + solver_ext, func));
-    mColorG = (float *)pyObjectToPointer(callPythonFunction("color_g" + solver_ext, func));
-    mColorB = (float *)pyObjectToPointer(callPythonFunction("color_b" + solver_ext, func));
-    mColorRIn = (float *)pyObjectToPointer(callPythonFunction("color_r_in" + solver_ext, func));
-    mColorGIn = (float *)pyObjectToPointer(callPythonFunction("color_g_in" + solver_ext, func));
-    mColorBIn = (float *)pyObjectToPointer(callPythonFunction("color_b_in" + solver_ext, func));
-  }
-  if (mUsingSmoke && mUsingNoise) {
-    mDensityHigh = (float *)pyObjectToPointer(callPythonFunction("density" + noise_ext, func));
-    mTextureU = (float *)pyObjectToPointer(callPythonFunction("texture_u" + solver_ext, func));
-    mTextureV = (float *)pyObjectToPointer(callPythonFunction("texture_v" + solver_ext, func));
-    mTextureW = (float *)pyObjectToPointer(callPythonFunction("texture_w" + solver_ext, func));
-    mTextureU2 = (float *)pyObjectToPointer(callPythonFunction("texture_u2" + solver_ext, func));
-    mTextureV2 = (float *)pyObjectToPointer(callPythonFunction("texture_v2" + solver_ext, func));
-    mTextureW2 = (float *)pyObjectToPointer(callPythonFunction("texture_w2" + solver_ext, func));
-  }
-  if (mUsingSmoke && mUsingNoise && mUsingFire) {
-    mFlameHigh = (float *)pyObjectToPointer(callPythonFunction("flame" + noise_ext, func));
-    mFuelHigh = (float *)pyObjectToPointer(callPythonFunction("fuel" + noise_ext, func));
-    mReactHigh = (float *)pyObjectToPointer(callPythonFunction("react" + noise_ext, func));
-  }
-  if (mUsingSmoke && mUsingNoise && mUsingColors) {
-    mColorRHigh = (float *)pyObjectToPointer(callPythonFunction("color_r" + noise_ext, func));
-    mColorGHigh = (float *)pyObjectToPointer(callPythonFunction("color_g" + noise_ext, func));
-    mColorBHigh = (float *)pyObjectToPointer(callPythonFunction("color_b" + noise_ext, func));
-  }
-  if (mUsingLiquid) {
-    mPhi = (float *)pyObjectToPointer(callPythonFunction("phi" + solver_ext, func));
-    mFlipParticleData = (vector<pData> *)pyObjectToPointer(
-        callPythonFunction("pp" + solver_ext, func));
-    mFlipParticleVelocity = (vector<pVel> *)pyObjectToPointer(
-        callPythonFunction("pVel" + parts_ext, func));
-  }
-  if (mUsingLiquid && mUsingMesh) {
-    mMeshNodes = (vector<Node> *)pyObjectToPointer(
-        callPythonFunction("mesh" + mesh_ext, funcNodes));
-    mMeshTriangles = (vector<Triangle> *)pyObjectToPointer(
-        callPythonFunction("mesh" + mesh_ext, funcTris));
-  }
-  if (mUsingLiquid && mUsingMVel) {
-    mMeshVelocities = (vector<pVel> *)pyObjectToPointer(
-        callPythonFunction("mVel" + mesh_ext2, func));
-  }
-  if (mUsingLiquid && (mUsingDrops | mUsingBubbles | mUsingFloats | mUsingTracers)) {
-    mSndParticleData = (vector<pData> *)pyObjectToPointer(
-        callPythonFunction("ppSnd" + snd_ext, func));
-    mSndParticleVelocity = (vector<pVel> *)pyObjectToPointer(
-        callPythonFunction("pVelSnd" + parts_ext, func));
-    mSndParticleLife = (vector<float> *)pyObjectToPointer(
-        callPythonFunction("pLifeSnd" + parts_ext, func));
-  }
+  /* Outflow. */
+  mPhiOutIn = (outflow) ? getPointer<float>("phiOutIn" + s_ext, func) : nullptr;
+  mPhiOutStaticIn = (outflow) ? getPointer<float>("phiOutSIn" + s_ext, func) : nullptr;
+
+  /* Obstacles. */
+  mPhiObsIn = (obstacle) ? getPointer<float>("phiObsIn" + s_ext, func) : nullptr;
+  mPhiObsStaticIn = (obstacle) ? getPointer<float>("phiObsSIn" + s_ext, func) : nullptr;
+  mObVelocityX = (obstacle) ? getPointer<float>("x_obvel" + s_ext, func) : nullptr;
+  mObVelocityY = (obstacle) ? getPointer<float>("y_obvel" + s_ext, func) : nullptr;
+  mObVelocityZ = (obstacle) ? getPointer<float>("z_obvel" + s_ext, func) : nullptr;
+  mNumObstacle = (obstacle) ? getPointer<float>("numObs" + s_ext, func) : nullptr;
+
+  /* Guiding. */
+  mPhiGuideIn = (guiding) ? getPointer<float>("phiGuideIn" + s_ext, func) : nullptr;
+  mGuideVelocityX = (guiding) ? getPointer<float>("x_guidevel" + s_ext, func) : nullptr;
+  mGuideVelocityY = (guiding) ? getPointer<float>("y_guidevel" + s_ext, func) : nullptr;
+  mGuideVelocityZ = (guiding) ? getPointer<float>("z_guidevel" + s_ext, func) : nullptr;
+  mNumGuide = (guiding) ? getPointer<float>("numGuides" + s_ext, func) : nullptr;
+
+  /* Initial velocities. */
+  mInVelocityX = (invel) ? getPointer<float>("x_invel" + s_ext, func) : nullptr;
+  mInVelocityY = (invel) ? getPointer<float>("y_invel" + s_ext, func) : nullptr;
+  mInVelocityZ = (invel) ? getPointer<float>("z_invel" + s_ext, func) : nullptr;
+
+  /* Smoke. */
+  mDensity = (smoke) ? getPointer<float>("density" + s_ext, func) : nullptr;
+  mDensityIn = (smoke) ? getPointer<float>("densityIn" + s_ext, func) : nullptr;
+  mShadow = (smoke) ? getPointer<float>("shadow" + s_ext, func) : nullptr;
+  mEmissionIn = (smoke) ? getPointer<float>("emissionIn" + s_ext, func) : nullptr;
+
+  /* Heat. */
+  mHeat = (heat) ? getPointer<float>("heat" + s_ext, func) : nullptr;
+  mHeatIn = (heat) ? getPointer<float>("heatIn" + s_ext, func) : nullptr;
+
+  /* Fire. */
+  mFlame = (fire) ? getPointer<float>("flame" + s_ext, func) : nullptr;
+  mFuel = (fire) ? getPointer<float>("fuel" + s_ext, func) : nullptr;
+  mReact = (fire) ? getPointer<float>("react" + s_ext, func) : nullptr;
+  mFuelIn = (fire) ? getPointer<float>("fuelIn" + s_ext, func) : nullptr;
+  mReactIn = (fire) ? getPointer<float>("reactIn" + s_ext, func) : nullptr;
+
+  /* Colors. */
+  mColorR = (colors) ? getPointer<float>("color_r" + s_ext, func) : nullptr;
+  mColorG = (colors) ? getPointer<float>("color_g" + s_ext, func) : nullptr;
+  mColorB = (colors) ? getPointer<float>("color_b" + s_ext, func) : nullptr;
+  mColorRIn = (colors) ? getPointer<float>("color_r_in" + s_ext, func) : nullptr;
+  mColorGIn = (colors) ? getPointer<float>("color_g_in" + s_ext, func) : nullptr;
+  mColorBIn = (colors) ? getPointer<float>("color_b_in" + s_ext, func) : nullptr;
+
+  /* Noise. */
+  mDensityHigh = (noise) ? getPointer<float>("density" + sn_ext, func) : nullptr;
+  mTextureU = (noise) ? getPointer<float>("texture_u" + s_ext, func) : nullptr;
+  mTextureV = (noise) ? getPointer<float>("texture_v" + s_ext, func) : nullptr;
+  mTextureW = (noise) ? getPointer<float>("texture_w" + s_ext, func) : nullptr;
+  mTextureU2 = (noise) ? getPointer<float>("texture_u2" + s_ext, func) : nullptr;
+  mTextureV2 = (noise) ? getPointer<float>("texture_v2" + s_ext, func) : nullptr;
+  mTextureW2 = (noise) ? getPointer<float>("texture_w2" + s_ext, func) : nullptr;
+
+  /* Fire with noise. */
+  mFlameHigh = (noise && fire) ? getPointer<float>("flame" + sn_ext, func) : nullptr;
+  mFuelHigh = (noise && fire) ? getPointer<float>("fuel" + sn_ext, func) : nullptr;
+  mReactHigh = (noise && fire) ? getPointer<float>("react" + sn_ext, func) : nullptr;
+
+  /* Colors with noise. */
+  mColorRHigh = (noise && colors) ? getPointer<float>("color_r" + sn_ext, func) : nullptr;
+  mColorGHigh = (noise && colors) ? getPointer<float>("color_g" + sn_ext, func) : nullptr;
+  mColorBHigh = (noise && colors) ? getPointer<float>("color_b" + sn_ext, func) : nullptr;
+
+  /* Liquid. */
+  mPhi = (liquid) ? getPointer<float>("phi" + s_ext, func) : nullptr;
+  mFlipParticleData = (liquid) ? getPointer<vector<pData>>("pp" + s_ext, func) : nullptr;
+  mFlipParticleVelocity = (liquid) ? getPointer<vector<pVel>>("pVel" + pp_ext, func) : nullptr;
+
+  /* Mesh. */
+  mMeshNodes = (mesh) ? getPointer<vector<Node>>("mesh" + sm_ext, funcNodes) : nullptr;
+  mMeshTriangles = (mesh) ? getPointer<vector<Triangle>>("mesh" + sm_ext, funcTris) : nullptr;
+
+  /* Mesh velocities. */
+  mMeshVelocities = (meshvel) ? getPointer<vector<pVel>>("mVel" + mesh_ext, func) : nullptr;
+
+  /* Secondary particles. */
+  mParticleData = (parts) ? getPointer<vector<pData>>("ppSnd" + snd_ext, func) : nullptr;
+  mParticleVelocity = (parts) ? getPointer<vector<pVel>>("pVelSnd" + pp_ext, func) : nullptr;
+  mParticleLife = (parts) ? getPointer<vector<float>>("pLifeSnd" + pp_ext, func) : nullptr;
 
   mFlipFromFile = false;
   mMeshFromFile = false;
