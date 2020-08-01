@@ -167,9 +167,16 @@ bool BL_ActionActuator::Update(double curtime)
       case ACT_ACTION_PINGPONG: {
         if (!(m_flag & ACT_FLAG_ACTIVE) && Play(obj, start, end, playtype)) {
           m_flag |= ACT_FLAG_ACTIVE;
-          m_flag &= ~ACT_FLAG_PLAY_END;
           if (useContinue) {
             obj->SetActionFrame(m_layer, m_localtime);
+          }
+          else {
+            obj->SetPlayMode(m_layer, BL_Action::ACT_MODE_PLAY);
+            m_flag |= ACT_FLAG_PLAY_END;
+            // Swap the start and end frames
+            float temp = m_startframe;
+            m_startframe = m_endframe;
+            m_endframe = temp;
           }
         }
         break;
@@ -232,25 +239,6 @@ bool BL_ActionActuator::Update(double curtime)
         Play(obj, start, end, BL_Action::ACT_MODE_PLAY);
         m_flag |= ACT_FLAG_PLAY_END;
         break;
-    }
-  }
-  else if ((m_flag & ACT_FLAG_ACTIVE) && !positiveEvent && !useContinue) {
-    m_localtime = obj->GetActionFrame(m_layer);
-    bAction *curr_action = obj->GetCurrentAction(m_layer);
-    if (curr_action && curr_action != m_action) {
-      // Someone changed the action on us, so we wont mess with it
-      // Hopefully there wont be too many problems with two actuators using
-      // the same action...
-      m_flag &= ~ACT_FLAG_ACTIVE;
-      return false;
-    }
-    if (m_playtype == ACT_ACTION_PINGPONG) {
-      float curframe = obj->GetActionFrame(m_layer);
-      if (curframe >= (end - 1) &&
-               !(m_flag & ACT_FLAG_PLAY_END)) {
-        Play(obj, obj->GetActionFrame(m_layer), start, BL_Action::ACT_MODE_PLAY);
-        m_flag |= ACT_FLAG_PLAY_END;
-      }
     }
   }
 
