@@ -235,6 +235,15 @@ bool BL_ActionActuator::Update(double curtime)
     }
   }
   else if ((m_flag & ACT_FLAG_ACTIVE) && !positiveEvent && !useContinue) {
+    m_localtime = obj->GetActionFrame(m_layer);
+    bAction *curr_action = obj->GetCurrentAction(m_layer);
+    if (curr_action && curr_action != m_action) {
+      // Someone changed the action on us, so we wont mess with it
+      // Hopefully there wont be too many problems with two actuators using
+      // the same action...
+      m_flag &= ~ACT_FLAG_ACTIVE;
+      return false;
+    }
     if (m_playtype == ACT_ACTION_PINGPONG) {
       float curframe = obj->GetActionFrame(m_layer);
       if (curframe >= (end - 1) &&
