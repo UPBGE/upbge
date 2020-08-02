@@ -81,9 +81,9 @@ void BKE_mesh_runtime_clear_cache(Mesh *mesh, bool navmesh)
     mesh->runtime.eval_mutex = NULL;
   }
   if (mesh->runtime.mesh_eval != NULL) {
-    mesh->runtime.mesh_eval->edit_mesh = NULL;
     /* Navmesh is not built around 'id' unlike other meshes */
     if (!navmesh) { /* Game Engine transition */
+      mesh->runtime.mesh_eval->edit_mesh = NULL;
       BKE_id_free(NULL, mesh->runtime.mesh_eval);
     }
     mesh->runtime.mesh_eval = NULL;
