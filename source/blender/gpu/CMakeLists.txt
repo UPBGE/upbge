@@ -68,7 +68,7 @@ set(SRC
   intern/gpu_init_exit.c
   intern/gpu_material.c
   intern/gpu_material_library.c
-  intern/gpu_matrix.c
+  intern/gpu_matrix.cc
   intern/gpu_node_graph.c
   intern/gpu_platform.cc
   intern/gpu_primitive.c
@@ -77,7 +77,7 @@ set(SRC
   intern/gpu_select_sample_query.c
   intern/gpu_shader.cc
   intern/gpu_shader_builtin.c
-  intern/gpu_shader_interface.c
+  intern/gpu_shader_interface.cc
   intern/gpu_state.cc
   intern/gpu_texture.cc
   intern/gpu_uniformbuffer.cc
