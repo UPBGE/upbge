@@ -163,21 +163,33 @@ bool BL_ActionActuator::Update(double curtime)
         ATTR_FALLTHROUGH;
       }
       case ACT_ACTION_LOOP_END:
+        if (!(m_flag & ACT_FLAG_ACTIVE) && Play(obj, start, end, playtype)) {
+          m_flag |= ACT_FLAG_ACTIVE;
+          if (useContinue) {
+            obj->SetActionFrame(m_layer, m_localtime);
+          }
+        }
+        break;
       case ACT_ACTION_LOOP_STOP:
+        if (!(m_flag & ACT_FLAG_ACTIVE) && Play(obj, start, end, playtype)) {
+          m_flag |= ACT_FLAG_ACTIVE;
+          if (useContinue) {
+            obj->SetActionFrame(m_layer, m_localtime);
+          }
+        }
+        break;
       case ACT_ACTION_PINGPONG: {
         if (!(m_flag & ACT_FLAG_ACTIVE) && Play(obj, start, end, playtype)) {
           m_flag |= ACT_FLAG_ACTIVE;
           if (useContinue) {
             obj->SetActionFrame(m_layer, m_localtime);
           }
-          else {
-            obj->SetPlayMode(m_layer, BL_Action::ACT_MODE_PLAY);
-            m_flag |= ACT_FLAG_PLAY_END;
-            // Swap the start and end frames
-            float temp = m_startframe;
-            m_startframe = m_endframe;
-            m_endframe = temp;
-          }
+          obj->SetPlayMode(m_layer, BL_Action::ACT_MODE_PLAY);
+          m_flag |= ACT_FLAG_PLAY_END;
+          // Swap the start and end frames
+          float temp = m_startframe;
+          m_startframe = m_endframe;
+          m_endframe = temp;
         }
         break;
       }
