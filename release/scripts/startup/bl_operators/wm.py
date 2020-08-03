@@ -1606,7 +1606,10 @@ class WM_OT_blenderplayer_start(Operator):
         # done static vars
 
         if sys.platform == "darwin":
-            player_path = os.path.join(blender_bin_dir, "../../../Blenderplayer.app/Contents/MacOS/blenderplayer")
+            player_path = os.path.join(blender_bin_dir, "../../../Blenderplayer.app/Contents/MacOS/Blenderplayer")
+            # If BlenderPlayer is not found then we try a harcoded install location
+            if not os.path.exists(player_path):
+                player_path = "/Applications/UPBGE-0.3-Alpha/Blenderplayer.app/Contents/MacOS/Blenderplayer"
 
         if not os.path.exists(player_path):
             self.report({'ERROR'}, "Player path: %r not found" % player_path)
