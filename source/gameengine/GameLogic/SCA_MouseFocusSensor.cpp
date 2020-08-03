@@ -94,6 +94,10 @@ bool SCA_MouseFocusSensor::Evaluate()
 {
 
   KX_Camera *previousCam = m_kxscene->GetActiveCamera();
+  /* If scene has an overlay camera,
+   * we want mouse events to be computed in overlay camera space.
+   * Then we mark the overlay camera as active camera.
+   */
   if (m_kxscene->GetOverlayCamera()) {
     m_kxscene->SetActiveCamera(m_kxscene->GetOverlayCamera());
   }
