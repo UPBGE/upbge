@@ -67,6 +67,19 @@ class DATA_PT_context_camera(CameraButtonsPanel, Panel):
         elif cam:
             layout.template_ID(space, "pin_id")
 
+# Game engine transition
+class DATA_PT_game_overlay_mouse_control(CameraButtonsPanel, Panel):
+    bl_label = "Game Overlay Mouse Control"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        cam = context.camera
+
+        layout.prop(cam, "use_overlay_mouse_control")
+
 
 class DATA_PT_lens(CameraButtonsPanel, Panel):
     bl_label = "Lens"
@@ -524,6 +537,7 @@ classes = (
     CAMERA_PT_presets,
     SAFE_AREAS_PT_presets,
     DATA_PT_context_camera,
+    DATA_PT_game_overlay_mouse_control, # Game engine transition
     DATA_PT_lens,
     DATA_PT_camera_dof,
     DATA_PT_camera_dof_aperture,
