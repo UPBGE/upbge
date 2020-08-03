@@ -92,6 +92,12 @@ void SCA_MouseFocusSensor::Init()
 
 bool SCA_MouseFocusSensor::Evaluate()
 {
+
+  KX_Camera *previousCam = m_kxscene->GetActiveCamera();
+  if (m_kxscene->GetOverlayCamera()) {
+    m_kxscene->SetActiveCamera(m_kxscene->GetOverlayCamera());
+  }
+
   bool result = false;
   bool obHasFocus = false;
   bool reset = m_reset && m_level;
@@ -133,6 +139,10 @@ bool SCA_MouseFocusSensor::Evaluate()
 
   m_mouse_over_in_previous_frame = obHasFocus;
   m_hitObject_Last = (void *)m_hitObject;
+
+  if (m_kxscene->GetOverlayCamera()) {
+    m_kxscene->SetActiveCamera(previousCam);
+  }
 
   return result;
 }
