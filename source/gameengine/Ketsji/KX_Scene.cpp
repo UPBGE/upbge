@@ -36,6 +36,10 @@
 
 #include "KX_Scene.h"
 
+#define new _new
+#include "BKE_screen.h"
+#undef new
+
 #include "BKE_lib_id.h"
 #include "BKE_object.h"
 #include "BLI_task.h"
@@ -427,6 +431,12 @@ void KX_Scene::ReinitBlenderContextVariables()
               CTX_wm_area_set(C, sa);
               CTX_wm_region_set(C, ar);
               CTX_data_scene_set(C, GetBlenderScene());
+              SpaceType *st;
+              ARegionType *art;
+              st = BKE_spacetype_from_id(SPACE_VIEW3D);
+              art = BKE_regiontype_from_id(st, RGN_TYPE_WINDOW);
+              ar->type = art;
+              ar->regiontype = RGN_TYPE_WINDOW;
               win->scene = GetBlenderScene();
               return;
             }
