@@ -38,6 +38,8 @@
 
 #include "SCA_MouseFocusSensor.h"
 
+#include "DNA_camera_types.h"
+
 #include "CM_Message.h"
 #include "KX_Camera.h"
 #include "KX_ClientObjectInfo.h"
@@ -92,6 +94,23 @@ void SCA_MouseFocusSensor::Init()
 
 bool SCA_MouseFocusSensor::Evaluate()
 {
+
+  KX_Camera *previousCam = m_kxscene->GetActiveCamera();
+  /* If scene has an overlay camera,
+   * we want mouse events to be computed in overlay camera space.
+   * Then we mark the overlay camera as active camera.
+   */
+  KX_Camera *overlayCam = m_kxscene->GetOverlayCamera();
+  bool restorePreviousCam = false;
+  if (overlayCam) {
+    Object *obcam = overlayCam->GetBlenderObject();
+    Camera *blCam = (Camera *)obcam->data;
+    if (blCam->flag & CAM_GAME_OVERLAY_MOUSE_CONTROL) {
+      m_kxscene->SetActiveCamera(m_kxscene->GetOverlayCamera());
+      restorePreviousCam = true;
+    }
+  }
+
   bool result = false;
   bool obHasFocus = false;
   bool reset = m_reset && m_level;
@@ -133,6 +152,10 @@ bool SCA_MouseFocusSensor::Evaluate()
 
   m_mouse_over_in_previous_frame = obHasFocus;
   m_hitObject_Last = (void *)m_hitObject;
+
+  if (restorePreviousCam) {
+    m_kxscene->SetActiveCamera(previousCam);
+  }
 
   return result;
 }
