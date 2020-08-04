@@ -74,7 +74,6 @@ class DATA_PT_game_overlay_mouse_control(CameraButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
 
         cam = context.camera
 
