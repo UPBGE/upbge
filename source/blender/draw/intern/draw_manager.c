@@ -3007,6 +3007,8 @@ void DRW_game_render_loop(bContext *C,
   drw_context_state_init();
   drw_viewport_var_init();
 
+  const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
+
   DRW_hair_init();
 
   /* Init engines */
@@ -3014,11 +3016,23 @@ void DRW_game_render_loop(bContext *C,
   drw_engines_cache_init();
   drw_engines_world_update(DST.draw_ctx.scene);
 
+  DST.dupli_origin = NULL;
+
   if (is_overlay_pass) {
     DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
+      if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
+        continue;
+      }
+      if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
+        continue;
+      }
+
       Object *orig_ob = DEG_get_original_object(ob);
 
       if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
+        DST.dupli_parent = data_.dupli_parent;
+        DST.dupli_source = data_.dupli_object_current;
+        drw_duplidata_load(DST.dupli_source);
         drw_engines_cache_populate(ob);
       }
     }
@@ -3026,16 +3040,27 @@ void DRW_game_render_loop(bContext *C,
   }
   else {
     DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
+      if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
+        continue;
+      }
+      if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
+        continue;
+      }
+
       Object *orig_ob = DEG_get_original_object(ob);
       /* Don't render objects in overlay collections in main pass */
       if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
         continue;
       }
+      DST.dupli_parent = data_.dupli_parent;
+      DST.dupli_source = data_.dupli_object_current;
+      drw_duplidata_load(DST.dupli_source);
       drw_engines_cache_populate(ob);
     }
     DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
   }
 
+  drw_duplidata_free();
   drw_engines_cache_finish();
 
   drw_task_graph_deinit();
