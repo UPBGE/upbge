@@ -3082,6 +3082,9 @@ void DRW_game_render_loop(bContext *C,
 
   drw_engines_draw_scene();
 
+   /* Fix 3D view being "laggy" on macos and win+nvidia. (See T56996, T61474) */
+  GPU_flush();
+
   DRW_state_reset();
 
   drw_engines_disable();
