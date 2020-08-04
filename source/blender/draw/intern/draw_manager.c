@@ -2953,6 +2953,25 @@ EEVEE_Data *EEVEE_engine_data_get(void)
   return data;
 }
 
+static void DRW_draw_callbacks_post_scene_simplified(void)
+{
+  RegionView3D *rv3d = DST.draw_ctx.rv3d;
+
+  DRW_state_reset();
+
+  GPU_matrix_projection_set(rv3d->winmat);
+  GPU_matrix_set(rv3d->viewmat);
+
+  GPU_depth_test(false);
+  ED_region_draw_cb_draw(DST.draw_ctx.evil_C, DST.draw_ctx.region, REGION_DRAW_POST_VIEW);
+
+  /* Callback can be nasty and do whatever they want with the state.
+   * Don't trust them! */
+  DRW_state_reset();
+
+  GPU_depth_test(true);
+}
+
 void DRW_game_render_loop(bContext *C,
                           GPUViewport *viewport,
                           Main *bmain,
@@ -3007,6 +3026,8 @@ void DRW_game_render_loop(bContext *C,
   drw_context_state_init();
   drw_viewport_var_init();
 
+  const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
+
   DRW_hair_init();
 
   /* Init engines */
@@ -3014,11 +3035,23 @@ void DRW_game_render_loop(bContext *C,
   drw_engines_cache_init();
   drw_engines_world_update(DST.draw_ctx.scene);
 
+  DST.dupli_origin = NULL;
+
   if (is_overlay_pass) {
     DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
+      if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
+        continue;
+      }
+      if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
+        continue;
+      }
+
       Object *orig_ob = DEG_get_original_object(ob);
 
       if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
+        DST.dupli_parent = data_.dupli_parent;
+        DST.dupli_source = data_.dupli_object_current;
+        drw_duplidata_load(DST.dupli_source);
         drw_engines_cache_populate(ob);
       }
     }
@@ -3026,16 +3059,27 @@ void DRW_game_render_loop(bContext *C,
   }
   else {
     DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
+      if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
+        continue;
+      }
+      if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
+        continue;
+      }
+
       Object *orig_ob = DEG_get_original_object(ob);
       /* Don't render objects in overlay collections in main pass */
       if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
         continue;
       }
+      DST.dupli_parent = data_.dupli_parent;
+      DST.dupli_source = data_.dupli_object_current;
+      drw_duplidata_load(DST.dupli_source);
       drw_engines_cache_populate(ob);
     }
     DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
   }
 
+  drw_duplidata_free();
   drw_engines_cache_finish();
 
   drw_task_graph_deinit();
@@ -3055,7 +3099,14 @@ void DRW_game_render_loop(bContext *C,
 
   DRW_hair_update();
 
+  DRW_draw_callbacks_pre_scene();
+
   drw_engines_draw_scene();
+
+  /* Fix 3D view being "laggy" on macos and win+nvidia. (See T56996, T61474) */
+  GPU_flush();
+
+  DRW_draw_callbacks_post_scene_simplified();
 
   DRW_state_reset();
 
@@ -3158,8 +3209,6 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
 {
   drw_state_set(DRW_STATE_WRITE_COLOR);
 
-  /* TODO(fclem) This should be a render engine callback to determine if we need CM or not. */
-  // bool use_workbench = BKE_scene_uses_blender_workbench(scene);
   bool use_scene_lights = (!v3d ||
                            ((v3d->shading.type == OB_MATERIAL) &&
                             (v3d->shading.flag & V3D_SHADING_SCENE_LIGHTS)) ||
@@ -3170,7 +3219,8 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
        ((v3d->shading.type == OB_MATERIAL) && (v3d->shading.flag & V3D_SHADING_SCENE_WORLD)) ||
        ((v3d->shading.type == OB_RENDER) && (v3d->shading.flag & V3D_SHADING_SCENE_WORLD_RENDER)));
   bool use_view_transform = v3d && (v3d->shading.type >= OB_MATERIAL);
-  bool use_render_settings = v3d && (/*use_workbench ||*/ use_scene_lights || use_scene_world);
+  bool use_render_settings = v3d && (use_view_transform || use_scene_lights ||
+                                     use_scene_world);
 
   GPUVertFormat *vert_format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
