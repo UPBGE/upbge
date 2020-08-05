@@ -1119,7 +1119,7 @@ static void ensure_obstaclefields(FluidDomainSettings *fds)
   if (fds->active_fields & FLUID_DOMAIN_ACTIVE_GUIDE) {
     manta_ensure_guiding(fds->fluid, fds->fmd);
   }
-  manta_update_pointers(fds->fluid, fds->fmd);
+  manta_update_pointers(fds->fluid, fds->fmd, false);
 }
 
 static void update_obstacleflags(FluidDomainSettings *fds,
@@ -2606,7 +2606,7 @@ static void ensure_flowsfields(FluidDomainSettings *fds)
        fds->particle_type & FLUID_DOMAIN_PARTICLE_TRACER)) {
     manta_liquid_ensure_sndparts(fds->fluid, fds->fmd);
   }
-  manta_update_pointers(fds->fluid, fds->fmd);
+  manta_update_pointers(fds->fluid, fds->fmd, false);
 }
 
 static void update_flowsflags(FluidDomainSettings *fds, Object **flowobjs, int numflowobj)
@@ -3738,28 +3738,34 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
   int mode = fds->cache_type;
 
   /* Do not process modifier if current frame is out of cache range. */
+  bool escape = false;
   switch (mode) {
     case FLUID_DOMAIN_CACHE_ALL:
     case FLUID_DOMAIN_CACHE_MODULAR:
       if (fds->cache_frame_offset > 0) {
         if (scene_framenr < fds->cache_frame_start ||
             scene_framenr > fds->cache_frame_end + fds->cache_frame_offset) {
-          return;
+          escape = true;
         }
       }
       else {
         if (scene_framenr < fds->cache_frame_start + fds->cache_frame_offset ||
             scene_framenr > fds->cache_frame_end) {
-          return;
+          escape = true;
         }
       }
       break;
     case FLUID_DOMAIN_CACHE_REPLAY:
     default:
       if (scene_framenr < fds->cache_frame_start || scene_framenr > fds->cache_frame_end) {
-        return;
+        escape = true;
       }
       break;
+  }
+  /* If modifier will not be processed, update/flush pointers from (old) fluid object once more. */
+  if (escape && fds->fluid) {
+    manta_update_pointers(fds->fluid, fmd, true);
+    return;
   }
 
   /* Reset fluid if no fluid present. Also resets active fields. */
@@ -3852,7 +3858,15 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
   has_mesh = manta_has_mesh(fds->fluid, fmd, scene_framenr);
   has_particles = manta_has_particles(fds->fluid, fmd, scene_framenr);
   has_guide = manta_has_guiding(fds->fluid, fmd, scene_framenr, guide_parent);
-  has_config = false;
+  has_config = manta_read_config(fds->fluid, fmd, scene_framenr);
+
+  /* When reading data from cache (has_config == true) ensure that active fields are allocated.
+   * update_flowsflags() and update_obstacleflags() will not find flow sources hidden from renders.
+   * See also: T72192. */
+  if (has_config) {
+    ensure_flowsfields(fds);
+    ensure_obstaclefields(fds);
+  }
 
   bool baking_data, baking_noise, baking_mesh, baking_particles, baking_guide;
   baking_data = fds->cache_flag & FLUID_DOMAIN_BAKING_DATA;
@@ -3969,7 +3983,9 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
 
     /* Read mesh cache. */
     if (with_liquid && with_mesh) {
-      has_config = manta_read_config(fds->fluid, fmd, mesh_frame);
+      if (mesh_frame != scene_framenr) {
+        has_config = manta_read_config(fds->fluid, fmd, mesh_frame);
+      }
 
       /* Update mesh data from file is faster than via Python (manta_read_mesh()). */
       has_mesh = manta_read_mesh(fds->fluid, fmd, mesh_frame);
@@ -3977,7 +3993,9 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
 
     /* Read particles cache. */
     if (with_liquid && with_particles) {
-      has_config = manta_read_config(fds->fluid, fmd, particles_frame);
+      if (particles_frame != scene_framenr) {
+        has_config = manta_read_config(fds->fluid, fmd, particles_frame);
+      }
 
       read_partial = !baking_data && !baking_particles && next_particles;
       read_all = !read_partial && with_resumable_cache;
@@ -3992,7 +4010,9 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
 
     /* Read noise and data cache */
     if (with_smoke && with_noise) {
-      has_config = manta_read_config(fds->fluid, fmd, noise_frame);
+      if (noise_frame != scene_framenr) {
+        has_config = manta_read_config(fds->fluid, fmd, noise_frame);
+      }
 
       /* Only reallocate when just reading cache or when resuming during bake. */
       if (has_data && has_config && manta_needs_realloc(fds->fluid, fmd)) {
@@ -4010,7 +4030,9 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
     }
     /* Read data cache only */
     else {
-      has_config = manta_read_config(fds->fluid, fmd, data_frame);
+      if (data_frame != scene_framenr) {
+        has_config = manta_read_config(fds->fluid, fmd, data_frame);
+      }
 
       if (with_smoke) {
         /* Read config and realloc fluid object if needed. */
@@ -4096,7 +4118,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
   }
 
   /* Ensure that fluid pointers are always up to date at the end of modifier processing. */
-  manta_update_pointers(fds->fluid, fmd);
+  manta_update_pointers(fds->fluid, fmd, false);
 
   fds->flags &= ~FLUID_DOMAIN_FILE_LOAD;
   fmd->time = scene_framenr;

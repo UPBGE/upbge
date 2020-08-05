@@ -191,7 +191,7 @@ typedef enum eGPDbrush_Flag {
   /* brush use pressure */
   GP_BRUSH_USE_PRESSURE = (1 << 0),
   /* brush use pressure for alpha factor */
-  GP_BRUSH_USE_STENGTH_PRESSURE = (1 << 1),
+  GP_BRUSH_USE_STRENGTH_PRESSURE = (1 << 1),
   /* brush use pressure for alpha factor */
   GP_BRUSH_USE_JITTER_PRESSURE = (1 << 2),
   /* fill hide transparent */
@@ -726,6 +726,7 @@ typedef enum eBrushFlags2 {
   BRUSH_MULTIPLANE_SCRAPE_PLANES_PREVIEW = (1 << 1),
   BRUSH_POSE_IK_ANCHORED = (1 << 2),
   BRUSH_USE_CONNECTED_ONLY = (1 << 3),
+  BRUSH_CLOTH_PIN_SIMULATION_BOUNDARY = (1 << 4),
 } eBrushFlags2;
 
 typedef enum {

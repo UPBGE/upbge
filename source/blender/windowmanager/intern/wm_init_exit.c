@@ -175,7 +175,7 @@ void WM_init_state_start_with_console_set(bool value)
  */
 static bool opengl_is_init = false;
 
-void WM_init_opengl(Main *UNUSED(bmain))
+void WM_init_opengl(void)
 {
   /* must be called only once */
   BLI_assert(opengl_is_init == false);
@@ -316,7 +316,7 @@ void WM_init(bContext *C, int argc, const char **argv)
     /* sets 3D mouse deadzone */
     WM_ndof_deadzone_set(U.ndof_deadzone);
 #endif
-    WM_init_opengl(G_MAIN);
+    WM_init_opengl();
 
     if (!WM_platform_support_perform_checks()) {
       exit(-1);

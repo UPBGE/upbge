@@ -2112,7 +2112,7 @@ static bool ed_object_select_pick(bContext *C,
 
     if (hits > 0) {
       /* note: bundles are handling in the same way as bones */
-      const bool has_bones = selectbuffer_has_bones(buffer, hits);
+      const bool has_bones = object ? false : selectbuffer_has_bones(buffer, hits);
 
       /* note; shift+alt goes to group-flush-selecting */
       if (enumerate) {
@@ -3335,12 +3335,7 @@ static int view3d_box_select_exec(bContext *C, wmOperator *op)
     FOREACH_OBJECT_IN_MODE_END;
   }
   else { /* No edit-mode, unified for bones and objects. */
-    if (vc.obact && vc.obact->mode & OB_MODE_SCULPT) {
-      /* XXX, this is not selection, could be it's own operator. */
-      changed_multi = ED_sculpt_mask_box_select(
-          C, &vc, &rect, sel_op == SEL_OP_ADD ? true : false);
-    }
-    else if (vc.obact && BKE_paint_select_face_test(vc.obact)) {
+    if (vc.obact && BKE_paint_select_face_test(vc.obact)) {
       changed_multi = do_paintface_box_select(&vc, wm_userdata, &rect, sel_op);
     }
     else if (vc.obact && BKE_paint_select_vert_test(vc.obact)) {
