@@ -36,12 +36,9 @@
 
 #include "KX_Scene.h"
 
-#define new _new
-#include "BKE_screen.h"
-#undef new
-
 #include "BKE_lib_id.h"
 #include "BKE_object.h"
+#include "BKE_screen.h"
 #include "BLI_task.h"
 #include "DNA_property_types.h"
 #include "DRW_render.h"

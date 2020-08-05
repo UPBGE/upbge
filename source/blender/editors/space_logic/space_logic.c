@@ -239,7 +239,6 @@ static void logic_main_region_draw(const bContext *C, ARegion *ar)
   /* draw entirely, view changes should be handled here */
   //	SpaceLogic *slogic= CTX_wm_space_logic(C);
   View2D *v2d = &ar->v2d;
-  View2DScrollers *scrollers;
 
   /* clear and setup matrix */
   UI_ThemeClearColor(TH_BACK);
@@ -313,7 +312,7 @@ void ED_spacetype_logic(void)
   st->spaceid = SPACE_LOGIC;
   strncpy(st->name, "Logic", BKE_ST_MAXNAME);
 
-  st->new = logic_new;
+  st->create = logic_new;
   st->free = logic_free;
   st->init = logic_init;
   st->duplicate = logic_duplicate;

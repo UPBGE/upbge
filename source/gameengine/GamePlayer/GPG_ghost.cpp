@@ -38,10 +38,6 @@
 #  endif /* __alpha__ */
 #endif   /* __linux__ */
 
-#define new _new
-#include "BKE_screen.h"
-#undef new
-
 #include "../../../intern/clog/CLG_log.h"
 #include "../../../intern/ghost/GHOST_Path-api.h"
 #include "../../blender/python/BPY_extern.h"
@@ -69,6 +65,7 @@
 #include "BKE_modifier.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
+#include "BKE_screen.h"
 #include "BKE_sequencer.h"
 #include "BKE_shader_fx.h"
 #include "BKE_sound.h"

@@ -1825,7 +1825,6 @@ static void game_set_commmandline_options(GameData *gm)
 {
   SYS_SystemHandle syshandle;
   int test;
-  Main *bmain = G.main;
 
   if ((syshandle = SYS_GetSystem())) {
     //GPU_set_mipmap(bmain, true);

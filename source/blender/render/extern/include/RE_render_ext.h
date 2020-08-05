@@ -36,6 +36,8 @@ struct MTex;
 extern "C" {
 #endif
 
+#include "BLI_compiler_attrs.h"
+
 /* render_texture.c */
 bool RE_texture_evaluate(const struct MTex *mtex,
                          const float vec[3],
