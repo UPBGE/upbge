@@ -40,6 +40,7 @@
 
 #include "BKE_lib_id.h"
 #include "BKE_mball.h"
+#include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "DNA_modifier_types.h"
 #include "DRW_render.h"
@@ -266,9 +267,21 @@ void KX_GameObject::IgnoreParentTxBGE(Main *bmain,
       /* Tag for update.
        * This is because parent matrix did change, so in theory the child object might now be
        * evaluated to a different location in another editing context. */
+      if (!OrigObCanBeTransformedInRealtime(ob_child)) {
+        return;
+      }
       DEG_id_tag_update(&ob_child->id, ID_RECALC_TRANSFORM);
     }
   }
+}
+
+bool KX_GameObject::OrigObCanBeTransformedInRealtime(Object *ob)
+{
+  FluidModifierData *fluidModifierData = (FluidModifierData *)BKE_modifiers_findby_type(ob, eModifierType_Fluid);
+  if (fluidModifierData) {
+    return false;
+  }
+  return true;
 }
 
 void KX_GameObject::ForceIgnoreParentTx()
@@ -292,32 +305,41 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
     GetScene()->AppendToStaticObjects(this);
   }
   Object *ob_orig = GetBlenderObject();
+
   if (ob_orig) {
 
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
 
-    copy_m4_m4(ob_orig->obmat, obmat);
+    bool applyTransformToOrig = OrigObCanBeTransformedInRealtime(ob_orig);
+
+    if (applyTransformToOrig) {
+      copy_m4_m4(ob_orig->obmat, obmat);
+      BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
+    }
     copy_m4_m4(ob_eval->obmat, obmat);
-    BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
     BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
+
     if (!m_staticObject || m_forceIgnoreParentTx) {
       NodeList &children = m_pSGNode->GetSGChildren();
       if (children.size()) {
         IgnoreParentTxBGE(bmain, depsgraph, GetScene(), ob_orig);
       }
     }
-    /* NORMAL CASE */
-    if (!m_staticObject && ob_orig->type != OB_MBALL) {
-      DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
-    }
-    /* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position at ge
-     * exit) */
-    else if (!m_staticObject && ob_orig->type == OB_MBALL) {
-      if (!BKE_mball_is_basis(ob_orig)) {
-        DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
-      }
-      else {
+
+    if (applyTransformToOrig) {
+      /* NORMAL CASE */
+      if (!m_staticObject && ob_orig->type != OB_MBALL) {
         DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
+      }
+      /* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position at
+       * ge exit) */
+      else if (!m_staticObject && ob_orig->type == OB_MBALL) {
+        if (!BKE_mball_is_basis(ob_orig)) {
+          DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+        }
+        else {
+          DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
+        }
       }
     }
 
@@ -563,7 +585,8 @@ void KX_GameObject::RestoreObmat(Object *ob)
 {
   if (ob) {
     Scene *sce = GetScene()->GetBlenderScene();
-    if (sce->gm.flag & GAME_USE_UNDO && ob->type != OB_CAMERA) {
+    if (sce->gm.flag & GAME_USE_UNDO && ob->type != OB_CAMERA &&
+        OrigObCanBeTransformedInRealtime(ob)) {
       copy_m4_m4(ob->obmat, m_origObmat);
       BKE_object_apply_mat4(ob, ob->obmat, false, true);
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
@@ -1298,12 +1321,13 @@ void KX_GameObject::ResolveCombinedVelocities(const MT_Vector3 &lin_vel,
 void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
 {
   m_objectColor = rgbavec;
-  Object *ob = GetBlenderObject();
-  if (ob && ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
-    copy_v4_v4(ob->color, m_objectColor.getValue());
-    DEG_id_tag_update(&ob->id, ID_RECALC_SHADING | ID_RECALC_TRANSFORM);
+  Object *ob_orig = GetBlenderObject();
+  if (ob_orig && OrigObCanBeTransformedInRealtime(ob_orig) &&
+      ELEM(ob_orig->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
+    copy_v4_v4(ob_orig->color, m_objectColor.getValue());
+    DEG_id_tag_update(&ob_orig->id, ID_RECALC_SHADING | ID_RECALC_TRANSFORM);
     GetScene()->ResetTaaSamples();
-    WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob->id);
+    WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob_orig->id);
   }
 }
 
@@ -4710,7 +4734,8 @@ KX_PYMETHODDEF_DOC(KX_GameObject, recalcGeometry, "ID_RECALC_GEOMETRY depsgraph 
 
 KX_PYMETHODDEF_DOC(KX_GameObject, recalcTransform, "ID_RECALC_TRANSFORM depsgraph notifier\n")
 {
-  if (GetBlenderObject()) {
+  Object *ob = GetBlenderObject();
+  if (ob && OrigObCanBeTransformedInRealtime(ob)) {
     DEG_id_tag_update(&GetBlenderObject()->id, ID_RECALC_TRANSFORM);
   }
 
