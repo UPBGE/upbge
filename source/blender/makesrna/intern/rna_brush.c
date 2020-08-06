@@ -237,10 +237,19 @@ static EnumPropertyItem rna_enum_gpencil_fill_draw_modes_items[] = {
     {GP_FILL_DMODE_BOTH,
      "BOTH",
      0,
-     "Default",
+     "All",
      "Use both visible strokes and edit lines as fill boundary limits"},
     {GP_FILL_DMODE_STROKE, "STROKE", 0, "Strokes", "Use visible strokes as fill boundary limits"},
     {GP_FILL_DMODE_CONTROL, "CONTROL", 0, "Edit Lines", "Use edit lines as fill boundary limits"},
+    {0, NULL, 0, NULL, NULL}};
+
+static EnumPropertyItem rna_enum_gpencil_fill_layers_modes_items[] = {
+    {GP_FILL_GPLMODE_VISIBLE, "VISIBLE", 0, "Visible", "Visible layers"},
+    {GP_FILL_GPLMODE_ACTIVE, "ACTIVE", 0, "Active", "Only active layer"},
+    {GP_FILL_GPLMODE_ABOVE, "ABOVE", 0, "Layer Above", "Layer above active"},
+    {GP_FILL_GPLMODE_BELOW, "BELOW", 0, "Layer Below", "Layer below active"},
+    {GP_FILL_GPLMODE_ALL_ABOVE, "ALL_ABOVE", 0, "All Above", "All layers above active"},
+    {GP_FILL_GPLMODE_ALL_BELOW, "ALL_BELOW", 0, "All Below", "All layers below active"},
     {0, NULL, 0, NULL, NULL}};
 
 static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
@@ -1646,6 +1655,12 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Mode", "Mode to draw boundary limits");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 
+  prop = RNA_def_property(srna, "fill_layer_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "fill_layer_mode");
+  RNA_def_property_enum_items(prop, rna_enum_gpencil_fill_layers_modes_items);
+  RNA_def_property_ui_text(prop, "Layer Mode", "Layers used as boundaries");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
   prop = RNA_def_property(srna, "brush_draw_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "brush_draw_mode");
   RNA_def_property_enum_items(prop, rna_enum_gpencil_brush_modes_items);
@@ -1985,7 +2000,7 @@ static void rna_def_brush(BlenderRNA *brna)
   static const EnumPropertyItem brush_pose_deform_type_items[] = {
       {BRUSH_POSE_DEFORM_ROTATE_TWIST, "ROTATE_TWIST", 0, "Rotate/Twist", ""},
       {BRUSH_POSE_DEFORM_SCALE_TRASLATE, "SCALE_TRANSLATE", 0, "Scale/Translate", ""},
-      {BRUSH_POSE_DEFORM_SQUASH_STRETCH, "SQUASH_STRETCH", 0, "Squash/Stretch", ""},
+      {BRUSH_POSE_DEFORM_SQUASH_STRETCH, "SQUASH_STRETCH", 0, "Squash & Stretch", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -2788,6 +2803,13 @@ static void rna_def_brush(BlenderRNA *brna)
       prop, "Keep Anchor Point", "Keep the position of the last segment in the IK chain fixed");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+  prop = RNA_def_property(srna, "use_pose_lock_rotation", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag2", BRUSH_POSE_USE_LOCK_ROTATION);
+  RNA_def_property_ui_text(prop,
+                           "Lock Rotation When Scaling",
+                           "Do not rotate the segment when using the scale deform mode");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
   prop = RNA_def_property(srna, "use_connected_only", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag2", BRUSH_USE_CONNECTED_ONLY);
   RNA_def_property_ui_text(prop, "Connected Only", "Affect only topologically connected elements");
@@ -2800,6 +2822,11 @@ static void rna_def_brush(BlenderRNA *brna)
       "Pin Simulation Boundary",
       "Lock the position of the vertices in the simulation falloff area to avoid artifacts and "
       "create a softer transitionwith with unnafected areas");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "use_cloth_collision", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag2", BRUSH_CLOTH_USE_COLLISION);
+  RNA_def_property_ui_text(prop, "Enable Collision", "Collide with objects during the simulation");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "invert_to_scrape_fill", PROP_BOOLEAN, PROP_NONE);

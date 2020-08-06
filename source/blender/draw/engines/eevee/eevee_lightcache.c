@@ -203,6 +203,21 @@ static bool eevee_lightcache_version_check(LightCache *lcache)
   }
 }
 
+static bool eevee_lightcache_can_be_saved(LightCache *lcache)
+{
+  if (lcache->grid_tx.data) {
+    if (MEM_allocN_len(lcache->grid_tx.data) >= INT_MAX) {
+      return false;
+    }
+  }
+  if (lcache->cube_tx.data) {
+    if (MEM_allocN_len(lcache->cube_tx.data) >= INT_MAX) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static int eevee_lightcache_irradiance_sample_count(LightCache *lcache)
 {
   int total_irr_samples = 0;
@@ -228,7 +243,14 @@ void EEVEE_lightcache_info_update(SceneEEVEE *eevee)
 
     if (lcache->cube_tx.tex_size[2] > GPU_max_texture_layers()) {
       BLI_strncpy(eevee->light_cache_info,
-                  TIP_("Error: Light cache is too big for your GPU to be loaded"),
+                  TIP_("Error: Light cache is too big for the GPU to be loaded"),
+                  sizeof(eevee->light_cache_info));
+      return;
+    }
+
+    if (lcache->flag & LIGHTCACHE_INVALID) {
+      BLI_strncpy(eevee->light_cache_info,
+                  TIP_("Error: Light cache dimensions not supported by the GPU"),
                   sizeof(eevee->light_cache_info));
       return;
     }
@@ -236,6 +258,13 @@ void EEVEE_lightcache_info_update(SceneEEVEE *eevee)
     if (lcache->flag & LIGHTCACHE_BAKING) {
       BLI_strncpy(
           eevee->light_cache_info, TIP_("Baking light cache"), sizeof(eevee->light_cache_info));
+      return;
+    }
+
+    if (!eevee_lightcache_can_be_saved(lcache)) {
+      BLI_strncpy(eevee->light_cache_info,
+                  TIP_("Error: LightCache is too large and will not be saved to disk"),
+                  sizeof(eevee->light_cache_info));
       return;
     }
 
@@ -281,7 +310,7 @@ static bool EEVEE_lightcache_validate(const LightCache *light_cache,
                                       const int grid_len,
                                       const int irr_size[3])
 {
-  if (light_cache) {
+  if (light_cache && !(light_cache->flag & LIGHTCACHE_INVALID)) {
     /* See if we need the same amount of texture space. */
     if ((irr_size[0] == light_cache->grid_tx.tex_size[0]) &&
         (irr_size[1] == light_cache->grid_tx.tex_size[1]) &&
@@ -343,12 +372,18 @@ LightCache *EEVEE_lightcache_create(const int grid_len,
   light_cache->cube_mips = MEM_callocN(sizeof(LightCacheTexture) * light_cache->mips_len,
                                        "LightCacheTexture");
 
-  for (int mip = 0; mip < light_cache->mips_len; mip++) {
-    GPU_texture_get_mipmap_size(
-        light_cache->cube_tx.tex, mip + 1, light_cache->cube_mips[mip].tex_size);
+  if (light_cache->grid_tx.tex == NULL || light_cache->cube_tx.tex == NULL) {
+    /* We could not create the requested textures size. Stop baking and do not use the cache. */
+    light_cache->flag = LIGHTCACHE_INVALID;
   }
+  else {
+    light_cache->flag = LIGHTCACHE_UPDATE_WORLD | LIGHTCACHE_UPDATE_CUBE | LIGHTCACHE_UPDATE_GRID;
 
-  light_cache->flag = LIGHTCACHE_UPDATE_WORLD | LIGHTCACHE_UPDATE_CUBE | LIGHTCACHE_UPDATE_GRID;
+    for (int mip = 0; mip < light_cache->mips_len; mip++) {
+      GPU_texture_get_mipmap_size(
+          light_cache->cube_tx.tex, mip + 1, light_cache->cube_mips[mip].tex_size);
+    }
+  }
 
   return light_cache;
 }
@@ -376,6 +411,12 @@ static bool eevee_lightcache_static_load(LightCache *lcache)
                                                 0,
                                                 false,
                                                 NULL);
+
+    if (lcache->grid_tx.tex == NULL) {
+      lcache->flag |= LIGHTCACHE_NOT_USABLE;
+      return false;
+    }
+
     GPU_texture_filter_mode(lcache->grid_tx.tex, true);
   }
 
@@ -401,6 +442,11 @@ static bool eevee_lightcache_static_load(LightCache *lcache)
                                                   NULL);
     }
 
+    if (lcache->cube_tx.tex == NULL) {
+      lcache->flag |= LIGHTCACHE_NOT_USABLE;
+      return false;
+    }
+
     for (int mip = 0; mip < lcache->mips_len; mip++) {
       GPU_texture_add_mipmap(
           lcache->cube_tx.tex, GPU_DATA_10_11_11_REV, mip + 1, lcache->cube_mips[mip].data);
@@ -417,6 +463,10 @@ bool EEVEE_lightcache_load(LightCache *lcache)
   }
 
   if (!eevee_lightcache_version_check(lcache)) {
+    return false;
+  }
+
+  if (lcache->flag & (LIGHTCACHE_INVALID | LIGHTCACHE_NOT_USABLE)) {
     return false;
   }
 
@@ -481,6 +531,12 @@ void EEVEE_lightcache_free(LightCache *lcache)
 
 static void eevee_lightbake_context_enable(EEVEE_LightBake *lbake)
 {
+  if (GPU_use_main_context_workaround() && !BLI_thread_is_main()) {
+    GPU_context_main_lock();
+    DRW_opengl_context_enable();
+    return;
+  }
+
   if (lbake->gl_context) {
     DRW_opengl_render_context_enable(lbake->gl_context);
     if (lbake->gpu_context == NULL) {
@@ -495,6 +551,12 @@ static void eevee_lightbake_context_enable(EEVEE_LightBake *lbake)
 
 static void eevee_lightbake_context_disable(EEVEE_LightBake *lbake)
 {
+  if (GPU_use_main_context_workaround() && !BLI_thread_is_main()) {
+    DRW_opengl_context_disable();
+    GPU_context_main_unlock();
+    return;
+  }
+
   if (lbake->gl_context) {
     DRW_gpu_render_context_disable(lbake->gpu_context);
     DRW_opengl_render_context_disable(lbake->gl_context);
@@ -590,9 +652,7 @@ static void eevee_lightbake_create_resources(EEVEE_LightBake *lbake)
   if (lbake->lcache == NULL) {
     lbake->lcache = EEVEE_lightcache_create(
         lbake->grid_len, lbake->cube_len, lbake->ref_cube_res, lbake->vis_res, lbake->irr_size);
-    lbake->lcache->flag = LIGHTCACHE_UPDATE_WORLD | LIGHTCACHE_UPDATE_CUBE |
-                          LIGHTCACHE_UPDATE_GRID;
-    lbake->lcache->vis_res = lbake->vis_res;
+
     lbake->own_light_cache = true;
 
     eevee->light_cache_data = lbake->lcache;
@@ -649,7 +709,7 @@ wmJob *EEVEE_lightbake_job_create(struct wmWindowManager *wm,
     lbake->delay = delay;
     lbake->frame = frame;
 
-    if (lbake->gl_context == NULL) {
+    if (lbake->gl_context == NULL && !GPU_use_main_context_workaround()) {
       lbake->gl_context = WM_opengl_context_create();
       wm_window_reset_drawable();
     }
@@ -694,7 +754,7 @@ void *EEVEE_lightbake_job_data_alloc(struct Main *bmain,
   lbake->mutex = BLI_mutex_alloc();
   lbake->frame = frame;
 
-  if (run_as_job) {
+  if (run_as_job && !GPU_use_main_context_workaround()) {
     lbake->gl_context = WM_opengl_context_create();
     wm_window_reset_drawable();
   }
@@ -1269,6 +1329,17 @@ void EEVEE_lightbake_job(void *custom_data, short *stop, short *do_update, float
    * We cannot do it in the main thread. */
   eevee_lightbake_context_enable(lbake);
   eevee_lightbake_create_resources(lbake);
+
+  /* Resource allocation can fail. Early exit in this case. */
+  if (lbake->lcache->flag & LIGHTCACHE_INVALID) {
+    *lbake->stop = 1;
+    *lbake->do_update = 1;
+    lbake->lcache->flag &= ~LIGHTCACHE_BAKING;
+    eevee_lightbake_context_disable(lbake);
+    eevee_lightbake_delete_resources(lbake);
+    return;
+  }
+
   eevee_lightbake_create_render_target(lbake, lbake->rt_res);
   eevee_lightbake_context_disable(lbake);
 

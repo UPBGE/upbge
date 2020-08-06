@@ -1390,6 +1390,9 @@ static void ui_multibut_states_apply(bContext *C, uiHandleButtonData *data, uiBl
 
 static bool ui_drag_toggle_but_is_supported(const uiBut *but)
 {
+  if (but->flag & UI_BUT_DISABLED) {
+    return false;
+  }
   if (ui_but_is_bool(but)) {
     return true;
   }
@@ -8269,6 +8272,9 @@ static void button_activate_init(bContext *C,
                                  uiButtonActivateType type)
 {
   uiHandleButtonData *data;
+
+  /* Only ever one active button! */
+  BLI_assert(ui_region_find_active_but(region) == NULL);
 
   /* setup struct */
   data = MEM_callocN(sizeof(uiHandleButtonData), "uiHandleButtonData");

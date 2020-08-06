@@ -6248,7 +6248,7 @@ static void direct_link_lightcache_texture(BlendDataReader *reader, LightCacheTe
 
   if (lctex->data) {
     BLO_read_data_address(reader, &lctex->data);
-    if (BLO_read_requires_endian_switch(reader)) {
+    if (lctex->data && BLO_read_requires_endian_switch(reader)) {
       int data_size = lctex->components * lctex->tex_size[0] * lctex->tex_size[1] *
                       lctex->tex_size[2];
 
@@ -6260,10 +6260,15 @@ static void direct_link_lightcache_texture(BlendDataReader *reader, LightCacheTe
       }
     }
   }
+
+  if (lctex->data == NULL) {
+    zero_v3_int(lctex->tex_size);
+  }
 }
 
 static void direct_link_lightcache(BlendDataReader *reader, LightCache *cache)
 {
+  cache->flag &= ~LIGHTCACHE_NOT_USABLE;
   direct_link_lightcache_texture(reader, &cache->cube_tx);
   direct_link_lightcache_texture(reader, &cache->grid_tx);
 

@@ -646,6 +646,8 @@ def brush_settings(layout, context, brush, popover=False):
             layout.prop(brush, "pose_smooth_iterations")
             if brush.pose_deform_type == 'ROTATE_TWIST' and brush.pose_origin_type in {'TOPOLOGY', 'FACE_SETS'}:
               layout.prop(brush, "pose_ik_segments")
+            if brush.pose_deform_type == 'SCALE_TRANSLATE':
+               layout.prop(brush, "use_pose_lock_rotation")
             layout.prop(brush, "use_pose_ik_anchored")
             layout.prop(brush, "use_connected_only")
             layout.prop(brush, "disconnected_distance_max")
@@ -664,6 +666,8 @@ def brush_settings(layout, context, brush, popover=False):
             layout.prop(brush, "cloth_mass")
             layout.prop(brush, "cloth_damping")
             layout.prop(brush, "cloth_constraint_softbody_strength")
+            layout.separator()
+            layout.prop(brush, "use_cloth_collision")
             layout.separator()
 
         elif sculpt_tool == 'SCRAPE':
