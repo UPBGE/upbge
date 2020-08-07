@@ -320,7 +320,7 @@ static int dynamicPaint_surfaceNumOfPoints(DynamicPaintSurface *surface)
   if (surface->format == MOD_DPAINT_SURFACE_F_PTEX) {
     return 0; /* not supported atm */
   }
-  else if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) {
+  if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) {
     const Mesh *canvas_mesh = dynamicPaint_canvas_mesh_get(surface->canvas);
     return (canvas_mesh) ? canvas_mesh->totvert : 0;
   }
@@ -353,7 +353,7 @@ bool dynamicPaint_outputLayerExists(struct DynamicPaintSurface *surface, Object 
       Mesh *me = ob->data;
       return (CustomData_get_named_layer_index(&me->ldata, CD_MLOOPCOL, name) != -1);
     }
-    else if (surface->type == MOD_DPAINT_SURFACE_T_WEIGHT) {
+    if (surface->type == MOD_DPAINT_SURFACE_T_WEIGHT) {
       return (BKE_object_defgroup_name_index(ob, name) != -1);
     }
   }
@@ -602,7 +602,7 @@ static bool boundIntersectPoint(Bounds3D *b, const float point[3], const float r
 }
 
 /* expand bounds by a new point */
-static void boundInsert(Bounds3D *b, float point[3])
+static void boundInsert(Bounds3D *b, const float point[3])
 {
   if (!b->valid) {
     copy_v3_v3(b->min, point);
@@ -2675,7 +2675,7 @@ static void dynamic_paint_find_island_border(const DynamicPaintCreateUVSurfaceDa
 
     int w = bdata->w, h = bdata->h, px = bdata->px, py = bdata->py;
 
-    int final_pixel[2] = {(int)floorf(tgt_pixel[0] * w), (int)floorf(tgt_pixel[1] * h)};
+    const int final_pixel[2] = {(int)floorf(tgt_pixel[0] * w), (int)floorf(tgt_pixel[1] * h)};
 
     /* If current pixel uv is outside of texture */
     if (final_pixel[0] < 0 || final_pixel[0] >= w || final_pixel[1] < 0 || final_pixel[1] >= h) {
@@ -3742,7 +3742,7 @@ static bool meshBrush_boundsIntersect(Bounds3D *b1,
   if (brush->collision == MOD_DPAINT_COL_VOLUME) {
     return boundsIntersect(b1, b2);
   }
-  else if (brush->collision == MOD_DPAINT_COL_DIST || brush->collision == MOD_DPAINT_COL_VOLDIST) {
+  if (brush->collision == MOD_DPAINT_COL_DIST || brush->collision == MOD_DPAINT_COL_VOLDIST) {
     return boundsIntersectDist(b1, b2, brush_radius);
   }
   return true;

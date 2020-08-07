@@ -1407,10 +1407,8 @@ bool write_crash_blend(void)
     printf("written: %s\n", path);
     return 1;
   }
-  else {
-    printf("failed: %s\n", path);
-    return 0;
-  }
+  printf("failed: %s\n", path);
+  return 0;
 }
 
 /**
@@ -2095,9 +2093,7 @@ static int wm_homefile_read_invoke(bContext *C, wmOperator *op, const wmEvent *U
     wm_close_file_dialog(C, callback);
     return OPERATOR_INTERFACE;
   }
-  else {
-    return wm_homefile_read_exec(C, op);
-  }
+  return wm_homefile_read_exec(C, op);
 }
 
 static void read_homefile_props(wmOperatorType *ot)
@@ -2259,9 +2255,7 @@ static int wm_open_mainfile__discard_changes(bContext *C, wmOperator *op)
     wm_close_file_dialog(C, callback);
     return OPERATOR_INTERFACE;
   }
-  else {
-    return wm_open_mainfile_dispatch(C, op);
-  }
+  return wm_open_mainfile_dispatch(C, op);
 }
 
 static int wm_open_mainfile__select_file_path(bContext *C, wmOperator *op)
@@ -2332,9 +2326,7 @@ static int wm_open_mainfile__open(bContext *C, wmOperator *op)
     ED_view3d_local_collections_reset(C, (G.fileflags & G_FILE_NO_UI) != 0);
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 static OperatorDispatchTarget wm_open_mainfile_dispatch_targets[] = {
@@ -2479,9 +2471,7 @@ static int wm_revert_mainfile_exec(bContext *C, wmOperator *op)
   if (success) {
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 static bool wm_revert_mainfile_poll(bContext *UNUSED(C))
@@ -2576,9 +2566,7 @@ static int wm_recover_auto_save_exec(bContext *C, wmOperator *op)
   if (success) {
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 static int wm_recover_auto_save_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))

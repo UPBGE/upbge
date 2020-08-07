@@ -132,6 +132,7 @@ static int comp_float_int_pair(const void *a, const void *b)
   return (int)(x->angle > y->angle) - (int)(x->angle < y->angle);
 }
 
+/* NOLINTNEXTLINE: readability-function-size */
 Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                                           const ModifierEvalContext *ctx,
                                           Mesh *mesh)
@@ -479,12 +480,12 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                     old_edge_vert_ref->edges_len++;
                     break;
                   }
-                  else if (vm[orig_medge[edge].v1] == vs[1 - j]) {
+                  if (vm[orig_medge[edge].v1] == vs[1 - j]) {
                     invalid_edge_index = edge + 1;
                     invalid_edge_reversed = (j == 0);
                     break;
                   }
-                  else if (vm[orig_medge[edge].v2] == vs[1 - j]) {
+                  if (vm[orig_medge[edge].v2] == vs[1 - j]) {
                     invalid_edge_index = edge + 1;
                     invalid_edge_reversed = (j == 1);
                     break;
@@ -936,7 +937,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                     }
                     break;
                   }
-                  else if (edge->faces[0] == eg_track_faces[0]) {
+                  if (edge->faces[0] == eg_track_faces[0]) {
                     insert_at_start = true;
                     eg_track_faces[0] = edge->faces[1];
                     found_edge = edge;
@@ -945,14 +946,14 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
                     }
                     break;
                   }
-                  else if (edge->faces[1] != NULL) {
+                  if (edge->faces[1] != NULL) {
                     if (edge->faces[1] == eg_track_faces[1]) {
                       insert_at_start = false;
                       eg_track_faces[1] = edge->faces[0];
                       found_edge = edge;
                       break;
                     }
-                    else if (edge->faces[1] == eg_track_faces[0]) {
+                    if (edge->faces[1] == eg_track_faces[0]) {
                       insert_at_start = true;
                       eg_track_faces[0] = edge->faces[0];
                       found_edge = edge;

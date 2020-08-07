@@ -49,7 +49,9 @@
 #include "MOD_ui_common.h"
 #include "MOD_util.h"
 
-static void uv_warp_from_mat4_pair(float uv_dst[2], const float uv_src[2], float warp_mat[4][4])
+static void uv_warp_from_mat4_pair(float uv_dst[2],
+                                   const float uv_src[2],
+                                   const float warp_mat[4][4])
 {
   float tuv[3] = {0.0f};
 
@@ -185,7 +187,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
       mul_m4_m4m4(warp_mat, mat_cent, warp_mat);
     }
 
-    int shuf_indices[4] = {axis_u, axis_v, -1, 3};
+    const int shuf_indices[4] = {axis_u, axis_v, -1, 3};
     shuffle_m4(shuf_mat, shuf_indices);
     mul_m4_m4m4(warp_mat, shuf_mat, warp_mat);
     transpose_m4(shuf_mat);

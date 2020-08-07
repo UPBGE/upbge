@@ -22,8 +22,7 @@
 
 /* This is the Render Functions used by Realtime engines to draw with OpenGL */
 
-#ifndef __DRW_RENDER_H__
-#define __DRW_RENDER_H__
+#pragma once
 
 #include "MEM_guardedalloc.h"
 
@@ -760,6 +759,7 @@ typedef struct DRWContextState {
 
 const DRWContextState *DRW_context_state_get(void);
 
+
 /*****************************GAME ENGINE***********************************/
 void DRW_game_render_loop(struct bContext *C,
                           GPUViewport *viewport,
@@ -778,5 +778,3 @@ void DRW_transform_to_display_image_render(struct GPUTexture *tex);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __DRW_RENDER_H__ */

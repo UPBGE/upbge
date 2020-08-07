@@ -519,8 +519,8 @@ MFNetworkEvaluationStorage::~MFNetworkEvaluationStorage()
     if (any_value == nullptr) {
       continue;
     }
-    else if (any_value->type == ValueType::OwnSingle) {
-      OwnSingleValue *value = (OwnSingleValue *)any_value;
+    if (any_value->type == ValueType::OwnSingle) {
+      OwnSingleValue *value = static_cast<OwnSingleValue *>(any_value);
       GMutableSpan span = value->span;
       const CPPType &type = span.type();
       if (value->is_single_allocated) {
@@ -532,7 +532,7 @@ MFNetworkEvaluationStorage::~MFNetworkEvaluationStorage()
       }
     }
     else if (any_value->type == ValueType::OwnVector) {
-      OwnVectorValue *value = (OwnVectorValue *)any_value;
+      OwnVectorValue *value = static_cast<OwnVectorValue *>(any_value);
       delete value->vector_array;
     }
   }
@@ -550,7 +550,7 @@ bool MFNetworkEvaluationStorage::socket_is_computed(const MFOutputSocket &socket
     return false;
   }
   if (ELEM(any_value->type, ValueType::OutputSingle, ValueType::OutputVector)) {
-    return ((OutputValue *)any_value)->is_computed;
+    return static_cast<OutputValue *>(any_value)->is_computed;
   }
   return true;
 }
@@ -560,17 +560,17 @@ bool MFNetworkEvaluationStorage::is_same_value_for_every_index(const MFOutputSoc
   Value *any_value = value_per_output_id_[socket.id()];
   switch (any_value->type) {
     case ValueType::OwnSingle:
-      return ((OwnSingleValue *)any_value)->span.size() == 1;
+      return static_cast<OwnSingleValue *>(any_value)->span.size() == 1;
     case ValueType::OwnVector:
-      return ((OwnVectorValue *)any_value)->vector_array->size() == 1;
+      return static_cast<OwnVectorValue *>(any_value)->vector_array->size() == 1;
     case ValueType::InputSingle:
-      return ((InputSingleValue *)any_value)->virtual_span.is_single_element();
+      return static_cast<InputSingleValue *>(any_value)->virtual_span.is_single_element();
     case ValueType::InputVector:
-      return ((InputVectorValue *)any_value)->virtual_array_span.is_single_array();
+      return static_cast<InputVectorValue *>(any_value)->virtual_array_span.is_single_array();
     case ValueType::OutputSingle:
-      return ((OutputSingleValue *)any_value)->span.size() == 1;
+      return static_cast<OutputSingleValue *>(any_value)->span.size() == 1;
     case ValueType::OutputVector:
-      return ((OutputVectorValue *)any_value)->vector_array->size() == 1;
+      return static_cast<OutputVectorValue *>(any_value)->vector_array->size() == 1;
   }
   BLI_assert(false);
   return false;
@@ -605,7 +605,7 @@ void MFNetworkEvaluationStorage::finish_output_socket(const MFOutputSocket &sock
   }
 
   if (ELEM(any_value->type, ValueType::OutputSingle, ValueType::OutputVector)) {
-    ((OutputValue *)any_value)->is_computed = true;
+    static_cast<OutputValue *>(any_value)->is_computed = true;
   }
 }
 
@@ -627,7 +627,7 @@ void MFNetworkEvaluationStorage::finish_input_socket(const MFInputSocket &socket
       break;
     }
     case ValueType::OwnSingle: {
-      OwnSingleValue *value = (OwnSingleValue *)any_value;
+      OwnSingleValue *value = static_cast<OwnSingleValue *>(any_value);
       BLI_assert(value->max_remaining_users >= 1);
       value->max_remaining_users--;
       if (value->max_remaining_users == 0) {
@@ -645,7 +645,7 @@ void MFNetworkEvaluationStorage::finish_input_socket(const MFInputSocket &socket
       break;
     }
     case ValueType::OwnVector: {
-      OwnVectorValue *value = (OwnVectorValue *)any_value;
+      OwnVectorValue *value = static_cast<OwnVectorValue *>(any_value);
       BLI_assert(value->max_remaining_users >= 1);
       value->max_remaining_users--;
       if (value->max_remaining_users == 0) {
@@ -710,10 +710,9 @@ GMutableSpan MFNetworkEvaluationStorage::get_single_output__full(const MFOutputS
 
     return span;
   }
-  else {
-    BLI_assert(any_value->type == ValueType::OutputSingle);
-    return ((OutputSingleValue *)any_value)->span;
-  }
+
+  BLI_assert(any_value->type == ValueType::OutputSingle);
+  return static_cast<OutputSingleValue *>(any_value)->span;
 }
 
 GMutableSpan MFNetworkEvaluationStorage::get_single_output__single(const MFOutputSocket &socket)
@@ -729,12 +728,11 @@ GMutableSpan MFNetworkEvaluationStorage::get_single_output__single(const MFOutpu
 
     return value->span;
   }
-  else {
-    BLI_assert(any_value->type == ValueType::OutputSingle);
-    GMutableSpan span = ((OutputSingleValue *)any_value)->span;
-    BLI_assert(span.size() == 1);
-    return span;
-  }
+
+  BLI_assert(any_value->type == ValueType::OutputSingle);
+  GMutableSpan span = static_cast<OutputSingleValue *>(any_value)->span;
+  BLI_assert(span.size() == 1);
+  return span;
 }
 
 GVectorArray &MFNetworkEvaluationStorage::get_vector_output__full(const MFOutputSocket &socket)
@@ -749,10 +747,9 @@ GVectorArray &MFNetworkEvaluationStorage::get_vector_output__full(const MFOutput
 
     return *value->vector_array;
   }
-  else {
-    BLI_assert(any_value->type == ValueType::OutputVector);
-    return *((OutputVectorValue *)any_value)->vector_array;
-  }
+
+  BLI_assert(any_value->type == ValueType::OutputVector);
+  return *static_cast<OutputVectorValue *>(any_value)->vector_array;
 }
 
 GVectorArray &MFNetworkEvaluationStorage::get_vector_output__single(const MFOutputSocket &socket)
@@ -767,12 +764,11 @@ GVectorArray &MFNetworkEvaluationStorage::get_vector_output__single(const MFOutp
 
     return *value->vector_array;
   }
-  else {
-    BLI_assert(any_value->type == ValueType::OutputVector);
-    GVectorArray &vector_array = *((OutputVectorValue *)any_value)->vector_array;
-    BLI_assert(vector_array.size() == 1);
-    return vector_array;
-  }
+
+  BLI_assert(any_value->type == ValueType::OutputVector);
+  GVectorArray &vector_array = *static_cast<OutputVectorValue *>(any_value)->vector_array;
+  BLI_assert(vector_array.size() == 1);
+  return vector_array;
 }
 
 GMutableSpan MFNetworkEvaluationStorage::get_mutable_single__full(const MFInputSocket &input,
@@ -789,14 +785,14 @@ GMutableSpan MFNetworkEvaluationStorage::get_mutable_single__full(const MFInputS
 
   if (to_any_value != nullptr) {
     BLI_assert(to_any_value->type == ValueType::OutputSingle);
-    GMutableSpan span = ((OutputSingleValue *)to_any_value)->span;
+    GMutableSpan span = static_cast<OutputSingleValue *>(to_any_value)->span;
     GVSpan virtual_span = this->get_single_input__full(input);
     virtual_span.materialize_to_uninitialized(mask_, span.data());
     return span;
   }
 
   if (from_any_value->type == ValueType::OwnSingle) {
-    OwnSingleValue *value = (OwnSingleValue *)from_any_value;
+    OwnSingleValue *value = static_cast<OwnSingleValue *>(from_any_value);
     if (value->max_remaining_users == 1 && !value->is_single_allocated) {
       value_per_output_id_[to.id()] = value;
       value_per_output_id_[from.id()] = nullptr;
@@ -830,7 +826,7 @@ GMutableSpan MFNetworkEvaluationStorage::get_mutable_single__single(const MFInpu
 
   if (to_any_value != nullptr) {
     BLI_assert(to_any_value->type == ValueType::OutputSingle);
-    GMutableSpan span = ((OutputSingleValue *)to_any_value)->span;
+    GMutableSpan span = static_cast<OutputSingleValue *>(to_any_value)->span;
     BLI_assert(span.size() == 1);
     GVSpan virtual_span = this->get_single_input__single(input);
     type.copy_to_uninitialized(virtual_span.as_single_element(), span[0]);
@@ -838,7 +834,7 @@ GMutableSpan MFNetworkEvaluationStorage::get_mutable_single__single(const MFInpu
   }
 
   if (from_any_value->type == ValueType::OwnSingle) {
-    OwnSingleValue *value = (OwnSingleValue *)from_any_value;
+    OwnSingleValue *value = static_cast<OwnSingleValue *>(from_any_value);
     if (value->max_remaining_users == 1) {
       value_per_output_id_[to.id()] = value;
       value_per_output_id_[from.id()] = nullptr;
@@ -874,14 +870,14 @@ GVectorArray &MFNetworkEvaluationStorage::get_mutable_vector__full(const MFInput
 
   if (to_any_value != nullptr) {
     BLI_assert(to_any_value->type == ValueType::OutputVector);
-    GVectorArray &vector_array = *((OutputVectorValue *)to_any_value)->vector_array;
+    GVectorArray &vector_array = *static_cast<OutputVectorValue *>(to_any_value)->vector_array;
     GVArraySpan virtual_array_span = this->get_vector_input__full(input);
     vector_array.extend(mask_, virtual_array_span);
     return vector_array;
   }
 
   if (from_any_value->type == ValueType::OwnVector) {
-    OwnVectorValue *value = (OwnVectorValue *)from_any_value;
+    OwnVectorValue *value = static_cast<OwnVectorValue *>(from_any_value);
     if (value->max_remaining_users == 1) {
       value_per_output_id_[to.id()] = value;
       value_per_output_id_[from.id()] = nullptr;
@@ -916,7 +912,7 @@ GVectorArray &MFNetworkEvaluationStorage::get_mutable_vector__single(const MFInp
 
   if (to_any_value != nullptr) {
     BLI_assert(to_any_value->type == ValueType::OutputVector);
-    GVectorArray &vector_array = *((OutputVectorValue *)to_any_value)->vector_array;
+    GVectorArray &vector_array = *static_cast<OutputVectorValue *>(to_any_value)->vector_array;
     BLI_assert(vector_array.size() == 1);
     GVArraySpan virtual_array_span = this->get_vector_input__single(input);
     vector_array.extend(0, virtual_array_span[0]);
@@ -924,7 +920,7 @@ GVectorArray &MFNetworkEvaluationStorage::get_mutable_vector__single(const MFInp
   }
 
   if (from_any_value->type == ValueType::OwnVector) {
-    OwnVectorValue *value = (OwnVectorValue *)from_any_value;
+    OwnVectorValue *value = static_cast<OwnVectorValue *>(from_any_value);
     if (value->max_remaining_users == 1) {
       value_per_output_id_[to.id()] = value;
       value_per_output_id_[from.id()] = nullptr;
@@ -951,20 +947,19 @@ GVSpan MFNetworkEvaluationStorage::get_single_input__full(const MFInputSocket &s
   BLI_assert(any_value != nullptr);
 
   if (any_value->type == ValueType::OwnSingle) {
-    OwnSingleValue *value = (OwnSingleValue *)any_value;
+    OwnSingleValue *value = static_cast<OwnSingleValue *>(any_value);
     if (value->is_single_allocated) {
       return GVSpan::FromSingle(value->span.type(), value->span.data(), min_array_size_);
     }
-    else {
-      return value->span;
-    }
+
+    return value->span;
   }
-  else if (any_value->type == ValueType::InputSingle) {
-    InputSingleValue *value = (InputSingleValue *)any_value;
+  if (any_value->type == ValueType::InputSingle) {
+    InputSingleValue *value = static_cast<InputSingleValue *>(any_value);
     return value->virtual_span;
   }
-  else if (any_value->type == ValueType::OutputSingle) {
-    OutputSingleValue *value = (OutputSingleValue *)any_value;
+  if (any_value->type == ValueType::OutputSingle) {
+    OutputSingleValue *value = static_cast<OutputSingleValue *>(any_value);
     BLI_assert(value->is_computed);
     return value->span;
   }
@@ -980,17 +975,17 @@ GVSpan MFNetworkEvaluationStorage::get_single_input__single(const MFInputSocket 
   BLI_assert(any_value != nullptr);
 
   if (any_value->type == ValueType::OwnSingle) {
-    OwnSingleValue *value = (OwnSingleValue *)any_value;
+    OwnSingleValue *value = static_cast<OwnSingleValue *>(any_value);
     BLI_assert(value->span.size() == 1);
     return value->span;
   }
-  else if (any_value->type == ValueType::InputSingle) {
-    InputSingleValue *value = (InputSingleValue *)any_value;
+  if (any_value->type == ValueType::InputSingle) {
+    InputSingleValue *value = static_cast<InputSingleValue *>(any_value);
     BLI_assert(value->virtual_span.is_single_element());
     return value->virtual_span;
   }
-  else if (any_value->type == ValueType::OutputSingle) {
-    OutputSingleValue *value = (OutputSingleValue *)any_value;
+  if (any_value->type == ValueType::OutputSingle) {
+    OutputSingleValue *value = static_cast<OutputSingleValue *>(any_value);
     BLI_assert(value->is_computed);
     BLI_assert(value->span.size() == 1);
     return value->span;
@@ -1007,21 +1002,20 @@ GVArraySpan MFNetworkEvaluationStorage::get_vector_input__full(const MFInputSock
   BLI_assert(any_value != nullptr);
 
   if (any_value->type == ValueType::OwnVector) {
-    OwnVectorValue *value = (OwnVectorValue *)any_value;
+    OwnVectorValue *value = static_cast<OwnVectorValue *>(any_value);
     if (value->vector_array->size() == 1) {
       GSpan span = (*value->vector_array)[0];
       return GVArraySpan(span, min_array_size_);
     }
-    else {
-      return *value->vector_array;
-    }
+
+    return *value->vector_array;
   }
-  else if (any_value->type == ValueType::InputVector) {
-    InputVectorValue *value = (InputVectorValue *)any_value;
+  if (any_value->type == ValueType::InputVector) {
+    InputVectorValue *value = static_cast<InputVectorValue *>(any_value);
     return value->virtual_array_span;
   }
-  else if (any_value->type == ValueType::OutputVector) {
-    OutputVectorValue *value = (OutputVectorValue *)any_value;
+  if (any_value->type == ValueType::OutputVector) {
+    OutputVectorValue *value = static_cast<OutputVectorValue *>(any_value);
     return *value->vector_array;
   }
 
@@ -1036,17 +1030,17 @@ GVArraySpan MFNetworkEvaluationStorage::get_vector_input__single(const MFInputSo
   BLI_assert(any_value != nullptr);
 
   if (any_value->type == ValueType::OwnVector) {
-    OwnVectorValue *value = (OwnVectorValue *)any_value;
+    OwnVectorValue *value = static_cast<OwnVectorValue *>(any_value);
     BLI_assert(value->vector_array->size() == 1);
     return *value->vector_array;
   }
-  else if (any_value->type == ValueType::InputVector) {
-    InputVectorValue *value = (InputVectorValue *)any_value;
+  if (any_value->type == ValueType::InputVector) {
+    InputVectorValue *value = static_cast<InputVectorValue *>(any_value);
     BLI_assert(value->virtual_array_span.is_single_array());
     return value->virtual_array_span;
   }
-  else if (any_value->type == ValueType::OutputVector) {
-    OutputVectorValue *value = (OutputVectorValue *)any_value;
+  if (any_value->type == ValueType::OutputVector) {
+    OutputVectorValue *value = static_cast<OutputVectorValue *>(any_value);
     BLI_assert(value->vector_array->size() == 1);
     return *value->vector_array;
   }

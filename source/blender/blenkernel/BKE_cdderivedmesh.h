@@ -26,8 +26,7 @@
  * \note This is deprecated & should eventually be removed.
  */
 
-#ifndef __BKE_CDDERIVEDMESH_H__
-#define __BKE_CDDERIVEDMESH_H__
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -185,6 +184,4 @@ void CDDM_set_mpoly(struct DerivedMesh *dm, struct MPoly *mpoly);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

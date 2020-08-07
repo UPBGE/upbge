@@ -357,9 +357,8 @@ static MovieTrackingMarker *get_closest_marker(StabContext *ctx,
   if ((next_higher - ref_frame) < (ref_frame - next_lower)) {
     return BKE_tracking_marker_get_exact(track, next_higher);
   }
-  else {
-    return BKE_tracking_marker_get_exact(track, next_lower);
-  }
+
+  return BKE_tracking_marker_get_exact(track, next_lower);
 }
 
 /* Retrieve tracking data, if available and applicable for this frame.
@@ -377,11 +376,10 @@ static MovieTrackingMarker *get_tracking_data_point(StabContext *ctx,
     *r_weight = get_animated_weight(ctx, track, framenr);
     return marker;
   }
-  else {
-    /* No marker at this frame (=gap) or marker disabled. */
-    *r_weight = 0.0f;
-    return NULL;
-  }
+
+  /* No marker at this frame (=gap) or marker disabled. */
+  *r_weight = 0.0f;
+  return NULL;
 }
 
 /* Define the reference point for rotation/scale measurement and compensation.
@@ -1094,7 +1092,7 @@ static void stabilization_data_to_mat4(float pixel_aspect,
 {
   float translation_mat[4][4], rotation_mat[4][4], scale_mat[4][4], pivot_mat[4][4],
       inv_pivot_mat[4][4], aspect_mat[4][4], inv_aspect_mat[4][4];
-  float scale_vector[3] = {scale, scale, 1.0f};
+  const float scale_vector[3] = {scale, scale, 1.0f};
 
   unit_m4(translation_mat);
   unit_m4(rotation_mat);

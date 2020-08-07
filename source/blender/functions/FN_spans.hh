@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __FN_SPANS_HH__
-#define __FN_SPANS_HH__
+#pragma once
 
 /** \file
  * \ingroup fn
@@ -68,7 +67,8 @@ class GSpan {
   }
 
   template<typename T>
-  GSpan(Span<T> array) : GSpan(CPPType::get<T>(), (const void *)array.data(), array.size())
+  GSpan(Span<T> array)
+      : GSpan(CPPType::get<T>(), static_cast<const void *>(array.data()), array.size())
   {
   }
 
@@ -101,7 +101,7 @@ class GSpan {
   template<typename T> Span<T> typed() const
   {
     BLI_assert(type_->is<T>());
-    return Span<T>((const T *)data_, size_);
+    return Span<T>(static_cast<const T *>(data_), size_);
   }
 };
 
@@ -130,7 +130,7 @@ class GMutableSpan {
 
   template<typename T>
   GMutableSpan(MutableSpan<T> array)
-      : GMutableSpan(CPPType::get<T>(), (void *)array.begin(), array.size())
+      : GMutableSpan(CPPType::get<T>(), static_cast<void *>(array.begin()), array.size())
   {
   }
 
@@ -168,7 +168,7 @@ class GMutableSpan {
   template<typename T> MutableSpan<T> typed()
   {
     BLI_assert(type_->is<T>());
-    return MutableSpan<T>((T *)data_, size_);
+    return MutableSpan<T>(static_cast<T *>(data_), size_);
   }
 };
 
@@ -452,5 +452,3 @@ class GVSpan : public VSpanBase<void> {
 };
 
 }  // namespace blender::fn
-
-#endif /* __FN_SPANS_HH__ */

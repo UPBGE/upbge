@@ -207,7 +207,7 @@ void ED_object_rotation_from_quat(float rot[3], const float viewquat[4], const c
   switch (align_axis) {
     case 'X': {
       /* Same as 'rv3d->viewinv[1]' */
-      float axis_y[4] = {0.0f, 1.0f, 0.0f};
+      const float axis_y[4] = {0.0f, 1.0f, 0.0f};
       float quat_y[4], quat[4];
       axis_angle_to_quat(quat_y, axis_y, M_PI_2);
       mul_qt_qtqt(quat, viewquat, quat_y);
@@ -729,7 +729,7 @@ static const char *get_effector_defname(ePFieldType type)
       return CTX_DATA_(BLT_I18NCONTEXT_ID_OBJECT, "Turbulence");
     case PFIELD_DRAG:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_OBJECT, "Drag");
-    case PFIELD_FLUIDFLOW :
+    case PFIELD_FLUIDFLOW:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_OBJECT, "FluidField");
     case PFIELD_NULL:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_OBJECT, "Field");
@@ -775,7 +775,8 @@ static int effector_add_exec(bContext *C, wmOperator *op)
     }
   }
   else {
-    ob = ED_object_add_type(C, OB_EMPTY, get_effector_defname(type), loc, rot, false, local_view_bits);
+    ob = ED_object_add_type(
+        C, OB_EMPTY, get_effector_defname(type), loc, rot, false, local_view_bits);
     BKE_object_obdata_size_init(ob, dia);
     if (ELEM(type, PFIELD_WIND, PFIELD_VORTEX)) {
       ob->empty_drawtype = OB_SINGLE_ARROW;

@@ -23,8 +23,7 @@
 
 /* Internal for editmesh_xxxx.c functions */
 
-#ifndef __MESH_INTERN_H__
-#define __MESH_INTERN_H__
+#pragma once
 
 struct BMEditMesh;
 struct BMElem;
@@ -283,5 +282,3 @@ void MESH_OT_navmesh_face_copy(struct wmOperatorType *ot);
 void MESH_OT_navmesh_face_add(struct wmOperatorType *ot);
 void MESH_OT_navmesh_reset(struct wmOperatorType *ot);
 void MESH_OT_navmesh_clear(struct wmOperatorType *ot);
-
-#endif /* __MESH_INTERN_H__ */

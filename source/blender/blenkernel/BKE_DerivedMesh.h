@@ -17,8 +17,7 @@
  * All rights reserved.
  */
 
-#ifndef __BKE_DERIVEDMESH_H__
-#define __BKE_DERIVEDMESH_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -536,5 +535,3 @@ struct MFace *DM_get_tessface_array(struct DerivedMesh *dm, bool *r_allocated);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BKE_DERIVEDMESH_H__ */

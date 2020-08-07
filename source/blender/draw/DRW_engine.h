@@ -20,8 +20,7 @@
  * \ingroup draw
  */
 
-#ifndef __DRW_ENGINE_H__
-#define __DRW_ENGINE_H__
+#pragma once
 
 #include "BLI_sys_types.h" /* for bool */
 
@@ -178,5 +177,3 @@ void DRW_opengl_context_create_blenderplayer(void *syshandle);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __DRW_ENGINE_H__ */

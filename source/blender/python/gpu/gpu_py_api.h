@@ -18,8 +18,7 @@
  * \ingroup bpygpu
  */
 
-#ifndef __GPU_PY_API_H__
-#define __GPU_PY_API_H__
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,8 +40,7 @@ bool bpygpu_is_init_or_error(void);
   } \
   ((void)0)
 
+
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __GPU_PY_API_H__ */

@@ -20,8 +20,7 @@
  * \ingroup render
  */
 
-#ifndef __RE_RENDER_EXT_H__
-#define __RE_RENDER_EXT_H__
+#pragma once
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is for non-render pipeline exports (still old cruft here) */
@@ -81,5 +80,3 @@ void RE_point_density_fix_linking(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __RE_RENDER_EXT_H__ */

@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_USERDEF_TYPES_H__
-#define __DNA_USERDEF_TYPES_H__
+#pragma once
 
 #include "DNA_listBase.h"
 #include "DNA_texture_types.h" /* ColorBand */
@@ -1339,6 +1338,4 @@ enum {
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

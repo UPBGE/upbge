@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __FN_GENERIC_VECTOR_ARRAY_HH__
-#define __FN_GENERIC_VECTOR_ARRAY_HH__
+#pragma once
 
 /** \file
  * \ingroup fn
@@ -187,7 +186,8 @@ template<typename T> class GVectorArrayRef {
   MutableSpan<T> operator[](int64_t index)
   {
     BLI_assert(index < vector_array_->starts_.size());
-    return MutableSpan<T>((T *)vector_array_->starts_[index], vector_array_->lengths_[index]);
+    return MutableSpan<T>(static_cast<T *>(vector_array_->starts_[index]),
+                          vector_array_->lengths_[index]);
   }
 
   int64_t size() const
@@ -202,5 +202,3 @@ template<typename T> class GVectorArrayRef {
 };
 
 }  // namespace blender::fn
-
-#endif /* __FN_GENERIC_VECTOR_ARRAY_HH__ */

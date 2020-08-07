@@ -383,7 +383,7 @@ static void oldnewmap_insert_or_replace(OldNewMap *onm, OldNew entry)
       onm->nentries++;
       break;
     }
-    else if (onm->entries[index].oldp == entry.oldp) {
+    if (onm->entries[index].oldp == entry.oldp) {
       onm->entries[index] = entry;
       break;
     }
@@ -1122,9 +1122,8 @@ static bool read_file_dna(FileData *fd, const char **r_error_message)
 
         return true;
       }
-      else {
-        return false;
-      }
+
+      return false;
     }
     else if (bhead->code == ENDB) {
       break;
@@ -1166,7 +1165,7 @@ static int *read_file_thumbnail(FileData *fd)
       blend_thumb = data;
       break;
     }
-    else if (bhead->code != REND) {
+    if (bhead->code != REND) {
       /* Thumbnail is stored in TEST immediately after first REND... */
       break;
     }
@@ -1378,62 +1377,61 @@ static FileData *blo_filedata_from_file_descriptor(const char *filepath,
   if (typeencryption <= SPINDLE_NO_ENCRYPTION) {
 #endif
 
-    /* Regular file. */
-    errno = 0;
-    if (read(file, header, sizeof(header)) != sizeof(header)) {
+  /* Regular file. */
+  errno = 0;
+  if (read(file, header, sizeof(header)) != sizeof(header)) {
+    BKE_reportf(reports,
+                RPT_WARNING,
+                "Unable to read '%s': %s",
+                filepath,
+                errno ? strerror(errno) : TIP_("insufficient content"));
+    return NULL;
+  }
+
+  BLI_lseek(file, 0, SEEK_SET);
+
+  /* Regular file. */
+  if (memcmp(header, "BLENDER", sizeof(header)) == 0) {
+    read_fn = fd_read_data_from_file;
+    seek_fn = fd_seek_data_from_file;
+  }
+
+  /* Gzip file. */
+  errno = 0;
+  if ((read_fn == NULL) &&
+      /* Check header magic. */
+      (header[0] == 0x1f && header[1] == 0x8b)) {
+    gzfile = BLI_gzopen(filepath, "rb");
+    if (gzfile == (gzFile)Z_NULL) {
       BKE_reportf(reports,
                   RPT_WARNING,
-                  "Unable to read '%s': %s",
+                  "Unable to open '%s': %s",
                   filepath,
-                  errno ? strerror(errno) : TIP_("insufficient content"));
-      return NULL;
-    }
-    else {
-      lseek(file, 0, SEEK_SET);
-    }
-
-    /* Regular file. */
-    if (memcmp(header, "BLENDER", sizeof(header)) == 0) {
-      read_fn = fd_read_data_from_file;
-      seek_fn = fd_seek_data_from_file;
-    }
-
-    /* Gzip file. */
-    errno = 0;
-    if ((read_fn == NULL) &&
-        /* Check header magic. */
-        (header[0] == 0x1f && header[1] == 0x8b)) {
-      gzfile = BLI_gzopen(filepath, "rb");
-      if (gzfile == (gzFile)Z_NULL) {
-        BKE_reportf(reports,
-                    RPT_WARNING,
-                    "Unable to open '%s': %s",
-                    filepath,
-                    errno ? strerror(errno) : TIP_("unknown error reading file"));
-        return NULL;
-      }
-      else {
-        /* 'seek_fn' is too slow for gzip, don't set it. */
-        read_fn = fd_read_gzip_from_file;
-        /* Caller must close. */
-        file = -1;
-      }
-    }
-
-    if (read_fn == NULL) {
-      BKE_reportf(reports, RPT_WARNING, "Unrecognized file format '%s'", filepath);
+                  errno ? strerror(errno) : TIP_("unknown error reading file"));
       return NULL;
     }
 
-    FileData *fd = filedata_new();
+    /* 'seek_fn' is too slow for gzip, don't set it. */
+    read_fn = fd_read_gzip_from_file;
+    /* Caller must close. */
+    file = -1;
+  }
 
-    fd->filedes = file;
-    fd->gzfiledes = gzfile;
+  if (read_fn == NULL) {
+    BKE_reportf(reports, RPT_WARNING, "Unrecognized file format '%s'", filepath);
+    return NULL;
+  }
 
-    fd->read = read_fn;
-    fd->seek = seek_fn;
+  FileData *fd = filedata_new();
 
-    return fd;
+  fd->filedes = file;
+  fd->gzfiledes = gzfile;
+
+  fd->read = read_fn;
+  fd->seek = seek_fn;
+
+  return fd;
+
 #ifdef WITH_GAMEENGINE_BPPLAYER
   }
   else {
@@ -1511,7 +1509,7 @@ static int fd_read_gzip_from_memory(FileData *filedata,
   if (err == Z_STREAM_END) {
     return 0;
   }
-  else if (err != Z_OK) {
+  if (err != Z_OK) {
     printf("fd_read_gzip_from_memory: zlib error\n");
     return 0;
   }
@@ -1545,33 +1543,32 @@ FileData *blo_filedata_from_memory(const void *mem, int memsize, ReportList *rep
     BKE_report(reports, RPT_WARNING, (mem) ? TIP_("Unable to read") : TIP_("Unable to open"));
     return NULL;
   }
+
+  FileData *fd = filedata_new();
+  const char *cp = mem;
+
+  fd->buffer = mem;
+  fd->buffersize = memsize;
+
+  /* test if gzip */
+  if (cp[0] == 0x1f && cp[1] == 0x8b) {
+    if (0 == fd_read_gzip_from_memory_init(fd)) {
+      blo_filedata_free(fd);
+      return NULL;
+    }
+  }
   else {
-    FileData *fd = filedata_new();
-    const char *cp = mem;
+    fd->read = fd_read_from_memory;
+  }
 
-    fd->buffer = mem;
-    fd->buffersize = memsize;
-
-    /* test if gzip */
-    if (cp[0] == 0x1f && cp[1] == 0x8b) {
-      if (0 == fd_read_gzip_from_memory_init(fd)) {
-        blo_filedata_free(fd);
-        return NULL;
-      }
-    }
-    else {
-      fd->read = fd_read_from_memory;
-    }
-
-    fd->flags |= FD_FLAGS_NOT_MY_BUFFER;
+  fd->flags |= FD_FLAGS_NOT_MY_BUFFER;
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
     // Set local path before calling blo_decode_and_check.
     BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
 #endif
 
-    return blo_decode_and_check(fd, reports);
-  }
+  return blo_decode_and_check(fd, reports);
 }
 
 FileData *blo_filedata_from_memfile(MemFile *memfile,
@@ -1582,16 +1579,15 @@ FileData *blo_filedata_from_memfile(MemFile *memfile,
     BKE_report(reports, RPT_WARNING, "Unable to open blend <memory>");
     return NULL;
   }
-  else {
-    FileData *fd = filedata_new();
-    fd->memfile = memfile;
-    fd->undo_direction = params->undo_direction;
 
-    fd->read = fd_read_from_memfile;
-    fd->flags |= FD_FLAGS_NOT_MY_BUFFER;
+  FileData *fd = filedata_new();
+  fd->memfile = memfile;
+  fd->undo_direction = params->undo_direction;
 
-    return blo_decode_and_check(fd, reports);
-  }
+  fd->read = fd_read_from_memfile;
+  fd->flags |= FD_FLAGS_NOT_MY_BUFFER;
+
+  return blo_decode_and_check(fd, reports);
 }
 
 void blo_filedata_free(FileData *fd)
@@ -1724,7 +1720,7 @@ bool BLO_library_path_explode(const char *path, char *r_dir, char **r_group, cha
     if (BLO_has_bfile_extension(r_dir) && BLI_is_file(r_dir)) {
       break;
     }
-    else if (STREQ(r_dir, BLO_EMBEDDED_STARTUP_BLEND)) {
+    if (STREQ(r_dir, BLO_EMBEDDED_STARTUP_BLEND)) {
       break;
     }
 
@@ -9485,17 +9481,16 @@ static bool read_libblock_undo_restore(
     *r_id_old = id_old;
     return true;
   }
-  else if (id_old != NULL) {
+  if (id_old != NULL) {
     /* Local datablock was changed. Restore at the address of the old datablock. */
     DEBUG_PRINTF("read to old existing address\n");
     *r_id_old = id_old;
     return false;
   }
-  else {
-    /* Local datablock does not exist in the undo step, so read from scratch. */
-    DEBUG_PRINTF("read at new address\n");
-    return false;
-  }
+
+  /* Local datablock does not exist in the undo step, so read from scratch. */
+  DEBUG_PRINTF("read at new address\n");
+  return false;
 }
 
 /* This routine reads a datablock and its direct data, and advances bhead to
@@ -10269,7 +10264,7 @@ static int verg_bheadsort(const void *v1, const void *v2)
   if (x1->old > x2->old) {
     return 1;
   }
-  else if (x1->old < x2->old) {
+  if (x1->old < x2->old) {
     return -1;
   }
   return 0;

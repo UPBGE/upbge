@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BLI_STRING_REF_HH__
-#define __BLI_STRING_REF_HH__
+#pragma once
 
 /** \file
  * \ingroup bli
@@ -168,7 +167,7 @@ class StringRefNull : public StringRefBase {
   /**
    * Construct a StringRefNull from a null terminated c-string. The pointer must not point to NULL.
    */
-  StringRefNull(const char *str) : StringRefBase(str, (int64_t)strlen(str))
+  StringRefNull(const char *str) : StringRefBase(str, static_cast<int64_t>(strlen(str)))
   {
     BLI_assert(str != NULL);
     BLI_assert(data_[size_] == '\0');
@@ -180,7 +179,7 @@ class StringRefNull : public StringRefBase {
    */
   StringRefNull(const char *str, const int64_t size) : StringRefBase(str, size)
   {
-    BLI_assert((int64_t)strlen(str) == size);
+    BLI_assert(static_cast<int64_t>(strlen(str)) == size);
   }
 
   /**
@@ -232,7 +231,7 @@ class StringRef : public StringRefBase {
   /**
    * Create a StringRef from a null-terminated c-string.
    */
-  StringRef(const char *str) : StringRefBase(str, str ? (int64_t)strlen(str) : 0)
+  StringRef(const char *str) : StringRefBase(str, str ? static_cast<int64_t>(strlen(str)) : 0)
   {
   }
 
@@ -245,7 +244,7 @@ class StringRef : public StringRefBase {
    * second point points to a smaller address than the first one.
    */
   StringRef(const char *begin, const char *one_after_end)
-      : StringRefBase(begin, (int64_t)(one_after_end - begin))
+      : StringRefBase(begin, static_cast<int64_t>(one_after_end - begin))
   {
     BLI_assert(begin <= one_after_end);
   }
@@ -254,7 +253,7 @@ class StringRef : public StringRefBase {
    * Reference a std::string. Remember that when the std::string is destructed, the StringRef
    * will point to uninitialized memory.
    */
-  StringRef(const std::string &str) : StringRefBase(str.data(), (int64_t)str.size())
+  StringRef(const std::string &str) : StringRefBase(str.data(), static_cast<int64_t>(str.size()))
   {
   }
 
@@ -371,5 +370,3 @@ inline StringRef StringRefBase::substr(const int64_t start, const int64_t size) 
 }
 
 }  // namespace blender
-
-#endif /* __BLI_STRING_REF_HH__ */

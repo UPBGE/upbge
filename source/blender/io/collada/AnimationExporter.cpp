@@ -230,7 +230,7 @@ void AnimationExporter::export_matrix_animation(Object *ob, BCAnimationSampler &
       std::string name = encode_xml(id_name(ob));
       std::string action_name = (action == NULL) ? name + "-action" : id_name(action);
       std::string channel_type = "transform";
-      std::string axis = "";
+      std::string axis;
       std::string id = bc_get_action_id(action_name, name, channel_type, axis);
 
       std::string target = translate_id(name) + '/' + channel_type;
@@ -395,15 +395,15 @@ bool AnimationExporter::is_bone_deform_group(Bone *bone)
     return true;
   }
   /* Check child bones */
-  else {
-    for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
-      /* loop through all the children until deform bone is found, and then return */
-      is_def = is_bone_deform_group(child);
-      if (is_def) {
-        return true;
-      }
+
+  for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
+    /* loop through all the children until deform bone is found, and then return */
+    is_def = is_bone_deform_group(child);
+    if (is_def) {
+      return true;
     }
   }
+
   /* no deform bone found in children also */
   return false;
 }
@@ -840,12 +840,11 @@ std::string AnimationExporter::get_collada_sid(const BCAnimationCurve &curve,
     if (is_angle) {
       return tm_name + std::string(axis_name) + ".ANGLE";
     }
-    else if (!axis_name.empty()) {
+    if (!axis_name.empty()) {
       return tm_name + "." + std::string(axis_name);
     }
-    else {
-      return tm_name;
-    }
+
+    return tm_name;
   }
 
   return tm_name;

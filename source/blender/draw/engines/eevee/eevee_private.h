@@ -20,8 +20,7 @@
  * \ingroup DNA
  */
 
-#ifndef __EEVEE_PRIVATE_H__
-#define __EEVEE_PRIVATE_H__
+#pragma once
 
 #include "DRW_render.h"
 
@@ -1409,5 +1408,3 @@ void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __EEVEE_PRIVATE_H__ */

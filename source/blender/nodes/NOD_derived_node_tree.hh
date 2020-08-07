@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __NOD_DERIVED_NODE_TREE_HH__
-#define __NOD_DERIVED_NODE_TREE_HH__
+#pragma once
 
 /** \file
  * \ingroup nodes
@@ -266,12 +265,12 @@ inline const DSocket &DSocket::as_base() const
 
 inline const DInputSocket &DSocket::as_input() const
 {
-  return *(DInputSocket *)this;
+  return static_cast<const DInputSocket &>(*this);
 }
 
 inline const DOutputSocket &DSocket::as_output() const
 {
-  return *(DOutputSocket *)this;
+  return static_cast<const DOutputSocket &>(*this);
 }
 
 inline PointerRNA *DSocket::rna() const
@@ -506,5 +505,3 @@ inline Span<const DGroupInput *> DerivedNodeTree::group_inputs() const
 }
 
 }  // namespace blender::nodes
-
-#endif /* __NOD_DERIVED_NODE_TREE_HH__ */

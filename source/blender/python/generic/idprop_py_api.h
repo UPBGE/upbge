@@ -18,8 +18,7 @@
  * \ingroup pygen
  */
 
-#ifndef __IDPROP_PY_API_H__
-#define __IDPROP_PY_API_H__
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -73,8 +72,7 @@ PyObject *BPyInit_idprop(void);
 #define IDPROP_ITER_KEYS 0
 #define IDPROP_ITER_ITEMS 1
 
+
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __IDPROP_PY_API_H__ */

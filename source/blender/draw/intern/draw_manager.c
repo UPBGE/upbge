@@ -792,9 +792,8 @@ DrawDataList *DRW_drawdatalist_from_id(ID *id)
     IdDdtTemplate *idt = (IdDdtTemplate *)id;
     return &idt->drawdata;
   }
-  else {
-    return NULL;
-  }
+
+  return NULL;
 }
 
 DrawData *DRW_drawdata_get(ID *id, DrawEngineType *engine_type)
@@ -2050,7 +2049,7 @@ void DRW_draw_select_loop(struct Depsgraph *depsgraph,
     }
   }
 
-  int viewport_size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
+  const int viewport_size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
   struct GPUViewport *viewport = GPU_viewport_create();
   GPU_viewport_size_set(viewport, viewport_size);
 

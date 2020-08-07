@@ -18,8 +18,7 @@
  * \ingroup pymathutils
  */
 
-#ifndef __MATHUTILS_VECTOR_H__
-#define __MATHUTILS_VECTOR_H__
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,8 +52,7 @@ PyObject *Vector_CreatePyObject_alloc(float *vec,
                                       PyTypeObject *base_type) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1);
 
+
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __MATHUTILS_VECTOR_H__ */

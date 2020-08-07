@@ -207,7 +207,7 @@ static bool wm_draw_region_stereo_set(Main *bmain,
       if (region->regiontype == RGN_TYPE_PREVIEW) {
         return true;
       }
-      else if (region->regiontype == RGN_TYPE_WINDOW) {
+      if (region->regiontype == RGN_TYPE_WINDOW) {
         return (sseq->draw_flag & SEQ_DRAW_BACKDROP) != 0;
       }
     }
@@ -520,9 +520,7 @@ GPUTexture *wm_draw_region_texture(ARegion *region, int view)
   if (viewport) {
     return GPU_viewport_color_texture(viewport, view);
   }
-  else {
-    return GPU_offscreen_color_texture(region->draw_buffer->offscreen);
-  }
+  return GPU_offscreen_color_texture(region->draw_buffer->offscreen);
 }
 
 void wm_draw_region_blend(ARegion *region, int view, bool blend)
@@ -572,8 +570,8 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
   }
 
   /* Not the same layout as rectf/recti. */
-  float rectt[4] = {rect_tex.xmin, rect_tex.ymin, rect_tex.xmax, rect_tex.ymax};
-  float rectg[4] = {rect_geo.xmin, rect_geo.ymin, rect_geo.xmax, rect_geo.ymax};
+  const float rectt[4] = {rect_tex.xmin, rect_tex.ymin, rect_tex.xmax, rect_tex.ymax};
+  const float rectg[4] = {rect_geo.xmin, rect_geo.ymin, rect_geo.xmax, rect_geo.ymax};
 
   if (blend) {
     /* GL_ONE because regions drawn offscreen have premultiplied alpha. */

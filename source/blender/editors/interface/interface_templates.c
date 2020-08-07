@@ -5189,6 +5189,7 @@ void uiTemplateColorPicker(uiLayout *layout,
   uiBlock *block = uiLayoutGetBlock(layout);
   uiLayout *col, *row;
   uiBut *but = NULL;
+  uiButHSVCube *hsv_but;
   ColorPicker *cpicker = ui_block_colorpicker_create(block);
   float softmin, softmax, step, precision;
 
@@ -5204,58 +5205,36 @@ void uiTemplateColorPicker(uiLayout *layout,
 
   switch (U.color_picker_type) {
     case USER_CP_SQUARE_SV:
-      but = uiDefButR_prop(block,
-                           UI_BTYPE_HSVCUBE,
-                           0,
-                           "",
-                           0,
-                           0,
-                           WHEEL_SIZE,
-                           WHEEL_SIZE,
-                           ptr,
-                           prop,
-                           -1,
-                           0.0,
-                           0.0,
-                           UI_GRAD_SV,
-                           0,
-                           "");
-      break;
     case USER_CP_SQUARE_HS:
-      but = uiDefButR_prop(block,
-                           UI_BTYPE_HSVCUBE,
-                           0,
-                           "",
-                           0,
-                           0,
-                           WHEEL_SIZE,
-                           WHEEL_SIZE,
-                           ptr,
-                           prop,
-                           -1,
-                           0.0,
-                           0.0,
-                           UI_GRAD_HS,
-                           0,
-                           "");
-      break;
     case USER_CP_SQUARE_HV:
-      but = uiDefButR_prop(block,
-                           UI_BTYPE_HSVCUBE,
-                           0,
-                           "",
-                           0,
-                           0,
-                           WHEEL_SIZE,
-                           WHEEL_SIZE,
-                           ptr,
-                           prop,
-                           -1,
-                           0.0,
-                           0.0,
-                           UI_GRAD_HV,
-                           0,
-                           "");
+      hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
+                                               UI_BTYPE_HSVCUBE,
+                                               0,
+                                               "",
+                                               0,
+                                               0,
+                                               WHEEL_SIZE,
+                                               WHEEL_SIZE,
+                                               ptr,
+                                               prop,
+                                               -1,
+                                               0.0,
+                                               0.0,
+                                               0,
+                                               0,
+                                               "");
+      switch (U.color_picker_type) {
+        case USER_CP_SQUARE_SV:
+          hsv_but->gradient_type = UI_GRAD_SV;
+          break;
+        case USER_CP_SQUARE_HS:
+          hsv_but->gradient_type = UI_GRAD_HS;
+          break;
+        case USER_CP_SQUARE_HV:
+          hsv_but->gradient_type = UI_GRAD_HV;
+          break;
+      }
+      but = &hsv_but->but;
       break;
 
     /* user default */
@@ -5298,105 +5277,110 @@ void uiTemplateColorPicker(uiLayout *layout,
     switch (U.color_picker_type) {
       case USER_CP_CIRCLE_HSL:
         uiItemS(row);
-        but = uiDefButR_prop(block,
-                             UI_BTYPE_HSVCUBE,
-                             0,
-                             "",
-                             WHEEL_SIZE + 6,
-                             0,
-                             14 * UI_DPI_FAC,
-                             WHEEL_SIZE,
-                             ptr,
-                             prop,
-                             -1,
-                             softmin,
-                             softmax,
-                             UI_GRAD_L_ALT,
-                             0,
-                             "");
+        hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
+                                                 UI_BTYPE_HSVCUBE,
+                                                 0,
+                                                 "",
+                                                 WHEEL_SIZE + 6,
+                                                 0,
+                                                 14 * UI_DPI_FAC,
+                                                 WHEEL_SIZE,
+                                                 ptr,
+                                                 prop,
+                                                 -1,
+                                                 softmin,
+                                                 softmax,
+                                                 0,
+                                                 0,
+                                                 "");
+        hsv_but->gradient_type = UI_GRAD_L_ALT;
         break;
       case USER_CP_SQUARE_SV:
         uiItemS(col);
-        but = uiDefButR_prop(block,
-                             UI_BTYPE_HSVCUBE,
-                             0,
-                             "",
-                             0,
-                             4,
-                             WHEEL_SIZE,
-                             18 * UI_DPI_FAC,
-                             ptr,
-                             prop,
-                             -1,
-                             softmin,
-                             softmax,
-                             UI_GRAD_SV + 3,
-                             0,
-                             "");
+        hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
+                                                 UI_BTYPE_HSVCUBE,
+                                                 0,
+                                                 "",
+                                                 0,
+                                                 4,
+                                                 WHEEL_SIZE,
+                                                 18 * UI_DPI_FAC,
+                                                 ptr,
+                                                 prop,
+                                                 -1,
+                                                 softmin,
+                                                 softmax,
+                                                 0,
+                                                 0,
+                                                 "");
+        hsv_but->gradient_type = UI_GRAD_SV + 3;
         break;
       case USER_CP_SQUARE_HS:
         uiItemS(col);
-        but = uiDefButR_prop(block,
-                             UI_BTYPE_HSVCUBE,
-                             0,
-                             "",
-                             0,
-                             4,
-                             WHEEL_SIZE,
-                             18 * UI_DPI_FAC,
-                             ptr,
-                             prop,
-                             -1,
-                             softmin,
-                             softmax,
-                             UI_GRAD_HS + 3,
-                             0,
-                             "");
+        hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
+                                                 UI_BTYPE_HSVCUBE,
+                                                 0,
+                                                 "",
+                                                 0,
+                                                 4,
+                                                 WHEEL_SIZE,
+                                                 18 * UI_DPI_FAC,
+                                                 ptr,
+                                                 prop,
+                                                 -1,
+                                                 softmin,
+                                                 softmax,
+                                                 0,
+                                                 0,
+                                                 "");
+        hsv_but->gradient_type = UI_GRAD_HS + 3;
         break;
       case USER_CP_SQUARE_HV:
         uiItemS(col);
-        but = uiDefButR_prop(block,
-                             UI_BTYPE_HSVCUBE,
-                             0,
-                             "",
-                             0,
-                             4,
-                             WHEEL_SIZE,
-                             18 * UI_DPI_FAC,
-                             ptr,
-                             prop,
-                             -1,
-                             softmin,
-                             softmax,
-                             UI_GRAD_HV + 3,
-                             0,
-                             "");
+        hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
+                                                 UI_BTYPE_HSVCUBE,
+                                                 0,
+                                                 "",
+                                                 0,
+                                                 4,
+                                                 WHEEL_SIZE,
+                                                 18 * UI_DPI_FAC,
+                                                 ptr,
+                                                 prop,
+                                                 -1,
+                                                 softmin,
+                                                 softmax,
+                                                 0,
+                                                 0,
+                                                 "");
+        hsv_but->gradient_type = UI_GRAD_HV + 3;
         break;
 
       /* user default */
       case USER_CP_CIRCLE_HSV:
       default:
         uiItemS(row);
-        but = uiDefButR_prop(block,
-                             UI_BTYPE_HSVCUBE,
-                             0,
-                             "",
-                             WHEEL_SIZE + 6,
-                             0,
-                             14 * UI_DPI_FAC,
-                             WHEEL_SIZE,
-                             ptr,
-                             prop,
-                             -1,
-                             softmin,
-                             softmax,
-                             UI_GRAD_V_ALT,
-                             0,
-                             "");
+        hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
+                                                 UI_BTYPE_HSVCUBE,
+                                                 0,
+                                                 "",
+                                                 WHEEL_SIZE + 6,
+                                                 0,
+                                                 14 * UI_DPI_FAC,
+                                                 WHEEL_SIZE,
+                                                 ptr,
+                                                 prop,
+                                                 -1,
+                                                 softmin,
+                                                 softmax,
+                                                 0,
+                                                 0,
+                                                 "");
+        hsv_but->gradient_type = UI_GRAD_V_ALT;
         break;
     }
 
-    but->custom_data = cpicker;
+    hsv_but->but.custom_data = cpicker;
   }
 }
 
@@ -5513,22 +5497,24 @@ void uiTemplatePalette(uiLayout *layout,
     }
 
     RNA_pointer_create(&palette->id, &RNA_PaletteColor, color, &color_ptr);
-    uiDefButR(block,
-              UI_BTYPE_COLOR,
-              0,
-              "",
-              0,
-              0,
-              UI_UNIT_X,
-              UI_UNIT_Y,
-              &color_ptr,
-              "color",
-              -1,
-              0.0,
-              1.0,
-              UI_PALETTE_COLOR,
-              col_id,
-              "");
+    uiButColor *color_but = (uiButColor *)uiDefButR(block,
+                                                    UI_BTYPE_COLOR,
+                                                    0,
+                                                    "",
+                                                    0,
+                                                    0,
+                                                    UI_UNIT_X,
+                                                    UI_UNIT_Y,
+                                                    &color_ptr,
+                                                    "color",
+                                                    -1,
+                                                    0.0,
+                                                    1.0,
+                                                    0.0,
+                                                    0.0,
+                                                    "");
+    color_but->is_pallete_color = true;
+    color_but->palette_color_index = col_id;
     row_cols++;
     col_id++;
   }
@@ -6301,7 +6287,7 @@ void uiTemplateList(uiLayout *layout,
   switch (layout_type) {
     case UILST_LAYOUT_DEFAULT:
       /* layout */
-      box = uiLayoutListBox(layout, ui_list, dataptr, prop, active_dataptr, activeprop);
+      box = uiLayoutListBox(layout, ui_list, active_dataptr, activeprop);
       glob = uiLayoutColumn(box, true);
       row = uiLayoutRow(glob, false);
       col = uiLayoutColumn(row, true);
@@ -6439,7 +6425,7 @@ void uiTemplateList(uiLayout *layout,
       }
       break;
     case UILST_LAYOUT_GRID:
-      box = uiLayoutListBox(layout, ui_list, dataptr, prop, active_dataptr, activeprop);
+      box = uiLayoutListBox(layout, ui_list, active_dataptr, activeprop);
       glob = uiLayoutColumn(box, true);
       row = uiLayoutRow(glob, false);
       col = uiLayoutColumn(row, true);
@@ -6880,22 +6866,24 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
       struct ProgressTooltip_Store *tip_arg = MEM_mallocN(sizeof(*tip_arg), __func__);
       tip_arg->wm = wm;
       tip_arg->owner = owner;
-      uiBut *but_progress = uiDefIconTextBut(block,
-                                             UI_BTYPE_PROGRESS_BAR,
-                                             0,
-                                             0,
-                                             text,
-                                             UI_UNIT_X,
-                                             0,
-                                             UI_UNIT_X * 6.0f,
-                                             UI_UNIT_Y,
-                                             NULL,
-                                             0.0f,
-                                             0.0f,
-                                             progress,
-                                             0,
-                                             NULL);
-      UI_but_func_tooltip_set(but_progress, progress_tooltip_func, tip_arg);
+      uiButProgressbar *but_progress = (uiButProgressbar *)uiDefIconTextBut(block,
+                                                                            UI_BTYPE_PROGRESS_BAR,
+                                                                            0,
+                                                                            0,
+                                                                            text,
+                                                                            UI_UNIT_X,
+                                                                            0,
+                                                                            UI_UNIT_X * 6.0f,
+                                                                            UI_UNIT_Y,
+                                                                            NULL,
+                                                                            0.0f,
+                                                                            0.0f,
+                                                                            0.0f,
+                                                                            0,
+                                                                            NULL);
+
+      but_progress->progress = progress;
+      UI_but_func_tooltip_set(&but_progress->but, progress_tooltip_func, tip_arg);
     }
 
     if (!wm->is_interface_locked) {

@@ -1051,7 +1051,7 @@ static int sb_detect_aabb_collisionCached(float UNUSED(force[3]),
 /* --- the aabb section*/
 
 /* +++ the face external section*/
-static int sb_detect_face_pointCached(float face_v1[3],
+static int sb_detect_face_pointCached(const float face_v1[3],
                                       const float face_v2[3],
                                       const float face_v3[3],
                                       float *damp,
@@ -1149,7 +1149,7 @@ static int sb_detect_face_pointCached(float face_v1[3],
   return deflected;
 }
 
-static int sb_detect_face_collisionCached(float face_v1[3],
+static int sb_detect_face_collisionCached(const float face_v1[3],
                                           const float face_v2[3],
                                           const float face_v3[3],
                                           float *damp,
@@ -1328,7 +1328,7 @@ static void scan_for_ext_face_forces(Object *ob, float timenow)
 
 /* +++ the spring external section*/
 
-static int sb_detect_edge_collisionCached(float edge_v1[3],
+static int sb_detect_edge_collisionCached(const float edge_v1[3],
                                           const float edge_v2[3],
                                           float *damp,
                                           float force[3],
@@ -3211,12 +3211,11 @@ static int object_has_edges(Object *ob)
   if (ob->type == OB_MESH) {
     return ((Mesh *)ob->data)->totedge;
   }
-  else if (ob->type == OB_LATTICE) {
+  if (ob->type == OB_LATTICE) {
     return 1;
   }
-  else {
-    return 0;
-  }
+
+  return 0;
 }
 
 /* SB global visible functions */
@@ -3563,7 +3562,7 @@ void sbObjectStep(struct Depsgraph *depsgraph,
     BKE_ptcache_invalidate(cache);
     return;
   }
-  else if (framenr > endframe) {
+  if (framenr > endframe) {
     framenr = endframe;
   }
 
@@ -3631,7 +3630,7 @@ void sbObjectStep(struct Depsgraph *depsgraph,
 
     return;
   }
-  else if (cache_result == PTCACHE_READ_OLD) {
+  if (cache_result == PTCACHE_READ_OLD) {
     /* pass */
   }
   else if (/*ob->id.lib || */

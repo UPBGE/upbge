@@ -21,8 +21,7 @@
  * \ingroup pybmesh
  */
 
-#ifndef __BMESH_PY_API_H__
-#define __BMESH_PY_API_H__
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,8 +29,7 @@ extern "C" {
 
 PyObject *BPyInit_bmesh(void);
 
+
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BMESH_PY_API_H__ */

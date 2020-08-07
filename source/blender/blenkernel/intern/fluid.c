@@ -533,14 +533,14 @@ static bool BKE_fluid_modifier_init(
     /* Allocate fluid. */
     return BKE_fluid_reallocate_fluid(fds, fds->res, 0);
   }
-  else if (fmd->type & MOD_FLUID_TYPE_FLOW) {
+  if (fmd->type & MOD_FLUID_TYPE_FLOW) {
     if (!fmd->flow) {
       BKE_fluid_modifier_create_type_data(fmd);
     }
     fmd->time = scene_framenr;
     return true;
   }
-  else if (fmd->type & MOD_FLUID_TYPE_EFFEC) {
+  if (fmd->type & MOD_FLUID_TYPE_EFFEC) {
     if (!fmd->effector) {
       BKE_fluid_modifier_create_type_data(fmd);
     }
@@ -575,7 +575,7 @@ static int get_light(ViewLayer *view_layer, float *light)
         copy_v3_v3(light, base_tmp->object->obmat[3]);
         return 1;
       }
-      else if (!found_light) {
+      if (!found_light) {
         copy_v3_v3(light, base_tmp->object->obmat[3]);
         found_light = 1;
       }
@@ -655,7 +655,7 @@ typedef struct FluidObjectBB {
   int total_cells, valid;
 } FluidObjectBB;
 
-static void bb_boundInsert(FluidObjectBB *bb, float point[3])
+static void bb_boundInsert(FluidObjectBB *bb, const float point[3])
 {
   int i = 0;
   if (!bb->valid) {
@@ -955,7 +955,7 @@ static void obstacles_from_mesh_task_cb(void *__restrict userdata,
     for (int y = data->min[1]; y < data->max[1]; y++) {
       const int index = manta_get_index(
           x - bb->min[0], bb->res[0], y - bb->min[1], bb->res[1], z - bb->min[2]);
-      float ray_start[3] = {(float)x + 0.5f, (float)y + 0.5f, (float)z + 0.5f};
+      const float ray_start[3] = {(float)x + 0.5f, (float)y + 0.5f, (float)z + 0.5f};
 
       /* Calculate object velocities. Result in bb->velocity. */
       sample_effector(data->fes,

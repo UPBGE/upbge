@@ -21,8 +21,7 @@
  * \ingroup gpu
  */
 
-#ifndef __GPU_SHADER_H__
-#define __GPU_SHADER_H__
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -386,5 +385,3 @@ int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __GPU_SHADER_H__ */

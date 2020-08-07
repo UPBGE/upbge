@@ -1201,7 +1201,7 @@ static void do_version_fcurve_hide_viewport_fix(struct ID *UNUSED(id),
                                                 struct FCurve *fcu,
                                                 void *UNUSED(user_data))
 {
-  if (strcmp(fcu->rna_path, "hide")) {
+  if (strcmp(fcu->rna_path, "hide") != 0) {
     return;
   }
 
@@ -1792,6 +1792,7 @@ static void do_versions_seq_set_cache_defaults(Editing *ed)
   ed->recycle_max_cost = 10.0f;
 }
 
+/* NOLINTNEXTLINE: readability-function-size */
 void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 {
   bool use_collection_compat_28 = true;

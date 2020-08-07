@@ -277,7 +277,7 @@ void OVERLAY_extra_wire(OVERLAY_ExtraCallBuffers *cb,
                         const float color[4])
 {
   float draw_mat[4][4];
-  float col[4] = {UNPACK3(color), 0.0f /* No stipples. */};
+  const float col[4] = {UNPACK3(color), 0.0f /* No stipples. */};
   pack_v4_in_mat4(draw_mat, mat, col);
   DRW_shgroup_call_obmat(cb->extra_wire, geom, draw_mat);
 }
@@ -699,8 +699,8 @@ void OVERLAY_light_cache_populate(OVERLAY_Data *vedata, Object *ob)
     DRW_buffer_add_entry(cb->light_spot, color, &instdata);
 
     if ((la->mode & LA_SHOW_CONE) && !DRW_state_is_select()) {
-      float color_inside[4] = {0.0f, 0.0f, 0.0f, 0.5f};
-      float color_outside[4] = {1.0f, 1.0f, 1.0f, 0.3f};
+      const float color_inside[4] = {0.0f, 0.0f, 0.0f, 0.5f};
+      const float color_outside[4] = {1.0f, 1.0f, 1.0f, 0.3f};
       DRW_buffer_add_entry(cb->light_spot_cone_front, color_inside, &instdata);
       DRW_buffer_add_entry(cb->light_spot_cone_back, color_outside, &instdata);
     }
@@ -1038,9 +1038,8 @@ static float camera_offaxis_shiftx_get(Scene *scene,
     const float width = instdata->corner_x * 2.0f;
     return delta_shiftx * width;
   }
-  else {
-    return 0.0;
-  }
+
+  return 0.0;
 }
 /**
  * Draw the stereo 3d support elements (cameras, plane, volume).
@@ -1560,7 +1559,7 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
   }
   /* Helpers for when we're transforming origins. */
   if (draw_xform) {
-    float color_xform[4] = {0.15f, 0.15f, 0.15f, 0.7f};
+    const float color_xform[4] = {0.15f, 0.15f, 0.15f, 0.7f};
     DRW_buffer_add_entry(cb->origin_xform, color_xform, ob->obmat);
   }
   /* don't show object extras in set's */

@@ -21,8 +21,7 @@
  * \ingroup wm
  */
 
-#ifndef __WM_WINDOW_H__
-#define __WM_WINDOW_H__
+#pragma once
 
 struct wmOperator;
 
@@ -101,5 +100,3 @@ void wm_window_ghostwindow_embedded_ensure(struct wmWindowManager *wm, struct wm
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __WM_WINDOW_H__ */

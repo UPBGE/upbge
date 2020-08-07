@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BLI_COLOR_HH__
-#define __BLI_COLOR_HH__
+#pragma once
 
 #include <iostream>
 
@@ -64,10 +63,10 @@ struct Color4f {
 
   uint64_t hash() const
   {
-    uint64_t x1 = *(uint32_t *)&r;
-    uint64_t x2 = *(uint32_t *)&g;
-    uint64_t x3 = *(uint32_t *)&b;
-    uint64_t x4 = *(uint32_t *)&a;
+    uint64_t x1 = *reinterpret_cast<const uint32_t *>(&r);
+    uint64_t x2 = *reinterpret_cast<const uint32_t *>(&g);
+    uint64_t x3 = *reinterpret_cast<const uint32_t *>(&b);
+    uint64_t x4 = *reinterpret_cast<const uint32_t *>(&a);
     return (x1 * 1283591) ^ (x2 * 850177) ^ (x3 * 735391) ^ (x4 * 442319);
   }
 };
@@ -121,11 +120,9 @@ struct Color4b {
 
   uint64_t hash() const
   {
-    return ((uint64_t)r * 1283591) ^ ((uint64_t)g * 850177) ^ ((uint64_t)b * 735391) ^
-           ((uint64_t)a * 442319);
+    return static_cast<uint64_t>(r * 1283591) ^ static_cast<uint64_t>(g * 850177) ^
+           static_cast<uint64_t>(b * 735391) ^ static_cast<uint64_t>(a * 442319);
   }
 };
 
 }  // namespace blender
-
-#endif /* __BLI_COLOR_HH__ */

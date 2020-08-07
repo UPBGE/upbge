@@ -863,7 +863,7 @@ static void eevee_lightbake_cache_create(EEVEE_Data *vedata, EEVEE_LightBake *lb
 
   /* HACK: set txl->color but unset it before Draw Manager frees it. */
   txl->color = lbake->rt_color;
-  int viewport_size[2] = {
+  const int viewport_size[2] = {
       GPU_texture_width(txl->color),
       GPU_texture_height(txl->color),
   };
@@ -1021,9 +1021,8 @@ static void compute_cell_id(EEVEE_LightGrid *egrid,
           if (visited_cells == cell_idx) {
             return;
           }
-          else {
-            visited_cells++;
-          }
+
+          visited_cells++;
         }
       }
     }
@@ -1032,7 +1031,7 @@ static void compute_cell_id(EEVEE_LightGrid *egrid,
   BLI_assert(0);
 }
 
-static void grid_loc_to_world_loc(EEVEE_LightGrid *egrid, int local_cell[3], float r_pos[3])
+static void grid_loc_to_world_loc(EEVEE_LightGrid *egrid, const int local_cell[3], float r_pos[3])
 {
   copy_v3_v3(r_pos, egrid->corner);
   madd_v3_v3fl(r_pos, egrid->increment_x, local_cell[0]);

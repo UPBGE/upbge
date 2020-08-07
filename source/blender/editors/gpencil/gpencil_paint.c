@@ -362,7 +362,7 @@ static void gpencil_get_3d_reference(tGPsdata *p, float vec[3])
 
 /* Stroke Editing ---------------------------- */
 /* check if the current mouse position is suitable for adding a new point */
-static bool gpencil_stroke_filtermval(tGPsdata *p, const float mval[2], float mvalo[2])
+static bool gpencil_stroke_filtermval(tGPsdata *p, const float mval[2], const float mvalo[2])
 {
   Brush *brush = p->brush;
   int dx = (int)fabsf(mval[0] - mvalo[0]);
@@ -519,7 +519,7 @@ static void gpencil_brush_angle(bGPdata *gpd, Brush *brush, tGPspoint *pt, const
   /* default angle of brush in radians */
   float angle = brush->gpencil_settings->draw_angle;
   /* angle vector of the brush with full thickness */
-  float v0[2] = {cos(angle), sin(angle)};
+  const float v0[2] = {cos(angle), sin(angle)};
 
   /* Apply to first point (only if there are 2 points because before no data to do it ) */
   if (gpd->runtime.sbuffer_used == 1) {
@@ -3247,7 +3247,7 @@ static void gpencil_brush_angle_segment(tGPsdata *p, tGPspoint *pt_prev, tGPspoi
   float fac;
 
   /* angle vector of the brush with full thickness */
-  float v0[2] = {cos(angle), sin(angle)};
+  const float v0[2] = {cos(angle), sin(angle)};
 
   mvec[0] = pt->x - pt_prev->x;
   mvec[1] = pt->y - pt_prev->y;
@@ -3269,7 +3269,7 @@ static void gpencil_brush_angle_segment(tGPsdata *p, tGPspoint *pt_prev, tGPspoi
  *  + PtA - 1
  * /
  * CTL is the vertice of the triangle created between PtA and PtB */
-static void gpencil_add_arc_points(tGPsdata *p, float mval[2], int segments)
+static void gpencil_add_arc_points(tGPsdata *p, const float mval[2], int segments)
 {
   bGPdata *gpd = p->gpd;
   BrushGpencilSettings *brush_settings = p->brush->gpencil_settings;

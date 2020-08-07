@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BLI_HASH_HH__
-#define __BLI_HASH_HH__
+#pragma once
 
 /** \file
  * \ingroup bli
@@ -111,7 +110,7 @@ template<typename T> struct DefaultHash<const T> {
   template<> struct DefaultHash<TYPE> { \
     uint64_t operator()(TYPE value) const \
     { \
-      return (uint64_t)value; \
+      return static_cast<uint64_t>(value); \
     } \
   }
 
@@ -136,14 +135,14 @@ TRIVIAL_DEFAULT_INT_HASH(uint64_t);
 template<> struct DefaultHash<float> {
   uint64_t operator()(float value) const
   {
-    return *(uint32_t *)&value;
+    return *reinterpret_cast<uint32_t *>(&value);
   }
 };
 
 template<> struct DefaultHash<bool> {
   uint64_t operator()(bool value) const
   {
-    return (uint64_t)(value != false) * 1298191;
+    return static_cast<uint64_t>((value != false) * 1298191);
   }
 };
 
@@ -187,8 +186,8 @@ template<> struct DefaultHash<StringRefNull> {
 template<typename T> struct DefaultHash<T *> {
   uint64_t operator()(const T *value) const
   {
-    uintptr_t ptr = (uintptr_t)value;
-    uint64_t hash = (uint64_t)(ptr >> 4);
+    uintptr_t ptr = reinterpret_cast<uintptr_t>(value);
+    uint64_t hash = static_cast<uint64_t>(ptr >> 4);
     return hash;
   }
 };
@@ -210,5 +209,3 @@ template<typename T1, typename T2> struct DefaultHash<std::pair<T1, T2>> {
 };
 
 }  // namespace blender
-
-#endif /* __BLI_HASH_HH__ */

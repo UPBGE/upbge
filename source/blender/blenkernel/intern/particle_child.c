@@ -305,10 +305,9 @@ static bool check_path_length(int k,
     /* something over the maximum step value */
     return false;
   }
-  else {
-    *cur_length += step_length;
-    return true;
-  }
+
+  *cur_length += step_length;
+  return true;
 }
 
 void psys_apply_child_modifiers(ParticleThreadContext *ctx,
@@ -685,7 +684,7 @@ static void do_rough(const float loc[3],
 }
 
 static void do_rough_end(
-    const float loc[3], float mat[4][4], float t, float fac, float shape, ParticleKey *state)
+    const float loc[3], const float mat[4][4], float t, float fac, float shape, ParticleKey *state)
 {
   float rough[2];
   float roughfac;

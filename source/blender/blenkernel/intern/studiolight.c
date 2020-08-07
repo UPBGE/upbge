@@ -366,23 +366,22 @@ static float *studiolight_multilayer_convert_pass(ImBuf *ibuf,
   if (channels == 4) {
     return rect;
   }
-  else {
-    float *new_rect = MEM_callocN(sizeof(float[4]) * ibuf->x * ibuf->y, __func__);
 
-    IMB_buffer_float_from_float(new_rect,
-                                rect,
-                                channels,
-                                IB_PROFILE_LINEAR_RGB,
-                                IB_PROFILE_LINEAR_RGB,
-                                false,
-                                ibuf->x,
-                                ibuf->y,
-                                ibuf->x,
-                                ibuf->x);
+  float *new_rect = MEM_callocN(sizeof(float[4]) * ibuf->x * ibuf->y, __func__);
 
-    MEM_freeN(rect);
-    return new_rect;
-  }
+  IMB_buffer_float_from_float(new_rect,
+                              rect,
+                              channels,
+                              IB_PROFILE_LINEAR_RGB,
+                              IB_PROFILE_LINEAR_RGB,
+                              false,
+                              ibuf->x,
+                              ibuf->y,
+                              ibuf->x,
+                              ibuf->x);
+
+  MEM_freeN(rect);
+  return new_rect;
 }
 
 static void studiolight_multilayer_addpass(void *base,
@@ -1229,12 +1228,11 @@ static int studiolight_cmp(const void *a, const void *b)
   if (flagorder1 < flagorder2) {
     return -1;
   }
-  else if (flagorder1 > flagorder2) {
+  if (flagorder1 > flagorder2) {
     return 1;
   }
-  else {
-    return BLI_strcasecmp(sl1->name, sl2->name);
-  }
+
+  return BLI_strcasecmp(sl1->name, sl2->name);
 }
 
 /* icons */
@@ -1245,7 +1243,7 @@ static int studiolight_cmp(const void *a, const void *b)
 static uint alpha_circle_mask(float u, float v, float inner_edge, float outer_edge)
 {
   /* Coords from center. */
-  float co[2] = {u - 0.5f, v - 0.5f};
+  const float co[2] = {u - 0.5f, v - 0.5f};
   float dist = len_v2(co);
   float alpha = 1.0f + (inner_edge - dist) / (outer_edge - inner_edge);
   uint mask = (uint)floorf(255.0f * min_ff(max_ff(alpha, 0.0f), 1.0f));
@@ -1277,7 +1275,7 @@ static void studiolight_radiance_preview(uint *icon_buffer, StudioLight *sl)
     uint alphamask = alpha_circle_mask(dx, dy, 0.5f - texel_size[0], 0.5f);
     if (alphamask != 0) {
       float normal[3], direction[3], color[4];
-      float incoming[3] = {0.0f, 0.0f, -1.0f};
+      const float incoming[3] = {0.0f, 0.0f, -1.0f};
       sphere_normal_from_uv(normal, dx, dy);
       reflect_v3_v3v3(direction, incoming, normal);
       /* We want to see horizon not poles. */
@@ -1496,10 +1494,9 @@ struct StudioLight *BKE_studiolight_find(const char *name, int flag)
       if ((sl->flag & flag)) {
         return sl;
       }
-      else {
-        /* flags do not match, so use default */
-        return BKE_studiolight_find_default(flag);
-      }
+
+      /* flags do not match, so use default */
+      return BKE_studiolight_find_default(flag);
     }
   }
   /* When not found, use the default studio light */

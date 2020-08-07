@@ -295,7 +295,7 @@ static bool quad_co(const float v1[3],
                     float r_uv[2])
 {
   float projverts[5][3], n2[3];
-  float origin[2] = {0.0f, 0.0f};
+  const float origin[2] = {0.0f, 0.0f};
   int i;
 
   /* project points into 2d along normal */
@@ -328,7 +328,7 @@ static bool quad_co(const float v1[3],
   return true;
 }
 
-static void mdisp_axis_from_quad(float v1[3],
+static void mdisp_axis_from_quad(const float v1[3],
                                  const float v2[3],
                                  float UNUSED(v3[3]),
                                  const float v4[3],

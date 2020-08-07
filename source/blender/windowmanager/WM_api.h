@@ -16,8 +16,7 @@
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
  */
-#ifndef __WM_API_H__
-#define __WM_API_H__
+#pragma once
 
 /** \file
  * \ingroup wm
@@ -910,5 +909,3 @@ void *WM_opengl_context_create_blenderplayer(void *syshandle);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __WM_API_H__ */

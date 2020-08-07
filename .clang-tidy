@@ -12,12 +12,8 @@ Checks:  >
 
   -readability-misleading-indentation,
 
-  -readability-else-after-return,
   -readability-inconsistent-declaration-parameter-name,
   -readability-redundant-preprocessor,
-  -readability-function-size,
-  -readability-function-size,
-  -readability-redundant-string-init,
   -readability-redundant-member-init,
   -readability-const-return-type,
   -readability-static-accessed-through-instance,
@@ -35,11 +31,6 @@ Checks:  >
   -bugprone-sizeof-expression,
   -bugprone-integer-division,
   -bugprone-incorrect-roundings,
-  -bugprone-suspicious-string-compare,
-  -bugprone-not-null-terminated-result,
-  -bugprone-suspicious-missing-comma,
-  -bugprone-parent-virtual-call,
-  -bugprone-infinite-loop,
   -bugprone-copy-constructor-init,
 
 WarningsAsErrors: '*'

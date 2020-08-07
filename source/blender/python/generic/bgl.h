@@ -18,8 +18,7 @@
  * \ingroup pygen
  */
 
-#ifndef __BGL_H__
-#define __BGL_H__
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,8 +56,7 @@ typedef struct _Buffer {
 /** The type object */
 extern PyTypeObject BGL_bufferType;
 
+
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BGL_H__ */

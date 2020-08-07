@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __FN_ATTRIBUTES_REF_HH__
-#define __FN_ATTRIBUTES_REF_HH__
+#pragma once
 
 /** \file
  * \ingroup fn
@@ -52,7 +51,7 @@ class AttributesInfoBuilder : NonCopyable, NonMovable {
 
   template<typename T> bool add(StringRef name, const T &default_value)
   {
-    return this->add(name, CPPType::get<T>(), (const void *)&default_value);
+    return this->add(name, CPPType::get<T>(), static_cast<const void *>(&default_value));
   }
 
   bool add(StringRef name, const CPPType &type, const void *default_value = nullptr);
@@ -108,7 +107,7 @@ class AttributesInfo : NonCopyable, NonMovable {
   template<typename T> const T &default_of(int index) const
   {
     BLI_assert(type_by_index_[index]->is<T>());
-    return *(T *)defaults_[index];
+    return *static_cast<T *>(defaults_[index]);
   }
 
   template<typename T> const T &default_of(StringRef name) const
@@ -204,7 +203,7 @@ class MutableAttributesRef {
   template<typename T> MutableSpan<T> get(int index) const
   {
     BLI_assert(info_->type_of(index).is<T>());
-    return MutableSpan<T>((T *)buffers_[index] + range_.start(), range_.size());
+    return MutableSpan<T>(static_cast<T *>(buffers_[index]) + range_.start(), range_.size());
   }
 
   template<typename T> MutableSpan<T> get(StringRef name) const
@@ -295,7 +294,7 @@ class AttributesRef {
   template<typename T> Span<T> get(int index) const
   {
     BLI_assert(info_->type_of(index).is<T>());
-    return Span<T>((T *)buffers_[index] + range_.start(), range_.size());
+    return Span<T>(static_cast<T *>(buffers_[index]) + range_.start(), range_.size());
   }
 
   template<typename T> Span<T> get(StringRef name) const
@@ -340,5 +339,3 @@ class AttributesRef {
 };
 
 }  // namespace blender::fn
-
-#endif /* __FN_ATTRIBUTES_REF_HH__ */

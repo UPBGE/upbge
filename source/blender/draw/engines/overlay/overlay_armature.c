@@ -601,7 +601,7 @@ static void drw_shgroup_bone_custom_empty(ArmatureDrawContext *ctx,
                                           const float color[4],
                                           Object *custom)
 {
-  float final_color[4] = {color[0], color[1], color[2], 1.0f};
+  const float final_color[4] = {color[0], color[1], color[2], 1.0f};
   float mat[4][4];
   mul_m4_m4m4(mat, ctx->ob->obmat, bone_mat);
 
@@ -924,12 +924,11 @@ static float get_bone_wire_thickness(const ArmatureDrawContext *ctx, int bonefla
   if (ctx->const_color) {
     return ctx->const_wire;
   }
-  else if (boneflag & (BONE_DRAW_ACTIVE | BONE_SELECTED)) {
+  if (boneflag & (BONE_DRAW_ACTIVE | BONE_SELECTED)) {
     return 2.0f;
   }
-  else {
-    return 1.0f;
-  }
+
+  return 1.0f;
 }
 
 static const float *get_bone_wire_color(const ArmatureDrawContext *ctx,
@@ -1079,7 +1078,7 @@ static void edbo_compute_bbone_child(bArmature *arm)
 }
 
 /* A version of BKE_pchan_bbone_spline_setup() for previewing editmode curve settings. */
-static void ebone_spline_preview(EditBone *ebone, float result_array[MAX_BBONE_SUBDIV][4][4])
+static void ebone_spline_preview(EditBone *ebone, const float result_array[MAX_BBONE_SUBDIV][4][4])
 {
   BBoneSplineParameters param;
   EditBone *prev, *next;
@@ -2219,13 +2218,13 @@ static bool POSE_is_driven_by_active_armature(Object *ob)
     }
     return is_active;
   }
-  else {
-    Object *ob_mesh_deform = BKE_modifiers_is_deformed_by_meshdeform(ob);
-    if (ob_mesh_deform) {
-      /* Recursive. */
-      return POSE_is_driven_by_active_armature(ob_mesh_deform);
-    }
+
+  Object *ob_mesh_deform = BKE_modifiers_is_deformed_by_meshdeform(ob);
+  if (ob_mesh_deform) {
+    /* Recursive. */
+    return POSE_is_driven_by_active_armature(ob_mesh_deform);
   }
+
   return false;
 }
 

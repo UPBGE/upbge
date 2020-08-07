@@ -114,7 +114,7 @@ static void find_nearest_tracking_segment_cb(void *userdata,
                                              float val)
 {
   MouseSelectUserData *data = userdata;
-  float co[2] = {scene_framenr, val};
+  const float co[2] = {scene_framenr, val};
 
   if (!clip_graph_value_visible(data->sc, value_source)) {
     return;
@@ -151,7 +151,7 @@ static void find_nearest_tracking_knot_cb(void *userdata,
                                           float val)
 {
   MouseSelectUserData *data = userdata;
-  float mdiff[2] = {scene_framenr - data->mouse_co[0], val - data->mouse_co[1]};
+  const float mdiff[2] = {scene_framenr - data->mouse_co[0], val - data->mouse_co[1]};
   float dist_sq = len_squared_v2(mdiff);
 
   if (!clip_graph_value_visible(data->sc, value_source)) {
@@ -159,7 +159,7 @@ static void find_nearest_tracking_knot_cb(void *userdata,
   }
 
   if (data->marker == NULL || dist_sq < data->min_dist_sq) {
-    float co[2] = {scene_framenr, val};
+    const float co[2] = {scene_framenr, val};
 
     data->track = track;
     data->marker = marker;
@@ -178,7 +178,7 @@ static void mouse_select_init_data(bContext *C, MouseSelectUserData *userdata, c
   copy_v2_v2(userdata->mouse_co, co);
 }
 
-static bool mouse_select_knot(bContext *C, float co[2], bool extend)
+static bool mouse_select_knot(bContext *C, const float co[2], bool extend)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -236,7 +236,7 @@ static bool mouse_select_knot(bContext *C, float co[2], bool extend)
   return false;
 }
 
-static bool mouse_select_curve(bContext *C, float co[2], bool extend)
+static bool mouse_select_curve(bContext *C, const float co[2], bool extend)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);

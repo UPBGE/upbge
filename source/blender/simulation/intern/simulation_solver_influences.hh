@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __SIM_SIMULATION_SOLVER_INFLUENCES_HH__
-#define __SIM_SIMULATION_SOLVER_INFLUENCES_HH__
+#pragma once
 
 #include "BLI_float3.hh"
 #include "BLI_float4x4.hh"
@@ -97,7 +96,7 @@ class SimulationStateMap {
   template<typename StateType> StateType *lookup(StringRef name) const
   {
     const char *type = BKE_simulation_get_state_type_name<StateType>();
-    return (StateType *)this->lookup_name_type(name, type);
+    return reinterpret_cast<StateType *>(this->lookup_name_type(name, type));
   }
 
   template<typename StateType> Span<StateType *> lookup() const
@@ -233,5 +232,3 @@ struct ParticleEventFilterContext {
 };
 
 }  // namespace blender::sim
-
-#endif /* __SIM_SIMULATION_SOLVER_INFLUENCES_HH__ */

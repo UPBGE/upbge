@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BLI_SET_HH__
-#define __BLI_SET_HH__
+#pragma once
 
 /** \file
  * \ingroup bli
@@ -557,7 +556,7 @@ class Set {
     max_load_factor_.compute_total_and_usable_slots(
         SlotArray::inline_buffer_capacity(), min_usable_slots, &total_slots, &usable_slots);
     BLI_assert(total_slots >= 1);
-    const uint64_t new_slot_mask = (uint64_t)total_slots - 1;
+    const uint64_t new_slot_mask = static_cast<uint64_t>(total_slots) - 1;
 
     /**
      * Optimize the case when the set was empty beforehand. We can avoid some copies here.
@@ -749,7 +748,7 @@ template<typename Key> class StdUnorderedSetWrapper {
  public:
   int64_t size() const
   {
-    return (int64_t)set_.size();
+    return static_cast<int64_t>(set_.size());
   }
 
   bool is_empty() const
@@ -831,5 +830,3 @@ template<typename Key,
 using RawSet = Set<Key, InlineBufferCapacity, ProbingStrategy, Hash, IsEqual, Slot, RawAllocator>;
 
 }  // namespace blender
-
-#endif /* __BLI_SET_HH__ */

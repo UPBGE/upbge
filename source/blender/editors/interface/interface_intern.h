@@ -21,8 +21,7 @@
  * \ingroup edinterface
  */
 
-#ifndef __INTERFACE_INTERN_H__
-#define __INTERFACE_INTERN_H__
+#pragma once
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_rect.h"
@@ -165,19 +164,11 @@ typedef struct {
   ListBase lines;
 } uiLink;
 
-struct uiButSearchData {
-  uiButSearchCreateFn create_fn;
-  uiButSearchUpdateFn update_fn;
-  void *arg;
-  uiButSearchArgFreeFn arg_free_fn;
-  uiButSearchContextMenuFn context_menu_fn;
-  uiButSearchTooltipFn tooltip_fn;
-
-  const char *sep_string;
-};
-
 struct uiBut {
   struct uiBut *next, *prev;
+
+  /* Pointer back to the layout item holding this button. */
+  uiLayout *layout;
   int flag, drawflag;
   eButType type;
   eButPointerType pointype;
@@ -198,13 +189,10 @@ struct uiBut {
 
   /**
    * For #uiBut.type:
-   * - UI_BTYPE_HSVCUBE:      Use UI_GRAD_* values.
    * - UI_BTYPE_NUM:          Use to store RNA 'step' value, for dragging and click-step.
    * - UI_BTYPE_LABEL:        Use `(a1 == 1.0f)` to use a2 as a blending factor (imaginative!).
    * - UI_BTYPE_SCROLL:       Use as scroll size.
    * - UI_BTYPE_SEARCH_MENU:  Use as number or rows.
-   * - UI_BTYPE_COLOR:        Use as indication of color palette.
-   * - UI_BTYPE_PROGRESS_BAR: Use to store progress (0..1).
    */
   float a1;
 
@@ -214,7 +202,6 @@ struct uiBut {
    * - UI_BTYPE_NUM:          Use to store RNA 'precision' value, for dragging and click-step.
    * - UI_BTYPE_LABEL:        If `(a1 == 1.0f)` use a2 as a blending factor.
    * - UI_BTYPE_SEARCH_MENU:  Use as number or columns.
-   * - UI_BTYPE_COLOR:        Use as index in palette (not so good, needs refactor).
    */
   float a2;
 
@@ -231,8 +218,6 @@ struct uiBut {
 
   uiButCompleteFunc autocomplete_func;
   void *autofunc_arg;
-
-  struct uiButSearchData *search;
 
   uiButHandleRenameFunc rename_func;
   void *rename_arg1;
@@ -277,9 +262,6 @@ struct uiBut {
   struct PropertyRNA *rnaprop;
   int rnaindex;
 
-  struct PointerRNA rnasearchpoin;
-  struct PropertyRNA *rnasearchprop;
-
   /* Operator data */
   struct wmOperatorType *optype;
   struct PointerRNA *opptr;
@@ -315,10 +297,61 @@ struct uiBut {
   uiBlock *block;
 };
 
+/** Derived struct for #UI_BTYPE_COLOR */
+typedef struct uiButColor {
+  uiBut but;
+
+  bool is_pallete_color;
+  int palette_color_index;
+} uiButColor;
+
+/** Derived struct for #UI_BTYPE_TAB */
 typedef struct uiButTab {
   uiBut but;
   struct MenuType *menu;
 } uiButTab;
+
+/** Derived struct for #UI_BTYPE_SEARCH_MENU */
+typedef struct uiButSearch {
+  uiBut but;
+
+  uiButSearchCreateFn popup_create_fn;
+  uiButSearchUpdateFn items_update_fn;
+  void *item_active;
+
+  void *arg;
+  uiButSearchArgFreeFn arg_free_fn;
+
+  uiButSearchContextMenuFn item_context_menu_fn;
+  uiButSearchTooltipFn item_tooltip_fn;
+
+  const char *item_sep_string;
+
+  struct PointerRNA rnasearchpoin;
+  struct PropertyRNA *rnasearchprop;
+} uiButSearch;
+
+/** Derived struct for #UI_BTYPE_DECORATOR */
+typedef struct uiButDecorator {
+  uiBut but;
+
+  struct PointerRNA rnapoin;
+  struct PropertyRNA *rnaprop;
+  int rnaindex;
+} uiButDecorator;
+
+typedef struct uiButProgressbar {
+  uiBut but;
+
+  /* 0..1 range */
+  float progress;
+} uiButProgressbar;
+
+typedef struct uiButHSVCube {
+  uiBut but;
+
+  eButGradientType gradient_type;
+} uiButHSVCube;
 
 /**
  * Additional, superimposed icon for a button, invoking an operator.
@@ -516,6 +549,8 @@ extern void ui_window_to_region_rcti(const struct ARegion *region,
 extern void ui_region_to_window(const struct ARegion *region, int *x, int *y);
 extern void ui_region_winrct_get_no_margin(const struct ARegion *region, struct rcti *r_rect);
 
+uiBut *ui_but_change_type(uiBut *but, eButType new_type);
+
 extern double ui_but_value_get(uiBut *but);
 extern void ui_but_value_set(uiBut *but, double value);
 extern void ui_but_hsv_set(uiBut *but);
@@ -527,7 +562,7 @@ extern void ui_hsvcircle_vals_from_pos(
 extern void ui_hsvcircle_pos_from_vals(
     const ColorPicker *cpicker, const rcti *rect, const float *hsv, float *xpos, float *ypos);
 extern void ui_hsvcube_pos_from_vals(
-    const struct uiBut *but, const rcti *rect, const float *hsv, float *xp, float *yp);
+    const struct uiButHSVCube *hsv_but, const rcti *rect, const float *hsv, float *xp, float *yp);
 
 extern void ui_but_string_get_ex(uiBut *but,
                                  char *str,
@@ -685,13 +720,13 @@ ColorPicker *ui_block_colorpicker_create(struct uiBlock *block);
 /* Searchbox for string button */
 struct ARegion *ui_searchbox_create_generic(struct bContext *C,
                                             struct ARegion *butregion,
-                                            uiBut *but);
+                                            uiButSearch *search_but);
 struct ARegion *ui_searchbox_create_operator(struct bContext *C,
                                              struct ARegion *butregion,
-                                             uiBut *but);
+                                             uiButSearch *search_but);
 struct ARegion *ui_searchbox_create_menu(struct bContext *C,
                                          struct ARegion *butregion,
-                                         uiBut *but);
+                                         uiButSearch *search_but);
 
 bool ui_searchbox_inside(struct ARegion *region, int x, int y);
 int ui_searchbox_find_index(struct ARegion *region, const char *name);
@@ -704,7 +739,7 @@ bool ui_searchbox_event(struct bContext *C,
                         const struct wmEvent *event);
 bool ui_searchbox_apply(uiBut *but, struct ARegion *region);
 void ui_searchbox_free(struct bContext *C, struct ARegion *region);
-void ui_but_search_refresh(uiBut *but);
+void ui_but_search_refresh(uiButSearch *but);
 
 /* interface_region_menu_popup.c */
 int ui_but_menu_step(uiBut *but, int step);
@@ -769,7 +804,10 @@ extern void ui_draw_aligned_panel(struct uiStyle *style,
 extern void ui_draw_dropshadow(
     const rctf *rct, float radius, float aspect, float alpha, int select);
 
-void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, const float alpha);
+void ui_draw_gradient(const rcti *rect,
+                      const float hsv[3],
+                      const eButGradientType type,
+                      const float alpha);
 
 void ui_draw_but_TAB_outline(const rcti *rect,
                              float rad,
@@ -952,11 +990,12 @@ void ui_resources_free(void);
 
 /* interface_layout.c */
 void ui_layout_add_but(uiLayout *layout, uiBut *but);
-void ui_but_add_search(uiBut *but,
-                       PointerRNA *ptr,
-                       PropertyRNA *prop,
-                       PointerRNA *searchptr,
-                       PropertyRNA *searchprop);
+bool ui_layout_replace_but_ptr(uiLayout *layout, const void *old_but_ptr, uiBut *new_but);
+uiBut *ui_but_add_search(uiBut *but,
+                         PointerRNA *ptr,
+                         PropertyRNA *prop,
+                         PointerRNA *searchptr,
+                         PropertyRNA *searchprop);
 void ui_layout_list_set_labels_active(uiLayout *layout);
 /* menu callback */
 void ui_item_menutype_func(struct bContext *C, struct uiLayout *layout, void *arg_mt);
@@ -977,7 +1016,7 @@ bool ui_but_anim_expression_create(uiBut *but, const char *str);
 void ui_but_anim_autokey(struct bContext *C, uiBut *but, struct Scene *scene, float cfra);
 
 void ui_but_anim_decorate_cb(struct bContext *C, void *arg_but, void *arg_dummy);
-void ui_but_anim_decorate_update_from_flag(uiBut *but);
+void ui_but_anim_decorate_update_from_flag(uiButDecorator *but);
 
 /* interface_query.c */
 bool ui_but_is_editable(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
@@ -1104,5 +1143,3 @@ bool ui_jump_to_target_button_poll(struct bContext *C);
 
 /* interface_queries.c */
 void ui_interface_tag_script_reload_queries(void);
-
-#endif /* __INTERFACE_INTERN_H__ */

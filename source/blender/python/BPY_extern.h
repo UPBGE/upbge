@@ -18,8 +18,7 @@
  * \ingroup python
  */
 
-#ifndef __BPY_EXTERN_H__
-#define __BPY_EXTERN_H__
+#pragma once
 
 struct AnimationEvalContext;
 struct ChannelDriver; /* DNA_anim_types.h */
@@ -146,5 +145,3 @@ void BPY_python_rna_alloc_types(void);
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
-
-#endif /* __BPY_EXTERN_H__ */

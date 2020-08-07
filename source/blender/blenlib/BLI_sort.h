@@ -17,8 +17,7 @@
  * All rights reserved.
  */
 
-#ifndef __BLI_SORT_H__
-#define __BLI_SORT_H__
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,5 +46,3 @@ void BLI_qsort_r(void *a, size_t n, size_t es, BLI_sort_cmp_t cmp, void *thunk)
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BLI_SORT_H__ */

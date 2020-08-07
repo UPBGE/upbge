@@ -372,7 +372,7 @@ void graph_id_tag_update_single_flag(Main *bmain,
     }
     return;
   }
-  else if (tag == ID_RECALC_TIME) {
+  if (tag == ID_RECALC_TIME) {
     if (graph != nullptr) {
       graph->need_update_time = true;
     }
@@ -429,7 +429,7 @@ string stringify_update_bitfield(int flag)
   if (flag == 0) {
     return "LEGACY_0";
   }
-  string result = "";
+  string result;
   int current_flag = flag;
   /* Special cases to avoid ALL flags form being split into
    * individual bits. */

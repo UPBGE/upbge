@@ -21,8 +21,7 @@
  * \ingroup gpu
  */
 
-#ifndef __GPU_TEXTURE_H__
-#define __GPU_TEXTURE_H__
+#pragma once
 
 #include "BLI_sys_types.h" // Game engine transition
 #include "BLI_utildefines.h"
@@ -307,5 +306,3 @@ void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __GPU_TEXTURE_H__ */

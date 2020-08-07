@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __MATHUTILS_QUATERNION_H__
-#define __MATHUTILS_QUATERNION_H__
+#pragma once
 
 /** \file
  * \ingroup pymathutils
@@ -49,8 +48,7 @@ PyObject *Quaternion_CreatePyObject_cb(PyObject *cb_user,
                                        unsigned char cb_type,
                                        unsigned char cb_subtype) ATTR_WARN_UNUSED_RESULT;
 
+
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __MATHUTILS_QUATERNION_H__ */

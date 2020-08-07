@@ -169,7 +169,7 @@ float paint_get_tex_pixel(const MTex *mtex, float u, float v, struct ImagePool *
 {
   float intensity;
   float rgba_dummy[4];
-  float co[3] = {u, v, 0.0f};
+  const float co[3] = {u, v, 0.0f};
 
   RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, rgba_dummy);
 
@@ -185,7 +185,7 @@ void paint_get_tex_pixel_col(const MTex *mtex,
                              bool convert_to_linear,
                              struct ColorSpace *colorspace)
 {
-  float co[3] = {u, v, 0.0f};
+  const float co[3] = {u, v, 0.0f};
   float intensity;
 
   const bool hasrgb = RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, rgba);
@@ -238,7 +238,7 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
 
 /* 3D Paint */
 
-static void imapaint_project(float matrix[4][4], const float co[3], float pco[4])
+static void imapaint_project(const float matrix[4][4], const float co[3], float pco[4])
 {
   copy_v3_v3(pco, co);
   pco[3] = 1.0f;

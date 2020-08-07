@@ -1348,7 +1348,7 @@ static void uv_map_rotation_matrix(float result[4][4],
                                    float sideangledeg,
                                    float radius)
 {
-  float offset[4] = {0};
+  const float offset[4] = {0};
   uv_map_rotation_matrix_ex(result, rv3d, ob, upangledeg, sideangledeg, radius, offset);
 }
 
@@ -1885,12 +1885,10 @@ static int smart_uv_project_thickface_area_cmp_fn(const void *tf_a_p, const void
   if (tf_a->area < tf_b->area) {
     return 1;
   }
-  else if (tf_a->area > tf_b->area) {
+  if (tf_a->area > tf_b->area) {
     return -1;
   }
-  else {
-    return 0;
-  }
+  return 0;
 }
 
 static uint smart_uv_project_calculate_project_normals(const ThickFace *thick_faces,

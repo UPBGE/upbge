@@ -88,9 +88,8 @@ float bc_get_float_value(const COLLADAFW::FloatOrDoubleArray &array, unsigned in
   if (array.getType() == COLLADAFW::MeshVertexData::DATA_TYPE_FLOAT) {
     return array.getFloatValues()->getData()[index];
   }
-  else {
-    return array.getDoubleValues()->getData()[index];
-  }
+
+  return array.getDoubleValues()->getData()[index];
 }
 
 /* copied from /editors/object/object_relations.c */
@@ -330,9 +329,8 @@ bool bc_is_root_bone(Bone *aBone, bool deform_bones_only)
     }
     return (aBone == root);
   }
-  else {
-    return !(aBone->parent);
-  }
+
+  return !(aBone->parent);
 }
 
 int bc_get_active_UVLayer(Object *ob)
@@ -672,8 +670,7 @@ void BoneExtended::set_bone_layers(std::string layerString, std::vector<std::str
 
 std::string BoneExtended::get_bone_layers(int bitfield)
 {
-  std::string result = "";
-  std::string sep = "";
+  std::string sep;
   int bit = 1u;
 
   std::ostringstream ss;
@@ -1323,9 +1320,8 @@ COLLADASW::ColorOrTexture bc_get_base_color(Material *ma)
   if (ma->use_nodes && shader) {
     return bc_get_cot_from_shader(shader, "Base Color", default_color, false);
   }
-  else {
-    return bc_get_cot(default_color);
-  }
+
+  return bc_get_cot(default_color);
 }
 
 COLLADASW::ColorOrTexture bc_get_emission(Material *ma)
@@ -1335,9 +1331,8 @@ COLLADASW::ColorOrTexture bc_get_emission(Material *ma)
   if (ma->use_nodes && shader) {
     return bc_get_cot_from_shader(shader, "Emission", default_color);
   }
-  else {
-    return bc_get_cot(default_color); /* default black */
-  }
+
+  return bc_get_cot(default_color); /* default black */
 }
 
 COLLADASW::ColorOrTexture bc_get_ambient(Material *ma)
@@ -1420,9 +1415,8 @@ COLLADASW::ColorOrTexture bc_get_cot_from_shader(bNode *shader,
     float *col = dcol->value;
     return bc_get_cot(col, with_alpha);
   }
-  else {
-    return bc_get_cot(default_color, with_alpha);
-  }
+
+  return bc_get_cot(default_color, with_alpha);
 }
 
 bNode *bc_get_master_shader(Material *ma)
