@@ -1551,7 +1551,7 @@ class VIEW3D_MT_edit_mesh_select_by_trait(Menu):
 
         layout.separator()
 
-        layout.operator("mesh.select_ungrouped", text="Ungrouped Verts")
+        layout.operator("mesh.select_ungrouped", text="Ungrouped Vertices")
 
 
 class VIEW3D_MT_edit_mesh_select_more_less(Menu):
@@ -1813,7 +1813,7 @@ class VIEW3D_MT_select_edit_lattice(Menu):
 
         layout.separator()
 
-        layout.operator("lattice.select_ungrouped", text="Ungrouped Verts")
+        layout.operator("lattice.select_ungrouped", text="Ungrouped Vertices")
 
 
 class VIEW3D_MT_select_edit_armature(Menu):
@@ -1940,7 +1940,7 @@ class VIEW3D_MT_select_paint_mask_vertex(Menu):
 
         layout.separator()
 
-        layout.operator("paint.vert_select_ungrouped", text="Ungrouped Verts")
+        layout.operator("paint.vert_select_ungrouped", text="Ungrouped Vertices")
 
 
 class VIEW3D_MT_angle_control(Menu):
@@ -3713,7 +3713,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
         row = layout.row()
 
         if is_vert_mode:
-            col = row.column()
+            col = row.column(align=True)
 
             col.label(text="Vertex Context Menu", icon='VERTEXSEL')
             col.separator()
@@ -3763,7 +3763,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
         if is_edge_mode:
             render = context.scene.render
 
-            col = row.column()
+            col = row.column(align=True)
             col.label(text="Edge Context Menu", icon='EDGESEL')
             col.separator()
 
@@ -3831,7 +3831,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
             col.operator("mesh.delete", text="Delete Edges").type = 'EDGE'
 
         if is_face_mode:
-            col = row.column()
+            col = row.column(align=True)
 
             col.label(text="Face Context Menu", icon='FACESEL')
             col.separator()
@@ -4174,7 +4174,7 @@ class VIEW3D_MT_edit_mesh_normals_select_strength(Menu):
 
 
 class VIEW3D_MT_edit_mesh_normals_set_strength(Menu):
-    bl_label = "Select by Face Strength"
+    bl_label = "Set Face Strength"
 
     def draw(self, _context):
         layout = self.layout
@@ -4236,8 +4236,8 @@ class VIEW3D_MT_edit_mesh_normals(Menu):
 
         layout.separator()
 
-        layout.menu("VIEW3D_MT_edit_mesh_normals_select_strength", text="Select by Face Strength")
-        layout.menu("VIEW3D_MT_edit_mesh_normals_set_strength", text="Set Face Strength")
+        layout.menu("VIEW3D_MT_edit_mesh_normals_select_strength")
+        layout.menu("VIEW3D_MT_edit_mesh_normals_set_strength")
 
 
 class VIEW3D_MT_edit_mesh_shading(Menu):

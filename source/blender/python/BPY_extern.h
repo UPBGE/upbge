@@ -55,6 +55,7 @@ void BPY_python_start(int argc, const char **argv);
 void BPY_python_end(void);
 void BPY_python_reset(struct bContext *C);
 void BPY_python_use_system_env(void);
+void BPY_python_backtrace(/* FILE */ void *file);
 bool BPY_python_get_use_system_env(void); /* Game Engine Integration */
 
 /* global interpreter lock */

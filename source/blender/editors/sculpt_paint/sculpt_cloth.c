@@ -108,6 +108,11 @@ static float cloth_brush_simulation_falloff_get(const Brush *brush,
                                                 const float location[3],
                                                 const float co[3])
 {
+  /* Global simulation does not have any falloff as the entire mesh is being simulated. */
+  if (brush->cloth_simulation_area_type == BRUSH_CLOTH_SIMULATION_AREA_GLOBAL) {
+    return 1.0f;
+  }
+
   const float distance = len_v3v3(location, co);
   const float limit = radius + (radius * brush->cloth_sim_limit);
   const float falloff = radius + (radius * brush->cloth_sim_limit * brush->cloth_sim_falloff);
@@ -249,7 +254,11 @@ static void do_cloth_brush_build_constraints_task_cb_ex(
     radius_squared = ss->cache->initial_radius * ss->cache->initial_radius;
   }
 
-  const float cloth_sim_radius_squared = data->cloth_sim_radius * data->cloth_sim_radius;
+  /* Only limit the contraint creation to a radius when the simulation is local. */
+  const float cloth_sim_radius_squared = brush->cloth_simulation_area_type ==
+                                                 BRUSH_CLOTH_SIMULATION_AREA_LOCAL ?
+                                             data->cloth_sim_radius * data->cloth_sim_radius :
+                                             FLT_MAX;
 
   BKE_pbvh_vertex_iter_begin(ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE)
   {
@@ -962,7 +971,6 @@ void SCULPT_cloth_simulation_free(struct SculptClothSimulation *cloth_sim)
 /* Cursor drawing function. */
 void SCULPT_cloth_simulation_limits_draw(const uint gpuattr,
                                          const Brush *brush,
-                                         const float obmat[4][4],
                                          const float location[3],
                                          const float normal[3],
                                          const float rds,
@@ -973,10 +981,11 @@ void SCULPT_cloth_simulation_limits_draw(const uint gpuattr,
   float cursor_trans[4][4], cursor_rot[4][4];
   float z_axis[4] = {0.0f, 0.0f, 1.0f, 0.0f};
   float quat[4];
-  copy_m4_m4(cursor_trans, obmat);
+  unit_m4(cursor_trans);
   translate_m4(cursor_trans, location[0], location[1], location[2]);
   rotation_between_vecs_to_quat(quat, z_axis, normal);
   quat_to_mat4(cursor_rot, quat);
+  GPU_matrix_push();
   GPU_matrix_mul(cursor_trans);
   GPU_matrix_mul(cursor_rot);
 
@@ -986,6 +995,7 @@ void SCULPT_cloth_simulation_limits_draw(const uint gpuattr,
       gpuattr, 0, 0, rds + (rds * brush->cloth_sim_limit * brush->cloth_sim_falloff), 320);
   immUniformColor3fvAlpha(outline_col, alpha * 0.7f);
   imm_draw_circle_wire_3d(gpuattr, 0, 0, rds + rds * brush->cloth_sim_limit, 80);
+  GPU_matrix_pop();
 }
 
 void SCULPT_cloth_plane_falloff_preview_draw(const uint gpuattr,
