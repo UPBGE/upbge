@@ -25,13 +25,41 @@
 
 #pragma once
 
+#include "MEM_guardedalloc.h"
+
 #include "GPU_context.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <mutex>
+#include <pthread.h>
+#include <string.h>
+#include <unordered_set>
+#include <vector>
 
 struct GPUFrameBuffer;
+struct GPUMatrixState;
+
+struct GPUContext {
+ public:
+  /** State managment */
+  GPUFrameBuffer *current_fbo = NULL;
+  GPUMatrixState *matrix_state = NULL;
+
+ protected:
+  /** Thread on which this context is active. */
+  pthread_t thread_;
+  bool is_active_;
+
+ public:
+  GPUContext();
+  virtual ~GPUContext();
+
+  virtual void activate(void) = 0;
+  virtual void deactivate(void) = 0;
+
+  bool is_active_on_thread(void);
+
+  MEM_CXX_CLASS_ALLOC_FUNCS("GPUContext")
+};
 
 GLuint GPU_vao_default(void);
 GLuint GPU_framebuffer_default(void);
@@ -59,7 +87,3 @@ void gpu_context_active_framebuffer_set(GPUContext *ctx, struct GPUFrameBuffer *
 struct GPUFrameBuffer *gpu_context_active_framebuffer_get(GPUContext *ctx);
 
 struct GPUMatrixState *gpu_context_active_matrix_state_get(void);
-
-#ifdef __cplusplus
-}
-#endif

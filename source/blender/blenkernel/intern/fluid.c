@@ -695,7 +695,7 @@ static void bb_allocateData(FluidObjectBB *bb, bool use_velocity, bool use_influ
     bb->influence = MEM_calloc_arrayN(bb->total_cells, sizeof(float), "fluid_bb_influence");
   }
   if (use_velocity) {
-    bb->velocity = MEM_calloc_arrayN(bb->total_cells * 3, sizeof(float), "fluid_bb_velocity");
+    bb->velocity = MEM_calloc_arrayN(bb->total_cells, sizeof(float[3]), "fluid_bb_velocity");
   }
 
   bb->distances = MEM_malloc_arrayN(bb->total_cells, sizeof(float), "fluid_bb_distances");
@@ -1021,14 +1021,14 @@ static void obstacles_from_mesh(Object *coll_ob,
 
     /* TODO (sebbas): Make initialization of vertex velocities optional? */
     {
-      vert_vel = MEM_callocN(sizeof(float) * numverts * 3, "manta_obs_velocity");
+      vert_vel = MEM_callocN(sizeof(float[3]) * numverts, "manta_obs_velocity");
 
       if (fes->numverts != numverts || !fes->verts_old) {
         if (fes->verts_old) {
           MEM_freeN(fes->verts_old);
         }
 
-        fes->verts_old = MEM_callocN(sizeof(float) * numverts * 3, "manta_obs_verts_old");
+        fes->verts_old = MEM_callocN(sizeof(float[3]) * numverts, "manta_obs_verts_old");
         fes->numverts = numverts;
       }
       else {
@@ -1578,9 +1578,9 @@ static void emit_from_particles(Object *flow_ob,
       totchild = psys->totchild * psys->part->disp / 100;
     }
 
-    particle_pos = MEM_callocN(sizeof(float) * (totpart + totchild) * 3,
+    particle_pos = MEM_callocN(sizeof(float[3]) * (totpart + totchild),
                                "manta_flow_particles_pos");
-    particle_vel = MEM_callocN(sizeof(float) * (totpart + totchild) * 3,
+    particle_vel = MEM_callocN(sizeof(float[3]) * (totpart + totchild),
                                "manta_flow_particles_vel");
 
     /* setup particle radius emission if enabled */
@@ -1757,14 +1757,13 @@ static void update_distances(int index,
         {0.0f, -1.0f, 1.0f},  {0.0f, -1.0f, -1.0f}, {1.0f, 1.0f, 1.0f},  {1.0f, -1.0f, 1.0f},
         {-1.0f, 1.0f, 1.0f},  {-1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, -1.0f}, {1.0f, -1.0f, -1.0f},
         {-1.0f, 1.0f, -1.0f}, {-1.0f, -1.0f, -1.0f}};
-    size_t ray_cnt = sizeof ray_dirs / sizeof ray_dirs[0];
 
     /* Count ray mesh misses (i.e. no face hit) and cases where the ray direction matches the face
      * normal direction. From this information it can be derived whether a cell is inside or
      * outside the mesh. */
     int miss_cnt = 0, dir_cnt = 0;
 
-    for (int i = 0; i < ray_cnt; i++) {
+    for (int i = 0; i < ARRAY_SIZE(ray_dirs); i++) {
       BVHTreeRayHit hit_tree = {0};
       hit_tree.index = -1;
       hit_tree.dist = PHI_MAX;
@@ -1798,7 +1797,7 @@ static void update_distances(int index,
 
     /* Point lies inside mesh. Use negative sign for distance value.
      * This "if statement" has 2 conditions that can be true for points outside mesh. */
-    if (!(miss_cnt > 0 || dir_cnt == ray_cnt)) {
+    if (!(miss_cnt > 0 || dir_cnt == ARRAY_SIZE(ray_dirs))) {
       min_dist = (-1.0f) * fabsf(min_dist);
     }
 
@@ -2101,13 +2100,13 @@ static void emit_from_mesh(
     mloopuv = CustomData_get_layer_named(&me->ldata, CD_MLOOPUV, ffs->uvlayer_name);
 
     if (ffs->flags & FLUID_FLOW_INITVELOCITY) {
-      vert_vel = MEM_callocN(sizeof(float) * numverts * 3, "manta_flow_velocity");
+      vert_vel = MEM_callocN(sizeof(float[3]) * numverts, "manta_flow_velocity");
 
       if (ffs->numverts != numverts || !ffs->verts_old) {
         if (ffs->verts_old) {
           MEM_freeN(ffs->verts_old);
         }
-        ffs->verts_old = MEM_callocN(sizeof(float) * numverts * 3, "manta_flow_verts_old");
+        ffs->verts_old = MEM_callocN(sizeof(float[3]) * numverts, "manta_flow_verts_old");
         ffs->numverts = numverts;
       }
       else {
@@ -3331,7 +3330,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds, Mesh *orgmesh, Obj
   co_offset[2] = (fds->p0[2] + fds->p1[2]) / 2.0f;
 
   /* Normals. */
-  normals = MEM_callocN(sizeof(short) * num_normals * 3, "Fluidmesh_tmp_normals");
+  normals = MEM_callocN(sizeof(short[3]) * num_normals, "Fluidmesh_tmp_normals");
 
   /* Loop for vertices and normals. */
   for (i = 0, no_s = normals; i < num_verts && i < num_normals; i++, mverts++, no_s += 3) {

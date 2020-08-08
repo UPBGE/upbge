@@ -28,6 +28,8 @@ endif()
 
 set(INC
   .
+  intern
+  opengl
   ../blenkernel
   ../blenlib
   ../bmesh
@@ -42,6 +44,7 @@ set(INC
   ../nodes
   ../nodes/intern
 
+  ../../../intern/ghost
   ../../../intern/glew-mx
   ../../../intern/guardedalloc
   ../../../intern/mantaflow/extern
@@ -85,6 +88,8 @@ set(SRC
   intern/gpu_vertex_format.cc
   intern/gpu_viewport.c
 
+  opengl/gl_context.cc
+
   GPU_attr_binding.h
   GPU_batch.h
   GPU_batch_presets.h
@@ -116,9 +121,10 @@ set(SRC
   GPU_viewport.h
 
   intern/gpu_attr_binding_private.h
+  intern/gpu_backend.hh
   intern/gpu_batch_private.h
   intern/gpu_codegen.h
-  intern/gpu_context_private.h
+  intern/gpu_context_private.hh
   intern/gpu_material_library.h
   intern/gpu_matrix_private.h
   intern/gpu_node_graph.h
@@ -127,6 +133,9 @@ set(SRC
   intern/gpu_select_private.h
   intern/gpu_shader_private.h
   intern/gpu_vertex_format_private.h
+
+  opengl/gl_backend.hh
+  opengl/gl_context.hh
 )
 
 set(LIB

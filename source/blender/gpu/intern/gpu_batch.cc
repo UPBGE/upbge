@@ -34,7 +34,7 @@
 #include "GPU_shader.h"
 
 #include "gpu_batch_private.h"
-#include "gpu_context_private.h"
+#include "gpu_context_private.hh"
 #include "gpu_primitive_private.h"
 #include "gpu_shader_private.h"
 #include "gpu_vertex_format_private.h"
@@ -85,12 +85,17 @@ void GPU_batch_vao_cache_clear(GPUBatch *batch)
   batch->context = NULL;
 }
 
+GPUBatch *GPU_batch_calloc(uint count)
+{
+  return (GPUBatch *)MEM_callocN(sizeof(GPUBatch) * count, "GPUBatch");
+}
+
 GPUBatch *GPU_batch_create_ex(GPUPrimType prim_type,
                               GPUVertBuf *verts,
                               GPUIndexBuf *elem,
                               uint owns_flag)
 {
-  GPUBatch *batch = (GPUBatch *)MEM_callocN(sizeof(GPUBatch), "GPUBatch");
+  GPUBatch *batch = GPU_batch_calloc(1);
   GPU_batch_init_ex(batch, prim_type, verts, elem, owns_flag);
   return batch;
 }
@@ -1015,7 +1020,7 @@ void gpu_batch_init(void)
 
     float default_attrib_data[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     glBindBuffer(GL_ARRAY_BUFFER, g_default_attr_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 4, default_attrib_data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float[4]), default_attrib_data, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
