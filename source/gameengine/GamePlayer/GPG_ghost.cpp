@@ -86,6 +86,7 @@
 #include "DNA_genfile.h"
 #include "DNA_space_types.h"
 #include "GHOST_ISystem.h"
+#include "GPU_context.h"
 #include "GPU_init_exit.h"
 #include "GPU_material.h"
 #include "IMB_imbuf.h"
@@ -1715,6 +1716,8 @@ int main(int argc,
   SYS_DeleteSystem(syshandle);
 
   wm_ghost_exit();
+
+  GPU_backend_exit();
 
   CTX_free(C);
 

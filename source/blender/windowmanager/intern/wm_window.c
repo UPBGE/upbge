@@ -2554,10 +2554,9 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   GHOST_RectangleHandle bounds;
 
   wm_window_clear_drawable(wm);
-  GLuint default_fb = GHOST_GetDefaultOpenGLFramebuffer(ghostwin);
 
   if (first_time_window) {
-    win->gpuctx = GPU_context_create(default_fb);
+    win->gpuctx = GPU_context_create(ghostwin);
     wm->message_bus = WM_msgbus_create();
     runtime_msgbus = wm->message_bus;
     /* needed so we can detect the graphics card below */
