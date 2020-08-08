@@ -243,4 +243,15 @@ if(WITH_GAMEENGINE)
   add_definitions(-DWITH_GAMEENGINE)
 endif()
 
+if(WITH_CYCLES)
+  add_definitions(-DWITH_CYCLES)
+endif()
+
+if(WITH_MOD_FLUID)
+  list(APPEND LIB
+    bf_intern_mantaflow
+  )
+  add_definitions(-DWITH_FLUID)
+endif()
+
 blender_add_lib(ge_ketsji "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

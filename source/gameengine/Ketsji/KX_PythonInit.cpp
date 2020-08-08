@@ -58,6 +58,7 @@
 #  include "MEM_guardedalloc.h"
 #  include "bgl.h"
 #  include "blf_py_api.h"
+#  include "bl_math_py_api.h"
 #  include "bmesh/bmesh_py_api.h"
 #  include "bpy.h"  // for bpy_sys_module_backup
 #  include "bpy_intern_string.h"
@@ -74,6 +75,14 @@
 #  ifdef WITH_AUDASPACE
 #    include "../../../../intern/audaspace/intern/AUD_PyInit.h"
 #  endif  // WITH_AUDASPACE
+
+#  ifdef WITH_CYCLES
+#    include "../../intern/cycles/blender/CCL_api.h"
+#  endif
+
+#  ifdef WITH_FLUID
+#    include "../../intern/mantaflow/extern/manta_python_API.h"
+#  endif
 
 #endif /* WITH_PYTHON */
 
@@ -2080,6 +2089,14 @@ PyMODINIT_FUNC initBGE()
   return mod;
 }
 
+#  ifdef WITH_CYCLES
+/* defined in cycles module */
+static PyObject *CCL_initPython(void)
+{
+  return (PyObject *)CCL_python_module_init();
+}
+#  endif
+
 /* minimal required blender modules to run blenderplayer */
 static struct _inittab bge_internal_modules[] = {{"mathutils", PyInit_mathutils},
                                                  {"bgl", BPyInit_bgl},
@@ -2091,8 +2108,15 @@ static struct _inittab bge_internal_modules[] = {{"mathutils", PyInit_mathutils}
 
 static struct _inittab bpy_internal_modules[] = {
     {"_bpy_path", BPyInit__bpy_path},
+    {"bl_math", BPyInit_bl_math},
     {"imbuf", BPyInit_imbuf},
     {"bmesh", BPyInit_bmesh},
+#  ifdef WITH_FLUID
+    {"manta", Manta_initPython},
+#  endif
+#  ifdef WITH_CYCLES
+    {"_cycles", CCL_initPython},
+#  endif
     {"gpu", BPyInit_gpu},
     {"idprop", BPyInit_idprop},
     {NULL, NULL},
@@ -2174,6 +2198,16 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
   /* Initialize thread support (also acquires lock) */
   PyEval_InitThreads();
 
+  bpy_import_init(PyEval_GetBuiltins());
+
+  bpy_import_main_set(maggie);
+
+#  ifdef WITH_FLUID
+  /* Required to prevent assertion error, see:
+   * https://stackoverflow.com/questions/27844676 */
+  Py_DECREF(PyImport_ImportModule("threading"));
+#  endif
+
   if (first_time) {
 
     bpy_intern_string_init();
@@ -2183,10 +2217,6 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
 
     BPY_atexit_register(); /* this can init any time */
   }
-
-  bpy_import_init(PyEval_GetBuiltins());
-
-  bpy_import_main_set(maggie);
 
   initPySysObjects(maggie);
 
