@@ -719,6 +719,10 @@ def brush_settings(layout, context, brush, popover=False):
             col = layout.column()
             col.prop(brush, "smear_deform_type")
 
+        elif sculpt_tool == 'BOUNDARY':
+            col = layout.column()
+            col.prop(brush, "boundary_deform_type")
+
         elif sculpt_tool == 'TOPOLOGY':
             col = layout.column()
             col.prop(brush, "slide_deform_type")
@@ -1137,6 +1141,8 @@ def brush_basic_gpencil_paint_settings(layout, context, brush, *, compact=False)
 
     # FIXME: tools must use their own UI drawing!
     elif brush.gpencil_tool == 'FILL':
+        row = layout.row(align=True)
+        row.prop(gp_settings, "fill_direction", text="", expand=True)
         row = layout.row(align=True)
         row.prop(gp_settings, "fill_leak", text="Leak Size")
         row = layout.row(align=True)

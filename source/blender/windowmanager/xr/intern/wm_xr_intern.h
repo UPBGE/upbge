@@ -49,7 +49,11 @@ typedef struct wmXrSessionState {
 typedef struct wmXrRuntimeData {
   GHOST_XrContextHandle context;
 
-  /* Although this struct is internal, RNA gets a handle to this for state information queries. */
+  /** The window the session was started in. Stored to be able to follow its view-layer. This may
+   * be an invalid reference, i.e. the window may have been closed. */
+  wmWindow *session_root_win;
+
+  /** Although this struct is internal, RNA gets a handle to this for state information queries. */
   wmXrSessionState session_state;
   wmXrSessionExitFn exit_fn;
 } wmXrRuntimeData;
@@ -70,6 +74,8 @@ typedef struct wmXrDrawData {
    * space). With positional tracking enabled, it should be the same as the base pose, when
    * disabled it also contains a location delta from the moment the option was toggled. */
   GHOST_XrPose base_pose;
+  /** Offset to _substract_ from the OpenXR eye and viewer pose to get the wanted effective pose
+   * (e.g. a pose exactly at the landmark position). */
   float eye_position_ofs[3]; /* Local/view space. */
 } wmXrDrawData;
 

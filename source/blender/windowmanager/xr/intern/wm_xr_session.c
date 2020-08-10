@@ -19,7 +19,10 @@
  */
 
 #include "BKE_context.h"
+#include "BKE_main.h"
+#include "BKE_scene.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 
 #include "DEG_depsgraph.h"
@@ -68,7 +71,9 @@ static void wm_xr_session_begin_info_create(wmXrData *xr_data,
   r_begin_info->exit_customdata = xr_data;
 }
 
-void wm_xr_session_toggle(wmWindowManager *wm, wmXrSessionExitFn session_exit_fn)
+void wm_xr_session_toggle(wmWindowManager *wm,
+                          wmWindow *session_root_win,
+                          wmXrSessionExitFn session_exit_fn)
 {
   wmXrData *xr_data = &wm->xr;
 
@@ -78,6 +83,7 @@ void wm_xr_session_toggle(wmWindowManager *wm, wmXrSessionExitFn session_exit_fn
   else {
     GHOST_XrSessionBeginInfo begin_info;
 
+    xr_data->runtime->session_root_win = session_root_win;
     xr_data->runtime->session_state.is_started = true;
     xr_data->runtime->exit_fn = session_exit_fn;
 
@@ -159,6 +165,43 @@ static void wm_xr_session_draw_data_populate(wmXrData *xr_data,
   wm_xr_session_base_pose_calc(r_draw_data->scene, settings, &r_draw_data->base_pose);
 }
 
+static wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
+                                                           const wmXrRuntimeData *runtime_data)
+{
+  if (runtime_data->session_root_win &&
+      BLI_findindex(&wm->windows, runtime_data->session_root_win) != -1) {
+    /* Root window is still valid, use it. */
+    return runtime_data->session_root_win;
+  }
+  /* Otherwise, fallback. */
+  return wm->windows.first;
+}
+
+/**
+ * Get the scene and depsgraph shown in the VR session's root window (the window the session was
+ * started from) if still available. If it's not available, use some fallback window.
+ *
+ * It's important that the VR session follows some existing window, otherwise it would need to have
+ * an own depsgraph, which is an expense we should avoid.
+ */
+static void wm_xr_session_scene_and_evaluated_depsgraph_get(Main *bmain,
+                                                            const wmWindowManager *wm,
+                                                            Scene **r_scene,
+                                                            Depsgraph **r_depsgraph)
+{
+  const wmWindow *root_win = wm_xr_session_root_window_or_fallback_get(wm, wm->xr.runtime);
+
+  /* Follow the scene & view layer shown in the root 3D View. */
+  Scene *scene = WM_window_get_active_scene(root_win);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(root_win);
+
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  BLI_assert(scene && view_layer && depsgraph);
+  BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
+  *r_scene = scene;
+  *r_depsgraph = depsgraph;
+}
+
 typedef enum wmXrSessionStateEvent {
   SESSION_STATE_EVENT_NONE = 0,
   SESSION_STATE_EVENT_START,
@@ -207,8 +250,9 @@ void wm_xr_session_draw_data_update(const wmXrSessionState *state,
 
   switch (event) {
     case SESSION_STATE_EVENT_START:
-      /* Always use the exact base pose with no offset when starting the session. */
-      copy_v3_fl(draw_data->eye_position_ofs, 0.0f);
+      /* We want to start the session exactly at landmark position. Runtimes may have a non-[0,0,0]
+       * starting position that we have to substract for that. */
+      copy_v3_v3(draw_data->eye_position_ofs, draw_view->local_pose.position);
       break;
       /* This should be triggered by the VR add-on if a landmark changes. */
     case SESSION_STATE_EVENT_RESET_TO_BASE_POSE:
@@ -255,9 +299,9 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
   copy_v3_v3(viewer_pose.position, draw_data->base_pose.position);
   /* The local pose and the eye pose (which is copied from an earlier local pose) both are view
    * space, so Y-up. In this case we need them in regular Z-up. */
-  viewer_pose.position[0] += draw_data->eye_position_ofs[0];
-  viewer_pose.position[1] -= draw_data->eye_position_ofs[2];
-  viewer_pose.position[2] += draw_data->eye_position_ofs[1];
+  viewer_pose.position[0] -= draw_data->eye_position_ofs[0];
+  viewer_pose.position[1] += draw_data->eye_position_ofs[2];
+  viewer_pose.position[2] -= draw_data->eye_position_ofs[1];
   if (use_position_tracking) {
     viewer_pose.position[0] += draw_view->local_pose.position[0];
     viewer_pose.position[1] -= draw_view->local_pose.position[2];
@@ -343,13 +387,17 @@ static void wm_xr_session_surface_draw(bContext *C)
 {
   wmXrSurfaceData *surface_data = g_xr_surface->customdata;
   wmWindowManager *wm = CTX_wm_manager(C);
+  Main *bmain = CTX_data_main(C);
   wmXrDrawData draw_data;
 
   if (!GHOST_XrSessionIsRunning(wm->xr.runtime->context)) {
     return;
   }
-  wm_xr_session_draw_data_populate(
-      &wm->xr, CTX_data_scene(C), CTX_data_ensure_evaluated_depsgraph(C), &draw_data);
+
+  Scene *scene;
+  Depsgraph *depsgraph;
+  wm_xr_session_scene_and_evaluated_depsgraph_get(bmain, wm, &scene, &depsgraph);
+  wm_xr_session_draw_data_populate(&wm->xr, scene, depsgraph, &draw_data);
 
   GHOST_XrSessionDrawViews(wm->xr.runtime->context, &draw_data);
 
