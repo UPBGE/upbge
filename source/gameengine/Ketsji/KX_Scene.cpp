@@ -628,8 +628,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
   }
 
-  bool calledFromConstructor = cam == nullptr;
-  if (calledFromConstructor) {
+  if (!DEG_is_active(depsgraph)) {
     DEG_make_active(depsgraph);
   }
 
@@ -689,6 +688,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
                               NULL);
   }
 
+  bool calledFromConstructor = cam == nullptr;
   if (calledFromConstructor) {
     m_currentGPUViewport = GPU_viewport_create();
     SetInitMaterialsGPUViewport(m_currentGPUViewport);
