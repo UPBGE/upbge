@@ -67,7 +67,13 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
       const bool use_ssrefract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) &&
                                  ((effects->enabled_effects & EFFECT_REFRACT) != 0);
 
-      int mat_options = VAR_MAT_MESH;
+      int mat_options = 0;
+      if (m_material->blend_method == MA_BM_BLEND) {
+        mat_options = VAR_MAT_MESH | VAR_MAT_BLEND;
+      }
+      else {
+        mat_options = VAR_MAT_MESH;
+      }
       SET_FLAG_FROM_TEST(mat_options, use_ssrefract, VAR_MAT_REFRACT);
       m_gpuMat = EEVEE_material_get(
           vedata, scene->GetBlenderScene(), m_material, NULL, mat_options);
