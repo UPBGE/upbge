@@ -395,13 +395,17 @@ static void vertex_dupli(const VertexDupliData *vdd,
   DupliObject *dob;
   float obmat[4][4], space_mat[4][4];
 
-  /* space_mat is transform to vertex */
-  get_duplivert_transform(
-      co, no, vdd->use_rotation, inst_ob->trackflag, inst_ob->upflag, space_mat);
+  /* obmat is transform to vertex */
+  get_duplivert_transform(co, no, vdd->use_rotation, inst_ob->trackflag, inst_ob->upflag, obmat);
   /* make offset relative to inst_ob using relative child transform */
-  mul_mat3_m4_v3((float(*)[4])vdd->child_imat, space_mat[3]);
+  mul_mat3_m4_v3((float(*)[4])vdd->child_imat, obmat[3]);
   /* apply obmat _after_ the local vertex transform */
-  mul_m4_m4m4(obmat, inst_ob->obmat, space_mat);
+  mul_m4_m4m4(obmat, inst_ob->obmat, obmat);
+
+  /* space matrix is constructed by removing obmat transform,
+   * this yields the worldspace transform for recursive duplis
+   */
+  mul_m4_m4m4(space_mat, obmat, inst_ob->imat);
 
   dob = make_dupli(vdd->ctx, vdd->inst_ob, obmat, index);
 

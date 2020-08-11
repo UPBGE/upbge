@@ -992,6 +992,7 @@ void ED_screen_global_areas_refresh(wmWindow *win)
 void screen_change_prepare(
     bScreen *screen_old, bScreen *screen_new, Main *bmain, bContext *C, wmWindow *win)
 {
+  UNUSED_VARS_NDEBUG(bmain);
   BLI_assert(BLI_findindex(&bmain->screens, screen_new) != -1);
 
   if (screen_old != screen_new) {
