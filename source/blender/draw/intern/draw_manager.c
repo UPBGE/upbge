@@ -2993,7 +2993,7 @@ static void DRW_draw_callbacks_post_scene_simplified(void)
 void DRW_game_render_loop(bContext *C,
                           GPUViewport *viewport,
                           Main *bmain,
-                          Scene *scene,
+                          Depsgraph *depsgraph,
                           const rcti *window,
                           bool reset_taa_samples,
                           bool is_overlay_pass)
@@ -3001,8 +3001,8 @@ void DRW_game_render_loop(bContext *C,
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
 
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  Scene *scene = DEG_get_evaluated_scene(depsgraph);
+  ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
   ARegion *ar = CTX_wm_region(C);
 
@@ -3029,7 +3029,7 @@ void DRW_game_render_loop(bContext *C,
 
   DST.draw_ctx.evil_C = C;
 
-  DST.draw_ctx.scene = DEG_get_evaluated_scene(depsgraph);
+  DST.draw_ctx.scene = scene;
   DST.draw_ctx.view_layer = view_layer;
   DST.draw_ctx.obact = OBACT(view_layer);
 

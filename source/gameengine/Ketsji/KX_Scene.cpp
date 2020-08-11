@@ -289,7 +289,7 @@ KX_Scene::~KX_Scene()
        * is not executed then we free it now.
        */
       GPU_viewport_free(m_initMaterialsGPUViewport);
-      DRW_game_python_loop_end(view_layer);
+      DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
     }
   }
 
@@ -697,7 +697,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   DRW_game_render_loop(C,
                        m_currentGPUViewport,
                        bmain,
-                       scene,
+                       depsgraph,
                        &window,
                        reset_taa_samples,
                        is_overlay_pass);
@@ -776,7 +776,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, bmain, scene, window, true, false);
+  DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, window, true, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)
