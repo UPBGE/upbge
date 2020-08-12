@@ -20,6 +20,7 @@ if(WIN32)
   option(ENABLE_MINGW64 "Enable building of ffmpeg/iconv/libsndfile/fftw3 by installing mingw64" ON)
 endif()
 option(WITH_WEBP "Enable building of oiio with webp support" OFF)
+option(WITH_BOOST_PYTHON "Enable building of boost with python support" OFF)
 set(MAKE_THREADS 1 CACHE STRING "Number of threads to run make with")
 
 if(NOT BUILD_MODE)
@@ -193,18 +194,6 @@ set(DEFAULT_CMAKE_FLAGS
   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO=${CMAKE_CXX_FLAGS_RELWITHDEBINFO}
   ${PLATFORM_CMAKE_FLAGS}
 )
-
-if(WIN32)
-  # We need both flavors to build the thumbnail dlls
-  if(MSVC12)
-    set(GENERATOR_32 "Visual Studio 12 2013")
-    set(GENERATOR_64 "Visual Studio 12 2013 Win64")
-  elseif(MSVC14)
-    set(GENERATOR_32 "Visual Studio 14 2015")
-    set(GENERATOR_64 "Visual Studio 14 2015 Win64")
-  endif()
-endif()
-
 
 if(WIN32)
   if(BUILD_MODE STREQUAL Debug)

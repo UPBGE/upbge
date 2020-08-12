@@ -89,7 +89,7 @@ float SCULPT_raycast_init(struct ViewContext *vc,
                           bool original);
 
 /* Sculpt PBVH abstraction API */
-void SCULPT_vertex_random_access_init(struct SculptSession *ss);
+void SCULPT_vertex_random_access_ensure(struct SculptSession *ss);
 
 int SCULPT_vertex_count_get(struct SculptSession *ss);
 const float *SCULPT_vertex_co_get(struct SculptSession *ss, int index);
@@ -99,6 +99,10 @@ const float *SCULPT_vertex_color_get(SculptSession *ss, int index);
 
 const float *SCULPT_vertex_persistent_co_get(SculptSession *ss, int index);
 void SCULPT_vertex_persistent_normal_get(SculptSession *ss, int index, float no[3]);
+
+/* Returs the info of the limit surface when Multires is available, otherwise it returns the
+ * current coordinate of the vertex. */
+void SCULPT_vertex_limit_surface_get(SculptSession *ss, int index, float r_co[3]);
 
 #define SCULPT_VERTEX_NEIGHBOR_FIXED_CAPACITY 256
 typedef struct SculptVertexNeighborIter {

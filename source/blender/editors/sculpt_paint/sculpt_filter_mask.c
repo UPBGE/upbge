@@ -175,7 +175,7 @@ static void mask_filter_task_cb(void *__restrict userdata,
         *vd.mask = gain * (*vd.mask) + offset;
         break;
     }
-    CLAMP(*vd.mask, 0.0f, 1.0f);
+    *vd.mask = clamp_f(*vd.mask, 0.0f, 1.0f);
     if (*vd.mask != prev_val) {
       update = true;
     }
@@ -204,7 +204,7 @@ static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
 
   BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true, false);
 
-  SCULPT_vertex_random_access_init(ss);
+  SCULPT_vertex_random_access_ensure(ss);
 
   if (!ob->sculpt->pmap) {
     return OPERATOR_CANCELLED;
@@ -434,7 +434,7 @@ static int sculpt_dirty_mask_exec(bContext *C, wmOperator *op)
 
   BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true, false);
 
-  SCULPT_vertex_random_access_init(ss);
+  SCULPT_vertex_random_access_ensure(ss);
 
   if (!ob->sculpt->pmap) {
     return OPERATOR_CANCELLED;

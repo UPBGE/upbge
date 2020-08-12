@@ -261,7 +261,7 @@ static void mesh_filter_task_cb(void *__restrict userdata,
 
     switch (filter_type) {
       case MESH_FILTER_SMOOTH:
-        CLAMP(fade, -1.0f, 1.0f);
+        fade = clamp_f(fade, -1.0f, 1.0f);
         SCULPT_neighbor_coords_average_interior(ss, avg, vd.index);
         sub_v3_v3v3(val, avg, orig_co);
         madd_v3_v3v3fl(val, orig_co, val, fade);
@@ -306,7 +306,7 @@ static void mesh_filter_task_cb(void *__restrict userdata,
         const uint *hash_co = (const uint *)orig_co;
         const uint hash = BLI_hash_int_2d(hash_co[0], hash_co[1]) ^
                           BLI_hash_int_2d(hash_co[2], ss->filter_cache->random_seed);
-        mul_v3_fl(normal, hash * (1.0f / (float)0xFFFFFFFF) - 0.5f);
+        mul_v3_fl(normal, hash * (1.0f / 0xFFFFFFFF) - 0.5f);
         mul_v3_v3fl(disp, normal, fade);
         break;
       }
@@ -435,9 +435,8 @@ static void mesh_filter_sharpen_init_factors(SculptSession *ss)
       SCULPT_VERTEX_NEIGHBORS_ITER_END(ni);
 
       if (total > 0) {
-        mul_v3_v3fl(
-            ss->filter_cache->sharpen_detail_directions[i], direction_avg, 1.0f / (float)total);
-        ss->filter_cache->sharpen_factor[i] = sharpen_avg / (float)total;
+        mul_v3_v3fl(ss->filter_cache->sharpen_detail_directions[i], direction_avg, 1.0f / total);
+        ss->filter_cache->sharpen_factor[i] = sharpen_avg / total;
       }
     }
   }
@@ -500,7 +499,7 @@ static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *
   float len = event->prevclickx - event->mval[0];
   filter_strength = filter_strength * -len * 0.001f * UI_DPI_FAC;
 
-  SCULPT_vertex_random_access_init(ss);
+  SCULPT_vertex_random_access_ensure(ss);
 
   bool needs_pmap = sculpt_mesh_filter_needs_pmap(filter_type, use_face_sets);
   BKE_sculpt_update_object_for_edit(depsgraph, ob, needs_pmap, false, false);
@@ -566,7 +565,7 @@ static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent 
 
   const bool use_face_sets = RNA_boolean_get(op->ptr, "use_face_sets");
 
-  SCULPT_vertex_random_access_init(ss);
+  SCULPT_vertex_random_access_ensure(ss);
 
   const bool needs_topology_info = sculpt_mesh_filter_needs_pmap(filter_type, use_face_sets);
   BKE_sculpt_update_object_for_edit(depsgraph, ob, needs_topology_info, false, false);
@@ -628,7 +627,7 @@ static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent 
 void SCULPT_OT_mesh_filter(struct wmOperatorType *ot)
 {
   /* Identifiers. */
-  ot->name = "Filter mesh";
+  ot->name = "Filter Mesh";
   ot->idname = "SCULPT_OT_mesh_filter";
   ot->description = "Applies a filter to modify the current mesh";
 
