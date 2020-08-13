@@ -42,6 +42,7 @@
 #include "GPU_texture.h"
 #include "GPU_uniformbuffer.h"
 
+#include "gpu_context_private.hh"
 #include "gpu_shader_private.h"
 
 extern "C" char datatoc_gpu_shader_colorspace_lib_glsl[];
@@ -256,38 +257,6 @@ GPUShader *GPU_shader_create_from_python(const char *vertexcode,
 
   MEM_SAFE_FREE(libcodecat);
   return sh;
-}
-
-GPUShader *GPU_shader_load_from_binary(const char *binary,
-                                       const int binary_format,
-                                       const int binary_len,
-                                       const char *shname)
-{
-  BLI_assert(GL_ARB_get_program_binary);
-  int success;
-  int program = glCreateProgram();
-
-  glProgramBinary(program, binary_format, binary, binary_len);
-  glGetProgramiv(program, GL_LINK_STATUS, &success);
-
-  if (success) {
-    glUseProgram(program);
-
-    GPUShader *shader = (GPUShader *)MEM_callocN(sizeof(*shader), __func__);
-    shader->interface = GPU_shaderinterface_create(program);
-    shader->program = program;
-
-#ifndef NDEBUG
-    BLI_snprintf(shader->name, sizeof(shader->name), "%s_%u", shname, g_shaderid++);
-#else
-    UNUSED_VARS(shname);
-#endif
-
-    return shader;
-  }
-
-  glDeleteProgram(program);
-  return NULL;
 }
 
 GPUShader *GPU_shader_create_ex(const char *vertexcode,
@@ -598,14 +567,27 @@ void GPU_shader_bind(GPUShader *shader)
 {
   BLI_assert(shader && shader->program);
 
-  glUseProgram(shader->program);
-  GPU_matrix_bind(shader->interface);
-  GPU_shader_set_srgb_uniform(shader->interface);
+  GPUContext *ctx = GPU_context_active_get();
+
+  if (ctx->shader != shader) {
+    ctx->shader = shader;
+    glUseProgram(shader->program);
+    GPU_matrix_bind(shader->interface);
+    GPU_shader_set_srgb_uniform(shader->interface);
+  }
+
+  if (GPU_matrix_dirty_get()) {
+    GPU_matrix_bind(shader->interface);
+  }
 }
 
 void GPU_shader_unbind(void)
 {
+#ifndef NDEBUG
+  GPUContext *ctx = GPU_context_active_get();
+  ctx->shader = NULL;
   glUseProgram(0);
+#endif
 }
 
 /** \} */
@@ -709,37 +691,11 @@ int GPU_shader_get_program(GPUShader *shader)
   return (int)shader->program;
 }
 
-char *GPU_shader_get_binary(GPUShader *shader, uint *r_binary_format, int *r_binary_len)
-{
-  BLI_assert(GLEW_ARB_get_program_binary);
-  char *r_binary;
-  int binary_len = 0;
-
-  glGetProgramiv(shader->program, GL_PROGRAM_BINARY_LENGTH, &binary_len);
-  r_binary = (char *)MEM_mallocN(binary_len, __func__);
-  glGetProgramBinary(shader->program, binary_len, NULL, r_binary_format, r_binary);
-
-  if (r_binary_len) {
-    *r_binary_len = binary_len;
-  }
-
-  return r_binary;
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Uniforms setters
  * \{ */
-
-void GPU_shader_uniform_float(GPUShader *UNUSED(shader), int location, float value)
-{
-  if (location == -1) {
-    return;
-  }
-
-  glUniform1f(location, value);
-}
 
 void GPU_shader_uniform_vector(
     GPUShader *UNUSED(shader), int location, int length, int arraysize, const float *value)
@@ -773,22 +729,9 @@ void GPU_shader_uniform_vector(
   }
 }
 
-void GPU_shader_uniform_int(GPUShader *UNUSED(shader), int location, int value)
-{
-  if (location == -1) {
-    return;
-  }
-
-  glUniform1i(location, value);
-}
-
 void GPU_shader_uniform_vector_int(
     GPUShader *UNUSED(shader), int location, int length, int arraysize, const int *value)
 {
-  if (location == -1) {
-    return;
-  }
-
   switch (length) {
     case 1:
       glUniform1iv(location, arraysize, value);
@@ -806,6 +749,91 @@ void GPU_shader_uniform_vector_int(
       BLI_assert(0);
       break;
   }
+}
+
+void GPU_shader_uniform_int(GPUShader *shader, int location, int value)
+{
+  GPU_shader_uniform_vector_int(shader, location, 1, 1, &value);
+}
+
+void GPU_shader_uniform_float(GPUShader *shader, int location, float value)
+{
+  GPU_shader_uniform_vector(shader, location, 1, 1, &value);
+}
+
+#define GET_UNIFORM \
+  const GPUShaderInput *uniform = GPU_shaderinterface_uniform(sh->interface, name); \
+  BLI_assert(uniform);
+
+void GPU_shader_uniform_1i(GPUShader *sh, const char *name, int value)
+{
+  GET_UNIFORM
+  GPU_shader_uniform_int(sh, uniform->location, value);
+}
+
+void GPU_shader_uniform_1b(GPUShader *sh, const char *name, bool value)
+{
+  GPU_shader_uniform_1i(sh, name, value ? 1 : 0);
+}
+
+void GPU_shader_uniform_2f(GPUShader *sh, const char *name, float x, float y)
+{
+  const float data[2] = {x, y};
+  GPU_shader_uniform_2fv(sh, name, data);
+}
+
+void GPU_shader_uniform_3f(GPUShader *sh, const char *name, float x, float y, float z)
+{
+  const float data[3] = {x, y, z};
+  GPU_shader_uniform_3fv(sh, name, data);
+}
+
+void GPU_shader_uniform_4f(GPUShader *sh, const char *name, float x, float y, float z, float w)
+{
+  const float data[4] = {x, y, z, w};
+  GPU_shader_uniform_4fv(sh, name, data);
+}
+
+void GPU_shader_uniform_1f(GPUShader *sh, const char *name, float x)
+{
+  GET_UNIFORM
+  GPU_shader_uniform_float(sh, uniform->location, x);
+}
+
+void GPU_shader_uniform_2fv(GPUShader *sh, const char *name, const float data[2])
+{
+  GET_UNIFORM
+  GPU_shader_uniform_vector(sh, uniform->location, 2, 1, data);
+}
+
+void GPU_shader_uniform_3fv(GPUShader *sh, const char *name, const float data[3])
+{
+  GET_UNIFORM
+  GPU_shader_uniform_vector(sh, uniform->location, 3, 1, data);
+}
+
+void GPU_shader_uniform_4fv(GPUShader *sh, const char *name, const float data[4])
+{
+  GET_UNIFORM
+  GPU_shader_uniform_vector(sh, uniform->location, 4, 1, data);
+}
+
+void GPU_shader_uniform_mat4(GPUShader *sh, const char *name, const float data[4][4])
+{
+  GET_UNIFORM
+  GPU_shader_uniform_vector(sh, uniform->location, 16, 1, (const float *)data);
+}
+
+void GPU_shader_uniform_2fv_array(GPUShader *sh, const char *name, int len, const float (*val)[2])
+{
+  GET_UNIFORM
+  GPU_shader_uniform_vector(sh, uniform->location, 2, len, (const float *)val);
+}
+
+void GPU_shader_uniform_4fv_array(GPUShader *sh, const char *name, int len, const float (*val)[4])
+{
+  GET_UNIFORM
+  GPU_shader_uniform_vector(sh, uniform->location, 4, len, (const float *)val);
 }
 
 /** \} */

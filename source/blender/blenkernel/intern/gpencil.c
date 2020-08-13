@@ -1879,6 +1879,7 @@ bool BKE_gpencil_merge_materials_table_get(Object *ob,
   Material *ma_secondary = NULL;
   MaterialGPencilStyle *gp_style_primary = NULL;
   MaterialGPencilStyle *gp_style_secondary = NULL;
+  GHash *mat_used = BLI_ghash_int_new(__func__);
 
   short *totcol = BKE_object_material_len_p(ob);
   if (totcol == 0) {
@@ -1891,8 +1892,15 @@ bool BKE_gpencil_merge_materials_table_get(Object *ob,
     if (ma_primary == NULL) {
       continue;
     }
+    for (int idx_secondary = 0; idx_secondary < *totcol; idx_secondary++) {
+      if ((idx_secondary == idx_primary) ||
+          BLI_ghash_haskey(r_mat_table, POINTER_FROM_INT(idx_secondary))) {
+        continue;
+      }
+      if (BLI_ghash_haskey(mat_used, POINTER_FROM_INT(idx_secondary))) {
+        continue;
+      }
 
-    for (int idx_secondary = idx_primary + 1; idx_secondary < *totcol; idx_secondary++) {
       /* Read secondary material to compare with primary material. */
       ma_secondary = BKE_gpencil_material(ob, idx_secondary + 1);
       if ((ma_secondary == NULL) ||
@@ -1930,6 +1938,11 @@ bool BKE_gpencil_merge_materials_table_get(Object *ob,
       }
 
       float s_hsv_a[3], s_hsv_b[3], f_hsv_a[3], f_hsv_b[3], col[3];
+      zero_v3(s_hsv_a);
+      zero_v3(s_hsv_b);
+      zero_v3(f_hsv_a);
+      zero_v3(f_hsv_b);
+
       copy_v3_v3(col, gp_style_primary->stroke_rgba);
       rgb_to_hsv_compat_v(col, s_hsv_a);
       copy_v3_v3(col, gp_style_secondary->stroke_rgba);
@@ -1940,24 +1953,102 @@ bool BKE_gpencil_merge_materials_table_get(Object *ob,
       copy_v3_v3(col, gp_style_secondary->fill_rgba);
       rgb_to_hsv_compat_v(col, f_hsv_b);
 
-      /* Check stroke and fill color (only Hue and Saturation). */
+      /* Check stroke and fill color. */
       if ((!compare_ff(s_hsv_a[0], s_hsv_b[0], hue_threshold)) ||
           (!compare_ff(s_hsv_a[1], s_hsv_b[1], sat_threshold)) ||
+          (!compare_ff(s_hsv_a[2], s_hsv_b[2], val_threshold)) ||
           (!compare_ff(f_hsv_a[0], f_hsv_b[0], hue_threshold)) ||
           (!compare_ff(f_hsv_a[1], f_hsv_b[1], sat_threshold)) ||
-          (!compare_ff(s_hsv_a[2], s_hsv_b[2], val_threshold)) ||
-          (!compare_ff(s_hsv_a[2], s_hsv_b[2], val_threshold)) ||
-          (!compare_ff(s_hsv_a[2], s_hsv_b[2], val_threshold)) ||
-          (!compare_ff(s_hsv_a[2], s_hsv_b[2], val_threshold))) {
+          (!compare_ff(f_hsv_a[2], f_hsv_b[2], val_threshold)) ||
+          (!compare_ff(gp_style_primary->stroke_rgba[3],
+                       gp_style_secondary->stroke_rgba[3],
+                       val_threshold)) ||
+          (!compare_ff(
+              gp_style_primary->fill_rgba[3], gp_style_secondary->fill_rgba[3], val_threshold))) {
         continue;
       }
 
       /* Save conversion indexes. */
-      BLI_ghash_insert(
-          r_mat_table, POINTER_FROM_INT(idx_secondary), POINTER_FROM_INT(idx_primary));
-      changed = true;
+      if (!BLI_ghash_haskey(r_mat_table, POINTER_FROM_INT(idx_secondary))) {
+        BLI_ghash_insert(
+            r_mat_table, POINTER_FROM_INT(idx_secondary), POINTER_FROM_INT(idx_primary));
+        changed = true;
+
+        if (!BLI_ghash_haskey(mat_used, POINTER_FROM_INT(idx_primary))) {
+          BLI_ghash_insert(mat_used, POINTER_FROM_INT(idx_primary), POINTER_FROM_INT(idx_primary));
+        }
+      }
     }
   }
+  /* Free hash memory. */
+  BLI_ghash_free(mat_used, NULL, NULL);
+
+  return changed;
+}
+
+/**
+ * Merge similar materials
+ * \param ob: Grease pencil object
+ * \param hue_threshold: Threshold for Hue
+ * \param sat_threshold: Threshold for Saturation
+ * \param val_threshold: Threshold for Value
+ * \param r_removed: Number of materials removed
+ * \return True if done
+ */
+bool BKE_gpencil_merge_materials(Object *ob,
+                                 const float hue_threshold,
+                                 const float sat_threshold,
+                                 const float val_threshold,
+                                 int *r_removed)
+{
+  bGPdata *gpd = ob->data;
+
+  short *totcol = BKE_object_material_len_p(ob);
+  if (totcol == 0) {
+    *r_removed = 0;
+    return 0;
+  }
+
+  /* Review materials. */
+  GHash *mat_table = BLI_ghash_int_new(__func__);
+
+  bool changed = BKE_gpencil_merge_materials_table_get(
+      ob, hue_threshold, sat_threshold, val_threshold, mat_table);
+
+  *r_removed = BLI_ghash_len(mat_table);
+
+  /* Update stroke material index. */
+  if (changed) {
+    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+      if (gpl->flag & GP_LAYER_HIDE) {
+        continue;
+      }
+
+      LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
+        LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
+          /* Check if the color is editable. */
+          MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(ob, gps->mat_nr + 1);
+          if (gp_style != NULL) {
+            if (gp_style->flag & GP_MATERIAL_HIDE) {
+              continue;
+            }
+            if (((gpl->flag & GP_LAYER_UNLOCK_COLOR) == 0) &&
+                (gp_style->flag & GP_MATERIAL_LOCKED)) {
+              continue;
+            }
+          }
+
+          if (BLI_ghash_haskey(mat_table, POINTER_FROM_INT(gps->mat_nr))) {
+            int *idx = BLI_ghash_lookup(mat_table, POINTER_FROM_INT(gps->mat_nr));
+            gps->mat_nr = POINTER_AS_INT(idx);
+          }
+        }
+      }
+    }
+  }
+
+  /* Free hash memory. */
+  BLI_ghash_free(mat_table, NULL, NULL);
 
   return changed;
 }

@@ -40,7 +40,7 @@
 #include "GHOST_C-api.h"
 
 #include "gpu_backend.hh"
-#include "gpu_batch_private.h"
+#include "gpu_batch_private.hh"
 #include "gpu_context_private.hh"
 #include "gpu_matrix_private.h"
 
@@ -83,12 +83,12 @@ bool GPUContext::is_active_on_thread(void)
 
 GPUContext *GPU_context_create(void *ghost_window)
 {
-  if (gpu_backend_get() == NULL) {
+  if (GPUBackend::get() == NULL) {
     /* TODO move where it make sense. */
     GPU_backend_init(GPU_BACKEND_OPENGL);
   }
 
-  GPUContext *ctx = gpu_backend_get()->context_alloc(ghost_window);
+  GPUContext *ctx = GPUBackend::get()->context_alloc(ghost_window);
 
   GPU_context_active_set(ctx);
   return ctx;
@@ -173,32 +173,20 @@ void GPU_fbo_free(GLuint fbo_id, GPUContext *ctx)
 void GPU_buf_free(GLuint buf_id)
 {
   /* TODO avoid using backend */
-  GPUBackend *backend = gpu_backend_get();
+  GPUBackend *backend = GPUBackend::get();
   static_cast<GLBackend *>(backend)->buf_free(buf_id);
 }
 
 void GPU_tex_free(GLuint tex_id)
 {
   /* TODO avoid using backend */
-  GPUBackend *backend = gpu_backend_get();
+  GPUBackend *backend = GPUBackend::get();
   static_cast<GLBackend *>(backend)->tex_free(tex_id);
 }
 
 /* GPUBatch & GPUFrameBuffer contains respectively VAO & FBO indices
  * which are not shared across contexts. So we need to keep track of
  * ownership. */
-
-void gpu_context_add_batch(GPUContext *ctx, GPUBatch *batch)
-{
-  BLI_assert(ctx);
-  static_cast<GLContext *>(ctx)->batch_register(batch);
-}
-
-void gpu_context_remove_batch(GPUContext *ctx, GPUBatch *batch)
-{
-  BLI_assert(ctx);
-  static_cast<GLContext *>(ctx)->batch_unregister(batch);
-}
 
 void gpu_context_add_framebuffer(GPUContext *ctx, GPUFrameBuffer *fb)
 {
@@ -285,7 +273,7 @@ void GPU_backend_exit(void)
   delete g_backend;
 }
 
-GPUBackend *gpu_backend_get(void)
+GPUBackend *GPUBackend::get(void)
 {
   return g_backend;
 }

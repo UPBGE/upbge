@@ -50,60 +50,111 @@
 #include "DEG_depsgraph_query.h"
 
 /* Helper: Check materials with same color. */
-static int gpencil_check_same_material_color(Object *ob_gp, const float color[4], Material **r_mat)
+static int gpencil_check_same_material_color(Object *ob_gp,
+                                             const float color_stroke[4],
+                                             const float color_fill[4],
+                                             const bool do_fill,
+                                             const bool do_stroke,
+                                             Material **r_mat)
 {
+  int index = -1;
   Material *ma = NULL;
+  *r_mat = NULL;
   float color_cu[4];
-  copy_v4_v4(color_cu, color);
+  float hsv_stroke[4], hsv_fill[4];
 
-  float hsv1[4];
-  rgb_to_hsv_v(color_cu, hsv1);
-  hsv1[3] = color[3];
+  copy_v4_v4(color_cu, color_stroke);
+  zero_v3(hsv_stroke);
+  rgb_to_hsv_v(color_cu, hsv_stroke);
+  hsv_stroke[3] = color_stroke[3];
+
+  copy_v4_v4(color_cu, color_fill);
+  zero_v3(hsv_fill);
+  rgb_to_hsv_v(color_cu, hsv_fill);
+  hsv_fill[3] = color_fill[3];
+
+  bool match_stroke = false;
+  bool match_fill = false;
 
   for (int i = 1; i <= ob_gp->totcol; i++) {
     ma = BKE_object_material_get(ob_gp, i);
     MaterialGPencilStyle *gp_style = ma->gp_style;
-    /* Check color with small tolerance (better in HSV). */
+    const bool fill = (gp_style->fill_style == GP_MATERIAL_FILL_STYLE_SOLID);
+    const bool stroke = (gp_style->fill_style == GP_MATERIAL_STROKE_STYLE_SOLID);
+
+    if (do_fill && !fill) {
+      continue;
+    }
+
+    if (do_stroke && !stroke) {
+      continue;
+    }
+
+    /* Check color with small tolerance (better result in HSV). */
     float hsv2[4];
-    rgb_to_hsv_v(gp_style->fill_rgba, hsv2);
-    hsv2[3] = gp_style->fill_rgba[3];
-    if ((gp_style->fill_style == GP_MATERIAL_FILL_STYLE_SOLID) &&
-        (compare_v4v4(hsv1, hsv2, 0.01f))) {
-      *r_mat = ma;
-      return i - 1;
+    if (do_fill) {
+      zero_v3(hsv2);
+      rgb_to_hsv_v(gp_style->fill_rgba, hsv2);
+      hsv2[3] = gp_style->fill_rgba[3];
+      if (compare_v4v4(hsv_fill, hsv2, 0.01f)) {
+        *r_mat = ma;
+        index = i - 1;
+        match_fill = true;
+      }
+    }
+    else {
+      match_fill = true;
+    }
+
+    if (do_stroke) {
+      zero_v3(hsv2);
+      rgb_to_hsv_v(gp_style->stroke_rgba, hsv2);
+      hsv2[3] = gp_style->stroke_rgba[3];
+      if (compare_v4v4(hsv_stroke, hsv2, 0.01f)) {
+        *r_mat = ma;
+        index = i - 1;
+        match_stroke = true;
+      }
+    }
+    else {
+      match_stroke = true;
+    }
+
+    /* If match, don't look for more. */
+    if (match_stroke || match_fill) {
+      break;
     }
   }
 
-  *r_mat = NULL;
-  return -1;
+  if (!match_stroke || !match_fill) {
+    *r_mat = NULL;
+    index = -1;
+  }
+
+  return index;
 }
 
 /* Helper: Add gpencil material using curve material as base. */
 static Material *gpencil_add_from_curve_material(Main *bmain,
                                                  Object *ob_gp,
-                                                 const float cu_color[4],
-                                                 const bool gpencil_lines,
+                                                 const float stroke_color[4],
+                                                 const float fill_color[4],
+                                                 const bool stroke,
                                                  const bool fill,
                                                  int *r_idx)
 {
-  Material *mat_gp = BKE_gpencil_object_material_new(
-      bmain, ob_gp, (fill) ? "Material" : "Unassigned", r_idx);
+  Material *mat_gp = BKE_gpencil_object_material_new(bmain, ob_gp, "Material", r_idx);
   MaterialGPencilStyle *gp_style = mat_gp->gp_style;
 
   /* Stroke color. */
-  if (gpencil_lines) {
-    ARRAY_SET_ITEMS(gp_style->stroke_rgba, 0.0f, 0.0f, 0.0f, 1.0f);
+  if (stroke) {
+    copy_v4_v4(mat_gp->gp_style->stroke_rgba, stroke_color);
     gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
-  }
-  else {
-    copy_v4_v4(mat_gp->gp_style->stroke_rgba, cu_color);
-    gp_style->flag &= ~GP_MATERIAL_STROKE_SHOW;
   }
 
   /* Fill color. */
-  copy_v4_v4(mat_gp->gp_style->fill_rgba, cu_color);
-  /* Fill is false if the original curve hasn't material assigned, so enable it. */
   if (fill) {
+    copy_v4_v4(mat_gp->gp_style->fill_rgba, fill_color);
     gp_style->flag |= GP_MATERIAL_FILL_SHOW;
   }
 
@@ -118,13 +169,18 @@ static Material *gpencil_add_from_curve_material(Main *bmain,
 
 /* Helper: Create new stroke section. */
 static void gpencil_add_new_points(bGPDstroke *gps,
-                                   float *coord_array,
-                                   float pressure,
-                                   int init,
-                                   int totpoints,
+                                   const float *coord_array,
+                                   const float pressure_start,
+                                   const float pressure_end,
+                                   const int init,
+                                   const int totpoints,
                                    const float init_co[3],
-                                   bool last)
+                                   const bool last)
 {
+  BLI_assert(totpoints > 0);
+
+  const float step = 1.0f / ((float)totpoints - 1.0f);
+  float factor = 0.0f;
   for (int i = 0; i < totpoints; i++) {
     bGPDspoint *pt = &gps->points[i + init];
     copy_v3_v3(&pt->x, &coord_array[3 * i]);
@@ -139,8 +195,9 @@ static void gpencil_add_new_points(bGPDstroke *gps,
       }
     }
 
-    pt->pressure = pressure;
     pt->strength = 1.0f;
+    pt->pressure = interpf(pressure_end, pressure_start, factor);
+    factor += step;
   }
 }
 
@@ -159,17 +216,85 @@ static Collection *gpencil_get_parent_collection(Scene *scene, Object *ob)
 
   return mycol;
 }
+static int gpencil_get_stroke_material_fromcurve(
+    Main *bmain, Object *ob_gp, Object *ob_cu, bool *do_stroke, bool *do_fill)
+{
+  Curve *cu = (Curve *)ob_cu->data;
+
+  Material *mat_gp = NULL;
+  Material *mat_curve_stroke = NULL;
+  Material *mat_curve_fill = NULL;
+
+  float color_stroke[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  float color_fill[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+  /* If the curve has 2 materials, the first is considered as Fill and the second as Stroke.
+   * If the has only one material, if the name contains _stroke, the is used
+   * as stroke, else as fill.*/
+  if (ob_cu->totcol >= 2) {
+    *do_stroke = true;
+    *do_fill = true;
+    mat_curve_fill = BKE_object_material_get(ob_cu, 1);
+    mat_curve_stroke = BKE_object_material_get(ob_cu, 2);
+  }
+  else if (ob_cu->totcol == 1) {
+    mat_curve_stroke = BKE_object_material_get(ob_cu, 1);
+    if ((mat_curve_stroke) && (strstr(mat_curve_stroke->id.name, "_stroke") != NULL)) {
+      *do_stroke = true;
+      *do_fill = false;
+      mat_curve_fill = NULL;
+    }
+    else {
+      *do_stroke = false;
+      *do_fill = true;
+      /* Invert materials. */
+      mat_curve_fill = mat_curve_stroke;
+      mat_curve_stroke = NULL;
+    }
+  }
+  else {
+    /* No materials in the curve. */
+    *do_fill = false;
+    return -1;
+  }
+
+  if (mat_curve_stroke) {
+    copy_v4_v4(color_stroke, &mat_curve_stroke->r);
+  }
+  if (mat_curve_fill) {
+    copy_v4_v4(color_fill, &mat_curve_fill->r);
+  }
+
+  int r_idx = gpencil_check_same_material_color(
+      ob_gp, color_stroke, color_fill, *do_stroke, *do_fill, &mat_gp);
+
+  if ((ob_gp->totcol < r_idx) || (r_idx < 0)) {
+    mat_gp = gpencil_add_from_curve_material(
+        bmain, ob_gp, color_stroke, color_fill, *do_stroke, *do_fill, &r_idx);
+  }
+
+  /* Set fill and stroke depending of curve type (3D or 2D). */
+  if ((cu->flag & CU_3D) || ((cu->flag & (CU_FRONT | CU_BACK)) == 0)) {
+    mat_gp->gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
+    mat_gp->gp_style->flag &= ~GP_MATERIAL_FILL_SHOW;
+  }
+  else {
+    mat_gp->gp_style->flag &= ~GP_MATERIAL_STROKE_SHOW;
+    mat_gp->gp_style->flag |= GP_MATERIAL_FILL_SHOW;
+  }
+
+  return r_idx;
+}
 
 /* Helper: Convert one spline to grease pencil stroke. */
 static void gpencil_convert_spline(Main *bmain,
                                    Object *ob_gp,
                                    Object *ob_cu,
-                                   const bool gpencil_lines,
-                                   const bool only_stroke,
+                                   const float scale_thickness,
+                                   const float sample,
                                    bGPDframe *gpf,
                                    Nurb *nu)
 {
-  Curve *cu = (Curve *)ob_cu->data;
   bool cyclic = true;
 
   /* Create Stroke. */
@@ -204,75 +329,8 @@ static void gpencil_convert_spline(Main *bmain,
   /* Materials
    * Notice: The color of the material is the color of viewport and not the final shader color.
    */
-  Material *mat_gp = NULL;
-  bool fill = true;
-  /* Check if grease pencil has a material with same color.*/
-  float color[4];
-  if ((cu->mat) && (*cu->mat)) {
-    Material *mat_cu = *cu->mat;
-    copy_v4_v4(color, &mat_cu->r);
-  }
-  else {
-    /* Gray (unassigned from SVG add-on) */
-    zero_v4(color);
-    add_v3_fl(color, 0.6f);
-    color[3] = 1.0f;
-    fill = false;
-  }
-
-  /* Special case: If the color was created by the SVG add-on and the name contains '_stroke' and
-   * there is only one color, the stroke must not be closed, fill to false and use for
-   * stroke the fill color.
-   */
-  bool do_stroke = false;
-  if (ob_cu->totcol == 1) {
-    Material *ma_stroke = BKE_object_material_get(ob_cu, 1);
-    if ((ma_stroke) && (strstr(ma_stroke->id.name, "_stroke") != NULL)) {
-      do_stroke = true;
-    }
-  }
-
-  int r_idx = gpencil_check_same_material_color(ob_gp, color, &mat_gp);
-  if ((ob_cu->totcol > 0) && (r_idx < 0)) {
-    Material *mat_curve = BKE_object_material_get(ob_cu, 1);
-    mat_gp = gpencil_add_from_curve_material(bmain, ob_gp, color, gpencil_lines, fill, &r_idx);
-
-    if ((mat_curve) && (mat_curve->gp_style != NULL)) {
-      MaterialGPencilStyle *gp_style_cur = mat_curve->gp_style;
-      MaterialGPencilStyle *gp_style_gp = mat_gp->gp_style;
-
-      copy_v4_v4(gp_style_gp->mix_rgba, gp_style_cur->mix_rgba);
-      gp_style_gp->fill_style = gp_style_cur->fill_style;
-      gp_style_gp->mix_factor = gp_style_cur->mix_factor;
-    }
-
-    /* If object has more than 1 material, use second material for stroke color. */
-    if ((!only_stroke) && (ob_cu->totcol > 1) && (BKE_object_material_get(ob_cu, 2))) {
-      mat_curve = BKE_object_material_get(ob_cu, 2);
-      if (mat_curve) {
-        copy_v4_v4(mat_gp->gp_style->stroke_rgba, &mat_curve->r);
-      }
-    }
-    else if ((only_stroke) || (do_stroke)) {
-      /* Also use the first color if the fill is none for stroke color. */
-      if (ob_cu->totcol > 0) {
-        mat_curve = BKE_object_material_get(ob_cu, 1);
-        if (mat_curve) {
-          copy_v3_v3(mat_gp->gp_style->stroke_rgba, &mat_curve->r);
-          mat_gp->gp_style->stroke_rgba[3] = mat_curve->a;
-          /* Set fill and stroke depending of curve type (3D or 2D). */
-          if ((cu->flag & CU_3D) || ((cu->flag & (CU_FRONT | CU_BACK)) == 0)) {
-            mat_gp->gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
-            mat_gp->gp_style->flag &= ~GP_MATERIAL_FILL_SHOW;
-          }
-          else {
-            mat_gp->gp_style->flag &= ~GP_MATERIAL_STROKE_SHOW;
-            mat_gp->gp_style->flag |= GP_MATERIAL_FILL_SHOW;
-          }
-        }
-      }
-    }
-  }
+  bool do_stroke, do_fill;
+  int r_idx = gpencil_get_stroke_material_fromcurve(bmain, ob_gp, ob_cu, &do_stroke, &do_fill);
   CLAMP_MIN(r_idx, 0);
 
   /* Assign material index to stroke. */
@@ -336,7 +394,11 @@ static void gpencil_convert_spline(Main *bmain,
           copy_v3_v3(init_co, &coord_array[0]);
         }
         /* Add points to the stroke */
-        gpencil_add_new_points(gps, coord_array, bezt->radius, init, resolu, init_co, last);
+        float radius_start = prevbezt->radius * scale_thickness;
+        float radius_end = bezt->radius * scale_thickness;
+
+        gpencil_add_new_points(
+            gps, coord_array, radius_start, radius_end, init, resolu, init_co, last);
         /* Free memory. */
         MEM_SAFE_FREE(coord_array);
 
@@ -367,7 +429,7 @@ static void gpencil_convert_spline(Main *bmain,
         gps->points = MEM_callocN(sizeof(bGPDspoint) * gps->totpoints, "gp_stroke_points");
 
         /* Add points. */
-        gpencil_add_new_points(gps, coord_array, 1.0f, 0, gps->totpoints, init_co, false);
+        gpencil_add_new_points(gps, coord_array, 1.0f, 1.0f, 0, gps->totpoints, init_co, false);
 
         MEM_SAFE_FREE(coord_array);
       }
@@ -378,8 +440,12 @@ static void gpencil_convert_spline(Main *bmain,
     }
   }
   /* Cyclic curve, close stroke. */
-  if ((cyclic) && (!do_stroke)) {
+  if (cyclic) {
     BKE_gpencil_stroke_close(gps);
+  }
+
+  if (sample > 0.0f) {
+    BKE_gpencil_stroke_sample(gps, sample, false);
   }
 
   /* Recalc fill geometry. */
@@ -393,17 +459,17 @@ static void gpencil_convert_spline(Main *bmain,
  * \param scene: Original scene.
  * \param ob_gp: Grease pencil object to add strokes.
  * \param ob_cu: Curve to convert.
- * \param gpencil_lines: Use lines for strokes.
  * \param use_collections: Create layers using collection names.
- * \param only_stroke: The material must be only stroke without fill.
+ * \param scale_thickness: Scale thickness factor.
+ * \param sample: Sample distance, zero to disable.
  */
 void BKE_gpencil_convert_curve(Main *bmain,
                                Scene *scene,
                                Object *ob_gp,
                                Object *ob_cu,
-                               const bool gpencil_lines,
                                const bool use_collections,
-                               const bool only_stroke)
+                               const float scale_thickness,
+                               const float sample)
 {
   if (ELEM(NULL, ob_gp, ob_cu) || (ob_gp->type != OB_GPENCIL) || (ob_gp->data == NULL)) {
     return;
@@ -441,11 +507,32 @@ void BKE_gpencil_convert_curve(Main *bmain,
 
   /* Read all splines of the curve and create a stroke for each. */
   LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
-    gpencil_convert_spline(bmain, ob_gp, ob_cu, gpencil_lines, only_stroke, gpf, nu);
+    gpencil_convert_spline(bmain, ob_gp, ob_cu, scale_thickness, sample, gpf, nu);
   }
+
+  /* Merge any similar material. */
+  int removed = 0;
+  BKE_gpencil_merge_materials(ob_gp, 0.001f, 0.001f, 0.001f, &removed);
+
+  /* Remove any unused slot. */
+  int actcol = ob_gp->actcol;
+
+  for (int slot = 1; slot <= ob_gp->totcol; slot++) {
+    while (slot <= ob_gp->totcol && !BKE_object_material_slot_used(ob_gp->data, slot)) {
+      ob_gp->actcol = slot;
+      BKE_object_material_slot_remove(bmain, ob_gp);
+
+      if (actcol >= slot) {
+        actcol--;
+      }
+    }
+  }
+
+  ob_gp->actcol = actcol;
 
   /* Tag for recalculation */
   DEG_id_tag_update(&gpd->id, ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob_gp->id, ID_RECALC_GEOMETRY);
 }
 
 /** \} */

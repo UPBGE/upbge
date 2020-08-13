@@ -2844,7 +2844,6 @@ void DRW_opengl_context_enable_ex(bool restore)
       if (!G.background) {
         immActivate();
       }
-      BLF_batch_reset();
     }
   }
 }
@@ -2908,13 +2907,11 @@ void DRW_gpu_render_context_enable(void *re_gpu_context)
   BLI_assert(!BLI_thread_is_main());
 
   GPU_context_active_set(re_gpu_context);
-  DRW_shape_cache_reset(); /* XXX fix that too. */
 }
 
 /* Needs to be called BEFORE DRW_opengl_render_context_disable() */
 void DRW_gpu_render_context_disable(void *UNUSED(re_gpu_context))
 {
-  DRW_shape_cache_reset(); /* XXX fix that too. */
   GPU_context_active_set(NULL);
 }
 

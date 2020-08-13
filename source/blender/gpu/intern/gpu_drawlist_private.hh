@@ -13,29 +13,28 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2016 by Mike Erwin.
+ * The Original Code is Copyright (C) 2020 Blender Foundation.
  * All rights reserved.
  */
 
 /** \file
  * \ingroup gpu
- *
- * GPU geometry batch
- * Contains VAOs + VBOs + Shader representing a drawable entity.
  */
 
 #pragma once
 
-#include "GPU_batch.h"
-#include "GPU_context.h"
-#include "GPU_shader_interface.h"
+#include "MEM_guardedalloc.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
+namespace gpu {
 
-void gpu_batch_remove_interface_ref(GPUBatch *batch, const GPUShaderInterface *interface);
+class DrawList {
+ public:
+  virtual ~DrawList(){};
 
-#ifdef __cplusplus
-}
-#endif
+  virtual void append(GPUBatch *batch, int i_first, int i_count) = 0;
+  virtual void submit() = 0;
+};
+
+}  // namespace gpu
+}  // namespace blender

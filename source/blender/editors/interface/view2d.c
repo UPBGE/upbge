@@ -853,6 +853,17 @@ void UI_view2d_curRect_validate(View2D *v2d)
   ui_view2d_curRect_validate_resize(v2d, false);
 }
 
+void UI_view2d_curRect_changed(const bContext *C, View2D *v2d)
+{
+  UI_view2d_curRect_validate(v2d);
+
+  ARegion *region = CTX_wm_region(C);
+
+  if (region->type->on_view2d_changed != NULL) {
+    region->type->on_view2d_changed(C, region);
+  }
+}
+
 /* ------------------ */
 
 /* Called by menus to activate it, or by view2d operators

@@ -41,6 +41,7 @@ struct GPUMatrixState;
 struct GPUContext {
  public:
   /** State managment */
+  GPUShader *shader = NULL;
   GPUFrameBuffer *current_fbo = NULL;
   GPUMatrixState *matrix_state = NULL;
 
@@ -76,9 +77,6 @@ void GPU_tex_free(GLuint tex_id);
 /* These two need the ctx the id was created with. */
 void GPU_vao_free(GLuint vao_id, GPUContext *ctx);
 void GPU_fbo_free(GLuint fbo_id, GPUContext *ctx);
-
-void gpu_context_add_batch(GPUContext *ctx, GPUBatch *batch);
-void gpu_context_remove_batch(GPUContext *ctx, GPUBatch *batch);
 
 void gpu_context_add_framebuffer(GPUContext *ctx, struct GPUFrameBuffer *fb);
 void gpu_context_remove_framebuffer(GPUContext *ctx, struct GPUFrameBuffer *fb);
