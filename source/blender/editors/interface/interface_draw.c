@@ -1639,7 +1639,9 @@ void ui_draw_but_COLORBAND(uiBut *but, const uiWidgetColors *UNUSED(wcol), const
   struct ColorManagedDisplay *display = ui_block_cm_display_get(but->block);
   uint pos_id, col_id;
 
-  ColorBand *coba = (ColorBand *)(but->editcoba ? but->editcoba : but->poin);
+  uiButColorBand *but_coba = (uiButColorBand *)but;
+  ColorBand *coba = (but_coba->edit_coba == NULL) ? (ColorBand *)but->poin : but_coba->edit_coba;
+
   if (coba == NULL) {
     return;
   }
@@ -1888,14 +1890,9 @@ static void gl_shaded_color(const uchar *color, int shade)
 
 void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
 {
-  CurveMapping *cumap;
-
-  if (but->editcumap) {
-    cumap = but->editcumap;
-  }
-  else {
-    cumap = (CurveMapping *)but->poin;
-  }
+  uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
+  CurveMapping *cumap = (but_cumap->edit_cumap == NULL) ? (CurveMapping *)but->poin :
+                                                          but_cumap->edit_cumap;
 
   float clip_size_x = BLI_rctf_size_x(&cumap->curr);
   float clip_size_y = BLI_rctf_size_y(&cumap->curr);
@@ -2179,13 +2176,10 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
 {
   uint i;
   float fx, fy;
-  CurveProfile *profile;
-  if (but->editprofile) {
-    profile = but->editprofile;
-  }
-  else {
-    profile = (CurveProfile *)but->poin;
-  }
+
+  uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
+  CurveProfile *profile = (but_profile->edit_profile == NULL) ? (CurveProfile *)but->poin :
+                                                                but_profile->edit_profile;
 
   /* Calculate offset and zoom. */
   float zoomx = (BLI_rcti_size_x(rect) - 2.0f) / BLI_rctf_size_x(&profile->view_rect);

@@ -80,7 +80,7 @@ class GHOST_XrContext : public GHOST_IXrContext {
   void setDrawViewFunc(GHOST_XrDrawViewFn draw_view_fn) override;
   bool needsUpsideDownDrawing() const override;
 
-  void handleSessionStateChange(const XrEventDataSessionStateChanged *lifecycle);
+  void handleSessionStateChange(const XrEventDataSessionStateChanged &lifecycle);
 
   GHOST_TXrOpenXRRuntimeID getOpenXRRuntimeID() const;
   const GHOST_XrCustomFuncs &getCustomFuncs() const;
@@ -114,7 +114,7 @@ class GHOST_XrContext : public GHOST_IXrContext {
   bool m_debug = false;
   bool m_debug_time = false;
 
-  void createOpenXRInstance();
+  void createOpenXRInstance(const std::vector<GHOST_TXrGraphicsBinding> &graphics_binding_types);
   void storeInstanceProperties();
   void initDebugMessenger();
 
@@ -126,7 +126,10 @@ class GHOST_XrContext : public GHOST_IXrContext {
   void initExtensions();
   void initExtensionsEx(std::vector<XrExtensionProperties> &extensions, const char *layer_name);
   void getAPILayersToEnable(std::vector<const char *> &r_ext_names);
-  void getExtensionsToEnable(std::vector<const char *> &r_ext_names);
-  GHOST_TXrGraphicsBinding determineGraphicsBindingTypeToEnable(
+  void getExtensionsToEnable(const std::vector<GHOST_TXrGraphicsBinding> &graphics_binding_types,
+                             std::vector<const char *> &r_ext_names);
+  std::vector<GHOST_TXrGraphicsBinding> determineGraphicsBindingTypesToEnable(
       const GHOST_XrContextCreateInfo *create_info);
+  GHOST_TXrGraphicsBinding determineGraphicsBindingTypeToUse(
+      const std::vector<GHOST_TXrGraphicsBinding> &enabled_types);
 };
