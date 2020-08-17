@@ -852,9 +852,9 @@ void CcdPhysicsController::UpdateSoftBody()
 
             // Do we need obmat? MT_Transform(m_motionState->NodeGetWorldPosition(),
             // m_motionState->NodeGetWorldOrientation)
-            copy_v3_v3(v1->co, ToMoto(nodes.at(i1).m_x).getValue());
-            copy_v3_v3(v2->co, ToMoto(nodes.at(i2).m_x).getValue());
-            copy_v3_v3(v3->co, ToMoto(nodes.at(i3).m_x).getValue());
+            copy_v3_v3(v1->co, ToMoto(nodes.at(i1).m_x - sb->m_pose.m_com).getValue());
+            copy_v3_v3(v2->co, ToMoto(nodes.at(i2).m_x - sb->m_pose.m_com).getValue());
+            copy_v3_v3(v3->co, ToMoto(nodes.at(i3).m_x - sb->m_pose.m_com).getValue());
             normal_float_to_short_v3(v1->no, ToMoto(nodes.at(i1).m_n).getValue());
             normal_float_to_short_v3(v2->no, ToMoto(nodes.at(i2).m_n).getValue());
             normal_float_to_short_v3(v3->no, ToMoto(nodes.at(i3).m_n).getValue());
@@ -864,8 +864,9 @@ void CcdPhysicsController::UpdateSoftBody()
 
               int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
 
-              copy_v3_v3(v1->co, ToMoto(nodes.at(i4).m_x).getValue());
-              normal_float_to_short_v3(v1->no, ToMoto(nodes.at(i4).m_n).getValue());
+              copy_v3_v3(v1->co, ToMoto(nodes.at(i4).m_x - sb->m_pose.m_com).getValue());
+              normal_float_to_short_v3(v1->no,
+                                       ToMoto(nodes.at(i4).m_n).getValue());
             }
           }
         }
