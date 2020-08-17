@@ -50,13 +50,7 @@ void BPY_pyconstraint_update(struct Object *owner, struct bConstraint *con);
 int BPY_is_pyconstraint(struct Text *text);
 //  void BPY_free_pyconstraint_links(struct Text *text);
 
-void BPY_python_start(int argc, const char **argv);
-void BPY_python_end(void);
-void BPY_python_reset(struct bContext *C);
-void BPY_python_use_system_env(void);
-void BPY_python_backtrace(/* FILE */ void *file);
 bool BPY_python_get_use_system_env(void); /* Game Engine Integration */
-
 /* global interpreter lock */
 
 typedef void *BPy_ThreadStatePtr;
@@ -73,40 +67,6 @@ void BPY_thread_restore(BPy_ThreadStatePtr tstate);
   BPY_thread_restore(_bpy_saved_tstate); \
   } \
   (void)0
-
-bool BPY_execute_filepath(struct bContext *C, const char *filepath, struct ReportList *reports);
-bool BPY_execute_text(struct bContext *C,
-                      struct Text *text,
-                      struct ReportList *reports,
-                      const bool do_jump);
-
-bool BPY_execute_string_as_number(struct bContext *C,
-                                  const char *imports[],
-                                  const char *expr,
-                                  const char *report_prefix,
-                                  double *r_value);
-bool BPY_execute_string_as_intptr(struct bContext *C,
-                                  const char *imports[],
-                                  const char *expr,
-                                  const char *report_prefix,
-                                  intptr_t *r_value);
-bool BPY_execute_string_as_string_and_size(struct bContext *C,
-                                           const char *imports[],
-                                           const char *expr,
-                                           const char *report_prefix,
-                                           char **r_value,
-                                           size_t *r_value_size);
-bool BPY_execute_string_as_string(struct bContext *C,
-                                  const char *imports[],
-                                  const char *expr,
-                                  const char *report_prefix,
-                                  char **r_value);
-
-bool BPY_execute_string_ex(struct bContext *C,
-                           const char *imports[],
-                           const char *expr,
-                           bool use_eval);
-bool BPY_execute_string(struct bContext *C, const char *imports[], const char *expr);
 
 void BPY_text_free_code(struct Text *text);
 void BPY_modules_update(

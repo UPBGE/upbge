@@ -67,7 +67,7 @@
 #  include <signal.h>
 
 #  ifdef WITH_PYTHON
-#    include "BPY_extern.h" /* BPY_python_backtrace */
+#    include "BPY_extern_python.h" /* BPY_python_backtrace */
 #  endif
 
 #  include "creator_intern.h" /* own include */

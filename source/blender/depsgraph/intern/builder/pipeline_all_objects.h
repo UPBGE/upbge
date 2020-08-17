@@ -13,39 +13,32 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Copyright 2020, Blender Foundation.
+ * The Original Code is Copyright (C) 2020 Blender Foundation.
  * All rights reserved.
  */
 
 /** \file
- * \ingroup gpu
- *
- * GPUBackend derived class contain allocators that do not need a context bound.
- * The backend is init at startup and is accessible using GPU_backend_get() */
+ * \ingroup depsgraph
+ */
 
 #pragma once
 
-#include "gpu_batch_private.hh"
-#include "gpu_context_private.hh"
-#include "gpu_drawlist_private.hh"
+#include "pipeline_view_layer.h"
 
 namespace blender {
-namespace gpu {
+namespace deg {
 
-class GPUBackend {
+/* Builds a dependency graph that contains all objects in the view layer.
+ * This is contrary to the regular ViewLayerBuilderPipeline, which is limited to visible objects
+ * (and their dependencies). */
+class AllObjectsBuilderPipeline : public ViewLayerBuilderPipeline {
  public:
-  virtual ~GPUBackend(){};
+  AllObjectsBuilderPipeline(::Depsgraph *graph, Main *bmain, Scene *scene, ViewLayer *view_layer);
 
-  static GPUBackend *get(void);
-
-  virtual GPUContext *context_alloc(void *ghost_window) = 0;
-
-  virtual Batch *batch_alloc(void) = 0;
-  virtual DrawList *drawlist_alloc(int list_length) = 0;
-  // virtual FrameBuffer *framebuffer_alloc(void) = 0;
-  // virtual Shader *shader_alloc(void) = 0;
-  // virtual Texture *texture_alloc(void) = 0;
+ protected:
+  virtual unique_ptr<DepsgraphNodeBuilder> construct_node_builder() override;
+  virtual unique_ptr<DepsgraphRelationBuilder> construct_relation_builder() override;
 };
 
-}  // namespace gpu
+}  // namespace deg
 }  // namespace blender

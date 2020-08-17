@@ -159,27 +159,10 @@ ModifierData *ABCGenericMeshWriter::get_liquid_sim_modifier(Scene *scene, Object
 
 bool ABCGenericMeshWriter::is_supported(const HierarchyContext *context) const
 {
-  Object *object = context->object;
-  bool is_dupli = context->duplicator != nullptr;
-  int base_flag;
-
-  if (is_dupli) {
-    /* Construct the object's base flags from its dupli-parent, just like is done in
-     * deg_objects_dupli_iterator_next(). Without this, the visibility check below will fail. Doing
-     * this here, instead of a more suitable location in AbstractHierarchyIterator, prevents
-     * copying the Object for every dupli. */
-    base_flag = object->base_flag;
-    object->base_flag = context->duplicator->base_flag | BASE_FROM_DUPLI;
+  if (args_.export_params->visible_objects_only) {
+    return context->is_object_visible(DAG_EVAL_RENDER);
   }
-
-  int visibility = BKE_object_visibility(
-      object, DAG_EVAL_RENDER /* TODO(Sybren): add evaluation mode to export options? */);
-
-  if (is_dupli) {
-    object->base_flag = base_flag;
-  }
-
-  return (visibility & OB_VISIBLE_SELF) != 0;
+  return true;
 }
 
 void ABCGenericMeshWriter::do_write(HierarchyContext &context)

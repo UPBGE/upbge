@@ -1300,15 +1300,13 @@ static const EnumPropertyItem *rna_3DViewShading_render_pass_itemf(bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
 
-  const bool ao_enabled = scene->eevee.flag & SCE_EEVEE_GTAO_ENABLED;
   const bool bloom_enabled = scene->eevee.flag & SCE_EEVEE_BLOOM_ENABLED;
 
   int totitem = 0;
   EnumPropertyItem *result = NULL;
   for (int i = 0; rna_enum_view3dshading_render_pass_type_items[i].identifier != NULL; i++) {
     const EnumPropertyItem *item = &rna_enum_view3dshading_render_pass_type_items[i];
-    if (!((!ao_enabled && item->value == EEVEE_RENDER_PASS_AO) ||
-          (!bloom_enabled &&
+    if (!((!bloom_enabled &&
            (item->value == EEVEE_RENDER_PASS_BLOOM || STREQ(item->name, "Effects"))))) {
       RNA_enum_item_add(&result, &totitem, item);
     }
@@ -1324,9 +1322,6 @@ static int rna_3DViewShading_render_pass_get(PointerRNA *ptr)
   eViewLayerEEVEEPassType result = shading->render_pass;
   Scene *scene = rna_3DViewShading_scene(ptr);
 
-  if (result == EEVEE_RENDER_PASS_AO && ((scene->eevee.flag & SCE_EEVEE_GTAO_ENABLED) == 0)) {
-    result = EEVEE_RENDER_PASS_COMBINED;
-  }
   if (result == EEVEE_RENDER_PASS_BLOOM && ((scene->eevee.flag & SCE_EEVEE_BLOOM_ENABLED) == 0)) {
     result = EEVEE_RENDER_PASS_COMBINED;
   }
@@ -4799,7 +4794,7 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Waveform Displaying", "How Waveforms are drawn");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
 
-  prop = RNA_def_property(srna, "zoom_to_fit", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "use_zoom_to_fit", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_ZOOM_TO_FIT);
   RNA_def_property_ui_text(
       prop, "Zoom to Fit", "Automatically zoom preview image to make it fully fit the region");
