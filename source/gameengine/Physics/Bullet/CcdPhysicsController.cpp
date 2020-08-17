@@ -832,6 +832,7 @@ void CcdPhysicsController::UpdateSoftBody()
         int numpolys = dm->getNumTessFaces(dm);
 
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
+        btMatrix3x3 tmptrans(ToBullet(m_MotionState->GetWorldOrientation().inverse()));
 
         for (int p2 = 0; p2 < numpolys; p2++) {
           MFace *mf = &mface[p2];
@@ -851,9 +852,9 @@ void CcdPhysicsController::UpdateSoftBody()
             int i3 = poly->GetVertexInfo(2).getSoftBodyIndex();
 
             // Do we need obmat? No, we need sb->m_pose.m_com even if idk what it means
-            copy_v3_v3(v1->co, ToMoto(nodes.at(i1).m_x - sb->m_pose.m_com).getValue());
-            copy_v3_v3(v2->co, ToMoto(nodes.at(i2).m_x - sb->m_pose.m_com).getValue());
-            copy_v3_v3(v3->co, ToMoto(nodes.at(i3).m_x - sb->m_pose.m_com).getValue());
+            copy_v3_v3(v1->co, ToMoto(tmptrans * (nodes.at(i1).m_x - sb->m_pose.m_com)).getValue());
+            copy_v3_v3(v2->co, ToMoto(tmptrans * (nodes.at(i2).m_x - sb->m_pose.m_com)).getValue());
+            copy_v3_v3(v3->co, ToMoto(tmptrans * (nodes.at(i3).m_x - sb->m_pose.m_com)).getValue());
             normal_float_to_short_v3(v1->no, ToMoto(nodes.at(i1).m_n).getValue());
             normal_float_to_short_v3(v2->no, ToMoto(nodes.at(i2).m_n).getValue());
             normal_float_to_short_v3(v3->no, ToMoto(nodes.at(i3).m_n).getValue());
@@ -863,9 +864,8 @@ void CcdPhysicsController::UpdateSoftBody()
 
               int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
 
-              copy_v3_v3(v1->co, ToMoto(nodes.at(i4).m_x - sb->m_pose.m_com).getValue());
-              normal_float_to_short_v3(v1->no,
-                                       ToMoto(nodes.at(i4).m_n).getValue());
+              copy_v3_v3(v1->co, ToMoto(tmptrans * (nodes.at(i4).m_x - sb->m_pose.m_com)).getValue());
+              normal_float_to_short_v3(v1->no, ToMoto(nodes.at(i4).m_n).getValue());
             }
           }
         }
