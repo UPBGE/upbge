@@ -797,7 +797,6 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
         MVert *mverts = dm->getVertArray(dm);
         MFace *mface = dm->getTessFaceArray(dm);
         int numpolys = dm->getNumTessFaces(dm);
-        int numverts = dm->getNumVerts(dm);
         
         for (int p2 = 0; p2 < numpolys; p2++) {
           MFace *mf = &mface[p2];
