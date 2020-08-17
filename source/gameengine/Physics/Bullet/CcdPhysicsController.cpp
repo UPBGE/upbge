@@ -809,12 +809,6 @@ void CcdPhysicsController::UpdateSoftBody()
   btSoftBody *sb = GetSoftBody();
   if (sb) {
     if (sb->m_pose.m_bframe) {
-      btVector3 worldPos = sb->m_pose.m_com;
-      btQuaternion worldquat;
-      btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
-      trs.getRotation(worldquat);
-      m_MotionState->SetWorldPosition(ToMoto(worldPos));
-      m_MotionState->SetWorldOrientation(ToMoto(worldquat));
 
       RAS_MeshObject *rasMesh = GetShapeInfo()->GetMesh();
 
