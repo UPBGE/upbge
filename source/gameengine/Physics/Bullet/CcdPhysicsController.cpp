@@ -819,16 +819,16 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
                        ToMoto(nodes.at(poly->GetVertexInfo(1).getSoftBodyIndex()).m_x).getValue());
             copy_v3_v3(v3->co,
                        ToMoto(nodes.at(poly->GetVertexInfo(2).getSoftBodyIndex()).m_x).getValue());
-            normal_float_to_short_v3(v1->no, ToMoto(nodes.at(p2).m_x).getValue());
-            normal_float_to_short_v3(v2->no, ToMoto(nodes.at(p2 + 1).m_x).getValue());
-            normal_float_to_short_v3(v3->no, ToMoto(nodes.at(p2 + 2).m_x).getValue());
+            normal_float_to_short_v3(v1->no, ToMoto(nodes.at(p2).m_n).getValue());
+            normal_float_to_short_v3(v2->no, ToMoto(nodes.at(p2 + 1).m_n).getValue());
+            normal_float_to_short_v3(v3->no, ToMoto(nodes.at(p2 + 2).m_n).getValue());
 
             if (mf->v4) {
               MVert *v4 = &mverts[mf->v4];
               copy_v3_v3(
                   v1->co,
                   ToMoto(nodes.at(poly->GetVertexInfo(3).getSoftBodyIndex()).m_x).getValue());
-              normal_float_to_short_v3(v1->no, ToMoto(nodes.at(p2 + 3).m_x).getValue());
+              normal_float_to_short_v3(v1->no, ToMoto(nodes.at(p2 + 3).m_n).getValue());
             }
           }
         }
