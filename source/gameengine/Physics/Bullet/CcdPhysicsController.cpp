@@ -798,12 +798,9 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
         MFace *mface = dm->getTessFaceArray(dm);
         int numpolys = dm->getNumTessFaces(dm);
         int numverts = dm->getNumVerts(dm);
-        MTFace *tface = (MTFace *)dm->getTessFaceDataArray(dm, CD_MTFACE);
-
         
         for (int p2 = 0; p2 < numpolys; p2++) {
           MFace *mf = &mface[p2];
-          MTFace *tf = (tface) ? &tface[p2] : nullptr;
           const int origi = index_mf_to_mpoly ?
                                 DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
                                 p2;
