@@ -139,6 +139,8 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   /// Perform an integration step of duration 'timeStep'.
   virtual bool ProceedDeltaTime(double curTime, float timeStep, float interval);
 
+  virtual void UpdateSoftBodies();
+
   /**
    * Called by Bullet for every physical simulation (sub)tick.
    * Our constructor registers this callback to Bullet, which stores a pointer to 'this' in

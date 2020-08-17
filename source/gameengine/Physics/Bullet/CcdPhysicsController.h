@@ -656,6 +656,8 @@ class CcdPhysicsController : public PHY_IPhysicsController {
    */
   virtual bool SynchronizeMotionStates(float time);
 
+  virtual void UpdateSoftBody();
+
   /**
    * Called for every physics simulation step. Use this method for
    * things like limiting linear and angular velocity.

@@ -776,68 +776,6 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
       trs.getRotation(worldquat);
       m_MotionState->SetWorldPosition(ToMoto(worldPos));
       m_MotionState->SetWorldOrientation(ToMoto(worldquat));
-
-      RAS_MeshObject *rasMesh = GetShapeInfo()->GetMesh();
-
-      if (rasMesh) {
-        // Get other mesh data
-        Mesh *me = rasMesh->GetOrigMesh();
-        // I don't see how we could do without DerivedMesh...
-        DerivedMesh *dm = CDDM_from_mesh(me);
-
-        // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
-        DM_ensure_tessface(dm);
-
-        const int *index_mf_to_mpoly = (const int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
-        const int *index_mp_to_orig = (const int *)dm->getPolyDataArray(dm, CD_ORIGINDEX);
-        if (!index_mf_to_mpoly) {
-          index_mp_to_orig = nullptr;
-        }
-
-        MVert *mverts = dm->getVertArray(dm);
-        MFace *mface = dm->getTessFaceArray(dm);
-        int numpolys = dm->getNumTessFaces(dm);
-
-        btSoftBody::tNodeArray &nodes(sb->m_nodes);
-        
-        for (int p2 = 0; p2 < numpolys; p2++) {
-          MFace *mf = &mface[p2];
-          const int origi = index_mf_to_mpoly ?
-                                DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
-                                p2;
-          RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? rasMesh->GetPolygon(origi) : nullptr;
-
-          // only add polygons that have the collisionflag set
-          if (poly) {
-            MVert *v1 = &mverts[mf->v1];
-            MVert *v2 = &mverts[mf->v2];
-            MVert *v3 = &mverts[mf->v3];
-
-            int i1 = poly->GetVertexInfo(0).getSoftBodyIndex();
-            int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
-            int i3 = poly->GetVertexInfo(2).getSoftBodyIndex();
-
-            // Do we need obmat? MT_Transform(m_motionState->NodeGetWorldPosition(), m_motionState->NodeGetWorldOrientation)
-            copy_v3_v3(v1->co, ToMoto(nodes.at(i1).m_x).getValue());
-            copy_v3_v3(v2->co, ToMoto(nodes.at(i2).m_x).getValue());
-            copy_v3_v3(v3->co, ToMoto(nodes.at(i3).m_x).getValue());
-            normal_float_to_short_v3(v1->no, ToMoto(nodes.at(i1).m_n).getValue());
-            normal_float_to_short_v3(v2->no, ToMoto(nodes.at(i2).m_n).getValue());
-            normal_float_to_short_v3(v3->no, ToMoto(nodes.at(i3).m_n).getValue());
-
-            if (mf->v4) {
-              MVert *v4 = &mverts[mf->v4];
-
-              int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
-
-              copy_v3_v3(v1->co, ToMoto(nodes.at(i4).m_x).getValue());
-              normal_float_to_short_v3(v1->no, ToMoto(nodes.at(i4).m_n).getValue());
-            }
-          }
-        }
-        DM_to_mesh(dm, me, rasMesh->GetOriginalObject(), &CD_MASK_MESH, true); //if take_ownership is true, dm is freed
-        DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
-      }
     }
     else {
       btVector3 aabbMin, aabbMax;
@@ -864,6 +802,88 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
   GetCollisionShape()->setLocalScaling(ToBullet(scale));
 
   return true;
+}
+
+void CcdPhysicsController::UpdateSoftBody()
+{
+  btSoftBody *sb = GetSoftBody();
+  if (sb) {
+    if (sb->m_pose.m_bframe) {
+      btVector3 worldPos = sb->m_pose.m_com;
+      btQuaternion worldquat;
+      btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
+      trs.getRotation(worldquat);
+      m_MotionState->SetWorldPosition(ToMoto(worldPos));
+      m_MotionState->SetWorldOrientation(ToMoto(worldquat));
+
+      RAS_MeshObject *rasMesh = GetShapeInfo()->GetMesh();
+
+      if (rasMesh) {
+        // Get other mesh data
+        Mesh *me = rasMesh->GetOrigMesh();
+        // I don't see how we could do without DerivedMesh...
+        DerivedMesh *dm = CDDM_from_mesh(me);
+
+        // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
+        DM_ensure_tessface(dm);
+
+        const int *index_mf_to_mpoly = (const int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
+        const int *index_mp_to_orig = (const int *)dm->getPolyDataArray(dm, CD_ORIGINDEX);
+        if (!index_mf_to_mpoly) {
+          index_mp_to_orig = nullptr;
+        }
+
+        MVert *mverts = dm->getVertArray(dm);
+        MFace *mface = dm->getTessFaceArray(dm);
+        int numpolys = dm->getNumTessFaces(dm);
+
+        btSoftBody::tNodeArray &nodes(sb->m_nodes);
+
+        for (int p2 = 0; p2 < numpolys; p2++) {
+          MFace *mf = &mface[p2];
+          const int origi = index_mf_to_mpoly ?
+                                DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
+                                p2;
+          RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? rasMesh->GetPolygon(origi) : nullptr;
+
+          // only add polygons that have the collisionflag set
+          if (poly) {
+            MVert *v1 = &mverts[mf->v1];
+            MVert *v2 = &mverts[mf->v2];
+            MVert *v3 = &mverts[mf->v3];
+
+            int i1 = poly->GetVertexInfo(0).getSoftBodyIndex();
+            int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
+            int i3 = poly->GetVertexInfo(2).getSoftBodyIndex();
+
+            // Do we need obmat? MT_Transform(m_motionState->NodeGetWorldPosition(),
+            // m_motionState->NodeGetWorldOrientation)
+            copy_v3_v3(v1->co, ToMoto(nodes.at(i1).m_x).getValue());
+            copy_v3_v3(v2->co, ToMoto(nodes.at(i2).m_x).getValue());
+            copy_v3_v3(v3->co, ToMoto(nodes.at(i3).m_x).getValue());
+            normal_float_to_short_v3(v1->no, ToMoto(nodes.at(i1).m_n).getValue());
+            normal_float_to_short_v3(v2->no, ToMoto(nodes.at(i2).m_n).getValue());
+            normal_float_to_short_v3(v3->no, ToMoto(nodes.at(i3).m_n).getValue());
+
+            if (mf->v4) {
+              MVert *v4 = &mverts[mf->v4];
+
+              int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
+
+              copy_v3_v3(v1->co, ToMoto(nodes.at(i4).m_x).getValue());
+              normal_float_to_short_v3(v1->no, ToMoto(nodes.at(i4).m_n).getValue());
+            }
+          }
+        }
+        DM_to_mesh(dm,
+                   me,
+                   rasMesh->GetOriginalObject(),
+                   &CD_MASK_MESH,
+                   true);  // if take_ownership is true, dm is freed
+        DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
+      }
+    }
+  }
 }
 
 /**

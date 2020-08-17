@@ -768,6 +768,15 @@ bool CcdPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, flo
   return true;
 }
 
+void CcdPhysicsEnvironment::UpdateSoftBodies()
+{
+  std::set<CcdPhysicsController *>::iterator it;
+
+  for (it = m_controllers.begin(); it != m_controllers.end(); it++) {
+    (*it)->UpdateSoftBody();
+  }
+}
+
 class ClosestRayResultCallbackNotMe : public btCollisionWorld::ClosestRayResultCallback {
   btCollisionObject *m_owner;
   btCollisionObject *m_parent;
