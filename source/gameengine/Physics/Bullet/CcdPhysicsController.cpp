@@ -797,6 +797,8 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
         MVert *mverts = dm->getVertArray(dm);
         MFace *mface = dm->getTessFaceArray(dm);
         int numpolys = dm->getNumTessFaces(dm);
+
+        btSoftBody::tNodeArray &nodes(sb->m_nodes);
         
         for (int p2 = 0; p2 < numpolys; p2++) {
           MFace *mf = &mface[p2];
@@ -811,7 +813,6 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
             MVert *v2 = &mverts[mf->v2];
             MVert *v3 = &mverts[mf->v3];
 
-            btSoftBody::tNodeArray &nodes(sb->m_nodes);
             // Do we need obmat? MT_Transform(m_motionState->NodeGetWorldPosition(), m_motionState->NodeGetWorldOrientation)
             copy_v3_v3(v1->co, ToMoto(nodes.at(poly->GetVertexInfo(0).getSoftBodyIndex()).m_x).getValue());
             copy_v3_v3(v2->co,
