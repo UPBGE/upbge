@@ -782,6 +782,7 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
       if (rasMesh) {
         // Get other mesh data
         Mesh *me = rasMesh->GetOrigMesh();
+        // I don't see how we could do without DerivedMesh...
         DerivedMesh *dm = CDDM_from_mesh(me);
 
         // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
