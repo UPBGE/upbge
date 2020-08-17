@@ -2504,7 +2504,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
       {OB_BODY_TYPE_STATIC, "STATIC", 0, "Static", "Stationary object"},
       {OB_BODY_TYPE_DYNAMIC, "DYNAMIC", 0, "Dynamic", "Linear physics"},
       {OB_BODY_TYPE_RIGID, "RIGID_BODY", 0, "Rigid Body", "Linear and angular physics"},
-      //{OB_BODY_TYPE_SOFT, "SOFT_BODY", 0, "Soft Body", "Soft body"},
+      {OB_BODY_TYPE_SOFT, "SOFT_BODY", 0, "Soft Body", "Soft body"},
       //{OB_BODY_TYPE_OCCLUDER,
       //"OCCLUDER",
       // 0,
