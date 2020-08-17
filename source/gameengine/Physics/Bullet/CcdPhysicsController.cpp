@@ -26,9 +26,11 @@
 #include "CcdPhysicsController.h"
 
 #include "../depsgraph/DEG_depsgraph_query.h"
+#include "DNA_mesh_types.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_layer.h"
+#include "BKE_mesh_runtime.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 
@@ -774,6 +776,69 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
       trs.getRotation(worldquat);
       m_MotionState->SetWorldPosition(ToMoto(worldPos));
       m_MotionState->SetWorldOrientation(ToMoto(worldquat));
+
+      RAS_MeshObject *rasMesh = GetShapeInfo()->GetMesh();
+
+      if (rasMesh) {
+        // Get other mesh data
+        Mesh *me = rasMesh->GetOrigMesh();
+        bContext *C = KX_GetActiveEngine()->GetContext();
+        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+        DerivedMesh *dm = CDDM_from_mesh(me);
+
+        // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
+        DM_ensure_tessface(dm);
+
+        const int *index_mf_to_mpoly = (const int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
+        const int *index_mp_to_orig = (const int *)dm->getPolyDataArray(dm, CD_ORIGINDEX);
+        if (!index_mf_to_mpoly) {
+          index_mp_to_orig = nullptr;
+        }
+
+        MVert *mverts = dm->getVertArray(dm);
+        MFace *mface = dm->getTessFaceArray(dm);
+        int numpolys = dm->getNumTessFaces(dm);
+        int numverts = dm->getNumVerts(dm);
+        MTFace *tface = (MTFace *)dm->getTessFaceDataArray(dm, CD_MTFACE);
+
+        
+        for (int p2 = 0; p2 < numpolys; p2++) {
+          MFace *mf = &mface[p2];
+          MTFace *tf = (tface) ? &tface[p2] : nullptr;
+          const int origi = index_mf_to_mpoly ?
+                                DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
+                                p2;
+          RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? rasMesh->GetPolygon(origi) : nullptr;
+
+          // only add polygons that have the collisionflag set
+          if (poly) {
+            MVert *v1 = &mverts[mf->v1];
+            MVert *v2 = &mverts[mf->v2];
+            MVert *v3 = &mverts[mf->v3];
+
+            btSoftBody::tNodeArray &nodes(sb->m_nodes);
+
+            copy_v3_v3(v1->co, ToMoto(nodes.at(poly->GetVertexInfo(0).getSoftBodyIndex()).m_x).getValue());
+            copy_v3_v3(v2->co,
+                       ToMoto(nodes.at(poly->GetVertexInfo(1).getSoftBodyIndex()).m_x).getValue());
+            copy_v3_v3(v3->co,
+                       ToMoto(nodes.at(poly->GetVertexInfo(2).getSoftBodyIndex()).m_x).getValue());
+            normal_float_to_short_v3(v1->no, ToMoto(nodes.at(p2).m_x).getValue());
+            normal_float_to_short_v3(v2->no, ToMoto(nodes.at(p2 + 1).m_x).getValue());
+            normal_float_to_short_v3(v3->no, ToMoto(nodes.at(p2 + 2).m_x).getValue());
+
+            if (mf->v4) {
+              MVert *v4 = &mverts[mf->v4];
+              copy_v3_v3(
+                  v1->co,
+                  ToMoto(nodes.at(poly->GetVertexInfo(3).getSoftBodyIndex()).m_x).getValue());
+              normal_float_to_short_v3(v1->no, ToMoto(nodes.at(p2 + 3).m_x).getValue());
+            }
+          }
+        }
+        DM_to_mesh(dm, me, rasMesh->GetOriginalObject(), &CD_MASK_MESH, false);
+        DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
+      }
     }
     else {
       btVector3 aabbMin, aabbMax;
