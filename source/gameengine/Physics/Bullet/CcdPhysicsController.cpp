@@ -782,8 +782,6 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
       if (rasMesh) {
         // Get other mesh data
         Mesh *me = rasMesh->GetOrigMesh();
-        bContext *C = KX_GetActiveEngine()->GetContext();
-        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
         DerivedMesh *dm = CDDM_from_mesh(me);
 
         // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
@@ -817,7 +815,7 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
             MVert *v3 = &mverts[mf->v3];
 
             btSoftBody::tNodeArray &nodes(sb->m_nodes);
-
+            // Do we need obmat? MT_Transform(m_motionState->NodeGetWorldPosition(), m_motionState->NodeGetWorldOrientation)
             copy_v3_v3(v1->co, ToMoto(nodes.at(poly->GetVertexInfo(0).getSoftBodyIndex()).m_x).getValue());
             copy_v3_v3(v2->co,
                        ToMoto(nodes.at(poly->GetVertexInfo(1).getSoftBodyIndex()).m_x).getValue());
