@@ -813,22 +813,25 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
             MVert *v2 = &mverts[mf->v2];
             MVert *v3 = &mverts[mf->v3];
 
+            int i1 = poly->GetVertexInfo(0).getSoftBodyIndex();
+            int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
+            int i3 = poly->GetVertexInfo(2).getSoftBodyIndex();
+
             // Do we need obmat? MT_Transform(m_motionState->NodeGetWorldPosition(), m_motionState->NodeGetWorldOrientation)
-            copy_v3_v3(v1->co, ToMoto(nodes.at(poly->GetVertexInfo(0).getSoftBodyIndex()).m_x).getValue());
-            copy_v3_v3(v2->co,
-                       ToMoto(nodes.at(poly->GetVertexInfo(1).getSoftBodyIndex()).m_x).getValue());
-            copy_v3_v3(v3->co,
-                       ToMoto(nodes.at(poly->GetVertexInfo(2).getSoftBodyIndex()).m_x).getValue());
-            normal_float_to_short_v3(v1->no, ToMoto(nodes.at(p2).m_n).getValue());
-            normal_float_to_short_v3(v2->no, ToMoto(nodes.at(p2 + 1).m_n).getValue());
-            normal_float_to_short_v3(v3->no, ToMoto(nodes.at(p2 + 2).m_n).getValue());
+            copy_v3_v3(v1->co, ToMoto(nodes.at(i1).m_x).getValue());
+            copy_v3_v3(v2->co, ToMoto(nodes.at(i2).m_x).getValue());
+            copy_v3_v3(v3->co, ToMoto(nodes.at(i3).m_x).getValue());
+            normal_float_to_short_v3(v1->no, ToMoto(nodes.at(i1).m_n).getValue());
+            normal_float_to_short_v3(v2->no, ToMoto(nodes.at(i2).m_n).getValue());
+            normal_float_to_short_v3(v3->no, ToMoto(nodes.at(i3).m_n).getValue());
 
             if (mf->v4) {
               MVert *v4 = &mverts[mf->v4];
-              copy_v3_v3(
-                  v1->co,
-                  ToMoto(nodes.at(poly->GetVertexInfo(3).getSoftBodyIndex()).m_x).getValue());
-              normal_float_to_short_v3(v1->no, ToMoto(nodes.at(p2 + 3).m_n).getValue());
+
+              int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
+
+              copy_v3_v3(v1->co, ToMoto(nodes.at(i4).m_x).getValue());
+              normal_float_to_short_v3(v1->no, ToMoto(nodes.at(i4).m_n).getValue());
             }
           }
         }
