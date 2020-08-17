@@ -850,8 +850,7 @@ void CcdPhysicsController::UpdateSoftBody()
             int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
             int i3 = poly->GetVertexInfo(2).getSoftBodyIndex();
 
-            // Do we need obmat? MT_Transform(m_motionState->NodeGetWorldPosition(),
-            // m_motionState->NodeGetWorldOrientation)
+            // Do we need obmat? No, we need sb->m_pose.m_com even if idk what it means
             copy_v3_v3(v1->co, ToMoto(nodes.at(i1).m_x - sb->m_pose.m_com).getValue());
             copy_v3_v3(v2->co, ToMoto(nodes.at(i2).m_x - sb->m_pose.m_com).getValue());
             copy_v3_v3(v3->co, ToMoto(nodes.at(i3).m_x - sb->m_pose.m_com).getValue());
