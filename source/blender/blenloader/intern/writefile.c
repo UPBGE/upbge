@@ -2102,7 +2102,9 @@ static void write_object(BlendWriter *writer, Object *ob, const void *id_address
       BLO_write_struct(writer, SoftBody_Shared, ob->soft->shared);
       write_pointcaches(writer, &(ob->soft->shared->ptcaches));
       BLO_write_struct(writer, EffectorWeights, ob->soft->effector_weights);
+    }
 
+    if (ob->bsoft) {
       BLO_write_struct(writer, BulletSoftBody, ob->bsoft);
     }
 
