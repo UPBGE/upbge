@@ -40,7 +40,7 @@
 
 #include "../../../intern/clog/CLG_log.h"
 #include "../../../intern/ghost/GHOST_Path-api.h"
-#include "../../blender/python/BPY_extern.h"
+#include "../../blender/python/BPY_extern_python.h"
 #include "../render/extern/include/RE_render_ext.h"
 #include "BKE_addon.h"
 #include "BKE_appdir.h"

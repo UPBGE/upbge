@@ -36,8 +36,8 @@ set(INC
   ../makesrna
   ../modifiers
   ../nodes
-  ../simulation
   ../shader_fx
+  ../simulation
   ../render/extern/include
   ../windowmanager
   ../../../intern/ghost
@@ -372,8 +372,8 @@ set(SRC
   BKE_packedFile.h
   BKE_paint.h
   BKE_particle.h
-  BKE_persistent_data_handle.hh
   BKE_pbvh.h
+  BKE_persistent_data_handle.hh
   BKE_pointcache.h
   BKE_pointcloud.h
   BKE_property.h
@@ -450,9 +450,9 @@ set(LIB
   bf_intern_opensubdiv  # Uses stub when disabled.
   bf_modifiers
   bf_nodes
-  bf_simulation
   bf_rna
   bf_shader_fx
+  bf_simulation
 )
 
 if(WITH_BINRELOC)

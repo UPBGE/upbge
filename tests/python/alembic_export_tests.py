@@ -19,11 +19,20 @@
 
 # <pep8 compliant>
 
+"""
+Alembic Export Tests
+
+This test suite runs outside of Blender. Tests run Blender to call the exporter,
+and then use the Alembic CLI tools to inspect the exported Alembic files.
+"""
+
+
 import argparse
 import pathlib
 import subprocess
 import sys
 import unittest
+from typing import Tuple
 
 from modules.test_utils import (
     with_tempdir,
@@ -51,20 +60,16 @@ class AbstractAlembicTest(AbstractBlenderRunnerTest):
         # 'abcls' array notation, like "name[16]"
         cls.abcls_array = re.compile(r'^(?P<name>[^\[]+)(\[(?P<arraysize>\d+)\])?$')
 
-    def abcprop(self, filepath: pathlib.Path, proppath: str) -> dict:
-        """Uses abcls to obtain compound property values from an Alembic object.
+    def abcls(self, *arguments) -> Tuple[int, str]:
+        """Uses abcls and return its output.
 
-        A dict of subproperties is returned, where the values are Python values.
-
-        The Python bindings for Alembic are old, and only compatible with Python 2.x,
-        so that's why we can't use them here, and have to rely on other tooling.
+        :return: tuple (process exit status code, stdout)
         """
-        import collections
 
-        abcls = self.alembic_root / 'bin' / 'abcls'
-
-        command = (str(abcls), '-vl', '%s%s' % (filepath, proppath))
-        proc = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        command = (self.alembic_root / 'bin' / 'abcls', *arguments)
+        # Convert Path to str; Path works fine on Linux, but not on Windows.
+        command_str = [str(arg) for arg in command]
+        proc = subprocess.run(command_str, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               timeout=30)
 
         coloured_output = proc.stdout
@@ -76,7 +81,25 @@ class AbstractAlembicTest(AbstractBlenderRunnerTest):
         output = output.replace('\r\n', '\n').replace('\r', '\n')
 
         if proc.returncode:
-            raise AbcPropError('Error %d running %s:\n%s' % (proc.returncode, ' '.join(command), output))
+            str_command = " ".join(str(c) for c in command)
+            print(f'command {str_command} failed with status {proc.returncode}')
+
+        return (proc.returncode, output)
+
+    def abcprop(self, filepath: pathlib.Path, proppath: str) -> dict:
+        """Uses abcls to obtain compound property values from an Alembic object.
+
+        A dict of subproperties is returned, where the values are Python values.
+
+        The Python bindings for Alembic are old, and only compatible with Python 2.x,
+        so that's why we can't use them here, and have to rely on other tooling.
+        """
+        import collections
+
+        command = ('-vl', '%s%s' % (filepath, proppath))
+        returncode, output = self.abcls(*command)
+        if returncode:
+            raise AbcPropError('Error %d running abcls:\n%s' % (returncode, output))
 
         # Mapping from value type to callable that can convert a string to Python values.
         converters = {
@@ -104,9 +127,11 @@ class AbstractAlembicTest(AbstractBlenderRunnerTest):
             if proptype == 'CompoundProperty':
                 # To read those, call self.abcprop() on it.
                 continue
-            if len(parts) < 2:
-                raise ValueError('Error parsing result from abcprop: %s', info.strip())
-            valtype_and_arrsize, name_and_extent = parts[1:]
+
+            try:
+                valtype_and_arrsize, name_and_extent = parts[1:]
+            except ValueError as ex:
+                raise ValueError(f'Error parsing result from abcprop "{info.strip()}": {ex}') from ex
 
             # Parse name and extent
             m = self.abcls_array.match(name_and_extent)
@@ -524,6 +549,41 @@ class LongNamesExportTest(AbstractAlembicTest):
 
         abcprop = self.abcprop(abc, '%s/Cube/.geom' % name)
         self.assertIn('.faceCounts', abcprop)
+
+
+class InvisibleObjectExportTest(AbstractAlembicTest):
+    """Export an object which is invisible.
+
+    This test only tests a small subset of the functionality that is required to
+    export invisible objects. It just tests that the visibility property is
+    written, and that it has the correct initial value. This is a limitation
+    caused by these tests relying on `abcls`.
+    """
+
+    @with_tempdir
+    def test_hierarchical_export(self, tempdir: pathlib.Path):
+        abc = tempdir / 'visibility.abc'
+        script = "import bpy; bpy.ops.wm.alembic_export(filepath='%s', start=1, end=2, " \
+                 "renderable_only=False, visible_objects_only=False)" % abc.as_posix()
+        self.run_blender('visibility.blend', script)
+
+        def test(cube_name: str, expect_visible: bool):
+            returncode, output = self.abcls('-va', f'{abc}/{cube_name}')
+            if returncode:
+                self.fail(f"abcls failed: {output}")
+            output = output.strip()
+            self.assertEqual(f'Cube   .xform   visible   {int(expect_visible)}', output)
+
+        # This cube is always visible.
+        test('VisibleCube', True)
+
+        # This cube is never visible, and thus will not be pulled into the
+        # depsgraph by the standard builder, only by the all-objects builder.
+        test('InvisibleCube', False)
+
+        # This cube has animated visibility, and thus will be pulled into the
+        # depsgraph by the standard builder as well as the all-objects builder.
+        test('InvisibleAnimatedCube', False)
 
 
 if __name__ == '__main__':

@@ -42,6 +42,8 @@
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_particle_types.h"
 
+#include <iostream>
+
 namespace blender {
 namespace io {
 namespace usd {
@@ -52,27 +54,10 @@ USDGenericMeshWriter::USDGenericMeshWriter(const USDExporterContext &ctx) : USDA
 
 bool USDGenericMeshWriter::is_supported(const HierarchyContext *context) const
 {
-  Object *object = context->object;
-  bool is_dupli = context->duplicator != nullptr;
-  int base_flag;
-
-  if (is_dupli) {
-    /* Construct the object's base flags from its dupli-parent, just like is done in
-     * deg_objects_dupli_iterator_next(). Without this, the visibility check below will fail. Doing
-     * this here, instead of a more suitable location in AbstractHierarchyIterator, prevents
-     * copying the Object for every dupli. */
-    base_flag = object->base_flag;
-    object->base_flag = context->duplicator->base_flag | BASE_FROM_DUPLI;
+  if (usd_export_context_.export_params.visible_objects_only) {
+    return context->is_object_visible(usd_export_context_.export_params.evaluation_mode);
   }
-
-  int visibility = BKE_object_visibility(object,
-                                         usd_export_context_.export_params.evaluation_mode);
-
-  if (is_dupli) {
-    object->base_flag = base_flag;
-  }
-
-  return (visibility & OB_VISIBLE_SELF) != 0;
+  return true;
 }
 
 void USDGenericMeshWriter::do_write(HierarchyContext &context)
@@ -169,6 +154,8 @@ void USDGenericMeshWriter::write_mesh(HierarchyContext &context, Mesh *mesh)
   const pxr::SdfPath &usd_path = usd_export_context_.usd_path;
 
   pxr::UsdGeomMesh usd_mesh = pxr::UsdGeomMesh::Define(stage, usd_path);
+  write_visibility(context, timecode, usd_mesh);
+
   USDMeshData usd_mesh_data;
   get_geometry_data(mesh, usd_mesh_data);
 

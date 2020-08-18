@@ -55,6 +55,7 @@ set(SRC
   intern/builder/deg_builder_rna.cc
   intern/builder/deg_builder_transitive.cc
   intern/builder/pipeline.cc
+  intern/builder/pipeline_all_objects.cc
   intern/builder/pipeline_compositor.cc
   intern/builder/pipeline_from_ids.cc
   intern/builder/pipeline_render.cc
@@ -106,16 +107,17 @@ set(SRC
   intern/builder/deg_builder.h
   intern/builder/deg_builder_cache.h
   intern/builder/deg_builder_cycle.h
-  intern/builder/deg_builder_relations_drivers.h
   intern/builder/deg_builder_map.h
   intern/builder/deg_builder_nodes.h
   intern/builder/deg_builder_pchanmap.h
   intern/builder/deg_builder_relations.h
+  intern/builder/deg_builder_relations_drivers.h
   intern/builder/deg_builder_relations_impl.h
   intern/builder/deg_builder_remove_noop.h
   intern/builder/deg_builder_rna.h
   intern/builder/deg_builder_transitive.h
   intern/builder/pipeline.h
+  intern/builder/pipeline_all_objects.h
   intern/builder/pipeline_compositor.h
   intern/builder/pipeline_from_ids.h
   intern/builder/pipeline_render.h
