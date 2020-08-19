@@ -242,15 +242,16 @@ void KX_KetsjiEngine::BeginFrame()
 
 void KX_KetsjiEngine::EndFrame()
 {
+
+#ifdef WITH_PYTHON
+  KX_GetActiveScene()->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
+#endif
+
   // Show profiling info
   m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
   if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES | SHOW_PHYSICS_DEBUG)) {
     RenderDebugProperties();
   }
-
-#ifdef WITH_PYTHON
-  KX_GetActiveScene()->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
-#endif
 
   double tottime = m_logger.GetAverage();
   if (tottime < 1e-6)
