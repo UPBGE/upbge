@@ -244,7 +244,7 @@ void KX_KetsjiEngine::EndFrame()
 {
   // Show profiling info
   m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
-  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
+  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES | SHOW_PHYSICS_DEBUG)) {
     RenderDebugProperties();
   }
 
@@ -940,7 +940,7 @@ RAS_FrameBuffer *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene,
 {
   KX_SetActiveScene(scene);
 
-  m_rasterizer->FlushDebugDraw(scene, m_canvas);
+  m_rasterizer->FlushDebugDraw(m_canvas);
 
   // We need to first make sure our viewport is correct (enabling multiple viewports can mess this
   // up), only for filters.
@@ -959,7 +959,7 @@ RAS_FrameBuffer *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene,
   scene->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
 
   // Python draw callback can also call debug draw functions, so we have to clear debug shapes.
-  m_rasterizer->FlushDebugDraw(scene, m_canvas);
+  m_rasterizer->FlushDebugDraw(m_canvas);
 #endif
 
   return frameBuffer;
@@ -1056,7 +1056,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
   static const MT_Vector4 white(1.0f, 1.0f, 1.0f, 1.0f);
 
   // Use nullptrfor no scene.
-  RAS_DebugDraw &debugDraw = m_rasterizer->GetDebugDraw(nullptr);
+  RAS_DebugDraw &debugDraw = m_rasterizer->GetDebugDraw();
 
   if (m_flags & (SHOW_FRAMERATE | SHOW_PROFILE)) {
     // Title for profiling("Profile")
@@ -1124,8 +1124,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
           debugDraw, const_xindent, const_ysize, xcoord, ycoord, propsMax);
     }
   }
-
-  m_rasterizer->FlushDebugDraw(nullptr, m_canvas);
+  m_rasterizer->FlushDebugDraw(m_canvas);
 }
 
 void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene,

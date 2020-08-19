@@ -92,7 +92,9 @@ class KX_KetsjiEngine {
     /// Automatic add debug properties to the debug list.
     AUTO_ADD_DEBUG_PROPERTIES = (1 << 6),
     /// Use override camera?
-    CAMERA_OVERRIDE = (1 << 7)
+    CAMERA_OVERRIDE = (1 << 7),
+    /// Show physics debug lines
+    SHOW_PHYSICS_DEBUG = (1 << 8)
   };
 
  private:

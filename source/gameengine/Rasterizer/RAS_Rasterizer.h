@@ -244,7 +244,7 @@ class RAS_Rasterizer {
   ViewPortMatrices m_matrices;
 
   // We store each debug shape by scene.
-  std::map<SCA_IScene *, RAS_DebugDraw> m_debugDraws;
+  RAS_DebugDraw m_debugDraw;
 
   /* fogging vars */
   bool m_fogenabled;
@@ -527,8 +527,8 @@ class RAS_Rasterizer {
    */
   void SetPolygonOffset(float mult, float add);
 
-  RAS_DebugDraw &GetDebugDraw(SCA_IScene *scene);
-  void FlushDebugDraw(SCA_IScene *scene, RAS_ICanvas *canvas);
+  RAS_DebugDraw &GetDebugDraw();
+  void FlushDebugDraw(RAS_ICanvas *canvas);
 
   const MT_Matrix4x4 &GetViewMatrix() const;
   const MT_Matrix4x4 &GetViewInvMatrix() const;
