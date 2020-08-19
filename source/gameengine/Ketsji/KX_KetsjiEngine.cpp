@@ -40,7 +40,6 @@
 
 #include "DNA_scene_types.h"
 #include "GPU_state.h"
-#include "GPU_matrix.h"
 
 #include "BL_BlenderConverter.h"
 #include "CM_Message.h"
@@ -243,12 +242,6 @@ void KX_KetsjiEngine::BeginFrame()
 
 void KX_KetsjiEngine::EndFrame()
 {
-  /* We can set Ortho projmat here because the RAS_OpenGLDebugDraw shaders
-   * have main camera ModelViewProjectionMatrix as uniform */
-  const unsigned int width = m_canvas->GetWidth();
-  const unsigned int height = m_canvas->GetHeight();
-  GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
-
   // Show profiling info
   m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
   if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
@@ -674,7 +667,6 @@ void KX_KetsjiEngine::Render()
   }
   Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
   if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !m_canvas->IsBlenderPlayer())) {
-    GPU_matrix_reset();
     EndFrame();
   }
 }
