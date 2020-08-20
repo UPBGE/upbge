@@ -42,8 +42,6 @@
 #include "GPU_texture.h"
 #include "GPU_uniformbuffer.h"
 
-#include "gpu_shader_private.h"
-
 /* Adjust these constants as needed. */
 #define MAX_DEFINE_LENGTH 256
 #define MAX_EXT_DEFINE_LENGTH 512
@@ -590,36 +588,36 @@ void GPU_shader_free_builtin_shaders(void)
 }
 
 /**********************************Game engine************************************/
-char *GPU_shader_validate(GPUShader *shader)
-{
-  int stat = 0;
-  glValidateProgram(shader->program);
-  glGetObjectParameterivARB(shader->program, GL_OBJECT_VALIDATE_STATUS_ARB, (GLint *)&stat);
-
-  if (stat > 0) {
-    int charlen = 0;
-    char *log = (char *)MEM_mallocN(stat, "GPU_shader_validate");
-
-    glGetInfoLogARB(shader->program, stat, (GLsizei *)&charlen, log);
-
-    return log;
-  }
-  return NULL;
-}
-
-void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len)
-{
-  GPU_shaderinterface_discard(shader->interface);
-  for (unsigned short i = 0; i < len; ++i) {
-    glBindAttribLocation(shader->program, locations[i], names[i]);
-  }
-  shader->interface = GPU_shaderinterface_create(shader->program);
-}
-
-int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
-{
-  BLI_assert(shader && shader->program);
-  int loc = glGetUniformLocation(shader->program, name);
-  return loc;
-}
+//char *GPU_shader_validate(GPUShader *shader)
+//{
+//  int stat = 0;
+//  glValidateProgram(shader->program);
+//  glGetObjectParameterivARB(shader->program, GL_OBJECT_VALIDATE_STATUS_ARB, (GLint *)&stat);
+//
+//  if (stat > 0) {
+//    int charlen = 0;
+//    char *log = (char *)MEM_mallocN(stat, "GPU_shader_validate");
+//
+//    glGetInfoLogARB(shader->program, stat, (GLsizei *)&charlen, log);
+//
+//    return log;
+//  }
+//  return NULL;
+//}
+//
+//void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len)
+//{
+//  GPU_shaderinterface_discard(shader->interface);
+//  for (unsigned short i = 0; i < len; ++i) {
+//    glBindAttribLocation(shader->program, locations[i], names[i]);
+//  }
+//  shader->interface = GPU_shaderinterface_create(shader->program);
+//}
+//
+//int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
+//{
+//  BLI_assert(shader && shader->program);
+//  int loc = glGetUniformLocation(shader->program, name);
+//  return loc;
+//}
 /******************End of Game engine*************/

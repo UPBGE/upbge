@@ -1700,9 +1700,7 @@ static void annotation_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_pt
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
     GPU_line_smooth(true);
-    GPU_blend(true);
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     immUniformColor4ub(255, 100, 100, 20);
     imm_draw_circle_fill_2d(shdr_pos, x, y, p->radius, 40);
@@ -1730,7 +1728,7 @@ static void annotation_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_pt
 
     immUnbindProgram();
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
     GPU_line_smooth(false);
   }
 }
@@ -1768,7 +1766,7 @@ static void annotation_draw_stabilizer(bContext *C, int x, int y, void *p_ptr)
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
   GPU_line_smooth(true);
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_width(1.25f);
   const float color[3] = {1.0f, 0.39f, 0.39f};
 
@@ -1793,7 +1791,7 @@ static void annotation_draw_stabilizer(bContext *C, int x, int y, void *p_ptr)
   immEnd();
 
   /* Returns back all GPU settings */
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
   GPU_line_smooth(false);
 
   immUnbindProgram();

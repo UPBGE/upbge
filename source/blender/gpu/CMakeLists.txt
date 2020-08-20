@@ -92,6 +92,8 @@ set(SRC
   opengl/gl_batch.cc
   opengl/gl_context.cc
   opengl/gl_drawlist.cc
+  opengl/gl_shader.cc
+  opengl/gl_state.cc
   opengl/gl_vertex_array.cc
 
   GPU_attr_binding.h
@@ -137,13 +139,16 @@ set(SRC
   intern/gpu_primitive_private.h
   intern/gpu_private.h
   intern/gpu_select_private.h
-  intern/gpu_shader_private.h
+  intern/gpu_shader_private.hh
+  intern/gpu_state_private.hh
   intern/gpu_vertex_format_private.h
 
   opengl/gl_backend.hh
   opengl/gl_batch.hh
   opengl/gl_context.hh
   opengl/gl_drawlist.hh
+  opengl/gl_shader.hh
+  opengl/gl_state.hh
   opengl/gl_vertex_array.hh
 )
 

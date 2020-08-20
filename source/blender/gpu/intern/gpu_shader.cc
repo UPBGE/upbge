@@ -29,6 +29,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_appdir.h"
 #include "BKE_global.h"
@@ -42,182 +43,144 @@
 #include "GPU_texture.h"
 #include "GPU_uniformbuffer.h"
 
+#include "gpu_backend.hh"
 #include "gpu_context_private.hh"
-#include "gpu_shader_private.h"
+#include "gpu_shader_private.hh"
 
 extern "C" char datatoc_gpu_shader_colorspace_lib_glsl[];
 
-/* Adjust these constants as needed. */
-#define MAX_DEFINE_LENGTH 256
-#define MAX_EXT_DEFINE_LENGTH 512
-
-#ifndef NDEBUG
-static uint g_shaderid = 0;
-#endif
+using namespace blender;
+using namespace blender::gpu;
 
 /* -------------------------------------------------------------------- */
-/** \name Convenience functions
+/** \name Debug functions
  * \{ */
 
-static void shader_print_errors(const char *task, const char *log, const char **code, int totcode)
+void Shader::print_errors(Span<const char *> sources, char *log)
 {
-  int line = 1;
+  const bool pretty = true;
+  const char line_prefix[] = "      | ";
+  char *sources_combined = BLI_string_join_arrayN((const char **)sources.data(), sources.size());
 
-  fprintf(stderr, "GPUShader: %s error:\n", task);
-
-  for (int i = 0; i < totcode; i++) {
-    const char *c, *pos, *end = code[i] + strlen(code[i]);
-
-    if (G.debug & G_DEBUG) {
-      fprintf(stderr, "===== shader string %d ====\n", i + 1);
-
-      c = code[i];
-      while ((c < end) && (pos = strchr(c, '\n'))) {
-        fprintf(stderr, "%2d  ", line);
-        fwrite(c, (pos + 1) - c, 1, stderr);
-        c = pos + 1;
-        line++;
-      }
-
-      fprintf(stderr, "%s", c);
-    }
-  }
-
-  fprintf(stderr, "%s\n", log);
-}
-
-static const char *gpu_shader_version(void)
-{
-  return "#version 330\n";
-}
-
-static void gpu_shader_standard_extensions(char defines[MAX_EXT_DEFINE_LENGTH])
-{
-  /* enable extensions for features that are not part of our base GLSL version
-   * don't use an extension for something already available!
-   */
-
-  if (GLEW_ARB_texture_gather) {
-    /* There is a bug on older Nvidia GPU where GL_ARB_texture_gather
-     * is reported to be supported but yield a compile error (see T55802). */
-    if (!GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY) || GLEW_VERSION_4_0) {
-      strcat(defines, "#extension GL_ARB_texture_gather: enable\n");
-
-      /* Some drivers don't agree on GLEW_ARB_texture_gather and the actual support in the
-       * shader so double check the preprocessor define (see T56544). */
-      if (!GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY) && !GLEW_VERSION_4_0) {
-        strcat(defines, "#ifdef GL_ARB_texture_gather\n");
-        strcat(defines, "#  define GPU_ARB_texture_gather\n");
-        strcat(defines, "#endif\n");
-      }
-      else {
-        strcat(defines, "#define GPU_ARB_texture_gather\n");
-      }
-    }
-  }
-  if (GLEW_ARB_texture_query_lod) {
-    /* a #version 400 feature, but we use #version 330 maximum so use extension */
-    strcat(defines, "#extension GL_ARB_texture_query_lod: enable\n");
-  }
-  if (GLEW_ARB_shader_draw_parameters) {
-    strcat(defines, "#extension GL_ARB_shader_draw_parameters : enable\n");
-    strcat(defines, "#define GPU_ARB_shader_draw_parameters\n");
-  }
-  if (GPU_arb_texture_cube_map_array_is_supported()) {
-    strcat(defines, "#extension GL_ARB_texture_cube_map_array : enable\n");
-    strcat(defines, "#define GPU_ARB_texture_cube_map_array\n");
-  }
-}
-
-static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH])
-{
-  /* some useful defines to detect GPU type */
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    strcat(defines, "#define GPU_ATI\n");
-    if (GPU_crappy_amd_driver()) {
-      strcat(defines, "#define GPU_DEPRECATED_AMD_DRIVER\n");
-    }
-  }
-  else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    strcat(defines, "#define GPU_NVIDIA\n");
-  }
-  else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    strcat(defines, "#define GPU_INTEL\n");
-  }
-
-  /* some useful defines to detect OS type */
-  if (GPU_type_matches(GPU_DEVICE_ANY, GPU_OS_WIN, GPU_DRIVER_ANY)) {
-    strcat(defines, "#define OS_WIN\n");
-  }
-  else if (GPU_type_matches(GPU_DEVICE_ANY, GPU_OS_MAC, GPU_DRIVER_ANY)) {
-    strcat(defines, "#define OS_MAC\n");
-  }
-  else if (GPU_type_matches(GPU_DEVICE_ANY, GPU_OS_UNIX, GPU_DRIVER_ANY)) {
-    strcat(defines, "#define OS_UNIX\n");
-  }
-
-  float derivatives_factors[2];
-  GPU_get_dfdy_factors(derivatives_factors);
-  if (derivatives_factors[0] == 1.0f) {
-    strcat(defines, "#define DFDX_SIGN 1.0\n");
+  if (pretty) {
+    fprintf(stderr, "\n      \033[1mShader Compilation Log : \033[0m%s\n", this->name);
   }
   else {
-    strcat(defines, "#define DFDX_SIGN -1.0\n");
+    fprintf(stderr, "\n      Shader Compilation Log : %s\n", this->name);
   }
 
-  if (derivatives_factors[1] == 1.0f) {
-    strcat(defines, "#define DFDY_SIGN 1.0\n");
+  char *log_line = log, *line_end;
+  char *error_line_number_end;
+  int error_line, error_char, last_error_line = -2, last_error_char = -1;
+  bool found_line_id = false;
+  while ((line_end = strchr(log_line, '\n'))) {
+    /* Skip empty lines. */
+    if (line_end == log_line) {
+      log_line++;
+      continue;
+    }
+    /* Skip ERROR: or WARNING:. */
+    const char *prefix[] = {"ERROR", "WARNING"};
+    for (int i = 0; i < ARRAY_SIZE(prefix); i++) {
+      if (STREQLEN(log_line, prefix[i], strlen(prefix[i]))) {
+        log_line += strlen(prefix[i]);
+        break;
+      }
+    }
+    error_line = error_char = -1;
+    if (ELEM(log_line[0], '0', ':') && ELEM(log_line[1], ':', '(', ' ')) {
+      error_line = (int)strtol(log_line + 2, &error_line_number_end, 10);
+      /* Try to fetch the error caracter (not always available). */
+      if (ELEM(error_line_number_end[0], '(', ':')) {
+        error_char = (int)strtol(error_line_number_end + 1, NULL, 10);
+      }
+    }
+    if (error_line == -1) {
+      found_line_id = false;
+    }
+    const char *src_line = sources_combined;
+    /* Some drivers use (source:line) instead of (line:char) */
+    if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OFFICIAL) && (error_line != -1) &&
+        (error_char != -1)) {
+      int error_source = error_line;
+      if (error_source < sources.size()) {
+        src_line = sources[error_source];
+        error_line = error_char;
+        error_char = -1;
+      }
+    }
+    /* Separate from previous block. */
+    if (last_error_line != error_line) {
+      fprintf(stderr, "\n");
+    }
+    /* Print line from the source file that is producing the error. */
+    if ((error_line != -1) && (error_line != last_error_line || error_char != last_error_char)) {
+      const char *src_line_end = src_line;
+      found_line_id = false;
+      /* error_line is 1 based in this case. */
+      int src_line_index = 1;
+      while ((src_line_end = strchr(src_line, '\n'))) {
+        if (src_line_index == error_line) {
+          found_line_id = true;
+          break;
+        }
+        /* Continue to next line. */
+        src_line = src_line_end + 1;
+        src_line_index++;
+      }
+      /* Print error source. */
+      if (found_line_id) {
+        fprintf(stderr, "%5d | ", src_line_index);
+        fwrite(src_line, (src_line_end + 1) - src_line, 1, stderr);
+        /* Print char offset. */
+        fprintf(stderr, line_prefix);
+        if (error_char != -1) {
+          for (int i = 0; i < error_char; i++) {
+            fprintf(stderr, " ");
+          }
+          fprintf(stderr, "^");
+        }
+        fprintf(stderr, "\n");
+      }
+    }
+    fprintf(stderr, line_prefix);
+    if (found_line_id) {
+      /* Skip to message. Avoid redundant info. */
+      const char *keywords[] = {"error", "warning"};
+      for (int i = 0; i < ARRAY_SIZE(keywords); i++) {
+        /* Avoid searching following lines. */
+        line_end[0] = '\0';
+        if (strstr(log_line, keywords[i])) {
+          log_line = strstr(log_line, keywords[i]);
+          if (pretty) {
+            if (STREQ(keywords[i], "error")) {
+              fprintf(stderr, "\033[31;1mError\033[0m ");
+            }
+            else if (STREQ(keywords[i], "warning")) {
+              fprintf(stderr, "\033[33;1mWarning\033[0m ");
+            }
+            log_line += strlen(keywords[i]);
+          }
+          break;
+        }
+      }
+      line_end[0] = '\n';
+    }
+    /* Print the error itself. */
+    if (pretty) {
+      fprintf(stderr, "\033[2m");
+    }
+    fwrite(log_line, (line_end + 1) - log_line, 1, stderr);
+    if (pretty) {
+      fprintf(stderr, "\033[0m");
+    }
+    /* Continue to next line. */
+    log_line = line_end + 1;
+    last_error_line = error_line;
+    last_error_char = error_char;
   }
-  else {
-    strcat(defines, "#define DFDY_SIGN -1.0\n");
-  }
-}
-
-#define DEBUG_SHADER_NONE ""
-#define DEBUG_SHADER_VERTEX "vert"
-#define DEBUG_SHADER_FRAGMENT "frag"
-#define DEBUG_SHADER_GEOMETRY "geom"
-
-/**
- * Dump GLSL shaders to disk
- *
- * This is used for profiling shader performance externally and debug if shader code is correct.
- * If called with no code, it simply bumps the shader index, so different shaders for the same
- * program share the same index.
- */
-static void gpu_dump_shaders(const char **code, const int num_shaders, const char *extension)
-{
-  if ((G.debug & G_DEBUG_GPU_SHADERS) == 0) {
-    return;
-  }
-
-  /* We use the same shader index for shaders in the same program.
-   * So we call this function once before calling for the individual shaders. */
-  static int shader_index = 0;
-  if (code == NULL) {
-    shader_index++;
-    BLI_assert(STREQ(DEBUG_SHADER_NONE, extension));
-    return;
-  }
-
-  /* Determine the full path of the new shader. */
-  char shader_path[FILE_MAX];
-
-  char file_name[512] = {'\0'};
-  sprintf(file_name, "%04d.%s", shader_index, extension);
-
-  BLI_join_dirfile(shader_path, sizeof(shader_path), BKE_tempdir_session(), file_name);
-
-  /* Write shader to disk. */
-  FILE *f = fopen(shader_path, "w");
-  if (f == NULL) {
-    printf("Error writing to file: %s\n", shader_path);
-  }
-  for (int j = 0; j < num_shaders; j++) {
-    fprintf(f, "%s", code[j]);
-  }
-  fclose(f);
-  printf("Shader file written to disk: %s\n", shader_path);
+  fprintf(stderr, "\n\n");
+  MEM_freeN(sources_combined);
 }
 
 /** \} */
@@ -226,20 +189,149 @@ static void gpu_dump_shaders(const char **code, const int num_shaders, const cha
 /** \name Creation / Destruction
  * \{ */
 
-GPUShader *GPU_shader_create(const char *vertexcode,
+Shader::Shader(const char *sh_name)
+{
+  BLI_strncpy(this->name, sh_name, sizeof(this->name));
+}
+
+Shader::~Shader()
+{
+  if (this->interface) {
+    GPU_shaderinterface_discard(this->interface);
+  }
+}
+
+static void standard_defines(Vector<const char *> &sources)
+{
+  BLI_assert(sources.size() == 0);
+  /* Version needs to be first. Exact values will be added by implementation. */
+  sources.append("version");
+  /* some useful defines to detect GPU type */
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    sources.append("#define GPU_ATI\n");
+  }
+  else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    sources.append("#define GPU_NVIDIA\n");
+  }
+  else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    sources.append("#define GPU_INTEL\n");
+  }
+  /* some useful defines to detect OS type */
+  if (GPU_type_matches(GPU_DEVICE_ANY, GPU_OS_WIN, GPU_DRIVER_ANY)) {
+    sources.append("#define OS_WIN\n");
+  }
+  else if (GPU_type_matches(GPU_DEVICE_ANY, GPU_OS_MAC, GPU_DRIVER_ANY)) {
+    sources.append("#define OS_MAC\n");
+  }
+  else if (GPU_type_matches(GPU_DEVICE_ANY, GPU_OS_UNIX, GPU_DRIVER_ANY)) {
+    sources.append("#define OS_UNIX\n");
+  }
+
+  if (GPU_crappy_amd_driver()) {
+    sources.append("#define GPU_DEPRECATED_AMD_DRIVER\n");
+  }
+}
+
+GPUShader *GPU_shader_create_ex(const char *vertcode,
+                                const char *fragcode,
+                                const char *geomcode,
+                                const char *libcode,
+                                const char *defines,
+                                const eGPUShaderTFBType tf_type,
+                                const char **tf_names,
+                                const int tf_count,
+                                const char *shname)
+{
+  /* At least a vertex shader and a fragment shader are required. */
+  BLI_assert((fragcode != NULL) && (vertcode != NULL));
+
+  Shader *shader = GPUBackend::get()->shader_alloc(shname);
+
+  if (vertcode) {
+    Vector<const char *> sources;
+    standard_defines(sources);
+    sources.append("#define GPU_VERTEX_SHADER\n");
+    sources.append("#define IN_OUT out\n");
+    if (geomcode) {
+      sources.append("#define USE_GEOMETRY_SHADER\n");
+    }
+    if (defines) {
+      sources.append(defines);
+    }
+    sources.append(vertcode);
+
+    shader->vertex_shader_from_glsl(sources);
+  }
+
+  if (fragcode) {
+    Vector<const char *> sources;
+    standard_defines(sources);
+    sources.append("#define GPU_FRAGMENT_SHADER\n");
+    sources.append("#define IN_OUT in\n");
+    if (geomcode) {
+      sources.append("#define USE_GEOMETRY_SHADER\n");
+    }
+    if (defines) {
+      sources.append(defines);
+    }
+    if (libcode) {
+      sources.append(libcode);
+    }
+    sources.append(fragcode);
+
+    shader->fragment_shader_from_glsl(sources);
+  }
+
+  if (geomcode) {
+    Vector<const char *> sources;
+    standard_defines(sources);
+    sources.append("#define GPU_GEOMETRY_SHADER\n");
+    if (defines) {
+      sources.append(defines);
+    }
+    sources.append(geomcode);
+
+    shader->geometry_shader_from_glsl(sources);
+  }
+
+  if (tf_names != NULL && tf_count > 0) {
+    BLI_assert(tf_type != GPU_SHADER_TFB_NONE);
+    shader->transform_feedback_names_set(Span<const char *>(tf_names, tf_count), tf_type);
+  }
+
+  if (!shader->finalize()) {
+    delete shader;
+    return NULL;
+  };
+
+  return static_cast<GPUShader *>(shader);
+}
+
+void GPU_shader_free(GPUShader *shader)
+{
+  delete static_cast<Shader *>(shader);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Creation utils
+ * \{ */
+
+GPUShader *GPU_shader_create(const char *vertcode,
                              const char *fragcode,
-                             const char *geocode,
+                             const char *geomcode,
                              const char *libcode,
                              const char *defines,
                              const char *shname)
 {
   return GPU_shader_create_ex(
-      vertexcode, fragcode, geocode, libcode, defines, GPU_SHADER_TFB_NONE, NULL, 0, shname);
+      vertcode, fragcode, geomcode, libcode, defines, GPU_SHADER_TFB_NONE, NULL, 0, shname);
 }
 
-GPUShader *GPU_shader_create_from_python(const char *vertexcode,
+GPUShader *GPU_shader_create_from_python(const char *vertcode,
                                          const char *fragcode,
-                                         const char *geocode,
+                                         const char *geomcode,
                                          const char *libcode,
                                          const char *defines)
 {
@@ -253,239 +345,10 @@ GPUShader *GPU_shader_create_from_python(const char *vertexcode,
   }
 
   GPUShader *sh = GPU_shader_create_ex(
-      vertexcode, fragcode, geocode, libcode, defines, GPU_SHADER_TFB_NONE, NULL, 0, NULL);
+      vertcode, fragcode, geomcode, libcode, defines, GPU_SHADER_TFB_NONE, NULL, 0, NULL);
 
   MEM_SAFE_FREE(libcodecat);
   return sh;
-}
-
-GPUShader *GPU_shader_create_ex(const char *vertexcode,
-                                const char *fragcode,
-                                const char *geocode,
-                                const char *libcode,
-                                const char *defines,
-                                const eGPUShaderTFBType tf_type,
-                                const char **tf_names,
-                                const int tf_count,
-                                const char *shname)
-{
-  GLint status;
-  GLchar log[5000];
-  GLsizei length = 0;
-  GPUShader *shader;
-  char standard_defines[MAX_DEFINE_LENGTH] = "";
-  char standard_extensions[MAX_EXT_DEFINE_LENGTH] = "";
-
-  shader = (GPUShader *)MEM_callocN(sizeof(GPUShader), "GPUShader");
-  gpu_dump_shaders(NULL, 0, DEBUG_SHADER_NONE);
-
-#ifndef NDEBUG
-  BLI_snprintf(shader->name, sizeof(shader->name), "%s_%u", shname, g_shaderid++);
-#else
-  UNUSED_VARS(shname);
-#endif
-
-  /* At least a vertex shader and a fragment shader are required. */
-  BLI_assert((fragcode != NULL) && (vertexcode != NULL));
-
-  if (vertexcode) {
-    shader->vertex = glCreateShader(GL_VERTEX_SHADER);
-  }
-  if (fragcode) {
-    shader->fragment = glCreateShader(GL_FRAGMENT_SHADER);
-  }
-  if (geocode) {
-    shader->geometry = glCreateShader(GL_GEOMETRY_SHADER);
-  }
-
-  shader->program = glCreateProgram();
-
-  if (!shader->program || (vertexcode && !shader->vertex) || (fragcode && !shader->fragment) ||
-      (geocode && !shader->geometry)) {
-    fprintf(stderr, "GPUShader, object creation failed.\n");
-    GPU_shader_free(shader);
-    return NULL;
-  }
-
-  gpu_shader_standard_defines(standard_defines);
-  gpu_shader_standard_extensions(standard_extensions);
-
-  if (vertexcode) {
-    const char *source[7];
-    /* custom limit, may be too small, beware */
-    int num_source = 0;
-
-    source[num_source++] = gpu_shader_version();
-    source[num_source++] =
-        "#define GPU_VERTEX_SHADER\n"
-        "#define IN_OUT out\n";
-    source[num_source++] = standard_extensions;
-    source[num_source++] = standard_defines;
-
-    if (geocode) {
-      source[num_source++] = "#define USE_GEOMETRY_SHADER\n";
-    }
-    if (defines) {
-      source[num_source++] = defines;
-    }
-    source[num_source++] = vertexcode;
-
-    gpu_dump_shaders(source, num_source, DEBUG_SHADER_VERTEX);
-
-    glAttachShader(shader->program, shader->vertex);
-    glShaderSource(shader->vertex, num_source, source, NULL);
-
-    glCompileShader(shader->vertex);
-    glGetShaderiv(shader->vertex, GL_COMPILE_STATUS, &status);
-
-    if (!status) {
-      glGetShaderInfoLog(shader->vertex, sizeof(log), &length, log);
-      shader_print_errors("compile", log, source, num_source);
-
-      GPU_shader_free(shader);
-      return NULL;
-    }
-  }
-
-  if (fragcode) {
-    const char *source[8];
-    int num_source = 0;
-
-    source[num_source++] = gpu_shader_version();
-    source[num_source++] =
-        "#define GPU_FRAGMENT_SHADER\n"
-        "#define IN_OUT in\n";
-    source[num_source++] = standard_extensions;
-    source[num_source++] = standard_defines;
-
-    if (geocode) {
-      source[num_source++] = "#define USE_GEOMETRY_SHADER\n";
-    }
-    if (defines) {
-      source[num_source++] = defines;
-    }
-    if (libcode) {
-      source[num_source++] = libcode;
-    }
-    source[num_source++] = fragcode;
-
-    gpu_dump_shaders(source, num_source, DEBUG_SHADER_FRAGMENT);
-
-    glAttachShader(shader->program, shader->fragment);
-    glShaderSource(shader->fragment, num_source, source, NULL);
-
-    glCompileShader(shader->fragment);
-    glGetShaderiv(shader->fragment, GL_COMPILE_STATUS, &status);
-
-    if (!status) {
-      glGetShaderInfoLog(shader->fragment, sizeof(log), &length, log);
-      shader_print_errors("compile", log, source, num_source);
-
-      GPU_shader_free(shader);
-      return NULL;
-    }
-  }
-
-  if (geocode) {
-    const char *source[6];
-    int num_source = 0;
-
-    source[num_source++] = gpu_shader_version();
-    source[num_source++] = "#define GPU_GEOMETRY_SHADER\n";
-    source[num_source++] = standard_extensions;
-    source[num_source++] = standard_defines;
-
-    if (defines) {
-      source[num_source++] = defines;
-    }
-    source[num_source++] = geocode;
-
-    gpu_dump_shaders(source, num_source, DEBUG_SHADER_GEOMETRY);
-
-    glAttachShader(shader->program, shader->geometry);
-    glShaderSource(shader->geometry, num_source, source, NULL);
-
-    glCompileShader(shader->geometry);
-    glGetShaderiv(shader->geometry, GL_COMPILE_STATUS, &status);
-
-    if (!status) {
-      glGetShaderInfoLog(shader->geometry, sizeof(log), &length, log);
-      shader_print_errors("compile", log, source, num_source);
-
-      GPU_shader_free(shader);
-      return NULL;
-    }
-  }
-
-  if (tf_names != NULL) {
-    glTransformFeedbackVaryings(shader->program, tf_count, tf_names, GL_INTERLEAVED_ATTRIBS);
-    /* Primitive type must be setup */
-    BLI_assert(tf_type != GPU_SHADER_TFB_NONE);
-    shader->feedback_transform_type = tf_type;
-  }
-
-  glLinkProgram(shader->program);
-  glGetProgramiv(shader->program, GL_LINK_STATUS, &status);
-  if (!status) {
-    glGetProgramInfoLog(shader->program, sizeof(log), &length, log);
-    /* print attached shaders in pipeline order */
-    if (defines) {
-      shader_print_errors("linking", log, &defines, 1);
-    }
-    if (vertexcode) {
-      shader_print_errors("linking", log, &vertexcode, 1);
-    }
-    if (geocode) {
-      shader_print_errors("linking", log, &geocode, 1);
-    }
-    if (libcode) {
-      shader_print_errors("linking", log, &libcode, 1);
-    }
-    if (fragcode) {
-      shader_print_errors("linking", log, &fragcode, 1);
-    }
-
-    GPU_shader_free(shader);
-    return NULL;
-  }
-
-  glUseProgram(shader->program);
-  shader->interface = GPU_shaderinterface_create(shader->program);
-
-  return shader;
-}
-
-#undef DEBUG_SHADER_GEOMETRY
-#undef DEBUG_SHADER_FRAGMENT
-#undef DEBUG_SHADER_VERTEX
-#undef DEBUG_SHADER_NONE
-
-void GPU_shader_free(GPUShader *shader)
-{
-#if 0 /* Would be nice to have, but for now the Deferred compilation \
-       * does not have a GPUContext. */
-  BLI_assert(GPU_context_active_get() != NULL);
-#endif
-  BLI_assert(shader);
-
-  if (shader->vertex) {
-    glDeleteShader(shader->vertex);
-  }
-  if (shader->geometry) {
-    glDeleteShader(shader->geometry);
-  }
-  if (shader->fragment) {
-    glDeleteShader(shader->fragment);
-  }
-  if (shader->program) {
-    glDeleteProgram(shader->program);
-  }
-
-  if (shader->interface) {
-    GPU_shaderinterface_discard(shader->interface);
-  }
-
-  MEM_freeN(shader);
 }
 
 static const char *string_join_array_maybe_alloc(const char **str_arr, bool *r_is_alloc)
@@ -534,7 +397,7 @@ static const char *string_join_array_maybe_alloc(const char **str_arr, bool *r_i
  * \endcode
  */
 struct GPUShader *GPU_shader_create_from_arrays_impl(
-    const struct GPU_ShaderCreateFromArray_Params *params)
+    const struct GPU_ShaderCreateFromArray_Params *params, const char *func, int line)
 {
   struct {
     const char *str;
@@ -546,8 +409,11 @@ struct GPUShader *GPU_shader_create_from_arrays_impl(
     str_dst[i].str = string_join_array_maybe_alloc(str_src[i], &str_dst[i].is_alloc);
   }
 
+  char name[64];
+  BLI_snprintf(name, sizeof(name), "%s_%d", func, line);
+
   GPUShader *sh = GPU_shader_create(
-      str_dst[0].str, str_dst[1].str, str_dst[2].str, NULL, str_dst[3].str, __func__);
+      str_dst[0].str, str_dst[1].str, str_dst[2].str, NULL, str_dst[3].str, name);
 
   for (int i = 0; i < ARRAY_SIZE(str_dst); i++) {
     if (str_dst[i].is_alloc) {
@@ -563,21 +429,21 @@ struct GPUShader *GPU_shader_create_from_arrays_impl(
 /** \name Binding
  * \{ */
 
-void GPU_shader_bind(GPUShader *shader)
+void GPU_shader_bind(GPUShader *gpu_shader)
 {
-  BLI_assert(shader && shader->program);
+  Shader *shader = static_cast<Shader *>(gpu_shader);
 
   GPUContext *ctx = GPU_context_active_get();
 
   if (ctx->shader != shader) {
     ctx->shader = shader;
-    glUseProgram(shader->program);
-    GPU_matrix_bind(shader->interface);
-    GPU_shader_set_srgb_uniform(shader->interface);
+    shader->bind();
+    GPU_matrix_bind(shader);
+    GPU_shader_set_srgb_uniform(shader);
   }
 
   if (GPU_matrix_dirty_get()) {
-    GPU_matrix_bind(shader->interface);
+    GPU_matrix_bind(shader);
   }
 }
 
@@ -585,8 +451,10 @@ void GPU_shader_unbind(void)
 {
 #ifndef NDEBUG
   GPUContext *ctx = GPU_context_active_get();
+  if (ctx->shader) {
+    static_cast<Shader *>(ctx->shader)->unbind();
+  }
   ctx->shader = NULL;
-  glUseProgram(0);
 #endif
 }
 
@@ -594,34 +462,18 @@ void GPU_shader_unbind(void)
 
 /* -------------------------------------------------------------------- */
 /** \name Transform feedback
+ *
+ * TODO(fclem) Should be replaced by compute shaders.
  * \{ */
 
-bool GPU_shader_transform_feedback_enable(GPUShader *shader, uint vbo_id)
+bool GPU_shader_transform_feedback_enable(GPUShader *shader, GPUVertBuf *vertbuf)
 {
-  if (shader->feedback_transform_type == GPU_SHADER_TFB_NONE) {
-    return false;
-  }
-
-  glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, vbo_id);
-
-  switch (shader->feedback_transform_type) {
-    case GPU_SHADER_TFB_POINTS:
-      glBeginTransformFeedback(GL_POINTS);
-      return true;
-    case GPU_SHADER_TFB_LINES:
-      glBeginTransformFeedback(GL_LINES);
-      return true;
-    case GPU_SHADER_TFB_TRIANGLES:
-      glBeginTransformFeedback(GL_TRIANGLES);
-      return true;
-    default:
-      return false;
-  }
+  return static_cast<Shader *>(shader)->transform_feedback_enable(vertbuf);
 }
 
-void GPU_shader_transform_feedback_disable(GPUShader *UNUSED(shader))
+void GPU_shader_transform_feedback_disable(GPUShader *shader)
 {
-  glEndTransformFeedback();
+  static_cast<Shader *>(shader)->transform_feedback_disable();
 }
 
 /** \} */
@@ -632,49 +484,42 @@ void GPU_shader_transform_feedback_disable(GPUShader *UNUSED(shader))
 
 int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 {
-  BLI_assert(shader && shader->program);
   const GPUShaderInput *uniform = GPU_shaderinterface_uniform(shader->interface, name);
   return uniform ? uniform->location : -1;
 }
 
 int GPU_shader_get_builtin_uniform(GPUShader *shader, int builtin)
 {
-  BLI_assert(shader && shader->program);
   return GPU_shaderinterface_uniform_builtin(shader->interface,
                                              static_cast<GPUUniformBuiltin>(builtin));
 }
 
 int GPU_shader_get_builtin_block(GPUShader *shader, int builtin)
 {
-  BLI_assert(shader && shader->program);
   return GPU_shaderinterface_block_builtin(shader->interface,
                                            static_cast<GPUUniformBlockBuiltin>(builtin));
 }
 
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name)
 {
-  BLI_assert(shader && shader->program);
   const GPUShaderInput *ubo = GPU_shaderinterface_ubo(shader->interface, name);
   return ubo ? ubo->location : -1;
 }
 
 int GPU_shader_get_uniform_block_binding(GPUShader *shader, const char *name)
 {
-  BLI_assert(shader && shader->program);
   const GPUShaderInput *ubo = GPU_shaderinterface_ubo(shader->interface, name);
   return ubo ? ubo->binding : -1;
 }
 
 int GPU_shader_get_texture_binding(GPUShader *shader, const char *name)
 {
-  BLI_assert(shader && shader->program);
   const GPUShaderInput *tex = GPU_shaderinterface_uniform(shader->interface, name);
   return tex ? tex->binding : -1;
 }
 
 int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 {
-  BLI_assert(shader && shader->program);
   const GPUShaderInput *attr = GPU_shaderinterface_attr(shader->interface, name);
   return attr ? attr->location : -1;
 }
@@ -686,9 +531,10 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name)
  * \{ */
 
 /* Clement : Temp */
-int GPU_shader_get_program(GPUShader *shader)
+int GPU_shader_get_program(GPUShader *UNUSED(shader))
 {
-  return (int)shader->program;
+  /* TODO fixme */
+  return (int)0;
 }
 
 /** \} */
@@ -698,57 +544,15 @@ int GPU_shader_get_program(GPUShader *shader)
  * \{ */
 
 void GPU_shader_uniform_vector(
-    GPUShader *UNUSED(shader), int location, int length, int arraysize, const float *value)
+    GPUShader *shader, int loc, int len, int arraysize, const float *value)
 {
-  if (location == -1 || value == NULL) {
-    return;
-  }
-
-  switch (length) {
-    case 1:
-      glUniform1fv(location, arraysize, value);
-      break;
-    case 2:
-      glUniform2fv(location, arraysize, value);
-      break;
-    case 3:
-      glUniform3fv(location, arraysize, value);
-      break;
-    case 4:
-      glUniform4fv(location, arraysize, value);
-      break;
-    case 9:
-      glUniformMatrix3fv(location, arraysize, 0, value);
-      break;
-    case 16:
-      glUniformMatrix4fv(location, arraysize, 0, value);
-      break;
-    default:
-      BLI_assert(0);
-      break;
-  }
+  static_cast<Shader *>(shader)->uniform_float(loc, len, arraysize, value);
 }
 
 void GPU_shader_uniform_vector_int(
-    GPUShader *UNUSED(shader), int location, int length, int arraysize, const int *value)
+    GPUShader *shader, int loc, int len, int arraysize, const int *value)
 {
-  switch (length) {
-    case 1:
-      glUniform1iv(location, arraysize, value);
-      break;
-    case 2:
-      glUniform2iv(location, arraysize, value);
-      break;
-    case 3:
-      glUniform3iv(location, arraysize, value);
-      break;
-    case 4:
-      glUniform4iv(location, arraysize, value);
-      break;
-    default:
-      BLI_assert(0);
-      break;
-  }
+  static_cast<Shader *>(shader)->uniform_int(loc, len, arraysize, value);
 }
 
 void GPU_shader_uniform_int(GPUShader *shader, int location, int value)
@@ -851,11 +655,11 @@ void GPU_shader_uniform_4fv_array(GPUShader *sh, const char *name, int len, cons
 
 static int g_shader_builtin_srgb_transform = 0;
 
-void GPU_shader_set_srgb_uniform(const GPUShaderInterface *interface)
+void GPU_shader_set_srgb_uniform(GPUShader *shader)
 {
-  int32_t loc = GPU_shaderinterface_uniform_builtin(interface, GPU_UNIFORM_SRGB_TRANSFORM);
+  int32_t loc = GPU_shaderinterface_uniform_builtin(shader->interface, GPU_UNIFORM_SRGB_TRANSFORM);
   if (loc != -1) {
-    glUniform1i(loc, g_shader_builtin_srgb_transform);
+    GPU_shader_uniform_vector_int(shader, loc, 1, 1, &g_shader_builtin_srgb_transform);
   }
 }
 

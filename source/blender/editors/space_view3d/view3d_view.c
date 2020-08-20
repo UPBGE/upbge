@@ -1794,8 +1794,8 @@ static void game_engine_save_state(bContext *C, wmWindow *win)
   Object *obact = CTX_data_active_object(C);
   Main *bmain = CTX_data_main(C);
 
-  gpuPushAttr(GPU_DEPTH_BUFFER_BIT | GPU_ENABLE_BIT | GPU_SCISSOR_BIT | GPU_VIEWPORT_BIT |
-              GPU_BLEND_BIT);
+  /*gpuPushAttr(GPU_DEPTH_BUFFER_BIT | GPU_ENABLE_BIT | GPU_SCISSOR_BIT | GPU_VIEWPORT_BIT |
+              GPU_BLEND_BIT);*/
 
   if (obact && obact->mode & OB_MODE_TEXTURE_PAINT) {
     BKE_image_paint_set_mipmap(bmain, 1);
@@ -1819,9 +1819,9 @@ static void game_engine_restore_state(bContext *C, wmWindow *win)
     win->queue = queue_back;
   }
 
-  GPU_state_init();
+  /*GPU_state_init();
 
-  gpuPopAttr();
+  gpuPopAttr();*/
 }
 
 /* was space_set_commmandline_options in 2.4x */

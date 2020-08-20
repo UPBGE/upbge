@@ -1128,9 +1128,7 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(region), v
     int i, snapped_verts_count, other_verts_count;
     float fcol[4];
 
-    GPU_blend(true);
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertBuf *vert = GPU_vertbuf_create_with_format(format);
     GPU_vertbuf_data_alloc(vert, kcd->totlinehit);
@@ -1166,7 +1164,7 @@ static void knifetool_draw(const bContext *UNUSED(C), ARegion *UNUSED(region), v
 
     GPU_batch_discard(batch);
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   if (kcd->totkedge > 0) {

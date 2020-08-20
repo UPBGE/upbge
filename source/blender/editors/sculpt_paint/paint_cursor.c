@@ -634,8 +634,7 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
     uint texCoord = GPU_vertformat_attr_add(format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
     /* Premultiplied alpha blending. */
-    GPU_blend_set_func(GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA_PREMULT);
 
     immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
 
@@ -669,8 +668,6 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
     immUnbindProgram();
 
     GPU_texture_unbind(texture);
-
-    GPU_blend_set_func(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
 
     if (ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_VIEW)) {
       GPU_matrix_pop();
@@ -729,8 +726,7 @@ static bool paint_draw_cursor_overlay(
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     uint texCoord = GPU_vertformat_attr_add(format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-    GPU_blend_set_func(GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA_PREMULT);
 
     immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
 
@@ -757,8 +753,6 @@ static bool paint_draw_cursor_overlay(
 
     immUnbindProgram();
 
-    GPU_blend_set_func(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
-
     if (do_pop) {
       GPU_matrix_pop();
     }
@@ -781,7 +775,8 @@ static bool paint_draw_alpha_overlay(UnifiedPaintSettings *ups,
   bool alpha_overlay_active = false;
 
   ePaintOverlayControlFlags flags = BKE_paint_get_overlay_flags();
-  gpuPushAttr(GPU_DEPTH_BUFFER_BIT | GPU_BLEND_BIT);
+  eGPUBlend blend_state = GPU_blend_get();
+  bool depth_test = GPU_depth_test_enabled();
 
   /* Translate to region. */
   GPU_matrix_push();
@@ -811,7 +806,8 @@ static bool paint_draw_alpha_overlay(UnifiedPaintSettings *ups,
   }
 
   GPU_matrix_pop();
-  gpuPopAttr();
+  GPU_blend(blend_state);
+  GPU_depth_test(depth_test);
 
   return alpha_overlay_active;
 }
@@ -922,7 +918,7 @@ static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
     PaintCurvePoint *cp = pc->points;
 
     GPU_line_smooth(true);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     /* Draw the bezier handles and the curve segment between the current and next point. */
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -983,7 +979,7 @@ static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
     draw_rect_point(
         pos, selec_col, handle_col, &cp->bez.vec[2][0], 8.0f, cp->bez.f3 || cp->bez.f2);
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
     GPU_line_smooth(false);
 
     immUnbindProgram();
@@ -1762,9 +1758,6 @@ static void paint_cursor_cursor_draw_3d_view_brush_cursor_active(PaintCursorCont
 
   GPU_matrix_pop();
 
-  /* This Cloth brush cursor overlay always works in cursor space. */
-  paint_cursor_drawing_setup_cursor_space(pcontext);
-
   GPU_matrix_pop_projection();
   wmWindowViewport(pcontext->win);
 }
@@ -1842,7 +1835,7 @@ static void paint_cursor_update_anchored_location(PaintCursorContext *pcontext)
 static void paint_cursor_setup_2D_drawing(PaintCursorContext *pcontext)
 {
   GPU_line_width(2.0f);
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_smooth(true);
   pcontext->pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -1852,7 +1845,7 @@ static void paint_cursor_setup_2D_drawing(PaintCursorContext *pcontext)
 static void paint_cursor_setup_3D_drawing(PaintCursorContext *pcontext)
 {
   GPU_line_width(2.0f);
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_smooth(true);
   pcontext->pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
@@ -1862,7 +1855,7 @@ static void paint_cursor_setup_3D_drawing(PaintCursorContext *pcontext)
 static void paint_cursor_restore_drawing_state(void)
 {
   immUnbindProgram();
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
   GPU_line_smooth(false);
 }
 

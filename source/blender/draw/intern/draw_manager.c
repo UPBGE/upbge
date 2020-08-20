@@ -1614,8 +1614,7 @@ void DRW_draw_render_loop_offscreen(struct Depsgraph *depsgraph,
     GPU_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
     GPU_clear(GPU_COLOR_BIT);
     /* Premult Alpha over black background. */
-    GPU_blend_set_func(GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA_PREMULT);
   }
 
   GPU_matrix_identity_set();
@@ -1625,9 +1624,7 @@ void DRW_draw_render_loop_offscreen(struct Depsgraph *depsgraph,
 
   if (draw_background) {
     /* Reset default. */
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   /* Free temporary viewport. */
@@ -1777,8 +1774,6 @@ void DRW_render_to_image(RenderEngine *engine, struct Depsgraph *depsgraph)
     BLI_rcti_init(&render_rect, 0, size[0], 0, size[1]);
   }
 
-  /* Set the default Blender draw state */
-  GPU_state_init();
   /* Reset state before drawing */
   DRW_state_reset();
 
@@ -2494,7 +2489,7 @@ void DRW_draw_depth_object(
                                                           GPU_SHADER_CFG_DEFAULT;
       GPU_batch_program_set_builtin_with_config(batch, GPU_SHADER_3D_DEPTH_ONLY, sh_cfg);
       if (world_clip_planes != NULL) {
-        GPU_batch_uniform_4fv_array(batch, "WorldClipPlanes", 6, world_clip_planes[0]);
+        GPU_batch_uniform_4fv_array(batch, "WorldClipPlanes", 6, world_clip_planes);
       }
 
       GPU_batch_draw(batch);
@@ -2808,8 +2803,6 @@ void DRW_opengl_context_create(void)
   if (!G.background) {
     immActivate();
   }
-  /* Set default Blender OpenGL state */
-  GPU_state_init();
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
 }
@@ -3174,7 +3167,7 @@ void DRW_opengl_context_create_blenderplayer(void *syshandle)
   /* Be sure to create gpu_context too. */
   DST.gpu_context = GPU_context_create(0);
   /* Set default Blender OpenGL state */
-  GPU_state_init();
+  //GPU_state_init();
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
 }

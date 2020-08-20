@@ -52,6 +52,7 @@
 #include "GPU_immediate_util.h"
 #include "GPU_matrix.h"
 #include "GPU_state.h"
+#include "GPU_viewport.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -690,13 +691,13 @@ static void node_draw_mute_line(View2D *v2d, SpaceNode *snode, bNode *node)
 {
   bNodeLink *link;
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   for (link = node->internal_links.first; link; link = link->next) {
     node_draw_link_bezier(v2d, snode, link, TH_REDALERT, TH_REDALERT, -1);
   }
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 /* flags used in gpu_shader_keyframe_diamond_frag.glsl */
@@ -834,8 +835,8 @@ void ED_node_socket_draw(bNodeSocket *sock, const rcti *rect, const float color[
   uint outline_col_id = GPU_vertformat_attr_add(
       format, "outlineColor", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
 
-  gpuPushAttr(GPU_BLEND_BIT);
-  GPU_blend(true);
+  eGPUBlend state = GPU_blend_get();
+  GPU_blend(GPU_BLEND_ALPHA);
   GPU_program_point_size(true);
 
   immBindBuiltinProgram(GPU_SHADER_KEYFRAME_DIAMOND);
@@ -859,53 +860,27 @@ void ED_node_socket_draw(bNodeSocket *sock, const rcti *rect, const float color[
 
   immUnbindProgram();
   GPU_program_point_size(false);
-  gpuPopAttr();
+
+  /* Restore. */
+  GPU_blend(state);
 }
 
 /* **************  Socket callbacks *********** */
 
-static void node_draw_preview_background(float tile, rctf *rect)
+static void node_draw_preview_background(rctf *rect)
 {
-  float x, y;
-
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-  immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_2D_CHECKER);
 
-  /* draw checkerboard backdrop to show alpha */
-  immUniformColor3ub(120, 120, 120);
+  /* Drawing the checkerboard. */
+  const float checker_dark = UI_ALPHA_CHECKER_DARK / 255.0f;
+  const float checker_light = UI_ALPHA_CHECKER_LIGHT / 255.0f;
+  immUniform4f("color1", checker_dark, checker_dark, checker_dark, 1.0f);
+  immUniform4f("color2", checker_light, checker_light, checker_light, 1.0f);
+  immUniform1i("size", 8);
   immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
-  immUniformColor3ub(160, 160, 160);
-
-  for (y = rect->ymin; y < rect->ymax; y += tile * 2) {
-    for (x = rect->xmin; x < rect->xmax; x += tile * 2) {
-      float tilex = tile, tiley = tile;
-
-      if (x + tile > rect->xmax) {
-        tilex = rect->xmax - x;
-      }
-      if (y + tile > rect->ymax) {
-        tiley = rect->ymax - y;
-      }
-
-      immRectf(pos, x, y, x + tilex, y + tiley);
-    }
-  }
-  for (y = rect->ymin + tile; y < rect->ymax; y += tile * 2) {
-    for (x = rect->xmin + tile; x < rect->xmax; x += tile * 2) {
-      float tilex = tile, tiley = tile;
-
-      if (x + tile > rect->xmax) {
-        tilex = rect->xmax - x;
-      }
-      if (y + tile > rect->ymax) {
-        tiley = rect->ymax - y;
-      }
-
-      immRectf(pos, x, y, x + tilex, y + tiley);
-    }
-  }
   immUnbindProgram();
 }
 
@@ -934,12 +909,11 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
     scale = yscale;
   }
 
-  node_draw_preview_background(BLI_rctf_size_x(prv) / 10.0f, &draw_rect);
+  node_draw_preview_background(&draw_rect);
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   /* premul graphics */
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_COLOR);
   immDrawPixelsTex(&state,
@@ -954,7 +928,7 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
                    scale,
                    NULL);
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -1009,7 +983,7 @@ void node_draw_sockets(View2D *v2d,
   uint outline_col_id = GPU_vertformat_attr_add(
       format, "outlineColor", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_KEYFRAME_DIAMOND);
   immUniform1f("outline_scale", 0.7f);
@@ -1143,7 +1117,7 @@ void node_draw_sockets(View2D *v2d,
   immUnbindProgram();
 
   GPU_program_point_size(false);
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void node_draw_basis(const bContext *C,
@@ -1419,7 +1393,7 @@ static void node_draw_hidden(const bContext *C,
 
   /* custom color inline */
   if (node->flag & NODE_CUSTOM_COLOR) {
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     GPU_line_smooth(true);
 
     UI_draw_roundbox_3fv_alpha(false,
@@ -1432,7 +1406,7 @@ static void node_draw_hidden(const bContext *C,
                                1.0f);
 
     GPU_line_smooth(false);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   /* title */
@@ -1666,7 +1640,7 @@ void node_draw_nodetree(const bContext *C,
   }
 
   /* node lines */
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   nodelink_batch_start(snode);
   for (link = ntree->links.first; link; link = link->next) {
     if (!nodeLinkIsHidden(link)) {
@@ -1674,7 +1648,7 @@ void node_draw_nodetree(const bContext *C,
     }
   }
   nodelink_batch_end(snode);
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   /* draw foreground nodes, last nodes in front */
   for (a = 0, node = ntree->nodes.first; node; node = node->next, a++) {
@@ -1735,12 +1709,12 @@ static void draw_group_overlay(const bContext *C, ARegion *region)
   float color[4];
 
   /* shade node groups to separate them visually */
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   UI_GetThemeColorShadeAlpha4fv(TH_NODE_GROUP, 0, 0, color);
   UI_draw_roundbox_corner_set(UI_CNR_NONE);
   UI_draw_roundbox_4fv(true, rect.xmin, rect.ymin, rect.xmax, rect.ymax, 0, color);
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   /* set the block bounds to clip mouse events from underlying nodes */
   block = UI_block_begin(C, region, "node tree bounds block", UI_EMBOSS);
@@ -1755,10 +1729,16 @@ void drawnodespace(const bContext *C, ARegion *region)
   SpaceNode *snode = CTX_wm_space_node(C);
   View2D *v2d = &region->v2d;
 
-  UI_ThemeClearColor(TH_BACK);
-  GPU_clear(GPU_COLOR_BIT);
+  /* Setup offscreen buffers. */
+  GPUViewport *viewport = WM_draw_region_get_viewport(region);
+
+  GPUFrameBuffer *framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(viewport);
+  GPU_framebuffer_bind_no_srgb(framebuffer_overlay);
 
   UI_view2d_view_ortho(v2d);
+  UI_ThemeClearColor(TH_BACK);
+  GPU_clear(GPU_COLOR_BIT);
+  GPU_depth_test(false);
 
   /* XXX snode->cursor set in coordspace for placing new nodes, used for drawing noodles too */
   UI_view2d_region_to_view(&region->v2d,
@@ -1774,8 +1754,7 @@ void drawnodespace(const bContext *C, ARegion *region)
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
   /* only set once */
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   /* nodes */
   snode_set_context(C);
@@ -1861,7 +1840,7 @@ void drawnodespace(const bContext *C, ARegion *region)
     }
 
     /* temporary links */
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     GPU_line_smooth(true);
     for (nldrag = snode->linkdrag.first; nldrag; nldrag = nldrag->next) {
       for (linkdata = nldrag->links.first; linkdata; linkdata = linkdata->next) {
@@ -1869,7 +1848,7 @@ void drawnodespace(const bContext *C, ARegion *region)
       }
     }
     GPU_line_smooth(false);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
 
     if (snode->flag & SNODE_SHOW_GPENCIL) {
       /* draw grease-pencil ('canvas' strokes) */

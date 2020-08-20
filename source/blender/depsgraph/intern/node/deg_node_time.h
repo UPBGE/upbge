@@ -30,12 +30,6 @@ namespace deg {
 
 /* Time Source Node. */
 struct TimeSourceNode : public Node {
-  /* New "current time". */
-  float cfra;
-
-  /* time-offset relative to the "official" time source that this one has. */
-  float offset;
-
   // TODO: evaluate() operation needed
 
   virtual void tag_update(Depsgraph *graph, eUpdateSource source) override;

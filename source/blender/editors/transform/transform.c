@@ -1544,16 +1544,14 @@ static void drawAutoKeyWarning(TransInfo *UNUSED(t), ARegion *region)
 #endif
 
   /* autokey recording icon... */
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   xco -= U.widget_unit;
   yco -= (int)printable_size[1] / 2;
 
   UI_icon_draw(xco, yco, ICON_REC);
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void drawTransformPixel(const struct bContext *C, ARegion *region, void *arg)

@@ -738,7 +738,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   GPU_framebuffer_restore();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,

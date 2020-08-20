@@ -615,7 +615,7 @@ static bool gpu_texture_check_capacity(
     GPUTexture *tex, GLenum proxy, GLenum internalformat, GLenum data_format, GLenum data_type)
 {
   if (proxy == GL_PROXY_TEXTURE_CUBE_MAP_ARRAY_ARB &&
-      GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_MAC, GPU_DRIVER_ANY)) {
+      GPU_type_matches(GPU_DEVICE_ANY, GPU_OS_MAC, GPU_DRIVER_ANY)) {
     /* Special fix for T79703. */
     /* Depth has already been checked. */
     return tex->w <= GPU_max_cube_map_size();
@@ -1611,6 +1611,9 @@ void GPU_texture_clear(GPUTexture *tex, eGPUDataFormat gpu_data_format, const vo
     /* This means that this function can only be used in one context for each texture. */
     BLI_assert(tex->copy_fb_ctx == GPU_context_active_get());
 
+    int viewport[4];
+    GPU_viewport_size_get_i(viewport);
+
     glBindFramebuffer(GL_FRAMEBUFFER, tex->copy_fb);
     glViewport(0, 0, tex->w, tex->h);
 
@@ -1674,6 +1677,8 @@ void GPU_texture_clear(GPUTexture *tex, eGPUDataFormat gpu_data_format, const vo
       glClearColor(r, g, b, a);
       glClear(GL_COLOR_BUFFER_BIT);
     }
+
+    glViewport(UNPACK4(viewport));
 
     if (prev_fb) {
       GPU_framebuffer_bind(prev_fb);

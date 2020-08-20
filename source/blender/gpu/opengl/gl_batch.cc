@@ -33,7 +33,6 @@
 
 #include "gpu_batch_private.hh"
 #include "gpu_primitive_private.h"
-#include "gpu_shader_private.h"
 
 #include "gl_batch.hh"
 #include "gl_context.hh"
@@ -301,6 +300,8 @@ GLBatch::~GLBatch()
 
 void GLBatch::bind(int i_first)
 {
+  GPU_context_active_get()->state_manager->apply_state();
+
   if (flag & GPU_BATCH_DIRTY) {
     vao_cache_.clear();
   }
@@ -324,6 +325,8 @@ void GLBatch::bind(int i_first)
 void GLBatch::draw(int v_first, int v_count, int i_first, int i_count)
 {
   this->bind(i_first);
+
+  BLI_assert(v_count > 0 && i_count > 0);
 
   GLenum gl_type = convert_prim_type_to_gl(prim_type);
 

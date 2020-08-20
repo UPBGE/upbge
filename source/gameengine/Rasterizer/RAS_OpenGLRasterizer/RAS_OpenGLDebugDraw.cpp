@@ -142,7 +142,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
     GPU_depth_test(false);
-    GPU_blend(true);
+    //GPU_blend(true);
     GPU_line_smooth(true);
     GPU_line_width(1.0f);
     immBegin(GPU_PRIM_LINES, 2 * debugDraw->m_lines.size());
@@ -158,7 +158,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
     /* Reset defaults */
     GPU_depth_test(true);
-    GPU_blend(false);
+    //GPU_blend(false);
     GPU_line_smooth(false);
 
     immUnbindProgram();

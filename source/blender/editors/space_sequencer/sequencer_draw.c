@@ -56,6 +56,7 @@
 #include "GPU_matrix.h"
 #include "GPU_state.h"
 #include "GPU_vertex_buffer.h"
+#include "GPU_viewport.h"
 
 #include "ED_anim_api.h"
 #include "ED_gpencil.h"
@@ -294,7 +295,7 @@ static void draw_seq_waveform(View2D *v2d,
     /* Fcurve lookup is quite expensive, so do this after precondition. */
     FCurve *fcu = id_data_find_fcurve(&scene->id, seq, &RNA_Sequence, "volume", 0, NULL);
 
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
@@ -350,7 +351,7 @@ static void draw_seq_waveform(View2D *v2d,
 
     immEnd();
     immUnbindProgram();
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 }
 
@@ -381,9 +382,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
     offset = 0;
   }
 
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   for (seq = seqbase->first; seq; seq = seq->next) {
     chan_min = min_ii(chan_min, seq->machine);
@@ -443,7 +442,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 
   immUnbindProgram();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 /* Get handle width in pixels. */
@@ -489,10 +488,9 @@ static void draw_seq_handle(View2D *v2d,
   }
 
   if (!(seq->type & SEQ_TYPE_EFFECT) || BKE_sequence_effect_get_num_inputs(seq->type) == 0) {
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
 
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     if (seq->flag & whichsel) {
       if (seq_active) {
@@ -511,7 +509,7 @@ static void draw_seq_handle(View2D *v2d,
     }
 
     immRectf(pos, rx1, y1, rx2, y2);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   /* Draw numbers for start and end of the strip next to its handles. */
@@ -753,9 +751,7 @@ static void draw_sequence_extensions(Scene *scene, Sequence *seq, uint pos, floa
   y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
   y2 = seq->machine + SEQ_STRIP_OFSTOP;
 
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   color3ubv_from_seq(scene, seq, col);
   if (seq->flag & SELECT) {
@@ -781,7 +777,7 @@ static void draw_sequence_extensions(Scene *scene, Sequence *seq, uint pos, floa
     imm_draw_box_wire_2d(
         pos, x2, y2 + pixely, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
   }
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void draw_color_strip_band(Sequence *seq, uint pos, float text_margin_y, float y1)
@@ -791,7 +787,7 @@ static void draw_color_strip_band(Sequence *seq, uint pos, float text_margin_y, 
 
   rgb_float_to_uchar(col, colvars->col);
   if (seq->flag & SEQ_MUTE) {
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     col[3] = MUTE_ALPHA;
   }
   else {
@@ -812,7 +808,7 @@ static void draw_color_strip_band(Sequence *seq, uint pos, float text_margin_y, 
   immEnd();
 
   if (seq->flag & SEQ_MUTE) {
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 }
 
@@ -843,9 +839,7 @@ static void draw_seq_background(Scene *scene,
   }
 
   if (seq->flag & SEQ_MUTE) {
-    GPU_blend(true);
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     col[3] = MUTE_ALPHA;
   }
@@ -910,13 +904,13 @@ static void draw_seq_background(Scene *scene,
   }
 
   if (seq->flag & SEQ_MUTE) {
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 }
 
 static void draw_seq_locked(float x1, float y1, float x2, float y2)
 {
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_DIAG_STRIPES);
@@ -930,12 +924,12 @@ static void draw_seq_locked(float x1, float y1, float x2, float y2)
 
   immUnbindProgram();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void draw_seq_invalid(float x1, float x2, float y2, float text_margin_y)
 {
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -943,7 +937,7 @@ static void draw_seq_invalid(float x1, float x2, float y2, float text_margin_y)
   immRectf(pos, x1, y2, x2, text_margin_y);
 
   immUnbindProgram();
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void calculate_seq_text_offsets(
@@ -1056,13 +1050,13 @@ static void draw_seq_fcurve(
     GPU_vertbuf_data_len_set(vbo, vert_count);
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_UNIFORM_COLOR);
     GPU_batch_uniform_4f(batch, "color", 0.0f, 0.0f, 0.0f, 0.15f);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     if (vert_count > 0) {
       GPU_batch_draw(batch);
     }
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
     GPU_batch_discard(batch);
   }
 }
@@ -1180,7 +1174,7 @@ static void draw_effect_inputs_highlight(Sequence *seq)
   Sequence *seq1 = seq->seq1;
   Sequence *seq2 = seq->seq2;
   Sequence *seq3 = seq->seq3;
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -1207,7 +1201,7 @@ static void draw_effect_inputs_highlight(Sequence *seq)
              seq3->machine + SEQ_STRIP_OFSTOP);
   }
   immUnbindProgram();
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 void sequencer_special_update_set(Sequence *seq)
@@ -1537,7 +1531,7 @@ static void sequencer_preview_clear(void)
   float col[3];
 
   UI_GetThemeColor3fv(TH_SEQ_PREVIEW, col);
-  GPU_clear_color(col[0], col[1], col[2], 0.0);
+  GPU_clear_color(col[0], col[1], col[2], 1.0f);
   GPU_clear(GPU_COLOR_BIT);
 }
 
@@ -1594,9 +1588,7 @@ static void sequencer_draw_display_buffer(const bContext *C,
   void *display_buffer;
 
   if (sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->flag & SEQ_USE_ALPHA) {
-    GPU_blend(true);
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+    GPU_blend(GPU_BLEND_ALPHA);
   }
 
   /* Format needs to be created prior to any immBindShader call.
@@ -1681,7 +1673,7 @@ static void sequencer_draw_display_buffer(const bContext *C,
   }
 
   if (sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->flag & SEQ_USE_ALPHA) {
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   if (draw_backdrop) {
@@ -1775,6 +1767,13 @@ void sequencer_draw_preview(const bContext *C,
     return;
   }
 
+  /* Setup offscreen buffers. */
+  GPUViewport *viewport = WM_draw_region_get_viewport(region);
+
+  GPUFrameBuffer *framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(viewport);
+  GPU_framebuffer_bind_no_srgb(framebuffer_overlay);
+  GPU_depth_test(false);
+
   if (sseq->render_size == SEQ_PROXY_RENDER_SIZE_NONE) {
     sequencer_preview_clear();
     return;
@@ -1797,6 +1796,9 @@ void sequencer_draw_preview(const bContext *C,
   /* Get image. */
   ibuf = sequencer_ibuf_get(
       bmain, depsgraph, scene, sseq, cfra, frame_ofs, names[sseq->multiview_eye]);
+
+  /* sequencer_ibuf_get can call GPU_framebuffer_bind. So disable srgb framebuffer again. */
+  GPU_framebuffer_bind_no_srgb(framebuffer_overlay);
 
   if (ibuf) {
     scope = sequencer_get_scope(scene, sseq, ibuf, draw_backdrop);
@@ -1928,7 +1930,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *region)
     else if (last_seq->type == SEQ_TYPE_MULTICAM) {
       int channel = last_seq->multicam_source;
       if (channel != 0) {
-        GPU_blend(true);
+        GPU_blend(GPU_BLEND_ALPHA);
         uint pos = GPU_vertformat_attr_add(
             immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
         immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -1937,7 +1939,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *region)
         immRectf(pos, v2d->cur.xmin, channel, v2d->cur.xmax, channel + 1);
 
         immUnbindProgram();
-        GPU_blend(false);
+        GPU_blend(GPU_BLEND_NONE);
       }
     }
   }
@@ -1945,7 +1947,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *region)
   /* Draw highlight if "solo preview" is used. */
   if (special_seq_update) {
     const Sequence *seq = special_seq_update;
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -1959,7 +1961,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *region)
 
     immUnbindProgram();
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 }
 
@@ -1969,7 +1971,7 @@ static void seq_draw_sfra_efra(Scene *scene, View2D *v2d)
   const int frame_sta = scene->r.sfra;
   const int frame_end = scene->r.efra + 1;
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -2030,7 +2032,7 @@ static void seq_draw_sfra_efra(Scene *scene, View2D *v2d)
 
   immUnbindProgram();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 typedef struct CacheDrawData {
@@ -2154,7 +2156,7 @@ static void draw_cache_view(const bContext *C)
     return;
   }
 
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
@@ -2241,7 +2243,7 @@ static void draw_cache_view(const bContext *C)
   draw_cache_view_batch(
       userdata.final_out_vbo, userdata.final_out_vert_count, 1.0f, 0.4f, 0.2f, 0.4f);
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 /* Draw sequencer timeline. */
