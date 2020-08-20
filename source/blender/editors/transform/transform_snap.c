@@ -184,7 +184,7 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
       const float *loc_prev = NULL;
       const float *normal = NULL;
 
-      GPU_depth_test(false);
+      GPU_depth_test(GPU_DEPTH_NONE);
 
       RegionView3D *rv3d = CTX_wm_region_view3d(C);
       if (!BLI_listbase_is_empty(&t->tsnap.points)) {
@@ -228,7 +228,7 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
       ED_gizmotypes_snap_3d_draw_util(
           rv3d, loc_prev, loc_cur, normal, col, activeCol, t->tsnap.snapElem);
 
-      GPU_depth_test(true);
+      GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
     }
   }
   else if (t->spacetype == SPACE_IMAGE) {
@@ -245,7 +245,7 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 
       size = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
 
-      GPU_blend(true);
+      GPU_blend(GPU_BLEND_ALPHA);
 
       uint pos = GPU_vertformat_attr_add(
           immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -271,7 +271,7 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 
       immUnbindProgram();
 
-      GPU_blend(false);
+      GPU_blend(GPU_BLEND_NONE);
     }
   }
 }

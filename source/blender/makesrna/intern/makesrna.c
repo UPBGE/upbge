@@ -599,7 +599,7 @@ static void rna_float_print(FILE *f, float num)
   else if (num == FLT_MAX) {
     fprintf(f, "FLT_MAX");
   }
-  else if ((fabsf(num) < INT64_MAX) && ((int64_t)num == num)) {
+  else if ((fabsf(num) < (float)INT64_MAX) && ((int64_t)num == num)) {
     fprintf(f, "%.1ff", num);
   }
   else {
@@ -4287,7 +4287,9 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_dynamicpaint.c", NULL, RNA_def_dynamic_paint},
     {"rna_fcurve.c", "rna_fcurve_api.c", RNA_def_fcurve},
     {"rna_gpencil.c", NULL, RNA_def_gpencil},
+#ifdef WITH_HAIR_NODES
     {"rna_hair.c", NULL, RNA_def_hair},
+#endif
     {"rna_image.c", "rna_image_api.c", RNA_def_image},
     {"rna_key.c", NULL, RNA_def_key},
     {"rna_light.c", NULL, RNA_def_light},
@@ -4310,7 +4312,9 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_packedfile.c", NULL, RNA_def_packedfile},
     {"rna_palette.c", NULL, RNA_def_palette},
     {"rna_particle.c", NULL, RNA_def_particle},
+#ifdef WITH_PARTICLE_NODES
     {"rna_pointcloud.c", NULL, RNA_def_pointcloud},
+#endif
     {"rna_pose.c", "rna_pose_api.c", RNA_def_pose},
     {"rna_property.c", NULL, RNA_def_gameproperty},
     {"rna_python_component.c", NULL, RNA_def_py_component},
@@ -4323,7 +4327,9 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_sculpt_paint.c", NULL, RNA_def_sculpt_paint},
     {"rna_sensor.c", "rna_sensor_api.c", RNA_def_sensor},
     {"rna_sequencer.c", "rna_sequencer_api.c", RNA_def_sequencer},
+#ifdef WITH_PARTICLE_NODES
     {"rna_simulation.c", NULL, RNA_def_simulation},
+#endif
     {"rna_space.c", "rna_space_api.c", RNA_def_space},
     {"rna_speaker.c", NULL, RNA_def_speaker},
     {"rna_test.c", NULL, RNA_def_test},

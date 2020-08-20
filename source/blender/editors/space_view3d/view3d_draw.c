@@ -588,9 +588,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
       float alpha = 1.0f;
 
       if (ca->passepartalpha != 1.0f) {
-        GPU_blend_set_func_separate(
-            GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-        GPU_blend(true);
+        GPU_blend(GPU_BLEND_ALPHA);
         alpha = ca->passepartalpha;
       }
 
@@ -609,7 +607,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
         immRectf(shdr_pos, x1i, y1i, x2i, 0.0f);
       }
 
-      GPU_blend(false);
+      GPU_blend(GPU_BLEND_NONE);
     }
 
     immUniformThemeColor3(TH_BACK);
@@ -668,7 +666,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
 
   /* safety border */
   if (ca) {
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     immUniformThemeColorAlpha(TH_VIEW_OVERLAY, 0.75f);
 
     if (ca->dtx & CAM_DTX_CENTER) {
@@ -780,7 +778,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
       imm_draw_box_wire_2d(shdr_pos, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
     }
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   immUnbindProgram();
@@ -1027,9 +1025,7 @@ static void draw_view_axis(RegionView3D *rv3d, const rcti *rect)
   /* draw axis lines */
   GPU_line_width(2.0f);
   GPU_line_smooth(true);
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -1072,9 +1068,7 @@ static void draw_rotation_guide(const RegionView3D *rv3d)
 
   negate_v3_v3(o, rv3d->ofs);
 
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
   GPU_depth_mask(false); /* don't overwrite zbuf */
 
   GPUVertFormat *format = immVertexFormat();
@@ -1164,7 +1158,7 @@ static void draw_rotation_guide(const RegionView3D *rv3d)
   immEnd();
   immUnbindProgram();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
   GPU_depth_mask(true);
 }
 #endif /* WITH_INPUT_NDOF */
@@ -1624,7 +1618,7 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
   GPU_pass_cache_garbage_collect();
 
   /* No depth test for drawing action zones afterwards. */
-  GPU_depth_test(false);
+  GPU_depth_test(GPU_DEPTH_NONE);
 
   v3d->flag |= V3D_INVALID_BACKBUF;
 }
@@ -2327,12 +2321,12 @@ void ED_view3d_draw_depth_gpencil(Depsgraph *depsgraph, Scene *scene, ARegion *r
 
   GPU_clear(GPU_DEPTH_BIT);
 
-  GPU_depth_test(true);
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
   GPUViewport *viewport = WM_draw_region_get_viewport(region);
   DRW_draw_depth_loop_gpencil(depsgraph, region, v3d, viewport);
 
-  GPU_depth_test(false);
+  GPU_depth_test(GPU_DEPTH_NONE);
 }
 
 /* *********************** customdata **************** */

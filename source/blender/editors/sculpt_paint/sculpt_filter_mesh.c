@@ -50,6 +50,7 @@
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
+#include "ED_view3d.h"
 #include "paint_intern.h"
 #include "sculpt_intern.h"
 
@@ -63,6 +64,39 @@
 #include <math.h>
 #include <stdlib.h>
 
+/* Filter orientation utils. */
+void SCULPT_filter_to_orientation_space(float r_v[3], struct FilterCache *filter_cache)
+{
+  switch (filter_cache->orientation) {
+    case SCULPT_FILTER_ORIENTATION_LOCAL:
+      /* Do nothing, Sculpt Mode already works in object space. */
+      break;
+    case SCULPT_FILTER_ORIENTATION_WORLD:
+      mul_mat3_m4_v3(filter_cache->obmat, r_v);
+      break;
+    case SCULPT_FILTER_ORIENTATION_VIEW:
+      mul_mat3_m4_v3(filter_cache->obmat, r_v);
+      mul_mat3_m4_v3(filter_cache->viewmat, r_v);
+      break;
+  }
+}
+
+void SCULPT_filter_to_object_space(float r_v[3], struct FilterCache *filter_cache)
+{
+  switch (filter_cache->orientation) {
+    case SCULPT_FILTER_ORIENTATION_LOCAL:
+      /* Do nothing, Sculpt Mode already works in object space. */
+      break;
+    case SCULPT_FILTER_ORIENTATION_WORLD:
+      mul_mat3_m4_v3(filter_cache->obmat_inv, r_v);
+      break;
+    case SCULPT_FILTER_ORIENTATION_VIEW:
+      mul_mat3_m4_v3(filter_cache->viewmat_inv, r_v);
+      mul_mat3_m4_v3(filter_cache->obmat_inv, r_v);
+      break;
+  }
+}
+
 static void filter_cache_init_task_cb(void *__restrict userdata,
                                       const int i,
                                       const TaskParallelTLS *__restrict UNUSED(tls))
@@ -73,7 +107,7 @@ static void filter_cache_init_task_cb(void *__restrict userdata,
   SCULPT_undo_push_node(data->ob, node, data->filter_undo_type);
 }
 
-void SCULPT_filter_cache_init(Object *ob, Sculpt *sd, const int undo_type)
+void SCULPT_filter_cache_init(bContext *C, Object *ob, Sculpt *sd, const int undo_type)
 {
   SculptSession *ss = ob->sculpt;
   PBVH *pbvh = ob->sculpt->pbvh;
@@ -117,6 +151,16 @@ void SCULPT_filter_cache_init(Object *ob, Sculpt *sd, const int undo_type)
   BKE_pbvh_parallel_range_settings(&settings, true, ss->filter_cache->totnode);
   BLI_task_parallel_range(
       0, ss->filter_cache->totnode, &data, filter_cache_init_task_cb, &settings);
+
+  /* Setup orientation matrices. */
+  copy_m4_m4(ss->filter_cache->obmat, ob->obmat);
+  invert_m4_m4(ss->filter_cache->obmat_inv, ob->obmat);
+
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ViewContext vc;
+  ED_view3d_viewcontext_init(C, &vc, depsgraph);
+  copy_m4_m4(ss->filter_cache->viewmat, vc.rv3d->viewmat);
+  copy_m4_m4(ss->filter_cache->viewmat_inv, vc.rv3d->viewinv);
 }
 
 void SCULPT_filter_cache_free(SculptSession *ss)
@@ -132,11 +176,12 @@ void SCULPT_filter_cache_free(SculptSession *ss)
   MEM_SAFE_FREE(ss->filter_cache->automask);
   MEM_SAFE_FREE(ss->filter_cache->surface_smooth_laplacian_disp);
   MEM_SAFE_FREE(ss->filter_cache->sharpen_factor);
-  MEM_SAFE_FREE(ss->filter_cache->sharpen_detail_directions);
+  MEM_SAFE_FREE(ss->filter_cache->detail_directions);
+  MEM_SAFE_FREE(ss->filter_cache->limit_surface_co);
   MEM_SAFE_FREE(ss->filter_cache);
 }
 
-typedef enum eSculptMeshFilterTypes {
+typedef enum eSculptMeshFilterType {
   MESH_FILTER_SMOOTH = 0,
   MESH_FILTER_SCALE = 1,
   MESH_FILTER_INFLATE = 2,
@@ -146,7 +191,9 @@ typedef enum eSculptMeshFilterTypes {
   MESH_FILTER_RELAX_FACE_SETS = 6,
   MESH_FILTER_SURFACE_SMOOTH = 7,
   MESH_FILTER_SHARPEN = 8,
-} eSculptMeshFilterTypes;
+  MESH_FILTER_ENHANCE_DETAILS = 9,
+  MESH_FILTER_ERASE_DISPLACEMENT = 10,
+} eSculptMeshFilterType;
 
 static EnumPropertyItem prop_mesh_filter_types[] = {
     {MESH_FILTER_SMOOTH, "SMOOTH", 0, "Smooth", "Smooth mesh"},
@@ -166,6 +213,16 @@ static EnumPropertyItem prop_mesh_filter_types[] = {
      "Surface Smooth",
      "Smooth the surface of the mesh, preserving the volume"},
     {MESH_FILTER_SHARPEN, "SHARPEN", 0, "Sharpen", "Sharpen the cavities of the mesh"},
+    {MESH_FILTER_ENHANCE_DETAILS,
+     "ENHANCE_DETAILS",
+     0,
+     "Enhance Details",
+     "Enhance the high frequency surface detail"},
+    {MESH_FILTER_ERASE_DISPLACEMENT,
+     "ERASE_DISCPLACEMENT",
+     0,
+     "Erase Displacement",
+     "Deletes the displacement of the Multires Modifier"},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -182,13 +239,33 @@ static EnumPropertyItem prop_mesh_filter_deform_axis_items[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
-static bool sculpt_mesh_filter_needs_pmap(int filter_type, bool use_face_sets)
+static EnumPropertyItem prop_mesh_filter_orientation_items[] = {
+    {SCULPT_FILTER_ORIENTATION_LOCAL,
+     "LOCAL",
+     0,
+     "Local",
+     "Use the local axis to limit the displacement"},
+    {SCULPT_FILTER_ORIENTATION_WORLD,
+     "WORLD",
+     0,
+     "World",
+     "Use the global axis to limit the displacement"},
+    {SCULPT_FILTER_ORIENTATION_VIEW,
+     "VIEW",
+     0,
+     "View",
+     "Use the view axis to limit the displacement"},
+    {0, NULL, 0, NULL, NULL},
+};
+
+static bool sculpt_mesh_filter_needs_pmap(eSculptMeshFilterType filter_type, bool use_face_sets)
 {
   return use_face_sets || ELEM(filter_type,
                                MESH_FILTER_SMOOTH,
                                MESH_FILTER_RELAX,
                                MESH_FILTER_RELAX_FACE_SETS,
                                MESH_FILTER_SURFACE_SMOOTH,
+                               MESH_FILTER_ENHANCE_DETAILS,
                                MESH_FILTER_SHARPEN);
 }
 
@@ -200,7 +277,7 @@ static void mesh_filter_task_cb(void *__restrict userdata,
   SculptSession *ss = data->ob->sculpt;
   PBVHNode *node = data->nodes[i];
 
-  const int filter_type = data->filter_type;
+  const eSculptMeshFilterType filter_type = data->filter_type;
 
   SculptOrigVertData orig_data;
   SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[i]);
@@ -306,7 +383,7 @@ static void mesh_filter_task_cb(void *__restrict userdata,
         const uint *hash_co = (const uint *)orig_co;
         const uint hash = BLI_hash_int_2d(hash_co[0], hash_co[1]) ^
                           BLI_hash_int_2d(hash_co[2], ss->filter_cache->random_seed);
-        mul_v3_fl(normal, hash * (1.0f / 0xFFFFFFFF) - 0.5f);
+        mul_v3_fl(normal, hash * (1.0f / (float)0xFFFFFFFF) - 0.5f);
         mul_v3_v3fl(disp, normal, fade);
         break;
       }
@@ -362,7 +439,7 @@ static void mesh_filter_task_cb(void *__restrict userdata,
         if (ss->filter_cache->sharpen_intensify_detail_strength > 0.0f) {
           float detail_strength[3];
           normal_short_to_float_v3(detail_strength, orig_data.no);
-          copy_v3_v3(detail_strength, ss->filter_cache->sharpen_detail_directions[vd.index]);
+          copy_v3_v3(detail_strength, ss->filter_cache->detail_directions[vd.index]);
           madd_v3_v3fl(disp,
                        detail_strength,
                        -ss->filter_cache->sharpen_intensify_detail_strength *
@@ -370,13 +447,25 @@ static void mesh_filter_task_cb(void *__restrict userdata,
         }
         break;
       }
+
+      case MESH_FILTER_ENHANCE_DETAILS: {
+        mul_v3_v3fl(disp, ss->filter_cache->detail_directions[vd.index], -fabsf(fade));
+      } break;
+      case MESH_FILTER_ERASE_DISPLACEMENT: {
+        fade = clamp_f(fade, 0.0f, 1.0f);
+        sub_v3_v3v3(disp, ss->filter_cache->limit_surface_co[vd.index], orig_co);
+        mul_v3_fl(disp, fade);
+        break;
+      }
     }
 
+    SCULPT_filter_to_orientation_space(disp, ss->filter_cache);
     for (int it = 0; it < 3; it++) {
       if (!ss->filter_cache->enabled_axis[it]) {
         disp[it] = 0.0f;
       }
     }
+    SCULPT_filter_to_object_space(disp, ss->filter_cache);
 
     if (ELEM(filter_type, MESH_FILTER_SURFACE_SMOOTH, MESH_FILTER_SHARPEN)) {
       madd_v3_v3v3fl(final_pos, vd.co, disp, clamp_f(fade, 0.0f, 1.0f));
@@ -394,32 +483,83 @@ static void mesh_filter_task_cb(void *__restrict userdata,
   BKE_pbvh_node_mark_update(node);
 }
 
-static void mesh_filter_sharpen_init_factors(SculptSession *ss)
+static void mesh_filter_enhance_details_init_directions(SculptSession *ss)
 {
   const int totvert = SCULPT_vertex_count_get(ss);
+  FilterCache *filter_cache = ss->filter_cache;
+
+  filter_cache->detail_directions = MEM_malloc_arrayN(
+      totvert, sizeof(float[3]), "detail directions");
   for (int i = 0; i < totvert; i++) {
     float avg[3];
     SCULPT_neighbor_coords_average(ss, avg, i);
-    sub_v3_v3v3(ss->filter_cache->sharpen_detail_directions[i], avg, SCULPT_vertex_co_get(ss, i));
-    ss->filter_cache->sharpen_factor[i] = len_v3(ss->filter_cache->sharpen_detail_directions[i]);
+    sub_v3_v3v3(filter_cache->detail_directions[i], avg, SCULPT_vertex_co_get(ss, i));
+  }
+}
+
+static void mesh_filter_surface_smooth_init(SculptSession *ss,
+                                            const float shape_preservation,
+                                            const float current_vertex_displacement)
+{
+  const int totvert = SCULPT_vertex_count_get(ss);
+  FilterCache *filter_cache = ss->filter_cache;
+
+  filter_cache->surface_smooth_laplacian_disp = MEM_malloc_arrayN(
+      totvert, sizeof(float[3]), "surface smooth displacement");
+  filter_cache->surface_smooth_shape_preservation = shape_preservation;
+  filter_cache->surface_smooth_current_vertex = current_vertex_displacement;
+}
+
+static void mesh_filter_init_limit_surface_co(SculptSession *ss)
+{
+  const int totvert = SCULPT_vertex_count_get(ss);
+  FilterCache *filter_cache = ss->filter_cache;
+
+  filter_cache->limit_surface_co = MEM_malloc_arrayN(
+      sizeof(float[3]), totvert, "limit surface co");
+  for (int i = 0; i < totvert; i++) {
+    SCULPT_vertex_limit_surface_get(ss, i, filter_cache->limit_surface_co[i]);
+  }
+}
+
+static void mesh_filter_sharpen_init(SculptSession *ss,
+                                     const float smooth_ratio,
+                                     const float intensify_detail_strength,
+                                     const int curvature_smooth_iterations)
+{
+  const int totvert = SCULPT_vertex_count_get(ss);
+  FilterCache *filter_cache = ss->filter_cache;
+
+  filter_cache->sharpen_smooth_ratio = smooth_ratio;
+  filter_cache->sharpen_intensify_detail_strength = intensify_detail_strength;
+  filter_cache->sharpen_curvature_smooth_iterations = curvature_smooth_iterations;
+  filter_cache->sharpen_factor = MEM_malloc_arrayN(sizeof(float), totvert, "sharpen factor");
+  filter_cache->detail_directions = MEM_malloc_arrayN(
+      totvert, sizeof(float[3]), "sharpen detail direction");
+
+  for (int i = 0; i < totvert; i++) {
+    float avg[3];
+    SCULPT_neighbor_coords_average(ss, avg, i);
+    sub_v3_v3v3(filter_cache->detail_directions[i], avg, SCULPT_vertex_co_get(ss, i));
+    filter_cache->sharpen_factor[i] = len_v3(filter_cache->detail_directions[i]);
   }
 
   float max_factor = 0.0f;
   for (int i = 0; i < totvert; i++) {
-    if (ss->filter_cache->sharpen_factor[i] > max_factor) {
-      max_factor = ss->filter_cache->sharpen_factor[i];
+    if (filter_cache->sharpen_factor[i] > max_factor) {
+      max_factor = filter_cache->sharpen_factor[i];
     }
   }
 
   max_factor = 1.0f / max_factor;
   for (int i = 0; i < totvert; i++) {
-    ss->filter_cache->sharpen_factor[i] *= max_factor;
-    ss->filter_cache->sharpen_factor[i] = 1.0f - pow2f(1.0f - ss->filter_cache->sharpen_factor[i]);
+    filter_cache->sharpen_factor[i] *= max_factor;
+    filter_cache->sharpen_factor[i] = 1.0f - pow2f(1.0f - filter_cache->sharpen_factor[i]);
   }
 
   /* Smooth the calculated factors and directions to remove high frecuency detail. */
   for (int smooth_iterations = 0;
-       smooth_iterations < ss->filter_cache->sharpen_curvature_smooth_iterations;
+       smooth_iterations < filter_cache->sharpen_curvature_smooth_iterations;
        smooth_iterations++) {
     for (int i = 0; i < totvert; i++) {
       float direction_avg[3] = {0.0f, 0.0f, 0.0f};
@@ -428,15 +568,15 @@ static void mesh_filter_sharpen_init_factors(SculptSession *ss)
 
       SculptVertexNeighborIter ni;
       SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, i, ni) {
-        add_v3_v3(direction_avg, ss->filter_cache->sharpen_detail_directions[ni.index]);
-        sharpen_avg += ss->filter_cache->sharpen_factor[ni.index];
+        add_v3_v3(direction_avg, filter_cache->detail_directions[ni.index]);
+        sharpen_avg += filter_cache->sharpen_factor[ni.index];
         total++;
       }
       SCULPT_VERTEX_NEIGHBORS_ITER_END(ni);
 
       if (total > 0) {
-        mul_v3_v3fl(ss->filter_cache->sharpen_detail_directions[i], direction_avg, 1.0f / total);
-        ss->filter_cache->sharpen_factor[i] = sharpen_avg / total;
+        mul_v3_v3fl(filter_cache->detail_directions[i], direction_avg, 1.0f / total);
+        filter_cache->sharpen_factor[i] = sharpen_avg / total;
       }
     }
   }
@@ -481,7 +621,7 @@ static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   SculptSession *ss = ob->sculpt;
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
-  int filter_type = RNA_enum_get(op->ptr, "type");
+  eSculptMeshFilterType filter_type = RNA_enum_get(op->ptr, "type");
   float filter_strength = RNA_float_get(op->ptr, "strength");
   const bool use_face_sets = RNA_boolean_get(op->ptr, "use_face_sets");
 
@@ -545,17 +685,21 @@ static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent 
   Object *ob = CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
-  int filter_type = RNA_enum_get(op->ptr, "type");
   SculptSession *ss = ob->sculpt;
-  PBVH *pbvh = ob->sculpt->pbvh;
 
-  int deform_axis = RNA_enum_get(op->ptr, "deform_axis");
+  const eMeshFilterDeformAxis deform_axis = RNA_enum_get(op->ptr, "deform_axis");
+  const eSculptMeshFilterType filter_type = RNA_enum_get(op->ptr, "type");
+  const bool use_face_sets = RNA_boolean_get(op->ptr, "use_face_sets");
+  const bool needs_topology_info = sculpt_mesh_filter_needs_pmap(filter_type, use_face_sets);
+
   if (deform_axis == 0) {
+    /* All axis are disabled, so the filter is not going to produce any deformation. */
     return OPERATOR_CANCELLED;
   }
 
-  if (RNA_boolean_get(op->ptr, "use_face_sets")) {
-    /* Update the active vertex */
+  if (use_face_sets) {
+    /* Update the active face set manually as the paint cursor is not enabled when using the Mesh
+     * Filter Tool. */
     float mouse[2];
     SculptCursorGeometryInfo sgi;
     mouse[0] = event->mval[0];
@@ -563,62 +707,56 @@ static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent 
     SCULPT_cursor_geometry_info_update(C, &sgi, mouse, false);
   }
 
-  const bool use_face_sets = RNA_boolean_get(op->ptr, "use_face_sets");
-
   SCULPT_vertex_random_access_ensure(ss);
-
-  const bool needs_topology_info = sculpt_mesh_filter_needs_pmap(filter_type, use_face_sets);
   BKE_sculpt_update_object_for_edit(depsgraph, ob, needs_topology_info, false, false);
   if (needs_topology_info) {
     SCULPT_boundary_info_ensure(ob);
   }
 
-  const int totvert = SCULPT_vertex_count_get(ss);
-  if (BKE_pbvh_type(pbvh) == PBVH_FACES && needs_topology_info && !ob->sculpt->pmap) {
-    return OPERATOR_CANCELLED;
-  }
+  SCULPT_undo_push_begin("Mesh Filter");
 
-  SCULPT_undo_push_begin("Mesh filter");
+  SCULPT_filter_cache_init(C, ob, sd, SCULPT_UNDO_COORDS);
 
-  if (ELEM(filter_type, MESH_FILTER_RELAX, MESH_FILTER_RELAX_FACE_SETS)) {
-    SCULPT_boundary_info_ensure(ob);
-  }
+  FilterCache *filter_cache = ss->filter_cache;
+  filter_cache->active_face_set = use_face_sets ? SCULPT_active_face_set_get(ss) :
+                                                  SCULPT_FACE_SET_NONE;
 
-  SCULPT_filter_cache_init(ob, sd, SCULPT_UNDO_COORDS);
-
-  if (use_face_sets) {
-    ss->filter_cache->active_face_set = SCULPT_active_face_set_get(ss);
-  }
-  else {
-    ss->filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  }
-
-  if (RNA_enum_get(op->ptr, "type") == MESH_FILTER_SURFACE_SMOOTH) {
-    ss->filter_cache->surface_smooth_laplacian_disp = MEM_mallocN(sizeof(float[3]) * totvert,
-                                                                  "surface smooth disp");
-    ss->filter_cache->surface_smooth_shape_preservation = RNA_float_get(
-        op->ptr, "surface_smooth_shape_preservation");
-    ss->filter_cache->surface_smooth_current_vertex = RNA_float_get(
-        op->ptr, "surface_smooth_current_vertex");
-  }
-
-  if (RNA_enum_get(op->ptr, "type") == MESH_FILTER_SHARPEN) {
-    ss->filter_cache->sharpen_smooth_ratio = RNA_float_get(op->ptr, "sharpen_smooth_ratio");
-    ss->filter_cache->sharpen_intensify_detail_strength = RNA_float_get(
-        op->ptr, "sharpen_intensify_detail_strength");
-    ss->filter_cache->sharpen_curvature_smooth_iterations = RNA_int_get(
-        op->ptr, "sharpen_curvature_smooth_iterations");
-
-    ss->filter_cache->sharpen_factor = MEM_mallocN(sizeof(float) * totvert, "sharpen factor");
-    ss->filter_cache->sharpen_detail_directions = MEM_malloc_arrayN(
-        totvert, sizeof(float[3]), "sharpen detail direction");
-
-    mesh_filter_sharpen_init_factors(ss);
+  switch (filter_type) {
+    case MESH_FILTER_SURFACE_SMOOTH: {
+      const float shape_preservation = RNA_float_get(op->ptr, "surface_smooth_shape_preservation");
+      const float current_vertex_displacement = RNA_float_get(op->ptr,
+                                                              "surface_smooth_current_vertex");
+      mesh_filter_surface_smooth_init(ss, shape_preservation, current_vertex_displacement);
+      break;
+    }
+    case MESH_FILTER_SHARPEN: {
+      const float smooth_ratio = RNA_float_get(op->ptr, "sharpen_smooth_ratio");
+      const float intensify_detail_strength = RNA_float_get(op->ptr,
+                                                            "sharpen_intensify_detail_strength");
+      const int curvature_smooth_iterations = RNA_int_get(op->ptr,
+                                                          "sharpen_curvature_smooth_iterations");
+      mesh_filter_sharpen_init(
+          ss, smooth_ratio, intensify_detail_strength, curvature_smooth_iterations);
+      break;
+    }
+    case MESH_FILTER_ENHANCE_DETAILS: {
+      mesh_filter_enhance_details_init_directions(ss);
+      break;
+    }
+    case MESH_FILTER_ERASE_DISPLACEMENT: {
+      mesh_filter_init_limit_surface_co(ss);
+      break;
+    }
+    default:
+      break;
   }
 
   ss->filter_cache->enabled_axis[0] = deform_axis & MESH_FILTER_DEFORM_X;
   ss->filter_cache->enabled_axis[1] = deform_axis & MESH_FILTER_DEFORM_Y;
   ss->filter_cache->enabled_axis[2] = deform_axis & MESH_FILTER_DEFORM_Z;
+
+  SculptFilterOrientation orientation = RNA_enum_get(op->ptr, "orientation");
+  ss->filter_cache->orientation = orientation;
 
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
@@ -653,6 +791,12 @@ void SCULPT_OT_mesh_filter(struct wmOperatorType *ot)
                     MESH_FILTER_DEFORM_X | MESH_FILTER_DEFORM_Y | MESH_FILTER_DEFORM_Z,
                     "Deform axis",
                     "Apply the deformation in the selected axis");
+  RNA_def_enum(ot->srna,
+               "orientation",
+               prop_mesh_filter_orientation_items,
+               SCULPT_FILTER_ORIENTATION_LOCAL,
+               "Orientation",
+               "Orientation of the axis to limit the filter displacement");
   ot->prop = RNA_def_boolean(ot->srna,
                              "use_face_sets",
                              false,

@@ -47,44 +47,37 @@
 
 namespace deg = blender::deg;
 
-/* Evaluate all nodes tagged for updating. */
-void DEG_evaluate_on_refresh(Main *bmain, Depsgraph *graph)
+static void deg_flush_updates_and_refresh(deg::Depsgraph *deg_graph)
 {
-  deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(graph);
-  deg_graph->ctime = BKE_scene_frame_get(deg_graph->scene);
-  /* Update time on primary timesource. */
-  deg::TimeSourceNode *tsrc = deg_graph->find_time_source();
-  tsrc->cfra = deg_graph->ctime;
-  /* Update time in scene. */
+  /* Update the time on the cow scene. */
   if (deg_graph->scene_cow) {
     BKE_scene_frame_set(deg_graph->scene_cow, deg_graph->ctime);
   }
-  deg::deg_graph_flush_updates(bmain, deg_graph);
+
+  deg::deg_graph_flush_updates(deg_graph);
   deg::deg_evaluate_on_refresh(deg_graph);
-  deg_graph->need_update_time = false;
+}
+
+/* Evaluate all nodes tagged for updating. */
+void DEG_evaluate_on_refresh(Depsgraph *graph)
+{
+  deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(graph);
+  const Scene *scene = DEG_get_input_scene(graph);
+  const float ctime = BKE_scene_frame_get(scene);
+
+  if (ctime != deg_graph->ctime) {
+    deg_graph->tag_time_source();
+    deg_graph->ctime = ctime;
+  }
+
+  deg_flush_updates_and_refresh(deg_graph);
 }
 
 /* Frame-change happened for root scene that graph belongs to. */
-void DEG_evaluate_on_framechange(Main *bmain, Depsgraph *graph, float ctime)
+void DEG_evaluate_on_framechange(Depsgraph *graph, float ctime)
 {
   deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(graph);
+  deg_graph->tag_time_source();
   deg_graph->ctime = ctime;
-  /* Update time on primary timesource. */
-  deg::TimeSourceNode *tsrc = deg_graph->find_time_source();
-  tsrc->cfra = ctime;
-  deg_graph->need_update_time = true;
-  deg::deg_graph_flush_updates(bmain, deg_graph);
-  /* Update time in scene. */
-  if (deg_graph->scene_cow) {
-    BKE_scene_frame_set(deg_graph->scene_cow, deg_graph->ctime);
-  }
-  /* Perform recalculation updates. */
-  deg::deg_evaluate_on_refresh(deg_graph);
-  deg_graph->need_update_time = false;
-}
-
-bool DEG_needs_eval(Depsgraph *graph)
-{
-  deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(graph);
-  return !deg_graph->entry_tags.is_empty() || deg_graph->need_update_time;
+  deg_flush_updates_and_refresh(deg_graph);
 }

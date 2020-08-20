@@ -1343,8 +1343,8 @@ void drawDial3d(const TransInfo *t)
     BLI_assert(axis_idx >= MAN_AXIS_RANGE_ROT_START && axis_idx < MAN_AXIS_RANGE_ROT_END);
     gizmo_get_axis_color(axis_idx, NULL, color, color);
 
-    GPU_depth_test(false);
-    GPU_blend(true);
+    GPU_depth_test(GPU_DEPTH_NONE);
+    GPU_blend(GPU_BLEND_ALPHA);
     GPU_line_smooth(true);
 
     ED_gizmotypes_dial_3d_draw_util(mat_basis,
@@ -1359,8 +1359,8 @@ void drawDial3d(const TransInfo *t)
                                     });
 
     GPU_line_smooth(false);
-    GPU_depth_test(true);
-    GPU_blend(false);
+    GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+    GPU_blend(GPU_BLEND_NONE);
   }
 }
 

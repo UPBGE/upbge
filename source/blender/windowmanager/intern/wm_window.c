@@ -658,9 +658,6 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     wm_window_swap_buffers(win);
 
     // GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
-
-    /* standard state vars for window */
-    GPU_state_init();
   }
   else {
     wm_window_set_drawable(wm, prev_windrawable, false);
@@ -2597,7 +2594,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
 
   // GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
   /* standard state vars for window */
-  GPU_state_init();
+  //GPU_state_init();
 }
 
 void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)

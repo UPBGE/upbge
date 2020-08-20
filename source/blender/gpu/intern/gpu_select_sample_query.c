@@ -26,6 +26,7 @@
 
 #include <stdlib.h>
 
+#include "GPU_framebuffer.h"
 #include "GPU_glew.h"
 #include "GPU_select.h"
 #include "GPU_state.h"
@@ -60,6 +61,12 @@ typedef struct GPUQueryState {
   char mode;
   uint index;
   int oldhits;
+
+  /* Previous state to restore after drawing. */
+  int viewport[4];
+  int scissor[4];
+  eGPUWriteMask write_mask;
+  eGPUDepthTest depth_test;
 } GPUQueryState;
 
 static GPUQueryState g_query_state = {0};
@@ -67,8 +74,6 @@ static GPUQueryState g_query_state = {0};
 void gpu_select_query_begin(
     uint (*buffer)[4], uint bufsize, const rcti *input, char mode, int oldhits)
 {
-  float viewport[4];
-
   g_query_state.query_issued = false;
   g_query_state.active_query = 0;
   g_query_state.num_of_queries = 0;
@@ -86,7 +91,10 @@ void gpu_select_query_begin(
                                  "gpu selection ids");
   glGenQueries(g_query_state.num_of_queries, g_query_state.queries);
 
-  gpuPushAttr(GPU_DEPTH_BUFFER_BIT | GPU_VIEWPORT_BIT | GPU_SCISSOR_BIT);
+  g_query_state.write_mask = GPU_write_mask_get();
+  g_query_state.depth_test = GPU_depth_test_get();
+  GPU_scissor_get(g_query_state.scissor);
+
   /* disable writing to the framebuffer */
   GPU_color_mask(false, false, false, false);
 
@@ -94,28 +102,28 @@ void gpu_select_query_begin(
    * We need to get the region of the viewport so that our geometry doesn't
    * get rejected before the depth test. Should probably cull rect against
    * the viewport but this is a rare case I think */
-  GPU_viewport_size_get_f(viewport);
-  GPU_viewport(viewport[0], viewport[1], BLI_rcti_size_x(input), BLI_rcti_size_y(input));
+  GPU_viewport_size_get_i(g_query_state.viewport);
+  GPU_viewport(g_query_state.viewport[0],
+               g_query_state.viewport[1],
+               BLI_rcti_size_x(input),
+               BLI_rcti_size_y(input));
 
   /* occlusion queries operates on fragments that pass tests and since we are interested on all
    * objects in the view frustum independently of their order, we need to disable the depth test */
   if (mode == GPU_SELECT_ALL) {
     /* glQueries on Windows+Intel drivers only works with depth testing turned on.
      * See T62947 for details */
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_ALWAYS);
-    glDepthMask(GL_TRUE);
+    GPU_depth_test(GPU_DEPTH_ALWAYS);
+    GPU_depth_mask(true);
   }
   else if (mode == GPU_SELECT_NEAREST_FIRST_PASS) {
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glDepthFunc(GL_LEQUAL);
+    GPU_clear(GPU_DEPTH_BIT);
+    GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+    GPU_depth_mask(true);
   }
   else if (mode == GPU_SELECT_NEAREST_SECOND_PASS) {
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
-    glDepthFunc(GL_EQUAL);
+    GPU_depth_test(GPU_DEPTH_EQUAL);
+    GPU_depth_mask(false);
   }
 }
 
@@ -204,8 +212,10 @@ uint gpu_select_query_end(void)
   glDeleteQueries(g_query_state.num_of_queries, g_query_state.queries);
   MEM_freeN(g_query_state.queries);
   MEM_freeN(g_query_state.id);
-  gpuPopAttr();
-  GPU_color_mask(true, true, true, true);
+
+  GPU_write_mask(g_query_state.write_mask);
+  GPU_depth_test(g_query_state.depth_test);
+  GPU_viewport(UNPACK4(g_query_state.viewport));
 
   return hits;
 }

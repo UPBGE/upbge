@@ -134,6 +134,7 @@ static float cloth_brush_simulation_falloff_get(const Brush *brush,
 #define CLOTH_SIMULATION_ITERATIONS 5
 #define CLOTH_MAX_CONSTRAINTS_PER_VERTEX 1024
 #define CLOTH_SIMULATION_TIME_STEP 0.01f
+#define CLOTH_DEFORMATION_TARGET_STRENGTH 0.35f
 
 static bool cloth_brush_sim_has_length_constraint(SculptClothSimulation *cloth_sim,
                                                   const int v1,
@@ -297,15 +298,28 @@ static void do_cloth_brush_build_constraints_task_cb_ex(
       }
     }
 
-    if (cloth_is_deform_brush && len_squared < radius_squared) {
-      const float fade = BKE_brush_curve_strength(brush, sqrtf(len_squared), ss->cache->radius);
-      cloth_brush_add_deformation_constraint(data->cloth_sim, vd.index, fade);
+    if (brush && brush->sculpt_tool == SCULPT_TOOL_CLOTH) {
+      /* The cloth brush works by applying forces in most of its modes, but some of them require
+       * deformation coordinates to make the simulation stable. */
+      if (cloth_is_deform_brush && len_squared < radius_squared) {
+        /* When a deform brush is used as part of the cloth brush, deformation constraints are
+         * created with different strengths and only inside the radius of the brush. */
+        const float fade = BKE_brush_curve_strength(brush, sqrtf(len_squared), ss->cache->radius);
+        cloth_brush_add_deformation_constraint(data->cloth_sim, vd.index, fade);
+      }
+    }
+    else if (data->cloth_sim->deformation_pos) {
+      /* Any other tool that target the cloth simulation handle the falloff in
+       * their own code when modifying the deformation coordinates of the simulation, so
+       * deformation constraints are created with a fixed strength for all vertices. */
+      cloth_brush_add_deformation_constraint(
+          data->cloth_sim, vd.index, CLOTH_DEFORMATION_TARGET_STRENGTH);
     }
 
     if (pin_simulation_boundary) {
       const float sim_falloff = cloth_brush_simulation_falloff_get(
           brush, ss->cache->initial_radius, ss->cache->location, vd.co);
-      /* Vertex is inside the area of the simulation without any falloff aplied. */
+      /* Vertex is inside the area of the simulation without any falloff applied. */
       if (sim_falloff < 1.0f) {
         /* Create constraints with more strength the closer the vertex is to the simulation
          * boundary. */
@@ -505,49 +519,6 @@ static ListBase *cloth_brush_collider_cache_create(Depsgraph *depsgraph)
   return cache;
 }
 
-static SculptClothSimulation *cloth_brush_simulation_create(SculptSession *ss,
-                                                            Brush *brush,
-                                                            const float cloth_mass,
-                                                            const float cloth_damping,
-                                                            const bool use_collisions)
-{
-  const int totverts = SCULPT_vertex_count_get(ss);
-  SculptClothSimulation *cloth_sim;
-
-  cloth_sim = MEM_callocN(sizeof(SculptClothSimulation), "cloth constraints");
-
-  cloth_sim->length_constraints = MEM_callocN(sizeof(SculptClothLengthConstraint) *
-                                                  CLOTH_LENGTH_CONSTRAINTS_BLOCK,
-                                              "cloth length constraints");
-  cloth_sim->capacity_length_constraints = CLOTH_LENGTH_CONSTRAINTS_BLOCK;
-
-  cloth_sim->acceleration = MEM_calloc_arrayN(
-      totverts, sizeof(float[3]), "cloth sim acceleration");
-  cloth_sim->pos = MEM_calloc_arrayN(totverts, sizeof(float[3]), "cloth sim pos");
-  cloth_sim->prev_pos = MEM_calloc_arrayN(totverts, sizeof(float[3]), "cloth sim prev pos");
-  cloth_sim->last_iteration_pos = MEM_calloc_arrayN(
-      totverts, sizeof(float[3]), "cloth sim last iteration pos");
-  cloth_sim->init_pos = MEM_calloc_arrayN(totverts, sizeof(float[3]), "cloth sim init pos");
-  cloth_sim->length_constraint_tweak = MEM_calloc_arrayN(
-      totverts, sizeof(float), "cloth sim length tweak");
-
-  /* Brush can be NULL for tools that need the solver but don't rely on constraint to deformation
-   * positions. */
-  if (brush && SCULPT_is_cloth_deform_brush(brush)) {
-    cloth_sim->deformation_pos = MEM_calloc_arrayN(
-        totverts, sizeof(float[3]), "cloth sim deformation positions");
-  }
-
-  cloth_sim->mass = cloth_mass;
-  cloth_sim->damping = cloth_damping;
-
-  if (use_collisions) {
-    cloth_sim->collider_list = cloth_brush_collider_cache_create(ss->depsgraph);
-  }
-
-  return cloth_sim;
-}
-
 typedef struct ClothBrushCollision {
   CollisionModifierData *col_data;
   struct IsectRayPrecalc isect_precalc;
@@ -699,43 +670,6 @@ static void do_cloth_brush_solve_simulation_task_cb_ex(
   BKE_pbvh_vertex_iter_end;
 }
 
-static void cloth_brush_build_nodes_constraints(
-    Sculpt *sd,
-    Object *ob,
-    PBVHNode **nodes,
-    int totnode,
-    SculptClothSimulation *cloth_sim,
-    /* Cannot be const, because it is assigned to a non-const variable.
-     * NOLINTNEXTLINE: readability-non-const-parameter. */
-    float initial_location[3],
-    const float radius)
-{
-  Brush *brush = BKE_paint_brush(&sd->paint);
-
-  /* TODO: Multi-threaded needs to be disabled for this task until implementing the optimization of
-   * storing the constraints per node. */
-  /* Currently all constrains are added to the same global array which can't be accessed from
-   * different threads. */
-  TaskParallelSettings settings;
-  BKE_pbvh_parallel_range_settings(&settings, false, totnode);
-
-  cloth_sim->created_length_constraints = BLI_edgeset_new("created length constraints");
-
-  SculptThreadedTaskData build_constraints_data = {
-      .sd = sd,
-      .ob = ob,
-      .brush = brush,
-      .nodes = nodes,
-      .cloth_sim = cloth_sim,
-      .cloth_sim_initial_location = initial_location,
-      .cloth_sim_radius = radius,
-  };
-  BLI_task_parallel_range(
-      0, totnode, &build_constraints_data, do_cloth_brush_build_constraints_task_cb_ex, &settings);
-
-  BLI_edgeset_free(cloth_sim->created_length_constraints);
-}
-
 static void cloth_brush_satisfy_constraints(SculptSession *ss,
                                             Brush *brush,
                                             SculptClothSimulation *cloth_sim)
@@ -796,7 +730,7 @@ static void cloth_brush_satisfy_constraints(SculptSession *ss,
   }
 }
 
-static void cloth_brush_do_simulation_step(
+void SCULPT_cloth_brush_do_simulation_step(
     Sculpt *sd, Object *ob, SculptClothSimulation *cloth_sim, PBVHNode **nodes, int totnode)
 {
   SculptSession *ss = ob->sculpt;
@@ -897,13 +831,113 @@ static void cloth_brush_apply_brush_foces(Sculpt *sd, Object *ob, PBVHNode **nod
 }
 
 /* Public functions. */
+SculptClothSimulation *SCULPT_cloth_brush_simulation_create(SculptSession *ss,
+                                                            Brush *brush,
+                                                            const float cloth_mass,
+                                                            const float cloth_damping,
+                                                            const bool use_collisions)
+{
+  const int totverts = SCULPT_vertex_count_get(ss);
+  SculptClothSimulation *cloth_sim;
+
+  cloth_sim = MEM_callocN(sizeof(SculptClothSimulation), "cloth constraints");
+
+  cloth_sim->length_constraints = MEM_callocN(sizeof(SculptClothLengthConstraint) *
+                                                  CLOTH_LENGTH_CONSTRAINTS_BLOCK,
+                                              "cloth length constraints");
+  cloth_sim->capacity_length_constraints = CLOTH_LENGTH_CONSTRAINTS_BLOCK;
+
+  cloth_sim->acceleration = MEM_calloc_arrayN(
+      totverts, sizeof(float[3]), "cloth sim acceleration");
+  cloth_sim->pos = MEM_calloc_arrayN(totverts, sizeof(float[3]), "cloth sim pos");
+  cloth_sim->prev_pos = MEM_calloc_arrayN(totverts, sizeof(float[3]), "cloth sim prev pos");
+  cloth_sim->last_iteration_pos = MEM_calloc_arrayN(
+      totverts, sizeof(float[3]), "cloth sim last iteration pos");
+  cloth_sim->init_pos = MEM_calloc_arrayN(totverts, sizeof(float[3]), "cloth sim init pos");
+  cloth_sim->length_constraint_tweak = MEM_calloc_arrayN(
+      totverts, sizeof(float), "cloth sim length tweak");
+
+  /* Brush can be NULL for tools that need the solver but don't rely on constraint to deformation
+   * positions. */
+  if (brush && SCULPT_is_cloth_deform_brush(brush)) {
+    cloth_sim->deformation_pos = MEM_calloc_arrayN(
+        totverts, sizeof(float[3]), "cloth sim deformation positions");
+  }
+
+  cloth_sim->mass = cloth_mass;
+  cloth_sim->damping = cloth_damping;
+
+  if (use_collisions) {
+    cloth_sim->collider_list = cloth_brush_collider_cache_create(ss->depsgraph);
+  }
+
+  return cloth_sim;
+}
+
+void SCULPT_cloth_brush_build_nodes_constraints(
+    Sculpt *sd,
+    Object *ob,
+    PBVHNode **nodes,
+    int totnode,
+    SculptClothSimulation *cloth_sim,
+    /* Cannot be const, because it is assigned to a non-const variable.
+     * NOLINTNEXTLINE: readability-non-const-parameter. */
+    float initial_location[3],
+    const float radius)
+{
+  Brush *brush = BKE_paint_brush(&sd->paint);
+
+  /* TODO: Multi-threaded needs to be disabled for this task until implementing the optimization of
+   * storing the constraints per node. */
+  /* Currently all constrains are added to the same global array which can't be accessed from
+   * different threads. */
+  TaskParallelSettings settings;
+  BKE_pbvh_parallel_range_settings(&settings, false, totnode);
+
+  cloth_sim->created_length_constraints = BLI_edgeset_new("created length constraints");
+
+  SculptThreadedTaskData build_constraints_data = {
+      .sd = sd,
+      .ob = ob,
+      .brush = brush,
+      .nodes = nodes,
+      .cloth_sim = cloth_sim,
+      .cloth_sim_initial_location = initial_location,
+      .cloth_sim_radius = radius,
+  };
+  BLI_task_parallel_range(
+      0, totnode, &build_constraints_data, do_cloth_brush_build_constraints_task_cb_ex, &settings);
+
+  BLI_edgeset_free(cloth_sim->created_length_constraints);
+}
+
+void SCULPT_cloth_brush_simulation_init(SculptSession *ss, SculptClothSimulation *cloth_sim)
+{
+  const int totverts = SCULPT_vertex_count_get(ss);
+  const bool has_deformation_pos = cloth_sim->deformation_pos != NULL;
+  for (int i = 0; i < totverts; i++) {
+    copy_v3_v3(cloth_sim->last_iteration_pos[i], SCULPT_vertex_co_get(ss, i));
+    copy_v3_v3(cloth_sim->init_pos[i], SCULPT_vertex_co_get(ss, i));
+    copy_v3_v3(cloth_sim->prev_pos[i], SCULPT_vertex_co_get(ss, i));
+    if (has_deformation_pos) {
+      copy_v3_v3(cloth_sim->deformation_pos[i], SCULPT_vertex_co_get(ss, i));
+    }
+  }
+}
+
+void SCULPT_cloth_brush_store_simulation_state(SculptSession *ss, SculptClothSimulation *cloth_sim)
+{
+  const int totverts = SCULPT_vertex_count_get(ss);
+  for (int i = 0; i < totverts; i++) {
+    copy_v3_v3(cloth_sim->pos[i], SCULPT_vertex_co_get(ss, i));
+  }
+}
 
 /* Main Brush Function. */
 void SCULPT_do_cloth_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 {
   SculptSession *ss = ob->sculpt;
   Brush *brush = BKE_paint_brush(&sd->paint);
-  const int totverts = SCULPT_vertex_count_get(ss);
 
   /* In the first brush step of each symmetry pass, build the constraints for the vertices in all
    * nodes inside the simulation's limits. */
@@ -914,42 +948,32 @@ void SCULPT_do_cloth_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 
     /* The simulation structure only needs to be created on the first symmetry pass. */
     if (SCULPT_stroke_is_first_brush_step(ss->cache) || !ss->cache->cloth_sim) {
-      const bool is_cloth_deform_brush = SCULPT_is_cloth_deform_brush(brush);
-      ss->cache->cloth_sim = cloth_brush_simulation_create(
+      ss->cache->cloth_sim = SCULPT_cloth_brush_simulation_create(
           ss,
           brush,
           brush->cloth_mass,
           brush->cloth_damping,
           (brush->flag2 & BRUSH_CLOTH_USE_COLLISION));
-      for (int i = 0; i < totverts; i++) {
-        copy_v3_v3(ss->cache->cloth_sim->last_iteration_pos[i], SCULPT_vertex_co_get(ss, i));
-        copy_v3_v3(ss->cache->cloth_sim->init_pos[i], SCULPT_vertex_co_get(ss, i));
-        copy_v3_v3(ss->cache->cloth_sim->prev_pos[i], SCULPT_vertex_co_get(ss, i));
-        if (is_cloth_deform_brush) {
-          copy_v3_v3(ss->cache->cloth_sim->deformation_pos[i], SCULPT_vertex_co_get(ss, i));
-        }
-      }
+      SCULPT_cloth_brush_simulation_init(ss, ss->cache->cloth_sim);
     }
 
     /* Build the constraints. */
     const float radius = ss->cache->initial_radius;
     const float limit = radius + (radius * brush->cloth_sim_limit);
-    cloth_brush_build_nodes_constraints(
+    SCULPT_cloth_brush_build_nodes_constraints(
         sd, ob, nodes, totnode, ss->cache->cloth_sim, ss->cache->location, limit);
 
     return;
   }
 
   /* Store the initial state in the simulation. */
-  for (int i = 0; i < totverts; i++) {
-    copy_v3_v3(ss->cache->cloth_sim->pos[i], SCULPT_vertex_co_get(ss, i));
-  }
+  SCULPT_cloth_brush_store_simulation_state(ss, ss->cache->cloth_sim);
 
   /* Apply forces to the vertices. */
   cloth_brush_apply_brush_foces(sd, ob, nodes, totnode);
 
   /* Update and write the simulation to the nodes. */
-  cloth_brush_do_simulation_step(sd, ob, ss->cache->cloth_sim, nodes, totnode);
+  SCULPT_cloth_brush_do_simulation_step(sd, ob, ss->cache->cloth_sim, nodes, totnode);
 }
 
 void SCULPT_cloth_simulation_free(struct SculptClothSimulation *cloth_sim)
@@ -1047,6 +1071,38 @@ static EnumPropertyItem prop_cloth_filter_type[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
+static EnumPropertyItem prop_cloth_filter_orientation_items[] = {
+    {SCULPT_FILTER_ORIENTATION_LOCAL,
+     "LOCAL",
+     0,
+     "Local",
+     "Use the local axis to limit the force and set the gravity direction"},
+    {SCULPT_FILTER_ORIENTATION_WORLD,
+     "WORLD",
+     0,
+     "World",
+     "Use the global axis to limit the force and set the gravity direction"},
+    {SCULPT_FILTER_ORIENTATION_VIEW,
+     "VIEW",
+     0,
+     "View",
+     "Use the view axis to limit the force and set the gravity direction"},
+    {0, NULL, 0, NULL, NULL},
+};
+
+typedef enum eClothFilterForceAxis {
+  CLOTH_FILTER_FORCE_X = 1 << 0,
+  CLOTH_FILTER_FORCE_Y = 1 << 1,
+  CLOTH_FILTER_FORCE_Z = 1 << 2,
+} eClothFilterForceAxis;
+
+static EnumPropertyItem prop_cloth_filter_force_axis_items[] = {
+    {CLOTH_FILTER_FORCE_X, "X", 0, "X", "Apply force in the X axis"},
+    {CLOTH_FILTER_FORCE_Y, "Y", 0, "Y", "Apply force in the Y axis"},
+    {CLOTH_FILTER_FORCE_Z, "Z", 0, "Z", "Apply force in the Z axis"},
+    {0, NULL, 0, NULL, NULL},
+};
+
 static void cloth_filter_apply_forces_task_cb(void *__restrict userdata,
                                               const int i,
                                               const TaskParallelTLS *__restrict UNUSED(tls))
@@ -1083,7 +1139,15 @@ static void cloth_filter_apply_forces_task_cb(void *__restrict userdata,
 
     switch (filter_type) {
       case CLOTH_FILTER_GRAVITY:
-        force[2] = -data->filter_strength * fade;
+        if (ss->filter_cache->orientation == SCULPT_FILTER_ORIENTATION_VIEW) {
+          /* When using the view orientation apply gravity in the -Y axis, this way objects will
+           * fall down instead of backwards. */
+          force[1] = -data->filter_strength * fade;
+        }
+        else {
+          force[2] = -data->filter_strength * fade;
+        }
+        SCULPT_filter_to_object_space(force, ss->filter_cache);
         break;
       case CLOTH_FILTER_INFLATE: {
         float normal[3];
@@ -1100,6 +1164,14 @@ static void cloth_filter_apply_forces_task_cb(void *__restrict userdata,
         mul_v3_fl(force, fade * data->filter_strength);
         break;
     }
+
+    SCULPT_filter_to_orientation_space(force, ss->filter_cache);
+    for (int axis = 0; axis < 3; axis++) {
+      if (!ss->filter_cache->enabled_force_axis[axis]) {
+        force[axis] = 0.0f;
+      }
+    }
+    SCULPT_filter_to_object_space(force, ss->filter_cache);
 
     add_v3_v3(force, sculpt_gravity);
 
@@ -1157,7 +1229,7 @@ static int sculpt_cloth_filter_modal(bContext *C, wmOperator *op, const wmEvent 
       0, ss->filter_cache->totnode, &data, cloth_filter_apply_forces_task_cb, &settings);
 
   /* Update and write the simulation to the nodes. */
-  cloth_brush_do_simulation_step(
+  SCULPT_cloth_brush_do_simulation_step(
       sd, ob, ss->filter_cache->cloth_sim, ss->filter_cache->nodes, ss->filter_cache->totnode);
 
   if (ss->deform_modifiers_active || ss->shapekey_active) {
@@ -1187,31 +1259,26 @@ static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent
   BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true, false);
 
   SCULPT_undo_push_begin("Cloth filter");
-  SCULPT_filter_cache_init(ob, sd, SCULPT_UNDO_COORDS);
+  SCULPT_filter_cache_init(C, ob, sd, SCULPT_UNDO_COORDS);
 
   const float cloth_mass = RNA_float_get(op->ptr, "cloth_mass");
   const float cloth_damping = RNA_float_get(op->ptr, "cloth_damping");
   const bool use_collisions = RNA_boolean_get(op->ptr, "use_collisions");
-  ss->filter_cache->cloth_sim = cloth_brush_simulation_create(
+  ss->filter_cache->cloth_sim = SCULPT_cloth_brush_simulation_create(
       ss, NULL, cloth_mass, cloth_damping, use_collisions);
 
   copy_v3_v3(ss->filter_cache->cloth_sim_pinch_point, SCULPT_active_vertex_co_get(ss));
 
-  const int totverts = SCULPT_vertex_count_get(ss);
-  for (int i = 0; i < totverts; i++) {
-    copy_v3_v3(ss->filter_cache->cloth_sim->last_iteration_pos[i], SCULPT_vertex_co_get(ss, i));
-    copy_v3_v3(ss->filter_cache->cloth_sim->prev_pos[i], SCULPT_vertex_co_get(ss, i));
-    copy_v3_v3(ss->filter_cache->cloth_sim->init_pos[i], SCULPT_vertex_co_get(ss, i));
-  }
+  SCULPT_cloth_brush_simulation_init(ss, ss->filter_cache->cloth_sim);
 
   float origin[3] = {0.0f, 0.0f, 0.0f};
-  cloth_brush_build_nodes_constraints(sd,
-                                      ob,
-                                      ss->filter_cache->nodes,
-                                      ss->filter_cache->totnode,
-                                      ss->filter_cache->cloth_sim,
-                                      origin,
-                                      FLT_MAX);
+  SCULPT_cloth_brush_build_nodes_constraints(sd,
+                                             ob,
+                                             ss->filter_cache->nodes,
+                                             ss->filter_cache->totnode,
+                                             ss->filter_cache->cloth_sim,
+                                             origin,
+                                             FLT_MAX);
 
   const bool use_face_sets = RNA_boolean_get(op->ptr, "use_face_sets");
   if (use_face_sets) {
@@ -1220,6 +1287,14 @@ static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent
   else {
     ss->filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
   }
+
+  const int force_axis = RNA_enum_get(op->ptr, "force_axis");
+  ss->filter_cache->enabled_force_axis[0] = force_axis & CLOTH_FILTER_FORCE_X;
+  ss->filter_cache->enabled_force_axis[1] = force_axis & CLOTH_FILTER_FORCE_Y;
+  ss->filter_cache->enabled_force_axis[2] = force_axis & CLOTH_FILTER_FORCE_Z;
+
+  SculptFilterOrientation orientation = RNA_enum_get(op->ptr, "orientation");
+  ss->filter_cache->orientation = orientation;
 
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
@@ -1248,6 +1323,18 @@ void SCULPT_OT_cloth_filter(struct wmOperatorType *ot)
                "Operation that is going to be applied to the mesh");
   RNA_def_float(
       ot->srna, "strength", 1.0f, -10.0f, 10.0f, "Strength", "Filter Strength", -10.0f, 10.0f);
+  RNA_def_enum_flag(ot->srna,
+                    "force_axis",
+                    prop_cloth_filter_force_axis_items,
+                    CLOTH_FILTER_FORCE_X | CLOTH_FILTER_FORCE_Y | CLOTH_FILTER_FORCE_Z,
+                    "Force axis",
+                    "Apply the force in the selected axis");
+  RNA_def_enum(ot->srna,
+               "orientation",
+               prop_cloth_filter_orientation_items,
+               SCULPT_FILTER_ORIENTATION_LOCAL,
+               "Orientation",
+               "Orientation of the axis to limit the filter force");
   RNA_def_float(ot->srna,
                 "cloth_mass",
                 1.0f,

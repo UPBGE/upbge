@@ -1314,15 +1314,15 @@ void DRW_draw_callbacks_post_scene(void)
     /* annotations - temporary drawing buffer (3d space) */
     /* XXX: Or should we use a proper draw/overlay engine for this case? */
     if (do_annotations) {
-      GPU_depth_test(false);
+      GPU_depth_test(GPU_DEPTH_NONE);
       /* XXX: as scene->gpd is not copied for COW yet */
       ED_annotation_draw_view3d(DEG_get_input_scene(depsgraph), depsgraph, v3d, region, true);
-      GPU_depth_test(true);
+      GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
     }
 
     drw_debug_draw();
 
-    GPU_depth_test(false);
+    GPU_depth_test(GPU_DEPTH_NONE);
     ED_region_draw_cb_draw(DST.draw_ctx.evil_C, DST.draw_ctx.region, REGION_DRAW_POST_VIEW);
 
     /* Callback can be nasty and do whatever they want with the state.
@@ -1331,11 +1331,11 @@ void DRW_draw_callbacks_post_scene(void)
 
     /* needed so gizmo isn't obscured */
     if ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0) {
-      GPU_depth_test(false);
+      GPU_depth_test(GPU_DEPTH_NONE);
       DRW_draw_gizmo_3d();
     }
 
-    GPU_depth_test(false);
+    GPU_depth_test(GPU_DEPTH_NONE);
     drw_engines_draw_text();
 
     DRW_draw_region_info();
@@ -1343,7 +1343,7 @@ void DRW_draw_callbacks_post_scene(void)
     /* annotations - temporary drawing buffer (screenspace) */
     /* XXX: Or should we use a proper draw/overlay engine for this case? */
     if (((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) && (do_annotations)) {
-      GPU_depth_test(false);
+      GPU_depth_test(GPU_DEPTH_NONE);
       /* XXX: as scene->gpd is not copied for COW yet */
       ED_annotation_draw_view3d(DEG_get_input_scene(depsgraph), depsgraph, v3d, region, false);
     }
@@ -1351,18 +1351,18 @@ void DRW_draw_callbacks_post_scene(void)
     if ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0) {
       /* Draw 2D after region info so we can draw on top of the camera passepartout overlay.
        * 'DRW_draw_region_info' sets the projection in pixel-space. */
-      GPU_depth_test(false);
+      GPU_depth_test(GPU_DEPTH_NONE);
       DRW_draw_gizmo_2d();
     }
 
     if (G.debug_value > 20 && G.debug_value < 30) {
-      GPU_depth_test(false);
+      GPU_depth_test(GPU_DEPTH_NONE);
       /* local coordinate visible rect inside region, to accommodate overlapping ui */
       const rcti *rect = ED_region_visible_rect(DST.draw_ctx.region);
       DRW_stats_draw(rect);
     }
 
-    GPU_depth_test(true);
+    GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   }
 }
 
@@ -1614,8 +1614,7 @@ void DRW_draw_render_loop_offscreen(struct Depsgraph *depsgraph,
     GPU_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
     GPU_clear(GPU_COLOR_BIT);
     /* Premult Alpha over black background. */
-    GPU_blend_set_func(GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA_PREMULT);
   }
 
   GPU_matrix_identity_set();
@@ -1625,9 +1624,7 @@ void DRW_draw_render_loop_offscreen(struct Depsgraph *depsgraph,
 
   if (draw_background) {
     /* Reset default. */
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   /* Free temporary viewport. */
@@ -1725,7 +1722,7 @@ void DRW_render_gpencil(struct RenderEngine *engine, struct Depsgraph *depsgraph
   GPU_viewport_free(DST.viewport);
   DRW_state_reset();
 
-  glDisable(GL_DEPTH_TEST);
+  GPU_depth_test(GPU_DEPTH_NONE);
 
   /* Restore Drawing area. */
   GPU_framebuffer_restore();
@@ -1777,8 +1774,6 @@ void DRW_render_to_image(RenderEngine *engine, struct Depsgraph *depsgraph)
     BLI_rcti_init(&render_rect, 0, size[0], 0, size[1]);
   }
 
-  /* Set the default Blender draw state */
-  GPU_state_init();
   /* Reset state before drawing */
   DRW_state_reset();
 
@@ -2462,7 +2457,7 @@ void DRW_draw_depth_object(
 
   GPU_framebuffer_bind(fbl->depth_only_fb);
   GPU_framebuffer_clear_depth(fbl->depth_only_fb, 1.0f);
-  GPU_depth_test(true);
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
   const float(*world_clip_planes)[4] = NULL;
   if (RV3D_CLIPPING_ENABLED(v3d, rv3d)) {
@@ -2494,7 +2489,7 @@ void DRW_draw_depth_object(
                                                           GPU_SHADER_CFG_DEFAULT;
       GPU_batch_program_set_builtin_with_config(batch, GPU_SHADER_3D_DEPTH_ONLY, sh_cfg);
       if (world_clip_planes != NULL) {
-        GPU_batch_uniform_4fv_array(batch, "WorldClipPlanes", 6, world_clip_planes[0]);
+        GPU_batch_uniform_4fv_array(batch, "WorldClipPlanes", 6, world_clip_planes);
       }
 
       GPU_batch_draw(batch);
@@ -2509,7 +2504,7 @@ void DRW_draw_depth_object(
   }
 
   GPU_matrix_set(rv3d->viewmat);
-  GPU_depth_test(false);
+  GPU_depth_test(GPU_DEPTH_NONE);
   GPU_framebuffer_restore();
   DRW_opengl_context_disable();
 }
@@ -2808,8 +2803,6 @@ void DRW_opengl_context_create(void)
   if (!G.background) {
     immActivate();
   }
-  /* Set default Blender OpenGL state */
-  GPU_state_init();
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
 }
@@ -3174,7 +3167,7 @@ void DRW_opengl_context_create_blenderplayer(void *syshandle)
   /* Be sure to create gpu_context too. */
   DST.gpu_context = GPU_context_create(0);
   /* Set default Blender OpenGL state */
-  GPU_state_init();
+  //GPU_state_init();
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
 }

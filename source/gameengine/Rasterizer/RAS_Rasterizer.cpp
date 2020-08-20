@@ -252,7 +252,7 @@ void RAS_Rasterizer::SetAmbientColor(const MT_Vector3 &color)
 
 void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
 {
-  GPU_state_init();
+  //GPU_state_init();
 
   Disable(RAS_BLEND);
   Disable(RAS_ALPHA_TEST);

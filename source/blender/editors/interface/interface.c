@@ -44,6 +44,8 @@
 
 #include "BLI_utildefines.h"
 
+#include "BLO_readfile.h"
+
 #include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_idprop.h"
@@ -356,9 +358,7 @@ void ui_region_winrct_get_no_margin(const struct ARegion *region, struct rcti *r
 
 void UI_block_translate(uiBlock *block, int x, int y)
 {
-  uiBut *but;
-
-  for (but = block->buttons.first; but; but = but->next) {
+  LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
     BLI_rctf_translate(&but->rect, x, y);
   }
 
@@ -368,12 +368,13 @@ void UI_block_translate(uiBlock *block, int x, int y)
 static void ui_block_bounds_calc_text(uiBlock *block, float offset)
 {
   const uiStyle *style = UI_style_get();
-  uiBut *bt, *init_col_bt, *col_bt;
+  uiBut *col_bt;
   int i = 0, j, x1addval = offset;
 
   UI_fontstyle_set(&style->widget);
 
-  for (init_col_bt = bt = block->buttons.first; bt; bt = bt->next) {
+  uiBut *init_col_bt = block->buttons.first;
+  LISTBASE_FOREACH (uiBut *, bt, &block->buttons) {
     if (!ELEM(bt->type, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE, UI_BTYPE_SEPR_SPACER)) {
       j = BLF_width(style->widget.uifont_id, bt->drawstr, sizeof(bt->drawstr));
 
@@ -409,7 +410,6 @@ static void ui_block_bounds_calc_text(uiBlock *block, float offset)
 
 void ui_block_bounds_calc(uiBlock *block)
 {
-  uiBut *bt;
   int xof;
 
   if (BLI_listbase_is_empty(&block->buttons)) {
@@ -424,7 +424,7 @@ void ui_block_bounds_calc(uiBlock *block)
 
     BLI_rctf_init_minmax(&block->rect);
 
-    for (bt = block->buttons.first; bt; bt = bt->next) {
+    LISTBASE_FOREACH (uiBut *, bt, &block->buttons) {
       BLI_rctf_union(&block->rect, &bt->rect);
     }
 
@@ -437,7 +437,7 @@ void ui_block_bounds_calc(uiBlock *block)
   block->rect.xmax = block->rect.xmin + max_ff(BLI_rctf_size_x(&block->rect), block->minbounds);
 
   /* hardcoded exception... but that one is annoying with larger safety */
-  bt = block->buttons.first;
+  uiBut *bt = block->buttons.first;
   if (bt && STREQLEN(bt->str, "ERROR", 5)) {
     xof = 10;
   }
@@ -782,9 +782,10 @@ static bool ui_but_equals_old(const uiBut *but, const uiBut *oldbut)
 
 uiBut *ui_but_find_old(uiBlock *block_old, const uiBut *but_new)
 {
-  uiBut *but_old;
-  for (but_old = block_old->buttons.first; but_old; but_old = but_old->next) {
-    if (ui_but_equals_old(but_new, but_old)) {
+  uiBut *but_old = NULL;
+  LISTBASE_FOREACH (uiBut *, but, &block_old->buttons) {
+    if (ui_but_equals_old(but_new, but)) {
+      but_old = but;
       break;
     }
   }
@@ -792,9 +793,10 @@ uiBut *ui_but_find_old(uiBlock *block_old, const uiBut *but_new)
 }
 uiBut *ui_but_find_new(uiBlock *block_new, const uiBut *but_old)
 {
-  uiBut *but_new;
-  for (but_new = block_new->buttons.first; but_new; but_new = but_new->next) {
-    if (ui_but_equals_old(but_new, but_old)) {
+  uiBut *but_new = NULL;
+  LISTBASE_FOREACH (uiBut *, but, &block_new->buttons) {
+    if (ui_but_equals_old(but, but_old)) {
+      but_new = but;
       break;
     }
   }
@@ -1583,7 +1585,6 @@ static void ui_but_pie_direction_string(uiBut *but, char *buf, int size)
 
 static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 {
-  uiBut *but;
   char buf[128];
 
   BLI_assert(block->flag & (UI_BLOCK_LOOP | UI_BLOCK_SHOW_SHORTCUT_ALWAYS));
@@ -1597,7 +1598,7 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
   }
 
   if (block->flag & UI_BLOCK_RADIAL) {
-    for (but = block->buttons.first; but; but = but->next) {
+    LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
       if (but->pie_dir != UI_RADIAL_NONE) {
         ui_but_pie_direction_string(but, buf, sizeof(buf));
         ui_but_add_shortcut(but, buf, false);
@@ -1605,7 +1606,7 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
     }
   }
   else {
-    for (but = block->buttons.first; but; but = but->next) {
+    LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
       if (block->flag & UI_BLOCK_SHOW_SHORTCUT_ALWAYS) {
         /* Skip icon-only buttons (as used in the toolbar). */
         if (but->drawstr[0] == '\0') {
@@ -1693,10 +1694,7 @@ static void ui_but_extra_operator_icon_free(uiButExtraOpIcon *extra_icon)
 
 void ui_but_extra_operator_icons_free(uiBut *but)
 {
-
-  for (uiButExtraOpIcon *op_icon = but->extra_op_icons.first, *op_icon_next; op_icon;
-       op_icon = op_icon_next) {
-    op_icon_next = op_icon->next;
+  LISTBASE_FOREACH_MUTABLE (uiButExtraOpIcon *, op_icon, &but->extra_op_icons) {
     ui_but_extra_operator_icon_free(op_icon);
   }
   BLI_listbase_clear(&but->extra_op_icons);
@@ -1828,7 +1826,6 @@ static void ui_but_predefined_extra_operator_icons_add(uiBut *but)
 void UI_block_update_from_old(const bContext *C, uiBlock *block)
 {
   uiBut *but_old;
-  uiBut *but;
 
   if (!block->oldblock) {
     return;
@@ -1840,7 +1837,7 @@ void UI_block_update_from_old(const bContext *C, uiBlock *block)
     UI_butstore_update(block);
   }
 
-  for (but = block->buttons.first; but; but = but->next) {
+  LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
     if (ui_but_update_from_old_block(C, block, &but, &but_old)) {
       ui_but_update(but);
 
@@ -1865,7 +1862,6 @@ void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2], int r_x
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  uiBut *but;
 
   BLI_assert(block->active);
 
@@ -1875,7 +1871,7 @@ void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2], int r_x
    * on matching buttons, we need this to make button event handling non
    * blocking, while still allowing buttons to be remade each redraw as it
    * is expected by blender code */
-  for (but = block->buttons.first; but; but = but->next) {
+  LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
     /* temp? Proper check for graying out */
     if (but->optype) {
       wmOperatorType *ot = but->optype;
@@ -1995,7 +1991,6 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 {
   uiStyle style = *UI_style_get_dpi(); /* XXX pass on as arg */
   ARegion *region;
-  uiBut *but;
   rcti rect;
 
   /* get menu region or area region */
@@ -2009,8 +2004,7 @@ void UI_block_draw(const bContext *C, uiBlock *block)
   }
 
   /* we set this only once */
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   /* scale fonts */
   ui_fontscale(&style.paneltitle.points, block->aspect);
@@ -2061,7 +2055,7 @@ void UI_block_draw(const bContext *C, uiBlock *block)
   UI_widgetbase_draw_cache_begin();
 
   /* widgets */
-  for (but = block->buttons.first; but; but = but->next) {
+  LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
     if (!(but->flag & (UI_HIDDEN | UI_SCROLLED))) {
       ui_but_to_pixelrect(&rect, region, block, but);
 
@@ -2743,17 +2737,18 @@ int ui_but_string_get_max_length(uiBut *but)
 
 uiBut *ui_but_drag_multi_edit_get(uiBut *but)
 {
-  uiBut *but_iter;
+  uiBut *return_but = NULL;
 
   BLI_assert(but->flag & UI_BUT_DRAG_MULTI);
 
-  for (but_iter = but->block->buttons.first; but_iter; but_iter = but_iter->next) {
+  LISTBASE_FOREACH (uiBut *, but_iter, &but->block->buttons) {
     if (but_iter->editstr) {
+      return_but = but_iter;
       break;
     }
   }
 
-  return but_iter;
+  return return_but;
 }
 
 static double ui_get_but_scale_unit(uiBut *but, double value)
@@ -3623,11 +3618,7 @@ void UI_blocklist_free(const bContext *C, ListBase *lb)
 
 void UI_blocklist_free_inactive(const bContext *C, ListBase *lb)
 {
-  uiBlock *block, *nextblock;
-
-  for (block = lb->first; block; block = nextblock) {
-    nextblock = block->next;
-
+  LISTBASE_FOREACH_MUTABLE (uiBlock *, block, lb) {
     if (!block->handle) {
       if (!block->active) {
         BLI_remlink(lb, block);
@@ -6214,10 +6205,9 @@ void UI_but_link_set(uiBut *but, void **poin, void ***ppoin, short *tot, int fro
 
 int UI_blocklist_min_y_get(ListBase *lb)
 {
-  uiBlock *block;
   int min = 0;
 
-  for (block = lb->first; block; block = block->next) {
+  LISTBASE_FOREACH (uiBlock *, block, lb) {
     if (block == lb->first || block->rect.ymin < min) {
       min = block->rect.ymin;
     }
@@ -6234,7 +6224,6 @@ void UI_block_direction_set(uiBlock *block, char direction)
 /* this call escapes if there's alignment flags */
 void UI_block_order_flip(uiBlock *block)
 {
-  uiBut *but;
   float centy, miny = 10000, maxy = -10000;
 
   if (U.uiflag & USER_MENUFIXEDORDER) {
@@ -6244,7 +6233,7 @@ void UI_block_order_flip(uiBlock *block)
     return;
   }
 
-  for (but = block->buttons.first; but; but = but->next) {
+  LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
     if (but->drawflag & UI_BUT_ALIGN) {
       return;
     }
@@ -6257,7 +6246,7 @@ void UI_block_order_flip(uiBlock *block)
   }
   /* mirror trick */
   centy = (miny + maxy) / 2.0f;
-  for (but = block->buttons.first; but; but = but->next) {
+  LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
     but->rect.ymin = centy - (but->rect.ymin - centy);
     but->rect.ymax = centy - (but->rect.ymax - centy);
     SWAP(float, but->rect.ymin, but->rect.ymax);
@@ -7232,6 +7221,8 @@ void UI_init_userdef(Main *bmain)
   /* fix saved themes */
   init_userdef_do_versions(bmain);
   uiStyleInit();
+
+  BLO_sanitize_experimental_features_userpref_blend(&U);
 }
 
 void UI_reinit_font(void)

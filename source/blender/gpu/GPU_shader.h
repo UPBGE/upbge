@@ -27,14 +27,16 @@
 extern "C" {
 #endif
 
-typedef struct GPUShader GPUShader;
-struct GPUShaderInterface;
 struct GPUTexture;
 struct GPUUniformBuffer;
+struct GPUVertBuf;
 
-/* GPU Shader
- * - only for fragment shaders now
- * - must call texture bind before setting a texture as uniform! */
+/* TODO(fclem) These members should be private and the
+ * whole struct should just be an opaque pointer. */
+typedef struct GPUShader {
+  /** For debugging purpose. */
+  char name[64];
+} GPUShader;
 
 typedef enum eGPUShaderTFBType {
   GPU_SHADER_TFB_NONE = 0, /* Transform feedback unsupported. */
@@ -63,17 +65,16 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
                                 const char **tf_names,
                                 const int tf_count,
                                 const char *shader_name);
-GPUShader *GPU_shader_load_from_binary(const char *binary,
-                                       const int binary_format,
-                                       const int binary_len,
-                                       const char *shname);
+
 struct GPU_ShaderCreateFromArray_Params {
   const char **vert, **geom, **frag, **defs;
 };
 struct GPUShader *GPU_shader_create_from_arrays_impl(
-    const struct GPU_ShaderCreateFromArray_Params *params);
+    const struct GPU_ShaderCreateFromArray_Params *params, const char *func, int line);
+
 #define GPU_shader_create_from_arrays(...) \
-  GPU_shader_create_from_arrays_impl(&(const struct GPU_ShaderCreateFromArray_Params)__VA_ARGS__)
+  GPU_shader_create_from_arrays_impl( \
+      &(const struct GPU_ShaderCreateFromArray_Params)__VA_ARGS__, __func__, __LINE__)
 
 void GPU_shader_free(GPUShader *shader);
 
@@ -81,12 +82,47 @@ void GPU_shader_bind(GPUShader *shader);
 void GPU_shader_unbind(void);
 
 /* Returns true if transform feedback was successfully enabled. */
-bool GPU_shader_transform_feedback_enable(GPUShader *shader, unsigned int vbo_id);
+bool GPU_shader_transform_feedback_enable(GPUShader *shader, struct GPUVertBuf *vertbuf);
 void GPU_shader_transform_feedback_disable(GPUShader *shader);
 
 int GPU_shader_get_program(GPUShader *shader);
 
-void GPU_shader_set_srgb_uniform(const struct GPUShaderInterface *interface);
+typedef enum {
+  GPU_UNIFORM_MODEL = 0,      /* mat4 ModelMatrix */
+  GPU_UNIFORM_VIEW,           /* mat4 ViewMatrix */
+  GPU_UNIFORM_MODELVIEW,      /* mat4 ModelViewMatrix */
+  GPU_UNIFORM_PROJECTION,     /* mat4 ProjectionMatrix */
+  GPU_UNIFORM_VIEWPROJECTION, /* mat4 ViewProjectionMatrix */
+  GPU_UNIFORM_MVP,            /* mat4 ModelViewProjectionMatrix */
+
+  GPU_UNIFORM_MODEL_INV,          /* mat4 ModelMatrixInverse */
+  GPU_UNIFORM_VIEW_INV,           /* mat4 ViewMatrixInverse */
+  GPU_UNIFORM_MODELVIEW_INV,      /* mat4 ModelViewMatrixInverse */
+  GPU_UNIFORM_PROJECTION_INV,     /* mat4 ProjectionMatrixInverse */
+  GPU_UNIFORM_VIEWPROJECTION_INV, /* mat4 ViewProjectionMatrixInverse */
+
+  GPU_UNIFORM_NORMAL,     /* mat3 NormalMatrix */
+  GPU_UNIFORM_ORCO,       /* vec4 OrcoTexCoFactors[] */
+  GPU_UNIFORM_CLIPPLANES, /* vec4 WorldClipPlanes[] */
+
+  GPU_UNIFORM_COLOR,          /* vec4 color */
+  GPU_UNIFORM_BASE_INSTANCE,  /* int baseInstance */
+  GPU_UNIFORM_RESOURCE_CHUNK, /* int resourceChunk */
+  GPU_UNIFORM_RESOURCE_ID,    /* int resourceId */
+  GPU_UNIFORM_SRGB_TRANSFORM, /* bool srgbTarget */
+
+  GPU_NUM_UNIFORMS, /* Special value, denotes number of builtin uniforms. */
+} GPUUniformBuiltin;
+
+typedef enum {
+  GPU_UNIFORM_BLOCK_VIEW = 0, /* viewBlock */
+  GPU_UNIFORM_BLOCK_MODEL,    /* modelBlock */
+  GPU_UNIFORM_BLOCK_INFO,     /* infoBlock */
+
+  GPU_NUM_UNIFORM_BLOCKS, /* Special value, denotes number of builtin uniforms block. */
+} GPUUniformBlockBuiltin;
+
+void GPU_shader_set_srgb_uniform(GPUShader *shader);
 
 int GPU_shader_get_uniform(GPUShader *shader, const char *name);
 int GPU_shader_get_builtin_uniform(GPUShader *shader, int builtin);
@@ -118,8 +154,6 @@ void GPU_shader_uniform_2fv_array(GPUShader *sh, const char *name, int len, cons
 void GPU_shader_uniform_4fv_array(GPUShader *sh, const char *name, int len, const float (*val)[4]);
 
 int GPU_shader_get_attribute(GPUShader *shader, const char *name);
-
-char *GPU_shader_get_binary(GPUShader *shader, uint *r_binary_format, int *r_binary_len);
 
 void GPU_shader_set_framebuffer_srgb_target(int use_srgb_to_linear);
 

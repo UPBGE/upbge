@@ -45,6 +45,18 @@ static const EnumPropertyItem prop_direction_items[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
+#ifdef RNA_RUNTIME
+static const EnumPropertyItem prop_smooth_direction_items[] = {
+    {0, "SMOOTH", ICON_ADD, "Smooth", "Smooth the surfae"},
+    {BRUSH_DIR_IN,
+     "ENHANCE_DETAILS",
+     ICON_REMOVE,
+     "Enhance Details",
+     "Enhance the surface detail"},
+    {0, NULL, 0, NULL, NULL},
+};
+#endif
+
 static const EnumPropertyItem sculpt_stroke_method_items[] = {
     {0, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
     {BRUSH_DRAG_DOT, "DRAG_DOT", 0, "Drag Dot", "Allows a single dot to be carefully positioned"},
@@ -527,6 +539,7 @@ static bool rna_BrushCapabilitiesSculpt_has_direction_get(PointerRNA *ptr)
                SCULPT_TOOL_DRAW_SHARP,
                SCULPT_TOOL_CLAY,
                SCULPT_TOOL_CLAY_STRIPS,
+               SCULPT_TOOL_SMOOTH,
                SCULPT_TOOL_LAYER,
                SCULPT_TOOL_INFLATE,
                SCULPT_TOOL_BLOB,
@@ -795,7 +808,8 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C,
         case SCULPT_TOOL_CLAY:
         case SCULPT_TOOL_CLAY_STRIPS:
           return prop_direction_items;
-
+        case SCULPT_TOOL_SMOOTH:
+          return prop_smooth_direction_items;
         case SCULPT_TOOL_MASK:
           switch ((BrushMaskTool)me->mask_tool) {
             case BRUSH_MASK_DRAW:
@@ -1967,6 +1981,20 @@ static void rna_def_brush(BlenderRNA *brna)
       {0, NULL, 0, NULL, NULL},
   };
 
+  static const EnumPropertyItem brush_deformation_target_items[] = {
+      {BRUSH_DEFORM_TARGET_GEOMETRY,
+       "GEOMETRY",
+       0,
+       "Geometry",
+       "Brush deformation displaces the vertices of the mesh"},
+      {BRUSH_DEFORM_TARGET_CLOTH_SIM,
+       "CLOTH_SIM",
+       0,
+       "Cloth Simulation",
+       "Brush deforms the mesh by deforming the constraints of a cloth simulation"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
   static const EnumPropertyItem brush_elastic_deform_type_items[] = {
       {BRUSH_ELASTIC_DEFORM_GRAB, "GRAB", 0, "Grab", ""},
       {BRUSH_ELASTIC_DEFORM_GRAB_BISCALE, "GRAB_BISCALE", 0, "Bi-scale Grab", ""},
@@ -2193,6 +2221,12 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "curve_preset", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, brush_curve_preset_items);
   RNA_def_property_ui_text(prop, "Curve Preset", "");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "deform_target", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, brush_deformation_target_items);
+  RNA_def_property_ui_text(
+      prop, "Deformation Target", "How the deformation of the brush will affect the object");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "elastic_deform_type", PROP_ENUM, PROP_NONE);
