@@ -157,7 +157,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     immEnd();
 
     /* Reset defaults */
-    GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
     //GPU_blend(false);
     GPU_line_smooth(false);
 
@@ -216,6 +215,5 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
       BLF_draw(blf_mono_font, text.c_str(), text.size());
     }
     BLF_disable(blf_mono_font, BLF_SHADOW);
-    GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   }
 }
