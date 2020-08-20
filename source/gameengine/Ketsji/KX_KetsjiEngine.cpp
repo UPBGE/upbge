@@ -635,7 +635,7 @@ void KX_KetsjiEngine::Render()
   const int height = m_canvas->GetHeight();
 
   // clear the entire game screen with the border color
-  m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
+  GPU_viewport(0, 0, width + 1, height + 1);
 
   KX_Scene *firstscene = m_scenes->GetFront();
   const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
@@ -892,8 +892,9 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   const int bottom = viewport.GetBottom();
   const int width = viewport.GetWidth();
   const int height = viewport.GetHeight();
-  m_rasterizer->SetViewport(left, bottom, width + 1, height + 1);
-  m_rasterizer->SetScissor(left, bottom, width + 1, height + 1);
+  GPU_viewport(left, bottom, width + 1, height + 1);
+  GPU_scissor_test(true);
+  GPU_scissor(left, bottom, width + 1, height + 1);
 
   /* Clear the depth after setting the scene viewport/scissor
    * if it's not the first render pass. */
