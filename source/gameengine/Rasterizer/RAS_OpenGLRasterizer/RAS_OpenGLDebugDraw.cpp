@@ -138,7 +138,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   if (debugDraw->m_lines.size()) {
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-    uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
     GPU_depth_test(GPU_DEPTH_NONE);
