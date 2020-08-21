@@ -668,4 +668,24 @@ void GPU_shader_set_framebuffer_srgb_target(int use_srgb_to_linear)
   g_shader_builtin_srgb_transform = use_srgb_to_linear;
 }
 
+/********************Game engine transition*****************************/
+char *GPU_shader_validate(GPUShader *shader)
+{
+  Shader *shad = static_cast<Shader *>(shader);
+  return shad->shader_validate();
+}
+
+void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len)
+{
+  Shader *shad = static_cast<Shader *>(shader);
+  shad->shader_bind_attributes(locations, names, len);
+}
+
+int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
+{
+  Shader *shad = static_cast<Shader *>(shader);
+  return shad->shader_get_uniform_location_old(name);
+}
+/**********************End of Game engine*******************************/
+
 /** \} */

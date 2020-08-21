@@ -69,6 +69,14 @@ class GLShader : public Shader {
 
   void vertformat_from_shader(GPUVertFormat *format) const override;
 
+  /******************************************Game engine*****************************************/
+  char *shader_validate();
+  void shader_bind_attributes(int *locations, const char **names, int len);
+  // GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2
+  // bgl_TextureCoordinateOffset[9];
+  int shader_get_uniform_location_old(const char *name);
+  /****************************************End of Game engine************************************/
+
  private:
   char *glsl_patch_get(void);
 
