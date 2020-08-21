@@ -438,7 +438,7 @@ void GLShader::vertformat_from_shader(GPUVertFormat *format) const
   }
 }
 
-/**********************************Game engine************************************/
+/****************Game engine transition*************************/
 char *GLShader::shader_validate()
 {
   int stat = 0;
@@ -458,19 +458,20 @@ char *GLShader::shader_validate()
 
 void GLShader::shader_bind_attributes(int *locations, const char **names, int len)
 {
-  //GPU_shaderinterface_discard(shader->interface);
+  if (interface) {
+    delete interface;
+  }
   for (unsigned short i = 0; i < len; ++i) {
     glBindAttribLocation(shader_program_, locations[i], names[i]);
   }
-  //shader->interface = GPU_shaderinterface_create(shader->program);
+  interface = new GLShaderInterface(shader_program_);
 }
 
 int GLShader::shader_get_uniform_location_old(const char *name)
 {
-  BLI_assert(shader && shader->program);
   int loc = glGetUniformLocation(shader_program_, name);
   return loc;
 }
-/******************End of Game engine*************/
+/**************End of Game engine transition*************/
 
 /** \} */
