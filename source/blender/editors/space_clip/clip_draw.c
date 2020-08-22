@@ -153,9 +153,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *region, MovieClip *clip
   MovieTrackingPlaneTrack *act_plane_track = BKE_tracking_plane_track_get_active(&clip->tracking);
   MovieTrackingReconstruction *reconstruction = BKE_tracking_get_active_reconstruction(tracking);
 
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   /* cache background */
   ED_region_cache_draw_background(region);
@@ -245,7 +243,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *region, MovieClip *clip
     }
   }
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   /* current frame */
   x = (sc->user.framenr - sfra) / (efra - sfra + 1) * region->winx;
@@ -330,9 +328,7 @@ static void draw_movieclip_buffer(const bContext *C,
 
   /* checkerboard for case alpha */
   if (ibuf->planes == 32) {
-    GPU_blend(true);
-    GPU_blend_set_func_separate(
-        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     imm_draw_box_checker_2d(x, y, x + zoomx * ibuf->x, y + zoomy * ibuf->y);
   }
@@ -346,7 +342,7 @@ static void draw_movieclip_buffer(const bContext *C,
   ED_draw_imbuf_ctx(C, ibuf, x, y, use_filter, zoomx * width / ibuf->x, zoomy * height / ibuf->y);
 
   if (ibuf->planes == 32) {
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
 
   if (sc->flag & SC_SHOW_METADATA) {
@@ -1212,9 +1208,7 @@ static void draw_plane_marker_image(Scene *scene,
 
       if (plane_track->image_opacity != 1.0f || ibuf->planes == 32) {
         transparent = true;
-        GPU_blend(true);
-        GPU_blend_set_func_separate(
-            GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+        GPU_blend(GPU_BLEND_ALPHA);
       }
 
       GPUTexture *texture = GPU_texture_create_nD(ibuf->x,
@@ -1266,7 +1260,7 @@ static void draw_plane_marker_image(Scene *scene,
       GPU_texture_free(texture);
 
       if (transparent) {
-        GPU_blend(false);
+        GPU_blend(GPU_BLEND_NONE);
       }
     }
 

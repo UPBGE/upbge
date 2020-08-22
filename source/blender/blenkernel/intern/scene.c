@@ -1182,6 +1182,17 @@ int BKE_scene_base_iter_next(
   return iter->phase;
 }
 
+Scene *BKE_scene_find_from_view_layer(const Main *bmain, const ViewLayer *layer)
+{
+  for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+    if (BLI_findindex(&scene->view_layers, layer) != -1) {
+      return scene;
+    }
+  }
+
+  return NULL;
+}
+
 Scene *BKE_scene_find_from_collection(const Main *bmain, const Collection *collection)
 {
   for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
@@ -1538,7 +1549,7 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
 
   for (int pass = 0; pass < 2; pass++) {
     /* (Re-)build dependency graph if needed. */
-    DEG_graph_relations_update(depsgraph, bmain, scene, view_layer);
+    DEG_graph_relations_update(depsgraph);
     /* Uncomment this to check if graph was properly tagged for update. */
     // DEG_debug_graph_relations_validate(depsgraph, bmain, scene);
     /* Flush editing data if needed. */
@@ -1546,7 +1557,7 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
     /* Update all objects: drivers, matrices, displists, etc. flags set
      * by depgraph or manual, no layer check here, gets correct flushed.
      */
-    DEG_evaluate_on_refresh(bmain, depsgraph);
+    DEG_evaluate_on_refresh(depsgraph);
     /* Update sound system. */
     BKE_scene_update_sound(depsgraph, bmain);
     /* Notify python about depsgraph update. */
@@ -1565,7 +1576,7 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
        * be tagged for an update anyway.
        *
        * If there are no relations changed by the callback this call will do nothing. */
-      DEG_graph_relations_update(depsgraph, bmain, scene, view_layer);
+      DEG_graph_relations_update(depsgraph);
     }
     /* Inform editors about possible changes. */
     DEG_ids_check_recalc(bmain, depsgraph, scene, view_layer, false);
@@ -1594,10 +1605,11 @@ void BKE_scene_graph_evaluated_ensure(Depsgraph *depsgraph, Main *bmain)
 }
 
 /* applies changes right away, does all sets too */
-void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph, Main *bmain)
+void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph)
 {
   Scene *scene = DEG_get_input_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
+  Main *bmain = DEG_get_bmain(depsgraph);
 
   /* Keep this first. */
   BKE_callback_exec_id(bmain, &scene->id, BKE_CB_EVT_FRAME_CHANGE_PRE);
@@ -1608,7 +1620,7 @@ void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph, Main *bmain)
      */
     BKE_image_editors_update_frame(bmain, scene->r.cfra);
     BKE_sound_set_cfra(scene->r.cfra);
-    DEG_graph_relations_update(depsgraph, bmain, scene, view_layer);
+    DEG_graph_relations_update(depsgraph);
     /* Update all objects: drivers, matrices, displists, etc. flags set
      * by depgraph or manual, no layer check here, gets correct flushed.
      *
@@ -1617,10 +1629,10 @@ void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph, Main *bmain)
      * loose any possible unkeyed changes made by the handler. */
     if (pass == 0) {
       const float ctime = BKE_scene_frame_get(scene);
-      DEG_evaluate_on_framechange(bmain, depsgraph, ctime);
+      DEG_evaluate_on_framechange(depsgraph, ctime);
     }
     else {
-      DEG_evaluate_on_refresh(bmain, depsgraph);
+      DEG_evaluate_on_refresh(depsgraph);
     }
     /* Update sound system animation. */
     BKE_scene_update_sound(depsgraph, bmain);
@@ -1631,7 +1643,7 @@ void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph, Main *bmain)
 
       /* NOTE: Similar to this case in scene_graph_update_tagged(). Need to ensure that
        * DEG_ids_clear_recalc() doesn't access freed memory of possibly removed ID. */
-      DEG_graph_relations_update(depsgraph, bmain, scene, view_layer);
+      DEG_graph_relations_update(depsgraph);
     }
 
     /* Inform editors about possible changes. */
@@ -2298,6 +2310,7 @@ static Depsgraph **scene_get_depsgraph_p(Main *bmain,
 {
   BLI_assert(scene != NULL);
   BLI_assert(view_layer != NULL);
+  BLI_assert(BKE_scene_find_from_view_layer(bmain, view_layer) == scene);
   /* Make sure hash itself exists. */
   if (allocate_ghash_entry) {
     BKE_scene_ensure_depsgraph_hash(scene);

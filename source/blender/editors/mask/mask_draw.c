@@ -594,9 +594,7 @@ static void draw_mask_layers(const bContext *C,
                              const int width,
                              const int height)
 {
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
   GPU_program_point_size(true);
 
   MaskLayer *mask_layer;
@@ -633,7 +631,7 @@ static void draw_mask_layers(const bContext *C,
   }
 
   GPU_program_point_size(false);
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 void ED_mask_draw(const bContext *C, const char draw_flag, const char draw_type)
@@ -740,8 +738,7 @@ void ED_mask_draw_region(
 
     if (overlay_mode != MASK_OVERLAY_ALPHACHANNEL) {
       /* More blending types could be supported in the future. */
-      GPU_blend(true);
-      GPU_blend_set_func(GPU_DST_COLOR, GPU_ZERO);
+      GPU_blend(GPU_BLEND_MULTIPLY);
     }
 
     GPU_matrix_push();
@@ -753,12 +750,12 @@ void ED_mask_draw_region(
     IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_SHUFFLE_COLOR);
     GPU_shader_uniform_vector(
         state.shader, GPU_shader_get_uniform(state.shader, "shuffle"), 4, 1, red);
-    immDrawPixelsTex(&state, 0.0f, 0.0f, width, height, GL_R16F, false, buffer, 1.0f, 1.0f, NULL);
+    immDrawPixelsTex(&state, 0.0f, 0.0f, width, height, GPU_R16F, false, buffer, 1.0f, 1.0f, NULL);
 
     GPU_matrix_pop();
 
     if (overlay_mode != MASK_OVERLAY_ALPHACHANNEL) {
-      GPU_blend(false);
+      GPU_blend(GPU_BLEND_NONE);
     }
 
     MEM_freeN(buffer);

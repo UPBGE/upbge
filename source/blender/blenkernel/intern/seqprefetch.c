@@ -207,7 +207,7 @@ static void seq_prefetch_free_depsgraph(PrefetchJob *pfjob)
 
 static void seq_prefetch_update_depsgraph(PrefetchJob *pfjob)
 {
-  DEG_evaluate_on_framechange(pfjob->bmain_eval, pfjob->depsgraph, seq_prefetch_cfra(pfjob));
+  DEG_evaluate_on_framechange(pfjob->depsgraph, seq_prefetch_cfra(pfjob));
 }
 
 static void seq_prefetch_init_depsgraph(PrefetchJob *pfjob)
@@ -220,7 +220,7 @@ static void seq_prefetch_init_depsgraph(PrefetchJob *pfjob)
   DEG_debug_name_set(pfjob->depsgraph, "SEQUENCER PREFETCH");
 
   /* Make sure there is a correct evaluated scene pointer. */
-  DEG_graph_build_for_render_pipeline(pfjob->depsgraph, bmain, scene, view_layer);
+  DEG_graph_build_for_render_pipeline(pfjob->depsgraph);
 
   /* Update immediately so we have proper evaluated scene. */
   seq_prefetch_update_depsgraph(pfjob);

@@ -242,15 +242,16 @@ void KX_KetsjiEngine::BeginFrame()
 
 void KX_KetsjiEngine::EndFrame()
 {
-  // Show profiling info
-  m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
-  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
-    RenderDebugProperties();
-  }
 
 #ifdef WITH_PYTHON
   KX_GetActiveScene()->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
 #endif
+
+  // Show profiling info
+  m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
+  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES | SHOW_PHYSICS_DEBUG)) {
+    RenderDebugProperties();
+  }
 
   double tottime = m_logger.GetAverage();
   if (tottime < 1e-6)
@@ -894,6 +895,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   const int width = viewport.GetWidth();
   const int height = viewport.GetHeight();
   m_rasterizer->SetViewport(left, bottom, width + 1, height + 1);
+  m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
   m_rasterizer->SetScissor(left, bottom, width + 1, height + 1);
 
   /* Clear the depth after setting the scene viewport/scissor
@@ -923,8 +925,10 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
 
   bool is_overlay_pass = rendercam == scene->GetOverlayCamera();
   if (is_overlay_pass) {
-    GPU_blend(true);
-    GPU_blend_set_func(GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+    /*GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+    GPU_blend(GPU_BLEND_ALPHA);*/
+    m_rasterizer->Enable(RAS_Rasterizer::RAS_BLEND);
+    m_rasterizer->SetBlendFunc(RAS_Rasterizer::RAS_ONE, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
   }
   scene->RenderAfterCameraSetup(rendercam, is_overlay_pass);
 
@@ -942,7 +946,7 @@ RAS_FrameBuffer *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene,
 {
   KX_SetActiveScene(scene);
 
-  m_rasterizer->FlushDebugDraw(scene, m_canvas);
+  m_rasterizer->FlushDebugDraw(m_canvas);
 
   // We need to first make sure our viewport is correct (enabling multiple viewports can mess this
   // up), only for filters.
@@ -961,7 +965,7 @@ RAS_FrameBuffer *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene,
   scene->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
 
   // Python draw callback can also call debug draw functions, so we have to clear debug shapes.
-  m_rasterizer->FlushDebugDraw(scene, m_canvas);
+  m_rasterizer->FlushDebugDraw(m_canvas);
 #endif
 
   return frameBuffer;
@@ -1058,7 +1062,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
   static const MT_Vector4 white(1.0f, 1.0f, 1.0f, 1.0f);
 
   // Use nullptrfor no scene.
-  RAS_DebugDraw &debugDraw = m_rasterizer->GetDebugDraw(nullptr);
+  RAS_DebugDraw &debugDraw = m_rasterizer->GetDebugDraw();
 
   if (m_flags & (SHOW_FRAMERATE | SHOW_PROFILE)) {
     // Title for profiling("Profile")
@@ -1126,8 +1130,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
           debugDraw, const_xindent, const_ysize, xcoord, ycoord, propsMax);
     }
   }
-
-  m_rasterizer->FlushDebugDraw(nullptr, m_canvas);
+  m_rasterizer->FlushDebugDraw(m_canvas);
 }
 
 void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene,

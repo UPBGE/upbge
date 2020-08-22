@@ -67,16 +67,13 @@ namespace io {
 namespace alembic {
 
 // Construct the depsgraph for exporting.
-static void build_depsgraph(Depsgraph *depsgraph, Main *bmain, const bool visible_objects_only)
+static void build_depsgraph(Depsgraph *depsgraph, const bool visible_objects_only)
 {
-  Scene *scene = DEG_get_input_scene(depsgraph);
-  ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
-
   if (visible_objects_only) {
-    DEG_graph_build_from_view_layer(depsgraph, bmain, scene, view_layer);
+    DEG_graph_build_from_view_layer(depsgraph);
   }
   else {
-    DEG_graph_build_for_all_objects(depsgraph, bmain, scene, view_layer);
+    DEG_graph_build_for_all_objects(depsgraph);
   }
 }
 
@@ -97,7 +94,7 @@ static void export_startjob(void *customdata,
   *progress = 0.0f;
   *do_update = true;
 
-  build_depsgraph(data->depsgraph, data->bmain, data->params.visible_objects_only);
+  build_depsgraph(data->depsgraph, data->params.visible_objects_only);
   SubdivModifierDisabler subdiv_disabler(data->depsgraph);
   if (!data->params.apply_subdiv) {
     subdiv_disabler.disable_modifiers();
@@ -156,7 +153,7 @@ static void export_startjob(void *customdata,
       // Update the scene for the next frame to render.
       scene->r.cfra = static_cast<int>(frame);
       scene->r.subframe = frame - scene->r.cfra;
-      BKE_scene_graph_update_for_newframe(data->depsgraph, data->bmain);
+      BKE_scene_graph_update_for_newframe(data->depsgraph);
 
       CLOG_INFO(&LOG, 2, "Exporting frame %.2f", frame);
       ExportSubset export_subset = abc_archive->export_subset_for_frame(frame);
@@ -177,7 +174,7 @@ static void export_startjob(void *customdata,
   // Finish up by going back to the keyframe that was current before we started.
   if (CFRA != orig_frame) {
     CFRA = orig_frame;
-    BKE_scene_graph_update_for_newframe(data->depsgraph, data->bmain);
+    BKE_scene_graph_update_for_newframe(data->depsgraph);
   }
 
   data->export_ok = !data->was_canceled;

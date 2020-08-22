@@ -556,7 +556,7 @@ static void annotation_draw_strokes(const bGPDframe *gpf,
       const int no_xray = (dflag & GP_DRAWDATA_NO_XRAY);
 
       if (no_xray) {
-        GPU_depth_test(true);
+        GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
         /* first arg is normally rv3d->dist, but this isn't
          * available here and seems to work quite well without */
@@ -574,7 +574,7 @@ static void annotation_draw_strokes(const bGPDframe *gpf,
       }
 
       if (no_xray) {
-        GPU_depth_test(false);
+        GPU_depth_test(GPU_DEPTH_NONE);
 
         GPU_polygon_offset(0.0f, 0.0f);
       }
@@ -734,9 +734,7 @@ static void annotation_draw_data(
   GPU_line_smooth(true);
 
   /* turn on alpha-blending */
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   /* Do not write to depth (avoid self-occlusion). */
   bool prev_depth_mask = GPU_depth_mask_get();
@@ -746,8 +744,8 @@ static void annotation_draw_data(
   annotation_draw_data_layers(gpd, offsx, offsy, winx, winy, cfra, dflag);
 
   /* turn off alpha blending, then smooth lines */
-  GPU_blend(false);        // alpha blending
-  GPU_line_smooth(false);  // smooth lines
+  GPU_blend(GPU_BLEND_NONE);  // alpha blending
+  GPU_line_smooth(false);     // smooth lines
 
   GPU_depth_mask(prev_depth_mask);
 }

@@ -110,6 +110,8 @@ void BKE_toolsettings_free(struct ToolSettings *toolsettings);
 struct Scene *BKE_scene_duplicate(struct Main *bmain, struct Scene *sce, eSceneCopyMethod type);
 void BKE_scene_groups_relink(struct Scene *sce);
 
+struct Scene *BKE_scene_find_from_view_layer(const struct Main *bmain,
+                                             const struct ViewLayer *layer);
 struct Scene *BKE_scene_find_from_collection(const struct Main *bmain,
                                              const struct Collection *collection);
 
@@ -145,7 +147,7 @@ void BKE_scene_update_tag_audio_volume(struct Depsgraph *, struct Scene *scene);
 void BKE_scene_graph_update_tagged(struct Depsgraph *depsgraph, struct Main *bmain);
 void BKE_scene_graph_evaluated_ensure(struct Depsgraph *depsgraph, struct Main *bmain);
 
-void BKE_scene_graph_update_for_newframe(struct Depsgraph *depsgraph, struct Main *bmain);
+void BKE_scene_graph_update_for_newframe(struct Depsgraph *depsgraph);
 
 void BKE_scene_view_layer_graph_evaluated_ensure(struct Main *bmain,
                                                  struct Scene *scene,

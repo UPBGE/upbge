@@ -718,11 +718,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   GPU_framebuffer_restore();
 
-  GPU_viewport(v[0], v[1], v[2], v[3]);
+  rasty->SetViewport(v[0], v[1], v[2], v[3]);
 
   if ((scene->gm.flag & GAME_USE_UI_ANTI_FLICKER) == 0) {
-    GPU_scissor_test(true);
-    GPU_scissor(v[0], v[1], v[2], v[3]);
+    rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+    rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
   DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
                            CTX_wm_view3d(C),
@@ -738,7 +738,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   GPU_framebuffer_restore();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,

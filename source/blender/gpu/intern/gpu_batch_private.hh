@@ -28,7 +28,6 @@
 
 #include "GPU_batch.h"
 #include "GPU_context.h"
-#include "GPU_shader_interface.h"
 
 namespace blender {
 namespace gpu {

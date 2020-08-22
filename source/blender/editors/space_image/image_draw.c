@@ -175,9 +175,7 @@ void ED_image_draw_info(Scene *scene,
   float hue = 0, sat = 0, val = 0, lum = 0, u = 0, v = 0;
   float col[4], finalcol[4];
 
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   uint pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
@@ -189,7 +187,7 @@ void ED_image_draw_info(Scene *scene,
 
   immUnbindProgram();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   BLF_size(blf_mono_font, 11 * U.pixelsize, U.dpi);
 
@@ -350,7 +348,7 @@ void ED_image_draw_info(Scene *scene,
     copy_v4_v4(finalcol, col);
   }
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
   dx += 0.25f * UI_UNIT_X;
 
   BLI_rcti_init(&color_rect,
@@ -389,10 +387,10 @@ void ED_image_draw_info(Scene *scene,
     immRecti(pos, color_quater_x, color_quater_y, color_rect_half.xmax, color_rect_half.ymax);
     immRecti(pos, color_rect_half.xmin, color_rect_half.ymin, color_quater_x, color_quater_y);
 
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
     immUniformColor3fvAlpha(finalcol, fp ? fp[3] : (cp[3] / 255.0f));
     immRecti(pos, color_rect.xmin, color_rect.ymin, color_rect.xmax, color_rect.ymax);
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
   }
   else {
     immUniformColor3fv(finalcol);
@@ -525,7 +523,7 @@ static void sima_draw_zbuffloat_pixels(Scene *scene,
   GPU_shader_uniform_vector(
       state.shader, GPU_shader_get_uniform(state.shader, "shuffle"), 4, 1, red);
 
-  immDrawPixelsTex(&state, x1, y1, rectx, recty, GL_R16F, false, rectf, zoomx, zoomy, NULL);
+  immDrawPixelsTex(&state, x1, y1, rectx, recty, GPU_R16F, false, rectf, zoomx, zoomy, NULL);
 
   MEM_freeN(rectf);
 }
@@ -540,9 +538,7 @@ static void draw_udim_label(ARegion *region, float fx, float fy, const char *lab
   int x, y;
   UI_view2d_view_to_region(&region->v2d, fx, fy, &x, &y);
 
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   int textwidth = BLF_width(blf_mono_font, label, strlen(label)) + 10;
   float stepx = BLI_rcti_size_x(&region->v2d.mask) / BLI_rctf_size_x(&region->v2d.cur);
@@ -560,7 +556,7 @@ static void draw_udim_label(ARegion *region, float fx, float fy, const char *lab
   BLF_position(blf_mono_font, (int)(x + 10), (int)(y + 10), 0);
   BLF_draw_ascii(blf_mono_font, label, strlen(label));
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void draw_image_buffer(const bContext *C,
@@ -602,9 +598,7 @@ static void draw_image_buffer(const bContext *C,
     if (sima_flag & SI_USE_ALPHA) {
       imm_draw_box_checker_2d(x, y, x + ibuf->x * zoomx, y + ibuf->y * zoomy);
 
-      GPU_blend(true);
-      GPU_blend_set_func_separate(
-          GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+      GPU_blend(GPU_BLEND_ALPHA);
     }
 
     /* If RGBA display with color management */
@@ -662,7 +656,7 @@ static void draw_image_buffer(const bContext *C,
     }
 
     if (sima_flag & SI_USE_ALPHA) {
-      GPU_blend(false);
+      GPU_blend(GPU_BLEND_NONE);
     }
   }
 
@@ -794,15 +788,13 @@ static void draw_image_paint_helpers(
         return;
       }
 
-      GPU_blend(true);
-      GPU_blend_set_func_separate(
-          GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+      GPU_blend(GPU_BLEND_ALPHA);
 
       IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_COLOR);
       immDrawPixelsTex(
           &state, x, y, ibuf->x, ibuf->y, GPU_RGBA8, false, display_buffer, zoomx, zoomy, col);
 
-      GPU_blend(false);
+      GPU_blend(GPU_BLEND_NONE);
 
       BKE_image_release_ibuf(brush->clone.image, ibuf, NULL);
       IMB_display_buffer_release(cache_handle);
@@ -1081,9 +1073,7 @@ void draw_image_cache(const bContext *C, ARegion *region)
   const rcti *rect_visible = ED_region_visible_rect(region);
   const int region_bottom = rect_visible->ymin;
 
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   /* Draw cache background. */
   ED_region_cache_draw_background(region);
@@ -1099,7 +1089,7 @@ void draw_image_cache(const bContext *C, ARegion *region)
         region, num_segments, points, sfra + sima->iuser.offset, efra + sima->iuser.offset);
   }
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   /* Draw current frame. */
   x = (cfra - sfra) / (efra - sfra + 1) * region->winx;

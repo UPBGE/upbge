@@ -214,27 +214,44 @@ typedef void (*GPUMaterialEvalCallbackFn)(struct GPUMaterial *mat,
                                           const char **defines);
 #endif
 
-struct GPUShader *DRW_shader_create(const char *vert,
-                                    const char *geom,
-                                    const char *frag,
-                                    const char *defines);
-struct GPUShader *DRW_shader_create_with_lib(
-    const char *vert, const char *geom, const char *frag, const char *lib, const char *defines);
-struct GPUShader *DRW_shader_create_with_shaderlib(const char *vert,
-                                                   const char *geom,
-                                                   const char *frag,
-                                                   const DRWShaderLibrary *lib,
-                                                   const char *defines);
+struct GPUShader *DRW_shader_create_ex(
+    const char *vert, const char *geom, const char *frag, const char *defines, const char *func);
+struct GPUShader *DRW_shader_create_with_lib_ex(const char *vert,
+                                                const char *geom,
+                                                const char *frag,
+                                                const char *lib,
+                                                const char *defines,
+                                                const char *func);
+struct GPUShader *DRW_shader_create_with_shaderlib_ex(const char *vert,
+                                                      const char *geom,
+                                                      const char *frag,
+                                                      const DRWShaderLibrary *lib,
+                                                      const char *defines,
+                                                      const char *func);
 struct GPUShader *DRW_shader_create_with_transform_feedback(const char *vert,
                                                             const char *geom,
                                                             const char *defines,
                                                             const eGPUShaderTFBType prim_type,
                                                             const char **varying_names,
                                                             const int varying_count);
-struct GPUShader *DRW_shader_create_fullscreen(const char *frag, const char *defines);
-struct GPUShader *DRW_shader_create_fullscreen_with_shaderlib(const char *frag,
-                                                              const DRWShaderLibrary *lib,
-                                                              const char *defines);
+struct GPUShader *DRW_shader_create_fullscreen_ex(const char *frag,
+                                                  const char *defines,
+                                                  const char *func);
+struct GPUShader *DRW_shader_create_fullscreen_with_shaderlib_ex(const char *frag,
+                                                                 const DRWShaderLibrary *lib,
+                                                                 const char *defines,
+                                                                 const char *func);
+#define DRW_shader_create(vert, geom, frag, defines) \
+  DRW_shader_create_ex(vert, geom, frag, defines, __func__)
+#define DRW_shader_create_with_lib(vert, geom, frag, lib, defines) \
+  DRW_shader_create_with_lib_ex(vert, geom, frag, lib, defines, __func__)
+#define DRW_shader_create_with_shaderlib(vert, geom, frag, lib, defines) \
+  DRW_shader_create_with_shaderlib_ex(vert, geom, frag, lib, defines, __func__)
+#define DRW_shader_create_fullscreen(frag, defines) \
+  DRW_shader_create_fullscreen_ex(frag, defines, __func__)
+#define DRW_shader_create_fullscreen_with_shaderlib(frag, lib, defines) \
+  DRW_shader_create_fullscreen_with_shaderlib_ex(frag, lib, defines, __func__)
+
 struct GPUMaterial *DRW_shader_find_from_world(struct World *wo,
                                                const void *engine_type,
                                                const int options,
@@ -350,6 +367,10 @@ typedef enum {
 
 #define DRW_STATE_DEFAULT \
   (DRW_STATE_WRITE_DEPTH | DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL)
+#define DRW_STATE_BLEND_ENABLED \
+  (DRW_STATE_BLEND_ADD | DRW_STATE_BLEND_ADD_FULL | DRW_STATE_BLEND_ALPHA | \
+   DRW_STATE_BLEND_ALPHA_PREMUL | DRW_STATE_BLEND_BACKGROUND | DRW_STATE_BLEND_OIT | \
+   DRW_STATE_BLEND_MUL | DRW_STATE_BLEND_SUB | DRW_STATE_BLEND_CUSTOM | DRW_STATE_LOGIC_INVERT)
 #define DRW_STATE_RASTERIZER_ENABLED \
   (DRW_STATE_WRITE_DEPTH | DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_STENCIL | \
    DRW_STATE_WRITE_STENCIL_SHADOW_PASS | DRW_STATE_WRITE_STENCIL_SHADOW_FAIL)
@@ -724,7 +745,6 @@ bool DRW_state_draw_background(void);
 
 /* Avoid too many lookups while drawing */
 typedef struct DRWContextState {
-
   struct ARegion *region;    /* 'CTX_wm_region(C)' */
   struct RegionView3D *rv3d; /* 'CTX_wm_region_view3d(C)' */
   struct View3D *v3d;        /* 'CTX_wm_view3d(C)' */

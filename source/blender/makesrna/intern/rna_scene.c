@@ -924,6 +924,23 @@ static void rna_Scene_volume_update(Main *UNUSED(bmain), Scene *UNUSED(scene), P
   DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_VOLUME | ID_RECALC_SEQUENCER_STRIPS);
 }
 
+static const char *rna_Scene_statistics_string_get(Scene *scene,
+                                                   Main *bmain,
+                                                   ReportList *reports,
+                                                   ViewLayer *view_layer)
+{
+  if (BKE_scene_find_from_view_layer(bmain, view_layer) != scene) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "View Layer '%s' not found in scene '%s'",
+                view_layer->name,
+                scene->id.name + 2);
+    return "";
+  }
+
+  return ED_info_statistics_string(bmain, scene, view_layer);
+}
+
 static void rna_Scene_framelen_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
 {
   scene->r.framelen = (float)scene->r.framapto / (float)scene->r.images;
@@ -1866,11 +1883,10 @@ static void object_simplify_update(Object *ob)
   }
 
   if (ob->instance_collection) {
-    CollectionObject *cob;
-
-    for (cob = ob->instance_collection->gobject.first; cob; cob = cob->next) {
-      object_simplify_update(cob->ob);
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (ob->instance_collection, ob_collection) {
+      object_simplify_update(ob_collection);
     }
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
   }
 }
 
@@ -8037,6 +8053,9 @@ void RNA_def_scene(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
   static const EnumPropertyItem audio_distance_model_items[] = {
       {0, "NONE", 0, "None", "No distance attenuation"},
       {1, "INVERSE", 0, "Inverse", "Inverse distance model"},
@@ -8427,6 +8446,14 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SOUND);
   RNA_def_property_update(prop, NC_SCENE, NULL);
   RNA_def_property_update(prop, NC_SCENE, "rna_Scene_volume_update");
+
+  /* Statistics */
+  func = RNA_def_function(srna, "statistics", "rna_Scene_statistics_string_get");
+  RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func, "view_layer", "ViewLayer", "View Layer", "");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+  parm = RNA_def_string(func, "statistics", NULL, 0, "Statistics", "");
+  RNA_def_function_return(func, parm);
 
   /* Grease Pencil */
   prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);

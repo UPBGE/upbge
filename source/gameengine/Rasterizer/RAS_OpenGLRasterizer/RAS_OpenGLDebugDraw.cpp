@@ -138,11 +138,11 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   if (debugDraw->m_lines.size()) {
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-    uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
-    GPU_depth_test(false);
-    GPU_blend(true);
+    GPU_depth_test(GPU_DEPTH_NONE);
+    //GPU_blend(true);
     GPU_line_smooth(true);
     GPU_line_width(1.0f);
     immBegin(GPU_PRIM_LINES, 2 * debugDraw->m_lines.size());
@@ -157,8 +157,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     immEnd();
 
     /* Reset defaults */
-    GPU_depth_test(true);
-    GPU_blend(false);
+    //GPU_blend(false);
     GPU_line_smooth(false);
 
     immUnbindProgram();
@@ -169,7 +168,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   GPU_matrix_reset();
 
   if (debugDraw->m_boxes2D.size()) {
-    GPU_depth_test(false);
+    GPU_depth_test(GPU_DEPTH_NONE);
     // rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
     /* Warning: I didn't find the equivalent in GPU_ API */
     // rasty->DisableForText();
@@ -216,6 +215,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
       BLF_draw(blf_mono_font, text.c_str(), text.size());
     }
     BLF_disable(blf_mono_font, BLF_SHADOW);
-    GPU_depth_test(true);
+    GPU_depth_test(GPU_DEPTH_ALWAYS);
+    GPU_face_culling(GPU_CULL_NONE);
   }
 }

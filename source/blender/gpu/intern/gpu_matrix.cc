@@ -21,8 +21,6 @@
  * \ingroup gpu
  */
 
-#include "GPU_shader_interface.h"
-
 #include "gpu_context_private.hh"
 #include "gpu_matrix_private.h"
 
@@ -643,47 +641,44 @@ const float (*GPU_matrix_normal_inverse_get(float m[3][3]))[3]
   return m;
 }
 
-void GPU_matrix_bind(const GPUShaderInterface *shaderface)
+void GPU_matrix_bind(GPUShader *shader)
 {
   /* set uniform values to matrix stack values
    * call this before a draw call if desired matrices are dirty
    * call glUseProgram before this, as glUniform expects program to be bound
    */
+  int32_t MV = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_MODELVIEW);
+  int32_t P = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_PROJECTION);
+  int32_t MVP = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_MVP);
 
-  int32_t MV = GPU_shaderinterface_uniform_builtin(shaderface, GPU_UNIFORM_MODELVIEW);
-  int32_t P = GPU_shaderinterface_uniform_builtin(shaderface, GPU_UNIFORM_PROJECTION);
-  int32_t MVP = GPU_shaderinterface_uniform_builtin(shaderface, GPU_UNIFORM_MVP);
+  int32_t N = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_NORMAL);
+  int32_t MV_inv = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_MODELVIEW_INV);
+  int32_t P_inv = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_PROJECTION_INV);
 
-  int32_t N = GPU_shaderinterface_uniform_builtin(shaderface, GPU_UNIFORM_NORMAL);
-  int32_t MV_inv = GPU_shaderinterface_uniform_builtin(shaderface, GPU_UNIFORM_MODELVIEW_INV);
-  int32_t P_inv = GPU_shaderinterface_uniform_builtin(shaderface, GPU_UNIFORM_PROJECTION_INV);
-
-  /* XXX(fclem) this works but this assumes shader is unused inside GPU_shader_uniform_vector. */
-  GPUShader *sh = NULL;
   if (MV != -1) {
-    GPU_shader_uniform_vector(sh, MV, 16, 1, (const float *)GPU_matrix_model_view_get(NULL));
+    GPU_shader_uniform_vector(shader, MV, 16, 1, (const float *)GPU_matrix_model_view_get(NULL));
   }
   if (P != -1) {
-    GPU_shader_uniform_vector(sh, P, 16, 1, (const float *)GPU_matrix_projection_get(NULL));
+    GPU_shader_uniform_vector(shader, P, 16, 1, (const float *)GPU_matrix_projection_get(NULL));
   }
   if (MVP != -1) {
     GPU_shader_uniform_vector(
-        sh, MVP, 16, 1, (const float *)GPU_matrix_model_view_projection_get(NULL));
+        shader, MVP, 16, 1, (const float *)GPU_matrix_model_view_projection_get(NULL));
   }
   if (N != -1) {
-    GPU_shader_uniform_vector(sh, N, 9, 1, (const float *)GPU_matrix_normal_get(NULL));
+    GPU_shader_uniform_vector(shader, N, 9, 1, (const float *)GPU_matrix_normal_get(NULL));
   }
   if (MV_inv != -1) {
     Mat4 m;
     GPU_matrix_model_view_get(m);
     invert_m4(m);
-    GPU_shader_uniform_vector(sh, MV_inv, 16, 1, (const float *)m);
+    GPU_shader_uniform_vector(shader, MV_inv, 16, 1, (const float *)m);
   }
   if (P_inv != -1) {
     Mat4 m;
     GPU_matrix_projection_get(m);
     invert_m4(m);
-    GPU_shader_uniform_vector(sh, P_inv, 16, 1, (const float *)m);
+    GPU_shader_uniform_vector(shader, P_inv, 16, 1, (const float *)m);
   }
 
   gpu_matrix_state_active_set_dirty(false);
@@ -734,8 +729,8 @@ float GPU_polygon_offset_calc(const float (*winmat)[4], float viewdist, float di
 #else
     static float depth_fac = 0.0f;
     if (depth_fac == 0.0f) {
-      int depthbits;
-      glGetIntegerv(GL_DEPTH_BITS, &depthbits);
+      /* Hardcode for 24 bit precision. */
+      int depthbits = 24;
       depth_fac = 1.0f / (float)((1 << depthbits) - 1);
     }
     offs = (-1.0 / winmat[2][2]) * dist * depth_fac;

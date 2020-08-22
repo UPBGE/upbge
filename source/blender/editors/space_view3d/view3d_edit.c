@@ -822,7 +822,7 @@ static void viewrotate_apply(ViewOpsData *vod, const int event_xy[2])
     float xaxis[3];
 
     /* Radians per-pixel. */
-    const float sensitivity = U.view_rotate_sensitivity_turntable / U.pixelsize;
+    const float sensitivity = U.view_rotate_sensitivity_turntable / U.dpi_fac;
 
     /* Get the 3x3 matrix and its inverse from the quaternion */
     quat_to_mat3(m, vod->curr.viewquat);
@@ -2015,7 +2015,7 @@ static void view_zoom_to_window_xy_3d(ARegion *region, float dfac, const int zoo
 }
 
 static float viewzoom_scale_value(const rcti *winrct,
-                                  const short viewzoom,
+                                  const eViewZoom_Style viewzoom,
                                   const bool zoom_invert,
                                   const bool zoom_invert_force,
                                   const int xy_curr[2],
@@ -2038,7 +2038,7 @@ static float viewzoom_scale_value(const rcti *winrct,
       fac = (float)(xy_init[1] - xy_curr[1]);
     }
 
-    fac /= U.pixelsize;
+    fac /= U.dpi_fac;
 
     if (zoom_invert != zoom_invert_force) {
       fac = -fac;
@@ -2055,8 +2055,8 @@ static float viewzoom_scale_value(const rcti *winrct,
         BLI_rcti_cent_x(winrct),
         BLI_rcti_cent_y(winrct),
     };
-    float len_new = (5 * U.pixelsize) + ((float)len_v2v2_int(ctr, xy_curr) / U.pixelsize);
-    float len_old = (5 * U.pixelsize) + ((float)len_v2v2_int(ctr, xy_init) / U.pixelsize);
+    float len_new = (5 * U.dpi_fac) + ((float)len_v2v2_int(ctr, xy_curr) / U.dpi_fac);
+    float len_old = (5 * U.dpi_fac) + ((float)len_v2v2_int(ctr, xy_init) / U.dpi_fac);
 
     /* intentionally ignore 'zoom_invert' for scale */
     if (zoom_invert_force) {
@@ -2066,16 +2066,16 @@ static float viewzoom_scale_value(const rcti *winrct,
     zfac = val_orig * (len_old / max_ff(len_new, 1.0f)) / val;
   }
   else { /* USER_ZOOM_DOLLY */
-    float len_new = 5 * U.pixelsize;
-    float len_old = 5 * U.pixelsize;
+    float len_new = 5 * U.dpi_fac;
+    float len_old = 5 * U.dpi_fac;
 
     if (U.uiflag & USER_ZOOM_HORIZ) {
-      len_new += (winrct->xmax - (xy_curr[0])) / U.pixelsize;
-      len_old += (winrct->xmax - (xy_init[0])) / U.pixelsize;
+      len_new += (winrct->xmax - (xy_curr[0])) / U.dpi_fac;
+      len_old += (winrct->xmax - (xy_init[0])) / U.dpi_fac;
     }
     else {
-      len_new += (winrct->ymax - (xy_curr[1])) / U.pixelsize;
-      len_old += (winrct->ymax - (xy_init[1])) / U.pixelsize;
+      len_new += (winrct->ymax - (xy_curr[1])) / U.dpi_fac;
+      len_old += (winrct->ymax - (xy_init[1])) / U.dpi_fac;
     }
 
     if (zoom_invert != zoom_invert_force) {
@@ -2089,7 +2089,7 @@ static float viewzoom_scale_value(const rcti *winrct,
 }
 
 static float viewzoom_scale_value_offset(const rcti *winrct,
-                                         const short viewzoom,
+                                         const eViewZoom_Style viewzoom,
                                          const bool zoom_invert,
                                          const bool zoom_invert_force,
                                          const int xy_curr[2],
@@ -2120,7 +2120,7 @@ static float viewzoom_scale_value_offset(const rcti *winrct,
 
 static void viewzoom_apply_camera(ViewOpsData *vod,
                                   const int xy[2],
-                                  const short viewzoom,
+                                  const eViewZoom_Style viewzoom,
                                   const bool zoom_invert,
                                   const bool zoom_to_pos)
 {
@@ -2155,7 +2155,7 @@ static void viewzoom_apply_camera(ViewOpsData *vod,
 
 static void viewzoom_apply_3d(ViewOpsData *vod,
                               const int xy[2],
-                              const short viewzoom,
+                              const eViewZoom_Style viewzoom,
                               const bool zoom_invert,
                               const bool zoom_to_pos)
 {
@@ -2197,7 +2197,7 @@ static void viewzoom_apply_3d(ViewOpsData *vod,
 
 static void viewzoom_apply(ViewOpsData *vod,
                            const int xy[2],
-                           const short viewzoom,
+                           const eViewZoom_Style viewzoom,
                            const bool zoom_invert,
                            const bool zoom_to_pos)
 {
@@ -2248,7 +2248,7 @@ static int viewzoom_modal(bContext *C, wmOperator *op, const wmEvent *event)
     const bool use_cursor_init = RNA_boolean_get(op->ptr, "use_cursor_init");
     viewzoom_apply(vod,
                    &event->x,
-                   U.viewzoom,
+                   (eViewZoom_Style)U.viewzoom,
                    (U.uiflag & USER_ZOOM_INVERT) != 0,
                    (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)));
     if (ED_screen_animation_playing(CTX_wm_manager(C))) {
