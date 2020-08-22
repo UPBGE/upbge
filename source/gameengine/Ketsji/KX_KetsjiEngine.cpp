@@ -923,8 +923,10 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
 
   bool is_overlay_pass = rendercam == scene->GetOverlayCamera();
   if (is_overlay_pass) {
-    GPU_blend(GPU_BLEND_ALPHA_PREMULT);
-    GPU_blend(GPU_BLEND_ALPHA);
+    /*GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+    GPU_blend(GPU_BLEND_ALPHA);*/
+    m_rasterizer->Enable(RAS_Rasterizer::RAS_BLEND);
+    m_rasterizer->SetBlendFunc(RAS_Rasterizer::RAS_ONE, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
   }
   scene->RenderAfterCameraSetup(rendercam, is_overlay_pass);
 
