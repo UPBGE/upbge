@@ -359,9 +359,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
   // Get DerivedMesh data
   bContext *C = KX_GetActiveEngine()->GetContext();
-  Scene *bl_scene = scene->GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(bl_scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), bl_scene, view_layer, false);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, blenderobj);
   Mesh *final_me = (Mesh *)ob_eval->data;
   DerivedMesh *dm = CDDM_from_mesh(final_me);
@@ -854,9 +852,7 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
     case OB_CURVE: {
       bContext *C = KX_GetActiveEngine()->GetContext();
       if (ob->runtime.curve_cache == nullptr) {
-        ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
-        Depsgraph *depsgraph = BKE_scene_get_depsgraph(
-            CTX_data_main(C), blenderscene, view_layer, false);
+        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
         BKE_displist_make_curveTypes(
             depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);
       }

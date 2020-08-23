@@ -720,8 +720,7 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
 
       wm_draw_region_buffer_create(region, false, false);
       wm_draw_region_bind(region, 0);
-      GPU_clear_color(0, 0, 0, 0);
-      GPU_clear(GPU_COLOR_BIT);
+      GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
       ED_region_do_draw(C, region);
       wm_draw_region_unbind(region);
 
@@ -744,7 +743,6 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
    * If it becomes a problem we should clear only when window size changes. */
 #if 0
   GPU_clear_color(0, 0, 0, 0);
-  GPU_clear(GPU_COLOR_BIT);
 #endif
 
   /* Blit non-overlapping area regions. */
@@ -910,7 +908,7 @@ static bool wm_draw_update_test_window(Main *bmain, bContext *C, wmWindow *win)
   const wmWindowManager *wm = CTX_wm_manager(C);
   Scene *scene = WM_window_get_active_scene(win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  struct Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
+  struct Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
   bScreen *screen = WM_window_get_active_screen(win);
   ARegion *region;
   bool do_draw = false;

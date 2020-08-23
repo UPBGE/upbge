@@ -78,6 +78,9 @@ typedef struct DRWCommandsState {
 
 void drw_state_set(DRWState state)
 {
+  /* Mask locked state. */
+  state = (~DST.state_lock & state) | (DST.state_lock & DST.state);
+
   if (DST.state == state) {
     return;
   }
@@ -296,7 +299,7 @@ void DRW_state_reset(void)
   DRW_state_reset_ex(DRW_STATE_DEFAULT);
 
   GPU_texture_unbind_all();
-  GPU_uniformbuffer_unbind_all();
+  GPU_uniformbuf_unbind_all();
 
   /* Should stay constant during the whole rendering. */
   GPU_point_size(5);
@@ -605,11 +608,7 @@ static bool ubo_bindings_validate(DRWShadingGroup *shgroup)
       DRWPass *parent_pass = DRW_memblock_elem_from_handle(DST.vmempool->passes,
                                                            &shgroup->pass_handle);
 
-      printf("Pass : %s, Shader : %s, Block : %s, Binding %d\n",
-             parent_pass->name,
-             shgroup->shader->name,
-             blockname,
-             binding);
+      printf("Pass : %s, Block : %s, Binding %d\n", parent_pass->name, blockname, binding);
     }
   }
 #  endif
@@ -648,18 +647,18 @@ static void draw_update_uniforms(DRWShadingGroup *shgroup,
           GPU_texture_bind_ex(*uni->texture_ref, uni->sampler_state, uni->location, false);
           break;
         case DRW_UNIFORM_BLOCK:
-          GPU_uniformbuffer_bind(uni->block, uni->location);
+          GPU_uniformbuf_bind(uni->block, uni->location);
           break;
         case DRW_UNIFORM_BLOCK_REF:
-          GPU_uniformbuffer_bind(*uni->block_ref, uni->location);
+          GPU_uniformbuf_bind(*uni->block_ref, uni->location);
           break;
         case DRW_UNIFORM_BLOCK_OBMATS:
           state->obmats_loc = uni->location;
-          GPU_uniformbuffer_bind(DST.vmempool->matrices_ubo[0], uni->location);
+          GPU_uniformbuf_bind(DST.vmempool->matrices_ubo[0], uni->location);
           break;
         case DRW_UNIFORM_BLOCK_OBINFOS:
           state->obinfos_loc = uni->location;
-          GPU_uniformbuffer_bind(DST.vmempool->obinfos_ubo[0], uni->location);
+          GPU_uniformbuf_bind(DST.vmempool->obinfos_ubo[0], uni->location);
           break;
         case DRW_UNIFORM_RESOURCE_CHUNK:
           state->chunkid_loc = uni->location;
@@ -769,12 +768,12 @@ static void draw_call_resource_bind(DRWCommandsState *state, const DRWResourceHa
       GPU_shader_uniform_int(DST.shader, state->chunkid_loc, chunk);
     }
     if (state->obmats_loc != -1) {
-      GPU_uniformbuffer_unbind(DST.vmempool->matrices_ubo[state->resource_chunk]);
-      GPU_uniformbuffer_bind(DST.vmempool->matrices_ubo[chunk], state->obmats_loc);
+      GPU_uniformbuf_unbind(DST.vmempool->matrices_ubo[state->resource_chunk]);
+      GPU_uniformbuf_bind(DST.vmempool->matrices_ubo[chunk], state->obmats_loc);
     }
     if (state->obinfos_loc != -1) {
-      GPU_uniformbuffer_unbind(DST.vmempool->obinfos_ubo[state->resource_chunk]);
-      GPU_uniformbuffer_bind(DST.vmempool->obinfos_ubo[chunk], state->obinfos_loc);
+      GPU_uniformbuf_unbind(DST.vmempool->obinfos_ubo[state->resource_chunk]);
+      GPU_uniformbuf_bind(DST.vmempool->obinfos_ubo[chunk], state->obinfos_loc);
     }
     state->resource_chunk = chunk;
   }
@@ -893,10 +892,10 @@ static void draw_call_batching_finish(DRWShadingGroup *shgroup, DRWCommandsState
     GPU_front_facing(DST.view_active->is_inverted);
   }
   if (state->obmats_loc != -1) {
-    GPU_uniformbuffer_unbind(DST.vmempool->matrices_ubo[state->resource_chunk]);
+    GPU_uniformbuf_unbind(DST.vmempool->matrices_ubo[state->resource_chunk]);
   }
   if (state->obinfos_loc != -1) {
-    GPU_uniformbuffer_unbind(DST.vmempool->obinfos_ubo[state->resource_chunk]);
+    GPU_uniformbuf_unbind(DST.vmempool->obinfos_ubo[state->resource_chunk]);
   }
 }
 
@@ -926,7 +925,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
       /* Unbinding can be costly. Skip in normal condition. */
       if (G.debug & G_DEBUG_GPU) {
         GPU_texture_unbind_all();
-        GPU_uniformbuffer_unbind_all();
+        GPU_uniformbuf_unbind_all();
       }
     }
     GPU_shader_bind(shgroup->shader);
@@ -1062,7 +1061,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 static void drw_update_view(void)
 {
   /* TODO(fclem) update a big UBO and only bind ranges here. */
-  DRW_uniformbuffer_update(G_draw.view_ubo, &DST.view_active->storage);
+  GPU_uniformbuf_update(G_draw.view_ubo, &DST.view_active->storage);
 
   /* TODO get rid of this. */
   DST.view_storage_cpy = DST.view_active->storage;

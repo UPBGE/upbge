@@ -205,11 +205,10 @@ void BL_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
 
   BL_BlenderSceneConverter *sceneConverter = new BL_BlenderSceneConverter();
   bContext *C = KX_GetActiveEngine()->GetContext();
-  ViewLayer *view_layer = BKE_view_layer_default_view(blenderscene);
-  Depsgraph *graph = BKE_scene_get_depsgraph(CTX_data_main(C), blenderscene, view_layer, false);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   BL_ConvertBlenderObjects(m_maggie,
-                           graph,
+                           depsgraph,
                            destinationscene,
                            m_ketsjiEngine,
                            physics_engine,

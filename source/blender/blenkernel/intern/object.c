@@ -577,7 +577,8 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 
   if (object->lodlevels.first) {
-    LISTBASE_FOREACH (LodLevel *, level, &object->lodlevels) {
+    LISTBASE_FOREACH (LodLevel *, level, &object->lodlevels)
+    {
       BKE_LIB_FOREACHID_PROCESS(data, level->source, IDWALK_CB_NEVER_SELF);
     }
   }
@@ -1871,7 +1872,6 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
 static void copy_object_lod(Object *obn, const Object *ob, const int UNUSED(flag))
 {
   BLI_duplicatelist(&obn->lodlevels, &ob->lodlevels);
-
   obn->currentlod = (LodLevel *)obn->lodlevels.first;
 }
 

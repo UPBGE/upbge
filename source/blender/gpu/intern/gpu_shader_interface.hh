@@ -22,7 +22,7 @@
  *
  * GPU shader interface (C --> GLSL)
  *
- * Structure detailling needed vertex inputs and resources for a specific shader.
+ * Structure detailing needed vertex inputs and resources for a specific shader.
  * A shader interface can be shared between two similar shaders.
  */
 
@@ -45,6 +45,10 @@ typedef struct ShaderInput {
   int32_t binding;
 } ShaderInput;
 
+/**
+ * Implementation of Shader interface.
+ * Base class which is then specialized for each implementation (GL, VK, ...).
+ **/
 class ShaderInterface {
   /* TODO(fclem) should be protected. */
  public:

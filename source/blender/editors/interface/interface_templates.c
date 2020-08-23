@@ -1860,7 +1860,6 @@ static void modifier_panel_id(void *md_link, char *r_name)
 
 void uiTemplateModifiers(uiLayout *UNUSED(layout), bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
 
   Object *ob = ED_object_active_context(C);
@@ -1884,8 +1883,7 @@ void uiTemplateModifiers(uiLayout *UNUSED(layout), bContext *C)
       PointerRNA *md_ptr = MEM_mallocN(sizeof(PointerRNA), "panel customdata");
       RNA_pointer_create(&ob->id, &RNA_Modifier, md, md_ptr);
 
-      Panel *new_panel = UI_panel_add_instanced(
-          sa, region, &region->panels, panel_idname, i, md_ptr);
+      Panel *new_panel = UI_panel_add_instanced(region, &region->panels, panel_idname, i, md_ptr);
 
       if (new_panel != NULL) {
         UI_panel_set_expand_from_list_data(C, new_panel);
@@ -2038,7 +2036,6 @@ static void bone_constraint_panel_id(void *md_link, char *r_name)
  */
 void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_constraints)
 {
-  ScrArea *sa = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
 
   Object *ob = ED_object_active_context(C);
@@ -2061,8 +2058,7 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
       PointerRNA *con_ptr = MEM_mallocN(sizeof(PointerRNA), "panel customdata");
       RNA_pointer_create(&ob->id, &RNA_Constraint, con, con_ptr);
 
-      Panel *new_panel = UI_panel_add_instanced(
-          sa, region, &region->panels, panel_idname, i, con_ptr);
+      Panel *new_panel = UI_panel_add_instanced(region, &region->panels, panel_idname, i, con_ptr);
 
       if (new_panel) {
         /* Set the list panel functionality function pointers since we don't do it with python. */
@@ -2120,7 +2116,6 @@ static void gpencil_modifier_panel_id(void *md_link, char *r_name)
 
 void uiTemplateGpencilModifiers(uiLayout *UNUSED(layout), bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
   Object *ob = ED_object_active_context(C);
   ListBase *modifiers = &ob->greasepencil_modifiers;
@@ -2143,8 +2138,7 @@ void uiTemplateGpencilModifiers(uiLayout *UNUSED(layout), bContext *C)
       PointerRNA *md_ptr = MEM_mallocN(sizeof(PointerRNA), "panel customdata");
       RNA_pointer_create(&ob->id, &RNA_GpencilModifier, md, md_ptr);
 
-      Panel *new_panel = UI_panel_add_instanced(
-          sa, region, &region->panels, panel_idname, i, md_ptr);
+      Panel *new_panel = UI_panel_add_instanced(region, &region->panels, panel_idname, i, md_ptr);
 
       if (new_panel != NULL) {
         UI_panel_set_expand_from_list_data(C, new_panel);
@@ -2209,7 +2203,6 @@ static void shaderfx_panel_id(void *fx_v, char *r_idname)
  */
 void uiTemplateShaderFx(uiLayout *UNUSED(layout), bContext *C)
 {
-  ScrArea *sa = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
   Object *ob = ED_object_active_context(C);
   ListBase *shaderfx = &ob->shader_fx;
@@ -2227,8 +2220,7 @@ void uiTemplateShaderFx(uiLayout *UNUSED(layout), bContext *C)
       PointerRNA *fx_ptr = MEM_mallocN(sizeof(PointerRNA), "panel customdata");
       RNA_pointer_create(&ob->id, &RNA_ShaderFx, fx, fx_ptr);
 
-      Panel *new_panel = UI_panel_add_instanced(
-          sa, region, &region->panels, panel_idname, i, fx_ptr);
+      Panel *new_panel = UI_panel_add_instanced(region, &region->panels, panel_idname, i, fx_ptr);
 
       if (new_panel != NULL) {
         UI_panel_set_expand_from_list_data(C, new_panel);

@@ -427,9 +427,8 @@ void BL_ArmatureObject::ApplyPose()
     }
     // update ourself
     UpdateBlenderObjectMatrix(m_objArma);
-    ViewLayer *view_layer = BKE_view_layer_default_view(m_scene);
     bContext *C = KX_GetActiveEngine()->GetContext();
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), m_scene, view_layer, false);
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
     BKE_pose_where_is(depsgraph, m_scene, m_objArma);
     // restore ourself
     memcpy(m_objArma->obmat, m_obmat, sizeof(m_obmat));

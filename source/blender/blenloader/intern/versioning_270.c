@@ -892,6 +892,17 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
       }
     }
+    /* hysteresis set to 10% but not activated */
+    if (!DNA_struct_elem_find(fd->filesdna, "LodLevel", "int", "obhysteresis"))
+    {
+      Object *ob;
+      for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+        LodLevel *level;
+        for (level = ob->lodlevels.first; level; level = level->next) {
+          level->obhysteresis = 10;
+        }
+      }
+    }
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 274, 4)) {
@@ -914,7 +925,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
       srv = scene->r.views.last;
       BLI_strncpy(srv->suffix, STEREO_RIGHT_SUFFIX, sizeof(srv->suffix));
 
-      SEQ_BEGIN (scene->ed, seq) {
+      SEQ_ALL_BEGIN (scene->ed, seq) {
         seq->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
 
 #define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
@@ -930,7 +941,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
 #undef SEQ_USE_PROXY_CUSTOM_DIR
 #undef SEQ_USE_PROXY_CUSTOM_FILE
       }
-      SEQ_END;
+      SEQ_ALL_END;
     }
 
     for (screen = bmain->screens.first; screen; screen = screen->id.next) {
@@ -1215,7 +1226,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
     for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
       Sequence *seq;
 
-      SEQ_BEGIN (scene->ed, seq) {
+      SEQ_ALL_BEGIN (scene->ed, seq) {
         if (seq->type != SEQ_TYPE_TEXT) {
           continue;
         }
@@ -1231,7 +1242,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
           data->shadow_color[3] = 1.0f;
         }
       }
-      SEQ_END;
+      SEQ_ALL_END;
     }
 
     /* Adding "Properties" region to DopeSheet */

@@ -19,45 +19,40 @@
 
 /** \file
  * \ingroup gpu
- *
- * GPU shader interface (C --> GLSL)
- *
- * Structure detailling needed vertex inputs and resources for a specific shader.
- * A shader interface can be shared between two similar shaders.
  */
 
 #pragma once
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_vector.hh"
+#include "gpu_uniform_buffer_private.hh"
 
 #include "glew-mx.h"
 
-#include "gpu_shader_interface.hh"
-
-namespace blender::gpu {
-
-class GLVaoCache;
+namespace blender {
+namespace gpu {
 
 /**
- * Implementation of Shader interface using OpenGL.
+ * Implementation of Uniform Buffers using OpenGL.
  **/
-class GLShaderInterface : public ShaderInterface {
+class GLUniformBuf : public UniformBuf {
  private:
-  /** Reference to VaoCaches using this interface */
-  Vector<GLVaoCache *> refs_;
+  int slot_ = -1;
+  GLuint ubo_id_ = 0;
 
  public:
-  GLShaderInterface(GLuint program);
-  ~GLShaderInterface();
+  GLUniformBuf(size_t size, const char *name);
+  ~GLUniformBuf();
 
-  void ref_add(GLVaoCache *ref);
-  void ref_remove(GLVaoCache *ref);
+  void update(const void *data) override;
+  void bind(int slot) override;
+  void unbind(void) override;
 
-  // bool resource_binding_validate();
+ private:
+  void init(void);
 
-  MEM_CXX_CLASS_ALLOC_FUNCS("GLShaderInterface");
+  MEM_CXX_CLASS_ALLOC_FUNCS("GLUniformBuf");
 };
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender
