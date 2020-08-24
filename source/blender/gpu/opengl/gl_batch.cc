@@ -249,7 +249,7 @@ GLuint GLVaoCache::base_instance_vao_get(GPUBatch *batch, int i_first)
     base_instance_ = i_first;
     GLVertArray::update_bindings(vao_base_instance_, batch, interface_, i_first);
   }
-  return base_instance_;
+  return vao_base_instance_;
 }
 
 GLuint GLVaoCache::vao_get(GPUBatch *batch)
@@ -305,6 +305,7 @@ void GLBatch::bind(int i_first)
   GPU_context_active_get()->state_manager->apply_state();
 
   if (flag & GPU_BATCH_DIRTY) {
+    flag &= ~GPU_BATCH_DIRTY;
     vao_cache_.clear();
   }
 
