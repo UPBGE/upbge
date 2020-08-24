@@ -249,9 +249,11 @@ void KX_KetsjiEngine::EndFrame()
 
   // Show profiling info
   m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
-  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES | SHOW_PHYSICS_DEBUG)) {
+  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
     RenderDebugProperties();
   }
+
+  m_rasterizer->FlushDebugDraw(m_canvas);
 
   double tottime = m_logger.GetAverage();
   if (tottime < 1e-6)
@@ -1128,7 +1130,6 @@ void KX_KetsjiEngine::RenderDebugProperties()
           debugDraw, const_xindent, const_ysize, xcoord, ycoord, propsMax);
     }
   }
-  m_rasterizer->FlushDebugDraw(m_canvas);
 }
 
 void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene,
