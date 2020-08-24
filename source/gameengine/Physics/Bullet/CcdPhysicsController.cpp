@@ -1945,11 +1945,8 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
 
   if (!dm) {
     free_dm = true;
-    Scene *scene = kxscene->GetBlenderScene();
-    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     bContext *C = KX_GetActiveEngine()->GetContext();
-    Main *bmain = CTX_data_main(C);
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, meshobj->GetOriginalObject());
     Mesh *me = (Mesh *)ob_eval->data;
@@ -2268,11 +2265,8 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob, boo
     return false;
   }
   free_dm = true;
-  Scene *scene = KX_GetActiveScene()->GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   bContext *C = KX_GetActiveEngine()->GetContext();
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, meshobj->GetOriginalObject());
   Mesh *me = (Mesh *)ob_eval->data;

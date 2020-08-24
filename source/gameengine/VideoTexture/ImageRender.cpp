@@ -110,10 +110,8 @@ int ImageRender::GetColorBindCode() const
 // capture image from viewport
 void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int format)
 {
-  Scene *scene = m_scene->GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), scene, view_layer, false);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   scene_eval->flag |= SCE_INTERACTIVE_IMAGE_RENDER;
 

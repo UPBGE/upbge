@@ -89,11 +89,12 @@
 #define SEQ_SCROLLER_TEXT_OFFSET 8
 #define MUTE_ALPHA 120
 
-/* Note, Don't use SEQ_BEGIN/SEQ_END while drawing!
+/* Note, Don't use SEQ_ALL_BEGIN/SEQ_ALL_END while drawing!
  * it messes up transform. */
-#undef SEQ_BEGIN
-#undef SEQP_BEGIN
-#undef SEQ_END
+#undef SEQ_ALL_BEGIN
+#undef SEQ_ALL_END
+#undef SEQ_CURRENT_BEGIN
+#undef SEQ_CURRENT_END
 
 static Sequence *special_seq_update = NULL;
 
@@ -357,7 +358,7 @@ static void draw_seq_waveform(View2D *v2d,
 
 static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, float x2, float y2)
 {
-  /* Don't use SEQ_BEGIN/SEQ_END here,
+  /* Don't use SEQ_ALL_BEGIN/SEQ_ALL_END here,
    * because it changes seq->depth, which is needed for transform. */
   Sequence *seq;
   uchar col[4];
@@ -1528,11 +1529,7 @@ static void sequencer_stop_running_jobs(const bContext *C, Scene *scene)
 
 static void sequencer_preview_clear(void)
 {
-  float col[3];
-
-  UI_GetThemeColor3fv(TH_SEQ_PREVIEW, col);
-  GPU_clear_color(col[0], col[1], col[2], 1.0f);
-  GPU_clear(GPU_COLOR_BIT);
+  UI_ThemeClearColor(TH_SEQ_PREVIEW);
 }
 
 static void sequencer_preview_get_rect(rctf *preview,
@@ -2265,7 +2262,6 @@ void draw_timeline_seq(const bContext *C, ARegion *region)
   else {
     GPU_clear_color(col[0], col[1], col[2], 0.0f);
   }
-  GPU_clear(GPU_COLOR_BIT);
 
   UI_view2d_view_ortho(v2d);
   /* Get timeline boundbox, needed for the scrollers. */

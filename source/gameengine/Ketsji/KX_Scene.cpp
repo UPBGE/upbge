@@ -250,12 +250,12 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     RenderAfterCameraSetup(nullptr, false);
   }
   else {
-    Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
     if (!depsgraph) {
       /* If we don't have a depsgraph for this view_layer, allocate one (last arg (true))
        * We'll need it during BlenderDataConversion.
        */
-      BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
+      BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
     }
   }
   /******************************************************************************************************************************/
@@ -272,7 +272,7 @@ KX_Scene::~KX_Scene()
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   View3D *v3d = CTX_wm_view3d(C);
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
@@ -620,12 +620,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   Main *bmain = CTX_data_main(C);
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   engine->CountDepsgraphTime();
 
   if (!depsgraph) {
-    depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
+    depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
   }
 
   if (!DEG_is_active(depsgraph)) {
@@ -749,10 +749,10 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
   Main *bmain = CTX_data_main(C);
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   if (!depsgraph) {
-    depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, true);
+    depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
   }
 
   BKE_scene_graph_update_tagged(depsgraph, bmain);

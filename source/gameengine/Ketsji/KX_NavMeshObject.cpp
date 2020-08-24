@@ -616,10 +616,8 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
                                           int &vertsPerPoly)
 {
   /* TODO: This doesn't work currently because of eval_ctx. */
-  Scene *scene = GetScene()->GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(CTX_data_main(C), scene, view_layer, false);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   DerivedMesh *dm = mesh_create_derived_no_virtual(
       depsgraph, GetScene()->GetBlenderScene(), GetBlenderObject(), nullptr, &CD_MASK_MESH);
   CustomData *pdata = dm->getPolyDataLayout(dm);

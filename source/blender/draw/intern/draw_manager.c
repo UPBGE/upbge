@@ -69,7 +69,7 @@
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 #include "GPU_state.h"
-#include "GPU_uniformbuffer.h"
+#include "GPU_uniform_buffer.h"
 #include "GPU_viewport.h"
 
 #include "IMB_colormanagement.h"
@@ -600,7 +600,7 @@ static void drw_viewport_var_init(void)
   }
 
   if (G_draw.view_ubo == NULL) {
-    G_draw.view_ubo = DRW_uniformbuffer_create(sizeof(DRWViewUboStorage), NULL);
+    G_draw.view_ubo = GPU_uniformbuf_create_ex(sizeof(DRWViewUboStorage), NULL, "G_draw.view_ubo");
   }
 
   if (DST.draw_list == NULL) {
@@ -909,7 +909,7 @@ void DRW_cache_free_old_batches(Main *bmain)
 
   for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
     for (view_layer = scene->view_layers.first; view_layer; view_layer = view_layer->next) {
-      Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, scene, view_layer, false);
+      Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
       if (depsgraph == NULL) {
         continue;
       }
@@ -1612,7 +1612,6 @@ void DRW_draw_render_loop_offscreen(struct Depsgraph *depsgraph,
      * be to do that in the colormanagmeent shader. */
     GPU_offscreen_bind(ofs, false);
     GPU_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
-    GPU_clear(GPU_COLOR_BIT);
     /* Premult Alpha over black background. */
     GPU_blend(GPU_BLEND_ALPHA_PREMULT);
   }

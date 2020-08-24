@@ -295,11 +295,9 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
   NodeGetWorldTransform().getValue(&obmat[0][0]);
   m_staticObject = compare_m4m4(m_prevObmat, obmat, FLT_MIN);
 
-  Scene *sc = GetScene()->GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(sc);
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(bmain, sc, view_layer, false);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   if (m_staticObject) {
     GetScene()->AppendToStaticObjects(this);

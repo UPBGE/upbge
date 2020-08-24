@@ -19,9 +19,6 @@
 
 /** \file
  * \ingroup gpu
- *
- * GPUDrawList is an API to do lots of similar draw-calls very fast using
- * multi-draw-indirect. There is a fallback if the feature is not supported.
  */
 
 #pragma once
@@ -35,14 +32,19 @@
 namespace blender {
 namespace gpu {
 
+/**
+ * Implementation of shader compilation and uniforms handling using OpenGL.
+ **/
 class GLShader : public Shader {
  private:
   /** Handle for full program (links shader stages below). */
   GLuint shader_program_ = 0;
-
+  /** Individual shader stages. */
   GLuint vert_shader_ = 0;
   GLuint geom_shader_ = 0;
   GLuint frag_shader_ = 0;
+  /** True if any shader failed to compile. */
+  bool compilation_failed_ = false;
 
   eGPUShaderTFBType transform_feedback_type_ = GPU_SHADER_TFB_NONE;
 
