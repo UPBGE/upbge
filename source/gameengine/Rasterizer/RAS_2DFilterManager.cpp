@@ -91,11 +91,16 @@ RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty,
   }
 
   /* Set ogl states */
-  rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
+  /*rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
   rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
   rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_DISABLED);
   rasty->Disable(RAS_Rasterizer::RAS_BLEND);
-  rasty->Disable(RAS_Rasterizer::RAS_ALPHA_TEST);
+  rasty->Disable(RAS_Rasterizer::RAS_ALPHA_TEST);*/
+
+  GPU_face_culling(GPU_CULL_NONE);
+  GPU_depth_test(GPU_DEPTH_NONE);
+  GPU_depth_mask(false);
+  GPU_blend(GPU_BLEND_NONE);
 
   rasty->SetLines(false);
 
@@ -151,9 +156,12 @@ RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty,
     rasty->DrawFrameBuffer(previousfb, targetfb);
   }
 
-  rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
+  /*rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
   rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
-  rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);
+  rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);*/
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+  GPU_depth_mask(true);
+  GPU_face_culling(GPU_CULL_BACK);
 
   return targetfb;
 }
