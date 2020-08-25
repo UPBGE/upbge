@@ -69,6 +69,7 @@ void GLVaoCache::init(void)
   }
   vao_base_instance_ = 0;
   base_instance_ = 0;
+  vao_id_ = 0;
 }
 
 /* Create a new VAO object and store it in the cache. */
@@ -239,6 +240,7 @@ GLuint GLVaoCache::base_instance_vao_get(GPUBatch *batch, int i_first)
 #ifdef __APPLE__
   glDeleteVertexArrays(1, &vao_base_instance_);
   vao_base_instance_ = 0;
+  base_instance_ = 0;
 #endif
 
   if (vao_base_instance_ == 0) {
@@ -327,6 +329,8 @@ void GLBatch::bind(int i_first)
 
 void GLBatch::draw(int v_first, int v_count, int i_first, int i_count)
 {
+  GL_CHECK_ERROR("Batch Pre drawing");
+
   this->bind(i_first);
 
   BLI_assert(v_count > 0 && i_count > 0);
@@ -353,6 +357,7 @@ void GLBatch::draw(int v_first, int v_count, int i_first, int i_count)
       glDrawElementsInstancedBaseVertex(
           gl_type, v_count, index_type, v_first_ofs, i_count, base_index);
     }
+    GL_CHECK_ERROR("Batch Post-drawing Indexed");
   }
   else {
 #ifdef __APPLE__
@@ -367,6 +372,7 @@ void GLBatch::draw(int v_first, int v_count, int i_first, int i_count)
 #ifdef __APPLE__
     glEnable(GL_PRIMITIVE_RESTART);
 #endif
+    GL_CHECK_ERROR("Batch Post-drawing Non-indexed");
   }
 }
 
