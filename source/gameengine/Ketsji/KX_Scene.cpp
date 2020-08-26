@@ -247,9 +247,18 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
 
+    /* We call Render here in KX_Scene constructor because
+     * 1: It creates a depsgraph and ensure it will be activated.
+     * 2: We need to create an eevee's cache to initialize
+     * KX_BlenderMaterials and BL_Textures.
+     */
     RenderAfterCameraSetup(nullptr, false);
   }
   else {
+    /* This ensures a depsgraph is allocated and activates it.
+     * It is needed in KX_Scene constructor because we'll need
+     * a depsgraph in BlenderDataConversion.
+     */
     CTX_data_depsgraph_pointer(C);
   }
   /******************************************************************************************************************************/
@@ -613,6 +622,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   bContext *C = engine->GetContext();
   Main *bmain = CTX_data_main(C);
   Scene *scene = GetBlenderScene();
+  /* This ensures a depsgraph is allocated and activates it */
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
   engine->CountDepsgraphTime();
