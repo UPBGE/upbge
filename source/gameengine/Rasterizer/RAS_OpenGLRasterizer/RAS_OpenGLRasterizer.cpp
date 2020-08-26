@@ -261,7 +261,7 @@ void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
 
 void RAS_OpenGLRasterizer::SetScissor(int x, int y, int width, int height)
 {
-  GPU_scissor(x, y, width, height);
+  GPU_scissor_game(x, y, width, height);
   glScissor(x, y, width, height);
 }
 

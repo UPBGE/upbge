@@ -250,13 +250,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     RenderAfterCameraSetup(nullptr, false);
   }
   else {
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-    if (!depsgraph) {
-      /* If we don't have a depsgraph for this view_layer, allocate one (last arg (true))
-       * We'll need it during BlenderDataConversion.
-       */
-      BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
-    }
+    CTX_data_depsgraph_pointer(C);
   }
   /******************************************************************************************************************************/
 }
@@ -619,18 +613,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   bContext *C = engine->GetContext();
   Main *bmain = CTX_data_main(C);
   Scene *scene = GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
   engine->CountDepsgraphTime();
-
-  if (!depsgraph) {
-    depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
-  }
-
-  if (!DEG_is_active(depsgraph)) {
-    DEG_make_active(depsgraph);
-  }
 
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 

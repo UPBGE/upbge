@@ -650,6 +650,7 @@ void KX_KetsjiEngine::Render()
     // Use the framing bar color set in the Blender scenes
     GPU_clear_color(
         framesettings.BarRed(), framesettings.BarGreen(), framesettings.BarBlue(), 1.0f);
+    GPU_depth_mask(true);
     GPU_clear_depth(1.0f);
 
     // for each scene, call the proceed functions
@@ -899,6 +900,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   /* Clear the depth after setting the scene viewport/scissor
    * if it's not the first render pass. */
   if (pass > 0) {
+    GPU_depth_mask(true);
     GPU_clear_depth(1.0f);
   }
 
