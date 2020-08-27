@@ -32,11 +32,13 @@ set(INC
   opengl
   ../blenkernel
   ../blenlib
+  ../blentranslation # Game engine transition
   ../bmesh
   ../draw
   ../imbuf
   ../makesdna
   ../makesrna
+  ../render/extern/include # Game engine transition
 
   ../editors/include
 

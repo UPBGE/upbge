@@ -182,7 +182,7 @@ static void restrictbutton_bone_visibility_fn(bContext *C, void *poin, void *UNU
 {
   Bone *bone = (Bone *)poin;
 
-  if (CTX_wm_window(C)->eventstate->ctrl) {
+  if (CTX_wm_window(C)->eventstate->shift) {
     restrictbutton_recursive_bone(bone, BONE_HIDDEN_P, (bone->flag & BONE_HIDDEN_P) != 0);
   }
 }
@@ -194,7 +194,7 @@ static void restrictbutton_bone_select_fn(bContext *C, void *UNUSED(poin), void 
     bone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
   }
 
-  if (CTX_wm_window(C)->eventstate->ctrl) {
+  if (CTX_wm_window(C)->eventstate->shift) {
     restrictbutton_recursive_bone(bone, BONE_UNSELECTABLE, (bone->flag & BONE_UNSELECTABLE) != 0);
   }
 
@@ -209,7 +209,7 @@ static void restrictbutton_ebone_select_fn(bContext *C, void *UNUSED(poin), void
     ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
   }
 
-  if (CTX_wm_window(C)->eventstate->ctrl) {
+  if (CTX_wm_window(C)->eventstate->shift) {
     restrictbutton_recursive_ebone(
         C, ebone, BONE_UNSELECTABLE, (ebone->flag & BONE_UNSELECTABLE) != 0);
   }
@@ -224,7 +224,7 @@ static void restrictbutton_ebone_visibility_fn(bContext *C, void *UNUSED(poin), 
     ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
   }
 
-  if (CTX_wm_window(C)->eventstate->ctrl) {
+  if (CTX_wm_window(C)->eventstate->shift) {
     restrictbutton_recursive_ebone(C, ebone, BONE_HIDDEN_A, (ebone->flag & BONE_HIDDEN_A) != 0);
   }
 
@@ -1300,7 +1300,8 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                   0,
                                   -1,
                                   -1,
-                                  TIP_("Restrict visibility in the 3D View"));
+                                  TIP_("Restrict visibility in the 3D View\n"
+                                       "* Shift to set children"));
           UI_but_func_set(bt, restrictbutton_bone_visibility_fn, bone, NULL);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
@@ -1321,7 +1322,8 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                 0,
                                 0,
                                 0,
-                                TIP_("Restrict selection in the 3D View"));
+                                TIP_("Restrict selection in the 3D View\n"
+                                     "* Shift to set children"));
           UI_but_func_set(bt, restrictbutton_bone_select_fn, ob->data, bone);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
@@ -1345,7 +1347,8 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                 0,
                                 0,
                                 0,
-                                TIP_("Restrict visibility in the 3D View"));
+                                TIP_("Restrict visibility in the 3D View\n"
+                                     "* Shift to set children"));
           UI_but_func_set(bt, restrictbutton_ebone_visibility_fn, NULL, ebone);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
@@ -1366,7 +1369,8 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                 0,
                                 0,
                                 0,
-                                TIP_("Restrict selection in the 3D View"));
+                                TIP_("Restrict selection in the 3D View\n"
+                                     "* Shift to set children"));
           UI_but_func_set(bt, restrictbutton_ebone_select_fn, NULL, ebone);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
@@ -2191,7 +2195,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
           GpencilModifierData *md = BLI_findlink(&ob->greasepencil_modifiers, tselem->nr);
           switch ((GpencilModifierType)md->type) {
             case eGpencilModifierType_Noise:
-              data.icon = ICON_RNDCURVE;
+              data.icon = ICON_MOD_NOISE;
               break;
             case eGpencilModifierType_Subdiv:
               data.icon = ICON_MOD_SUBSURF;
@@ -2234,6 +2238,15 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
               break;
             case eGpencilModifierType_Armature:
               data.icon = ICON_MOD_ARMATURE;
+              break;
+            case eGpencilModifierType_Multiply:
+              data.icon = ICON_GP_MULTIFRAME_EDITING;
+              break;
+            case eGpencilModifierType_Time:
+              data.icon = ICON_MOD_TIME;
+              break;
+            case eGpencilModifierType_Texture:
+              data.icon = ICON_TEXTURE;
               break;
 
               /* Default */
@@ -2357,6 +2370,11 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         data.icon = ICON_OUTLINER_DATA_GP_LAYER;
         break;
       }
+      case TSE_GPENCIL_EFFECT_BASE:
+      case TSE_GPENCIL_EFFECT:
+        data.drag_id = tselem->id;
+        data.icon = ICON_SHADERFX;
+        break;
       default:
         data.icon = ICON_DOT;
         break;

@@ -152,6 +152,8 @@ eGPUStencilTest GPU_stencil_test_get(void);
 void GPU_flush(void);
 void GPU_finish(void);
 
+void GPU_scissor_game(int x, int y, int width, int height); // Game engine transition
+
 #ifdef __cplusplus
 }
 #endif

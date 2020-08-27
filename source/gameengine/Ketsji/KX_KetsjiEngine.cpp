@@ -39,6 +39,7 @@
 #include <boost/format.hpp>
 
 #include "DNA_scene_types.h"
+#include "GPU_framebuffer.h"
 #include "GPU_state.h"
 
 #include "BL_BlenderConverter.h"
@@ -249,9 +250,11 @@ void KX_KetsjiEngine::EndFrame()
 
   // Show profiling info
   m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
-  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES | SHOW_PHYSICS_DEBUG)) {
+  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
     RenderDebugProperties();
   }
+
+  m_rasterizer->FlushDebugDraw(m_canvas);
 
   double tottime = m_logger.GetAverage();
   if (tottime < 1e-6)
@@ -641,18 +644,16 @@ void KX_KetsjiEngine::Render()
 
   KX_Scene *firstscene = m_scenes->GetFront();
   const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
-  // Use the framing bar color set in the Blender scenes
-  m_rasterizer->SetClearColor(
-      framesettings.BarRed(), framesettings.BarGreen(), framesettings.BarBlue(), 1.0f);
 
   // Used to detect when a camera is the first rendered an then doesn't request a depth clear.
   unsigned short pass = 0;
 
   for (FrameRenderData &frameData : frameDataList) {
-
-    // Clear off screen only before the first scene render.
-    m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT |
-                        RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
+    // Use the framing bar color set in the Blender scenes
+    GPU_clear_color(
+        framesettings.BarRed(), framesettings.BarGreen(), framesettings.BarBlue(), 1.0f);
+    GPU_depth_mask(true);
+    GPU_clear_depth(1.0f);
 
     // for each scene, call the proceed functions
     for (unsigned short i = 0, size = frameData.m_sceneDataList.size(); i < size; ++i) {
@@ -901,7 +902,8 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   /* Clear the depth after setting the scene viewport/scissor
    * if it's not the first render pass. */
   if (pass > 0) {
-    m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
+    GPU_depth_mask(true);
+    GPU_clear_depth(1.0f);
   }
 
   m_rasterizer->SetEye(RAS_Rasterizer::RAS_STEREO_LEFTEYE /*cameraFrameData.m_eye*/);
@@ -1130,7 +1132,6 @@ void KX_KetsjiEngine::RenderDebugProperties()
           debugDraw, const_xindent, const_ysize, xcoord, ycoord, propsMax);
     }
   }
-  m_rasterizer->FlushDebugDraw(m_canvas);
 }
 
 void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene,

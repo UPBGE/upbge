@@ -1158,9 +1158,9 @@ static GLenum convert_target_to_gl(int dimension, bool is_array)
 {
   switch (dimension) {
     case 1:
-      return is_array ? GL_TEXTURE_1D : GL_TEXTURE_1D_ARRAY;
+      return is_array ? GL_TEXTURE_1D_ARRAY : GL_TEXTURE_1D;
     case 2:
-      return is_array ? GL_TEXTURE_2D : GL_TEXTURE_2D_ARRAY;
+      return is_array ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
     case 3:
       return GL_TEXTURE_3D;
     default:
@@ -2179,6 +2179,11 @@ void GPU_texture_get_mipmap_size(GPUTexture *tex, int lvl, int *size)
 
 void GPU_samplers_init(void)
 {
+  float max_anisotropy = 1.0f;
+  if (GLEW_EXT_texture_filter_anisotropic) {
+    glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_anisotropy);
+  }
+
   glGenSamplers(GPU_SAMPLER_MAX, GG.samplers);
   for (int i = 0; i < GPU_SAMPLER_MAX; i++) {
     eGPUSamplerState state = static_cast<eGPUSamplerState>(i);
@@ -2193,7 +2198,7 @@ void GPU_samplers_init(void)
     GLenum compare_mode = (state & GPU_SAMPLER_COMPARE) ? GL_COMPARE_REF_TO_TEXTURE : GL_NONE;
     /* TODO(fclem) Anisotropic level should be a render engine parameter. */
     float aniso_filter = ((state & GPU_SAMPLER_MIPMAP) && (state & GPU_SAMPLER_ANISO)) ?
-                             U.anisotropic_filter :
+                             max_ff(max_anisotropy, U.anisotropic_filter) :
                              1.0f;
 
     glSamplerParameteri(GG.samplers[i], GL_TEXTURE_WRAP_S, wrap_s);

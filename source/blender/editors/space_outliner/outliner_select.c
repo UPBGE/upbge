@@ -46,6 +46,7 @@
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
+#include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 #include "BKE_workspace.h"
@@ -193,12 +194,17 @@ static void do_outliner_item_posemode_toggle(
   }
   else {
     bool ok = false;
-    if (ob->mode & OB_MODE_POSE) {
+
+    if (ID_IS_LINKED(ob)) {
+      BKE_report(CTX_wm_reports(C), RPT_WARNING, "Cannot pose libdata");
+    }
+    else if (ob->mode & OB_MODE_POSE) {
       ok = ED_object_posemode_exit_ex(bmain, ob);
     }
     else {
       ok = ED_object_posemode_enter_ex(bmain, ob);
     }
+
     if (ok) {
       ED_object_base_select(base, (ob->mode & OB_MODE_POSE) ? BA_SELECT : BA_DESELECT);
 
@@ -1634,6 +1640,43 @@ static TreeElement *outliner_find_next_element(SpaceOutliner *space_outliner, Tr
   return te;
 }
 
+static TreeElement *outliner_walk_left(SpaceOutliner *space_outliner,
+                                       TreeElement *te,
+                                       bool toggle_all)
+{
+  TreeStoreElem *tselem = TREESTORE(te);
+
+  if (TSELEM_OPEN(tselem, space_outliner)) {
+    outliner_item_openclose(te, false, toggle_all);
+  }
+  /* Only walk up a level if the element is closed and not toggling expand */
+  else if (!toggle_all && te->parent) {
+    te = te->parent;
+  }
+
+  return te;
+}
+
+static TreeElement *outliner_walk_right(SpaceOutliner *space_outliner,
+                                        TreeElement *te,
+                                        bool toggle_all)
+{
+  TreeStoreElem *tselem = TREESTORE(te);
+
+  /* Only walk down a level if the element is open and not toggling expand */
+  if (!toggle_all && TSELEM_OPEN(tselem, space_outliner) && !BLI_listbase_is_empty(&te->subtree)) {
+    te = te->subtree.first;
+  }
+  /* Prevent opening leaf elements in the tree.
+   * This cannot be done in `outliner_item_openclose` because the Data API display mode subtrees
+   * are empty unless expanded. */
+  else if (!BLI_listbase_is_empty(&te->subtree)) {
+    outliner_item_openclose(te, true, toggle_all);
+  }
+
+  return te;
+}
+
 static TreeElement *do_outliner_select_walk(SpaceOutliner *space_outliner,
                                             TreeElement *te,
                                             const int direction,
@@ -1650,10 +1693,10 @@ static TreeElement *do_outliner_select_walk(SpaceOutliner *space_outliner,
       te = outliner_find_next_element(space_outliner, te);
       break;
     case UI_SELECT_WALK_LEFT:
-      outliner_item_openclose(te, false, toggle_all);
+      te = outliner_walk_left(space_outliner, te, toggle_all);
       break;
     case UI_SELECT_WALK_RIGHT:
-      outliner_item_openclose(te, true, toggle_all);
+      te = outliner_walk_right(space_outliner, te, toggle_all);
       break;
   }
 
