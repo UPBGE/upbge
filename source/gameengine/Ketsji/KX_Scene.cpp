@@ -211,6 +211,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    * INTEGRATION***********************************************************/
   m_staticObjects = {};
   m_kxobWithLod = {};
+  m_obRestrictFlags = {};
 
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
@@ -373,6 +374,9 @@ KX_Scene::~KX_Scene()
   if (m_sceneConverter) {
     delete m_sceneConverter;
   }
+
+  RestoreRestrictFlags();
+  m_obRestrictFlags.clear();
 
   // Flush depsgraph updates a last time at ge exit
   BKE_scene_graph_update_tagged(depsgraph, bmain);
@@ -848,6 +852,19 @@ void KX_Scene::RemoveObjFromLodObjList(KX_GameObject *gameobj)
       m_kxobWithLod.begin(), m_kxobWithLod.end(), gameobj);
   if (it != m_kxobWithLod.end()) {
     m_kxobWithLod.erase(it);
+  }
+}
+
+void KX_Scene::BackupRestrictFlag(Object *ob, char restrictFlag)
+{
+  m_obRestrictFlags.insert({ob, restrictFlag});
+}
+
+void KX_Scene::RestoreRestrictFlags()
+{
+  for (std::map<Object *, char>::iterator it = m_obRestrictFlags.begin(); it != m_obRestrictFlags.end(); it++) {
+    Object *ob = it->first;
+    ob->restrictflag = it->second;
   }
 }
 

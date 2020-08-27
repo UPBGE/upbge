@@ -1245,6 +1245,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                           (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0;
 
     if (!isInActiveLayer) {
+      /* Force OB_RESTRICT_VIEWPORT to avoid not needed depsgraph operations in some cases */
+      kxscene->BackupRestrictFlag(blenderobject, blenderobject->restrictflag);
       blenderobject->restrictflag |= OB_RESTRICT_VIEWPORT;
       BKE_main_collection_sync_remap(maggie);
       DEG_relations_tag_update(maggie);
