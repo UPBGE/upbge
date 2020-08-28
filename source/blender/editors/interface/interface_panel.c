@@ -64,7 +64,9 @@
 
 #include "interface_intern.h"
 
-/*********************** defines and structs ************************/
+/* -------------------------------------------------------------------- */
+/** \name Defines & Structs
+ * \{ */
 
 #define ANIMATION_TIME 0.30
 #define ANIMATION_INTERVAL 0.02
@@ -116,6 +118,12 @@ static int compare_panel(const void *a1, const void *a2);
 static bool panel_type_context_poll(ARegion *region,
                                     const PanelType *panel_type,
                                     const char *context);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Local Functions
+ * \{ */
 
 static void panel_title_color_get(bool show_background, uchar color[4])
 {
@@ -206,7 +214,11 @@ static bool panels_need_realign(ScrArea *area, ARegion *region, Panel **r_panel_
   return false;
 }
 
-/********* Functions for instanced panels. ***********/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Functions for Instanced Panels
+ * \{ */
 
 static Panel *UI_panel_add_instanced_ex(ARegion *region,
                                         ListBase *panels,
@@ -248,7 +260,7 @@ static Panel *UI_panel_add_instanced_ex(ARegion *region,
 
 /**
  * Called in situations where panels need to be added dynamically rather than having only one panel
- * corresponding to each PanelType.
+ * corresponding to each #PanelType.
  */
 Panel *UI_panel_add_instanced(
     ARegion *region, ListBase *panels, char *panel_idname, int list_index, PointerRNA *custom_data)
@@ -267,8 +279,8 @@ Panel *UI_panel_add_instanced(
 }
 
 /**
- * Find a unique key to append to the idname for the lookup to the panel's #uiBlock. Needed for
- * instanced panels, where there can be multiple with the same type and idname.
+ * Find a unique key to append to the #PanelTyype.idname for the lookup to the panel's #uiBlock.
+ * Needed for instanced panels, where there can be multiple with the same type and identifier.
  */
 void UI_list_panel_unique_str(Panel *panel, char *r_name)
 {
@@ -355,7 +367,7 @@ void UI_panels_free_instanced(const bContext *C, ARegion *region)
  * don't match in any way.
  *
  * \param data: The list of data to check against the instanced panels.
- * \param panel_idname_func: Function to find the panel type idname for each item in the data list.
+ * \param panel_idname_func: Function to find the #PanelType.idname for each item in the data list.
  * For a readability and generality, this lookup happens separately for each type of panel list.
  */
 bool UI_panel_list_matches_data(ARegion *region,
@@ -534,11 +546,11 @@ static void get_panel_expand_flag(Panel *panel, short *flag, short *flag_index)
 }
 
 /**
- * Call the callback to store the panel and subpanel expansion settings in the list item that
+ * Call the callback to store the panel and sub-panel expansion settings in the list item that
  * corresponds to this panel.
  *
  * \note This needs to iterate through all of the regions panels because the panel with changed
- * expansion could have been the subpanel of a instanced panel, meaning it might not know
+ * expansion could have been the sub-panel of a instanced panel, meaning it might not know
  * which list item it corresponds to.
  */
 static void set_panels_list_data_expand_flag(const bContext *C, const ARegion *region)
@@ -561,7 +573,11 @@ static void set_panels_list_data_expand_flag(const bContext *C, const ARegion *r
   }
 }
 
-/****************************** panels ******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Panels
+ * \{ */
 
 /**
  * Set flag state for a panel and its sub-panels.
@@ -798,7 +814,11 @@ static void ui_offset_panel_block(uiBlock *block)
   block->rect.xmin = block->rect.ymin = 0.0;
 }
 
-/**************************** drawing *******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Drawing
+ * \{ */
 
 /* triangle 'icon' for panel header */
 void UI_draw_icon_tri(float x, float y, char dir, const float color[4])
@@ -863,7 +883,9 @@ static void ui_draw_aligned_panel_header(const uiStyle *style,
                     });
 }
 
-/* panel integrated in buttonswindow, tool/property lists etc */
+/**
+ * Panel integrated in buttons-window, tool/property lists etc
+ */
 void ui_draw_aligned_panel(const uiStyle *style,
                            const uiBlock *block,
                            const rcti *rect,
@@ -900,7 +922,7 @@ void ui_draw_aligned_panel(const uiStyle *style,
     return;
   }
 
-  /* Calculate header rect with + 0.001f to prevent flicker due to float inaccuracy */
+  /* Calculate header rectangle with + 0.001f to prevent flicker due to float inaccuracy. */
   rcti headrect = {
       rect->xmin, rect->xmax, rect->ymax, rect->ymax + floor(PNL_HEADER / block->aspect + 0.001f)};
 
@@ -913,7 +935,7 @@ void ui_draw_aligned_panel(const uiStyle *style,
                      headrect.ymax + U.pixelsize};
     ui_draw_box_opaque(&box_rect, UI_CNR_ALL);
 
-    /* Mimick the border between aligned box widgets for the bottom of the header. */
+    /* Mimic the border between aligned box widgets for the bottom of the header. */
     if (!(panel->flag & PNL_CLOSED)) {
       immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
       GPU_blend(GPU_BLEND_ALPHA);
@@ -985,7 +1007,7 @@ void ui_draw_aligned_panel(const uiStyle *style,
   ui_draw_aligned_panel_header(style, block, &titlerect, show_background);
 
   if (show_drag) {
-    /* itemrect smaller */
+    /* Make `itemrect` smaller. */
     const float scale = 0.7;
     rctf itemrect;
     itemrect.xmax = headrect.xmax - (0.2f * UI_UNIT_X);
@@ -1091,7 +1113,11 @@ void ui_draw_aligned_panel(const uiStyle *style,
   }
 }
 
-/********************** category drawing ***************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Category Drawing (Tabs)
+ * \{ */
 
 static void imm_buf_append(
     float vbuf[][2], uchar cbuf[][3], float x, float y, const uchar col[3], int *index)
@@ -1117,7 +1143,7 @@ static void ui_panel_category_draw_tab(bool filled,
 {
   float vec[4][2] = {{0.195, 0.02}, {0.55, 0.169}, {0.831, 0.45}, {0.98, 0.805}};
 
-  /* mult */
+  /* Multiply `vec` by radius. */
   for (int a = 0; a < 4; a++) {
     mul_v2_fl(vec[a], rad);
   }
@@ -1251,7 +1277,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 #endif
   float scaletabs = 1.0f;
   /* same for all tabs */
-  /* intentionally dont scale by 'px' */
+  /* intentionally don't scale by 'px' */
   const int rct_xmin = is_left ? v2d->mask.xmin + 3 : (v2d->mask.xmax - category_tabs_width);
   const int rct_xmax = is_left ? v2d->mask.xmin + category_tabs_width : (v2d->mask.xmax - 3);
   const int text_v_ofs = (rct_xmax - rct_xmin) * 0.3f;
@@ -1306,7 +1332,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     BLI_assert(UI_panel_category_is_visible(region));
   }
 
-  /* calculate tab rect's and check if we need to scale down */
+  /* Calculate tab rectangle and check if we need to scale down. */
   LISTBASE_FOREACH (PanelCategoryDyn *, pc_dyn, &region->panels_category) {
 
     rcti *rct = &pc_dyn->rect;
@@ -1377,7 +1403,9 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     const char *category_id_draw = IFACE_(category_id);
     const int category_width = BLI_rcti_size_y(rct) - (tab_v_pad_text * 2);
     size_t category_draw_len = BLF_DRAW_STR_DUMMY_MAX;
-    // int category_width = BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX);
+#if 0
+    int category_width = BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX);
+#endif
 
     const bool is_active = STREQ(category_id, category_id_active);
 
@@ -1401,7 +1429,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
                                  NULL,
                                  is_active ? theme_col_tab_active : theme_col_tab_inactive);
 
-      /* tab outline */
+      /* Tab outline */
       ui_panel_category_draw_tab(false,
                                  rct->xmin - px_x_sign,
                                  rct->ymin - px,
@@ -1415,7 +1443,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
                                  NULL,
                                  theme_col_tab_outline);
 
-      /* tab highlight (3d look) */
+      /* Tab highlight (3d look) */
       ui_panel_category_draw_tab(false,
                                  rct->xmin,
                                  rct->ymin,
@@ -1431,7 +1459,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
                                              theme_col_tab_highlight_inactive);
     }
 
-    /* tab blackline */
+    /* Tab black-line. */
     if (!is_active) {
       pos = GPU_vertformat_attr_add(
           immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
@@ -1449,17 +1477,17 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 
     BLF_position(fontid, rct->xmax - text_v_ofs, rct->ymin + tab_v_pad_text, 0.0f);
 
-    /* tab titles */
+    /* Tab titles. */
 
-    /* draw white shadow to give text more depth */
+    /* Draw white shadow to give text more depth. */
     BLF_color3ubv(fontid, theme_col_text);
 
-    /* main tab title */
+    /* Main tab title. */
     BLF_draw(fontid, category_id_draw, category_draw_len);
 
     GPU_blend(GPU_BLEND_NONE);
 
-    /* tab blackline remaining (last tab) */
+    /* Tab black-line remaining (last tab). */
     pos = GPU_vertformat_attr_add(
         immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -1473,7 +1501,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     }
 
 #ifdef USE_FLAT_INACTIVE
-    /* draw line between inactive tabs */
+    /* Draw line between inactive tabs. */
     if (is_active == false && is_active_prev == false && pc_dyn->prev) {
       immUniformColor3ubv(theme_col_tab_divider);
       immRecti(pos,
@@ -1507,7 +1535,11 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 #undef USE_FLAT_INACTIVE
 }
 
-/************************** panel alignment *************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Panel Alignment
+ * \{ */
 
 static int get_panel_size_y(const Panel *panel)
 {
@@ -1534,8 +1566,10 @@ int UI_panel_size_y(const Panel *panel)
   return get_panel_real_size_y(panel);
 }
 
-/* this function is needed because uiBlock and Panel itself don't
- * change sizey or location when closed */
+/**
+ * This function is needed because #uiBlock and Panel itself don't
+ * change #Panel.sizey or location when closed.
+ */
 static int get_panel_real_ofsy(Panel *panel)
 {
   if (panel->flag & PNL_CLOSED) {
@@ -1556,7 +1590,7 @@ bool UI_panel_is_dragging(const struct Panel *panel)
 
 /**
  * \note about sorting;
- * the sortorder has a lower value for new panels being added.
+ * the #Panel.sortorder has a lower value for new panels being added.
  * however, that only works to insert a single panel, when more new panels get
  * added the coordinates of existing panels and the previously stored to-be-inserted
  * panels do not match for sorting
@@ -1569,7 +1603,7 @@ static int find_highest_panel(const void *a1, const void *a2)
   /* stick uppermost header-less panels to the top of the region -
    * prevent them from being sorted (multiple header-less panels have to be sorted though) */
   if (ps1->panel->type->flag & PNL_NO_HEADER && ps2->panel->type->flag & PNL_NO_HEADER) {
-    /* skip and check for ofs and sortorder below */
+    /* Skip and check for `ofsy` and #Panel.sortorder below. */
   }
   if (ps1->panel->type->flag & PNL_NO_HEADER) {
     return -1;
@@ -1657,7 +1691,7 @@ static bool uiAlignPanelStep(ARegion *region, const float fac, const bool drag)
   }
 
   if (drag) {
-    /* while we are dragging, we sort on location and update sortorder */
+    /* While we are dragging, we sort on location and update #Panel.sortorder. */
     qsort(panelsort, tot, sizeof(PanelSort), find_highest_panel);
 
     for (ps = panelsort, i = 0; i < tot; i++, ps++) {
@@ -1665,11 +1699,11 @@ static bool uiAlignPanelStep(ARegion *region, const float fac, const bool drag)
     }
   }
   else {
-    /* otherwise use sortorder */
+    /* Otherwise use #Panel.sortorder. */
     qsort(panelsort, tot, sizeof(PanelSort), compare_panel);
   }
 
-  /* no smart other default start loc! this keeps switching f5/f6/etc compatible */
+  /* No smart other default start location! This keeps switching f5/f6/etc compatible. */
   ps = panelsort;
   ps->panel->runtime.region_ofsx = panel_region_offset_x_get(region);
   ps->panel->ofsx = 0;
@@ -1719,7 +1753,7 @@ static bool uiAlignPanelStep(ARegion *region, const float fac, const bool drag)
     }
   }
 
-  /* free panelsort array */
+  /* Free `panelsort` array. */
   for (ps = panelsort, i = 0; i < tot; i++, ps++) {
     MEM_freeN(ps->panel);
   }
@@ -1777,8 +1811,8 @@ static void ui_do_animate(bContext *C, Panel *panel)
 
     panel_activate_state(C, panel, PANEL_STATE_EXIT);
     if (is_drag_drop) {
-      /* Note: doing this in #panel_activate_state would require removing const for context in many
-       * other places. */
+      /* Note: doing this in #panel_activate_state would require removing `const` for context in
+       * many other places. */
       reorder_instanced_panel_list(C, region, panel);
     }
     return;
@@ -1880,7 +1914,11 @@ void UI_panels_scale(ARegion *region, float new_width)
   }
 }
 
-/************************ panel dragging ****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Panel Dragging
+ * \{ */
 
 #define DRAG_REGION_PAD (PNL_HEADER * 0.5)
 static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
@@ -1926,7 +1964,11 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 }
 #undef DRAG_REGION_PAD
 
-/******************* region level panel interaction *****************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Region Level Panel Interaction
+ * \{ */
 
 static uiPanelMouseState ui_panel_mouse_state_get(const uiBlock *block,
                                                   const Panel *panel,
@@ -1984,7 +2026,7 @@ static void ui_panel_drag_collapse(const bContext *C,
     ui_window_to_block_fl(region, block, &xy_a_block[0], &xy_a_block[1]);
     ui_window_to_block_fl(region, block, &xy_b_block[0], &xy_b_block[1]);
 
-    /* set up rect to match header size */
+    /* Set up `rect` to match header size. */
     rctf rect = block->rect;
     rect.ymin = rect.ymax;
     rect.ymax = rect.ymin + PNL_HEADER;
@@ -2107,7 +2149,7 @@ static void ui_handle_panel_header(const bContext *C,
       }
       else {
         /* If a panel has sub-panels and it's open, toggle the expansion
-         * of the sub-panels (based on the expansion of the first subpanel). */
+         * of the sub-panels (based on the expansion of the first sub-panel). */
         Panel *first_child = panel->children.first;
         BLI_assert(first_child != NULL);
         panel_set_flag_recursive(panel, PNL_CLOSED, !(first_child->flag & PNL_CLOSED));
@@ -2197,16 +2239,16 @@ static void ui_panel_category_active_set(ARegion *region, const char *idname, bo
   }
 
   if (fallback) {
-    /* For fallbacks, add at the end so explicitly chosen categories have priority. */
+    /* For fall-backs, add at the end so explicitly chosen categories have priority. */
     BLI_addtail(lb, pc_act);
   }
   else {
     BLI_addhead(lb, pc_act);
   }
 
-  /* validate all active panels, we could do this on load,
+  /* Validate all active panels, we could do this on load,
    * they are harmless - but we should remove somewhere.
-   * (addons could define own and gather cruft over time) */
+   * (add-ons could define own and gather cruft over time). */
   {
     PanelCategoryStack *pc_act_next;
     /* intentionally skip first */
@@ -2337,16 +2379,16 @@ static int ui_handle_panel_category_cycling(const wmEvent *event,
 }
 
 /**
- * Handle region panel events like opening anc closing panels, changing categories, etc.
+ * Handle region panel events like opening and closing panels, changing categories, etc.
  *
- * \note Could become a modal keymap.
+ * \note Could become a modal key-map.
  */
 int ui_handler_panel_region(bContext *C,
                             const wmEvent *event,
                             ARegion *region,
                             const uiBut *active_but)
 {
-  /* Mousemove events are handled by separate handlers for dragging and drag collapsing. */
+  /* Mouse-move events are handled by separate handlers for dragging and drag collapsing. */
   if (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
     return WM_UI_HANDLER_CONTINUE;
   }
@@ -2356,7 +2398,7 @@ int ui_handler_panel_region(bContext *C,
     return WM_UI_HANDLER_CONTINUE;
   }
 
-  /* Scrollbars can overlap panels now, they have handling priority. */
+  /* Scroll-bars can overlap panels now, they have handling priority. */
   if (UI_view2d_mouse_in_scrollers(region, &region->v2d, event->x, event->y)) {
     return WM_UI_HANDLER_CONTINUE;
   }
@@ -2422,7 +2464,7 @@ int ui_handler_panel_region(bContext *C,
     }
 
     /* All mouse clicks inside panels should return in break, but continue handling
-     * in case there is a subpanel header at the mouse location. */
+     * in case there is a sub-panel header at the mouse location. */
     if (event->type == LEFTMOUSE &&
         ELEM(mouse_state, PANEL_MOUSE_INSIDE_CONTENT, PANEL_MOUSE_INSIDE_HEADER)) {
       retval = WM_UI_HANDLER_BREAK;
@@ -2494,7 +2536,11 @@ PointerRNA *UI_region_panel_custom_data_under_cursor(const bContext *C, const wm
   return customdata;
 }
 
-/**************** window level modal panel interaction **************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Window Level Modal Panel Interaction
+ * \{ */
 
 /* note, this is modal handler and should not swallow events for animation */
 static int ui_handler_panel(bContext *C, const wmEvent *event, void *userdata)
@@ -2619,3 +2665,5 @@ PanelType *UI_paneltype_find(int space_id, int region_id, const char *idname)
   }
   return NULL;
 }
+
+/** \} */

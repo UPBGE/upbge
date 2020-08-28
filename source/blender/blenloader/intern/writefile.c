@@ -166,6 +166,7 @@
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
 #include "BKE_curveprofile.h"
+#include "BKE_deform.h"
 #include "BKE_fcurve.h"
 #include "BKE_fcurve_driver.h"
 #include "BKE_global.h"  // for G
@@ -663,33 +664,6 @@ static void writelist_id(WriteData *wd, int filecode, const char *structname, co
  * These functions are used by blender's .blend system for file saving/loading.
  * \{ */
 
-static void write_iddata(BlendWriter *writer, ID *id)
-{
-  /* ID_WM's id->properties are considered runtime only, and never written in .blend file. */
-  if (id->properties && !ELEM(GS(id->name), ID_WM)) {
-    IDP_BlendWrite(writer, id->properties);
-  }
-
-  if (id->override_library) {
-    BLO_write_struct(writer, IDOverrideLibrary, id->override_library);
-
-    BLO_write_struct_list(writer, IDOverrideLibraryProperty, &id->override_library->properties);
-    LISTBASE_FOREACH (IDOverrideLibraryProperty *, op, &id->override_library->properties) {
-      BLO_write_string(writer, op->rna_path);
-
-      BLO_write_struct_list(writer, IDOverrideLibraryPropertyOperation, &op->operations);
-      LISTBASE_FOREACH (IDOverrideLibraryPropertyOperation *, opop, &op->operations) {
-        if (opop->subitem_reference_name) {
-          BLO_write_string(writer, opop->subitem_reference_name);
-        }
-        if (opop->subitem_local_name) {
-          BLO_write_string(writer, opop->subitem_local_name);
-        }
-      }
-    }
-  }
-}
-
 static void write_previews(BlendWriter *writer, const PreviewImage *prv_orig)
 {
   /* Note we write previews also for undo steps. It takes up some memory,
@@ -718,7 +692,7 @@ static void write_action(BlendWriter *writer, bAction *act, const void *id_addre
 {
   if (act->id.us > 0 || BLO_write_is_undo(writer)) {
     BLO_write_id_struct(writer, bAction, id_address, &act->id);
-    write_iddata(writer, &act->id);
+    BKE_id_blend_write(writer, &act->id);
 
     BKE_fcurve_blend_write(writer, &act->curves);
 
@@ -1176,7 +1150,7 @@ static void write_particlesettings(BlendWriter *writer,
   if (part->id.us > 0 || BLO_write_is_undo(writer)) {
     /* write LibData */
     BLO_write_id_struct(writer, ParticleSettings, id_address, &part->id);
-    write_iddata(writer, &part->id);
+    BKE_id_blend_write(writer, &part->id);
 
     if (part->adt) {
       BKE_animdata_blend_write(writer, part->adt);
@@ -1807,7 +1781,7 @@ static void write_object(BlendWriter *writer, Object *ob, const void *id_address
 
     /* write LibData */
     BLO_write_id_struct(writer, Object, id_address, &ob->id);
-    write_iddata(writer, &ob->id);
+    BKE_id_blend_write(writer, &ob->id);
 
     if (ob->adt) {
       BKE_animdata_blend_write(writer, ob->adt);
@@ -1884,7 +1858,7 @@ static void write_vfont(BlendWriter *writer, VFont *vf, const void *id_address)
 
     /* write LibData */
     BLO_write_id_struct(writer, VFont, id_address, &vf->id);
-    write_iddata(writer, &vf->id);
+    BKE_id_blend_write(writer, &vf->id);
 
     /* direct data */
     if (vf->packedfile) {
@@ -1900,7 +1874,7 @@ static void write_key(BlendWriter *writer, Key *key, const void *id_address)
   if (key->id.us > 0 || BLO_write_is_undo(writer)) {
     /* write LibData */
     BLO_write_id_struct(writer, Key, id_address, &key->id);
-    write_iddata(writer, &key->id);
+    BKE_id_blend_write(writer, &key->id);
 
     if (key->adt) {
       BKE_animdata_blend_write(writer, key->adt);
@@ -1921,7 +1895,7 @@ static void write_camera(BlendWriter *writer, Camera *cam, const void *id_addres
   if (cam->id.us > 0 || BLO_write_is_undo(writer)) {
     /* write LibData */
     BLO_write_id_struct(writer, Camera, id_address, &cam->id);
-    write_iddata(writer, &cam->id);
+    BKE_id_blend_write(writer, &cam->id);
 
     if (cam->adt) {
       BKE_animdata_blend_write(writer, cam->adt);
@@ -1946,7 +1920,7 @@ static void write_mball(BlendWriter *writer, MetaBall *mb, const void *id_addres
 
     /* write LibData */
     BLO_write_id_struct(writer, MetaBall, id_address, &mb->id);
-    write_iddata(writer, &mb->id);
+    BKE_id_blend_write(writer, &mb->id);
 
     /* direct data */
     BLO_write_pointer_array(writer, mb->totcol, mb->mat);
@@ -1970,7 +1944,7 @@ static void write_curve(BlendWriter *writer, Curve *cu, const void *id_address)
 
     /* write LibData */
     BLO_write_id_struct(writer, Curve, id_address, &cu->id);
-    write_iddata(writer, &cu->id);
+    BKE_id_blend_write(writer, &cu->id);
 
     /* direct data */
     BLO_write_pointer_array(writer, cu->totcol, cu->mat);
@@ -2007,200 +1981,6 @@ static void write_curve(BlendWriter *writer, Curve *cu, const void *id_address)
   }
 }
 
-static void write_dverts(BlendWriter *writer, int count, MDeformVert *dvlist)
-{
-  if (dvlist) {
-
-    /* Write the dvert list */
-    BLO_write_struct_array(writer, MDeformVert, count, dvlist);
-
-    /* Write deformation data for each dvert */
-    for (int i = 0; i < count; i++) {
-      if (dvlist[i].dw) {
-        BLO_write_struct_array(writer, MDeformWeight, dvlist[i].totweight, dvlist[i].dw);
-      }
-    }
-  }
-}
-
-static void write_mdisps(BlendWriter *writer, int count, MDisps *mdlist, int external)
-{
-  if (mdlist) {
-    BLO_write_struct_array(writer, MDisps, count, mdlist);
-    for (int i = 0; i < count; i++) {
-      MDisps *md = &mdlist[i];
-      if (md->disps) {
-        if (!external) {
-          BLO_write_float3_array(writer, md->totdisp, &md->disps[0][0]);
-        }
-      }
-
-      if (md->hidden) {
-        BLO_write_raw(writer, BLI_BITMAP_SIZE(md->totdisp), md->hidden);
-      }
-    }
-  }
-}
-
-static void write_grid_paint_mask(BlendWriter *writer, int count, GridPaintMask *grid_paint_mask)
-{
-  if (grid_paint_mask) {
-    BLO_write_struct_array(writer, GridPaintMask, count, grid_paint_mask);
-    for (int i = 0; i < count; i++) {
-      GridPaintMask *gpm = &grid_paint_mask[i];
-      if (gpm->data) {
-        const int gridsize = BKE_ccg_gridsize(gpm->level);
-        BLO_write_raw(writer, sizeof(*gpm->data) * gridsize * gridsize, gpm->data);
-      }
-    }
-  }
-}
-
-static void write_customdata(BlendWriter *writer,
-                             ID *id,
-                             int count,
-                             CustomData *data,
-                             CustomDataLayer *layers,
-                             CustomDataMask cddata_mask)
-{
-  /* write external customdata (not for undo) */
-  if (data->external && !BLO_write_is_undo(writer)) {
-    CustomData_external_write(data, id, cddata_mask, count, 0);
-  }
-
-  BLO_write_struct_array_at_address(writer, CustomDataLayer, data->totlayer, data->layers, layers);
-
-  for (int i = 0; i < data->totlayer; i++) {
-    CustomDataLayer *layer = &layers[i];
-    const char *structname;
-    int structnum, datasize;
-
-    if (layer->type == CD_MDEFORMVERT) {
-      /* layer types that allocate own memory need special handling */
-      write_dverts(writer, count, layer->data);
-    }
-    else if (layer->type == CD_MDISPS) {
-      write_mdisps(writer, count, layer->data, layer->flag & CD_FLAG_EXTERNAL);
-    }
-    else if (layer->type == CD_PAINT_MASK) {
-      const float *layer_data = layer->data;
-      BLO_write_raw(writer, sizeof(*layer_data) * count, layer_data);
-    }
-    else if (layer->type == CD_SCULPT_FACE_SETS) {
-      const float *layer_data = layer->data;
-      BLO_write_raw(writer, sizeof(*layer_data) * count, layer_data);
-    }
-    else if (layer->type == CD_GRID_PAINT_MASK) {
-      write_grid_paint_mask(writer, count, layer->data);
-    }
-    else if (layer->type == CD_FACEMAP) {
-      const int *layer_data = layer->data;
-      BLO_write_raw(writer, sizeof(*layer_data) * count, layer_data);
-    }
-    else {
-      CustomData_file_write_info(layer->type, &structname, &structnum);
-      if (structnum) {
-        datasize = structnum * count;
-        BLO_write_struct_array_by_name(writer, structname, datasize, layer->data);
-      }
-      else if (!BLO_write_is_undo(writer)) { /* Do not warn on undo. */
-        printf("%s error: layer '%s':%d - can't be written to file\n",
-               __func__,
-               structname,
-               layer->type);
-      }
-    }
-  }
-
-  if (data->external) {
-    BLO_write_struct(writer, CustomDataExternal, data->external);
-  }
-}
-
-static void write_mesh(BlendWriter *writer, Mesh *mesh, const void *id_address)
-{
-  if (mesh->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* cache only - don't write */
-    mesh->mface = NULL;
-    mesh->totface = 0;
-    memset(&mesh->fdata, 0, sizeof(mesh->fdata));
-    memset(&mesh->runtime, 0, sizeof(mesh->runtime));
-
-    /* Reduce xdata layers, fill xlayers with layers to be written.
-     * This makes xdata invalid for Blender, which is why we made a
-     * temporary local copy. */
-    CustomDataLayer *vlayers = NULL, vlayers_buff[CD_TEMP_CHUNK_SIZE];
-    CustomDataLayer *elayers = NULL, elayers_buff[CD_TEMP_CHUNK_SIZE];
-    CustomDataLayer *flayers = NULL, flayers_buff[CD_TEMP_CHUNK_SIZE];
-    CustomDataLayer *llayers = NULL, llayers_buff[CD_TEMP_CHUNK_SIZE];
-    CustomDataLayer *players = NULL, players_buff[CD_TEMP_CHUNK_SIZE];
-
-    CustomData_file_write_prepare(&mesh->vdata, &vlayers, vlayers_buff, ARRAY_SIZE(vlayers_buff));
-    CustomData_file_write_prepare(&mesh->edata, &elayers, elayers_buff, ARRAY_SIZE(elayers_buff));
-    flayers = flayers_buff;
-    CustomData_file_write_prepare(&mesh->ldata, &llayers, llayers_buff, ARRAY_SIZE(llayers_buff));
-    CustomData_file_write_prepare(&mesh->pdata, &players, players_buff, ARRAY_SIZE(players_buff));
-
-    BLO_write_id_struct(writer, Mesh, id_address, &mesh->id);
-    write_iddata(writer, &mesh->id);
-
-    /* direct data */
-    if (mesh->adt) {
-      BKE_animdata_blend_write(writer, mesh->adt);
-    }
-
-    BLO_write_pointer_array(writer, mesh->totcol, mesh->mat);
-    BLO_write_raw(writer, sizeof(MSelect) * mesh->totselect, mesh->mselect);
-
-    write_customdata(writer, &mesh->id, mesh->totvert, &mesh->vdata, vlayers, CD_MASK_MESH.vmask);
-    write_customdata(writer, &mesh->id, mesh->totedge, &mesh->edata, elayers, CD_MASK_MESH.emask);
-    /* fdata is really a dummy - written so slots align */
-    write_customdata(writer, &mesh->id, mesh->totface, &mesh->fdata, flayers, CD_MASK_MESH.fmask);
-    write_customdata(writer, &mesh->id, mesh->totloop, &mesh->ldata, llayers, CD_MASK_MESH.lmask);
-    write_customdata(writer, &mesh->id, mesh->totpoly, &mesh->pdata, players, CD_MASK_MESH.pmask);
-
-    /* free temporary data */
-    if (vlayers && vlayers != vlayers_buff) {
-      MEM_freeN(vlayers);
-    }
-    if (elayers && elayers != elayers_buff) {
-      MEM_freeN(elayers);
-    }
-    if (flayers && flayers != flayers_buff) {
-      MEM_freeN(flayers);
-    }
-    if (llayers && llayers != llayers_buff) {
-      MEM_freeN(llayers);
-    }
-    if (players && players != players_buff) {
-      MEM_freeN(players);
-    }
-  }
-}
-
-static void write_lattice(BlendWriter *writer, Lattice *lt, const void *id_address)
-{
-  if (lt->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* Clean up, important in undo case to reduce false detection of changed datablocks. */
-    lt->editlatt = NULL;
-    lt->batch_cache = NULL;
-
-    /* write LibData */
-    BLO_write_id_struct(writer, Lattice, id_address, &lt->id);
-    write_iddata(writer, &lt->id);
-
-    /* write animdata */
-    if (lt->adt) {
-      BKE_animdata_blend_write(writer, lt->adt);
-    }
-
-    /* direct data */
-    BLO_write_struct_array(writer, BPoint, lt->pntsu * lt->pntsv * lt->pntsw, lt->def);
-
-    write_dverts(writer, lt->pntsu * lt->pntsv * lt->pntsw, lt->dvert);
-  }
-}
-
 static void write_image(BlendWriter *writer, Image *ima, const void *id_address)
 {
   if (ima->id.us > 0 || BLO_write_is_undo(writer)) {
@@ -2215,7 +1995,7 @@ static void write_image(BlendWriter *writer, Image *ima, const void *id_address)
 
     /* write LibData */
     BLO_write_id_struct(writer, Image, id_address, &ima->id);
-    write_iddata(writer, &ima->id);
+    BKE_id_blend_write(writer, &ima->id);
 
     for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next) {
       BLO_write_struct(writer, ImagePackedFile, imapf);
@@ -2246,7 +2026,7 @@ static void write_texture(BlendWriter *writer, Tex *tex, const void *id_address)
   if (tex->id.us > 0 || BLO_write_is_undo(writer)) {
     /* write LibData */
     BLO_write_id_struct(writer, Tex, id_address, &tex->id);
-    write_iddata(writer, &tex->id);
+    BKE_id_blend_write(writer, &tex->id);
 
     if (tex->adt) {
       BKE_animdata_blend_write(writer, tex->adt);
@@ -2276,7 +2056,7 @@ static void write_material(BlendWriter *writer, Material *ma, const void *id_add
 
     /* write LibData */
     BLO_write_id_struct(writer, Material, id_address, &ma->id);
-    write_iddata(writer, &ma->id);
+    BKE_id_blend_write(writer, &ma->id);
 
     if (ma->adt) {
       BKE_animdata_blend_write(writer, ma->adt);
@@ -2305,7 +2085,7 @@ static void write_world(BlendWriter *writer, World *wrld, const void *id_address
 
     /* write LibData */
     BLO_write_id_struct(writer, World, id_address, &wrld->id);
-    write_iddata(writer, &wrld->id);
+    BKE_id_blend_write(writer, &wrld->id);
 
     if (wrld->adt) {
       BKE_animdata_blend_write(writer, wrld->adt);
@@ -2326,7 +2106,7 @@ static void write_light(BlendWriter *writer, Light *la, const void *id_address)
   if (la->id.us > 0 || BLO_write_is_undo(writer)) {
     /* write LibData */
     BLO_write_id_struct(writer, Light, id_address, &la->id);
-    write_iddata(writer, &la->id);
+    BKE_id_blend_write(writer, &la->id);
 
     if (la->adt) {
       BKE_animdata_blend_write(writer, la->adt);
@@ -2371,7 +2151,7 @@ static void write_collection(BlendWriter *writer, Collection *collection, const 
 
     /* write LibData */
     BLO_write_id_struct(writer, Collection, id_address, &collection->id);
-    write_iddata(writer, &collection->id);
+    BKE_id_blend_write(writer, &collection->id);
 
     write_collection_nolib(writer, collection);
   }
@@ -2497,7 +2277,7 @@ static void write_scene(BlendWriter *writer, Scene *sce, const void *id_address)
 
   /* write LibData */
   BLO_write_id_struct(writer, Scene, id_address, &sce->id);
-  write_iddata(writer, &sce->id);
+  BKE_id_blend_write(writer, &sce->id);
 
   if (sce->adt) {
     BKE_animdata_blend_write(writer, sce->adt);
@@ -2731,7 +2511,7 @@ static void write_gpencil(BlendWriter *writer, bGPdata *gpd, const void *id_addr
 
     /* write gpd data block to file */
     BLO_write_id_struct(writer, bGPdata, id_address, &gpd->id);
-    write_iddata(writer, &gpd->id);
+    BKE_id_blend_write(writer, &gpd->id);
 
     if (gpd->adt) {
       BKE_animdata_blend_write(writer, gpd->adt);
@@ -2752,7 +2532,7 @@ static void write_gpencil(BlendWriter *writer, bGPdata *gpd, const void *id_addr
         LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
           BLO_write_struct_array(writer, bGPDspoint, gps->totpoints, gps->points);
           BLO_write_struct_array(writer, bGPDtriangle, gps->tot_triangles, gps->triangles);
-          write_dverts(writer, gps->totpoints, gps->dvert);
+          BKE_defvert_blend_write(writer, gps->totpoints, gps->dvert);
         }
       }
     }
@@ -3008,7 +2788,7 @@ static void write_area_map(BlendWriter *writer, ScrAreaMap *area_map)
 static void write_windowmanager(BlendWriter *writer, wmWindowManager *wm, const void *id_address)
 {
   BLO_write_id_struct(writer, wmWindowManager, id_address, &wm->id);
-  write_iddata(writer, &wm->id);
+  BKE_id_blend_write(writer, &wm->id);
   write_wm_xr_data(writer, &wm->xr);
 
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
@@ -3043,7 +2823,7 @@ static void write_screen(BlendWriter *writer, bScreen *screen, const void *id_ad
     /* write LibData */
     /* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
     writestruct_at_address(writer->wd, ID_SCRN, bScreen, 1, id_address, screen);
-    write_iddata(writer, &screen->id);
+    BKE_id_blend_write(writer, &screen->id);
 
     write_previews(writer, screen->preview);
 
@@ -3083,7 +2863,7 @@ static void write_armature(BlendWriter *writer, bArmature *arm, const void *id_a
     arm->act_edbone = NULL;
 
     BLO_write_id_struct(writer, bArmature, id_address, &arm->id);
-    write_iddata(writer, &arm->id);
+    BKE_id_blend_write(writer, &arm->id);
 
     if (arm->adt) {
       BKE_animdata_blend_write(writer, arm->adt);
@@ -3108,7 +2888,7 @@ static void write_text(BlendWriter *writer, Text *text, const void *id_address)
 
   /* write LibData */
   BLO_write_id_struct(writer, Text, id_address, &text->id);
-  write_iddata(writer, &text->id);
+  BKE_id_blend_write(writer, &text->id);
 
   if (text->filepath) {
     BLO_write_string(writer, text->filepath);
@@ -3131,7 +2911,7 @@ static void write_speaker(BlendWriter *writer, Speaker *spk, const void *id_addr
   if (spk->id.us > 0 || BLO_write_is_undo(writer)) {
     /* write LibData */
     BLO_write_id_struct(writer, Speaker, id_address, &spk->id);
-    write_iddata(writer, &spk->id);
+    BKE_id_blend_write(writer, &spk->id);
 
     if (spk->adt) {
       BKE_animdata_blend_write(writer, spk->adt);
@@ -3150,7 +2930,7 @@ static void write_sound(BlendWriter *writer, bSound *sound, const void *id_addre
 
     /* write LibData */
     BLO_write_id_struct(writer, bSound, id_address, &sound->id);
-    write_iddata(writer, &sound->id);
+    BKE_id_blend_write(writer, &sound->id);
 
     if (sound->packedfile) {
       PackedFile *pf = sound->packedfile;
@@ -3165,7 +2945,7 @@ static void write_probe(BlendWriter *writer, LightProbe *prb, const void *id_add
   if (prb->id.us > 0 || BLO_write_is_undo(writer)) {
     /* write LibData */
     BLO_write_id_struct(writer, LightProbe, id_address, &prb->id);
-    write_iddata(writer, &prb->id);
+    BKE_id_blend_write(writer, &prb->id);
 
     if (prb->adt) {
       BKE_animdata_blend_write(writer, prb->adt);
@@ -3187,7 +2967,7 @@ static void write_nodetree(BlendWriter *writer, bNodeTree *ntree, const void *id
     BLO_write_id_struct(writer, bNodeTree, id_address, &ntree->id);
     /* Note that trees directly used by other IDs (materials etc.) are not 'real' ID, they cannot
      * be linked, etc., so we write actual id data here only, for 'real' ID trees. */
-    write_iddata(writer, &ntree->id);
+    BKE_id_blend_write(writer, &ntree->id);
 
     write_nodetree_nolib(writer, ntree);
   }
@@ -3197,7 +2977,7 @@ static void write_brush(BlendWriter *writer, Brush *brush, const void *id_addres
 {
   if (brush->id.us > 0 || BLO_write_is_undo(writer)) {
     BLO_write_id_struct(writer, Brush, id_address, &brush->id);
-    write_iddata(writer, &brush->id);
+    BKE_id_blend_write(writer, &brush->id);
 
     if (brush->curve) {
       BKE_curvemapping_blend_write(writer, brush->curve);
@@ -3245,7 +3025,7 @@ static void write_palette(BlendWriter *writer, Palette *palette, const void *id_
   if (palette->id.us > 0 || BLO_write_is_undo(writer)) {
     PaletteColor *color;
     BLO_write_id_struct(writer, Palette, id_address, &palette->id);
-    write_iddata(writer, &palette->id);
+    BKE_id_blend_write(writer, &palette->id);
 
     for (color = palette->colors.first; color; color = color->next) {
       BLO_write_struct(writer, PaletteColor, color);
@@ -3257,7 +3037,7 @@ static void write_paintcurve(BlendWriter *writer, PaintCurve *pc, const void *id
 {
   if (pc->id.us > 0 || BLO_write_is_undo(writer)) {
     BLO_write_id_struct(writer, PaintCurve, id_address, &pc->id);
-    write_iddata(writer, &pc->id);
+    BKE_id_blend_write(writer, &pc->id);
 
     BLO_write_struct_array(writer, PaintCurvePoint, pc->tot_points, pc->points);
   }
@@ -3313,7 +3093,7 @@ static void write_movieclip(BlendWriter *writer, MovieClip *clip, const void *id
     MovieTrackingObject *object;
 
     BLO_write_id_struct(writer, MovieClip, id_address, &clip->id);
-    write_iddata(writer, &clip->id);
+    BKE_id_blend_write(writer, &clip->id);
 
     if (clip->adt) {
       BKE_animdata_blend_write(writer, clip->adt);
@@ -3342,7 +3122,7 @@ static void write_mask(BlendWriter *writer, Mask *mask, const void *id_address)
     MaskLayer *masklay;
 
     BLO_write_id_struct(writer, Mask, id_address, &mask->id);
-    write_iddata(writer, &mask->id);
+    BKE_id_blend_write(writer, &mask->id);
 
     if (mask->adt) {
       BKE_animdata_blend_write(writer, mask->adt);
@@ -3652,7 +3432,7 @@ static void write_linestyle(BlendWriter *writer,
 {
   if (linestyle->id.us > 0 || BLO_write_is_undo(writer)) {
     BLO_write_id_struct(writer, FreestyleLineStyle, id_address, &linestyle->id);
-    write_iddata(writer, &linestyle->id);
+    BKE_id_blend_write(writer, &linestyle->id);
 
     if (linestyle->adt) {
       BKE_animdata_blend_write(writer, linestyle->adt);
@@ -3694,7 +3474,7 @@ static void write_cachefile(BlendWriter *writer, CacheFile *cache_file, const vo
 static void write_workspace(BlendWriter *writer, WorkSpace *workspace, const void *id_address)
 {
   BLO_write_id_struct(writer, WorkSpace, id_address, &workspace->id);
-  write_iddata(writer, &workspace->id);
+  BKE_id_blend_write(writer, &workspace->id);
   BLO_write_struct_list(writer, WorkSpaceLayout, &workspace->layouts);
   BLO_write_struct_list(writer, WorkSpaceDataRelation, &workspace->hook_layout_relations);
   BLO_write_struct_list(writer, wmOwnerID, &workspace->owner_ids);
@@ -3709,29 +3489,16 @@ static void write_workspace(BlendWriter *writer, WorkSpace *workspace, const voi
 static void write_hair(BlendWriter *writer, Hair *hair, const void *id_address)
 {
   if (hair->id.us > 0 || BLO_write_is_undo(writer)) {
-    CustomDataLayer *players = NULL, players_buff[CD_TEMP_CHUNK_SIZE];
-    CustomDataLayer *clayers = NULL, clayers_buff[CD_TEMP_CHUNK_SIZE];
-    CustomData_file_write_prepare(&hair->pdata, &players, players_buff, ARRAY_SIZE(players_buff));
-    CustomData_file_write_prepare(&hair->cdata, &clayers, clayers_buff, ARRAY_SIZE(clayers_buff));
-
     /* Write LibData */
     BLO_write_id_struct(writer, Hair, id_address, &hair->id);
-    write_iddata(writer, &hair->id);
+    BKE_id_blend_write(writer, &hair->id);
 
     /* Direct data */
-    write_customdata(writer, &hair->id, hair->totpoint, &hair->pdata, players, CD_MASK_ALL);
-    write_customdata(writer, &hair->id, hair->totcurve, &hair->cdata, clayers, CD_MASK_ALL);
+    CustomData_blend_write(writer, &hair->pdata, hair->totpoint, CD_MASK_ALL, &hair->id);
+    CustomData_blend_write(writer, &hair->cdata, hair->totcurve, CD_MASK_ALL, &hair->id);
     BLO_write_pointer_array(writer, hair->totcol, hair->mat);
     if (hair->adt) {
       BKE_animdata_blend_write(writer, hair->adt);
-    }
-
-    /* Remove temporary data. */
-    if (players && players != players_buff) {
-      MEM_freeN(players);
-    }
-    if (clayers && clayers != clayers_buff) {
-      MEM_freeN(clayers);
     }
   }
 }
@@ -3745,11 +3512,11 @@ static void write_pointcloud(BlendWriter *writer, PointCloud *pointcloud, const 
 
     /* Write LibData */
     BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);
-    write_iddata(writer, &pointcloud->id);
+    BKE_id_blend_write(writer, &pointcloud->id);
 
     /* Direct data */
-    write_customdata(
-        writer, &pointcloud->id, pointcloud->totpoint, &pointcloud->pdata, players, CD_MASK_ALL);
+    CustomData_blend_write(
+        writer, &pointcloud->pdata, pointcloud->totpoint, CD_MASK_ALL, &pointcloud->id);
     BLO_write_pointer_array(writer, pointcloud->totcol, pointcloud->mat);
     if (pointcloud->adt) {
       BKE_animdata_blend_write(writer, pointcloud->adt);
@@ -3770,7 +3537,7 @@ static void write_volume(BlendWriter *writer, Volume *volume, const void *id_add
 
     /* write LibData */
     BLO_write_id_struct(writer, Volume, id_address, &volume->id);
-    write_iddata(writer, &volume->id);
+    BKE_id_blend_write(writer, &volume->id);
 
     /* direct data */
     BLO_write_pointer_array(writer, volume->totcol, volume->mat);
@@ -3790,7 +3557,7 @@ static void write_simulation(BlendWriter *writer, Simulation *simulation, const 
 {
   if (simulation->id.us > 0 || BLO_write_is_undo(writer)) {
     BLO_write_id_struct(writer, Simulation, id_address, &simulation->id);
-    write_iddata(writer, &simulation->id);
+    BKE_id_blend_write(writer, &simulation->id);
 
     if (simulation->adt) {
       BKE_animdata_blend_write(writer, simulation->adt);
@@ -3810,21 +3577,11 @@ static void write_simulation(BlendWriter *writer, Simulation *simulation, const 
         ParticleSimulationState *particle_state = (ParticleSimulationState *)state;
         BLO_write_struct(writer, ParticleSimulationState, particle_state);
 
-        CustomDataLayer *layers = NULL;
-        CustomDataLayer layers_buff[CD_TEMP_CHUNK_SIZE];
-        CustomData_file_write_prepare(
-            &particle_state->attributes, &layers, layers_buff, ARRAY_SIZE(layers_buff));
-
-        write_customdata(writer,
-                         &simulation->id,
-                         particle_state->tot_particles,
-                         &particle_state->attributes,
-                         layers,
-                         CD_MASK_ALL);
-
-        if (layers != NULL && layers != layers_buff) {
-          MEM_freeN(layers);
-        }
+        CustomData_blend_write(writer,
+                               &particle_state->attributes,
+                               particle_state->tot_particles,
+                               CD_MASK_ALL,
+                               &simulation->id);
       }
       else if (STREQ(state->type, SIM_TYPE_NAME_PARTICLE_MESH_EMITTER)) {
         ParticleMeshEmitterSimulationState *emitter_state = (ParticleMeshEmitterSimulationState *)
@@ -3880,7 +3637,7 @@ static void write_libraries(WriteData *wd, Main *main)
 
       BlendWriter writer = {wd};
       writestruct(wd, ID_LI, Library, 1, main->curlib);
-      write_iddata(&writer, &main->curlib->id);
+      BKE_id_blend_write(&writer, &main->curlib->id);
 
       if (main->curlib->packedfile) {
         PackedFile *pf = main->curlib->packedfile;
@@ -4093,6 +3850,11 @@ static bool write_file_handle(Main *mainvar,
         ((ID *)id_buffer)->prev = NULL;
         ((ID *)id_buffer)->next = NULL;
 
+        const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
+        if (id_type->blend_write != NULL) {
+          id_type->blend_write(&writer, (ID *)id_buffer, id);
+        }
+
         switch ((ID_Type)GS(id->name)) {
           case ID_WM:
             write_windowmanager(&writer, (wmWindowManager *)id_buffer, id);
@@ -4126,9 +3888,6 @@ static bool write_file_handle(Main *mainvar,
             break;
           case ID_LA:
             write_light(&writer, (Light *)id_buffer, id);
-            break;
-          case ID_LT:
-            write_lattice(&writer, (Lattice *)id_buffer, id);
             break;
           case ID_VF:
             write_vfont(&writer, (VFont *)id_buffer, id);
@@ -4169,9 +3928,6 @@ static bool write_file_handle(Main *mainvar,
           case ID_TE:
             write_texture(&writer, (Tex *)id_buffer, id);
             break;
-          case ID_ME:
-            write_mesh(&writer, (Mesh *)id_buffer, id);
-            break;
           case ID_PA:
             write_particlesettings(&writer, (ParticleSettings *)id_buffer, id);
             break;
@@ -4207,6 +3963,10 @@ static bool write_file_handle(Main *mainvar,
             break;
           case ID_SIM:
             write_simulation(&writer, (Simulation *)id_buffer, id);
+            break;
+          case ID_ME:
+          case ID_LT:
+            /* Do nothing, handled in IDTypeInfo callback. */
             break;
           case ID_LI:
             /* Do nothing, handled below - and should never be reached. */
