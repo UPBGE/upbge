@@ -135,6 +135,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_overlayCamera(nullptr),               // eevee (For overlay collections)
       m_sceneConverter(nullptr),              // eevee
       m_isPythonMainLoop(false),              // eevee
+      m_collectionRemap(false),               // eevee (to uncheck viewport restrictflag)
       m_keyboardmgr(nullptr),
       m_mousemgr(nullptr),
       m_physicsEnvironment(0),
@@ -631,6 +632,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   engine->CountDepsgraphTime();
 
+  if (m_collectionRemap) {
+    BKE_main_collection_sync_remap(bmain);
+    m_collectionRemap = false;
+  }
+
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   for (KX_GameObject *gameobj : GetObjectList()) {
@@ -866,6 +872,11 @@ void KX_Scene::RestoreRestrictFlags()
     Object *ob = it->first;
     ob->restrictflag = it->second;
   }
+}
+
+void KX_Scene::TagForCollectionRemap()
+{
+  m_collectionRemap = true;
 }
 
 /******************End of EEVEE INTEGRATION****************************/

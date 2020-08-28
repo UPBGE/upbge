@@ -140,6 +140,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   bool m_isPythonMainLoop;
   std::vector<KX_GameObject *> m_kxobWithLod;
   std::map<Object *, char> m_obRestrictFlags;
+  bool m_collectionRemap;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -350,6 +351,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   void RemoveObjFromLodObjList(KX_GameObject *gameobj);
   void BackupRestrictFlag(Object *ob, char restrictFlag);
   void RestoreRestrictFlags();
+  void TagForCollectionRemap();
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;
