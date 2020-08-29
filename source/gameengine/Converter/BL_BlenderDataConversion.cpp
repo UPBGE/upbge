@@ -869,6 +869,10 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
     gameobj->BackupObmat(ob);
     gameobj->SetObjectColor(MT_Vector4(ob->color));
     /* set the visibility state based on the objects render option in the outliner */
+    /* I think this flag was used as visibility option for physics shape in 2.7,
+     * and it seems it can still be used for this purpose in checking it in outliner
+     * even if I removed the button from physics tab. (youle)
+     */
     if (ob->restrictflag & OB_RESTRICT_RENDER)
       gameobj->SetVisible(0, 0);
   }
