@@ -493,7 +493,8 @@ void ui_rna_collection_search_update_fn(const struct bContext *C,
     /* If no item has an own icon to display, libraries can use the library icons rather than the
      * name prefix for showing the library status. */
     int name_prefix_offset = cis->name_prefix_offset;
-    if (area && (area->spacetype != SPACE_LOGIC) && !has_id_icon && cis->is_id) {
+    if (area && (area->spacetype != SPACE_LOGIC) && (area->spacetype != SPACE_NODE) &&
+        !has_id_icon && cis->is_id) { /* Game Engine transition */
       cis->iconid = UI_library_icon_get(cis->data);
       /* No need to re-allocate, string should be shorter than before (lib status prefix is
        * removed). */
