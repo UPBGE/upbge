@@ -381,6 +381,8 @@ void KX_GameObject::ReplicateBlenderObject()
                                    BKE_view_layer_camera_find(view_layer),
                                    newob);  // add replica where is the active camera
     newob->base_flag |= (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH);
+    newob->restrictflag &= ~OB_RESTRICT_VIEWPORT;
+    GetScene()->TagForCollectionRemap();
 
     if (ob->parent) {
       if (GetScene()->GetLastReplicatedParentObject()) {

@@ -24,10 +24,6 @@
 
 #include "DRW_render.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "BLI_bitmap.h"
 
 #include "DNA_lightprobe_types.h"
@@ -38,6 +34,11 @@ extern "C" {
 
 #include "BLI_listbase.h"      // For bge
 #include "DNA_object_types.h"  // For bge
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct EEVEE_ShadowCasterBuffer;
 struct GPUFrameBuffer;
 struct Object;

@@ -177,9 +177,12 @@ bool BLO_write_is_undo(BlendWriter *writer);
  */
 
 void *BLO_read_get_new_data_address(BlendDataReader *reader, const void *old_address);
+void *BLO_read_get_new_packed_address(BlendDataReader *reader, const void *old_address);
 
 #define BLO_read_data_address(reader, ptr_p) \
   *((void **)ptr_p) = BLO_read_get_new_data_address((reader), *(ptr_p))
+#define BLO_read_packed_address(reader, ptr_p) \
+  *((void **)ptr_p) = BLO_read_get_new_packed_address((reader), *(ptr_p))
 
 typedef void (*BlendReadListFn)(BlendDataReader *reader, void *data);
 void BLO_read_list_cb(BlendDataReader *reader, struct ListBase *list, BlendReadListFn callback);
@@ -195,6 +198,7 @@ void BLO_read_pointer_array(BlendDataReader *reader, void **ptr_p);
 
 /* Misc. */
 bool BLO_read_requires_endian_switch(BlendDataReader *reader);
+bool BLO_read_data_is_undo(BlendDataReader *reader);
 
 /* Blend Read Lib API
  * ===================
@@ -207,6 +211,9 @@ ID *BLO_read_get_new_id_address(BlendLibReader *reader, struct Library *lib, str
 
 #define BLO_read_id_address(reader, lib, id_ptr_p) \
   *(id_ptr_p) = (void *)BLO_read_get_new_id_address((reader), (lib), (ID *)*(id_ptr_p))
+
+/* Misc. */
+bool BLO_read_lib_is_undo(BlendLibReader *reader);
 
 /* Blend Expand API
  * ===================

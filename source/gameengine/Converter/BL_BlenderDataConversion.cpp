@@ -869,6 +869,10 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
     gameobj->BackupObmat(ob);
     gameobj->SetObjectColor(MT_Vector4(ob->color));
     /* set the visibility state based on the objects render option in the outliner */
+    /* I think this flag was used as visibility option for physics shape in 2.7,
+     * and it seems it can still be used for this purpose in checking it in outliner
+     * even if I removed the button from physics tab. (youle)
+     */
     if (ob->restrictflag & OB_RESTRICT_RENDER)
       gameobj->SetVisible(0, 0);
   }
@@ -1244,6 +1248,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     blenderobject->lay = (blenderobject->base_flag &
                           (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0;
 
+    if (!isInActiveLayer) {
+      /* Force OB_RESTRICT_VIEWPORT to avoid not needed depsgraph operations in some cases */
+      kxscene->BackupRestrictFlag(blenderobject, blenderobject->restrictflag);
+      blenderobject->restrictflag |= OB_RESTRICT_VIEWPORT;
+    }
+
     bool converting_during_runtime = single_object != nullptr;
 
     KX_GameObject *gameobj = gameobject_from_blenderobject(
@@ -1269,6 +1279,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       gameobj->Release();
     }
   }
+
+  /* Flush restrictflag updates for obj in inactive list */
+  BKE_main_collection_sync_remap(maggie);
+  DEG_relations_tag_update(maggie);
 
   if (!grouplist.empty()) {
     // now convert the group referenced by dupli group object
