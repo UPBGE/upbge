@@ -39,7 +39,9 @@
 #include <boost/format.hpp>
 
 #include "DNA_scene_types.h"
+#include "DRW_render.h"
 #include "GPU_framebuffer.h"
+#include "GPU_matrix.h"
 #include "GPU_state.h"
 
 #include "BL_BlenderConverter.h"
@@ -243,11 +245,6 @@ void KX_KetsjiEngine::BeginFrame()
 
 void KX_KetsjiEngine::EndFrame()
 {
-
-#ifdef WITH_PYTHON
-  KX_GetActiveScene()->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
-#endif
-
   // Show profiling info
   m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
   if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
@@ -255,6 +252,20 @@ void KX_KetsjiEngine::EndFrame()
   }
 
   m_rasterizer->FlushDebugDraw(m_canvas);
+
+  DRW_state_reset();
+  GPU_matrix_reset();
+  GPU_depth_test(GPU_DEPTH_ALWAYS);
+  const unsigned int width = m_canvas->GetWidth();
+  const unsigned int height = m_canvas->GetHeight();
+  GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
+
+#ifdef WITH_PYTHON
+  KX_GetActiveScene()->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
+#endif
+
+  DRW_state_reset();
+  GPU_depth_test(GPU_DEPTH_ALWAYS);
 
   double tottime = m_logger.GetAverage();
   if (tottime < 1e-6)
