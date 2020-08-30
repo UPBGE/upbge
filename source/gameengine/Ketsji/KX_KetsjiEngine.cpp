@@ -245,13 +245,6 @@ void KX_KetsjiEngine::BeginFrame()
 
 void KX_KetsjiEngine::EndFrame()
 {
-  // Show profiling info
-  m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
-  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
-    RenderDebugProperties();
-  }
-
-  m_rasterizer->FlushDebugDraw(m_canvas);
 
   DRW_state_reset();
   GPU_matrix_reset();
@@ -266,6 +259,14 @@ void KX_KetsjiEngine::EndFrame()
 
   DRW_state_reset();
   GPU_depth_test(GPU_DEPTH_ALWAYS);
+
+  // Show profiling info
+  m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
+  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
+    RenderDebugProperties();
+  }
+
+  m_rasterizer->FlushDebugDraw(m_canvas);
 
   double tottime = m_logger.GetAverage();
   if (tottime < 1e-6)
