@@ -124,6 +124,8 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
   m_done = false;
 
   const RAS_Rect *viewport = &m_canvas->GetViewportArea();
+  m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+  GPU_scissor_test(true);
   m_rasterizer->SetViewport(
       viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
   m_rasterizer->SetScissor(
@@ -237,6 +239,7 @@ bool ImageRender::Render()
       m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]};
 
   m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+  GPU_scissor_test(true);
   m_rasterizer->SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
   m_rasterizer->SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 

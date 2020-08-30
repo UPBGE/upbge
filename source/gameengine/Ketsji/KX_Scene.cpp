@@ -727,6 +727,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   if ((scene->gm.flag & GAME_USE_UI_ANTI_FLICKER) == 0) {
     rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+    GPU_scissor_test(true);
     rasty->SetScissor(v[0], v[1], v[2], v[3]);
   }
   DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),

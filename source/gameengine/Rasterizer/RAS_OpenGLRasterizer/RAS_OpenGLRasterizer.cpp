@@ -256,11 +256,13 @@ void RAS_OpenGLRasterizer::DrawOverlayPlane()
 
 void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
 {
+  glViewport(x, y, width, height);
   GPU_viewport(x, y, width, height);
 }
 
 void RAS_OpenGLRasterizer::SetScissor(int x, int y, int width, int height)
 {
+  glScissor(x, y, width, height);
   GPU_scissor(x, y, width, height);
 }
 
