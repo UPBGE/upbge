@@ -212,9 +212,7 @@ void Face::populate_plane(bool need_exact)
 
 Face::~Face()
 {
-  if (plane != nullptr) {
-    delete plane;
-  }
+  delete plane;
 }
 
 bool Face::operator==(const Face &other) const
@@ -929,7 +927,7 @@ class CoplanarCluster {
   void add_tri(int t, const BoundingBox &bb)
   {
     tris_.append(t);
-    bb_ = bb;
+    bb_.combine(bb);
   }
   int tot_tri() const
   {
@@ -1131,6 +1129,8 @@ static bool non_trivially_2d_point_in_tri(const int orients[3][3], int pi)
  * overlap in a "hex" pattern? That is, the overlap region is a hexagon, which
  * one gets by having, each point of one triangle being strictly right-of one
  * edge of the other and strictly left of the other two edges; and vice versa.
+ * In addition, it must not be the case that all of the points of one triangle
+ * are totally to one side of one edge of the other triangle, and vice versa.
  */
 static bool non_trivially_2d_hex_overlap(int orients[2][3][3])
 {
@@ -1139,6 +1139,10 @@ static bool non_trivially_2d_hex_overlap(int orients[2][3][3])
       bool ok = orients[ab][i][0] + orients[ab][i][1] + orients[ab][i][2] == 1 &&
                 orients[ab][i][0] != 0 && orients[ab][i][1] != 0 && orients[i][2] != 0;
       if (!ok) {
+        return false;
+      }
+      int s = orients[ab][0][i] + orients[ab][1][i] + orients[ab][2][i];
+      if (s == 3 || s == -3) {
         return false;
       }
     }
@@ -1250,7 +1254,8 @@ static bool non_trivially_2d_intersect(const mpq2 *a[3], const mpq2 *b[3])
 static bool non_trivially_coplanar_intersects(const IMesh &tm,
                                               int t,
                                               const CoplanarCluster &cl,
-                                              int proj_axis)
+                                              int proj_axis,
+                                              const Map<std::pair<int, int>, ITT_value> &itt_map)
 {
   const Face &tri = *tm.face(t);
   mpq2 v0 = project_3d_to_2d(tri[0]->co_exact, proj_axis);
@@ -1262,6 +1267,10 @@ static bool non_trivially_coplanar_intersects(const IMesh &tm,
     v2 = tmp;
   }
   for (const int cl_t : cl) {
+    if (!itt_map.contains(std::pair<int, int>(t, cl_t)) &&
+        !itt_map.contains(std::pair<int, int>(cl_t, t))) {
+      continue;
+    }
     const Face &cl_tri = *tm.face(cl_t);
     mpq2 ctv0 = project_3d_to_2d(cl_tri[0]->co_exact, proj_axis);
     mpq2 ctv1 = project_3d_to_2d(cl_tri[1]->co_exact, proj_axis);
@@ -1388,6 +1397,11 @@ static double supremum_dot_cross(const double3 &a, const double3 &b)
   return double3::dot(c, c);
 }
 
+/* The index of dot when inputs are plane_coords with index 1 is much higher.
+ * Plane coords have index 6.
+ */
+constexpr int index_dot_plane_coords = 15;
+
 /**
  * Used with supremum to get error bound. See Burnikel et al paper.
  * index_plane_coord is the index of a plane coordinate calculated
@@ -1400,18 +1414,14 @@ static double supremum_dot_cross(const double3 &a, const double3 &b)
  */
 constexpr int index_dot_cross = 11;
 
+/* Not using this at the moment. Leaving it for a bit in case we want it again. */
+#  if 0
 static double supremum_dot(const double3 &a, const double3 &b)
 {
   double3 abs_a = double3::abs(a);
   double3 abs_b = double3::abs(b);
   return double3::dot(abs_a, abs_b);
 }
-
-/* Actually index_dot = 3 + 2 * (max index of input coordinates). */
-/* The index of dot when inputs are plane_coords with index 1 is much higher.
- * Plane coords have index 6.
- */
-constexpr int index_dot_plane_coords = 15;
 
 static double supremum_orient3d(const double3 &a,
                                 const double3 &b,
@@ -1515,6 +1525,7 @@ static bool dot_must_be_positive(const double3 &a, const double3 &b)
   }
   return false;
 }
+#  endif
 
 /**
  * Return the approximate side of point p on a plane with normal plane_no and point plane_p.
@@ -1545,6 +1556,8 @@ static int filter_plane_side(const double3 &p,
   return 0;
 }
 
+/* Not using this at the moment. Leave it here for a while in case we want it again. */
+#  if 0
 /**
  * A fast, non-exhaustive test for non_trivial intersection.
  * If this returns false then we are sure that tri1 and tri2
@@ -1618,6 +1631,7 @@ static bool may_non_trivially_intersect(Face *t1, Face *t2)
   /* We weren't able to prove that any intersection is trivial. */
   return true;
 }
+#  endif
 
 /*
  * interesect_tri_tri and helper functions.
@@ -2393,6 +2407,7 @@ class TriOverlaps {
   BVHTree *tree_{nullptr};
   BVHTree *tree_b_{nullptr};
   BVHTreeOverlap *overlap_{nullptr};
+  Array<int> first_overlap_;
   uint overlap_tot_{0};
 
   struct CBData {
@@ -2449,12 +2464,8 @@ class TriOverlaps {
     }
     else {
       CBData cbdata{tm, shape_fn, nshapes, use_self};
-      if (nshapes == 1 && use_self) {
-        /* Expect a lot of trivial intersects from quads that are triangulated
-         * and faces that share vertices.
-         * Filter them out with a callback. */
-        overlap_ = BLI_bvhtree_overlap(
-            tree_, tree_, &overlap_tot_, only_nontrivial_intersects, &cbdata);
+      if (nshapes == 1) {
+        overlap_ = BLI_bvhtree_overlap(tree_, tree_, &overlap_tot_, NULL, NULL);
       }
       else {
         overlap_ = BLI_bvhtree_overlap(
@@ -2481,6 +2492,13 @@ class TriOverlaps {
         std::cout << "A: " << ov.indexA << ", B: " << ov.indexB << "\n";
       }
     }
+    first_overlap_ = Array<int>(tm.face_size(), -1);
+    for (int i = 0; i < static_cast<int>(overlap_tot_); ++i) {
+      int t = overlap_[i].indexA;
+      if (first_overlap_[t] == -1) {
+        first_overlap_[t] = i;
+      }
+    }
   }
 
   ~TriOverlaps()
@@ -2501,16 +2519,12 @@ class TriOverlaps {
     return Span<BVHTreeOverlap>(overlap_, overlap_tot_);
   }
 
- private:
-  static bool only_nontrivial_intersects(void *userdata,
-                                         int index_a,
-                                         int index_b,
-                                         int UNUSED(thread))
+  int first_overlap_index(int t) const
   {
-    CBData *cbdata = static_cast<CBData *>(userdata);
-    return may_non_trivially_intersect(cbdata->tm.face(index_a), cbdata->tm.face(index_b));
+    return first_overlap_[t];
   }
 
+ private:
   static bool only_different_shapes(void *userdata, int index_a, int index_b, int UNUSED(thread))
   {
     CBData *cbdata = static_cast<CBData *>(userdata);
@@ -2568,12 +2582,9 @@ static void calc_overlap_itts_range_func(void *__restrict userdata,
 /**
  * Fill in itt_map with the vector of ITT_values that result from intersecting the triangles in ov.
  * Use a canonical order for triangles: (a,b) where  a < b.
- * Don't bother doing this if both a and b are part of the same co-planar cluster, as the
- * intersection for those will be handled by CDT, later.
  */
 static void calc_overlap_itts(Map<std::pair<int, int>, ITT_value> &itt_map,
                               const IMesh &tm,
-                              const CoplanarClusterInfo &clinfo,
                               const TriOverlaps &ov,
                               IMeshArena *arena)
 {
@@ -2584,12 +2595,8 @@ static void calc_overlap_itts(Map<std::pair<int, int>, ITT_value> &itt_map,
   for (const BVHTreeOverlap &olap : ov.overlap()) {
     std::pair<int, int> key = canon_int_pair(olap.indexA, olap.indexB);
     if (!itt_map.contains(key)) {
-      int ca = clinfo.tri_cluster(key.first);
-      int cb = clinfo.tri_cluster(key.second);
-      if (ca == NO_INDEX || ca != cb) {
-        itt_map.add_new(key, ITT_value());
-        data.intersect_pairs.append(key);
-      }
+      itt_map.add_new(key, ITT_value());
+      data.intersect_pairs.append(key);
     }
   }
   int tot_intersect_pairs = data.intersect_pairs.size();
@@ -2728,24 +2735,6 @@ static void calc_subdivided_tris(Array<IMesh> &r_tri_subdivided,
       0, overlap_tri_range_tot, &data, calc_subdivided_tri_range_func, &settings);
 }
 
-/* Get first index in ov where indexA == t. Assuming sorted on indexA. */
-static int find_first_overlap_index(const TriOverlaps &ov, int t)
-{
-  Span<BVHTreeOverlap> span = ov.overlap();
-  if (span.size() == 0) {
-    return -1;
-  }
-  BVHTreeOverlap bo{t, -1};
-  const BVHTreeOverlap *p = std::lower_bound(
-      span.begin(), span.end(), bo, [](const BVHTreeOverlap &o1, const BVHTreeOverlap &o2) {
-        return o1.indexA < o2.indexA;
-      });
-  if (p != span.end()) {
-    return p - span.begin();
-  }
-  return -1;
-}
-
 static CDT_data calc_cluster_subdivided(const CoplanarClusterInfo &clinfo,
                                         int c,
                                         const IMesh &tm,
@@ -2769,7 +2758,7 @@ static CDT_data calc_cluster_subdivided(const CoplanarClusterInfo &clinfo,
     if (dbg_level > 0) {
       std::cout << "find intersects with triangle " << t << " of cluster\n";
     }
-    int first_i = find_first_overlap_index(ov, t);
+    int first_i = ov.first_overlap_index(t);
     if (first_i == -1) {
       continue;
     }
@@ -2814,19 +2803,40 @@ static IMesh union_tri_subdivides(const blender::Array<IMesh> &tri_subdivided)
   return IMesh(faces);
 }
 
-static CoplanarClusterInfo find_clusters(const IMesh &tm, const Array<BoundingBox> &tri_bb)
+static CoplanarClusterInfo find_clusters(const IMesh &tm,
+                                         const Array<BoundingBox> &tri_bb,
+                                         const Map<std::pair<int, int>, ITT_value> &itt_map)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "FIND_CLUSTERS\n";
   }
   CoplanarClusterInfo ans(tm.face_size());
+  /* Use a VectorSet to get stable order from run to run. */
+  VectorSet<int> maybe_coplanar_tris;
+  maybe_coplanar_tris.reserve(2 * itt_map.size());
+  for (auto item : itt_map.items()) {
+    if (item.value.kind == ICOPLANAR) {
+      int t1 = item.key.first;
+      int t2 = item.key.second;
+      maybe_coplanar_tris.add_multiple({t1, t2});
+    }
+  }
+  if (dbg_level > 0) {
+    std::cout << "found " << maybe_coplanar_tris.size() << " possible coplanar tris\n";
+  }
+  if (maybe_coplanar_tris.size() == 0) {
+    if (dbg_level > 0) {
+      std::cout << "No possible coplanar tris, so no clusters\n";
+    }
+    return ans;
+  }
   /* There can be more than one #CoplanarCluster per plane. Accumulate them in
    * a Vector. We will have to merge some elements of the Vector as we discover
    * triangles that form intersection bridges between two or more clusters. */
   Map<Plane, Vector<CoplanarCluster>> plane_cls;
-  plane_cls.reserve(tm.face_size());
-  for (int t : tm.face_index_range()) {
+  plane_cls.reserve(maybe_coplanar_tris.size());
+  for (int t : maybe_coplanar_tris) {
     /* Use a canonical version of the plane for map index.
      * We can't just store the canonical version in the face
      * since canonicalizing loses the orientation of the normal. */
@@ -2847,8 +2857,11 @@ static CoplanarClusterInfo find_clusters(const IMesh &tm, const Array<BoundingBo
       Vector<CoplanarCluster *> int_cls;
       Vector<CoplanarCluster *> no_int_cls;
       for (CoplanarCluster &cl : curcls) {
+        if (dbg_level > 1) {
+          std::cout << "consider intersecting with cluster " << cl << "\n";
+        }
         if (bbs_might_intersect(tri_bb[t], cl.bounding_box()) &&
-            non_trivially_coplanar_intersects(tm, t, cl, proj_axis)) {
+            non_trivially_coplanar_intersects(tm, t, cl, proj_axis, itt_map)) {
           if (dbg_level > 1) {
             std::cout << "append to int_cls\n";
           }
@@ -3028,6 +3041,7 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
       for (int t : tm_in.face_index_range()) {
         std::cout << "shape(" << t << ") = " << shape_fn(tm_in.face(t)->orig) << "\n";
       }
+      write_obj_mesh(const_cast<IMesh &>(tm_in), "trimesh_input");
     }
   }
 #  ifdef PERFDEBUG
@@ -3049,10 +3063,6 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
       std::cout << "cleaned input mesh:\n" << tm_cleaned;
     }
   }
-  /* Temporary, while developing: populate all plane normals exactly. */
-  for (Face *f : tm_clean->faces()) {
-    f->populate_plane(true);
-  }
 #  ifdef PERFDEBUG
   double clean_time = PIL_check_seconds_timer();
   std::cout << "cleaned, time = " << clean_time - start_time << "\n";
@@ -3066,27 +3076,35 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
 #  ifdef PERFDEBUG
   double overlap_time = PIL_check_seconds_timer();
   std::cout << "intersect overlaps calculated, time = " << overlap_time - bb_calc_time << "\n";
-
 #  endif
-  CoplanarClusterInfo clinfo = find_clusters(*tm_clean, tri_bb);
-  if (dbg_level > 1) {
-    std::cout << clinfo;
+  for (int t : tm_clean->face_index_range()) {
+    if (tri_ov.first_overlap_index(t) != -1) {
+      tm_clean->face(t)->populate_plane(true);
+    }
   }
 #  ifdef PERFDEBUG
-  double find_cluster_time = PIL_check_seconds_timer();
-  std::cout << "clusters found, time = " << find_cluster_time - overlap_time << "\n";
-  doperfmax(0, tm_in.face_size());
-  doperfmax(1, clinfo.tot_cluster());
-  doperfmax(2, tri_ov.overlap().size());
+  double plane_populate = PIL_check_seconds_timer();
+  std::cout << "planes populated, time = " << plane_populate - overlap_time << "\n";
 #  endif
   /* itt_map((a,b)) will hold the intersection value resulting from intersecting
    * triangles with indices a and b, where a < b. */
   Map<std::pair<int, int>, ITT_value> itt_map;
   itt_map.reserve(tri_ov.overlap().size());
-  calc_overlap_itts(itt_map, *tm_clean, clinfo, tri_ov, arena);
+  calc_overlap_itts(itt_map, *tm_clean, tri_ov, arena);
 #  ifdef PERFDEBUG
   double itt_time = PIL_check_seconds_timer();
-  std::cout << "itts found, time = " << itt_time - find_cluster_time << "\n";
+  std::cout << "itts found, time = " << itt_time - plane_populate << "\n";
+#  endif
+  CoplanarClusterInfo clinfo = find_clusters(*tm_clean, tri_bb, itt_map);
+  if (dbg_level > 1) {
+    std::cout << clinfo;
+  }
+#  ifdef PERFDEBUG
+  double find_cluster_time = PIL_check_seconds_timer();
+  std::cout << "clusters found, time = " << find_cluster_time - itt_time << "\n";
+  doperfmax(0, tm_in.face_size());
+  doperfmax(1, clinfo.tot_cluster());
+  doperfmax(2, tri_ov.overlap().size());
 #  endif
   Array<IMesh> tri_subdivided(tm_clean->face_size());
   calc_subdivided_tris(tri_subdivided, *tm_clean, itt_map, clinfo, tri_ov, arena);

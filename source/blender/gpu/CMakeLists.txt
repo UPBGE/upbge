@@ -94,6 +94,7 @@ set(SRC
   opengl/gl_batch.cc
   opengl/gl_context.cc
   opengl/gl_drawlist.cc
+  opengl/gl_framebuffer.cc
   opengl/gl_shader.cc
   opengl/gl_shader_interface.cc
   opengl/gl_state.cc
@@ -136,6 +137,7 @@ set(SRC
   intern/gpu_codegen.h
   intern/gpu_context_private.hh
   intern/gpu_drawlist_private.hh
+  intern/gpu_framebuffer_private.hh
   intern/gpu_material_library.h
   intern/gpu_matrix_private.h
   intern/gpu_node_graph.h
@@ -152,9 +154,11 @@ set(SRC
   opengl/gl_batch.hh
   opengl/gl_context.hh
   opengl/gl_drawlist.hh
+  opengl/gl_framebuffer.hh
   opengl/gl_shader.hh
   opengl/gl_shader_interface.hh
   opengl/gl_state.hh
+  opengl/gl_texture.hh
   opengl/gl_uniform_buffer.hh
   opengl/gl_vertex_array.hh
 )

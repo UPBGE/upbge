@@ -81,7 +81,7 @@ ImageRender::ImageRender(KX_Scene *scene,
 
   m_internalFormat = GL_RGBA16F_ARB;
 
-  m_targetfb = GPU_framebuffer_create();
+  m_targetfb = GPU_framebuffer_create("game_fb");
 
   m_scene->AddImageRenderCamera(m_camera);
 }

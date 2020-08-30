@@ -73,7 +73,7 @@ class Shader {
 
 
  protected:
-  void print_errors(Span<const char *> sources, char *log);
+  void print_errors(Span<const char *> sources, char *log, const char *stage);
 };
 
 }  // namespace gpu

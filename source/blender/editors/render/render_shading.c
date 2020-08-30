@@ -56,6 +56,7 @@
 #include "BKE_linestyle.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
+#include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -95,40 +96,67 @@
 
 #include "render_intern.h"  // own include
 
+static bool object_materials_supported_poll_ex(bContext *C, const Object *ob);
+
 /* -------------------------------------------------------------------- */
 /** \name Local Utilities
  * \{ */
 
-/**
- * Object list for material operations.
- * has exception for pinned object.
- */
-static Object **object_array_for_shading(bContext *C, uint *r_objects_len)
+static bool object_array_for_shading_edit_mode_enabled_filter(Object *ob, void *user_data)
 {
-  ScrArea *area = CTX_wm_area(C);
-  SpaceProperties *sbuts = NULL;
-  View3D *v3d = NULL;
-  if (area != NULL) {
-    if (area->spacetype == SPACE_PROPERTIES) {
-      sbuts = area->spacedata.first;
-    }
-    else if (area->spacetype == SPACE_VIEW3D) {
-      v3d = area->spacedata.first;
+  bContext *C = user_data;
+  if (object_materials_supported_poll_ex(C, ob)) {
+    if (BKE_object_is_in_editmode(ob) == true) {
+      return true;
     }
   }
+  return false;
+}
 
-  Object **objects;
-  if (sbuts != NULL && sbuts->pinid && GS(sbuts->pinid->name) == ID_OB) {
-    objects = MEM_mallocN(sizeof(*objects), __func__);
-    objects[0] = (Object *)sbuts->pinid;
-    *r_objects_len = 1;
+static Object **object_array_for_shading_edit_mode_enabled(bContext *C, uint *r_objects_len)
+{
+  return ED_object_array_in_mode_or_selected(
+      C, object_array_for_shading_edit_mode_enabled_filter, C, r_objects_len);
+}
+
+static bool object_array_for_shading_edit_mode_disabled_filter(Object *ob, void *user_data)
+{
+  bContext *C = user_data;
+  if (object_materials_supported_poll_ex(C, ob)) {
+    if (BKE_object_is_in_editmode(ob) == false) {
+      return true;
+    }
   }
-  else {
-    ViewLayer *view_layer = CTX_data_view_layer(C);
-    objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        view_layer, v3d, r_objects_len);
+  return false;
+}
+
+static Object **object_array_for_shading_edit_mode_disabled(bContext *C, uint *r_objects_len)
+{
+  return ED_object_array_in_mode_or_selected(
+      C, object_array_for_shading_edit_mode_disabled_filter, C, r_objects_len);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Shared Operator Poll Functions
+ * \{ */
+
+static bool object_materials_supported_poll_ex(bContext *C, const Object *ob)
+{
+  if (!ED_operator_object_active_local_editable_ex(C, ob)) {
+    return false;
   }
-  return objects;
+  const ID *data = ob->data;
+  return (OB_TYPE_SUPPORT_MATERIAL(ob->type) &&
+          /* Object data checks. */
+          data && !ID_IS_LINKED(data) && !ID_IS_OVERRIDE_LIBRARY(data));
+}
+
+static bool object_materials_supported_poll(bContext *C)
+{
+  Object *ob = ED_object_context(C);
+  return object_materials_supported_poll_ex(C, ob);
 }
 
 /** \} */
@@ -170,7 +198,7 @@ void OBJECT_OT_material_slot_add(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = material_slot_add_exec;
-  ot->poll = ED_operator_object_active_local_editable;
+  ot->poll = object_materials_supported_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
@@ -221,7 +249,7 @@ void OBJECT_OT_material_slot_remove(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = material_slot_remove_exec;
-  ot->poll = ED_operator_object_active_local_editable;
+  ot->poll = object_materials_supported_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
@@ -242,7 +270,7 @@ static int material_slot_assign_exec(bContext *C, wmOperator *UNUSED(op))
   const Material *mat_active = obact ? BKE_object_material_get(obact, obact->actcol) : NULL;
 
   uint objects_len = 0;
-  Object **objects = object_array_for_shading(C, &objects_len);
+  Object **objects = object_array_for_shading_edit_mode_enabled(C, &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     short mat_nr_active = -1;
@@ -330,7 +358,7 @@ void OBJECT_OT_material_slot_assign(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = material_slot_assign_exec;
-  ot->poll = ED_operator_object_active_local_editable;
+  ot->poll = object_materials_supported_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
@@ -349,7 +377,7 @@ static int material_slot_de_select(bContext *C, bool select)
   const Material *mat_active = obact ? BKE_object_material_get(obact, obact->actcol) : NULL;
 
   uint objects_len = 0;
-  Object **objects = object_array_for_shading(C, &objects_len);
+  Object **objects = object_array_for_shading_edit_mode_enabled(C, &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     short mat_nr_active = -1;
@@ -614,8 +642,8 @@ void OBJECT_OT_material_slot_move(wmOperatorType *ot)
   ot->description = "Move the active material up/down in the list";
 
   /* api callbacks */
-  ot->poll = ED_operator_object_active_local_editable;
   ot->exec = material_slot_move_exec;
+  ot->poll = object_materials_supported_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -636,35 +664,38 @@ void OBJECT_OT_material_slot_move(wmOperatorType *ot)
 
 static int material_slot_remove_unused_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_active_object(C);
-
-  if (!ob) {
-    return OPERATOR_CANCELLED;
-  }
-
   /* Removing material slots in edit mode screws things up, see bug #21822.*/
-  if (ob == CTX_data_edit_object(C)) {
+  Object *ob_active = CTX_data_active_object(C);
+  if (ob_active && BKE_object_is_in_editmode(ob_active)) {
     BKE_report(op->reports, RPT_ERROR, "Unable to remove material slot in edit mode");
     return OPERATOR_CANCELLED;
   }
 
-  int actcol = ob->actcol;
-
+  Main *bmain = CTX_data_main(C);
   int removed = 0;
-  for (int slot = 1; slot <= ob->totcol; slot++) {
-    while (slot <= ob->totcol && !BKE_object_material_slot_used(ob->data, slot)) {
-      ob->actcol = slot;
-      BKE_object_material_slot_remove(CTX_data_main(C), ob);
 
-      if (actcol >= slot) {
-        actcol--;
+  uint objects_len = 0;
+  Object **objects = object_array_for_shading_edit_mode_disabled(C, &objects_len);
+  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+    Object *ob = objects[ob_index];
+    int actcol = ob->actcol;
+    for (int slot = 1; slot <= ob->totcol; slot++) {
+      while (slot <= ob->totcol && !BKE_object_material_slot_used(ob->data, slot)) {
+        ob->actcol = slot;
+        BKE_object_material_slot_remove(bmain, ob);
+
+        if (actcol >= slot) {
+          actcol--;
+        }
+
+        removed++;
       }
-
-      removed++;
     }
-  }
+    ob->actcol = actcol;
 
-  ob->actcol = actcol;
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  }
+  MEM_freeN(objects);
 
   if (!removed) {
     return OPERATOR_CANCELLED;
@@ -672,16 +703,15 @@ static int material_slot_remove_unused_exec(bContext *C, wmOperator *op)
 
   BKE_reportf(op->reports, RPT_INFO, "Removed %d slots", removed);
 
-  if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+  if (ob_active->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
-    BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
+    BKE_paint_proj_mesh_data_check(scene, ob_active, NULL, NULL, NULL, NULL);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
   }
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
-  WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob);
-  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_PREVIEW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob_active);
+  WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob_active);
+  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_PREVIEW, ob_active);
 
   return OPERATOR_FINISHED;
 }
@@ -695,7 +725,7 @@ void OBJECT_OT_material_slot_remove_unused(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = material_slot_remove_unused_exec;
-  ot->poll = ED_operator_object_active_local_editable;
+  ot->poll = object_materials_supported_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -768,8 +798,8 @@ void MATERIAL_OT_new(wmOperatorType *ot)
   ot->description = "Add a new material";
 
   /* api callbacks */
-  ot->poll = ED_operator_object_active_local_editable;
   ot->exec = new_material_exec;
+  ot->poll = object_materials_supported_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;

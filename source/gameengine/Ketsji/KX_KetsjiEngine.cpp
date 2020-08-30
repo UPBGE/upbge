@@ -639,6 +639,7 @@ void KX_KetsjiEngine::Render()
 
   // clear the entire game screen with the border color
   m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
+  m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 
   KX_Scene *firstscene = m_scenes->GetFront();
   const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
