@@ -3717,6 +3717,12 @@ static void rna_def_object(BlenderRNA *brna)
       prop, "rna_Object_matrix_basis_get", "rna_Object_matrix_basis_set", NULL);
   RNA_def_property_update(prop, NC_OBJECT | ND_TRANSFORM, "rna_Object_internal_update");
 
+  /* Game engine transition - Transform priority */
+  prop = RNA_def_property(srna, "override_game_transform_priority", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "transflag", OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY);
+  RNA_def_property_ui_text(prop, "Override game transform priority", "Override logic transform with depsgraph autotransform");
+  /* End of Game engine transition */
+
   /*parent_inverse*/
   prop = RNA_def_property(srna, "matrix_parent_inverse", PROP_FLOAT, PROP_MATRIX);
   RNA_def_property_float_sdna(prop, NULL, "parentinv");

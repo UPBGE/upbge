@@ -309,13 +309,18 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
 
     bool applyTransformToOrig = OrigObCanBeTransformedInRealtime(ob_orig);
+    bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
 
-    if (applyTransformToOrig) {
+    if (applyTransformToOrig && !skip_transform) {
       copy_m4_m4(ob_orig->obmat, obmat);
       BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
     }
-    copy_m4_m4(ob_eval->obmat, obmat);
-    BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
+
+
+    if (!skip_transform) {
+      copy_m4_m4(ob_eval->obmat, obmat);
+      BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
+    }
 
     if (!m_staticObject || m_forceIgnoreParentTx) {
       NodeList &children = m_pSGNode->GetSGChildren();
@@ -324,7 +329,7 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
       }
     }
 
-    if (applyTransformToOrig) {
+    if (applyTransformToOrig && !skip_transform) {
       /* NORMAL CASE */
       if (!m_staticObject && ob_orig->type != OB_MBALL) {
         DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
