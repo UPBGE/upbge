@@ -640,6 +640,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   for (KX_GameObject *gameobj : GetObjectList()) {
+    if (gameobj->GetBlenderObject()->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY) {
+      continue;
+    }
     gameobj->TagForUpdate(is_overlay_pass);
   }
 
