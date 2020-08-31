@@ -253,13 +253,6 @@ void KX_KetsjiEngine::EndFrame()
   const unsigned int height = m_canvas->GetHeight();
   GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
 
-#ifdef WITH_PYTHON
-  KX_GetActiveScene()->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
-#endif
-
-  DRW_state_reset();
-  GPU_depth_test(GPU_DEPTH_ALWAYS);
-
   // Show profiling info
   m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
   if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
