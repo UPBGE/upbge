@@ -666,28 +666,4 @@ void immThemeColorShadeAlpha(int colorid, int coloffset, int alphaoffset)
   immUniformColor4ub(col[0], col[1], col[2], col[3]);
 }
 
-/* Game engine transition */
-void immActivate_no_assert(void)
-{
-  //#if TRUST_NO_ONE
-  //  assert(initialized);
-  //  assert(imm.prim_type == GPU_PRIM_NONE); /* make sure we're not between a Begin/End pair */
-  //  assert(imm.vao_id == 0);
-  //#endif
-  imm.vao_id = GPU_vao_alloc();
-  imm.context = GPU_context_active_get();
-}
-
-void immDeactivate_no_assert(void)
-{
-  //#if TRUST_NO_ONE
-  //  assert(initialized);
-  //  assert(imm.prim_type == GPU_PRIM_NONE); /* make sure we're not between a Begin/End pair */
-  //  assert(imm.vao_id != 0);
-  //#endif
-  GPU_vao_free(imm.vao_id, imm.context);
-  imm.vao_id = 0;
-  imm.prev_enabled_attr_bits = 0;
-}
-
 #endif /* GPU_STANDALONE */
