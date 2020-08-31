@@ -201,6 +201,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     immUnbindProgram();
 
     DRW_state_reset();
+    GPU_depth_test(GPU_DEPTH_NONE);
 
     BLF_size(blf_mono_font, 11, 72);
 
