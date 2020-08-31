@@ -71,6 +71,11 @@ GPUContext::~GPUContext()
 {
   GPU_matrix_state_discard(matrix_state);
   delete state_manager;
+  delete front_left;
+  delete back_left;
+  delete front_right;
+  delete back_right;
+  delete imm;
 }
 
 bool GPUContext::is_active_on_thread(void)

@@ -20,140 +20,64 @@
 /** \file
  * \ingroup gpu
  *
- * GPU immediate mode work-alike
+ * Mimics old style opengl immediate mode drawing.
  */
 
 #ifndef GPU_STANDALONE
 #  include "UI_resources.h"
 #endif
 
-#include "GPU_attr_binding.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 #include "GPU_texture.h"
 
-#include "gpu_attr_binding_private.h"
 #include "gpu_context_private.hh"
-#include "gpu_primitive_private.h"
+#include "gpu_immediate_private.hh"
 #include "gpu_shader_private.hh"
 #include "gpu_vertex_format_private.h"
 
-#include <stdlib.h>
-#include <string.h>
+using namespace blender::gpu;
 
-typedef struct ImmediateDrawBuffer {
-  GLuint vbo_id;
-  GLubyte *buffer_data;
-  uint buffer_offset;
-  uint buffer_size;
-} ImmediateDrawBuffer;
-
-typedef struct {
-  /* TODO: organize this struct by frequency of change (run-time) */
-
-  GPUBatch *batch;
-  GPUContext *context;
-
-  /* current draw call */
-  bool strict_vertex_len;
-  uint vertex_len;
-  uint buffer_bytes_mapped;
-  ImmediateDrawBuffer *active_buffer;
-  GPUPrimType prim_type;
-  GPUVertFormat vertex_format;
-  ImmediateDrawBuffer draw_buffer;
-  ImmediateDrawBuffer draw_buffer_strict;
-
-  /* current vertex */
-  uint vertex_idx;
-  GLubyte *vertex_data;
-  uint16_t
-      unassigned_attr_bits; /* which attributes of current vertex have not been given values? */
-
-  GLuint vao_id;
-
-  GPUShader *bound_program;
-  GPUAttrBinding attr_binding;
-  uint16_t prev_enabled_attr_bits; /* <-- only affects this VAO, so we're ok */
-} Immediate;
-
-/* size of internal buffer */
-#define DEFAULT_INTERNAL_BUFFER_SIZE (4 * 1024 * 1024)
-
-static bool initialized = false;
-static Immediate imm;
+static Immediate *imm = NULL;
 
 void immInit(void)
 {
-#if TRUST_NO_ONE
-  assert(!initialized);
-#endif
-  memset(&imm, 0, sizeof(Immediate));
-
-  imm.draw_buffer.vbo_id = GPU_buf_alloc();
-  imm.draw_buffer.buffer_size = DEFAULT_INTERNAL_BUFFER_SIZE;
-  glBindBuffer(GL_ARRAY_BUFFER, imm.draw_buffer.vbo_id);
-  glBufferData(GL_ARRAY_BUFFER, imm.draw_buffer.buffer_size, NULL, GL_DYNAMIC_DRAW);
-  imm.draw_buffer_strict.vbo_id = GPU_buf_alloc();
-  imm.draw_buffer_strict.buffer_size = DEFAULT_INTERNAL_BUFFER_SIZE;
-  glBindBuffer(GL_ARRAY_BUFFER, imm.draw_buffer_strict.vbo_id);
-  glBufferData(GL_ARRAY_BUFFER, imm.draw_buffer_strict.buffer_size, NULL, GL_DYNAMIC_DRAW);
-
-  imm.prim_type = GPU_PRIM_NONE;
-  imm.strict_vertex_len = true;
-
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  initialized = true;
+  /* TODO Remove */
 }
 
 void immActivate(void)
 {
-#if TRUST_NO_ONE
-  assert(initialized);
-  assert(imm.prim_type == GPU_PRIM_NONE); /* make sure we're not between a Begin/End pair */
-  assert(imm.vao_id == 0);
-#endif
-  imm.vao_id = GPU_vao_alloc();
-  imm.context = GPU_context_active_get();
+  imm = GPU_context_active_get()->imm;
 }
 
 void immDeactivate(void)
 {
-#if TRUST_NO_ONE
-  assert(initialized);
-  assert(imm.prim_type == GPU_PRIM_NONE); /* make sure we're not between a Begin/End pair */
-  assert(imm.vao_id != 0);
-#endif
-  GPU_vao_free(imm.vao_id, imm.context);
-  imm.vao_id = 0;
-  imm.prev_enabled_attr_bits = 0;
+  imm = NULL;
 }
 
 void immDestroy(void)
 {
-  GPU_buf_free(imm.draw_buffer.vbo_id);
-  GPU_buf_free(imm.draw_buffer_strict.vbo_id);
-  initialized = false;
+  /* TODO Remove */
 }
 
 GPUVertFormat *immVertexFormat(void)
 {
-  GPU_vertformat_clear(&imm.vertex_format);
-  return &imm.vertex_format;
+  GPU_vertformat_clear(&imm->vertex_format);
+  return &imm->vertex_format;
 }
 
 void immBindShader(GPUShader *shader)
 {
-  BLI_assert(imm.bound_program == NULL);
+  BLI_assert(imm->shader == NULL);
 
-  imm.bound_program = shader;
+  imm->shader = shader;
 
-  if (!imm.vertex_format.packed) {
-    VertexFormat_pack(&imm.vertex_format);
+  if (!imm->vertex_format.packed) {
+    VertexFormat_pack(&imm->vertex_format);
+    imm->enabled_attr_bits = 0xFFFFu & ~(0xFFFFu << imm->vertex_format.attr_len);
   }
 
   GPU_shader_bind(shader);
-  get_attr_locations(&imm.vertex_format, &imm.attr_binding, shader);
   GPU_matrix_bind(shader);
   GPU_shader_set_srgb_uniform(shader);
 }
@@ -166,18 +90,19 @@ void immBindBuiltinProgram(eGPUBuiltinShader shader_id)
 
 void immUnbindProgram(void)
 {
-  BLI_assert(imm.bound_program != NULL);
+  BLI_assert(imm->shader != NULL);
+
   GPU_shader_unbind();
-  imm.bound_program = NULL;
+  imm->shader = NULL;
 }
 
 /* XXX do not use it. Special hack to use OCIO with batch API. */
 GPUShader *immGetShader(void)
 {
-  return imm.bound_program;
+  return imm->shader;
 }
 
-#if TRUST_NO_ONE
+#ifndef NDEBUG
 static bool vertex_count_makes_sense_for_primitive(uint vertex_len, GPUPrimType prim_type)
 {
   /* does vertex_len make sense for this primitive type? */
@@ -208,287 +133,122 @@ static bool vertex_count_makes_sense_for_primitive(uint vertex_len, GPUPrimType 
 
 void immBegin(GPUPrimType prim_type, uint vertex_len)
 {
-  GPU_context_active_get()->state_manager->apply_state();
+  BLI_assert(imm->prim_type == GPU_PRIM_NONE); /* Make sure we haven't already begun. */
+  BLI_assert(vertex_count_makes_sense_for_primitive(vertex_len, prim_type));
 
-#if TRUST_NO_ONE
-  assert(initialized);
-  assert(imm.prim_type == GPU_PRIM_NONE); /* make sure we haven't already begun */
-  assert(vertex_count_makes_sense_for_primitive(vertex_len, prim_type));
-  assert(imm.active_buffer == NULL);
-#endif
-  imm.prim_type = prim_type;
-  imm.vertex_len = vertex_len;
-  imm.vertex_idx = 0;
-  imm.unassigned_attr_bits = imm.attr_binding.enabled_bits;
+  imm->prim_type = prim_type;
+  imm->vertex_len = vertex_len;
+  imm->vertex_idx = 0;
+  imm->unassigned_attr_bits = imm->enabled_attr_bits;
 
-  /* how many bytes do we need for this draw call? */
-  const uint bytes_needed = vertex_buffer_size(&imm.vertex_format, vertex_len);
-  ImmediateDrawBuffer *active_buffer = imm.strict_vertex_len ? &imm.draw_buffer_strict :
-                                                               &imm.draw_buffer;
-  imm.active_buffer = active_buffer;
-
-  glBindBuffer(GL_ARRAY_BUFFER, active_buffer->vbo_id);
-
-  /* does the current buffer have enough room? */
-  const uint available_bytes = active_buffer->buffer_size - active_buffer->buffer_offset;
-
-  bool recreate_buffer = false;
-  if (bytes_needed > active_buffer->buffer_size) {
-    /* expand the internal buffer */
-    active_buffer->buffer_size = bytes_needed;
-    recreate_buffer = true;
-  }
-  else if (bytes_needed < DEFAULT_INTERNAL_BUFFER_SIZE &&
-           active_buffer->buffer_size > DEFAULT_INTERNAL_BUFFER_SIZE) {
-    /* shrink the internal buffer */
-    active_buffer->buffer_size = DEFAULT_INTERNAL_BUFFER_SIZE;
-    recreate_buffer = true;
-  }
-
-  /* ensure vertex data is aligned */
-  /* Might waste a little space, but it's safe. */
-  const uint pre_padding = padding(active_buffer->buffer_offset, imm.vertex_format.stride);
-
-  if (!recreate_buffer && ((bytes_needed + pre_padding) <= available_bytes)) {
-    active_buffer->buffer_offset += pre_padding;
-  }
-  else {
-    /* orphan this buffer & start with a fresh one */
-    /* this method works on all platforms, old & new */
-    glBufferData(GL_ARRAY_BUFFER, active_buffer->buffer_size, NULL, GL_DYNAMIC_DRAW);
-
-    active_buffer->buffer_offset = 0;
-  }
-
-  /*  printf("mapping %u to %u\n", imm.buffer_offset, imm.buffer_offset + bytes_needed - 1); */
-
-#if TRUST_NO_ONE
-  {
-    GLint bufsize;
-    glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufsize);
-    assert(active_buffer->buffer_offset + bytes_needed <= bufsize);
-  }
-#endif
-
-  active_buffer->buffer_data = (GLubyte *)glMapBufferRange(
-      GL_ARRAY_BUFFER,
-      active_buffer->buffer_offset,
-      bytes_needed,
-      GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT |
-          (imm.strict_vertex_len ? 0 : GL_MAP_FLUSH_EXPLICIT_BIT));
-
-#if TRUST_NO_ONE
-  assert(active_buffer->buffer_data != NULL);
-#endif
-
-  imm.buffer_bytes_mapped = bytes_needed;
-  imm.vertex_data = active_buffer->buffer_data;
+  imm->vertex_data = imm->begin();
 }
 
 void immBeginAtMost(GPUPrimType prim_type, uint vertex_len)
 {
-#if TRUST_NO_ONE
-  assert(vertex_len > 0);
-#endif
-
-  imm.strict_vertex_len = false;
+  BLI_assert(vertex_len > 0);
+  imm->strict_vertex_len = false;
   immBegin(prim_type, vertex_len);
 }
 
 GPUBatch *immBeginBatch(GPUPrimType prim_type, uint vertex_len)
 {
-#if TRUST_NO_ONE
-  assert(initialized);
-  assert(imm.prim_type == GPU_PRIM_NONE); /* make sure we haven't already begun */
-  assert(vertex_count_makes_sense_for_primitive(vertex_len, prim_type));
-#endif
-  imm.prim_type = prim_type;
-  imm.vertex_len = vertex_len;
-  imm.vertex_idx = 0;
-  imm.unassigned_attr_bits = imm.attr_binding.enabled_bits;
+  BLI_assert(imm->prim_type == GPU_PRIM_NONE); /* Make sure we haven't already begun. */
+  BLI_assert(vertex_count_makes_sense_for_primitive(vertex_len, prim_type));
 
-  GPUVertBuf *verts = GPU_vertbuf_create_with_format(&imm.vertex_format);
+  imm->prim_type = prim_type;
+  imm->vertex_len = vertex_len;
+  imm->vertex_idx = 0;
+  imm->unassigned_attr_bits = imm->enabled_attr_bits;
+
+  GPUVertBuf *verts = GPU_vertbuf_create_with_format(&imm->vertex_format);
   GPU_vertbuf_data_alloc(verts, vertex_len);
 
-  imm.buffer_bytes_mapped = GPU_vertbuf_size_get(verts);
-  imm.vertex_data = verts->data;
+  imm->vertex_data = verts->data;
 
-  imm.batch = GPU_batch_create_ex(prim_type, verts, NULL, GPU_BATCH_OWNS_VBO);
-  imm.batch->flag |= GPU_BATCH_BUILDING;
+  imm->batch = GPU_batch_create_ex(prim_type, verts, NULL, GPU_BATCH_OWNS_VBO);
+  imm->batch->flag |= GPU_BATCH_BUILDING;
 
-  return imm.batch;
+  return imm->batch;
 }
 
 GPUBatch *immBeginBatchAtMost(GPUPrimType prim_type, uint vertex_len)
 {
-  imm.strict_vertex_len = false;
+  BLI_assert(vertex_len > 0);
+  imm->strict_vertex_len = false;
   return immBeginBatch(prim_type, vertex_len);
-}
-
-static void immDrawSetup(void)
-{
-  /* set up VAO -- can be done during Begin or End really */
-  glBindVertexArray(imm.vao_id);
-
-  /* Enable/Disable vertex attributes as needed. */
-  if (imm.attr_binding.enabled_bits != imm.prev_enabled_attr_bits) {
-    for (uint loc = 0; loc < GPU_VERT_ATTR_MAX_LEN; loc++) {
-      bool is_enabled = imm.attr_binding.enabled_bits & (1 << loc);
-      bool was_enabled = imm.prev_enabled_attr_bits & (1 << loc);
-
-      if (is_enabled && !was_enabled) {
-        glEnableVertexAttribArray(loc);
-      }
-      else if (was_enabled && !is_enabled) {
-        glDisableVertexAttribArray(loc);
-      }
-    }
-
-    imm.prev_enabled_attr_bits = imm.attr_binding.enabled_bits;
-  }
-
-  const uint stride = imm.vertex_format.stride;
-
-  for (uint a_idx = 0; a_idx < imm.vertex_format.attr_len; a_idx++) {
-    const GPUVertAttr *a = &imm.vertex_format.attrs[a_idx];
-
-    const uint offset = imm.active_buffer->buffer_offset + a->offset;
-    const GLvoid *pointer = (const GLubyte *)0 + offset;
-
-    const uint loc = read_attr_location(&imm.attr_binding, a_idx);
-    const GLenum type = convert_comp_type_to_gl(static_cast<GPUVertCompType>(a->comp_type));
-
-    switch (a->fetch_mode) {
-      case GPU_FETCH_FLOAT:
-      case GPU_FETCH_INT_TO_FLOAT:
-        glVertexAttribPointer(loc, a->comp_len, type, GL_FALSE, stride, pointer);
-        break;
-      case GPU_FETCH_INT_TO_FLOAT_UNIT:
-        glVertexAttribPointer(loc, a->comp_len, type, GL_TRUE, stride, pointer);
-        break;
-      case GPU_FETCH_INT:
-        glVertexAttribIPointer(loc, a->comp_len, type, stride, pointer);
-    }
-  }
-
-  if (GPU_matrix_dirty_get()) {
-    GPU_matrix_bind(imm.bound_program);
-  }
 }
 
 void immEnd(void)
 {
-#if TRUST_NO_ONE
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-  assert(imm.active_buffer || imm.batch);
-#endif
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* Make sure we're between a Begin/End pair. */
+  BLI_assert(imm->vertex_data || imm->batch);
 
-  uint buffer_bytes_used;
-  if (imm.strict_vertex_len) {
-#if TRUST_NO_ONE
-    assert(imm.vertex_idx == imm.vertex_len); /* with all vertices defined */
-#endif
-    buffer_bytes_used = imm.buffer_bytes_mapped;
+  if (imm->strict_vertex_len) {
+    BLI_assert(imm->vertex_idx == imm->vertex_len); /* With all vertices defined. */
   }
   else {
-#if TRUST_NO_ONE
-    assert(imm.vertex_idx <= imm.vertex_len);
-#endif
-    if (imm.vertex_idx == imm.vertex_len) {
-      buffer_bytes_used = imm.buffer_bytes_mapped;
-    }
-    else {
-#if TRUST_NO_ONE
-      assert(imm.vertex_idx == 0 ||
-             vertex_count_makes_sense_for_primitive(imm.vertex_idx, imm.prim_type));
-#endif
-      imm.vertex_len = imm.vertex_idx;
-      buffer_bytes_used = vertex_buffer_size(&imm.vertex_format, imm.vertex_len);
-      /* unused buffer bytes are available to the next immBegin */
-    }
-    /* tell OpenGL what range was modified so it doesn't copy the whole mapped range */
-    glFlushMappedBufferRange(GL_ARRAY_BUFFER, 0, buffer_bytes_used);
+    BLI_assert(imm->vertex_idx <= imm->vertex_len);
+    BLI_assert(imm->vertex_idx == 0 ||
+               vertex_count_makes_sense_for_primitive(imm->vertex_idx, imm->prim_type));
   }
 
-  if (imm.batch) {
-    if (buffer_bytes_used != imm.buffer_bytes_mapped) {
-      GPU_vertbuf_data_resize(imm.batch->verts[0], imm.vertex_len);
+  if (imm->batch) {
+    if (imm->vertex_idx < imm->vertex_len) {
+      GPU_vertbuf_data_resize(imm->batch->verts[0], imm->vertex_len);
       /* TODO: resize only if vertex count is much smaller */
     }
-    GPU_batch_set_shader(imm.batch, imm.bound_program);
-    imm.batch->flag &= ~GPU_BATCH_BUILDING;
-    imm.batch = NULL; /* don't free, batch belongs to caller */
+    GPU_batch_set_shader(imm->batch, imm->shader);
+    imm->batch->flag &= ~GPU_BATCH_BUILDING;
+    imm->batch = NULL; /* don't free, batch belongs to caller */
   }
   else {
-    glUnmapBuffer(GL_ARRAY_BUFFER);
-
-    if (imm.vertex_len > 0) {
-      immDrawSetup();
-#ifdef __APPLE__
-      glDisable(GL_PRIMITIVE_RESTART);
-#endif
-      glDrawArrays(convert_prim_type_to_gl(imm.prim_type), 0, imm.vertex_len);
-#ifdef __APPLE__
-      glEnable(GL_PRIMITIVE_RESTART);
-#endif
-    }
-    /* These lines are causing crash on startup on some old GPU + drivers.
-     * They are not required so just comment them. (T55722) */
-    // glBindBuffer(GL_ARRAY_BUFFER, 0);
-    // glBindVertexArray(0);
-    /* prep for next immBegin */
-    imm.active_buffer->buffer_offset += buffer_bytes_used;
+    imm->end();
   }
 
-  /* prep for next immBegin */
-  imm.prim_type = GPU_PRIM_NONE;
-  imm.strict_vertex_len = true;
-  imm.active_buffer = NULL;
+  /* Prepare for next immBegin. */
+  imm->prim_type = GPU_PRIM_NONE;
+  imm->strict_vertex_len = true;
+  imm->vertex_data = NULL;
 }
 
 static void setAttrValueBit(uint attr_id)
 {
   uint16_t mask = 1 << attr_id;
-#if TRUST_NO_ONE
-  assert(imm.unassigned_attr_bits & mask); /* not already set */
-#endif
-  imm.unassigned_attr_bits &= ~mask;
+  BLI_assert(imm->unassigned_attr_bits & mask); /* not already set */
+  imm->unassigned_attr_bits &= ~mask;
 }
 
 /* --- generic attribute functions --- */
 
 void immAttr1f(uint attr_id, float x)
 {
-  GPUVertAttr *attr = &imm.vertex_format.attrs[attr_id];
-#if TRUST_NO_ONE
-  assert(attr_id < imm.vertex_format.attr_len);
-  assert(attr->comp_type == GPU_COMP_F32);
-  assert(attr->comp_len == 1);
-  assert(imm.vertex_idx < imm.vertex_len);
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-#endif
+  GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
+  BLI_assert(attr_id < imm->vertex_format.attr_len);
+  BLI_assert(attr->comp_type == GPU_COMP_F32);
+  BLI_assert(attr->comp_len == 1);
+  BLI_assert(imm->vertex_idx < imm->vertex_len);
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   setAttrValueBit(attr_id);
 
-  float *data = (float *)(imm.vertex_data + attr->offset);
-  /*  printf("%s %td %p\n", __FUNCTION__, (GLubyte*)data - imm.buffer_data, data); */
+  float *data = (float *)(imm->vertex_data + attr->offset);
+  /*  printf("%s %td %p\n", __FUNCTION__, (GLubyte*)data - imm->buffer_data, data); */
 
   data[0] = x;
 }
 
 void immAttr2f(uint attr_id, float x, float y)
 {
-  GPUVertAttr *attr = &imm.vertex_format.attrs[attr_id];
-#if TRUST_NO_ONE
-  assert(attr_id < imm.vertex_format.attr_len);
-  assert(attr->comp_type == GPU_COMP_F32);
-  assert(attr->comp_len == 2);
-  assert(imm.vertex_idx < imm.vertex_len);
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-#endif
+  GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
+  BLI_assert(attr_id < imm->vertex_format.attr_len);
+  BLI_assert(attr->comp_type == GPU_COMP_F32);
+  BLI_assert(attr->comp_len == 2);
+  BLI_assert(imm->vertex_idx < imm->vertex_len);
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   setAttrValueBit(attr_id);
 
-  float *data = (float *)(imm.vertex_data + attr->offset);
-  /*  printf("%s %td %p\n", __FUNCTION__, (GLubyte*)data - imm.buffer_data, data); */
+  float *data = (float *)(imm->vertex_data + attr->offset);
+  /*  printf("%s %td %p\n", __FUNCTION__, (GLubyte*)data - imm->buffer_data, data); */
 
   data[0] = x;
   data[1] = y;
@@ -496,18 +256,16 @@ void immAttr2f(uint attr_id, float x, float y)
 
 void immAttr3f(uint attr_id, float x, float y, float z)
 {
-  GPUVertAttr *attr = &imm.vertex_format.attrs[attr_id];
-#if TRUST_NO_ONE
-  assert(attr_id < imm.vertex_format.attr_len);
-  assert(attr->comp_type == GPU_COMP_F32);
-  assert(attr->comp_len == 3);
-  assert(imm.vertex_idx < imm.vertex_len);
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-#endif
+  GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
+  BLI_assert(attr_id < imm->vertex_format.attr_len);
+  BLI_assert(attr->comp_type == GPU_COMP_F32);
+  BLI_assert(attr->comp_len == 3);
+  BLI_assert(imm->vertex_idx < imm->vertex_len);
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   setAttrValueBit(attr_id);
 
-  float *data = (float *)(imm.vertex_data + attr->offset);
-  /*  printf("%s %td %p\n", __FUNCTION__, (GLubyte*)data - imm.buffer_data, data); */
+  float *data = (float *)(imm->vertex_data + attr->offset);
+  /*  printf("%s %td %p\n", __FUNCTION__, (GLubyte*)data - imm->buffer_data, data); */
 
   data[0] = x;
   data[1] = y;
@@ -516,18 +274,16 @@ void immAttr3f(uint attr_id, float x, float y, float z)
 
 void immAttr4f(uint attr_id, float x, float y, float z, float w)
 {
-  GPUVertAttr *attr = &imm.vertex_format.attrs[attr_id];
-#if TRUST_NO_ONE
-  assert(attr_id < imm.vertex_format.attr_len);
-  assert(attr->comp_type == GPU_COMP_F32);
-  assert(attr->comp_len == 4);
-  assert(imm.vertex_idx < imm.vertex_len);
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-#endif
+  GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
+  BLI_assert(attr_id < imm->vertex_format.attr_len);
+  BLI_assert(attr->comp_type == GPU_COMP_F32);
+  BLI_assert(attr->comp_len == 4);
+  BLI_assert(imm->vertex_idx < imm->vertex_len);
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   setAttrValueBit(attr_id);
 
-  float *data = (float *)(imm.vertex_data + attr->offset);
-  /*  printf("%s %td %p\n", __FUNCTION__, (GLubyte*)data - imm.buffer_data, data); */
+  float *data = (float *)(imm->vertex_data + attr->offset);
+  /*  printf("%s %td %p\n", __FUNCTION__, (GLubyte*)data - imm->buffer_data, data); */
 
   data[0] = x;
   data[1] = y;
@@ -537,34 +293,30 @@ void immAttr4f(uint attr_id, float x, float y, float z, float w)
 
 void immAttr1u(uint attr_id, uint x)
 {
-  GPUVertAttr *attr = &imm.vertex_format.attrs[attr_id];
-#if TRUST_NO_ONE
-  assert(attr_id < imm.vertex_format.attr_len);
-  assert(attr->comp_type == GPU_COMP_U32);
-  assert(attr->comp_len == 1);
-  assert(imm.vertex_idx < imm.vertex_len);
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-#endif
+  GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
+  BLI_assert(attr_id < imm->vertex_format.attr_len);
+  BLI_assert(attr->comp_type == GPU_COMP_U32);
+  BLI_assert(attr->comp_len == 1);
+  BLI_assert(imm->vertex_idx < imm->vertex_len);
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   setAttrValueBit(attr_id);
 
-  uint *data = (uint *)(imm.vertex_data + attr->offset);
+  uint *data = (uint *)(imm->vertex_data + attr->offset);
 
   data[0] = x;
 }
 
 void immAttr2i(uint attr_id, int x, int y)
 {
-  GPUVertAttr *attr = &imm.vertex_format.attrs[attr_id];
-#if TRUST_NO_ONE
-  assert(attr_id < imm.vertex_format.attr_len);
-  assert(attr->comp_type == GPU_COMP_I32);
-  assert(attr->comp_len == 2);
-  assert(imm.vertex_idx < imm.vertex_len);
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-#endif
+  GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
+  BLI_assert(attr_id < imm->vertex_format.attr_len);
+  BLI_assert(attr->comp_type == GPU_COMP_I32);
+  BLI_assert(attr->comp_len == 2);
+  BLI_assert(imm->vertex_idx < imm->vertex_len);
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   setAttrValueBit(attr_id);
 
-  int *data = (int *)(imm.vertex_data + attr->offset);
+  int *data = (int *)(imm->vertex_data + attr->offset);
 
   data[0] = x;
   data[1] = y;
@@ -572,17 +324,15 @@ void immAttr2i(uint attr_id, int x, int y)
 
 void immAttr2s(uint attr_id, short x, short y)
 {
-  GPUVertAttr *attr = &imm.vertex_format.attrs[attr_id];
-#if TRUST_NO_ONE
-  assert(attr_id < imm.vertex_format.attr_len);
-  assert(attr->comp_type == GPU_COMP_I16);
-  assert(attr->comp_len == 2);
-  assert(imm.vertex_idx < imm.vertex_len);
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-#endif
+  GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
+  BLI_assert(attr_id < imm->vertex_format.attr_len);
+  BLI_assert(attr->comp_type == GPU_COMP_I16);
+  BLI_assert(attr->comp_len == 2);
+  BLI_assert(imm->vertex_idx < imm->vertex_len);
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   setAttrValueBit(attr_id);
 
-  short *data = (short *)(imm.vertex_data + attr->offset);
+  short *data = (short *)(imm->vertex_data + attr->offset);
 
   data[0] = x;
   data[1] = y;
@@ -605,18 +355,16 @@ void immAttr4fv(uint attr_id, const float data[4])
 
 void immAttr3ub(uint attr_id, uchar r, uchar g, uchar b)
 {
-  GPUVertAttr *attr = &imm.vertex_format.attrs[attr_id];
-#if TRUST_NO_ONE
-  assert(attr_id < imm.vertex_format.attr_len);
-  assert(attr->comp_type == GPU_COMP_U8);
-  assert(attr->comp_len == 3);
-  assert(imm.vertex_idx < imm.vertex_len);
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-#endif
+  GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
+  BLI_assert(attr_id < imm->vertex_format.attr_len);
+  BLI_assert(attr->comp_type == GPU_COMP_U8);
+  BLI_assert(attr->comp_len == 3);
+  BLI_assert(imm->vertex_idx < imm->vertex_len);
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   setAttrValueBit(attr_id);
 
-  GLubyte *data = imm.vertex_data + attr->offset;
-  /*  printf("%s %td %p\n", __FUNCTION__, data - imm.buffer_data, data); */
+  uchar *data = imm->vertex_data + attr->offset;
+  /*  printf("%s %td %p\n", __FUNCTION__, data - imm->buffer_data, data); */
 
   data[0] = r;
   data[1] = g;
@@ -625,18 +373,16 @@ void immAttr3ub(uint attr_id, uchar r, uchar g, uchar b)
 
 void immAttr4ub(uint attr_id, uchar r, uchar g, uchar b, uchar a)
 {
-  GPUVertAttr *attr = &imm.vertex_format.attrs[attr_id];
-#if TRUST_NO_ONE
-  assert(attr_id < imm.vertex_format.attr_len);
-  assert(attr->comp_type == GPU_COMP_U8);
-  assert(attr->comp_len == 4);
-  assert(imm.vertex_idx < imm.vertex_len);
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-#endif
+  GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
+  BLI_assert(attr_id < imm->vertex_format.attr_len);
+  BLI_assert(attr->comp_type == GPU_COMP_U8);
+  BLI_assert(attr->comp_len == 4);
+  BLI_assert(imm->vertex_idx < imm->vertex_len);
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   setAttrValueBit(attr_id);
 
-  GLubyte *data = imm.vertex_data + attr->offset;
-  /*  printf("%s %td %p\n", __FUNCTION__, data - imm.buffer_data, data); */
+  uchar *data = imm->vertex_data + attr->offset;
+  /*  printf("%s %td %p\n", __FUNCTION__, data - imm->buffer_data, data); */
 
   data[0] = r;
   data[1] = g;
@@ -656,45 +402,39 @@ void immAttr4ubv(uint attr_id, const uchar data[4])
 
 void immAttrSkip(uint attr_id)
 {
-#if TRUST_NO_ONE
-  assert(attr_id < imm.vertex_format.attr_len);
-  assert(imm.vertex_idx < imm.vertex_len);
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-#endif
+  BLI_assert(attr_id < imm->vertex_format.attr_len);
+  BLI_assert(imm->vertex_idx < imm->vertex_len);
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   setAttrValueBit(attr_id);
 }
 
 static void immEndVertex(void) /* and move on to the next vertex */
 {
-#if TRUST_NO_ONE
-  assert(imm.prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
-  assert(imm.vertex_idx < imm.vertex_len);
-#endif
+  BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
+  BLI_assert(imm->vertex_idx < imm->vertex_len);
 
   /* Have all attributes been assigned values?
    * If not, copy value from previous vertex. */
-  if (imm.unassigned_attr_bits) {
-#if TRUST_NO_ONE
-    assert(imm.vertex_idx > 0); /* first vertex must have all attributes specified */
-#endif
-    for (uint a_idx = 0; a_idx < imm.vertex_format.attr_len; a_idx++) {
-      if ((imm.unassigned_attr_bits >> a_idx) & 1) {
-        const GPUVertAttr *a = &imm.vertex_format.attrs[a_idx];
+  if (imm->unassigned_attr_bits) {
+    BLI_assert(imm->vertex_idx > 0); /* first vertex must have all attributes specified */
+    for (uint a_idx = 0; a_idx < imm->vertex_format.attr_len; a_idx++) {
+      if ((imm->unassigned_attr_bits >> a_idx) & 1) {
+        const GPUVertAttr *a = &imm->vertex_format.attrs[a_idx];
 
 #if 0
-        printf("copying %s from vertex %u to %u\n", a->name, imm.vertex_idx - 1, imm.vertex_idx);
+        printf("copying %s from vertex %u to %u\n", a->name, imm->vertex_idx - 1, imm->vertex_idx);
 #endif
 
-        GLubyte *data = imm.vertex_data + a->offset;
-        memcpy(data, data - imm.vertex_format.stride, a->sz);
+        GLubyte *data = imm->vertex_data + a->offset;
+        memcpy(data, data - imm->vertex_format.stride, a->sz);
         /* TODO: consolidate copy of adjacent attributes */
       }
     }
   }
 
-  imm.vertex_idx++;
-  imm.vertex_data += imm.vertex_format.stride;
-  imm.unassigned_attr_bits = imm.attr_binding.enabled_bits;
+  imm->vertex_idx++;
+  imm->vertex_data += imm->vertex_format.stride;
+  imm->unassigned_attr_bits = imm->enabled_attr_bits;
 }
 
 void immVertex2f(uint attr_id, float x, float y)
@@ -749,64 +489,64 @@ void immVertex2iv(uint attr_id, const int data[2])
 
 void immUniform1f(const char *name, float x)
 {
-  GPU_shader_uniform_1f(imm.bound_program, name, x);
+  GPU_shader_uniform_1f(imm->shader, name, x);
 }
 
 void immUniform2f(const char *name, float x, float y)
 {
-  GPU_shader_uniform_2f(imm.bound_program, name, x, y);
+  GPU_shader_uniform_2f(imm->shader, name, x, y);
 }
 
 void immUniform2fv(const char *name, const float data[2])
 {
-  GPU_shader_uniform_2fv(imm.bound_program, name, data);
+  GPU_shader_uniform_2fv(imm->shader, name, data);
 }
 
 void immUniform3f(const char *name, float x, float y, float z)
 {
-  GPU_shader_uniform_3f(imm.bound_program, name, x, y, z);
+  GPU_shader_uniform_3f(imm->shader, name, x, y, z);
 }
 
 void immUniform3fv(const char *name, const float data[3])
 {
-  GPU_shader_uniform_3fv(imm.bound_program, name, data);
+  GPU_shader_uniform_3fv(imm->shader, name, data);
 }
 
 void immUniform4f(const char *name, float x, float y, float z, float w)
 {
-  GPU_shader_uniform_4f(imm.bound_program, name, x, y, z, w);
+  GPU_shader_uniform_4f(imm->shader, name, x, y, z, w);
 }
 
 void immUniform4fv(const char *name, const float data[4])
 {
-  GPU_shader_uniform_4fv(imm.bound_program, name, data);
+  GPU_shader_uniform_4fv(imm->shader, name, data);
 }
 
 /* Note array index is not supported for name (i.e: "array[0]"). */
 void immUniformArray4fv(const char *name, const float *data, int count)
 {
-  GPU_shader_uniform_4fv_array(imm.bound_program, name, count, (float(*)[4])data);
+  GPU_shader_uniform_4fv_array(imm->shader, name, count, (float(*)[4])data);
 }
 
 void immUniformMatrix4fv(const char *name, const float data[4][4])
 {
-  GPU_shader_uniform_mat4(imm.bound_program, name, data);
+  GPU_shader_uniform_mat4(imm->shader, name, data);
 }
 
 void immUniform1i(const char *name, int x)
 {
-  GPU_shader_uniform_1i(imm.bound_program, name, x);
+  GPU_shader_uniform_1i(imm->shader, name, x);
 }
 
 void immBindTexture(const char *name, GPUTexture *tex)
 {
-  int binding = GPU_shader_get_texture_binding(imm.bound_program, name);
+  int binding = GPU_shader_get_texture_binding(imm->shader, name);
   GPU_texture_bind(tex, binding);
 }
 
 void immBindTextureSampler(const char *name, GPUTexture *tex, eGPUSamplerState state)
 {
-  int binding = GPU_shader_get_texture_binding(imm.bound_program, name);
+  int binding = GPU_shader_get_texture_binding(imm->shader, name);
   GPU_texture_bind_ex(tex, state, binding, true);
 }
 
@@ -814,10 +554,10 @@ void immBindTextureSampler(const char *name, GPUTexture *tex, eGPUSamplerState s
 
 void immUniformColor4f(float r, float g, float b, float a)
 {
-  int32_t uniform_loc = GPU_shader_get_builtin_uniform(imm.bound_program, GPU_UNIFORM_COLOR);
+  int32_t uniform_loc = GPU_shader_get_builtin_uniform(imm->shader, GPU_UNIFORM_COLOR);
   BLI_assert(uniform_loc != -1);
   float data[4] = {r, g, b, a};
-  GPU_shader_uniform_vector(imm.bound_program, uniform_loc, 4, 1, data);
+  GPU_shader_uniform_vector(imm->shader, uniform_loc, 4, 1, data);
 }
 
 void immUniformColor4fv(const float rgba[4])
@@ -839,8 +579,6 @@ void immUniformColor3fvAlpha(const float rgb[3], float a)
 {
   immUniformColor4f(rgb[0], rgb[1], rgb[2], a);
 }
-
-/* TODO: v-- treat as sRGB? --v */
 
 void immUniformColor3ub(uchar r, uchar g, uchar b)
 {

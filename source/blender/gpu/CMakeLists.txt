@@ -57,7 +57,6 @@ set(INC_SYS
 )
 
 set(SRC
-  intern/gpu_attr_binding.cc
   intern/gpu_batch.cc
   intern/gpu_batch_presets.c
   intern/gpu_batch_utils.c
@@ -77,7 +76,6 @@ set(SRC
   intern/gpu_matrix.cc
   intern/gpu_node_graph.c
   intern/gpu_platform.cc
-  intern/gpu_primitive.c
   intern/gpu_select.c
   intern/gpu_select_pick.c
   intern/gpu_select_sample_query.c
@@ -95,13 +93,13 @@ set(SRC
   opengl/gl_context.cc
   opengl/gl_drawlist.cc
   opengl/gl_framebuffer.cc
+  opengl/gl_immediate.cc
   opengl/gl_shader.cc
   opengl/gl_shader_interface.cc
   opengl/gl_state.cc
   opengl/gl_uniform_buffer.cc
   opengl/gl_vertex_array.cc
 
-  GPU_attr_binding.h
   GPU_batch.h
   GPU_batch_presets.h
   GPU_batch_utils.h
@@ -131,17 +129,16 @@ set(SRC
   GPU_vertex_format.h
   GPU_viewport.h
 
-  intern/gpu_attr_binding_private.h
   intern/gpu_backend.hh
   intern/gpu_batch_private.hh
   intern/gpu_codegen.h
   intern/gpu_context_private.hh
   intern/gpu_drawlist_private.hh
   intern/gpu_framebuffer_private.hh
+  intern/gpu_immediate_private.hh
   intern/gpu_material_library.h
   intern/gpu_matrix_private.h
   intern/gpu_node_graph.h
-  intern/gpu_primitive_private.h
   intern/gpu_private.h
   intern/gpu_select_private.h
   intern/gpu_shader_private.hh
@@ -155,6 +152,8 @@ set(SRC
   opengl/gl_context.hh
   opengl/gl_drawlist.hh
   opengl/gl_framebuffer.hh
+  opengl/gl_immediate.hh
+  opengl/gl_primitive.hh
   opengl/gl_shader.hh
   opengl/gl_shader_interface.hh
   opengl/gl_state.hh

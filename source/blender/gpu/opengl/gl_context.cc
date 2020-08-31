@@ -31,6 +31,7 @@
 
 #include "gpu_context_private.hh"
 
+#include "gl_immediate.hh"
 #include "gl_state.hh"
 
 #include "gl_backend.hh" /* TODO remove */
@@ -55,6 +56,7 @@ GLContext::GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   state_manager = new GLStateManager();
+  imm = new GLImmediate();
   ghost_window_ = ghost_window;
 
   if (ghost_window) {
@@ -101,19 +103,6 @@ GLContext::~GLContext()
   }
   glDeleteVertexArrays(1, &default_vao_);
   glDeleteBuffers(1, &default_attr_vbo_);
-
-  if (front_left) {
-    delete front_left;
-  }
-  if (back_left) {
-    delete back_left;
-  }
-  if (front_right) {
-    delete front_right;
-  }
-  if (back_right) {
-    delete back_right;
-  }
 }
 
 /** \} */
