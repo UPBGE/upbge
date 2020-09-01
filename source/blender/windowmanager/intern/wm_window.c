@@ -2533,9 +2533,14 @@ void *WM_opengl_context_create_blenderplayer(void *syshandle)
    * So we should call this function only on the main thread.
    */
   BLI_assert(BLI_thread_is_main());
-  BLI_assert(GPU_framebuffer_active_get() == NULL);
+  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
+
+  GHOST_GLSettings glSettings = {0};
+  if (G.debug & G_DEBUG_GPU) {
+    glSettings.flags |= GHOST_glDebugContext;
+  }
   g_system = syshandle;
-  return GHOST_CreateOpenGLContext(g_system);
+  return GHOST_CreateOpenGLContext(g_system, glSettings);
 }
 
 /* Reuse wm->message_bus when we restart game or load a new .blend */
