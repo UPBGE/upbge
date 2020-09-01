@@ -34,13 +34,6 @@
 
 #include <mutex>
 
-/* Enabled on MacOS by default since there is no support for debug callbacks. */
-#if defined(DEBUG) && defined(__APPLE__)
-#  define GL_CHECK_ERROR(info) GLContext::check_error(info)
-#else
-#  define GL_CHECK_ERROR(info)
-#endif
-
 namespace blender {
 namespace gpu {
 
@@ -61,8 +54,6 @@ class GLSharedOrphanLists {
 class GLContext : public GPUContext {
   /* TODO(fclem) these needs to become private. */
  public:
-  /** Default VAO for procedural draw calls. */
-  GLuint default_vao_;
   /** VBO for missing vertex attrib binding. Avoid undefined behavior on some implementation. */
   GLuint default_attr_vbo_;
   /**

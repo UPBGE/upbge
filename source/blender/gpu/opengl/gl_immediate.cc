@@ -30,6 +30,7 @@
 #include "gpu_vertex_format_private.h"
 
 #include "gl_context.hh"
+#include "gl_debug.hh"
 #include "gl_primitive.hh"
 #include "gl_vertex_array.hh"
 
@@ -44,6 +45,7 @@ namespace blender::gpu {
 GLImmediate::GLImmediate()
 {
   glGenVertexArrays(1, &vao_id_);
+  glBindVertexArray(vao_id_); /* Necessary for glObjectLabel. */
 
   buffer.buffer_size = DEFAULT_INTERNAL_BUFFER_SIZE;
   glGenBuffers(1, &buffer.vbo_id);
@@ -56,6 +58,7 @@ GLImmediate::GLImmediate()
   glBufferData(GL_ARRAY_BUFFER, buffer_strict.buffer_size, NULL, GL_DYNAMIC_DRAW);
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindVertexArray(0);
 
 #ifndef __APPLE__
   if ((G.debug & G_DEBUG_GPU) && (GLEW_VERSION_4_3 || GLEW_KHR_debug)) {
@@ -86,6 +89,8 @@ uchar *GLImmediate::begin()
   const size_t bytes_needed = vertex_buffer_size(&vertex_format, vertex_len);
   /* Does the current buffer have enough room? */
   const size_t available_bytes = buffer_size() - buffer_offset();
+
+  GL_CHECK_ERROR("Immediate Pre-Begin");
 
   glBindBuffer(GL_ARRAY_BUFFER, vbo_id());
 
@@ -129,6 +134,7 @@ uchar *GLImmediate::begin()
   }
   void *data = glMapBufferRange(GL_ARRAY_BUFFER, buffer_offset(), bytes_needed, access);
   BLI_assert(data != NULL);
+  GL_CHECK_ERROR("Immediate Post-Begin");
 
   bytes_mapped_ = bytes_needed;
   return (uchar *)data;
@@ -149,6 +155,8 @@ void GLImmediate::end(void)
     glFlushMappedBufferRange(GL_ARRAY_BUFFER, 0, buffer_bytes_used);
   }
   glUnmapBuffer(GL_ARRAY_BUFFER);
+
+  GL_CHECK_ERROR("Immediate Post-Unmap");
 
   if (vertex_len > 0) {
     GPU_context_active_get()->state_manager->apply_state();
@@ -173,6 +181,8 @@ void GLImmediate::end(void)
      * They are not required so just comment them. (T55722) */
     // glBindBuffer(GL_ARRAY_BUFFER, 0);
     // glBindVertexArray(0);
+
+    GL_CHECK_ERROR("Immediate Post-drawing");
   }
 
   buffer_offset() += buffer_bytes_used;
