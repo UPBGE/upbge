@@ -52,6 +52,10 @@ class GLSharedOrphanLists {
 };
 
 class GLContext : public GPUContext {
+ public:
+  /** Used for debugging purpose. Bitflags of all bound slots. */
+  uint16_t bound_ubo_slots;
+
   /* TODO(fclem) these needs to become private. */
  public:
   /** VBO for missing vertex attrib binding. Avoid undefined behavior on some implementation. */
@@ -88,8 +92,6 @@ class GLContext : public GPUContext {
   void fbo_free(GLuint fbo_id);
   void vao_cache_register(GLVaoCache *cache);
   void vao_cache_unregister(GLVaoCache *cache);
-  void framebuffer_register(struct GPUFrameBuffer *fb);
-  void framebuffer_unregister(struct GPUFrameBuffer *fb);
 };
 
 }  // namespace gpu

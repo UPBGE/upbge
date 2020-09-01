@@ -36,6 +36,7 @@
 #include "gl_debug.hh"
 #include "gl_immediate.hh"
 #include "gl_state.hh"
+#include "gl_uniform_buffer.hh"
 
 #include "gl_backend.hh" /* TODO remove */
 #include "gl_context.hh"
@@ -146,6 +147,10 @@ void GLContext::activate(void)
       back_right->size_set(w, h);
     }
   }
+
+  /* Not really following the state but we should consider
+   * no ubo bound when activating a context. */
+  bound_ubo_slots = 0;
 }
 
 void GLContext::deactivate(void)
@@ -269,28 +274,6 @@ void GLContext::vao_cache_unregister(GLVaoCache *cache)
   lists_mutex_.lock();
   vao_caches_.remove(cache);
   lists_mutex_.unlock();
-}
-
-void GLContext::framebuffer_register(struct GPUFrameBuffer *fb)
-{
-#ifdef DEBUG
-  lists_mutex_.lock();
-  framebuffers_.add(fb);
-  lists_mutex_.unlock();
-#else
-  UNUSED_VARS(fb);
-#endif
-}
-
-void GLContext::framebuffer_unregister(struct GPUFrameBuffer *fb)
-{
-#ifdef DEBUG
-  lists_mutex_.lock();
-  framebuffers_.remove(fb);
-  lists_mutex_.unlock();
-#else
-  UNUSED_VARS(fb);
-#endif
 }
 
 /** \} */

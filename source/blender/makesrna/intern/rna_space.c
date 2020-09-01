@@ -243,9 +243,9 @@ const EnumPropertyItem rna_enum_space_action_mode_items[] = {
 #undef SACT_ITEM_MASK
 #undef SACT_ITEM_CACHEFILE
 
-#define SI_ITEM_VIEW(name, icon) \
+#define SI_ITEM_VIEW(identifier, name, icon) \
   { \
-    SI_MODE_VIEW, "VIEW", icon, name, "View the image" \
+    SI_MODE_VIEW, identifier, icon, name, "View the image" \
   }
 #define SI_ITEM_UV \
   { \
@@ -261,7 +261,7 @@ const EnumPropertyItem rna_enum_space_action_mode_items[] = {
   }
 
 const EnumPropertyItem rna_enum_space_image_mode_all_items[] = {
-    SI_ITEM_VIEW("View", ICON_FILE_IMAGE),
+    SI_ITEM_VIEW("VIEW", "View", ICON_FILE_IMAGE),
     SI_ITEM_UV,
     SI_ITEM_PAINT,
     SI_ITEM_MASK,
@@ -269,14 +269,14 @@ const EnumPropertyItem rna_enum_space_image_mode_all_items[] = {
 };
 
 static const EnumPropertyItem rna_enum_space_image_mode_ui_items[] = {
-    SI_ITEM_VIEW("View", ICON_FILE_IMAGE),
+    SI_ITEM_VIEW("VIEW", "View", ICON_FILE_IMAGE),
     SI_ITEM_PAINT,
     SI_ITEM_MASK,
     {0, NULL, 0, NULL, NULL},
 };
 
 const EnumPropertyItem rna_enum_space_image_mode_items[] = {
-    SI_ITEM_VIEW("Image Editor", ICON_IMAGE),
+    SI_ITEM_VIEW("IMAGE_EDITOR", "Image Editor", ICON_IMAGE),
     SI_ITEM_UV,
     {0, NULL, 0, NULL, NULL},
 };
@@ -3792,14 +3792,14 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   prop = RNA_def_property(srna, "texture_paint_mode_opacity", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, NULL, "overlay.texture_paint_mode_opacity");
   RNA_def_property_ui_text(
-      prop, "Stencil Opacity", "Opacity of the texture paint mode stencil mask overlay");
+      prop, "Stencil Mask Opacity", "Opacity of the texture paint mode stencil mask overlay");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
   prop = RNA_def_property(srna, "vertex_paint_mode_opacity", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, NULL, "overlay.vertex_paint_mode_opacity");
   RNA_def_property_ui_text(
-      prop, "Stencil Opacity", "Opacity of the texture paint mode stencil mask overlay");
+      prop, "Stencil Mask Opacity", "Opacity of the texture paint mode stencil mask overlay");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 

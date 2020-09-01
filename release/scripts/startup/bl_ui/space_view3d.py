@@ -920,9 +920,8 @@ class ShowHideMenu:
         layout.operator("%s.hide" % self._operator_name, text="Hide Unselected").unselected = True
 
 
-# Standard transforms which apply to all cases
-# NOTE: this doesn't seem to be able to be used directly
-class VIEW3D_MT_transform_base(Menu):
+# Standard transforms which apply to all cases (mix-in class, not used directly).
+class VIEW3D_MT_transform_base:
     bl_label = "Transform"
     bl_category = "View"
 
@@ -949,7 +948,7 @@ class VIEW3D_MT_transform_base(Menu):
 
 
 # Generic transform menu - geometry types
-class VIEW3D_MT_transform(VIEW3D_MT_transform_base):
+class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
     def draw(self, context):
         # base menu
         VIEW3D_MT_transform_base.draw(self, context)
@@ -969,7 +968,7 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base):
 
 
 # Object-specific extensions to Transform menu
-class VIEW3D_MT_transform_object(VIEW3D_MT_transform_base):
+class VIEW3D_MT_transform_object(VIEW3D_MT_transform_base, Menu):
     def draw(self, context):
         layout = self.layout
 
@@ -1001,7 +1000,7 @@ class VIEW3D_MT_transform_object(VIEW3D_MT_transform_base):
 
 
 # Armature EditMode extensions to Transform menu
-class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base):
+class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
     def draw(self, context):
         layout = self.layout
 
@@ -6526,7 +6525,7 @@ class VIEW3D_PT_overlay_vertex_paint(Panel):
         col = layout.column()
         col.active = display_all
 
-        col.prop(overlay, "vertex_paint_mode_opacity", text="Opacity")
+        col.prop(overlay, "vertex_paint_mode_opacity")
         col.prop(overlay, "show_paint_wire")
 
 
@@ -7424,7 +7423,6 @@ classes = (
     VIEW3D_HT_tool_header,
     VIEW3D_MT_editor_menus,
     VIEW3D_MT_transform,
-    VIEW3D_MT_transform_base,
     VIEW3D_MT_transform_object,
     VIEW3D_MT_transform_armature,
     VIEW3D_MT_mirror,
