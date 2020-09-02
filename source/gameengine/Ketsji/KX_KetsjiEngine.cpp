@@ -39,7 +39,9 @@
 #include <boost/format.hpp>
 
 #include "DNA_scene_types.h"
+#include "DRW_render.h"
 #include "GPU_framebuffer.h"
+#include "GPU_matrix.h"
 #include "GPU_state.h"
 
 #include "BL_BlenderConverter.h"
@@ -244,9 +246,12 @@ void KX_KetsjiEngine::BeginFrame()
 void KX_KetsjiEngine::EndFrame()
 {
 
-#ifdef WITH_PYTHON
-  KX_GetActiveScene()->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
-#endif
+  DRW_state_reset();
+  GPU_matrix_reset();
+  GPU_depth_test(GPU_DEPTH_ALWAYS);
+  const unsigned int width = m_canvas->GetWidth();
+  const unsigned int height = m_canvas->GetHeight();
+  GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
 
   // Show profiling info
   m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
@@ -634,11 +639,16 @@ void KX_KetsjiEngine::Render()
   std::vector<FrameRenderData> frameDataList;
   GetFrameRenderData(frameDataList);
 
+  const int x = m_canvas->GetWindowArea().GetLeft();
+  const int y = m_canvas->GetWindowArea().GetBottom();
   const int width = m_canvas->GetWidth();
   const int height = m_canvas->GetHeight();
 
   // clear the entire game screen with the border color
-  m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
+  m_rasterizer->SetViewport(x, y, width + 1, height + 1);
+  m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+  GPU_scissor_test(true);
+  m_rasterizer->SetScissor(x, y, width + 1, height + 1);
 
   KX_Scene *firstscene = m_scenes->GetFront();
   const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
@@ -895,6 +905,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   const int height = viewport.GetHeight();
   m_rasterizer->SetViewport(left, bottom, width + 1, height + 1);
   m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+  GPU_scissor_test(true);
   m_rasterizer->SetScissor(left, bottom, width + 1, height + 1);
 
   /* Clear the depth after setting the scene viewport/scissor

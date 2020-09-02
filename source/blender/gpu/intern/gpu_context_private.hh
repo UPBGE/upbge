@@ -29,6 +29,8 @@
 
 #include "GPU_context.h"
 
+#include "gpu_framebuffer_private.hh"
+#include "gpu_immediate_private.hh"
 #include "gpu_shader_private.hh"
 #include "gpu_state_private.hh"
 
@@ -38,21 +40,35 @@
 #include <unordered_set>
 #include <vector>
 
-struct GPUFrameBuffer;
 struct GPUMatrixState;
 
 struct GPUContext {
  public:
   /** State managment */
   blender::gpu::Shader *shader = NULL;
-  GPUFrameBuffer *current_fbo = NULL;
+  blender::gpu::FrameBuffer *active_fb = NULL;
   GPUMatrixState *matrix_state = NULL;
   blender::gpu::GPUStateManager *state_manager = NULL;
+  blender::gpu::Immediate *imm = NULL;
+
+  /**
+   * All 4 window framebuffers.
+   * None of them are valid in an offscreen context.
+   * Right framebuffers are only available if using stereo rendering.
+   * Front framebuffers contains (in principle, but not always) the last frame color.
+   * Default framebuffer is back_left.
+   */
+  blender::gpu::FrameBuffer *back_left = NULL;
+  blender::gpu::FrameBuffer *front_left = NULL;
+  blender::gpu::FrameBuffer *back_right = NULL;
+  blender::gpu::FrameBuffer *front_right = NULL;
 
  protected:
   /** Thread on which this context is active. */
   pthread_t thread_;
   bool is_active_;
+  /** Avoid including GHOST headers. Can be NULL for offscreen contexts. */
+  void *ghost_window_;
 
  public:
   GPUContext();
@@ -66,9 +82,6 @@ struct GPUContext {
   MEM_CXX_CLASS_ALLOC_FUNCS("GPUContext")
 };
 
-GLuint GPU_vao_default(void);
-GLuint GPU_framebuffer_default(void);
-
 /* These require a gl ctx bound. */
 GLuint GPU_buf_alloc(void);
 GLuint GPU_tex_alloc(void);
@@ -81,9 +94,6 @@ void GPU_tex_free(GLuint tex_id);
 /* These two need the ctx the id was created with. */
 void GPU_vao_free(GLuint vao_id, GPUContext *ctx);
 void GPU_fbo_free(GLuint fbo_id, GPUContext *ctx);
-
-void gpu_context_add_framebuffer(GPUContext *ctx, struct GPUFrameBuffer *fb);
-void gpu_context_remove_framebuffer(GPUContext *ctx, struct GPUFrameBuffer *fb);
 
 void gpu_context_active_framebuffer_set(GPUContext *ctx, struct GPUFrameBuffer *fb);
 struct GPUFrameBuffer *gpu_context_active_framebuffer_get(GPUContext *ctx);

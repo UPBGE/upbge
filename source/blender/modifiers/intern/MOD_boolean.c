@@ -324,6 +324,9 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
 #ifdef WITH_GMP
         bool use_exact = bmd->solver == eBooleanModifierSolver_Exact;
 #else
+        if (bmd->solver == eBooleanModifierSolver_Exact) {
+          BKE_modifier_set_error(md, "Compiled without GMP, using fast solver");
+        }
         bool use_exact = false;
 #endif
 
@@ -390,19 +393,14 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, &ptr, "object", 0, NULL, ICON_NONE);
+  const bool use_exact = RNA_enum_get(&ptr, "solver") == eBooleanModifierSolver_Exact;
 
-#ifdef WITH_GMP
-  bool use_exact = RNA_enum_get(&ptr, "solver") == eBooleanModifierSolver_Exact;
-#else
-  bool use_exact = false;
-#endif
+  uiItemR(layout, &ptr, "object", 0, NULL, ICON_NONE);
+  uiItemR(layout, &ptr, "solver", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+
   if (!use_exact) {
     uiItemR(layout, &ptr, "double_threshold", 0, NULL, ICON_NONE);
   }
-#ifdef WITH_GMP
-  uiItemR(layout, &ptr, "solver", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-#endif
 
   if (G.debug) {
     uiLayout *col = uiLayoutColumn(layout, true);

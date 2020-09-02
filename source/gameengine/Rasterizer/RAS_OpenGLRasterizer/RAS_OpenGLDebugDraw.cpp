@@ -141,8 +141,14 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
-    GPU_depth_test(GPU_DEPTH_NONE);
-    //GPU_blend(true);
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    GPU_matrix_push();
+    GPU_matrix_push_projection();
+    GPU_matrix_projection_set(rv3d->winmat);
+    GPU_matrix_set(rv3d->viewmat);
+
+    GPU_depth_test(GPU_DEPTH_ALWAYS);
     GPU_line_smooth(true);
     GPU_line_width(1.0f);
     immBegin(GPU_PRIM_LINES, 2 * debugDraw->m_lines.size());
@@ -157,26 +163,28 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     immEnd();
 
     /* Reset defaults */
-    //GPU_blend(false);
     GPU_line_smooth(false);
+    GPU_matrix_pop();
+    GPU_matrix_pop_projection();
+    GPU_depth_test(GPU_DEPTH_ALWAYS);
+    GPU_face_culling(GPU_CULL_NONE);
 
     immUnbindProgram();
   }
 
+#ifdef WITH_PYTHON
+  KX_GetActiveScene()->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
+#endif
+
+  DRW_state_reset();
+  GPU_depth_test(GPU_DEPTH_ALWAYS);
+
   /* The Performances profiler */
 
-  GPU_matrix_reset();
-
   if (debugDraw->m_boxes2D.size()) {
-    GPU_depth_test(GPU_DEPTH_NONE);
-    // rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
-    /* Warning: I didn't find the equivalent in GPU_ API */
-    // rasty->DisableForText();
     GPU_face_culling(GPU_CULL_BACK);
-
     const unsigned int width = canvas->GetWidth();
     const unsigned int height = canvas->GetHeight();
-    GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
 
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -194,6 +202,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     immUnbindProgram();
 
     DRW_state_reset();
+    GPU_depth_test(GPU_DEPTH_ALWAYS);
 
     BLF_size(blf_mono_font, 11, 72);
 

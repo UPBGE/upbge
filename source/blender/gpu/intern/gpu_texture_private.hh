@@ -13,31 +13,41 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2016 by Mike Erwin.
+ * The Original Code is Copyright (C) 2020 Blender Foundation.
  * All rights reserved.
  */
 
 /** \file
  * \ingroup gpu
- *
- * GPU vertex attribute binding
  */
 
 #pragma once
 
-#include "GPU_vertex_format.h"
-#include "gpu_shader_interface.hh"
+#include "BLI_assert.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
+namespace gpu {
 
-/* TODO(fclem) remove, use shaderface directly. */
-void AttrBinding_clear(GPUAttrBinding *binding);
+class Texture {
+ public:
+  /** TODO(fclem): make it a non-static function. */
+  static GPUAttachmentType attachment_type(GPUTexture *tex, int slot)
+  {
+    switch (GPU_texture_format(tex)) {
+      case GPU_DEPTH_COMPONENT32F:
+      case GPU_DEPTH_COMPONENT24:
+      case GPU_DEPTH_COMPONENT16:
+        BLI_assert(slot == 0);
+        return GPU_FB_DEPTH_ATTACHMENT;
+      case GPU_DEPTH24_STENCIL8:
+      case GPU_DEPTH32F_STENCIL8:
+        BLI_assert(slot == 0);
+        return GPU_FB_DEPTH_STENCIL_ATTACHMENT;
+      default:
+        return static_cast<GPUAttachmentType>(GPU_FB_COLOR_ATTACHMENT0 + slot);
+    }
+  }
+};
 
-void get_attr_locations(const GPUVertFormat *format, GPUAttrBinding *binding, GPUShader *shader);
-uint read_attr_location(const GPUAttrBinding *binding, uint a_idx);
-
-#ifdef __cplusplus
-}
-#endif
+}  // namespace gpu
+}  // namespace blender

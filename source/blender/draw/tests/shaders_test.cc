@@ -24,8 +24,9 @@ class DrawTest : public ::testing::Test {
 
   void SetUp() override
   {
+    GHOST_GLSettings glSettings = {0};
     ghost_system = GHOST_CreateSystem();
-    ghost_context = GHOST_CreateOpenGLContext(ghost_system);
+    ghost_context = GHOST_CreateOpenGLContext(ghost_system, glSettings);
     context = GPU_context_create(0);
     GPU_init();
     DRW_draw_state_init_gtests(GPU_SHADER_CFG_DEFAULT);
@@ -251,6 +252,14 @@ TEST_F(DrawTest, eevee_glsl_shaders_static)
   EEVEE_shaders_lightprobe_shaders_init();
   EEVEE_shaders_material_shaders_init();
 
+  EXPECT_NE(EEVEE_shaders_bloom_blit_get(false), nullptr);
+  EXPECT_NE(EEVEE_shaders_bloom_blit_get(true), nullptr);
+  EXPECT_NE(EEVEE_shaders_bloom_downsample_get(false), nullptr);
+  EXPECT_NE(EEVEE_shaders_bloom_downsample_get(true), nullptr);
+  EXPECT_NE(EEVEE_shaders_bloom_upsample_get(false), nullptr);
+  EXPECT_NE(EEVEE_shaders_bloom_upsample_get(true), nullptr);
+  EXPECT_NE(EEVEE_shaders_bloom_resolve_get(false), nullptr);
+  EXPECT_NE(EEVEE_shaders_bloom_resolve_get(true), nullptr);
   EXPECT_NE(EEVEE_shaders_probe_filter_glossy_sh_get(), nullptr);
   EXPECT_NE(EEVEE_shaders_probe_filter_diffuse_sh_get(), nullptr);
   EXPECT_NE(EEVEE_shaders_probe_filter_visibility_sh_get(), nullptr);

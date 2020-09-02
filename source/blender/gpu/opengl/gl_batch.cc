@@ -32,11 +32,12 @@
 #include "GPU_extensions.h"
 
 #include "gpu_batch_private.hh"
-#include "gpu_primitive_private.h"
 #include "gpu_shader_private.hh"
 
 #include "gl_batch.hh"
 #include "gl_context.hh"
+#include "gl_debug.hh"
+#include "gl_primitive.hh"
 #include "gl_vertex_array.hh"
 
 using namespace blender::gpu;
@@ -329,13 +330,14 @@ void GLBatch::bind(int i_first)
 
 void GLBatch::draw(int v_first, int v_count, int i_first, int i_count)
 {
+  GL_CHECK_RESOURCES("Batch");
   GL_CHECK_ERROR("Batch Pre drawing");
 
   this->bind(i_first);
 
   BLI_assert(v_count > 0 && i_count > 0);
 
-  GLenum gl_type = convert_prim_type_to_gl(prim_type);
+  GLenum gl_type = to_gl(prim_type);
 
   if (elem) {
     const GPUIndexBuf *el = elem;

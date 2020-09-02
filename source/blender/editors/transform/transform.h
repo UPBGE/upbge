@@ -79,7 +79,6 @@ typedef struct TransSnap {
   bool project;
   bool snap_self;
   bool peel;
-  bool snap_spatial_grid;
   bool use_backface_culling;
   char status;
   /* Snapped Element Type (currently for objects only). */
@@ -498,7 +497,6 @@ enum {
   MOD_PRECISION = 1 << 1,
   MOD_SNAP = 1 << 2,
   MOD_SNAP_INVERT = 1 << 3,
-  MOD_CONSTRAINT_PLANE = 1 << 4,
 };
 
 /* use node center for transform instead of upper-left corner.
@@ -576,6 +574,8 @@ enum {
   TFM_MODAL_PROPSIZE = 26,
   /* node editor insert offset (aka auto-offset) direction toggle */
   TFM_MODAL_INSERTOFS_TOGGLE_DIR = 27,
+
+  TFM_MODAL_AUTOCONSTRAINT = 28,
 };
 
 bool initTransform(struct bContext *C,

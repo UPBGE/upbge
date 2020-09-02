@@ -64,6 +64,11 @@ class Shader {
 
   virtual void vertformat_from_shader(GPUVertFormat *) const = 0;
 
+  inline const char *const name_get(void) const
+  {
+    return name;
+  };
+
   /* Game engine transition */
   virtual char *shader_validate() = 0;
   virtual void shader_bind_attributes(int *locations, const char **names, int len) = 0;
@@ -71,9 +76,8 @@ class Shader {
   // bgl_TextureCoordinateOffset[9];
   virtual int shader_get_uniform_location_old(const char *name) = 0;
 
-
  protected:
-  void print_errors(Span<const char *> sources, char *log);
+  void print_errors(Span<const char *> sources, char *log, const char *stage);
 };
 
 }  // namespace gpu
