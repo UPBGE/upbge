@@ -789,16 +789,18 @@ void WM_script_tag_reload(void)
 }
 
 /* Game engine transition */
-void WM_init_opengl_blenderplayer(Main *bmain, void *syshandle)
+void WM_init_opengl_blenderplayer(Main *bmain, void *syshandle, wmWindow *win)
 {
   /* must be called only once */
-  // BLI_assert(opengl_is_init == false);
+  BLI_assert(opengl_is_init == false);
   /* Ghost is still not init elsewhere in background mode. */
   ////////// wm_ghost_init(NULL);
-  /* Needs to be first to have an ogl context bound. */
-  DRW_opengl_context_create_blenderplayer(syshandle);
+
+  /* NEEDS TO HAVE AN OGL CONTEXT BOUND FIRST!!!!!!!!!!!!!!!!!!! */
+  DRW_opengl_context_create_blenderplayer(syshandle, win);
   GPU_init();
   GPU_pass_cache_init();
+  BKE_subdiv_init();
 #ifdef WITH_OPENSUBDIV
   BKE_subsurf_osd_init();
 #endif

@@ -171,7 +171,7 @@ struct DrawDataList *DRW_drawdatalist_from_id(struct ID *id);
 void DRW_drawdata_free(struct ID *id);
 
 /* Game engine transition */
-void DRW_opengl_context_create_blenderplayer(void *syshandle);
+void DRW_opengl_context_create_blenderplayer(void *syshandle, void *win);
 /* End of Game engine transition */
 
 #ifdef __cplusplus

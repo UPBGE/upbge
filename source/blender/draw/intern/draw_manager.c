@@ -3147,7 +3147,7 @@ void DRW_game_python_loop_end(ViewLayer *view_layer)
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
 
-void DRW_opengl_context_create_blenderplayer(void *syshandle)
+void DRW_opengl_context_create_blenderplayer(void *syshandle, void *win)
 {
   BLI_assert(DST.gl_context == NULL); /* Ensure it's called once */
 
@@ -3161,6 +3161,10 @@ void DRW_opengl_context_create_blenderplayer(void *syshandle)
   /* Set default Blender OpenGL state */
   //GPU_state_init();
   /* So we activate the window's one afterwards. */
+
+  /* IDK if it is really needed to have a win->eventstate in blenderplayer ? */
+  //wm_window_ensure_eventstate(win);
+
   wm_window_reset_drawable();
 }
 

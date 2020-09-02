@@ -2574,7 +2574,12 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   GHOST_SetWindowState(win->ghostwin, GHOST_GetWindowState(ghostwin));
   wm_window_set_drawable(wm, win, true);
   GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
-  wm_window_ensure_eventstate(win);
+
+  /* We can't call the following function here in blenderplayer pipeline.
+   * We could do it after if we realize that there are issues without this.
+   */
+  //wm_window_ensure_eventstate(win);
+
   /* store actual window size in blender window */
   bounds = GHOST_GetClientBounds(win->ghostwin);
   /* win32: gives undefined window size when minimized */
@@ -2584,11 +2589,8 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   }
   GHOST_DisposeRectangle(bounds);
   /* until screens get drawn, make it black */
-  glClearColor(0.0, 0.0, 0.0, 0.0);
-  /* Crash on OSS ATI: bugs.launchpad.net/ubuntu/+source/mesa/+bug/656100 */
-  if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
-    glClear(GL_COLOR_BUFFER_BIT);
-  }
+  GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
+
   /* needed here, because it's used before it reads userdef */
   WM_window_set_dpi(win);
 
