@@ -52,9 +52,9 @@ typedef enum GPUAttachmentType : int {
    * We support 6 outputs for now (usually we wouldn't need more to preserve fill rate). */
   /* Keep in mind that GL max is GL_MAX_DRAW_BUFFERS and is at least 8, corresponding to
    * the maximum number of COLOR attachments specified by glDrawBuffers. */
-  GPU_FB_MAX_ATTACHEMENT,
+  GPU_FB_MAX_ATTACHMENT,
 
-  GPU_FB_MAX_COLOR_ATTACHMENT = (GPU_FB_MAX_ATTACHEMENT - GPU_FB_COLOR_ATTACHMENT0),
+  GPU_FB_MAX_COLOR_ATTACHMENT = (GPU_FB_MAX_ATTACHMENT - GPU_FB_COLOR_ATTACHMENT0),
 } GPUAttachmentType;
 
 inline constexpr GPUAttachmentType operator-(GPUAttachmentType a, int b)
@@ -90,15 +90,15 @@ namespace gpu {
 
 class FrameBuffer {
  protected:
-  /** Set of texture attachements to render to. DEPTH and DEPTH_STENCIL are mutualy exclusive. */
-  GPUAttachment attachments_[GPU_FB_MAX_ATTACHEMENT];
+  /** Set of texture attachments to render to. DEPTH and DEPTH_STENCIL are mutually exclusive. */
+  GPUAttachment attachments_[GPU_FB_MAX_ATTACHMENT];
   /** Is true if internal representation need to be updated. */
   bool dirty_attachments_;
-  /** Size of attachement textures. */
+  /** Size of attachment textures. */
   int width_, height_;
   /** Debug name. */
   char name_[DEBUG_NAME_LEN];
-  /** Framebuffer state. */
+  /** Frame-buffer state. */
   int viewport_[4];
   int scissor_[4];
   bool scissor_test_ = false;

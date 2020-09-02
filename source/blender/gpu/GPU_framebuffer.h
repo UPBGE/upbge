@@ -82,9 +82,7 @@ GPUFrameBuffer *GPU_framebuffer_back_get(void);
 /* Framebuffer setup : You need to call GPU_framebuffer_bind for these
  * to be effective. */
 
-void GPU_framebuffer_texture_attach_ex(GPUFrameBuffer *gpu_fb,
-                                       GPUAttachment attachement,
-                                       int slot);
+void GPU_framebuffer_texture_attach_ex(GPUFrameBuffer *gpu_fb, GPUAttachment attachment, int slot);
 void GPU_framebuffer_texture_detach(GPUFrameBuffer *fb, struct GPUTexture *tex);
 
 /**
@@ -220,7 +218,7 @@ void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb);
 /****************End of Game engine****************/
 
 /* GPU OffScreen
- * - wrapper around framebuffer and texture for simple offscreen drawing
+ * - wrapper around frame-buffer and texture for simple off-screen drawing
  */
 
 GPUOffScreen *GPU_offscreen_create(
