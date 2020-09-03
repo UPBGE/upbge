@@ -26,6 +26,8 @@
 # since this includes bullet we get errors from the headers too
 remove_strict_flags()
 
+add_definitions(-DBT_USE_DOUBLE_PRECISION)
+
 set(INC
   .
   ../Common
@@ -74,6 +76,7 @@ if(WITH_BULLET)
   add_definitions(-DWITH_BULLET)
         list(APPEND LIB
           extern_bullet
+          ${BULLET_LIBRARIES}
         )
 endif()
 

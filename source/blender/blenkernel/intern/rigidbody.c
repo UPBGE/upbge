@@ -174,7 +174,7 @@ void BKE_rigidbody_free_object(Object *ob, RigidBodyWorld *rbw)
   /* free physics references */
   if (is_orig) {
     if (rbo->shared->physics_object) {
-      if (rbw != NULL) {
+      if (rbw != NULL && rbw->shared->physics_world != NULL) {
         /* We can only remove the body from the world if the world is known.
          * The world is generally only unknown if it's an evaluated copy of
          * an object that's being freed, in which case this code isn't run anyway. */
@@ -185,7 +185,7 @@ void BKE_rigidbody_free_object(Object *ob, RigidBodyWorld *rbw)
          * loop over all scenes then. */
         for (Scene *scene = G_MAIN->scenes.first; scene != NULL; scene = scene->id.next) {
           RigidBodyWorld *scene_rbw = scene->rigidbody_world;
-          if (scene_rbw != NULL) {
+          if (scene_rbw != NULL && scene_rbw->shared->physics_world != NULL) {
             RB_dworld_remove_body(scene_rbw->shared->physics_world, rbo->shared->physics_object);
           }
         }
@@ -816,7 +816,9 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
     rigidbody_validate_sim_shape(rbw, ob, true);
   }
 
-  if (rbo->shared->physics_object) {
+  if (rbo->shared->physics_object && !rebuild) {
+    /* Don't remove body on rebuild as it has already been removed when deleting and rebuilding the
+     * world. */
     RB_dworld_remove_body(rbw->shared->physics_world, rbo->shared->physics_object);
   }
   if (!rbo->shared->physics_object || rebuild) {
@@ -1180,7 +1182,10 @@ RigidBodyWorld *BKE_rigidbody_create_world(Scene *scene)
 
   rbw->time_scale = 1.0f;
 
-  rbw->steps_per_second = 60;      /* Bullet default (60 Hz) */
+  /* Most high quality Bullet example files has an internal framerate of 240hz.
+   * The blender default scene has a frame rate of 24, so take 10 substeps (24fps * 10).
+   */
+  rbw->substeps_per_frame = 10;
   rbw->num_solver_iterations = 10; /* 10 is bullet default */
 
   rbw->shared->pointcache = BKE_ptcache_add(&(rbw->shared->ptcaches));
@@ -1556,6 +1561,10 @@ void BKE_rigidbody_remove_object(Main *bmain, Scene *scene, Object *ob, const bo
 
   /* flag cache as outdated */
   BKE_rigidbody_cache_reset(rbw);
+  /* Reset cache as the object order probably changed after freeing the object. */
+  PTCacheID pid;
+  BKE_ptcache_id_from_rigidbody(&pid, NULL, rbw);
+  BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 
   /* Dependency graph update */
   DEG_relations_tag_update(bmain);
@@ -1651,10 +1660,6 @@ static void rigidbody_update_sim_world(Scene *scene, RigidBodyWorld *rbw)
 static void rigidbody_update_sim_ob(
     Depsgraph *depsgraph, Scene *scene, RigidBodyWorld *rbw, Object *ob, RigidBodyOb *rbo)
 {
-  float loc[3];
-  float rot[4];
-  float scale[3];
-
   /* only update if rigid body exists */
   if (rbo->shared->physics_object == NULL) {
     return;
@@ -1680,14 +1685,21 @@ static void rigidbody_update_sim_ob(
     }
   }
 
-  mat4_decompose(loc, rot, scale, ob->obmat);
+  if (!(rbo->flag & RBO_FLAG_KINEMATIC)) {
+    /* update scale for all non kinematic objects */
+    float new_scale[3], old_scale[3];
+    mat4_to_size(new_scale, ob->obmat);
+    RB_body_get_scale(rbo->shared->physics_object, old_scale);
 
-  /* update scale for all objects */
-  RB_body_set_scale(rbo->shared->physics_object, scale);
-  /* compensate for embedded convex hull collision margin */
-  if (!(rbo->flag & RBO_FLAG_USE_MARGIN) && rbo->shape == RB_SHAPE_CONVEXH) {
-    RB_shape_set_margin(rbo->shared->physics_shape,
-                        RBO_GET_MARGIN(rbo) * MIN3(scale[0], scale[1], scale[2]));
+    /* Avoid updating collision shape AABBs if scale didn't change. */
+    if (!compare_size_v3v3(old_scale, new_scale, 0.001f)) {
+      RB_body_set_scale(rbo->shared->physics_object, new_scale);
+      /* compensate for embedded convex hull collision margin */
+      if (!(rbo->flag & RBO_FLAG_USE_MARGIN) && rbo->shape == RB_SHAPE_CONVEXH) {
+        RB_shape_set_margin(rbo->shared->physics_shape,
+                            RBO_GET_MARGIN(rbo) * MIN3(new_scale[0], new_scale[1], new_scale[2]));
+      }
+    }
   }
 
   /* Make transformed objects temporarily kinmatic
@@ -1697,11 +1709,6 @@ static void rigidbody_update_sim_ob(
     RB_body_set_mass(rbo->shared->physics_object, 0.0f);
   }
 
-  /* update rigid body location and rotation for kinematic bodies */
-  if (rbo->flag & RBO_FLAG_KINEMATIC || (is_selected && (G.moving & G_TRANSFORM_OBJ))) {
-    RB_body_activate(rbo->shared->physics_object);
-    RB_body_set_loc_rot(rbo->shared->physics_object, loc, rot);
-  }
   /* update influence of effectors - but don't do it on an effector */
   /* only dynamic bodies need effector update */
   else if (rbo->type == RBO_TYPE_ACTIVE &&
@@ -1765,13 +1772,13 @@ static void rigidbody_update_simulation(Depsgraph *depsgraph,
                                         RigidBodyWorld *rbw,
                                         bool rebuild)
 {
-  float ctime = DEG_get_ctime(depsgraph);
-
   /* update world */
   /* Note physics_world can get NULL when undoing the deletion of the last object in it (see
    * T70667). */
   if (rebuild || rbw->shared->physics_world == NULL) {
     BKE_rigidbody_validate_sim_world(scene, rbw, rebuild);
+    /* We have rebuilt the world so we need to make sure the rest is rebuilt as well. */
+    rebuild = true;
   }
 
   rigidbody_update_sim_world(scene, rbw);
@@ -1799,9 +1806,6 @@ static void rigidbody_update_simulation(Depsgraph *depsgraph,
     if (ob->type == OB_MESH) {
       /* validate that we've got valid object set up here... */
       RigidBodyOb *rbo = ob->rigidbody_object;
-      /* Update transformation matrix of the object
-       * so we don't get a frame of lag for simple animations. */
-      BKE_object_where_is_calc_time(depsgraph, scene, ob, ctime);
 
       /* TODO remove this whole block once we are sure we never get NULL rbo here anymore. */
       /* This cannot be done in CoW evaluation context anymore... */
@@ -1859,9 +1863,6 @@ static void rigidbody_update_simulation(Depsgraph *depsgraph,
   FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (rbw->constraints, ob) {
     /* validate that we've got valid object set up here... */
     RigidBodyCon *rbc = ob->rigidbody_constraint;
-    /* Update transformation matrix of the object
-     * so we don't get a frame of lag for simple animations. */
-    BKE_object_where_is_calc_time(depsgraph, scene, ob, ctime);
 
     /* TODO remove this whole block once we are sure we never get NULL rbo here anymore. */
     /* This cannot be done in CoW evaluation context anymore... */
@@ -1891,6 +1892,104 @@ static void rigidbody_update_simulation(Depsgraph *depsgraph,
   FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 }
 
+typedef struct KinematicSubstepData {
+  RigidBodyOb *rbo;
+  float old_pos[3];
+  float new_pos[3];
+  float old_rot[4];
+  float new_rot[4];
+  bool scale_changed;
+  float old_scale[3];
+  float new_scale[3];
+} KinematicSubstepData;
+
+static ListBase rigidbody_create_substep_data(RigidBodyWorld *rbw)
+{
+  /* Objects that we want to update substep location/rotation for. */
+  ListBase substep_targets = {NULL, NULL};
+
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (rbw->group, ob) {
+    RigidBodyOb *rbo = ob->rigidbody_object;
+    /* only update if rigid body exists */
+    if (!rbo || rbo->shared->physics_object == NULL) {
+      continue;
+    }
+
+    if (rbo->flag & RBO_FLAG_KINEMATIC) {
+      float loc[3], rot[4], scale[3];
+
+      KinematicSubstepData *data = MEM_callocN(sizeof(KinematicSubstepData),
+                                               "RigidBody Substep data");
+
+      data->rbo = rbo;
+
+      RB_body_get_position(rbo->shared->physics_object, loc);
+      RB_body_get_orientation(rbo->shared->physics_object, rot);
+      RB_body_get_scale(rbo->shared->physics_object, scale);
+
+      copy_v3_v3(data->old_pos, loc);
+      copy_v4_v4(data->old_rot, rot);
+      copy_v3_v3(data->old_scale, scale);
+
+      mat4_decompose(loc, rot, scale, ob->obmat);
+
+      copy_v3_v3(data->new_pos, loc);
+      copy_v4_v4(data->new_rot, rot);
+      copy_v3_v3(data->new_scale, scale);
+
+      data->scale_changed = !compare_size_v3v3(data->old_scale, data->new_scale, 0.001f);
+
+      LinkData *ob_link = BLI_genericNodeN(data);
+      BLI_addtail(&substep_targets, ob_link);
+    }
+  }
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+
+  return substep_targets;
+}
+
+static void rigidbody_update_kinematic_obj_substep(ListBase *substep_targets, float interp_fac)
+{
+  LISTBASE_FOREACH (LinkData *, link, substep_targets) {
+    KinematicSubstepData *data = link->data;
+    RigidBodyOb *rbo = data->rbo;
+
+    float loc[3], rot[4];
+
+    interp_v3_v3v3(loc, data->old_pos, data->new_pos, interp_fac);
+    interp_qt_qtqt(rot, data->old_rot, data->new_rot, interp_fac);
+
+    RB_body_activate(rbo->shared->physics_object);
+    RB_body_set_loc_rot(rbo->shared->physics_object, loc, rot);
+
+    if (!data->scale_changed) {
+      /* Avoid having to rebuild the collision shape AABBs if scale didn't change. */
+      continue;
+    }
+
+    float scale[3];
+
+    interp_v3_v3v3(scale, data->old_scale, data->new_scale, interp_fac);
+
+    RB_body_set_scale(rbo->shared->physics_object, scale);
+
+    /* compensate for embedded convex hull collision margin */
+    if (!(rbo->flag & RBO_FLAG_USE_MARGIN) && rbo->shape == RB_SHAPE_CONVEXH) {
+      RB_shape_set_margin(rbo->shared->physics_shape,
+                          RBO_GET_MARGIN(rbo) * MIN3(scale[0], scale[1], scale[2]));
+    }
+  }
+}
+
+static void rigidbody_free_substep_data(ListBase *substep_targets)
+{
+  LISTBASE_FOREACH (LinkData *, link, substep_targets) {
+    KinematicSubstepData *data = link->data;
+    MEM_freeN(data);
+  }
+
+  BLI_freelistN(substep_targets);
+}
 static void rigidbody_update_simulation_post_step(Depsgraph *depsgraph, RigidBodyWorld *rbw)
 {
   ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
@@ -2072,7 +2171,6 @@ void BKE_rigidbody_rebuild_world(Depsgraph *depsgraph, Scene *scene, float ctime
 /* Run RigidBody simulation for the specified physics world */
 void BKE_rigidbody_do_simulation(Depsgraph *depsgraph, Scene *scene, float ctime)
 {
-  float timestep;
   RigidBodyWorld *rbw = scene->rigidbody_world;
   PointCache *cache;
   PTCacheID pid;
@@ -2125,14 +2223,23 @@ void BKE_rigidbody_do_simulation(Depsgraph *depsgraph, Scene *scene, float ctime
     /* update and validate simulation */
     rigidbody_update_simulation(depsgraph, scene, rbw, false);
 
+    const float frame_diff = ctime - rbw->ltime;
     /* calculate how much time elapsed since last step in seconds */
-    timestep = 1.0f / (float)FPS * (ctime - rbw->ltime) * rbw->time_scale;
-    /* Step simulation by the requested timestep,
-     * steps per second are adjusted to take time scale into account. */
-    RB_dworld_step_simulation(rbw->shared->physics_world,
-                              timestep,
-                              INT_MAX,
-                              1.0f / (float)rbw->steps_per_second * min_ff(rbw->time_scale, 1.0f));
+    const float timestep = 1.0f / (float)FPS * frame_diff * rbw->time_scale;
+
+    const float substep = timestep / rbw->substeps_per_frame;
+
+    ListBase substep_targets = rigidbody_create_substep_data(rbw);
+
+    const float interp_step = 1.0f / rbw->substeps_per_frame;
+    float cur_interp_val = interp_step;
+
+    for (int i = 0; i < rbw->substeps_per_frame; i++) {
+      rigidbody_update_kinematic_obj_substep(&substep_targets, cur_interp_val);
+      RB_dworld_step_simulation(rbw->shared->physics_world, substep, 0, substep);
+      cur_interp_val += interp_step;
+    }
+    rigidbody_free_substep_data(&substep_targets);
 
     rigidbody_update_simulation_post_step(depsgraph, rbw);
 

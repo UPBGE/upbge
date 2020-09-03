@@ -18,6 +18,16 @@
 # All rights reserved.
 # ***** END GPL LICENSE BLOCK *****
 
+# avoid noisy warnings
+if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+  remove_cc_flag(
+    "-Wall"
+  )
+endif()
+
+# Use double precision to make simulations of small objects stable.
+add_definitions(-DBT_USE_DOUBLE_PRECISION)
+
 set(INC
   .
   src
@@ -34,7 +44,6 @@ set(SRC
   src/BulletCollision/BroadphaseCollision/btDbvt.cpp
   src/BulletCollision/BroadphaseCollision/btDbvtBroadphase.cpp
   src/BulletCollision/BroadphaseCollision/btDispatcher.cpp
-  src/BulletCollision/BroadphaseCollision/btMultiSapBroadphase.cpp
   src/BulletCollision/BroadphaseCollision/btOverlappingPairCache.cpp
   src/BulletCollision/BroadphaseCollision/btQuantizedBvh.cpp
   src/BulletCollision/BroadphaseCollision/btSimpleBroadphase.cpp
@@ -82,12 +91,14 @@ set(SRC
   src/BulletCollision/CollisionShapes/btCylinderShape.cpp
   src/BulletCollision/CollisionShapes/btEmptyShape.cpp
   src/BulletCollision/CollisionShapes/btHeightfieldTerrainShape.cpp
+  src/BulletCollision/CollisionShapes/btMiniSDF.cpp
   src/BulletCollision/CollisionShapes/btMinkowskiSumShape.cpp
   src/BulletCollision/CollisionShapes/btMultiSphereShape.cpp
   src/BulletCollision/CollisionShapes/btMultimaterialTriangleMeshShape.cpp
   src/BulletCollision/CollisionShapes/btOptimizedBvh.cpp
   src/BulletCollision/CollisionShapes/btPolyhedralConvexShape.cpp
   src/BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.cpp
+  src/BulletCollision/CollisionShapes/btSdfCollisionShape.cpp
   src/BulletCollision/CollisionShapes/btShapeHull.cpp
   src/BulletCollision/CollisionShapes/btSphereShape.cpp
   src/BulletCollision/CollisionShapes/btStaticPlaneShape.cpp
@@ -141,7 +152,6 @@ set(SRC
   src/BulletDynamics/ConstraintSolver/btSolve2LinearConstraint.cpp
   src/BulletDynamics/ConstraintSolver/btTypedConstraint.cpp
   src/BulletDynamics/ConstraintSolver/btUniversalConstraint.cpp
-  src/BulletDynamics/Dynamics/Bullet-C-API.cpp
   src/BulletDynamics/Dynamics/btDiscreteDynamicsWorld.cpp
   src/BulletDynamics/Dynamics/btRigidBody.cpp
   src/BulletDynamics/Dynamics/btSimpleDynamicsWorld.cpp
@@ -166,6 +176,7 @@ set(SRC
   src/BulletSoftBody/btSoftRigidCollisionAlgorithm.cpp
   src/BulletSoftBody/btSoftRigidDynamicsWorld.cpp
   src/BulletSoftBody/btSoftSoftCollisionAlgorithm.cpp
+  src/BulletSoftBody/poly34.cpp
 
   src/LinearMath/btAlignedAllocator.cpp
   src/LinearMath/btConvexHull.cpp
@@ -174,6 +185,7 @@ set(SRC
   src/LinearMath/btPolarDecomposition.cpp
   src/LinearMath/btQuickprof.cpp
   src/LinearMath/btSerializer.cpp
+  src/LinearMath/btSerializer64.cpp
   src/LinearMath/btVector3.cpp
 
   src/BulletCollision/BroadphaseCollision/btAxisSweep3.h
@@ -183,7 +195,6 @@ set(SRC
   src/BulletCollision/BroadphaseCollision/btDbvt.h
   src/BulletCollision/BroadphaseCollision/btDbvtBroadphase.h
   src/BulletCollision/BroadphaseCollision/btDispatcher.h
-  src/BulletCollision/BroadphaseCollision/btMultiSapBroadphase.h
   src/BulletCollision/BroadphaseCollision/btOverlappingPairCache.h
   src/BulletCollision/BroadphaseCollision/btOverlappingPairCallback.h
   src/BulletCollision/BroadphaseCollision/btQuantizedBvh.h
@@ -237,12 +248,14 @@ set(SRC
   src/BulletCollision/CollisionShapes/btEmptyShape.h
   src/BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h
   src/BulletCollision/CollisionShapes/btMaterial.h
+  src/BulletCollision/CollisionShapes/btMiniSDF.h
   src/BulletCollision/CollisionShapes/btMinkowskiSumShape.h
   src/BulletCollision/CollisionShapes/btMultiSphereShape.h
   src/BulletCollision/CollisionShapes/btMultimaterialTriangleMeshShape.h
   src/BulletCollision/CollisionShapes/btOptimizedBvh.h
   src/BulletCollision/CollisionShapes/btPolyhedralConvexShape.h
   src/BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h
+  src/BulletCollision/CollisionShapes/btSdfCollisionShape.h
   src/BulletCollision/CollisionShapes/btShapeHull.h
   src/BulletCollision/CollisionShapes/btSphereShape.h
   src/BulletCollision/CollisionShapes/btStaticPlaneShape.h
@@ -371,6 +384,7 @@ set(SRC
   src/BulletSoftBody/btSoftRigidDynamicsWorld.h
   src/BulletSoftBody/btSoftSoftCollisionAlgorithm.h
   src/BulletSoftBody/btSparseSDF.h
+  src/BulletSoftBody/poly34.h
 
   src/LinearMath/btAabbUtil2.h
   src/LinearMath/btAlignedAllocator.h
@@ -404,7 +418,6 @@ set(SRC
 
   src/btBulletCollisionCommon.h
   src/btBulletDynamicsCommon.h
-  src/Bullet-C-Api.h
 )
 
 set(LIB
