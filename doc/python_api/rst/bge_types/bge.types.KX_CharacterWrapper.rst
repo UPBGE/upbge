@@ -17,9 +17,9 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: gravity
 
-      The gravity value used for the character.
+      The gravity vector used for the character.
 
-      :type: float
+      :type: Vector((x, y, z))
 
    .. attribute:: fallSpeed
 
