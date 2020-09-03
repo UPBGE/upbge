@@ -676,8 +676,8 @@ void CcdPhysicsEnvironment::AddCcdGraphicController(CcdGraphicController *ctrl)
                                    ctrl,
                                    0,  // this object does not collision with anything
                                    0,
-                                   nullptr,  // dispatcher => this parameter is not used
-                                   0));
+                                   nullptr  // dispatcher => this parameter is not used
+                                   ));
 
     BLI_assert(ctrl->GetBroadphaseHandle());
   }
@@ -2328,7 +2328,7 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
     // either cluster or node attach, let's find closest node first
     // the soft body doesn't have a 'real' world transform, so get its initial world transform for
     // now
-    btVector3 pivotPointSoftWorld = sb0->m_initialWorldTransform(pivotInA);
+    btVector3 pivotPointSoftWorld = sb0->getWorldTransform()(pivotInA);
     int node = findClosestNode(sb0, pivotPointSoftWorld);
     if (node >= 0) {
       if (rb1) {
@@ -2719,7 +2719,7 @@ struct BlenderDebugDraw : public btIDebugDraw {
 
   virtual void drawContactPoint(const btVector3 &PointOnB,
                                 const btVector3 &normalOnB,
-                                float distance,
+                                btScalar distance,
                                 int lifeTime,
                                 const btVector3 &color)
   {

@@ -955,7 +955,7 @@ static void free_softbody_intern(SoftBody *sb)
  * (only needs the current particle position)
  *
  * it actually checks if the particle intrudes a short range force field generated
- * by the faces of the target object and returns a force to drive the particel out
+ * by the faces of the target object and returns a force to drive the particle out
  * the strength of the field grows exponentially if the particle is on the 'wrong' side of the face
  * 'wrong' side : projection to the face normal is negative (all referred to a vertex in the face)
  *
@@ -3209,16 +3209,16 @@ void sbObjectToSoftbody(Object *ob)
   free_softbody_intern(ob->soft);
 }
 
-static int object_has_edges(Object *ob)
+static bool object_has_edges(Object *ob)
 {
   if (ob->type == OB_MESH) {
     return ((Mesh *)ob->data)->totedge;
   }
   if (ob->type == OB_LATTICE) {
-    return 1;
+    return true;
   }
 
-  return 0;
+  return false;
 }
 
 /* SB global visible functions */

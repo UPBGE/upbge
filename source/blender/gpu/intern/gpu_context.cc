@@ -71,6 +71,11 @@ GPUContext::~GPUContext()
 {
   GPU_matrix_state_discard(matrix_state);
   delete state_manager;
+  delete front_left;
+  delete back_left;
+  delete front_right;
+  delete back_right;
+  delete imm;
 }
 
 bool GPUContext::is_active_on_thread(void)
@@ -119,18 +124,6 @@ void GPU_context_active_set(GPUContext *ctx)
 GPUContext *GPU_context_active_get(void)
 {
   return active_ctx;
-}
-
-GLuint GPU_vao_default(void)
-{
-  BLI_assert(active_ctx); /* need at least an active context */
-  return static_cast<GLContext *>(active_ctx)->default_vao_;
-}
-
-GLuint GPU_framebuffer_default(void)
-{
-  BLI_assert(active_ctx); /* need at least an active context */
-  return static_cast<GLContext *>(active_ctx)->default_framebuffer_;
 }
 
 GLuint GPU_vao_alloc(void)
@@ -183,40 +176,6 @@ void GPU_tex_free(GLuint tex_id)
   /* TODO avoid using backend */
   GPUBackend *backend = GPUBackend::get();
   static_cast<GLBackend *>(backend)->tex_free(tex_id);
-}
-
-/* GPUBatch & GPUFrameBuffer contains respectively VAO & FBO indices
- * which are not shared across contexts. So we need to keep track of
- * ownership. */
-
-void gpu_context_add_framebuffer(GPUContext *ctx, GPUFrameBuffer *fb)
-{
-#ifdef DEBUG
-  BLI_assert(ctx);
-  static_cast<GLContext *>(ctx)->framebuffer_register(fb);
-#else
-  UNUSED_VARS(ctx, fb);
-#endif
-}
-
-void gpu_context_remove_framebuffer(GPUContext *ctx, GPUFrameBuffer *fb)
-{
-#ifdef DEBUG
-  BLI_assert(ctx);
-  static_cast<GLContext *>(ctx)->framebuffer_unregister(fb);
-#else
-  UNUSED_VARS(ctx, fb);
-#endif
-}
-
-void gpu_context_active_framebuffer_set(GPUContext *ctx, GPUFrameBuffer *fb)
-{
-  ctx->current_fbo = fb;
-}
-
-GPUFrameBuffer *gpu_context_active_framebuffer_get(GPUContext *ctx)
-{
-  return ctx->current_fbo;
 }
 
 struct GPUMatrixState *gpu_context_active_matrix_state_get()

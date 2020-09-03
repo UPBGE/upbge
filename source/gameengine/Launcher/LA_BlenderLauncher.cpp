@@ -160,7 +160,7 @@ void LA_BlenderLauncher::ExitEngine()
 
 void LA_BlenderLauncher::RenderEngine()
 {
-  if (m_drawLetterBox) {
+  if (m_drawLetterBox) { // not used
     // Clear screen to border color
     // We do this here since we set the canvas to be within the frames. This means the engine
     // itself is unaware of the extra space, so we clear the whole region for it.

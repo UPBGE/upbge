@@ -996,10 +996,10 @@ static void fill_grid_data(int x_subdiv,
 
 static void spheregrid_test(int nrings, int grid_level, double z_offset, bool use_self)
 {
-  /* Make a uvsphere and a grid.
-   * The sphere is radius 1, has nrings rings and 2 * nrings segs,
+  /* Make a uv-sphere and a grid.
+   * The sphere is radius 1, has `nrings` rings and `2 * nrings` segments,
    * and is centered at (0,0,z_offset).
-   * The plane is 4x4, has 2**grid_level subdivisions x and y,
+   * The plane is 4x4, has `2 ** grid_level` subdivisions x and y,
    * and is centered at the origin. */
   if (nrings < 2 || grid_level < 1) {
     return;
@@ -1060,12 +1060,12 @@ static void spheregrid_test(int nrings, int grid_level, double z_offset, bool us
 
 TEST(mesh_intersect_perf, SphereSphere)
 {
-  spheresphere_test(64, 0.5, false);
+  spheresphere_test(512, 0.5, false);
 }
 
 TEST(mesh_intersect_perf, SphereGrid)
 {
-  spheregrid_test(64, 4, 0.1, false);
+  spheregrid_test(512, 4, 0.1, false);
 }
 
 #  endif

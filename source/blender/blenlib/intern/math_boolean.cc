@@ -121,9 +121,9 @@ namespace robust_pred {
  * and to export only the following declared non-static functions.
  *
  * Since this is C++, an instantiated singleton class is used to make
- * sure that exactinit() is called once.
- * (Because of undefinedness of when this is called in initialization of all
- * modules, other modules shouldn't use these functions in initialization.)
+ * sure that #exactinit() is called once.
+ * (Because it's undefined when this is called in initialization of all modules,
+ other modules shouldn't use these functions in initialization.)
  */
 
 void exactinit();
@@ -437,8 +437,8 @@ static double isperrboundA, isperrboundB, isperrboundC;
  *  floating-point arithmetic.  `epsilon' bounds the relative round-off
  *  error.  It is used for floating-point error analysis.
  *
- *  `splitter' is used to split floating-point numbers into two half-
- *  length significands for exact multiplication.
+ *  `splitter' is used to split floating-point numbers into two half-length
+ *  significant for exact multiplication.
  *
  *  I imagine that a highly optimizing compiler might be too smart for its
  *  own good, and somehow cause this routine to fail, if it pretends that
@@ -768,7 +768,7 @@ double orient2d(const double *pa, const double *pb, const double *pc)
 }
 
 /**
- * orient3dfast()   Approximate 3D orientation test.  Nonrobust.
+ * orient3dfast()   Approximate 3D orientation test.  Non-robust.
  * orient3d()    Adaptive exact 3D orientation test.  Robust.
  *
  *               Return a positive value if the point pd lies below the
@@ -812,8 +812,8 @@ double orient3dfast(const double *pa, const double *pb, const double *pc, const 
 /**
  * \note since this code comes from an external source, prefer not to break it
  * up to fix this clang-tidy warning.
- * NOLINTNEXTLINE: readability-function-size
  */
+/* NOLINTNEXTLINE: readability-function-size */
 static double orient3dadapt(
     const double *pa, const double *pb, const double *pc, const double *pd, double permanent)
 {
@@ -1326,8 +1326,8 @@ double incirclefast(const double *pa, const double *pb, const double *pc, const 
 /**
  * \note since this code comes from an external source, prefer not to break it
  * up to fix this clang-tidy warning.
- * NOLINTNEXTLINE: readability-function-size
  */
+/* NOLINTNEXTLINE: readability-function-size */
 static double incircleadapt(
     const double *pa, const double *pb, const double *pc, const double *pd, double permanent)
 {

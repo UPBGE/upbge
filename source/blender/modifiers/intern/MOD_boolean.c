@@ -324,6 +324,9 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
 #ifdef WITH_GMP
         bool use_exact = bmd->solver == eBooleanModifierSolver_Exact;
 #else
+        if (bmd->solver == eBooleanModifierSolver_Exact) {
+          BKE_modifier_set_error(md, "Compiled without GMP, using fast solver");
+        }
         bool use_exact = false;
 #endif
 
@@ -379,37 +382,31 @@ static void requiredDataMask(Object *UNUSED(ob),
   r_cddata_masks->fmask |= CD_MASK_MTFACE;
 }
 
-static void panel_draw(const bContext *C, Panel *panel)
+static void panel_draw(const bContext *UNUSED(C), Panel *panel)
 {
   uiLayout *layout = panel->layout;
 
-  PointerRNA ptr;
-  modifier_panel_get_property_pointers(C, panel, NULL, &ptr);
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, NULL);
 
-  uiItemR(layout, &ptr, "operation", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "operation", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, &ptr, "object", 0, NULL, ICON_NONE);
+  const bool use_exact = RNA_enum_get(ptr, "solver") == eBooleanModifierSolver_Exact;
 
-#ifdef WITH_GMP
-  bool use_exact = RNA_enum_get(&ptr, "solver") == eBooleanModifierSolver_Exact;
-#else
-  bool use_exact = false;
-#endif
+  uiItemR(layout, ptr, "object", 0, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "solver", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+
   if (!use_exact) {
-    uiItemR(layout, &ptr, "double_threshold", 0, NULL, ICON_NONE);
+    uiItemR(layout, ptr, "double_threshold", 0, NULL, ICON_NONE);
   }
-#ifdef WITH_GMP
-  uiItemR(layout, &ptr, "solver", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-#endif
 
   if (G.debug) {
     uiLayout *col = uiLayoutColumn(layout, true);
-    uiItemR(col, &ptr, "debug_options", 0, NULL, ICON_NONE);
+    uiItemR(col, ptr, "debug_options", 0, NULL, ICON_NONE);
   }
 
-  modifier_panel_end(layout, &ptr);
+  modifier_panel_end(layout, ptr);
 }
 
 static void panelRegister(ARegionType *region_type)

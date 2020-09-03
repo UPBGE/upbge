@@ -1106,6 +1106,13 @@ void EEVEE_random_rotation_m4(int sample_ofs, float scale, float r_mat[4][4]);
 void EEVEE_shaders_lightprobe_shaders_init(void);
 void EEVEE_shaders_material_shaders_init(void);
 struct DRWShaderLibrary *EEVEE_shader_lib_get(void);
+struct GPUShader *EEVEE_shaders_bloom_blit_get(bool high_quality);
+struct GPUShader *EEVEE_shaders_bloom_downsample_get(bool high_quality);
+struct GPUShader *EEVEE_shaders_bloom_upsample_get(bool high_quality);
+struct GPUShader *EEVEE_shaders_bloom_resolve_get(bool high_quality);
+struct GPUShader *EEVEE_shaders_depth_of_field_downsample_get(bool use_alpha);
+struct GPUShader *EEVEE_shaders_depth_of_field_scatter_get(bool use_alpha);
+struct GPUShader *EEVEE_shaders_depth_of_field_resolve_get(bool use_alpha);
 struct GPUShader *EEVEE_shaders_probe_filter_glossy_sh_get(void);
 struct GPUShader *EEVEE_shaders_probe_filter_diffuse_sh_get(void);
 struct GPUShader *EEVEE_shaders_probe_filter_visibility_sh_get(void);
@@ -1189,7 +1196,6 @@ void EEVEE_lightprobes_planar_data_from_object(Object *ob,
 int EEVEE_depth_of_field_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, Object *camera);
 void EEVEE_depth_of_field_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_depth_of_field_draw(EEVEE_Data *vedata);
-void EEVEE_depth_of_field_free(void);
 
 /* eevee_bloom.c */
 int EEVEE_bloom_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
@@ -1197,7 +1203,6 @@ void EEVEE_bloom_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_bloom_draw(EEVEE_Data *vedata);
 void EEVEE_bloom_output_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, uint tot_samples);
 void EEVEE_bloom_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
-void EEVEE_bloom_free(void);
 
 /* eevee_occlusion.c */
 int EEVEE_occlusion_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);

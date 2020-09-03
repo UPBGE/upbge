@@ -412,7 +412,7 @@ void DM_from_template(DerivedMesh *dm,
                       &CD_MASK_DERIVEDMESH);
 }
 
-int DM_release(DerivedMesh *dm)
+bool DM_release(DerivedMesh *dm)
 {
   if (dm->needsFree) {
     CustomData_free(&dm->vertData, dm->numVertData);
@@ -425,7 +425,7 @@ int DM_release(DerivedMesh *dm)
     dm->looptris.num = 0;
     dm->looptris.num_alloc = 0;
 
-    return 1;
+    return true;
   }
 
   CustomData_free_temporary(&dm->vertData, dm->numVertData);
@@ -434,7 +434,7 @@ int DM_release(DerivedMesh *dm)
   CustomData_free_temporary(&dm->loopData, dm->numLoopData);
   CustomData_free_temporary(&dm->polyData, dm->numPolyData);
 
-  return 0;
+  return false;
 }
 
 void DM_DupPolys(DerivedMesh *source, DerivedMesh *target)

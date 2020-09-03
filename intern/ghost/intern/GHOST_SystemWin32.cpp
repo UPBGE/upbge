@@ -328,9 +328,9 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(const char *title,
  * Never explicitly delete the window, use #disposeContext() instead.
  * \return The new context (or 0 if creation failed).
  */
-GHOST_IContext *GHOST_SystemWin32::createOffscreenContext()
+GHOST_IContext *GHOST_SystemWin32::createOffscreenContext(GHOST_GLSettings glSettings)
 {
-  bool debug_context = false; /* TODO: inform as a parameter */
+  const bool debug_context = (glSettings.flags & GHOST_glDebugContext) != 0;
 
   GHOST_Context *context;
 
@@ -1305,7 +1305,9 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 
   LRESULT lResult = 0;
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
+#ifdef WITH_INPUT_IME
   GHOST_EventManager *eventManager = system->getEventManager();
+#endif
   GHOST_ASSERT(system, "GHOST_SystemWin32::s_wndProc(): system not initialized");
 
   if (hwnd) {

@@ -243,9 +243,9 @@ const EnumPropertyItem rna_enum_space_action_mode_items[] = {
 #undef SACT_ITEM_MASK
 #undef SACT_ITEM_CACHEFILE
 
-#define SI_ITEM_VIEW(name, icon) \
+#define SI_ITEM_VIEW(identifier, name, icon) \
   { \
-    SI_MODE_VIEW, "VIEW", icon, name, "View the image" \
+    SI_MODE_VIEW, identifier, icon, name, "View the image" \
   }
 #define SI_ITEM_UV \
   { \
@@ -261,7 +261,7 @@ const EnumPropertyItem rna_enum_space_action_mode_items[] = {
   }
 
 const EnumPropertyItem rna_enum_space_image_mode_all_items[] = {
-    SI_ITEM_VIEW("View", ICON_FILE_IMAGE),
+    SI_ITEM_VIEW("VIEW", "View", ICON_FILE_IMAGE),
     SI_ITEM_UV,
     SI_ITEM_PAINT,
     SI_ITEM_MASK,
@@ -269,14 +269,14 @@ const EnumPropertyItem rna_enum_space_image_mode_all_items[] = {
 };
 
 static const EnumPropertyItem rna_enum_space_image_mode_ui_items[] = {
-    SI_ITEM_VIEW("View", ICON_FILE_IMAGE),
+    SI_ITEM_VIEW("VIEW", "View", ICON_FILE_IMAGE),
     SI_ITEM_PAINT,
     SI_ITEM_MASK,
     {0, NULL, 0, NULL, NULL},
 };
 
 const EnumPropertyItem rna_enum_space_image_mode_items[] = {
-    SI_ITEM_VIEW("Image Editor", ICON_IMAGE),
+    SI_ITEM_VIEW("IMAGE_EDITOR", "Image Editor", ICON_IMAGE),
     SI_ITEM_UV,
     {0, NULL, 0, NULL, NULL},
 };
@@ -1468,11 +1468,14 @@ static bool rna_SpaceImageEditor_show_paint_get(PointerRNA *ptr)
 
 static bool rna_SpaceImageEditor_show_uvedit_get(PointerRNA *ptr)
 {
-  SpaceImage *sima = (SpaceImage *)(ptr->data);
+  SpaceImage *sima = ptr->data;
   bScreen *screen = (bScreen *)ptr->owner_id;
+  Object *obedit = NULL;
   wmWindow *win = ED_screen_window_find(screen, G_MAIN->wm.first);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
+  if (win != NULL) {
+    ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+    obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
+  }
   return ED_space_image_show_uvedit(sima, obedit);
 }
 
@@ -1480,22 +1483,28 @@ static bool rna_SpaceImageEditor_show_maskedit_get(PointerRNA *ptr)
 {
   SpaceImage *sima = (SpaceImage *)(ptr->data);
   bScreen *screen = (bScreen *)ptr->owner_id;
+  Object *obedit = NULL;
   wmWindow *win = ED_screen_window_find(screen, G_MAIN->wm.first);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  return ED_space_image_check_show_maskedit(sima, view_layer);
+  if (win != NULL) {
+    ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+    obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
+  }
+  return ED_space_image_check_show_maskedit(sima, obedit);
 }
 
 static void rna_SpaceImageEditor_image_set(PointerRNA *ptr,
                                            PointerRNA value,
                                            struct ReportList *UNUSED(reports))
 {
-  SpaceImage *sima = (SpaceImage *)(ptr->data);
-  bScreen *screen = (bScreen *)ptr->owner_id;
-  wmWindow *win = ED_screen_window_find(screen, G_MAIN->wm.first);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
-
   BLI_assert(BKE_id_is_in_global_main(value.data));
+  SpaceImage *sima = ptr->data;
+  bScreen *screen = (bScreen *)ptr->owner_id;
+  Object *obedit = NULL;
+  wmWindow *win = ED_screen_window_find(screen, G_MAIN->wm.first);
+  if (win != NULL) {
+    ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+    obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
+  }
   ED_space_image_set(G_MAIN, sima, obedit, (Image *)value.data, false);
 }
 
@@ -3792,14 +3801,14 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   prop = RNA_def_property(srna, "texture_paint_mode_opacity", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, NULL, "overlay.texture_paint_mode_opacity");
   RNA_def_property_ui_text(
-      prop, "Stencil Opacity", "Opacity of the texture paint mode stencil mask overlay");
+      prop, "Stencil Mask Opacity", "Opacity of the texture paint mode stencil mask overlay");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
   prop = RNA_def_property(srna, "vertex_paint_mode_opacity", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, NULL, "overlay.vertex_paint_mode_opacity");
   RNA_def_property_ui_text(
-      prop, "Stencil Opacity", "Opacity of the texture paint mode stencil mask overlay");
+      prop, "Stencil Mask Opacity", "Opacity of the texture paint mode stencil mask overlay");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 

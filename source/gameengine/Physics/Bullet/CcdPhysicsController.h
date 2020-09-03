@@ -38,7 +38,7 @@
 #include "PHY_IMotionState.h"
 #include "PHY_IPhysicsController.h"
 
-extern float gDeactivationTime;
+extern btScalar gDeactivationTime;
 extern float gLinearSleepingTreshold;
 extern float gAngularSleepingTreshold;
 extern bool gDisableDeactivation;
@@ -482,13 +482,13 @@ class BlenderBulletCharacterController : public btKinematicCharacterController,
   {
     return onGround();
   }
-  virtual float GetGravity()
+  virtual MT_Vector3 GetGravity()
   {
-    return getGravity();
+    return ToMoto(getGravity());
   }
-  virtual void SetGravity(float gravity)
+  virtual void SetGravity(const MT_Vector3 &gravity)
   {
-    setGravity(gravity);
+    setGravity(ToBullet(gravity));
   }
   virtual unsigned char GetMaxJumps()
   {

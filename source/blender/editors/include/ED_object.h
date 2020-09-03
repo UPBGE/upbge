@@ -62,6 +62,11 @@ struct Object *ED_object_context(const struct bContext *C);
 struct Object *ED_object_active_context(const struct bContext *C);
 void ED_collection_hide_menu_draw(const struct bContext *C, struct uiLayout *layout);
 
+Object **ED_object_array_in_mode_or_selected(struct bContext *C,
+                                             bool (*filter_fn)(struct Object *ob, void *user_data),
+                                             void *filter_user_data,
+                                             uint *r_objects_len);
+
 /* object_utils.c */
 bool ED_object_calc_active_center_for_editmode(struct Object *obedit,
                                                const bool select_only,
@@ -376,7 +381,7 @@ bool ED_object_modifier_move_to_index(struct ReportList *reports,
                                       struct ModifierData *md,
                                       const int index);
 
-int ED_object_modifier_convert(struct ReportList *reports,
+bool ED_object_modifier_convert(struct ReportList *reports,
                                struct Main *bmain,
                                struct Depsgraph *depsgraph,
                                struct Scene *scene,

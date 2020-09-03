@@ -293,7 +293,7 @@ static void draw_seq_waveform(View2D *v2d,
       return;
     }
 
-    /* Fcurve lookup is quite expensive, so do this after precondition. */
+    /* F-curve lookup is quite expensive, so do this after precondition. */
     FCurve *fcu = id_data_find_fcurve(&scene->id, seq, &RNA_Sequence, "volume", 0, NULL);
 
     GPU_blend(GPU_BLEND_ALPHA);
@@ -586,9 +586,8 @@ static void draw_seq_outline(Sequence *seq,
   immUniformColor3ubv(col);
 
   /* 2px wide outline for selected strips. */
-  /* XXX: some platforms don't support glLines wider than 1px (see T57570),
-   * draw outline as four boxes instead.
-   */
+  /* XXX: some platforms don't support OpenGL lines wider than 1px (see T57570),
+   * draw outline as four boxes instead. */
   if (seq->flag & SELECT) {
     /* Left */
     immRectf(pos, x1 - pixelx, y1, x1 + pixelx, y2);
@@ -1230,7 +1229,15 @@ void ED_sequencer_special_preview_clear(void)
   sequencer_special_update_set(NULL);
 }
 
+/**
+ * Rendering using opengl will change the current viewport/context.
+ * This is why we need the \a region, to set back the render area.
+ *
+ * TODO: do not rely on such hack and just update the \a ibuf outside of
+ * the UI drawing code.
+ **/
 ImBuf *sequencer_ibuf_get(struct Main *bmain,
+                          ARegion *region,
                           struct Depsgraph *depsgraph,
                           Scene *scene,
                           SpaceSeq *sseq,
@@ -1266,9 +1273,16 @@ ImBuf *sequencer_ibuf_get(struct Main *bmain,
    * by Escape pressed somewhere in the past. */
   G.is_break = false;
 
-  /* Rendering can change OGL context. Save & Restore framebuffer. */
+  GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
   GPUFrameBuffer *fb = GPU_framebuffer_active_get();
-  GPU_framebuffer_restore();
+  if (viewport) {
+    /* Unbind viewport to release the DRW context. */
+    GPU_viewport_unbind(viewport);
+  }
+  else {
+    /* Rendering can change OGL context. Save & Restore frame-buffer. */
+    GPU_framebuffer_restore();
+  }
 
   if (special_seq_update) {
     ibuf = BKE_sequencer_give_ibuf_direct(&context, cfra + frame_ofs, special_seq_update);
@@ -1277,7 +1291,12 @@ ImBuf *sequencer_ibuf_get(struct Main *bmain,
     ibuf = BKE_sequencer_give_ibuf(&context, cfra + frame_ofs, sseq->chanshown);
   }
 
-  if (fb) {
+  if (viewport) {
+    /* Follows same logic as wm_draw_window_offscreen to make sure to restore the same viewport. */
+    int view = (sseq->multiview_eye == STEREO_RIGHT_ID) ? 1 : 0;
+    GPU_viewport_bind(viewport, view, &region->winrct);
+  }
+  else if (fb) {
     GPU_framebuffer_bind(fb);
   }
 
@@ -1345,7 +1364,7 @@ static void sequencer_draw_gpencil(const bContext *C)
   /* Draw grease-pencil (image aligned). */
   ED_annotation_draw_2dimage(C);
 
-  /* Ortho at pixel level. */
+  /* Orthographic at pixel level. */
   UI_view2d_view_restore(C);
 
   /* Draw grease-pencil (screen aligned). */
@@ -1403,7 +1422,7 @@ static void sequencer_draw_borders(const SpaceSeq *sseq, const View2D *v2d, cons
 #if 0
 void sequencer_draw_maskedit(const bContext *C, Scene *scene, ARegion *region, SpaceSeq *sseq)
 {
-  /* NOTE: sequencer mask editing isnt finished, the draw code is working but editing not.
+  /* NOTE: sequencer mask editing isn't finished, the draw code is working but editing not.
    * For now just disable drawing since the strip frame will likely be offset. */
 
   // if (sc->mode == SC_MODE_MASKEDIT)
@@ -1518,7 +1537,7 @@ static void sequencer_stop_running_jobs(const bContext *C, Scene *scene)
 {
   if (G.is_rendering == false && (scene->r.seq_prev_type) == OB_RENDER) {
     /* Stop all running jobs, except screen one. Currently previews frustrate Render.
-     * Need to make so sequencer's rendering doesn't conflict with compositor. */
+     * Need to make so sequencers rendering doesn't conflict with compositor. */
     WM_jobs_kill_type(CTX_wm_manager(C), NULL, WM_JOB_TYPE_COMPOSITE);
 
     /* In case of final rendering used for preview, kill all previews,
@@ -1588,7 +1607,7 @@ static void sequencer_draw_display_buffer(const bContext *C,
     GPU_blend(GPU_BLEND_ALPHA);
   }
 
-  /* Format needs to be created prior to any immBindShader call.
+  /* Format needs to be created prior to any #immBindShader call.
    * Do it here because OCIO binds it's own shader. */
   eGPUTextureFormat format;
   eGPUDataFormat data;
@@ -1764,9 +1783,12 @@ void sequencer_draw_preview(const bContext *C,
     return;
   }
 
-  /* Setup offscreen buffers. */
-  GPUViewport *viewport = WM_draw_region_get_viewport(region);
+  /* Get image. */
+  ibuf = sequencer_ibuf_get(
+      bmain, region, depsgraph, scene, sseq, cfra, frame_ofs, names[sseq->multiview_eye]);
 
+  /* Setup off-screen buffers. */
+  GPUViewport *viewport = WM_draw_region_get_viewport(region);
   GPUFrameBuffer *framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(viewport);
   GPU_framebuffer_bind_no_srgb(framebuffer_overlay);
   GPU_depth_test(GPU_DEPTH_NONE);
@@ -1790,12 +1812,6 @@ void sequencer_draw_preview(const bContext *C,
       imm_draw_box_checker_2d(v2d->tot.xmin, v2d->tot.ymin, v2d->tot.xmax, v2d->tot.ymax);
     }
   }
-  /* Get image. */
-  ibuf = sequencer_ibuf_get(
-      bmain, depsgraph, scene, sseq, cfra, frame_ofs, names[sseq->multiview_eye]);
-
-  /* sequencer_ibuf_get can call GPU_framebuffer_bind. So disable srgb framebuffer again. */
-  GPU_framebuffer_bind_no_srgb(framebuffer_overlay);
 
   if (ibuf) {
     scope = sequencer_get_scope(scene, sseq, ibuf, draw_backdrop);
@@ -1821,7 +1837,7 @@ void sequencer_draw_preview(const bContext *C,
   sequencer_draw_maskedit(C, scene, region, sseq);
 #endif
 
-  /* Scope is freed in sequencer_check_scopes when ibuf changes and redraw is needed. */
+  /* Scope is freed in sequencer_check_scopes when `ibuf` changes and redraw is needed. */
   if (ibuf) {
     IMB_freeImBuf(ibuf);
   }
@@ -1886,7 +1902,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *region)
     Sequence *seq;
     /* Loop through strips, checking for those that are visible. */
     for (seq = ed->seqbasep->first; seq; seq = seq->next) {
-      /* Boundbox and selection tests for NOT drawing the strip. */
+      /* Bound-box and selection tests for NOT drawing the strip. */
       if ((seq->flag & SELECT) != sel) {
         continue;
       }
@@ -1923,7 +1939,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *region)
     if (BKE_sequence_effect_get_num_inputs(last_seq->type) > 0) {
       draw_effect_inputs_highlight(last_seq);
     }
-    /* When active is a Multicam strip, highlight its source channel. */
+    /* When active is a Multi-cam strip, highlight its source channel. */
     else if (last_seq->type == SEQ_TYPE_MULTICAM) {
       int channel = last_seq->multicam_source;
       if (channel != 0) {
@@ -2255,6 +2271,11 @@ void draw_timeline_seq(const bContext *C, ARegion *region)
 
   seq_prefetch_wm_notify(C, scene);
 
+  GPUViewport *viewport = WM_draw_region_get_viewport(region);
+  GPUFrameBuffer *framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(viewport);
+  GPU_framebuffer_bind_no_srgb(framebuffer_overlay);
+  GPU_depth_test(GPU_DEPTH_NONE);
+
   UI_GetThemeColor3fv(TH_BACK, col);
   if (ed && ed->metastack.first) {
     GPU_clear_color(col[0], col[1], col[2] - 0.1f, 0.0f);
@@ -2264,7 +2285,7 @@ void draw_timeline_seq(const bContext *C, ARegion *region)
   }
 
   UI_view2d_view_ortho(v2d);
-  /* Get timeline boundbox, needed for the scrollers. */
+  /* Get timeline bound-box, needed for the scroll-bars. */
   boundbox_seq(scene, &v2d->tot);
   draw_seq_backdrop(v2d);
   UI_view2d_constant_grid_draw(v2d, FPS);

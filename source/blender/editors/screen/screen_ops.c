@@ -368,6 +368,11 @@ bool ED_operator_object_active_editable(bContext *C)
 }
 
 /** Object must be editable and fully local (i.e. not an override). */
+bool ED_operator_object_active_local_editable_ex(bContext *C, const Object *ob)
+{
+  return ED_operator_object_active_editable_ex(C, ob) && !ID_IS_OVERRIDE_LIBRARY(ob);
+}
+
 bool ED_operator_object_active_local_editable(bContext *C)
 {
   Object *ob = ED_object_active_context(C);
@@ -623,7 +628,8 @@ bool ED_operator_mask(bContext *C)
       case SPACE_IMAGE: {
         SpaceImage *sima = area->spacedata.first;
         ViewLayer *view_layer = CTX_data_view_layer(C);
-        return ED_space_image_check_show_maskedit(sima, view_layer);
+        Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
+        return ED_space_image_check_show_maskedit(sima, obedit);
       }
     }
   }

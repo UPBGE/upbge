@@ -1313,6 +1313,11 @@ MINLINE bool equals_v2v2_int(const int v1[2], const int v2[2])
   return ((v1[0] == v2[0]) && (v1[1] == v2[1]));
 }
 
+MINLINE bool equals_v4v4_int(const int v1[4], const int v2[4])
+{
+  return ((v1[0] == v2[0]) && (v1[1] == v2[1]) && (v1[2] == v2[2]) && (v1[3] == v2[3]));
+}
+
 MINLINE bool compare_v2v2(const float v1[2], const float v2[2], const float limit)
 {
   return (compare_ff(v1[0], v2[0], limit) && compare_ff(v1[1], v2[1], limit));
@@ -1365,6 +1370,24 @@ MINLINE bool compare_len_v3v3(const float v1[3], const float v2[3], const float 
   float d[3];
   sub_v3_v3v3(d, v1, v2);
   return (dot_v3v3(d, d) <= (limit * limit));
+}
+
+MINLINE bool compare_size_v3v3(const float v1[3], const float v2[3], const float limit)
+{
+  for (int i = 0; i < 3; i++) {
+    if (v2[i] == 0.0f) {
+      /* Catch division by zero. */
+      if (v1[i] != v2[i]) {
+        return false;
+      }
+    }
+    else {
+      if (fabsf(v1[i] / v2[i] - 1.0f) > limit) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 /** \name Vector Clamping

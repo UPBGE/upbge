@@ -579,6 +579,9 @@ const char *WM_operatortype_name(struct wmOperatorType *ot, struct PointerRNA *p
 char *WM_operatortype_description(struct bContext *C,
                                   struct wmOperatorType *ot,
                                   struct PointerRNA *properties);
+char *WM_operatortype_description_or_name(struct bContext *C,
+                                          struct wmOperatorType *ot,
+                                          struct PointerRNA *properties);
 
 /* wm_operator_utils.c */
 void WM_operator_type_modal_from_exec_for_object_edit_coords(struct wmOperatorType *ot);
@@ -902,7 +905,7 @@ bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
 #endif
 
 /* Game engine transition */
-void WM_init_opengl_blenderplayer(struct Main *bmain, void *syshandle);
+void WM_init_opengl_blenderplayer(struct Main *bmain, void *syshandle, struct wmWindow *win);
 void *WM_opengl_context_create_blenderplayer(void *syshandle);
 /* End of Game engine transition */
 

@@ -388,6 +388,8 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer,
 
 void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frameBuffer)
 {
+  Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+  GPU_scissor_test(true);
   const RAS_Rect &viewport = canvas->GetViewportArea();
   SetViewport(
       viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);

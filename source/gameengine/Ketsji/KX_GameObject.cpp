@@ -304,7 +304,9 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
   }
   Object *ob_orig = GetBlenderObject();
 
-  if (ob_orig) {
+  bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
+
+  if (ob_orig && !skip_transform) {
 
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
 

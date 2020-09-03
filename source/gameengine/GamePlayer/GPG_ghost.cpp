@@ -1521,8 +1521,6 @@ int main(int argc,
               wmWindow *win = (wmWindow *)wm->windows.first;
               CTX_wm_manager_set(C, wm);
               CTX_wm_window_set(C, win);
-              WM_init_opengl_blenderplayer(G_MAIN, system);
-              BKE_subdiv_init();
             }
 
             wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
@@ -1531,6 +1529,12 @@ int main(int argc,
             CTX_wm_window_set(C, win);
             InitBlenderContextVariables(C, wm, bfd->curscene);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
+            if (first_time_window) {
+              /* We need to have first an ogl context bound and it's done
+               * in wm_window_ghostwindow_blenderplayer_ensure.
+               */
+              WM_init_opengl_blenderplayer(G_MAIN, system, win);
+            }
             first_time_window = false;
 
             // This argc cant be argc_py_clamped, since python uses it.

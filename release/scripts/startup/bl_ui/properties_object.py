@@ -97,6 +97,18 @@ class OBJECT_PT_transform(ObjectButtonsPanel, Panel):
         row.prop(ob, "lock_scale", text="", emboss=False, icon='DECORATE_UNLOCKED')
 
 
+# Game engine transition
+class OBJECT_PT_transform_game(ObjectButtonsPanel, Panel):
+    bl_label = "Transform Game"
+
+    def draw(self, context):
+        layout = self.layout
+        ob = context.object
+
+        col = layout.column()
+        col.prop(ob, "override_game_transform_priority", text="Override logic transform priority")
+
+
 class OBJECT_PT_delta_transform(ObjectButtonsPanel, Panel):
     bl_label = "Delta Transform"
     bl_parent_id = "OBJECT_PT_transform"
@@ -399,6 +411,7 @@ class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
 classes = (
     OBJECT_PT_context_object,
     OBJECT_PT_transform,
+    OBJECT_PT_transform_game, # Game engine transition
     OBJECT_PT_delta_transform,
     OBJECT_PT_relations,
     COLLECTION_MT_context_menu,
