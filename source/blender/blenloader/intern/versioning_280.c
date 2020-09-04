@@ -667,7 +667,7 @@ static ARegion *do_versions_find_region(ListBase *regionbase, int regiontype)
 {
   ARegion *region = do_versions_find_region_or_null(regionbase, regiontype);
   if (region == NULL) {
-    BLI_assert(!"Did not find expected region in versioning");
+    //BLI_assert(!"Did not find expected region in versioning");
   }
   return region;
 }
