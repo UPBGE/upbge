@@ -157,6 +157,7 @@ class KX_GameObject : public SCA_IObject {
   void IgnoreParentTxBGE(struct Main *bmain, struct Depsgraph *depsgraph, KX_Scene *kxscene, Object *ob);
   void ForceIgnoreParentTx();
   bool OrigObCanBeTransformedInRealtime(Object *ob);
+  void SyncTransformWithDepsgraph();
   /* END OF EEVEE INTEGRATION */
 
   /**
