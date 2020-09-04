@@ -140,6 +140,7 @@ struct Object *BKE_object_add_for_data(struct Main *bmain,
                                        bool do_id_user) ATTR_RETURNS_NONNULL;
 void *BKE_object_obdata_add_from_type(struct Main *bmain, int type, const char *name)
     ATTR_NONNULL(1);
+int BKE_object_obdata_to_type(const struct ID *id) ATTR_NONNULL(1);
 
 void BKE_object_lod_add(struct Object *ob);
 void BKE_object_lod_sort(struct Object *ob);

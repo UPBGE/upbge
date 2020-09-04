@@ -1244,7 +1244,7 @@ static bool vfont_to_curve(Object *ob,
     if (cu->textoncurve->runtime.curve_cache != NULL &&
         cu->textoncurve->runtime.curve_cache->path != NULL) {
       float distfac, imat[4][4], imat3[3][3], cmat[3][3];
-      float minx, maxx, miny, maxy;
+      float minx, maxx;
       float timeofs, sizefac;
 
       if (ob != NULL) {
@@ -1259,33 +1259,36 @@ static bool vfont_to_curve(Object *ob,
       mul_m3_m3m3(cmat, cmat, imat3);
       sizefac = normalize_v3(cmat[0]) / font_size;
 
-      minx = miny = 1.0e20f;
-      maxx = maxy = -1.0e20f;
       ct = chartransdata;
-      for (i = 0; i <= slen; i++, ct++) {
+      minx = maxx = ct->xof;
+      ct++;
+      for (i = 1; i <= slen; i++, ct++) {
         if (minx > ct->xof) {
           minx = ct->xof;
         }
         if (maxx < ct->xof) {
           maxx = ct->xof;
         }
-        if (miny > ct->yof) {
-          miny = ct->yof;
-        }
-        if (maxy < ct->yof) {
-          maxy = ct->yof;
-        }
       }
 
-      /* we put the x-coordinaat exact at the curve, the y is rotated */
+      /* We put the x-coordinate exact at the curve, the y is rotated. */
 
       /* length correction */
-      distfac = sizefac * cu->textoncurve->runtime.curve_cache->path->totdist / (maxx - minx);
+      const float chartrans_size_x = maxx - minx;
+      if (chartrans_size_x != 0.0f) {
+        const float totdist = cu->textoncurve->runtime.curve_cache->path->totdist;
+        distfac = (sizefac * totdist) / chartrans_size_x;
+        distfac = (distfac > 1.0f) ? (1.0f / distfac) : 1.0f;
+      }
+      else {
+        /* Happens when there are no characters, set this value to place the text cursor. */
+        distfac = 0.0f;
+      }
+
       timeofs = 0.0f;
 
-      if (distfac > 1.0f) {
-        /* path longer than text: spacemode involves */
-        distfac = 1.0f / distfac;
+      if (distfac < 1.0f) {
+        /* Path longer than text: space-mode is involved. */
 
         if (cu->spacemode == CU_ALIGN_X_RIGHT) {
           timeofs = 1.0f - distfac;
@@ -1297,11 +1300,10 @@ static bool vfont_to_curve(Object *ob,
           distfac = 1.0f;
         }
       }
-      else {
-        distfac = 1.0;
-      }
 
-      distfac /= (maxx - minx);
+      if (chartrans_size_x != 0.0f) {
+        distfac /= chartrans_size_x;
+      }
 
       timeofs += distfac * cu->xof; /* not cyclic */
 
@@ -1310,7 +1312,7 @@ static bool vfont_to_curve(Object *ob,
         float ctime, dtime, vec[4], tvec[4], rotvec[3];
         float si, co;
 
-        /* rotate around center character */
+        /* Rotate around center character. */
         info = &custrinfo[i];
         ascii = mem[i];
         if (info->flag & CU_CHINFO_SMALLCAPS_CHECK) {

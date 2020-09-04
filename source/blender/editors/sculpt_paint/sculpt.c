@@ -1661,9 +1661,6 @@ bool SCULPT_brush_test_cube(SculptBrushTest *test,
 {
   float side = M_SQRT1_2;
   float local_co[3];
-  float i_local[4][4];
-
-  invert_m4_m4(i_local, local);
 
   if (sculpt_brush_test_clipping(test, co)) {
     return false;
@@ -6657,7 +6654,7 @@ static bool sculpt_needs_delta_from_anchored_origin(Brush *brush)
 static bool sculpt_needs_delta_for_tip_orientation(Brush *brush)
 {
   if (brush->sculpt_tool == SCULPT_TOOL_CLOTH) {
-    return brush->cloth_deform_type == BRUSH_CLOTH_DEFORM_SNAKE_HOOK;
+    return brush->cloth_deform_type != BRUSH_CLOTH_DEFORM_GRAB;
   }
   return ELEM(brush->sculpt_tool,
               SCULPT_TOOL_CLAY_STRIPS,
@@ -9156,6 +9153,8 @@ void ED_operatortypes_sculpt(void)
   WM_operatortype_append(SCULPT_OT_face_sets_init);
   WM_operatortype_append(SCULPT_OT_cloth_filter);
   WM_operatortype_append(SCULPT_OT_face_sets_edit);
+  WM_operatortype_append(SCULPT_OT_face_set_lasso_gesture);
+  WM_operatortype_append(SCULPT_OT_face_set_box_gesture);
 
   WM_operatortype_append(SCULPT_OT_sample_color);
   WM_operatortype_append(SCULPT_OT_loop_to_vertex_colors);
