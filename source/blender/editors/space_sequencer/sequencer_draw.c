@@ -1262,8 +1262,8 @@ ImBuf *sequencer_ibuf_get(struct Main *bmain,
     render_size = BKE_sequencer_rendersize_to_scale_factor(sseq->render_size);
   }
 
-  rectx = render_size * scene->r.xsch + 0.5;
-  recty = render_size * scene->r.ysch + 0.5;
+  rectx = roundf(render_size * scene->r.xsch);
+  recty = roundf(render_size * scene->r.ysch);
 
   BKE_sequencer_new_render_data(
       bmain, depsgraph, scene, rectx, recty, sseq->render_size, false, &context);
@@ -1764,7 +1764,7 @@ void sequencer_draw_preview(const bContext *C,
                             ARegion *region,
                             SpaceSeq *sseq,
                             int cfra,
-                            int frame_ofs,
+                            int offset,
                             bool draw_overlay,
                             bool draw_backdrop)
 {
@@ -1785,7 +1785,7 @@ void sequencer_draw_preview(const bContext *C,
 
   /* Get image. */
   ibuf = sequencer_ibuf_get(
-      bmain, region, depsgraph, scene, sseq, cfra, frame_ofs, names[sseq->multiview_eye]);
+      bmain, region, depsgraph, scene, sseq, cfra, offset, names[sseq->multiview_eye]);
 
   /* Setup off-screen buffers. */
   GPUViewport *viewport = WM_draw_region_get_viewport(region);
@@ -1800,7 +1800,7 @@ void sequencer_draw_preview(const bContext *C,
 
   /* Setup view. */
   sequencer_display_size(scene, viewrect);
-  UI_view2d_totRect_set(v2d, viewrect[0] + 0.5f, viewrect[1] + 0.5f);
+  UI_view2d_totRect_set(v2d, roundf(viewrect[0] + 0.5f), roundf(viewrect[1] + 0.5f));
   UI_view2d_curRect_validate(v2d);
   UI_view2d_view_ortho(v2d);
 

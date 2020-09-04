@@ -73,7 +73,7 @@ size_t BLI_snprintf(char *__restrict dst, size_t maxncpy, const char *__restrict
 size_t BLI_snprintf_rlen(char *__restrict dst, size_t maxncpy, const char *__restrict format, ...)
     ATTR_NONNULL(1, 3) ATTR_PRINTF_FORMAT(3, 4);
 
-size_t BLI_vsnprintf(char *__restrict dst,
+size_t BLI_vsnprintf(char *__restrict buffer,
                      size_t maxncpy,
                      const char *__restrict format,
                      va_list arg) ATTR_PRINTF_FORMAT(3, 0);
@@ -90,7 +90,8 @@ size_t BLI_strescape(char *__restrict dst, const char *__restrict src, const siz
 
 size_t BLI_str_format_int_grouped(char dst[16], int num) ATTR_NONNULL();
 size_t BLI_str_format_uint64_grouped(char dst[16], uint64_t num) ATTR_NONNULL();
-void BLI_str_format_byte_unit(char dst[15], long long int size, const bool base_10) ATTR_NONNULL();
+void BLI_str_format_byte_unit(char dst[15], long long int bytes, const bool base_10)
+    ATTR_NONNULL();
 
 int BLI_strcaseeq(const char *a, const char *b) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 char *BLI_strcasestr(const char *s, const char *find) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
@@ -132,6 +133,13 @@ size_t BLI_str_partition_ex(const char *str,
                             const char **sep,
                             const char **suf,
                             const bool from_right) ATTR_NONNULL(1, 3, 4, 5);
+
+int BLI_string_max_possible_word_count(const int str_len);
+bool BLI_string_has_word_prefix(const char *haystack, const char *needle, size_t needle_len);
+bool BLI_string_all_words_matched(const char *name,
+                                  const char *str,
+                                  int (*words)[2],
+                                  const int words_len);
 
 int BLI_string_find_split_words(const char *str,
                                 const size_t len,

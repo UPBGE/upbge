@@ -36,6 +36,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_workspace_types.h"
 
+#include "BLI_alloca.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_rect.h"
@@ -621,9 +622,18 @@ void UI_block_bounds_set_explicit(uiBlock *block, int minx, int miny, int maxx, 
   block->bounds_type = UI_BLOCK_BOUNDS_NONE;
 }
 
+static float ui_but_get_float_precision(uiBut *but)
+{
+  if (but->type == UI_BTYPE_NUM) {
+    return ((uiButNumber *)but)->precision;
+  }
+
+  return but->a2;
+}
+
 static int ui_but_calc_float_precision(uiBut *but, double value)
 {
-  int prec = (int)but->a2;
+  int prec = (int)ui_but_get_float_precision(but);
 
   /* first check for various special cases:
    * * If button is radians, we want additional precision (see T39861).
@@ -1856,6 +1866,24 @@ void UI_block_update_from_old(const bContext *C, uiBlock *block)
   block->oldblock = NULL;
 }
 
+#ifndef NDEBUG
+/**
+ * Extra sanity checks for invariants (debug builds only).
+ */
+static void ui_but_validate(const uiBut *but)
+{
+  /* Number buttons must have a click-step,
+   * assert instead of correcting the value to ensure the caller knows what they're doing.  */
+  if (but->type == UI_BTYPE_NUM) {
+    uiButNumber *number_but = (uiButNumber *)but;
+
+    if (ELEM(but->pointype, UI_BUT_POIN_CHAR, UI_BUT_POIN_SHORT, UI_BUT_POIN_INT)) {
+      BLI_assert((int)number_but->step_size > 0);
+    }
+  }
+}
+#endif
+
 void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2], int r_xy[2])
 {
   wmWindow *window = CTX_wm_window(C);
@@ -1897,6 +1925,10 @@ void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2], int r_x
       ui_but_anim_decorate_update_from_flag((uiButDecorator *)but);
     }
     ui_but_predefined_extra_operator_icons_add(but);
+
+#ifndef NDEBUG
+    ui_but_validate(but);
+#endif
   }
 
   /* handle pending stuff */
@@ -2797,7 +2829,7 @@ static void ui_get_but_string_unit(
   /* Use precision override? */
   if (float_precision == -1) {
     /* Sanity checks */
-    precision = (int)but->a2;
+    precision = (int)ui_but_get_float_precision(but);
     if (precision > UI_PRECISION_FLOAT_MAX) {
       precision = UI_PRECISION_FLOAT_MAX;
     }
@@ -4013,6 +4045,10 @@ static void ui_but_alloc_info(const eButType type,
   bool has_custom_type = true;
 
   switch (type) {
+    case UI_BTYPE_NUM:
+      alloc_size = sizeof(uiButNumber);
+      alloc_str = "uiButNumber";
+      break;
     case UI_BTYPE_COLOR:
       alloc_size = sizeof(uiButColor);
       alloc_str = "uiButColor";
@@ -4157,14 +4193,6 @@ static uiBut *ui_def_but(uiBlock *block,
   if ((type & BUTTYPE) == UI_BTYPE_LABEL) {
     BLI_assert((poin != NULL || min != 0.0f || max != 0.0f || (a1 == 0.0f && a2 != 0.0f) ||
                 (a1 != 0.0f && a1 != 1.0f)) == false);
-  }
-
-  /* Number buttons must have a click-step,
-   * assert instead of correcting the value to ensure the caller knows what they're doing.  */
-  if ((type & BUTTYPE) == UI_BTYPE_NUM) {
-    if (ELEM((type & UI_BUT_POIN_TYPES), UI_BUT_POIN_CHAR, UI_BUT_POIN_SHORT, UI_BUT_POIN_INT)) {
-      BLI_assert((int)a1 > 0);
-    }
   }
 
   if (type & UI_BUT_POIN_TYPES) { /* a pointer is required */
@@ -4605,6 +4633,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
   uiBut *but;
   int icon = 0;
   uiMenuCreateFunc func = NULL;
+  const bool always_set_a1_a2 = ELEM(type, UI_BTYPE_NUM);
 
   if (ELEM(type, UI_BTYPE_COLOR, UI_BTYPE_HSVCIRCLE, UI_BTYPE_HSVCUBE)) {
     BLI_assert(index == -1);
@@ -4669,7 +4698,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
     tip = RNA_property_ui_description(prop);
   }
 
-  if (min == max || a1 == -1 || a2 == -1) {
+  if (min == max || a1 == -1 || a2 == -1 || always_set_a1_a2) {
     if (proptype == PROP_INT) {
       int hardmin, hardmax, softmin, softmax, step;
 
@@ -4680,10 +4709,10 @@ static uiBut *ui_def_but_rna(uiBlock *block,
         min = hardmin;
         max = hardmax;
       }
-      if (a1 == -1) {
+      if (a1 == -1 || always_set_a1_a2) {
         a1 = step;
       }
-      if (a2 == -1) {
+      if (a2 == -1 || always_set_a1_a2) {
         a2 = 0;
       }
     }
@@ -4697,10 +4726,10 @@ static uiBut *ui_def_but_rna(uiBlock *block,
         min = hardmin;
         max = hardmax;
       }
-      if (a1 == -1) {
+      if (a1 == -1 || always_set_a1_a2) {
         a1 = step;
       }
-      if (a2 == -1) {
+      if (a2 == -1 || always_set_a1_a2) {
         a2 = precision;
       }
     }
@@ -4713,6 +4742,12 @@ static uiBut *ui_def_but_rna(uiBlock *block,
 
   /* now create button */
   but = ui_def_but(block, type, retval, str, x, y, width, height, NULL, min, max, a1, a2, tip);
+
+  if (but->type == UI_BTYPE_NUM) {
+    /* Set default values, can be overriden later. */
+    UI_but_number_step_size_set(but, a1);
+    UI_but_number_precision_set(but, a2);
+  }
 
   but->rnapoin = *ptr;
   but->rnaprop = prop;
@@ -4751,7 +4786,13 @@ static uiBut *ui_def_but_rna(uiBlock *block,
 
   /* If this button uses units, calculate the step from this */
   if ((proptype == PROP_FLOAT) && ui_but_is_unit(but)) {
-    but->a1 = ui_get_but_step_unit(but, but->a1);
+    if (type == UI_BTYPE_NUM) {
+      uiButNumber *number_but = (uiButNumber *)but;
+      number_but->step_size = ui_get_but_step_unit(but, number_but->step_size);
+    }
+    else {
+      but->a1 = ui_get_but_step_unit(but, but->a1);
+    }
   }
 
   if (func) {
@@ -6872,12 +6913,18 @@ static void operator_enum_search_update_fn(const struct bContext *C,
     const EnumPropertyItem *item, *item_array;
     bool do_free;
 
+    /* Prepare BLI_string_all_words_matched. */
+    const size_t str_len = strlen(str);
+    const int words_max = BLI_string_max_possible_word_count(str_len);
+    int(*words)[2] = BLI_array_alloca(words, words_max);
+    const int words_len = BLI_string_find_split_words(str, str_len, ' ', words, words_max);
+
     RNA_property_enum_items_gettexted((bContext *)C, ptr, prop, &item_array, NULL, &do_free);
 
     for (item = item_array; item->identifier; item++) {
       /* note: need to give the index rather than the
        * identifier because the enum can be freed */
-      if (BLI_strcasestr(item->name, str)) {
+      if (BLI_string_all_words_matched(item->name, str, words, words_len)) {
         if (!UI_search_item_add(
                 items, item->name, POINTER_FROM_INT(item->value), item->icon, 0, 0)) {
           break;
@@ -6957,6 +7004,24 @@ void UI_but_node_link_set(uiBut *but, bNodeSocket *socket, const float draw_colo
   but->flag |= UI_BUT_NODE_LINK;
   but->custom_data = socket;
   rgba_float_to_uchar(but->col, draw_color);
+}
+
+void UI_but_number_step_size_set(uiBut *but, float step_size)
+{
+  uiButNumber *but_number = (uiButNumber *)but;
+  BLI_assert(but->type == UI_BTYPE_NUM);
+
+  but_number->step_size = step_size;
+  BLI_assert(step_size > 0);
+}
+
+void UI_but_number_precision_set(uiBut *but, float precision)
+{
+  uiButNumber *but_number = (uiButNumber *)but;
+  BLI_assert(but->type == UI_BTYPE_NUM);
+
+  but_number->precision = precision;
+  BLI_assert(precision > -1);
 }
 
 /**

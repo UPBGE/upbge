@@ -1897,7 +1897,7 @@ static bool ui_but_drag_init(bContext *C,
   WM_gestures_remove(CTX_wm_window(C));
 
   /* Clamp the maximum to half the UI unit size so a high user preference
-   * doesn't require the user to drag more then half the default button height. */
+   * doesn't require the user to drag more than half the default button height. */
   const int drag_threshold = min_ii(
       WM_event_drag_threshold(event),
       (int)((UI_UNIT_Y / 2) * ui_block_to_window_scale(data->region, but->block)));
@@ -4138,12 +4138,14 @@ static void ui_numedit_begin(uiBut *but, uiHandleButtonData *data)
     softrange = softmax - softmin;
 
     if ((but->type == UI_BTYPE_NUM) && (ui_but_is_cursor_warp(but) == false)) {
+      uiButNumber *number_but = (uiButNumber *)but;
       /* Use a minimum so we have a predictable range,
        * otherwise some float buttons get a large range. */
       const float value_step_float_min = 0.1f;
       const bool is_float = ui_but_is_float(but);
-      const double value_step = is_float ? (double)(but->a1 * UI_PRECISION_FLOAT_SCALE) :
-                                           (int)but->a1;
+      const double value_step = is_float ?
+                                    (double)(number_but->step_size * UI_PRECISION_FLOAT_SCALE) :
+                                    (int)number_but->step_size;
       const float drag_map_softrange_max = UI_DRAG_MAP_SOFT_RANGE_PIXEL_MAX * UI_DPI_FAC;
       const float softrange_max = min_ff(
           softrange,
@@ -4941,13 +4943,14 @@ static float ui_numedit_apply_snap(int temp,
   return temp;
 }
 
-static bool ui_numedit_but_NUM(uiBut *but,
+static bool ui_numedit_but_NUM(uiButNumber *number_but,
                                uiHandleButtonData *data,
                                int mx,
                                const bool is_motion,
                                const enum eSnapType snap,
                                float fac)
 {
+  uiBut *but = &number_but->but;
   float deler, tempf;
   int lvalue, temp;
   bool changed = false;
@@ -4966,7 +4969,7 @@ static bool ui_numedit_but_NUM(uiBut *but,
     /* Mouse location isn't screen clamped to the screen so use a linear mapping
      * 2px == 1-int, or 1px == 1-ClickStep */
     if (is_float) {
-      fac *= 0.01f * but->a1;
+      fac *= 0.01f * number_but->step_size;
       tempf = (float)data->startvalue + ((float)(mx - data->dragstartx) * fac);
       tempf = ui_numedit_apply_snapf(but, tempf, softmin, softmax, snap);
 
@@ -5169,6 +5172,7 @@ static void ui_numedit_set_active(uiBut *but)
 static int ui_do_but_NUM(
     bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
+  uiButNumber *number_but = (uiButNumber *)but;
   int click = 0;
   int retval = WM_UI_HANDLER_CONTINUE;
 
@@ -5177,6 +5181,8 @@ static int ui_do_but_NUM(
   int my = event->y;
   /* mouse location kept at screen pixel coords */
   const int screen_mx = event->x;
+
+  BLI_assert(but->type == UI_BTYPE_NUM);
 
   ui_window_to_block(data->region, block, &mx, &my);
   ui_numedit_set_active(but);
@@ -5270,8 +5276,12 @@ static int ui_do_but_NUM(
         fac /= 10.0f;
       }
 
-      if (ui_numedit_but_NUM(
-              but, data, (ui_but_is_cursor_warp(but) ? screen_mx : mx), is_motion, snap, fac)) {
+      if (ui_numedit_but_NUM(number_but,
+                             data,
+                             (ui_but_is_cursor_warp(but) ? screen_mx : mx),
+                             is_motion,
+                             snap,
+                             fac)) {
         ui_numedit_apply(C, block, but, data);
       }
 #ifdef USE_DRAG_MULTINUM
@@ -5302,7 +5312,7 @@ static int ui_do_but_NUM(
       if (but->drawflag & (UI_BUT_ACTIVE_LEFT | UI_BUT_ACTIVE_RIGHT)) {
         button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
 
-        const int value_step = (int)but->a1;
+        const int value_step = (int)number_but->step_size;
         BLI_assert(value_step > 0);
         const int softmin = round_fl_to_int_clamp(but->softmin);
         const int softmax = round_fl_to_int_clamp(but->softmax);
@@ -5326,7 +5336,7 @@ static int ui_do_but_NUM(
       if (but->drawflag & (UI_BUT_ACTIVE_LEFT | UI_BUT_ACTIVE_RIGHT)) {
         button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
 
-        const double value_step = (double)but->a1 * UI_PRECISION_FLOAT_SCALE;
+        const double value_step = (double)number_but->step_size * UI_PRECISION_FLOAT_SCALE;
         BLI_assert(value_step > 0.0f);
         const double value_test = (but->drawflag & UI_BUT_ACTIVE_LEFT) ?
                                       (double)max_ff(but->softmin,
@@ -7196,10 +7206,7 @@ static bool ui_numedit_but_CURVEPROFILE(uiBlock *block,
   const float zoomy = BLI_rctf_size_y(&but->rect) / BLI_rctf_size_y(&profile->view_rect);
 
   if (snap) {
-    float d[2];
-
-    d[0] = mx - data->dragstartx;
-    d[1] = my - data->dragstarty;
+    float d[2] = {mx - data->dragstartx, data->dragstarty};
 
     if (len_squared_v2(d) < (9.0f * U.dpi_fac)) {
       snap = false;
@@ -7221,7 +7228,7 @@ static bool ui_numedit_but_CURVEPROFILE(uiBlock *block,
     const float delta[2] = {fx, fy};
     for (int a = 0; a < profile->path_len; a++) {
       /* Don't move the last and first control points. */
-      if ((pts[a].flag & PROF_SELECT) && (a != 0) && (a != profile->path_len)) {
+      if (pts[a].flag & PROF_SELECT) {
         moved_point |= BKE_curveprofile_move_point(profile, &pts[a], snap, delta);
         last_x = pts[a].x;
         last_y = pts[a].y;

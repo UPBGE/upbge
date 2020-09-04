@@ -24,6 +24,7 @@
  * \ingroup bke
  */
 
+#include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2204,8 +2205,8 @@ void BKE_sequencer_proxy_rebuild(SeqIndexBuildContext *context,
   BKE_sequencer_new_render_data(bmain,
                                 context->depsgraph,
                                 context->scene,
-                                (scene->r.size * (float)scene->r.xsch) / 100.0f + 0.5f,
-                                (scene->r.size * (float)scene->r.ysch) / 100.0f + 0.5f,
+                                roundf((scene->r.size * (float)scene->r.xsch) / 100.0f),
+                                roundf((scene->r.size * (float)scene->r.ysch) / 100.0f),
                                 100,
                                 false,
                                 &render_context);
@@ -4145,13 +4146,13 @@ ImBuf *BKE_sequencer_give_ibuf(const SeqRenderData *context, float cfra, int cha
 
 ImBuf *BKE_sequencer_give_ibuf_seqbase(const SeqRenderData *context,
                                        float cfra,
-                                       int chanshown,
+                                       int chan_shown,
                                        ListBase *seqbasep)
 {
   SeqRenderState state;
   sequencer_state_init(&state);
 
-  return seq_render_strip_stack(context, &state, seqbasep, cfra, chanshown);
+  return seq_render_strip_stack(context, &state, seqbasep, cfra, chan_shown);
 }
 
 ImBuf *BKE_sequencer_give_ibuf_direct(const SeqRenderData *context, float cfra, Sequence *seq)
