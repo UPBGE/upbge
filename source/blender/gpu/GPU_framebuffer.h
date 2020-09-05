@@ -32,6 +32,23 @@
 
 #include "GPU_texture.h"
 
+typedef enum eGPUFrameBufferBits {
+  GPU_COLOR_BIT = (1 << 0),
+  GPU_DEPTH_BIT = (1 << 1),
+  GPU_STENCIL_BIT = (1 << 2),
+} eGPUFrameBufferBits;
+
+/* Game engine transition:
+ * I have linkage error caused by this macro
+ * and as I don't know how to solve it properly,
+ * I had to do a cast where this macro was needed
+ * (inline eGPUFrameBufferBits to_framebuffer_bits).
+ * There was a similar linkage error in GPU_state.h
+ * with ENUM_OPERATORS(eGPUWriteMask) which I commented too
+ * (youle)
+ */
+//ENUM_OPERATORS(eGPUFrameBufferBits)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -40,12 +57,6 @@ typedef struct GPUAttachment {
   struct GPUTexture *tex;
   int layer, mip;
 } GPUAttachment;
-
-typedef enum eGPUFrameBufferBits {
-  GPU_COLOR_BIT = (1 << 0),
-  GPU_DEPTH_BIT = (1 << 1),
-  GPU_STENCIL_BIT = (1 << 2),
-} eGPUFrameBufferBits;
 
 typedef enum eGPUBackBuffer {
   GPU_BACKBUFFER_LEFT = 0,

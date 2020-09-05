@@ -2217,13 +2217,11 @@ static void radial_control_set_tex(RadialControl *rc)
                rc->use_secondary_tex,
                !ELEM(rc->subtype, PROP_NONE, PROP_PIXEL, PROP_DISTANCE)))) {
 
-        rc->texture = GPU_texture_create_nD(
-            ibuf->x, ibuf->y, 0, 2, ibuf->rect_float, GPU_R8, GPU_DATA_FLOAT, 0, false, NULL);
-        GPU_texture_filter_mode(rc->texture, true);
+        rc->texture = GPU_texture_create_2d(
+            "radial_control", ibuf->x, ibuf->y, 1, GPU_R8, ibuf->rect_float);
 
-        GPU_texture_bind(rc->texture, 0);
+        GPU_texture_filter_mode(rc->texture, true);
         GPU_texture_swizzle_set(rc->texture, "111r");
-        GPU_texture_unbind(rc->texture);
 
         MEM_freeN(ibuf->rect_float);
         MEM_freeN(ibuf);

@@ -33,7 +33,7 @@ typedef enum eGPUWriteMask {
   GPU_WRITE_COLOR = (GPU_WRITE_RED | GPU_WRITE_GREEN | GPU_WRITE_BLUE | GPU_WRITE_ALPHA),
 } eGPUWriteMask;
 
-//ENUM_OPERATORS(eGPUWriteMask) // Game engine transition WARNING I commented to fix a compil error but idk what it can do
+//ENUM_OPERATORS(eGPUWriteMask) // Game engine transition WARNING I commented to fix a compil error but idk what it can do (youle)
 
 /**
  * Defines the fixed pipeline blending equation.
