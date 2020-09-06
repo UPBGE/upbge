@@ -20,37 +20,27 @@
 /** \file
  * \ingroup gpu
  *
- * GPU geometry batch
- * Contains VAOs + VBOs + Shader representing a drawable entity.
+ * GPU vertex buffer
  */
 
 #pragma once
 
-#include "GPU_batch.h"
-#include "GPU_context.h"
+#include "GPU_vertex_buffer.h"
 
-#include "gpu_index_buffer_private.hh"
-
-namespace blender {
-namespace gpu {
-
-/**
- * Base class which is then specialized for each implementation (GL, VK, ...).
- * NOTE: Extends GPUBatch as we still needs to expose some of the internals to the outside C code.
- **/
-class Batch : public GPUBatch {
- public:
-  Batch(){};
-  virtual ~Batch(){};
-
-  virtual void draw(int v_first, int v_count, int i_first, int i_count) = 0;
-
-  /* Convenience casts. */
-  IndexBuf *elem_(void)
-  {
-    return unwrap(elem);
-  };
+struct GPUVertBuf {
+  GPUVertFormat format;
+  /** Number of verts we want to draw. */
+  uint vertex_len;
+  /** Number of verts data. */
+  uint vertex_alloc;
+  /** 0 indicates not yet allocated. */
+  uint32_t vbo_id;
+  /** Usage hint for GL optimisation. */
+  GPUUsageType usage;
+  /** Status flag. */
+  GPUVertBufStatus flag;
+  /** This counter will only avoid freeing the GPUVertBuf, not the data. */
+  char handle_refcount;
+  /** NULL indicates data in VRAM (unmapped) */
+  uchar *data;
 };
-
-}  // namespace gpu
-}  // namespace blender

@@ -36,15 +36,13 @@
 #include "GPU_shader.h"
 
 #include "gpu_backend.hh"
-#include "gpu_batch_private.hh"
 #include "gpu_context_private.hh"
+#include "gpu_index_buffer_private.hh"
 #include "gpu_shader_private.hh"
-#include "gpu_vertex_format_private.h"
+#include "gpu_vertex_buffer_private.hh"
 
-#include "gl_primitive.hh" /* TODO remove */
+#include "gpu_batch_private.hh"
 
-#include <limits.h>
-#include <stdlib.h>
 #include <string.h>
 
 using namespace blender::gpu;
@@ -201,7 +199,8 @@ int GPU_batch_vertbuf_add_ex(GPUBatch *batch, GPUVertBuf *verts, bool own_vbo)
     if (batch->verts[v] == NULL) {
       /* for now all VertexBuffers must have same vertex_len */
       if (batch->verts[0] != NULL) {
-        BLI_assert(verts->vertex_len == batch->verts[0]->vertex_len);
+        /* This is an issue for the HACK inside DRW_vbo_request(). */
+        // BLI_assert(verts->vertex_len == batch->verts[0]->vertex_len);
       }
       batch->verts[v] = verts;
       SET_FLAG_FROM_TEST(batch->flag, own_vbo, (eGPUBatchFlag)(GPU_BATCH_OWNS_VBO << v));
@@ -257,12 +256,19 @@ void GPU_batch_draw_instanced(GPUBatch *batch, int i_count)
   GPU_shader_unbind();
 }
 
-void GPU_batch_draw_advanced(GPUBatch *batch, int v_first, int v_count, int i_first, int i_count)
+void GPU_batch_draw_advanced(
+    GPUBatch *gpu_batch, int v_first, int v_count, int i_first, int i_count)
 {
   BLI_assert(GPU_context_active_get()->shader != NULL);
+  Batch *batch = static_cast<Batch *>(gpu_batch);
 
   if (v_count == 0) {
-    v_count = (batch->elem) ? batch->elem->index_len : batch->verts[0]->vertex_len;
+    if (batch->elem) {
+      v_count = batch->elem_()->index_len_get();
+    }
+    else {
+      v_count = batch->verts[0]->vertex_len;
+    }
   }
   if (i_count == 0) {
     i_count = (batch->inst[0]) ? batch->inst[0]->vertex_len : 1;
@@ -277,7 +283,7 @@ void GPU_batch_draw_advanced(GPUBatch *batch, int v_first, int v_count, int i_fi
     return;
   }
 
-  static_cast<Batch *>(batch)->draw(v_first, v_count, i_first, i_count);
+  batch->draw(v_first, v_count, i_first, i_count);
 }
 
 /** \} */

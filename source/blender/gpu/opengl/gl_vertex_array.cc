@@ -21,15 +21,13 @@
  * \ingroup gpu
  */
 
-#include "GPU_glew.h"
-
-#include "GPU_vertex_buffer.h"
-
 #include "gpu_shader_interface.hh"
+#include "gpu_vertex_buffer_private.hh"
 #include "gpu_vertex_format_private.h"
 
 #include "gl_batch.hh"
 #include "gl_context.hh"
+#include "gl_index_buffer.hh"
 
 #include "gl_vertex_array.hh"
 
@@ -151,7 +149,7 @@ void GLVertArray::update_bindings(const GLuint vao,
 
   if (batch->elem) {
     /* Binds the index buffer. This state is also saved in the VAO. */
-    GPU_indexbuf_use(batch->elem);
+    static_cast<GLIndexBuf *>(unwrap(batch->elem))->bind();
   }
 }
 

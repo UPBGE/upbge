@@ -25,7 +25,22 @@
 
 #pragma once
 
+#include "BLI_utildefines.h"
+
 #include "GPU_vertex_format.h"
+
+typedef enum {
+  /** Initial state. */
+  GPU_VERTBUF_INVALID = 0,
+  /** Was init with a vertex format. */
+  GPU_VERTBUF_INIT = (1 << 0),
+  /** Data has been touched and need to be reuploaded. */
+  GPU_VERTBUF_DATA_DIRTY = (1 << 1),
+  /** The buffer has been created inside GPU memory. */
+  GPU_VERTBUF_DATA_UPLOADED = (1 << 2),
+} GPUVertBufStatus;
+
+ENUM_OPERATORS(GPUVertBufStatus)
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,13 +49,11 @@ extern "C" {
 #define VRAM_USAGE 1
 /**
  * How to create a #GPUVertBuf:
- * 1) verts = GPU_vertbuf_create() or GPU_vertbuf_init(verts)
+ * 1) verts = GPU_vertbuf_calloc()
  * 2) GPU_vertformat_attr_add(verts->format, ...)
  * 3) GPU_vertbuf_data_alloc(verts, vertex_len) <-- finalizes/packs vertex format
  * 4) GPU_vertbuf_attr_fill(verts, pos, application_pos_buffer)
  */
-
-/* Is GPUVertBuf always used as part of a GPUBatch? */
 
 typedef enum {
   /* can be extended to support more types */
@@ -49,22 +62,9 @@ typedef enum {
   GPU_USAGE_DYNAMIC,
 } GPUUsageType;
 
-typedef struct GPUVertBuf {
-  GPUVertFormat format;
-  /** Number of verts we want to draw. */
-  uint vertex_len;
-  /** Number of verts data. */
-  uint vertex_alloc;
-  /** 0 indicates not yet allocated. */
-  uint32_t vbo_id;
-  /** Usage hint for GL optimisation. */
-  GPUUsageType usage;
-  /** This counter will only avoid freeing the GPUVertBuf, not the data. */
-  char handle_refcount;
-  /** Data has been touched and need to be reuploaded to GPU. */
-  bool dirty;
-  uchar *data; /* NULL indicates data in VRAM (unmapped) */
-} GPUVertBuf;
+typedef struct GPUVertBuf GPUVertBuf;
+
+#define GPU_vertbuf_calloc() GPU_vertbuf_create(GPU_USAGE_STATIC);
 
 GPUVertBuf *GPU_vertbuf_create(GPUUsageType);
 GPUVertBuf *GPU_vertbuf_create_with_format_ex(const GPUVertFormat *, GPUUsageType);
@@ -134,6 +134,14 @@ GPU_INLINE uint GPU_vertbuf_raw_used(GPUVertBufRaw *a)
 }
 
 void GPU_vertbuf_attr_get_raw_data(GPUVertBuf *, uint a_idx, GPUVertBufRaw *access);
+
+void *GPU_vertbuf_steal_data(GPUVertBuf *verts);
+
+void *GPU_vertbuf_get_data(const GPUVertBuf *verts);
+const GPUVertFormat *GPU_vertbuf_get_format(const GPUVertBuf *verts);
+uint GPU_vertbuf_get_vertex_alloc(const GPUVertBuf *verts);
+uint GPU_vertbuf_get_vertex_len(const GPUVertBuf *verts);
+GPUVertBufStatus GPU_vertbuf_get_status(const GPUVertBuf *verts);
 
 void GPU_vertbuf_use(GPUVertBuf *);
 

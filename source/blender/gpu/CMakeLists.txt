@@ -65,11 +65,11 @@ set(SRC
   intern/gpu_context.cc
   intern/gpu_debug.cc
   intern/gpu_drawlist.cc
-  intern/gpu_element.cc
   intern/gpu_extensions.cc
   intern/gpu_framebuffer.cc
   intern/gpu_immediate.cc
   intern/gpu_immediate_util.c
+  intern/gpu_index_buffer.cc
   intern/gpu_init_exit.c
   intern/gpu_material.c
   intern/gpu_material_library.c
@@ -95,6 +95,7 @@ set(SRC
   opengl/gl_debug.cc
   opengl/gl_framebuffer.cc
   opengl/gl_immediate.cc
+  opengl/gl_index_buffer.cc
   opengl/gl_shader.cc
   opengl/gl_shader_interface.cc
   opengl/gl_state.cc
@@ -110,12 +111,12 @@ set(SRC
   GPU_context.h
   GPU_debug.h
   GPU_drawlist.h
-  GPU_element.h
   GPU_extensions.h
   GPU_framebuffer.h
   GPU_glew.h
   GPU_immediate.h
   GPU_immediate_util.h
+  GPU_index_buffer.h
   GPU_init_exit.h
   GPU_legacy_stubs.h
   GPU_material.h
@@ -138,6 +139,7 @@ set(SRC
   intern/gpu_drawlist_private.hh
   intern/gpu_framebuffer_private.hh
   intern/gpu_immediate_private.hh
+  intern/gpu_index_buffer_private.hh
   intern/gpu_material_library.h
   intern/gpu_matrix_private.h
   intern/gpu_node_graph.h
@@ -148,6 +150,7 @@ set(SRC
   intern/gpu_state_private.hh
   intern/gpu_texture_private.hh
   intern/gpu_uniform_buffer_private.hh
+  intern/gpu_vertex_buffer_private.hh
   intern/gpu_vertex_format_private.h
 
   opengl/gl_backend.hh
@@ -157,6 +160,7 @@ set(SRC
   opengl/gl_drawlist.hh
   opengl/gl_framebuffer.hh
   opengl/gl_immediate.hh
+  opengl/gl_index_buffer.hh
   opengl/gl_primitive.hh
   opengl/gl_shader.hh
   opengl/gl_shader_interface.hh
