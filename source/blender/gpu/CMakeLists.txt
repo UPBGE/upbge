@@ -102,6 +102,7 @@ set(SRC
   opengl/gl_texture.cc
   opengl/gl_uniform_buffer.cc
   opengl/gl_vertex_array.cc
+  opengl/gl_vertex_buffer.cc
 
   GPU_batch.h
   GPU_batch_presets.h
@@ -168,6 +169,7 @@ set(SRC
   opengl/gl_texture.hh
   opengl/gl_uniform_buffer.hh
   opengl/gl_vertex_array.hh
+  opengl/gl_vertex_buffer.hh
 )
 
 set(LIB

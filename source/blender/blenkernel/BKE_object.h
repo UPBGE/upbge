@@ -121,10 +121,9 @@ int BKE_object_visibility(const struct Object *ob, const int dag_eval_mode);
 struct Object *BKE_object_add_only_object(struct Main *bmain, int type, const char *name)
     ATTR_NONNULL(1) ATTR_RETURNS_NONNULL;
 struct Object *BKE_object_add(struct Main *bmain,
-                              struct Scene *scene,
                               struct ViewLayer *view_layer,
                               int type,
-                              const char *name) ATTR_NONNULL(1, 2, 3) ATTR_RETURNS_NONNULL;
+                              const char *name) ATTR_NONNULL(1, 2) ATTR_RETURNS_NONNULL;
 struct Object *BKE_object_add_from(struct Main *bmain,
                                    struct Scene *scene,
                                    struct ViewLayer *view_layer,
@@ -222,7 +221,7 @@ void BKE_object_where_is_calc_time(struct Depsgraph *depsgraph,
                                    float ctime);
 void BKE_object_where_is_calc_mat4(struct Object *ob, float r_obmat[4][4]);
 
-/* possibly belong in own moduke? */
+/* Possibly belong in own module? */
 struct BoundBox *BKE_boundbox_alloc_unit(void);
 void BKE_boundbox_init_from_minmax(struct BoundBox *bb, const float min[3], const float max[3]);
 void BKE_boundbox_calc_center_aabb(const struct BoundBox *bb, float r_cent[3]);

@@ -289,13 +289,21 @@ bool ED_object_add_generic_get_opts(struct bContext *C,
                                     unsigned short *local_view_bits,
                                     bool *is_view_aligned);
 
+struct Object *ED_object_add_type_with_obdata(struct bContext *C,
+                                              const int type,
+                                              const char *name,
+                                              const float loc[3],
+                                              const float rot[3],
+                                              const bool enter_editmode,
+                                              const ushort local_view_bits,
+                                              struct ID *obdata);
 struct Object *ED_object_add_type(struct bContext *C,
-                                  int type,
+                                  const int type,
                                   const char *name,
                                   const float loc[3],
                                   const float rot[3],
-                                  bool enter_editmode,
-                                  unsigned short local_view_bits)
+                                  const bool enter_editmode,
+                                  const unsigned short local_view_bits)
     ATTR_NONNULL(1) ATTR_RETURNS_NONNULL;
 
 void ED_object_single_user(struct Main *bmain, struct Scene *scene, struct Object *ob);
@@ -389,7 +397,6 @@ bool ED_object_modifier_move_to_index(struct ReportList *reports,
 bool ED_object_modifier_convert(struct ReportList *reports,
                                 struct Main *bmain,
                                 struct Depsgraph *depsgraph,
-                                struct Scene *scene,
                                 struct ViewLayer *view_layer,
                                 struct Object *ob,
                                 struct ModifierData *md);
