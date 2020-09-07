@@ -25,8 +25,6 @@
 
 #include "BLI_string.h"
 
-#include "GPU_extensions.h"
-
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
 
@@ -42,11 +40,12 @@ namespace blender::gpu {
 GLUniformBuf::GLUniformBuf(size_t size, const char *name) : UniformBuf(size, name)
 {
   /* Do not create ubo GL buffer here to allow allocation from any thread. */
+  BLI_assert(size <= GLContext::max_ubo_size);
 }
 
 GLUniformBuf::~GLUniformBuf()
 {
-  GLBackend::get()->buf_free(ubo_id_);
+  GLContext::buf_free(ubo_id_);
 }
 
 /** \} */
@@ -90,12 +89,12 @@ void GLUniformBuf::update(const void *data)
 
 void GLUniformBuf::bind(int slot)
 {
-  if (slot >= GPU_max_ubo_binds()) {
+  if (slot >= GLContext::max_ubo_binds) {
     fprintf(stderr,
             "Error: Trying to bind \"%s\" ubo to slot %d which is above the reported limit of %d.",
             name_,
             slot,
-            GPU_max_ubo_binds());
+            GLContext::max_ubo_binds);
     return;
   }
 

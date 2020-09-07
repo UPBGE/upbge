@@ -27,7 +27,7 @@
 #include "BLI_assert.h"
 
 #include "GPU_batch.h"
-#include "GPU_extensions.h"
+#include "GPU_capabilities.h"
 
 #include "glew-mx.h"
 
@@ -76,7 +76,7 @@ GLDrawList::GLDrawList(int length)
   data_ = NULL;
 
   if (USE_MULTI_DRAW_INDIRECT && GLEW_ARB_multi_draw_indirect &&
-      GPU_arb_base_instance_is_supported()) {
+      GLContext::base_instance_support) {
     /* Alloc the biggest possible command list, which is indexed. */
     buffer_size_ = sizeof(GLDrawCommandIndexed) * length;
   }
@@ -88,10 +88,7 @@ GLDrawList::GLDrawList(int length)
 
 GLDrawList::~GLDrawList()
 {
-  /* TODO This ... */
-  static_cast<GLBackend *>(GPUBackend::get())->buf_free(buffer_id_);
-  /* ... should be this. */
-  // context_->buf_free(buffer_id_)
+  GLContext::buf_free(buffer_id_);
 }
 
 void GLDrawList::init(void)

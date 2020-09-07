@@ -76,24 +76,12 @@ struct GPUContext {
 
   virtual void activate(void) = 0;
   virtual void deactivate(void) = 0;
+  virtual void memory_statistics_get(int *total_mem, int *free_mem) = 0;
 
   bool is_active_on_thread(void);
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GPUContext")
 };
-
-/* These require a OpenGL ctx bound. */
-GLuint GPU_buf_alloc(void);
-GLuint GPU_tex_alloc(void);
-GLuint GPU_vao_alloc(void);
-GLuint GPU_fbo_alloc(void);
-
-/* These can be called any threads even without OpenGL ctx. */
-void GPU_buf_free(GLuint buf_id);
-void GPU_tex_free(GLuint tex_id);
-/* These two need the ctx the id was created with. */
-void GPU_vao_free(GLuint vao_id, GPUContext *ctx);
-void GPU_fbo_free(GLuint fbo_id, GPUContext *ctx);
 
 void gpu_context_active_framebuffer_set(GPUContext *ctx, struct GPUFrameBuffer *fb);
 struct GPUFrameBuffer *gpu_context_active_framebuffer_get(GPUContext *ctx);

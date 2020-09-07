@@ -64,7 +64,7 @@
 #include "ED_space_api.h"
 #include "ED_view3d.h"
 
-#include "GPU_extensions.h"
+#include "GPU_capabilities.h"
 #include "GPU_framebuffer.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
@@ -2514,11 +2514,6 @@ void DRW_draw_depth_object(
 /* -------------------------------------------------------------------- */
 /** \name Draw Manager State (DRW_state)
  * \{ */
-
-void DRW_state_dfdy_factors_get(float dfdyfac[2])
-{
-  GPU_get_dfdy_factors(dfdyfac);
-}
 
 /**
  * When false, drawing doesn't output to a pixel buffer

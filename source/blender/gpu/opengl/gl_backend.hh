@@ -47,11 +47,17 @@ class GLBackend : public GPUBackend {
  public:
   GLBackend()
   {
+    /* platform_init needs to go first. */
+    GLBackend::platform_init();
+
+    GLBackend::capabilities_init();
     GLTexture::samplers_init();
   }
   ~GLBackend()
   {
     GLTexture::samplers_free();
+
+    GLBackend::platform_exit();
   }
 
   static GLBackend *get(void)
@@ -109,15 +115,16 @@ class GLBackend : public GPUBackend {
     return new GLVertBuf();
   };
 
-  /* TODO remove */
-  void buf_free(GLuint buf_id);
-  void tex_free(GLuint tex_id);
-  void orphans_add(Vector<GLuint> &orphan_list, std::mutex &list_mutex, unsigned int id)
+  GLSharedOrphanLists &shared_orphan_list_get(void)
   {
-    list_mutex.lock();
-    orphan_list.append(id);
-    list_mutex.unlock();
-  }
+    return shared_orphan_list_;
+  };
+
+ private:
+  static void platform_init(void);
+  static void platform_exit(void);
+
+  static void capabilities_init(void);
 };
 
 }  // namespace gpu

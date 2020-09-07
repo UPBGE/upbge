@@ -80,8 +80,8 @@ GLContext::GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list
       front_left = new GLFrameBuffer("front_left", this, GL_FRONT_LEFT, 0, w, h);
       back_left = new GLFrameBuffer("back_left", this, GL_BACK_LEFT, 0, w, h);
     }
-    /* TODO(fclem) enable is supported. */
-    const bool supports_stereo_quad_buffer = false;
+    GLboolean supports_stereo_quad_buffer = GL_FALSE;
+    glGetBooleanv(GL_STEREO, &supports_stereo_quad_buffer);
     if (supports_stereo_quad_buffer) {
       front_right = new GLFrameBuffer("front_right", this, GL_FRONT_RIGHT, 0, w, h);
       back_right = new GLFrameBuffer("back_right", this, GL_BACK_RIGHT, 0, w, h);
@@ -230,25 +230,27 @@ void GLContext::fbo_free(GLuint fbo_id)
   }
 }
 
-void GLBackend::buf_free(GLuint buf_id)
+void GLContext::buf_free(GLuint buf_id)
 {
   /* Any context can free. */
   if (GPU_context_active_get()) {
     glDeleteBuffers(1, &buf_id);
   }
   else {
-    orphans_add(shared_orphan_list_.buffers, shared_orphan_list_.lists_mutex, buf_id);
+    GLSharedOrphanLists &orphan_list = GLBackend::get()->shared_orphan_list_get();
+    orphans_add(orphan_list.buffers, orphan_list.lists_mutex, buf_id);
   }
 }
 
-void GLBackend::tex_free(GLuint tex_id)
+void GLContext::tex_free(GLuint tex_id)
 {
   /* Any context can free. */
   if (GPU_context_active_get()) {
     glDeleteTextures(1, &tex_id);
   }
   else {
-    orphans_add(shared_orphan_list_.textures, shared_orphan_list_.lists_mutex, tex_id);
+    GLSharedOrphanLists &orphan_list = GLBackend::get()->shared_orphan_list_get();
+    orphans_add(orphan_list.textures, orphan_list.lists_mutex, tex_id);
   }
 }
 
@@ -274,6 +276,33 @@ void GLContext::vao_cache_unregister(GLVaoCache *cache)
   lists_mutex_.lock();
   vao_caches_.remove(cache);
   lists_mutex_.unlock();
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Memory statistics
+ * \{ */
+
+void GLContext::memory_statistics_get(int *r_total_mem, int *r_free_mem)
+{
+  /* TODO(merwin): use Apple's platform API to get this info. */
+  if (GLEW_NVX_gpu_memory_info) {
+    /* Teturned value in Kb. */
+    glGetIntegerv(GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, r_total_mem);
+    glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, r_free_mem);
+  }
+  else if (GLEW_ATI_meminfo) {
+    int stats[4];
+    glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, stats);
+
+    *r_total_mem = 0;
+    *r_free_mem = stats[0]; /* Total memory free in the pool. */
+  }
+  else {
+    *r_total_mem = 0;
+    *r_free_mem = 0;
+  }
 }
 
 /** \} */

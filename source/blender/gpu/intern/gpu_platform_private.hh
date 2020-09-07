@@ -12,6 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Copyright 2020, Blender Foundation.
+ * All rights reserved.
  */
 
 /** \file
@@ -20,14 +23,31 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "GPU_platform.h"
 
-/* gpu_pbvh.c */
-void gpu_pbvh_init(void);
-void gpu_pbvh_exit(void);
+namespace blender::gpu {
 
-#ifdef __cplusplus
-}
-#endif
+class GPUPlatformGlobal {
+ public:
+  bool initialized = false;
+  eGPUDeviceType device;
+  eGPUOSType os;
+  eGPUDriverType driver;
+  eGPUSupportLevel support_level;
+  char *support_key = nullptr;
+  char *gpu_name = nullptr;
+
+ public:
+  void create_key(eGPUSupportLevel support_level,
+                  const char *vendor,
+                  const char *renderer,
+                  const char *version);
+
+  void create_gpu_name(const char *vendor, const char *renderer, const char *version);
+
+  void clear(void);
+};
+
+extern GPUPlatformGlobal GPG;
+
+}  // namespace blender::gpu

@@ -32,8 +32,6 @@
 
 #include "GPU_material.h"
 
-#include "GPU_extensions.h"
-
 #include "GPU_uniform_buffer.h"
 #include "gpu_uniform_buffer_private.hh"
 
@@ -47,7 +45,6 @@ UniformBuf::UniformBuf(size_t size, const char *name)
 {
   /* Make sure that UBO is padded to size of vec4 */
   BLI_assert((size % 16) == 0);
-  BLI_assert(size <= GPU_max_ubo_size());
 
   size_in_bytes_ = size;
 

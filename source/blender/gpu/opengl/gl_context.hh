@@ -55,6 +55,19 @@ class GLSharedOrphanLists {
 
 class GLContext : public GPUContext {
  public:
+  /** Capabilities. */
+  static GLint max_texture_3d_size;
+  static GLint max_cubemap_size;
+  static GLint max_ubo_size;
+  static GLint max_ubo_binds;
+  /** Extensions. */
+  static bool base_instance_support;
+  static bool texture_cube_map_array_support;
+  /** Workarounds. */
+  static bool texture_copy_workaround;
+  static bool unused_fb_slot_workaround;
+  static float derivative_signs[2];
+
   /** Used for debugging purpose. Bitflags of all bound slots. */
   uint16_t bound_ubo_slots;
 
@@ -84,6 +97,7 @@ class GLContext : public GPUContext {
 
   void activate(void) override;
   void deactivate(void) override;
+  void memory_statistics_get(int *total_mem, int *free_mem) override;
 
   static inline GLStateManager *state_manager_active_get()
   {
@@ -91,13 +105,17 @@ class GLContext : public GPUContext {
     return static_cast<GLStateManager *>(ctx->state_manager);
   };
 
-  /* TODO(fclem) these needs to become private. */
- public:
-  void orphans_add(Vector<GLuint> &orphan_list, std::mutex &list_mutex, GLuint id);
-  void orphans_clear(void);
-
+  /* These need to be called with the context the id was created with. */
   void vao_free(GLuint vao_id);
   void fbo_free(GLuint fbo_id);
+  /* These can be called by any threads even without OpenGL ctx. Deletion will be delayed. */
+  static void buf_free(GLuint buf_id);
+  static void tex_free(GLuint tex_id);
+
+  /* TODO(fclem) these needs to become private. */
+ public:
+  static void orphans_add(Vector<GLuint> &orphan_list, std::mutex &list_mutex, GLuint id);
+  void orphans_clear(void);
   void vao_cache_register(GLVaoCache *cache);
   void vao_cache_unregister(GLVaoCache *cache);
 };
