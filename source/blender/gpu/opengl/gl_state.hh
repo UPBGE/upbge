@@ -74,6 +74,9 @@ class GLStateManager : public GPUStateManager {
   void texture_unbind(Texture *tex) override;
   void texture_unbind_all(void) override;
 
+  /* Game engine transition */
+  void texture_bind_bge(GLTexture *tex, int unit);
+
   uint64_t bound_texture_slots(void);
 
  private:

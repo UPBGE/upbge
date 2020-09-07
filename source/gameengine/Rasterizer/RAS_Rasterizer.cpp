@@ -374,7 +374,7 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer,
                                      RAS_FrameBuffer *dstFrameBuffer)
 {
   GPUTexture *src = GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer());
-  GPU_texture_bind(src, 0);
+  GPU_texture_bind_bge(src, 0);
 
   GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
   GPU_shader_bind(shader);

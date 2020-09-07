@@ -603,6 +603,12 @@ void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode)
   Texture *t = reinterpret_cast<Texture *>(tex);
   t->gl_bindcode_set(bindcode);
 }
+
+void GPU_texture_bind_bge(GPUTexture *tex_, int unit)
+{
+  GLTexture *tex = reinterpret_cast<GLTexture *>(tex_);
+  GPU_context_active_get()->state_manager->texture_bind_bge(tex, unit);
+}
 /********************End of Game engine**********************/
 
 /** \} */

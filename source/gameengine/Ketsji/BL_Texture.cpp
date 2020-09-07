@@ -124,7 +124,7 @@ void BL_Texture::ActivateTexture(int unit)
    * Without that every material that use this GPUTexture will then use
    * the VideoTexture texture, it's not wanted. */
   GPU_texture_set_opengl_bindcode(m_gpuTex, m_bindCode);
-  GPU_texture_bind(m_gpuTex, unit);
+  GPU_texture_bind_bge(m_gpuTex, unit);
 }
 
 void BL_Texture::DisableTexture()
