@@ -685,6 +685,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
         region->winrct = window;
 
+        wmWindow *win = CTX_wm_window(C);
+        bScreen *screen = WM_window_get_active_screen(win);
+        screen->state = SCREENFULL;
+
         float winmat[4][4];
         cam->GetProjectionMatrix().getValue(&winmat[0][0]);
         CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
