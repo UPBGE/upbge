@@ -78,7 +78,7 @@ GLFrameBuffer::~GLFrameBuffer()
     return;
   }
 
-  if (context_ == GPU_context_active_get()) {
+  if (context_ == GLContext::get()) {
     /* Context might be partially freed. This happens when destroying the window frame-buffers. */
     glDeleteFramebuffers(1, &fbo_id_);
   }
@@ -89,14 +89,14 @@ GLFrameBuffer::~GLFrameBuffer()
   if (context_->active_fb == this && context_->back_left != this) {
     /* If this assert triggers it means the frame-buffer is being freed while in use by another
      * context which, by the way, is TOTALLY UNSAFE!!!  */
-    BLI_assert(context_ == GPU_context_active_get());
+    BLI_assert(context_ == GLContext::get());
     GPU_framebuffer_restore();
   }
 }
 
 void GLFrameBuffer::init(void)
 {
-  context_ = static_cast<GLContext *>(GPU_context_active_get());
+  context_ = GLContext::get();
   state_manager_ = static_cast<GLStateManager *>(context_->state_manager);
   glGenFramebuffers(1, &fbo_id_);
 
@@ -187,7 +187,7 @@ void GLFrameBuffer::update_attachments(void)
       glFramebufferTexture(GL_FRAMEBUFFER, gl_attachment, 0, 0);
       continue;
     }
-    GLuint gl_tex = GPU_texture_opengl_bindcode(attach.tex);
+    GLuint gl_tex = static_cast<GLTexture *>(unwrap(attach.tex))->tex_id_;
     if (attach.layer > -1 && GPU_texture_cube(attach.tex) && !GPU_texture_array(attach.tex)) {
       /* Could be avoided if ARB_direct_state_access is required. In this case
        * #glFramebufferTextureLayer would bind the correct face. */
@@ -216,7 +216,7 @@ void GLFrameBuffer::update_attachments(void)
       GPUAttachmentType type = GPU_FB_COLOR_ATTACHMENT0 + i;
       GPUAttachment &attach = attachments_[type];
       if (attach.tex != NULL) {
-        gl_tex = GPU_texture_opengl_bindcode(attach.tex);
+        gl_tex = static_cast<GLTexture *>(unwrap(attach.tex))->tex_id_;
       }
       else if (gl_tex != 0) {
         GLenum gl_attachment = to_gl(type);
@@ -274,7 +274,7 @@ void GLFrameBuffer::bind(bool enabled_srgb)
     this->init();
   }
 
-  if (context_ != GPU_context_active_get()) {
+  if (context_ != GLContext::get()) {
     BLI_assert(!"Trying to use the same frame-buffer in multiple context");
     return;
   }
@@ -320,7 +320,7 @@ void GLFrameBuffer::clear(eGPUFrameBufferBits buffers,
                           float clear_depth,
                           uint clear_stencil)
 {
-  BLI_assert(GPU_context_active_get() == context_);
+  BLI_assert(GLContext::get() == context_);
   BLI_assert(context_->active_fb == this);
 
   /* Save and restore the state. */
@@ -360,7 +360,7 @@ void GLFrameBuffer::clear_attachment(GPUAttachmentType type,
                                      eGPUDataFormat data_format,
                                      const void *clear_value)
 {
-  BLI_assert(GPU_context_active_get() == context_);
+  BLI_assert(GLContext::get() == context_);
   BLI_assert(context_->active_fb == this);
 
   /* Save and restore the state. */

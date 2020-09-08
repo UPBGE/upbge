@@ -3527,7 +3527,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
               SpaceFile *sfile = (SpaceFile *)sl;
               if (sfile->params) {
                 sfile->params->flag &= ~(FILE_PARAMS_FLAG_UNUSED_1 | FILE_PARAMS_FLAG_UNUSED_6 |
-                                         FILE_PARAMS_FLAG_UNUSED_9);
+                                         FILE_OBDATA_INSTANCE);
               }
               break;
             }

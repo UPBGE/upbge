@@ -395,7 +395,8 @@ static void load_datablocks(Main *main_tmp, BlendHandle *bpy_openlib, const char
   int i = 0;
   LinkNode *n = names;
   while (n) {
-    BLO_library_link_named_part(main_tmp, &bpy_openlib, idcode, (char *)n->link);
+    struct LibraryLink_Params liblink_params;
+    BLO_library_link_named_part(main_tmp, &bpy_openlib, idcode, (char *)n->link, &liblink_params);
     n = (LinkNode *)n->next;
     i++;
   }
@@ -440,9 +441,10 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
   main_newlib = BKE_main_new();
   BKE_reports_init(&reports, RPT_STORE);
 
-  short flag = 0;  // don't need any special options
+  //short flag = 0;  // don't need any special options
   // created only for linking, then freed
-  Main *main_tmp = BLO_library_link_begin(main_newlib, &bpy_openlib, (char *)path);
+  struct LibraryLink_Params liblink_params;
+  Main *main_tmp = BLO_library_link_begin(&bpy_openlib, (char *)path, &liblink_params);
 
   load_datablocks(main_tmp, bpy_openlib, path, idcode);
 
@@ -455,7 +457,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
     load_datablocks(main_tmp, bpy_openlib, path, ID_AC);
   }
 
-  BLO_library_link_end(main_tmp, &bpy_openlib, flag, main_newlib, nullptr, nullptr, nullptr);
+  BLO_library_link_end(main_tmp, &bpy_openlib, &liblink_params);
 
   BLO_blendhandle_close(bpy_openlib);
 

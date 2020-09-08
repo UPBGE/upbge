@@ -68,6 +68,10 @@ ENUM_OPERATORS(eGPUTextureType)
 /* Maximum number of FBOs a texture can be attached to. */
 #define GPU_TEX_MAX_FBO_ATTACHED 14
 
+/**
+ * Implementation of Textures.
+ * Base class which is then specialized for each implementation (GL, VK, ...).
+ **/
 class Texture {
  public:
   /** Internal Sampler state. */
@@ -243,6 +247,20 @@ class Texture {
   virtual bool init_internal(void) = 0;
   virtual bool init_internal(GPUVertBuf *vbo) = 0;
 };
+
+/* Syntacting suggar. */
+static inline GPUTexture *wrap(Texture *vert)
+{
+  return reinterpret_cast<GPUTexture *>(vert);
+}
+static inline Texture *unwrap(GPUTexture *vert)
+{
+  return reinterpret_cast<Texture *>(vert);
+}
+static inline const Texture *unwrap(const GPUTexture *vert)
+{
+  return reinterpret_cast<const Texture *>(vert);
+}
 
 #undef DEBUG_NAME_LEN
 

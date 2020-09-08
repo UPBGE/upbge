@@ -137,6 +137,9 @@ static short wm_link_append_flag(wmOperator *op)
   if (RNA_boolean_get(op->ptr, "instance_collections")) {
     flag |= FILE_GROUP_INSTANCE;
   }
+  if (RNA_boolean_get(op->ptr, "instance_object_data")) {
+    flag |= FILE_OBDATA_INSTANCE;
+  }
 
   return flag;
 }
@@ -250,7 +253,11 @@ static void wm_link_do(WMLinkAppendData *lapp_data,
     }
 
     /* here appending/linking starts */
-    mainl = BLO_library_link_begin(bmain, &bh, libname);
+    struct LibraryLink_Params liblink_params;
+    BLO_library_link_params_init_with_context(
+        &liblink_params, bmain, flag, scene, view_layer, v3d);
+
+    mainl = BLO_library_link_begin(&bh, libname, &liblink_params);
     lib = mainl->curlib;
     BLI_assert(lib);
     UNUSED_VARS_NDEBUG(lib);
@@ -276,7 +283,7 @@ static void wm_link_do(WMLinkAppendData *lapp_data,
         continue;
       }
 
-      new_id = BLO_library_link_named_part_ex(mainl, &bh, item->idcode, item->name, flag);
+      new_id = BLO_library_link_named_part(mainl, &bh, item->idcode, item->name, &liblink_params);
 
       if (new_id) {
         /* If the link is successful, clear item's libs 'todo' flags.
@@ -286,7 +293,7 @@ static void wm_link_do(WMLinkAppendData *lapp_data,
       }
     }
 
-    BLO_library_link_end(mainl, &bh, flag, bmain, scene, view_layer, v3d);
+    BLO_library_link_end(mainl, &bh, &liblink_params);
     BLO_blendhandle_close(bh);
   }
 }
@@ -391,7 +398,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
                 RPT_WARNING,
                 "Scene '%s' is linked, instantiation of objects & groups is disabled",
                 scene->id.name + 2);
-    flag &= ~FILE_GROUP_INSTANCE;
+    flag &= ~(FILE_GROUP_INSTANCE | FILE_OBDATA_INSTANCE);
     scene = NULL;
   }
 
@@ -561,6 +568,14 @@ static void wm_link_append_properties_common(wmOperatorType *ot, bool is_link)
       is_link,
       "Instance Collections",
       "Create instances for collections, rather than adding them directly to the scene");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(
+      ot->srna,
+      "instance_object_data",
+      true,
+      "Instance Object Data",
+      "Create instances for object data which are not referenced by any objects");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 

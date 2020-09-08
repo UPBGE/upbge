@@ -190,7 +190,7 @@ uint GPU_texture_memory_usage_get(void)
   return 0;
 }
 
-/* ------ Texture Creation ------ */
+/* ------ Creation ------ */
 
 static inline GPUTexture *gpu_texture_create(const char *name,
                                              const int w,
@@ -329,6 +329,8 @@ GPUTexture *GPU_texture_create_error(int dimension, bool is_array)
   return gpu_texture_create("invalid_tex", w, h, d, type, 1, GPU_RGBA8, pixel);
 }
 
+/* ------ Update ------ */
+
 void GPU_texture_update_mipmap(GPUTexture *tex_,
                                int miplvl,
                                eGPUDataFormat data_format,
@@ -365,8 +367,8 @@ void *GPU_texture_read(GPUTexture *tex_, eGPUDataFormat data_format, int miplvl)
  * Fills the whole texture with the same data for all pixels.
  * \warning Only work for 2D texture for now.
  * \warning Only clears the mip 0 of the texture.
- * \param data_format  data format of the pixel data.
- * \param data         1 pixel worth of data to fill the texture with.
+ * \param data_format: data format of the pixel data.
+ * \param data: 1 pixel worth of data to fill the texture with.
  */
 void GPU_texture_clear(GPUTexture *tex, eGPUDataFormat data_format, const void *data)
 {
@@ -380,20 +382,14 @@ void GPU_texture_update(GPUTexture *tex, eGPUDataFormat data_format, const void 
   reinterpret_cast<Texture *>(tex)->update(data_format, data);
 }
 
-void GPU_invalid_tex_init(void)
+/* Makes data interpretation aware of the source layout.
+ * Skipping pixels correctly when changing rows when doing partial update.*/
+void GPU_unpack_row_length_set(uint len)
 {
-  /* TODO remove */
+  Context::get()->state_manager->texture_unpack_row_length_set(len);
 }
 
-void GPU_invalid_tex_bind(int UNUSED(mode))
-{
-  /* TODO remove */
-}
-
-void GPU_invalid_tex_free(void)
-{
-  /* TODO remove */
-}
+/* ------ Binding ------ */
 
 void GPU_texture_bind_ex(GPUTexture *tex_,
                          eGPUSamplerState state,
@@ -402,24 +398,24 @@ void GPU_texture_bind_ex(GPUTexture *tex_,
 {
   Texture *tex = reinterpret_cast<Texture *>(tex_);
   state = (state >= GPU_SAMPLER_MAX) ? tex->sampler_state : state;
-  GPU_context_active_get()->state_manager->texture_bind(tex, state, unit);
+  Context::get()->state_manager->texture_bind(tex, state, unit);
 }
 
 void GPU_texture_bind(GPUTexture *tex_, int unit)
 {
   Texture *tex = reinterpret_cast<Texture *>(tex_);
-  GPU_context_active_get()->state_manager->texture_bind(tex, tex->sampler_state, unit);
+  Context::get()->state_manager->texture_bind(tex, tex->sampler_state, unit);
 }
 
 void GPU_texture_unbind(GPUTexture *tex_)
 {
   Texture *tex = reinterpret_cast<Texture *>(tex_);
-  GPU_context_active_get()->state_manager->texture_unbind(tex);
+  Context::get()->state_manager->texture_unbind(tex);
 }
 
 void GPU_texture_unbind_all(void)
 {
-  GPU_context_active_get()->state_manager->texture_unbind_all();
+  Context::get()->state_manager->texture_unbind_all();
 }
 
 void GPU_texture_generate_mipmap(GPUTexture *tex)
@@ -540,12 +536,6 @@ eGPUTextureFormat GPU_texture_format(const GPUTexture *tex)
   return reinterpret_cast<const Texture *>(tex)->format_get();
 }
 
-/* TODO remove */
-int GPU_texture_samples(const GPUTexture *UNUSED(tex))
-{
-  return 0;
-}
-
 bool GPU_texture_depth(const GPUTexture *tex)
 {
   return (reinterpret_cast<const Texture *>(tex)->format_flag_get() & GPU_FORMAT_DEPTH) != 0;
@@ -604,10 +594,10 @@ void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode)
   t->gl_bindcode_set(bindcode);
 }
 
-void GPU_texture_bind_bge(GPUTexture *tex_, int unit)
+void GPU_texture_bind_bge(GPUTexture *tex, int unit)
 {
-  GLTexture *tex = reinterpret_cast<GLTexture *>(tex_);
-  GPU_context_active_get()->state_manager->texture_bind_bge(tex, unit);
+  Texture *t = reinterpret_cast<Texture *>(tex);
+  Context::get()->state_manager->texture_bind_bge(t, unit);
 }
 /********************End of Game engine**********************/
 

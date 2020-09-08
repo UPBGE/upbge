@@ -520,6 +520,11 @@ void GLStateManager::texture_bind_apply(void)
   }
 }
 
+void GLStateManager::texture_unpack_row_length_set(uint len)
+{
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, len);
+}
+
 uint64_t GLStateManager::bound_texture_slots(void)
 {
   uint64_t bound_slots = 0;
@@ -532,11 +537,12 @@ uint64_t GLStateManager::bound_texture_slots(void)
 }
 
 /* Game engine transition */
-void GLStateManager::texture_bind_bge(GLTexture *tex, int unit)
+void GLStateManager::texture_bind_bge(Texture *tex, int unit)
 {
+  GLTexture *t = reinterpret_cast<GLTexture *>(tex);
   // BLI_assert(!GLEW_ARB_direct_state_access);
   glActiveTexture(GL_TEXTURE0 + unit);
-  glBindTexture(tex->target_, tex->tex_id_);
+  glBindTexture(t->target_, t->tex_id_);
   /* Will reset the first texture that was originally bound to slot 0 back before drawing. */
   dirty_texture_binds_ |= 1ULL << unit;
   /* NOTE: This might leave this texture attached to this target even after update.

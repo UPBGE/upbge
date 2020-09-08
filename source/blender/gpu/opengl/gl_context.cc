@@ -32,6 +32,7 @@
 #include "GHOST_C-api.h"
 
 #include "gpu_context_private.hh"
+#include "gpu_immediate_private.hh"
 
 #include "gl_debug.hh"
 #include "gl_immediate.hh"
@@ -151,11 +152,30 @@ void GLContext::activate(void)
   /* Not really following the state but we should consider
    * no ubo bound when activating a context. */
   bound_ubo_slots = 0;
+
+  immActivate();
 }
 
 void GLContext::deactivate(void)
 {
+  immDeactivate();
   is_active_ = false;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Flush, Finish & sync
+ * \{ */
+
+void GLContext::flush(void)
+{
+  glFlush();
+}
+
+void GLContext::finish(void)
+{
+  glFinish();
 }
 
 /** \} */
@@ -170,7 +190,7 @@ void GLContext::deactivate(void)
 void GLSharedOrphanLists::orphans_clear(void)
 {
   /* Check if any context is active on this thread! */
-  BLI_assert(GPU_context_active_get());
+  BLI_assert(GLContext::get());
 
   lists_mutex.lock();
   if (!buffers.is_empty()) {
@@ -212,7 +232,7 @@ void GLContext::orphans_add(Vector<GLuint> &orphan_list, std::mutex &list_mutex,
 
 void GLContext::vao_free(GLuint vao_id)
 {
-  if (this == GPU_context_active_get()) {
+  if (this == GLContext::get()) {
     glDeleteVertexArrays(1, &vao_id);
   }
   else {
@@ -222,7 +242,7 @@ void GLContext::vao_free(GLuint vao_id)
 
 void GLContext::fbo_free(GLuint fbo_id)
 {
-  if (this == GPU_context_active_get()) {
+  if (this == GLContext::get()) {
     glDeleteFramebuffers(1, &fbo_id);
   }
   else {
@@ -233,7 +253,7 @@ void GLContext::fbo_free(GLuint fbo_id)
 void GLContext::buf_free(GLuint buf_id)
 {
   /* Any context can free. */
-  if (GPU_context_active_get()) {
+  if (GLContext::get()) {
     glDeleteBuffers(1, &buf_id);
   }
   else {
@@ -245,7 +265,7 @@ void GLContext::buf_free(GLuint buf_id)
 void GLContext::tex_free(GLuint tex_id)
 {
   /* Any context can free. */
-  if (GPU_context_active_get()) {
+  if (GLContext::get()) {
     glDeleteTextures(1, &tex_id);
   }
   else {
