@@ -135,7 +135,7 @@ static short wm_link_append_flag(wmOperator *op)
     flag |= FILE_LINK;
   }
   if (RNA_boolean_get(op->ptr, "instance_collections")) {
-    flag |= FILE_GROUP_INSTANCE;
+    flag |= FILE_COLLECTION_INSTANCE;
   }
   if (RNA_boolean_get(op->ptr, "instance_object_data")) {
     flag |= FILE_OBDATA_INSTANCE;
@@ -159,8 +159,9 @@ typedef struct WMLinkAppendData {
   LinkNodePair items;
   int num_libraries;
   int num_items;
-  /** Combines #eFileSel_Params_Flag from DNA_space_types.h and
-   * BLO_LibLinkFlags from BLO_readfile.h */
+  /**
+   * Combines #eFileSel_Params_Flag from DNA_space_types.h & #eBLOLibLinkFlags from BLO_readfile.h
+   */
   int flag;
 
   /* Internal 'private' data */
@@ -396,13 +397,13 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
   if (scene && scene->id.lib) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
-                "Scene '%s' is linked, instantiation of objects & groups is disabled",
+                "Scene '%s' is linked, instantiation of objects is disabled",
                 scene->id.name + 2);
-    flag &= ~(FILE_GROUP_INSTANCE | FILE_OBDATA_INSTANCE);
+    flag &= ~(FILE_COLLECTION_INSTANCE | FILE_OBDATA_INSTANCE);
     scene = NULL;
   }
 
-  /* We need to add nothing from BLO_LibLinkFlags to flag here. */
+  /* We need to add nothing from #eBLOLibLinkFlags to flag here. */
 
   /* from here down, no error returns */
 
