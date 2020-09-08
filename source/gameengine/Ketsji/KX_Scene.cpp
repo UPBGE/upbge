@@ -703,11 +703,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
                                   NULL,
                                   winmat,
                                   NULL);
-
-        rasty->SetViewport(v[0], v[1], v[2], v[3]);
-        rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-        GPU_scissor_test(true);
-        rasty->SetScissor(v[0], v[1], v[2], v[3]);
       }
 
       ED_region_tag_redraw(CTX_wm_region(C));
