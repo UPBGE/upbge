@@ -473,6 +473,11 @@ void KX_Scene::BackupShadingType()
       v3d->shading.type = OB_RENDER;
       v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
     }
+
+    RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+    if (canvas->IsBlenderPlayer()) {
+      v3d->flag2 |= V3D_HIDE_OVERLAYS;
+    }
   //}
 }
 
