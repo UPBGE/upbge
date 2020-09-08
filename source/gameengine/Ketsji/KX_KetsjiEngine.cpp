@@ -941,6 +941,16 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
     m_rasterizer->Enable(RAS_Rasterizer::RAS_BLEND);
     m_rasterizer->SetBlendFunc(RAS_Rasterizer::RAS_ONE, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
   }
+
+  // Show profiling info
+  m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
+  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
+    RenderDebugProperties();
+  }
+
+  // TODO: Rework that
+  m_rasterizer->FlushDebugDraw(m_canvas);
+
   scene->RenderAfterCameraSetup(rendercam, is_overlay_pass);
 
   if (scene->GetPhysicsEnvironment()) {

@@ -467,6 +467,23 @@ typedef struct DRWDebugSphere {
   float color[4];
 } DRWDebugSphere;
 
+/* Game engine transition */
+typedef struct DRWDebugText2D {
+  struct DRWDebugText2D *next; /* linked list */
+  char *text;
+  float xco;
+  float yco;
+} DRWDebugText2D;
+
+typedef struct DRWDebugBox2D {
+  struct DRWDebugBox2D *next; /* linked list */
+  float xco;
+  float yco;
+  float xsize;
+  float ysize;
+} DRWDebugBox2D;
+/* End of Game engine transition */
+
 /* ------------- DRAW MANAGER ------------ */
 
 #define DST_MAX_SLOTS 64  /* Cannot be changed without modifying RST.bound_tex_slots */
@@ -569,6 +586,16 @@ typedef struct DRWManager {
     DRWDebugLine *lines;
     DRWDebugSphere *spheres;
   } debug;
+
+  /* Game engine transition */
+  struct {
+    /* TODO(fclem) optimize: use chunks. */
+    DRWDebugLine *lines;
+    DRWDebugBox2D *boxes;
+    DRWDebugText2D *texts;
+  } debug_bge;
+  /* Game engine transition */
+
 } DRWManager;
 
 extern DRWManager DST; /* TODO: get rid of this and allow multi-threaded rendering. */
@@ -596,3 +623,7 @@ void drw_resource_buffer_finish(ViewportMemoryPool *vmempool);
 GPUBatch *drw_cache_procedural_points_get(void);
 GPUBatch *drw_cache_procedural_lines_get(void);
 GPUBatch *drw_cache_procedural_triangles_get(void);
+
+/* Game engine transition */
+void drw_debug_draw_bge(void);
+/**************************/

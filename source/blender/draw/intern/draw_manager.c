@@ -1323,6 +1323,10 @@ void DRW_draw_callbacks_post_scene(void)
 
     drw_debug_draw();
 
+    /* Game engine transition */
+    drw_debug_draw_bge();
+    /**************************/
+
     GPU_depth_test(GPU_DEPTH_NONE);
     ED_region_draw_cb_draw(DST.draw_ctx.evil_C, DST.draw_ctx.region, REGION_DRAW_POST_VIEW);
 

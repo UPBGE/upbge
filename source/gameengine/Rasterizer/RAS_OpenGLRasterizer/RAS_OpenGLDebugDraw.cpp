@@ -24,16 +24,10 @@
  *  \ingroup bgerastogl
  */
 
+#include "RAS_DebugDraw.h"
 #include "RAS_OpenGLDebugDraw.h"
 
-#include "BLF_api.h"
-#include "DRW_render.h"
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-
-#include "KX_Camera.h"
-#include "KX_Globals.h"
-#include "RAS_ICanvas.h"
+#include "draw_debug.h"
 
 RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw()
 {
@@ -134,97 +128,19 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   //}
 
   /* Draw Debug lines */
-
   if (debugDraw->m_lines.size()) {
-    GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-    uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-    immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
-
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
-    GPU_matrix_push();
-    GPU_matrix_push_projection();
-    GPU_matrix_projection_set(rv3d->winmat);
-    GPU_matrix_set(rv3d->viewmat);
-
-    GPU_depth_test(GPU_DEPTH_ALWAYS);
-    GPU_line_smooth(true);
-    GPU_line_width(1.0f);
-    immBegin(GPU_PRIM_LINES, 2 * debugDraw->m_lines.size());
     for (int i = 0; i < debugDraw->m_lines.size(); i++) {
-      RAS_DebugDraw::Line line = debugDraw->m_lines[i];
-      const MT_Vector3 &min = line.m_from;
-      const MT_Vector3 &max = line.m_to;
-      immAttr4fv(col, line.m_color.getValue());
-      immVertex3fv(pos, min.getValue());
-      immVertex3fv(pos, max.getValue());
+      RAS_DebugDraw::Line l = debugDraw->m_lines[i];
+      DRW_debug_line_bge(l.m_from.getValue(), l.m_to.getValue(), l.m_color.getValue());
     }
-    immEnd();
-
-    /* Reset defaults */
-    GPU_line_smooth(false);
-    GPU_matrix_pop();
-    GPU_matrix_pop_projection();
-    GPU_depth_test(GPU_DEPTH_ALWAYS);
-    GPU_face_culling(GPU_CULL_NONE);
-
-    immUnbindProgram();
   }
-
-#ifdef WITH_PYTHON
-  KX_GetActiveScene()->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
-#endif
-
-  DRW_state_reset();
-  GPU_depth_test(GPU_DEPTH_ALWAYS);
-
   /* The Performances profiler */
-
   if (debugDraw->m_boxes2D.size()) {
-    GPU_face_culling(GPU_CULL_BACK);
-    const unsigned int width = canvas->GetWidth();
-    const unsigned int height = canvas->GetHeight();
-
-    GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-
-    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-    for (const RAS_DebugDraw::Box2D &box2d : debugDraw->m_boxes2D) {
-      const float xco = box2d.m_pos.x();
-      const float yco = height - box2d.m_pos.y();
-      const float xsize = box2d.m_size.x();
-      const float ysize = box2d.m_size.y();
-
-      immUniformColor4fv(box2d.m_color.getValue());
-      immRectf(pos, xco + 1 + xsize, yco + ysize, xco, yco);
+    for (const RAS_DebugDraw::Box2D &b : debugDraw->m_boxes2D) {
+      DRW_debug_box_2D_bge(b.m_pos[0], b.m_pos[1], b.m_size[0], b.m_size[1]);
     }
-    immUnbindProgram();
-
-    DRW_state_reset();
-    GPU_depth_test(GPU_DEPTH_ALWAYS);
-
-    BLF_size(blf_mono_font, 11, 72);
-
-    BLF_enable(blf_mono_font, BLF_SHADOW);
-
-    static float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-    BLF_shadow(blf_mono_font, 1, black);
-    BLF_shadow_offset(blf_mono_font, 1, 1);
-
-    for (const RAS_DebugDraw::Text2D &text2d : debugDraw->m_texts2D) {
-      std::string text = text2d.m_text;
-      const float xco = text2d.m_pos.x();
-      const float yco = height - text2d.m_pos.y();
-      float col[4];
-      text2d.m_color.getValue(col);
-
-      BLF_color4fv(blf_mono_font, col);
-      BLF_position(blf_mono_font, xco, yco, 0.0f);
-      BLF_draw(blf_mono_font, text.c_str(), text.size());
+    for (const RAS_DebugDraw::Text2D &t : debugDraw->m_texts2D) {
+      DRW_debug_text_2D_bge(t.m_pos[0], t.m_pos[1], t.m_text.c_str());
     }
-    BLF_disable(blf_mono_font, BLF_SHADOW);
-    GPU_depth_test(GPU_DEPTH_ALWAYS);
-    GPU_face_culling(GPU_CULL_NONE);
   }
 }
