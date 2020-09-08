@@ -273,6 +273,8 @@ KX_Scene::~KX_Scene()
 
   m_isRuntime = false;  // eevee
 
+  ReinitBlenderContextVariables();
+
   Scene *scene = GetBlenderScene();
   RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
@@ -282,10 +284,10 @@ KX_Scene::~KX_Scene()
   View3D *v3d = CTX_wm_view3d(C);
 
   //if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
-  //  if (m_shadingTypeBackup != 0) {
-  //    v3d->shading.type = m_shadingTypeBackup;
-  //    v3d->shading.flag = m_shadingFlagBackup;
-  //  }
+  if (m_shadingTypeBackup != 0) {
+    v3d->shading.type = m_shadingTypeBackup;
+    v3d->shading.flag = m_shadingFlagBackup;
+  }
   //  if (!m_isPythonMainLoop) {
   //    /* This will free m_gpuViewport and m_gpuOffScreen */
   //    DRW_game_render_loop_end();
@@ -718,76 +720,76 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
     }
   //}
 
-  if (cam) {
-    UpdateObjectLods(cam);
-    SetCurrentGPUViewport(cam->GetGPUViewport());
+  //if (cam) {
+  //  UpdateObjectLods(cam);
+  //  SetCurrentGPUViewport(cam->GetGPUViewport());
 
-    float winmat[4][4];
-    cam->GetProjectionMatrix().getValue(&winmat[0][0]);
-    CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-    ED_view3d_draw_setup_view(CTX_wm_manager(C),
-                              CTX_wm_window(C),
-                              CTX_data_expect_evaluated_depsgraph(C),
-                              CTX_data_scene(C),
-                              CTX_wm_region(C),
-                              CTX_wm_view3d(C),
-                              NULL,
-                              winmat,
-                              NULL);
-  }
+  //  float winmat[4][4];
+  //  cam->GetProjectionMatrix().getValue(&winmat[0][0]);
+  //  CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
+  //  ED_view3d_draw_setup_view(CTX_wm_manager(C),
+  //                            CTX_wm_window(C),
+  //                            CTX_data_expect_evaluated_depsgraph(C),
+  //                            CTX_data_scene(C),
+  //                            CTX_wm_region(C),
+  //                            CTX_wm_view3d(C),
+  //                            NULL,
+  //                            winmat,
+  //                            NULL);
+  //}
 
-  bool calledFromConstructor = cam == nullptr;
-  if (calledFromConstructor) {
-    m_currentGPUViewport = GPU_viewport_create();
-    SetInitMaterialsGPUViewport(m_currentGPUViewport);
-  }
+  //bool calledFromConstructor = cam == nullptr;
+  //if (calledFromConstructor) {
+  //  m_currentGPUViewport = GPU_viewport_create();
+  //  SetInitMaterialsGPUViewport(m_currentGPUViewport);
+  //}
 
-  DRW_game_render_loop(C,
-                       m_currentGPUViewport,
-                       bmain,
-                       depsgraph,
-                       &window,
-                       reset_taa_samples,
-                       is_overlay_pass);
+  //DRW_game_render_loop(C,
+  //                     m_currentGPUViewport,
+  //                     bmain,
+  //                     depsgraph,
+  //                     &window,
+  //                     reset_taa_samples,
+  //                     is_overlay_pass);
 
-  RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
-  RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
+  //RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
+  //RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
 
-  /* Detach Defaults attachments from input framebuffer... */
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
-  /* And replace it with color and depth textures from viewport */
-  GPU_framebuffer_texture_attach(
-      input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport, 0), 0, 0);
-  GPU_framebuffer_texture_attach(
-      input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
+  ///* Detach Defaults attachments from input framebuffer... */
+  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
+  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
+  ///* And replace it with color and depth textures from viewport */
+  //GPU_framebuffer_texture_attach(
+  //    input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport, 0), 0, 0);
+  //GPU_framebuffer_texture_attach(
+  //    input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
 
-  RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
+  //RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
 
-  GPU_framebuffer_restore();
+  //GPU_framebuffer_restore();
 
-  rasty->SetViewport(v[0], v[1], v[2], v[3]);
+  //rasty->SetViewport(v[0], v[1], v[2], v[3]);
 
-  if ((scene->gm.flag & GAME_USE_UI_ANTI_FLICKER) == 0) {
-    rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-    GPU_scissor_test(true);
-    rasty->SetScissor(v[0], v[1], v[2], v[3]);
-  }
-  DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
-                           CTX_wm_view3d(C),
-                           GetOverlayCamera() && !is_overlay_pass ? false : true);
+  //if ((scene->gm.flag & GAME_USE_UI_ANTI_FLICKER) == 0) {
+  //  rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+  //  GPU_scissor_test(true);
+  //  rasty->SetScissor(v[0], v[1], v[2], v[3]);
+  //}
+  //DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
+  //                         CTX_wm_view3d(C),
+  //                         GetOverlayCamera() && !is_overlay_pass ? false : true);
 
-  /* Detach viewport textures from input framebuffer... */
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
-                                 GPU_viewport_color_texture(m_currentGPUViewport, 0));
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
-  /* And restore defaults attachments */
-  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
-  GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
+  ///* Detach viewport textures from input framebuffer... */
+  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
+  //                               GPU_viewport_color_texture(m_currentGPUViewport, 0));
+  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
+  ///* And restore defaults attachments */
+  //GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
+  //GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
 
-  GPU_framebuffer_restore();
+  //GPU_framebuffer_restore();
 
-  GPU_blend(GPU_BLEND_NONE);
+  //GPU_blend(GPU_BLEND_NONE);
 }
 
 void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
