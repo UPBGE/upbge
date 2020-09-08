@@ -1408,6 +1408,10 @@ void DRW_draw_callbacks_post_scene(void)
 
     drw_debug_draw();
 
+    /* Game engine transition */
+    drw_debug_draw_bge();
+    /**************************/
+
     GPU_depth_test(GPU_DEPTH_NONE);
     /* Apply state for callbacks. */
     GPU_apply_state();
