@@ -677,10 +677,10 @@ void KX_KetsjiEngine::Render()
       }
     }
   }
-  Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
+  /*Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
   if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !m_canvas->IsBlenderPlayer())) {
     EndFrame();
-  }
+  }*/
 }
 
 void KX_KetsjiEngine::RequestExit(KX_ExitRequest exitrequestmode)

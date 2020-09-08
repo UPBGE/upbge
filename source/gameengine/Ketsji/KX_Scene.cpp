@@ -244,25 +244,26 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   BackupShadingType();
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
-    /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
-     * depsgraph code too later */
-    scene->flag |= SCE_INTERACTIVE;
+  //if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
+  //  /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
+  //   * depsgraph code too later */
+  //  scene->flag |= SCE_INTERACTIVE;
 
-    /* We call Render here in KX_Scene constructor because
-     * 1: It creates a depsgraph and ensure it will be activated.
-     * 2: We need to create an eevee's cache to initialize
-     * KX_BlenderMaterials and BL_Textures.
-     */
-    RenderAfterCameraSetup(nullptr, false);
-  }
-  else {
+  //  /* We call Render here in KX_Scene constructor because
+  //   * 1: It creates a depsgraph and ensure it will be activated.
+  //   * 2: We need to create an eevee's cache to initialize
+  //   * KX_BlenderMaterials and BL_Textures.
+  //   */
+  //  RenderAfterCameraSetup(nullptr, false);
+  //}
+  //else {
     /* This ensures a depsgraph is allocated and activates it.
      * It is needed in KX_Scene constructor because we'll need
      * a depsgraph in BlenderDataConversion.
      */
     CTX_data_depsgraph_pointer(C);
-  }
+    scene->flag |= SCE_INTERACTIVE;
+  //}
   /******************************************************************************************************************************/
 }
 
@@ -280,23 +281,23 @@ KX_Scene::~KX_Scene()
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   View3D *v3d = CTX_wm_view3d(C);
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
-    if (m_shadingTypeBackup != 0) {
-      v3d->shading.type = m_shadingTypeBackup;
-      v3d->shading.flag = m_shadingFlagBackup;
-    }
-    if (!m_isPythonMainLoop) {
-      /* This will free m_gpuViewport and m_gpuOffScreen */
-      DRW_game_render_loop_end();
-    }
-    else {
-      /* It has not been freed before because the main Render loop
-       * is not executed then we free it now.
-       */
-      GPU_viewport_free(m_initMaterialsGPUViewport);
-      DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
-    }
-  }
+  //if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
+  //  if (m_shadingTypeBackup != 0) {
+  //    v3d->shading.type = m_shadingTypeBackup;
+  //    v3d->shading.flag = m_shadingFlagBackup;
+  //  }
+  //  if (!m_isPythonMainLoop) {
+  //    /* This will free m_gpuViewport and m_gpuOffScreen */
+  //    DRW_game_render_loop_end();
+  //  }
+  //  else {
+  //    /* It has not been freed before because the main Render loop
+  //     * is not executed then we free it now.
+  //     */
+  //    GPU_viewport_free(m_initMaterialsGPUViewport);
+  //    DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
+  //  }
+  //}
 
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
     Base *base = BKE_view_layer_base_find(view_layer, hiddenOb);
@@ -459,8 +460,8 @@ void KX_Scene::BackupShadingType()
   Scene *scene = GetBlenderScene();
 
   /* Only if we are not in viewport render, modify + backup shading types */
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-      KX_GetActiveEngine()->GetCanvas()->IsBlenderPlayer()) {
+  /*if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
+      KX_GetActiveEngine()->GetCanvas()->IsBlenderPlayer()) {*/
 
     View3D *v3d = CTX_wm_view3d(C);
 
@@ -472,7 +473,7 @@ void KX_Scene::BackupShadingType()
       v3d->shading.type = OB_RENDER;
       v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
     }
-  }
+  //}
 }
 
 Object *KX_Scene::GetGameDefaultCamera()
@@ -658,7 +659,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
 
   /* Here we'll render directly the scene with viewport code. */
-  if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !canvas->IsBlenderPlayer()) {
+  //if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !canvas->IsBlenderPlayer()) {
     if (cam) {
       DRW_view_set_active(NULL);
 
@@ -669,11 +670,44 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
       CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
 
+      ARegion *region = CTX_wm_region(C);
+      region->visible = true;
+      region->do_draw |= RGN_DRAWING;
+
+      if (canvas->IsBlenderPlayer()) {
+
+        scene->flag |= SCE_IS_BLENDERPLAYER;
+
+        region->winrct = window;
+
+        float winmat[4][4];
+        cam->GetProjectionMatrix().getValue(&winmat[0][0]);
+        CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
+        ED_view3d_draw_setup_view(CTX_wm_manager(C),
+                                  CTX_wm_window(C),
+                                  CTX_data_expect_evaluated_depsgraph(C),
+                                  CTX_data_scene(C),
+                                  CTX_wm_region(C),
+                                  CTX_wm_view3d(C),
+                                  NULL,
+                                  winmat,
+                                  NULL);
+
+        rasty->SetViewport(v[0], v[1], v[2], v[3]);
+        rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+        GPU_scissor_test(true);
+        rasty->SetScissor(v[0], v[1], v[2], v[3]);
+      }
+
       ED_region_tag_redraw(CTX_wm_region(C));
       wm_draw_update(C);
+
+      if (canvas->IsBlenderPlayer()) {
+        scene->flag &= ~SCE_IS_BLENDERPLAYER;
+      }
       return;
     }
-  }
+  //}
 
   if (cam) {
     UpdateObjectLods(cam);

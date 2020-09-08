@@ -1578,15 +1578,17 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
 
 static void view3d_draw_view(const bContext *C, ARegion *region)
 {
-  ED_view3d_draw_setup_view(CTX_wm_manager(C),
-                            CTX_wm_window(C),
-                            CTX_data_expect_evaluated_depsgraph(C),
-                            CTX_data_scene(C),
-                            region,
-                            CTX_wm_view3d(C),
-                            NULL,
-                            NULL,
-                            NULL);
+  if (!(CTX_data_scene(C)->flag & SCE_IS_BLENDERPLAYER)) {
+    ED_view3d_draw_setup_view(CTX_wm_manager(C),
+                              CTX_wm_window(C),
+                              CTX_data_expect_evaluated_depsgraph(C),
+                              CTX_data_scene(C),
+                              region,
+                              CTX_wm_view3d(C),
+                              NULL,
+                              NULL,
+                              NULL);
+  }
 
   /* Only 100% compliant on new spec goes below */
   DRW_draw_view(C);

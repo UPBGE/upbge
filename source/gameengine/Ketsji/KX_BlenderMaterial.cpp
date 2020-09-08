@@ -58,7 +58,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
    * because it is causing a crash
    * (m_textures list won't be available for these object)
    */
-  if (m_material->use_nodes && m_material->nodetree && !converting_during_runtime) {
+  /*if (m_material->use_nodes && m_material->nodetree && !converting_during_runtime) {
     RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
     if ((m_scene->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
         canvas->IsBlenderPlayer()) {
@@ -81,10 +81,10 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
     else {
       m_gpuMat = nullptr;
     }
-  }
-  else {
+  }*/
+  //else {
     m_gpuMat = nullptr;
-  }
+  //}
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()
