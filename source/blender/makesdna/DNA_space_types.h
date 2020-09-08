@@ -815,8 +815,10 @@ typedef enum eFileSel_Action {
 } eFileSel_Action;
 
 /* sfile->params->flag */
-/* Note: short flag, also used as 16 lower bits of flags in link/append code
- *       (WM and BLO code area, see BLO_LibLinkFlags in BLO_readfile.h). */
+/**
+ * \note short flag, also used as 16 lower bits of flags in link/append code
+ * (WM and BLO code area, see #eBLOLibLinkFlags in BLO_readfile.h).
+ */
 typedef enum eFileSel_Params_Flag {
   FILE_PARAMS_FLAG_UNUSED_1 = (1 << 0), /* cleared */
   FILE_RELPATH = (1 << 1),
@@ -828,7 +830,7 @@ typedef enum eFileSel_Params_Flag {
   FILE_DIRSEL_ONLY = (1 << 7),
   FILE_FILTER = (1 << 8),
   FILE_OBDATA_INSTANCE = (1 << 9),
-  FILE_GROUP_INSTANCE = (1 << 10),
+  FILE_COLLECTION_INSTANCE = (1 << 10),
   FILE_SORT_INVERT = (1 << 11),
   FILE_HIDE_TOOL_PROPS = (1 << 12),
   FILE_CHECK_EXISTING = (1 << 13),
