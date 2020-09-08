@@ -853,8 +853,8 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
       bContext *C = KX_GetActiveEngine()->GetContext();
       if (ob->runtime.curve_cache == nullptr) {
         Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-        BKE_displist_make_curveTypes(
-            depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);
+        /*BKE_displist_make_curveTypes(
+            depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);*/
       }
       // eevee add curves to scene.objects list
       gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
