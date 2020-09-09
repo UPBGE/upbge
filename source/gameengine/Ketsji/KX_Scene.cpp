@@ -471,9 +471,10 @@ void KX_Scene::BackupShadingType()
       m_shadingTypeBackup = v3d->shading.type;
       m_shadingFlagBackup = v3d->shading.flag;
       v3d->shading.type = OB_RENDER;
-      //v3d->drawtype = OB_RENDER;
       v3d->shading.flag = (V3D_SHADING_SCENE_WORLD_RENDER | V3D_SHADING_SCENE_LIGHTS_RENDER);
-      v3d->flag2 |= V3D_HIDE_OVERLAYS;
+      if (useViewportInBlenderplayer) {
+        v3d->flag2 |= V3D_HIDE_OVERLAYS;
+      }
     }
   }
 }
@@ -676,16 +677,17 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
   }
 
   bool useViewportInBlenderplayer = canvas->IsBlenderPlayer() &&
-                                     scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
-  bool useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
+                                    (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0;
+  bool useViewportRender = (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0;
+
+  if (useViewportRender) {
+    /* When we call wm_draw_update, bContext variables are unset,
+     * then we need to set it again correctly to render the next frame.
+     */
+    ReinitBlenderContextVariables();
+  }
 
   if (cam && (useViewportInBlenderplayer || scene->flag & SCE_INTERACTIVE)) {
-    if (useViewportRender) {
-      /* When we call wm_draw_update, bContext variables are unset,
-       * then we need to set it again correctly to render the next frame.
-       */
-      ReinitBlenderContextVariables();
-    }
     float winmat[4][4];
     cam->GetProjectionMatrix().getValue(&winmat[0][0]);
     CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
@@ -701,7 +703,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
   }
 
   /* Here we'll render directly the scene with viewport code. */
-  if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) {
+  if (useViewportRender) {
     if (cam) {
       DRW_view_set_active(NULL);
 

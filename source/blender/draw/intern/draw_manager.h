@@ -472,7 +472,7 @@ typedef struct DRWDebugSphere {
 /* Game engine transition */
 typedef struct DRWDebugText2D {
   struct DRWDebugText2D *next; /* linked list */
-  char *text;
+  char text[64];
   float xco;
   float yco;
 } DRWDebugText2D;

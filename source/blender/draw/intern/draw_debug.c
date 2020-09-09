@@ -257,7 +257,7 @@ void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str)
   DRWDebugText2D *text = MEM_mallocN(sizeof(DRWDebugText2D), "DRWDebugText2D");
   text->xco = xco;
   text->yco = yco;
-  text->text = str;
+  strncpy(text->text, str, 64);
   BLI_LINKS_PREPEND(DST.debug_bge.texts, text);
 }
 
@@ -314,12 +314,10 @@ static void drw_debug_draw_boxes_bge(void)
   const float *size = DRW_viewport_size_get();
   const unsigned int width = size[0];
   const unsigned int height = size[1];
+  GPU_matrix_reset();
   GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
 
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-
-  DRW_state_reset();
-  GPU_depth_test(GPU_DEPTH_ALWAYS);
 
   while (DST.debug_bge.boxes) {
     void *next = DST.debug_bge.boxes->next;
@@ -345,6 +343,7 @@ static void drw_debug_draw_text_bge(void)
   const float *size = DRW_viewport_size_get();
   const unsigned int width = size[0];
   const unsigned int height = size[1];
+  GPU_matrix_reset();
   GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
 
   BLF_size(blf_mono_font, 11, 72);
@@ -360,7 +359,7 @@ static void drw_debug_draw_text_bge(void)
     DRWDebugText2D *t = DST.debug_bge.texts;
     BLF_color4fv(blf_mono_font, white);
     BLF_position(blf_mono_font, t->xco, t->yco, 0.0f);
-    BLF_draw(blf_mono_font, t->text, sizeof(t));
+    BLF_draw(blf_mono_font, t->text, BLF_DRAW_STR_DUMMY_MAX);
     MEM_freeN(DST.debug_bge.texts);
     DST.debug_bge.texts = next;
   }
@@ -369,13 +368,7 @@ static void drw_debug_draw_text_bge(void)
 
 void drw_debug_draw_bge(void)
 {
-  GPU_matrix_push();
-  GPU_matrix_push_projection();
-
   drw_debug_draw_lines_bge();
   drw_debug_draw_boxes_bge();
   drw_debug_draw_text_bge();
-
-  GPU_matrix_pop();
-  GPU_matrix_pop_projection();
 }
