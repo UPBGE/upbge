@@ -80,8 +80,9 @@
 /** \name Constraint Data Accessors
  * \{ */
 
-/* if object in posemode, active bone constraints, else object constraints */
-ListBase *ED_object_constraint_list_from_context(Object *ob)
+/* If object is in posemode, return active bone constraints, else object constraints. No
+ * constraints are returned for a bone on an inactive bonelayer. */
+ListBase *ED_object_constraint_active_list(Object *ob)
 {
   if (ob == NULL) {
     return NULL;
@@ -100,6 +101,18 @@ ListBase *ED_object_constraint_list_from_context(Object *ob)
   }
 
   return NULL;
+}
+
+/* Get the constraints for the active pose bone. Bone may be on an inactive bonelayer (unlike
+ * ED_object_constraint_active_list, such constraints are not excluded here). */
+ListBase *ED_object_pose_constraint_list(const bContext *C)
+{
+  bPoseChannel *pose_bone = CTX_data_pointer_get(C, "pose_bone").data;
+  if (pose_bone == NULL) {
+    return NULL;
+  }
+
+  return &pose_bone->constraints;
 }
 
 /* Find the list that a given constraint belongs to,
@@ -147,7 +160,7 @@ ListBase *ED_object_constraint_list_from_constraint(Object *ob,
 /* single constraint */
 bConstraint *ED_object_constraint_active_get(Object *ob)
 {
-  return BKE_constraints_active_get(ED_object_constraint_list_from_context(ob));
+  return BKE_constraints_active_get(ED_object_constraint_active_list(ob));
 }
 
 /** \} */
@@ -780,7 +793,7 @@ static bool edit_constraint_invoke_properties(bContext *C,
   return false;
 }
 
-static bConstraint *edit_constraint_property_get(wmOperator *op, Object *ob, int type)
+static bConstraint *edit_constraint_property_get(bContext *C, wmOperator *op, Object *ob, int type)
 {
   char constraint_name[MAX_NAME];
   int owner = RNA_enum_get(op->ptr, "owner");
@@ -789,31 +802,11 @@ static bConstraint *edit_constraint_property_get(wmOperator *op, Object *ob, int
 
   RNA_string_get(op->ptr, "constraint", constraint_name);
 
-  if (owner == EDIT_CONSTRAINT_OWNER_OBJECT) {
-    list = &ob->constraints;
-  }
-  else if (owner == EDIT_CONSTRAINT_OWNER_BONE) {
-    bPoseChannel *pchan = BKE_pose_channel_active(ob);
-    if (pchan) {
-      list = &pchan->constraints;
-    }
-    else {
-#if 0
-      if (G.debug & G_DEBUG) {
-        printf("edit_constraint_property_get: No active bone for object '%s'\n",
-               (ob) ? ob->id.name + 2 : "<None>");
-      }
-#endif
-      return NULL;
-    }
+  if (owner == EDIT_CONSTRAINT_OWNER_BONE) {
+    list = ED_object_pose_constraint_list(C);
   }
   else {
-#if 0
-    if (G.debug & G_DEBUG) {
-      printf("edit_constraint_property_get: defaulting to getting list in the standard way\n");
-    }
-#endif
-    list = ED_object_constraint_list_from_context(ob);
+    list = ED_object_constraint_active_list(ob);
   }
 
   con = BKE_constraints_find_name(list, constraint_name);
@@ -842,7 +835,7 @@ static int stretchto_reset_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = ED_object_active_context(C);
-  bConstraint *con = edit_constraint_property_get(op, ob, CONSTRAINT_TYPE_STRETCHTO);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_STRETCHTO);
   bStretchToConstraint *data = (con) ? (bStretchToConstraint *)con->data : NULL;
 
   /* despite 3 layers of checks, we may still not be able to find a constraint */
@@ -897,7 +890,7 @@ static int limitdistance_reset_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = ED_object_active_context(C);
-  bConstraint *con = edit_constraint_property_get(op, ob, CONSTRAINT_TYPE_DISTLIMIT);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_DISTLIMIT);
   bDistLimitConstraint *data = (con) ? (bDistLimitConstraint *)con->data : NULL;
 
   /* despite 3 layers of checks, we may still not be able to find a constraint */
@@ -969,7 +962,7 @@ static int childof_set_inverse_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = ED_object_active_context(C);
-  bConstraint *con = edit_constraint_property_get(op, ob, CONSTRAINT_TYPE_CHILDOF);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_CHILDOF);
   bChildOfConstraint *data = (con) ? (bChildOfConstraint *)con->data : NULL;
 
   /* despite 3 layers of checks, we may still not be able to find a constraint */
@@ -1023,7 +1016,7 @@ static int childof_clear_inverse_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = ED_object_active_context(C);
-  bConstraint *con = edit_constraint_property_get(op, ob, CONSTRAINT_TYPE_CHILDOF);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_CHILDOF);
   bChildOfConstraint *data = (con) ? (bChildOfConstraint *)con->data : NULL;
 
   if (data == NULL) {
@@ -1077,7 +1070,7 @@ static int followpath_path_animate_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = ED_object_active_context(C);
-  bConstraint *con = edit_constraint_property_get(op, ob, CONSTRAINT_TYPE_FOLLOWPATH);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_FOLLOWPATH);
   bFollowPathConstraint *data = (con) ? (bFollowPathConstraint *)con->data : NULL;
 
   bAction *act = NULL;
@@ -1221,7 +1214,7 @@ static int objectsolver_set_inverse_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = ED_object_active_context(C);
-  bConstraint *con = edit_constraint_property_get(op, ob, CONSTRAINT_TYPE_OBJECTSOLVER);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_OBJECTSOLVER);
   bObjectSolverConstraint *data = (con) ? (bObjectSolverConstraint *)con->data : NULL;
 
   /* despite 3 layers of checks, we may still not be able to find a constraint */
@@ -1283,7 +1276,7 @@ static int objectsolver_clear_inverse_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = ED_object_active_context(C);
-  bConstraint *con = edit_constraint_property_get(op, ob, CONSTRAINT_TYPE_OBJECTSOLVER);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_OBJECTSOLVER);
   bObjectSolverConstraint *data = (con) ? (bObjectSolverConstraint *)con->data : NULL;
 
   if (data == NULL) {
@@ -1431,7 +1424,7 @@ static int constraint_delete_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Object *ob = ED_object_active_context(C);
-  bConstraint *con = edit_constraint_property_get(op, ob, 0);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, 0);
   ListBase *lb = ED_object_constraint_list_from_constraint(ob, con, NULL);
 
   /* Store name temporarily for report. */
@@ -1497,7 +1490,7 @@ void CONSTRAINT_OT_delete(wmOperatorType *ot)
 static int constraint_move_down_exec(bContext *C, wmOperator *op)
 {
   Object *ob = ED_object_active_context(C);
-  bConstraint *con = edit_constraint_property_get(op, ob, 0);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, 0);
 
   if (con && con->next) {
     ListBase *conlist = ED_object_constraint_list_from_constraint(ob, con, NULL);
@@ -1552,7 +1545,7 @@ void CONSTRAINT_OT_move_down(wmOperatorType *ot)
 static int constraint_move_up_exec(bContext *C, wmOperator *op)
 {
   Object *ob = ED_object_active_context(C);
-  bConstraint *con = edit_constraint_property_get(op, ob, 0);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, 0);
 
   if (con && con->prev) {
     ListBase *conlist = ED_object_constraint_list_from_constraint(ob, con, NULL);
@@ -1605,7 +1598,7 @@ void CONSTRAINT_OT_move_up(wmOperatorType *ot)
 static int constraint_move_to_index_exec(bContext *C, wmOperator *op)
 {
   Object *ob = ED_object_active_context(C);
-  bConstraint *con = edit_constraint_property_get(op, ob, 0);
+  bConstraint *con = edit_constraint_property_get(C, op, ob, 0);
 
   int new_index = RNA_int_get(op->ptr, "index");
   if (new_index < 0) {
@@ -2161,8 +2154,7 @@ static int pose_constraint_add_exec(bContext *C, wmOperator *op)
     with_targets = 1;
   }
 
-  return constraint_add_exec(
-      C, op, ob, ED_object_constraint_list_from_context(ob), type, with_targets);
+  return constraint_add_exec(C, op, ob, ED_object_constraint_active_list(ob), type, with_targets);
 }
 
 /* ------------------ */
@@ -2363,12 +2355,8 @@ static int pose_ik_add_exec(bContext *C, wmOperator *op)
 
   /* add the constraint - all necessary checks should have
    * been done by the invoke() callback already... */
-  return constraint_add_exec(C,
-                             op,
-                             ob,
-                             ED_object_constraint_list_from_context(ob),
-                             CONSTRAINT_TYPE_KINEMATIC,
-                             with_targets);
+  return constraint_add_exec(
+      C, op, ob, ED_object_constraint_active_list(ob), CONSTRAINT_TYPE_KINEMATIC, with_targets);
 }
 
 void POSE_OT_ik_add(wmOperatorType *ot)

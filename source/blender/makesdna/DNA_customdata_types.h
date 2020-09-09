@@ -147,9 +147,9 @@ typedef enum CustomDataType {
   CD_CUSTOMLOOPNORMAL = 41,
   CD_SCULPT_FACE_SETS = 42,
 
-  CD_LOCATION = 43,
+  /* CD_LOCATION = 43, */ /* UNUSED */
+  /* CD_RADIUS = 44, */   /* UNUSED */
   CD_HAIRCURVE = 45,
-  CD_RADIUS = 44,
   CD_HAIRMAPPING = 46,
 
   CD_PROP_COLOR = 47,
@@ -209,16 +209,16 @@ typedef enum CustomDataType {
 #define CD_MASK_PROP_FLOAT3 (1ULL << CD_PROP_FLOAT3)
 #define CD_MASK_PROP_FLOAT2 (1ULL << CD_PROP_FLOAT2)
 
-/** Data types that may be defined for all mesh elements types. */
-#define CD_MASK_GENERIC_DATA \
-  (CD_MASK_PROP_FLOAT | CD_MASK_PROP_INT32 | CD_MASK_PROP_STRING | CD_MASK_PROP_FLOAT3 | \
-   CD_MASK_PROP_FLOAT2)
-
 /** Multires loop data. */
 #define CD_MASK_MULTIRES_GRIDS (CD_MASK_MDISPS | CD_GRID_PAINT_MASK)
 
 /* All data layers. */
 #define CD_MASK_ALL (~0LL)
+
+/* All generic attributes. */
+#define CD_MASK_PROP_ALL \
+  (CD_MASK_PROP_FLOAT | CD_MASK_PROP_FLOAT2 | CD_MASK_PROP_FLOAT3 | CD_MASK_PROP_INT32 | \
+   CD_MASK_PROP_COLOR | CD_MASK_PROP_STRING | CD_MASK_MLOOPCOL)
 
 typedef struct CustomData_MeshMasks {
   uint64_t vmask;

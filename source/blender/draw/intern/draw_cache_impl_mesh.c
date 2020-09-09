@@ -1559,16 +1559,14 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
                                      scene,
                                      ts,
                                      use_hide);
-  /* TODO(jbakker): Work-around for threading issues in 2.90. See T79533, T79038. Needs to be
-   * solved or made permanent in 2.91. Underlying issue still needs to be researched. */
 
-  /* Game engine transition : Reduce the scope of this workaround as this is affecting pereformances
-   * in some of my test files.
-   * I tried to investigate on the bug https://developer.blender.org/T79038 but didn't find the underlying cause.
-   * A crash happens both in vertex paint mode and weight paint mode.
-   * Idk if there is an issue with mesh extracting when there is a vcol layer... (youle).
-   * I can't reproduce T79533.
-   */
+  /* Ensure that all requested batches have finished.
+   * Ideally we want to remove this sync, but there are cases where this doesn't work.
+   * See T79038 for example.
+   *
+   * An idea to improve this is to separate the Object mode from the edit mode draw caches. And
+   * based on the mode the correct one will be updated. Other option is to look into using
+   * drw_batch_cache_generate_requested_delayed. */
   if (is_paint_mode) { // Game engine transition
     BLI_task_graph_work_and_wait(task_graph);
   }
