@@ -153,10 +153,10 @@ void RAS_DebugDraw::RenderText2D(const std::string &text,
 
 void RAS_DebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
 {
-  if ((m_lines.size() + m_circles.size() + m_aabbs.size() + m_boxes.size() + m_solidBoxes.size() +
+  /*if ((m_lines.size() + m_circles.size() + m_aabbs.size() + m_boxes.size() + m_solidBoxes.size() +
        m_texts2D.size() + m_boxes2D.size()) == 0) {
     return;
-  }
+  }*/
 
   m_impl->Flush(rasty, canvas, this);
 
