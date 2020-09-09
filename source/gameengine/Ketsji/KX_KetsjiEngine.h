@@ -279,6 +279,7 @@ class KX_KetsjiEngine {
   // include depsgraph time in tc_depsgraph category
   void CountDepsgraphTime();
   void EndCountDepsgraphTime();
+  void EndFrame2();
   /* End of EEVEE integration */
 
   void EndFrame();

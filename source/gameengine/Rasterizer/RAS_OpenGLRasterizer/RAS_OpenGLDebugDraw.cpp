@@ -25,6 +25,8 @@
  */
 
 #include "RAS_DebugDraw.h"
+
+#include "RAS_ICanvas.h"
 #include "RAS_OpenGLDebugDraw.h"
 
 #include "draw_debug.h"
@@ -135,12 +137,13 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     }
   }
   /* The Performances profiler */
+  const unsigned int height = canvas->GetHeight();
   if (debugDraw->m_boxes2D.size()) {
     for (const RAS_DebugDraw::Box2D &b : debugDraw->m_boxes2D) {
-      DRW_debug_box_2D_bge(b.m_pos[0], b.m_pos[1], b.m_size[0], b.m_size[1]);
+      DRW_debug_box_2D_bge(b.m_pos[0], height - b.m_pos[1], b.m_size[0], b.m_size[1]);
     }
     for (const RAS_DebugDraw::Text2D &t : debugDraw->m_texts2D) {
-      DRW_debug_text_2D_bge(t.m_pos[0], t.m_pos[1], t.m_text.c_str());
+      DRW_debug_text_2D_bge(t.m_pos[0], height - t.m_pos[1], t.m_text.c_str());
     }
   }
 }

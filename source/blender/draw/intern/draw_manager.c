@@ -1325,6 +1325,8 @@ void DRW_draw_callbacks_post_scene(void)
 
     /* Game engine transition */
     drw_debug_draw_bge();
+    GPU_matrix_projection_set(rv3d->winmat);
+    GPU_matrix_set(rv3d->viewmat);
     /**************************/
 
     GPU_depth_test(GPU_DEPTH_NONE);
