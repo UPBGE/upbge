@@ -244,26 +244,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   BackupShadingType();
 
-  //if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
-  //  /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
-  //   * depsgraph code too later */
-  //  scene->flag |= SCE_INTERACTIVE;
+  HideMenus();
 
-  //  /* We call Render here in KX_Scene constructor because
-  //   * 1: It creates a depsgraph and ensure it will be activated.
-  //   * 2: We need to create an eevee's cache to initialize
-  //   * KX_BlenderMaterials and BL_Textures.
-  //   */
-  //  RenderAfterCameraSetup(nullptr, false);
-  //}
-  //else {
-    /* This ensures a depsgraph is allocated and activates it.
-     * It is needed in KX_Scene constructor because we'll need
-     * a depsgraph in BlenderDataConversion.
-     */
-    CTX_data_depsgraph_pointer(C);
-    scene->flag |= SCE_INTERACTIVE;
-  //}
+  CTX_data_depsgraph_pointer(C);
+  scene->flag |= SCE_INTERACTIVE;
   /******************************************************************************************************************************/
 }
 
@@ -276,30 +260,18 @@ KX_Scene::~KX_Scene()
   ReinitBlenderContextVariables();
 
   Scene *scene = GetBlenderScene();
-  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   View3D *v3d = CTX_wm_view3d(C);
 
-  //if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
   if (m_shadingTypeBackup != 0) {
     v3d->shading.type = m_shadingTypeBackup;
     v3d->shading.flag = m_shadingFlagBackup;
   }
-  //  if (!m_isPythonMainLoop) {
-  //    /* This will free m_gpuViewport and m_gpuOffScreen */
-  //    DRW_game_render_loop_end();
-  //  }
-  //  else {
-  //    /* It has not been freed before because the main Render loop
-  //     * is not executed then we free it now.
-  //     */
-  //    GPU_viewport_free(m_initMaterialsGPUViewport);
-  //    DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
-  //  }
-  //}
+
+  RestoreMenus();
 
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
     Base *base = BKE_view_layer_base_find(view_layer, hiddenOb);
@@ -307,9 +279,6 @@ KX_Scene::~KX_Scene()
     BKE_layer_collection_sync(scene, view_layer);
     DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
   }
-
-  scene->eevee.taa_samples = m_taaSamplesBackup;
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
   // Put that before we flush depsgraph updates at scene exit
   scene->flag &= ~SCE_INTERACTIVE;
@@ -459,43 +428,67 @@ void KX_Scene::BackupShadingType()
 {
   bContext *C = KX_GetActiveEngine()->GetContext();
 
-  Scene *scene = GetBlenderScene();
+  View3D *v3d = CTX_wm_view3d(C);
 
-  /* Only if we are not in viewport render, modify + backup shading types */
-  /*if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-      KX_GetActiveEngine()->GetCanvas()->IsBlenderPlayer()) {*/
+  bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
 
-    View3D *v3d = CTX_wm_view3d(C);
-
-    bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
-
+  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+  if (canvas->IsBlenderPlayer()) {
     if (not_eevee) {
       m_shadingTypeBackup = v3d->shading.type;
       m_shadingFlagBackup = v3d->shading.flag;
       v3d->shading.type = OB_RENDER;
       v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
     }
+  }
+}
 
-    RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-    if (canvas->IsBlenderPlayer()) {
-      v3d->flag2 |= V3D_HIDE_OVERLAYS;
+void KX_Scene::HideMenus()
+{
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  View3D *v3d = CTX_wm_view3d(C);
+  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+  if (canvas->IsBlenderPlayer()) {
+    v3d->flag2 |= V3D_HIDE_OVERLAYS;
+  }
+  else {
+    v3d->flag2 |= V3D_HIDE_OVERLAYS;
+    ScrArea *area = CTX_wm_area(C);
+    for (ARegion *region = (ARegion *)area->regionbase.first; region; region = region->next) {
+      if (region->regiontype != RGN_TYPE_WINDOW) {
+        if (!ELEM(region->flag, RGN_FLAG_HIDDEN, RGN_FLAG_HIDDEN_BY_USER)) {
+          region->flag |= RGN_FLAG_HIDDEN;
+          region->flag |= RGN_FLAG_VISIBLE_AT_GE_EXIT;
+        }
+      }
     }
-  //}
+    ED_screen_refresh(CTX_wm_manager(C), CTX_wm_window(C));
+  }
+}
+
+void KX_Scene::RestoreMenus()
+{
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  View3D *v3d = CTX_wm_view3d(C);
+  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+  if (!canvas->IsBlenderPlayer()) {
+    v3d->flag2 &= ~V3D_HIDE_OVERLAYS;
+    ScrArea *area = CTX_wm_area(C);
+    for (ARegion *region = (ARegion *)area->regionbase.first; region; region = region->next) {
+      if (region->regiontype != RGN_TYPE_WINDOW) {
+        if (region->flag & RGN_FLAG_VISIBLE_AT_GE_EXIT) {
+          region->flag &= ~RGN_FLAG_HIDDEN;
+          region->flag &= ~RGN_FLAG_VISIBLE_AT_GE_EXIT;
+        }
+      }
+    }
+    ED_screen_refresh(CTX_wm_manager(C), CTX_wm_window(C));
+  }
 }
 
 Object *KX_Scene::GetGameDefaultCamera()
 {
   return m_gameDefaultCamera;
-}
-
-bool KX_Scene::ObjectsAreStatic()
-{
-  return GetObjectList()->GetCount() == m_staticObjects.size();
-}
-
-void KX_Scene::ResetTaaSamples()
-{
-  m_resetTaaSamples = true;
 }
 
 void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collection)
@@ -528,7 +521,6 @@ void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collecti
       replica->Release();
     }
   }
-  ResetTaaSamples();
 }
 
 void KX_Scene::RemoveOverlayCollection(Collection *collection)
@@ -560,8 +552,6 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
       collection_object->gameflag &= ~OB_OVERLAY_COLLECTION;
     }
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-
-    ResetTaaSamples();
   }
 }
 
@@ -630,7 +620,6 @@ static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_L
 void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  RAS_Rasterizer *rasty = engine->GetRasterizer();
   RAS_ICanvas *canvas = engine->GetCanvas();
   bContext *C = engine->GetContext();
   Main *bmain = CTX_data_main(C);
@@ -653,10 +642,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   engine->EndCountDepsgraphTime();
 
-  bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
-  m_resetTaaSamples = false;
-  m_staticObjects.clear();
-
   const RAS_Rect *viewport = &canvas->GetViewportArea();
   int v[4] = {viewport->GetLeft(),
               viewport->GetBottom(),
@@ -666,125 +651,52 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
 
   /* Here we'll render directly the scene with viewport code. */
-  //if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !canvas->IsBlenderPlayer()) {
-    if (cam) {
-      DRW_view_set_active(NULL);
+  if (cam) {
+    DRW_view_set_active(NULL);
 
-      /* When we call wm_draw_update, bContext variables are unset,
-       * then we need to set it again correctly to render the next frame.
-       */
-      ReinitBlenderContextVariables();
+    /* When we call wm_draw_update, bContext variables are unset,
+     * then we need to set it again correctly to render the next frame.
+     */
+    ReinitBlenderContextVariables();
 
+    CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
+
+    ARegion *region = CTX_wm_region(C);
+    region->visible = true;
+    region->do_draw |= RGN_DRAWING;
+
+    if (canvas->IsBlenderPlayer()) {
+
+      scene->flag |= SCE_IS_BLENDERPLAYER;
+
+      region->winrct = window;
+
+      wmWindow *win = CTX_wm_window(C);
+      bScreen *screen = WM_window_get_active_screen(win);
+      screen->state = SCREENFULL;
+
+      float winmat[4][4];
+      cam->GetProjectionMatrix().getValue(&winmat[0][0]);
       CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-
-      ARegion *region = CTX_wm_region(C);
-      region->visible = true;
-      region->do_draw |= RGN_DRAWING;
-
-      if (canvas->IsBlenderPlayer()) {
-
-        scene->flag |= SCE_IS_BLENDERPLAYER;
-
-        region->winrct = window;
-
-        wmWindow *win = CTX_wm_window(C);
-        bScreen *screen = WM_window_get_active_screen(win);
-        screen->state = SCREENFULL;
-
-        float winmat[4][4];
-        cam->GetProjectionMatrix().getValue(&winmat[0][0]);
-        CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-        ED_view3d_draw_setup_view(CTX_wm_manager(C),
-                                  CTX_wm_window(C),
-                                  CTX_data_expect_evaluated_depsgraph(C),
-                                  CTX_data_scene(C),
-                                  CTX_wm_region(C),
-                                  CTX_wm_view3d(C),
-                                  NULL,
-                                  winmat,
-                                  NULL);
-      }
-
-      ED_region_tag_redraw(CTX_wm_region(C));
-      wm_draw_update(C);
-
-      if (canvas->IsBlenderPlayer()) {
-        scene->flag &= ~SCE_IS_BLENDERPLAYER;
-      }
-      return;
+      ED_view3d_draw_setup_view(CTX_wm_manager(C),
+                                CTX_wm_window(C),
+                                CTX_data_expect_evaluated_depsgraph(C),
+                                CTX_data_scene(C),
+                                CTX_wm_region(C),
+                                CTX_wm_view3d(C),
+                                NULL,
+                                winmat,
+                                NULL);
     }
-  //}
 
-  //if (cam) {
-  //  UpdateObjectLods(cam);
-  //  SetCurrentGPUViewport(cam->GetGPUViewport());
+    ED_region_tag_redraw(CTX_wm_region(C));
+    wm_draw_update(C);
 
-  //  float winmat[4][4];
-  //  cam->GetProjectionMatrix().getValue(&winmat[0][0]);
-  //  CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-  //  ED_view3d_draw_setup_view(CTX_wm_manager(C),
-  //                            CTX_wm_window(C),
-  //                            CTX_data_expect_evaluated_depsgraph(C),
-  //                            CTX_data_scene(C),
-  //                            CTX_wm_region(C),
-  //                            CTX_wm_view3d(C),
-  //                            NULL,
-  //                            winmat,
-  //                            NULL);
-  //}
-
-  //bool calledFromConstructor = cam == nullptr;
-  //if (calledFromConstructor) {
-  //  m_currentGPUViewport = GPU_viewport_create();
-  //  SetInitMaterialsGPUViewport(m_currentGPUViewport);
-  //}
-
-  //DRW_game_render_loop(C,
-  //                     m_currentGPUViewport,
-  //                     bmain,
-  //                     depsgraph,
-  //                     &window,
-  //                     reset_taa_samples,
-  //                     is_overlay_pass);
-
-  //RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
-  //RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
-
-  ///* Detach Defaults attachments from input framebuffer... */
-  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
-  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
-  ///* And replace it with color and depth textures from viewport */
-  //GPU_framebuffer_texture_attach(
-  //    input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport, 0), 0, 0);
-  //GPU_framebuffer_texture_attach(
-  //    input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
-
-  //RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
-
-  //GPU_framebuffer_restore();
-
-  //rasty->SetViewport(v[0], v[1], v[2], v[3]);
-
-  //if ((scene->gm.flag & GAME_USE_UI_ANTI_FLICKER) == 0) {
-  //  rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-  //  GPU_scissor_test(true);
-  //  rasty->SetScissor(v[0], v[1], v[2], v[3]);
-  //}
-  //DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
-  //                         CTX_wm_view3d(C),
-  //                         GetOverlayCamera() && !is_overlay_pass ? false : true);
-
-  ///* Detach viewport textures from input framebuffer... */
-  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
-  //                               GPU_viewport_color_texture(m_currentGPUViewport, 0));
-  //GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
-  ///* And restore defaults attachments */
-  //GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
-  //GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
-
-  //GPU_framebuffer_restore();
-
-  //GPU_blend(GPU_BLEND_NONE);
+    if (canvas->IsBlenderPlayer()) {
+      scene->flag &= ~SCE_IS_BLENDERPLAYER;
+    }
+    return;
+  }
 }
 
 void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
@@ -1731,8 +1643,6 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
   //    true);
   //  }
   //}
-
-  ResetTaaSamples();
 }
 
 KX_Camera *KX_Scene::GetActiveCamera()
@@ -1979,16 +1889,6 @@ RAS_MaterialBucket *KX_Scene::FindBucket(class RAS_IPolyMaterial *polymat, bool 
 {
   return m_bucketmanager->FindBucket(polymat, bucketCreated);
 }
-
-/*****************************TAA UTILS**********************************/
-/* Utils for TAA to check if nothing is moving inside view frustum (or anywhere when using probes)
- */
-void KX_Scene::AppendToStaticObjects(KX_GameObject *gameobj)
-{
-  m_staticObjects.push_back(gameobj);
-}
-/************************End of TAA UTILS**************************/
-/*************************************End of EEVEE INTEGRATION*********************************/
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam /*, const KX_CullingNodeList& nodes*/)
 {

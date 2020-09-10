@@ -734,7 +734,6 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
                                                     bool converting_during_runtime)
 {
   KX_GameObject *gameobj = nullptr;
-  Scene *blenderscene = kxscene->GetBlenderScene();
 
   switch (ob->type) {
     case OB_LAMP: {
@@ -850,9 +849,9 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
 
 #ifdef THREADED_DAG_WORKAROUND
     case OB_CURVE: {
-      bContext *C = KX_GetActiveEngine()->GetContext();
+      //bContext *C = KX_GetActiveEngine()->GetContext();
       if (ob->runtime.curve_cache == nullptr) {
-        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+        //Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
         /*BKE_displist_make_curveTypes(
             depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);*/
       }

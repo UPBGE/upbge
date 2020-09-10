@@ -315,9 +315,6 @@ class KX_Scene : public CValue, public SCA_IScene {
   virtual ~KX_Scene();
 
   /******************EEVEE INTEGRATION************************/
-  void AppendToStaticObjects(KX_GameObject *gameobj);
-  bool ObjectsAreStatic();
-  void ResetTaaSamples();
   void ConvertBlenderObject(struct Object *ob);
   void ConvertBlenderCollection(struct Collection *co);
 
@@ -352,6 +349,8 @@ class KX_Scene : public CValue, public SCA_IScene {
   void BackupRestrictFlag(Object *ob, char restrictFlag);
   void RestoreRestrictFlags();
   void TagForCollectionRemap();
+  void HideMenus();
+  void RestoreMenus();
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;

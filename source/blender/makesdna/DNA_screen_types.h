@@ -687,6 +687,8 @@ enum {
   /** When the user sets the region is hidden,
    * needed for floating regions that may be hidden for other reasons. */
   RGN_FLAG_HIDDEN_BY_USER = (1 << 7),
+
+  RGN_FLAG_VISIBLE_AT_GE_EXIT = (1 << 8),
 };
 
 /** #ARegion.do_draw */
