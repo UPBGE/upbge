@@ -1616,27 +1616,6 @@ static void write_object(BlendWriter *writer, Object *ob, const void *id_address
   }
 }
 
-static void write_key(BlendWriter *writer, Key *key, const void *id_address)
-{
-  if (key->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* write LibData */
-    BLO_write_id_struct(writer, Key, id_address, &key->id);
-    BKE_id_blend_write(writer, &key->id);
-
-    if (key->adt) {
-      BKE_animdata_blend_write(writer, key->adt);
-    }
-
-    /* direct data */
-    LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
-      BLO_write_struct(writer, KeyBlock, kb);
-      if (kb->data) {
-        BLO_write_raw(writer, kb->totelem * key->elemsize, kb->data);
-      }
-    }
-  }
-}
-
 static void write_texture(BlendWriter *writer, Tex *tex, const void *id_address)
 {
   if (tex->id.us > 0 || BLO_write_is_undo(writer)) {
@@ -2369,63 +2348,6 @@ static void write_screen(BlendWriter *writer, bScreen *screen, const void *id_ad
   }
 }
 
-static void write_bone(BlendWriter *writer, Bone *bone)
-{
-  /* PATCH for upward compatibility after 2.37+ armature recode */
-  bone->size[0] = bone->size[1] = bone->size[2] = 1.0f;
-
-  /* Write this bone */
-  BLO_write_struct(writer, Bone, bone);
-
-  /* Write ID Properties -- and copy this comment EXACTLY for easy finding
-   * of library blocks that implement this.*/
-  if (bone->prop) {
-    IDP_BlendWrite(writer, bone->prop);
-  }
-
-  /* Write Children */
-  LISTBASE_FOREACH (Bone *, cbone, &bone->childbase) {
-    write_bone(writer, cbone);
-  }
-}
-
-static void write_armature(BlendWriter *writer, bArmature *arm, const void *id_address)
-{
-  if (arm->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* Clean up, important in undo case to reduce false detection of changed datablocks. */
-    arm->bonehash = NULL;
-    arm->edbo = NULL;
-    /* Must always be cleared (armatures don't have their own edit-data). */
-    arm->needs_flush_to_id = 0;
-    arm->act_edbone = NULL;
-
-    BLO_write_id_struct(writer, bArmature, id_address, &arm->id);
-    BKE_id_blend_write(writer, &arm->id);
-
-    if (arm->adt) {
-      BKE_animdata_blend_write(writer, arm->adt);
-    }
-
-    /* Direct data */
-    LISTBASE_FOREACH (Bone *, bone, &arm->bonebase) {
-      write_bone(writer, bone);
-    }
-  }
-}
-
-static void write_speaker(BlendWriter *writer, Speaker *spk, const void *id_address)
-{
-  if (spk->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* write LibData */
-    BLO_write_id_struct(writer, Speaker, id_address, &spk->id);
-    BKE_id_blend_write(writer, &spk->id);
-
-    if (spk->adt) {
-      BKE_animdata_blend_write(writer, spk->adt);
-    }
-  }
-}
-
 static void write_sound(BlendWriter *writer, bSound *sound, const void *id_address)
 {
   if (sound->id.us > 0 || BLO_write_is_undo(writer)) {
@@ -2440,19 +2362,6 @@ static void write_sound(BlendWriter *writer, bSound *sound, const void *id_addre
     BKE_id_blend_write(writer, &sound->id);
 
     BKE_packedfile_blend_write(writer, sound->packedfile);
-  }
-}
-
-static void write_probe(BlendWriter *writer, LightProbe *prb, const void *id_address)
-{
-  if (prb->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* write LibData */
-    BLO_write_id_struct(writer, LightProbe, id_address, &prb->id);
-    BKE_id_blend_write(writer, &prb->id);
-
-    if (prb->adt) {
-      BKE_animdata_blend_write(writer, prb->adt);
-    }
   }
 }
 
@@ -2890,23 +2799,11 @@ static bool write_file_handle(Main *mainvar,
           case ID_SCE:
             write_scene(&writer, (Scene *)id_buffer, id);
             break;
-          case ID_KE:
-            write_key(&writer, (Key *)id_buffer, id);
-            break;
-          case ID_SPK:
-            write_speaker(&writer, (Speaker *)id_buffer, id);
-            break;
-          case ID_LP:
-            write_probe(&writer, (LightProbe *)id_buffer, id);
-            break;
           case ID_SO:
             write_sound(&writer, (bSound *)id_buffer, id);
             break;
           case ID_GR:
             write_collection(&writer, (Collection *)id_buffer, id);
-            break;
-          case ID_AR:
-            write_armature(&writer, (bArmature *)id_buffer, id);
             break;
           case ID_OB:
             write_object(&writer, (Object *)id_buffer, id);
@@ -2954,6 +2851,10 @@ static bool write_file_handle(Main *mainvar,
           case ID_CA:
           case ID_WO:
           case ID_MSK:
+          case ID_SPK:
+          case ID_AR:
+          case ID_LP:
+          case ID_KE:
             /* Do nothing, handled in IDTypeInfo callback. */
             break;
           case ID_LI:
