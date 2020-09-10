@@ -338,6 +338,7 @@ MINLINE bool equals_v3v3(const float a[3], const float b[3]) ATTR_WARN_UNUSED_RE
 MINLINE bool equals_v4v4(const float a[4], const float b[4]) ATTR_WARN_UNUSED_RESULT;
 
 MINLINE bool equals_v2v2_int(const int v1[2], const int v2[2]) ATTR_WARN_UNUSED_RESULT;
+MINLINE bool equals_v3v3_int(const int v1[3], const int v2[3]) ATTR_WARN_UNUSED_RESULT;
 MINLINE bool equals_v4v4_int(const int v1[4], const int v2[4]) ATTR_WARN_UNUSED_RESULT;
 
 MINLINE bool compare_v2v2(const float a[2],
@@ -427,7 +428,7 @@ void ortho_v3_v3(float out[3], const float v[3]);
 void ortho_v2_v2(float out[2], const float v[2]);
 void bisect_v3_v3v3v3(float r[3], const float a[3], const float b[3], const float c[3]);
 void rotate_v2_v2fl(float r[2], const float p[2], const float angle);
-void rotate_v3_v3v3fl(float v[3], const float p[3], const float axis[3], const float angle);
+void rotate_v3_v3v3fl(float r[3], const float p[3], const float axis[3], const float angle);
 void rotate_normalized_v3_v3v3fl(float out[3],
                                  const float p[3],
                                  const float axis[3],
@@ -435,9 +436,9 @@ void rotate_normalized_v3_v3v3fl(float out[3],
 
 /*********************************** Other ***********************************/
 
-void print_v2(const char *str, const float a[2]);
-void print_v3(const char *str, const float a[3]);
-void print_v4(const char *str, const float a[4]);
+void print_v2(const char *str, const float v[2]);
+void print_v3(const char *str, const float v[3]);
+void print_v4(const char *str, const float v[4]);
 void print_vn(const char *str, const float v[], const int n);
 
 #define print_v2_id(v) print_v2(STRINGIFY(v), v)

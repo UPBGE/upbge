@@ -222,7 +222,6 @@ typedef enum TreeItemSelectAction {
   OL_ITEM_ACTIVATE = (1 << 2),    /* Activate the item */
   OL_ITEM_EXTEND = (1 << 3),      /* Extend the current selection */
   OL_ITEM_RECURSIVE = (1 << 4),   /* Select recursively */
-  OL_ITEM_TOGGLE_MODE = (1 << 5)  /* Temporary */
 } TreeItemSelectAction;
 
 /* outliner_tree.c ----------------------------------------------- */
@@ -282,13 +281,14 @@ void outliner_item_select(struct bContext *C,
                           struct TreeElement *te,
                           const short select_flag);
 
-void outliner_object_mode_toggle(struct bContext *C,
-                                 Scene *scene,
-                                 ViewLayer *view_layer,
-                                 Base *base);
-
 bool outliner_item_is_co_over_name_icons(const TreeElement *te, float view_co_x);
 bool outliner_item_is_co_within_close_toggle(const TreeElement *te, float view_co_x);
+bool outliner_is_co_within_mode_column(SpaceOutliner *space_outliner, const float view_mval[2]);
+
+void outliner_item_mode_toggle(struct bContext *C,
+                               TreeViewContext *tvc,
+                               TreeElement *te,
+                               const bool do_extend);
 
 /* outliner_edit.c ---------------------------------------------- */
 typedef void (*outliner_operation_fn)(struct bContext *C,
@@ -495,7 +495,7 @@ TreeElement *outliner_find_item_at_y(const SpaceOutliner *space_outliner,
 TreeElement *outliner_find_item_at_x_in_row(const SpaceOutliner *space_outliner,
                                             const TreeElement *parent_te,
                                             float view_co_x,
-                                            bool *multiple_objects);
+                                            bool *row_merged);
 TreeElement *outliner_find_tse(struct SpaceOutliner *space_outliner, const TreeStoreElem *tse);
 TreeElement *outliner_find_tree_element(ListBase *lb, const TreeStoreElem *store_elem);
 TreeElement *outliner_find_parent_element(ListBase *lb,

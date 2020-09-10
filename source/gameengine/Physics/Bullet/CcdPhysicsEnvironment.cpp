@@ -214,7 +214,11 @@ class WrapperVehicle : public PHY_IVehicle {
       PHY_IMotionState *motionState = (PHY_IMotionState *)info.m_clientInfo;
       m_vehicle->updateWheelTransform(i, false);
       const btTransform trans = m_vehicle->getWheelInfo(i).m_worldTransform;
-      motionState->SetWorldOrientation(ToMoto(trans.getRotation()));
+      /* Bullet 2.89: See void btRaycastVehicle::updateWheelTransform
+       * Use m_worldTransform.getBasis as setBasis is used to update
+       * wheel transformation
+       */
+      motionState->SetWorldOrientation(ToMoto(trans.getBasis())); /* ToMoto(trans.getRotation()) */
       motionState->SetWorldPosition(ToMoto(trans.getOrigin()));
     }
   }

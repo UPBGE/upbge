@@ -33,9 +33,7 @@
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.alembic"};
 
-namespace blender {
-namespace io {
-namespace alembic {
+namespace blender::io::alembic {
 
 using Alembic::Abc::OObject;
 using Alembic::AbcGeom::OXform;
@@ -96,7 +94,7 @@ void ABCTransformWriter::do_write(HierarchyContext &context)
   write_visibility(context);
 }
 
-const OObject ABCTransformWriter::get_alembic_object() const
+OObject ABCTransformWriter::get_alembic_object() const
 {
   return abc_xform_;
 }
@@ -115,6 +113,4 @@ bool ABCTransformWriter::check_is_animated(const HierarchyContext &context) cons
   return BKE_object_moves_in_time(context.object, context.animation_check_include_parent);
 }
 
-}  // namespace alembic
-}  // namespace io
-}  // namespace blender
+}  // namespace blender::io::alembic

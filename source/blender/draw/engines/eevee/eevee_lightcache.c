@@ -41,8 +41,8 @@
 #include "eevee_lightcache.h"
 #include "eevee_private.h"
 
+#include "GPU_capabilities.h"
 #include "GPU_context.h"
-#include "GPU_extensions.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -348,17 +348,14 @@ LightCache *EEVEE_lightcache_create(const int grid_len,
 
   int mips_len = log2_floor_u(cube_size) - MIN_CUBE_LOD_LEVEL;
 
-  if (GPU_arb_texture_cube_map_array_is_supported()) {
-    light_cache->cube_tx.tex = DRW_texture_create_cube_array(
-        cube_size, cube_len, GPU_R11F_G11F_B10F, DRW_TEX_FILTER | DRW_TEX_MIPMAP, NULL);
-  }
-  else {
-    light_cache->cube_tx.tex = DRW_texture_create_2d_array(cube_size,
-                                                           cube_size,
-                                                           cube_len * 6,
-                                                           GPU_R11F_G11F_B10F,
-                                                           DRW_TEX_FILTER | DRW_TEX_MIPMAP,
-                                                           NULL);
+  /* Try to create a cubemap array. */
+  DRWTextureFlag cube_texflag = DRW_TEX_FILTER | DRW_TEX_MIPMAP;
+  light_cache->cube_tx.tex = DRW_texture_create_cube_array(
+      cube_size, cube_len, GPU_R11F_G11F_B10F, cube_texflag, NULL);
+  if (light_cache->cube_tx.tex == NULL) {
+    /* Try fallback to 2D array. */
+    light_cache->cube_tx.tex = DRW_texture_create_2d_array(
+        cube_size, cube_size, cube_len * 6, GPU_R11F_G11F_B10F, cube_texflag, NULL);
   }
 
   light_cache->cube_tx.tex_size[0] = cube_size;
@@ -391,8 +388,8 @@ LightCache *EEVEE_lightcache_create(const int grid_len,
 static bool eevee_lightcache_static_load(LightCache *lcache)
 {
   /* We use fallback if a texture is not setup and there is no data to restore it. */
-  if ((!lcache->grid_tx.tex && !lcache->grid_tx.data) ||
-      (!lcache->cube_tx.tex && !lcache->cube_tx.data)) {
+  if ((!lcache->grid_tx.tex && !lcache->grid_tx.data) || !lcache->grid_data ||
+      (!lcache->cube_tx.tex && !lcache->cube_tx.data) || !lcache->cube_data) {
     return false;
   }
   /* If cache is too big for this GPU. */
@@ -401,16 +398,9 @@ static bool eevee_lightcache_static_load(LightCache *lcache)
   }
 
   if (lcache->grid_tx.tex == NULL) {
-    lcache->grid_tx.tex = GPU_texture_create_nD(lcache->grid_tx.tex_size[0],
-                                                lcache->grid_tx.tex_size[1],
-                                                lcache->grid_tx.tex_size[2],
-                                                2,
-                                                lcache->grid_tx.data,
-                                                IRRADIANCE_FORMAT,
-                                                GPU_DATA_UNSIGNED_BYTE,
-                                                0,
-                                                false,
-                                                NULL);
+    lcache->grid_tx.tex = GPU_texture_create_2d_array(
+        "lightcache_irradiance", UNPACK3(lcache->grid_tx.tex_size), 1, IRRADIANCE_FORMAT, NULL);
+    GPU_texture_update(lcache->grid_tx.tex, GPU_DATA_UNSIGNED_BYTE, lcache->grid_tx.data);
 
     if (lcache->grid_tx.tex == NULL) {
       lcache->flag |= LIGHTCACHE_NOT_USABLE;
@@ -421,25 +411,21 @@ static bool eevee_lightcache_static_load(LightCache *lcache)
   }
 
   if (lcache->cube_tx.tex == NULL) {
-    if (GPU_arb_texture_cube_map_array_is_supported()) {
-      lcache->cube_tx.tex = GPU_texture_cube_create(lcache->cube_tx.tex_size[0],
-                                                    lcache->cube_tx.tex_size[2] / 6,
-                                                    lcache->cube_tx.data,
-                                                    GPU_R11F_G11F_B10F,
-                                                    GPU_DATA_10_11_11_REV,
-                                                    NULL);
-    }
-    else {
-      lcache->cube_tx.tex = GPU_texture_create_nD(lcache->cube_tx.tex_size[0],
-                                                  lcache->cube_tx.tex_size[1],
-                                                  lcache->cube_tx.tex_size[2],
-                                                  2,
-                                                  lcache->cube_tx.data,
-                                                  GPU_R11F_G11F_B10F,
-                                                  GPU_DATA_10_11_11_REV,
-                                                  0,
-                                                  false,
-                                                  NULL);
+    /* Try to create a cubemap array. */
+    lcache->cube_tx.tex = GPU_texture_create_cube_array("lightcache_cubemaps",
+                                                        lcache->cube_tx.tex_size[0],
+                                                        lcache->cube_tx.tex_size[2] / 6,
+                                                        lcache->mips_len + 1,
+                                                        GPU_R11F_G11F_B10F,
+                                                        NULL);
+
+    if (lcache->cube_tx.tex == NULL) {
+      /* Try fallback to 2D array. */
+      lcache->cube_tx.tex = GPU_texture_create_2d_array("lightcache_cubemaps_fallback",
+                                                        UNPACK3(lcache->cube_tx.tex_size),
+                                                        lcache->mips_len + 1,
+                                                        GPU_R11F_G11F_B10F,
+                                                        NULL);
     }
 
     if (lcache->cube_tx.tex == NULL) {
@@ -447,9 +433,9 @@ static bool eevee_lightcache_static_load(LightCache *lcache)
       return false;
     }
 
-    for (int mip = 0; mip < lcache->mips_len; mip++) {
-      GPU_texture_add_mipmap(
-          lcache->cube_tx.tex, GPU_DATA_10_11_11_REV, mip + 1, lcache->cube_mips[mip].data);
+    for (int mip = 0; mip <= lcache->mips_len; mip++) {
+      const void *data = (mip == 0) ? lcache->cube_tx.data : lcache->cube_mips[mip - 1].data;
+      GPU_texture_update_mipmap(lcache->cube_tx.tex, mip, GPU_DATA_10_11_11_REV, data);
     }
     GPU_texture_mipmap_mode(lcache->cube_tx.tex, true, true);
   }
@@ -540,7 +526,7 @@ static void eevee_lightbake_context_enable(EEVEE_LightBake *lbake)
   if (lbake->gl_context) {
     DRW_opengl_render_context_enable(lbake->gl_context);
     if (lbake->gpu_context == NULL) {
-      lbake->gpu_context = GPU_context_create(0);
+      lbake->gpu_context = GPU_context_create(NULL);
     }
     DRW_gpu_render_context_enable(lbake->gpu_context);
   }

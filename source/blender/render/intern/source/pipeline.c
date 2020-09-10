@@ -265,9 +265,9 @@ static int render_imbuf_write_stamp_test(ReportList *reports,
   return ok;
 }
 
-void RE_FreeRenderResult(RenderResult *res)
+void RE_FreeRenderResult(RenderResult *rr)
 {
-  render_result_free(res);
+  render_result_free(rr);
 }
 
 float *RE_RenderLayerGetPass(volatile RenderLayer *rl, const char *name, const char *viewname)
@@ -1113,7 +1113,7 @@ void *RE_gl_context_get(Render *re)
 void *RE_gpu_context_get(Render *re)
 {
   if (re->gpu_context == NULL) {
-    re->gpu_context = GPU_context_create(0);
+    re->gpu_context = GPU_context_create(NULL);
   }
   return re->gpu_context;
 }

@@ -32,6 +32,23 @@
 
 #include "GPU_texture.h"
 
+typedef enum eGPUFrameBufferBits {
+  GPU_COLOR_BIT = (1 << 0),
+  GPU_DEPTH_BIT = (1 << 1),
+  GPU_STENCIL_BIT = (1 << 2),
+} eGPUFrameBufferBits;
+
+/* Game engine transition:
+ * I have linkage error caused by this macro
+ * and as I don't know how to solve it properly,
+ * I had to do a cast where this macro was needed
+ * (inline eGPUFrameBufferBits to_framebuffer_bits).
+ * There was a similar linkage error in GPU_state.h
+ * with ENUM_OPERATORS(eGPUWriteMask) which I commented too
+ * (youle)
+ */
+//ENUM_OPERATORS(eGPUFrameBufferBits)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -41,21 +58,13 @@ typedef struct GPUAttachment {
   int layer, mip;
 } GPUAttachment;
 
-typedef enum eGPUFrameBufferBits {
-  GPU_COLOR_BIT = (1 << 0),
-  GPU_DEPTH_BIT = (1 << 1),
-  GPU_STENCIL_BIT = (1 << 2),
-} eGPUFrameBufferBits;
-
 typedef enum eGPUBackBuffer {
   GPU_BACKBUFFER_LEFT = 0,
   GPU_BACKBUFFER_RIGHT,
 } eGPUBackBuffer;
 
-/** Opaque pointer hiding blender::gpu::FrameBuffer. */
-typedef struct GPUFrameBuffer {
-  void *dummy;
-} GPUFrameBuffer;
+/** Opaque type hiding blender::gpu::FrameBuffer. */
+typedef struct GPUFrameBuffer GPUFrameBuffer;
 
 typedef struct GPUOffScreen GPUOffScreen;
 
@@ -186,7 +195,8 @@ void GPU_framebuffer_clear(GPUFrameBuffer *fb,
 
 void GPU_framebuffer_multi_clear(GPUFrameBuffer *fb, const float (*clear_cols)[4]);
 
-void GPU_framebuffer_read_depth(GPUFrameBuffer *fb, int x, int y, int w, int h, float *data);
+void GPU_framebuffer_read_depth(
+    GPUFrameBuffer *fb, int x, int y, int w, int h, eGPUDataFormat format, void *data);
 void GPU_framebuffer_read_color(GPUFrameBuffer *fb,
                                 int x,
                                 int y,
@@ -226,7 +236,7 @@ GPUOffScreen *GPU_offscreen_create(
 void GPU_offscreen_free(GPUOffScreen *ofs);
 void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
 void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore);
-void GPU_offscreen_read_pixels(GPUOffScreen *ofs, eGPUDataFormat type, void *pixels);
+void GPU_offscreen_read_pixels(GPUOffScreen *ofs, eGPUDataFormat format, void *pixels);
 void GPU_offscreen_draw_to_screen(GPUOffScreen *ofs, int x, int y);
 int GPU_offscreen_width(const GPUOffScreen *ofs);
 int GPU_offscreen_height(const GPUOffScreen *ofs);

@@ -19,11 +19,13 @@
  * \brief Class to define the representation of a stroke (for display purpose)
  */
 
-#include "StrokeRep.h"
+#include <cmath>
+
 #include "Stroke.h"
 #include "StrokeAdvancedIterators.h"
 #include "StrokeIterators.h"
 #include "StrokeRenderer.h"
+#include "StrokeRep.h"
 
 #include "BKE_global.h"
 
@@ -50,8 +52,8 @@ StrokeVertexRep::StrokeVertexRep(const StrokeVertexRep &iBrother)
 
 Strip::Strip(const vector<StrokeVertex *> &iStrokeVertices,
              bool hasTex,
-             bool beginTip,
-             bool endTip,
+             bool tipBegin,
+             bool tipEnd,
              float texStep)
 {
   createStrip(iStrokeVertices);
@@ -61,7 +63,7 @@ Strip::Strip(const vector<StrokeVertex *> &iStrokeVertices,
   if (hasTex) {
     // We compute both kinds of coordinates to use different kinds of textures
     computeTexCoord(iStrokeVertices, texStep);
-    computeTexCoordWithTips(iStrokeVertices, beginTip, endTip, texStep);
+    computeTexCoordWithTips(iStrokeVertices, tipBegin, tipEnd, texStep);
   }
 }
 
@@ -573,7 +575,7 @@ void Strip::computeTexCoordWithTips(const vector<StrokeVertex *> &iStrokeVertice
   v = iStrokeVertices.begin();
   vend = iStrokeVertices.end();
   l = (*v)->strokeLength() / spacedThickness;
-  tiles = int(l + 0.5);  // round to the nearest
+  tiles = std::roundf(l);  // round to the nearest
   fact = (float(tiles) + 0.5) / l;
 
 #if 0

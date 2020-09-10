@@ -1099,13 +1099,11 @@ static void wm_window_set_drawable(wmWindowManager *wm, wmWindow *win, bool acti
     GHOST_ActivateWindowDrawingContext(win->ghostwin);
   }
   GPU_context_active_set(win->gpuctx);
-  immActivate();
 }
 
 void wm_window_clear_drawable(wmWindowManager *wm)
 {
   if (wm->windrawable) {
-    immDeactivate();
     wm->windrawable = NULL;
   }
 }
@@ -2608,7 +2606,6 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
 void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
 {
   wm_window_clear_drawable(wm);
-  immDeactivate();
   wm_window_set_drawable(wm, win, true);
 }
 /* End of Game engine transition */

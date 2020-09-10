@@ -47,6 +47,9 @@
 #  include "intern/openexr/openexr_multi.h"
 #endif
 
+/* Allow using deprecated functionality for .blend file I/O. */
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_defaults.h"
@@ -96,6 +99,8 @@
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
+
+#include "BLO_read_write.h"
 
 /* for image user iteration */
 #include "DNA_node_types.h"
@@ -216,6 +221,88 @@ static void image_foreach_cache(ID *id,
   }
 }
 
+static void image_blend_write(BlendWriter *writer, ID *id, const void *id_address)
+{
+  Image *ima = (Image *)id;
+  if (ima->id.us > 0 || BLO_write_is_undo(writer)) {
+    ImagePackedFile *imapf;
+
+    /* Some trickery to keep forward compatibility of packed images. */
+    BLI_assert(ima->packedfile == NULL);
+    if (ima->packedfiles.first != NULL) {
+      imapf = ima->packedfiles.first;
+      ima->packedfile = imapf->packedfile;
+    }
+
+    /* write LibData */
+    BLO_write_id_struct(writer, Image, id_address, &ima->id);
+    BKE_id_blend_write(writer, &ima->id);
+
+    for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next) {
+      BLO_write_struct(writer, ImagePackedFile, imapf);
+      BKE_packedfile_blend_write(writer, imapf->packedfile);
+    }
+
+    BKE_previewimg_blend_write(writer, ima->preview);
+
+    LISTBASE_FOREACH (ImageView *, iv, &ima->views) {
+      BLO_write_struct(writer, ImageView, iv);
+    }
+    BLO_write_struct(writer, Stereo3dFormat, ima->stereo3d_format);
+
+    BLO_write_struct_list(writer, ImageTile, &ima->tiles);
+
+    ima->packedfile = NULL;
+
+    BLO_write_struct_list(writer, RenderSlot, &ima->renderslots);
+  }
+}
+
+static void image_blend_read_data(BlendDataReader *reader, ID *id)
+{
+  Image *ima = (Image *)id;
+  BLO_read_list(reader, &ima->tiles);
+
+  BLO_read_list(reader, &(ima->renderslots));
+  if (!BLO_read_data_is_undo(reader)) {
+    /* We reset this last render slot index only when actually reading a file, not for undo. */
+    ima->last_render_slot = ima->render_slot;
+  }
+
+  BLO_read_list(reader, &(ima->views));
+  BLO_read_list(reader, &(ima->packedfiles));
+
+  if (ima->packedfiles.first) {
+    LISTBASE_FOREACH (ImagePackedFile *, imapf, &ima->packedfiles) {
+      BKE_packedfile_blend_read(reader, &imapf->packedfile);
+    }
+    ima->packedfile = NULL;
+  }
+  else {
+    BKE_packedfile_blend_read(reader, &ima->packedfile);
+  }
+
+  BLI_listbase_clear(&ima->anims);
+  BLO_read_data_address(reader, &ima->preview);
+  BKE_previewimg_blend_read(reader, ima->preview);
+  BLO_read_data_address(reader, &ima->stereo3d_format);
+  LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
+    tile->ok = IMA_OK;
+  }
+}
+
+static void image_blend_read_lib(BlendLibReader *UNUSED(reader), ID *id)
+{
+  Image *ima = (Image *)id;
+  /* Images have some kind of 'main' cache, when NULL we should also clear all others. */
+  /* Needs to be done *after* cache pointers are restored (call to
+   * `foreach_cache`/`blo_cache_storage_entry_restore_in_new`), easier for now to do it in
+   * lib_link... */
+  if (ima->cache == NULL) {
+    BKE_image_free_buffers(ima);
+  }
+}
+
 IDTypeInfo IDType_ID_IM = {
     .id_code = ID_IM,
     .id_filter = FILTER_ID_IM,
@@ -233,9 +320,9 @@ IDTypeInfo IDType_ID_IM = {
     .foreach_id = NULL,
     .foreach_cache = image_foreach_cache,
 
-    .blend_write = NULL,
-    .blend_read_data = NULL,
-    .blend_read_lib = NULL,
+    .blend_write = image_blend_write,
+    .blend_read_data = image_blend_read_data,
+    .blend_read_lib = image_blend_read_lib,
     .blend_read_expand = NULL,
 };
 
@@ -2970,9 +3057,9 @@ void BKE_image_path_from_imtype(char *string,
                                 const char imtype,
                                 const bool use_ext,
                                 const bool use_frames,
-                                const char *view)
+                                const char *suffix)
 {
-  do_makepicstring(string, base, relbase, frame, imtype, NULL, use_ext, use_frames, view);
+  do_makepicstring(string, base, relbase, frame, imtype, NULL, use_ext, use_frames, suffix);
 }
 
 struct anim *openanim_noload(const char *name,
@@ -4073,12 +4160,11 @@ static ImBuf *image_load_sequence_file(Image *ima, ImageUser *iuser, int entry, 
   }
   else {
     const int totviews = BLI_listbase_count(&ima->views);
-    int i;
     struct ImBuf **ibuf_arr;
 
     ibuf_arr = MEM_mallocN(sizeof(ImBuf *) * totviews, "Image Views Imbufs");
 
-    for (i = 0; i < totfiles; i++) {
+    for (int i = 0; i < totfiles; i++) {
       ibuf_arr[i] = load_sequence_single(ima, iuser, frame, i, &assign);
     }
 
@@ -4090,13 +4176,13 @@ static ImBuf *image_load_sequence_file(Image *ima, ImageUser *iuser, int entry, 
     ibuf = ibuf_arr[(iuser ? iuser->multi_index : 0)];
 
     if (assign) {
-      for (i = 0; i < totviews; i++) {
+      for (int i = 0; i < totviews; i++) {
         image_assign_ibuf(ima, ibuf_arr[i], i, entry);
       }
     }
 
     /* "remove" the others (decrease their refcount) */
-    for (i = 0; i < totviews; i++) {
+    for (int i = 0; i < totviews; i++) {
       if (ibuf_arr[i] != ibuf) {
         IMB_freeImBuf(ibuf_arr[i]);
       }
@@ -4232,12 +4318,11 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
   const bool is_multiview = BKE_image_is_multiview(ima);
   const int totfiles = image_num_files(ima);
   ImageTile *tile = BKE_image_get_tile(ima, 0);
-  int i;
 
   if (totfiles != BLI_listbase_count_at_most(&ima->anims, totfiles + 1)) {
     image_free_anims(ima);
 
-    for (i = 0; i < totfiles; i++) {
+    for (int i = 0; i < totfiles; i++) {
       /* allocate the ImageAnim */
       ImageAnim *ia = MEM_callocN(sizeof(ImageAnim), "Image Anim");
       BLI_addtail(&ima->anims, ia);
@@ -4254,7 +4339,7 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
 
     ibuf_arr = MEM_mallocN(sizeof(ImBuf *) * totviews, "Image Views (movie) Imbufs");
 
-    for (i = 0; i < totfiles; i++) {
+    for (int i = 0; i < totfiles; i++) {
       ibuf_arr[i] = load_movie_single(ima, iuser, frame, i);
     }
 
@@ -4262,7 +4347,7 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
       IMB_ImBufFromStereo3d(ima->stereo3d_format, ibuf_arr[0], &ibuf_arr[0], &ibuf_arr[1]);
     }
 
-    for (i = 0; i < totviews; i++) {
+    for (int i = 0; i < totviews; i++) {
       if (ibuf_arr[i]) {
         image_assign_ibuf(ima, ibuf_arr[i], i, frame);
       }
@@ -4275,7 +4360,7 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
     ibuf = ibuf_arr[(iuser ? iuser->multi_index : 0)];
 
     /* "remove" the others (decrease their refcount) */
-    for (i = 0; i < totviews; i++) {
+    for (int i = 0; i < totviews; i++) {
       if (ibuf_arr[i] != ibuf) {
         IMB_freeImBuf(ibuf_arr[i]);
       }
@@ -4411,12 +4496,11 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
   else {
     struct ImBuf **ibuf_arr;
     const int totviews = BLI_listbase_count(&ima->views);
-    int i;
     BLI_assert(totviews > 0);
 
     ibuf_arr = MEM_callocN(sizeof(ImBuf *) * totviews, "Image Views Imbufs");
 
-    for (i = 0; i < totfiles; i++) {
+    for (int i = 0; i < totfiles; i++) {
       ibuf_arr[i] = load_image_single(ima, iuser, cfra, i, has_packed, &assign);
     }
 
@@ -4427,7 +4511,7 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
     }
 
     /* return the original requested ImBuf */
-    i = (iuser && iuser->multi_index < totviews) ? iuser->multi_index : 0;
+    int i = (iuser && iuser->multi_index < totviews) ? iuser->multi_index : 0;
     ibuf = ibuf_arr[i];
 
     if (assign) {
@@ -5681,10 +5765,9 @@ static void image_update_views_format(Image *ima, ImageUser *iuser)
     /* nothing to do */
   }
   else if (ima->views_format == R_IMF_VIEWS_STEREO_3D) {
-    int i;
     const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
 
-    for (i = 0; i < 2; i++) {
+    for (int i = 0; i < 2; i++) {
       image_add_view(ima, names[i], ima->filepath);
     }
     return;

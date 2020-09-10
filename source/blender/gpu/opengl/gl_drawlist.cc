@@ -27,29 +27,19 @@
 #include "BLI_assert.h"
 
 #include "GPU_batch.h"
-#include "GPU_extensions.h"
+#include "GPU_capabilities.h"
 
 #include "glew-mx.h"
 
 #include "gpu_context_private.hh"
 #include "gpu_drawlist_private.hh"
+#include "gpu_vertex_buffer_private.hh"
 
 #include "gl_backend.hh"
 #include "gl_drawlist.hh"
 #include "gl_primitive.hh"
 
 #include <limits.h>
-
-#define USE_MULTI_DRAW_INDIRECT 1
-
-/* TODO remove. */
-#if GPU_TRACK_INDEX_RANGE
-#  define BASE_INDEX(el) ((el)->base_index)
-#  define INDEX_TYPE(el) ((el)->gl_index_type)
-#else
-#  define BASE_INDEX(el) 0
-#  define INDEX_TYPE(el) GL_UNSIGNED_INT
-#endif
 
 using namespace blender::gpu;
 
@@ -83,8 +73,7 @@ GLDrawList::GLDrawList(int length)
   data_size_ = 0;
   data_ = NULL;
 
-  if (USE_MULTI_DRAW_INDIRECT && GLEW_ARB_multi_draw_indirect &&
-      GPU_arb_base_instance_is_supported()) {
+  if (GLContext::multi_draw_indirect_support) {
     /* Alloc the biggest possible command list, which is indexed. */
     buffer_size_ = sizeof(GLDrawCommandIndexed) * length;
   }
@@ -96,15 +85,12 @@ GLDrawList::GLDrawList(int length)
 
 GLDrawList::~GLDrawList()
 {
-  /* TODO This ... */
-  static_cast<GLBackend *>(GPUBackend::get())->buf_free(buffer_id_);
-  /* ... should be this. */
-  // context_->buf_free(buffer_id_)
+  GLContext::buf_free(buffer_id_);
 }
 
 void GLDrawList::init(void)
 {
-  BLI_assert(GPU_context_active_get());
+  BLI_assert(GLContext::get());
   BLI_assert(MDI_ENABLED);
   BLI_assert(data_ == NULL);
   batch_ = NULL;
@@ -113,7 +99,7 @@ void GLDrawList::init(void)
   if (buffer_id_ == 0) {
     /* Allocate on first use. */
     glGenBuffers(1, &buffer_id_);
-    context_ = static_cast<GLContext *>(GPU_context_active_get());
+    context_ = GLContext::get();
   }
 
   glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffer_id_);
@@ -129,11 +115,11 @@ void GLDrawList::init(void)
   command_offset_ = 0;
 }
 
-void GLDrawList::append(GPUBatch *batch, int i_first, int i_count)
+void GLDrawList::append(GPUBatch *gpu_batch, int i_first, int i_count)
 {
   /* Fallback when MultiDrawIndirect is not supported/enabled. */
   if (MDI_DISABLED) {
-    GPU_batch_draw_advanced(batch, 0, 0, i_first, i_count);
+    GPU_batch_draw_advanced(gpu_batch, 0, 0, i_first, i_count);
     return;
   }
 
@@ -141,14 +127,16 @@ void GLDrawList::append(GPUBatch *batch, int i_first, int i_count)
     this->init();
   }
 
+  GLBatch *batch = static_cast<GLBatch *>(gpu_batch);
   if (batch != batch_) {
     // BLI_assert(batch->flag | GPU_BATCH_INIT);
     this->submit();
     batch_ = batch;
     /* Cached for faster access. */
-    base_index_ = batch->elem ? BASE_INDEX(batch->elem) : UINT_MAX;
-    v_first_ = batch->elem ? batch->elem->index_start : 0;
-    v_count_ = batch->elem ? batch->elem->index_len : batch->verts[0]->vertex_len;
+    GLIndexBuf *el = batch_->elem_();
+    base_index_ = el ? el->index_base_ : UINT_MAX;
+    v_first_ = el ? el->index_start_ : 0;
+    v_count_ = el ? el->index_len_ : batch->verts_(0)->vertex_len;
   }
 
   if (v_count_ == 0) {
@@ -189,14 +177,11 @@ void GLDrawList::submit(void)
   /* Something's wrong if we get here without MDI support. */
   BLI_assert(MDI_ENABLED);
   BLI_assert(data_);
-  BLI_assert(GPU_context_active_get()->shader != NULL);
-
-  GLBatch *batch = static_cast<GLBatch *>(batch_);
+  BLI_assert(GLContext::get()->shader != NULL);
 
   /* Only do multi-draw indirect if doing more than 2 drawcall. This avoids the overhead of
    * buffer mapping if scene is not very instance friendly. BUT we also need to take into
-   * account the
-   * case where only a few instances are needed to finish filling a call buffer. */
+   * account the case where only a few instances are needed to finish filling a call buffer. */
   const bool is_finishing_a_buffer = (command_offset_ >= data_size_);
   if (command_len_ > 2 || is_finishing_a_buffer) {
     GLenum prim = to_gl(batch_->prim_type);
@@ -208,10 +193,11 @@ void GLDrawList::submit(void)
     data_ = NULL; /* Unmapped */
     data_offset_ += command_offset_;
 
-    batch->bind(0);
+    batch_->bind(0);
 
     if (MDI_INDEXED) {
-      glMultiDrawElementsIndirect(prim, INDEX_TYPE(batch_->elem), offset, command_len_, 0);
+      GLenum gl_type = to_gl(batch_->elem_()->index_type_);
+      glMultiDrawElementsIndirect(prim, gl_type, offset, command_len_, 0);
     }
     else {
       glMultiDrawArraysIndirect(prim, offset, command_len_, 0);
@@ -223,8 +209,8 @@ void GLDrawList::submit(void)
       GLDrawCommandIndexed *cmd = (GLDrawCommandIndexed *)data_;
       for (int i = 0; i < command_len_; i++, cmd++) {
         /* Index start was already added. Avoid counting it twice. */
-        cmd->v_first -= batch->elem->index_start;
-        batch->draw(cmd->v_first, cmd->v_count, cmd->i_first, cmd->i_count);
+        cmd->v_first -= v_first_;
+        batch_->draw(cmd->v_first, cmd->v_count, cmd->i_first, cmd->i_count);
       }
       /* Reuse the same data. */
       command_offset_ -= command_len_ * sizeof(GLDrawCommandIndexed);
@@ -232,7 +218,7 @@ void GLDrawList::submit(void)
     else {
       GLDrawCommand *cmd = (GLDrawCommand *)data_;
       for (int i = 0; i < command_len_; i++, cmd++) {
-        batch->draw(cmd->v_first, cmd->v_count, cmd->i_first, cmd->i_count);
+        batch_->draw(cmd->v_first, cmd->v_count, cmd->i_first, cmd->i_count);
       }
       /* Reuse the same data. */
       command_offset_ -= command_len_ * sizeof(GLDrawCommand);

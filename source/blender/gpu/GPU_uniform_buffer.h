@@ -36,10 +36,8 @@ extern "C" {
 
 struct ListBase;
 
-/** Opaque pointer hiding blender::gpu::UniformBuf. */
-typedef struct GPUUniformBuf {
-  void *dummy;
-} GPUUniformBuf;
+/** Opaque type hiding blender::gpu::UniformBuf. */
+typedef struct GPUUniformBuf GPUUniformBuf;
 
 GPUUniformBuf *GPU_uniformbuf_create_ex(size_t size, const void *data, const char *name);
 GPUUniformBuf *GPU_uniformbuf_create_from_list(struct ListBase *inputs, const char *name);
@@ -50,7 +48,7 @@ void GPU_uniformbuf_free(GPUUniformBuf *ubo);
 
 void GPU_uniformbuf_update(GPUUniformBuf *ubo, const void *data);
 
-void GPU_uniformbuf_bind(GPUUniformBuf *ubo, int number);
+void GPU_uniformbuf_bind(GPUUniformBuf *ubo, int slot);
 void GPU_uniformbuf_unbind(GPUUniformBuf *ubo);
 void GPU_uniformbuf_unbind_all(void);
 

@@ -39,6 +39,9 @@ class GLStateManager;
  * Implementation of FrameBuffer object using OpenGL.
  **/
 class GLFrameBuffer : public FrameBuffer {
+  /* For debugging purpose. */
+  friend class GLTexture;
+
  private:
   /** OpenGL handle. */
   GLuint fbo_id_ = 0;
@@ -60,13 +63,13 @@ class GLFrameBuffer : public FrameBuffer {
   GLFrameBuffer(const char *name);
 
   /**
-   * Special Framebuffer encapsulating internal window framebuffer.
-   *  (i.e.: GL_FRONT_LEFT, GL_BACK_RIGHT, ...)
-   * @param ctx     context the handle is from.
-   * @param target  the internal GL name (i.e: GL_BACK_LEFT).
-   * @param fbo     the (optional) already created object for some implementation. Default is 0.
-   * @param w       buffer width.
-   * @param h       buffer height.
+   * Special frame-buffer encapsulating internal window frame-buffer.
+   *  (i.e.: #GL_FRONT_LEFT, #GL_BACK_RIGHT, ...)
+   * \param ctx:    context the handle is from.
+   * \param target: the internal GL name (i.e: #GL_BACK_LEFT).
+   * \param fbo:    the (optional) already created object for some implementation. Default is 0.
+   * \param w:      buffer width.
+   * \param h:      buffer height.
    **/
   GLFrameBuffer(const char *name, GLContext *ctx, GLenum target, GLuint fbo, int w, int h);
 
@@ -81,6 +84,9 @@ class GLFrameBuffer : public FrameBuffer {
              float clear_depth,
              uint clear_stencil) override;
   void clear_multi(const float (*clear_cols)[4]) override;
+  void clear_attachment(GPUAttachmentType type,
+                        eGPUDataFormat data_format,
+                        const void *clear_value) override;
 
   void read(eGPUFrameBufferBits planes,
             eGPUDataFormat format,

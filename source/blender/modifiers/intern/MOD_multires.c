@@ -205,6 +205,13 @@ static Mesh *multires_as_ccg(MultiresModifierData *mmd,
   }
   BKE_subdiv_displacement_attach_from_multires(subdiv, mesh, mmd);
   result = BKE_subdiv_to_ccg_mesh(subdiv, &ccg_settings, mesh);
+
+  /* NOTE: CCG becomes an owner of Subdiv descriptor, so can not share
+   * this pointer. Not sure if it's needed, but might have a second look
+   * on the ownership model here. */
+  MultiresRuntimeData *runtime_data = mmd->modifier.runtime;
+  runtime_data->subdiv = NULL;
+
   return result;
 }
 
@@ -261,10 +268,6 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
       sculpt_session->mpoly = NULL;
       sculpt_session->mloop = NULL;
     }
-    /* NOTE: CCG becomes an owner of Subdiv descriptor, so can not share
-     * this pointer. Not sure if it's needed, but might have a second look
-     * on the ownership model here. */
-    runtime_data->subdiv = NULL;
     // BKE_subdiv_stats_print(&subdiv->stats);
   }
   else {
@@ -293,7 +296,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
 }
 
 static void deformMatrices(ModifierData *md,
-                           const ModifierEvalContext *UNUSED(ctx),
+                           const ModifierEvalContext *ctx,
                            Mesh *mesh,
                            float (*vertex_cos)[3],
                            float (*deform_matrices)[3][3],
@@ -309,11 +312,19 @@ static void deformMatrices(ModifierData *md,
   (void)deform_matrices;
 
   MultiresModifierData *mmd = (MultiresModifierData *)md;
+
   SubdivSettings subdiv_settings;
   BKE_multires_subdiv_settings_init(&subdiv_settings, mmd);
   if (subdiv_settings.level == 0) {
     return;
   }
+
+  SubdivToCCGSettings ccg_settings;
+  multires_ccg_settings_init(&ccg_settings, mmd, ctx, mesh);
+  if (ccg_settings.resolution < 3) {
+    return;
+  }
+
   BKE_subdiv_settings_validate_for_mesh(&subdiv_settings, mesh);
   MultiresRuntimeData *runtime_data = multires_ensure_runtime(mmd);
   Subdiv *subdiv = subdiv_descriptor_ensure(mmd, &subdiv_settings, mesh);

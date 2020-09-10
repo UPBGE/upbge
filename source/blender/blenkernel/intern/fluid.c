@@ -181,7 +181,6 @@ void BKE_fluid_reallocate_copy_fluid(FluidDomainSettings *fds,
     float *n_b = manta_smoke_get_color_b(fds->fluid);
 
     /* Noise smoke fields. */
-    int wt_res_old[3];
     float *o_wt_dens = manta_noise_get_density(fluid_old);
     float *o_wt_react = manta_noise_get_react(fluid_old);
     float *o_wt_flame = manta_noise_get_flame(fluid_old);
@@ -210,6 +209,7 @@ void BKE_fluid_reallocate_copy_fluid(FluidDomainSettings *fds,
     float *n_wt_tcv2 = manta_noise_get_texture_v2(fds->fluid);
     float *n_wt_tcw2 = manta_noise_get_texture_w2(fds->fluid);
 
+    int wt_res_old[3];
     manta_noise_get_res(fluid_old, wt_res_old);
 
     for (int z = o_min[2]; z < o_max[2]; z++) {
@@ -555,7 +555,7 @@ static void manta_smoke_calc_transparency(FluidDomainSettings *fds, ViewLayer *v
 static float calc_voxel_transp(
     float *result, const float *input, int res[3], int *pixel, float *t_ray, float correct);
 static void update_distances(int index,
-                             float *fesh_distances,
+                             float *distance_map,
                              BVHTreeFromMesh *tree_data,
                              const float ray_start[3],
                              float surface_thickness,
@@ -593,8 +593,7 @@ static void clamp_bounds_in_domain(FluidDomainSettings *fds,
                                    int margin,
                                    float dt)
 {
-  int i;
-  for (i = 0; i < 3; i++) {
+  for (int i = 0; i < 3; i++) {
     int adapt = (fds->flags & FLUID_DOMAIN_USE_ADAPTIVE_DOMAIN) ? fds->adapt_res : 0;
     /* Add some margin. */
     min[i] -= margin;
@@ -3431,7 +3430,6 @@ static Mesh *create_smoke_geometry(FluidDomainSettings *fds, Mesh *orgmesh, Obje
 
   int num_verts = 8;
   int num_faces = 6;
-  int i;
   float ob_loc[3] = {0};
   float ob_cache_loc[3] = {0};
 
@@ -3551,7 +3549,7 @@ static Mesh *create_smoke_geometry(FluidDomainSettings *fds, Mesh *orgmesh, Obje
     /* Convert shift to local space and apply to vertices. */
     mul_mat3_m4_v3(ob->imat, fds->obj_shift_f);
     /* Apply shift to vertices. */
-    for (i = 0; i < num_verts; i++) {
+    for (int i = 0; i < num_verts; i++) {
       add_v3_v3(mverts[i].co, fds->obj_shift_f);
     }
   }
@@ -3817,6 +3815,13 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
     }
   }
 
+  /* Adaptive domain needs to know about current state, so save it here. */
+  int o_res[3], o_min[3], o_max[3], o_shift[3];
+  copy_v3_v3_int(o_res, fds->res);
+  copy_v3_v3_int(o_min, fds->res_min);
+  copy_v3_v3_int(o_max, fds->res_max);
+  copy_v3_v3_int(o_shift, fds->shift);
+
   /* Ensure that time parameters are initialized correctly before every step. */
   float fps = scene->r.frs_sec / scene->r.frs_sec_base;
   fds->frame_length = DT_DEFAULT * (25.0f / fps) * fds->time_scale;
@@ -3905,8 +3910,6 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
   bool with_gdomain;
   with_gdomain = (fds->guide_source == FLUID_DOMAIN_GUIDE_SRC_DOMAIN);
 
-  int o_res[3], o_min[3], o_max[3], o_shift[3];
-
   /* Cache mode specific settings. */
   switch (mode) {
     case FLUID_DOMAIN_CACHE_ALL:
@@ -3970,13 +3973,9 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
       break;
   }
 
-  /* Adaptive domain needs to know about current state, so save it here. */
-  copy_v3_v3_int(o_res, fds->res);
-  copy_v3_v3_int(o_min, fds->res_min);
-  copy_v3_v3_int(o_max, fds->res_max);
-  copy_v3_v3_int(o_shift, fds->shift);
-
   bool read_partial = false, read_all = false;
+  bool grid_display = fds->use_coba;
+
   /* Try to read from cache and keep track of read success. */
   if (read_cache) {
 
@@ -4040,7 +4039,8 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
         }
       }
 
-      read_partial = !baking_data && !baking_particles && !baking_mesh && next_data;
+      read_partial = !baking_data && !baking_particles && !baking_mesh && next_data &&
+                     !grid_display;
       read_all = !read_partial && with_resumable_cache;
       has_data = manta_read_data(fds->fluid, fmd, data_frame, read_all);
     }

@@ -123,7 +123,7 @@ GPUTexture **gpu_material_ramp_texture_row_set(GPUMaterial *mat,
                                                float *pixels,
                                                float *row)
 {
-  /* In order to put all the colorbands into one 1D array texture,
+  /* In order to put all the color-bands into one 1D array texture,
    * we need them to be the same size. */
   BLI_assert(size == CM_TABLE + 1);
   UNUSED_VARS_NDEBUG(size);
@@ -157,7 +157,7 @@ static void gpu_material_ramp_texture_build(GPUMaterial *mat)
   GPUColorBandBuilder *builder = mat->coba_builder;
 
   mat->coba_tex = GPU_texture_create_1d_array(
-      CM_TABLE + 1, builder->current_layer, GPU_RGBA16F, (float *)builder->pixels, NULL);
+      "mat_ramp", CM_TABLE + 1, builder->current_layer, 1, GPU_RGBA16F, (float *)builder->pixels);
 
   MEM_freeN(builder);
   mat->coba_builder = NULL;
@@ -546,7 +546,8 @@ struct GPUUniformBuf *GPU_material_sss_profile_get(GPUMaterial *material,
       GPU_texture_free(material->sss_tex_profile);
     }
 
-    material->sss_tex_profile = GPU_texture_create_1d(64, GPU_RGBA16F, translucence_profile, NULL);
+    material->sss_tex_profile = GPU_texture_create_1d(
+        "sss_tex_profile", 64, 1, GPU_RGBA16F, translucence_profile);
 
     MEM_freeN(translucence_profile);
 

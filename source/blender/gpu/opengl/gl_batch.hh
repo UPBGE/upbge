@@ -30,6 +30,9 @@
 
 #include "gpu_batch_private.hh"
 
+#include "gl_index_buffer.hh"
+#include "gl_vertex_buffer.hh"
+
 #include "glew-mx.h"
 
 namespace blender {
@@ -98,6 +101,20 @@ class GLBatch : public Batch {
 
   void draw(int v_first, int v_count, int i_first, int i_count) override;
   void bind(int i_first);
+
+  /* Convenience getters. */
+  GLIndexBuf *elem_(void) const
+  {
+    return static_cast<GLIndexBuf *>(unwrap(elem));
+  }
+  GLVertBuf *verts_(const int index) const
+  {
+    return static_cast<GLVertBuf *>(unwrap(verts[index]));
+  }
+  GLVertBuf *inst_(const int index) const
+  {
+    return static_cast<GLVertBuf *>(unwrap(inst[index]));
+  }
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GLBatch");
 };

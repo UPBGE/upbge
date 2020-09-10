@@ -913,12 +913,11 @@ static void drawObjectConstraint(TransInfo *t)
    * Without drawing the first light, users have little clue what they are doing.
    */
   short options = DRAWLIGHT;
-  int i;
   float tmp_axismtx[3][3];
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     TransData *td = tc->data;
-    for (i = 0; i < tc->data_len; i++, td++) {
+    for (int i = 0; i < tc->data_len; i++, td++) {
       float co[3];
       float(*axismtx)[3];
 
@@ -976,6 +975,11 @@ void startConstraint(TransInfo *t)
 
 void stopConstraint(TransInfo *t)
 {
+  if (t->orient_curr != 0) {
+    t->orient_curr = 0;
+    transform_orientations_current_set(t, t->orient_curr);
+  }
+
   t->con.mode &= ~(CON_APPLY | CON_SELECT);
   *t->con.text = '\0';
   t->num.idx_max = t->idx_max;

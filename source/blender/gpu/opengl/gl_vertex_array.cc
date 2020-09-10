@@ -21,15 +21,14 @@
  * \ingroup gpu
  */
 
-#include "GPU_glew.h"
-
-#include "GPU_vertex_buffer.h"
-
 #include "gpu_shader_interface.hh"
+#include "gpu_vertex_buffer_private.hh"
 #include "gpu_vertex_format_private.h"
 
 #include "gl_batch.hh"
 #include "gl_context.hh"
+#include "gl_index_buffer.hh"
+#include "gl_vertex_buffer.hh"
 
 #include "gl_vertex_array.hh"
 
@@ -64,7 +63,7 @@ static uint16_t vbo_bind(const ShaderInterface *interface,
     }
 
     const GLvoid *pointer = (const GLubyte *)0 + offset + v_first * stride;
-    const GLenum type = convert_comp_type_to_gl(static_cast<GPUVertCompType>(a->comp_type));
+    const GLenum type = to_gl(static_cast<GPUVertCompType>(a->comp_type));
 
     for (uint n_idx = 0; n_idx < a->name_len; n_idx++) {
       const char *name = GPU_vertformat_attr_name_get(format, a, n_idx);
@@ -110,35 +109,36 @@ static uint16_t vbo_bind(const ShaderInterface *interface,
 
 /* Update the Attrib Binding of the currently bound VAO. */
 void GLVertArray::update_bindings(const GLuint vao,
-                                  const GPUBatch *batch,
+                                  const GPUBatch *batch_, /* Should be GLBatch. */
                                   const ShaderInterface *interface,
                                   const int base_instance)
 {
+  const GLBatch *batch = static_cast<const GLBatch *>(batch_);
   uint16_t attr_mask = interface->enabled_attr_mask_;
 
   glBindVertexArray(vao);
 
   /* Reverse order so first VBO'S have more prevalence (in term of attribute override). */
   for (int v = GPU_BATCH_VBO_MAX_LEN - 1; v > -1; v--) {
-    GPUVertBuf *vbo = batch->verts[v];
+    GLVertBuf *vbo = batch->verts_(v);
     if (vbo) {
-      GPU_vertbuf_use(vbo);
+      vbo->bind();
       attr_mask &= ~vbo_bind(interface, &vbo->format, 0, vbo->vertex_len, false);
     }
   }
 
   for (int v = GPU_BATCH_INST_VBO_MAX_LEN - 1; v > -1; v--) {
-    GPUVertBuf *vbo = batch->inst[v];
+    GLVertBuf *vbo = batch->inst_(v);
     if (vbo) {
-      GPU_vertbuf_use(vbo);
+      vbo->bind();
       attr_mask &= ~vbo_bind(interface, &vbo->format, base_instance, vbo->vertex_len, true);
     }
   }
 
-  if (attr_mask != 0 && GLEW_ARB_vertex_attrib_binding) {
+  if (attr_mask != 0 && GLContext::vertex_attrib_binding_support) {
     for (uint16_t mask = 1, a = 0; a < 16; a++, mask <<= 1) {
       if (attr_mask & mask) {
-        GLContext *ctx = static_cast<GLContext *>(GPU_context_active_get());
+        GLContext *ctx = GLContext::get();
         /* This replaces glVertexAttrib4f(a, 0.0f, 0.0f, 0.0f, 1.0f); with a more modern style.
          * Fix issues for some drivers (see T75069). */
         glBindVertexBuffer(a, ctx->default_attr_vbo_, (intptr_t)0, (intptr_t)0);
@@ -151,7 +151,7 @@ void GLVertArray::update_bindings(const GLuint vao,
 
   if (batch->elem) {
     /* Binds the index buffer. This state is also saved in the VAO. */
-    GPU_indexbuf_use(batch->elem);
+    static_cast<GLIndexBuf *>(unwrap(batch->elem))->bind();
   }
 }
 

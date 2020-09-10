@@ -23,9 +23,7 @@
 #include "abc_writer_mesh.h"
 #include <vector>
 
-namespace blender {
-namespace io {
-namespace alembic {
+namespace blender::io::alembic {
 
 class ABCNurbsWriter : public ABCAbstractWriter {
  private:
@@ -36,7 +34,7 @@ class ABCNurbsWriter : public ABCAbstractWriter {
   explicit ABCNurbsWriter(const ABCWriterConstructorArgs &args);
 
   virtual void create_alembic_objects(const HierarchyContext *context) override;
-  virtual const Alembic::Abc::OObject get_alembic_object() const override;
+  virtual Alembic::Abc::OObject get_alembic_object() const override;
 
  protected:
   virtual bool is_supported(const HierarchyContext *context) const override;
@@ -52,6 +50,4 @@ class ABCNurbsMeshWriter : public ABCGenericMeshWriter {
   virtual Mesh *get_export_mesh(Object *object_eval, bool &r_needsfree) override;
 };
 
-}  // namespace alembic
-}  // namespace io
-}  // namespace blender
+}  // namespace blender::io::alembic

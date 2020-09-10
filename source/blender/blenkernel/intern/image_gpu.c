@@ -39,7 +39,7 @@
 #include "BKE_image.h"
 #include "BKE_main.h"
 
-#include "GPU_extensions.h"
+#include "GPU_capabilities.h"
 #include "GPU_state.h"
 #include "GPU_texture.h"
 
@@ -95,7 +95,7 @@ static GPUTexture *gpu_texture_create_tile_mapping(Image *ima, const int multivi
     tile_info[3] = tile->runtime.tilearray_size[1] / array_h;
   }
 
-  GPUTexture *tex = GPU_texture_create_1d_array(width, 2, GPU_RGBA32F, data, NULL);
+  GPUTexture *tex = GPU_texture_create_1d_array(ima->id.name + 2, width, 2, 1, GPU_RGBA32F, data);
   GPU_texture_mipmap_mode(tex, false, false);
 
   MEM_freeN(data);
@@ -180,9 +180,7 @@ static GPUTexture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
   const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
   /* Create Texture without content. */
   GPUTexture *tex = IMB_touch_gpu_texture(
-      main_ibuf, arraywidth, arrayheight, arraylayers, use_high_bitdepth);
-
-  GPU_texture_bind(tex, 0);
+      ima->id.name + 2, main_ibuf, arraywidth, arrayheight, arraylayers, use_high_bitdepth);
 
   /* Upload each tile one by one. */
   LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
@@ -225,8 +223,6 @@ static GPUTexture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
     GPU_texture_mipmap_mode(tex, false, true);
   }
 
-  GPU_texture_unbind(tex);
-
   return tex;
 }
 
@@ -251,6 +247,7 @@ static GPUTexture **get_image_gpu_texture_ptr(Image *ima,
 
 static GPUTexture *image_gpu_texture_error_create(eGPUTextureTarget textarget)
 {
+  fprintf(stderr, "GPUTexture: Blender Texture Not Loaded!\n");
   switch (textarget) {
     case TEXTARGET_2D_ARRAY:
       return GPU_texture_create_error(2, true);
@@ -320,12 +317,13 @@ static GPUTexture *image_get_gpu_texture(Image *ima,
                                          (ima ? (ima->alpha_mode != IMA_ALPHA_STRAIGHT) : false) :
                                          (ima ? (ima->alpha_mode == IMA_ALPHA_PREMUL) : true);
 
-    *tex = IMB_create_gpu_texture(ibuf_intern, use_high_bitdepth, store_premultiplied);
+    *tex = IMB_create_gpu_texture(
+        ima->id.name + 2, ibuf_intern, use_high_bitdepth, store_premultiplied);
+
+    GPU_texture_wrap_mode(*tex, true, false);
 
     if (GPU_mipmap_enabled()) {
-      GPU_texture_bind(*tex, 0);
       GPU_texture_generate_mipmap(*tex);
-      GPU_texture_unbind(*tex);
       if (ima) {
         ima->gpuflag |= IMA_GPU_MIPMAP_COMPLETE;
       }
@@ -665,8 +663,6 @@ static void gpu_texture_update_from_ibuf(
           rect_float, x, y, w, h, ibuf, store_premultiplied);
     }
   }
-
-  GPU_texture_bind(tex, 0);
 
   if (scaled) {
     /* Slower update where we first have to scale the input pixels. */

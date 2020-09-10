@@ -115,6 +115,9 @@ class FrameBuffer {
                      float clear_depth,
                      uint clear_stencil) = 0;
   virtual void clear_multi(const float (*clear_col)[4]) = 0;
+  virtual void clear_attachment(GPUAttachmentType type,
+                                eGPUDataFormat data_format,
+                                const void *clear_value) = 0;
 
   virtual void read(eGPUFrameBufferBits planes,
                     eGPUDataFormat format,
@@ -131,6 +134,7 @@ class FrameBuffer {
                        int dst_offset_y) = 0;
 
   void attachment_set(GPUAttachmentType type, const GPUAttachment &new_attachment);
+  void attachment_remove(GPUAttachmentType type);
 
   void recursive_downsample(int max_lvl,
                             void (*callback)(void *userData, int level),
@@ -206,6 +210,20 @@ class FrameBuffer {
 
   virtual int get_bindcode() = 0; // Game engine transition
 };
+
+/* Syntacting suggar. */
+static inline GPUFrameBuffer *wrap(FrameBuffer *vert)
+{
+  return reinterpret_cast<GPUFrameBuffer *>(vert);
+}
+static inline FrameBuffer *unwrap(GPUFrameBuffer *vert)
+{
+  return reinterpret_cast<FrameBuffer *>(vert);
+}
+static inline const FrameBuffer *unwrap(const GPUFrameBuffer *vert)
+{
+  return reinterpret_cast<const FrameBuffer *>(vert);
+}
 
 #undef DEBUG_NAME_LEN
 

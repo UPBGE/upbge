@@ -59,6 +59,8 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_thumbs.h"
 
+#include "BLO_read_write.h"
+
 /**
  * Only allow non-managed icons to be removed (by Python for eg).
  * Previews & ID's have their own functions to remove icons.
@@ -214,17 +216,14 @@ void BKE_icons_deferred_free(void)
 
 static PreviewImage *previewimg_create_ex(size_t deferred_data_size)
 {
-  PreviewImage *prv_img = NULL;
-  int i;
-
-  prv_img = MEM_mallocN(sizeof(PreviewImage) + deferred_data_size, "img_prv");
+  PreviewImage *prv_img = MEM_mallocN(sizeof(PreviewImage) + deferred_data_size, "img_prv");
   memset(prv_img, 0, sizeof(*prv_img)); /* leave deferred data dirty */
 
   if (deferred_data_size) {
     prv_img->tag |= PRV_TAG_DEFFERED;
   }
 
-  for (i = 0; i < NUM_ICON_SIZES; i++) {
+  for (int i = 0; i < NUM_ICON_SIZES; i++) {
     prv_img->flag[i] |= PRV_CHANGED;
     prv_img->changed_timestamp[i] = 0;
   }
@@ -240,9 +239,7 @@ void BKE_previewimg_freefunc(void *link)
 {
   PreviewImage *prv = (PreviewImage *)link;
   if (prv) {
-    int i;
-
-    for (i = 0; i < NUM_ICON_SIZES; i++) {
+    for (int i = 0; i < NUM_ICON_SIZES; i++) {
       if (prv->rect[i]) {
         MEM_freeN(prv->rect[i]);
       }
@@ -277,8 +274,7 @@ void BKE_previewimg_clear_single(struct PreviewImage *prv, enum eIconSizes size)
 
 void BKE_previewimg_clear(struct PreviewImage *prv)
 {
-  int i;
-  for (i = 0; i < NUM_ICON_SIZES; i++) {
+  for (int i = 0; i < NUM_ICON_SIZES; i++) {
     BKE_previewimg_clear_single(prv, i);
   }
 }
@@ -286,11 +282,10 @@ void BKE_previewimg_clear(struct PreviewImage *prv)
 PreviewImage *BKE_previewimg_copy(const PreviewImage *prv)
 {
   PreviewImage *prv_img = NULL;
-  int i;
 
   if (prv) {
     prv_img = MEM_dupallocN(prv);
-    for (i = 0; i < NUM_ICON_SIZES; i++) {
+    for (int i = 0; i < NUM_ICON_SIZES; i++) {
       if (prv->rect[i]) {
         prv_img->rect[i] = MEM_dupallocN(prv->rect[i]);
       }
@@ -522,6 +517,48 @@ void BKE_previewimg_ensure(PreviewImage *prv, const int size)
   }
 }
 
+void BKE_previewimg_blend_write(BlendWriter *writer, const PreviewImage *prv)
+{
+  /* Note we write previews also for undo steps. It takes up some memory,
+   * but not doing so would causes all previews to be re-rendered after
+   * undo which is too expensive. */
+
+  if (prv == NULL) {
+    return;
+  }
+
+  PreviewImage prv_copy = *prv;
+  /* don't write out large previews if not requested */
+  if (!(U.flag & USER_SAVE_PREVIEWS)) {
+    prv_copy.w[1] = 0;
+    prv_copy.h[1] = 0;
+    prv_copy.rect[1] = NULL;
+  }
+  BLO_write_struct_at_address(writer, PreviewImage, prv, &prv_copy);
+  if (prv_copy.rect[0]) {
+    BLO_write_uint32_array(writer, prv_copy.w[0] * prv_copy.h[0], prv_copy.rect[0]);
+  }
+  if (prv_copy.rect[1]) {
+    BLO_write_uint32_array(writer, prv_copy.w[1] * prv_copy.h[1], prv_copy.rect[1]);
+  }
+}
+
+void BKE_previewimg_blend_read(BlendDataReader *reader, PreviewImage *prv)
+{
+  if (prv == NULL) {
+    return;
+  }
+
+  for (int i = 0; i < NUM_ICON_SIZES; i++) {
+    if (prv->rect[i]) {
+      BLO_read_data_address(reader, &prv->rect[i]);
+    }
+    prv->gputexture[i] = NULL;
+  }
+  prv->icon_id = 0;
+  prv->tag = 0;
+}
+
 void BKE_icon_changed(const int icon_id)
 {
   BLI_assert(BLI_thread_is_main());
@@ -546,8 +583,7 @@ void BKE_icon_changed(const int icon_id)
 
     /* If we have previews, they all are now invalid changed. */
     if (p_prv && *p_prv) {
-      int i;
-      for (i = 0; i < NUM_ICON_SIZES; i++) {
+      for (int i = 0; i < NUM_ICON_SIZES; i++) {
         (*p_prv)->flag[i] |= PRV_CHANGED;
         (*p_prv)->changed_timestamp[i]++;
       }

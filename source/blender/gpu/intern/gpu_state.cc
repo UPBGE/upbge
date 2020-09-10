@@ -30,7 +30,6 @@
 
 #include "BKE_global.h"
 
-#include "GPU_extensions.h"
 #include "GPU_glew.h"
 #include "GPU_state.h"
 
@@ -42,7 +41,7 @@ using namespace blender::gpu;
 
 #define SET_STATE(_prefix, _state, _value) \
   do { \
-    GPUStateManager *stack = GPU_context_active_get()->state_manager; \
+    GPUStateManager *stack = Context::get()->state_manager; \
     auto &state_object = stack->_prefix##state; \
     state_object._state = (_value); \
   } while (0)
@@ -106,7 +105,7 @@ void GPU_write_mask(eGPUWriteMask mask)
 
 void GPU_color_mask(bool r, bool g, bool b, bool a)
 {
-  GPUStateManager *stack = GPU_context_active_get()->state_manager;
+  GPUStateManager *stack = Context::get()->state_manager;
   auto &state = stack->state;
   uint32_t write_mask = state.write_mask;
   SET_FLAG_FROM_TEST(write_mask, r, (uint32_t)GPU_WRITE_RED);
@@ -118,7 +117,7 @@ void GPU_color_mask(bool r, bool g, bool b, bool a)
 
 void GPU_depth_mask(bool depth)
 {
-  GPUStateManager *stack = GPU_context_active_get()->state_manager;
+  GPUStateManager *stack = Context::get()->state_manager;
   auto &state = stack->state;
   uint32_t write_mask = state.write_mask;
   SET_FLAG_FROM_TEST(write_mask, depth, (uint32_t)GPU_WRITE_DEPTH);
@@ -143,7 +142,7 @@ void GPU_state_set(eGPUWriteMask write_mask,
                    eGPUStencilOp stencil_op,
                    eGPUProvokingVertex provoking_vert)
 {
-  GPUStateManager *stack = GPU_context_active_get()->state_manager;
+  GPUStateManager *stack = Context::get()->state_manager;
   auto &state = stack->state;
   state.write_mask = (uint32_t)write_mask;
   state.blend = (uint32_t)blend;
@@ -162,7 +161,7 @@ void GPU_state_set(eGPUWriteMask write_mask,
 
 void GPU_depth_range(float near, float far)
 {
-  GPUStateManager *stack = GPU_context_active_get()->state_manager;
+  GPUStateManager *stack = Context::get()->state_manager;
   auto &state = stack->mutable_state;
   copy_v2_fl2(state.depth_range, near, far);
 }
@@ -174,16 +173,19 @@ void GPU_line_width(float width)
 
 void GPU_point_size(float size)
 {
-  SET_MUTABLE_STATE(point_size, size * PIXELSIZE);
+  GPUStateManager *stack = Context::get()->state_manager;
+  auto &state = stack->mutable_state;
+  /* Set point size sign negative to disable. */
+  state.point_size = size * signf(state.point_size);
 }
 
 /* Programmable point size
  * - shaders set their own point size when enabled
- * - use glPointSize when disabled */
+ * - use GPU_point_size when disabled */
 /* TODO remove and use program point size everywhere */
 void GPU_program_point_size(bool enable)
 {
-  GPUStateManager *stack = GPU_context_active_get()->state_manager;
+  GPUStateManager *stack = Context::get()->state_manager;
   auto &state = stack->mutable_state;
   /* Set point size sign negative to disable. */
   state.point_size = fabsf(state.point_size) * (enable ? 1 : -1);
@@ -191,19 +193,19 @@ void GPU_program_point_size(bool enable)
 
 void GPU_scissor_test(bool enable)
 {
-  GPU_context_active_get()->active_fb->scissor_test_set(enable);
+  Context::get()->active_fb->scissor_test_set(enable);
 }
 
 void GPU_scissor(int x, int y, int width, int height)
 {
   int scissor_rect[4] = {x, y, width, height};
-  GPU_context_active_get()->active_fb->scissor_set(scissor_rect);
+  Context::get()->active_fb->scissor_set(scissor_rect);
 }
 
 void GPU_viewport(int x, int y, int width, int height)
 {
   int viewport_rect[4] = {x, y, width, height};
-  GPU_context_active_get()->active_fb->viewport_set(viewport_rect);
+  Context::get()->active_fb->viewport_set(viewport_rect);
 }
 
 void GPU_stencil_reference_set(uint reference)
@@ -229,43 +231,43 @@ void GPU_stencil_compare_mask_set(uint compare_mask)
 
 eGPUBlend GPU_blend_get()
 {
-  GPUState &state = GPU_context_active_get()->state_manager->state;
+  GPUState &state = Context::get()->state_manager->state;
   return (eGPUBlend)state.blend;
 }
 
 eGPUWriteMask GPU_write_mask_get()
 {
-  GPUState &state = GPU_context_active_get()->state_manager->state;
+  GPUState &state = Context::get()->state_manager->state;
   return (eGPUWriteMask)state.write_mask;
 }
 
 uint GPU_stencil_mask_get()
 {
-  GPUStateMutable &state = GPU_context_active_get()->state_manager->mutable_state;
+  GPUStateMutable &state = Context::get()->state_manager->mutable_state;
   return state.stencil_write_mask;
 }
 
 eGPUDepthTest GPU_depth_test_get()
 {
-  GPUState &state = GPU_context_active_get()->state_manager->state;
+  GPUState &state = Context::get()->state_manager->state;
   return (eGPUDepthTest)state.depth_test;
 }
 
 eGPUStencilTest GPU_stencil_test_get()
 {
-  GPUState &state = GPU_context_active_get()->state_manager->state;
+  GPUState &state = Context::get()->state_manager->state;
   return (eGPUStencilTest)state.stencil_test;
 }
 
 void GPU_scissor_get(int coords[4])
 {
-  GPU_context_active_get()->active_fb->scissor_get(coords);
+  Context::get()->active_fb->scissor_get(coords);
 }
 
 void GPU_viewport_size_get_f(float coords[4])
 {
   int viewport[4];
-  GPU_context_active_get()->active_fb->viewport_get(viewport);
+  Context::get()->active_fb->viewport_get(viewport);
   for (int i = 0; i < 4; i++) {
     coords[i] = viewport[i];
   }
@@ -273,12 +275,12 @@ void GPU_viewport_size_get_f(float coords[4])
 
 void GPU_viewport_size_get_i(int coords[4])
 {
-  GPU_context_active_get()->active_fb->viewport_get(coords);
+  Context::get()->active_fb->viewport_get(coords);
 }
 
 bool GPU_depth_mask_get(void)
 {
-  GPUState &state = GPU_context_active_get()->state_manager->state;
+  GPUState &state = Context::get()->state_manager->state;
   return (state.write_mask & GPU_WRITE_DEPTH) != 0;
 }
 
@@ -296,17 +298,12 @@ bool GPU_mipmap_enabled(void)
 
 void GPU_flush(void)
 {
-  glFlush();
+  Context::get()->flush();
 }
 
 void GPU_finish(void)
 {
-  glFinish();
-}
-
-void GPU_unpack_row_length_set(uint len)
-{
-  glPixelStorei(GL_UNPACK_ROW_LENGTH, len);
+  Context::get()->finish();
 }
 
 /** \} */

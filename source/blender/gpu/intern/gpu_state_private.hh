@@ -26,6 +26,8 @@
 
 #include "GPU_state.h"
 
+#include "gpu_texture_private.hh"
+
 #include <cstring>
 
 namespace blender {
@@ -160,6 +162,16 @@ class GPUStateManager {
   virtual ~GPUStateManager(){};
 
   virtual void apply_state(void) = 0;
+
+  virtual void texture_bind(Texture *tex, eGPUSamplerState sampler, int unit) = 0;
+  virtual void texture_unbind(Texture *tex) = 0;
+  virtual void texture_unbind_all(void) = 0;
+
+  virtual void texture_unpack_row_length_set(uint len) = 0;
+
+  /* Game engine transition */
+  virtual void texture_bind_bge(Texture *tex, int unit) = 0;
+
 };
 
 }  // namespace gpu

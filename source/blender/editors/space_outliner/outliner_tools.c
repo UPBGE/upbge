@@ -981,7 +981,7 @@ static void singleuser_world_fn(bContext *C,
 }
 
 /**
- * \param select_recurse: Set to false for operations which are already
+ * \param recurse_selected: Set to false for operations which are already
  * recursively operating on their children.
  */
 void outliner_do_object_operation_ex(bContext *C,
@@ -991,7 +991,7 @@ void outliner_do_object_operation_ex(bContext *C,
                                      ListBase *lb,
                                      outliner_operation_fn operation_fn,
                                      void *user_data,
-                                     bool select_recurse)
+                                     bool recurse_selected)
 {
   TreeElement *te;
   for (te = lb->first; te; te = te->next) {
@@ -1013,7 +1013,7 @@ void outliner_do_object_operation_ex(bContext *C,
       }
     }
     if (TSELEM_OPEN(tselem, space_outliner)) {
-      if ((select_handled == false) || select_recurse) {
+      if ((select_handled == false) || recurse_selected) {
         outliner_do_object_operation_ex(C,
                                         reports,
                                         scene_act,
@@ -1021,7 +1021,7 @@ void outliner_do_object_operation_ex(bContext *C,
                                         &te->subtree,
                                         operation_fn,
                                         NULL,
-                                        select_recurse);
+                                        recurse_selected);
       }
     }
   }
@@ -1491,16 +1491,6 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
     outliner_do_object_operation(
         C, op->reports, scene, space_outliner, &space_outliner->tree, item_rename_fn);
     str = "Rename Object";
-  }
-  else if (event == OL_OP_OBJECT_MODE_ENTER) {
-    outliner_do_object_operation(
-        C, op->reports, scene, space_outliner, &space_outliner->tree, item_object_mode_enter_fn);
-    str = "Enter Current Mode";
-  }
-  else if (event == OL_OP_OBJECT_MODE_EXIT) {
-    outliner_do_object_operation(
-        C, op->reports, scene, space_outliner, &space_outliner->tree, item_object_mode_exit_fn);
-    str = "Exit Current Mode";
   }
   else {
     BLI_assert(0);

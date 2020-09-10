@@ -26,9 +26,7 @@
 struct ParticleSettings;
 struct ParticleSystem;
 
-namespace blender {
-namespace io {
-namespace alembic {
+namespace blender::io::alembic {
 
 class ABCHairWriter : public ABCAbstractWriter {
  private:
@@ -41,7 +39,7 @@ class ABCHairWriter : public ABCAbstractWriter {
   explicit ABCHairWriter(const ABCWriterConstructorArgs &args);
 
   virtual void create_alembic_objects(const HierarchyContext *context) override;
-  virtual const Alembic::Abc::OObject get_alembic_object() const override;
+  virtual Alembic::Abc::OObject get_alembic_object() const override;
 
  protected:
   virtual void do_write(HierarchyContext &context) override;
@@ -63,6 +61,4 @@ class ABCHairWriter : public ABCAbstractWriter {
                                std::vector<int32_t> &hvertices);
 };
 
-}  // namespace alembic
-}  // namespace io
-}  // namespace blender
+}  // namespace blender::io::alembic

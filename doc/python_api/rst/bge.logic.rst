@@ -499,6 +499,10 @@ Utility functions
 
    Prints GL Extension Info into the console
 
+.. function:: getGraphicsCardVendor()
+
+   Returns the graphics card vendor name. Very useful to make different setups depending on the graphic card used by the user.
+
 .. function:: PrintMemInfo()
 
    Prints engine statistics into the console

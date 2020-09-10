@@ -348,13 +348,12 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
     if (!target->overlay_texture) {
       eGPUTextureFormat format = col ? GPU_RGBA8 : GPU_R8;
-      target->overlay_texture = GPU_texture_create_nD(
-          size, size, 0, 2, buffer, format, GPU_DATA_UNSIGNED_BYTE, 0, false, NULL);
+      target->overlay_texture = GPU_texture_create_2d(
+          "paint_cursor_overlay", size, size, 1, format, NULL);
+      GPU_texture_update(target->overlay_texture, GPU_DATA_UNSIGNED_BYTE, buffer);
 
       if (!col) {
-        GPU_texture_bind(target->overlay_texture, 0);
         GPU_texture_swizzle_set(target->overlay_texture, "rrrr");
-        GPU_texture_unbind(target->overlay_texture);
       }
     }
 
@@ -468,12 +467,11 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
     BLI_task_parallel_range(0, size, &data, load_tex_cursor_task_cb, &settings);
 
     if (!cursor_snap.overlay_texture) {
-      cursor_snap.overlay_texture = GPU_texture_create_nD(
-          size, size, 0, 2, buffer, GPU_R8, GPU_DATA_UNSIGNED_BYTE, 0, false, NULL);
+      cursor_snap.overlay_texture = GPU_texture_create_2d(
+          "cursor_snap_overaly", size, size, 1, GPU_R8, NULL);
+      GPU_texture_update(cursor_snap.overlay_texture, GPU_DATA_UNSIGNED_BYTE, buffer);
 
-      GPU_texture_bind(cursor_snap.overlay_texture, 0);
       GPU_texture_swizzle_set(cursor_snap.overlay_texture, "rrrr");
-      GPU_texture_unbind(cursor_snap.overlay_texture);
     }
 
     if (init) {
@@ -913,7 +911,6 @@ static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
   GPU_matrix_translate_2f(vc->region->winrct.xmin, vc->region->winrct.ymin);
 
   if (brush->paint_curve && brush->paint_curve->points) {
-    int i;
     PaintCurve *pc = brush->paint_curve;
     PaintCurvePoint *cp = pc->points;
 
@@ -930,7 +927,7 @@ static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
     UI_GetThemeColorType4fv(TH_PAINT_CURVE_HANDLE, SPACE_VIEW3D, handle_col);
     UI_GetThemeColorType4fv(TH_PAINT_CURVE_PIVOT, SPACE_VIEW3D, pivot_col);
 
-    for (i = 0; i < pc->tot_points - 1; i++, cp++) {
+    for (int i = 0; i < pc->tot_points - 1; i++, cp++) {
       int j;
       PaintCurvePoint *cp_next = cp + 1;
       float data[(PAINT_CURVE_NUM_SEGMENTS + 1) * 2];
@@ -1156,7 +1153,8 @@ static void sculpt_geometry_preview_lines_draw(const uint gpuattr,
   if (ss->preview_vert_index_count > 0) {
     immBegin(GPU_PRIM_LINES, ss->preview_vert_index_count);
     for (int i = 0; i < ss->preview_vert_index_count; i++) {
-      immVertex3fv(gpuattr, SCULPT_vertex_co_get(ss, ss->preview_vert_index_list[i]));
+      immVertex3fv(gpuattr,
+                   SCULPT_vertex_co_for_grab_active_get(ss, ss->preview_vert_index_list[i]));
     }
     immEnd();
   }
@@ -1574,7 +1572,14 @@ static void paint_cursor_draw_3d_view_brush_cursor_inactive(PaintCursorContext *
 
   /* Cursor location symmetry points. */
 
-  const float *active_vertex_co = SCULPT_active_vertex_co_get(pcontext->ss);
+  const float *active_vertex_co;
+  if (brush->sculpt_tool == SCULPT_TOOL_GRAB && brush->flag & BRUSH_GRAB_ACTIVE_VERTEX) {
+    active_vertex_co = SCULPT_vertex_co_for_grab_active_get(
+        pcontext->ss, SCULPT_active_vertex_get(pcontext->ss));
+  }
+  else {
+    active_vertex_co = SCULPT_active_vertex_co_get(pcontext->ss);
+  }
   if (len_v3v3(active_vertex_co, pcontext->location) < pcontext->radius) {
     immUniformColor3fvAlpha(pcontext->outline_col, pcontext->outline_alpha);
     cursor_draw_point_with_symmetry(pcontext->pos,

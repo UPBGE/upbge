@@ -29,10 +29,11 @@
 extern "C" {
 #endif
 
-void VertexFormat_pack(GPUVertFormat *format);
+struct GPUVertFormat;
+
+void VertexFormat_pack(struct GPUVertFormat *format);
 uint padding(uint offset, uint alignment);
-uint vertex_buffer_size(const GPUVertFormat *format, uint vertex_len);
-GLenum convert_comp_type_to_gl(GPUVertCompType type);
+uint vertex_buffer_size(const struct GPUVertFormat *format, uint vertex_len);
 
 #ifdef __cplusplus
 }

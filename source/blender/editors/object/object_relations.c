@@ -679,8 +679,8 @@ EnumPropertyItem prop_make_parent_types[] = {
 bool ED_object_parent_set(ReportList *reports,
                           const bContext *C,
                           Scene *scene,
-                          Object *ob,
-                          Object *par,
+                          Object *const ob,
+                          Object *const par,
                           int partype,
                           const bool xmirror,
                           const bool keep_transform,
@@ -690,99 +690,111 @@ bool ED_object_parent_set(ReportList *reports,
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   bPoseChannel *pchan = NULL;
   bPoseChannel *pchan_eval = NULL;
-  const bool pararm = ELEM(
-      partype, PAR_ARMATURE, PAR_ARMATURE_NAME, PAR_ARMATURE_ENVELOPE, PAR_ARMATURE_AUTO);
   Object *parent_eval = DEG_get_evaluated_object(depsgraph, par);
 
   DEG_id_tag_update(&par->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
-  /* preconditions */
-  if (partype == PAR_FOLLOW || partype == PAR_PATH_CONST) {
-    if (par->type != OB_CURVE) {
-      return 0;
-    }
-    Curve *cu = par->data;
-    Curve *cu_eval = parent_eval->data;
-    if ((cu->flag & CU_PATH) == 0) {
-      cu->flag |= CU_PATH | CU_FOLLOW;
-      cu_eval->flag |= CU_PATH | CU_FOLLOW;
-      /* force creation of path data */
-      BKE_displist_make_curveTypes(depsgraph, scene, par, false, false);
-    }
-    else {
-      cu->flag |= CU_FOLLOW;
-      cu_eval->flag |= CU_FOLLOW;
-    }
+  /* Preconditions. */
+  if (ob == par) {
+    /* Parenting an object to itself is impossible. */
+    return true;
+  }
 
-    /* if follow, add F-Curve for ctime (i.e. "eval_time") so that path-follow works */
-    if (partype == PAR_FOLLOW) {
-      /* get or create F-Curve */
-      bAction *act = ED_id_action_ensure(bmain, &cu->id);
-      FCurve *fcu = ED_action_fcurve_ensure(bmain, act, NULL, NULL, "eval_time", 0);
+  if (BKE_object_parent_loop_check(par, ob)) {
+    BKE_report(reports, RPT_ERROR, "Loop in parents");
+    return false;
+  }
 
-      /* setup dummy 'generator' modifier here to get 1-1 correspondence still working */
-      if (!fcu->bezt && !fcu->fpt && !fcu->modifiers.first) {
-        add_fmodifier(&fcu->modifiers, FMODIFIER_TYPE_GENERATOR, fcu);
+  switch (partype) {
+    case PAR_FOLLOW:
+    case PAR_PATH_CONST: {
+      if (par->type != OB_CURVE) {
+        return false;
       }
-    }
+      Curve *cu = par->data;
+      Curve *cu_eval = parent_eval->data;
+      if ((cu->flag & CU_PATH) == 0) {
+        cu->flag |= CU_PATH | CU_FOLLOW;
+        cu_eval->flag |= CU_PATH | CU_FOLLOW;
+        /* force creation of path data */
+        BKE_displist_make_curveTypes(depsgraph, scene, par, false, false);
+      }
+      else {
+        cu->flag |= CU_FOLLOW;
+        cu_eval->flag |= CU_FOLLOW;
+      }
 
-    /* fall back on regular parenting now (for follow only) */
-    if (partype == PAR_FOLLOW) {
-      partype = PAR_OBJECT;
+      /* if follow, add F-Curve for ctime (i.e. "eval_time") so that path-follow works */
+      if (partype == PAR_FOLLOW) {
+        /* get or create F-Curve */
+        bAction *act = ED_id_action_ensure(bmain, &cu->id);
+        FCurve *fcu = ED_action_fcurve_ensure(bmain, act, NULL, NULL, "eval_time", 0);
+
+        /* setup dummy 'generator' modifier here to get 1-1 correspondence still working */
+        if (!fcu->bezt && !fcu->fpt && !fcu->modifiers.first) {
+          add_fmodifier(&fcu->modifiers, FMODIFIER_TYPE_GENERATOR, fcu);
+        }
+      }
+
+      /* fall back on regular parenting now (for follow only) */
+      if (partype == PAR_FOLLOW) {
+        partype = PAR_OBJECT;
+      }
+      break;
     }
+    case PAR_BONE:
+    case PAR_BONE_RELATIVE:
+      pchan = BKE_pose_channel_active(par);
+      pchan_eval = BKE_pose_channel_active(parent_eval);
+
+      if (pchan == NULL) {
+        BKE_report(reports, RPT_ERROR, "No active bone");
+        return false;
+      }
   }
-  else if (ELEM(partype, PAR_BONE, PAR_BONE_RELATIVE)) {
-    pchan = BKE_pose_channel_active(par);
-    pchan_eval = BKE_pose_channel_active(parent_eval);
 
-    if (pchan == NULL) {
-      BKE_report(reports, RPT_ERROR, "No active bone");
-      return false;
-    }
+  Object workob;
+
+  /* Apply transformation of previous parenting. */
+  if (keep_transform) {
+    /* was removed because of bug [#23577],
+     * but this can be handy in some cases too [#32616], so make optional */
+    BKE_object_apply_mat4(ob, ob->obmat, false, false);
   }
 
-  if (ob != par) {
-    if (BKE_object_parent_loop_check(par, ob)) {
-      BKE_report(reports, RPT_ERROR, "Loop in parents");
-      return false;
-    }
+  /* Set the parent (except for follow-path constraint option). */
+  if (partype != PAR_PATH_CONST) {
+    ob->parent = par;
+    /* Always clear parentinv matrix for sake of consistency, see T41950. */
+    unit_m4(ob->parentinv);
+    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+  }
 
-    Object workob;
+  /* Handle types. */
+  if (pchan) {
+    BLI_strncpy(ob->parsubstr, pchan->name, sizeof(ob->parsubstr));
+  }
+  else {
+    ob->parsubstr[0] = 0;
+  }
 
-    /* apply transformation of previous parenting */
-    if (keep_transform) {
-      /* was removed because of bug [#23577],
-       * but this can be handy in some cases too [#32616], so make optional */
-      BKE_object_apply_mat4(ob, ob->obmat, false, false);
-    }
-
-    /* set the parent (except for follow-path constraint option) */
-    if (partype != PAR_PATH_CONST) {
-      ob->parent = par;
-      /* Always clear parentinv matrix for sake of consistency, see T41950. */
-      unit_m4(ob->parentinv);
-      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-    }
-
-    /* handle types */
-    if (pchan) {
-      BLI_strncpy(ob->parsubstr, pchan->name, sizeof(ob->parsubstr));
-    }
-    else {
-      ob->parsubstr[0] = 0;
-    }
-
-    if (partype == PAR_PATH_CONST) {
-      /* don't do anything here, since this is not technically "parenting" */
-    }
-    else if (ELEM(partype, PAR_CURVE, PAR_LATTICE) || (pararm)) {
+  switch (partype) {
+    case PAR_PATH_CONST:
+      /* Don't do anything here, since this is not technically "parenting". */
+      break;
+    case PAR_CURVE:
+    case PAR_LATTICE:
+    case PAR_ARMATURE:
+    case PAR_ARMATURE_NAME:
+    case PAR_ARMATURE_ENVELOPE:
+    case PAR_ARMATURE_AUTO:
       /* partype is now set to PAROBJECT so that invisible 'virtual'
        * modifiers don't need to be created.
        * NOTE: the old (2.4x) method was to set ob->partype = PARSKEL,
        * creating the virtual modifiers.
        */
-      ob->partype = PAROBJECT;     /* note, dna define, not operator property */
-      /* ob->partype = PARSKEL; */ /* note, dna define, not operator property */
+      ob->partype = PAROBJECT;     /* Note: DNA define, not operator property. */
+      /* ob->partype = PARSKEL; */ /* Note: DNA define, not operator property. */
 
       /* BUT, to keep the deforms, we need a modifier,
        * and then we need to set the object that it uses
@@ -824,109 +836,111 @@ bool ED_object_parent_set(ReportList *reports,
             break;
         }
       }
-    }
-    else if (partype == PAR_BONE) {
-      ob->partype = PARBONE; /* note, dna define, not operator property */
+      break;
+    case PAR_BONE:
+      ob->partype = PARBONE; /* Note: DNA define, not operator property. */
       if (pchan->bone) {
         pchan->bone->flag &= ~BONE_RELATIVE_PARENTING;
         pchan_eval->bone->flag &= ~BONE_RELATIVE_PARENTING;
       }
-    }
-    else if (partype == PAR_BONE_RELATIVE) {
-      ob->partype = PARBONE; /* note, dna define, not operator property */
+      break;
+    case PAR_BONE_RELATIVE:
+      ob->partype = PARBONE; /* Note: DNA define, not operator property. */
       if (pchan->bone) {
         pchan->bone->flag |= BONE_RELATIVE_PARENTING;
         pchan_eval->bone->flag |= BONE_RELATIVE_PARENTING;
       }
-    }
-    else if (partype == PAR_VERTEX) {
+      break;
+    case PAR_VERTEX:
       ob->partype = PARVERT1;
       ob->par1 = vert_par[0];
-    }
-    else if (partype == PAR_VERTEX_TRI) {
+      break;
+    case PAR_VERTEX_TRI:
       ob->partype = PARVERT3;
       copy_v3_v3_int(&ob->par1, vert_par);
-    }
-    else {
-      ob->partype = PAROBJECT; /* note, dna define, not operator property */
-    }
-
-    /* constraint */
-    if (partype == PAR_PATH_CONST) {
-      bConstraint *con;
-      bFollowPathConstraint *data;
-      float cmat[4][4], vec[3];
-
-      con = BKE_constraint_add_for_object(ob, "AutoPath", CONSTRAINT_TYPE_FOLLOWPATH);
-
-      data = con->data;
-      data->tar = par;
-
-      BKE_constraint_target_matrix_get(
-          depsgraph, scene, con, 0, CONSTRAINT_OBTYPE_OBJECT, NULL, cmat, scene->r.cfra);
-      sub_v3_v3v3(vec, ob->obmat[3], cmat[3]);
-
-      copy_v3_v3(ob->loc, vec);
-    }
-    else if (pararm && (ob->type == OB_MESH) && (par->type == OB_ARMATURE)) {
-      if (partype == PAR_ARMATURE_NAME) {
-        ED_object_vgroup_calc_from_armature(
-            reports, depsgraph, scene, ob, par, ARM_GROUPS_NAME, false);
-      }
-      else if (partype == PAR_ARMATURE_ENVELOPE) {
-        ED_object_vgroup_calc_from_armature(
-            reports, depsgraph, scene, ob, par, ARM_GROUPS_ENVELOPE, xmirror);
-      }
-      else if (partype == PAR_ARMATURE_AUTO) {
-        WM_cursor_wait(1);
-        ED_object_vgroup_calc_from_armature(
-            reports, depsgraph, scene, ob, par, ARM_GROUPS_AUTO, xmirror);
-        WM_cursor_wait(0);
-      }
-      /* get corrected inverse */
-      ob->partype = PAROBJECT;
-      BKE_object_workob_calc_parent(depsgraph, scene, ob, &workob);
-
-      invert_m4_m4(ob->parentinv, workob.obmat);
-    }
-    else if (pararm && (ob->type == OB_GPENCIL) && (par->type == OB_ARMATURE)) {
-      if (partype == PAR_ARMATURE) {
-        ED_gpencil_add_armature(C, reports, ob, par);
-      }
-      else if (partype == PAR_ARMATURE_NAME) {
-        ED_gpencil_add_armature_weights(C, reports, ob, par, GP_PAR_ARMATURE_NAME);
-      }
-      else if ((partype == PAR_ARMATURE_AUTO) || (partype == PAR_ARMATURE_ENVELOPE)) {
-        WM_cursor_wait(1);
-        ED_gpencil_add_armature_weights(C, reports, ob, par, GP_PAR_ARMATURE_AUTO);
-        WM_cursor_wait(0);
-      }
-      /* get corrected inverse */
-      ob->partype = PAROBJECT;
-      BKE_object_workob_calc_parent(depsgraph, scene, ob, &workob);
-
-      invert_m4_m4(ob->parentinv, workob.obmat);
-    }
-    else if ((ob->type == OB_GPENCIL) && (par->type == OB_LATTICE)) {
-      /* Add Lattice modifier */
-      if (partype == PAR_LATTICE) {
-        ED_gpencil_add_lattice_modifier(C, reports, ob, par);
-      }
-      /* get corrected inverse */
-      ob->partype = PAROBJECT;
-      BKE_object_workob_calc_parent(depsgraph, scene, ob, &workob);
-
-      invert_m4_m4(ob->parentinv, workob.obmat);
-    }
-    else {
-      /* calculate inverse parent matrix */
-      BKE_object_workob_calc_parent(depsgraph, scene, ob, &workob);
-      invert_m4_m4(ob->parentinv, workob.obmat);
-    }
-
-    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+      break;
+    case PAR_OBJECT:
+    case PAR_FOLLOW:
+      ob->partype = PAROBJECT; /* Note: DNA define, not operator property. */
+      break;
   }
 
+  /* Constraint and set parent inverse. */
+  const bool is_armature_parent = ELEM(
+      partype, PAR_ARMATURE, PAR_ARMATURE_NAME, PAR_ARMATURE_ENVELOPE, PAR_ARMATURE_AUTO);
+  if (partype == PAR_PATH_CONST) {
+    bConstraint *con;
+    bFollowPathConstraint *data;
+    float cmat[4][4], vec[3];
+
+    con = BKE_constraint_add_for_object(ob, "AutoPath", CONSTRAINT_TYPE_FOLLOWPATH);
+
+    data = con->data;
+    data->tar = par;
+
+    BKE_constraint_target_matrix_get(
+        depsgraph, scene, con, 0, CONSTRAINT_OBTYPE_OBJECT, NULL, cmat, scene->r.cfra);
+    sub_v3_v3v3(vec, ob->obmat[3], cmat[3]);
+
+    copy_v3_v3(ob->loc, vec);
+  }
+  else if (is_armature_parent && (ob->type == OB_MESH) && (par->type == OB_ARMATURE)) {
+    if (partype == PAR_ARMATURE_NAME) {
+      ED_object_vgroup_calc_from_armature(
+          reports, depsgraph, scene, ob, par, ARM_GROUPS_NAME, false);
+    }
+    else if (partype == PAR_ARMATURE_ENVELOPE) {
+      ED_object_vgroup_calc_from_armature(
+          reports, depsgraph, scene, ob, par, ARM_GROUPS_ENVELOPE, xmirror);
+    }
+    else if (partype == PAR_ARMATURE_AUTO) {
+      WM_cursor_wait(1);
+      ED_object_vgroup_calc_from_armature(
+          reports, depsgraph, scene, ob, par, ARM_GROUPS_AUTO, xmirror);
+      WM_cursor_wait(0);
+    }
+    /* get corrected inverse */
+    ob->partype = PAROBJECT;
+    BKE_object_workob_calc_parent(depsgraph, scene, ob, &workob);
+
+    invert_m4_m4(ob->parentinv, workob.obmat);
+  }
+  else if (is_armature_parent && (ob->type == OB_GPENCIL) && (par->type == OB_ARMATURE)) {
+    if (partype == PAR_ARMATURE) {
+      ED_gpencil_add_armature(C, reports, ob, par);
+    }
+    else if (partype == PAR_ARMATURE_NAME) {
+      ED_gpencil_add_armature_weights(C, reports, ob, par, GP_PAR_ARMATURE_NAME);
+    }
+    else if ((partype == PAR_ARMATURE_AUTO) || (partype == PAR_ARMATURE_ENVELOPE)) {
+      WM_cursor_wait(1);
+      ED_gpencil_add_armature_weights(C, reports, ob, par, GP_PAR_ARMATURE_AUTO);
+      WM_cursor_wait(0);
+    }
+    /* get corrected inverse */
+    ob->partype = PAROBJECT;
+    BKE_object_workob_calc_parent(depsgraph, scene, ob, &workob);
+
+    invert_m4_m4(ob->parentinv, workob.obmat);
+  }
+  else if ((ob->type == OB_GPENCIL) && (par->type == OB_LATTICE)) {
+    /* Add Lattice modifier */
+    if (partype == PAR_LATTICE) {
+      ED_gpencil_add_lattice_modifier(C, reports, ob, par);
+    }
+    /* get corrected inverse */
+    ob->partype = PAROBJECT;
+    BKE_object_workob_calc_parent(depsgraph, scene, ob, &workob);
+
+    invert_m4_m4(ob->parentinv, workob.obmat);
+  }
+  else {
+    /* calculate inverse parent matrix */
+    BKE_object_workob_calc_parent(depsgraph, scene, ob, &workob);
+    invert_m4_m4(ob->parentinv, workob.obmat);
+  }
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   return true;
 }
 
@@ -955,58 +969,104 @@ static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3]
   }
 }
 
+struct ParentingContext {
+  ReportList *reports;
+  Scene *scene;
+  Object *par;
+  int partype;
+  bool is_vertex_tri;
+  bool xmirror;
+  bool keep_transform;
+};
+
+static bool parent_set_nonvertex_parent(bContext *C, struct ParentingContext *parenting_context)
+{
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+    if (!ED_object_parent_set(parenting_context->reports,
+                              C,
+                              parenting_context->scene,
+                              ob,
+                              parenting_context->par,
+                              parenting_context->partype,
+                              parenting_context->xmirror,
+                              parenting_context->keep_transform,
+                              NULL)) {
+      return false;
+    }
+  }
+  CTX_DATA_END;
+
+  return true;
+}
+
+static bool parent_set_vertex_parent_with_kdtree(bContext *C,
+                                                 struct ParentingContext *parenting_context,
+                                                 struct KDTree_3d *tree)
+{
+  int vert_par[3] = {0, 0, 0};
+
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+    parent_set_vert_find(tree, ob, vert_par, parenting_context->is_vertex_tri);
+    if (!ED_object_parent_set(parenting_context->reports,
+                              C,
+                              parenting_context->scene,
+                              ob,
+                              parenting_context->par,
+                              parenting_context->partype,
+                              parenting_context->xmirror,
+                              parenting_context->keep_transform,
+                              vert_par)) {
+      return false;
+    }
+  }
+  CTX_DATA_END;
+  return true;
+}
+
+static bool parent_set_vertex_parent(bContext *C, struct ParentingContext *parenting_context)
+{
+  struct KDTree_3d *tree = NULL;
+  int tree_tot;
+
+  tree = BKE_object_as_kdtree(parenting_context->par, &tree_tot);
+  BLI_assert(tree != NULL);
+
+  if (tree_tot < (parenting_context->is_vertex_tri ? 3 : 1)) {
+    BKE_report(parenting_context->reports, RPT_ERROR, "Not enough vertices for vertex-parent");
+    BLI_kdtree_3d_free(tree);
+    return false;
+  }
+
+  const bool ok = parent_set_vertex_parent_with_kdtree(C, parenting_context, tree);
+  BLI_kdtree_3d_free(tree);
+  return ok;
+}
+
 static int parent_set_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Object *par = ED_object_active_context(C);
-  int partype = RNA_enum_get(op->ptr, "type");
-  const bool xmirror = RNA_boolean_get(op->ptr, "xmirror");
-  const bool keep_transform = RNA_boolean_get(op->ptr, "keep_transform");
-  bool ok = true;
+  const int partype = RNA_enum_get(op->ptr, "type");
+  struct ParentingContext parenting_context = {
+      .reports = op->reports,
+      .scene = CTX_data_scene(C),
+      .par = ED_object_active_context(C),
+      .partype = partype,
+      .is_vertex_tri = partype == PAR_VERTEX_TRI,
+      .xmirror = RNA_boolean_get(op->ptr, "xmirror"),
+      .keep_transform = RNA_boolean_get(op->ptr, "keep_transform"),
+  };
 
-  /* vertex parent (kdtree) */
-  const bool is_vert_par = ELEM(partype, PAR_VERTEX, PAR_VERTEX_TRI);
-  const bool is_tri = partype == PAR_VERTEX_TRI;
-  int tree_tot;
-  struct KDTree_3d *tree = NULL;
-  int vert_par[3] = {0, 0, 0};
-  const int *vert_par_p = is_vert_par ? vert_par : NULL;
-
-  if (is_vert_par) {
-    tree = BKE_object_as_kdtree(par, &tree_tot);
-    BLI_assert(tree != NULL);
-
-    if (tree_tot < (is_tri ? 3 : 1)) {
-      BKE_report(op->reports, RPT_ERROR, "Not enough vertices for vertex-parent");
-      ok = false;
-    }
+  bool ok;
+  if (ELEM(parenting_context.partype, PAR_VERTEX, PAR_VERTEX_TRI)) {
+    ok = parent_set_vertex_parent(C, &parenting_context);
   }
-
-  if (ok) {
-    /* Non vertex-parent */
-    CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-      if (is_vert_par) {
-        parent_set_vert_find(tree, ob, vert_par, is_tri);
-      }
-
-      if (!ED_object_parent_set(
-              op->reports, C, scene, ob, par, partype, xmirror, keep_transform, vert_par_p)) {
-        ok = false;
-        break;
-      }
-    }
-    CTX_DATA_END;
+  else {
+    ok = parent_set_nonvertex_parent(C, &parenting_context);
   }
-
-  if (is_vert_par) {
-    BLI_kdtree_3d_free(tree);
-  }
-
   if (!ok) {
     return OPERATOR_CANCELLED;
   }
 
+  Main *bmain = CTX_data_main(C);
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
   WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, NULL);

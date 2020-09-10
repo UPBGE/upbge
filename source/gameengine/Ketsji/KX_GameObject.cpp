@@ -284,6 +284,22 @@ bool KX_GameObject::OrigObCanBeTransformedInRealtime(Object *ob)
   return true;
 }
 
+void KX_GameObject::SyncTransformWithDepsgraph()
+{
+  Object *ob = GetBlenderObject();
+  if (ob) {
+    float loc[3], rot[3][3], size[3];
+    mat4_to_loc_rot_size(loc, rot, size, ob->obmat);
+    MT_Matrix3x3 orientation;
+    NodeSetWorldPosition(MT_Vector3(loc));
+    // MT_Matrix3x3's constructor expects a 4x4 matrix
+    orientation = MT_Matrix3x3();
+    orientation.setValue3x3(*rot);
+    NodeSetGlobalOrientation(orientation);
+    NodeSetWorldScale(MT_Vector3(size));
+  }
+}
+
 void KX_GameObject::ForceIgnoreParentTx()
 {
   m_forceIgnoreParentTx = true;
@@ -305,6 +321,10 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
   Object *ob_orig = GetBlenderObject();
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
+
+  if (skip_transform) {
+    SyncTransformWithDepsgraph();
+  }
 
   if (ob_orig && !skip_transform) {
 

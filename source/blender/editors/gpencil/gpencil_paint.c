@@ -941,7 +941,7 @@ static void gpencil_stroke_newfrombuffer(tGPsdata *p)
   const bool is_depth = (bool)(*align_flag & (GP_PROJECT_DEPTH_VIEW | GP_PROJECT_DEPTH_STROKE));
   const bool is_camera = (bool)(ts->gp_sculpt.lock_axis == 0) && (rv3d->persp == RV3D_CAMOB) &&
                          (!is_depth);
-  int i, totelem;
+  int totelem;
 
   /* For very low pressure at the end, truncate stroke. */
   if (p->paintmode == GP_PAINTMODE_DRAW) {
@@ -1079,7 +1079,7 @@ static void gpencil_stroke_newfrombuffer(tGPsdata *p)
     /* reproject to plane (only in 3d space) */
     gpencil_reproject_toplane(p, gps);
     pt = gps->points;
-    for (i = 0; i < gps->totpoints; i++, pt++) {
+    for (int i = 0; i < gps->totpoints; i++, pt++) {
       /* if parented change position relative to parent object */
       gpencil_apply_parent_point(depsgraph, obact, gpl, pt);
     }
@@ -1099,7 +1099,7 @@ static void gpencil_stroke_newfrombuffer(tGPsdata *p)
       int found_depth = 0;
 
       depth_arr = MEM_mallocN(sizeof(float) * gpd->runtime.sbuffer_used, "depth_points");
-
+      int i;
       for (i = 0, ptc = gpd->runtime.sbuffer; i < gpd->runtime.sbuffer_used; i++, ptc++, pt++) {
 
         round_v2i_v2fl(mval_i, &ptc->x);
@@ -1169,6 +1169,7 @@ static void gpencil_stroke_newfrombuffer(tGPsdata *p)
     dvert = gps->dvert;
 
     /* convert all points (normal behavior) */
+    int i;
     for (i = 0, ptc = gpd->runtime.sbuffer; i < gpd->runtime.sbuffer_used && ptc;
          i++, ptc++, pt++) {
       /* convert screen-coordinates to appropriate coordinates (and store them) */
@@ -1266,7 +1267,7 @@ static void gpencil_stroke_newfrombuffer(tGPsdata *p)
   /* add weights */
   if ((ts->gpencil_flags & GP_TOOL_FLAG_CREATE_WEIGHTS) && (have_weight)) {
     BKE_gpencil_dvert_ensure(gps);
-    for (i = 0; i < gps->totpoints; i++) {
+    for (int i = 0; i < gps->totpoints; i++) {
       MDeformVert *ve = &gps->dvert[i];
       MDeformWeight *dw = BKE_defvert_ensure_index(ve, def_nr);
       if (dw) {
@@ -1524,6 +1525,9 @@ static void gpencil_stroke_eraser_dostroke(tGPsdata *p,
       pt1 = gps->points + i;
       pt2 = gps->points + i + 1;
 
+      float inf1 = 0.0f;
+      float inf2 = 0.0f;
+
       /* only process if it hasn't been masked out... */
       if ((p->flags & GP_PAINTFLAG_SELECTMASK) && !(gps->points->flag & GP_SPOINT_SELECT)) {
         continue;
@@ -1602,22 +1606,36 @@ static void gpencil_stroke_eraser_dostroke(tGPsdata *p,
                 pt2->flag |= GP_SPOINT_TAG;
                 do_cull = true;
               }
+
+              inf1 = 1.0f;
+              inf2 = 1.0f;
             }
             else {
-              pt1->pressure -= gpencil_stroke_eraser_calc_influence(p, mval, radius, pc1) *
-                               strength;
-              pt2->pressure -= gpencil_stroke_eraser_calc_influence(p, mval, radius, pc2) *
-                               strength * 0.5f;
+              /* Erase point. Only erase if the eraser is on top of the point. */
+              inf1 = gpencil_stroke_eraser_calc_influence(p, mval, radius, pc1);
+              if (inf1 > 0.0f) {
+                pt1->pressure = 0.0f;
+                pt1->flag |= GP_SPOINT_TAG;
+                do_cull = true;
+              }
+              inf2 = gpencil_stroke_eraser_calc_influence(p, mval, radius, pc2);
+              if (inf2 > 0.0f) {
+                pt2->pressure = 0.0f;
+                pt2->flag |= GP_SPOINT_TAG;
+                do_cull = true;
+              }
             }
 
             /* 2) Tag any point with overly low influence for removal in the next pass */
-            if ((pt1->pressure < cull_thresh) || (p->flags & GP_PAINTFLAG_HARD_ERASER) ||
-                (eraser->gpencil_settings->eraser_mode == GP_BRUSH_ERASER_HARD)) {
+            if ((inf1 > 0.0f) &&
+                (((pt1->pressure < cull_thresh) || (p->flags & GP_PAINTFLAG_HARD_ERASER) ||
+                  (eraser->gpencil_settings->eraser_mode == GP_BRUSH_ERASER_HARD)))) {
               pt1->flag |= GP_SPOINT_TAG;
               do_cull = true;
             }
-            if ((pt2->pressure < cull_thresh) || (p->flags & GP_PAINTFLAG_HARD_ERASER) ||
-                (eraser->gpencil_settings->eraser_mode == GP_BRUSH_ERASER_HARD)) {
+            if ((inf1 > 2.0f) &&
+                (((pt2->pressure < cull_thresh) || (p->flags & GP_PAINTFLAG_HARD_ERASER) ||
+                  (eraser->gpencil_settings->eraser_mode == GP_BRUSH_ERASER_HARD)))) {
               pt2->flag |= GP_SPOINT_TAG;
               do_cull = true;
             }
@@ -3852,7 +3870,7 @@ void GPENCIL_OT_draw(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Grease Pencil Draw";
   ot->idname = "GPENCIL_OT_draw";
-  ot->description = "Draw mouse_prv new stroke in the active Grease Pencil Object";
+  ot->description = "Draw a new stroke in the active Grease Pencil object";
 
   /* api callbacks */
   ot->exec = gpencil_draw_exec;

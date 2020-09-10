@@ -27,9 +27,7 @@
 
 struct ModifierData;
 
-namespace blender {
-namespace io {
-namespace alembic {
+namespace blender::io::alembic {
 
 /* Writer for Alembic geometry. Does not assume the object is a mesh object. */
 class ABCGenericMeshWriter : public ABCAbstractWriter {
@@ -56,7 +54,7 @@ class ABCGenericMeshWriter : public ABCAbstractWriter {
   virtual ~ABCGenericMeshWriter();
 
   virtual void create_alembic_objects(const HierarchyContext *context) override;
-  virtual const Alembic::Abc::OObject get_alembic_object() const override;
+  virtual Alembic::Abc::OObject get_alembic_object() const override;
 
  protected:
   virtual bool is_supported(const HierarchyContext *context) const override;
@@ -90,6 +88,4 @@ class ABCMeshWriter : public ABCGenericMeshWriter {
   virtual Mesh *get_export_mesh(Object *object_eval, bool &r_needsfree) override;
 };
 
-}  // namespace alembic
-}  // namespace io
-}  // namespace blender
+}  // namespace blender::io::alembic

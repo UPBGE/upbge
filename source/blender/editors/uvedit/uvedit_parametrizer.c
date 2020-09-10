@@ -43,29 +43,13 @@
 
 /* Utils */
 
-#if 0
-#  define param_assert(condition)
-#  define param_warning(message)
-#  define param_test_equals_ptr(condition)
-#  define param_test_equals_int(condition)
-#else
-#  define param_assert(condition) \
-    if (!(condition)) { /*printf("Assertion %s:%d\n", __FILE__, __LINE__); abort();*/ \
-    } \
-    (void)0
-#  define param_warning(message) \
-    {/*printf("Warning %s:%d: %s\n", __FILE__, __LINE__, message);*/}(void)0
-#  if 0
-#    define param_test_equals_ptr(str, a, b) \
-      if (a != b) { /*printf("Equals %s => %p != %p\n", str, a, b);*/ \
-      } \
-      (void)0
-#    define param_test_equals_int(str, a, b) \
-      if (a != b) { /*printf("Equals %s => %d != %d\n", str, a, b);*/ \
-      } \
-      (void)0
-#  endif
-#endif
+#define param_assert(condition) \
+  if (!(condition)) { /*printf("Assertion %s:%d\n", __FILE__, __LINE__); abort();*/ \
+  } \
+  (void)0
+#define param_warning(message) \
+  {/*printf("Warning %s:%d: %s\n", __FILE__, __LINE__, message);*/}(void)0
+
 typedef enum PBool {
   P_TRUE = 1,
   P_FALSE = 0,
@@ -1247,17 +1231,16 @@ static PFace *p_face_add_fill(PChart *chart, PVert *v1, PVert *v2, PVert *v3)
 
 static PBool p_quad_split_direction(PHandle *handle, float **co, PHashKey *vkeys)
 {
-  /* slight bias to prefer one edge over the other in case they are equal, so
+  /* Slight bias to prefer one edge over the other in case they are equal, so
    * that in symmetric models we choose the same split direction instead of
-   * depending on floating point errors to decide */
+   * depending on floating point errors to decide. */
   float bias = 1.0f + 1e-6f;
   float fac = len_v3v3(co[0], co[2]) * bias - len_v3v3(co[1], co[3]);
   PBool dir = (fac <= 0.0f);
 
-  /* the face exists check is there because of a special case: when
-   * two quads share three vertices, they can each be split into two
-   * triangles, resulting in two identical triangles. for example in
-   * suzanne's nose. */
+  /* The face exists check is there because of a special case:
+   * when two quads share three vertices, they can each be split into two triangles,
+   * resulting in two identical triangles. For example in Suzanne's nose. */
   if (dir) {
     if (p_face_exists(handle, vkeys, 0, 1, 2) || p_face_exists(handle, vkeys, 0, 2, 3)) {
       return !dir;

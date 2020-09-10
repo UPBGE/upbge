@@ -26,9 +26,7 @@
 
 struct Object;
 
-namespace blender {
-namespace io {
-namespace alembic {
+namespace blender::io::alembic {
 
 /* TODO(kevin): for now keeping these transformations hardcoded to make sure
  * everything works properly, and also because Alembic is almost exclusively
@@ -94,10 +92,8 @@ typedef enum {
 } AbcMatrixMode;
 
 void create_transform_matrix(Object *obj,
-                             float r_transform_mat[4][4],
+                             float r_yup_mat[4][4],
                              AbcMatrixMode mode,
                              Object *proxy_from);
 
-}  // namespace alembic
-}  // namespace io
-}  // namespace blender
+}  // namespace blender::io::alembic

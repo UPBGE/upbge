@@ -24,6 +24,7 @@
  * \ingroup bke
  */
 
+#include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1528,20 +1529,17 @@ static int evaluate_seq_frame_gen(Sequence **seq_arr, ListBase *seqbase, int cfr
 
   /* Drop strips which are used for effect inputs, we don't want
    * them to blend into render stack in any other way than effect
-   * string rendering.
-   */
+   * string rendering. */
   for (LinkNode *seq_item = effect_inputs.list; seq_item; seq_item = seq_item->next) {
     Sequence *seq = seq_item->link;
-    /* It's possible that effetc strip would be placed to the same
+    /* It's possible that effect strip would be placed to the same
      * 'machine' as it's inputs. We don't want to clear such strips
-     * from the stack.
-     */
+     * from the stack. */
     if (seq_arr[seq->machine] && seq_arr[seq->machine]->type & SEQ_TYPE_EFFECT) {
       continue;
     }
-    /* If we're shown a specified channel, then we want to see the stirps
-     * which belongs to this machine.
-     */
+    /* If we're shown a specified channel, then we want to see the strips
+     * which belongs to this machine. */
     if (chanshown != 0 && chanshown <= seq->machine) {
       continue;
     }
@@ -1775,7 +1773,7 @@ static void seq_open_anim_file(Scene *scene, Sequence *seq, bool openfile)
                                           seq->strip->colorspace_settings.name);
           }
 
-          /* no individual view files - monoscopic, stereo 3d or exr multiview */
+          /* No individual view files - monoscopic, stereo 3d or EXR multi-view. */
           totfiles = 1;
         }
 
@@ -1828,7 +1826,7 @@ static bool seq_proxy_get_custom_file_fname(Sequence *seq, char *name, const int
   if (view_id > 0) {
     BLI_snprintf(suffix, sizeof(suffix), "_%d", view_id);
     /* TODO(sergey): This will actually append suffix after extension
-     * which is weird but how was originally coded in multiview branch.
+     * which is weird but how was originally coded in multi-view branch.
      */
     BLI_snprintf(name, PROXY_MAXFILE, "%s_%s", fname, suffix);
   }
@@ -1854,7 +1852,7 @@ static bool seq_proxy_get_fname(Editing *ed,
     return false;
   }
 
-  /* Multiview suffix. */
+  /* Multi-view suffix. */
   if (view_id > 0) {
     BLI_snprintf(suffix, sizeof(suffix), "_%d", view_id);
   }
@@ -2204,8 +2202,8 @@ void BKE_sequencer_proxy_rebuild(SeqIndexBuildContext *context,
   BKE_sequencer_new_render_data(bmain,
                                 context->depsgraph,
                                 context->scene,
-                                (scene->r.size * (float)scene->r.xsch) / 100.0f + 0.5f,
-                                (scene->r.size * (float)scene->r.ysch) / 100.0f + 0.5f,
+                                roundf((scene->r.size * (float)scene->r.xsch) / 100.0f),
+                                roundf((scene->r.size * (float)scene->r.ysch) / 100.0f),
                                 100,
                                 false,
                                 &render_context);
@@ -2565,7 +2563,9 @@ static void *color_balance_do_thread(void *thread_data_v)
   return NULL;
 }
 
-/* cfra is offset by fra_offset only in case we are using a real mask. */
+/**
+ * \a cfra is offset by \a fra_offset only in case we are using a real mask.
+ */
 ImBuf *BKE_sequencer_render_mask_input(const SeqRenderData *context,
                                        int mask_input_type,
                                        Sequence *mask_sequence,
@@ -2967,7 +2967,7 @@ static ImBuf *seq_render_effect_strip_impl(const SeqRenderData *context,
       break;
     case EARLY_DO_EFFECT:
       for (i = 0; i < 3; i++) {
-        /* Speed effect requires time remapping of cfra for input(s). */
+        /* Speed effect requires time remapping of `cfra` for input(s). */
         if (input[0] && seq->type == SEQ_TYPE_SPEED) {
           float target_frame = BKE_sequencer_speed_effect_target_frame_get(context, seq, cfra, i);
           ibuf[i] = seq_render_strip(context, state, input[0], target_frame);
@@ -3012,7 +3012,9 @@ static ImBuf *seq_render_effect_strip_impl(const SeqRenderData *context,
   return out;
 }
 
-/* Render individual view for multiview or single (default view) for monoview. */
+/**
+ * Render individual view for multi-view or single (default view) for mono-view.
+ */
 static ImBuf *seq_render_image_strip_view(const SeqRenderData *context,
                                           Sequence *seq,
                                           char *name,
@@ -3047,7 +3049,7 @@ static ImBuf *seq_render_image_strip_view(const SeqRenderData *context,
     imb_freerectImBuf(ibuf);
   }
 
-  /* All sequencer color is done in SRGB space, linear gives odd crossfades. */
+  /* All sequencer color is done in SRGB space, linear gives odd cross-fades. */
   BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibuf, false);
 
   return ibuf;
@@ -4145,13 +4147,13 @@ ImBuf *BKE_sequencer_give_ibuf(const SeqRenderData *context, float cfra, int cha
 
 ImBuf *BKE_sequencer_give_ibuf_seqbase(const SeqRenderData *context,
                                        float cfra,
-                                       int chanshown,
+                                       int chan_shown,
                                        ListBase *seqbasep)
 {
   SeqRenderState state;
   sequencer_state_init(&state);
 
-  return seq_render_strip_stack(context, &state, seqbasep, cfra, chanshown);
+  return seq_render_strip_stack(context, &state, seqbasep, cfra, chan_shown);
 }
 
 ImBuf *BKE_sequencer_give_ibuf_direct(const SeqRenderData *context, float cfra, Sequence *seq)

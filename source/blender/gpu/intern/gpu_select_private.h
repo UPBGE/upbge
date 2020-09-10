@@ -25,6 +25,10 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* gpu_select_pick */
 void gpu_select_pick_begin(uint (*buffer)[4], uint bufsize, const rcti *input, char mode);
 bool gpu_select_pick_load_id(uint id, bool end);
@@ -42,3 +46,7 @@ bool gpu_select_query_load_id(uint id);
 uint gpu_select_query_end(void);
 
 #define SELECT_ID_NONE ((uint)0xffffffff)
+
+#ifdef __cplusplus
+}
+#endif

@@ -28,7 +28,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "GPU_element.h"
+#include "GPU_index_buffer.h"
 #include "GPU_shader.h"
 #include "GPU_vertex_buffer.h"
 
@@ -96,12 +96,12 @@ GPUBatch *GPU_batch_calloc(void);
 GPUBatch *GPU_batch_create_ex(GPUPrimType prim,
                               GPUVertBuf *vert,
                               GPUIndexBuf *elem,
-                              eGPUBatchFlag own_flag);
+                              eGPUBatchFlag owns_flag);
 void GPU_batch_init_ex(GPUBatch *batch,
                        GPUPrimType prim,
                        GPUVertBuf *vert,
                        GPUIndexBuf *elem,
-                       eGPUBatchFlag own_flag);
+                       eGPUBatchFlag owns_flag);
 void GPU_batch_copy(GPUBatch *batch_dst, GPUBatch *batch_src);
 
 #define GPU_batch_create(prim, verts, elem) GPU_batch_create_ex(prim, verts, elem, 0)
@@ -146,6 +146,8 @@ void GPU_batch_program_set_builtin_with_config(GPUBatch *batch,
   GPU_shader_uniform_4fv_array((batch)->shader, name, len, val);
 #define GPU_batch_uniform_mat4(batch, name, val) \
   GPU_shader_uniform_mat4((batch)->shader, name, val);
+#define GPU_batch_texture_bind(batch, name, tex) \
+  GPU_texture_bind(tex, GPU_shader_get_texture_binding((batch)->shader, name));
 
 void GPU_batch_draw(GPUBatch *batch);
 void GPU_batch_draw_range(GPUBatch *batch, int v_first, int v_count);

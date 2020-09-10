@@ -35,9 +35,7 @@
 struct Material;
 struct Object;
 
-namespace blender {
-namespace io {
-namespace usd {
+namespace blender::io::usd {
 
 using blender::io::AbstractHierarchyWriter;
 using blender::io::HierarchyContext;
@@ -76,8 +74,10 @@ class USDAbstractWriter : public AbstractHierarchyWriter {
   void write_visibility(const HierarchyContext &context,
                         const pxr::UsdTimeCode timecode,
                         pxr::UsdGeomImageable &usd_geometry);
+
+  /* Turn `prim` into an instance referencing `context.original_export_path`.
+   * Return true when the instancing was successful, false otherwise. */
+  virtual bool mark_as_instance(const HierarchyContext &context, const pxr::UsdPrim &prim);
 };
 
-}  // namespace usd
-}  // namespace io
-}  // namespace blender
+}  // namespace blender::io::usd

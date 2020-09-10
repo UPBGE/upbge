@@ -1200,10 +1200,14 @@ class _defs_sculpt:
 
     @staticmethod
     def generate_from_brushes(context):
-        if bpy.context.preferences.experimental.use_sculpt_vertex_colors:
-            exclude_filter = {}
-        else:
+        exclude_filter = {}
+        # Use 'bpy.context' instead of 'context' since it can be None.
+        prefs = bpy.context.preferences
+        if not prefs.experimental.use_sculpt_vertex_colors:
             exclude_filter = {'PAINT', 'SMEAR'}
+
+        if not prefs.experimental.use_tools_missing_icons:
+            exclude_filter = {'PAINT', 'SMEAR', 'BOUNDARY', 'DISPLACEMENT_ERASER'}
 
         return generate_from_enum_ex(
             context,
@@ -1253,6 +1257,57 @@ class _defs_sculpt:
             keymap=(),
             draw_settings=draw_settings,
         )
+
+    @ToolDef.from_fn
+    def face_set_box():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sculpt.face_set_box_gesture")
+            layout.prop(props, "use_front_faces_only", expand=False)
+
+        return dict(
+            idname="builtin.box_face_set",
+            label="Box Face Set",
+            icon="ops.sculpt.border_face_set",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def face_set_lasso():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sculpt.face_set_lasso_gesture")
+            layout.prop(props, "use_front_faces_only", expand=False)
+
+        return dict(
+            idname="builtin.lasso_face_set",
+            label="Lasso Face Set",
+            icon="ops.sculpt.lasso_face_set",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def trim_box():
+        return dict(
+            idname="builtin.box_trim",
+            label="Box Trim",
+            icon="ops.sculpt.box_trim",
+            widget=None,
+            keymap=(),
+        )
+
+    @ToolDef.from_fn
+    def trim_lasso():
+        return dict(
+            idname="builtin.lasso_trim",
+            label="Lasso Trim",
+            icon="ops.sculpt.lasso_trim",
+            widget=None,
+            keymap=(),
+        )
+
 
     @ToolDef.from_fn
     def mesh_filter():
@@ -2597,6 +2652,34 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
                 _defs_sculpt.mask_lasso,
             ),
             _defs_sculpt.hide_border,
+            lambda context: (
+                (_defs_sculpt.face_set_box,)
+                if context is None or (
+                        context.preferences.view.show_developer_ui and
+                        context.preferences.experimental.use_tools_missing_icons)
+                else ()
+            ),
+            lambda context: (
+                (_defs_sculpt.face_set_lasso,)
+                if context is None or (
+                        context.preferences.view.show_developer_ui and
+                        context.preferences.experimental.use_tools_missing_icons)
+                else ()
+            ),
+            lambda context: (
+                (_defs_sculpt.trim_box,)
+                if context is None or (
+                        context.preferences.view.show_developer_ui and
+                        context.preferences.experimental.use_tools_missing_icons)
+                else ()
+            ),
+            lambda context: (
+                (_defs_sculpt.trim_lasso,)
+                if context is None or (
+                        context.preferences.view.show_developer_ui and
+                        context.preferences.experimental.use_tools_missing_icons)
+                else ()
+            ),
             None,
             _defs_sculpt.mesh_filter,
             _defs_sculpt.cloth_filter,
@@ -2604,7 +2687,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
                 (_defs_sculpt.color_filter,)
                 if context is None or (
                         context.preferences.view.show_developer_ui and
-                        context.preferences.experimental.use_sculpt_vertex_colors)
+                        context.preferences.experimental.use_sculpt_vertex_colors and
+                        context.preferences.experimental.use_tools_missing_icons)
                 else ()
             ),
             None,
@@ -2612,11 +2696,18 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
                 (_defs_sculpt.mask_by_color,)
                 if context is None or (
                         context.preferences.view.show_developer_ui and
-                        context.preferences.experimental.use_sculpt_vertex_colors)
+                        context.preferences.experimental.use_sculpt_vertex_colors and
+                        context.preferences.experimental.use_tools_missing_icons)
                 else ()
             ),
             None,
-            _defs_sculpt.face_set_edit,
+            lambda context: (
+                (_defs_sculpt.face_set_edit,)
+                if context is None or (
+                        context.preferences.view.show_developer_ui and
+                        context.preferences.experimental.use_tools_missing_icons)
+                else ()
+            ),
             None,
             _defs_transform.translate,
             _defs_transform.rotate,

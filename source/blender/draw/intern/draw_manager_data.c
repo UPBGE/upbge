@@ -799,10 +799,10 @@ static void drw_shgroup_call_procedural_add_ex(DRWShadingGroup *shgroup,
   drw_command_draw_procedural(shgroup, geom, handle, vert_count);
 }
 
-void DRW_shgroup_call_procedural_points(DRWShadingGroup *shgroup, Object *ob, uint point_len)
+void DRW_shgroup_call_procedural_points(DRWShadingGroup *shgroup, Object *ob, uint point_count)
 {
   struct GPUBatch *geom = drw_cache_procedural_points_get();
-  drw_shgroup_call_procedural_add_ex(shgroup, geom, ob, point_len);
+  drw_shgroup_call_procedural_add_ex(shgroup, geom, ob, point_count);
 }
 
 void DRW_shgroup_call_procedural_lines(DRWShadingGroup *shgroup, Object *ob, uint line_count)
@@ -811,10 +811,10 @@ void DRW_shgroup_call_procedural_lines(DRWShadingGroup *shgroup, Object *ob, uin
   drw_shgroup_call_procedural_add_ex(shgroup, geom, ob, line_count * 2);
 }
 
-void DRW_shgroup_call_procedural_triangles(DRWShadingGroup *shgroup, Object *ob, uint tria_count)
+void DRW_shgroup_call_procedural_triangles(DRWShadingGroup *shgroup, Object *ob, uint tri_count)
 {
   struct GPUBatch *geom = drw_cache_procedural_triangles_get();
-  drw_shgroup_call_procedural_add_ex(shgroup, geom, ob, tria_count * 3);
+  drw_shgroup_call_procedural_add_ex(shgroup, geom, ob, tri_count * 3);
 }
 
 /* Should be removed */
@@ -1115,7 +1115,7 @@ DRWCallBuffer *DRW_shgroup_call_buffer_instance(DRWShadingGroup *shgroup,
 void DRW_buffer_add_entry_struct(DRWCallBuffer *callbuf, const void *data)
 {
   GPUVertBuf *buf = callbuf->buf;
-  const bool resize = (callbuf->count == buf->vertex_alloc);
+  const bool resize = (callbuf->count == GPU_vertbuf_get_vertex_alloc(buf));
 
   if (UNLIKELY(resize)) {
     GPU_vertbuf_data_resize(buf, callbuf->count + DRW_BUFFER_VERTS_CHUNK);
@@ -1136,9 +1136,9 @@ void DRW_buffer_add_entry_struct(DRWCallBuffer *callbuf, const void *data)
 void DRW_buffer_add_entry_array(DRWCallBuffer *callbuf, const void *attr[], uint attr_len)
 {
   GPUVertBuf *buf = callbuf->buf;
-  const bool resize = (callbuf->count == buf->vertex_alloc);
+  const bool resize = (callbuf->count == GPU_vertbuf_get_vertex_alloc(buf));
 
-  BLI_assert(attr_len == buf->format.attr_len);
+  BLI_assert(attr_len == GPU_vertbuf_get_format(buf)->attr_len);
   UNUSED_VARS_NDEBUG(attr_len);
 
   if (UNLIKELY(resize)) {
@@ -1756,7 +1756,7 @@ void DRW_view_update(DRWView *view,
                      const float (*culling_winmat)[4])
 {
   /* DO NOT UPDATE THE DEFAULT VIEW.
-   * Create subviews instead, or a copy. */
+   * Create sub-views instead, or a copy. */
   BLI_assert(view != DST.view_default);
   BLI_assert(view->parent == NULL);
 

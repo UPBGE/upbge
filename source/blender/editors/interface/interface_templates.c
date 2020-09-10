@@ -37,12 +37,14 @@
 #include "DNA_shader_fx_types.h"
 #include "DNA_texture_types.h"
 
+#include "BLI_alloca.h"
 #include "BLI_fnmatch.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_search.h"
 #include "BLI_timecode.h"
 #include "BLI_utildefines.h"
 
@@ -330,61 +332,61 @@ static void template_ID_set_property_exec_fn(bContext *C, void *arg_template, vo
   }
 }
 
-static bool id_search_add(const bContext *C,
-                          TemplateID *template_ui,
-                          const int flag,
-                          const char *str,
-                          uiSearchItems *items,
-                          ID *id)
+static bool id_search_allows_id(TemplateID *template_ui, const int flag, ID *id, const char *query)
 {
   ID *id_from = template_ui->ptr.owner_id;
 
-  if (!((flag & PROP_ID_SELF_CHECK) && id == id_from)) {
+  /* Do self check. */
+  if ((flag & PROP_ID_SELF_CHECK) && id == id_from) {
+    return false;
+  }
 
-    /* use filter */
-    if (RNA_property_type(template_ui->prop) == PROP_POINTER) {
-      PointerRNA ptr;
-      RNA_id_pointer_create(id, &ptr);
-      if (RNA_property_pointer_poll(&template_ui->ptr, template_ui->prop, &ptr) == 0) {
-        return true;
-      }
-    }
-
-    /* hide dot-datablocks, but only if filter does not force it visible */
-    if (U.uiflag & USER_HIDE_DOT) {
-      if ((id->name[2] == '.') && (str[0] != '.')) {
-        return true;
-      }
-    }
-
-    if (*str == '\0' || BLI_strcasestr(id->name + 2, str)) {
-      /* +1 is needed because BKE_id_ui_prefix used 3 letter prefix
-       * followed by ID_NAME-2 characters from id->name
-       */
-      char name_ui[MAX_ID_FULL_NAME_UI];
-      int iconid = ui_id_icon_get(C, id, template_ui->preview);
-      const bool use_lib_prefix = template_ui->preview || iconid;
-      const bool has_sep_char = (id->lib != NULL);
-
-      /* When using previews, the library hint (linked, overridden, missing) is added with a
-       * character prefix, otherwise we can use a icon. */
-      int name_prefix_offset;
-      BKE_id_full_name_ui_prefix_get(
-          name_ui, id, use_lib_prefix, UI_SEP_CHAR, &name_prefix_offset);
-      if (!use_lib_prefix) {
-        iconid = UI_library_icon_get(id);
-      }
-
-      if (!UI_search_item_add(items,
-                              name_ui,
-                              id,
-                              iconid,
-                              has_sep_char ? UI_BUT_HAS_SEP_CHAR : 0,
-                              name_prefix_offset)) {
-        return false;
-      }
+  /* Use filter. */
+  if (RNA_property_type(template_ui->prop) == PROP_POINTER) {
+    PointerRNA ptr;
+    RNA_id_pointer_create(id, &ptr);
+    if (RNA_property_pointer_poll(&template_ui->ptr, template_ui->prop, &ptr) == 0) {
+      return false;
     }
   }
+
+  /* Hide dot-datablocks, but only if filter does not force them visible. */
+  if (U.uiflag & USER_HIDE_DOT) {
+    if ((id->name[2] == '.') && (query[0] != '.')) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static bool id_search_add(const bContext *C, TemplateID *template_ui, uiSearchItems *items, ID *id)
+{
+  /* +1 is needed because BKE_id_ui_prefix used 3 letter prefix
+   * followed by ID_NAME-2 characters from id->name
+   */
+  char name_ui[MAX_ID_FULL_NAME_UI];
+  int iconid = ui_id_icon_get(C, id, template_ui->preview);
+  const bool use_lib_prefix = template_ui->preview || iconid;
+  const bool has_sep_char = (id->lib != NULL);
+
+  /* When using previews, the library hint (linked, overridden, missing) is added with a
+   * character prefix, otherwise we can use a icon. */
+  int name_prefix_offset;
+  BKE_id_full_name_ui_prefix_get(name_ui, id, use_lib_prefix, UI_SEP_CHAR, &name_prefix_offset);
+  if (!use_lib_prefix) {
+    iconid = UI_library_icon_get(id);
+  }
+
+  if (!UI_search_item_add(items,
+                          name_ui,
+                          id,
+                          iconid,
+                          has_sep_char ? UI_BUT_HAS_SEP_CHAR : 0,
+                          name_prefix_offset)) {
+    return false;
+  }
+
   return true;
 }
 
@@ -398,12 +400,26 @@ static void id_search_cb(const bContext *C,
   ListBase *lb = template_ui->idlb;
   const int flag = RNA_property_flag(template_ui->prop);
 
+  StringSearch *search = BLI_string_search_new();
+
   /* ID listbase */
   LISTBASE_FOREACH (ID *, id, lb) {
-    if (!id_search_add(C, template_ui, flag, str, items, id)) {
+    if (id_search_allows_id(template_ui, flag, id, str)) {
+      BLI_string_search_add(search, id->name + 2, id);
+    }
+  }
+
+  ID **filtered_ids;
+  int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
+
+  for (int i = 0; i < filtered_amount; i++) {
+    if (!id_search_add(C, template_ui, items, filtered_ids[i])) {
       break;
     }
   }
+
+  MEM_freeN(filtered_ids);
+  BLI_string_search_free(search);
 }
 
 /**
@@ -418,15 +434,29 @@ static void id_search_cb_tagged(const bContext *C,
   ListBase *lb = template_ui->idlb;
   const int flag = RNA_property_flag(template_ui->prop);
 
+  StringSearch *search = BLI_string_search_new();
+
   /* ID listbase */
   LISTBASE_FOREACH (ID *, id, lb) {
     if (id->tag & LIB_TAG_DOIT) {
-      if (!id_search_add(C, template_ui, flag, str, items, id)) {
-        break;
+      if (id_search_allows_id(template_ui, flag, id, str)) {
+        BLI_string_search_add(search, id->name + 2, id);
       }
       id->tag &= ~LIB_TAG_DOIT;
     }
   }
+
+  ID **filtered_ids;
+  int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
+
+  for (int i = 0; i < filtered_amount; i++) {
+    if (!id_search_add(C, template_ui, items, filtered_ids[i])) {
+      break;
+    }
+  }
+
+  MEM_freeN(filtered_ids);
+  BLI_string_search_free(search);
 }
 
 /**
@@ -1891,13 +1921,6 @@ void uiTemplateModifiers(uiLayout *UNUSED(layout), bContext *C)
     }
   }
   else {
-    /* The expansion might have been changed elsewhere, so we still need to set it. */
-    LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-      if ((panel->type != NULL) && (panel->type->flag & PNL_INSTANCED)) {
-        UI_panel_set_expand_from_list_data(C, panel);
-      }
-    }
-
     /* Assuming there's only one group of instanced panels, update the custom data pointers. */
     Panel *panel = region->panels.first;
     LISTBASE_FOREACH (ModifierData *, md, modifiers) {
@@ -1917,6 +1940,13 @@ void uiTemplateModifiers(uiLayout *UNUSED(layout), bContext *C)
       UI_panel_custom_data_set(panel, md_ptr);
 
       panel = panel->next;
+    }
+
+    /* The expansion might have been changed elsewhere, so we still need to set it. */
+    LISTBASE_FOREACH (Panel *, panel_iter, &region->panels) {
+      if ((panel_iter->type != NULL) && (panel_iter->type->flag & PNL_INSTANCED)) {
+        UI_panel_set_expand_from_list_data(C, panel_iter);
+      }
     }
   }
 }
@@ -1940,27 +1970,6 @@ static bool constraint_panel_is_bone(Panel *panel)
 {
   return (panel->panelname[0] == 'B') && (panel->panelname[1] == 'O') &&
          (panel->panelname[2] == 'N') && (panel->panelname[3] == 'E');
-}
-
-/**
- * Get the constraints for the active pose bone or the active / pinned object.
- */
-static ListBase *get_constraints(const bContext *C, bool use_bone_constraints)
-{
-  ListBase *constraints = {NULL};
-  if (use_bone_constraints) {
-    bPoseChannel *pose_bone = CTX_data_pointer_get(C, "pose_bone").data;
-    if (pose_bone != NULL) {
-      constraints = &pose_bone->constraints;
-    }
-  }
-  else {
-    Object *ob = ED_object_active_context(C);
-    if (ob != NULL) {
-      constraints = &ob->constraints;
-    }
-  }
-  return constraints;
 }
 
 /**
@@ -2037,7 +2046,13 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
   ARegion *region = CTX_wm_region(C);
 
   Object *ob = ED_object_active_context(C);
-  ListBase *constraints = get_constraints(C, use_bone_constraints);
+  ListBase *constraints = {NULL};
+  if (use_bone_constraints) {
+    constraints = ED_object_pose_constraint_list(C);
+  }
+  else {
+    constraints = ED_object_constraint_active_list(ob);
+  }
 
   /* Switch between the bone panel ID function and the object panel ID function. */
   uiListPanelIDFromDataFunc panel_id_func = use_bone_constraints ? bone_constraint_panel_id :
@@ -2069,13 +2084,6 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
     }
   }
   else {
-    /* The expansion might have been changed elsewhere, so we still need to set it. */
-    LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-      if ((panel->type != NULL) && (panel->type->flag & PNL_INSTANCED)) {
-        UI_panel_set_expand_from_list_data(C, panel);
-      }
-    }
-
     /* Assuming there's only one group of instanced panels, update the custom data pointers. */
     Panel *panel = region->panels.first;
     LISTBASE_FOREACH (bConstraint *, con, constraints) {
@@ -2090,6 +2098,13 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
       UI_panel_custom_data_set(panel, con_ptr);
 
       panel = panel->next;
+    }
+
+    /* The expansion might have been changed elsewhere, so we still need to set it. */
+    LISTBASE_FOREACH (Panel *, panel_iter, &region->panels) {
+      if ((panel_iter->type != NULL) && (panel_iter->type->flag & PNL_INSTANCED)) {
+        UI_panel_set_expand_from_list_data(C, panel_iter);
+      }
     }
   }
 }
@@ -2145,13 +2160,6 @@ void uiTemplateGpencilModifiers(uiLayout *UNUSED(layout), bContext *C)
     }
   }
   else {
-    /* The expansion might have been changed elsewhere, so we still need to set it. */
-    LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-      if ((panel->type != NULL) && (panel->type->flag & PNL_INSTANCED)) {
-        UI_panel_set_expand_from_list_data(C, panel);
-      }
-    }
-
     /* Assuming there's only one group of instanced panels, update the custom data pointers. */
     Panel *panel = region->panels.first;
     LISTBASE_FOREACH (ModifierData *, md, modifiers) {
@@ -2171,6 +2179,13 @@ void uiTemplateGpencilModifiers(uiLayout *UNUSED(layout), bContext *C)
       UI_panel_custom_data_set(panel, md_ptr);
 
       panel = panel->next;
+    }
+
+    /* The expansion might have been changed elsewhere, so we still need to set it. */
+    LISTBASE_FOREACH (Panel *, panel_iter, &region->panels) {
+      if ((panel_iter->type != NULL) && (panel_iter->type->flag & PNL_INSTANCED)) {
+        UI_panel_set_expand_from_list_data(C, panel_iter);
+      }
     }
   }
 }
@@ -2227,13 +2242,6 @@ void uiTemplateShaderFx(uiLayout *UNUSED(layout), bContext *C)
     }
   }
   else {
-    /* The expansion might have been changed elsewhere, so we still need to set it. */
-    LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-      if ((panel->type != NULL) && (panel->type->flag & PNL_INSTANCED)) {
-        UI_panel_set_expand_from_list_data(C, panel);
-      }
-    }
-
     /* Assuming there's only one group of instanced panels, update the custom data pointers. */
     Panel *panel = region->panels.first;
     LISTBASE_FOREACH (ShaderFxData *, fx, shaderfx) {
@@ -2253,6 +2261,13 @@ void uiTemplateShaderFx(uiLayout *UNUSED(layout), bContext *C)
       UI_panel_custom_data_set(panel, fx_ptr);
 
       panel = panel->next;
+    }
+
+    /* The expansion might have been changed elsewhere, so we still need to set it. */
+    LISTBASE_FOREACH (Panel *, panel_iter, &region->panels) {
+      if ((panel_iter->type != NULL) && (panel_iter->type->flag & PNL_INSTANCED)) {
+        UI_panel_set_expand_from_list_data(C, panel_iter);
+      }
     }
   }
 }
@@ -3313,20 +3328,22 @@ static void colorband_buttons_layout(uiLayout *layout,
       split = uiLayoutSplit(layout, 0.3f, false);
 
       row = uiLayoutRow(split, false);
-      uiDefButS(block,
-                UI_BTYPE_NUM,
-                0,
-                "",
-                0,
-                0,
-                5.0f * UI_UNIT_X,
-                UI_UNIT_Y,
-                &coba->cur,
-                0.0,
-                (float)(MAX2(0, coba->tot - 1)),
-                1,
-                0,
-                TIP_("Choose active color stop"));
+      bt = uiDefButS(block,
+                     UI_BTYPE_NUM,
+                     0,
+                     "",
+                     0,
+                     0,
+                     5.0f * UI_UNIT_X,
+                     UI_UNIT_Y,
+                     &coba->cur,
+                     0.0,
+                     (float)(MAX2(0, coba->tot - 1)),
+                     0,
+                     0,
+                     TIP_("Choose active color stop"));
+      UI_but_number_step_size_set(bt, 1);
+
       row = uiLayoutRow(split, false);
       uiItemR(row, &ptr, "position", 0, IFACE_("Pos"), ICON_NONE);
       bt = block->buttons.last;
@@ -3343,20 +3360,22 @@ static void colorband_buttons_layout(uiLayout *layout,
       subsplit = uiLayoutSplit(split, 0.35f, false);
 
       row = uiLayoutRow(subsplit, false);
-      uiDefButS(block,
-                UI_BTYPE_NUM,
-                0,
-                "",
-                0,
-                0,
-                5.0f * UI_UNIT_X,
-                UI_UNIT_Y,
-                &coba->cur,
-                0.0,
-                (float)(MAX2(0, coba->tot - 1)),
-                1,
-                0,
-                TIP_("Choose active color stop"));
+      bt = uiDefButS(block,
+                     UI_BTYPE_NUM,
+                     0,
+                     "",
+                     0,
+                     0,
+                     5.0f * UI_UNIT_X,
+                     UI_UNIT_Y,
+                     &coba->cur,
+                     0.0,
+                     (float)(MAX2(0, coba->tot - 1)),
+                     0,
+                     0,
+                     TIP_("Choose active color stop"));
+      UI_but_number_step_size_set(bt, 1);
+
       row = uiLayoutRow(subsplit, false);
       uiItemR(row, &ptr, "position", UI_ITEM_R_SLIDER, IFACE_("Pos"), ICON_NONE);
       bt = block->buttons.last;
@@ -3909,62 +3928,70 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap
   UI_but_func_set(bt, curvemap_buttons_setclip, cumap, NULL);
 
   UI_block_align_begin(block);
-  uiDefButF(block,
-            UI_BTYPE_NUM,
-            0,
-            IFACE_("Min X:"),
-            0,
-            4 * UI_UNIT_Y,
-            width,
-            UI_UNIT_Y,
-            &cumap->clipr.xmin,
-            -100.0,
-            cumap->clipr.xmax,
-            10,
-            2,
-            "");
-  uiDefButF(block,
-            UI_BTYPE_NUM,
-            0,
-            IFACE_("Min Y:"),
-            0,
-            3 * UI_UNIT_Y,
-            width,
-            UI_UNIT_Y,
-            &cumap->clipr.ymin,
-            -100.0,
-            cumap->clipr.ymax,
-            10,
-            2,
-            "");
-  uiDefButF(block,
-            UI_BTYPE_NUM,
-            0,
-            IFACE_("Max X:"),
-            0,
-            2 * UI_UNIT_Y,
-            width,
-            UI_UNIT_Y,
-            &cumap->clipr.xmax,
-            cumap->clipr.xmin,
-            100.0,
-            10,
-            2,
-            "");
-  uiDefButF(block,
-            UI_BTYPE_NUM,
-            0,
-            IFACE_("Max Y:"),
-            0,
-            UI_UNIT_Y,
-            width,
-            UI_UNIT_Y,
-            &cumap->clipr.ymax,
-            cumap->clipr.ymin,
-            100.0,
-            10,
-            2,
-            "");
+  bt = uiDefButF(block,
+                 UI_BTYPE_NUM,
+                 0,
+                 IFACE_("Min X:"),
+                 0,
+                 4 * UI_UNIT_Y,
+                 width,
+                 UI_UNIT_Y,
+                 &cumap->clipr.xmin,
+                 -100.0,
+                 cumap->clipr.xmax,
+                 0,
+                 0,
+                 "");
+  UI_but_number_step_size_set(bt, 10);
+  UI_but_number_precision_set(bt, 2);
+  bt = uiDefButF(block,
+                 UI_BTYPE_NUM,
+                 0,
+                 IFACE_("Min Y:"),
+                 0,
+                 3 * UI_UNIT_Y,
+                 width,
+                 UI_UNIT_Y,
+                 &cumap->clipr.ymin,
+                 -100.0,
+                 cumap->clipr.ymax,
+                 0,
+                 0,
+                 "");
+  UI_but_number_step_size_set(bt, 10);
+  UI_but_number_precision_set(bt, 2);
+  bt = uiDefButF(block,
+                 UI_BTYPE_NUM,
+                 0,
+                 IFACE_("Max X:"),
+                 0,
+                 2 * UI_UNIT_Y,
+                 width,
+                 UI_UNIT_Y,
+                 &cumap->clipr.xmax,
+                 cumap->clipr.xmin,
+                 100.0,
+                 0,
+                 0,
+                 "");
+  UI_but_number_step_size_set(bt, 10);
+  UI_but_number_precision_set(bt, 2);
+  bt = uiDefButF(block,
+                 UI_BTYPE_NUM,
+                 0,
+                 IFACE_("Max Y:"),
+                 0,
+                 UI_UNIT_Y,
+                 width,
+                 UI_UNIT_Y,
+                 &cumap->clipr.ymax,
+                 cumap->clipr.ymin,
+                 100.0,
+                 0,
+                 0,
+                 "");
+  UI_but_number_step_size_set(bt, 10);
+  UI_but_number_precision_set(bt, 2);
 
   UI_block_bounds_set_normal(block, 0.3f * U.widget_unit);
   UI_block_direction_set(block, UI_DIR_DOWN);
@@ -4229,7 +4256,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
   uiBut *bt;
   const float dx = UI_UNIT_X;
   int icon, size;
-  int bg = -1, i;
+  int bg = -1;
 
   block = uiLayoutGetBlock(layout);
 
@@ -4433,11 +4460,12 @@ static void curvemap_buttons_layout(uiLayout *layout,
   /* curve itself */
   size = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
   row = uiLayoutRow(layout, false);
-  uiDefBut(
-      block, UI_BTYPE_CURVE, 0, "", 0, 0, size, 8.0f * UI_UNIT_X, cumap, 0.0f, 1.0f, bg, 0, "");
+  uiButCurveMapping *curve_but = (uiButCurveMapping *)uiDefBut(
+      block, UI_BTYPE_CURVE, 0, "", 0, 0, size, 8.0f * UI_UNIT_X, cumap, 0.0f, 1.0f, 0, 0, "");
+  curve_but->gradient_type = bg;
 
   /* sliders for selected point */
-  for (i = 0; i < cm->totpoint; i++) {
+  for (int i = 0; i < cm->totpoint; i++) {
     if (cm->curve[i].flag & CUMA_SELECT) {
       cmp = &cm->curve[i];
       break;
@@ -4457,34 +4485,38 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
     uiLayoutRow(layout, true);
     UI_block_funcN_set(block, curvemap_buttons_update, MEM_dupallocN(cb), cumap);
-    uiDefButF(block,
-              UI_BTYPE_NUM,
-              0,
-              "X",
-              0,
-              2 * UI_UNIT_Y,
-              UI_UNIT_X * 10,
-              UI_UNIT_Y,
-              &cmp->x,
-              bounds.xmin,
-              bounds.xmax,
-              1,
-              5,
-              "");
-    uiDefButF(block,
-              UI_BTYPE_NUM,
-              0,
-              "Y",
-              0,
-              1 * UI_UNIT_Y,
-              UI_UNIT_X * 10,
-              UI_UNIT_Y,
-              &cmp->y,
-              bounds.ymin,
-              bounds.ymax,
-              1,
-              5,
-              "");
+    bt = uiDefButF(block,
+                   UI_BTYPE_NUM,
+                   0,
+                   "X",
+                   0,
+                   2 * UI_UNIT_Y,
+                   UI_UNIT_X * 10,
+                   UI_UNIT_Y,
+                   &cmp->x,
+                   bounds.xmin,
+                   bounds.xmax,
+                   0,
+                   0,
+                   "");
+    UI_but_number_step_size_set(bt, 1);
+    UI_but_number_precision_set(bt, 5);
+    bt = uiDefButF(block,
+                   UI_BTYPE_NUM,
+                   0,
+                   "Y",
+                   0,
+                   1 * UI_UNIT_Y,
+                   UI_UNIT_X * 10,
+                   UI_UNIT_Y,
+                   &cmp->y,
+                   bounds.ymin,
+                   bounds.ymax,
+                   0,
+                   0,
+                   "");
+    UI_but_number_step_size_set(bt, 1);
+    UI_but_number_precision_set(bt, 5);
   }
 
   /* black/white levels */
@@ -5068,9 +5100,11 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, RNAUp
                    selection_x,
                    bounds.xmin,
                    bounds.xmax,
-                   1,
-                   5,
+                   0,
+                   0,
                    "");
+    UI_but_number_step_size_set(bt, 1);
+    UI_but_number_precision_set(bt, 5);
     UI_but_funcN_set(bt, CurveProfile_buttons_update, MEM_dupallocN(cb), profile);
     if (point_last_or_first) {
       UI_but_flag_enable(bt, UI_BUT_DISABLED);
@@ -5086,9 +5120,11 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, RNAUp
                    selection_y,
                    bounds.ymin,
                    bounds.ymax,
-                   1,
-                   5,
+                   0,
+                   0,
                    "");
+    UI_but_number_step_size_set(bt, 1);
+    UI_but_number_precision_set(bt, 5);
     UI_but_funcN_set(bt, CurveProfile_buttons_update, MEM_dupallocN(cb), profile);
     if (point_last_or_first) {
       UI_but_flag_enable(bt, UI_BUT_DISABLED);

@@ -23,8 +23,8 @@
 #include "BLI_span.hh"
 
 #include "GPU_shader.h"
-#include "GPU_vertex_buffer.h"
 #include "gpu_shader_interface.hh"
+#include "gpu_vertex_buffer_private.hh"
 
 namespace blender {
 namespace gpu {
@@ -79,6 +79,20 @@ class Shader {
  protected:
   void print_errors(Span<const char *> sources, char *log, const char *stage);
 };
+
+/* Syntacting suggar. */
+static inline GPUShader *wrap(Shader *vert)
+{
+  return reinterpret_cast<GPUShader *>(vert);
+}
+static inline Shader *unwrap(GPUShader *vert)
+{
+  return reinterpret_cast<Shader *>(vert);
+}
+static inline const Shader *unwrap(const GPUShader *vert)
+{
+  return reinterpret_cast<const Shader *>(vert);
+}
 
 }  // namespace gpu
 }  // namespace blender

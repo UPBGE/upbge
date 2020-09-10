@@ -511,15 +511,20 @@ bool ED_object_add_generic_get_opts(bContext *C,
   return true;
 }
 
-/* For object add primitive operators.
- * Do not call undo push in this function (users of this function have to). */
-Object *ED_object_add_type(bContext *C,
-                           int type,
-                           const char *name,
-                           const float loc[3],
-                           const float rot[3],
-                           bool enter_editmode,
-                           ushort local_view_bits)
+/**
+ * For object add primitive operators, or for object creation when `obdata != NULL`.
+ * \param obdata: Assigned to #Object.data, with increased user count.
+ *
+ * \note Do not call undo push in this function (users of this function have to).
+ */
+Object *ED_object_add_type_with_obdata(bContext *C,
+                                       const int type,
+                                       const char *name,
+                                       const float loc[3],
+                                       const float rot[3],
+                                       const bool enter_editmode,
+                                       const ushort local_view_bits,
+                                       ID *obdata)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -532,7 +537,17 @@ Object *ED_object_add_type(bContext *C,
   }
 
   /* deselects all, sets active object */
-  ob = BKE_object_add(bmain, scene, view_layer, type, name);
+  if (obdata != NULL) {
+    BLI_assert(type == BKE_object_obdata_to_type(obdata));
+    ob = BKE_object_add_for_data(bmain, view_layer, type, name, obdata, true);
+    const short *materials_len_p = BKE_id_material_len_p(obdata);
+    if (materials_len_p && *materials_len_p > 0) {
+      BKE_object_materials_test(bmain, ob, ob->data);
+    }
+  }
+  else {
+    ob = BKE_object_add(bmain, view_layer, type, name);
+  }
   BASACT(view_layer)->local_view_bits = local_view_bits;
   /* editor level activate, notifiers */
   ED_object_base_activate(C, view_layer->basact);
@@ -568,6 +583,18 @@ Object *ED_object_add_type(bContext *C,
   ED_outliner_select_sync_from_object_tag(C);
 
   return ob;
+}
+
+Object *ED_object_add_type(bContext *C,
+                           const int type,
+                           const char *name,
+                           const float loc[3],
+                           const float rot[3],
+                           const bool enter_editmode,
+                           const ushort local_view_bits)
+{
+  return ED_object_add_type_with_obdata(
+      C, type, name, loc, rot, enter_editmode, local_view_bits, NULL);
 }
 
 /* for object add operator */
@@ -1416,55 +1443,58 @@ static int collection_instance_add_exec(bContext *C, wmOperator *op)
   ushort local_view_bits;
   float loc[3], rot[3];
 
-  if (RNA_struct_property_is_set(op->ptr, "name")) {
-    char name[MAX_ID_NAME - 2];
+  PropertyRNA *prop_name = RNA_struct_find_property(op->ptr, "name");
+  PropertyRNA *prop_location = RNA_struct_find_property(op->ptr, "location");
 
-    RNA_string_get(op->ptr, "name", name);
+  if (RNA_property_is_set(op->ptr, prop_name)) {
+    char name[MAX_ID_NAME - 2];
+    RNA_property_string_get(op->ptr, prop_name, name);
     collection = (Collection *)BKE_libblock_find_name(bmain, ID_GR, name);
 
-    if (0 == RNA_struct_property_is_set(op->ptr, "location")) {
+    if (!RNA_property_is_set(op->ptr, prop_location)) {
       const wmEvent *event = CTX_wm_window(C)->eventstate;
       ARegion *region = CTX_wm_region(C);
       const int mval[2] = {event->x - region->winrct.xmin, event->y - region->winrct.ymin};
       ED_object_location_from_view(C, loc);
       ED_view3d_cursor3d_position(C, mval, false, loc);
-      RNA_float_set_array(op->ptr, "location", loc);
+      RNA_property_float_set_array(op->ptr, prop_location, loc);
     }
   }
   else {
     collection = BLI_findlink(&bmain->collections, RNA_enum_get(op->ptr, "collection"));
   }
 
+  if (collection == NULL) {
+    return OPERATOR_CANCELLED;
+  }
+
   if (!ED_object_add_generic_get_opts(C, op, 'Z', loc, rot, NULL, NULL, &local_view_bits, NULL)) {
     return OPERATOR_CANCELLED;
   }
-  if (collection) {
-    Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
 
-    /* Avoid dependency cycles. */
-    LayerCollection *active_lc = BKE_layer_collection_get_active(view_layer);
-    while (BKE_collection_cycle_find(active_lc->collection, collection)) {
-      active_lc = BKE_layer_collection_activate_parent(view_layer, active_lc);
-    }
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
-    Object *ob = ED_object_add_type(
-        C, OB_EMPTY, collection->id.name + 2, loc, rot, false, local_view_bits);
-    ob->instance_collection = collection;
-    ob->empty_drawsize = U.collection_instance_empty_size;
-    ob->transflag |= OB_DUPLICOLLECTION;
-    id_us_plus(&collection->id);
-
-    /* works without this except if you try render right after, see: 22027 */
-    DEG_relations_tag_update(bmain);
-    DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
-    WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
-
-    return OPERATOR_FINISHED;
+  /* Avoid dependency cycles. */
+  LayerCollection *active_lc = BKE_layer_collection_get_active(view_layer);
+  while (BKE_collection_cycle_find(active_lc->collection, collection)) {
+    active_lc = BKE_layer_collection_activate_parent(view_layer, active_lc);
   }
 
-  return OPERATOR_CANCELLED;
+  Object *ob = ED_object_add_type(
+      C, OB_EMPTY, collection->id.name + 2, loc, rot, false, local_view_bits);
+  ob->instance_collection = collection;
+  ob->empty_drawsize = U.collection_instance_empty_size;
+  ob->transflag |= OB_DUPLICOLLECTION;
+  id_us_plus(&collection->id);
+
+  /* works without this except if you try render right after, see: 22027 */
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+
+  return OPERATOR_FINISHED;
 }
 
 /* only used as menu */
@@ -1492,6 +1522,89 @@ void OBJECT_OT_collection_instance_add(wmOperatorType *ot)
   RNA_def_enum_funcs(prop, RNA_collection_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
+  ED_object_add_generic_props(ot, false);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Data Instance Operator
+ *
+ * Use for dropping ID's from the outliner.
+ * \{ */
+
+static int object_data_instance_add_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  ID *id = NULL;
+  ushort local_view_bits;
+  float loc[3], rot[3];
+
+  PropertyRNA *prop_name = RNA_struct_find_property(op->ptr, "name");
+  PropertyRNA *prop_type = RNA_struct_find_property(op->ptr, "type");
+  PropertyRNA *prop_location = RNA_struct_find_property(op->ptr, "location");
+
+  /* These shouldn't fail when created by outliner dropping as it checks the ID is valid. */
+  if (!RNA_property_is_set(op->ptr, prop_name) || !RNA_property_is_set(op->ptr, prop_type)) {
+    return OPERATOR_CANCELLED;
+  }
+  const short id_type = RNA_property_enum_get(op->ptr, prop_type);
+  char name[MAX_ID_NAME - 2];
+  RNA_property_string_get(op->ptr, prop_name, name);
+  id = BKE_libblock_find_name(bmain, id_type, name);
+  if (id == NULL) {
+    return OPERATOR_CANCELLED;
+  }
+  const int object_type = BKE_object_obdata_to_type(id);
+  if (object_type == -1) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!RNA_property_is_set(op->ptr, prop_location)) {
+    const wmEvent *event = CTX_wm_window(C)->eventstate;
+    ARegion *region = CTX_wm_region(C);
+    const int mval[2] = {event->x - region->winrct.xmin, event->y - region->winrct.ymin};
+    ED_object_location_from_view(C, loc);
+    ED_view3d_cursor3d_position(C, mval, false, loc);
+    RNA_property_float_set_array(op->ptr, prop_location, loc);
+  }
+
+  if (!ED_object_add_generic_get_opts(C, op, 'Z', loc, rot, NULL, NULL, &local_view_bits, NULL)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  Scene *scene = CTX_data_scene(C);
+
+  ED_object_add_type_with_obdata(
+      C, object_type, id->name + 2, loc, rot, false, local_view_bits, id);
+
+  /* Works without this except if you try render right after, see: T22027. */
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_data_instance_add(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add Object Data Instance";
+  ot->description = "Add an object data instance";
+  ot->idname = "OBJECT_OT_data_instance_add";
+
+  /* api callbacks */
+  ot->exec = object_data_instance_add_exec;
+  ot->poll = ED_operator_objectmode;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  RNA_def_string(ot->srna, "name", "Name", MAX_ID_NAME - 2, "Name", "ID name to add");
+  PropertyRNA *prop = RNA_def_enum(ot->srna, "type", rna_enum_id_type_items, 0, "Type", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
   ED_object_add_generic_props(ot, false);
 }
 
@@ -2478,7 +2591,9 @@ static int object_convert_exec(bContext *C, wmOperator *op)
 
       if (newob->type == OB_CURVE) {
         BKE_object_free_modifiers(newob, 0); /* after derivedmesh calls! */
-        ED_rigidbody_object_remove(bmain, scene, newob);
+        if (newob->rigidbody_object != NULL) {
+          ED_rigidbody_object_remove(bmain, scene, newob);
+        }
       }
     }
     else if (ob->type == OB_MESH && target == OB_GPENCIL) {

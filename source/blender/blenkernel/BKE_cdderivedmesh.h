@@ -80,7 +80,7 @@ DerivedMesh *CDDM_from_curve_displist(struct Object *ob, struct ListBase *dispba
 
 /* Copies the given DerivedMesh with verts, faces & edges stored as
  * custom element data. */
-struct DerivedMesh *CDDM_copy(struct DerivedMesh *dm);
+struct DerivedMesh *CDDM_copy(struct DerivedMesh *source);
 
 /* creates a CDDerivedMesh with the same layer stack configuration as the
  * given DerivedMesh and containing the requested numbers of elements.

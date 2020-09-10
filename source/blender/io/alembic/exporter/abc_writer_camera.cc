@@ -31,9 +31,7 @@
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.alembic"};
 
-namespace blender {
-namespace io {
-namespace alembic {
+namespace blender::io::alembic {
 
 using Alembic::AbcGeom::CameraSample;
 using Alembic::AbcGeom::OCamera;
@@ -62,7 +60,7 @@ void ABCCameraWriter::create_alembic_objects(const HierarchyContext * /*context*
       abc_custom_data_container_, "eyeSeparation", timesample_index_);
 }
 
-const Alembic::Abc::OObject ABCCameraWriter::get_alembic_object() const
+Alembic::Abc::OObject ABCCameraWriter::get_alembic_object() const
 {
   return abc_camera_;
 }
@@ -105,6 +103,4 @@ void ABCCameraWriter::do_write(HierarchyContext &context)
   abc_camera_schema_.set(camera_sample);
 }
 
-}  // namespace alembic
-}  // namespace io
-}  // namespace blender
+}  // namespace blender::io::alembic

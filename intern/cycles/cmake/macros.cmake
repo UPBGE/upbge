@@ -1,3 +1,17 @@
+# Copyright 2011-2020 Blender Foundation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 function(cycles_set_solution_folder target)
   if(WINDOWS_USE_VISUAL_STUDIO_FOLDERS)
     get_filename_component(folderdir ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
@@ -68,4 +82,115 @@ macro(cycles_add_library target library_deps)
   endif()
 
   cycles_set_solution_folder(${target})
+endmacro()
+
+# Cycles library dependencies common to all executables
+
+macro(cycles_link_directories)
+  if(WITH_OPENCOLORIO)
+    link_directories(${OPENCOLORIO_LIBPATH})
+  endif()
+  if(WITH_OPENVDB)
+    link_directories(${OPENVDB_LIBPATH} ${BLOSC_LIBPATH})
+  endif()
+  if(WITH_OPENSUBDIV)
+    link_directories(${OPENSUBDIV_LIBPATH})
+  endif()
+  if(WITH_OPENIMAGEDENOISE)
+    link_directories(${OPENIMAGEDENOISE_LIBPATH})
+  endif()
+
+  link_directories(
+    ${OPENIMAGEIO_LIBPATH}
+    ${BOOST_LIBPATH}
+    ${PNG_LIBPATH}
+    ${JPEG_LIBPATH}
+    ${ZLIB_LIBPATH}
+    ${TIFF_LIBPATH}
+    ${OPENEXR_LIBPATH}
+    ${OPENJPEG_LIBPATH}
+  )
+endmacro()
+
+macro(cycles_target_link_libraries target)
+  if(WITH_CYCLES_LOGGING)
+    target_link_libraries(${target} ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES})
+  endif()
+  if(WITH_CYCLES_OSL)
+    target_link_libraries(${target} ${OSL_LIBRARIES} ${LLVM_LIBRARY})
+  endif()
+  if(WITH_CYCLES_EMBREE)
+    target_link_libraries(${target} ${EMBREE_LIBRARIES})
+  endif()
+  if(WITH_OPENSUBDIV)
+    target_link_libraries(${target} ${OPENSUBDIV_LIBRARIES})
+  endif()
+  if(WITH_OPENCOLORIO)
+    target_link_libraries(${target} ${OPENCOLORIO_LIBRARIES})
+  endif()
+  if(WITH_OPENVDB)
+    target_link_libraries(${target} ${OPENVDB_LIBRARIES} ${BLOSC_LIBRARIES})
+  endif()
+  if(WITH_OPENIMAGEDENOISE)
+    target_link_libraries(${target} ${OPENIMAGEDENOISE_LIBRARIES})
+  endif()
+  target_link_libraries(
+    ${target}
+    ${OPENIMAGEIO_LIBRARIES}
+    ${PNG_LIBRARIES}
+    ${JPEG_LIBRARIES}
+    ${TIFF_LIBRARY}
+    ${OPENJPEG_LIBRARIES}
+    ${OPENEXR_LIBRARIES}
+    ${OPENEXR_LIBRARIES} # For circular dependencies between libs.
+    ${PUGIXML_LIBRARIES}
+    ${BOOST_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+    ${CMAKE_DL_LIBS}
+    ${PTHREADS_LIBRARIES}
+    ${PLATFORM_LINKLIBS}
+  )
+
+  if(WITH_CUDA_DYNLOAD)
+    target_link_libraries(${target} extern_cuew)
+  else()
+    target_link_libraries(${target} ${CUDA_CUDA_LIBRARY})
+  endif()
+
+  if(CYCLES_STANDALONE_REPOSITORY)
+    target_link_libraries(${target} extern_numaapi)
+  else()
+    target_link_libraries(${target} bf_intern_numaapi)
+  endif()
+
+  if(UNIX AND NOT APPLE)
+    if(CYCLES_STANDALONE_REPOSITORY)
+      target_link_libraries(${target} extern_libc_compat)
+    else()
+      target_link_libraries(${target} bf_intern_libc_compat)
+    endif()
+  endif()
+
+  if(NOT CYCLES_STANDALONE_REPOSITORY)
+    target_link_libraries(${target} bf_intern_guardedalloc)
+  endif()
+endmacro()
+
+macro(cycles_install_libraries target)
+  # Copy DLLs for dynamically linked libraries.
+  if(WIN32)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+      install(
+        FILES
+        ${TBB_ROOT_DIR}/lib/debug/tbb_debug${CMAKE_SHARED_LIBRARY_SUFFIX}
+        ${OPENVDB_ROOT_DIR}/bin/openvdb_d${CMAKE_SHARED_LIBRARY_SUFFIX}
+        DESTINATION $<TARGET_FILE_DIR:${target}>)
+    else()
+      install(
+        FILES
+        ${TBB_ROOT_DIR}/lib/tbb${CMAKE_SHARED_LIBRARY_SUFFIX}
+        ${OPENVDB_ROOT_DIR}/bin/openvdb${CMAKE_SHARED_LIBRARY_SUFFIX}
+        DESTINATION $<TARGET_FILE_DIR:${target}>)
+    endif()
+  endif()
 endmacro()

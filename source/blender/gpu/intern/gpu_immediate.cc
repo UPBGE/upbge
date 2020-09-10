@@ -34,30 +34,21 @@
 #include "gpu_context_private.hh"
 #include "gpu_immediate_private.hh"
 #include "gpu_shader_private.hh"
+#include "gpu_vertex_buffer_private.hh"
 #include "gpu_vertex_format_private.h"
 
 using namespace blender::gpu;
 
-static Immediate *imm = NULL;
-
-void immInit(void)
-{
-  /* TODO Remove */
-}
+static thread_local Immediate *imm = NULL;
 
 void immActivate(void)
 {
-  imm = GPU_context_active_get()->imm;
+  imm = Context::get()->imm;
 }
 
 void immDeactivate(void)
 {
   imm = NULL;
-}
-
-void immDestroy(void)
-{
-  /* TODO Remove */
 }
 
 GPUVertFormat *immVertexFormat(void)
@@ -164,7 +155,7 @@ GPUBatch *immBeginBatch(GPUPrimType prim_type, uint vertex_len)
   GPUVertBuf *verts = GPU_vertbuf_create_with_format(&imm->vertex_format);
   GPU_vertbuf_data_alloc(verts, vertex_len);
 
-  imm->vertex_data = verts->data;
+  imm->vertex_data = (uchar *)GPU_vertbuf_get_data(verts);
 
   imm->batch = GPU_batch_create_ex(prim_type, verts, NULL, GPU_BATCH_OWNS_VBO);
   imm->batch->flag |= GPU_BATCH_BUILDING;
@@ -195,7 +186,7 @@ void immEnd(void)
 
   if (imm->batch) {
     if (imm->vertex_idx < imm->vertex_len) {
-      GPU_vertbuf_data_resize(imm->batch->verts[0], imm->vertex_len);
+      GPU_vertbuf_data_resize(imm->batch->verts[0], imm->vertex_idx);
       /* TODO: resize only if vertex count is much smaller */
     }
     GPU_batch_set_shader(imm->batch, imm->shader);

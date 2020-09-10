@@ -242,7 +242,6 @@ static void draw_seq_waveform(View2D *v2d,
   int x2_offset = min_ff(v2d->cur.xmax + 1.0f, x2);
 
   if (seq->sound && ((sseq->flag & SEQ_ALL_WAVEFORMS) || (seq->flag & SEQ_AUDIO_DRAW_WAVEFORM))) {
-    int i, j, p;
     int length = floor((x2_offset - x1_offset) / stepsize) + 1;
     float ymid = (y1 + y2) / 2.0f;
     float yscale = (y2 - y1) / 2.0f;
@@ -303,15 +302,15 @@ static void draw_seq_waveform(View2D *v2d,
     immBindBuiltinProgram(GPU_SHADER_2D_FLAT_COLOR);
     immBegin(GPU_PRIM_TRI_STRIP, length * 2);
 
-    for (i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) {
       float sampleoffset = startsample + ((x1_offset - x1) / stepsize + i) * samplestep;
-      p = sampleoffset;
+      int p = sampleoffset;
 
       value1 = waveform->data[p * 3];
       value2 = waveform->data[p * 3 + 1];
 
       if (samplestep > 1.0f) {
-        for (j = p + 1; (j < waveform->length) && (j < p + samplestep); j++) {
+        for (int j = p + 1; (j < waveform->length) && (j < p + samplestep); j++) {
           if (value1 > waveform->data[j * 3]) {
             value1 = waveform->data[j * 3];
           }
@@ -1262,8 +1261,8 @@ ImBuf *sequencer_ibuf_get(struct Main *bmain,
     render_size = BKE_sequencer_rendersize_to_scale_factor(sseq->render_size);
   }
 
-  rectx = render_size * scene->r.xsch + 0.5;
-  recty = render_size * scene->r.ysch + 0.5;
+  rectx = roundf(render_size * scene->r.xsch);
+  recty = roundf(render_size * scene->r.ysch);
 
   BKE_sequencer_new_render_data(
       bmain, depsgraph, scene, rectx, recty, sseq->render_size, false, &context);
@@ -1639,8 +1638,9 @@ static void sequencer_draw_display_buffer(const bContext *C,
     GPU_matrix_identity_projection_set();
   }
 
-  GPUTexture *texture = GPU_texture_create_nD(
-      ibuf->x, ibuf->y, 0, 2, display_buffer, format, data, 0, false, NULL);
+  GPUTexture *texture = GPU_texture_create_2d(
+      "seq_display_buf", ibuf->x, ibuf->y, 1, format, NULL);
+  GPU_texture_update(texture, data, display_buffer);
   GPU_texture_filter_mode(texture, false);
 
   GPU_texture_bind(texture, 0);
@@ -1764,7 +1764,7 @@ void sequencer_draw_preview(const bContext *C,
                             ARegion *region,
                             SpaceSeq *sseq,
                             int cfra,
-                            int frame_ofs,
+                            int offset,
                             bool draw_overlay,
                             bool draw_backdrop)
 {
@@ -1785,7 +1785,7 @@ void sequencer_draw_preview(const bContext *C,
 
   /* Get image. */
   ibuf = sequencer_ibuf_get(
-      bmain, region, depsgraph, scene, sseq, cfra, frame_ofs, names[sseq->multiview_eye]);
+      bmain, region, depsgraph, scene, sseq, cfra, offset, names[sseq->multiview_eye]);
 
   /* Setup off-screen buffers. */
   GPUViewport *viewport = WM_draw_region_get_viewport(region);
@@ -1800,7 +1800,7 @@ void sequencer_draw_preview(const bContext *C,
 
   /* Setup view. */
   sequencer_display_size(scene, viewrect);
-  UI_view2d_totRect_set(v2d, viewrect[0] + 0.5f, viewrect[1] + 0.5f);
+  UI_view2d_totRect_set(v2d, roundf(viewrect[0] + 0.5f), roundf(viewrect[1] + 0.5f));
   UI_view2d_curRect_validate(v2d);
   UI_view2d_view_ortho(v2d);
 

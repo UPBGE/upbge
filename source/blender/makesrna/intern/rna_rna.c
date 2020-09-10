@@ -117,6 +117,7 @@ const EnumPropertyItem rna_enum_property_unit_items[] = {
     {PROP_UNIT_MASS, "MASS", 0, "Mass", ""},
     {PROP_UNIT_CAMERA, "CAMERA", 0, "Camera", ""},
     {PROP_UNIT_POWER, "POWER", 0, "Power", ""},
+    {PROP_UNIT_TEMPERATURE, "TEMPERATURE", 0, "Temperature", ""},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -1851,7 +1852,7 @@ int rna_property_override_diff_default(Main *bmain,
 
             if (is_first_insert) {
               /* We need to clean up all possible existing insertion operations,
-               * otherwise we'd end up with a mess of ops everytime something changes. */
+               * otherwise we'd end up with a mess of ops every time something changes. */
               for (IDOverrideLibraryPropertyOperation *opop = op->operations.first;
                    opop != NULL;) {
                 IDOverrideLibraryPropertyOperation *opop_next = opop->next;

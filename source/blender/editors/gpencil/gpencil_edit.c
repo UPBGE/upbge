@@ -39,6 +39,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_gpencil_modifier_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -52,7 +53,9 @@
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
 #include "BKE_gpencil_geom.h"
+#include "BKE_layer.h"
 #include "BKE_lib_id.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_object.h"
@@ -75,6 +78,7 @@
 
 #include "UI_view2d.h"
 
+#include "ED_armature.h"
 #include "ED_gpencil.h"
 #include "ED_object.h"
 #include "ED_outliner.h"
@@ -571,6 +575,8 @@ static int gpencil_weightmode_toggle_exec(bContext *C, wmOperator *op)
     gpd = ob->data;
     is_object = true;
   }
+  const int mode_flag = OB_MODE_WEIGHT_GPENCIL;
+  const bool is_mode_set = (ob->mode & mode_flag) != 0;
 
   if (gpd == NULL) {
     return OPERATOR_CANCELLED;
@@ -593,6 +599,9 @@ static int gpencil_weightmode_toggle_exec(bContext *C, wmOperator *op)
     }
     ob->restore_mode = ob->mode;
     ob->mode = mode;
+
+    /* Prepare armature posemode. */
+    ED_object_posemode_set_for_weight_paint(C, bmain, ob, is_mode_set);
   }
 
   if (mode == OB_MODE_WEIGHT_GPENCIL) {
@@ -4716,7 +4725,6 @@ static int gpencil_cutter_lasso_select(bContext *C,
   const float scale = ts->gp_sculpt.isect_threshold;
 
   bGPDspoint *pt;
-  int i;
   GP_SpaceConversion gsc = {NULL};
 
   bool changed = false;
@@ -4732,6 +4740,7 @@ static int gpencil_cutter_lasso_select(bContext *C,
 
   /* deselect all strokes first */
   CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
+    int i;
     for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
       pt->flag &= ~GP_SPOINT_SELECT;
     }
@@ -4744,7 +4753,7 @@ static int gpencil_cutter_lasso_select(bContext *C,
   GP_EDITABLE_STROKES_BEGIN (gpstroke_iter, C, gpl, gps) {
     int tot_inside = 0;
     const int oldtot = gps->totpoints;
-    for (i = 0; i < gps->totpoints; i++) {
+    for (int i = 0; i < gps->totpoints; i++) {
       pt = &gps->points[i];
       if ((pt->flag & GP_SPOINT_SELECT) || (pt->flag & GP_SPOINT_TAG)) {
         continue;
@@ -4768,7 +4777,7 @@ static int gpencil_cutter_lasso_select(bContext *C,
     }
     /* if mark all points inside lasso set to remove all stroke */
     if ((tot_inside == oldtot) || ((tot_inside == 1) && (oldtot == 2))) {
-      for (i = 0; i < gps->totpoints; i++) {
+      for (int i = 0; i < gps->totpoints; i++) {
         pt = &gps->points[i];
         pt->flag |= GP_SPOINT_SELECT;
       }

@@ -101,7 +101,7 @@ void GPENCIL_render_init(GPENCIL_Data *vedata,
   const bool do_clear_z = !pix_z || do_region;
   const bool do_clear_col = !pix_col || do_region;
 
-  /* FIXME(fclem): we have a precision loss in the depth buffer because of this reupload.
+  /* FIXME(fclem): we have a precision loss in the depth buffer because of this re-upload.
    * Find where it comes from! */
   /* In multi view render the textures can be reused. */
   if (txl->render_depth_tx && !do_clear_z) {
@@ -143,11 +143,9 @@ void GPENCIL_render_init(GPENCIL_Data *vedata,
     int w = BLI_rcti_size_x(rect);
     int h = BLI_rcti_size_y(rect);
     if (pix_col) {
-      GPU_texture_bind(txl->render_color_tx, 0);
       GPU_texture_update_sub(txl->render_color_tx, GPU_DATA_FLOAT, pix_col, x, y, 0, w, h, 0);
     }
     if (pix_z) {
-      GPU_texture_bind(txl->render_depth_tx, 0);
       GPU_texture_update_sub(txl->render_depth_tx, GPU_DATA_FLOAT, pix_z, x, y, 0, w, h, 0);
     }
   }
@@ -184,6 +182,7 @@ static void GPENCIL_render_result_z(struct RenderLayer *rl,
                                rect->ymin,
                                BLI_rcti_size_x(rect),
                                BLI_rcti_size_y(rect),
+                               GPU_DATA_FLOAT,
                                rp->rect);
 
     float winmat[4][4];

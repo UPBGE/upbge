@@ -3199,6 +3199,8 @@ static const char *rna_property_subtypename(PropertySubType type)
       return "PROP_PASSWORD";
     case PROP_POWER:
       return "PROP_POWER";
+    case PROP_TEMPERATURE:
+      return "PROP_TEMPERATURE";
     default: {
       /* in case we don't have a type preset that includes the subtype */
       if (RNA_SUBTYPE_UNIT(type)) {
@@ -3236,6 +3238,8 @@ static const char *rna_property_subtype_unit(PropertySubType type)
       return "PROP_UNIT_CAMERA";
     case PROP_UNIT_POWER:
       return "PROP_UNIT_POWER";
+    case PROP_UNIT_TEMPERATURE:
+      return "PROP_UNIT_TEMPERATURE";
     default:
       return "PROP_UNIT_UNKNOWN";
   }
@@ -4273,6 +4277,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_animation.c", "rna_animation_api.c", RNA_def_animation},
     {"rna_animviz.c", NULL, RNA_def_animviz},
     {"rna_armature.c", "rna_armature_api.c", RNA_def_armature},
+    {"rna_attribute.c", NULL, RNA_def_attribute},
     {"rna_boid.c", NULL, RNA_def_boid},
     {"rna_brush.c", NULL, RNA_def_brush},
     {"rna_cachefile.c", NULL, RNA_def_cachefile},

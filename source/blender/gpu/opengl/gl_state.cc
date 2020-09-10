@@ -20,17 +20,23 @@
  * \ingroup gpu
  */
 
-#include "BLI_math_base.h"
+#include "BKE_global.h"
 
-#include "GPU_extensions.h"
+#include "BLI_math_base.h"
+#include "BLI_math_bits.h"
+
+#include "GPU_capabilities.h"
 
 #include "glew-mx.h"
 
 #include "gl_context.hh"
+#include "gl_debug.hh"
 #include "gl_framebuffer.hh"
+#include "gl_texture.hh"
+
 #include "gl_state.hh"
 
-using namespace blender::gpu;
+namespace blender::gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name GLStateManager
@@ -50,8 +56,8 @@ GLStateManager::GLStateManager(void) : GPUStateManager()
 
   glPrimitiveRestartIndex((GLuint)0xFFFFFFFF);
   /* TODO: Should become default. But needs at least GL 4.3 */
-  if (GLEW_ARB_ES3_compatibility) {
-    /* Takes predecence over GL_PRIMITIVE_RESTART */
+  if (GLContext::fixed_restart_index_support) {
+    /* Takes precedence over #GL_PRIMITIVE_RESTART. */
     glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
   }
 
@@ -69,6 +75,7 @@ void GLStateManager::apply_state(void)
 {
   this->set_state(this->state);
   this->set_mutable_state(this->mutable_state);
+  this->texture_bind_apply();
   active_fb->apply_state();
 };
 
@@ -134,13 +141,13 @@ void GLStateManager::set_mutable_state(const GPUStateMutable &state)
   GPUStateMutable changed = state ^ current_mutable_;
 
   /* TODO remove, should be uniform. */
-  if (changed.point_size != 0) {
+  if (changed.point_size != 0.0f) {
     if (state.point_size > 0.0f) {
       glEnable(GL_PROGRAM_POINT_SIZE);
-      glPointSize(state.point_size);
     }
     else {
       glDisable(GL_PROGRAM_POINT_SIZE);
+      glPointSize(fabsf(state.point_size));
     }
   }
 
@@ -332,7 +339,7 @@ void GLStateManager::set_blend(const eGPUBlend value)
   /**
    * Factors to the equation.
    * SRC is fragment shader output.
-   * DST is framebuffer color.
+   * DST is frame-buffer color.
    * final.rgb = SRC.rgb * src_rgb + DST.rgb * dst_rgb;
    * final.a = SRC.a * src_alpha + DST.a * dst_alpha;
    **/
@@ -408,7 +415,8 @@ void GLStateManager::set_blend(const eGPUBlend value)
   }
 
   /* Always set the blend function. This avoid a rendering error when blending is disabled but
-   * GPU_BLEND_CUSTOM was used just before and the framebuffer is using more than 1 color targe */
+   * GPU_BLEND_CUSTOM was used just before and the frame-buffer is using more than 1 color target.
+   */
   glBlendFuncSeparate(src_rgb, dst_rgb, src_alpha, dst_alpha);
   if (value != GPU_BLEND_NONE) {
     glEnable(GL_BLEND);
@@ -419,3 +427,129 @@ void GLStateManager::set_blend(const eGPUBlend value)
 }
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Texture State Management
+ * \{ */
+
+void GLStateManager::texture_bind(Texture *tex_, eGPUSamplerState sampler_type, int unit)
+{
+  BLI_assert(unit < GPU_max_textures());
+  GLTexture *tex = static_cast<GLTexture *>(tex_);
+  if (G.debug & G_DEBUG_GPU) {
+    tex->check_feedback_loop();
+  }
+  /* Eliminate redundant binds. */
+  if ((textures_[unit] == tex->tex_id_) &&
+      (samplers_[unit] == GLTexture::samplers_[sampler_type])) {
+    return;
+  }
+  targets_[unit] = tex->target_;
+  textures_[unit] = tex->tex_id_;
+  samplers_[unit] = GLTexture::samplers_[sampler_type];
+  tex->is_bound_ = true;
+  dirty_texture_binds_ |= 1ULL << unit;
+}
+
+/* Bind the texture to slot 0 for editing purpose. Used by legacy pipeline. */
+void GLStateManager::texture_bind_temp(GLTexture *tex)
+{
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(tex->target_, tex->tex_id_);
+  /* Will reset the first texture that was originally bound to slot 0 back before drawing. */
+  dirty_texture_binds_ |= 1ULL;
+  /* NOTE: This might leave this texture attached to this target even after update.
+   * In practice it is not causing problems as we have incorrect binding detection
+   * at higher level. */
+}
+
+void GLStateManager::texture_unbind(Texture *tex_)
+{
+  GLTexture *tex = static_cast<GLTexture *>(tex_);
+  if (!tex->is_bound_) {
+    return;
+  }
+
+  GLuint tex_id = tex->tex_id_;
+  for (int i = 0; i < ARRAY_SIZE(textures_); i++) {
+    if (textures_[i] == tex_id) {
+      textures_[i] = 0;
+      samplers_[i] = 0;
+      dirty_texture_binds_ |= 1ULL << i;
+    }
+  }
+  tex->is_bound_ = false;
+}
+
+void GLStateManager::texture_unbind_all(void)
+{
+  for (int i = 0; i < ARRAY_SIZE(textures_); i++) {
+    if (textures_[i] != 0) {
+      textures_[i] = 0;
+      samplers_[i] = 0;
+      dirty_texture_binds_ |= 1ULL << i;
+    }
+  }
+  this->texture_bind_apply();
+}
+
+void GLStateManager::texture_bind_apply(void)
+{
+  if (dirty_texture_binds_ == 0) {
+    return;
+  }
+  uint64_t dirty_bind = dirty_texture_binds_;
+  dirty_texture_binds_ = 0;
+
+  int first = bitscan_forward_uint64(dirty_bind);
+  int last = 64 - bitscan_reverse_uint64(dirty_bind);
+  int count = last - first;
+
+  if (GLContext::multi_bind_support) {
+    glBindTextures(first, count, textures_ + first);
+    glBindSamplers(first, count, samplers_ + first);
+  }
+  else {
+    for (int unit = first; unit < last; unit++) {
+      if ((dirty_bind >> unit) & 1UL) {
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(targets_[unit], textures_[unit]);
+        glBindSampler(unit, samplers_[unit]);
+      }
+    }
+  }
+}
+
+void GLStateManager::texture_unpack_row_length_set(uint len)
+{
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, len);
+}
+
+uint64_t GLStateManager::bound_texture_slots(void)
+{
+  uint64_t bound_slots = 0;
+  for (int i = 0; i < ARRAY_SIZE(textures_); i++) {
+    if (textures_[i] != 0) {
+      bound_slots |= 1ULL << i;
+    }
+  }
+  return bound_slots;
+}
+
+/* Game engine transition */
+void GLStateManager::texture_bind_bge(Texture *tex, int unit)
+{
+  GLTexture *t = reinterpret_cast<GLTexture *>(tex);
+  // BLI_assert(!GLEW_ARB_direct_state_access);
+  glActiveTexture(GL_TEXTURE0 + unit);
+  glBindTexture(t->target_, t->tex_id_);
+  /* Will reset the first texture that was originally bound to slot 0 back before drawing. */
+  dirty_texture_binds_ |= 1ULL << unit;
+  /* NOTE: This might leave this texture attached to this target even after update.
+   * In practice it is not causing problems as we have incorrect binding detection
+   * at higher level. */
+}
+
+/** \} */
+
+}  // namespace blender::gpu

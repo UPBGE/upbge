@@ -20,7 +20,7 @@
 /** \file
  * \ingroup gpu
  *
- * GPU element list (AKA index buffer)
+ * GPU index buffer
  */
 
 #pragma once
@@ -31,40 +31,17 @@
 extern "C" {
 #endif
 
-#define GPU_TRACK_INDEX_RANGE 1
-
-typedef enum {
-  GPU_INDEX_U16,
-  GPU_INDEX_U32,
-} GPUIndexBufType;
-
-typedef struct GPUIndexBuf {
-  uint index_start;
-  uint index_len;
-  bool is_subrange;
-#if GPU_TRACK_INDEX_RANGE
-  GPUIndexBufType index_type;
-  uint32_t gl_index_type;
-  uint base_index;
-#endif
-  uint32_t ibo_id; /* 0 indicates not yet sent to VRAM */
-  union {
-    void *data;              /* non-NULL indicates not yet sent to VRAM */
-    struct GPUIndexBuf *src; /* if is_subrange is true, this is the source buffer. */
-  };
-} GPUIndexBuf;
+/** Opaque type hiding blender::gpu::IndexBuf. */
+typedef struct GPUIndexBuf GPUIndexBuf;
 
 GPUIndexBuf *GPU_indexbuf_calloc(void);
-
-void GPU_indexbuf_use(GPUIndexBuf *);
-uint GPU_indexbuf_size_get(const GPUIndexBuf *);
 
 typedef struct GPUIndexBufBuilder {
   uint max_allowed_index;
   uint max_index_len;
   uint index_len;
   GPUPrimType prim_type;
-  uint *data;
+  uint32_t *data;
 } GPUIndexBufBuilder;
 
 /* supports all primitive types. */
@@ -94,13 +71,15 @@ GPUIndexBuf *GPU_indexbuf_build(GPUIndexBufBuilder *);
 void GPU_indexbuf_build_in_place(GPUIndexBufBuilder *, GPUIndexBuf *);
 
 /* Create a subrange of an existing indexbuffer. */
-GPUIndexBuf *GPU_indexbuf_create_subrange(GPUIndexBuf *ibo, uint start, uint length);
-void GPU_indexbuf_create_subrange_in_place(GPUIndexBuf *r_ibo,
-                                           GPUIndexBuf *ibo,
+GPUIndexBuf *GPU_indexbuf_create_subrange(GPUIndexBuf *elem_src, uint start, uint length);
+void GPU_indexbuf_create_subrange_in_place(GPUIndexBuf *elem,
+                                           GPUIndexBuf *elem_src,
                                            uint start,
                                            uint length);
 
-void GPU_indexbuf_discard(GPUIndexBuf *);
+void GPU_indexbuf_discard(GPUIndexBuf *elem);
+
+bool GPU_indexbuf_is_init(GPUIndexBuf *elem);
 
 int GPU_indexbuf_primitive_len(GPUPrimType prim_type);
 

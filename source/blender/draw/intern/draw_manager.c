@@ -64,7 +64,7 @@
 #include "ED_space_api.h"
 #include "ED_view3d.h"
 
-#include "GPU_extensions.h"
+#include "GPU_capabilities.h"
 #include "GPU_framebuffer.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
@@ -451,7 +451,7 @@ static void drw_context_state_init(void)
   if (DST.draw_ctx.object_mode & OB_MODE_POSE) {
     DST.draw_ctx.object_pose = DST.draw_ctx.obact;
   }
-  else if (DST.draw_ctx.object_mode & OB_MODE_WEIGHT_PAINT) {
+  else if ((DST.draw_ctx.object_mode & OB_MODE_ALL_WEIGHT_PAINT)) {
     DST.draw_ctx.object_pose = BKE_object_pose_armature_get(DST.draw_ctx.obact);
   }
   else {
@@ -1948,7 +1948,7 @@ static void draw_select_framebuffer_depth_only_setup(const int size[2])
 
   if (g_select_buffer.texture_depth == NULL) {
     g_select_buffer.texture_depth = GPU_texture_create_2d(
-        size[0], size[1], GPU_DEPTH_COMPONENT24, NULL, NULL);
+        "select_depth", size[0], size[1], 1, GPU_DEPTH_COMPONENT24, NULL);
 
     GPU_framebuffer_texture_attach(
         g_select_buffer.framebuffer_depth_only, g_select_buffer.texture_depth, 0, 0);
@@ -2515,11 +2515,6 @@ void DRW_draw_depth_object(
 /** \name Draw Manager State (DRW_state)
  * \{ */
 
-void DRW_state_dfdy_factors_get(float dfdyfac[2])
-{
-  GPU_get_dfdy_factors(dfdyfac);
-}
-
 /**
  * When false, drawing doesn't output to a pixel buffer
  * eg: Occlusion queries, or when we have setup a context to draw in already.
@@ -2792,17 +2787,11 @@ void DRW_opengl_context_create(void)
   BLI_assert(DST.gl_context == NULL); /* Ensure it's called once */
 
   DST.gl_context_mutex = BLI_ticket_mutex_alloc();
-  if (!G.background) {
-    immDeactivate();
-  }
   /* This changes the active context. */
   DST.gl_context = WM_opengl_context_create();
   WM_opengl_context_activate(DST.gl_context);
   /* Be sure to create gpu_context too. */
-  DST.gpu_context = GPU_context_create(0);
-  if (!G.background) {
-    immActivate();
-  }
+  DST.gpu_context = GPU_context_create(NULL);
   /* So we activate the window's one afterwards. */
   wm_window_reset_drawable();
 }
@@ -2819,25 +2808,15 @@ void DRW_opengl_context_destroy(void)
   }
 }
 
-void DRW_opengl_context_enable_ex(bool restore)
+void DRW_opengl_context_enable_ex(bool UNUSED(restore))
 {
   if (DST.gl_context != NULL) {
     /* IMPORTANT: We dont support immediate mode in render mode!
      * This shall remain in effect until immediate mode supports
      * multiple threads. */
     BLI_ticket_mutex_lock(DST.gl_context_mutex);
-    if (BLI_thread_is_main() && restore) {
-      if (!G.background) {
-        immDeactivate();
-      }
-    }
     WM_opengl_context_activate(DST.gl_context);
     GPU_context_active_set(DST.gpu_context);
-    if (BLI_thread_is_main() && restore) {
-      if (!G.background) {
-        immActivate();
-      }
-    }
   }
 }
 
@@ -2887,7 +2866,6 @@ void DRW_opengl_render_context_enable(void *re_gl_context)
 
 void DRW_opengl_render_context_disable(void *re_gl_context)
 {
-  GPU_flush();
   WM_opengl_context_release(re_gl_context);
   /* TODO get rid of the blocking. */
   BLI_ticket_mutex_unlock(DST.gl_context_mutex);
@@ -2905,6 +2883,7 @@ void DRW_gpu_render_context_enable(void *re_gpu_context)
 /* Needs to be called BEFORE DRW_opengl_render_context_disable() */
 void DRW_gpu_render_context_disable(void *UNUSED(re_gpu_context))
 {
+  GPU_flush();
   GPU_context_active_set(NULL);
 }
 

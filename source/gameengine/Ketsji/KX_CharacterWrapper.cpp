@@ -121,7 +121,7 @@ int KX_CharacterWrapper::pyattr_set_gravity(PyObjectPlus *self_v,
   MT_Vector3 param;
 
   if (!PyVecTo(value, param)) {
-    PyErr_SetString(PyExc_ValueError, "KX_CharacterWrapper.gravity: expected a float");
+    PyErr_SetString(PyExc_ValueError, "KX_CharacterWrapper.gravity: expected a vector");
     return PY_SET_ATTR_FAIL;
   }
 

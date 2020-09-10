@@ -86,6 +86,10 @@ extern struct DrawEngineType draw_engine_eevee_type;
 /* clang-format on */
 
 #define EEVEE_PROBE_MAX min_ii(MAX_PROBE, GPU_max_texture_layers() / 6)
+#define EEVEE_VELOCITY_TILE_SIZE 32
+#define USE_VOLUME_OPTI \
+  (GLEW_ARB_shader_image_load_store && GLEW_ARB_shading_language_420pack && \
+   !GPU_crappy_amd_driver())
 
 #define SWAP_DOUBLE_BUFFERS() \
   { \
@@ -194,6 +198,14 @@ enum {
   KEY_HAIR = (1 << 2),
   KEY_SHADOW = (1 << 3),
 };
+
+/* SSR shader variations */
+typedef enum EEVEE_SSRShaderOptions {
+  SSR_RESOLVE = (1 << 0),
+  SSR_FULL_TRACE = (1 << 1),
+  SSR_AO = (1 << 3),
+  SSR_MAX_SHADER = (1 << 4),
+} EEVEE_SSRShaderOptions;
 
 /* ************ PROBE UBO ************* */
 
@@ -1007,7 +1019,7 @@ typedef struct EEVEE_PrivateData {
 /* eevee_data.c */
 void EEVEE_motion_blur_data_init(EEVEE_MotionBlurData *mb);
 void EEVEE_motion_blur_data_free(EEVEE_MotionBlurData *mb);
-void EEVEE_view_layer_data_free(void *sldata);
+void EEVEE_view_layer_data_free(void *storage);
 EEVEE_ViewLayerData *EEVEE_view_layer_data_get(void);
 EEVEE_ViewLayerData *EEVEE_view_layer_data_ensure_ex(struct ViewLayer *view_layer);
 EEVEE_ViewLayerData *EEVEE_view_layer_data_ensure(void);
@@ -1084,7 +1096,6 @@ void EEVEE_shadows_draw_cascades(EEVEE_ViewLayerData *sldata,
                                  int cascade_index);
 void EEVEE_shadow_output_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata, uint tot_samples);
 void EEVEE_shadow_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
-void EEVEE_shadows_free(void);
 
 /* eevee_sampling.c */
 void EEVEE_sample_ball(int sample_ofs, float radius, float rsample[3]);
@@ -1113,6 +1124,41 @@ struct GPUShader *EEVEE_shaders_bloom_resolve_get(bool high_quality);
 struct GPUShader *EEVEE_shaders_depth_of_field_downsample_get(bool use_alpha);
 struct GPUShader *EEVEE_shaders_depth_of_field_scatter_get(bool use_alpha);
 struct GPUShader *EEVEE_shaders_depth_of_field_resolve_get(bool use_alpha);
+struct GPUShader *EEVEE_shaders_effect_downsample_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_downsample_cube_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_minz_downlevel_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_maxz_downlevel_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_minz_downdepth_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_maxz_downdepth_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_minz_downdepth_layer_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_maxz_downdepth_layer_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_maxz_copydepth_layer_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_minz_copydepth_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_maxz_copydepth_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_mist_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_motion_blur_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_motion_blur_object_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_motion_blur_hair_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_motion_blur_velocity_tiles_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_motion_blur_velocity_tiles_expand_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_ambient_occlusion_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_ambient_occlusion_layer_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_ambient_occlusion_debug_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_screen_raytrace_sh_get(EEVEE_SSRShaderOptions options);
+struct GPUShader *EEVEE_shaders_renderpasses_post_process_sh_get(void);
+struct GPUShader *EEVEE_shaders_shadow_sh_get(void);
+struct GPUShader *EEVEE_shaders_shadow_accum_sh_get(void);
+struct GPUShader *EEVEE_shaders_subsurface_first_pass_sh_get(void);
+struct GPUShader *EEVEE_shaders_subsurface_second_pass_sh_get(void);
+struct GPUShader *EEVEE_shaders_subsurface_translucency_sh_get(void);
+struct GPUShader *EEVEE_shaders_volumes_clear_sh_get(void);
+struct GPUShader *EEVEE_shaders_volumes_scatter_sh_get(void);
+struct GPUShader *EEVEE_shaders_volumes_scatter_with_lights_sh_get(void);
+struct GPUShader *EEVEE_shaders_volumes_integration_sh_get(void);
+struct GPUShader *EEVEE_shaders_volumes_resolve_sh_get(void);
+struct GPUShader *EEVEE_shaders_volumes_accum_sh_get(void);
+struct GPUShader *EEVEE_shaders_ggx_lut_sh_get(void);
+struct GPUShader *EEVEE_shaders_ggx_refraction_lut_sh_get(void);
 struct GPUShader *EEVEE_shaders_probe_filter_glossy_sh_get(void);
 struct GPUShader *EEVEE_shaders_probe_filter_diffuse_sh_get(void);
 struct GPUShader *EEVEE_shaders_probe_filter_visibility_sh_get(void);
@@ -1186,8 +1232,8 @@ void EEVEE_lightbake_filter_visibility(EEVEE_ViewLayerData *sldata,
                                        float vis_blur,
                                        int vis_size);
 
-void EEVEE_lightprobes_grid_data_from_object(Object *ob, EEVEE_LightGrid *prb_data, int *offset);
-void EEVEE_lightprobes_cube_data_from_object(Object *ob, EEVEE_LightProbe *prb_data);
+void EEVEE_lightprobes_grid_data_from_object(Object *ob, EEVEE_LightGrid *egrid, int *offset);
+void EEVEE_lightprobes_cube_data_from_object(Object *ob, EEVEE_LightProbe *eprobe);
 void EEVEE_lightprobes_planar_data_from_object(Object *ob,
                                                EEVEE_PlanarReflection *eplanar,
                                                EEVEE_LightProbeVisTest *vis_test);
@@ -1228,8 +1274,6 @@ void EEVEE_reflection_output_init(EEVEE_ViewLayerData *sldata,
                                   uint tot_samples);
 void EEVEE_reflection_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 
-void EEVEE_screen_raytrace_free(void);
-
 /* eevee_subsurface.c */
 void EEVEE_subsurface_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_subsurface_draw_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
@@ -1245,7 +1289,6 @@ void EEVEE_subsurface_add_pass(EEVEE_ViewLayerData *sldata,
 void EEVEE_subsurface_data_render(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_subsurface_compute(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_subsurface_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
-void EEVEE_subsurface_free(void);
 
 /* eevee_motion_blur.c */
 int EEVEE_motion_blur_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
@@ -1260,12 +1303,10 @@ void EEVEE_motion_blur_hair_cache_populate(EEVEE_ViewLayerData *sldata,
 void EEVEE_motion_blur_swap_data(EEVEE_Data *vedata);
 void EEVEE_motion_blur_cache_finish(EEVEE_Data *vedata);
 void EEVEE_motion_blur_draw(EEVEE_Data *vedata);
-void EEVEE_motion_blur_free(void);
 
 /* eevee_mist.c */
 void EEVEE_mist_output_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_mist_output_accumulate(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
-void EEVEE_mist_free(void);
 
 /* eevee_renderpasses.c */
 void EEVEE_renderpasses_init(EEVEE_Data *vedata);
@@ -1281,7 +1322,6 @@ void EEVEE_renderpasses_postprocess(EEVEE_ViewLayerData *sldata,
                                     eViewLayerEEVEEPassType renderpass_type);
 void EEVEE_renderpasses_draw(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
 void EEVEE_renderpasses_draw_debug(EEVEE_Data *vedata);
-void EEVEE_renderpasses_free(void);
 bool EEVEE_renderpasses_only_first_sample_pass_active(EEVEE_Data *vedata);
 
 /* eevee_temporal_sampling.c */
@@ -1324,7 +1364,6 @@ void EEVEE_create_minmax_buffer(EEVEE_Data *vedata, struct GPUTexture *depth_src
 void EEVEE_downsample_buffer(EEVEE_Data *vedata, struct GPUTexture *texture_src, int level);
 void EEVEE_downsample_cube_buffer(EEVEE_Data *vedata, struct GPUTexture *texture_src, int level);
 void EEVEE_draw_effects(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata);
-void EEVEE_effects_free(void);
 
 /* eevee_render.c */
 bool EEVEE_render_init(EEVEE_Data *vedata,
@@ -1343,7 +1382,7 @@ void EEVEE_render_cache(void *vedata,
                         struct Depsgraph *depsgraph);
 void EEVEE_render_draw(EEVEE_Data *vedata,
                        struct RenderEngine *engine,
-                       struct RenderLayer *render_layer,
+                       struct RenderLayer *rl,
                        const struct rcti *rect);
 void EEVEE_render_read_result(EEVEE_Data *vedata,
                               struct RenderEngine *engine,

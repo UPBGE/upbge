@@ -593,14 +593,14 @@ static void area_region_panels_free_recursive(Panel *panel)
   MEM_freeN(panel);
 }
 
-void BKE_area_region_panels_free(ListBase *lb)
+void BKE_area_region_panels_free(ListBase *panels)
 {
-  LISTBASE_FOREACH_MUTABLE (Panel *, panel, lb) {
+  LISTBASE_FOREACH_MUTABLE (Panel *, panel, panels) {
     /* Free custom data just for parent panels to avoid a double free. */
     MEM_SAFE_FREE(panel->runtime.custom_data_ptr);
     area_region_panels_free_recursive(panel);
   }
-  BLI_listbase_clear(lb);
+  BLI_listbase_clear(panels);
 }
 
 /* not region itself */
@@ -694,7 +694,7 @@ void BKE_screen_free(bScreen *screen)
 
 /* ***************** Screen edges & verts ***************** */
 
-ScrEdge *BKE_screen_find_edge(bScreen *screen, ScrVert *v1, ScrVert *v2)
+ScrEdge *BKE_screen_find_edge(const bScreen *screen, ScrVert *v1, ScrVert *v2)
 {
   ScrEdge *se;
 
@@ -1055,6 +1055,18 @@ void BKE_screen_view3d_shading_init(View3DShading *shading)
 {
   const View3DShading *shading_default = DNA_struct_default_get(View3DShading);
   memcpy(shading, shading_default, sizeof(*shading));
+}
+
+ARegion *BKE_screen_find_main_region_at_xy(bScreen *screen,
+                                           const int space_type,
+                                           const int x,
+                                           const int y)
+{
+  ScrArea *area = BKE_screen_find_area_xy(screen, space_type, x, y);
+  if (!area) {
+    return NULL;
+  }
+  return BKE_area_find_region_xy(area, RGN_TYPE_WINDOW, x, y);
 }
 
 /* magic zoom calculation, no idea what

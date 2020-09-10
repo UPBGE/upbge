@@ -207,13 +207,13 @@ void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 void RAS_2DFilter::BindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *colorfb)
 {
   if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-    GPU_texture_bind(GPU_framebuffer_color_texture(colorfb->GetFrameBuffer()), 8);
+    GPU_texture_bind_bge(GPU_framebuffer_color_texture(colorfb->GetFrameBuffer()), 8);
     if (m_mipmap) {
       GPU_framebuffer_mipmap_texture(colorfb->GetFrameBuffer());
     }
   }
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-    GPU_texture_bind(GPU_framebuffer_depth_texture(depthfb->GetFrameBuffer()), 9);
+    GPU_texture_bind_bge(GPU_framebuffer_depth_texture(depthfb->GetFrameBuffer()), 9);
   }
 
   // Bind custom textures.

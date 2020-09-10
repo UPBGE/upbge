@@ -35,6 +35,9 @@
 
 #include "MEM_guardedalloc.h"
 
+/* Allow using deprecated functionality for .blend file I/O. */
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_defaults.h"
 #include "DNA_material_types.h"
 #include "DNA_meta_types.h"
@@ -50,6 +53,7 @@
 
 #include "BKE_main.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_curve.h"
 #include "BKE_displist.h"
 #include "BKE_idtype.h"
@@ -61,6 +65,8 @@
 #include "BKE_scene.h"
 
 #include "DEG_depsgraph.h"
+
+#include "BLO_read_write.h"
 
 static void metaball_init_data(ID *id)
 {
@@ -110,6 +116,71 @@ static void metaball_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void metaball_blend_write(BlendWriter *writer, ID *id, const void *id_address)
+{
+  MetaBall *mb = (MetaBall *)id;
+  if (mb->id.us > 0 || BLO_write_is_undo(writer)) {
+    /* Clean up, important in undo case to reduce false detection of changed datablocks. */
+    BLI_listbase_clear(&mb->disp);
+    mb->editelems = NULL;
+    /* Must always be cleared (meta's don't have their own edit-data). */
+    mb->needs_flush_to_id = 0;
+    mb->lastelem = NULL;
+    mb->batch_cache = NULL;
+
+    /* write LibData */
+    BLO_write_id_struct(writer, MetaBall, id_address, &mb->id);
+    BKE_id_blend_write(writer, &mb->id);
+
+    /* direct data */
+    BLO_write_pointer_array(writer, mb->totcol, mb->mat);
+    if (mb->adt) {
+      BKE_animdata_blend_write(writer, mb->adt);
+    }
+
+    LISTBASE_FOREACH (MetaElem *, ml, &mb->elems) {
+      BLO_write_struct(writer, MetaElem, ml);
+    }
+  }
+}
+
+static void metaball_blend_read_data(BlendDataReader *reader, ID *id)
+{
+  MetaBall *mb = (MetaBall *)id;
+  BLO_read_data_address(reader, &mb->adt);
+  BKE_animdata_blend_read_data(reader, mb->adt);
+
+  BLO_read_pointer_array(reader, (void **)&mb->mat);
+
+  BLO_read_list(reader, &(mb->elems));
+
+  BLI_listbase_clear(&mb->disp);
+  mb->editelems = NULL;
+  /* Must always be cleared (meta's don't have their own edit-data). */
+  mb->needs_flush_to_id = 0;
+  /*  mb->edit_elems.first= mb->edit_elems.last= NULL;*/
+  mb->lastelem = NULL;
+  mb->batch_cache = NULL;
+}
+
+static void metaball_blend_read_lib(BlendLibReader *reader, ID *id)
+{
+  MetaBall *mb = (MetaBall *)id;
+  for (int a = 0; a < mb->totcol; a++) {
+    BLO_read_id_address(reader, mb->id.lib, &mb->mat[a]);
+  }
+
+  BLO_read_id_address(reader, mb->id.lib, &mb->ipo);  // XXX deprecated - old animation system
+}
+
+static void metaball_blend_read_expand(BlendExpander *expander, ID *id)
+{
+  MetaBall *mb = (MetaBall *)id;
+  for (int a = 0; a < mb->totcol; a++) {
+    BLO_expand(expander, mb->mat[a]);
+  }
+}
+
 IDTypeInfo IDType_ID_MB = {
     .id_code = ID_MB,
     .id_filter = FILTER_ID_MB,
@@ -127,10 +198,10 @@ IDTypeInfo IDType_ID_MB = {
     .foreach_id = metaball_foreach_id,
     .foreach_cache = NULL,
 
-    .blend_write = NULL,
-    .blend_read_data = NULL,
-    .blend_read_lib = NULL,
-    .blend_read_expand = NULL,
+    .blend_write = metaball_blend_write,
+    .blend_read_data = metaball_blend_read_data,
+    .blend_read_lib = metaball_blend_read_lib,
+    .blend_read_expand = metaball_blend_read_expand,
 };
 
 /* Functions */
@@ -433,21 +504,21 @@ void BKE_mball_properties_copy(Scene *scene, Object *active_object)
   }
 }
 
-/** \brief This function finds basic MetaBall.
+/** \brief This function finds the basis MetaBall.
  *
- * Basic meta-ball doesn't include any number at the end of
+ * Basis meta-ball doesn't include any number at the end of
  * its name. All meta-balls with same base of name can be
  * blended. meta-balls with different basic name can't be blended.
  *
  * \warning #BKE_mball_is_basis() can fail on returned object, see function docs for details.
  */
-Object *BKE_mball_basis_find(Scene *scene, Object *basis)
+Object *BKE_mball_basis_find(Scene *scene, Object *object)
 {
-  Object *bob = basis;
+  Object *bob = object;
   int basisnr, obnr;
   char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
 
-  BLI_split_name_num(basisname, &basisnr, basis->id.name + 2, '.');
+  BLI_split_name_num(basisname, &basisnr, object->id.name + 2, '.');
 
   LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
     LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
@@ -460,7 +531,7 @@ Object *BKE_mball_basis_find(Scene *scene, Object *basis)
            * that it has to have same base of its name. */
           if (STREQ(obname, basisname)) {
             if (obnr < basisnr) {
-              basis = ob;
+              object = ob;
               basisnr = obnr;
             }
           }
@@ -469,7 +540,7 @@ Object *BKE_mball_basis_find(Scene *scene, Object *basis)
     }
   }
 
-  return basis;
+  return object;
 }
 
 bool BKE_mball_minmax_ex(
@@ -484,7 +555,6 @@ bool BKE_mball_minmax_ex(
   LISTBASE_FOREACH (const MetaElem *, ml, &mb->elems) {
     if ((ml->flag & flag) == flag) {
       const float scale_mb = (ml->rad * 0.5f) * scale;
-      int i;
 
       if (obmat) {
         mul_v3_m4v3(centroid, obmat, &ml->x);
@@ -494,7 +564,7 @@ bool BKE_mball_minmax_ex(
       }
 
       /* TODO, non circle shapes cubes etc, probably nobody notices - campbell */
-      for (i = -1; i != 3; i += 2) {
+      for (int i = -1; i != 3; i += 2) {
         copy_v3_v3(vec, centroid);
         add_v3_fl(vec, scale_mb * i);
         minmax_v3v3_v3(min, max, vec);

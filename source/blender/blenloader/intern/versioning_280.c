@@ -667,7 +667,7 @@ static ARegion *do_versions_find_region(ListBase *regionbase, int regiontype)
 {
   ARegion *region = do_versions_find_region_or_null(regionbase, regiontype);
   if (region == NULL) {
-    BLI_assert(!"Did not find expected region in versioning");
+    //BLI_assert(!"Did not find expected region in versioning");
   }
   return region;
 }
@@ -3080,10 +3080,10 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
     for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
       UnitSettings *unit = &scene->unit;
       if (unit->system != USER_UNIT_NONE) {
-        unit->length_unit = bUnit_GetBaseUnitOfType(scene->unit.system, B_UNIT_LENGTH);
-        unit->mass_unit = bUnit_GetBaseUnitOfType(scene->unit.system, B_UNIT_MASS);
+        unit->length_unit = BKE_unit_base_of_type_get(scene->unit.system, B_UNIT_LENGTH);
+        unit->mass_unit = BKE_unit_base_of_type_get(scene->unit.system, B_UNIT_MASS);
       }
-      unit->time_unit = bUnit_GetBaseUnitOfType(USER_UNIT_NONE, B_UNIT_TIME);
+      unit->time_unit = BKE_unit_base_of_type_get(USER_UNIT_NONE, B_UNIT_TIME);
     }
 
     /* gpencil grid settings */
@@ -3527,7 +3527,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
               SpaceFile *sfile = (SpaceFile *)sl;
               if (sfile->params) {
                 sfile->params->flag &= ~(FILE_PARAMS_FLAG_UNUSED_1 | FILE_PARAMS_FLAG_UNUSED_6 |
-                                         FILE_PARAMS_FLAG_UNUSED_9);
+                                         FILE_OBDATA_INSTANCE);
               }
               break;
             }

@@ -1,3 +1,6 @@
+# The warnings below are disabled because they are too pedantic and not worth fixing.
+# Some of them will be enabled as part of the Clang-Tidy task, see T78535.
+
 Checks:  >
   -*,
   readability-*,
@@ -12,13 +15,7 @@ Checks:  >
 
   -readability-misleading-indentation,
 
-  -readability-inconsistent-declaration-parameter-name,
-  -readability-redundant-preprocessor,
   -readability-redundant-member-init,
-  -readability-const-return-type,
-  -readability-static-accessed-through-instance,
-  -readability-redundant-declaration,
-  -readability-qualified-auto,
   -readability-use-anyofallof,
 
   bugprone-*,
@@ -30,7 +27,5 @@ Checks:  >
 
   -bugprone-sizeof-expression,
   -bugprone-integer-division,
-  -bugprone-incorrect-roundings,
-  -bugprone-copy-constructor-init,
 
 WarningsAsErrors: '*'
