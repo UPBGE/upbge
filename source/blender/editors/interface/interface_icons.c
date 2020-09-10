@@ -975,7 +975,7 @@ static void init_iconfile_list(struct ListBase *list)
 {
   IconFile *ifile;
   struct direntry *dir;
-  int totfile, i, index = 1;
+  int index = 1;
   const char *icondir;
 
   BLI_listbase_clear(list);
@@ -985,9 +985,9 @@ static void init_iconfile_list(struct ListBase *list)
     return;
   }
 
-  totfile = BLI_filelist_dir_contents(icondir, &dir);
+  int totfile = BLI_filelist_dir_contents(icondir, &dir);
 
-  for (i = 0; i < totfile; i++) {
+  for (int i = 0; i < totfile; i++) {
     if ((dir[i].type & S_IFREG)) {
       const char *filename = dir[i].relname;
 
@@ -2289,6 +2289,36 @@ int UI_idcode_icon_get(const int idcode)
     case ID_SIM:
       /* TODO: Use correct icon. */
       return ICON_PHYSICS;
+    default:
+      return ICON_NONE;
+  }
+}
+
+int UI_mode_icon_get(const int mode)
+{
+  switch (mode) {
+    case OB_MODE_OBJECT:
+      return ICON_OBJECT_DATAMODE;
+    case OB_MODE_EDIT:
+    case OB_MODE_EDIT_GPENCIL:
+      return ICON_EDITMODE_HLT;
+    case OB_MODE_SCULPT:
+    case OB_MODE_SCULPT_GPENCIL:
+      return ICON_SCULPTMODE_HLT;
+    case OB_MODE_VERTEX_PAINT:
+    case OB_MODE_VERTEX_GPENCIL:
+      return ICON_VPAINT_HLT;
+    case OB_MODE_WEIGHT_PAINT:
+    case OB_MODE_WEIGHT_GPENCIL:
+      return ICON_WPAINT_HLT;
+    case OB_MODE_TEXTURE_PAINT:
+      return ICON_TPAINT_HLT;
+    case OB_MODE_PARTICLE_EDIT:
+      return ICON_PARTICLEMODE;
+    case OB_MODE_POSE:
+      return ICON_POSE_HLT;
+    case OB_MODE_PAINT_GPENCIL:
+      return ICON_GREASEPENCIL;
     default:
       return ICON_NONE;
   }

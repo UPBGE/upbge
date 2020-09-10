@@ -28,6 +28,7 @@
 #include "GPU_platform.h"
 
 #include "gl_backend.hh"
+#include "gl_debug.hh"
 #include "gl_vertex_buffer.hh"
 
 #include "gl_shader.hh"
@@ -48,11 +49,7 @@ GLShader::GLShader(const char *name) : Shader(name)
 #endif
   shader_program_ = glCreateProgram();
 
-  if (GLContext::debug_layer_support) {
-    char sh_name[64];
-    SNPRINTF(sh_name, "ShaderProgram-%s", name);
-    glObjectLabel(GL_PROGRAM, shader_program_, -1, sh_name);
-  }
+  debug::object_label(GL_PROGRAM, shader_program_, name);
 }
 
 GLShader::~GLShader(void)
@@ -88,25 +85,15 @@ char *GLShader::glsl_patch_get(void)
 
   /* Enable extensions for features that are not part of our base GLSL version
    * don't use an extension for something already available! */
-  if (GLEW_ARB_texture_gather) {
-    /* There is a bug on older Nvidia GPU where GL_ARB_texture_gather
-     * is reported to be supported but yield a compile error (see T55802). */
-    if (!GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY) || GLEW_VERSION_4_0) {
-      STR_CONCAT(patch, slen, "#extension GL_ARB_texture_gather: enable\n");
-
-      /* Some drivers don't agree on GLEW_ARB_texture_gather and the actual support in the
-       * shader so double check the preprocessor define (see T56544). */
-      if (!GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY) && !GLEW_VERSION_4_0) {
-        STR_CONCAT(patch, slen, "#ifdef GL_ARB_texture_gather\n");
-        STR_CONCAT(patch, slen, "#  define GPU_ARB_texture_gather\n");
-        STR_CONCAT(patch, slen, "#endif\n");
-      }
-      else {
-        STR_CONCAT(patch, slen, "#define GPU_ARB_texture_gather\n");
-      }
-    }
+  if (GLContext::texture_gather_support) {
+    STR_CONCAT(patch, slen, "#extension GL_ARB_texture_gather: enable\n");
+    /* Some drivers don't agree on GLEW_ARB_texture_gather and the actual support in the
+     * shader so double check the preprocessor define (see T56544). */
+    STR_CONCAT(patch, slen, "#ifdef GL_ARB_texture_gather\n");
+    STR_CONCAT(patch, slen, "#  define GPU_ARB_texture_gather\n");
+    STR_CONCAT(patch, slen, "#endif\n");
   }
-  if (GLEW_ARB_shader_draw_parameters) {
+  if (GLContext::shader_draw_parameters_support) {
     STR_CONCAT(patch, slen, "#extension GL_ARB_shader_draw_parameters : enable\n");
     STR_CONCAT(patch, slen, "#define GPU_ARB_shader_draw_parameters\n");
   }
@@ -163,21 +150,7 @@ GLuint GLShader::create_shader_stage(GLenum gl_stage, MutableSpan<const char *> 
     return 0;
   }
 
-  if (GLContext::debug_layer_support) {
-    char sh_name[64];
-    switch (gl_stage) {
-      case GL_VERTEX_SHADER:
-        BLI_snprintf(sh_name, sizeof(sh_name), "VertShader-%s", name);
-        break;
-      case GL_GEOMETRY_SHADER:
-        BLI_snprintf(sh_name, sizeof(sh_name), "GeomShader-%s", name);
-        break;
-      case GL_FRAGMENT_SHADER:
-        BLI_snprintf(sh_name, sizeof(sh_name), "FragShader-%s", name);
-        break;
-    }
-    glObjectLabel(GL_SHADER, shader, -1, sh_name);
-  }
+  debug::object_label(gl_stage, shader, name);
 
   glAttachShader(shader_program_, shader);
   return shader;

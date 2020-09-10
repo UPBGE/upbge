@@ -30,6 +30,7 @@
 #include "glew-mx.h"
 
 #include "gl_context.hh"
+#include "gl_debug.hh"
 #include "gl_framebuffer.hh"
 #include "gl_texture.hh"
 
@@ -55,7 +56,7 @@ GLStateManager::GLStateManager(void) : GPUStateManager()
 
   glPrimitiveRestartIndex((GLuint)0xFFFFFFFF);
   /* TODO: Should become default. But needs at least GL 4.3 */
-  if (GLEW_ARB_ES3_compatibility) {
+  if (GLContext::fixed_restart_index_support) {
     /* Takes precedence over #GL_PRIMITIVE_RESTART. */
     glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
   }
@@ -140,13 +141,13 @@ void GLStateManager::set_mutable_state(const GPUStateMutable &state)
   GPUStateMutable changed = state ^ current_mutable_;
 
   /* TODO remove, should be uniform. */
-  if (changed.point_size != 0) {
+  if (changed.point_size != 0.0f) {
     if (state.point_size > 0.0f) {
       glEnable(GL_PROGRAM_POINT_SIZE);
-      glPointSize(state.point_size);
     }
     else {
       glDisable(GL_PROGRAM_POINT_SIZE);
+      glPointSize(fabsf(state.point_size));
     }
   }
 
@@ -453,7 +454,6 @@ void GLStateManager::texture_bind(Texture *tex_, eGPUSamplerState sampler_type, 
 /* Bind the texture to slot 0 for editing purpose. Used by legacy pipeline. */
 void GLStateManager::texture_bind_temp(GLTexture *tex)
 {
-  // BLI_assert(!GLEW_ARB_direct_state_access);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(tex->target_, tex->tex_id_);
   /* Will reset the first texture that was originally bound to slot 0 back before drawing. */
@@ -505,7 +505,7 @@ void GLStateManager::texture_bind_apply(void)
   int last = 64 - bitscan_reverse_uint64(dirty_bind);
   int count = last - first;
 
-  if (GLEW_ARB_multi_bind) {
+  if (GLContext::multi_bind_support) {
     glBindTextures(first, count, textures_ + first);
     glBindSamplers(first, count, samplers_ + first);
   }

@@ -89,21 +89,14 @@ bool GLTexture::init_internal(void)
   this->ensure_mipmaps(0);
 
   /* Avoid issue with incomplete textures. */
-  if (GLEW_ARB_direct_state_access) {
+  if (GLContext::direct_state_access_support) {
     glTextureParameteri(tex_id_, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   }
   else {
     glTexParameteri(target_, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   }
 
-  if (GLContext::debug_layer_support) {
-    char sh_name[64];
-    SNPRINTF(sh_name, "Texture-%s", name_);
-    /* Binding before setting the label is needed on some drivers. */
-    glObjectLabel(GL_TEXTURE, tex_id_, -1, sh_name);
-  }
-
-  GL_CHECK_ERROR("Post-texture creation");
+  debug::object_label(GL_TEXTURE, tex_id_, name_);
   return true;
 }
 
@@ -118,21 +111,15 @@ bool GLTexture::init_internal(GPUVertBuf *vbo)
 
   GLenum internal_format = to_gl_internal_format(format_);
 
-  if (GLEW_ARB_direct_state_access) {
+  if (GLContext::direct_state_access_support) {
     glTextureBuffer(tex_id_, internal_format, gl_vbo->vbo_id_);
   }
   else {
     glTexBuffer(target_, internal_format, gl_vbo->vbo_id_);
   }
 
-  if (GLContext::debug_layer_support) {
-    char sh_name[64];
-    SNPRINTF(sh_name, "Texture-%s", name_);
-    /* Binding before setting the label is needed on some drivers. */
-    glObjectLabel(GL_TEXTURE, tex_id_, -1, sh_name);
-  }
+  debug::object_label(GL_TEXTURE, tex_id_, name_);
 
-  GL_CHECK_ERROR("Post-texture buffer creation");
   return true;
 }
 
@@ -193,8 +180,6 @@ void GLTexture::ensure_mipmaps(int miplvl)
           break;
       }
     }
-
-    GL_CHECK_ERROR("Post-mipmap creation");
   }
 
   this->mip_range_set(0, mipmaps_);
@@ -240,7 +225,6 @@ void GLTexture::update_sub_direct_state_access(
         break;
     }
   }
-  GL_CHECK_ERROR("Post-update_sub_direct_state_access");
 }
 
 void GLTexture::update_sub(
@@ -260,8 +244,8 @@ void GLTexture::update_sub(
   GLenum gl_format = to_gl_data_format(format_);
   GLenum gl_type = to_gl(type);
 
-  /* Some drivers have issues with cubemap & glTextureSubImage3D even if it correct. */
-  if (GLEW_ARB_direct_state_access && (type_ != GPU_TEXTURE_CUBE)) {
+  /* Some drivers have issues with cubemap & glTextureSubImage3D even if it is correct. */
+  if (GLContext::direct_state_access_support && (type_ != GPU_TEXTURE_CUBE)) {
     this->update_sub_direct_state_access(mip, offset, extent, gl_format, gl_type, data);
     return;
   }
@@ -304,8 +288,6 @@ void GLTexture::update_sub(
         break;
     }
   }
-
-  GL_CHECK_ERROR("Post-update_sub");
 }
 
 /** This will create the mipmap images and populate them with filtered data from base level.
@@ -324,7 +306,7 @@ void GLTexture::generate_mipmap(void)
   }
 
   /* Downsample from mip 0 using implementation. */
-  if (GLEW_ARB_direct_state_access) {
+  if (GLContext::direct_state_access_support) {
     glGenerateTextureMipmap(tex_id_);
   }
   else {
@@ -337,7 +319,7 @@ void GLTexture::clear(eGPUDataFormat data_format, const void *data)
 {
   BLI_assert(validate_data_format(format_, data_format));
 
-  if (GLEW_ARB_clear_texture && !(G.debug & G_DEBUG_GPU_FORCE_WORKAROUNDS)) {
+  if (GLContext::clear_texture_support) {
     int mip = 0;
     GLenum gl_format = to_gl_data_format(format_);
     GLenum gl_type = to_gl(data_format);
@@ -366,8 +348,7 @@ void GLTexture::copy_to(Texture *dst_)
   /* TODO support array / 3D textures. */
   BLI_assert(dst->d_ == 0);
 
-  if (GLEW_ARB_copy_image && !GLContext::texture_copy_workaround) {
-    /* Opengl 4.3 */
+  if (GLContext::copy_image_support) {
     int mip = 0;
     /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
     int extent[3] = {1, 1, 1};
@@ -403,7 +384,7 @@ void *GLTexture::read(int mip, eGPUDataFormat type)
   GLenum gl_format = to_gl_data_format(format_);
   GLenum gl_type = to_gl(type);
 
-  if (GLEW_ARB_direct_state_access) {
+  if (GLContext::direct_state_access_support) {
     glGetTextureImage(tex_id_, mip, gl_format, gl_type, texture_size, data);
   }
   else {
@@ -434,7 +415,7 @@ void GLTexture::swizzle_set(const char swizzle[4])
                          (GLint)swizzle_to_gl(swizzle[1]),
                          (GLint)swizzle_to_gl(swizzle[2]),
                          (GLint)swizzle_to_gl(swizzle[3])};
-  if (GLEW_ARB_direct_state_access) {
+  if (GLContext::direct_state_access_support) {
     glTextureParameteriv(tex_id_, GL_TEXTURE_SWIZZLE_RGBA, gl_swizzle);
   }
   else {
@@ -448,7 +429,7 @@ void GLTexture::mip_range_set(int min, int max)
   BLI_assert(min <= max && min >= 0 && max <= mipmaps_);
   mip_min_ = min;
   mip_max_ = max;
-  if (GLEW_ARB_direct_state_access) {
+  if (GLContext::direct_state_access_support) {
     glTextureParameteri(tex_id_, GL_TEXTURE_BASE_LEVEL, min);
     glTextureParameteri(tex_id_, GL_TEXTURE_MAX_LEVEL, max);
   }
@@ -510,22 +491,20 @@ void GLTexture::samplers_init(void)
      * - GL_TEXTURE_LOD_BIAS is 0.0f.
      **/
 
-    if (GLContext::debug_layer_support) {
-      char sampler_name[128];
-      SNPRINTF(sampler_name,
-               "Sampler%s%s%s%s%s%s%s%s%s%s",
-               (state == GPU_SAMPLER_DEFAULT) ? "_default" : "",
-               (state & GPU_SAMPLER_FILTER) ? "_filter" : "",
-               (state & GPU_SAMPLER_MIPMAP) ? "_mipmap" : "",
-               (state & GPU_SAMPLER_REPEAT) ? "_repeat-" : "",
-               (state & GPU_SAMPLER_REPEAT_S) ? "S" : "",
-               (state & GPU_SAMPLER_REPEAT_T) ? "T" : "",
-               (state & GPU_SAMPLER_REPEAT_R) ? "R" : "",
-               (state & GPU_SAMPLER_CLAMP_BORDER) ? "_clamp_border" : "",
-               (state & GPU_SAMPLER_COMPARE) ? "_compare" : "",
-               (state & GPU_SAMPLER_ANISO) ? "_aniso" : "");
-      glObjectLabel(GL_SAMPLER, samplers_[i], -1, sampler_name);
-    }
+    char sampler_name[128] = "\0\0";
+    SNPRINTF(sampler_name,
+             "%s%s%s%s%s%s%s%s%s%s",
+             (state == GPU_SAMPLER_DEFAULT) ? "_default" : "",
+             (state & GPU_SAMPLER_FILTER) ? "_filter" : "",
+             (state & GPU_SAMPLER_MIPMAP) ? "_mipmap" : "",
+             (state & GPU_SAMPLER_REPEAT) ? "_repeat-" : "",
+             (state & GPU_SAMPLER_REPEAT_S) ? "S" : "",
+             (state & GPU_SAMPLER_REPEAT_T) ? "T" : "",
+             (state & GPU_SAMPLER_REPEAT_R) ? "R" : "",
+             (state & GPU_SAMPLER_CLAMP_BORDER) ? "_clamp_border" : "",
+             (state & GPU_SAMPLER_COMPARE) ? "_compare" : "",
+             (state & GPU_SAMPLER_ANISO) ? "_aniso" : "");
+    debug::object_label(GL_SAMPLER, samplers_[i], &sampler_name[1]);
   }
   samplers_update();
 
@@ -535,14 +514,12 @@ void GLTexture::samplers_init(void)
   glSamplerParameteri(icon_sampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glSamplerParameterf(icon_sampler, GL_TEXTURE_LOD_BIAS, -0.5f);
 
-  if (GLContext::debug_layer_support) {
-    glObjectLabel(GL_SAMPLER, icon_sampler, -1, "Sampler-icons");
-  }
+  debug::object_label(GL_SAMPLER, icon_sampler, "icons");
 }
 
 void GLTexture::samplers_update(void)
 {
-  if (!GLEW_EXT_texture_filter_anisotropic) {
+  if (!GLContext::texture_filter_anisotropic_support) {
     return;
   }
 

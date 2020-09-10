@@ -1248,9 +1248,9 @@ void BKE_layer_collection_local_sync(ViewLayer *view_layer, const View3D *v3d)
 }
 
 /**
- * Sync the local collection for all the viewports.
+ * Sync the local collection for all the view-ports.
  */
-void BKE_layer_collection_local_sync_all(Main *bmain)
+void BKE_layer_collection_local_sync_all(const Main *bmain)
 {
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
     LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {

@@ -546,12 +546,11 @@ static void gpencil_brush_grab_apply_cached(tGP_BrushEditData *gso,
     return;
   }
 
-  int i;
   float inverse_diff_mat[4][4];
   invert_m4_m4(inverse_diff_mat, diff_mat);
 
   /* Apply dvec to all of the stored points */
-  for (i = 0; i < data->size; i++) {
+  for (int i = 0; i < data->size; i++) {
     bGPDspoint *pt = &gps->points[data->points[i]];
     float delta[3] = {0.0f};
 
@@ -1106,7 +1105,7 @@ static bool gpencil_sculpt_brush_apply_clone(bContext *C, tGP_BrushEditData *gso
       gpencil_brush_clone_adjust(gso);
     }
     else {
-      /* Continuous - Just keep pasting everytime we move */
+      /* Continuous - Just keep pasting every time we move. */
       /* TODO: The spacing of repeat should be controlled using a
        * "stepsize" or similar property? */
       gpencil_brush_clone_add(C, gso);

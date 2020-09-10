@@ -457,14 +457,14 @@ static void ui_layer_but_cb(bContext *C, void *arg_but, void *arg_index)
   uiBut *but = arg_but;
   PointerRNA *ptr = &but->rnapoin;
   PropertyRNA *prop = but->rnaprop;
-  int i, index = POINTER_AS_INT(arg_index);
+  int index = POINTER_AS_INT(arg_index);
   const int shift = win->eventstate->shift;
   const int len = RNA_property_array_length(ptr, prop);
 
   if (!shift) {
     RNA_property_boolean_set_index(ptr, prop, index, true);
 
-    for (i = 0; i < len; i++) {
+    for (int i = 0; i < len; i++) {
       if (i != index) {
         RNA_property_boolean_set_index(ptr, prop, i, 0);
       }
@@ -632,7 +632,7 @@ static void ui_item_array(uiLayout *layout,
         uiButNumber *number_but = (uiButNumber *)but;
 
         but->a1 = number_but->step_size;
-        ui_but_change_type(but, UI_BTYPE_NUM_SLIDER);
+        but = ui_but_change_type(but, UI_BTYPE_NUM_SLIDER);
       }
     }
   }
@@ -703,7 +703,7 @@ static void ui_item_array(uiLayout *layout,
           uiButNumber *number_but = (uiButNumber *)but;
 
           but->a1 = number_but->step_size;
-          ui_but_change_type(but, UI_BTYPE_NUM_SLIDER);
+          but = ui_but_change_type(but, UI_BTYPE_NUM_SLIDER);
         }
         if ((toggle == 1) && but->type == UI_BTYPE_CHECKBOX) {
           but->type = UI_BTYPE_TOGGLE;
@@ -2299,7 +2299,7 @@ void uiItemFullR(uiLayout *layout,
       uiButNumber *num_but = (uiButNumber *)but;
 
       but->a1 = num_but->step_size;
-      ui_but_change_type(but, UI_BTYPE_NUM_SLIDER);
+      but = ui_but_change_type(but, UI_BTYPE_NUM_SLIDER);
     }
 
     if (flag & UI_ITEM_R_CHECKBOX_INVERT) {
@@ -2584,14 +2584,14 @@ void uiItemsEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propname
   }
 
   const EnumPropertyItem *item;
-  int totitem, i;
+  int totitem;
   bool free;
   uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
   uiLayout *column = uiLayoutColumn(split, false);
 
   RNA_property_enum_items_gettexted(block->evil_C, ptr, prop, &item, &totitem, &free);
 
-  for (i = 0; i < totitem; i++) {
+  for (int i = 0; i < totitem; i++) {
     if (item[i].identifier[0]) {
       uiItemEnumR_prop(column, item[i].name, item[i].icon, ptr, prop, item[i].value);
       ui_but_tip_from_enum_item(block->buttons.last, &item[i]);
