@@ -96,9 +96,7 @@
 #include "DNA_actuator_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
-#include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
@@ -108,28 +106,13 @@
 #include "DNA_fileglobal_types.h"
 #include "DNA_fluid_types.h"
 #include "DNA_genfile.h"
-#include "DNA_gpencil_modifier_types.h"
-#include "DNA_gpencil_types.h"
-#include "DNA_hair_types.h"
-#include "DNA_key_types.h"
-#include "DNA_lattice_types.h"
-#include "DNA_layer_types.h"
-#include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
-#include "DNA_linestyle_types.h"
-#include "DNA_mask_types.h"
-#include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_meta_types.h"
 #include "DNA_movieclip_types.h"
-#include "DNA_node_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
-#include "DNA_packedFile_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_pointcache_types.h"
-#include "DNA_pointcloud_types.h"
 #include "DNA_property_types.h"
 #include "DNA_python_component_types.h"
 #include "DNA_rigidbody_types.h"
@@ -139,17 +122,10 @@
 #include "DNA_sensor_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_shader_fx_types.h"
-#include "DNA_simulation_types.h"
-#include "DNA_sound_types.h"
 #include "DNA_space_types.h"
-#include "DNA_speaker_types.h"
-#include "DNA_text_types.h"
-#include "DNA_vfont_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_volume_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
-#include "DNA_world_types.h"
 
 #include "BLI_bitmap.h"
 #include "BLI_blenlib.h"
@@ -165,7 +141,6 @@
 #include "BKE_collection.h"
 #include "BKE_colortools.h"
 #include "BKE_constraint.h"
-#include "BKE_curve.h"
 #include "BKE_curveprofile.h"
 #include "BKE_deform.h"
 #include "BKE_fcurve.h"
@@ -1618,53 +1593,6 @@ static void write_object(BlendWriter *writer, Object *ob, const void *id_address
   }
 }
 
-static void write_key(BlendWriter *writer, Key *key, const void *id_address)
-{
-  if (key->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* write LibData */
-    BLO_write_id_struct(writer, Key, id_address, &key->id);
-    BKE_id_blend_write(writer, &key->id);
-
-    if (key->adt) {
-      BKE_animdata_blend_write(writer, key->adt);
-    }
-
-    /* direct data */
-    LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
-      BLO_write_struct(writer, KeyBlock, kb);
-      if (kb->data) {
-        BLO_write_raw(writer, kb->totelem * key->elemsize, kb->data);
-      }
-    }
-  }
-}
-
-static void write_texture(BlendWriter *writer, Tex *tex, const void *id_address)
-{
-  if (tex->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* write LibData */
-    BLO_write_id_struct(writer, Tex, id_address, &tex->id);
-    BKE_id_blend_write(writer, &tex->id);
-
-    if (tex->adt) {
-      BKE_animdata_blend_write(writer, tex->adt);
-    }
-
-    /* direct data */
-    if (tex->coba) {
-      BLO_write_struct(writer, ColorBand, tex->coba);
-    }
-
-    /* nodetree is integral part of texture, no libdata */
-    if (tex->nodetree) {
-      BLO_write_struct(writer, bNodeTree, tex->nodetree);
-      ntreeBlendWrite(writer, tex->nodetree);
-    }
-
-    BKE_previewimg_blend_write(writer, tex->preview);
-  }
-}
-
 static void write_collection_nolib(BlendWriter *writer, Collection *collection)
 {
   /* Shared function for collection data-blocks and scene master collection. */
@@ -2037,47 +1965,6 @@ static void write_scene(BlendWriter *writer, Scene *sce, const void *id_address)
   BLI_assert(sce->layer_properties == NULL);
 }
 
-static void write_gpencil(BlendWriter *writer, bGPdata *gpd, const void *id_address)
-{
-  if (gpd->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
-    /* XXX not sure why the whole run-time data is not cleared in reading code,
-     * for now mimicking it here. */
-    gpd->runtime.sbuffer = NULL;
-    gpd->runtime.sbuffer_used = 0;
-    gpd->runtime.sbuffer_size = 0;
-    gpd->runtime.tot_cp_points = 0;
-
-    /* write gpd data block to file */
-    BLO_write_id_struct(writer, bGPdata, id_address, &gpd->id);
-    BKE_id_blend_write(writer, &gpd->id);
-
-    if (gpd->adt) {
-      BKE_animdata_blend_write(writer, gpd->adt);
-    }
-
-    BLO_write_pointer_array(writer, gpd->totcol, gpd->mat);
-
-    /* write grease-pencil layers to file */
-    BLO_write_struct_list(writer, bGPDlayer, &gpd->layers);
-    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-      /* Write mask list. */
-      BLO_write_struct_list(writer, bGPDlayer_Mask, &gpl->mask_layers);
-      /* write this layer's frames to file */
-      BLO_write_struct_list(writer, bGPDframe, &gpl->frames);
-      LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-        /* write strokes */
-        BLO_write_struct_list(writer, bGPDstroke, &gpf->strokes);
-        LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-          BLO_write_struct_array(writer, bGPDspoint, gps->totpoints, gps->points);
-          BLO_write_struct_array(writer, bGPDtriangle, gps->tot_triangles, gps->triangles);
-          BKE_defvert_blend_write(writer, gps->totpoints, gps->dvert);
-        }
-      }
-    }
-  }
-}
-
 static void write_wm_xr_data(BlendWriter *writer, wmXrData *xr_data)
 {
   write_view3dshading(writer, &xr_data->session_settings.shading);
@@ -2371,110 +2258,6 @@ static void write_screen(BlendWriter *writer, bScreen *screen, const void *id_ad
   }
 }
 
-static void write_bone(BlendWriter *writer, Bone *bone)
-{
-  /* PATCH for upward compatibility after 2.37+ armature recode */
-  bone->size[0] = bone->size[1] = bone->size[2] = 1.0f;
-
-  /* Write this bone */
-  BLO_write_struct(writer, Bone, bone);
-
-  /* Write ID Properties -- and copy this comment EXACTLY for easy finding
-   * of library blocks that implement this.*/
-  if (bone->prop) {
-    IDP_BlendWrite(writer, bone->prop);
-  }
-
-  /* Write Children */
-  LISTBASE_FOREACH (Bone *, cbone, &bone->childbase) {
-    write_bone(writer, cbone);
-  }
-}
-
-static void write_armature(BlendWriter *writer, bArmature *arm, const void *id_address)
-{
-  if (arm->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* Clean up, important in undo case to reduce false detection of changed datablocks. */
-    arm->bonehash = NULL;
-    arm->edbo = NULL;
-    /* Must always be cleared (armatures don't have their own edit-data). */
-    arm->needs_flush_to_id = 0;
-    arm->act_edbone = NULL;
-
-    BLO_write_id_struct(writer, bArmature, id_address, &arm->id);
-    BKE_id_blend_write(writer, &arm->id);
-
-    if (arm->adt) {
-      BKE_animdata_blend_write(writer, arm->adt);
-    }
-
-    /* Direct data */
-    LISTBASE_FOREACH (Bone *, bone, &arm->bonebase) {
-      write_bone(writer, bone);
-    }
-  }
-}
-
-static void write_speaker(BlendWriter *writer, Speaker *spk, const void *id_address)
-{
-  if (spk->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* write LibData */
-    BLO_write_id_struct(writer, Speaker, id_address, &spk->id);
-    BKE_id_blend_write(writer, &spk->id);
-
-    if (spk->adt) {
-      BKE_animdata_blend_write(writer, spk->adt);
-    }
-  }
-}
-
-static void write_sound(BlendWriter *writer, bSound *sound, const void *id_address)
-{
-  if (sound->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* Clean up, important in undo case to reduce false detection of changed datablocks. */
-    sound->tags = 0;
-    sound->handle = NULL;
-    sound->playback_handle = NULL;
-    sound->spinlock = NULL;
-
-    /* write LibData */
-    BLO_write_id_struct(writer, bSound, id_address, &sound->id);
-    BKE_id_blend_write(writer, &sound->id);
-
-    BKE_packedfile_blend_write(writer, sound->packedfile);
-  }
-}
-
-static void write_probe(BlendWriter *writer, LightProbe *prb, const void *id_address)
-{
-  if (prb->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* write LibData */
-    BLO_write_id_struct(writer, LightProbe, id_address, &prb->id);
-    BKE_id_blend_write(writer, &prb->id);
-
-    if (prb->adt) {
-      BKE_animdata_blend_write(writer, prb->adt);
-    }
-  }
-}
-
-static void write_cachefile(BlendWriter *writer, CacheFile *cache_file, const void *id_address)
-{
-  if (cache_file->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* Clean up, important in undo case to reduce false detection of changed datablocks. */
-    BLI_listbase_clear(&cache_file->object_paths);
-    cache_file->handle = NULL;
-    memset(cache_file->handle_filepath, 0, sizeof(cache_file->handle_filepath));
-    cache_file->handle_readers = NULL;
-
-    BLO_write_id_struct(writer, CacheFile, id_address, &cache_file->id);
-
-    if (cache_file->adt) {
-      BKE_animdata_blend_write(writer, cache_file->adt);
-    }
-  }
-}
-
 static void write_workspace(BlendWriter *writer, WorkSpace *workspace, const void *id_address)
 {
   BLO_write_id_struct(writer, WorkSpace, id_address, &workspace->id);
@@ -2487,136 +2270,6 @@ static void write_workspace(BlendWriter *writer, WorkSpace *workspace, const voi
     if (tref->properties) {
       IDP_BlendWrite(writer, tref->properties);
     }
-  }
-}
-
-static void write_hair(BlendWriter *writer, Hair *hair, const void *id_address)
-{
-  if (hair->id.us > 0 || BLO_write_is_undo(writer)) {
-    CustomDataLayer *players = NULL, players_buff[CD_TEMP_CHUNK_SIZE];
-    CustomDataLayer *clayers = NULL, clayers_buff[CD_TEMP_CHUNK_SIZE];
-    CustomData_blend_write_prepare(&hair->pdata, &players, players_buff, ARRAY_SIZE(players_buff));
-    CustomData_blend_write_prepare(&hair->cdata, &clayers, clayers_buff, ARRAY_SIZE(clayers_buff));
-
-    /* Write LibData */
-    BLO_write_id_struct(writer, Hair, id_address, &hair->id);
-    BKE_id_blend_write(writer, &hair->id);
-
-    /* Direct data */
-    CustomData_blend_write(writer, &hair->pdata, players, hair->totpoint, CD_MASK_ALL, &hair->id);
-    CustomData_blend_write(writer, &hair->cdata, clayers, hair->totcurve, CD_MASK_ALL, &hair->id);
-
-    BLO_write_pointer_array(writer, hair->totcol, hair->mat);
-    if (hair->adt) {
-      BKE_animdata_blend_write(writer, hair->adt);
-    }
-
-    /* Remove temporary data. */
-    if (players && players != players_buff) {
-      MEM_freeN(players);
-    }
-    if (clayers && clayers != clayers_buff) {
-      MEM_freeN(clayers);
-    }
-  }
-}
-
-static void write_pointcloud(BlendWriter *writer, PointCloud *pointcloud, const void *id_address)
-{
-  if (pointcloud->id.us > 0 || BLO_write_is_undo(writer)) {
-    CustomDataLayer *players = NULL, players_buff[CD_TEMP_CHUNK_SIZE];
-    CustomData_blend_write_prepare(
-        &pointcloud->pdata, &players, players_buff, ARRAY_SIZE(players_buff));
-
-    /* Write LibData */
-    BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);
-    BKE_id_blend_write(writer, &pointcloud->id);
-
-    /* Direct data */
-    CustomData_blend_write(
-        writer, &pointcloud->pdata, players, pointcloud->totpoint, CD_MASK_ALL, &pointcloud->id);
-
-    BLO_write_pointer_array(writer, pointcloud->totcol, pointcloud->mat);
-    if (pointcloud->adt) {
-      BKE_animdata_blend_write(writer, pointcloud->adt);
-    }
-
-    /* Remove temporary data. */
-    if (players && players != players_buff) {
-      MEM_freeN(players);
-    }
-  }
-}
-
-static void write_volume(BlendWriter *writer, Volume *volume, const void *id_address)
-{
-  if (volume->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* Clean up, important in undo case to reduce false detection of changed datablocks. */
-    volume->runtime.grids = 0;
-
-    /* write LibData */
-    BLO_write_id_struct(writer, Volume, id_address, &volume->id);
-    BKE_id_blend_write(writer, &volume->id);
-
-    /* direct data */
-    BLO_write_pointer_array(writer, volume->totcol, volume->mat);
-    if (volume->adt) {
-      BKE_animdata_blend_write(writer, volume->adt);
-    }
-
-    BKE_packedfile_blend_write(writer, volume->packedfile);
-  }
-}
-
-static void write_simulation(BlendWriter *writer, Simulation *simulation, const void *id_address)
-{
-  if (simulation->id.us > 0 || BLO_write_is_undo(writer)) {
-    BLO_write_id_struct(writer, Simulation, id_address, &simulation->id);
-    BKE_id_blend_write(writer, &simulation->id);
-
-    if (simulation->adt) {
-      BKE_animdata_blend_write(writer, simulation->adt);
-    }
-
-    /* nodetree is integral part of simulation, no libdata */
-    if (simulation->nodetree) {
-      BLO_write_struct(writer, bNodeTree, simulation->nodetree);
-      ntreeBlendWrite(writer, simulation->nodetree);
-    }
-
-    LISTBASE_FOREACH (SimulationState *, state, &simulation->states) {
-      BLO_write_string(writer, state->name);
-      BLO_write_string(writer, state->type);
-      /* TODO: Decentralize this part. */
-      if (STREQ(state->type, SIM_TYPE_NAME_PARTICLE_SIMULATION)) {
-        ParticleSimulationState *particle_state = (ParticleSimulationState *)state;
-
-        CustomDataLayer *players = NULL, players_buff[CD_TEMP_CHUNK_SIZE];
-        CustomData_blend_write_prepare(
-            &particle_state->attributes, &players, players_buff, ARRAY_SIZE(players_buff));
-
-        BLO_write_struct(writer, ParticleSimulationState, particle_state);
-
-        CustomData_blend_write(writer,
-                               &particle_state->attributes,
-                               players,
-                               particle_state->tot_particles,
-                               CD_MASK_ALL,
-                               &simulation->id);
-
-        /* Remove temporary data. */
-        if (players && players != players_buff) {
-          MEM_freeN(players);
-        }
-      }
-      else if (STREQ(state->type, SIM_TYPE_NAME_PARTICLE_MESH_EMITTER)) {
-        ParticleMeshEmitterSimulationState *emitter_state = (ParticleMeshEmitterSimulationState *)
-            state;
-        BLO_write_struct(writer, ParticleMeshEmitterSimulationState, emitter_state);
-      }
-    }
-
-    BLO_write_struct_list(writer, SimulationDependency, &simulation->dependencies);
   }
 }
 
@@ -2892,50 +2545,14 @@ static bool write_file_handle(Main *mainvar,
           case ID_SCE:
             write_scene(&writer, (Scene *)id_buffer, id);
             break;
-          case ID_KE:
-            write_key(&writer, (Key *)id_buffer, id);
-            break;
-          case ID_SPK:
-            write_speaker(&writer, (Speaker *)id_buffer, id);
-            break;
-          case ID_LP:
-            write_probe(&writer, (LightProbe *)id_buffer, id);
-            break;
-          case ID_SO:
-            write_sound(&writer, (bSound *)id_buffer, id);
-            break;
           case ID_GR:
             write_collection(&writer, (Collection *)id_buffer, id);
-            break;
-          case ID_AR:
-            write_armature(&writer, (bArmature *)id_buffer, id);
             break;
           case ID_OB:
             write_object(&writer, (Object *)id_buffer, id);
             break;
-          case ID_TE:
-            write_texture(&writer, (Tex *)id_buffer, id);
-            break;
           case ID_PA:
             write_particlesettings(&writer, (ParticleSettings *)id_buffer, id);
-            break;
-          case ID_GD:
-            write_gpencil(&writer, (bGPdata *)id_buffer, id);
-            break;
-          case ID_CF:
-            write_cachefile(&writer, (CacheFile *)id_buffer, id);
-            break;
-          case ID_HA:
-            write_hair(&writer, (Hair *)id_buffer, id);
-            break;
-          case ID_PT:
-            write_pointcloud(&writer, (PointCloud *)id_buffer, id);
-            break;
-          case ID_VO:
-            write_volume(&writer, (Volume *)id_buffer, id);
-            break;
-          case ID_SIM:
-            write_simulation(&writer, (Simulation *)id_buffer, id);
             break;
           case ID_ME:
           case ID_LT:
@@ -2956,6 +2573,18 @@ static bool write_file_handle(Main *mainvar,
           case ID_CA:
           case ID_WO:
           case ID_MSK:
+          case ID_SPK:
+          case ID_AR:
+          case ID_LP:
+          case ID_KE:
+          case ID_TE:
+          case ID_GD:
+          case ID_HA:
+          case ID_PT:
+          case ID_VO:
+          case ID_SIM:
+          case ID_SO:
+          case ID_CF:
             /* Do nothing, handled in IDTypeInfo callback. */
             break;
           case ID_LI:
