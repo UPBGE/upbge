@@ -47,7 +47,6 @@ set(INC
 
 set(INC_SYS
   ${ZLIB_INCLUDE_DIRS}
-  ${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -132,7 +131,6 @@ if(WITH_AUDASPACE)
   )
 endif()
 
-add_definitions(${GL_DEFINITIONS})
 
 if(WITH_INTERNATIONAL)
   add_definitions(-DWITH_INTERNATIONAL)

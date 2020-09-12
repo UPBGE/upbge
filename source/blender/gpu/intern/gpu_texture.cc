@@ -418,6 +418,21 @@ void GPU_texture_unbind_all(void)
   Context::get()->state_manager->texture_unbind_all();
 }
 
+void GPU_texture_image_bind(GPUTexture *tex, int unit)
+{
+  Context::get()->state_manager->image_bind(unwrap(tex), unit);
+}
+
+void GPU_texture_image_unbind(GPUTexture *tex)
+{
+  Context::get()->state_manager->image_unbind(unwrap(tex));
+}
+
+void GPU_texture_image_unbind_all(void)
+{
+  Context::get()->state_manager->image_unbind_all();
+}
+
 void GPU_texture_generate_mipmap(GPUTexture *tex)
 {
   reinterpret_cast<Texture *>(tex)->generate_mipmap();
@@ -496,12 +511,6 @@ void GPU_texture_free(GPUTexture *tex_)
 void GPU_texture_ref(GPUTexture *tex)
 {
   reinterpret_cast<Texture *>(tex)->refcount++;
-}
-
-/* TODO(fclem) Remove! This is broken as it is! */
-int GPU_texture_target(const GPUTexture *UNUSED(tex))
-{
-  return GL_TEXTURE_2D;
 }
 
 int GPU_texture_width(const GPUTexture *tex)

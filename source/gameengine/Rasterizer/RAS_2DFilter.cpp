@@ -24,6 +24,8 @@
 
 #include "DRW_render.h"
 
+#include "glew-mx.h" // We'll remove that later (or skip 2D filters when there will be vulkan)
+
 #include "EXP_Value.h"
 #include "RAS_2DFilterFrameBuffer.h"
 #include "RAS_FrameBuffer.h"

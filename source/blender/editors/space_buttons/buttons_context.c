@@ -1115,27 +1115,11 @@ int buttons_context(const bContext *C, const char *member, bContextDataResult *r
 
 /************************* Drawing the Path ************************/
 
-static void pin_cb(bContext *C, void *UNUSED(arg1), void *UNUSED(arg2))
-{
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
-
-  if (sbuts->flag & SB_PIN_CONTEXT) {
-    sbuts->pinid = buttons_context_id_path(C);
-  }
-  else {
-    sbuts->pinid = NULL;
-  }
-
-  ED_area_tag_redraw(CTX_wm_area(C));
-}
-
 void buttons_context_draw(const bContext *C, uiLayout *layout)
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextPath *path = sbuts->path;
-  uiLayout *row;
-  uiBlock *block;
-  uiBut *but;
+  uiLayout *row, *sub;
   PointerRNA *ptr;
   char namebuf[128], *name;
   int a, icon;
@@ -1199,25 +1183,12 @@ void buttons_context_draw(const bContext *C, uiLayout *layout)
 
   uiItemSpacer(row);
 
-  block = uiLayoutGetBlock(row);
-  UI_block_emboss_set(block, UI_EMBOSS_NONE);
-  but = uiDefIconButBitC(block,
-                         UI_BTYPE_ICON_TOGGLE,
-                         SB_PIN_CONTEXT,
-                         0,
-                         ICON_UNPINNED,
-                         0,
-                         0,
-                         UI_UNIT_X,
-                         UI_UNIT_Y,
-                         &sbuts->flag,
-                         0,
-                         0,
-                         0,
-                         0,
-                         TIP_("Follow context or keep fixed data-block displayed"));
-  UI_but_flag_disable(but, UI_BUT_UNDO); /* skip undo on screen buttons */
-  UI_but_func_set(but, pin_cb, NULL, NULL);
+  sub = uiLayoutRow(row, false);
+  uiLayoutSetEmboss(sub, UI_EMBOSS_NONE);
+  uiItemO(sub,
+          "",
+          (sbuts->flag & SB_PIN_CONTEXT) ? ICON_PINNED : ICON_UNPINNED,
+          "BUTTONS_OT_toggle_pin");
 }
 
 #ifdef USE_HEADER_CONTEXT_PATH

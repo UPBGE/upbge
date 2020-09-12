@@ -98,9 +98,6 @@ union GPUStateMutable {
     /* Viewport State */
     /** TODO remove */
     float depth_range[2];
-    /** TODO remove, use explicit clear calls. */
-    float clear_color[4];
-    float clear_depth;
     /** Negative if using program point size. */
     /* TODO(fclem) should be passed as uniform to all shaders. */
     float point_size;
@@ -152,20 +149,27 @@ inline GPUStateMutable operator~(const GPUStateMutable &a)
  * State manager keeping track of the draw state and applying it before drawing.
  * Base class which is then specialized for each implementation (GL, VK, ...).
  **/
-class GPUStateManager {
+class StateManager {
  public:
   GPUState state;
   GPUStateMutable mutable_state;
 
  public:
-  GPUStateManager();
-  virtual ~GPUStateManager(){};
+  StateManager();
+  virtual ~StateManager(){};
 
   virtual void apply_state(void) = 0;
+  virtual void force_state(void) = 0;
+
+  virtual void issue_barrier(eGPUBarrier barrier_bits) = 0;
 
   virtual void texture_bind(Texture *tex, eGPUSamplerState sampler, int unit) = 0;
   virtual void texture_unbind(Texture *tex) = 0;
   virtual void texture_unbind_all(void) = 0;
+
+  virtual void image_bind(Texture *tex, int unit) = 0;
+  virtual void image_unbind(Texture *tex) = 0;
+  virtual void image_unbind_all(void) = 0;
 
   virtual void texture_unpack_row_length_set(uint len) = 0;
 };

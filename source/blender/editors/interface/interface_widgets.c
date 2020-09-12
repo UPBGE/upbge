@@ -3497,8 +3497,8 @@ void ui_draw_link_bezier(const rcti *rect, const float color[4])
     /* we can reuse the dist variable here to increment the GL curve eval amount*/
     const float dist = 1.0f / (float)LINK_RESOL;
 #endif
-    glEnable(GL_BLEND);
-    glEnable(GL_LINE_SMOOTH);
+    GPU_blend(GPU_BLEND_ALPHA);
+    GPU_line_smooth(true);
 
     immUniformColor4fv(color);
 
@@ -3507,8 +3507,8 @@ void ui_draw_link_bezier(const rcti *rect, const float color[4])
       immVertex2fv(pos, coord_array[i]);
     immEnd();
 
-    glDisable(GL_BLEND);
-    glDisable(GL_LINE_SMOOTH);
+    GPU_blend(GPU_BLEND_NONE);
+    GPU_line_smooth(false);
 
     immUnbindProgram();
   }

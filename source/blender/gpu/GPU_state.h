@@ -35,6 +35,14 @@ typedef enum eGPUWriteMask {
 
 //ENUM_OPERATORS(eGPUWriteMask) // Game engine transition WARNING I commented to fix a compil error but idk what it can do (youle)
 
+typedef enum eGPUBarrier {
+  GPU_BARRIER_NONE = 0,
+  GPU_BARRIER_SHADER_IMAGE_ACCESS = (1 << 0),
+  GPU_BARRIER_TEXTURE_FETCH = (1 << 1),
+} eGPUBarrier;
+
+// ENUM_OPERATORS(eGPUBarrier) // Game engine transition WARNING I commented to fix a compil error but idk what it can do (youle)
+
 /**
  * Defines the fixed pipeline blending equation.
  * SRC is the output color from the shader.
@@ -151,19 +159,10 @@ eGPUStencilTest GPU_stencil_test_get(void);
 
 void GPU_flush(void);
 void GPU_finish(void);
-
-/* Game engine transition
- *
- * To call:
- * - After GPU_viewport
- * - After GPU_scissor
- * - After GPU_texture_bind
- *
- * When we are outside main DRW_game_render_loop,
- * We need that to "flush" viewport, scissor, texture binding...
- */
 void GPU_apply_state(void);
-/**************************/
+void GPU_force_state(void);
+
+void GPU_memory_barrier(eGPUBarrier barrier);
 
 #ifdef __cplusplus
 }

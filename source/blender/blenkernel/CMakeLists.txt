@@ -58,7 +58,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${GLEW_INCLUDE_PATH}
   ${ZLIB_INCLUDE_DIRS}
   ${PYTHON_INCLUDE_DIRS}
 )
@@ -467,7 +466,6 @@ if(WITH_BINRELOC)
   add_definitions(-DWITH_BINRELOC)
 endif()
 
-add_definitions(${GL_DEFINITIONS})
 
 if(WIN32)
   list(APPEND INC
