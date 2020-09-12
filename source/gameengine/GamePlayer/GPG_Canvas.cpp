@@ -36,6 +36,7 @@
 #include "BLI_string.h"
 #include "DNA_space_types.h"
 #include "GHOST_ISystem.h"
+#include "GPU_framebuffer.h"
 #include "MEM_guardedalloc.h"
 
 #include "KX_Globals.h"
@@ -98,8 +99,8 @@ void GPG_Canvas::MakeScreenShot(const std::string &filename)
 void GPG_Canvas::Init()
 {
   if (m_window) {
-    m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT |
-                        RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
+    GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
+    GPU_clear_depth(1.0f);
     m_window->setDrawingContextType(GHOST_kDrawingContextTypeOpenGL);
     BLI_assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
   }

@@ -536,20 +536,6 @@ uint64_t GLStateManager::bound_texture_slots(void)
   return bound_slots;
 }
 
-/* Game engine transition */
-void GLStateManager::texture_bind_bge(Texture *tex, int unit)
-{
-  GLTexture *t = reinterpret_cast<GLTexture *>(tex);
-  // BLI_assert(!GLEW_ARB_direct_state_access);
-  glActiveTexture(GL_TEXTURE0 + unit);
-  glBindTexture(t->target_, t->tex_id_);
-  /* Will reset the first texture that was originally bound to slot 0 back before drawing. */
-  dirty_texture_binds_ |= 1ULL << unit;
-  /* NOTE: This might leave this texture attached to this target even after update.
-   * In practice it is not causing problems as we have incorrect binding detection
-   * at higher level. */
-}
-
 /** \} */
 
 }  // namespace blender::gpu

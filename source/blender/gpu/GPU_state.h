@@ -152,6 +152,19 @@ eGPUStencilTest GPU_stencil_test_get(void);
 void GPU_flush(void);
 void GPU_finish(void);
 
+/* Game engine transition
+ *
+ * To call:
+ * - After GPU_viewport
+ * - After GPU_scissor
+ * - After GPU_texture_bind
+ *
+ * When we are outside main DRW_game_render_loop,
+ * We need that to "flush" viewport, scissor, texture binding...
+ */
+void GPU_apply_state(void);
+/**************************/
+
 #ifdef __cplusplus
 }
 #endif

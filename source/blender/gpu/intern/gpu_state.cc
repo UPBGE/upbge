@@ -342,4 +342,11 @@ GPUStateManager::GPUStateManager(void)
   mutable_state.stencil_reference = 0x00;
 }
 
+/* Game engine transition */
+void GPU_apply_state()
+{
+  Context::get()->state_manager->apply_state();
+}
+/**************************/
+
 /** \} */
