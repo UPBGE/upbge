@@ -482,7 +482,7 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
     }
 
-    /* Initialise additional velocity parameter for CacheFiles. */
+    /* Initialize additional velocity parameter for #CacheFile's. */
     if (!DNA_struct_elem_find(
             fd->filesdna, "MeshSeqCacheModifierData", "float", "velocity_scale")) {
       for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
@@ -522,19 +522,6 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
         LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
           LISTBASE_FOREACH (Panel *, panel, &region->panels) {
             panels_remove_x_closed_flag_recursive(panel);
-          }
-        }
-      }
-    }
-
-    /* Initialize solver for Boolean. */
-    if (!DNA_struct_elem_find(fd->filesdna, "BooleanModifierData", "enum", "solver")) {
-      for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
-        LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-          if (md->type == eModifierType_Boolean) {
-            BooleanModifierData *bmd = (BooleanModifierData *)md;
-            bmd->solver = eBooleanModifierSolver_Fast;
-            bmd->flag = 0;
           }
         }
       }
@@ -597,6 +584,20 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
       }
     }
+
+    /* Solver and Collections for Boolean. */
+    if (!DNA_struct_elem_find(fd->filesdna, "BooleanModifierData", "char", "solver")) {
+      for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
+        LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
+          if (md->type == eModifierType_Boolean) {
+            BooleanModifierData *bmd = (BooleanModifierData *)md;
+            bmd->solver = eBooleanModifierSolver_Fast;
+            bmd->flag = eBooleanModifierFlag_Object;
+          }
+        }
+      }
+    }
+
     /* Keep this block, even when empty. */
   }
 }
