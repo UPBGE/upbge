@@ -307,7 +307,7 @@ void RAS_Rasterizer::EndFrame()
 {
   SetColorMask(true, true, true, true);
 
-  Disable(RAS_MULTISAMPLE);
+  //Disable(RAS_MULTISAMPLE);
 }
 
 void RAS_Rasterizer::SetShadowMode(RAS_Rasterizer::ShadowType shadowmode)
