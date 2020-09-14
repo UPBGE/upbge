@@ -257,7 +257,7 @@ void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
   /*Disable(RAS_BLEND);
   Disable(RAS_ALPHA_TEST);*/
 
-  SetFrontFace(true);
+  //SetFrontFace(true);
 
   //SetColorMask(true, true, true, true);
   GPU_color_mask(true, true, true, true);
@@ -292,7 +292,7 @@ void RAS_Rasterizer::BeginFrame(double time)
 
   GPU_matrix_reset();
 
-  SetFrontFace(true);
+  //SetFrontFace(true);
 
   m_impl->BeginFrame();
 
