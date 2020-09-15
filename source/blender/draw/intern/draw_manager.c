@@ -1299,6 +1299,10 @@ void DRW_notify_view_update(const DRWUpdateContext *update_ctx)
   Scene *scene = update_ctx->scene;
   ViewLayer *view_layer = update_ctx->view_layer;
 
+  if (scene->flag & SCE_INTERACTIVE) {
+    return;
+  }
+
   const bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
 
   /* Separate update for each stereo view. */

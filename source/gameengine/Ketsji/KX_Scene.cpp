@@ -226,10 +226,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   defaultCamBase->flag |= BASE_HIDDEN;
   DEG_relations_tag_update(bmain);
 
-  m_taaSamplesBackup = scene->eevee.taa_samples;
-  scene->eevee.taa_samples = 0;
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
-
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
 
@@ -304,9 +300,6 @@ KX_Scene::~KX_Scene()
     BKE_layer_collection_sync(scene, view_layer);
     DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
   }
-
-  scene->eevee.taa_samples = m_taaSamplesBackup;
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
   // Put that before we flush depsgraph updates at scene exit
   scene->flag &= ~SCE_INTERACTIVE;
