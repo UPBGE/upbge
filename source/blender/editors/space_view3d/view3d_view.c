@@ -1924,6 +1924,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 
   /* redraw to hide any menus/popups, we don't go back to
    * the window manager until after this operator exits */
+  ED_area_tag_redraw(CTX_wm_area(C));
   WM_redraw_windows(C);
 
   BKE_callback_exec_null(bmain, BKE_CB_EVT_GAME_PRE);
