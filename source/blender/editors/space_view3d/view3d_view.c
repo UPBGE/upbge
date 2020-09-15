@@ -1957,6 +1957,8 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 
   game_engine_save_state(C, prevwin);
 
+  WM_jobs_kill_all(CTX_wm_manager(C));
+
   StartKetsjiShell(C, ar, &cam_frame, 1);
 
   /* window wasnt closed while the BGE was running */
