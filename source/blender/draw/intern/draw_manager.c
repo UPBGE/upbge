@@ -687,6 +687,9 @@ DefaultTextureList *DRW_viewport_texture_list_get(void)
 
 void DRW_viewport_request_redraw(void)
 {
+  if (DRW_context_state_get()->scene->flag & SCE_INTERACTIVE) {
+    return;
+  }
   GPU_viewport_tag_update(DST.viewport);
 }
 
