@@ -16,28 +16,23 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-set(PUGIXML_EXTRA_ARGS
+set(POTRACE_EXTRA_ARGS
 )
 
-ExternalProject_Add(external_pugixml
-  URL ${PUGIXML_URI}
-  DOWNLOAD_DIR ${DOWNLOAD_DIR}
-  URL_HASH MD5=${PUGIXML_HASH}
-  PREFIX ${BUILD_DIR}/pugixml
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/pugixml ${DEFAULT_CMAKE_FLAGS} ${PUGIXML_EXTRA_ARGS}
-  INSTALL_DIR ${LIBDIR}/pugixml
-)
-if(WIN32)
-  if(BUILD_MODE STREQUAL Release)
-    ExternalProject_Add_Step(external_pugixml after_install
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/pugixml/lib/pugixml.lib ${HARVEST_TARGET}/osl/lib/pugixml.lib
-      DEPENDEES install
-    )
-  endif()
-  if(BUILD_MODE STREQUAL Debug)
-    ExternalProject_Add_Step(external_pugixml after_install
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/pugixml/lib/pugixml.lib ${HARVEST_TARGET}/osl/lib/pugixml_d.lib
-      DEPENDEES install
+if((WIN32 AND BUILD_MODE STREQUAL Release) OR UNIX)
+  ExternalProject_Add(external_potrace
+    URL ${POTRACE_URI}
+    DOWNLOAD_DIR ${DOWNLOAD_DIR}
+    URL_HASH MD5=${POTRACE_HASH}
+    PREFIX ${BUILD_DIR}/potrace
+    PATCH_COMMAND ${CMAKE_COMMAND} -E copy ${PATCH_DIR}/cmakelists_potrace.txt ${BUILD_DIR}/potrace/src/external_potrace/CMakeLists.txt
+    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/potrace ${DEFAULT_CMAKE_FLAGS} ${POTRACE_EXTRA_ARGS}
+    INSTALL_DIR ${LIBDIR}/potrace
+  )
+  if(WIN32)
+    ExternalProject_Add_Step(external_potrace after_install
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/potrace ${HARVEST_TARGET}/potrace
+        DEPENDEES install
     )
   endif()
 endif()

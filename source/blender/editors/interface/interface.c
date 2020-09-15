@@ -367,6 +367,12 @@ void UI_block_translate(uiBlock *block, int x, int y)
   BLI_rctf_translate(&block->rect, x, y);
 }
 
+static bool ui_but_is_row_alignment_group(const uiBut *left, const uiBut *right)
+{
+  const bool is_same_align_group = (left->alignnr && (left->alignnr == right->alignnr));
+  return is_same_align_group && (left->rect.xmin < right->rect.xmin);
+}
+
 static void ui_block_bounds_calc_text(uiBlock *block, float offset)
 {
   const uiStyle *style = UI_style_get();
@@ -385,7 +391,26 @@ static void ui_block_bounds_calc_text(uiBlock *block, float offset)
       }
     }
 
-    if (bt->next && bt->rect.xmin < bt->next->rect.xmin) {
+    /* Skip all buttons that are in a horizontal alignment group.
+     * We don't want to split them appart (but still check the row's width and apply current
+     * offsets). */
+    if (bt->next && ui_but_is_row_alignment_group(bt, bt->next)) {
+      int width = 0;
+      int alignnr = bt->alignnr;
+      for (col_bt = bt; col_bt && col_bt->alignnr == alignnr; col_bt = col_bt->next) {
+        width += BLI_rctf_size_x(&col_bt->rect);
+        col_bt->rect.xmin += x1addval;
+        col_bt->rect.xmax += x1addval;
+      }
+      if (width > i) {
+        i = width;
+      }
+      /* Give the following code the last button in the alignment group, there might have to be a
+       * split immediately after. */
+      bt = col_bt ? col_bt->prev : NULL;
+    }
+
+    if (bt && bt->next && bt->rect.xmin < bt->next->rect.xmin) {
       /* End of this column, and it's not the last one. */
       for (col_bt = init_col_bt; col_bt->prev != bt; col_bt = col_bt->next) {
         col_bt->rect.xmin = x1addval;
@@ -403,6 +428,17 @@ static void ui_block_bounds_calc_text(uiBlock *block, float offset)
 
   /* Last column. */
   for (col_bt = init_col_bt; col_bt; col_bt = col_bt->next) {
+    /* Recognize a horizontally arranged alignment group and skip its items. */
+    if (col_bt->next && ui_but_is_row_alignment_group(col_bt, col_bt->next)) {
+      int alignnr = col_bt->alignnr;
+      for (; col_bt && col_bt->alignnr == alignnr; col_bt = col_bt->next) {
+        /* pass */
+      }
+    }
+    if (!col_bt) {
+      break;
+    }
+
     col_bt->rect.xmin = x1addval;
     col_bt->rect.xmax = max_ff(x1addval + i + block->bounds, offset + block->minbounds);
 
@@ -2079,8 +2115,12 @@ void UI_block_draw(const bContext *C, uiBlock *block)
         }
       }
     }
-    ui_draw_aligned_panel(
-        &style, block, &rect, UI_panel_category_is_visible(region), show_background);
+    ui_draw_aligned_panel(&style,
+                          block,
+                          &rect,
+                          UI_panel_category_is_visible(region),
+                          show_background,
+                          region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE);
   }
 
   BLF_batch_draw_begin();
@@ -3751,6 +3791,25 @@ void UI_block_theme_style_set(uiBlock *block, char theme_style)
   block->theme_style = theme_style;
 }
 
+bool UI_block_is_search_only(const uiBlock *block)
+{
+  return block->flag & UI_BLOCK_SEARCH_ONLY;
+}
+
+/**
+ * Use when a block must be searched to give accurate results
+ * for the whole region but shouldn't be displayed.
+ */
+void UI_block_set_search_only(uiBlock *block, bool search_only)
+{
+  SET_FLAG_FROM_TEST(block->flag, search_only, UI_BLOCK_SEARCH_ONLY);
+}
+
+void UI_block_set_search_filter(uiBlock *block, const char *search_filter)
+{
+  block->search_filter = search_filter;
+}
+
 static void ui_but_build_drawstr_float(uiBut *but, double value)
 {
   size_t slen = 0;
@@ -4153,6 +4212,7 @@ uiBut *ui_but_change_type(uiBut *but, eButType new_type)
         const bool found_layout = ui_layout_replace_but_ptr(but->layout, old_but_ptr, but);
         BLI_assert(found_layout);
         UNUSED_VARS_NDEBUG(found_layout);
+        ui_button_group_replace_but_ptr(but->layout, old_but_ptr, but);
       }
     }
   }

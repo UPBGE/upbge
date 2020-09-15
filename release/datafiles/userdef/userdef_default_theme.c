@@ -262,6 +262,7 @@ const bTheme U_theme_default = {
     .icon_folder = RGBA(0xe3c16eff),
   },
   .space_properties = {
+    .match = RGBA(0x5680c2ff),
     .back = RGBA(0x42424200),
     .title = RGBA(0xd4d4d4ff),
     .text = RGBA(0xe6e6e6ff),
@@ -1100,6 +1101,32 @@ const bTheme U_theme_default = {
       .solid = RGBA(0x000000ff),
       .select = RGBA(0x000000ff),
       .active = RGBA(0x000000ff),
+    },
+  },
+  .collection_color = {
+    {
+      .color = RGBA(0xe4312bff),
+    },
+    {
+      .color = RGBA(0xef7e42ff),
+    },
+    {
+      .color = RGBA(0xe4dd52ff),
+    },
+    {
+      .color = RGBA(0x9ac546ff),
+    },
+    {
+      .color = RGBA(0x46bcc2ff),
+    },
+    {
+      .color = RGBA(0x8b65dcff),
+    },
+    {
+      .color = RGBA(0x999999ff),
+    },
+    {
+      .color = RGBA(0x06d4432ff),
     },
   },
 };

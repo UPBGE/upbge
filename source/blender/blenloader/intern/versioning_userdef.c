@@ -216,6 +216,14 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.transparent_checker_secondary);
     btheme->tui.transparent_checker_size = U_theme_default.tui.transparent_checker_size;
   }
+  if (!USER_VERSION_ATLEAST(291, 2)) {
+    /* The new defaults for the file browser theme are the same as
+     * the outliner's, and it's less disruptive to just copy them. */
+    copy_v4_v4_uchar(btheme->space_file.back, btheme->space_outliner.back);
+    copy_v4_v4_uchar(btheme->space_file.row_alternate, btheme->space_outliner.row_alternate);
+
+    FROM_DEFAULT_V4_UCHAR(space_image.grid);
+  }
 
   /**
    * Versioning code until next subversion bump goes here.
@@ -228,13 +236,11 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
    */
   {
     /* Keep this block, even when empty. */
+    for (int i = 0; i < COLLECTION_COLOR_TOT; ++i) {
+      FROM_DEFAULT_V4_UCHAR(collection_color[i].color);
+    }
 
-    /* The new defaults for the file browser theme are the same as
-     * the outliner's, and it's less disruptive to just copy them. */
-    copy_v4_v4_uchar(btheme->space_file.back, btheme->space_outliner.back);
-    copy_v4_v4_uchar(btheme->space_file.row_alternate, btheme->space_outliner.row_alternate);
-
-    FROM_DEFAULT_V4_UCHAR(space_image.grid);
+    FROM_DEFAULT_V4_UCHAR(space_properties.match);
   }
 
 #undef FROM_DEFAULT_V4_UCHAR

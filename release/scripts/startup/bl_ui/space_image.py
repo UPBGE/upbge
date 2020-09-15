@@ -986,7 +986,9 @@ class IMAGE_PT_view_display(Panel):
 
         if ima:
             col.prop(ima, "display_aspect", text="Aspect Ratio")
-            col.prop(sima, "show_repeat", text="Repeat Image")
+            row = col.row()
+            row.active = ima.source != 'TILED'
+            row.prop(sima, "show_repeat", text="Repeat Image")
 
         if show_uvedit:
             col.prop(uvedit, "show_pixel_coords", text="Pixel Coordinates")

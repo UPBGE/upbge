@@ -77,6 +77,7 @@
 #define PNL_ANIM_ALIGN 8
 #define PNL_NEW_ADDED 16
 #define PNL_FIRST 32
+#define PNL_SEARCH_FILTER_MATCHES 64
 
 /* the state of the mouse position relative to the panel */
 typedef enum uiPanelMouseState {
@@ -125,16 +126,32 @@ static bool panel_type_context_poll(ARegion *region,
 /** \name Local Functions
  * \{ */
 
-static void panel_title_color_get(bool show_background, uchar color[4])
+static void panel_title_color_get(const Panel *panel,
+                                  const bool show_background,
+                                  const bool use_search_color,
+                                  const bool region_search_filter_active,
+                                  uchar r_color[4])
 {
-  if (show_background) {
-    UI_GetThemeColor4ubv(TH_TITLE, color);
-  }
-  else {
+  if (!show_background) {
     /* Use menu colors for floating panels. */
     bTheme *btheme = UI_GetTheme();
     const uiWidgetColors *wcol = &btheme->tui.wcol_menu_back;
-    copy_v4_v4_uchar(color, (const uchar *)wcol->text);
+    copy_v4_v4_uchar(r_color, (const uchar *)wcol->text);
+    return;
+  }
+
+  const bool search_match = UI_panel_matches_search_filter(panel);
+
+  if (region_search_filter_active && use_search_color && search_match) {
+    UI_GetThemeColor4ubv(TH_MATCH, r_color);
+  }
+  else {
+    UI_GetThemeColor4ubv(TH_TITLE, r_color);
+    if (region_search_filter_active && !search_match) {
+      r_color[0] *= 0.5;
+      r_color[1] *= 0.5;
+      r_color[2] *= 0.5;
+    }
   }
 }
 
@@ -230,6 +247,7 @@ static Panel *UI_panel_add_instanced_ex(ARegion *region,
   BLI_strncpy(panel->panelname, panel_type->idname, sizeof(panel->panelname));
 
   panel->runtime.custom_data_ptr = custom_data;
+  panel->runtime_flag |= PNL_NEW_ADDED;
 
   /* Add the panel's children too. Although they aren't instanced panels, we can still use this
    * function to create them, as UI_panel_begin does other things we don't need to do. */
@@ -500,6 +518,19 @@ void UI_panel_set_expand_from_list_data(const bContext *C, Panel *panel)
   /* Start panel animation if the open state was changed. */
   if (panel_set_expand_from_list_data_recursive(panel, expand_flag, &flag_index)) {
     panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
+  }
+}
+
+/**
+ * Set expansion based on the data for instanced panels.
+ */
+static void region_panels_set_expansion_from_list_data(const bContext *C, ARegion *region)
+{
+  LISTBASE_FOREACH (Panel *, panel, &region->panels) {
+    PanelType *panel_type = panel->type;
+    if (panel_type != NULL && panel->type->flag & PNL_INSTANCED) {
+      UI_panel_set_expand_from_list_data(C, panel);
+    }
   }
 }
 
@@ -786,6 +817,68 @@ static void ui_offset_panel_block(uiBlock *block)
   block->rect.xmin = block->rect.ymin = 0.0;
 }
 
+void ui_panel_set_search_filter_match(struct Panel *panel, const bool value)
+{
+  SET_FLAG_FROM_TEST(panel->runtime_flag, value, PNL_SEARCH_FILTER_MATCHES);
+}
+
+static void panel_matches_search_filter_recursive(const Panel *panel, bool *filter_matches)
+{
+  *filter_matches |= panel->runtime_flag & PNL_SEARCH_FILTER_MATCHES;
+
+  /* If the panel has no match we need to make sure that its children are too. */
+  if (!*filter_matches) {
+    LISTBASE_FOREACH (const Panel *, child_panel, &panel->children) {
+      panel_matches_search_filter_recursive(child_panel, filter_matches);
+    }
+  }
+}
+
+/**
+ * Find whether a panel or any of its subpanels contain a property that matches the search filter,
+ * depending on the search process running in #UI_block_apply_search_filter earlier.
+ */
+bool UI_panel_matches_search_filter(const Panel *panel)
+{
+  bool search_filter_matches = false;
+  panel_matches_search_filter_recursive(panel, &search_filter_matches);
+  return search_filter_matches;
+}
+
+/**
+ * Expands a panel if it was tagged as having a result by property search, otherwise collapses it.
+ */
+static void panel_set_expansion_from_seach_filter_recursive(const bContext *C, Panel *panel)
+{
+  short start_flag = panel->flag;
+  SET_FLAG_FROM_TEST(panel->flag, !UI_panel_matches_search_filter(panel), PNL_CLOSED);
+  if (start_flag != panel->flag) {
+    panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
+  }
+
+  /* If the panel is filtered (removed) we need to check that its children are too. */
+  LISTBASE_FOREACH (Panel *, child_panel, &panel->children) {
+    if (panel->type == NULL || (panel->type->flag & PNL_NO_HEADER)) {
+      continue;
+    }
+    panel_set_expansion_from_seach_filter_recursive(C, child_panel);
+  }
+}
+
+/**
+ * Uses the panel's search filter flag to set its expansion, activating animation if it was closed
+ * or opened. Note that this can't be set too often, or manual interaction becomes impossible.
+ */
+void UI_panels_set_expansion_from_seach_filter(const bContext *C, ARegion *region)
+{
+  LISTBASE_FOREACH (Panel *, panel, &region->panels) {
+    if (panel->type == NULL || (panel->type->flag & PNL_NO_HEADER)) {
+      continue;
+    }
+    panel_set_expansion_from_seach_filter_recursive(C, panel);
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -829,7 +922,8 @@ void UI_panel_label_offset(uiBlock *block, int *r_x, int *r_y)
 static void ui_draw_aligned_panel_header(const uiStyle *style,
                                          const uiBlock *block,
                                          const rcti *rect,
-                                         const bool show_background)
+                                         const bool show_background,
+                                         const bool region_search_filter_active)
 {
   const Panel *panel = block->panel;
   const bool is_subpanel = (panel->type && panel->type->parent);
@@ -840,7 +934,8 @@ static void ui_draw_aligned_panel_header(const uiStyle *style,
 
   /* draw text label */
   uchar col_title[4];
-  panel_title_color_get(show_background, col_title);
+  panel_title_color_get(
+      panel, show_background, is_subpanel, region_search_filter_active, col_title);
   col_title[3] = 255;
 
   rcti hrect = *rect;
@@ -862,7 +957,8 @@ void ui_draw_aligned_panel(const uiStyle *style,
                            const uiBlock *block,
                            const rcti *rect,
                            const bool show_pin,
-                           const bool show_background)
+                           const bool show_background,
+                           const bool region_search_filter_active)
 {
   const Panel *panel = block->panel;
   float color[4];
@@ -937,7 +1033,7 @@ void ui_draw_aligned_panel(const uiStyle *style,
     GPU_blend(GPU_BLEND_ALPHA);
 
     /* draw with background color */
-    immUniformThemeColor(TH_PANEL_HEADER);
+    immUniformThemeColor(UI_panel_matches_search_filter(panel) ? TH_MATCH : TH_PANEL_HEADER);
     immRectf(pos, minx, headrect.ymin, rect->xmax, y);
 
     immBegin(GPU_PRIM_LINES, 4);
@@ -957,7 +1053,7 @@ void ui_draw_aligned_panel(const uiStyle *style,
   /* draw optional pin icon */
   if (show_pin && (block->panel->flag & PNL_PIN)) {
     uchar col_title[4];
-    panel_title_color_get(show_background, col_title);
+    panel_title_color_get(panel, show_background, false, region_search_filter_active, col_title);
 
     GPU_blend(GPU_BLEND_ALPHA);
     UI_icon_draw_ex(headrect.xmax - ((PNL_ICON * 2.2f) / block->aspect),
@@ -976,7 +1072,8 @@ void ui_draw_aligned_panel(const uiStyle *style,
   if (is_subpanel) {
     titlerect.xmin += (0.7f * UI_UNIT_X) / block->aspect + 0.001f;
   }
-  ui_draw_aligned_panel_header(style, block, &titlerect, show_background);
+  ui_draw_aligned_panel_header(
+      style, block, &titlerect, show_background, region_search_filter_active);
 
   if (show_drag) {
     /* Make `itemrect` smaller. */
@@ -1071,7 +1168,7 @@ void ui_draw_aligned_panel(const uiStyle *style,
     BLI_rctf_scale(&itemrect, 0.25f);
 
     uchar col_title[4];
-    panel_title_color_get(show_background, col_title);
+    panel_title_color_get(panel, show_background, false, region_search_filter_active, col_title);
     float tria_color[4];
     rgb_uchar_to_float(tria_color, col_title);
     tria_color[3] = 1.0f;
@@ -1817,6 +1914,17 @@ void UI_panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y)
 {
   ScrArea *area = CTX_wm_area(C);
 
+  region_panels_set_expansion_from_list_data(C, region);
+
+  /* Update panel expansion based on property search results. */
+  if (region->flag & RGN_FLAG_SEARCH_FILTER_UPDATE) {
+    /* Don't use the last update from the deactivation, or all the panels will be left closed. */
+    if (region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE) {
+      UI_panels_set_expansion_from_seach_filter(C, region);
+      set_panels_list_data_expand_flag(C, region);
+    }
+  }
+
   /* offset contents */
   LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
     if (block->active && block->panel) {
@@ -1853,19 +1961,23 @@ void UI_panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y)
   ui_panels_size(region, r_x, r_y);
 }
 
+/**
+ * Draw panels, selected (panels currently being dragged) on top.
+ */
 void UI_panels_draw(const bContext *C, ARegion *region)
 {
-  /* Draw panels, selected on top. Also in reverse order, because
-   * UI blocks are added in reverse order and we need child panels
-   * to draw on top. */
+  /* Draw in reverse order, because #uiBlocks are added in reverse order
+   * and we need child panels to draw on top. */
   LISTBASE_FOREACH_BACKWARD (uiBlock *, block, &region->uiblocks) {
-    if (block->active && block->panel && !(block->panel->flag & PNL_SELECT)) {
+    if (block->active && block->panel && !(block->panel->flag & PNL_SELECT) &&
+        !UI_block_is_search_only(block)) {
       UI_block_draw(C, block);
     }
   }
 
   LISTBASE_FOREACH_BACKWARD (uiBlock *, block, &region->uiblocks) {
-    if (block->active && block->panel && (block->panel->flag & PNL_SELECT)) {
+    if (block->active && block->panel && (block->panel->flag & PNL_SELECT) &&
+        !UI_block_is_search_only(block)) {
       UI_block_draw(C, block);
     }
   }

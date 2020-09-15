@@ -173,6 +173,8 @@ set(SRC
   engines/eevee/eevee_lut.h
   engines/eevee/eevee_private.h
   engines/external/external_engine.h
+  engines/image/image_engine.h
+  engines/image/image_private.h
   engines/workbench/workbench_engine.h
   engines/workbench/workbench_private.h
   engines/select/select_engine.h
@@ -411,6 +413,7 @@ data_to_c_simple(engines/overlay/shaders/particle_frag.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/sculpt_mask_vert.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/sculpt_mask_frag.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/volume_velocity_vert.glsl SRC)
+data_to_c_simple(engines/overlay/shaders/volume_gridlines_vert.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/wireframe_vert.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/wireframe_frag.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/xray_fade_frag.glsl SRC)
