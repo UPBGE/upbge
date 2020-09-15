@@ -419,7 +419,7 @@ void KX_Scene::ReinitBlenderContextVariables()
     }
 
     for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
-      if (sa->spacetype == SPACE_VIEW3D) {
+      if (sa->spacetype == SPACE_VIEW3D && sa == BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_VIEW3D, 0)) {
         ListBase *regionbase = &sa->regionbase;
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
