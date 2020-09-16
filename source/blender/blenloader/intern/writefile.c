@@ -2391,6 +2391,7 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
   fg.minversion = BLENDER_FILE_MIN_VERSION;
   fg.minsubversion = BLENDER_FILE_MIN_SUBVERSION;
   fg.upbgesubversion = UPBGE_FILE_SUBVERSION;
+  fg.upbgeversion = UPBGE_FILE_VERSION;
 
 #ifdef WITH_BUILDINFO
   {

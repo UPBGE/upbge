@@ -624,6 +624,8 @@ static void read_file_version(FileData *fd, Main *main)
         main->subversionfile = fg->subversion;
         main->minversionfile = fg->minversion;
         main->minsubversionfile = fg->minsubversion;
+        main->upbgeversionfile = fg->upbgeversion;
+        main->upbgesubversionfile = fg->upbgesubversion;
         MEM_freeN(fg);
       }
       else if (bhead->code == ENDB) {
