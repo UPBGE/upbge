@@ -34,6 +34,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_camera_types.h"
+#include "DNA_collection_types.h"
 #include "DNA_genfile.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -49,6 +50,7 @@
 #include "BKE_main.h"
 #include "BKE_node.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 
 #include "BLO_readfile.h"
@@ -61,8 +63,7 @@
 
 void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 {
-  // printf("UPBGE: open file from version : %i, subversion : %i\n", main->upbgeversionfile,
-  // main->upbgesubversionfile);
+  //printf("UPBGE: open file from versionfile: %i, subversionfile: %i\n", main->upbgeversionfile, main->upbgesubversionfile);
   if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 1)) {
     if (!DNA_struct_elem_find(fd->filesdna, "bRaySensor", "int", "mask")) {
       bRaySensor *raySensor;
@@ -181,7 +182,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
     }
   }
 
-  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 3, 1)) {
+  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 0)) {
     if (!DNA_struct_elem_find(fd->filesdna, "GameData", "float", "timeScale")) {
       for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
         scene->gm.timeScale = 1.0f;
@@ -200,6 +201,17 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
         if (ob->bsoft) {
           ob->bsoft->bending_dist = 2;
         }
+      }
+    }
+
+    LISTBASE_FOREACH (Collection *, collection, &main->collections) {
+      collection->flag |= COLLECTION_IS_SPAWNED;
+    }
+    LISTBASE_FOREACH (Scene *, scene, &main->scenes) {
+      /* Old files do not have a master collection, but it will be created by
+       * `BKE_collection_master_add()`. */
+      if (scene->master_collection) {
+        scene->master_collection->flag |= COLLECTION_IS_SPAWNED;
       }
     }
   }
