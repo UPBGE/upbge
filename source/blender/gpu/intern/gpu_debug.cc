@@ -55,8 +55,10 @@ void GPU_debug_group_end(void)
   ctx->debug_group_end();
 }
 
-/* Return a formated string showing the current group hierarchy in this format:
- * "Group1 > Group 2 > Group3 > ... > GroupN : " */
+/**
+ * Return a formatted string showing the current group hierarchy in this format:
+ * "Group1 > Group 2 > Group3 > ... > GroupN : "
+ */
 void GPU_debug_get_groups_names(int name_buf_len, char *r_name_buf)
 {
   Context *ctx = Context::get();
@@ -73,4 +75,22 @@ void GPU_debug_get_groups_names(int name_buf_len, char *r_name_buf)
     sz += BLI_snprintf_rlen(r_name_buf + sz, name_buf_len - sz, "%s > ", name.data());
   }
   r_name_buf[sz - 2] = ':';
+}
+
+/* Return true if inside a debug group with the same name. */
+bool GPU_debug_group_match(const char *ref)
+{
+  /* Otherwise there will be no names. */
+  BLI_assert(G.debug & G_DEBUG_GPU);
+  Context *ctx = Context::get();
+  if (ctx == nullptr) {
+    return false;
+  }
+  DebugStack &stack = ctx->debug_stack;
+  for (StringRef &name : stack) {
+    if (name == ref) {
+      return true;
+    }
+  }
+  return false;
 }

@@ -33,6 +33,7 @@
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_hair_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
@@ -46,6 +47,8 @@
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "BLO_readfile.h"
 #include "readfile.h"
@@ -643,10 +646,40 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
       for (FCurve *fcu = act->curves.first; fcu; fcu = fcu->next) {
         /* Only need to fix Bezier curves with at least 2 keyframes. */
         if (fcu->totvert < 2 || fcu->bezt == NULL) {
-          return;
+          continue;
         }
         do_versions_291_fcurve_handles_limit(fcu);
       }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 291, 3)) {
+    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
+      collection->color_tag = COLLECTION_COLOR_NONE;
+    }
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      /* Old files do not have a master collection, but it will be created by
+       * `BKE_collection_master_add()`. */
+      if (scene->master_collection) {
+        scene->master_collection->color_tag = COLLECTION_COLOR_NONE;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 291, 4) && MAIN_VERSION_ATLEAST(bmain, 291, 1)) {
+    /* Due to a48d78ce07f4f, CustomData.totlayer and CustomData.maxlayer has been written
+     * incorrectly. Fortunately, the size of the layers array has been written to the .blend file
+     * as well, so we can reconstruct totlayer and maxlayer from that. */
+    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+      mesh->vdata.totlayer = mesh->vdata.maxlayer = MEM_allocN_len(mesh->vdata.layers) /
+                                                    sizeof(CustomDataLayer);
+      mesh->edata.totlayer = mesh->edata.maxlayer = MEM_allocN_len(mesh->edata.layers) /
+                                                    sizeof(CustomDataLayer);
+      /* We can be sure that mesh->fdata is empty for files written by 2.90. */
+      mesh->ldata.totlayer = mesh->ldata.maxlayer = MEM_allocN_len(mesh->ldata.layers) /
+                                                    sizeof(CustomDataLayer);
+      mesh->pdata.totlayer = mesh->pdata.maxlayer = MEM_allocN_len(mesh->pdata.layers) /
+                                                    sizeof(CustomDataLayer);
     }
   }
 
@@ -661,11 +694,17 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
    */
   {
     /* Keep this block, even when empty. */
-    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
-      collection->color_tag = COLLECTION_COLOR_NONE;
-    }
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      scene->master_collection->color_tag = COLLECTION_COLOR_NONE;
+
+    /* Add custom profile and bevel mode to curve bevels. */
+    if (!DNA_struct_elem_find(fd->filesdna, "Curve", "char", "bevel_mode")) {
+      LISTBASE_FOREACH (Curve *, curve, &bmain->curves) {
+        if (curve->bevobj != NULL) {
+          curve->bevel_mode = CU_BEV_MODE_OBJECT;
+        }
+        else {
+          curve->bevel_mode = CU_BEV_MODE_ROUND;
+        }
+      }
     }
   }
 }

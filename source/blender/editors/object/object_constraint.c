@@ -387,6 +387,11 @@ static void test_constraint(
       data->act = NULL;
       con->flag |= CONSTRAINT_DISABLE;
     }
+
+    /* Skip target checking if we're not using it */
+    if (data->flag & ACTCON_USE_EVAL_TIME) {
+      check_targets = false;
+    }
   }
   else if (con->type == CONSTRAINT_TYPE_FOLLOWPATH) {
     bFollowPathConstraint *data = con->data;
@@ -1421,6 +1426,49 @@ void ED_object_constraint_dependency_tag_update(Main *bmain, Object *ob, bConstr
   DEG_relations_tag_update(bmain);
 }
 
+bool ED_object_constraint_move_to_index(Object *ob, bConstraint *con, const int index)
+{
+  BLI_assert(con != NULL);
+  BLI_assert(index >= 0);
+
+  ListBase *conlist = ED_object_constraint_list_from_constraint(ob, con, NULL);
+  int current_index = BLI_findindex(conlist, con);
+  BLI_assert(current_index >= 0);
+
+  BLI_listbase_link_move(conlist, con, index - current_index);
+
+  WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT, ob);
+
+  return true;
+}
+
+void ED_object_constraint_link(Main *bmain, Object *ob_dst, ListBase *dst, ListBase *src)
+{
+  BKE_constraints_free(dst);
+  BKE_constraints_copy(dst, src, true);
+  LISTBASE_FOREACH (bConstraint *, con, dst) {
+    ED_object_constraint_dependency_tag_update(bmain, ob_dst, con);
+  }
+  WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, NULL);
+}
+
+void ED_object_constraint_copy_for_object(Main *bmain, Object *ob_dst, bConstraint *con)
+{
+  BKE_constraint_copy_for_object(ob_dst, con);
+  ED_object_constraint_dependency_tag_update(bmain, ob_dst, con);
+  WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, ob_dst);
+}
+
+void ED_object_constraint_copy_for_pose(Main *bmain,
+                                        Object *ob_dst,
+                                        bPoseChannel *pchan,
+                                        bConstraint *con)
+{
+  BKE_constraint_copy_for_pose(ob_dst, pchan, con);
+  ED_object_constraint_dependency_tag_update(bmain, ob_dst, con);
+  WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, ob_dst);
+}
+
 /** \} */
 
 /* ------------------------------------------------------------------- */
@@ -1613,13 +1661,7 @@ static int constraint_move_to_index_exec(bContext *C, wmOperator *op)
   }
 
   if (con) {
-    ListBase *conlist = ED_object_constraint_list_from_constraint(ob, con, NULL);
-    int current_index = BLI_findindex(conlist, con);
-    BLI_assert(current_index >= 0);
-
-    BLI_listbase_link_move(conlist, con, new_index - current_index);
-
-    WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
+    ED_object_constraint_move_to_index(ob, con, new_index);
 
     return OPERATOR_FINISHED;
   }

@@ -225,6 +225,21 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_image.grid);
   }
 
+  if (!USER_VERSION_ATLEAST(291, 3)) {
+    for (int i = 0; i < COLLECTION_COLOR_TOT; ++i) {
+      FROM_DEFAULT_V4_UCHAR(collection_color[i].color);
+    }
+
+    FROM_DEFAULT_V4_UCHAR(space_properties.match);
+
+    /* New grid theme color defaults are the same as the existing background colors,
+     * so they are copied to limit disruption. */
+    copy_v3_v3_uchar(btheme->space_clip.grid, btheme->space_clip.back);
+    btheme->space_clip.grid[3] = 255.0f;
+
+    copy_v3_v3_uchar(btheme->space_node.grid, btheme->space_node.back);
+  }
+
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -236,11 +251,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
    */
   {
     /* Keep this block, even when empty. */
-    for (int i = 0; i < COLLECTION_COLOR_TOT; ++i) {
-      FROM_DEFAULT_V4_UCHAR(collection_color[i].color);
-    }
-
-    FROM_DEFAULT_V4_UCHAR(space_properties.match);
   }
 
 #undef FROM_DEFAULT_V4_UCHAR
