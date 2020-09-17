@@ -375,9 +375,8 @@ function(blender_add_lib
   set_property(GLOBAL APPEND PROPERTY BLENDER_LINK_LIBS ${name})
 endfunction()
 
-# blender_add_test_lib() is used to define a test library. It is intended to be
-# called in tandem with blender_add_lib(). The test library will be linked into
-# the bf_gtest_runner_test executable (see tests/gtests/CMakeLists.txt).
+# Add tests for a Blender library, to be called in tandem with blender_add_lib().
+# The tests will be part of the blender_test executable (see tests/gtests/runner).
 function(blender_add_test_lib
   name
   sources
@@ -409,6 +408,48 @@ function(blender_add_test_lib
   blender_add_lib__impl(${name} "${sources}" "${includes}" "${includes_sys}" "${library_deps}")
 
   set_property(GLOBAL APPEND PROPERTY BLENDER_TEST_LIBS ${name})
+endfunction()
+
+
+# Add tests for a Blender library, to be called in tandem with blender_add_lib().
+# Test will be compiled into a ${name}_test executable.
+#
+# To be used for smaller isolated libraries, that do not have many dependencies.
+# For libraries that do drag in many other Blender libraries and would create a
+# very large executable, blender_add_test_lib() should be used instead.
+function(blender_add_test_executable
+  name
+  sources
+  includes
+  includes_sys
+  library_deps
+  )
+
+  add_cc_flags_custom_test(${name} PARENT_SCOPE)
+
+  ## Otherwise external projects will produce warnings that we cannot fix.
+  remove_strict_flags()
+
+  include_directories(${includes})
+  include_directories(${includes_sys})
+  setup_libdirs()
+
+  BLENDER_SRC_GTEST_EX(
+    NAME ${name}
+    SRC "${sources}"
+    EXTRA_LIBS "${library_deps}"
+    SKIP_ADD_TEST
+  )
+
+  include(GTest)
+  set(_GOOGLETEST_DISCOVER_TESTS_SCRIPT
+    ${CMAKE_SOURCE_DIR}/build_files/cmake/Modules/GTestAddTests.cmake
+  )
+
+  gtest_discover_tests(${name}_test
+    DISCOVERY_MODE PRE_TEST
+    WORKING_DIRECTORY "${TEST_INSTALL_DIR}"
+  )
 endfunction()
 
 # Ninja only: assign 'heavy pool' to some targets that are especially RAM-consuming to build.
@@ -514,33 +555,18 @@ function(SETUP_LIBDIRS)
   endif()
 endfunction()
 
-macro(setup_platform_linker_flags)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PLATFORM_LINKFLAGS}")
-  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${PLATFORM_LINKFLAGS_RELEASE}")
-  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${PLATFORM_LINKFLAGS_DEBUG}")
-endmacro()
+# Platform specific linker flags for targets.
+function(setup_platform_linker_flags
+  target)
+  set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS " ${PLATFORM_LINKFLAGS}")
+  set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE " ${PLATFORM_LINKFLAGS_RELEASE}")
+  set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS_DEBUG " ${PLATFORM_LINKFLAGS_DEBUG}")
+endfunction()
 
-function(setup_liblinks
+# Platform specific libraries for targets.
+function(setup_platform_linker_libs
   target
   )
-
-  # NOTE: This might look like it affects global scope, accumulating linker flags on every call
-  # to setup_liblinks, but this isn't how CMake works. These flags will only affect current
-  # directory from where the function is called.
-  # This means that setup_liblinks() called for ffmpeg_test will not affect blender, and each
-  # of thsoe targets will have single set of linker flags.
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PLATFORM_LINKFLAGS}" PARENT_SCOPE)
-  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${PLATFORM_LINKFLAGS_DEBUG}" PARENT_SCOPE)
-  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${PLATFORM_LINKFLAGS_RELEASE}" PARENT_SCOPE)
-
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${PLATFORM_LINKFLAGS}" PARENT_SCOPE)
-  set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} ${PLATFORM_LINKFLAGS_DEBUG}" PARENT_SCOPE)
-  set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} ${PLATFORM_LINKFLAGS_RELEASE}" PARENT_SCOPE)
-
-  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${PLATFORM_LINKFLAGS}" PARENT_SCOPE)
-  set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_MODULE_LINKER_FLAGS_DEBUG} ${PLATFORM_LINKFLAGS_DEBUG}" PARENT_SCOPE)
-  set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} ${PLATFORM_LINKFLAGS_RELEASE}" PARENT_SCOPE)
-
   # jemalloc must be early in the list, to be before pthread (see T57998)
   if(WITH_MEM_JEMALLOC)
     target_link_libraries(${target} ${JEMALLOC_LIBRARIES})

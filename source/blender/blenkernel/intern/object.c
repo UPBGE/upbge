@@ -50,6 +50,7 @@
 #include "DNA_meta_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_object_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_property_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
@@ -177,14 +178,8 @@ static void object_init_data(ID *id)
 
   ob->type = OB_EMPTY;
 
-  if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
-    ob->trackflag = OB_NEGZ;
-    ob->upflag = OB_POSY;
-  }
-  else {
-    ob->trackflag = OB_POSY;
-    ob->upflag = OB_POSZ;
-  }
+  ob->trackflag = OB_POSY;
+  ob->upflag = OB_POSZ;
 
   /* Game engine defaults*/
   ob->mass = ob->inertia = 1.0f;
@@ -1388,7 +1383,7 @@ void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
     case OB_HAIR:
       return BKE_hair_add(bmain, name);
     case OB_POINTCLOUD:
-      return BKE_pointcloud_add(bmain, name);
+      return BKE_pointcloud_add_default(bmain, name);
     case OB_VOLUME:
       return BKE_volume_add(bmain, name);
     case OB_EMPTY:

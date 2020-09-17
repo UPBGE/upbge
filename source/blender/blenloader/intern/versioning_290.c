@@ -34,6 +34,7 @@
 #include "DNA_gpencil_types.h"
 #include "DNA_hair_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
@@ -46,6 +47,7 @@
 #include "BKE_gpencil.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
+#include "BKE_mesh.h"
 #include "BKE_node.h"
 
 #include "MEM_guardedalloc.h"
@@ -327,6 +329,33 @@ static void do_versions_291_fcurve_handles_limit(FCurve *fcu)
 void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
 {
   UNUSED_VARS(fd);
+
+  if (MAIN_VERSION_ATLEAST(bmain, 290, 2) && MAIN_VERSION_OLDER(bmain, 291, 1)) {
+    /* In this range, the extrude manifold could generate meshes with degenerated face. */
+    LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
+      for (MPoly *mp = me->mpoly, *mp_end = mp + me->totpoly; mp < mp_end; mp++) {
+        if (mp->totloop == 2) {
+          bool changed;
+          BKE_mesh_validate_arrays(me,
+                                   me->mvert,
+                                   me->totvert,
+                                   me->medge,
+                                   me->totedge,
+                                   me->mface,
+                                   me->totface,
+                                   me->mloop,
+                                   me->totloop,
+                                   me->mpoly,
+                                   me->totpoly,
+                                   me->dvert,
+                                   false,
+                                   true,
+                                   &changed);
+          break;
+        }
+      }
+    }
+  }
 
   /** Repair files from duplicate brushes added to blend files, see: T76738. */
   if (!MAIN_VERSION_ATLEAST(bmain, 290, 2)) {
@@ -640,30 +669,6 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
       }
     }
-
-    /* Fix fcurves to allow for new bezier handles behaviour (T75881 and D8752). */
-    for (bAction *act = bmain->actions.first; act; act = act->id.next) {
-      for (FCurve *fcu = act->curves.first; fcu; fcu = fcu->next) {
-        /* Only need to fix Bezier curves with at least 2 keyframes. */
-        if (fcu->totvert < 2 || fcu->bezt == NULL) {
-          continue;
-        }
-        do_versions_291_fcurve_handles_limit(fcu);
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_ATLEAST(bmain, 291, 3)) {
-    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
-      collection->color_tag = COLLECTION_COLOR_NONE;
-    }
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      /* Old files do not have a master collection, but it will be created by
-       * `BKE_collection_master_add()`. */
-      if (scene->master_collection) {
-        scene->master_collection->color_tag = COLLECTION_COLOR_NONE;
-      }
-    }
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 291, 4) && MAIN_VERSION_ATLEAST(bmain, 291, 1)) {
@@ -683,17 +688,28 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
   }
 
-  /**
-   * Versioning code until next subversion bump goes here.
-   *
-   * \note Be sure to check when bumping the version:
-   * - "versioning_userdef.c", #BLO_version_defaults_userpref_blend
-   * - "versioning_userdef.c", #do_versions_theme
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-  {
-    /* Keep this block, even when empty. */
+  if (!MAIN_VERSION_ATLEAST(bmain, 291, 5)) {
+    /* Fix fcurves to allow for new bezier handles behaviour (T75881 and D8752). */
+    for (bAction *act = bmain->actions.first; act; act = act->id.next) {
+      for (FCurve *fcu = act->curves.first; fcu; fcu = fcu->next) {
+        /* Only need to fix Bezier curves with at least 2 keyframes. */
+        if (fcu->totvert < 2 || fcu->bezt == NULL) {
+          continue;
+        }
+        do_versions_291_fcurve_handles_limit(fcu);
+      }
+    }
+
+    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
+      collection->color_tag = COLLECTION_COLOR_NONE;
+    }
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      /* Old files do not have a master collection, but it will be created by
+       * `BKE_collection_master_add()`. */
+      if (scene->master_collection) {
+        scene->master_collection->color_tag = COLLECTION_COLOR_NONE;
+      }
+    }
 
     /* Add custom profile and bevel mode to curve bevels. */
     if (!DNA_struct_elem_find(fd->filesdna, "Curve", "char", "bevel_mode")) {
@@ -706,5 +722,18 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
       }
     }
+  }
+
+  /**
+   * Versioning code until next subversion bump goes here.
+   *
+   * \note Be sure to check when bumping the version:
+   * - "versioning_userdef.c", #BLO_version_defaults_userpref_blend
+   * - "versioning_userdef.c", #do_versions_theme
+   *
+   * \note Keep this message at the bottom of the function.
+   */
+  {
+    /* Keep this block, even when empty. */
   }
 }

@@ -66,10 +66,9 @@
 Global G;
 UserDef U;
 
-static char blender_version_string[48] = "";
-static char upbge_version_string[48] = "";
-
-/* ********** free ********** */
+/* -------------------------------------------------------------------- */
+/** \name Blender Free on Exit
+ * \{ */
 
 /* only to be called on exit blender */
 void BKE_blender_free(void)
@@ -102,6 +101,15 @@ void BKE_blender_free(void)
 
   free_nodesystem();
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Blender Version Access
+ * \{ */
+
+static char blender_version_string[48] = "";
+static char upbge_version_string[48] = "";
 
 static void blender_version_init(void)
 {
@@ -177,6 +185,12 @@ bool BKE_blender_version_is_alpha(void)
   return is_alpha;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Blender #Global Initialize/Clear
+ * \{ */
+
 void BKE_blender_globals_init(void)
 {
   blender_version_init();
@@ -206,7 +220,11 @@ void BKE_blender_globals_clear(void)
   G_MAIN = NULL;
 }
 
-/***/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Blender Preferences
+ * \{ */
 
 static void keymap_item_free(wmKeyMapItem *kmi)
 {
@@ -297,8 +315,8 @@ static void userdef_free_addons(UserDef *userdef)
  */
 void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
 {
-#define U _invalid_access_ /* ensure no accidental global access */
-#ifdef U                   /* quiet warning */
+#define U BLI_STATIC_ASSERT(false, "Global 'U' not allowed, only use arguments passed in!")
+#ifdef U /* quiet warning */
 #endif
 
   userdef_free_keymaps(userdef);
@@ -321,6 +339,12 @@ void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
 
 #undef U
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Blender Preferences (Application Templates)
+ * \{ */
 
 /**
  * Write U from userdef.
@@ -393,6 +417,9 @@ void BKE_blender_userdef_app_template_data_set_and_free(UserDef *userdef)
   MEM_freeN(userdef);
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Blender's AtExit
  *
  * \note Don't use MEM_mallocN so functions can be registered at any time.
