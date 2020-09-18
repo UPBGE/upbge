@@ -123,7 +123,7 @@ typedef enum CustomDataType {
                                   /*  CD_ID_MCOL          = 21, */
   /* CD_TEXTURE_MLOOPCOL = 22, */ /* UNUSED */
   CD_CLOTH_ORCO = 23,
-  /* CD_RECAST = 24, */ /* UNUSED */
+  CD_RECAST = 24,
 
   /* BMESH ONLY START */
   CD_MPOLY = 25,
@@ -182,7 +182,7 @@ typedef enum CustomDataType {
 #define CD_MASK_MDISPS (1 << CD_MDISPS)
 #define CD_MASK_PREVIEW_MCOL (1 << CD_PREVIEW_MCOL)
 #define CD_MASK_CLOTH_ORCO (1 << CD_CLOTH_ORCO)
-// #define CD_MASK_RECAST (1 << CD_RECAST)  /* DEPRECATED */
+#define CD_MASK_RECAST (1 << CD_RECAST)
 
 /* BMESH ONLY START */
 #define CD_MASK_MPOLY (1 << CD_MPOLY)
