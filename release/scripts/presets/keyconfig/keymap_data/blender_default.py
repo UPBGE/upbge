@@ -3677,6 +3677,12 @@ def km_grease_pencil_stroke_weight_mode(params):
         *_template_items_context_panel("VIEW3D_PT_gpencil_weight_context_menu", params.context_menu_event),
     ])
 
+    if params.select_mouse == 'LEFTMOUSE':
+        # Bone selection for combined weight paint + pose mode.
+        items.extend([
+            ("view3d.select", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True}, None),
+        ])
+
     return keymap
 
 
@@ -4364,6 +4370,8 @@ def km_sculpt(params):
     )
 
     items.extend([
+        # Switch Object
+        ("object.switch_object", {"type": 'D', "value": 'PRESS'}, None),
         # Brush strokes
         ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'NORMAL')]}),
@@ -4480,6 +4488,8 @@ def km_mesh(params):
     )
 
     items.extend([
+        #Switch Object
+        ("object.switch_object", {"type": 'D', "value": 'PRESS'}, None),
         # Tools.
         ("mesh.loopcut_slide", {"type": 'R', "value": 'PRESS', "ctrl": True},
          {"properties": [("TRANSFORM_OT_edge_slide", [("release_confirm", False)],)]}),

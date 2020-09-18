@@ -403,7 +403,7 @@ void PE_hide_keys_time(Scene *scene, PTCacheEdit *edit, float cfra)
 static int pe_x_mirror(Object *ob)
 {
   if (ob->type == OB_MESH) {
-    return (((Mesh *)ob->data)->editflag & ME_EDIT_MIRROR_X);
+    return (((Mesh *)ob->data)->symmetry & ME_SYMMETRY_X);
   }
 
   return 0;
@@ -2254,8 +2254,6 @@ int PE_lasso_select(bContext *C, const int mcoords[][2], const int mcoords_len, 
   ARegion *region = CTX_wm_region(C);
   ParticleEditSettings *pset = PE_settings(scene);
   PTCacheEdit *edit = PE_get_current(depsgraph, scene, ob);
-  ParticleSystem *psys = edit->psys;
-  ParticleSystemModifierData *psmd_eval = edit->psmd_eval;
   POINT_P;
   KEY_K;
   float co[3], mat[4][4];
@@ -2276,6 +2274,8 @@ int PE_lasso_select(bContext *C, const int mcoords[][2], const int mcoords_len, 
     data.is_changed |= PE_deselect_all_visible_ex(edit);
   }
 
+  ParticleSystem *psys = edit->psys;
+  ParticleSystemModifierData *psmd_eval = edit->psmd_eval;
   LOOP_VISIBLE_POINTS {
     if (edit->psys && !(psys->flag & PSYS_GLOBAL_HAIR)) {
       psys_mat_hair_to_global(

@@ -1090,7 +1090,7 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
                                             Object *ob,
                                             const float radius)
 {
-  const char symm = sd->paint.symmetry_flags & PAINT_SYMM_AXIS_ALL;
+  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
   float location[3], symm_rot_mat[4][4];
 
   for (int i = 0; i <= symm; i++) {
@@ -1839,28 +1839,22 @@ static void paint_cursor_update_anchored_location(PaintCursorContext *pcontext)
 
 static void paint_cursor_setup_2D_drawing(PaintCursorContext *pcontext)
 {
+  GPU_line_width(2.0f);
   GPU_blend(GPU_BLEND_ALPHA);
+  GPU_line_smooth(true);
   pcontext->pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-
-  float viewport[4];
-  GPU_viewport_size_get_f(viewport);
-  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-  immUniform2fv("viewportSize", &viewport[2]);
-  immUniform1f("lineWidth", 2.0f * U.pixelsize);
+  immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 }
 
 static void paint_cursor_setup_3D_drawing(PaintCursorContext *pcontext)
 {
+  GPU_line_width(2.0f);
   GPU_blend(GPU_BLEND_ALPHA);
+  GPU_line_smooth(true);
   pcontext->pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-
-  float viewport[4];
-  GPU_viewport_size_get_f(viewport);
-  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-  immUniform2fv("viewportSize", &viewport[2]);
-  immUniform1f("lineWidth", 2.0f * U.pixelsize);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 }
 
 static void paint_cursor_restore_drawing_state(void)

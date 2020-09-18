@@ -475,6 +475,13 @@ static void ui_handle_button_activate(bContext *C,
                                       ARegion *region,
                                       uiBut *but,
                                       uiButtonActivateType type);
+static bool ui_do_but_extra_operator_icon(bContext *C,
+                                          uiBut *but,
+                                          uiHandleButtonData *data,
+                                          const wmEvent *event);
+static void ui_do_but_extra_operator_icons_mousemove(uiBut *but,
+                                                     uiHandleButtonData *data,
+                                                     const wmEvent *event);
 
 #ifdef USE_DRAG_MULTINUM
 static void ui_multibut_restore(bContext *C, uiHandleButtonData *data, uiBlock *block);
@@ -3759,6 +3766,7 @@ static void ui_do_but_textedit(
         ui_searchbox_event(C, data->searchbox, but, data->region, event);
 #endif
       }
+      ui_do_but_extra_operator_icons_mousemove(but, data, event);
 
       break;
     case RIGHTMOUSE:
@@ -3787,6 +3795,11 @@ static void ui_do_but_textedit(
       }
       break;
     case LEFTMOUSE: {
+      /* Allow clicks on extra icons while editing. */
+      if (ui_do_but_extra_operator_icon(C, but, data, event)) {
+        break;
+      }
+
       const bool had_selection = but->selsta != but->selend;
 
       /* exit on LMB only on RELEASE for searchbox, to mimic other popups,
@@ -4235,6 +4248,10 @@ static void ui_numedit_apply(bContext *C, uiBlock *block, uiBut *but, uiHandleBu
 
 static void ui_but_extra_operator_icon_apply(bContext *C, uiBut *but, uiButExtraOpIcon *op_icon)
 {
+  if (but->active->interactive) {
+    ui_apply_but(C, but->block, but, but->active, true);
+  }
+  button_activate_state(C, but, BUTTON_STATE_EXIT);
   WM_operator_name_call_ptr(C,
                             op_icon->optype_params->optype,
                             op_icon->optype_params->opcontext,
@@ -4398,7 +4415,7 @@ static uiButExtraOpIcon *ui_but_extra_operator_icon_mouse_over_get(uiBut *but,
                                                                    const wmEvent *event)
 {
   float xmax = but->rect.xmax;
-  const float icon_size = BLI_rctf_size_y(&but->rect);
+  const float icon_size = 0.8f * BLI_rctf_size_y(&but->rect); /* ICON_SIZE_FROM_BUTRECT */
   int x = event->x, y = event->y;
 
   ui_window_to_block(data->region, but->block, &x, &y);
@@ -4424,16 +4441,48 @@ static bool ui_do_but_extra_operator_icon(bContext *C,
 {
   uiButExtraOpIcon *op_icon = ui_but_extra_operator_icon_mouse_over_get(but, data, event);
 
-  if (op_icon) {
-    ED_region_tag_redraw(data->region);
-    button_tooltip_timer_reset(C, but);
+  if (!op_icon) {
+    return false;
+  }
 
-    ui_but_extra_operator_icon_apply(C, but, op_icon);
-    /* Note: 'but', 'data' may now be freed, don't access. */
+  /* Only act on release, avoids some glitches. */
+  if (event->val != KM_RELEASE) {
+    /* Still swallow events on the icon. */
     return true;
   }
 
-  return false;
+  ED_region_tag_redraw(data->region);
+  button_tooltip_timer_reset(C, but);
+
+  ui_but_extra_operator_icon_apply(C, but, op_icon);
+  /* Note: 'but', 'data' may now be freed, don't access. */
+
+  return true;
+}
+
+static void ui_do_but_extra_operator_icons_mousemove(uiBut *but,
+                                                     uiHandleButtonData *data,
+                                                     const wmEvent *event)
+{
+  uiButExtraOpIcon *old_highlighted = NULL;
+
+  /* Unset highlighting of all first. */
+  LISTBASE_FOREACH (uiButExtraOpIcon *, op_icon, &but->extra_op_icons) {
+    if (op_icon->highlighted) {
+      old_highlighted = op_icon;
+    }
+    op_icon->highlighted = false;
+  }
+
+  uiButExtraOpIcon *hovered = ui_but_extra_operator_icon_mouse_over_get(but, data, event);
+
+  if (hovered) {
+    hovered->highlighted = true;
+  }
+
+  if (old_highlighted != hovered) {
+    ED_region_tag_redraw_no_rebuild(data->region);
+  }
 }
 
 #ifdef USE_DRAG_TOGGLE
@@ -8981,6 +9030,9 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
           ui_blocks_set_tooltips(region, true);
           button_tooltip_timer_reset(C, but);
         }
+
+        /* Update extra icons states. */
+        ui_do_but_extra_operator_icons_mousemove(but, data, event);
 
         break;
       }

@@ -735,5 +735,29 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
    */
   {
     /* Keep this block, even when empty. */
+
+    /* Darken Inactive Overlay. */
+    if (!DNA_struct_elem_find(fd->filesdna, "View3DOverlay", "float", "fade_alpha")) {
+      for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+          LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+            if (sl->spacetype == SPACE_VIEW3D) {
+              View3D *v3d = (View3D *)sl;
+              v3d->overlay.fade_alpha = 0.40f;
+              v3d->overlay.flag |= V3D_OVERLAY_FADE_INACTIVE;
+            }
+          }
+        }
+      }
+    }
+
+    /* Unify symmetry as a mesh property. */
+    if (!DNA_struct_elem_find(fd->filesdna, "Mesh", "char", "symmetry")) {
+      LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+        /* The previous flags used to store mesh symmery in edit mode match the new ones that are
+         * used in mesh->symmery. */
+        mesh->symmetry = mesh->editflag & (ME_SYMMETRY_X | ME_SYMMETRY_Y | ME_SYMMETRY_Z);
+      }
+    }
   }
 }
