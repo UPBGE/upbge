@@ -1922,7 +1922,11 @@ static int game_engine_exec(bContext *C, wmOperator *op)
   if (!ED_view3d_context_activate(C))
     return OPERATOR_CANCELLED;
 
-  /* redraw to hide any menus/popups, we don't go back to
+  /* Calling this seems to avoid some UI flickering on windows
+   * later during runtime. */
+  ED_area_tag_redraw(CTX_wm_area(C));
+
+  /* Redraw to hide any menus/popups, we don't go back to
    * the window manager until after this operator exits */
   WM_redraw_windows(C);
 
@@ -1956,6 +1960,9 @@ static int game_engine_exec(bContext *C, wmOperator *op)
   }
 
   game_engine_save_state(C, prevwin);
+
+  /* We can kill existing threads by precaution before ge start */
+  WM_jobs_kill_all(CTX_wm_manager(C));
 
   StartKetsjiShell(C, ar, &cam_frame, 1);
 

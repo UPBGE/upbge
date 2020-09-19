@@ -687,6 +687,9 @@ DefaultTextureList *DRW_viewport_texture_list_get(void)
 
 void DRW_viewport_request_redraw(void)
 {
+  if (DRW_context_state_get()->scene->flag & SCE_INTERACTIVE) {
+    return;
+  }
   GPU_viewport_tag_update(DST.viewport);
 }
 
@@ -1298,6 +1301,10 @@ void DRW_notify_view_update(const DRWUpdateContext *update_ctx)
   Depsgraph *depsgraph = update_ctx->depsgraph;
   Scene *scene = update_ctx->scene;
   ViewLayer *view_layer = update_ctx->view_layer;
+
+  if (scene->flag & SCE_INTERACTIVE) {
+    return;
+  }
 
   const bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
 
