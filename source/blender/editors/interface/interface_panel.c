@@ -118,7 +118,7 @@ typedef struct PanelSort {
 
 static int get_panel_real_size_y(const Panel *panel);
 static void panel_activate_state(const bContext *C, Panel *panel, uiHandlePanelState state);
-static int compare_panel(const void *a1, const void *a2);
+static int compare_panel(const void *a, const void *b);
 static bool panel_type_context_poll(ARegion *region,
                                     const PanelType *panel_type,
                                     const char *context);
@@ -854,10 +854,11 @@ static void panel_set_expansion_from_seach_filter_recursive(const bContext *C, P
 
   /* If the panel is filtered (removed) we need to check that its children are too. */
   LISTBASE_FOREACH (Panel *, child_panel, &panel->children) {
-    if (panel->type == NULL || (panel->type->flag & PNL_NO_HEADER)) {
-      continue;
+    if (panel->runtime_flag & PANEL_ACTIVE) {
+      if (!(panel->type->flag & PNL_NO_HEADER)) {
+        panel_set_expansion_from_seach_filter_recursive(C, child_panel);
+      }
     }
-    panel_set_expansion_from_seach_filter_recursive(C, child_panel);
   }
 }
 
@@ -868,10 +869,11 @@ static void panel_set_expansion_from_seach_filter_recursive(const bContext *C, P
 void UI_panels_set_expansion_from_seach_filter(const bContext *C, ARegion *region)
 {
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-    if (panel->type == NULL || (panel->type->flag & PNL_NO_HEADER)) {
-      continue;
+    if (panel->runtime_flag & PANEL_ACTIVE) {
+      if (!(panel->type->flag & PNL_NO_HEADER)) {
+        panel_set_expansion_from_seach_filter_recursive(C, panel);
+      }
     }
-    panel_set_expansion_from_seach_filter_recursive(C, panel);
   }
 }
 
@@ -1651,53 +1653,55 @@ bool UI_panel_is_dragging(const struct Panel *panel)
 }
 
 /**
- * \note about sorting;
- * the #Panel.sortorder has a lower value for new panels being added.
+ * \note about sorting:
+ * The #Panel.sortorder has a lower value for new panels being added.
  * however, that only works to insert a single panel, when more new panels get
  * added the coordinates of existing panels and the previously stored to-be-inserted
- * panels do not match for sorting
+ * panels do not match for sorting.
  */
 
-static int find_highest_panel(const void *a1, const void *a2)
+static int find_highest_panel(const void *a, const void *b)
 {
-  const PanelSort *ps1 = a1, *ps2 = a2;
+  const Panel *panel_a = ((PanelSort *)a)->panel;
+  const Panel *panel_b = ((PanelSort *)b)->panel;
 
-  /* stick uppermost header-less panels to the top of the region -
-   * prevent them from being sorted (multiple header-less panels have to be sorted though) */
-  if (ps1->panel->type->flag & PNL_NO_HEADER && ps2->panel->type->flag & PNL_NO_HEADER) {
+  /* Stick uppermost header-less panels to the top of the region -
+   * prevent them from being sorted (multiple header-less panels have to be sorted though). */
+  if (panel_a->type->flag & PNL_NO_HEADER && panel_b->type->flag & PNL_NO_HEADER) {
     /* Skip and check for `ofsy` and #Panel.sortorder below. */
   }
-  if (ps1->panel->type->flag & PNL_NO_HEADER) {
+  if (panel_a->type->flag & PNL_NO_HEADER) {
     return -1;
   }
-  if (ps2->panel->type->flag & PNL_NO_HEADER) {
+  if (panel_a->type->flag & PNL_NO_HEADER) {
     return 1;
   }
 
-  if (ps1->panel->ofsy + ps1->panel->sizey < ps2->panel->ofsy + ps2->panel->sizey) {
+  if (panel_a->ofsy + panel_a->sizey < panel_b->ofsy + panel_b->sizey) {
     return 1;
   }
-  if (ps1->panel->ofsy + ps1->panel->sizey > ps2->panel->ofsy + ps2->panel->sizey) {
+  if (panel_a->ofsy + panel_a->sizey > panel_b->ofsy + panel_b->sizey) {
     return -1;
   }
-  if (ps1->panel->sortorder > ps2->panel->sortorder) {
+  if (panel_a->sortorder > panel_b->sortorder) {
     return 1;
   }
-  if (ps1->panel->sortorder < ps2->panel->sortorder) {
+  if (panel_a->sortorder < panel_b->sortorder) {
     return -1;
   }
 
   return 0;
 }
 
-static int compare_panel(const void *a1, const void *a2)
+static int compare_panel(const void *a, const void *b)
 {
-  const PanelSort *ps1 = a1, *ps2 = a2;
+  const Panel *panel_a = ((PanelSort *)a)->panel;
+  const Panel *panel_b = ((PanelSort *)b)->panel;
 
-  if (ps1->panel->sortorder > ps2->panel->sortorder) {
+  if (panel_a->sortorder > panel_b->sortorder) {
     return 1;
   }
-  if (ps1->panel->sortorder < ps2->panel->sortorder) {
+  if (panel_a->sortorder < panel_b->sortorder) {
     return -1;
   }
 

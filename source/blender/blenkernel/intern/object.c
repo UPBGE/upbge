@@ -4882,7 +4882,7 @@ bool BKE_object_modifier_gpencil_use_time(Object *ob, GpencilModifierData *md)
   }
 
   /* Check whether modifier is animated. */
-  /* TODO (Aligorith): this should be handled as part of build_animdata() */
+  /* TODO(Aligorith): this should be handled as part of build_animdata() */
   if (ob->adt) {
     AnimData *adt = ob->adt;
     FCurve *fcu;
@@ -4917,7 +4917,7 @@ bool BKE_object_shaderfx_use_time(Object *ob, ShaderFxData *fx)
   }
 
   /* Check whether effect is animated. */
-  /* TODO (Aligorith): this should be handled as part of build_animdata() */
+  /* TODO(Aligorith): this should be handled as part of build_animdata() */
   if (ob->adt) {
     AnimData *adt = ob->adt;
     FCurve *fcu;

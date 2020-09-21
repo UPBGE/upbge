@@ -774,7 +774,7 @@ static bool project_paint_PickColor(
   else {
     // xi = (int)((uv[0]*ibuf->x) + 0.5f);
     // yi = (int)((uv[1]*ibuf->y) + 0.5f);
-    // if (xi < 0 || xi >= ibuf->x  ||  yi < 0 || yi >= ibuf->y) return 0;
+    // if (xi < 0 || xi >= ibuf->x  ||  yi < 0 || yi >= ibuf->y) return false;
 
     /* wrap */
     xi = mod_i((int)(uv[0] * ibuf->x), ibuf->x);
@@ -899,7 +899,7 @@ static bool project_bucket_point_occluded(const ProjPaintState *ps,
   int isect_ret;
   const bool do_clip = RV3D_CLIPPING_ENABLED(ps->v3d, ps->rv3d);
 
-  /* we could return 0 for 1 face buckets, as long as this function assumes
+  /* we could return false for 1 face buckets, as long as this function assumes
    * that the point its testing is only every originated from an existing face */
 
   for (; bucketFace; bucketFace = bucketFace->next) {
@@ -2080,12 +2080,12 @@ static bool line_clip_rect2f(const rctf *cliprect,
   if (fabsf(l1[0] - l2[0]) < PROJ_PIXEL_TOLERANCE) {
     /* is the line out of range on its X axis? */
     if (l1[0] < rect->xmin || l1[0] > rect->xmax) {
-      return 0;
+      return false;
     }
 
     /* line is out of range on its Y axis */
     if ((l1[1] < rect->ymin && l2[1] < rect->ymin) || (l1[1] > rect->ymax && l2[1] > rect->ymax)) {
-      return 0;
+      return false;
     }
 
     /* this is a single point  (or close to)*/
@@ -2124,7 +2124,7 @@ static bool line_clip_rect2f(const rctf *cliprect,
 
   /* line inside rect */
   if (ok1 && ok2) {
-    return 1;
+    return true;
   }
 
   /* top/bottom */
@@ -6032,8 +6032,8 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (!BKE_paint_proj_mesh_data_check(scene, ob, &uvs, &mat, &tex, NULL)) {
-    BKE_paint_data_warning(op->reports, uvs, mat, tex, true);
+  if (!ED_paint_proj_mesh_data_check(scene, ob, &uvs, &mat, &tex, NULL)) {
+    ED_paint_data_warning(op->reports, uvs, mat, tex, true);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
     return OPERATOR_CANCELLED;
   }
@@ -6290,7 +6290,7 @@ void PAINT_OT_image_from_view(wmOperatorType *ot)
  * Data generation for projective texturing  *
  * *******************************************/
 
-void BKE_paint_data_warning(struct ReportList *reports, bool uvs, bool mat, bool tex, bool stencil)
+void ED_paint_data_warning(struct ReportList *reports, bool uvs, bool mat, bool tex, bool stencil)
 {
   BKE_reportf(reports,
               RPT_WARNING,
@@ -6303,7 +6303,7 @@ void BKE_paint_data_warning(struct ReportList *reports, bool uvs, bool mat, bool
 
 /* Make sure that active object has a material,
  * and assign UVs and image layers if they do not exist */
-bool BKE_paint_proj_mesh_data_check(
+bool ED_paint_proj_mesh_data_check(
     Scene *scene, Object *ob, bool *uvs, bool *mat, bool *tex, bool *stencil)
 {
   Mesh *me;
@@ -6333,19 +6333,15 @@ bool BKE_paint_proj_mesh_data_check(
       for (int i = 1; i < ob->totcol + 1; i++) {
         Material *ma = BKE_object_material_get(ob, i);
 
-        if (ma) {
+        if (ma && !ID_IS_LINKED(ma)) {
           hasmat = true;
-          if (!ma->texpaintslot) {
+          if (ma->texpaintslot == NULL) {
             /* refresh here just in case */
             BKE_texpaint_slot_refresh_cache(scene, ma);
-
-            /* if still no slots, we have to add */
-            if (ma->texpaintslot) {
-              hastex = true;
-              break;
-            }
           }
-          else {
+          if (ma->texpaintslot != NULL &&
+              (ma->texpaintslot[ma->paint_active_slot].ima == NULL ||
+               !ID_IS_LINKED(ma->texpaintslot[ma->paint_active_slot].ima))) {
             hastex = true;
             break;
           }
@@ -6354,7 +6350,7 @@ bool BKE_paint_proj_mesh_data_check(
     }
   }
   else if (imapaint->mode == IMAGEPAINT_MODE_IMAGE) {
-    if (imapaint->canvas == NULL) {
+    if (imapaint->canvas == NULL || ID_IS_LINKED(imapaint->canvas)) {
       hastex = false;
     }
   }
@@ -6618,7 +6614,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
     ED_area_tag_redraw(CTX_wm_area(C));
 
-    BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
+    ED_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
 
     return true;
   }
@@ -6739,7 +6735,7 @@ static int add_simple_uvs_exec(bContext *C, wmOperator *UNUSED(op))
 
   ED_uvedit_add_simple_uvs(bmain, scene, ob);
 
-  BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
+  ED_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
 
   DEG_id_tag_update(ob->data, 0);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);

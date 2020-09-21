@@ -24,6 +24,10 @@
 
 #pragma once
 
+#ifdef WIN32
+#  include "BLI_winstuff.h"
+#endif
+
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h" /* for ReportType */
@@ -61,10 +65,10 @@ enum eFileDataFlag {
 typedef int64_t off64_t;
 #endif
 
-typedef int(FileDataReadFn)(struct FileData *filedata,
-                            void *buffer,
-                            unsigned int size,
-                            bool *r_is_memchunk_identical);
+typedef ssize_t(FileDataReadFn)(struct FileData *filedata,
+                                void *buffer,
+                                size_t size,
+                                bool *r_is_memchunk_identical);
 typedef off64_t(FileDataSeekFn)(struct FileData *filedata, off64_t offset, int whence);
 
 typedef struct FileData {
@@ -72,8 +76,8 @@ typedef struct FileData {
   ListBase bhead_list;
   enum eFileDataFlag flags;
   bool is_eof;
-  int buffersize;
-  int64_t file_offset;
+  size_t buffersize;
+  off64_t file_offset;
 
   FileDataReadFn *read;
   FileDataSeekFn *seek;

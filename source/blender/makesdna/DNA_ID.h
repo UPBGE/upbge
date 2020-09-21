@@ -130,6 +130,11 @@ enum {
    * Should only be used/be relevant for custom properties. */
   IDP_FLAG_OVERRIDABLE_LIBRARY = 1 << 0,
 
+  /** This collection item IDProp has been inserted in a local override.
+   * This is used by internal code to distinguish between library-originated items and
+   * local-inserted ones, as many operations are not allowed on the former. */
+  IDP_FLAG_OVERRIDELIBRARY_LOCAL = 1 << 1,
+
   /** This means the property is set but RNA will return false when checking
    * 'RNA_property_is_set', currently this is a runtime flag */
   IDP_FLAG_GHOST = 1 << 7,
@@ -511,8 +516,10 @@ typedef enum ID_Type {
    ((ID *)(_id))->newid->tag |= LIB_TAG_NEW, \
    (void *)((ID *)(_id))->newid)
 #define ID_NEW_REMAP(a) \
-  if ((a) && (a)->id.newid) \
-  (a) = (void *)(a)->id.newid
+  if ((a) && (a)->id.newid) { \
+    (a) = (void *)(a)->id.newid; \
+  } \
+  ((void)0)
 
 /** id->flag (persitent). */
 enum {

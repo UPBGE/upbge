@@ -308,7 +308,7 @@ struct DupliObject *DRW_object_get_dupli(const Object *UNUSED(ob))
 /** \name Color Management
  * \{ */
 
-/* TODO(fclem) This should be a render engine callback to determine if we need CM or not. */
+/* TODO(fclem): This should be a render engine callback to determine if we need CM or not. */
 static void drw_viewport_colormanagement_set(void)
 {
   Scene *scene = DST.draw_ctx.scene;
@@ -525,7 +525,7 @@ static void draw_unit_state_create(void)
   infos->ob_flag = 1.0f;
   copy_v3_fl(infos->ob_color, 1.0f);
 
-  /* TODO(fclem) get rid of this. */
+  /* TODO(fclem): get rid of this. */
   culling->bsphere.radius = -1.0f;
   culling->user_data = NULL;
 
@@ -2122,17 +2122,16 @@ void DRW_draw_render_loop_2d_ex(struct Depsgraph *depsgraph,
 
     GPU_framebuffer_bind(dfbl->overlay_fb);
 
+    GPU_depth_test(GPU_DEPTH_NONE);
+    GPU_matrix_push_projection();
+    wmOrtho2(
+        region->v2d.cur.xmin, region->v2d.cur.xmax, region->v2d.cur.ymin, region->v2d.cur.ymax);
     if (do_annotations) {
-      GPU_depth_test(GPU_DEPTH_NONE);
-      GPU_matrix_push_projection();
-      wmOrtho2(
-          region->v2d.cur.xmin, region->v2d.cur.xmax, region->v2d.cur.ymin, region->v2d.cur.ymax);
       ED_annotation_draw_view2d(DST.draw_ctx.evil_C, true);
-      GPU_matrix_pop_projection();
     }
-
     GPU_depth_test(GPU_DEPTH_NONE);
     ED_region_draw_cb_draw(DST.draw_ctx.evil_C, DST.draw_ctx.region, REGION_DRAW_POST_VIEW);
+    GPU_matrix_pop_projection();
     /* Callback can be nasty and do whatever they want with the state.
      * Don't trust them! */
     DRW_state_reset();
@@ -2620,7 +2619,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d, cons
   GPUViewport *viewport = WM_draw_region_get_viewport(region);
   if (!viewport) {
     /* Selection engine requires a viewport.
-     * TODO (germano): This should be done internally in the engine. */
+     * TODO(germano): This should be done internally in the engine. */
     sel_ctx->is_dirty = true;
     sel_ctx->objects_drawn_len = 0;
     sel_ctx->index_drawn_len = 1;

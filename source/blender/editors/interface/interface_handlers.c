@@ -5893,7 +5893,7 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
       button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
       return WM_UI_HANDLER_BREAK;
     }
-    if (but->type == UI_BTYPE_MENU) {
+    if (ui_but_supports_cycling(but)) {
       if (ELEM(event->type, WHEELDOWNMOUSE, WHEELUPMOUSE) && event->ctrl) {
         const int direction = (event->type == WHEELDOWNMOUSE) ? 1 : -1;
 
@@ -10763,8 +10763,9 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 #define CASE_NUM_TO_DIR(n, d) \
   case (EVT_ZEROKEY + n): \
   case (EVT_PAD0 + n): { \
-    if (num_dir == UI_RADIAL_NONE) \
+    if (num_dir == UI_RADIAL_NONE) { \
       num_dir = d; \
+    } \
   } \
     (void)0
 

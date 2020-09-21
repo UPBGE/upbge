@@ -28,18 +28,43 @@ static PyTypeObject BlenderAppBuildOptionsType;
 
 static PyStructSequence_Field app_builtopts_info_fields[] = {
     /* names mostly follow CMake options, lowercase, after WITH_ */
-    {"bullet", NULL},        {"codec_avi", NULL},      {"codec_ffmpeg", NULL},
-    {"codec_sndfile", NULL}, {"compositor", NULL},     {"cycles", NULL},
-    {"cycles_osl", NULL},    {"freestyle", NULL},      {"gameengine", NULL},
-    {"image_cineon", NULL},  {"image_dds", NULL},      {"image_hdr", NULL},
-    {"image_openexr", NULL}, {"image_openjpeg", NULL}, {"image_tiff", NULL},
-    {"input_ndof", NULL},    {"audaspace", NULL},      {"international", NULL},
-    {"openal", NULL},        {"opensubdiv", NULL},     {"sdl", NULL},
-    {"sdl_dynload", NULL},   {"jack", NULL},           {"libmv", NULL},
-    {"mod_oceansim", NULL},  {"mod_remesh", NULL},     {"collada", NULL},
-    {"opencolorio", NULL},   {"player", NULL},         {"openmp", NULL},
-    {"openvdb", NULL},       {"alembic", NULL},        {"usd", NULL},
-    {"fluid", NULL},         {"xr_openxr", NULL},      {NULL},
+    {"bullet", NULL},
+    {"codec_avi", NULL},
+    {"codec_ffmpeg", NULL},
+    {"codec_sndfile", NULL},
+    {"compositor", NULL},
+    {"cycles", NULL},
+    {"gameengine", NULL},
+    {"cycles_osl", NULL},
+    {"freestyle", NULL},
+    {"image_cineon", NULL},
+    {"image_dds", NULL},
+    {"image_hdr", NULL},
+    {"image_openexr", NULL},
+    {"image_openjpeg", NULL},
+    {"image_tiff", NULL},
+    {"input_ndof", NULL},
+    {"audaspace", NULL},
+    {"international", NULL},
+    {"openal", NULL},
+    {"opensubdiv", NULL},
+    {"sdl", NULL},
+    {"sdl_dynload", NULL},
+    {"jack", NULL},
+    {"libmv", NULL},
+    {"mod_oceansim", NULL},
+    {"mod_remesh", NULL},
+    {"player", NULL},
+    {"collada", NULL},
+    {"opencolorio", NULL},
+    {"openmp", NULL},
+    {"openvdb", NULL},
+    {"alembic", NULL},
+    {"usd", NULL},
+    {"fluid", NULL},
+    {"xr_openxr", NULL},
+    {"potrace", NULL},
+    {NULL},
 };
 
 static PyStructSequence_Desc app_builtopts_info_desc = {
@@ -267,6 +292,12 @@ static PyObject *make_builtopts_info(void)
 #endif
 
 #ifdef WITH_XR_OPENXR
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
+#ifdef WITH_POTRACE
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);

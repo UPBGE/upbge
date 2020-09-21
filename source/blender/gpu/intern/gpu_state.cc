@@ -258,6 +258,13 @@ eGPUStencilTest GPU_stencil_test_get()
   return (eGPUStencilTest)state.stencil_test;
 }
 
+/* NOTE: Already premultiplied by U.pixelsize. */
+float GPU_line_width_get(void)
+{
+  GPUStateMutable &state = Context::get()->state_manager->mutable_state;
+  return state.line_width;
+}
+
 void GPU_scissor_get(int coords[4])
 {
   Context::get()->active_fb->scissor_get(coords);
@@ -285,7 +292,7 @@ bool GPU_depth_mask_get(void)
 
 bool GPU_mipmap_enabled(void)
 {
-  /* TODO(fclem) this used to be a userdef option. */
+  /* TODO(fclem): this used to be a userdef option. */
   return true;
 }
 

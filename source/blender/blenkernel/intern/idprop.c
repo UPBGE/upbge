@@ -787,6 +787,19 @@ IDProperty *IDP_CopyProperty(const IDProperty *prop)
   return IDP_CopyProperty_ex(prop, 0);
 }
 
+/**
+ * Copy content from source IDProperty into destination one, freeing destination property's content
+ * first.
+ */
+void IDP_CopyPropertyContent(IDProperty *dst, IDProperty *src)
+{
+  IDProperty *idprop_tmp = IDP_CopyProperty(src);
+  idprop_tmp->prev = dst->prev;
+  idprop_tmp->next = dst->next;
+  SWAP(IDProperty, *dst, *idprop_tmp);
+  IDP_FreeProperty(idprop_tmp);
+}
+
 /* Updates ID pointers after an object has been copied */
 /* TODO Nuke this once its only user has been correctly converted
  * to use generic ID management from BKE_library! */
@@ -1173,7 +1186,7 @@ static void IDP_WriteArray(const IDProperty *prop, BlendWriter *writer)
 {
   /*REMEMBER to set totalen to len in the linking code!!*/
   if (prop->data.pointer) {
-    BLO_write_raw(writer, (int)MEM_allocN_len(prop->data.pointer), prop->data.pointer);
+    BLO_write_raw(writer, MEM_allocN_len(prop->data.pointer), prop->data.pointer);
 
     if (prop->subtype == IDP_GROUP) {
       IDProperty **array = prop->data.pointer;
@@ -1204,7 +1217,7 @@ static void IDP_WriteIDPArray(const IDProperty *prop, BlendWriter *writer)
 static void IDP_WriteString(const IDProperty *prop, BlendWriter *writer)
 {
   /*REMEMBER to set totalen to len in the linking code!!*/
-  BLO_write_raw(writer, prop->len, prop->data.pointer);
+  BLO_write_raw(writer, (size_t)prop->len, prop->data.pointer);
 }
 
 static void IDP_WriteGroup(const IDProperty *prop, BlendWriter *writer)

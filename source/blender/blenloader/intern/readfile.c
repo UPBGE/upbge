@@ -821,7 +821,7 @@ static void bh8_from_bh4(BHead *bhead, BHead4 *bhead4)
 static BHeadN *get_bhead(FileData *fd)
 {
   BHeadN *new_bhead = NULL;
-  int readsize;
+  ssize_t readsize;
 
   if (fd) {
     if (!fd->is_eof) {
@@ -920,7 +920,7 @@ static BHeadN *get_bhead(FileData *fd)
       }
 #endif
       else {
-        new_bhead = MEM_mallocN(sizeof(BHeadN) + bhead.len, "new_bhead");
+        new_bhead = MEM_mallocN(sizeof(BHeadN) + (size_t)bhead.len, "new_bhead");
         if (new_bhead) {
           new_bhead->next = new_bhead->prev = NULL;
 #ifdef USE_BHEAD_READ_ON_DEMAND
@@ -930,9 +930,10 @@ static BHeadN *get_bhead(FileData *fd)
           new_bhead->is_memchunk_identical = false;
           new_bhead->bhead = bhead;
 
-          readsize = fd->read(fd, new_bhead + 1, bhead.len, &new_bhead->is_memchunk_identical);
+          readsize = fd->read(
+              fd, new_bhead + 1, (size_t)bhead.len, &new_bhead->is_memchunk_identical);
 
-          if (readsize != bhead.len) {
+          if (readsize != (ssize_t)bhead.len) {
             fd->is_eof = true;
             MEM_freeN(new_bhead);
             new_bhead = NULL;
@@ -1020,8 +1021,8 @@ static bool blo_bhead_read_data(FileData *fd, BHead *thisblock, void *buf)
     success = false;
   }
   else {
-    if (fd->read(fd, buf, new_bhead->bhead.len, &new_bhead->is_memchunk_identical) !=
-        new_bhead->bhead.len) {
+    if (fd->read(fd, buf, (size_t)new_bhead->bhead.len, &new_bhead->is_memchunk_identical) !=
+        (ssize_t)new_bhead->bhead.len) {
       success = false;
     }
   }
@@ -1056,7 +1057,7 @@ const char *blo_bhead_id_name(const FileData *fd, const BHead *bhead)
 static void decode_blender_header(FileData *fd)
 {
   char header[SIZEOFBLENDERHEADER], num[4];
-  int readsize;
+  ssize_t readsize;
 
   /* read in the header data */
   readsize = fd->read(fd, header, sizeof(header), NULL);
@@ -1190,12 +1191,12 @@ static int *read_file_thumbnail(FileData *fd)
 
 /* Regular file reading. */
 
-static int fd_read_data_from_file(FileData *filedata,
-                                  void *buffer,
-                                  uint size,
-                                  bool *UNUSED(r_is_memchunck_identical))
+static ssize_t fd_read_data_from_file(FileData *filedata,
+                                      void *buffer,
+                                      size_t size,
+                                      bool *UNUSED(r_is_memchunck_identical))
 {
-  int readsize = read(filedata->filedes, buffer, size);
+  ssize_t readsize = read(filedata->filedes, buffer, size);
 
   if (readsize < 0) {
     readsize = EOF;
@@ -1215,12 +1216,14 @@ static off64_t fd_seek_data_from_file(FileData *filedata, off64_t offset, int wh
 
 /* GZip file reading. */
 
-static int fd_read_gzip_from_file(FileData *filedata,
-                                  void *buffer,
-                                  uint size,
-                                  bool *UNUSED(r_is_memchunck_identical))
+static ssize_t fd_read_gzip_from_file(FileData *filedata,
+                                      void *buffer,
+                                      size_t size,
+                                      bool *UNUSED(r_is_memchunck_identical))
 {
-  int readsize = gzread(filedata->gzfiledes, buffer, size);
+  BLI_assert(size <= INT_MAX);
+
+  ssize_t readsize = gzread(filedata->gzfiledes, buffer, (uint)size);
 
   if (readsize < 0) {
     readsize = EOF;
@@ -1234,15 +1237,15 @@ static int fd_read_gzip_from_file(FileData *filedata,
 
 /* Memory reading. */
 
-static int fd_read_from_memory(FileData *filedata,
-                               void *buffer,
-                               uint size,
-                               bool *UNUSED(r_is_memchunck_identical))
+static ssize_t fd_read_from_memory(FileData *filedata,
+                                   void *buffer,
+                                   size_t size,
+                                   bool *UNUSED(r_is_memchunck_identical))
 {
   /* don't read more bytes then there are available in the buffer */
-  int readsize = (int)MIN2(size, (uint)(filedata->buffersize - filedata->file_offset));
+  ssize_t readsize = (ssize_t)MIN2(size, filedata->buffersize - (size_t)filedata->file_offset);
 
-  memcpy(buffer, filedata->buffer + filedata->file_offset, readsize);
+  memcpy(buffer, filedata->buffer + filedata->file_offset, (size_t)readsize);
   filedata->file_offset += readsize;
 
   return readsize;
@@ -1250,10 +1253,10 @@ static int fd_read_from_memory(FileData *filedata,
 
 /* MemFile reading. */
 
-static int fd_read_from_memfile(FileData *filedata,
-                                void *buffer,
-                                uint size,
-                                bool *r_is_memchunck_identical)
+static ssize_t fd_read_from_memfile(FileData *filedata,
+                                    void *buffer,
+                                    size_t size,
+                                    bool *r_is_memchunck_identical)
 {
   static size_t seek = SIZE_MAX; /* the current position */
   static size_t offset = 0;      /* size of previous chunks */
@@ -1280,7 +1283,7 @@ static int fd_read_from_memfile(FileData *filedata,
       chunk = chunk->next;
     }
     offset = seek;
-    seek = filedata->file_offset;
+    seek = (size_t)filedata->file_offset;
   }
 
   if (chunk) {
@@ -1324,7 +1327,7 @@ static int fd_read_from_memfile(FileData *filedata,
       }
     } while (totread < size);
 
-    return totread;
+    return (ssize_t)totread;
   }
 
   return 0;
@@ -1501,15 +1504,15 @@ static FileData *blo_filedata_from_file_minimal(const char *filepath)
   return NULL;
 }
 
-static int fd_read_gzip_from_memory(FileData *filedata,
-                                    void *buffer,
-                                    uint size,
-                                    bool *UNUSED(r_is_memchunck_identical))
+static ssize_t fd_read_gzip_from_memory(FileData *filedata,
+                                        void *buffer,
+                                        size_t size,
+                                        bool *UNUSED(r_is_memchunck_identical))
 {
   int err;
 
   filedata->strm.next_out = (Bytef *)buffer;
-  filedata->strm.avail_out = size;
+  filedata->strm.avail_out = (uint)size;
 
   // Inflate another chunk.
   err = inflate(&filedata->strm, Z_SYNC_FLUSH);
@@ -1524,7 +1527,7 @@ static int fd_read_gzip_from_memory(FileData *filedata,
 
   filedata->file_offset += size;
 
-  return size;
+  return (ssize_t)size;
 }
 
 static int fd_read_gzip_from_memory_init(FileData *fd)
@@ -4680,6 +4683,8 @@ static void lib_link_scene(BlendLibReader *reader, Scene *sce)
   SEQ_ALL_END;
 
   LISTBASE_FOREACH (TimeMarker *, marker, &sce->markers) {
+    IDP_BlendReadLib(reader, marker->prop);
+
     if (marker->camera) {
       BLO_read_id_address(reader, sce->id.lib, &marker->camera);
     }
@@ -5039,6 +5044,11 @@ static void direct_link_scene(BlendDataReader *reader, Scene *sce)
   }
 
   BLO_read_list(reader, &(sce->markers));
+  LISTBASE_FOREACH (TimeMarker *, marker, &sce->markers) {
+    BLO_read_data_address(reader, &marker->prop);
+    IDP_BlendDataRead(reader, &marker->prop);
+  }
+
   BLO_read_list(reader, &(sce->transform_spaces));
   BLO_read_list(reader, &(sce->r.layers));
   BLO_read_list(reader, &(sce->r.views));
@@ -8312,6 +8322,8 @@ static void expand_scene(BlendExpander *expander, Scene *sce)
   }
 
   LISTBASE_FOREACH (TimeMarker *, marker, &sce->markers) {
+    IDP_BlendReadExpand(expander, marker->prop);
+
     if (marker->camera) {
       BLO_expand(expander, marker->camera);
     }

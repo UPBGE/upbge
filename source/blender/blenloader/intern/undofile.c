@@ -154,7 +154,7 @@ void BLO_memfile_write_finalize(MemFileWriteData *mem_data)
   }
 }
 
-void BLO_memfile_chunk_add(MemFileWriteData *mem_data, const char *buf, uint size)
+void BLO_memfile_chunk_add(MemFileWriteData *mem_data, const char *buf, size_t size)
 {
   MemFile *memfile = mem_data->written_memfile;
   MemFileChunk **compchunk_step = &mem_data->reference_current_chunk;
@@ -252,7 +252,12 @@ bool BLO_memfile_write_file(struct MemFile *memfile, const char *filename)
   }
 
   for (chunk = memfile->chunks.first; chunk; chunk = chunk->next) {
-    if ((size_t)write(file, chunk->buf, chunk->size) != chunk->size) {
+#ifdef _WIN32
+    if ((size_t)write(file, chunk->buf, (uint)chunk->size) != chunk->size)
+#else
+    if ((size_t)write(file, chunk->buf, chunk->size) != chunk->size)
+#endif
+    {
       break;
     }
   }
