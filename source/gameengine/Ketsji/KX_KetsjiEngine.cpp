@@ -1459,6 +1459,9 @@ void KX_KetsjiEngine::Resize()
     for (KX_Scene *scene : m_scenes) {
       KX_Camera *cam = scene->GetActiveCamera();
       cam->InvalidateProjectionMatrix();
+      if (scene->GetOverlayCamera()) {
+        scene->GetOverlayCamera()->InvalidateProjectionMatrix();
+      }
     }
   }
 }
