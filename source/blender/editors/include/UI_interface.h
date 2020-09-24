@@ -679,7 +679,6 @@ char UI_block_emboss_get(uiBlock *block);
 void UI_block_emboss_set(uiBlock *block, char emboss);
 bool UI_block_is_search_only(const uiBlock *block);
 void UI_block_set_search_only(uiBlock *block, bool search_only);
-void UI_block_set_search_filter(uiBlock *block, const char *search_filter);
 
 void UI_block_free(const struct bContext *C, uiBlock *block);
 void UI_blocklist_free(const struct bContext *C, struct ListBase *lb);
@@ -1699,7 +1698,6 @@ struct Panel *UI_panel_begin(struct ARegion *region,
                              bool *r_open);
 void UI_panel_end(const struct ARegion *region, uiBlock *block, int width, int height, bool open);
 
-void UI_panels_scale(struct ARegion *region, float new_width);
 void UI_panel_label_offset(struct uiBlock *block, int *r_x, int *r_y);
 int UI_panel_size_y(const struct Panel *panel);
 bool UI_panel_is_dragging(const struct Panel *panel);
@@ -1883,7 +1881,7 @@ uiLayout *UI_block_layout(uiBlock *block,
 void UI_block_layout_set_current(uiBlock *block, uiLayout *layout);
 void UI_block_layout_resolve(uiBlock *block, int *r_x, int *r_y);
 
-bool UI_block_apply_search_filter(uiBlock *block);
+bool UI_block_apply_search_filter(uiBlock *block, const char *search_filter);
 
 void UI_region_message_subscribe(struct ARegion *region, struct wmMsgBus *mbus);
 
