@@ -813,9 +813,9 @@ static void ui_offset_panel_block(uiBlock *block)
   block->rect.xmin = block->rect.ymin = 0.0;
 }
 
-void ui_panel_set_search_filter_match(struct Panel *panel, const bool value)
+void ui_panel_tag_search_filter_match(struct Panel *panel)
 {
-  SET_FLAG_FROM_TEST(panel->runtime_flag, value, PANEL_SEARCH_FILTER_MATCH);
+  panel->runtime_flag |= PANEL_SEARCH_FILTER_MATCH;
 }
 
 static void panel_matches_search_filter_recursive(const Panel *panel, bool *filter_matches)
@@ -1673,7 +1673,7 @@ static int find_highest_panel(const void *a, const void *b)
   if (panel_a->type->flag & PNL_NO_HEADER) {
     return -1;
   }
-  if (panel_a->type->flag & PNL_NO_HEADER) {
+  if (panel_b->type->flag & PNL_NO_HEADER) {
     return 1;
   }
 
@@ -1884,24 +1884,27 @@ static void ui_do_animate(bContext *C, Panel *panel)
   }
 }
 
-static void panel_list_clear_active(ListBase *lb)
+static void panels_layout_begin_clear_flags(ListBase *lb)
 {
   LISTBASE_FOREACH (Panel *, panel, lb) {
-    if (panel->runtime_flag & PANEL_ACTIVE) {
-      panel->runtime_flag = PANEL_WAS_ACTIVE;
-    }
-    else {
-      panel->runtime_flag = 0;
+    /* Flags to copy over to the next layout pass. */
+    const short flag_copy = 0;
+
+    const bool was_active = panel->runtime_flag & PANEL_ACTIVE;
+    panel->runtime_flag &= flag_copy;
+    if (was_active) {
+      panel->runtime_flag |= PANEL_WAS_ACTIVE;
     }
 
-    panel_list_clear_active(&panel->children);
+    panels_layout_begin_clear_flags(&panel->children);
   }
 }
 
 void UI_panels_begin(const bContext *UNUSED(C), ARegion *region)
 {
-  /* Set all panels as inactive, so that at the end we know which ones were used. */
-  panel_list_clear_active(&region->panels);
+  /* Set all panels as inactive, so that at the end we know which ones were used. Also
+   * clear other flags so we know later that their values were set for th current redraw. */
+  panels_layout_begin_clear_flags(&region->panels);
 }
 
 void UI_panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y)

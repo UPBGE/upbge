@@ -4370,8 +4370,8 @@ def km_sculpt(params):
     )
 
     items.extend([
-        # Switch Object
-        ("object.switch_object", {"type": 'D', "value": 'PRESS'}, None),
+        # Switch Object (release to avoid conflict with grease pencil drawing).
+        ("object.switch_object", {"type": 'D', "value": 'RELEASE'}, None),
         # Brush strokes
         ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'NORMAL')]}),
@@ -4488,8 +4488,8 @@ def km_mesh(params):
     )
 
     items.extend([
-        #Switch Object
-        ("object.switch_object", {"type": 'D', "value": 'PRESS'}, None),
+        # Switch Object (release to avoid conflict with grease pencil drawing).
+        ("object.switch_object", {"type": 'D', "value": 'RELEASE'}, None),
         # Tools.
         ("mesh.loopcut_slide", {"type": 'R', "value": 'PRESS', "ctrl": True},
          {"properties": [("TRANSFORM_OT_edge_slide", [("release_confirm", False)],)]}),
@@ -5032,7 +5032,7 @@ def km_transform_modal_map(_params):
         ("AUTOIK_CHAIN_LEN_DOWN", {"type": 'WHEELUPMOUSE', "value": 'PRESS', "shift": True}, None),
         ("INSERTOFS_TOGGLE_DIR", {"type": 'T', "value": 'PRESS', "repeat": False}, None),
         ("AUTOCONSTRAIN", {"type": 'MIDDLEMOUSE', "value": 'PRESS', "repeat": False}, None),
-        ("AUTOCONSTRAIN", {"type": 'MIDDLEMOUSE', "value": 'PRESS', "repeat": False, "shift": True}, None),
+        ("AUTOCONSTRAINPLANE", {"type": 'MIDDLEMOUSE', "value": 'PRESS', "repeat": False, "shift": True}, None),
     ])
 
     return keymap

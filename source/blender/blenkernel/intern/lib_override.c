@@ -37,6 +37,7 @@
 
 #include "BKE_armature.h"
 #include "BKE_collection.h"
+#include "BKE_global.h"
 #include "BKE_idtype.h"
 #include "BKE_key.h"
 #include "BKE_layer.h"
@@ -287,11 +288,14 @@ bool BKE_lib_override_library_create_from_tag(Main *bmain)
   /* Override the IDs. */
   for (todo_id_iter = todo_ids.first; todo_id_iter != NULL; todo_id_iter = todo_id_iter->next) {
     reference_id = todo_id_iter->data;
-    if ((reference_id->newid = lib_override_library_create_from(bmain, reference_id)) == NULL) {
-      success = false;
-      break;
-    }
-    /* We also tag the new IDs so that in next step we can remap their pointers too. */
+    if (reference_id->newid == NULL) {
+      /* If newid is already set, assume it has been handled by calling code.
+       * Only current usecase: re-using proxy ID when converting to liboverride. */
+      if ((reference_id->newid = lib_override_library_create_from(bmain, reference_id)) == NULL) {
+        success = false;
+        break;
+      }
+    } /* We also tag the new IDs so that in next step we can remap their pointers too. */
     reference_id->newid->tag |= LIB_TAG_DOIT;
 
     Key *reference_key;
@@ -662,6 +666,42 @@ bool BKE_lib_override_library_create(
   BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
 
   return success;
+}
+
+/**
+ * Converts a given proxy object into a library override.
+ *
+ * \note This is actually a thin wrapper around \a BKE_lib_override_library_create, only extra work
+ * is to actually convert the proxy itself into an override first.
+ *
+ * \return true if override was successfully created.
+ */
+bool BKE_lib_override_library_proxy_convert(Main *bmain,
+                                            Scene *scene,
+                                            ViewLayer *view_layer,
+                                            Object *ob_proxy)
+{
+  /* proxy_group, if defined, is the empty instanciating the collection from which the proxy is
+   * coming. */
+  Object *ob_proxy_group = ob_proxy->proxy_group;
+  const bool is_override_instancing_object = ob_proxy_group != NULL;
+  ID *id_root = is_override_instancing_object ? &ob_proxy_group->instance_collection->id :
+                                                &ob_proxy->proxy->id;
+  ID *id_reference = is_override_instancing_object ? &ob_proxy_group->id : &ob_proxy->id;
+
+  /* We manually convert the proxy object into a library override, further override handling will
+   * then be handled by BKE_lib_override_library_create() just as for a regular override creation.
+   */
+  ob_proxy->proxy->id.tag |= LIB_TAG_DOIT;
+  ob_proxy->proxy->id.newid = &ob_proxy->id;
+  BKE_lib_override_library_init(&ob_proxy->id, &ob_proxy->proxy->id);
+
+  ob_proxy->proxy->proxy_from = NULL;
+  ob_proxy->proxy = ob_proxy->proxy_group = NULL;
+
+  DEG_id_tag_update(&ob_proxy->id, ID_RECALC_COPY_ON_WRITE);
+
+  return BKE_lib_override_library_create(bmain, scene, view_layer, id_root, id_reference);
 }
 
 /**
@@ -1721,12 +1761,20 @@ void BKE_lib_override_library_main_update(Main *bmain)
 {
   ID *id;
 
+  /* This temporary swap of G_MAIN is rather ugly, but neessary to avoid asserts checks in some RNA
+   * assignement functions, since those always use on G_MAIN when they need acces to a Main
+   * database. */
+  Main *orig_gmain = G_MAIN;
+  G_MAIN = bmain;
+
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
     if (id->override_library != NULL && id->lib == NULL) {
       BKE_lib_override_library_update(bmain, id);
     }
   }
   FOREACH_MAIN_ID_END;
+
+  G_MAIN = orig_gmain;
 }
 
 /**
