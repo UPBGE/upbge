@@ -260,11 +260,13 @@ ModifierTypeInfo modifierType_Solidify = {
     /* name */ "Solidify",
     /* structName */ "SolidifyModifierData",
     /* structSize */ sizeof(SolidifyModifierData),
+    /* srna */ &RNA_SolidifyModifier,
     /* type */ eModifierTypeType_Constructive,
 
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode,
+    /* icon */ ICON_MOD_SOLIDIFY,
 
     /* copyData */ BKE_modifier_copydata_generic,
 

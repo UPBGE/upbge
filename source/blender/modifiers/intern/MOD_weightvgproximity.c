@@ -719,9 +719,11 @@ ModifierTypeInfo modifierType_WeightVGProximity = {
     /* name */ "VertexWeightProximity",
     /* structName */ "WeightVGProximityModifierData",
     /* structSize */ sizeof(WeightVGProximityModifierData),
+    /* srna */ &RNA_VertexWeightProximityModifier,
     /* type */ eModifierTypeType_NonGeometrical,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_UsesPreview,
+    /* icon */ ICON_MOD_VERTEX_WEIGHT,
 
     /* copyData */ BKE_modifier_copydata_generic,
 

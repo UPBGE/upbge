@@ -1010,10 +1010,12 @@ ModifierTypeInfo modifierType_Array = {
     /* name */ "Array",
     /* structName */ "ArrayModifierData",
     /* structSize */ sizeof(ArrayModifierData),
+    /* srna */ &RNA_ArrayModifier,
     /* type */ eModifierTypeType_Constructive,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
         eModifierTypeFlag_AcceptsCVs,
+    /* icon */ ICON_MOD_ARRAY,
 
     /* copyData */ BKE_modifier_copydata_generic,
 

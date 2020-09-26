@@ -152,10 +152,12 @@ ModifierTypeInfo modifierType_Triangulate = {
     /* name */ "Triangulate",
     /* structName */ "TriangulateModifierData",
     /* structSize */ sizeof(TriangulateModifierData),
+    /* srna */ &RNA_TriangulateModifier,
     /* type */ eModifierTypeType_Constructive,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_EnableInEditmode |
         eModifierTypeFlag_AcceptsCVs,
+    /* icon */ ICON_MOD_TRIANGULATE,
 
     /* copyData */ BKE_modifier_copydata_generic,
 

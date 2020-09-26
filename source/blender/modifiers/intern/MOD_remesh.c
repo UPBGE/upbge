@@ -291,9 +291,11 @@ ModifierTypeInfo modifierType_Remesh = {
     /* name */ "Remesh",
     /* structName */ "RemeshModifierData",
     /* structSize */ sizeof(RemeshModifierData),
+    /* srna */ &RNA_RemeshModifier,
     /* type */ eModifierTypeType_Nonconstructive,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_SupportsEditmode,
+    /* icon */ ICON_MOD_REMESH,
 
     /* copyData */ BKE_modifier_copydata_generic,
 

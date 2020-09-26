@@ -312,12 +312,14 @@ ModifierTypeInfo modifierType_ParticleSystem = {
     /* name */ "ParticleSystem",
     /* structName */ "ParticleSystemModifierData",
     /* structSize */ sizeof(ParticleSystemModifierData),
+    /* srna */ &RNA_ParticleSystemModifier,
     /* type */ eModifierTypeType_OnlyDeform,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_UsesPointCache /* |
                           eModifierTypeFlag_SupportsEditmode |
                           eModifierTypeFlag_EnableInEditmode */
     ,
+    /* icon */ ICON_MOD_PARTICLES,
 
     /* copyData */ copyData,
 

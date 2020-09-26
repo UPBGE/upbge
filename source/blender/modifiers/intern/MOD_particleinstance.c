@@ -671,9 +671,11 @@ ModifierTypeInfo modifierType_ParticleInstance = {
     /* name */ "ParticleInstance",
     /* structName */ "ParticleInstanceModifierData",
     /* structSize */ sizeof(ParticleInstanceModifierData),
+    /* srna */ &RNA_ParticleInstanceModifier,
     /* type */ eModifierTypeType_Constructive,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode,
+    /* icon */ ICON_MOD_PARTICLE_INSTANCE,
 
     /* copyData */ BKE_modifier_copydata_generic,
 

@@ -27,6 +27,10 @@
 
 #include "MOD_modifiertypes.h"
 
+#include "UI_resources.h"
+
+#include "RNA_access.h"
+
 /* We only need to define isDisabled; because it always returns 1,
  * no other functions will be called
  */
@@ -42,8 +46,10 @@ ModifierTypeInfo modifierType_None = {
     /* name */ "None",
     /* structName */ "ModifierData",
     /* structSize */ sizeof(ModifierData),
+    /* srna */ &RNA_Modifier,
     /* type */ eModifierTypeType_None,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs,
+    /* icon */ ICON_NONE,
 
     /* copyData */ NULL,
 

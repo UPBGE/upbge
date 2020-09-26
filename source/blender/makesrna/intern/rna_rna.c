@@ -1306,8 +1306,6 @@ static int rna_property_override_diff_propptr(Main *bmain,
 
         /* If not yet overridden, or if we are handling sub-items (inside a collection)... */
         if (op != NULL) {
-          BKE_lib_override_library_operations_tag(op, IDOVERRIDE_LIBRARY_TAG_UNUSED, false);
-
           if (created || op->rna_prop_type == 0) {
             op->rna_prop_type = property_type;
           }
@@ -1317,18 +1315,26 @@ static int rna_property_override_diff_propptr(Main *bmain,
 
           if (created || rna_itemname_a != NULL || rna_itemname_b != NULL ||
               rna_itemindex_a != -1 || rna_itemindex_b != -1) {
-            BKE_lib_override_library_property_operation_get(op,
-                                                            IDOVERRIDE_LIBRARY_OP_REPLACE,
-                                                            rna_itemname_b,
-                                                            rna_itemname_a,
-                                                            rna_itemindex_b,
-                                                            rna_itemindex_a,
-                                                            true,
-                                                            NULL,
-                                                            &created);
+            IDOverrideLibraryPropertyOperation *opop;
+            opop = BKE_lib_override_library_property_operation_get(op,
+                                                                   IDOVERRIDE_LIBRARY_OP_REPLACE,
+                                                                   rna_itemname_b,
+                                                                   rna_itemname_a,
+                                                                   rna_itemindex_b,
+                                                                   rna_itemindex_a,
+                                                                   true,
+                                                                   NULL,
+                                                                   &created);
+            /* Do not use BKE_lib_override_library_operations_tag here, we do not want to validate
+             * as used all of its operations. */
+            op->tag &= ~IDOVERRIDE_LIBRARY_TAG_UNUSED;
+            opop->tag &= ~IDOVERRIDE_LIBRARY_TAG_UNUSED;
             if (r_override_changed) {
               *r_override_changed = created;
             }
+          }
+          else {
+            BKE_lib_override_library_operations_tag(op, IDOVERRIDE_LIBRARY_TAG_UNUSED, false);
           }
         }
       }
@@ -1757,7 +1763,6 @@ int rna_property_override_diff_default(Main *bmain,
     case PROP_COLLECTION: {
       bool equals = true;
       bool abort = false;
-      bool is_first_insert = true;
       int idx_a = 0;
       int idx_b = 0;
 
@@ -1771,6 +1776,22 @@ int rna_property_override_diff_default(Main *bmain,
       char *propname_a = NULL;
       char *prev_propname_a = buff_prev_a;
       char *propname_b = NULL;
+
+      if (use_collection_insertion) {
+        /* We need to clean up all possible existing insertion operations, and then re-generate
+         * them, otherwise we'd end up with a mess of opops every time something changes. */
+        op = BKE_lib_override_library_property_find(override, rna_path);
+        if (op != NULL) {
+          LISTBASE_FOREACH_MUTABLE (IDOverrideLibraryPropertyOperation *, opop, &op->operations) {
+            if (ELEM(opop->operation,
+                     IDOVERRIDE_LIBRARY_OP_INSERT_AFTER,
+                     IDOVERRIDE_LIBRARY_OP_INSERT_BEFORE)) {
+              BKE_lib_override_library_property_operation_delete(op, opop);
+            }
+          }
+          op = NULL;
+        }
+      }
 
       for (; iter_a.valid && !abort;) {
         bool is_valid_for_diffing;
@@ -1853,22 +1874,6 @@ int rna_property_override_diff_default(Main *bmain,
            * also assume then that _a data is the one where things are inserted. */
           if (is_valid_for_insertion && use_collection_insertion) {
             op = BKE_lib_override_library_property_get(override, rna_path, &created);
-
-            if (is_first_insert) {
-              /* We need to clean up all possible existing insertion operations,
-               * otherwise we'd end up with a mess of ops every time something changes. */
-              for (IDOverrideLibraryPropertyOperation *opop = op->operations.first;
-                   opop != NULL;) {
-                IDOverrideLibraryPropertyOperation *opop_next = opop->next;
-                if (ELEM(opop->operation,
-                         IDOVERRIDE_LIBRARY_OP_INSERT_AFTER,
-                         IDOVERRIDE_LIBRARY_OP_INSERT_BEFORE)) {
-                  BKE_lib_override_library_property_operation_delete(op, opop);
-                }
-                opop = opop_next;
-              }
-              is_first_insert = false;
-            }
 
             BKE_lib_override_library_property_operation_get(op,
                                                             IDOVERRIDE_LIBRARY_OP_INSERT_AFTER,

@@ -331,8 +331,10 @@ ModifierTypeInfo modifierType_Build = {
     /* name */ "Build",
     /* structName */ "BuildModifierData",
     /* structSize */ sizeof(BuildModifierData),
+    /* srna */ &RNA_BuildModifier,
     /* type */ eModifierTypeType_Nonconstructive,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs,
+    /* icon */ ICON_MOD_BUILD,
 
     /* copyData */ BKE_modifier_copydata_generic,
 

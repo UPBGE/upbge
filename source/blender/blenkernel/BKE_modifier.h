@@ -170,8 +170,14 @@ typedef struct ModifierTypeInfo {
   /* The size of the modifier data type, used by allocation. */
   int structSize;
 
+  /* StructRNA of this modifier. This is typically something like RNA_*Modifier. */
+  struct StructRNA *srna;
+
   ModifierTypeType type;
   ModifierTypeFlag flags;
+
+  /* Icon of the modifier. Usually something like ICON_MOD_*. */
+  int icon;
 
   /********************* Non-optional functions *********************/
 

@@ -31,7 +31,11 @@
 #include "BKE_key.h"
 #include "BKE_particle.h"
 
+#include "RNA_access.h"
+
 #include "MOD_modifiertypes.h"
+
+#include "UI_resources.h"
 
 static void deformVerts(ModifierData *UNUSED(md),
                         const ModifierEvalContext *ctx,
@@ -121,9 +125,11 @@ ModifierTypeInfo modifierType_ShapeKey = {
     /* name */ "ShapeKey",
     /* structName */ "ShapeKeyModifierData",
     /* structSize */ sizeof(ShapeKeyModifierData),
+    /* srna */ &RNA_Modifier,
     /* type */ eModifierTypeType_OnlyDeform,
     /* flags */ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,
+    /* icon */ ICON_DOT,
 
     /* copyData */ NULL,
 

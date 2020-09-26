@@ -1500,8 +1500,10 @@ ModifierTypeInfo modifierType_SurfaceDeform = {
     /* name */ "SurfaceDeform",
     /* structName */ "SurfaceDeformModifierData",
     /* structSize */ sizeof(SurfaceDeformModifierData),
+    /* srna */ &RNA_SurfaceDeformModifier,
     /* type */ eModifierTypeType_OnlyDeform,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
+    /* icon */ ICON_MOD_MESHDEFORM,
 
     /* copyData */ copyData,
 
