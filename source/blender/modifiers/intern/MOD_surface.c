@@ -226,9 +226,11 @@ ModifierTypeInfo modifierType_Surface = {
     /* name */ "Surface",
     /* structName */ "SurfaceModifierData",
     /* structSize */ sizeof(SurfaceModifierData),
+    /* srna */ &RNA_SurfaceModifier,
     /* type */ eModifierTypeType_OnlyDeform,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_NoUserAdd,
+    /* icon */ ICON_MOD_PHYSICS,
 
     /* copyData */ copyData,
 

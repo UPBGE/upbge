@@ -302,7 +302,7 @@ typedef struct {
   /** Use for file and memory writing (fixed size of #MYWRITE_BUFFER_SIZE). */
   uchar *buf;
   /** Number of bytes used in #WriteData.buf (flushed when exceeded). */
-  int buf_used_len;
+  size_t buf_used_len;
 
 #ifdef USE_WRITE_DATA_LEN
   /** Total number of bytes written. */
@@ -344,9 +344,14 @@ static WriteData *writedata_new(WriteWrap *ww)
   return wd;
 }
 
-static void writedata_do_write(WriteData *wd, const void *mem, int memlen)
+static void writedata_do_write(WriteData *wd, const void *mem, size_t memlen)
 {
   if ((wd == NULL) || wd->error || (mem == NULL) || memlen < 1) {
+    return;
+  }
+
+  if (memlen > INT_MAX) {
+    BLI_assert(!"Cannot write chunks bigger than INT_MAX.");
     return;
   }
 
@@ -385,7 +390,7 @@ static void writedata_free(WriteData *wd)
  */
 static void mywrite_flush(WriteData *wd)
 {
-  if (wd->buf_used_len) {
+  if (wd->buf_used_len != 0) {
     writedata_do_write(wd, wd->buf, wd->buf_used_len);
     wd->buf_used_len = 0;
   }
@@ -396,7 +401,7 @@ static void mywrite_flush(WriteData *wd)
  * \param adr: Pointer to new chunk of data
  * \param len: Length of new chunk of data
  */
-static void mywrite(WriteData *wd, const void *adr, int len)
+static void mywrite(WriteData *wd, const void *adr, size_t len)
 {
   if (UNLIKELY(wd->error)) {
     return;
@@ -418,13 +423,13 @@ static void mywrite(WriteData *wd, const void *adr, int len)
     /* if we have a single big chunk, write existing data in
      * buffer and write out big chunk in smaller pieces */
     if (len > MYWRITE_MAX_CHUNK) {
-      if (wd->buf_used_len) {
+      if (wd->buf_used_len != 0) {
         writedata_do_write(wd, wd->buf, wd->buf_used_len);
         wd->buf_used_len = 0;
       }
 
       do {
-        int writelen = MIN2(len, MYWRITE_MAX_CHUNK);
+        size_t writelen = MIN2(len, MYWRITE_MAX_CHUNK);
         writedata_do_write(wd, adr, writelen);
         adr = (const char *)adr + writelen;
         len -= writelen;
@@ -472,7 +477,7 @@ static WriteData *mywrite_begin(WriteWrap *ww, MemFile *compare, MemFile *curren
  */
 static bool mywrite_end(WriteData *wd)
 {
-  if (wd->buf_used_len) {
+  if (wd->buf_used_len != 0) {
     writedata_do_write(wd, wd->buf, wd->buf_used_len);
     wd->buf_used_len = 0;
   }
@@ -562,7 +567,7 @@ static void writestruct_at_address_nr(
   }
 
   mywrite(wd, &bh, sizeof(BHead));
-  mywrite(wd, data, bh.len);
+  mywrite(wd, data, (size_t)bh.len);
 }
 
 static void writestruct_nr(
@@ -572,7 +577,7 @@ static void writestruct_nr(
 }
 
 /* do not use for structs */
-static void writedata(WriteData *wd, int filecode, int len, const void *adr)
+static void writedata(WriteData *wd, int filecode, size_t len, const void *adr)
 {
   BHead bh;
 
@@ -580,15 +585,20 @@ static void writedata(WriteData *wd, int filecode, int len, const void *adr)
     return;
   }
 
+  if (len > INT_MAX) {
+    BLI_assert(!"Cannot write chunks bigger than INT_MAX.");
+    return;
+  }
+
   /* align to 4 (writes uninitialized bytes in some cases) */
-  len = (len + 3) & ~3;
+  len = (len + 3) & ~((size_t)3);
 
   /* init BHead */
   bh.code = filecode;
   bh.old = adr;
   bh.nr = 1;
   bh.SDNAnr = 0;
-  bh.len = len;
+  bh.len = (int)len;
 
   mywrite(wd, &bh, sizeof(BHead));
   mywrite(wd, adr, len);
@@ -1288,7 +1298,7 @@ static void write_pose(BlendWriter *writer, bPose *pose, bArmature *arm)
     write_motionpath(writer, chan->mpath);
 
     /* Prevent crashes with autosave,
-     * when a bone duplicated in editmode has not yet been assigned to its posechannel.
+     * when a bone duplicated in edit-mode has not yet been assigned to its pose-channel.
      * Also needed with memundo, in some cases we can store a step before pose has been
      * properly rebuilt from previous undo step. */
     Bone *bone = (pose->flag & POSE_RECALC) ? BKE_armature_find_bone_name(arm, chan->name) :
@@ -1517,9 +1527,16 @@ static void write_shaderfxs(BlendWriter *writer, ListBase *fxbase)
 
 static void write_object(BlendWriter *writer, Object *ob, const void *id_address)
 {
-  if (ob->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* Clean up, important in undo case to reduce false detection of changed datablocks. */
+  const bool is_undo = BLO_write_is_undo(writer);
+  if (ob->id.us > 0 || is_undo) {
+    /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
     BKE_object_runtime_reset(ob);
+
+    if (is_undo) {
+      /* For undo we stay in object mode during undo presses, so keep edit-mode disabled on save as
+       * well, can help reducing false detection of changed data-blocks. */
+      ob->mode &= ~OB_MODE_EDIT;
+    }
 
     /* write LibData */
     BLO_write_id_struct(writer, Object, id_address, &ob->id);
@@ -1610,7 +1627,7 @@ static void write_collection_nolib(BlendWriter *writer, Collection *collection)
 static void write_collection(BlendWriter *writer, Collection *collection, const void *id_address)
 {
   if (collection->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* Clean up, important in undo case to reduce false detection of changed datablocks. */
+    /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
     collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE;
     collection->tag = 0;
     BLI_listbase_clear(&collection->object_cache);
@@ -1737,7 +1754,7 @@ static void write_lightcache(BlendWriter *writer, LightCache *cache)
 static void write_scene(BlendWriter *writer, Scene *sce, const void *id_address)
 {
   if (BLO_write_is_undo(writer)) {
-    /* Clean up, important in undo case to reduce false detection of changed datablocks. */
+    /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
     /* XXX This UI data should not be stored in Scene at all... */
     memset(&sce->cursor, 0, sizeof(sce->cursor));
   }
@@ -1897,10 +1914,10 @@ static void write_scene(BlendWriter *writer, Scene *sce, const void *id_address)
   if (sce->r.avicodecdata) {
     BLO_write_struct(writer, AviCodecData, sce->r.avicodecdata);
     if (sce->r.avicodecdata->lpFormat) {
-      BLO_write_raw(writer, sce->r.avicodecdata->cbFormat, sce->r.avicodecdata->lpFormat);
+      BLO_write_raw(writer, (size_t)sce->r.avicodecdata->cbFormat, sce->r.avicodecdata->lpFormat);
     }
     if (sce->r.avicodecdata->lpParms) {
-      BLO_write_raw(writer, sce->r.avicodecdata->cbParms, sce->r.avicodecdata->lpParms);
+      BLO_write_raw(writer, (size_t)sce->r.avicodecdata->cbParms, sce->r.avicodecdata->lpParms);
     }
   }
   if (sce->r.ffcodecdata.properties) {
@@ -1910,6 +1927,10 @@ static void write_scene(BlendWriter *writer, Scene *sce, const void *id_address)
   /* writing dynamic list of TimeMarkers to the blend file */
   LISTBASE_FOREACH (TimeMarker *, marker, &sce->markers) {
     BLO_write_struct(writer, TimeMarker, marker);
+
+    if (marker->prop != NULL) {
+      IDP_BlendWrite(writer, marker->prop);
+    }
   }
 
   /* writing dynamic list of TransformOrientations to the blend file */
@@ -2168,7 +2189,7 @@ static void write_area_regions(BlendWriter *writer, ScrArea *area)
       LISTBASE_FOREACH (ConsoleLine *, cl, &con->history) {
         /* 'len_alloc' is invalid on write, set from 'len' on read */
         BLO_write_struct(writer, ConsoleLine, cl);
-        BLO_write_raw(writer, cl->len + 1, cl->line);
+        BLO_write_raw(writer, (size_t)cl->len + 1, cl->line);
       }
       BLO_write_struct(writer, SpaceConsole, sl);
     }
@@ -2386,6 +2407,7 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
   fg.minversion = BLENDER_FILE_MIN_VERSION;
   fg.minsubversion = BLENDER_FILE_MIN_SUBVERSION;
   fg.upbgesubversion = UPBGE_FILE_SUBVERSION;
+  fg.upbgeversion = UPBGE_FILE_VERSION;
 
 #ifdef WITH_BUILDINFO
   {
@@ -2634,7 +2656,7 @@ static bool write_file_handle(Main *mainvar,
    *
    * Note that we *borrow* the pointer to 'DNAstr',
    * so writing each time uses the same address and doesn't cause unnecessary undo overhead. */
-  writedata(wd, DNA1, wd->sdna->data_len, wd->sdna->data);
+  writedata(wd, DNA1, (size_t)wd->sdna->data_len, wd->sdna->data);
 
   /* end of file */
   memset(&bhead, 0, sizeof(BHead));
@@ -2855,7 +2877,7 @@ bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, int w
   return (err == 0);
 }
 
-void BLO_write_raw(BlendWriter *writer, int size_in_bytes, const void *data_ptr)
+void BLO_write_raw(BlendWriter *writer, size_t size_in_bytes, const void *data_ptr)
 {
   writedata(writer->wd, DATA, size_in_bytes, data_ptr);
 }
@@ -2931,38 +2953,38 @@ int BLO_get_struct_id_by_name(BlendWriter *writer, const char *struct_name)
   return struct_id;
 }
 
-void BLO_write_int32_array(BlendWriter *writer, int size, const int32_t *data_ptr)
+void BLO_write_int32_array(BlendWriter *writer, uint num, const int32_t *data_ptr)
 {
-  BLO_write_raw(writer, sizeof(int32_t) * size, data_ptr);
+  BLO_write_raw(writer, sizeof(int32_t) * (size_t)num, data_ptr);
 }
 
-void BLO_write_uint32_array(BlendWriter *writer, int size, const uint32_t *data_ptr)
+void BLO_write_uint32_array(BlendWriter *writer, uint num, const uint32_t *data_ptr)
 {
-  BLO_write_raw(writer, sizeof(uint32_t) * size, data_ptr);
+  BLO_write_raw(writer, sizeof(uint32_t) * (size_t)num, data_ptr);
 }
 
-void BLO_write_float_array(BlendWriter *writer, int size, const float *data_ptr)
+void BLO_write_float_array(BlendWriter *writer, uint num, const float *data_ptr)
 {
-  BLO_write_raw(writer, sizeof(float) * size, data_ptr);
+  BLO_write_raw(writer, sizeof(float) * (size_t)num, data_ptr);
 }
 
-void BLO_write_pointer_array(BlendWriter *writer, int size, const void *data_ptr)
+void BLO_write_pointer_array(BlendWriter *writer, uint num, const void *data_ptr)
 {
-  BLO_write_raw(writer, sizeof(void *) * size, data_ptr);
+  BLO_write_raw(writer, sizeof(void *) * (size_t)num, data_ptr);
 }
 
-void BLO_write_float3_array(BlendWriter *writer, int size, const float *data_ptr)
+void BLO_write_float3_array(BlendWriter *writer, uint num, const float *data_ptr)
 {
-  BLO_write_raw(writer, sizeof(float[3]) * size, data_ptr);
+  BLO_write_raw(writer, sizeof(float[3]) * (size_t)num, data_ptr);
 }
 
 /**
  * Write a null terminated string.
  */
-void BLO_write_string(BlendWriter *writer, const char *str)
+void BLO_write_string(BlendWriter *writer, const char *data_ptr)
 {
-  if (str != NULL) {
-    BLO_write_raw(writer, strlen(str) + 1, str);
+  if (data_ptr != NULL) {
+    BLO_write_raw(writer, strlen(data_ptr) + 1, data_ptr);
   }
 }
 

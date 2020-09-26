@@ -1065,7 +1065,7 @@ static void draw_rotation_guide(const RegionView3D *rv3d)
   float o[3];   /* center of rotation */
   float end[3]; /* endpoints for drawing */
 
-  GLubyte color[4] = {0, 108, 255, 255}; /* bright blue so it matches device LEDs */
+  uchar color[4] = {0, 108, 255, 255}; /* bright blue so it matches device LEDs */
 
   negate_v3_v3(o, rv3d->ofs);
 
@@ -2359,6 +2359,10 @@ void ED_view3d_datamask(const bContext *C,
   if ((CTX_data_mode_enum(C) == CTX_MODE_EDIT_MESH) &&
       (v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_WEIGHT)) {
     r_cddata_masks->vmask |= CD_MASK_MDEFORMVERT;
+  }
+  if ((CTX_data_mode_enum(C) == CTX_MODE_SCULPT)) {
+    r_cddata_masks->vmask |= CD_MASK_PAINT_MASK;
+    r_cddata_masks->pmask |= CD_MASK_SCULPT_FACE_SETS;
   }
 }
 

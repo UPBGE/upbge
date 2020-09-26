@@ -87,9 +87,7 @@ extern struct DrawEngineType draw_engine_eevee_type;
 
 #define EEVEE_PROBE_MAX min_ii(MAX_PROBE, GPU_max_texture_layers() / 6)
 #define EEVEE_VELOCITY_TILE_SIZE 32
-#define USE_VOLUME_OPTI \
-  (GLEW_ARB_shader_image_load_store && GLEW_ARB_shading_language_420pack && \
-   !GPU_crappy_amd_driver())
+#define USE_VOLUME_OPTI (GPU_shader_image_load_store_support())
 
 #define SWAP_DOUBLE_BUFFERS() \
   { \
@@ -735,7 +733,7 @@ typedef struct EEVEE_EffectsInfo {
   int motion_blur_max;           /* Maximum distance in pixels a motion blured pixel can cover. */
   float motion_blur_near_far[2]; /* Camera near/far clip distances (positive). */
   bool cam_params_init;
-  /* TODO(fclem) Only used in render mode for now.
+  /* TODO(fclem): Only used in render mode for now.
    * This is because we are missing a per scene persistent place to hold this. */
   struct EEVEE_MotionBlurData motion_blur;
   /* Velocity Pass */

@@ -641,16 +641,12 @@ void KX_KetsjiEngine::Render()
   std::vector<FrameRenderData> frameDataList;
   GetFrameRenderData(frameDataList);
 
-  const int x = m_canvas->GetWindowArea().GetLeft();
-  const int y = m_canvas->GetWindowArea().GetBottom();
   const int width = m_canvas->GetWidth();
   const int height = m_canvas->GetHeight();
 
   // clear the entire game screen with the border color
-  m_rasterizer->SetViewport(x, y, width + 1, height + 1);
-  m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
-  GPU_scissor_test(true);
-  m_rasterizer->SetScissor(x, y, width + 1, height + 1);
+  GPU_viewport(0, 0, width + 1, height + 1);
+  GPU_apply_state();
 
   KX_Scene *firstscene = m_scenes->GetFront();
   const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
@@ -905,10 +901,11 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   const int bottom = viewport.GetBottom();
   const int width = viewport.GetWidth();
   const int height = viewport.GetHeight();
-  m_rasterizer->SetViewport(left, bottom, width + 1, height + 1);
-  m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+
+  GPU_viewport(left, bottom, width, height);
   GPU_scissor_test(true);
-  m_rasterizer->SetScissor(left, bottom, width + 1, height + 1);
+  GPU_scissor(left, bottom, width, height);
+  GPU_apply_state();
 
   /* Clear the depth after setting the scene viewport/scissor
    * if it's not the first render pass. */
@@ -938,8 +935,6 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
 
   bool is_overlay_pass = rendercam == scene->GetOverlayCamera();
   if (is_overlay_pass) {
-    /*GPU_blend(GPU_BLEND_ALPHA_PREMULT);
-    GPU_blend(GPU_BLEND_ALPHA);*/
     m_rasterizer->Enable(RAS_Rasterizer::RAS_BLEND);
     m_rasterizer->SetBlendFunc(RAS_Rasterizer::RAS_ONE, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
   }
@@ -1466,6 +1461,9 @@ void KX_KetsjiEngine::Resize()
     for (KX_Scene *scene : m_scenes) {
       KX_Camera *cam = scene->GetActiveCamera();
       cam->InvalidateProjectionMatrix();
+      if (scene->GetOverlayCamera()) {
+        scene->GetOverlayCamera()->InvalidateProjectionMatrix();
+      }
     }
   }
 }

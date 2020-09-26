@@ -279,8 +279,9 @@ static void warpModifier_do(WarpModifierData *wmd,
       /* skip if no vert group found */
       if (defgrp_index != -1) {
         dv = &dvert[i];
-        weight = invert_vgroup ? 1.0f - BKE_defvert_find_weight(dv, defgrp_index) * strength :
-                                 BKE_defvert_find_weight(dv, defgrp_index) * strength;
+        weight = (invert_vgroup ? (1.0f - BKE_defvert_find_weight(dv, defgrp_index)) :
+                                  BKE_defvert_find_weight(dv, defgrp_index)) *
+                 strength;
         if (weight <= 0.0f) {
           continue;
         }
@@ -532,9 +533,11 @@ ModifierTypeInfo modifierType_Warp = {
     /* name */ "Warp",
     /* structName */ "WarpModifierData",
     /* structSize */ sizeof(WarpModifierData),
+    /* srna */ &RNA_WarpModifier,
     /* type */ eModifierTypeType_OnlyDeform,
     /* flags */ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,
+    /* icon */ ICON_MOD_WARP,
     /* copyData */ copyData,
 
     /* deformVerts */ deformVerts,

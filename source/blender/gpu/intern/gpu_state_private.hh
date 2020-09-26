@@ -56,9 +56,9 @@ union GPUState {
     uint32_t invert_facing : 1;
     uint32_t shadow_bias : 1;
     /** Number of clip distances enabled. */
-    /* TODO(fclem) This should be a shader property. */
+    /* TODO(fclem): This should be a shader property. */
     uint32_t clip_distances : 3;
-    /* TODO(fclem) remove, old opengl features. */
+    /* TODO(fclem): remove, old opengl features. */
     uint32_t polygon_smooth : 1;
     uint32_t line_smooth : 1;
   };
@@ -98,11 +98,8 @@ union GPUStateMutable {
     /* Viewport State */
     /** TODO remove */
     float depth_range[2];
-    /** TODO remove, use explicit clear calls. */
-    float clear_color[4];
-    float clear_depth;
-    /** Negative if using program point size. */
-    /* TODO(fclem) should be passed as uniform to all shaders. */
+    /** Positive if using program point size. */
+    /* TODO(fclem): should be passed as uniform to all shaders. */
     float point_size;
     /** Not supported on every platform. Prefer using wideline shader. */
     float line_width;
@@ -152,26 +149,29 @@ inline GPUStateMutable operator~(const GPUStateMutable &a)
  * State manager keeping track of the draw state and applying it before drawing.
  * Base class which is then specialized for each implementation (GL, VK, ...).
  **/
-class GPUStateManager {
+class StateManager {
  public:
   GPUState state;
   GPUStateMutable mutable_state;
 
  public:
-  GPUStateManager();
-  virtual ~GPUStateManager(){};
+  StateManager();
+  virtual ~StateManager(){};
 
   virtual void apply_state(void) = 0;
+  virtual void force_state(void) = 0;
+
+  virtual void issue_barrier(eGPUBarrier barrier_bits) = 0;
 
   virtual void texture_bind(Texture *tex, eGPUSamplerState sampler, int unit) = 0;
   virtual void texture_unbind(Texture *tex) = 0;
   virtual void texture_unbind_all(void) = 0;
 
+  virtual void image_bind(Texture *tex, int unit) = 0;
+  virtual void image_unbind(Texture *tex) = 0;
+  virtual void image_unbind_all(void) = 0;
+
   virtual void texture_unpack_row_length_set(uint len) = 0;
-
-  /* Game engine transition */
-  virtual void texture_bind_bge(Texture *tex, int unit) = 0;
-
 };
 
 }  // namespace gpu

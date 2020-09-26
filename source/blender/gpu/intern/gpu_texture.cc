@@ -186,7 +186,7 @@ using namespace blender::gpu;
 
 uint GPU_texture_memory_usage_get(void)
 {
-  /* TODO(fclem) Do that inside the new Texture class. */
+  /* TODO(fclem): Do that inside the new Texture class. */
   return 0;
 }
 
@@ -199,7 +199,8 @@ static inline GPUTexture *gpu_texture_create(const char *name,
                                              const eGPUTextureType type,
                                              int UNUSED(mips),
                                              eGPUTextureFormat tex_format,
-                                             const float *fpixels)
+                                             eGPUDataFormat data_format,
+                                             const void *pixels)
 {
   Texture *tex = GPUBackend::get()->texture_alloc(name);
   bool success = false;
@@ -227,8 +228,8 @@ static inline GPUTexture *gpu_texture_create(const char *name,
     delete tex;
     return NULL;
   }
-  if (fpixels) {
-    tex->update(GPU_DATA_FLOAT, fpixels);
+  if (pixels) {
+    tex->update(data_format, pixels);
   }
   return reinterpret_cast<GPUTexture *>(tex);
 }
@@ -236,43 +237,53 @@ static inline GPUTexture *gpu_texture_create(const char *name,
 GPUTexture *GPU_texture_create_1d(
     const char *name, int w, int mips, eGPUTextureFormat format, const float *data)
 {
-  return gpu_texture_create(name, w, 0, 0, GPU_TEXTURE_1D, mips, format, data);
+  return gpu_texture_create(name, w, 0, 0, GPU_TEXTURE_1D, mips, format, GPU_DATA_FLOAT, data);
 }
 
 GPUTexture *GPU_texture_create_1d_array(
     const char *name, int w, int h, int mips, eGPUTextureFormat format, const float *data)
 {
-  return gpu_texture_create(name, w, h, 0, GPU_TEXTURE_1D_ARRAY, mips, format, data);
+  return gpu_texture_create(
+      name, w, h, 0, GPU_TEXTURE_1D_ARRAY, mips, format, GPU_DATA_FLOAT, data);
 }
 
 GPUTexture *GPU_texture_create_2d(
     const char *name, int w, int h, int mips, eGPUTextureFormat format, const float *data)
 {
-  return gpu_texture_create(name, w, h, 0, GPU_TEXTURE_2D, mips, format, data);
+  return gpu_texture_create(name, w, h, 0, GPU_TEXTURE_2D, mips, format, GPU_DATA_FLOAT, data);
 }
 
 GPUTexture *GPU_texture_create_2d_array(
     const char *name, int w, int h, int d, int mips, eGPUTextureFormat format, const float *data)
 {
-  return gpu_texture_create(name, w, h, d, GPU_TEXTURE_2D_ARRAY, mips, format, data);
+  return gpu_texture_create(
+      name, w, h, d, GPU_TEXTURE_2D_ARRAY, mips, format, GPU_DATA_FLOAT, data);
 }
 
-GPUTexture *GPU_texture_create_3d(
-    const char *name, int w, int h, int d, int mips, eGPUTextureFormat format, const float *data)
+GPUTexture *GPU_texture_create_3d(const char *name,
+                                  int w,
+                                  int h,
+                                  int d,
+                                  int mips,
+                                  eGPUTextureFormat texture_format,
+                                  eGPUDataFormat data_format,
+                                  const void *data)
 {
-  return gpu_texture_create(name, w, h, d, GPU_TEXTURE_3D, mips, format, data);
+  return gpu_texture_create(
+      name, w, h, d, GPU_TEXTURE_3D, mips, texture_format, data_format, data);
 }
 
 GPUTexture *GPU_texture_create_cube(
     const char *name, int w, int mips, eGPUTextureFormat format, const float *data)
 {
-  return gpu_texture_create(name, w, w, 0, GPU_TEXTURE_CUBE, mips, format, data);
+  return gpu_texture_create(name, w, w, 0, GPU_TEXTURE_CUBE, mips, format, GPU_DATA_FLOAT, data);
 }
 
 GPUTexture *GPU_texture_create_cube_array(
     const char *name, int w, int d, int mips, eGPUTextureFormat format, const float *data)
 {
-  return gpu_texture_create(name, w, w, d, GPU_TEXTURE_CUBE_ARRAY, mips, format, data);
+  return gpu_texture_create(
+      name, w, w, d, GPU_TEXTURE_CUBE_ARRAY, mips, format, GPU_DATA_FLOAT, data);
 }
 
 /* DDS texture loading. Return NULL if support is not available. */
@@ -326,7 +337,7 @@ GPUTexture *GPU_texture_create_error(int dimension, bool is_array)
   type = (dimension == 2) ? (is_array ? GPU_TEXTURE_2D_ARRAY : GPU_TEXTURE_2D) : type;
   type = (dimension == 1) ? (is_array ? GPU_TEXTURE_1D_ARRAY : GPU_TEXTURE_1D) : type;
 
-  return gpu_texture_create("invalid_tex", w, h, d, type, 1, GPU_RGBA8, pixel);
+  return gpu_texture_create("invalid_tex", w, h, d, type, 1, GPU_RGBA8, GPU_DATA_FLOAT, pixel);
 }
 
 /* ------ Update ------ */
@@ -418,6 +429,21 @@ void GPU_texture_unbind_all(void)
   Context::get()->state_manager->texture_unbind_all();
 }
 
+void GPU_texture_image_bind(GPUTexture *tex, int unit)
+{
+  Context::get()->state_manager->image_bind(unwrap(tex), unit);
+}
+
+void GPU_texture_image_unbind(GPUTexture *tex)
+{
+  Context::get()->state_manager->image_unbind(unwrap(tex));
+}
+
+void GPU_texture_image_unbind_all(void)
+{
+  Context::get()->state_manager->image_unbind_all();
+}
+
 void GPU_texture_generate_mipmap(GPUTexture *tex)
 {
   reinterpret_cast<Texture *>(tex)->generate_mipmap();
@@ -496,12 +522,6 @@ void GPU_texture_free(GPUTexture *tex_)
 void GPU_texture_ref(GPUTexture *tex)
 {
   reinterpret_cast<Texture *>(tex)->refcount++;
-}
-
-/* TODO(fclem) Remove! This is broken as it is! */
-int GPU_texture_target(const GPUTexture *UNUSED(tex))
-{
-  return GL_TEXTURE_2D;
 }
 
 int GPU_texture_width(const GPUTexture *tex)
@@ -592,12 +612,6 @@ void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode)
 {
   Texture *t = reinterpret_cast<Texture *>(tex);
   t->gl_bindcode_set(bindcode);
-}
-
-void GPU_texture_bind_bge(GPUTexture *tex, int unit)
-{
-  Texture *t = reinterpret_cast<Texture *>(tex);
-  Context::get()->state_manager->texture_bind_bge(t, unit);
 }
 /********************End of Game engine**********************/
 

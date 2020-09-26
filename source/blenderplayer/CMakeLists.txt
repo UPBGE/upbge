@@ -161,14 +161,8 @@ if(WITH_PYTHON_MODULE)
   )
 
   if(APPLE)
-    set_target_properties(
-      blenderplayer
-      PROPERTIES
-        MACOSX_BUNDLE TRUE
-        LINK_FLAGS_RELEASE "${PLATFORM_LINKFLAGS}"
-        LINK_FLAGS_DEBUG "${PLATFORM_LINKFLAGS_DEBUG}"
-    )
-  endif()
+    set_target_properties(blenderplayer PROPERTIES MACOSX_BUNDLE TRUE)
+   endif()
 
   if(WIN32)
     # python modules use this
@@ -447,4 +441,5 @@ add_dependencies(blenderplayer makesdna)
 target_link_libraries(blenderplayer ${LIB})
 unset(LIB)
 
-setup_liblinks(blenderplayer)
+setup_platform_linker_flags(blenderplayer)
+setup_platform_linker_libs(blenderplayer)

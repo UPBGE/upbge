@@ -26,11 +26,11 @@ if(UNIX)
   set(_required_software
     autoconf
     automake
-    ${_libtoolize_name}
-    nasm
-    yasm
-    tclsh
     bison
+    ${_libtoolize_name}
+    pkg-config
+    tclsh
+    yasm
   )
 
   foreach(_software ${_required_software})
@@ -54,10 +54,10 @@ if(UNIX)
       "  ${_software_missing}\n"
       "\n"
       "On Debian and Ubuntu:\n"
-      "  apt install autoconf automake libtool yasm nasm tcl\n"
+      "  apt install autoconf automake libtool yasm tcl\n"
       "\n"
       "On macOS (with homebrew):\n"
-      "  brew install cmake autoconf automake libtool yasm nasm bison\n"
+      "  brew install autoconf automake bison libtool pkg-config yasm\n"
       "\n"
       "Other platforms:\n"
       "  Install equivalent packages.\n")

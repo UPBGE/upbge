@@ -510,7 +510,33 @@ bool ED_object_modifier_move_to_index(ReportList *reports,
     }
   }
 
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+
   return true;
+}
+
+void ED_object_modifier_link(bContext *C, Object *ob_dst, Object *ob_src)
+{
+  BKE_object_link_modifiers(ob_dst, ob_src);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob_dst);
+  DEG_id_tag_update(&ob_dst->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
+
+  Main *bmain = CTX_data_main(C);
+  DEG_relations_tag_update(bmain);
+}
+
+void ED_object_modifier_copy_to_object(bContext *C,
+                                       Object *ob_dst,
+                                       Object *ob_src,
+                                       ModifierData *md)
+{
+  BKE_object_copy_modifier(ob_dst, ob_src, md);
+  WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob_dst);
+  DEG_id_tag_update(&ob_dst->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
+
+  Main *bmain = CTX_data_main(C);
+  DEG_relations_tag_update(bmain);
 }
 
 bool ED_object_modifier_convert(ReportList *UNUSED(reports),
@@ -1299,9 +1325,6 @@ static int modifier_move_to_index_exec(bContext *C, wmOperator *op)
   if (!ED_object_modifier_move_to_index(op->reports, ob, md, index)) {
     return OPERATOR_CANCELLED;
   }
-
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }

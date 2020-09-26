@@ -174,9 +174,11 @@ ModifierTypeInfo modifierType_Lattice = {
     /* name */ "Lattice",
     /* structName */ "LatticeModifierData",
     /* structSize */ sizeof(LatticeModifierData),
+    /* srna */ &RNA_LatticeModifier,
     /* type */ eModifierTypeType_OnlyDeform,
     /* flags */ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,
+    /* icon */ ICON_MOD_LATTICE,
 
     /* copyData */ BKE_modifier_copydata_generic,
 

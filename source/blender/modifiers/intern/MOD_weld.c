@@ -27,12 +27,17 @@
  * - Review weight and vertex color interpolation.;
  */
 
+//#define USE_WELD_DEBUG
+//#define USE_WELD_NORMALS
+//#define USE_BVHTREEKDOP
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
 
 #include "BLI_alloca.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_bitmap.h"
+#include "BLI_kdtree.h"
 #include "BLI_math.h"
 
 #include "BLT_translation.h"
@@ -43,7 +48,10 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_bvhutils.h"
+#ifdef USE_BVHTREEKDOP
+#  include "BKE_bvhutils.h"
+#endif
+
 #include "BKE_context.h"
 #include "BKE_deform.h"
 #include "BKE_mesh.h"
@@ -59,9 +67,6 @@
 
 #include "MOD_modifiertypes.h"
 #include "MOD_ui_common.h"
-
-//#define USE_WELD_DEBUG
-//#define USE_WELD_NORMALS
 
 /* Indicates when the element was not computed. */
 #define OUT_OF_CONTEXT (uint)(-1)
@@ -136,9 +141,6 @@ typedef struct WeldMesh {
   /* Group of vertices to be merged. */
   struct WeldGroup *vert_groups;
   uint *vert_groups_buffer;
-  /* From the original index of the vertex, this indicates which group it is or is going to be
-   * merged. */
-  uint *vert_groups_map;
 
   /* Group of edges to be merged. */
   struct WeldGroupEdge *edge_groups;
@@ -201,21 +203,6 @@ static bool weld_iter_loop_of_poly_begin(WeldLoopOfPolyIter *iter,
                                          uint *group_buffer);
 
 static bool weld_iter_loop_of_poly_next(WeldLoopOfPolyIter *iter);
-
-static void weld_assert_vert_dest_map_setup(const BVHTreeOverlap *overlap,
-                                            const uint overlap_len,
-                                            const uint *vert_dest_map)
-{
-  const BVHTreeOverlap *overlap_iter = &overlap[0];
-  for (uint i = overlap_len; i--; overlap_iter++) {
-    uint indexA = overlap_iter->indexA;
-    uint indexB = overlap_iter->indexB;
-    uint va_dst = vert_dest_map[indexA];
-    uint vb_dst = vert_dest_map[indexB];
-
-    BLI_assert(va_dst == vb_dst);
-  }
-}
 
 static void weld_assert_edge_kill_len(const WeldEdge *wedge,
                                       const uint wedge_len,
@@ -383,69 +370,10 @@ static void weld_assert_poly_len(const WeldPoly *wp, const WeldLoop *wloop)
  * \{ */
 
 static void weld_vert_ctx_alloc_and_setup(const uint mvert_len,
-                                          const BVHTreeOverlap *overlap,
-                                          const uint overlap_len,
                                           uint *r_vert_dest_map,
                                           WeldVert **r_wvert,
-                                          uint *r_wvert_len,
-                                          uint *r_vert_kill_len)
+                                          uint *r_wvert_len)
 {
-  uint *v_dest_iter = &r_vert_dest_map[0];
-  for (uint i = mvert_len; i--; v_dest_iter++) {
-    *v_dest_iter = OUT_OF_CONTEXT;
-  }
-
-  uint vert_kill_len = 0;
-  const BVHTreeOverlap *overlap_iter = &overlap[0];
-  for (uint i = 0; i < overlap_len; i++, overlap_iter++) {
-    uint indexA = overlap_iter->indexA;
-    uint indexB = overlap_iter->indexB;
-
-    BLI_assert(indexA < indexB);
-
-    uint va_dst = r_vert_dest_map[indexA];
-    uint vb_dst = r_vert_dest_map[indexB];
-    if (va_dst == OUT_OF_CONTEXT) {
-      if (vb_dst == OUT_OF_CONTEXT) {
-        vb_dst = indexA;
-        r_vert_dest_map[indexB] = vb_dst;
-      }
-      r_vert_dest_map[indexA] = vb_dst;
-      vert_kill_len++;
-    }
-    else if (vb_dst == OUT_OF_CONTEXT) {
-      r_vert_dest_map[indexB] = va_dst;
-      vert_kill_len++;
-    }
-    else if (va_dst != vb_dst) {
-      uint v_new, v_old;
-      if (va_dst < vb_dst) {
-        v_new = va_dst;
-        v_old = vb_dst;
-      }
-      else {
-        v_new = vb_dst;
-        v_old = va_dst;
-      }
-      BLI_assert(r_vert_dest_map[v_old] == v_old);
-      BLI_assert(r_vert_dest_map[v_new] == v_new);
-      vert_kill_len++;
-
-      const BVHTreeOverlap *overlap_iter_b = &overlap[0];
-      for (uint j = i + 1; j--; overlap_iter_b++) {
-        indexA = overlap_iter_b->indexA;
-        indexB = overlap_iter_b->indexB;
-        va_dst = r_vert_dest_map[indexA];
-        vb_dst = r_vert_dest_map[indexB];
-        if (ELEM(v_old, vb_dst, va_dst)) {
-          r_vert_dest_map[indexA] = v_new;
-          r_vert_dest_map[indexB] = v_new;
-        }
-      }
-      BLI_assert(r_vert_dest_map[v_old] == v_new);
-    }
-  }
-
   /* Vert Context. */
   uint wvert_len = 0;
 
@@ -453,7 +381,7 @@ static void weld_vert_ctx_alloc_and_setup(const uint mvert_len,
   wvert = MEM_mallocN(sizeof(*wvert) * mvert_len, __func__);
   wv = &wvert[0];
 
-  v_dest_iter = &r_vert_dest_map[0];
+  uint *v_dest_iter = &r_vert_dest_map[0];
   for (uint i = 0; i < mvert_len; i++, v_dest_iter++) {
     if (*v_dest_iter != OUT_OF_CONTEXT) {
       wv->vert_dest = *v_dest_iter;
@@ -463,13 +391,8 @@ static void weld_vert_ctx_alloc_and_setup(const uint mvert_len,
     }
   }
 
-#ifdef USE_WELD_DEBUG
-  weld_assert_vert_dest_map_setup(overlap, overlap_len, r_vert_dest_map);
-#endif
-
   *r_wvert = MEM_reallocN(wvert, sizeof(*wvert) * wvert_len);
   *r_wvert_len = wvert_len;
-  *r_vert_kill_len = vert_kill_len;
 }
 
 static void weld_vert_groups_setup(const uint mvert_len,
@@ -1395,8 +1318,8 @@ static void weld_poly_loop_ctx_setup(const MLoop *mloop,
  * \{ */
 
 static void weld_mesh_context_create(const Mesh *mesh,
-                                     BVHTreeOverlap *overlap,
-                                     const uint overlap_len,
+                                     uint *vert_dest_map,
+                                     const uint vert_kill_len,
                                      WeldMesh *r_weld_mesh)
 {
   const MEdge *medge = mesh->medge;
@@ -1407,19 +1330,13 @@ static void weld_mesh_context_create(const Mesh *mesh,
   const uint mloop_len = mesh->totloop;
   const uint mpoly_len = mesh->totpoly;
 
-  uint *vert_dest_map = MEM_mallocN(sizeof(*vert_dest_map) * mvert_len, __func__);
   uint *edge_dest_map = MEM_mallocN(sizeof(*edge_dest_map) * medge_len, __func__);
   struct WeldGroup *v_links = MEM_callocN(sizeof(*v_links) * mvert_len, __func__);
 
   WeldVert *wvert;
   uint wvert_len;
-  weld_vert_ctx_alloc_and_setup(mvert_len,
-                                overlap,
-                                overlap_len,
-                                vert_dest_map,
-                                &wvert,
-                                &wvert_len,
-                                &r_weld_mesh->vert_kill_len);
+  r_weld_mesh->vert_kill_len = vert_kill_len;
+  weld_vert_ctx_alloc_and_setup(mvert_len, vert_dest_map, &wvert, &wvert_len);
 
   uint *edge_ctx_map;
   WeldEdge *wedge;
@@ -1462,7 +1379,6 @@ static void weld_mesh_context_create(const Mesh *mesh,
                          &r_weld_mesh->edge_groups_buffer,
                          &r_weld_mesh->edge_groups);
 
-  r_weld_mesh->vert_groups_map = vert_dest_map;
   r_weld_mesh->edge_groups_map = edge_dest_map;
   MEM_freeN(v_links);
   MEM_freeN(wvert);
@@ -1474,7 +1390,6 @@ static void weld_mesh_context_free(WeldMesh *weld_mesh)
 {
   MEM_freeN(weld_mesh->vert_groups);
   MEM_freeN(weld_mesh->vert_groups_buffer);
-  MEM_freeN(weld_mesh->vert_groups_map);
 
   MEM_freeN(weld_mesh->edge_groups);
   MEM_freeN(weld_mesh->edge_groups_buffer);
@@ -1633,6 +1548,7 @@ static void customdata_weld(
 /** \name Weld Modifier Main
  * \{ */
 
+#ifdef USE_BVHTREEKDOP
 struct WeldOverlapData {
   const MVert *mvert;
   float merge_dist_sq;
@@ -1648,6 +1564,7 @@ static bool bvhtree_weld_overlap_cb(void *userdata, int index_a, int index_b, in
   }
   return false;
 }
+#endif
 
 static Mesh *weldModifier_doWeld(WeldModifierData *wmd, const ModifierEvalContext *ctx, Mesh *mesh)
 {
@@ -1661,7 +1578,6 @@ static Mesh *weldModifier_doWeld(WeldModifierData *wmd, const ModifierEvalContex
   const MLoop *mloop;
   const MPoly *mpoly, *mp;
   uint totvert, totedge, totloop, totpoly;
-  uint i;
 
   mvert = mesh->mvert;
   totvert = mesh->totvert;
@@ -1675,7 +1591,7 @@ static Mesh *weldModifier_doWeld(WeldModifierData *wmd, const ModifierEvalContex
       const bool invert_vgroup = (wmd->flag & MOD_WELD_INVERT_VGROUP) != 0;
       dv = &dvert[0];
       v_mask = BLI_BITMAP_NEW(totvert, __func__);
-      for (i = 0; i < totvert; i++, dv++) {
+      for (uint i = 0; i < totvert; i++, dv++) {
         const bool found = BKE_defvert_find_weight(dv, defgrp_index) > 0.0f;
         if (found != invert_vgroup) {
           BLI_BITMAP_ENABLE(v_mask, i);
@@ -1685,48 +1601,113 @@ static Mesh *weldModifier_doWeld(WeldModifierData *wmd, const ModifierEvalContex
     }
   }
 
-  /* Get overlap map. */
-  /* TODO: For a better performanse use KD-Tree. */
-  struct BVHTreeFromMesh treedata;
-  BVHTree *bvhtree = bvhtree_from_mesh_verts_ex(&treedata,
-                                                mvert,
-                                                totvert,
-                                                false,
-                                                v_mask,
-                                                v_mask_act,
-                                                wmd->merge_dist / 2,
-                                                2,
-                                                6,
-                                                0,
-                                                NULL,
-                                                NULL);
+  /* From the original index of the vertex.
+   * This indicates which vert it is or is going to be merged. */
+  uint *vert_dest_map = MEM_malloc_arrayN(totvert, sizeof(*vert_dest_map), __func__);
+  uint vert_kill_len = 0;
+#ifdef USE_BVHTREEKDOP
+  {
+    /* Get overlap map. */
+    struct BVHTreeFromMesh treedata;
+    BVHTree *bvhtree = bvhtree_from_mesh_verts_ex(&treedata,
+                                                  mvert,
+                                                  totvert,
+                                                  false,
+                                                  v_mask,
+                                                  v_mask_act,
+                                                  wmd->merge_dist / 2,
+                                                  2,
+                                                  6,
+                                                  0,
+                                                  NULL,
+                                                  NULL);
+
+    if (bvhtree) {
+      struct WeldOverlapData data;
+      data.mvert = mvert;
+      data.merge_dist_sq = square_f(wmd->merge_dist);
+
+      uint overlap_len;
+      BVHTreeOverlap *overlap = BLI_bvhtree_overlap_ex(bvhtree,
+                                                       bvhtree,
+                                                       &overlap_len,
+                                                       bvhtree_weld_overlap_cb,
+                                                       &data,
+                                                       1,
+                                                       BVH_OVERLAP_RETURN_PAIRS);
+
+      free_bvhtree_from_mesh(&treedata);
+      if (overlap) {
+        range_vn_u(vert_dest_map, totvert, 0);
+
+        const BVHTreeOverlap *overlap_iter = &overlap[0];
+        for (uint i = 0; i < overlap_len; i++, overlap_iter++) {
+          uint indexA = overlap_iter->indexA;
+          uint indexB = overlap_iter->indexB;
+
+          BLI_assert(indexA < indexB);
+
+          uint va_dst = vert_dest_map[indexA];
+          while (va_dst != vert_dest_map[va_dst]) {
+            va_dst = vert_dest_map[va_dst];
+          }
+          uint vb_dst = vert_dest_map[indexB];
+          while (vb_dst != vert_dest_map[vb_dst]) {
+            vb_dst = vert_dest_map[vb_dst];
+          }
+          if (va_dst == vb_dst) {
+            continue;
+          }
+          if (va_dst > vb_dst) {
+            SWAP(uint, va_dst, vb_dst);
+          }
+          vert_kill_len++;
+          vert_dest_map[vb_dst] = va_dst;
+        }
+
+        /* Fix #r_vert_dest_map for next step. */
+        for (uint i = 0; i < totvert; i++) {
+          if (i == vert_dest_map[i]) {
+            vert_dest_map[i] = OUT_OF_CONTEXT;
+          }
+          else {
+            uint v = i;
+            while (v != vert_dest_map[v] && vert_dest_map[v] != OUT_OF_CONTEXT) {
+              v = vert_dest_map[v];
+            }
+            vert_dest_map[v] = v;
+            vert_dest_map[i] = v;
+          }
+        }
+
+        MEM_freeN(overlap);
+      }
+    }
+  }
+#else
+  {
+    KDTree_3d *tree = BLI_kdtree_3d_new(totvert);
+    for (uint i = 0; i < totvert; i++) {
+      if (!(v_mask && !BLI_BITMAP_TEST(v_mask, i))) {
+        BLI_kdtree_3d_insert(tree, i, mvert[i].co);
+      }
+      vert_dest_map[i] = OUT_OF_CONTEXT;
+    }
+
+    BLI_kdtree_3d_balance(tree);
+    vert_kill_len = BLI_kdtree_3d_calc_duplicates_fast(
+        tree, wmd->merge_dist, true, (int *)vert_dest_map);
+    BLI_kdtree_3d_free(tree);
+  }
+#endif
 
   if (v_mask) {
     MEM_freeN(v_mask);
   }
 
-  if (bvhtree == NULL) {
-    return result;
-  }
-
-  struct WeldOverlapData data;
-  data.mvert = mvert;
-  data.merge_dist_sq = square_f(wmd->merge_dist);
-
-  uint overlap_len;
-  BVHTreeOverlap *overlap = BLI_bvhtree_overlap_ex(bvhtree,
-                                                   bvhtree,
-                                                   &overlap_len,
-                                                   bvhtree_weld_overlap_cb,
-                                                   &data,
-                                                   wmd->max_interactions,
-                                                   BVH_OVERLAP_RETURN_PAIRS);
-
-  free_bvhtree_from_mesh(&treedata);
-
-  if (overlap_len) {
+  if (vert_kill_len) {
     WeldMesh weld_mesh;
-    weld_mesh_context_create(mesh, overlap, overlap_len, &weld_mesh);
+    weld_mesh_context_create(mesh, vert_dest_map, vert_kill_len, &weld_mesh);
 
     mloop = mesh->mloop;
     mpoly = mesh->mpoly;
@@ -1745,10 +1726,10 @@ static Mesh *weldModifier_doWeld(WeldModifierData *wmd, const ModifierEvalContex
 
     /* Vertices */
 
-    uint *vert_final = weld_mesh.vert_groups_map;
+    uint *vert_final = vert_dest_map;
     uint *index_iter = &vert_final[0];
     int dest_index = 0;
-    for (i = 0; i < totvert; i++, index_iter++) {
+    for (uint i = 0; i < totvert; i++, index_iter++) {
       int source_index = i;
       int count = 0;
       while (i < totvert && *index_iter == OUT_OF_CONTEXT) {
@@ -1783,7 +1764,7 @@ static Mesh *weldModifier_doWeld(WeldModifierData *wmd, const ModifierEvalContex
     uint *edge_final = weld_mesh.edge_groups_map;
     index_iter = &edge_final[0];
     dest_index = 0;
-    for (i = 0; i < totedge; i++, index_iter++) {
+    for (uint i = 0; i < totedge; i++, index_iter++) {
       int source_index = i;
       int count = 0;
       while (i < totedge && *index_iter == OUT_OF_CONTEXT) {
@@ -1831,7 +1812,7 @@ static Mesh *weldModifier_doWeld(WeldModifierData *wmd, const ModifierEvalContex
     uint r_i = 0;
     int loop_cur = 0;
     uint *group_buffer = BLI_array_alloca(group_buffer, weld_mesh.max_poly_len);
-    for (i = 0; i < totpoly; i++, mp++) {
+    for (uint i = 0; i < totpoly; i++, mp++) {
       int loop_start = loop_cur;
       uint poly_ctx = weld_mesh.poly_map[i];
       if (poly_ctx == OUT_OF_CONTEXT) {
@@ -1877,7 +1858,7 @@ static Mesh *weldModifier_doWeld(WeldModifierData *wmd, const ModifierEvalContex
     }
 
     WeldPoly *wp = &weld_mesh.wpoly_new[0];
-    for (i = 0; i < weld_mesh.wpoly_new_len; i++, wp++) {
+    for (uint i = 0; i < weld_mesh.wpoly_new_len; i++, wp++) {
       int loop_start = loop_cur;
       WeldLoopOfPolyIter iter;
       if (!weld_iter_loop_of_poly_begin(
@@ -1918,7 +1899,7 @@ static Mesh *weldModifier_doWeld(WeldModifierData *wmd, const ModifierEvalContex
     weld_mesh_context_free(&weld_mesh);
   }
 
-  MEM_freeN(overlap);
+  MEM_freeN(vert_dest_map);
   return result;
 }
 
@@ -1933,7 +1914,6 @@ static void initData(ModifierData *md)
   WeldModifierData *wmd = (WeldModifierData *)md;
 
   wmd->merge_dist = 0.001f;
-  wmd->max_interactions = 1;
   wmd->defgrp_name[0] = '\0';
 }
 
@@ -1959,7 +1939,6 @@ static void panel_draw(const bContext *UNUSED(C), Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   uiItemR(layout, ptr, "merge_threshold", 0, IFACE_("Distance"), ICON_NONE);
-  uiItemR(layout, ptr, "max_interactions", 0, NULL, ICON_NONE);
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", NULL);
 
   modifier_panel_end(layout, ptr);
@@ -1974,10 +1953,12 @@ ModifierTypeInfo modifierType_Weld = {
     /* name */ "Weld",
     /* structName */ "WeldModifierData",
     /* structSize */ sizeof(WeldModifierData),
+    /* srna */ &RNA_WeldModifier,
     /* type */ eModifierTypeType_Constructive,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
         eModifierTypeFlag_AcceptsCVs,
+    /* icon */ ICON_AUTOMERGE_OFF, /* TODO: Use correct icon. */
 
     /* copyData */ BKE_modifier_copydata_generic,
 

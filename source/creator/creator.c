@@ -414,6 +414,10 @@ int main(int argc,
 
   main_args_setup(C, ba, &syshandle);
 
+  /* Begin argument parsing, ignore leaks so arguments that call #exit
+   * (such as '--version' & '--help') don't report leaks. */
+  MEM_use_memleak_detection(false);
+
   BLI_argsParse(ba, 1, NULL, NULL);
 
   main_signal_setup();
@@ -515,6 +519,9 @@ int main(int argc,
   callback_main_atexit(&app_init_data);
   BKE_blender_atexit_unregister(callback_main_atexit, &app_init_data);
 
+  /* End argument parsing, allow memory leaks to be printed. */
+  MEM_use_memleak_detection(true);
+
   /* Paranoid, avoid accidental re-use. */
 #ifndef WITH_PYTHON_MODULE
   ba = NULL;
@@ -526,11 +533,7 @@ int main(int argc,
   (void)argv;
 #endif
 
-#ifdef WITH_PYTHON_MODULE
-  /* Keep blender in background-mode running. */
-  return 0;
-#endif
-
+#ifndef WITH_PYTHON_MODULE
   if (G.background) {
     /* Using window-manager API in background-mode is a bit odd, but works fine. */
     WM_exit(C);
@@ -553,9 +556,9 @@ int main(int argc,
     if (!G.file_loaded) {
       WM_init_splash(C);
     }
+    WM_main(C);
   }
-
-  WM_main(C);
+#endif /* WITH_PYTHON_MODULE */
 
   return 0;
 } /* End of int main(...) function. */

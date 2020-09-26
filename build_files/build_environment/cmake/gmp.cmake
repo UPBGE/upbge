@@ -25,10 +25,22 @@ else()
   set(GMP_OPTIONS --enable-static --disable-shared )
 endif()
 
-if(APPLE AND ("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64"))
+if(APPLE)
+  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
+    set(GMP_OPTIONS
+      ${GMP_OPTIONS}
+      --disable-assembly
+    )
+  else()
+    set(GMP_OPTIONS
+      ${GMP_OPTIONS}
+      --with-pic
+    )
+  endif()
+elseif(UNIX)
   set(GMP_OPTIONS
-     ${GMP_OPTIONS}
-     --disable-assembly
+    ${GMP_OPTIONS}
+    --with-pic
   )
 endif()
 

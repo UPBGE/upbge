@@ -50,6 +50,7 @@
 
 #include "BKE_anim_data.h"
 #include "BKE_curve.h"
+#include "BKE_curveprofile.h"
 #include "BKE_displist.h"
 #include "BKE_font.h"
 #include "BKE_idtype.h"
@@ -95,6 +96,8 @@ static void curve_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int
   curve_dst->tb = MEM_dupallocN(curve_src->tb);
   curve_dst->batch_cache = NULL;
 
+  curve_dst->bevel_profile = BKE_curveprofile_copy(curve_src->bevel_profile);
+
   if (curve_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
     BKE_id_copy_ex(bmain, &curve_src->key->id, (ID **)&curve_dst->key, flag);
     /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
@@ -115,6 +118,8 @@ static void curve_free_data(ID *id)
   BKE_curve_editfont_free(curve);
 
   BKE_curve_editNurb_free(curve);
+
+  BKE_curveprofile_free(curve->bevel_profile);
 
   MEM_SAFE_FREE(curve->mat);
   MEM_SAFE_FREE(curve->str);
@@ -181,6 +186,10 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
           }
         }
       }
+    }
+
+    if (cu->bevel_profile != NULL) {
+      BKE_curveprofile_blend_write(writer, cu->bevel_profile);
     }
   }
 }
@@ -251,6 +260,11 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
     }
   }
   cu->texflag &= ~CU_AUTOSPACE_EVALUATED;
+
+  BLO_read_data_address(reader, &cu->bevel_profile);
+  if (cu->bevel_profile != NULL) {
+    BKE_curveprofile_blend_read(reader, cu->bevel_profile);
+  }
 }
 
 static void curve_blend_read_lib(BlendLibReader *reader, ID *id)
@@ -397,6 +411,7 @@ void BKE_curve_init(Curve *cu, const short curve_type)
   else if (cu->type == OB_SURF) {
     cu->resolv = 4;
   }
+  cu->bevel_profile = NULL;
 }
 
 Curve *BKE_curve_add(Main *bmain, const char *name, int type)
@@ -4224,7 +4239,7 @@ void BKE_nurb_handles_test(Nurb *nu, const bool use_handle, const bool use_aroun
   BKE_nurb_handles_calc(nu);
 }
 
-void BKE_nurb_handles_autocalc(Nurb *nu, int flag)
+void BKE_nurb_handles_autocalc(Nurb *nu, uint8_t flag)
 {
   /* checks handle coordinates and calculates type */
   const float eps = 0.0001f;
@@ -4305,7 +4320,7 @@ void BKE_nurb_handles_autocalc(Nurb *nu, int flag)
   BKE_nurb_handles_calc(nu);
 }
 
-void BKE_nurbList_handles_autocalc(ListBase *editnurb, int flag)
+void BKE_nurbList_handles_autocalc(ListBase *editnurb, uint8_t flag)
 {
   Nurb *nu;
 
@@ -4410,7 +4425,9 @@ void BKE_nurbList_handles_set(ListBase *editnurb, const char code)
   }
 }
 
-void BKE_nurbList_handles_recalculate(ListBase *editnurb, const bool calc_length, const char flag)
+void BKE_nurbList_handles_recalculate(ListBase *editnurb,
+                                      const bool calc_length,
+                                      const uint8_t flag)
 {
   Nurb *nu;
   BezTriple *bezt;
@@ -4464,7 +4481,7 @@ void BKE_nurbList_handles_recalculate(ListBase *editnurb, const bool calc_length
   }
 }
 
-void BKE_nurbList_flag_set(ListBase *editnurb, short flag, bool set)
+void BKE_nurbList_flag_set(ListBase *editnurb, uint8_t flag, bool set)
 {
   Nurb *nu;
   BezTriple *bezt;
@@ -4503,7 +4520,7 @@ void BKE_nurbList_flag_set(ListBase *editnurb, short flag, bool set)
 /**
  * Set \a flag for every point that already has \a from_flag set.
  */
-bool BKE_nurbList_flag_set_from_flag(ListBase *editnurb, short from_flag, short flag)
+bool BKE_nurbList_flag_set_from_flag(ListBase *editnurb, uint8_t from_flag, uint8_t flag)
 {
   bool changed = false;
 
@@ -4511,7 +4528,7 @@ bool BKE_nurbList_flag_set_from_flag(ListBase *editnurb, short from_flag, short 
     if (nu->type == CU_BEZIER) {
       for (int i = 0; i < nu->pntsu; i++) {
         BezTriple *bezt = &nu->bezt[i];
-        int old_f1 = bezt->f1, old_f2 = bezt->f2, old_f3 = bezt->f3;
+        uint8_t old_f1 = bezt->f1, old_f2 = bezt->f2, old_f3 = bezt->f3;
 
         SET_FLAG_FROM_TEST(bezt->f1, bezt->f1 & from_flag, flag);
         SET_FLAG_FROM_TEST(bezt->f2, bezt->f2 & from_flag, flag);
@@ -4523,7 +4540,7 @@ bool BKE_nurbList_flag_set_from_flag(ListBase *editnurb, short from_flag, short 
     else {
       for (int i = 0; i < nu->pntsu * nu->pntsv; i++) {
         BPoint *bp = &nu->bp[i];
-        int old_f1 = bp->f1;
+        uint8_t old_f1 = bp->f1;
 
         SET_FLAG_FROM_TEST(bp->f1, bp->f1 & from_flag, flag);
         changed |= (old_f1 != bp->f1);
@@ -4564,12 +4581,12 @@ void BKE_nurb_direction_switch(Nurb *nu)
         swap_v3_v3(bezt2->vec[0], bezt2->vec[2]);
       }
 
-      SWAP(char, bezt1->h1, bezt1->h2);
-      SWAP(char, bezt1->f1, bezt1->f3);
+      SWAP(uint8_t, bezt1->h1, bezt1->h2);
+      SWAP(uint8_t, bezt1->f1, bezt1->f3);
 
       if (bezt1 != bezt2) {
-        SWAP(char, bezt2->h1, bezt2->h2);
-        SWAP(char, bezt2->f1, bezt2->f3);
+        SWAP(uint8_t, bezt2->h1, bezt2->h2);
+        SWAP(uint8_t, bezt2->f1, bezt2->f3);
         bezt1->tilt = -bezt1->tilt;
         bezt2->tilt = -bezt2->tilt;
       }
@@ -4993,7 +5010,7 @@ bool BKE_nurb_type_convert(Nurb *nu,
           bp++;
         }
         else {
-          const char *f = &bezt->f1;
+          const uint8_t *f = &bezt->f1;
           for (c = 0; c < 3; c++, f++) {
             copy_v3_v3(bp->vec, bezt->vec[c]);
             bp->vec[3] = 1.0;

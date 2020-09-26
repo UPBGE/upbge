@@ -1,6 +1,8 @@
 #pragma BLENDER_REQUIRE(common_view_lib.glsl)
 
-#define SIMA_DRAW_FLAG_DO_REPEAT (1 << 5)
+#define SIMA_DRAW_FLAG_DO_REPEAT (1 << 4)
+
+#define IMAGE_Z_DEPTH 0.75
 
 uniform int drawFlags;
 
@@ -14,7 +16,7 @@ void main()
   vec3 image_pos = pos * 0.5 + 0.5;
 
   if ((drawFlags & SIMA_DRAW_FLAG_DO_REPEAT) != 0) {
-    gl_Position = vec4(pos.xy, 0.0, 1.0);
+    gl_Position = vec4(pos.xy, IMAGE_Z_DEPTH, 1.0);
     uvs = point_view_to_object(image_pos).xy;
   }
   else {
@@ -24,7 +26,7 @@ void main()
      * to detect if a transparency texture or the background color should be drawn.
      * Vertices are between 0.0 and 0.2, Edges between 0.2 and 0.4
      * actual pixels are at 0.75, 1.0 is used for the background. */
-    position.z = 0.75;
+    position.z = IMAGE_Z_DEPTH;
     gl_Position = position;
     uvs = world_pos.xy;
   }

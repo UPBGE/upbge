@@ -112,7 +112,7 @@ struct GPUViewport {
   ColorManagedDisplaySettings display_settings;
   CurveMapping *orig_curve_mapping;
   float dither;
-  /* TODO(fclem) the uvimage display use the viewport but do not set any view transform for the
+  /* TODO(fclem): the uvimage display use the viewport but do not set any view transform for the
    * moment. The end goal would be to let the GPUViewport do the color management. */
   bool do_color_management;
   struct GPUViewportBatch batch;
@@ -879,7 +879,7 @@ void GPU_viewport_unbind_from_offscreen(GPUViewport *viewport,
     return;
   }
 
-  GPU_depth_test(false);
+  GPU_depth_test(GPU_DEPTH_NONE);
   GPU_offscreen_bind(ofs, false);
 
   rctf pos_rect = {

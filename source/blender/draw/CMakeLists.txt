@@ -44,10 +44,6 @@ set(INC
   ../../../intern/guardedalloc
 )
 
-set(INC_SYS
-  ${GLEW_INCLUDE_PATH}
-)
-
 set(SRC
   intern/draw_cache.c
   intern/draw_cache_extract_mesh.c
@@ -139,6 +135,7 @@ set(SRC
   engines/overlay/overlay_engine.c
   engines/overlay/overlay_extra.c
   engines/overlay/overlay_facing.c
+  engines/overlay/overlay_fade.c
   engines/overlay/overlay_gpencil.c
   engines/overlay/overlay_grid.c
   engines/overlay/overlay_image.c
@@ -177,6 +174,8 @@ set(SRC
   engines/eevee/eevee_lut.h
   engines/eevee/eevee_private.h
   engines/external/external_engine.h
+  engines/image/image_engine.h
+  engines/image/image_private.h
   engines/workbench/workbench_engine.h
   engines/workbench/workbench_private.h
   engines/select/select_engine.h
@@ -415,6 +414,7 @@ data_to_c_simple(engines/overlay/shaders/particle_frag.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/sculpt_mask_vert.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/sculpt_mask_frag.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/volume_velocity_vert.glsl SRC)
+data_to_c_simple(engines/overlay/shaders/volume_gridlines_vert.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/wireframe_vert.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/wireframe_frag.glsl SRC)
 data_to_c_simple(engines/overlay/shaders/xray_fade_frag.glsl SRC)
@@ -446,7 +446,6 @@ if(WITH_GTESTS)
   endif()
 endif()
 
-add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_draw "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 

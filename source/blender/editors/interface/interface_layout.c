@@ -80,11 +80,31 @@
 
 /* uiLayoutRoot */
 
+/**
+ * A group of button references, used by property search to keep track of sets of buttons that
+ * should be searched together. For example, in property split layouts number buttons and their
+ * labels (and even their decorators) are separate buttons, but they must be searched and
+ * highlighted together.
+ */
+typedef struct uiButtonGroup {
+  void *next, *prev;
+  ListBase buttons; /* #LinkData with #uiBut data field. */
+} uiButtonGroup;
+
 typedef struct uiLayoutRoot {
   struct uiLayoutRoot *next, *prev;
 
   int type;
   int opcontext;
+
+  /**
+   * If true, the root will be removed as part of the property search process.
+   * Necessary for cases like searching the contents of closed panels, where the
+   * block-level tag isn't enough, as there might be visible buttons in the header.
+   */
+  bool search_only;
+
+  ListBase button_groups; /* #uiButtonGroup. */
 
   int emw, emh;
   int padding;
@@ -410,6 +430,58 @@ static void ui_item_move(uiItem *item, int delta_xmin, int delta_xmax)
       litem->w += delta_xmax;
     }
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Button Groups
+ * \{ */
+
+/**
+ * Every function that adds a set of buttons must create another group,
+ * then #ui_def_but adds buttons to the current group (the last).
+ */
+static void layout_root_new_button_group(uiLayoutRoot *root)
+{
+  uiButtonGroup *new_group = MEM_mallocN(sizeof(uiButtonGroup), __func__);
+  BLI_listbase_clear(&new_group->buttons);
+  BLI_addtail(&root->button_groups, new_group);
+}
+
+static void button_group_add_but(uiLayoutRoot *root, uiBut *but)
+{
+  BLI_assert(root != NULL);
+
+  uiButtonGroup *current_button_group = root->button_groups.last;
+  BLI_assert(current_button_group != NULL);
+
+  /* We can't use the button directly because adding it to
+   * this list would mess with its prev and next pointers. */
+  LinkData *button_link = BLI_genericNodeN(but);
+  BLI_addtail(&current_button_group->buttons, button_link);
+}
+
+static void button_group_free(uiButtonGroup *button_group)
+{
+  BLI_freelistN(&button_group->buttons);
+  MEM_freeN(button_group);
+}
+
+/* This function should be removed whenever #ui_layout_replace_but_ptr is removed. */
+void ui_button_group_replace_but_ptr(uiLayout *layout, const void *old_but_ptr, uiBut *new_but)
+{
+  LISTBASE_FOREACH (uiButtonGroup *, button_group, &layout->root->button_groups) {
+    LISTBASE_FOREACH (LinkData *, link, &button_group->buttons) {
+      if (link->data == old_but_ptr) {
+        link->data = new_but;
+        return;
+      }
+    }
+  }
+
+  /* The button should be in a group. */
+  BLI_assert(false);
 }
 
 /** \} */
@@ -1214,6 +1286,10 @@ static uiBut *uiItemFullO_ptr_ex(uiLayout *layout,
     but->flag |= UI_SELECT_DRAW;
   }
 
+  if (flag & UI_ITEM_R_ICON_ONLY) {
+    UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
+  }
+
   if (layout->redalert) {
     UI_but_flag_enable(but, UI_BUT_REDALERT);
   }
@@ -1434,6 +1510,26 @@ void uiItemsFullEnumO_items(uiLayout *layout,
   if (radial) {
     target = uiLayoutRadial(layout);
   }
+  else if ((uiLayoutGetLocalDir(layout) == UI_LAYOUT_HORIZONTAL) && (flag & UI_ITEM_R_ICON_ONLY)) {
+    target = layout;
+    UI_block_layout_set_current(block, target);
+
+    /* Add a blank button to the beginning of the row. */
+    uiDefIconBut(block,
+                 UI_BTYPE_LABEL,
+                 0,
+                 ICON_BLANK1,
+                 0,
+                 0,
+                 1.25f * UI_UNIT_X,
+                 UI_UNIT_Y,
+                 NULL,
+                 0,
+                 0,
+                 0,
+                 0,
+                 NULL);
+  }
   else {
     split = uiLayoutSplit(layout, 0.0f, false);
     target = uiLayoutColumn(split, layout->align);
@@ -1481,7 +1577,14 @@ void uiItemsFullEnumO_items(uiLayout *layout,
       }
       RNA_property_enum_set(&tptr, prop, item->value);
 
-      uiItemFullO_ptr(target, ot, item->name, item->icon, tptr.data, context, flag, NULL);
+      uiItemFullO_ptr(target,
+                      ot,
+                      (flag & UI_ITEM_R_ICON_ONLY) ? NULL : item->name,
+                      item->icon,
+                      tptr.data,
+                      context,
+                      flag,
+                      NULL);
 
       ui_but_tip_from_enum_item(block->buttons.last, item);
     }
@@ -1489,7 +1592,7 @@ void uiItemsFullEnumO_items(uiLayout *layout,
       if (item->name) {
         uiBut *but;
 
-        if (item != item_array && !radial) {
+        if (item != item_array && !radial && split != NULL) {
           target = uiLayoutColumn(split, layout->align);
 
           /* inconsistent, but menus with labels do not look good flipped */
@@ -1988,6 +2091,7 @@ void uiItemFullR(uiLayout *layout,
 #endif /* UI_PROP_DECORATE */
 
   UI_block_layout_set_current(block, layout);
+  layout_root_new_button_group(layout->root);
 
   /* retrieve info */
   const PropertyType type = RNA_property_type(prop);
@@ -2738,6 +2842,8 @@ void uiItemPointerR_prop(uiLayout *layout,
   char namestr[UI_MAX_NAME_STR];
   const bool use_prop_sep = ((layout->item.flag & UI_ITEM_PROP_SEP) != 0);
 
+  layout_root_new_button_group(layout->root);
+
   type = RNA_property_type(prop);
   if (!ELEM(type, PROP_POINTER, PROP_STRING, PROP_ENUM)) {
     RNA_warning("Property %s.%s must be a pointer, string or enum",
@@ -2843,6 +2949,7 @@ static uiBut *ui_item_menu(uiLayout *layout,
   int w, h;
 
   UI_block_layout_set_current(block, layout);
+  layout_root_new_button_group(layout->root);
 
   if (!name) {
     name = "";
@@ -2894,7 +3001,7 @@ static uiBut *ui_item_menu(uiLayout *layout,
   }
 
   if (ELEM(layout->root->type, UI_LAYOUT_PANEL, UI_LAYOUT_TOOLBAR) ||
-      /* We never want a dropdown in menu! */
+      /* We never want a drop-down in menu! */
       (force_menu && layout->root->type != UI_LAYOUT_MENU)) {
     UI_but_type_set_menu_from_pulldown(but);
   }
@@ -3110,6 +3217,7 @@ static uiBut *uiItemL_(uiLayout *layout, const char *name, int icon)
   int w;
 
   UI_block_layout_set_current(block, layout);
+  layout_root_new_button_group(layout->root);
 
   if (!name) {
     name = "";
@@ -3718,18 +3826,18 @@ static void ui_litem_estimate_column(uiLayout *litem, bool is_box)
   }
 }
 
-static void ui_litem_layout_column(uiLayout *litem, bool is_box)
+static void ui_litem_layout_column(uiLayout *litem, bool is_box, bool is_menu)
 {
-  int itemh, x, y;
+  int itemw, itemh, x, y;
 
   x = litem->x;
   y = litem->y;
 
   LISTBASE_FOREACH (uiItem *, item, &litem->items) {
-    ui_item_size(item, NULL, &itemh);
+    ui_item_size(item, &itemw, &itemh);
 
     y -= itemh;
-    ui_item_position(item, x, y, litem->w, itemh);
+    ui_item_position(item, x, y, is_menu ? itemw : litem->w, itemh);
 
     if (item->next && (!is_box || item != litem->items.first)) {
       y -= litem->space;
@@ -3890,8 +3998,11 @@ static void ui_litem_layout_root(uiLayout *litem)
   else if (litem->root->type == UI_LAYOUT_PIEMENU) {
     ui_litem_layout_root_radial(litem);
   }
+  else if (litem->root->type == UI_LAYOUT_MENU) {
+    ui_litem_layout_column(litem, false, true);
+  }
   else {
-    ui_litem_layout_column(litem, false);
+    ui_litem_layout_column(litem, false, false);
   }
 }
 
@@ -3935,7 +4046,7 @@ static void ui_litem_layout_box(uiLayout *litem)
     litem->h -= 2 * boxspace;
   }
 
-  ui_litem_layout_column(litem, true);
+  ui_litem_layout_column(litem, true, false);
 
   litem->x -= boxspace;
   litem->y -= boxspace;
@@ -5031,6 +5142,216 @@ int uiLayoutGetEmboss(uiLayout *layout)
   return layout->emboss;
 }
 
+/**
+ * Tags the layout root as search only, meaning the search process will run, but not the rest of
+ * the layout process. Use in situations where part of the block's contents normally wouldn't be
+ * drawn, but must be searched anyway, like the contents of closed panels with headers.
+ */
+void uiLayoutRootSetSearchOnly(uiLayout *layout, bool search_only)
+{
+  layout->root->search_only = search_only;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Block Layout Search Filtering
+ * \{ */
+
+/* Disabled for performance reasons, but this could be turned on in the future. */
+// #define PROPERTY_SEARCH_USE_TOOLTIPS
+
+static bool block_search_panel_label_matches(const uiBlock *block, const char *search_string)
+{
+  if ((block->panel != NULL) && (block->panel->type != NULL)) {
+    if (BLI_strcasestr(block->panel->type->label, search_string)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Buttons for search only layouts (closed panel sub-panels) have still been added from the
+ * layout functions, but they need to be hidden. Theoretically they could be removed too.
+ */
+static void layout_free_and_hide_buttons(uiLayout *layout)
+{
+  LISTBASE_FOREACH_MUTABLE (uiItem *, item, &layout->items) {
+    if (item->type == ITEM_BUTTON) {
+      uiButtonItem *button_item = (uiButtonItem *)item;
+      BLI_assert(button_item->but != NULL);
+      button_item->but->flag |= UI_HIDDEN;
+      MEM_freeN(item);
+    }
+    else {
+      layout_free_and_hide_buttons((uiLayout *)item);
+    }
+  }
+
+  MEM_freeN(layout);
+}
+
+/* Prototype of function below. */
+static void layout_root_free(uiLayoutRoot *root);
+
+/**
+ * Remove layouts used only for search and hide their buttons.
+ * (See comment for #uiLayoutRootSetSearchOnly and in #uiLayoutRoot).
+ */
+static void block_search_remove_search_only_roots(uiBlock *block)
+{
+  LISTBASE_FOREACH_MUTABLE (uiLayoutRoot *, root, &block->layouts) {
+    if (root->search_only) {
+      layout_free_and_hide_buttons(root->layout);
+      BLI_remlink(&block->layouts, root);
+      layout_root_free(root);
+    }
+  }
+}
+
+/**
+ * Returns true if a button or the data / operator it represents matches the search filter.
+ */
+static bool button_matches_search_filter(uiBut *but, const char *search_filter)
+{
+  /* Do the shorter checks first for better performance in case there is a match. */
+  if (BLI_strcasestr(but->str, search_filter)) {
+    return true;
+  }
+
+  if (but->optype != NULL) {
+    if (BLI_strcasestr(but->optype->name, search_filter)) {
+      return true;
+    }
+  }
+
+  if (but->rnaprop != NULL) {
+    if (BLI_strcasestr(RNA_property_ui_name(but->rnaprop), search_filter)) {
+      return true;
+    }
+#ifdef PROPERTY_SEARCH_USE_TOOLTIPS
+    if (BLI_strcasestr(RNA_property_description(but->rnaprop), search_filter)) {
+      return true;
+    }
+#endif
+
+    /* Search through labels of enum property items if they are in a drop-down menu.
+     * Unfortunately we have no #bContext here so we cannot search through RNA enums
+     * with dynamic entries (or "itemf" functions) which require context. */
+    if (but->type == UI_BTYPE_MENU) {
+      PointerRNA *ptr = &but->rnapoin;
+      PropertyRNA *enum_prop = but->rnaprop;
+
+      int items_len;
+      const EnumPropertyItem *items_array = NULL;
+      bool free;
+      RNA_property_enum_items_gettexted(NULL, ptr, enum_prop, &items_array, &items_len, &free);
+
+      if (items_array == NULL) {
+        return false;
+      }
+
+      for (int i = 0; i < items_len; i++) {
+        /* Check for NULL name field which enums use for separators. */
+        if (items_array[i].name == NULL) {
+          continue;
+        }
+        if (BLI_strcasestr(items_array[i].name, search_filter)) {
+          return true;
+        }
+      }
+      if (free) {
+        MEM_freeN((EnumPropertyItem *)items_array);
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Test for a search result within a specific button group.
+ */
+static bool button_group_has_search_match(uiButtonGroup *button_group, const char *search_filter)
+{
+  LISTBASE_FOREACH (LinkData *, link, &button_group->buttons) {
+    uiBut *but = link->data;
+    if (button_matches_search_filter(but, search_filter)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Apply the search filter, tagging all buttons with whether they match or not.
+ * Tag every button in the group as a result if any button in the group matches.
+ *
+ * \note It would be great to return early here if we found a match, but because
+ * the results may be visible we have to continue searching the entire block.
+ *
+ * \return True if the block has any search results.
+ */
+static bool block_search_filter_tag_buttons(uiBlock *block, const char *search_filter)
+{
+  bool has_result = false;
+  LISTBASE_FOREACH (uiLayoutRoot *, root, &block->layouts) {
+    LISTBASE_FOREACH (uiButtonGroup *, button_group, &root->button_groups) {
+      if (button_group_has_search_match(button_group, search_filter)) {
+        LISTBASE_FOREACH (LinkData *, link, &button_group->buttons) {
+          uiBut *but = link->data;
+          but->flag |= UI_SEARCH_FILTER_MATCHES;
+        }
+        has_result = true;
+      }
+    }
+  }
+  return has_result;
+}
+
+static void block_search_deactivate_buttons(uiBlock *block)
+{
+  LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
+    if (!(but->flag & UI_SEARCH_FILTER_MATCHES)) {
+      but->flag |= UI_BUT_INACTIVE;
+    }
+  }
+}
+
+/**
+ * Apply property search behavior, setting panel flags and deactivating buttons that don't match.
+ *
+ * \note Must not be run after #UI_block_layout_resolve.
+ */
+bool UI_block_apply_search_filter(uiBlock *block, const char *search_filter)
+{
+  if (search_filter == NULL || search_filter[0] == '\0') {
+    return false;
+  }
+
+  const bool panel_label_matches = block_search_panel_label_matches(block, search_filter);
+
+  const bool has_result = (panel_label_matches) ?
+                              true :
+                              block_search_filter_tag_buttons(block, search_filter);
+
+  block_search_remove_search_only_roots(block);
+
+  if (block->panel != NULL) {
+    if (has_result) {
+      ui_panel_tag_search_filter_match(block->panel);
+    }
+  }
+
+  if (!panel_label_matches) {
+    block_search_deactivate_buttons(block);
+  }
+
+  return has_result;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -5196,7 +5517,7 @@ static void ui_item_layout(uiItem *item)
 
     switch (litem->item.type) {
       case ITEM_LAYOUT_COLUMN:
-        ui_litem_layout_column(litem, false);
+        ui_litem_layout_column(litem, false, false);
         break;
       case ITEM_LAYOUT_COLUMN_FLOW:
         ui_litem_layout_column_flow(litem);
@@ -5275,6 +5596,14 @@ static void ui_layout_free(uiLayout *layout)
   MEM_freeN(layout);
 }
 
+static void layout_root_free(uiLayoutRoot *root)
+{
+  LISTBASE_FOREACH_MUTABLE (uiButtonGroup *, button_group, &root->button_groups) {
+    button_group_free(button_group);
+  }
+  MEM_freeN(root);
+}
+
 static void ui_layout_add_padding_button(uiLayoutRoot *root)
 {
   if (root->padding) {
@@ -5308,6 +5637,9 @@ uiLayout *UI_block_layout(uiBlock *block,
   root->block = block;
   root->padding = padding;
   root->opcontext = WM_OP_INVOKE_REGION_WIN;
+
+  BLI_listbase_clear(&root->button_groups);
+  layout_root_new_button_group(root);
 
   layout = MEM_callocN(sizeof(uiLayout), "uiLayout");
   layout->item.type = (type == UI_LAYOUT_VERT_BAR) ? ITEM_LAYOUT_COLUMN : ITEM_LAYOUT_ROOT;
@@ -5393,6 +5725,8 @@ void ui_layout_add_but(uiLayout *layout, uiBut *but)
   if (layout->emboss != UI_EMBOSS_UNDEFINED) {
     but->emboss = layout->emboss;
   }
+
+  button_group_add_but(layout->root, but);
 }
 
 bool ui_layout_replace_but_ptr(uiLayout *layout, const void *old_but_ptr, uiBut *new_but)
@@ -5458,15 +5792,19 @@ void UI_block_layout_resolve(uiBlock *block, int *r_x, int *r_y)
 
   block->curlayout = NULL;
 
-  LISTBASE_FOREACH (uiLayoutRoot *, root, &block->layouts) {
+  LISTBASE_FOREACH_MUTABLE (uiLayoutRoot *, root, &block->layouts) {
+    /* Search only roots should be removed by #UI_block_apply_search_filter. */
+    BLI_assert(!root->search_only);
+
     ui_layout_add_padding_button(root);
 
     /* NULL in advance so we don't interfere when adding button */
     ui_layout_end(block, root->layout, r_x, r_y);
     ui_layout_free(root->layout);
+    layout_root_free(root);
   }
 
-  BLI_freelistN(&block->layouts);
+  BLI_listbase_clear(&block->layouts);
 
   /* XXX silly trick, interface_templates.c doesn't get linked
    * because it's not used by other files in this module? */

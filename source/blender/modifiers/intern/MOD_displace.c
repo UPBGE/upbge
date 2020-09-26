@@ -502,8 +502,10 @@ ModifierTypeInfo modifierType_Displace = {
     /* name */ "Displace",
     /* structName */ "DisplaceModifierData",
     /* structSize */ sizeof(DisplaceModifierData),
+    /* srna */ &RNA_DisplaceModifier,
     /* type */ eModifierTypeType_OnlyDeform,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
+    /* icon */ ICON_MOD_DISPLACE,
 
     /* copyData */ BKE_modifier_copydata_generic,
 

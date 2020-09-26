@@ -375,7 +375,7 @@ static bool id_search_add(const bContext *C, TemplateID *template_ui, uiSearchIt
   int name_prefix_offset;
   BKE_id_full_name_ui_prefix_get(name_ui, id, use_lib_prefix, UI_SEP_CHAR, &name_prefix_offset);
   if (!use_lib_prefix) {
-    iconid = UI_library_icon_get(id);
+    iconid = UI_icon_from_library(id);
   }
 
   if (!UI_search_item_add(items,
@@ -676,7 +676,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 static const char *template_id_browse_tip(const StructRNA *type)
 {
   if (type) {
-    switch (RNA_type_to_ID_code(type)) {
+    switch ((ID_Type)RNA_type_to_ID_code(type)) {
       case ID_SCE:
         return N_("Browse Scene to be linked");
       case ID_OB:
@@ -745,6 +745,15 @@ static const char *template_id_browse_tip(const StructRNA *type)
         return N_("Browse Volume Data to be linked");
       case ID_SIM:
         return N_("Browse Simulation to be linked");
+
+      /* Use generic text. */
+      case ID_LI:
+      case ID_IP:
+      case ID_KE:
+      case ID_VF:
+      case ID_GR:
+      case ID_WM:
+        break;
     }
   }
   return N_("Browse ID data to be linked");
@@ -1941,13 +1950,6 @@ void uiTemplateModifiers(uiLayout *UNUSED(layout), bContext *C)
 
       panel = panel->next;
     }
-
-    /* The expansion might have been changed elsewhere, so we still need to set it. */
-    LISTBASE_FOREACH (Panel *, panel_iter, &region->panels) {
-      if ((panel_iter->type != NULL) && (panel_iter->type->flag & PNL_INSTANCED)) {
-        UI_panel_set_expand_from_list_data(C, panel_iter);
-      }
-    }
   }
 }
 
@@ -2050,8 +2052,8 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
   if (use_bone_constraints) {
     constraints = ED_object_pose_constraint_list(C);
   }
-  else {
-    constraints = ED_object_constraint_active_list(ob);
+  else if (ob != NULL) {
+    constraints = &ob->constraints;
   }
 
   /* Switch between the bone panel ID function and the object panel ID function. */
@@ -2064,6 +2066,14 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
     UI_panels_free_instanced(C, region);
     bConstraint *con = (constraints == NULL) ? NULL : constraints->first;
     for (int i = 0; con; i++, con = con->next) {
+      /* Dont show temporary constraints (AutoIK and targetless IK constraints). */
+      if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
+        bKinematicConstraint *data = con->data;
+        if (data->flag & CONSTRAINT_IK_TEMP) {
+          continue;
+        }
+      }
+
       char panel_idname[MAX_NAME];
       panel_id_func(con, panel_idname);
 
@@ -2087,6 +2097,14 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
     /* Assuming there's only one group of instanced panels, update the custom data pointers. */
     Panel *panel = region->panels.first;
     LISTBASE_FOREACH (bConstraint *, con, constraints) {
+      /* Dont show temporary constraints (AutoIK and targetless IK constraints). */
+      if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
+        bKinematicConstraint *data = con->data;
+        if (data->flag & CONSTRAINT_IK_TEMP) {
+          continue;
+        }
+      }
+
       /* Move to the next instanced panel corresponding to the next constraint. */
       while ((panel->type == NULL) || !(panel->type->flag & PNL_INSTANCED)) {
         panel = panel->next;
@@ -2098,13 +2116,6 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
       UI_panel_custom_data_set(panel, con_ptr);
 
       panel = panel->next;
-    }
-
-    /* The expansion might have been changed elsewhere, so we still need to set it. */
-    LISTBASE_FOREACH (Panel *, panel_iter, &region->panels) {
-      if ((panel_iter->type != NULL) && (panel_iter->type->flag & PNL_INSTANCED)) {
-        UI_panel_set_expand_from_list_data(C, panel_iter);
-      }
     }
   }
 }
@@ -2180,13 +2191,6 @@ void uiTemplateGpencilModifiers(uiLayout *UNUSED(layout), bContext *C)
 
       panel = panel->next;
     }
-
-    /* The expansion might have been changed elsewhere, so we still need to set it. */
-    LISTBASE_FOREACH (Panel *, panel_iter, &region->panels) {
-      if ((panel_iter->type != NULL) && (panel_iter->type->flag & PNL_INSTANCED)) {
-        UI_panel_set_expand_from_list_data(C, panel_iter);
-      }
-    }
   }
 }
 
@@ -2261,13 +2265,6 @@ void uiTemplateShaderFx(uiLayout *UNUSED(layout), bContext *C)
       UI_panel_custom_data_set(panel, fx_ptr);
 
       panel = panel->next;
-    }
-
-    /* The expansion might have been changed elsewhere, so we still need to set it. */
-    LISTBASE_FOREACH (Panel *, panel_iter, &region->panels) {
-      if ((panel_iter->type != NULL) && (panel_iter->type->flag & PNL_INSTANCED)) {
-        UI_panel_set_expand_from_list_data(C, panel_iter);
-      }
     }
   }
 }
@@ -2706,14 +2703,6 @@ void uiTemplateConstraintHeader(uiLayout *layout, PointerRNA *ptr)
   }
 
   UI_block_lock_set(uiLayoutGetBlock(layout), (ob && ID_IS_LINKED(ob)), ERROR_LIBDATA_MESSAGE);
-
-  /* hrms, the temporal constraint should not draw! */
-  if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
-    bKinematicConstraint *data = con->data;
-    if (data->flag & CONSTRAINT_IK_TEMP) {
-      return;
-    }
-  }
 
   draw_constraint_header(layout, ob, con);
 }
@@ -6363,7 +6352,7 @@ void uiTemplateList(uiLayout *layout,
 
           sub = uiLayoutRow(overlap, false);
 
-          icon = UI_rnaptr_icon_get(C, itemptr, rnaicon, false);
+          icon = UI_icon_from_rnaptr(C, itemptr, rnaicon, false);
           if (icon == ICON_DOT) {
             icon = ICON_NONE;
           }
@@ -6419,7 +6408,7 @@ void uiTemplateList(uiLayout *layout,
         PointerRNA *itemptr = &items_ptr[activei].item;
         const int org_i = items_ptr[activei].org_idx;
 
-        icon = UI_rnaptr_icon_get(C, itemptr, rnaicon, false);
+        icon = UI_icon_from_rnaptr(C, itemptr, rnaicon, false);
         if (icon == ICON_DOT) {
           icon = ICON_NONE;
         }
@@ -6503,7 +6492,7 @@ void uiTemplateList(uiLayout *layout,
 
           sub = uiLayoutRow(overlap, false);
 
-          icon = UI_rnaptr_icon_get(C, itemptr, rnaicon, false);
+          icon = UI_icon_from_rnaptr(C, itemptr, rnaicon, false);
           draw_item(ui_list,
                     C,
                     sub,

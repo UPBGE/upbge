@@ -1080,7 +1080,9 @@ static void make_duplis_faces(const DupliContext *ctx)
         .vert_coords = vert_coords,
         .has_orco = (vert_coords != NULL),
         .has_uvs = (uv_idx != -1),
-        .cd_loop_uv_offset = CustomData_get_n_offset(&em->bm->ldata, CD_MLOOPUV, uv_idx),
+        .cd_loop_uv_offset = (uv_idx != -1) ?
+                                 CustomData_get_n_offset(&em->bm->ldata, CD_MLOOPUV, uv_idx) :
+                                 -1,
     };
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_editmesh);
   }
@@ -1092,7 +1094,8 @@ static void make_duplis_faces(const DupliContext *ctx)
         .mpoly = me_eval->mpoly,
         .mloop = me_eval->mloop,
         .mvert = me_eval->mvert,
-        .mloopuv = CustomData_get_layer_n(&me_eval->ldata, CD_MLOOPUV, uv_idx),
+        .mloopuv = (uv_idx != -1) ? CustomData_get_layer_n(&me_eval->ldata, CD_MLOOPUV, uv_idx) :
+                                    NULL,
         .orco = CustomData_get_layer(&me_eval->vdata, CD_ORCO),
     };
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_mesh);
@@ -1354,14 +1357,12 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
             part->instance_collection, object, mode) {
           copy_m4_m4(tmat, oblist[b]->obmat);
 
+          /* Apply collection instance offset. */
+          sub_v3_v3(tmat[3], part->instance_collection->instance_offset);
+
           /* Apply particle scale. */
           mul_mat3_m4_fl(tmat, size * scale);
           mul_v3_fl(tmat[3], size * scale);
-
-          /* Collection dupli-offset, should apply after everything else. */
-          if (!is_zero_v3(part->instance_collection->instance_offset)) {
-            sub_v3_v3(tmat[3], part->instance_collection->instance_offset);
-          }
 
           /* Individual particle transform. */
           mul_m4_m4m4(mat, pamat, tmat);

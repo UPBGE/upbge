@@ -823,7 +823,7 @@ static void blendWrite(BlendWriter *writer, const ModifierData *md)
   const CorrectiveSmoothModifierData *csmd = (const CorrectiveSmoothModifierData *)md;
 
   if (csmd->bind_coords) {
-    BLO_write_float3_array(writer, (int)csmd->bind_coords_num, (float *)csmd->bind_coords);
+    BLO_write_float3_array(writer, csmd->bind_coords_num, (float *)csmd->bind_coords);
   }
 }
 
@@ -844,8 +844,10 @@ ModifierTypeInfo modifierType_CorrectiveSmooth = {
     /* name */ "CorrectiveSmooth",
     /* structName */ "CorrectiveSmoothModifierData",
     /* structSize */ sizeof(CorrectiveSmoothModifierData),
+    /* srna */ &RNA_CorrectiveSmoothModifier,
     /* type */ eModifierTypeType_OnlyDeform,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
+    /* icon */ ICON_MOD_SMOOTH,
 
     /* copyData */ copyData,
 

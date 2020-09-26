@@ -226,10 +226,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   defaultCamBase->flag |= BASE_HIDDEN;
   DEG_relations_tag_update(bmain);
 
-  m_taaSamplesBackup = scene->eevee.taa_samples;
-  scene->eevee.taa_samples = 0;
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
-
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
 
@@ -304,9 +300,6 @@ KX_Scene::~KX_Scene()
     BKE_layer_collection_sync(scene, view_layer);
     DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
   }
-
-  scene->eevee.taa_samples = m_taaSamplesBackup;
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
 
   // Put that before we flush depsgraph updates at scene exit
   scene->flag &= ~SCE_INTERACTIVE;
@@ -426,7 +419,8 @@ void KX_Scene::ReinitBlenderContextVariables()
     }
 
     for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
-      if (sa->spacetype == SPACE_VIEW3D) {
+      /* We choose the biggest ScrArea to match the behaviour in WM_init_game */
+      if (sa->spacetype == SPACE_VIEW3D && sa == BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_VIEW3D, 0)) {
         ListBase *regionbase = &sa->regionbase;
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
@@ -723,13 +717,15 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
 
   GPU_framebuffer_restore();
 
-  rasty->SetViewport(v[0], v[1], v[2], v[3]);
+  GPU_viewport(v[0], v[1], v[2], v[3]);
 
   if ((scene->gm.flag & GAME_USE_UI_ANTI_FLICKER) == 0) {
-    rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
     GPU_scissor_test(true);
-    rasty->SetScissor(v[0], v[1], v[2], v[3]);
+    GPU_scissor(v[0], v[1], v[2], v[3]);
   }
+
+  GPU_apply_state();
+
   DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
                            CTX_wm_view3d(C),
                            GetOverlayCamera() && !is_overlay_pass ? false : true);

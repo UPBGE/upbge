@@ -104,10 +104,12 @@ ModifierTypeInfo modifierType_Softbody = {
     /* name */ "Softbody",
     /* structName */ "SoftbodyModifierData",
     /* structSize */ sizeof(SoftbodyModifierData),
+    /* srna */ &RNA_SoftBodyModifier,
     /* type */ eModifierTypeType_OnlyDeform,
     /* flags */ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_RequiresOriginalData | eModifierTypeFlag_Single |
         eModifierTypeFlag_UsesPointCache,
+    /* icon */ ICON_MOD_SOFT,
 
     /* copyData */ NULL,
 

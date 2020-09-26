@@ -82,7 +82,8 @@ void RAS_2DFilterFrameBuffer::MipmapTexture()
 {
   for (unsigned short i = 0; i < m_colorSlots; ++i) {
     GPUTexture *texture = m_colorTextures[i];
-    GPU_texture_bind_bge(texture, 0);
+    GPU_texture_bind(texture, 0);
+    GPU_apply_state();
     GPU_texture_filter_mode(texture, true);
     GPU_texture_mipmap_mode(texture, true, false);
     GPU_texture_generate_mipmap(texture);

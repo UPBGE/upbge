@@ -1240,8 +1240,10 @@ ModifierTypeInfo modifierType_Explode = {
     /* name */ "Explode",
     /* structName */ "ExplodeModifierData",
     /* structSize */ sizeof(ExplodeModifierData),
+    /* srna */ &RNA_ExplodeModifier,
     /* type */ eModifierTypeType_Constructive,
     /* flags */ eModifierTypeFlag_AcceptsMesh,
+    /* icon */ ICON_MOD_EXPLODE,
     /* copyData */ copyData,
 
     /* deformVerts */ NULL,

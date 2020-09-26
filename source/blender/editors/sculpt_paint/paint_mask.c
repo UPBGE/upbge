@@ -312,8 +312,6 @@ static void sculpt_gesture_context_init_common(bContext *C,
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ED_view3d_viewcontext_init(C, &sgcontext->vc, depsgraph);
-
-  Sculpt *sd = sgcontext->vc.scene->toolsettings->sculpt;
   Object *ob = sgcontext->vc.obact;
 
   /* Operator properties. */
@@ -323,7 +321,7 @@ static void sculpt_gesture_context_init_common(bContext *C,
   sgcontext->ss = ob->sculpt;
 
   /* Symmetry. */
-  sgcontext->symm = sd->paint.symmetry_flags & PAINT_SYMM_AXIS_ALL;
+  sgcontext->symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   /* View Normal. */
   float mat[3][3];
@@ -712,7 +710,7 @@ static void sculpt_gesture_mask_end(bContext *C, SculptGestureContext *sgcontext
 
 static void sculpt_gesture_init_mask_properties(SculptGestureContext *sgcontext, wmOperator *op)
 {
-  sgcontext->operation = MEM_callocN(sizeof(SculptGestureFaceSetOperation), "Mask Operation");
+  sgcontext->operation = MEM_callocN(sizeof(SculptGestureMaskOperation), "Mask Operation");
 
   SculptGestureMaskOperation *mask_operation = (SculptGestureMaskOperation *)sgcontext->operation;
 
@@ -1022,7 +1020,7 @@ static void sculpt_gesture_apply_trim(SculptGestureContext *sgcontext)
       break;
   }
 
-  BM_mesh_boolean(bm, looptris, tottri, bm_face_isect_pair, NULL, false, boolean_mode);
+  BM_mesh_boolean(bm, looptris, tottri, bm_face_isect_pair, NULL, 2, false, boolean_mode);
 
   Mesh *result = BKE_mesh_from_bmesh_for_eval_nomain(bm, NULL, sculpt_mesh);
   BM_mesh_free(bm);

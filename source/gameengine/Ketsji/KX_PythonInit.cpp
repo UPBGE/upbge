@@ -2181,6 +2181,7 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
   Py_IgnoreEnvironmentFlag = !(BPY_python_get_use_system_env());
   Py_NoUserSiteDirectory = !(BPY_python_get_use_system_env());
 
+  /* Initialize Python (also acquires lock). */
   Py_Initialize();
 
   if (argv && first_time) { /* browser plugins don't currently set this */
@@ -2195,9 +2196,6 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
     PySys_SetObject("argv", py_argv);
     Py_DECREF(py_argv);
   }
-
-  /* Initialize thread support (also acquires lock) */
-  PyEval_InitThreads();
 
   bpy_import_init(PyEval_GetBuiltins());
 
@@ -2328,10 +2326,8 @@ void initGamePythonScripting(Main *maggie, bool audioDeviceIsInitialized)
   Py_IgnoreEnvironmentFlag = !(BPY_python_get_use_system_env());
   Py_NoUserSiteDirectory = !(BPY_python_get_use_system_env());
 
+  /* Initialize Python (also acquires lock). */
   Py_Initialize();
-
-  /* Initialize thread support (also acquires lock) */
-  PyEval_InitThreads();
 
   bpy_import_init(PyEval_GetBuiltins());
 

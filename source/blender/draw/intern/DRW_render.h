@@ -429,7 +429,7 @@ void DRW_shgroup_call_ex(DRWShadingGroup *shgroup,
 #define DRW_shgroup_call_obmat(shgroup, geom, obmat) \
   DRW_shgroup_call_ex(shgroup, NULL, obmat, geom, false, NULL)
 
-/* TODO(fclem) remove this when we have DRWView */
+/* TODO(fclem): remove this when we have DRWView */
 /* user_data is used by DRWCallVisibilityFn defined in DRWView. */
 #define DRW_shgroup_call_with_callback(shgroup, geom, ob, user_data) \
   DRW_shgroup_call_ex(shgroup, ob, NULL, geom, false, user_data)
@@ -563,6 +563,9 @@ void DRW_shgroup_uniform_ivec4(DRWShadingGroup *shgroup,
                                int arraysize);
 void DRW_shgroup_uniform_mat3(DRWShadingGroup *shgroup, const char *name, const float (*value)[3]);
 void DRW_shgroup_uniform_mat4(DRWShadingGroup *shgroup, const char *name, const float (*value)[4]);
+/* Only to be used when image load store is supported (GPU_shader_image_load_store_support()). */
+void DRW_shgroup_uniform_image(DRWShadingGroup *shgroup, const char *name, const GPUTexture *tex);
+void DRW_shgroup_uniform_image_ref(DRWShadingGroup *shgroup, const char *name, GPUTexture **tex);
 /* Store value instead of referencing it. */
 void DRW_shgroup_uniform_int_copy(DRWShadingGroup *shgroup, const char *name, const int value);
 void DRW_shgroup_uniform_ivec2_copy(DRWShadingGroup *shgroup, const char *name, const int *value);
@@ -584,10 +587,6 @@ bool DRW_shgroup_is_empty(DRWShadingGroup *shgroup);
 DRWPass *DRW_pass_create(const char *name, DRWState state);
 DRWPass *DRW_pass_create_instance(const char *name, DRWPass *original, DRWState state);
 void DRW_pass_link(DRWPass *first, DRWPass *second);
-/* TODO Replace with passes inheritance. */
-void DRW_pass_state_set(DRWPass *pass, DRWState state);
-void DRW_pass_state_add(DRWPass *pass, DRWState state);
-void DRW_pass_state_remove(DRWPass *pass, DRWState state);
 void DRW_pass_foreach_shgroup(DRWPass *pass,
                               void (*callback)(void *userData, DRWShadingGroup *shgroup),
                               void *userData);

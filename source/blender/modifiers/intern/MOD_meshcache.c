@@ -380,9 +380,11 @@ ModifierTypeInfo modifierType_MeshCache = {
     /* name */ "MeshCache",
     /* structName */ "MeshCacheModifierData",
     /* structSize */ sizeof(MeshCacheModifierData),
+    /* srna */ &RNA_MeshCacheModifier,
     /* type */ eModifierTypeType_OnlyDeform,
     /* flags */ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,
+    /* icon */ ICON_MOD_MESHDEFORM, /* TODO: Use correct icon. */
 
     /* copyData */ BKE_modifier_copydata_generic,
 

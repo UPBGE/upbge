@@ -24,6 +24,7 @@
 #include "draw_cache_impl.h"
 #include "draw_manager_text.h"
 
+#include "BKE_editmesh.h"
 #include "BKE_image.h"
 
 #include "DNA_mesh_types.h"
@@ -96,16 +97,19 @@ void OVERLAY_edit_uv_init(OVERLAY_Data *vedata)
                                 (ts->uv_selectmode == UV_SELECT_FACE);
   const bool do_uvstretching_overlay = is_image_type && is_uv_editor && is_edit_mode &&
                                        ((sima->flag & SI_DRAW_STRETCH) != 0);
+  const bool do_tex_paint_shadows = (sima->flag & SI_NO_DRAW_TEXPAINT) == 0;
+
   pd->edit_uv.do_faces = do_faces && !do_uvstretching_overlay;
   pd->edit_uv.do_face_dots = do_faces && do_face_dots;
 
   pd->edit_uv.do_uv_overlay = do_uv_overlay;
-  pd->edit_uv.do_uv_shadow_overlay =
-      is_image_type &&
-      ((is_paint_mode &&
-        ((draw_ctx->object_mode & (OB_MODE_TEXTURE_PAINT | OB_MODE_EDIT)) != 0)) ||
-       (is_view_mode && ((draw_ctx->object_mode & (OB_MODE_TEXTURE_PAINT)) != 0)) ||
-       (do_uv_overlay && (show_modified_uvs)));
+  pd->edit_uv.do_uv_shadow_overlay = is_image_type &&
+                                     ((is_paint_mode && do_tex_paint_shadows &&
+                                       ((draw_ctx->object_mode &
+                                         (OB_MODE_TEXTURE_PAINT | OB_MODE_EDIT)) != 0)) ||
+                                      (is_view_mode && do_tex_paint_shadows &&
+                                       ((draw_ctx->object_mode & (OB_MODE_TEXTURE_PAINT)) != 0)) ||
+                                      (do_uv_overlay && (show_modified_uvs)));
   pd->edit_uv.do_uv_stretching_overlay = do_uvstretching_overlay;
   pd->edit_uv.uv_opacity = sima->uv_opacity;
   pd->edit_uv.do_tiled_image_overlay = is_image_type && is_tiled_image;
@@ -283,12 +287,18 @@ void OVERLAY_edit_uv_cache_populate(OVERLAY_Data *vedata, Object *ob)
   OVERLAY_StorageList *stl = vedata->stl;
   OVERLAY_PrivateData *pd = stl->pd;
   GPUBatch *geom;
-  const bool is_edit_object = DRW_object_is_in_edit_mode(ob);
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
+  const bool is_edit_object = DRW_object_is_in_edit_mode(ob);
+  Mesh *me = (Mesh *)ob->data;
+  const bool has_active_object_uvmap = CustomData_get_active_layer(&me->ldata, CD_MLOOPUV) != -1;
+  const bool has_active_edit_uvmap = is_edit_object &&
+                                     (CustomData_get_active_layer(&me->edit_mesh->bm->ldata,
+                                                                  CD_MLOOPUV) != -1);
   const bool draw_shadows = (draw_ctx->object_mode != OB_MODE_OBJECT) &&
                             (ob->mode == draw_ctx->object_mode);
-  if (is_edit_object) {
+
+  if (has_active_edit_uvmap) {
     if (pd->edit_uv.do_uv_overlay) {
       geom = DRW_mesh_batch_cache_get_edituv_edges(ob->data);
       if (geom) {
@@ -313,8 +323,6 @@ void OVERLAY_edit_uv_cache_populate(OVERLAY_Data *vedata, Object *ob)
     }
 
     if (pd->edit_uv.do_uv_stretching_overlay) {
-      Mesh *me = ob->data;
-
       if (pd->edit_uv.draw_type == SI_UVDT_STRETCH_ANGLE) {
         geom = DRW_mesh_batch_cache_get_edituv_faces_stretch_angle(me);
       }
@@ -325,14 +333,13 @@ void OVERLAY_edit_uv_cache_populate(OVERLAY_Data *vedata, Object *ob)
         geom = DRW_mesh_batch_cache_get_edituv_faces_stretch_area(
             me, &totals->total_area, &totals->total_area_uv);
       }
-
       if (geom) {
         DRW_shgroup_call_obmat(pd->edit_uv_stretching_grp, geom, NULL);
       }
     }
   }
 
-  if (draw_shadows) {
+  if (draw_shadows && (has_active_object_uvmap || has_active_edit_uvmap)) {
     if (pd->edit_uv.do_uv_shadow_overlay) {
       geom = DRW_mesh_batch_cache_get_uv_edges(ob->data);
       if (geom) {

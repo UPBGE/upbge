@@ -39,10 +39,6 @@ set(INC
   ../../../../intern/guardedalloc
 )
 
-set(INC_SYS
-  ${GLEW_INCLUDE_PATH}
-)
-
 set(SRC
   object_add.c
   object_bake.c
@@ -82,7 +78,6 @@ set(LIB
   bf_windowmanager
 )
 
-add_definitions(${GL_DEFINITIONS})
 
 if(WITH_PYTHON)
   add_definitions(-DWITH_PYTHON)
@@ -94,6 +89,11 @@ endif()
 
 if(WITH_INTERNATIONAL)
   add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_EXPERIMENTAL_FEATURES)
+  add_definitions(-DWITH_PARTICLE_NODES)
+  add_definitions(-DWITH_HAIR_NODES)
 endif()
 
 blender_add_lib(bf_editor_object "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

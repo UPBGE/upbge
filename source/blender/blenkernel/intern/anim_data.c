@@ -169,60 +169,83 @@ AnimData *BKE_animdata_add_id(ID *id)
 /**
  * Called when user tries to change the active action of an AnimData block
  * (via RNA, Outliner, etc.)
+ *
+ * \param reports can be NULL.
+ * \param id the owner of the animation data
+ * \param act the Action to set, or NULL to clear.
+ *
+ * Return true when the action was succesfully updated, false otherwise.
  */
 bool BKE_animdata_set_action(ReportList *reports, ID *id, bAction *act)
 {
   AnimData *adt = BKE_animdata_from_id(id);
-  bool ok = false;
 
-  /* animdata validity check */
+  /* Animdata validity check. */
   if (adt == NULL) {
     BKE_report(reports, RPT_WARNING, "No AnimData to set action on");
-    return ok;
+    return false;
   }
 
-  /* active action is only editable when it is not a tweaking strip
-   * see rna_AnimData_action_editable() in rna_animation.c
-   */
-  if ((adt->flag & ADT_NLA_EDIT_ON) || (adt->actstrip) || (adt->tmpact)) {
-    /* cannot remove, otherwise things turn to custard */
+  if (adt->action == act) {
+    /* Don't bother reducing and increasing the user count when there is nothing changing. */
+    return true;
+  }
+
+  if (!BKE_animdata_action_editable(adt)) {
+    /* Cannot remove, otherwise things turn to custard. */
     BKE_report(reports, RPT_ERROR, "Cannot change action, as it is still being edited in NLA");
-    return ok;
+    return false;
   }
 
-  /* manage usercount for current action */
+  /* Reduce usercount for current action. */
   if (adt->action) {
     id_us_min((ID *)adt->action);
   }
 
-  /* assume that AnimData's action can in fact be edited... */
-  if (act) {
-    /* action must have same type as owner */
-    if (ELEM(act->idroot, 0, GS(id->name))) {
-      /* can set */
-      adt->action = act;
-      id_us_plus((ID *)adt->action);
-      ok = true;
-    }
-    else {
-      /* cannot set */
-      BKE_reportf(
-          reports,
-          RPT_ERROR,
-          "Could not set action '%s' onto ID '%s', as it does not have suitably rooted paths "
-          "for this purpose",
-          act->id.name + 2,
-          id->name);
-      /* ok = false; */
-    }
-  }
-  else {
-    /* just clearing the action... */
+  if (act == NULL) {
+    /* Just clearing the action. */
     adt->action = NULL;
-    ok = true;
+    return true;
   }
 
-  return ok;
+  /* Action must have same type as owner. */
+  if (!BKE_animdata_action_ensure_idroot(id, act)) {
+    /* Cannot set to this type. */
+    BKE_reportf(
+        reports,
+        RPT_ERROR,
+        "Could not set action '%s' onto ID '%s', as it does not have suitably rooted paths "
+        "for this purpose",
+        act->id.name + 2,
+        id->name);
+    return false;
+  }
+
+  adt->action = act;
+  id_us_plus((ID *)adt->action);
+
+  return true;
+}
+
+bool BKE_animdata_action_editable(const AnimData *adt)
+{
+  /* Active action is only editable when it is not a tweaking strip. */
+  const bool is_tweaking_strip = (adt->flag & ADT_NLA_EDIT_ON) || adt->actstrip != NULL ||
+                                 adt->tmpact != NULL;
+  return !is_tweaking_strip;
+}
+
+bool BKE_animdata_action_ensure_idroot(const ID *owner, bAction *action)
+{
+  const int idcode = GS(owner->name);
+
+  if (action->idroot == 0) {
+    /* First time this Action is assigned, lock it to this ID type. */
+    action->idroot = idcode;
+    return true;
+  }
+
+  return (action->idroot == idcode);
 }
 
 /* Freeing -------------------------------------------- */
@@ -668,6 +691,7 @@ void BKE_animdata_transfer_by_basepath(Main *bmain, ID *srcID, ID *dstID, ListBa
      * and name it in a similar way so that it can be easily found again. */
     if (dstAdt->action == NULL) {
       dstAdt->action = BKE_action_add(bmain, srcAdt->action->id.name + 2);
+      BKE_animdata_action_ensure_idroot(dstID, dstAdt->action);
     }
     else if (dstAdt->action == srcAdt->action) {
       CLOG_WARN(&LOG,
@@ -680,6 +704,7 @@ void BKE_animdata_transfer_by_basepath(Main *bmain, ID *srcID, ID *dstID, ListBa
       /* TODO: review this... */
       id_us_min(&dstAdt->action->id);
       dstAdt->action = BKE_action_add(bmain, dstAdt->action->id.name + 2);
+      BKE_animdata_action_ensure_idroot(dstID, dstAdt->action);
     }
 
     /* loop over base paths, trying to fix for each one... */
@@ -1287,8 +1312,9 @@ void BKE_animdata_main_cb(Main *bmain, ID_AnimData_Edit_Callback func, void *use
 #define ANIMDATA_IDS_CB(first) \
   for (id = first; id; id = id->next) { \
     AnimData *adt = BKE_animdata_from_id(id); \
-    if (adt) \
+    if (adt) { \
       func(id, adt, user_data); \
+    } \
   } \
   (void)0
 
@@ -1299,11 +1325,13 @@ void BKE_animdata_main_cb(Main *bmain, ID_AnimData_Edit_Callback func, void *use
     NtId_Type *ntp = (NtId_Type *)id; \
     if (ntp->nodetree) { \
       AnimData *adt2 = BKE_animdata_from_id((ID *)ntp->nodetree); \
-      if (adt2) \
+      if (adt2) { \
         func(id, adt2, user_data); \
+      } \
     } \
-    if (adt) \
+    if (adt) { \
       func(id, adt, user_data); \
+    } \
   } \
   (void)0
 
@@ -1580,4 +1608,7 @@ void BKE_animdata_blend_read_expand(struct BlendExpander *expander, AnimData *ad
 
   /* drivers - assume that these F-Curves have driver data to be in this list... */
   BKE_fcurve_blend_read_expand(expander, &adt->drivers);
+
+  /* NLA data - referenced actions. */
+  BKE_nla_blend_read_expand(expander, &adt->nla_tracks);
 }

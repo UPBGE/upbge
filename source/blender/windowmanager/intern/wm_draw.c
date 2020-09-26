@@ -53,6 +53,7 @@
 
 #include "GPU_batch_presets.h"
 #include "GPU_context.h"
+#include "GPU_debug.h"
 #include "GPU_framebuffer.h"
 #include "GPU_immediate.h"
 #include "GPU_state.h"
@@ -318,6 +319,37 @@ bool WM_region_use_viewport(ScrArea *area, ARegion *region)
   return wm_region_use_viewport_by_type(area->spacetype, region->regiontype);
 }
 
+static const char *wm_area_name(ScrArea *area)
+{
+#define SPACE_NAME(space) \
+  case space: \
+    return #space;
+
+  switch (area->spacetype) {
+    SPACE_NAME(SPACE_EMPTY);
+    SPACE_NAME(SPACE_VIEW3D);
+    SPACE_NAME(SPACE_GRAPH);
+    SPACE_NAME(SPACE_OUTLINER);
+    SPACE_NAME(SPACE_PROPERTIES);
+    SPACE_NAME(SPACE_FILE);
+    SPACE_NAME(SPACE_IMAGE);
+    SPACE_NAME(SPACE_INFO);
+    SPACE_NAME(SPACE_SEQ);
+    SPACE_NAME(SPACE_TEXT);
+    SPACE_NAME(SPACE_ACTION);
+    SPACE_NAME(SPACE_NLA);
+    SPACE_NAME(SPACE_SCRIPT);
+    SPACE_NAME(SPACE_NODE);
+    SPACE_NAME(SPACE_CONSOLE);
+    SPACE_NAME(SPACE_USERPREF);
+    SPACE_NAME(SPACE_CLIP);
+    SPACE_NAME(SPACE_TOPBAR);
+    SPACE_NAME(SPACE_STATUSBAR);
+    default:
+      return "Unkown Space";
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -395,9 +427,6 @@ static void wm_draw_offscreen_texture_parameters(GPUOffScreen *offscreen)
 {
   /* Setup offscreen color texture for drawing. */
   GPUTexture *texture = GPU_offscreen_color_texture(offscreen);
-
-  /* We don't support multisample textures here. */
-  BLI_assert(GPU_texture_target(texture) == GL_TEXTURE_2D);
 
   /* No mipmaps or filtering. */
   GPU_texture_mipmap_mode(texture, false, false);
@@ -638,6 +667,7 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
   /* Draw screen areas into own frame buffer. */
   ED_screen_areas_iter (win, screen, area) {
     CTX_wm_area_set(C, area);
+    GPU_debug_group_begin(wm_area_name(area));
 
     /* Compute UI layouts for dynamically size regions. */
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
@@ -671,6 +701,8 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
         CTX_wm_region_set(C, region);
         bool use_viewport = WM_region_use_viewport(area, region);
 
+        GPU_debug_group_begin(use_viewport ? "Viewport" : "ARegion");
+
         if (stereo && wm_draw_region_stereo_set(bmain, area, region, STEREO_LEFT_ID)) {
           wm_draw_region_buffer_create(region, true, use_viewport);
 
@@ -700,6 +732,8 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
           wm_draw_region_unbind(region);
         }
 
+        GPU_debug_group_end();
+
         region->do_draw = false;
         CTX_wm_region_set(C, NULL);
       }
@@ -707,12 +741,16 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
 
     wm_area_mark_invalid_backbuf(area);
     CTX_wm_area_set(C, NULL);
+
+    GPU_debug_group_end();
   }
 
   /* Draw menus into their own framebuffer. */
   LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
     if (region->visible) {
       CTX_wm_menu_set(C, region);
+
+      GPU_debug_group_begin("Menu");
 
       if (region->type && region->type->layout) {
         /* UI code reads the OpenGL state, but we have to refresh
@@ -727,6 +765,8 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
       ED_region_do_draw(C, region);
       wm_draw_region_unbind(region);
 
+      GPU_debug_group_end();
+
       region->do_draw = false;
       CTX_wm_menu_set(C, NULL);
     }
@@ -737,6 +777,8 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   bScreen *screen = WM_window_get_active_screen(win);
+
+  GPU_debug_group_begin("Window Redraw");
 
   /* Draw into the window framebuffer, in full window coordinates. */
   wmWindowViewport(win);
@@ -813,6 +855,8 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
   if (wm->drags.first) {
     wm_drags_draw(C, win, NULL);
   }
+
+  GPU_debug_group_end();
 }
 
 static void wm_draw_window(bContext *C, wmWindow *win)

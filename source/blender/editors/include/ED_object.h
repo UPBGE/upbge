@@ -343,6 +343,21 @@ void ED_object_constraint_dependency_tag_update(struct Main *bmain,
                                                 struct Object *ob,
                                                 struct bConstraint *con);
 
+bool ED_object_constraint_move_to_index(struct Object *ob,
+                                        struct bConstraint *con,
+                                        const int index);
+void ED_object_constraint_link(struct Main *bmain,
+                               struct Object *ob_dst,
+                               struct ListBase *dst,
+                               struct ListBase *src);
+void ED_object_constraint_copy_for_object(struct Main *bmain,
+                                          struct Object *ob_dst,
+                                          struct bConstraint *con);
+void ED_object_constraint_copy_for_pose(struct Main *bmain,
+                                        struct Object *ob_dst,
+                                        struct bPoseChannel *pchan,
+                                        struct bConstraint *con);
+
 /* object_modes.c */
 bool ED_object_mode_compat_test(const struct Object *ob, eObjectMode mode);
 bool ED_object_mode_compat_set(struct bContext *C,
@@ -414,6 +429,11 @@ int ED_object_modifier_copy(struct ReportList *reports,
                             struct Scene *scene,
                             struct Object *ob,
                             struct ModifierData *md);
+void ED_object_modifier_link(struct bContext *C, struct Object *ob_dst, struct Object *ob_src);
+void ED_object_modifier_copy_to_object(struct bContext *C,
+                                       struct Object *ob_dst,
+                                       struct Object *ob_src,
+                                       struct ModifierData *md);
 
 bool ED_object_iter_other(struct Main *bmain,
                           struct Object *orig_ob,
@@ -454,6 +474,8 @@ int ED_object_gpencil_modifier_apply(struct Main *bmain,
 int ED_object_gpencil_modifier_copy(struct ReportList *reports,
                                     struct Object *ob,
                                     struct GpencilModifierData *md);
+void ED_object_gpencil_modifier_copy_to_object(struct Object *ob_dst,
+                                               struct GpencilModifierData *md);
 
 /* object_shader_fx.c */
 struct ShaderFxData *ED_object_shaderfx_add(struct ReportList *reports,
@@ -477,6 +499,8 @@ bool ED_object_shaderfx_move_to_index(struct ReportList *reports,
                                       struct Object *ob,
                                       struct ShaderFxData *fx,
                                       const int index);
+void ED_object_shaderfx_link(struct Object *dst, struct Object *src);
+void ED_object_shaderfx_copy(struct Object *dst, struct ShaderFxData *fx);
 
 /* object_select.c */
 void ED_object_select_linked_by_id(struct bContext *C, struct ID *id);

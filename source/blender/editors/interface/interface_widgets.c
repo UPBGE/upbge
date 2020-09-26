@@ -2249,10 +2249,15 @@ static void widget_draw_extra_icons(const uiWidgetColors *wcol,
   /* inverse order, from right to left. */
   LISTBASE_FOREACH_BACKWARD (uiButExtraOpIcon *, op_icon, &but->extra_op_icons) {
     rcti temp = *rect;
+    float alpha_this = alpha;
 
     temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
 
-    widget_draw_icon(but, op_icon->icon, alpha, &temp, wcol->text);
+    if (!op_icon->highlighted) {
+      alpha_this *= 0.75f;
+    }
+
+    widget_draw_icon(but, op_icon->icon, alpha_this, &temp, wcol->text);
 
     rect->xmax -= ICON_SIZE_FROM_BUTRECT(rect);
   }
@@ -2379,7 +2384,8 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
         rect->xmin += 0.3f * U.widget_unit;
       }
     }
-    else if (ui_block_is_menu(but->block)) {
+    /* Menu items, but only if they are not icon-only (rare). */
+    else if (ui_block_is_menu(but->block) && but->drawstr[0]) {
       rect->xmin += 0.2f * U.widget_unit;
     }
 
@@ -3497,8 +3503,8 @@ void ui_draw_link_bezier(const rcti *rect, const float color[4])
     /* we can reuse the dist variable here to increment the GL curve eval amount*/
     const float dist = 1.0f / (float)LINK_RESOL;
 #endif
-    glEnable(GL_BLEND);
-    glEnable(GL_LINE_SMOOTH);
+    GPU_blend(GPU_BLEND_ALPHA);
+    GPU_line_smooth(true);
 
     immUniformColor4fv(color);
 
@@ -3507,8 +3513,8 @@ void ui_draw_link_bezier(const rcti *rect, const float color[4])
       immVertex2fv(pos, coord_array[i]);
     immEnd();
 
-    glDisable(GL_BLEND);
-    glDisable(GL_LINE_SMOOTH);
+    GPU_blend(GPU_BLEND_NONE);
+    GPU_line_smooth(false);
 
     immUnbindProgram();
   }

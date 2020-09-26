@@ -49,6 +49,7 @@ static bNodeSocketTemplate sh_node_bsdf_principled_in[] = {
     {SOCK_FLOAT, N_("Transmission"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
     {SOCK_FLOAT, N_("Transmission Roughness"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
     {SOCK_RGBA, N_("Emission"), 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
+    {SOCK_FLOAT, N_("Emission Strength"), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1000000.0f},
     {SOCK_FLOAT, N_("Alpha"), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
     {SOCK_VECTOR, N_("Normal"), 0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_NONE, SOCK_HIDE_VALUE},
     {SOCK_VECTOR,
@@ -89,26 +90,26 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat,
   GPUNodeLink *sss_scale;
 
   /* Normals */
-  if (!in[19].link) {
-    GPU_link(mat, "world_normals_get", &in[19].link);
-  }
-
-  /* Clearcoat Normals */
   if (!in[20].link) {
     GPU_link(mat, "world_normals_get", &in[20].link);
   }
 
+  /* Clearcoat Normals */
+  if (!in[21].link) {
+    GPU_link(mat, "world_normals_get", &in[21].link);
+  }
+
 #if 0 /* Not used at the moment. */
   /* Tangents */
-  if (!in[21].link) {
+  if (!in[22].link) {
     GPUNodeLink *orco = GPU_attribute(CD_ORCO, "");
-    GPU_link(mat, "tangent_orco_z", orco, &in[21].link);
+    GPU_link(mat, "tangent_orco_z", orco, &in[22].link);
     GPU_link(mat,
              "node_tangent",
              GPU_builtin(GPU_WORLD_NORMAL),
-             in[21].link,
+             in[22].link,
              GPU_builtin(GPU_OBJECT_MATRIX),
-             &in[21].link);
+             &in[22].link);
   }
 #endif
 
@@ -171,6 +172,8 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat,
     flag |= GPU_MATFLAG_SSS;
   }
 
+  float use_multi_scatter = (node->custom1 == SHD_GLOSSY_MULTI_GGX) ? 1.0f : 0.0f;
+
   GPU_material_flag_set(mat, flag);
 
   return GPU_stack_link(mat,
@@ -179,6 +182,7 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat,
                         in,
                         out,
                         GPU_builtin(GPU_VIEW_POSITION),
+                        GPU_constant(&use_multi_scatter),
                         GPU_constant(&node->ssr_id),
                         GPU_constant(&node->sss_id),
                         sss_scale);

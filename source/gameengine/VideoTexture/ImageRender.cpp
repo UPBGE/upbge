@@ -124,12 +124,10 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
   m_done = false;
 
   const RAS_Rect *viewport = &m_canvas->GetViewportArea();
-  m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+  GPU_viewport(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
   GPU_scissor_test(true);
-  m_rasterizer->SetViewport(
-      viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
-  m_rasterizer->SetScissor(
-      viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
+  GPU_scissor(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
+  GPU_apply_state();
 
   GPU_framebuffer_texture_attach(
       m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0), 0, 0);
@@ -238,12 +236,12 @@ bool ImageRender::Render()
   int viewport[4] = {
       m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]};
 
-  m_rasterizer->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
+  GPU_viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
   GPU_scissor_test(true);
-  m_rasterizer->SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-  m_rasterizer->SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
+  GPU_scissor(viewport[0], viewport[1], viewport[2], viewport[3]);
+  GPU_apply_state();
 
-  m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
+  GPU_clear_depth(1.0f);
 
   m_rasterizer->SetAuxilaryClientInfo(m_scene);
 

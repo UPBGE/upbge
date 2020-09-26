@@ -1111,8 +1111,8 @@ bool BKE_object_is_visible_in_viewport(const View3D *v3d, const struct Object *o
     return false;
   }
 
-  /* If not using local view or local collection the object may still be in a hidden collection. */
-  if (((v3d->localvd) == NULL) && ((v3d->flag & V3D_LOCAL_COLLECTIONS) == 0)) {
+  /* If not using local collection the object may still be in a hidden collection. */
+  if ((v3d->flag & V3D_LOCAL_COLLECTIONS) == 0) {
     return (ob->base_flag & BASE_VISIBLE_VIEWLAYER) != 0;
   }
 
@@ -1709,6 +1709,9 @@ void BKE_view_layer_bases_in_mode_iterator_begin(BLI_Iterator *iter, void *data_
 {
   struct ObjectsInModeIteratorData *data = data_in;
   Base *base = data->base_active;
+
+  /* In this case the result will always be empty, the caller must check for no mode. */
+  BLI_assert(data->object_mode != 0);
 
   /* when there are no objects */
   if (base == NULL) {

@@ -88,6 +88,7 @@ void outliner_operatortypes(void)
   WM_operatortype_append(OUTLINER_OT_parent_clear);
   WM_operatortype_append(OUTLINER_OT_scene_drop);
   WM_operatortype_append(OUTLINER_OT_material_drop);
+  WM_operatortype_append(OUTLINER_OT_datastack_drop);
   WM_operatortype_append(OUTLINER_OT_collection_drop);
 
   /* collections */
@@ -117,6 +118,8 @@ void outliner_operatortypes(void)
   WM_operatortype_append(OUTLINER_OT_collection_show_inside);
   WM_operatortype_append(OUTLINER_OT_hide);
   WM_operatortype_append(OUTLINER_OT_unhide_all);
+
+  WM_operatortype_append(OUTLINER_OT_collection_color_tag_set);
 }
 
 void outliner_keymap(wmKeyConfig *keyconf)

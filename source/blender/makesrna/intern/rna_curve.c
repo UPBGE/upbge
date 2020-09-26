@@ -167,6 +167,7 @@ static const EnumPropertyItem curve2d_fill_mode_items[] = {
 #  include "DNA_object_types.h"
 
 #  include "BKE_curve.h"
+#  include "BKE_curveprofile.h"
 #  include "BKE_main.h"
 
 #  include "DEG_depsgraph.h"
@@ -461,6 +462,35 @@ static void rna_Curve_bevelObject_set(PointerRNA *ptr,
   else {
     cu->bevobj = NULL;
   }
+}
+
+/**
+ * Special update function for setting the number of segments of the curve
+ * that also resamples the segments in the custom profile.
+ */
+static void rna_Curve_bevel_resolution_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  Curve *cu = (Curve *)ptr->data;
+
+  if (cu->bevel_mode == CU_BEV_MODE_CURVE_PROFILE) {
+    BKE_curveprofile_init(cu->bevel_profile, cu->bevresol + 1);
+  }
+
+  rna_Curve_update_data(bmain, scene, ptr);
+}
+
+static void rna_Curve_bevel_mode_set(PointerRNA *ptr, int value)
+{
+  Curve *cu = (Curve *)ptr->owner_id;
+
+  if (value == CU_BEV_MODE_CURVE_PROFILE) {
+    if (cu->bevel_profile == NULL) {
+      cu->bevel_profile = BKE_curveprofile_add(PROF_PRESET_LINE);
+      BKE_curveprofile_init(cu->bevel_profile, cu->bevresol + 1);
+    }
+  }
+
+  cu->bevel_mode = value;
 }
 
 static bool rna_Curve_otherObject_poll(PointerRNA *ptr, PointerRNA value)
@@ -901,17 +931,17 @@ static void rna_def_beztriple(BlenderRNA *brna)
 
   /* Boolean values */
   prop = RNA_def_property(srna, "select_left_handle", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "f1", 0);
+  RNA_def_property_boolean_sdna(prop, NULL, "f1", SELECT);
   RNA_def_property_ui_text(prop, "Handle 1 selected", "Handle 1 selection status");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "select_right_handle", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "f3", 0);
+  RNA_def_property_boolean_sdna(prop, NULL, "f3", SELECT);
   RNA_def_property_ui_text(prop, "Handle 2 selected", "Handle 2 selection status");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "select_control_point", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "f2", 0);
+  RNA_def_property_boolean_sdna(prop, NULL, "f2", SELECT);
   RNA_def_property_ui_text(prop, "Control Point selected", "Control point selection status");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
@@ -1512,18 +1542,37 @@ static void rna_def_curve(BlenderRNA *brna)
        "RESOLUTION",
        0,
        "Resolution",
-       "Map the bevel factor to the number of subdivisions of a spline (U resolution)"},
+       "Map the geometry factor to the number of subdivisions of a spline (U resolution)"},
       {CU_BEVFAC_MAP_SEGMENT,
        "SEGMENTS",
        0,
        "Segments",
-       "Map the bevel factor to the length of a segment and to the number of subdivisions of a "
+       "Map the geometry factor to the length of a segment and to the number of subdivisions of a "
        "segment"},
       {CU_BEVFAC_MAP_SPLINE,
        "SPLINE",
        0,
        "Spline",
-       "Map the bevel factor to the length of a spline"},
+       "Map the geometry factor to the length of a spline"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  static const EnumPropertyItem bevel_mode_items[] = {
+      {CU_BEV_MODE_ROUND,
+       "ROUND",
+       0,
+       "Round",
+       "Use circle for the section of the curve's bevel geometry"},
+      {CU_BEV_MODE_OBJECT,
+       "OBJECT",
+       0,
+       "Object",
+       "Use an object for the section of the curve's bevel geometry segment"},
+      {CU_BEV_MODE_CURVE_PROFILE,
+       "PROFILE",
+       0,
+       "Profile",
+       "Use a custom profile for each quarter of curve's bevel geometry"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -1559,36 +1608,53 @@ static void rna_def_curve(BlenderRNA *brna)
 
   rna_def_path(brna, srna);
 
+  prop = RNA_def_property(srna, "bevel_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "bevel_mode");
+  RNA_def_property_enum_items(prop, bevel_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Bevel Mode", "Determine how to build the curve's bevel geometry");
+  RNA_def_property_enum_funcs(prop, NULL, "rna_Curve_bevel_mode_set", NULL);
+  /* Use this update function so the curve profile is properly initialized when
+   * switching back to "Profile" mode after changing the resolution. */
+  RNA_def_property_update(prop, 0, "rna_Curve_bevel_resolution_update");
+
+  prop = RNA_def_property(srna, "bevel_profile", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "CurveProfile");
+  RNA_def_property_pointer_sdna(prop, NULL, "bevel_profile");
+  RNA_def_property_ui_text(prop, "Custom Profile Path", "The path for the curve's custom profile");
+  RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+
   /* Number values */
   prop = RNA_def_property(srna, "bevel_resolution", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "bevresol");
   RNA_def_property_range(prop, 0, 32);
   RNA_def_property_ui_range(prop, 0, 32, 1.0, -1);
   RNA_def_property_ui_text(
-      prop,
-      "Bevel Resolution",
-      "Bevel resolution when depth is non-zero and no specific bevel object has been defined");
-  RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+      prop, "Bevel Resolution", "The number of segments in each quarter-circle of the bevel");
+  RNA_def_property_update(prop, 0, "rna_Curve_bevel_resolution_update");
 
   prop = RNA_def_property(srna, "offset", PROP_FLOAT, PROP_NONE | PROP_UNIT_LENGTH);
   RNA_def_property_float_sdna(prop, NULL, "width");
   RNA_def_property_ui_range(prop, -1.0, 1.0, 0.1, 3);
   RNA_def_property_float_funcs(prop, "rna_Curve_offset_get", "rna_Curve_offset_set", NULL);
-  RNA_def_property_ui_text(prop, "Offset", "Offset the curve to adjust the width of a text");
+  RNA_def_property_ui_text(prop, "Offset", "Distance to move the curve parallel to its normals");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "extrude", PROP_FLOAT, PROP_NONE | PROP_UNIT_LENGTH);
   RNA_def_property_float_sdna(prop, NULL, "ext1");
   RNA_def_property_ui_range(prop, 0, 100.0, 0.1, 3);
   RNA_def_property_range(prop, 0.0, FLT_MAX);
-  RNA_def_property_ui_text(
-      prop, "Extrude", "Amount of curve extrusion when not using a bevel object");
+  RNA_def_property_ui_text(prop,
+                           "Extrude",
+                           "Length of the depth added in the local Z direction along the curve, "
+                           "perpendicular to its normals");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "bevel_depth", PROP_FLOAT, PROP_NONE | PROP_UNIT_LENGTH);
   RNA_def_property_float_sdna(prop, NULL, "ext2");
   RNA_def_property_ui_range(prop, 0, 100.0, 0.1, 3);
-  RNA_def_property_ui_text(prop, "Bevel Depth", "Bevel depth when not using a bevel object");
+  RNA_def_property_ui_text(
+      prop, "Bevel Depth", "Radius of the bevel geometry, not including extrusion");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "resolution_u", PROP_INT, PROP_NONE);
@@ -1596,7 +1662,10 @@ static void rna_def_curve(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 1, 1024);
   RNA_def_property_ui_range(prop, 1, 64, 1, -1);
-  RNA_def_property_ui_text(prop, "Resolution U", "Surface resolution in U direction");
+  RNA_def_property_ui_text(
+      prop,
+      "Resolution U",
+      "Number of computed points in the U direction between every pair of control points");
   RNA_def_property_update(prop, 0, "rna_Curve_resolution_u_update_data");
 
   prop = RNA_def_property(srna, "resolution_v", PROP_INT, PROP_NONE);
@@ -1604,7 +1673,10 @@ static void rna_def_curve(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_range(prop, 1, 64, 1, -1);
   RNA_def_property_range(prop, 1, 1024);
-  RNA_def_property_ui_text(prop, "Resolution V", "Surface resolution in V direction");
+  RNA_def_property_ui_text(
+      prop,
+      "Resolution V",
+      "The number of computed points in the V direction between every pair of control points");
   RNA_def_property_update(prop, 0, "rna_Curve_resolution_v_update_data");
 
   prop = RNA_def_property(srna, "render_resolution_u", PROP_INT, PROP_NONE);
@@ -1640,7 +1712,8 @@ static void rna_def_curve(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, NULL, "bevobj");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_ui_text(prop, "Bevel Object", "Curve object name that defines the bevel shape");
+  RNA_def_property_ui_text(
+      prop, "Bevel Object", "The name of the Curve object that defines the bevel shape");
   RNA_def_property_update(prop, 0, "rna_Curve_update_deps");
   RNA_def_property_pointer_funcs(prop,
                                  "rna_Curve_bevelObject_get",
@@ -1688,14 +1761,14 @@ static void rna_def_curve(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, NULL, "bevfac1_mapping");
   RNA_def_property_enum_items(prop, bevfac_mapping_items);
   RNA_def_property_ui_text(
-      prop, "Start Mapping Type", "Determines how the start bevel factor is mapped to a spline");
+      prop, "Start Mapping Type", "Determine how the geometry start factor is mapped to a spline");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "bevel_factor_mapping_end", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "bevfac2_mapping");
   RNA_def_property_enum_items(prop, bevfac_mapping_items);
   RNA_def_property_ui_text(
-      prop, "End Mapping Type", "Determines how the end bevel factor is mapped to a spline");
+      prop, "End Mapping Type", "Determine how the geometry end factor is mapped to a spline");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   /* XXX - would be nice to have a better way to do this, only add for testing. */
@@ -1762,18 +1835,18 @@ static void rna_def_curve(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "bevfac1");
   RNA_def_property_range(prop, 0, 1.0);
   RNA_def_property_ui_text(prop,
-                           "Start Bevel Factor",
-                           "Factor that defines from where beveling of spline happens (0=from the "
-                           "very beginning, 1=from the very end)");
+                           "Geometry Start Factor",
+                           "Define where along the spline the curve geometry starts (0 for the "
+                           "beginning, 1 for the end)");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "bevel_factor_end", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, NULL, "bevfac2");
   RNA_def_property_range(prop, 0, 1.0);
   RNA_def_property_ui_text(prop,
-                           "End Bevel Factor",
-                           "Factor that defines to where beveling of spline happens (0=to the "
-                           "very beginning, 1=to the very end)");
+                           "Geometry End Factor",
+                           "Define where along the spline the curve geometry ends (0 for the "
+                           "beginning, 1 for the end)");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "is_editmode", PROP_BOOLEAN, PROP_NONE);

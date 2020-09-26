@@ -42,8 +42,7 @@
 #define SIMA_DRAW_FLAG_APPLY_ALPHA (1 << 1)
 #define SIMA_DRAW_FLAG_SHUFFLING (1 << 2)
 #define SIMA_DRAW_FLAG_DEPTH (1 << 3)
-#define SIMA_DRAW_FLAG_TILED (1 << 4)
-#define SIMA_DRAW_FLAG_DO_REPEAT (1 << 5)
+#define SIMA_DRAW_FLAG_DO_REPEAT (1 << 4)
 
 static void image_cache_image_add(DRWShadingGroup *grp, Image *image)
 {
@@ -139,18 +138,12 @@ static void image_cache_image(IMAGE_Data *vedata, Image *image, ImageUser *iuser
       far_near[0] = ((Camera *)scene->camera->data)->clip_end;
     }
 
-    const bool use_premul_alpha = image->alpha_mode == IMA_ALPHA_PREMUL;
+    const bool use_premul_alpha = BKE_image_has_gpu_texture_premultiplied_alpha(image, ibuf);
     const bool is_tiled_texture = tex_tile_data != NULL;
     const bool do_repeat = (!is_tiled_texture) && ((sima->flag & SI_DRAW_TILE) != 0);
-    const bool is_zoom_out = sima->zoom < 1.0f;
-
-    /* use interpolation filtering when zooming out */
-    eGPUSamplerState state = 0;
-    SET_FLAG_FROM_TEST(state, is_zoom_out, GPU_SAMPLER_FILTER);
 
     int draw_flags = 0;
     SET_FLAG_FROM_TEST(draw_flags, do_repeat, SIMA_DRAW_FLAG_DO_REPEAT);
-
     if ((sima->flag & SI_USE_ALPHA) != 0) {
       /* Show RGBA */
       draw_flags |= SIMA_DRAW_FLAG_SHOW_ALPHA | SIMA_DRAW_FLAG_APPLY_ALPHA;
@@ -179,15 +172,14 @@ static void image_cache_image(IMAGE_Data *vedata, Image *image, ImageUser *iuser
       draw_flags |= SIMA_DRAW_FLAG_APPLY_ALPHA;
     }
 
-    GPUShader *shader = IMAGE_shader_image_get();
+    GPUShader *shader = IMAGE_shader_image_get(is_tiled_texture);
     DRWShadingGroup *shgrp = DRW_shgroup_create(shader, psl->image_pass);
-    if (tex_tile_data != NULL) {
-      draw_flags |= SIMA_DRAW_FLAG_TILED;
-      DRW_shgroup_uniform_texture_ex(shgrp, "imageTileArray", pd->texture, state);
+    if (is_tiled_texture) {
+      DRW_shgroup_uniform_texture_ex(shgrp, "imageTileArray", pd->texture, 0);
       DRW_shgroup_uniform_texture(shgrp, "imageTileData", tex_tile_data);
     }
     else {
-      DRW_shgroup_uniform_texture_ex(shgrp, "imageTexture", pd->texture, state);
+      DRW_shgroup_uniform_texture_ex(shgrp, "imageTexture", pd->texture, 0);
     }
     DRW_shgroup_uniform_vec2_copy(shgrp, "farNearDistances", far_near);
     DRW_shgroup_uniform_vec4_copy(shgrp, "color", color);

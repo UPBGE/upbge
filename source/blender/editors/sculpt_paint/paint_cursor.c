@@ -142,7 +142,7 @@ typedef struct LoadTexData {
   ViewContext *vc;
 
   MTex *mtex;
-  GLubyte *buffer;
+  uchar *buffer;
   bool col;
 
   struct ImagePool *pool;
@@ -160,7 +160,7 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
   ViewContext *vc = data->vc;
 
   MTex *mtex = data->mtex;
-  GLubyte *buffer = data->buffer;
+  uchar *buffer = data->buffer;
   const bool col = data->col;
 
   struct ImagePool *pool = data->pool;
@@ -230,7 +230,7 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
 
         /* Clamp to avoid precision overflow. */
         CLAMP(avg, 0.0f, 1.0f);
-        buffer[index] = 255 - (GLubyte)(255 * avg);
+        buffer[index] = 255 - (uchar)(255 * avg);
       }
     }
     else {
@@ -254,7 +254,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
   MTex *mtex = (primary) ? &br->mtex : &br->mask_mtex;
   ePaintOverlayControlFlags overlay_flags = BKE_paint_get_overlay_flags();
-  GLubyte *buffer = NULL;
+  uchar *buffer = NULL;
 
   int size;
   bool refresh;
@@ -309,10 +309,10 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
       target->old_col = col;
     }
     if (col) {
-      buffer = MEM_mallocN(sizeof(GLubyte) * size * size * 4, "load_tex");
+      buffer = MEM_mallocN(sizeof(uchar) * size * size * 4, "load_tex");
     }
     else {
-      buffer = MEM_mallocN(sizeof(GLubyte) * size * size, "load_tex");
+      buffer = MEM_mallocN(sizeof(uchar) * size * size, "load_tex");
     }
 
     pool = BKE_image_pool_new();
@@ -381,7 +381,7 @@ static void load_tex_cursor_task_cb(void *__restrict userdata,
   LoadTexData *data = userdata;
   Brush *br = data->br;
 
-  GLubyte *buffer = data->buffer;
+  uchar *buffer = data->buffer;
 
   const int size = data->size;
 
@@ -398,7 +398,7 @@ static void load_tex_cursor_task_cb(void *__restrict userdata,
       /* Falloff curve. */
       float avg = BKE_brush_curve_strength_clamped(br, len, 1.0f);
 
-      buffer[index] = (GLubyte)(255 * avg);
+      buffer[index] = (uchar)(255 * avg);
     }
     else {
       buffer[index] = 0;
@@ -411,7 +411,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
   bool init;
 
   ePaintOverlayControlFlags overlay_flags = BKE_paint_get_overlay_flags();
-  GLubyte *buffer = NULL;
+  uchar *buffer = NULL;
 
   int size;
   const bool refresh = !cursor_snap.overlay_texture ||
@@ -452,7 +452,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 
       cursor_snap.size = size;
     }
-    buffer = MEM_mallocN(sizeof(GLubyte) * size * size, "load_tex");
+    buffer = MEM_mallocN(sizeof(uchar) * size * size, "load_tex");
 
     BKE_curvemapping_init(br->curve);
 
@@ -1090,7 +1090,7 @@ static void cursor_draw_point_with_symmetry(const uint gpuattr,
                                             Object *ob,
                                             const float radius)
 {
-  const char symm = sd->paint.symmetry_flags & PAINT_SYMM_AXIS_ALL;
+  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
   float location[3], symm_rot_mat[4][4];
 
   for (int i = 0; i <= symm; i++) {
@@ -1744,7 +1744,7 @@ static void paint_cursor_cursor_draw_3d_view_brush_cursor_active(PaintCursorCont
     else if (brush->cloth_force_falloff_type == BRUSH_CLOTH_FORCE_FALLOFF_RADIAL &&
              brush->cloth_simulation_area_type == BRUSH_CLOTH_SIMULATION_AREA_LOCAL) {
       /* Display the simulation limits if sculpting outside them. */
-      /* This does not makes much sense of plane fallof as the fallof is infinte or global. */
+      /* This does not makes much sense of plane falloff as the falloff is infinte or global. */
 
       if (len_v3v3(ss->cache->true_location, ss->cache->true_initial_location) >
           ss->cache->radius * (1.0f + brush->cloth_sim_limit)) {

@@ -190,7 +190,7 @@ if(SYSTEMSTUBS_LIBRARY)
   list(APPEND PLATFORM_LINKLIBS SystemStubs)
 endif()
 
-set(PLATFORM_CFLAGS "-pipe -funsigned-char")
+set(PLATFORM_CFLAGS "${PLATFORM_CFLAGS} -pipe -funsigned-char")
 set(PLATFORM_LINKFLAGS
   "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Cocoa -framework Carbon -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework Metal -framework QuartzCore"
 )
@@ -392,6 +392,16 @@ endif()
 if(WITH_CYCLES_EMBREE)
   find_package(Embree 3.8.0 REQUIRED)
   set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -Xlinker -stack_size -Xlinker 0x100000")
+
+  # Embree static library linking can mix up SSE and AVX symbols, causing
+  # crashes on macOS systems with older CPUs that don't have AVX. Using
+  # force load avoids that. The Embree shared library does not suffer from
+  # this problem, precisely because linking a shared library uses force load.
+  set(_embree_libraries_force_load)
+  foreach(_embree_library ${EMBREE_LIBRARIES})
+    list(APPEND _embree_libraries_force_load "-Wl,-force_load,${_embree_library}")
+  endforeach()
+  set(EMBREE_LIBRARIES ${_embree_libraries_force_load})
 endif()
 
 if(WITH_OPENIMAGEDENOISE)
@@ -407,12 +417,11 @@ if(WITH_TBB)
   find_package(TBB)
 endif()
 
-if(WITH_GMP)
-  find_package(GMP)
-
-  if(NOT GMP_FOUND)
-    set(WITH_GMP OFF)
-    message(STATUS "GMP not found")
+if(WITH_POTRACE)
+  find_package(Potrace)
+  if(NOT POTRACE_FOUND)
+    message(WARNING "potrace not found, disabling WITH_POTRACE")
+    set(WITH_POTRACE OFF)
   endif()
 endif()
 

@@ -540,11 +540,13 @@ ModifierTypeInfo modifierType_SimpleDeform = {
     /* name */ "SimpleDeform",
     /* structName */ "SimpleDeformModifierData",
     /* structSize */ sizeof(SimpleDeformModifierData),
+    /* srna */ &RNA_SimpleDeformModifier,
     /* type */ eModifierTypeType_OnlyDeform,
 
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
         eModifierTypeFlag_AcceptsVertexCosOnly | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode,
+    /* icon */ ICON_MOD_SIMPLEDEFORM,
 
     /* copyData */ BKE_modifier_copydata_generic,
 

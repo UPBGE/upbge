@@ -82,6 +82,13 @@ typedef enum eWORKBENCH_DataType {
   WORKBENCH_DATATYPE_MAX,
 } eWORKBENCH_DataType;
 
+/* Types of volume display interpolation. */
+typedef enum eWORKBENCH_VolumeInterpType {
+  WORKBENCH_VOLUME_INTERP_LINEAR = 0,
+  WORKBENCH_VOLUME_INTERP_CUBIC,
+  WORKBENCH_VOLUME_INTERP_CLOSEST,
+} eWORKBENCH_VolumeInterpType;
+
 typedef struct WORKBENCH_FramebufferList {
   struct GPUFrameBuffer *opaque_fb;
   struct GPUFrameBuffer *opaque_infront_fb;
@@ -130,6 +137,9 @@ typedef struct WORKBENCH_PassList {
   struct DRWPass *transp_resolve_ps;
   struct DRWPass *transp_accum_ps;
   struct DRWPass *transp_accum_infront_ps;
+
+  struct DRWPass *transp_depth_infront_ps;
+  struct DRWPass *transp_depth_ps;
 
   struct DRWPass *shadow_ps[2];
 
@@ -425,7 +435,10 @@ GPUShader *workbench_shader_outline_get(void);
 GPUShader *workbench_shader_antialiasing_accumulation_get(void);
 GPUShader *workbench_shader_antialiasing_get(int stage);
 
-GPUShader *workbench_shader_volume_get(bool slice, bool coba, bool cubic, bool smoke);
+GPUShader *workbench_shader_volume_get(bool slice,
+                                       bool coba,
+                                       eWORKBENCH_VolumeInterpType interp_type,
+                                       bool smoke);
 
 void workbench_shader_depth_of_field_get(GPUShader **prepare_sh,
                                          GPUShader **downsample_sh,

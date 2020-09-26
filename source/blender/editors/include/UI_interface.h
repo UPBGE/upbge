@@ -155,8 +155,11 @@ enum {
   UI_BLOCK_RADIAL = 1 << 20,
   UI_BLOCK_POPOVER = 1 << 21,
   UI_BLOCK_POPOVER_ONCE = 1 << 22,
-  /** Always show keymaps, even for non-menus. */
+  /** Always show key-maps, even for non-menus. */
   UI_BLOCK_SHOW_SHORTCUT_ALWAYS = 1 << 23,
+  /** The block is only used during the search process and will not be drawn.
+   * Currently just for the case of a closed panel's sub-panel (and its sub-panels). */
+  UI_BLOCK_SEARCH_ONLY = 1 << 25,
 };
 
 /** #uiPopupBlockHandle.menuretval */
@@ -318,7 +321,7 @@ typedef enum {
   UI_BTYPE_BUT = 1 << 9,
   UI_BTYPE_ROW = 2 << 9,
   UI_BTYPE_TEXT = 3 << 9,
-  /** dropdown list */
+  /** Drop-down list. */
   UI_BTYPE_MENU = 4 << 9,
   UI_BTYPE_BUT_MENU = 5 << 9,
   /** number button */
@@ -674,6 +677,8 @@ enum {
 void UI_block_theme_style_set(uiBlock *block, char theme_style);
 char UI_block_emboss_get(uiBlock *block);
 void UI_block_emboss_set(uiBlock *block, char emboss);
+bool UI_block_is_search_only(const uiBlock *block);
+void UI_block_set_search_only(uiBlock *block, bool search_only);
 
 void UI_block_free(const struct bContext *C, uiBlock *block);
 void UI_blocklist_free(const struct bContext *C, struct ListBase *lb);
@@ -1693,10 +1698,11 @@ struct Panel *UI_panel_begin(struct ARegion *region,
                              bool *r_open);
 void UI_panel_end(const struct ARegion *region, uiBlock *block, int width, int height, bool open);
 
-void UI_panels_scale(struct ARegion *region, float new_width);
 void UI_panel_label_offset(struct uiBlock *block, int *r_x, int *r_y);
 int UI_panel_size_y(const struct Panel *panel);
 bool UI_panel_is_dragging(const struct Panel *panel);
+bool UI_panel_matches_search_filter(const struct Panel *panel);
+void UI_panels_set_expansion_from_seach_filter(const struct bContext *C, struct ARegion *region);
 
 bool UI_panel_category_is_visible(const struct ARegion *region);
 void UI_panel_category_add(struct ARegion *region, const char *name);
@@ -1875,6 +1881,8 @@ uiLayout *UI_block_layout(uiBlock *block,
 void UI_block_layout_set_current(uiBlock *block, uiLayout *layout);
 void UI_block_layout_resolve(uiBlock *block, int *r_x, int *r_y);
 
+bool UI_block_apply_search_filter(uiBlock *block, const char *search_filter);
+
 void UI_region_message_subscribe(struct ARegion *region, struct wmMsgBus *mbus);
 
 uiBlock *uiLayoutGetBlock(uiLayout *layout);
@@ -1927,6 +1935,7 @@ float uiLayoutGetUnitsY(uiLayout *layout);
 int uiLayoutGetEmboss(uiLayout *layout);
 bool uiLayoutGetPropSep(uiLayout *layout);
 bool uiLayoutGetPropDecorate(uiLayout *layout);
+void uiLayoutRootSetSearchOnly(uiLayout *layout, bool search_only);
 
 /* layout specifiers */
 uiLayout *uiLayoutRow(uiLayout *layout, bool align);

@@ -33,9 +33,6 @@ set(INC
   ../../../../intern/guardedalloc
 )
 
-set(INC_SYS
-  ${GLEW_INCLUDE_PATH}
-)
 
 set(SRC
   ed_transverts.c
@@ -54,6 +51,7 @@ set(SRC
   ../include/ED_curve.h
   ../include/ED_datafiles.h
   ../include/ED_fileselect.h
+  ../include/ED_geometry.h
   ../include/ED_gizmo_library.h
   ../include/ED_gizmo_utils.h
   ../include/ED_gpencil.h
@@ -107,7 +105,6 @@ set(SRC
 set(LIB
 )
 
-add_definitions(${GL_DEFINITIONS})
 
 if(WITH_INTERNATIONAL)
   add_definitions(-DWITH_INTERNATIONAL)

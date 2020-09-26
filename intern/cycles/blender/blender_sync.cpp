@@ -37,6 +37,7 @@
 #include "util/util_debug.h"
 #include "util/util_foreach.h"
 #include "util/util_hash.h"
+#include "util/util_logging.h"
 #include "util/util_opengl.h"
 #include "util/util_openimagedenoise.h"
 
@@ -219,6 +220,8 @@ void BlenderSync::sync_data(BL::RenderSettings &b_render,
                             int height,
                             void **python_thread_state)
 {
+  scoped_timer timer;
+
   BL::ViewLayer b_view_layer = b_depsgraph.view_layer_eval();
 
   sync_view_layer(b_v3d, b_view_layer);
@@ -242,6 +245,8 @@ void BlenderSync::sync_data(BL::RenderSettings &b_render,
   shader_map.post_sync(scene, false);
 
   free_data_after_sync(b_depsgraph);
+
+  VLOG(1) << "Total time spent synchronizing data: " << timer.get_time();
 }
 
 /* Integrator */
@@ -477,8 +482,10 @@ PassType BlenderSync::get_pass_type(BL::RenderPass &b_pass)
 {
   string name = b_pass.name();
 #define MAP_PASS(passname, passtype) \
-  if (name == passname) \
-    return passtype;
+  if (name == passname) { \
+    return passtype; \
+  } \
+  ((void)0)
   /* NOTE: Keep in sync with defined names from DNA_scene_types.h */
   MAP_PASS("Combined", PASS_COMBINED);
   MAP_PASS("Depth", PASS_DEPTH);
@@ -541,8 +548,10 @@ int BlenderSync::get_denoising_pass(BL::RenderPass &b_pass)
   name = name.substr(10);
 
 #define MAP_PASS(passname, offset) \
-  if (name == passname) \
-    return offset;
+  if (name == passname) { \
+    return offset; \
+  } \
+  ((void)0)
   MAP_PASS("Normal", DENOISING_PASS_PREFILTERED_NORMAL);
   MAP_PASS("Albedo", DENOISING_PASS_PREFILTERED_ALBEDO);
   MAP_PASS("Depth", DENOISING_PASS_PREFILTERED_DEPTH);
@@ -581,8 +590,10 @@ vector<Pass> BlenderSync::sync_render_passes(BL::RenderLayer &b_rlay,
   if (denoising.use || denoising.store_passes) {
     if (denoising.type == DENOISER_NLM) {
 #define MAP_OPTION(name, flag) \
-  if (!get_boolean(crl, name)) \
-    scene->film->denoising_flags |= flag;
+  if (!get_boolean(crl, name)) { \
+    scene->film->denoising_flags |= flag; \
+  } \
+  ((void)0)
       MAP_OPTION("denoising_diffuse_direct", DENOISING_CLEAN_DIFFUSE_DIR);
       MAP_OPTION("denoising_diffuse_indirect", DENOISING_CLEAN_DIFFUSE_IND);
       MAP_OPTION("denoising_glossy_direct", DENOISING_CLEAN_GLOSSY_DIR);

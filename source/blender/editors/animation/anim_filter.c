@@ -570,8 +570,9 @@ bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac)
 // XXX: ale_statement stuff is really a hack for one special case. It shouldn't really be needed...
 #define ANIMCHANNEL_NEW_CHANNEL_FULL( \
     channel_data, channel_type, owner_id, fcurve_owner_id, ale_statement) \
-  if (filter_mode & ANIMFILTER_TMP_PEEK) \
+  if (filter_mode & ANIMFILTER_TMP_PEEK) { \
     return 1; \
+  } \
   { \
     bAnimListElem *ale = make_new_animlistelem( \
         channel_data, channel_type, (ID *)owner_id, fcurve_owner_id); \
@@ -1553,17 +1554,6 @@ static size_t animfilter_nla(bAnimContext *UNUSED(ac),
     }
     else {
       next = nlt->next;
-    }
-
-    /* If we're in NLA-tweak-mode, don't show this track if it was disabled
-     * (due to tweaking) for now:
-     * - active track should still get shown though (even though it has disabled flag set)
-     */
-    // FIXME: the channels after should still get drawn, just 'differently',
-    // and after an active-action channel.
-    if ((adt->flag & ADT_NLA_EDIT_ON) && (nlt->flag & NLATRACK_DISABLED) &&
-        (adt->act_track != nlt)) {
-      continue;
     }
 
     /* only work with this channel and its subchannels if it is editable */

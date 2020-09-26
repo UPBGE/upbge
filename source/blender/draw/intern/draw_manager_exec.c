@@ -294,6 +294,38 @@ static void drw_state_validate(void)
 void DRW_state_lock(DRWState state)
 {
   DST.state_lock = state;
+
+  /* We must get the current state to avoid overriding it. */
+  /* Not complete, but that just what we need for now. */
+  if (state & DRW_STATE_WRITE_DEPTH) {
+    SET_FLAG_FROM_TEST(DST.state, GPU_depth_mask_get(), DRW_STATE_WRITE_DEPTH);
+  }
+  if (state & DRW_STATE_DEPTH_TEST_ENABLED) {
+    DST.state &= ~DRW_STATE_DEPTH_TEST_ENABLED;
+
+    switch (GPU_depth_test_get()) {
+      case GPU_DEPTH_ALWAYS:
+        DST.state |= DRW_STATE_DEPTH_ALWAYS;
+        break;
+      case GPU_DEPTH_LESS:
+        DST.state |= DRW_STATE_DEPTH_LESS;
+        break;
+      case GPU_DEPTH_LESS_EQUAL:
+        DST.state |= DRW_STATE_DEPTH_LESS_EQUAL;
+        break;
+      case GPU_DEPTH_EQUAL:
+        DST.state |= DRW_STATE_DEPTH_EQUAL;
+        break;
+      case GPU_DEPTH_GREATER:
+        DST.state |= DRW_STATE_DEPTH_GREATER;
+        break;
+      case GPU_DEPTH_GREATER_EQUAL:
+        DST.state |= DRW_STATE_DEPTH_GREATER_EQUAL;
+        break;
+      default:
+        break;
+    }
+  }
 }
 
 void DRW_state_reset(void)
@@ -451,8 +483,8 @@ static void draw_compute_culling(DRWView *view)
 {
   view = view->parent ? view->parent : view;
 
-  /* TODO(fclem) multithread this. */
-  /* TODO(fclem) compute all dirty views at once. */
+  /* TODO(fclem): multi-thread this. */
+  /* TODO(fclem): compute all dirty views at once. */
   if (!view->is_dirty) {
     return;
   }
@@ -595,6 +627,12 @@ static void draw_update_uniforms(DRWShadingGroup *shgroup,
           break;
         case DRW_UNIFORM_TEXTURE_REF:
           GPU_texture_bind_ex(*uni->texture_ref, uni->sampler_state, uni->location, false);
+          break;
+        case DRW_UNIFORM_IMAGE:
+          GPU_texture_image_bind(uni->texture, uni->location);
+          break;
+        case DRW_UNIFORM_IMAGE_REF:
+          GPU_texture_image_bind(*uni->texture_ref, uni->location);
           break;
         case DRW_UNIFORM_BLOCK:
           GPU_uniformbuf_bind(uni->block, uni->location);
@@ -1004,7 +1042,7 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
 
 static void drw_update_view(void)
 {
-  /* TODO(fclem) update a big UBO and only bind ranges here. */
+  /* TODO(fclem): update a big UBO and only bind ranges here. */
   GPU_uniformbuf_update(G_draw.view_ubo, &DST.view_active->storage);
 
   /* TODO get rid of this. */

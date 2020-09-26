@@ -25,6 +25,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_constraint_types.h"
@@ -32,6 +33,8 @@
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_hair_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
@@ -44,7 +47,10 @@
 #include "BKE_gpencil.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
+#include "BKE_mesh.h"
 #include "BKE_node.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "BLO_readfile.h"
 #include "readfile.h"
@@ -272,9 +278,84 @@ static void do_versions_point_attributes(CustomData *pdata)
   }
 }
 
+/* Move FCurve handles towards the control point in such a way that the curve itself doesn't
+ * change. Since 2.91 FCurves are computed slightly differently, which requires this update to keep
+ * the same animation result. Previous versions scaled down overlapping handles during evaluation.
+ * This function applies the old correction to the actual animation data instead. */
+static void do_versions_291_fcurve_handles_limit(FCurve *fcu)
+{
+  uint i = 1;
+  for (BezTriple *bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
+    /* Only adjust bezier keyframes. */
+    if (bezt->ipo != BEZT_IPO_BEZ) {
+      continue;
+    }
+
+    BezTriple *nextbezt = bezt + 1;
+    const float v1[2] = {bezt->vec[1][0], bezt->vec[1][1]};
+    const float v2[2] = {bezt->vec[2][0], bezt->vec[2][1]};
+    const float v3[2] = {nextbezt->vec[0][0], nextbezt->vec[0][1]};
+    const float v4[2] = {nextbezt->vec[1][0], nextbezt->vec[1][1]};
+
+    /* If the handles have no length, no need to do any corrections. */
+    if (v1[0] == v2[0] && v3[0] == v4[0]) {
+      continue;
+    }
+
+    /* Calculate handle deltas. */
+    float delta1[2], delta2[2];
+    sub_v2_v2v2(delta1, v1, v2);
+    sub_v2_v2v2(delta2, v4, v3);
+
+    const float len1 = fabsf(delta1[0]); /* Length of handle of first key. */
+    const float len2 = fabsf(delta2[0]); /* Length of handle of second key. */
+
+    /* Overlapping handles used to be internally scaled down in previous versions.
+     * We bake the handles onto these previously virtual values. */
+    const float time_delta = v4[0] - v1[0];
+    const float total_len = len1 + len2;
+    if (total_len <= time_delta) {
+      continue;
+    }
+
+    const float factor = time_delta / total_len;
+    /* Current keyframe's right handle: */
+    madd_v2_v2v2fl(bezt->vec[2], v1, delta1, -factor); /* vec[2] = v1 - factor * delta1 */
+    /* Next keyframe's left handle: */
+    madd_v2_v2v2fl(nextbezt->vec[0], v4, delta2, -factor); /* vec[0] = v4 - factor * delta2 */
+  }
+}
+
 void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
 {
   UNUSED_VARS(fd);
+
+  if (MAIN_VERSION_ATLEAST(bmain, 290, 2) && MAIN_VERSION_OLDER(bmain, 291, 1)) {
+    /* In this range, the extrude manifold could generate meshes with degenerated face. */
+    LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
+      for (MPoly *mp = me->mpoly, *mp_end = mp + me->totpoly; mp < mp_end; mp++) {
+        if (mp->totloop == 2) {
+          bool changed;
+          BKE_mesh_validate_arrays(me,
+                                   me->mvert,
+                                   me->totvert,
+                                   me->medge,
+                                   me->totedge,
+                                   me->mface,
+                                   me->totface,
+                                   me->mloop,
+                                   me->totloop,
+                                   me->mpoly,
+                                   me->totpoly,
+                                   me->dvert,
+                                   false,
+                                   true,
+                                   &changed);
+          break;
+        }
+      }
+    }
+  }
 
   /** Repair files from duplicate brushes added to blend files, see: T76738. */
   if (!MAIN_VERSION_ATLEAST(bmain, 290, 2)) {
@@ -482,7 +563,7 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
     }
 
-    /* Initialise additional velocity parameter for CacheFiles. */
+    /* Initialize additional velocity parameter for #CacheFile's. */
     if (!DNA_struct_elem_find(
             fd->filesdna, "MeshSeqCacheModifierData", "float", "velocity_scale")) {
       for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
@@ -526,48 +607,26 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
       }
     }
+  }
 
-    /* Initialize solver for Boolean. */
-    if (!DNA_struct_elem_find(fd->filesdna, "BooleanModifierData", "enum", "solver")) {
-      for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
-        LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-          if (md->type == eModifierType_Boolean) {
-            BooleanModifierData *bmd = (BooleanModifierData *)md;
-            bmd->solver = eBooleanModifierSolver_Fast;
-            bmd->flag = 0;
-          }
-        }
+  if (!MAIN_VERSION_ATLEAST(bmain, 291, 2)) {
+    for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      RigidBodyWorld *rbw = scene->rigidbody_world;
+
+      if (rbw == NULL) {
+        continue;
+      }
+
+      /* The substep method changed from "per second" to "per frame".
+       * To get the new value simply divide the old bullet sim fps with the scene fps.
+       */
+      rbw->substeps_per_frame /= FPS;
+
+      if (rbw->substeps_per_frame <= 0) {
+        rbw->substeps_per_frame = 1;
       }
     }
-  }
 
-  for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-    RigidBodyWorld *rbw = scene->rigidbody_world;
-
-    if (rbw == NULL) {
-      continue;
-    }
-
-    /* The substep method changed from "per second" to "per frame".
-     * To get the new value simply divide the old bullet sim fps with the scene fps.
-     */
-    rbw->substeps_per_frame /= FPS;
-
-    if (rbw->substeps_per_frame <= 0) {
-      rbw->substeps_per_frame = 1;
-    }
-  }
-
-  /**
-   * Versioning code until next subversion bump goes here.
-   *
-   * \note Be sure to check when bumping the version:
-   * - "versioning_userdef.c", #BLO_version_defaults_userpref_blend
-   * - "versioning_userdef.c", #do_versions_theme
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-  {
     /* Set the minimum sequence interpolate for grease pencil. */
     if (!DNA_struct_elem_find(fd->filesdna, "GP_Interpolate_Settings", "int", "step")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
@@ -597,6 +656,108 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
       }
     }
+
+    /* Solver and Collections for Boolean. */
+    if (!DNA_struct_elem_find(fd->filesdna, "BooleanModifierData", "char", "solver")) {
+      for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
+        LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
+          if (md->type == eModifierType_Boolean) {
+            BooleanModifierData *bmd = (BooleanModifierData *)md;
+            bmd->solver = eBooleanModifierSolver_Fast;
+            bmd->flag = eBooleanModifierFlag_Object;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 291, 4) && MAIN_VERSION_ATLEAST(bmain, 291, 1)) {
+    /* Due to a48d78ce07f4f, CustomData.totlayer and CustomData.maxlayer has been written
+     * incorrectly. Fortunately, the size of the layers array has been written to the .blend file
+     * as well, so we can reconstruct totlayer and maxlayer from that. */
+    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+      mesh->vdata.totlayer = mesh->vdata.maxlayer = MEM_allocN_len(mesh->vdata.layers) /
+                                                    sizeof(CustomDataLayer);
+      mesh->edata.totlayer = mesh->edata.maxlayer = MEM_allocN_len(mesh->edata.layers) /
+                                                    sizeof(CustomDataLayer);
+      /* We can be sure that mesh->fdata is empty for files written by 2.90. */
+      mesh->ldata.totlayer = mesh->ldata.maxlayer = MEM_allocN_len(mesh->ldata.layers) /
+                                                    sizeof(CustomDataLayer);
+      mesh->pdata.totlayer = mesh->pdata.maxlayer = MEM_allocN_len(mesh->pdata.layers) /
+                                                    sizeof(CustomDataLayer);
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 291, 5)) {
+    /* Fix fcurves to allow for new bezier handles behaviour (T75881 and D8752). */
+    for (bAction *act = bmain->actions.first; act; act = act->id.next) {
+      for (FCurve *fcu = act->curves.first; fcu; fcu = fcu->next) {
+        /* Only need to fix Bezier curves with at least 2 keyframes. */
+        if (fcu->totvert < 2 || fcu->bezt == NULL) {
+          continue;
+        }
+        do_versions_291_fcurve_handles_limit(fcu);
+      }
+    }
+
+    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
+      collection->color_tag = COLLECTION_COLOR_NONE;
+    }
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      /* Old files do not have a master collection, but it will be created by
+       * `BKE_collection_master_add()`. */
+      if (scene->master_collection) {
+        scene->master_collection->color_tag = COLLECTION_COLOR_NONE;
+      }
+    }
+
+    /* Add custom profile and bevel mode to curve bevels. */
+    if (!DNA_struct_elem_find(fd->filesdna, "Curve", "char", "bevel_mode")) {
+      LISTBASE_FOREACH (Curve *, curve, &bmain->curves) {
+        if (curve->bevobj != NULL) {
+          curve->bevel_mode = CU_BEV_MODE_OBJECT;
+        }
+        else {
+          curve->bevel_mode = CU_BEV_MODE_ROUND;
+        }
+      }
+    }
+  }
+
+  /**
+   * Versioning code until next subversion bump goes here.
+   *
+   * \note Be sure to check when bumping the version:
+   * - "versioning_userdef.c", #BLO_version_defaults_userpref_blend
+   * - "versioning_userdef.c", #do_versions_theme
+   *
+   * \note Keep this message at the bottom of the function.
+   */
+  {
     /* Keep this block, even when empty. */
+
+    /* Darken Inactive Overlay. */
+    if (!DNA_struct_elem_find(fd->filesdna, "View3DOverlay", "float", "fade_alpha")) {
+      for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+          LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+            if (sl->spacetype == SPACE_VIEW3D) {
+              View3D *v3d = (View3D *)sl;
+              v3d->overlay.fade_alpha = 0.40f;
+              v3d->overlay.flag |= V3D_OVERLAY_FADE_INACTIVE;
+            }
+          }
+        }
+      }
+    }
+
+    /* Unify symmetry as a mesh property. */
+    if (!DNA_struct_elem_find(fd->filesdna, "Mesh", "char", "symmetry")) {
+      LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+        /* The previous flags used to store mesh symmetry in edit-mode match the new ones that are
+         * used in #Mesh.symmetry. */
+        mesh->symmetry = mesh->editflag & (ME_SYMMETRY_X | ME_SYMMETRY_Y | ME_SYMMETRY_Z);
+      }
+    }
   }
 }

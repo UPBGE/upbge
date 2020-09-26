@@ -1994,7 +1994,8 @@ const CustomData_MeshMasks CD_MASK_EDITMESH = {
 };
 const CustomData_MeshMasks CD_MASK_DERIVEDMESH = {
     .vmask = (CD_MASK_ORIGINDEX | CD_MASK_MDEFORMVERT | CD_MASK_SHAPEKEY | CD_MASK_MVERT_SKIN |
-              CD_MASK_ORCO | CD_MASK_CLOTH_ORCO | CD_MASK_PROP_ALL | CD_MASK_PROP_COLOR),
+              CD_MASK_PAINT_MASK | CD_MASK_ORCO | CD_MASK_CLOTH_ORCO | CD_MASK_PROP_ALL |
+              CD_MASK_PROP_COLOR),
     .emask = (CD_MASK_ORIGINDEX | CD_MASK_FREESTYLE_EDGE | CD_MASK_PROP_ALL),
     .fmask = (CD_MASK_ORIGINDEX | CD_MASK_ORIGSPACE | CD_MASK_PREVIEW_MCOL | CD_MASK_TANGENT),
     .lmask = (CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_CUSTOMLOOPNORMAL |
@@ -2350,6 +2351,7 @@ int CustomData_get_layer_index(const CustomData *data, int type)
 
 int CustomData_get_layer_index_n(const struct CustomData *data, int type, int n)
 {
+  BLI_assert(n >= 0);
   int i = CustomData_get_layer_index(data, type);
 
   if (i != -1) {

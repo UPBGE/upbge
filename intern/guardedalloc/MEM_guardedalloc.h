@@ -215,6 +215,12 @@ extern const char *(*MEM_name_ptr)(void *vmemh);
  * about memory leaks will be printed on exit. */
 void MEM_init_memleak_detection(void);
 
+/**
+ * Use this if we want to call #exit during argument parsing for example,
+ * without having to free all data.
+ */
+void MEM_use_memleak_detection(bool enabled);
+
 /** When this has been called and memory leaks have been detected, the process will have an exit
  * code that indicates failure. This can be used for when checking for memory leaks with automated
  * tests. */
@@ -237,8 +243,9 @@ void MEM_use_guarded_allocator(void);
     } \
     void operator delete(void *mem) \
     { \
-      if (mem) \
+      if (mem) { \
         MEM_freeN(mem); \
+      } \
     } \
     void *operator new[](size_t num_bytes) \
     { \
@@ -246,8 +253,9 @@ void MEM_use_guarded_allocator(void);
     } \
     void operator delete[](void *mem) \
     { \
-      if (mem) \
+      if (mem) { \
         MEM_freeN(mem); \
+      } \
     } \
     void *operator new(size_t /*count*/, void *ptr) \
     { \

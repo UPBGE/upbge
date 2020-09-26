@@ -100,6 +100,7 @@ typedef struct OVERLAY_PassList {
   DRWPass *extra_grid_ps;
   DRWPass *gpencil_canvas_ps;
   DRWPass *facing_ps[2];
+  DRWPass *fade_ps[2];
   DRWPass *grid_ps;
   DRWPass *image_background_ps;
   DRWPass *image_empties_ps;
@@ -127,7 +128,7 @@ typedef struct OVERLAY_PassList {
 typedef struct OVERLAY_ShadingData {
   /** Grid */
   float grid_axes[3], grid_distance;
-  float zplane_axes[3], grid_mesh_size;
+  float zplane_axes[3], grid_size[3];
   float grid_steps[8];
   float inv_viewport_size[2];
   float grid_line_size;
@@ -268,6 +269,7 @@ typedef struct OVERLAY_PrivateData {
   DRWShadingGroup *edit_uv_stretching_grp;
   DRWShadingGroup *extra_grid_grp;
   DRWShadingGroup *facing_grp[2];
+  DRWShadingGroup *fade_grp[2];
   DRWShadingGroup *motion_path_lines_grp;
   DRWShadingGroup *motion_path_points_grp;
   DRWShadingGroup *outlines_grp;
@@ -566,6 +568,12 @@ void OVERLAY_facing_cache_populate(OVERLAY_Data *vedata, Object *ob);
 void OVERLAY_facing_draw(OVERLAY_Data *vedata);
 void OVERLAY_facing_infront_draw(OVERLAY_Data *vedata);
 
+void OVERLAY_fade_init(OVERLAY_Data *vedata);
+void OVERLAY_fade_cache_init(OVERLAY_Data *vedata);
+void OVERLAY_fade_cache_populate(OVERLAY_Data *vedata, Object *ob);
+void OVERLAY_fade_draw(OVERLAY_Data *vedata);
+void OVERLAY_fade_infront_draw(OVERLAY_Data *vedata);
+
 void OVERLAY_grid_init(OVERLAY_Data *vedata);
 void OVERLAY_grid_cache_init(OVERLAY_Data *vedata);
 void OVERLAY_grid_draw(OVERLAY_Data *vedata);
@@ -685,7 +693,8 @@ GPUShader *OVERLAY_shader_paint_wire(void);
 GPUShader *OVERLAY_shader_particle_dot(void);
 GPUShader *OVERLAY_shader_particle_shape(void);
 GPUShader *OVERLAY_shader_sculpt_mask(void);
-GPUShader *OVERLAY_shader_volume_velocity(bool use_needle);
+GPUShader *OVERLAY_shader_volume_velocity(bool use_needle, bool use_mac);
+GPUShader *OVERLAY_shader_volume_gridlines(bool color_with_flags, bool color_range);
 GPUShader *OVERLAY_shader_wireframe(bool custom_bias);
 GPUShader *OVERLAY_shader_wireframe_select(void);
 GPUShader *OVERLAY_shader_xray_fade(void);

@@ -614,126 +614,10 @@ static void rna_UVProject_projectors_begin(CollectionPropertyIterator *iter, Poi
 static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
 {
   ModifierData *md = (ModifierData *)ptr->data;
-
-  switch ((ModifierType)md->type) {
-    case eModifierType_Subsurf:
-      return &RNA_SubsurfModifier;
-    case eModifierType_Lattice:
-      return &RNA_LatticeModifier;
-    case eModifierType_Curve:
-      return &RNA_CurveModifier;
-    case eModifierType_Build:
-      return &RNA_BuildModifier;
-    case eModifierType_Mirror:
-      return &RNA_MirrorModifier;
-    case eModifierType_Decimate:
-      return &RNA_DecimateModifier;
-    case eModifierType_Wave:
-      return &RNA_WaveModifier;
-    case eModifierType_Armature:
-      return &RNA_ArmatureModifier;
-    case eModifierType_Hook:
-      return &RNA_HookModifier;
-    case eModifierType_Softbody:
-      return &RNA_SoftBodyModifier;
-    case eModifierType_Boolean:
-      return &RNA_BooleanModifier;
-    case eModifierType_Array:
-      return &RNA_ArrayModifier;
-    case eModifierType_EdgeSplit:
-      return &RNA_EdgeSplitModifier;
-    case eModifierType_Displace:
-      return &RNA_DisplaceModifier;
-    case eModifierType_UVProject:
-      return &RNA_UVProjectModifier;
-    case eModifierType_Smooth:
-      return &RNA_SmoothModifier;
-    case eModifierType_Cast:
-      return &RNA_CastModifier;
-    case eModifierType_MeshDeform:
-      return &RNA_MeshDeformModifier;
-    case eModifierType_ParticleSystem:
-      return &RNA_ParticleSystemModifier;
-    case eModifierType_ParticleInstance:
-      return &RNA_ParticleInstanceModifier;
-    case eModifierType_Explode:
-      return &RNA_ExplodeModifier;
-    case eModifierType_Cloth:
-      return &RNA_ClothModifier;
-    case eModifierType_Collision:
-      return &RNA_CollisionModifier;
-    case eModifierType_Bevel:
-      return &RNA_BevelModifier;
-    case eModifierType_Shrinkwrap:
-      return &RNA_ShrinkwrapModifier;
-    case eModifierType_Mask:
-      return &RNA_MaskModifier;
-    case eModifierType_SimpleDeform:
-      return &RNA_SimpleDeformModifier;
-    case eModifierType_Multires:
-      return &RNA_MultiresModifier;
-    case eModifierType_Surface:
-      return &RNA_SurfaceModifier;
-    case eModifierType_Fluid:
-      return &RNA_FluidModifier;
-    case eModifierType_Solidify:
-      return &RNA_SolidifyModifier;
-    case eModifierType_Screw:
-      return &RNA_ScrewModifier;
-    case eModifierType_Ocean:
-      return &RNA_OceanModifier;
-    case eModifierType_Warp:
-      return &RNA_WarpModifier;
-    case eModifierType_WeightVGEdit:
-      return &RNA_VertexWeightEditModifier;
-    case eModifierType_WeightVGMix:
-      return &RNA_VertexWeightMixModifier;
-    case eModifierType_WeightVGProximity:
-      return &RNA_VertexWeightProximityModifier;
-    case eModifierType_DynamicPaint:
-      return &RNA_DynamicPaintModifier;
-    case eModifierType_Remesh:
-      return &RNA_RemeshModifier;
-    case eModifierType_Skin:
-      return &RNA_SkinModifier;
-    case eModifierType_LaplacianSmooth:
-      return &RNA_LaplacianSmoothModifier;
-    case eModifierType_Triangulate:
-      return &RNA_TriangulateModifier;
-    case eModifierType_UVWarp:
-      return &RNA_UVWarpModifier;
-    case eModifierType_MeshCache:
-      return &RNA_MeshCacheModifier;
-    case eModifierType_LaplacianDeform:
-      return &RNA_LaplacianDeformModifier;
-    case eModifierType_Weld:
-      return &RNA_WeldModifier;
-    case eModifierType_Wireframe:
-      return &RNA_WireframeModifier;
-    case eModifierType_DataTransfer:
-      return &RNA_DataTransferModifier;
-    case eModifierType_NormalEdit:
-      return &RNA_NormalEditModifier;
-    case eModifierType_CorrectiveSmooth:
-      return &RNA_CorrectiveSmoothModifier;
-    case eModifierType_MeshSequenceCache:
-      return &RNA_MeshSequenceCacheModifier;
-    case eModifierType_SurfaceDeform:
-      return &RNA_SurfaceDeformModifier;
-    case eModifierType_WeightedNormal:
-      return &RNA_WeightedNormalModifier;
-    case eModifierType_Simulation:
-#  ifdef WITH_PARTICLE_NODES
-      return &RNA_SimulationModifier;
-#  endif
-    /* Default */
-    case eModifierType_Fluidsim: /* deprecated */
-    case eModifierType_None:
-    case eModifierType_ShapeKey:
-    case NUM_MODIFIER_TYPES:
-      return &RNA_Modifier;
+  const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(md->type);
+  if (modifier_type != NULL) {
+    return modifier_type->srna;
   }
-
   return &RNA_Modifier;
 }
 
@@ -2804,18 +2688,32 @@ static void rna_def_modifier_boolean(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
+  static const EnumPropertyItem prop_operand_items[] = {
+      {eBooleanModifierFlag_Object,
+       "OBJECT",
+       0,
+       "Object",
+       "Use a mesh object as the operand for the Boolean operation"},
+      {eBooleanModifierFlag_Collection,
+       "COLLECTION",
+       0,
+       "Collection",
+       "Use a collection of mesh objects as the operand for the Boolean operation"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
   static const EnumPropertyItem prop_operation_items[] = {
       {eBooleanModifierOp_Intersect,
        "INTERSECT",
        0,
        "Intersect",
-       "Keep the part of the mesh that intersects with the other selected object"},
-      {eBooleanModifierOp_Union, "UNION", 0, "Union", "Combine two meshes in an additive way"},
+       "Keep the part of the mesh that is common between all operands"},
+      {eBooleanModifierOp_Union, "UNION", 0, "Union", "Combine meshes in an additive way"},
       {eBooleanModifierOp_Difference,
        "DIFFERENCE",
        0,
        "Difference",
-       "Combine two meshes in a subtractive way"},
+       "Combine meshes in a subtractive way"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -2843,10 +2741,24 @@ static void rna_def_modifier_boolean(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
   RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
 
+  prop = RNA_def_property(srna, "collection", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "collection");
+  RNA_def_property_struct_type(prop, "Collection");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_ui_text(
+      prop, "Collection", "Use mesh objects in this collection for Boolean operation");
+  RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+
   prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, prop_operation_items);
   RNA_def_property_enum_default(prop, eBooleanModifierOp_Difference);
   RNA_def_property_ui_text(prop, "Operation", "");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "operand_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
+  RNA_def_property_enum_items(prop, prop_operand_items);
+  RNA_def_property_ui_text(prop, "Operand Type", "");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "double_threshold", PROP_FLOAT, PROP_DISTANCE);
@@ -5732,11 +5644,13 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "invert_spray", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_OCEAN_INVERT_SPRAY);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Invert Spray", "Invert the spray direction map");
   RNA_def_property_update(prop, 0, "rna_OceanModifier_init_update");
 
   prop = RNA_def_property(srna, "spray_layer_name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "spraylayername");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Spray Map", "Name of the vertex color layer used for the spray direction map");
   RNA_def_property_update(prop, 0, "rna_OceanModifier_init_update");
@@ -5771,6 +5685,7 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "wind_velocity", PROP_FLOAT, PROP_VELOCITY);
   RNA_def_property_float_sdna(prop, NULL, "wind_velocity");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Wind Velocity", "Wind speed");
   RNA_def_property_update(prop, 0, "rna_OceanModifier_init_update");
 
@@ -5790,6 +5705,7 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "wave_alignment", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, NULL, "wave_alignment");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_ui_text(prop, "Wave Alignment", "How much the waves are aligned to each other");
   RNA_def_property_update(prop, 0, "rna_OceanModifier_init_update");
@@ -5850,12 +5766,14 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "spectrum", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "spectrum");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_enum_items(prop, spectrum_items);
   RNA_def_property_ui_text(prop, "Spectrum", "Spectrum to use");
   RNA_def_property_update(prop, 0, "rna_OceanModifier_init_update");
 
   prop = RNA_def_property(srna, "fetch_jonswap", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, NULL, "fetch_jonswap");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 0.0, FLT_MAX);
   RNA_def_property_ui_text(
       prop,
@@ -5867,6 +5785,7 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "sharpen_peak_jonswap", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, NULL, "sharpen_peak_jonswap");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_ui_text(prop, "Sharpen peak", "Peak sharpening for 'JONSWAP' and 'TMA' models");
   RNA_def_property_update(prop, 0, "rna_OceanModifier_init_update");
@@ -6302,15 +6221,6 @@ static void rna_def_modifier_weld(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, FLT_MAX);
   RNA_def_property_ui_range(prop, 0, 1, 0.001, 6);
   RNA_def_property_ui_text(prop, "Merge Distance", "Limit below which to merge vertices");
-  RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-  prop = RNA_def_property(srna, "max_interactions", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, NULL, "max_interactions");
-  RNA_def_property_ui_text(
-      prop,
-      "Duplicate Limit",
-      "For a better performance, limits the number of elements found per vertex. "
-      "(0 makes it infinite)");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);

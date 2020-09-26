@@ -38,6 +38,7 @@
 #include "BKE_context.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
+#include "BKE_screen.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -51,6 +52,106 @@
 #include "UI_resources.h"
 
 #include "buttons_intern.h" /* own include */
+
+/* -------------------------------------------------------------------- */
+/** \name Start / Clear Search Filter Operators
+ *
+ *  \note Almost a duplicate of the file browser operator #FILE_OT_start_filter.
+ * \{ */
+
+static int buttons_start_filter_exec(bContext *C, wmOperator *UNUSED(op))
+{
+  SpaceProperties *space = CTX_wm_space_properties(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
+
+  ARegion *region_ctx = CTX_wm_region(C);
+  CTX_wm_region_set(C, region);
+  UI_textbutton_activate_rna(C, region, space, "search_filter");
+  CTX_wm_region_set(C, region_ctx);
+
+  return OPERATOR_FINISHED;
+}
+
+void BUTTONS_OT_start_filter(struct wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Filter";
+  ot->description = "Start entering filter text";
+  ot->idname = "BUTTONS_OT_start_filter";
+
+  /* Callbacks. */
+  ot->exec = buttons_start_filter_exec;
+  ot->poll = ED_operator_buttons_active;
+}
+
+static int buttons_clear_filter_exec(bContext *C, wmOperator *UNUSED(op))
+{
+  SpaceProperties *space = CTX_wm_space_properties(C);
+
+  space->runtime->search_string[0] = '\0';
+
+  ScrArea *area = CTX_wm_area(C);
+  ED_region_search_filter_update(area, CTX_wm_region(C));
+  ED_area_tag_redraw(area);
+
+  return OPERATOR_FINISHED;
+}
+
+void BUTTONS_OT_clear_filter(struct wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Clear Filter";
+  ot->description = "Clear the search filter";
+  ot->idname = "BUTTONS_OT_clear_filter";
+
+  /* Callbacks. */
+  ot->exec = buttons_clear_filter_exec;
+  ot->poll = ED_operator_buttons_active;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Pin ID Operator
+ * \{ */
+
+static int toggle_pin_exec(bContext *C, wmOperator *UNUSED(op))
+{
+  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+
+  sbuts->flag ^= SB_PIN_CONTEXT;
+
+  /* Create the properties space pointer. */
+  PointerRNA sbuts_ptr;
+  bScreen *screen = CTX_wm_screen(C);
+  RNA_pointer_create(&screen->id, &RNA_SpaceProperties, sbuts, &sbuts_ptr);
+
+  /* Create the new ID pointer and set the the pin ID with RNA
+   * so we can use the property's RNA update functionality. */
+  ID *new_id = (sbuts->flag & SB_PIN_CONTEXT) ? buttons_context_id_path(C) : NULL;
+  PointerRNA new_id_ptr;
+  RNA_id_pointer_create(new_id, &new_id_ptr);
+  RNA_pointer_set(&sbuts_ptr, "pin_id", new_id_ptr);
+
+  ED_area_tag_redraw(CTX_wm_area(C));
+
+  return OPERATOR_FINISHED;
+}
+
+void BUTTONS_OT_toggle_pin(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Toggle Pin ID";
+  ot->description = "Keep the current data-block displayed";
+  ot->idname = "BUTTONS_OT_toggle_pin";
+
+  /* Callbacks. */
+  ot->exec = toggle_pin_exec;
+  ot->poll = ED_operator_buttons_active;
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Context Menu Operator

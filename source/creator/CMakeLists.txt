@@ -51,9 +51,6 @@ if(WITH_TBB)
   list(INSERT LIB 0 bf_blenkernel)
 endif()
 
-add_definitions(${GL_DEFINITIONS})
-blender_include_dirs("${GLEW_INCLUDE_PATH}")
-
 if(WIN32)
   blender_include_dirs(../../intern/utfconv)
 endif()
@@ -273,13 +270,7 @@ if(WITH_PYTHON_MODULE)
   )
 
   if(APPLE)
-    set_target_properties(
-      blender
-      PROPERTIES
-        MACOSX_BUNDLE TRUE
-        LINK_FLAGS_RELEASE "${PLATFORM_LINKFLAGS}"
-        LINK_FLAGS_DEBUG "${PLATFORM_LINKFLAGS_DEBUG}"
-    )
+    set_target_properties(blender PROPERTIES MACOSX_BUNDLE TRUE)
   endif()
 
   if(WIN32)
@@ -302,35 +293,9 @@ endif()
 
 
 set(BLENDER_TEXT_FILES
-  ${CMAKE_SOURCE_DIR}/release/text/GPL-license.txt
-  ${CMAKE_SOURCE_DIR}/release/text/GPL3-license.txt
   ${CMAKE_SOURCE_DIR}/release/text/copyright.txt
   # generate this file
   # ${CMAKE_SOURCE_DIR}/release/text/readme.html
-  ${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bfont.ttf.txt
-)
-
-if(WITH_PYTHON)
-  list(APPEND BLENDER_TEXT_FILES
-    ${CMAKE_SOURCE_DIR}/release/text/Python-license.txt
-  )
-endif()
-
-if(WITH_OPENCOLORIO)
-  list(APPEND BLENDER_TEXT_FILES
-    ${CMAKE_SOURCE_DIR}/release/text/ocio-license.txt
-  )
-endif()
-
-if(WITH_MEM_JEMALLOC)
-  list(APPEND BLENDER_TEXT_FILES
-    ${CMAKE_SOURCE_DIR}/release/text/jemalloc-license.txt
-  )
-endif()
-
-list(APPEND BLENDER_TEXT_FILES
-  ${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-droidsans.ttf.txt
-  ${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bmonofont-i18n.ttf.txt
 )
 
 
@@ -1117,6 +1082,12 @@ if(DEFINED BLENDER_TEXT_FILES_DESTINATION)
     FILES ${BLENDER_TEXT_FILES}
     DESTINATION "${BLENDER_TEXT_FILES_DESTINATION}"
   )
+
+  install(
+    DIRECTORY
+    ${CMAKE_SOURCE_DIR}/release/license
+    DESTINATION "${BLENDER_TEXT_FILES_DESTINATION}"
+)
 endif()
 
 # install more files specified elsewhere
@@ -1161,7 +1132,8 @@ add_dependencies(blender makesdna)
 target_link_libraries(blender ${LIB})
 unset(LIB)
 
-setup_liblinks(blender)
+setup_platform_linker_flags(blender)
+setup_platform_linker_libs(blender)
 
 if(APPLE)
   set_target_properties(blender PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/osx_locals.map)
@@ -1190,15 +1162,15 @@ if(WIN32)
   set_target_properties(blender PROPERTIES
     PDB_NAME "blender_private"
     PDB_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
-    if (WITH_WINDOWS_PDB AND WITH_WINDOWS_STRIPPED_PDB)
+    if(WITH_WINDOWS_PDB AND WITH_WINDOWS_STRIPPED_PDB)
       # This is slightly messy, but single target generators like ninja will not have the
       # CMAKE_CFG_INTDIR variable and multitarget generators like msbuild will not have
       # CMAKE_BUILD_TYPE. This can be simplified by target_link_options and the $<CONFIG>
       # generator expression in newer cmake (2.13+) but until that time this fill have suffice.
       if(CMAKE_BUILD_TYPE)
-        set_property(TARGET blender APPEND PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb")
+        set_property(TARGET blender APPEND_STRING PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb")
       else()
-        set_property(TARGET blender APPEND PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/blender_public.pdb")
+        set_property(TARGET blender APPEND_STRING PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/blender_public.pdb")
       endif()
   endif()
 endif()

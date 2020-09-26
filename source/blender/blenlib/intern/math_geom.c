@@ -2322,16 +2322,16 @@ bool isect_tri_tri_v3_ex(const float tri_a[3][3],
   } range[2];
 
   float side[2][3];
-  float ba[3], bc[3], plane_a[4], plane_b[4];
+  double ba[3], bc[3], plane_a[4], plane_b[4];
   *r_tri_a_edge_isect_count = 0;
 
-  sub_v3_v3v3(ba, tri_a[0], tri_a[1]);
-  sub_v3_v3v3(bc, tri_a[2], tri_a[1]);
-  cross_v3_v3v3(plane_a, ba, bc);
-  plane_a[3] = -dot_v3v3(tri_a[1], plane_a);
-  side[1][0] = plane_point_side_v3(plane_a, tri_b[0]);
-  side[1][1] = plane_point_side_v3(plane_a, tri_b[1]);
-  side[1][2] = plane_point_side_v3(plane_a, tri_b[2]);
+  sub_v3db_v3fl_v3fl(ba, tri_a[0], tri_a[1]);
+  sub_v3db_v3fl_v3fl(bc, tri_a[2], tri_a[1]);
+  cross_v3_v3v3_db(plane_a, ba, bc);
+  plane_a[3] = -dot_v3db_v3fl(plane_a, tri_a[1]);
+  side[1][0] = (float)(dot_v3db_v3fl(plane_a, tri_b[0]) + plane_a[3]);
+  side[1][1] = (float)(dot_v3db_v3fl(plane_a, tri_b[1]) + plane_a[3]);
+  side[1][2] = (float)(dot_v3db_v3fl(plane_a, tri_b[2]) + plane_a[3]);
 
   if (!side[1][0] && !side[1][1] && !side[1][2]) {
     /* Coplanar case is not supported. */
@@ -2345,13 +2345,14 @@ bool isect_tri_tri_v3_ex(const float tri_a[3][3],
     return false;
   }
 
-  sub_v3_v3v3(ba, tri_b[0], tri_b[1]);
-  sub_v3_v3v3(bc, tri_b[2], tri_b[1]);
-  cross_v3_v3v3(plane_b, ba, bc);
-  plane_b[3] = -dot_v3v3(tri_b[1], plane_b);
-  side[0][0] = plane_point_side_v3(plane_b, tri_a[0]);
-  side[0][1] = plane_point_side_v3(plane_b, tri_a[1]);
-  side[0][2] = plane_point_side_v3(plane_b, tri_a[2]);
+  sub_v3db_v3fl_v3fl(ba, tri_b[0], tri_b[1]);
+  sub_v3db_v3fl_v3fl(bc, tri_b[2], tri_b[1]);
+  cross_v3_v3v3_db(plane_b, ba, bc);
+  plane_b[3] = -dot_v3db_v3fl(plane_b, tri_b[1]);
+  side[0][0] = (float)(dot_v3db_v3fl(plane_b, tri_a[0]) + plane_b[3]);
+  side[0][1] = (float)(dot_v3db_v3fl(plane_b, tri_a[1]) + plane_b[3]);
+  side[0][2] = (float)(dot_v3db_v3fl(plane_b, tri_a[2]) + plane_b[3]);
+
   if ((side[0][0] && side[0][1] && side[0][2]) && (side[0][0] < 0.0f) == (side[0][1] < 0.0f) &&
       (side[0][0] < 0.0f) == (side[0][2] < 0.0f)) {
     /* All vertices of the 1st triangle are positioned on the same side to the
@@ -2360,8 +2361,8 @@ bool isect_tri_tri_v3_ex(const float tri_a[3][3],
   }
 
   /* Direction of the line that intersects the planes of the triangles. */
-  float isect_dir[3];
-  cross_v3_v3v3(isect_dir, plane_a, plane_b);
+  double isect_dir[3];
+  cross_v3_v3v3_db(isect_dir, plane_a, plane_b);
   for (int i = 0; i < 2; i++) {
     const float(*tri)[3] = i == 0 ? tri_a : tri_b;
     /* Rearrange the triangle so that the vertex that is alone on one side
@@ -2383,37 +2384,35 @@ bool isect_tri_tri_v3_ex(const float tri_a[3][3],
       tri_i[2] = 2;
     }
 
-    float dot_b = dot_v3v3(isect_dir, tri[tri_i[1]]);
-    range[i].min = dot_b;
-    range[i].max = dot_b;
-
+    double dot_b = dot_v3db_v3fl(isect_dir, tri[tri_i[1]]);
     float sidec = side[i][tri_i[1]];
     if (sidec) {
-      float dot_a = dot_v3v3(isect_dir, tri[tri_i[0]]);
-      float dot_c = dot_v3v3(isect_dir, tri[tri_i[2]]);
+      double dot_a = dot_v3db_v3fl(isect_dir, tri[tri_i[0]]);
+      double dot_c = dot_v3db_v3fl(isect_dir, tri[tri_i[2]]);
       float fac0 = sidec / (sidec - side[i][tri_i[0]]);
       float fac1 = sidec / (sidec - side[i][tri_i[2]]);
-      float offset0 = fac0 * (dot_a - dot_b);
-      float offset1 = fac1 * (dot_c - dot_b);
+      double offset0 = fac0 * (dot_a - dot_b);
+      double offset1 = fac1 * (dot_c - dot_b);
       if (offset0 > offset1) {
         /* Sort min max. */
-        SWAP(float, offset0, offset1);
+        SWAP(double, offset0, offset1);
         SWAP(float, fac0, fac1);
         SWAP(int, tri_i[0], tri_i[2]);
       }
 
-      range[i].min += offset0;
-      range[i].max += offset1;
+      range[i].min = (float)(dot_b + offset0);
+      range[i].max = (float)(dot_b + offset1);
       interp_v3_v3v3(range[i].loc[0], tri[tri_i[1]], tri[tri_i[0]], fac0);
       interp_v3_v3v3(range[i].loc[1], tri[tri_i[1]], tri[tri_i[2]], fac1);
     }
     else {
+      range[i].min = range[i].max = (float)dot_b;
       copy_v3_v3(range[i].loc[0], tri[tri_i[1]]);
       copy_v3_v3(range[i].loc[1], tri[tri_i[1]]);
     }
   }
 
-  if ((range[0].max >= range[1].min) && (range[0].min <= range[1].max)) {
+  if ((range[0].max > range[1].min) && (range[0].min < range[1].max)) {
     /* The triangles intersect because they overlap on the intersection line.
      * Now identify the two points of intersection that are in the middle to get the actual
      * intersection between the triangles. (B--C from A--B--C--D) */
@@ -3290,10 +3289,16 @@ float closest_to_line_v3(float r_close[3], const float p[3], const float l1[3], 
 
 float closest_to_line_v2(float r_close[2], const float p[2], const float l1[2], const float l2[2])
 {
-  float h[2], u[2], lambda;
+  float h[2], u[2], lambda, denom;
   sub_v2_v2v2(u, l2, l1);
   sub_v2_v2v2(h, p, l1);
-  lambda = dot_v2v2(u, h) / dot_v2v2(u, u);
+  denom = dot_v2v2(u, u);
+  if (denom == 0.0f) {
+    r_close[0] = l1[0];
+    r_close[1] = l1[1];
+    return 0.0f;
+  }
+  lambda = dot_v2v2(u, h) / denom;
   r_close[0] = l1[0] + u[0] * lambda;
   r_close[1] = l1[1] + u[1] * lambda;
   return lambda;
@@ -3308,12 +3313,12 @@ double closest_to_line_v2_db(double r_close[2],
   sub_v2_v2v2_db(u, l2, l1);
   sub_v2_v2v2_db(h, p, l1);
   denom = dot_v2v2_db(u, u);
-  if (denom < DBL_EPSILON) {
+  if (denom == 0.0) {
     r_close[0] = l1[0];
     r_close[1] = l1[1];
     return 0.0;
   }
-  lambda = dot_v2v2_db(u, h) / dot_v2v2_db(u, u);
+  lambda = dot_v2v2_db(u, h) / denom;
   r_close[0] = l1[0] + u[0] * lambda;
   r_close[1] = l1[1] + u[1] * lambda;
   return lambda;

@@ -38,6 +38,7 @@
 #include "DNA_workspace_types.h"
 
 #include "BLI_bitmap.h"
+#include "BLI_hash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
@@ -415,10 +416,12 @@ const char *BKE_paint_get_tool_prop_id_from_paintmode(ePaintMode mode)
       return "gpencil_sculpt_tool";
     case PAINT_MODE_WEIGHT_GPENCIL:
       return "gpencil_weight_tool";
-    default:
-      /* invalid paint mode */
-      return NULL;
+    case PAINT_MODE_INVALID:
+      break;
   }
+
+  /* Invalid paint mode. */
+  return NULL;
 }
 
 Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer)
@@ -1885,18 +1888,31 @@ static void sculpt_sync_face_sets_visibility_to_base_mesh(Mesh *mesh)
     return;
   }
 
-  for (int i = 0; i < mesh->totvert; i++) {
-    mesh->mvert[i].flag |= ME_HIDE;
-  }
+  /* Enabled if the vertex should be visible according to the Face Sets. */
+  BLI_bitmap *visibile_vertex = BLI_BITMAP_NEW(mesh->totvert, "visible vertices");
+  /* Enabled if the visibility of this vertex can be affected by the Face Sets to avoid modifying
+   * disconnected geometry. */
+  BLI_bitmap *modified_vertex = BLI_BITMAP_NEW(mesh->totvert, "modified vertices");
 
   for (int i = 0; i < mesh->totpoly; i++) {
-    if (face_sets[i] >= 0) {
-      for (int l = 0; l < mesh->mpoly[i].totloop; l++) {
-        MLoop *loop = &mesh->mloop[mesh->mpoly[i].loopstart + l];
-        mesh->mvert[loop->v].flag &= ~ME_HIDE;
+    const bool is_face_set_visible = face_sets[i] >= 0;
+    for (int l = 0; l < mesh->mpoly[i].totloop; l++) {
+      MLoop *loop = &mesh->mloop[mesh->mpoly[i].loopstart + l];
+      if (is_face_set_visible) {
+        BLI_BITMAP_ENABLE(visibile_vertex, loop->v);
       }
+      BLI_BITMAP_ENABLE(modified_vertex, loop->v);
     }
   }
+
+  for (int i = 0; i < mesh->totvert; i++) {
+    if (BLI_BITMAP_TEST(modified_vertex, i) && !BLI_BITMAP_TEST(visibile_vertex, i)) {
+      mesh->mvert[i].flag |= ME_HIDE;
+    }
+  }
+
+  MEM_SAFE_FREE(visibile_vertex);
+  MEM_SAFE_FREE(modified_vertex);
 }
 
 static void sculpt_sync_face_sets_visibility_to_grids(Mesh *mesh, SubdivCCG *subdiv_ccg)
@@ -2085,4 +2101,22 @@ bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const View3D *v3d)
 
   /* Multires and dyntopo always draw directly from the PBVH. */
   return true;
+}
+
+/* Returns the Face Set random color for rendering in the overlay given its ID and a color seed. */
+#define GOLDEN_RATIO_CONJUGATE 0.618033988749895f
+void BKE_paint_face_set_overlay_color_get(const int face_set, const int seed, uchar r_color[4])
+{
+  float rgba[4];
+  float random_mod_hue = GOLDEN_RATIO_CONJUGATE * (abs(face_set) + (seed % 10));
+  random_mod_hue = random_mod_hue - floorf(random_mod_hue);
+  const float random_mod_sat = BLI_hash_int_01(abs(face_set) + seed + 1);
+  const float random_mod_val = BLI_hash_int_01(abs(face_set) + seed + 2);
+  hsv_to_rgb(random_mod_hue,
+             0.6f + (random_mod_sat * 0.25f),
+             1.0f - (random_mod_val * 0.35f),
+             &rgba[0],
+             &rgba[1],
+             &rgba[2]);
+  rgba_float_to_uchar(r_color, rgba);
 }

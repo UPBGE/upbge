@@ -25,7 +25,10 @@
 
 #include "DNA_listBase.h"
 
-/* Domain flags. */
+/**
+ * #FluidDomainSettings.flags
+ * Domain flags.
+ */
 enum {
   FLUID_DOMAIN_USE_NOISE = (1 << 1),        /* Use noise. */
   FLUID_DOMAIN_USE_DISSOLVE = (1 << 2),     /* Let smoke dissolve. */
@@ -47,7 +50,10 @@ enum {
   FLUID_DOMAIN_USE_RESUMABLE_CACHE = (1 << 16), /* Determine if cache should be resumable. */
 };
 
-/* Border collisions. */
+/**
+ * #FluidDomainSettings.border_collisions
+ * Border collisions.
+ */
 enum {
   FLUID_DOMAIN_BORDER_FRONT = (1 << 1),
   FLUID_DOMAIN_BORDER_BACK = (1 << 2),
@@ -66,19 +72,19 @@ enum {
   FLUID_DOMAIN_FILE_BIN_OBJECT = (1 << 4),
 };
 
-/* Slice method. */
-enum {
-  FLUID_DOMAIN_SLICE_VIEW_ALIGNED = 0,
-  FLUID_DOMAIN_SLICE_AXIS_ALIGNED = 1,
-};
-
-/* Axis aligned method. */
+/**
+ * #FluidDomainSettings.axis_slice_method
+ * Axis aligned method.
+ */
 enum {
   AXIS_SLICE_FULL = 0,
   AXIS_SLICE_SINGLE = 1,
 };
 
-/* Single slice direction. */
+/**
+ * #FluidDomainSettings.slice_axis
+ * Single slice direction.
+ */
 enum {
   SLICE_AXIS_AUTO = 0,
   SLICE_AXIS_X = 1,
@@ -86,22 +92,47 @@ enum {
   SLICE_AXIS_Z = 3,
 };
 
-/* Axis aligned method. */
-enum {
-  VOLUME_INTERP_LINEAR = 0,
-  VOLUME_INTERP_CUBIC = 1,
-};
+/**
+ * #FluidDomainSettings.interp_method
+ * Display interpolation method.
+ */
+typedef enum FLUID_DisplayInterpolationMethod {
+  FLUID_DISPLAY_INTERP_LINEAR = 0,
+  FLUID_DISPLAY_INTERP_CUBIC = 1,
+  FLUID_DISPLAY_INTERP_CLOSEST = 2,
+} FLUID_DisplayInterpolationMethod;
 
+/** #FluidDomainSettings.vector_draw_type */
 enum {
   VECTOR_DRAW_NEEDLE = 0,
   VECTOR_DRAW_STREAMLINE = 1,
+  VECTOR_DRAW_MAC = 2,
 };
 
+/** #FluidDomainSettings.vector_draw_mac_components */
+enum {
+  VECTOR_DRAW_MAC_X = (1 << 0),
+  VECTOR_DRAW_MAC_Y = (1 << 1),
+  VECTOR_DRAW_MAC_Z = (1 << 2),
+};
+
+/**
+ * #FluidDomainSettings.vector_field
+ * Fluid domain vector fields.
+ */
+typedef enum FLUID_DisplayVectorField {
+  FLUID_DOMAIN_VECTOR_FIELD_VELOCITY = 0,
+  FLUID_DOMAIN_VECTOR_FIELD_GUIDE_VELOCITY = 1,
+  FLUID_DOMAIN_VECTOR_FIELD_FORCE = 2,
+} FLUID_DisplayVectorField;
+
+/** #FluidDomainSettings.sndparticle_boundary */
 enum {
   SNDPARTICLE_BOUNDARY_DELETE = 0,
   SNDPARTICLE_BOUNDARY_PUSHOUT = 1,
 };
 
+/** #FluidDomainSettings.sndparticle_combined_export */
 enum {
   SNDPARTICLE_COMBINED_EXPORT_OFF = 0,
   SNDPARTICLE_COMBINED_EXPORT_SPRAY_FOAM = 1,
@@ -110,6 +141,7 @@ enum {
   SNDPARTICLE_COMBINED_EXPORT_SPRAY_FOAM_BUBBLE = 4,
 };
 
+/** #FluidDomainSettings.coba_field */
 enum {
   FLUID_DOMAIN_FIELD_DENSITY = 0,
   FLUID_DOMAIN_FIELD_HEAT = 1,
@@ -125,6 +157,34 @@ enum {
   FLUID_DOMAIN_FIELD_FORCE_X = 11,
   FLUID_DOMAIN_FIELD_FORCE_Y = 12,
   FLUID_DOMAIN_FIELD_FORCE_Z = 13,
+  FLUID_DOMAIN_FIELD_PHI = 14,
+  FLUID_DOMAIN_FIELD_PHI_IN = 15,
+  FLUID_DOMAIN_FIELD_PHI_OUT = 16,
+  FLUID_DOMAIN_FIELD_PHI_OBSTACLE = 17,
+  FLUID_DOMAIN_FIELD_FLAGS = 18,
+  FLUID_DOMAIN_FIELD_PRESSURE = 19,
+};
+
+/**
+ * #FluidDomainSettings.gridlines_color_field
+ * Fluid grid-line display color field types.
+ */
+enum {
+  FLUID_GRIDLINE_COLOR_TYPE_FLAGS = 1,
+  FLUID_GRIDLINE_COLOR_TYPE_RANGE = 2,
+};
+
+/**
+ * #FluidDomainSettings.gridlines_cell_filter
+ * Fluid cell types.
+ */
+enum {
+  FLUID_CELL_TYPE_NONE = 0,
+  FLUID_CELL_TYPE_FLUID = (1 << 0),
+  FLUID_CELL_TYPE_OBSTACLE = (1 << 1),
+  FLUID_CELL_TYPE_EMPTY = (1 << 2),
+  FLUID_CELL_TYPE_INFLOW = (1 << 3),
+  FLUID_CELL_TYPE_OUTFLOW = (1 << 4),
 };
 
 /* Fluid domain types. */
@@ -251,7 +311,6 @@ enum {
 #define FLUID_NAME_OBVEL_Z "z_obvel"
 #define FLUID_NAME_FRACTIONS "fractions"
 #define FLUID_NAME_INVELC "invelC"
-#define FLUID_NAME_INVEL "invel"
 #define FLUID_NAME_INVEL_X "x_invel"
 #define FLUID_NAME_INVEL_Y "y_invel"
 #define FLUID_NAME_INVEL_Z "z_invel"
@@ -446,6 +505,8 @@ typedef struct FluidDomainSettings {
   struct GPUTexture *tex_velocity_x;
   struct GPUTexture *tex_velocity_y;
   struct GPUTexture *tex_velocity_z;
+  struct GPUTexture *tex_flags;
+  struct GPUTexture *tex_range_field;
   struct Object *guide_parent;
   /** Vertex velocities of simulated fluid mesh. */
   struct FluidDomainVertexVelocity *mesh_velocities;
@@ -605,29 +666,41 @@ typedef struct FluidDomainSettings {
   int timesteps_maximum;
 
   /* Display options. */
-  char slice_method, axis_slice_method;
-  char slice_axis, draw_velocity;
   float slice_per_voxel;
   float slice_depth;
   float display_thickness;
+  float grid_scale;
   struct ColorBand *coba;
   float vector_scale;
+  float gridlines_lower_bound;
+  float gridlines_upper_bound;
+  float gridlines_range_color[4];
+  char axis_slice_method;
+  char slice_axis;
+  char show_gridlines;
+  char draw_velocity;
   char vector_draw_type;
+  char vector_field; /* Simulation field used for vector display. */
+  char vector_scale_with_magnitude;
+  char vector_draw_mac_components;
   char use_coba;
   char coba_field; /* Simulation field used for the color mapping. */
   char interp_method;
+  char gridlines_color_field; /* Simulation field used to color map onto gridlines. */
+  char gridlines_cell_filter;
+  char _pad9[7];
 
   /* OpenVDB cache options. */
   int openvdb_compression;
   float clipping;
   char openvdb_data_depth;
-  char _pad9[7]; /* Unused. */
+  char _pad10[7]; /* Unused. */
 
   /* -- Deprecated / unsed options (below). -- */
 
   /* View options. */
   int viewsettings;
-  char _pad10[4]; /* Unused. */
+  char _pad11[4]; /* Unused. */
 
   /* Pointcache options. */
   /* Smoke uses only one cache from now on (index [0]), but keeping the array for now for reading
@@ -637,7 +710,7 @@ typedef struct FluidDomainSettings {
   int cache_comp;
   int cache_high_comp;
   char cache_file_format;
-  char _pad11[7]; /* Unused. */
+  char _pad12[7]; /* Unused. */
 
 } FluidDomainSettings;
 

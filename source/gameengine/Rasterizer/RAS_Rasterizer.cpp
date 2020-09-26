@@ -254,12 +254,13 @@ void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
 {
   //GPU_state_init();
 
-  Disable(RAS_BLEND);
-  Disable(RAS_ALPHA_TEST);
+  /*Disable(RAS_BLEND);
+  Disable(RAS_ALPHA_TEST);*/
 
-  SetFrontFace(true);
+  //SetFrontFace(true);
 
-  SetColorMask(true, true, true, true);
+  //SetColorMask(true, true, true, true);
+  GPU_color_mask(true, true, true, true);
 
   /* Here we set RAS_FrameBuffers width and height very early in ge launching process
    * Note that if we want to resize RAS_FrameBuffers, this method must be called
@@ -271,12 +272,16 @@ void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
 
 void RAS_Rasterizer::Exit()
 {
-  SetClearDepth(1.0f);
-  SetColorMask(true, true, true, true);
+  //SetClearDepth(1.0f);
+  //SetColorMask(true, true, true, true);
+  GPU_color_mask(true, true, true, true);
 
-  SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  //SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-  Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
+  //Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
+
+  GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
+  GPU_clear_depth(1.0f);
 
   DRW_view_set_active(NULL);
 }
@@ -287,7 +292,7 @@ void RAS_Rasterizer::BeginFrame(double time)
 
   GPU_matrix_reset();
 
-  SetFrontFace(true);
+  //SetFrontFace(true);
 
   m_impl->BeginFrame();
 
@@ -302,7 +307,7 @@ void RAS_Rasterizer::EndFrame()
 {
   SetColorMask(true, true, true, true);
 
-  Disable(RAS_MULTISAMPLE);
+  //Disable(RAS_MULTISAMPLE);
 }
 
 void RAS_Rasterizer::SetShadowMode(RAS_Rasterizer::ShadowType shadowmode)
@@ -374,7 +379,8 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer,
                                      RAS_FrameBuffer *dstFrameBuffer)
 {
   GPUTexture *src = GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer());
-  GPU_texture_bind_bge(src, 0);
+  GPU_texture_bind(src, 0);
+  GPU_apply_state();
 
   GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
   GPU_shader_bind(shader);
@@ -391,10 +397,9 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frame
   Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
   GPU_scissor_test(true);
   const RAS_Rect &viewport = canvas->GetViewportArea();
-  SetViewport(
-      viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
-  SetScissor(
-      viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+  GPU_viewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+  GPU_scissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+  GPU_apply_state();
 
   GPU_framebuffer_restore();
   DrawFrameBuffer(frameBuffer, nullptr);

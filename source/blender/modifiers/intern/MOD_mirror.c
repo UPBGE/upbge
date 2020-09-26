@@ -216,12 +216,14 @@ ModifierTypeInfo modifierType_Mirror = {
     /* name */ "Mirror",
     /* structName */ "MirrorModifierData",
     /* structSize */ sizeof(MirrorModifierData),
+    /* srna */ &RNA_MirrorModifier,
     /* type */ eModifierTypeType_Constructive,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
         eModifierTypeFlag_AcceptsCVs |
         /* this is only the case when 'MOD_MIR_VGROUP' is used */
         eModifierTypeFlag_UsesPreview,
+    /* icon */ ICON_MOD_MIRROR,
 
     /* copyData */ BKE_modifier_copydata_generic,
 

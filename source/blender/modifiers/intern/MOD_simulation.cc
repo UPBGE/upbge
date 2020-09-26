@@ -114,6 +114,10 @@ static PointCloud *modifyPointCloud(ModifierData *md,
       CustomData_get_layer_named(&state->attributes, CD_PROP_FLOAT, "Radius"));
   memcpy(pointcloud->co, positions, sizeof(float3) * state->tot_particles);
 
+  CustomData_add_layer_named(
+      &pointcloud->pdata, CD_PROP_FLOAT, CD_CALLOC, NULL, state->tot_particles, "Radius");
+  BKE_pointcloud_update_customdata_pointers(pointcloud);
+
   for (int i = 0; i < state->tot_particles; i++) {
     pointcloud->radius[i] = radii[i];
   }
@@ -177,8 +181,14 @@ ModifierTypeInfo modifierType_Simulation = {
     /* name */ "Simulation",
     /* structName */ "SimulationModifierData",
     /* structSize */ sizeof(SimulationModifierData),
+#ifdef WITH_PARTICLE_NODES
+    /* srna */ &RNA_SimulationModifier,
+#else
+    /* srna */ &RNA_Modifier,
+#endif
     /* type */ eModifierTypeType_None,
     /* flags */ (ModifierTypeFlag)0,
+    /* icon */ ICON_PHYSICS, /* TODO: Use correct icon. */
 
     /* copyData */ copyData,
 

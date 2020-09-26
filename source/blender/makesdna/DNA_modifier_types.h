@@ -861,26 +861,32 @@ typedef struct BooleanModifierData {
   ModifierData modifier;
 
   struct Object *object;
+  struct Collection *collection;
+  float double_threshold;
   char operation;
   char solver;
   char flag;
   char bm_flag;
-  float double_threshold;
 } BooleanModifierData;
 
+/* BooleanModifierData->operation */
 typedef enum {
   eBooleanModifierOp_Intersect = 0,
   eBooleanModifierOp_Union = 1,
   eBooleanModifierOp_Difference = 2,
 } BooleanModifierOp;
 
+/* BooleanModifierData->solver */
 typedef enum {
   eBooleanModifierSolver_Fast = 0,
   eBooleanModifierSolver_Exact = 1,
 } BooleanModifierSolver;
 
+/* BooleanModifierData->flag */
 enum {
   eBooleanModifierFlag_Self = (1 << 0),
+  eBooleanModifierFlag_Object = (1 << 1),
+  eBooleanModifierFlag_Collection = (1 << 2),
 };
 
 /* bm_flag only used when G_DEBUG. */
@@ -1972,12 +1978,11 @@ typedef struct WeldModifierData {
 
   /* The limit below which to merge vertices. */
   float merge_dist;
-  unsigned int max_interactions;
   /* Name of vertex group to use to mask, MAX_VGROUP_NAME. */
   char defgrp_name[64];
 
   short flag;
-  char _pad[6];
+  char _pad[2];
 } WeldModifierData;
 
 /* WeldModifierData->flag */

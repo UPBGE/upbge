@@ -29,6 +29,7 @@
 
 #include "GPU_context.h"
 
+#include "gpu_debug_private.hh"
 #include "gpu_framebuffer_private.hh"
 #include "gpu_immediate_private.hh"
 #include "gpu_shader_private.hh"
@@ -46,7 +47,7 @@ class Context {
   Shader *shader = NULL;
   FrameBuffer *active_fb = NULL;
   GPUMatrixState *matrix_state = NULL;
-  GPUStateManager *state_manager = NULL;
+  StateManager *state_manager = NULL;
   Immediate *imm = NULL;
 
   /**
@@ -60,6 +61,8 @@ class Context {
   FrameBuffer *front_left = NULL;
   FrameBuffer *back_right = NULL;
   FrameBuffer *front_right = NULL;
+
+  DebugStack debug_stack;
 
  protected:
   /** Thread on which this context is active. */
@@ -83,6 +86,9 @@ class Context {
   virtual void finish(void) = 0;
 
   virtual void memory_statistics_get(int *total_mem, int *free_mem) = 0;
+
+  virtual void debug_group_begin(const char *, int){};
+  virtual void debug_group_end(void){};
 
   bool is_active_on_thread(void);
 };
