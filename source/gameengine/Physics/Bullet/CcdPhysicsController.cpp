@@ -842,8 +842,6 @@ void CcdPhysicsController::UpdateSoftBody()
         bContext *C = KX_GetActiveEngine()->GetContext();
         Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
         Object *ob = DEG_get_evaluated_object(depsgraph, rasMesh->GetOriginalObject());
-        MT_Matrix4x4 trans(&ob->obmat[0][0]);
-        trans.invert();
 
         for (int p2 = 0; p2 < numpolys; p2++) {
           MFace *mf = &mface[p2];
@@ -866,14 +864,18 @@ void CcdPhysicsController::UpdateSoftBody()
             MT_Vector3 p2 = ToMoto(nodes.at(i2).m_x - sb->m_pose.m_com);
             MT_Vector3 p3 = ToMoto(nodes.at(i3).m_x - sb->m_pose.m_com);
 
-            MT_Vector4 pp1 = trans * MT_Vector4(p1[0], p1[1], p1[2], 0.0);
-            MT_Vector4 pp2 = trans * MT_Vector4(p2[0], p2[1], p2[2], 0.0);
-            MT_Vector4 pp3 = trans * MT_Vector4(p3[0], p3[1], p3[2], 0.0);
+            MT_Vector3 n1 = ToMoto(nodes.at(i1).m_n);
+            MT_Vector3 n2 = ToMoto(nodes.at(i2).m_n);
+            MT_Vector3 n3 = ToMoto(nodes.at(i3).m_n);
 
             // Do we need obmat? maybe
-            copy_v3_v3(v1->co, pp1.to3d().getValue());
-            copy_v3_v3(v2->co, pp2.to3d().getValue());
-            copy_v3_v3(v3->co, pp3.to3d().getValue());
+            copy_v3_v3(v1->co, p1.getValue());
+            copy_v3_v3(v2->co, p2.getValue());
+            copy_v3_v3(v3->co, p3.getValue());
+
+            normal_float_to_short_v3(v1->no, n1.getValue());
+            normal_float_to_short_v3(v2->no, n2.getValue());
+            normal_float_to_short_v3(v3->no, n3.getValue());
 
             if (mf->v4) {
               MVert *v4 = &mverts[mf->v4];
@@ -881,9 +883,12 @@ void CcdPhysicsController::UpdateSoftBody()
               int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
 
               MT_Vector3 p4 = ToMoto(nodes.at(i4).m_x - sb->m_pose.m_com);
-              MT_Vector4 pp4 = (trans * MT_Vector4(p4[0], p4[1], p4[2], 0.0));
 
-              copy_v3_v3(v4->co, pp4.to3d().getValue());
+              MT_Vector3 n4 = ToMoto(nodes.at(i4).m_n);
+
+              copy_v3_v3(v4->co, p4.getValue());
+
+              normal_float_to_short_v3(v4->no, n4.getValue());
             }
           }
         }
