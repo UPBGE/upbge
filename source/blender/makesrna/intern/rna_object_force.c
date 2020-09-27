@@ -1829,22 +1829,113 @@ static void rna_def_game_softbody(BlenderRNA *brna)
       "=> set to 0.0 to disable welding test and speed up scene loading "
       "(ok if the mesh has no duplicates)");
 
+  prop = RNA_def_property(srna, "ksrhr_cl", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kSRHR_CL");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Soft vs Rigid Hardness", "Soft vs rigid hardness");
+
+  prop = RNA_def_property(srna, "kskhr_cl", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kSKHR_CL");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Soft vs Kinetic Hardness", "Soft vs kinetic hardness");
+
+  prop = RNA_def_property(srna, "ksshr_cl", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kSSHR_CL");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Soft vs Soft Hardness", "Soft vs soft hardness");
+
+  prop = RNA_def_property(srna, "ksr_split_cl", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kSR_SPLT_CL");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Rigid Impulse Split", "Rigid impulse split");
+
+  prop = RNA_def_property(srna, "ksk_split_cl", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kSK_SPLT_CL");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Kinetic Impulse Split", "Kinetic impulse split");
+
+  prop = RNA_def_property(srna, "kss_split_cl", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kSS_SPLT_CL");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Soft Impulse Split", "Soft impulse split");
+
+  prop = RNA_def_property(srna, "kvcf", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kVCF");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Velocity Correction Factor", "Velocity correction factor");
+
+  prop = RNA_def_property(srna, "kdp", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kDP");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Damping Coefficient", "Damping coefficient");
+
+  prop = RNA_def_property(srna, "kdg", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kDG");
+  RNA_def_property_range(prop, 0.0f, 1000.0f);
+  RNA_def_property_ui_text(prop, "Drag Coeffient", "Drag coeffient");
+
+  prop = RNA_def_property(srna, "klf", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kLF");
+  RNA_def_property_range(prop, 0.0f, 1000.0f);
+  RNA_def_property_ui_text(prop, "Lift Coefficient", "Lift coefficient");
+
+  prop = RNA_def_property(srna, "kpr", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kPR");
+  RNA_def_property_range(prop, -1000.0f, 1000.0f);
+  RNA_def_property_ui_text(prop, "Pressure Coefficient", "Pressure coefficient");
+
+  prop = RNA_def_property(srna, "kvc", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kVC");
+  RNA_def_property_range(prop, 0.0f, 1000.0f);
+  RNA_def_property_ui_text(
+      prop, "Volume Conservation Coefficient", "Volume conservation coefficient");
+
+  prop = RNA_def_property(srna, "kchr", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kCHR");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Rigid Contacts Hardness", "Rigid contacts hardness");
+
+  prop = RNA_def_property(srna, "kkhr", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kKHR");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Kinetic Contacts Hardness", "Kinetic contacts hardness");
+
+  prop = RNA_def_property(srna, "kshr", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kSHR");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Soft Contacts Hardness", "Soft contacts hardness");
+
+  prop = RNA_def_property(srna, "kahr", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "kAHR");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Anchors Hardness", "Anchors hardness");
   /* Integers */
 
-  prop = RNA_def_property(srna, "location_iterations", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "position_solver_iterations", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "piterations");
+  RNA_def_property_range(prop, 1, 1000);
+  RNA_def_property_ui_text(prop, "Position Solver Iterations", "Position solver iterations");
+
+  prop = RNA_def_property(srna, "velocity_solver_iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "viterations");
   RNA_def_property_range(prop, 0, 1000);
-  RNA_def_property_ui_text(prop, "Position Iterations", "Position solver iterations");
+  RNA_def_property_ui_text(prop, "Velocity Solver Iterations", "Position solver iterations");
+
+  prop = RNA_def_property(srna, "drift_solver_iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "diterations");
+  RNA_def_property_range(prop, 0, 1000);
+  RNA_def_property_ui_text(prop, "Drift Solver Iterations", "Drift solver iterations");
+
+  prop = RNA_def_property(srna, "cluster_solver_iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "citerations");
+  RNA_def_property_range(prop, 1, 1000);
+  RNA_def_property_ui_text(prop, "Cluster Solver Iterations", "Cluster solver iterations");
 
   prop = RNA_def_property(srna, "cluster_iterations", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "numclusteriterations");
   RNA_def_property_range(prop, 1, 1000);
   RNA_def_property_ui_text(prop, "Cluster Iterations", "Number of cluster iterations");
 
-  prop = RNA_def_property(srna, "bending_distance", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, NULL, "bending_dist");
-  RNA_def_property_range(prop, 1, 1000);
-  RNA_def_property_ui_text(prop, "Bending Distance", "Bending Constraint Distance");
   /* Booleans */
 
   prop = RNA_def_property(srna, "use_shape_match", PROP_BOOLEAN, PROP_NONE);
