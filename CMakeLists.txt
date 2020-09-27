@@ -239,8 +239,6 @@ if(WITH_GHOST_X11)
   option(WITH_GHOST_XDND    "Enable drag'n'drop support on X11 using XDND protocol" ON)
 endif()
 
-option(WITH_GMP "Use the gmp library for more accurate booleans" OFF)
-
 # Misc...
 option(WITH_HEADLESS      "Build without graphical support (renderfarm, server mode only)" OFF)
 mark_as_advanced(WITH_HEADLESS)
@@ -898,13 +896,13 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Release")
     if(MSVC)
       set(COMPILER_ASAN_LINKER_FLAGS "/FUNCTIONPADMIN:6")
     endif()
-    if(APPLE)
-      # COMPILER_ASAN_CFLAGS and COMPILER_ASAN_CXXFLAGS are the same as of
-      # now, so use either for PLATFORM_CFLAGS.
-      set(PLATFORM_CFLAGS "${PLATFORM_CFLAGS} ${COMPILER_ASAN_CFLAGS}")
-      set(COMPILER_ASAN_LINKER_FLAGS "-fno-omit-frame-pointer -fsanitize=address")
-    endif(APPLE)
-    if(COMPILER_ASAN_LIBRARY)
+
+    if(APPLE AND COMPILER_ASAN_LIBRARY)
+      string(REPLACE " " ";" _list_COMPILER_ASAN_CFLAGS ${COMPILER_ASAN_CFLAGS})
+      add_compile_options("$<$<NOT:$<CONFIG:Release>>:${_list_COMPILER_ASAN_CFLAGS}>")
+      add_link_options("$<$<NOT:$<CONFIG:Release>>:-fno-omit-frame-pointer;-fsanitize=address>")
+      unset(_list_COMPILER_ASAN_CFLAGS)
+    elseif(COMPILER_ASAN_LIBRARY)
       set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS};${COMPILER_ASAN_LIBRARY}")
       set(PLATFORM_LINKFLAGS "${COMPILER_ASAN_LIBRARY} ${COMPILER_ASAN_LINKER_FLAGS}")
       set(PLATFORM_LINKFLAGS_DEBUG "${COMPILER_ASAN_LIBRARY} ${COMPILER_ASAN_LINKER_FLAGS}")
