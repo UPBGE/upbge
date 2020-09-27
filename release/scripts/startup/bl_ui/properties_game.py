@@ -59,7 +59,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.prop(game, "step_height", slider=True)
             col.prop(game, "fall_speed")
-#            col.prop(game, "max_slope")
+            col.prop(game, "max_slope")
             col = split.column()
             col.prop(game, "jump_speed")
             col.prop(game, "jump_max")
@@ -72,7 +72,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "use_ghost")
 
             col = split.column()
-#            col.prop(game, "use_physics_fh")
+            col.prop(game, "use_physics_fh")
             col.prop(game, "use_rotate_from_normal")
             col.prop(game, "use_sleep")
 

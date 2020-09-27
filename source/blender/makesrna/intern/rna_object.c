@@ -38,6 +38,7 @@
 #include "DNA_shader_fx_types.h"
 #include "DNA_workspace_types.h"
 
+#include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -2705,6 +2706,13 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Fall Speed Max", "Maximum speed at which the character will fall");
 
+  prop = RNA_def_property(srna, "max_slope", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, NULL, "max_slope");
+  RNA_def_property_range(prop, 0.0, M_PI_2);
+  RNA_def_property_float_default(prop, M_PI_2);
+  RNA_def_property_ui_text(
+      prop, "Max Slope", "Maximum slope angle which the character will climb");
+
   prop = RNA_def_property(srna, "jump_max", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "max_jumps");
   RNA_def_property_range(prop, 1, CHAR_MAX);
@@ -2768,10 +2776,9 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Lock Z Rotation Axis", "Disable simulation of angular motion along the Z axis");
 
-  prop = RNA_def_property(srna, "use_material_physics_fh", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_DO_FH);
-  RNA_def_property_ui_text(
-      prop, "Use Material Force Field", "React to force field physics settings in materials");
+  prop = RNA_def_property(srna, "use_physics_fh", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_DO_FH);
+	RNA_def_property_ui_text(prop, "Use Force Field", "React to force field physics settings");
 
   prop = RNA_def_property(srna, "use_rotate_from_normal", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_ROT_FH);

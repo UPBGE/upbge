@@ -438,6 +438,8 @@ typedef struct Object {
   float step_height;
   float jump_speed;
   float fall_speed;
+  float max_slope;
+  int _pad54;
   short max_jumps;
 
   /* for now used to temporarily holds the type of collision object */
