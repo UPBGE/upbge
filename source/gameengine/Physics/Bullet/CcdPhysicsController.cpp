@@ -461,12 +461,13 @@ bool CcdPhysicsController::CreateSoftbody()
   psb->m_cfg.diterations = m_cci.m_soft_diterations;
   psb->m_cfg.citerations = m_cci.m_soft_citerations;
 
-  if (m_cci.m_gamesoftFlag & CCD_BSB_SHAPE_MATCHING) {
+  /* SetPose here cause an assert for planes. Why? idk */
+  /*if (m_cci.m_gamesoftFlag & CCD_BSB_SHAPE_MATCHING) {
     psb->setPose(false, true);
   }
   else {
     psb->setPose(true, false);
-  }
+  }*/
 
   psb->randomizeConstraints();
 
@@ -768,20 +769,26 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
   // sync non-static to motionstate, and static from motionstate (todo: add kinematic etc.)
 
   btSoftBody *sb = GetSoftBody();
-  if (sb) {
+  if (sb) { // EXPERIMENTAL
     if (sb->m_pose.m_bframe) {
       btVector3 worldPos = sb->m_pose.m_com;
-      btQuaternion worldquat;
-      btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
-      trs.getRotation(worldquat);
+      //btQuaternion worldquat;
+      //btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
+      //trs.getRotation(worldquat);
       m_MotionState->SetWorldPosition(ToMoto(worldPos));
-      m_MotionState->SetWorldOrientation(ToMoto(worldquat));
+      //m_MotionState->SetWorldOrientation(ToMoto(worldquat));
     }
     else {
-      btVector3 aabbMin, aabbMax;
+      /*btVector3 aabbMin, aabbMax;
       sb->getAabb(aabbMin, aabbMax);
       btVector3 worldPos = (aabbMax + aabbMin) * 0.5f;
-      m_MotionState->SetWorldPosition(ToMoto(worldPos));
+      m_MotionState->SetWorldPosition(ToMoto(worldPos));*/
+      if (m_cci.m_gamesoftFlag & CCD_BSB_SHAPE_MATCHING) {
+        sb->setPose(false, true);
+      }
+      else {
+        sb->setPose(true, false);
+      }
     }
     m_MotionState->CalculateWorldTransformations();
     return true;
