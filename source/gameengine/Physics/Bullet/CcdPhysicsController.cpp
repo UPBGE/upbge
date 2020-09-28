@@ -300,7 +300,7 @@ bool CcdPhysicsController::CreateSoftbody()
   btSoftBody *psb = nullptr;
   btSoftBodyWorldInfo &worldInfo = m_cci.m_physicsEnv->GetDynamicsWorld()->getWorldInfo();
 
-  if (m_cci.m_collisionShape->getShapeType() == CONVEX_HULL_SHAPE_PROXYTYPE) {
+  if (m_cci.m_collisionShape->getShapeType() == CONVEX_HULL_SHAPE_PROXYTYPE) { // Disabled in upbge 0.3
     btConvexHullShape *convexHull = (btConvexHullShape *)m_cci.m_collisionShape;
     {
       int nvertices = convexHull->getNumPoints();
@@ -340,8 +340,8 @@ bool CcdPhysicsController::CreateSoftbody()
       /// only deal with meshes that have 1 sub part/component, for now
       if (trimeshshape->getMeshInterface()->getNumSubParts() == 1) {
         unsigned char *vertexBase;
-        btScalar *scaledVertexBase;
-        btVector3 localScaling;
+        //btScalar *scaledVertexBase;
+        //btVector3 localScaling;
         PHY_ScalarType vertexType;
         int numverts;
         int vertexstride;
@@ -356,16 +356,16 @@ bool CcdPhysicsController::CreateSoftbody()
                                                                    indexstride,
                                                                    numtris,
                                                                    indexType);
-        localScaling = scaledtrimeshshape->getLocalScaling();
+        /*localScaling = scaledtrimeshshape->getLocalScaling();
         scaledVertexBase = new btScalar[numverts * 3];
         for (int i = 0; i < numverts * 3; i += 3) {
           scaledVertexBase[i] = ((const btScalar *)vertexBase)[i] * localScaling.getX();
           scaledVertexBase[i + 1] = ((const btScalar *)vertexBase)[i + 1] * localScaling.getY();
           scaledVertexBase[i + 2] = ((const btScalar *)vertexBase)[i + 2] * localScaling.getZ();
-        }
+        }*/
         psb = btSoftBodyHelpers::CreateFromTriMesh(
-            worldInfo, scaledVertexBase, (const int *)indexbase, numtris, false);
-        delete[] scaledVertexBase;
+            worldInfo, (btScalar *)vertexBase/*scaledVertexBase*/, (const int *)indexbase, numtris, false);
+        //delete[] scaledVertexBase;
       }
     }
     else {
