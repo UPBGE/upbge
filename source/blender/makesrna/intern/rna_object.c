@@ -734,9 +734,9 @@ static const EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext *UNUSE
   if (ob->body_type != OB_BODY_TYPE_CHARACTER) {
     RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_TRIANGLE_MESH);
   }
-  RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_CONVEX_HULL);
 
   if (ob->body_type != OB_BODY_TYPE_SOFT) {
+    RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_CONVEX_HULL);
     RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_CONE);
     RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_CYLINDER);
     RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_SPHERE);
