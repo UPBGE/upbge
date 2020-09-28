@@ -271,6 +271,9 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
 
   BKE_sca_logic_copy(ob_dst, ob_src, flag_subdata);
   BKE_python_component_copy_list(&ob_dst->components, &ob_src->components);
+  if (ob_src->bsoft) {
+    ob_dst->bsoft = copy_bulletsoftbody(ob_src->bsoft, 0);
+  }
 
   if (ob_src->pose) {
     copy_object_pose(ob_dst, ob_src, flag_subdata);
@@ -348,6 +351,7 @@ static void object_free_data(ID *id)
   free_controllers(&ob->controllers);
   free_actuators(&ob->actuators);
   BKE_python_component_free_list(&ob->components);
+  BKE_object_free_bulletsoftbody(ob);
 
   BKE_constraints_free_ex(&ob->constraints, false);
 
