@@ -200,7 +200,7 @@ static void object_init_data(ID *id)
   ob->jump_speed = 10.0f;
   ob->fall_speed = 55.0f;
   ob->max_jumps = 1;
-  // ob->max_slope = M_PI_2;
+  ob->max_slope = M_PI_2;
   ob->col_group = 0x01;
   ob->col_mask = 0xffff;
 
@@ -271,6 +271,9 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
 
   BKE_sca_logic_copy(ob_dst, ob_src, flag_subdata);
   BKE_python_component_copy_list(&ob_dst->components, &ob_src->components);
+  if (ob_src->bsoft) {
+    ob_dst->bsoft = copy_bulletsoftbody(ob_src->bsoft, 0);
+  }
 
   if (ob_src->pose) {
     copy_object_pose(ob_dst, ob_src, flag_subdata);
@@ -348,6 +351,7 @@ static void object_free_data(ID *id)
   free_controllers(&ob->controllers);
   free_actuators(&ob->actuators);
   BKE_python_component_free_list(&ob->components);
+  BKE_object_free_bulletsoftbody(ob);
 
   BKE_constraints_free_ex(&ob->constraints, false);
 

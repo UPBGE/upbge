@@ -772,6 +772,15 @@ bool CcdPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, flo
   return true;
 }
 
+void CcdPhysicsEnvironment::UpdateSoftBodies()
+{
+  std::set<CcdPhysicsController *>::iterator it;
+
+  for (it = m_controllers.begin(); it != m_controllers.end(); it++) {
+    (*it)->UpdateSoftBody();
+  }
+}
+
 class ClosestRayResultCallbackNotMe : public btCollisionWorld::ClosestRayResultCallback {
   btCollisionObject *m_owner;
   btCollisionObject *m_parent;
@@ -2824,6 +2833,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
   ci.m_stepHeight = isbulletchar ? shapeprops->m_step_height : 0.0f;
   ci.m_jumpSpeed = isbulletchar ? shapeprops->m_jump_speed : 0.0f;
   ci.m_fallSpeed = isbulletchar ? shapeprops->m_fall_speed : 0.0f;
+  ci.m_maxSlope = isbulletchar ? blenderobject->max_slope : 0.0f;
   ci.m_maxJumps = isbulletchar ? shapeprops->m_max_jumps : 0;
 
   // mmm, for now, take this for the size of the dynamicobject

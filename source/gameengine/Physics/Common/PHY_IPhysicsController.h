@@ -59,6 +59,8 @@ class PHY_IPhysicsController : public PHY_IController {
    * binding')
    */
   virtual bool SynchronizeMotionStates(float time) = 0;
+
+  virtual void UpdateSoftBody() = 0;
   /**
    * WriteMotionStateToDynamics ynchronizes dynas, kinematic and deformable entities (and do 'late
    * binding')

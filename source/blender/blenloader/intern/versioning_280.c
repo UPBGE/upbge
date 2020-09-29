@@ -110,6 +110,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "wm_event_types.h"
+
 /* Make preferences read-only, use versioning_userdef.c. */
 #define U (*((const UserDef *)&U))
 
@@ -1852,10 +1854,10 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
       sce->gm.flag |= GAME_USE_UNDO;
 
-      // sce->gm.pythonkeys[0] = LEFTCTRLKEY;
-      // sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
-      // sce->gm.pythonkeys[2] = LEFTALTKEY;
-      // sce->gm.pythonkeys[3] = TKEY;
+      sce->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
+      sce->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
+      sce->gm.pythonkeys[2] = EVT_LEFTALTKEY;
+      sce->gm.pythonkeys[3] = EVT_TKEY;
     }
 
     for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
@@ -1878,7 +1880,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       ob->jump_speed = 10.0f;
       ob->fall_speed = 55.0f;
       ob->max_jumps = 1;
-      // ob->max_slope = M_PI_2;
+      ob->max_slope = M_PI_2;
       ob->col_group = 0x01;
       ob->col_mask = 0xffff;
       ob->preview = NULL;

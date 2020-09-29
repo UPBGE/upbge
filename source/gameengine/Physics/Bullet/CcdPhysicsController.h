@@ -315,6 +315,7 @@ struct CcdConstructionInfo {
   float m_stepHeight;
   float m_jumpSpeed;
   float m_fallSpeed;
+  float m_maxSlope;
   unsigned char m_maxJumps;
 
   int m_gamesoftFlag;
@@ -655,6 +656,8 @@ class CcdPhysicsController : public PHY_IPhysicsController {
    * binding')
    */
   virtual bool SynchronizeMotionStates(float time);
+
+  virtual void UpdateSoftBody();
 
   /**
    * Called for every physics simulation step. Use this method for

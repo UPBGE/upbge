@@ -26,9 +26,11 @@
 #include "CcdPhysicsController.h"
 
 #include "../depsgraph/DEG_depsgraph_query.h"
+#include "DNA_mesh_types.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_layer.h"
+#include "BKE_mesh_runtime.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 
@@ -298,7 +300,7 @@ bool CcdPhysicsController::CreateSoftbody()
   btSoftBody *psb = nullptr;
   btSoftBodyWorldInfo &worldInfo = m_cci.m_physicsEnv->GetDynamicsWorld()->getWorldInfo();
 
-  if (m_cci.m_collisionShape->getShapeType() == CONVEX_HULL_SHAPE_PROXYTYPE) {
+  if (m_cci.m_collisionShape->getShapeType() == CONVEX_HULL_SHAPE_PROXYTYPE) { // Disabled in upbge 0.3
     btConvexHullShape *convexHull = (btConvexHullShape *)m_cci.m_collisionShape;
     {
       int nvertices = convexHull->getNumPoints();
@@ -338,8 +340,8 @@ bool CcdPhysicsController::CreateSoftbody()
       /// only deal with meshes that have 1 sub part/component, for now
       if (trimeshshape->getMeshInterface()->getNumSubParts() == 1) {
         unsigned char *vertexBase;
-        btScalar *scaledVertexBase;
-        btVector3 localScaling;
+        //btScalar *scaledVertexBase;
+        //btVector3 localScaling;
         PHY_ScalarType vertexType;
         int numverts;
         int vertexstride;
@@ -354,16 +356,16 @@ bool CcdPhysicsController::CreateSoftbody()
                                                                    indexstride,
                                                                    numtris,
                                                                    indexType);
-        localScaling = scaledtrimeshshape->getLocalScaling();
+        /*localScaling = scaledtrimeshshape->getLocalScaling();
         scaledVertexBase = new btScalar[numverts * 3];
         for (int i = 0; i < numverts * 3; i += 3) {
           scaledVertexBase[i] = ((const btScalar *)vertexBase)[i] * localScaling.getX();
           scaledVertexBase[i + 1] = ((const btScalar *)vertexBase)[i + 1] * localScaling.getY();
           scaledVertexBase[i + 2] = ((const btScalar *)vertexBase)[i + 2] * localScaling.getZ();
-        }
+        }*/
         psb = btSoftBodyHelpers::CreateFromTriMesh(
-            worldInfo, scaledVertexBase, (const int *)indexbase, numtris, false);
-        delete[] scaledVertexBase;
+            worldInfo, (btScalar *)vertexBase/*scaledVertexBase*/, (const int *)indexbase, numtris, false);
+        //delete[] scaledVertexBase;
       }
     }
     else {
@@ -421,7 +423,8 @@ bool CcdPhysicsController::CreateSoftbody()
     psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS;
   }
   else {
-    psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;
+    /* This flag is causing freezes for objects like Suzanne with several "separate parts (head, eyes...) */
+    //psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;
   }
 
   psb->m_cfg.kSRHR_CL = m_cci.m_soft_kSRHR_CL;  // Soft vs rigid hardness [0,1] (cluster only)
@@ -459,12 +462,13 @@ bool CcdPhysicsController::CreateSoftbody()
   psb->m_cfg.diterations = m_cci.m_soft_diterations;
   psb->m_cfg.citerations = m_cci.m_soft_citerations;
 
-  if (m_cci.m_gamesoftFlag & CCD_BSB_SHAPE_MATCHING) {
+  /* SetPose here cause an assert for planes. Why? idk */
+  /*if (m_cci.m_gamesoftFlag & CCD_BSB_SHAPE_MATCHING) {
     psb->setPose(false, true);
   }
   else {
     psb->setPose(true, false);
-  }
+  }*/
 
   psb->randomizeConstraints();
 
@@ -766,20 +770,29 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
   // sync non-static to motionstate, and static from motionstate (todo: add kinematic etc.)
 
   btSoftBody *sb = GetSoftBody();
-  if (sb) {
+  if (sb) { // EXPERIMENTAL
     if (sb->m_pose.m_bframe) {
-      btVector3 worldPos = sb->m_pose.m_com;
-      btQuaternion worldquat;
-      btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
-      trs.getRotation(worldquat);
-      m_MotionState->SetWorldPosition(ToMoto(worldPos));
-      m_MotionState->SetWorldOrientation(ToMoto(worldquat));
-    }
-    else {
+      //btVector3 worldPos = sb->m_pose.m_com;
+      //btQuaternion worldquat;
+      //btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
+      //trs.getRotation(worldquat);
       btVector3 aabbMin, aabbMax;
       sb->getAabb(aabbMin, aabbMax);
       btVector3 worldPos = (aabbMax + aabbMin) * 0.5f;
       m_MotionState->SetWorldPosition(ToMoto(worldPos));
+      //m_MotionState->SetWorldOrientation(ToMoto(worldquat));
+    }
+    else {
+      /*btVector3 aabbMin, aabbMax;
+      sb->getAabb(aabbMin, aabbMax);
+      btVector3 worldPos = (aabbMax + aabbMin) * 0.5f;
+      m_MotionState->SetWorldPosition(ToMoto(worldPos));*/
+      if (m_cci.m_gamesoftFlag & CCD_BSB_SHAPE_MATCHING) {
+        sb->setPose(false, true);
+      }
+      else {
+        sb->setPose(true, false);
+      }
     }
     m_MotionState->CalculateWorldTransformations();
     return true;
@@ -800,6 +813,98 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
   GetCollisionShape()->setLocalScaling(ToBullet(scale));
 
   return true;
+}
+
+void CcdPhysicsController::UpdateSoftBody()
+{
+  btSoftBody *sb = GetSoftBody();
+  if (sb && sb->getActivationState() != ISLAND_SLEEPING) {
+    if (sb->m_pose.m_bframe) {
+
+      RAS_MeshObject *rasMesh = GetShapeInfo()->GetMesh();
+
+      if (rasMesh) {
+        // Get other mesh data
+        Mesh *me = rasMesh->GetOrigMesh();
+        // I don't see how we could do without DerivedMesh...
+        DerivedMesh *dm = CDDM_from_mesh(me);
+
+        // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
+        DM_ensure_tessface(dm);
+
+        const int *index_mf_to_mpoly = (const int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
+        const int *index_mp_to_orig = (const int *)dm->getPolyDataArray(dm, CD_ORIGINDEX);
+        if (!index_mf_to_mpoly) {
+          index_mp_to_orig = nullptr;
+        }
+
+        MVert *mverts = dm->getVertArray(dm);
+        MFace *mface = dm->getTessFaceArray(dm);
+        int numpolys = dm->getNumTessFaces(dm);
+
+        btSoftBody::tNodeArray &nodes(sb->m_nodes);
+        bContext *C = KX_GetActiveEngine()->GetContext();
+        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+        Object *ob = DEG_get_evaluated_object(depsgraph, rasMesh->GetOriginalObject());
+
+        for (int p2 = 0; p2 < numpolys; p2++) {
+          MFace *mf = &mface[p2];
+          const int origi = index_mf_to_mpoly ?
+                                DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) :
+                                p2;
+          RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? rasMesh->GetPolygon(origi) : nullptr;
+
+          // only add polygons that have the collisionflag set
+          if (poly) {
+            MVert *v1 = &mverts[mf->v1];
+            MVert *v2 = &mverts[mf->v2];
+            MVert *v3 = &mverts[mf->v3];
+
+            int i1 = poly->GetVertexInfo(0).getSoftBodyIndex();
+            int i2 = poly->GetVertexInfo(1).getSoftBodyIndex();
+            int i3 = poly->GetVertexInfo(2).getSoftBodyIndex();
+
+            MT_Vector3 p1 = ToMoto(nodes.at(i1).m_x - sb->m_pose.m_com);
+            MT_Vector3 p2 = ToMoto(nodes.at(i2).m_x - sb->m_pose.m_com);
+            MT_Vector3 p3 = ToMoto(nodes.at(i3).m_x - sb->m_pose.m_com);
+
+            MT_Vector3 n1 = ToMoto(nodes.at(i1).m_n);
+            MT_Vector3 n2 = ToMoto(nodes.at(i2).m_n);
+            MT_Vector3 n3 = ToMoto(nodes.at(i3).m_n);
+
+            // Do we need obmat? maybe
+            copy_v3_v3(v1->co, p1.getValue());
+            copy_v3_v3(v2->co, p2.getValue());
+            copy_v3_v3(v3->co, p3.getValue());
+
+            normal_float_to_short_v3(v1->no, n1.getValue());
+            normal_float_to_short_v3(v2->no, n2.getValue());
+            normal_float_to_short_v3(v3->no, n3.getValue());
+
+            if (mf->v4) {
+              MVert *v4 = &mverts[mf->v4];
+
+              int i4 = poly->GetVertexInfo(3).getSoftBodyIndex();
+
+              MT_Vector3 p4 = ToMoto(nodes.at(i4).m_x - sb->m_pose.m_com);
+
+              MT_Vector3 n4 = ToMoto(nodes.at(i4).m_n);
+
+              copy_v3_v3(v4->co, p4.getValue());
+
+              normal_float_to_short_v3(v4->no, n4.getValue());
+            }
+          }
+        }
+        DM_to_mesh(dm,
+                   me,
+                   rasMesh->GetOriginalObject(),
+                   &CD_MASK_MESH,
+                   true);  // if take_ownership is true, dm is freed
+        DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
+      }
+    }
+  }
 }
 
 /**

@@ -38,6 +38,7 @@
 #include "DNA_shader_fx_types.h"
 #include "DNA_workspace_types.h"
 
+#include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -733,9 +734,9 @@ static const EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext *UNUSE
   if (ob->body_type != OB_BODY_TYPE_CHARACTER) {
     RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_TRIANGLE_MESH);
   }
-  RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_CONVEX_HULL);
 
   if (ob->body_type != OB_BODY_TYPE_SOFT) {
+    RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_CONVEX_HULL);
     RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_CONE);
     RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_CYLINDER);
     RNA_enum_items_add_value(&item, &totitem, collision_bounds_items, OB_BOUND_SPHERE);
@@ -1521,8 +1522,8 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
       ob->gameflag &= ~(OB_RIGID_BODY | OB_OCCLUDER | OB_CHARACTER | OB_SENSOR | OB_NAVMESH);
 
       /* assume triangle mesh, if no bounds chosen for soft body */
-      if ((ob->gameflag & OB_BOUNDS) && (ob->boundtype < OB_BOUND_TRIANGLE_MESH)) {
-        ob->boundtype = OB_BOUND_TRIANGLE_MESH;
+      if ((ob->boundtype < OB_BOUND_TRIANGLE_MESH)) {
+        ob->boundtype = ob->collision_boundtype = OB_BOUND_TRIANGLE_MESH;
       }
       /* create a BulletSoftBody structure if not already existing */
       if (!ob->bsoft)
@@ -2526,7 +2527,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
       {OB_BODY_TYPE_STATIC, "STATIC", 0, "Static", "Stationary object"},
       {OB_BODY_TYPE_DYNAMIC, "DYNAMIC", 0, "Dynamic", "Linear physics"},
       {OB_BODY_TYPE_RIGID, "RIGID_BODY", 0, "Rigid Body", "Linear and angular physics"},
-      //{OB_BODY_TYPE_SOFT, "SOFT_BODY", 0, "Soft Body", "Soft body"},
+      {OB_BODY_TYPE_SOFT, "SOFT_BODY", 0, "Soft Body", "Soft body"},
       //{OB_BODY_TYPE_OCCLUDER,
       //"OCCLUDER",
       // 0,
@@ -2705,6 +2706,13 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Fall Speed Max", "Maximum speed at which the character will fall");
 
+  prop = RNA_def_property(srna, "max_slope", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, NULL, "max_slope");
+  RNA_def_property_range(prop, 0.0, M_PI_2);
+  RNA_def_property_float_default(prop, M_PI_2);
+  RNA_def_property_ui_text(
+      prop, "Max Slope", "Maximum slope angle which the character will climb");
+
   prop = RNA_def_property(srna, "jump_max", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "max_jumps");
   RNA_def_property_range(prop, 1, CHAR_MAX);
@@ -2768,10 +2776,9 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Lock Z Rotation Axis", "Disable simulation of angular motion along the Z axis");
 
-  prop = RNA_def_property(srna, "use_material_physics_fh", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_DO_FH);
-  RNA_def_property_ui_text(
-      prop, "Use Material Force Field", "React to force field physics settings in materials");
+  prop = RNA_def_property(srna, "use_physics_fh", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_DO_FH);
+	RNA_def_property_ui_text(prop, "Use Force Field", "React to force field physics settings");
 
   prop = RNA_def_property(srna, "use_rotate_from_normal", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_ROT_FH);

@@ -54,6 +54,10 @@ bool DummyPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, f
   return true;
 }
 
+void DummyPhysicsEnvironment::UpdateSoftBodies()
+{
+}
+
 void DummyPhysicsEnvironment::SetFixedTimeStep(bool useFixedTimeStep, float fixedTimeStep)
 {
 }

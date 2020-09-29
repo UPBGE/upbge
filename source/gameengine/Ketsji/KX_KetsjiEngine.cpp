@@ -432,6 +432,8 @@ bool KX_KetsjiEngine::NextFrame()
       scene->GetPhysicsEnvironment()->ProceedDeltaTime(
           m_frameTime, timestep, framestep);  // m_deltatimerealDeltaTime);
 
+      scene->GetPhysicsEnvironment()->UpdateSoftBodies();
+
       m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
       scene->UpdateParents(m_frameTime);
 
