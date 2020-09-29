@@ -423,7 +423,8 @@ bool CcdPhysicsController::CreateSoftbody()
     psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS;
   }
   else {
-    psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;
+    /* This flag is causing freezes for objects like Suzanne with several "separate parts (head, eyes...) */
+    //psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;
   }
 
   psb->m_cfg.kSRHR_CL = m_cci.m_soft_kSRHR_CL;  // Soft vs rigid hardness [0,1] (cluster only)
