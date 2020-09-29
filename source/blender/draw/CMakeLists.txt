@@ -147,6 +147,7 @@ set(SRC
   engines/overlay/overlay_particle.c
   engines/overlay/overlay_sculpt.c
   engines/overlay/overlay_shader.c
+  engines/overlay/overlay_volume.c
   engines/overlay/overlay_wireframe.c
 
   DRW_engine.h

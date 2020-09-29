@@ -95,6 +95,7 @@ typedef enum ModifierType {
   eModifierType_Weld = 55,
   eModifierType_Fluid = 56,
   eModifierType_Simulation = 57,
+  eModifierType_MeshToVolume = 58,
   NUM_MODIFIER_TYPES,
 } ModifierType;
 
@@ -2120,6 +2121,11 @@ enum {
   MOD_MESHSEQ_READ_POLY = (1 << 1),
   MOD_MESHSEQ_READ_UV = (1 << 2),
   MOD_MESHSEQ_READ_COLOR = (1 << 3),
+
+  /* Allow interpolation of mesh vertex positions. There is a heuristic to avoid interpolation when
+   * the mesh topology changes, but this heuristic sometimes fails. In these cases, users can
+   * disable interpolation with this flag. */
+  MOD_MESHSEQ_INTERPOLATE_VERTICES = (1 << 4),
 };
 
 typedef struct SDefBind {
@@ -2207,6 +2213,39 @@ typedef struct SimulationModifierData {
   struct Simulation *simulation;
   char *data_path;
 } SimulationModifierData;
+
+typedef struct MeshToVolumeModifierData {
+  ModifierData modifier;
+
+  /** This is the object that is supposed to be converted to a volume. */
+  struct Object *object;
+
+  /** MeshToVolumeModifierResolutionMode */
+  int resolution_mode;
+  /** Size of a voxel in object space. */
+  float voxel_size;
+  /** The desired amount of voxels along one axis. The actual amount of voxels might be slightly
+   * different. */
+  int voxel_amount;
+
+  /** If true, every cell in the enclosed volume gets a density. Otherwise, the interior_band_width
+   * is used. */
+  char fill_volume;
+  char _pad1[3];
+
+  /** Band widths are in object space. */
+  float interior_band_width;
+  float exterior_band_width;
+
+  float density;
+  char _pad2[4];
+} MeshToVolumeModifierData;
+
+/* MeshToVolumeModifierData->resolution_mode */
+typedef enum MeshToVolumeModifierResolutionMode {
+  MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT = 0,
+  MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_SIZE = 1,
+} MeshToVolumeModifierResolutionMode;
 
 #ifdef __cplusplus
 }

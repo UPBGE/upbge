@@ -791,7 +791,7 @@ static void bh4_from_bh8(BHead *bhead, BHead8 *bhead8, int do_endian_swap)
      * 0x0000000000000000000012345678 would become 0x12345678000000000000000000000000
      */
     if (do_endian_swap) {
-      BLI_endian_switch_int64(&bhead8->old);
+      BLI_endian_switch_uint64(&bhead8->old);
     }
 
     /* this patch is to avoid a long long being read from not-eight aligned positions
@@ -1126,6 +1126,8 @@ static bool read_file_dna(FileData *fd, const char **r_error_message)
       if (fd->filesdna) {
         blo_do_versions_dna(fd->filesdna, fd->fileversion, subversion);
         fd->compflags = DNA_struct_get_compareflags(fd->filesdna, fd->memsdna);
+        fd->reconstruct_info = DNA_reconstruct_info_create(
+            fd->filesdna, fd->memsdna, fd->compflags);
         /* used to retrieve ID names from (bhead+1) */
         fd->id_name_offs = DNA_elem_offset(fd->filesdna, "ID", "char", "name[]");
 
@@ -1641,6 +1643,9 @@ void blo_filedata_free(FileData *fd)
     }
     if (fd->compflags) {
       MEM_freeN((void *)fd->compflags);
+    }
+    if (fd->reconstruct_info) {
+      DNA_reconstruct_info_free(fd->reconstruct_info);
     }
 
     if (fd->datamap) {
@@ -2165,7 +2170,7 @@ static void switch_endian_structs(const struct SDNA *filesdna, BHead *bhead)
   char *data;
 
   data = (char *)(bhead + 1);
-  blocksize = filesdna->types_size[filesdna->structs[bhead->SDNAnr][0]];
+  blocksize = filesdna->types_size[filesdna->structs[bhead->SDNAnr]->type];
 
   nblocks = bhead->nr;
   while (nblocks--) {
@@ -2209,8 +2214,7 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname)
           }
         }
 #endif
-        temp = DNA_struct_reconstruct(
-            fd->memsdna, fd->filesdna, fd->compflags, bh->SDNAnr, bh->nr, (bh + 1));
+        temp = DNA_struct_reconstruct(fd->reconstruct_info, bh->SDNAnr, bh->nr, (bh + 1));
       }
       else {
         /* SDNA_CMP_EQUAL */
@@ -2600,7 +2604,7 @@ static void lib_link_workspaces(BlendLibReader *reader, WorkSpace *workspace)
   }
 }
 
-static void direct_link_workspace(BlendDataReader *reader, WorkSpace *workspace, const Main *main)
+static void direct_link_workspace(BlendDataReader *reader, WorkSpace *workspace)
 {
   BLO_read_list(reader, &workspace->layouts);
   BLO_read_list(reader, &workspace->hook_layout_relations);
@@ -2609,16 +2613,12 @@ static void direct_link_workspace(BlendDataReader *reader, WorkSpace *workspace,
 
   LISTBASE_FOREACH (WorkSpaceDataRelation *, relation, &workspace->hook_layout_relations) {
     /* data from window - need to access through global oldnew-map */
+    /* XXX This is absolutely not acceptable. There is no acceptable reasons to mess with other
+     * ID's data in read code, and certainly never, ever in `direct_link_` functions.
+     * Kept for now because it seems to work, but it should be refactored. Probably store and use
+     * window's `winid`, just like it was already done for screens? */
     relation->parent = newglobadr(reader->fd, relation->parent);
     BLO_read_data_address(reader, &relation->value);
-  }
-
-  /* Same issue/fix as in direct_link_workspace_link_scene_data: Can't read workspace data
-   * when reading windows, so have to update windows after/when reading workspaces. */
-  LISTBASE_FOREACH (wmWindowManager *, wm, &main->wm) {
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      BLO_read_data_address(reader, &win->workspace_hook->act_layout);
-    }
   }
 
   LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
@@ -6613,7 +6613,7 @@ static bool direct_link_id(FileData *fd, Main *main, const int tag, ID *id, ID *
       direct_link_particlesettings(&reader, (ParticleSettings *)id);
       break;
     case ID_WS:
-      direct_link_workspace(&reader, (WorkSpace *)id, main);
+      direct_link_workspace(&reader, (WorkSpace *)id);
       break;
     case ID_ME:
     case ID_LT:
@@ -9481,7 +9481,7 @@ static void convert_pointer_array_32_to_64(BlendDataReader *UNUSED(reader),
                                            const uint32_t *src,
                                            uint64_t *dst)
 {
-  /* Match pointer conversion rules from bh8_from_bh4 and cast_pointer. */
+  /* Match pointer conversion rules from bh8_from_bh4 and cast_pointer_32_to_64. */
   for (int i = 0; i < array_size; i++) {
     dst[i] = src[i];
   }

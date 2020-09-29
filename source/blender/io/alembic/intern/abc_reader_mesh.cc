@@ -155,8 +155,8 @@ static void read_mverts(CDStreamConfig &config, const AbcMeshData &mesh_data)
   MVert *mverts = config.mvert;
   const P3fArraySamplePtr &positions = mesh_data.positions;
 
-  if (config.weight != 0.0f && mesh_data.ceil_positions != NULL &&
-      mesh_data.ceil_positions->size() == positions->size()) {
+  if (config.use_vertex_interpolation && config.weight != 0.0f &&
+      mesh_data.ceil_positions != NULL && mesh_data.ceil_positions->size() == positions->size()) {
     read_mverts_interp(mverts, positions, mesh_data.ceil_positions, config.weight);
     return;
   }
@@ -271,10 +271,19 @@ static void process_loop_normals(CDStreamConfig &config, const N3fArraySamplePtr
     return;
   }
 
+  Mesh *mesh = config.mesh;
+  if (loop_count != mesh->totloop) {
+    /* This happens in certain Houdini exports. When a mesh is animated and then replaced by a
+     * fluid simulation, Houdini will still write the original mesh's loop normals, but the mesh
+     * verts/loops/polys are from the simulation. In such cases the normals cannot be mapped to the
+     * mesh, so it's better to ignore them. */
+    process_no_normals(config);
+    return;
+  }
+
   float(*lnors)[3] = static_cast<float(*)[3]>(
       MEM_malloc_arrayN(loop_count, sizeof(float[3]), "ABC::FaceNormals"));
 
-  Mesh *mesh = config.mesh;
   MPoly *mpoly = mesh->mpoly;
   const N3fArraySample &loop_normals = *loop_normals_ptr;
   int abc_index = 0;
@@ -448,7 +457,7 @@ static void read_mesh_sample(const std::string &iobject_full_name,
   }
 }
 
-CDStreamConfig get_config(Mesh *mesh)
+CDStreamConfig get_config(Mesh *mesh, const bool use_vertex_interpolation)
 {
   CDStreamConfig config;
 
@@ -462,6 +471,7 @@ CDStreamConfig get_config(Mesh *mesh)
   config.totpoly = mesh->totpoly;
   config.loopdata = &mesh->ldata;
   config.add_customdata_cb = add_customdata_cb;
+  config.use_vertex_interpolation = use_vertex_interpolation;
 
   return config;
 }
@@ -637,7 +647,9 @@ Mesh *AbcMeshReader::read_mesh(Mesh *existing_mesh,
     }
   }
 
-  CDStreamConfig config = get_config(new_mesh ? new_mesh : existing_mesh);
+  Mesh *mesh_to_export = new_mesh ? new_mesh : existing_mesh;
+  const bool use_vertex_interpolation = read_flag & MOD_MESHSEQ_INTERPOLATE_VERTICES;
+  CDStreamConfig config = get_config(mesh_to_export, use_vertex_interpolation);
   config.time = sample_sel.getRequestedTime();
   config.modifier_error_message = err_str;
 
@@ -927,11 +939,13 @@ Mesh *AbcSubDReader::read_mesh(Mesh *existing_mesh,
   }
 
   /* Only read point data when streaming meshes, unless we need to create new ones. */
-  CDStreamConfig config = get_config(new_mesh ? new_mesh : existing_mesh);
+  Mesh *mesh_to_export = new_mesh ? new_mesh : existing_mesh;
+  const bool use_vertex_interpolation = read_flag & MOD_MESHSEQ_INTERPOLATE_VERTICES;
+  CDStreamConfig config = get_config(mesh_to_export, use_vertex_interpolation);
   config.time = sample_sel.getRequestedTime();
   read_subd_sample(m_iobject.getFullName(), &settings, m_schema, sample_sel, config);
 
-  return config.mesh;
+  return mesh_to_export;
 }
 
 }  // namespace blender::io::alembic
