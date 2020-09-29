@@ -192,38 +192,10 @@ if(APPLE)
   set_target_properties(blenderplayer PROPERTIES BUILD_WITH_INSTALL_RPATH true)
 
   set(BLENDERPLAYER_TEXT_FILES
-    ${CMAKE_SOURCE_DIR}/release/text/GPL-license.txt
-    ${CMAKE_SOURCE_DIR}/release/text/GPL3-license.txt
     ${CMAKE_SOURCE_DIR}/release/text/copyright.txt
     # generate this file
     # ${CMAKE_SOURCE_DIR}/release/text/readme.html
-    ${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bfont.ttf.txt
   )
-
-  if(WITH_PYTHON)
-    list(APPEND BLENDERPLAYER_TEXT_FILES
-      ${CMAKE_SOURCE_DIR}/release/text/Python-license.txt
-    )
-  endif()
-
-  if(WITH_OPENCOLORIO)
-    list(APPEND BLENDERPLAYER_TEXT_FILES
-      ${CMAKE_SOURCE_DIR}/release/text/ocio-license.txt
-    )
-  endif()
-
-  if(WITH_MEM_JEMALLOC)
-    list(APPEND BLENDERPLAYER_TEXT_FILES
-      ${CMAKE_SOURCE_DIR}/release/text/jemalloc-license.txt
-    )
-  endif()
-
-  if(WITH_INTERNATIONAL)
-    list(APPEND BLENDERPLAYER_TEXT_FILES
-      ${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-droidsans.ttf.txt
-      ${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bmonofont-i18n.ttf.txt
-    )
-  endif()
 
   # -----------------------------------------------------------------------------
   # Install Targets (Generic, All Platforms)
@@ -347,7 +319,7 @@ if(APPLE)
   )
 
   # install release and app files
-  set(BLENDER_TEXT_FILES_DESTINATION Blenderplayer.app/Contents/Resources/text)
+  set(BLENDERPLAYER_TEXT_FILES_DESTINATION Blenderplayer.app/Contents/Resources/text)
 
   install(
     FILES ${OSX_APP_PLAYER_SOURCEDIR}/Contents/PkgInfo
@@ -419,6 +391,12 @@ if(APPLE)
       FILES ${BLENDERPLAYER_TEXT_FILES}
       DESTINATION "${BLENDERPLAYER_TEXT_FILES_DESTINATION}"
     )
+
+   install(
+     DIRECTORY
+     ${CMAKE_SOURCE_DIR}/release/license
+     DESTINATION "${BLENDERPLAYER_TEXT_FILES_DESTINATION}"
+   )
   endif()
 
   # install more files specified elsewhere
